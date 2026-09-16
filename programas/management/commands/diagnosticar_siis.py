@@ -9,6 +9,14 @@ llega pero que el normalizador descarta por un cambio de contrato de ECOM.
     python manage.py diagnosticar_siis
     python manage.py diagnosticar_siis --usar-cache
     python manage.py diagnosticar_siis --dni 20123456 --programa 34
+    python manage.py diagnosticar_siis --catalogos
+    python manage.py diagnosticar_siis --alta            # escribe en SIIS
+
+Los pasos 1 a 4 son de solo lectura. El paso 6 (``--alta``) es el unico que
+**escribe**: da de alta un beneficiario de prueba en la tabla intermedia, con
+los identificadores del ambiente de testing del manual v4.2 (jurisdiccion 28,
+programa 79, funcion 4). Como el servicio no expone baja, ese registro queda
+del lado de ECOM: por eso es opt-in y nunca corre solo.
 
 Devuelve código de salida distinto de 0 si algún paso falla, para poder usarlo
 como chequeo de despliegue.
@@ -21,6 +29,8 @@ from django.core.cache import cache
 from django.core.management.base import BaseCommand
 
 from programas.services.siis import (
+    CATALOGO_CACHE_KEY,
+    CATALOGOS_MAESTROS,
     ESTADO_ACTIVO,
     PROGRAMAS_CACHE_KEY,
     PROGRAMAS_TODOS_CACHE_KEY,
@@ -29,6 +39,11 @@ from programas.services.siis import (
     SiisCatalogError,
     motivos_de_rechazo,
 )
+
+# Identificadores del ambiente de testing, seccion 8 del manual M2M v4.2.
+TESTING_JURID = 28
+TESTING_PLAN = 79
+TESTING_FUNCION = 4
 
 
 class Command(BaseCommand):
@@ -49,14 +64,36 @@ class Command(BaseCommand):
             type=int,
             help="id del programa SIIS contra el que validar el --dni. Si se omite, se toma el primero del catálogo.",
         )
+        parser.add_argument(
+            "--catalogos",
+            action="store_true",
+            help="Trae los catálogos maestros del alta (provincias, localidades, estados civiles…). Solo lectura.",
+        )
+        parser.add_argument(
+            "--alta",
+            action="store_true",
+            help="ESCRIBE: da de alta un beneficiario de prueba en la tabla intermedia de SIIS.",
+        )
+        parser.add_argument(
+            "--alta-dni",
+            type=int,
+            default=35111222,
+            help="DNI del beneficiario de prueba (por defecto el del ejemplo del manual).",
+        )
+        parser.add_argument("--jurid", type=int, default=TESTING_JURID, help="Jurisdicción para el alta de prueba.")
+        parser.add_argument("--plan", type=int, default=TESTING_PLAN, help="Programa social para el alta de prueba.")
+        parser.add_argument("--funcion", type=int, default=TESTING_FUNCION, help="Función por programa para el alta.")
 
     def handle(self, *args, **options):
         self._fallas = []
         cliente = SiisAPIClient()
 
         if not options["usar_cache"]:
-            cache.delete_many([TOKEN_CACHE_KEY, PROGRAMAS_CACHE_KEY, PROGRAMAS_TODOS_CACHE_KEY])
-            self.stdout.write("Cachés de token y catálogo descartadas: la prueba sale a la red.")
+            claves = [TOKEN_CACHE_KEY, PROGRAMAS_CACHE_KEY, PROGRAMAS_TODOS_CACHE_KEY]
+            claves += [CATALOGO_CACHE_KEY.format(nombre) for nombre in CATALOGOS_MAESTROS]
+            claves.append(CATALOGO_CACHE_KEY.format(f"funciones:{options['plan']}"))
+            cache.delete_many(claves)
+            self.stdout.write("Cachés de token y catálogos descartadas: la prueba sale a la red.")
 
         if not self._paso_configuracion(cliente):
             self._cerrar()
@@ -69,6 +106,10 @@ class Command(BaseCommand):
         programas = self._paso_catalogo(cliente)
         if options["dni"]:
             self._paso_compatibilidad(cliente, options["dni"], options["programa"], programas)
+        if options["catalogos"] or options["alta"]:
+            self._paso_catalogos_maestros(cliente, options["plan"])
+        if options["alta"]:
+            self._paso_alta(cliente, options)
 
         self._cerrar()
 
@@ -220,6 +261,85 @@ class Command(BaseCommand):
         self._ok(f"SIIS respondió: resultado={datos.get('resultado')}, apto={datos.get('apto')} -> {veredicto}")
         for bandera, texto in motivos_de_rechazo(datos.get("validaciones")):
             self.stdout.write(f"         {bandera}: {texto}")
+
+    def _paso_catalogos_maestros(self, cliente, id_plan):
+        """Los catálogos con los que se normalizan los ids del alta (sección 2 del manual)."""
+        self._titulo("5. Catálogos maestros del alta (GET /api/v1/auth/catalogos/…)")
+        for nombre in CATALOGOS_MAESTROS:
+            try:
+                items = cliente.catalogo(nombre)
+            except SiisCatalogError as exc:
+                self._error(f"{nombre}: {exc}")
+                continue
+            if not items:
+                self._aviso(f"{nombre}: el catálogo llegó vacío o el normalizador lo descartó entero.")
+                continue
+            muestra = ", ".join(f"#{i['id']} {i['nombre']}" for i in items[:3])
+            self._ok(f"{nombre}: {len(items)} ítem(s). {muestra}…")
+
+        try:
+            funciones = cliente.funciones_programa(id_plan)
+        except SiisCatalogError as exc:
+            self._error(f"funciones del programa {id_plan}: {exc}")
+            return
+        if not funciones:
+            self._aviso(f"El programa {id_plan} no informa funciones: sin `id_fun_x_plan` el alta queda incompleta.")
+            return
+        self._ok(f"funciones del programa {id_plan}: {len(funciones)}")
+        for funcion in funciones[:10]:
+            self.stdout.write(f"         #{funcion['id']} {funcion['nombre']}")
+
+    def _paso_alta(self, cliente, options):
+        """El único paso que escribe: alta de un beneficiario de prueba.
+
+        Usa el mismo cliente que la aplicación, así que lo que se prueba acá es
+        la integración, no una llamada paralela hecha a mano.
+        """
+        self._titulo("6. Alta de beneficiario (POST /api/v1/auth/tab-intermedia) — ESCRIBE en SIIS")
+        payload = self._payload_de_prueba(options)
+        self.stdout.write(f"       payload: {self._resumir(payload, 600)}")
+
+        resultado = cliente.cargar_beneficiario(payload)
+        if resultado["success"]:
+            self._ok(f"SIIS aceptó el alta (201). id asignado: {resultado['siis_id']}")
+            self.stdout.write(f"       respuesta: {self._resumir(resultado['data'])}")
+            self.stdout.write("       El registro queda en la tabla intermedia de ECOM: el contrato no expone baja.")
+            return
+
+        codigo = resultado.get("codigo") or "SIN_CODIGO"
+        self._error(f"SIIS rechazó el alta [{codigo}]: {resultado.get('error') or 'sin mensaje'}")
+        for campo, mensajes in (resultado.get("detalles") or {}).items():
+            texto = " ".join(str(m) for m in mensajes) if isinstance(mensajes, (list, tuple)) else str(mensajes)
+            self.stdout.write(f"         {campo}: {texto}")
+        if resultado.get("reintentable"):
+            self.stdout.write("       Es reintentable: el problema es del servicio, no de los datos.")
+        else:
+            self.stdout.write("       No es reintentable: hay que corregir los datos antes de reenviar.")
+
+    @staticmethod
+    def _payload_de_prueba(options):
+        """Adulto sin apoderado (Modalidad A del manual), con los ids de testing."""
+        return {
+            "dni": options["alta_dni"],
+            "tdoc": 1,
+            "cuil_pref": 20,
+            "cuil_dig": 3,
+            "apellido": "PRUEBA",
+            "nombre": "INTEGRACION DATANACH",
+            "sexo": "M",
+            "est_civil": 1,
+            "prov_nacim": 22,
+            "fecha_nacim": "1990-05-15",
+            "loc_nacim": 1,
+            "prov_actual": 22,
+            "loc_actual": 1,
+            "barrio_actual": "BARRIO CENTRO",
+            "calle_actual": "AVENIDA 9 DE JULIO",
+            "nro_actual": 100,
+            "jurid": options["jurid"],
+            "id_plan_soc": options["plan"],
+            "id_fun_x_plan": options["funcion"],
+        }
 
     # -- Salida ---------------------------------------------------------------
 

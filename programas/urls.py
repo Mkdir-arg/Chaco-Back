@@ -181,6 +181,7 @@ urlpatterns = [
     path("revision/formulario/<int:pk>/enviar-siis/", rev.formulario_enviar_siis, name="formulario_enviar_siis"),
     path("revision/formulario/<int:pk>/datos-siis/", rev.formulario_datos_siis, name="formulario_datos_siis"),
     path("revision/siis/localidades/", rev.siis_localidades_json, name="siis_localidades"),
+    path("revision/siis/funciones/", rev.siis_funciones_json, name="siis_funciones"),
     # --- Cupo y lista de espera (#78) ---
     path("cupo/segmento/<int:pk>/", cpo.CupoSegmentoDetailView.as_view(), name="cupo_segmento"),
     path("cupo/beneficiario/<int:pk>/baja/", cpo.dar_baja_beneficiario_view, name="beneficiario_dar_baja"),

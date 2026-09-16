@@ -357,6 +357,43 @@ class ArmarPayloadTests(_BaseEnvioTest):
         self.assertIn("id_fun_x_plan", faltantes)
         self.assertIn("jurid", faltantes)
 
+    def test_los_ids_del_programa_se_pueden_corregir_desde_el_caso(self):
+        """Sin programa bien configurado el caso igual se puede informar: el
+        coordinador completa los tres ids a mano y el envío sale."""
+        self.programa.siis_funcion_id = None
+        self.programa.siis_programa_datos = {"id": 79}
+        self.programa.save()
+        self.formulario.datos_siis = {"jurid": 28, "id_plan_soc": 79, "id_fun_x_plan": 4}
+        self.formulario.save(update_fields=["datos_siis"])
+
+        payload, faltantes = armar_payload(self.formulario, catalogos=self.cat)
+
+        self.assertEqual(payload["jurid"], 28)
+        self.assertEqual(payload["id_plan_soc"], 79)
+        self.assertEqual(payload["id_fun_x_plan"], 4)
+        for campo in ("jurid", "id_plan_soc", "id_fun_x_plan"):
+            self.assertNotIn(campo, faltantes)
+
+    def test_la_correccion_pisa_lo_que_dice_el_programa(self):
+        self.formulario.datos_siis = {"id_fun_x_plan": 2}
+        self.formulario.save(update_fields=["datos_siis"])
+
+        payload, _ = armar_payload(self.formulario, catalogos=self.cat)
+
+        self.assertEqual(payload["id_fun_x_plan"], 2)
+
+    def test_sin_programa_vinculado_los_ids_corregidos_alcanzan(self):
+        """El segmento sin programa SIIS dejaba el caso sin salida: ahora la tiene."""
+        self.segmento.programa = None
+        self.segmento.save(update_fields=["programa"])
+        self.formulario.datos_siis = {"jurid": 28, "id_plan_soc": 79, "id_fun_x_plan": 4}
+        self.formulario.save(update_fields=["datos_siis"])
+
+        payload, faltantes = armar_payload(self.formulario, catalogos=self.cat)
+
+        self.assertEqual(payload["id_plan_soc"], 79)
+        self.assertNotIn("id_plan_soc", faltantes)
+
     def test_sexo_no_binario_y_sin_celular(self):
         self.ciudadano.genero = "X"
         self.ciudadano.save(update_fields=["genero"])

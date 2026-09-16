@@ -181,6 +181,9 @@ class DatosSiisForm(forms.Form):
         "est_civil",
         "prov_nacim",
         "loc_nacim",
+        "id_plan_soc",
+        "jurid",
+        "id_fun_x_plan",
     )
 
     prov_actual = forms.ChoiceField(
@@ -219,19 +222,36 @@ class DatosSiisForm(forms.Form):
     loc_nacim = forms.IntegerField(
         label="Localidad de nacimiento", required=False, widget=forms.Select(attrs={"class": INPUT_CLASS})
     )
+    # Los tres ids de la integración. Salen del programa vinculado; acá se
+    # corrigen cuando ese vínculo no los informa y el caso no puede esperar.
+    id_plan_soc = forms.ChoiceField(
+        label="Programa social (SIIS)", required=False, widget=forms.Select(attrs={"class": INPUT_CLASS})
+    )
+    jurid = forms.ChoiceField(
+        label="Jurisdicción (SIIS)", required=False, widget=forms.Select(attrs={"class": INPUT_CLASS})
+    )
+    id_fun_x_plan = forms.IntegerField(
+        label="Función por programa (SIIS)", required=False, widget=forms.Select(attrs={"class": INPUT_CLASS})
+    )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         provincias, error_prov = _cargar_catalogo(lambda: catalogo("provincias"))
         estados, error_est = _cargar_catalogo(lambda: catalogo("estados-civiles"))
-        self.error_catalogo = error_prov or error_est
+        jurisdicciones, error_jur = _cargar_catalogo(lambda: catalogo("jurisdicciones"))
+        programas_siis, error_prog = _cargar_catalogo(listar_programas)
+        self.error_catalogo = error_prov or error_est or error_jur or error_prog
+        self.fields["jurid"].choices = _catalogo_choices(jurisdicciones, "Sin cambios")
+        self.fields["id_plan_soc"].choices = _catalogo_choices(programas_siis, "Sin cambios")
         opciones_prov = _catalogo_choices(provincias, "Sin cambios")
         self.fields["prov_actual"].choices = opciones_prov
         self.fields["prov_nacim"].choices = opciones_prov
         self.fields["est_civil"].choices = _catalogo_choices(estados, "Sin cambios")
         # Los selects de localidad se llenan en el navegador según la provincia
         # (``becas:siis_localidades``); el valor inicial se conserva en ``data-actual``.
-        for campo in ("loc_actual", "loc_nacim"):
+        # ``id_fun_x_plan`` depende del programa elegido: el navegador lo llena
+        # contra ``becas:siis_funciones``, igual que las localidades.
+        for campo in ("loc_actual", "loc_nacim", "id_fun_x_plan"):
             actual = (self.initial or {}).get(campo)
             if actual not in (None, ""):
                 self.fields[campo].widget.attrs["data-actual"] = str(actual)
@@ -1105,6 +1125,7 @@ class PreguntaGlobalForm(_OrdenUnicoMixin, _PresentacionMixin, _OpcionesMixin):
 
     def hermanos_orden(self):
         return PreguntaGlobal.objects.all()
+
 
 class RequisitoNativoForm(_OrdenUnicoMixin, _PresentacionMixin, _OpcionesMixin):
     """El ancla (programa, segmento o subsegmento) se fija desde la vista."""
