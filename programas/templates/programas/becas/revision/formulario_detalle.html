@@ -881,6 +881,32 @@ document.addEventListener('DOMContentLoaded', function () {
       cargarLocalidades(selProv, selLoc, par[2]);
     });
 
+    // La funcion por programa depende del programa social elegido: mismo patron.
+    const urlFunciones = "{% url 'becas:siis_funciones' %}";
+    const selPlan = document.getElementById('id_id_plan_soc');
+    const selFuncion = document.getElementById('id_id_fun_x_plan');
+    if (selPlan && selFuncion) {
+      function cargarFunciones(actual) {
+        selFuncion.innerHTML = '<option value="">Sin cambios</option>';
+        if (!selPlan.value) { return; }
+        fetch(urlFunciones + '?programa=' + encodeURIComponent(selPlan.value), { credentials: 'same-origin' })
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            (data.funciones || []).forEach(function (f) {
+              const o = document.createElement('option');
+              o.value = f.id;
+              o.textContent = f.nombre;
+              if (String(f.id) === String(actual || '')) { o.selected = true; }
+              selFuncion.appendChild(o);
+            });
+            if (data.error) { window.toast(data.error, 'error'); }
+          })
+          .catch(function () { window.toast('No se pudieron cargar las funciones del programa.', 'error'); });
+      }
+      selPlan.addEventListener('change', function () { cargarFunciones(''); });
+      cargarFunciones(selFuncion.getAttribute('data-actual') || '');
+    }
+
     function cerrarDatosSiis() {
       datosSiisOverlay.classList.add('hidden');
       datosSiisOverlay.style.display = 'none';

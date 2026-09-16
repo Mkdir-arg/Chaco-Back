@@ -51,7 +51,7 @@ from programas.services.identidad import gran_base_activa
 from programas.services.padron import fila_padron, padron_de
 from programas.services.personas import consultar_persona
 from programas.services.respuestas import respuestas_legibles, sincronizar_desde_legacy
-from programas.services.siis import SiisCatalogError, catalogo
+from programas.services.siis import SiisCatalogError, catalogo, funciones_programa
 from programas.services.siis_envio import enviar_beneficiario_a_siis, mensaje_envio
 from programas.services.validacion_siis import validar_formulario_en_siis
 from programas.views.relevamientos import CAP_RELEVAMIENTO_PUBLICO
@@ -671,6 +671,25 @@ def siis_localidades_json(request):
         items = [i for i in items if str(i.get("id_provincia") or i.get("provincia_id") or provincia) == str(provincia)]
     localidades = [{"id": i["id"], "nombre": i["nombre"]} for i in sorted(items, key=lambda i: i["nombre"])]
     return JsonResponse({"localidades": localidades})
+
+
+@login_required
+@requiere(CAP_REVISION_EDITAR)
+@require_GET
+def siis_funciones_json(request):
+    """Funciones del programa SIIS elegido, para el select dependiente del alta."""
+    try:
+        programa = int(request.GET.get("programa") or 0)
+    except ValueError:
+        programa = 0
+    if not programa:
+        return JsonResponse({"funciones": []})
+    try:
+        items = funciones_programa(programa)
+    except SiisCatalogError as exc:
+        return JsonResponse({"funciones": [], "error": str(exc)}, status=503)
+    funciones = [{"id": i["id"], "nombre": i["nombre"]} for i in sorted(items, key=lambda i: i["nombre"])]
+    return JsonResponse({"funciones": funciones})
 
 
 @login_required
