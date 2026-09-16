@@ -762,14 +762,80 @@
 | 10/09 | Matías Abate | Becas | Constructor de formularios — documentación del formulario publicado y de la revisión del caso | Qué ve la persona en el link, cómo queda el caso en Revisión con la versión que respondió, y publicación de la guía en la documentación del cliente. | 3 h | — |
 | | | | **Total 6 al 10/09** | | **125 h** | **108 h** |
 
+### :material-package-variant-closed: Consumo del 11 al 16 de septiembre — por entregable
+
+!!! note "Semana de la integración del constructor y del alta de beneficiarios"
+    El constructor de formularios se integró con todo lo publicado desde fin de agosto y pasó al ambiente
+    de pruebas; se desarrolló el **alta de beneficiarios en SIIS** y se cerró el **dashboard del Programa
+    Becas**. Incluye el sábado 12; el domingo 13 no registra trabajo.
+
+| Período | Persona | Programa | Entregable | Qué incluye | Horas | Equiv. |
+|---|---|---|---|---|---:|---:|
+| 11/09 | Matías Fariña | Becas | Integración del constructor con lo publicado — dirección y revisión | Dirección de la incorporación de los trece cambios publicados desde fin de agosto a la rama del constructor, y revisión funcional del resultado. | 5 h | — |
+| 11/09 | Matías Fariña | Becas | Publicación del constructor al ambiente de pruebas | Publicación del constructor integrado y coordinación del día. | 2,5 h | — |
+| 11/09 | Matías Fariña | Transversal | Reunión de seguimiento diaria e informe | Reunión diaria del equipo y armado del informe del día. | 1,5 h | — |
+| 11/09 | Pablo Cao | Becas | Constructor — integración de los trece cambios y ordenamiento de las migraciones | Incorporación de todo lo publicado desde el 31/08 a la rama del constructor, con el reordenamiento de las migraciones que la unión dejó cruzadas. | 6 h | 12 h |
+| 11/09 | Pablo Cao | Becas | Dashboard del Programa Becas — desarrollo | Avance del cierre del tablero del programa. | 2 h | 4 h |
+| 11/09 | Pablo Cao | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 11/09 | Juani Portilla | Becas | Regresión automatizada completa tras la integración | Corrida completa de las pruebas automáticas después de incorporar los trece cambios. | 6 h | 12 h |
+| 11/09 | Juani Portilla | Becas | Alta de beneficiarios en SIIS — diseño técnico | Diseño de la integración que informa a SIIS los beneficiarios aprobados. | 2 h | — |
+| 11/09 | Juani Portilla | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 11/09 | Matías Abate | Becas | Pruebas funcionales del constructor en el ambiente de desarrollo | Recorrido del armado de formularios y del link construido desde el diseño. | 5 h | — |
+| 11/09 | Matías Abate | Becas | Pruebas del dashboard del Programa Becas | Verificación de las métricas, los filtros y la exportación. | 2 h | — |
+| 11/09 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 12/09 | Matías Fariña | Becas | Definiciones del alta de beneficiarios en SIIS | Contrato de la integración y reglas de cuándo se informa un beneficiario aprobado. | 3 h | — |
+| 12/09 | Matías Fariña | Becas | Revisión del constructor integrado | Revisión funcional del resultado de la integración del día anterior. | 2 h | — |
+| 12/09 | Matías Fariña | Transversal | Coordinación del sábado | Seguimiento del trabajo del equipo durante la jornada. | 1 h | — |
+| 12/09 | Juani Portilla | Becas | Alta de beneficiarios en SIIS — diseño técnico y plan de la integración | Plan completo del envío: qué se informa, cómo queda auditado y cómo se reintenta cuando el servicio no responde. | 8 h | 16 h |
+| 12/09 | Pablo Cao | Becas | Constructor — correcciones de la integración y pruebas | Corrección de lo que la integración dejó desalineado, con sus pruebas. | 7 h | 14 h |
+| 12/09 | Matías Abate | Becas | Pruebas funcionales del constructor integrado | Recorrido completo del constructor ya unido al resto del sistema. | 6 h | — |
+| 14/09 | Matías Fariña | Dispositivos | Programa Dispositivos Versión 2 — propuesta funcional y maqueta publicadas | Propuesta completa del programa rearmado por módulo y su maqueta navegable, servidas desde el sitio del proyecto. | 3,5 h | — |
+| 14/09 | Matías Fariña | Becas | Definiciones del contrato con SIIS y publicación del constructor | Definiciones del contrato de la integración e incorporación del constructor a la rama de trabajo, con sus publicaciones. | 4 h | — |
+| 14/09 | Matías Fariña | Transversal | Reunión de seguimiento diaria e informe | Reunión diaria del equipo y armado del informe del día. | 1,5 h | — |
+| 14/09 | Juani Portilla | Becas | Alta de beneficiarios en SIIS — modelos, catálogos y armado del envío | Estructura de datos de la integración, catálogos maestros del servicio y armado del envío por beneficiario. | 4 h | 8 h |
+| 14/09 | Juani Portilla | Becas | Envío auditable, reintento y disparo al aprobar con cupo y al promover | El envío queda registrado paso por paso, se reintenta solo si el servicio falla y se dispara al aprobar con cupo y al promover desde la lista de espera. | 3 h | 6 h |
+| 14/09 | Juani Portilla | Becas | Sección «Envío a SIIS» en el caso | Detalle campo por campo de lo informado, corrección de datos y reenvío manual. | 2 h | 4 h |
+| 14/09 | Juani Portilla | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 14/09 | Pablo Cao | Becas | Dashboard del Programa Becas — desarrollo | Avance del cierre del tablero del programa. | 7 h | 14 h |
+| 14/09 | Pablo Cao | Becas | Ajustes y pruebas del constructor integrado | Correcciones sobre el constructor ya unido al resto del sistema. | 2 h | — |
+| 14/09 | Pablo Cao | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 14/09 | Matías Abate | Becas | Pruebas funcionales del alta de beneficiarios en SIIS | Recorrido del envío desde la aprobación con cupo y desde la lista de espera. | 5 h | — |
+| 14/09 | Matías Abate | Becas | Pruebas del dashboard del Programa Becas | Verificación de las métricas, los filtros y la exportación. | 2 h | — |
+| 14/09 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 15/09 | Matías Fariña | Becas | Corrección urgente de los textos del link en producción | El link se presenta como «Programa +Más Futuro» y el rechazo por padrón deriva a Soporte; aplicada directo sobre producción, con su registro. | 2 h | — |
+| 15/09 | Matías Fariña | Becas | Ajuste de los textos del link público | Revisión de los textos del pie y de los mensajes del primer paso. | 1 h | — |
+| 15/09 | Matías Fariña | Transversal | Coordinación de la integración publicada y gestión del tablero | Seguimiento del constructor ya integrado y puesta al día del tablero. | 4,5 h | — |
+| 15/09 | Matías Fariña | Transversal | Reunión de seguimiento diaria e informe | Reunión diaria del equipo y armado del informe del día. | 1,5 h | — |
+| 15/09 | Pablo Cao | Becas | Dashboard del Programa Becas — desarrollo | Avance del cierre del tablero del programa. | 5 h | 10 h |
+| 15/09 | Pablo Cao | Becas | Ajustes de texto del link y acompañamiento de la integración | Aplicación de los textos nuevos y acompañamiento del constructor publicado. | 3 h | — |
+| 15/09 | Pablo Cao | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 15/09 | Juani Portilla | Becas | Cobertura automatizada del envío a SIIS | Pruebas automáticas del armado del envío, del reintento y de la auditoría. | 4 h | 8 h |
+| 15/09 | Juani Portilla | Becas | Regresión del sistema con el constructor integrado | Corrida completa de las pruebas con el constructor ya unido. | 4 h | — |
+| 15/09 | Juani Portilla | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 15/09 | Matías Abate | Becas | Pruebas del constructor integrado y verificación del arreglo en producción | Recorrido del constructor publicado y comprobación de los textos corregidos en producción. | 6 h | — |
+| 15/09 | Matías Abate | Becas | Pruebas del dashboard del Programa Becas | Verificación de las métricas, los filtros y la exportación. | 1 h | — |
+| 15/09 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 16/09 | Matías Fariña | Becas | Dirección y publicación del completado de los identificadores de SIIS | Definición de los tres identificadores que la integración toma del caso y publicación del cambio. | 1,5 h | — |
+| 16/09 | Matías Fariña | Transversal | Gestión, coordinación y registro del consumo de la semana | Coordinación del equipo, gestión del tablero y carga del consumo del período. | 2,5 h | — |
+| 16/09 | Matías Fariña | Transversal | Reunión de seguimiento diaria e informe | Reunión diaria del equipo y armado del informe del día. | 1,5 h | — |
+| 16/09 | Juani Portilla | Becas | Los tres identificadores de la integración se completan desde el caso | El envío a SIIS toma del caso los tres identificadores que el servicio exige, sin carga manual. | 5 h | 10 h |
+| 16/09 | Juani Portilla | Becas | Cobertura automatizada de la corrección | Pruebas automáticas del completado de identificadores. | 1 h | 2 h |
+| 16/09 | Juani Portilla | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 16/09 | Pablo Cao | Becas | Dashboard del Programa Becas — cierre del desarrollo | Última etapa del tablero del programa, que completa su alcance aprobado. | 6 h | 12 h |
+| 16/09 | Pablo Cao | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 16/09 | Matías Abate | Becas | Pruebas del envío a SIIS con los identificadores completos | Verificación del envío con los tres identificadores tomados del caso. | 3 h | — |
+| 16/09 | Matías Abate | Becas | Pruebas del dashboard del Programa Becas | Verificación de las métricas, los filtros y la exportación. | 1 h | — |
+| 16/09 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| | | | **Total 11 al 16/09** | | **158,5 h** | **132 h** |
+
 ### :material-briefcase-outline: Consumo de septiembre por programa
 
 | Programa | Horas septiembre |
 |---|---:|
-| Becas | 328 h 00 min |
-| Transversal | 77 h 30 min |
-| Dispositivos | 19 h 30 min |
-| **Total septiembre 2026 (al 10/09)** | **425 h 00 min** |
+| Becas | 457 h 00 min |
+| Transversal | 103 h 30 min |
+| Dispositivos | 23 h 00 min |
+| **Total septiembre 2026 (al 16/09)** | **583 h 30 min** |
 
 !!! note "Qué incluye"
     Las horas de Becas incluyen las **103 h 30 min trasladadas de agosto**, cuyo detalle día por día está
@@ -803,9 +869,9 @@
 
 
 
-    **127.452 minutos** (2.124 h 12 min)
+    **136.962 minutos** (2.282 h 42 min)
 
-    Junio 499 h 12 min + julio 500 h 00 min + agosto 803 h 30 min + septiembre 321 h 30 min (al 10/09).
+    Junio 499 h 12 min + julio 500 h 00 min + agosto 803 h 30 min + septiembre 480 h 00 min (al 16/09).
     (El contador anterior decía 1.939 h 42 min: no sumaba bien los cuatro meses; se corrigió al recalcularlo.)
 
     Es el **esfuerzo real ejecutado**. A efectos de imputación, agosto cierra por 700 h y sus 103 h 30 min de

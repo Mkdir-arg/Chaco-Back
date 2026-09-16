@@ -12,11 +12,11 @@
 
 -   :material-counter: **Avance**
 
-    Constructor al 73%
+    Constructor al 93%
 
 -   :material-clock-outline: **Horas del período**
 
-    321 h 30 min (al 10/09)
+    480 h (al 16/09)
 
 </div>
 
@@ -30,31 +30,33 @@
 
 ## :material-clipboard-list-outline: Alcance de la versión
 
-| # | Funcionalidad | Prioridad | Estado al 10/09 | Hs aprobadas | Ejecutado |
+| # | Funcionalidad | Prioridad | Estado al 16/09 | Hs aprobadas | Ejecutado |
 |:-:|---|:-:|:-:|:-:|:-:|
-| 1 | Constructor de formularios por convocatoria | Alta | **En pruebas** — backoffice y link público terminados | 270 h | **197 h (73%)** |
+| 1 | Constructor de formularios por convocatoria | Alta | **En pruebas** — integrado a la rama de trabajo el 15/09, en DEV y en QA | 270 h | **251 h 30 min (93%)** |
 | 2 | Padrón de habilitados con herencia por relevamiento | Alta | Desarrollado — pendiente de publicación | *(dentro del constructor)* | — |
 | 3 | App de campo con el formulario por convocatoria | Alta | Pendiente — equipo móvil | A estimar | — |
 | 4 | Remediación de interfaz del Programa Dispositivos | Media | **Reencuadrada en la Versión 2** del programa | *(dentro de la Versión 2)* | — |
 | 5 | Primera convocatoria con inscripción por link público | Media | **Abierta en producción desde el 01/09** — en acompañamiento | — | 20 h |
 | 6 | Textos de los correos de credenciales — aprobación | Baja | Pendiente del Ministerio | — | — |
-| 7 | Dashboard del Programa Becas | Media | **Validado por el Ministerio el 10/09** — en producción | 86 h | **60 h (70%)** |
+| 7 | Dashboard del Programa Becas | Media | **Terminado** — validado por el Ministerio el 10/09, en producción | 86 h | **86 h (100%)** |
 | 8 | Programa Dispositivos — Versión 2 del programa | Media | **Estimada — en validación del Ministerio** | 628 h *(propuestas)* | 19 h 30 min |
 | 9 | Rendimiento del acceso al sistema | Media | Código listo — pendiente de publicación | — | 9 h 30 min |
+| 10 | Alta de beneficiarios en SIIS | Alta | **Desarrollado — en pruebas** | *a estimar* | 43 h 30 min |
 
 !!! note "Criterio de las horas"
-    El constructor de formularios se aprobó con un alcance de **270 h**: **94 h 30 min** se ejecutaron dentro de la Versión 001 y **102 h 30 min** en esta versión, así que quedan **73 h** por ejecutar. El dashboard se presentó al Ministerio el 05/09/2026 con **86 h** y **el Ministerio validó ese alcance y esas horas el 10/09/2026**. Los frentes marcados *A estimar* se cuantifican cuando se cierre su definición. El consumo real se registra, como siempre, en el [detalle por entregable](../financiero/detalle-tareas.md).
+    El constructor de formularios se aprobó con un alcance de **270 h**: **94 h 30 min** se ejecutaron dentro de la Versión 001 y **157 h** en esta versión, así que quedan **18 h 30 min** por ejecutar — dentro de esas horas está la adaptación de la app de campo, que todavía no arrancó. El dashboard se presentó al Ministerio el 05/09/2026 con **86 h** y **el Ministerio validó ese alcance y esas horas el 10/09/2026**. Los frentes marcados *A estimar* se cuantifican cuando se cierre su definición. El consumo real se registra, como siempre, en el [detalle por entregable](../financiero/detalle-tareas.md).
 
 ---
 
-## :material-chart-timeline-variant: Avance al 10/09/2026
+## :material-chart-timeline-variant: Avance al 16/09/2026
 
-**321 h 30 min** de trabajo en los primeros diez días de la versión, con el equipo completo. Lo que se movió:
+**480 h** de trabajo en lo que va de la versión, con el equipo completo. Lo que se movió:
 
 - **La inscripción por link público abrió el 1 de septiembre** en el entorno del organismo. Además del acompañamiento de la apertura y de la medición de uso, el programa pidió **cuatro ajustes de texto** sobre el link ya publicado —qué contacto se muestra en cada pantalla y qué dice el mensaje cuando un documento no puede inscribirse—, que se aplicaron y publicaron en el día.
-- **Constructor de formularios: 197 h de 270 (73%)**. El formulario que se sirve acompaña al catálogo vivo sin desincronizarse y cada inscripción fija la versión que la persona respondió. El backoffice y el link público quedaron terminados y **el 09/09 pasaron a prueba** en el entorno de desarrollo, con la guía para el organismo ya escrita. **Quedan 73 h**: la adaptación de la app de campo, la puesta en producción y el cierre de las pruebas.
-- **Dashboard del Programa Becas**: presentado el 05/09 y **publicado en producción**, con la exportación de respuestas por persona y la corrección de rendimiento el 06/09. **El Ministerio validó el alcance y las 86 h el 10/09**; van 60 h (70%) y queda la prueba funcional formal.
+- **Constructor de formularios: 251 h 30 min de 270 (93%)**. El backoffice y el link público quedaron terminados, y el **15/09 el constructor se integró con todo lo publicado desde fin de agosto** y pasó al ambiente de pruebas del organismo. **Quedan 18 h 30 min**, y adentro está la adaptación de la app de campo: es el frente a vigilar del mes.
+- **Dashboard del Programa Becas: terminado, 86 h de 86 (100%)**. Publicado en producción, con la exportación de respuestas por persona y la corrección de rendimiento. El Ministerio validó el alcance y las horas el 10/09, y el desarrollo se cerró el 16/09 justo dentro de lo aprobado.
 - **Programa Dispositivos — versión 2**: alcance rearmado por módulo, con la propuesta funcional y la estimación de 628 h presentadas y en validación del Ministerio.
+- **Alta de beneficiarios en SIIS**: el sistema informa al organismo cada beneficiario aprobado —al aprobar con cupo y al promover desde la lista de espera—, con el envío auditado paso por paso, reintento automático si el servicio no responde, y corrección y reenvío manual desde el caso. Desarrollado y en pruebas; **43 h 30 min** ejecutadas, sin alcance estimado previo.
 - **Rendimiento del acceso al sistema**: se identificó por qué el ingreso demora, con el cambio de método de resguardo de contraseñas y el modo de ejecución con varios procesos ya resueltos en código; queda publicarlo y acordar la configuración con la infraestructura del organismo.
 
 ---
