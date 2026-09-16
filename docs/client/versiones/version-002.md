@@ -40,11 +40,11 @@
 | 6 | Textos de los correos de credenciales — aprobación | Baja | Pendiente del Ministerio | — | — |
 | 7 | Dashboard del Programa Becas | Media | **Terminado** — validado por el Ministerio el 10/09, en producción | 86 h | **86 h (100%)** |
 | 8 | Programa Dispositivos — Versión 2 del programa | Media | **Estimada — en validación del Ministerio** | 628 h *(propuestas)* | 19 h 30 min |
-| 9 | Rendimiento del acceso al sistema | Media | Código listo — pendiente de publicación | — | 9 h 30 min |
-| 10 | Alta de beneficiarios en SIIS | Alta | **Desarrollado — en pruebas** | *a estimar* | 43 h 30 min |
+| 9 | Rendimiento del acceso al sistema | Media | **Terminado** | *sin validación* | 9 h 30 min |
+| 10 | Alta de beneficiarios en SIIS | Alta | **Desarrollado — en pruebas** | *sin validación* | 43 h 30 min |
 
 !!! note "Criterio de las horas"
-    El constructor de formularios se aprobó con un alcance de **270 h**: **94 h 30 min** se ejecutaron dentro de la Versión 001 y **157 h** en esta versión, así que quedan **18 h 30 min** por ejecutar — dentro de esas horas está la adaptación de la app de campo, que todavía no arrancó. El dashboard se presentó al Ministerio el 05/09/2026 con **86 h** y **el Ministerio validó ese alcance y esas horas el 10/09/2026**. Los frentes marcados *A estimar* se cuantifican cuando se cierre su definición. El consumo real se registra, como siempre, en el [detalle por entregable](../financiero/detalle-tareas.md).
+    El constructor de formularios se aprobó con un alcance de **270 h**: **94 h 30 min** se ejecutaron dentro de la Versión 001 y **157 h** en esta versión, así que quedan **18 h 30 min** por ejecutar — dentro de esas horas está la adaptación de la app de campo, que todavía no arrancó. El dashboard se presentó al Ministerio el 05/09/2026 con **86 h** y **el Ministerio validó ese alcance y esas horas el 10/09/2026**. Los frentes marcados *A estimar* se cuantifican cuando se cierre su definición. Los marcados **sin validación** —la integración con SIIS y el rendimiento del acceso— son trabajo técnico que el equipo resolvió sin una estimación previa aprobada: sus horas se informan igual, pero no se presentan como alcance a validar. El consumo real se registra, como siempre, en el [detalle por entregable](../financiero/detalle-tareas.md).
 
 ---
 
@@ -57,7 +57,7 @@
 - **Dashboard del Programa Becas: terminado, 86 h de 86 (100%)**. Publicado en producción, con la exportación de respuestas por persona y la corrección de rendimiento. El Ministerio validó el alcance y las horas el 10/09, y el desarrollo se cerró el 16/09 justo dentro de lo aprobado.
 - **Programa Dispositivos — versión 2**: alcance rearmado por módulo, con la propuesta funcional y la estimación de 628 h presentadas y en validación del Ministerio.
 - **Alta de beneficiarios en SIIS**: el sistema informa al organismo cada beneficiario aprobado —al aprobar con cupo y al promover desde la lista de espera—, con el envío auditado paso por paso, reintento automático si el servicio no responde, y corrección y reenvío manual desde el caso. Desarrollado y en pruebas; **43 h 30 min** ejecutadas, sin alcance estimado previo.
-- **Rendimiento del acceso al sistema**: se identificó por qué el ingreso demora, con el cambio de método de resguardo de contraseñas y el modo de ejecución con varios procesos ya resueltos en código; queda publicarlo y acordar la configuración con la infraestructura del organismo.
+- **Rendimiento del acceso al sistema: terminado**. Se identificó por qué el ingreso demoraba y se cambió el método de resguardo de contraseñas, ya integrado y publicado. El modo de ejecución con varios procesos queda disponible como configuración del ambiente, a criterio de la infraestructura del organismo.
 
 ---
 
