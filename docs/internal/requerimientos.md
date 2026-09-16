@@ -8443,6 +8443,19 @@ Quitar la columna del encabezado y de la fila en `ciudadanos_exportar_csv`, saca
 
 ## Historial
 
-- **16/09/2026 (este cambio)** — primera versión.
+- **16/09/2026 (este cambio)** — primera versión. PR #445, mergeado a `development` como
+  `e039029`; release `main` `7c7f9e3`.
+- **16/09/2026 — Desplegado en PRODUCCIÓN como hotfix aislado, fuera del release.** El PM eligió
+  llevar solo esta columna: «esto va prd de ecom pero no todo porque tenemos cosas que no van como
+  el constructor o la integración». Se repitió la receta del Cambio 75: commit `4b10a10` = árbol
+  exacto de `ecom/main` (`305f460`, el hotfix de textos del 15/09) más los tres archivos de este
+  cambio, pusheado como avance directo (`305f460..4b10a10`, sin `--force`). Antes de pushear se
+  verificó que los dos archivos fuente estuvieran en `ecom/main` byte a byte iguales a su versión
+  previa (blobs `663edd0` y `556643a`), así que el diff contra producción es exactamente esta
+  columna. **No viajaron** el constructor de formularios (Cambio 58), el padrón con herencia (74)
+  ni el alta de beneficiarios en SIIS (73). **Costo registrado:** `ecom/main` sigue sin ser
+  descendiente de nuestro `main` —ahora por dos hotfixes encadenados—, así que el próximo espejo
+  del release completo va con el commit de alineación de `docs/internal/branching.md`, nunca con
+  `--force`. `ecom/test` quedó en `13061f1` (release del 15/09): **testing no tiene esta columna**.
 
 ---
