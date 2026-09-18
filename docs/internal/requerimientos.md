@@ -222,6 +222,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 75 | El link público se presenta como «Programa +Más Futuro» y el rechazo por padrón deriva a Soporte Técnico | Portal / link público de inscripción | `#textos` `#ui` `#relevamientos` | PM — en sesión: «vamos con unos cambios estéticos de los form públicos» | 14/09/2026 | 🟢 **Hecho** | No requiere |
 | 76 | El CSV de Ciudadanos exporta también el sexo | Legajos / ciudadanos | `#ui` `#datos` `#performance` | PM — en sesión: «al export que está en /legajos/ciudadanos/ sumale la columna sexo» | 16/09/2026 | 🟢 **Hecho** | No requiere |
 | 77 | QA vuelve a la versión de producción: base restaurada desde PRD y `ecom/test` igualado a `ecom/main` | Transversal / ambientes (testing de ECOM) | `#infra` `#datos` `#gestion` `#relevamientos` | PM — en sesión: «en el ambiente de test de ECOM vamos a restaurar la versión que está en main, o sea la que no tiene el constructor de formulario» | 18/09/2026 | 🟢 **Hecho** | Se retiran `programas.0060`–`0066` de testing |
+| 78 | Testing de ECOM vuelve al constructor de formularios: se despliega el release `7c7f9e3` sobre la base copiada de PRD | Transversal / ambientes (testing de ECOM) | `#infra` `#relevamientos` `#datos` `#gestion` | PM — en sesión: «en el ambiente de test de `/pushGitLabecom` implementá la versión del constructor de formulario, quiero probar algo; puede ser que después la tiremos para atrás» | 18/09/2026 | 🟢 **Hecho** | Aplica `programas.0060` a `0066` |
 
 **Notas del índice**
 
@@ -8606,3 +8607,140 @@ arriba) **no vuelven** con eso: solo con el backup previo de ECOM.
   por el PM, verificación de `django_migrations`, commit `d2ac2b5`, push a `ecom/test` a las ~19:58 y
   deploy confirmado a las 20:17 por el hash del CSS servido. Pendiente de QA humano: login con credenciales
   de PRD, alta de convocatoria/relevamiento e inscripción por link público.
+
+
+---
+
+# Cambio 78 — Testing de ECOM vuelve al constructor de formularios
+
+🟢 **HECHO — 19/09/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal / ambientes — testing de ECOM (`datanach.ecomdev.ar`) |
+| **Etiquetas** | `#infra` `#relevamientos` `#datos` `#gestion` |
+| **Solicitante** | PM — en sesión: «en el ambiente de test de `/pushGitLabecom` implementá la versión del constructor de formulario, quiero probar algo; puede ser que después la tiremos para atrás» |
+| **Fecha del pedido** | 18/09/2026 |
+| **Issue / épica** | Sin issue (operación de ambientes pedida en sesión) |
+| **Partes afectadas** | Infra/ECOM · Backoffice · Portal · Mobile |
+| **Migración** | Se **aplican** en testing `programas.0060` a `0066` |
+
+## Pedido original
+
+> «En el ambiente de test de `/pushGitLabecom` implementá la versión del constructor de formulario,
+> quiero probar algo; puede ser que después la tiremos para atrás.»
+
+Revierte en testing lo que el [Cambio 77](#cambio-77--qa-vuelve-a-la-versión-de-producción) había hecho
+el mismo día por la mañana, pero **solo en el código**: la base sigue siendo la copia de producción que
+ese cambio restauró.
+
+## Alcance acordado
+
+- `ecom/test` pasa del árbol de `ecom/main` (`4b10a10`, producción sin constructor) al release `7c7f9e3`:
+  constructor (Cambio 58), padrón con herencia (74), beneficiarios a SIIS (73) y columna Sexo (76).
+- **Afuera:** producción no se toca. `ecom/main` sigue en `4b10a10`.
+
+## Decisiones tomadas
+
+- **Resguardo antes de mover nada.** La última versión de `ecom/test` con constructor quedó etiquetada en
+  GitHub como `respaldo/ecom-test-constructor-2026-09-18` (commit `13061f1`, árbol del release `30c2a02`).
+  El tag no se sube a ECOM, para no disparar su CI.
+- **Espejo con commit de alineación, no con force.** Las ramas estaban divergidas por los hotfixes de los
+  Cambios 75 y 76, aplicados directo sobre producción.
+- **Las tablas huérfanas se borran, no se marcan como aplicadas.** Ver más abajo.
+- **El archivo disparador se deja.** Quitarlo costaría otro build y otro despliegue completo; desaparece
+  solo en el próximo espejo del release, que reemplaza el árbol entero de la rama.
+
+## Implementación
+
+Espejo con el commit de alineación `5752d12` (padres: el release `7c7f9e3` y la punta anterior `d2ac2b5`),
+árbol verificado idéntico al del release antes de pushear. Se comprobó con un clon superficial que ECOM no
+tenía commits propios en la rama y que el `.gitlab-ci.yml` era idéntico byte a byte.
+
+### El problema que apareció: tablas huérfanas del restore
+
+El Job `web-bootstrap-migration` falló en bucle:
+
+```
+Applying programas.0060_catalogo_grupos_origen_canal...
+django.db.utils.OperationalError: (1050, "Table 'programas_gruporequisito' already exists")
+```
+
+**Causa.** El dump de producción que el Cambio 77 restauró solo contiene las tablas que existen en
+producción. Reemplazó `django_migrations` —que volvió a la `0059`— pero no borró las cuatro tablas que solo
+existen en la versión con constructor: `programas_gruporequisito` (0060), `programas_disenoformulario` e
+`programas_itemdiseno` (0061) y `programas_enviosiis` (0066).
+
+**Por qué no se usó `--fake`,** que era lo que sugería el informe de Argo. La `0060` hace nueve operaciones:
+primero crea la tabla y después agrega seis columnas y modifica dos. Como falla en la primera, las otras
+ocho nunca corren. Marcarla como aplicada dejaría `programas_preguntaglobal` sin `grupo_id`, `origen`,
+`vinculo`, `protegido` ni `canal`, y la aplicación falla en cada consulta al catálogo. Además saltearía la
+siembra de la `0063`. La base estaba en estado **mixto**: esas cuatro tablas sobrevivían, pero las columnas
+que las migraciones agregan a tablas presentes en el dump habían desaparecido con el restore.
+
+Se borraron las cuatro con `FOREIGN_KEY_CHECKS = 0`, porque habían quedado con claves foráneas apuntando a
+tablas que el restore recreó. Después las siete migraciones aplicaron de corrido.
+
+### El segundo problema: sin permiso para sincronizar
+
+Con la base ya arreglada, el despliegue seguía trabado: ArgoCD había agotado sus cinco reintentos, marcado
+el sync como fallido y limpiado el Job. El usuario `matiasfarina` no tiene el permiso `applications, sync`
+sobre `default/datanach`, y la terminal de los pods está deshabilitada.
+
+Se destrabó forzando una revisión nueva: un commit con un archivo inerte en la raíz (`DEPLOY-TRIGGER.txt`,
+commit `1375bc5`) hace que el `COPY . .` del Dockerfile produzca una imagen con otro digest; el
+`argocd-image-updater` la commiteó y el auto-sync corrió solo.
+
+## Archivos
+
+- `docs/internal/despliegue-constructor.md` — manual operativo nuevo, con todo este procedimiento.
+- `docs/internal/README.md` — índice.
+- En `ecom/test` (no en este repo): `DEPLOY-TRIGGER.txt`, inerte y transitorio.
+
+## Base de datos
+
+Testing queda con `programas.0060` a `0066` aplicadas sobre la copia de producción.
+
+## Validación
+
+| Control | Resultado |
+|---|---|
+| Última migración de `programas` | `0066_siis_envio_beneficiarios` |
+| Grupos del catálogo | 4 |
+| Campos vinculados (`origen <> 'pregunta'`) | 12 |
+| Columnas nuevas en `programas_preguntaglobal` | 5 |
+| Hash del CSS servido | `tailwind.6cfbddc3fe70` y `nodo-forms.4dd32ad76c85` |
+
+El hash de los estáticos es la verificación de versión desde afuera: Django los nombra por el hash de su
+contenido. Probar rutas del backoffice no sirve, porque el ambiente responde 404 a cualquier URL sin sesión.
+
+Sync OK a `f5b5c90` a las 00:00 del 19/09; versión nueva servida a las 00:03.
+
+**Pendiente de QA humano:** armar un formulario desde el constructor, publicar el link e inscribir.
+
+## Pendientes / a definir
+
+- **Permiso de sync en Argo para `matiasfarina`**, o depender de ECOM en cada despliegue.
+- **El correo obligatorio u opcional.** La `0063` lo siembra opcional; en producción hoy es obligatorio.
+  Hay que decidirlo antes de espejar a `main`.
+- **`DEPLOY-TRIGGER.txt`** se va solo en el próximo espejo. No hace falta quitarlo a mano.
+
+## Reversión
+
+El código vuelve espejando de nuevo el árbol de `ecom/main`, con commit de alineación; el tag de resguardo
+sirve para eso.
+
+**La base no vuelve sola.** La `0063` siembra doce preguntas generales con `activo = True`, y el código sin
+constructor toma todas las preguntas activas sin filtrar por `origen`: aparecen duplicadas sobre los bloques
+fijos en el link público y en la app. Para revertir de verdad hay que desactivar esas doce filas o restaurar
+la base.
+
+## Historial
+
+- **18/09/2026 (mañana)** — Cambio 77: testing vuelve a la versión de producción, base restaurada desde PRD.
+- **18/09/2026 (tarde)** — Tag de resguardo y espejo del release `7c7f9e3` a `ecom/test` (commit `5752d12`).
+- **18/09/2026 (noche)** — El Job de migraciones falla por las tablas huérfanas; se identifican y se borran;
+  las siete migraciones aplican.
+- **18/09/2026 (noche)** — Sin permiso de sync, se fuerza una revisión nueva con `DEPLOY-TRIGGER.txt`.
+- **19/09/2026 00:03** — Versión con constructor sirviendo en `datanach.ecomdev.ar`, confirmada por el hash
+  de los estáticos.
