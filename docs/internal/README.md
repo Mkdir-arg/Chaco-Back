@@ -14,6 +14,7 @@ Esta carpeta **no se publica** en GitHub Pages.
 | [workflow.md](workflow.md) | Branching, commits y proceso de PR |
 | [roadmap.md](roadmap.md) | Objetivos por trimestre |
 | [processes.md](processes.md) | Deploy, rollback e incidentes |
+| [despliegue-constructor.md](despliegue-constructor.md) | **Manual de la puesta en marcha del constructor de formularios** (Cambios 58/73/74/76): espejo, migraciones, tablas huérfanas tras restaurar producción, verificación, reversión y carga de `ciudadanos_renaper` |
 | [decisions/](decisions/README.md) | Registro de decisiones técnicas (ADRs) |
 
 ## Regla de uso
