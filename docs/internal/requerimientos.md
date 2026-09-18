@@ -221,6 +221,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 74 | Padrón con herencia: el de la convocatoria se hereda y un relevamiento puede tener el suyo | Becas · convocatorias → Portal · App | `#relevamientos` `#datos` `#rbac` | PM — «si se configura en el relevamiento es de ese solo, si se configura en la convocatoria se hereda automáticamente» | 31/08/2026 | 🟢 **Hecho** | `programas.0065` |
 | 75 | El link público se presenta como «Programa +Más Futuro» y el rechazo por padrón deriva a Soporte Técnico | Portal / link público de inscripción | `#textos` `#ui` `#relevamientos` | PM — en sesión: «vamos con unos cambios estéticos de los form públicos» | 14/09/2026 | 🟢 **Hecho** | No requiere |
 | 76 | El CSV de Ciudadanos exporta también el sexo | Legajos / ciudadanos | `#ui` `#datos` `#performance` | PM — en sesión: «al export que está en /legajos/ciudadanos/ sumale la columna sexo» | 16/09/2026 | 🟢 **Hecho** | No requiere |
+| 77 | QA vuelve a la versión de producción: base restaurada desde PRD y `ecom/test` igualado a `ecom/main` | Transversal / ambientes (testing de ECOM) | `#infra` `#datos` `#gestion` `#relevamientos` | PM — en sesión: «en el ambiente de test de ECOM vamos a restaurar la versión que está en main, o sea la que no tiene el constructor de formulario» | 18/09/2026 | 🟢 **Hecho** | Se retiran `programas.0060`–`0066` de testing |
 
 **Notas del índice**
 
@@ -6282,6 +6283,7 @@ campos propios y las condiciones (no viajan en `data`), no los requisitos del ca
 Entrada nueva el 28/08/2026. Es la fase 2 explícita de lo que el Cambio 41 dejó fuera («configurador de
 formularios propio»). El Cambio 56 (presentación de selectores) queda absorbido como atributo del catálogo.
 - **15/09/2026 — Mergeado en `development`** (merge `749544a`, PR #360 cerrado como *merged*; release `main` `efd368d`). La rama única deja de existir como línea aparte: lo que corría solo en testing de ECOM y en DEV pasa a ser el código de `development`. Único conflicto del merge: este archivo (dos «Cambio 74», ver Cambio 75). La migración del Cambio 73 queda como `programas.0066` en todas las ramas.
+- **18/09/2026 — Retirado del ambiente de testing de ECOM (Cambio 77).** Para probar con datos de PRD, la base de testing se restauró desde producción y `ecom/test` se igualó a `ecom/main` (`d2ac2b5`, árbol de `4b10a10`): testing vuelve a `programas.0059`, sin el constructor. El constructor sigue en `development`/`main` de GitHub y en DEV; en ECOM solo volverá con el próximo espejo del release.
 
 ---
 
@@ -8256,6 +8258,7 @@ convocatoria no se toca.
   referencias del código (`Cambio 74`) se renumeraron; la migración sigue siendo
   `programas.0065_padron_relevamiento_herencia`.
 - **15/09/2026 — Mergeado en `development`** (merge `749544a`, PR #360 cerrado como *merged*; release `main` `efd368d`). La rama única deja de existir como línea aparte: lo que corría solo en testing de ECOM y en DEV pasa a ser el código de `development`. Único conflicto del merge: este archivo (dos «Cambio 74», ver Cambio 75). La migración del Cambio 73 queda como `programas.0066` en todas las ramas.
+- **18/09/2026 — Retirado del ambiente de testing de ECOM (Cambio 77):** testing se igualó a PRD (base restaurada + código de `ecom/main`), que no tiene el padrón con herencia; los padrones propios por relevamiento cargados en testing se perdieron con el restore.
 
 ---
 
@@ -8459,3 +8462,147 @@ Quitar la columna del encabezado y de la fila en `ciudadanos_exportar_csv`, saca
   `--force`. `ecom/test` quedó en `13061f1` (release del 15/09): **testing no tiene esta columna**.
 
 ---
+
+# Cambio 77 — QA vuelve a la versión de producción: base restaurada desde PRD y código de `ecom/test` igualado a `ecom/main`
+
+🟢 **HECHO — 18/09/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal / ambientes — testing de ECOM (`datanach.ecomdev.ar`) |
+| **Etiquetas** | `#infra` `#datos` `#gestion` `#relevamientos` |
+| **Solicitante** | PM — en sesión: «en el ambiente de test de ECOM vamos a restaurar la versión que está en main, o sea la que no tiene el constructor de formulario» |
+| **Fecha del pedido** | 18/09/2026 |
+| **Issue / épica** | Sin issue (operación de ambientes pedida en sesión) |
+| **Partes afectadas** | Infra/ECOM · Backoffice · Portal · Mobile (todo lo que apunta a testing) |
+| **Migración** | Se **retiran** de testing `programas.0060` a `0066`: el esquema vuelve a `programas.0059` |
+
+## Pedido original
+
+> «En el ambiente de test de ECOM vamos a restaurar la versión que está en main, o sea la que no tiene el
+> constructor de formulario.» Y el porqué: «estamos haciendo pruebas con datos de PRD en test y para eso es
+> necesario tener la misma versión que en PRD».
+
+## Alcance acordado
+
+- Testing de ECOM (`ecom/test`, `datanach.ecomdev.ar`) queda **idéntico a producción en código y en datos**:
+  el árbol de `ecom/main` (`4b10a10` = release `2e53a4c` del 10/09 + hotfixes de los Cambios 75 y 76) sobre
+  una copia de la base de PRD.
+- **Afuera:** producción no se toca; `development` y `main` de GitHub no cambian (siguen con el constructor);
+  DEV (icore-srv) sigue en la rama del constructor con sus migraciones con nombre viejo (ver Cambio 58).
+
+## Decisiones tomadas
+
+- **Se retrocede código y esquema juntos, no solo el código.** El código de PRD **no puede correr sobre el
+  esquema del constructor**: las migraciones 0060–0066 dejan columnas `NOT NULL` sin default en tablas que
+  el código viejo inserta (`formulario.respuestas`, `formulario.datos_siis`, `preguntaglobal.origen/canal/…`,
+  `requisitonativo.canal`), y con `sql_mode=STRICT_TRANS_TABLES` (`config/settings.py`) **toda inscripción por
+  link público o app fallaría** con «Field 'respuestas' doesn't have a default value». Además la 0063 siembra
+  doce `PreguntaGlobal` de origen legajo/apoderado (Nombre, Apellido, DNI…) que el código viejo listaría como
+  preguntas del cuestionario, duplicando los campos nativos; y la 0065 cambia la unicidad del padrón.
+- **El esquema se retrocedió restaurando la base de PRD sobre la de testing** (lo hizo el PM), no con el SQL
+  inverso de las migraciones. Es la opción más rápida, sirve al objetivo (probar con datos reales) y evita
+  generar a mano el DDL inverso con FKs de nombre hasheado. Verificado antes de tocar el código:
+  `django_migrations` de testing terminaba en `0059_formulario_renaper_idx_con_relevamiento`.
+- **El código se bajó con un commit de alineación, nunca con `--force`** (misma receta de
+  `docs/internal/branching.md`): `d2ac2b5` tiene como árbol **exactamente** el de `ecom/main` `4b10a10`
+  (diff vacío) y como padres `13061f1` (test anterior) y `4b10a10`. Entra como avance directo y conserva el
+  historial de `test`. Desde ahora `ecom/test` y `ecom/main` tienen el mismo árbol.
+- **Orden: primero la base, después el código, sin demora.** Mientras la base ya está en 0059 y el pod
+  todavía corre el constructor, cualquier reinicio del pod hace que el entrypoint aplique de nuevo 0060–0066
+  (`RUN_MIGRATIONS` es `true` por defecto) y siembre el catálogo sobre la copia de PRD. Por eso el push se
+  hizo inmediatamente después de confirmar el estado de `django_migrations`.
+- **Cómo se verifica el deploy desde afuera** (no tenemos shell en los pods de ECOM): por el **hash del
+  CSS de Tailwind** que referencia la página de login (`ManifestStaticFilesStorage`). El compilado
+  difiere entre versiones (55.088 bytes en `ecom/main`, 55.481 en el constructor), así que el md5 del
+  archivo servido dice qué imagen corre. **No sirve** esperar a que `nodo-constructor.js` dé 404: los
+  estáticos viejos quedan en el volumen de `collectstatic` y siguen respondiendo 200 con el pod nuevo.
+
+## Implementación
+
+Testing de ECOM corre lo mismo que producción: sin constructor de formularios por convocatoria, sin alta de
+beneficiarios en SIIS y sin padrón propio por relevamiento; con los textos del link público «Programa +Más
+Futuro» (Cambio 75) y la columna Sexo del export de Ciudadanos (Cambio 76). Los datos son una copia de PRD al
+momento del restore.
+
+## Archivos
+
+Ninguno del repo. En el GitLab de ECOM: rama `test` `13061f1 → d2ac2b5` (commit de alineación). `ecom/main`
+sigue en `4b10a10`.
+
+## Base de datos
+
+La base `datanach` de testing (`mdb80.ecomdev.ar`, MariaDB) es ahora una **copia de PRD**; el esquema vuelve a
+`programas.0059`. No se corrió ninguna migración: `migrate` del pod nuevo no tiene nada que aplicar.
+
+### Qué se perdió en testing con esta operación
+
+**Datos — se perdió TODA la base anterior de testing**, no solo lo del constructor: el restore reemplaza la
+base completa. Concretamente:
+
+| Qué había en testing | Qué pasó |
+|---|---|
+| Usuarios, roles y contraseñas propios de testing (los que QA usaba para probar) | Reemplazados por los de PRD. Para entrar a testing valen las credenciales de PRD |
+| Convocatorias, relevamientos, casos (`Formulario`), ciudadanos y legajos cargados en testing desde el 11/08 | Perdidos. Quedan los de PRD |
+| Diseños de formulario por convocatoria (`DisenoFormulario`, `ItemDiseno`) y el catálogo agrupado con condiciones (`GrupoRequisito`, campos protegidos) armados por Matías Abate desde el 11/09 | Perdidos: las tablas no existen en el esquema de PRD |
+| Respuestas por ítem del constructor (`formulario.respuestas`, `definicion`), incluidos los «campos propios» (`cp-…`) sin equivalente legacy | Perdidas con la base |
+| Envíos a SIIS registrados en testing (`EnvioSIIS`, Cambio 73) y los ids de función SIIS por programa | Perdidos |
+| Padrones propios por relevamiento (Cambio 74) | Perdidos |
+| Adjuntos subidos en testing (`media/`) | Los archivos pueden seguir en el volumen del pod, pero sin filas que los referencien quedan huérfanos |
+
+Si algo de eso hace falta, la única fuente es el backup de la base de testing previo al restore, si ECOM lo
+tomó; desde el código no se recupera.
+
+**Funcionalidad que testing deja de tener** (está en `development`/`main` de GitHub pero no en PRD):
+
+- **Cambio 58** — constructor de formularios por convocatoria, catálogo de requisitos agrupado con orígenes
+  (pregunta / campo del legajo / apoderado), condiciones por defecto, drag & drop, paso 2 del portal armado
+  desde el diseño, y sus fixes (GPS malformado, CSRF del drag & drop, definición reconciliada con el catálogo).
+- **Cambio 73** — alta de beneficiarios aprobados en la tabla intermedia de SIIS, incluido «los tres ids de
+  la integración se completan desde el caso» (#444) y el comando `reenviar_siis_pendientes`.
+- **Cambio 74** — padrón con herencia (convocatoria → relevamientos, padrón propio por relevamiento).
+- Migraciones `programas.0060` a `0066` y los assets `nodo-constructor.{css,js}`, `nodo-catalogo-grupos.js`,
+  `nodo-condiciones.js`, `nodo-formulario.js` y `vendor/sortablejs`.
+
+## Validación
+
+- Antes del push: `SELECT name FROM django_migrations WHERE app='programas' ORDER BY id DESC LIMIT 3` en
+  testing → `0059`, `0058`, `0057` (la base restaurada no fue remigrada por ningún reinicio).
+- Commit de alineación verificado en local antes de pushear: árbol de `d2ac2b5` == árbol de `4b10a10`;
+  `git diff 4b10a10 d2ac2b5` vacío; respecto de `13061f1` cambian 83 archivos y se borran las siete
+  migraciones 0060–0066.
+- Push: `13061f1..d2ac2b5 → test`, avance directo. Pipeline de ECOM (solo `build` de la imagen `test:latest`,
+  `.gitlab-ci.yml` idéntico en ambas ramas) y despliegue por ArgoCD.
+- Deploy verificado desde afuera a las 20:17 (unos 20 minutos después del push): la página de login
+  referencia `tailwind.d27ef8238eb9.css`, cuyo md5 coincide byte a byte con
+  `static/custom/css/tailwind.css` de `ecom/main` (`d27ef8238eb9d7974de511e5e055e900`) y no con el del
+  constructor (`6cfbddc3fe70…`). `/health/`, `/` y `/portal/` responden 200.
+
+## Puesta en marcha en el servidor
+
+Ya hecha: restore de la base (PM) + push a `ecom/test`. No hay cron, variable ni comando adicional.
+
+## Pendientes / a definir
+
+- **El próximo espejo de un release a `test`** (`/pushGitLabecom`) vuelve a llevar el constructor y reaplica
+  0060–0066 sobre la copia de PRD: eso es lo esperado cuando el PM decida que esos cambios pasan a testing, pero
+  hay que saber que la base de testing dejará de ser «igual a PRD» en ese momento.
+- El constructor (58), SIIS (73) y padrón con herencia (74) siguen **sin ambiente donde probarse** salvo DEV
+  (icore-srv), que tiene el gotcha de las migraciones con nombre viejo (Cambio 58, Historial 11/09).
+- Las pruebas con datos de PRD en testing implican **datos reales de ciudadanos en un ambiente más expuesto**
+  (Cambio 27: la URL se abrió a propósito para la app móvil). Conviene que el PM defina hasta cuándo se
+  mantienen y si después se vuelve a una base de prueba.
+
+## Reversión
+
+Para que testing vuelva a tener el constructor: espejar el release actual de `main` (GitHub) a `ecom/test` con
+el commit de alineación habitual (`/pushGitLabecom`, solo la mitad `test`). El boot del pod aplica 0060–0066
+sobre la copia de PRD y siembra el catálogo protegido. Los datos que se perdieron con el restore (tabla de
+arriba) **no vuelven** con eso: solo con el backup previo de ECOM.
+
+## Historial
+
+- **18/09/2026 (este cambio)** — análisis previo (por qué no alcanza con bajar el código), restore de la base
+  por el PM, verificación de `django_migrations`, commit `d2ac2b5`, push a `ecom/test` a las ~19:58 y
+  deploy confirmado a las 20:17 por el hash del CSS servido. Pendiente de QA humano: login con credenciales
+  de PRD, alta de convocatoria/relevamiento e inscripción por link público.
