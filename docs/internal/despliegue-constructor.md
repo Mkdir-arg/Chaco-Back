@@ -342,6 +342,9 @@ python manage.py validar_casos_siis --aplicar --pausa 1               # dentro d
 ```
 
 - Antes del cruce, revisar que el selector **Provincia Nacimiento** tenga las 24 jurisdicciones.
+- Antes de aprobar casos, marcar en «Requisitos por segmento» qué requisito alimenta cada destino de SIIS
+  (Provincia, Localidad, Barrio, Calle y altura, Estado Civil, Provincia Nacimiento, Localidad de nacimiento).
+  Sin eso el alta sale incompleta y el coordinador lo carga a mano por caso (Cambio 80).
 - Ambos son reanudables e idempotentes: una segunda corrida no vuelve a escribir lo ya hecho.
 - `validar_casos_siis` se frena solo tras 10 errores técnicos seguidos; eso es SIIS caído o credenciales
   inválidas. Los `ERROR` se retoman con `--reintentar-errores`.
