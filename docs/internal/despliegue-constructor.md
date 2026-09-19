@@ -324,3 +324,25 @@ FROM `ciudadanos_renaper`;
 - [ ] Solapa Formulario visible y link público sin campos duplicados
 - [ ] Tabla `ciudadanos_renaper` cargada con 10.321 filas
 - [ ] Recién entonces, evaluar el espejo a `main` (producción)
+
+
+---
+
+## 10. Después del despliegue: completar los casos y validarlos
+
+Con el constructor arriba, los casos anteriores siguen sin foto y sin los campos nuevos. Dos comandos lo
+resuelven (Cambio 79). Los dos corren en seco por defecto.
+
+```bash
+mariadb -h<host> -u<usuario> -p <base> < scripts/DatosPersonas.sql     # la tabla de RENAPER
+python manage.py completar_casos_renaper                              # ensayo: leer los números
+python manage.py completar_casos_renaper --aplicar --pisar-existentes # lotes de 50, ~5 min contra ECOM
+python manage.py validar_casos_siis                                   # cuántos casos faltan validar
+python manage.py validar_casos_siis --aplicar --pausa 1               # dentro del pod: ahí están las credenciales
+```
+
+- Antes del cruce, revisar que el selector **Provincia Nacimiento** tenga las 24 jurisdicciones.
+- Ambos son reanudables e idempotentes: una segunda corrida no vuelve a escribir lo ya hecho.
+- `validar_casos_siis` se frena solo tras 10 errores técnicos seguidos; eso es SIIS caído o credenciales
+  inválidas. Los `ERROR` se retoman con `--reintentar-errores`.
+- Control: `SELECT SUM(definicion IS NOT NULL) FROM programas_formulario;` tiene que dar el total de casos.

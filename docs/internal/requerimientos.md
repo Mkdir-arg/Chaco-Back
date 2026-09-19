@@ -223,6 +223,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 76 | El CSV de Ciudadanos exporta también el sexo | Legajos / ciudadanos | `#ui` `#datos` `#performance` | PM — en sesión: «al export que está en /legajos/ciudadanos/ sumale la columna sexo» | 16/09/2026 | 🟢 **Hecho** | No requiere |
 | 77 | QA vuelve a la versión de producción: base restaurada desde PRD y `ecom/test` igualado a `ecom/main` | Transversal / ambientes (testing de ECOM) | `#infra` `#datos` `#gestion` `#relevamientos` | PM — en sesión: «en el ambiente de test de ECOM vamos a restaurar la versión que está en main, o sea la que no tiene el constructor de formulario» | 18/09/2026 | 🟢 **Hecho** | Se retiran `programas.0060`–`0066` de testing |
 | 78 | Testing de ECOM vuelve al constructor de formularios: se despliega el release `7c7f9e3` sobre la base copiada de PRD | Transversal / ambientes (testing de ECOM) | `#infra` `#relevamientos` `#datos` `#gestion` | PM — en sesión: «en el ambiente de test de `/pushGitLabecom` implementá la versión del constructor de formulario, quiero probar algo; puede ser que después la tiremos para atrás» | 18/09/2026 | 🟢 **Hecho** | Aplica `programas.0060` a `0066` |
+| 79 | Los casos ya cargados reciben el formulario completo y se completan desde RENAPER; validación SIIS automática por lotes | Becas · casos → Revisión | `#relevamientos` `#datos` `#siis` `#infra` | PM — en sesión: «a todos los casos desde el inicio que se le sumen estos datos y con el cruce desde renaper sumarle Cuit Alumno y Cuil Apoderado» y «todos los casos que tenemos en el relevamiento hay que hacer si es Validar con SIIS, de forma automática en lotes de 50» | 19/09/2026 | 🟢 **Hecho** (SIIS pendiente de correr en el pod) | No requiere |
 
 **Notas del índice**
 
@@ -8744,3 +8745,123 @@ la base.
 - **18/09/2026 (noche)** — Sin permiso de sync, se fuerza una revisión nueva con `DEPLOY-TRIGGER.txt`.
 - **19/09/2026 00:03** — Versión con constructor sirviendo en `datanach.ecomdev.ar`, confirmada por el hash
   de los estáticos.
+
+
+---
+
+# Cambio 79 — Los casos ya cargados reciben el formulario completo y se completan desde RENAPER; validación SIIS automática por lotes
+
+🟢 **HECHO — 19/09/2026** · la validación SIIS queda pendiente de ejecutar dentro del pod
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · casos ya cargados → Revisión |
+| **Etiquetas** | `#relevamientos` `#datos` `#siis` `#infra` |
+| **Solicitante** | PM — en sesión: «la idea es a todos los casos desde el inicio que se le sumen estos datos y con el cruce desde renaper sumarle Cuit Alumno y Cuil Apoderado»; después «que el dato que trae de renaper provincia_api y localidad_api se metan en esos campos»; y «todos los casos que tenemos en el relevamiento hay que hacer si es Validar con SIIS, de forma automática en lotes de 50» |
+| **Fecha del pedido** | 19/09/2026 |
+| **Issue / épica** | Sin issue (pedido en sesión) · PR #446 |
+| **Partes afectadas** | Backoffice (revisión del caso) · datos de los 6.395 casos · integración SIIS |
+| **Migración** | No requiere. Se apoya en las del Cambio 58 (`programas.0060` a `0066`) |
+
+## Pedido original
+
+Los cinco campos del segmento Futuro —Celular Apoderado, Provincia Nacimiento, Cuit Alumno, Localidad de
+nacimiento y Cuil Apoderado— se agregaron al catálogo el 16/09/2026, así que solo los tienen los ~290 casos
+posteriores; los 6.108 anteriores no los muestran. El PM quiere que **todos** los casos los tengan, que el CUIT del
+alumno y el CUIL del apoderado se completen cruzando por DNI con la consulta a RENAPER (`ciudadanos_renaper`),
+y luego también la provincia y la localidad. Y, aparte, que todos los casos queden **validados contra SIIS** de
+forma automática, en lotes de 50, sin pasar uno por uno por el botón de la revisión.
+
+## Alcance acordado
+
+- Dos comandos de management, ambos con ensayo por defecto y escritura solo con `--aplicar`:
+  `completar_casos_renaper` y `validar_casos_siis`.
+- Los cinco campos siguen siendo **requisitos del segmento** (no se convierten en preguntas generales): el PM
+  aclaró que son específicos de ese segmento.
+- Afuera: producción. Todo se ensayó en local sobre la copia de producción del 18/09 y se aplicó en testing.
+
+## Decisiones tomadas
+
+- **La foto resuelve la ausencia de campos.** Un caso muestra los ítems de la foto de su formulario, con
+  respuesta o vacíos (Cambio 58). Los 6.395 casos anteriores al constructor no tenían foto; el comando les pone la
+  del diseño vigente de su convocatoria y traduce sus respuestas a la forma nueva, igual que
+  `sincronizar_desde_legacy`. **No se inventa ninguna respuesta**: lo que la persona no respondió se ve vacío.
+- **Se escribe en las dos formas del caso**: `respuestas` por clave (`rn-26`, `rn-29`, `rn-25`, `rn-28`) y `data`
+  por pk, para que lo lean tanto la revisión nueva como cualquier lector anterior. Los CUIL como número, como el
+  resto de los INT; provincia y localidad como texto.
+- **RENAPER pisa lo cargado a mano** (`--pisar-existentes`, decisión del PM): sobre los 287 casos que ya tenían
+  el dato había CUIT truncados, un dígito verificador equivocado y uno con el CUIL del alumno en el campo del
+  apoderado. En test reemplazó 44 valores.
+- **Provincia y localidad de RENAPER son el domicilio del documento, no el lugar de nacimiento.** Se comprobó
+  cruzando la calle contra lo que la persona declaró (27 % idéntica, 39 % coincidente; contra la localidad
+  *actual* declarada coincide 87 %, contra la de *nacimiento* 66 %). El PM decidió usarlas igual para Provincia
+  Nacimiento y Localidad de nacimiento; `--sin-lugar-nacimiento` las deja afuera.
+- **Provincia es un selector**: solo se escribe un valor que exista entre sus opciones (sin acentos ni
+  mayúsculas, con alias para Ciudad de Buenos Aires). La lista tenía 20 jurisdicciones; se completó a 24 (faltaban
+  Santa Fe, Santiago del Estero, Tierra del Fuego y Tucumán) y una segunda corrida cargó los 8 casos que habían
+  quedado afuera. La localidad se normaliza: `PRESIDENCIA_ROQUE_SÁENZ_PEÑA` → `Presidencia Roque Sáenz Peña`.
+- **Lotes de 50, cada uno en su transacción, con `bulk_update`.** La primera versión guardaba caso por caso en
+  una única transacción: en local un minuto, contra la base de ECOM pasó la hora sin confirmar y con la
+  transacción abierta sobre la tabla de casos. Con lotes: 15 s en local, 313 s contra ECOM, avance en el log,
+  reanudable e idempotente (una segunda corrida guarda 0).
+- **El cruce con RENAPER se hace en Python, no con JOIN**, porque la tabla la crea un script aparte y puede
+  quedar con otra intercalación que la de la aplicación (pasó: `utf8mb4_unicode_ci` contra `general_ci`).
+- **Validación SIIS**: el comando hace lo mismo que el botón «Validar con SIIS» (`validar_formulario_en_siis`),
+  caso por caso, dejando siempre la fila auditable. Toma por defecto los casos **sin ninguna validación**
+  (`--reintentar-errores` suma los `ERROR`, `--todos` revalida todo, los rechazados por el revisor se saltean
+  salvo `--incluir-rechazados`). Solicitante nulo salvo `--usuario`. **Freno**: tras 10 errores técnicos seguidos
+  (`--max-errores`) se detiene con código 1, porque eso es SIIS caído o credenciales inválidas.
+- **`scripts/DatosPersonas.sql` queda en el repo** por decisión del PM, aunque contiene datos personales reales
+  de 10.321 personas; se le quitó la línea de `sql_mode` que impedía ejecutarlo como consulta y se alineó su
+  intercalación con la de la base.
+
+## Implementación
+
+- `programas/management/commands/completar_casos_renaper.py` — diseño por convocatoria, foto + traducción de
+  respuestas y cruce de los cuatro campos, en una pasada por caso y `bulk_update` por lote.
+- `programas/management/commands/validar_casos_siis.py` — validación SIIS por lotes con freno de seguridad.
+- `scripts/DatosPersonas.sql` — carga de `ciudadanos_renaper` (10.321 filas).
+- `docs/internal/despliegue-constructor.md` — etapa «después del despliegue».
+
+Restauración en test: la base volvió al volcado del 18/09 borrando antes las 4 tablas huérfanas del
+constructor (lección del Cambio 78); el redespliegue corrió las migraciones limpias en 7 minutos.
+
+## Base de datos
+
+Sin cambios de esquema. En testing, sobre 6.395 casos: 6.395 con foto; Cuit Alumno 6.270; Cuil Apoderado 5.098;
+Provincia Nacimiento 6.382; Localidad de nacimiento 6.382. Catálogo: opciones de Provincia Nacimiento 20 → 24.
+
+## Validación
+
+- Ensayo completo en local sobre la copia de producción del 18/09 (base restaurada de cero, migraciones
+  0060–0066 encima), y después en testing con **los mismos números** campo por campo.
+- 95.068 de 95.074 respuestas previas trasladadas; las 6 restantes son del caso 1 (prueba del 27/08) y apuntan
+  a requisitos borrados hace tiempo; siguen en `data`.
+- `validar_casos_siis`: en local cuenta 6.378 pendientes; con SIIS inalcanzable frena al quinto error seguido
+  (`--max-errores 5`), deja las filas `ERROR` con solicitante nulo y solo las retoma con `--reintentar-errores`.
+- `ruff`, `manage.py check` y los checks bloqueantes del CI en verde. Bandit B608 sobre la consulta a la tabla de
+  RENAPER quedó justificado (nombre de tabla constante). Pip Audit rojo preexistente (DRF 3.16.1, anyio).
+- **Sin tests automatizados**: la validación fue el ensayo contra la copia de producción.
+
+## Pendientes / a definir
+
+- **Correr `validar_casos_siis --aplicar --pausa 1` dentro del pod de testing**, donde están las credenciales de
+  SIIS (no están en ningún archivo local). Son ~6.378 llamadas al SIIS de testing de ECOM.
+- Producción: el runbook está en el manual. Los casos inscriptos después del 18/09 no están en el lote de RENAPER
+  y quedarán sin CUIT hasta una segunda consulta.
+- Tests automatizados de los dos comandos, si el equipo los pide.
+
+## Reversión
+
+`completar_casos_renaper` es reversible por caso desde el volcado del 18/09 (restaurar `definicion`, `respuestas`
+y `data`); las validaciones SIIS son filas auditables que se conservan. Las 4 opciones agregadas al selector se
+quitan editando el requisito.
+
+## Historial
+
+- **19/09/2026 (mañana)** — Análisis: los cinco campos existían desde el 16/09; el CUIT sí se había capturado en
+  287 casos (corrección de una conclusión previa equivocada).
+- **19/09/2026** — Testing restaurado al volcado del 18/09 y redesplegado limpio; comando ensayado en local y
+  aplicado en test (dos campos, luego cuatro); paso a lotes tras la corrida de una hora; selector completado.
+- **19/09/2026 (tarde)** — Comando de validación SIIS; PR #446 mergeado en `development` (`ce238a2`); los
+  comandos adelantados a `ecom/test` (`d5d20cc`) para probarlos en el pod.
