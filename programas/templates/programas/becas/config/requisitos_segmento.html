@@ -12,11 +12,12 @@
        createTipo: 'STRING', createPresentacion: 'LISTA', createCanal: 'ambos',
        segUrls: { {% for s in segmentos %}'{{ s.pk }}': '{% url 'becas:requisito_crear' s.pk %}'{% if not forloop.last %},{% endif %}{% endfor %} },
        editUrl: '', editTexto: '', editTipo: '', editObl: 'True', editOrden: 0, editOpciones: '',
-       editPresentacion: 'LISTA', editCanal: 'ambos',
-       openEdit(url, texto, tipo, obl, orden, opc, presentacion, canal) {
+       editPresentacion: 'LISTA', editCanal: 'ambos', editDestino: '',
+       openEdit(url, texto, tipo, obl, orden, opc, presentacion, canal, destino) {
          this.editUrl = url; this.editTexto = texto; this.editTipo = tipo;
          this.editObl = obl; this.editOrden = orden; this.editOpciones = (opc || []).join('\n');
          this.editPresentacion = presentacion || 'LISTA'; this.editCanal = canal || 'ambos';
+         this.editDestino = destino || '';
          this.modalEdit = true;
        }
      }"
@@ -38,8 +39,7 @@
   <form method="get" data-dynamic-list-filters id="reqseg-filtros" class="flex flex-wrap gap-4 mb-4">
     <div class="flex-1 min-w-[200px]">
       <label class="block text-sm font-medium text-heading mb-1">Segmento</label>
-      <select name="segmento"
-              class="w-full rounded-lg border border-base bg-secondary-soft px-3 py-2 text-sm text-body focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand">
+      <select name="segmento" class="nodo-field">
         <option value="">Todos los segmentos</option>
         {% for seg in segmentos %}
         <option value="{{ seg.pk }}" {% if seg_actual == seg.pk|stringformat:'s' %}selected{% endif %}>{{ seg.nombre }}</option>
@@ -48,8 +48,7 @@
     </div>
     <div class="flex-1 min-w-[200px]">
       <label class="block text-sm font-medium text-heading mb-1">Subsegmento</label>
-      <select name="subsegmento"
-              class="w-full rounded-lg border border-base bg-secondary-soft px-3 py-2 text-sm text-body focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand">
+      <select name="subsegmento" class="nodo-field">
         <option value="">Todos los subsegmentos</option>
         {% for sub in subsegmentos %}
         <option value="{{ sub.pk }}" {% if sub_actual == sub.pk|stringformat:'s' %}selected{% endif %}>{{ sub.segmento.nombre }} / {{ sub.nombre }}</option>
@@ -147,6 +146,15 @@
             </select>
             <p class="text-xs text-body-subtle mt-1">Ambos canales, solo la app de campo o solo el link público.</p>
           </div>
+          <div>
+            <label class="block text-sm font-medium text-heading mb-1">Este dato alimenta a SIIS como</label>
+            <select name="destino_siis" class="nodo-field">
+              <option value="">No alimenta a SIIS</option>
+              {% for val, label in destino_siis_choices %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
+            </select>
+            <p class="text-xs text-body-subtle mt-1">Campo del alta de beneficiarios en SIIS que toma esta respuesta. Un requisito por destino en cada segmento.</p>
+            <p class="mt-1 text-xs text-fg-danger hidden" data-error="destino_siis"></p>
+          </div>
         </div>
 
         {% comment %}FOOTER{% endcomment %}
@@ -232,6 +240,15 @@
               {% for val, label in canal_choices %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
             </select>
             <p class="text-xs text-body-subtle mt-1">Ambos canales, solo la app de campo o solo el link público.</p>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-heading mb-1">Este dato alimenta a SIIS como</label>
+            <select name="destino_siis" x-model="editDestino" class="nodo-field">
+              <option value="">No alimenta a SIIS</option>
+              {% for val, label in destino_siis_choices %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
+            </select>
+            <p class="text-xs text-body-subtle mt-1">Campo del alta de beneficiarios en SIIS que toma esta respuesta. Un requisito por destino en cada segmento.</p>
+            <p class="mt-1 text-xs text-fg-danger hidden" data-error="destino_siis"></p>
           </div>
         </div>
 
