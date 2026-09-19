@@ -2157,6 +2157,22 @@ class RequisitoNativo(TimeStamped):
     )
     orden = models.PositiveIntegerField(default=0, verbose_name="Orden")
     obligatorio = models.BooleanField(default=True, verbose_name="Obligatorio")
+    # Cambio 80: el alta de beneficiarios en SIIS (Cambio 73) tomaba domicilio,
+    # estado civil y lugar de nacimiento solo de preguntas generales marcadas
+    # con un destino. En el catálogo real esos datos son requisitos del
+    # segmento, así que el marcador vive también acá, con la misma lista.
+    destino_siis = models.CharField(
+        max_length=20,
+        choices=PreguntaGlobal.DestinoSiis.choices,
+        blank=True,
+        default="",
+        db_index=True,
+        verbose_name="Este dato alimenta a SIIS como",
+        help_text=(
+            "Con qué campo del alta de beneficiarios en SIIS se corresponde la respuesta. "
+            "Un solo requisito por destino dentro del mismo programa, segmento o subsegmento."
+        ),
+    )
 
     class Meta:
         verbose_name = "Requisito nativo"

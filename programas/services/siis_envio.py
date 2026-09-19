@@ -194,14 +194,48 @@ def _con_valor(valor):
     return valor is not None and str(valor).strip() != ""
 
 
+def _primer_valor(formulario, clave):
+    valores = [str(v).strip() for v in respuesta_de(formulario.data, clave) if str(v or "").strip()]
+    return valores[0] if valores else None
+
+
 def respuestas_por_destino(formulario):
-    """``{destino: texto}`` con la primera respuesta no vacía de cada pregunta marcada."""
-    preguntas = PreguntaGlobal.objects.filter(activo=True).exclude(destino_siis="").values_list("pk", "destino_siis")
+    """``{destino: texto}`` con la primera respuesta no vacía de cada campo marcado.
+
+    Se miran las preguntas generales activas y, además (Cambio 80), los
+    requisitos nativos que alcanzan al formulario —los del programa, los del
+    segmento y los del subsegmento de su convocatoria, la misma herencia que
+    ``get_campos_formulario``—. Si una general y un requisito apuntan al mismo
+    destino, manda el requisito: es el dato más específico de ese segmento.
+    """
+    from django.db.models import Q
+
+    from programas.models import RequisitoNativo
+
     resultado = {}
+    preguntas = PreguntaGlobal.objects.filter(activo=True).exclude(destino_siis="").values_list("pk", "destino_siis")
     for pk, destino in preguntas:
-        valores = [str(v).strip() for v in respuesta_de(formulario.data, f"global:{pk}") if str(v or "").strip()]
-        if valores:
-            resultado[destino] = valores[0]
+        valor = _primer_valor(formulario, f"global:{pk}")
+        if valor is not None:
+            resultado[destino] = valor
+
+    convocatoria = formulario.relevamiento.convocatoria
+    segmento = convocatoria.segmento
+    alcance = Q(segmento_id=segmento.pk, subsegmento__isnull=True)
+    if convocatoria.subsegmento_id:
+        alcance |= Q(subsegmento_id=convocatoria.subsegmento_id)
+    if segmento.programa_id:
+        alcance |= Q(programa_id=segmento.programa_id)
+    requisitos = (
+        RequisitoNativo.objects.filter(alcance)
+        .exclude(destino_siis="")
+        .order_by("orden", "id")
+        .values_list("pk", "destino_siis")
+    )
+    for pk, destino in requisitos:
+        valor = _primer_valor(formulario, f"requisito:{pk}")
+        if valor is not None:
+            resultado[destino] = valor
     return resultado
 
 

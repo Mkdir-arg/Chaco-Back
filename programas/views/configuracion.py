@@ -262,6 +262,7 @@ class ProgramaSiisDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, Detail
         ctx["form_requisito"] = RequisitoNativoForm(programa=programa)
         ctx["presentacion_choices"] = PresentacionCampo.choices
         ctx["canal_choices"] = CanalFormulario.choices
+        ctx["destino_siis_choices"] = PreguntaGlobal.DestinoSiis.choices
         # Solapa Dashboard (análisis #366, RN-1): la pestaña solo existe con la
         # capacidad de reportes. Acá van únicamente las opciones de los filtros; los
         # números los pide el JS al abrir la solapa (RNF-1).
@@ -421,6 +422,7 @@ class SegmentoDetailView(SegmentoScopedMixin, CapacidadRequeridaMixin, LoginRequ
         ctx["form_requisito"] = RequisitoNativoForm(segmento=seg)
         ctx["presentacion_choices"] = PresentacionCampo.choices
         ctx["canal_choices"] = CanalFormulario.choices
+        ctx["destino_siis_choices"] = PreguntaGlobal.DestinoSiis.choices
         return ctx
 
 
@@ -733,6 +735,7 @@ class RequisitosSegmentoView(CapacidadRequeridaMixin, LoginRequiredMixin, ListVi
         ctx["tipo_choices"] = TipoCampo.choices
         ctx["presentacion_choices"] = PresentacionCampo.choices
         ctx["canal_choices"] = CanalFormulario.choices
+        ctx["destino_siis_choices"] = PreguntaGlobal.DestinoSiis.choices
         ctx["form_requisito"] = RequisitoNativoForm()
         return ctx
 
@@ -765,6 +768,7 @@ class SubsegmentoDetailView(SegmentoScopedMixin, CapacidadRequeridaMixin, LoginR
         ctx["form_requisito"] = RequisitoNativoForm(segmento=seg, subsegmento=sub)
         ctx["presentacion_choices"] = PresentacionCampo.choices
         ctx["canal_choices"] = CanalFormulario.choices
+        ctx["destino_siis_choices"] = PreguntaGlobal.DestinoSiis.choices
         return ctx
 
 

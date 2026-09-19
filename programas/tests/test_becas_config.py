@@ -579,6 +579,70 @@ class DestinoSiisPreguntaTests(TestCase):
         self.assertContains(resp, "SIIS: Localidad del domicilio")
 
 
+class DestinoSiisRequisitoTests(_BaseConfigTest):
+    """Cambio 80: los requisitos del segmento también pueden alimentar a SIIS."""
+
+    def setUp(self):
+        super().setUp()
+        self.client.force_login(self.admin)
+        self.seg = Segmento.objects.create(nombre="Futuro", cupo_maximo=100)
+        self.otro = Segmento.objects.create(nombre="Otro", cupo_maximo=100)
+
+    def _post(self, segmento, texto, destino, **extra):
+        datos = {"texto": texto, "tipo": TipoCampo.STRING, "orden": "", "obligatorio": "True", "destino_siis": destino}
+        datos.update(extra)
+        return self.client.post(reverse("becas:requisito_crear", args=[segmento.pk]), datos)
+
+    def test_crea_requisito_con_destino(self):
+        resp = self._post(self.seg, "Localidad", "loc_actual")
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(RequisitoNativo.objects.get(texto="Localidad").destino_siis, "loc_actual")
+
+    def test_rechaza_dos_requisitos_con_el_mismo_destino_en_el_mismo_segmento(self):
+        self._post(self.seg, "Localidad", "loc_actual")
+        form = RequisitoNativoForm(
+            {
+                "texto": "Otra",
+                "tipo": TipoCampo.STRING,
+                "orden": "",
+                "obligatorio": "True",
+                "destino_siis": "loc_actual",
+            },
+            segmento=self.seg,
+        )
+        self.assertFalse(form.is_valid())
+        self.assertIn("destino_siis", form.errors)
+        self.assertIn("Localidad", form.errors["destino_siis"][0])
+
+    def test_dos_segmentos_pueden_repetir_el_destino(self):
+        self._post(self.seg, "Localidad", "loc_actual")
+        resp = self._post(self.otro, "Localidad", "loc_actual")
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(RequisitoNativo.objects.filter(destino_siis="loc_actual").count(), 2)
+
+    def test_editar_sin_tocar_el_destino_lo_conserva(self):
+        self._post(self.seg, "Localidad", "loc_actual")
+        req = RequisitoNativo.objects.get(texto="Localidad")
+        resp = self.client.post(
+            reverse("becas:requisito_editar", args=[req.pk]),
+            {
+                "texto": "Localidad actual",
+                "tipo": TipoCampo.STRING,
+                "orden": req.orden,
+                "obligatorio": "True",
+                "destino_siis": "loc_actual",
+            },
+        )
+        self.assertEqual(resp.status_code, 302)
+        req.refresh_from_db()
+        self.assertEqual((req.texto, req.destino_siis), ("Localidad actual", "loc_actual"))
+
+    def test_la_lista_muestra_el_destino(self):
+        self._post(self.seg, "Localidad", "loc_actual")
+        resp = self.client.get(reverse("becas:requisitos_segmento") + f"?segmento={self.seg.pk}")
+        self.assertContains(resp, "SIIS: Localidad del domicilio")
+
+
 class FuncionSiisProgramaTests(TestCase):
     """La función del programa (``id_fun_x_plan``) se elige del catálogo de SIIS."""
 
