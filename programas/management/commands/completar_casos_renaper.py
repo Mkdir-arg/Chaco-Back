@@ -169,8 +169,10 @@ class Command(BaseCommand):
                 raise CommandError(
                     f"No existe la tabla `{TABLA_RENAPER}`. Cargala primero con scripts/DatosPersonas.sql."
                 )
+            # El nombre de la tabla es una constante del módulo, no una entrada
+            # externa: no hay vector de inyección (Bandit B608).
             cur.execute(
-                f"SELECT dni_consultado, cuil, provincia_api, localidad_api FROM `{TABLA_RENAPER}` WHERE `_ok` = 1"
+                f"SELECT dni_consultado, cuil, provincia_api, localidad_api FROM `{TABLA_RENAPER}` WHERE `_ok` = 1"  # nosec B608
             )
             filas = {}
             for dni, cuil, provincia, localidad in cur.fetchall():
