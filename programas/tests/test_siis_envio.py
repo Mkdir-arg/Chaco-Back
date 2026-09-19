@@ -196,6 +196,51 @@ class CatalogosTests(SimpleTestCase):
             Catalogos(cargar=falla).provincia_id("Chaco")
 
 
+class RespuestasPorDestinoRequisitosTests(_BaseEnvioTest):
+    """Cambio 80: el alta también lee los requisitos del segmento marcados con destino."""
+
+    def _requisito(self, texto, destino, **extra):
+        from programas.models import RequisitoNativo
+
+        return RequisitoNativo.objects.create(
+            texto=texto, tipo=TipoCampo.STRING, segmento=self.segmento, destino_siis=destino, **extra
+        )
+
+    def test_toma_la_respuesta_de_un_requisito_del_segmento(self):
+        destino = PreguntaGlobal.DestinoSiis
+        r_prov = self._requisito("Provincia", destino.PROVINCIA_ACTUAL, orden=1)
+        r_loc_nac = self._requisito("Localidad de nacimiento", destino.LOCALIDAD_NACIMIENTO, orden=2)
+        self.formulario.data = {
+            "globales": {},
+            "requisitos": {str(r_prov.pk): "Chaco", str(r_loc_nac.pk): "Resistencia"},
+        }
+        resultado = siis_envio.respuestas_por_destino(self.formulario)
+        self.assertEqual(resultado["prov_actual"], "Chaco")
+        self.assertEqual(resultado["loc_nacim"], "Resistencia")
+
+    def test_el_requisito_del_segmento_manda_sobre_la_pregunta_general(self):
+        destino = PreguntaGlobal.DestinoSiis
+        pregunta = PreguntaGlobal.objects.create(
+            texto="Barrio", tipo=TipoCampo.STRING, destino_siis=destino.BARRIO, orden=150
+        )
+        requisito = self._requisito("Barrio del segmento", destino.BARRIO, orden=1)
+        self.formulario.data = {
+            "globales": {str(pregunta.pk): "Centro"},
+            "requisitos": {str(requisito.pk): "Villa Libertad"},
+        }
+        self.assertEqual(siis_envio.respuestas_por_destino(self.formulario)["barrio_actual"], "Villa Libertad")
+
+    def test_ignora_los_requisitos_de_otro_segmento(self):
+        from programas.models import RequisitoNativo
+
+        ajeno = Segmento.objects.create(nombre="Ajeno", cupo_maximo=5, programa=self.programa)
+        req = RequisitoNativo.objects.create(
+            texto="Barrio", tipo=TipoCampo.STRING, segmento=ajeno, destino_siis=PreguntaGlobal.DestinoSiis.BARRIO
+        )
+        self.formulario.data = {"globales": {}, "requisitos": {str(req.pk): "No corresponde"}}
+        self.assertNotIn("barrio_actual", siis_envio.respuestas_por_destino(self.formulario))
+
+
 class ArmarPayloadTests(_BaseEnvioTest):
     def setUp(self):
         super().setUp()

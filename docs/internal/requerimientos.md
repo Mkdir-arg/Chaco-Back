@@ -224,6 +224,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 77 | QA vuelve a la versión de producción: base restaurada desde PRD y `ecom/test` igualado a `ecom/main` | Transversal / ambientes (testing de ECOM) | `#infra` `#datos` `#gestion` `#relevamientos` | PM — en sesión: «en el ambiente de test de ECOM vamos a restaurar la versión que está en main, o sea la que no tiene el constructor de formulario» | 18/09/2026 | 🟢 **Hecho** | Se retiran `programas.0060`–`0066` de testing |
 | 78 | Testing de ECOM vuelve al constructor de formularios: se despliega el release `7c7f9e3` sobre la base copiada de PRD | Transversal / ambientes (testing de ECOM) | `#infra` `#relevamientos` `#datos` `#gestion` | PM — en sesión: «en el ambiente de test de `/pushGitLabecom` implementá la versión del constructor de formulario, quiero probar algo; puede ser que después la tiremos para atrás» | 18/09/2026 | 🟢 **Hecho** | Aplica `programas.0060` a `0066` |
 | 79 | Los casos ya cargados reciben el formulario completo y se completan desde RENAPER; validación SIIS automática por lotes | Becas · casos → Revisión | `#relevamientos` `#datos` `#siis` `#infra` | PM — en sesión: «a todos los casos desde el inicio que se le sumen estos datos y con el cruce desde renaper sumarle Cuit Alumno y Cuil Apoderado» y «todos los casos que tenemos en el relevamiento hay que hacer si es Validar con SIIS, de forma automática en lotes de 50» | 19/09/2026 | 🟢 **Hecho** (SIIS pendiente de correr en el pod) | No requiere |
+| 80 | Los requisitos del segmento también pueden alimentar el alta en SIIS («Este dato alimenta a SIIS como») | Becas · catálogo de requisitos → envío a SIIS | `#siis` `#relevamientos` `#ui` | PM — en sesión: «los campos de cuit y localidad son a nivel segmento, no generales, y por ende no puedo configurar "Este dato alimenta a SIIS como" de esos campos» | 19/09/2026 | 🟢 **Hecho** | `programas.0067` (aditiva) |
 
 **Notas del índice**
 
@@ -8865,3 +8866,90 @@ quitan editando el requisito.
   aplicado en test (dos campos, luego cuatro); paso a lotes tras la corrida de una hora; selector completado.
 - **19/09/2026 (tarde)** — Comando de validación SIIS; PR #446 mergeado en `development` (`ce238a2`); los
   comandos adelantados a `ecom/test` (`d5d20cc`) para probarlos en el pod.
+
+
+---
+
+# Cambio 80 — Los requisitos del segmento también pueden alimentar el alta en SIIS
+
+🟢 **HECHO — 19/09/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · catálogo de requisitos por programa / segmento / subsegmento → alta de beneficiarios en SIIS |
+| **Etiquetas** | `#siis` `#relevamientos` `#ui` |
+| **Solicitante** | PM — en sesión: «tengo un tema con los campos "Este dato alimenta a SIIS como": los campos de cuit y localidad son a nivel segmento, no generales, y por ende no puedo configurar "Este dato alimenta a SIIS como" de esos campos» |
+| **Fecha del pedido** | 19/09/2026 |
+| **Issue / épica** | Sin issue (pedido en sesión) · continúa el Cambio 73 |
+| **Partes afectadas** | Backoffice (catálogo de requisitos) · envío a SIIS |
+| **Migración** | `programas.0067_requisitonativo_destino_siis` — aditiva, no toca datos |
+
+## Pedido original
+
+El marcador «Este dato alimenta a SIIS como» (Cambio 73) existía **solo en las preguntas generales**. En el
+catálogo real de la convocatoria, los siete datos que el alta en SIIS toma del formulario —Provincia,
+Localidad, Barrio, Calle y altura, Estado Civil, Provincia Nacimiento y Localidad de nacimiento— son
+**requisitos del segmento Futuro**, así que no se podía marcar ninguno. En testing había cero preguntas
+marcadas: el primer caso aprobado habría salido incompleto en esos siete campos, a corregir a mano por caso.
+
+## Alcance acordado
+
+- El mismo marcador, con la misma lista de siete destinos, en los requisitos nativos (programa, segmento o
+  subsegmento). Los requisitos **no** se convierten en preguntas generales: son específicos del segmento.
+- El PM marca los siete requisitos de Futuro desde la pantalla; la entrega no los mapea por código.
+- Afuera: Cuit Alumno y Cuil Apoderado no necesitan destino. El alta calcula el CUIL del titular con
+  `calcular_cuil(dni, sexo)`; no lo toma del formulario.
+
+## Decisiones tomadas
+
+- **Unicidad por ancla, no global.** Un solo requisito por destino dentro del mismo programa, segmento o
+  subsegmento (`hermanos_orden()`); dos segmentos distintos pueden repetir destino. Vive en el `clean()` del
+  formulario, como en las preguntas generales, porque MySQL no tiene constraints condicionales.
+- **El requisito manda sobre la pregunta general** si ambos apuntan al mismo destino: es el dato más
+  específico del segmento. `respuestas_por_destino` lee primero las generales activas y después los requisitos
+  que alcanzan al formulario —programa, segmento (subsegmento nulo) y subsegmento de su convocatoria, la misma
+  herencia que `get_campos_formulario`— y pisa.
+- **El selector va en los cinco modales que editan requisitos** (`requisitos_segmento.html` crear/editar,
+  `segmento_detail.html`, `subsegmento_detail.html`, `programa_detail.html`), no solo en `requisito_form.html`.
+  Esos modales postean campos con nombre explícito: sin el control, cada edición habría guardado el destino
+  vacío y **borrado el mapeo**. Se agregó además el test que lo cubre (`test_editar_sin_tocar_el_destino_lo_conserva`).
+- **Badge «SIIS: …»** en las cuatro tablas de requisitos, igual que en preguntas generales.
+- Fila nueva en el inventario del agente canónico de diseño («Modal de requisito nativo»), exigida por el
+  contrato al tocar `programa_detail.html` y `_requisitos_programa_panel.html`; de paso los dos filtros de
+  `requisitos_segmento.html` pasaron a `nodo-field` (tenían clases fuera del CSS compilado).
+
+## Implementación
+
+- `programas/models/__init__.py` — `RequisitoNativo.destino_siis` (choices de `PreguntaGlobal.DestinoSiis`).
+- `programas/migrations/0067_requisitonativo_destino_siis.py`.
+- `programas/forms.py` — `RequisitoNativoForm`: campo, widget y unicidad por ancla.
+- `programas/services/siis_envio.py` — `respuestas_por_destino` lee generales y requisitos; `_primer_valor`.
+- `programas/views/configuracion.py` — `destino_siis_choices` en los contextos que ya pasaban `canal_choices`.
+- Templates: `requisitos_segmento.html`, `segmento_detail.html`, `subsegmento_detail.html`,
+  `programa_detail.html`, `_requisitos_page_table.html`, `_requisitos_panel.html`,
+  `_requisitos_programa_panel.html`, `_requisitos_propios_panel.html`.
+- Tests: `test_becas_config.DestinoSiisRequisitoTests` (5) y `test_siis_envio.RespuestasPorDestinoRequisitosTests` (3).
+- `.claude/agents/chaco-design-system.md` — fila «Modal de requisito nativo (alta / edición)».
+
+## Validación
+
+- `ruff`, `manage.py check`, `makemigrations --check` (Django 4.2 local y 5.2.17), `compile_templates` 339/0,
+  `design_audit --changed` 0/0, `check_design_agent --changed` OK.
+- 75 tests de configuración y envío SIIS en verde con Python 3.12 / Django 5.2.17 (venv igual al CI). En el
+  venv local (3.14 / 4.2) dos tests que renderizan el listado dan el error `dicts` conocido del entorno.
+
+## Pendientes / a definir
+
+- **Marcar los siete requisitos de Futuro** en testing desde «Requisitos por segmento» (lo hace el PM).
+- Verificar con un caso aprobado que el alta a SIIS sale completa en domicilio, estado civil y nacimiento.
+- El CUIL del apoderado en el alta: confirmar que también se calcula y no se toma del formulario.
+
+## Reversión
+
+Quitar el campo revierte la migración; ningún dato de casos se toca. Desmarcar un requisito vuelve a
+excluirlo del alta.
+
+## Historial
+
+- **19/09/2026** — Pedido, análisis (siete requisitos sin posibilidad de marcar, cero preguntas marcadas en
+  test), implementación, validación y PR.

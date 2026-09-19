@@ -1140,13 +1140,14 @@ class RequisitoNativoForm(_OrdenUnicoMixin, _PresentacionMixin, _OpcionesMixin):
 
     class Meta:
         model = RequisitoNativo
-        fields = ["texto", "tipo", "presentacion", "canal", "obligatorio", "orden"]
+        fields = ["texto", "tipo", "presentacion", "canal", "obligatorio", "orden", "destino_siis"]
         widgets = {
             "texto": forms.TextInput(attrs={"class": INPUT_CLASS}),
             "tipo": forms.Select(attrs={"class": INPUT_CLASS}),
             "presentacion": forms.Select(attrs={"class": INPUT_CLASS}),
             "canal": forms.Select(attrs={"class": INPUT_CLASS}),
             "orden": forms.NumberInput(attrs={"class": INPUT_CLASS, "min": 0}),
+            "destino_siis": forms.Select(attrs={"class": INPUT_CLASS}),
         }
 
     def __init__(self, *args, programa=None, segmento=None, subsegmento=None, **kwargs):
@@ -1175,6 +1176,21 @@ class RequisitoNativoForm(_OrdenUnicoMixin, _PresentacionMixin, _OpcionesMixin):
         cleaned = super().clean()
         if not cleaned.get("canal"):
             cleaned["canal"] = CanalFormulario.AMBOS
+        # Cambio 80: un solo requisito por destino SIIS dentro del mismo ancla
+        # (programa, segmento o subsegmento); si hubiera dos, el alta no sabría
+        # qué respuesta tomar. Dos segmentos distintos sí pueden repetir destino.
+        destino = cleaned.get("destino_siis") or ""
+        if destino:
+            otros = self.hermanos_orden().filter(destino_siis=destino)
+            if self.instance.pk:
+                otros = otros.exclude(pk=self.instance.pk)
+            otro = otros.first()
+            if otro is not None:
+                etiqueta = PreguntaGlobal.DestinoSiis(destino).label
+                self.add_error(
+                    "destino_siis",
+                    f"Ya hay un requisito que alimenta «{etiqueta}» en este mismo nivel: «{otro.texto}».",
+                )
         return cleaned
 
     def hermanos_orden(self):

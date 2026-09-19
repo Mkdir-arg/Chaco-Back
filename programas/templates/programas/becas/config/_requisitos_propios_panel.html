@@ -15,7 +15,9 @@
       {% for req in requisitos_propios %}
       <tr style="border-top:1px solid var(--border-light)" class="hover:bg-secondary transition-colors">
         <td class="px-4 py-[13px] text-sm text-body-subtle font-semibold">{{ req.orden }}</td>
-        <td class="px-4 py-[13px] text-sm text-heading font-medium">{{ req.texto }}</td>
+        <td class="px-4 py-[13px] text-sm text-heading font-medium">{{ req.texto }}
+          {% if req.destino_siis %}<span class="badge badge-info ml-1" title="Alimenta el alta de beneficiarios en SIIS">SIIS: {{ req.get_destino_siis_display }}</span>{% endif %}
+        </td>
         <td class="px-4 py-[13px] text-sm">
           <span class="badge badge-gray">{{ req.get_tipo_display }}</span>
         </td>
@@ -38,7 +40,8 @@
                 {{ req.orden }},
                 [{% for o in req.opciones %}'{{ o|escapejs }}'{% if not forloop.last %},{% endif %}{% endfor %}],
                 '{{ req.presentacion }}',
-                '{{ req.canal }}'
+                '{{ req.canal }}',
+                '{{ req.destino_siis }}'
               )">
               <i class="fas fa-edit"></i>
             </button>
