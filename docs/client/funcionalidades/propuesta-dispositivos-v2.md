@@ -9,10 +9,10 @@
 | **Estado** | Versión 1 desarrollada y entregada · **Versión 2 en validación del Ministerio** |
 | **Origen** | Relevamiento de campo en el Albergue Madre Teresa de Calcuta, el CIS N.º 3, la Dirección de Abordaje Psicosocial (Programa Mírame/Vedia) y el Parador Nocturno, más las reuniones del 19/06 y del 26/06 |
 | **Esfuerzo estimado** | 628 h · cuatro etapas entregables por separado · 12 semanas ([detalle](estimacion-programa-dispositivos.md)) |
-| **Última actualización** | 2026-09-14 |
+| **Última actualización** | 2026-09-20 |
 
 !!! success "Mockup navegable"
-    Todo lo que describe este documento está dibujado sobre el sistema real: **[siete flujos y dieciocho pantallas](../mockups/dispositivos-v2.html)**. Cada sección enlaza a la pantalla que le corresponde.
+    La propuesta original está dibujada sobre el sistema real: **[siete flujos y dieciocho pantallas](../mockups/dispositivos-v2.html)**. Cada sección enlaza a la pantalla que le corresponde. Las secciones 4.12, 4.13 y 4.14 —incorporadas el 20/09/2026 a partir del pedido del cliente y la reunión del 16/09— están pendientes de incorporar al mockup.
 
 ---
 
@@ -84,10 +84,12 @@ Nada de lo entregado se tira. La Versión 2 **crece sobre** lo construido, y por
 | **Formularios** | Un formulario de ingreso por tipo, que se completa al admitir | Varios formularios por tipo de institución, uno por cada momento de la operación, que el Ministerio arma y cambia por su cuenta; con secciones de nivel de sensibilidad |
 | **Operación diaria** | Parte diario por turno con cantidades calculadas | Bitácora por turno con novedades tipificadas que se agregan y nunca se sobrescriben; pase de guardia con constancia de quién entrega y quién recibe; censo automático; y regularización de días anteriores |
 | **Legajo de la institución** | Identidad, domicilio, responsable y circuito de validación | Encuadre jurídico con categoría, titularidad del inmueble y dependencia de la gestión por separado; la subsecretaría de la que depende; documentación con vigencia y aviso de vencimiento; estados de *inauguración pendiente* y de *suspensión* con reactivación; y nivel de confianza del dato |
+| **Infraestructura del dispositivo** | No contemplado | Pestaña Infraestructura en el legajo del dispositivo: tenencia, geolocalización, habitaciones, estado físico, registro fotográfico histórico y servicios disponibles; vigencia cada 6 meses (1 mes en refacción) y alertas automáticas por vencimiento |
+| **Consumos y contratos** | No contemplado | Pestaña Consumos y contratos en el legajo del dispositivo: planilla de ítems (alquiler, luz, agua, internet) con fecha de pago, vencimiento y comprobante adjunto; alerta 7 días antes del vencimiento y escalado a autoridad superior si vence sin pago registrado |
 | **Derivaciones** | No contemplado | Derivaciones entre instituciones y a organismos externos, con aceptación, rechazo y vencimiento; lista de espera con prioridad; y vista de dónde hay plazas disponibles en la red |
 | **Permisos** | Roles con alcance por institución | Alcance también por subsecretaría; niveles de sensibilidad de la información con aviso de lectura registrado; y separación de funciones: quien registra un movimiento no puede validarlo |
 | **Configuración** | Tipos de dispositivo y campos del formulario | Reglas por tipo administradas desde el sistema: qué plazas admite, si exige autorización previa, si permite préstamo, límite de permanencia, secciones mínimas, catálogos de motivos y umbrales de aviso |
-| **Conducción** | Indicadores de cada institución | Tablero de la red con capacidad, movimientos, permanencia y avisos configurables por regla |
+| **Conducción** | Indicadores de cada institución | Tablero de la red con capacidad, movimientos, permanencia y avisos configurables por regla; y vistas de tablero configurables por rol (Administrador y Director/Coordinador), construidas sobre los datos existentes en M8, con recordatorios personalizados |
 | **Merenderos** | Solicitud, validación, entregas y prestación mensual | Catálogo de insumos y kits con equivalencia en raciones; entregas con quién recibe y remito; prestación con los servicios y los días de funcionamiento de cada merendero; cierre mensual; y cobertura alimentaria |
 | **Trazabilidad** | Historial del legajo institucional | Auditoría única de todo el programa: estadías, movimientos, bitácora, entregas y prestaciones |
 | **Carga inicial** | Importación del padrón de instituciones | Importación de sectores, plazas y personas alojadas, para arrancar con el censo real del día uno |
@@ -203,6 +205,13 @@ Los **avisos** se configuran por regla, no vienen fijos: tránsito vencido, perm
 
 Cada institución tiene además su propia franja de indicadores, con vocabulario operativo: normal, exigida, crítica, sin datos.
 
+A partir de F11, el ítem **"Dashboard"** que el sidebar ya tiene —construido sobre los datos de M8— pasa a ser **configurable por rol**: cada Administrador y Director/Coordinador puede armar su vista con los indicadores que necesita —ocupación, alertas de infraestructura, próximos ingresos, estado general—, acotada a su alcance (institución, subsecretaría o total). El **agente territorial no accede a este módulo**: su función es capturar datos en campo; el ítem Dashboard no aparece en su sidebar.
+
+Se suma la posibilidad de registrar **recordatorios personalizados**: fechas relevantes de cada institución que no estén cubiertas por las alertas automáticas de infraestructura o contratos.
+
+!!! note "Qué no es esto"
+    El **Tablero de Comando central** —paneles cruzados de toda la red con agregación de capacidad, logística, población y matriz de alertas— quedó fuera del alcance de esta versión (sección 7). F11 es distinto: son vistas configurables por rol construidas sobre datos que ya existen en M8, sin agregación nueva entre instituciones. No reabre ese alcance.
+
 *Ver: [tablero de la red](../mockups/dispositivos-v2.html#p1)*
 
 ### 4.9 Reportes, carga inicial y auditoría
@@ -231,6 +240,48 @@ Esa solapa **no se filtra por alcance**: cualquiera del programa que abra el leg
 
 *Ver: [solapa en el legajo ciudadano](../mockups/dispositivos-v2.html#p16)*
 
+### 4.12 Infraestructura del dispositivo
+
+**Aplica a:** dispositivos de alojamiento continuo (24/7). **No incluye Merenderos en esta etapa** — tienen condiciones edilicias mayormente informales y un marco normativo distinto al de geriátricos (PAMI) o ECA/Sotai; quedan para una fase posterior.
+
+El Detalle del dispositivo (P4) incorpora una nueva pestaña **"Infraestructura"**, junto a Datos, Sectores y plazas, Estadías, Bitácora y Documentación. Desde ahí se carga y actualiza:
+
+- **Estado de tenencia:** propio · alquilado · comodato · donado · mixto
+- **Ubicación geolocalizada:** coordenadas y mapa, no solo dirección en texto (uso previsto: presentaciones ante programas nacionales)
+- **Cantidad de habitaciones** y plano o layout del edificio
+- **Estado físico:** condición general, observaciones, daños visibles, faltantes y necesidad de mantenimiento
+- **Registro fotográfico:** histórico y acumulativo — cada carga se suma como entrada nueva en una línea de tiempo de fotos; no se pisa la anterior
+- **Servicios disponibles:** luz · agua de red (SAMEEP u otra empresa estatal) o fuente alternativa (pozo, acarreo o cisterna) · internet · conectividad móvil
+- **Fecha de la última actualización** y **responsable** que la realizó
+
+**Edificios compartidos.** Un mismo predio puede alojar más de una institución —caso relevado: parador nocturno, geriátrico y Sotai en un mismo predio en Resistencia—. El modelo soporta esa relación: un edificio puede estar vinculado a varias instituciones simultáneamente.
+
+**Vigencia y alertas.** La infraestructura vence cada **6 meses** en condiciones normales, o cada **1 mes** cuando el dispositivo está en refacción u obra. Al vencer el plazo el sistema emite alerta por email y alerta visual en la plataforma, con el mismo patrón que ya usan "Documentación vencida" o "Ficha 15 d". El Administrador superior cuenta con un botón **"Relevar ya"** para forzar una revisión inmediata ante un reclamo puntual. El sistema nunca bloquea por esto: avisa y registra, igual que el resto.
+
+### 4.13 Relevamientos edilicios
+
+**Acceso:** nuevo ítem **"Relevamientos"** en el sidebar, dentro del grupo *Dispositivos*, al mismo nivel que Tablero, Instituciones, Estadías, Lista de espera, Bitácora y Configuración. Solo lo usa el coordinador para crear y asignar; el agente territorial no accede a este menú — recibe la tarea directamente en la app.
+
+**Regla central:** el coordinador del programa crea el relevamiento y lo asigna a un agente territorial **externo a la institución** que va a relevar. Nunca se asigna al personal interno de ese dispositivo, para evitar que se omitan irregularidades.
+
+El flujo completo:
+
+1. El coordinador crea el relevamiento: elige el dispositivo, asigna el agente territorial y define la fecha de vencimiento. La pantalla de Relevamientos muestra los activos con columnas *Dispositivo · Asignado a · Vence · Estado* (asignado / al día / vencido).
+2. El agente territorial recibe la tarea en la app, visita el establecimiento y carga los datos de infraestructura (sección 4.12) y las fotos desde el dispositivo móvil.
+3. El sistema genera un informe oficial que queda vinculado al legajo del dispositivo.
+
+**Separación de funciones:** el coordinador no valida su propia carga ni la del territorial — el mismo principio que ya aplica el resto del sistema: quien carga no valida.
+
+### 4.14 Consumos, servicios y contratos
+
+Una nueva pestaña **"Consumos y contratos"** se suma al Detalle del dispositivo (P4), junto a la pestaña Infraestructura de la sección 4.12. No tiene entrada propia en el sidebar ni pantalla aparte — sus datos son específicos de cada institución y viven dentro de su ficha.
+
+La pestaña presenta una planilla de ítems —alquiler, luz, agua, internet— con la fecha del último pago, la fecha de vencimiento del contrato o servicio y el comprobante adjunto.
+
+- El sistema emite alerta **7 días antes** del vencimiento.
+- Si el plazo vence sin pago registrado, **escala a la autoridad superior**, con el mismo criterio que otras alertas críticas del sistema.
+- Cada ítem admite el adjunto del comprobante de pago como respaldo.
+
 ---
 
 ## 5. Los flujos
@@ -239,7 +290,7 @@ Los siete circuitos completos, dibujados de punta a punta:
 
 | | Flujo | Qué muestra |
 |---|---|---|
-| **F1** | [Mapa de módulos y navegación](../mockups/dispositivos-v2.html#f1) | Cómo se ordena el programa y desde dónde se llega a cada cosa |
+| **F1** | [Mapa de módulos y navegación](../mockups/dispositivos-v2.html#f1) | Cómo se ordena el programa y desde dónde se llega a cada cosa. La columna "Base común y transversales" incorpora M14 (Infraestructura), M15 (Relevamientos), M16 (Consumos y contratos) y M17 (Tableros personalizados) — pendientes de incorporar al mockup |
 | **F2** | [Legajo institucional: estados](../mockups/dispositivos-v2.html#f2) | El camino del legajo desde el borrador hasta el cierre, con quién valida |
 | **F3** | [Estadía de punta a punta](../mockups/dispositivos-v2.html#f3) | Solicitud, ingreso, movimientos y egreso |
 | **F4** | [Traslado en tránsito](../mockups/dispositivos-v2.html#f4) | Qué ve el origen y qué ve el destino mientras la persona viaja |
@@ -262,6 +313,14 @@ Dieciocho pantallas dibujadas sobre el sistema real, con su menú, su tipografí
 | **P7** | [Detalle de la estadía](../mockups/dispositivos-v2.html#p7) | **P16** | [Solapa en el Legajo Ciudadano](../mockups/dispositivos-v2.html#p16) |
 | **P8** | [Traslado visto desde el destino](../mockups/dispositivos-v2.html#p8) | **P17** | [Formularios del tipo de institución](../mockups/dispositivos-v2.html#p17) |
 | **P9** | [Egreso](../mockups/dispositivos-v2.html#p9) | **P18** | [Sección sensible y aviso de lectura](../mockups/dispositivos-v2.html#p18) |
+
+Las pantallas correspondientes a las secciones 4.12–4.14 están pendientes de incorporar al mockup:
+
+| | Pantalla | Estado |
+|---|---|---|
+| **P4 · pestaña nueva** | Infraestructura del dispositivo | Pendiente en mockup |
+| **P4 · pestaña nueva** | Consumos y contratos | Pendiente en mockup |
+| **P19** | Relevamientos: listado y asignación | Pendiente en mockup |
 
 ---
 
@@ -297,6 +356,7 @@ Cinco entregables quedaron acordados en las reuniones de junio y todavía no lle
 | 26/06 | Formularios de **Residencia Universitaria** y **Fortalecimiento Familiar** | Sus formularios, y si Fortalecimiento trabaja con cupos, con turnos o sin plazas |
 | 26/06 | Reenvío de **accesos y datos de infraestructura** | El despliegue al ambiente de pruebas |
 | 19/06 | Planillas y documentación de los formularios de la **Línea 102** | Qué referencia se guarda de la información judicial |
+| 16/09 | **Organigrama oficial** del Ministerio (vía Figma) | Ajuste fino de la jerarquía de acceso a los tableros por rol (ministro → subsecretario → director → operadores) definida en F11 |
 
 ### 8.2 Definiciones para la reunión de arranque
 
