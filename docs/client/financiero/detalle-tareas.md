@@ -749,6 +749,7 @@
 | 09/09 | Pablo Cao | Becas | Dashboard de Becas — caché por filtros y alcance, y cierre de la exportación por persona | Caché de cinco minutos por combinación de filtros y alcance; columnas legibles del Excel por persona y ordenamiento por convocatoria. | 4 h | 8 h |
 | 09/09 | Matías Abate | Becas | Dashboard de Becas — regresión de filtros y exportaciones | Nueva pasada sobre filtros combinados, descargas y hallazgos registrados en las tareas. | 4 h | — |
 | 09/09 | Matías Abate | Becas | Constructor de formularios — guía de las condiciones y de la vista previa | Cómo se configura que un campo o un grupo aparezca según lo que la persona responde, y cómo probarlo antes de publicar. | 2 h | — |
+| 09/09 | Nahuel De Francesco | Transversal | Adaptación al proyecto | Puesta al día con el sistema, el entorno de trabajo y las definiciones vigentes, acompañado por el equipo. | 3 h | — |
 | 10/09 | Matías Fariña | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
 | 10/09 | Matías Fariña | Transversal | Armado del informe diario | Informe diario del avance para el organismo. | 0,5 h | — |
 | 10/09 | Matías Fariña | Becas | Dashboard de Becas — validación del alcance y las horas con el Ministerio | Cierre de la validación de las 86 h y del alcance con el organismo; revisión funcional del tablero publicado y de la exportación por persona. | 4,5 h | — |
@@ -760,7 +761,8 @@
 | 10/09 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
 | 10/09 | Matías Abate | Becas | Dashboard de Becas — plan de pruebas y cierre de la QA funcional | Consolidación de los casos en el plan de pruebas y ejecución final sobre producción; lo que no pasa queda como hallazgo. | 4 h | — |
 | 10/09 | Matías Abate | Becas | Constructor de formularios — documentación del formulario publicado y de la revisión del caso | Qué ve la persona en el link, cómo queda el caso en Revisión con la versión que respondió, y publicación de la guía en la documentación del cliente. | 3 h | — |
-| | | | **Total 6 al 10/09** | | **125 h** | **108 h** |
+| 10/09 | Nahuel De Francesco | Transversal | Adaptación al proyecto | Puesta al día con el sistema, el entorno de trabajo y las definiciones vigentes, acompañado por el equipo. | 3 h | — |
+| | | | **Total 6 al 10/09** | | **131 h** | **108 h** |
 
 ### :material-package-variant-closed: Consumo del 11 al 16 de septiembre — por entregable
 
@@ -783,6 +785,7 @@
 | 11/09 | Matías Abate | Becas | Pruebas funcionales del constructor en el ambiente de desarrollo | Recorrido del armado de formularios y del link construido desde el diseño. | 5 h | — |
 | 11/09 | Matías Abate | Becas | Pruebas del dashboard del Programa Becas | Verificación de las métricas, los filtros y la exportación. | 2 h | — |
 | 11/09 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 11/09 | Nahuel De Francesco | Transversal | Adaptación al proyecto | Puesta al día con el sistema, el entorno de trabajo y las definiciones vigentes, acompañado por el equipo. | 3 h | — |
 | 12/09 | Matías Fariña | Becas | Definiciones del alta de beneficiarios en SIIS | Contrato de la integración y reglas de cuándo se informa un beneficiario aprobado. | 3 h | — |
 | 12/09 | Matías Fariña | Becas | Revisión del constructor integrado | Revisión funcional del resultado de la integración del día anterior. | 2 h | — |
 | 12/09 | Matías Fariña | Transversal | Coordinación del sábado | Seguimiento del trabajo del equipo durante la jornada. | 1 h | — |
@@ -802,6 +805,7 @@
 | 14/09 | Matías Abate | Becas | Pruebas funcionales del alta de beneficiarios en SIIS | Recorrido del envío desde la aprobación con cupo y desde la lista de espera. | 5 h | — |
 | 14/09 | Matías Abate | Becas | Pruebas del dashboard del Programa Becas | Verificación de las métricas, los filtros y la exportación. | 2 h | — |
 | 14/09 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 14/09 | Nahuel De Francesco | Transversal | Adaptación al proyecto | Puesta al día con el sistema, el entorno de trabajo y las definiciones vigentes, acompañado por el equipo. | 3 h | — |
 | 15/09 | Matías Fariña | Becas | Corrección urgente de los textos del link en producción | El link se presenta como «Programa +Más Futuro» y el rechazo por padrón deriva a Soporte; aplicada directo sobre producción, con su registro. | 2 h | — |
 | 15/09 | Matías Fariña | Becas | Ajuste de los textos del link público | Revisión de los textos del pie y de los mensajes del primer paso. | 1 h | — |
 | 15/09 | Matías Fariña | Transversal | Coordinación de la integración publicada y gestión del tablero | Seguimiento del constructor ya integrado y puesta al día del tablero. | 4,5 h | — |
@@ -815,6 +819,7 @@
 | 15/09 | Matías Abate | Becas | Pruebas del constructor integrado y verificación del arreglo en producción | Recorrido del constructor publicado y comprobación de los textos corregidos en producción. | 6 h | — |
 | 15/09 | Matías Abate | Becas | Pruebas del dashboard del Programa Becas | Verificación de las métricas, los filtros y la exportación. | 1 h | — |
 | 15/09 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 15/09 | Nahuel De Francesco | Transversal | Adaptación al proyecto | Puesta al día con el sistema, el entorno de trabajo y las definiciones vigentes, acompañado por el equipo. | 3 h | — |
 | 16/09 | Matías Fariña | Becas | Dirección y publicación del completado de los identificadores de SIIS | Definición de los tres identificadores que la integración toma del caso y publicación del cambio. | 1,5 h | — |
 | 16/09 | Matías Fariña | Transversal | Gestión, coordinación y registro del consumo de la semana | Coordinación del equipo, gestión del tablero y carga del consumo del período. | 2,5 h | — |
 | 16/09 | Matías Fariña | Transversal | Reunión de seguimiento diaria e informe | Reunión diaria del equipo y armado del informe del día. | 1,5 h | — |
@@ -826,7 +831,76 @@
 | 16/09 | Matías Abate | Becas | Pruebas del envío a SIIS con los identificadores completos | Verificación del envío con los tres identificadores tomados del caso. | 3 h | — |
 | 16/09 | Matías Abate | Becas | Pruebas del dashboard del Programa Becas | Verificación de las métricas, los filtros y la exportación. | 1 h | — |
 | 16/09 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
-| | | | **Total 11 al 16/09** | | **158,5 h** | **132 h** |
+| 16/09 | Nahuel De Francesco | Transversal | Adaptación al proyecto | Puesta al día con el sistema, el entorno de trabajo y las definiciones vigentes, acompañado por el equipo. | 3 h | — |
+| | | | **Total 11 al 16/09** | | **170,5 h** | **132 h** |
+
+### :material-package-variant-closed: Consumo del 17 al 21 de septiembre — por entregable
+
+!!! note "Semana de la puesta en marcha en producción"
+
+    El constructor de formularios llegó a **producción**. Antes se reconstruyó dos veces el ambiente de
+    pruebas desde una copia de la base productiva para validar el procedimiento entero, y se desarrollaron
+    dos herramientas: una que completa los casos ya cargados con los datos de RENAPER y otra que valida los
+    casos contra SIIS. Incluye el sábado 19 y el domingo 20, que fueron días de trabajo pleno.
+    **Nahuel De Francesco** se incorporó al equipo el 09/09 y registra su adaptación desde entonces.
+
+| Período | Persona | Programa | Entregable | Qué incluye | Horas | Equiv. |
+|---|---|---|---|---|---:|---:|
+| 17/09 | Matías Fariña | Becas | Estado del ambiente de pruebas y decisión de volverlo a la versión de producción | Revisión de qué versión tenía cada ambiente y decisión de igualar el de pruebas al de producción para poder trabajar con datos reales. | 4 h | — |
+| 17/09 | Matías Fariña | Becas | Coordinación con el proveedor para la copia de la base | Pedido y acuerdo de la copia de la base de producción que se usa en el ambiente de pruebas. | 3,5 h | — |
+| 17/09 | Matías Fariña | Transversal | Reunión de seguimiento diaria e informe | Reunión diaria del equipo y armado del informe del día. | 1,5 h | — |
+| 17/09 | Pablo Cao | Becas | Constructor de formularios — ajustes y contrato para la app de campo | Correcciones sobre el constructor y precisión del contrato que la app de campo va a consumir. | 7 h | 14 h |
+| 17/09 | Pablo Cao | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 17/09 | Juani Portilla | Becas | Preparación del ambiente y verificación de las migraciones del constructor | Revisión de la secuencia de cambios de estructura que el constructor aplica sobre la base. | 7 h | — |
+| 17/09 | Juani Portilla | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 17/09 | Matías Abate | Becas | Pruebas del constructor en el ambiente de desarrollo | Recorrido del armado de formularios y del link público construido desde el diseño. | 7 h | — |
+| 17/09 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 17/09 | Nahuel De Francesco | Transversal | Adaptación al proyecto | Puesta al día con el sistema, el entorno de trabajo y las definiciones vigentes, acompañado por el equipo. | 3 h | — |
+| 18/09 | Matías Fariña | Becas | Ambiente de pruebas restaurado a la versión de producción | Dirección de la vuelta atrás del ambiente de pruebas, en código y en datos, coordinada con el proveedor. | 3 h | — |
+| 18/09 | Matías Fariña | Becas | Manual de puesta en marcha del constructor de formularios | Documento operativo con el procedimiento completo, los controles de cada etapa y cómo volver atrás. | 3 h | — |
+| 18/09 | Matías Fariña | Becas | Registro de los dos movimientos de ambiente | Constancia de por qué el ambiente de pruebas volvió a producción y por qué después recibió el constructor. | 1,5 h | — |
+| 18/09 | Matías Fariña | Transversal | Reunión de seguimiento diaria e informe | Reunión diaria del equipo y armado del informe del día. | 1,5 h | — |
+| 18/09 | Pablo Cao | Becas | Constructor de formularios — ajustes y acompañamiento de la puesta en marcha | Correcciones sobre el constructor y apoyo durante la publicación al ambiente de pruebas. | 7 h | 14 h |
+| 18/09 | Pablo Cao | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 18/09 | Juani Portilla | Becas | Restauración de la base del ambiente de pruebas | Carga de la copia de producción sobre el ambiente de pruebas, con la limpieza previa que hacía falta. | 4 h | — |
+| 18/09 | Juani Portilla | Becas | Diagnóstico y solución del bloqueo de la puesta en marcha | La publicación quedaba trabada por estructuras que la copia de producción no reemplaza; se identificó la causa y se resolvió sin perder datos. | 4 h | — |
+| 18/09 | Juani Portilla | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 18/09 | Matías Abate | Becas | Pruebas sobre el ambiente restaurado | Verificación de que el ambiente de pruebas quedó igual al de producción, en pantallas y en datos. | 4 h | — |
+| 18/09 | Matías Abate | Becas | Actualización de los casos de prueba del constructor | Revisión de los casos a la luz del comportamiento verificado en el ambiente. | 3 h | — |
+| 18/09 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 18/09 | Nahuel De Francesco | Transversal | Adaptación al proyecto | Puesta al día con el sistema, el entorno de trabajo y las definiciones vigentes, acompañado por el equipo. | 3 h | — |
+| 19/09 | Matías Fariña | Becas | Análisis de los datos de los casos ya cargados y su correspondencia con RENAPER | Revisión campo por campo de qué tenían los casos, qué faltaba y qué se podía completar desde la consulta a RENAPER, incluida la verificación de los datos cargados a mano. | 3 h | — |
+| 19/09 | Matías Fariña | Becas | Definiciones del completado de casos y del alta en SIIS | Qué campo se completa desde qué dato, qué no se puede completar y por qué; y cómo se marca qué respuesta alimenta el alta de beneficiarios. | 2 h | — |
+| 19/09 | Matías Fariña | Becas | Publicación de los dos desarrollos al ambiente de pruebas | Revisión, aprobación y publicación de las herramientas de completado y de validación, con sus controles. | 3 h | — |
+| 19/09 | Matías Fariña | Transversal | Coordinación del sábado con el equipo y el proveedor | Seguimiento de la jornada, decisiones sobre la marcha y coordinación de las publicaciones. | 3 h | — |
+| 19/09 | Pablo Cao | Becas | Herramienta que completa los casos ya cargados desde RENAPER | Desarrollo de la herramienta que le da a cada caso el formulario vigente y le completa el CUIT del alumno y el CUIL del apoderado cruzando por documento. | 4 h | 8 h |
+| 19/09 | Pablo Cao | Becas | Extensión del completado a la provincia y la localidad | La misma herramienta pasa a completar también el lugar declarado en el documento. | 2 h | 4 h |
+| 19/09 | Pablo Cao | Becas | Reescritura del completado para que trabaje por tandas | La herramienta pasa a guardar de a cincuenta casos, cada tanda confirmada por separado: la corrida baja de una hora a pocos minutos y se puede retomar si se corta. | 2 h | 4 h |
+| 19/09 | Pablo Cao | Becas | Herramienta de validación de casos contra SIIS | Desarrollo de la validación masiva, con freno automático si el servicio externo deja de responder. | 3 h | 6 h |
+| 19/09 | Juani Portilla | Becas | Ensayo completo en un ambiente propio sobre una copia de producción | Reproducción del procedimiento entero antes de tocar el ambiente de pruebas: restauración, cambios de estructura y corrida de las herramientas. | 3 h | — |
+| 19/09 | Juani Portilla | Becas | Ejecución de las herramientas en el ambiente de pruebas y seguimiento | Corrida sobre los 6.395 casos y verificación del resultado campo por campo. | 3 h | — |
+| 19/09 | Juani Portilla | Becas | Pruebas automatizadas de las dos herramientas y del marcado para SIIS | Cobertura automática del completado, de la validación y de la nueva marca que indica qué respuesta alimenta el alta de beneficiarios. | 3 h | 6 h |
+| 19/09 | Juani Portilla | Becas | Verificación de los controles de calidad y de la publicación | Revisión de que los controles automáticos del proyecto quedaran en verde antes de publicar. | 2 h | — |
+| 19/09 | Matías Abate | Becas | Pruebas del completado sobre la copia de producción | Verificación de los conteos y del resultado antes de aplicarlo sobre el ambiente de pruebas. | 4 h | — |
+| 19/09 | Matías Abate | Becas | Verificación caso por caso de los cuatro campos completados | Revisión de casos antiguos y recientes para confirmar que muestran los campos nuevos con el valor correcto. | 3 h | — |
+| 19/09 | Matías Abate | Becas | Pruebas de la validación contra SIIS | Verificación del comportamiento de la validación masiva y de su freno de seguridad. | 3 h | — |
+| 20/09 | Matías Fariña | Becas | Diagnóstico del rechazo masivo de la validación contra SIIS | Los primeros cien casos volvieron rechazados: se identificó que el servicio no reconoce el programa configurado, y se frenó la corrida completa antes de ensuciar el registro. | 3 h | — |
+| 20/09 | Matías Fariña | Transversal | Coordinación con el proveedor durante la validación | Acompañamiento de la ejecución del lado del proveedor y definición de cómo seguir. | 3 h | — |
+| 20/09 | Pablo Cao | Becas | Acompañamiento de la ejecución en el ambiente de pruebas | Apoyo durante la corrida de las herramientas y revisión de los resultados parciales. | 4 h | — |
+| 20/09 | Juani Portilla | Becas | Verificación del ambiente durante la validación | Control del comportamiento del ambiente mientras corría la validación masiva. | 4 h | — |
+| 20/09 | Matías Abate | Dispositivos | Programa Dispositivos Versión 2 — propuesta y maqueta navegable | Actualización de la propuesta funcional del programa y de su maqueta navegable publicada. | 8 h | — |
+| 21/09 | Matías Fariña | Becas | Puesta en marcha del constructor de formularios en producción | Publicación de la versión con constructor al ambiente productivo, con la verificación de que el link público abierto siguiera funcionando en la misma dirección. | 3 h | — |
+| 21/09 | Matías Fariña | Transversal | Explicación del procedimiento al equipo del proveedor | Documento de cómo se lleva a cabo el proceso completo, etapa por etapa, y cómo ejecutarlo desde su infraestructura. | 2 h | — |
+| 21/09 | Matías Fariña | Transversal | Coordinación, gestión del tablero y registro del consumo | Coordinación del equipo, seguimiento del tablero y carga del consumo del período. | 2,5 h | — |
+| 21/09 | Matías Fariña | Transversal | Reunión de seguimiento diaria e informe | Reunión diaria del equipo y armado del informe del día. | 1,5 h | — |
+| 21/09 | Pablo Cao | Becas | Acompañamiento de la puesta en marcha en producción | Apoyo durante la publicación y verificación del comportamiento del sistema. | 6 h | — |
+| 21/09 | Pablo Cao | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 21/09 | Juani Portilla | Becas | Reconstrucción completa del ambiente de pruebas desde cero | Vuelta del ambiente a la versión de producción y nueva actualización, para validar el procedimiento entero antes de aplicarlo en producción. | 8 h | — |
+| 21/09 | Juani Portilla | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 21/09 | Matías Abate | Becas | Pruebas del procedimiento completo en el ambiente reconstruido | Verificación de cada etapa del proceso sobre el ambiente rehecho desde cero. | 6 h | — |
+| 21/09 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 21/09 | Nahuel De Francesco | Transversal | Adaptación al proyecto | Puesta al día con el sistema, el entorno de trabajo y las definiciones vigentes, acompañado por el equipo. | 3 h | — |
+| | | | **Total 17 al 21/09** | | **173 h** | **56 h** |
 
 ### :material-briefcase-outline: Consumo de septiembre por programa
 
@@ -839,7 +913,7 @@
 
 !!! note "Qué incluye"
     Las horas de Becas incluyen las **103 h 30 min trasladadas de agosto**, cuyo detalle día por día está
-    en las secciones de ese mes. El trabajo propio de septiembre al 16/09 es de **480 h**.
+    en las secciones de ese mes. El trabajo propio de septiembre al 21/09 es de **671 h**.
 
 ---
 
@@ -896,9 +970,9 @@
 
 
 
-    **136.962 minutos** (2.282 h 42 min)
+    **148.422 minutos** (2.473 h 42 min)
 
-    Junio 499 h 12 min + julio 500 h 00 min + agosto 803 h 30 min + septiembre 480 h 00 min (al 16/09).
+    Junio 499 h 12 min + julio 500 h 00 min + agosto 803 h 30 min + septiembre 671 h 00 min (al 21/09).
     (El contador anterior decía 1.939 h 42 min: no sumaba bien los cuatro meses; se corrigió al recalcularlo.)
 
     Es el **esfuerzo real ejecutado**. A efectos de imputación, agosto cierra por 700 h y sus 103 h 30 min de
