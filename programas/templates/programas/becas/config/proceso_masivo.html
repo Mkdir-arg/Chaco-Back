@@ -1,0 +1,143 @@
+{% extends "includes/base.html" %}
+{% block title %}Becas · Proceso masivo{% endblock %}
+
+{% block main-content %}
+<div class="mb-8" style="max-width: 760px">
+
+  {# Encabezado #}
+  <div class="flex items-start gap-3 mb-6">
+    <a href="{% url 'becas:programa_detalle' programa.pk %}"
+       class="btn-tertiary btn-back-circle" aria-label="Volver al programa">
+      <i class="fas fa-arrow-left" aria-hidden="true"></i>
+    </a>
+    <div class="min-w-0">
+      <h1 class="font-extrabold text-heading" style="font-size:28px; letter-spacing:-0.5px">Proceso masivo</h1>
+      <p class="text-sm text-body-subtle mt-1.5">{{ programa.nombre }}</p>
+    </div>
+  </div>
+
+  <div class="rounded-lg bg-warning-soft border border-warning-subtle p-4 text-sm mb-6" role="alert">
+    <strong class="text-heading">Esto aprueba casos y los da de alta en SIIS</strong>
+    <p class="text-body mt-1">
+      Cada caso se valida con SIIS, se aprueba y se informa. El alta no se puede deshacer desde acá.
+      No se envía ningún correo al ciudadano.
+    </p>
+  </div>
+
+  {% if en_curso %}
+  {# Corriendo: la pantalla se relee sola #}
+  <div class="bg-white rounded-xl border border-base shadow-sm p-5">
+    <div class="flex items-center justify-between gap-4 flex-wrap mb-4">
+      <p class="text-sm text-body-subtle">
+        <span class="badge badge-success badge-dot">En curso</span>
+        lanzada por {{ en_curso.solicitada_por.get_full_name|default:en_curso.solicitada_por.username }}
+        · hace {{ en_curso.creado|timesince }}
+      </p>
+      <form method="post" action="{% url 'becas:proceso_masivo_frenar' programa.pk %}">
+        {% csrf_token %}
+        <button type="submit" class="btn-nodo btn-danger btn-sm">Frenar</button>
+      </form>
+    </div>
+
+    <div class="w-full rounded-full h-3 mb-2" style="background: var(--bg-secondary)">
+      <div class="h-3 rounded-full" style="width: {{ en_curso.progreso }}%; background: var(--color-brand-500)"></div>
+    </div>
+    <p class="text-sm text-body mb-5">{{ en_curso.elegidos }} de {{ en_curso.total_pedido }}</p>
+
+    <dl class="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
+      <div>
+        <dt class="text-body-subtle">Altas en SIIS</dt>
+        <dd class="text-heading font-bold text-xl">{{ en_curso.altas }}</dd>
+      </div>
+      <div>
+        <dt class="text-body-subtle">Aprobados</dt>
+        <dd class="text-heading font-bold text-xl">{{ en_curso.aprobados }}</dd>
+      </div>
+      <div>
+        <dt class="text-body-subtle">Sin cupo → espera</dt>
+        <dd class="text-heading font-bold text-xl">{{ en_curso.lista_espera }}</dd>
+      </div>
+      <div>
+        <dt class="text-body-subtle">Rechazados por SIIS</dt>
+        <dd class="text-heading font-bold text-xl">{{ en_curso.rechazados }}</dd>
+      </div>
+      <div>
+        <dt class="text-body-subtle">Errores técnicos</dt>
+        <dd class="text-heading font-bold text-xl">{{ en_curso.errores }}</dd>
+      </div>
+      <div>
+        <dt class="text-body-subtle">Salteados sin datos</dt>
+        <dd class="text-heading font-bold text-xl">{{ en_curso.salteados }}</dd>
+      </div>
+    </dl>
+    <p class="text-xs text-body-subtle mt-4">
+      Frenar corta al terminar el lote en curso, no a mitad de un caso: puede tardar hasta 40 casos.
+    </p>
+  </div>
+
+  {% else %}
+
+  {% if corrida and corrida.interrumpida %}
+  <div class="rounded-lg bg-warning-soft border border-warning-subtle p-4 text-sm mb-6" role="alert">
+    <strong class="text-heading">Interrumpida</strong>
+    <p class="text-body mt-1">
+      Sin señal desde hace {{ corrida.latido|timesince }}. Llegó a {{ corrida.elegidos }} de
+      {{ corrida.total_pedido }}. Continuar lanza una corrida nueva por lo que falta: los ya informados
+      se saltean solos, así que no se duplica nada.
+    </p>
+  </div>
+  {% endif %}
+
+  {# Sin corrida: el formulario #}
+  <div class="bg-white rounded-xl border border-base shadow-sm p-5">
+    <div class="mb-5">
+      <p class="text-body-subtle text-sm">Pendientes de informar</p>
+      <p class="text-heading font-extrabold" style="font-size:32px">{{ pendientes }}</p>
+    </div>
+    <form method="post" action="{% url 'becas:proceso_masivo_lanzar' programa.pk %}"
+          class="flex items-end gap-3 flex-wrap">
+      {% csrf_token %}
+      <div>
+        <label for="total_pedido" class="block text-[13px] font-semibold text-heading mb-1.5">Cantidad a procesar</label>
+        <input type="number" name="total_pedido" id="total_pedido" value="1000"
+               min="1" max="{{ total_maximo }}" required class="nodo-field" style="max-width:170px">
+      </div>
+      <button type="submit" class="btn-nodo btn-brand btn-base">
+        {% if corrida and corrida.interrumpida %}Continuar{% else %}Procesar{% endif %}
+      </button>
+    </form>
+    <p class="text-xs text-body-subtle mt-3">
+      El total cuenta casos que se mandan. Los que tienen datos faltantes se saltean sin tocarlos,
+      así que puede mirar más candidatos de los que pedís.
+    </p>
+  </div>
+
+  {% if corrida %}
+  <div class="bg-white rounded-xl border border-base shadow-sm p-5 mt-6">
+    <p class="text-[13px] font-semibold text-heading mb-2">Última corrida</p>
+    <p class="text-sm text-body-subtle">
+      {{ corrida.creado|date:"d/m/Y H:i" }} ·
+      {{ corrida.solicitada_por.get_full_name|default:corrida.solicitada_por.username }} ·
+      {{ corrida.get_estado_display }}
+    </p>
+    <p class="text-sm text-body mt-1">
+      {{ corrida.total_pedido }} pedidos → {{ corrida.altas }} altas ·
+      {{ corrida.rechazados }} rechazados por SIIS · {{ corrida.salteados }} salteados
+    </p>
+    {% if corrida.mensaje %}<p class="text-sm text-fg-danger mt-1">{{ corrida.mensaje }}</p>{% endif %}
+  </div>
+  {% endif %}
+
+  {% endif %}
+
+</div>
+{% endblock %}
+
+{% block customJS %}
+{% if en_curso %}
+<script>
+  // La corrida avanza en un hilo del pod y no avisa: la pantalla se relee sola.
+  setTimeout(function () { window.location.reload(); }, 5000);
+</script>
+{% endif %}
+{% endblock %}

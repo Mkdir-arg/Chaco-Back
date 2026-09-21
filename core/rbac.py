@@ -102,6 +102,12 @@ CATALOGO = [
             ("becas.usuario.territorial", "Crear y administrar territoriales de los segmentos coordinados"),
             ("becas.referente", "Operar como Referente dentro del alcance de su Coordinador"),
             ("becas.coordinador_regional", "Operar como Coordinador Regional dentro de su subsegmento asignado"),
+            # No se asigna a ningún rol en el seed: se tilda a mano en el ABM de
+            # Roles. Aprueba casos en lote y los registra en SIIS sin vuelta atrás.
+            (
+                "becas.programa.proceso_masivo",
+                "Ejecutar el proceso masivo a SIIS (aprueba e informa altas en lote)",
+            ),
         ],
     },
     {

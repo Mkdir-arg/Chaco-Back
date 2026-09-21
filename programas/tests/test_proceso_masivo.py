@@ -2,13 +2,16 @@
 
 from datetime import date, timedelta
 from io import StringIO
+from pathlib import Path
 from unittest.mock import patch
 
 from django.contrib.auth.models import User
 from django.core.management import call_command
 from django.test import TestCase
+from django.urls import reverse
 from django.utils import timezone
 
+from core.rbac import CATALOGO
 from legajos.models import Ciudadano
 from programas.models import (
     Convocatoria,
@@ -244,3 +247,87 @@ class LanzarTests(_BaseProcesoTest):
         llamadas = []
         proceso_masivo.lanzar(corrida, ejecutor=llamadas.append)
         self.assertEqual(len(llamadas), 1)
+
+
+class PantallaProcesoMasivoTests(_BaseProcesoTest):
+    CAP = "becas.programa.proceso_masivo"
+
+    def setUp(self):
+        super().setUp()
+        self.admin = User.objects.create_superuser("admin_masivo", password="x")
+        self.client.force_login(self.admin)
+
+    def _url(self, nombre="proceso_masivo"):
+        return reverse(f"becas:{nombre}", args=[self.programa.pk])
+
+    def test_la_capacidad_esta_en_el_catalogo(self):
+        codigos = [c for modulo in CATALOGO for c, _ in modulo["capacidades"]]
+        self.assertIn(self.CAP, codigos)
+
+    def test_la_pantalla_abre_y_muestra_los_pendientes(self):
+        self._caso()
+        resp = self.client.get(self._url())
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Proceso masivo")
+        self.assertEqual(resp.context["pendientes"], 1)
+
+    def test_sin_la_capacidad_no_entra(self):
+        """Un usuario sin la capacidad no llega, aunque sepa la URL."""
+        otro = User.objects.create_user("sin_capacidad", password="x")
+        self.client.force_login(otro)
+        resp = self.client.get(self._url())
+        self.assertIn(resp.status_code, (302, 403))
+
+    def test_no_se_enlaza_desde_ninguna_otra_pantalla(self):
+        """«Secreta» es no listada: ninguna plantilla ajena apunta acá."""
+        raiz = Path(__file__).resolve().parents[1] / "templates"
+        propia = "proceso_masivo.html"
+        con_referencia = sorted(
+            ruta.name for ruta in raiz.rglob("*.html") if "proceso_masivo" in ruta.read_text(encoding="utf-8")
+        )
+        self.assertEqual(con_referencia, [propia])
+
+    def test_lanzar_crea_la_corrida_y_no_espera(self):
+        self._caso()
+        with patch("programas.views.proceso_masivo.servicio.lanzar") as lanzar:
+            resp = self.client.post(self._url("proceso_masivo_lanzar"), {"total_pedido": "25"})
+        self.assertEqual(resp.status_code, 302)
+        corrida = CorridaSiis.objects.get()
+        self.assertEqual(corrida.total_pedido, 25)
+        self.assertEqual(corrida.solicitada_por, self.admin)
+        lanzar.assert_called_once()
+
+    def test_no_deja_lanzar_dos_a_la_vez(self):
+        CorridaSiis.objects.create(programa=self.programa, total_pedido=10, latido=timezone.now())
+        with patch("programas.views.proceso_masivo.servicio.lanzar") as lanzar:
+            self.client.post(self._url("proceso_masivo_lanzar"), {"total_pedido": "10"})
+        self.assertEqual(CorridaSiis.objects.count(), 1)
+        lanzar.assert_not_called()
+
+    def test_una_interrumpida_no_bloquea(self):
+        CorridaSiis.objects.create(
+            programa=self.programa, total_pedido=10, latido=timezone.now() - timedelta(minutes=30)
+        )
+        with patch("programas.views.proceso_masivo.servicio.lanzar"):
+            self.client.post(self._url("proceso_masivo_lanzar"), {"total_pedido": "10"})
+        self.assertEqual(CorridaSiis.objects.count(), 2)
+
+    def test_un_total_invalido_no_crea_nada(self):
+        with patch("programas.views.proceso_masivo.servicio.lanzar"):
+            self.client.post(self._url("proceso_masivo_lanzar"), {"total_pedido": "0"})
+            self.client.post(self._url("proceso_masivo_lanzar"), {"total_pedido": "99999"})
+            self.client.post(self._url("proceso_masivo_lanzar"), {"total_pedido": "abc"})
+        self.assertFalse(CorridaSiis.objects.exists())
+
+    def test_frenar_marca_la_corrida(self):
+        corrida = CorridaSiis.objects.create(programa=self.programa, total_pedido=10, latido=timezone.now())
+        resp = self.client.post(self._url("proceso_masivo_frenar"))
+        self.assertEqual(resp.status_code, 302)
+        corrida.refresh_from_db()
+        self.assertTrue(corrida.cancelacion_pedida)
+        # El estado lo cambia el proceso al cerrar el lote, no este request.
+        self.assertEqual(corrida.estado, CorridaSiis.Estado.EN_CURSO)
+
+    def test_frenar_sin_corrida_no_rompe(self):
+        resp = self.client.post(self._url("proceso_masivo_frenar"))
+        self.assertEqual(resp.status_code, 302)
