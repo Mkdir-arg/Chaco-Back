@@ -17,7 +17,7 @@ def validar_formulario_en_siis(formulario, solicitado_por):
 
     resultado = validar_compatibilidad(
         ciudadano.dni,
-        programa.siis_programa_id,
+        programa.siis_id_plan_soc_efectivo,
         ciudadano.fecha_nacimiento.isoformat() if ciudadano.fecha_nacimiento else None,
     )
     data = resultado.get("data") or {}
@@ -28,7 +28,7 @@ def validar_formulario_en_siis(formulario, solicitado_por):
     return ValidacionSIS.objects.create(
         formulario=formulario,
         estado=estado,
-        id_programa=programa.siis_programa_id,
+        id_programa=programa.siis_id_plan_soc_efectivo,
         documento=ciudadano.dni,
         id_consulta=data.get("id_consulta") or None,
         fecha_validacion=parse_datetime(str(data.get("fecha_hora") or "")),

@@ -30,7 +30,7 @@ from programas.forms import (
     GrupoRequisitoForm,
     PreguntaGlobalForm,
     ProgramaSiisCreateForm,
-    ProgramaSiisFuncionForm,
+    ProgramaSiisIdentificadoresForm,
     RequisitoNativoForm,
     SegmentoCreateForm,
     SegmentoForm,
@@ -273,26 +273,34 @@ class ProgramaSiisDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, Detail
         if ctx["puede_dashboard"]:
             ctx["puede_exportar_dashboard"] = puede_exportar_dashboard(self.request.user)
             ctx["dashboard_form"] = DashboardBecasFiltroForm(user=self.request.user, programa=programa)
-        # Alta de beneficiarios en SIIS: la función del programa (``id_fun_x_plan``)
-        # la configura el administrador del programa; el resto solo la ve.
+        # Alta de beneficiarios en SIIS: los identificadores del programa
+        # (``id_plan_soc``, ``jurid``, ``id_fun_x_plan``) los configura el
+        # administrador del programa; el resto solo los ve.
         ctx["puede_administrar_programa"] = puede(self.request.user, CAP_PROGRAMA_ADMINISTRAR)
         if ctx["puede_administrar_programa"]:
-            ctx["form_funcion_siis"] = ProgramaSiisFuncionForm(instance=programa)
+            ctx["form_identificadores_siis"] = ProgramaSiisIdentificadoresForm(instance=programa)
         return ctx
 
 
 @login_required
 @requiere(CAP_PROGRAMA_ADMINISTRAR)
 @require_POST
-def programa_funcion_siis(request, pk):
-    """Guarda la función SIIS del programa, elegida del catálogo de funciones."""
+def programa_identificadores_siis(request, pk):
+    """Guarda los identificadores del alta de beneficiarios en SIIS (Cambio 82)."""
     programa = get_object_or_404(ProgramaSiis, pk=pk)
     if not _programas_qs(request.user).filter(pk=programa.pk).exists():
         raise PermissionDenied("No tiene acceso a este programa.")
-    form = ProgramaSiisFuncionForm(request.POST, instance=programa)
+    form = ProgramaSiisIdentificadoresForm(request.POST, instance=programa)
     if form.is_valid():
         form.save()
-        messages.success(request, f"Función SIIS guardada: {programa.siis_funcion_nombre}.")
+        if programa.siis_id_plan_soc_pisado:
+            messages.warning(
+                request,
+                f"Identificadores guardados. Ojo: el plan social quedó en #{programa.siis_id_plan_soc}, "
+                f"distinto del #{programa.siis_programa_id} que trajo el catálogo de SIIS.",
+            )
+        else:
+            messages.success(request, "Identificadores para SIIS guardados.")
     else:
         messages.error(request, " ".join(" ".join(errores) for errores in form.errors.values()))
     return redirect("becas:programa_detalle", pk=programa.pk)

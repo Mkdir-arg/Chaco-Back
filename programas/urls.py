@@ -23,7 +23,11 @@ urlpatterns = [
     path("config/programas/", cfg.ProgramaSiisListView.as_view(), name="programas"),
     path("config/programas/nuevo/", cfg.ProgramaSiisCreateView.as_view(), name="programa_crear"),
     path("config/programas/<int:pk>/", cfg.ProgramaSiisDetailView.as_view(), name="programa_detalle"),
-    path("config/programas/<int:pk>/funcion-siis/", cfg.programa_funcion_siis, name="programa_funcion_siis"),
+    path(
+        "config/programas/<int:pk>/identificadores-siis/",
+        cfg.programa_identificadores_siis,
+        name="programa_identificadores_siis",
+    ),
     # --- Solapa Dashboard del programa (análisis #366) ---
     path("config/programas/<int:pk>/dashboard/datos/", dsh.programa_dashboard_datos, name="programa_dashboard_datos"),
     path(

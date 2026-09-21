@@ -226,7 +226,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 79 | Los casos ya cargados reciben el formulario completo y se completan desde RENAPER; validación SIIS automática por lotes | Becas · casos → Revisión | `#relevamientos` `#datos` `#siis` `#infra` | PM — en sesión: «a todos los casos desde el inicio que se le sumen estos datos y con el cruce desde renaper sumarle Cuit Alumno y Cuil Apoderado» y «todos los casos que tenemos en el relevamiento hay que hacer si es Validar con SIIS, de forma automática en lotes de 50» | 19/09/2026 | 🟢 **Hecho** (SIIS pendiente de correr en el pod) | No requiere |
 | 80 | Los requisitos del segmento también pueden alimentar el alta en SIIS («Este dato alimenta a SIIS como») | Becas · catálogo de requisitos → envío a SIIS | `#siis` `#relevamientos` `#ui` | PM — en sesión: «los campos de cuit y localidad son a nivel segmento, no generales, y por ende no puedo configurar "Este dato alimenta a SIIS como" de esos campos» | 19/09/2026 | 🟢 **Hecho** | `programas.0067` (aditiva) |
 | 81 | El veredicto de SIIS deja de bloquear la aprobación: la consulta sigue siendo obligatoria | Becas · revisión del caso | `#siis` `#relevamientos` | PM — en sesión: «ahora es bloqueante que Resultado SIIS sea aprobado; sí o sí se puede aceptar a nivel técnico sin importar SIIS, pero sí o sí se tiene que hacer lo de SIIS» | 21/09/2026 | 🟢 **Hecho** | No requiere |
-| 82 | Los tres identificadores del alta en SIIS se cargan a mano en cada segmento | Becas · configuración del segmento → envío a SIIS | `#siis` `#relevamientos` `#ui` | PM — en sesión: «que sea por input de número y en la configuración del segmento esos 3 valores del tipo int» | 21/09/2026 | 🟢 **Hecho** | `programas.0068` (aditiva) |
+| 82 | Los identificadores del alta en SIIS se cargan a mano, cada uno en su nivel | Becas · configuración del programa y del segmento → validación y envío a SIIS | `#siis` `#relevamientos` `#ui` | PM — en sesión: «que sea por input de número», «el id programa lo trae de la API pero se puede editar por otro a gusto; cuando se edita y es diferente al id que trae la API te dice una alerta» | 21/09/2026 | 🟢 **Hecho** | `programas.0069` |
 
 **Notas del índice**
 
@@ -9028,26 +9028,26 @@ vigente»), que queda sin efecto.
 
 ---
 
-# Cambio 82 — Los tres identificadores del alta en SIIS se cargan a mano en cada segmento
+# Cambio 82 — Los identificadores del alta en SIIS se cargan a mano, cada uno en su nivel
 
 🟢 **HECHO — 21/09/2026**
 
 | | |
 |---|---|
-| **Programa / módulo** | Becas · configuración del segmento → alta de beneficiarios en SIIS |
+| **Programa / módulo** | Becas · configuración del programa y del segmento → alta y validación en SIIS |
 | **Etiquetas** | `#siis` `#relevamientos` `#ui` |
-| **Solicitante** | PM — en sesión: «que sea por input de número y en la configuración del segmento esos 3 valores del tipo int» |
+| **Solicitante** | PM — en sesión: «que sea por input de número y en la configuración del segmento esos 3 valores del tipo int», después «los 2 datos que se pueden editar son el jurid y el id_fun_x_plan, el id programa se mantiene de la integración», después «cuando creo un programa en Nuevo programa agregás esos 2 campos opcionales y también que se pueda editar», y por último «el id programa lo trae de la API pero se puede editar por otro a gusto; cuando se edita y es diferente al id que trae la API te dice una alerta» |
 | **Fecha del pedido** | 21/09/2026 |
 | **Issue / épica** | Sin issue (pedido en sesión) · modifica el Cambio 73 |
-| **Partes afectadas** | Backoffice (segmentos) · envío a SIIS |
-| **Migración** | `programas.0068_segmento_identificadores_siis` — aditiva, tres columnas opcionales |
+| **Partes afectadas** | Backoffice (programas y segmentos) · validación de compatibilidad · envío a SIIS |
+| **Migración** | `programas.0069_identificadores_siis_por_nivel` — quita una columna de `programas_segmento` y agrega dos a `programas_programasiis` |
 
 ## Pedido original
 
 Los tres identificadores que el alta de beneficiarios manda a SIIS —`id_plan_soc`, `jurid` y
 `id_fun_x_plan`— salían **solo** del programa vinculado: el primero se fijaba al crear el programa eligiéndolo
-del catálogo, la jurisdicción venía dentro de la respuesta de SIIS y la función se elegía de un catálogo. Ninguno
-se podía corregir después.
+del catálogo, la jurisdicción venía dentro de la respuesta de SIIS y la función se elegía de otro catálogo.
+Ninguno se podía corregir después.
 
 Eso dejó sin salida a la convocatoria en curso: SIIS no reconoce el programa configurado, devuelve
 `"validaciones": {"programa": "INEXISTENTE"}` y el catálogo de funciones viene **vacío**, así que el selector de
@@ -9055,51 +9055,89 @@ función no ofrece nada y no hay dónde escribir el número correcto.
 
 ## Alcance acordado
 
-- Tres campos numéricos opcionales en el segmento, editables desde el modal «Editar segmento».
-- Vacíos, el comportamiento no cambia: se siguen usando los del programa.
-- Afuera: el identificador del programa sigue sin ser editable en su ficha; el cambio no toca esa pantalla.
+El pedido se redefinió tres veces durante la sesión; lo que quedó:
+
+- **Programa** — los tres identificadores se editan como input numérico en la tarjeta «Alta de beneficiarios en
+  SIIS» del detalle. El del plan llega desde la API y se puede pisar; cuando el valor que se manda difiere del
+  que informó el catálogo, la pantalla lo avisa y deja guardar igual.
+- **Alta de programa** — `jurid` e `id_fun_x_plan` se pueden dejar cargados de entrada, opcionales, en el modal
+  «Nuevo programa».
+- **Segmento** — `jurid` e `id_fun_x_plan`, opcionales, para el caso de dos segmentos del mismo programa que
+  informan distinto. `id_plan_soc` **no** está: es uno solo por programa.
+- **Validación de compatibilidad** — «Resultado SIIS» consulta con el id pisado, no con el del catálogo.
+- Afuera: el catálogo de programas del alta no se toca; se sigue eligiendo de la lista de SIIS.
 
 ## Decisiones tomadas
 
-- **Van en el segmento, no en el programa.** Lo pidió el PM y además es más fino: dos segmentos del mismo
-  programa pueden informar a planes distintos sin duplicar el programa.
-- **Precedencia de tres niveles**, de más específico a más general: la corrección del caso
-  (`Formulario.datos_siis`, Cambio 73), después lo cargado en el segmento, y al final lo que trae el programa.
+- **El override del plan se guarda aparte de `siis_programa_id`.** Es la decisión central. `siis_programa_id` es
+  la clave con la que `sincronizar_programas_siis` busca el programa en el catálogo completo: escribirle un id
+  que el catálogo no tiene lo dejaría en `DESCONOCIDO`, y eso bloquea el programa **y todos sus segmentos** en
+  cascada. El valor efectivo sale de `ProgramaSiis.siis_id_plan_soc_efectivo`.
+- **Diferir del catálogo se avisa, no se impide.** El caso de uso es justamente que el catálogo esté equivocado
+  o desactualizado; bloquear la edición sería volver al problema. La alerta nombra los dos números —el que se
+  manda y el que informó SIIS— y aclara que el estado se sigue sincronizando contra el del catálogo.
+- **Guardar el valor de la API se interpreta como «sin override».** Si alguien escribe el mismo número que trajo
+  el catálogo, se guarda vacío: si no, el programa quedaría marcado como pisado sin estarlo, y dejaría de seguir
+  al catálogo cuando este cambie.
+- **La validación usa el mismo id que el alta.** Si se pudiera pisar el plan solo para el alta, «Resultado SIIS»
+  seguiría consultando el id que el servicio no reconoce y no podría dar otra cosa que rechazo. Como efecto
+  buscado, las validaciones hechas con el id anterior dejan de corresponder al programa actual y hay que
+  rehacerlas (misma regla que ya existía en `motivo_bloqueo_aprobacion`).
+- **Precedencia de tres niveles** para `jurid` e `id_fun_x_plan`, de más específico a más general: la corrección
+  del caso (`Formulario.datos_siis`, Cambio 73), después lo cargado en el segmento, y al final el programa.
 - **Entrada numérica libre, sin catálogo.** Es un retroceso deliberado respecto del Cambio 73, que los elegía de
   listas para no apuntar a un programa inexistente. Con el catálogo caído esa garantía no existe y el costo es
-  quedarse sin operar. Los mensajes de dato faltante ahora nombran las dos vías: cargarlo en el segmento o
-  configurarlo en el programa.
+  quedarse sin operar. El select de función del detalle del programa se reemplazó por un input: además de no
+  ofrecer nada, pedía el catálogo en cada render de la pantalla.
+- **El nombre de la función es informativo.** Solo lo sabe el catálogo: si el id cambia se vuelve a buscar y, con
+  el catálogo caído o sin esa función, se limpia antes que mostrar el nombre de otra.
 - **Los nombres técnicos se muestran en la pantalla.** Cada campo lleva su etiqueta en lenguaje del usuario y
   debajo el nombre que espera el servicio, porque quien los completa los está copiando de una comunicación de
   SIIS.
 
 ## Implementación
 
-- `programas/models/__init__.py` — `Segmento.siis_id_plan_soc`, `siis_jurid`, `siis_id_fun_x_plan`.
-- `programas/migrations/0068_segmento_identificadores_siis.py`.
-- `programas/forms.py` — los tres campos en `SegmentoForm`, con `NumberInput`.
+- `programas/models/__init__.py` — `ProgramaSiis.siis_id_plan_soc` y `siis_jurid`, con las propiedades
+  `siis_id_plan_soc_efectivo` / `_pisado`, `siis_jurid_api` / `_efectivo` / `_pisado`. En `Segmento` quedan
+  `siis_jurid` y `siis_id_fun_x_plan`.
+- `programas/migrations/0069_identificadores_siis_por_nivel.py`.
+- `programas/forms.py` — `ProgramaSiisCreateForm` suma los dos opcionales; `ProgramaSiisFuncionForm` (select del
+  catálogo) pasa a ser `ProgramaSiisIdentificadoresForm` con los tres inputs numéricos.
+- `programas/views/configuracion.py` y `programas/urls.py` — `programa_funcion_siis` pasa a
+  `programa_identificadores_siis`; al guardar con el plan pisado, el mensaje es una advertencia con los dos
+  números.
+- `programas/services/validacion_siis.py` y `services/cupo.py` — la consulta de compatibilidad y la comparación
+  de la validación guardada usan el id efectivo.
 - `programas/services/siis_envio.py` — `armar_payload` resuelve cada identificador por precedencia.
-- `programas/templates/programas/becas/config/segmento_list.html` y `_segmentos_table.html` — bloque
-  «Identificadores para SIIS» en el modal de edición.
-- `.claude/agents/chaco-design-system.md` — fila «Identificadores de integración por segmento».
+- Templates: `config/programa_detail.html` (tarjeta con la alerta), `config/programa_list.html` (modal de alta),
+  `config/segmento_list.html` y `_segmentos_table.html`.
+- `.claude/agents/chaco-design-system.md` — fila «Identificadores de integración (programa y segmento)».
+- Tests: `IdentificadoresSiisProgramaTests` (`test_becas_config.py`) y `ValidacionUsaElPlanPisadoTests`
+  (`test_becas_revision.py`).
 
 ## Base de datos
 
-Tres columnas enteras opcionales en `programas_segmento`. Nacen vacías; nada cambia hasta que alguien las
-complete.
+`programas_programasiis` gana `siis_id_plan_soc` y `siis_jurid`, enteras opcionales. `programas_segmento` pierde
+`siis_id_plan_soc`, que estuvo desplegada en testing (migración 0068) y nunca se cargó: la 0069 la borra.
+Nada cambia de comportamiento hasta que alguien complete un campo.
 
 ## Pendientes / a definir
 
-- **Cargar los valores correctos** en el segmento en cuanto SIIS confirme cuáles son.
-- El identificador del programa sigue sin poder corregirse desde su ficha. Si el vínculo quedó mal, hoy se
-  resuelve creando el programa correcto, corrigiendo en la base, o cargando los tres en el segmento, que es lo
-  que este cambio habilita.
+- **Cargar los valores correctos** en cuanto SIIS confirme cuáles son. Hasta entonces, las ~100 validaciones que
+  dieron `RECHAZADO` contra el programa 90 hay que borrarlas y rehacerlas con `validar_casos_siis`.
+- El modal «Detalle SIIS» sigue mostrando el id del catálogo, que es lo que le corresponde —es la foto del
+  servicio—, pero conviene tenerlo presente al leerlo junto con la tarjeta de identificadores.
 
 ## Reversión
 
-Quitar los tres campos revierte la migración. Vaciarlos vuelve al comportamiento anterior sin tocar código.
+Revertir la migración devuelve la columna al segmento y quita las dos del programa. Vaciar los campos vuelve al
+comportamiento anterior sin tocar código ni base.
 
 ## Historial
 
-Entrada nueva. Modifica la decisión de `id_fun_x_plan` del Cambio 73 («una sola función por programa, elegida
-del catálogo»), que pasa a ser el valor por defecto cuando el segmento no lo define.
+Reemplaza la primera versión de esta entrada, que ponía los tres identificadores en el segmento (migración
+`0068`, desplegada en testing). El PM la corrigió en tres pasos el mismo día: primero sacando `id_plan_soc` del
+segmento, después pidiendo los dos opcionales en el alta del programa, y por último habilitando el `id_plan_soc`
+del programa con aviso de divergencia. Modifica además la decisión de `id_fun_x_plan` del Cambio 73 («una sola
+función por programa, elegida del catálogo»), que pasa a ser el valor por defecto cuando el segmento no lo
+define, y escrito a mano.

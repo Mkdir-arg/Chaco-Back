@@ -70,13 +70,29 @@
             {% if form_programa.siis_programa_id.help_text %}<p class="mt-1 text-xs text-fg-danger">{{ form_programa.siis_programa_id.help_text }}</p>{% endif %}
             <p class="mt-1 text-xs text-fg-danger hidden" data-error="siis_programa_id"></p>
           </div>
+          {% comment %}Cambio 82: opcionales. Quien ya los sabe los deja cargados de
+          entrada; vacíos, salen de lo que informe SIIS al vincular el programa.{% endcomment %}
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label for="{{ form_programa.siis_jurid.id_for_label }}" class="block text-[13px] font-semibold text-heading mb-1.5">Jurisdicción</label>
+              {{ form_programa.siis_jurid }}
+              <p class="mt-1 text-xs text-body-subtle">jurid — opcional</p>
+              <p class="mt-1 text-xs text-fg-danger hidden" data-error="siis_jurid"></p>
+            </div>
+            <div>
+              <label for="{{ form_programa.siis_funcion_id.id_for_label }}" class="block text-[13px] font-semibold text-heading mb-1.5">Función por plan</label>
+              {{ form_programa.siis_funcion_id }}
+              <p class="mt-1 text-xs text-body-subtle">id_fun_x_plan — opcional</p>
+              <p class="mt-1 text-xs text-fg-danger hidden" data-error="siis_funcion_id"></p>
+            </div>
+          </div>
           {# Nota informativa #}
           <div class="flex items-center gap-2" style="padding:10px 12px; border-radius:10px; background:var(--bg-info-soft); border:1px solid var(--color-brand-200)">
             {# ExclamationCircleIcon — Heroicons v2 outline #}
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" class="flex-shrink-0" style="color:var(--text-fg-info)" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
             </svg>
-            <span style="font-size:12.5px; color:var(--text-body)">El nombre y el detalle se toman tal cual del catálogo de SIIS. Después de guardar vas a poder cargar los segmentos del programa.</span>
+            <span style="font-size:12.5px; color:var(--text-body)">El nombre y el detalle se toman tal cual del catálogo de SIIS. Los identificadores se pueden ajustar después, desde el detalle del programa.</span>
           </div>
         </div>
         {# Footer #}

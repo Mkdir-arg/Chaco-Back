@@ -1257,6 +1257,14 @@ class CampoTipoDispositivo(TimeStamped):
         return f"{self.tipo_dispositivo}: {self.seccion} · {self.nombre}"
 
 
+def _entero_o_none(valor):
+    """Entero de un dato del catálogo de SIIS, que puede venir como texto o vacío."""
+    try:
+        return int(valor)
+    except (TypeError, ValueError):
+        return None
+
+
 class ProgramaSiis(PausableMixin, TimeStamped):
     """Programa del catálogo SIIS: nivel superior de Becas.
 
@@ -1289,9 +1297,35 @@ class ProgramaSiis(PausableMixin, TimeStamped):
     )
     siis_vinculado_en = models.DateTimeField(null=True, blank=True, verbose_name="Programa SIIS vinculado el")
     siis_verificado_en = models.DateTimeField(null=True, blank=True, verbose_name="Última verificación con SIIS")
-    # Alta de beneficiarios (tabla intermedia): función/nivel dentro del programa,
-    # elegida del catálogo ``GET /api/v1/auth/catalogos/funciones?id_programa=``.
-    # Viaja en ``id_fun_x_plan``; sin ella el envío queda incompleto.
+    # --- Identificadores del alta de beneficiarios (Cambio 82) ---
+    # Los tres viajan en el payload de alta. El default de cada uno lo trae la
+    # API —``siis_programa_id`` y ``siis_programa_datos`` son la foto del
+    # catálogo al vincular—, pero los tres se pueden pisar a mano: si SIIS no
+    # reconoce el programa, el catálogo no da ninguna salida y la convocatoria
+    # queda sin poder informar a nadie. Pisar uno no es gratis: la pantalla lo
+    # marca con una alerta y las propiedades ``*_pisado`` son las que la
+    # alimentan.
+    #
+    # ``siis_id_plan_soc`` es un *override* aparte y no el propio
+    # ``siis_programa_id`` a propósito: ese sigue siendo la clave contra la que
+    # ``sincronizar_programas_siis`` busca en el catálogo. Escribirle un id que
+    # el catálogo no tiene lo dejaría en DESCONOCIDO y bloquearía el programa
+    # entero junto con sus segmentos.
+    siis_id_plan_soc = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="Id. de plan social en SIIS",
+        help_text="Viaja como «id_plan_soc». Vacío, se usa el id del programa que trajo la API.",
+    )
+    siis_jurid = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="Id. de jurisdicción en SIIS",
+        help_text="Viaja como «jurid». Vacío, se usa la que informó SIIS al vincular el programa.",
+    )
+    # Función/nivel dentro del programa, del catálogo
+    # ``GET /api/v1/auth/catalogos/funciones?id_programa=``. Viaja en
+    # ``id_fun_x_plan``; sin ella el envío queda incompleto.
     siis_funcion_id = models.PositiveIntegerField(
         null=True, blank=True, verbose_name="Función SIIS para el alta de beneficiarios"
     )
@@ -1310,6 +1344,30 @@ class ProgramaSiis(PausableMixin, TimeStamped):
     @property
     def siis_programa_nombre(self):
         return (self.siis_programa_datos or {}).get("nombre") or self.nombre
+
+    @property
+    def siis_id_plan_soc_efectivo(self):
+        """Id de plan social que realmente viaja a SIIS: el pisado o el de la API."""
+        return self.siis_id_plan_soc or self.siis_programa_id
+
+    @property
+    def siis_id_plan_soc_pisado(self):
+        """¿Se está mandando un plan distinto del que trajo la API?"""
+        return bool(self.siis_id_plan_soc) and self.siis_id_plan_soc != self.siis_programa_id
+
+    @property
+    def siis_jurid_api(self):
+        """Jurisdicción según la foto del catálogo; ``None`` si SIIS no la informó."""
+        return _entero_o_none((self.siis_programa_datos or {}).get("jurisdiccion_id"))
+
+    @property
+    def siis_jurid_efectivo(self):
+        return self.siis_jurid or self.siis_jurid_api
+
+    @property
+    def siis_jurid_pisado(self):
+        api = self.siis_jurid_api
+        return bool(self.siis_jurid) and api is not None and self.siis_jurid != api
 
     @property
     def siis_bloqueado(self):
@@ -1361,17 +1419,16 @@ class Segmento(PausableMixin, TimeStamped):
         help_text="Si está activo, el formulario del territorial pide lat/lng.",
     )
     activo = models.BooleanField(default=True, db_index=True, verbose_name="Activo")
-    # Cambio 82: los tres identificadores que el alta de beneficiarios manda a
-    # SIIS, cargados a mano por segmento. Antes salían solo del programa
+    # Cambio 82: la jurisdicción y la función que el alta de beneficiarios manda
+    # a SIIS, cargadas a mano por segmento. Antes salían solo del programa
     # vinculado (Cambio 73) y eso dejaba sin salida a una convocatoria cuyo
-    # programa el servicio no reconoce: no había dónde corregirlos y el catálogo
-    # de funciones venía vacío. Vacíos, siguen saliendo del programa.
-    siis_id_plan_soc = models.PositiveIntegerField(
-        null=True,
-        blank=True,
-        verbose_name="Id. del plan social en SIIS",
-        help_text="Viaja como «id_plan_soc». Vacío, se usa el del programa vinculado.",
-    )
+    # programa el servicio no reconoce: no había dónde corregirlas y el catálogo
+    # de funciones venía vacío. Vacías, siguen saliendo del programa.
+    #
+    # El identificador del plan (``id_plan_soc``) **no** está acá a propósito:
+    # es uno solo por programa, así que se pisa allá (``ProgramaSiis``), donde
+    # además se puede contrastar contra el id que trajo la API y avisar cuando
+    # difiere. Repetirlo por segmento solo multiplicaría dónde mirar.
     siis_jurid = models.PositiveIntegerField(
         null=True,
         blank=True,
