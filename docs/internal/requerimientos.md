@@ -228,6 +228,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 81 | El veredicto de SIIS deja de bloquear la aprobación: la consulta sigue siendo obligatoria | Becas · revisión del caso | `#siis` `#relevamientos` | PM — en sesión: «ahora es bloqueante que Resultado SIIS sea aprobado; sí o sí se puede aceptar a nivel técnico sin importar SIIS, pero sí o sí se tiene que hacer lo de SIIS» | 21/09/2026 | 🟢 **Hecho** | No requiere |
 | 82 | Los identificadores del alta en SIIS se cargan a mano, cada uno en su nivel | Becas · configuración del programa y del segmento → validación y envío a SIIS | `#siis` `#relevamientos` `#ui` | PM — en sesión: «que sea por input de número», «el id programa lo trae de la API pero se puede editar por otro a gusto; cuando se edita y es diferente al id que trae la API te dice una alerta» | 21/09/2026 | 🟢 **Hecho** | `programas.0069` |
 | 83 | Alta masiva en SIIS por lotes, con los identificadores configurados | Becas · alta de beneficiarios en SIIS | `#siis` `#relevamientos` | PM — en sesión: «¿hay algún script para enviar la información a SIIS sin importar el estado en DATAÑACH? La idea es enviarlo en base a los id configurados» | 21/09/2026 | 🟢 **Hecho** | No requiere |
+| 84 | Circuito completo automático: validar, aprobar e informar el alta en SIIS | Becas · revisión y alta de beneficiarios | `#siis` `#relevamientos` | PM — en sesión: «generame un script el cual tome caso por caso, lo valide con SIIS, lo apruebe y lo mande a SIIS; el total tiene que ser de 1000 casos, de a lotes de a 40» | 21/09/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -9226,3 +9227,83 @@ Borrar el comando. Lo ya informado a SIIS no se revierte desde acá.
 
 Entrada nueva. Continúa el Cambio 82: sin identificadores configurables no tenía sentido un alta masiva, porque
 todas habrían fallado contra el programa que SIIS informa como `INEXISTENTE`.
+
+# Cambio 84 — Circuito completo automático: validar, aprobar e informar el alta en SIIS
+
+🟢 **HECHO — 21/09/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · revisión y alta de beneficiarios en SIIS (comando) |
+| **Etiquetas** | `#siis` `#relevamientos` |
+| **Solicitante** | PM — en sesión: «generame un script el cual tome caso por caso, lo valide con SIIS, lo apruebe y lo mande a SIIS; el total tiene que ser de 1000 casos, de a lotes de a 40» |
+| **Fecha del pedido** | 21/09/2026 |
+| **Issue / épica** | Sin issue (pedido en sesión) · continúa los Cambios 82 y 83 |
+| **Partes afectadas** | Comando de management (usa los servicios existentes, no los modifica) |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Con 6.395 casos relevados, resolverlos de a uno en la pantalla no es viable. El Cambio 83 había automatizado el
+último paso —el alta—, pero seguía necesitando que alguien validara y aprobara cada caso a mano.
+
+## Alcance acordado
+
+`procesar_casos_siis`: por cada caso, los tres pasos en orden —`validar_formulario_en_siis`,
+`aprobar_o_poner_en_espera`, `enviar_beneficiario_a_siis`—, 1000 casos en lotes de 40 por defecto, con pausa
+opcional, freno tras 10 errores técnicos seguidos y ensayo en seco por defecto. Filtros por convocatoria,
+relevamiento y segmento.
+
+Afuera: la pantalla de revisión no cambia.
+
+## Decisiones tomadas
+
+- **El correo al ciudadano va apagado.** La pantalla avisa la resolución por mail (Cambio 44). Acá no: mil
+  aprobaciones serían mil correos y no hay forma de retractarlos. `--avisar` lo prende, y el comando dice cuántos
+  va a mandar antes de arrancar.
+- **No reimplementa nada.** Llama a los mismos tres servicios que usa la vista, con sus guardas: solo se aprueba
+  un caso `ENVIADO`, la aprobación exige la validación previa (Cambio 34) y el alta exige el caso aprobado. Un
+  comando con su propia lógica se habría desincronizado de la pantalla en el primer cambio de reglas.
+- **Sin cupo, el caso termina ahí.** `aprobar_o_poner_en_espera` lo manda a lista de espera; no hay beneficiario
+  que informar, así que no se llama a SIIS. El resumen los cuenta aparte.
+- **Los conflictos de carga duplicada se saltean.** La pantalla tampoco deja aprobar sin resolverlos: es una
+  decisión de una persona sobre cuál de dos cargas vale.
+- **Un caso que falla no corta la corrida.** Cada desenlace se cuenta y se sigue. Lo único que detiene todo son
+  10 errores técnicos **seguidos**, que indican que SIIS está caído y no que los casos tengan un problema.
+- **Retoma solo.** Toma los `ENVIADO` y los `APROBADO` que todavía no tienen un alta `ENVIADO`. El filtro por
+  último envío se escribe con `Q(ultimo_envio__isnull=True) | ~Q(...)` y **no** con `exclude`: en SQL
+  `NOT (NULL = 'ENVIADO')` no es verdadero, así que un `exclude` descartaba justo a los casos que nunca se
+  mandaron. Es el mismo NULL que ya había roto la selección de `validar_casos_siis`.
+- **`--solo-enviar`** repite lo que hace `enviar_casos_siis` para los ya aprobados, para no tener que elegir
+  entre dos comandos cuando solo falta el último paso.
+
+## Implementación
+
+- `programas/management/commands/procesar_casos_siis.py`.
+- Tests: `ComandoCircuitoCompletoTests` en `programas/tests/test_siis_envio.py` (11 casos).
+
+## Base de datos
+
+No toca el esquema. Escribe `ValidacionSIS`, `EnvioSIIS`, el estado del `Formulario` y su traza, y entradas de
+`ListaEspera` cuando no hay cupo. Todo por los servicios de siempre.
+
+## Pendientes / a definir
+
+- **No se corrió contra ningún ambiente.** Antes hace falta el identificador de programa correcto (Cambio 82).
+- **Medido sobre los 6.395 casos de testing: 2.405 (38%) no tienen altura de domicilio utilizable**
+  —`S/N`, `0`, `00`, `sin número`, `-`, `Planta Urbana`— y SIIS exige un entero en `nro_actual`. Esos casos se
+  van a aprobar y después el alta va a quedar `INCOMPLETO`. Falta preguntarle a ECOM si SIIS acepta un valor
+  convencional para «sin número»; si acepta, conviene resolverlo antes de correr esto.
+- Las 313 localidades distintas del domicilio y las 127 de nacimiento tienen que coincidir **exactas** con el
+  catálogo de SIIS. Sin credenciales del servicio no se puede saber cuántas cruzan.
+- Queda abierto si el PM quiere que la corrida avise por correo.
+
+## Reversión
+
+Borrar el comando. Lo aprobado se puede rechazar desde la pantalla; lo informado a SIIS no se revierte desde
+DATAÑACH.
+
+## Historial
+
+Entrada nueva. Continúa el Cambio 83, que automatizó solo el alta, y depende del Cambio 82 para que los
+identificadores sean los correctos.
