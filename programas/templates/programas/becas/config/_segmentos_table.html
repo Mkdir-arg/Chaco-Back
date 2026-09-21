@@ -70,7 +70,6 @@
                 {{ s.requiere_gps|yesno:'true,false' }},
                 {{ s.activo|yesno:'true,false' }},
                 '{% url 'becas:segmento_editar' s.pk %}',
-                '{{ s.siis_id_plan_soc|default_if_none:"" }}',
                 '{{ s.siis_jurid|default_if_none:"" }}',
                 '{{ s.siis_id_fun_x_plan|default_if_none:"" }}'
               )">

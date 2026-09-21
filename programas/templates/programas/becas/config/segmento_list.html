@@ -14,15 +14,14 @@
        editGps: false,
        editActivo: true,
        editUrl: '',
-       editPlanSoc: '', editJurid: '', editFuncion: '',
-       openEditar(nombre, descripcion, cupo, gps, activo, url, planSoc, jurid, funcion) {
+       editJurid: '', editFuncion: '',
+       openEditar(nombre, descripcion, cupo, gps, activo, url, jurid, funcion) {
          this.editNombre = nombre;
          this.editDescripcion = descripcion;
          this.editCupo = cupo;
          this.editGps = gps;
          this.editActivo = activo;
          this.editUrl = url;
-         this.editPlanSoc = planSoc || '';
          this.editJurid = jurid || '';
          this.editFuncion = funcion || '';
          this.modalEditar = true;
@@ -170,20 +169,15 @@
             Requiere captura de GPS
           </label>
 
-          {# Cambio 82: los tres identificadores del alta de beneficiarios en SIIS. #}
+          {% comment %}Cambio 82: identificadores del alta de beneficiarios en SIIS. El
+          plan social no está acá: es uno solo por programa y se edita allá.{% endcomment %}
           <div class="pt-4 border-t border-light">
             <p class="text-[13px] font-semibold text-heading">Identificadores para SIIS</p>
             <p class="text-xs text-body-subtle mt-1 mb-3">
               Los que viajan al dar de alta un beneficiario aprobado. Si los dejás vacíos se usan los del
               programa vinculado.
             </p>
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
-                <label class="block text-[13px] font-semibold text-heading mb-1.5">Plan social</label>
-                <input type="number" name="siis_id_plan_soc" x-model="editPlanSoc" min="1" placeholder="Del programa" class="nodo-field">
-                <p class="mt-1 text-xs text-body-subtle">id_plan_soc</p>
-                <p class="mt-1 text-xs text-fg-danger hidden" data-error="siis_id_plan_soc"></p>
-              </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label class="block text-[13px] font-semibold text-heading mb-1.5">Jurisdicción</label>
                 <input type="number" name="siis_jurid" x-model="editJurid" min="1" placeholder="Del programa" class="nodo-field">

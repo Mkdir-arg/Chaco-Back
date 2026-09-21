@@ -410,19 +410,20 @@ def armar_payload(formulario, catalogos=None, hoy=None):
     # --- Programa ---
     # Los tres ids salen del programa vinculado, pero la corrección del caso los
     # pisa: un programa mal configurado no puede dejar a la persona sin salida.
-    datos_programa = (programa.siis_programa_datos or {}) if programa else {}
     for campo, valor_segmento, valor_programa, motivo in (
         (
+            # El plan es uno solo por programa: no se carga por segmento. El
+            # valor efectivo ya contempla el override del programa (Cambio 82).
             "id_plan_soc",
-            segmento.siis_id_plan_soc,
-            programa.siis_programa_id if programa else None,
-            "No hay identificador de plan social: cargalo en el segmento o vinculá un programa SIIS.",
+            None,
+            programa.siis_id_plan_soc_efectivo if programa else None,
+            "El segmento no tiene un programa SIIS configurado.",
         ),
         (
             "jurid",
             segmento.siis_jurid,
-            datos_programa.get("jurisdiccion_id"),
-            "No hay jurisdicción: cargala en el segmento o verificá el vínculo del programa con SIIS.",
+            programa.siis_jurid_efectivo if programa else None,
+            "No hay jurisdicción: cargala en el segmento o en el programa.",
         ),
         (
             "id_fun_x_plan",
@@ -465,7 +466,7 @@ def enviar_beneficiario_a_siis(formulario, solicitado_por, catalogos=None):
     programa = formulario.relevamiento.convocatoria.segmento.programa
     base = {
         "formulario": formulario,
-        "id_programa": programa.siis_programa_id if programa else None,
+        "id_programa": programa.siis_id_plan_soc_efectivo if programa else None,
         "id_funcion": programa.siis_funcion_id if programa else None,
         "documento": str(formulario.ciudadano.dni if formulario.ciudadano_id else "")[:20],
         "solicitado_por": solicitado_por,

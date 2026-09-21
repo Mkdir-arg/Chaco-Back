@@ -643,50 +643,93 @@ class DestinoSiisRequisitoTests(_BaseConfigTest):
         self.assertContains(resp, "SIIS: Localidad del domicilio")
 
 
-class FuncionSiisProgramaTests(TestCase):
-    """La función del programa (``id_fun_x_plan``) se elige del catálogo de SIIS."""
+class IdentificadoresSiisProgramaTests(TestCase):
+    """Cambio 82: los tres ids del alta se escriben a mano y el plan avisa si
+    difiere del que trajo la API."""
+
+    URL = "becas:programa_identificadores_siis"
 
     def setUp(self):
         call_command("seed_becas", stdout=StringIO())
         self.admin = User.objects.create_user("admin_cfg_funcion", password="x")
         self.admin.groups.add(Group.objects.get(name=ROL_ADMIN))
         self.client.force_login(self.admin)
-        self.programa = ProgramaSiis.objects.create(nombre="Ñachec", siis_programa_id=79)
+        self.programa = ProgramaSiis.objects.create(
+            nombre="Ñachec",
+            siis_programa_id=79,
+            siis_programa_datos={"id": 79, "nombre": "Ñachec", "jurisdiccion_id": 28},
+        )
         self.funciones = patch("programas.forms.funciones_programa").start()
         self.addCleanup(patch.stopall)
         self.funciones.return_value = [{"id": 4, "nombre": "Nivel Operativo", "id_programa": 79}]
 
-    def test_guarda_la_funcion_elegida(self):
-        resp = self.client.post(
-            reverse("becas:programa_funcion_siis", args=[self.programa.pk]), {"siis_funcion_id": "4"}
-        )
+    def _post(self, **datos):
+        return self.client.post(reverse(self.URL, args=[self.programa.pk]), datos)
+
+    def test_guarda_la_funcion_escrita_a_mano(self):
+        resp = self._post(siis_funcion_id="4")
         self.assertEqual(resp.status_code, 302)
         self.programa.refresh_from_db()
         self.assertEqual(self.programa.siis_funcion_id, 4)
         self.assertEqual(self.programa.siis_funcion_nombre, "Nivel Operativo")
-        self.funciones.assert_called_with(79)
 
-    def test_rechaza_una_funcion_fuera_del_catalogo(self):
-        self.client.post(reverse("becas:programa_funcion_siis", args=[self.programa.pk]), {"siis_funcion_id": "99"})
+    def test_acepta_una_funcion_que_el_catalogo_no_tiene_y_no_le_pone_nombre(self):
+        """El catálogo viene vacío cuando SIIS no reconoce el programa: si el
+        select fuera la única vía, la convocatoria se quedaría sin salida."""
+        self._post(siis_funcion_id="99")
         self.programa.refresh_from_db()
-        self.assertIsNone(self.programa.siis_funcion_id)
+        self.assertEqual(self.programa.siis_funcion_id, 99)
+        self.assertEqual(self.programa.siis_funcion_nombre, "")
+
+    def test_el_plan_igual_al_de_la_api_no_queda_como_pisado(self):
+        self._post(siis_id_plan_soc="79")
+        self.programa.refresh_from_db()
+        self.assertIsNone(self.programa.siis_id_plan_soc)
+        self.assertFalse(self.programa.siis_id_plan_soc_pisado)
+        self.assertEqual(self.programa.siis_id_plan_soc_efectivo, 79)
+
+    def test_el_plan_distinto_se_guarda_sin_tocar_el_id_del_catalogo(self):
+        self._post(siis_id_plan_soc="90")
+        self.programa.refresh_from_db()
+        self.assertEqual(self.programa.siis_id_plan_soc, 90)
+        self.assertEqual(self.programa.siis_id_plan_soc_efectivo, 90)
+        self.assertTrue(self.programa.siis_id_plan_soc_pisado)
+        # ``siis_programa_id`` es la clave con la que se sincroniza el estado
+        # contra el catálogo: pisarlo dejaría el programa en DESCONOCIDO.
+        self.assertEqual(self.programa.siis_programa_id, 79)
+
+    def test_el_detalle_avisa_cuando_el_plan_difiere(self):
+        self._post(siis_id_plan_soc="90")
+        resp = self.client.get(reverse("becas:programa_detalle", args=[self.programa.pk]))
+        self.assertContains(resp, "Identificadores distintos de los que trajo SIIS")
+
+    def test_la_jurisdiccion_igual_a_la_de_la_api_no_queda_como_pisada(self):
+        self._post(siis_jurid="28")
+        self.programa.refresh_from_db()
+        self.assertIsNone(self.programa.siis_jurid)
+        self.assertEqual(self.programa.siis_jurid_efectivo, 28)
+        self.assertFalse(self.programa.siis_jurid_pisado)
+
+    def test_la_jurisdiccion_distinta_queda_marcada(self):
+        self._post(siis_jurid="31")
+        self.programa.refresh_from_db()
+        self.assertEqual(self.programa.siis_jurid_efectivo, 31)
+        self.assertTrue(self.programa.siis_jurid_pisado)
 
     def test_requiere_administrar_programa(self):
         coord = User.objects.create_user("coord_cfg_funcion", password="x")
         coord.groups.add(Group.objects.get(name=ROL_COORDINADOR))
         self.client.force_login(coord)
-        resp = self.client.post(
-            reverse("becas:programa_funcion_siis", args=[self.programa.pk]), {"siis_funcion_id": "4"}
-        )
+        resp = self._post(siis_funcion_id="4")
         self.assertEqual(resp.status_code, 302)
         self.programa.refresh_from_db()
         self.assertIsNone(self.programa.siis_funcion_id)
 
-    def test_el_detalle_muestra_la_funcion_y_el_form(self):
+    def test_el_detalle_muestra_los_identificadores_y_el_form(self):
         self.programa.siis_funcion_id = 4
         self.programa.siis_funcion_nombre = "Nivel Operativo"
         self.programa.save()
         resp = self.client.get(reverse("becas:programa_detalle", args=[self.programa.pk]))
         self.assertContains(resp, "Alta de beneficiarios en SIIS")
-        self.assertContains(resp, "Nivel Operativo (#4)")
-        self.assertContains(resp, reverse("becas:programa_funcion_siis", args=[self.programa.pk]))
+        self.assertContains(resp, "Nivel Operativo")
+        self.assertContains(resp, reverse(self.URL, args=[self.programa.pk]))

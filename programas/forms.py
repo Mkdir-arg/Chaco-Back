@@ -86,9 +86,20 @@ def _text_widget(rows=3):
     return forms.Textarea(attrs={"class": INPUT_CLASS, "rows": rows})
 
 
+def _id_siis_widget(placeholder):
+    """Input numérico de un identificador de SIIS: entero positivo, opcional."""
+    return forms.NumberInput(attrs={"class": INPUT_CLASS, "min": 1, "placeholder": placeholder})
+
+
 class ProgramaSiisCreateForm(forms.ModelForm):
-    """Alta de programa — se elige del catálogo de SIIS y no se inventa nada:
-    el nombre y el detalle se congelan tal cual los informa el servicio."""
+    """Alta de programa — el programa se elige del catálogo de SIIS y no se
+    inventa nada: el nombre y el detalle se congelan tal cual los informa el
+    servicio.
+
+    La jurisdicción y la función son opcionales acá (Cambio 82): quien ya las
+    sabe las deja cargadas de entrada y se ahorra volver al detalle. Vacías,
+    salen de la foto del catálogo.
+    """
 
     siis_programa_id = forms.ChoiceField(
         label="Programa SIIS", choices=(), widget=forms.Select(attrs={"class": INPUT_CLASS})
@@ -96,7 +107,11 @@ class ProgramaSiisCreateForm(forms.ModelForm):
 
     class Meta:
         model = ProgramaSiis
-        fields = ["siis_programa_id"]
+        fields = ["siis_programa_id", "siis_jurid", "siis_funcion_id"]
+        widgets = {
+            "siis_jurid": _id_siis_widget("La que informe SIIS"),
+            "siis_funcion_id": _id_siis_widget("Opcional"),
+        }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -105,6 +120,8 @@ class ProgramaSiisCreateForm(forms.ModelForm):
         self.fields["siis_programa_id"].choices = _catalogo_choices(programas, "Seleccioná un programa…")
         if error:
             self.fields["siis_programa_id"].help_text = error
+        self.fields["siis_jurid"].required = False
+        self.fields["siis_funcion_id"].required = False
 
     def clean_siis_programa_id(self):
         programa_id = int(self.cleaned_data["siis_programa_id"])
@@ -117,47 +134,74 @@ class ProgramaSiisCreateForm(forms.ModelForm):
         programa = self._programas_siis.get(instance.siis_programa_id)
         if programa:
             _congelar_programa_siis(instance, programa)
+        # Si lo cargado a mano coincide con lo que trajo la API, no es un
+        # override: se guarda vacío para que no aparezca marcado como pisado.
+        if instance.siis_jurid and instance.siis_jurid == instance.siis_jurid_api:
+            instance.siis_jurid = None
         if commit:
             instance.save()
         return instance
 
 
-class ProgramaSiisFuncionForm(forms.ModelForm):
-    """Función/nivel del programa que viaja en ``id_fun_x_plan`` al dar de alta
-    beneficiarios en SIIS. Se elige del catálogo de funciones del programa; no se tipea."""
+class ProgramaSiisIdentificadoresForm(forms.ModelForm):
+    """Los tres identificadores que viajan al dar de alta un beneficiario.
 
-    siis_funcion_id = forms.ChoiceField(
-        label="Función SIIS", choices=(), widget=forms.Select(attrs={"class": INPUT_CLASS})
-    )
+    Cambio 82: se escriben a mano. El catálogo de funciones viene vacío cuando
+    SIIS no reconoce el programa, y ahí el select dejaba a la convocatoria sin
+    ninguna salida. El plan (``id_plan_soc``) se guarda como *override* del id
+    que trajo la API —``siis_programa_id`` no se toca, porque es la clave con la
+    que se sincroniza el estado contra el catálogo— y la pantalla avisa cuando
+    difiere.
+    """
 
     class Meta:
         model = ProgramaSiis
-        fields = ["siis_funcion_id"]
+        fields = ["siis_id_plan_soc", "siis_jurid", "siis_funcion_id"]
+        widgets = {
+            "siis_id_plan_soc": _id_siis_widget("El del catálogo"),
+            "siis_jurid": _id_siis_widget("La que informe SIIS"),
+            "siis_funcion_id": _id_siis_widget("Sin configurar"),
+        }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        funciones, error = _cargar_catalogo(lambda: funciones_programa(self.instance.siis_programa_id))
-        self._funciones = {f["id"]: f for f in funciones}
-        self.fields["siis_funcion_id"].choices = _catalogo_choices(funciones, "Seleccioná una función…")
-        if self.instance.siis_funcion_id:
-            self.fields["siis_funcion_id"].initial = str(self.instance.siis_funcion_id)
-        if error:
-            self.fields["siis_funcion_id"].help_text = error
+        for nombre in self.fields:
+            self.fields[nombre].required = False
+        # Los campos muestran el valor efectivo, no el override: el usuario ve
+        # lo que hoy se está mandando y lo edita desde ahí.
+        if not self.instance.siis_id_plan_soc:
+            self.fields["siis_id_plan_soc"].initial = self.instance.siis_programa_id
+        if not self.instance.siis_jurid:
+            self.fields["siis_jurid"].initial = self.instance.siis_jurid_api
 
-    def clean_siis_funcion_id(self):
-        try:
-            funcion_id = int(self.cleaned_data["siis_funcion_id"])
-        except (TypeError, ValueError) as exc:
-            raise forms.ValidationError("Elegí una función del catálogo.") from exc
-        if funcion_id not in self._funciones:
-            raise forms.ValidationError("Esa función no está en el catálogo de SIIS para este programa.")
-        return funcion_id
+    def clean_siis_id_plan_soc(self):
+        """Igual al id de la API no es un override: se guarda vacío."""
+        valor = self.cleaned_data.get("siis_id_plan_soc")
+        return None if valor == self.instance.siis_programa_id else valor
+
+    def clean_siis_jurid(self):
+        valor = self.cleaned_data.get("siis_jurid")
+        return None if valor and valor == self.instance.siis_jurid_api else valor
 
     def save(self, commit=True):
         instance = super().save(commit=False)
-        instance.siis_funcion_nombre = self._funciones[instance.siis_funcion_id]["nombre"]
+        # El nombre de la función es informativo y solo lo sabe el catálogo. Si
+        # el id cambió, se vuelve a buscar; con el catálogo caído o sin esa
+        # función, se limpia antes que mostrar el nombre de otra.
+        if "siis_funcion_id" in self.changed_data:
+            funciones, _ = _cargar_catalogo(lambda: funciones_programa(instance.siis_id_plan_soc_efectivo))
+            catalogo = {funcion["id"]: funcion for funcion in funciones}
+            instance.siis_funcion_nombre = (catalogo.get(instance.siis_funcion_id) or {}).get("nombre", "")
         if commit:
-            instance.save(update_fields=["siis_funcion_id", "siis_funcion_nombre", "modificado"])
+            instance.save(
+                update_fields=[
+                    "siis_id_plan_soc",
+                    "siis_jurid",
+                    "siis_funcion_id",
+                    "siis_funcion_nombre",
+                    "modificado",
+                ]
+            )
         return instance
 
 
@@ -311,8 +355,8 @@ class SegmentoForm(forms.ModelForm):
             "cupo_maximo",
             "requiere_gps",
             "activo",
-            # Cambio 82: los tres identificadores del alta en SIIS, a mano.
-            "siis_id_plan_soc",
+            # Cambio 82: jurisdicción y función del alta en SIIS, a mano. El
+            # identificador del plan sale del programa vinculado.
             "siis_jurid",
             "siis_id_fun_x_plan",
         ]
@@ -322,9 +366,6 @@ class SegmentoForm(forms.ModelForm):
             "cupo_maximo": forms.NumberInput(attrs={"class": INPUT_CLASS, "min": 0}),
             "requiere_gps": forms.CheckboxInput(attrs={"class": CHECKBOX_CLASS}),
             "activo": forms.CheckboxInput(attrs={"class": CHECKBOX_CLASS}),
-            "siis_id_plan_soc": forms.NumberInput(
-                attrs={"class": INPUT_CLASS, "min": 1, "placeholder": "Del programa"}
-            ),
             "siis_jurid": forms.NumberInput(attrs={"class": INPUT_CLASS, "min": 1, "placeholder": "Del programa"}),
             "siis_id_fun_x_plan": forms.NumberInput(
                 attrs={"class": INPUT_CLASS, "min": 1, "placeholder": "Del programa"}

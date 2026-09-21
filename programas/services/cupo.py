@@ -62,7 +62,7 @@ def motivo_bloqueo_aprobacion(formulario, validacion=_VALIDACION_SIN_BUSCAR):
         return "Debe realizarse la validación SIIS antes de aprobar."
     if str(validacion.documento).strip() != str(formulario.ciudadano.dni).strip():
         return "La validación SIIS no corresponde al DNI actual del formulario."
-    if validacion.id_programa != programa.siis_programa_id:
+    if validacion.id_programa != programa.siis_id_plan_soc_efectivo:
         return "La validación SIIS no corresponde al programa actual del formulario."
     return None
 

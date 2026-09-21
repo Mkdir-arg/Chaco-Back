@@ -521,6 +521,39 @@ class _BaseAprobacionTest(_BaseRevisionTest):
         self.client.force_login(self.coord_a)
 
 
+class ValidacionUsaElPlanPisadoTests(_BaseAprobacionTest):
+    """Cambio 82: si el programa tiene un ``id_plan_soc`` cargado a mano, la
+    consulta de compatibilidad va con ese, no con el del catálogo.
+
+    Es la razón de ser del override: cuando SIIS responde ``programa
+    INEXISTENTE`` al id que trajo la API, validar con el id del catálogo no
+    puede dar otra cosa que rechazo.
+    """
+
+    def test_valida_con_el_id_pisado(self):
+        self.programa.siis_id_plan_soc = 90
+        self.programa.save(update_fields=["siis_id_plan_soc"])
+        self.client.post(reverse("becas:formulario_validar_sis", args=[self.form_a.pk]))
+        self.assertEqual(self.validar_compatibilidad.call_args.args[1], 90)
+        self.assertEqual(self.form_a.validaciones_sis.order_by("-creado").first().id_programa, 90)
+
+    def test_sin_override_valida_con_el_id_del_catalogo(self):
+        self.client.post(reverse("becas:formulario_validar_sis", args=[self.form_a.pk]))
+        self.assertEqual(self.validar_compatibilidad.call_args.args[1], 41)
+
+    def test_la_validacion_vieja_deja_de_corresponder_al_pisar_el_plan(self):
+        """La validación guardada con el id anterior ya no habilita: hay que
+        rehacerla contra el programa que hoy se consulta."""
+        from programas.services.cupo import motivo_bloqueo_aprobacion
+
+        self.programa.siis_id_plan_soc = 90
+        self.programa.save(update_fields=["siis_id_plan_soc"])
+        self.assertEqual(
+            motivo_bloqueo_aprobacion(self.form_a),
+            "La validación SIIS no corresponde al programa actual del formulario.",
+        )
+
+
 class VeredictoSiisNoBloqueaTests(_BaseAprobacionTest):
     """Cambio 81: la consulta a SIIS es obligatoria, su veredicto no.
 
