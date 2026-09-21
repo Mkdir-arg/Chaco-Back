@@ -23,7 +23,14 @@ forma de retractarlos. ``--avisar`` lo prende a propósito.
 corrida cortada se retome sola. Se saltean los que tienen un conflicto de carga
 duplicada sin resolver: eso lo decide una persona.
 
-**Freno de seguridad.** Tras ``--max-errores`` errores técnicos **seguidos** (10
+**``--solo-completos``.** Arma el payload de cada candidato y se queda solo con
+los que hoy saldrían **sin faltantes**. Es la diferencia entre «los primeros
+1000 pendientes» y «los primeros 1000 que SIIS va a aceptar»: un caso incompleto
+no llega a SIIS, pero igual queda aprobado y con una fila de error para revisar a
+mano. El descarte no toca el caso y el ensayo informa por qué campo se cayó cada
+uno.
+
+**Freno de seguridad.** Tras ``--max-errores``  errores técnicos **seguidos** (10
 por defecto) se detiene: es señal de que SIIS está caído, no de que los casos
 tengan un problema.
 
@@ -32,6 +39,7 @@ Corre en seco por defecto: sin ``--aplicar`` no valida, no aprueba y no envía.
     python manage.py procesar_casos_siis                        # qué haría
     python manage.py procesar_casos_siis --aplicar
     python manage.py procesar_casos_siis --aplicar --pausa 2 --convocatoria 12
+    python manage.py procesar_casos_siis --solo-completos --total 1000 --lote 40
 
 Necesita ``SIIS_API_URL``, ``SIIS_API_CLIENT_ID`` y ``SIIS_API_CLIENT_SECRET``
 del ambiente contra el que se corre.
@@ -48,7 +56,12 @@ from django.db.models import OuterRef, Q, Subquery
 from programas.models import EnvioSIIS, Formulario, ValidacionSIS
 from programas.services.avisos_resolucion import enviar_aviso_resolucion
 from programas.services.cupo import aprobar_o_poner_en_espera
-from programas.services.siis_envio import Catalogos, enviar_beneficiario_a_siis
+from programas.services.siis_envio import (
+    CatalogoNoDisponible,
+    Catalogos,
+    armar_payload,
+    enviar_beneficiario_a_siis,
+)
 from programas.services.validacion_siis import validar_formulario_en_siis
 
 TOTAL_POR_DEFECTO = 1000
@@ -82,6 +95,11 @@ class Command(BaseCommand):
             "--avisar",
             action="store_true",
             help="Manda el correo de resolución al ciudadano. Apagado por defecto: son mil correos irretractables.",
+        )
+        parser.add_argument(
+            "--solo-completos",
+            action="store_true",
+            help="Solo procesa los casos cuyo payload hoy sale sin faltantes. Descarta el resto sin tocarlos.",
         )
         parser.add_argument(
             "--solo-enviar",
@@ -133,7 +151,38 @@ class Command(BaseCommand):
         casos = casos.exclude(Q(conflicto_duplicado=True) & Q(conflicto_resuelto=False)).exclude(
             cargas_en_conflicto__conflicto_resuelto=False
         )
+        # Con --solo-completos el corte lo hace el filtro, no la consulta:
+        # hay que mirar más candidatos de los que van a entrar.
+        if options["solo_completos"]:
+            return list(casos.distinct())
         return list(casos.distinct()[: max(1, options["total"])])
+
+    def _elegir(self, casos, catalogos, options):
+        """``(elegidos, descartados_por_campo)``.
+
+        Sin ``--solo-completos`` no filtra nada. Con el flag, arma el payload de
+        cada candidato y se queda solo con los que hoy saldrían sin faltantes:
+        mandar uno incompleto no lo informa a SIIS, pero igual lo deja aprobado
+        y con una fila de error que después hay que revisar a mano.
+        """
+        total = max(1, options["total"])
+        if not options["solo_completos"]:
+            return casos[:total], {}
+
+        elegidos, descartados = [], {}
+        for caso in casos:
+            if len(elegidos) >= total:
+                break
+            try:
+                _, faltantes = armar_payload(caso, catalogos=catalogos)
+            except CatalogoNoDisponible as exc:
+                raise CommandError(f"No se pudo leer un catálogo de SIIS: {exc}") from exc
+            if faltantes:
+                for campo in faltantes:
+                    descartados[campo] = descartados.get(campo, 0) + 1
+                continue
+            elegidos.append(caso)
+        return elegidos, descartados
 
     def _responsable(self, nombre):
         if not nombre:
@@ -191,7 +240,10 @@ class Command(BaseCommand):
         if not aplicar:
             self._log("ENSAYO: no valida, no aprueba y no envía. Agregá --aplicar.\n", self.style.WARNING)
         self._log(f"SIIS: {settings.SIIS_API_URL}")
-        if aplicar and not (settings.SIIS_API_CLIENT_ID and settings.SIIS_API_CLIENT_SECRET):
+        # --solo-completos lee los catálogos de SIIS aunque sea un ensayo.
+        if (aplicar or options["solo_completos"]) and not (
+            settings.SIIS_API_CLIENT_ID and settings.SIIS_API_CLIENT_SECRET
+        ):
             raise CommandError("Faltan SIIS_API_CLIENT_ID / SIIS_API_CLIENT_SECRET en el entorno.")
 
         responsable = self._responsable(options["usuario"])
@@ -200,7 +252,16 @@ class Command(BaseCommand):
                 "   Sin --usuario, la traza de las aprobaciones queda sin responsable.",
                 self.style.WARNING,
             )
-        casos = self._casos(options)
+        catalogos = Catalogos()
+        candidatos = self._casos(options)
+        if options["solo_completos"]:
+            self._log(f"Candidatos pendientes: {len(candidatos)}. Armando el payload de cada uno…")
+        casos, descartados = self._elegir(candidatos, catalogos, options)
+        if descartados:
+            total_descartados = sum(descartados.values())
+            self._log(f"Descartados por datos incompletos: {total_descartados} (no se tocan)")
+            for campo, n in sorted(descartados.items(), key=lambda kv: -kv[1])[:5]:
+                self._log(f"   {campo:20} {n:6}")
         if not casos:
             self._log("No hay casos que procesar con los criterios pedidos.", self.style.SUCCESS)
             return
@@ -239,7 +300,6 @@ class Command(BaseCommand):
         )
         seguidos = 0
         detenido = False
-        catalogos = Catalogos()
 
         self._log("")
         for numero, lote in _lotes(casos, tamano):
