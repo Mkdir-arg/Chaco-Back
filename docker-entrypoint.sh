@@ -40,12 +40,14 @@ run_bootstrap() {
     python manage.py collectstatic --noinput
   fi
 
-  # El bootstrap NO crea usuarios: siembra roles, capacidades y programas. El
+  # El bootstrap NO crea usuarios: siembra roles, capacidades, programas y el
+  # catalogo geografico de SIIS (Cambio 85), que es idempotente y hace falta
+  # para que el alta de beneficiarios resuelva provincia y localidad. El
   # superusuario se crea a mano con `createsuperuser`, con las credenciales que
   # defina quien monta el ambiente (antes existia un `crear_superadmin` con usuario
   # y contrasena escritos en el codigo, que se ejecutaba en cualquier ambiente).
-  if [ "${LOCAL_BOOTSTRAP_COMMANDS:-seed_datos_base crear_programas}" != "false" ]; then
-    run_management_commands "${LOCAL_BOOTSTRAP_COMMANDS:-seed_datos_base crear_programas}"
+  if [ "${LOCAL_BOOTSTRAP_COMMANDS:-seed_datos_base crear_programas seed_catalogo_siis}" != "false" ]; then
+    run_management_commands "${LOCAL_BOOTSTRAP_COMMANDS:-seed_datos_base crear_programas seed_catalogo_siis}"
   fi
 
   if [ -n "${LOCAL_OPTIONAL_BOOTSTRAP_COMMANDS:-}" ]; then

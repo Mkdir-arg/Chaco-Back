@@ -156,14 +156,58 @@ class Catalogos:
         return candidatos[0]["id"] if len(candidatos) == 1 else None
 
     def provincia_id(self, nombre):
+        """Cambio 85: primero el catálogo propio; la API queda de respaldo.
+
+        El catálogo local es el que el organismo nos pasó y es el que manda: la
+        API devolvía sin coincidencia nombres que sí están en su padrón.
+        """
+        from programas.models import ProvinciaSiis
+
+        clave = clave_nombre(nombre)
+        if not clave:
+            return None
+        propia = ProvinciaSiis.objects.filter(clave=clave).values_list("siis_id", flat=True)[:2]
+        if len(propia) == 1:
+            return propia[0]
         return self._buscar("provincias", nombre)
 
     def localidad_id(self, nombre, provincia_id=None):
-        """Acotada a la provincia cuando se conoce; sin provincia, solo si el nombre es único."""
-        if provincia_id is None:
-            return self._buscar("localidades", nombre)
-        provincia_id = int(provincia_id)
-        return self._buscar("localidades", nombre, lambda i: self._provincia_de(i) in (None, provincia_id))
+        """Acotada a la provincia cuando se conoce; sin provincia, solo si el nombre es único.
+
+        Orden (Cambio 85): equivalencia cargada → catálogo propio → API. La
+        equivalencia va primero y gana incluso si el nombre existiera tal cual en
+        el catálogo, porque es una decisión tomada a mano para ese texto.
+        """
+        from programas.models import AliasLocalidadSiis, LocalidadSiis
+
+        clave = clave_nombre(nombre)
+        if not clave:
+            return None
+        if provincia_id is not None:
+            provincia_id = int(provincia_id)
+            alias = (
+                AliasLocalidadSiis.objects.filter(provincia__siis_id=provincia_id, clave=clave)
+                .select_related("localidad")
+                .first()
+            )
+            if alias is not None:
+                # Sin destino es una decisión registrada: se revisó y no hay
+                # equivalencia. Devolver ``None`` acá evita que la API invente una.
+                return alias.localidad.siis_id if alias.localidad_id else None
+            propias = LocalidadSiis.objects.filter(provincia__siis_id=provincia_id, clave=clave).values_list(
+                "siis_id", flat=True
+            )[:2]
+            if len(propias) == 1:
+                return propias[0]
+            if len(propias) > 1:
+                # Ambigua en el catálogo propio: que la resuelva una equivalencia,
+                # no la API con otro criterio.
+                return None
+            return self._buscar("localidades", nombre, lambda i: self._provincia_de(i) in (None, provincia_id))
+        propias = LocalidadSiis.objects.filter(clave=clave).values_list("siis_id", flat=True)[:2]
+        if len(propias) == 1:
+            return propias[0]
+        return self._buscar("localidades", nombre)
 
     def estado_civil_id(self, nombre):
         return self._buscar("estados-civiles", nombre, sin_genero=True)

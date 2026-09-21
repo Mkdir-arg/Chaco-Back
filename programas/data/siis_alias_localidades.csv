@@ -1,0 +1,31 @@
+# Equivalencias entre lo que se escribio en el relevamiento y el catalogo de SIIS.
+#
+# La localidad la carga el territorial a mano y el cruce exige el nombre exacto.
+# Estas filas traducen al armar el payload; la respuesta del ciudadano no se toca.
+#
+# provincia_siis_id: la provincia en la que vale la equivalencia (el mismo nombre
+#   puede ser otra localidad en otra provincia).
+# texto: tal como se cargo. Se compara normalizado --sin acentos, minusculas--,
+#   asi que una fila cubre «Saenz Pena», «SAENZ PENA» y «saenz pena».
+# localidad_siis_id: vacio = se reviso y NO hay equivalencia. El caso se corrige
+#   a mano; el sistema no elige por su cuenta.
+#
+# Cada fila sale de un nombre que falla de verdad, contado sobre los 6.395 casos
+# de testing al 21/09/2026. Los que ya cruzan no se listan.
+provincia_siis_id,texto,localidad_siis_id,nota
+1,Saenz Pena,42,"110 casos; en SIIS es PRESIDENCIA ROQUE SAENZ PENA"
+1,Roque Saenz Pena,42,"10 casos"
+1,Pcia. Roque Saenz Pena,42,"17 casos, con y sin punto"
+1,Precidencia Roque Saenz Pena,42,"11 casos; error de tipeo"
+1,General jose de san martin,27,"228 casos; en SIIS es GENERAL J. DE SAN MARTIN"
+1,General san martin,27,"6 casos"
+1,Presidencia De La Plaza,19,"148 casos; en SIIS es PCIA. DE LA PLAZA"
+1,Castelli,64,"6 casos; en SIIS es JUAN JOSE CASTELLI"
+1,Recistencia,1,"6 casos; error de tipeo"
+1,Resistencia Chaco,1,"2 casos"
+2,Corrientes,1,"2 casos; en SIIS es CORRIENTES CAPITAL"
+1,San Fernando,,"64 casos. Es un departamento y no una localidad. Su cabecera es Resistencia, pero elegirla es una decision del organismo."
+1,Comandante Fernandez,,"8 casos. Departamento, no localidad. Su cabecera es Saenz Pena."
+1,Sin Informar,,"60 casos. No hay dato que traducir."
+1,Argentina,,"13 casos. No hay dato que traducir."
+1,Chaco,,"7 casos. Es la provincia, no una localidad."
