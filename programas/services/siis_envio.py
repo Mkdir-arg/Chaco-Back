@@ -449,15 +449,21 @@ def armar_payload(formulario, catalogos=None, hoy=None):
 # ---------------------------------------------------------------------------
 # Servicio
 # ---------------------------------------------------------------------------
-def enviar_beneficiario_a_siis(formulario, solicitado_por, catalogos=None):
+def enviar_beneficiario_a_siis(formulario, solicitado_por, catalogos=None, exigir_aprobado=True):
     """Da de alta al beneficiario en SIIS y **siempre** deja un ``EnvioSIIS``.
 
     Idempotente: un caso ya ``ENVIADO`` no se vuelve a mandar (la API no
     deduplica). Nunca lanza por fallas de red ni de SIIS: eso queda registrado
     como ``ERROR`` reintentable. Sí lanza ``ValueError`` si el caso no está
     aprobado, porque eso es un error de programación del que llama.
+
+    ``exigir_aprobado=False`` levanta esa guarda y **solo lo usa el comando de
+    alta masiva** (``enviar_casos_siis``), que pide los estados por nombre. No
+    es un atajo: informar un caso que nadie revisó, o que la provincia rechazó,
+    lo registra como beneficiario en SIIS; la API no deduplica y desde acá no
+    hay forma de darlo de baja. La revisión desde la pantalla siempre lo exige.
     """
-    if formulario.estado != Formulario.Estado.APROBADO:
+    if exigir_aprobado and formulario.estado != Formulario.Estado.APROBADO:
         raise ValueError("Solo se informan a SIIS los casos aprobados.")
     vigente = formulario.envios_sis.filter(estado=EnvioSIIS.Estado.ENVIADO).order_by("-creado", "-pk").first()
     if vigente:
@@ -477,6 +483,10 @@ def enviar_beneficiario_a_siis(formulario, solicitado_por, catalogos=None):
         return EnvioSIIS.objects.create(
             estado=EnvioSIIS.Estado.ERROR, codigo_error="ERROR_TECNICO", detalles={"catalogo": [str(exc)]}, **base
         )
+    # El registro audita lo que se mandó de verdad: los ids pueden venir del
+    # segmento o de la corrección del caso, no solo del programa (Cambio 82).
+    base["id_programa"] = payload.get("id_plan_soc", base["id_programa"])
+    base["id_funcion"] = payload.get("id_fun_x_plan", base["id_funcion"])
     if faltantes:
         return EnvioSIIS.objects.create(
             estado=EnvioSIIS.Estado.INCOMPLETO,
