@@ -23,6 +23,7 @@ from programas.models import (
     Relevamiento,
     Segmento,
     TipoCampo,
+    ValidacionSIS,
 )
 from programas.services import siis_envio
 from programas.services.siis import SiisCatalogError
@@ -651,3 +652,98 @@ class ComandoEnvioMasivoTests(_BaseEnvioTest):
     def test_el_limite_acota(self):
         self._correr("--estados", "APROBADO,ENVIADO", "--si-entiendo", "--limite", "1", "--aplicar")
         self.assertEqual(self.enviar.call_count, 1)
+
+
+@override_settings(SIIS_API_CLIENT_ID="id-de-prueba", SIIS_API_CLIENT_SECRET="secreto-de-prueba")
+class ComandoCircuitoCompletoTests(_BaseEnvioTest):
+    """``procesar_casos_siis``: validar → aprobar → enviar, en lotes."""
+
+    def setUp(self):
+        super().setUp()
+        base = "programas.management.commands.procesar_casos_siis."
+        self.validar = patch(base + "validar_formulario_en_siis").start()
+        self.aprobar = patch(base + "aprobar_o_poner_en_espera").start()
+        self.enviar = patch(base + "enviar_beneficiario_a_siis").start()
+        self.avisar = patch(base + "enviar_aviso_resolucion").start()
+        self.addCleanup(patch.stopall)
+        self.validar.side_effect = lambda f, u: ValidacionSIS.objects.create(
+            formulario=f, estado=ValidacionSIS.Estado.OK, documento="1", id_programa=79
+        )
+        self.aprobar.side_effect = lambda f, u: "aprobado"
+        self.enviar.side_effect = lambda f, u, **kw: EnvioSIIS.objects.create(
+            formulario=f, estado=EnvioSIIS.Estado.ENVIADO, documento="1", siis_id=1
+        )
+        # El caso de la base nace APROBADO; agrego uno pendiente de resolución.
+        self.pendiente = Formulario.objects.create(
+            relevamiento=self.relevamiento, ciudadano=self.ciudadano, estado=Formulario.Estado.ENVIADO
+        )
+
+    def _correr(self, *args):
+        salida = StringIO()
+        call_command("procesar_casos_siis", *args, stdout=salida)
+        return salida.getvalue()
+
+    def test_sin_aplicar_no_toca_nada(self):
+        salida = self._correr()
+        self.validar.assert_not_called()
+        self.aprobar.assert_not_called()
+        self.enviar.assert_not_called()
+        self.assertIn("ENSAYO", salida)
+
+    def test_corre_los_tres_pasos_en_orden(self):
+        self._correr("--aplicar", "--total", "1")
+        self.assertEqual(self.validar.call_count, 1)
+        self.assertEqual(self.enviar.call_count, 1)
+
+    def test_solo_aprueba_los_que_estan_pendientes(self):
+        """El caso ya APROBADO se valida y se envía, pero no se re-aprueba."""
+        self._correr("--aplicar")
+        aprobados = [c.args[0].pk for c in self.aprobar.call_args_list]
+        self.assertEqual(aprobados, [self.pendiente.pk])
+        self.assertEqual(self.enviar.call_count, 2)
+
+    def test_el_correo_al_ciudadano_va_apagado(self):
+        self._correr("--aplicar")
+        self.avisar.assert_not_called()
+
+    def test_con_avisar_manda_el_correo(self):
+        self._correr("--aplicar", "--avisar")
+        self.assertEqual(self.avisar.call_count, 1)
+
+    def test_sin_cupo_no_se_informa_a_siis(self):
+        self.aprobar.side_effect = lambda f, u: "lista_espera"
+        salida = self._correr("--aplicar", "--total", "50")
+        # Solo viaja el que ya estaba aprobado; el de lista de espera no.
+        enviados = [c.args[0].pk for c in self.enviar.call_args_list]
+        self.assertEqual(enviados, [self.formulario.pk])
+        self.assertIn("lista de espera", salida)
+
+    def test_no_reprocesa_un_caso_ya_informado(self):
+        EnvioSIIS.objects.create(formulario=self.formulario, estado=EnvioSIIS.Estado.ENVIADO, documento="1")
+        self._correr("--aplicar")
+        enviados = [c.args[0].pk for c in self.enviar.call_args_list]
+        self.assertNotIn(self.formulario.pk, enviados)
+
+    def test_solo_enviar_saltea_validacion_y_aprobacion(self):
+        self._correr("--aplicar", "--solo-enviar")
+        self.validar.assert_not_called()
+        self.aprobar.assert_not_called()
+        self.assertEqual(self.enviar.call_count, 1)
+
+    def test_el_total_acota(self):
+        self._correr("--aplicar", "--total", "1")
+        self.assertEqual(self.enviar.call_count, 1)
+
+    def test_frena_tras_errores_tecnicos_seguidos(self):
+        self.enviar.side_effect = lambda f, u, **kw: EnvioSIIS.objects.create(
+            formulario=f, estado=EnvioSIIS.Estado.ERROR, documento="1", codigo_error="ERROR_TECNICO"
+        )
+        with self.assertRaises(SystemExit):
+            self._correr("--aplicar", "--max-errores", "1")
+
+    def test_un_caso_con_duplicado_sin_resolver_se_saltea(self):
+        self.pendiente.conflicto_duplicado = True
+        self.pendiente.conflicto_resuelto = False
+        self.pendiente.save(update_fields=["conflicto_duplicado", "conflicto_resuelto"])
+        self._correr("--aplicar")
+        self.aprobar.assert_not_called()
