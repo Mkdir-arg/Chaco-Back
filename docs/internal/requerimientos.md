@@ -227,6 +227,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 80 | Los requisitos del segmento también pueden alimentar el alta en SIIS («Este dato alimenta a SIIS como») | Becas · catálogo de requisitos → envío a SIIS | `#siis` `#relevamientos` `#ui` | PM — en sesión: «los campos de cuit y localidad son a nivel segmento, no generales, y por ende no puedo configurar "Este dato alimenta a SIIS como" de esos campos» | 19/09/2026 | 🟢 **Hecho** | `programas.0067` (aditiva) |
 | 81 | El veredicto de SIIS deja de bloquear la aprobación: la consulta sigue siendo obligatoria | Becas · revisión del caso | `#siis` `#relevamientos` | PM — en sesión: «ahora es bloqueante que Resultado SIIS sea aprobado; sí o sí se puede aceptar a nivel técnico sin importar SIIS, pero sí o sí se tiene que hacer lo de SIIS» | 21/09/2026 | 🟢 **Hecho** | No requiere |
 | 82 | Los identificadores del alta en SIIS se cargan a mano, cada uno en su nivel | Becas · configuración del programa y del segmento → validación y envío a SIIS | `#siis` `#relevamientos` `#ui` | PM — en sesión: «que sea por input de número», «el id programa lo trae de la API pero se puede editar por otro a gusto; cuando se edita y es diferente al id que trae la API te dice una alerta» | 21/09/2026 | 🟢 **Hecho** | `programas.0069` |
+| 83 | Alta masiva en SIIS por lotes, con los identificadores configurados | Becas · alta de beneficiarios en SIIS | `#siis` `#relevamientos` | PM — en sesión: «¿hay algún script para enviar la información a SIIS sin importar el estado en DATAÑACH? La idea es enviarlo en base a los id configurados» | 21/09/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -9142,3 +9143,86 @@ segmento, después pidiendo los dos opcionales en el alta del programa, y por ú
 del programa con aviso de divergencia. Modifica además la decisión de `id_fun_x_plan` del Cambio 73 («una sola
 función por programa, elegida del catálogo»), que pasa a ser el valor por defecto cuando el segmento no lo
 define, y escrito a mano.
+
+# Cambio 83 — Alta masiva en SIIS por lotes, con los identificadores configurados
+
+🟢 **HECHO — 21/09/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · alta de beneficiarios en SIIS (comando) |
+| **Etiquetas** | `#siis` `#relevamientos` |
+| **Solicitante** | PM — en sesión: «¿hay algún script para enviar la información a SIIS sin importar el estado en DATAÑACH? La idea es enviarlo en base a los id configurados» |
+| **Fecha del pedido** | 21/09/2026 |
+| **Issue / épica** | Sin issue (pedido en sesión) · continúa el Cambio 82 |
+| **Partes afectadas** | Comando de management · servicio de envío a SIIS |
+| **Migración** | No requiere |
+
+## Pedido original
+
+El alta en SIIS se disparaba caso por caso desde la pantalla de revisión. El único comando existente,
+`reenviar_siis_pendientes`, solo toma casos ya `APROBADO` cuyo **último** envío fue un `ERROR` técnico: no sirve
+para informar por primera vez, ni alcanza a los `INCOMPLETO`. Con 6.395 casos en el relevamiento, no había forma
+de informarlos.
+
+El pedido agrega una condición: poder hacerlo **sin importar el estado en DATAÑACH**, usando los identificadores
+que el Cambio 82 acaba de hacer configurables.
+
+## Alcance acordado
+
+- `enviar_casos_siis`: el mismo camino que el botón «Enviar a SIIS», en lotes de 50, con una línea de log por
+  lote, pausa opcional y freno tras 10 errores técnicos seguidos. En seco por defecto (`--aplicar` para llamar).
+- Filtros por `--convocatoria`, `--relevamiento`, `--segmento`, `--programa` y `--limite`.
+- `--estados` elige qué estados de DATAÑACH se informan. Default `APROBADO`.
+- Afuera: la pantalla de revisión no cambia; ahí el alta sigue exigiendo el caso aprobado.
+
+## Decisiones tomadas
+
+- **El default sigue siendo solo `APROBADO`.** Se pidió «sin importar el estado», y se entregó, pero como una
+  puerta que hay que abrir con las dos manos: nombrar el estado en `--estados` **y** agregar `--si-entiendo`. El
+  motivo no es de programación: informar un caso `ENVIADO` (que nadie revisó), `RECHAZADO` o en `BAJA` registra a
+  la persona como beneficiaria en SIIS, la API no deduplica y desde DATAÑACH no hay forma de darla de baja. Se
+  arregla del lado de SIIS, a mano. Un default que lo permitiera sería un error irreversible a un tipeo de
+  distancia.
+- **La guarda del servicio se levanta por los estados pedidos, no por el flag.** `--si-entiendo` junto con
+  `--estados APROBADO` deja `exigir_aprobado=True`: el flag confirma una intención, no desactiva una defensa.
+- **La guarda vive en el servicio, no en el comando.** `enviar_beneficiario_a_siis` gana
+  `exigir_aprobado=True`; la vista de revisión nunca lo toca. Así el único camino que puede informar un caso sin
+  aprobar es el comando, que lo pide por escrito.
+- **Qué cuenta como pendiente.** Sin envío, o con un último intento `INCOMPLETO` (por si se completaron los
+  datos) o `ERROR` técnico. Los `ENVIADO` no se repiten —eso ya lo garantiza el servicio— y los `RECHAZADO` por
+  SIIS se saltean salvo `--reintentar-rechazados`, porque repetirlos sin corregir nada da el mismo rechazo.
+- **Retoma solo.** Cada envío se confirma al instante: si se corta a la mitad, lo hecho queda y volver a correrlo
+  sigue donde iba. Es la misma forma de `validar_casos_siis` y de `completar_casos_renaper`, por la misma razón:
+  corridas largas contra un servicio externo que se cae.
+- **El registro audita lo que se mandó de verdad.** `EnvioSIIS.id_programa` e `id_funcion` se toman del payload
+  ya armado y no del programa: con el Cambio 82 esos ids pueden venir del segmento o de la corrección del caso, y
+  un registro que dijera otra cosa haría perder tiempo justo cuando se está depurando la integración.
+
+## Implementación
+
+- `programas/management/commands/enviar_casos_siis.py`.
+- `programas/services/siis_envio.py` — `exigir_aprobado` en `enviar_beneficiario_a_siis`; los ids del registro
+  salen del payload.
+- Tests: `ComandoEnvioMasivoTests` en `programas/tests/test_siis_envio.py` (10 casos).
+
+## Base de datos
+
+No toca el esquema. Escribe filas en `programas_enviosiis`, una por intento, como el botón de la pantalla.
+
+## Pendientes / a definir
+
+- **No se corrió todavía contra ningún ambiente.** Primero tiene que estar resuelto cuál es el identificador de
+  programa correcto (Cambio 82): informar 6.395 altas con el id equivocado es exactamente lo que no se puede
+  deshacer.
+- Queda sin decidir si el PM quiere informar los casos `ENVIADO` sin revisar. El comando lo permite, pero es una
+  decisión de negocio, no técnica.
+
+## Reversión
+
+Borrar el comando. Lo ya informado a SIIS no se revierte desde acá.
+
+## Historial
+
+Entrada nueva. Continúa el Cambio 82: sin identificadores configurables no tenía sentido un alta masiva, porque
+todas habrían fallado contra el programa que SIIS informa como `INEXISTENTE`.
