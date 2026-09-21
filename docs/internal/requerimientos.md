@@ -9118,7 +9118,8 @@ El pedido se redefinió tres veces durante la sesión; lo que quedó:
 ## Base de datos
 
 `programas_programasiis` gana `siis_id_plan_soc` y `siis_jurid`, enteras opcionales. `programas_segmento` pierde
-`siis_id_plan_soc`, que estuvo desplegada en testing (migración 0068) y nunca se cargó: la 0069 la borra.
+`siis_id_plan_soc`, que estuvo desplegada en testing (migración 0068) unas horas: la 0069 la borra y con ella
+cualquier valor que se haya cargado ahí mientras tanto. Nunca llegó a producción.
 Nada cambia de comportamiento hasta que alguien complete un campo.
 
 ## Pendientes / a definir
