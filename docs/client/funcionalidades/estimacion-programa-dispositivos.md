@@ -23,8 +23,8 @@ salida, traslados con seguimiento, información sensible con acceso diferenciado
 | Etapa | Horas | Estado |
 |---|---:|---|
 | Versión 1 — alcance base | 436 | Aprobada y desarrollada |
-| **Versión 2 — alcance que se agrega** | **628** | **En validación con el Ministerio** |
-| **Total del programa** | **1.064** | |
+| **Versión 2 — alcance que se agrega** | **827** | **En validación con el Ministerio** |
+| **Total del programa** | **1.263** | |
 
 El detalle de la Versión 2 —los cambios que pidió cada institución, en qué se diferencian de lo ya
 entregado, los módulos, las etapas y los tiempos— está en la **sección 11**.
@@ -234,7 +234,7 @@ Estas funcionalidades no modifican el subtotal de desarrollo ni el total general
 | Relevamiento de infraestructura y preparación tecnológica | Etapa posterior |
 | Cierre mensual formal y tablero de comando completo | Etapa posterior (los indicadores básicos sí están incluidos en D-11) |
 | Padrón nominal de niños y tutores y asistencia alimentaria diaria de merenderos | Alcance a confirmar con el Ministerio; se estimará por separado si se incorpora |
-| App móvil | Esta etapa es de backoffice; no se requiere aplicación de campo |
+| App móvil | El backoffice es el alcance de esta etapa. Los **relevamientos edilicios** (§11.1) prevén que el agente territorial cargue datos y fotos desde el celular: las horas cubren los servicios que la aplicación consume, **no la pantalla dentro de la aplicación**, que corresponde al equipo móvil y se estima aparte. La alternativa sin costo adicional es cargar el relevamiento desde el navegador del celular |
 | Inventario y stock integral de alimentos, limpieza, fármacos, agua, colchones y kits | Funcionalidad documentada en §7.1; estimación pendiente |
 | Asistencia y situación de revista del personal | Funcionalidad documentada en §7.1; corresponde a Recursos Humanos y su estimación está pendiente |
 | ~~Libros institucionales digitales y bitácora de guardia completa~~ | **Ya no aplica:** la bitácora de guardia con turnos y pase de novedades está incluida en la Versión 2 (§11.4). Siguen fuera los libros de economato, inventario y limpieza |
@@ -348,6 +348,10 @@ Cada fila nace de una visita. La columna «hoy» es lo que hace el sistema entre
 | **Visibilidad de camas y personas para la conducción** | Dirección del programa | Indicadores de cada institución por separado | Tablero de la red con capacidad, movimientos, permanencia y avisos configurables |
 | **Encuadre real de las instituciones** | Albergue Calcuta (edificio de la Iglesia, gestión del Ministerio) | Un solo campo de identidad institucional | Categoría, titularidad del inmueble y dependencia de la gestión por separado, más documentación con vigencia |
 | **Que el sistema avise y no bloquee** | Todas | La admisión exige cama disponible | Ingreso excepcional sobre la capacidad con autorización registrada: el sistema avisa y la decisión queda en el área |
+| **Estado edilicio de cada dispositivo** | Dirección del programa (pedido del 19/09) | No existe: el legajo describe la institución, no el edificio | Infraestructura con tenencia, ubicación en mapa, habitaciones, estado físico, fotos históricas y servicios, con vencimiento cada 6 meses y aviso automático |
+| **Relevar el edificio en campo, con alguien de afuera** | Dirección del programa (pedido del 19/09) | No existe | Relevamientos que el coordinador crea y asigna a un agente territorial **externo a la institución**, con vencimiento, informe oficial y carga desde el celular |
+| **Seguimiento de contratos y servicios** | Reunión del 16/09 | No existe | Planilla de alquiler, luz, agua e internet con último pago, vencimiento y comprobante; aviso siete días antes y escalado si vence sin pagar |
+| **Que cada responsable vea lo suyo** | Reunión del 16/09 | Un tablero igual para todos | Vistas de tablero que cada responsable arma con los indicadores que necesita, acotadas a su alcance, más recordatorios propios |
 
 ### 11.2 De lo que se hizo a lo que hay que hacer
 
@@ -374,36 +378,38 @@ La diferencia, área por área:
 | **Configuración** | Tipos de dispositivo y campos del formulario | Reglas por tipo administradas desde el sistema: qué plazas admite, si exige autorización previa, si permite préstamo, límite de permanencia, secciones mínimas de la ficha, catálogos de motivos y umbrales de aviso |
 | **Conducción** | Indicadores de cada institución | Tablero de la red con capacidad, movimientos, permanencia y avisos configurables por regla |
 | **Merenderos** | Solicitud, validación, entregas y prestación mensual | Catálogo de insumos y kits con equivalencia en raciones; entregas con quién recibe y remito; prestación con los servicios y los días de funcionamiento de cada merendero; cierre mensual; y cobertura alimentaria |
+| **El edificio** | No contemplado: el legajo describe la institución, no el inmueble | El edificio como entidad propia, que puede alojar más de una institución; tenencia, mapa, habitaciones, estado físico, fotos históricas y servicios, con vencimiento y aviso; relevamientos en campo por un agente externo; y el seguimiento de contratos y consumos |
+| **Conducción por rol** | Un tablero igual para todos | Cada responsable arma su vista con los indicadores que necesita, acotada a su alcance, y registra sus propios recordatorios |
 | **Trazabilidad** | Historial del legajo institucional | Auditoría única de todo el programa: estadías, movimientos, bitácora, entregas y prestaciones |
 | **Carga inicial** | Importación del padrón de instituciones | Importación de sectores, plazas y personas alojadas, para arrancar con el censo real del día uno |
 
 !!! tip "Qué no se vuelve a hacer"
     El motor de roles, la validación de identidad contra la Base de Personas, el legajo ciudadano, las
     solapas del legajo, el sistema de diseño y el constructor de formularios ya están construidos y se
-    reutilizan. Por eso la Versión 2 estima **628 h** y no las **más de 900 h** que costaría el mismo
+    reutilizan. Por eso la Versión 2 estima **827 h** y no las **más de 1.200 h** que costaría el mismo
     alcance partiendo de cero. Los **ajustes sobre funcionalidad ya entregada** (18 h: paginación del
-    padrón, aviso de código repetido y vocabulario de los indicadores) **no se suman a las 628 h**.
+    padrón, aviso de código repetido y vocabulario de los indicadores) **no se suman a las 827 h**.
 
 ### 11.3 Cómo se compone la estimación
 
 | Concepto | Horas |
 |---|---:|
-| Desarrollo Backend | 285 |
-| Desarrollo Frontend | 189 |
-| Análisis funcional y definiciones con el Ministerio | 24 |
-| Pruebas funcionales y QA | 73 |
-| Diseño UX/UI | 27 |
+| Desarrollo Backend | 369 |
+| Desarrollo Frontend | 257 |
+| Análisis funcional y definiciones con el Ministerio | 32 |
+| Pruebas funcionales y QA | 96 |
+| Diseño UX/UI | 39 |
 | Despliegue a ambiente QA y datos iniciales | 16 |
-| Capacitación | 14 |
-| **Total Versión 2** | **628** |
+| Capacitación | 18 |
+| **Total Versión 2** | **827** |
 
 Para comparar con lo ya aprobado:
 
 | Etapa | Horas | Estado |
 |---|---:|---|
 | Versión 1 — alcance base | 436 | Aprobada y desarrollada |
-| Versión 2 — alcance que se agrega | 628 | En validación |
-| **Total del programa** | **1.064** | |
+| Versión 2 — alcance que se agrega | 827 | En validación |
+| **Total del programa** | **1.263** | |
 
 ### 11.4 Detalle por módulo
 
@@ -425,7 +431,11 @@ son de desarrollo; el análisis, las pruebas, el diseño, el despliegue y la cap
 | M10 | Carga inicial y auditoría | Importación de instituciones, sectores, plazas y personas alojadas con nivel de confianza y verificación en campo, y auditoría única del programa | 20 |
 | M11 | Merenderos | Legajo con navegación propia y edición con historial, documentación con vigencia, catálogo de insumos y kits con equivalencia en raciones, y entregas con receptor y remito | 32 |
 | M12 | Prestación y cobertura | Prestación mensual con los servicios y días de cada merendero, cierre del mes y cobertura alimentaria | 18 |
-| | **Subtotal desarrollo** | | **474** |
+| M14 | Infraestructura del edificio | El edificio como entidad propia, que puede alojar más de una institución; tenencia, ubicación en mapa, cantidad de habitaciones y plano, estado físico, servicios disponibles; registro fotográfico histórico; vencimiento cada 6 meses (1 mes en obra) con alerta y revisión forzada | 48 |
+| M15 | Relevamientos edilicios | Pantalla de creación y asignación a un agente territorial externo a la institución, con vencimiento y estados; informe oficial vinculado al legajo; y los servicios que consume la aplicación de campo | 44 |
+| M16 | Consumos y contratos | Catálogo configurable de ítems (alquiler, luz, agua, internet) con último pago, vencimiento y comprobante adjunto; aviso siete días antes y escalado a la autoridad superior | 28 |
+| M17 | Tableros por rol | Catálogo de indicadores y armado de la vista propia de cada responsable, acotada a su alcance, sobre los datos que ya produce M8; más recordatorios personalizados por institución | 32 |
+| | **Subtotal desarrollo** | | **626** |
 
 > Los 18 h de ajustes sobre funcionalidad ya entregada no figuran en esta tabla ni en el total: se absorben.
 
@@ -439,8 +449,9 @@ aprobarlas por separado y detenerse al final de cualquiera de ellas.
 | **1** | La institución opera: legajo con encuadre y documentación, permisos por subsecretaría con separación de funciones, reglas por tipo, sectores y plazas, y el circuito completo de estadías con traslados | Cupos por servicio · préstamo de cama · autorización previa · alta rotación · traslado con seguimiento · seguimiento sin alojamiento · avisar sin bloquear · encuadre real | 302 | 5 semanas |
 | **2** | Los formularios y el turno: configurador de formularios por tipo con secciones sensibles y lectura registrada, bitácora por turno con pase de guardia y censo | Dejar de transcribir entre turnos · acceso diferenciado a información médica y psicosocial · historial de intervenciones · formularios que el Ministerio cambia sin desarrollo | 148 | 3 semanas |
 | **3** | La red y la conducción: derivaciones, lista de espera con prioridad, tablero de la red, reportes y carga inicial del padrón | Derivaciones y organismos externos · visibilidad para la conducción · trazabilidad de admisiones | 98 | 2 semanas |
-| **4** | Merenderos: catálogo de kits, entregas con receptor, prestación mensual y cobertura, más el despliegue final y la capacitación | Registro de entregas con quién recibe | 80 | 2 semanas |
-| | **Total** | | **628** | **12 semanas** |
+| **4** | Merenderos: catálogo de kits, entregas con receptor, prestación mensual y cobertura, más el despliegue y la capacitación | Registro de entregas con quién recibe | 80 | 2 semanas |
+| **5** | El edificio: infraestructura con tenencia, mapa, estado físico y fotos con vencimiento; relevamientos asignados a un agente territorial externo; consumos y contratos con aviso y escalado; y tableros configurables por rol | Estado de los edificios · seguimiento de contratos y servicios · vistas de conducción por rol | 199 | 4 semanas |
+| | **Total** | | **827** | **16 semanas** |
 
 **Equipo:** 1 desarrollador backend y 1 desarrollador frontend a tiempo completo, con análisis
 funcional, diseño y QA en paralelo a tiempo parcial.
@@ -470,26 +481,27 @@ relevamiento:
 
 ### 11.7 Horas por perfil y por etapa
 
-Resumen de las 628 h en las dos vistas que se usan para planificar y aprobar.
+Resumen de las 827 h en las dos vistas que se usan para planificar y aprobar.
 
 | Perfil | Horas | Proporción |
 |---|---:|---:|
-| Desarrollador Backend | 285 | 45 % |
-| Desarrollador Frontend | 189 | 30 % |
-| Pruebas funcionales y QA | 73 | 12 % |
-| Análisis funcional y definiciones | 24 | 4 % |
-| Diseño UX/UI | 27 | 4 % |
-| Despliegue a ambiente QA | 16 | 3 % |
-| Capacitación | 14 | 2 % |
-| **Total Versión 2** | **628** | **100 %** |
+| Desarrollador Backend | 369 | 45 % |
+| Desarrollador Frontend | 257 | 31 % |
+| Pruebas funcionales y QA | 96 | 12 % |
+| Análisis funcional y definiciones | 32 | 4 % |
+| Diseño UX/UI | 39 | 4 % |
+| Despliegue a ambiente QA | 16 | 2 % |
+| Capacitación | 18 | 2 % |
+| **Total Versión 2** | **827** | **100 %** |
 
 | Etapa | Horas | Proporción | Acumulado |
 |---|---:|---:|---:|
-| 1 — Institución, permisos, capacidad y estadías | 302 | 48 % | 302 |
-| 2 — Formularios y operación por turno | 148 | 24 % | 450 |
-| 3 — Red, conducción y carga inicial | 98 | 16 % | 548 |
-| 4 — Merenderos, despliegue y capacitación | 80 | 12 % | 628 |
-| **Total** | **628** | **100 %** | |
+| 1 — Institución, permisos, capacidad y estadías | 302 | 37 % | 302 |
+| 2 — Formularios y operación por turno | 148 | 18 % | 450 |
+| 3 — Red, conducción y carga inicial | 98 | 12 % | 548 |
+| 4 — Merenderos, despliegue y capacitación | 80 | 9 % | 628 |
+| 5 — El edificio: infraestructura, relevamientos, contratos y tableros | 199 | 24 % | 827 |
+| **Total** | **827** | **100 %** | |
 
 El Ministerio puede aprobar por tramos: la columna «acumulado» muestra cuántas horas suma detenerse al
 final de cada etapa.
@@ -502,6 +514,6 @@ Los 18 h de ajustes sobre funcionalidad ya entregada se absorben y no se suman a
 Los módulos de §7.1 —inventario y stock, administración de medicación, asistencia y recursos humanos,
 historial clínico, bitácora de guardia ampliada, funcionamiento sin conexión, control de acceso
 físico, plano de habitaciones, tablero de comando completo, planes de contingencia e integración con
-ECOM— **no están incluidos** en las 628 h y se estiman por separado cuando el Ministerio confirme su
+ECOM— **no están incluidos** en las 827 h y se estiman por separado cuando el Ministerio confirme su
 alcance. Tampoco entran el padrón nominal de niñas, niños y adolescentes de los merenderos ni la
 aplicación móvil.

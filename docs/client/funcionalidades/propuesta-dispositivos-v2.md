@@ -8,8 +8,8 @@
 | **Programas** | Dispositivos y Merenderos |
 | **Estado** | Versión 1 desarrollada y entregada · **Versión 2 en validación del Ministerio** |
 | **Origen** | Relevamiento de campo en el Albergue Madre Teresa de Calcuta, el CIS N.º 3, la Dirección de Abordaje Psicosocial (Programa Mírame/Vedia) y el Parador Nocturno, más las reuniones del 19/06 y del 26/06 |
-| **Esfuerzo estimado** | 628 h · cuatro etapas entregables por separado · 12 semanas ([detalle](estimacion-programa-dispositivos.md)) |
-| **Última actualización** | 2026-09-20 |
+| **Esfuerzo estimado** | 827 h · cinco etapas entregables por separado · 16 semanas ([detalle](estimacion-programa-dispositivos.md)) |
+| **Última actualización** | 2026-09-22 |
 
 !!! success "Mockup navegable"
     La propuesta original está dibujada sobre el sistema real: **[siete flujos y dieciocho pantallas](../mockups/dispositivos-v2.html)**. Cada sección enlaza a la pantalla que le corresponde. Las secciones 4.12, 4.13 y 4.14 —incorporadas el 20/09/2026 a partir del pedido del cliente y la reunión del 16/09— están pendientes de incorporar al mockup.
@@ -58,7 +58,7 @@ Cada fila nace de una visita. La columna «hoy» es lo que hace el sistema entre
 
 ## 2. Qué queda de la Versión 1
 
-Nada de lo entregado se tira. La Versión 2 **crece sobre** lo construido, y por eso cuesta 628 h y no las más de 900 que costaría el mismo alcance partiendo de cero.
+Nada de lo entregado se tira. La Versión 2 **crece sobre** lo construido, y por eso cuesta 827 h y no las más de 1.200 que costaría el mismo alcance partiendo de cero.
 
 **Se conserva y se reutiliza tal cual:**
 
@@ -379,19 +379,25 @@ Hay un conjunto de decisiones que tomamos por defecto para no frenar, y que conv
 
 ## 9. Esfuerzo, etapas y plazos
 
-La Versión 2 se estima en **628 horas**, sobre una Versión 1 de 436 horas ya aprobada y desarrollada. El detalle módulo por módulo, la composición por perfil y el criterio de las horas están en la **[estimación del programa](estimacion-programa-dispositivos.md)**.
+La Versión 2 se estima en **827 horas**, sobre una Versión 1 de 436 horas ya aprobada y desarrollada. El detalle módulo por módulo, la composición por perfil y el criterio de las horas están en la **[estimación del programa](estimacion-programa-dispositivos.md)**.
 
-Se entrega en **cuatro etapas**, y cada una es utilizable por sí misma. El Ministerio puede aprobarlas por separado y detenerse al final de cualquiera:
+Se entrega en **cinco etapas**, y cada una es utilizable por sí misma. El Ministerio puede aprobarlas por separado y detenerse al final de cualquiera:
 
 | Etapa | Qué queda funcionando | Horas | Duración |
 |---|---|---:|---|
-| **1** | La institución opera: legajo con encuadre y documentación, permisos por subsecretaría con separación de funciones, reglas por tipo, sectores y plazas, y el circuito completo de estadías con traslados | 302 | 5 semanas |
-| **2** | Los formularios y el turno: el configurador de formularios por tipo con secciones sensibles y lectura registrada, y la bitácora por turno con pase de guardia y censo | 148 | 3 semanas |
-| **3** | La red y la conducción: derivaciones, lista de espera, tablero de la red, reportes y carga inicial del padrón | 98 | 2 semanas |
-| **4** | Merenderos: catálogo de kits, entregas con receptor, prestación mensual y cobertura, más el despliegue final y la capacitación | 80 | 2 semanas |
-| | **Total** | **628** | **12 semanas** |
+| **1** | **La institución opera.** Legajo con encuadre y documentación, permisos por subsecretaría con separación de funciones, reglas por tipo, sectores y plazas, y el circuito completo de estadías con traslados | 302 | 5 semanas |
+| **2** | **Los formularios y el turno.** El configurador de formularios por tipo con secciones sensibles y lectura registrada, y la bitácora por turno con pase de guardia y censo | 148 | 3 semanas |
+| **3** | **La red y la conducción.** Derivaciones, lista de espera, tablero de la red, reportes y carga inicial del padrón | 98 | 2 semanas |
+| **4** | **Merenderos.** Catálogo de kits, entregas con receptor, prestación mensual y cobertura, más el despliegue y la capacitación | 80 | 2 semanas |
+| **5** | **El edificio.** Infraestructura con tenencia, mapa, estado físico y fotos con vencimiento; relevamientos edilicios asignados a un agente territorial externo; consumos y contratos con alerta y escalado; y tableros configurables por rol | 199 | 4 semanas |
+| | **Total** | **827** | **16 semanas** |
 
-!!! tip "Si hubiera que elegir una sola etapa"
-    La **etapa 1** es la que más cambia la operación: resuelve ocho de los catorce cambios que pidieron las instituciones, incluidos los tres que más se repitieron en las visitas —cupos por servicio, autorización previa de ingreso y traslado con seguimiento—. Las etapas 3 y 4 suman 178 horas y ninguna bloquea la operación diaria.
+!!! tip "Cómo leer las etapas"
+    Las cuatro primeras hablan de **las personas**: quién está alojado, en qué plaza, con qué ficha y desde cuándo. La **etapa 5 habla del edificio**: en qué estado está, de quién es, qué servicios tiene y qué se paga por él. Son dos preguntas distintas y se pueden aprobar por separado.
+
+    Si hubiera que elegir una sola, la **etapa 1** es la que más cambia la operación diaria: resuelve ocho de los catorce cambios que pidieron las instituciones, incluidos los tres que más se repitieron en las visitas —cupos por servicio, autorización previa de ingreso y traslado con seguimiento—.
+
+!!! warning "Sobre la app de campo"
+    La sección 4.13 prevé que el agente territorial reciba su tarea y cargue las fotos **desde el celular**. Las 827 horas cubren todo lo que pasa del lado del sistema, incluidos los servicios que la aplicación consume, pero **no incluyen el desarrollo de la pantalla dentro de la aplicación móvil**, que corresponde a otro equipo y se estima por separado. Si se prefiere evitar ese desarrollo, el relevamiento puede cargarse desde el navegador del celular con el mismo resultado y sin costo adicional; es una decisión a tomar con el Ministerio.
 
 **Equipo:** un desarrollador backend y uno frontend a tiempo completo, con análisis funcional, diseño y pruebas en paralelo a tiempo parcial. **Inicio:** a definir con el Ministerio, sujeto a la aprobación de esta propuesta.

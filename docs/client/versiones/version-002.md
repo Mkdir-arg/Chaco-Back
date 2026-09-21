@@ -39,7 +39,7 @@
 | 5 | Primera convocatoria con inscripción por link público | Media | **Abierta en producción desde el 01/09** — en acompañamiento | — | 20 h |
 | 6 | Textos de los correos de credenciales — aprobación | Baja | Pendiente del Ministerio | — | — |
 | 7 | Dashboard del Programa Becas | Media | **Terminado** — validado por el Ministerio el 10/09, en producción | 86 h | **86 h (100%)** |
-| 8 | Programa Dispositivos — Versión 2 del programa | Media | **Estimada — en validación del Ministerio** | 628 h *(propuestas)* | 19 h 30 min |
+| 8 | Programa Dispositivos — Versión 2 del programa | Media | **Estimada — en validación del Ministerio** | 827 h *(propuestas)* | 19 h 30 min |
 | 9 | Rendimiento del acceso al sistema | Media | **Terminado** | *sin validación* | 9 h 30 min |
 | 10 | Alta de beneficiarios en SIIS | Alta | **Desarrollado — en pruebas** | *sin validación* | 43 h 30 min |
 

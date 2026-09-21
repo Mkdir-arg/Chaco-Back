@@ -229,6 +229,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 82 | Los identificadores del alta en SIIS se cargan a mano, cada uno en su nivel | Becas · configuración del programa y del segmento → validación y envío a SIIS | `#siis` `#relevamientos` `#ui` | PM — en sesión: «que sea por input de número», «el id programa lo trae de la API pero se puede editar por otro a gusto; cuando se edita y es diferente al id que trae la API te dice una alerta» | 21/09/2026 | 🟢 **Hecho** | `programas.0069` |
 | 83 | Alta masiva en SIIS por lotes, con los identificadores configurados | Becas · alta de beneficiarios en SIIS | `#siis` `#relevamientos` | PM — en sesión: «¿hay algún script para enviar la información a SIIS sin importar el estado en DATAÑACH? La idea es enviarlo en base a los id configurados» | 21/09/2026 | 🟢 **Hecho** | No requiere |
 | 84 | Circuito completo automático: validar, aprobar e informar el alta en SIIS | Becas · revisión y alta de beneficiarios | `#siis` `#relevamientos` | PM — en sesión: «generame un script el cual tome caso por caso, lo valide con SIIS, lo apruebe y lo mande a SIIS; el total tiene que ser de 1000 casos, de a lotes de a 40» | 21/09/2026 | 🟢 **Hecho** | No requiere |
+| 85 | Cuatro módulos nuevos del edificio y recotización de la Versión 2 en 827 h con cinco etapas | Dispositivos · estimación | `#gestion` `#datos` `#ui` `#rbac` | Cliente (Guido, 19/09) y reunión del 16/09, redactado por Matías Abate; PM: «actualizá los documentos de las propuestas a 827 y proponé un plan de cinco etapas» | 22/09/2026 | 🟢 **Hecho — publicado** | No requiere (los módulos sí) |
 
 **Notas del índice**
 
@@ -9312,3 +9313,104 @@ DATAÑACH.
 
 Entrada nueva. Continúa el Cambio 83, que automatizó solo el alta, y depende del Cambio 82 para que los
 identificadores sean los correctos.
+
+---
+
+# Cambio 85 — Cuatro módulos del edificio y recotización de la Versión 2 en 827 h
+
+🟢 **HECHO — 22/09/2026** · Publicado en `propuesta-dispositivos-v2.md` y `estimacion-programa-dispositivos.md`
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · propuesta y estimación de la Versión 2 |
+| **Etiquetas** | `#gestion` `#datos` `#ui` `#rbac` |
+| **Solicitante** | Cliente (Guido Cortiglia, 19/09/2026) y reunión del 16/09/2026; redacción funcional de Matías Abate (commit `97c1a6f`, 20/09) |
+| **Fecha del pedido** | 19/09/2026 |
+| **Issue / épica** | Épica #127 · continúa los Cambios 69 y 72 |
+| **Partes afectadas** | `docs/client/funcionalidades/propuesta-dispositivos-v2.md`, `estimacion-programa-dispositivos.md`, `funcionalidades/index.md`, `versiones/version-002.md` |
+| **Migración** | No requiere (los módulos nuevos sí, cuando se desarrollen) |
+
+## Pedido original
+
+> «Se propone incorporar a la información que cuenta cada dispositivo, un espacio para el relevamiento
+> y seguimiento del estado de cada dispositivo instalado o registrado… estado de tenencia, ubicación
+> geolocalizada, estado físico, registro fotográfico, condiciones de servicio, fecha de última
+> actualización y responsable del relevamiento.» (Guido, 19/09)
+>
+> Y del PM: «lo que estaba pensando anoche es que podríamos sumarle cada cuánto se actualiza, quién lo
+> carga, y si debe generar alertas: si ya pasaron cinco meses desde la última revisión, que al que se
+> loguee y sea coordinador de ese dispositivo le salte una alerta.»
+
+## Alcance acordado
+
+Cuatro módulos nuevos, redactados por Abate en las secciones 4.12 a 4.14 de la propuesta y estimados
+por el PM el 22/09:
+
+| Módulo | Qué incluye | Horas |
+|---|---|---:|
+| **M14 · Infraestructura** | El **edificio como entidad propia**, que puede alojar más de una institución; tenencia, mapa, habitaciones y plano, estado físico, servicios; galería fotográfica histórica; vencimiento a 6 meses (1 mes en obra) con alerta y botón de revisión forzada | 48 |
+| **M15 · Relevamientos edilicios** | Pantalla propia en el menú; el coordinador crea y asigna a un agente territorial **externo a la institución**; estados y vencimiento; informe oficial vinculado al legajo; y los endpoints que consume la app de campo | 44 |
+| **M16 · Consumos y contratos** | Catálogo configurable de ítems con último pago, vencimiento y comprobante; aviso a 7 días y escalado a la autoridad superior | 28 |
+| **M17 · Tableros por rol** | Catálogo de indicadores y armado de la vista propia acotada al alcance, sobre los datos de M8; más recordatorios personalizados | 32 |
+| | **Desarrollo nuevo** | **152** |
+
+## Decisiones tomadas
+
+**Total recotizado: 827 h** (desarrollo 626, análisis 32, QA 96, diseño 39, despliegue 16,
+capacitación 18). Total del programa **1.263 h**. Las tres tablas cierran: módulos 626, etapas 827,
+composición 827.
+
+**Cinco etapas en lugar de cuatro** (302 · 148 · 98 · 80 · **199**), 16 semanas. El bloque nuevo va
+como **etapa 5 completa** en vez de repartirse: las cuatro primeras hablan de **las personas** —quién
+está alojado, en qué plaza, con qué ficha— y la quinta habla del **edificio** —en qué estado está, de
+quién es, qué servicios tiene y qué se paga por él—. Son dos preguntas distintas, llegaron de pedidos
+distintos, y así el Ministerio puede aprobar o postergar una sin tocar la otra.
+
+**Lo que abarata, verificado contra el código:** `core/services/vencimientos.py` es un registro
+genérico de reglas por fecha, pensado para extenderse («definí su regla y registrala»), así que los
+vencimientos de infraestructura y de contratos son reglas nuevas y no un motor; el envío de correo ya
+está andando (`EMAIL_BACKEND` por SMTP); y la geolocalización ya son campos de `Dispositivo`.
+
+**Lo que encarece:** `Edificio` es una **entidad nueva**, no un campo. «Un edificio puede estar
+vinculado a varias instituciones» —el caso relevado de Resistencia con parador, geriátrico y Sotai en
+un mismo predio— saca la infraestructura del legajo de la institución y la pone en una tabla propia
+con relación de varios a varios. Es la pieza más estructural del pedido.
+
+**La app de campo queda declarada y fuera de las horas.** La sección 4.13 prevé que el territorial
+reciba la tarea y cargue las fotos desde el celular; la aplicación es **otro repositorio
+(`Chaco-mobile`) y otro equipo**, y su tarea para Becas (#348) sigue pendiente. Las 827 h cubren los
+servicios del lado del backoffice, no la pantalla dentro de la app. Se dejó asentado en §9 de la
+propuesta y en §7 de la estimación —que hasta ahora decía «no se requiere aplicación de campo», lo
+que contradecía el texto nuevo— junto con la alternativa sin costo: cargar el relevamiento desde el
+navegador del celular.
+
+## Pendientes
+
+- **Las tres pantallas nuevas no están en el mockup** (pestaña Infraestructura, pestaña Consumos y
+  contratos, y la pantalla de Relevamientos). Abate lo dejó declarado en §5 y §6.
+- **El escalado a la autoridad superior necesita el organigrama** del Ministerio, pendiente desde el
+  16/09. El modelo de alcance es plano —institución, subsecretaría, total— y no tiene «el superior
+  de»; sin el organigrama el escalado se implementa contra la subsecretaría.
+- **«Plano o layout del edificio»** se implementa como adjunto. La vista interactiva de habitaciones
+  sigue fuera de alcance (§7) y conviene no confundirlas.
+- Abate menciona **«F11»** dos veces como referencia conocida y no está identificado en la
+  documentación; a confirmar con él o con el cliente.
+- Sigue pendiente todo lo del Cambio 72: sincronizar las 45 tasks, crear las que faltan, cargar las
+  horas que no son desarrollo, abrir el issue de definiciones y generar los casos de prueba. Los
+  cuatro módulos nuevos suman a esa deuda.
+
+## Archivos
+
+- `docs/client/funcionalidades/propuesta-dispositivos-v2.md` — cabecera, §2 y §9 completa
+- `docs/client/funcionalidades/estimacion-programa-dispositivos.md` — §1, §7, §11.1 a §11.5, §11.7, §11.8
+- `docs/client/funcionalidades/index.md` y `docs/client/versiones/version-002.md` — el total
+
+## Base de datos
+
+No requiere.
+
+## Historial
+
+Entrada nueva.
+
+---

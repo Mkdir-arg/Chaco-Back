@@ -404,6 +404,34 @@ todos y se tocan solo si una institución lo pide.
 
 ---
 
+## 12.4 Cuatro módulos del edificio y recotización a 827 h (22/09/2026)
+
+El pedido de Guido del 19/09 —relevamiento del estado de cada dispositivo— y la reunión del 16/09
+agregaron cuatro módulos, redactados por Matías Abate en las secciones 4.12 a 4.14 de la propuesta
+del cliente (commit `97c1a6f`):
+
+| Módulo | Horas |
+|---|---:|
+| M14 · Infraestructura del edificio (entidad `Edificio` propia, N:N con institución; tenencia, mapa, estado físico, fotos históricas, servicios; vencimiento 6 meses / 1 mes en obra) | 48 |
+| M15 · Relevamientos edilicios (asignación a agente territorial externo, informe oficial, endpoints de la app de campo) | 44 |
+| M16 · Consumos y contratos (ítems con vencimiento, comprobante, aviso a 7 días y escalado) | 28 |
+| M17 · Tableros por rol (armado de la vista propia sobre los datos de M8, recordatorios) | 32 |
+| **Desarrollo nuevo** | **152** |
+
+**Total de la Versión 2: 827 h** (desarrollo 626, análisis 32, QA 96, diseño 39, despliegue 16,
+capacitación 18). Programa completo: **1.263 h**. **Cinco etapas**: 302 · 148 · 98 · 80 · 199, en 16
+semanas; el bloque del edificio va entero como etapa 5 porque habla de otro sujeto y llegó de otro
+pedido.
+
+Abarata: `core/services/vencimientos.py` es un registro genérico y extensible de reglas por fecha, el
+correo ya está andando y la geolocalización ya son campos de `Dispositivo`. Encarece: `Edificio` es
+una entidad nueva con relación de varios a varios, no un campo del legajo. **La pantalla dentro de la
+app de campo no está en estas horas** (otro repositorio, otro equipo); sí los servicios que consume.
+
+Detalle completo en el Cambio 85 de `requerimientos.md`.
+
+---
+
 ## 12.3 Reconciliación de horas y recotización (09/09/2026)
 
 **Los números del documento del cliente cerraban; el que había quedado viejo era el backlog.** La
