@@ -230,6 +230,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 83 | Alta masiva en SIIS por lotes, con los identificadores configurados | Becas · alta de beneficiarios en SIIS | `#siis` `#relevamientos` | PM — en sesión: «¿hay algún script para enviar la información a SIIS sin importar el estado en DATAÑACH? La idea es enviarlo en base a los id configurados» | 21/09/2026 | 🟢 **Hecho** | No requiere |
 | 84 | Circuito completo automático: validar, aprobar e informar el alta en SIIS | Becas · revisión y alta de beneficiarios | `#siis` `#relevamientos` | PM — en sesión: «generame un script el cual tome caso por caso, lo valide con SIIS, lo apruebe y lo mande a SIIS; el total tiene que ser de 1000 casos, de a lotes de a 40» | 21/09/2026 | 🟢 **Hecho** | No requiere |
 | 85 | Cuatro módulos nuevos del edificio y recotización de la Versión 2 en 827 h con cinco etapas | Dispositivos · estimación | `#gestion` `#datos` `#ui` `#rbac` | Cliente (Guido, 19/09) y reunión del 16/09, redactado por Matías Abate; PM: «actualizá los documentos de las propuestas a 827 y proponé un plan de cinco etapas» | 22/09/2026 | 🟢 **Hecho — publicado** | No requiere (los módulos sí) |
+| 86 | Provincia y localidad se alinean con SIIS sin tocar lo cargado | Becas · alta en SIIS · catálogo geográfico | `#siis` `#relevamientos` | PM — en sesión: «hay que alinear los datos de provincia y localidad del sistema con los de SIIS, sin perder nada y sin que afecte lo cargado» | 21/09/2026 | 🟢 **Hecho** | `programas.0070` (aditiva) |
 
 **Notas del índice**
 
@@ -9414,3 +9415,107 @@ No requiere.
 Entrada nueva.
 
 ---
+
+# Cambio 86 — Provincia y localidad se alinean con SIIS sin tocar lo cargado
+
+🟢 **HECHO — 22/09/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · alta de beneficiarios en SIIS · catálogo geográfico |
+| **Etiquetas** | `#siis` `#relevamientos` |
+| **Solicitante** | PM — en sesión: «hay que alinear los datos de provincia y localidad del sistema con los de SIIS, la idea es actualizar sin perder nada y manejar los mismos datos, sin que afecte lo cargado» |
+| **Fecha del pedido** | 21/09/2026 |
+| **Issue / épica** | Sin issue (pedido en sesión) · continúa los Cambios 82 a 84 |
+| **Partes afectadas** | Envío a SIIS · bootstrap del contenedor |
+| **Migración** | `programas.0070_catalogo_geografico_siis` — aditiva, tres tablas nuevas |
+
+## Pedido original
+
+El alta en SIIS manda `prov_actual`/`loc_actual` y `prov_nacim`/`loc_nacim` como **ids**. La provincia la elige el
+territorial de un selector y resuelve bien; la localidad la **escribe a mano**, y el cruce exigía coincidencia
+exacta contra el catálogo que devuelve la API.
+
+## Qué se encontró antes de decidir
+
+Medido contra los 6.395 casos de testing, con la misma normalización que usa el código:
+
+| | Cruza | No cruza |
+|---|---|---|
+| Localidad del domicilio | 5.653 (88,4 %) | 741, en 239 nombres distintos |
+| Localidad de nacimiento | 6.052 (94,6 %) | 322, en 48 nombres distintos |
+
+Y un dato que cambió el diseño: el caso 6394 tenía «Chaco» / «Juan José Castelli», que **existe** en el catálogo
+del organismo (provincia 1, localidad 64) y normaliza igual. La API lo devolvía sin coincidencia igual. Es decir:
+**el catálogo que sirve la API no es el que el organismo tiene en su padrón**, y depender de ella dejaba casos
+sin poder informar por un problema que no era del dato.
+
+Lo que falla se concentra en variantes de escritura, no en localidades faltantes: «Sáenz Peña» por
+`PRESIDENCIA ROQUE SAENZ PEÑA` (148 casos), «General José de San Martín» por `GENERAL J. DE SAN MARTIN` (228),
+«Presidencia de la Plaza» por `PCIA. DE LA PLAZA` (148).
+
+## Alcance acordado
+
+- El catálogo de SIIS (30 provincias, 275 localidades) pasa a vivir en el repo y en la base.
+- Una tabla de equivalencias traduce lo que se escribió a la localidad de SIIS que corresponde.
+- `Catalogos` resuelve contra eso y deja la API como respaldo.
+- Afuera: no se reescribe ninguna respuesta de ningún caso.
+
+## Decisiones tomadas
+
+- **El catálogo local manda y la API queda de respaldo.** Es al revés de como estaba. La API devolvía sin
+  coincidencia nombres que el organismo sí tiene; los CSV del repo son lo que el organismo nos pasó.
+- **No se reescribe lo cargado.** El pedido fue explícito y además es lo correcto: «Sáenz Peña» es lo que el
+  territorial relevó y lo que la persona dijo. La traducción ocurre al armar el payload, no en el dato.
+- **Tablas propias, separadas de `core.Provincia`/`core.Localidad`.** La geografía del sistema tiene 8.779
+  localidades y 2.109 municipios y la usan Legajos y el portal; la de SIIS tiene 275 con otra granularidad
+  —«San Fernando» y «Comandante Fernández» son departamentos y ahí no existen—. Mezclarlas habría roto una
+  superficie para arreglar la otra.
+- **El id de localidad no es único: va numerado por provincia.** Resistencia es 1/1 y Corrientes Capital es 2/1.
+  La unicidad es `(provincia, siis_id)`, igual que el payload, que manda los dos juntos.
+- **Una equivalencia sin destino es una decisión, no un olvido.** «San Fernando» (64 casos) y «Comandante
+  Fernández» (8) son departamentos; sus cabeceras son Resistencia y Sáenz Peña, pero **elegirlas es del
+  organismo, no del código**: poner a 64 personas en una localidad que no declararon es peor que dejarlas para
+  revisión. La fila queda cargada con la nota, y resolver a `None` impide que la API invente otra cosa.
+- **Un nombre repetido dentro de la misma provincia no resuelve.** `TRES HORQUETAS` figura dos veces en Chaco
+  (129 y 174). Elegir una es adivinar; se deja para una equivalencia explícita.
+- **El seed corre en el bootstrap del contenedor.** Es idempotente y el alta no funciona sin él, así que no puede
+  depender de que alguien se acuerde de ejecutarlo.
+- **Las equivalencias salen de datos medidos, no de imaginar variantes.** Cada fila del CSV corresponde a un
+  nombre que falla de verdad, con su cuenta de casos. `--revisar` produce esa lista contra el ambiente donde se
+  corra.
+
+## Implementación
+
+- `programas/models/__init__.py` — `ProvinciaSiis`, `LocalidadSiis`, `AliasLocalidadSiis`.
+- `programas/migrations/0070_catalogo_geografico_siis.py`.
+- `programas/data/siis_provincias.csv`, `siis_localidades.csv`, `siis_alias_localidades.csv`.
+- `programas/management/commands/seed_catalogo_siis.py` — carga idempotente y `--revisar`.
+- `programas/services/siis_envio.py` — `Catalogos.provincia_id` / `localidad_id`.
+- `docker-entrypoint.sh` y `docker-compose.yml` — el seed entra al bootstrap.
+- Tests: `CatalogoGeograficoPropioTests` (9 casos). `CatalogosTests` deja de ser `SimpleTestCase`: ahora esos
+  métodos consultan la base y, con las tablas vacías, describen el respaldo por API.
+
+## Base de datos
+
+Tres tablas nuevas. Ninguna columna existente cambia y ningún caso se modifica.
+
+## Pendientes / a definir
+
+- **«San Fernando» y «Comandante Fernández»**: el organismo tiene que decir si van a la cabecera del
+  departamento (Resistencia y Sáenz Peña) o se corrigen caso por caso. Son 72 casos.
+- Correr `seed_catalogo_siis --revisar` en testing después del deploy: la lista larga de nombres sin equivalencia
+  es la que queda por cargar.
+- **`LOCAL_BOOTSTRAP_COMMANDS`**: si el ambiente lo define explícitamente en su configuración, el default nuevo
+  no aplica y hay que agregar `seed_catalogo_siis` ahí.
+
+## Reversión
+
+Revertir la migración borra las tres tablas y `Catalogos` vuelve a resolver solo por API. Vaciar la tabla de
+equivalencias deja el catálogo propio sin traducciones.
+
+## Historial
+
+Entrada nueva. Resuelve el `loc_actual` / `loc_nacim` que el Cambio 84 medía como faltante en el 11,6 % y el
+5 % de los casos. No toca el otro faltante grande de ese cambio —`nro_actual`, 38 % sin altura de domicilio—,
+que es ausencia de dato y no un problema de catálogo.
