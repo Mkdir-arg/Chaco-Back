@@ -10,7 +10,8 @@ from unittest.mock import patch
 
 from django.contrib.auth.models import User
 from django.core.management import call_command
-from django.test import SimpleTestCase, TestCase
+from django.core.management.base import CommandError
+from django.test import SimpleTestCase, TestCase, override_settings
 
 from legajos.models import Ciudadano
 from programas.models import (
@@ -570,3 +571,83 @@ class ComandoReenvioTests(_BaseEnvioTest):
     def test_sin_envios_no_hace_nada(self):
         call_command("reenviar_siis_pendientes", stdout=StringIO())
         self.enviar.assert_not_called()
+
+
+@override_settings(SIIS_API_CLIENT_ID="id-de-prueba", SIIS_API_CLIENT_SECRET="secreto-de-prueba")
+class ComandoEnvioMasivoTests(_BaseEnvioTest):
+    """``enviar_casos_siis``: el alta en lotes, con los ids configurados."""
+
+    def setUp(self):
+        super().setUp()
+        self.enviar = patch("programas.management.commands.enviar_casos_siis.enviar_beneficiario_a_siis").start()
+        self.addCleanup(patch.stopall)
+        self.enviar.side_effect = lambda f, u, **kw: EnvioSIIS.objects.create(
+            formulario=f, estado=EnvioSIIS.Estado.ENVIADO, documento="1", siis_id=1
+        )
+        # Un caso que nadie revisó y uno que la provincia rechazó.
+        self.sin_revisar = Formulario.objects.create(
+            relevamiento=self.relevamiento, ciudadano=self.ciudadano, estado=Formulario.Estado.ENVIADO
+        )
+        self.rechazado = Formulario.objects.create(
+            relevamiento=self.relevamiento, ciudadano=self.ciudadano, estado=Formulario.Estado.RECHAZADO
+        )
+
+    def _correr(self, *args):
+        salida = StringIO()
+        call_command("enviar_casos_siis", *args, stdout=salida)
+        return salida.getvalue()
+
+    def test_sin_aplicar_no_llama_a_siis(self):
+        salida = self._correr()
+        self.enviar.assert_not_called()
+        self.assertIn("ENSAYO", salida)
+
+    def test_por_defecto_solo_manda_aprobados(self):
+        self._correr("--aplicar")
+        self.assertEqual([c.args[0].pk for c in self.enviar.call_args_list], [self.formulario.pk])
+
+    def test_un_estado_sin_aprobar_exige_confirmacion_explicita(self):
+        with self.assertRaises(CommandError) as ctx:
+            self._correr("--estados", "APROBADO,ENVIADO", "--aplicar")
+        self.assertIn("--si-entiendo", str(ctx.exception))
+        self.enviar.assert_not_called()
+
+    def test_con_si_entiendo_manda_los_estados_nombrados(self):
+        self._correr("--estados", "APROBADO,ENVIADO", "--si-entiendo", "--aplicar")
+        enviados = sorted(c.args[0].pk for c in self.enviar.call_args_list)
+        self.assertEqual(enviados, sorted([self.formulario.pk, self.sin_revisar.pk]))
+        # El rechazado no se nombró: no viaja.
+        self.assertNotIn(self.rechazado.pk, enviados)
+
+    def test_si_entiendo_sobre_aprobado_no_levanta_la_guarda_del_servicio(self):
+        """La guarda se levanta por los estados pedidos, no por el flag suelto."""
+        self._correr("--si-entiendo", "--aplicar")
+        self.assertTrue(self.enviar.call_args.kwargs["exigir_aprobado"])
+
+    def test_un_estado_inexistente_falla_antes_de_tocar_siis(self):
+        with self.assertRaises(CommandError) as ctx:
+            self._correr("--estados", "PENDIENTE", "--aplicar")
+        self.assertIn("PENDIENTE", str(ctx.exception))
+        self.enviar.assert_not_called()
+
+    def test_no_repite_un_caso_ya_enviado(self):
+        EnvioSIIS.objects.create(formulario=self.formulario, estado=EnvioSIIS.Estado.ENVIADO, documento="1")
+        salida = self._correr("--aplicar")
+        self.enviar.assert_not_called()
+        self.assertIn("No hay casos que informar", salida)
+
+    def test_retoma_incompletos_y_errores(self):
+        EnvioSIIS.objects.create(formulario=self.formulario, estado=EnvioSIIS.Estado.INCOMPLETO, documento="1")
+        self._correr("--aplicar")
+        self.assertEqual(self.enviar.call_count, 1)
+
+    def test_los_rechazados_por_siis_solo_con_el_flag(self):
+        EnvioSIIS.objects.create(formulario=self.formulario, estado=EnvioSIIS.Estado.RECHAZADO, documento="1")
+        self._correr("--aplicar")
+        self.enviar.assert_not_called()
+        self._correr("--reintentar-rechazados", "--aplicar")
+        self.assertEqual(self.enviar.call_count, 1)
+
+    def test_el_limite_acota(self):
+        self._correr("--estados", "APROBADO,ENVIADO", "--si-entiendo", "--limite", "1", "--aplicar")
+        self.assertEqual(self.enviar.call_count, 1)
