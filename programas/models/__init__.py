@@ -1257,6 +1257,101 @@ class CampoTipoDispositivo(TimeStamped):
         return f"{self.tipo_dispositivo}: {self.seccion} · {self.nombre}"
 
 
+class ProvinciaSiis(TimeStamped):
+    """Provincia del catálogo de SIIS, con **su** id y **su** nombre.
+
+    Cambio 85: el catálogo vive acá y no se pide a la API. Medido contra los
+    6.395 casos de testing, el servicio no devolvía localidades que el organismo
+    sí tiene en su padrón —«Juan José Castelli», provincia 1, localidad 64, daba
+    sin coincidencia—, así que depender de él dejaba casos sin poder informar por
+    un problema que no era del dato.
+
+    No reemplaza a ``core.Provincia``: esa es la geografía del sistema (legajos,
+    portal) y tiene otra granularidad. Esta tabla es el espejo del catálogo
+    externo, y existe para traducir un nombre a los ids que SIIS espera.
+    """
+
+    siis_id = models.PositiveIntegerField(unique=True, verbose_name="Id. en SIIS")
+    nombre = models.CharField(max_length=200, verbose_name="Nombre en SIIS")
+    # ``clave_nombre`` del nombre: sin acentos, minúsculas, un solo espacio. Es
+    # por lo que se busca, y se guarda para que el cruce sea un índice y no un
+    # recorrido de la tabla entera por cada caso.
+    clave = models.CharField(max_length=200, db_index=True, verbose_name="Clave de búsqueda")
+
+    class Meta:
+        verbose_name = "Provincia de SIIS"
+        verbose_name_plural = "Provincias de SIIS"
+        ordering = ["nombre"]
+
+    def __str__(self):
+        return f"{self.nombre} (#{self.siis_id})"
+
+
+class LocalidadSiis(TimeStamped):
+    """Localidad del catálogo de SIIS.
+
+    El id **no es único**: viene numerado dentro de cada provincia (1/1 es
+    Resistencia y 2/1 es Corrientes Capital), igual que lo espera el payload,
+    que manda ``prov_actual`` y ``loc_actual`` juntos.
+    """
+
+    provincia = models.ForeignKey(ProvinciaSiis, on_delete=models.CASCADE, related_name="localidades")
+    siis_id = models.PositiveIntegerField(verbose_name="Id. en SIIS (dentro de la provincia)")
+    nombre = models.CharField(max_length=200, verbose_name="Nombre en SIIS")
+    clave = models.CharField(max_length=200, db_index=True, verbose_name="Clave de búsqueda")
+
+    class Meta:
+        verbose_name = "Localidad de SIIS"
+        verbose_name_plural = "Localidades de SIIS"
+        ordering = ["provincia__nombre", "nombre"]
+        constraints = [
+            models.UniqueConstraint(fields=["provincia", "siis_id"], name="uniq_localidad_siis_provincia_id")
+        ]
+
+    def __str__(self):
+        return f"{self.nombre} ({self.provincia.nombre} #{self.siis_id})"
+
+
+class AliasLocalidadSiis(TimeStamped):
+    """Cómo se escribió una localidad en el relevamiento y a cuál de SIIS equivale.
+
+    El territorial escribe a mano y el catálogo exige el nombre exacto: «Sáenz
+    Peña» es «PRESIDENCIA ROQUE SAENZ PEÑA» y «Castelli» es «JUAN JOSE
+    CASTELLI». En vez de reescribir la respuesta del ciudadano —que es el dato
+    que se relevó— se traduce al momento de armar el payload.
+
+    ``localidad`` vacía marca la equivalencia como **pendiente de decisión**:
+    sirve para dejar anotado que alguien ya miró ese nombre y que todavía no hay
+    respuesta, sin que el sistema invente una. Es el caso de «San Fernando» o
+    «Comandante Fernández», que son departamentos y no localidades: elegirles
+    una cabecera es una decisión del organismo, no del código.
+    """
+
+    provincia = models.ForeignKey(ProvinciaSiis, on_delete=models.CASCADE, related_name="alias_localidades")
+    clave = models.CharField(max_length=200, db_index=True, verbose_name="Clave del texto cargado")
+    texto = models.CharField(max_length=200, verbose_name="Tal como se cargó")
+    localidad = models.ForeignKey(
+        LocalidadSiis,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="alias",
+        verbose_name="Localidad de SIIS equivalente",
+        help_text="Vacío: se revisó y no hay equivalencia; el caso se corrige a mano.",
+    )
+    nota = models.CharField(max_length=300, blank=True, default="", verbose_name="Por qué")
+
+    class Meta:
+        verbose_name = "Equivalencia de localidad"
+        verbose_name_plural = "Equivalencias de localidad"
+        ordering = ["provincia__nombre", "texto"]
+        constraints = [models.UniqueConstraint(fields=["provincia", "clave"], name="uniq_alias_localidad_provincia")]
+
+    def __str__(self):
+        destino = self.localidad.nombre if self.localidad_id else "sin equivalencia"
+        return f"{self.texto} → {destino}"
+
+
 def _entero_o_none(valor):
     """Entero de un dato del catálogo de SIIS, que puede venir como texto o vacío."""
     try:

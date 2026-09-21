@@ -15,11 +15,14 @@ from django.test import SimpleTestCase, TestCase, override_settings
 
 from legajos.models import Ciudadano
 from programas.models import (
+    AliasLocalidadSiis,
     Convocatoria,
     EnvioSIIS,
     Formulario,
+    LocalidadSiis,
     PreguntaGlobal,
     ProgramaSiis,
+    ProvinciaSiis,
     Relevamiento,
     Segmento,
     TipoCampo,
@@ -165,7 +168,14 @@ def _catalogo_falso(nombre):
     return {"provincias": PROVINCIAS, "localidades": LOCALIDADES, "estados-civiles": ESTADOS_CIVILES}[nombre]
 
 
-class CatalogosTests(SimpleTestCase):
+class CatalogosTests(TestCase):
+    """El respaldo por API, con el catálogo propio vacío.
+
+    Deja de ser ``SimpleTestCase`` desde el Cambio 85: ``provincia_id`` y
+    ``localidad_id`` consultan primero las tablas propias, así que necesitan
+    base. Vacías, cae a la API y estos casos siguen describiendo ese camino.
+    """
+
     def setUp(self):
         self.cat = Catalogos(cargar=_catalogo_falso)
 
@@ -764,3 +774,59 @@ class ComandoCircuitoCompletoTests(_BaseEnvioTest):
         self.pendiente.save(update_fields=["conflicto_duplicado", "conflicto_resuelto"])
         self._correr("--aplicar")
         self.aprobar.assert_not_called()
+
+
+class CatalogoGeograficoPropioTests(TestCase):
+    """Cambio 85: provincia y localidad salen del catálogo propio, no de la API.
+
+    ``cargar`` devuelve listas vacías a propósito: si un test pasa, es porque
+    resolvió sin la API, que es justo lo que se quiere demostrar.
+    """
+
+    def setUp(self):
+        call_command("seed_catalogo_siis", stdout=StringIO())
+        self.catalogos = Catalogos(cargar=lambda nombre: [])
+
+    def test_carga_el_catalogo_del_repo(self):
+        self.assertEqual(ProvinciaSiis.objects.count(), 30)
+        self.assertEqual(LocalidadSiis.objects.count(), 275)
+        chaco = ProvinciaSiis.objects.get(siis_id=1)
+        self.assertEqual(chaco.nombre, "CHACO")
+        self.assertTrue(chaco.localidades.filter(siis_id=64, nombre="JUAN JOSE CASTELLI").exists())
+
+    def test_seed_es_idempotente(self):
+        call_command("seed_catalogo_siis", stdout=StringIO())
+        self.assertEqual(LocalidadSiis.objects.count(), 275)
+        self.assertEqual(AliasLocalidadSiis.objects.filter(clave="saenz pena").count(), 1)
+
+    def test_resuelve_la_provincia_sin_la_api(self):
+        self.assertEqual(self.catalogos.provincia_id("Chaco"), 1)
+        self.assertEqual(self.catalogos.provincia_id("CHACO"), 1)
+
+    def test_resuelve_la_localidad_ignorando_acentos_y_mayusculas(self):
+        """El caso 6394 de testing: la API lo daba sin coincidencia."""
+        self.assertEqual(self.catalogos.localidad_id("Juan José Castelli", 1), 64)
+        self.assertEqual(self.catalogos.localidad_id("JUAN JOSE CASTELLI", 1), 64)
+
+    def test_la_equivalencia_traduce_el_nombre_cargado(self):
+        self.assertEqual(self.catalogos.localidad_id("Sáenz Peña", 1), 42)
+        self.assertEqual(self.catalogos.localidad_id("General José de San Martín", 1), 27)
+        self.assertEqual(self.catalogos.localidad_id("Presidencia de la Plaza", 1), 19)
+        self.assertEqual(self.catalogos.localidad_id("Castelli", 1), 64)
+
+    def test_una_equivalencia_sin_destino_no_resuelve(self):
+        """«San Fernando» es un departamento: se revisó y no hay localidad."""
+        self.assertIsNone(self.catalogos.localidad_id("San Fernando", 1))
+        self.assertIsNone(self.catalogos.localidad_id("Sin Informar", 1))
+
+    def test_la_localidad_se_acota_a_su_provincia(self):
+        # MERCEDES existe en Corrientes (2) y en Buenos Aires (21), con ids distintos.
+        self.assertEqual(self.catalogos.localidad_id("Mercedes", 2), 11)
+        self.assertEqual(self.catalogos.localidad_id("Mercedes", 21), 32)
+
+    def test_un_nombre_repetido_dentro_de_la_provincia_no_resuelve(self):
+        """TRES HORQUETAS está dos veces en Chaco (129 y 174): lo decide una persona."""
+        self.assertIsNone(self.catalogos.localidad_id("Tres Horquetas", 1))
+
+    def test_un_nombre_que_no_esta_no_inventa_nada(self):
+        self.assertIsNone(self.catalogos.localidad_id("Localidad Inexistente", 1))
