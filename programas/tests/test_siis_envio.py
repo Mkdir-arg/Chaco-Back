@@ -741,6 +741,23 @@ class ComandoCircuitoCompletoTests(_BaseEnvioTest):
         with self.assertRaises(SystemExit):
             self._correr("--aplicar", "--max-errores", "1")
 
+    def test_solo_completos_descarta_los_que_tienen_faltantes(self):
+        base = "programas.management.commands.procesar_casos_siis."
+        with patch(base + "armar_payload") as armar:
+            # El primero sale limpio; el segundo, sin altura de domicilio.
+            armar.side_effect = [({}, {}), ({}, {"nro_actual": "Falta la altura."})]
+            salida = self._correr("--aplicar", "--solo-completos")
+        self.assertEqual(self.enviar.call_count, 1)
+        self.assertIn("Descartados por datos incompletos: 1", salida)
+        self.assertIn("nro_actual", salida)
+
+    def test_solo_completos_junta_hasta_el_total_pedido(self):
+        base = "programas.management.commands.procesar_casos_siis."
+        with patch(base + "armar_payload") as armar:
+            armar.return_value = ({}, {})
+            self._correr("--aplicar", "--solo-completos", "--total", "1")
+        self.assertEqual(self.enviar.call_count, 1)
+
     def test_un_caso_con_duplicado_sin_resolver_se_saltea(self):
         self.pendiente.conflicto_duplicado = True
         self.pendiente.conflicto_resuelto = False

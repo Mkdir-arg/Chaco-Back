@@ -9276,6 +9276,11 @@ Afuera: la pantalla de revisión no cambia.
   mandaron. Es el mismo NULL que ya había roto la selección de `validar_casos_siis`.
 - **`--solo-enviar`** repite lo que hace `enviar_casos_siis` para los ya aprobados, para no tener que elegir
   entre dos comandos cuando solo falta el último paso.
+- **`--solo-completos` elige por payload, no por cupo de la consulta.** El PM pidió «los 1000 que machean», no
+  los primeros 1000 pendientes. El flag arma el payload de cada candidato y descarta el que tiene faltantes, sin
+  tocarlo. Sin eso, un caso incompleto igual queda **aprobado** y con una fila de error que alguien tiene que
+  revisar después: el costo de mandar uno que no va no es cero. El ensayo informa por qué campo se cayó cada
+  descartado.
 
 ## Implementación
 
