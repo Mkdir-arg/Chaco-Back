@@ -14,13 +14,17 @@
        editGps: false,
        editActivo: true,
        editUrl: '',
-       openEditar(nombre, descripcion, cupo, gps, activo, url) {
+       editPlanSoc: '', editJurid: '', editFuncion: '',
+       openEditar(nombre, descripcion, cupo, gps, activo, url, planSoc, jurid, funcion) {
          this.editNombre = nombre;
          this.editDescripcion = descripcion;
          this.editCupo = cupo;
          this.editGps = gps;
          this.editActivo = activo;
          this.editUrl = url;
+         this.editPlanSoc = planSoc || '';
+         this.editJurid = jurid || '';
+         this.editFuncion = funcion || '';
          this.modalEditar = true;
        }
      }"
@@ -165,6 +169,35 @@
             <input type="checkbox" name="requiere_gps" x-model="editGps" class="h-4 w-4 rounded border-base text-fg-brand focus:ring-brand">
             Requiere captura de GPS
           </label>
+
+          {# Cambio 82: los tres identificadores del alta de beneficiarios en SIIS. #}
+          <div class="pt-4 border-t border-light">
+            <p class="text-[13px] font-semibold text-heading">Identificadores para SIIS</p>
+            <p class="text-xs text-body-subtle mt-1 mb-3">
+              Los que viajan al dar de alta un beneficiario aprobado. Si los dejás vacíos se usan los del
+              programa vinculado.
+            </p>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label class="block text-[13px] font-semibold text-heading mb-1.5">Plan social</label>
+                <input type="number" name="siis_id_plan_soc" x-model="editPlanSoc" min="1" placeholder="Del programa" class="nodo-field">
+                <p class="mt-1 text-xs text-body-subtle">id_plan_soc</p>
+                <p class="mt-1 text-xs text-fg-danger hidden" data-error="siis_id_plan_soc"></p>
+              </div>
+              <div>
+                <label class="block text-[13px] font-semibold text-heading mb-1.5">Jurisdicción</label>
+                <input type="number" name="siis_jurid" x-model="editJurid" min="1" placeholder="Del programa" class="nodo-field">
+                <p class="mt-1 text-xs text-body-subtle">jurid</p>
+                <p class="mt-1 text-xs text-fg-danger hidden" data-error="siis_jurid"></p>
+              </div>
+              <div>
+                <label class="block text-[13px] font-semibold text-heading mb-1.5">Función por plan</label>
+                <input type="number" name="siis_id_fun_x_plan" x-model="editFuncion" min="1" placeholder="Del programa" class="nodo-field">
+                <p class="mt-1 text-xs text-body-subtle">id_fun_x_plan</p>
+                <p class="mt-1 text-xs text-fg-danger hidden" data-error="siis_id_fun_x_plan"></p>
+              </div>
+            </div>
+          </div>
         </div>
         {# Footer #}
         <div class="flex justify-end gap-3 px-6 py-4 border-t border-light" style="background: var(--bg-secondary)">

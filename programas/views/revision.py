@@ -46,7 +46,11 @@ from programas.models import (
 from programas.services.autorizacion import convocatorias_visibles, puede_gestionar_segmento
 from programas.services.avisos_resolucion import enviar_aviso_resolucion
 from programas.services.becas import registrar_traza, resolver_ciudadano_offline
-from programas.services.cupo import aprobar_o_poner_en_espera, motivo_bloqueo_aprobacion
+from programas.services.cupo import (
+    advertencia_aprobacion,
+    aprobar_o_poner_en_espera,
+    motivo_bloqueo_aprobacion,
+)
 from programas.services.identidad import gran_base_activa
 from programas.services.padron import fila_padron, padron_de
 from programas.services.personas import consultar_persona
@@ -569,6 +573,8 @@ def formulario_detalle(request, pk):
             "detalle_siis": _detalle_validacion_siis(validacion_sis),
             "historial_validaciones_sis": historial_validaciones_sis,
             "motivo_bloqueo_aprobacion": motivo_bloqueo_aprobacion(formulario, validacion_sis),
+            # Cambio 81: un rechazo o un error de SIIS ya no bloquean; se advierten.
+            "advertencia_aprobacion": advertencia_aprobacion(formulario, validacion_sis),
             # ``conflicto_pendiente`` ya resolvio esta misma pregunta unas lineas arriba.
             "tiene_conflicto_duplicado_pendiente": conflicto_pendiente is not None,
             "conflicto_pendiente": conflicto_pendiente,
@@ -743,11 +749,24 @@ def formulario_aprobar(request, pk):
             messages.error(request, "Primero debés resolver el conflicto de cargas duplicadas.")
             return redirect("becas:formulario_detalle", pk=formulario.pk)
         try:
-            validar_formulario_en_siis(formulario, request.user)
+            validacion = validar_formulario_en_siis(formulario, request.user)
             resultado = aprobar_o_poner_en_espera(formulario, request.user)
         except (ValidationError, ValueError) as error:
             messages.error(request, getattr(error, "message", str(error)))
         else:
+            # Cambio 81: el veredicto de SIIS no frena la aprobación, pero queda
+            # dicho en pantalla para que el revisor sepa con qué aprobó.
+            if validacion.estado == ValidacionSIS.Estado.RECHAZADO:
+                messages.warning(
+                    request,
+                    "SIIS informó que la persona no es compatible: "
+                    f"{validacion.motivo or 'sin motivo informado'}. La decisión quedó registrada igual.",
+                )
+            elif validacion.estado == ValidacionSIS.Estado.ERROR:
+                messages.warning(
+                    request,
+                    "SIIS no respondió y la consulta quedó sin veredicto; el intento quedó registrado.",
+                )
             if resultado == "aprobado":
                 messages.success(request, "Caso aprobado.")
                 # Alta del beneficiario en SIIS: solo quien quedó APROBADO con cupo.

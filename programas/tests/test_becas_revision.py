@@ -521,6 +521,89 @@ class _BaseAprobacionTest(_BaseRevisionTest):
         self.client.force_login(self.coord_a)
 
 
+class VeredictoSiisNoBloqueaTests(_BaseAprobacionTest):
+    """Cambio 81: la consulta a SIIS es obligatoria, su veredicto no.
+
+    La aprobación es técnica y la resuelve el revisor: un rechazo de
+    compatibilidad o un error del servicio se advierten, pero no retienen a la
+    persona. Lo que sigue siendo obligatorio es haber consultado.
+    """
+
+    def _responde(self, compatible=True, exito=True, motivo=None):
+        self.validar_compatibilidad.return_value = {
+            "success": exito,
+            "compatible": compatible,
+            "error": None if exito else "No se pudo conectar con SIIS.",
+            "data": {
+                "id_programa": 41,
+                "validaciones": {"edad_minima": motivo} if motivo else {},
+            },
+        }
+
+    def test_se_aprueba_aunque_siis_rechace(self):
+        self.validacion.estado = ValidacionSIS.Estado.RECHAZADO
+        self.validacion.save(update_fields=["estado"])
+        self._responde(compatible=False)
+
+        resp = self.client.post(reverse("becas:formulario_aprobar", args=[self.form_a.pk]), follow=True)
+
+        self.form_a.refresh_from_db()
+        self.assertEqual(self.form_a.estado, Formulario.Estado.APROBADO)
+        self.assertContains(resp, "no es compatible")
+
+    def test_se_aprueba_aunque_siis_falle(self):
+        self.validacion.estado = ValidacionSIS.Estado.ERROR
+        self.validacion.save(update_fields=["estado"])
+        self._responde(exito=False, compatible=False)
+
+        self.client.post(reverse("becas:formulario_aprobar", args=[self.form_a.pk]))
+
+        self.form_a.refresh_from_db()
+        self.assertEqual(self.form_a.estado, Formulario.Estado.APROBADO)
+
+    def test_sin_ninguna_validacion_sigue_bloqueado(self):
+        from programas.services.cupo import motivo_bloqueo_aprobacion
+
+        self.form_a.validaciones_sis.all().delete()
+
+        self.assertIn("validación SIIS", motivo_bloqueo_aprobacion(self.form_a))
+
+    def test_una_validacion_de_otro_dni_no_habilita(self):
+        from programas.services.cupo import motivo_bloqueo_aprobacion
+
+        self.validacion.documento = "30111222"
+        self.validacion.save(update_fields=["documento"])
+
+        self.assertIn("DNI", motivo_bloqueo_aprobacion(self.form_a))
+
+    def test_un_rechazo_no_es_motivo_de_bloqueo_pero_si_de_advertencia(self):
+        from programas.services.cupo import advertencia_aprobacion, motivo_bloqueo_aprobacion
+
+        self.validacion.estado = ValidacionSIS.Estado.RECHAZADO
+        self.validacion.motivo = "No alcanza la edad mínima exigida por el programa."
+        self.validacion.save(update_fields=["estado", "motivo"])
+
+        self.assertIsNone(motivo_bloqueo_aprobacion(self.form_a))
+        aviso = advertencia_aprobacion(self.form_a)
+        self.assertIn("no es compatible", aviso)
+        self.assertIn("edad mínima", aviso)
+
+    def test_con_validacion_compatible_no_hay_advertencia(self):
+        from programas.services.cupo import advertencia_aprobacion
+
+        self.assertIsNone(advertencia_aprobacion(self.form_a))
+
+    def test_la_pantalla_avisa_sin_deshabilitar_el_boton(self):
+        self.validacion.estado = ValidacionSIS.Estado.RECHAZADO
+        self.validacion.save(update_fields=["estado"])
+
+        resp = self.client.get(reverse("becas:formulario_detalle", args=[self.form_a.pk]))
+
+        self.assertIsNone(resp.context["motivo_bloqueo_aprobacion"])
+        self.assertIn("no es compatible", resp.context["advertencia_aprobacion"])
+        self.assertNotContains(resp, "Aprobación bloqueada")
+
+
 class AprobarRechazarTests(_BaseAprobacionTest):
     def test_aprobar(self):
         resp = self.client.post(reverse("becas:formulario_aprobar", args=[self.form_a.pk]))
@@ -547,7 +630,9 @@ class AprobarRechazarTests(_BaseAprobacionTest):
         self.assertEqual(self.form_a.estado, Formulario.Estado.APROBADO)
         self.assertTrue(self.form_a.validaciones_sis.filter(estado=ValidacionSIS.Estado.OK).exists())
 
-    def test_no_aprueba_si_siis_rechazo(self):
+    def test_aprueba_igual_si_siis_rechaza_y_deja_constancia(self):
+        # Cambio 81: el veredicto de SIIS ya no retiene a la persona. La consulta
+        # se hace y queda registrada; aprobar o no es decisión del revisor.
         self.validar_compatibilidad.return_value = {
             "success": True,
             "compatible": False,
@@ -557,7 +642,9 @@ class AprobarRechazarTests(_BaseAprobacionTest):
         self.client.post(reverse("becas:formulario_aprobar", args=[self.form_a.pk]))
 
         self.form_a.refresh_from_db()
-        self.assertEqual(self.form_a.estado, Formulario.Estado.ENVIADO)
+        self.assertEqual(self.form_a.estado, Formulario.Estado.APROBADO)
+        ultima = self.form_a.validaciones_sis.order_by("-creado", "-id").first()
+        self.assertEqual(ultima.estado, ValidacionSIS.Estado.RECHAZADO)
 
     def test_no_aprueba_si_el_segmento_no_tiene_programa(self):
         self.seg_a.programa = None
@@ -568,10 +655,22 @@ class AprobarRechazarTests(_BaseAprobacionTest):
         self.form_a.refresh_from_db()
         self.assertEqual(self.form_a.estado, Formulario.Estado.ENVIADO)
 
-    def test_no_promueve_desde_lista_de_espera_si_siis_rechazo(self):
+    def test_promueve_desde_lista_de_espera_aunque_siis_haya_rechazado(self):
+        # Mismo criterio que la aprobación (Cambio 81): el veredicto no frena.
         entrada = ListaEspera.objects.create(formulario=self.form_a, segmento=self.seg_a, posicion=1)
         self.validacion.estado = ValidacionSIS.Estado.RECHAZADO
         self.validacion.save(update_fields=["estado"])
+
+        self.client.post(reverse("becas:lista_espera_promover", args=[entrada.pk]))
+
+        entrada.refresh_from_db()
+        self.form_a.refresh_from_db()
+        self.assertTrue(entrada.promovido)
+        self.assertEqual(self.form_a.estado, Formulario.Estado.APROBADO)
+
+    def test_no_promueve_sin_ninguna_validacion_siis(self):
+        entrada = ListaEspera.objects.create(formulario=self.form_a, segmento=self.seg_a, posicion=1)
+        self.form_a.validaciones_sis.all().delete()
 
         self.client.post(reverse("becas:lista_espera_promover", args=[entrada.pk]))
 
