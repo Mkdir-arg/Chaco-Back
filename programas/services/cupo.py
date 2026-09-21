@@ -34,8 +34,17 @@ _VALIDACION_SIN_BUSCAR = object()
 def motivo_bloqueo_aprobacion(formulario, validacion=_VALIDACION_SIN_BUSCAR):
     """Explica por qué un formulario todavía no puede aprobarse.
 
-    La aprobación exige identidad validada y la última consulta SIIS compatible
-    para el DNI y programa actuales. Devuelve ``None`` cuando supera el gate.
+    La aprobación exige identidad validada y que la consulta a SIIS **se haya
+    hecho** para el DNI y el programa actuales. Devuelve ``None`` cuando supera
+    el gate.
+
+    **El veredicto de SIIS no bloquea** (Cambio 81, decisión del PM del
+    21/09/2026): la aprobación es técnica y la resuelve el revisor. Un rechazo
+    de compatibilidad o un error del servicio se **advierten**
+    (:func:`advertencia_aprobacion`) pero no impiden aprobar, porque la persona
+    no puede quedar retenida por cómo responda un sistema externo. Lo que sí es
+    obligatorio es haber consultado: sin ese registro auditable no hay
+    aprobación.
     """
     if not formulario.validado_renaper:
         return "La identidad debe estar validada antes de aprobar."
@@ -51,17 +60,36 @@ def motivo_bloqueo_aprobacion(formulario, validacion=_VALIDACION_SIN_BUSCAR):
         validacion = formulario.validaciones_sis.order_by("-creado").first()
     if validacion is None:
         return "Debe realizarse la validación SIIS antes de aprobar."
-    if validacion.estado == ValidacionSIS.Estado.RECHAZADO:
-        return "La última validación SIIS indicó que la persona no es compatible."
-    if validacion.estado == ValidacionSIS.Estado.ERROR:
-        return "La última validación SIIS tuvo un error técnico; debe reintentarse."
-    if validacion.estado != ValidacionSIS.Estado.OK:
-        return "La última validación SIIS no tiene un resultado válido para aprobar."
     if str(validacion.documento).strip() != str(formulario.ciudadano.dni).strip():
         return "La validación SIIS no corresponde al DNI actual del formulario."
     if validacion.id_programa != programa.siis_programa_id:
         return "La validación SIIS no corresponde al programa actual del formulario."
     return None
+
+
+def advertencia_aprobacion(formulario, validacion=_VALIDACION_SIN_BUSCAR):
+    """Qué conviene que el revisor sepa antes de aprobar, sin impedírselo.
+
+    Devuelve ``None`` cuando la última validación SIIS dio compatible o cuando
+    hay un motivo de bloqueo, que ya se informa por su cuenta.
+    """
+    if motivo_bloqueo_aprobacion(formulario, validacion) is not None:
+        return None
+    if validacion is _VALIDACION_SIN_BUSCAR:
+        validacion = formulario.validaciones_sis.order_by("-creado").first()
+    if validacion is None or validacion.estado == ValidacionSIS.Estado.OK:
+        return None
+    if validacion.estado == ValidacionSIS.Estado.RECHAZADO:
+        motivo = (validacion.motivo or "").strip()
+        detalle = f" Motivo informado: {motivo}" if motivo else ""
+        return (
+            "SIIS informó que la persona no es compatible con el programa."
+            f"{detalle} Podés aprobar igual: la decisión es tuya y queda registrada."
+        )
+    return (
+        "La última consulta a SIIS terminó con un error técnico, así que no hay veredicto. "
+        "Podés reintentarla o aprobar igual: la decisión es tuya y queda registrada."
+    )
 
 
 def validar_aprobacion(formulario):
