@@ -834,9 +834,9 @@
 | 16/09 | Nahuel De Francesco | Transversal | Adaptación al proyecto | Puesta al día con el sistema, el entorno de trabajo y las definiciones vigentes, acompañado por el equipo. | 3 h | — |
 | | | | **Total 11 al 16/09** | | **170,5 h** | **132 h** |
 
-### :material-package-variant-closed: Consumo del 17 al 21 de septiembre — por entregable
+### :material-package-variant-closed: Consumo del 17 al 20 de septiembre — por entregable
 
-!!! note "Semana de la puesta en marcha en producción"
+!!! note "Semana de las herramientas de completado y de la validación del procedimiento"
 
     El constructor de formularios llegó a **producción**. Antes se reconstruyó dos veces el ambiente de
     pruebas desde una copia de la base productiva para validar el procedimiento entero, y se desarrollaron
@@ -889,31 +889,20 @@
 | 20/09 | Pablo Cao | Becas | Acompañamiento de la ejecución en el ambiente de pruebas | Apoyo durante la corrida de las herramientas y revisión de los resultados parciales. | 4 h | — |
 | 20/09 | Juani Portilla | Becas | Verificación del ambiente durante la validación | Control del comportamiento del ambiente mientras corría la validación masiva. | 4 h | — |
 | 20/09 | Matías Abate | Dispositivos | Programa Dispositivos Versión 2 — propuesta y maqueta navegable | Actualización de la propuesta funcional del programa y de su maqueta navegable publicada. | 8 h | — |
-| 21/09 | Matías Fariña | Becas | Puesta en marcha del constructor de formularios en producción | Publicación de la versión con constructor al ambiente productivo, con la verificación de que el link público abierto siguiera funcionando en la misma dirección. | 3 h | — |
-| 21/09 | Matías Fariña | Transversal | Explicación del procedimiento al equipo del proveedor | Documento de cómo se lleva a cabo el proceso completo, etapa por etapa, y cómo ejecutarlo desde su infraestructura. | 2 h | — |
-| 21/09 | Matías Fariña | Transversal | Coordinación, gestión del tablero y registro del consumo | Coordinación del equipo, seguimiento del tablero y carga del consumo del período. | 2,5 h | — |
-| 21/09 | Matías Fariña | Transversal | Reunión de seguimiento diaria e informe | Reunión diaria del equipo y armado del informe del día. | 1,5 h | — |
-| 21/09 | Pablo Cao | Becas | Acompañamiento de la puesta en marcha en producción | Apoyo durante la publicación y verificación del comportamiento del sistema. | 6 h | — |
-| 21/09 | Pablo Cao | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
-| 21/09 | Juani Portilla | Becas | Reconstrucción completa del ambiente de pruebas desde cero | Vuelta del ambiente a la versión de producción y nueva actualización, para validar el procedimiento entero antes de aplicarlo en producción. | 8 h | — |
-| 21/09 | Juani Portilla | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
-| 21/09 | Matías Abate | Becas | Pruebas del procedimiento completo en el ambiente reconstruido | Verificación de cada etapa del proceso sobre el ambiente rehecho desde cero. | 6 h | — |
-| 21/09 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
-| 21/09 | Nahuel De Francesco | Transversal | Adaptación al proyecto | Puesta al día con el sistema, el entorno de trabajo y las definiciones vigentes, acompañado por el equipo. | 3 h | — |
-| | | | **Total 17 al 21/09** | | **173 h** | **56 h** |
+| | | | **Total 17 al 20/09** | | **138 h** | **56 h** |
 
 ### :material-briefcase-outline: Consumo de septiembre por programa
 
 | Programa | Horas septiembre |
 |---|---:|
-| Becas | 457 h 00 min |
-| Transversal | 103 h 30 min |
-| Dispositivos | 23 h 00 min |
-| **Total septiembre 2026 (al 16/09)** | **583 h 30 min** |
+| Becas | 566 h 00 min |
+| Transversal | 142 h 30 min |
+| Dispositivos | 31 h 00 min |
+| **Total septiembre 2026 (al 20/09)** | **739 h 30 min** |
 
 !!! note "Qué incluye"
     Las horas de Becas incluyen las **103 h 30 min trasladadas de agosto**, cuyo detalle día por día está
-    en las secciones de ese mes. El trabajo propio de septiembre al 21/09 es de **671 h**.
+    en las secciones de ese mes. El trabajo propio de septiembre al 20/09 es de **636 h**.
 
 ---
 
@@ -970,9 +959,9 @@
 
 
 
-    **148.422 minutos** (2.473 h 42 min)
+    **146.322 minutos** (2.438 h 42 min)
 
-    Junio 499 h 12 min + julio 500 h 00 min + agosto 803 h 30 min + septiembre 671 h 00 min (al 21/09).
+    Junio 499 h 12 min + julio 500 h 00 min + agosto 803 h 30 min + septiembre 636 h 00 min (al 20/09).
     (El contador anterior decía 1.939 h 42 min: no sumaba bien los cuatro meses; se corrigió al recalcularlo.)
 
     Es el **esfuerzo real ejecutado**. A efectos de imputación, agosto cierra por 700 h y sus 103 h 30 min de

@@ -14,8 +14,8 @@
     ---
 
     :material-wallet-outline: Presupuesto: **850 horas**<br>
-    :material-clock-check-outline: Consumido: **774 h 30 min** (91%) — al 21/09<br>
-    :material-check-circle-outline: Saldo: **75 h 30 min** disponibles<br>
+    :material-clock-check-outline: Consumido: **739 h 30 min** (87%) — al 20/09<br>
+    :material-check-circle-outline: Saldo: **110 h 30 min** disponibles<br>
     :material-swap-horizontal: Incluye el traslado del excedente de agosto
 
     **Estado:** :material-circle:{ style="color: #3b82f6" } En curso
