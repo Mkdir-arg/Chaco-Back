@@ -18,8 +18,8 @@ from programas.models import (
     ProgramaSiis,
     Relevamiento,
     Segmento,
+    ValidacionSIS,
 )
-from programas.models import ValidacionSIS
 from programas.services import proceso_masivo
 from programas.services.siis_envio import CatalogoNoDisponible
 
