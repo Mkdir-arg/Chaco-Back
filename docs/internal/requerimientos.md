@@ -231,6 +231,8 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 84 | Circuito completo automático: validar, aprobar e informar el alta en SIIS | Becas · revisión y alta de beneficiarios | `#siis` `#relevamientos` | PM — en sesión: «generame un script el cual tome caso por caso, lo valide con SIIS, lo apruebe y lo mande a SIIS; el total tiene que ser de 1000 casos, de a lotes de a 40» | 21/09/2026 | 🟢 **Hecho** | No requiere |
 | 85 | Cuatro módulos nuevos del edificio y recotización de la Versión 2 en 827 h con cinco etapas | Dispositivos · estimación | `#gestion` `#datos` `#ui` `#rbac` | Cliente (Guido, 19/09) y reunión del 16/09, redactado por Matías Abate; PM: «actualizá los documentos de las propuestas a 827 y proponé un plan de cinco etapas» | 22/09/2026 | 🟢 **Hecho — publicado** | No requiere (los módulos sí) |
 | 86 | Provincia y localidad se alinean con SIIS sin tocar lo cargado | Becas · alta en SIIS · catálogo geográfico | `#siis` `#relevamientos` | PM — en sesión: «hay que alinear los datos de provincia y localidad del sistema con los de SIIS, sin perder nada y sin que afecte lo cargado» | 21/09/2026 | 🟢 **Hecho** | `programas.0070` (aditiva) |
+| 87 | Los identificadores del alta en SIIS se configuran dentro del pop up «Detalle SIIS» | Becas · configuración del programa | `#siis` `#ui` | PM — en sesión: «vamos a mejorar el diseño de “Alta de beneficiarios en SIIS”… tiene que estar dentro del pop up “Becas Ñachec Colaboradores / Programa SIIS #90”, los input también» | 22/09/2026 | 🟢 **Hecho** | No requiere |
+| 88 | Proceso masivo a SIIS desde el backoffice, en una pantalla no listada | Becas · alta de beneficiarios en SIIS | `#siis` `#relevamientos` `#ui` | PM — en sesión: «una funcionalidad secreta para ejecutar el enviar 1000 a SIIS de un programa: validarlo con SIIS, aprobarlo y enviarlo» | 22/09/2026 | 🟢 **Hecho** | `programas.0071` (aditiva) |
 
 **Notas del índice**
 
@@ -9519,3 +9521,214 @@ equivalencias deja el catálogo propio sin traducciones.
 Entrada nueva. Resuelve el `loc_actual` / `loc_nacim` que el Cambio 84 medía como faltante en el 11,6 % y el
 5 % de los casos. No toca el otro faltante grande de ese cambio —`nro_actual`, 38 % sin altura de domicilio—,
 que es ausencia de dato y no un problema de catálogo.
+---
+
+# Cambio 87 — Los identificadores del alta en SIIS se configuran dentro del pop up «Detalle SIIS»
+
+🟢 **HECHO — 22/09/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · configuración del programa |
+| **Etiquetas** | `#siis` `#ui` |
+| **Solicitante** | PM — en sesión, sobre `https://datanach.ecomdev.ar/becas/config/programas/1/`: «vamos a mejorar el diseño de "Alta de beneficiarios en SIIS" […] tiene que estar dentro del pop up "Becas Ñachec Colaboradores — Programa SIIS #90 · datos al momento de vincularlo". Los input también» |
+| **Fecha del pedido** | 22/09/2026 |
+| **Issue / épica** | Sin issue (pedido en sesión) · modifica la presentación del Cambio 82 |
+| **Partes afectadas** | Backoffice (detalle del programa de Becas) |
+| **Migración** | No requiere |
+
+## Pedido original
+
+La tarjeta «Alta de beneficiarios en SIIS» —los tres identificadores del Cambio 82 con su alerta de valores
+pisados— ocupaba el ancho completo del detalle del programa, arriba de las pestañas, y repetía información que
+el pop up «Detalle SIIS» ya mostraba. El pedido fue moverla adentro de ese pop up, con los campos editables
+incluidos.
+
+## Alcance acordado
+
+- La tarjeta desaparece de la página: el bloque completo —texto de ayuda, alerta de identificadores pisados,
+  los tres campos y el botón de guardar— pasa al pop up que abre «Detalle SIIS».
+- El pop up sigue siendo solo lectura en los otros dos lugares que lo incluyen (lista de programas y detalle de
+  segmento): el bloque editable aparece únicamente cuando el template pasa `identificadores_programa`.
+- Afuera: no cambia el formulario, ni la vista que guarda, ni la precedencia de los tres identificadores, ni
+  nada de lo que viaja a SIIS. Es un cambio de dónde se ve y se edita.
+
+## Decisiones tomadas
+
+- **El bloque viaja al parcial del pop up, no se duplica.** `_siis_programa_modal.html` lo incluyen tres
+  pantallas; tener el formulario en una y el pop up en otra habría dejado dos lugares que mantener. El parcial
+  decide por contexto: `{% include … with identificadores_programa=programa %}` solo en el detalle del programa.
+- **La jurisdicción deja de mostrarse dos veces.** El pop up la listaba como dato del catálogo y el formulario
+  la trae como campo editable: dos números distintos con la misma etiqueta en la misma ventana. Ahora, cuando
+  el bloque editable está, el valor del catálogo se muestra bajo su propio campo, en la línea del nombre
+  técnico («jurid · el catálogo informó #28»), y el mismo criterio se aplicó al plan social.
+- **El submit vive en el pie del modal, apuntando al formulario con `form=`.** El cuerpo del pop up scrollea;
+  dejar «Guardar identificadores» adentro lo habría escondido debajo del borde. El atributo `form` permite
+  tener el `<form>` en el cuerpo y su botón en el pie fijo, al lado de «Cerrar», que es donde el resto de los
+  modales de Becas pone la acción.
+- **El panel se ensancha a `max-w-2xl` solo cuando lleva el bloque.** Con los tres campos en
+  `sm:grid-cols-3`, 560 px apretaba las etiquetas; las otras dos pantallas que usan el pop up no cambian.
+- **Queda una señal en la página: el badge «Falta la función SIIS».** Esconder un formulario en un pop up
+  también esconde su aviso. Sin la función, el alta viaja incompleta, así que ese estado se muestra en la
+  cabecera del programa junto a «Activo» / «SIIS inactivo». La alerta de identificadores pisados no necesita
+  espejo: es informativa y no bloquea nada.
+
+## Implementación
+
+El programa se configura desde un solo lugar: el botón «Detalle SIIS» de la cabecera abre la ventana con la
+foto del catálogo —estados, edad mínima, controles de elegibilidad— y, al final, el bloque «Alta de
+beneficiarios en SIIS» con los tres identificadores que viajan al dar de alta un beneficiario aprobado. Quien
+no administra programas ve los mismos tres valores de solo lectura. La página del programa queda con la
+cabecera, los avisos de bloqueo y pausa, y las pestañas.
+
+## Archivos
+
+- `programas/templates/programas/becas/config/_siis_programa_modal.html` — el bloque, el formulario y el submit
+  del pie.
+- `programas/templates/programas/becas/config/programa_detail.html` — se quita la tarjeta, se pasa
+  `identificadores_programa` al include y se suma el badge «Falta la función SIIS».
+- `.claude/agents/chaco-design-system.md` — filas «Identificadores de integración» y «Panel de integración con
+  SIIS en el caso», que apuntaban a la tarjeta.
+- `static/custom/css/tailwind.css` — rebuild.
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+- `scripts/design_audit.py --changed`: 0 errores, 0 warnings.
+- `scripts/compile_templates.py`: 339 templates, 0 errores.
+- `scripts/check_design_agent.py --changed`: OK.
+- `manage.py check`: sin issues.
+- `manage.py test programas.tests.test_becas_config`: 14 errores, **los mismos 14 y en los mismos tests** que en
+  `HEAD` sin el cambio (medido en un worktree limpio). Son el baseline conocido del venv local —Python 3.14 +
+  Django 4.2, `AttributeError: 'super' object has no attribute 'dicts'` en el test client—, no una regresión.
+- Como el test client no puede renderizar en ese venv, el detalle se rindió con `RequestFactory` contra la vista
+  real: el bloque queda dentro del pop up, aparece una sola vez en la página, la alerta de plan pisado se
+  muestra, y el submit del pie referencia el `id` del formulario.
+
+## Puesta en marcha en el servidor
+
+No requiere: es template y CSS committeado.
+
+## Pendientes / a definir
+
+- El botón sigue diciendo «Detalle SIIS» aunque ahora también configure. Si en uso se nota que no se encuentra,
+  corresponde renombrarlo.
+
+## Reversión
+
+Revertir el commit devuelve la tarjeta a la página; el pop up vuelve a ser solo lectura. No hay datos
+involucrados.
+
+## Historial
+
+Entrada nueva. Cambia dónde se editan los identificadores del **Cambio 82**, que los había puesto en una tarjeta
+del detalle del programa; las decisiones funcionales de aquel cambio siguen vigentes sin excepción.
+
+# Cambio 88 — Proceso masivo a SIIS desde el backoffice, en una pantalla no listada
+
+🟢 **HECHO — 22/09/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · alta de beneficiarios en SIIS |
+| **Etiquetas** | `#siis` `#relevamientos` `#ui` |
+| **Solicitante** | PM — en sesión: «vamos a crear una funcionalidad secreta; quiero que desde algún lado podamos ejecutar el enviar 1000 a SIIS de un programa: validarlo con SIIS, aprobarlo y enviarlo» |
+| **Fecha del pedido** | 22/09/2026 |
+| **Issue / épica** | Sin issue (pedido en sesión) · continúa los Cambios 84 y 86 |
+| **Partes afectadas** | Backoffice (pantalla nueva) · RBAC · servicio de envío a SIIS |
+| **Migración** | `programas.0071_corrida_siis` — aditiva, una tabla nueva |
+| **Diseño** | [`docs/superpowers/specs/2026-09-22-proceso-masivo-siis-design.md`](../superpowers/specs/2026-09-22-proceso-masivo-siis-design.md) |
+
+## Pedido original
+
+El Cambio 84 dejó el circuito completo —validar en SIIS, aprobar, informar el alta— en el comando
+`procesar_casos_siis`. Pero ejecutarlo exige entrar al pod por línea de comandos, y eso depende de DevOps de ECOM
+cada vez. Con 6.395 casos pendientes, el PM pidió poder dispararlo desde el backoffice.
+
+## Alcance acordado
+
+Una pantalla que no figura en ningún menú, acotada a un programa, con un campo de cantidad y un botón. Muestra el
+avance mientras corre y permite frenarlo.
+
+Afuera: el circuito en sí. Sus tres pasos, sus guardas y sus reglas ya estaban hechos y probados; esto es una
+forma nueva de dispararlos.
+
+## Decisiones tomadas
+
+- **«Secreta» significa no listada, nunca sin permiso.** La pantalla no aparece en ningún menú, link ni botón —hay
+  un test que recorre todas las plantillas para verificarlo—, pero lo que la protege es la capacidad
+  `becas.programa.proceso_masivo`. Esconder un botón que aprueba mil casos y los registra en un sistema
+  provincial es prolijidad, no seguridad. Se descartó el gesto oculto (N clics, combinación de teclas): agrega
+  JavaScript que hay que mantener y no protege nada, porque la URL directa sigue existiendo.
+- **La capacidad no se asigna a ningún rol en el seed.** Se tilda a mano en el ABM de Roles para quien la
+  necesite.
+- **El total cuenta casos enviados, no casos mirados.** Lo pidió el PM explícitamente. Si se piden 1.000, el
+  proceso recorre los pendientes salteando los incompletos —sin tocarlos— hasta juntar 1.000 con el payload
+  completo; puede haber mirado 1.600. La pantalla separa **elegidos** (salieron con todo) de **altas** (SIIS las
+  aceptó): prometer «1.000 altas» sería mentir, porque eso no depende de nosotros.
+- **Ejecución en un hilo del pod, no en un CronJob.** Se evaluaron las dos y la mixta. Ganó el hilo por tres
+  razones: ECOM fue el cuello de botella toda la sesión y un diseño que no los necesita se puede usar ya; el
+  proceso es retomable por construcción, porque un caso con alta `ENVIADO` no se vuelve a mandar; y el latido
+  convierte «se colgó y nadie sabe» en «interrumpida, ¿continuás?». Si más adelante ECOM agrega el CronJob, se
+  pasa al esquema mixto sin tocar nada: el cron llamaría al mismo servicio.
+- **«Interrumpida» se deduce, no se guarda.** Estado `EN_CURSO` con latido de más de dos minutos. Cuando el pod
+  muere no queda nadie para escribir «me morí»: un estado que depende de que lo registre el proceso caído es un
+  estado que nunca se ve. La regla de «una corrida por vez» sale de lo mismo —bloquea una `EN_CURSO` **con latido
+  fresco**—, así que un pod muerto hace diez minutos no deja el sistema trabado.
+- **El guardado por lote escribe solo los campos que toca.** Un `save()` completo pisaba `cancelacion_pedida` con
+  el valor en memoria del proceso, y quien apretó Frenar lo escribió desde otro request: el freno se perdía en el
+  siguiente latido. Lo encontró el test, no producción.
+- **Frenar solo marca el pedido.** El estado final lo escribe el proceso al cerrar el lote. Marcarlo en el
+  request diría «cancelada» mientras el hilo sigue procesando los casos que le quedan del lote.
+- **`correr()` nunca lanza.** Corre en un hilo: una excepción que escape no la ve nadie y dejaría la corrida «en
+  curso» para siempre. Todo desenlace, incluida una excepción no prevista, queda escrito en la corrida.
+- **Sin transacción que envuelva la corrida.** Cada caso se confirma solo. Es lo que permite cortar y retomar, y
+  lo que evita el cuelgue que ya sufrimos con `completar_casos_renaper`, que pasó una hora sin confirmar contra
+  ECOM.
+- **El correo al ciudadano no se ofrece.** Aprobar manda el aviso de resolución (Cambio 44). Mil correos
+  irretractables no van detrás de un botón oculto; hay un test que verifica que no se manda ninguno.
+- **Siempre solo los casos completos.** Mandar uno incompleto no lo informa a SIIS pero igual lo deja aprobado y
+  con una fila de error para revisar a mano. No hay razón para ofrecer lo contrario.
+- **Una corrida por vez en todo el sistema, no una por programa.** Dos simultáneas golpean el mismo SIIS y
+  comparten el freno por errores seguidos: si el servicio se pone lento, ninguna frena a tiempo. «Una por
+  programa» era complejidad para un escenario que no existe: hoy hay un solo programa con casos.
+- **El bucle se muda del comando a un servicio.** Lo llaman dos disparadores; dos implementaciones se habrían
+  desincronizado con la primera regla que cambiara.
+
+## Implementación
+
+- `programas/models/__init__.py` — `CorridaSiis`, con `interrumpida`, `salteados`, `progreso` y `en_curso()`.
+- `programas/migrations/0071_corrida_siis.py`.
+- `programas/services/proceso_masivo.py` — `candidatos`, `elegir_completos`, `procesar_caso`, `correr`, `lanzar`.
+- `programas/management/commands/procesar_casos_siis.py` — pasa a usar el servicio.
+- `core/rbac.py` — capacidad `becas.programa.proceso_masivo` en el módulo `becas_admin`.
+- `programas/views/proceso_masivo.py` y tres rutas en `programas/urls.py`.
+- `programas/templates/programas/becas/config/proceso_masivo.html`.
+- Tests: `programas/tests/test_proceso_masivo.py` (33 casos).
+
+## Base de datos
+
+Una tabla nueva, `programas_corridasiis`. Ninguna columna existente cambia.
+
+## Pendientes / a definir
+
+- **La primera corrida real tiene que ser de un caso.** Sigue sin confirmarse si SIIS interpreta `loc_actual`
+  como el id numerado por provincia —lo que implementó el Cambio 86— o como un id global. Si fuera global, las
+  altas entrarían con el domicilio equivocado **sin dar error**. El campo de cantidad existe, entre otras cosas,
+  para poder verificarlo con una sola persona.
+- La capacidad no está asignada a nadie: hay que tildarla en el ABM de Roles antes de poder entrar.
+- Si ECOM agrega el CronJob de rescate, las corridas interrumpidas se retomarían solas en vez de necesitar que
+  alguien apriete Continuar.
+
+## Reversión
+
+Revertir la migración borra la tabla. Quitar la capacidad de los roles deja la pantalla inaccesible sin tocar
+código. El comando sigue funcionando igual por su cuenta.
+
+## Historial
+
+Entrada nueva. Continúa el Cambio 84, que dejó el circuito en un comando, y depende del Cambio 86 para que la
+provincia y la localidad resuelvan.
