@@ -1361,6 +1361,29 @@ class Segmento(PausableMixin, TimeStamped):
         help_text="Si está activo, el formulario del territorial pide lat/lng.",
     )
     activo = models.BooleanField(default=True, db_index=True, verbose_name="Activo")
+    # Cambio 82: los tres identificadores que el alta de beneficiarios manda a
+    # SIIS, cargados a mano por segmento. Antes salían solo del programa
+    # vinculado (Cambio 73) y eso dejaba sin salida a una convocatoria cuyo
+    # programa el servicio no reconoce: no había dónde corregirlos y el catálogo
+    # de funciones venía vacío. Vacíos, siguen saliendo del programa.
+    siis_id_plan_soc = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="Id. del plan social en SIIS",
+        help_text="Viaja como «id_plan_soc». Vacío, se usa el del programa vinculado.",
+    )
+    siis_jurid = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="Id. de jurisdicción en SIIS",
+        help_text="Viaja como «jurid». Vacío, se usa la jurisdicción que informó SIIS al vincular el programa.",
+    )
+    siis_id_fun_x_plan = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="Id. de función por plan en SIIS",
+        help_text="Viaja como «id_fun_x_plan». Vacío, se usa la función configurada en el programa.",
+    )
 
     class Meta:
         verbose_name = "Segmento"

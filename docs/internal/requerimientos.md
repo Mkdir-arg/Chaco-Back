@@ -225,6 +225,8 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 78 | Testing de ECOM vuelve al constructor de formularios: se despliega el release `7c7f9e3` sobre la base copiada de PRD | Transversal / ambientes (testing de ECOM) | `#infra` `#relevamientos` `#datos` `#gestion` | PM — en sesión: «en el ambiente de test de `/pushGitLabecom` implementá la versión del constructor de formulario, quiero probar algo; puede ser que después la tiremos para atrás» | 18/09/2026 | 🟢 **Hecho** | Aplica `programas.0060` a `0066` |
 | 79 | Los casos ya cargados reciben el formulario completo y se completan desde RENAPER; validación SIIS automática por lotes | Becas · casos → Revisión | `#relevamientos` `#datos` `#siis` `#infra` | PM — en sesión: «a todos los casos desde el inicio que se le sumen estos datos y con el cruce desde renaper sumarle Cuit Alumno y Cuil Apoderado» y «todos los casos que tenemos en el relevamiento hay que hacer si es Validar con SIIS, de forma automática en lotes de 50» | 19/09/2026 | 🟢 **Hecho** (SIIS pendiente de correr en el pod) | No requiere |
 | 80 | Los requisitos del segmento también pueden alimentar el alta en SIIS («Este dato alimenta a SIIS como») | Becas · catálogo de requisitos → envío a SIIS | `#siis` `#relevamientos` `#ui` | PM — en sesión: «los campos de cuit y localidad son a nivel segmento, no generales, y por ende no puedo configurar "Este dato alimenta a SIIS como" de esos campos» | 19/09/2026 | 🟢 **Hecho** | `programas.0067` (aditiva) |
+| 81 | El veredicto de SIIS deja de bloquear la aprobación: la consulta sigue siendo obligatoria | Becas · revisión del caso | `#siis` `#relevamientos` | PM — en sesión: «ahora es bloqueante que Resultado SIIS sea aprobado; sí o sí se puede aceptar a nivel técnico sin importar SIIS, pero sí o sí se tiene que hacer lo de SIIS» | 21/09/2026 | 🟢 **Hecho** | No requiere |
+| 82 | Los tres identificadores del alta en SIIS se cargan a mano en cada segmento | Becas · configuración del segmento → envío a SIIS | `#siis` `#relevamientos` `#ui` | PM — en sesión: «que sea por input de número y en la configuración del segmento esos 3 valores del tipo int» | 21/09/2026 | 🟢 **Hecho** | `programas.0068` (aditiva) |
 
 **Notas del índice**
 
@@ -8953,3 +8955,151 @@ excluirlo del alta.
 
 - **19/09/2026** — Pedido, análisis (siete requisitos sin posibilidad de marcar, cero preguntas marcadas en
   test), implementación, validación y PR.
+
+
+---
+
+# Cambio 81 — El veredicto de SIIS deja de bloquear la aprobación
+
+🟢 **HECHO — 21/09/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · revisión del caso |
+| **Etiquetas** | `#siis` `#relevamientos` |
+| **Solicitante** | PM — en sesión: «ahora es bloqueante que Resultado SIIS sea aprobado, si está desaprobado no se puede aceptar, cambiemos eso; sí o sí se puede aceptar a nivel técnico sin importar SIIS, pero sí o sí se tiene que hacer lo de SIIS como para habilitar» |
+| **Fecha del pedido** | 21/09/2026 |
+| **Issue / épica** | Sin issue (pedido en sesión) · modifica el Cambio 34 |
+| **Partes afectadas** | Backoffice · aprobación y promoción desde lista de espera |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Desde el Cambio 34, la aprobación exigía que la última consulta a SIIS diera **compatible**. Un rechazo del
+servicio dejaba el botón deshabilitado y a la persona sin salida. El PM pide invertir el criterio: la
+aprobación es una decisión **técnica del revisor** y no puede depender del veredicto de un sistema externo,
+pero la consulta tiene que haberse hecho.
+
+## Alcance acordado
+
+- Deja de bloquear: que la validación sea `RECHAZADO` o `ERROR`.
+- Sigue bloqueando: identidad sin validar, caso sin ciudadano con DNI, segmento sin programa SIIS,
+  **no haber hecho nunca la consulta**, y que la consulta registrada no corresponda al DNI o al programa
+  actuales del caso.
+- Mismo criterio para la promoción desde lista de espera, que comparte la regla.
+
+## Decisiones tomadas
+
+- **La consulta es obligatoria, el veredicto no.** Sin un registro auditable de que se preguntó a SIIS no hay
+  aprobación; con él, el revisor decide. Es lo que permite seguir trabajando cuando el servicio rechaza por un
+  problema de configuración ajeno al caso, que es exactamente la situación del programa que SIIS no reconoce.
+- **El rechazo se advierte, no se esconde.** `advertencia_aprobacion` devuelve el aviso y la pantalla lo muestra
+  con el mismo bloque tonal del bloqueo pero con encabezado «Atención», `role="status"` y el botón **habilitado**:
+  bloqueo y advertencia se distinguen por el encabezado y por si la acción está disponible.
+- **Al aprobar queda constancia.** La vista consulta SIIS otra vez, y si esa consulta nueva no da compatible
+  agrega un mensaje que lo dice. Quien aprueba sabe con qué aprobó.
+- **Se mantiene la correspondencia de DNI y programa.** Una validación hecha para otro documento u otro programa
+  no habilita: no es «la consulta de este caso».
+
+## Implementación
+
+- `programas/services/cupo.py` — `motivo_bloqueo_aprobacion` pierde las tres ramas del veredicto; se agrega
+  `advertencia_aprobacion`.
+- `programas/views/revision.py` — la advertencia va al contexto; la aprobación informa el veredicto de la
+  consulta nueva.
+- `programas/templates/programas/becas/revision/formulario_detalle.html` — bloque de advertencia.
+- `programas/tests/test_becas_revision.py` — clase `VeredictoSiisNoBloqueaTests` (7 casos) y actualización de los
+  dos tests que afirmaban la regla anterior.
+
+## Validación
+
+104 tests de revisión en verde con Python 3.12 / Django 5.2.17. `ruff`, `manage.py check`, `compile_templates`
+339/0 y `design_audit --changed` en 0/0.
+
+## Reversión
+
+Volver las tres ramas del veredicto a `motivo_bloqueo_aprobacion`. Los casos ya aprobados quedan aprobados: la
+regla solo se evalúa al momento de aprobar.
+
+## Historial
+
+Entrada nueva. Modifica la segunda decisión del Cambio 34 («la aprobación solo continúa con compatibilidad
+vigente»), que queda sin efecto.
+
+---
+
+# Cambio 82 — Los tres identificadores del alta en SIIS se cargan a mano en cada segmento
+
+🟢 **HECHO — 21/09/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · configuración del segmento → alta de beneficiarios en SIIS |
+| **Etiquetas** | `#siis` `#relevamientos` `#ui` |
+| **Solicitante** | PM — en sesión: «que sea por input de número y en la configuración del segmento esos 3 valores del tipo int» |
+| **Fecha del pedido** | 21/09/2026 |
+| **Issue / épica** | Sin issue (pedido en sesión) · modifica el Cambio 73 |
+| **Partes afectadas** | Backoffice (segmentos) · envío a SIIS |
+| **Migración** | `programas.0068_segmento_identificadores_siis` — aditiva, tres columnas opcionales |
+
+## Pedido original
+
+Los tres identificadores que el alta de beneficiarios manda a SIIS —`id_plan_soc`, `jurid` y
+`id_fun_x_plan`— salían **solo** del programa vinculado: el primero se fijaba al crear el programa eligiéndolo
+del catálogo, la jurisdicción venía dentro de la respuesta de SIIS y la función se elegía de un catálogo. Ninguno
+se podía corregir después.
+
+Eso dejó sin salida a la convocatoria en curso: SIIS no reconoce el programa configurado, devuelve
+`"validaciones": {"programa": "INEXISTENTE"}` y el catálogo de funciones viene **vacío**, así que el selector de
+función no ofrece nada y no hay dónde escribir el número correcto.
+
+## Alcance acordado
+
+- Tres campos numéricos opcionales en el segmento, editables desde el modal «Editar segmento».
+- Vacíos, el comportamiento no cambia: se siguen usando los del programa.
+- Afuera: el identificador del programa sigue sin ser editable en su ficha; el cambio no toca esa pantalla.
+
+## Decisiones tomadas
+
+- **Van en el segmento, no en el programa.** Lo pidió el PM y además es más fino: dos segmentos del mismo
+  programa pueden informar a planes distintos sin duplicar el programa.
+- **Precedencia de tres niveles**, de más específico a más general: la corrección del caso
+  (`Formulario.datos_siis`, Cambio 73), después lo cargado en el segmento, y al final lo que trae el programa.
+- **Entrada numérica libre, sin catálogo.** Es un retroceso deliberado respecto del Cambio 73, que los elegía de
+  listas para no apuntar a un programa inexistente. Con el catálogo caído esa garantía no existe y el costo es
+  quedarse sin operar. Los mensajes de dato faltante ahora nombran las dos vías: cargarlo en el segmento o
+  configurarlo en el programa.
+- **Los nombres técnicos se muestran en la pantalla.** Cada campo lleva su etiqueta en lenguaje del usuario y
+  debajo el nombre que espera el servicio, porque quien los completa los está copiando de una comunicación de
+  SIIS.
+
+## Implementación
+
+- `programas/models/__init__.py` — `Segmento.siis_id_plan_soc`, `siis_jurid`, `siis_id_fun_x_plan`.
+- `programas/migrations/0068_segmento_identificadores_siis.py`.
+- `programas/forms.py` — los tres campos en `SegmentoForm`, con `NumberInput`.
+- `programas/services/siis_envio.py` — `armar_payload` resuelve cada identificador por precedencia.
+- `programas/templates/programas/becas/config/segmento_list.html` y `_segmentos_table.html` — bloque
+  «Identificadores para SIIS» en el modal de edición.
+- `.claude/agents/chaco-design-system.md` — fila «Identificadores de integración por segmento».
+
+## Base de datos
+
+Tres columnas enteras opcionales en `programas_segmento`. Nacen vacías; nada cambia hasta que alguien las
+complete.
+
+## Pendientes / a definir
+
+- **Cargar los valores correctos** en el segmento en cuanto SIIS confirme cuáles son.
+- El identificador del programa sigue sin poder corregirse desde su ficha. Si el vínculo quedó mal, hoy se
+  resuelve creando el programa correcto, corrigiendo en la base, o cargando los tres en el segmento, que es lo
+  que este cambio habilita.
+
+## Reversión
+
+Quitar los tres campos revierte la migración. Vaciarlos vuelve al comportamiento anterior sin tocar código.
+
+## Historial
+
+Entrada nueva. Modifica la decisión de `id_fun_x_plan` del Cambio 73 («una sola función por programa, elegida
+del catálogo»), que pasa a ser el valor por defecto cuando el segmento no lo define.

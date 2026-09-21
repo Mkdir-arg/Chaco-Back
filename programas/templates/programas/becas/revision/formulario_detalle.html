@@ -676,6 +676,10 @@
       <div class="mb-4 rounded-lg bg-warning-soft border border-warning-subtle p-3 text-sm text-fg-warning" role="status">
         <strong>Aprobación bloqueada:</strong> {{ motivo_bloqueo_aprobacion }}
       </div>
+      {% elif advertencia_aprobacion %}
+      <div class="mb-4 rounded-lg bg-warning-soft border border-warning-subtle p-3 text-sm text-fg-warning" role="status">
+        <strong>Atención:</strong> {{ advertencia_aprobacion }}
+      </div>
       {% endif %}
       {% if formulario.identidad_forzada %}
       <div class="mb-4 rounded-lg bg-warning-soft border border-warning-subtle p-3 text-sm text-fg-warning" role="status">

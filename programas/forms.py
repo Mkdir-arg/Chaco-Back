@@ -311,6 +311,10 @@ class SegmentoForm(forms.ModelForm):
             "cupo_maximo",
             "requiere_gps",
             "activo",
+            # Cambio 82: los tres identificadores del alta en SIIS, a mano.
+            "siis_id_plan_soc",
+            "siis_jurid",
+            "siis_id_fun_x_plan",
         ]
         widgets = {
             "nombre": forms.TextInput(attrs={"class": INPUT_CLASS}),
@@ -318,6 +322,13 @@ class SegmentoForm(forms.ModelForm):
             "cupo_maximo": forms.NumberInput(attrs={"class": INPUT_CLASS, "min": 0}),
             "requiere_gps": forms.CheckboxInput(attrs={"class": CHECKBOX_CLASS}),
             "activo": forms.CheckboxInput(attrs={"class": CHECKBOX_CLASS}),
+            "siis_id_plan_soc": forms.NumberInput(
+                attrs={"class": INPUT_CLASS, "min": 1, "placeholder": "Del programa"}
+            ),
+            "siis_jurid": forms.NumberInput(attrs={"class": INPUT_CLASS, "min": 1, "placeholder": "Del programa"}),
+            "siis_id_fun_x_plan": forms.NumberInput(
+                attrs={"class": INPUT_CLASS, "min": 1, "placeholder": "Del programa"}
+            ),
         }
 
     def clean_nombre(self):

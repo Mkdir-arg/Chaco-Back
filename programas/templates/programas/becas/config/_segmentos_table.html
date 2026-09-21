@@ -69,7 +69,10 @@
                 {{ s.cupo_maximo }},
                 {{ s.requiere_gps|yesno:'true,false' }},
                 {{ s.activo|yesno:'true,false' }},
-                '{% url 'becas:segmento_editar' s.pk %}'
+                '{% url 'becas:segmento_editar' s.pk %}',
+                '{{ s.siis_id_plan_soc|default_if_none:"" }}',
+                '{{ s.siis_jurid|default_if_none:"" }}',
+                '{{ s.siis_id_fun_x_plan|default_if_none:"" }}'
               )">
               {# PencilSquareIcon — Heroicons v2 outline #}
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true">

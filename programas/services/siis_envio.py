@@ -304,7 +304,8 @@ def armar_payload(formulario, catalogos=None, hoy=None):
     faltantes = {}
     payload = {"tdoc": TDOC_DNI}
     ciudadano = formulario.ciudadano if formulario.ciudadano_id else None
-    programa = formulario.relevamiento.convocatoria.segmento.programa
+    segmento = formulario.relevamiento.convocatoria.segmento
+    programa = segmento.programa
     respuestas = respuestas_por_destino(formulario)
     correcciones = formulario.datos_siis if isinstance(formulario.datos_siis, dict) else {}
 
@@ -410,27 +411,32 @@ def armar_payload(formulario, catalogos=None, hoy=None):
     # Los tres ids salen del programa vinculado, pero la corrección del caso los
     # pisa: un programa mal configurado no puede dejar a la persona sin salida.
     datos_programa = (programa.siis_programa_datos or {}) if programa else {}
-    for campo, valor_programa, motivo in (
+    for campo, valor_segmento, valor_programa, motivo in (
         (
             "id_plan_soc",
+            segmento.siis_id_plan_soc,
             programa.siis_programa_id if programa else None,
-            "El segmento no tiene un programa SIIS configurado.",
+            "No hay identificador de plan social: cargalo en el segmento o vinculá un programa SIIS.",
         ),
         (
             "jurid",
+            segmento.siis_jurid,
             datos_programa.get("jurisdiccion_id"),
-            "El programa vinculado no informa jurisdicción; verificá el vínculo con SIIS.",
+            "No hay jurisdicción: cargala en el segmento o verificá el vínculo del programa con SIIS.",
         ),
         (
             "id_fun_x_plan",
+            segmento.siis_id_fun_x_plan,
             programa.siis_funcion_id if programa else None,
-            "El programa no tiene configurada la función SIIS para el alta de beneficiarios.",
+            "No hay función por plan: cargala en el segmento o configurala en el programa.",
         ),
     ):
+        # Cambio 82: manda la corrección del caso; después lo cargado a mano en
+        # el segmento; y recién al final lo que trae el programa vinculado.
         try:
-            payload[campo] = int(_primero_con_valor(correcciones.get(campo), valor_programa))
+            payload[campo] = int(_primero_con_valor(correcciones.get(campo), valor_segmento, valor_programa))
         except (TypeError, ValueError):
-            faltantes[campo] = f"{motivo} Podés completarlo en «Completar datos para SIIS»."
+            faltantes[campo] = f"{motivo} También podés completarlo en «Completar datos para SIIS»."
 
     # --- Apoderado (condicional: menor de 18 a la fecha del envío) ---
     if nacimiento and _edad(nacimiento, hoy) < MAYORIA_DE_EDAD:
