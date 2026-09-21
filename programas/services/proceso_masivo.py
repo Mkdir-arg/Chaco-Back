@@ -168,13 +168,19 @@ def _lotes(lista, tamano):
 
 
 def _guardar(corrida, cuenta, **extra):
-    """Vuelca los contadores y el latido. Cada lote deja su rastro en la base."""
+    """Vuelca los contadores y el latido. Cada lote deja su rastro en la base.
+
+    Escribe **solo** los campos que toca. Un ``save()`` completo pisaría
+    ``cancelacion_pedida`` con el valor que este proceso tiene en memoria, y
+    quien apretó Frenar lo escribió desde otro request: el freno se perdería en
+    el siguiente latido.
+    """
     for campo in CONTADORES:
         setattr(corrida, campo, getattr(cuenta, campo))
     corrida.latido = timezone.now()
     for campo, valor in extra.items():
         setattr(corrida, campo, valor)
-    corrida.save()
+    corrida.save(update_fields=[*CONTADORES, "latido", *extra.keys(), "modificado"])
 
 
 def correr(corrida, *, responsable=None, catalogos=None, lote=LOTE, max_errores=MAX_ERRORES):

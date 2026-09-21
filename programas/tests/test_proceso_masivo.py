@@ -19,7 +19,9 @@ from programas.models import (
     Relevamiento,
     Segmento,
 )
+from programas.models import ValidacionSIS
 from programas.services import proceso_masivo
+from programas.services.siis_envio import CatalogoNoDisponible
 
 
 class CorridaSiisTests(TestCase):
@@ -138,3 +140,107 @@ class ElegirCompletosTests(_BaseProcesoTest):
             armar.return_value = ({}, {})
             elegidos, _ = proceso_masivo.elegir_completos(casos, None, 50, cuenta)
         self.assertEqual(len(elegidos), 1)
+
+
+class CorrerTests(_BaseProcesoTest):
+    def setUp(self):
+        super().setUp()
+        self.parches = {
+            nombre: patch(f"programas.services.proceso_masivo.{nombre}").start()
+            for nombre in (
+                "armar_payload",
+                "validar_formulario_en_siis",
+                "aprobar_o_poner_en_espera",
+                "enviar_beneficiario_a_siis",
+                "enviar_aviso_resolucion",
+            )
+        }
+        self.addCleanup(patch.stopall)
+        self.parches["armar_payload"].return_value = ({}, {})
+        self.parches["validar_formulario_en_siis"].side_effect = lambda f, u: ValidacionSIS.objects.create(
+            formulario=f, estado=ValidacionSIS.Estado.OK, documento="1", id_programa=79
+        )
+        self.parches["aprobar_o_poner_en_espera"].side_effect = lambda f, u: "aprobado"
+        self.parches["enviar_beneficiario_a_siis"].side_effect = lambda f, u, **kw: EnvioSIIS.objects.create(
+            formulario=f, estado=EnvioSIIS.Estado.ENVIADO, documento="1", siis_id=1
+        )
+
+    def _corrida(self, total=10):
+        return CorridaSiis.objects.create(programa=self.programa, total_pedido=total)
+
+    def test_termina_y_cuenta_las_altas(self):
+        for _ in range(3):
+            self._caso()
+        corrida = proceso_masivo.correr(self._corrida(), lote=2)
+        self.assertEqual(corrida.estado, CorridaSiis.Estado.TERMINADA)
+        self.assertEqual(corrida.altas, 3)
+        self.assertEqual(corrida.aprobados, 3)
+        self.assertIsNotNone(corrida.finalizada)
+
+    def test_escribe_el_latido_en_cada_lote(self):
+        for _ in range(3):
+            self._caso()
+        corrida = proceso_masivo.correr(self._corrida(), lote=2)
+        self.assertIsNotNone(corrida.latido)
+        self.assertFalse(corrida.interrumpida)
+
+    def test_frenar_corta_al_cerrar_el_lote(self):
+        for _ in range(4):
+            self._caso()
+        corrida = self._corrida()
+
+        def marcar(f, u, **kw):
+            # Alguien aprieta Frenar mientras corre el primer lote.
+            CorridaSiis.objects.filter(pk=corrida.pk).update(cancelacion_pedida=True)
+            return EnvioSIIS.objects.create(formulario=f, estado=EnvioSIIS.Estado.ENVIADO, documento="1")
+
+        self.parches["enviar_beneficiario_a_siis"].side_effect = marcar
+        resultado = proceso_masivo.correr(corrida, lote=2)
+        self.assertEqual(resultado.estado, CorridaSiis.Estado.CANCELADA)
+        # Corta al cerrar el lote, no a mitad: procesó los 2 del primero.
+        self.assertEqual(resultado.altas, 2)
+
+    def test_se_detiene_tras_errores_tecnicos_seguidos(self):
+        for _ in range(4):
+            self._caso()
+        self.parches["enviar_beneficiario_a_siis"].side_effect = lambda f, u, **kw: EnvioSIIS.objects.create(
+            formulario=f, estado=EnvioSIIS.Estado.ERROR, documento="1", codigo_error="ERROR_TECNICO"
+        )
+        corrida = proceso_masivo.correr(self._corrida(), lote=10, max_errores=2)
+        self.assertEqual(corrida.estado, CorridaSiis.Estado.DETENIDA)
+        self.assertIn("SIIS", corrida.mensaje)
+
+    def test_el_catalogo_caido_la_detiene_con_el_motivo(self):
+        self._caso()
+        self.parches["armar_payload"].side_effect = CatalogoNoDisponible("el servicio no responde")
+        corrida = proceso_masivo.correr(self._corrida())
+        self.assertEqual(corrida.estado, CorridaSiis.Estado.DETENIDA)
+        self.assertIn("no responde", corrida.mensaje)
+
+    def test_una_excepcion_no_prevista_queda_escrita(self):
+        """Corre en un hilo: si escapara, nadie la veria."""
+        self._caso()
+        self.parches["validar_formulario_en_siis"].side_effect = RuntimeError("algo raro")
+        corrida = proceso_masivo.correr(self._corrida())
+        self.assertEqual(corrida.estado, CorridaSiis.Estado.DETENIDA)
+        self.assertIn("algo raro", corrida.mensaje)
+
+    def test_sin_candidatos_termina_igual(self):
+        corrida = proceso_masivo.correr(self._corrida())
+        self.assertEqual(corrida.estado, CorridaSiis.Estado.TERMINADA)
+        self.assertEqual(corrida.altas, 0)
+
+    def test_no_manda_correos_al_ciudadano(self):
+        """Mil correos irretractables no van detras de un boton oculto."""
+        self._caso()
+        proceso_masivo.correr(self._corrida())
+        self.parches["enviar_aviso_resolucion"].assert_not_called()
+
+
+class LanzarTests(_BaseProcesoTest):
+    def test_el_ejecutor_se_inyecta(self):
+        """En los tests corre sincronico; sin eso serian una carrera."""
+        corrida = CorridaSiis.objects.create(programa=self.programa, total_pedido=1)
+        llamadas = []
+        proceso_masivo.lanzar(corrida, ejecutor=llamadas.append)
+        self.assertEqual(len(llamadas), 1)
