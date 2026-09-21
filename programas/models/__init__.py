@@ -1,6 +1,6 @@
 import json
 import uuid
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta
 from pathlib import Path
 
 from django.contrib.auth.models import Group, User
@@ -3055,3 +3055,85 @@ class ItemDiseno(TimeStamped):
         if not canal:
             return True
         return self.canal_efectivo in (CanalFormulario.AMBOS, canal)
+
+
+class CorridaSiis(TimeStamped):
+    """Una ejecución masiva del circuito validar → aprobar → informar el alta.
+
+    Es lo que la pantalla lee para mostrar el avance, y lo que impide que se
+    lancen dos a la vez. El proceso corre en un hilo del pod; por eso lo que
+    importa acá es el **latido**: cuando el pod se recicla no queda nadie para
+    escribir que murió, así que la interrupción se deduce de un latido viejo en
+    vez de guardarse como estado. Un estado que depende de que lo escriba el
+    proceso caído es un estado que nunca se ve.
+    """
+
+    class Estado(models.TextChoices):
+        EN_CURSO = "EN_CURSO", "En curso"
+        TERMINADA = "TERMINADA", "Terminada"
+        CANCELADA = "CANCELADA", "Cancelada"
+        DETENIDA = "DETENIDA", "Detenida"
+
+    # Sin señal por más de esto, se da por interrumpida. Dos minutos es holgado:
+    # un lote de 40 casos contra SIIS tarda bastante menos.
+    LATIDO_VENCIDO = timedelta(minutes=2)
+
+    programa = models.ForeignKey(ProgramaSiis, on_delete=models.CASCADE, related_name="corridas_siis")
+    solicitada_por = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, related_name="corridas_siis_solicitadas"
+    )
+    total_pedido = models.PositiveIntegerField(verbose_name="Casos a procesar")
+    estado = models.CharField(max_length=12, choices=Estado.choices, default=Estado.EN_CURSO, db_index=True)
+    latido = models.DateTimeField(null=True, blank=True, verbose_name="Última señal de vida")
+    cancelacion_pedida = models.BooleanField(default=False, verbose_name="Se pidió frenar")
+    finalizada = models.DateTimeField(null=True, blank=True)
+    mensaje = models.TextField(blank=True, default="", verbose_name="Por qué terminó")
+
+    mirados = models.PositiveIntegerField(default=0)
+    elegidos = models.PositiveIntegerField(default=0)
+    aprobados = models.PositiveIntegerField(default=0)
+    lista_espera = models.PositiveIntegerField(default=0)
+    altas = models.PositiveIntegerField(default=0)
+    incompletos = models.PositiveIntegerField(default=0)
+    rechazados = models.PositiveIntegerField(default=0)
+    errores = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        verbose_name = "Corrida masiva a SIIS"
+        verbose_name_plural = "Corridas masivas a SIIS"
+        ordering = ["-creado"]
+
+    def __str__(self):
+        return f"{self.programa.nombre} · {self.get_estado_display()} · {self.elegidos}/{self.total_pedido}"
+
+    @property
+    def interrumpida(self):
+        """¿Dice que corre pero hace rato que no da señales?"""
+        if self.estado != self.Estado.EN_CURSO:
+            return False
+        referencia = self.latido or self.creado
+        return timezone.now() - referencia > self.LATIDO_VENCIDO
+
+    @property
+    def salteados(self):
+        """Candidatos que se miraron y se descartaron por datos faltantes."""
+        return max(self.mirados - self.elegidos, 0)
+
+    @property
+    def progreso(self):
+        """Porcentaje 0-100 para la barra de avance."""
+        if not self.total_pedido:
+            return 0
+        return min(int(self.elegidos * 100 / self.total_pedido), 100)
+
+    @classmethod
+    def en_curso(cls):
+        """La corrida viva, o ``None``.
+
+        Una interrumpida **no** cuenta: no hay nadie ejecutándola, así que no
+        puede bloquear el lanzamiento de otra.
+        """
+        for corrida in cls.objects.filter(estado=cls.Estado.EN_CURSO).order_by("-creado"):
+            if not corrida.interrumpida:
+                return corrida
+        return None

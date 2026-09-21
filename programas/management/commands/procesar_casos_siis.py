@@ -46,26 +46,18 @@ del ambiente contra el que se corre.
 """
 
 import time
+from dataclasses import replace
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.core.exceptions import ValidationError
 from django.core.management.base import BaseCommand, CommandError
-from django.db.models import OuterRef, Q, Subquery
 
-from programas.models import EnvioSIIS, Formulario, ValidacionSIS
-from programas.services.avisos_resolucion import enviar_aviso_resolucion
-from programas.services.cupo import aprobar_o_poner_en_espera
-from programas.services.siis_envio import (
-    CatalogoNoDisponible,
-    Catalogos,
-    armar_payload,
-    enviar_beneficiario_a_siis,
-)
-from programas.services.validacion_siis import validar_formulario_en_siis
+from programas.models import Formulario
+from programas.services import proceso_masivo
+from programas.services.siis_envio import CatalogoNoDisponible, Catalogos
 
 TOTAL_POR_DEFECTO = 1000
-LOTE_POR_DEFECTO = 40
+LOTE_POR_DEFECTO = proceso_masivo.LOTE
 
 
 def _lotes(lista, tamano):
@@ -121,69 +113,6 @@ class Command(BaseCommand):
 
     # ── Selección ───────────────────────────────────────────────────────────
 
-    def _casos(self, options):
-        ultimo_envio = (
-            EnvioSIIS.objects.filter(formulario=OuterRef("pk")).order_by("-creado", "-id").values("estado")[:1]
-        )
-        casos = (
-            Formulario.objects.select_related(
-                "ciudadano", "relevamiento__convocatoria__segmento__programa", "apoderado_ciudadano"
-            )
-            .annotate(ultimo_envio=Subquery(ultimo_envio))
-            # «Todavía no informado» incluye a los que no tienen ningún envío, y
-            # eso es NULL: un ``exclude`` los descartaría a todos, porque
-            # ``NOT (NULL = 'ENVIADO')`` no es verdadero.
-            .filter(Q(ultimo_envio__isnull=True) | ~Q(ultimo_envio=EnvioSIIS.Estado.ENVIADO))
-            .order_by("pk")
-        )
-        estados = [Formulario.Estado.APROBADO]
-        if not options["solo_enviar"]:
-            estados.append(Formulario.Estado.ENVIADO)
-        casos = casos.filter(estado__in=estados)
-        if options["convocatoria"]:
-            casos = casos.filter(relevamiento__convocatoria_id=options["convocatoria"])
-        if options["relevamiento"]:
-            casos = casos.filter(relevamiento_id=options["relevamiento"])
-        if options["segmento"]:
-            casos = casos.filter(relevamiento__convocatoria__segmento_id=options["segmento"])
-        # El conflicto de carga duplicada lo resuelve una persona: la pantalla de
-        # revisión tampoco deja aprobar sin eso.
-        casos = casos.exclude(Q(conflicto_duplicado=True) & Q(conflicto_resuelto=False)).exclude(
-            cargas_en_conflicto__conflicto_resuelto=False
-        )
-        # Con --solo-completos el corte lo hace el filtro, no la consulta:
-        # hay que mirar más candidatos de los que van a entrar.
-        if options["solo_completos"]:
-            return list(casos.distinct())
-        return list(casos.distinct()[: max(1, options["total"])])
-
-    def _elegir(self, casos, catalogos, options):
-        """``(elegidos, descartados_por_campo)``.
-
-        Sin ``--solo-completos`` no filtra nada. Con el flag, arma el payload de
-        cada candidato y se queda solo con los que hoy saldrían sin faltantes:
-        mandar uno incompleto no lo informa a SIIS, pero igual lo deja aprobado
-        y con una fila de error que después hay que revisar a mano.
-        """
-        total = max(1, options["total"])
-        if not options["solo_completos"]:
-            return casos[:total], {}
-
-        elegidos, descartados = [], {}
-        for caso in casos:
-            if len(elegidos) >= total:
-                break
-            try:
-                _, faltantes = armar_payload(caso, catalogos=catalogos)
-            except CatalogoNoDisponible as exc:
-                raise CommandError(f"No se pudo leer un catálogo de SIIS: {exc}") from exc
-            if faltantes:
-                for campo in faltantes:
-                    descartados[campo] = descartados.get(campo, 0) + 1
-                continue
-            elegidos.append(caso)
-        return elegidos, descartados
-
     def _responsable(self, nombre):
         if not nombre:
             return None
@@ -191,43 +120,6 @@ class Command(BaseCommand):
         if usuario is None:
             raise CommandError(f"No existe el usuario «{nombre}».")
         return usuario
-
-    # ── Un caso ─────────────────────────────────────────────────────────────
-
-    def _procesar(self, caso, responsable, catalogos, options, cuenta):
-        """Devuelve ``"tecnico"`` si el paso que falló fue un error de SIIS."""
-        if not options["solo_enviar"]:
-            try:
-                validacion = validar_formulario_en_siis(caso, responsable)
-            except ValueError:
-                # Sin programa SIIS o sin DNI: no hay consulta posible.
-                cuenta["sin_datos"] += 1
-                return None
-            if validacion.estado == ValidacionSIS.Estado.ERROR:
-                cuenta["error_validacion"] += 1
-                return "tecnico"
-
-            if caso.estado == Formulario.Estado.ENVIADO:
-                try:
-                    resultado = aprobar_o_poner_en_espera(caso, responsable)
-                except ValidationError:
-                    # Falta algo que la aprobación exige (identidad, validación
-                    # que no corresponde al programa actual…).
-                    cuenta["no_aprobable"] += 1
-                    return None
-                if resultado == "lista_espera":
-                    # Sin cupo no hay beneficiario que informar.
-                    cuenta["lista_espera"] += 1
-                    if options["avisar"]:
-                        enviar_aviso_resolucion(caso, resultado)
-                    return None
-                cuenta["aprobados"] += 1
-                if options["avisar"]:
-                    enviar_aviso_resolucion(caso, resultado)
-
-        envio = enviar_beneficiario_a_siis(caso, responsable, catalogos=catalogos)
-        cuenta[envio.estado] += 1
-        return "tecnico" if envio.estado == EnvioSIIS.Estado.ERROR else None
 
     # ── Orquestación ────────────────────────────────────────────────────────
 
@@ -253,10 +145,23 @@ class Command(BaseCommand):
                 self.style.WARNING,
             )
         catalogos = Catalogos()
-        candidatos = self._casos(options)
+        cuenta = proceso_masivo.Cuenta()
+        consulta = proceso_masivo.candidatos(
+            convocatoria=options["convocatoria"],
+            relevamiento=options["relevamiento"],
+            segmento=options["segmento"],
+            solo_enviar=options["solo_enviar"],
+        )
+        total = max(1, options["total"])
         if options["solo_completos"]:
-            self._log(f"Candidatos pendientes: {len(candidatos)}. Armando el payload de cada uno…")
-        casos, descartados = self._elegir(candidatos, catalogos, options)
+            pendientes = list(consulta)
+            self._log(f"Candidatos pendientes: {len(pendientes)}. Armando el payload de cada uno…")
+            try:
+                casos, descartados = proceso_masivo.elegir_completos(pendientes, catalogos, total, cuenta)
+            except CatalogoNoDisponible as exc:
+                raise CommandError(f"No se pudo leer un catálogo de SIIS: {exc}") from exc
+        else:
+            casos, descartados = list(consulta[:total]), {}
         if descartados:
             total_descartados = sum(descartados.values())
             self._log(f"Descartados por datos incompletos: {total_descartados} (no se tocan)")
@@ -284,28 +189,22 @@ class Command(BaseCommand):
             self._log("\nEnsayo terminado, no se tocó nada.", self.style.WARNING)
             return
 
-        cuenta = dict.fromkeys(
-            (
-                "aprobados",
-                "lista_espera",
-                "no_aprobable",
-                "sin_datos",
-                "error_validacion",
-                EnvioSIIS.Estado.ENVIADO,
-                EnvioSIIS.Estado.INCOMPLETO,
-                EnvioSIIS.Estado.RECHAZADO,
-                EnvioSIIS.Estado.ERROR,
-            ),
-            0,
-        )
         seguidos = 0
         detenido = False
 
         self._log("")
         for numero, lote in _lotes(casos, tamano):
-            antes = dict(cuenta)
+            antes = replace(cuenta)
             for caso in lote:
-                if self._procesar(caso, responsable, catalogos, options, cuenta) == "tecnico":
+                resultado = proceso_masivo.procesar_caso(
+                    caso,
+                    responsable,
+                    catalogos,
+                    cuenta,
+                    avisar=options["avisar"],
+                    solo_enviar=options["solo_enviar"],
+                )
+                if resultado == "tecnico":
                     seguidos += 1
                     if seguidos >= max_errores:
                         detenido = True
@@ -314,10 +213,10 @@ class Command(BaseCommand):
                     seguidos = 0
             self._log(
                 f"   lote {numero:>3}/{total_lotes} · casos {lote[0].pk}-{lote[-1].pk} · "
-                f"aprobados {cuenta['aprobados'] - antes['aprobados']:>3} · "
-                f"altas {cuenta[EnvioSIIS.Estado.ENVIADO] - antes[EnvioSIIS.Estado.ENVIADO]:>3} · "
-                f"incompletos {cuenta[EnvioSIIS.Estado.INCOMPLETO] - antes[EnvioSIIS.Estado.INCOMPLETO]:>3} · "
-                f"errores {cuenta[EnvioSIIS.Estado.ERROR] - antes[EnvioSIIS.Estado.ERROR]:>3} · "
+                f"aprobados {cuenta.aprobados - antes.aprobados:>3} · "
+                f"altas {cuenta.altas - antes.altas:>3} · "
+                f"incompletos {cuenta.incompletos - antes.incompletos:>3} · "
+                f"errores {cuenta.errores - antes.errores:>3} · "
                 f"{time.monotonic() - arranque:6.1f} s"
             )
             if detenido:
@@ -327,15 +226,15 @@ class Command(BaseCommand):
 
         self._log("")
         self._log("Resumen", self.style.MIGRATE_HEADING)
-        self._log(f"   {'aprobados':38} {cuenta['aprobados']:6}")
-        self._log(f"   {'sin cupo → lista de espera':38} {cuenta['lista_espera']:6}")
-        self._log(f"   {'no se pudieron aprobar':38} {cuenta['no_aprobable']:6}")
-        self._log(f"   {'sin programa SIIS o sin DNI':38} {cuenta['sin_datos']:6}")
-        self._log(f"   {'validación con error técnico':38} {cuenta['error_validacion']:6}")
-        self._log(f"   {'altas hechas en SIIS':38} {cuenta[EnvioSIIS.Estado.ENVIADO]:6}")
-        self._log(f"   {'altas con datos incompletos':38} {cuenta[EnvioSIIS.Estado.INCOMPLETO]:6}")
-        self._log(f"   {'altas rechazadas por SIIS':38} {cuenta[EnvioSIIS.Estado.RECHAZADO]:6}")
-        self._log(f"   {'altas con error técnico':38} {cuenta[EnvioSIIS.Estado.ERROR]:6}")
+        self._log(f"   {'aprobados':38} {cuenta.aprobados:6}")
+        self._log(f"   {'sin cupo → lista de espera':38} {cuenta.lista_espera:6}")
+        self._log(f"   {'no se pudieron aprobar':38} {cuenta.no_aprobable:6}")
+        self._log(f"   {'sin programa SIIS o sin DNI':38} {cuenta.sin_datos:6}")
+        self._log(f"   {'validación con error técnico':38} {cuenta.error_validacion:6}")
+        self._log(f"   {'altas hechas en SIIS':38} {cuenta.altas:6}")
+        self._log(f"   {'altas con datos incompletos':38} {cuenta.incompletos:6}")
+        self._log(f"   {'altas rechazadas por SIIS':38} {cuenta.rechazados:6}")
+        self._log(f"   {'altas con error técnico':38} {cuenta.errores:6}")
         segundos = time.monotonic() - arranque
         if detenido:
             self._log(
@@ -345,9 +244,9 @@ class Command(BaseCommand):
                 self.style.ERROR,
             )
             raise SystemExit(1)
-        if cuenta[EnvioSIIS.Estado.INCOMPLETO]:
+        if cuenta.incompletos:
             self._log(
-                f"\n{cuenta[EnvioSIIS.Estado.INCOMPLETO]} altas quedaron INCOMPLETO: les falta un dato del "
+                f"\n{cuenta.incompletos} altas quedaron INCOMPLETO: les falta un dato del "
                 "payload y **no llegaron a SIIS**. El detalle por campo está en cada EnvioSIIS y en la pantalla "
                 "del caso, en «Envío a SIIS». Esos casos ya quedaron aprobados.",
                 self.style.WARNING,

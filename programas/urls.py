@@ -7,6 +7,7 @@ from programas.views import cupo as cpo
 from programas.views import dashboard_becas as dsh
 from programas.views import diseno as dis
 from programas.views import pausas as pau
+from programas.views import proceso_masivo as masivo
 from programas.views import relevamientos as rel
 from programas.views import reportes_becas as rpt
 from programas.views import revision as rev
@@ -27,6 +28,23 @@ urlpatterns = [
         "config/programas/<int:pk>/identificadores-siis/",
         cfg.programa_identificadores_siis,
         name="programa_identificadores_siis",
+    ),
+    # Proceso masivo a SIIS: no se enlaza desde ningun lado a proposito. Lo que
+    # lo protege es la capacidad becas.programa.proceso_masivo, no el silencio.
+    path(
+        "config/programas/<int:pk>/proceso-masivo/",
+        masivo.ProcesoMasivoView.as_view(),
+        name="proceso_masivo",
+    ),
+    path(
+        "config/programas/<int:pk>/proceso-masivo/lanzar/",
+        masivo.proceso_masivo_lanzar,
+        name="proceso_masivo_lanzar",
+    ),
+    path(
+        "config/programas/<int:pk>/proceso-masivo/frenar/",
+        masivo.proceso_masivo_frenar,
+        name="proceso_masivo_frenar",
     ),
     # --- Solapa Dashboard del programa (análisis #366) ---
     path("config/programas/<int:pk>/dashboard/datos/", dsh.programa_dashboard_datos, name="programa_dashboard_datos"),

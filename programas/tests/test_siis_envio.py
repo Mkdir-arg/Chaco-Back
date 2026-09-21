@@ -670,7 +670,9 @@ class ComandoCircuitoCompletoTests(_BaseEnvioTest):
 
     def setUp(self):
         super().setUp()
-        base = "programas.management.commands.procesar_casos_siis."
+        # El circuito vive en el servicio desde que lo comparten el comando y
+        # la pantalla del proceso masivo: los parches apuntan ahí.
+        base = "programas.services.proceso_masivo."
         self.validar = patch(base + "validar_formulario_en_siis").start()
         self.aprobar = patch(base + "aprobar_o_poner_en_espera").start()
         self.enviar = patch(base + "enviar_beneficiario_a_siis").start()
@@ -752,7 +754,9 @@ class ComandoCircuitoCompletoTests(_BaseEnvioTest):
             self._correr("--aplicar", "--max-errores", "1")
 
     def test_solo_completos_descarta_los_que_tienen_faltantes(self):
-        base = "programas.management.commands.procesar_casos_siis."
+        # El circuito vive en el servicio desde que lo comparten el comando y
+        # la pantalla del proceso masivo: los parches apuntan ahí.
+        base = "programas.services.proceso_masivo."
         with patch(base + "armar_payload") as armar:
             # El primero sale limpio; el segundo, sin altura de domicilio.
             armar.side_effect = [({}, {}), ({}, {"nro_actual": "Falta la altura."})]
@@ -762,7 +766,9 @@ class ComandoCircuitoCompletoTests(_BaseEnvioTest):
         self.assertIn("nro_actual", salida)
 
     def test_solo_completos_junta_hasta_el_total_pedido(self):
-        base = "programas.management.commands.procesar_casos_siis."
+        # El circuito vive en el servicio desde que lo comparten el comando y
+        # la pantalla del proceso masivo: los parches apuntan ahí.
+        base = "programas.services.proceso_masivo."
         with patch(base + "armar_payload") as armar:
             armar.return_value = ({}, {})
             self._correr("--aplicar", "--solo-completos", "--total", "1")
