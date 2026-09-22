@@ -1,11 +1,18 @@
 {% comment %}
 Detalle informativo del programa SIIS. Lo alimenta openInfo(datos) del x-data
-que lo contiene (ver el filtro `siis_info` de becas_extras). Solo lectura.
+que lo contiene (ver el filtro `siis_info` de becas_extras).
+
+Es solo lectura salvo en el detalle del programa, que lo incluye con
+`identificadores_programa=programa`: ahí suma el bloque «Alta de beneficiarios en
+SIIS» (Cambio 82), que se edita con `form_identificadores_siis`. Los otros dos
+lugares que lo incluyen —lista de programas y detalle de segmento— no pasan la
+variable y siguen viendo solo la foto del catálogo.
 {% endcomment %}
 <div x-show="modalInfo" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4"
-     role="dialog" aria-modal="true" aria-labelledby="modal-info-titulo">
+     role="dialog" aria-modal="true" aria-labelledby="modal-info-titulo"
+     @keydown.escape.window="modalInfo=false">
   <div class="absolute inset-0 bg-black/50" style="backdrop-filter:blur(4px)" @click="modalInfo=false"></div>
-  <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] overflow-hidden" @click.stop>
+  <div class="relative bg-white rounded-2xl shadow-xl w-full {% if identificadores_programa %}max-w-2xl{% else %}max-w-[560px]{% endif %} overflow-hidden" @click.stop>
     {# Header #}
     <div class="flex items-center gap-3 px-6 py-5 border-b border-light">
       <div class="flex items-center justify-center w-10 h-10 rounded-lg flex-shrink-0" style="background: var(--bg-brand-soft); color: var(--text-fg-brand)">
@@ -51,10 +58,15 @@ que lo contiene (ver el filtro `siis_info` de becas_extras). Solo lectura.
           <p class="text-[13px] font-semibold text-heading mb-1">Estado actual en SIIS</p>
           <p class="text-sm text-body" x-text="info.estadoActual || 'sin verificar'"></p>
         </div>
+        {% comment %}Con el bloque editable abajo, la jurisdicción del catálogo se muestra
+        debajo de su propio campo: repetirla acá deja dos números distintos con la misma
+        etiqueta en el mismo pop up.{% endcomment %}
+        {% if not identificadores_programa %}
         <div>
           <p class="text-[13px] font-semibold text-heading mb-1">Jurisdicción</p>
           <p class="text-sm text-body" x-text="info.jurisdiccion !== null &amp;&amp; info.jurisdiccion !== undefined ? ('#' + info.jurisdiccion) : '—'"></p>
         </div>
+        {% endif %}
         <div>
           <p class="text-[13px] font-semibold text-heading mb-1">Edad mínima</p>
           <p class="text-sm text-body" x-text="info.edadMinima !== null &amp;&amp; info.edadMinima !== undefined ? (info.edadMinima + ' años') : '—'"></p>
@@ -74,6 +86,73 @@ que lo contiene (ver el filtro `siis_info` de becas_extras). Solo lectura.
         </ul>
       </div>
 
+      {% if identificadores_programa %}
+      {% comment %}Cambio 82: los identificadores que viajan al dar de alta un beneficiario.
+      Los trae la API al vincular el programa, pero se pisan a mano: si SIIS no reconoce el
+      programa, el catálogo no da ninguna salida. Pisar el plan se avisa, porque deja de
+      coincidir con lo que informó el servicio.{% endcomment %}
+      <div class="pt-4 border-t border-light">
+        <p class="text-[13px] font-semibold text-heading">Alta de beneficiarios en SIIS</p>
+        <p class="text-xs text-body-subtle mt-1">
+          Los casos aprobados se informan con estos identificadores. Los trae SIIS al vincular el
+          programa; podés cambiarlos si el servicio los informa distinto.
+        </p>
+        {% if not identificadores_programa.siis_funcion_id %}
+        <p class="text-xs text-body-subtle mt-2">
+          <span class="badge badge-warning">Falta la función</span>
+          hasta cargarla, los envíos quedan incompletos.
+        </p>
+        {% endif %}
+
+        {% if identificadores_programa.siis_id_plan_soc_pisado or identificadores_programa.siis_jurid_pisado %}
+        <div class="rounded-lg bg-warning-soft border border-warning-subtle p-4 text-sm mt-3" role="alert">
+          <strong class="text-heading">Identificadores distintos de los que trajo SIIS</strong>
+          <ul class="text-body mt-1 list-disc pl-5 space-y-0.5">
+            {% if identificadores_programa.siis_id_plan_soc_pisado %}
+            <li>Plan social: se manda <strong class="text-heading">#{{ identificadores_programa.siis_id_plan_soc }}</strong>, pero el catálogo informó <strong class="text-heading">#{{ identificadores_programa.siis_programa_id }}</strong>.</li>
+            {% endif %}
+            {% if identificadores_programa.siis_jurid_pisado %}
+            <li>Jurisdicción: se manda <strong class="text-heading">#{{ identificadores_programa.siis_jurid }}</strong>, pero el catálogo informó <strong class="text-heading">#{{ identificadores_programa.siis_jurid_api }}</strong>.</li>
+            {% endif %}
+          </ul>
+          <p class="text-body-subtle mt-1">
+            El estado del programa se sigue sincronizando contra #{{ identificadores_programa.siis_programa_id }}. Dejá el campo vacío para volver al valor del catálogo.
+          </p>
+        </div>
+        {% endif %}
+
+        {% if puede_administrar_programa %}
+        <form id="form-identificadores-siis" method="post"
+              action="{% url 'becas:programa_identificadores_siis' identificadores_programa.pk %}" class="mt-3">
+          {% csrf_token %}
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label for="{{ form_identificadores_siis.siis_id_plan_soc.id_for_label }}" class="block text-[13px] font-semibold text-heading mb-1.5">Plan social</label>
+              {{ form_identificadores_siis.siis_id_plan_soc }}
+              <p class="mt-1 text-xs text-body-subtle">id_plan_soc · el catálogo informó #{{ identificadores_programa.siis_programa_id }}</p>
+            </div>
+            <div>
+              <label for="{{ form_identificadores_siis.siis_jurid.id_for_label }}" class="block text-[13px] font-semibold text-heading mb-1.5">Jurisdicción</label>
+              {{ form_identificadores_siis.siis_jurid }}
+              <p class="mt-1 text-xs text-body-subtle">jurid · {% if identificadores_programa.siis_jurid_api %}el catálogo informó #{{ identificadores_programa.siis_jurid_api }}{% else %}SIIS no informó una{% endif %}</p>
+            </div>
+            <div>
+              <label for="{{ form_identificadores_siis.siis_funcion_id.id_for_label }}" class="block text-[13px] font-semibold text-heading mb-1.5">Función por plan</label>
+              {{ form_identificadores_siis.siis_funcion_id }}
+              <p class="mt-1 text-xs text-body-subtle">id_fun_x_plan{% if identificadores_programa.siis_funcion_nombre %} · {{ identificadores_programa.siis_funcion_nombre }}{% endif %}</p>
+            </div>
+          </div>
+        </form>
+        {% else %}
+        <dl class="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3 text-sm">
+          <div><dt class="text-body-subtle">Plan social (id_plan_soc)</dt><dd class="text-heading font-semibold">#{{ identificadores_programa.siis_id_plan_soc_efectivo }}</dd></div>
+          <div><dt class="text-body-subtle">Jurisdicción (jurid)</dt><dd class="text-heading font-semibold">{% if identificadores_programa.siis_jurid_efectivo %}#{{ identificadores_programa.siis_jurid_efectivo }}{% else %}sin configurar{% endif %}</dd></div>
+          <div><dt class="text-body-subtle">Función por plan (id_fun_x_plan)</dt><dd class="text-heading font-semibold">{% if identificadores_programa.siis_funcion_id %}#{{ identificadores_programa.siis_funcion_id }}{% else %}sin configurar{% endif %}</dd></div>
+        </dl>
+        {% endif %}
+      </div>
+      {% endif %}
+
       <div class="border-t border-light pt-4 text-xs text-body-subtle space-y-1">
         <p>Vinculado el <span x-text="info.vinculado || '—'"></span>.</p>
         <p>Última verificación con SIIS: <span x-text="info.verificado || 'nunca'"></span>.</p>
@@ -82,6 +161,11 @@ que lo contiene (ver el filtro `siis_info` de becas_extras). Solo lectura.
     {# Footer #}
     <div class="flex justify-end gap-3 px-6 py-4 border-t border-light" style="background: var(--bg-secondary)">
       <button type="button" @click="modalInfo=false" class="btn-nodo btn-tertiary btn-base">Cerrar</button>
+      {% if identificadores_programa and puede_administrar_programa %}
+      {% comment %}El submit vive en el pie y apunta por `form=` al formulario del cuerpo:
+      la acción queda fija mientras el cuerpo scrollea.{% endcomment %}
+      <button type="submit" form="form-identificadores-siis" class="btn-nodo btn-brand btn-base">Guardar identificadores</button>
+      {% endif %}
     </div>
   </div>
 </div>
