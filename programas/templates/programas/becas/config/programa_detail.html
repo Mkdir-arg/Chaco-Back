@@ -58,6 +58,9 @@
         {% if programa.pausado %}<span class="badge badge-danger badge-dot">Pausado</span>
         {% else %}<span class="badge badge-success badge-dot">Activo</span>{% endif %}
         {% if programa.siis_bloqueado %}<span class="badge badge-warning badge-dot">SIIS inactivo</span>{% endif %}
+        {% comment %}El aviso vive dentro del pop up, así que acá queda la señal de que hay
+        algo para completar: sin la función el alta de beneficiarios viaja incompleta.{% endcomment %}
+        {% if not programa.siis_funcion_id %}<span class="badge badge-warning badge-dot">Falta la función SIIS</span>{% endif %}
         <button type="button" @click="openInfo({{ programa|siis_info }})"
                 class="btn-nodo btn-secondary btn-sm flex items-center gap-1.5"
                 aria-label="Ver detalle del programa SIIS">
@@ -85,72 +88,6 @@
     {% endif %}
   </div>
   {% endif %}
-
-  {% comment %}Cambio 82: los identificadores que viajan al dar de alta un beneficiario.
-  Los trae la API al vincular el programa, pero se pisan a mano: si SIIS no reconoce
-  el programa, el catálogo no da ninguna salida. Pisar el plan se avisa, porque deja
-  de coincidir con lo que informó el servicio.{% endcomment %}
-  <section class="bg-white rounded-xl border border-base shadow-sm p-5" aria-labelledby="titulo-siis-ids">
-    <div class="flex items-start justify-between gap-4 flex-wrap">
-      <div class="min-w-0">
-        <h2 id="titulo-siis-ids" class="text-heading font-bold" style="font-size:16px;">Alta de beneficiarios en SIIS</h2>
-        <p class="text-sm text-body-subtle mt-1">
-          Los casos aprobados se informan con estos identificadores. Los trae SIIS al vincular el programa;
-          podés cambiarlos si el servicio los informa distinto.
-          {% if not programa.siis_funcion_id %}<span class="badge badge-warning">Falta la función</span>: hasta cargarla, los envíos quedan incompletos.{% endif %}
-        </p>
-      </div>
-    </div>
-
-    {% if programa.siis_id_plan_soc_pisado or programa.siis_jurid_pisado %}
-    <div class="rounded-lg bg-warning-soft border border-warning-subtle p-4 text-sm mt-4" role="alert">
-      <strong class="text-heading">Identificadores distintos de los que trajo SIIS</strong>
-      <ul class="text-body mt-1 list-disc pl-5 space-y-0.5">
-        {% if programa.siis_id_plan_soc_pisado %}
-        <li>Plan social: se manda <strong class="text-heading">#{{ programa.siis_id_plan_soc }}</strong>, pero el catálogo informó <strong class="text-heading">#{{ programa.siis_programa_id }}</strong>.</li>
-        {% endif %}
-        {% if programa.siis_jurid_pisado %}
-        <li>Jurisdicción: se manda <strong class="text-heading">#{{ programa.siis_jurid }}</strong>, pero el catálogo informó <strong class="text-heading">#{{ programa.siis_jurid_api }}</strong>.</li>
-        {% endif %}
-      </ul>
-      <p class="text-body-subtle mt-1">
-        El estado del programa se sigue sincronizando contra #{{ programa.siis_programa_id }}. Dejá el campo vacío para volver al valor del catálogo.
-      </p>
-    </div>
-    {% endif %}
-
-    {% if puede_administrar_programa %}
-    <form method="post" action="{% url 'becas:programa_identificadores_siis' programa.pk %}" class="mt-4">
-      {% csrf_token %}
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div>
-          <label for="{{ form_identificadores_siis.siis_id_plan_soc.id_for_label }}" class="block text-[13px] font-semibold text-heading mb-1.5">Plan social</label>
-          {{ form_identificadores_siis.siis_id_plan_soc }}
-          <p class="mt-1 text-xs text-body-subtle">id_plan_soc</p>
-        </div>
-        <div>
-          <label for="{{ form_identificadores_siis.siis_jurid.id_for_label }}" class="block text-[13px] font-semibold text-heading mb-1.5">Jurisdicción</label>
-          {{ form_identificadores_siis.siis_jurid }}
-          <p class="mt-1 text-xs text-body-subtle">jurid</p>
-        </div>
-        <div>
-          <label for="{{ form_identificadores_siis.siis_funcion_id.id_for_label }}" class="block text-[13px] font-semibold text-heading mb-1.5">Función por plan</label>
-          {{ form_identificadores_siis.siis_funcion_id }}
-          <p class="mt-1 text-xs text-body-subtle">id_fun_x_plan{% if programa.siis_funcion_nombre %} · {{ programa.siis_funcion_nombre }}{% endif %}</p>
-        </div>
-      </div>
-      <div class="flex justify-end mt-3">
-        <button type="submit" class="btn-nodo btn-brand btn-base">Guardar identificadores</button>
-      </div>
-    </form>
-    {% else %}
-    <dl class="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4 text-sm">
-      <div><dt class="text-body-subtle">Plan social (id_plan_soc)</dt><dd class="text-heading font-semibold">#{{ programa.siis_id_plan_soc_efectivo }}</dd></div>
-      <div><dt class="text-body-subtle">Jurisdicción (jurid)</dt><dd class="text-heading font-semibold">{% if programa.siis_jurid_efectivo %}#{{ programa.siis_jurid_efectivo }}{% else %}sin configurar{% endif %}</dd></div>
-      <div><dt class="text-body-subtle">Función por plan (id_fun_x_plan)</dt><dd class="text-heading font-semibold">{% if programa.siis_funcion_id %}#{{ programa.siis_funcion_id }}{% else %}sin configurar{% endif %}</dd></div>
-    </dl>
-    {% endif %}
-  </section>
 
   {% if programa.pausado %}
   <div class="rounded-lg bg-warning-soft border border-warning-subtle p-4 text-sm" role="alert">
@@ -504,7 +441,7 @@
     </div>
   </div>
 
-  {% include "programas/becas/config/_siis_programa_modal.html" %}
+  {% include "programas/becas/config/_siis_programa_modal.html" with identificadores_programa=programa %}
 </div>
 {% include "user/_alta_rapida_modal.html" %}
 {% endblock %}
