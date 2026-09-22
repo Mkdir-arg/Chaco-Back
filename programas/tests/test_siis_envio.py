@@ -334,14 +334,16 @@ class ArmarPayloadTests(_BaseEnvioTest):
             },
         )
 
-    def test_localidad_sin_match_y_altura_sin_numero_quedan_como_faltantes(self):
+    def test_la_localidad_sin_match_falta_pero_la_altura_ya_no(self):
+        """Cambio 89: sin altura el domicilio va convencional, no falta."""
         self._respuesta(self.p_loc, "J.j castelli")
         self._respuesta(self.p_calle, "Los Alamos S/N")
         payload, faltantes = armar_payload(self.formulario, catalogos=self.cat)
         self.assertIn("loc_actual", faltantes)
-        self.assertIn("nro_actual", faltantes)
         self.assertNotIn("loc_actual", payload)
-        self.assertEqual(payload["calle_actual"], "Los Alamos")
+        self.assertNotIn("nro_actual", faltantes)
+        self.assertEqual(payload["calle_actual"], "Planta urbana sin número")
+        self.assertEqual(payload["nro_actual"], 1)
 
     def test_barrio_numerico_se_prefija_y_barrio_corto_falta(self):
         self._respuesta(self.p_barrio, "108")
@@ -363,14 +365,16 @@ class ArmarPayloadTests(_BaseEnvioTest):
         self.assertEqual(payload["barrio_actual"], "Barrio Norte")
 
     def test_sin_preguntas_marcadas_faltan_los_campos_del_domicilio(self):
+        """Calle y altura quedan afuera desde el Cambio 89: sin dato van
+        convencionales, así que no pueden faltar nunca."""
         PreguntaGlobal.objects.exclude(destino_siis="").update(destino_siis="")
-        _, faltantes = armar_payload(self.formulario, catalogos=self.cat)
+        payload, faltantes = armar_payload(self.formulario, catalogos=self.cat)
+        self.assertEqual(payload["calle_actual"], "Planta urbana sin número")
+        self.assertEqual(payload["nro_actual"], 1)
         for campo in (
             "prov_actual",
             "loc_actual",
             "barrio_actual",
-            "calle_actual",
-            "nro_actual",
             "est_civil",
             "prov_nacim",
             "loc_nacim",
@@ -836,3 +840,53 @@ class CatalogoGeograficoPropioTests(TestCase):
 
     def test_un_nombre_que_no_esta_no_inventa_nada(self):
         self.assertIsNone(self.catalogos.localidad_id("Localidad Inexistente", 1))
+
+
+class DomicilioSinAlturaTests(ArmarPayloadTests):
+    """Cambio 89: sin altura, el domicilio viaja como aproximado.
+
+    SIIS exige un entero en ``nro_actual`` y el 38% de los casos relevados no lo
+    tiene: la gente contestó «S/N», «0», «Planta Urbana» o el nombre de la calle
+    sin número. Decisión del PM: en vez de dejarlos sin informar, van con una
+    calle convencional y altura 1.
+    """
+
+    def _con_calle(self, texto):
+        self.formulario.data["globales"][str(self.p_calle.pk)] = texto
+        self.formulario.save(update_fields=["data"])
+        return armar_payload(self.formulario, catalogos=self.cat)
+
+    def test_sin_nada_usable_va_la_calle_convencional(self):
+        for texto in ("S/N", "0", "00", "sin número", "-", "SN", "Planta Urbana"):
+            with self.subTest(texto=texto):
+                payload, faltantes = self._con_calle(texto)
+                self.assertEqual(payload["calle_actual"], "Planta urbana sin número")
+                self.assertEqual(payload["nro_actual"], 1)
+                self.assertNotIn("nro_actual", faltantes)
+                self.assertNotIn("calle_actual", faltantes)
+
+    def test_una_calle_real_sin_altura_tambien_va_convencional(self):
+        """Uniforme por decisión del PM: el nombre de la calle no viaja."""
+        payload, _ = self._con_calle("Los Alamos S/N")
+        self.assertEqual(payload["calle_actual"], "Planta urbana sin número")
+        self.assertEqual(payload["nro_actual"], 1)
+
+    def test_con_altura_no_se_toca_nada(self):
+        payload, _ = self._con_calle("Sarmiento 100")
+        self.assertEqual(payload["calle_actual"], "Sarmiento")
+        self.assertEqual(payload["nro_actual"], 100)
+
+    def test_la_correccion_del_coordinador_gana(self):
+        """Si alguien escribió la calle a mano, esa no se pisa."""
+        self.formulario.datos_siis = {"calle_actual": "Belgrano"}
+        self.formulario.save(update_fields=["datos_siis"])
+        payload, _ = self._con_calle("S/N")
+        self.assertEqual(payload["calle_actual"], "Belgrano")
+        self.assertEqual(payload["nro_actual"], 1)
+
+    def test_la_altura_corregida_manda_sobre_la_convencion(self):
+        self.formulario.datos_siis = {"nro_actual": 742}
+        self.formulario.save(update_fields=["datos_siis"])
+        payload, _ = self._con_calle("Los Alamos S/N")
+        self.assertEqual(payload["nro_actual"], 742)
+        self.assertEqual(payload["calle_actual"], "Los Alamos")

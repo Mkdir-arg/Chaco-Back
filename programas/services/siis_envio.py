@@ -18,6 +18,19 @@ from programas.services.siis import SiisCatalogError, cargar_beneficiario, catal
 TDOC_DNI = 1
 BARRIO_MINIMO = 4
 LARGO_TEXTO = 50
+
+# Cambio 89: convención para el domicilio sin altura.
+#
+# SIIS exige un entero en ``nro_actual`` y el 38% de los casos relevados no lo
+# tiene: la gente contestó «S/N», «0», «Planta Urbana» o directamente el nombre
+# de la calle sin número. Sin esto, 2.405 personas no se pueden informar.
+#
+# Es una decisión del PM, tomada sabiendo el costo: cuando no hay altura **no
+# viaja tampoco el nombre de la calle**, aunque el relevamiento lo tenga. Se
+# eligió que los dos campos vayan juntos para que en SIIS quede claro que el
+# domicilio es aproximado, en vez de una calle real con una altura inventada.
+CALLE_SIN_NUMERO = "Planta urbana sin número"
+ALTURA_SIN_NUMERO = 1
 MAYORIA_DE_EDAD = 18
 _PESOS_CUIL = (5, 4, 3, 2, 7, 6, 5, 4, 3, 2)
 _PALABRAS_DIRECCION = {"piso", "dpto", "depto", "dto", "departamento", "de", "y", "casa", "mz", "mza", "manzana"}
@@ -414,15 +427,19 @@ def armar_payload(formulario, catalogos=None, hoy=None):
 
     direccion = parsear_direccion(respuestas.get("calle_altura", ""))
     calle = correcciones.get("calle_actual") or direccion["calle"]
+    nro = correcciones.get("nro_actual", direccion["nro"])
+    if not _con_valor(nro) and not _con_valor(correcciones.get("calle_actual")):
+        # Sin altura, el domicilio viaja como aproximado (Cambio 89). La
+        # corrección del coordinador queda afuera de la regla: si alguien se
+        # tomó el trabajo de escribir la calle a mano, esa gana.
+        calle, nro = CALLE_SIN_NUMERO, ALTURA_SIN_NUMERO
+    elif not _con_valor(nro):
+        nro = ALTURA_SIN_NUMERO
     if calle:
         payload["calle_actual"] = str(calle)[:LARGO_TEXTO]
     else:
         faltantes["calle_actual"] = "Falta la calle del domicilio."
-    nro = correcciones.get("nro_actual", direccion["nro"])
-    if _con_valor(nro):
-        payload["nro_actual"] = int(nro)
-    else:
-        faltantes["nro_actual"] = "Falta la altura del domicilio (SIIS exige un número)."
+    payload["nro_actual"] = int(nro)
     piso = correcciones.get("piso_actual", direccion["piso"])
     if _con_valor(piso):
         payload["piso_actual"] = int(piso)

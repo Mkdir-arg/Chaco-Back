@@ -233,6 +233,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 86 | Provincia y localidad se alinean con SIIS sin tocar lo cargado | Becas · alta en SIIS · catálogo geográfico | `#siis` `#relevamientos` | PM — en sesión: «hay que alinear los datos de provincia y localidad del sistema con los de SIIS, sin perder nada y sin que afecte lo cargado» | 21/09/2026 | 🟢 **Hecho** | `programas.0070` (aditiva) |
 | 87 | Los identificadores del alta en SIIS se configuran dentro del pop up «Detalle SIIS» | Becas · configuración del programa | `#siis` `#ui` | PM — en sesión: «vamos a mejorar el diseño de “Alta de beneficiarios en SIIS”… tiene que estar dentro del pop up “Becas Ñachec Colaboradores / Programa SIIS #90”, los input también» | 22/09/2026 | 🟢 **Hecho** | No requiere |
 | 88 | Proceso masivo a SIIS desde el backoffice, en una pantalla no listada | Becas · alta de beneficiarios en SIIS | `#siis` `#relevamientos` `#ui` | PM — en sesión: «una funcionalidad secreta para ejecutar el enviar 1000 a SIIS de un programa: validarlo con SIIS, aprobarlo y enviarlo» | 22/09/2026 | 🟢 **Hecho** | `programas.0071` (aditiva) |
+| 89 | El domicilio sin altura viaja a SIIS como aproximado | Becas · alta de beneficiarios en SIIS | `#siis` `#relevamientos` | PM — en sesión: «a todos esos casos la calle va Planta urbana sin número y el número 1» | 22/09/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -9732,3 +9733,76 @@ código. El comando sigue funcionando igual por su cuenta.
 
 Entrada nueva. Continúa el Cambio 84, que dejó el circuito en un comando, y depende del Cambio 86 para que la
 provincia y la localidad resuelvan.
+
+# Cambio 89 — El domicilio sin altura viaja a SIIS como aproximado
+
+🟢 **HECHO — 22/09/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · alta de beneficiarios en SIIS |
+| **Etiquetas** | `#siis` `#relevamientos` |
+| **Solicitante** | PM — en sesión: «a todos esos casos la calle va Planta urbana sin número y el número 1», y ante la alternativa de conservar el nombre de calle cuando existe: «dejá Planta urbana sin número» |
+| **Fecha del pedido** | 22/09/2026 |
+| **Issue / épica** | Sin issue (pedido en sesión) · continúa el Cambio 84 |
+| **Partes afectadas** | Armado del payload de alta |
+| **Migración** | No requiere |
+
+## Pedido original
+
+SIIS exige un entero en `nro_actual`. Medido sobre los 6.395 casos de testing, **2.405 (38 %) no lo tienen**: la
+gente contestó `S/N` (242), `0` (158), `00` (108), `sin número` (68), `-` (39), `Planta Urbana` (23), `SN` (18) y
+una cola larga de nombres de calle sin altura.
+
+Esos casos se aprobaban pero el alta quedaba `INCOMPLETO` y no llegaba a SIIS. Era el faltante más grande que
+quedaba después de resolver la geografía en el Cambio 86.
+
+## Alcance acordado
+
+Cuando no se puede determinar la altura, el domicilio viaja con una calle convencional
+—«Planta urbana sin número»— y altura **1**.
+
+## Decisiones tomadas
+
+- **Uniforme: cuando no hay altura, tampoco viaja el nombre de la calle.** Se le presentó al PM que de los 2.405,
+  unos 686 son basura sin calle (`S/N`, `0`, `-`) pero **~1.719 tienen un nombre de calle real** sin número, del
+  tipo «Los Alamos S/N», y que la regla uniforme los registraría en SIIS sin ese dato. El PM eligió igual la
+  versión uniforme. El argumento a favor es legible: que los dos campos vayan juntos deja claro en SIIS que el
+  domicilio es aproximado, en vez de mostrar una calle real con una altura inventada que nadie puede distinguir
+  de una verdadera.
+- **La corrección del coordinador gana.** Si alguien escribió la calle a mano en «Completar datos para SIIS», esa
+  no se pisa: se le completa solo la altura. Es la misma precedencia que tiene todo el resto del payload desde el
+  Cambio 73, y es información que una persona verificó.
+- **La respuesta del ciudadano no se reescribe.** La convención se aplica al armar el envío, no al dato. El caso
+  sigue diciendo `S/N`, igual que las localidades siguen diciendo «Sáenz Peña» (Cambio 86).
+- **`nro_actual` deja de poder faltar.** Es el efecto buscado: sale de la lista de faltantes y esos 2.405 casos
+  pasan a ser elegibles para `--solo-completos` y para la pantalla del proceso masivo.
+
+## Implementación
+
+- `programas/services/siis_envio.py` — constantes `CALLE_SIN_NUMERO` / `ALTURA_SIN_NUMERO` y la regla dentro de
+  `armar_payload`.
+- Tests: `DomicilioSinAlturaTests` en `programas/tests/test_siis_envio.py` (5 casos). Se actualizaron dos tests
+  que describían la regla anterior: `test_la_localidad_sin_match_falta_pero_la_altura_ya_no` y
+  `test_sin_preguntas_marcadas_faltan_los_campos_del_domicilio`.
+
+## Base de datos
+
+No toca el esquema ni ningún dato. La convención vive en el armado del payload.
+
+## Pendientes / a definir
+
+- **No está confirmado que SIIS acepte esta convención.** Es una decisión nuestra sobre cómo llenar un campo que
+  el servicio exige; si el organismo prefiere otro texto o rechaza la altura 1, se cambia en una línea.
+- Queda por ver cuántos de los 2.405 pasan a completarse de verdad: algunos además tienen el barrio corto o la
+  localidad sin cruce, y esos siguen faltando por otro motivo.
+
+## Reversión
+
+Quitar las dos constantes y la rama de `armar_payload`. Los casos vuelven a quedar `INCOMPLETO` por falta de
+altura; nada queda inconsistente, porque no se escribió ningún dato.
+
+## Historial
+
+Entrada nueva. Cierra el segundo de los dos faltantes grandes que midió el Cambio 84: la geografía la resolvió el
+Cambio 86 y la altura la resuelve esta.
