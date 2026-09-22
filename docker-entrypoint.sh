@@ -1,6 +1,11 @@
 #!/bin/sh
 set -eu
 
+# Reintenta sin limite a proposito: en Kubernetes el pod puede arrancar antes que
+# la base este lista y no hay que fallar por eso. El costo es que, si la base
+# nunca responde, el Job queda «Progressing» para siempre sin dar un error: si un
+# bootstrap tarda mas de unos minutos, lo primero que hay que mirar es si el log
+# quedo en «Esperando base de datos...».
 wait_for_database() {
   echo "Esperando base de datos..."
   until python manage.py shell -c "from django.db import connection; connection.ensure_connection(); print('db-ready')" >/dev/null 2>&1; do
@@ -23,6 +28,13 @@ run_management_commands() {
 run_bootstrap() {
   wait_for_database
 
+  # Si se restauro un dump de produccion sobre este ambiente, las tablas que solo
+  # existen aca sobreviven --el dump trae un DROP por cada tabla que el contiene,
+  # y esas no estan-- mientras django_migrations vuelve al estado de produccion.
+  # Entonces migrate intenta crearlas de nuevo y muere con «Table already
+  # exists». Se arregla borrando esas tablas antes de desplegar, NUNCA con
+  # --fake: eso deja las tablas sin las columnas de los AddField posteriores y
+  # rompe en runtime en vez de en el deploy.
   if [ "${RUN_MIGRATIONS:-true}" = "true" ]; then
     echo "Aplicando migraciones..."
     python manage.py migrate --run-syncdb --noinput
