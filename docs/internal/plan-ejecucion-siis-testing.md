@@ -53,10 +53,50 @@ kubectl -n datanach-test delete job datanach-sincronizar-programas-siis-29834340
 
 ---
 
+## Punto de partida · La base recién restaurada desde producción
+
+Cuando testing se restaura con un dump de producción, la base queda en la
+migración **`0067`** y los pods siguen corriendo el código que espera la **`0071`**.
+Hasta que corran las migraciones, cualquier pantalla que toque las tablas nuevas
+da error. `/health/` sigue en 200 y no lo refleja.
+
+Las tablas que solo existen en testing ya fueron borradas por DATAÑACH después de
+restaurar (si no, `migrate` muere con «Table already exists»). Lo que falta es
+**disparar el Job de bootstrap**, que corre las migraciones `0068` a `0071`:
+
+```bash
+kubectl -n datanach-test delete job web-bootstrap-migration
+```
+
+Argo tiene auto-sync y lo recrea en segundos. Tarda entre 5 y 8 minutos; en
+Argo se ve como `waiting for completion of hook batch/Job/web-bootstrap-migration`
+y después `Synced · Healthy`.
+
+**Verificación**, desde el pod:
+
+```bash
+python manage.py showmigrations programas | tail -4
+```
+
+Las cuatro últimas tienen que figurar con `[X]`:
+
+```
+ [X] 0068_segmento_identificadores_siis
+ [X] 0069_identificadores_siis_por_nivel
+ [X] 0070_catalogo_geografico_siis
+ [X] 0071_corrida_siis
+```
+
+> El bootstrap **no** carga el catálogo geográfico si el configmap define
+> `LOCAL_BOOTSTRAP_COMMANDS` con el valor viejo. La Fase 1 lo detecta
+> («30 nuevas» en vez de «30 ya estaban») y lo carga; no es un problema.
+
+---
+
 ## Fase 0 · Cargar el padrón de RENAPER
 
-**Solo si la tabla no existe todavía.** Se corre contra MySQL, no desde el pod: la
-imagen no trae cliente de base.
+Después de una restauración desde producción **nunca existe**: hay que cargarla. Se
+corre contra MySQL, no desde el pod: la imagen no trae cliente de base.
 
 ```bash
 mariadb -h <host> -u <usuario> -p <base> < scripts/DatosPersonas.sql
