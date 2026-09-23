@@ -6,6 +6,7 @@ Vive acá —y no dentro del comando— porque lo usan dos disparadores: el coma
 implementación se habría desincronizado con la primera regla que cambiara.
 """
 
+import re
 import threading
 from dataclasses import dataclass, field
 
@@ -27,6 +28,62 @@ from programas.services.validacion_siis import validar_formulario_en_siis
 
 LOTE = 40
 MAX_ERRORES = 10
+
+# Cambio 90: a SIIS solo van los DNI que figuren en esta tabla. La carga el
+# organismo desde su planilla, igual que ``ciudadanos_renaper``; una sola
+# columna, ``dni``. Sin modelo Django a propósito: es un insumo externo, no un
+# dato del sistema.
+TABLA_APROBADOS_MATERIAS = "aprobados_materias"
+
+
+class TablaAprobadosMateriasFaltante(Exception):
+    """La tabla que decide quién va a SIIS no está cargada.
+
+    Se corta a propósito en vez de seguir sin filtro: la tabla existe para decidir
+    **quién no va**. Si faltara y el proceso mandara a todos igual, cometería
+    exactamente el error que la tabla quiere evitar, y un alta en SIIS no se
+    deshace desde acá.
+    """
+
+    def __init__(self):
+        super().__init__(
+            f"No existe la tabla `{TABLA_APROBADOS_MATERIAS}`. Cargala primero (una columna `dni`), "
+            "o corré con --sin-filtro-materias si de verdad querés mandar a todos."
+        )
+
+
+def _solo_digitos(valor):
+    return re.sub(r"\D", "", str(valor or ""))
+
+
+def dnis_aprobados_materias():
+    """DNI habilitados para ir a SIIS, en las dos formas en que pueden estar guardados.
+
+    Devuelve un ``set`` con cada DNI tal cual (solo dígitos), sin ceros a la
+    izquierda **y** rellenado a ocho, así el ``IN`` cruza tanto si
+    ``Ciudadano.dni`` guarda «07654321» como «7654321». La planilla suele venir de Excel, que se come los ceros; la
+    base puede tenerlos. Se lee a memoria y se cruza en SQL por valor, no con un
+    JOIN: la tabla la crea un script aparte y puede quedar con otra
+    intercalación, y ahí un JOIN falla con «Illegal mix of collations».
+    """
+    if TABLA_APROBADOS_MATERIAS not in connection.introspection.table_names():
+        raise TablaAprobadosMateriasFaltante()
+    dnis = set()
+    with connection.cursor() as cur:
+        # El nombre de la tabla es una constante del módulo, no una entrada
+        # externa: no hay vector de inyección (Bandit B608).
+        cur.execute(f"SELECT dni FROM `{TABLA_APROBADOS_MATERIAS}`")  # nosec B608
+        for (dni,) in cur.fetchall():
+            digitos = _solo_digitos(dni)
+            if digitos:
+                dnis.add(digitos)
+                # Sin ceros a la izquierda, por si la base los guarda y la planilla
+                # no; y rellenado a 8, por si es al reves (un DNI de 7 digitos que
+                # la base guardo como «0» + 7). Ocho es el largo de un DNI actual.
+                dnis.add(digitos.lstrip("0") or digitos)
+                dnis.add(digitos.zfill(8))
+    return dnis
+
 
 # Contadores que viajan de ``Cuenta`` a ``CorridaSiis`` con el mismo nombre.
 CONTADORES = ("mirados", "elegidos", "aprobados", "lista_espera", "altas", "incompletos", "rechazados", "errores")
@@ -50,13 +107,25 @@ class Cuenta:
     descartados: dict = field(default_factory=dict)
 
 
-def candidatos(*, programa=None, convocatoria=None, relevamiento=None, segmento=None, solo_enviar=False):
+def candidatos(
+    *,
+    programa=None,
+    convocatoria=None,
+    relevamiento=None,
+    segmento=None,
+    solo_enviar=False,
+    filtrar_materias=True,
+):
     """Casos que todavía no se informaron a SIIS.
 
     Los ``ENVIADO`` (pendientes de resolución) y los ya ``APROBADO`` sin alta,
     para que una corrida cortada se retome sola. Se saltean los que tienen un
     conflicto de carga duplicada sin resolver: eso lo decide una persona, igual
     que en la pantalla de revisión.
+
+    Con ``filtrar_materias`` (el default) solo entran los DNI de
+    ``aprobados_materias`` (Cambio 90). Si la tabla no existe, lanza
+    ``TablaAprobadosMateriasFaltante`` en vez de devolver a todos.
     """
     ultimo = EnvioSIIS.objects.filter(formulario=OuterRef("pk")).order_by("-creado", "-id").values("estado")[:1]
     casos = (
@@ -85,6 +154,8 @@ def candidatos(*, programa=None, convocatoria=None, relevamiento=None, segmento=
     casos = casos.exclude(Q(conflicto_duplicado=True) & Q(conflicto_resuelto=False)).exclude(
         cargas_en_conflicto__conflicto_resuelto=False
     )
+    if filtrar_materias:
+        casos = casos.filter(ciudadano__dni__in=dnis_aprobados_materias())
     return casos.distinct()
 
 
@@ -244,6 +315,9 @@ def correr(corrida, *, responsable=None, catalogos=None, lote=LOTE, max_errores=
             finalizada=timezone.now(),
             mensaje=f"No se pudo leer un catálogo de SIIS: {exc}",
         )
+        return corrida
+    except TablaAprobadosMateriasFaltante as exc:
+        _guardar(corrida, cuenta, estado=CorridaSiis.Estado.DETENIDA, finalizada=timezone.now(), mensaje=str(exc))
         return corrida
     except Exception as exc:  # noqa: BLE001 - la corrida es el único lugar donde se puede informar
         _guardar(

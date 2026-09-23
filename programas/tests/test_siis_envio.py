@@ -38,6 +38,7 @@ from programas.services.siis_envio import (
     mensaje_envio,
     parsear_direccion,
 )
+from programas.tests.test_proceso_masivo import crear_tabla_aprobados_materias
 
 
 class _BaseEnvioTest(TestCase):
@@ -594,6 +595,7 @@ class ComandoEnvioMasivoTests(_BaseEnvioTest):
 
     def setUp(self):
         super().setUp()
+        crear_tabla_aprobados_materias("20301234")
         self.enviar = patch("programas.management.commands.enviar_casos_siis.enviar_beneficiario_a_siis").start()
         self.addCleanup(patch.stopall)
         self.enviar.side_effect = lambda f, u, **kw: EnvioSIIS.objects.create(
@@ -674,6 +676,7 @@ class ComandoCircuitoCompletoTests(_BaseEnvioTest):
 
     def setUp(self):
         super().setUp()
+        crear_tabla_aprobados_materias("20301234")
         # El circuito vive en el servicio desde que lo comparten el comando y
         # la pantalla del proceso masivo: los parches apuntan ahí.
         base = "programas.services.proceso_masivo."
@@ -890,3 +893,50 @@ class DomicilioSinAlturaTests(ArmarPayloadTests):
         payload, _ = self._con_calle("Los Alamos S/N")
         self.assertEqual(payload["nro_actual"], 742)
         self.assertEqual(payload["calle_actual"], "Los Alamos")
+
+
+@override_settings(SIIS_API_CLIENT_ID="id-de-prueba", SIIS_API_CLIENT_SECRET="secreto-de-prueba")
+class FiltroMateriasEnComandosTests(_BaseEnvioTest):
+    """Cambio 90 en los dos comandos: sin tabla no corren, y el flag lo salta."""
+
+    def setUp(self):
+        super().setUp()
+        self.enviar = patch("programas.services.proceso_masivo.enviar_beneficiario_a_siis").start()
+        self.enviar_directo = patch(
+            "programas.management.commands.enviar_casos_siis.enviar_beneficiario_a_siis"
+        ).start()
+        self.addCleanup(patch.stopall)
+        for parche in (self.enviar, self.enviar_directo):
+            parche.side_effect = lambda f, u, **kw: EnvioSIIS.objects.create(
+                formulario=f, estado=EnvioSIIS.Estado.ENVIADO, documento="1", siis_id=1
+            )
+
+    def test_procesar_sin_tabla_no_corre(self):
+        with self.assertRaises(CommandError) as ctx:
+            call_command("procesar_casos_siis", "--aplicar", "--solo-enviar", stdout=StringIO())
+        self.assertIn("aprobados_materias", str(ctx.exception))
+        self.enviar.assert_not_called()
+
+    def test_procesar_con_el_flag_manda_igual(self):
+        call_command("procesar_casos_siis", "--aplicar", "--solo-enviar", "--sin-filtro-materias", stdout=StringIO())
+        self.assertEqual(self.enviar.call_count, 1)
+
+    def test_procesar_informa_cuantos_quedan_afuera(self):
+        crear_tabla_aprobados_materias("11111111")  # ninguno de los casos
+        salida = StringIO()
+        call_command("procesar_casos_siis", "--solo-enviar", stdout=salida)
+        self.assertIn("1 de 1 pendientes quedan afuera", salida.getvalue())
+
+    def test_enviar_sin_tabla_no_corre(self):
+        with self.assertRaises(CommandError):
+            call_command("enviar_casos_siis", "--aplicar", stdout=StringIO())
+        self.enviar_directo.assert_not_called()
+
+    def test_enviar_respeta_la_tabla(self):
+        crear_tabla_aprobados_materias("11111111")
+        call_command("enviar_casos_siis", "--aplicar", stdout=StringIO())
+        self.enviar_directo.assert_not_called()
+
+    def test_enviar_con_el_flag_manda_igual(self):
+        call_command("enviar_casos_siis", "--aplicar", "--sin-filtro-materias", stdout=StringIO())
+        self.assertEqual(self.enviar_directo.call_count, 1)

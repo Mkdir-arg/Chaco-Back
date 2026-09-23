@@ -158,6 +158,40 @@ Si «no cruza» es mucho más alto, avisar: probablemente el catálogo no se car
 
 ---
 
+## Fase 3b · Cargar la tabla de aprobados (Cambio 90)
+
+**Obligatoria antes de la Fase 5.** A SIIS solo van los DNI que figuren en
+`aprobados_materias`. Si la tabla no existe, `procesar_casos_siis` y la pantalla
+del proceso masivo **se niegan a correr**, a propósito.
+
+La carga el organismo desde su planilla. Se corre contra MySQL, no desde el pod:
+
+```bash
+mariadb -h <host> -u <usuario> -p <base> < scripts/aprobados_materias_plantilla.sql
+```
+
+El archivo trae el `CREATE TABLE` y un `INSERT` de ejemplo: hay que reemplazar los
+DNI de ejemplo por los reales, uno por fila. Con puntos o sin puntos, con o sin
+ceros a la izquierda, da lo mismo: el sistema normaliza antes de cruzar.
+
+**Esperado:** la última línea del script devuelve la cantidad de DNI cargados.
+
+```sql
+SELECT COUNT(*) AS dni_habilitados FROM aprobados_materias;
+```
+
+> **Si el ensayo de la Fase 5 dice** «No existe la tabla `aprobados_materias`»,
+> es esto. Cargarla y volver a correr.
+
+Cuando corra la Fase 5, el ensayo informa cuántos pendientes quedan afuera por no
+figurar en la tabla, separado de los incompletos:
+
+```
+Filtro por aprobados_materias: 4213 de 6681 pendientes quedan afuera por no figurar en la tabla.
+```
+
+---
+
 ## Fase 4 · Configurar los identificadores del programa
 
 **Esto lo hace el equipo de DATAÑACH desde la pantalla, no DevOps.** Se documenta
@@ -267,6 +301,8 @@ python manage.py completar_casos_renaper --aplicar --lote 50
 
 # 3. Ver cuánto cruza
 python manage.py seed_catalogo_siis --revisar
+
+# 3b. Cargar aprobados_materias (contra MySQL, no desde el pod) - ver Fase 3b
 
 # 4. UN caso, y verificar en SIIS antes de seguir
 python manage.py procesar_casos_siis --solo-completos --total 1 --lote 40 --aplicar --usuario <usuario>

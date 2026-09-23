@@ -234,6 +234,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 87 | Los identificadores del alta en SIIS se configuran dentro del pop up «Detalle SIIS» | Becas · configuración del programa | `#siis` `#ui` | PM — en sesión: «vamos a mejorar el diseño de “Alta de beneficiarios en SIIS”… tiene que estar dentro del pop up “Becas Ñachec Colaboradores / Programa SIIS #90”, los input también» | 22/09/2026 | 🟢 **Hecho** | No requiere |
 | 88 | Proceso masivo a SIIS desde el backoffice, en una pantalla no listada | Becas · alta de beneficiarios en SIIS | `#siis` `#relevamientos` `#ui` | PM — en sesión: «una funcionalidad secreta para ejecutar el enviar 1000 a SIIS de un programa: validarlo con SIIS, aprobarlo y enviarlo» | 22/09/2026 | 🟢 **Hecho** | `programas.0071` (aditiva) |
 | 89 | El domicilio sin altura viaja a SIIS como aproximado | Becas · alta de beneficiarios en SIIS | `#siis` `#relevamientos` | PM — en sesión: «a todos esos casos la calle va Planta urbana sin número y el número 1» | 22/09/2026 | 🟢 **Hecho** | No requiere |
+| 90 | A SIIS solo van los DNI de la tabla `aprobados_materias` | Becas · alta de beneficiarios en SIIS | `#siis` `#relevamientos` | PM — en sesión: «que solo se envíen los casos que estén en una tabla `aprobados_materias` con una columna `dni`; mismos comandos, consulta la tabla y solo intenta enviar los que estén» | 22/09/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -9806,3 +9807,85 @@ altura; nada queda inconsistente, porque no se escribió ningún dato.
 
 Entrada nueva. Cierra el segundo de los dos faltantes grandes que midió el Cambio 84: la geografía la resolvió el
 Cambio 86 y la altura la resuelve esta.
+
+# Cambio 90 — A SIIS solo van los DNI de la tabla `aprobados_materias`
+
+🟢 **HECHO — 23/09/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · alta de beneficiarios en SIIS (proceso masivo, comandos y pantalla) |
+| **Etiquetas** | `#siis` `#relevamientos` |
+| **Solicitante** | PM — en sesión: «que solo se envíen los casos que estén en una tabla llamada `aprobados_materias`, con una sola columna `dni`; todo el proceso funciona exactamente igual con los mismos comandos, pero consulta esa tabla y solo intenta enviar los que estén» |
+| **Fecha del pedido** | 22/09/2026 |
+| **Issue / épica** | Sin issue (pedido en sesión) · continúa los Cambios 83, 84 y 88 |
+| **Partes afectadas** | `procesar_casos_siis` · `enviar_casos_siis` · pantalla del proceso masivo |
+| **Migración** | No requiere (la tabla es un insumo externo, sin modelo) |
+
+## Pedido original
+
+Después de la primera corrida real en testing —168 altas en SIIS—, el organismo pidió una condición más: que
+a SIIS vayan **únicamente** los estudiantes que aprobaron las materias. La lista la tiene el organismo en una
+planilla y la va a cargar en una tabla con una sola columna, `dni`. Los comandos y la pantalla tienen que seguir
+usándose igual.
+
+## Alcance acordado
+
+- Filtro **siempre puesto**, sin flag para prenderlo: mismos comandos, misma pantalla.
+- Aplica a **todo camino que llegue a SIIS**: el proceso masivo (comando y pantalla) y `enviar_casos_siis`.
+- Si la tabla no existe, **no se corre**. Hay un flag explícito para saltearlo.
+- El ensayo informa cuántos quedan afuera por la tabla, separado de los incompletos.
+
+## Decisiones tomadas
+
+- **Fallar cerrado.** La tabla existe para decidir **quién no va**. Si faltara y el proceso mandara a todos igual,
+  cometería exactamente el error que la tabla quiere evitar, y un alta en SIIS no se deshace desde DATAÑACH. Por
+  eso `candidatos()` lanza `TablaAprobadosMateriasFaltante`, los comandos terminan con `CommandError`, la corrida
+  del hilo queda `DETENIDA` con el motivo y la pantalla muestra el bloqueo en vez de ofrecer el botón.
+- **El salto es un flag con nombre, `--sin-filtro-materias`.** Existe para los tests y para el día que alguien
+  de verdad quiera mandar a todos. Que quede escrito en el comando, no implícito en la ausencia de una tabla.
+- **Tabla cruda, sin modelo Django**, igual que `ciudadanos_renaper`: es un insumo del organismo, no un dato del
+  sistema. Se lee a memoria y se cruza en SQL por valor —`dni IN (...)`— y no con un `JOIN`, porque una tabla
+  creada por un script aparte puede quedar con otra intercalación y ahí el `JOIN` falla con «Illegal mix of
+  collations».
+- **DNI normalizado de los dos lados.** Excel se come los ceros a la izquierda y la base puede tenerlos, o al
+  revés. Cada DNI de la tabla entra al `IN` en tres formas: solo dígitos, sin ceros a la izquierda y rellenado a
+  ocho. Así «7.654.321» cruza con un `Ciudadano.dni` guardado como «07654321».
+- **Comprobación de existencia portable.** `ciudadanos_renaper` se verifica con `information_schema`, que es de
+  MySQL y por eso ese comando no tiene tests de la tabla. Acá se usa `connection.introspection.table_names()`,
+  que anda en MySQL y en el SQLite de los tests: el filtro está probado.
+- **La pantalla comprueba antes de crear la corrida.** El hilo la detendría igual, pero no tiene sentido dejar una
+  corrida `DETENIDA` por algo que se puede avisar de entrada.
+
+## Implementación
+
+- `programas/services/proceso_masivo.py` — `TABLA_APROBADOS_MATERIAS`, `TablaAprobadosMateriasFaltante`,
+  `dnis_aprobados_materias()`, parámetro `filtrar_materias` en `candidatos()`, y el desenlace en `correr()`.
+- `programas/management/commands/procesar_casos_siis.py` y `enviar_casos_siis.py` — flag
+  `--sin-filtro-materias`, `CommandError` si falta la tabla, y la línea del ensayo con cuántos quedan afuera.
+- `programas/views/proceso_masivo.py` y `templates/.../proceso_masivo.html` — bloqueo visible sin la tabla.
+- `scripts/aprobados_materias_plantilla.sql` — el molde para cargar la tabla desde la planilla.
+- Tests: `FiltroAprobadosMateriasTests`, `PantallaSinTablaMateriasTests` (`test_proceso_masivo.py`) y
+  `FiltroMateriasEnComandosTests` (`test_siis_envio.py`). Las clases que ya corrían los comandos crean la tabla
+  en su `setUp` con el helper `crear_tabla_aprobados_materias`.
+
+## Base de datos
+
+Una tabla nueva **que carga el organismo**, no una migración: `aprobados_materias (dni VARCHAR(20))`. El
+molde está en `scripts/aprobados_materias_plantilla.sql`. Ningún dato existente cambia.
+
+## Pendientes / a definir
+
+- **Cargar la tabla en testing** desde la planilla del organismo. Hasta entonces el proceso masivo se niega a
+  correr, a propósito.
+- Las 168 altas ya hechas en testing salieron **antes** de este filtro. Si alguna no figura en la tabla, ya está
+  en SIIS y no se deshace desde acá.
+
+## Reversión
+
+Correr con `--sin-filtro-materias`, o quitar el filtro de `candidatos()`. Nada queda inconsistente.
+
+## Historial
+
+Entrada nueva. Es el cuarto camino de selección que se agrega al proceso masivo desde el Cambio 84: estado del
+caso, payload completo (`--solo-completos`), programa (pantalla) y ahora la tabla del organismo.
