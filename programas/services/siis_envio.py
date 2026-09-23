@@ -251,6 +251,22 @@ def _con_valor(valor):
     return valor is not None and str(valor).strip() != ""
 
 
+def _altura_valida(valor):
+    """¿Es una altura de puerta de verdad?
+
+    Un 0 no lo es: es «sin número» escrito con un dígito. ``_con_valor`` lo da
+    por bueno --para el resto del payload el 0 sí es un valor legítimo-- y por
+    eso «SAN MARTIN 0» salía con ``nro_actual: 0``, que SIIS recibe y guarda
+    como una altura real. Acá se lo trata como falta de altura, igual que «S/N».
+    """
+    if not _con_valor(valor):
+        return False
+    try:
+        return int(valor) > 0
+    except (TypeError, ValueError):
+        return False
+
+
 def _primer_valor(formulario, clave):
     valores = [str(v).strip() for v in respuesta_de(formulario.data, clave) if str(v or "").strip()]
     return valores[0] if valores else None
@@ -428,12 +444,12 @@ def armar_payload(formulario, catalogos=None, hoy=None):
     direccion = parsear_direccion(respuestas.get("calle_altura", ""))
     calle = correcciones.get("calle_actual") or direccion["calle"]
     nro = correcciones.get("nro_actual", direccion["nro"])
-    if not _con_valor(nro) and not _con_valor(correcciones.get("calle_actual")):
+    if not _altura_valida(nro) and not _con_valor(correcciones.get("calle_actual")):
         # Sin altura, el domicilio viaja como aproximado (Cambio 89). La
         # corrección del coordinador queda afuera de la regla: si alguien se
         # tomó el trabajo de escribir la calle a mano, esa gana.
         calle, nro = CALLE_SIN_NUMERO, ALTURA_SIN_NUMERO
-    elif not _con_valor(nro):
+    elif not _altura_valida(nro):
         nro = ALTURA_SIN_NUMERO
     if calle:
         payload["calle_actual"] = str(calle)[:LARGO_TEXTO]

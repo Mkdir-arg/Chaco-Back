@@ -868,6 +868,26 @@ class DomicilioSinAlturaTests(ArmarPayloadTests):
                 self.assertNotIn("nro_actual", faltantes)
                 self.assertNotIn("calle_actual", faltantes)
 
+    def test_la_altura_cero_no_es_una_altura(self):
+        """«SAN MARTIN 0» salia con nro_actual: 0, que SIIS guarda como altura real."""
+        for texto in ("SAN MARTIN 0", "Sarmiento 00", "AV BELGRANO 0"):
+            with self.subTest(texto=texto):
+                payload, faltantes = self._con_calle(texto)
+                self.assertEqual(payload["calle_actual"], "Planta urbana sin número")
+                self.assertEqual(payload["nro_actual"], 1)
+                self.assertNotIn("nro_actual", faltantes)
+
+    def test_la_altura_cero_corregida_a_mano_tampoco(self):
+        self.formulario.datos_siis = {"nro_actual": 0}
+        self.formulario.save(update_fields=["datos_siis"])
+        payload, _ = self._con_calle("SAN MARTIN 0")
+        self.assertEqual(payload["nro_actual"], 1)
+
+    def test_una_altura_real_no_se_toca(self):
+        payload, _ = self._con_calle("SAN MARTIN 1")
+        self.assertEqual(payload["calle_actual"], "SAN MARTIN")
+        self.assertEqual(payload["nro_actual"], 1)
+
     def test_una_calle_real_sin_altura_tambien_va_convencional(self):
         """Uniforme por decisión del PM: el nombre de la calle no viaja."""
         payload, _ = self._con_calle("Los Alamos S/N")
@@ -921,11 +941,19 @@ class FiltroMateriasEnComandosTests(_BaseEnvioTest):
         call_command("procesar_casos_siis", "--aplicar", "--solo-enviar", "--sin-filtro-materias", stdout=StringIO())
         self.assertEqual(self.enviar.call_count, 1)
 
-    def test_procesar_informa_cuantos_quedan_afuera(self):
-        crear_tabla_aprobados_materias("11111111")  # ninguno de los casos
+    def test_procesar_informa_que_el_filtro_esta_puesto(self):
+        """Informa el tamaño de la tabla, que ya está en memoria.
+
+        Antes decía cuántos quedaban afuera, pero eso costaba dos ``count()``
+        sobre un queryset con ``distinct()`` y subconsulta correlacionada, y
+        contra la base de ECOM no entraban en su ``read_timeout`` de 10 s.
+        """
+        crear_tabla_aprobados_materias("11111111", "22222222")  # ninguno de los casos
         salida = StringIO()
         call_command("procesar_casos_siis", "--solo-enviar", stdout=salida)
-        self.assertIn("1 de 1 pendientes quedan afuera", salida.getvalue())
+        self.assertIn("Filtro por aprobados_materias", salida.getvalue())
+        self.assertIn("2 DNI cargados", salida.getvalue())
+        self.assertIn("No hay casos que procesar", salida.getvalue())
 
     def test_enviar_sin_tabla_no_corre(self):
         with self.assertRaises(CommandError):
