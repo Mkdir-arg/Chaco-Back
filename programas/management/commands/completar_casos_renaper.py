@@ -335,19 +335,27 @@ class Command(BaseCommand):
         if not con_lugar:
             self._log("Lugar de nacimiento: se omite por --sin-lugar-nacimiento")
 
-        casos = Formulario.objects.select_related("ciudadano", "relevamiento__convocatoria__segmento").order_by("pk")
+        # Primero solo los ids; los casos se traen lote a lote (abajo). Traerlos
+        # todos de una vez era pedirle a MySQL varios MB de JSON --``data`` y
+        # ``definicion`` de cada caso-- en una sola consulta, y contra la base de
+        # ECOM eso supera su ``read_timeout`` de 10 s: la consulta muere con
+        # «Lost connection to server during query» antes de devolver nada. Una
+        # lista de 6.682 enteros, en cambio, vuelve al instante.
+        ids = Formulario.objects.order_by("pk")
         if options["convocatoria"]:
-            casos = casos.filter(relevamiento__convocatoria_id=options["convocatoria"])
+            ids = ids.filter(relevamiento__convocatoria_id=options["convocatoria"])
         if options["limite"]:
-            casos = casos[: options["limite"]]
-        casos = list(casos)
-        if not casos:
+            ids = ids[: options["limite"]]
+        ids = list(ids.values_list("pk", flat=True))
+        if not ids:
             self._log("No hay casos que procesar.")
             return
-        total_lotes = (len(casos) + tamano - 1) // tamano
-        self._log(f"Casos a procesar: {len(casos)} en {total_lotes} lotes de {tamano}\n")
+        total_lotes = (len(ids) + tamano - 1) // tamano
+        self._log(f"Casos a procesar: {len(ids)} en {total_lotes} lotes de {tamano}\n")
 
-        convocatorias = Convocatoria.objects.filter(pk__in={c.relevamiento.convocatoria_id for c in casos})
+        convocatorias = Convocatoria.objects.filter(
+            pk__in=set(Formulario.objects.filter(pk__in=ids).values_list("relevamiento__convocatoria_id", flat=True))
+        )
         self._asegurar_disenos(convocatorias, aplicar)
 
         self._log("")
@@ -357,7 +365,16 @@ class Command(BaseCommand):
         cuenta.update(sin_apoderado=0, fotos=0, guardados=0)
         sin_opcion = {}
 
-        for numero, lote in _lotes(casos, tamano):
+        for numero, lote_ids in _lotes(ids, tamano):
+            lote = list(
+                Formulario.objects.select_related("ciudadano", "relevamiento__convocatoria__segmento")
+                .filter(pk__in=lote_ids)
+                .order_by("pk")
+            )
+            if not lote:
+                # Un caso borrado entre la lectura de ids y la del lote no puede
+                # cortar la corrida por un IndexError en la linea de log.
+                continue
             cambiados = []
             for caso in lote:
                 con_foto = self._poner_foto(caso, fotos)
