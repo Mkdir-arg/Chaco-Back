@@ -24,7 +24,15 @@
     </p>
   </div>
 
-  {% if en_curso %}
+  {% if tabla_materias_faltante %}
+  {% comment %}Cambio 90: sin la tabla que decide quién va a SIIS no se ofrece lanzar
+  nada. Fallar cerrado: si mandara a todos, cometería el error que la tabla evita.{% endcomment %}
+  <div class="rounded-lg bg-danger-soft border border-danger-subtle p-4 text-sm mb-6" role="alert">
+    <strong class="text-heading">Falta la tabla que decide quién va a SIIS</strong>
+    <p class="text-body mt-1">{{ motivo_bloqueo }}</p>
+    <p class="text-body-subtle mt-1">A SIIS solo se informan los DNI que figuran en <code>aprobados_materias</code>. Hasta que esté cargada, esta pantalla no lanza nada.</p>
+  </div>
+  {% elif en_curso %}
   {# Corriendo: la pantalla se relee sola #}
   <div class="bg-white rounded-xl border border-base shadow-sm p-5">
     <div class="flex items-center justify-between gap-4 flex-wrap mb-4">
@@ -108,7 +116,8 @@
     </form>
     <p class="text-xs text-body-subtle mt-3">
       El total cuenta casos que se mandan. Los que tienen datos faltantes se saltean sin tocarlos,
-      así que puede mirar más candidatos de los que pedís.
+      así que puede mirar más candidatos de los que pedís. Solo entran los DNI que figuran en
+      <code>aprobados_materias</code>.
     </p>
   </div>
 

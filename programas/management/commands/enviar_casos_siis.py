@@ -51,6 +51,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db.models import OuterRef, Q, Subquery
 
 from programas.models import EnvioSIIS, Formulario
+from programas.services import proceso_masivo
 from programas.services.siis_envio import Catalogos, enviar_beneficiario_a_siis
 
 ESTADOS_ENVIO = (
@@ -94,6 +95,14 @@ class Command(BaseCommand):
             "--si-entiendo",
             action="store_true",
             help="Confirma que se informan casos sin aprobar. SIIS no deduplica ni permite dar de baja desde acá.",
+        )
+        parser.add_argument(
+            "--sin-filtro-materias",
+            action="store_true",
+            help=(
+                "Ignora la tabla aprobados_materias y considera a todos los casos. Por defecto a SIIS solo van "
+                "los DNI que figuran en esa tabla, y si la tabla no existe el comando no corre."
+            ),
         )
         parser.add_argument(
             "--reintentar-rechazados",
@@ -161,6 +170,10 @@ class Command(BaseCommand):
         if options["reintentar_rechazados"]:
             repetibles.append(EnvioSIIS.Estado.RECHAZADO)
         casos = casos.filter(Q(ultimo_envio__isnull=True) | Q(ultimo_envio__in=repetibles))
+        # Cambio 90: a SIIS solo van los DNI de aprobados_materias. Cualquier
+        # camino que llegue a SIIS respeta la misma regla; este es uno de ellos.
+        if not options["sin_filtro_materias"]:
+            casos = casos.filter(ciudadano__dni__in=proceso_masivo.dnis_aprobados_materias())
         if options["limite"]:
             casos = casos[: options["limite"]]
         return list(casos)
@@ -190,7 +203,12 @@ class Command(BaseCommand):
             raise CommandError("Faltan SIIS_API_CLIENT_ID / SIIS_API_CLIENT_SECRET en el entorno.")
 
         solicitante = self._solicitante(options["usuario"])
-        casos = self._casos(options, estados)
+        try:
+            casos = self._casos(options, estados)
+        except proceso_masivo.TablaAprobadosMateriasFaltante as exc:
+            raise CommandError(str(exc)) from exc
+        if options["sin_filtro_materias"]:
+            self._log("SIN filtro por aprobados_materias: se consideran todos los casos.", self.style.WARNING)
 
         ya_enviados = (
             EnvioSIIS.objects.filter(estado=EnvioSIIS.Estado.ENVIADO).values("formulario_id").distinct().count()

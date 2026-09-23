@@ -34,8 +34,16 @@ class ProcesoMasivoView(CapacidadRequeridaMixin, LoginRequiredMixin, DetailView)
         ctx = super().get_context_data(**kwargs)
         ctx["corrida"] = CorridaSiis.objects.filter(programa=self.object).order_by("-creado").first()
         ctx["en_curso"] = CorridaSiis.en_curso()
-        ctx["pendientes"] = servicio.candidatos(programa=self.object).count()
         ctx["total_maximo"] = TOTAL_MAXIMO
+        # Cambio 90: sin la tabla que decide quién va, la pantalla no ofrece
+        # lanzar nada. Se muestra el motivo en vez de un 500.
+        try:
+            ctx["pendientes"] = servicio.candidatos(programa=self.object).count()
+            ctx["tabla_materias_faltante"] = False
+        except servicio.TablaAprobadosMateriasFaltante as exc:
+            ctx["pendientes"] = None
+            ctx["tabla_materias_faltante"] = True
+            ctx["motivo_bloqueo"] = str(exc)
         return ctx
 
 
@@ -49,6 +57,14 @@ def proceso_masivo_lanzar(request, pk):
 
     if CorridaSiis.en_curso() is not None:
         messages.error(request, "Ya hay una corrida en curso. Esperá a que termine o frenala.")
+        return destino
+    # Cambio 90: se comprueba antes de crear la corrida. Si faltara la tabla, el
+    # hilo la detendría igual, pero mejor no dejar una corrida DETENIDA por algo
+    # que se puede avisar de entrada.
+    try:
+        servicio.dnis_aprobados_materias()
+    except servicio.TablaAprobadosMateriasFaltante as exc:
+        messages.error(request, str(exc))
         return destino
 
     try:

@@ -94,6 +94,14 @@ class Command(BaseCommand):
             help="Solo procesa los casos cuyo payload hoy sale sin faltantes. Descarta el resto sin tocarlos.",
         )
         parser.add_argument(
+            "--sin-filtro-materias",
+            action="store_true",
+            help=(
+                "Ignora la tabla aprobados_materias y considera a todos los casos. Por defecto a SIIS solo van "
+                "los DNI que figuran en esa tabla, y si la tabla no existe el comando no corre."
+            ),
+        )
+        parser.add_argument(
             "--solo-enviar",
             action="store_true",
             help="Salta validación y aprobación: solo informa el alta de los ya aprobados.",
@@ -146,12 +154,28 @@ class Command(BaseCommand):
             )
         catalogos = Catalogos()
         cuenta = proceso_masivo.Cuenta()
-        consulta = proceso_masivo.candidatos(
-            convocatoria=options["convocatoria"],
-            relevamiento=options["relevamiento"],
-            segmento=options["segmento"],
-            solo_enviar=options["solo_enviar"],
-        )
+        filtros = {
+            "convocatoria": options["convocatoria"],
+            "relevamiento": options["relevamiento"],
+            "segmento": options["segmento"],
+            "solo_enviar": options["solo_enviar"],
+        }
+        filtrar_materias = not options["sin_filtro_materias"]
+        try:
+            consulta = proceso_masivo.candidatos(filtrar_materias=filtrar_materias, **filtros)
+            if filtrar_materias:
+                # Cambio 90: se informa cuántos quedaron afuera por no estar en la
+                # tabla, separado de los incompletos, para que el número se entienda.
+                sin_filtro = proceso_masivo.candidatos(filtrar_materias=False, **filtros).count()
+                fuera = sin_filtro - consulta.count()
+                self._log(
+                    f"Filtro por {proceso_masivo.TABLA_APROBADOS_MATERIAS}: {fuera} de {sin_filtro} pendientes "
+                    "quedan afuera por no figurar en la tabla."
+                )
+            else:
+                self._log("SIN filtro por aprobados_materias: se consideran todos los casos.", self.style.WARNING)
+        except proceso_masivo.TablaAprobadosMateriasFaltante as exc:
+            raise CommandError(str(exc)) from exc
         total = max(1, options["total"])
         if options["solo_completos"]:
             pendientes = list(consulta)

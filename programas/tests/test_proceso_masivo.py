@@ -7,6 +7,7 @@ from unittest.mock import patch
 
 from django.contrib.auth.models import User
 from django.core.management import call_command
+from django.db import connection
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -71,9 +72,30 @@ class CorridaSiisTests(TestCase):
         self.assertEqual(self._corrida(total_pedido=10, elegidos=3).progreso, 30)
 
 
+def crear_tabla_aprobados_materias(*dnis):
+    """Crea la tabla cruda del Cambio 90 con los DNI dados.
+
+    Es una tabla sin modelo --la carga el organismo desde su planilla--, asi que
+    los tests la crean a mano. Va en ``setUp`` y no en ``setUpTestData``: la
+    transaccion de cada test la deshace al terminar.
+    """
+    tabla = proceso_masivo.TABLA_APROBADOS_MATERIAS
+    with connection.cursor() as cur:
+        cur.execute(f"CREATE TABLE {tabla} (dni VARCHAR(20))")
+        for dni in dnis:
+            cur.execute(f"INSERT INTO {tabla} (dni) VALUES (%s)", [dni])
+
+
+def borrar_tabla_aprobados_materias():
+    with connection.cursor() as cur:
+        cur.execute(f"DROP TABLE {proceso_masivo.TABLA_APROBADOS_MATERIAS}")
+
+
 class _BaseProcesoTest(TestCase):
     def setUp(self):
         call_command("seed_becas", stdout=StringIO())
+        # Cambio 90: sin esta tabla, candidatos() se niega a devolver nada.
+        crear_tabla_aprobados_materias("20301234")
         self.programa = ProgramaSiis.objects.create(nombre="Ñachec", siis_programa_id=79, siis_funcion_id=4)
         self.segmento = Segmento.objects.create(nombre="Seg", cupo_maximo=100, programa=self.programa)
         self.convocatoria = Convocatoria.objects.create(
@@ -331,3 +353,71 @@ class PantallaProcesoMasivoTests(_BaseProcesoTest):
     def test_frenar_sin_corrida_no_rompe(self):
         resp = self.client.post(self._url("proceso_masivo_frenar"))
         self.assertEqual(resp.status_code, 302)
+
+
+class FiltroAprobadosMateriasTests(_BaseProcesoTest):
+    """Cambio 90: a SIIS solo van los DNI de ``aprobados_materias``."""
+
+    def _otro_ciudadano(self, dni):
+        return Ciudadano.objects.create(
+            dni=dni, nombre="Otra", apellido="Persona", fecha_nacimiento=date(1990, 1, 1), genero="F"
+        )
+
+    def _caso_de(self, ciudadano):
+        return Formulario.objects.create(
+            relevamiento=self.relevamiento, ciudadano=ciudadano, estado=Formulario.Estado.ENVIADO
+        )
+
+    def test_deja_afuera_al_dni_que_no_esta_en_la_tabla(self):
+        adentro = self._caso()
+        afuera = self._caso_de(self._otro_ciudadano("99887766"))
+        pks = set(proceso_masivo.candidatos(programa=self.programa).values_list("pk", flat=True))
+        self.assertIn(adentro.pk, pks)
+        self.assertNotIn(afuera.pk, pks)
+
+    def test_sin_filtro_entran_todos(self):
+        self._caso()
+        self._caso_de(self._otro_ciudadano("99887766"))
+        self.assertEqual(proceso_masivo.candidatos(programa=self.programa, filtrar_materias=False).count(), 2)
+
+    def test_cruza_aunque_la_planilla_venga_sin_ceros_o_con_puntos(self):
+        """Excel se come los ceros a la izquierda; la base puede tenerlos."""
+        borrar_tabla_aprobados_materias()
+        crear_tabla_aprobados_materias("7.654.321")
+        caso = self._caso_de(self._otro_ciudadano("07654321"))
+        self.assertIn(caso.pk, proceso_masivo.candidatos(programa=self.programa).values_list("pk", flat=True))
+
+    def test_sin_la_tabla_falla_cerrado(self):
+        """La tabla decide quien NO va. Si falta, mandar a todos seria el error que evita."""
+        borrar_tabla_aprobados_materias()
+        self._caso()
+        with self.assertRaises(proceso_masivo.TablaAprobadosMateriasFaltante):
+            list(proceso_masivo.candidatos(programa=self.programa))
+
+    def test_sin_la_tabla_la_corrida_queda_detenida_con_el_motivo(self):
+        borrar_tabla_aprobados_materias()
+        corrida = CorridaSiis.objects.create(programa=self.programa, total_pedido=5)
+        with patch("programas.services.proceso_masivo.Catalogos"):
+            corrida = proceso_masivo.correr(corrida)
+        self.assertEqual(corrida.estado, CorridaSiis.Estado.DETENIDA)
+        self.assertIn("aprobados_materias", corrida.mensaje)
+
+
+class PantallaSinTablaMateriasTests(_BaseProcesoTest):
+    def setUp(self):
+        super().setUp()
+        borrar_tabla_aprobados_materias()
+        self.admin = User.objects.create_superuser("admin_sin_tabla", password="x")
+        self.client.force_login(self.admin)
+
+    def test_la_pantalla_avisa_y_no_ofrece_lanzar(self):
+        resp = self.client.get(reverse("becas:proceso_masivo", args=[self.programa.pk]))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Falta la tabla que decide qui\u00e9n va a SIIS")
+        self.assertNotContains(resp, 'name="total_pedido"')
+
+    def test_lanzar_no_crea_la_corrida(self):
+        with patch("programas.views.proceso_masivo.servicio.lanzar") as lanzar:
+            self.client.post(reverse("becas:proceso_masivo_lanzar", args=[self.programa.pk]), {"total_pedido": "5"})
+        self.assertFalse(CorridaSiis.objects.exists())
+        lanzar.assert_not_called()
