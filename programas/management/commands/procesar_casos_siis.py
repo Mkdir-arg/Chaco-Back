@@ -164,13 +164,18 @@ class Command(BaseCommand):
         try:
             consulta = proceso_masivo.candidatos(filtrar_materias=filtrar_materias, **filtros)
             if filtrar_materias:
-                # Cambio 90: se informa cuántos quedaron afuera por no estar en la
-                # tabla, separado de los incompletos, para que el número se entienda.
-                sin_filtro = proceso_masivo.candidatos(filtrar_materias=False, **filtros).count()
-                fuera = sin_filtro - consulta.count()
+                # Solo se informa el tamaño de la tabla, que ya está en memoria por
+                # el filtro. Antes se contaban los candidatos con y sin filtro para
+                # decir cuántos quedaban afuera, pero cada ``count()`` sobre este
+                # queryset --con ``distinct()`` y una subconsulta correlacionada--
+                # Django lo envuelve en un SELECT COUNT(*) FROM (SELECT DISTINCT …),
+                # y contra la base de ECOM eso no entra en su ``read_timeout`` de
+                # 10 s: el comando moria antes de empezar. Cuántos quedan afuera se
+                # deduce igual comparando con «Candidatos pendientes».
+                habilitados = len(proceso_masivo.dnis_aprobados_materias())
                 self._log(
-                    f"Filtro por {proceso_masivo.TABLA_APROBADOS_MATERIAS}: {fuera} de {sin_filtro} pendientes "
-                    "quedan afuera por no figurar en la tabla."
+                    f"Filtro por {proceso_masivo.TABLA_APROBADOS_MATERIAS}: "
+                    f"solo entran los casos cuyo DNI figure ahí ({habilitados} DNI cargados)."
                 )
             else:
                 self._log("SIN filtro por aprobados_materias: se consideran todos los casos.", self.style.WARNING)
