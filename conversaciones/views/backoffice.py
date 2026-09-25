@@ -139,7 +139,9 @@ def enviar_mensaje_operador(request, conversacion_id):
     if not form.is_valid() or not form.cleaned_data["mensaje"]:
         return JsonResponse({"success": False, "error": "Mensaje vacío"})
 
-    conversacion = get_object_or_404(Conversacion, id=conversacion_id)
+    # El servicio compara ``operador_asignado`` con quien responde: traerlo en el
+    # mismo SELECT evita releer al operador (ya cargado por el middleware) por cada envío.
+    conversacion = get_object_or_404(Conversacion.objects.select_related("operador_asignado"), id=conversacion_id)
     try:
         mensaje = crear_mensaje_operador(conversacion, request.user, form.cleaned_data["mensaje"])
     except PermissionError as exc:

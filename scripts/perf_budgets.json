@@ -15,7 +15,8 @@
       "presupuesto_58_formulario_detalle": "Ruta nueva en el manifiesto (Cambio 58): el detalle de un caso arma las respuestas y hasta ahora no tenía guarda, que es justamente lo que dejó pasar la regresión de becas_relevamiento_detalle. Medido con seed_perf scale 200 bajo el TestCase de presupuestos (Django 5.2, SQLite): 19 consultas; el presupuesto queda en medido + 1 = 20. La duplicada tolerada es la misma de siempre (programa_becas + programa_dispositivos del sidebar, ver becas_consulta_duplicada). El caso del seed no tiene foto de la definición, así que mide el camino de compatibilidad; el camino nuevo (respuestas_legibles) es más barato —una consulta de adjuntos en vez de cuatro— y tiene su propia guarda con assertNumQueries en programas/tests/test_respuestas.py.",
       "presupuesto_290_formulario_publico": "Medido con seed_perf scale 200 bajo el TestCase de presupuestos (Django 5.2, SQLite): carga_relevamiento 21→24. #290 agrega al modelo Relevamiento la CheckConstraint relevamiento_tipo_territorial_coherente (tipo/territorial), que el ModelForm valida en full_clean con una consulta SELECT _check; dentro de la transacción del TestCase, Q.check() la envuelve en atomic y cuesta SAVEPOINT + SELECT + RELEASE (3 consultas; en producción es 1). El valor medido es 23 y el presupuesto queda en medido + 1. El atomic propio que RelevamientoForm.save abría en cada alta se eliminó para el caso sin padrón (evitaba +2 por savepoint anidado con el atomic de Relevamiento.save); con padrón se conserva para guardar relevamiento y habilitados todo-o-nada.",
       "revision_bandejas": "Rutas nuevas: las dos pantallas de revisión no estaban auditadas y eran las peores del sistema. Con 40.000 casos y las OPTIONS de producción, becas:revision devolvía 500 por timeout a los 11 s y becas:revision_formularios tardaba 206 s (no paginaba, y la marca de carga duplicada se anotaba con un Exists correlacionado que MySQL resolvía escaneando la tabla por cada fila). Medido con seed_perf scale 200 en frío: becas_revision 15 queries / 1 duplicada, becas_revision_formularios 16 / 1. El presupuesto queda en medido + 1, como el resto. La duplicada es la lectura de Programa por código del sidebar, igual que en las demás rutas de Becas.",
-      "referencia_tiempo_274_276": "#274 reemplaza la lectura anónima de login por un POST autenticado y #276 consolida los servicios de Compose usados por CI. La ejecución de referencia en GitHub Actions midió 1432.86 ms; se actualiza sólo la alarma gruesa de tiempo. Los presupuestos de queries permanecen como guarda dura."
+      "referencia_tiempo_274_276": "#274 reemplaza la lectura anónima de login por un POST autenticado y #276 consolida los servicios de Compose usados por CI. La ejecución de referencia en GitHub Actions midió 1432.86 ms; se actualiza sólo la alarma gruesa de tiempo. Los presupuestos de queries permanecen como guarda dura.",
+      "perf_core_legajos_conversaciones": "Medido contra el banco MySQL de scripts/perf_mysql (2.000 conversaciones, request fría): login 22→21 (el FOR UPDATE va en la misma lectura del get_or_create del Profile, sin releer la fila), envio_conversacion 8→7 (la conversación se trae con select_related del operador, que el servicio compara con quien responde), portal_perfil 10→9, portal_programas 9→8 y portal_consultas 8→7 (ciudadano_required resuelve el legajo por el descriptor y lo deja cacheado en request.user; la vista y base_ciudadano.html ya no repiten la consulta). Cada ruta baja exactamente la consulta que se eliminó, que es la misma en SQLite y en MySQL, así que el techo se corre 1 y conserva el margen que tenía. conversaciones_lista conserva 15: la página pasa de un LEFT JOIN + GROUP BY sobre toda la tabla de mensajes a dos subconsultas evaluadas solo para las 25 filas del LIMIT (28 ms → 1 ms en el banco), con la misma cantidad de consultas."
     },
     "timing": {
       "reference_total_ms": 1432.86,
@@ -25,7 +26,7 @@
     }
   },
   "budgets": {
-    "login": {"route": "users:login", "max_queries": 23, "max_duplicate_queries": 2},
+    "login": {"route": "users:login", "max_queries": 22, "max_duplicate_queries": 2},
     "inicio": {"route": "core:inicio", "max_queries": 20, "max_duplicate_queries": 0},
     "dashboard_redirect": {"route": "core:dashboard", "max_queries": 4, "max_duplicate_queries": 0},
     "dashboard_metricas": {"route": "dashboard:api_metricas", "max_queries": 10, "max_duplicate_queries": 0},
@@ -34,9 +35,9 @@
     "conversaciones_lista": {"route": "conversaciones:lista", "max_queries": 15, "max_duplicate_queries": 1},
     "conversacion_detalle": {"route": "conversaciones:detalle", "max_queries": 14, "max_duplicate_queries": 0},
     "portal_home": {"route": "portal:home", "max_queries": 4, "max_duplicate_queries": 0},
-    "portal_perfil": {"route": "portal:ciudadano_mi_perfil", "max_queries": 12, "max_duplicate_queries": 0},
-    "portal_programas": {"route": "portal:ciudadano_mis_programas", "max_queries": 11, "max_duplicate_queries": 0},
-    "portal_consultas": {"route": "portal:ciudadano_mis_consultas", "max_queries": 10, "max_duplicate_queries": 0},
+    "portal_perfil": {"route": "portal:ciudadano_mi_perfil", "max_queries": 11, "max_duplicate_queries": 0},
+    "portal_programas": {"route": "portal:ciudadano_mis_programas", "max_queries": 10, "max_duplicate_queries": 0},
+    "portal_consultas": {"route": "portal:ciudadano_mis_consultas", "max_queries": 9, "max_duplicate_queries": 0},
     "becas_segmentos": {"route": "becas:segmentos", "max_queries": 15, "max_duplicate_queries": 1},
     "becas_convocatorias": {"route": "becas:convocatorias", "max_queries": 12, "max_duplicate_queries": 1},
     "becas_relevamientos": {"route": "becas:relevamientos", "max_queries": 16, "max_duplicate_queries": 1},
@@ -50,6 +51,6 @@
     "alta_ciudadano": {"route": "legajos:ciudadano_manual", "max_queries": 14, "max_duplicate_queries": 0},
     "carga_relevamiento": {"route": "becas:relevamiento_crear", "max_queries": 24, "max_duplicate_queries": 0},
     "edicion_convocatoria": {"route": "becas:convocatoria_editar", "max_queries": 13, "max_duplicate_queries": 0},
-    "envio_conversacion": {"route": "conversaciones:enviar_mensaje_operador", "max_queries": 10, "max_duplicate_queries": 1}
+    "envio_conversacion": {"route": "conversaciones:enviar_mensaje_operador", "max_queries": 9, "max_duplicate_queries": 1}
   }
 }

@@ -20,10 +20,11 @@ class UsuariosLoginView(LoginView):
 
         # La sesión web que acaba de autenticarse reemplaza a cualquier sesión
         # anterior. El bloqueo hace determinista el resultado ante dos ingresos
-        # casi simultáneos del mismo usuario.
+        # casi simultáneos del mismo usuario: el FOR UPDATE va en la misma lectura
+        # del get_or_create (si el perfil no existe, se crea dentro de esta
+        # transacción), sin releer la fila recién obtenida.
         with transaction.atomic():
-            profile, _ = Profile.objects.get_or_create(user=form.get_user())
-            profile = Profile.objects.select_for_update().get(pk=profile.pk)
+            profile, _ = Profile.objects.select_for_update().get_or_create(user=form.get_user())
             profile.backoffice_session_key = self.request.session.session_key
             profile.save(update_fields=["backoffice_session_key"])
 

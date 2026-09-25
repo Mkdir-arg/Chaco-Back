@@ -4,7 +4,9 @@ from unittest.mock import patch
 from django.conf import settings
 from django.contrib.auth.models import Group, Permission, User
 from django.contrib.contenttypes.models import ContentType
+from django.db import connection
 from django.test import Client, TestCase, override_settings
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
 from conversaciones.forms.chat import IniciarConversacionForm, MensajeConversacionForm
@@ -314,3 +316,45 @@ class NotificadorGlobalConversacionesPerformanceTests(TestCase):
         self.assertIn("document.addEventListener('visibilitychange'", script)
         self.assertIn("this.controladorSolicitud?.abort()", script)
         self.assertIn("signal: controlador.signal", script)
+
+
+class ListaConversacionesConsultasTests(TestCase):
+    def setUp(self):
+        self.operador = User.objects.create_user(username="supervisor-lista", password="secret", is_superuser=True)
+
+    def test_la_pagina_cuenta_mensajes_sin_agrupar_toda_la_tabla_de_mensajes(self):
+        con_mensajes = Conversacion.objects.create(tipo="anonima", prioridad="normal", estado="activa")
+        sin_mensajes = Conversacion.objects.create(tipo="anonima", prioridad="normal", estado="pendiente")
+        Mensaje.objects.create(conversacion=con_mensajes, remitente="ciudadano", contenido="hola")
+        Mensaje.objects.create(conversacion=con_mensajes, remitente="ciudadano", contenido="sigo acá")
+        Mensaje.objects.create(conversacion=con_mensajes, remitente="operador", contenido="respuesta")
+        Mensaje.objects.create(conversacion=con_mensajes, remitente="ciudadano", contenido="leído", leido=True)
+
+        queryset = get_conversaciones_queryset_para_lista(self.operador, {})
+
+        # La página es UNA consulta y los contadores salen de ella (sin N+1 ni JOIN con mensajes).
+        with self.assertNumQueries(1):
+            filas = {conversacion.pk: conversacion for conversacion in queryset[:25]}
+        sql = str(queryset.query)
+        self.assertNotIn(f"JOIN {connection.ops.quote_name('conversaciones_mensaje')}", sql)
+        self.assertEqual(filas[con_mensajes.pk].total_mensajes, 4)
+        self.assertEqual(filas[con_mensajes.pk].mensajes_no_leidos, 2)
+        # Sin mensajes cuenta 0 (no None): la plantilla imprime el número tal cual.
+        self.assertEqual(filas[sin_mensajes.pk].total_mensajes, 0)
+        self.assertEqual(filas[sin_mensajes.pk].mensajes_no_leidos, 0)
+        with self.assertNumQueries(1):
+            self.assertEqual(queryset.count(), 2)
+
+    def test_responder_no_relee_al_operador_si_la_conversacion_lo_trae_precargado(self):
+        conversacion = Conversacion.objects.create(
+            tipo="anonima", prioridad="normal", estado="activa", operador_asignado=self.operador
+        )
+        conversacion = Conversacion.objects.select_related("operador_asignado").get(pk=conversacion.pk)
+
+        # INSERT del mensaje + UPDATE de la primera respuesta: ninguna lectura de auth_user.
+        with CaptureQueriesContext(connection) as capturadas:
+            mensaje = crear_mensaje_operador(conversacion, self.operador, "respuesta")
+
+        self.assertEqual(mensaje.remitente, "operador")
+        self.assertEqual(len(capturadas.captured_queries), 2)
+        self.assertFalse([q["sql"] for q in capturadas.captured_queries if "auth_user" in q["sql"]])
