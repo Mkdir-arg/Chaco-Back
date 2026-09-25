@@ -7,7 +7,7 @@ y formularios. Capacidad requerida: ``becas.campo``.
 from datetime import timedelta
 
 from django.db import transaction
-from django.db.models import Count, Q
+from django.db.models import Count
 from django.utils import timezone
 from rest_framework import mixins, serializers, status, viewsets
 from rest_framework.authentication import SessionAuthentication, TokenAuthentication
@@ -40,11 +40,10 @@ def _formulario_por_dni(relevamiento, dni):
     dni = normalizar_dni(dni)
     if not dni:
         return None
-    return (
-        relevamiento.formularios.filter(Q(ciudadano__dni=dni) | Q(datos_identificacion__dni=dni))
-        .order_by("creado", "pk")
-        .first()
-    )
+    # Dos consultas por índice en vez de un OR sobre la clave del JSON, que
+    # recorría todos los formularios del relevamiento (Cambio 91).
+    formularios = relevamiento.formularios.order_by("creado", "pk")
+    return formularios.filter(dni_titular=dni).first() or formularios.filter(ciudadano__dni=dni).first()
 
 
 def _formulario_dni_existe(relevamiento, dni):
