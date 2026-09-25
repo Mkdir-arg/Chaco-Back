@@ -19,6 +19,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
 from django.db import transaction
+from django.db.models import Count, Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -58,7 +59,7 @@ from programas.services.respuestas import respuestas_legibles, sincronizar_desde
 from programas.services.siis import SiisCatalogError, catalogo, funciones_programa
 from programas.services.siis_envio import enviar_beneficiario_a_siis, mensaje_envio
 from programas.services.validacion_siis import validar_formulario_en_siis
-from programas.views.relevamientos import CAP_RELEVAMIENTO_PUBLICO
+from programas.views.relevamientos import CAP_RELEVAMIENTO_PUBLICO, PaginadorConConteo
 
 logger = logging.getLogger(__name__)
 
@@ -165,13 +166,15 @@ def _pagina_hidratada(pks, orden, duplicados=True):
     """Trae los datos de presentación **solo** de los casos de la página.
 
     La página se elige con una consulta liviana (ver ``RevisionPersonasListView``) y
-    recién acá se pagan los ``select_related``. La columna ``data`` no la usa ninguna
-    de las tres plantillas de revisión, así que se difiere.
+    recién acá se pagan los ``select_related``. Ninguna de las tres plantillas de
+    revisión abre las respuestas (``data``, ``respuestas``), los datos para SIIS ni la
+    foto del formulario (``definicion``, ~7 KB por caso): los cuatro JSON se difieren,
+    que son casi todo el ancho de la fila y un ``json.loads`` cada uno.
     """
     filas = (
         Formulario.objects.filter(pk__in=pks)
         .select_related("ciudadano", "relevamiento__convocatoria__segmento", "relevamiento__territorial")
-        .defer("data")
+        .defer("data", "respuestas", "definicion", "datos_siis")
         .order_by(*orden)
     )
     return _marcar_carga_duplicada_pendiente(filas) if duplicados else list(filas)
@@ -259,14 +262,22 @@ class RevisionPersonasListView(CapacidadRequeridaMixin, LoginRequiredMixin, List
         # MySQL arranca el plan por ``programas_relevamiento``, materializa las 40.000
         # filas y recién después recorta (3,7 s medidos). Sin ellos recorre el índice
         # de ``creado`` hacia atrás y corta en la página.
-        convocatorias = list(convocatorias_visibles(self.request.user).values_list("pk", flat=True))
+        # Por los ids de los relevamientos visibles, no por el join con la convocatoria:
+        # con el join MySQL arranca por ``programas_relevamiento``, recorre los 22.000
+        # casos y recién después ordena (18 ms medidos por página, otro tanto el COUNT);
+        # con el IN sobre ``relevamiento_id`` recorre el índice de ``creado`` hacia atrás
+        # y corta en la página (0,1 ms). La exclusión de los públicos también baja al
+        # relevamiento, así ni la página ni el conteo hacen join.
+        relevamientos = Relevamiento.objects.filter(convocatoria__in=convocatorias_visibles(self.request.user))
+        if not puede(self.request.user, CAP_RELEVAMIENTO_PUBLICO):
+            relevamientos = relevamientos.exclude(tipo=Relevamiento.Tipo.PUBLICO)
+        relevamiento_ids = list(relevamientos.values_list("pk", flat=True))
         # Solo el pk: la fila entera se lee una vez, en la hidratación. Proyectando todas
         # las columnas MySQL recorre la tabla y ordena (``type=ALL`` + filesort); pidiendo
         # solo el pk el índice cubre la consulta y la página profunda baja de 255 a 42 ms.
         # Sigue siendo O(offset): si el padrón llega a cientos de miles, lo que hace falta
         # es paginar por keyset (creado, pk) < el último visto, no un OFFSET más barato.
-        qs = Formulario.objects.filter(relevamiento__convocatoria_id__in=convocatorias).only("pk").order_by(*self.orden)
-        qs = _sin_formularios_publicos_si_no_puede(qs, self.request.user)
+        qs = Formulario.objects.filter(relevamiento_id__in=relevamiento_ids).only("pk").order_by(*self.orden)
         estado = self.request.GET.get("estado")
         if estado:
             qs = qs.filter(estado=estado)
@@ -365,14 +376,21 @@ def revision_formularios(request, relevamiento_pk):
     # Por el manager del modelo, no por ``relevamiento.formularios``: el manager
     # relacionado empareja cada fila con el relevamiento leyendo ``relevamiento_id``, que
     # ``only("pk")`` difiere, y eso dispara una consulta por fila.
-    formularios = Formulario.objects.filter(relevamiento=relevamiento).order_by("numero")
+    casos = Formulario.objects.filter(relevamiento=relevamiento)
+    # Un solo recorrido del relevamiento trae el total y los pendientes: eran dos COUNT
+    # sobre las mismas 20.000 filas. Los pendientes son siempre los de todo el
+    # relevamiento, con o sin filtro por estado.
+    conteos = casos.aggregate(total=Count("pk"), pendientes=Count("pk", filter=Q(estado=Formulario.Estado.ENVIADO)))
+    formularios = casos.order_by("numero")
     estado = request.GET.get("estado")
-    if estado:
-        formularios = formularios.filter(estado=estado)
 
     # Sin paginar, un relevamiento de 3.300 casos rendía una sola página con todas las
     # filas y su JSON de respuestas. Se pagina como el resto de las bandejas.
-    paginador = Paginator(formularios.only("pk"), CASOS_POR_PAGINA)
+    if estado:
+        # Con filtro, lo que se pagina es el subconjunto: lo cuenta el paginador.
+        paginador = Paginator(formularios.filter(estado=estado).only("pk"), CASOS_POR_PAGINA)
+    else:
+        paginador = PaginadorConConteo(formularios.only("pk"), CASOS_POR_PAGINA, total=conteos["total"] or 0)
     pagina = paginador.get_page(request.GET.get("page"))
 
     return render(
@@ -386,7 +404,7 @@ def revision_formularios(request, relevamiento_pk):
             "is_paginated": pagina.has_other_pages(),
             "estados": Formulario.Estado.choices,
             "estado_actual": estado or "",
-            "pendientes": relevamiento.formularios.filter(estado=Formulario.Estado.ENVIADO).count(),
+            "pendientes": conteos["pendientes"] or 0,
         },
     )
 

@@ -783,3 +783,64 @@ class ConvocatoriaDetalleAlcanceTests(_BaseRelevTest):
         self.assertEqual({f.pk for f in resp.context["beneficiarios"]}, {self.caso_territorial.pk})
         self.assertEqual(resp.context["n_beneficiarios"], 1)
         self.assertNotIn(self.rel_publico, resp.context["relevamientos"])
+
+
+class ConvocatoriaDetalleBeneficiariosPorPkTests(_BaseRelevTest):
+    """La tabla de beneficiarios del detalle elige la página por pk y la hidrata después.
+
+    Con los ``select_related`` en la consulta paginada, en cuanto la convocatoria tenía
+    más de un relevamiento MySQL materializaba todos sus casos (con los JSON) en una
+    tabla temporal antes de ordenar y recortar: 720 ms medidos con 20.000 casos en dos
+    relevamientos, contra 26 ms eligiendo la página por pk.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.client.force_login(self.admin)
+        self.rel_a2 = Relevamiento.objects.create(
+            convocatoria=self.conv_a,
+            territorial=self.territorial,
+            fecha_asignada=date(2026, 6, 2),
+            zona="Zona A2",
+        )
+        # 60 casos repartidos en dos relevamientos: la primera página (50) no los cubre.
+        self.casos = [
+            Formulario.objects.create(
+                relevamiento=self.rel_a if numero % 2 else self.rel_a2,
+                celular=f"36241{numero:05d}",
+            )
+            for numero in range(60)
+        ]
+
+    def _detalle(self, **params):
+        return self.client.get(reverse("becas:convocatoria_detalle", args=[self.conv_a.pk]), params)
+
+    def test_la_pagina_llega_completa_ordenada_y_con_el_total(self):
+        resp = self._detalle()
+
+        pagina = resp.context["beneficiarios"]
+        self.assertEqual(len(pagina), 50)
+        # El total lo trae el mismo aggregate que cuenta los aprobados: no se cuenta dos veces.
+        self.assertEqual(pagina.paginator.count, 60)
+        self.assertEqual(pagina.paginator.num_pages, 2)
+        self.assertEqual(resp.context["n_beneficiarios"], 60)
+        pks = [f.pk for f in pagina]
+        esperado = sorted(pks, key=lambda pk: (-Formulario.objects.get(pk=pk).creado.timestamp(), -pk))
+        self.assertEqual(pks, esperado)
+
+    def test_la_segunda_pagina_trae_el_resto(self):
+        resp = self._detalle(beneficiarios_page=2)
+
+        pagina = resp.context["beneficiarios"]
+        self.assertEqual(len(pagina), 10)
+        self.assertEqual(pagina.number, 2)
+
+    def test_las_filas_llegan_hidratadas_sin_consultas_extra(self):
+        resp = self._detalle()
+
+        filas = list(resp.context["beneficiarios"])
+        with self.assertNumQueries(0):
+            leidas = [(f.relevamiento.nombre, f.ciudadano, f.estado, f.datos_identificacion) for f in filas]
+        self.assertEqual(len(leidas), 50)
+        # Lo que la tabla no muestra no viaja: la foto del formulario son ~7 KB por caso.
+        self.assertTrue({"data", "respuestas", "definicion", "datos_siis"} <= filas[0].get_deferred_fields())
