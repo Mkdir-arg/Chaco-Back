@@ -236,6 +236,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 89 | El domicilio sin altura viaja a SIIS como aproximado | Becas · alta de beneficiarios en SIIS | `#siis` `#relevamientos` | PM — en sesión: «a todos esos casos la calle va Planta urbana sin número y el número 1» | 22/09/2026 | 🟢 **Hecho** | No requiere |
 | 90 | A SIIS solo van los DNI de la tabla `aprobados_materias` | Becas · alta de beneficiarios en SIIS | `#siis` `#relevamientos` | PM — en sesión: «que solo se envíen los casos que estén en una tabla `aprobados_materias` con una columna `dni`; mismos comandos, consulta la tabla y solo intenta enviar los que estén» | 22/09/2026 | 🟢 **Hecho** | No requiere |
 | 91 | El envío de la inscripción pública deja de dar 500 por timeout: menos trabajo con el lock tomado y búsquedas por índice | Becas · inscripción pública (portal, paso 2) y sync de la app de campo | `#performance` `#relevamientos` `#api` `#datos` | PM — en sesión: «analizá los logs y fijate por qué tengo muchos errores 500 desde un formulario en las últimas 24 horas» | 25/09/2026 | 🟢 **Hecho — en producción** | `programas.0072` (aditiva, con relleno) |
+| 92 | Reportes de Becas sin recorrer todo el padrón (avance, embudo, beneficiarios) y banco MySQL de 20.000 casos para medir | Becas · reportes transversales · infraestructura de medición | `#performance` `#relevamientos` `#metodo` | PM — en sesión: «un análisis de cuellos de botella y errores de perfo que podamos mejorar, y también mejorando la perfo del código» | 25/09/2026 | 🟡 **Hecho — sin desplegar** | No requiere |
 
 **Notas del índice**
 
@@ -10040,3 +10041,117 @@ Entrada nueva. Primer incidente de timeout en el portal público; los anteriores
   tildando «Crear y ver relevamientos de formulario público» en el rol desde la pantalla de Roles. Queda
   abierto lo del Cambio 26: la UI de subsegmentos llama «Referente asignado» al Coordinador Regional, y eso
   confunde con el rol Referente.
+
+# Cambio 92 — Reportes de Becas sin recorrer todo el padrón (avance, embudo, beneficiarios) y banco MySQL de 20.000 casos para medir
+
+🟡 **HECHO — SIN DESPLEGAR — 25/09/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · reportes transversales (`/becas/reportes/`) · infraestructura de medición |
+| **Etiquetas** | `#performance` `#relevamientos` `#metodo` |
+| **Solicitante** | PM — en sesión: «un análisis de cuellos de botella y errores de perfo que podamos mejorar, y también mejorando la perfo del código» |
+| **Fecha del pedido** | 25/09/2026 |
+| **Issue / épica** | Sin issue (pedido en sesión) · continúa el Cambio 66 y el 91 |
+| **Partes afectadas** | `reporte_avance`, `reporte_embudo`, `beneficiarios_queryset` y `reporte_beneficiarios_desde_queryset` (`programas/services/reportes_becas.py`) · `scripts/perf_mysql/` (nuevo) |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Después del incidente del Cambio 91, el PM pidió un análisis general de cuellos de botella y de errores de
+performance, y que se mejorara lo que se pudiera. La condición que puso el Cambio 66 sigue vigente: no se toca
+performance sin medir contra MySQL con volumen y con las `OPTIONS` de producción.
+
+## Alcance acordado
+
+1. Un banco reproducible que cualquiera pueda levantar en minutos, **dentro del repo** (el de septiembre vivía en
+   el scratchpad de una sesión y se perdió).
+2. Medir las 26 rutas presupuestadas más las pesadas del dashboard, los reportes y la revisión, con la forma de
+   producción: **un solo relevamiento público con 20.000 casos completos**.
+3. Arreglar lo que da o va a dar el 500 de 10 s, o escala lineal con los inscriptos, y dejar el resto medido y
+   escrito.
+
+## Decisiones tomadas
+
+- **Banco en `scripts/perf_mysql/`** (excluido del release por `export-ignore` y por el guard de
+  `publish-main.yml`): `settings_bench.py` (config.settings sin la sesión única y con caché en memoria),
+  `escalar_bench.py` (20.000 casos con foto de definición de ~7 KB, respuestas, legajo, adjunto, validación SIIS
+  y traza de aprobación, en lotes de 1.000), `bench_mysql.py` (las rutas de `perf_audit` + 15 pesadas: ms en
+  frío y en caliente, consultas, duplicadas, SQL más lento) y `perfil_ruta.py` (cProfile de una ruta, separa SQL
+  de plantillas y Python). La base tiene que llamarse `chaco_perf_ci` porque `seed_perf` se niega a correr con
+  otro nombre; la receta completa está en el `README.md` de la carpeta.
+- **Medición base (banco: 22.000 casos, 2.005 relevamientos, 201 convocatorias, caché caliente):**
+
+  | Ruta | Antes | Dónde se iba |
+  |---|---|---|
+  | Excel de respuestas por persona (dashboard) | **8,2 s** (SQL 0,9 s) | openpyxl: 440.000 celdas (60 %), 60.000 objetos del ORM (10 %) |
+  | Excel de beneficiarios | **5,6 s** (SQL 1,9 s) | filas de 8 KB por el JSON `definicion`, ordenamiento en tabla temporal, openpyxl |
+  | Beneficiarios (pantalla, página de 25) | 504 ms (SQL 482) | MySQL ordena las 8.900 filas anchas antes de cortar la página |
+  | Embudo | 266 ms (SQL 265) | dos subconsultas correlacionadas sobre `ValidacionSIS` por formulario |
+  | Avance | 276 ms (SQL 236) | un solo join convocatoria × relevamientos × formularios con 10 `COUNT DISTINCT` |
+  | Dashboard de Becas (datos) | 421 ms frío / 22 ms caliente | 26 consultas; la caché de 5 min hace el resto |
+  | Convocatorias (lista) | 108 ms (SQL 27) | sin paginar: 201 filas × 4 `{% url %}` |
+  | Mis consultas (portal) | 374 ms (SQL 15) | sin paginar: 2.000 conversaciones del ciudadano del seed |
+  | Las 26 rutas presupuestadas | 5–140 ms | dentro de presupuesto; ninguna cerca del timeout |
+
+- **Avance: los casos se cuentan aparte.** El join convocatoria × relevamientos × formularios multiplicaba filas
+  y cada `COUNT DISTINCT` recorría el producto. Ahora los relevamientos se anotan en la consulta de
+  convocatorias y los formularios en una consulta agrupada por `convocatoria_id`, y se unen en Python. Sigue
+  siendo una cantidad fija de consultas (lo cuida `test_avance_mantiene_query_count_con_muchos_formularios`).
+  **276 → 108 ms** (SQL 236 → 41).
+- **Embudo: la última validación SIIS como anti-join**, el mismo patrón que `_siis_ok` del dashboard (Cambio
+  66): «no hay otra validación posterior del mismo formulario» en vez de dos `Subquery` correlacionadas más un
+  `IN` sobre ellas. Misma semántica (`-creado, -pk`). **266 → 146 ms** (SQL 265 → 129; lo que queda son los
+  agregados sobre los 22.000 casos, ya por índice).
+- **Beneficiarios: ordenar angosto, hidratar la página.** `beneficiarios_queryset` devuelve solo `pk` y
+  `modificado` más la fecha calculada por la que se ordena; MySQL materializa y ordena el recorte entero antes
+  de cortar la página, y con `definicion` (7 KB), `respuestas`, `data` y los joins de presentación eran filas de
+  varios KB. Medido con `EXPLAIN ANALYZE` sobre el banco: filas anchas 741 ms → `defer` de los JSON 222 ms →
+  sin `select_related` 114 ms → **angosto 76 ms**. `reporte_beneficiarios_desde_queryset` hidrata de a lotes de
+  1.000 (`_hidratar_beneficiarios`: `pk__in`, `defer` de los JSON, `select_related`, mismo orden, fecha pegada).
+  Pantalla **504 → 115 ms**; Excel **5,6 → 2,5 s** (SQL 1,9 → 0,4 s; lo que queda es openpyxl y armar 8.900
+  objetos).
+- **Lo que se midió y no se tocó**, con el motivo:
+  - **openpyxl es el 60 % del Excel de respuestas** (0,35 ms por fila de 22 celdas, `write_only` ya activo).
+    Con 20.000 casos son 8 s de CPU por descarga; escala lineal. La salida correcta es generar los Excel
+    grandes fuera del request (ya listado en el Cambio 66) o, mucho más barato, ofrecer CSV en esa descarga
+    (10× más rápido). Decisión de producto, no se tomó acá.
+  - **Listas sin paginar**: Convocatorias (backoffice) y Mis consultas (portal) crecen lineal. En producción
+    hoy son decenas de convocatorias y una o dos consultas por ciudadano: no duelen. Se anota para cuando
+    duelan; agregarles paginación es un cambio de UI (auditoría de diseño).
+  - **Relevamientos (lista)**: paginada, pero arma 1.600 objetos por request para los filtros (los 2.000
+    territoriales del seed en un selector). Mismo comentario: depende de cuántos territoriales haya.
+  - **Login**: 22 consultas, 4 duplicadas, dentro del presupuesto (23).
+
+## Implementación
+
+- `programas/services/reportes_becas.py` — `reporte_avance` (dos consultas), `reporte_embudo` (anti-join
+  `ultimas`), `beneficiarios_queryset` (angosto), `_hidratar_beneficiarios`, `_lotes`, `_fila_beneficiario`.
+- `scripts/perf_mysql/` — `README.md`, `_bootstrap.py`, `settings_bench.py`, `escalar_bench.py`,
+  `bench_mysql.py`, `perfil_ruta.py`. `.gitattributes` y el guard de `publish-main.yml` lo excluyen del release.
+- Tests: los 12 de `test_reportes_becas.py` siguen igual (incluido el de cantidad fija de consultas del avance y
+  el de `LIMIT 25` de beneficiarios); comparados contra `HEAD` en un worktree, la lista de fallos del venv local
+  es idéntica (14 = 14, todos el `dicts` de Python 3.14 + Django 4.2).
+
+## Base de datos
+
+Sin cambios.
+
+## Pendientes / a definir
+
+- **Excel grandes fuera del request o en CSV** (respuestas por persona: 8 s con 20.000 casos, lineal).
+- **Paginar** Convocatorias y Mis consultas del portal cuando el volumen lo pida.
+- Siguen abiertos los del Cambio 91: sync de la app de campo con `sincronizar_desde_legacy` y el legajo dentro
+  de su lock; timeouts de Gran Base (10/20 s) en el paso 1; correo sincrónico; señal de `Ciudadano` a Redis;
+  `CONN_MAX_AGE` bajo daphne (verificar `SHOW PROCESSLIST`).
+- Distribuciones del dashboard en la exportación (`claves=None`, sin caché): no se midió por separado; el
+  export completo del dashboard dio 425 ms frío / 41 ms caliente con 20.000 casos, así que no es urgente.
+
+## Reversión
+
+Volver a las versiones anteriores de las cuatro funciones de `reportes_becas.py`. El banco es independiente del
+código productivo.
+
+## Historial
+
+Entrada nueva. Segunda pasada de performance sobre Becas, con el banco que faltaba desde el Cambio 66.
