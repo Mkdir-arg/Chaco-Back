@@ -144,6 +144,40 @@ class CandidatosTests(_BaseProcesoTest):
         caso.save(update_fields=["conflicto_duplicado", "conflicto_resuelto"])
         self.assertFalse(proceso_masivo.candidatos(programa=self.programa).exists())
 
+    def test_no_usa_distinct_y_cada_caso_sale_una_sola_vez(self):
+        """Nada multiplica filas (el conflicto de carga se excluye por subconsulta),
+        y el DISTINCT hacía que MySQL materializara todos los candidatos con su
+        JSON antes de ordenar y cortar."""
+        caso = self._caso()
+        for _ in range(2):
+            Formulario.objects.create(
+                relevamiento=self.relevamiento,
+                ciudadano=self.ciudadano,
+                duplicado_de=caso,
+                conflicto_duplicado=True,
+                conflicto_resuelto=True,
+            )
+        consulta = proceso_masivo.candidatos(programa=self.programa)
+        self.assertNotIn("DISTINCT", str(consulta.query))
+        pks = list(consulta.values_list("pk", flat=True))
+        self.assertEqual(len(pks), len(set(pks)))
+        self.assertIn(caso.pk, pks)
+
+    def test_hidratar_por_lotes_recorre_todos_en_orden_de_pk(self):
+        casos = [self._caso() for _ in range(5)]
+        consulta = proceso_masivo.candidatos(programa=self.programa)
+        ids = proceso_masivo.ids_de(consulta)
+        self.assertEqual(ids, sorted(c.pk for c in casos))
+        self.assertEqual(proceso_masivo.ids_de(consulta, limite=2), ids[:2])
+        with self.assertNumQueries(3):  # cinco ids de a dos: tres lotes, una consulta cada uno
+            hidratados = list(proceso_masivo.hidratar_por_lotes(ids, tamano=2))
+        self.assertEqual([c.pk for c in hidratados], ids)
+        # Las relaciones que lee el circuito vienen cargadas: armar el payload no vuelve a la base.
+        with self.assertNumQueries(0):
+            for hidratado in hidratados:
+                self.assertIsNotNone(hidratado.ciudadano)
+                self.assertEqual(hidratado.relevamiento.convocatoria.segmento.programa, self.programa)
+
 
 class ElegirCompletosTests(_BaseProcesoTest):
     def test_junta_el_total_salteando_los_incompletos(self):
