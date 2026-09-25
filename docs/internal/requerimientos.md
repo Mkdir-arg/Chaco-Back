@@ -237,6 +237,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 90 | A SIIS solo van los DNI de la tabla `aprobados_materias` | Becas · alta de beneficiarios en SIIS | `#siis` `#relevamientos` | PM — en sesión: «que solo se envíen los casos que estén en una tabla `aprobados_materias` con una columna `dni`; mismos comandos, consulta la tabla y solo intenta enviar los que estén» | 22/09/2026 | 🟢 **Hecho** | No requiere |
 | 91 | El envío de la inscripción pública deja de dar 500 por timeout: menos trabajo con el lock tomado y búsquedas por índice | Becas · inscripción pública (portal, paso 2) y sync de la app de campo | `#performance` `#relevamientos` `#api` `#datos` | PM — en sesión: «analizá los logs y fijate por qué tengo muchos errores 500 desde un formulario en las últimas 24 horas» | 25/09/2026 | 🟢 **Hecho — en producción** | `programas.0072` (aditiva, con relleno) |
 | 92 | Reportes de Becas sin recorrer todo el padrón (avance, embudo, beneficiarios) y banco MySQL de 20.000 casos para medir | Becas · reportes transversales · infraestructura de medición | `#performance` `#relevamientos` `#metodo` | PM — en sesión: «un análisis de cuellos de botella y errores de perfo que podamos mejorar, y también mejorando la perfo del código» | 25/09/2026 | 🟡 **Hecho — sin desplegar** | No requiere |
+| 93 | Revisión fina de performance en cinco frentes: alta de la app fuera del lock, bandejas y detalle por pk, Excel del dashboard sin instanciar modelos, comandos por lotes y conversaciones | Transversal (Becas, API de campo, portal, conversaciones, núcleo) | `#performance` `#relevamientos` `#api` `#siis` | PM — en sesión: «hacé otra revisión más fina del código y de la performance; dispará varios para optimizar el código y las query sin romper nada» | 25/09/2026 | 🟡 **Hecho — sin desplegar** | No requiere |
 
 **Notas del índice**
 
@@ -10155,3 +10156,111 @@ código productivo.
 ## Historial
 
 Entrada nueva. Segunda pasada de performance sobre Becas, con el banco que faltaba desde el Cambio 66.
+
+# Cambio 93 — Revisión fina de performance en cinco frentes: alta de la app fuera del lock, bandejas y detalle por pk, Excel del dashboard sin instanciar modelos, comandos por lotes y conversaciones
+
+🟡 **HECHO — SIN DESPLEGAR — 25/09/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal: Becas (revisión, convocatorias, dashboard, reportes, padrón, proceso masivo a SIIS), API de la app de campo, portal público, conversaciones, login |
+| **Etiquetas** | `#performance` `#relevamientos` `#api` `#siis` |
+| **Solicitante** | PM — en sesión: «hacé otra revisión más fina del código y de la performance; dispará varios para optimizar el código y las query sin romper nada» |
+| **Fecha del pedido** | 25/09/2026 |
+| **Issue / épica** | Sin issue (pedido en sesión) · continúa los Cambios 91 y 92 |
+| **Partes afectadas** | 32 archivos (+1.282 / −257): `programas/api/views.py`, `programas/views/relevamientos.py`, `programas/views/revision.py`, `programas/views/configuracion.py`, `programas/services/dashboard_becas.py`, `becas.py`, `diseno.py`, `identidad.py`, `padron.py`, `proceso_masivo.py`, comandos `enviar_casos_siis` y `procesar_casos_siis`, `portal/views/inscripcion.py`, `conversaciones/selectors/conversaciones.py`, `conversaciones/views/backoffice.py`, `core/decorators.py`, `users/views/auth.py`, `scripts/perf_budgets.json` y 12 módulos de tests |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Después de los Cambios 91 y 92, el PM pidió una segunda pasada, más fina, sobre código y consultas, en paralelo
+y sin romper nada. Se lanzaron **cinco agentes**, cada uno en su worktree y con un área de archivos disjunta, con
+las mismas reglas: medir antes y después contra el banco MySQL de 22.000 casos (Cambio 92), comparar los tests
+contra su propio baseline, cero cambio de comportamiento, sin plantillas salvo N+1, sin dependencias ni
+migraciones, y un commit por agente. La integración se hizo por cherry-pick sobre la rama del Cambio 92 y se
+validó con el venv igual al CI (`.venv312`: Python 3.12 + Django 5.2.17).
+
+## Alcance acordado
+
+Las cinco áreas: (A) revisión, bandejas, listados y detalles de Becas; (B) dashboard de Becas y configuración de
+programas; (C) API de la app de campo y portal público; (D) núcleo, legajos y conversaciones; (E) reportes
+restantes, padrón y comandos por lotes.
+
+## Decisiones tomadas
+
+- **Medición final del banco (22.000 casos, caché caliente; antes = Cambio 92):**
+
+  | Ruta / operación | Antes | Después | Qué cambió |
+  |---|---|---|---|
+  | Detalle de convocatoria pública (2 relevamientos) | 4,4 s frío / 2,1 s | 326 / 363 ms | página de beneficiarios por pk e hidratación (A) |
+  | Alta de un caso por la API, bajo el lock del relevamiento | 32 consultas / 61 ms | 10 / 22 ms | identidad, respuestas y legajo después del commit, idempotentes (C) |
+  | `definicion_formulario` (paso 2 del link, detalle y alta de la app) | 6–8 consultas | 2–3 | catálogo leído una vez, plan y reconciliación en memoria (C) |
+  | Excel de respuestas por persona (20.000 casos) | 8,4 s (SQL 0,9) | 5,7 s (SQL 0,2) | `values()` en vez de 60.000 modelos, adjuntos indexados, sin tabla temporal (B) |
+  | Dashboard de Becas, datos en frío | 421 ms / 26 consultas | 375 / 24 | identidad validada dentro del agrupado, convocatorias leídas una vez (B) |
+  | Distribuciones en la exportación (6 preguntas) | 1,4 s, 120.000 `json.loads` | `GROUP BY` en SQL, ~40 ms por pregunta cerrada | (B) |
+  | Proceso masivo a SIIS: `count()` de la pantalla / `[:1000]` / `list(candidatos())` | 3,8 s / 2,9–4,4 s / 18,8 s (> read_timeout) | 0,1 s / 0,4 s / 0,1 s + 12 ms por lote de 200 | sin `distinct()`; ids primero, hidratación por lotes (E) |
+  | `enviar_casos_siis` (ensayo) | 5,0 s (~60 MB) | 57 ms | `values_list` + hidratación por lote (E) |
+  | Cruce del padrón (6.700 pendientes) | 2,6 s; 1 UPDATE por caso | 0,47 s; `bulk_update` de a 200 | `defer` de los JSON (E) |
+  | Lista de conversaciones | 60 ms (SQL 52) | 33 ms (SQL 15) | conteos como subconsultas para la página, no `GROUP BY` sobre todos los mensajes (D) |
+  | Bandeja pública de revisión / página 50 / detalle de relevamiento público | 56 / 54 / 51 ms | 41 / 38 / 36 ms | ids de relevamientos en vez de join, un `aggregate` en vez de dos `COUNT`, `defer` de los cuatro JSON (A) |
+  | Login · portal perfil/programas/consultas · envío de mensaje · programas | 22 · 10/9/8 · 8 · 10 consultas | 21 · 9/8/7 · 7 · 9 | una lectura menos en cada una (D, B) |
+
+- **Mismo patrón que el Cambio 91 para la API de campo.** Con el lock quedan estado y período de la fila fresca,
+  idempotencia por `client_uuid`, cupo, duplicado e insert; `_completar_alta` (identidad, respuestas por clave,
+  legajo) corre después del commit y un reintento con el mismo `client_uuid` completa un alta cortada
+  (`_alta_incompleta`). Mismos JSON y códigos (200/201/400/409).
+- **Paginar por pk e hidratar** en el detalle de convocatoria y las bandejas (`PaginadorConConteo` toma el total
+  del `aggregate` que ya se hacía). **`defer` de `data`, `respuestas`, `definicion` y `datos_siis`** en toda
+  lectura de listado: son ~8 KB por caso y ninguna bandeja los abre.
+- **Presupuestos de consultas bajados** en exactamente la consulta eliminada (login 23→22, portal 12/11/10 →
+  11/10/9, envío de conversación 10→9), con justificación en `adjustments`; el test de presupuestos pasa con
+  Django 5.2.
+- **Lo que se midió y no se tocó**, con motivo: openpyxl sigue siendo el 80 % del Excel de respuestas (5,7 s
+  con 20.000 casos; ver Pendientes); las listas de convocatorias y de consultas del portal renderizan sin
+  paginar (es UI); `BackofficeSingleSessionMiddleware` cuesta exactamente 1 SELECT por request y sacarlo cambia
+  la semántica de sesión única; los selectores de operadores en conversaciones filtran por nombre de grupo
+  (legacy vs RBAC; es autorización, no performance); `celda_segura` (~5 %) vive en un archivo con fin de línea
+  CR que git trata como binario.
+
+## Implementación
+
+- Un commit por agente, cherry-pick sobre `perf/reportes-becas-banco-mysql`: `perf(core-legajos-conversaciones)`,
+  `perf(reportes-padron-comandos)`, `perf(becas-revision)`, `perf(api-portal)`, `perf(dashboard-becas)`.
+- Tests nuevos (31 en total): fuera del lock por espía de `savepoint_ids` (API), reintento que completa el alta,
+  igualdad del dict de `definicion_formulario` con `assertNumQueries` 3/4, página de beneficiarios por pk con
+  orden y total, exclusión de públicos con y sin capacidad, Excel de respuestas y distribuciones equivalentes,
+  `candidatos()` sin duplicados, hidratación por lotes en orden de pk, cruce del padrón sin pisar JSON, cupos y
+  producción con cantidad fija de consultas, lista de conversaciones en una consulta sin join, legajo cacheado
+  en el decorador del portal, sesión única en el login.
+- Validación de la integración con `.venv312` (Python 3.12 + Django 5.2.17, igual al CI): suite completa y
+  `--tag performance` en verde; ruff, `manage.py check` y `makemigrations --check` en verde.
+
+## Base de datos
+
+Sin cambios de esquema. En el banco de medición quedó un padrón sintético de 5.000 filas en la convocatoria 201
+(afecta el POST del link público del banco, no las lecturas).
+
+## Pendientes / a definir
+
+- **Excel de respuestas por persona: openpyxl es el 80 %.** `lxml` no está en `requirements.txt`, así que openpyxl
+  serializa en Python puro; agregarlo da 2–3× sin tocar código (decisión de dependencias: pip-audit). Ofrecer CSV
+  en esa descarga (`respuesta_reporte(..., "csv")` ya existe) da ~10×. Si tiene que seguir siendo XLSX y crecer,
+  generarlo fuera del request.
+- Índice `(estado, creado)` en `programas_derivacionprograma`: la única consulta no cacheada cara del inicio
+  (60 ms, scan + filesort). Requiere migración.
+- `SolapasService` del legajo relee inscripciones que el selector ya cargó (2 consultas por detalle).
+- Paginar Convocatorias y Mis consultas del portal; selectores de territoriales del modal de relevamientos por
+  AJAX (UI).
+- En `crear_formulario_publico` (Cambio 91) el mismo truco de reutilizar la cadena convocatoria → segmento →
+  programa ya cargada ahorraría 3 consultas bajo el lock.
+- Siguen los del Cambio 91: timeouts de Gran Base, correo sincrónico, señal de `Ciudadano` a Redis,
+  `CONN_MAX_AGE` bajo daphne.
+
+## Reversión
+
+Cada frente es un commit independiente y se revierte por separado con `git revert`. Ninguno deja datos
+inconsistentes.
+
+## Historial
+
+Entrada nueva. Tercera pasada de performance del 25/09/2026, la primera hecha con cinco agentes en paralelo.
