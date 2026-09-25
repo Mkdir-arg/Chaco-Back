@@ -158,6 +158,37 @@ def _actualizar_validacion_identidad(formulario, datos_identificacion=None):
         formulario.save(update_fields=[*campos, "modificado"])
 
 
+def _completar_alta(formulario, relevamiento, datos_identificacion):
+    """Lo que no necesita el lock del relevamiento y por eso corre después del
+    commit del alta (Cambio 91): la validación de identidad, las respuestas por
+    clave con la foto de la definición y el legajo.
+
+    Idempotente a propósito: si un envío anterior se cortó a mitad de camino,
+    el reintento de la app —que la idempotencia por ``client_uuid`` devuelve
+    como existente— completa lo que faltó.
+    """
+    _actualizar_validacion_identidad(formulario, datos_identificacion)
+    # Cambio 58: la app manda el contrato anterior (data por pk + columnas
+    # fijas); acá se traduce a respuestas por clave y se guarda la foto de la
+    # definición que respondió (D3).
+    sincronizar_desde_legacy(formulario, relevamiento)
+    resolver_ciudadano_offline(formulario)
+
+
+def _alta_incompleta(formulario):
+    """¿Un envío anterior se cortó después de insertar el caso? Se nota en que
+    no tiene la foto de la definición o en que la identificación offline sigue
+    sin resolverse a un legajo."""
+    datos = formulario.datos_identificacion if isinstance(formulario.datos_identificacion, dict) else {}
+    return not formulario.definicion or (not formulario.ciudadano_id and bool(datos.get("dni")))
+
+
+def _formulario_fresco(pk):
+    """El caso como quedó después de completarlo, con su legajo en la misma
+    consulta: es lo que se le devuelve a la app."""
+    return Formulario.objects.select_related("ciudadano").get(pk=pk)
+
+
 def _relevamientos_para_identificar(user, relevamiento_id):
     """Con qué padrones se identifica a una persona desde la app (Cambio 57;
     con herencia por relevamiento desde el Cambio 74).
@@ -230,7 +261,15 @@ class RelevamientoViewSet(viewsets.ReadOnlyModelViewSet):
     def get_queryset(self):
         queryset = (
             Relevamiento.objects.filter(territorial=self.request.user)
-            .select_related("convocatoria__segmento", "convocatoria__subsegmento")
+            # La cadena de pausa (segmento → programa y subsegmento → segmento →
+            # programa) y el diseño del formulario vienen en el mismo SELECT:
+            # antes cada relevamiento del listado los leía aparte y el detalle
+            # y el alta los volvían a pedir con el lock tomado (Cambio 91).
+            .select_related(
+                "convocatoria__segmento__programa",
+                "convocatoria__subsegmento__segmento__programa",
+                "convocatoria__diseno",
+            )
             .annotate(formularios_count=Count("formularios"))
             .order_by("-fecha_asignada")
         )
@@ -331,52 +370,64 @@ class RelevamientoViewSet(viewsets.ReadOnlyModelViewSet):
 
         serializer = FormularioSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        capturado_en = serializer.validated_data.get("capturado_en")
+        client_uuid = serializer.validated_data.get("client_uuid")
+        datos_identificacion = serializer.validated_data.get("datos_identificacion") or {}
+        dni = normalizar_dni(datos_identificacion.get("dni"))
+        datos_identificacion["dni"] = dni
+        # Con el lock del relevamiento tomado queda solo lo que el lock protege:
+        # estado y período de la fila fresca, idempotencia por client_uuid,
+        # cupo, duplicado y el insert. La identidad, las respuestas y el legajo
+        # salen después del commit (Cambio 91, el mismo patrón que el link
+        # público): cada consulta de más acá adentro la pagan en cola los otros
+        # dispositivos que sincronizan, y el que espera más de 10 s se lleva un
+        # 500 por el read_timeout de MySQL.
         with transaction.atomic():
             # Evita que dos dispositivos inserten simultáneamente el mismo DNI.
-            rel = Relevamiento.objects.select_for_update().get(pk=rel.pk)
-            if rel.estado != Relevamiento.Estado.EN_CURSO:
+            bloqueado = Relevamiento.objects.select_for_update().get(pk=rel.pk)
+            # La convocatoria y su cadena de pausa ya vinieron cargadas con el
+            # relevamiento: se reutilizan para no releerlas con el lock tomado.
+            # Lo que el lock decide —estado, fechas, pausa propia, cupo— es de
+            # la fila recién leída.
+            bloqueado.convocatoria = rel.convocatoria
+            if bloqueado.estado != Relevamiento.Estado.EN_CURSO:
                 return Response(
                     {"detail": "Solo se pueden cargar personas en un relevamiento en curso."},
                     status=status.HTTP_409_CONFLICT,
                 )
-            capturado_en = serializer.validated_data.get("capturado_en")
-            if not _captura_habilitada(rel, capturado_en):
+            if not _captura_habilitada(bloqueado, capturado_en):
                 return Response(
                     {"detail": "La captura se realizó fuera del período asignado."},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-            client_uuid = serializer.validated_data.get("client_uuid")
-            if client_uuid:
-                existente = _formulario_por_client_uuid(rel, client_uuid)
-                if existente:
-                    return Response(FormularioSerializer(existente).data, status=status.HTTP_200_OK)
-            if rel.formularios.count() >= rel.cupo_maximo:
-                return Response(
-                    {
-                        "detail": "Se alcanzó el cupo del relevamiento. No se pueden cargar nuevas personas.",
-                        "code": "CUPO_RELEVAMIENTO_COMPLETO",
-                        "cupo_maximo": rel.cupo_maximo,
-                    },
-                    status=status.HTTP_409_CONFLICT,
+            existente = _formulario_por_client_uuid(bloqueado, client_uuid) if client_uuid else None
+            if existente is None:
+                if bloqueado.formularios.count() >= bloqueado.cupo_maximo:
+                    return Response(
+                        {
+                            "detail": "Se alcanzó el cupo del relevamiento. No se pueden cargar nuevas personas.",
+                            "code": "CUPO_RELEVAMIENTO_COMPLETO",
+                            "cupo_maximo": bloqueado.cupo_maximo,
+                        },
+                        status=status.HTTP_409_CONFLICT,
+                    )
+                formulario_existente = _formulario_por_dni(bloqueado, dni)
+                formulario = serializer.save(
+                    relevamiento=bloqueado,
+                    created_by=request.user,
+                    conflicto_duplicado=formulario_existente is not None,
+                    duplicado_de=formulario_existente,
                 )
-            datos_identificacion = serializer.validated_data.get("datos_identificacion") or {}
-            dni = normalizar_dni(datos_identificacion.get("dni"))
-            datos_identificacion["dni"] = dni
-            formulario_existente = _formulario_por_dni(rel, dni)
-            formulario = serializer.save(
-                relevamiento=rel,
-                created_by=request.user,
-                conflicto_duplicado=formulario_existente is not None,
-                duplicado_de=formulario_existente,
-            )
-            _actualizar_validacion_identidad(formulario, datos_identificacion)
-            # Cambio 58: la app manda el contrato anterior (data por pk +
-            # columnas fijas); acá se traduce a respuestas por clave y se
-            # guarda la foto de la definición que respondió (D3).
-            sincronizar_desde_legacy(formulario, rel)
-            resolver_ciudadano_offline(formulario)
-            formulario.refresh_from_db()
-        return Response(FormularioSerializer(formulario).data, status=status.HTTP_201_CREATED)
+        if existente is not None:
+            # Doble envío o reintento de la app. Si el envío anterior se cortó
+            # después del commit (sin respuestas por clave, sin legajo), se
+            # completa acá en vez de devolverlo a medias.
+            if _alta_incompleta(existente):
+                _completar_alta(existente, rel, datos_identificacion)
+                existente = _formulario_fresco(existente.pk)
+            return Response(FormularioSerializer(existente).data, status=status.HTTP_200_OK)
+        _completar_alta(formulario, rel, datos_identificacion)
+        return Response(FormularioSerializer(_formulario_fresco(formulario.pk)).data, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=["get"], url_path="dni-existe")
     def dni_existe(self, request, pk=None):

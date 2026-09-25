@@ -20,7 +20,7 @@ from programas.api.views import _actualizar_validacion_identidad
 from programas.management.commands.seed_becas import ROL_ADMIN
 from programas.models import Convocatoria, Formulario, Relevamiento, Segmento, TracaFormulario
 from programas.services.identidad import gran_base_activa, identificar
-from programas.services.padron import cargar_padron, validar_casos_pendientes
+from programas.services.padron import cargar_padron, fila_padron, validar_casos_pendientes
 from programas.tests.test_becas_api import _BaseApiTest
 
 GRAN_BASE = {
@@ -461,3 +461,27 @@ class ConsultarPersonaApiTests(_BaseApiTest):
     def test_requiere_sexo_valido(self):
         self.autenticar(self.terri)
         self.assertEqual(self._consultar(sexo="X").status_code, 400)
+
+
+@override_settings(PERSONAS_API_ACTIVA=False)
+class IdentificarConFilaYaBuscadaTests(_Base):
+    """El paso 1 del link ya buscó la fila del padrón para decidir si el
+    documento está habilitado; ``identificar`` la recibe y no la vuelve a
+    buscar (Cambio 91), con el mismo resultado."""
+
+    def test_acepta_la_fila_del_padron_ya_buscada(self):
+        cargar_padron(self.convocatoria, None, [FILA_PAMELA, FILA_SIN_DATOS])
+        fila = fila_padron(self.relevamiento, "36210951", "F")
+        with patch("programas.services.identidad.fila_padron") as buscar:
+            resultado = identificar(self.relevamiento, "36210951", "F", fila=fila)
+        buscar.assert_not_called()
+        self.assertEqual(resultado["origen"], "padron")
+        self.assertEqual(resultado, identificar(self.relevamiento, "36210951", "F"))
+
+    def test_none_vale_como_buscada_y_ausente(self):
+        cargar_padron(self.convocatoria, None, [FILA_PAMELA])
+        with patch("programas.services.identidad.fila_padron") as buscar:
+            resultado = identificar(self.relevamiento, "36210951", "F", fila=None)
+        buscar.assert_not_called()
+        self.assertEqual(resultado["origen"], "manual")
+        self.assertFalse(resultado["validado"])

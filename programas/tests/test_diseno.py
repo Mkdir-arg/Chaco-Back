@@ -17,6 +17,7 @@ from programas.models import (
     ItemDiseno,
     OrigenRequisito,
     PreguntaGlobal,
+    ProgramaSiis,
     Relevamiento,
     RequisitoNativo,
     Segmento,
@@ -30,6 +31,7 @@ from programas.services.diseno import (
     clave_requisito,
     items_ordenados,
     items_planos,
+    items_vigentes,
     obtener_o_crear_diseno,
     plan_por_defecto,
     reconciliar,
@@ -431,3 +433,100 @@ class DefinicionV2Tests(_Base):
         self.assertIsNone(campo["condicion"])
         nivel.refresh_from_db()
         self.assertIsNotNone(nivel.condicion)  # la borra la reconciliación del constructor, con aviso
+
+
+class DefinicionEnUnaPasadaTests(_Base):
+    """La definición se arma con una sola lectura del catálogo (Cambio 91) y
+    tiene que ser idéntica a la que se armaba consulta por consulta."""
+
+    def _referencia(self, relevamiento):
+        """La versión anterior de ``definicion_formulario``, tal cual era: las
+        listas planas por consulta y el plan por defecto o la reconciliación
+        leyendo el catálogo nivel por nivel."""
+        from programas.services.becas import _alcance_requisito, _campo_dict, get_campos_formulario
+
+        convocatoria = relevamiento.convocatoria
+        canal = CanalFormulario.del_relevamiento(relevamiento)
+        globales, requisitos = get_campos_formulario(convocatoria, canal=canal)
+        diseno = getattr(convocatoria, "diseno", None)
+        items = items_vigentes(diseno) if diseno is not None else plan_por_defecto(convocatoria)
+        return {
+            "requiere_gps": convocatoria.segmento.requiere_gps,
+            "canal": canal,
+            "version": diseno.version if diseno is not None else 0,
+            "items": serializar(items, canal),
+            "globales": [_campo_dict(p, "global") for p in globales],
+            "requisitos": [_campo_dict(r, _alcance_requisito(r)) for r in requisitos],
+        }
+
+    def _enriquecer_catalogo(self):
+        """Programa con requisito heredado, requisito de un solo canal, pregunta
+        suelta (sin grupo), pregunta de un solo canal y pregunta inactiva."""
+        programa = ProgramaSiis.objects.create(nombre="Programa", siis_programa_id=7)
+        self.segmento.programa = programa
+        self.segmento.save()
+        RequisitoNativo.objects.create(texto="Del programa", tipo=TipoCampo.STRING, programa=programa, orden=1)
+        RequisitoNativo.objects.create(
+            texto="Solo app", tipo=TipoCampo.STRING, segmento=self.segmento, orden=3, canal=CanalFormulario.APP
+        )
+        PreguntaGlobal.objects.create(texto="Suelta", tipo=TipoCampo.STRING, orden=700)
+        PreguntaGlobal.objects.create(texto="Solo link", tipo=TipoCampo.STRING, orden=701, canal=CanalFormulario.LINK)
+        PreguntaGlobal.objects.create(texto="Inactiva", tipo=TipoCampo.STRING, orden=702, activo=False)
+
+    def _relevamiento_fresco(self, pk):
+        """Como lo cargan la API y el portal: la convocatoria y su cadena en el
+        mismo SELECT, sin nada cacheado de la creación."""
+        return Relevamiento.objects.select_related("convocatoria__segmento__programa", "convocatoria__subsegmento").get(
+            pk=pk
+        )
+
+    def test_sin_diseno_es_identica_a_la_version_consulta_por_consulta(self):
+        self._enriquecer_catalogo()
+        for rel in (self.rel_link, self.rel_app):
+            with self.subTest(tipo=rel.tipo):
+                nueva = definicion_formulario(self._relevamiento_fresco(rel.pk))
+                self.assertEqual(nueva, self._referencia(self._relevamiento_fresco(rel.pk)))
+                self.assertTrue(nueva["items"] and nueva["globales"] and nueva["requisitos"])
+
+    def test_con_diseno_es_identica_a_la_version_consulta_por_consulta(self):
+        diseno, _ = obtener_o_crear_diseno(self.convocatoria)
+        # Un texto, un campo propio de un solo canal y una condición en el
+        # diseño; después el catálogo cambia sin que nadie abra el constructor
+        # (RN-1) y la fuente de la condición se desactiva.
+        cuestionario = diseno.items.get(clave="g-cuestionario")
+        ItemDiseno.objects.create(
+            diseno=diseno, tipo=ItemDiseno.Tipo.TEXTO, clave="t-aviso", padre=cuestionario, orden=50, texto="Leé bien"
+        )
+        ItemDiseno.objects.create(
+            diseno=diseno,
+            tipo=ItemDiseno.Tipo.CAMPO,
+            clave="cp-propio01",
+            padre=cuestionario,
+            orden=51,
+            propio={"texto": "Propio", "tipo": "STRING", "obligatorio": True},
+            canal=CanalFormulario.LINK,
+        )
+        nivel = diseno.items.get(clave=clave_requisito(self.nivel))
+        nivel.condicion = {
+            "modo": "todas",
+            "reglas": [{"fuente": clave_pregunta(self.tenencia), "op": "completo", "valor": None}],
+        }
+        nivel.save(update_fields=["condicion"])
+        self._enriquecer_catalogo()
+        self.tenencia.activo = False
+        self.tenencia.save(update_fields=["activo", "modificado"])
+        for rel in (self.rel_link, self.rel_app):
+            with self.subTest(tipo=rel.tipo):
+                nueva = definicion_formulario(self._relevamiento_fresco(rel.pk))
+                self.assertEqual(nueva, self._referencia(self._relevamiento_fresco(rel.pk)))
+                self.assertEqual(nueva["version"], diseno.version)
+
+    def test_la_definicion_cuesta_tres_consultas_sin_diseno_y_cuatro_con(self):
+        self._enriquecer_catalogo()
+        relevamiento = self._relevamiento_fresco(self.rel_link.pk)
+        with self.assertNumQueries(3):  # ¿hay diseño?, preguntas, requisitos
+            definicion_formulario(relevamiento)
+        obtener_o_crear_diseno(self.convocatoria)
+        relevamiento = self._relevamiento_fresco(self.rel_link.pk)
+        with self.assertNumQueries(4):  # + los ítems del diseño
+            definicion_formulario(relevamiento)

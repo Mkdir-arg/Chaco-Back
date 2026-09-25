@@ -48,7 +48,7 @@ from programas.services.inscripcion_publica import (
     enmascarar_email,
     enviar_confirmacion_inscripcion,
 )
-from programas.services.padron import esta_habilitado
+from programas.services.padron import padron_de
 from programas.services.respuestas import huella_definicion
 
 logger = logging.getLogger(__name__)
@@ -98,8 +98,15 @@ def _identificacion_vencida(identificacion):
 
 
 def _get_relevamiento(token):
+    # La cadena de pausa (segmento → programa, subsegmento → segmento) y el
+    # diseño del formulario vienen en el mismo SELECT: ``habilitado_en`` y la
+    # definición del paso 2 los pedían aparte en cada request (Cambio 91).
     return get_object_or_404(
-        Relevamiento.objects.select_related("convocatoria__segmento"),
+        Relevamiento.objects.select_related(
+            "convocatoria__segmento__programa",
+            "convocatoria__subsegmento__segmento__programa",
+            "convocatoria__diseno",
+        ),
         token_publico=token,
         tipo=Relevamiento.Tipo.PUBLICO,
     )
@@ -130,6 +137,18 @@ def _datos_basicos(data):
     }
 
 
+def _habilitacion(relevamiento, dni, sexo):
+    """``(habilitado, fila)`` contra el padrón efectivo del relevamiento (propio
+    o heredado, Cambio 74), en una sola lectura: sin padrón el link es abierto
+    (RN-P14); con padrón hay que figurar —el mismo criterio que
+    ``esta_habilitado``—. La fila se reutiliza después en la cascada de
+    identidad, que antes la volvía a buscar por su cuenta (Cambio 91). ``dni`` y
+    ``sexo`` llegan normalizados por el form."""
+    padron = padron_de(relevamiento)
+    fila = padron.filter(dni=dni, sexo=sexo).first()
+    return fila is not None or not padron.exists(), fila
+
+
 def inscripcion_paso1(request, token):
     relevamiento = _get_relevamiento(token)
     if not relevamiento_disponible(relevamiento):
@@ -152,32 +171,34 @@ def inscripcion_paso1(request, token):
                 # Recién acá: el captcha ya se resolvió, así que esta cubeta no
                 # se puede quemar en nombre de otro con un script.
                 form.add_error(None, MENSAJE_DEMASIADOS_INTENTOS)
-            elif not esta_habilitado(relevamiento, dni, sexo):
-                form.add_error(None, MENSAJE_NO_HABILITADO)
-            elif dni_ya_inscripto(relevamiento.convocatoria, dni):
-                form.add_error(None, MENSAJE_YA_INSCRIPTO)
             else:
-                # Cascada del Cambio 57 sobre el padrón efectivo del
-                # relevamiento (propio o heredado, Cambio 74) → Gran Base → manual.
-                resultado = identificar(relevamiento, dni, sexo)
-                if resultado["fallecido"]:
-                    form.add_error(None, MENSAJE_DOCUMENTO_NO_DISPONIBLE)
+                habilitado, fila = _habilitacion(relevamiento, dni, sexo)
+                if not habilitado:
+                    form.add_error(None, MENSAJE_NO_HABILITADO)
+                elif dni_ya_inscripto(relevamiento.convocatoria, dni):
+                    form.add_error(None, MENSAJE_YA_INSCRIPTO)
                 else:
-                    validado = resultado["validado"]
-                    request.session[clave_sesion(relevamiento)] = {
-                        "dni": dni,
-                        "sexo": sexo,
-                        "datos": _datos_basicos(resultado["datos"]) if validado else None,
-                        # Mismo contrato de origen que la app de campo (#82):
-                        # "personas" y "padron" acreditan identidad; "manual" no.
-                        "origen": resultado["origen"] if validado else "manual",
-                    }
-                    # Caduca por sí misma, sin tocar la expiración de la
-                    # sesión: acortar la sesión entera hacía perder el paso 2 a
-                    # medio completar (con los adjuntos ya elegidos). El sello
-                    # se renueva en cada paso del formulario.
-                    request.session[clave_sesion(relevamiento)]["sellada"] = timezone.now().isoformat()
-                    return redirect("portal:inscripcion_paso2", token=relevamiento.token_publico)
+                    # Cascada del Cambio 57 sobre el padrón efectivo del
+                    # relevamiento (propio o heredado, Cambio 74) → Gran Base → manual.
+                    resultado = identificar(relevamiento, dni, sexo, fila=fila)
+                    if resultado["fallecido"]:
+                        form.add_error(None, MENSAJE_DOCUMENTO_NO_DISPONIBLE)
+                    else:
+                        validado = resultado["validado"]
+                        request.session[clave_sesion(relevamiento)] = {
+                            "dni": dni,
+                            "sexo": sexo,
+                            "datos": _datos_basicos(resultado["datos"]) if validado else None,
+                            # Mismo contrato de origen que la app de campo (#82):
+                            # "personas" y "padron" acreditan identidad; "manual" no.
+                            "origen": resultado["origen"] if validado else "manual",
+                        }
+                        # Caduca por sí misma, sin tocar la expiración de la
+                        # sesión: acortar la sesión entera hacía perder el paso 2 a
+                        # medio completar (con los adjuntos ya elegidos). El sello
+                        # se renueva en cada paso del formulario.
+                        request.session[clave_sesion(relevamiento)]["sellada"] = timezone.now().isoformat()
+                        return redirect("portal:inscripcion_paso2", token=relevamiento.token_publico)
 
     contexto = {
         "relevamiento": relevamiento,

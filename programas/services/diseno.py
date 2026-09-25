@@ -63,28 +63,52 @@ def nueva_clave(prefijo):
 # ── Catálogo esperado ────────────────────────────────────────────────────────
 
 
-def _requisitos_por_nivel(convocatoria):
+def catalogo_convocatoria(convocatoria):
+    """Una sola lectura del catálogo para servir una definición: ``(preguntas,
+    requisitos)`` —las preguntas generales activas con su grupo y los requisitos
+    nativos que hereda la convocatoria (programa, segmento y subsegmento)—, cada
+    lista por ``orden, id``. Son dos consultas; de acá se reparten en memoria el
+    plan por defecto, la reconciliación (``items_vigentes``) y las listas
+    planas, que antes volvían a la base cada una por su cuenta (Cambio 91: la
+    definición se sirve en cada paso 2 del link y en cada detalle y alta de la
+    app)."""
+    from programas.services.becas import filtro_requisitos_convocatoria
+
+    requisitos = list(
+        RequisitoNativo.objects.filter(filtro_requisitos_convocatoria(convocatoria)).order_by("orden", "id")
+    )
+    return _preguntas_activas(), requisitos
+
+
+def _requisitos_por_nivel(convocatoria, requisitos=None):
     """``[(nivel, nombre, [RequisitoNativo])]`` en el orden programa → segmento
-    → subsegmento, con la misma herencia que ``get_campos_formulario`` (RN-32)."""
+    → subsegmento, con la misma herencia que ``get_campos_formulario`` (RN-32).
+
+    Con ``requisitos`` (los de ``catalogo_convocatoria``, ya ordenados) se
+    reparten por nivel en memoria; sin ellos, una consulta por nivel."""
     niveles = []
     segmento = convocatoria.segmento
     if segmento.programa_id:
         programa = segmento.programa
-        niveles.append(("programa", programa.nombre, list(programa.requisitos.order_by("orden", "id"))))
-    niveles.append(
-        (
-            "segmento",
-            segmento.nombre,
-            list(
-                RequisitoNativo.objects.filter(segmento_id=segmento.pk, subsegmento__isnull=True).order_by(
-                    "orden", "id"
-                )
-            ),
+        if requisitos is None:
+            del_programa = list(programa.requisitos.order_by("orden", "id"))
+        else:
+            del_programa = [r for r in requisitos if r.programa_id == programa.pk]
+        niveles.append(("programa", programa.nombre, del_programa))
+    if requisitos is None:
+        del_segmento = list(
+            RequisitoNativo.objects.filter(segmento_id=segmento.pk, subsegmento__isnull=True).order_by("orden", "id")
         )
-    )
+    else:
+        del_segmento = [r for r in requisitos if r.segmento_id == segmento.pk and r.subsegmento_id is None]
+    niveles.append(("segmento", segmento.nombre, del_segmento))
     if convocatoria.subsegmento_id:
         subsegmento = convocatoria.subsegmento
-        niveles.append(("subsegmento", subsegmento.nombre, list(subsegmento.requisitos.order_by("orden", "id"))))
+        if requisitos is None:
+            del_subsegmento = list(subsegmento.requisitos.order_by("orden", "id"))
+        else:
+            del_subsegmento = [r for r in requisitos if r.subsegmento_id == subsegmento.pk]
+        niveles.append(("subsegmento", subsegmento.nombre, del_subsegmento))
     return niveles
 
 
@@ -186,16 +210,23 @@ def _item(diseno, tipo, clave, orden, padre=None, **campos):
     return item
 
 
-def plan_por_defecto(convocatoria, diseno=None):
+def plan_por_defecto(convocatoria, diseno=None, catalogo=None):
     """Los ítems del formulario de hoy, **sin guardar**, en orden de pantalla:
     cada grupo seguido de sus campos. Es lo que se sirve cuando la convocatoria
     no tiene diseño y lo que se persiste al abrir el constructor por primera vez.
+
+    ``catalogo`` (de ``catalogo_convocatoria``) evita volver a leer preguntas,
+    grupos y requisitos: los grupos salen de las preguntas, que ya traen el
+    suyo —un grupo sin preguntas activas no se muestra de todos modos (RN-3)—.
     """
     items = []
     orden = 0
-    preguntas = _preguntas_activas()
-
-    grupos = list(GrupoRequisito.objects.order_by("orden", "id"))
+    if catalogo is None:
+        preguntas, requisitos = _preguntas_activas(), None
+        grupos = list(GrupoRequisito.objects.order_by("orden", "id"))
+    else:
+        preguntas, requisitos = catalogo
+        grupos = sorted({p.grupo_id: p.grupo for p in preguntas if p.grupo_id}.values(), key=lambda g: (g.orden, g.pk))
     por_grupo = {g.pk: [] for g in grupos}
     sueltas = []
     for pregunta in preguntas:
@@ -227,14 +258,14 @@ def plan_por_defecto(convocatoria, diseno=None):
         for posicion, pregunta in enumerate(sueltas):
             items.append(_item(diseno, CAMPO, clave_pregunta(pregunta), posicion, padre=item_g, pregunta=pregunta))
 
-    for nivel, nombre, requisitos in _requisitos_por_nivel(convocatoria):
-        if not requisitos:
+    for nivel, nombre, del_nivel in _requisitos_por_nivel(convocatoria, requisitos):
+        if not del_nivel:
             continue
         clave, plantilla = NIVELES[nivel]
         item_g = _item(diseno, GRUPO, clave, orden, etiqueta=plantilla.format(nombre=nombre))
         orden += 1
         items.append(item_g)
-        for posicion, requisito in enumerate(requisitos):
+        for posicion, requisito in enumerate(del_nivel):
             items.append(_item(diseno, CAMPO, clave_requisito(requisito), posicion, padre=item_g, requisito=requisito))
     return items
 
@@ -289,14 +320,16 @@ def _siguiente_orden(diseno, padre):
     return 0 if ultimo is None else ultimo + 1
 
 
-def _catalogo_esperado(convocatoria):
+def _catalogo_esperado(convocatoria, catalogo=None):
     """Lo que el catálogo dice que tiene que estar en el diseño (RN-1):
     ``(esperadas, esperados)`` como ``{pk: PreguntaGlobal}`` (activas) y
-    ``{pk: (nivel, nombre, RequisitoNativo)}`` (herencia de la convocatoria)."""
-    esperadas = {p.pk: p for p in _preguntas_activas()}
+    ``{pk: (nivel, nombre, RequisitoNativo)}`` (herencia de la convocatoria).
+    Con ``catalogo`` (de ``catalogo_convocatoria``) no vuelve a la base."""
+    preguntas, requisitos = catalogo if catalogo is not None else (_preguntas_activas(), None)
+    esperadas = {p.pk: p for p in preguntas}
     esperados = {}
-    for nivel, nombre, requisitos in _requisitos_por_nivel(convocatoria):
-        for requisito in requisitos:
+    for nivel, nombre, del_nivel in _requisitos_por_nivel(convocatoria, requisitos):
+        for requisito in del_nivel:
             esperados[requisito.pk] = (nivel, nombre, requisito)
     return esperadas, esperados
 
@@ -437,7 +470,7 @@ def reconciliar(diseno, usuario=None):
     return {"agregados": agregados, "quitados": [t for _, t in quitados], "condiciones_quitadas": condiciones_quitadas}
 
 
-def items_vigentes(diseno):
+def items_vigentes(diseno, catalogo=None):
     """Los ítems del diseño **como quedarían tras reconciliar**, sin escribir.
 
     Es lo que se sirve al portal y a la app: el diseño sigue al catálogo (RN-1)
@@ -445,9 +478,10 @@ def items_vigentes(diseno):
     no se emite; lo que agregó entra al final de su grupo por defecto (creado
     en memoria si el diseño no lo tenía); una condición cuya fuente ya no está
     se ignora. Nada de esto se persiste: eso lo hace ``reconciliar`` cuando se
-    abre el constructor, que además avisa.
+    abre el constructor, que además avisa. ``catalogo`` (de
+    ``catalogo_convocatoria``) ahorra releer el catálogo.
     """
-    esperadas, esperados = _catalogo_esperado(diseno.convocatoria)
+    esperadas, esperados = _catalogo_esperado(diseno.convocatoria, catalogo)
     preguntas = list(esperadas.values())
     vigentes = [
         item
