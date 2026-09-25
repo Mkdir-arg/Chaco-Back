@@ -235,6 +235,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 88 | Proceso masivo a SIIS desde el backoffice, en una pantalla no listada | Becas · alta de beneficiarios en SIIS | `#siis` `#relevamientos` `#ui` | PM — en sesión: «una funcionalidad secreta para ejecutar el enviar 1000 a SIIS de un programa: validarlo con SIIS, aprobarlo y enviarlo» | 22/09/2026 | 🟢 **Hecho** | `programas.0071` (aditiva) |
 | 89 | El domicilio sin altura viaja a SIIS como aproximado | Becas · alta de beneficiarios en SIIS | `#siis` `#relevamientos` | PM — en sesión: «a todos esos casos la calle va Planta urbana sin número y el número 1» | 22/09/2026 | 🟢 **Hecho** | No requiere |
 | 90 | A SIIS solo van los DNI de la tabla `aprobados_materias` | Becas · alta de beneficiarios en SIIS | `#siis` `#relevamientos` | PM — en sesión: «que solo se envíen los casos que estén en una tabla `aprobados_materias` con una columna `dni`; mismos comandos, consulta la tabla y solo intenta enviar los que estén» | 22/09/2026 | 🟢 **Hecho** | No requiere |
+| 91 | El envío de la inscripción pública deja de dar 500 por timeout: menos trabajo con el lock tomado y búsquedas por índice | Becas · inscripción pública (portal, paso 2) y sync de la app de campo | `#performance` `#relevamientos` `#api` `#datos` | PM — en sesión: «analizá los logs y fijate por qué tengo muchos errores 500 desde un formulario en las últimas 24 horas» | 25/09/2026 | 🟡 **Hecho — sin desplegar** | `programas.0072` (aditiva, con relleno) |
 
 **Notas del índice**
 
@@ -9889,3 +9890,141 @@ Correr con `--sin-filtro-materias`, o quitar el filtro de `candidatos()`. Nada q
 
 Entrada nueva. Es el cuarto camino de selección que se agrega al proceso masivo desde el Cambio 84: estado del
 caso, payload completo (`--solo-completos`), programa (pantalla) y ahora la tabla del organismo.
+
+# Cambio 91 — El envío de la inscripción pública deja de dar 500 por timeout: menos trabajo con el lock tomado y búsquedas por índice
+
+🟡 **HECHO — SIN DESPLEGAR — 25/09/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · inscripción pública del portal (paso 2) y sync de la app de campo |
+| **Etiquetas** | `#performance` `#relevamientos` `#api` `#datos` |
+| **Solicitante** | PM — en sesión: «analizá los logs y fijate por qué tengo muchos errores 500 desde un formulario en las últimas 24 horas» |
+| **Fecha del pedido** | 25/09/2026 |
+| **Issue / épica** | Sin issue (incidente de producción) · toca el circuito del Cambio 41 |
+| **Partes afectadas** | `crear_formulario_publico` y `dni_en_convocatoria` (`inscripcion_publica.py`) · `formulario_por_client_uuid` (`becas.py`) · `Formulario.dni_titular` y `Formulario.save()` · `_formulario_por_dni` de la API de campo · alias `sessions` de `CACHES` · `respuestas_por_persona` (xlsx del dashboard) |
+| **Migración** | `programas.0072` — columna `dni_titular` con índice y relleno por lotes (aditiva) |
+
+## Pedido original
+
+Producción (ECOM, release `bdf0eb0`, dos pods `web` con daphne) mostró entre el 23/09 20:17 y el 25/09 09:50
+**165 respuestas 500 en `POST /portal/inscripcion/<token>/formulario/`**, desde 91 IP distintas, con pico de 32
+por hora el 24/09 entre las 11 y las 12 (campaña paga en TikTok) y casos sueltos a las 03:00 y a las 07:00, sin
+tráfico. Todas cortan entre 10,07 y 10,26 s y devuelven la página 500 de Django: es el `read_timeout = 10 s` de
+la conexión MySQL (`OperationalError 2013`), que corta tanto una consulta lenta como un `SELECT … FOR UPDATE`
+que espera el lock.
+
+## Alcance acordado
+
+Que con el lock del relevamiento tomado quede **solo lo que el lock protege** (idempotencia, cupo, duplicado,
+padrón e insert), que las dos búsquedas por identidad de ese tramo usen índice, y que lo que sale del lock
+tolere un corte a mitad de camino. Sin cambiar la semántica de negocio ni subir el timeout.
+
+## Decisiones tomadas
+
+- **Causa.** Hay un solo link público, así que todos los envíos pasan de a uno por el `select_for_update` de la
+  fila del relevamiento. Cada milisegundo de más adentro lo pagan en cola los que vienen atrás, y el que espera
+  más de 10 s se lleva el 500. Adentro había dos recorridos completos de la tabla y dos escrituras lentas:
+  1. `formulario_por_client_uuid` comparaba `REPLACE(CAST(client_uuid AS CHAR), '-', '')`: la función sobre la
+     columna anula el índice único y MySQL leía **todos** los formularios del relevamiento en cada envío. Medido
+     en el banco de 40k (MySQL 8, caché caliente): **124 ms** con 3.590 formularios; por igualdad, **0,03 ms**.
+  2. `dni_en_convocatoria` hacía `ciudadano__dni = X OR JSON_EXTRACT(datos_identificacion, '$.dni') = X`: el
+     `OR` con la clave del JSON obliga a recorrer todos los formularios de la convocatoria. Medido: **74 ms**
+     con 13.588 casos en caliente; en frío, bastante más. Los dos crecen con cada inscripto.
+  3. Los adjuntos (fotos de varios MB al volumen compartido `datanach-media`) y la resolución del legajo (con
+     la señal que borra claves en Redis por cada ciudadano guardado) se escribían con el lock tomado. Esto no
+     depende del volumen y es lo que mejor explica los 500 sueltos de madrugada.
+- **`client_uuid` por igualdad contra las dos formas** (`= hex OR = con guiones`), con `Exact` y un `Value` de
+  `CharField` para que Django no reescriba el valor. Mantiene lo que buscaba el `REPLACE` de agosto (`1ada8e4`):
+  la columna es `char(36)` (`UUIDExternosMySQLTests`) y conviven filas con y sin guiones.
+- **`Formulario.dni_titular`: el DNI copiado a una columna con índice.** Lo mantiene `save()` sin consultar la
+  base: el del ciudadano si está vinculado y cargado, si no el de `datos_identificacion`; si cambia y el guardado
+  vino con `update_fields`, se suma solo. `dni_en_convocatoria` pasa a **dos consultas por índice**:
+  `dni_titular = X` cubre al caso con o sin legajo, y `ciudadano__dni = X` al legajo cuyo DNI se corrigió después
+  de inscribirse (la columna no se entera si el ciudadano se reasigna por id sin cargarlo; esa segunda consulta lo
+  cubre). Mismo cambio en `_formulario_por_dni` de la API de campo, que tenía el mismo `OR` dentro de su propio
+  lock. Se descartó un índice funcional sobre el JSON: MySQL 8.0.32 no indexa `JSON_EXTRACT` sin columna
+  generada, y la columna real es más simple de leer y de rellenar.
+- **Adjuntos y legajo salen del lock, y el reintento los completa.** `crear_formulario_publico` hace el commit
+  apenas inserta; después guarda los adjuntos que el formulario todavía no tiene y resuelve el legajo
+  (`_completar_envio`, idempotente). Si el envío se corta entre el commit y el final, la persona recibe el 500,
+  reintenta, la idempotencia por `client_uuid` devuelve el mismo formulario y ese camino **también** pasa por
+  `_completar_envio`: los adjuntos que faltaban se guardan y el legajo se resuelve. Antes, un corte dentro de la
+  transacción deshacía todo y la persona empezaba de cero; ahora no pierde el lugar ni el número.
+- **Lo que queda dentro del lock, todo por índice:** estado y fechas del relevamiento (fila ya cargada), `count`
+  del cupo (`relevamiento_id`), lock de la convocatoria, duplicado (dos índices), padrón
+  (`programas_padron_conv_dni_idx` / `rel_dni_idx`) y el insert con su `Max(numero)`
+  (`uniq_formulario_numero_relevamiento`).
+- **No se sube el `read_timeout`.** Es el límite acordado con ECOM y solo correría el corte hacia adelante.
+- **Dos hallazgos de la auditoría del mismo día que entran en el paquete**, porque son chicos y confirmados:
+  (a) el alias de caché `sessions` (Redis en producción) no tenía `SOCKET_TIMEOUT` ni `SOCKET_CONNECT_TIMEOUT`,
+  a diferencia de `default`: un Redis que no responde dejaba colgado cada request que lee su sesión —el portal
+  la lee y la escribe en cada paso— con su conexión MySQL retenida; ahora falla a los 5 s como el resto.
+  (b) el xlsx de respuestas por persona (`respuestas_por_persona`, el otro 500 a los 10,4 s del 24/09) traía
+  `respuestas`, `definicion` y `datos_siis` de todos los casos de la convocatoria para ordenarlos, y no los usa:
+  `defer` de las tres. `definicion` es la foto completa del formulario por fila, lo más pesado de la tabla.
+
+## Implementación
+
+- `config/settings.py` — límites de socket en el alias `sessions`.
+- `programas/services/dashboard_becas.py` — `respuestas_por_persona` con `defer("respuestas", "definicion",
+  "datos_siis")`.
+- `programas/models/__init__.py` — `Formulario.dni_titular` (`CharField(20, db_index=True)`),
+  `_dni_titular_actual()` y el ajuste de `save()`.
+- `programas/migrations/0072_formulario_dni_titular.py` — `AddField` + `RunPython` que rellena por lotes de
+  1.000 pk (`values_list` de pk, `ciudadano__dni` y `datos_identificacion` → `bulk_update`), para que ninguna
+  consulta se acerque al timeout; reversa `noop`.
+- `programas/services/inscripcion_publica.py` — `dni_en_convocatoria` en dos consultas; `crear_formulario_publico`
+  partido en `_insertar_formulario` (dentro del lock) y `_completar_envio` (fuera, idempotente).
+- `programas/services/becas.py` — `formulario_por_client_uuid` por igualdad, ordenado por `pk`.
+- `programas/api/views.py` — `_formulario_por_dni` en dos consultas.
+- Tests: `FormularioTests.test_client_uuid_se_encuentra_con_y_sin_guiones`,
+  `test_dni_titular_sigue_a_la_identificacion_y_al_ciudadano`, `test_dni_en_convocatoria_busca_por_indice`
+  (2 consultas) y `test_la_migracion_rellena_dni_titular` (`test_becas_models.py`);
+  `IngestaPublicaTests.test_el_reintento_completa_lo_que_quedo_a_medias` y
+  `test_el_legajo_se_resuelve_fuera_del_lock` (`test_inscripcion_envio.py`); `test_doble_submit_es_idempotente`
+  ahora comprueba también que los adjuntos no se duplican.
+
+## Base de datos
+
+`programas.0072`: columna `dni_titular varchar(20) NOT NULL DEFAULT ''` con índice, y relleno de las filas
+existentes desde el ciudadano vinculado o, si no hay, desde `datos_identificacion.dni`. Aditiva: ningún dato
+existente cambia de significado. En producción son decenas de miles de filas en lotes de 1.000; corre en el
+init container antes de levantar los pods nuevos.
+
+## Pendientes / a definir
+
+- **Confirmar con un traceback** de PRD (`OperationalError (2013, 'Lost connection to MySQL server during
+  query')`): los exports de logs traían solo líneas de acceso. Tras desplegar, el conteo de 500 del paso 2 tiene
+  que bajar a cero. Si no baja, lo siguiente es pedirle a ECOM la latencia del PVC de media y el traceback.
+- **Lo que la auditoría dejó para después** (misma familia: tiempo de hilo o de consulta dentro de un request,
+  ninguno confirmado como 500 hoy):
+  - El sync de la app de campo (`programas/api/views.py`, alta de formulario) tiene el patrón que tenía el
+    portal: `sincronizar_desde_legacy` (~10 consultas de catálogo) y `resolver_ciudadano_offline` corren con el
+    lock del relevamiento tomado. No comparte fila con el link público; un relevamiento territorial con sync en
+    ráfaga lo sufriría. Mover las dos fuera del `atomic`, como acá.
+  - El paso 1 consulta Gran Base con `connect 10 s / read 20 s` y sin cortacircuito: no da 500, pero con Gran
+    Base lenta cada request del paso 1 retiene un hilo de daphne hasta 60 s. Bajar a 3 s / 5–8 s y cortar por
+    caché tras N fallos es una decisión de negocio (más inscripciones «manual»), no se tomó acá.
+  - El correo de confirmación sale sincrónico después del commit con `EMAIL_TIMEOUT = 10` por operación de
+    socket: hasta 20–30 s de hilo por envío si el SMTP está lento. Sacarlo del request (marca en el formulario +
+    cron) o bajar el timeout.
+  - La señal `post_save` de `Ciudadano` borra tres claves en Redis (5 s cada una) por cada ciudadano guardado
+    (`core/performance/cache_utils.py`); ya no está bajo el lock del relevamiento. `delete_many` en `on_commit`.
+  - `CONN_MAX_AGE = 60` bajo daphne: cada request sync corre en un hilo nuevo, así que la conexión persistente no
+    se reutiliza y puede quedar abierta hasta `wait_timeout`. Verificar con `SHOW PROCESSLIST` en producción;
+    si se confirma, `CONN_MAX_AGE = 0` para ese proceso.
+  - Backoffice: la exportación de distribuciones anota `JSON_EXTRACT` de todas las preguntas del catálogo sobre
+    todos los casos sin caché (`distribuciones_respuestas` con `claves=None`); el reporte de beneficiarios ordena
+    por una subconsulta correlacionada sobre `TracaFormulario` (`beneficiarios_queryset`); el embudo hace dos
+    subconsultas ordenadas sobre `ValidacionSIS` por formulario (`reporte_embudo`). Y las llamadas a SIIS y
+    RENAPER en aprobar/rechazar/revalidar tienen timeouts de hasta 40 s por clic, sin lock.
+
+## Reversión
+
+Volver a las versiones anteriores de las cuatro funciones. La columna `dni_titular` puede quedar: nada la lee
+salvo `dni_en_convocatoria` y `_formulario_por_dni`, y `save()` la mantiene sin costo.
+
+## Historial
+
+Entrada nueva. Primer incidente de timeout en el portal público; los anteriores (Cambio 66) fueron del backoffice.

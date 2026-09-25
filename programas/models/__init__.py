@@ -2601,6 +2601,12 @@ class Formulario(TimeStamped):
         verbose_name="Datos de identificación (offline)",
         help_text="dni, nombre, apellido, fecha_nacimiento, origen. Se limpia al resolver el ciudadano.",
     )
+    # El DNI por el que este caso «es de una persona», copiado a una columna con
+    # índice (Cambio 91): el del ciudadano vinculado o, mientras no lo haya, el
+    # de ``datos_identificacion``. El chequeo de duplicado por convocatoria lo
+    # hacía leyendo la clave del JSON de todos los formularios, sin índice y con
+    # el lock del relevamiento tomado. Lo mantiene ``save()``; nunca se edita a mano.
+    dni_titular = models.CharField(max_length=20, blank=True, db_index=True, verbose_name="DNI del titular")
 
     # Correcciones del coordinador para el alta en SIIS (claves = campos de la
     # API: loc_actual, nro_actual, est_civil…). Pisan lo derivado de las
@@ -2641,7 +2647,25 @@ class Formulario(TimeStamped):
             models.UniqueConstraint(fields=["relevamiento", "numero"], name="uniq_formulario_numero_relevamiento"),
         ]
 
+    def _dni_titular_actual(self):
+        """El DNI del ciudadano si ya está vinculado y cargado; si no, el de la
+        identificación offline. No consulta la base: un ciudadano asignado por
+        id y sin cargar deja el valor que había (el chequeo de duplicado igual
+        cubre ese caso preguntando por ``ciudadano__dni``)."""
+        if self.ciudadano_id and Formulario.ciudadano.is_cached(self):
+            return (self.ciudadano.dni or "")[:20]
+        datos = self.datos_identificacion if isinstance(self.datos_identificacion, dict) else None
+        if datos and datos.get("dni"):
+            return str(datos["dni"])[:20]
+        return self.dni_titular
+
     def save(self, *args, **kwargs):
+        dni_titular = self._dni_titular_actual()
+        if dni_titular != self.dni_titular:
+            self.dni_titular = dni_titular
+            update_fields = kwargs.get("update_fields")
+            if update_fields is not None and "dni_titular" not in update_fields:
+                kwargs["update_fields"] = [*update_fields, "dni_titular"]
         if self._state.adding and not self.numero:
             with transaction.atomic():
                 Relevamiento.objects.select_for_update().get(pk=self.relevamiento_id)

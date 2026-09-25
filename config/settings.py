@@ -322,7 +322,15 @@ if ENVIRONMENT == "prd" or PERFORMANCE_CI:
         "sessions": {
             "BACKEND": "django_redis.cache.RedisCache",
             "LOCATION": REDIS_URL,
-            "OPTIONS": {"CLIENT_CLASS": "django_redis.client.DefaultClient"},
+            # Mismos límites que `default` (Cambio 91): sin ellos, un Redis que
+            # no responde deja colgado cada request que lee su sesión —el portal
+            # público la lee y la escribe en cada paso— y cada hilo colgado
+            # retiene su conexión MySQL. Con límite falla rápido y se ve.
+            "OPTIONS": {
+                "CLIENT_CLASS": "django_redis.client.DefaultClient",
+                "SOCKET_CONNECT_TIMEOUT": 5,
+                "SOCKET_TIMEOUT": 5,
+            },
             "TIMEOUT": 86400,
         },
     }

@@ -1,8 +1,11 @@
 """Tests de los modelos de Becas (#73)."""
 
+import uuid
 from datetime import date
+from importlib import import_module
 from io import StringIO
 
+from django.apps import apps
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.core.management import call_command
@@ -26,10 +29,12 @@ from programas.models import (
 from programas.services.becas import (
     coordinador_gestiona_segmento,
     es_menor,
+    formulario_por_client_uuid,
     get_campos_formulario,
     get_segmentos_coordinador,
     resolver_ciudadano_offline,
 )
+from programas.services.inscripcion_publica import dni_en_convocatoria
 
 
 class UUIDExternosMySQLTests(TestCase):
@@ -297,6 +302,81 @@ class FormularioTests(TestCase):
             fecha_asignada=date(2026, 6, 1),
             zona="Centro",
         )
+
+    def test_client_uuid_se_encuentra_con_y_sin_guiones(self):
+        """La clave idempotente se busca por igualdad (usa el índice único) y
+        encuentra la fila tanto si quedó guardada sin guiones como con guiones."""
+        client_uuid = uuid.uuid4()
+        form = Formulario.objects.create(relevamiento=self.rel, client_uuid=client_uuid)
+        self.assertEqual(formulario_por_client_uuid(self.rel, client_uuid), form)
+
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "UPDATE programas_formulario SET client_uuid = %s WHERE id = %s",
+                [str(client_uuid), form.pk],
+            )
+        self.assertEqual(formulario_por_client_uuid(self.rel, client_uuid), form)
+
+        otro_rel = Relevamiento.objects.create(
+            convocatoria=self.conv,
+            territorial=self.territorial,
+            fecha_asignada=date(2026, 6, 2),
+            zona="Norte",
+        )
+        self.assertIsNone(formulario_por_client_uuid(otro_rel, client_uuid))
+        self.assertIsNone(formulario_por_client_uuid(self.rel, uuid.uuid4()))
+
+    def test_dni_titular_sigue_a_la_identificacion_y_al_ciudadano(self):
+        """La columna indexada (Cambio 91) nace de ``datos_identificacion`` y,
+        cuando el legajo queda vinculado y cargado, del ciudadano."""
+        form = Formulario.objects.create(relevamiento=self.rel, datos_identificacion={"dni": "30111222", "sexo": "F"})
+        self.assertEqual(form.dni_titular, "30111222")
+        resolver_ciudadano_offline(form)
+        form.refresh_from_db()
+        self.assertIsNone(form.datos_identificacion)
+        self.assertEqual(form.dni_titular, "30111222")
+        # Un DNI corregido en el legajo se refleja al guardar el formulario con
+        # el ciudadano cargado, aunque ``update_fields`` no lo nombre.
+        form.ciudadano.dni = "30111223"
+        form.ciudadano.save(update_fields=["dni"])
+        form.save(update_fields=["celular"])
+        form.refresh_from_db()
+        self.assertEqual(form.dni_titular, "30111223")
+
+    def test_dni_en_convocatoria_busca_por_indice(self):
+        Formulario.objects.create(relevamiento=self.rel, datos_identificacion={"dni": "30111222"})
+        ciudadano = Ciudadano.objects.create(dni="20222333", nombre="Ana", apellido="Paz")
+        Formulario.objects.create(relevamiento=self.rel, ciudadano=ciudadano)
+        self.assertTrue(dni_en_convocatoria(self.conv, "30111222"))
+        self.assertTrue(dni_en_convocatoria(self.conv, "20222333"))
+        self.assertFalse(dni_en_convocatoria(self.conv, "99999999"))
+        self.assertFalse(dni_en_convocatoria(self.conv, ""))
+        # El DNI corregido en el legajo después de la inscripción también cuenta.
+        Ciudadano.objects.filter(pk=ciudadano.pk).update(dni="20222334")
+        self.assertTrue(dni_en_convocatoria(self.conv, "20222334"))
+        otra = Convocatoria.objects.create(
+            nombre="Otra",
+            segmento=self.segmento,
+            fecha_inicio=date(2027, 1, 1),
+            fecha_fin=date(2027, 12, 31),
+        )
+        self.assertFalse(dni_en_convocatoria(otra, "30111222"))
+        with self.assertNumQueries(2):
+            dni_en_convocatoria(self.conv, "99999999")
+
+    def test_la_migracion_rellena_dni_titular(self):
+        con_identificacion = Formulario.objects.create(relevamiento=self.rel, datos_identificacion={"dni": "30111222"})
+        ciudadano = Ciudadano.objects.create(dni="20222333", nombre="Ana", apellido="Paz")
+        con_legajo = Formulario.objects.create(relevamiento=self.rel, ciudadano=ciudadano)
+        sin_nada = Formulario.objects.create(relevamiento=self.rel)
+        Formulario.objects.update(dni_titular="")
+
+        migracion = import_module("programas.migrations.0072_formulario_dni_titular")
+        migracion.poblar_dni_titular(apps, None)
+
+        self.assertEqual(Formulario.objects.get(pk=con_identificacion.pk).dni_titular, "30111222")
+        self.assertEqual(Formulario.objects.get(pk=con_legajo.pk).dni_titular, "20222333")
+        self.assertEqual(Formulario.objects.get(pk=sin_nada.pk).dni_titular, "")
 
     def test_data_guarda_estructura(self):
         form = Formulario.objects.create(
