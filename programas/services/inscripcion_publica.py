@@ -11,6 +11,9 @@ Garantías dentro de la transacción (mismo patrón que la API de campo):
 - idempotencia por ``client_uuid`` (doble submit devuelve el mismo formulario);
 - re-chequeo del duplicado por convocatoria (RN-P5) — entre el paso 1 y el
   envío pudo inscribirse otro con el mismo DNI.
+
+Fuera de la transacción, y por eso idempotentes (Cambio 91): los adjuntos y la
+resolución del legajo. Un reintento tras un corte los completa.
 """
 
 from __future__ import annotations
@@ -21,7 +24,6 @@ import uuid
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from django.db import transaction
-from django.db.models import Q
 from django.template.loader import render_to_string
 from django.utils import timezone
 from django.utils.dateparse import parse_date
@@ -57,12 +59,16 @@ def dni_en_convocatoria(convocatoria, dni):
     Cuenta también los formularios RECHAZADO/BAJA (mismo criterio que la app
     de campo): una persona rechazada no puede reinscribirse por link. Es una
     decisión tomada por omisión, pendiente de confirmar con el programa.
+
+    Dos consultas chicas, cada una por su índice (Cambio 91): ``dni_titular``
+    cubre al caso con o sin legajo, y ``ciudadano__dni`` al legajo cuyo DNI se
+    corrigió después. Antes era una sola con ``OR`` sobre la clave del JSON,
+    que recorría todos los formularios de la convocatoria.
     """
-    return (
-        Formulario.objects.filter(relevamiento__convocatoria=convocatoria)
-        .filter(Q(ciudadano__dni=dni) | Q(datos_identificacion__dni=dni))
-        .exists()
-    )
+    if not dni:
+        return False
+    en_convocatoria = Formulario.objects.filter(relevamiento__convocatoria=convocatoria)
+    return en_convocatoria.filter(dni_titular=dni).exists() or en_convocatoria.filter(ciudadano__dni=dni).exists()
 
 
 def crear_formulario_publico(relevamiento, *, identificacion, form, client_uuid):
@@ -73,6 +79,37 @@ def crear_formulario_publico(relevamiento, *, identificacion, form, client_uuid)
     creado)``: con ``creado=False`` el ``client_uuid`` ya había ingresado
     (doble submit) y se devuelve el formulario original.
     """
+    # Con el lock del relevamiento tomado (hay un solo link público, así que
+    # todos los envíos pasan de a uno por acá) queda solo lo que el lock
+    # protege: idempotencia, cupo, duplicado, padrón y el insert. Los adjuntos y
+    # el legajo salen después de liberar (Cambio 91): cada milisegundo de más
+    # acá adentro lo pagan en cola los que vienen atrás, y el que espera más de
+    # 10 s se lleva un 500 por el read_timeout de MySQL.
+    with transaction.atomic():
+        rel = Relevamiento.objects.select_for_update().get(pk=relevamiento.pk)
+        existente = None
+        if client_uuid:
+            try:
+                client_uuid_obj = uuid.UUID(str(client_uuid))
+            except (TypeError, ValueError):
+                client_uuid_obj = None
+            if client_uuid_obj:
+                existente = formulario_por_client_uuid(rel, client_uuid_obj)
+        if existente is not None:
+            formulario, creado = existente, False
+        else:
+            formulario, creado = _insertar_formulario(rel, identificacion, form, client_uuid), True
+    # Fuera del lock. Es idempotente a propósito: si el envío anterior se cortó
+    # después del commit (adjuntos a medio guardar, legajo sin resolver), el
+    # reintento de la persona —que la idempotencia devuelve como «existente»—
+    # completa lo que faltó en vez de dejarlo así.
+    _completar_envio(formulario, form)
+    return formulario, creado
+
+
+def _insertar_formulario(rel, identificacion, form, client_uuid):
+    """Los chequeos que necesitan el lock y el insert. Se llama con el
+    relevamiento ya bloqueado; no guarda adjuntos ni resuelve el legajo."""
     dni = identificacion["dni"]
     datos_basicos = identificacion.get("datos") or {}
     # "personas" (Base de Personas) y "padron" (Cambio 57) acreditan identidad.
@@ -88,86 +125,89 @@ def crear_formulario_publico(relevamiento, *, identificacion, form, client_uuid)
     data, fijos = legacy_desde_respuestas(respuestas, foto)
     identidad_respondida = identidad_desde_respuestas(respuestas, foto)
 
-    with transaction.atomic():
-        rel = Relevamiento.objects.select_for_update().get(pk=relevamiento.pk)
-        if client_uuid:
-            try:
-                client_uuid_obj = uuid.UUID(str(client_uuid))
-            except (TypeError, ValueError):
-                client_uuid_obj = None
-            if client_uuid_obj:
-                existente = formulario_por_client_uuid(rel, client_uuid_obj)
-                if existente:
-                    return existente, False
-        if rel.estado != Relevamiento.Estado.EN_CURSO or not rel.habilitado_en(timezone.now()):
-            raise InscripcionNoDisponible()
-        if rel.formularios.count() >= rel.cupo_maximo:
-            raise InscripcionNoDisponible()
-        # El duplicado es por convocatoria completa: se lockea la convocatoria
-        # para que dos envíos simultáneos por relevamientos distintos no pasen.
-        convocatoria = Convocatoria.objects.select_for_update().get(pk=rel.convocatoria_id)
-        if dni_en_convocatoria(convocatoria, dni):
-            raise InscripcionDuplicada()
-        if not esta_habilitado(rel, dni, identificacion.get("sexo", "")):
-            raise InscripcionNoHabilitada()
+    if rel.estado != Relevamiento.Estado.EN_CURSO or not rel.habilitado_en(timezone.now()):
+        raise InscripcionNoDisponible()
+    if rel.formularios.count() >= rel.cupo_maximo:
+        raise InscripcionNoDisponible()
+    # El duplicado es por convocatoria completa: se lockea la convocatoria
+    # para que dos envíos simultáneos por relevamientos distintos no pasen.
+    convocatoria = Convocatoria.objects.select_for_update().get(pk=rel.convocatoria_id)
+    if dni_en_convocatoria(convocatoria, dni):
+        raise InscripcionDuplicada()
+    if not esta_habilitado(rel, dni, identificacion.get("sexo", "")):
+        raise InscripcionNoHabilitada()
 
-        if es_validado:
-            nombre = datos_basicos.get("nombre", "")
-            apellido = datos_basicos.get("apellido", "")
-            fecha_nacimiento = fecha_iso(datos_basicos.get("fecha_nacimiento")) or identidad_respondida.get(
-                "fecha_nacimiento", ""
-            )
-        else:
-            nombre = identidad_respondida.get("nombre", "")
-            apellido = identidad_respondida.get("apellido", "")
-            fecha_nacimiento = identidad_respondida.get("fecha_nacimiento", "")
-
-        formulario = Formulario.objects.create(
-            relevamiento=rel,
-            celular=fijos.get("celular", ""),
-            email_contacto=fijos.get("email_contacto", ""),
-            apoderado_nombre=fijos.get("apoderado_nombre", ""),
-            apoderado_apellido=fijos.get("apoderado_apellido", ""),
-            apoderado_dni=fijos.get("apoderado_dni", ""),
-            apoderado_genero=fijos.get("apoderado_genero", ""),
-            apoderado_fecha_nacimiento=parse_date(str(fijos.get("apoderado_fecha_nacimiento") or "")) or None,
-            # Solo si el segmento pide ubicación: el navegador la manda igual y
-            # es el domicilio del ciudadano con precisión de metros.
-            gps_lat=cleaned.get("gps_lat") if pide_gps else None,
-            gps_lng=cleaned.get("gps_lng") if pide_gps else None,
-            data=data,
-            respuestas=respuestas,
-            definicion=foto,
-            # Mismo contrato que el sync offline de la app: el origen
-            # "personas" acredita identidad (validado_renaper); "manual" no.
-            datos_identificacion={
-                "dni": dni,
-                "sexo": identificacion.get("sexo", ""),
-                "nombre": nombre,
-                "apellido": apellido,
-                "fecha_nacimiento": fecha_nacimiento,
-                "origen": origen if es_validado else "manual",
-                # Localidad del padrón: solo para completar el legajo.
-                "localidad_id": datos_basicos.get("localidad_id") if es_validado else None,
-            },
-            client_uuid=client_uuid,
-            capturado_en=timezone.now(),
-            created_by=None,
-            validado_renaper=bool(es_validado and nombre and apellido),
-            origen_validacion=(origen if es_validado and nombre and apellido else ""),
+    if es_validado:
+        nombre = datos_basicos.get("nombre", "")
+        apellido = datos_basicos.get("apellido", "")
+        fecha_nacimiento = fecha_iso(datos_basicos.get("fecha_nacimiento")) or identidad_respondida.get(
+            "fecha_nacimiento", ""
         )
-        for clave, item, archivo in form.archivos():
-            if not (clave.startswith("pg-") or clave.startswith("rn-")):
-                continue  # un campo propio no puede ser archivo (lo veta el constructor)
-            AdjuntoFormulario.objects.create(
-                formulario=formulario,
-                pregunta_global_id=item["id"] if clave.startswith("pg-") else None,
-                requisito_nativo_id=item["id"] if clave.startswith("rn-") else None,
-                archivo=archivo,
-            )
-        resolver_ciudadano_offline(formulario)
-        formulario.refresh_from_db()
-    return formulario, True
+    else:
+        nombre = identidad_respondida.get("nombre", "")
+        apellido = identidad_respondida.get("apellido", "")
+        fecha_nacimiento = identidad_respondida.get("fecha_nacimiento", "")
+
+    return Formulario.objects.create(
+        relevamiento=rel,
+        celular=fijos.get("celular", ""),
+        email_contacto=fijos.get("email_contacto", ""),
+        apoderado_nombre=fijos.get("apoderado_nombre", ""),
+        apoderado_apellido=fijos.get("apoderado_apellido", ""),
+        apoderado_dni=fijos.get("apoderado_dni", ""),
+        apoderado_genero=fijos.get("apoderado_genero", ""),
+        apoderado_fecha_nacimiento=parse_date(str(fijos.get("apoderado_fecha_nacimiento") or "")) or None,
+        # Solo si el segmento pide ubicación: el navegador la manda igual y
+        # es el domicilio del ciudadano con precisión de metros.
+        gps_lat=cleaned.get("gps_lat") if pide_gps else None,
+        gps_lng=cleaned.get("gps_lng") if pide_gps else None,
+        data=data,
+        respuestas=respuestas,
+        definicion=foto,
+        # Mismo contrato que el sync offline de la app: el origen
+        # "personas" acredita identidad (validado_renaper); "manual" no.
+        datos_identificacion={
+            "dni": dni,
+            "sexo": identificacion.get("sexo", ""),
+            "nombre": nombre,
+            "apellido": apellido,
+            "fecha_nacimiento": fecha_nacimiento,
+            "origen": origen if es_validado else "manual",
+            # Localidad del padrón: solo para completar el legajo.
+            "localidad_id": datos_basicos.get("localidad_id") if es_validado else None,
+        },
+        client_uuid=client_uuid,
+        capturado_en=timezone.now(),
+        created_by=None,
+        validado_renaper=bool(es_validado and nombre and apellido),
+        origen_validacion=(origen if es_validado and nombre and apellido else ""),
+    )
+
+
+def _completar_envio(formulario, form):
+    """Lo que no necesita el lock: los adjuntos (van al volumen de media) y el
+    legajo. Idempotente: guarda solo los adjuntos que el formulario todavía no
+    tiene, y ``resolver_ciudadano_offline`` ya no hace nada si hay ciudadano."""
+    guardados = set(
+        AdjuntoFormulario.objects.filter(formulario=formulario).values_list("pregunta_global_id", "requisito_nativo_id")
+    )
+    for clave, item, archivo in form.archivos():
+        if not (clave.startswith("pg-") or clave.startswith("rn-")):
+            continue  # un campo propio no puede ser archivo (lo veta el constructor)
+        referencia = (
+            item["id"] if clave.startswith("pg-") else None,
+            item["id"] if clave.startswith("rn-") else None,
+        )
+        if referencia in guardados:
+            continue
+        AdjuntoFormulario.objects.create(
+            formulario=formulario,
+            pregunta_global_id=referencia[0],
+            requisito_nativo_id=referencia[1],
+            archivo=archivo,
+        )
+    resolver_ciudadano_offline(formulario)
+    formulario.refresh_from_db()
 
 
 # --- Correo de confirmación (#296, RN-P10) ---------------------------------

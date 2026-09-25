@@ -8,12 +8,14 @@ generales protegidos del catálogo, no columnas sueltas del formulario.
 
 from datetime import date, timedelta
 from pathlib import Path
+from unittest.mock import patch
 from uuid import uuid4
 
 from django import forms
 from django.contrib.staticfiles import finders
 from django.core.cache import cache
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.db import connection
 from django.template.loader import get_template
 from django.test import TestCase
 from django.urls import reverse
@@ -34,7 +36,7 @@ from programas.models import (
     RequisitoNativo,
     Segmento,
 )
-from programas.services.becas import definicion_formulario
+from programas.services.becas import definicion_formulario, resolver_ciudadano_offline
 from programas.services.diseno import clave_pregunta
 from programas.services.inscripcion_publica import (
     InscripcionDuplicada,
@@ -351,6 +353,50 @@ class IngestaPublicaTests(_BasePaso2Test):
         self.assertFalse(creado2)
         self.assertEqual(primero.pk, segundo.pk)
         self.assertEqual(self.relevamiento.formularios.count(), 1)
+        self.assertEqual(AdjuntoFormulario.objects.filter(formulario=primero).count(), 1)
+
+    def test_el_reintento_completa_lo_que_quedo_a_medias(self):
+        """Cambio 91: adjuntos y legajo se guardan después del commit. Si el
+        envío se cortó ahí, el reintento con el mismo ``client_uuid`` los
+        completa sin duplicar el formulario ni los adjuntos."""
+        ident = _identificacion()
+        primero, creado = crear_formulario_publico(
+            self.relevamiento, identificacion=ident, form=self._form_valido(ident), client_uuid=ident["client_uuid"]
+        )
+        self.assertTrue(creado)
+        # Como quedó un envío cortado justo después del insert.
+        AdjuntoFormulario.objects.filter(formulario=primero).delete()
+        Formulario.objects.filter(pk=primero.pk).update(
+            ciudadano=None,
+            datos_identificacion={"dni": "30123456", "sexo": "F", "nombre": "María Luján", "apellido": "Gómez"},
+        )
+
+        segundo, creado2 = crear_formulario_publico(
+            self.relevamiento, identificacion=ident, form=self._form_valido(ident), client_uuid=ident["client_uuid"]
+        )
+        self.assertFalse(creado2)
+        self.assertEqual(segundo.pk, primero.pk)
+        self.assertEqual(AdjuntoFormulario.objects.filter(formulario=primero).count(), 1)
+        self.assertEqual(segundo.ciudadano.dni, "30123456")
+        self.assertEqual(Ciudadano.objects.filter(dni="30123456").count(), 1)
+
+    def test_el_legajo_se_resuelve_fuera_del_lock(self):
+        """Lo que no necesita el lock del relevamiento corre después de
+        soltarlo: la profundidad de transacción al resolver el legajo es la
+        misma que afuera del servicio."""
+        profundidades = []
+
+        def espia(formulario):
+            profundidades.append(len(connection.savepoint_ids))
+            return resolver_ciudadano_offline(formulario)
+
+        ident = _identificacion()
+        afuera = len(connection.savepoint_ids)
+        with patch("programas.services.inscripcion_publica.resolver_ciudadano_offline", side_effect=espia):
+            crear_formulario_publico(
+                self.relevamiento, identificacion=ident, form=self._form_valido(ident), client_uuid=ident["client_uuid"]
+            )
+        self.assertEqual(profundidades, [afuera])
 
     def test_cupo_lleno_no_crea(self):
         self.relevamiento.cupo_maximo = 1

@@ -7,8 +7,8 @@ RBAC (admin vs coordinador con alcance) vive en ``programas.services.autorizacio
 from datetime import date
 
 from django.db import models, transaction
-from django.db.models import CharField, Value
-from django.db.models.functions import Cast, Replace
+from django.db.models import CharField, F, Q, Value
+from django.db.models.lookups import Exact
 
 from legajos.models import Ciudadano
 from programas.models import (
@@ -109,14 +109,25 @@ def definicion_formulario(relevamiento):
 
 
 def formulario_por_client_uuid(relevamiento, client_uuid):
-    """Busca la clave idempotente sin depender del lookup UUID del motor."""
+    """Busca la clave idempotente sin depender del lookup UUID del motor.
+
+    La columna es texto de 36 (admite el UUID con guiones que llega por API) y
+    conviven filas con y sin guiones, así que se compara contra las dos formas
+    como texto plano. Antes se normalizaba la columna con ``REPLACE(CAST(...))``:
+    eso anulaba el índice único y cada envío recorría todos los formularios del
+    relevamiento —con el lock del relevamiento tomado—; con miles de casos la
+    cola de envíos pasaba el ``read_timeout`` de 10 s y el portal daba 500
+    (24/09/2026, 165 errores en el paso 2 de la inscripción pública).
+    """
     if not client_uuid:
         return None
+    columna = F("client_uuid")
     return (
-        relevamiento.formularios.annotate(
-            client_uuid_text=Replace(Cast("client_uuid", CharField()), Value("-"), Value(""))
+        relevamiento.formularios.filter(
+            Q(Exact(columna, Value(client_uuid.hex, output_field=CharField())))
+            | Q(Exact(columna, Value(str(client_uuid), output_field=CharField())))
         )
-        .filter(client_uuid_text=client_uuid.hex)
+        .order_by("pk")
         .first()
     )
 

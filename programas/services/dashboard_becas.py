@@ -1100,9 +1100,14 @@ def respuestas_por_persona(convocatoria):
         clave = f"global:{pg_id}" if pg_id else f"requisito:{rn_id}"
         adjuntos.setdefault((form_id, clave), []).append(_nombre_archivo(archivo))
 
+    # La planilla lee ``data`` y las columnas fijas: ``respuestas``, ``datos_siis``
+    # y sobre todo ``definicion`` (la foto completa del formulario, por fila) no
+    # se usan y eran lo más pesado de cada fila. Con miles de casos, traerlas
+    # para ordenarlas pasaba el read_timeout de MySQL (500 a los 10 s, 24/09/2026).
     formularios = (
         Formulario.objects.filter(relevamiento__convocatoria=convocatoria)
         .select_related("relevamiento__territorial", "ciudadano", "apoderado_ciudadano")
+        .defer("respuestas", "definicion", "datos_siis")
         .order_by("relevamiento_id", "numero")
     )
     casos, extra_claves = [], set()
