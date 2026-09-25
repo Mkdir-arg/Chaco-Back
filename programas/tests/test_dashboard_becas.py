@@ -421,6 +421,41 @@ class RespuestasTests(DashboardBecasBase):
         self.assertEqual(len(todas), 3)
         self.assertLessEqual(len(consultas), 12)
 
+    def test_una_consulta_agrupada_por_pregunta(self):
+        """El motor agrupa por el valor extraído: una consulta por pregunta, con una fila
+        por respuesta distinta, y el resultado no depende de cuántos formularios haya."""
+        self._con_respuestas()
+        alcance = svc.resolver_alcance(self.admin, self.programa, VENTANA)
+        catalogo = svc.preguntas_graficables(self.admin, self.programa)
+        with self.assertNumQueries(len(catalogo)):
+            antes = svc.distribuciones_respuestas(
+                self.admin, self.programa, VENTANA, alcance=alcance, catalogo=catalogo
+            )
+        q1 = str(self.q_laboral.pk)
+        for _ in range(7):
+            self._formulario(self.rel_propio, creado=HOY - timedelta(days=2), data={"globales": {q1: "Trabaja"}})
+        with self.assertNumQueries(len(catalogo)):
+            despues = svc.distribuciones_respuestas(
+                self.admin, self.programa, VENTANA, alcance=alcance, catalogo=catalogo
+            )
+        laboral_antes, laboral_despues = antes[0], despues[0]
+        self.assertEqual((laboral_antes.base, laboral_despues.base), (4, 11))
+        self.assertEqual(next(o for o in laboral_despues.opciones if o["opcion"] == "Trabaja")["total"], 9)
+
+    def test_multiple_suma_cada_opcion_sea_cual_sea_el_orden_marcado(self):
+        """Dos formularios que marcaron las mismas opciones en distinto orden son grupos
+        distintos para el motor pero suman a las mismas opciones."""
+        dentro = HOY - timedelta(days=2)
+        q2 = str(self.q_transporte.pk)
+        for marcadas in (["Colectivo", "Moto"], ["Moto", "Colectivo"], ["Moto"], [], None):
+            self._formulario(self.rel_propio, creado=dentro, data={"globales": {q2: marcadas}, "requisitos": {}})
+        transporte = svc.distribucion_respuestas(self.admin, self.programa, VENTANA, f"global:{self.q_transporte.pk}")
+        self.assertEqual(transporte.base, 3)
+        self.assertEqual(
+            {o["opcion"]: o["total"] for o in transporte.opciones}, {"Moto": 3, "Colectivo": 2, "A pie": 0}
+        )
+        self.assertEqual(transporte.opciones[0], {"opcion": "Moto", "total": 3, "pct": 100.0})
+
 
 class CacheTests(DashboardBecasBase):
     def test_cache_por_filtros_y_alcance(self):
@@ -826,3 +861,44 @@ class RespuestasPorPersonaTests(DashboardBecasBase):
         self.assertContains(pantalla, "Exportar por persona")
         self.assertContains(pantalla, 'id="dash-form-respuestas"')
         self.assertContains(pantalla, reverse("becas:programa_dashboard_respuestas_xlsx", args=[self.programa.pk, 0]))
+
+    def test_apoderado_gps_y_consultas_constantes(self):
+        """Las columnas fijas salen de ``values`` (sin instanciar el caso ni sus relaciones)
+        con el mismo texto de siempre, y la cantidad de consultas no crece con los casos."""
+        self._armar_casos()
+        apoderada = self._ciudadano("22333444")
+        con_legajo = self._formulario(
+            self.rel_propio,
+            apoderado_ciudadano=apoderada,
+            gps_lat="-27.451234",
+            gps_lng="-58.986543",
+            data={"globales": {str(self.q_laboral.pk): "Estudia"}, "requisitos": {}},
+        )
+        manual = self._formulario(
+            self.rel_publico,
+            apoderado_apellido="Gómez",
+            apoderado_nombre="Luis",
+            apoderado_dni="20111222",
+            data={"globales": {}, "requisitos": {}},
+        )
+        svc.respuestas_por_persona(self.conv_propia)
+        with CaptureQueriesContext(connection) as pocas:
+            reporte, _ = svc.respuestas_por_persona(self.conv_propia)
+        cab = list(reporte.encabezados)
+        filas = {fila[cab.index("ID caso")]: dict(zip(cab, fila)) for fila in reporte.filas}
+        self.assertEqual(filas[con_legajo.pk]["Apoderado"], "Pérez, Ana (22333444)")
+        self.assertEqual(filas[con_legajo.pk]["GPS"], "-27.451234, -58.986543")
+        self.assertEqual(filas[con_legajo.pk]["Estado del caso"], "Enviado")
+        self.assertEqual(filas[con_legajo.pk]["Situación laboral"], "Estudia")
+        self.assertEqual(filas[manual.pk]["Apoderado"], "Gómez, Luis (20111222)")
+        self.assertEqual(filas[manual.pk]["GPS"], "")
+        self.assertEqual(filas[manual.pk]["Apellido y nombre"], "P, P")
+        # El orden es por relevamiento y número, como siempre.
+        self.assertEqual([f[cab.index("ID relevamiento")] for f in reporte.filas], sorted(f[0] for f in reporte.filas))
+        for i in range(10):
+            self._formulario(self.rel_propio, ciudadano=self._ciudadano(str(60000000 + i)))
+        with CaptureQueriesContext(connection) as muchas:
+            reporte, _ = svc.respuestas_por_persona(self.conv_propia)
+        self.assertEqual(len(reporte.filas), 14)
+        self.assertEqual(len(muchas), len(pocas))
+        self.assertLessEqual(len(muchas), 7)
