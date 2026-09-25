@@ -235,7 +235,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 88 | Proceso masivo a SIIS desde el backoffice, en una pantalla no listada | Becas · alta de beneficiarios en SIIS | `#siis` `#relevamientos` `#ui` | PM — en sesión: «una funcionalidad secreta para ejecutar el enviar 1000 a SIIS de un programa: validarlo con SIIS, aprobarlo y enviarlo» | 22/09/2026 | 🟢 **Hecho** | `programas.0071` (aditiva) |
 | 89 | El domicilio sin altura viaja a SIIS como aproximado | Becas · alta de beneficiarios en SIIS | `#siis` `#relevamientos` | PM — en sesión: «a todos esos casos la calle va Planta urbana sin número y el número 1» | 22/09/2026 | 🟢 **Hecho** | No requiere |
 | 90 | A SIIS solo van los DNI de la tabla `aprobados_materias` | Becas · alta de beneficiarios en SIIS | `#siis` `#relevamientos` | PM — en sesión: «que solo se envíen los casos que estén en una tabla `aprobados_materias` con una columna `dni`; mismos comandos, consulta la tabla y solo intenta enviar los que estén» | 22/09/2026 | 🟢 **Hecho** | No requiere |
-| 91 | El envío de la inscripción pública deja de dar 500 por timeout: menos trabajo con el lock tomado y búsquedas por índice | Becas · inscripción pública (portal, paso 2) y sync de la app de campo | `#performance` `#relevamientos` `#api` `#datos` | PM — en sesión: «analizá los logs y fijate por qué tengo muchos errores 500 desde un formulario en las últimas 24 horas» | 25/09/2026 | 🟡 **Hecho — sin desplegar** | `programas.0072` (aditiva, con relleno) |
+| 91 | El envío de la inscripción pública deja de dar 500 por timeout: menos trabajo con el lock tomado y búsquedas por índice | Becas · inscripción pública (portal, paso 2) y sync de la app de campo | `#performance` `#relevamientos` `#api` `#datos` | PM — en sesión: «analizá los logs y fijate por qué tengo muchos errores 500 desde un formulario en las últimas 24 horas» | 25/09/2026 | 🟢 **Hecho — en producción** | `programas.0072` (aditiva, con relleno) |
 
 **Notas del índice**
 
@@ -9893,7 +9893,7 @@ caso, payload completo (`--solo-completos`), programa (pantalla) y ahora la tabl
 
 # Cambio 91 — El envío de la inscripción pública deja de dar 500 por timeout: menos trabajo con el lock tomado y búsquedas por índice
 
-🟡 **HECHO — SIN DESPLEGAR — 25/09/2026**
+🟢 **HECHO — EN PRODUCCIÓN DE ECOM DESDE EL 25/09/2026** (release `382fb5c`, PR #452; `ecom/test` = `99f55d1`, `ecom/main` = `e77354b`)
 
 | | |
 |---|---|
@@ -10028,3 +10028,15 @@ salvo `dni_en_convocatoria` y `_formulario_por_dni`, y `save()` la mantiene sin 
 ## Historial
 
 Entrada nueva. Primer incidente de timeout en el portal público; los anteriores (Cambio 66) fueron del backoffice.
+
+- **25/09/2026 — desplegado.** El PR #452 se mergeó a `development` (`4792112`) y el release `382fb5c` se
+  espejó a ECOM: `test` (`99f55d1`) y `main` (`e77354b`, producción), los dos con commit de alineación de árbol
+  idéntico, sin forzar. El squash del PR llevó también `scripts/Aprobados.sql` (la carga de `aprobados_materias`
+  para producción, Cambio 90), que estaba commiteado localmente sin subir; el PM confirmó que tenía que ir.
+  Producción salta del release del 20/09 al de hoy: Cambios 81 a 91, migraciones 0069 a 0072.
+- **Mismo día, sin código:** un `Becas — Referente` con coordinador veía la convocatoria vacía y nada en
+  Relevamientos ni Revisión. No es un bug: es RN-P13 (Cambio 41) — los roles del cliente nacen sin
+  `becas.relevamiento.publico` y en producción todas las inscripciones entran por el link público. Se resuelve
+  tildando «Crear y ver relevamientos de formulario público» en el rol desde la pantalla de Roles. Queda
+  abierto lo del Cambio 26: la UI de subsegmentos llama «Referente asignado» al Coordinador Regional, y eso
+  confunde con el rol Referente.
