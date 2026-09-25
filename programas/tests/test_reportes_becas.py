@@ -191,6 +191,17 @@ class ReportesBecasTests(TestCase):
 
         self.assertEqual(len(consultas_cargado), len(consultas_vacio))
 
+    def test_cupos_y_produccion_no_recorren_los_casos(self):
+        """Cuatro consultas agregadas en cupos y dos en producción, con la caché
+        de autorización caliente: ninguna crece con la cantidad de formularios."""
+        for _ in range(30):
+            self._formulario(self.rel_propio, Formulario.Estado.ENVIADO)
+        for reporte, esperadas in ((reporte_cupos, 4), (reporte_produccion, 2)):
+            reporte(self.admin)
+            with CaptureQueriesContext(connection) as consultas:
+                reporte(self.admin)
+            self.assertEqual(len(consultas), esperadas, reporte.__name__)
+
     def test_ver_sin_exportar_muestra_pantalla_y_export_devuelve_403(self):
         usuario = self._rol_solo_ver()
         self.client.force_login(usuario)

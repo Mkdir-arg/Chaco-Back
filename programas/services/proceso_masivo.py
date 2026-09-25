@@ -28,6 +28,11 @@ from programas.services.validacion_siis import validar_formulario_en_siis
 
 LOTE = 40
 MAX_ERRORES = 10
+# Casos que se traen de la base por vez al hidratar una lista de ids (abajo).
+LOTE_LECTURA = 200
+# Lo que el circuito lee de cada caso sin volver a la base: lo comparten
+# ``candidatos`` y la hidratación por lotes.
+SELECT_RELATED_CASOS = ("ciudadano", "relevamiento__convocatoria__segmento__programa", "apoderado_ciudadano")
 
 # Cambio 90: a SIIS solo van los DNI que figuren en esta tabla. La carga el
 # organismo desde su planilla, igual que ``ciudadanos_renaper``; una sola
@@ -129,9 +134,7 @@ def candidatos(
     """
     ultimo = EnvioSIIS.objects.filter(formulario=OuterRef("pk")).order_by("-creado", "-id").values("estado")[:1]
     casos = (
-        Formulario.objects.select_related(
-            "ciudadano", "relevamiento__convocatoria__segmento__programa", "apoderado_ciudadano"
-        )
+        Formulario.objects.select_related(*SELECT_RELATED_CASOS)
         .annotate(ultimo_envio=Subquery(ultimo))
         # «Todavía no informado» incluye a los que no tienen ningún envío, y eso
         # es NULL: un ``exclude`` los descartaría a todos, porque
@@ -156,7 +159,43 @@ def candidatos(
     )
     if filtrar_materias:
         casos = casos.filter(ciudadano__dni__in=dnis_aprobados_materias())
-    return casos.distinct()
+    # Sin ``distinct()``: nada acá multiplica filas (los ``select_related`` son
+    # claves foráneas hacia adelante y el conflicto de carga se excluye con una
+    # subconsulta), así que cada caso ya sale una sola vez. Con DISTINCT, en
+    # cambio, MySQL materializaba los 20.000 candidatos enteros --con sus
+    # columnas JSON-- en una tabla temporal antes de ordenar y cortar: 3,8 s
+    # para un ``count()`` en el banco (la pantalla del proceso masivo) y de 2,9
+    # a 4,4 s para ``[:1000]``; sin él, 0,1 s el ``count()``.
+    return casos
+
+
+def ids_de(casos, limite=None):
+    """Solo los ids de ``casos`` (un queryset de :func:`candidatos`), en orden de
+    pk; con ``limite``, los primeros ``limite``."""
+    ids = casos.values_list("pk", flat=True)
+    if limite:
+        ids = ids[:limite]
+    return list(ids)
+
+
+def hidratar(ids):
+    """Los casos completos de ``ids``, en orden de pk y con las relaciones que
+    lee el circuito ya cargadas (las mismas que :func:`candidatos`)."""
+    return list(Formulario.objects.select_related(*SELECT_RELATED_CASOS).filter(pk__in=ids).order_by("pk"))
+
+
+def hidratar_por_lotes(ids, tamano=LOTE_LECTURA):
+    """Recorre los casos de ``ids`` trayéndolos de a ``tamano``.
+
+    Traerlos todos de una vez --``list(candidatos(...))``-- era pedirle a MySQL
+    los 20.000 candidatos con ``data``, ``respuestas`` y ``definicion`` (unos
+    7 KB por caso) en una sola consulta: 12,5 s de SQL en el banco, y contra la
+    base de ECOM eso muere por ``read_timeout`` (10 s) antes de devolver nada.
+    Una lista de ids vuelve en 100 ms y cada lote de 200 en 11 ms. Quien itera
+    puede cortar cuando junta lo que necesita, sin haber leído el resto.
+    """
+    for inicio in range(0, len(ids), tamano):
+        yield from hidratar(ids[inicio : inicio + tamano])
 
 
 def elegir_completos(casos, catalogos, total, cuenta):
@@ -269,7 +308,7 @@ def correr(corrida, *, responsable=None, catalogos=None, lote=LOTE, max_errores=
     cuenta = Cuenta()
     responsable = responsable or corrida.solicitada_por
     try:
-        pendientes = list(candidatos(programa=corrida.programa))
+        pendientes = hidratar_por_lotes(ids_de(candidatos(programa=corrida.programa)))
         casos, _ = elegir_completos(pendientes, catalogos, corrida.total_pedido, cuenta)
         _guardar(corrida, cuenta)
 

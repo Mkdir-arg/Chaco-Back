@@ -368,16 +368,21 @@ def _estado_convocatoria(conv):
     return "Cerrada por vencimiento" if conv.cerrada_automaticamente else "Cerrada"
 
 
-def _tabla_convocatorias(alcance, forms_por_conv, cupos):
-    rels_por_conv = defaultdict(Counter)
-    for r in alcance.relevamientos:
-        rels_por_conv[r["convocatoria_id"]][r["estado"]] += 1
-    filas = []
-    convocatorias = (
+def _convocatorias(alcance):
+    """Las convocatorias del alcance con su segmento y subsegmento, en el orden de la
+    tabla: una sola lectura que comparten los indicadores y :func:`_tabla_convocatorias`."""
+    return list(
         Convocatoria.objects.filter(pk__in=alcance.convocatoria_ids)
         .select_related("segmento", "subsegmento")
         .order_by("-fecha_inicio", "nombre")
     )
+
+
+def _tabla_convocatorias(alcance, forms_por_conv, cupos, convocatorias):
+    rels_por_conv = defaultdict(Counter)
+    for r in alcance.relevamientos:
+        rels_por_conv[r["convocatoria_id"]][r["estado"]] += 1
+    filas = []
     for conv in convocatorias:
         rels = rels_por_conv.get(conv.pk, Counter())
         forms = forms_por_conv.get(conv.pk, Counter())
@@ -527,10 +532,17 @@ def metricas(user, programa, filtros, alcance=None):
     formularios = _formularios(alcance, filtros.desde, filtros.hasta)
     rel_info = {r["id"]: r for r in alcance.relevamientos}
 
-    # Una sola consulta agrupada alimenta estados, canales, convocatorias y territoriales.
+    # Una sola consulta agrupada alimenta estados, canales, convocatorias, territoriales
+    # y la identidad validada: el conteo condicional viaja en el mismo agrupado en vez
+    # de recorrer el recorte entero otra vez.
     forms_por_rel = defaultdict(Counter)
-    for fila in formularios.values("relevamiento_id", "estado").annotate(total=Count("pk")):
+    identidad = 0
+    con_identidad = Q(validado_renaper=True) | Q(identidad_forzada=True)
+    for fila in formularios.values("relevamiento_id", "estado").annotate(
+        total=Count("pk"), identidad=Count("pk", filter=con_identidad)
+    ):
         forms_por_rel[fila["relevamiento_id"]][fila["estado"]] += fila["total"]
+        identidad += fila["identidad"]
     por_estado, por_canal, forms_por_conv = Counter(), Counter(), defaultdict(Counter)
     for rel_id, conteo in forms_por_rel.items():
         info = rel_info.get(rel_id) or {}
@@ -542,24 +554,18 @@ def metricas(user, programa, filtros, alcance=None):
     aprobados = por_estado.get(Formulario.Estado.APROBADO, 0)
     rechazados = por_estado.get(Formulario.Estado.RECHAZADO, 0)
 
-    identidad = 0
     lista_espera = 0
     if total:
-        identidad = formularios.filter(Q(validado_renaper=True) | Q(identidad_forzada=True)).count()
         lista_espera = ListaEspera.objects.filter(formulario__in=formularios.values("pk"), promovido=False).count()
 
     rel_por_estado = Counter(r["estado"] for r in alcance.relevamientos)
     cupos = _cupo(user, alcance)
-    convocatorias = list(
-        Convocatoria.objects.filter(pk__in=alcance.convocatoria_ids)
-        .order_by()
-        .values_list("activo", "cerrada_automaticamente")
-    )
+    convocatorias = _convocatorias(alcance)
 
     indicadores = Indicadores(
         convocatorias_total=len(convocatorias),
-        convocatorias_activas=sum(1 for activo, _ in convocatorias if activo),
-        convocatorias_cerradas_vencimiento=sum(1 for activo, cerrada in convocatorias if not activo and cerrada),
+        convocatorias_activas=sum(1 for c in convocatorias if c.activo),
+        convocatorias_cerradas_vencimiento=sum(1 for c in convocatorias if not c.activo and c.cerrada_automaticamente),
         relevamientos_total=len(alcance.relevamientos),
         relevamientos_en_curso=sum(rel_por_estado.get(e, 0) for e in RELEVAMIENTOS_EN_CURSO),
         relevamientos_publicos=sum(1 for r in alcance.relevamientos if r["tipo"] == Relevamiento.Tipo.PUBLICO),
@@ -583,7 +589,7 @@ def metricas(user, programa, filtros, alcance=None):
         serie_semanal=_serie_semanal(formularios, filtros) if total else [],
         estados=_con_choices(por_estado, Formulario.Estado.choices),
         canales=_con_choices(por_canal, Relevamiento.Tipo.choices),
-        convocatorias=_tabla_convocatorias(alcance, forms_por_conv, cupos),
+        convocatorias=_tabla_convocatorias(alcance, forms_por_conv, cupos, convocatorias),
         relevamientos_por_estado=_con_choices(rel_por_estado, Relevamiento.Estado.choices),
         embudo=_embudo(formularios, total, aprobados, rechazados, lista_espera, identidad),
         territoriales=_territoriales(alcance, forms_por_rel),
@@ -818,7 +824,7 @@ def _armar_distribucion(pregunta, conteo, base):
 
 
 def distribuciones_respuestas(user, programa, filtros, claves=None, alcance=None, catalogo=None):
-    """Distribución de una o varias preguntas en **una sola pasada** por los formularios.
+    """Distribución de una o varias preguntas, **agrupada en SQL** pregunta por pregunta.
 
     - La base de cada pregunta son los formularios que **tienen** esa pregunta
       respondida (RN-15); un formulario anterior al alta no cuenta como «sin respuesta».
@@ -827,9 +833,13 @@ def distribuciones_respuestas(user, programa, filtros, claves=None, alcance=None
     - Una opción respondida que ya no está en el catálogo se lista igual, con el
       texto guardado (caso límite del análisis).
 
-    La extracción se hace en SQL por clave del JSON: una fila devuelve solo los
-    valores pedidos, no el documento. Una fila con ``data`` guardado como texto (doble
-    codificado) no tiene claves para el motor y cuenta como sin respuesta: no rompe.
+    La extracción se hace en SQL por clave del JSON y el motor agrupa por el valor
+    extraído: por pregunta vuelve una fila por respuesta distinta (cada opción del
+    selector, o cada combinación marcada en múltiple) con su cantidad, no un valor por
+    formulario. Traer y decodificar en Python 20.000 valores por pregunta costaba diez
+    veces más que la consulta (banco MySQL, 25/09/2026). Una fila con ``data`` guardado
+    como texto (doble codificado) no tiene claves para el motor y cuenta como sin
+    respuesta: no rompe.
 
     ``claves=None`` calcula todas las del catálogo (exportación). Devuelve la lista en
     el orden del catálogo; las claves fuera del alcance se ignoran.
@@ -843,21 +853,24 @@ def distribuciones_respuestas(user, programa, filtros, claves=None, alcance=None
     alcance = alcance or resolver_alcance(user, programa, filtros)
     formularios = _formularios(alcance, filtros.desde, filtros.hasta)
 
-    conteos = {p.clave: Counter() for p in catalogo}
-    bases = {p.clave: 0 for p in catalogo}
-    alias = [f"r{i}" for i in range(len(catalogo))]
-    filas = formularios.annotate(**{a: _expresion_respuesta(p.clave) for a, p in zip(alias, catalogo)}).values_list(
-        *alias
-    )
-    for fila in filas.iterator(chunk_size=5000):
-        for pregunta, valor in zip(catalogo, fila):
+    resultado = []
+    for pregunta in catalogo:
+        conteo, base = Counter(), 0
+        grupos = (
+            formularios.annotate(valor=_expresion_respuesta(pregunta.clave))
+            .values("valor")
+            .annotate(total=Count("pk"))
+            .values_list("valor", "total")
+        )
+        for valor, total in grupos:
             valores = _valores_de(valor)
             if not valores:
                 continue
-            bases[pregunta.clave] += 1
+            base += total
             for v in valores if pregunta.multiple else valores[:1]:
-                conteos[pregunta.clave][v] += 1
-    return [_armar_distribucion(p, conteos[p.clave], bases[p.clave]) for p in catalogo]
+                conteo[v] += total
+        resultado.append(_armar_distribucion(pregunta, conteo, base))
+    return resultado
 
 
 def distribucion_respuestas(user, programa, filtros, clave, alcance=None, catalogo=None):
@@ -1056,20 +1069,76 @@ def _texto_columna(campo, prefijo):
 
 
 def _identificacion(f):
-    """(dni, «Apellido, Nombre») desde el legajo si existe; si no, de los datos de identificación offline."""
-    if f.ciudadano_id:
-        return f.ciudadano.dni, f"{f.ciudadano.apellido}, {f.ciudadano.nombre}".strip(", ")
-    ident = f.datos_identificacion if isinstance(f.datos_identificacion, dict) else {}
+    """(dni, «Apellido, Nombre») desde el legajo si existe; si no, de los datos de
+    identificación offline. ``f`` es la fila del caso (ver ``_COLUMNAS_CASO``)."""
+    if f["ciudadano_id"]:
+        return f["ciudadano__dni"], f"{f['ciudadano__apellido']}, {f['ciudadano__nombre']}".strip(", ")
+    ident = f["datos_identificacion"] if isinstance(f["datos_identificacion"], dict) else {}
     return str(ident.get("dni") or ""), f"{ident.get('apellido') or ''}, {ident.get('nombre') or ''}".strip(", ")
 
 
 def _apoderado(f):
-    if f.apoderado_ciudadano_id:
-        a = f.apoderado_ciudadano
-        return f"{a.apellido}, {a.nombre} ({a.dni})"
-    if f.apoderado_dni or f.apoderado_apellido or f.apoderado_nombre:
-        return f"{f.apoderado_apellido}, {f.apoderado_nombre} ({f.apoderado_dni})".strip(", ")
+    if f["apoderado_ciudadano_id"]:
+        return f"{f['apoderado_ciudadano__apellido']}, {f['apoderado_ciudadano__nombre']} ({f['apoderado_ciudadano__dni']})"
+    if f["apoderado_dni"] or f["apoderado_apellido"] or f["apoderado_nombre"]:
+        return f"{f['apoderado_apellido']}, {f['apoderado_nombre']} ({f['apoderado_dni']})".strip(", ")
     return ""
+
+
+def _relevamientos_de(convocatoria):
+    """``{id: (id, nombre, canal, territorial)}``: las columnas fijas del relevamiento se
+    resuelven una vez por relevamiento y no por cada caso."""
+    filas = {}
+    for pk, nombre, tipo, territorial_id, first_name, last_name, username in (
+        Relevamiento.objects.filter(convocatoria=convocatoria)
+        .order_by()
+        .values_list(
+            "pk",
+            "nombre",
+            "tipo",
+            "territorial_id",
+            "territorial__first_name",
+            "territorial__last_name",
+            "territorial__username",
+        )
+    ):
+        territorial = (f"{first_name} {last_name}".strip() or username) if territorial_id else ""
+        canal = "Link público" if tipo == Relevamiento.Tipo.PUBLICO else "Territorial"
+        filas[pk] = (pk, nombre, canal, territorial)
+    return filas
+
+
+# Lo único del caso que lee la planilla. Se pide con ``values`` y no como instancias:
+# con 20.000 casos, armar el modelo con sus tres relaciones —y convertir nueve
+# datetimes por fila que nadie mira— era la mitad del tiempo de Python del export
+# (banco MySQL, 25/09/2026). ``respuestas``, ``definicion`` y ``datos_siis`` quedan
+# afuera: eran lo más pesado de cada fila y pasaban el read_timeout (500, 24/09/2026).
+_COLUMNAS_CASO = (
+    "pk",
+    "relevamiento_id",
+    "numero",
+    "estado",
+    "creado",
+    "ciudadano_id",
+    "ciudadano__dni",
+    "ciudadano__apellido",
+    "ciudadano__nombre",
+    "datos_identificacion",
+    "validado_renaper",
+    "identidad_forzada",
+    "celular",
+    "email_contacto",
+    "apoderado_ciudadano_id",
+    "apoderado_ciudadano__apellido",
+    "apoderado_ciudadano__nombre",
+    "apoderado_ciudadano__dni",
+    "apoderado_apellido",
+    "apoderado_nombre",
+    "apoderado_dni",
+    "gps_lat",
+    "gps_lng",
+    "data",
+)
 
 
 def respuestas_por_persona(convocatoria):
@@ -1089,8 +1158,8 @@ def respuestas_por_persona(convocatoria):
         (f"requisito:{r.pk}", r, "Requisito") for r in requisitos
     ]
     en_definicion = {clave for clave, _, _ in definicion}
-    tipos_archivo = {clave for clave, campo, _ in definicion if campo.tipo == TipoCampo.ARCHIVO}
 
+    # Adjuntos por caso y pregunta: en esa columna va el nombre del archivo.
     adjuntos = {}
     for form_id, pg_id, rn_id, archivo in (
         AdjuntoFormulario.objects.filter(formulario__relevamiento__convocatoria=convocatoria)
@@ -1098,44 +1167,42 @@ def respuestas_por_persona(convocatoria):
         .values_list("formulario_id", "pregunta_global_id", "requisito_nativo_id", "archivo")
     ):
         clave = f"global:{pg_id}" if pg_id else f"requisito:{rn_id}"
-        adjuntos.setdefault((form_id, clave), []).append(_nombre_archivo(archivo))
+        adjuntos.setdefault(form_id, {}).setdefault(clave, []).append(_nombre_archivo(archivo))
 
-    # La planilla lee ``data`` y las columnas fijas: ``respuestas``, ``datos_siis``
-    # y sobre todo ``definicion`` (la foto completa del formulario, por fila) no
-    # se usan y eran lo más pesado de cada fila. Con miles de casos, traerlas
-    # para ordenarlas pasaba el read_timeout de MySQL (500 a los 10 s, 24/09/2026).
+    relevamientos = _relevamientos_de(convocatoria)
+    etiquetas_estado = {valor: str(etiqueta) for valor, etiqueta in Formulario.Estado.choices}
+    # Filtrar por los ids de relevamiento (y no por el join a la convocatoria) deja que
+    # el motor lea por el índice (relevamiento, numero), que ya es el orden pedido, sin
+    # tabla temporal ni sort de las 20.000 filas.
     formularios = (
-        Formulario.objects.filter(relevamiento__convocatoria=convocatoria)
-        .select_related("relevamiento__territorial", "ciudadano", "apoderado_ciudadano")
-        .defer("respuestas", "definicion", "datos_siis")
+        Formulario.objects.filter(relevamiento_id__in=list(relevamientos))
         .order_by("relevamiento_id", "numero")
+        .values(*_COLUMNAS_CASO)
     )
     casos, extra_claves = [], set()
-    for f in formularios.iterator(chunk_size=1000):
-        rel = f.relevamiento
+    for f in formularios.iterator(chunk_size=2000):
+        rel_id, rel_nombre, canal, territorial = relevamientos[f["relevamiento_id"]]
         dni, nombre = _identificacion(f)
-        territorial = ""
-        if rel.territorial_id:
-            territorial = rel.territorial.get_full_name().strip() or rel.territorial.username
+        creado = f["creado"]
         base = [
-            rel.pk,
-            rel.nombre,
-            "Link público" if rel.tipo == Relevamiento.Tipo.PUBLICO else "Territorial",
+            rel_id,
+            rel_nombre,
+            canal,
             territorial,
-            f.pk,
-            f.numero,
-            f.get_estado_display(),
-            timezone.localtime(f.creado).strftime("%d/%m/%Y %H:%M") if f.creado else "",
-            f.ciudadano_id or "",
+            f["pk"],
+            f["numero"],
+            etiquetas_estado.get(f["estado"], f["estado"]),
+            timezone.localtime(creado).strftime("%d/%m/%Y %H:%M") if creado else "",
+            f["ciudadano_id"] or "",
             dni,
             nombre,
-            "Sí" if (f.validado_renaper or f.identidad_forzada) else "No",
-            f.celular or "",
-            f.email_contacto or "",
+            "Sí" if (f["validado_renaper"] or f["identidad_forzada"]) else "No",
+            f["celular"] or "",
+            f["email_contacto"] or "",
             _apoderado(f),
-            f"{f.gps_lat}, {f.gps_lng}" if f.gps_lat is not None and f.gps_lng is not None else "",
+            f"{f['gps_lat']}, {f['gps_lng']}" if f["gps_lat"] is not None and f["gps_lng"] is not None else "",
         ]
-        data = _como_dict(f.data)
+        data = _como_dict(f["data"])
         contestadas = {}
         for bolsa, ambito in (("globales", "global"), ("requisitos", "requisito")):
             for pk, valor in _como_dict(data.get(bolsa)).items():
@@ -1145,7 +1212,7 @@ def respuestas_por_persona(convocatoria):
                     contestadas[clave] = " | ".join(valores)
                     if clave not in en_definicion:
                         extra_claves.add(clave)
-        casos.append((f.pk, base, contestadas))
+        casos.append((f["pk"], base, contestadas))
 
     # Preguntas respondidas que ya no están en el formulario: se conservan como columnas propias.
     extras = []
@@ -1166,15 +1233,16 @@ def respuestas_por_persona(convocatoria):
     repetidos = Counter(texto for _, texto in columnas)
     encabezados_preguntas = [f"{texto} [{clave}]" if repetidos[texto] > 1 else texto for clave, texto in columnas]
 
+    claves = [clave for clave, _ in columnas]
+    posicion = {clave: i for i, clave in enumerate(claves)}
     filas = []
     for form_id, base, contestadas in casos:
-        celdas = []
-        for clave, _ in columnas:
-            nombres = adjuntos.get((form_id, clave))
-            if nombres or clave in tipos_archivo:
-                celdas.append(" | ".join(nombres) if nombres else contestadas.get(clave, ""))
-            else:
-                celdas.append(contestadas.get(clave, ""))
+        celdas = [contestadas.get(clave, "") for clave in claves]
+        # Un adjunto pisa lo guardado en su columna; sin columna (pregunta que ya no
+        # está y nadie respondió) no hay dónde mostrarlo, igual que antes.
+        for clave, nombres in adjuntos.get(form_id, {}).items():
+            if clave in posicion:
+                celdas[posicion[clave]] = " | ".join(nombres)
         filas.append(tuple(base + celdas))
 
     encabezados = COLUMNAS_FIJAS + tuple(encabezados_preguntas)

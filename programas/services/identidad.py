@@ -36,9 +36,16 @@ def gran_base_activa():
     return bool(getattr(settings, "PERSONAS_API_ACTIVA", True))
 
 
-def identificar(objetivo, dni, sexo):
+_SIN_BUSCAR = object()
+
+
+def identificar(objetivo, dni, sexo, fila=_SIN_BUSCAR):
     """Resuelve la identidad de ``dni`` + ``sexo`` contra el padrón efectivo de
     ``objetivo`` (un relevamiento o una convocatoria, Cambio 74) y la Gran Base.
+
+    ``fila``: la fila del padrón efectivo si quien llama ya la buscó (el paso 1
+    del link la necesita antes, para saber si el documento está habilitado);
+    ``None`` vale como «buscada y no está». Sin el argumento se busca acá.
 
     Devuelve un dict con:
 
@@ -68,10 +75,10 @@ def identificar(objetivo, dni, sexo):
     if not dni or not sexo:
         return resultado
 
-    if objetivo is not None:
-        fila = fila_padron(objetivo, dni, sexo)
-        if fila is not None and fila.tiene_identidad:
-            resultado.update(origen=ORIGEN_PADRON, validado=True, datos=datos_de_fila(fila))
+    if fila is _SIN_BUSCAR:
+        fila = fila_padron(objetivo, dni, sexo) if objetivo is not None else None
+    if fila is not None and fila.tiene_identidad:
+        resultado.update(origen=ORIGEN_PADRON, validado=True, datos=datos_de_fila(fila))
 
     if not gran_base_activa():
         return resultado

@@ -3,7 +3,7 @@
 from collections import Counter
 from datetime import datetime, time, timedelta
 
-from django.db.models import Count, F, OuterRef, Q, Subquery, Sum
+from django.db.models import Count, Exists, F, OuterRef, Q, Subquery, Sum
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 
@@ -109,27 +109,6 @@ def reporte_avance(user, *, segmento_id=None, desde=None, hasta=None, estado=Non
             rel_terminados=Count(
                 "relevamientos", filter=Q(relevamientos__estado=Relevamiento.Estado.TERMINADO), distinct=True
             ),
-            form_total=Count("relevamientos__formularios", distinct=True),
-            form_enviados=Count(
-                "relevamientos__formularios",
-                filter=Q(relevamientos__formularios__estado=Formulario.Estado.ENVIADO),
-                distinct=True,
-            ),
-            form_aprobados=Count(
-                "relevamientos__formularios",
-                filter=Q(relevamientos__formularios__estado=Formulario.Estado.APROBADO),
-                distinct=True,
-            ),
-            form_rechazados=Count(
-                "relevamientos__formularios",
-                filter=Q(relevamientos__formularios__estado=Formulario.Estado.RECHAZADO),
-                distinct=True,
-            ),
-            form_baja=Count(
-                "relevamientos__formularios",
-                filter=Q(relevamientos__formularios__estado=Formulario.Estado.BAJA),
-                distinct=True,
-            ),
         )
     )
     if segmento_id:
@@ -142,8 +121,29 @@ def reporte_avance(user, *, segmento_id=None, desde=None, hasta=None, estado=Non
         qs = qs.filter(activo=True)
     elif estado == "cerradas":
         qs = qs.filter(activo=False)
+    convocatorias = list(qs)
+    # Los casos se cuentan aparte, agrupados por convocatoria. Contarlos en la misma
+    # consulta que los relevamientos multiplicaba el join (convocatoria × relevamientos
+    # × formularios) y cada COUNT DISTINCT recorría ese producto: 225 ms con 2.000
+    # relevamientos y 22.000 casos en el banco; así, dos consultas chicas.
+    contados = {
+        fila["relevamiento__convocatoria_id"]: fila
+        for fila in Formulario.objects.filter(relevamiento__convocatoria_id__in=[c.pk for c in convocatorias])
+        .values("relevamiento__convocatoria_id")
+        .annotate(
+            form_total=Count("pk"),
+            form_enviados=Count("pk", filter=Q(estado=Formulario.Estado.ENVIADO)),
+            form_aprobados=Count("pk", filter=Q(estado=Formulario.Estado.APROBADO)),
+            form_rechazados=Count("pk", filter=Q(estado=Formulario.Estado.RECHAZADO)),
+            form_baja=Count("pk", filter=Q(estado=Formulario.Estado.BAJA)),
+        )
+        .order_by()
+    }
     filas = []
-    for conv in qs:
+    for conv in convocatorias:
+        conteo = contados.get(conv.pk, {})
+        for campo in ("form_total", "form_enviados", "form_aprobados", "form_rechazados", "form_baja"):
+            setattr(conv, campo, conteo.get(campo, 0))
         revisados = conv.form_aprobados + conv.form_rechazados + conv.form_baja
         porcentaje = round(revisados * 100 / conv.form_total, 1) if conv.form_total else 0
         estado_texto = (
@@ -320,10 +320,17 @@ def reporte_embudo(user, *, convocatoria_id=None, desde=None, hasta=None):
     if convocatoria_id:
         qs = qs.filter(relevamiento__convocatoria_id=convocatoria_id)
     qs = _filter_creado_rango(qs, desde, hasta)
-    ultima = ValidacionSIS.objects.filter(formulario_id=OuterRef("pk")).order_by("-creado", "-pk")
-    con_ultima = qs.annotate(
-        ultimo_siis=Subquery(ultima.values("estado")[:1]),
-        ultimo_siis_id=Subquery(ultima.values("pk")[:1]),
+    # La **última** validación SIIS de cada caso del recorte, como anti-join (no hay
+    # otra posterior del mismo formulario), igual que ``_siis_ok`` del dashboard.
+    # Antes eran dos subconsultas correlacionadas por formulario más un ``IN`` sobre
+    # ellas: 265 ms con 22.000 casos y 11.000 validaciones en el banco.
+    posterior = ValidacionSIS.objects.filter(formulario_id=OuterRef("formulario_id")).filter(
+        Q(creado__gt=OuterRef("creado")) | Q(creado=OuterRef("creado"), pk__gt=OuterRef("pk"))
+    )
+    ultimas = (
+        ValidacionSIS.objects.filter(formulario__in=qs.values("pk"))
+        .annotate(hay_posterior=Exists(posterior))
+        .filter(hay_posterior=False)
     )
     conteos = qs.aggregate(
         total=Count("pk"),
@@ -338,7 +345,7 @@ def reporte_embudo(user, *, convocatoria_id=None, desde=None, hasta=None):
         ("Formularios enviados", total),
         ("Validados RENAPER", conteos["renaper"] or 0),
         ("Aprobados", aprobados),
-        ("Validación SIIS OK", con_ultima.filter(ultimo_siis=ValidacionSIS.Estado.OK).count()),
+        ("Validación SIIS OK", ultimas.filter(estado=ValidacionSIS.Estado.OK).count()),
         ("Beneficiarios", aprobados),
         ("Lista de espera", qs.filter(lista_espera__promovido=False).distinct().count()),
         ("Rechazados", conteos["rechazados"] or 0),
@@ -349,8 +356,7 @@ def reporte_embudo(user, *, convocatoria_id=None, desde=None, hasta=None):
         motivo or "Sin motivo informado"
         for motivo in qs.filter(estado=Formulario.Estado.RECHAZADO).values_list("motivo_rechazo", flat=True)
     )
-    ultimas_rechazadas = con_ultima.filter(ultimo_siis=ValidacionSIS.Estado.RECHAZADO)
-    validaciones = ValidacionSIS.objects.filter(pk__in=ultimas_rechazadas.values("ultimo_siis_id"))
+    validaciones = ultimas.filter(estado=ValidacionSIS.Estado.RECHAZADO)
     for motivo, cantidad in motivos_backoffice.items():
         filas.append(
             (f"Rechazo backoffice: {motivo}", cantidad, f"{round(cantidad * 100 / total, 1) if total else 0}%")
@@ -367,10 +373,15 @@ def beneficiarios_queryset(user, *, segmento_id=None, convocatoria_id=None, desd
     aprobacion = TracaFormulario.objects.filter(
         formulario_id=OuterRef("pk"), campo__iexact="estado", valor_nuevo__icontains="APROBADO"
     ).order_by("-created_at", "-pk")
+    # Angosto a propósito: solo pk y la fecha por la que se ordena. MySQL materializa
+    # y ordena TODO el recorte antes de cortar la página, y con las columnas JSON y
+    # los joins de presentación eran filas de varios KB (741 ms con 9.000 aprobados
+    # en el banco; así, 76 ms). Los objetos completos los pone
+    # ``reporte_beneficiarios_desde_queryset`` solo para la página o el lote que va a mostrar.
     qs = (
         _formularios(user)
         .filter(estado=Formulario.Estado.APROBADO)
-        .select_related("ciudadano", "relevamiento__convocatoria__segmento", "relevamiento__convocatoria__subsegmento")
+        .only("pk", "modificado")
         .annotate(fecha_aprobacion_reporte=Coalesce(Subquery(aprobacion.values("created_at")[:1]), F("modificado")))
         .order_by("-fecha_aprobacion_reporte", "pk")
     )
@@ -385,30 +396,66 @@ def beneficiarios_queryset(user, *, segmento_id=None, convocatoria_id=None, desd
     return qs
 
 
+LOTE_BENEFICIARIOS = 1000
+
+
+def _hidratar_beneficiarios(angostos):
+    """Los formularios completos de una página o lote de ``beneficiarios_queryset``,
+    en el mismo orden y con ``fecha_aprobacion_reporte`` pegada. Sin las columnas
+    JSON que la planilla no usa: ``definicion`` sola son ~7 KB por caso."""
+    angostos = list(angostos)
+    if not angostos:
+        return []
+    completos = (
+        Formulario.objects.filter(pk__in=[f.pk for f in angostos])
+        .defer("data", "respuestas", "definicion", "datos_siis")
+        .select_related("ciudadano", "relevamiento__convocatoria__segmento", "relevamiento__convocatoria__subsegmento")
+        .in_bulk()
+    )
+    for angosto in angostos:
+        completos[angosto.pk].fecha_aprobacion_reporte = angosto.fecha_aprobacion_reporte
+    return [completos[angosto.pk] for angosto in angostos]
+
+
+def _lotes(iterable, tamano):
+    lote = []
+    for item in iterable:
+        lote.append(item)
+        if len(lote) >= tamano:
+            yield lote
+            lote = []
+    if lote:
+        yield lote
+
+
 def reporte_beneficiarios_desde_queryset(qs):
+    """``qs`` es una página o el recorte entero de ``beneficiarios_queryset``: se
+    hidrata de a lotes para que la exportación no arme 9.000 objetos de golpe."""
     filas = []
-    for form in qs:
-        datos = form.datos_identificacion or {}
-        nombre = (
-            form.ciudadano.nombre_completo
-            if form.ciudadano_id
-            else f"{datos.get('nombre', '')} {datos.get('apellido', '')}".strip()
-        )
-        dni = form.ciudadano.dni if form.ciudadano_id else datos.get("dni", "")
-        conv = form.relevamiento.convocatoria
-        filas.append(
-            (
-                nombre or "Sin identificar",
-                dni,
-                conv.segmento.nombre,
-                conv.subsegmento.nombre if conv.subsegmento else "—",
-                conv.nombre,
-                form.relevamiento.zona,
-                form.fecha_aprobacion_reporte,
-            )
-        )
+    for lote in _lotes(qs, LOTE_BENEFICIARIOS):
+        filas.extend(_fila_beneficiario(form) for form in _hidratar_beneficiarios(lote))
     return Reporte(
         ("Nombre", "DNI", "Segmento", "Subsegmento", "Convocatoria", "Zona", "Fecha de aprobación"), tuple(filas)
+    )
+
+
+def _fila_beneficiario(form):
+    datos = form.datos_identificacion or {}
+    nombre = (
+        form.ciudadano.nombre_completo
+        if form.ciudadano_id
+        else f"{datos.get('nombre', '')} {datos.get('apellido', '')}".strip()
+    )
+    dni = form.ciudadano.dni if form.ciudadano_id else datos.get("dni", "")
+    conv = form.relevamiento.convocatoria
+    return (
+        nombre or "Sin identificar",
+        dni,
+        conv.segmento.nombre,
+        conv.subsegmento.nombre if conv.subsegmento else "—",
+        conv.nombre,
+        form.relevamiento.zona,
+        form.fecha_aprobacion_reporte,
     )
 
 

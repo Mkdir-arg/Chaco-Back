@@ -18,9 +18,11 @@ def ciudadano_required(view_func):
             return redirect("portal:ciudadano_login")
         # Un ciudadano del portal SIN legajo vinculado es un estado inválido
         # (p. ej. el grupo "Ciudadanos" se asignó a mano): degradar sin 500.
-        from legajos.models import Ciudadano
-
-        if not Ciudadano.objects.filter(usuario=request.user).exists():
+        # Se resuelve por el descriptor y no con un exists(): así el legajo queda
+        # cacheado en request.user y la vista (y base_ciudadano.html), que leen
+        # ``request.user.ciudadano_perfil``, no repiten la misma consulta.
+        # RelatedObjectDoesNotExist hereda de AttributeError: getattr alcanza.
+        if getattr(request.user, "ciudadano_perfil", None) is None:
             from django.contrib import messages
             from django.contrib.auth import logout
 

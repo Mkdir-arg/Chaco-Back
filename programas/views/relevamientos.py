@@ -63,6 +63,38 @@ def _paginate(request, queryset, page_param="page", per_page=DETALLE_PAGE_SIZE):
     return paginator.get_page(request.GET.get(page_param))
 
 
+class PaginadorConConteo(Paginator):
+    """Paginador que recibe el total ya contado.
+
+    Para las bandejas que de todos modos hacen un ``aggregate`` sobre el mismo conjunto
+    (total + aprobados, total + pendientes): el ``COUNT`` propio del paginador era un
+    segundo recorrido de las mismas filas.
+    """
+
+    def __init__(self, object_list, per_page, total, **kwargs):
+        super().__init__(object_list, per_page, **kwargs)
+        self._total = total
+
+    @property
+    def count(self):
+        return self._total
+
+
+def _hidratar_pagina(pagina, queryset):
+    """Cambia los pks de la página por sus objetos, leídos de ``queryset``, en el
+    mismo orden en que la consulta liviana los devolvió.
+
+    Mismo patrón que las bandejas de revisión: la página se elige con una consulta
+    que proyecta solo el pk y recién después se pagan los ``select_related``. Con los
+    joins en la consulta paginada, MySQL materializa todas las filas del conjunto en
+    una tabla temporal y recién ahí ordena y recorta.
+    """
+    pks = list(pagina.object_list)
+    por_pk = {obj.pk: obj for obj in queryset.filter(pk__in=pks)} if pks else {}
+    pagina.object_list = [por_pk[pk] for pk in pks if pk in por_pk]
+    return pagina
+
+
 def _querystring_without(request, *keys):
     params = request.GET.copy()
     for key in keys:
@@ -197,16 +229,30 @@ class ConvocatoriaDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, Detail
         # y le deja a MySQL un rango indexado en vez de ordenar todo el join.
         formularios_base = Formulario.objects.filter(relevamiento_id__in=[r.pk for r in relevamientos])
         ctx["relevamientos"] = relevamientos
-        ctx["beneficiarios"] = _paginate(
-            self.request,
-            # ``data`` (el JSON de respuestas) no lo usa la tabla de beneficiarios.
-            formularios_base.select_related("ciudadano", "relevamiento").defer("data").order_by("-creado", "-pk"),
-            page_param="beneficiarios_page",
-        )
         ctx["n_relevamientos"] = len(relevamientos)
         conteos = formularios_base.aggregate(
             total=Count("pk"),
             aprobados=Count("pk", filter=Q(estado=Formulario.Estado.APROBADO)),
+        )
+        # La página se elige proyectando solo el pk y se hidrata después. Con los
+        # ``select_related`` en la consulta paginada, en cuanto la convocatoria tiene más
+        # de un relevamiento MySQL arranca por ``programas_relevamiento``, materializa
+        # TODOS sus casos (con los JSON) en una tabla temporal y recién ahí ordena y
+        # recorta: 720 ms medidos con 20.000 casos en dos relevamientos, contra 26 ms
+        # por pk (recorre el índice de ``creado`` hacia atrás y corta en la página). El
+        # total ya lo trae el aggregate: el paginador no lo vuelve a contar.
+        pagina = PaginadorConConteo(
+            formularios_base.order_by("-creado", "-pk").values_list("pk", flat=True),
+            DETALLE_PAGE_SIZE,
+            total=conteos["total"] or 0,
+        ).get_page(self.request.GET.get("beneficiarios_page"))
+        ctx["beneficiarios"] = _hidratar_pagina(
+            pagina,
+            # La tabla de beneficiarios no abre las respuestas ni la foto del formulario
+            # (``definicion``, ~7 KB por caso): se difieren los cuatro JSON.
+            Formulario.objects.select_related("ciudadano", "relevamiento").defer(
+                "data", "respuestas", "definicion", "datos_siis"
+            ),
         )
         ctx["n_beneficiarios"] = conteos["total"] or 0
         ctx["n_aprobados"] = conteos["aprobados"] or 0
@@ -689,8 +735,13 @@ class RelevamientoDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, Detail
         ctx["form_cupo"] = CupoRelevamientoForm(instance=rel)
         ctx["form_volver_a_campo"] = VolverACampoForm(convocatoria=rel.convocatoria)
         # La tabla de personas relevadas no muestra las respuestas: ``datos_identificacion``
-        # sí se usa (casos sin legajo), ``data`` no.
-        formularios_qs = rel.formularios.select_related("ciudadano").defer("data").order_by("numero")
+        # sí se usa (casos sin legajo); ``data``, ``respuestas``, ``datos_siis`` y la foto
+        # del formulario (``definicion``, ~7 KB por caso) no.
+        formularios_qs = (
+            rel.formularios.select_related("ciudadano")
+            .defer("data", "respuestas", "definicion", "datos_siis")
+            .order_by("numero")
+        )
         formularios_page = _paginate(self.request, formularios_qs, page_param="formularios_page")
         ctx["formularios"] = formularios_page
         ctx["n_formularios"] = formularios_page.paginator.count

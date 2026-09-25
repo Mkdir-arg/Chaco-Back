@@ -47,14 +47,30 @@ def get_campos_formulario(convocatoria, canal=None):
         .select_related("grupo")
         .order_by("orden", "id")
     )
+    requisitos = (
+        RequisitoNativo.objects.filter(filtro_requisitos_convocatoria(convocatoria))
+        .filter(_filtro_canal(canal))
+        .order_by("orden", "id")
+    )
+    return globales, requisitos
+
+
+def filtro_requisitos_convocatoria(convocatoria):
+    """La herencia de requisitos nativos de una convocatoria (RN-32), como
+    ``Q``: los del programa del segmento, los del segmento (sin subsegmento) y,
+    si la convocatoria tiene, los de su subsegmento."""
     filtros = models.Q(segmento_id=convocatoria.segmento_id, subsegmento__isnull=True)
     if convocatoria.subsegmento_id:
         filtros |= models.Q(subsegmento_id=convocatoria.subsegmento_id)
     programa_id = convocatoria.segmento.programa_id
     if programa_id:
         filtros |= models.Q(programa_id=programa_id)
-    requisitos = RequisitoNativo.objects.filter(filtros).filter(_filtro_canal(canal)).order_by("orden", "id")
-    return globales, requisitos
+    return filtros
+
+
+def _se_pide_en(obj, canal):
+    """``_filtro_canal`` en memoria: un requisito se pide en su canal o en ambos."""
+    return not canal or obj.canal in (CanalFormulario.AMBOS, canal)
 
 
 def _campo_dict(obj, alcance):
@@ -86,18 +102,29 @@ def definicion_formulario(relevamiento):
     la convocatoria del relevamiento, filtrados por el canal del relevamiento
     (Cambio 58), más el flag ``requiere_gps`` del segmento.
     """
-    from programas.services.diseno import items_vigentes, plan_por_defecto, serializar
+    from programas.services.diseno import catalogo_convocatoria, items_vigentes, plan_por_defecto, serializar
 
     convocatoria = relevamiento.convocatoria
     canal = CanalFormulario.del_relevamiento(relevamiento)
-    globales, requisitos = get_campos_formulario(convocatoria, canal=canal)
+    # El catálogo se lee una sola vez (dos consultas) y de ahí salen las listas
+    # planas de siempre y la estructura anidada: antes ``get_campos_formulario``
+    # y el plan por defecto o la reconciliación repetían las lecturas por nivel
+    # —hasta ocho consultas por definición, servida en cada paso 2 del link y
+    # en cada detalle y alta de la app (Cambio 91)—. Mismo resultado.
+    catalogo = catalogo_convocatoria(convocatoria)
+    preguntas, requisitos = catalogo
+    globales = [p for p in preguntas if p.origen == OrigenRequisito.PREGUNTA and _se_pide_en(p, canal)]
+    requisitos = [r for r in requisitos if _se_pide_en(r, canal)]
     # Cambio 58: la estructura anidada (grupos → campos y textos, con
     # condiciones) sale del diseño de la convocatoria, reconciliado en memoria
     # con el catálogo de hoy (RN-1: lo nuevo entra, lo desactivado sale, sin
     # escribir en un GET); si todavía no lo abrió nadie, del plan por defecto.
     # Las listas planas de siempre se conservan para la app vieja.
     diseno = getattr(convocatoria, "diseno", None)
-    items = items_vigentes(diseno) if diseno is not None else plan_por_defecto(convocatoria)
+    if diseno is not None:
+        items = items_vigentes(diseno, catalogo)
+    else:
+        items = plan_por_defecto(convocatoria, catalogo=catalogo)
     return {
         "requiere_gps": convocatoria.segmento.requiere_gps,
         "canal": canal,
