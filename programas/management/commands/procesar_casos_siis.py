@@ -183,14 +183,23 @@ class Command(BaseCommand):
             raise CommandError(str(exc)) from exc
         total = max(1, options["total"])
         if options["solo_completos"]:
-            pendientes = list(consulta)
-            self._log(f"Candidatos pendientes: {len(pendientes)}. Armando el payload de cada uno…")
+            # Primero los ids; los casos se traen de a lotes mientras se eligen
+            # (ver ``proceso_masivo.hidratar_por_lotes``): traerlos todos con su
+            # JSON en una consulta no entra en el ``read_timeout`` de ECOM.
+            ids = proceso_masivo.ids_de(consulta)
+            self._log(f"Candidatos pendientes: {len(ids)}. Armando el payload de cada uno…")
             try:
-                casos, descartados = proceso_masivo.elegir_completos(pendientes, catalogos, total, cuenta)
+                casos, descartados = proceso_masivo.elegir_completos(
+                    proceso_masivo.hidratar_por_lotes(ids), catalogos, total, cuenta
+                )
             except CatalogoNoDisponible as exc:
                 raise CommandError(f"No se pudo leer un catálogo de SIIS: {exc}") from exc
         else:
-            casos, descartados = list(consulta[:total]), {}
+            # Los ids primero y después los casos por pk: pedirle a MySQL los
+            # primeros ``total`` candidatos completos lo hacía materializar los
+            # 20.000 con su JSON antes de cortar (de 1,3 a 4,4 s en el banco
+            # según la corrida; así, unos 0,4 s).
+            casos, descartados = proceso_masivo.hidratar(proceso_masivo.ids_de(consulta, limite=total)), {}
         if descartados:
             total_descartados = sum(descartados.values())
             self._log(f"Descartados por datos incompletos: {total_descartados} (no se tocan)")

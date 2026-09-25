@@ -1,10 +1,11 @@
 from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.db import models
-from django.db.models import Avg, Count, Q
+from django.db.models import Avg, Count, IntegerField, OuterRef, Q, Subquery
+from django.db.models.functions import Coalesce
 from django.utils import timezone
 
-from ..models import ColaAsignacion, Conversacion, MetricasOperador
+from ..models import ColaAsignacion, Conversacion, Mensaje, MetricasOperador
 from ..permisos import es_operador_restringido, puede_operar
 
 
@@ -12,13 +13,25 @@ def usuario_tiene_permiso_conversaciones(user):
     return puede_operar(user)
 
 
+def _conteo_de_mensajes(**filtro):
+    """COUNT de mensajes de la conversación de cada fila, como subconsulta (0 si no tiene).
+
+    Antes era ``Count("mensajes", filter=...)``: un LEFT JOIN con GROUP BY que obligaba a
+    MySQL a agrupar toda la tabla de mensajes en una tabla temporal y recién después
+    ordenar y cortar la página (28 ms con 2.000 conversaciones y 8.000 mensajes, y crece
+    con el historial; el COUNT del paginador pagaba el mismo agrupado). La subconsulta en
+    la proyección se evalúa solo para las filas que salen del LIMIT, por el índice
+    (conversacion, leido): ~1 ms, y la lista sigue siendo una sola consulta.
+    """
+    mensajes = Mensaje.objects.filter(conversacion=OuterRef("pk"), **filtro).order_by()
+    conteo = mensajes.values("conversacion").annotate(n=Count("pk")).values("n")
+    return Coalesce(Subquery(conteo, output_field=IntegerField()), 0)
+
+
 def get_conversaciones_queryset_para_lista(user, filtros):
     queryset = Conversacion.objects.select_related("operador_asignado").annotate(
-        mensajes_no_leidos=Count(
-            "mensajes",
-            filter=Q(mensajes__remitente="ciudadano", mensajes__leido=False),
-        ),
-        total_mensajes=Count("mensajes"),
+        mensajes_no_leidos=_conteo_de_mensajes(remitente="ciudadano", leido=False),
+        total_mensajes=_conteo_de_mensajes(),
     )
     if es_operador_restringido(user):
         queryset = queryset.filter(models.Q(operador_asignado=None) | models.Q(operador_asignado=user))

@@ -147,15 +147,16 @@ class Command(BaseCommand):
         return crudos, sensibles
 
     def _casos(self, options, estados):
+        """``[(pk, estado, programa_id), ...]`` de los casos a informar, en orden de pk.
+
+        Solo lo que el resumen necesita: los casos completos se traen de a lotes
+        recién al procesarlos (``proceso_masivo.hidratar``). Traerlos todos acá
+        --8.900 aprobados con ``data``, ``respuestas`` y ``definicion``-- eran
+        5 s en el banco y contra la base de ECOM no entra en su ``read_timeout``
+        de 10 s; los ids con estado y programa vuelven en 30 ms.
+        """
         ultimo = EnvioSIIS.objects.filter(formulario=OuterRef("pk")).order_by("-creado", "-id").values("estado")[:1]
-        casos = (
-            Formulario.objects.select_related(
-                "ciudadano", "relevamiento__convocatoria__segmento__programa", "apoderado_ciudadano"
-            )
-            .annotate(ultimo_envio=Subquery(ultimo))
-            .filter(estado__in=estados)
-            .order_by("pk")
-        )
+        casos = Formulario.objects.annotate(ultimo_envio=Subquery(ultimo)).filter(estado__in=estados).order_by("pk")
         if options["convocatoria"]:
             casos = casos.filter(relevamiento__convocatoria_id=options["convocatoria"])
         if options["relevamiento"]:
@@ -174,6 +175,7 @@ class Command(BaseCommand):
         # camino que llegue a SIIS respeta la misma regla; este es uno de ellos.
         if not options["sin_filtro_materias"]:
             casos = casos.filter(ciudadano__dni__in=proceso_masivo.dnis_aprobados_materias())
+        casos = casos.values_list("pk", "estado", "relevamiento__convocatoria__segmento__programa_id")
         if options["limite"]:
             casos = casos[: options["limite"]]
         return list(casos)
@@ -228,10 +230,10 @@ class Command(BaseCommand):
         total_lotes = (len(casos) + tamano - 1) // tamano
         self._log(f"A informar: {len(casos)} casos en {total_lotes} lotes de {tamano}")
         por_estado = {}
-        for caso in casos:
-            por_estado[caso.estado] = por_estado.get(caso.estado, 0) + 1
+        for _, estado, _ in casos:
+            por_estado[estado] = por_estado.get(estado, 0) + 1
         self._log("   " + " · ".join(f"{n} {estado}" for estado, n in sorted(por_estado.items())))
-        sin_programa = sum(1 for c in casos if c.relevamiento.convocatoria.segmento.programa_id is None)
+        sin_programa = sum(1 for _, _, programa_id in casos if programa_id is None)
         if sin_programa:
             self._log(
                 f"   {sin_programa} sin programa SIIS en el segmento: van a quedar INCOMPLETO.", self.style.WARNING
@@ -248,7 +250,9 @@ class Command(BaseCommand):
         self._log("")
         for numero, lote in _lotes(casos, tamano):
             parcial = {estado: 0 for estado in ESTADOS_ENVIO}
-            for caso in lote:
+            # El lote se trae completo recién acá, con las relaciones que lee el
+            # armado del payload; el resumen de arriba no las necesitaba.
+            for caso in proceso_masivo.hidratar([pk for pk, _, _ in lote]):
                 # La guarda del servicio se levanta solo si de verdad se pidieron
                 # estados que no son aprobación: --si-entiendo solo no alcanza.
                 envio = enviar_beneficiario_a_siis(
@@ -264,7 +268,7 @@ class Command(BaseCommand):
                 else:
                     seguidos = 0
             self._log(
-                f"   lote {numero:>4}/{total_lotes} · casos {lote[0].pk}-{lote[-1].pk} · "
+                f"   lote {numero:>4}/{total_lotes} · casos {lote[0][0]}-{lote[-1][0]} · "
                 f"enviados {parcial['ENVIADO']:>3} · incompletos {parcial['INCOMPLETO']:>3} · "
                 f"rechazados {parcial['RECHAZADO']:>3} · errores {parcial['ERROR']:>3} · "
                 f"acumulado {sum(cuenta.values()):>5} · {time.monotonic() - arranque:6.1f} s"

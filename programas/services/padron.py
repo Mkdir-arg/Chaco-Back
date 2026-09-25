@@ -30,6 +30,7 @@ from io import BytesIO
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.utils import timezone
 
 from programas.models import Convocatoria, Formulario, PadronHabilitado
 
@@ -430,10 +431,21 @@ def validar_casos_pendientes(objetivo, usuario=None):
     }
     if not filas:
         return 0
-    pendientes = Formulario.objects.filter(
-        validado_renaper=False,
-        identidad_forzada=False,
-    ).select_related("ciudadano")
+    # Sin las columnas JSON que el cruce no lee (``data``, ``respuestas``,
+    # ``definicion``, ``datos_siis``): son unos 7 KB por caso, y el padrón de una
+    # convocatoria cruza los pendientes de todos sus relevamientos. Con el
+    # público de 20.000 casos eran 6.700 pendientes y 52 MB en una consulta
+    # (1,2 s de SQL en el banco; contra la base de ECOM, más que su
+    # ``read_timeout`` de 10 s); sin ellas, 180 ms. El ``save`` de abajo escribe
+    # solo sus ``update_fields``, así que lo diferido no se toca.
+    pendientes = (
+        Formulario.objects.filter(
+            validado_renaper=False,
+            identidad_forzada=False,
+        )
+        .defer("data", "respuestas", "definicion", "datos_siis")
+        .select_related("ciudadano")
+    )
     if _es_relevamiento(objetivo):
         pendientes = pendientes.filter(relevamiento=objetivo)
     else:
@@ -443,7 +455,7 @@ def validar_casos_pendientes(objetivo, usuario=None):
             )
         )
 
-    validados = 0
+    validados = []
     for formulario in pendientes:
         dni, sexo = _identidad_del_caso(formulario)
         fila = filas.get((normalizar_dni(dni), normalizar_sexo(sexo)))
@@ -480,10 +492,24 @@ def validar_casos_pendientes(objetivo, usuario=None):
             formulario.datos_identificacion = datos
         formulario.validado_renaper = True
         formulario.origen_validacion = Formulario.OrigenValidacion.PADRON
-        formulario.save(update_fields=["validado_renaper", "origen_validacion", "datos_identificacion", "modificado"])
+        # Lo que ``save()`` haría por su cuenta: ``modificado`` (auto_now) y el
+        # DNI del titular recalculado. Los casos se escriben juntos al final.
+        formulario.modificado = timezone.now()
+        formulario.dni_titular = formulario._dni_titular_actual()
+        validados.append(formulario)
         registrar_traza(formulario, usuario, cambios)
-        validados += 1
-    return validados
+    if validados:
+        # Un UPDATE por lote en vez de uno por caso: con 1.000 casos validados
+        # eran 1.000 sentencias (1,4 s en el banco) dentro del request que sube
+        # el padrón. El legajo (``ciudadano.save``) y la traza siguen por caso:
+        # el primero dispara la señal que invalida su caché y la segunda vive en
+        # ``registrar_traza``.
+        Formulario.objects.bulk_update(
+            validados,
+            ["validado_renaper", "origen_validacion", "datos_identificacion", "modificado", "dni_titular"],
+            batch_size=200,
+        )
+    return len(validados)
 
 
 def plantilla_padron():

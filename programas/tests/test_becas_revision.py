@@ -5,7 +5,8 @@ from datetime import date
 from io import StringIO
 from unittest.mock import patch
 
-from django.contrib.auth.models import Group, User
+from django.contrib.auth.models import Group, Permission, User
+from django.contrib.contenttypes.models import ContentType
 from django.contrib.messages.storage.fallback import FallbackStorage
 from django.core import mail
 from django.core.cache import cache
@@ -15,6 +16,7 @@ from django.template import TemplateDoesNotExist
 from django.test import RequestFactory, TestCase
 from django.urls import reverse
 
+from core import rbac
 from legajos.models import Ciudadano
 from programas.forms import DatosSiisForm, FormularioRevisionForm
 from programas.management.commands.seed_becas import ROL_ADMIN, ROL_COORDINADOR, ROL_TERRITORIAL
@@ -35,7 +37,7 @@ from programas.models import (
 )
 from programas.views.cupo import promover_lista_espera_view
 from programas.views.revision import formulario_aprobar, formulario_rechazar
-from users.models import RolMeta
+from users.models import Capacidad, RolMeta
 
 
 class _BaseRevisionTest(TestCase):
@@ -1311,6 +1313,59 @@ class BandejasPaginadasTests(_BaseRevisionTest):
         pks = [f.pk for f in resp.context["formularios"]]
         esperado = sorted(pks, key=lambda pk: (-Formulario.objects.get(pk=pk).creado.timestamp(), -pk))
         self.assertEqual(pks, esperado)
+
+    def test_los_pendientes_son_de_todo_el_relevamiento_aunque_se_filtre_por_estado(self):
+        """El total y los pendientes salen de un solo recorrido del relevamiento. Con
+        filtro por estado el paginador cuenta lo filtrado y los pendientes no cambian."""
+        for caso in self.casos[:3]:
+            caso.estado = Formulario.Estado.APROBADO
+            caso.save(update_fields=["estado"])
+
+        sin_filtro = self.client.get(reverse("becas:revision_formularios", args=[self.rel_a.pk]))
+        con_filtro = self.client.get(
+            reverse("becas:revision_formularios", args=[self.rel_a.pk]),
+            {"estado": Formulario.Estado.APROBADO},
+        )
+
+        self.assertEqual(sin_filtro.context["page_obj"].paginator.count, 61)
+        self.assertEqual(sin_filtro.context["pendientes"], 58)
+        self.assertEqual(con_filtro.context["page_obj"].paginator.count, 3)
+        self.assertEqual(con_filtro.context["pendientes"], 58)
+
+    def test_la_bandeja_de_personas_excluye_los_publicos_sin_la_capacidad(self):
+        """El recorte por relevamientos visibles (sin join con la convocatoria) da el
+        mismo conjunto que antes: sin ``becas.relevamiento.publico`` los casos del link
+        no existen para el usuario, y con la capacidad aparecen."""
+        rel_publico = Relevamiento.objects.create(
+            convocatoria=self.conv_a,
+            tipo=Relevamiento.Tipo.PUBLICO,
+            fecha_asignada=date(2026, 6, 1),
+        )
+        caso_publico = Formulario.objects.create(relevamiento=rel_publico, celular="3624777777")
+
+        resp = self.client.get(reverse("becas:revision"))
+        self.assertEqual(resp.context["page_obj"].paginator.count, 62)
+        self.assertNotIn(caso_publico.pk, [f.pk for f in resp.context["formularios"]])
+
+        content_type = ContentType.objects.get_for_model(Capacidad)
+        permiso, _ = Permission.objects.get_or_create(
+            content_type=content_type,
+            codename=rbac.codename_de("becas.relevamiento.publico"),
+            defaults={"name": "Formulario público"},
+        )
+        Group.objects.get(name=ROL_ADMIN).permissions.add(permiso)
+
+        resp = self.client.get(reverse("becas:revision"))
+        self.assertEqual(resp.context["page_obj"].paginator.count, 63)
+        self.assertIn(caso_publico.pk, [f.pk for f in resp.context["formularios"]])
+
+    def test_la_pagina_no_arrastra_los_json_que_la_bandeja_no_muestra(self):
+        """La foto del formulario (``definicion``) pesa ~7 KB por caso y ninguna bandeja
+        la abre: viaja diferida junto con los otros JSON."""
+        resp = self.client.get(reverse("becas:revision"))
+
+        diferidos = resp.context["formularios"][0].get_deferred_fields()
+        self.assertTrue({"data", "respuestas", "definicion", "datos_siis"} <= diferidos)
 
 
 class EnvioSiisAlAprobarTests(_BaseAprobacionTest):

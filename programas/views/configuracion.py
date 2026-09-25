@@ -113,11 +113,6 @@ def _programas_qs(user):
     return base.annotate(n_segmentos=Count("segmentos", distinct=True)).order_by("nombre")
 
 
-def _programas_bloqueados_siis(user):
-    """Programas que dejaron de estar vigentes en SIIS (aviso en pantalla)."""
-    return _programas_qs(user).filter(siis_programa_estado__in=ProgramaSiis.ESTADOS_SIIS_BLOQUEANTES)
-
-
 def _segmentos_ajax(request, message="Segmento guardado."):
     return ajax_ok(
         request,
@@ -208,7 +203,10 @@ class ProgramaSiisListView(CapacidadRequeridaMixin, LoginRequiredMixin, ListView
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx["form_programa"] = ProgramaSiisCreateForm()
-        ctx["programas_bloqueados_siis"] = _programas_bloqueados_siis(self.request.user)
+        # Los que dejaron de estar vigentes en SIIS (aviso en pantalla) salen de la
+        # misma lista que muestra la tabla: el queryset evaluado acá es el que recorre
+        # la plantilla, así que la pantalla hace una lectura y no dos iguales.
+        ctx["programas_bloqueados_siis"] = [p for p in ctx["object_list"] if p.siis_bloqueado]
         return ctx
 
 

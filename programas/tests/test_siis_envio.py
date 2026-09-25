@@ -669,6 +669,23 @@ class ComandoEnvioMasivoTests(_BaseEnvioTest):
         self._correr("--estados", "APROBADO,ENVIADO", "--si-entiendo", "--limite", "1", "--aplicar")
         self.assertEqual(self.enviar.call_count, 1)
 
+    def test_cada_lote_se_trae_por_pk_en_orden_y_con_sus_relaciones(self):
+        """Primero salen los ids; el caso completo se trae recién al procesar su
+        lote, con las relaciones que lee el armado del payload ya cargadas."""
+        otro = Formulario.objects.create(
+            relevamiento=self.relevamiento, ciudadano=self.ciudadano, estado=Formulario.Estado.APROBADO
+        )
+        salida = self._correr("--aplicar", "--lote", "1")
+        recibidos = [c.args[0] for c in self.enviar.call_args_list]
+        self.assertEqual([f.pk for f in recibidos], sorted([self.formulario.pk, otro.pk]))
+        for caso in recibidos:
+            self.assertTrue(Formulario.ciudadano.is_cached(caso))
+            self.assertTrue(Formulario.relevamiento.is_cached(caso))
+            self.assertTrue(Relevamiento.convocatoria.is_cached(caso.relevamiento))
+        self.assertIn("2 APROBADO", salida)
+        self.assertIn(f"casos {self.formulario.pk}-{self.formulario.pk}", salida)
+        self.assertIn(f"casos {otro.pk}-{otro.pk}", salida)
+
 
 @override_settings(SIIS_API_CLIENT_ID="id-de-prueba", SIIS_API_CLIENT_SECRET="secreto-de-prueba")
 class ComandoCircuitoCompletoTests(_BaseEnvioTest):

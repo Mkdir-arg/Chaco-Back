@@ -402,6 +402,31 @@ class PadronPorRelevamientoTests(_BasePadronTest):
         self.assertEqual(con_propio["datos"]["nombre"], "Maria")
         self.assertEqual(heredado["datos"]["nombre"], "Ana")
 
+    def test_el_cruce_no_pisa_las_respuestas_del_caso(self):
+        """Los pendientes se leen sin sus columnas JSON pesadas; al validarlos,
+        esas columnas quedan exactamente como estaban."""
+        from programas.models import Formulario
+
+        caso = Formulario.objects.create(
+            relevamiento=self.rel_campo,
+            datos_identificacion={"dni": "30123456", "sexo": "F"},
+            data={"globales": {"g1": "hola"}},
+            respuestas={"g-1": "hola"},
+            definicion={"version": 1},
+            datos_siis={"barrio": "Centro"},
+        )
+        resumen = cargar_padron(
+            self.convocatoria, None, [{"dni": "30123456", "sexo": "F", "nombre": "Ana", "apellido": "Paz"}]
+        )
+        caso.refresh_from_db()
+        self.assertEqual(resumen.casos_validados, 1)
+        self.assertTrue(caso.validado_renaper)
+        self.assertEqual(caso.datos_identificacion["nombre"], "Ana")
+        self.assertEqual(caso.data, {"globales": {"g1": "hola"}})
+        self.assertEqual(caso.respuestas, {"g-1": "hola"})
+        self.assertEqual(caso.definicion, {"version": 1})
+        self.assertEqual(caso.datos_siis, {"barrio": "Centro"})
+
     def test_la_carga_valida_los_casos_de_su_alcance(self):
         from programas.models import Formulario
 

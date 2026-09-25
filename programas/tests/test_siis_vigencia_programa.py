@@ -276,3 +276,45 @@ class BloqueoPorSiisTests(TestCase):
 
         form = RelevamientoForm()
         self.assertNotIn(self.convocatoria, form.fields["convocatoria"].queryset)
+
+
+class ListadoDeProgramasTests(TestCase):
+    """El aviso de programas dados de baja en SIIS sale de la misma lista que la tabla."""
+
+    def _contexto(self):
+        from django.db import connection
+        from django.test import RequestFactory
+        from django.test.utils import CaptureQueriesContext
+
+        from programas.views.configuracion import ProgramaSiisListView
+
+        request = RequestFactory().get("/becas/config/programas/")
+        request.user = User.objects.create_superuser("admin-lista-siis", "a@b.c", "x")
+        vista = ProgramaSiisListView()
+        vista.setup(request)
+        vista.object_list = vista.get_queryset()
+        # El formulario del modal consulta el catálogo de SIIS: acá no hay SIIS.
+        with patch("programas.forms.listar_programas", return_value=[]), CaptureQueriesContext(connection) as consultas:
+            ctx = vista.get_context_data()
+            list(ctx["programas"])  # lo que recorre la tabla de la plantilla
+        return ctx, consultas
+
+    def test_bloqueados_en_orden_de_la_tabla_y_una_sola_lectura(self):
+        crear_programa()
+        inactivo = crear_programa(
+            nombre="Barro", siis_programa_id=39, siis_programa_estado=ProgramaSiis.EstadoSiis.INACTIVO
+        )
+        ausente = crear_programa(
+            nombre="Arcilla", siis_programa_id=40, siis_programa_estado=ProgramaSiis.EstadoSiis.DESCONOCIDO
+        )
+
+        ctx, consultas = self._contexto()
+
+        self.assertEqual([p.pk for p in ctx["programas_bloqueados_siis"]], [ausente.pk, inactivo.pk])
+        self.assertEqual([p.nombre for p in ctx["programas"]], ["Arcilla", "Barro", "Fuego y Barro"])
+        self.assertEqual(sum("programas_programasiis" in c["sql"] for c in consultas), 1)
+
+    def test_sin_bloqueados_la_lista_queda_vacia(self):
+        crear_programa()
+        ctx, _ = self._contexto()
+        self.assertEqual(ctx["programas_bloqueados_siis"], [])

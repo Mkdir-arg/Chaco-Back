@@ -749,6 +749,77 @@ class FormularioSyncTests(_BaseApiTest):
         self.assertEqual(primera.data["id"], segunda.data["id"])
         self.assertEqual(Formulario.objects.filter(client_uuid=client_uuid).count(), 1)
 
+    def test_las_respuestas_y_el_legajo_se_resuelven_fuera_del_lock(self):
+        """Con el lock del relevamiento tomado queda solo lo que el lock
+        protege; las respuestas por clave y el legajo corren después del
+        commit (Cambio 91): la profundidad de transacción al llamarlos es la
+        de afuera de la vista."""
+        from django.db import connection
+
+        from programas.api import views as api_views
+        from programas.services.becas import resolver_ciudadano_offline
+        from programas.services.respuestas import sincronizar_desde_legacy
+
+        profundidades = {}
+
+        def espia(nombre, original):
+            def _espia(*args, **kwargs):
+                profundidades[nombre] = len(connection.savepoint_ids)
+                return original(*args, **kwargs)
+
+            return _espia
+
+        self.autenticar(self.terri)
+        url = reverse("becas_api:relevamiento-formularios", args=[self.rel.id])
+        afuera = len(connection.savepoint_ids)
+        with (
+            patch.object(
+                api_views, "sincronizar_desde_legacy", side_effect=espia("respuestas", sincronizar_desde_legacy)
+            ),
+            patch.object(
+                api_views, "resolver_ciudadano_offline", side_effect=espia("legajo", resolver_ciudadano_offline)
+            ),
+        ):
+            resp = self.client.post(url, self._payload_persona(date(1990, 1, 1)), format="json")
+        self.assertEqual(resp.status_code, 201)
+        self.assertEqual(profundidades, {"respuestas": afuera, "legajo": afuera})
+        self.assertEqual(resp.data["ciudadano_dni"], "60600600")
+
+    def test_un_reintento_tras_un_corte_completa_lo_que_falto(self):
+        """El alta se cortó después del commit (antes de las respuestas y el
+        legajo): el caso quedó insertado a medias. La app reintenta con el mismo
+        client_uuid y ese reintento —200, idempotente— completa lo que faltó en
+        vez de devolver el caso como estaba."""
+        from programas.api import views as api_views
+
+        self.autenticar(self.terri)
+        url = reverse("becas_api:relevamiento-formularios", args=[self.rel.id])
+        payload = {"client_uuid": str(uuid4()), **self._payload_persona(date(1990, 1, 1))}
+        # El corte: el proceso murió después del commit y antes de completar
+        # (las dos funciones nunca llegaron a correr).
+        with (
+            patch.object(api_views, "sincronizar_desde_legacy", return_value=None),
+            patch.object(api_views, "resolver_ciudadano_offline", return_value=None),
+        ):
+            primera = self.client.post(url, payload, format="json")
+        self.assertEqual(primera.status_code, 201)
+        caso = Formulario.objects.get(client_uuid=payload["client_uuid"])
+        self.assertIsNone(caso.ciudadano_id)
+        self.assertFalse(caso.definicion)
+
+        reintento = self.client.post(url, payload, format="json")
+
+        self.assertEqual(reintento.status_code, 200)
+        self.assertEqual(reintento.data["id"], caso.pk)
+        self.assertEqual(reintento.data["ciudadano_dni"], "60600600")
+        self.assertEqual(Formulario.objects.filter(client_uuid=payload["client_uuid"]).count(), 1)
+        caso.refresh_from_db()
+        self.assertEqual(caso.ciudadano.dni, "60600600")
+        self.assertTrue(caso.definicion)
+        self.assertIsNone(caso.datos_identificacion)
+        # Un tercer envío ya no tiene nada que completar y devuelve lo mismo.
+        self.assertEqual(self.client.post(url, payload, format="json").data, reintento.data)
+
     def test_conserva_segunda_carga_del_dni_como_conflicto_para_backoffice(self):
         payload = {
             "capturado_en": timezone.now().isoformat(),
