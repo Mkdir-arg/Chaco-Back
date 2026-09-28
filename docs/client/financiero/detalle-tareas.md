@@ -970,7 +970,9 @@
 | Becas | 689 h 00 min |
 | Transversal | 197 h 30 min |
 | Dispositivos | 34 h 00 min |
-| **Total septiembre 2026 (al 28/09)** | **920 h 30 min** |
+| **Esfuerzo real de septiembre 2026 (al 28/09)** | **920 h 30 min** |
+| *Imputado a septiembre (100% del presupuesto)* | *850 h 00 min* |
+| *Remanente trasladado a octubre* | *70 h 30 min* |
 
 !!! note "Qué incluye"
     Las horas de Becas incluyen las **103 h 30 min trasladadas de agosto**, cuyo detalle día por día está
