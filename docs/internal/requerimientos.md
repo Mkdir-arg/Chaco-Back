@@ -238,6 +238,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 91 | El envío de la inscripción pública deja de dar 500 por timeout: menos trabajo con el lock tomado y búsquedas por índice | Becas · inscripción pública (portal, paso 2) y sync de la app de campo | `#performance` `#relevamientos` `#api` `#datos` | PM — en sesión: «analizá los logs y fijate por qué tengo muchos errores 500 desde un formulario en las últimas 24 horas» | 25/09/2026 | 🟢 **Hecho — en producción** | `programas.0072` (aditiva, con relleno) |
 | 92 | Reportes de Becas sin recorrer todo el padrón (avance, embudo, beneficiarios) y banco MySQL de 20.000 casos para medir | Becas · reportes transversales · infraestructura de medición | `#performance` `#relevamientos` `#metodo` | PM — en sesión: «un análisis de cuellos de botella y errores de perfo que podamos mejorar, y también mejorando la perfo del código» | 25/09/2026 | 🟡 **Hecho — sin desplegar** | No requiere |
 | 93 | Revisión fina de performance en cinco frentes: alta de la app fuera del lock, bandejas y detalle por pk, Excel del dashboard sin instanciar modelos, comandos por lotes y conversaciones | Transversal (Becas, API de campo, portal, conversaciones, núcleo) | `#performance` `#relevamientos` `#api` `#siis` | PM — en sesión: «hacé otra revisión más fina del código y de la performance; dispará varios para optimizar el código y las query sin romper nada» | 25/09/2026 | 🟡 **Hecho — sin desplegar** | No requiere |
+| 94 | El celular viaja a SIIS en los 10 dígitos que admite la tabla intermedia | Becas · alta de beneficiarios en SIIS | `#siis` `#relevamientos` | PM — en sesión: «dale arreglá lo del celular y después desplegá en el ambiente de test y de prd de ECOM» | 28/09/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -10264,3 +10265,72 @@ inconsistentes.
 ## Historial
 
 Entrada nueva. Tercera pasada de performance del 25/09/2026, la primera hecha con cinco agentes en paralelo.
+
+---
+
+# Cambio 94 — El celular viaja a SIIS en los 10 dígitos que admite la tabla intermedia
+
+🟢 **HECHO — 28/09/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · alta de beneficiarios en SIIS |
+| **Etiquetas** | `#siis` `#relevamientos` |
+| **Solicitante** | PM — en sesión, tras el relevamiento de casos no enviados en testing: «dale arreglá lo del celular y después desplegá en el ambiente de test y de prd de ECOM» |
+| **Fecha del pedido** | 28/09/2026 |
+| **Issue / épica** | Sin issue (pedido en sesión) · continúa los Cambios 84 y 89 |
+| **Partes afectadas** | Armado del payload de alta |
+| **Migración** | No requiere |
+
+## Pedido original
+
+En el relevamiento de los 2.953 casos de testing que no llegaron a SIIS (25/09/2026), **44 figuraban como
+`ERROR_BD_LEGACY` (HTTP 503)**, la misma respuesta que da SIIS cuando está saturado. No lo era:
+
+- **43** traían un celular de 11 a 13 dígitos (`549…`, `54…`, `9…`). El SQL Server de SIIS responde
+  *Arithmetic overflow converting numeric*: la columna admite 10 dígitos. Los 3.729 envíos aceptados tenían
+  todos 10 o menos.
+- **1** traía la fecha de nacimiento del apoderado en el año 1090 (SQL Server no acepta años anteriores a
+  1753). Es un dato mal cargado y se corrige en la revisión del caso; no lo cubre este cambio.
+
+Como un error técnico no marca el caso como informado, cada corrida los volvía a mandar y volvían a fallar.
+
+## Alcance acordado
+
+Antes de enviar, el celular se lleva a los 10 dígitos que admite SIIS. Si no se puede sin adivinar, no viaja.
+
+## Decisiones tomadas
+
+- **Se sacan solo los prefijos que se reconocen sin ambigüedad**, en orden: `54` (país), `9` (móvil
+  internacional), `0` (larga distancia), y solo mientras sobren dígitos. Cubre 34 de los 43.
+- **Si todavía sobra, el celular no viaja.** Es un campo opcional del manual; un `15` intercalado
+  (`3644 15 123456`) o un dígito de más no tienen una lectura única, y un número adivinado en SIIS es peor que
+  ninguno. Son los 9 restantes: salen sin celular en vez de fallar.
+- **El dato del caso no se toca.** La normalización vive en el armado del payload, igual que la calle sin altura
+  del Cambio 89.
+
+## Implementación
+
+- `programas/services/siis_envio.py` — `LARGO_CELULAR = 10` y `normalizar_celular()`, usada por `armar_payload`.
+- Tests: tres casos nuevos en `ArmarPayloadTests` (`programas/tests/test_siis_envio.py`): prefijos que se
+  recortan, celular que no se puede normalizar y celular que ya entra.
+
+## Base de datos
+
+No toca el esquema ni ningún dato.
+
+## Pendientes / a definir
+
+- Los 43 casos siguen con su último envío en `ERROR`; entran solos en la próxima corrida de
+  `procesar_casos_siis`, que ya los considera pendientes.
+- Del mismo relevamiento quedan abiertos, fuera de este cambio: 265 rechazos por apoderado (en 232 el DNI del
+  apoderado es el del propio beneficiario) y 444 casos incompletos, sobre todo por localidad sin cruce.
+
+## Reversión
+
+Volver a `_digitos(formulario.celular)` en `armar_payload`. Los celulares largos vuelven a dar overflow en SIIS;
+nada queda inconsistente.
+
+## Historial
+
+Entrada nueva. Sale del relevamiento exhaustivo de casos no enviados en testing del 25/09/2026.

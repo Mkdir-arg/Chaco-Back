@@ -18,6 +18,7 @@ from programas.services.siis import SiisCatalogError, cargar_beneficiario, catal
 TDOC_DNI = 1
 BARRIO_MINIMO = 4
 LARGO_TEXTO = 50
+LARGO_CELULAR = 10
 
 # Cambio 89: convención para el domicilio sin altura.
 #
@@ -241,6 +242,23 @@ def _texto_mayus(valor):
 
 def _digitos(valor):
     return re.sub(r"\D", "", str(valor or ""))
+
+
+def normalizar_celular(valor):
+    """El celular en los 10 dígitos que admite SIIS, o ``""`` si no se puede.
+
+    SIIS lo guarda en una columna numérica de 10 dígitos: con el 54 o el 9
+    adelante el SQL Server responde *Arithmetic overflow* y el alta vuelve como
+    ``ERROR_BD_LEGACY`` (503), igual que una caída. Se sacan los prefijos que se
+    reconocen sin adivinar (54, 9 de móvil, 0 de larga distancia). Si todavía
+    sobra --un 15 intercalado, un dígito de más-- no viaja: es opcional, y un
+    número adivinado es peor que ninguno.
+    """
+    digitos = _digitos(valor)
+    for prefijo in ("54", "9", "0"):
+        if len(digitos) > LARGO_CELULAR and digitos.startswith(prefijo):
+            digitos = digitos[len(prefijo) :]
+    return digitos if len(digitos) <= LARGO_CELULAR else ""
 
 
 def _edad(fecha_nacimiento, hoy):
@@ -478,7 +496,7 @@ def armar_payload(formulario, catalogos=None, hoy=None):
         faltantes["loc_nacim"] = "Falta la localidad de nacimiento."
 
     # --- Contacto (opcionales) ---
-    celular = _digitos(formulario.celular)
+    celular = normalizar_celular(formulario.celular)
     if celular:
         payload["celular"] = int(celular)
     if formulario.email_contacto:

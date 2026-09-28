@@ -465,6 +465,28 @@ class ArmarPayloadTests(_BaseEnvioTest):
         self.assertIn("sexo", faltantes)
         self.assertNotIn("celular", payload)
 
+    def _celular(self, valor):
+        self.formulario.celular = valor
+        self.formulario.save(update_fields=["celular"])
+        payload, faltantes = armar_payload(self.formulario, catalogos=self.cat)
+        self.assertNotIn("celular", faltantes)
+        return payload.get("celular")
+
+    def test_celular_con_prefijo_internacional_viaja_en_diez_digitos(self):
+        """SIIS guarda el celular en una columna de 10 dígitos: con el 54 adelante daba overflow."""
+        self.assertEqual(self._celular("+54 9 362 412-3456"), 3624123456)
+        self.assertEqual(self._celular("54 362 4123456"), 3624123456)
+        self.assertEqual(self._celular("9 3644 123456"), 3644123456)
+        self.assertEqual(self._celular("0362 4123456"), 3624123456)
+
+    def test_celular_largo_que_no_se_puede_normalizar_no_viaja(self):
+        """Es opcional: mejor sin celular que un número adivinado o un alta que SIIS rechaza."""
+        self.assertIsNone(self._celular("3644 15 123456"))
+
+    def test_celular_de_diez_digitos_o_menos_no_cambia(self):
+        self.assertEqual(self._celular("3624123456"), 3624123456)
+        self.assertEqual(self._celular("4123456"), 4123456)
+
 
 class EnviarBeneficiarioTests(ArmarPayloadTests):
     """Hereda el formulario completo de ArmarPayloadTests."""
