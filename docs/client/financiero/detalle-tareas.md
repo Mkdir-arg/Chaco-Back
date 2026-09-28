@@ -891,14 +891,75 @@
 | 20/09 | Matías Abate | Dispositivos | Programa Dispositivos Versión 2 — propuesta y maqueta navegable | Actualización de la propuesta funcional del programa y de su maqueta navegable publicada. | 8 h | — |
 | | | | **Total 17 al 20/09** | | **138 h** | **56 h** |
 
+### :material-package-variant-closed: Consumo del 21 al 28 de septiembre — por entregable
+
+!!! note "Semana del alta masiva en SIIS"
+    El foco fue **informar a SIIS los beneficiarios aprobados**: del alta uno por uno se pasó a un proceso
+    masivo por lotes, operable desde el backoffice y con el circuito completo de validar, aprobar e
+    informar. En paralelo se corrigió el error que devolvía el formulario público bajo carga y se hizo una
+    revisión fina de rendimiento. El jueves 24 y el fin de semana no registran trabajo.
+
+| Período | Persona | Programa | Entregable | Qué incluye | Horas | Equiv. |
+|---|---|---|---|---|---:|---:|
+| 21/09 | Matías Fariña | Becas | Definiciones del alta masiva y de los identificadores por nivel | Qué identificadores exige el servicio del organismo y en qué nivel se configura cada uno. | 3,5 h | — |
+| 21/09 | Matías Fariña | Becas | Decisión sobre el veredicto de SIIS en la aprobación | El resultado de la validación deja de frenar la aprobación: queda como dato del caso. | 2 h | — |
+| 21/09 | Matías Fariña | Transversal | Registro del consumo y gestión del tablero | Carga del consumo del período anterior y puesta al día del tablero. | 2,5 h | — |
+| 21/09 | Matías Fariña | Transversal | Reunión de seguimiento diaria e informe | Reunión diaria del equipo y armado del informe del día. | 1,5 h | — |
+| 21/09 | Pablo Cao | Becas | Los identificadores del alta en SIIS se cargan a mano, cada uno en su nivel | Configuración de los identificadores que el servicio exige, cada uno donde corresponde. | 5 h | 10 h |
+| 21/09 | Pablo Cao | Becas | El veredicto de SIIS deja de bloquear la aprobación | La aprobación del caso ya no depende de la respuesta del servicio externo. | 4 h | 8 h |
+| 21/09 | Pablo Cao | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 21/09 | Juani Portilla | Becas | Alta masiva en SIIS por lotes y circuito completo validar, aprobar e informar | El alta deja de ser de a uno: se informa por lotes y el circuito encadena la validación, la aprobación y el envío, eligiendo los casos que el servicio va a aceptar. | 9 h | 18 h |
+| 21/09 | Juani Portilla | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 21/09 | Matías Abate | Becas | Pruebas del circuito de aprobación y del alta masiva | Recorrido de la aprobación sin bloqueo y del envío por lotes. | 7,5 h | — |
+| 21/09 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 21/09 | Nahuel De Francesco | Transversal | Adaptación al proyecto | Puesta al día con el sistema, el dominio y el método de trabajo. | 3 h | — |
+| 22/09 | Matías Fariña | Dispositivos | Recotización de la Versión 2 en cinco etapas | La Versión 2 del programa se recotiza en 827 h, organizada en cinco etapas entregables. | 3 h | — |
+| 22/09 | Matías Fariña | Becas | Diseño del proceso masivo y plan de ejecución para el proveedor | Diseño del proceso que informa los beneficiarios en tandas y el plan para correrlo con la infraestructura del organismo. | 3,5 h | — |
+| 22/09 | Matías Fariña | Transversal | Reunión de seguimiento diaria e informe | Reunión diaria del equipo y armado del informe del día. | 1,5 h | — |
+| 22/09 | Pablo Cao | Becas | Provincia y localidad se alinean con SIIS sin tocar lo cargado | Los domicilios se traducen al catálogo del organismo sin modificar el dato original del ciudadano. | 4 h | 8 h |
+| 22/09 | Pablo Cao | Becas | Pantalla para lanzar y frenar el proceso masivo | Pantalla de operación, no listada en el menú, para iniciar y detener la corrida. | 3 h | 6 h |
+| 22/09 | Pablo Cao | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 22/09 | Juani Portilla | Becas | El proceso masivo escribe su avance, su latido y su freno | La corrida deja registro de cada lote, avisa que sigue viva y se puede frenar sin dejar datos a medias. | 7 h | 14 h |
+| 22/09 | Juani Portilla | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 22/09 | Matías Abate | Becas | Pruebas del proceso masivo y de la alineación de provincia y localidad | Recorrido de la corrida por lotes y verificación de los domicilios traducidos. | 5 h | — |
+| 22/09 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 22/09 | Nahuel De Francesco | Transversal | Adaptación al proyecto | Puesta al día con el sistema, el dominio y el método de trabajo. | 3 h | — |
+| 23/09 | Matías Fariña | Becas | Coordinación con el proveedor para la corrida masiva | Acuerdo de cómo y cuándo se ejecuta el alta masiva en el ambiente del organismo. | 3 h | — |
+| 23/09 | Matías Fariña | Becas | Análisis del listado de aprobados del organismo y manual de la corrida | Revisión del listado que define quién se informa y redacción del paso a paso de la ejecución. | 3 h | — |
+| 23/09 | Matías Fariña | Transversal | Reunión de seguimiento diaria e informe | Reunión diaria del equipo y armado del informe del día. | 1,5 h | — |
+| 23/09 | Pablo Cao | Becas | A SIIS solo van los documentos del listado de aprobados | El envío se acota al listado que entregó el organismo, y se corrigen el domicilio sin altura y un doble conteo del filtro. | 6 h | 12 h |
+| 23/09 | Pablo Cao | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 23/09 | Juani Portilla | Becas | Completado de casos por lotes y preparación del ambiente para la corrida | El completado deja de traer todos los casos de una vez y el ambiente queda listo para ejecutar. | 6 h | 12 h |
+| 23/09 | Juani Portilla | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 23/09 | Matías Abate | Becas | Pruebas del filtro de aprobados y verificación caso por caso | Comprobación de que solo se informan los documentos del listado. | 5 h | — |
+| 23/09 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 23/09 | Nahuel De Francesco | Transversal | Adaptación al proyecto | Puesta al día con el sistema, el dominio y el método de trabajo. | 2,5 h | — |
+| 25/09 | Matías Fariña | Becas | Diagnóstico del error del formulario público bajo carga | Por qué el envío de la inscripción devolvía error cuando varias personas enviaban a la vez. | 2 h | — |
+| 25/09 | Matías Fariña | Becas | Publicación a testing y a producción del organismo | Publicación del paquete de cambios del alta en SIIS y de la corrección del formulario público. | 3 h | — |
+| 25/09 | Matías Fariña | Transversal | Coordinación, registro y reunión diaria e informe | Coordinación del día, registro de los cambios y reunión diaria con su informe. | 4 h | — |
+| 25/09 | Pablo Cao | Becas | El formulario público deja de fallar cuando varias personas envían a la vez | Se corrige la espera que hacía caer el envío bajo uso simultáneo. | 5 h | 10 h |
+| 25/09 | Pablo Cao | Becas | Ajustes de la corrida masiva | Correcciones surgidas de la ejecución sobre datos reales. | 3 h | — |
+| 25/09 | Pablo Cao | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 25/09 | Juani Portilla | Becas | Reportes sin recorrer todo el padrón y banco de pruebas con 20.000 casos | Los reportes dejan de leer el padrón completo y se arma un banco con volumen real para medir. | 5 h | 10 h |
+| 25/09 | Juani Portilla | Transversal | Revisión fina de rendimiento en cinco frentes | Listados, conversaciones, bandejas de revisión, la app de campo y la exportación del tablero dejan de traer más datos de los que muestran. | 4,5 h | 9 h |
+| 25/09 | Juani Portilla | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 25/09 | Matías Abate | Becas | Pruebas del formulario público y regresión del flujo de inscripción | Verificación del envío bajo uso simultáneo y recorrido completo del circuito. | 5 h | — |
+| 25/09 | Matías Abate | Transversal | Pruebas de rendimiento con volumen real | Comprobación de las pantallas con el banco de 20.000 casos. | 3,5 h | — |
+| 25/09 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 25/09 | Nahuel De Francesco | Transversal | Adaptación al proyecto | Puesta al día con el sistema, el dominio y el método de trabajo. | 3 h | — |
+| 28/09 | Matías Fariña | Becas | Dirección del ajuste del teléfono informado a SIIS | Definición del recorte del celular al formato que admite la tabla del organismo. | 1,5 h | — |
+| 28/09 | Matías Fariña | Transversal | Conteo del consumo de la semana y gestión | Reconstrucción y carga del consumo del 21 al 28/09. | 2,5 h | — |
+| 28/09 | Pablo Cao | Becas | El teléfono viaja a SIIS en los diez dígitos que admite la tabla | El celular se informa en el formato que el servicio acepta, sin perder el dato original. | 3 h | 6 h |
+| | | | **Total 21 al 28/09** | | **152 h** | **123 h** |
+
 ### :material-briefcase-outline: Consumo de septiembre por programa
 
 | Programa | Horas septiembre |
 |---|---:|
-| Becas | 566 h 00 min |
-| Transversal | 142 h 30 min |
-| Dispositivos | 31 h 00 min |
-| **Total septiembre 2026 (al 20/09)** | **739 h 30 min** |
+| Becas | 670 h 00 min |
+| Transversal | 187 h 30 min |
+| Dispositivos | 34 h 00 min |
+| **Total septiembre 2026 (al 28/09)** | **891 h 30 min** |
 
 !!! note "Qué incluye"
     Las horas de Becas incluyen las **103 h 30 min trasladadas de agosto**, cuyo detalle día por día está
@@ -908,15 +969,16 @@
 
 ## :material-account-group: Consumo por persona — acumulado del proyecto
 
-| Persona | Rol | Junio | Julio | Agosto | Septiembre *(al 16/09)* | **Total** |
+| Persona | Rol | Junio | Julio | Agosto | Septiembre *(al 28/09)* | **Total** |
 |---|---|---:|---:|---:|---:|---:|
-| Juani Portilla | Desarrollo, automatización de pruebas y rendimiento | 113,4 | 263,8 | 197,0 | 123,0 | **697 h 13 min** |
-| Matías Fariña | Análisis funcional, gestión y publicaciones | 112,5 | 146,0 | 230,0 | 125,5 | **614 h 01 min** |
-| Pablo Cao | Desarrollo del backoffice, del portal y de la app de campo | 96,0 | 40,3 | 219,0 | 124,5 | **479 h 47 min** |
-| Matías Abate | Pruebas funcionales, casos de prueba y documentación | — | 50,0 | 157,5 | 107,0 | **314 h 30 min** |
+| Juani Portilla | Desarrollo, automatización de pruebas y rendimiento | 113,4 | 263,8 | 197,0 | 190,5 | **764 h 43 min** |
+| Matías Fariña | Análisis funcional, gestión y publicaciones | 112,5 | 146,0 | 230,0 | 198,5 | **687 h 01 min** |
+| Pablo Cao | Desarrollo del backoffice, del portal y de la app de campo | 96,0 | 40,3 | 219,0 | 192,5 | **547 h 47 min** |
+| Matías Abate | Pruebas funcionales, casos de prueba y documentación | — | 50,0 | 157,5 | 171,0 | **378 h 30 min** |
+| Nahuel De Francesco | Adaptación al proyecto *(desde el 09/09)* | — | — | — | 35,5 | **35 h 30 min** |
 | Agostina Coppola | Análisis funcional y testing *(hasta agosto)* | 112,3 | — | — | — | **112 h 17 min** |
 | Equipo UX | Mockups del programa *(junio)* | 65,0 | — | — | — | **65 h 00 min** |
-| **Total del mes** | | **499 h 12 min** | **500 h 00 min** | **803 h 30 min** | **480 h 00 min** | **2.282 h 42 min** |
+| **Total del mes** | | **499 h 12 min** | **500 h 00 min** | **803 h 30 min** | **788 h 00 min** | **2.590 h 42 min** |
 
 !!! note "Cómo leer esta tabla"
     Las columnas mensuales van en horas decimales, tal como las publica la página de cada mes; los totales
@@ -959,9 +1021,9 @@
 
 
 
-    **146.322 minutos** (2.438 h 42 min)
+    **155.442 minutos** (2.590 h 42 min)
 
-    Junio 499 h 12 min + julio 500 h 00 min + agosto 803 h 30 min + septiembre 636 h 00 min (al 20/09).
+    Junio 499 h 12 min + julio 500 h 00 min + agosto 803 h 30 min + septiembre 788 h 00 min (al 28/09).
     (El contador anterior decía 1.939 h 42 min: no sumaba bien los cuatro meses; se corrigió al recalcularlo.)
 
     Es el **esfuerzo real ejecutado**. A efectos de imputación, agosto cierra por 700 h y sus 103 h 30 min de
