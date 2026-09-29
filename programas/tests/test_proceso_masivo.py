@@ -389,6 +389,56 @@ class PantallaProcesoMasivoTests(_BaseProcesoTest):
         self.assertEqual(resp.status_code, 302)
 
 
+class ConfirmacionProcesoMasivoTests(_BaseProcesoTest):
+    """POP-6: lanzar y frenar piden confirmación antes de mandar el POST.
+
+    Lanzar aprueba y da de alta en SIIS hasta miles de casos con un clic; frenar
+    corta una corrida que no se retoma sola. Los dos pasan por un ModernModal rojo.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.admin = User.objects.create_superuser("admin_confirma", password="x")
+        self.client.force_login(self.admin)
+        self.url = reverse("becas:proceso_masivo", args=[self.programa.pk])
+
+    def test_el_form_de_lanzar_pide_confirmacion_con_los_pendientes(self):
+        self._caso()
+        html = self.client.get(self.url).content.decode()
+        self.assertIn("data-confirmar-masivo", html)
+        self.assertIn('data-pendientes="1"', html)
+        self.assertIn("ModernModal.show", html)
+        self.assertIn("danger: true", html)
+        self.assertIn("Sí, procesar", html)
+
+    def test_los_pendientes_viajan_sin_separador_de_miles(self):
+        """El JS hace la cuenta con el número crudo; el formato va en el modal."""
+        with patch("programas.views.proceso_masivo.servicio.candidatos") as candidatos:
+            candidatos.return_value.count.return_value = 3482
+            html = self.client.get(self.url).content.decode()
+        self.assertIn('data-pendientes="3482"', html)
+
+    def test_frenar_pide_confirmacion(self):
+        CorridaSiis.objects.create(
+            programa=self.programa, solicitada_por=self.admin, total_pedido=10, latido=timezone.now()
+        )
+        html = self.client.get(self.url).content.decode()
+        self.assertIn("data-confirmar-frenar", html)
+        self.assertIn("¿Frenar la corrida?", html)
+        self.assertIn("Sí, frenar", html)
+        self.assertNotIn("data-confirmar-masivo", html)
+
+    def test_la_relectura_automatica_no_pisa_el_modal_abierto(self):
+        """Con la corrida en curso la pantalla se relee cada 5 s: si el modal de
+        frenar está abierto, la relectura espera en vez de cerrarlo."""
+        CorridaSiis.objects.create(
+            programa=self.programa, solicitada_por=self.admin, total_pedido=10, latido=timezone.now()
+        )
+        html = self.client.get(self.url).content.decode()
+        self.assertIn("modal-overlay", html)
+        self.assertIn("function releer()", html)
+
+
 class FiltroAprobadosMateriasTests(_BaseProcesoTest):
     """Cambio 90: a SIIS solo van los DNI de ``aprobados_materias``."""
 

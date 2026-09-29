@@ -41,7 +41,7 @@
         lanzada por {{ en_curso.solicitada_por.get_full_name|default:en_curso.solicitada_por.username }}
         · hace {{ en_curso.creado|timesince }}
       </p>
-      <form method="post" action="{% url 'becas:proceso_masivo_frenar' programa.pk %}">
+      <form method="post" action="{% url 'becas:proceso_masivo_frenar' programa.pk %}" data-confirmar-frenar>
         {% csrf_token %}
         <button type="submit" class="btn-nodo btn-danger btn-sm">Frenar</button>
       </form>
@@ -103,7 +103,8 @@
       <p class="text-heading font-extrabold" style="font-size:32px">{{ pendientes }}</p>
     </div>
     <form method="post" action="{% url 'becas:proceso_masivo_lanzar' programa.pk %}"
-          class="flex items-end gap-3 flex-wrap">
+          class="flex items-end gap-3 flex-wrap"
+          data-confirmar-masivo data-pendientes="{{ pendientes|stringformat:'d' }}">
       {% csrf_token %}
       <div>
         <label for="total_pedido" class="block text-[13px] font-semibold text-heading mb-1.5">Cantidad a procesar</label>
@@ -145,8 +146,100 @@
 {% block customJS %}
 {% if en_curso %}
 <script>
-  // La corrida avanza en un hilo del pod y no avisa: la pantalla se relee sola.
-  setTimeout(function () { window.location.reload(); }, 5000);
+  (function () {
+    var form = document.querySelector('form[data-confirmar-frenar]');
+    var overlay = document.getElementById('modal-overlay');
+
+    // La corrida avanza en un hilo del pod y no avisa: la pantalla se relee sola.
+    // Si el modal de frenar está abierto, se espera: releer lo cerraría a mitad de la decisión.
+    function releer() {
+      if (form && form.dataset.enviando) return;
+      if (overlay && !overlay.classList.contains('hidden')) {
+        setTimeout(releer, 5000);
+        return;
+      }
+      window.location.reload();
+    }
+    setTimeout(releer, 5000);
+
+    if (!form) return;
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      if (form.dataset.enviando) return;
+      if (typeof ModernModal === 'undefined') {
+        console.error('ModernModal no disponible: no se frena sin confirmar.');
+        return;
+      }
+      var boton = form.querySelector('button[type="submit"]');
+      ModernModal.show({
+        type: 'confirm',
+        danger: true,
+        title: '¿Frenar la corrida?',
+        message: 'Corta al terminar el lote en curso, no a mitad de un caso: puede tardar hasta 40 casos. '
+          + 'Lo que ya se dio de alta en SIIS queda como está; lo que falte se puede lanzar en una corrida nueva.',
+        confirmText: 'Sí, frenar',
+        onConfirm: function () {
+          form.dataset.enviando = '1';
+          if (boton) boton.disabled = true;
+          form.submit();
+        }
+      });
+    });
+  })();
+</script>
+{% elif not tabla_materias_faltante %}
+<script>
+  (function () {
+    // POP-6: lanzar aprueba y da de alta en SIIS con un clic. Se confirma con la cantidad exacta.
+    var form = document.querySelector('form[data-confirmar-masivo]');
+    if (!form) return;
+    var numero = new Intl.NumberFormat('es-AR');
+
+    // El navegador valida min/max/required antes de disparar submit: acá el valor ya es válido.
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      if (form.dataset.enviando) return;
+      if (typeof ModernModal === 'undefined') {
+        console.error('ModernModal no disponible: no se lanza sin confirmar.');
+        return;
+      }
+      var boton = form.querySelector('button[type="submit"]');
+      var pedido = parseInt(form.elements.total_pedido.value, 10) || 0;
+      var pendientes = parseInt(form.dataset.pendientes, 10) || 0;
+
+      if (pendientes === 0) {
+        ModernModal.show({
+          type: 'info',
+          title: 'No hay casos pendientes',
+          message: 'No queda ningún caso pendiente de informar. Si entraron casos nuevos, recargá la pantalla.'
+        });
+        return;
+      }
+
+      var n = Math.min(pedido, pendientes);
+      var resto = pendientes - n;
+      var mensaje = 'Se validan con SIIS, se aprueban y se dan de alta. No se puede deshacer desde acá.';
+      if (resto === 1) {
+        mensaje += ' Queda 1 pendiente para una próxima corrida.';
+      } else if (resto > 1) {
+        mensaje += ' Quedan ' + numero.format(resto) + ' pendientes para una próxima corrida.';
+      }
+
+      ModernModal.show({
+        type: 'confirm',
+        danger: true,
+        title: n === 1 ? '¿Procesar 1 caso?' : '¿Procesar ' + numero.format(n) + ' casos?',
+        message: mensaje,
+        confirmText: 'Sí, procesar ' + numero.format(n),
+        onConfirm: function () {
+          // form.submit() no vuelve a disparar este listener; el botón deshabilitado corta el doble clic.
+          form.dataset.enviando = '1';
+          if (boton) boton.disabled = true;
+          form.submit();
+        }
+      });
+    });
+  })();
 </script>
 {% endif %}
 {% endblock %}
