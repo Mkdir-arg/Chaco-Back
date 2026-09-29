@@ -155,10 +155,10 @@
                     </div>
                     <!-- Modal Footer -->
                     <div id="modal-footer" class="modal-footer flex flex-col-reverse gap-3 border-t border-[color:var(--border-light)] bg-[color:var(--bg-secondary)] p-4 sm:flex-row sm:justify-end sm:gap-0 sm:space-x-3 sm:p-6">
-                        <button id="modal-cancel" class="btn-nodo btn-secondary btn-sm hidden w-full sm:w-auto">
+                        <button id="modal-cancel" class="btn-nodo btn-tertiary btn-base hidden w-full sm:w-auto">
                             Cancelar
                         </button>
-                        <button id="modal-confirm" class="btn-nodo btn-brand btn-sm w-full sm:w-auto">
+                        <button id="modal-confirm" class="btn-nodo btn-brand btn-base w-full sm:w-auto">
                             Aceptar
                         </button>
                     </div>
@@ -179,8 +179,12 @@
         <script>
             document.addEventListener('DOMContentLoaded', function() {
                 // Sistema de Modales Modernos
+                // Cada show() abre un turno nuevo: el cierre diferido de un modal anterior
+                // (p. ej. un onConfirm que abre otro modal) no toca al que está abierto.
+                let modalTurno = 0;
                 window.ModernModal = {
                     show: function(options) {
+                        const turno = ++modalTurno;
                         const overlay = document.getElementById('modal-overlay');
                         const content = document.getElementById('modal-content');
                         const icon = document.getElementById('modal-icon');
@@ -200,7 +204,27 @@
                             confirm: { icon: 'fa-question-circle',     iconColor: 'bg-[color:var(--bg-tertiary)] text-[color:var(--text-body-subtle)]' }
                         };
 
-                        const type = types[options.type] || types.info;
+                        // Para confirmaciones destructivas pasá options.danger = true
+                        // (o options.confirmVariant = 'danger'): el botón toma btn-danger,
+                        // el ícono pasa al tono danger y el foco inicial va a Cancelar.
+                        const isDestructive = options.danger === true || options.confirmVariant === 'danger';
+
+                        // Tono del ícono de una confirmación: options.icon
+                        // ('warning' | 'danger' | 'question' | 'info'). Sin icon, una
+                        // destructiva usa 'danger' y el resto el «?» de siempre.
+                        const confirmIcons = {
+                            warning:  types.warning,
+                            danger:   types.error,
+                            question: types.confirm,
+                            info:     types.info
+                        };
+
+                        let type = types[options.type] || types.info;
+                        if (options.type === 'confirm') {
+                            type = Object.prototype.hasOwnProperty.call(confirmIcons, options.icon)
+                                ? confirmIcons[options.icon]
+                                : (isDestructive ? confirmIcons.danger : types.confirm);
+                        }
 
                         // Configurar contenido
                         icon.className = `w-10 h-10 rounded-lg flex items-center justify-center ${type.iconColor}`;
@@ -208,16 +232,12 @@
                         title.textContent = options.title || 'Información';
                         message.textContent = options.message || '';
 
-                        // Configurar botón confirmar.
-                        // Por defecto usa btn-brand (gradiente de marca).
-                        // Para confirmaciones destructivas pasá options.danger = true
-                        // (o options.confirmVariant = 'danger'): el botón toma btn-danger
-                        // (rojo semántico del sistema). No rompe llamadas existentes sin el flag.
+                        // Configurar botón confirmar: btn-brand por defecto, btn-danger si es
+                        // destructiva. Mismo tamaño (btn-base) que los modales de formulario.
                         confirmBtn.textContent = options.confirmText || 'Aceptar';
-                        const isDestructive = options.danger === true || options.confirmVariant === 'danger';
                         confirmBtn.className = isDestructive
-                            ? 'btn-nodo btn-danger btn-sm w-full sm:w-auto'
-                            : 'btn-nodo btn-brand btn-sm w-full sm:w-auto';
+                            ? 'btn-nodo btn-danger btn-base w-full sm:w-auto'
+                            : 'btn-nodo btn-brand btn-base w-full sm:w-auto';
 
                         if (options.type === 'confirm') {
                             cancelBtn.classList.remove('hidden');
@@ -252,14 +272,25 @@
                             if (e.key === 'Escape') closeModal();
                         };
 
+                        // Durante la animación de cierre (300 ms) los botones siguen en el DOM:
+                        // tras el primer confirmar/cancelar/cerrar se ignoran los clics repetidos,
+                        // así un doble clic o un Enter-Enter no ejecuta onConfirm dos veces.
+                        let resuelto = false;
+                        let cerrando = false;
+
                         // Configurar eventos de cierre (definidos antes de usarlos en los handlers)
                         const closeModal = () => {
+                            if (cerrando) return;
+                            cerrando = true;
+                            resuelto = true;
                             document.removeEventListener('keydown', focusTrap);
                             document.removeEventListener('keydown', escHandler);
+                            if (turno !== modalTurno) return;
                             overlay.style.opacity = '0';
                             content.style.transform = 'scale(0.95)';
                             content.style.opacity = '0';
                             setTimeout(() => {
+                                if (turno !== modalTurno) return;
                                 overlay.classList.add('hidden');
                                 // Devolver el foco al elemento que lo tenía antes de abrir.
                                 if (previouslyFocused && typeof previouslyFocused.focus === 'function') {
@@ -274,19 +305,24 @@
                             overlay.style.opacity = '1';
                             content.style.transform = 'scale(1)';
                             content.style.opacity = '1';
-                            // Mover el foco al botón confirmar al abrir (primer focusable relevante).
-                            confirmBtn.focus();
+                            // Foco inicial: en una confirmación destructiva va a Cancelar (un Enter
+                            // de más no confirma); en el resto, al botón confirmar.
+                            (isDestructive && options.type === 'confirm' ? cancelBtn : confirmBtn).focus();
                         }, 10);
 
                         document.addEventListener('keydown', focusTrap);
                         document.addEventListener('keydown', escHandler);
 
                         confirmBtn.onclick = () => {
+                            if (resuelto) return;
+                            resuelto = true;
                             if (options.onConfirm) options.onConfirm();
                             closeModal();
                         };
 
                         cancelBtn.onclick = () => {
+                            if (resuelto) return;
+                            resuelto = true;
                             if (options.onCancel) options.onCancel();
                             closeModal();
                         };
