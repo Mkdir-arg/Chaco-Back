@@ -6,31 +6,20 @@
 <style>[x-cloak]{display:none!important}</style>
 <div class="space-y-5" x-data="{ tab: new URLSearchParams(window.location.search).get('tab') || 'info', modalRel: false, tipoRel: 'TERRITORIAL' }" @becas-saved.window="modalRel=false">
 
-  <div>
-    <div class="flex items-start justify-between gap-4 flex-wrap">
-      <div class="flex items-start gap-3 min-w-0">
-        <a href="{% url 'becas:convocatorias' %}"
-           class="btn-tertiary btn-back-circle"
-           aria-label="Volver a convocatorias">
-          <i class="fas fa-arrow-left" aria-hidden="true"></i>
-        </a>
-        <div class="min-w-0">
-          <h1 class="text-3xl font-extrabold text-heading tracking-tight">{{ convocatoria.nombre }}</h1>
-          <p class="text-sm text-body-subtle mt-1">{{ convocatoria.segmento.nombre }}{% if convocatoria.subsegmento %} · {{ convocatoria.subsegmento.nombre }}{% endif %}</p>
-        </div>
-      </div>
-      <div class="flex items-center gap-2">
-        {% if convocatoria.pausa_efectiva %}<span class="badge badge-warning badge-dot">Pausada</span>
-        {% elif convocatoria.activo %}<span class="badge badge-success badge-dot">Activa</span>
-        {% else %}<span class="badge badge-danger badge-dot">Inactiva</span>{% endif %}
-        {% if request.user|puede:"becas.programa.administrar" %}
-        <a href="{% url 'becas:gestionar_pausa' 'convocatoria' convocatoria.pk %}" class="btn-nodo {% if convocatoria.pausado %}btn-brand{% else %}btn-danger{% endif %} btn-sm">
-          {% if convocatoria.pausado %}Reanudar{% else %}Pausar{% endif %}
-        </a>
-        {% endif %}
-      </div>
-    </div>
-  </div>
+  {% load nodo_ui becas_extras %}
+  {% url 'becas:convocatorias' as url_convocatorias %}
+  {% becas_migas convocatoria as migas %}
+  {% page_header titulo=convocatoria.nombre volver_url=url_convocatorias volver_label="convocatorias" migas=migas %}
+    {% bajada %}{{ convocatoria.segmento.nombre }}{% if convocatoria.subsegmento %} · {{ convocatoria.subsegmento.nombre }}{% endif %}{% endbajada %}
+    {% if convocatoria.pausa_efectiva %}<span class="badge badge-warning badge-dot">Pausada</span>
+    {% elif convocatoria.activo %}<span class="badge badge-success badge-dot">Activa</span>
+    {% else %}<span class="badge badge-danger badge-dot">Inactiva</span>{% endif %}
+    {% if request.user|puede:"becas.programa.administrar" %}
+    <a href="{% url 'becas:gestionar_pausa' 'convocatoria' convocatoria.pk %}" class="btn-nodo {% if convocatoria.pausado %}btn-brand{% else %}btn-danger{% endif %} btn-sm">
+      {% if convocatoria.pausado %}Reanudar{% else %}Pausar{% endif %}
+    </a>
+    {% endif %}
+  {% endpage_header %}
 
   <div class="bg-white rounded-xl border border-base shadow-sm">
     {# Tabs #}
