@@ -98,11 +98,9 @@
 
         // Deduplicación: un error persistente idéntico ya visible no se apila.
         if (persistent) {
-            var previos = container.querySelectorAll('.toast--error[data-persistent="1"]');
-            for (var p = 0; p < previos.length; p++) {
-                if (previos[p].getAttribute('data-msg') === String(message) &&
-                    !previos[p].classList.contains('toast--leaving')) {
-                    return previos[p];
+            for (var p = 0; p < persistentes.length; p++) {
+                if (persistentes[p]._msg === String(message) && !persistentes[p]._closed) {
+                    return persistentes[p];
                 }
             }
         }
@@ -113,8 +111,8 @@
         toast.setAttribute('role', isUrgent ? 'alert' : 'status');
         toast.setAttribute('aria-live', isUrgent ? 'assertive' : 'polite');
         if (persistent) {
-            toast.setAttribute('data-persistent', '1');
-            toast.setAttribute('data-msg', String(message));
+            toast._msg = String(message);
+            persistentes.push(toast);
         }
 
         // Icono (decorativo: el texto ya comunica la variante)
@@ -176,6 +174,9 @@
         function dismiss() {
             if (dismissed) { return; }
             dismissed = true;
+            toast._closed = true;
+            var idx = persistentes.indexOf(toast);
+            if (idx !== -1) { persistentes.splice(idx, 1); }
             toast.classList.add('toast--leaving');
             toast.classList.remove('toast--visible');
 
@@ -198,19 +199,21 @@
         return toast;
     }
 
+    // Errores persistentes visibles (en orden de aparición).
+    var persistentes = [];
+
     // Escape cierra el error con foco o, si no hay, el último error visible.
     document.addEventListener('keydown', function (e) {
         if (e.key !== 'Escape' && e.key !== 'Esc') { return; }
-        var box = document.getElementById('toast-container');
-        if (!box) { return; }
-        var errs = box.querySelectorAll('.toast--error');
-        var target = null;
-        for (var i = 0; i < errs.length; i++) {
-            if (errs[i].classList.contains('toast--leaving')) { continue; }
-            if (errs[i].contains(document.activeElement)) { target = errs[i]; break; }
-            target = errs[i];
+        var target = persistentes[persistentes.length - 1];
+        for (var i = 0; i < persistentes.length; i++) {
+            var f = document.activeElement;
+            if (f && typeof persistentes[i].contains === 'function' && persistentes[i].contains(f)) {
+                target = persistentes[i];
+                break;
+            }
         }
-        if (target && target._dismiss) { target._dismiss(); }
+        if (target) { target._dismiss(); }
     });
 
     // ── API pública ──────────────────────────────────────────────

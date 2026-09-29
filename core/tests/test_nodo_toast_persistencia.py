@@ -136,7 +136,7 @@ toast.error('Uno'); toast.error('Dos'); toast.success('Ok');
 __keydown('Escape'); __remover();
 var R = {vivos: __vivos().length,
          errores: __vivos().filter(function (t) { return t.classList.contains('toast--error'); }).length,
-         queda: __vivos()[0].getAttribute('data-msg')};"""
+         queda: __vivos()[0]._msg};"""
         )
         self.assertEqual(r["vivos"], 2)
         self.assertEqual(r["errores"], 1)
@@ -148,7 +148,7 @@ var R = {vivos: __vivos().length,
 var a = toast.error('Uno'); var b = toast.error('Dos');
 document.activeElement = __botones(a)[0];
 __keydown('Escape'); __remover();
-var R = {vivos: __vivos().length, queda: __vivos()[0].getAttribute('data-msg')};"""
+var R = {vivos: __vivos().length, queda: __vivos()[0]._msg};"""
         )
         self.assertEqual(r["vivos"], 1)
         self.assertEqual(r["queda"], "Dos")
