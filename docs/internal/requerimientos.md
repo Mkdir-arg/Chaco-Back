@@ -279,6 +279,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 96.36 | El detalle del programa usa las piezas comunes (encabezado, modales, estados) | Becas | `#ui` `#requisitos` | Auditoría de diseño de Becas (CMP-1, CMP-7, DC-5, TIT-15) | 29/09/2026 | 🟢 **Hecho** | No requiere |
 | 97 | El check de seguridad (pip-audit) deja de bloquear los PRs: DRF 3.17.2 y anyio 4.14.2 | Transversal | `#infra` `#api` | Juez de la sesión — gate «Security / Pip Audit» rojo en todos los PRs | 29/09/2026 | 🟢 **Hecho** | No requiere |
 | 98 | Corregir los datos que impiden informar un caso a SIIS (localidad, barrio, nacimiento, apoderado) | Becas · alta de beneficiarios en SIIS | `#siis` `#datos` `#relevamientos` | PM — en sesión, sobre los rechazos de la corrida del 23/09: «quiero solucionar los casos que nosotros podemos solucionar» | 30/09/2026 | 🟢 **Hecho** | No requiere |
+| 99 | El alta de un relevamiento deja de dar 500 en MariaDB: `token_publico` admite el UUID con guiones | Becas · relevamientos públicos y portal de inscripción | `#relevamientos` `#datos` `#infra` | PM — en sesión: 500 en `POST /becas/relevamientos/nuevo/` en el testing de ECOM | 29/09/2026 | 🟢 **Hecho** | `programas.0073` |
 | 100 | La API del backoffice solo por sesión, y se retira la consulta RENAPER anónima | Transversal · API DRF · Legajos | `#api` `#sesion` `#rbac` | Auditoría integral oct-2026 — SEC-01 y SEC-04 (Ola 0, hotfix de seguridad) | 01/10/2026 | 🟢 **Hecho** | No requiere |
 | 101 | Desmontar las rutas públicas de conversaciones: creaban legajos de cualquier DNI y filtraban RENAPER sin login | Conversaciones · chat público · Portal ciudadano | `#rbac` `#datos` `#ui` | Auditoría integral oct-2026 (G1-01 y G1-02, severidad ALTA, ola 0) | 01/10/2026 | 🟢 **Hecho** | No requiere |
 | 102 | Apagar el registro y el perfil del portal ciudadano | Portal ciudadano | `#sesion` `#usuarios` `#ui` `#datos` | Auditoría integral oct-2026 — hallazgo SEC-29 (Ola 0, hotfix de seguridad) | 01/10/2026 | 🟢 **Hecho** | No requiere |
@@ -12681,6 +12682,81 @@ no tienen vuelta automática (el dump previo es el respaldo).
 
 - **23/09/2026** — corrida en testing: 3.729 altas, 265 rechazos y 44 errores.
 - **30/09/2026 (este cambio)** — diagnóstico de los tres grupos y corrección de los datos.
+
+---
+
+# Cambio 99 — El alta de un relevamiento deja de dar 500 en MariaDB: `token_publico` admite el UUID con guiones
+
+🟢 **HECHO — 29/09/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · relevamientos públicos y portal de inscripción |
+| **Etiquetas** | `#relevamientos` `#datos` `#infra` |
+| **Solicitante** | PM — en sesión, con el log del pod: 500 en `POST /becas/relevamientos/nuevo/` desde `/becas/convocatorias/3/` en `datanach.ecomdev.ar` |
+| **Fecha del pedido** | 29/09/2026 |
+| **Issue / épica** | Sin issue (pedido en sesión) · continúa el Cambio 41 y las migraciones `programas.0047/0048`, `users.0023` y `legajos.0007` |
+| **Partes afectadas** | `programas_relevamiento.token_publico` · `_get_relevamiento` del portal · `diagnosticar_integraciones --token` |
+| **Migración** | `programas.0073_ampliar_relevamiento_token_publico` |
+
+## Pedido original
+
+Crear un relevamiento en el testing de ECOM daba 500. El log del pod:
+`DataError (1406, "Data too long for column 'token_publico' at row 1")` en el INSERT de `Relevamiento.save()`.
+
+La base de testing de ECOM es **MariaDB** (Cambios 31 y 77). En MariaDB 10.7+, Django 5 tiene
+`has_native_uuid_field = True` y manda el `UUIDField` **con guiones** (36 caracteres), pero la columna nació
+`char(32)` en la 0049. El mismo problema ya se había resuelto para `client_uuid`, `id_consulta`, `legajo_id`, el
+token de cambio de email y los UUID de legajos; `token_publico` quedó afuera.
+
+## Alcance acordado
+
+Que el alta vuelva a funcionar en MariaDB y que el link público encuentre su relevamiento tenga el token
+guardado en hex o con guiones.
+
+## Decisiones tomadas
+
+- **Misma receta que las 0047/0048**: `MODIFY ... char(36) NULL` solo en MySQL/MariaDB (`MODIFY` conserva el
+  índice único) y las filas pasan a guiones solo si el motor tiene UUID nativo. En MySQL el valor sigue en hex.
+- **La búsqueda por token acepta las dos formas.** La base de testing es copia de PRD (Cambio 77) y trae los
+  tokens en hex: en MariaDB el lookup del ORM manda guiones y no los encontraba. Otra restauración desde PRD los
+  volvería a traer en hex aunque la migración ya esté aplicada, así que no alcanza con normalizar una vez.
+- **Por igualdad, sin funciones sobre la columna** (`q_uuid_en_texto`, la misma técnica que `client_uuid` en el
+  Cambio 91): el índice único sigue sirviendo y el portal sigue en una sola consulta.
+
+## Implementación
+
+- `programas/migrations/0073_ampliar_relevamiento_token_publico.py` — amplía y normaliza; la reversa vuelve a
+  hex y a `char(32)`.
+- `programas/services/becas.py` — `q_uuid_en_texto(campo, valor)` (factorizada de `formulario_por_client_uuid`)
+  y `relevamiento_publico_por_token(token, queryset=None)`.
+- `portal/views/inscripcion.py` — `_get_relevamiento` busca con `relevamiento_publico_por_token`, con los mismos
+  `select_related`.
+- `programas/management/commands/diagnosticar_integraciones.py` — `--token` valida que sea un UUID y busca en
+  las dos formas.
+- Tests: `programas_relevamiento.token_publico` en `UUIDExternosMySQLTests`; `TokenPublicoEnCualquierFormaTests`
+  (`portal/tests/test_inscripcion.py`: hex, guiones, una sola consulta, 404 para token inexistente o relevamiento
+  territorial); dos casos de `--token` en `test_diagnosticar_integraciones.py`.
+
+## Base de datos
+
+`programas.0073` (`RunPython`, `atomic = False`): en MySQL solo cambia el largo de la columna; en MariaDB además
+reescribe los tokens existentes con guiones. Sin cambio de estado de modelos.
+
+## Pendientes / a definir
+
+- Confirmar en testing, después del deploy, el alta de un relevamiento y el link público de uno existente.
+- Confirmar el motor de la base de PRD de ECOM (pregunta 6 de `pedido-datos-prd-ecom-2026-09.md`). Si también es
+  MariaDB, hoy la misma alta falla ahí.
+
+## Reversión
+
+`migrate programas 0072` (vuelve los tokens a hex y la columna a `char(32)`) y `git revert` del commit. En MariaDB
+el alta vuelve a dar 500.
+
+## Historial
+
+Entrada nueva. Diagnóstico con el log del pod de testing del 29/09/2026.
 
 ---
 
