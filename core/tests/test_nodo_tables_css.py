@@ -38,6 +38,20 @@ def _reglas(nombre):
     return reglas
 
 
+def _especificidad(selector):
+    """(ids, clases/atributos/pseudoclases, elementos) de un selector compuesto simple.
+
+    Alcanza para los selectores de estas piezas: :where() suma cero y :not() suma su
+    argumento, como en el navegador.
+    """
+    selector = re.sub(r":where\([^)]*\)", "", selector)
+    selector = re.sub(r":not\(([^)]*)\)", r" \1", selector)
+    ids = len(re.findall(r"#[\w-]+", selector))
+    clases = len(re.findall(r"\.[\w-]+|\[[^\]]*\]|:(?!:)[\w-]+", selector))
+    elementos = len(re.findall(r"(?:^|[\s>+~])([a-z][\w-]*)", selector))
+    return (ids, clases, elementos)
+
+
 def _cuerpo(reglas, selector):
     return " ".join(" ".join(c.split()) for c in reglas.get(selector, []))
 
@@ -52,27 +66,28 @@ class NodoTablesCssTests(SimpleTestCase):
         self.assertNotIn("*/", COMENTARIO.sub("", css))
 
     def test_th_con_el_canon_de_la_tabla_densa(self):
-        cuerpo = _cuerpo(self.reglas, ".nodo-th")
-        for decl in (
-            "padding: 11px 16px",
-            "font-size: 11px",
-            "font-weight: 700",
-            "text-transform: uppercase",
-            "letter-spacing: 0.05em",
-            "color: var(--text-body-subtle)",
-        ):
-            self.assertIn(decl, cuerpo)
+        pieza = _cuerpo(self.reglas, ".nodo-th")
+        for decl in ("font-weight: 700", "text-transform: uppercase", "letter-spacing: 0.05em"):
+            self.assertIn(decl, pieza)
+        ajustable = _cuerpo(self.reglas, ":where(.nodo-th)")
+        for decl in ("padding: 11px 16px", "font-size: 11px", "color: var(--text-body-subtle)", "text-align: left"):
+            self.assertIn(decl, ajustable)
 
-    def test_alineacion_del_th_cede_a_las_utilidades(self):
-        # text-left en :where() (especificidad cero): text-center/text-right la pisan.
-        self.assertIn("text-align: left", _cuerpo(self.reglas, ":where(.nodo-th)"))
-        self.assertNotIn("text-align", _cuerpo(self.reglas, ".nodo-th"))
+    def test_lo_ajustable_cede_a_las_utilidades(self):
+        # padding, tamaño, color y alineación en :where() (especificidad cero): una
+        # utilidad de Tailwind en el mismo elemento (text-right, px-3…) los pisa.
+        for selector in (".nodo-th", ".nodo-td"):
+            cuerpo = _cuerpo(self.reglas, selector)
+            for propiedad in ("padding", "font-size", "text-align", "color:"):
+                with self.subTest(selector=selector, propiedad=propiedad):
+                    self.assertNotRegex(cuerpo, rf"(^|; |\s){re.escape(propiedad)}")
+        self.assertEqual(_especificidad(":where(.nodo-th)"), (0, 0, 0))
 
     def test_td_y_fila_de_encabezado(self):
-        td = _cuerpo(self.reglas, ".nodo-td")
+        self.assertIn("border-top: 1px solid var(--border-light)", _cuerpo(self.reglas, ".nodo-td"))
+        td = _cuerpo(self.reglas, ":where(.nodo-td)")
         self.assertIn("padding: 13px 16px", td)
         self.assertIn("font-size: var(--font-size-sm)", td)
-        self.assertIn("border-top: 1px solid var(--border-light)", td)
         fila = _cuerpo(self.reglas, ".nodo-thead-row")
         self.assertIn("background: var(--bg-secondary)", fila)
         self.assertIn("border-bottom: 1px solid var(--border-base)", fila)
@@ -114,6 +129,18 @@ class NodoIconBtnCssTests(SimpleTestCase):
         self.assertIn(
             "--nodo-icon-btn-color: var(--text-fg-danger)", _cuerpo(self.reglas, ".nodo-icon-btn--danger:hover")
         )
+
+    def test_deshabilitado_le_gana_a_button_disabled_de_nodo_brand(self):
+        # nodo-brand.css: button:disabled { background/color ... !important } (0,1,1).
+        brand = _reglas("nodo-brand.css")
+        self.assertIn("!important", _cuerpo(brand, "button:disabled"))
+        rival = _especificidad("button:disabled")
+        for selector in ("button.nodo-icon-btn:disabled", 'a.nodo-icon-btn[aria-disabled="true"]'):
+            with self.subTest(selector=selector):
+                cuerpo = _cuerpo(self.reglas, selector)
+                self.assertIn("background: transparent !important", cuerpo)
+                self.assertIn("color: var(--text-fg-disabled) !important", cuerpo)
+                self.assertGreater(_especificidad(selector), rival)
 
     def test_lo_existente_de_nodo_buttons_sigue_vivo(self):
         self.assertIn("btn-nodo", " ".join(self.reglas))

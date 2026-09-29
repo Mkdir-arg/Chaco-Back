@@ -246,6 +246,13 @@ a.nodo-icon-btn:not(.btn):not(.btn-nodo):not(.btn-brand):not([class*="bg-"]) {
 .nodo-icon-btn:disabled,
 .nodo-icon-btn[aria-disabled="true"] {
     --nodo-icon-btn-color: var(--text-fg-disabled);
-    background: transparent;
     cursor: not-allowed;
+}
+
+/* nodo-brand.css pinta button:disabled con fondo y color !important (especificidad
+   0,1,1): estos selectores la superan para que el ícono deshabilitado siga sin caja. */
+button.nodo-icon-btn:disabled,
+a.nodo-icon-btn[aria-disabled="true"] {
+    background: transparent !important;
+    color: var(--text-fg-disabled) !important;
 }

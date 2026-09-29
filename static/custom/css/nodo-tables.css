@@ -11,8 +11,10 @@
        <td class="nodo-td text-body">Valor</td>
      </tr></tbody>
 
-   La alineación del th va en una regla :where() (especificidad cero): una utilidad
-   text-center o text-right en el mismo elemento la reemplaza sin !important. */
+   Lo que una pantalla puede querer ajustar (padding, tamaño, color y alineación)
+   va en reglas :where() (especificidad cero): una utilidad de Tailwind en el mismo
+   elemento (text-right, px-3, text-heading…) lo reemplaza sin !important. Lo que
+   define la pieza (peso, mayúsculas, tracking, bordes) queda en la clase. */
 
 .nodo-thead-row {
     background: var(--bg-secondary);
@@ -20,20 +22,23 @@
 }
 
 .nodo-th {
-    padding: 11px 16px;
-    font-size: 11px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: var(--text-body-subtle);
 }
 
 :where(.nodo-th) {
+    padding: 11px 16px;
+    font-size: 11px;
+    color: var(--text-body-subtle);
     text-align: left;
 }
 
 .nodo-td {
+    border-top: 1px solid var(--border-light);
+}
+
+:where(.nodo-td) {
     padding: 13px 16px;
     font-size: var(--font-size-sm);
-    border-top: 1px solid var(--border-light);
 }
