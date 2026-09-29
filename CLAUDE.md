@@ -8,7 +8,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 `Chaco` es un monorepo Django orientado a backoffice y portal ciudadano.
 
-- Stack: Python 3.12, **Django 5.2** (`requirements.txt` es el pin real), MySQL 8,
+- Stack: Python 3.12, **Django 5.2** (`requirements.txt` es el pin real), MySQL 8
+  (local e icore-srv) / **MariaDB en ECOM, testing y PRD**,
   Redis 7, Channels, Tailwind CSS, Alpine.js, Docker Compose
 - Apps que concentran trabajo: `programas` (la más grande, ~28k LOC), `core`,
   `users`, `legajos`, `portal`, `conversaciones`, `configuracion`, `dashboard`
@@ -270,7 +271,14 @@ Igual se dejan en verde salvo que el rojo sea preexistente y ajeno al cambio.
   sobre Python 3.12; el `.venv/` de esta máquina puede estar en Django 4.2 y Python
   3.14. De ahí salen diferencias de errores de test y de presupuestos de queries.
   Receta para alinearlo: [`docs/internal/venv-setup.md`](docs/internal/venv-setup.md).
-- **MySQL de ECOM sin tablas de timezone.** No usar `TruncWeek`/`TruncDate` sobre un
+- **ECOM corre MariaDB, en testing y en PRD** (no MySQL). El código tiene que andar en
+  los dos motores: MySQL 8 local e icore-srv, MariaDB en ECOM. Lo más visible:
+  con MariaDB 10.7+ Django 5 manda el `UUIDField` **con guiones** (36 caracteres), así
+  que una columna `char(32)` da *"Data too long"* y un lookup `campo=uuid` no encuentra
+  filas en hex (las trae un restore). Todo `UUIDField` nuevo necesita su migración a
+  `char(36)` (patrón de `programas.0073`) y búsqueda con `q_uuid_en_texto`
+  (`programas/services/becas.py`). Cambio 95.
+- **La base de ECOM no tiene tablas de timezone.** No usar `TruncWeek`/`TruncDate` sobre un
   `DateTimeField` con `USE_TZ` en código que corre en ECOM: Django lo traduce a
   `CONVERT_TZ`, que devuelve `NULL` y rompe **solo en producción**. Agrupar en Python
   (ver `programas/services/dashboard_becas.py`).
@@ -278,7 +286,7 @@ Igual se dejan en verde salvo que el rojo sea preexistente y ajeno al cambio.
   `npm run build:tailwind` y commitear la salida.
 - **`nginx` cachea la IP del upstream**: tras recrear `web`/`websocket` hay que
   reiniciarlo, o aparecen 500 por *"Missing staticfiles manifest entry"* (README.md).
-- **MySQL pineado en 8.0.32** en producción: versiones más nuevas mueren en CPUs sin
+- **MySQL pineado en 8.0.32** en icore-srv: versiones más nuevas mueren en CPUs sin
   `x86-64-v2`.
 
 ## Gestión en GitHub

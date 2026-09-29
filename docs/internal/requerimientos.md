@@ -12716,6 +12716,8 @@ guardado en hex o con guiones.
 
 ## Decisiones tomadas
 
+- **Queda asentado (PM, 29/09/2026): la base de ECOM es MariaDB en los dos ambientes, testing y PRD.**
+  MySQL 8 queda solo para local e icore-srv. `CLAUDE.md` lo lleva en *Identidad* y en *Gotchas*.
 - **Misma receta que las 0047/0048**: `MODIFY ... char(36) NULL` solo en MySQL/MariaDB (`MODIFY` conserva el
   índice único) y las filas pasan a guiones solo si el motor tiene UUID nativo. En MySQL el valor sigue en hex.
 - **La búsqueda por token acepta las dos formas.** La base de testing es copia de PRD (Cambio 77) y trae los
