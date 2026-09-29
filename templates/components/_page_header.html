@@ -1,0 +1,41 @@
+{% comment %}
+Encabezado de página del backoffice. No se incluye a mano: lo renderiza
+{% page_header %} de core/templatetags/nodo_ui.py (ver su docstring).
+Contexto: titulo, bajada, volver_url, volver_label, migas (ya filtradas a 3 o más), acciones.
+{% endcomment %}
+<div class="space-y-3">
+  {% if migas %}
+  <nav aria-label="Migas">
+    <ol class="flex items-center gap-1.5 flex-wrap text-xs text-body-subtle">
+      {% for miga in migas %}
+      {% if forloop.last %}
+      <li aria-current="page" class="font-semibold text-body">{{ miga.label }}</li>
+      {% else %}
+      <li>{% if miga.url %}<a href="{{ miga.url }}" class="text-fg-brand hover:underline">{{ miga.label }}</a>{% else %}{{ miga.label }}{% endif %}</li>
+      <li aria-hidden="true">/</li>
+      {% endif %}
+      {% endfor %}
+    </ol>
+  </nav>
+  {% endif %}
+  <div class="flex items-start justify-between gap-4 flex-wrap">
+    <div class="flex items-start gap-3 min-w-0">
+      {% if volver_url %}
+      <a href="{{ volver_url }}"
+         class="btn-tertiary btn-back-circle"
+         aria-label="Volver a {{ volver_label|default:'la pantalla anterior' }}">
+        <i class="fas fa-arrow-left" aria-hidden="true"></i>
+      </a>
+      {% endif %}
+      <div class="min-w-0">
+        <h1 class="text-3xl font-extrabold text-heading tracking-tight">{{ titulo }}</h1>
+        {% if bajada %}<p class="text-sm text-body-subtle mt-1">{{ bajada }}</p>{% endif %}
+      </div>
+    </div>
+    {% if acciones %}
+    <div class="flex items-center gap-2 flex-wrap">
+      {{ acciones }}
+    </div>
+    {% endif %}
+  </div>
+</div>
