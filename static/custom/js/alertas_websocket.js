@@ -1,3 +1,11 @@
+// El nombre del ciudadano y el mensaje de la alerta se escapan antes de entrar a un
+// innerHTML: el nombre lo carga el ciudadano en la inscripción pública.
+function escaparHtmlAlerta(valor) {
+    return String(valor ?? '').replace(/[&<>"']/g, (c) => (
+        { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+    ));
+}
+
 class AlertasWebSocket {
     constructor() {
         this.socket = null;
@@ -94,8 +102,8 @@ class AlertasWebSocket {
                     ${this.getAlertIcon(alerta.prioridad)}
                 </div>
                 <div class="ml-3 text-sm font-medium">
-                    <strong>${alerta.ciudadano}</strong><br>
-                    ${alerta.mensaje}
+                    <strong>${escaparHtmlAlerta(alerta.ciudadano)}</strong><br>
+                    ${escaparHtmlAlerta(alerta.mensaje)}
                 </div>
                 <button type="button" class="ml-auto -mx-1.5 -my-1.5 rounded-lg p-1.5" onclick="this.parentElement.parentElement.remove()">
                     <span class="sr-only">Cerrar</span>
@@ -130,15 +138,15 @@ class AlertasWebSocket {
                     <h3 class="ml-3 text-lg font-medium text-red-800">ALERTA CRÍTICA</h3>
                 </div>
                 <div class="mb-4">
-                    <p class="text-sm text-gray-600"><strong>Ciudadano:</strong> ${alerta.ciudadano}</p>
-                    <p class="text-sm text-gray-600 mt-2">${alerta.mensaje}</p>
-                    <p class="text-xs text-gray-500 mt-2">${alerta.fecha}</p>
+                    <p class="text-sm text-gray-600"><strong>Ciudadano:</strong> ${escaparHtmlAlerta(alerta.ciudadano)}</p>
+                    <p class="text-sm text-gray-600 mt-2">${escaparHtmlAlerta(alerta.mensaje)}</p>
+                    <p class="text-xs text-gray-500 mt-2">${escaparHtmlAlerta(alerta.fecha)}</p>
                 </div>
                 <div class="flex justify-end space-x-3">
                     <button onclick="this.closest('.fixed').remove()" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300">
                         Cerrar
                     </button>
-                    <a href="/legajos/${alerta.legajo_id}/" class="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700">
+                    <a href="/legajos/${escaparHtmlAlerta(alerta.legajo_id)}/" class="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700">
                         Ver Legajo
                     </a>
                 </div>
@@ -237,8 +245,8 @@ class AlertasWebSocket {
                         <div class="p-3 border-b border-gray-100 hover:bg-gray-50">
                             <div class="flex items-start justify-between">
                                 <div class="flex-1">
-                                    <p class="text-sm font-medium text-gray-900">${alerta.ciudadano_nombre || 'Sin ciudadano'}</p>
-                                    <p class="text-xs text-gray-600 mt-1">${alerta.mensaje}</p>
+                                    <p class="text-sm font-medium text-gray-900">${escaparHtmlAlerta(alerta.ciudadano_nombre || 'Sin ciudadano')}</p>
+                                    <p class="text-xs text-gray-600 mt-1">${escaparHtmlAlerta(alerta.mensaje)}</p>
                                     <p class="text-xs text-gray-400 mt-1">${new Date(alerta.creado).toLocaleString()}</p>
                                 </div>
                                 <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
@@ -247,7 +255,7 @@ class AlertasWebSocket {
                                     alerta.prioridad === 'MEDIA' ? 'bg-yellow-100 text-yellow-800' :
                                     'bg-blue-100 text-blue-800'
                                 }">
-                                    ${alerta.prioridad}
+                                    ${escaparHtmlAlerta(alerta.prioridad)}
                                 </span>
                             </div>
                         </div>

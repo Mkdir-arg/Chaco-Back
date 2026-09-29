@@ -239,6 +239,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 92 | Reportes de Becas sin recorrer todo el padrón (avance, embudo, beneficiarios) y banco MySQL de 20.000 casos para medir | Becas · reportes transversales · infraestructura de medición | `#performance` `#relevamientos` `#metodo` | PM — en sesión: «un análisis de cuellos de botella y errores de perfo que podamos mejorar, y también mejorando la perfo del código» | 25/09/2026 | 🟡 **Hecho — sin desplegar** | No requiere |
 | 93 | Revisión fina de performance en cinco frentes: alta de la app fuera del lock, bandejas y detalle por pk, Excel del dashboard sin instanciar modelos, comandos por lotes y conversaciones | Transversal (Becas, API de campo, portal, conversaciones, núcleo) | `#performance` `#relevamientos` `#api` `#siis` | PM — en sesión: «hacé otra revisión más fina del código y de la performance; dispará varios para optimizar el código y las query sin romper nada» | 25/09/2026 | 🟡 **Hecho — sin desplegar** | No requiere |
 | 94 | El celular viaja a SIIS en los 10 dígitos que admite la tabla intermedia | Becas · alta de beneficiarios en SIIS | `#siis` `#relevamientos` | PM — en sesión: «dale arreglá lo del celular y después desplegá en el ambiente de test y de prd de ECOM» | 28/09/2026 | 🟢 **Hecho** | No requiere |
+| 95 | Datos del ciudadano fuera de los handlers inline: acciones del cupo y reactivar convocatoria | Becas · cupo y convocatorias · Legajos | `#cupos` `#convocatorias` `#ui` `#datos` | Revisión de seguridad independiente (H1-H3), hotfix pedido en sesión | 29/09/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -10334,3 +10335,163 @@ nada queda inconsistente.
 ## Historial
 
 Entrada nueva. Sale del relevamiento exhaustivo de casos no enviados en testing del 25/09/2026.
+
+---
+
+# Cambio 95 — Datos del ciudadano fuera de los handlers inline: acciones del cupo y reactivar convocatoria
+
+🟢 **HECHO — 29/09/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · cupo del segmento y listado de convocatorias · Legajos (detalle de programa, legajo del ciudadano y alertas en tiempo real) |
+| **Etiquetas** | `#cupos` `#convocatorias` `#ui` `#datos` |
+| **Solicitante** | Revisión de seguridad independiente, derivada como hotfix en sesión de trabajo (hallazgos H1, H2 y H3) |
+| **Fecha del pedido** | 29/09/2026 |
+| **Issue / épica** | Sin issue (hotfix pedido en sesión) · PR contra `development` desde `hotfix/becas-cupo-xss` |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+## Pedido original
+
+- **H1 (bloqueante).** En `becas/cupo/segmento_detail.html` los botones *Dar de baja*, *Promover* y *Agregar a
+  lista de espera* interpolaban nombre y apellido del ciudadano dentro de `onclick="fn(pk,'…')"`. El autoescape
+  convierte la comilla en `&#x27;`, pero el navegador decodifica la entidad **antes** de compilar el handler: un
+  apellido con apóstrofo rompe el botón y uno armado a propósito se ejecuta como código en la sesión del operador.
+  El nombre lo carga el propio ciudadano en la inscripción pública.
+- **H2 (latente).** `_reactivar_convocatoria_js.html` concatenaba `data-nombre` sin escapar en el `html` de
+  SweetAlert2. Hoy no corre porque la pantalla no carga Swal, pero se activaría al cargarlo.
+- **H3 (barrido).** Buscar en todo el repo handlers inline que interpolen strings cargables por ciudadanos o
+  usuarios; arreglar los de Becas y los de otras apps solo si el dato lo carga un ciudadano o un usuario.
+
+## Alcance acordado
+
+- Sin cambio visible: mismos textos, misma confirmación (`ModernModal`), mismos formularios POST y URLs.
+- **Afuera:** cargar SweetAlert2 en el listado de convocatorias o arreglar que el botón *Reactivar* no haga nada
+  sin Swal (es otra decisión de diseño); reescribir handlers que solo reciben `pk` numérico o textos del sistema.
+
+## Decisiones tomadas
+
+- **El dato viaja en `data-*` y un listener delegado lo lee de `dataset`.** Un atributo `data-*` autoescapado es
+  texto para el navegador y nunca se compila como JS; el listener llama a la misma función de confirmación de antes.
+  Los botones del cupo llevan `data-cupo-accion` (`baja` · `promover` · `espera`), `data-pk` y `data-nombre`.
+- **`escapejs` dentro de un `onclick` sí es seguro** (escapa `'`, `"`, `&`, `<` como `\uXXXX`, así que ninguna
+  entidad puede reconstruir una comilla). Los handlers de otras apps que ya lo usan no se tocaron; lo que se revisó
+  es **a dónde va a parar** el valor (ver el detalle de programa de Legajos abajo).
+- **Cuando el destino es el `html` de SweetAlert2, el nombre se escapa en JS** (`& < > " '`) antes de concatenarlo:
+  SweetAlert2 interpreta `html` (y `title`) como marcado. `ModernModal` no necesita nada: pinta `title` y `message`
+  con `textContent`.
+- **Legajos entró al alcance por dos hallazgos del barrido con datos cargables:**
+  - `legajos/programas/programa_detail.html`: el `onclick` usa `escapejs` (bien), pero `confirmarBaja` metía el
+    nombre en el `html` de SweetAlert2, que esa pantalla sí carga. Hoy la tabla de acompañamientos llega vacía
+    (operativa legacy retirada), así que no hay botón que lo dispare; se escapó igual por ser el único destino HTML
+    real con datos del ciudadano.
+  - `legajos/ciudadano_detail.html`: *Copiar DNI* interpolaba `ciudadano.dni` en un `onclick` sin `escapejs`. Los
+    formularios normalizan el DNI a dígitos, pero el modelo no lo restringe y la API de campo lo toma tal cual llega
+    en `datos_identificacion`. Pasa a `data-copiar-dni` + listener.
+- **Legajo del ciudadano: todo lo que llega por API se escapa antes del `innerHTML`** (ronda 2 de revisión). Un helper local `escaparHtml` se aplica a la búsqueda del modal *Agregar familiar*, la tabla de vínculos, archivos, actividades y la predicción de riesgo. La búsqueda además generaba en JS un `onclick` con el nombre: pasa a `data-ciudadano-id/-nombre/-dni` + listener delegado, igual que el cupo. Los `onclick` generados que quedan (`eliminarVinculo`, `eliminarArchivo`) reciben el id por `Number(...)`.
+- **`alertas_websocket.js` entró por el mismo motivo:** se carga en todo el backoffice cuando hay websockets y armaba el toast, el modal de alerta crítica y la vista previa del menú con el nombre del ciudadano sin escapar.
+- **El grafo de la red familiar (vis-network 9.1.9) no necesita cambios:** las etiquetas se dibujan en canvas y desde la 9.0 un `title` string se muestra como texto.
+- **Los tests leen los atributos ya decodificados**, como los entrega el parser HTML al motor JS: un
+  `assertNotContains` sobre el HTML crudo no ve el problema, porque ahí la comilla está como `&#x27;`. Para el
+  comportamiento, el script inline de la página se ejecuta con `node` sobre un DOM simulado
+  (`core/tests/js_harness.py`); si no hay `node` en la máquina, esos tests se saltean.
+
+## Implementación
+
+- **Cupo del segmento:** los tres botones abren la misma confirmación que antes; el nombre del ciudadano se lee del
+  botón y se muestra como texto. Se retiraron las funciones globales `window.confirmar*`, que solo existían para el
+  `onclick`.
+- **Reactivar convocatoria:** el pop-up (cuando Swal esté cargado) muestra el nombre escapado.
+- **Legajos:** baja del detalle de programa con el nombre escapado; *Copiar DNI* por `data-copiar-dni`.
+- **Legajo del ciudadano:** búsqueda de familiares, vínculos, archivos, actividades y predicción de riesgo muestran los datos de la API como texto; elegir un resultado de la búsqueda completa el formulario igual que antes.
+- **Alertas en tiempo real:** toast, modal crítico y vista previa muestran nombre y mensaje como texto.
+
+### Barrido H3
+
+**Alcance real.** (1) Interpolación de Django (`{{ }}`) dentro de atributos que se evalúan como JS —handlers
+`on*`, `@click`/`x-on:`, `x-data`/`x-init`, `href="javascript:"`— en **todos** los templates del repo.
+(2) Marcado armado en JS con datos de API (`innerHTML`, `html:` de SweetAlert2, handlers `on*` generados en JS)
+**en las páginas de este cambio** (cupo, listado de convocatorias, detalle de programa y legajo de Legajos) y en
+`static/custom/js/alertas_websocket.js`, que salió de una pasada por los archivos con `innerHTML` buscando nombres,
+DNI y textos libres sin escapar. No es una auditoría línea por línea de cada `innerHTML` del repo. Quedan fuera
+`conversaciones/` y el chat del portal (no se usan), `static/vendor`, `debug_toolbar` y el admin de Django.
+
+| Archivo:línea | Qué interpola | Resultado |
+|---|---|---|
+| `programas/…/becas/cupo/segmento_detail.html:175, 258, 340` | nombre y apellido del ciudadano en `onclick` | **Arreglado** (H1): `data-*` + listener |
+| `programas/…/becas/relevamientos/_reactivar_convocatoria_js.html:15-24` | `data-nombre` en `html` de Swal | **Arreglado** (H2): escapado |
+| `legajos/…/programas/programa_detail.html:624` (`confirmarBaja`) | nombre del ciudadano en `html` de Swal | **Arreglado**: escapado |
+| `legajos/…/ciudadano_detail.html:162` | `ciudadano.dni` en `onclick` | **Arreglado**: `data-copiar-dni` + listener |
+| `legajos/…/ciudadano_detail.html:1230-1236` (búsqueda de *Agregar familiar*) | nombre, apellido y DNI de `/api/legajos/ciudadanos/` en `innerHTML` **y** `onclick` generado en JS | **Arreglado**: escapado + `data-ciudadano-*` + listener (1253) |
+| `legajos/…/ciudadano_detail.html:1276-1310` (tabla de vínculos) | nombre, apellido, DNI, teléfono y tipo de vínculo en `innerHTML` | **Arreglado**: escapado; id por `Number()` |
+| `legajos/…/ciudadano_detail.html:1525-1556` (archivos) y `:1663-1683` (actividades) | nombre y etiqueta del archivo, URL; descripción, usuario y código de legajo | **Arreglado**: escapado; id por `Number()` |
+| `legajos/…/ciudadano_detail.html:1773, 1794, 1805-1809` (predicción de riesgo) | factores y recomendaciones (textos del sistema) | **Arreglado**: escapado, mismo helper |
+| `static/custom/js/alertas_websocket.js:105-106, 141-149, 248-258` | nombre del ciudadano y mensaje de la alerta en `innerHTML` | **Arreglado**: escapado |
+| `configuracion/…/programa_list.html:150, 159, 168` | `programa.nombre` con `escapejs` → `text:` de Swal | Sin riesgo: literal seguro y destino de texto |
+| `users/…/rol/rol_list.html:341, 348, 355` · `users/…/user/user_list.html:83, 91` | `group.name` / `username` con `escapejs` → `text:` de Swal | Sin riesgo: ídem |
+| `programas/…/becas/config/_preguntas_grupos.html:27`, `_pregunta_row.html:45`, `_requisitos_*panel.html:35`, `_requisitos_page_table.html:39`, `_segmentos_table.html:66`, `_subsegmentos_panel.html:47` (`@click`) | textos de configuración con `escapejs` | Sin riesgo: literal seguro; no hay `x-html` en el repo |
+| `programas/…/becas/config/programa_detail.html:64`, `segmento_detail.html:81`, `_programas_table.html:64` (`@click`) | `siis_info` (JSON de `json.dumps`, autoescapado) | Sin riesgo: literal JSON válido |
+| `programas/…/becas/relevamientos/convocatoria_form.html:10`, `relevamiento_form.html:7`, `configuracion/…/programa_wizard_paso3.html:25` (`x-data`) | `form.<campo>.value` | Sin riesgo: solo refleja el POST del propio usuario (CSRF, no se guarda) |
+| `legajos/…/ciudadano_detail.html:243, 392` | `solapa.url` / `solapa.id` | Sin riesgo: los arma el sistema |
+| `templates/components/alertas_eventos.html:63`, `templates/legajos/alertas_dashboard.html:151, 180, 206`, `configuracion/*_list.html` (`@click`), `users/…/rol_list.html:274`, `requisitos_segmento.html:8`, `convocatoria_formulario.html:10` | solo `pk`/`id` numéricos o versión | Sin riesgo |
+| `static/custom/js/registros_erroneos.js:256`, `static/custom/js/localidades_modal.js:45` | texto en `innerHTML` | Sin riesgo hoy: ningún template carga esos archivos |
+
+## Archivos
+
+- `programas/templates/programas/becas/cupo/segmento_detail.html`
+- `programas/templates/programas/becas/relevamientos/_reactivar_convocatoria_js.html`
+- `legajos/templates/legajos/programas/programa_detail.html`
+- `legajos/templates/legajos/ciudadano_detail.html`
+- `static/custom/js/alertas_websocket.js`
+- `core/tests/js_harness.py` (nuevo)
+- `programas/tests/test_becas_handlers_inline.py` (nuevo)
+- `legajos/tests/test_programa_detail_baja_nombre.py` (nuevo)
+- `legajos/tests/test_ciudadano_detail_copiar_dni.py` (nuevo)
+- `legajos/tests/test_ciudadano_detail_innerhtml.py` (nuevo)
+- `legajos/tests/test_alertas_websocket_escape.py` (nuevo)
+
+## Base de datos
+
+No toca el esquema ni ningún dato.
+
+## Validación
+
+- **Reproducción antes del arreglo** (mismos tests contra los templates y el JS de `development`): fallan 8 de los
+  9 tests de la primera ronda (el que pasa solo confirma que `data-nombre` ya se autoescapaba) y los 7 de la
+  segunda (4 del legajo, 3 de alertas). El atributo decodificado que ve el navegador era
+  `confirmarBaja(1, 'Ana O'Brien')`: la comilla del apellido cierra el literal JS; en el legajo y en las alertas
+  el nombre con marcado aparecía como un elemento más del `innerHTML`.
+- **Después del arreglo**, con `node` presente (nada salteado): `programas.tests.test_becas_handlers_inline` (6),
+  `legajos.tests.test_programa_detail_baja_nombre` (2), `legajos.tests.test_ciudadano_detail_copiar_dni` (1),
+  `legajos.tests.test_ciudadano_detail_innerhtml` (4) y `legajos.tests.test_alertas_websocket_escape` (3).
+- `manage.py test` completo con Python 3.12 + Django 5.2.17 (`.venv312`): **1580 tests OK** (1 salteado
+  preexistente, solo MySQL). `manage.py test --tag performance`: 4 OK.
+- `manage.py check --deploy`: 0 errores (5 avisos de seguridad propios del entorno local).
+  `makemigrations --check --dry-run`: sin cambios.
+- `scripts/compile_templates.py`: 190 compilados, 0 errores. `scripts/check_design_agent.py --changed`: OK.
+- `scripts/design_audit.py` sobre los archivos del diff: 1 error, **preexistente** (`TWBUILD` en
+  `legajos/ciudadano_detail.html:143`, línea no tocada; da el mismo error sobre la versión de `development`).
+- `ruff check .` y `ruff format --check` sobre los archivos nuevos: OK.
+
+## Puesta en marcha en el servidor
+
+No requiere: es un cambio de templates.
+
+## Pendientes / a definir
+
+- **Botón *Reactivar* del listado de convocatorias:** sin SweetAlert2 cargado el clic no hace nada. Queda para una
+  decisión de diseño (cargar Swal ahí o pasarlo a `ModernModal` con un campo de fecha).
+- **`copiarDni` usa `toastr`, que ninguna pantalla carga:** el aviso de «copiado» nunca aparece (y en el camino de
+  error tira excepción). Preexistente; debería pasar a `window.toast()`.
+- **`TWBUILD` preexistente en `legajos/ciudadano_detail.html:143`** (`xl:grid-cols-[minmax(0,1fr)_auto]`): lo
+  reporta `design_audit.py --changed` porque el archivo se tocó; la línea no cambió, el error ya está en
+  `development` y un `build:tailwind` no lo resuelve (el CSS rearmado es idéntico al committeado).
+
+## Reversión
+
+Revertir el commit. Vuelven los handlers con el nombre interpolado; nada queda inconsistente en datos.
+
+## Historial
+
+Entrada nueva.
