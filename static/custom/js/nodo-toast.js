@@ -190,12 +190,14 @@
             toast.classList.add('toast--leaving');
             toast.classList.remove('toast--visible');
             if (teniaFoco) { devolverFoco(toast); }
+            reservarEspacio();
 
             var removed = false;
             function cleanup() {
                 if (removed) { return; }
                 removed = true;
                 if (toast.parentNode) { toast.parentNode.removeChild(toast); }
+                reservarEspacio();
             }
             toast.addEventListener('transitionend', cleanup);
             setTimeout(cleanup, 500); // respaldo si transitionend no dispara
@@ -230,6 +232,7 @@
         // En móvil sin modal, 1 solo, para no tapar la zona inferior.
         var tope = (ctx.movil && !ctx.modal) ? 1 : MAX_ERRORES;
         while (persistentes.length > tope) { persistentes[0]._dismiss(); }
+        reservarEspacio();
 
         return toast;
     }
@@ -345,6 +348,36 @@
             }
         }
     }
+
+    // En ≤640px sin modal, mientras haya un error persistente visible, se
+    // reserva abajo (padding-bottom del body) el alto de la pila + 12px para
+    // que no tape el último botón de la página. Se restaura el valor previo.
+    var padPrevio = null;   // {inline, base} guardados al aplicar por primera vez
+    function restaurarEspacio() {
+        if (padPrevio === null) { return; }
+        document.body.style.paddingBottom = padPrevio.inline;
+        padPrevio = null;
+    }
+    function reservarEspacio() {
+        var body = document.body;
+        if (!body || !body.style) { return; }
+        var box = document.getElementById('toast-container');
+        var visibles = persistentes.filter(function (t) { return !t._closed; });
+        var ctx = contextoModal();
+        if (!box || !ctx.movil || ctx.modal || !visibles.length ||
+            typeof box.getBoundingClientRect !== 'function') {
+            restaurarEspacio();
+            return;
+        }
+        var alto = Math.ceil(box.getBoundingClientRect().height) + 12;
+        if (padPrevio === null) {
+            var cs = (typeof window.getComputedStyle === 'function') ? window.getComputedStyle(body) : null;
+            padPrevio = {inline: body.style.paddingBottom || '', base: cs ? (parseFloat(cs.paddingBottom) || 0) : 0};
+        }
+        var nuevo = (padPrevio.base + alto) + 'px';
+        if (body.style.paddingBottom !== nuevo) { body.style.paddingBottom = nuevo; }
+    }
+
     var ubicarPendiente = false;
     function ubicarPilaLiviano(registros) {
         // Los cambios de estilo de la propia pila no reprograman nada (evita bucles).
@@ -352,13 +385,16 @@
         if (registros && registros.length && box && typeof box.contains === 'function') {
             var ajeno = false;
             for (var i = 0; i < registros.length; i++) {
-                if (!box.contains(registros[i].target)) { ajeno = true; break; }
+                var r = registros[i];
+                // ni el estilo de la pila ni el padding del body (lo pone este módulo)
+                if (box.contains(r.target) || (r.target === document.body && r.attributeName === 'style')) { continue; }
+                ajeno = true; break;
             }
             if (!ajeno) { return; }
         }
         if (ubicarPendiente) { return; }
         ubicarPendiente = true;
-        setTimeout(function () { ubicarPendiente = false; ubicarPila(); }, 50);
+        setTimeout(function () { ubicarPendiente = false; ubicarPila(); reservarEspacio(); }, 50);
     }
     if (typeof MutationObserver === 'function' && document.body) {
         new MutationObserver(ubicarPilaLiviano).observe(document.body, {

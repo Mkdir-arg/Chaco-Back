@@ -35,6 +35,7 @@ El.prototype.removeChild = function (c) {
 };
 El.prototype.addEventListener = function (t, fn) { (this.listeners[t] = this.listeners[t] || []).push(fn); };
 El.prototype.fire = function (t, ev) { (this.listeners[t] || []).forEach(function (fn) { fn(ev || {}); }); };
+El.prototype.getBoundingClientRect = function () { return {height: this._alto || 0, top: 0, bottom: 0}; };
 El.prototype.focus = function () { document.activeElement = this; };
 El.prototype.all = function () {
   return this.children.reduce(function (a, c) { return a.concat([c], c.all()); }, []);
@@ -326,3 +327,42 @@ R.escritorio = __vivos().length;"""
         self.assertEqual(r["ultimo"], "Tres")
         self.assertFalse(r["barra"])
         self.assertEqual(r["escritorio"], 3)
+
+    def test_movil_sin_modal_reserva_espacio_abajo_y_lo_restaura(self):
+        r = _correr(
+            """
+window.innerWidth = 390;
+window.getComputedStyle = function () { return {paddingBottom: '10px'}; };
+body.style.paddingBottom = '4px';
+var a = toast.error('Uno');
+document.getElementById('toast-container')._alto = 76;
+toast.info('recalcula');
+var R = {con: body.style.paddingBottom};
+__botones(a)[0].fire('click'); __remover();
+R.tras = body.style.paddingBottom;
+R.sinErrorNoAplica = (function () { toast.success('ok'); return body.style.paddingBottom; })();
+window.innerWidth = 1440;
+var b = toast.error('Otro');
+R.escritorio = body.style.paddingBottom;"""
+        )
+        self.assertEqual(r["con"], "98px")
+        self.assertEqual(r["tras"], "4px")
+        self.assertEqual(r["sinErrorNoAplica"], "4px")
+        self.assertEqual(r["escritorio"], "4px")
+
+    def test_reserva_se_limpia_al_abrirse_un_modal(self):
+        r = _correr(
+            """
+window.innerWidth = 390;
+window.getComputedStyle = function () { return {paddingBottom: '0px'}; };
+var a = toast.error('Uno');
+document.getElementById('toast-container')._alto = 50;
+toast.info('x');
+var R = {antes: body.style.paddingBottom};
+__modales.push({getClientRects: function () { return [1]; }, getAttribute: function () { return null; },
+  querySelector: function () { return null; }, querySelectorAll: function () { return []; }});
+toast.info('y');
+R.conModal = body.style.paddingBottom;"""
+        )
+        self.assertEqual(r["antes"], "62px")
+        self.assertEqual(r["conModal"], "")
