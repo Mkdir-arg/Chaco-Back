@@ -1,18 +1,115 @@
 {% comment %}Copia al portapapeles el link público de un relevamiento.
-   Uso: <button data-copy-link="https://...">. Toast de confirmación con el
-   sistema NODO (window.toast, cargado por includes/base.html).{% endcomment %}
+   Uso: <button data-copy-link="https://...">. Aviso con el sistema NODO
+   (window.toast(tipo, mensaje), cargado por includes/base.html).
+   Si el navegador no deja copiar (sin permiso o sin API), el link queda a la vista
+   en un campo de solo lectura ya seleccionado: el del mismo bloque si existe
+   (detalle del relevamiento) o uno en un popover junto al botón (listado).
+   Nunca la ventana nativa del navegador.{% endcomment %}
 <script>
-document.addEventListener('click', function (e) {
-  var btn = e.target.closest('[data-copy-link]');
-  if (!btn) return;
-  var link = btn.getAttribute('data-copy-link');
-  function avisar() {
-    if (window.toast && window.toast.success) window.toast.success('Link copiado al portapapeles.');
+(function () {
+  var popover = null;
+  var ZONA_AVISOS = 140; // alto aproximado de un toast NODO más su margen
+
+  function aviso(tipo, mensaje) {
+    if (typeof window.toast === 'function') window.toast(tipo, mensaje);
   }
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(link).then(avisar, function () { window.prompt('Copiá el link:', link); });
-  } else {
-    window.prompt('Copiá el link:', link);
+
+  function cerrarPopover() {
+    if (!popover) return;
+    var abierto = popover;
+    popover = null;
+    document.removeEventListener('keydown', abierto.__alTeclear);
+    document.removeEventListener('click', abierto.__alClickFuera, true);
+    abierto.remove();
+    if (abierto.__origen && typeof abierto.__origen.focus === 'function') abierto.__origen.focus();
   }
-});
+
+  function seleccionar(input) {
+    input.focus();
+    input.select();
+  }
+
+  function abrirPopover(btn, link) {
+    cerrarPopover();
+    var pop = document.createElement('div');
+    pop.setAttribute('role', 'dialog');
+    pop.setAttribute('aria-label', 'Link de inscripción');
+    pop.className = 'absolute z-50 w-80 rounded-xl border border-light bg-white p-3 shadow-lg';
+    pop.style.maxWidth = 'calc(100vw - 32px)';
+
+    var cabecera = document.createElement('div');
+    cabecera.className = 'flex items-center justify-between gap-2 mb-2';
+    var titulo = document.createElement('p');
+    titulo.className = 'text-xs font-semibold text-heading';
+    titulo.textContent = 'Copiá el link de inscripción';
+    var cerrar = document.createElement('button');
+    cerrar.type = 'button';
+    cerrar.className = 'p-1.5 rounded-lg text-body-subtle hover:text-heading hover:bg-secondary';
+    cerrar.setAttribute('aria-label', 'Cerrar');
+    var icono = document.createElement('i');
+    icono.className = 'fas fa-xmark';
+    icono.setAttribute('aria-hidden', 'true');
+    cerrar.appendChild(icono);
+    cerrar.addEventListener('click', cerrarPopover);
+    cabecera.appendChild(titulo);
+    cabecera.appendChild(cerrar);
+
+    var input = document.createElement('input');
+    input.type = 'text';
+    input.readOnly = true;
+    input.setAttribute('readonly', '');
+    input.value = link;
+    input.className = 'nodo-field w-full';
+    input.setAttribute('aria-label', 'Link de inscripción');
+    input.addEventListener('focus', function () { input.select(); });
+
+    pop.appendChild(cabecera);
+    pop.appendChild(input);
+
+    // Alineado al borde derecho del botón y sin salirse de la pantalla. Va debajo;
+    // si abajo no entra sin pisar la zona de avisos (abajo a la derecha), arriba.
+    var r = btn.getBoundingClientRect();
+    var ancho = Math.min(320, window.innerWidth - 32);
+    var izquierda = Math.max(16, Math.min(r.right - ancho, window.innerWidth - ancho - 16));
+    pop.style.left = (izquierda + window.scrollX) + 'px';
+    pop.style.visibility = 'hidden';
+    document.body.appendChild(pop);
+    var alto = pop.offsetHeight || 0;
+    var arriba = r.bottom + 8 + alto > window.innerHeight - ZONA_AVISOS && r.top - 8 - alto >= 0;
+    pop.style.top = ((arriba ? r.top - 8 - alto : r.bottom + 8) + window.scrollY) + 'px';
+    pop.style.visibility = '';
+
+    pop.__origen = btn;
+    pop.__alTeclear = function (ev) { if (ev.key === 'Escape') cerrarPopover(); };
+    pop.__alClickFuera = function (ev) {
+      if (!pop.contains(ev.target) && ev.target !== btn && !btn.contains(ev.target)) cerrarPopover();
+    };
+    document.addEventListener('keydown', pop.__alTeclear);
+    document.addEventListener('click', pop.__alClickFuera, true);
+    popover = pop;
+    seleccionar(input);
+  }
+
+  function copiaManual(btn, link) {
+    var bloque = btn.parentElement;
+    var cercano = bloque && bloque.querySelector('input[readonly]');
+    if (cercano && cercano.value === link) seleccionar(cercano);
+    else abrirPopover(btn, link);
+    aviso('warning', 'Copialo manualmente: el link quedó seleccionado.');
+  }
+
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest('[data-copy-link]');
+    if (!btn) return;
+    var link = btn.getAttribute('data-copy-link');
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(link).then(function () {
+        cerrarPopover();
+        aviso('success', 'Link copiado al portapapeles.');
+      }, function () { copiaManual(btn, link); });
+    } else {
+      copiaManual(btn, link);
+    }
+  });
+})();
 </script>
