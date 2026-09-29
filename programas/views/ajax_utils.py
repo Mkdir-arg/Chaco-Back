@@ -9,6 +9,7 @@ contenido de ``target`` con ese HTML. Si el form es inválido, devuelve
 Las vistas siguen funcionando sin AJAX (fallback a redirect tradicional).
 """
 
+from django.contrib import messages
 from django.http import JsonResponse
 from django.template.loader import render_to_string
 
@@ -24,9 +25,14 @@ def ajax_ok(request, *, target, partial, context, message="Guardado."):
     return JsonResponse({"ok": True, "target": target, "html": html, "message": message})
 
 
-def ajax_redirect(url, message="Guardado."):
+def ajax_redirect(request, url, message="Guardado.", level=messages.SUCCESS):
     """Respuesta de éxito que ordena al front navegar a ``url`` (ej. "guardar y
-    configurar": crear la entidad y abrir su detalle)."""
+    configurar": crear la entidad y abrir su detalle).
+
+    El front navega sin mostrar ``message``, así que el aviso se encola en el
+    framework de messages de Django y lo muestra la página destino (``base.html``
+    → ``nodo-toast``). ``message`` sigue en el JSON por compatibilidad."""
+    messages.add_message(request, level, message)
     return JsonResponse({"ok": True, "redirect": url, "message": message})
 
 

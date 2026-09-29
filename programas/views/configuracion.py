@@ -222,7 +222,7 @@ class ProgramaSiisCreateView(CapacidadRequeridaMixin, LoginRequiredMixin, Create
         # "Guardar y configurar": ir al detalle a cargar los segmentos.
         detalle = reverse("becas:programa_detalle", args=[self.object.pk])
         if is_ajax(self.request):
-            return ajax_redirect(detalle, "Programa vinculado — agregá sus segmentos.")
+            return ajax_redirect(self.request, detalle, "Programa vinculado — agregá sus segmentos.")
         messages.success(self.request, "Programa vinculado.")
         return redirect(detalle)
 
@@ -337,7 +337,7 @@ class SegmentoCreateView(CapacidadRequeridaMixin, LoginRequiredMixin, CreateView
         # "Guardar y configurar": ir al detalle a cargar subsegmentos/cupos.
         detalle = reverse("becas:segmento_detalle", args=[self.object.pk])
         if is_ajax(self.request):
-            return ajax_redirect(detalle, "Segmento creado — agregá sus subsegmentos.")
+            return ajax_redirect(self.request, detalle, "Segmento creado — agregá sus subsegmentos.")
         messages.success(self.request, "Segmento creado.")
         return redirect(detalle)
 
@@ -529,6 +529,7 @@ def subsegmento_editar(request, pk):
                     )
                 else:
                     return ajax_redirect(
+                        request,
                         reverse("becas:subsegmento_detalle", args=[sub.pk]),
                         message="Subsegmento actualizado.",
                     )
