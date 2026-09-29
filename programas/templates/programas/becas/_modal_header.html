@@ -1,0 +1,28 @@
+{% comment %}
+Encabezado canónico de los modales de Becas (POP-M1). Va como primer hijo del
+panel `role="dialog"`, que lo nombra con `aria-labelledby="{{ titulo_id }}"`.
+
+Parámetros:
+  titulo     texto del título (obligatorio)
+  titulo_id  id del <h3>; el panel lo referencia con aria-labelledby (obligatorio)
+  icono      clase Font Awesome sin el prefijo `fas`, p. ej. "fa-folder" (opcional)
+  tono       brand (default) | danger | warning | success — color de la caja del ícono
+  cerrar     expresión Alpine que cierra el modal, p. ej. "modalCrear=false". Sin
+             ella la X igual cierra en modales vanilla vía `data-becas-modal-cerrar`
+             (static/custom/js/becas-modal.js).
+
+Uso:
+  {% include "programas/becas/_modal_header.html" with titulo="Nuevo programa" titulo_id="modal-crear-titulo" icono="fa-folder" cerrar="modalCrear=false" %}
+{% endcomment %}
+<div class="flex items-center gap-3 px-6 py-5 border-b border-light flex-shrink-0">
+  {% if icono %}
+  <div class="flex items-center justify-center w-10 h-10 rounded-lg flex-shrink-0 text-lg {% if tono == 'danger' %}bg-danger-soft text-fg-danger{% elif tono == 'warning' %}bg-warning-soft text-fg-warning{% elif tono == 'success' %}bg-success-soft text-fg-success{% else %}bg-brand-soft text-fg-brand{% endif %}">
+    <i class="fas {{ icono }}" aria-hidden="true"></i>
+  </div>
+  {% endif %}
+  <h3 id="{{ titulo_id }}" class="text-lg font-bold text-heading flex-1 min-w-0">{{ titulo }}</h3>
+  <button type="button" data-becas-modal-cerrar {% if cerrar %}@click="{{ cerrar }}"{% endif %} aria-label="Cerrar"
+          class="p-1.5 rounded-lg text-body-subtle hover:text-heading hover:bg-secondary transition-colors flex-shrink-0">
+    <i class="fas fa-xmark text-base" aria-hidden="true"></i>
+  </button>
+</div>

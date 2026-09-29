@@ -50,12 +50,9 @@
         <i class="fas fa-arrow-left" aria-hidden="true"></i>
       </a>
       <h1 class="text-3xl font-extrabold text-heading tracking-tight">Caso {{ formulario.numero }}</h1>
-      {% if formulario.estado == 'APROBADO' %}
-        <span class="badge badge-success badge-dot">Aprobado</span>
-      {% elif formulario.estado == 'RECHAZADO' %}
-        <span class="badge badge-danger badge-dot">Rechazado</span>
-      {% else %}
-        <span class="badge badge-warning badge-dot">Enviado</span>
+      {% include "programas/becas/_formulario_estado_badge.html" with estado=formulario.estado dot=True color_enviado="warning" %}
+      {% if posicion_espera %}
+        <span class="badge badge-warning">Lista de espera · posición {{ posicion_espera }}</span>
       {% endif %}
       {% if tiene_conflicto_duplicado_pendiente %}
         <span class="badge badge-warning"><i class="fas fa-code-compare"></i> Duplicado por resolver</span>
@@ -75,12 +72,15 @@
         </p>
         <div class="mt-4 flex flex-wrap gap-2">
           <a href="{% url 'becas:formulario_detalle' formulario_comparacion.pk %}" class="btn-nodo btn-tertiary btn-base">Comparar con el caso {{ formulario_comparacion.numero }}</a>
-          <form method="post" action="{% url 'becas:formulario_resolver_duplicado' conflicto_pendiente.pk %}">
+          {# POP-5: los dos rechazan un caso sin vuelta atrás, así que se confirman. #}
+          <form method="post" action="{% url 'becas:formulario_resolver_duplicado' conflicto_pendiente.pk %}"
+                data-confirmar-duplicado data-conservar="{{ formulario_comparacion.numero }}" data-descartar="{{ formulario.numero }}">
             {% csrf_token %}
             <input type="hidden" name="decision" value="{% if formulario.pk == conflicto_pendiente.pk %}conservar_previo{% else %}conservar_actual{% endif %}">
             <button class="btn-nodo btn-tertiary btn-base" type="submit">Conservar el otro</button>
           </form>
-          <form method="post" action="{% url 'becas:formulario_resolver_duplicado' conflicto_pendiente.pk %}">
+          <form method="post" action="{% url 'becas:formulario_resolver_duplicado' conflicto_pendiente.pk %}"
+                data-confirmar-duplicado data-conservar="{{ formulario.numero }}" data-descartar="{{ formulario_comparacion.numero }}">
             {% csrf_token %}
             <input type="hidden" name="decision" value="{% if formulario.pk == conflicto_pendiente.pk %}conservar_actual{% else %}conservar_previo{% endif %}">
             <button class="btn-nodo btn-brand btn-base" type="submit">Conservar este</button>
@@ -89,6 +89,57 @@
       </div>
     </div>
   </section>
+  <script>
+    // POP-5: confirmar antes de resolver el duplicado (form[data-confirmar-duplicado]).
+    (function () {
+      // Durante este lapso desde que abre, «Sí, …» no confirma: un doble clic o un segundo
+      // Enter que cae sobre el modal recién abierto no rechaza nada.
+      var ESPERA_CONFIRMAR_MS = 400;
+      var enviando = false;
+
+      function modalAbierto() {
+        var overlay = document.getElementById('modal-overlay');
+        return !!(overlay && overlay.classList && !overlay.classList.contains('hidden'));
+      }
+
+      document.addEventListener('submit', function (e) {
+        var form = e.target && e.target.closest ? e.target.closest('form[data-confirmar-duplicado]') : null;
+        if (!form) return;
+        e.preventDefault();
+        if (enviando || form.dataset.enviando || modalAbierto()) return;
+        if (typeof ModernModal === 'undefined') {
+          console.error('ModernModal no disponible: no se resuelve el duplicado sin confirmar.');
+          return;
+        }
+        var abiertoEn = Date.now();
+        ModernModal.show({
+          type: 'confirm',
+          danger: true,
+          title: '¿Conservar el caso ' + form.dataset.conservar + '?',
+          message: 'El caso ' + form.dataset.descartar + ' queda rechazado como carga duplicada. No se puede deshacer.',
+          confirmText: 'Sí, conservar el ' + form.dataset.conservar,
+          cancelText: 'Cancelar',
+          onConfirm: function () {
+            // ModernModal deja el onclick de «Sí, …» vivo durante los 300 ms del cierre: un doble
+            // clic llama dos veces acá. El guard hace el envío idempotente (lección del PR 469).
+            if (enviando || form.dataset.enviando) return;
+            if (Date.now() - abiertoEn < ESPERA_CONFIRMAR_MS) return;
+            enviando = true;
+            form.dataset.enviando = '1';
+            var boton = form.querySelector('button[type="submit"]');
+            if (boton) boton.disabled = true;
+            // form.submit() no vuelve a disparar el evento submit.
+            form.submit();
+          }
+        });
+        // ModernModal enfoca «Sí, …» a los 10 ms: el foco pasa a Cancelar, así un Enter de más cancela.
+        setTimeout(function () {
+          var cancelar = document.getElementById('modal-cancel');
+          if (cancelar && typeof cancelar.focus === 'function') cancelar.focus();
+        }, 50);
+      });
+    })();
+  </script>
   {% endif %}
 
   {# Rechazo alert #}
@@ -686,16 +737,28 @@
         <strong>Identidad validada manualmente:</strong> {{ formulario.identidad_forzada_motivo }}
       </div>
       {% endif %}
+      {% if posicion_espera %}
+      {# CMP-N1: en espera no se aprueba desde el caso; se promueve desde Cupo. #}
+      <div class="mb-4 rounded-lg bg-warning-soft border border-warning-subtle p-4 text-sm" role="status">
+        <strong class="text-heading">En lista de espera</strong>
+        <p class="text-body mt-1">
+          Está en la lista de espera del segmento (posición {{ posicion_espera }}). Se aprueba al promoverlo desde Cupo y beneficiarios.
+          {% if puede_ver_cupo %}<a href="{% url 'becas:cupo_segmento' formulario.relevamiento.convocatoria.segmento_id %}?tab=lista_espera" class="text-fg-brand font-semibold hover:underline">Ir a Cupo y beneficiarios</a>{% endif %}
+        </p>
+      </div>
+      {% endif %}
       <div class="flex justify-end gap-3">
       <button type="button" id="btn-rechazar" class="btn-nodo btn-danger btn-base">
         <i class="fas fa-times"></i> Rechazar
       </button>
+      {% if not posicion_espera %}
       <form method="post" action="{% url 'becas:formulario_aprobar' formulario.pk %}" id="form-aprobar">
         {% csrf_token %}
         <button type="button" id="btn-aprobar" class="btn-nodo btn-brand btn-base"{% if motivo_bloqueo_aprobacion %} disabled aria-disabled="true" title="{{ motivo_bloqueo_aprobacion }}"{% endif %}>
           <i class="fas fa-check"></i> Aprobar
         </button>
       </form>
+      {% endif %}
       </div>
     </div>
   </section>
@@ -871,9 +934,9 @@ document.addEventListener('DOMContentLoaded', function () {
             if (String(l.id) === String(actual || '')) { o.selected = true; }
             selLoc.appendChild(o);
           });
-          if (data.error) { window.toast(data.error, 'error'); }
+          if (data.error) { window.toast('error', data.error); }
         })
-        .catch(function () { window.toast('No se pudieron cargar las localidades de SIIS.', 'error'); });
+        .catch(function () { window.toast('error', 'No se pudieron cargar las localidades de SIIS.'); });
     }
 
     [['id_prov_actual', 'id_loc_actual', '{{ formulario.datos_siis.loc_actual|default:"" }}'],
@@ -903,9 +966,9 @@ document.addEventListener('DOMContentLoaded', function () {
               if (String(f.id) === String(actual || '')) { o.selected = true; }
               selFuncion.appendChild(o);
             });
-            if (data.error) { window.toast(data.error, 'error'); }
+            if (data.error) { window.toast('error', data.error); }
           })
-          .catch(function () { window.toast('No se pudieron cargar las funciones del programa.', 'error'); });
+          .catch(function () { window.toast('error', 'No se pudieron cargar las funciones del programa.'); });
       }
       selPlan.addEventListener('change', function () { cargarFunciones(''); });
       cargarFunciones(selFuncion.getAttribute('data-actual') || '');
