@@ -10344,7 +10344,7 @@ Entrada nueva. Sale del relevamiento exhaustivo de casos no enviados en testing 
 
 | | |
 |---|---|
-| **Programa / módulo** | Becas · cupo del segmento y listado de convocatorias · Legajos (detalle de programa y legajo del ciudadano) |
+| **Programa / módulo** | Becas · cupo del segmento y listado de convocatorias · Legajos (detalle de programa, legajo del ciudadano y alertas en tiempo real) |
 | **Etiquetas** | `#cupos` `#convocatorias` `#ui` `#datos` |
 | **Solicitante** | Revisión de seguridad independiente, derivada como hotfix en sesión de trabajo (hallazgos H1, H2 y H3) |
 | **Fecha del pedido** | 29/09/2026 |
@@ -10389,6 +10389,9 @@ Entrada nueva. Sale del relevamiento exhaustivo de casos no enviados en testing 
   - `legajos/ciudadano_detail.html`: *Copiar DNI* interpolaba `ciudadano.dni` en un `onclick` sin `escapejs`. Los
     formularios normalizan el DNI a dígitos, pero el modelo no lo restringe y la API de campo lo toma tal cual llega
     en `datos_identificacion`. Pasa a `data-copiar-dni` + listener.
+- **Legajo del ciudadano: todo lo que llega por API se escapa antes del `innerHTML`** (ronda 2 de revisión). Un helper local `escaparHtml` se aplica a la búsqueda del modal *Agregar familiar*, la tabla de vínculos, archivos, actividades y la predicción de riesgo. La búsqueda además generaba en JS un `onclick` con el nombre: pasa a `data-ciudadano-id/-nombre/-dni` + listener delegado, igual que el cupo. Los `onclick` generados que quedan (`eliminarVinculo`, `eliminarArchivo`) reciben el id por `Number(...)`.
+- **`alertas_websocket.js` entró por el mismo motivo:** se carga en todo el backoffice cuando hay websockets y armaba el toast, el modal de alerta crítica y la vista previa del menú con el nombre del ciudadano sin escapar.
+- **El grafo de la red familiar (vis-network 9.1.9) no necesita cambios:** las etiquetas se dibujan en canvas y desde la 9.0 un `title` string se muestra como texto.
 - **Los tests leen los atributos ya decodificados**, como los entrega el parser HTML al motor JS: un
   `assertNotContains` sobre el HTML crudo no ve el problema, porque ahí la comilla está como `&#x27;`. Para el
   comportamiento, el script inline de la página se ejecuta con `node` sobre un DOM simulado
@@ -10401,23 +10404,38 @@ Entrada nueva. Sale del relevamiento exhaustivo de casos no enviados en testing 
   `onclick`.
 - **Reactivar convocatoria:** el pop-up (cuando Swal esté cargado) muestra el nombre escapado.
 - **Legajos:** baja del detalle de programa con el nombre escapado; *Copiar DNI* por `data-copiar-dni`.
+- **Legajo del ciudadano:** búsqueda de familiares, vínculos, archivos, actividades y predicción de riesgo muestran los datos de la API como texto; elegir un resultado de la búsqueda completa el formulario igual que antes.
+- **Alertas en tiempo real:** toast, modal crítico y vista previa muestran nombre y mensaje como texto.
 
-### Barrido H3 (handlers inline con `{{ }}` y atributos Alpine que se evalúan como JS)
+### Barrido H3
+
+**Alcance real.** (1) Interpolación de Django (`{{ }}`) dentro de atributos que se evalúan como JS —handlers
+`on*`, `@click`/`x-on:`, `x-data`/`x-init`, `href="javascript:"`— en **todos** los templates del repo.
+(2) Marcado armado en JS con datos de API (`innerHTML`, `html:` de SweetAlert2, handlers `on*` generados en JS)
+**en las páginas de este cambio** (cupo, listado de convocatorias, detalle de programa y legajo de Legajos) y en
+`static/custom/js/alertas_websocket.js`, que salió de una pasada por los archivos con `innerHTML` buscando nombres,
+DNI y textos libres sin escapar. No es una auditoría línea por línea de cada `innerHTML` del repo. Quedan fuera
+`conversaciones/` y el chat del portal (no se usan), `static/vendor`, `debug_toolbar` y el admin de Django.
 
 | Archivo:línea | Qué interpola | Resultado |
 |---|---|---|
-| `programas/…/becas/cupo/segmento_detail.html:175, 258, 340` | nombre y apellido del ciudadano, crudos | **Arreglado** (H1) |
-| `programas/…/becas/relevamientos/_reactivar_convocatoria_js.html:15-20` | `data-nombre` en `html` de Swal | **Arreglado** (H2) |
-| `legajos/…/programas/programa_detail.html:405` → `confirmarBaja` | nombre del ciudadano (`escapejs`) hacia `html` de Swal | **Arreglado el destino** |
-| `legajos/…/ciudadano_detail.html:162` | `ciudadano.dni` sin `escapejs` | **Arreglado** |
-| `configuracion/…/programa_list.html:150, 159, 168` | `programa.nombre` con `escapejs` → `text:` de Swal | Sin cambio: literal seguro y destino de texto |
-| `users/…/rol/rol_list.html:341, 348, 355` | `group.name` con `escapejs` → `text:` de Swal | Sin cambio: ídem |
-| `users/…/user/user_list.html:83, 91` | `username` con `escapejs` → `text:` de Swal | Sin cambio: ídem |
-| `programas/…/becas/config/_preguntas_grupos.html:27`, `_pregunta_row.html:45`, `_requisitos_*panel.html:35`, `_requisitos_page_table.html:39`, `_segmentos_table.html:66`, `_subsegmentos_panel.html:47` (`@click` de Alpine) | textos de configuración con `escapejs` | Sin cambio: literal seguro; no hay `x-html` en el repo |
-| `programas/…/becas/config/programa_detail.html:64`, `segmento_detail.html:81`, `_programas_table.html:64` (`@click`) | `siis_info` (JSON de `json.dumps`, autoescapado) | Sin cambio: literal JSON válido, datos de SIIS |
-| `programas/…/becas/relevamientos/convocatoria_form.html:10`, `relevamiento_form.html:7`, `configuracion/…/programa_wizard_paso3.html:25` (`x-data`) | `form.<campo>.value` sin `escapejs` | Sin cambio: refleja solo el POST del propio usuario (protegido por CSRF, no se guarda) |
-| `legajos/…/ciudadano_detail.html:243, 392` | `solapa.url` / `solapa.id` | Sin cambio: los arma el sistema |
-| `conversaciones/…/lista.html:234, 240, 323, 329`, `templates/components/alertas_eventos.html:63`, `templates/legajos/alertas_dashboard.html:151, 180, 206`, `configuracion/*_list.html` (`@click`), `users/…/rol_list.html:274`, `requisitos_segmento.html:8`, `convocatoria_formulario.html:10` | solo `pk`/`id` numéricos o versión | Sin cambio |
+| `programas/…/becas/cupo/segmento_detail.html:175, 258, 340` | nombre y apellido del ciudadano en `onclick` | **Arreglado** (H1): `data-*` + listener |
+| `programas/…/becas/relevamientos/_reactivar_convocatoria_js.html:15-24` | `data-nombre` en `html` de Swal | **Arreglado** (H2): escapado |
+| `legajos/…/programas/programa_detail.html:624` (`confirmarBaja`) | nombre del ciudadano en `html` de Swal | **Arreglado**: escapado |
+| `legajos/…/ciudadano_detail.html:162` | `ciudadano.dni` en `onclick` | **Arreglado**: `data-copiar-dni` + listener |
+| `legajos/…/ciudadano_detail.html:1230-1236` (búsqueda de *Agregar familiar*) | nombre, apellido y DNI de `/api/legajos/ciudadanos/` en `innerHTML` **y** `onclick` generado en JS | **Arreglado**: escapado + `data-ciudadano-*` + listener (1253) |
+| `legajos/…/ciudadano_detail.html:1276-1310` (tabla de vínculos) | nombre, apellido, DNI, teléfono y tipo de vínculo en `innerHTML` | **Arreglado**: escapado; id por `Number()` |
+| `legajos/…/ciudadano_detail.html:1525-1556` (archivos) y `:1663-1683` (actividades) | nombre y etiqueta del archivo, URL; descripción, usuario y código de legajo | **Arreglado**: escapado; id por `Number()` |
+| `legajos/…/ciudadano_detail.html:1773, 1794, 1805-1809` (predicción de riesgo) | factores y recomendaciones (textos del sistema) | **Arreglado**: escapado, mismo helper |
+| `static/custom/js/alertas_websocket.js:105-106, 141-149, 248-258` | nombre del ciudadano y mensaje de la alerta en `innerHTML` | **Arreglado**: escapado |
+| `configuracion/…/programa_list.html:150, 159, 168` | `programa.nombre` con `escapejs` → `text:` de Swal | Sin riesgo: literal seguro y destino de texto |
+| `users/…/rol/rol_list.html:341, 348, 355` · `users/…/user/user_list.html:83, 91` | `group.name` / `username` con `escapejs` → `text:` de Swal | Sin riesgo: ídem |
+| `programas/…/becas/config/_preguntas_grupos.html:27`, `_pregunta_row.html:45`, `_requisitos_*panel.html:35`, `_requisitos_page_table.html:39`, `_segmentos_table.html:66`, `_subsegmentos_panel.html:47` (`@click`) | textos de configuración con `escapejs` | Sin riesgo: literal seguro; no hay `x-html` en el repo |
+| `programas/…/becas/config/programa_detail.html:64`, `segmento_detail.html:81`, `_programas_table.html:64` (`@click`) | `siis_info` (JSON de `json.dumps`, autoescapado) | Sin riesgo: literal JSON válido |
+| `programas/…/becas/relevamientos/convocatoria_form.html:10`, `relevamiento_form.html:7`, `configuracion/…/programa_wizard_paso3.html:25` (`x-data`) | `form.<campo>.value` | Sin riesgo: solo refleja el POST del propio usuario (CSRF, no se guarda) |
+| `legajos/…/ciudadano_detail.html:243, 392` | `solapa.url` / `solapa.id` | Sin riesgo: los arma el sistema |
+| `templates/components/alertas_eventos.html:63`, `templates/legajos/alertas_dashboard.html:151, 180, 206`, `configuracion/*_list.html` (`@click`), `users/…/rol_list.html:274`, `requisitos_segmento.html:8`, `convocatoria_formulario.html:10` | solo `pk`/`id` numéricos o versión | Sin riesgo |
+| `static/custom/js/registros_erroneos.js:256`, `static/custom/js/localidades_modal.js:45` | texto en `innerHTML` | Sin riesgo hoy: ningún template carga esos archivos |
 
 ## Archivos
 
@@ -10425,10 +10443,13 @@ Entrada nueva. Sale del relevamiento exhaustivo de casos no enviados en testing 
 - `programas/templates/programas/becas/relevamientos/_reactivar_convocatoria_js.html`
 - `legajos/templates/legajos/programas/programa_detail.html`
 - `legajos/templates/legajos/ciudadano_detail.html`
+- `static/custom/js/alertas_websocket.js`
 - `core/tests/js_harness.py` (nuevo)
 - `programas/tests/test_becas_handlers_inline.py` (nuevo)
 - `legajos/tests/test_programa_detail_baja_nombre.py` (nuevo)
 - `legajos/tests/test_ciudadano_detail_copiar_dni.py` (nuevo)
+- `legajos/tests/test_ciudadano_detail_innerhtml.py` (nuevo)
+- `legajos/tests/test_alertas_websocket_escape.py` (nuevo)
 
 ## Base de datos
 
@@ -10436,18 +10457,21 @@ No toca el esquema ni ningún dato.
 
 ## Validación
 
-- **Reproducción antes del arreglo** (mismo test, templates de `development`): 7 de 8 tests nuevos de Becas y
-  Legajos fallan y el de *Copiar DNI* también. El atributo decodificado que ve el navegador era
-  `confirmarBaja(1, 'Ana O'Brien')`: la comilla del apellido cierra el literal JS.
-- **Después del arreglo:** `programas.tests.test_becas_handlers_inline` (6), `legajos.tests.test_programa_detail_baja_nombre`
-  (2) y `legajos.tests.test_ciudadano_detail_copiar_dni` (1) en verde, con `node` presente (sin saltear).
-- `manage.py test programas legajos core` con Python 3.12 + Django 5.2.17 (`.venv312`): **1161 tests OK**
-  (1 salteado preexistente, solo MySQL). `manage.py test --tag performance`: 4 OK.
+- **Reproducción antes del arreglo** (mismos tests contra los templates y el JS de `development`): fallan 8 de los
+  9 tests de la primera ronda (el que pasa solo confirma que `data-nombre` ya se autoescapaba) y los 7 de la
+  segunda (4 del legajo, 3 de alertas). El atributo decodificado que ve el navegador era
+  `confirmarBaja(1, 'Ana O'Brien')`: la comilla del apellido cierra el literal JS; en el legajo y en las alertas
+  el nombre con marcado aparecía como un elemento más del `innerHTML`.
+- **Después del arreglo**, con `node` presente (nada salteado): `programas.tests.test_becas_handlers_inline` (6),
+  `legajos.tests.test_programa_detail_baja_nombre` (2), `legajos.tests.test_ciudadano_detail_copiar_dni` (1),
+  `legajos.tests.test_ciudadano_detail_innerhtml` (4) y `legajos.tests.test_alertas_websocket_escape` (3).
+- `manage.py test` completo con Python 3.12 + Django 5.2.17 (`.venv312`): **1580 tests OK** (1 salteado
+  preexistente, solo MySQL). `manage.py test --tag performance`: 4 OK.
 - `manage.py check --deploy`: 0 errores (5 avisos de seguridad propios del entorno local).
   `makemigrations --check --dry-run`: sin cambios.
 - `scripts/compile_templates.py`: 190 compilados, 0 errores. `scripts/check_design_agent.py --changed`: OK.
-- `scripts/design_audit.py --changed`: 1 error, **preexistente** (`TWBUILD` en `legajos/ciudadano_detail.html:143`,
-  línea no tocada; ver Pendientes). Sin errores nuevos.
+- `scripts/design_audit.py` sobre los archivos del diff: 1 error, **preexistente** (`TWBUILD` en
+  `legajos/ciudadano_detail.html:143`, línea no tocada; da el mismo error sobre la versión de `development`).
 - `ruff check .` y `ruff format --check` sobre los archivos nuevos: OK.
 
 ## Puesta en marcha en el servidor
@@ -10460,8 +10484,6 @@ No requiere: es un cambio de templates.
   decisión de diseño (cargar Swal ahí o pasarlo a `ModernModal` con un campo de fecha).
 - **`copiarDni` usa `toastr`, que ninguna pantalla carga:** el aviso de «copiado» nunca aparece (y en el camino de
   error tira excepción). Preexistente; debería pasar a `window.toast()`.
-- **`x-data` que reflejan `form.<campo>.value`** sin `escapejs` (tabla del barrido): no es explotable entre usuarios,
-  pero conviene pasarlos por `escapejs` la próxima vez que se toquen.
 - **`TWBUILD` preexistente en `legajos/ciudadano_detail.html:143`** (`xl:grid-cols-[minmax(0,1fr)_auto]`): lo
   reporta `design_audit.py --changed` porque el archivo se tocó; la línea no cambió, el error ya está en
   `development` y un `build:tailwind` no lo resuelve (el CSS rearmado es idéntico al committeado).
