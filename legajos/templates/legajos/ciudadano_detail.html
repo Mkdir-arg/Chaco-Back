@@ -1113,6 +1113,14 @@
      está definido cuando el grafo se dibuja. -->
 <script defer src="{% static 'vendor/vis-network/vis-network.min.js' %}"></script>
 <script>
+// Todo dato que llega de la API (nombres, DNI, etiquetas, descripciones) se escapa antes de
+// concatenarlo en un innerHTML: el ciudadano carga su nombre en la inscripción pública.
+function escaparHtml(valor) {
+    return String(valor ?? '').replace(/[&<>"']/g, (c) => (
+        { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+    ));
+}
+
 // ============================================================
 // Sistema de solapas: deep-linking por hash + accesibilidad
 // ============================================================
@@ -1219,9 +1227,11 @@ document.getElementById('buscarCiudadano').addEventListener('input', function() 
                 const resultados = document.getElementById('resultadosBusqueda');
                 if (data.results && data.results.length > 0) {
                     resultados.innerHTML = data.results.map(c => `
-                        <div class="cd-result" onclick="seleccionarCiudadano(${c.id}, '${c.nombre} ${c.apellido}', '${c.dni}')">
-                            <div class="cd-result-name">${c.apellido}, ${c.nombre}</div>
-                            <div class="cd-result-dni">DNI: ${c.dni}</div>
+                        <div class="cd-result" data-ciudadano-id="${escaparHtml(c.id)}"
+                             data-ciudadano-nombre="${escaparHtml(`${c.nombre} ${c.apellido}`)}"
+                             data-ciudadano-dni="${escaparHtml(c.dni)}">
+                            <div class="cd-result-name">${escaparHtml(c.apellido)}, ${escaparHtml(c.nombre)}</div>
+                            <div class="cd-result-dni">DNI: ${escaparHtml(c.dni)}</div>
                         </div>
                     `).join('');
                 } else {
@@ -1239,6 +1249,13 @@ function seleccionarCiudadano(id, nombre, dni) {
     document.getElementById('buscarCiudadano').value = `${nombre} (DNI: ${dni})`;
     document.getElementById('resultadosBusqueda').innerHTML = '';
 }
+// Los datos del resultado viajan en data-* (no en un onclick armado con el nombre).
+document.getElementById('resultadosBusqueda').addEventListener('click', (e) => {
+    const item = e.target.closest('[data-ciudadano-id]');
+    if (item) {
+        seleccionarCiudadano(item.dataset.ciudadanoId, item.dataset.ciudadanoNombre, item.dataset.ciudadanoDni);
+    }
+});
 
 function cerrarModal(modalId) {
     document.getElementById(modalId).classList.add('hidden');
@@ -1274,21 +1291,21 @@ function cargarVinculos() {
                             <td class="whitespace-nowrap px-6 py-4">
                                 <div class="flex items-center">
                                     <div class="cd-avatar mr-3 flex h-10 w-10 items-center justify-center rounded-full">
-                                        <span class="text-sm font-semibold text-white">${nombre.charAt(0)}${apellido.charAt(0)}</span>
+                                        <span class="text-sm font-semibold text-white">${escaparHtml(nombre.charAt(0))}${escaparHtml(apellido.charAt(0))}</span>
                                     </div>
-                                    <div class="cd-cell font-medium">${nombre} ${apellido}</div>
+                                    <div class="cd-cell font-medium">${escaparHtml(nombre)} ${escaparHtml(apellido)}</div>
                                 </div>
                             </td>
                             <td class="whitespace-nowrap px-6 py-4">
-                                <span class="cd-badge-type">${tipoVinculo}</span>
+                                <span class="cd-badge-type">${escaparHtml(tipoVinculo)}</span>
                             </td>
-                            <td class="whitespace-nowrap px-6 py-4 cd-cell">${dni}</td>
-                            <td class="whitespace-nowrap px-6 py-4 cd-cell">${telefono}</td>
+                            <td class="whitespace-nowrap px-6 py-4 cd-cell">${escaparHtml(dni)}</td>
+                            <td class="whitespace-nowrap px-6 py-4 cd-cell">${escaparHtml(telefono)}</td>
                             <td class="whitespace-nowrap px-6 py-4">
                                 <div class="flex flex-wrap gap-1">${badges.join('')}</div>
                             </td>
                             <td class="whitespace-nowrap px-6 py-4 text-center text-sm font-medium">
-                                <button onclick="eliminarVinculo(${vinculo.id})" class="cd-btn-del" title="Eliminar vínculo">
+                                <button onclick="eliminarVinculo(${Number(vinculo.id)})" class="cd-btn-del" title="Eliminar vínculo">
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </td>
@@ -1516,25 +1533,25 @@ function cargarArchivos() {
                                 <div class="flex items-center">
                                     <i class="${icono} mr-3 text-2xl"></i>
                                     <div>
-                                        <div class="cd-cell font-medium">${archivo.nombre}</div>
+                                        <div class="cd-cell font-medium">${escaparHtml(archivo.nombre)}</div>
                                         <div class="cd-muted">${formatearTamano(archivo.tamano)}</div>
                                     </div>
                                 </div>
                             </td>
-                            <td class="whitespace-nowrap px-6 py-4 cd-cell">${archivo.etiqueta || '-'}</td>
+                            <td class="whitespace-nowrap px-6 py-4 cd-cell">${escaparHtml(archivo.etiqueta || '-')}</td>
                             <td class="whitespace-nowrap px-6 py-4 text-sm">
                                 ${archivo.tipo_origen === 'ciudadano' ?
                                     '<span class="cd-muted">Ciudadano</span>' :
-                                    `<a href="/legajos/${archivo.legajo_id}/" class="cd-link font-medium">Acompañamiento</a>`
+                                    `<a href="/legajos/${escaparHtml(archivo.legajo_id)}/" class="cd-link font-medium">Acompañamiento</a>`
                                 }
                             </td>
                             <td class="whitespace-nowrap px-6 py-4 cd-cell">${fecha}</td>
                             <td class="whitespace-nowrap px-6 py-4 text-center text-sm font-medium">
                                 <div class="flex items-center justify-center gap-2">
-                                    <a href="${archivo.url}" target="_blank" class="cd-btn-dl" title="Descargar">
+                                    <a href="${escaparHtml(archivo.url)}" target="_blank" class="cd-btn-dl" title="Descargar">
                                         <i class="fas fa-download"></i>
                                     </a>
-                                    <button onclick="eliminarArchivo(${archivo.id})" class="cd-btn-del" title="Eliminar">
+                                    <button onclick="eliminarArchivo(${Number(archivo.id)})" class="cd-btn-del" title="Eliminar">
                                         <i class="fas fa-trash"></i>
                                     </button>
                                 </div>
@@ -1654,14 +1671,14 @@ function cargarActividades() {
                             <td class="whitespace-nowrap px-4 py-4">
                                 <span class="badge ${tipoColor}">
                                     <i class="${tipoIcon} mr-1"></i>
-                                    ${getTipoNombre(actividad.tipo)}
+                                    ${escaparHtml(getTipoNombre(actividad.tipo))}
                                 </span>
                             </td>
-                            <td class="px-4 py-4 cd-cell">${actividad.descripcion}</td>
-                            <td class="whitespace-nowrap px-4 py-4 cd-cell">${actividad.usuario_nombre || 'Sistema'}</td>
+                            <td class="px-4 py-4 cd-cell">${escaparHtml(actividad.descripcion)}</td>
+                            <td class="whitespace-nowrap px-4 py-4 cd-cell">${escaparHtml(actividad.usuario_nombre || 'Sistema')}</td>
                             <td class="whitespace-nowrap px-4 py-4 text-sm">
-                                <a href="/legajos/${actividad.legajo_id}/" class="cd-link font-medium">
-                                    ${actividad.legajo_codigo || actividad.legajo_id}
+                                <a href="/legajos/${escaparHtml(actividad.legajo_id)}/" class="cd-link font-medium">
+                                    ${escaparHtml(actividad.legajo_codigo || actividad.legajo_id)}
                                 </a>
                             </td>
                         </tr>
@@ -1753,7 +1770,7 @@ function cargarPrediccionRiesgo() {
                 abandonoFactores.innerHTML = abandono.factores.map(factor => `
                     <div class="flex items-start cd-factor">
                         <i class="fas fa-circle mr-2 mt-1 text-xs cd-factor-icon"></i>
-                        <span>${factor}</span>
+                        <span>${escaparHtml(factor)}</span>
                     </div>
                 `).join('');
             } else {
@@ -1774,7 +1791,7 @@ function cargarPrediccionRiesgo() {
                 eventoFactores.innerHTML = evento.factores.map(factor => `
                     <div class="flex items-start cd-factor">
                         <i class="fas fa-circle mr-2 mt-1 text-xs cd-factor-icon"></i>
-                        <span>${factor}</span>
+                        <span>${escaparHtml(factor)}</span>
                     </div>
                 `).join('');
             } else {
@@ -1785,10 +1802,10 @@ function cargarPrediccionRiesgo() {
             if (data.recomendaciones.length > 0) {
                 recomendaciones.innerHTML = data.recomendaciones.map(rec => `
                     <div class="flex items-start rounded-lg border p-3 ${getPrioridadBg(rec.prioridad)} ${getPrioridadBorder(rec.prioridad)}">
-                        <span class="mr-3 text-2xl">${rec.icono}</span>
+                        <span class="mr-3 text-2xl">${escaparHtml(rec.icono)}</span>
                         <div class="flex-1">
-                            <span class="cd-rec-text">${rec.texto}</span>
-                            <span class="ml-2 text-xs font-bold ${getPrioridadText(rec.prioridad)}">${rec.prioridad}</span>
+                            <span class="cd-rec-text">${escaparHtml(rec.texto)}</span>
+                            <span class="ml-2 text-xs font-bold ${getPrioridadText(rec.prioridad)}">${escaparHtml(rec.prioridad)}</span>
                         </div>
                     </div>
                 `).join('');
