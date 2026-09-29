@@ -1,6 +1,6 @@
 # Django Core
 Django==5.2.17
-djangorestframework==3.16.1
+djangorestframework==3.17.2
 # Hash de contraseñas del login (PASSWORD_HASHERS): Argon2id cuesta ~90 ms por
 # verificación contra ~1 s del PBKDF2 por defecto de Django 5.2.
 argon2-cffi==25.1.0
@@ -40,8 +40,12 @@ openpyxl==3.1.5
 django-simple-history==3.4.0
 
 # AI/ML
-openai==1.3.0
+# openai 1.3.0 topeaba anyio<4 y anyio 3.x trae CVE-2026-63374 y CVE-2026-64847
+# (pip-audit); 1.3.8 es el primer parche que acepta anyio 4. anyio se pinea aparte
+# porque lo traen openai y httpx sin fijar version.
+openai==1.3.8
 httpx==0.27.2
+anyio==4.14.2
 
 # WebSockets
 channels==4.2.2
