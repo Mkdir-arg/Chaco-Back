@@ -622,9 +622,13 @@ function exportarIndicadores(formato) {
 }
 
 function confirmarBaja(inscripcionId, nombreCiudadano) {
+    // El html de SweetAlert2 se interpreta como marcado: el nombre del ciudadano va escapado.
+    const nombreSeguro = String(nombreCiudadano).replace(/[&<>"']/g, (c) => (
+        { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+    ));
     Swal.fire({
         title: '¿Dar de baja?',
-        html: `<p class="text-gray-600 mb-4">Estás por dar de baja a <strong>${nombreCiudadano}</strong> del programa.</p>
+        html: `<p class="text-gray-600 mb-4">Estás por dar de baja a <strong>${nombreSeguro}</strong> del programa.</p>
              <p class="text-gray-600 mb-2">Esta acción cerrará su inscripción activa y el flujo asociado.</p>
                <textarea id="swal-motivo" class="swal2-textarea" placeholder="Motivo obligatorio..." rows="3"></textarea>`,
         icon: 'warning',

@@ -12,12 +12,16 @@ document.addEventListener('click', function (e) {
   var min = hoy.getFullYear() + '-' +
             String(hoy.getMonth() + 1).padStart(2, '0') + '-' +
             String(hoy.getDate()).padStart(2, '0');
-  var nombre = btn.dataset.nombre || '';
+  // data-nombre llega decodificado: se escapa antes de armar el html del pop-up,
+  // que SweetAlert2 interpreta como marcado.
+  var nombreHtml = (btn.dataset.nombre || '').replace(/[&<>"']/g, function (c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+  });
 
   Swal.fire({
     icon: 'question',
     title: 'Reactivar convocatoria',
-    html: (nombre ? '<p style="font-weight:600">' + nombre + '</p>' : '') +
+    html: (nombreHtml ? '<p style="font-weight:600">' + nombreHtml + '</p>' : '') +
           '<p class="text-sm">Está vencida. Elegí la nueva fecha de fin para reactivarla.</p>',
     input: 'date',
     inputAttributes: { min: min },
