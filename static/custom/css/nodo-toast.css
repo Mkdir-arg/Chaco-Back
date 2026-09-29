@@ -192,9 +192,10 @@
         overflow-y: auto;
     }
     .toast { min-width: 0; flex: 0 0 auto; }
-    /* Modal abierto: la pila sube arriba para no tapar Cancelar / Guardar */
+    /* Modal abierto: la pila baja del encabezado y termina antes del pie. El JS
+       fija top/max-height con medidas reales; esto es el respaldo. */
     .toast-container--sobre-modal {
-        top: calc(12px + env(safe-area-inset-top, 0px));
+        top: calc(72px + env(safe-area-inset-top, 0px));
         bottom: auto;
-    }
-}
+        max-height: 40vh;
+    }}

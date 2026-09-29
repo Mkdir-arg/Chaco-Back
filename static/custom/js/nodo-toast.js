@@ -229,26 +229,77 @@
     }
 
     // ¿Hay un modal / SweetAlert abierto? Escape le pertenece a él.
-    function hayModalAbierto() {
-        if (typeof document.querySelectorAll !== 'function') { return false; }
+    function modalAbierto() {
+        if (typeof document.querySelectorAll !== 'function') { return null; }
         var modales = document.querySelectorAll('[aria-modal="true"], .swal2-container');
+        var visible = null;
         for (var i = 0; i < modales.length; i++) {
             var m = modales[i];
-            if (typeof m.getClientRects !== 'function' || m.getClientRects().length > 0) { return true; }
+            if (typeof m.getClientRects !== 'function' || m.getClientRects().length > 0) { visible = m; }
         }
-        return false;
+        return visible;
+    }
+    function hayModalAbierto() { return !!modalAbierto(); }
+
+    // Encabezado del panel del modal: [data-modal-header], el ancestro con
+    // border-b del título (aria-labelledby) o el primer .border-b.
+    function encabezadoDe(m) {
+        var h = m.querySelector('[data-modal-header]');
+        if (h) { return h; }
+        var id = m.getAttribute && m.getAttribute('aria-labelledby');
+        var t = id ? document.getElementById(id) : null;
+        while (t && t !== m) {
+            if (t.classList && t.classList.contains('border-b')) { return t; }
+            t = t.parentNode;
+        }
+        return m.querySelector('.border-b');
     }
 
-    // Con un modal abierto la pila sube arriba (en móvil, abajo taparía el pie
-    // del modal: Cancelar / Guardar). La clase la usa nodo-toast.css (≤640px).
+    // Móvil (≤640px): la pila se apoya justo debajo del encabezado del modal y
+    // termina antes de su pie, para no tapar la X ni Cancelar / Guardar.
+    function posicionarSobreModal(box, m) {
+        var st = box.style;
+        var movil = typeof window.innerWidth === 'number' && window.innerWidth <= 640;
+        if (!m || !movil || typeof m.querySelector !== 'function') {
+            st.top = ''; st.bottom = ''; st.maxHeight = '';
+            return;
+        }
+        var h = encabezadoDe(m);
+        var hr = h && h.getBoundingClientRect ? h.getBoundingClientRect() : null;
+        var top = (hr && hr.bottom > 0) ? Math.round(hr.bottom + 8) : null;
+        var pies = m.querySelectorAll ? m.querySelectorAll('.border-t') : [];
+        var pr = pies.length ? pies[pies.length - 1].getBoundingClientRect() : null;
+        st.bottom = 'auto';
+        if (top === null) {
+            st.top = 'calc(72px + env(safe-area-inset-top, 0px))';
+            st.maxHeight = '40vh';
+            return;
+        }
+        st.top = top + 'px';
+        st.maxHeight = (pr && pr.top - top - 8 > 48) ? Math.round(pr.top - top - 8) + 'px' : '40vh';
+    }
+
+    // Con un modal abierto la pila sube y se apoya bajo su encabezado. La clase
+    // la usa nodo-toast.css (≤640px); el top/max-height los calcula el JS.
     function ubicarPila() {
         var box = document.getElementById('toast-container');
         if (!box || !box.classList) { return; }
-        if (hayModalAbierto()) { box.classList.add('toast-container--sobre-modal'); }
+        var m = modalAbierto();
+        if (m) { box.classList.add('toast-container--sobre-modal'); }
         else { box.classList.remove('toast-container--sobre-modal'); }
+        if (box.style) { posicionarSobreModal(box, m); }
     }
     var ubicarPendiente = false;
-    function ubicarPilaLiviano() {
+    function ubicarPilaLiviano(registros) {
+        // Los cambios de estilo de la propia pila no reprograman nada (evita bucles).
+        var box = document.getElementById('toast-container');
+        if (registros && registros.length && box && typeof box.contains === 'function') {
+            var ajeno = false;
+            for (var i = 0; i < registros.length; i++) {
+                if (!box.contains(registros[i].target)) { ajeno = true; break; }
+            }
+            if (!ajeno) { return; }
+        }
         if (ubicarPendiente) { return; }
         ubicarPendiente = true;
         setTimeout(function () { ubicarPendiente = false; ubicarPila(); }, 50);
@@ -259,6 +310,7 @@
             attributeFilter: ['class', 'hidden', 'style', 'aria-modal']
         });
     }
+    if (typeof window.addEventListener === 'function') { window.addEventListener('resize', ubicarPilaLiviano); }
 
     // Escape: cierra el error con foco; si no, el último error visible, salvo que
     // haya un modal abierto (ese Escape es del modal) o alguien ya lo consumió.

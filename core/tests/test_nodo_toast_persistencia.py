@@ -235,3 +235,40 @@ R.cerrado = box.classList.contains('toast-container--sobre-modal');"""
         self.assertFalse(r["sin"])
         self.assertTrue(r["con"])
         self.assertFalse(r["cerrado"])
+
+    def test_pila_movil_queda_bajo_el_encabezado_y_sobre_el_pie(self):
+        r = _correr(
+            """
+window.innerWidth = 390;
+var cabecera = {getBoundingClientRect: function () { return {bottom: 66, top: 0}; }};
+var pie = {getBoundingClientRect: function () { return {top: 634, bottom: 700}; }};
+__modales.push({getClientRects: function () { return [1]; }, getAttribute: function () { return null; },
+  querySelector: function (s) { return s === '.border-b' ? cabecera : null; },
+  querySelectorAll: function () { return [pie]; }});
+toast.error('Uno'); toast.error('Dos'); toast.error('Tres');
+var box = document.getElementById('toast-container');
+var R = {top: box.style.top, max: box.style.maxHeight, bottom: box.style.bottom};
+window.innerWidth = 1440; toast.error('Cuatro');
+R.desktop = [box.style.top, box.style.maxHeight];
+window.innerWidth = 390; toast.error('Cinco');
+__modales.length = 0; toast.error('Seis');
+R.cerrado = [box.style.top, box.style.maxHeight];"""
+        )
+        self.assertEqual(r["top"], "74px")
+        self.assertEqual(r["max"], "552px")
+        self.assertEqual(r["bottom"], "auto")
+        self.assertEqual(r["desktop"], ["", ""])
+        self.assertEqual(r["cerrado"], ["", ""])
+
+    def test_pila_movil_sin_encabezado_detectable_usa_respaldo(self):
+        r = _correr(
+            """
+window.innerWidth = 390;
+__modales.push({getClientRects: function () { return [1]; }, getAttribute: function () { return null; },
+  querySelector: function () { return null; }, querySelectorAll: function () { return []; }});
+toast.error('Uno');
+var box = document.getElementById('toast-container');
+var R = {top: box.style.top, max: box.style.maxHeight};"""
+        )
+        self.assertIn("72px", r["top"])
+        self.assertEqual(r["max"], "40vh")
