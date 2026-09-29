@@ -1,0 +1,26 @@
+{% comment %}
+Badge de estado de una convocatoria de Becas (modelo Convocatoria). Única fuente del
+mapa estado→badge de la convocatoria (mapa de estados de Becas, DC-1..DC-4).
+
+Precedencia (la primera que aplica):
+  1. pausa_efectiva (propia o heredada de segmento/subsegmento) → badge-warning «Pausada»
+     La pausa reemplaza a «Activa» mientras dure (CMP-9).
+  2. activo y esta_vencida (fecha_fin < hoy)                    → badge-warning «Vencida»
+     Se cierra en la próxima corrida de procesar_vencimientos.
+  3. activo                                                     → badge-success «Activa»
+  4. inactiva                                                   → badge-gray    «Cerrada»
+     Apagado no es un error: gris, no rojo (CMP-4).
+
+Uso: {% include "programas/becas/_convocatoria_estado_badge.html" with convocatoria=c %}
+{% endcomment %}
+{% with pausa=convocatoria.pausa_efectiva %}
+{% if pausa %}
+  <span class="badge badge-warning badge-dot"{% if pausa.pausa_motivo %} title="{{ pausa.pausa_motivo }}"{% endif %}>Pausada</span>
+{% elif convocatoria.activo and convocatoria.esta_vencida %}
+  <span class="badge badge-warning badge-dot" title="La fecha de fin ya pasó; se cierra en la próxima corrida.">Vencida</span>
+{% elif convocatoria.activo %}
+  <span class="badge badge-success badge-dot">Activa</span>
+{% else %}
+  <span class="badge badge-gray badge-dot">Cerrada</span>
+{% endif %}
+{% endwith %}

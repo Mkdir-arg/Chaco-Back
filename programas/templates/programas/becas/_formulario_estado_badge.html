@@ -1,21 +1,33 @@
 {% comment %}
-Badge de estado de un caso de Becas (modelo Formulario) (única fuente para no duplicar el
-mapeo estado→badge en cada pantalla).
+Badge de estado de un caso de Becas (modelo Formulario). Única fuente del mapa
+estado→badge del caso (mapa de estados de Becas, DC-1..DC-4): todas las pantallas lo
+incluyen en vez de repetir el mapeo.
+
+  ENVIADO   → badge-warning «Enviado» (espera revisión: atención)
+  APROBADO  → badge-success «Aprobado»
+  RECHAZADO → badge-danger  «Rechazado»
+  BAJA      → badge-gray    «Dado de baja»
+
+«Lista de espera» NO es un estado: si el caso está en espera se SUMA un badge
+badge-warning «Lista de espera» junto al del estado (no lo reemplaza).
 
 Uso: {% include "programas/becas/_formulario_estado_badge.html" with estado=f.estado %}
 Parámetros opcionales:
-  en_espera_activa — bool, tiene prioridad sobre estado (muestra "Lista de espera").
-  dot              — bool, agrega el modificador badge-dot.
-  color_enviado    — color del badge para ENVIADO (default "gray").
+  en_espera_activa — bool; suma el badge «Lista de espera» al del estado.
+  color_enviado    — tono del badge de ENVIADO (default "warning"). Se conserva por
+                     compatibilidad con los includes existentes; no usarlo para
+                     apartarse del mapa.
+  dot              — obsoleto: el punto (badge-dot) va siempre. Se acepta y se ignora.
 {% endcomment %}
-{% if en_espera_activa %}
-  <span class="badge badge-warning{% if dot %} badge-dot{% endif %}">Lista de espera</span>
-{% elif estado == 'APROBADO' %}
-  <span class="badge badge-success{% if dot %} badge-dot{% endif %}">Aprobado</span>
+{% if estado == 'APROBADO' %}
+  <span class="badge badge-success badge-dot">Aprobado</span>
 {% elif estado == 'RECHAZADO' %}
-  <span class="badge badge-danger{% if dot %} badge-dot{% endif %}">Rechazado</span>
+  <span class="badge badge-danger badge-dot">Rechazado</span>
 {% elif estado == 'BAJA' %}
-  <span class="badge badge-gray{% if dot %} badge-dot{% endif %}">Dado de baja</span>
+  <span class="badge badge-gray badge-dot">Dado de baja</span>
 {% else %}
-  <span class="badge badge-{{ color_enviado|default:"gray" }}{% if dot %} badge-dot{% endif %}">Enviado</span>
+  <span class="badge badge-{{ color_enviado|default:"warning" }} badge-dot">Enviado</span>
+{% endif %}
+{% if en_espera_activa %}
+  <span class="badge badge-warning">Lista de espera</span>
 {% endif %}
