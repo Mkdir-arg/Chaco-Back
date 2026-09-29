@@ -92,10 +92,16 @@
         var isError = (variant === VARIANTS.error);
         var isUrgent = (isError || variant === VARIANTS.warning);
         // Un error sin duración explícita es persistente: no se cierra solo.
-        var persistent = isError && !(typeof opts.duration === 'number' && opts.duration > 0);
+        // Excepción: en móvil con un modal abierto donde la pila no cabe entre
+        // su encabezado y su pie, se comporta como antes (7 s, con barra, 1 solo).
+        var explicita = (typeof opts.duration === 'number' && opts.duration > 0);
+        var ctx = contextoModal();
+        var persistent = isError && !explicita && !ctx.sinLugar;
+        var temporalDeModal = isError && !explicita && ctx.sinLugar;
 
         var container = getContainer();
         ubicarPila();
+        if (temporalDeModal) { soloUnErrorTemporal(); }
 
         // Deduplicación: un error persistente idéntico ya visible no se apila.
         if (persistent) {
@@ -202,14 +208,36 @@
         toast._dismiss = dismiss;
         toast._closeBtn = closeBtn;
 
+        // Un error temporal de modal reemplaza a los anteriores (máx. 1 visible).
+        if (temporalDeModal) { temporales.push(toast); }
+
+        // Convierte un error persistente en temporal (7 s con barra) cuando se
+        // abre un modal donde la pila no cabe.
+        toast._volverTemporal = function () {
+            var i = persistentes.indexOf(toast);
+            if (i !== -1) { persistentes.splice(i, 1); }
+            if (progress || dismissed) { return; }
+            progress = document.createElement('span');
+            progress.className = 'toast__progress';
+            progress.setAttribute('aria-hidden', 'true');
+            progress.style.animationDuration = DEFAULT_DURATION + 'ms';
+            toast.appendChild(progress);
+            progress.addEventListener('animationend', dismiss);
+            temporales.push(toast);
+        };
+
         // Tope de errores persistentes visibles: el más viejo se descarta.
-        while (persistentes.length > MAX_ERRORES) { persistentes[0]._dismiss(); }
+        // En móvil sin modal, 1 solo, para no tapar la zona inferior.
+        var tope = (ctx.movil && !ctx.modal) ? 1 : MAX_ERRORES;
+        while (persistentes.length > tope) { persistentes[0]._dismiss(); }
 
         return toast;
     }
 
     // Errores persistentes visibles (en orden de aparición).
     var persistentes = [];
+    // Errores temporales de modal (7 s con barra).
+    var temporales = [];
     var MAX_ERRORES = 3;
 
     // Al cerrar un toast con el foco adentro: al botón de cerrar del siguiente
@@ -255,28 +283,41 @@
         return m.querySelector('.border-b');
     }
 
-    // Móvil (≤640px): la pila se apoya justo debajo del encabezado del modal y
-    // termina antes de su pie, para no tapar la X ni Cancelar / Guardar.
-    function posicionarSobreModal(box, m) {
-        var st = box.style;
-        var movil = typeof window.innerWidth === 'number' && window.innerWidth <= 640;
-        if (!m || !movil || typeof m.querySelector !== 'function') {
-            st.top = ''; st.bottom = ''; st.maxHeight = '';
-            return;
-        }
+    // Espacio mínimo entre encabezado y pie del modal para alojar la pila.
+    var ESPACIO_MIN = 120;
+
+    // Móvil (≤640px): mide dónde apoyar la pila entre el encabezado y el pie
+    // del modal. null si alguno no es detectable o el espacio es insuficiente.
+    function medirEntreEncabezadoYPie(m) {
+        if (typeof m.querySelector !== 'function' || typeof m.querySelectorAll !== 'function') { return null; }
         var h = encabezadoDe(m);
         var hr = h && h.getBoundingClientRect ? h.getBoundingClientRect() : null;
-        var top = (hr && hr.bottom > 0) ? Math.round(hr.bottom + 8) : null;
-        var pies = m.querySelectorAll ? m.querySelectorAll('.border-t') : [];
+        var pies = m.querySelectorAll('.border-t');
         var pr = pies.length ? pies[pies.length - 1].getBoundingClientRect() : null;
-        st.bottom = 'auto';
-        if (top === null) {
-            st.top = 'calc(72px + env(safe-area-inset-top, 0px))';
-            st.maxHeight = '40vh';
-            return;
-        }
-        st.top = top + 'px';
-        st.maxHeight = (pr && pr.top - top - 8 > 48) ? Math.round(pr.top - top - 8) + 'px' : '40vh';
+        if (!hr || !pr || !(hr.bottom > 0)) { return null; }
+        if (pr.top - hr.bottom < ESPACIO_MIN) { return null; }
+        var top = Math.round(hr.bottom + 8);
+        return {top: top, max: Math.max(48, Math.round(pr.top - top - 8))};
+    }
+
+    // Estado del modal para decidir la ubicación y la persistencia:
+    //   movil     : ancho ≤ 640px
+    //   modal     : el modal visible (o null)
+    //   medidas   : {top, max} si la pila cabe entre encabezado y pie (solo móvil)
+    //   sinLugar  : móvil + modal abierto + la pila NO cabe → errores como antes
+    function contextoModal() {
+        var m = modalAbierto();
+        var movil = typeof window.innerWidth === 'number' && window.innerWidth <= 640;
+        var medidas = (m && movil) ? medirEntreEncabezadoYPie(m) : null;
+        return {modal: m, movil: movil, medidas: medidas, sinLugar: !!(m && movil && !medidas)};
+    }
+
+    // Deja como máximo 1 error visible (el que se está por crear): los
+    // persistentes y temporales anteriores se descartan.
+    function soloUnErrorTemporal() {
+        persistentes.slice().forEach(function (t) { t._dismiss(); });
+        temporales.slice().forEach(function (t) { t._dismiss(); });
+        temporales = [];
     }
 
     // Con un modal abierto la pila sube y se apoya bajo su encabezado. La clase
@@ -284,10 +325,25 @@
     function ubicarPila() {
         var box = document.getElementById('toast-container');
         if (!box || !box.classList) { return; }
-        var m = modalAbierto();
-        if (m) { box.classList.add('toast-container--sobre-modal'); }
+        var ctx = contextoModal();
+        temporales = temporales.filter(function (t) { return !t._closed; });
+        if (ctx.sinLugar) {
+            // No cabe: los errores ya visibles pasan a temporales y queda el último.
+            var ult = persistentes[persistentes.length - 1];
+            persistentes.slice(0, -1).forEach(function (t) { t._dismiss(); });
+            if (ult) { ult._volverTemporal(); }
+        }
+        if (ctx.modal && !ctx.sinLugar) { box.classList.add('toast-container--sobre-modal'); }
         else { box.classList.remove('toast-container--sobre-modal'); }
-        if (box.style) { posicionarSobreModal(box, m); }
+        if (box.style) {
+            if (ctx.medidas) {
+                box.style.bottom = 'auto';
+                box.style.top = ctx.medidas.top + 'px';
+                box.style.maxHeight = ctx.medidas.max + 'px';
+            } else {
+                box.style.top = ''; box.style.bottom = ''; box.style.maxHeight = '';
+            }
+        }
     }
     var ubicarPendiente = false;
     function ubicarPilaLiviano(registros) {

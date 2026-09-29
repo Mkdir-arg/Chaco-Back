@@ -260,15 +260,69 @@ R.cerrado = [box.style.top, box.style.maxHeight];"""
         self.assertEqual(r["desktop"], ["", ""])
         self.assertEqual(r["cerrado"], ["", ""])
 
-    def test_pila_movil_sin_encabezado_detectable_usa_respaldo(self):
+    def test_movil_modal_sin_encabezado_el_error_es_temporal_y_unico(self):
         r = _correr(
             """
 window.innerWidth = 390;
 __modales.push({getClientRects: function () { return [1]; }, getAttribute: function () { return null; },
   querySelector: function () { return null; }, querySelectorAll: function () { return []; }});
-toast.error('Uno');
-var box = document.getElementById('toast-container');
-var R = {top: box.style.top, max: box.style.maxHeight};"""
+var a = toast.error('Uno'); var b = toast.error('Dos');
+var R = {barraA: a.querySelector('.toast__progress') !== null, barraB: b.querySelector('.toast__progress') !== null,
+         vivos: __vivos().map(function (t) { return t._msg || 'temporal'; }).length};
+R.tempVivos = __vivos().length;
+b.querySelector('.toast__progress').fire('animationend'); __remover();
+R.tras7s = __vivos().length;
+__modales.length = 0;
+var c = toast.error('Tres');
+R.persistente = c.querySelector('.toast__progress') === null;"""
         )
-        self.assertIn("72px", r["top"])
-        self.assertEqual(r["max"], "40vh")
+        self.assertTrue(r["barraB"])
+        self.assertEqual(r["tempVivos"], 1)
+        self.assertEqual(r["tras7s"], 0)
+        self.assertTrue(r["persistente"])
+
+    def test_movil_modal_con_poco_espacio_entre_encabezado_y_pie_es_temporal(self):
+        r = _correr(
+            """
+window.innerWidth = 390;
+var cab = {getBoundingClientRect: function () { return {bottom: 60, top: 0}; }};
+var pie = {getBoundingClientRect: function () { return {top: 150, bottom: 200}; }};
+__modales.push({getClientRects: function () { return [1]; }, getAttribute: function () { return null; },
+  querySelector: function (s) { return s === '.border-b' ? cab : null; }, querySelectorAll: function () { return [pie]; }});
+var a = toast.error('Uno'); var b = toast.error('Dos');
+var box = document.getElementById('toast-container');
+var R = {barra: b.querySelector('.toast__progress') !== null, vivos: __vivos().length,
+         clase: box.classList.contains('toast-container--sobre-modal')};"""
+        )
+        self.assertTrue(r["barra"])
+        self.assertEqual(r["vivos"], 1)
+        self.assertFalse(r["clase"])
+
+    def test_error_ya_visible_pasa_a_temporal_al_abrirse_un_modal_sin_lugar(self):
+        r = _correr(
+            """
+window.innerWidth = 390;
+var a = toast.error('Antes');
+var R = {barraAntes: a.querySelector('.toast__progress') !== null};
+__modales.push({getClientRects: function () { return [1]; }, getAttribute: function () { return null; },
+  querySelector: function () { return null; }, querySelectorAll: function () { return []; }});
+toast.success('x');
+R.barraDespues = a.querySelector('.toast__progress') !== null;"""
+        )
+        self.assertFalse(r["barraAntes"])
+        self.assertTrue(r["barraDespues"])
+
+    def test_movil_sin_modal_maximo_un_error_visible(self):
+        r = _correr(
+            """
+window.innerWidth = 390;
+toast.error('Uno'); toast.error('Dos'); var c = toast.error('Tres');
+var R = {vivos: __vivos().length, ultimo: __vivos()[0]._msg, barra: c.querySelector('.toast__progress') !== null};
+window.innerWidth = 1440;
+toast.error('Cuatro'); toast.error('Cinco');
+R.escritorio = __vivos().length;"""
+        )
+        self.assertEqual(r["vivos"], 1)
+        self.assertEqual(r["ultimo"], "Tres")
+        self.assertFalse(r["barra"])
+        self.assertEqual(r["escritorio"], 3)
