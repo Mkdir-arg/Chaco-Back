@@ -196,3 +196,63 @@
         min-width: 0;
     }
 }
+
+/* Botón de ícono — acción de fila (ver, editar, desactivar) en tablas y tarjetas.
+   Solo ícono: el nombre accesible va en aria-label (obligatorio, con el registro:
+   «Ver caso de Ana Pérez»); el ícono lleva aria-hidden="true". nodo-tooltips.js
+   muestra ese aria-label al pasar el mouse o al llegar con el teclado.
+   Gris en reposo; al pasar, fondo secundario y color de marca (--danger: rojo).
+   El foco de teclado usa el anillo de marca, no el del navegador.
+
+   El color se resuelve con una variable porque nodo-brand.css pinta todo <a> con
+   color de marca !important (a:not(.btn):not(.btn-nodo)...). La segunda regla del
+   color iguala esa especificidad y, al cargarse después, gana en todos los estados. */
+.nodo-icon-btn {
+    --nodo-icon-btn-color: var(--text-body-subtle);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px;
+    border: 0;
+    border-radius: var(--rounded-lg);
+    background: transparent;
+    line-height: 1;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.nodo-icon-btn,
+a.nodo-icon-btn:not(.btn):not(.btn-nodo):not(.btn-brand):not([class*="bg-"]) {
+    color: var(--nodo-icon-btn-color) !important;
+}
+
+.nodo-icon-btn:hover {
+    --nodo-icon-btn-color: var(--text-fg-brand);
+    background: var(--bg-secondary);
+}
+
+.nodo-icon-btn:focus-visible {
+    --nodo-icon-btn-color: var(--text-fg-brand);
+    outline: 2px solid var(--border-brand);
+    outline-offset: 2px;
+}
+
+.nodo-icon-btn--danger:hover,
+.nodo-icon-btn--danger:focus-visible {
+    --nodo-icon-btn-color: var(--text-fg-danger);
+}
+
+.nodo-icon-btn:disabled,
+.nodo-icon-btn[aria-disabled="true"] {
+    --nodo-icon-btn-color: var(--text-fg-disabled);
+    cursor: not-allowed;
+}
+
+/* nodo-brand.css pinta button:disabled con fondo y color !important (especificidad
+   0,1,1): estos selectores la superan para que el ícono deshabilitado siga sin caja. */
+button.nodo-icon-btn:disabled,
+a.nodo-icon-btn[aria-disabled="true"] {
+    background: transparent !important;
+    color: var(--text-fg-disabled) !important;
+}
