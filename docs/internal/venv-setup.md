@@ -72,7 +72,7 @@ recreá el venv borrando `.venv/` primero.
 El `requirements.txt` actual usa:
 
 - `Django==5.2.17`
-- `djangorestframework==3.16.1`
+- `djangorestframework==3.17.2`
 - `channels==4.2.2`
 - `django-silk==5.1.0`
 
