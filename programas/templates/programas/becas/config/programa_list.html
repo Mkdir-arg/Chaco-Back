@@ -1,10 +1,10 @@
 {% extends "includes/base.html" %}
-{% load rbac static %}
+{% load rbac static nodo_ui %}
 {% block title %}Becas · Programas{% endblock %}
 
 {% block main-content %}
 <style>[x-cloak]{display:none!important}</style>
-<div class="mb-8"
+<div class="space-y-5"
      x-data="{
        modalCrear: false,
        modalInfo: false,
@@ -16,22 +16,14 @@
      }"
      @becas-saved.window="modalCrear=false">
 
-  {# Breadcrumb + PageHeader #}
-  <div class="flex items-end justify-between gap-4 flex-wrap mb-6">
-    <div>
-      <h1 class="font-extrabold text-heading" style="font-size:28px; letter-spacing:-0.5px">Programas</h1>
-      <p class="text-sm text-body-subtle mt-1.5">Programas del catálogo de SIIS: cada uno agrupa sus segmentos y subsegmentos</p>
-    </div>
+  {% page_header titulo="Programas" bajada="Programas del catálogo de SIIS: cada uno agrupa sus segmentos y subsegmentos" %}
     {% if request.user|puede:"becas.segmento.crear" %}
     <button type="button" @click="modalCrear=true" class="btn-nodo btn-brand btn-base">
-      {# PlusIcon — Heroicons v2 outline #}
-      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-      </svg>
+      <i class="fas fa-plus" aria-hidden="true"></i>
       Nuevo programa
     </button>
     {% endif %}
-  </div>
+  {% endpage_header %}
 
   {# Table card #}
   <div id="programas-table" class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
