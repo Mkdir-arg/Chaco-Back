@@ -192,4 +192,9 @@
         overflow-y: auto;
     }
     .toast { min-width: 0; flex: 0 0 auto; }
+    /* Modal abierto: la pila sube arriba para no tapar Cancelar / Guardar */
+    .toast-container--sobre-modal {
+        top: calc(12px + env(safe-area-inset-top, 0px));
+        bottom: auto;
+    }
 }

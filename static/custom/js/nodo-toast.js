@@ -95,6 +95,7 @@
         var persistent = isError && !(typeof opts.duration === 'number' && opts.duration > 0);
 
         var container = getContainer();
+        ubicarPila();
 
         // Deduplicación: un error persistente idéntico ya visible no se apila.
         if (persistent) {
@@ -236,6 +237,27 @@
             if (typeof m.getClientRects !== 'function' || m.getClientRects().length > 0) { return true; }
         }
         return false;
+    }
+
+    // Con un modal abierto la pila sube arriba (en móvil, abajo taparía el pie
+    // del modal: Cancelar / Guardar). La clase la usa nodo-toast.css (≤640px).
+    function ubicarPila() {
+        var box = document.getElementById('toast-container');
+        if (!box || !box.classList) { return; }
+        if (hayModalAbierto()) { box.classList.add('toast-container--sobre-modal'); }
+        else { box.classList.remove('toast-container--sobre-modal'); }
+    }
+    var ubicarPendiente = false;
+    function ubicarPilaLiviano() {
+        if (ubicarPendiente) { return; }
+        ubicarPendiente = true;
+        setTimeout(function () { ubicarPendiente = false; ubicarPila(); }, 50);
+    }
+    if (typeof MutationObserver === 'function' && document.body) {
+        new MutationObserver(ubicarPilaLiviano).observe(document.body, {
+            subtree: true, childList: true, attributes: true,
+            attributeFilter: ['class', 'hidden', 'style', 'aria-modal']
+        });
     }
 
     // Escape: cierra el error con foco; si no, el último error visible, salvo que

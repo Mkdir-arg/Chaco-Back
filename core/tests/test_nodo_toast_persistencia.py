@@ -218,3 +218,20 @@ R.vuelve = document.activeElement === origen;"""
         )
         self.assertTrue(r["enA"])
         self.assertTrue(r["vuelve"])
+
+    def test_pila_sube_arriba_con_modal_abierto(self):
+        r = _correr(
+            """
+var a = toast.error('Uno');
+var box = document.getElementById('toast-container');
+var R = {sin: box.classList.contains('toast-container--sobre-modal')};
+__modales.push({getClientRects: function () { return [1]; }});
+toast.error('Dos');
+R.con = box.classList.contains('toast-container--sobre-modal');
+__modales.length = 0;
+toast.error('Tres');
+R.cerrado = box.classList.contains('toast-container--sobre-modal');"""
+        )
+        self.assertFalse(r["sin"])
+        self.assertTrue(r["con"])
+        self.assertFalse(r["cerrado"])
