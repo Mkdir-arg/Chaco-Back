@@ -7,5 +7,6 @@
   {% elif e == 'EN_REVISION' %}badge-info
   {% elif e == 'TERMINADO' %}badge-success
   {% else %}badge-gray{% endif %}">{{ rel.get_estado_display }}</span>
-{% if rel.esta_vencido %}<span class="badge badge-danger badge-dot ms-1 ml-1">Vencido</span>{% endif %}
+{# Vencido = warning, igual que la convocatoria «Vencida»: se cierra en la próxima corrida (DC-4). #}
+{% if rel.esta_vencido %}<span class="badge badge-warning badge-dot ms-1 ml-1">Vencido</span>{% endif %}
 {% endwith %}
