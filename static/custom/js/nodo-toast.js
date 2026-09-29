@@ -114,6 +114,7 @@
             toast._msg = String(message);
             persistentes.push(toast);
         }
+        toast._prevFocus = document.activeElement || null;
 
         // Icono (decorativo: el texto ya comunica la variante)
         var iconWrap = document.createElement('span');
@@ -175,10 +176,13 @@
             if (dismissed) { return; }
             dismissed = true;
             toast._closed = true;
+            var teniaFoco = !!(document.activeElement && typeof toast.contains === 'function' &&
+                toast.contains(document.activeElement));
             var idx = persistentes.indexOf(toast);
             if (idx !== -1) { persistentes.splice(idx, 1); }
             toast.classList.add('toast--leaving');
             toast.classList.remove('toast--visible');
+            if (teniaFoco) { devolverFoco(toast); }
 
             var removed = false;
             function cleanup() {
@@ -195,24 +199,59 @@
         // animación en :hover / :focus-within, el cierre se pausa solo.
         if (progress) { progress.addEventListener('animationend', dismiss); }
         toast._dismiss = dismiss;
+        toast._closeBtn = closeBtn;
+
+        // Tope de errores persistentes visibles: el más viejo se descarta.
+        while (persistentes.length > MAX_ERRORES) { persistentes[0]._dismiss(); }
 
         return toast;
     }
 
     // Errores persistentes visibles (en orden de aparición).
     var persistentes = [];
+    var MAX_ERRORES = 3;
 
-    // Escape cierra el error con foco o, si no hay, el último error visible.
-    document.addEventListener('keydown', function (e) {
-        if (e.key !== 'Escape' && e.key !== 'Esc') { return; }
-        var target = persistentes[persistentes.length - 1];
-        for (var i = 0; i < persistentes.length; i++) {
-            var f = document.activeElement;
-            if (f && typeof persistentes[i].contains === 'function' && persistentes[i].contains(f)) {
-                target = persistentes[i];
-                break;
+    // Al cerrar un toast con el foco adentro: al botón de cerrar del siguiente
+    // toast visible o, si no hay, al elemento que tenía el foco antes.
+    function devolverFoco(toast) {
+        var box = toast.parentNode;
+        var hijos = (box && box.children) ? Array.prototype.slice.call(box.children) : [];
+        for (var i = hijos.length - 1; i >= 0; i--) {
+            var h = hijos[i];
+            if (h !== toast && !h._closed && h._closeBtn && typeof h._closeBtn.focus === 'function') {
+                h._closeBtn.focus();
+                return;
             }
         }
+        var prev = toast._prevFocus;
+        if (prev && prev !== document.body && typeof prev.focus === 'function') { prev.focus(); }
+    }
+
+    // ¿Hay un modal / SweetAlert abierto? Escape le pertenece a él.
+    function hayModalAbierto() {
+        if (typeof document.querySelectorAll !== 'function') { return false; }
+        var modales = document.querySelectorAll('[aria-modal="true"], .swal2-container');
+        for (var i = 0; i < modales.length; i++) {
+            var m = modales[i];
+            if (typeof m.getClientRects !== 'function' || m.getClientRects().length > 0) { return true; }
+        }
+        return false;
+    }
+
+    // Escape: cierra el error con foco; si no, el último error visible, salvo que
+    // haya un modal abierto (ese Escape es del modal) o alguien ya lo consumió.
+    document.addEventListener('keydown', function (e) {
+        if (e.key !== 'Escape' && e.key !== 'Esc') { return; }
+        if (e.defaultPrevented) { return; }
+        var f = document.activeElement;
+        for (var i = 0; i < persistentes.length; i++) {
+            if (f && typeof persistentes[i].contains === 'function' && persistentes[i].contains(f)) {
+                persistentes[i]._dismiss();
+                return;
+            }
+        }
+        if (hayModalAbierto()) { return; }
+        var target = persistentes[persistentes.length - 1];
         if (target) { target._dismiss(); }
     });
 

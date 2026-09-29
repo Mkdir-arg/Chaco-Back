@@ -186,6 +186,10 @@
         bottom: 12px;
         width: auto;
         max-width: none;
+        /* la pila no tapa el pie de un modal ni sale por arriba: scrollea */
+        max-height: 50vh;
+        overflow-x: hidden;
+        overflow-y: auto;
     }
-    .toast { min-width: 0; }
+    .toast { min-width: 0; flex: 0 0 auto; }
 }

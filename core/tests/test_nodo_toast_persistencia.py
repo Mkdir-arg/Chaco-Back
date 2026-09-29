@@ -35,6 +35,7 @@ El.prototype.removeChild = function (c) {
 };
 El.prototype.addEventListener = function (t, fn) { (this.listeners[t] = this.listeners[t] || []).push(fn); };
 El.prototype.fire = function (t, ev) { (this.listeners[t] || []).forEach(function (fn) { fn(ev || {}); }); };
+El.prototype.focus = function () { document.activeElement = this; };
 El.prototype.all = function () {
   return this.children.reduce(function (a, c) { return a.concat([c], c.all()); }, []);
 };
@@ -47,7 +48,9 @@ El.prototype.querySelectorAll = function (sel) {
 };
 El.prototype.querySelector = function (sel) { return this.querySelectorAll(sel)[0] || null; };
 var body = new El('body');
+var __modales = [];
 var document = {
+  querySelectorAll: function () { return __modales; },
   readyState: 'complete', activeElement: null, body: body,
   addEventListener: function (t, fn) { (__docListeners[t] = __docListeners[t] || []).push(fn); },
   getElementById: function (id) { return body.all().filter(function (e) { return e.id === id; })[0] || null; },
@@ -56,7 +59,9 @@ var document = {
 var window = globalThis;
 var requestAnimationFrame = function (fn) { fn(); };
 setTimeout = function (fn, ms) { __timers.push({fn: fn, ms: ms}); return __timers.length; };
-function __keydown(key) { (__docListeners.keydown || []).forEach(function (fn) { fn({key: key}); }); }
+function __keydown(key, prevented) {
+  (__docListeners.keydown || []).forEach(function (fn) { fn({key: key, defaultPrevented: !!prevented}); });
+}
 function __toasts() { return document.getElementById('toast-container').children; }
 function __vivos() { return __toasts().filter(function (t) { return !t.classList.contains('toast--leaving'); }); }
 function __terminarBarras() {
@@ -161,3 +166,55 @@ var R = {mismo: a === b, total: __toasts().length};"""
         )
         self.assertTrue(r["mismo"])
         self.assertEqual(r["total"], 2)
+
+    def test_escape_con_modal_abierto_no_cierra_el_error(self):
+        r = _correr(
+            """
+toast.error('Persistente');
+__modales.push({getClientRects: function () { return [1]; }});
+__keydown('Escape'); __remover();
+var R = {con_modal: __vivos().length};
+__modales.length = 0;
+__keydown('Escape'); __remover();
+R.sin_modal = __vivos().length;"""
+        )
+        self.assertEqual(r["con_modal"], 1)
+        self.assertEqual(r["sin_modal"], 0)
+
+    def test_modal_oculto_no_bloquea_escape_y_defaultprevented_lo_respeta(self):
+        r = _correr(
+            """
+toast.error('A');
+__modales.push({getClientRects: function () { return []; }});
+__keydown('Escape', true); __remover();
+var R = {prevenido: __vivos().length};
+__keydown('Escape'); __remover();
+R.oculto = __vivos().length;"""
+        )
+        self.assertEqual(r["prevenido"], 1)
+        self.assertEqual(r["oculto"], 0)
+
+    def test_maximo_tres_errores_visibles(self):
+        r = _correr(
+            """
+for (var i = 1; i <= 5; i++) toast.error('E' + i);
+__remover();
+var R = {vivos: __vivos().map(function (t) { return t._msg; })};"""
+        )
+        self.assertEqual(r["vivos"], ["E3", "E4", "E5"])
+
+    def test_cerrar_con_teclado_mueve_el_foco_al_siguiente_toast(self):
+        r = _correr(
+            """
+var a = toast.error('Uno'); var b = toast.error('Dos');
+__botones(b)[0].focus();
+__keydown('Escape');
+var R = {enA: document.activeElement === __botones(a)[0]};
+__keydown('Escape');
+var origen = document.createElement('button'); origen.focus();
+var c = toast.error('Tres'); __botones(c)[0].focus();
+__keydown('Escape');
+R.vuelve = document.activeElement === origen;"""
+        )
+        self.assertTrue(r["enA"])
+        self.assertTrue(r["vuelve"])
