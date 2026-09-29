@@ -22,7 +22,7 @@
   }
 
   function aviso(mensaje, tipo) {
-    if (typeof window.toast === 'function') { window.toast(mensaje, tipo || 'success'); }
+    if (typeof window.toast === 'function') { window.toast(tipo || 'success', mensaje); }
   }
 
   function anunciar(texto) {
