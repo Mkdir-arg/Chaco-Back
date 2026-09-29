@@ -233,7 +233,7 @@
                 </span>
                 {% if request.user|puede:"becas.coordinador.editar" %}
                 <button type="button" class="text-body-subtle hover:text-fg-danger p-1" title="Quitar"
-                        data-confirm-url="{% url 'becas:coordinador_desasignar' asig.pk %}"
+                        data-confirm-url="{% url 'becas:coordinador_desasignar' asig.pk %}" data-confirm-danger="false" data-confirm-icon="warning"
                         data-confirm-title="¿Quitar coordinador?"
                         data-confirm-text="{{ asig.coordinador.get_full_name|default:asig.coordinador.username }} dejará de coordinar este segmento."
                         data-confirm-ok="Sí, quitar">

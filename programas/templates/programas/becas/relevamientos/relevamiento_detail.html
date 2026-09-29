@@ -83,7 +83,7 @@
           </form>
           {% if padron_origen == "propio" %}
           <button type="button" class="btn-nodo btn-tertiary btn-sm"
-                  data-confirm-url="{% url 'becas:relevamiento_padron_quitar' relevamiento.pk %}"
+                  data-confirm-url="{% url 'becas:relevamiento_padron_quitar' relevamiento.pk %}" data-confirm-danger="false" data-confirm-icon="warning"
                   data-confirm-title="¿Quitar el padrón propio?"
                   data-confirm-text="Este relevamiento vuelve a heredar el padrón de la convocatoria{% if not n_padron_convocatoria %} (que hoy no tiene: el link queda abierto){% endif %}."
                   data-confirm-ok="Sí, quitar">

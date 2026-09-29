@@ -337,6 +337,32 @@ class ConfirmJsTests(SimpleTestCase):
         log = self._modal({"confirmUrl": "/becas/x/eliminar/"}, "__confirmar(); __confirmar();")
         self.assertEqual(log["submits"], ["/becas/x/eliminar/"])
 
+    def test_quitar_reversible_triangulo_y_boton_de_marca(self):
+        log = self._modal({"confirmUrl": "/x/", "confirmDanger": "false", "confirmIcon": "warning"})
+        self.assertIs(log["modal"][0]["danger"], False)
+        self.assertEqual(log["modal"][0]["icon"], "warning")
+
+
+class QuitarReversibleTests(SimpleTestCase):
+    """«¿Quitar coordinador?» y «¿Quitar el padrón propio?» se deshacen: no son destructivas."""
+
+    CASOS = (
+        ("programas/becas/config/segmento_detail.html", "becas:coordinador_desasignar"),
+        ("programas/becas/relevamientos/relevamiento_detail.html", "becas:relevamiento_padron_quitar"),
+    )
+
+    def test_llevan_danger_false_e_icono_warning(self):
+        base = Path(settings.BASE_DIR) / "programas" / "templates"
+        for template, url in self.CASOS:
+            with self.subTest(template=template):
+                linea = next(
+                    ln
+                    for ln in (base / template).read_text(encoding="utf-8").splitlines()
+                    if f"data-confirm-url=\"{{% url '{url}'" in ln
+                )
+                self.assertIn('data-confirm-danger="false"', linea)
+                self.assertIn('data-confirm-icon="warning"', linea)
+
 
 @requiere_node
 class CascadaLocalidadTests(SimpleTestCase):
