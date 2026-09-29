@@ -49,8 +49,10 @@ from programas.services.autorizacion import convocatorias_visibles, puede_gestio
 from programas.services.avisos_resolucion import enviar_aviso_resolucion
 from programas.services.becas import registrar_traza, resolver_ciudadano_offline
 from programas.services.cupo import (
+    MENSAJE_CASO_EN_ESPERA,
     advertencia_aprobacion,
     aprobar_o_poner_en_espera,
+    cerrar_espera_activa,
     motivo_bloqueo_aprobacion,
 )
 from programas.services.identidad import gran_base_activa
@@ -784,11 +786,10 @@ def formulario_aprobar(request, pk):
         # CMP-N1 (decisión del usuario): quien está en lista de espera se aprueba
         # promoviéndolo desde Cupo. Aprobarlo acá, con cupo libre, lo pasaba a
         # APROBADO y dejaba su fila de ``ListaEspera`` activa, colgando.
+        # Chequeo barato antes de consultar a SIIS; la regla firme la vuelve a
+        # mirar ``aprobar_o_poner_en_espera`` bajo el lock del segmento.
         if _espera_activa(formulario).exists():
-            messages.error(
-                request,
-                "El caso está en la lista de espera: se aprueba al promoverlo desde Cupo y beneficiarios.",
-            )
+            messages.error(request, MENSAJE_CASO_EN_ESPERA)
             return redirect("becas:formulario_detalle", pk=formulario.pk)
         try:
             validacion = validar_formulario_en_siis(formulario, request.user)
@@ -868,6 +869,7 @@ def formulario_resolver_duplicado(request, pk):
                 request.user,
                 [("Conflicto DNI", estado_anterior, f"Se conservó el caso {previo.numero}")],
             )
+            cerrar_espera_activa(formulario, request.user, "carga duplicada descartada")
             messages.success(request, f"Se conservó el caso {previo.numero} y se descartó esta carga duplicada.")
         elif decision == "conservar_actual":
             if previo.estado != Formulario.Estado.ENVIADO:
@@ -883,6 +885,7 @@ def formulario_resolver_duplicado(request, pk):
                 request.user,
                 [("Conflicto DNI", "ENVIADO", f"Reemplazado por el caso {formulario.numero}")],
             )
+            cerrar_espera_activa(previo, request.user, "carga duplicada descartada")
             registrar_traza(formulario, request.user, [("Conflicto DNI", "PENDIENTE", "Carga conservada")])
             messages.success(request, f"Se conservó esta carga y se descartó el caso {previo.numero}.")
         else:
@@ -917,10 +920,14 @@ def formulario_rechazar(request, pk):
             messages.error(request, str(error))
             return redirect("becas:formulario_detalle", pk=formulario.pk)
         estado_anterior = formulario.estado
-        formulario.estado = Formulario.Estado.RECHAZADO
-        formulario.motivo_rechazo = motivo
-        formulario.save(update_fields=["estado", "motivo_rechazo", "modificado"])
-        registrar_traza(formulario, request.user, [("estado", estado_anterior, f"RECHAZADO: {motivo}")])
+        with transaction.atomic():
+            formulario.estado = Formulario.Estado.RECHAZADO
+            formulario.motivo_rechazo = motivo
+            formulario.save(update_fields=["estado", "motivo_rechazo", "modificado"])
+            registrar_traza(formulario, request.user, [("estado", estado_anterior, f"RECHAZADO: {motivo}")])
+            # Rechazado sale de la lista de espera: si no, seguía ocupando un
+            # lugar y se lo podía promover a APROBADO desde Cupo.
+            cerrar_espera_activa(formulario, request.user, "caso rechazado")
         # Aviso al ciudadano (Cambio 44), con el motivo textual tal como lo
         # escribió el técnico (decisión del cliente). Si el correo falla, el
         # rechazo ya quedó firme: el servicio loguea y devuelve False.

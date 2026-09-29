@@ -17,7 +17,7 @@ from django.utils import timezone
 
 from programas.models import CorridaSiis, EnvioSIIS, Formulario, ValidacionSIS
 from programas.services.avisos_resolucion import enviar_aviso_resolucion
-from programas.services.cupo import aprobar_o_poner_en_espera
+from programas.services.cupo import CasoEnListaEspera, aprobar_o_poner_en_espera
 from programas.services.siis_envio import (
     CatalogoNoDisponible,
     Catalogos,
@@ -103,6 +103,9 @@ class Cuenta:
     aprobados: int = 0
     lista_espera: int = 0
     no_aprobable: int = 0
+    # Entró a la lista de espera entre la selección y su turno (el selector ya
+    # los deja afuera). No viaja a ``CorridaSiis``: no hay columna para él.
+    ya_en_espera: int = 0
     sin_datos: int = 0
     error_validacion: int = 0
     altas: int = 0
@@ -126,7 +129,9 @@ def candidatos(
     Los ``ENVIADO`` (pendientes de resolución) y los ya ``APROBADO`` sin alta,
     para que una corrida cortada se retome sola. Se saltean los que tienen un
     conflicto de carga duplicada sin resolver: eso lo decide una persona, igual
-    que en la pantalla de revisión.
+    que en la pantalla de revisión. También los ``ENVIADO`` que están en una
+    lista de espera: se aprueban promoviéndolos desde Cupo (CMP-N1), así que
+    consultarlos a SIIS y contarlos como pendientes no lleva a nada.
 
     Con ``filtrar_materias`` (el default) solo entran los DNI de
     ``aprobados_materias`` (Cambio 90). Si la tabla no existe, lanza
@@ -157,6 +162,9 @@ def candidatos(
     casos = casos.exclude(Q(conflicto_duplicado=True) & Q(conflicto_resuelto=False)).exclude(
         cargas_en_conflicto__conflicto_resuelto=False
     )
+    # Solo el ENVIADO: un APROBADO con una fila de espera colgando (datos previos
+    # a la regla) igual tiene que informarse a SIIS.
+    casos = casos.exclude(estado=Formulario.Estado.ENVIADO, lista_espera__promovido=False)
     if filtrar_materias:
         casos = casos.filter(ciudadano__dni__in=dnis_aprobados_materias())
     # Sin ``distinct()``: nada acá multiplica filas (los ``select_related`` son
@@ -241,6 +249,9 @@ def procesar_caso(caso, responsable, catalogos, cuenta, *, avisar=False, solo_en
         if caso.estado == Formulario.Estado.ENVIADO:
             try:
                 resultado = aprobar_o_poner_en_espera(caso, responsable)
+            except CasoEnListaEspera:
+                cuenta.ya_en_espera += 1
+                return None
             except ValidationError:
                 # Falta algo que la aprobación exige (identidad, validación que
                 # no corresponde al programa actual…).
