@@ -31,7 +31,7 @@
         <td class="px-4 py-[13px] text-sm border-t border-light text-right">
           <div class="flex items-center justify-end gap-2">
             {% if request.user|puede:"becas.requisito.editar" %}
-            <button type="button" class="text-body-subtle hover:text-heading p-1" title="Editar"
+            <button type="button" class="nodo-icon-btn" title="Editar" aria-label="Editar requisito {{ req.texto }}"
               @click="openReqEdit(
                 '{% url 'becas:requisito_editar' req.pk %}',
                 '{{ req.texto|escapejs }}',
@@ -43,12 +43,12 @@
                 '{{ req.canal }}',
                 '{{ req.destino_siis }}'
               )">
-              <i class="fas fa-edit"></i>
+              <i class="fas fa-pen-to-square" aria-hidden="true"></i>
             </button>
-            <button type="button" class="text-body-subtle hover:text-fg-danger p-1" title="Eliminar"
+            <button type="button" class="nodo-icon-btn nodo-icon-btn--danger" title="Eliminar" aria-label="Eliminar requisito {{ req.texto }}"
                     data-confirm-url="{% url 'becas:requisito_eliminar' req.pk %}"
-                    data-confirm-title="¿Eliminar requisito?" data-confirm-text="{{ req.texto }}" data-confirm-ok="Sí, eliminar">
-              <i class="fas fa-trash"></i>
+                    data-confirm-title="¿Eliminar requisito?" data-confirm-text="{{ req.texto }}" data-confirm-ok="Sí, eliminar" data-confirm-danger="true" data-confirm-icon="danger">
+              <i class="fas fa-trash" aria-hidden="true"></i>
             </button>
             {% endif %}
           </div>
