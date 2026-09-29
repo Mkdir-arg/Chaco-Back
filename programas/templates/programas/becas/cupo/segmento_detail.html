@@ -172,7 +172,7 @@
                   {% if puede_editar_beneficiarios %}
                   <button type="button"
                           aria-label="Dar de baja a {{ formulario.ciudadano.nombre }} {{ formulario.ciudadano.apellido }}"
-                          onclick="confirmarBaja({{ formulario.pk }}, '{{ formulario.ciudadano.nombre }} {{ formulario.ciudadano.apellido }}')"
+                          data-cupo-accion="baja" data-pk="{{ formulario.pk }}" data-nombre="{{ formulario.ciudadano.nombre }} {{ formulario.ciudadano.apellido }}"
                           style="display:inline-flex;align-items:center;justify-content:center;padding:6px;border-radius:8px;color:var(--text-fg-danger,#C70036);background:none;border:none;cursor:pointer;transition:background var(--duration-fast,150ms);"
                           onmouseover="this.style.background='var(--bg-danger-soft,#FEF0F2)'" onmouseout="this.style.background=''">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M22 10.5h-6m-2.25-4.125a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zM4 19.235v-.11a6.375 6.375 0 0112.75 0v.109A12.318 12.318 0 0110.374 21c-2.331 0-4.512-.645-6.374-1.766z"/></svg>
@@ -255,7 +255,7 @@
                   {% if puede_editar_beneficiarios %}
                   <button type="button"
                           aria-label="Promover a {{ le.formulario.ciudadano.nombre }} {{ le.formulario.ciudadano.apellido }}"
-                          onclick="confirmarPromover({{ le.pk }}, '{{ le.formulario.ciudadano.nombre }} {{ le.formulario.ciudadano.apellido }}')"
+                          data-cupo-accion="promover" data-pk="{{ le.pk }}" data-nombre="{{ le.formulario.ciudadano.nombre }} {{ le.formulario.ciudadano.apellido }}"
                           style="display:inline-flex;align-items:center;justify-content:center;padding:6px 10px;border-radius:9999px;color:var(--text-fg-brand,#5059BC);background:var(--bg-white,#fff);border:1px solid var(--border-brand,#5059BC);font-size:12px;font-weight:600;cursor:pointer;gap:4px;transition:background var(--duration-fast,150ms);"
                           onmouseover="this.style.background='var(--bg-brand-tint,#DEE1FF)'" onmouseout="this.style.background='var(--bg-white,#fff)'">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 10.5L12 3m0 0l7.5 7.5M12 3v18"/></svg>
@@ -337,7 +337,7 @@
                   {% if puede_editar_beneficiarios %}
                   <button type="button"
                           aria-label="Agregar a lista de espera a {{ formulario.ciudadano.nombre }} {{ formulario.ciudadano.apellido }}"
-                          onclick="confirmarAgregarEspera({{ formulario.pk }}, '{{ formulario.ciudadano.nombre }} {{ formulario.ciudadano.apellido }}')"
+                          data-cupo-accion="espera" data-pk="{{ formulario.pk }}" data-nombre="{{ formulario.ciudadano.nombre }} {{ formulario.ciudadano.apellido }}"
                           style="display:inline-flex;align-items:center;justify-content:center;padding:6px 10px;border-radius:9999px;color:var(--text-body,#4B5563);background:var(--bg-secondary,#F9FAFB);border:1px solid var(--border-base,#E5E7EB);font-size:12px;font-weight:600;cursor:pointer;gap:4px;transition:background var(--duration-fast,150ms);"
                           onmouseover="this.style.background='var(--bg-tertiary,#F3F4F6)'" onmouseout="this.style.background='var(--bg-secondary,#F9FAFB)'">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
@@ -432,9 +432,18 @@
     });
   }
 
-  window.confirmarBaja = confirmarBaja;
-  window.confirmarPromover = confirmarPromover;
-  window.confirmarAgregarEspera = confirmarAgregarEspera;
+  // El nombre lo carga el ciudadano: viaja en data-* (autoescapado) y se lee de
+  // dataset, nunca interpolado en un onclick (el navegador decodifica &#x27; antes
+  // de compilar el handler). ModernModal lo pinta con textContent.
+  var acciones = { baja: confirmarBaja, promover: confirmarPromover, espera: confirmarAgregarEspera };
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest('[data-cupo-accion]');
+    if (!btn) return;
+    var accion = acciones[btn.dataset.cupoAccion];
+    if (!accion) return;
+    e.preventDefault();
+    accion(btn.dataset.pk, btn.dataset.nombre || '');
+  });
 })();
 </script>
 {% endblock %}

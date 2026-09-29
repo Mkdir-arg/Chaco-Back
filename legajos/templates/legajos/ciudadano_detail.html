@@ -159,7 +159,7 @@
                             <span class="inline-flex items-center gap-2 rounded-lg px-3 py-1.5 font-semibold" style="background: var(--bg-tertiary); color: var(--text-body);">
                                 <i class="fas fa-id-card" aria-hidden="true" style="color: var(--text-body-subtle);"></i>
                                 DNI {{ ciudadano.dni }}
-                                <button onclick="copiarDni('{{ ciudadano.dni }}')" type="button" style="color: var(--text-body-subtle);" class="transition" aria-label="Copiar DNI">
+                                <button data-copiar-dni="{{ ciudadano.dni }}" type="button" style="color: var(--text-body-subtle);" class="transition" aria-label="Copiar DNI">
                                     <i class="far fa-copy" aria-hidden="true"></i>
                                 </button>
                             </span>
@@ -1171,6 +1171,11 @@ function copiarDni(dni) {
         toastr.error('No se pudo copiar el DNI');
     });
 }
+// El DNI viaja en data-copiar-dni (autoescapado), no interpolado en un onclick.
+document.addEventListener('click', (e) => {
+    const boton = e.target.closest('[data-copiar-dni]');
+    if (boton) copiarDni(boton.dataset.copiarDni);
+});
 
 // ============================================================
 // Carga inicial de datos (solo lo que alimenta el Resumen
