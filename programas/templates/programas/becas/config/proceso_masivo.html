@@ -90,8 +90,10 @@
     <strong class="text-heading">Interrumpida</strong>
     <p class="text-body mt-1">
       Sin señal desde hace {{ corrida.latido|timesince }}. Llegó a {{ corrida.elegidos }} de
-      {{ corrida.total_pedido }}. Continuar lanza una corrida nueva por lo que falta: los ya informados
-      se saltean solos, así que no se duplica nada.
+      {{ corrida.total_pedido }}.
+      {% if pendientes %}Continuar lanza una corrida nueva por lo que falta: los ya informados
+      se saltean solos, así que no se duplica nada.{% else %}No quedan casos pendientes: la corrida no
+      necesita continuarse.{% endif %}
     </p>
   </div>
   {% endif %}
@@ -102,6 +104,7 @@
       <p class="text-body-subtle text-sm">Pendientes de informar</p>
       <p class="text-heading font-extrabold" style="font-size:32px">{{ pendientes }}</p>
     </div>
+    {% if pendientes %}
     <form method="post" action="{% url 'becas:proceso_masivo_lanzar' programa.pk %}"
           class="flex items-end gap-3 flex-wrap"
           data-confirmar-masivo data-pendientes="{{ pendientes|stringformat:'d' }}">
@@ -115,6 +118,9 @@
         {% if corrida and corrida.interrumpida %}Continuar{% else %}Procesar{% endif %}
       </button>
     </form>
+    {% else %}
+    <p class="text-sm text-body">No quedan casos pendientes de informar. Si entran casos nuevos, aparecen acá al recargar.</p>
+    {% endif %}
     <p class="text-xs text-body-subtle mt-3">
       El total cuenta casos que se mandan. Los que tienen datos faltantes se saltean sin tocarlos,
       así que puede mirar más candidatos de los que pedís. Solo entran los DNI que figuran en
@@ -144,101 +150,110 @@
 {% endblock %}
 
 {% block customJS %}
-{% if en_curso %}
+{% if en_curso or not tabla_materias_faltante %}
 <script>
   (function () {
-    var form = document.querySelector('form[data-confirmar-frenar]');
+    // POP-6: lanzar aprueba y da de alta en SIIS, frenar corta la corrida. Los dos se confirman.
     var overlay = document.getElementById('modal-overlay');
+    // Durante este lapso desde que abre, «Sí, …» no confirma: un segundo Enter o un doble
+    // clic que cae sobre el modal recién abierto no lanza nada.
+    var ESPERA_CONFIRMAR_MS = 400;
 
+    function modalAbierto() {
+      return !!overlay && !overlay.classList.contains('hidden');
+    }
+
+    function confirmarYEnviar(form, opciones) {
+      var abiertoEn = Date.now();
+      ModernModal.show({
+        type: 'confirm',
+        danger: true,
+        title: opciones.title,
+        message: opciones.message,
+        confirmText: opciones.confirmText,
+        onConfirm: function () {
+          // ModernModal deja el onclick de «Sí, …» vivo durante los 300 ms del cierre: un doble
+          // clic o un doble Enter llama dos veces acá. Este guard hace el envío idempotente.
+          if (form.dataset.enviando) return;
+          if (Date.now() - abiertoEn < ESPERA_CONFIRMAR_MS) return;
+          form.dataset.enviando = '1';
+          var boton = form.querySelector('button[type="submit"]');
+          if (boton) boton.disabled = true;
+          // form.submit() no vuelve a disparar el listener de submit.
+          form.submit();
+        }
+      });
+      // ModernModal enfoca «Sí, …» a los 10 ms. El foco pasa a Cancelar, así un Enter de más cancela.
+      setTimeout(function () {
+        var cancelar = document.getElementById('modal-cancel');
+        if (cancelar) cancelar.focus();
+      }, 50);
+    }
+
+    function interceptar(form, armarOpciones) {
+      // El navegador valida min/max/required antes de disparar submit: acá el valor ya es válido.
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        if (form.dataset.enviando || modalAbierto()) return;
+        if (typeof ModernModal === 'undefined') {
+          console.error('ModernModal no disponible: no se envía sin confirmar.');
+          return;
+        }
+        var opciones = armarOpciones();
+        if (opciones) confirmarYEnviar(form, opciones);
+      });
+    }
+
+    var frenar = document.querySelector('form[data-confirmar-frenar]');
+    var lanzar = document.querySelector('form[data-confirmar-masivo]');
+{% if en_curso %}
     // La corrida avanza en un hilo del pod y no avisa: la pantalla se relee sola.
     // Si el modal de frenar está abierto, se espera: releer lo cerraría a mitad de la decisión.
     function releer() {
-      if (form && form.dataset.enviando) return;
-      if (overlay && !overlay.classList.contains('hidden')) {
+      if (frenar && frenar.dataset.enviando) return;
+      if (modalAbierto()) {
         setTimeout(releer, 5000);
         return;
       }
       window.location.reload();
     }
     setTimeout(releer, 5000);
+{% endif %}
 
-    if (!form) return;
-    form.addEventListener('submit', function (e) {
-      e.preventDefault();
-      if (form.dataset.enviando) return;
-      if (typeof ModernModal === 'undefined') {
-        console.error('ModernModal no disponible: no se frena sin confirmar.');
-        return;
-      }
-      var boton = form.querySelector('button[type="submit"]');
-      ModernModal.show({
-        type: 'confirm',
-        danger: true,
-        title: '¿Frenar la corrida?',
-        message: 'Corta al terminar el lote en curso, no a mitad de un caso: puede tardar hasta 40 casos. '
-          + 'Lo que ya se dio de alta en SIIS queda como está; lo que falte se puede lanzar en una corrida nueva.',
-        confirmText: 'Sí, frenar',
-        onConfirm: function () {
-          form.dataset.enviando = '1';
-          if (boton) boton.disabled = true;
-          form.submit();
-        }
+    if (frenar) {
+      interceptar(frenar, function () {
+        return {
+          title: '¿Frenar la corrida?',
+          message: 'Corta al terminar el lote en curso, no a mitad de un caso: puede tardar hasta 40 casos. '
+            + 'Lo que ya se dio de alta en SIIS queda como está; lo que falte se puede lanzar en una corrida nueva.',
+          confirmText: 'Sí, frenar'
+        };
       });
-    });
-  })();
-</script>
-{% elif not tabla_materias_faltante %}
-<script>
-  (function () {
-    // POP-6: lanzar aprueba y da de alta en SIIS con un clic. Se confirma con la cantidad exacta.
-    var form = document.querySelector('form[data-confirmar-masivo]');
-    if (!form) return;
-    var numero = new Intl.NumberFormat('es-AR');
+    }
 
-    // El navegador valida min/max/required antes de disparar submit: acá el valor ya es válido.
-    form.addEventListener('submit', function (e) {
-      e.preventDefault();
-      if (form.dataset.enviando) return;
-      if (typeof ModernModal === 'undefined') {
-        console.error('ModernModal no disponible: no se lanza sin confirmar.');
-        return;
-      }
-      var boton = form.querySelector('button[type="submit"]');
-      var pedido = parseInt(form.elements.total_pedido.value, 10) || 0;
-      var pendientes = parseInt(form.dataset.pendientes, 10) || 0;
-
-      if (pendientes === 0) {
-        ModernModal.show({
-          type: 'info',
-          title: 'No hay casos pendientes',
-          message: 'No queda ningún caso pendiente de informar. Si entraron casos nuevos, recargá la pantalla.'
-        });
-        return;
-      }
-
-      var n = Math.min(pedido, pendientes);
-      var resto = pendientes - n;
-      var mensaje = 'Se validan con SIIS, se aprueban y se dan de alta. No se puede deshacer desde acá.';
-      if (resto === 1) {
-        mensaje += ' Queda 1 pendiente para una próxima corrida.';
-      } else if (resto > 1) {
-        mensaje += ' Quedan ' + numero.format(resto) + ' pendientes para una próxima corrida.';
-      }
-
-      ModernModal.show({
-        type: 'confirm',
-        danger: true,
-        title: n === 1 ? '¿Procesar 1 caso?' : '¿Procesar ' + numero.format(n) + ' casos?',
-        message: mensaje,
-        confirmText: 'Sí, procesar ' + numero.format(n),
-        onConfirm: function () {
-          // form.submit() no vuelve a disparar este listener; el botón deshabilitado corta el doble clic.
-          form.dataset.enviando = '1';
-          if (boton) boton.disabled = true;
-          form.submit();
+    if (lanzar) {
+      var numero = new Intl.NumberFormat('es-AR');
+      interceptar(lanzar, function () {
+        var pedido = parseInt(lanzar.elements.total_pedido.value, 10) || 0;
+        var pendientes = parseInt(lanzar.dataset.pendientes, 10) || 0;
+        // N es un techo: los incompletos se saltean y los que no tienen cupo van a lista de espera.
+        var n = Math.min(pedido, pendientes);
+        if (n < 1) return null;
+        var resto = pendientes - n;
+        var mensaje = 'Se validan con SIIS, se aprueban y se dan de alta. No se puede deshacer desde acá. '
+          + 'Los casos incompletos se saltean y siguen pendientes.';
+        if (resto === 1) {
+          mensaje += ' Queda al menos 1 pendiente para una próxima corrida.';
+        } else if (resto > 1) {
+          mensaje += ' Quedan al menos ' + numero.format(resto) + ' pendientes para una próxima corrida.';
         }
+        return {
+          title: n === 1 ? '¿Procesar hasta 1 caso?' : '¿Procesar hasta ' + numero.format(n) + ' casos?',
+          message: mensaje,
+          confirmText: 'Sí, procesar hasta ' + numero.format(n)
+        };
       });
-    });
+    }
   })();
 </script>
 {% endif %}
