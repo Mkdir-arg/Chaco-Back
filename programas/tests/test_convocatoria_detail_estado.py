@@ -50,3 +50,10 @@ class ConvocatoriaDetailEstadoTests(TestCase):
         self.assertIn('font-medium">Casos</p>', html)
         self.assertNotIn('font-medium">Beneficiarios</p>', html)
         self.assertNotIn('<i class="fas fa-users"></i> Beneficiarios', html)
+
+    def test_paneles_de_la_solapa_dicen_casos(self):
+        html = self._html()
+        self.assertIn('text-heading">Sin casos</p>', html)  # vacío de la solapa
+        self.assertIn('text-heading">Casos</span>', html)  # fila de exportación en Reportes
+        self.assertNotIn("Sin beneficiarios", html)
+        self.assertNotIn('text-heading">Beneficiarios</span>', html)

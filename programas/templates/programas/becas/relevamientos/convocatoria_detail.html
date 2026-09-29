@@ -250,7 +250,7 @@
       </div>
       {% if beneficiarios.paginator.num_pages > 1 %}
       <div class="flex items-center justify-between gap-3 flex-wrap text-xs text-body-subtle">
-        <span>Página {{ beneficiarios.number }} de {{ beneficiarios.paginator.num_pages }} · {{ beneficiarios.paginator.count }} beneficiario{{ beneficiarios.paginator.count|pluralize }}</span>
+        <span>Página {{ beneficiarios.number }} de {{ beneficiarios.paginator.num_pages }} · {{ beneficiarios.paginator.count }} caso{{ beneficiarios.paginator.count|pluralize }}</span>
         <div class="flex gap-2">
           {% if beneficiarios.has_previous %}
           <a href="?tab=ben{% if beneficiarios_querystring %}&amp;{{ beneficiarios_querystring }}{% endif %}&amp;beneficiarios_page={{ beneficiarios.previous_page_number }}" class="btn-nodo btn-tertiary btn-sm"><i class="fas fa-chevron-left" aria-hidden="true"></i> Anterior</a>
@@ -264,7 +264,7 @@
       {% else %}
       <div class="py-14 px-6 text-center flex flex-col items-center gap-3 bg-white rounded-xl border border-base shadow-sm">
         <div class="text-fg-brand"><i class="fas fa-users text-5xl"></i></div>
-        <p class="text-[17px] font-bold text-heading">Sin beneficiarios</p>
+        <p class="text-[17px] font-bold text-heading">Sin casos</p>
         <p class="text-sm text-body max-w-xs">Todavía no se cargaron formularios en los relevamientos de esta convocatoria.</p>
       </div>
       {% endif %}
@@ -276,7 +276,7 @@
       <div class="bg-white rounded-xl border border-base shadow-sm p-4 flex items-center justify-between gap-4 flex-wrap">
         <div class="flex items-center gap-3">
           <div class="w-9 h-9 rounded-lg flex items-center justify-center bg-brand-soft text-fg-brand"><i class="fas fa-users"></i></div>
-          <span class="text-sm font-semibold text-heading">Beneficiarios</span>
+          <span class="text-sm font-semibold text-heading">Casos</span>
         </div>
         <a href="{% url 'becas:convocatoria_export_beneficiarios' convocatoria.pk %}" class="btn-nodo btn-tertiary btn-sm" style="min-width:0;"><i class="fas fa-download"></i> CSV</a>
       </div>
