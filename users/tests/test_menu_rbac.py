@@ -2,8 +2,9 @@ from io import StringIO
 
 from django.contrib.auth.models import Group, User
 from django.core.management import call_command
-from django.test import TestCase
-from django.urls import reverse
+from django.template.loader import render_to_string
+from django.test import RequestFactory, TestCase
+from django.urls import resolve, reverse
 
 from core import rbac
 from users.models import RolMeta
@@ -72,6 +73,65 @@ class MenuRestringidoTests(TestCase):
         self.assertIn('<span class="flex-1">Programas</span>', html)
         self.assertIn('title="Programas"', html)
         self.assertNotIn('<span class="flex-1">Becas</span>', html)
+
+    def test_item_programas_marca_la_pantalla_activa(self):
+        su = User.objects.create_superuser("root-activo", "root-activo@example.com", "x")
+        url = reverse("becas:programas")
+        req = RequestFactory().get(url)
+        req.user = su
+        req.resolver_match = resolve(url)
+
+        html = render_to_string("includes/sidebar/opciones.html", {"request": req, "branding": {}})
+
+        inicio = html.index(f'<a href="{url}"')
+        ancla = html[inicio : html.index("</a>", inicio)]
+        self.assertIn("background: var(--bg-brand)", ancla)
+        self.assertIn('aria-current="page"', ancla)
+
+    def _sidebar_en(self, nombre_url, user):
+        url = reverse(nombre_url)
+        req = RequestFactory().get(url)
+        req.user = user
+        req.resolver_match = resolve(url)
+        return render_to_string("includes/sidebar/opciones.html", {"request": req, "branding": {}})
+
+    @staticmethod
+    def _ancla(html, href, desde=0):
+        inicio = html.index(f'<a href="{href}"', desde)
+        return html[inicio : html.index("</a>", inicio)]
+
+    def test_subitem_reportes_de_becas_marca_aria_current(self):
+        su = User.objects.create_superuser("root-rep-becas", "root-rep-becas@example.com", "x")
+        html = self._sidebar_en("becas:reportes", su)
+        ancla = self._ancla(html, reverse("becas:reportes"))
+        self.assertIn("background: var(--bg-brand)", ancla)
+        self.assertIn('aria-current="page"', ancla)
+
+    def test_grupos_colapsados_marcan_aria_current(self):
+        su = User.objects.create_superuser("root-colapsado", "root-colapsado@example.com", "x")
+        casos = [("becas:programas", "Programas"), ("configuracion:provincias", "Configuración")]
+        for nombre, etiqueta in casos:
+            with self.subTest(etiqueta):
+                html = self._sidebar_en(nombre, su)
+                inicio = html.index(f'title="{etiqueta}"')
+                ancla = html[html.rindex("<a ", 0, inicio) : html.index("</a>", inicio)]
+                self.assertIn("background: var(--bg-brand)", ancla)
+                self.assertIn('aria-current="page"', ancla)
+
+    def test_reportes_de_nivel_superior_no_se_marca_en_becas(self):
+        su = User.objects.create_superuser("root-doble", "root-doble@example.com", "x")
+        html = self._sidebar_en("becas:reportes", su)
+        ancla = self._ancla(html, reverse("legajos:reportes"))
+        self.assertNotIn("background: var(--bg-brand)", ancla)
+        self.assertNotIn("aria-current", ancla)
+
+    def test_ciudadanos_no_se_marca_en_reportes_ni_dashboard_de_legajos(self):
+        su = User.objects.create_superuser("root-ciud", "root-ciud@example.com", "x")
+        for nombre in ("legajos:reportes", "legajos:dashboard_contactos"):
+            with self.subTest(nombre):
+                html = self._sidebar_en(nombre, su)
+                ancla = self._ancla(html, reverse("legajos:ciudadanos"))
+                self.assertNotIn("aria-current", ancla)
 
     def test_rol_inactivo_solo_inicio(self):  # TC-59-08
         self.rol.meta.activo = False
