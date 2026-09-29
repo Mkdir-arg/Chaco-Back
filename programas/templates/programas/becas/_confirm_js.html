@@ -1,32 +1,66 @@
-<!-- Confirmación con ModernModal (sistema de modales del backoffice). Uso: elemento con data-confirm-url. -->
+{% comment %}Confirmación con ModernModal (sistema de modales del backoffice) antes de un POST.
+   Uso: elemento con data-confirm-url y, opcionales:
+     data-confirm-title, data-confirm-text, data-confirm-ok (texto del botón: «Sí, verbo»),
+     data-confirm-danger="true|false" (botón rojo; explícito, manda sobre el ícono),
+     data-confirm-icon (sin data-confirm-danger se conserva la regla vieja:
+     icon «warning» —el default— es destructiva).{% endcomment %}
 <script>
-document.addEventListener('click', function (e) {
-  const btn = e.target.closest('[data-confirm-url]');
-  if (!btn) return;
-  e.preventDefault();
-  const icon = btn.dataset.confirmIcon || 'warning';
-  ModernModal.show({
-    type: 'confirm',
-    danger: icon === 'warning',
-    title: btn.dataset.confirmTitle || '¿Confirmás la acción?',
-    message: btn.dataset.confirmText || '',
-    confirmText: btn.dataset.confirmOk || 'Sí, confirmar',
-    cancelText: 'Cancelar',
-    onConfirm: function () {
-      const form = document.createElement('form');
-      form.method = 'POST';
-      form.action = btn.dataset.confirmUrl;
-      const csrf = document.querySelector('[name=csrfmiddlewaretoken]');
-      if (csrf) {
-        const input = document.createElement('input');
-        input.type = 'hidden';
-        input.name = 'csrfmiddlewaretoken';
-        input.value = csrf.value;
-        form.appendChild(input);
+(function () {
+  if (window.__becasConfirmJs) return; // el include puede repetirse en una página
+  window.__becasConfirmJs = true;
+
+  function csrfToken() {
+    var campo = document.querySelector('[name=csrfmiddlewaretoken]');
+    if (campo) return campo.value;
+    var m = (document.cookie || '').match('(^|;)\\s*csrftoken\\s*=\\s*([^;]+)');
+    return m ? m.pop() : '';
+  }
+
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest('[data-confirm-url]');
+    if (!btn) return;
+    e.preventDefault();
+    if (btn.dataset.confirmEnviado) return; // ya se confirmó y se está enviando
+    var icon = btn.dataset.confirmIcon || 'warning';
+    var danger = btn.dataset.confirmDanger !== undefined
+      ? btn.dataset.confirmDanger === 'true'
+      : icon === 'warning';
+    var opciones = {
+      type: 'confirm',
+      danger: danger,
+      title: btn.dataset.confirmTitle || '¿Confirmás la acción?',
+      message: btn.dataset.confirmText || '',
+      confirmText: btn.dataset.confirmOk || 'Sí, confirmar',
+      cancelText: 'Cancelar',
+      onConfirm: function () {
+        if (btn.dataset.confirmEnviado) return; // doble clic en el botón del modal
+        btn.dataset.confirmEnviado = '1';
+        var form = document.createElement('form');
+        form.method = 'POST';
+        form.action = btn.dataset.confirmUrl;
+        var token = csrfToken();
+        if (token) {
+          var input = document.createElement('input');
+          input.type = 'hidden';
+          input.name = 'csrfmiddlewaretoken';
+          input.value = token;
+          form.appendChild(input);
+        }
+        document.body.appendChild(form);
+        form.submit();
       }
-      document.body.appendChild(form);
-      form.submit();
-    }
+    };
+    // El ícono viaja solo si el consumidor lo pidió (ModernModal lo ignora si no lo soporta).
+    if (btn.dataset.confirmIcon) opciones.icon = btn.dataset.confirmIcon;
+    ModernModal.show(opciones);
   });
-});
+
+  // Volver con «atrás» (bfcache): el botón se puede volver a usar.
+  window.addEventListener('pageshow', function (e) {
+    if (!e.persisted) return;
+    document.querySelectorAll('[data-confirm-enviado]').forEach(function (b) {
+      delete b.dataset.confirmEnviado;
+    });
+  });
+})();
 </script>
