@@ -1,0 +1,29 @@
+{% comment %}
+Badge de estado de una entidad pausable de Becas: programa (ProgramaSiis), segmento o
+subsegmento. Única fuente del mapa estado→badge (mapa de estados de Becas, DC-1..DC-4).
+
+Precedencia (la primera que aplica):
+  1. pausada                → badge-warning «Pausado» (CMP-1: nunca danger)
+  2. objeto.activo es False → badge-gray    «Inactivo» (apagado no es un error, CMP-4)
+  3. si no                  → badge-success «Activo»
+
+Qué cuenta como «pausada»:
+  - por defecto, objeto.pausa_efectiva: pausa propia o heredada (subsegmento ← segmento
+    ← programa) y, en el programa, también el bloqueo automático por SIIS.
+  - con solo_manual=True, objeto.pausado: solo la pausa manual propia. Es la semántica
+    de las pantallas de programa, que muestran el bloqueo SIIS como un badge aparte
+    («otra dimensión», _programas_table.html); pasalo ahí para no cambiarla.
+
+Solo el segmento tiene campo `activo`; programa y subsegmento no, y para ellos el
+paso 2 nunca aplica (la búsqueda fallida no es False).
+
+Uso: {% include "programas/becas/_pausable_estado_badge.html" with objeto=segmento %}
+     {% include "programas/becas/_pausable_estado_badge.html" with objeto=p solo_manual=True %}
+{% endcomment %}
+{% if solo_manual and objeto.pausado or not solo_manual and objeto.pausa_efectiva %}
+  <span class="badge badge-warning badge-dot" title="{% if solo_manual %}{{ objeto.pausa_motivo }}{% else %}{{ objeto.pausa_efectiva.pausa_motivo }}{% endif %}">Pausado</span>
+{% elif objeto.activo is False %}
+  <span class="badge badge-gray badge-dot">Inactivo</span>
+{% else %}
+  <span class="badge badge-success badge-dot">Activo</span>
+{% endif %}

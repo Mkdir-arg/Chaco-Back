@@ -215,7 +215,7 @@ class ConvocatoriaDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, Detail
     context_object_name = "convocatoria"
 
     def get_queryset(self):
-        return convocatorias_visibles(self.request.user).select_related("segmento", "subsegmento")
+        return convocatorias_visibles(self.request.user).select_related("segmento__programa", "subsegmento")
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
