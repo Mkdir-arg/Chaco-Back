@@ -1,0 +1,22 @@
+{% comment %}
+Pie canónico de los modales de Becas (POP-M1). Va como último hijo del panel (o
+del <form> que envuelve cuerpo y pie); no se achica, así que con el cuerpo
+`overflow-y-auto` y el panel `max-h-[90vh] flex flex-col` queda siempre a la vista.
+
+Parámetros:
+  cancelar        expresión Alpine que cierra el modal, p. ej. "modalCrear=false".
+                  Sin ella el botón cierra modales vanilla vía `data-becas-modal-cerrar`.
+  cancelar_texto  texto del botón secundario (default «Cancelar»)
+  accion_texto    texto del botón de acción, «Verbo objeto» (obligatorio)
+  accion_icono    clase Font Awesome sin `fas` (opcional)
+  accion_tono     brand (default) | danger
+  form_id         id del <form> cuando el pie queda fuera de él: el submit lo apunta
+                  con el atributo `form=`
+
+Uso:
+  {% include "programas/becas/_modal_footer.html" with cancelar="modalCrear=false" accion_texto="Guardar y configurar" %}
+{% endcomment %}
+<div class="flex justify-end gap-3 px-6 py-4 border-t border-light bg-secondary flex-shrink-0">
+  <button type="button" data-becas-modal-cerrar {% if cancelar %}@click="{{ cancelar }}"{% endif %} class="btn-nodo btn-tertiary btn-base">{{ cancelar_texto|default:"Cancelar" }}</button>
+  <button type="submit"{% if form_id %} form="{{ form_id }}"{% endif %} class="btn-nodo {% if accion_tono == 'danger' %}btn-danger{% else %}btn-brand{% endif %} btn-base">{% if accion_icono %}<i class="fas {{ accion_icono }}" aria-hidden="true"></i> {% endif %}{{ accion_texto }}</button>
+</div>
