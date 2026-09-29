@@ -1,0 +1,44 @@
+/* NODO Design System — Tabla densa del backoffice
+   Empaqueta el canon de tabla (inventario, fila «Tabla densa backoffice») para no
+   repetir en cada celda la lista de utilidades ni el font-size de 11px en línea.
+
+   Uso:
+     <thead><tr class="nodo-thead-row">
+       <th class="nodo-th">Columna</th>
+       <th class="nodo-th text-right">Acción</th>
+     </tr></thead>
+     <tbody><tr class="hover:bg-secondary">
+       <td class="nodo-td text-body">Valor</td>
+     </tr></tbody>
+
+   Lo que una pantalla puede querer ajustar (padding, tamaño, color y alineación)
+   va en reglas :where() (especificidad cero): una utilidad de Tailwind en el mismo
+   elemento (text-right, px-3, text-heading…) lo reemplaza sin !important. Lo que
+   define la pieza (peso, mayúsculas, tracking, bordes) queda en la clase. */
+
+.nodo-thead-row {
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-base);
+}
+
+.nodo-th {
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+:where(.nodo-th) {
+    padding: 11px 16px;
+    font-size: 11px;
+    color: var(--text-body-subtle);
+    text-align: left;
+}
+
+.nodo-td {
+    border-top: 1px solid var(--border-light);
+}
+
+:where(.nodo-td) {
+    padding: 13px 16px;
+    font-size: var(--font-size-sm);
+}
