@@ -664,11 +664,14 @@ class RelevamientoCreateView(CapacidadRequeridaMixin, LoginRequiredMixin, Create
             # El link se muestra en el detalle: se navega ahí directamente.
             detalle = reverse("becas:relevamiento_detalle", kwargs={"pk": self.object.pk})
             mensaje = "Relevamiento público creado. Compartí el link de inscripción."
+            nivel = messages.SUCCESS
             if not self.object.convocatoria.padron.exists():
+                # Sin padrón cualquiera puede inscribirse: es una advertencia.
                 mensaje += " La convocatoria no tiene padrón: el link queda abierto."
+                nivel = messages.WARNING
             if is_ajax(self.request):
-                return ajax_redirect(detalle, mensaje)
-            messages.success(self.request, mensaje)
+                return ajax_redirect(self.request, detalle, mensaje, level=nivel)
+            messages.add_message(self.request, nivel, mensaje)
             return redirect(detalle)
         if is_ajax(self.request):
             return _relevamientos_ajax(self.request, self.object.convocatoria)
