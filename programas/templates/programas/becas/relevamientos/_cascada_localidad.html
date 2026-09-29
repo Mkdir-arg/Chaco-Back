@@ -51,7 +51,8 @@
     }).catch(function () {
       selectLocalidad.innerHTML = '';
       selectLocalidad.appendChild(opcion('', 'No se pudieron cargar las localidades'));
-      if (window.becasToast) window.becasToast('No se pudieron cargar las localidades. Reintentá.', true);
+      // Aviso del sistema (nodo-toast, tipo primero): existe en todo el backoffice.
+      if (typeof window.toast === 'function') window.toast('error', 'No se pudieron cargar las localidades. Reintentá.');
     });
   }
 
