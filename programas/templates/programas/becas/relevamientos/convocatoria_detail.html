@@ -49,7 +49,7 @@
       <button @click="tab='ben'" type="button"
               class="px-4 py-3 text-sm border-b-2 -mb-px transition flex items-center gap-1.5"
               :class="tab==='ben' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
-        <i class="fas fa-users"></i> Beneficiarios
+        <i class="fas fa-users"></i> Casos
         <span class="badge ml-0.5" :class="tab==='ben' ? 'bg-brand-soft text-fg-brand' : 'badge-gray'">{{ n_beneficiarios }}</span>
       </button>
       {% if puede_reportes %}<button @click="tab='rep'" type="button"
@@ -143,7 +143,7 @@
             </div>
             <div class="bg-white rounded-xl p-4 border border-base shadow-sm">
               <div class="flex items-center justify-between mb-2">
-                <p class="text-xs text-body-subtle font-medium">Beneficiarios</p>
+                <p class="text-xs text-body-subtle font-medium">Casos</p>
                 <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-brand-soft text-fg-brand"><i class="fas fa-user text-xs"></i></div>
               </div>
               <p class="text-2xl font-bold text-heading">{{ n_beneficiarios }}</p>
@@ -152,7 +152,7 @@
           <div class="bg-white rounded-xl border border-base shadow-sm p-5">
             <h3 class="text-sm font-bold text-heading mb-3">Datos de la convocatoria</h3>
             <dl class="space-y-2.5 text-sm">
-              <div class="flex justify-between"><dt class="text-body-subtle">Estado</dt><dd>{% if convocatoria.activo %}<span class="badge badge-success badge-dot">Activa</span>{% else %}<span class="badge badge-danger badge-dot">Inactiva</span>{% endif %}</dd></div>
+              <div class="flex justify-between"><dt class="text-body-subtle">Estado</dt><dd>{% if convocatoria.pausa_efectiva %}<span class="badge badge-warning badge-dot">Pausada</span>{% elif convocatoria.activo %}<span class="badge badge-success badge-dot">Activa</span>{% else %}<span class="badge badge-danger badge-dot">Inactiva</span>{% endif %}</dd></div>
               <div class="flex justify-between"><dt class="text-body-subtle">Período</dt><dd class="text-heading font-medium">{{ convocatoria.fecha_inicio|date:"d/m/Y" }} → {{ convocatoria.fecha_fin|date:"d/m/Y" }}</dd></div>
               <div class="flex justify-between"><dt class="text-body-subtle">Fecha de creación</dt><dd class="text-heading font-medium">{{ convocatoria.creado|date:"d/m/Y" }}</dd></div>
             </dl>
@@ -217,7 +217,7 @@
     <div x-show="tab==='ben'" x-cloak class="p-6 space-y-4">
       <div class="flex items-center justify-between gap-4 flex-wrap">
         <p class="text-sm text-body-subtle">Personas relevadas en esta convocatoria (casos cargados).</p>
-        <a href="{% url 'becas:convocatoria_export_beneficiarios' convocatoria.pk %}" class="btn-nodo btn-tertiary btn-sm" style="min-width:0;"><i class="fas fa-download"></i> Exportar CSV</a>
+        <a href="{% url 'becas:convocatoria_export_beneficiarios' convocatoria.pk %}" class="btn-nodo btn-tertiary btn-sm" style="min-width:0;"><i class="fas fa-download"></i> Exportar beneficiarios (CSV)</a>
       </div>
       {% if beneficiarios %}
       <div class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
@@ -250,7 +250,7 @@
       </div>
       {% if beneficiarios.paginator.num_pages > 1 %}
       <div class="flex items-center justify-between gap-3 flex-wrap text-xs text-body-subtle">
-        <span>Página {{ beneficiarios.number }} de {{ beneficiarios.paginator.num_pages }} · {{ beneficiarios.paginator.count }} beneficiario{{ beneficiarios.paginator.count|pluralize }}</span>
+        <span>Página {{ beneficiarios.number }} de {{ beneficiarios.paginator.num_pages }} · {{ beneficiarios.paginator.count }} caso{{ beneficiarios.paginator.count|pluralize }}</span>
         <div class="flex gap-2">
           {% if beneficiarios.has_previous %}
           <a href="?tab=ben{% if beneficiarios_querystring %}&amp;{{ beneficiarios_querystring }}{% endif %}&amp;beneficiarios_page={{ beneficiarios.previous_page_number }}" class="btn-nodo btn-tertiary btn-sm"><i class="fas fa-chevron-left" aria-hidden="true"></i> Anterior</a>
@@ -264,7 +264,7 @@
       {% else %}
       <div class="py-14 px-6 text-center flex flex-col items-center gap-3 bg-white rounded-xl border border-base shadow-sm">
         <div class="text-fg-brand"><i class="fas fa-users text-5xl"></i></div>
-        <p class="text-[17px] font-bold text-heading">Sin beneficiarios</p>
+        <p class="text-[17px] font-bold text-heading">Sin casos</p>
         <p class="text-sm text-body max-w-xs">Todavía no se cargaron formularios en los relevamientos de esta convocatoria.</p>
       </div>
       {% endif %}
@@ -276,7 +276,7 @@
       <div class="bg-white rounded-xl border border-base shadow-sm p-4 flex items-center justify-between gap-4 flex-wrap">
         <div class="flex items-center gap-3">
           <div class="w-9 h-9 rounded-lg flex items-center justify-center bg-brand-soft text-fg-brand"><i class="fas fa-users"></i></div>
-          <span class="text-sm font-semibold text-heading">Beneficiarios</span>
+          <span class="text-sm font-semibold text-heading">Beneficiarios (aprobados)</span>
         </div>
         <a href="{% url 'becas:convocatoria_export_beneficiarios' convocatoria.pk %}" class="btn-nodo btn-tertiary btn-sm" style="min-width:0;"><i class="fas fa-download"></i> CSV</a>
       </div>
