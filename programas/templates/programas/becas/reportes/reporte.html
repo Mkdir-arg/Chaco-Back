@@ -1,4 +1,5 @@
 {% extends "includes/base.html" %}
+{% load nodo_ui %}
 {% block title %}Becas · {{ definicion.titulo }}{% endblock %}
 {% block main-content %}
 <div class="mb-8">
@@ -48,7 +49,7 @@
         </div>
       </div>
     {% endif %}
-    {% elif not error %}<div class="py-14 px-6 text-center"><i class="fas fa-chart-column text-5xl text-fg-brand"></i><p class="text-[17px] font-bold text-heading mt-3">Sin resultados</p><p class="text-sm text-body mt-1">No hay datos para los filtros aplicados.</p></div>{% endif %}
+    {% elif not error %}{% if request.GET|hay_filtros %}{% url 'becas:reporte_detalle' codigo as url_sin_filtros %}{% include "components/_estado_vacio.html" with con_filtros=True titulo="Ningún dato coincide con los filtros" texto="Probá con otros filtros o limpialos para ver todo el reporte." accion_url=url_sin_filtros %}{% else %}{% include "components/_estado_vacio.html" with icono="fa-chart-column" titulo="Sin resultados" texto="Todavía no hay datos para este reporte." %}{% endif %}{% endif %}
   </div>
 </div>
 {% endblock %}

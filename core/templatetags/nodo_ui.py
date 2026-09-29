@@ -31,6 +31,15 @@ Escape:
 raíz a la página actual (p. ej. la que arma ``becas_migas``). El último
 elemento es la página actual y se muestra sin enlace. Con menos de tres
 elementos no se muestran: en pantallas de uno o dos niveles alcanza el volver.
+
+Filtros activos::
+
+    {% if request.GET|hay_filtros:"page,tab" %}…{% endif %}
+
+``hay_filtros`` es ``True`` si algún parámetro que no esté en la lista de
+excluidos (separada por comas; por defecto ``page``) trae un valor no vacío.
+Sirve para que el estado vacío (``components/_estado_vacio.html``) distinga
+«no hay nada» de «los filtros no traen nada».
 """
 
 from django import template
@@ -39,6 +48,7 @@ from django.template.base import NodeList, token_kwargs
 register = template.Library()
 
 TEMPLATE_PAGE_HEADER = "components/_page_header.html"
+EXCLUIDOS_HAY_FILTROS = "page"
 MIGAS_MINIMO = 3
 ARGUMENTOS = ("titulo", "bajada", "volver_url", "volver_label", "migas")
 
@@ -121,3 +131,26 @@ def do_page_header(parser, token):
         else:
             acciones.append(nodo)
     return PageHeaderNode(kwargs, acciones, bajada)
+
+
+@register.filter
+def hay_filtros(parametros, excluidos=EXCLUIDOS_HAY_FILTROS):
+    """``True`` si algún parámetro no excluido trae un valor no vacío.
+
+    ``parametros`` es un ``QueryDict`` (``request.GET``) o un ``dict``;
+    ``excluidos`` es una lista separada por comas (paginación, solapa…).
+    """
+    if not parametros:
+        return False
+    fuera = {nombre.strip() for nombre in str(excluidos or "").split(",") if nombre.strip()}
+    for clave in parametros:
+        if clave in fuera:
+            continue
+        if hasattr(parametros, "getlist"):
+            valores = parametros.getlist(clave)
+        else:
+            valor = parametros[clave]
+            valores = valor if isinstance(valor, (list, tuple)) else [valor]
+        if any(str(valor).strip() for valor in valores if valor is not None):
+            return True
+    return False
