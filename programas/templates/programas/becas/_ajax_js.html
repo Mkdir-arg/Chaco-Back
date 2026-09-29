@@ -1,49 +1,160 @@
 {% comment %}Envío de formularios de modales vía fetch() (sin recarga). Marcar el form con
-   data-ajax. Errores inline: poner <p data-error="nombre_campo"> dentro del form.
+   data-ajax. Errores inline: poner <p data-error="nombre_campo"> dentro del form
+   (y <p data-error="__all__"> para el error general).
    Al guardar OK, se dispara el evento window 'becas-saved' (los modales Alpine lo
-   escuchan para cerrarse) y se reemplaza el contenido del target devuelto.{% endcomment %}
+   escuchan para cerrarse) y se reemplaza el contenido del target devuelto.
+
+   Avisos: siempre el sistema único (window.toast de nodo-toast, tipo primero).
+   Confirmación de solapamiento (409): ModernModal, nunca la ventana nativa.
+   Contrato JSON: {ok,target,html,message} · {ok,redirect,message} ·
+   400 {ok:false,errors} · 409 {confirm_required,message}.{% endcomment %}
 <script>
 (function () {
+  var TEXTO_OCUPADO = 'Guardando…';
+  var ultimoError = null;
+
   function getCookie(name) {
     var m = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
     return m ? m.pop() : '';
   }
-  function toast(msg, isErr) {
-    var el = document.createElement('div');
-    el.className = 'fixed bottom-5 right-5 z-[200] flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-medium shadow-lg ' +
-      (isErr ? 'bg-danger-soft text-fg-danger border border-[color:var(--border-danger-subtle)]'
-             : 'bg-success-soft text-fg-success border border-[color:var(--border-success-subtle)]');
-    el.setAttribute('role', 'alert');
-    el.setAttribute('aria-live', 'polite');
-    var icon = document.createElement('i');
-    icon.className = 'fas ' + (isErr ? 'fa-circle-xmark' : 'fa-circle-check');
-    icon.setAttribute('aria-hidden', 'true');
-    var text = document.createElement('span');
-    text.textContent = msg;
-    el.appendChild(icon);
-    el.appendChild(text);
-    document.body.appendChild(el);
-    setTimeout(function () {
-      el.style.transition = 'opacity .3s'; el.style.opacity = '0';
-      setTimeout(function () { el.remove(); }, 320);
-    }, 2600);
+
+  // Aviso del sistema (nodo-toast). Devuelve el nodo del toast, o null.
+  function aviso(tipo, mensaje) {
+    if (typeof window.toast !== 'function') return null;
+    var t = window.toast(tipo, mensaje);
+    if (tipo === 'error') ultimoError = t;
+    return t;
   }
-  window.becasToast = toast;
+
+  // Los errores quedan hasta que se cierran: al reintentar se cierra el anterior
+  // para no apilar el mismo aviso.
+  function cerrarUltimoError() {
+    var t = ultimoError;
+    ultimoError = null;
+    var cerrar = t && t.querySelector && t.querySelector('.toast__close');
+    if (cerrar) cerrar.click();
+  }
+
+  // Botones submit del form, incluidos los que viven afuera con form="id".
+  function botonesSubmit(form) {
+    return Array.prototype.filter.call(form.elements || [], function (el) {
+      return el.type === 'submit';
+    });
+  }
+
+  function ocupar(form, submitter) {
+    var botones = botonesSubmit(form);
+    var principal = submitter || botones[0] || null;
+    var estado = {
+      botones: botones.map(function (b) { return { el: b, disabled: b.disabled }; }),
+      principal: principal,
+      contenido: principal ? Array.prototype.slice.call(principal.childNodes) : [],
+      valor: principal && principal.tagName === 'INPUT' ? principal.value : null,
+    };
+    form.__becasAjax = estado;
+    form.setAttribute('aria-busy', 'true');
+    botones.forEach(function (b) { b.disabled = true; });
+    if (!principal) return;
+    principal.setAttribute('aria-busy', 'true');
+    if (estado.valor !== null) {
+      principal.value = TEXTO_OCUPADO;
+      return;
+    }
+    // Se mueven los nodos originales (no se copia innerHTML) para no perder los
+    // bindings de Alpine que tengan adentro.
+    while (principal.firstChild) principal.removeChild(principal.firstChild);
+    var icono = document.createElement('i');
+    icono.className = 'fas fa-circle-notch fa-spin';
+    icono.setAttribute('aria-hidden', 'true');
+    principal.appendChild(icono);
+    principal.appendChild(document.createTextNode(' ' + TEXTO_OCUPADO));
+  }
+
+  function liberar(form) {
+    var estado = form.__becasAjax;
+    form.__becasAjax = null;
+    form.removeAttribute('aria-busy');
+    if (!estado) return;
+    estado.botones.forEach(function (b) { b.el.disabled = b.disabled; });
+    var principal = estado.principal;
+    if (!principal) return;
+    principal.removeAttribute('aria-busy');
+    if (estado.valor !== null) {
+      principal.value = estado.valor;
+      return;
+    }
+    while (principal.firstChild) principal.removeChild(principal.firstChild);
+    estado.contenido.forEach(function (n) { principal.appendChild(n); });
+  }
+
+  // 400: cada error bajo su campo y un solo aviso de resumen. Lo que no tiene
+  // lugar inline en el form viaja en ese mismo aviso para no perderse.
+  function mostrarErrores(form, errores) {
+    var sueltos = [];
+    Object.keys(errores).forEach(function (campo) {
+      var texto = (errores[campo] || []).join(' ');
+      var box = form.querySelector('[data-error="' + campo + '"]');
+      if (box) { box.textContent = texto; box.classList.remove('hidden'); }
+      else if (texto) sueltos.push(texto);
+    });
+    aviso('error', sueltos.length
+      ? 'Revisá los datos del formulario: ' + sueltos.join(' ')
+      : 'Revisá los datos del formulario.');
+  }
+
+  // 409: otra asignación en las mismas fechas. Se reenvía con
+  // confirmar_solapamiento=1 solo si la persona confirma, y una sola vez.
+  function confirmarSolapamiento(form, mensaje) {
+    var texto = mensaje || 'Ya existe otra asignación para esa fecha.';
+    if (!window.ModernModal || typeof window.ModernModal.show !== 'function') {
+      aviso('warning', texto);
+      return;
+    }
+    var confirmado = false;
+    window.ModernModal.show({
+      type: 'confirm',
+      icon: 'warning',
+      title: '¿Asignar igual?',
+      message: texto,
+      confirmText: 'Sí, asignar igual',
+      cancelText: 'Cancelar',
+      onConfirm: function () {
+        if (confirmado) return;
+        confirmado = true;
+        var confirmacion = form.querySelector('input[data-confirmacion-auto]');
+        if (!confirmacion) {
+          confirmacion = document.createElement('input');
+          confirmacion.type = 'hidden';
+          confirmacion.name = 'confirmar_solapamiento';
+          confirmacion.setAttribute('data-confirmacion-auto', '');
+          form.appendChild(confirmacion);
+        }
+        confirmacion.value = '1';
+        form.requestSubmit();
+      },
+    });
+  }
 
   document.addEventListener('submit', function (e) {
     var form = e.target;
     if (!(form instanceof HTMLFormElement) || !form.hasAttribute('data-ajax')) return;
     e.preventDefault();
-    var submitBtn = form.querySelector('[type="submit"]');
-    if (submitBtn) submitBtn.disabled = true;
+    if (form.__becasAjax) return; // ya hay un envío en curso
+    cerrarUltimoError();
     form.querySelectorAll('[data-error]').forEach(function (el) {
       el.textContent = ''; el.classList.add('hidden');
     });
+    var body = new FormData(form);
+    // La confirmación de solapamiento vale para un solo envío.
+    var auto = form.querySelector('input[data-confirmacion-auto]');
+    if (auto) auto.parentNode.removeChild(auto);
+    ocupar(form, e.submitter);
+    var navegando = false;
 
     fetch(form.action, {
       method: 'POST',
       headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': getCookie('csrftoken') },
-      body: new FormData(form),
+      body: body,
     }).then(function (resp) {
       return resp.json().catch(function () { return {}; }).then(function (data) {
         return { status: resp.status, data: data };
@@ -51,8 +162,9 @@
     }).then(function (r) {
       var data = r.data || {};
       if (r.status >= 200 && r.status < 300 && data.ok) {
-        // "Guardar y configurar": navegar al detalle de la entidad creada.
-        if (data.redirect) { window.location.href = data.redirect; return; }
+        // "Guardar y configurar": navegar al detalle de la entidad creada. El botón
+        // sigue en «Guardando…» hasta que cambia la página (evita el doble alta).
+        if (data.redirect) { navegando = true; window.location.href = data.redirect; return; }
         if (data.target && typeof data.html === 'string') {
           var tgt = document.querySelector(data.target);
           if (tgt) {
@@ -65,36 +177,28 @@
         }
         if (form.getAttribute('data-reset') !== 'false') form.reset();
         window.dispatchEvent(new CustomEvent('becas-saved'));
-        toast(data.message || 'Guardado.');
+        aviso('success', data.message || 'Guardado.');
       } else if (r.status === 400 && data.errors) {
-        Object.keys(data.errors).forEach(function (field) {
-          var box = form.querySelector('[data-error="' + field + '"]');
-          if (box) { box.textContent = (data.errors[field] || []).join(' '); box.classList.remove('hidden'); }
-        });
-        if (data.errors.__all__) toast(data.errors.__all__.join(' '), true);
-        else toast('Revisá los datos del formulario.', true);
+        mostrarErrores(form, data.errors);
       } else if (r.status === 409 && data.confirm_required) {
-        if (window.confirm(data.message || 'Ya existe otra asignación para esa fecha. ¿Confirmás la asignación?')) {
-          var confirmacion = form.querySelector('input[name="confirmar_solapamiento"]');
-          if (!confirmacion) {
-            confirmacion = document.createElement('input');
-            confirmacion.type = 'hidden';
-            confirmacion.name = 'confirmar_solapamiento';
-            form.appendChild(confirmacion);
-          }
-          confirmacion.value = '1';
-          form.requestSubmit();
-        }
+        liberar(form);
+        confirmarSolapamiento(form, data.message);
       } else if (r.status === 403) {
-        toast((data && data.message) || 'No tiene permisos para realizar esta acción.', true);
+        aviso('error', data.message || 'No tiene permisos para realizar esta acción.');
       } else {
-        toast((data && data.message) || 'Ocurrió un error del sistema. Si persiste, avisá al administrador.', true);
+        aviso('error', data.message || 'Ocurrió un error del sistema. Si persiste, avisá al administrador.');
       }
     }).catch(function () {
-      toast('Error de red.', true);
+      aviso('error', 'No se pudo conectar con el servidor. Revisá la conexión y reintentá.');
     }).finally(function () {
-      if (submitBtn) submitBtn.disabled = false;
+      if (!navegando) liberar(form);
     });
+  });
+
+  // Volver con «atrás» (bfcache) después de navegar: los botones como estaban.
+  window.addEventListener('pageshow', function (e) {
+    if (!e.persisted) return;
+    document.querySelectorAll('form[data-ajax][aria-busy="true"]').forEach(liberar);
   });
 })();
 </script>
