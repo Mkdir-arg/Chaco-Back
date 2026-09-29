@@ -1,5 +1,6 @@
 """Listado de programas de Becas con las piezas comunes (W3-P-A1: TIT-13/14/18, CMP-1/11/13..15)."""
 
+from html.parser import HTMLParser
 from io import StringIO
 from unittest.mock import patch
 
@@ -10,6 +11,8 @@ from django.urls import reverse
 
 from programas.management.commands.seed_becas import ROL_ADMIN
 from programas.models import ProgramaSiis
+
+VOID = {"meta", "link", "br", "hr", "img", "input", "source", "col", "area", "base", "embed", "wbr"}
 
 
 class ProgramaListadoOla3Tests(TestCase):
@@ -44,10 +47,35 @@ class ProgramaListadoOla3Tests(TestCase):
         self.assertIn("nodo-icon-btn", self.html)
 
     def test_tabla_con_clases_nodo(self):
-        self.assertIn("nodo-thead-row", self.html)
-        self.assertIn("nodo-th", self.html)
-        self.assertIn("nodo-td", self.html)
+        self.assertIn('<tr class="nodo-thead-row">', self.html)
+        self.assertIn('<th class="nodo-th">Nombre</th>', self.html)
+        self.assertIn('class="nodo-td', self.html)
 
     def test_pausado_es_warning(self):
         self.assertIn('class="badge badge-warning badge-dot" title="Sin fondos">Pausado', self.html)
         self.assertNotIn("badge-danger", self.html)
+
+    def test_overlays_fuera_del_contenedor_con_espaciado(self):
+        # space-y-5 le da margin-top a los overlays fixed: el backdrop queda a 20 px del borde
+        # y el clic en esa franja no cierra el modal.
+        class Padres(HTMLParser):
+            def __init__(self):
+                super().__init__()
+                self.pila, self.ancestros_de_overlay = [], []
+
+            def handle_starttag(self, tag, attrs):
+                clases = dict(attrs).get("class") or ""
+                if "fixed inset-0" in clases:
+                    self.ancestros_de_overlay.append(list(self.pila))
+                if tag not in VOID:
+                    self.pila.append(clases)
+
+            def handle_endtag(self, tag):
+                if tag not in VOID and self.pila:
+                    self.pila.pop()
+
+        parser = Padres()
+        parser.feed(self.html)
+        self.assertTrue(parser.ancestros_de_overlay)
+        for ancestros in parser.ancestros_de_overlay:
+            self.assertFalse([c for c in ancestros if "space-y-" in c.split() or "space-y-5" in c.split()], ancestros)

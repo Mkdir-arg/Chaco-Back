@@ -4,7 +4,7 @@
 
 {% block main-content %}
 <style>[x-cloak]{display:none!important}</style>
-<div class="space-y-5"
+<div
      x-data="{
        modalCrear: false,
        modalInfo: false,
@@ -16,6 +16,8 @@
      }"
      @becas-saved.window="modalCrear=false">
 
+  {# Los overlays fixed van fuera del space-y-5: su margin-top los corría 20px y el clic en esa franja no cerraba el modal #}
+  <div class="space-y-5">
   {% page_header titulo="Programas" bajada="Programas del catálogo de SIIS: cada uno agrupa sus segmentos y subsegmentos" %}
     {% if request.user|puede:"becas.segmento.crear" %}
     <button type="button" @click="modalCrear=true" class="btn-nodo btn-brand btn-base">
@@ -28,6 +30,7 @@
   {# Table card #}
   <div id="programas-table" class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
     {% include "programas/becas/config/_programas_table.html" %}
+  </div>
   </div>
 
   {# Modal: Nuevo programa — x-becas-modal: foco, Tab atrapado, Escape y scroll del fondo (becas-modal.js) #}

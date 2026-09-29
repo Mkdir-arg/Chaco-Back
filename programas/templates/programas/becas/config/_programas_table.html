@@ -56,7 +56,7 @@
         <td class="nodo-td text-right">
           <div class="flex items-center justify-end gap-2">
             <button type="button" aria-label="Ver detalle SIIS de {{ p.nombre }}"
-              class="nodo-icon-btn {% if p.siis_bloqueado %}text-fg-warning{% endif %}"
+              class="nodo-icon-btn"{% if p.siis_bloqueado %} style="--nodo-icon-btn-color: var(--text-fg-warning)"{% endif %}
               @click="openInfo({{ p|siis_info }})">
               <i class="fas fa-info-circle" aria-hidden="true"></i>
             </button>
@@ -86,10 +86,7 @@
   <p class="text-sm text-body" style="max-width:360px">Vinculá el primer programa desde el catálogo de SIIS.</p>
   {% if request.user|puede:"becas.segmento.crear" %}
   <button type="button" @click="modalCrear=true" class="btn-nodo btn-brand btn-base mt-2">
-    {# PlusIcon — Heroicons v2 outline #}
-    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
-      <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-    </svg>
+    <i class="fas fa-plus" aria-hidden="true"></i>
     Nuevo programa
   </button>
   {% endif %}
