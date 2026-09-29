@@ -2,8 +2,9 @@
    NODO Toast / Notification — sistema de notificaciones toast
    -------------------------------------------------------------
    Reemplaza los mensajes de Django que antes se renderizaban
-   fijos dentro del HTML. Ahora flotan abajo-derecha y se cierran
-   solos a los 7 s (duración definida en nodo-toast.js).
+   fijos dentro del HTML. Ahora flotan abajo-derecha; success, info y
+   warning se cierran solos a los 7 s (nodo-toast.js). Los errores no
+   llevan barra y quedan hasta que el usuario los cierra.
 
    Dos familias, según la definición del cliente:
      · confirmación  → variante success  (verde)
@@ -120,7 +121,7 @@
     box-shadow: var(--ring-brand);
 }
 
-/* Barra de progreso: se encoge de 100% a 0 durante la vida del toast.
+/* Barra de progreso (no la llevan los errores persistentes): se encoge de 100% a 0 durante la vida del toast.
    El auto-cierre (nodo-toast.js) escucha el fin de esta animación, así
    que pausarla al pasar el mouse también pausa el cierre. */
 .toast__progress {

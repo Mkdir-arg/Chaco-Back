@@ -6,7 +6,10 @@
  * del HTML (y que se duplicaban entre el template base y el hijo).
  *
  * · Posición: abajo-derecha (contenedor en nodo-toast.css)
- * · Duración: 7 segundos, con barra de progreso y pausa al hover
+ * · Duración: success / info / warning duran 7 segundos, con barra de
+ *   progreso y pausa al hover/foco. Los ERRORES no se cierran solos
+ *   (sin barra ni temporizador): quedan hasta que el usuario los cierra
+ *   con el botón o con Escape. Una opts.duration explícita manda siempre.
  * · Dos familias (definición del cliente):
  *       confirmación → success (verde)
  *       alerta       → error (rojo) / warning (ámbar)
@@ -23,6 +26,7 @@
  *               (o alias es-AR: 'confirmacion', 'alerta', ...)
  *   mensaje   : string
  *   opciones  : { duration?: ms, title?: string|null }
+ *               duration explícita también cierra un error solo.
  *               title === '' o null oculta el título.
  * ============================================================= */
 (function () {
@@ -85,15 +89,33 @@
         var duration = (typeof opts.duration === 'number' && opts.duration > 0)
             ? opts.duration
             : DEFAULT_DURATION;
-        var isUrgent = (variant === VARIANTS.error || variant === VARIANTS.warning);
+        var isError = (variant === VARIANTS.error);
+        var isUrgent = (isError || variant === VARIANTS.warning);
+        // Un error sin duración explícita es persistente: no se cierra solo.
+        var persistent = isError && !(typeof opts.duration === 'number' && opts.duration > 0);
 
         var container = getContainer();
+
+        // Deduplicación: un error persistente idéntico ya visible no se apila.
+        if (persistent) {
+            var previos = container.querySelectorAll('.toast--error[data-persistent="1"]');
+            for (var p = 0; p < previos.length; p++) {
+                if (previos[p].getAttribute('data-msg') === String(message) &&
+                    !previos[p].classList.contains('toast--leaving')) {
+                    return previos[p];
+                }
+            }
+        }
 
         var toast = document.createElement('div');
         toast.className = 'toast ' + variant.cls;
         // Los urgentes (error/warning) se anuncian de inmediato; el resto, cortés.
         toast.setAttribute('role', isUrgent ? 'alert' : 'status');
         toast.setAttribute('aria-live', isUrgent ? 'assertive' : 'polite');
+        if (persistent) {
+            toast.setAttribute('data-persistent', '1');
+            toast.setAttribute('data-msg', String(message));
+        }
 
         // Icono (decorativo: el texto ya comunica la variante)
         var iconWrap = document.createElement('span');
@@ -127,16 +149,20 @@
         closeBtn.setAttribute('aria-label', 'Cerrar notificación');
         closeBtn.innerHTML = '<i class="fas fa-times" aria-hidden="true"></i>';
 
-        // Barra de progreso (el auto-cierre se ata a su animationend)
-        var progress = document.createElement('span');
-        progress.className = 'toast__progress';
-        progress.setAttribute('aria-hidden', 'true');
-        progress.style.animationDuration = duration + 'ms';
+        // Barra de progreso (el auto-cierre se ata a su animationend).
+        // Los errores persistentes no la llevan: no hay cuenta regresiva.
+        var progress = null;
+        if (!persistent) {
+            progress = document.createElement('span');
+            progress.className = 'toast__progress';
+            progress.setAttribute('aria-hidden', 'true');
+            progress.style.animationDuration = duration + 'ms';
+        }
 
         toast.appendChild(iconWrap);
         toast.appendChild(body);
         toast.appendChild(closeBtn);
-        toast.appendChild(progress);
+        if (progress) { toast.appendChild(progress); }
         container.appendChild(toast);
 
         // Entrada: dos frames para asegurar que la transición dispare.
@@ -166,10 +192,26 @@
         closeBtn.addEventListener('click', dismiss);
         // Fin de la barra de progreso → cierre. Como el CSS pausa la
         // animación en :hover / :focus-within, el cierre se pausa solo.
-        progress.addEventListener('animationend', dismiss);
+        if (progress) { progress.addEventListener('animationend', dismiss); }
+        toast._dismiss = dismiss;
 
         return toast;
     }
+
+    // Escape cierra el error con foco o, si no hay, el último error visible.
+    document.addEventListener('keydown', function (e) {
+        if (e.key !== 'Escape' && e.key !== 'Esc') { return; }
+        var box = document.getElementById('toast-container');
+        if (!box) { return; }
+        var errs = box.querySelectorAll('.toast--error');
+        var target = null;
+        for (var i = 0; i < errs.length; i++) {
+            if (errs[i].classList.contains('toast--leaving')) { continue; }
+            if (errs[i].contains(document.activeElement)) { target = errs[i]; break; }
+            target = errs[i];
+        }
+        if (target && target._dismiss) { target._dismiss(); }
+    });
 
     // ── API pública ──────────────────────────────────────────────
     var api = function (type, message, opts) { return show(type, message, opts); };
