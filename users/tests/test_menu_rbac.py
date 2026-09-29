@@ -2,8 +2,9 @@ from io import StringIO
 
 from django.contrib.auth.models import Group, User
 from django.core.management import call_command
-from django.test import TestCase
-from django.urls import reverse
+from django.template.loader import render_to_string
+from django.test import RequestFactory, TestCase
+from django.urls import resolve, reverse
 
 from core import rbac
 from users.models import RolMeta
@@ -72,6 +73,20 @@ class MenuRestringidoTests(TestCase):
         self.assertIn('<span class="flex-1">Programas</span>', html)
         self.assertIn('title="Programas"', html)
         self.assertNotIn('<span class="flex-1">Becas</span>', html)
+
+    def test_item_programas_marca_la_pantalla_activa(self):
+        su = User.objects.create_superuser("root-activo", "root-activo@example.com", "x")
+        url = reverse("becas:programas")
+        req = RequestFactory().get(url)
+        req.user = su
+        req.resolver_match = resolve(url)
+
+        html = render_to_string("includes/sidebar/opciones.html", {"request": req, "branding": {}})
+
+        inicio = html.index(f'<a href="{url}"')
+        ancla = html[inicio : html.index("</a>", inicio)]
+        self.assertIn("background: var(--bg-brand)", ancla)
+        self.assertIn('aria-current="page"', ancla)
 
     def test_rol_inactivo_solo_inicio(self):  # TC-59-08
         self.rol.meta.activo = False
