@@ -166,6 +166,31 @@ class RelevamientoPublicoAjaxRedirectTests(_AjaxRedirectMensajeBase):
             messages.WARNING,
         )
 
+    def test_publico_sin_padron_sin_ajax_tambien_es_advertencia(self):
+        # El modal del listado de relevamientos postea sin data-ajax: misma regla.
+        resp = self.client.post(reverse("becas:relevamiento_crear"), self._form_publico(), follow=True)
+        rel = Relevamiento.objects.get(tipo=Relevamiento.Tipo.PUBLICO)
+        self.assertRedirects(resp, reverse("becas:relevamiento_detalle", kwargs={"pk": rel.pk}))
+        recibidos = [(m.level, str(m)) for m in resp.context["messages"]]
+        self.assertEqual(
+            recibidos,
+            [
+                (
+                    messages.WARNING,
+                    "Relevamiento público creado. Compartí el link de inscripción. "
+                    "La convocatoria no tiene padrón: el link queda abierto.",
+                )
+            ],
+        )
+
+    def test_publico_con_padron_sin_ajax_es_exito(self):
+        PadronHabilitado.objects.create(convocatoria=self.convocatoria, dni="30111222", sexo="F")
+        resp = self.client.post(reverse("becas:relevamiento_crear"), self._form_publico(), follow=True)
+        recibidos = [(m.level, str(m)) for m in resp.context["messages"]]
+        self.assertEqual(
+            recibidos, [(messages.SUCCESS, "Relevamiento público creado. Compartí el link de inscripción.")]
+        )
+
     def test_publico_con_padron_viaja_como_exito(self):
         PadronHabilitado.objects.create(convocatoria=self.convocatoria, dni="30111222", sexo="F")
         payload = self._post_ajax(reverse("becas:relevamiento_crear"), self._form_publico())

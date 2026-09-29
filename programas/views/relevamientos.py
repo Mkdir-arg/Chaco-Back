@@ -671,7 +671,7 @@ class RelevamientoCreateView(CapacidadRequeridaMixin, LoginRequiredMixin, Create
                 nivel = messages.WARNING
             if is_ajax(self.request):
                 return ajax_redirect(self.request, detalle, mensaje, level=nivel)
-            messages.success(self.request, mensaje)
+            messages.add_message(self.request, nivel, mensaje)
             return redirect(detalle)
         if is_ajax(self.request):
             return _relevamientos_ajax(self.request, self.object.convocatoria)
