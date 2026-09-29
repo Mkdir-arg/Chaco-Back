@@ -265,12 +265,14 @@ EMAIL_PIE_DIRECCION = os.getenv("EMAIL_PIE_DIRECCION", "")
 # 24 h; el default de Django son 3 días.
 PASSWORD_RESET_TIMEOUT = int(os.getenv("PASSWORD_RESET_TIMEOUT", "86400"))
 
+# Los tags viajan en ``data-tags`` (base.html, portal/base.html) y ``nodo-toast.js``
+# (``resolveType``) elige la variante por estas palabras: no poner clases CSS acá.
 MESSAGE_TAGS = {
-    messages.DEBUG: "bg-gray-800 text-white",
-    messages.INFO: "bg-blue-500 text-white",
-    messages.SUCCESS: "bg-green-500 text-white",
-    messages.WARNING: "bg-yellow-500 text-white",
-    messages.ERROR: "bg-red-500 text-white",
+    messages.DEBUG: "info",
+    messages.INFO: "info",
+    messages.SUCCESS: "success",
+    messages.WARNING: "warning",
+    messages.ERROR: "error",
 }
 
 DATABASES = {
