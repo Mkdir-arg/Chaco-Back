@@ -279,7 +279,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 96.36 | El detalle del programa usa las piezas comunes (encabezado, modales, estados) | Becas | `#ui` `#requisitos` | Auditoría de diseño de Becas (CMP-1, CMP-7, DC-5, TIT-15) | 29/09/2026 | 🟢 **Hecho** | No requiere |
 | 97 | El check de seguridad (pip-audit) deja de bloquear los PRs: DRF 3.17.2 y anyio 4.14.2 | Transversal | `#infra` `#api` | Juez de la sesión — gate «Security / Pip Audit» rojo en todos los PRs | 29/09/2026 | 🟢 **Hecho** | No requiere |
 | 98 | Corregir los datos que impiden informar un caso a SIIS (localidad, barrio, nacimiento, apoderado) | Becas · alta de beneficiarios en SIIS | `#siis` `#datos` `#relevamientos` | PM — en sesión, sobre los rechazos de la corrida del 23/09: «quiero solucionar los casos que nosotros podemos solucionar» | 30/09/2026 | 🟢 **Hecho** | No requiere |
-| 99 | El alta de un relevamiento deja de dar 500 en MariaDB: `token_publico` admite el UUID con guiones | Becas · relevamientos públicos y portal de inscripción | `#relevamientos` `#datos` `#infra` | PM — en sesión: 500 en `POST /becas/relevamientos/nuevo/` en el testing de ECOM | 29/09/2026 | 🟢 **Hecho** | `programas.0073` |
+| 99 | El alta de un relevamiento público deja de dar 500 en MariaDB: `token_publico` admite el UUID con guiones | Becas · relevamientos públicos y portal de inscripción | `#relevamientos` `#datos` `#infra` | PM — en sesión: 500 en `POST /becas/relevamientos/nuevo/` en el testing de ECOM | 29/09/2026 | 🟢 **Hecho** | `programas.0073` |
 | 100 | La API del backoffice solo por sesión, y se retira la consulta RENAPER anónima | Transversal · API DRF · Legajos | `#api` `#sesion` `#rbac` | Auditoría integral oct-2026 — SEC-01 y SEC-04 (Ola 0, hotfix de seguridad) | 01/10/2026 | 🟢 **Hecho** | No requiere |
 | 101 | Desmontar las rutas públicas de conversaciones: creaban legajos de cualquier DNI y filtraban RENAPER sin login | Conversaciones · chat público · Portal ciudadano | `#rbac` `#datos` `#ui` | Auditoría integral oct-2026 (G1-01 y G1-02, severidad ALTA, ola 0) | 01/10/2026 | 🟢 **Hecho** | No requiere |
 | 102 | Apagar el registro y el perfil del portal ciudadano | Portal ciudadano | `#sesion` `#usuarios` `#ui` `#datos` | Auditoría integral oct-2026 — hallazgo SEC-29 (Ola 0, hotfix de seguridad) | 01/10/2026 | 🟢 **Hecho** | No requiere |
@@ -12685,7 +12685,7 @@ no tienen vuelta automática (el dump previo es el respaldo).
 
 ---
 
-# Cambio 99 — El alta de un relevamiento deja de dar 500 en MariaDB: `token_publico` admite el UUID con guiones
+# Cambio 99 — El alta de un relevamiento público deja de dar 500 en MariaDB: `token_publico` admite el UUID con guiones
 
 🟢 **HECHO — 29/09/2026**
 
@@ -12701,7 +12701,7 @@ no tienen vuelta automática (el dump previo es el respaldo).
 
 ## Pedido original
 
-Crear un relevamiento en el testing de ECOM daba 500. El log del pod:
+Crear un relevamiento público en el testing de ECOM daba 500 (los territoriales no llevan token). El log del pod:
 `DataError (1406, "Data too long for column 'token_publico' at row 1")` en el INSERT de `Relevamiento.save()`.
 
 La base de testing de ECOM es **MariaDB** (Cambios 31 y 77). En MariaDB 10.7+, Django 5 tiene
@@ -12746,8 +12746,10 @@ reescribe los tokens existentes con guiones. Sin cambio de estado de modelos.
 ## Pendientes / a definir
 
 - Confirmar en testing, después del deploy, el alta de un relevamiento y el link público de uno existente.
-- Confirmar el motor de la base de PRD de ECOM (pregunta 6 de `pedido-datos-prd-ecom-2026-09.md`). Si también es
-  MariaDB, hoy la misma alta falla ahí.
+- **PRD de ECOM también es MariaDB** (confirmado por el PM el 29/09/2026). Falta la versión (`SELECT VERSION()`):
+  con 10.7 o más, hoy el alta de un relevamiento público también da 500 en PRD; con menos, Django sigue mandando
+  hex y PRD no está afectado. La 0073 es segura en los dos casos: solo normaliza a guiones si el motor tiene UUID
+  nativo, y la búsqueda acepta las dos formas.
 
 ## Reversión
 
