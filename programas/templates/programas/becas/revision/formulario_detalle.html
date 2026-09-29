@@ -934,9 +934,9 @@ document.addEventListener('DOMContentLoaded', function () {
             if (String(l.id) === String(actual || '')) { o.selected = true; }
             selLoc.appendChild(o);
           });
-          if (data.error) { window.toast(data.error, 'error'); }
+          if (data.error) { window.toast('error', data.error); }
         })
-        .catch(function () { window.toast('No se pudieron cargar las localidades de SIIS.', 'error'); });
+        .catch(function () { window.toast('error', 'No se pudieron cargar las localidades de SIIS.'); });
     }
 
     [['id_prov_actual', 'id_loc_actual', '{{ formulario.datos_siis.loc_actual|default:"" }}'],
@@ -966,9 +966,9 @@ document.addEventListener('DOMContentLoaded', function () {
               if (String(f.id) === String(actual || '')) { o.selected = true; }
               selFuncion.appendChild(o);
             });
-            if (data.error) { window.toast(data.error, 'error'); }
+            if (data.error) { window.toast('error', data.error); }
           })
-          .catch(function () { window.toast('No se pudieron cargar las funciones del programa.', 'error'); });
+          .catch(function () { window.toast('error', 'No se pudieron cargar las funciones del programa.'); });
       }
       selPlan.addEventListener('change', function () { cargarFunciones(''); });
       cargarFunciones(selFuncion.getAttribute('data-actual') || '');

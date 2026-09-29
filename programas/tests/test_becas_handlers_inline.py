@@ -11,8 +11,9 @@ import json
 from datetime import date, timedelta
 
 from django.contrib.auth.models import User
-from django.test import TestCase
+from django.test import Client, TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from core.tests.js_harness import atributos_de, correr_script, requiere_node, script_con
 from legajos.models import Ciudadano
@@ -111,13 +112,22 @@ class CupoSegmentoHandlersInlineTests(TestCase):
         self.assertEqual(log["submits"], ["form-baja-11", "form-promover-22", "form-espera-33"])
 
 
+def _form_de_reactivar(html):
+    """Los elementos del ``<form data-reactivar-form>`` del modal, hasta su ``</form>``."""
+    marca = html.find("data-reactivar-form")
+    if marca == -1:
+        raise AssertionError("La página no trae el <form data-reactivar-form> del modal de reactivar")
+    inicio = html.rfind("<form", 0, marca)
+    return atributos_de(html[inicio : html.index("</form>", marca)])
+
+
 class ReactivarConvocatoriaNombreTests(TestCase):
-    """El pop-up de reactivar arma su ``html`` con el nombre escapado."""
+    """El modal de reactivar recibe el nombre de la convocatoria como texto, nunca como marcado."""
 
     def setUp(self):
         self.admin = User.objects.create_superuser("admin-reactivar-xss", password="x")
         segmento = Segmento.objects.create(nombre="Seg R", cupo_maximo=100)
-        hoy = date.today()
+        hoy = timezone.localdate()
         Convocatoria.objects.create(
             nombre=NOMBRE_CON_MARCADO,
             segmento=segmento,
@@ -136,20 +146,133 @@ class ReactivarConvocatoriaNombreTests(TestCase):
         botones = [attrs for _, attrs in atributos_de(self._html()) if "data-reactivar-url" in attrs]
         self.assertEqual([attrs["data-nombre"] for attrs in botones], [NOMBRE_CON_MARCADO])
 
-    def test_el_script_no_concatena_el_nombre_crudo_en_el_html(self):
-        script = script_con(self._html(), "data-reactivar-url")
-        self.assertNotRegex(script, r"\+\s*nombre\s*\+")  # el valor crudo de dataset
-        self.assertIn("'&lt;'", script)
+    def test_el_nombre_no_llega_a_handlers_on_ni_a_atributos_alpine(self):
+        html = self._html()
+        self.assertNotIn(NOMBRE_CON_MARCADO, html)  # nunca como marcado crudo
+        for tag, attrs in atributos_de(html):
+            for nombre_attr, valor in attrs.items():
+                if nombre_attr.startswith(("on", "x-", "@", ":")):
+                    self.assertNotIn("<img", valor, f"<{tag} {nombre_attr}> interpola el nombre")
+
+    def test_el_modal_pinta_el_nombre_con_x_text(self):
+        html = self._html()
+        marca = html.find("data-reactivar-modal")
+        self.assertNotEqual(marca, -1, "La página no trae el modal de reactivar")
+        modal = html[marca : html.index("</form>", marca)]
+        self.assertNotIn("x-html", modal)
+        self.assertIn(("p", "nombre"), [(tag, attrs.get("x-text")) for tag, attrs in atributos_de(modal)])
 
     @requiere_node
-    def test_el_html_del_popup_muestra_el_nombre_como_texto(self):
+    def test_el_listener_abre_el_modal_con_el_nombre_como_texto(self):
         script = script_con(self._html(), "data-reactivar-url")
+        url = "/becas/convocatorias/7/reactivar/"
 
-        log = correr_script(script, f"__click({{reactivarUrl: '/r/1/', nombre: {json.dumps(NOMBRE_CON_MARCADO)}}});")
+        log = correr_script(
+            script,
+            f"""
+            __log.eventos = [];
+            window.CustomEvent = function (tipo, opciones) {{ this.type = tipo; this.detail = opciones.detail; }};
+            window.dispatchEvent = function (evento) {{ __log.eventos.push(evento); }};
+            __click({{reactivarUrl: {json.dumps(url)}, nombre: {json.dumps(NOMBRE_CON_MARCADO)}}});
+            var modal = reactivarConvocatoria('2026-09-29');
+            modal.$refs = {{fecha: {{focus: function () {{ __log.foco = 'fecha'; }}}}}};
+            modal.$nextTick = function (fn) {{ fn(); }};
+            modal.abrir(__log.eventos[0].detail);
+            __log.estado = {{abierto: modal.abierto, url: modal.url, nombre: modal.nombre, fecha: modal.fecha}};
+            """,
+        )
 
-        (popup,) = log["swal"]
-        self.assertNotIn("<img", popup["html"])
-        self.assertIn("&lt;img src=x onerror=&quot;window.__inyectado=1&quot;&gt;", popup["html"])
-        self.assertIn("Está vencida. Elegí la nueva fecha de fin para reactivarla.", popup["html"])
-        self.assertEqual(popup["title"], "Reactivar convocatoria")
-        self.assertEqual(popup["input"], "date")
+        self.assertEqual([evento["type"] for evento in log["eventos"]], ["becas-reactivar"])
+        self.assertEqual(log["swal"], [])
+        # El nombre llega tal cual como dato: x-text lo pinta como textContent.
+        self.assertEqual(
+            log["estado"], {"abierto": True, "url": url, "nombre": NOMBRE_CON_MARCADO, "fecha": "2026-09-29"}
+        )
+        self.assertEqual(log["foco"], "fecha")
+
+
+class ReactivarConvocatoriaModalTests(TestCase):
+    """POP-3: «Reactivar» abre un modal propio con form POST, sin depender de SweetAlert2."""
+
+    def setUp(self):
+        self.admin = User.objects.create_superuser("admin-reactivar-modal", password="x")
+        segmento = Segmento.objects.create(nombre="Seg M", cupo_maximo=100)
+        self.hoy = timezone.localdate()
+        self.conv = Convocatoria.objects.create(
+            nombre="Convocatoria vencida",
+            segmento=segmento,
+            fecha_inicio=self.hoy - timedelta(days=60),
+            fecha_fin=self.hoy - timedelta(days=5),
+            activo=False,
+        )
+
+    def _html(self, client=None):
+        client = client or self.client
+        client.force_login(self.admin)
+        response = client.get(reverse("becas:convocatorias"))
+        self.assertEqual(response.status_code, 200)
+        return response.content.decode()
+
+    def test_el_modal_trae_un_form_post_con_csrf_y_fecha_fin(self):
+        (tag, form), *campos = _form_de_reactivar(self._html())
+
+        self.assertEqual(tag, "form")
+        self.assertEqual(form["method"], "post")
+        self.assertEqual(form[":action"], "url")
+        inputs = {attrs.get("name"): attrs for tag, attrs in campos if tag == "input"}
+        self.assertTrue(inputs["csrfmiddlewaretoken"]["value"])
+        fecha = inputs["fecha_fin"]
+        self.assertEqual(fecha["type"], "date")
+        self.assertIn("required", fecha)
+        self.assertEqual(fecha[":min"], "min")
+        self.assertIn("nodo-field", fecha["class"].split())
+        self.assertIn(("label", fecha["id"]), [(tag, attrs.get("for")) for tag, attrs in campos])
+
+    def test_el_modal_es_un_dialogo_accesible_con_fecha_minima_hoy(self):
+        html = self._html()
+        marca = html.find("data-reactivar-modal")
+        self.assertNotEqual(marca, -1, "La página no trae el modal de reactivar")
+        # El modal global del base también es role=dialog: se busca dentro del de reactivar.
+        (dialogo,) = [attrs for _, attrs in atributos_de(html[marca:]) if attrs.get("role") == "dialog"]
+        self.assertEqual(dialogo["aria-modal"], "true")
+        self.assertIn(f'id="{dialogo["aria-labelledby"]}"', html)
+        (raiz,) = [attrs for _, attrs in atributos_de(html) if "@becas-reactivar.window" in attrs]
+        self.assertEqual(raiz["x-data"], f"reactivarConvocatoria('{self.hoy.isoformat()}')")
+        self.assertIn("@keydown.escape.window", raiz)
+
+    def test_el_script_ya_no_depende_de_swal(self):
+        script = script_con(self._html(), "data-reactivar-url")
+        self.assertNotIn("Swal", script)
+
+    def test_reactivar_con_el_form_del_modal_activa_la_convocatoria(self):
+        cliente = Client(enforce_csrf_checks=True)
+        html = self._html(cliente)
+        (boton,) = [attrs for _, attrs in atributos_de(html) if "data-reactivar-url" in attrs]
+        _, *campos = _form_de_reactivar(html)
+        token = next(attrs["value"] for _, attrs in campos if attrs.get("name") == "csrfmiddlewaretoken")
+        nueva = self.hoy + timedelta(days=30)
+
+        response = cliente.post(
+            boton["data-reactivar-url"], {"csrfmiddlewaretoken": token, "fecha_fin": nueva.isoformat()}
+        )
+
+        self.assertRedirects(response, reverse("becas:convocatorias"), fetch_redirect_response=False)
+        self.conv.refresh_from_db()
+        self.assertTrue(self.conv.activo)
+        self.assertEqual(self.conv.fecha_fin, nueva)
+
+    def test_el_servidor_rechaza_una_fecha_pasada_aunque_se_saltee_el_min_del_navegador(self):
+        self.client.force_login(self.admin)
+
+        response = self.client.post(
+            reverse("becas:convocatoria_reactivar", args=[self.conv.pk]),
+            {"fecha_fin": (self.hoy - timedelta(days=1)).isoformat()},
+            follow=True,
+        )
+
+        self.assertIn(
+            "La nueva fecha de fin debe ser hoy o una fecha posterior.",
+            [str(mensaje) for mensaje in response.context["messages"]],
+        )
+        self.conv.refresh_from_db()
+        self.assertFalse(self.conv.activo)
