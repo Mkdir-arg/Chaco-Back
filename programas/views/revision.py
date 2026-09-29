@@ -19,7 +19,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.db.models import Count, Q
+from django.db.models import Count, OuterRef, Q, Subquery
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -37,6 +37,7 @@ from programas.forms import (
 from programas.models import (
     EnvioSIIS,
     Formulario,
+    ListaEspera,
     PreguntaGlobal,
     Relevamiento,
     RequisitoNativo,
@@ -59,6 +60,7 @@ from programas.services.respuestas import respuestas_legibles, sincronizar_desde
 from programas.services.siis import SiisCatalogError, catalogo, funciones_programa
 from programas.services.siis_envio import enviar_beneficiario_a_siis, mensaje_envio
 from programas.services.validacion_siis import validar_formulario_en_siis
+from programas.views.cupo import CAP_BENEFICIARIO_VER, CAP_CUPO_VER
 from programas.views.relevamientos import CAP_RELEVAMIENTO_PUBLICO, PaginadorConConteo
 
 logger = logging.getLogger(__name__)
@@ -236,6 +238,11 @@ def _informar_a_siis(request, formulario):
     nivel, texto = mensaje_envio(envio)
     getattr(messages, nivel)(request, texto)
     return envio
+
+
+def _espera_activa(formulario):
+    """Entradas de lista de espera todavía no promovidas del caso."""
+    return ListaEspera.objects.filter(formulario=formulario, promovido=False)
 
 
 def _tiene_conflicto_duplicado_pendiente(formulario):
@@ -474,10 +481,14 @@ def _sin_vinculados(bloques):
 def formulario_detalle(request, pk):
     formulario = get_object_or_404(
         # ``programa`` lo lee ``motivo_bloqueo_aprobacion``; sin el va una consulta suelta.
-        Formulario.objects.select_related("relevamiento__convocatoria__segmento__programa", "ciudadano"),
+        Formulario.objects.select_related("relevamiento__convocatoria__segmento__programa", "ciudadano")
+        # CMP-N1: la posición en la lista de espera viaja en la misma consulta.
+        .annotate(posicion_espera=Subquery(_espera_activa(OuterRef("pk")).values("posicion")[:1])),
         pk=pk,
     )
     _assert_scope_formulario(request, formulario)
+    # Solo un caso pendiente está «en espera»: uno rechazado con su fila vieja no.
+    posicion_espera = formulario.posicion_espera if formulario.estado == Formulario.Estado.ENVIADO else None
 
     conflicto_pendiente = None
     if formulario.conflicto_duplicado and not formulario.conflicto_resuelto:
@@ -602,6 +613,10 @@ def formulario_detalle(request, pk):
             "datos_siis_form": datos_siis_form,
             "puede_enviar_siis": puede_enviar_siis,
             "detalles_envio_siis": detalles_envio_siis,
+            # CMP-N1: en espera no se aprueba desde acá, se promueve desde Cupo.
+            "posicion_espera": posicion_espera,
+            "puede_ver_cupo": posicion_espera is not None
+            and puede_alguna(request.user, [CAP_CUPO_VER, CAP_BENEFICIARIO_VER]),
         },
     )
 
@@ -765,6 +780,15 @@ def formulario_aprobar(request, pk):
     if request.method == "POST":
         if _tiene_conflicto_duplicado_pendiente(formulario):
             messages.error(request, "Primero debés resolver el conflicto de cargas duplicadas.")
+            return redirect("becas:formulario_detalle", pk=formulario.pk)
+        # CMP-N1 (decisión del usuario): quien está en lista de espera se aprueba
+        # promoviéndolo desde Cupo. Aprobarlo acá, con cupo libre, lo pasaba a
+        # APROBADO y dejaba su fila de ``ListaEspera`` activa, colgando.
+        if _espera_activa(formulario).exists():
+            messages.error(
+                request,
+                "El caso está en la lista de espera: se aprueba al promoverlo desde Cupo y beneficiarios.",
+            )
             return redirect("becas:formulario_detalle", pk=formulario.pk)
         try:
             validacion = validar_formulario_en_siis(formulario, request.user)
