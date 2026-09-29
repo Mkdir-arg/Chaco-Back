@@ -18,6 +18,7 @@ from django.contrib.auth.models import Group, Permission, User
 from django.contrib.contenttypes.models import ContentType
 from django.core.cache import cache
 from django.core.management import call_command
+from django.db import connection
 from django.test import TestCase, override_settings
 from django.utils import timezone
 
@@ -275,6 +276,26 @@ class LinkPublicoTests(BaseDiagnosticoTests):
         salida, _ = _correr("--token", str(rel.token_publico))
 
         self.assertIn(f"relevamiento #{rel.pk}", salida)
+
+    def test_busca_por_token_guardado_con_guiones(self):
+        # Cambio 95: MariaDB guarda el token con guiones; el lookup del ORM
+        # mandaba solo una forma y no lo encontraba.
+        rel = self._publico()
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "UPDATE programas_relevamiento SET token_publico = %s WHERE id = %s",
+                [str(rel.token_publico), rel.pk],
+            )
+
+        salida, _ = _correr("--token", rel.token_publico.hex)
+
+        self.assertIn(f"relevamiento #{rel.pk}", salida)
+
+    def test_token_que_no_es_uuid_es_falla(self):
+        salida, codigo = _correr("--token", "no-es-un-uuid")
+
+        self.assertEqual(codigo, 1)
+        self.assertIn("no es un UUID válido", salida)
 
     def test_token_inexistente_es_falla(self):
         salida, codigo = _correr("--token", "11111111-1111-1111-1111-111111111111")

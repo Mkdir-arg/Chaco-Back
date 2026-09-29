@@ -16,6 +16,7 @@ from programas.models import (
     CanalFormulario,
     OrigenRequisito,
     PreguntaGlobal,
+    Relevamiento,
     RequisitoNativo,
     Segmento,
 )
@@ -148,15 +149,34 @@ def formulario_por_client_uuid(relevamiento, client_uuid):
     """
     if not client_uuid:
         return None
-    columna = F("client_uuid")
-    return (
-        relevamiento.formularios.filter(
-            Q(Exact(columna, Value(client_uuid.hex, output_field=CharField())))
-            | Q(Exact(columna, Value(str(client_uuid), output_field=CharField())))
-        )
-        .order_by("pk")
-        .first()
+    return relevamiento.formularios.filter(q_uuid_en_texto("client_uuid", client_uuid)).order_by("pk").first()
+
+
+def q_uuid_en_texto(campo, valor):
+    """Filtro por un ``UUIDField`` guardado como texto en cualquiera de sus dos formas.
+
+    En MySQL la columna es ``char`` y conviven filas en hex de 32 (MySQL, SQLite)
+    y con guiones (MariaDB 10.7+, que Django trata como UUID nativo; o una base
+    restaurada de un motor al otro). El lookup ``campo=valor`` del ORM manda una
+    sola de las dos, según el motor, y no encuentra la otra. Se compara por
+    igualdad contra las dos como texto plano, sin funciones sobre la columna,
+    para que el índice siga sirviendo.
+    """
+    columna = F(campo)
+    return Q(Exact(columna, Value(valor.hex, output_field=CharField()))) | Q(
+        Exact(columna, Value(str(valor), output_field=CharField()))
     )
+
+
+def relevamiento_publico_por_token(token, queryset=None):
+    """Queryset de relevamientos públicos con ese ``token_publico`` (con o sin guiones).
+
+    Una sola consulta por el índice único. ``token`` es un ``uuid.UUID`` (el
+    conversor ``<uuid:token>`` de la URL ya lo entrega así).
+    """
+    if queryset is None:
+        queryset = Relevamiento.objects.all()
+    return queryset.filter(q_uuid_en_texto("token_publico", token), tipo=Relevamiento.Tipo.PUBLICO)
 
 
 def _alcance_requisito(requisito):

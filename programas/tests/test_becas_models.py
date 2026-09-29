@@ -48,6 +48,7 @@ class UUIDExternosMySQLTests(TestCase):
             ("programas_formulario", "client_uuid"),
             ("programas_validacionsis", "id_consulta"),
             ("programas_inscripcionprograma", "legajo_id"),
+            ("programas_relevamiento", "token_publico"),
             ("users_solicitudcambioemail", "token"),
             ("legajos_legajoatencion", "id"),
             ("legajos_alertaciudadano", "legajo_id"),
