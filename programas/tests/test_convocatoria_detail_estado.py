@@ -54,6 +54,8 @@ class ConvocatoriaDetailEstadoTests(TestCase):
     def test_paneles_de_la_solapa_dicen_casos(self):
         html = self._html()
         self.assertIn('text-heading">Sin casos</p>', html)  # vacío de la solapa
-        self.assertIn('text-heading">Casos</span>', html)  # fila de exportación en Reportes
+        # La exportación es solo de aprobados: ni la fila de Reportes ni el botón dicen «Casos».
+        self.assertIn('text-heading">Beneficiarios (aprobados)</span>', html)
+        self.assertIn("Exportar beneficiarios (CSV)", html)
+        self.assertNotIn("Exportar CSV", html)
         self.assertNotIn("Sin beneficiarios", html)
-        self.assertNotIn('text-heading">Beneficiarios</span>', html)
