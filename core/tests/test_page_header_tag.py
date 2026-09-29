@@ -2,11 +2,14 @@
 
 from datetime import date
 from io import StringIO
+from unittest import mock
 
 from django.contrib.auth.models import Group, User
 from django.core.management import call_command
+from django.db import connection
 from django.template import Context, Template, TemplateSyntaxError
 from django.test import RequestFactory, SimpleTestCase, TestCase
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
 from core import rbac
@@ -233,6 +236,22 @@ class ConvocatoriaDetailHeaderTests(_BecasBase):
         self.assertInHTML('<span class="badge badge-warning badge-dot">Pausada</span>', resp.content.decode())
         pausa = reverse("becas:gestionar_pausa", args=["convocatoria", self.convocatoria.pk])
         self.assertInHTML(f'<a href="{pausa}" class="btn-nodo btn-brand btn-sm">Reanudar</a>', resp.content.decode())
+
+    def test_migas_no_suman_consultas_con_la_convocatoria_pausada(self):
+        """Con la pausa propia, ``pausa_efectiva`` no llega al programa: lo trae el
+        ``select_related("segmento__programa")`` de la vista y las migas no consultan."""
+        Convocatoria.objects.filter(pk=self.convocatoria.pk).update(pausado=True)
+        self.client.force_login(self.admin)
+        url = reverse("becas:convocatoria_detalle", args=[self.convocatoria.pk])
+        self.client.get(url)  # calienta sesión y caches de la request
+        with mock.patch("programas.templatetags.becas_extras._cadena_becas", return_value=[]):
+            with CaptureQueriesContext(connection) as sin_migas:
+                resp = self.client.get(url)
+        self.assertNotContains(resp, 'aria-label="Migas"')
+        with self.assertNumQueries(len(sin_migas)):
+            resp = self.client.get(url)
+        self.assertContains(resp, '<nav aria-label="Migas">')
+        self.assertContains(resp, "Becas Terciarias")
 
     def test_nombre_con_marcado_sale_escapado(self):
         Convocatoria.objects.filter(pk=self.convocatoria.pk).update(nombre="<script>alert(1)</script>")
