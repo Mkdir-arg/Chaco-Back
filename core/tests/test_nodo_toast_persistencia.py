@@ -335,20 +335,55 @@ window.innerWidth = 390;
 window.getComputedStyle = function () { return {paddingBottom: '10px'}; };
 body.style.paddingBottom = '4px';
 var a = toast.error('Uno');
-document.getElementById('toast-container')._alto = 76;
+a._alto = 76;
 toast.info('recalcula');
 var R = {con: body.style.paddingBottom};
 __botones(a)[0].fire('click'); __remover();
 R.tras = body.style.paddingBottom;
-R.sinErrorNoAplica = (function () { toast.success('ok'); return body.style.paddingBottom; })();
-window.innerWidth = 1440;
-var b = toast.error('Otro');
-R.escritorio = body.style.paddingBottom;"""
+R.sinErrorNoAplica = (function () { toast.success('ok'); return body.style.paddingBottom; })();"""
         )
-        self.assertEqual(r["con"], "98px")
+        self.assertEqual(r["con"], "110px")
         self.assertEqual(r["tras"], "4px")
         self.assertEqual(r["sinErrorNoAplica"], "4px")
-        self.assertEqual(r["escritorio"], "4px")
+
+    def test_escritorio_sin_modal_reserva_espacio_abajo_con_offset_24(self):
+        r = _correr(
+            """
+window.innerWidth = 1440;
+window.getComputedStyle = function () { return {paddingBottom: '10px'}; };
+body.style.paddingBottom = '4px';
+var a = toast.error('Uno');
+a._alto = 200;
+toast.info('recalcula');
+var R = {con: body.style.paddingBottom};
+__botones(a)[0].fire('click'); __remover();
+R.tras = body.style.paddingBottom;"""
+        )
+        self.assertEqual(r["con"], "246px")
+        self.assertEqual(r["tras"], "4px")
+
+    def test_leaving_no_infla_el_padding_al_encadenar_errores(self):
+        # En movil el tope es 1 error visible: al crear 'Dos', 'Uno' pasa a
+        # toast--leaving pero sigue en el DOM (recien se retira en su cleanup).
+        # getBoundingClientRect de la pila refleja eso (como en un navegador
+        # real, donde el layout no encoge hasta que el nodo se retira).
+        r = _correr(
+            """
+window.innerWidth = 390;
+window.getComputedStyle = function () { return {paddingBottom: '0px'}; };
+var a = toast.error('Uno'); a._alto = 40;
+var box = document.getElementById('toast-container');
+box.getBoundingClientRect = function () {
+  var alto = 0;
+  this.children.forEach(function (t) { alto += (t._alto || 0); });
+  if (this.children.length > 1) { alto += (this.children.length - 1) * 12; }
+  return {height: alto, top: 0, bottom: 0};
+};
+var b = toast.error('Dos'); b._alto = 60;
+toast.info('recalcula');
+var R = {tras_encadenar: body.style.paddingBottom};"""
+        )
+        self.assertEqual(r["tras_encadenar"], "84px")
 
     def test_reserva_se_limpia_al_abrirse_un_modal(self):
         r = _correr(
@@ -356,7 +391,7 @@ R.escritorio = body.style.paddingBottom;"""
 window.innerWidth = 390;
 window.getComputedStyle = function () { return {paddingBottom: '0px'}; };
 var a = toast.error('Uno');
-document.getElementById('toast-container')._alto = 50;
+a._alto = 50;
 toast.info('x');
 var R = {antes: body.style.paddingBottom};
 __modales.push({getClientRects: function () { return [1]; }, getAttribute: function () { return null; },
@@ -364,5 +399,5 @@ __modales.push({getClientRects: function () { return [1]; }, getAttribute: funct
 toast.info('y');
 R.conModal = body.style.paddingBottom;"""
         )
-        self.assertEqual(r["antes"], "62px")
+        self.assertEqual(r["antes"], "74px")
         self.assertEqual(r["conModal"], "")

@@ -198,4 +198,5 @@
         top: calc(72px + env(safe-area-inset-top, 0px));
         bottom: auto;
         max-height: 40vh;
-    }}
+    }
+}

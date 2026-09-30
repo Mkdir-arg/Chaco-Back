@@ -349,14 +349,32 @@
         }
     }
 
-    // En ≤640px sin modal, mientras haya un error persistente visible, se
-    // reserva abajo (padding-bottom del body) el alto de la pila + 12px para
-    // que no tape el último botón de la página. Se restaura el valor previo.
+    // Sin modal, mientras haya un error persistente visible, se reserva abajo
+    // (padding-bottom del body) el alto de la pila + el offset del breakpoint
+    // (12px ≤640px, 24px escritorio) para que no tape el último botón de la
+    // página. Se restaura el valor previo al cerrarse el último error.
     var padPrevio = null;   // {inline, base} guardados al aplicar por primera vez
     function restaurarEspacio() {
         if (padPrevio === null) { return; }
         document.body.style.paddingBottom = padPrevio.inline;
         padPrevio = null;
+    }
+    // Alto real de la pila visible: suma los toasts que no están saliendo
+    // (los que llevan .toast--leaving siguen en el DOM hasta su cleanup pero
+    // ya no deben contarse, o el padding sobrepica de forma transitoria al
+    // encadenar errores) más el gap entre ellos (12px, nodo-toast.css).
+    function altoPilaVisible(box) {
+        var hijos = box.children || [];
+        var alto = 0;
+        var count = 0;
+        for (var i = 0; i < hijos.length; i++) {
+            var h = hijos[i];
+            if (h.classList && h.classList.contains('toast--leaving')) { continue; }
+            alto += h.getBoundingClientRect().height;
+            count++;
+        }
+        if (count > 1) { alto += (count - 1) * 12; }
+        return alto;
     }
     function reservarEspacio() {
         var body = document.body;
@@ -364,12 +382,13 @@
         var box = document.getElementById('toast-container');
         var visibles = persistentes.filter(function (t) { return !t._closed; });
         var ctx = contextoModal();
-        if (!box || !ctx.movil || ctx.modal || !visibles.length ||
+        if (!box || ctx.modal || !visibles.length ||
             typeof box.getBoundingClientRect !== 'function') {
             restaurarEspacio();
             return;
         }
-        var alto = Math.ceil(box.getBoundingClientRect().height) + 12;
+        var offset = ctx.movil ? 12 : 24;
+        var alto = Math.ceil(altoPilaVisible(box)) + offset;
         if (padPrevio === null) {
             var cs = (typeof window.getComputedStyle === 'function') ? window.getComputedStyle(body) : null;
             padPrevio = {inline: body.style.paddingBottom || '', base: cs ? (parseFloat(cs.paddingBottom) || 0) : 0};
