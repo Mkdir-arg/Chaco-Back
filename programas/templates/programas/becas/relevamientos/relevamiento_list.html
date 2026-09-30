@@ -1,5 +1,5 @@
 {% extends "includes/base.html" %}
-{% load rbac %}
+{% load rbac static %}
 {% block title %}Becas · Relevamientos{% endblock %}
 
 {% block main-content %}
@@ -78,42 +78,42 @@
     <div class="overflow-x-auto">
       <table class="w-full border-collapse">
         <thead>
-          <tr class="bg-secondary border-b border-base">
-            <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Nombre</th>
-            <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Segmento</th>
-            <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Territorial</th>
-            <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Zona</th>
-            <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Fecha</th>
-            <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Estado</th>
-            <th class="px-4 py-[11px] text-right font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Acciones</th>
+          <tr class="nodo-thead-row">
+            <th class="nodo-th">Nombre</th>
+            <th class="nodo-th">Segmento</th>
+            <th class="nodo-th">Territorial</th>
+            <th class="nodo-th">Zona</th>
+            <th class="nodo-th">Fecha</th>
+            <th class="nodo-th">Estado</th>
+            <th class="nodo-th text-right">Acciones</th>
           </tr>
         </thead>
         <tbody>
           {% for rel in relevamientos %}
           <tr class="hover:bg-secondary">
-            <td class="px-4 py-[13px] text-sm border-t border-light font-semibold text-heading">
+            <td class="nodo-td font-semibold text-heading">
               <a href="{% url 'becas:relevamiento_detalle' rel.pk %}" class="text-fg-brand hover:underline">{{ rel.nombre }}</a>
             </td>
-            <td class="px-4 py-[13px] text-sm border-t border-light text-body">{{ rel.convocatoria.segmento.nombre }}</td>
-            <td class="px-4 py-[13px] text-sm border-t border-light text-body">
+            <td class="nodo-td text-body">{{ rel.convocatoria.segmento.nombre }}</td>
+            <td class="nodo-td text-body">
               {% if rel.territorial %}
                 {{ rel.territorial.get_full_name|default:rel.territorial.username }}
               {% else %}
                 <span class="badge badge-info">Formulario público</span>
               {% endif %}
             </td>
-            <td class="px-4 py-[13px] text-sm border-t border-light text-body">{{ rel.zona|default:"—" }}</td>
-            <td class="px-4 py-[13px] text-sm border-t border-light text-body">{{ rel.fecha_asignada|date:"d/m/Y H:i" }} al {{ rel.fecha_hasta|date:"d/m/Y H:i" }}</td>
-            <td class="px-4 py-[13px] text-sm border-t border-light">{% include "programas/becas/relevamientos/_estado_badge.html" %}</td>
-            <td class="px-4 py-[13px] text-sm border-t border-light text-right whitespace-nowrap">
+            <td class="nodo-td text-body">{{ rel.zona|default:"—" }}</td>
+            <td class="nodo-td text-body">{{ rel.fecha_asignada|date:"d/m/Y H:i" }} al {{ rel.fecha_hasta|date:"d/m/Y H:i" }}</td>
+            <td class="nodo-td">{% include "programas/becas/relevamientos/_estado_badge.html" %}</td>
+            <td class="nodo-td text-right whitespace-nowrap">
               {% if rel.es_publico %}
-              <button type="button" class="text-fg-brand hover:opacity-70 p-1" title="Copiar link de inscripción" aria-label="Copiar link de inscripción"
+              <button type="button" class="nodo-icon-btn" aria-label="Copiar link de inscripción de {{ rel.nombre }}"
                       data-copy-link="{{ request.scheme }}://{{ request.get_host }}{{ rel.url_publica }}">
-                <i class="fas fa-link"></i>
+                <i class="fas fa-link" aria-hidden="true"></i>
               </button>
               {% endif %}
-              <a href="{% url 'becas:relevamiento_detalle' rel.pk %}" class="text-fg-brand hover:opacity-70 p-1" title="Ver" aria-label="Ver">
-                <i class="fas fa-eye"></i>
+              <a href="{% url 'becas:relevamiento_detalle' rel.pk %}" class="nodo-icon-btn" aria-label="Ver {{ rel.nombre }}">
+                <i class="fas fa-eye" aria-hidden="true"></i>
               </a>
             </td>
           </tr>
@@ -154,28 +154,16 @@
   {% endif %}
 
   {# ============ Modal: Nuevo relevamiento ============ #}
-  <div x-show="modalRel" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
+  {# x-becas-modal: foco, Tab atrapado, Escape y scroll del fondo (becas-modal.js) #}
+  <div x-show="modalRel" x-cloak x-becas-modal="modalRel" class="fixed inset-0 z-50 flex items-center justify-center p-4">
     <div class="absolute inset-0" style="background:rgba(0,0,0,.5);backdrop-filter:blur(4px)" @click="modalRel=false"></div>
-    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-xl max-h-[90vh] overflow-y-auto" @click.stop>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-xl max-h-[90vh] flex flex-col overflow-hidden" @click.stop
+         role="dialog" aria-modal="true" aria-labelledby="modal-rel-titulo">
+      {% include "programas/becas/_modal_header.html" with titulo="Nuevo relevamiento" titulo_id="modal-rel-titulo" icono="fa-route" cerrar="modalRel=false" %}
 
-      {% comment %}HEADER{% endcomment %}
-      <div class="flex items-center justify-between px-6 py-5 border-b" style="border-color:var(--border-light)">
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-lg flex items-center justify-center text-lg"
-               style="background:var(--bg-brand-soft);color:var(--text-fg-brand)">
-            <i class="fas fa-route"></i>
-          </div>
-          <h3 class="text-lg font-bold text-heading">Nuevo relevamiento</h3>
-        </div>
-        <button type="button" @click="modalRel=false" aria-label="Cerrar"
-                class="p-1.5 rounded-lg text-body-subtle hover:text-heading hover:bg-secondary transition-colors">
-          <i class="fas fa-xmark text-base"></i>
-        </button>
-      </div>
-
-      <form method="post" action="{% url 'becas:relevamiento_crear' %}" enctype="multipart/form-data">
+      <form method="post" action="{% url 'becas:relevamiento_crear' %}" enctype="multipart/form-data" class="flex flex-col flex-1 min-h-0">
         {% csrf_token %}
-        <div class="p-6 space-y-4">
+        <div class="p-6 space-y-4 overflow-y-auto min-h-0">
           <div class="rounded-xl bg-brand-soft p-3 text-sm text-fg-brand flex items-start gap-2" style="border:1px solid var(--color-brand-200)">
             <i class="fas fa-circle-info mt-0.5"></i>
             <span x-show="tipoRel==='TERRITORIAL'">El relevamiento recibe automáticamente el próximo número disponible dentro de la convocatoria seleccionada y queda en estado Asignado.</span>
@@ -184,7 +172,7 @@
             {% endif %}
           </div>
           {% if form_crear.non_field_errors %}
-            <div class="rounded-lg bg-danger-soft p-3 text-sm text-fg-danger">{{ form_crear.non_field_errors }}</div>
+            <div class="rounded-lg bg-danger-soft border border-danger-subtle p-4 text-sm text-fg-danger" role="alert">{{ form_crear.non_field_errors }}</div>
           {% endif %}
           {% if puede_publico %}
           <div>
@@ -248,10 +236,7 @@
             <p class="text-xs text-body-subtle mt-1">{{ form_crear.confirmar_por_email.help_text }}</p>
           </div>
         </div>
-        <div class="flex justify-end gap-3 px-6 py-4 border-t bg-secondary" style="border-color:var(--border-light)">
-          <button type="button" @click="modalRel=false" class="btn-nodo btn-tertiary btn-base">Cancelar</button>
-          <button type="submit" class="btn-nodo btn-brand btn-base">Guardar</button>
-        </div>
+        {% include "programas/becas/_modal_footer.html" with cancelar="modalRel=false" accion_texto="Guardar" %}
       </form>
     </div>
   </div>
@@ -260,4 +245,8 @@
 {% include "programas/becas/relevamientos/_cascada_localidad.html" %}
 {% include "programas/becas/relevamientos/_copiar_link_js.html" %}
 {% include "user/_alta_rapida_modal.html" %}
+{% endblock %}
+
+{% block customJS %}
+<script src="{% static 'custom/js/becas-modal.js' %}"></script>
 {% endblock %}

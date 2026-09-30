@@ -700,7 +700,7 @@ class RelevamientoDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, Detail
     # Los dos niveles del padrón en la misma consulta (Cambio 74): el propio
     # del relevamiento y el de la convocatoria que heredaría si no tiene.
     queryset = Relevamiento.objects.select_related(
-        "convocatoria__segmento", "convocatoria__subsegmento", "territorial"
+        "convocatoria__segmento__programa", "convocatoria__subsegmento", "territorial"
     ).annotate(
         n_padron_propio=Count("convocatoria__padron", filter=Q(convocatoria__padron__relevamiento_id=F("pk"))),
         n_padron_convocatoria=Count("convocatoria__padron", filter=Q(convocatoria__padron__relevamiento__isnull=True)),

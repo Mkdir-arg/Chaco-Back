@@ -11,12 +11,12 @@
     {% csrf_token %}
     {% if advertencia_solapamiento %}
       <input type="hidden" name="confirmar_solapamiento" value="1">
-      <div class="mb-4 rounded-lg bg-warning-soft p-3 text-sm text-fg-warning" role="alert">
+      <div class="mb-4 rounded-lg bg-warning-soft border border-warning-subtle p-4 text-sm text-fg-warning" role="alert">
         {{ advertencia_solapamiento }}
       </div>
     {% endif %}
     {% if form.non_field_errors %}
-      <div class="mb-4 rounded-lg bg-danger-soft p-3 text-sm text-fg-danger">{{ form.non_field_errors }}</div>
+      <div class="mb-4 rounded-lg bg-danger-soft border border-danger-subtle p-4 text-sm text-fg-danger" role="alert">{{ form.non_field_errors }}</div>
     {% endif %}
     {% if form.tipo %}
       {% with field=form.tipo %}{% include "programas/becas/_field.html" %}{% endwith %}
