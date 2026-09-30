@@ -305,6 +305,7 @@ class ConvocatoriaDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, Detail
         ctx["n_padron_identidad"] = conteo_padron["con_identidad"] or 0
         ctx["n_rels_padron_propio"] = conteo_padron["rels_propios"] or 0
         ctx["puede_padron"] = puede(self.request.user, CAP_CONVOCATORIA_EDITAR)
+        ctx["padron_resumen"] = _resumen_fijo_padron(self.request, f"conv-{conv.pk}")
         ctx["tiene_publicos"] = any(r.es_publico for r in relevamientos)
         return ctx
 
@@ -731,6 +732,7 @@ class RelevamientoDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, Detail
             "propio" if rel.n_padron_propio else ("convocatoria" if rel.n_padron_convocatoria else "")
         )
         ctx["puede_padron"] = puede(self.request.user, CAP_CONVOCATORIA_EDITAR)
+        ctx["padron_resumen"] = _resumen_fijo_padron(self.request, f"rel-{rel.pk}")
         ctx["form_reasignar"] = ReasignarTerritorialForm(
             initial={"territorial": rel.territorial}, segmento=rel.convocatoria.segmento
         )
@@ -866,6 +868,56 @@ def relevamiento_reasignar(request, pk):
     return redirect("becas:relevamiento_detalle", pk=rel.pk)
 
 
+PADRON_LOCALIDADES_MAX = 10
+
+
+def _clave_resumen_padron(clave):
+    return f"padron_ultima_carga:{clave}"
+
+
+def _informar_carga_padron(request, clave, resumen, prefijo=""):
+    """Un solo aviso por carga, con el nivel del peor resultado, y el resumen
+    fijo en sesión (reemplaza al de la carga anterior del mismo objeto)."""
+    hay_problemas = bool(resumen.rechazadas or resumen.fechas_invalidas or resumen.localidades_no_reconocidas)
+    nivel = messages.WARNING if hay_problemas else messages.SUCCESS
+    messages.add_message(request, nivel, prefijo + resumen.mensaje())
+    request.session[_clave_resumen_padron(clave)] = {
+        "validas": resumen.validas,
+        "con_identidad": resumen.con_identidad,
+        "rechazadas": resumen.rechazadas,
+        "fechas_invalidas": resumen.fechas_invalidas,
+        "casos_validados": resumen.casos_validados,
+        "localidades_total": len(resumen.localidades_no_reconocidas),
+        "localidades": list(resumen.localidades_no_reconocidas[:PADRON_LOCALIDADES_MAX]),
+    }
+
+
+def _resumen_fijo_padron(request, clave):
+    """Datos de la alerta persistente (`components/_alerta.html`) de la última carga, o None."""
+    sesion = getattr(request, "session", None)
+    datos = sesion.get(_clave_resumen_padron(clave)) if sesion is not None else None
+    if not datos:
+        return None
+    partes = [f"{datos['validas']} habilitados", f"{datos['con_identidad']} con identidad completa"]
+    if datos["rechazadas"]:
+        partes.append(f"{datos['rechazadas']} filas ignoradas")
+    if datos["fechas_invalidas"]:
+        partes.append(f"{datos['fechas_invalidas']} fechas sin interpretar")
+    if datos["casos_validados"]:
+        partes.append(f"{datos['casos_validados']} casos pendientes validados")
+    texto = " · ".join(partes) + "."
+    if datos["localidades_total"]:
+        muestra = ", ".join(datos["localidades"])
+        if datos["localidades_total"] > len(datos["localidades"]):
+            muestra += ", …"
+        texto += (
+            f" Localidades que no coinciden con el catálogo ({datos['localidades_total']}, quedan como texto): "
+            f"{muestra}. Corregí el Excel si querés que se vinculen al legajo."
+        )
+    hay_problemas = bool(datos["rechazadas"] or datos["fechas_invalidas"] or datos["localidades_total"])
+    return {"tono": "warning" if hay_problemas else "success", "titulo": "Última carga del padrón", "texto": texto}
+
+
 @login_required
 @requiere(CAP_CONVOCATORIA_EDITAR)
 @require_POST
@@ -897,16 +949,7 @@ def convocatoria_padron(request, pk):
     resumen = cargar_padron(conv, archivo, entradas, usuario=request.user)
     resumen.rechazadas = resumen_parseo.rechazadas
     resumen.fechas_invalidas = resumen_parseo.fechas_invalidas
-    messages.success(request, resumen.mensaje())
-    if resumen.localidades_no_reconocidas:
-        muestra = ", ".join(resumen.localidades_no_reconocidas[:8])
-        if len(resumen.localidades_no_reconocidas) > 8:
-            muestra += ", …"
-        messages.warning(
-            request,
-            f"Localidades que no coinciden con el catálogo (quedan como texto): {muestra}. "
-            "Corregí el Excel si querés que se vinculen al legajo.",
-        )
+    _informar_carga_padron(request, f"conv-{conv.pk}", resumen)
     return redirect(destino)
 
 
@@ -941,16 +984,7 @@ def relevamiento_padron(request, pk):
     resumen = cargar_padron(rel, archivo, entradas, usuario=request.user)
     resumen.rechazadas = resumen_parseo.rechazadas
     resumen.fechas_invalidas = resumen_parseo.fechas_invalidas
-    messages.success(request, "Padrón propio de este relevamiento. " + resumen.mensaje())
-    if resumen.localidades_no_reconocidas:
-        muestra = ", ".join(resumen.localidades_no_reconocidas[:8])
-        if len(resumen.localidades_no_reconocidas) > 8:
-            muestra += ", …"
-        messages.warning(
-            request,
-            f"Localidades que no coinciden con el catálogo (quedan como texto): {muestra}. "
-            "Corregí el Excel si querés que se vinculen al legajo.",
-        )
+    _informar_carga_padron(request, f"rel-{rel.pk}", resumen, prefijo="Padrón propio de este relevamiento. ")
     return redirect(destino)
 
 
