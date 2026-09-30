@@ -894,7 +894,8 @@ def _informar_carga_padron(request, clave, resumen, prefijo=""):
 
 def _resumen_fijo_padron(request, clave):
     """Datos de la alerta persistente (`components/_alerta.html`) de la última carga, o None."""
-    datos = request.session.get(_clave_resumen_padron(clave))
+    sesion = getattr(request, "session", None)
+    datos = sesion.get(_clave_resumen_padron(clave)) if sesion is not None else None
     if not datos:
         return None
     partes = [f"{datos['validas']} habilitados", f"{datos['con_identidad']} con identidad completa"]
