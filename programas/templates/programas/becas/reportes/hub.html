@@ -1,15 +1,13 @@
 {% extends "includes/base.html" %}
+{% load nodo_ui %}
 {% block title %}Becas · Reportes{% endblock %}
 {% block main-content %}
-<div class="mb-8">
-  <div class="mb-6">
-    <h1 class="text-3xl font-extrabold text-heading tracking-tight">Reportes de Becas</h1>
-    <p class="text-sm text-body-subtle mt-1">Consultá información transversal respetando tu alcance territorial.</p>
-  </div>
+<div class="space-y-5 mb-8">
+  {% page_header titulo="Reportes de Becas" bajada="Consultá información transversal respetando tu alcance territorial." %}{% endpage_header %}
   <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
     {% for codigo, reporte in reportes %}
       <a href="{% url 'becas:reporte_detalle' codigo %}" class="bg-white rounded-xl border border-base shadow-sm p-5 hover:border-brand transition-colors">
-        <div class="text-fg-brand mb-3"><i class="fas fa-chart-column text-2xl"></i></div>
+        <div class="text-fg-brand mb-3"><i class="fas {% if codigo == 'cupos' %}fa-chart-pie{% elif codigo == 'avance' %}fa-bars-progress{% elif codigo == 'produccion' %}fa-map-location-dot{% elif codigo == 'embudo' %}fa-filter{% elif codigo == 'beneficiarios' %}fa-users{% else %}fa-chart-column{% endif %} text-2xl" aria-hidden="true"></i></div>
         <h2 class="font-bold text-heading">{{ reporte.titulo }}</h2>
         <p class="text-sm text-body mt-1">{{ reporte.descripcion }}</p>
       </a>

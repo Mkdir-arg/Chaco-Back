@@ -120,8 +120,14 @@ def _sin_formularios_publicos_si_no_puede(qs, user):
 
 
 def _convocatorias_qs(request):
+    # El badge de estado de cada fila mira ``pausa_efectiva``, que sube por
+    # segmento → programa y por subsegmento → segmento → programa: sin estas
+    # relaciones precargadas el listado hace tres consultas por convocatoria.
     return (
-        Convocatoria.objects.select_related("segmento", "subsegmento")
+        Convocatoria.objects.select_related(
+            "segmento__programa",
+            "subsegmento__segmento__programa",
+        )
         .defer("descripcion", "segmento__descripcion", "subsegmento__descripcion")
         .annotate(n_relevamientos=Count("relevamientos", distinct=True))
         .filter(pk__in=convocatorias_visibles(request.user))
@@ -588,9 +594,6 @@ class RelevamientoListView(CapacidadRequeridaMixin, LoginRequiredMixin, ListView
             "fecha_desde": self.request.GET.get("fecha_desde", ""),
             "fecha_hasta": self.request.GET.get("fecha_hasta", ""),
         }
-        query_params = self.request.GET.copy()
-        query_params.pop("page", None)
-        ctx["querystring"] = query_params.urlencode()
         # Form + nombre autogenerado para el modal "Nuevo relevamiento".
         ctx["puede_publico"] = _puede_publico(self.request.user)
         form_crear = RelevamientoForm(
@@ -700,7 +703,7 @@ class RelevamientoDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, Detail
     # Los dos niveles del padrón en la misma consulta (Cambio 74): el propio
     # del relevamiento y el de la convocatoria que heredaría si no tiene.
     queryset = Relevamiento.objects.select_related(
-        "convocatoria__segmento", "convocatoria__subsegmento", "territorial"
+        "convocatoria__segmento__programa", "convocatoria__subsegmento", "territorial"
     ).annotate(
         n_padron_propio=Count("convocatoria__padron", filter=Q(convocatoria__padron__relevamiento_id=F("pk"))),
         n_padron_convocatoria=Count("convocatoria__padron", filter=Q(convocatoria__padron__relevamiento__isnull=True)),

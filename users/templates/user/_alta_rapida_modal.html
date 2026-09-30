@@ -1,23 +1,44 @@
+{% load static %}
+{% comment %}
+Alta rápida de usuario (coordinador / referente / territorial) desde las pantallas de Becas.
+Modal canónico: panel role=dialog, encabezado con X, cuerpo desplazable y pie gris.
+El cierre (X, Cancelar, backdrop, Escape) lo resuelve este mismo script con
+[data-quick-user-close], para no quedar encerrado si becas-modal.js no llega a cargar
+(bloqueado o 404). Si becas-modal.js está disponible, además se usa becasModal.bind
+para el foco inicial y la trampa de Tab (no para cerrar). Contrato: POST a
+users:usuario_alta_rapida, respuesta data.user.
+
+No reutiliza programas/becas/_modal_header.html ni _modal_footer.html: esos parciales
+cierran solo vía data-becas-modal-cerrar (dependencia dura de becas-modal.js) y viven
+en la app programas, mientras este modal es de la app users y necesita seguir
+funcionando sin ese script.
+{% endcomment %}
 <div id="quick-user-modal" class="fixed inset-0 z-[70] flex items-center justify-center p-4" style="display:none;">
-  <div class="absolute inset-0 bg-black/50" data-quick-user-close></div>
-  <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6">
-    <div class="flex justify-between items-center mb-5">
-      <h3 class="text-xl font-bold text-heading">Crear <span data-quick-user-title>usuario</span></h3>
-      <button type="button" data-quick-user-close class="btn-nodo btn-tertiary btn-sm">Cerrar</button>
+  <div class="absolute inset-0 bg-black/50" data-becas-modal-cerrar data-quick-user-close></div>
+  <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden" role="dialog" aria-modal="true" aria-labelledby="quick-user-titulo">
+    <div class="flex items-center gap-3 px-6 py-5 border-b border-light flex-shrink-0">
+      <div class="flex items-center justify-center w-10 h-10 rounded-lg flex-shrink-0 text-lg bg-brand-soft text-fg-brand"><i class="fas fa-user-plus" aria-hidden="true"></i></div>
+      <h3 id="quick-user-titulo" class="text-lg font-bold text-heading flex-1 min-w-0">Crear <span data-quick-user-title>usuario</span></h3>
+      <button type="button" data-becas-modal-cerrar data-quick-user-close aria-label="Cerrar" class="p-1.5 rounded-lg text-body-subtle hover:text-heading hover:bg-secondary transition-colors flex-shrink-0"><i class="fas fa-xmark text-base" aria-hidden="true"></i></button>
     </div>
-    <form id="quick-user-form" action="{% url 'users:usuario_alta_rapida' %}" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <form id="quick-user-form" action="{% url 'users:usuario_alta_rapida' %}" class="flex flex-col min-h-0 flex-1">
       {% csrf_token %}<input type="hidden" name="tipo"><input type="hidden" name="segmento_id">
-      <div><label class="text-sm font-semibold">Usuario *</label><input class="nodo-field" name="username" required></div>
-      <div><label class="text-sm font-semibold">Email</label><input class="nodo-field" name="email" type="email"></div>
-      <div><label class="text-sm font-semibold">Nombre</label><input class="nodo-field" name="first_name"></div>
-      <div><label class="text-sm font-semibold">Apellido</label><input class="nodo-field" name="last_name"></div>
-      <div><label class="text-sm font-semibold">DNI</label><input class="nodo-field" name="dni" maxlength="8"></div>
-      <div><label class="text-sm font-semibold">Teléfono</label><input class="nodo-field" name="telefono"></div>
-      <div class="md:col-span-2"><label class="text-sm font-semibold">Institución</label><input class="nodo-field" name="institucion"></div>
-      <div class="md:col-span-2"><label class="text-sm font-semibold">Observación</label><textarea class="nodo-field" name="observacion" rows="2"></textarea></div>
-      <div class="md:col-span-2"><label class="text-sm font-semibold">Contraseña provisoria</label><input class="nodo-field" name="password" type="password"><p class="text-xs mt-1" style="color:var(--text-body-subtle);">Con email informado no hace falta: el sistema genera una clave provisoria y se la envía al usuario.</p></div>
-      <div id="quick-user-error" class="md:col-span-2 text-sm text-fg-danger"></div>
-      <div class="md:col-span-2 flex justify-end gap-3"><button type="button" data-quick-user-close class="btn-nodo btn-tertiary btn-base">Cancelar</button><button class="btn-nodo btn-brand btn-base" type="submit">Crear y seleccionar</button></div>
+      <div class="overflow-y-auto flex-1 p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div><label for="quick-user-username" class="block text-sm font-medium text-heading mb-1">Usuario <span class="text-fg-danger">*</span></label><input id="quick-user-username" class="nodo-field" name="username" required></div>
+        <div><label for="quick-user-email" class="block text-sm font-medium text-heading mb-1">Email</label><input id="quick-user-email" class="nodo-field" name="email" type="email"></div>
+        <div><label for="quick-user-first-name" class="block text-sm font-medium text-heading mb-1">Nombre</label><input id="quick-user-first-name" class="nodo-field" name="first_name"></div>
+        <div><label for="quick-user-last-name" class="block text-sm font-medium text-heading mb-1">Apellido</label><input id="quick-user-last-name" class="nodo-field" name="last_name"></div>
+        <div><label for="quick-user-dni" class="block text-sm font-medium text-heading mb-1">DNI</label><input id="quick-user-dni" class="nodo-field" name="dni" maxlength="8"></div>
+        <div><label for="quick-user-telefono" class="block text-sm font-medium text-heading mb-1">Teléfono</label><input id="quick-user-telefono" class="nodo-field" name="telefono"></div>
+        <div class="md:col-span-2"><label for="quick-user-institucion" class="block text-sm font-medium text-heading mb-1">Institución</label><input id="quick-user-institucion" class="nodo-field" name="institucion"></div>
+        <div class="md:col-span-2"><label for="quick-user-observacion" class="block text-sm font-medium text-heading mb-1">Observación</label><textarea id="quick-user-observacion" class="nodo-field" name="observacion" rows="2"></textarea></div>
+        <div class="md:col-span-2"><label for="quick-user-password" class="block text-sm font-medium text-heading mb-1">Contraseña provisoria</label><input id="quick-user-password" class="nodo-field" name="password" type="password" aria-describedby="quick-user-password-ayuda"><p id="quick-user-password-ayuda" class="text-xs mt-1 text-body-subtle">Con email informado no hace falta: el sistema genera una clave provisoria y se la envía al usuario.</p></div>
+        <div id="quick-user-error" class="md:col-span-2 text-sm text-fg-danger" role="alert" tabindex="-1"></div>
+      </div>
+      <div class="flex justify-end gap-3 px-6 py-4 border-t border-light bg-secondary flex-shrink-0">
+        <button type="button" data-becas-modal-cerrar data-quick-user-close class="btn-nodo btn-tertiary btn-base">Cancelar</button>
+        <button type="submit" data-quick-user-submit class="btn-nodo btn-brand btn-base">Crear y seleccionar</button>
+      </div>
     </form>
   </div>
 </div>
@@ -27,27 +48,98 @@
   const form = document.getElementById('quick-user-form');
   if (!modal || !form || modal.dataset.ready) return;
   modal.dataset.ready = '1'; let target = null;
+  const AYUDA = 'Elegí primero la convocatoria: el territorial se crea dentro de su segmento.';
+  const submit = form.querySelector('[data-quick-user-submit]');
+  const error = document.getElementById('quick-user-error');
+  const abierto = () => modal.style.display !== 'none';
   const close = () => { modal.style.display = 'none'; };
-  document.querySelectorAll('[data-quick-user-close]').forEach(el => el.addEventListener('click', close));
-  document.querySelectorAll('[data-quick-user]').forEach(button => button.addEventListener('click', () => {
-    const tipo = button.dataset.quickUser; target = document.querySelector(button.dataset.userSelect);
+  // Cierre propio: funciona aunque becas-modal.js no llegue a cargar (bloqueado o
+  // 404). Si becas-modal.js SÍ está, además se usa becasModal.bind para foco inicial
+  // y trampa de Tab, pero el cierre no depende de él.
+  modal.addEventListener('click', event => {
+    const boton = event.target.closest && event.target.closest('[data-quick-user-close]');
+    if (boton && modal.contains(boton)) close();
+  });
+  document.addEventListener('keydown', event => {
+    if ((event.key !== 'Escape' && event.key !== 'Esc') || event.defaultPrevented || !abierto()) return;
+    const activo = document.activeElement;
+    if (activo && activo.closest && !modal.contains(activo) && activo.closest('[role="dialog"], [role="alertdialog"], [aria-modal="true"]')) return;
+    close();
+  });
+  const enlazarBecasModal = () => { if (window.becasModal) window.becasModal.bind(modal, {onClose: close}); };
+  const inyectarModal = () => {
+    if (window.becasModal) { enlazarBecasModal(); return; }
+    const existente = document.querySelector('script[src*="becas-modal.js"]');
+    if (existente) { existente.addEventListener('load', enlazarBecasModal); return; }
+    const s = document.createElement('script'); s.src = "{% static 'custom/js/becas-modal.js' %}";
+    s.dataset.quickUserAutoload = '1';
+    s.addEventListener('load', enlazarBecasModal);
+    document.head.appendChild(s);
+  };
+  // Se difiere hasta que el documento termine de parsearse: si la página trae su
+  // propio <script src=…becas-modal.js> MÁS ABAJO de este include, para entonces ya
+  // corrió (evita inyectar una segunda copia — hallazgo de revisión del PR).
+  const cargarModal = () => {
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', inyectarModal, {once: true});
+    else inyectarModal();
+  };
+  const segmentoDe = button => {
     let segmento = button.dataset.segmentId || '';
     if (!segmento) {
       const convocatoria = document.querySelector(button.dataset.segmentSource || '#id_convocatoria');
       segmento = convocatoria?.selectedOptions?.[0]?.dataset?.segmento || '';
     }
-    if (tipo === 'territorial' && !segmento) { alert('Primero seleccioná una convocatoria.'); return; }
+    return segmento;
+  };
+  // DP-4: el territorial se crea dentro de un segmento; sin convocatoria el botón
+  // queda aria-disabled (no disabled) para que el lector de pantalla llegue a la
+  // ayuda con aria-describedby; el click se bloquea a mano.
+  const sincronizarTerritorial = () => document.querySelectorAll('[data-quick-user="territorial"]').forEach((button, i) => {
+    const falta = !segmentoDe(button);
+    button.setAttribute('aria-disabled', falta ? 'true' : 'false');
+    let ayuda = button.nextElementSibling && button.nextElementSibling.hasAttribute('data-quick-user-ayuda') ? button.nextElementSibling : null;
+    if (falta && !ayuda) {
+      ayuda = document.createElement('p'); ayuda.id = 'quick-user-ayuda-' + i; ayuda.dataset.quickUserAyuda = '';
+      ayuda.className = 'mt-1 text-xs text-body-subtle'; ayuda.textContent = AYUDA;
+      button.insertAdjacentElement('afterend', ayuda); button.setAttribute('aria-describedby', ayuda.id);
+    } else if (!falta && ayuda) { ayuda.remove(); button.removeAttribute('aria-describedby'); }
+  });
+  document.addEventListener('change', sincronizarTerritorial);
+  sincronizarTerritorial();
+  document.querySelectorAll('[data-quick-user]').forEach(button => button.addEventListener('click', () => {
+    if (button.getAttribute('aria-disabled') === 'true') return;
+    const tipo = button.dataset.quickUser; target = document.querySelector(button.dataset.userSelect);
+    const segmento = segmentoDe(button);
+    if (tipo === 'territorial' && !segmento) return;
     form.reset(); form.elements.tipo.value = tipo; form.elements.segmento_id.value = segmento;
-    modal.querySelector('[data-quick-user-title]').textContent = tipo; document.getElementById('quick-user-error').textContent = '';
+    modal.querySelector('[data-quick-user-title]').textContent = tipo; error.textContent = '';
     modal.style.display = 'flex';
   }));
   form.addEventListener('submit', async event => {
-    event.preventDefault(); const error = document.getElementById('quick-user-error'); error.textContent = '';
-    const response = await fetch(form.action, {method:'POST', body:new FormData(form), headers:{'X-Requested-With':'XMLHttpRequest'}});
-    const data = await response.json();
-    if (!response.ok) { error.textContent = data.message || Object.values(data.errors || {}).flat().join(' '); return; }
-    if (target) { const option = new Option(data.user.label, data.user.id, true, true); option.dataset.segmento = data.user.segmento_id || ''; target.add(option); target.dispatchEvent(new Event('change', {bubbles:true})); }
-    close();
+    event.preventDefault(); error.textContent = '';
+    if (submit.disabled) return;
+    submit.disabled = true;
+    try {
+      const response = await fetch(form.action, {method:'POST', body:new FormData(form), headers:{'X-Requested-With':'XMLHttpRequest'}});
+      let data;
+      try { data = await response.json(); } catch (e) {
+        window.toast('error', 'No pudimos crear el usuario (respuesta inesperada del servidor). Probá de nuevo.'); return;
+      }
+      if (!response.ok) {
+        const errores = data.errors || {};
+        error.textContent = data.message || Object.values(errores).flat().join(' ');
+        error.scrollIntoView({block: 'nearest'});
+        const primerCampo = Object.keys(errores)[0];
+        const campo = primerCampo && form.elements.namedItem(primerCampo);
+        (campo || error).focus();
+        return;
+      }
+      if (target) { const option = new Option(data.user.label, data.user.id, true, true); option.dataset.segmento = data.user.segmento_id || ''; target.add(option); target.dispatchEvent(new Event('change', {bubbles:true})); }
+      close();
+    } catch (e) {
+      window.toast('error', 'No pudimos conectar con el servidor. Revisá tu conexión.');
+    } finally { submit.disabled = false; }
   });
+  cargarModal();
 })();
 </script>
