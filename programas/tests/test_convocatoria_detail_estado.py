@@ -47,8 +47,9 @@ class ConvocatoriaDetailEstadoTests(TestCase):
     def test_solapa_y_tarjeta_dicen_casos(self):
         html = self._html()
         self.assertIn('<i class="fas fa-users"></i> Casos', html)
-        self.assertIn('font-medium">Casos</p>', html)
-        self.assertNotIn('font-medium">Beneficiarios</p>', html)
+        # Tarjeta (components/_stat_card.html): el rótulo es «Casos», nunca «Beneficiarios».
+        self.assertIn('<p class="text-xs font-semibold text-body-subtle">Casos</p>', html)
+        self.assertNotIn('text-body-subtle">Beneficiarios</p>', html)
         self.assertNotIn('<i class="fas fa-users"></i> Beneficiarios', html)
 
     def test_paneles_de_la_solapa_dicen_casos(self):
