@@ -188,7 +188,7 @@ class PersonasListUsaLasPiezasTests(TestCase):
         ):
             url = reverse("becas:formulario_detalle", args=[formulario.pk])
             self.assertInHTML(
-                f'<a href="{url}" class="nodo-icon-btn" aria-label="{etiqueta}">'
+                f'<a href="{url}?next=/becas/revision/" class="nodo-icon-btn" aria-label="{etiqueta}">'
                 '<i class="fas fa-eye" aria-hidden="true"></i></a>',
                 html,
             )
