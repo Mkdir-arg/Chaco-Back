@@ -1,21 +1,27 @@
 {% extends "includes/base.html" %}
-{% load rbac %}
+{% load rbac nodo_ui %}
 {% block title %}Becas · {% if form.instance.pk %}Editar{% else %}Nuevo{% endif %} segmento{% endblock %}
 
 {% block main-content %}
-<div class="">
-  <h1 class="text-3xl font-extrabold text-heading tracking-tight mb-6">
-    {% if form.instance.pk %}Editar segmento{% else %}Nuevo segmento{% endif %}
-  </h1>
+<div class="space-y-5">
+  {% url 'becas:segmentos' as url_segmentos %}
+  {% with titulo_pagina=form.instance.pk|yesno:"Editar segmento,Nuevo segmento" %}
+  {% page_header titulo=titulo_pagina volver_url=url_segmentos volver_label="segmentos" %}
+    {% bajada %}{% if form.instance.pk %}Cambiá el cupo, la descripción o el coordinador del segmento.{% else %}Cargá los datos del segmento; los subsegmentos y sus cupos se configuran después.{% endif %}{% endbajada %}
+  {% endpage_header %}
+  {% endwith %}
   <form method="post" class="bg-white rounded-xl border border-base shadow-sm p-6">
     {% csrf_token %}
     {% if form.non_field_errors %}
-      <div class="mb-4 rounded-lg bg-danger-soft p-3 text-sm text-fg-danger">{{ form.non_field_errors }}</div>
+      <div class="mb-4 rounded-lg bg-danger-soft border border-danger-subtle p-4 text-sm" role="alert">
+        <strong class="text-heading">Revisá el formulario</strong>
+        <div class="text-body mt-1">{{ form.non_field_errors }}</div>
+      </div>
     {% endif %}
-    {% for field in form %}{% include "programas/becas/_field.html" %}{% if field.name == "coordinador" and request.user|puede:"becas.programa.administrar" %}<button type="button" data-quick-user="coordinador" data-user-select="#{{ field.id_for_label }}" class="btn-nodo btn-tertiary btn-sm mb-3"><i class="fas fa-user-plus"></i> Crear coordinador</button>{% endif %}{% endfor %}
+    {% for field in form %}{% include "programas/becas/_field.html" %}{% if field.name == "coordinador" and request.user|puede:"becas.programa.administrar" %}<button type="button" data-quick-user="coordinador" data-user-select="#{{ field.id_for_label }}" class="btn-nodo btn-tertiary btn-sm mb-3"><i class="fas fa-user-plus" aria-hidden="true"></i> Crear coordinador</button>{% endif %}{% endfor %}
     <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-light">
-      <a href="{% url 'becas:segmentos' %}" class="btn-nodo btn-secondary btn-base">← Cancelar</a>
-      <button type="submit" class="btn-nodo btn-brand btn-base">Guardar segmento</button>
+      <a href="{% url 'becas:segmentos' %}" class="btn-nodo btn-tertiary btn-base">Cancelar</a>
+      <button type="submit" class="btn-nodo btn-brand btn-base"><i class="fas fa-check" aria-hidden="true"></i> Guardar segmento</button>
     </div>
   </form>
 </div>

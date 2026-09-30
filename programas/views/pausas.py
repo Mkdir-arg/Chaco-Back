@@ -2,6 +2,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 
 from core.rbac import puede
 from programas.models import Convocatoria, ProgramaSiis, RegistroPausa, Relevamiento, Segmento, Subsegmento
@@ -65,8 +66,16 @@ def gestionar_pausa(request, tipo, pk):
     historial = RegistroPausa.objects.filter(tipo_entidad=objeto._meta.model_name, objeto_id=objeto.pk).select_related(
         "usuario"
     )[:20]
+    accion_label = "Reanudar" if objeto.pausado else "Pausar"
     return render(
         request,
         "programas/becas/pausa_form.html",
-        {"objeto": objeto, "tipo": tipo, "historial_pausas": historial},
+        {
+            "objeto": objeto,
+            "tipo": tipo,
+            "historial_pausas": historial,
+            "accion_label": accion_label,
+            "titulo_pagina": f"{accion_label} · {objeto}",
+            "entidad_url": reverse(redirect_name, args=[objeto.pk]),
+        },
     )
