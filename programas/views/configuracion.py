@@ -113,6 +113,18 @@ def _programas_qs(user):
     return base.annotate(n_segmentos=Count("segmentos", distinct=True)).order_by("nombre")
 
 
+def _resumen_errores(form, encabezado):
+    """Un solo mensaje con todos los errores del formulario (ALR-8).
+
+    Los POST clásicos de esta pantalla redirigen al detalle y no vuelven a
+    renderizar el formulario: si cada error sale como su propio toast, la
+    persona recibe una pila de avisos, y los errores de campos que la vista no
+    enumeraba no salían nunca. Se junta todo en una línea.
+    """
+    detalles = [texto for errores in form.errors.values() for texto in errores]
+    return f"{encabezado} {' '.join(detalles)}".strip() if detalles else encabezado
+
+
 def _segmentos_ajax(request, message="Segmento guardado."):
     return ajax_ok(
         request,
@@ -575,8 +587,10 @@ def coordinador_asignar(request, segmento_pk):
             form.save()
             messages.success(request, "Coordinador asignado.")
         else:
-            for err in form.errors.get("coordinador", []):
-                messages.error(request, err)
+            # ALR-8: un solo aviso por acción. Antes salía un toast por error de
+            # ``coordinador`` (y los de otros campos o del formulario entero se
+            # perdían en silencio, porque este POST clásico no vuelve al form).
+            messages.error(request, _resumen_errores(form, "No se pudo asignar el coordinador."))
     return redirect("becas:segmento_detalle", pk=segmento.pk)
 
 
