@@ -1,17 +1,25 @@
 {% extends "includes/base.html" %}
+{% load nodo_ui %}
 {% block title %}Becas · {% if convocatoria %}Editar convocatoria{% else %}Nueva convocatoria{% endif %}{% endblock %}
 
 {% block main-content %}
-<div class="">
-  <h1 class="text-3xl font-extrabold text-heading tracking-tight mb-6">
-    {% if convocatoria %}Editar convocatoria{% else %}Nueva convocatoria{% endif %}
-  </h1>
+<div class="space-y-5">
+  {% url 'becas:convocatorias' as url_convocatorias %}
+  {% if convocatoria %}
+  {% page_header titulo="Editar convocatoria" bajada=convocatoria.nombre volver_url=url_convocatorias volver_label="convocatorias" %}{% endpage_header %}
+  {% else %}
+  {% page_header titulo="Nueva convocatoria" bajada="Período de inscripción de un segmento o subsegmento." volver_url=url_convocatorias volver_label="convocatorias" %}{% endpage_header %}
+  {% endif %}
   <form method="post"
         x-data="convocatoriaForm('{{ form.segmento.value|default:'' }}', '{{ form.subsegmento.value|default:'' }}')"
         class="bg-white rounded-xl border border-base shadow-sm p-6">
     {% csrf_token %}
     {% if form.non_field_errors %}
-      <div class="mb-4 rounded-lg bg-danger-soft p-3 text-sm text-fg-danger">{{ form.non_field_errors }}</div>
+      {% comment %}ALR-15: una sola receta de alerta en página (variante A).{% endcomment %}
+      <div class="mb-4 rounded-lg bg-danger-soft border border-danger-subtle p-4 text-sm" role="alert">
+        <strong class="text-heading">Revisá los datos de la convocatoria</strong>
+        <div class="text-body mt-1">{{ form.non_field_errors }}</div>
+      </div>
     {% endif %}
 
     {# nombre #}
@@ -69,7 +77,7 @@
     <label class="flex items-center gap-2 text-sm text-body cursor-pointer">{{ form.activo }} Activa</label>
 
     <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-light">
-      <a href="{% url 'becas:convocatorias' %}" class="btn-nodo btn-tertiary btn-base">← Cancelar</a>
+      <a href="{% url 'becas:convocatorias' %}" class="btn-nodo btn-tertiary btn-base">Cancelar</a>
       <button type="submit" class="btn-nodo btn-brand btn-base">Guardar convocatoria</button>
     </div>
   </form>

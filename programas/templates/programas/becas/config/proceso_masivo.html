@@ -1,33 +1,20 @@
 {% extends "includes/base.html" %}
+{% load nodo_ui %}
 {% block title %}Becas · Proceso masivo{% endblock %}
 
 {% block main-content %}
-<div class="mb-8" style="max-width: 760px">
+<div class="space-y-5 mb-8">
 
-  {# Encabezado #}
-  <div class="flex items-start gap-3 mb-6">
-    <a href="{% url 'becas:programa_detalle' programa.pk %}"
-       class="btn-tertiary btn-back-circle" aria-label="Volver al programa">
-      <i class="fas fa-arrow-left" aria-hidden="true"></i>
-    </a>
-    <div class="min-w-0">
-      <h1 class="font-extrabold text-heading" style="font-size:28px; letter-spacing:-0.5px">Proceso masivo</h1>
-      <p class="text-sm text-body-subtle mt-1.5">{{ programa.nombre }}</p>
-    </div>
-  </div>
+  {% url 'becas:programa_detalle' programa.pk as url_programa %}
+  {% page_header titulo="Proceso masivo" bajada=programa.nombre volver_url=url_programa volver_label="la ficha del programa" %}{% endpage_header %}
 
-  <div class="rounded-lg bg-warning-soft border border-warning-subtle p-4 text-sm mb-6" role="alert">
-    <strong class="text-heading">Esto aprueba casos y los da de alta en SIIS</strong>
-    <p class="text-body mt-1">
-      Cada caso se valida con SIIS, se aprueba y se informa. El alta no se puede deshacer desde acá.
-      No se envía ningún correo al ciudadano.
-    </p>
-  </div>
+  {# role=status: esta pantalla se relee sola cada 5 s y un alert se re-anunciaría (ALR-13). #}
+  {% include "components/_alerta.html" with tono="warning" role="status" titulo="Esto aprueba casos y los da de alta en SIIS" texto="Cada caso se valida con SIIS, se aprueba y se informa. El alta no se puede deshacer desde acá. No se envía ningún correo al ciudadano." %}
 
   {% if tabla_materias_faltante %}
   {% comment %}Cambio 90: sin la tabla que decide quién va a SIIS no se ofrece lanzar
   nada. Fallar cerrado: si mandara a todos, cometería el error que la tabla evita.{% endcomment %}
-  <div class="rounded-lg bg-danger-soft border border-danger-subtle p-4 text-sm mb-6" role="alert">
+  <div class="rounded-lg bg-danger-soft border border-danger-subtle p-4 text-sm" role="alert">
     <strong class="text-heading">Falta la tabla que decide quién va a SIIS</strong>
     <p class="text-body mt-1">{{ motivo_bloqueo }}</p>
     <p class="text-body-subtle mt-1">A SIIS solo se informan los DNI que figuran en <code>aprobados_materias</code>. Hasta que esté cargada, esta pantalla no lanza nada.</p>
@@ -86,7 +73,7 @@
   {% else %}
 
   {% if corrida and corrida.interrumpida %}
-  <div class="rounded-lg bg-warning-soft border border-warning-subtle p-4 text-sm mb-6" role="alert">
+  <div class="rounded-lg bg-warning-soft border border-warning-subtle p-4 text-sm" role="alert">
     <strong class="text-heading">Interrumpida</strong>
     <p class="text-body mt-1">
       Sin señal desde hace {{ corrida.latido|timesince }}. Llegó a {{ corrida.elegidos }} de
@@ -99,11 +86,10 @@
   {% endif %}
 
   {# Sin corrida: el formulario #}
+  <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+    {% include "components/_stat_card.html" with etiqueta="Pendientes de informar" valor=pendientes icono="fa-hourglass-half" tono="warning" %}
+  </div>
   <div class="bg-white rounded-xl border border-base shadow-sm p-5">
-    <div class="mb-5">
-      <p class="text-body-subtle text-sm">Pendientes de informar</p>
-      <p class="text-heading font-extrabold" style="font-size:32px">{{ pendientes }}</p>
-    </div>
     {% if pendientes %}
     <form method="post" action="{% url 'becas:proceso_masivo_lanzar' programa.pk %}"
           class="flex items-end gap-3 flex-wrap"
@@ -129,7 +115,7 @@
   </div>
 
   {% if corrida %}
-  <div class="bg-white rounded-xl border border-base shadow-sm p-5 mt-6">
+  <div class="bg-white rounded-xl border border-base shadow-sm p-5">
     <p class="text-[13px] font-semibold text-heading mb-2">Última corrida</p>
     <p class="text-sm text-body-subtle">
       {{ corrida.creado|date:"d/m/Y H:i" }} ·

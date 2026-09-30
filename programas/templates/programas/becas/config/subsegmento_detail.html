@@ -1,11 +1,10 @@
 {% extends "includes/base.html" %}
-{% load rbac %}
+{% load rbac static nodo_ui becas_extras %}
 {% block title %}Becas · {{ subsegmento.nombre }}{% endblock %}
 
 {% block main-content %}
 <style>[x-cloak]{display:none!important}</style>
-<div class="space-y-5"
-     x-data="{
+<div x-data="{
        modalReqNuevo: false,
        modalReqEdit: false,
        modalSubEdit: false,
@@ -31,135 +30,89 @@
      }"
      @becas-saved.window="modalReqNuevo=false; modalReqEdit=false; modalSubEdit=false">
 
-  {# Header card #}
-  <div class="bg-white rounded-xl border border-base shadow-sm p-5">
-    <div class="flex items-center gap-4 flex-wrap">
+  <div class="space-y-5">
 
-      <a href="{% url 'becas:segmento_detalle' segmento.pk %}"
-         class="btn-tertiary btn-back-circle"
-         aria-label="Volver al segmento">
-        <i class="fas fa-arrow-left" aria-hidden="true"></i>
-      </a>
-
-      {# Tile ícono #}
-      <div class="w-[46px] h-[46px] rounded-xl flex items-center justify-center text-2xl flex-shrink-0"
-           style="background:var(--bg-brand-soft);color:var(--text-fg-brand)">
-        <i class="fas fa-layer-group"></i>
-      </div>
-
-      {# Centro #}
-      <div class="flex-1 min-w-[200px]">
-        <p class="text-xs text-body-subtle mb-0.5">
-          Segmento padre:
-          <a href="{% url 'becas:segmento_detalle' segmento.pk %}" class="font-semibold hover:underline">
-            <strong>{{ segmento.nombre }}</strong>
-          </a>
-        </p>
-        <h1 class="text-xl font-extrabold text-heading tracking-tight">{{ subsegmento.nombre }}</h1>
-        {% if subsegmento.descripcion %}
-        <p class="text-sm text-body-subtle mt-0.5">{{ subsegmento.descripcion }}</p>
-        {% endif %}
-      </div>
-
-      {# Derecha: cupo + editar #}
-      <div class="text-right flex-shrink-0">
-        <p class="text-[11px] font-bold uppercase tracking-wide text-body-subtle mb-0.5">Cupo máximo</p>
-        <p class="text-xl font-extrabold text-heading mb-2">{{ subsegmento.cupo_maximo }}</p>
-        {% if request.user|puede:"becas.subsegmento.editar" %}
-        <button type="button" @click="modalSubEdit=true" class="btn-nodo btn-secondary btn-sm" aria-label="Editar subsegmento">
-          <i class="fas fa-edit"></i> Editar
-        </button>
-        {% endif %}
-        {% if subsegmento.pausa_efectiva %}<span class="badge badge-warning badge-dot ml-2">Pausado</span>{% endif %}
-        {% if request.user|puede:"becas.programa.administrar" %}
-        <a href="{% url 'becas:gestionar_pausa' 'subsegmento' subsegmento.pk %}" class="btn-nodo {% if subsegmento.pausado %}btn-brand{% else %}btn-danger{% endif %} btn-sm ml-2">
-          {% if subsegmento.pausado %}Reanudar{% else %}Pausar{% endif %}
-        </a>
-        {% endif %}
-      </div>
-
-    </div>
-  </div>
-
-  {# ======================================================= #}
-  {# Sección: Requisitos heredados del segmento (solo lectura) #}
-  {# ======================================================= #}
-  <section class="space-y-3">
-    <h2 class="text-lg font-bold text-heading">Requisitos heredados del segmento</h2>
-
-    {% if requisitos_heredados %}
-    <div class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
-      {% for req in requisitos_heredados %}
-      <div class="flex items-center justify-between px-4 py-3{% if not forloop.first %} border-t border-light{% endif %}">
-        <div class="flex items-center gap-2 flex-wrap">
-          <span class="text-sm text-body">{{ req.texto }}</span>
-          <span class="badge badge-gray">{{ req.get_tipo_display }}</span>
-        </div>
-        <span class="badge badge-gray ml-3 flex-shrink-0">Heredado</span>
-      </div>
-      {% endfor %}
-    </div>
-    {% else %}
-    <p class="text-sm text-body-subtle">El segmento no tiene requisitos propios.</p>
-    {% endif %}
-  </section>
-
-  {# ======================================================= #}
-  {# Sección: Requisitos propios del subsegmento              #}
-  {# ======================================================= #}
-  <section class="space-y-3">
-    <div class="flex items-start justify-between gap-4 flex-wrap">
-      <div>
-        <h2 class="text-lg font-bold text-heading">Requisitos del subsegmento</h2>
-        <p class="text-sm text-body-subtle mt-0.5">Requisitos propios de este subsegmento (se suman a los heredados del segmento padre).</p>
-      </div>
-      {% if request.user|puede:"becas.requisito.crear" %}
-      <button type="button" @click="modalReqNuevo=true" class="btn-nodo btn-brand btn-base" aria-label="Agregar nuevo requisito">
-        <i class="fas fa-plus"></i> Nuevo requisito
+    {% url 'becas:segmento_detalle' segmento.pk as url_segmento %}
+    {% becas_migas subsegmento as migas %}
+    {% page_header titulo=subsegmento.nombre volver_url=url_segmento volver_label=segmento.nombre migas=migas %}
+      {% bajada %}Segmento padre: <a href="{% url 'becas:segmento_detalle' segmento.pk %}" class="text-fg-brand hover:underline font-medium">{{ segmento.nombre }}</a> · Cupo máximo: <strong class="text-heading">{{ subsegmento.cupo_maximo }}</strong>{% if subsegmento.descripcion %}<br>{{ subsegmento.descripcion }}{% endif %}{% endbajada %}
+      {% include "programas/becas/_pausable_estado_badge.html" with objeto=subsegmento %}
+      {% if request.user|puede:"becas.subsegmento.editar" %}
+      <button type="button" @click="modalSubEdit=true" class="btn-nodo btn-secondary btn-sm" aria-label="Editar subsegmento">
+        <i class="fas fa-edit"></i> Editar
       </button>
       {% endif %}
-    </div>
+      {% if request.user|puede:"becas.programa.administrar" %}
+      <a href="{% url 'becas:gestionar_pausa' 'subsegmento' subsegmento.pk %}" class="btn-nodo {% if subsegmento.pausado %}btn-brand{% else %}btn-danger{% endif %} btn-sm">
+        {% if subsegmento.pausado %}Reanudar{% else %}Pausar{% endif %}
+      </a>
+      {% endif %}
+    {% endpage_header %}
 
-    <div id="reqs-propios-panel">
-      {% include "programas/becas/config/_requisitos_propios_panel.html" %}
-    </div>
-  </section>
+    {# ======================================================= #}
+    {# Sección: Requisitos heredados del segmento (solo lectura) #}
+    {# ======================================================= #}
+    <section class="space-y-3">
+      <h2 class="text-lg font-bold text-heading">Requisitos heredados del segmento</h2>
+
+      {% if requisitos_heredados %}
+      <div class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
+        {% for req in requisitos_heredados %}
+        <div class="flex items-center justify-between px-4 py-3{% if not forloop.first %} border-t border-light{% endif %}">
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="text-sm text-body">{{ req.texto }}</span>
+            <span class="badge badge-white">{{ req.get_tipo_display }}</span>
+          </div>
+          <span class="badge badge-gray ml-3 flex-shrink-0">Heredado</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="text-sm text-body-subtle">El segmento no tiene requisitos propios.</p>
+      {% endif %}
+    </section>
+
+    {# ======================================================= #}
+    {# Sección: Requisitos propios del subsegmento              #}
+    {# ======================================================= #}
+    <section class="space-y-3">
+      <div class="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h2 class="text-lg font-bold text-heading">Requisitos del subsegmento</h2>
+          <p class="text-sm text-body-subtle mt-0.5">Requisitos propios de este subsegmento (se suman a los heredados del segmento padre).</p>
+        </div>
+        {% if request.user|puede:"becas.requisito.crear" %}
+        <button type="button" @click="modalReqNuevo=true" class="btn-nodo btn-brand btn-base" aria-label="Agregar nuevo requisito">
+          <i class="fas fa-plus"></i> Nuevo requisito
+        </button>
+        {% endif %}
+      </div>
+
+      <div id="reqs-propios-panel">
+        {% include "programas/becas/config/_requisitos_propios_panel.html" %}
+      </div>
+    </section>
+
+  </div>
 
   {# ============================================================== #}
   {# Modal: Nuevo requisito                                          #}
   {# ============================================================== #}
-  <div x-show="modalReqNuevo" x-cloak
-       class="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
-       style="background:rgba(0,0,0,.5)"
-       @click="modalReqNuevo=false">
-    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden" @click.stop>
+  <div x-show="modalReqNuevo" x-cloak x-becas-modal="modalReqNuevo" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0" style="background:rgba(0,0,0,.5);backdrop-filter:blur(4px)" @click="modalReqNuevo=false"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden" @click.stop
+         role="dialog" aria-modal="true" aria-labelledby="modal-reqnuevo-titulo">
+      {% include "programas/becas/_modal_header.html" with titulo="Nuevo requisito" titulo_id="modal-reqnuevo-titulo" icono="fa-clipboard-list" cerrar="modalReqNuevo=false" %}
 
-      {% comment %}HEADER{% endcomment %}
-      <div class="flex items-center justify-between px-6 py-5 border-b" style="border-color:var(--border-light)">
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-lg flex items-center justify-center text-lg"
-               style="background:var(--bg-brand-soft);color:var(--text-fg-brand)">
-            <i class="fas fa-clipboard-list"></i>
-          </div>
-          <h3 class="text-lg font-bold text-heading">Nuevo requisito</h3>
-        </div>
-        <button type="button" @click="modalReqNuevo=false" aria-label="Cerrar"
-                class="p-1.5 rounded-lg text-body-subtle hover:text-heading hover:bg-secondary transition-colors">
-          <i class="fas fa-xmark text-base"></i>
-        </button>
-      </div>
-
-      {% comment %}FORM envuelve body + footer{% endcomment %}
-      <form method="post" action="{% url 'becas:requisito_crear' segmento.pk %}" data-ajax>
+      <form method="post" action="{% url 'becas:requisito_crear' segmento.pk %}" data-ajax class="flex flex-col flex-1 min-h-0">
         {% csrf_token %}
         <input type="hidden" name="scope" value="subsegmento">
         <input type="hidden" name="subsegmento" value="{{ subsegmento.pk }}">
 
-        {% comment %}BODY{% endcomment %}
-        <div class="p-6 space-y-5">
+        <div class="p-6 space-y-5 overflow-y-auto min-h-0">
 
           <div>
-            <label class="block text-[13px] font-semibold text-heading mb-1.5">
+            <label class="block text-sm font-medium text-heading mb-1">
               Pregunta<span class="text-fg-danger" style="margin-left:3px">*</span>
             </label>
             {{ form_requisito.texto }}
@@ -168,37 +121,37 @@
 
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
-              <label class="block text-[13px] font-semibold text-heading mb-1.5">
+              <label class="block text-sm font-medium text-heading mb-1">
                 Tipo de campo<span class="text-fg-danger" style="margin-left:3px">*</span>
               </label>
               {{ form_requisito.tipo }}
               <p class="mt-1 text-xs text-fg-danger hidden" data-error="tipo"></p>
             </div>
             <div>
-              <label class="block text-[13px] font-semibold text-heading mb-1.5">Obligatorio</label>
+              <label class="block text-sm font-medium text-heading mb-1">Obligatorio</label>
               {{ form_requisito.obligatorio }}
             </div>
             <div>
-              <label class="block text-[13px] font-semibold text-heading mb-1.5">Orden</label>
+              <label class="block text-sm font-medium text-heading mb-1">Orden</label>
               {{ form_requisito.orden }}
               <p class="mt-1 text-xs text-fg-danger hidden" data-error="orden"></p>
             </div>
           </div>
 
           <div data-opciones-wrapper>
-            <label class="block text-[13px] font-semibold text-heading mb-1.5">{{ form_requisito.opciones_texto.label }}</label>
+            <label class="block text-sm font-medium text-heading mb-1">{{ form_requisito.opciones_texto.label }}</label>
             {{ form_requisito.opciones_texto }}
             <p class="text-xs text-body-subtle mt-1">{{ form_requisito.opciones_texto.help_text }}</p>
             <p class="mt-1 text-xs text-fg-danger hidden" data-error="opciones_texto"></p>
           </div>
           <div data-presentacion-wrapper>
-            <label class="block text-[13px] font-semibold text-heading mb-1.5">{{ form_requisito.presentacion.label }}</label>
+            <label class="block text-sm font-medium text-heading mb-1">{{ form_requisito.presentacion.label }}</label>
             {{ form_requisito.presentacion }}
             <p class="text-xs text-body-subtle mt-1">{{ form_requisito.presentacion.help_text }}</p>
             <p class="mt-1 text-xs text-fg-danger hidden" data-error="presentacion"></p>
           </div>
           <div>
-            <label class="block text-[13px] font-semibold text-heading mb-1.5">{{ form_requisito.canal.label }}</label>
+            <label class="block text-sm font-medium text-heading mb-1">{{ form_requisito.canal.label }}</label>
             {{ form_requisito.canal }}
             <p class="text-xs text-body-subtle mt-1">Ambos canales, solo la app de campo o solo el link público.</p>
             <p class="mt-1 text-xs text-fg-danger hidden" data-error="canal"></p>
@@ -207,13 +160,7 @@
           <p class="text-xs text-fg-danger hidden" data-error="__all__"></p>
         </div>
 
-        {% comment %}FOOTER{% endcomment %}
-        <div class="flex justify-end gap-3 px-6 py-4 border-t bg-secondary"
-             style="border-color:var(--border-light)">
-          <button type="button" @click="modalReqNuevo=false" class="btn-nodo btn-tertiary btn-base">Cancelar</button>
-          <button type="submit" class="btn-nodo btn-brand btn-base">Crear requisito</button>
-        </div>
-
+        {% include "programas/becas/_modal_footer.html" with cancelar="modalReqNuevo=false" accion_texto="Crear requisito" %}
       </form>
     </div>
   </div>
@@ -221,37 +168,20 @@
   {# ============================================================== #}
   {# Modal: Editar requisito                                         #}
   {# ============================================================== #}
-  <div x-show="modalReqEdit" x-cloak
-       class="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
-       style="background:rgba(0,0,0,.5)"
-       @click="modalReqEdit=false">
-    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden" @click.stop>
+  <div x-show="modalReqEdit" x-cloak x-becas-modal="modalReqEdit" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0" style="background:rgba(0,0,0,.5);backdrop-filter:blur(4px)" @click="modalReqEdit=false"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden" @click.stop
+         role="dialog" aria-modal="true" aria-labelledby="modal-reqedit-titulo">
+      {% include "programas/becas/_modal_header.html" with titulo="Editar requisito" titulo_id="modal-reqedit-titulo" icono="fa-edit" cerrar="modalReqEdit=false" %}
 
-      {% comment %}HEADER{% endcomment %}
-      <div class="flex items-center justify-between px-6 py-5 border-b" style="border-color:var(--border-light)">
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-lg flex items-center justify-center text-lg"
-               style="background:var(--bg-brand-soft);color:var(--text-fg-brand)">
-            <i class="fas fa-edit"></i>
-          </div>
-          <h3 class="text-lg font-bold text-heading">Editar requisito</h3>
-        </div>
-        <button type="button" @click="modalReqEdit=false" aria-label="Cerrar"
-                class="p-1.5 rounded-lg text-body-subtle hover:text-heading hover:bg-secondary transition-colors">
-          <i class="fas fa-xmark text-base"></i>
-        </button>
-      </div>
-
-      {% comment %}FORM envuelve body + footer{% endcomment %}
-      <form method="post" :action="editReqUrl" data-ajax data-reset="false">
+      <form method="post" :action="editReqUrl" data-ajax data-reset="false" class="flex flex-col flex-1 min-h-0">
         {% csrf_token %}
         <input type="hidden" name="scope" value="subsegmento">
 
-        {% comment %}BODY{% endcomment %}
-        <div class="p-6 space-y-5">
+        <div class="p-6 space-y-5 overflow-y-auto min-h-0">
 
           <div>
-            <label class="block text-[13px] font-semibold text-heading mb-1.5">
+            <label class="block text-sm font-medium text-heading mb-1">
               Pregunta<span class="text-fg-danger" style="margin-left:3px">*</span>
             </label>
             <input type="text" name="texto" x-model="editReqTexto" required
@@ -261,7 +191,7 @@
 
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
-              <label class="block text-[13px] font-semibold text-heading mb-1.5">
+              <label class="block text-sm font-medium text-heading mb-1">
                 Tipo de campo<span class="text-fg-danger" style="margin-left:3px">*</span>
               </label>
               <select name="tipo" x-model="editReqTipo" class="nodo-field w-full">
@@ -271,40 +201,40 @@
               </select>
             </div>
             <div>
-              <label class="block text-[13px] font-semibold text-heading mb-1.5">Obligatorio</label>
+              <label class="block text-sm font-medium text-heading mb-1">Obligatorio</label>
               <select name="obligatorio" x-model="editReqObligatorio" class="nodo-field w-full">
                 <option value="True">Obligatorio</option>
                 <option value="False">Opcional</option>
               </select>
             </div>
             <div>
-              <label class="block text-[13px] font-semibold text-heading mb-1.5">Orden</label>
+              <label class="block text-sm font-medium text-heading mb-1">Orden</label>
               <input type="number" name="orden" x-model="editReqOrden" min="0" placeholder="Automático" class="nodo-field w-full">
               <p class="mt-1 text-xs text-fg-danger hidden" data-error="orden"></p>
             </div>
           </div>
 
           <div x-show="editReqTipo === 'SELECTOR' || editReqTipo === 'SELECTOR_MULTIPLE'">
-            <label class="block text-[13px] font-semibold text-heading mb-1.5">Opciones (una por línea)</label>
+            <label class="block text-sm font-medium text-heading mb-1">Opciones (una por línea)</label>
             <textarea name="opciones_texto" x-model="editReqOpciones" rows="4" class="nodo-field w-full"></textarea>
             <p class="text-xs text-body-subtle mt-1">Solo para Selector / Selector múltiple.</p>
           </div>
           <div x-show="editReqTipo === 'SELECTOR' || editReqTipo === 'SELECTOR_MULTIPLE'">
-            <label class="block text-[13px] font-semibold text-heading mb-1.5">Presentación</label>
+            <label class="block text-sm font-medium text-heading mb-1">Presentación</label>
             <select name="presentacion" x-model="editReqPresentacion" class="nodo-field w-full">
               {% for val, label in presentacion_choices %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
             </select>
             <p class="text-xs text-body-subtle mt-1">Cómo elige la persona entre las opciones.</p>
           </div>
           <div>
-            <label class="block text-[13px] font-semibold text-heading mb-1.5">Se pide en</label>
+            <label class="block text-sm font-medium text-heading mb-1">Se pide en</label>
             <select name="canal" x-model="editReqCanal" class="nodo-field w-full">
               {% for val, label in canal_choices %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
             </select>
             <p class="text-xs text-body-subtle mt-1">Ambos canales, solo la app de campo o solo el link público.</p>
           </div>
           <div>
-            <label class="block text-[13px] font-semibold text-heading mb-1.5">Este dato alimenta a SIIS como</label>
+            <label class="block text-sm font-medium text-heading mb-1">Este dato alimenta a SIIS como</label>
             <select name="destino_siis" x-model="editReqDestino" class="nodo-field w-full">
               <option value="">No alimenta a SIIS</option>
               {% for val, label in destino_siis_choices %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
@@ -316,13 +246,7 @@
           <p class="text-xs text-fg-danger hidden" data-error="__all__"></p>
         </div>
 
-        {% comment %}FOOTER{% endcomment %}
-        <div class="flex justify-end gap-3 px-6 py-4 border-t bg-secondary"
-             style="border-color:var(--border-light)">
-          <button type="button" @click="modalReqEdit=false" class="btn-nodo btn-tertiary btn-base">Cancelar</button>
-          <button type="submit" class="btn-nodo btn-brand btn-base"><i class="fas fa-check"></i> Guardar cambios</button>
-        </div>
-
+        {% include "programas/becas/_modal_footer.html" with cancelar="modalReqEdit=false" accion_texto="Guardar cambios" accion_icono="fa-check" %}
       </form>
     </div>
   </div>
@@ -330,38 +254,21 @@
   {# ============================================================== #}
   {# Modal: Editar subsegmento                                       #}
   {# ============================================================== #}
-  <div x-show="modalSubEdit" x-cloak
-       class="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
-       style="background:rgba(0,0,0,.5)"
-       @click="modalSubEdit=false">
-    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[540px] overflow-hidden" @click.stop>
+  <div x-show="modalSubEdit" x-cloak x-becas-modal="modalSubEdit" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0" style="background:rgba(0,0,0,.5);backdrop-filter:blur(4px)" @click="modalSubEdit=false"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[540px] max-h-[90vh] flex flex-col overflow-hidden" @click.stop
+         role="dialog" aria-modal="true" aria-labelledby="modal-subedit-titulo">
+      {% include "programas/becas/_modal_header.html" with titulo="Editar subsegmento" titulo_id="modal-subedit-titulo" icono="fa-layer-group" cerrar="modalSubEdit=false" %}
 
-      {% comment %}HEADER{% endcomment %}
-      <div class="flex items-center justify-between px-6 py-5 border-b" style="border-color:var(--border-light)">
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-lg flex items-center justify-center text-lg"
-               style="background:var(--bg-brand-soft);color:var(--text-fg-brand)">
-            <i class="fas fa-layer-group"></i>
-          </div>
-          <h3 class="text-lg font-bold text-heading">Editar subsegmento</h3>
-        </div>
-        <button type="button" @click="modalSubEdit=false" aria-label="Cerrar"
-                class="p-1.5 rounded-lg text-body-subtle hover:text-heading hover:bg-secondary transition-colors">
-          <i class="fas fa-xmark text-base"></i>
-        </button>
-      </div>
-
-      {% comment %}FORM envuelve body + footer{% endcomment %}
-      <form method="post" action="{% url 'becas:subsegmento_editar' subsegmento.pk %}" data-ajax data-reset="false">
+      <form method="post" action="{% url 'becas:subsegmento_editar' subsegmento.pk %}" data-ajax data-reset="false" class="flex flex-col flex-1 min-h-0">
         {% csrf_token %}
         <input type="hidden" name="origin" value="detalle">
 
-        {% comment %}BODY{% endcomment %}
-        <div class="p-6 space-y-5">
+        <div class="p-6 space-y-5 overflow-y-auto min-h-0">
 
           {% comment %}Nombre{% endcomment %}
           <div>
-            <label class="block text-[13px] font-semibold text-heading mb-1.5">
+            <label class="block text-sm font-medium text-heading mb-1">
               Nombre<span class="text-fg-danger" style="margin-left:3px">*</span>
             </label>
             <input type="text" name="nombre" required class="nodo-field" value="{{ subsegmento.nombre }}">
@@ -370,7 +277,7 @@
 
           {% comment %}Descripción{% endcomment %}
           <div>
-            <label class="block text-[13px] font-semibold text-heading mb-1.5">
+            <label class="block text-sm font-medium text-heading mb-1">
               Descripción
             </label>
             <textarea name="descripcion" rows="2" class="nodo-field">{{ subsegmento.descripcion }}</textarea>
@@ -379,7 +286,7 @@
 
           {% comment %}Cupo máximo{% endcomment %}
           <div>
-            <label class="block text-[13px] font-semibold text-heading mb-1.5">
+            <label class="block text-sm font-medium text-heading mb-1">
               Cupo máximo<span class="text-fg-danger" style="margin-left:3px">*</span>
             </label>
             <input type="number" name="cupo_maximo" min="0" required class="nodo-field" value="{{ subsegmento.cupo_maximo }}">
@@ -389,13 +296,7 @@
           <p class="text-xs text-fg-danger hidden" data-error="__all__"></p>
         </div>
 
-        {% comment %}FOOTER{% endcomment %}
-        <div class="flex justify-end gap-3 px-6 py-4 border-t bg-secondary"
-             style="border-color:var(--border-light)">
-          <button type="button" @click="modalSubEdit=false" class="btn-nodo btn-tertiary btn-base">Cancelar</button>
-          <button type="submit" class="btn-nodo btn-brand btn-base"><i class="fas fa-check"></i> Guardar cambios</button>
-        </div>
-
+        {% include "programas/becas/_modal_footer.html" with cancelar="modalSubEdit=false" accion_texto="Guardar cambios" accion_icono="fa-check" %}
       </form>
     </div>
   </div>
@@ -406,4 +307,5 @@
 {% block customJS %}
 {% include "programas/becas/_ajax_js.html" %}
 {% include "programas/becas/config/_tipo_selector_js.html" %}
+<script src="{% static 'custom/js/becas-modal.js' %}"></script>
 {% endblock %}

@@ -240,6 +240,15 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 93 | Revisión fina de performance en cinco frentes: alta de la app fuera del lock, bandejas y detalle por pk, Excel del dashboard sin instanciar modelos, comandos por lotes y conversaciones | Transversal (Becas, API de campo, portal, conversaciones, núcleo) | `#performance` `#relevamientos` `#api` `#siis` | PM — en sesión: «hacé otra revisión más fina del código y de la performance; dispará varios para optimizar el código y las query sin romper nada» | 25/09/2026 | 🟡 **Hecho — sin desplegar** | No requiere |
 | 94 | El celular viaja a SIIS en los 10 dígitos que admite la tabla intermedia | Becas · alta de beneficiarios en SIIS | `#siis` `#relevamientos` | PM — en sesión: «dale arreglá lo del celular y después desplegá en el ambiente de test y de prd de ECOM» | 28/09/2026 | 🟢 **Hecho** | No requiere |
 | 95 | Datos del ciudadano fuera de los handlers inline: acciones del cupo y reactivar convocatoria | Becas · cupo y convocatorias · Legajos | `#cupos` `#convocatorias` `#ui` `#datos` | Revisión de seguridad independiente (H1-H3), hotfix pedido en sesión | 29/09/2026 | 🟢 **Hecho** | No requiere |
+| 96 | Ajustes de diseño de Becas (auditoría 29/09/2026) | Becas · transversal | `#ui` `#textos` `#relevamientos` | PM — auditoría de diseño de Becas y decisiones aprobadas en sesión | 29/09/2026 | 🟢 **Hecho (tanda 1)** | No requiere |
+| 96.1 | La etiqueta gris vuelve a tener estilo en todo el sistema | Transversal | `#ui` `#textos` | PM — auditoría de diseño de Becas (CMP-N3) | 29/09/2026 | 🟢 **Hecho** | No requiere |
+| 96.2 | «Guardar y configurar» muestra la confirmación al llegar y los avisos de Django tienen su color | Becas · transversal | `#ui` `#relevamientos` `#convocatorias` | PM — auditoría de diseño de Becas (ALR-5) | 29/09/2026 | 🟢 **Hecho** | No requiere |
+| 96.3 | El ítem «Programas» del menú lateral marca la pantalla activa | Becas · menú lateral | `#ui` `#rbac` | PM — auditoría de diseño de Becas (TIT-3) | 29/09/2026 | 🟢 **Hecho** | No requiere |
+| 96.4 | Pendientes de validación pagina y deja de mostrar texto roto | Becas · Revisión | `#ui` `#textos` `#relevamientos` | PM — auditoría de diseño de Becas (TIT-1, TIT-2, CMP-6, CMP-8) | 29/09/2026 | 🟢 **Hecho** | No requiere |
+| 96.5 | Procesar y frenar el proceso masivo piden confirmación | Becas · proceso masivo SIIS | `#ui` `#siis` `#relevamientos` | PM — auditoría de diseño de Becas (POP-6) | 29/09/2026 | 🟢 **Hecho** | No requiere |
+| 96.6 | Los avisos muestran el mensaje real y no «success» | Becas · transversal | `#ui` `#textos` | PM — auditoría de diseño de Becas (ALR-2, ALR-3) | 29/09/2026 | 🟢 **Hecho** | No requiere |
+| 96.7 | Reactivar una convocatoria vencida funciona | Becas · convocatorias | `#ui` `#convocatorias` | PM — auditoría de diseño de Becas (POP-3) | 29/09/2026 | 🟢 **Hecho** | No requiere |
+| 97 | El check de seguridad (pip-audit) deja de bloquear los PRs: DRF 3.17.2 y anyio 4.14.2 | Transversal | `#infra` `#api` | Juez de la sesión — gate «Security / Pip Audit» rojo en todos los PRs | 29/09/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -10368,7 +10377,7 @@ Entrada nueva. Sale del relevamiento exhaustivo de casos no enviados en testing 
 
 - Sin cambio visible: mismos textos, misma confirmación (`ModernModal`), mismos formularios POST y URLs.
 - **Afuera:** cargar SweetAlert2 en el listado de convocatorias o arreglar que el botón *Reactivar* no haga nada
-  sin Swal (es otra decisión de diseño); reescribir handlers que solo reciben `pk` numérico o textos del sistema.
+  sin Swal (es otra decisión de diseño; **resuelto después en el 96.7**, con un modal Alpine); reescribir handlers que solo reciben `pk` numérico o textos del sistema.
 
 ## Decisiones tomadas
 
@@ -10402,7 +10411,7 @@ Entrada nueva. Sale del relevamiento exhaustivo de casos no enviados en testing 
 - **Cupo del segmento:** los tres botones abren la misma confirmación que antes; el nombre del ciudadano se lee del
   botón y se muestra como texto. Se retiraron las funciones globales `window.confirmar*`, que solo existían para el
   `onclick`.
-- **Reactivar convocatoria:** el pop-up (cuando Swal esté cargado) muestra el nombre escapado.
+- **Reactivar convocatoria:** el pop-up (cuando Swal esté cargado) muestra el nombre escapado. *(Reemplazado por el modal Alpine del 96.7, que pinta el nombre con `x-text`.)*
 - **Legajos:** baja del detalle de programa con el nombre escapado; *Copiar DNI* por `data-copiar-dni`.
 - **Legajo del ciudadano:** búsqueda de familiares, vínculos, archivos, actividades y predicción de riesgo muestran los datos de la API como texto; elegir un resultado de la búsqueda completa el formulario igual que antes.
 - **Alertas en tiempo real:** toast, modal crítico y vista previa muestran nombre y mensaje como texto.
@@ -10482,6 +10491,7 @@ No requiere: es un cambio de templates.
 
 - **Botón *Reactivar* del listado de convocatorias:** sin SweetAlert2 cargado el clic no hace nada. Queda para una
   decisión de diseño (cargar Swal ahí o pasarlo a `ModernModal` con un campo de fecha).
+  **RESUELTO en el 96.7** (PR #472): pasó a un modal Alpine de Becas, sin SweetAlert2.
 - **`copiarDni` usa `toastr`, que ninguna pantalla carga:** el aviso de «copiado» nunca aparece (y en el camino de
   error tira excepción). Preexistente; debería pasar a `window.toast()`.
 - **`TWBUILD` preexistente en `legajos/ciudadano_detail.html:143`** (`xl:grid-cols-[minmax(0,1fr)_auto]`): lo
@@ -10491,6 +10501,511 @@ No requiere: es un cambio de templates.
 ## Reversión
 
 Revertir el commit. Vuelven los handlers con el nombre interpolado; nada queda inconsistente en datos.
+
+## Historial
+
+Entrada nueva.
+
+- **29/09/2026 — Reactivar convocatoria resuelto.** El pendiente «Reactivar sin SweetAlert2 no hace nada» se cerró en el 96.7 (PR #472): el pop-up con SweetAlert2 se reemplazó por un modal Alpine; la corrección de escapado de `data-nombre` (H2) pasó a ser `x-text`.
+
+---
+
+# Cambio 96 — Ajustes de diseño de Becas (auditoría 29/09/2026)
+
+🟢 **HECHO — 29/09/2026** (tanda 1; las olas siguientes se suman como sub-pedidos 96.N)
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas (configuración, convocatorias, revisión, proceso masivo, menú lateral) · componentes transversales del backoffice (etiquetas, avisos) |
+| **Etiquetas** | `#ui` `#textos` `#relevamientos` |
+| **Solicitante** | PM — auditoría de diseño de Becas del 29/09/2026 y decisiones aprobadas en sesión |
+| **Fecha del pedido** | 29/09/2026 |
+| **Issue / épica** | Sin issue · siete PRs contra `development` (#465 a #469, #471 y #472) |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+Este cambio es el **paraguas** de la auditoría de diseño de Becas: cada PR de la tanda es un sub-pedido (96.1 a 96.7) con su propio semáforo, PR y SHA. El endurecimiento de dependencias que se mergeó en la misma sesión (#470) no es diseño y se registra aparte, en el Cambio 97.
+
+## Pedido original
+
+Auditoría de la interfaz de Becas contra el sistema de diseño y el mockup `becas-diseno.html`: hallazgos de comportamiento (avisos que se pierden o salen con el texto equivocado, botones que no hacen nada, acciones masivas sin confirmación, pantallas sin paginación) y de coherencia visual (etiquetas sin estilo, menú que no marca la pantalla activa, textos con codificación rota). El PM pidió corregirlos en tandas de PRs chicos y en paralelo.
+
+## Alcance acordado
+
+- **Entra:** backoffice de Becas y la inscripción pública por link (`/portal/` por token), más las piezas transversales que esos hallazgos tocan (`nodo-badges.css`, `MESSAGE_TAGS`, la firma de `window.toast`).
+- **Afuera:** el portal ciudadano (registro, perfil, consultas) y las conversaciones. La inscripción pública **sí** entra.
+- **Afuera de esta tanda:** las piezas compartidas nuevas (`_paginacion`, `_estado_vacio`, `becasModal`, `_modal_header`, `_modal_footer`) y el resto de los ítems de las olas 2 y siguientes.
+
+## Decisiones tomadas
+
+Decisiones del usuario sobre la auditoría, tomadas en sesión el 29/09/2026:
+
+- **Todas las decisiones abiertas de la auditoría (DP, DA, DE y DC) se aprueban con su propuesta por defecto**, salvo las que siguen.
+- **DE-5 se descarta:** el ítem del menú se llama «Programas» sí o sí. Es lo que decidió el Cambio 3; la auditoría lo ponía en duda y el usuario lo cerró. Queda registrado para que no vuelva a discutirse.
+- **CMP-N2:** el rótulo es «Casos».
+- **CMP-N1:** un caso que está en espera **no se aprueba desde el propio caso**.
+- **Textos destructivos provisorios:** los de las confirmaciones (por ahora, proceso masivo) son los del mockup, aprobados por el usuario y ajustables con negocio.
+- **Portal ciudadano y conversaciones quedan fuera de alcance;** la inscripción pública por link entra.
+- **Confirmaciones sin SweetAlert2 (DP-1):** las confirmaciones nuevas de Becas usan `ModernModal` o un modal Alpine; no se carga SweetAlert2 en pantallas que hoy no lo tienen.
+
+Las decisiones técnicas de cada PR están en su sub-pedido.
+
+## Implementación
+
+Ver los sub-pedidos: 96.1 (etiqueta gris), 96.2 (avisos de «Guardar y configurar» y color de los avisos de Django), 96.3 (menú lateral), 96.4 (Pendientes de validación), 96.5 (proceso masivo), 96.6 (firma de `window.toast`) y 96.7 (Reactivar convocatoria).
+
+## Archivos
+
+Detallados en cada sub-pedido.
+
+## Base de datos
+
+No toca el esquema ni ningún dato.
+
+## Validación
+
+En cada sub-pedido. Todos pasaron `manage.py test` de las apps tocadas, `--tag performance`, `check --deploy`, `makemigrations --check`, `compile_templates`, `design_audit` y `check_design_agent`, y se revisaron en navegador a 1440 y 390 px cuando tocaron UI. La suite completa la corrió el CI de cada PR.
+
+## Puesta en marcha en el servidor
+
+No requiere nada más que el deploy.
+
+## Pendientes / a definir
+
+Los que quedaron abiertos de las revisiones independientes de la tanda (cada uno figura también en su sub-pedido):
+
+- **Candado de servidor en `proceso_masivo_lanzar`** (`programas/views/proceso_masivo.py:58-78`): `CorridaSiis.en_curso() is None` y el `create` no son atómicos; dos pestañas o dos usuarios pueden lanzar dos corridas EN_CURSO. El revisor reprodujo 2 corridas con 1 s de latencia. *(96.5)*
+- **Clic en «Sí» antes de 400 ms sin aviso:** en el modal del proceso masivo el clic se ignora en silencio durante los primeros 400 ms. *(96.5)*
+- **Sidebar:** doble `aria-current` en `/becas/reportes/` con el menú colapsado, y la condición `'dispositivos' in` coincide con `legajos/.../dispositivos/` y marca el ítem equivocado. *(96.3)*
+- **`programas/views/relevamientos.py:394`:** redirige a `next` sin validar el host (open redirect). Preexistente, detectado en la revisión de 96.7. *(96.7)*
+- **Regla CSS muerta en `static/custom/css/custom.css:24-30`:** detectada en la revisión de 96.1; no se tocó. *(96.1)*
+- **`toastr` no está cargado en `legajos/ciudadano_detail`:** *Copiar DNI* nunca muestra su aviso (ya figuraba en el Cambio 95). Debe pasar a `window.toast()`. *(96.6)*
+- **Piezas compartidas de la ola 2** (`_paginacion`, `_estado_vacio`, `becasModal`, `_modal_header`, `_modal_footer`) y la migración de los pies y modales inline de 96.4 y 96.7 a ellas.
+
+## Reversión
+
+Cada sub-pedido se revierte por separado, revirtiendo el commit de su PR. Ninguno toca datos ni migraciones.
+
+## Historial
+
+Entrada nueva (tanda 1, 29/09/2026).
+
+## 96.1 La etiqueta gris vuelve a tener estilo en todo el sistema
+
+🟢 **HECHO — 29/09/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal (componente `badge-gray` de todo el backoffice) |
+| **Etiquetas** | `#ui` `#textos` |
+| **Solicitante** | PM — auditoría de diseño de Becas (hallazgo CMP-N3) |
+| **Fecha del pedido** | 29/09/2026 |
+| **Issue / épica** | Sin issue · PR #465 |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+### Pedido original
+Las etiquetas grises se veían sin fondo ni borde en todo el sistema.
+
+### Alcance acordado
+Arreglar la causa en `nodo-badges.css`, revisar el resto de los CSS propios y dejar un test que lo vigile. Afuera: cualquier cambio de diseño de las etiquetas.
+
+### Decisiones tomadas
+- **La causa era un comentario CSS mal escrito:** el de «Variants» contenía `--color-pink-*/--color-brand-*`, y el `*/` lo cerraba antes de tiempo; el navegador descartaba `.badge-gray` con el resto del texto. Se reescribió como «--color-pink-* y --color-brand-*».
+- **No se escribe `*/` dentro de comentarios CSS.** Quedó anotado en la fila *Badges NODO* del inventario de `.claude/agents/chaco-design-system.md`.
+- **Se revisaron todos los `static/custom/css/*.css`:** es el único caso.
+- **Un test vigila a todos los CSS propios**, no solo este: ningún selector puede arrastrar texto de un comentario.
+
+### Implementación
+`.badge-gray` recupera fondo y borde en todas las pantallas que la usan.
+
+### Archivos
+`static/custom/css/nodo-badges.css` · `.claude/agents/chaco-design-system.md` · `core/tests/test_nodo_badges_css.py` (nuevo).
+
+### Base de datos
+No requiere.
+
+### Validación
+El test falló antes del cambio y pasa después. `manage.py test core` 69 OK; `makemigrations --check` sin cambios; `design_audit` 0; `compile_templates` 0; `check_design_agent` OK; ruff OK.
+
+### Puesta en marcha en el servidor
+No requiere. El PR mergeó como `8e8b3cd` (head `20fc2c1`).
+
+### Pendientes / a definir
+- Regla muerta en `static/custom/css/custom.css:24-30`, detectada en la revisión. No se tocó.
+
+### Reversión
+Revertir el commit `8e8b3cd`. Las etiquetas grises vuelven a verse sin estilo.
+
+### Historial
+Entrada nueva.
+
+## 96.2 «Guardar y configurar» muestra la confirmación al llegar, y los avisos de Django tienen su color
+
+🟢 **HECHO — 29/09/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas (configuración y relevamientos públicos) · transversal (avisos del backoffice y del portal) |
+| **Etiquetas** | `#ui` `#relevamientos` `#convocatorias` |
+| **Solicitante** | PM — auditoría de diseño de Becas (hallazgo ALR-5) |
+| **Fecha del pedido** | 29/09/2026 |
+| **Issue / épica** | Sin issue · PR #466 |
+| **Partes afectadas** | Backoffice · Portal (solo el mapeo global de niveles de aviso) |
+| **Migración** | No requiere |
+
+### Pedido original
+Al crear un segmento, vincular un programa, editar un subsegmento o crear un relevamiento público desde un modal, el aviso de confirmación no se veía. Al verificarlo apareció un segundo problema: todos los avisos de Django salían como «Información», fuera cual fuera su nivel.
+
+### Alcance acordado
+Las cuatro llamadas a `ajax_redirect` del repo, el mapeo global de niveles y la rama no AJAX del relevamiento público. Afuera: el JS `_ajax_js.html` y el contrato JSON.
+
+### Decisiones tomadas
+- **El mensaje viaja con la navegación** por el framework de messages de Django: `ajax_redirect(request, url, message, level)` lo encola antes de devolver el JSON, y la página destino lo muestra por el camino de siempre (`#dj-messages` → `nodo-toast`). El JSON `{ok, redirect, message}` no cambia y `_ajax_js.html` tampoco: con `redirect` navega sin toast, así que el aviso no se duplica.
+- **`MESSAGE_TAGS` devuelve las palabras que entiende `nodo-toast`** (`info`, `success`, `warning`, `error`; debug e info van a `info`). Antes los niveles se traducían a clases Tailwind (`bg-green-500 text-white`…) que `resolveType` no reconocía y caían siempre en `info`. **No se ponen clases CSS en `MESSAGE_TAGS`.** Es un cambio global; el grep de dependencias (`message.tags`, `level_tag`, `data-tags`) mostró que solo `includes/base.html` y `portal/base.html` lo leen y ambos lo pasan a `nodo-toast`.
+- **El relevamiento público sin padrón es una advertencia** (`WARNING`) por las dos vías, AJAX y formulario tradicional; con padrón, éxito.
+
+### Implementación
+Los cuatro avisos se ven al llegar a la página destino con el color de su nivel, una sola vez. Todos los avisos de Django del backoffice y del portal recuperan su color e ícono.
+
+### Archivos
+`config/settings.py` · `programas/views/ajax_utils.py` · `programas/views/configuracion.py` · `programas/views/relevamientos.py` · `programas/tests/test_ajax_redirect_mensaje.py` (nuevo, 9 tests) · `core/tests/test_message_tags_toast.py` (nuevo, 5 tests).
+
+### Base de datos
+No requiere.
+
+### Validación
+Los tests fallaban antes de cada fix y pasan después. `manage.py test` completo en `.venv312` (Py 3.12 + Django 5.2.17): 1578 OK (1 salteado); `--tag performance` 4 OK; `check --deploy` 0 errores; `makemigrations --check` sin cambios; `compile_templates` 0; `design_audit --changed` 0; ruff OK. Revisado en navegador: aviso verde al crear segmento, naranja sin padrón, rojo al reactivar sin fecha; sin HTTP >= 400.
+
+### Puesta en marcha en el servidor
+No requiere. El PR mergeó como `670c27c` (head `9ed44ba`).
+
+### Pendientes / a definir
+Ninguno.
+
+### Reversión
+Revertir el commit `670c27c`. Los avisos vuelven a salir todos como «Información» y los de «Guardar y configurar» a perderse.
+
+### Historial
+Entrada nueva.
+
+## 96.3 El ítem «Programas» del menú lateral marca la pantalla activa
+
+🟢 **HECHO — 29/09/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · menú lateral del backoffice |
+| **Etiquetas** | `#ui` `#rbac` |
+| **Solicitante** | PM — auditoría de diseño de Becas (hallazgo TIT-3) |
+| **Fecha del pedido** | 29/09/2026 |
+| **Issue / épica** | Sin issue · PR #467 |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+### Pedido original
+Ítems del menú con fondo de marca pero sin `aria-current` quedaban con ícono y texto gris sobre marca (contraste de aproximadamente 1,25:1), casi ilegibles.
+
+### Alcance acordado
+Solo `templates/includes/sidebar/opciones.html`. Afuera: renombrar el grupo del menú.
+
+### Decisiones tomadas
+- **`aria-current="page"` con la misma condición que el fondo de marca** en el subítem *Reportes* de Becas y en el menú colapsado (Dashboard, Configuración, Programas, Dispositivos y Administración). `base.html` ya pintaba de marca cualquier `[aria-current="page"]`.
+- **Las rutas con ítem propio se excluyen del ítem padre:** *Reportes* de nivel superior usa `'legajos/reportes'` (ya no se marca en `becas/reportes`) y *Ciudadanos* excluye `legajos/reportes` y `legajos/dashboard-contactos`. Así no hay dobles marcas.
+- **Se conserva la corrección de la condición con barras invertidas** (`'becas\config\programas'` pasó a `/`).
+- **DE-5 descartada: el grupo se llama «Programas» y no se renombra.** El PR lo dejaba como «decisión del cliente pendiente»; el usuario la cerró el mismo día (ver Cambio 96, Decisiones tomadas) por coherencia con el Cambio 3.
+
+### Implementación
+Cada pantalla marca un solo ítem activo, legible, tanto con el menú expandido como colapsado.
+
+### Archivos
+`templates/includes/sidebar/opciones.html` · `users/tests/test_menu_rbac.py` (5 tests nuevos; fallan contra la base y pasan con el cambio).
+
+### Base de datos
+No requiere.
+
+### Validación
+`test_menu_rbac` con los 5 casos nuevos en verde; el resto de las verificaciones del paraguas.
+
+### Puesta en marcha en el servidor
+No requiere. El PR mergeó como `bf7ae19` (head `e065a6e`).
+
+### Pendientes / a definir
+- **Doble `aria-current` en `/becas/reportes/` con el menú colapsado** (detectado en la revisión).
+- **La condición `'dispositivos' in` coincide con `legajos/.../dispositivos/`** y marca el ítem equivocado.
+
+### Reversión
+Revertir el commit `bf7ae19`. El menú vuelve a mostrar ítems ilegibles en algunas pantallas.
+
+### Historial
+Entrada nueva.
+
+## 96.4 Pendientes de validación pagina y deja de mostrar texto roto
+
+🟢 **HECHO — 29/09/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · Revisión (`becas:renaper_pendientes`) |
+| **Etiquetas** | `#ui` `#textos` `#relevamientos` |
+| **Solicitante** | PM — auditoría de diseño de Becas (TIT-1, TIT-2, TIT-12, CMP-6, CMP-8, CMP-18, DC-7, DE-2) |
+| **Fecha del pedido** | 29/09/2026 |
+| **Issue / épica** | Sin issue · PR #468 |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+### Pedido original
+La bandeja corta en 50 casos y no ofrece páginas: desde el 51 los pendientes no se podían abrir. Además mostraba «Formulario pÃºblico» (doble codificación) y usaba otro estilo de tabla.
+
+### Alcance acordado
+Solo la plantilla `renaper_pendientes.html`. Entra: pie de paginación con filtros, texto corregido, tabla densa canónica, volver a Revisión, estado vacío con y sin filtros, *Ver caso* como botón de ícono y ancho completo. Afuera: la vista `views/revision.py`, y el pie y el vacío como piezas compartidas (ola 2).
+
+### Decisiones tomadas
+- **Pie de paginación inline** copiado de `formulario_list.html`, no un include: `_paginacion` se crea en la ola 2 y este PR no toca canónicos. Los enlaces conservan `fecha`, `territorial` y `segmento` tomados de `filtros`, sin tocar la vista.
+- **El estado vacío decide por los filtros en la plantilla;** cuando exista `hay_filtros_activos` en la vista se reemplaza.
+- **Ancho completo** (se saca `max-w-[1180px]`), por DE-2.
+- **El `th` de acciones lleva `relative`:** sin eso el `sr-only` ensanchaba el documento a 749 px en 390 px.
+- **Rótulo «Casos»** en el pie («Página X de Y · N casos»), por CMP-N2.
+
+### Implementación
+Con más de 50 pendientes aparece «Página X de Y · N casos» con Anterior/Siguiente y los filtros se mantienen. Los casos del link público dicen «Formulario público». La flecha vuelve a Revisión. Sin pendientes dice «No hay casos pendientes de validación»; con filtros sin resultado lo atribuye a los filtros y ofrece limpiarlos.
+
+### Archivos
+`programas/templates/programas/becas/revision/renaper_pendientes.html` · `programas/tests/test_renaper_pendientes_paginacion.py` (nuevo, 9 tests).
+
+### Base de datos
+No requiere.
+
+### Validación
+8 de los 9 tests fallaban antes del fix. `manage.py test programas` 1068 OK; `--tag performance` OK; `check --deploy` sin errores; `design_audit --changed` 0; `compile_templates` 0. Revisión con Playwright a 1440 y 390 px (128 pendientes): sin `console.error` ni HTTP >= 400.
+
+### Puesta en marcha en el servidor
+No requiere. El PR mergeó como `ffc8b1b` (head `f453fe9`).
+
+### Pendientes / a definir
+Migrar el pie al include `_paginacion` y el vacío a `_estado_vacio` cuando existan (ola 2).
+
+### Reversión
+Revertir el commit `ffc8b1b`.
+
+### Historial
+Entrada nueva.
+
+## 96.5 Procesar y frenar el proceso masivo piden confirmación
+
+🟢 **HECHO — 29/09/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · proceso masivo de alta en SIIS (`/becas/config/programas/<id>/proceso-masivo/`) |
+| **Etiquetas** | `#ui` `#siis` `#relevamientos` |
+| **Solicitante** | PM — auditoría de diseño de Becas (hallazgo POP-6, W1-P4) |
+| **Fecha del pedido** | 29/09/2026 |
+| **Issue / épica** | Sin issue · PR #469 |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+### Pedido original
+«Procesar» / «Continuar» aprobaba y daba de alta en SIIS hasta 5000 casos con un clic, sin confirmación. «Frenar» también cortaba la corrida sin preguntar.
+
+### Alcance acordado
+Solo `proceso_masivo.html` (JS inline) y los tests. Afuera: la vista, las URLs y el candado de servidor (ver Pendientes).
+
+### Decisiones tomadas
+- **`ModernModal` de confirmación destructiva en los dos formularios,** con un helper común `confirmarYEnviar`. Falla cerrado: si no está `ModernModal`, no se envía nada.
+- **La cantidad es un techo:** «¿Procesar hasta N casos?», con N = mínimo entre lo pedido y los pendientes, en formato es-AR. Se avisa que los incompletos se saltean y cuántos pendientes quedan como mínimo.
+- **Un solo envío por página:** `onConfirm` es idempotente, «Sí» no confirma durante 400 ms desde que abre, y el foco inicial pasa a Cancelar (un Enter de más cancela). Deshabilitar el botón de la página no alcanzaba: el que confirma es el del modal.
+- **La relectura automática de 5 s espera** mientras el modal está abierto.
+- **Con 0 pendientes no se ofrece lanzar,** y una corrida interrumpida sin pendientes no ofrece Continuar.
+- **Textos provisorios** (los del mockup, aprobados por el usuario, ajustables con negocio).
+- **Diferencias con el mockup:** se usa la API real de `ModernModal` sin tocar `base.html` (canónico): ícono gris de pregunta, botones `btn-sm`, hoja inferior en 390 px.
+
+### Implementación
+Lanzar y Frenar abren una confirmación con la cantidad y las consecuencias antes de enviar; el envío sale una sola vez.
+
+### Archivos
+`programas/templates/programas/becas/config/proceso_masivo.html` · `programas/tests/test_proceso_masivo.py`.
+
+### Base de datos
+No requiere.
+
+### Validación
+Los tests de render fallaban antes del fix; los de comportamiento corren el script real en `node` con relojes falsos (se saltean si no hay node) y fallan al quitar cualquiera de los guards. `manage.py test programas` 1069 OK; `--tag performance` 4 OK; con Playwright, dos clics en «Sí» durante el cierre dan un solo POST, en 1440 y 390 px.
+
+### Puesta en marcha en el servidor
+No requiere. El PR mergeó como `8c537cc` (head `6cc6e92`).
+
+### Pendientes / a definir
+- **Candado de servidor contra el doble lanzamiento** (`programas/views/proceso_masivo.py:58-78`): el chequeo `en_curso()` y el `create` no son atómicos; con 1 s de latencia el revisor obtuvo 2 corridas EN_CURSO. El cliente lo cierra para una misma pestaña; dos pestañas o dos usuarios siguen pudiendo. Va en un PR aparte.
+- **Clic en «Sí» antes de 400 ms sin aviso:** se ignora en silencio.
+
+### Reversión
+Revertir el commit `8c537cc`. Vuelven los envíos sin confirmación.
+
+### Historial
+Entrada nueva (rondas 1 y 2 de revisión).
+
+## 96.6 Los avisos muestran el mensaje real y no «success»
+
+🟢 **HECHO — 29/09/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas (constructor de formularios y catálogo de grupos) · transversal (`window.toast`) |
+| **Etiquetas** | `#ui` `#textos` |
+| **Solicitante** | PM — auditoría de diseño de Becas (hallazgos ALR-2 y ALR-3) |
+| **Fecha del pedido** | 29/09/2026 |
+| **Issue / épica** | Sin issue · PR #471 |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+### Pedido original
+`window.toast(tipo, mensaje)` se llamaba con los argumentos al revés: el usuario veía un aviso gris «Información» con el texto literal «success» o «error» y el mensaje real se perdía.
+
+### Alcance acordado
+Las llamadas invertidas y la documentación de la firma en el inventario de diseño. Afuera: `portal/` y `conversaciones/`.
+
+### Decisiones tomadas
+- **La firma canónica es `window.toast(tipo, mensaje, opts)`.** Quedó corregida en la fila 79 de `.claude/agents/chaco-design-system.md`, que la documentaba como `window.toast(..., 'error')`.
+- **El barrido no encontró más llamadas invertidas** en el repo fuera de portal y conversaciones; `_ajax_js.html` usa una función local `toast(msg, isErr)`, no la global.
+
+### Implementación
+Los avisos del constructor y del catálogo de grupos salen con el color y el mensaje reales.
+
+### Archivos
+`static/custom/js/nodo-constructor.js` · `static/custom/js/nodo-catalogo-grupos.js` · `programas/templates/programas/becas/relevamientos/formulario_detalle.html` · `.claude/agents/chaco-design-system.md` · `programas/tests/test_toast_firma.py` (nuevo).
+
+### Base de datos
+No requiere.
+
+### Validación
+Contra la base el test tiene 8 fallos; con el cambio, 6 OK (ejecuta con `node` el `nodo-toast.js` real y las funciones reales). `manage.py test programas core` 1159 OK (1 salteado); el resto de las verificaciones del paraguas en verde.
+
+### Puesta en marcha en el servidor
+No requiere. El PR mergeó como `be5344d` (head `160d9e9`).
+
+### Pendientes / a definir
+- **`toastr` no está cargado en `legajos/ciudadano_detail`:** *Copiar DNI* nunca muestra su aviso (ver Cambio 95); debe pasar a `window.toast()`.
+
+### Reversión
+Revertir el commit del PR #471.
+
+### Historial
+Entrada nueva.
+
+## 96.7 Reactivar una convocatoria vencida funciona
+
+🟢 **HECHO — 29/09/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · listado de convocatorias (`/becas/convocatorias/`) |
+| **Etiquetas** | `#ui` `#convocatorias` |
+| **Solicitante** | PM — auditoría de diseño de Becas (hallazgo POP-3); pendiente heredado del Cambio 95 |
+| **Fecha del pedido** | 29/09/2026 |
+| **Issue / épica** | Sin issue · PR #472 |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+### Pedido original
+El botón «Reactivar» de una convocatoria vencida no hacía nada: el script hacía `preventDefault()` y salía, porque SweetAlert2 no está cargado en el backoffice.
+
+### Alcance acordado
+Reemplazar el pop-up por un modal propio. Afuera: la vista `convocatoria_reactivar`, sus validaciones y `CAP_CONVOCATORIA_EDITAR`.
+
+### Decisiones tomadas
+- **Modal Alpine de Becas, sin SweetAlert2 (DP-1),** en el mismo archivo `_reactivar_convocatoria_js.html` para no tocar el include. Es un diálogo accesible (`role="dialog"`, `aria-modal`), con foco en la fecha, foco atrapado, cierre con X, Cancelar, Escape y clic afuera, y foco de vuelta al botón.
+- **Formulario POST propio** con CSRF y `fecha_fin` obligatoria; `min` = hoy en la zona del servidor, la misma fecha contra la que valida la vista. El servidor sigue rechazando una fecha pasada aunque se saltee el `min`. El botón se deshabilita al enviar.
+- **Listener delegado en `document`** sobre `[data-reactivar-url]` que emite `becas-reactivar`; sigue andando después del re-render AJAX de la tabla.
+- **El nombre se pinta con `x-text` (nunca como HTML),** manteniendo la invariante del Cambio 95.
+- **No se manda `next`:** el código anterior tampoco lo mandaba; la vista redirige a `becas:convocatorias`.
+
+### Implementación
+«Reactivar» abre un modal con la fecha de fin; al confirmar, la convocatoria se reactiva y aparece el aviso.
+
+### Archivos
+`programas/templates/programas/becas/relevamientos/_reactivar_convocatoria_js.html` · `programas/tests/test_becas_handlers_inline.py`.
+
+### Base de datos
+No requiere.
+
+### Validación
+6 de los 12 tests fallaban contra la base. `manage.py test programas` 1090 OK (1 salteado); `--tag performance` 4 OK; `design_audit` 0; `compile_templates` 0. Playwright a 1440 y 390 px: sin `console.error` ni HTTP >= 400; con un nombre `<img onerror>` se ve como texto.
+
+### Puesta en marcha en el servidor
+No requiere. El PR mergeó como `83ecdc1` (head `8998dd8`).
+
+### Pendientes / a definir
+- **`programas/views/relevamientos.py:394` redirige a `next` sin validar el host** (open redirect). Preexistente, detectado en la revisión.
+- W3-P-E migra este modal a `becasModal` / `_modal_header` / `_modal_footer` cuando existan.
+
+### Reversión
+Revertir el commit del PR #472. El botón vuelve a no hacer nada.
+
+### Historial
+Entrada nueva. Resuelve el pendiente «Reactivar sin SweetAlert2 no hace nada» del Cambio 95.
+
+---
+
+# Cambio 97 — El check de seguridad (pip-audit) bloqueaba todos los PRs por DRF y anyio
+
+🟢 **HECHO — 29/09/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal |
+| **Etiquetas** | `#infra` `#api` |
+| **Solicitante** | Juez de la sesión: el gate «Security / Pip Audit» estaba rojo en todos los PRs contra `development` (arrastrado desde el 30-ago; ver Cambios 66 y 93) |
+| **Fecha del pedido** | 29/09/2026 |
+| **Issue / épica** | Sin issue · PR #470 |
+| **Partes afectadas** | Servidor/API · Infra/ECOM (dependencias de la imagen) |
+| **Migración** | No requiere |
+
+## Pedido original
+
+«El check Security / Pip Audit del CI falla por djangorestframework 3.16.1 (PYSEC-2026-3827, PYSEC-2026-3828) y anyio 3.7.1 (CVE-2026-63374, CVE-2026-64847). Es un gate que bloquea el merge de todos los PRs.»
+
+## Alcance acordado
+
+- Subir los pines lo mínimo necesario para que el pip-audit del CI dé 0.
+- Afuera: sacar `openai`, que no tiene uso (ver Pendientes), y cualquier otra actualización de dependencias.
+
+## Decisiones tomadas
+
+- **DRF 3.16.1 a 3.17.2.** Es la primera versión corregida; no existe un 3.16.x con el fix. Los cortes de 3.17 (sale Python 3.9, sale `coreapi`) no nos afectan: corremos 3.12 y el esquema es de drf-spectacular 0.27.0. El esquema OpenAPI generado quedó idéntico byte a byte (65 rutas, 58 componentes).
+- **anyio 3.7.1 a 4.14.2, con pin explícito.** Es transitivo (lo traen `openai` y `httpx`); se pinea para que la versión no dependa del resolver. `channels`, `daphne` y `twisted` no dependen de anyio.
+- **openai 1.3.0 a 1.3.8.** No hay CVE en openai: 1.3.0 topeaba `anyio<4` y 1.3.8 es el primer parche que acepta anyio 4. Se eligió el salto de parche más chico y no sacar el paquete, para no mezclar limpieza con el fix de seguridad.
+- **Se conserva el ignore de PYSEC-2026-3447** tal como está en `pr-security.yml`; no se agregó ningún ignore nuevo.
+
+## Implementación
+
+El CI de seguridad vuelve a verde. **Cambio de comportamiento de DRF 3.17.2:** `request.data` respeta `DATA_UPLOAD_MAX_MEMORY_SIZE` en cuerpos JSON y form-urlencoded (antes DRF leía el stream sin límite). Acá el límite es de **5 MB** por defecto y se ajusta por entorno; si se pasa, Django responde 400 (`RequestDataTooBig`). Los adjuntos multipart no cambian: siguen excluidos de ese límite y los controla `ADJUNTO_MAX_BYTES`. No hay endpoints que reciban JSON de ese tamaño.
+
+## Archivos
+
+- `requirements.txt` — pines de `djangorestframework`, `openai` y `anyio` (nuevo).
+- `docs/internal/venv-setup.md` — pin de DRF listado.
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+Venv nuevo de Python 3.12 con los pines nuevos: pip-audit (método equivalente al CI) 0 vulnerabilidades, 2 ignoradas; `check --deploy` OK; `makemigrations --check` sin cambios; `--tag performance` 4/4 OK. CI del PR sobre `d978a56`, todo verde: Pip Audit 0 vulnerabilidades, suite completa 1564 tests OK (1 salteado), cobertura 73 % (piso 48), presupuestos de queries 4/4, smoke 0,75x. La suite completa local no termina en Windows por fallas del ambiente, que se repiten con los pines viejos. El PR mergeó como `49fac92`.
+
+## Puesta en marcha en el servidor
+
+No requiere nada más que el deploy: la imagen reinstala `requirements.txt` al construir.
+
+## Pendientes / a definir
+
+- **Riesgo para la app móvil (a confirmar):** el nuevo límite de 5 MB sobre `request.data` podría afectar a las APKs móviles publicadas entre el 01-jul y el 14-jul, si alguna manda cuerpos JSON grandes (por ejemplo adjuntos en base64) en vez de multipart. No hay evidencia de que lo haga; no se verificó contra esas versiones. Si algún cliente de la API recibe 400 por `RequestDataTooBig`, ajustar `DATA_UPLOAD_MAX_MEMORY_SIZE` por entorno.
+- `openai` y `httpx`, pineados en el mismo bloque «AI/ML», no tienen consumidores en el código. Sacarlos achica la superficie que audita pip-audit. Queda para una decisión aparte.
+
+## Reversión
+
+Revertir el commit del PR (vuelven DRF 3.16.1, openai 1.3.0 y anyio 3.7.1) y reconstruir la imagen. No se pierden datos. El check de seguridad vuelve a rojo.
 
 ## Historial
 

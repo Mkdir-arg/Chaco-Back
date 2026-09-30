@@ -1,0 +1,22 @@
+{% comment %}
+Estado vacío del backoffice (CMP-22). Va dentro de la card de la lista.
+  {% include "components/_estado_vacio.html" with icono="fa-clipboard-check" titulo="No hay relevamientos" texto="Creá el primero." accion_url=url accion_texto="Nuevo relevamiento" accion_icono="fa-plus" %}
+  {% include "components/_estado_vacio.html" with con_filtros=True titulo="Ningún relevamiento coincide con los filtros" texto="…" accion_url=url_sin_filtros %}
+Contexto:
+  titulo        obligatorio.
+  texto         descripción opcional.
+  icono         Font Awesome sin «fas»; con filtros, por defecto «fa-magnifying-glass».
+  accion_url    opcional: sin ella no hay botón.
+  accion_texto  texto del botón; con filtros, por defecto «Limpiar filtros».
+  accion_icono  ícono opcional del botón.
+  con_filtros   variante «los filtros no traen nada»: la acción es terciaria (limpiar),
+                no la primaria de alta. Combinar con `request.GET|hay_filtros`.
+{% endcomment %}
+<div class="py-14 px-6 text-center flex flex-col items-center gap-3">
+  <div class="text-fg-brand"><i class="fas {% if icono %}{{ icono }}{% elif con_filtros %}fa-magnifying-glass{% else %}fa-inbox{% endif %} text-5xl" aria-hidden="true"></i></div>
+  <p class="text-[17px] font-bold text-heading">{{ titulo }}</p>
+  {% if texto %}<p class="text-sm text-body max-w-xs">{{ texto }}</p>{% endif %}
+  {% if accion_url %}
+  <a href="{{ accion_url }}" class="btn-nodo {% if con_filtros %}btn-tertiary{% else %}btn-brand{% endif %} btn-base mt-2">{% if accion_icono %}<i class="fas {{ accion_icono }}" aria-hidden="true"></i> {% endif %}{% if accion_texto %}{{ accion_texto }}{% elif con_filtros %}Limpiar filtros{% endif %}</a>
+  {% endif %}
+</div>
