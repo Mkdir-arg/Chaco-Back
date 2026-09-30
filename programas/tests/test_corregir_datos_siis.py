@@ -13,7 +13,7 @@ from django.core.management.base import CommandError
 from django.db import connection
 from django.utils import timezone
 
-from programas.models import AliasLocalidadSiis, Formulario, LocalidadSiis, ProvinciaSiis
+from programas.models import AliasLocalidadSiis, LocalidadSiis, ProvinciaSiis
 from programas.tests.test_siis_envio import _BaseEnvioTest
 
 TABLA_LOCALIDADES = "localidades_corregidas"
