@@ -1,11 +1,19 @@
 {% extends "includes/base.html" %}
+{% load nodo_ui %}
 {% block title %}Becas · {% if form.instance.pk %}Editar{% else %}Nueva{% endif %} pregunta{% endblock %}
 
 {% block main-content %}
-<div class="">
-  <h1 class="text-3xl font-extrabold text-heading tracking-tight mb-6">
-    {% if form.instance.pk %}Editar pregunta{% else %}Nueva pregunta{% endif %}
-  </h1>
+<div>
+  {% url 'becas:preguntas' as url_catalogo %}
+  {% if form.instance.pk %}
+  <div class="mb-6">
+    {% page_header titulo="Editar pregunta" volver_url=url_catalogo volver_label="requisitos generales" %}{% endpage_header %}
+  </div>
+  {% else %}
+  <div class="mb-6">
+    {% page_header titulo="Nueva pregunta" volver_url=url_catalogo volver_label="requisitos generales" %}{% endpage_header %}
+  </div>
+  {% endif %}
   <form method="post" class="bg-white rounded-xl border border-base shadow-sm p-6">
     {% csrf_token %}
     {% if form.non_field_errors %}
@@ -13,7 +21,7 @@
     {% endif %}
     {% for field in form %}{% include "programas/becas/_field.html" %}{% endfor %}
     <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-light">
-      <a href="{% url 'becas:preguntas' %}" class="btn-nodo btn-secondary btn-base">← Cancelar</a>
+      <a href="{{ url_catalogo }}" class="btn-nodo btn-tertiary btn-base">Cancelar</a>
       <button type="submit" class="btn-nodo btn-brand btn-base">Guardar</button>
     </div>
   </form>
