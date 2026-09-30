@@ -1,5 +1,5 @@
 {% extends "includes/base.html" %}
-{% load rbac %}
+{% load rbac static %}
 {% block title %}Becas · {{ convocatoria.nombre }}{% endblock %}
 
 {% block main-content %}
@@ -11,12 +11,18 @@
   {% becas_migas convocatoria as migas %}
   {% page_header titulo=convocatoria.nombre volver_url=url_convocatorias volver_label="convocatorias" migas=migas %}
     {% bajada %}{{ convocatoria.segmento.nombre }}{% if convocatoria.subsegmento %} · {{ convocatoria.subsegmento.nombre }}{% endif %}{% endbajada %}
-    {% if convocatoria.pausa_efectiva %}<span class="badge badge-warning badge-dot">Pausada</span>
-    {% elif convocatoria.activo %}<span class="badge badge-success badge-dot">Activa</span>
-    {% else %}<span class="badge badge-danger badge-dot">Inactiva</span>{% endif %}
+    {% include "programas/becas/_convocatoria_estado_badge.html" with convocatoria=convocatoria %}
     {% if request.user|puede:"becas.programa.administrar" %}
     <a href="{% url 'becas:gestionar_pausa' 'convocatoria' convocatoria.pk %}" class="btn-nodo {% if convocatoria.pausado %}btn-brand{% else %}btn-danger{% endif %} btn-sm">
       {% if convocatoria.pausado %}Reanudar{% else %}Pausar{% endif %}
+    </a>
+    {% endif %}
+    {% comment %}TIT-16: «Configurar formulario» abre otra pantalla, no es una solapa
+    de esta: va como acción del encabezado.{% endcomment %}
+    {% if puede_formulario %}
+    <a href="{% url 'becas:convocatoria_formulario' convocatoria.pk %}" class="btn-nodo btn-secondary btn-sm"
+       title="Abre el constructor del formulario en otra pantalla">
+      <i class="fas fa-wand-magic-sparkles" aria-hidden="true"></i> Configurar formulario
     </a>
     {% endif %}
   {% endpage_header %}
@@ -33,24 +39,19 @@
               class="px-4 py-3 text-sm border-b-2 -mb-px transition flex items-center gap-1.5"
               :class="tab==='rel' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
         <i class="fas fa-folder-open"></i> Relevamientos
-        <span class="badge ml-0.5" :class="tab==='rel' ? 'bg-brand-soft text-fg-brand' : 'badge-gray'">{{ n_relevamientos }}</span>
+        <span class="badge ml-0.5" :class="tab==='rel' ? 'badge-info' : 'badge-gray'">{{ n_relevamientos }}</span>
       </button>
       <button @click="tab='ben'" type="button"
               class="px-4 py-3 text-sm border-b-2 -mb-px transition flex items-center gap-1.5"
               :class="tab==='ben' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
         <i class="fas fa-users"></i> Casos
-        <span class="badge ml-0.5" :class="tab==='ben' ? 'bg-brand-soft text-fg-brand' : 'badge-gray'">{{ n_beneficiarios }}</span>
+        <span class="badge ml-0.5" :class="tab==='ben' ? 'badge-info' : 'badge-gray'">{{ n_beneficiarios }}</span>
       </button>
       {% if puede_reportes %}<button @click="tab='rep'" type="button"
               class="px-4 py-3 text-sm border-b-2 -mb-px transition flex items-center gap-1.5"
               :class="tab==='rep' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
         <i class="fas fa-chart-simple"></i> Reportes
       </button>{% endif %}
-      {% if puede_formulario %}<a href="{% url 'becas:convocatoria_formulario' convocatoria.pk %}"
-              class="px-4 py-3 text-sm flex items-center gap-1.5 text-fg-brand font-bold hover:bg-secondary transition ml-auto border-l border-base"
-              title="Abre el constructor del formulario en otra pantalla">
-        <i class="fas fa-wand-magic-sparkles"></i> Configurar formulario
-      </a>{% endif %}
     </div>
 
     {# ===== TAB: Información general ===== #}
@@ -61,7 +62,11 @@
           <form method="post" action="{% url 'becas:convocatoria_editar' convocatoria.pk %}" class="space-y-4">
             {% csrf_token %}
             {% if form_convocatoria.non_field_errors %}
-              <div class="rounded-lg bg-danger-soft p-3 text-sm text-fg-danger">{{ form_convocatoria.non_field_errors }}</div>
+              {% comment %}ALR-15: una sola receta de alerta en página (variante A).{% endcomment %}
+              <div class="rounded-lg bg-danger-soft border border-danger-subtle p-4 text-sm" role="alert">
+                <strong class="text-heading">Revisá los datos de la convocatoria</strong>
+                <div class="text-body mt-1">{{ form_convocatoria.non_field_errors }}</div>
+              </div>
             {% endif %}
             <div>
               <label class="block text-sm font-medium text-heading mb-1">Nombre <span class="text-fg-danger">*</span></label>
@@ -117,7 +122,7 @@
           <div class="bg-white rounded-xl border border-base shadow-sm p-5">
             <h3 class="text-sm font-bold text-heading mb-3">Datos de la convocatoria</h3>
             <dl class="space-y-2.5 text-sm">
-              <div class="flex justify-between"><dt class="text-body-subtle">Estado</dt><dd>{% if convocatoria.pausa_efectiva %}<span class="badge badge-warning badge-dot">Pausada</span>{% elif convocatoria.activo %}<span class="badge badge-success badge-dot">Activa</span>{% else %}<span class="badge badge-danger badge-dot">Inactiva</span>{% endif %}</dd></div>
+              <div class="flex justify-between"><dt class="text-body-subtle">Estado</dt><dd>{% include "programas/becas/_convocatoria_estado_badge.html" with convocatoria=convocatoria %}</dd></div>
               <div class="flex justify-between"><dt class="text-body-subtle">Período</dt><dd class="text-heading font-medium">{{ convocatoria.fecha_inicio|date:"d/m/Y" }} → {{ convocatoria.fecha_fin|date:"d/m/Y" }}</dd></div>
               <div class="flex justify-between"><dt class="text-body-subtle">Fecha de creación</dt><dd class="text-heading font-medium">{{ convocatoria.creado|date:"d/m/Y" }}</dd></div>
             </dl>
@@ -143,9 +148,9 @@
             {% endif %}
             <p class="text-xs text-body-subtle">Lo heredan todos los relevamientos de la convocatoria, salvo los que tengan padrón propio.{% if n_rels_padron_propio %} <span class="text-heading font-medium">{{ n_rels_padron_propio }} relevamiento{{ n_rels_padron_propio|pluralize }}</span> usa{{ n_rels_padron_propio|pluralize:",n" }} padrón propio y no hereda{{ n_rels_padron_propio|pluralize:",n" }} este.{% endif %}</p>
             {% if tiene_publicos and not n_padron %}
-              <div class="rounded-lg bg-warning-soft border border-warning-subtle p-3 text-sm" role="alert">
-                <i class="fas fa-triangle-exclamation text-fg-warning mr-1"></i>
-                <strong>Sin padrón el link queda abierto:</strong> cualquier persona que lo reciba puede inscribirse y ocupar cupo.
+              <div class="rounded-lg bg-warning-soft border border-warning-subtle p-4 text-sm" role="alert">
+                <strong class="text-heading">Sin padrón el link queda abierto</strong>
+                <p class="text-body mt-1">Cualquier persona que lo reciba puede inscribirse y ocupar cupo.</p>
               </div>
             {% endif %}
             {% if puede_padron %}
@@ -188,26 +193,26 @@
       <div class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
         <table class="w-full border-collapse">
           <thead>
-            <tr class="bg-secondary border-b border-base">
-              <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">DNI</th>
-              <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Nombre y apellido</th>
-              <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Relevamiento</th>
-              <th class="px-4 py-[11px] text-center font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Estado</th>
-              <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Fecha</th>
+            <tr class="nodo-thead-row">
+              <th class="nodo-th">DNI</th>
+              <th class="nodo-th">Nombre y apellido</th>
+              <th class="nodo-th">Relevamiento</th>
+              <th class="nodo-th text-center">Estado</th>
+              <th class="nodo-th">Fecha</th>
             </tr>
           </thead>
           <tbody>
             {% for f in beneficiarios %}
             <tr class="hover:bg-secondary">
-              <td class="px-4 py-[13px] text-sm border-t border-light text-body">{% if f.ciudadano %}{{ f.ciudadano.dni }}{% else %}{{ f.datos_identificacion.dni|default:"—" }}{% endif %}</td>
-              <td class="px-4 py-[13px] text-sm border-t border-light font-medium text-heading">
+              <td class="nodo-td text-body">{% if f.ciudadano %}{{ f.ciudadano.dni }}{% else %}{{ f.datos_identificacion.dni|default:"—" }}{% endif %}</td>
+              <td class="nodo-td font-medium text-heading">
                 {% if f.ciudadano %}{{ f.ciudadano.nombre_completo }}{% else %}{{ f.datos_identificacion.nombre|default:"" }} {{ f.datos_identificacion.apellido|default:"" }}{% endif %}
               </td>
-              <td class="px-4 py-[13px] text-sm border-t border-light text-body">{{ f.relevamiento.nombre }}</td>
-              <td class="px-4 py-[13px] text-sm border-t border-light text-center">
+              <td class="nodo-td text-body">{{ f.relevamiento.nombre }}</td>
+              <td class="nodo-td text-center">
                 {% include "programas/becas/_formulario_estado_badge.html" with estado=f.estado %}
               </td>
-              <td class="px-4 py-[13px] text-sm border-t border-light text-body">{{ f.creado|date:"d/m/Y" }}</td>
+              <td class="nodo-td text-body">{{ f.creado|date:"d/m/Y" }}</td>
             </tr>
             {% endfor %}
           </tbody>
@@ -263,29 +268,18 @@
   </div>
 
   {# ============ Modal: Nuevo relevamiento (convocatoria preseleccionada) ============ #}
-  <div x-show="modalRel" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
+  <div x-show="modalRel" x-cloak x-becas-modal="modalRel" class="fixed inset-0 z-50 flex items-center justify-center p-4">
     <div class="absolute inset-0" style="background:rgba(0,0,0,.5);backdrop-filter:blur(4px)" @click="modalRel=false"></div>
-    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-xl max-h-[90vh] overflow-y-auto" @click.stop>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-xl max-h-[90vh] flex flex-col overflow-hidden" @click.stop
+         role="dialog" aria-modal="true" aria-labelledby="modal-relevamiento-crear-titulo">
 
-      {% comment %}HEADER{% endcomment %}
-      <div class="flex items-center justify-between px-6 py-5 border-b" style="border-color:var(--border-light)">
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-lg flex items-center justify-center text-lg"
-               style="background:var(--bg-brand-soft);color:var(--text-fg-brand)">
-            <i class="fas fa-route"></i>
-          </div>
-          <h3 class="text-lg font-bold text-heading">Nuevo relevamiento</h3>
-        </div>
-        <button type="button" @click="modalRel=false" aria-label="Cerrar"
-                class="p-1.5 rounded-lg text-body-subtle hover:text-heading hover:bg-secondary transition-colors">
-          <i class="fas fa-xmark text-base"></i>
-        </button>
-      </div>
+      {% include "programas/becas/_modal_header.html" with titulo="Nuevo relevamiento" titulo_id="modal-relevamiento-crear-titulo" icono="fa-route" cerrar="modalRel=false" %}
 
-      <form method="post" action="{% url 'becas:relevamiento_crear' %}" data-ajax enctype="multipart/form-data">
+      <form method="post" action="{% url 'becas:relevamiento_crear' %}" data-ajax enctype="multipart/form-data"
+            class="flex flex-col flex-1 min-h-0">
         {% csrf_token %}
         <input type="hidden" name="next" value="{% url 'becas:convocatoria_detalle' convocatoria.pk %}">
-        <div class="p-6 space-y-4">
+        <div class="p-6 space-y-4 overflow-y-auto min-h-0">
           <div class="rounded-xl bg-brand-soft p-3 text-sm text-fg-brand flex items-start gap-2" style="border:1px solid var(--color-brand-200)">
             <i class="fas fa-circle-info mt-0.5"></i>
             <span x-show="tipoRel==='TERRITORIAL'">El relevamiento recibe automáticamente el próximo número disponible dentro de esta convocatoria y queda en estado Asignado.</span>
@@ -294,7 +288,10 @@
             {% endif %}
           </div>
           {% if form_crear.non_field_errors %}
-            <div class="rounded-lg bg-danger-soft p-3 text-sm text-fg-danger">{{ form_crear.non_field_errors }}</div>
+            <div class="rounded-lg bg-danger-soft border border-danger-subtle p-4 text-sm" role="alert">
+              <strong class="text-heading">Revisá los datos del relevamiento</strong>
+              <div class="text-body mt-1">{{ form_crear.non_field_errors }}</div>
+            </div>
           {% endif %}
           {% if puede_publico %}
           <div>
@@ -370,10 +367,7 @@
           </div>
           <p class="text-xs text-fg-danger hidden" data-error="__all__"></p>
         </div>
-        <div class="flex justify-end gap-3 px-6 py-4 border-t bg-secondary" style="border-color:var(--border-light)">
-          <button type="button" @click="modalRel=false" class="btn-nodo btn-tertiary btn-base">Cancelar</button>
-          <button type="submit" class="btn-nodo btn-brand btn-base">Guardar</button>
-        </div>
+        {% include "programas/becas/_modal_footer.html" with cancelar="modalRel=false" accion_texto="Guardar" %}
       </form>
     </div>
   </div>
@@ -383,4 +377,5 @@
 {% include "user/_alta_rapida_modal.html" %}
 {% endblock %}
 
-{% block customJS %}{% include "programas/becas/_ajax_js.html" %}{% endblock %}
+{% block customJS %}{% include "programas/becas/_ajax_js.html" %}
+<script src="{% static 'custom/js/becas-modal.js' %}"></script>{% endblock %}

@@ -3,62 +3,73 @@
 <div class="overflow-x-auto">
   <table class="w-full border-collapse">
     <thead>
-      <tr class="bg-secondary border-b border-base">
-        <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Nombre</th>
-        <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Segmento</th>
-        <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Subsegmento</th>
-        <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Período</th>
-        <th class="px-4 py-[11px] text-right font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Relevamientos</th>
-        <th class="px-4 py-[11px] text-center font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Estado</th>
-        <th class="px-4 py-[11px] text-right font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Acciones</th>
+      <tr class="nodo-thead-row">
+        <th class="nodo-th">Nombre</th>
+        <th class="nodo-th">Segmento</th>
+        <th class="nodo-th">Subsegmento</th>
+        <th class="nodo-th">Período</th>
+        <th class="nodo-th text-right">Relevamientos</th>
+        <th class="nodo-th text-center">Estado</th>
+        <th class="nodo-th text-right">Acciones</th>
       </tr>
     </thead>
     <tbody>
       {% for c in convocatorias %}
       <tr class="hover:bg-secondary">
-        <td class="px-4 py-[13px] text-sm border-t border-light font-semibold text-heading">
+        <td class="nodo-td font-semibold text-heading">
           <a href="{% url 'becas:convocatoria_detalle' c.pk %}" class="text-fg-brand hover:underline">{{ c.nombre }}</a>
         </td>
-        <td class="px-4 py-[13px] text-sm border-t border-light text-body">{{ c.segmento.nombre }}</td>
-        <td class="px-4 py-[13px] text-sm border-t border-light text-body">{{ c.subsegmento.nombre|default:"—" }}</td>
-        <td class="px-4 py-[13px] text-sm border-t border-light text-body">
+        <td class="nodo-td text-body">{{ c.segmento.nombre }}</td>
+        <td class="nodo-td text-body">{{ c.subsegmento.nombre|default:"—" }}</td>
+        <td class="nodo-td text-body">
           {{ c.fecha_inicio|date:"d/m/Y" }} → {{ c.fecha_fin|date:"d/m/Y" }}
         </td>
-        <td class="px-4 py-[13px] text-sm border-t border-light text-body text-right">
+        <td class="nodo-td text-body text-right">
           <a href="{% url 'becas:convocatoria_detalle' c.pk %}" class="text-fg-brand hover:underline">{{ c.n_relevamientos }} relevamiento{{ c.n_relevamientos|pluralize }}</a>
         </td>
-        <td class="px-4 py-[13px] text-sm border-t border-light text-center">
-          {% if c.activo %}
-            {% if c.esta_vencida %}
-              <span class="badge badge-warning badge-dot" title="La fecha de fin ya pasó; se cierra en la próxima corrida.">Vencida</span>
-            {% else %}
-              <span class="badge badge-success badge-dot">Activa</span>
-            {% endif %}
-          {% else %}
-            <span class="badge badge-danger badge-dot">Inactiva</span>
-          {% endif %}
+        <td class="nodo-td text-center">
+          {% comment %}Mapa único de estados (CMP-4): la pausa propia o heredada gana,
+          «Vencida» es atención y apagada es «Cerrada» en gris, nunca rojo. El
+          listado precarga segmento__programa y subsegmento__segmento__programa
+          (views/relevamientos.py::_convocatorias_qs) para que no haga consultas
+          por fila.{% endcomment %}
+          {% include "programas/becas/_convocatoria_estado_badge.html" with convocatoria=c %}
         </td>
-        <td class="px-4 py-[13px] text-sm border-t border-light text-right">
-          <div class="flex items-center justify-end gap-2">
-            <a href="{% url 'becas:convocatoria_detalle' c.pk %}" class="text-body-subtle hover:text-fg-brand p-1" title="Ver detalle" aria-label="Ver detalle"><i class="fas fa-eye"></i></a>
+        <td class="nodo-td text-right">
+          <div class="flex items-center justify-end gap-1">
+            <a href="{% url 'becas:convocatoria_detalle' c.pk %}" class="nodo-icon-btn" aria-label="Ver convocatoria {{ c.nombre }}">
+              <i class="fas fa-eye" aria-hidden="true"></i>
+            </a>
             {% if request.user|puede:"becas.convocatoria.editar" %}
             {% if c.activo %}
-            <button type="button" class="text-fg-danger hover:opacity-70 p-1" title="Desactivar" aria-label="Desactivar"
+            {% comment %}Destructiva (POP-13): botón rojo, confirmación roja, la
+            consecuencia en el cuerpo y el verbo en el botón.{% endcomment %}
+            <button type="button" class="nodo-icon-btn nodo-icon-btn--danger" aria-label="Desactivar convocatoria {{ c.nombre }}"
                     data-confirm-url="{% url 'becas:convocatoria_toggle' c.pk %}"
-                    data-confirm-title="¿Desactivar convocatoria?" data-confirm-text="{{ c.nombre }}" data-confirm-icon="question" data-confirm-ok="Sí">
-              <i class="fas fa-times-circle"></i>
+                    data-confirm-title="¿Desactivar la convocatoria?"
+                    data-confirm-text="«{{ c.nombre }}» deja de aceptar relevamientos nuevos y los que estén en curso no pueden volver a campo. Podés volver a activarla cuando quieras."
+                    data-confirm-icon="danger"
+                    data-confirm-danger="true"
+                    data-confirm-ok="Sí, desactivar">
+              <i class="fas fa-times-circle" aria-hidden="true"></i>
             </button>
             {% elif c.esta_vencida %}
-            <button type="button" class="text-fg-success hover:opacity-70 p-1" title="Reactivar (extender fecha de fin)" aria-label="Reactivar"
+            <button type="button" class="nodo-icon-btn" aria-label="Reactivar convocatoria {{ c.nombre }} (extender la fecha de fin)"
                     data-reactivar-url="{% url 'becas:convocatoria_reactivar' c.pk %}"
                     data-nombre="{{ c.nombre }}">
-              <i class="fas fa-calendar-plus"></i>
+              <i class="fas fa-calendar-plus" aria-hidden="true"></i>
             </button>
             {% else %}
-            <button type="button" class="text-fg-success hover:opacity-70 p-1" title="Activar" aria-label="Activar"
+            {% comment %}Reversible (POP-12): botón y confirmación de marca, con el
+            verbo en el botón.{% endcomment %}
+            <button type="button" class="nodo-icon-btn" aria-label="Activar convocatoria {{ c.nombre }}"
                     data-confirm-url="{% url 'becas:convocatoria_toggle' c.pk %}"
-                    data-confirm-title="¿Activar convocatoria?" data-confirm-text="{{ c.nombre }}" data-confirm-icon="question" data-confirm-ok="Sí">
-              <i class="fas fa-check-circle"></i>
+                    data-confirm-title="¿Activar la convocatoria?"
+                    data-confirm-text="«{{ c.nombre }}» vuelve a aceptar relevamientos hasta el {{ c.fecha_fin|date:'d/m/Y' }}."
+                    data-confirm-icon="question"
+                    data-confirm-danger="false"
+                    data-confirm-ok="Sí, activar">
+              <i class="fas fa-circle-check" aria-hidden="true"></i>
             </button>
             {% endif %}
             {% endif %}
@@ -71,12 +82,12 @@
 </div>
 {% else %}
 <div class="py-14 px-6 text-center flex flex-col items-center gap-3">
-  <div class="text-fg-brand"><i class="fas fa-bullhorn text-5xl"></i></div>
+  <div class="text-fg-brand"><i class="fas fa-bullhorn text-5xl" aria-hidden="true"></i></div>
   <p class="text-[17px] font-bold text-heading">No hay convocatorias</p>
   <p class="text-sm text-body max-w-xs">Creá una convocatoria para poder asignar relevamientos.</p>
   {% if request.user|puede:"becas.convocatoria.crear" %}
   <button type="button" @click="modalCrear=true" class="btn-nodo btn-brand btn-base mt-2">
-    <i class="fas fa-plus"></i> Nueva convocatoria
+    <i class="fas fa-plus" aria-hidden="true"></i> Nueva convocatoria
   </button>
   {% endif %}
 </div>
