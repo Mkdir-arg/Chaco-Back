@@ -246,7 +246,7 @@ window.showModernAlert = function(message, type = 'info', title = null) {
             message: message
         });
     } else {
-        alert(message);
+        if (window.toast) window.toast(type || "info", message);
     }
 };
 
