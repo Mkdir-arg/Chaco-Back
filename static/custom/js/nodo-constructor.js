@@ -126,7 +126,8 @@
       var data = r.data || {};
       if (r.status >= 200 && r.status < 300 && data.ok) {
         aplicarRespuesta(data);
-        aviso(data.message || 'Guardado.');
+        // DA-2: el autoguardado no lleva toast de éxito; el indicador
+        // «Guardando…/Guardado en vivo» del encabezado (aria-live) ya lo dice.
         if (ok) { ok(data); }
       } else {
         var msg = data.message || 'No se pudo guardar. Recargá la página.';
@@ -297,19 +298,22 @@
 
   // ── Acciones ─────────────────────────────────────────────────────────────
   function confirmar(opts, onConfirm) {
-    if (window.ModernModal && typeof window.ModernModal.show === 'function') {
-      window.ModernModal.show({
-        type: 'confirm',
-        danger: !!opts.danger,
-        title: opts.title,
-        message: opts.message || '',
-        confirmText: opts.ok || 'Sí, confirmar',
-        cancelText: 'Cancelar',
-        onConfirm: onConfirm
-      });
-    } else {
-      onConfirm();
+    // POP-19: sin ModernModal no hay forma segura de pedir la confirmación
+    // (eliminar/restablecer son destructivos): se falla cerrado, nunca se
+    // ejecuta la acción sin preguntar.
+    if (!(window.ModernModal && typeof window.ModernModal.show === 'function')) {
+      aviso('No se pudo abrir la confirmación. Recargá la página.', 'error');
+      return;
     }
+    window.ModernModal.show({
+      type: 'confirm',
+      danger: !!opts.danger,
+      title: opts.title,
+      message: opts.message || '',
+      confirmText: opts.ok || 'Sí, confirmar',
+      cancelText: 'Cancelar',
+      onConfirm: onConfirm
+    });
   }
 
   function modalPara(dato) {
@@ -531,6 +535,20 @@
       },
 
       cerrar: function () { this.modal = ''; this.edicion = null; },
+
+      // becas-modal.js (x-becas-modal) necesita una variable asignable por
+      // modal para el foco/Tab/Escape/scroll del fondo, no una comparación;
+      // `modal` sigue siendo la única fuente de verdad de cuál está abierto.
+      get mGrupo() { return this.modal === 'grupo'; },
+      set mGrupo(v) { if (!v) { this.cerrar(); } },
+      get mTexto() { return this.modal === 'texto'; },
+      set mTexto(v) { if (!v) { this.cerrar(); } },
+      get mPropio() { return this.modal === 'propio'; },
+      set mPropio(v) { if (!v) { this.cerrar(); } },
+      get mEtiqueta() { return this.modal === 'etiqueta'; },
+      set mEtiqueta(v) { if (!v) { this.cerrar(); } },
+      get mCondicion() { return this.modal === 'condicion'; },
+      set mCondicion(v) { if (!v) { this.cerrar(); } },
 
       fuente: function (clave) {
         for (var i = 0; i < this.cond.fuentes.length; i++) { if (this.cond.fuentes[i].clave === clave) { return this.cond.fuentes[i]; } }
