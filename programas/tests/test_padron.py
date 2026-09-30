@@ -10,6 +10,8 @@ from datetime import date
 from io import BytesIO, StringIO
 
 from django.contrib.auth.models import Group, User
+from django.contrib.messages import constants as message_levels
+from django.contrib.messages import get_messages
 from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
@@ -519,3 +521,62 @@ class PadronRelevamientoViewTests(_BasePadronTest):
         resp = self.client.post(url, {"padron": _xlsx([("30123456", "F")])})
         self.assertNotEqual(resp.status_code, 200)
         self.assertEqual(self.relevamiento.padron_propio.count(), 0)
+
+
+class ResumenFijoPadronTests(_BasePadronTest):
+    """P-DA5: un solo aviso por carga (nivel del peor resultado) y resumen fijo en el detalle."""
+
+    def setUp(self):
+        super().setUp()
+        call_command("seed_becas", stdout=StringIO())
+        self.admin = User.objects.create_user("admin_resumen", password="x")
+        self.admin.groups.add(Group.objects.get(name=ROL_ADMIN))
+        self.client.force_login(self.admin)
+        self.url = reverse("becas:convocatoria_padron", args=[self.convocatoria.pk])
+        self.detalle = reverse("becas:convocatoria_detalle", args=[self.convocatoria.pk])
+
+    def _cargar(self, filas):
+        return self.client.post(self.url, {"padron": _xlsx([("documento", "sexo", "nombre", "apellido")] + filas)})
+
+    def test_con_filas_ignoradas_el_mensaje_es_uno_y_warning(self):
+        resp = self._cargar([("30123456", "F", "Ana", "Paz"), ("xx", "F", "Bad", "Row")])
+        msgs = list(get_messages(resp.wsgi_request))
+        self.assertEqual(len(msgs), 1)
+        self.assertEqual(msgs[0].level, message_levels.WARNING)
+        self.assertIn("ignorada", msgs[0].message)
+
+    def test_sin_problemas_el_mensaje_es_success(self):
+        resp = self._cargar([("30123456", "F", "Ana", "Paz")])
+        msgs = list(get_messages(resp.wsgi_request))
+        self.assertEqual(len(msgs), 1)
+        self.assertEqual(msgs[0].level, message_levels.SUCCESS)
+
+    def test_el_detalle_muestra_el_resumen_fijo_y_la_segunda_carga_lo_reemplaza(self):
+        self._cargar([("30123456", "F", "Ana", "Paz"), ("xx", "F", "Bad", "Row")])
+        for _ in range(2):  # persiste entre visitas
+            resp = self.client.get(self.detalle)
+            self.assertContains(resp, "Última carga del padrón")
+            self.assertContains(resp, "1 habilitados")
+            self.assertContains(resp, "1 filas ignoradas")
+        self._cargar([("30123456", "F", "Ana", "Paz"), ("30123457", "M", "Luis", "Paz")])
+        resp = self.client.get(self.detalle)
+        self.assertContains(resp, "2 habilitados")
+        self.assertNotContains(resp, "filas ignoradas")
+
+    def test_el_detalle_del_relevamiento_muestra_su_resumen(self):
+        from django.contrib.auth.models import Permission
+
+        from core.rbac import APP_LABEL, codename_de
+
+        Group.objects.get(name=ROL_ADMIN).permissions.add(
+            Permission.objects.get(
+                content_type__app_label=APP_LABEL, codename=codename_de("becas.relevamiento.publico")
+            )
+        )
+        url = reverse("becas:relevamiento_padron", args=[self.relevamiento.pk])
+        self.client.post(url, {"padron": _xlsx([("documento", "sexo"), ("30123456", "F")])})
+        resp = self.client.get(reverse("becas:relevamiento_detalle", args=[self.relevamiento.pk]))
+        self.assertContains(resp, "Última carga del padrón")
+        # el resumen de la convocatoria no se filtra al relevamiento de otra carga
+        resp = self.client.get(self.detalle)
+        self.assertNotContains(resp, "Última carga del padrón")
