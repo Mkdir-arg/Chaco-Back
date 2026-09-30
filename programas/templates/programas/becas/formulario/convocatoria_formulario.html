@@ -1,5 +1,5 @@
 {% extends "includes/base.html" %}
-{% load rbac static %}
+{% load rbac static nodo_ui becas_extras %}
 {% block title %}Becas · Formulario de {{ convocatoria.nombre }}{% endblock %}
 
 {% block main-content %}
@@ -18,31 +18,22 @@
      data-url-propio="{% url 'becas:formulario_propio_crear' convocatoria.pk %}"
      @constructor-abrir.window="abrir($event.detail)"
      @constructor-datos.window="version = $event.detail.version"
-     @keydown.escape.window="cerrar()"
      @becas-saved.window="cerrar()">
 
   {# Header #}
-  <div class="flex items-start justify-between gap-4 flex-wrap">
-    <div class="flex items-start gap-3 min-w-0">
-      <a href="{% url 'becas:convocatoria_detalle' convocatoria.pk %}" class="btn-tertiary btn-back-circle" aria-label="Volver a la convocatoria">
-        <i class="fas fa-arrow-left" aria-hidden="true"></i>
-      </a>
-      <div class="min-w-0">
-        <h1 class="text-3xl font-extrabold text-heading tracking-tight">Configurar formulario</h1>
-        <p class="text-sm text-body-subtle mt-1">{{ convocatoria.nombre }} · {{ convocatoria.segmento.nombre }}{% if convocatoria.subsegmento %} · {{ convocatoria.subsegmento.nombre }}{% endif %}</p>
-      </div>
-    </div>
-    <div class="flex items-center gap-2 flex-wrap">
-      <span class="badge badge-gray" title="Cada guardado es una versión nueva">Versión <span x-text="version"></span></span>
-      <span class="text-xs text-body-subtle flex items-center gap-1" aria-live="polite">
-        <i class="fas" :class="guardando ? 'fa-circle-notch fa-spin' : 'fa-check text-fg-success'" aria-hidden="true"></i>
-        <span x-text="guardando ? 'Guardando…' : 'Guardado en vivo'"></span>
-      </span>
-      <button type="button" class="btn-nodo btn-tertiary btn-sm" data-accion="restablecer">
-        <i class="fas fa-rotate-left"></i> Restablecer
-      </button>
-    </div>
-  </div>
+  {% url 'becas:convocatoria_detalle' convocatoria.pk as url_convocatoria %}
+  {% becas_migas convocatoria actual="Configurar formulario" as migas %}
+  {% page_header titulo="Configurar formulario" volver_url=url_convocatoria volver_label="la convocatoria" migas=migas %}
+    {% bajada %}{{ convocatoria.nombre }} · {{ convocatoria.segmento.nombre }}{% if convocatoria.subsegmento %} · {{ convocatoria.subsegmento.nombre }}{% endif %}{% endbajada %}
+    <span class="badge badge-gray" title="Cada guardado es una versión nueva">Versión <span x-text="version"></span></span>
+    <span class="text-xs text-body-subtle flex items-center gap-1" aria-live="polite">
+      <i class="fas" :class="guardando ? 'fa-circle-notch fa-spin' : 'fa-check text-fg-success'" aria-hidden="true"></i>
+      <span x-text="guardando ? 'Guardando…' : 'Guardado en vivo'"></span>
+    </span>
+    <button type="button" class="btn-nodo btn-tertiary btn-sm" data-accion="restablecer">
+      <i class="fas fa-rotate-left"></i> Restablecer
+    </button>
+  {% endpage_header %}
 
   {% if avisos.agregados or avisos.quitados or avisos.condiciones_quitadas %}
   <div class="rounded-xl bg-warning-soft border border-warning-subtle px-5 py-4 text-sm" role="status">
@@ -102,18 +93,14 @@
   </div>
 
   {# ── Modal: grupo (crear / editar) ── #}
-  <div x-show="modal === 'grupo'" x-cloak @click="cerrar()" class="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style="background:rgba(0,0,0,.5)">
-    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto" @click.stop>
-      <div class="flex items-center justify-between px-6 py-5 border-b" style="border-color:var(--border-light)">
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style="background:var(--bg-brand-soft);color:var(--text-fg-brand)"><i class="fas fa-layer-group"></i></div>
-          <h3 class="text-lg font-bold text-heading" x-text="edicion ? 'Editar grupo' : 'Nuevo grupo'"></h3>
-        </div>
-        <button type="button" @click="cerrar()" aria-label="Cerrar" class="p-1.5 rounded-lg text-body-subtle hover:text-heading hover:bg-secondary transition-colors"><i class="fas fa-times"></i></button>
-      </div>
-      <form method="post" :action="url" data-ajax data-reset="false">
+  <div x-show="mGrupo" x-cloak x-becas-modal="mGrupo" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/50" style="backdrop-filter:blur(4px)" @click="mGrupo=false"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden" @click.stop
+         role="dialog" aria-modal="true" aria-labelledby="cons-grupo-titulo">
+      {% include "programas/becas/_modal_header.html" with titulo="Nuevo grupo" titulo_id="cons-grupo-titulo" titulo_x_text="edicion ? 'Editar grupo' : 'Nuevo grupo'" icono="fa-layer-group" cerrar="mGrupo=false" %}
+      <form method="post" :action="url" data-ajax data-reset="false" class="flex flex-col flex-1 min-h-0">
         {% csrf_token %}
-        <div class="p-6 space-y-5">
+        <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
           <div>
             <label class="block text-sm font-medium text-heading mb-1" for="cg-etiqueta">Título <span class="text-fg-danger">*</span></label>
             <input id="cg-etiqueta" type="text" name="etiqueta" x-model="f.etiqueta" required maxlength="240" class="nodo-field">
@@ -129,27 +116,20 @@
           </div>
           <p class="text-xs text-body-subtle" x-show="!edicion">El grupo se agrega al final; después lo arrastrás a donde va.</p>
         </div>
-        <div class="flex justify-end gap-3 px-6 py-4 border-t bg-secondary" style="border-color:var(--border-light)">
-          <button type="button" @click="cerrar()" class="btn-nodo btn-tertiary btn-base">Cancelar</button>
-          <button type="submit" class="btn-nodo btn-brand btn-base"><i class="fas fa-check"></i> Guardar</button>
-        </div>
+        {% include "programas/becas/_modal_footer.html" with cancelar="mGrupo=false" accion_texto="Guardar" accion_icono="fa-check" %}
       </form>
     </div>
   </div>
 
   {# ── Modal: texto (crear / editar) ── #}
-  <div x-show="modal === 'texto'" x-cloak @click="cerrar()" class="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style="background:rgba(0,0,0,.5)">
-    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto" @click.stop>
-      <div class="flex items-center justify-between px-6 py-5 border-b" style="border-color:var(--border-light)">
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style="background:var(--bg-brand-soft);color:var(--text-fg-brand)"><i class="fas fa-align-left"></i></div>
-          <h3 class="text-lg font-bold text-heading" x-text="edicion ? 'Editar texto' : 'Nuevo texto'"></h3>
-        </div>
-        <button type="button" @click="cerrar()" aria-label="Cerrar" class="p-1.5 rounded-lg text-body-subtle hover:text-heading hover:bg-secondary transition-colors"><i class="fas fa-times"></i></button>
-      </div>
-      <form method="post" :action="url" data-ajax data-reset="false">
+  <div x-show="mTexto" x-cloak x-becas-modal="mTexto" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/50" style="backdrop-filter:blur(4px)" @click="mTexto=false"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden" @click.stop
+         role="dialog" aria-modal="true" aria-labelledby="cons-texto-titulo">
+      {% include "programas/becas/_modal_header.html" with titulo="Nuevo texto" titulo_id="cons-texto-titulo" titulo_x_text="edicion ? 'Editar texto' : 'Nuevo texto'" icono="fa-align-left" cerrar="mTexto=false" %}
+      <form method="post" :action="url" data-ajax data-reset="false" class="flex flex-col flex-1 min-h-0">
         {% csrf_token %}
-        <div class="p-6 space-y-5">
+        <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
           <div x-show="!edicion">
             <label class="block text-sm font-medium text-heading mb-1" for="ct-padre">Dentro del grupo <span class="text-fg-danger">*</span></label>
             <select id="ct-padre" name="padre" x-model="f.padre" class="nodo-field" :disabled="!!edicion">
@@ -167,30 +147,20 @@
             <select id="ct-canal" name="canal" x-model="f.canal" class="nodo-field">{% for val, label in canal_choices %}<option value="{{ val }}">{{ label }}</option>{% endfor %}</select>
           </div>
         </div>
-        <div class="flex justify-end gap-3 px-6 py-4 border-t bg-secondary" style="border-color:var(--border-light)">
-          <button type="button" @click="cerrar()" class="btn-nodo btn-tertiary btn-base">Cancelar</button>
-          <button type="submit" class="btn-nodo btn-brand btn-base"><i class="fas fa-check"></i> Guardar</button>
-        </div>
+        {% include "programas/becas/_modal_footer.html" with cancelar="mTexto=false" accion_texto="Guardar" accion_icono="fa-check" %}
       </form>
     </div>
   </div>
 
   {# ── Modal: campo propio (crear / editar) ── #}
-  <div x-show="modal === 'propio'" x-cloak @click="cerrar()" class="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style="background:rgba(0,0,0,.5)">
-    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto" @click.stop>
-      <div class="flex items-center justify-between px-6 py-5 border-b" style="border-color:var(--border-light)">
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style="background:var(--bg-brand-soft);color:var(--text-fg-brand)"><i class="fas fa-plus"></i></div>
-          <div>
-            <h3 class="text-lg font-bold text-heading" x-text="edicion ? 'Editar campo propio' : 'Nuevo campo propio'"></h3>
-            <p class="text-xs text-body-subtle">Solo en este formulario; no se suma al catálogo.</p>
-          </div>
-        </div>
-        <button type="button" @click="cerrar()" aria-label="Cerrar" class="p-1.5 rounded-lg text-body-subtle hover:text-heading hover:bg-secondary transition-colors"><i class="fas fa-times"></i></button>
-      </div>
-      <form method="post" :action="url" data-ajax data-reset="false">
+  <div x-show="mPropio" x-cloak x-becas-modal="mPropio" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/50" style="backdrop-filter:blur(4px)" @click="mPropio=false"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden" @click.stop
+         role="dialog" aria-modal="true" aria-labelledby="cons-propio-titulo">
+      {% include "programas/becas/_modal_header.html" with titulo="Nuevo campo propio" titulo_id="cons-propio-titulo" titulo_x_text="edicion ? 'Editar campo propio' : 'Nuevo campo propio'" subtitulo="Solo en este formulario; no se suma al catálogo." icono="fa-plus" cerrar="mPropio=false" %}
+      <form method="post" :action="url" data-ajax data-reset="false" class="flex flex-col flex-1 min-h-0">
         {% csrf_token %}
-        <div class="p-6 space-y-5">
+        <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
           <div x-show="!edicion">
             <label class="block text-sm font-medium text-heading mb-1" for="cp-padre">Dentro del grupo <span class="text-fg-danger">*</span></label>
             <select id="cp-padre" name="padre" x-model="f.padre" class="nodo-field" :disabled="!!edicion">
@@ -231,27 +201,20 @@
             <select id="cp-canal" name="canal" x-model="f.canal" class="nodo-field">{% for val, label in canal_choices %}<option value="{{ val }}">{{ label }}</option>{% endfor %}</select>
           </div>
         </div>
-        <div class="flex justify-end gap-3 px-6 py-4 border-t bg-secondary" style="border-color:var(--border-light)">
-          <button type="button" @click="cerrar()" class="btn-nodo btn-tertiary btn-base">Cancelar</button>
-          <button type="submit" class="btn-nodo btn-brand btn-base"><i class="fas fa-check"></i> Guardar</button>
-        </div>
+        {% include "programas/becas/_modal_footer.html" with cancelar="mPropio=false" accion_texto="Guardar" accion_icono="fa-check" %}
       </form>
     </div>
   </div>
 
   {# ── Modal: etiqueta de un campo del catálogo ── #}
-  <div x-show="modal === 'etiqueta'" x-cloak @click="cerrar()" class="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style="background:rgba(0,0,0,.5)">
-    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto" @click.stop>
-      <div class="flex items-center justify-between px-6 py-5 border-b" style="border-color:var(--border-light)">
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style="background:var(--bg-brand-soft);color:var(--text-fg-brand)"><i class="fas fa-tag"></i></div>
-          <h3 class="text-lg font-bold text-heading">Etiqueta en este formulario</h3>
-        </div>
-        <button type="button" @click="cerrar()" aria-label="Cerrar" class="p-1.5 rounded-lg text-body-subtle hover:text-heading hover:bg-secondary transition-colors"><i class="fas fa-times"></i></button>
-      </div>
-      <form method="post" :action="url" data-ajax data-reset="false">
+  <div x-show="mEtiqueta" x-cloak x-becas-modal="mEtiqueta" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/50" style="backdrop-filter:blur(4px)" @click="mEtiqueta=false"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden" @click.stop
+         role="dialog" aria-modal="true" aria-labelledby="cons-etiqueta-titulo">
+      {% include "programas/becas/_modal_header.html" with titulo="Etiqueta en este formulario" titulo_id="cons-etiqueta-titulo" icono="fa-tag" cerrar="mEtiqueta=false" %}
+      <form method="post" :action="url" data-ajax data-reset="false" class="flex flex-col flex-1 min-h-0">
         {% csrf_token %}
-        <div class="p-6 space-y-5">
+        <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
           <div class="rounded-lg bg-secondary px-4 py-3 text-sm">
             <p class="text-xs text-body-subtle">En el catálogo</p>
             <p class="text-heading font-medium" x-text="f.texto_catalogo"></p>
@@ -263,28 +226,18 @@
           </div>
           <p class="text-xs text-body-subtle">El tipo, las opciones, la obligatoriedad y el canal de un requisito se cambian en el catálogo y rigen para todos los formularios.</p>
         </div>
-        <div class="flex justify-end gap-3 px-6 py-4 border-t bg-secondary" style="border-color:var(--border-light)">
-          <button type="button" @click="cerrar()" class="btn-nodo btn-tertiary btn-base">Cancelar</button>
-          <button type="submit" class="btn-nodo btn-brand btn-base"><i class="fas fa-check"></i> Guardar</button>
-        </div>
+        {% include "programas/becas/_modal_footer.html" with cancelar="mEtiqueta=false" accion_texto="Guardar" accion_icono="fa-check" %}
       </form>
     </div>
   </div>
 
   {# ── Modal: condición ── #}
-  <div x-show="modal === 'condicion'" x-cloak @click="cerrar()" class="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style="background:rgba(0,0,0,.5)">
-    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" @click.stop>
-      <div class="flex items-center justify-between px-6 py-5 border-b" style="border-color:var(--border-light)">
-        <div class="flex items-center gap-3 min-w-0">
-          <div class="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style="background:var(--bg-warning-soft);color:var(--text-fg-warning)"><i class="fas fa-code-branch"></i></div>
-          <div class="min-w-0">
-            <h3 class="text-lg font-bold text-heading truncate">Condición de «<span x-text="cond.titulo"></span>»</h3>
-            <p class="text-xs text-body-subtle">Solo decide si se muestra. Oculto = no se exige y lo respondido se descarta.</p>
-          </div>
-        </div>
-        <button type="button" @click="cerrar()" aria-label="Cerrar" class="p-1.5 rounded-lg text-body-subtle hover:text-heading hover:bg-secondary transition-colors"><i class="fas fa-times"></i></button>
-      </div>
-      <div class="p-6 space-y-4">
+  <div x-show="mCondicion" x-cloak x-becas-modal="mCondicion" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/50" style="backdrop-filter:blur(4px)" @click="mCondicion=false"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden" @click.stop
+         role="dialog" aria-modal="true" aria-labelledby="cons-condicion-titulo">
+      {% include "programas/becas/_modal_header.html" with titulo="Condición" titulo_id="cons-condicion-titulo" titulo_x_text="'Condición de «' + cond.titulo + '»'" subtitulo="Solo decide si se muestra. Oculto = no se exige y lo respondido se descarta." icono="fa-code-branch" tono="warning" cerrar="mCondicion=false" %}
+      <div class="p-6 space-y-4 overflow-y-auto min-h-0 flex-1">
         <template x-if="!cond.fuentes.length">
           <div class="rounded-lg bg-warning-soft border border-warning-subtle px-4 py-3 text-sm text-body" role="alert">
             No hay campos antes de este ítem: una condición solo puede mirar campos que están <strong>antes</strong> en el formulario. Movelo más abajo o quitale la condición.
@@ -323,11 +276,11 @@
         </div>
         <p x-show="cond.error" x-text="cond.error" class="text-sm text-fg-danger" role="alert"></p>
       </div>
-      <div class="flex justify-between gap-3 px-6 py-4 border-t bg-secondary" style="border-color:var(--border-light)">
+      <div class="flex justify-between gap-3 px-6 py-4 border-t border-light bg-secondary flex-shrink-0">
         <button type="button" x-show="cond.tenia" @click="guardarCondicion(true)" class="btn-nodo btn-tertiary btn-base"><i class="fas fa-eraser"></i> Quitar condición</button>
         <span x-show="!cond.tenia"></span>
         <div class="flex gap-3">
-          <button type="button" @click="cerrar()" class="btn-nodo btn-tertiary btn-base">Cancelar</button>
+          <button type="button" data-becas-modal-cerrar @click="mCondicion=false" class="btn-nodo btn-tertiary btn-base">Cancelar</button>
           <button type="button" @click="guardarCondicion(false)" class="btn-nodo btn-brand btn-base" :disabled="!cond.fuentes.length || guardando"><i class="fas fa-check"></i> Guardar</button>
         </div>
       </div>
@@ -338,6 +291,7 @@
 
 {% block customJS %}
 {% include "programas/becas/_ajax_js.html" %}
+<script src="{% static 'custom/js/becas-modal.js' %}"></script>
 <script src="{% static 'vendor/sortablejs/Sortable.min.js' %}"></script>
 <script src="{% static 'custom/js/nodo-condiciones.js' %}"></script>
 <script src="{% static 'custom/js/nodo-constructor.js' %}"></script>
