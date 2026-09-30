@@ -1,0 +1,27 @@
+{% comment %}
+Pie de paginación del backoffice. Solo se muestra con más de una página (CMP-11).
+  {% include "components/_paginacion.html" with page_obj=page_obj entidad="caso" %}
+Contexto:
+  page_obj        Page de Django (obligatorio).
+  entidad         sustantivo en singular del contador («caso»; por defecto «registro»).
+  entidad_plural  plural cuando no alcanza con agregar «s» («localidades»).
+  filtros_qs      opcional: querystring ya codificado, sin «page» ni «?». Si falta o está
+                  vacío se conservan todos los parámetros de request.GET salvo «page».
+Los valores salen codificados (urlencode) y escapados (&amp;).
+{% endcomment %}
+{% if page_obj and page_obj.paginator.num_pages > 1 %}
+{% querystring page=None as qs_pagina %}{% firstof filtros_qs qs_pagina|slice:"1:" as filtros_pagina %}
+<div class="flex items-center justify-between gap-3 flex-wrap px-4 py-3 border-t border-light bg-secondary">
+  <span class="text-xs text-body-subtle">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }} · {{ page_obj.paginator.count }} {% if page_obj.paginator.count == 1 %}{{ entidad|default:"registro" }}{% elif entidad_plural %}{{ entidad_plural }}{% else %}{{ entidad|default:"registro" }}s{% endif %}</span>
+  <div class="flex gap-2">
+    {% if page_obj.has_previous %}
+    <a href="?page={{ page_obj.previous_page_number }}{% if filtros_pagina %}&amp;{{ filtros_pagina }}{% endif %}"
+       class="btn-nodo btn-tertiary btn-sm" aria-label="Página anterior"><i class="fas fa-chevron-left" aria-hidden="true"></i> Anterior</a>
+    {% endif %}
+    {% if page_obj.has_next %}
+    <a href="?page={{ page_obj.next_page_number }}{% if filtros_pagina %}&amp;{{ filtros_pagina }}{% endif %}"
+       class="btn-nodo btn-tertiary btn-sm" aria-label="Página siguiente">Siguiente <i class="fas fa-chevron-right" aria-hidden="true"></i></a>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
