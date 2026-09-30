@@ -330,14 +330,27 @@ def respuestas_por_destino(formulario):
     return resultado
 
 
-def _apoderado(formulario, faltantes):
-    """Los 7 campos condicionales del manual (sección 4): solo para menores de 18."""
+def _apoderado(formulario, faltantes, correcciones=None):
+    """Los 7 campos condicionales del manual (sección 4): solo para menores de 18.
+
+    ``correcciones`` es el ``datos_siis`` del caso, igual que en el resto del
+    payload: lo que el coordinador cargó a mano gana sobre lo que trae el
+    legajo. Hasta el 30/09/2026 el apoderado era el único bloque que no las
+    miraba, así que una fecha mal cargada no se podía corregir para SIIS sin
+    tocar el legajo de la persona.
+    """
+    correcciones = correcciones or {}
     if formulario.apoderado_ciudadano_id:
         a = formulario.apoderado_ciudadano
         dni, nombre, apellido, sexo, nacimiento = a.dni, a.nombre, a.apellido, a.genero, a.fecha_nacimiento
     else:
         dni, nombre, apellido = formulario.apoderado_dni, formulario.apoderado_nombre, formulario.apoderado_apellido
         sexo, nacimiento = formulario.apoderado_genero, formulario.apoderado_fecha_nacimiento
+    dni = _primero_con_valor(correcciones.get("dni_apoderado"), dni)
+    nombre = _primero_con_valor(correcciones.get("nombre_apoderado"), nombre)
+    apellido = _primero_con_valor(correcciones.get("apellido_apoderado"), apellido)
+    sexo = _primero_con_valor(correcciones.get("sexo_apoderado"), sexo)
+    nacimiento = _fecha_corregida(correcciones.get("fecha_nacim_apoderado")) or nacimiento
     datos = {}
     dni = _digitos(dni)
     if not dni:
@@ -381,6 +394,22 @@ def _primero_con_valor(*valores):
         if _con_valor(valor):
             return valor
     return None
+
+
+def _fecha_corregida(valor):
+    """La fecha de una corrección, que viaja como texto ISO en ``datos_siis``.
+
+    Devuelve ``None`` si no hay valor o si no se puede leer: una corrección
+    ilegible no puede pisar el dato del legajo en silencio.
+    """
+    if isinstance(valor, date):
+        return valor
+    if not _con_valor(valor):
+        return None
+    try:
+        return date.fromisoformat(str(valor).strip()[:10])
+    except ValueError:
+        return None
 
 
 def armar_payload(formulario, catalogos=None, hoy=None):
@@ -536,7 +565,7 @@ def armar_payload(formulario, catalogos=None, hoy=None):
 
     # --- Apoderado (condicional: menor de 18 a la fecha del envío) ---
     if nacimiento and _edad(nacimiento, hoy) < MAYORIA_DE_EDAD:
-        payload.update(_apoderado(formulario, faltantes))
+        payload.update(_apoderado(formulario, faltantes, correcciones))
 
     return payload, faltantes
 

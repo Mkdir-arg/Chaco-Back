@@ -29,3 +29,21 @@ provincia_siis_id,texto,localidad_siis_id,nota
 1,Sin Informar,,"60 casos. No hay dato que traducir."
 1,Argentina,,"13 casos. No hay dato que traducir."
 1,Chaco,,"7 casos. Es la provincia, no una localidad."
+# Del cruce con la planilla de localidades del organismo (30/09/2026): nombres
+# que el organismo escribe distinto del catalogo de SIIS.
+1,Gral. San Martin,27,"20 casos; en SIIS es GENERAL J. DE SAN MARTIN"
+1,Nueva Pompeya,62,"5 casos; en SIIS es MISION NUEVA POMPEYA"
+1,Puerto Bermejo Nuevo,24,"2 casos; en SIIS es PUERTO BERMEJO"
+# Errores de tipeo y nombres cortos que quedaron del cruce del 30/09/2026. El
+# sufijo de provincia («Barranqueras chaco») no necesita fila: lo saca
+# corregir_datos_siis antes de buscar.
+1,Precidencia de la plaza,19,"3 casos; error de tipeo de PCIA. DE LA PLAZA"
+1,Sauzalito,61,"5 casos; en SIIS es EL SAUZALITO"
+1,Espinillo,211,"en SIIS es EL ESPINILLO"
+1,Planta urbana-espinillo,211,"3 casos; es EL ESPINILLO con el tipo de planta adelante"
+1,Machagay,44,"3 casos; error de tipeo de MACHAGAI"
+1,J.J Castelli,64,"2 casos; abreviatura de JUAN JOSE CASTELLI"
+1,J.J.Castelli,64,"2 casos; la misma abreviatura sin espacio"
+1,Juan Jose Castilli,64,"2 casos; error de tipeo"
+1,Vilelas,3,"en SIIS es PUERTO VILELAS"
+1,Pcia.r.saenz pena,42,"2 casos; abreviatura de PRESIDENCIA ROQUE SAENZ PEÑA"

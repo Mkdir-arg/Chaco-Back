@@ -278,6 +278,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 96.35 | Constructor de formularios: modales accesibles y sin toast de éxito en el autoguardado | Becas · constructor de formularios | `#ui` `#convocatorias` | Auditoría de diseño de Becas (DA-2, POP-19) | 29/09/2026 | 🟢 **Hecho** | No requiere |
 | 96.36 | El detalle del programa usa las piezas comunes (encabezado, modales, estados) | Becas | `#ui` `#requisitos` | Auditoría de diseño de Becas (CMP-1, CMP-7, DC-5, TIT-15) | 29/09/2026 | 🟢 **Hecho** | No requiere |
 | 97 | El check de seguridad (pip-audit) deja de bloquear los PRs: DRF 3.17.2 y anyio 4.14.2 | Transversal | `#infra` `#api` | Juez de la sesión — gate «Security / Pip Audit» rojo en todos los PRs | 29/09/2026 | 🟢 **Hecho** | No requiere |
+| 98 | Corregir los datos que impiden informar un caso a SIIS (localidad, barrio, nacimiento, apoderado) | Becas · alta de beneficiarios en SIIS | `#siis` `#datos` `#relevamientos` | PM — en sesión, sobre los rechazos de la corrida del 23/09: «quiero solucionar los casos que nosotros podemos solucionar» | 30/09/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -12524,3 +12525,139 @@ Revertir el commit del PR (vuelven DRF 3.16.1, openai 1.3.0 y anyio 3.7.1) y rec
 ## Historial
 
 Entrada nueva.
+
+# Cambio 98 — Corregir los datos que impiden informar un caso a SIIS
+
+🟢 **HECHO — 30/09/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · alta de beneficiarios en SIIS |
+| **Etiquetas** | `#siis` `#datos` `#relevamientos` |
+| **Solicitante** | PM — en sesión, a partir de los rechazos de la corrida del 23/09 en testing |
+| **Fecha del pedido** | 30/09/2026 |
+| **Issue / épica** | Sin issue (trabajo de datos pedido en sesión) |
+| **Partes afectadas** | Comando nuevo `corregir_datos_siis`, bloque del apoderado en el payload, equivalencias de localidad |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> «Analizá la base de test porque teníamos muchos rechazados por error de datos, la idea es trabajar en eso.»
+> Después, sobre los tres grupos: «quiero saber por qué se rechazan en SIIS, por qué error técnico y nunca se
+> intentaron, tengo más datos para sumar y arreglar», y al final «quiero solucionar los casos que nosotros
+> podemos solucionar».
+
+## Diagnóstico (corrida del 23/09 en testing)
+
+De 4.038 casos intentados: **3.729 altas**, **265 rechazados** y **44 errores técnicos**.
+
+- **Los 265 rechazos son todos el mismo campo**, `fecha_nacim_apoderado`: 248 «el apoderado debe ser mayor de
+  18 años» y 17 «fecha futura». La causa real es que **448 casos tienen como apoderado el DNI del propio
+  alumno**: la persona se cargó a sí misma. Encaja con el Cambio 67, que hizo obligatorio el apoderado para
+  todos, incluidos los mayores y los que no tenían a quién poner.
+- **43 de los 44 errores** eran celular de 11 a 13 dígitos (`549…`) que desborda la columna numérica de SQL
+  Server. Ya lo había corregido el Cambio 94: se resuelven reintentando, sin tocar ningún dato.
+- **Los 444 que nunca se intentaron** no tenían ningún dato de persona faltante: los frenaba la localidad que
+  no cruza el catálogo de SIIS.
+
+## Alcance acordado
+
+- Un comando que corrija **los datos**, no el envío: localidad del domicilio, localidad de nacimiento, barrio y
+  fecha del apoderado, más la fecha de nacimiento del titular cuando es imposible.
+- **Afuera:** decidir por el organismo. Lo que no tiene una fuente —quién es el apoderado real, una localidad
+  que es un departamento— se lista y se deja para una persona.
+
+## Decisiones tomadas
+
+- **Todo se escribe como corrección del caso (`datos_siis`), no sobre la respuesta del ciudadano.** Es la misma
+  corrección que carga el coordinador desde «Completar datos para SIIS»: lo declarado queda intacto y lo
+  corregido viaja solo en el alta.
+- **El apoderado pasa a respetar las correcciones.** Era el único bloque del payload que las ignoraba, así que
+  una fecha mal cargada no se podía arreglar sin falsear el legajo. La fecha a usar se pasa con
+  `--fecha-apoderado` y el comando rechaza una que no llegue a 18 años: con esa, SIIS rechazaría igual.
+  **El PM eligió 01/01/1990**, sabiendo que en esos casos el apoderado informado es el propio chico.
+- **La localidad de nacimiento se hereda del domicilio** cuando no hay dato utilizable («Sin Informar», vacío),
+  antes que inventar una. Es la misma decisión del 19/09/2026, cuando se aceptó completar el lugar de
+  nacimiento con el domicilio que figura en el documento de RENAPER.
+- **El barrio corto no siempre es basura.** «Sur», «UOM», «CIC» y «PPI» son barrios reales: se les antepone
+  «Barrio», que es lo que el payload ya hacía con los numéricos. El genérico (`--barrio-generico`) queda solo
+  para los marcadores de «no tengo»: `-`, `.`, `S/N`, `_`, `No`.
+- **La fecha de nacimiento del titular es la única corrección que toca el legajo.** Una fecha futura no es una
+  discrepancia opinable —es el año actual en lugar del de nacimiento, «2026-10-02» por «2007-10-02»— y arrastra
+  la edad, que decide si la persona necesita apoderado. RENAPER es la fuente oficial y solo se toca lo vacío o
+  lo futuro: una fecha plausible no se pisa nunca.
+- **Ninguna corrección es automática:** cada una va detrás de su propia opción. Sin pasarlas, el comando no
+  inventa nada.
+- **El nombre de la provincia pegado al de la localidad se saca antes de buscar** («Barranqueras chaco»), y si
+  la localidad no cruza con la provincia declarada se reintenta sin acotar: «Ezeiza» u «Oberá» son reales y
+  fallan solo porque la provincia está mal. En ese caso se corrige también la provincia.
+
+## Implementación
+
+`python manage.py corregir_datos_siis --fecha-nacimiento-renaper --heredar-nacimiento
+--barrio-generico "Sin especificar" --fecha-apoderado 1990-01-01 --aplicar`
+
+Ensayo por defecto, por lotes en transacciones propias, reentrante e idempotente: lo ya corregido se informa
+como «ya corregido antes» y no se reescribe. Lee dos tablas que carga el organismo, igual que
+`ciudadanos_renaper`: `localidades_corregidas` (`dni`, `localidad`) y la propia `ciudadanos_renaper`.
+
+Se sumaron **12 equivalencias** de localidad al CSV del catálogo (typos y abreviaturas: «Machagay»,
+«Precidencia de la plaza», «J.J Castelli», «Sauzalito», «Gral. San Martin»…).
+
+## Archivos
+
+- `programas/management/commands/corregir_datos_siis.py` — el comando.
+- `programas/services/siis_envio.py` — `_apoderado` respeta `datos_siis`; helper `_fecha_corregida`.
+- `programas/data/siis_alias_localidades.csv` — 12 equivalencias nuevas.
+- `programas/tests/test_corregir_datos_siis.py` — 21 tests; `programas/tests/test_siis_envio.py` — 2 más.
+
+## Base de datos
+
+No requiere migración. Escribe en `programas_formulario.datos_siis` y, solo con
+`--fecha-nacimiento-renaper`, en `legajos_ciudadano.fecha_nacimiento`.
+
+## Validación
+
+Simulado de punta a punta sobre una **copia local del dump de producción del 30/09** (7.506 casos), en MariaDB
+igual que ECOM:
+
+| | Casos |
+|---|---|
+| Saldrían a SIIS antes | 4.518 |
+| **Saldrían después** | **4.976** de 4.990 candidatos |
+| Localidad corregida | 282 |
+| Fecha de apoderado corregida | 521 |
+| Localidad de nacimiento heredada o resuelta | 202 |
+| Barrio corregido | 186 (74 conservando el nombre real) |
+| Fecha de nacimiento del titular corregida | 31 |
+
+Tests: 21 del comando + 149 de la superficie SIIS, todos OK. `manage.py check` limpio, `ruff check programas/`
+en verde, `makemigrations --check` sin cambios.
+
+## Puesta en marcha en el servidor
+
+Deploy estándar sin migración. Antes de correr el comando en un ambiente hay que tener: el catálogo geográfico
+cargado (`seed_catalogo_siis`), el destino SIIS marcado en los requisitos, los identificadores del programa
+cargados, y las tablas `aprobados_materias`, `ciudadanos_renaper` y `localidades_corregidas`.
+
+## Pendientes / a definir
+
+- **14 casos siguen sin poder informarse** y ninguno se arregla con lo que tenemos: 6 con fecha de nacimiento
+  imposible cuyo DNI no está en `ciudadanos_renaper` —se destraban consultando RENAPER en vivo—, 1 caso sin
+  ningún dato cargado, y el resto con una «localidad» que es un departamento (San Fernando), una provincia
+  (Chaco) o un país (Argentina). Eso último es decisión del organismo, no técnica.
+- **Producción no tiene configurado** el destino SIIS de los requisitos ni los identificadores del programa:
+  sin eso el alta no sale, y lo carga una persona desde la pantalla.
+
+## Reversión
+
+Revertir el commit saca el comando y las equivalencias. Las correcciones ya escritas quedan en `datos_siis` y
+se pueden borrar por caso desde «Completar datos para SIIS»; las fechas de nacimiento corregidas en el legajo
+no tienen vuelta automática (el dump previo es el respaldo).
+
+## Historial
+
+- **23/09/2026** — corrida en testing: 3.729 altas, 265 rechazos y 44 errores.
+- **30/09/2026 (este cambio)** — diagnóstico de los tres grupos y corrección de los datos.
+
+---
