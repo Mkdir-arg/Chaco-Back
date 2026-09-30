@@ -411,6 +411,48 @@ class ArmarPayloadTests(_BaseEnvioTest):
         payload, _ = armar_payload(self.formulario, catalogos=self.cat, hoy=date(2026, 9, 14))
         self.assertNotIn("dni_apoderado", payload)
 
+    def test_la_correccion_del_caso_pisa_la_fecha_del_apoderado(self):
+        """El caso donde el chico se cargó a sí mismo como apoderado.
+
+        SIIS rechaza la fecha (el apoderado no llega a 18) y hasta el 30/09/2026
+        no había forma de corregirla para el alta sin tocar el legajo, porque el
+        bloque del apoderado era el único que ignoraba ``datos_siis``.
+        """
+        self.ciudadano.fecha_nacimiento = date(2009, 3, 10)
+        self.ciudadano.save(update_fields=["fecha_nacimiento"])
+        self.formulario.apoderado_dni = self.ciudadano.dni
+        self.formulario.apoderado_nombre = self.ciudadano.nombre
+        self.formulario.apoderado_apellido = self.ciudadano.apellido
+        self.formulario.apoderado_genero = self.ciudadano.genero
+        self.formulario.apoderado_fecha_nacimiento = date(2009, 3, 10)
+        self.formulario.save()
+
+        payload, faltantes = armar_payload(self.formulario, catalogos=self.cat, hoy=date(2026, 9, 14))
+        self.assertEqual(faltantes, {})
+        self.assertEqual(payload["fecha_nacim_apoderado"], "2009-03-10")
+
+        self.formulario.datos_siis = {"fecha_nacim_apoderado": "1990-01-01"}
+        self.formulario.save(update_fields=["datos_siis"])
+        payload, faltantes = armar_payload(self.formulario, catalogos=self.cat, hoy=date(2026, 9, 14))
+        self.assertEqual(faltantes, {})
+        self.assertEqual(payload["fecha_nacim_apoderado"], "1990-01-01")
+
+    def test_una_correccion_de_fecha_ilegible_no_pisa_el_dato_del_legajo(self):
+        """Una corrección rota tiene que notarse, no cambiar la fecha en silencio."""
+        self.ciudadano.fecha_nacimiento = date(2009, 3, 10)
+        self.ciudadano.save(update_fields=["fecha_nacimiento"])
+        self.formulario.apoderado_dni = "25999888"
+        self.formulario.apoderado_nombre = "Mario"
+        self.formulario.apoderado_apellido = "Tutor"
+        self.formulario.apoderado_genero = "M"
+        self.formulario.apoderado_fecha_nacimiento = date(1978, 10, 20)
+        self.formulario.datos_siis = {"fecha_nacim_apoderado": "01/01/1990"}
+        self.formulario.save()
+
+        payload, _ = armar_payload(self.formulario, catalogos=self.cat, hoy=date(2026, 9, 14))
+
+        self.assertEqual(payload["fecha_nacim_apoderado"], "1978-10-20")
+
     def test_programa_sin_funcion_ni_jurisdiccion_falta(self):
         self.programa.siis_funcion_id = None
         self.programa.siis_programa_datos = {"id": 79}
