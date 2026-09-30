@@ -130,9 +130,8 @@ class TextosRenaperPendientesTests(_BaseRenaperPendientes):
 
         self.assertContains(
             resp,
-            f'<a href="{reverse("becas:formulario_detalle", args=[caso.pk])}" '
-            'class="inline-flex p-1.5 rounded-lg text-body-subtle hover:text-fg-brand hover:bg-secondary" '
-            'aria-label="Ver caso de Lucía Benítez">',
+            f'<a href="{reverse("becas:formulario_detalle", args=[caso.pk])}?next=/becas/revision/renaper/pendientes/" '
+            'class="nodo-icon-btn" aria-label="Ver caso de Lucía Benítez">',
         )
         self.assertNotContains(resp, ">Abrir<")
 
@@ -142,7 +141,8 @@ class TextosRenaperPendientesTests(_BaseRenaperPendientes):
         self.assertContains(
             resp,
             f'<a href="{reverse("becas:revision")}" class="btn-tertiary btn-back-circle" '
-            'aria-label="Volver a Revisión">',
+            'aria-label="Volver a Revisión"><i class="fas fa-arrow-left" aria-hidden="true"></i></a>',
+            html=True,
         )
 
     def test_vacio_sin_filtros_dice_que_no_hay_pendientes(self):
