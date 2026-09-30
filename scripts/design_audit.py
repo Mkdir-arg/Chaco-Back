@@ -18,7 +18,7 @@ Reglas mecánicas complementarias del agente canónico de diseño:
              los templates de correo (**/email/) y líneas con template tags
              dinámicos ({{ ... }}).
   FONT       Manrope única: Fredoka/Gellat/Geliat/Satoshi/Inter/Roboto/Montserrat.
-  CONFIRM    window.confirm()/window.alert() prohibidos (SweetAlert2/DS Modal).
+  CONFIRM    window.confirm()/alert()/prompt() nativos prohibidos (SweetAlert2/DS Modal).
   SWALHEX    confirmButtonColor/cancelButtonColor prohibidos (usar buttonsStyling:false
              + customClass btn-nodo).
   GRADLEG    Gradientes legacy: FF0080/7928CA (NODO magenta) y 3B82F6/8B5CF6
@@ -48,6 +48,7 @@ REPO = Path(__file__).resolve().parent.parent
 DEFAULT_TARGETS = [
     "templates",
     "static/custom/css",
+    "static/custom/js",
     "core/templates",
     "dashboard/templates",
     "legajos/templates",
@@ -72,6 +73,7 @@ EXCLUDE_PARTS = {".venv", "node_modules", ".git", "design-kb", "email", "vendor"
 # mediante reglas pensadas para CSS escrito a mano.
 EXCLUDE_FILES = {"chaco-tokens.css", "tailwind.css"}
 UI_SUFFIXES = {".html", ".css", ".js"}
+COMMENT_PREFIXES = ("//", "/*", "*", "<!--", "{#")
 
 HEX_RE = re.compile(r"#[0-9a-fA-F]{3,8}\b")
 ALLOWED_HEX = {"#fff", "#ffffff"}
@@ -93,8 +95,8 @@ RULES: list[tuple[str, str, re.Pattern[str], str]] = [
     (
         "CONFIRM",
         "ERROR",
-        re.compile(r"window\.(confirm|alert)\s*\(|(?<![\w.])confirm\s*\("),
-        "confirm()/alert() nativo prohibido — SweetAlert2 (backoffice) / DS Modal",
+        re.compile(r"window\.(confirm|alert|prompt)\s*\(|(?<![\w.$])(?<!function )(confirm|alert|prompt)\s*\("),
+        "confirm()/alert()/prompt() nativo prohibido — SweetAlert2 (backoffice) / DS Modal",
     ),
     (
         "SWALHEX",
@@ -263,7 +265,10 @@ def audit_file(path: Path) -> list[tuple[str, int, str, str, str]]:
                     ("ERROR", i, "HEX", "Hex hardcodeado — usar token semántico var(--...)", line.strip()[:100])
                 )
                 break  # un reporte por línea alcanza
+        es_comentario = line.lstrip().startswith(COMMENT_PREFIXES)
         for rule, sev, pat, msg in RULES:
+            if rule == "CONFIRM" and es_comentario:
+                continue  # el comentario que menciona alert() no es una llamada
             if pat.search(line):
                 findings.append((sev, i, rule, msg, line.strip()[:100]))
 

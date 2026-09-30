@@ -22,6 +22,7 @@ from programas.services import proceso_masivo as servicio
 
 CAP_PROCESO_MASIVO = "becas.programa.proceso_masivo"
 TOTAL_MAXIMO = 5000
+MENSAJE_EN_CURSO = "Ya hay una corrida en curso. Esperá a que termine o frenala."
 
 
 class ProcesoMasivoView(CapacidadRequeridaMixin, LoginRequiredMixin, DetailView):
@@ -55,8 +56,10 @@ def proceso_masivo_lanzar(request, pk):
     programa = get_object_or_404(ProgramaSiis, pk=pk)
     destino = redirect("becas:proceso_masivo", pk=programa.pk)
 
+    # Chequeo barato para no tomar el candado global en el caso común («ya hay
+    # una»); el que decide es el del servicio, que corre con el candado tomado.
     if CorridaSiis.en_curso() is not None:
-        messages.error(request, "Ya hay una corrida en curso. Esperá a que termine o frenala.")
+        messages.error(request, MENSAJE_EN_CURSO)
         return destino
     # Cambio 90: se comprueba antes de crear la corrida. Si faltara la tabla, el
     # hilo la detendría igual, pero mejor no dejar una corrida DETENIDA por algo
@@ -75,7 +78,11 @@ def proceso_masivo_lanzar(request, pk):
         messages.error(request, f"La cantidad tiene que estar entre 1 y {TOTAL_MAXIMO}.")
         return destino
 
-    corrida = CorridaSiis.objects.create(programa=programa, solicitada_por=request.user, total_pedido=total)
+    corrida = servicio.crear_corrida(programa=programa, solicitada_por=request.user, total_pedido=total)
+    if corrida is None:
+        # Otro request ganó la carrera mientras esperábamos el candado.
+        messages.error(request, MENSAJE_EN_CURSO)
+        return destino
     servicio.lanzar(corrida, responsable=request.user)
     messages.success(request, f"Corrida lanzada por {total} casos.")
     return destino

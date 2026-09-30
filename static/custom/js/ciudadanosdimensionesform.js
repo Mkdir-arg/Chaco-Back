@@ -29,7 +29,7 @@ document.addEventListener("DOMContentLoaded", function () {
     select.addEventListener('change', function () {
       var selectedOptions = Array.from(select.selectedOptions);
       if (selectedOptions.length > maxSelections) {
-        alert('Solo puedes seleccionar hasta 3 opciones.');
+        if (window.toast) window.toast('warning', 'Solo puedes seleccionar hasta 3 opciones.');
         selectedOptions[selectedOptions.length - 1].selected = false;
       }
     });

@@ -648,13 +648,11 @@ function truncarTexto(texto, limite) {
 }
 
 function mostrarExito(mensaje) {
-    // Implementar notificación de éxito
-    alert(mensaje);
+    window.toast('success', mensaje);
 }
 
 function mostrarError(mensaje) {
-    // Implementar notificación de error
-    alert(mensaje);
+    window.toast('error', mensaje);
 }
 
 function mostrarErrores(errores) {
@@ -662,7 +660,7 @@ function mostrarErrores(errores) {
     for (const campo in errores) {
         mensaje += `- ${errores[campo].join(', ')}\n`;
     }
-    alert(mensaje);
+    window.toast('error', mensaje);
 }
 </script>
 {% endblock %}
