@@ -3,13 +3,18 @@ Encabezado canónico de los modales de Becas (POP-M1). Va como primer hijo del
 panel `role="dialog"`, que lo nombra con `aria-labelledby="{{ titulo_id }}"`.
 
 Parámetros:
-  titulo     texto del título (obligatorio)
-  titulo_id  id del <h3>; el panel lo referencia con aria-labelledby (obligatorio)
-  icono      clase Font Awesome sin el prefijo `fas`, p. ej. "fa-folder" (opcional)
-  tono       brand (default) | danger | warning | success — color de la caja del ícono
-  cerrar     expresión Alpine que cierra el modal, p. ej. "modalCrear=false". Sin
-             ella la X igual cierra en modales vanilla vía `data-becas-modal-cerrar`
-             (static/custom/js/becas-modal.js).
+  titulo         texto del título (obligatorio; texto inicial si además va titulo_x_text)
+  titulo_id      id del <h3>; el panel lo referencia con aria-labelledby (obligatorio)
+  titulo_x_text  expresión Alpine opcional que reemplaza el texto en vivo, p. ej.
+                 "edicion ? 'Editar grupo' : 'Nuevo grupo'" (el modal ya arranca con
+                 x-cloak, así que no hay parpadeo del texto inicial de `titulo`).
+  subtitulo      línea chica opcional debajo del título (texto o expresión vía
+                 `{{ }}`; se escapa como cualquier variable de contexto)
+  icono          clase Font Awesome sin el prefijo `fas`, p. ej. "fa-folder" (opcional)
+  tono           brand (default) | danger | warning | success — color de la caja del ícono
+  cerrar         expresión Alpine que cierra el modal, p. ej. "modalCrear=false". Sin
+                 ella la X igual cierra en modales vanilla vía `data-becas-modal-cerrar`
+                 (static/custom/js/becas-modal.js).
 
 Uso:
   {% include "programas/becas/_modal_header.html" with titulo="Nuevo programa" titulo_id="modal-crear-titulo" icono="fa-folder" cerrar="modalCrear=false" %}
@@ -20,7 +25,10 @@ Uso:
     <i class="fas {{ icono }}" aria-hidden="true"></i>
   </div>
   {% endif %}
-  <h3 id="{{ titulo_id }}" class="text-lg font-bold text-heading flex-1 min-w-0">{{ titulo }}</h3>
+  <div class="flex-1 min-w-0">
+    <h3 id="{{ titulo_id }}" class="text-lg font-bold text-heading"{% if titulo_x_text %} x-text="{{ titulo_x_text }}"{% endif %}>{{ titulo }}</h3>
+    {% if subtitulo %}<p class="text-xs text-body-subtle mt-0.5">{{ subtitulo }}</p>{% endif %}
+  </div>
   <button type="button" data-becas-modal-cerrar {% if cerrar %}@click="{{ cerrar }}"{% endif %} aria-label="Cerrar"
           class="p-1.5 rounded-lg text-body-subtle hover:text-heading hover:bg-secondary transition-colors flex-shrink-0">
     <i class="fas fa-xmark text-base" aria-hidden="true"></i>
