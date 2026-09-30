@@ -1,5 +1,5 @@
 {% extends "includes/base.html" %}
-{% load rbac %}
+{% load static rbac nodo_ui becas_extras %}
 {% block title %}Becas · Caso {{ formulario.numero }}{% endblock %}
 
 {% block main-content %}
@@ -39,26 +39,23 @@
     outline-offset: 2px;
   }
 </style>
-<div class="max-w-[1180px] mx-auto space-y-6">
+{# DE-2: ancho completo, sin máximo propio. #}
+<div class="space-y-6">
 
-  {# Header #}
-  <div>
-    <div class="flex items-center gap-3 flex-wrap">
-      <a href="{% url 'becas:revision_formularios' relevamiento.pk %}"
-         class="btn-tertiary btn-back-circle"
-         aria-label="Volver a los casos del relevamiento">
-        <i class="fas fa-arrow-left" aria-hidden="true"></i>
-      </a>
-      <h1 class="text-3xl font-extrabold text-heading tracking-tight">Caso {{ formulario.numero }}</h1>
-      {% include "programas/becas/_formulario_estado_badge.html" with estado=formulario.estado dot=True color_enviado="warning" %}
-      {% if posicion_espera %}
-        <span class="badge badge-warning">Lista de espera · posición {{ posicion_espera }}</span>
-      {% endif %}
-      {% if tiene_conflicto_duplicado_pendiente %}
-        <span class="badge badge-warning"><i class="fas fa-code-compare"></i> Duplicado por resolver</span>
-      {% endif %}
-    </div>
-  </div>
+  {% comment %}Header (TIT-9/DE-3): el volver lleva a la pantalla de origen y las migas
+  cuentan el camino que recorrió el usuario — la jerarquía del programa, o
+  «Revisión → bandeja» cuando entró por una bandeja transversal a los relevamientos.{% endcomment %}
+  {% becas_migas relevamiento actual=titulo_caso as migas_jerarquia %}
+  {% page_header titulo=titulo_caso volver_url=volver_url volver_label=volver_label migas=migas_origen|default:migas_jerarquia %}
+    {% bajada %}{% if formulario.ciudadano %}{{ formulario.ciudadano.nombre }} {{ formulario.ciudadano.apellido }} · DNI {{ formulario.ciudadano.dni }} · {% endif %}{{ relevamiento.nombre }}{% endbajada %}
+    {% include "programas/becas/_formulario_estado_badge.html" with estado=formulario.estado dot=True color_enviado="warning" %}
+    {% if posicion_espera %}
+      <span class="badge badge-warning">Lista de espera · posición {{ posicion_espera }}</span>
+    {% endif %}
+    {% if tiene_conflicto_duplicado_pendiente %}
+      <span class="badge badge-warning"><i class="fas fa-code-compare"></i> Duplicado por resolver</span>
+    {% endif %}
+  {% endpage_header %}
 
   {% if conflicto_pendiente %}
   <section class="rounded-xl border border-warning-subtle bg-warning-soft p-5">
@@ -71,15 +68,15 @@
           Revisá ambas cargas y decidí cuál conservar.
         </p>
         <div class="mt-4 flex flex-wrap gap-2">
-          <a href="{% url 'becas:formulario_detalle' formulario_comparacion.pk %}" class="btn-nodo btn-tertiary btn-base">Comparar con el caso {{ formulario_comparacion.numero }}</a>
+          <a href="{% url 'becas:formulario_detalle' formulario_comparacion.pk %}?next={{ request.get_full_path|urlencode }}" class="btn-nodo btn-tertiary btn-base">Comparar con el caso {{ formulario_comparacion.numero }}</a>
           {# POP-5: los dos rechazan un caso sin vuelta atrás, así que se confirman. #}
-          <form method="post" action="{% url 'becas:formulario_resolver_duplicado' conflicto_pendiente.pk %}"
+          <form method="post" action="{% url 'becas:formulario_resolver_duplicado' conflicto_pendiente.pk %}{{ next_qs }}"
                 data-confirmar-duplicado data-conservar="{{ formulario_comparacion.numero }}" data-descartar="{{ formulario.numero }}">
             {% csrf_token %}
             <input type="hidden" name="decision" value="{% if formulario.pk == conflicto_pendiente.pk %}conservar_previo{% else %}conservar_actual{% endif %}">
             <button class="btn-nodo btn-tertiary btn-base" type="submit">Conservar el otro</button>
           </form>
-          <form method="post" action="{% url 'becas:formulario_resolver_duplicado' conflicto_pendiente.pk %}"
+          <form method="post" action="{% url 'becas:formulario_resolver_duplicado' conflicto_pendiente.pk %}{{ next_qs }}"
                 data-confirmar-duplicado data-conservar="{{ formulario.numero }}" data-descartar="{{ formulario_comparacion.numero }}">
             {% csrf_token %}
             <input type="hidden" name="decision" value="{% if formulario.pk == conflicto_pendiente.pk %}conservar_actual{% else %}conservar_previo{% endif %}">
@@ -190,7 +187,7 @@
                 </span>
               {% elif puede_revalidar_renaper %}
                 <form method="post"
-                      action="{% url 'becas:formulario_actualizar_genero' formulario.pk %}"
+                      action="{% url 'becas:formulario_actualizar_genero' formulario.pk %}{{ next_qs }}"
                       class="flex items-center gap-2">
                   {% csrf_token %}
                   <div class="flex items-center gap-1.5" role="radiogroup" aria-label="Sexo">
@@ -234,7 +231,7 @@
               <span class="badge badge-success">Validada · Padrón</span>
               <p class="text-xs text-body-subtle mt-1">Contra el padrón de la convocatoria: los datos son los que informó el organismo.</p>
               {% if puede_revalidar_renaper and gran_base_activa %}
-              <form method="post" action="{% url 'becas:formulario_revalidar_renaper' formulario.pk %}" class="mt-2">
+              <form method="post" action="{% url 'becas:formulario_revalidar_renaper' formulario.pk %}{{ next_qs }}" class="mt-2">
                 {% csrf_token %}
                 <button type="submit" class="btn-nodo btn-tertiary btn-sm"><i class="fas fa-rotate"></i> Confirmar con Base de Personas</button>
               </form>
@@ -250,7 +247,7 @@
               {% if puede_revalidar_renaper %}
               <div class="flex flex-wrap items-center gap-2 mt-2">
                 {% if gran_base_activa %}
-                <form method="post" action="{% url 'becas:formulario_revalidar_renaper' formulario.pk %}">
+                <form method="post" action="{% url 'becas:formulario_revalidar_renaper' formulario.pk %}{{ next_qs }}">
                   {% csrf_token %}
                   <button type="submit" class="btn-nodo btn-tertiary btn-sm"><i class="fas fa-rotate"></i> Revalidar</button>
                 </form>
@@ -261,7 +258,7 @@
                 </button>
                 {% endif %}
                 {% if convocatoria_tiene_padron %}
-                <form method="post" action="{% url 'becas:formulario_validar_padron' formulario.pk %}">
+                <form method="post" action="{% url 'becas:formulario_validar_padron' formulario.pk %}{{ next_qs }}">
                   {% csrf_token %}
                   <button type="submit" class="btn-nodo btn-tertiary btn-sm"><i class="fas fa-file-excel"></i> Validar contra el padrón</button>
                 </form>
@@ -556,7 +553,7 @@
     {% endif %}
     <div class="mt-5 flex items-center justify-between gap-3 flex-wrap">
       {% if puede_validar_siis %}
-      <form method="post" action="{% url 'becas:formulario_validar_sis' formulario.pk %}">
+      <form method="post" action="{% url 'becas:formulario_validar_sis' formulario.pk %}{{ next_qs }}">
         {% csrf_token %}
         <button type="submit" class="btn-nodo btn-brand btn-base">{% if validacion_sis %}Reintentar validación SIIS{% else %}Validar con SIIS{% endif %}</button>
       </form>
@@ -657,7 +654,7 @@
           <i class="fas fa-pen" aria-hidden="true"></i> Completar datos para SIIS
         </button>
         {% endif %}
-        <form method="post" action="{% url 'becas:formulario_enviar_siis' formulario.pk %}">
+        <form method="post" action="{% url 'becas:formulario_enviar_siis' formulario.pk %}{{ next_qs }}">
           {% csrf_token %}
           <button type="submit" class="btn-nodo btn-brand btn-base">{% if envio_siis %}Reenviar a SIIS{% else %}Informar a SIIS{% endif %}</button>
         </form>
@@ -752,7 +749,7 @@
         <i class="fas fa-times"></i> Rechazar
       </button>
       {% if not posicion_espera %}
-      <form method="post" action="{% url 'becas:formulario_aprobar' formulario.pk %}" id="form-aprobar">
+      <form method="post" action="{% url 'becas:formulario_aprobar' formulario.pk %}{{ next_qs }}" id="form-aprobar">
         {% csrf_token %}
         <button type="button" id="btn-aprobar" class="btn-nodo btn-brand btn-base"{% if motivo_bloqueo_aprobacion %} disabled aria-disabled="true" title="{{ motivo_bloqueo_aprobacion }}"{% endif %}>
           <i class="fas fa-check"></i> Aprobar
@@ -762,93 +759,66 @@
       </div>
     </div>
   </section>
-  <form method="post" action="{% url 'becas:formulario_rechazar' formulario.pk %}" id="form-rechazar" class="hidden">
+  <form method="post" action="{% url 'becas:formulario_rechazar' formulario.pk %}{{ next_qs }}" id="form-rechazar" class="hidden">
     {% csrf_token %}<input type="hidden" name="motivo" id="motivo-rechazo">
   </form>
   {% endif %}
 
-  {# Modal "Rechazar caso" — pide motivo obligatorio (ModernModal no soporta input propio) #}
-  <div id="modal-rechazo-overlay" class="fixed inset-0 z-[1001] hidden items-center justify-center p-4" style="background:rgba(0,0,0,.5);backdrop-filter:blur(4px);">
-    <div role="dialog" aria-modal="true" aria-labelledby="modal-rechazo-title" class="w-full" style="max-width:520px;background:var(--bg-primary,#fff);border-radius:var(--radius-2xl,16px);box-shadow:var(--shadow-xl);overflow:hidden;">
-      <div style="padding:20px 24px;border-bottom:1px solid var(--border-light,#F3F4F6);display:flex;align-items:center;justify-content:space-between;gap:12px;">
-        <div style="display:flex;align-items:center;gap:12px;">
-          <div style="width:40px;height:40px;border-radius:var(--radius-lg,8px);display:flex;align-items:center;justify-content:center;background:var(--bg-danger-soft,#FEF0F2);color:var(--text-fg-danger,#C70036);flex-shrink:0;">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-          </div>
-          <h3 id="modal-rechazo-title" style="font-size:18px;font-weight:700;color:var(--text-heading);">Rechazar caso</h3>
-        </div>
-        <button type="button" id="modal-rechazo-close" aria-label="Cerrar" style="color:var(--text-body-subtle);background:none;border:none;cursor:pointer;line-height:1;">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
-        </button>
-      </div>
-      <div style="padding:24px;">
-        <label for="modal-rechazo-motivo" style="display:block;font-size:13px;font-weight:600;color:var(--text-heading);margin-bottom:6px;">
-          Motivo del rechazo <span style="color:var(--text-fg-danger);">*</span>
+  {% comment %}Modal «Rechazar caso» (POP-10): pide el motivo, que es obligatorio, así que
+  no puede ser una confirmación de ModernModal. Markup canónico —_modal_header/_modal_footer,
+  panel con max-h y cuerpo scrolleable— y el foco, el Tab atrapado y Escape los pone
+  becasModal.bind (static/custom/js/becas-modal.js). El pie manda el form oculto
+  #form-rechazar, que lleva el motivo en un campo hidden.{% endcomment %}
+  {% if formulario.estado == 'ENVIADO' and request.user|puede:"becas.revision.editar" %}
+  <div id="modal-rechazo-overlay" class="fixed inset-0 z-[1001] hidden items-center justify-center p-4 bg-black/50" style="backdrop-filter:blur(4px);">
+    <div role="dialog" aria-modal="true" aria-labelledby="modal-rechazo-title"
+         class="relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden">
+      {% include "programas/becas/_modal_header.html" with titulo="Rechazar caso" titulo_id="modal-rechazo-title" icono="fa-circle-xmark" tono="danger" %}
+      <div class="px-6 py-6 overflow-y-auto min-h-0">
+        <label for="modal-rechazo-motivo" class="block text-sm font-medium text-heading mb-1">
+          Motivo del rechazo <span class="text-fg-danger">*</span>
         </label>
         <textarea id="modal-rechazo-motivo" class="nodo-field" rows="4" placeholder="Detallá el motivo..."></textarea>
-        <p id="modal-rechazo-error" class="hidden" style="font-size:12.5px;color:var(--text-fg-danger);margin-top:6px;">El motivo es obligatorio.</p>
+        <p id="modal-rechazo-error" class="hidden mt-1.5 text-xs text-fg-danger">El motivo es obligatorio.</p>
       </div>
-      <div style="display:flex;justify-content:flex-end;gap:12px;padding:16px 24px;border-top:1px solid var(--border-light,#F3F4F6);background:var(--bg-secondary,#F9FAFB);">
-        <button type="button" id="modal-rechazo-cancelar" class="btn-nodo btn-tertiary btn-sm">Cancelar</button>
-        <button type="button" id="modal-rechazo-confirmar" class="btn-nodo btn-danger btn-sm">Rechazar</button>
-      </div>
+      {% include "programas/becas/_modal_footer.html" with accion_texto="Rechazar caso" accion_icono="fa-circle-xmark" accion_tono="danger" form_id="form-rechazar" %}
     </div>
   </div>
+  {% endif %}
 
-  {# Modal "Validar identidad manualmente" — motivo obligatorio, mismo patrón que el de rechazo #}
+  {# Modal "Validar identidad manualmente" (POP-10) — motivo obligatorio, mismo patrón que el de rechazo #}
   {% if puede_revalidar_renaper and not formulario.validado_renaper %}
-  <div id="modal-forzar-overlay" class="fixed inset-0 z-[1001] hidden items-center justify-center p-4" style="background:rgba(0,0,0,.5);backdrop-filter:blur(4px);">
-    <div role="dialog" aria-modal="true" aria-labelledby="modal-forzar-title" class="w-full" style="max-width:520px;background:var(--bg-primary,#fff);border-radius:var(--radius-2xl,16px);box-shadow:var(--shadow-xl);overflow:hidden;">
-      <div style="padding:20px 24px;border-bottom:1px solid var(--border-light,#F3F4F6);display:flex;align-items:center;justify-content:space-between;gap:12px;">
-        <div style="display:flex;align-items:center;gap:12px;">
-          <div style="width:40px;height:40px;border-radius:var(--radius-lg,8px);display:flex;align-items:center;justify-content:center;background:var(--bg-warning-soft);color:var(--text-fg-warning);flex-shrink:0;">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/></svg>
-          </div>
-          <h3 id="modal-forzar-title" style="font-size:18px;font-weight:700;color:var(--text-heading);">Validar identidad manualmente</h3>
-        </div>
-        <button type="button" id="modal-forzar-close" aria-label="Cerrar" style="color:var(--text-body-subtle);background:none;border:none;cursor:pointer;line-height:1;">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
-        </button>
-      </div>
-      <form method="post" action="{% url 'becas:formulario_forzar_identidad' formulario.pk %}" id="form-forzar-identidad">
+  <div id="modal-forzar-overlay" class="fixed inset-0 z-[1001] hidden items-center justify-center p-4 bg-black/50" style="backdrop-filter:blur(4px);">
+    <div role="dialog" aria-modal="true" aria-labelledby="modal-forzar-title"
+         class="relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden">
+      {% include "programas/becas/_modal_header.html" with titulo="Validar identidad manualmente" titulo_id="modal-forzar-title" icono="fa-triangle-exclamation" tono="warning" %}
+      <form method="post" action="{% url 'becas:formulario_forzar_identidad' formulario.pk %}{{ next_qs }}" id="form-forzar-identidad" class="flex flex-col flex-1 min-h-0">
         {% csrf_token %}
-        <div style="padding:24px;">
+        <div class="px-6 py-6 overflow-y-auto min-h-0">
           <p class="text-sm text-body mb-3">
             Habilita la aprobación sin la validación de Base de Personas. No cambia los datos de la persona: quedan los que se cargaron. El motivo se guarda en la traza del caso.
           </p>
-          <label for="{{ forzar_identidad_form.motivo.id_for_label }}" style="display:block;font-size:13px;font-weight:600;color:var(--text-heading);margin-bottom:6px;">
-            {{ forzar_identidad_form.motivo.label }} <span style="color:var(--text-fg-danger);">*</span>
+          <label for="{{ forzar_identidad_form.motivo.id_for_label }}" class="block text-sm font-medium text-heading mb-1">
+            {{ forzar_identidad_form.motivo.label }} <span class="text-fg-danger">*</span>
           </label>
           {{ forzar_identidad_form.motivo }}
-          <p id="modal-forzar-error" class="hidden" style="font-size:12.5px;color:var(--text-fg-danger);margin-top:6px;">Contá el motivo con un poco más de detalle (al menos 10 caracteres).</p>
+          <p id="modal-forzar-error" class="hidden mt-1.5 text-xs text-fg-danger">Contá el motivo con un poco más de detalle (al menos 10 caracteres).</p>
         </div>
-        <div style="display:flex;justify-content:flex-end;gap:12px;padding:16px 24px;border-top:1px solid var(--border-light,#F3F4F6);background:var(--bg-secondary,#F9FAFB);">
-          <button type="button" id="modal-forzar-cancelar" class="btn-nodo btn-tertiary btn-sm">Cancelar</button>
-          <button type="submit" id="modal-forzar-confirmar" class="btn-nodo btn-brand btn-sm">Validar manualmente</button>
-        </div>
+        {% include "programas/becas/_modal_footer.html" with accion_texto="Validar manualmente" accion_icono="fa-user-check" %}
       </form>
     </div>
   </div>
   {% endif %}
 
-  {# Modal "Completar datos para SIIS" — pisa lo derivado del relevamiento; guardar no envía #}
+  {# Modal "Completar datos para SIIS" (POP-10) — pisa lo derivado del relevamiento; guardar no envía #}
   {% if datos_siis_form %}
-  <div id="modal-datos-siis-overlay" class="fixed inset-0 z-[1001] hidden items-center justify-center p-4" style="background:rgba(0,0,0,.5);backdrop-filter:blur(4px);">
-    <div role="dialog" aria-modal="true" aria-labelledby="modal-datos-siis-title" class="w-full" style="max-width:640px;background:var(--bg-primary,#fff);border-radius:var(--radius-2xl,16px);box-shadow:var(--shadow-xl);overflow:hidden;">
-      <div style="padding:20px 24px;border-bottom:1px solid var(--border-light,#F3F4F6);display:flex;align-items:center;justify-content:space-between;gap:12px;">
-        <div style="display:flex;align-items:center;gap:12px;">
-          <div style="width:40px;height:40px;border-radius:var(--radius-lg,8px);display:flex;align-items:center;justify-content:center;background:var(--bg-brand-soft);color:var(--text-fg-brand);flex-shrink:0;">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z"/></svg>
-          </div>
-          <h3 id="modal-datos-siis-title" style="font-size:18px;font-weight:700;color:var(--text-heading);">Completar datos para SIIS</h3>
-        </div>
-        <button type="button" id="modal-datos-siis-close" aria-label="Cerrar" style="color:var(--text-body-subtle);background:none;border:none;cursor:pointer;line-height:1;">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
-        </button>
-      </div>
-      <form method="post" action="{% url 'becas:formulario_datos_siis' formulario.pk %}" id="form-datos-siis">
+  <div id="modal-datos-siis-overlay" class="fixed inset-0 z-[1001] hidden items-center justify-center p-4 bg-black/50" style="backdrop-filter:blur(4px);">
+    <div role="dialog" aria-modal="true" aria-labelledby="modal-datos-siis-title"
+         class="relative bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
+      {% include "programas/becas/_modal_header.html" with titulo="Completar datos para SIIS" titulo_id="modal-datos-siis-title" icono="fa-pen" %}
+      <form method="post" action="{% url 'becas:formulario_datos_siis' formulario.pk %}{{ next_qs }}" id="form-datos-siis" class="flex flex-col flex-1 min-h-0">
         {% csrf_token %}
-        <div style="padding:24px;max-height:60vh;overflow-y:auto;">
+        <div class="px-6 py-6 overflow-y-auto min-h-0">
           <p class="text-sm text-body mb-4">
             Lo que completes acá pisa lo que salió del relevamiento, solo para el alta en SIIS. Guardar no envía el caso: revisá y después usá «Reenviar a SIIS».
           </p>
@@ -858,10 +828,7 @@
             {% endfor %}
           </div>
         </div>
-        <div style="display:flex;justify-content:flex-end;gap:12px;padding:16px 24px;border-top:1px solid var(--border-light,#F3F4F6);background:var(--bg-secondary,#F9FAFB);">
-          <button type="button" id="modal-datos-siis-cancelar" class="btn-nodo btn-tertiary btn-sm">Cancelar</button>
-          <button type="submit" class="btn-nodo btn-brand btn-sm">Guardar datos</button>
-        </div>
+        {% include "programas/becas/_modal_footer.html" with accion_texto="Guardar datos" accion_icono="fa-floppy-disk" %}
       </form>
     </div>
   </div>
@@ -891,8 +858,28 @@
 {% endblock %}
 
 {% block customJS %}
+<script src="{% static 'custom/js/becas-modal.js' %}"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+  // POP-10: los tres modales propios de esta pantalla delegan foco, Tab atrapado,
+  // Escape y bloqueo del scroll de fondo en becas-modal.js. `mostrar`/`ocultar`
+  // siguen tocando `hidden` + `style.display`, que es lo que observa `bind`.
+  function mostrar(overlay) {
+    overlay.classList.remove('hidden');
+    overlay.style.display = 'flex';
+  }
+  function ocultar(overlay) {
+    overlay.classList.add('hidden');
+    overlay.style.display = 'none';
+  }
+  function modalAccesible(overlay, alCerrar) {
+    // El clic en el fondo cierra; los botones con data-becas-modal-cerrar los
+    // atiende bind(). Sin becas-modal.js cargado, el modal igual abre y cierra.
+    overlay.addEventListener('click', function (e) { if (e.target === overlay) alCerrar(); });
+    if (window.becasModal) { window.becasModal.bind(overlay, { onClose: alCerrar }); }
+    else { overlay.querySelectorAll('[data-becas-modal-cerrar]').forEach(function (b) { b.addEventListener('click', alCerrar); }); }
+  }
+
   const btnHistorialSiis = document.getElementById('btn-historial-siis');
   const historialSiis = document.getElementById('historial-validaciones-siis');
   if (btnHistorialSiis && historialSiis) {
@@ -974,20 +961,9 @@ document.addEventListener('DOMContentLoaded', function () {
       cargarFunciones(selFuncion.getAttribute('data-actual') || '');
     }
 
-    function cerrarDatosSiis() {
-      datosSiisOverlay.classList.add('hidden');
-      datosSiisOverlay.style.display = 'none';
-    }
-    btnDatosSiis.addEventListener('click', function () {
-      datosSiisOverlay.classList.remove('hidden');
-      datosSiisOverlay.style.display = 'flex';
-    });
-    document.getElementById('modal-datos-siis-cancelar').addEventListener('click', cerrarDatosSiis);
-    document.getElementById('modal-datos-siis-close').addEventListener('click', cerrarDatosSiis);
-    datosSiisOverlay.addEventListener('click', function (e) { if (e.target === datosSiisOverlay) { cerrarDatosSiis(); } });
-    document.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape' && !datosSiisOverlay.classList.contains('hidden')) { cerrarDatosSiis(); }
-    });
+    function cerrarDatosSiis() { ocultar(datosSiisOverlay); }
+    btnDatosSiis.addEventListener('click', function () { mostrar(datosSiisOverlay); });
+    modalAccesible(datosSiisOverlay, cerrarDatosSiis);
   }
 
   const imageOverlay = document.getElementById('image-preview-overlay');
@@ -1039,34 +1015,17 @@ document.addEventListener('DOMContentLoaded', function () {
     const forzarForm = document.getElementById('form-forzar-identidad');
     const forzarMotivo = forzarForm.querySelector('textarea, input[type="text"]');
     const forzarError = document.getElementById('modal-forzar-error');
-    let forzarPreviouslyFocused = null;
 
-    function cerrarModalForzar() {
-      forzarOverlay.classList.add('hidden');
-      forzarOverlay.style.display = 'none';
-      if (forzarPreviouslyFocused && typeof forzarPreviouslyFocused.focus === 'function') {
-        forzarPreviouslyFocused.focus();
-      }
-    }
+    function cerrarModalForzar() { ocultar(forzarOverlay); }
 
     const btnForzar = document.getElementById('btn-forzar-identidad');
     if (btnForzar) {
       btnForzar.addEventListener('click', function () {
-        forzarPreviouslyFocused = document.activeElement;
         forzarError.classList.add('hidden');
-        forzarOverlay.classList.remove('hidden');
-        forzarOverlay.style.display = 'flex';
-        forzarMotivo.focus();
+        mostrar(forzarOverlay);
       });
     }
-    document.getElementById('modal-forzar-cancelar').addEventListener('click', cerrarModalForzar);
-    document.getElementById('modal-forzar-close').addEventListener('click', cerrarModalForzar);
-    forzarOverlay.addEventListener('click', function (e) {
-      if (e.target === forzarOverlay) cerrarModalForzar();
-    });
-    document.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape' && !forzarOverlay.classList.contains('hidden')) cerrarModalForzar();
-    });
+    modalAccesible(forzarOverlay, cerrarModalForzar);
     // El servidor vuelve a validar el motivo; esto solo evita el viaje al vacío.
     forzarForm.addEventListener('submit', function (e) {
       if (forzarMotivo.value.trim().length < 10) {
@@ -1077,57 +1036,44 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
-  // Modal "Rechazar caso" con motivo obligatorio (markup propio de esta página).
-  const rechazoOverlay = document.getElementById('modal-rechazo-overlay');
-  const rechazoMotivo = document.getElementById('modal-rechazo-motivo');
-  const rechazoError = document.getElementById('modal-rechazo-error');
-  let rechazoPreviouslyFocused = null;
-
-  function abrirModalRechazo() {
-    rechazoPreviouslyFocused = document.activeElement;
-    rechazoMotivo.value = '';
-    rechazoError.classList.add('hidden');
-    rechazoOverlay.classList.remove('hidden');
-    rechazoOverlay.style.display = 'flex';
-    rechazoMotivo.focus();
-  }
-
-  function cerrarModalRechazo() {
-    rechazoOverlay.classList.add('hidden');
-    rechazoOverlay.style.display = 'none';
-    if (rechazoPreviouslyFocused && typeof rechazoPreviouslyFocused.focus === 'function') {
-      rechazoPreviouslyFocused.focus();
-    }
-  }
-
-  const btnRechazar = document.getElementById('btn-rechazar');
-  if (btnRechazar) {
-    btnRechazar.addEventListener('click', abrirModalRechazo);
-  }
-
-  document.getElementById('modal-rechazo-cancelar').addEventListener('click', cerrarModalRechazo);
-  document.getElementById('modal-rechazo-close').addEventListener('click', cerrarModalRechazo);
-  rechazoOverlay.addEventListener('click', function (e) {
-    if (e.target === rechazoOverlay) cerrarModalRechazo();
-  });
+  // El visor de imágenes no es un modal de Becas: mantiene su propio Escape.
+  // becas-modal.js no lo toca (no está en su pila), así que no se pisan.
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape' && !imageOverlay.classList.contains('hidden')) {
       closeImagePreview();
-      return;
     }
-    if (e.key === 'Escape' && !rechazoOverlay.classList.contains('hidden')) cerrarModalRechazo();
   });
 
-  document.getElementById('modal-rechazo-confirmar').addEventListener('click', function () {
-    const motivo = rechazoMotivo.value.trim();
-    if (!motivo) {
-      rechazoError.classList.remove('hidden');
-      rechazoMotivo.focus();
-      return;
+  // Modal "Rechazar caso" con motivo obligatorio (markup propio de esta página).
+  // El pie envía #form-rechazar con el atributo form=, y acá se valida el motivo
+  // y se copia al campo oculto antes de dejar salir el submit.
+  const rechazoOverlay = document.getElementById('modal-rechazo-overlay');
+  const formRechazar = document.getElementById('form-rechazar');
+  if (rechazoOverlay && formRechazar) {
+    const rechazoMotivo = document.getElementById('modal-rechazo-motivo');
+    const rechazoError = document.getElementById('modal-rechazo-error');
+
+    const btnRechazar = document.getElementById('btn-rechazar');
+    if (btnRechazar) {
+      btnRechazar.addEventListener('click', function () {
+        rechazoMotivo.value = '';
+        rechazoError.classList.add('hidden');
+        mostrar(rechazoOverlay);
+      });
     }
-    document.getElementById('motivo-rechazo').value = motivo;
-    document.getElementById('form-rechazar').submit();
-  });
+    modalAccesible(rechazoOverlay, function () { ocultar(rechazoOverlay); });
+
+    formRechazar.addEventListener('submit', function (e) {
+      const motivo = rechazoMotivo.value.trim();
+      if (!motivo) {
+        e.preventDefault();
+        rechazoError.classList.remove('hidden');
+        rechazoMotivo.focus();
+        return;
+      }
+      document.getElementById('motivo-rechazo').value = motivo;
+    });
+  }
 });
 </script>
 {% endblock %}

@@ -1,39 +1,31 @@
-{% comment %}Pop-up de reactivación de convocatoria vencida: modal Alpine de Becas con un
-   <form> POST propio (csrf + fecha_fin) contra becas:convocatoria_reactivar.
+{% comment %}Pop-up de reactivación de convocatoria vencida: modal canónico de Becas
+   (x-becas-modal + _modal_header/_modal_footer) con un <form> POST propio
+   (csrf + fecha_fin) contra becas:convocatoria_reactivar.
    Lo abre un listener delegado sobre [data-reactivar-url] (+ data-nombre) del
    listado, que sobrevive al re-render AJAX de la tabla. El nombre de la
    convocatoria se pinta con x-text (textContent), nunca como marcado.
    La fecha mínima es hoy en la zona del servidor: la misma contra la que valida
-   la vista.{% endcomment %}
+   la vista.
+   Foco, Tab atrapado, Escape y scroll del fondo los aporta x-becas-modal
+   (static/custom/js/becas-modal.js): la página que incluye este parcial tiene
+   que cargar ese script.{% endcomment %}
 <div x-data="reactivarConvocatoria('{% now "Y-m-d" %}')"
-     @becas-reactivar.window="abrir($event.detail)"
-     @keydown.escape.window="abierto && cerrar()">
-  <div x-show="abierto" x-cloak @click="cerrar()"
+     @becas-reactivar.window="abrir($event.detail)">
+  <div x-show="abierto" x-cloak x-becas-modal="abierto" @click="cerrar()"
        class="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
        style="background:rgba(0,0,0,.5)"
        data-reactivar-modal>
     <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col"
-         @click.stop @keydown.tab="atraparFoco($event)" x-ref="panel"
+         @click.stop x-ref="panel"
          role="dialog" aria-modal="true" aria-labelledby="reactivar-convocatoria-titulo"
          aria-describedby="reactivar-convocatoria-ayuda">
 
-      <div class="flex items-center justify-between px-6 py-5 border-b border-light">
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 bg-brand-soft text-fg-brand">
-            <i class="fas fa-calendar-plus" aria-hidden="true"></i>
-          </div>
-          <h3 id="reactivar-convocatoria-titulo" class="text-lg font-bold text-heading">Reactivar convocatoria</h3>
-        </div>
-        <button type="button" @click="cerrar()" aria-label="Cerrar"
-                class="p-1.5 rounded-lg text-body-subtle hover:text-heading hover:bg-secondary transition-colors">
-          <i class="fas fa-xmark text-base" aria-hidden="true"></i>
-        </button>
-      </div>
+      {% include "programas/becas/_modal_header.html" with titulo="Reactivar convocatoria" titulo_id="reactivar-convocatoria-titulo" icono="fa-calendar-plus" cerrar="cerrar()" %}
 
-      <form method="post" :action="url" @submit="enviando = true"
+      <form method="post" :action="url" @submit="enviar($event)"
             class="flex flex-col flex-1 min-h-0" data-reactivar-form>
         {% csrf_token %}
-        <div class="p-6 space-y-4 overflow-y-auto">
+        <div class="p-6 space-y-4 overflow-y-auto min-h-0">
           <p x-show="nombre" x-text="nombre" class="text-sm font-semibold text-heading break-words"></p>
           <p id="reactivar-convocatoria-ayuda" class="text-sm text-body">Está vencida. Elegí la nueva fecha de fin para reactivarla.</p>
           <div>
@@ -43,12 +35,7 @@
             <p class="mt-1 text-xs text-body-subtle">Tiene que ser hoy o una fecha posterior.</p>
           </div>
         </div>
-        <div class="flex justify-end gap-3 px-6 py-4 border-t border-light bg-secondary">
-          <button type="button" @click="cerrar()" class="btn-nodo btn-tertiary btn-base">Cancelar</button>
-          <button type="submit" :disabled="enviando" class="btn-nodo btn-brand btn-base">
-            <i class="fas fa-calendar-plus" aria-hidden="true"></i> Reactivar
-          </button>
-        </div>
+        {% include "programas/becas/_modal_footer.html" with cancelar="cerrar()" accion_texto="Reactivar" accion_icono="fa-calendar-plus" %}
       </form>
     </div>
   </div>
@@ -62,41 +49,32 @@ function reactivarConvocatoria(min) {
     nombre: '',
     min: min,
     fecha: min,
-    disparador: null,
 
     abrir(detalle) {
       this.url = detalle.url;
       this.nombre = detalle.nombre || '';
       this.fecha = this.min;
       this.enviando = false;
-      this.disparador = detalle.disparador || null;
+      // El foco inicial y su devolución al disparador los maneja becas-modal.js.
       this.abierto = true;
-      this.$nextTick(() => this.$refs.fecha.focus());
     },
 
     cerrar() {
       this.abierto = false;
-      var disparador = this.disparador;
-      this.disparador = null;
-      // Tras un re-render AJAX de la tabla el botón original puede no estar más.
-      if (disparador && disparador.isConnected) disparador.focus();
     },
 
-    atraparFoco(evento) {
-      var focuseables = Array.prototype.filter.call(
-        this.$refs.panel.querySelectorAll('button, input, [href], [tabindex]:not([tabindex="-1"])'),
-        function (el) { return !el.disabled; }
-      );
-      if (!focuseables.length) return;
-      var primero = focuseables[0];
-      var ultimo = focuseables[focuseables.length - 1];
-      if (evento.shiftKey && document.activeElement === primero) {
+    // El pie canónico no expone :disabled: el guard contra el doble envío queda acá
+    // (el POST es clásico, no pasa por _ajax_js).
+    enviar(evento) {
+      if (this.enviando) {
         evento.preventDefault();
-        ultimo.focus();
-      } else if (!evento.shiftKey && document.activeElement === ultimo) {
-        evento.preventDefault();
-        primero.focus();
+        return;
       }
+      this.enviando = true;
+      Array.prototype.forEach.call(
+        evento.target.querySelectorAll('button[type="submit"]'),
+        function (b) { b.disabled = true; }
+      );
     },
   };
 }
@@ -107,7 +85,7 @@ document.addEventListener('click', function (e) {
   if (!btn) return;
   e.preventDefault();
   window.dispatchEvent(new CustomEvent('becas-reactivar', {
-    detail: {url: btn.dataset.reactivarUrl, nombre: btn.dataset.nombre || '', disparador: btn}
+    detail: {url: btn.dataset.reactivarUrl, nombre: btn.dataset.nombre || ''}
   }));
 });
 </script>
