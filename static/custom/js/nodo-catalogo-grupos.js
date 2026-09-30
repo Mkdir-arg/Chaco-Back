@@ -28,7 +28,7 @@
   // Solo los errores van por toast (DA-2): un autoguardado exitoso no debe
   // apilar un aviso por cada soltada; su confirmación es el indicador de la página.
   function aviso(mensaje, tipo) {
-    if (typeof window.toast === 'function') { window.toast(tipo || 'error', mensaje); }
+    if (typeof window.toast === 'function') { window.toast(tipo || 'success', mensaje); }
   }
 
   function indicar(texto) {
