@@ -423,7 +423,7 @@ class RevisionPersonasListView(CapacidadRequeridaMixin, LoginRequiredMixin, List
 
     def paginate_queryset(self, queryset, page_size):
         paginator, page, object_list, is_paginated = super().paginate_queryset(queryset, page_size)
-        return paginator, page, _pagina_hidratada([f.pk for f in object_list], self.orden), is_paginated
+        return paginator, page, _pagina_hidratada([f.pk for f in object_list], self.orden, espera=True), is_paginated
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)

@@ -105,7 +105,7 @@ window.showSuccessAlert = function(message) {
             message: message
         });
     } else {
-        alert(message);
+        if (window.toast) window.toast('success', message);
     }
 };
 
@@ -118,7 +118,7 @@ window.showErrorAlert = function(message) {
             message: message
         });
     } else {
-        alert(message);
+        if (window.toast) window.toast('error', message);
     }
 };
 
@@ -131,6 +131,6 @@ window.showWarningAlert = function(message) {
             message: message
         });
     } else {
-        alert(message);
+        if (window.toast) window.toast('warning', message);
     }
 };
