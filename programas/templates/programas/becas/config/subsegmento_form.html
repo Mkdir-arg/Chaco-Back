@@ -1,12 +1,22 @@
 {% extends "includes/base.html" %}
+{% load nodo_ui becas_extras %}
 {% block title %}Becas · Subsegmento{% endblock %}
 
 {% block main-content %}
-<div class="">
-  <h1 class="text-3xl font-extrabold text-heading tracking-tight mb-1">
-    {% if subsegmento %}Editar subsegmento{% else %}Nuevo subsegmento{% endif %}
-  </h1>
-  <p class="text-sm text-body-subtle mb-6">Disponible en el segmento: {{ segmento.cupo_disponible }}</p>
+<div class="space-y-5">
+  {% if subsegmento %}
+    {% becas_migas subsegmento actual="Editar" as migas %}
+    {% url 'becas:subsegmento_detalle' subsegmento.pk as url_origen %}
+    {% page_header titulo="Editar subsegmento" volver_url=url_origen volver_label=subsegmento.nombre migas=migas %}
+      {% bajada %}Disponible en el segmento: {{ segmento.cupo_disponible }}{% endbajada %}
+    {% endpage_header %}
+  {% else %}
+    {% becas_migas segmento actual="Nuevo subsegmento" as migas %}
+    {% url 'becas:segmento_detalle' segmento.pk as url_origen %}
+    {% page_header titulo="Nuevo subsegmento" volver_url=url_origen volver_label=segmento.nombre migas=migas %}
+      {% bajada %}Disponible en el segmento: {{ segmento.cupo_disponible }}{% endbajada %}
+    {% endpage_header %}
+  {% endif %}
   <form method="post" class="bg-white rounded-xl border border-base shadow-sm p-6">
     {% csrf_token %}
     {% if form.non_field_errors %}
@@ -14,7 +24,7 @@
     {% endif %}
     {% for field in form %}{% include "programas/becas/_field.html" %}{% endfor %}
     <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-light">
-      <a href="{% url 'becas:segmento_detalle' segmento.pk %}" class="btn-nodo btn-secondary btn-base">← Cancelar</a>
+      <a href="{{ url_origen }}" class="btn-nodo btn-secondary btn-base">Cancelar</a>
       <button type="submit" class="btn-nodo btn-brand btn-base">Guardar</button>
     </div>
   </form>
