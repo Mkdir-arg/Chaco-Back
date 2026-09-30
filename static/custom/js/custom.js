@@ -194,7 +194,7 @@ $(function () {
 						message: 'Debe haber al menos una columna visible en la tabla.'
 					});
 				} else {
-					alert("Debe haber al menos una columna visible.");
+					if (window.toast) window.toast("warning", "Debe haber al menos una columna visible.");
 				}
 			}
 		})
