@@ -8,7 +8,7 @@ SIIS» (Cambio 82), que se edita con `form_identificadores_siis`. Los otros dos
 lugares que lo incluyen —lista de programas y detalle de segmento— no pasan la
 variable y siguen viendo solo la foto del catálogo.
 {% endcomment %}
-<div x-show="modalInfo" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4"
+<div x-show="modalInfo" x-cloak x-becas-modal="modalInfo" class="fixed inset-0 z-50 flex items-center justify-center p-4"
      role="dialog" aria-modal="true" aria-labelledby="modal-info-titulo"
      @keydown.escape.window="modalInfo=false">
   <div class="absolute inset-0 bg-black/50" style="backdrop-filter:blur(4px)" @click="modalInfo=false"></div>
