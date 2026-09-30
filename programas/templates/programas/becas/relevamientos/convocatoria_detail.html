@@ -109,34 +109,10 @@
         {# Cards laterales — datos reales #}
         <div class="space-y-4">
           <div class="grid grid-cols-2 gap-3">
-            <div class="bg-white rounded-xl p-4 border border-base shadow-sm">
-              <div class="flex items-center justify-between mb-2">
-                <p class="text-xs text-body-subtle font-medium">Cupo segmento</p>
-                <div class="w-8 h-8 rounded-lg flex items-center justify-center text-white" style="background: var(--gradient-brand)"><i class="fas fa-users text-xs"></i></div>
-              </div>
-              <p class="text-2xl font-bold text-heading">{{ cupo_segmento }}</p>
-            </div>
-            <div class="bg-white rounded-xl p-4 border border-base shadow-sm">
-              <div class="flex items-center justify-between mb-2">
-                <p class="text-xs text-body-subtle font-medium">Aprobados</p>
-                <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-success-soft text-fg-success"><i class="fas fa-check-circle text-xs"></i></div>
-              </div>
-              <p class="text-2xl font-bold text-heading">{{ n_aprobados }}</p>
-            </div>
-            <div class="bg-white rounded-xl p-4 border border-base shadow-sm">
-              <div class="flex items-center justify-between mb-2">
-                <p class="text-xs text-body-subtle font-medium">Relevamientos</p>
-                <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-brand-soft text-fg-brand"><i class="fas fa-folder-open text-xs"></i></div>
-              </div>
-              <p class="text-2xl font-bold text-heading">{{ n_relevamientos }}</p>
-            </div>
-            <div class="bg-white rounded-xl p-4 border border-base shadow-sm">
-              <div class="flex items-center justify-between mb-2">
-                <p class="text-xs text-body-subtle font-medium">Casos</p>
-                <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-brand-soft text-fg-brand"><i class="fas fa-user text-xs"></i></div>
-              </div>
-              <p class="text-2xl font-bold text-heading">{{ n_beneficiarios }}</p>
-            </div>
+            {% include "components/_stat_card.html" with etiqueta="Cupo segmento" valor=cupo_segmento icono="fa-users" tono="brand" %}
+            {% include "components/_stat_card.html" with etiqueta="Aprobados" valor=n_aprobados icono="fa-circle-check" tono="success" %}
+            {% include "components/_stat_card.html" with etiqueta="Relevamientos" valor=n_relevamientos icono="fa-folder-open" tono="brand" %}
+            {% include "components/_stat_card.html" with etiqueta="Casos" valor=n_beneficiarios icono="fa-user" tono="brand" %}
           </div>
           <div class="bg-white rounded-xl border border-base shadow-sm p-5">
             <h3 class="text-sm font-bold text-heading mb-3">Datos de la convocatoria</h3>

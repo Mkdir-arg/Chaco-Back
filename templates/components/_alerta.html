@@ -1,0 +1,23 @@
+{% comment %}
+Alerta inline del backoffice (ALR-14/15/11, variante única).
+  {% include "components/_alerta.html" with tono="warning" titulo="Sin padrón el link queda abierto" texto="Cualquier persona que lo reciba puede inscribirse y ocupar cupo." %}
+Contexto:
+  tono    warning (por defecto) | danger | success | info.
+  titulo  opcional, en negrita.
+  texto   opcional, debajo del título.
+  role    por defecto «alert» en danger/warning y «status» en info/success.
+          `role=""` no es válido: pasá el que corresponda.
+Info no tiene par de tokens bg/border compilado: usa la nota informativa canónica
+(ALR-10, deuda de estilos en línea declarada, sin tokens nuevos).
+{% endcomment %}
+{% if tono == "info" %}
+<div class="flex items-center gap-2" style="padding:10px 12px; border-radius:10px; background:var(--bg-info-soft); border:1px solid var(--color-brand-200)" role="{{ role|default:'status' }}">
+  <i class="fas fa-circle-info flex-shrink-0" style="color:var(--text-fg-info)" aria-hidden="true"></i>
+  <span style="font-size:12.5px; color:var(--text-body)">{% if titulo %}<strong class="text-heading">{{ titulo }}</strong>{% if texto %} {% endif %}{% endif %}{{ texto }}</span>
+</div>
+{% else %}
+<div class="rounded-lg {% if tono == 'danger' %}bg-danger-soft border border-danger-subtle{% elif tono == 'success' %}bg-success-soft border border-success-subtle{% else %}bg-warning-soft border border-warning-subtle{% endif %} p-4 text-sm" role="{% if role %}{{ role }}{% elif tono == 'success' %}status{% else %}alert{% endif %}">
+  {% if titulo %}<strong class="text-heading">{{ titulo }}</strong>{% endif %}
+  {% if texto %}<p class="text-body{% if titulo %} mt-1{% endif %}">{{ texto }}</p>{% endif %}
+</div>
+{% endif %}
