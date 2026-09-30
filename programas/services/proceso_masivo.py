@@ -314,9 +314,7 @@ def crear_corrida(*, programa, solicitada_por, total_pedido):
         _tomar_candado()
         if CorridaSiis.en_curso() is not None:
             return None
-        return CorridaSiis.objects.create(
-            programa=programa, solicitada_por=solicitada_por, total_pedido=total_pedido
-        )
+        return CorridaSiis.objects.create(programa=programa, solicitada_por=solicitada_por, total_pedido=total_pedido)
 
 
 def _lotes(lista, tamano):

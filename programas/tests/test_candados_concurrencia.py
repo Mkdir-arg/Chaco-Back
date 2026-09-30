@@ -25,7 +25,10 @@ from programas.models import CorridaSiis, Formulario, TracaFormulario
 from programas.services import proceso_masivo
 from programas.tests.test_becas_revision import _BaseAprobacionTest
 from programas.tests.test_proceso_masivo import _BaseProcesoTest
-from programas.views.proceso_masivo import MENSAJE_EN_CURSO
+
+# A propósito escrito acá y no importado de la vista: lo que se comprueba es el
+# texto que ve la persona, no que dos módulos compartan una constante.
+MENSAJE_EN_CURSO = "Ya hay una corrida en curso. Esperá a que termine o frenala."
 
 
 class CandadoCorridaMasivaTests(_BaseProcesoTest):
