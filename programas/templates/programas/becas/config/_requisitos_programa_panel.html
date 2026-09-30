@@ -3,32 +3,32 @@
 <div class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
   <table class="w-full border-collapse">
     <thead>
-      <tr class="bg-secondary border-b border-base">
-        <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Orden</th>
-        <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Pregunta</th>
-        <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Tipo</th>
-        <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Obligatorio</th>
-        <th class="px-4 py-[11px] text-right font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Acciones</th>
+      <tr class="nodo-thead-row">
+        <th class="nodo-th">Orden</th>
+        <th class="nodo-th">Pregunta</th>
+        <th class="nodo-th">Tipo</th>
+        <th class="nodo-th">Obligatorio</th>
+        <th class="nodo-th text-right">Acciones</th>
       </tr>
     </thead>
     <tbody>
       {% for req in requisitos %}
       <tr class="hover:bg-secondary">
-        <td class="px-4 py-[13px] text-sm border-t border-light text-body-subtle font-semibold">{{ req.orden }}</td>
-        <td class="px-4 py-[13px] text-sm border-t border-light text-heading font-medium">{{ req.texto }}
+        <td class="nodo-td text-body-subtle font-semibold">{{ req.orden }}</td>
+        <td class="nodo-td text-heading font-medium">{{ req.texto }}
           {% if req.destino_siis %}<span class="badge badge-info ml-1" title="Alimenta el alta de beneficiarios en SIIS">SIIS: {{ req.get_destino_siis_display }}</span>{% endif %}
         </td>
-        <td class="px-4 py-[13px] text-sm border-t border-light">
+        <td class="nodo-td">
           <span class="badge badge-white">{{ req.get_tipo_display }}</span>
         </td>
-        <td class="px-4 py-[13px] text-sm border-t border-light">
+        <td class="nodo-td">
           {% if req.obligatorio %}
             <span class="badge badge-brand">Obligatorio</span>
           {% else %}
             <span class="badge badge-gray">Opcional</span>
           {% endif %}
         </td>
-        <td class="px-4 py-[13px] text-sm border-t border-light text-right">
+        <td class="nodo-td text-right">
           <div class="flex items-center justify-end gap-2">
             {% if request.user|puede:"becas.requisito.editar" %}
             <button type="button" class="nodo-icon-btn" title="Editar" aria-label="Editar requisito {{ req.texto }}"

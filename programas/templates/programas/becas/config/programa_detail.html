@@ -126,32 +126,32 @@
         <div class="overflow-x-auto">
           <table class="w-full border-collapse">
             <thead>
-              <tr class="bg-secondary border-b border-base">
-                <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Nombre</th>
-                <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Descripción</th>
-                <th class="px-4 py-[11px] text-right font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Cupo total</th>
-                <th class="px-4 py-[11px] text-right font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Subsegmentos</th>
-                <th class="px-4 py-[11px] text-center font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Estado</th>
-                <th class="px-4 py-[11px] text-right font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Acciones</th>
+              <tr class="nodo-thead-row">
+                <th class="nodo-th">Nombre</th>
+                <th class="nodo-th">Descripción</th>
+                <th class="nodo-th text-right">Cupo total</th>
+                <th class="nodo-th text-right">Subsegmentos</th>
+                <th class="nodo-th text-center">Estado</th>
+                <th class="nodo-th text-right">Acciones</th>
               </tr>
             </thead>
             <tbody>
               {% for s in segmentos %}
-              <tr class="hover:bg-tertiary">
-                <td class="px-4 py-[13px] border-t border-light font-semibold text-heading" style="font-size:13.5px">{{ s.nombre }}</td>
-                <td class="px-4 py-[13px] border-t border-light text-body-subtle" style="font-size:13.5px; max-width:260px">{{ s.descripcion|default:"—"|truncatechars:70 }}</td>
-                <td class="px-4 py-[13px] border-t border-light text-heading font-semibold text-right" style="font-size:13.5px">{{ s.cupo_maximo }}</td>
-                <td class="px-4 py-[13px] border-t border-light text-body text-right" style="font-size:13.5px">
+              <tr class="hover:bg-secondary">
+                <td class="nodo-td font-semibold text-heading">{{ s.nombre }}</td>
+                <td class="nodo-td text-body-subtle" style="max-width:260px">{{ s.descripcion|default:"—"|truncatechars:70 }}</td>
+                <td class="nodo-td text-heading font-semibold text-right">{{ s.cupo_maximo }}</td>
+                <td class="nodo-td text-body text-right">
                   {% if s.n_subsegmentos %}{{ s.n_subsegmentos }} subsegmento{{ s.n_subsegmentos|pluralize }}{% else %}—{% endif %}
                 </td>
-                <td class="px-4 py-[13px] border-t border-light text-center" style="font-size:13.5px">
+                <td class="nodo-td text-center">
                   {% if s.activo %}
                     <span class="badge badge-success badge-dot">Activo</span>
                   {% else %}
                     <span class="badge badge-danger badge-dot">Inactivo</span>
                   {% endif %}
                 </td>
-                <td class="px-4 py-[13px] border-t border-light text-right" style="font-size:13.5px">
+                <td class="nodo-td text-right">
                   <a href="{% url 'becas:segmento_detalle' s.pk %}" class="nodo-icon-btn" aria-label="Ver detalle del segmento {{ s.nombre }}" title="Ver detalle">
                     <i class="fas fa-eye" aria-hidden="true"></i>
                   </a>
@@ -295,6 +295,15 @@
             {{ form_requisito.canal }}
             <p class="text-xs text-body-subtle mt-1">Ambos canales, solo la app de campo o solo el link público.</p>
             <p class="mt-1 text-xs text-fg-danger hidden" data-error="canal"></p>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-heading mb-1">Este dato alimenta a SIIS como</label>
+            <select name="destino_siis" class="nodo-field">
+              <option value="">No alimenta a SIIS</option>
+              {% for val, label in destino_siis_choices %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
+            </select>
+            <p class="text-xs text-body-subtle mt-1">Campo del alta de beneficiarios en SIIS que toma esta respuesta. Un requisito por destino en el programa.</p>
+            <p class="mt-1 text-xs text-fg-danger hidden" data-error="destino_siis"></p>
           </div>
         </div>
         {% include "programas/becas/_modal_footer.html" with cancelar="modalReq=false" accion_texto="Crear requisito" %}

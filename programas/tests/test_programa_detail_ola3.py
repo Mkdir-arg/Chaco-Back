@@ -9,7 +9,7 @@ from django.core.management import call_command
 from django.test import TestCase
 from django.urls import reverse
 
-from programas.models import ProgramaSiis, RequisitoNativo
+from programas.models import ProgramaSiis, RequisitoNativo, Segmento
 
 
 class ProgramaDetalleOla3Tests(TestCase):
@@ -73,3 +73,35 @@ class ProgramaDetalleOla3Tests(TestCase):
             "border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'", html
         )
         self.assertIn("bg-brand-soft text-fg-brand", html)
+
+    def test_nuevo_requisito_tiene_destino_siis(self):
+        html = self._html()
+        inicio = html.index('id="form-req-crear"')
+        fin = html.index("</form>", inicio)
+        bloque_crear = html[inicio:fin]
+        self.assertIn('name="destino_siis"', bloque_crear)
+        self.assertIn("No alimenta a SIIS", bloque_crear)
+
+    def test_tabla_segmentos_usa_piezas_comunes_nodo(self):
+        Segmento.objects.create(programa=self.programa, nombre="Segmento A", cupo_maximo=10)
+        html = self._html()
+        self.assertIn("nodo-thead-row", html)
+        self.assertIn('class="nodo-th', html)
+        self.assertIn('class="nodo-td', html)
+        self.assertNotIn("hover:bg-tertiary", html)
+        self.assertNotIn("font-size:11px", html)
+        self.assertNotIn("font-size:13.5px", html)
+
+    def test_panel_requisitos_programa_usa_piezas_comunes_nodo(self):
+        RequisitoNativo.objects.create(programa=self.programa, texto="DNI del titular", tipo="TEXTO", orden=1)
+        html = self._html()
+        inicio = html.index('id="reqs-programa-panel"')
+        bloque_panel = html[inicio : inicio + 3000]
+        self.assertIn("nodo-thead-row", bloque_panel)
+        self.assertIn('class="nodo-th', bloque_panel)
+        self.assertIn('class="nodo-td', bloque_panel)
+
+    def test_modal_siis_es_becas_modal(self):
+        html = self._html()
+        self.assertIn('x-becas-modal="modalInfo"', html)
+        self.assertIn('id="modal-info-titulo"', html)
