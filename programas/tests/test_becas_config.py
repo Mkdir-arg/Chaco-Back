@@ -256,6 +256,101 @@ class SubsegmentoCupoTests(_BaseConfigTest):
         self.assertContains(resp, "supera el cupo del segmento")
 
 
+class SubsegmentoDetailRenderTests(_BaseConfigTest):
+    """TIT-5/DE-7: encabezado sin card, migas, estado y modales accesibles."""
+
+    def setUp(self):
+        super().setUp()
+        self.client.force_login(self.admin)
+        self.programa = ProgramaSiis.objects.create(nombre="Prog", siis_programa_id=1)
+        self.seg = Segmento.objects.create(programa=self.programa, nombre="Estudiantes terciarios", cupo_maximo=200)
+        self.sub = Subsegmento.objects.create(
+            segmento=self.seg, nombre="Resistencia Norte", descripcion="Zona metropolitana", cupo_maximo=120
+        )
+
+    def test_encabezado_sin_card_con_migas_y_bajada(self):
+        resp = self.client.get(reverse("becas:subsegmento_detalle", args=[self.sub.pk]))
+        self.assertEqual(resp.status_code, 200)
+        contenido = resp.content.decode()
+        self.assertContains(
+            resp, '<h1 class="text-3xl font-extrabold text-heading tracking-tight">Resistencia Norte</h1>'
+        )
+        self.assertContains(resp, 'aria-label="Migas"')
+        self.assertContains(resp, "Segmento padre:")
+        self.assertContains(resp, reverse("becas:segmento_detalle", args=[self.seg.pk]))
+        self.assertContains(resp, "Cupo máximo:")
+        self.assertContains(resp, "120")
+        self.assertContains(resp, "Zona metropolitana")
+        self.assertNotIn('class="bg-white rounded-xl border border-base shadow-sm p-5"', contenido)
+
+    def test_estado_activo_usa_pausable_estado_badge(self):
+        resp = self.client.get(reverse("becas:subsegmento_detalle", args=[self.sub.pk]))
+        self.assertContains(resp, 'badge badge-success badge-dot">Activo')
+
+    def test_estado_pausado(self):
+        self.sub.pausado = True
+        self.sub.pausa_motivo = "Cupo agotado"
+        self.sub.save(update_fields=["pausado", "pausa_motivo"])
+        resp = self.client.get(reverse("becas:subsegmento_detalle", args=[self.sub.pk]))
+        self.assertContains(resp, 'badge badge-warning badge-dot" title="Cupo agotado">Pausado')
+
+    def test_modales_son_x_becas_modal_con_dialog_accesible(self):
+        resp = self.client.get(reverse("becas:subsegmento_detalle", args=[self.sub.pk]))
+        contenido = resp.content.decode()
+        self.assertIn('x-becas-modal="modalReqNuevo"', contenido)
+        self.assertIn('x-becas-modal="modalReqEdit"', contenido)
+        self.assertIn('x-becas-modal="modalSubEdit"', contenido)
+        self.assertIn('aria-labelledby="modal-reqnuevo-titulo"', contenido)
+        self.assertIn('aria-labelledby="modal-reqedit-titulo"', contenido)
+        self.assertIn('aria-labelledby="modal-subedit-titulo"', contenido)
+
+    def test_acciones_de_fila_con_aria_label_que_nombra_el_requisito(self):
+        RequisitoNativo.objects.create(
+            segmento=self.seg,
+            subsegmento=self.sub,
+            texto="Certificado de alumno regular",
+            tipo=TipoCampo.STRING,
+            orden=1,
+        )
+        resp = self.client.get(reverse("becas:subsegmento_detalle", args=[self.sub.pk]))
+        self.assertContains(resp, 'aria-label="Editar requisito: Certificado de alumno regular"')
+        self.assertContains(resp, 'aria-label="Eliminar requisito: Certificado de alumno regular"')
+        self.assertContains(resp, 'data-confirm-danger="true"')
+        self.assertContains(resp, 'data-confirm-ok="Sí, eliminar"')
+        self.assertContains(resp, 'class="nodo-icon-btn nodo-icon-btn--danger"')
+
+    def test_tipo_badge_usa_badge_white(self):
+        RequisitoNativo.objects.create(
+            segmento=self.seg, subsegmento=self.sub, texto="DNI", tipo=TipoCampo.STRING, orden=1
+        )
+        resp = self.client.get(reverse("becas:subsegmento_detalle", args=[self.sub.pk]))
+        self.assertContains(resp, 'class="badge badge-white"')
+
+
+class SubsegmentoFormRenderTests(_BaseConfigTest):
+    """TIT-10/11: formulario de respaldo con page_header y Cancelar al origen."""
+
+    def setUp(self):
+        super().setUp()
+        self.client.force_login(self.admin)
+        self.seg = Segmento.objects.create(nombre="S", cupo_maximo=200)
+        self.sub = Subsegmento.objects.create(segmento=self.seg, nombre="Sub", cupo_maximo=50)
+
+    def test_crear_cancelar_va_al_segmento(self):
+        resp = self.client.get(reverse("becas:subsegmento_crear", args=[self.seg.pk]))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Nuevo subsegmento")
+        url_origen = reverse("becas:segmento_detalle", args=[self.seg.pk])
+        self.assertContains(resp, f'href="{url_origen}" class="btn-nodo btn-secondary btn-base">Cancelar')
+
+    def test_editar_cancelar_va_al_subsegmento(self):
+        resp = self.client.get(reverse("becas:subsegmento_editar", args=[self.sub.pk]))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Editar subsegmento")
+        url_origen = reverse("becas:subsegmento_detalle", args=[self.sub.pk])
+        self.assertContains(resp, f'href="{url_origen}" class="btn-nodo btn-secondary btn-base">Cancelar')
+
+
 class CoordinadorTests(_BaseConfigTest):
     def setUp(self):
         super().setUp()
@@ -641,6 +736,36 @@ class DestinoSiisRequisitoTests(_BaseConfigTest):
         self._post(self.seg, "Localidad", "loc_actual")
         resp = self.client.get(reverse("becas:requisitos_segmento") + f"?segmento={self.seg.pk}")
         self.assertContains(resp, "SIIS: Localidad del domicilio")
+
+
+class RequisitosSegmentoModalesRenderTests(_BaseConfigTest):
+    """Los 2 modales de requisitos_segmento.html con x-becas-modal y sin SVG."""
+
+    def setUp(self):
+        super().setUp()
+        self.client.force_login(self.admin)
+        self.seg = Segmento.objects.create(nombre="Futuro", cupo_maximo=100)
+
+    def test_modales_x_becas_modal_dialog_y_sin_svg(self):
+        resp = self.client.get(reverse("becas:requisitos_segmento"))
+        self.assertEqual(resp.status_code, 200)
+        contenido = resp.content.decode()
+        self.assertIn('x-becas-modal="modalCrear"', contenido)
+        self.assertIn('x-becas-modal="modalEdit"', contenido)
+        self.assertIn('role="dialog"', contenido)
+        self.assertIn('aria-labelledby="modal-reqseg-crear-titulo"', contenido)
+        self.assertIn('aria-labelledby="modal-reqseg-editar-titulo"', contenido)
+        self.assertIn('<i class="fas fa-clipboard-list" aria-hidden="true"></i>', contenido)
+        self.assertIn('<i class="fas fa-edit" aria-hidden="true"></i>', contenido)
+
+    def test_fila_con_requisito_usa_nodo_icon_btn_y_aria_label(self):
+        RequisitoNativo.objects.create(segmento=self.seg, texto="Localidad", tipo=TipoCampo.STRING, orden=1)
+        resp = self.client.get(reverse("becas:requisitos_segmento") + f"?segmento={self.seg.pk}")
+        self.assertContains(resp, 'aria-label="Editar requisito: Localidad"')
+        self.assertContains(resp, 'aria-label="Eliminar requisito: Localidad"')
+        self.assertContains(resp, 'data-confirm-danger="true"')
+        self.assertContains(resp, 'class="nodo-icon-btn nodo-icon-btn--danger"')
+        self.assertContains(resp, 'class="badge badge-white"')
 
 
 class IdentificadoresSiisProgramaTests(TestCase):
