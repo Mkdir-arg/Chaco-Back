@@ -3,17 +3,17 @@
 <div class="overflow-x-auto">
   <table class="w-full border-collapse">
     <thead>
-      <tr class="bg-secondary border-b border-base">
-        <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Requisito</th>
-        <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Tipo de campo</th>
-        <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Obligatorio</th>
-        <th class="px-4 py-[11px] text-right font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Acciones</th>
+      <tr class="nodo-thead-row">
+        <th class="nodo-th">Requisito</th>
+        <th class="nodo-th">Tipo de campo</th>
+        <th class="nodo-th">Obligatorio</th>
+        <th class="nodo-th text-right">Acciones</th>
       </tr>
     </thead>
     <tbody>
       {% for req in requisitos %}
       <tr class="hover:bg-secondary">
-        <td class="px-4 py-[13px] text-sm border-t border-light">
+        <td class="nodo-td">
           <p class="text-heading font-medium">{{ req.texto }}
             {% if req.destino_siis %}<span class="badge badge-info ml-1" title="Alimenta el alta de beneficiarios en SIIS">SIIS: {{ req.get_destino_siis_display }}</span>{% endif %}
           </p>
@@ -22,20 +22,20 @@
             {% else %}Programa: {{ req.programa.nombre }}{% endif %}
           </p>
         </td>
-        <td class="px-4 py-[13px] text-sm border-t border-light">
+        <td class="nodo-td">
           <span class="badge badge-white">{{ req.get_tipo_display }}</span>
         </td>
-        <td class="px-4 py-[13px] text-sm border-t border-light">
+        <td class="nodo-td">
           {% if req.obligatorio %}
             <span class="badge badge-brand">Obligatorio</span>
           {% else %}
             <span class="badge badge-gray">Opcional</span>
           {% endif %}
         </td>
-        <td class="px-4 py-[13px] text-sm border-t border-light text-right">
+        <td class="nodo-td text-right">
           <div class="flex items-center justify-end gap-2">
             {% if request.user|puede:"becas.requisito.editar" %}
-            <button type="button" class="text-body-subtle hover:text-heading p-1" title="Editar"
+            <button type="button" class="nodo-icon-btn" aria-label="Editar requisito: {{ req.texto }}"
               @click="openEdit(
                 '{% url 'becas:requisito_editar' req.pk %}',
                 '{{ req.texto|escapejs }}',
@@ -47,12 +47,13 @@
                 '{{ req.canal }}',
                 '{{ req.destino_siis }}'
               )">
-              <i class="fas fa-edit"></i>
+              <i class="fas fa-edit" aria-hidden="true"></i>
             </button>
-            <button type="button" class="text-body-subtle hover:text-fg-danger p-1" title="Eliminar"
+            <button type="button" class="nodo-icon-btn nodo-icon-btn--danger" aria-label="Eliminar requisito: {{ req.texto }}"
                     data-confirm-url="{% url 'becas:requisito_eliminar' req.pk %}"
-                    data-confirm-title="¿Eliminar requisito?" data-confirm-text="{{ req.texto }}" data-confirm-ok="Sí, eliminar">
-              <i class="fas fa-trash"></i>
+                    data-confirm-title="¿Eliminar requisito?" data-confirm-text="{{ req.texto }}" data-confirm-ok="Sí, eliminar"
+                    data-confirm-danger="true">
+              <i class="fas fa-trash" aria-hidden="true"></i>
             </button>
             {% endif %}
           </div>
