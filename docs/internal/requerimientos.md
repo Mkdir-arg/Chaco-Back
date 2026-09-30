@@ -248,6 +248,31 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 96.5 | Procesar y frenar el proceso masivo piden confirmación | Becas · proceso masivo SIIS | `#ui` `#siis` `#relevamientos` | PM — auditoría de diseño de Becas (POP-6) | 29/09/2026 | 🟢 **Hecho** | No requiere |
 | 96.6 | Los avisos muestran el mensaje real y no «success» | Becas · transversal | `#ui` `#textos` | PM — auditoría de diseño de Becas (ALR-2, ALR-3) | 29/09/2026 | 🟢 **Hecho** | No requiere |
 | 96.7 | Reactivar una convocatoria vencida funciona | Becas · convocatorias | `#ui` `#convocatorias` | PM — auditoría de diseño de Becas (POP-3) | 29/09/2026 | 🟢 **Hecho** | No requiere |
+| 96.8 | La convocatoria pausada no dice «Activa» y la solapa cuenta casos | Becas · convocatorias | `#ui` `#convocatorias` | PM — auditoría de diseño de Becas (CMP-9, CMP-N2) | 29/09/2026 | 🟢 **Hecho** | No requiere |
+| 96.9 | Modal accesible reutilizable de Becas (foco, Escape, alto máximo) | Becas | `#ui` | Juez — plan de diseño de Becas (POP-7/8/9/15/16) | 29/09/2026 | 🟢 **Hecho** | No requiere |
+| 96.10 | ModernModal con tono de ícono, botones del sistema y a prueba de doble clic | Transversal | `#ui` | Auditoría de diseño de Becas (POP-11, POP-20, DA-4) | 29/09/2026 | 🟢 **Hecho** | No requiere |
+| 96.11 | Un solo sistema de avisos y confirmaciones en los modales de Becas | Becas | `#ui` `#relevamientos` `#convocatorias` | Juez — auditoría de diseño de Becas (ALR-1/4/6/7/9) | 29/09/2026 | 🟢 **Hecho** | No requiere |
+| 96.12 | El caso muestra su estado real, no se aprueba en lista de espera y resolver duplicados pide confirmación | Becas · revisión | `#relevamientos` `#cupos` `#ui` | Auditoría de diseño de Becas (CMP-3, CMP-N1, POP-5) | 29/09/2026 | 🟢 **Hecho** | No requiere |
+| 96.13 | Un color por estado en todas las pantallas de Becas | Becas | `#ui` `#relevamientos` `#cupos` | Auditoría de diseño de Becas (CMP-1/2/4/9/10, CMP-M1) | 29/09/2026 | 🟢 **Hecho** | No requiere |
+| 96.14 | Encabezado de página reutilizable con migas de pan | Becas · transversal | `#ui` `#convocatorias` | Auditoría de diseño de Becas (TIT-M1, DE-1) | 29/09/2026 | 🟢 **Hecho** | No requiere |
+| 96.15 | Clases comunes de tabla densa y botón de ícono con foco visible | Transversal | `#ui` | PM — auditoría de diseño de Becas (CMP-M3, CMP-M4, DC-7) | 29/09/2026 | 🟢 **Hecho** | No requiere |
+| 96.16 | La lista de espera se respeta en todos los caminos: aprobar, masivo, rechazar, promover | Becas · cupo | `#cupos` `#relevamientos` `#siis` `#datos` | Usuario — decisión CMP-N1 | 29/09/2026 | 🟢 **Hecho** | No requiere |
+| 96.17 | Piezas reutilizables: paginación, tarjetas de números, estado vacío y alertas | Transversal | `#ui` `#relevamientos` | Auditoría de diseño de Becas (CMP-11/22/23, ALR-14/15) | 29/09/2026 | 🟢 **Hecho** | No requiere |
+| 96.18 | El alta rápida de usuario usa el modal del sistema y no `alert()` | Transversal | `#ui` `#usuarios` | Auditoría de diseño de Becas (POP-2) | 29/09/2026 | 🟢 **Hecho** | No requiere |
+| 96.19 | El listado de programas usa las piezas comunes y deja de mostrar paginación falsa | Becas | `#ui` | Auditoría de diseño de Becas (TIT-13/14/18, CMP-1/11) | 29/09/2026 | 🟢 **Hecho** | No requiere |
+| 96.20 | La pantalla de pausa usa el encabezado común y Cancelar vuelve a la entidad | Becas | `#ui` `#pausas` | Auditoría de diseño de Becas (TIT-7, CMP-20) | 29/09/2026 | 🟢 **Hecho** | No requiere |
+| 96.21 | Encabezado canónico y modales accesibles del subsegmento | Becas | `#ui` `#requisitos` | Auditoría de diseño de Becas (TIT-5, DE-7) | 29/09/2026 | 🟢 **Hecho** | No requiere |
+| 96.22 | Piezas comunes en las pantallas de Segmentos | Becas | `#ui` `#pausas` `#requisitos` | Auditoría de diseño de Becas (TIT-13/14/18, CMP-5/10/11) | 29/09/2026 | 🟢 **Hecho** | No requiere |
+| 96.23 | El caso vuelve al origen, avisa una vez y usa los modales canónicos | Becas · revisión | `#ui` `#relevamientos` | Auditoría de diseño de Becas (TIT-9, ALR-8/16, POP-10) | 29/09/2026 | 🟢 **Hecho** | No requiere |
+| 96.24 | Convocatorias con las piezas comunes (CMP-4, TIT-15/16, POP-12/13, ALR-15) | Becas · convocatorias | `#ui` `#convocatorias` `#performance` | Auditoría de diseño de Becas | 29/09/2026 | 🟢 **Hecho** | No requiere |
+| 96.25 | Reportes con botones y alertas del sistema | Becas | `#ui` | Auditoría de diseño de Becas (TIT-17, CMP-21/30) | 29/09/2026 | 🟢 **Hecho** | No requiere |
+| 96.26 | Cupo y beneficiarios con piezas comunes | Becas · cupo | `#ui` `#cupos` | Auditoría de diseño de Becas (TIT-6, CMP-16/23/24) | 29/09/2026 | 🟢 **Hecho** | No requiere |
+| 96.27 | Proceso masivo con encabezado y tarjetas del sistema | Becas · proceso masivo | `#ui` `#siis` | Auditoría de diseño de Becas (TIT-13/14, ALR-13) | 29/09/2026 | 🟢 **Hecho** | No requiere |
+| 96.28 | Piezas comunes en Relevamientos | Becas · relevamientos | `#ui` `#relevamientos` | Auditoría de diseño de Becas (TIT-8, ALR-11/14, CMP-22/27) | 29/09/2026 | 🟢 **Hecho** | No requiere |
+| 96.29 | Listas de revisión — ola 3 | Becas · revisión | `#ui` `#relevamientos` | Auditoría de diseño de Becas | 29/09/2026 | 🟢 **Hecho** | No requiere |
+| 96.30 | Catálogo de requisitos generales con piezas comunes | Becas · requisitos generales | `#ui` `#requisitos` | Auditoría de diseño de Becas (TIT-10, DA-2, ALR-14) | 29/09/2026 | 🟢 **Hecho** | No requiere |
+| 96.31 | `design_audit` detecta `alert()`/`prompt()`/`confirm()` y se audita el JS de Becas | Transversal | `#ui` `#textos` | Auditoría de diseño de Becas | 29/09/2026 | 🟢 **Hecho** | No requiere |
+| 96.32 | Resumen fijo de la última carga de padrón | Becas · padrón | `#ui` `#convocatorias` `#relevamientos` | Auditoría de diseño de Becas (DA-5, ALR-M3/M4) | 29/09/2026 | 🟢 **Hecho** | No requiere |
 | 97 | El check de seguridad (pip-audit) deja de bloquear los PRs: DRF 3.17.2 y anyio 4.14.2 | Transversal | `#infra` `#api` | Juez de la sesión — gate «Security / Pip Audit» rojo en todos los PRs | 29/09/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
@@ -10512,7 +10537,7 @@ Entrada nueva.
 
 # Cambio 96 — Ajustes de diseño de Becas (auditoría 29/09/2026)
 
-🟢 **HECHO — 29/09/2026** (tanda 1; las olas siguientes se suman como sub-pedidos 96.N)
+🟢 **HECHO — 30/09/2026** (tandas 1 a 3; sub-pedidos 96.1 a 96.32. En curso, fuera de este paraguas: PR #474, #488, #501 y el constructor de formularios — ola 3, L-E)
 
 | | |
 |---|---|
@@ -10520,11 +10545,11 @@ Entrada nueva.
 | **Etiquetas** | `#ui` `#textos` `#relevamientos` |
 | **Solicitante** | PM — auditoría de diseño de Becas del 29/09/2026 y decisiones aprobadas en sesión |
 | **Fecha del pedido** | 29/09/2026 |
-| **Issue / épica** | Sin issue · siete PRs contra `development` (#465 a #469, #471 y #472) |
+| **Issue / épica** | Sin issue · 32 PRs contra `development` (#465 a #469, #471, #472, #475 a #487, #489 a #500) |
 | **Partes afectadas** | Backoffice |
 | **Migración** | No requiere |
 
-Este cambio es el **paraguas** de la auditoría de diseño de Becas: cada PR de la tanda es un sub-pedido (96.1 a 96.7) con su propio semáforo, PR y SHA. El endurecimiento de dependencias que se mergeó en la misma sesión (#470) no es diseño y se registra aparte, en el Cambio 97.
+Este cambio es el **paraguas** de la auditoría de diseño de Becas: cada PR es un sub-pedido (96.1 a 96.32) con su propio semáforo, PR y SHA. Tanda 1 (96.1-96.7, 29/09) resolvió los hallazgos puntuales de la primera revisión; tanda 2 (96.8-96.16, 29/09) cerró piezas base (modal accesible, ModernModal, mapa de estados, encabezado con migas, tabla densa) y los caminos de la lista de espera; tanda 3 (96.17-96.32, 30/09) construyó las piezas compartidas que faltaban de la ola 2 (paginación, tarjetas, estado vacío, alertas) y las aplicó pantalla por pantalla en la ola 3. El endurecimiento de dependencias que se mergeó en la misma sesión (#470) no es diseño y se registra aparte, en el Cambio 97. Quedan en curso, fuera de este paraguas: PR #474, #488, #501 y el constructor de formularios (ola 3, L-E).
 
 ## Pedido original
 
@@ -10552,7 +10577,7 @@ Las decisiones técnicas de cada PR están en su sub-pedido.
 
 ## Implementación
 
-Ver los sub-pedidos: 96.1 (etiqueta gris), 96.2 (avisos de «Guardar y configurar» y color de los avisos de Django), 96.3 (menú lateral), 96.4 (Pendientes de validación), 96.5 (proceso masivo), 96.6 (firma de `window.toast`) y 96.7 (Reactivar convocatoria).
+Ver los sub-pedidos: 96.1 (etiqueta gris), 96.2 (avisos de «Guardar y configurar» y color de los avisos de Django), 96.3 (menú lateral), 96.4 (Pendientes de validación), 96.5 (proceso masivo), 96.6 (firma de `window.toast`), 96.7 (Reactivar convocatoria), 96.8 (convocatoria pausada y solapa «Casos»), 96.9 (modal accesible reutilizable), 96.10 (ModernModal con tono de ícono), 96.11 (un solo sistema de avisos en los modales de Becas), 96.12 (el caso muestra su estado real y no se aprueba en espera), 96.13 (un color por estado en todas las pantallas), 96.14 (encabezado reutilizable con migas), 96.15 (tabla densa y botón de ícono), 96.16 (la lista de espera se respeta en todos los caminos), 96.17 (paginación, tarjetas, estado vacío y alertas reutilizables), 96.18 (alta rápida de usuario sin `alert()`), 96.19 (listado de programas), 96.20 (pantalla de pausa), 96.21 (subsegmento y requisitos por segmento), 96.22 (Segmentos), 96.23 (el caso vuelve al origen), 96.24 (Convocatorias con piezas comunes), 96.25 (Reportes), 96.26 (Cupo y beneficiarios), 96.27 (proceso masivo con encabezado y tarjetas), 96.28 (Relevamientos), 96.29 (listas de Revisión), 96.30 (catálogo de requisitos generales), 96.31 (`design_audit` detecta `alert()`/`prompt()`/`confirm()`) y 96.32 (resumen fijo de la carga de padrón).
 
 ## Archivos
 
@@ -10572,15 +10597,27 @@ No requiere nada más que el deploy.
 
 ## Pendientes / a definir
 
-Los que quedaron abiertos de las revisiones independientes de la tanda (cada uno figura también en su sub-pedido):
+**Resueltos en las tandas 2 y 3** (quedan solo como referencia histórica):
 
-- **Candado de servidor en `proceso_masivo_lanzar`** (`programas/views/proceso_masivo.py:58-78`): `CorridaSiis.en_curso() is None` y el `create` no son atómicos; dos pestañas o dos usuarios pueden lanzar dos corridas EN_CURSO. El revisor reprodujo 2 corridas con 1 s de latencia. *(96.5)*
+- **Piezas compartidas de la ola 2** (`becasModal`, `_modal_header`, `_modal_footer`, `_paginacion`, `_estado_vacio`, `_stat_card`, `_alerta`): construidas y en uso. `becasModal`/`_modal_header`/`_modal_footer` en *96.9*; `_paginacion`/`_estado_vacio`/`_stat_card`/`_alerta` en *96.17*. Los pies y modales inline de 96.4 y 96.7 se migraron a ellas en *96.29* y *96.24* respectivamente.
+
+**Abiertos, cada uno con su sub-pedido:**
+
+- **Candado de servidor en `proceso_masivo_lanzar`** (`programas/views/proceso_masivo.py:58-78`): `CorridaSiis.en_curso() is None` y el `create` no son atómicos; dos pestañas o dos usuarios pueden lanzar dos corridas EN_CURSO. **En curso, PR #501.** *(96.5)*
 - **Clic en «Sí» antes de 400 ms sin aviso:** en el modal del proceso masivo el clic se ignora en silencio durante los primeros 400 ms. *(96.5)*
 - **Sidebar:** doble `aria-current` en `/becas/reportes/` con el menú colapsado, y la condición `'dispositivos' in` coincide con `legajos/.../dispositivos/` y marca el ítem equivocado. *(96.3)*
 - **`programas/views/relevamientos.py:394`:** redirige a `next` sin validar el host (open redirect). Preexistente, detectado en la revisión de 96.7. *(96.7)*
 - **Regla CSS muerta en `static/custom/css/custom.css:24-30`:** detectada en la revisión de 96.1; no se tocó. *(96.1)*
 - **`toastr` no está cargado en `legajos/ciudadano_detail`:** *Copiar DNI* nunca muestra su aviso (ya figuraba en el Cambio 95). Debe pasar a `window.toast()`. *(96.6)*
-- **Piezas compartidas de la ola 2** (`_paginacion`, `_estado_vacio`, `becasModal`, `_modal_header`, `_modal_footer`) y la migración de los pies y modales inline de 96.4 y 96.7 a ellas.
+- **Decidir si se corre `cerrar_espera_colgada --aplicar` en PRD** y el resumen de `procesar_casos_siis` no imprime `ya_en_espera`. *(96.16)*
+- **`segmento_detail.html` y `programa_detail.html`** siguen con el marcado de modal previo, sin migrar a `x-becas-modal`. *(96.21, 96.22)*
+- **Fila del inventario que #490 no pudo escribir** (fila «Canon visual backoffice», restricción del entorno del PR) queda pendiente de aplicar a mano. *(96.22)*
+- **Tabla del listado de Segmentos** sigue desbordando ~52 px a 1440 px, y el modal de alta de requisito no ofrece `destino_siis`. *(96.22)*
+- **Migrar los seis bloques de alerta del caso y las tres tarjetas de `_resumen_ciudadano.html`** a `_alerta`/`_stat_card`; el `?next=` no cubre `/legajos/…` desde la solapa de Becas del legajo. *(96.23)*
+- **Validar con negocio los textos de consecuencia** de las confirmaciones de Activar/Desactivar/Pausar. *(96.5, 96.22, 96.24)*
+- **Parametrizar `_paginacion`** para pantallas con más de un paginador (Cupo y beneficiarios tiene tres). *(96.26)*
+- **16 errores HEX/FONT/ZINDEX en JS ajeno a Becas**, expuestos por la regla CONFIRM nueva de `design_audit`, y `conversaciones/conversaciones_lista_ws.js`/`detalle.html` sin migrar a `window.toast` (conversaciones queda fuera de alcance de este Cambio). *(96.31)*
+- **Revisión visual con Playwright en vivo** pendiente en 96.21 y 96.28 (el entorno del PR no permitió levantar el servidor completo).
 
 ## Reversión
 
@@ -10589,6 +10626,7 @@ Cada sub-pedido se revierte por separado, revirtiendo el commit de su PR. Ningun
 ## Historial
 
 Entrada nueva (tanda 1, 29/09/2026).
+30/09/2026 — tandas 2 y 3 (sub-pedidos 96.8 a 96.32).
 
 ## 96.1 La etiqueta gris vuelve a tener estilo en todo el sistema
 
@@ -10944,6 +10982,1272 @@ Revertir el commit del PR #472. El botón vuelve a no hacer nada.
 
 ### Historial
 Entrada nueva. Resuelve el pendiente «Reactivar sin SweetAlert2 no hace nada» del Cambio 95.
+
+## 96.8 La convocatoria pausada no dice «Activa» y la solapa cuenta casos
+
+🟢 **HECHO — 29/09/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · convocatorias |
+| **Etiquetas** | `#ui` `#convocatorias` |
+| **Solicitante** | PM — auditoría de diseño de Becas (hallazgos CMP-9, CMP-N2) |
+| **Fecha del pedido** | 29/09/2026 |
+| **Issue / épica** | Sin issue · PR #475 |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+### Pedido original
+La ficha «Datos» del detalle de convocatoria mostraba «Activa» aunque estuviera pausada, y la solapa y la tarjeta decían «Beneficiarios» en vez de «Casos».
+
+### Alcance acordado
+Solo `convocatoria_detail.html` y su test. Afuera: el resto de las pantallas.
+
+### Decisiones tomadas
+- **La ficha «Datos» sigue el mismo orden de precedencia que el encabezado:** `pausa_efectiva` → «Pausada» (warning), `activo` → «Activa», si no «Inactiva».
+- **CMP-N2:** el rótulo es «Casos» (ya decidido en el Cambio 96). No cambian `n_beneficiarios`, la vista, la exportación ni `?tab=ben`.
+
+### Implementación
+Una convocatoria pausada muestra «Pausada» también en la ficha «Datos», y la solapa y la tarjeta de beneficiarios dicen «Casos».
+
+### Archivos
+`.claude/agents/chaco-design-system.md` · `programas/templates/programas/becas/relevamientos/convocatoria_detail.html` · `programas/tests/test_convocatoria_detail_estado.py` (nuevo, 3 tests).
+
+### Base de datos
+No requiere.
+
+### Validación
+2 de 3 tests fallaban antes del fix. `test_pausas` + `test_becas_relevamientos`: 61 OK. `check --deploy`, `makemigrations --check`, `compile_templates` (190 OK), `design_audit` 0, `check_design_agent` OK, ruff OK. Playwright 1440/390, activa y pausada: sin errores de consola ni HTTP ≥ 400, sin scroll horizontal.
+
+### Puesta en marcha en el servidor
+No requiere. El PR mergeó como `656fce5` (head `7f5adf5`).
+
+### Pendientes / a definir
+Ninguno.
+
+### Reversión
+Revertir el commit `656fce5`.
+
+### Historial
+Entrada nueva.
+
+## 96.9 Modal accesible reutilizable de Becas (foco, Escape, alto máximo)
+
+🟢 **HECHO — 29/09/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas |
+| **Etiquetas** | `#ui` |
+| **Solicitante** | Juez del plan de ajustes de diseño de Becas (hallazgos POP-7/8/9/15/16, mejoras POP-M1..M3; decisión DP-3) |
+| **Fecha del pedido** | 29/09/2026 |
+| **Issue / épica** | Sin issue · PR #476 |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+### Pedido original
+Que los modales de Becas se puedan usar con teclado y en pantallas bajas: que el lector de pantalla sepa que es una ventana, que Escape la cierre, que el foco entre y vuelva, y que el pie con los botones no quede fuera de vista.
+
+### Alcance acordado
+El helper `becas-modal.js` (directiva Alpine `x-becas-modal` y API vanilla), los parciales `_modal_header.html`/`_modal_footer.html`, y un solo consumidor de prueba: el modal «Nuevo programa» de `programa_list.html`. Afuera: los otros 27 modales de Becas (ola 3) y el detalle SIIS.
+
+### Decisiones tomadas
+- **Helper propio, sin dependencias** (DP-3): el repo no trae `@alpinejs/focus`.
+- **La directiva se registra en `alpine:init`:** el script corre como `<script>` clásico antes que Alpine, que carga con `defer`.
+- **El scroll se bloquea en `<html>` y en `<body>`**, porque `<html>` lleva `overflow-x-hidden` y bloquear solo `<body>` no alcanza.
+- **Si el foco está en otro diálogo encima (SweetAlert2, ModernModal), no se intercepta el teclado.**
+- **El foco inicial va al primer campo, no a la X.** `role="dialog"` va en el panel, no en el overlay.
+
+### Implementación
+El modal «Nuevo programa» se anuncia como ventana con su título; Tab y Shift+Tab recorren solo el panel; Escape cierra y devuelve el foco; en pantalla baja el cuerpo se desplaza y el pie queda siempre visible.
+
+### Archivos
+`static/custom/js/becas-modal.js` (nuevo) · `programas/templates/programas/becas/_modal_header.html` (nuevo) · `_modal_footer.html` (nuevo) · `config/programa_list.html` · `.claude/agents/chaco-design-system.md` · `programas/tests/test_becas_modal.py` (nuevo, 11 tests).
+
+### Base de datos
+No requiere.
+
+### Validación
+9 de 11 tests fallaban sin el cambio. `manage.py test programas`: 1104 OK. `check --deploy`, `makemigrations --check`, `design_audit --changed` 0, `compile_templates` 192 OK, `check_design_agent --changed` OK, ruff OK. Playwright solo con teclado en 1440×700, 390×700 y 1440×420: el foco entra al select, 12 Tab/Shift+Tab sin salir del panel, Escape cierra y libera el scroll, el pie queda visible en los tres tamaños, guardar por AJAX redirige, sin console.error ni HTTP ≥ 400.
+
+### Puesta en marcha en el servidor
+No requiere. El PR mergeó como `00d7d10` (head `d7c4340`).
+
+### Pendientes / a definir
+- Migrar los demás modales de Becas a `x-becas-modal` y a los parciales (ola 3).
+- Los modales inline de `formulario_detalle.html` (POP-10) usan la API vanilla.
+
+### Reversión
+Revertir el commit `00d7d10`.
+
+### Historial
+Entrada nueva.
+
+## 96.10 ModernModal con tono de ícono, botones del sistema y a prueba de doble clic
+
+🟢 **HECHO — 29/09/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal (backoffice) |
+| **Etiquetas** | `#ui` |
+| **Solicitante** | Auditoría de diseño de Becas (POP-11, POP-20, DA-4), decisión DP-1 del usuario |
+| **Fecha del pedido** | 29/09/2026 |
+| **Issue / épica** | Sin issue · PR #477 |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+### Pedido original
+`ModernModal` pasa a ser el motor canónico de las confirmaciones del backoffice (DP-1): pie con botones del sistema y «Cancelar» terciario (POP-11), ícono con tono según la acción y sin el «?» gris en las destructivas (POP-20, DA-4).
+
+### Alcance acordado
+Solo `ModernModal` de `templates/includes/base.html` y su fila del inventario. Afuera: la copia del portal, las confirmaciones con SweetAlert2 (Dispositivos y Legajos) y `_confirm_js.html`.
+
+### Decisiones tomadas
+- **`ModernModal` pasa de «legacy solo mantenimiento» a canónico** para confirmaciones del backoffice; convive con SweetAlert2 en Dispositivos y Legajos.
+- **`options.icon`** (`warning`, `danger`, `question`, `info`) solo con `type:'confirm'` y manda sobre el default. Sin `icon`: tono danger si `danger:true`, «?» si no.
+- **En una destructiva el foco inicial va a Cancelar.** Tras confirmar, cancelar o cerrar se ignoran los clics hasta que termina la animación (lección de #469, ver 96.5).
+- **`icon:'info'` usa el mismo tono que `type:'info'`**, porque `bg-info-soft` no está en el Tailwind compilado.
+
+### Implementación
+Las confirmaciones destructivas muestran el ícono rojo y enfocan Cancelar; el doble clic o el doble Enter ya no ejecutan la acción dos veces; los botones del pie tienen el tamaño de los demás modales.
+
+### Archivos
+`templates/includes/base.html` (bloque ModernModal) · `.claude/agents/chaco-design-system.md` · `core/tests/test_modern_modal_contrato.py` (nuevo, 20 tests).
+
+### Base de datos
+No requiere.
+
+### Validación
+15 de 20 tests fallaban contra la base. `core` + `test_proceso_masivo`: 109 OK. `check`, `check --deploy`, `makemigrations --check`, `design_audit --changed` 0, `compile_templates` 190 OK, `check_design_agent --changed` OK, ruff OK. Playwright 1440/390: Becas (eliminar requisito), Legajos y una confirmación no destructiva, sin errores de consola ni HTTP ≥ 400.
+
+### Puesta en marcha en el servidor
+No requiere. El PR mergeó como `0aca530` (head `0337082`).
+
+### Pendientes / a definir
+- Tono `info` con `--bg-info-soft` cuando se pueda regenerar Tailwind.
+- En celular el modal ocupa toda la altura (previo a este cambio).
+- Las guardas propias de `proceso_masivo.html` (foco y doble envío) quedan redundantes.
+
+### Reversión
+Revertir el commit `0aca530`.
+
+### Historial
+Entrada nueva.
+
+## 96.11 Un solo sistema de avisos y confirmaciones en los modales de Becas
+
+🟢 **HECHO — 29/09/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas |
+| **Etiquetas** | `#ui` `#relevamientos` `#convocatorias` |
+| **Solicitante** | Juez de la auditoría de diseño de Becas (ALR-1/4/6/7/9, POP-1/14/18, POP-M4/M5, DA-3/4/6; plan W2-C7) |
+| **Fecha del pedido** | 29/09/2026 |
+| **Issue / épica** | Sin issue · PR #478 |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+### Pedido original
+«Un solo aviso para todo el sistema»: quitar el toast propio de los modales de Becas, pasar la confirmación de fechas superpuestas a la ventana del sistema, no duplicar los errores de validación y dejar de usar las ventanas nativas del navegador (`confirm`, `prompt`).
+
+### Alcance acordado
+Los scripts compartidos `_ajax_js`, `_confirm_js`, la cascada de localidad y copiar link. Afuera: ALR-12/13 (roles aria), el cambio visual de ModernModal (96.10) y los POST clásicos sin AJAX.
+
+### Decisiones tomadas
+- **Todo aviso sale por `window.toast(tipo, mensaje)`**, sin toast local.
+- **En un 400:** cada error va bajo su campo, más un único aviso de resumen.
+- **En un 409:** «¿Asignar igual?» con `ModernModal` en vez de `confirm` nativo; vale para un solo envío.
+- **Con redirect, el botón queda «Guardando…» hasta que cambia la página.**
+- **`data-confirm-danger` explícito manda sobre la regla del ícono.**
+- **Si falla copiar el link, se usa un campo de solo lectura seleccionado, nunca `prompt`.**
+
+### Implementación
+Los modales de Becas avisan con el sistema común, el botón muestra «Guardando…» mientras dura el pedido, la confirmación de solapamiento usa la ventana del sistema y copiar link ya no usa `prompt`.
+
+### Archivos
+`programas/templates/programas/becas/_ajax_js.html` · `_confirm_js.html` · `relevamientos/_cascada_localidad.html` · `relevamientos/_copiar_link_js.html` · `.claude/agents/chaco-design-system.md` · `programas/tests/test_becas_feedback_js.py` (nuevo, 17 tests).
+
+### Base de datos
+No requiere.
+
+### Validación
+16 de 17 tests fallaban sin el cambio. `manage.py test programas`: 1110 OK. `check --deploy`, `makemigrations --check`, `compile_templates` 0, `design_audit` sobre los 4 archivos 0, `check_design_agent --changed` OK, ruff OK. Playwright 1440/390: error de validación con un solo aviso de resumen, modal de solapamiento sin `confirm` nativo, cascada sin red avisa error, copiar link sin portapapeles abre popover con el link seleccionado.
+
+### Puesta en marcha en el servidor
+No requiere. El PR mergeó como `41e8aa2` (head `c8a9eb0`).
+
+### Pendientes / a definir
+- Ícono de atención y `btn-base` en ModernModal (llegaron con 96.10).
+- DA-3 en los POST clásicos.
+
+### Reversión
+Revertir el commit `41e8aa2`.
+
+### Historial
+Entrada nueva.
+
+## 96.12 El caso muestra su estado real, no se aprueba en lista de espera y resolver duplicados pide confirmación
+
+🟢 **HECHO — 29/09/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · revisión · detalle del caso |
+| **Etiquetas** | `#relevamientos` `#cupos` `#ui` |
+| **Solicitante** | Auditoría de diseño de Becas (CMP-3, CMP-N1, POP-5), plan W1-C3 |
+| **Fecha del pedido** | 29/09/2026 |
+| **Issue / épica** | Sin issue · PR #479 |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+### Pedido original
+Un caso en BAJA se mostraba como «Enviado» en el encabezado (CMP-3); un caso en lista de espera se veía como «Enviado» y ofrecía «Aprobar», y con cupo libre lo aprobaba dejando la fila de `ListaEspera` colgando (CMP-N1); «Conservar este» / «Conservar el otro» rechazaban un caso duplicado con un clic, sin confirmación (POP-5).
+
+### Alcance acordado
+Solo la pantalla del caso y `formulario_aprobar`. Afuera: `formulario_rechazar` y el proceso masivo (cerrado en 96.16).
+
+### Decisiones tomadas
+- **El badge de estado sale del parcial único** `_formulario_estado_badge.html`.
+- **La lista de espera es una etiqueta, no un estado:** badge extra «Lista de espera · posición N».
+- **Un caso en espera no se aprueba desde el caso, solo promoviéndolo desde Cupo** (decisión del usuario, 29/09/2026): se oculta «Aprobar», aparece una alerta con link a Cupo y el servidor rechaza el POST sin consultar SIIS.
+- **La posición viaja como subconsulta** en la misma consulta del caso, sin sumar queries.
+- **Resolver un duplicado se confirma con `ModernModal` danger**, con guard contra doble envío.
+
+### Implementación
+El encabezado del caso muestra su estado real; un caso en espera no ofrece «Aprobar» y explica por qué; resolver un duplicado pide confirmación antes de rechazar.
+
+### Archivos
+`.claude/agents/chaco-design-system.md` · `programas/templates/programas/becas/revision/formulario_detalle.html` · `programas/tests/test_caso_estado_espera_duplicado.py` (nuevo, 10 tests) · `programas/views/revision.py`.
+
+### Base de datos
+No requiere.
+
+### Validación
+6 de 10 tests fallaban sin el cambio. `manage.py test programas`: 1103 OK antes del merge con development; 126 OK después. `--tag performance` OK. `check --deploy` 0, `makemigrations --check` sin cambios, `compile_templates` 190 OK, `design_audit --changed` 0, `check_design_agent --changed` OK. Playwright 1440/390 con casos en BAJA, en espera y con conflicto de DNI: sin console.error ni HTTP ≥ 400.
+
+### Puesta en marcha en el servidor
+No requiere. El PR mergeó como `2085c57` (head `ba9ae3d`).
+
+### Pendientes / a definir
+- `formulario_rechazar` no cierra la fila de `ListaEspera` de un caso en espera.
+- El proceso masivo aprueba casos en espera con cupo libre (falta el guard en `aprobar_o_poner_en_espera`).
+
+Ambos se cierran en 96.16.
+
+### Reversión
+Revertir el commit `2085c57`.
+
+### Historial
+Entrada nueva.
+
+## 96.13 Un color por estado en todas las pantallas de Becas
+
+🟢 **HECHO — 29/09/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · casos, relevamientos, convocatorias, programas/segmentos |
+| **Etiquetas** | `#ui` `#relevamientos` `#cupos` |
+| **Solicitante** | Auditoría de diseño de Becas (CMP-1, CMP-2, CMP-4, CMP-9, CMP-10, CMP-M1), plan W2-C10 |
+| **Fecha del pedido** | 29/09/2026 |
+| **Issue / épica** | Sin issue · PR #480 |
+| **Partes afectadas** | Backoffice (incluye el resumen de Becas en el legajo) |
+| **Migración** | No requiere |
+
+### Pedido original
+El mismo estado salía con colores distintos según la pantalla (Pausado rojo o ámbar, Enviado gris o ámbar, Inactiva roja o Cerrada gris, Vencida ámbar y Vencido rojo).
+
+### Alcance acordado
+Parciales únicos por entidad y el mapa nuevo en los dos parciales existentes (caso y relevamiento). Los parciales nuevos (convocatoria, pausable) todavía no se aplican en ninguna pantalla: eso se hace pantalla por pantalla en la ola 3.
+
+### Decisiones tomadas
+- **Mapa cerrado, siempre `badge badge-<tono> badge-dot`:** caso Enviado warning / Aprobado success / Rechazado danger / Baja gray; relevamiento Vencido warning; convocatoria Pausada warning > Vencida warning > Activa success > Cerrada gray; programa/segmento/subsegmento Pausado warning > Inactivo gray > Activo success.
+- **«Lista de espera» no es un estado:** se suma un badge sin dot.
+- **Pausado nunca es danger.** Programa usa `solo_manual=True` para no duplicar el bloqueo por SIIS, que se muestra en un badge aparte.
+
+### Implementación
+Todos los estados de Becas usan el mismo color en cualquier pantalla donde aparezcan.
+
+### Archivos
+`.claude/agents/chaco-design-system.md` · `programas/templates/programas/becas/_convocatoria_estado_badge.html` (nuevo) · `_formulario_estado_badge.html` · `_pausable_estado_badge.html` (nuevo) · `relevamientos/_estado_badge.html` · `programas/tests/test_estado_badges.py` (nuevo, 16 tests).
+
+### Base de datos
+No requiere.
+
+### Validación
+13 de 16 subtests fallaban contra la base. `manage.py test programas legajos`: 1157 OK. `check --deploy` sin errores nuevos, `makemigrations --check` sin cambios, `compile_templates` 192 OK, `design_audit` sobre los 4 parciales 0, `check_design_agent --changed` OK, ruff OK. Playwright 1440/390 base vs head en 6 pantallas: sin scroll horizontal ni console.error propios.
+
+### Puesta en marcha en el servidor
+No requiere. El PR mergeó como `5d6d51c` (head `a4d8ecc`).
+
+### Pendientes / a definir
+- Aplicar `_convocatoria_estado_badge` y `_pausable_estado_badge` pantalla por pantalla en la ola 3 (resuelto progresivamente en 96.19, 96.22 y 96.24).
+- Convocatoria cerrada con pausa heredada se muestra «Pausada», por la precedencia del encabezado.
+
+### Reversión
+Revertir el commit `5d6d51c`.
+
+### Historial
+Entrada nueva.
+
+## 96.14 Encabezado de página reutilizable con migas de pan
+
+🟢 **HECHO — 29/09/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · convocatorias (primer consumidor) · componente transversal de encabezado |
+| **Etiquetas** | `#ui` `#convocatorias` |
+| **Solicitante** | Auditoría de diseño de Becas (TIT-M1, DE-1), plan W2-C9a |
+| **Fecha del pedido** | 29/09/2026 |
+| **Issue / épica** | Sin issue · PR #481 |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+### Pedido original
+Los 28 encabezados de detalle del backoffice de Becas repetían a mano el mismo HTML, y ninguna pantalla tenía migas de pan.
+
+### Alcance acordado
+El tag `{% page_header %}` (`core/templatetags/nodo_ui.py` → `templates/components/_page_header.html`), el armador `{% becas_migas %}` (`programas/templatetags/becas_extras.py`) y un solo consumidor: el detalle de convocatoria.
+
+### Decisiones tomadas
+- **`titulo` y `bajada=` se escapan siempre;** HTML en la bajada solo con `{% bajada %}…{% endbajada %}` o marcado con `|safe` explícitamente en la plantilla.
+- **Las migas solo aparecen con tres niveles o más** (DE-1), con `aria-current="page"` en el último ítem.
+- **`becas_migas` arma `Programas → programa → segmento → [subsegmento] → convocatoria → relevamiento`**, con la raíz «Programas» igual al nombre del menú (DE-5, ver Cambio 96). Una miga lleva enlace solo si el usuario tiene la capacidad de la vista de destino.
+- **`select_related("segmento__programa", "subsegmento")`** en `ConvocatoriaDetailView` para que las migas no sumen consultas.
+
+### Implementación
+El detalle de convocatoria muestra sus migas y usa el encabezado común, sin cambiar título, bajada, badges ni acciones existentes.
+
+### Archivos
+`core/templatetags/nodo_ui.py` · `templates/components/_page_header.html` (nuevo) · `programas/templatetags/becas_extras.py` (nuevo) · `programas/templates/programas/becas/relevamientos/convocatoria_detail.html` · `programas/views/relevamientos.py` · `.claude/agents/chaco-design-system.md` · `core/tests/test_page_header_tag.py` (nuevo, 18 tests).
+
+### Base de datos
+No requiere.
+
+### Validación
+`test_page_header_tag` + `test_toast_firma` + `test_becas_handlers_inline`: 36 OK. `check --deploy` sin errores nuevos, `makemigrations --check` sin cambios, `compile_templates` 0, `design_audit --changed` 0, `check_design_agent --base origin/development` OK, ruff OK. Sin el `select_related` completo las migas sumaban una consulta en el caso pausado (`assertNumQueries`). Playwright 1440/390 antes/después: mismo h1, bajada, badges y volver; se suman las migas; sin console.error ni HTTP ≥ 400.
+
+### Puesta en marcha en el servidor
+No requiere. El PR mergeó como `a8bf325` (head `e6f7be3`).
+
+### Pendientes / a definir
+Adoptar `{% page_header %}` y `becas_migas` en el resto de las pantallas (ola 3, resuelto progresivamente de 96.19 en adelante).
+
+### Reversión
+Revertir el commit `a8bf325`.
+
+### Historial
+Entrada nueva.
+
+## 96.15 Clases comunes de tabla densa y botón de ícono con foco visible
+
+🟢 **HECHO — 29/09/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal |
+| **Etiquetas** | `#ui` |
+| **Solicitante** | PM — auditoría de diseño de Becas (CMP-M3, CMP-M4, DC-7), plan W2-C9c |
+| **Fecha del pedido** | 29/09/2026 |
+| **Issue / épica** | Sin issue · PR #482 |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+### Pedido original
+Empaquetar la tabla densa (113 `style="font-size:11px"` repetidos) y la acción de fila en clases comunes, con foco visible accesible.
+
+### Alcance acordado
+`nodo-tables.css` y `nodo-buttons.css` (nuevos/ampliados), el `<link>` en `base.html` y `personas_list.html` como único consumidor de prueba. Afuera: migrar el resto de las tablas (ola 3).
+
+### Decisiones tomadas
+- **La alineación del `th` va en `:where()`** para que `text-center`/`text-right` la reemplacen sin `!important`.
+- **El color de `.nodo-icon-btn` usa `!important`**, porque `nodo-brand.css` pinta todo `<a>` de color de marca.
+- **DC-7:** la acción de fila lleva `aria-label` que nombra el registro («Ver caso de …»).
+
+### Implementación
+La tabla de Revisión se ve igual; la acción «Ver» es ahora un ojo con nombre accesible y anillo de foco de marca.
+
+### Archivos
+`static/custom/css/nodo-tables.css` (nuevo) · `nodo-buttons.css` · `templates/includes/base.html` · `programas/templates/programas/becas/revision/personas_list.html` · `.claude/agents/chaco-design-system.md` · `core/tests/test_nodo_tables_css.py` (nuevo, 13 tests).
+
+### Base de datos
+No requiere.
+
+### Validación
+`manage.py test core programas.tests.test_becas_revision programas.tests.test_renaper_pendientes_paginacion`: 206 OK. `--tag performance` OK. `design_audit` sobre los archivos tocados 0/0 (antes daba 2 avisos en `personas_list`). `compile_templates` 190 OK, `check_design_agent --base origin/development` OK, `check --deploy` sin errores nuevos, `makemigrations --check` sin cambios, ruff OK. Playwright 1440/390 base vs head: mismas medidas de th/td/tabla, sin console.error ni HTTP ≥ 400; el ojo mide 44×44, gris en reposo, marca al pasar el mouse, `:focus-visible` con outline de marca.
+
+### Puesta en marcha en el servidor
+No requiere. El PR mergeó como `f7983b2` (head `6d5b8b1`).
+
+### Pendientes / a definir
+- Migrar el resto de las tablas con `style="font-size:11px"` y las acciones de fila al tocarlas (ola 3, resuelto progresivamente).
+- El hover del ícono usa el mismo color que el hover de fila.
+
+### Reversión
+Revertir el commit `f7983b2`.
+
+### Historial
+Entrada nueva.
+
+## 96.16 La lista de espera se respeta en todos los caminos: aprobar, masivo, rechazar, promover
+
+🟢 **HECHO — 29/09/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · revisión, cupo y lista de espera, proceso masivo |
+| **Etiquetas** | `#cupos` `#relevamientos` `#siis` `#datos` |
+| **Solicitante** | Usuario — decisión CMP-N1 del ajuste de diseño de Becas («un caso en lista de espera no se aprueba salvo promoviéndolo desde Cupo»); los huecos los encontró un revisor en el código |
+| **Fecha del pedido** | 29/09/2026 |
+| **Issue / épica** | Sin issue · PR #483 · continúa el pre-chequeo de 96.12 (#479) |
+| **Partes afectadas** | Backoffice · comando de management nuevo |
+| **Migración** | No requiere |
+
+### Pedido original
+La regla de 96.12 vivía solo en el botón «Aprobar»; el servicio `aprobar_o_poner_en_espera`, el proceso masivo, rechazar, resolver duplicado, dar de baja y promover desde Cupo la salteaban.
+
+### Alcance acordado
+La regla en el servicio de aprobación, el proceso masivo, el cierre de la espera al rechazar/descartar duplicado/dar de baja, la promoción que exige un caso pendiente, y un comando de limpieza para producción. Afuera: templates, pantalla del masivo (sin contador nuevo visible) y el resumen de `procesar_casos_siis`.
+
+### Decisiones tomadas
+- **La regla vive en `aprobar_o_poner_en_espera`**, chequeada después del `select_for_update` del segmento, releyendo el estado del caso en la misma consulta (sin eso, una promoción concurrente terminaba en doble aprobación).
+- **El proceso masivo deja afuera a los `ENVIADO` con espera activa** del selector `candidatos()`: no se consultan a SIIS ni gastan el total pedido.
+- **Una fila se cierra con `promovido=True` más una traza con el motivo** — la única salida de la lista sin migración, y la que ya excluyen todos los conteos de «en espera». La cierran rechazar, las dos ramas de resolver duplicado y dar de baja.
+- **Promover exige `ENVIADO`;** si no, cierra la fila e informa el error.
+- **Los datos existentes no se tocan con migración:** el comando `cerrar_espera_colgada` los lista por defecto y los cierra con `--aplicar`; correrlo lo decide el cliente.
+
+### Implementación
+Aprobar a un caso en espera falla con mensaje claro por cualquier camino; el proceso masivo no consulta a SIIS ni aprueba casos en espera; rechazar, descartar por duplicado o dar de baja sacan al caso de la lista; promover un caso ya resuelto no lo aprueba y avisa por qué.
+
+### Archivos
+`programas/services/cupo.py` (`CasoEnListaEspera`, `espera_activa`, `cerrar_espera_activa`) · `programas/services/proceso_masivo.py` (selector y `Cuenta.ya_en_espera`) · `programas/views/revision.py` · `programas/management/commands/cerrar_espera_colgada.py` (nuevo) · `programas/tests/test_cupo_espera_reglas.py` (nuevo, 19 tests).
+
+### Base de datos
+No cambia el esquema. Escribe `ListaEspera.promovido` y la traza del caso por los servicios de siempre.
+
+### Validación
+14 de 19 tests fallaban contra la base (11 failures + 3 errors). `manage.py test programas --parallel 4`: 1149 OK. `--tag performance`: 4 OK. `check --deploy` sin avisos nuevos, `makemigrations --check` sin cambios, ruff OK, `compile_templates` 192 OK, `design_audit --changed` 0, `check_design_agent --changed` OK.
+
+### Puesta en marcha en el servidor
+**Decisión del cliente.** Comando de management (flags reales según `programas/management/commands/cerrar_espera_colgada.py`): primero `python manage.py cerrar_espera_colgada` sin flags, que solo lista las filas colgando y no toca nada; recién después, revisado el listado, `python manage.py cerrar_espera_colgada --aplicar --usuario <usuario>` para cerrarlas (`--usuario` deja ese usuario como responsable en la traza; sin `--aplicar` nunca escribe). Es idempotente: la segunda corrida no encuentra nada.
+
+### Pendientes / a definir
+- Decidir si se corre `--aplicar` en PRD.
+- `promovido=True` cubre «promovido» y «cerrado» a la vez (separarlos requeriría un campo nuevo con migración).
+- El resumen de `procesar_casos_siis` no imprime `ya_en_espera`.
+- El rechazo no toma el lock del segmento.
+
+### Reversión
+Revertir el commit `9342c76`. Las filas que se hayan cerrado con el comando quedan cerradas; se reabren a mano con `promovido=False` (la traza dice cuáles fueron).
+
+### Historial
+Entrada nueva. Cierra los pendientes de 96.12.
+
+## 96.17 Piezas reutilizables: paginación, tarjetas de números, estado vacío y alertas
+
+🟢 **HECHO — 30/09/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal (Becas como primer consumidor) |
+| **Etiquetas** | `#ui` `#relevamientos` |
+| **Solicitante** | Auditoría de diseño de Becas (CMP-11, CMP-22, CMP-23, ALR-14/15), plan W2-C9b |
+| **Fecha del pedido** | 29/09/2026 |
+| **Issue / épica** | Sin issue · PR #484 |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+### Pedido original
+Unificar la paginación, las tarjetas de números, los estados vacíos y las alertas inline en piezas únicas.
+
+### Alcance acordado
+Cuatro parciales en `templates/components/` y el filtro `hay_filtros`, con un consumidor cada uno (`renaper_pendientes`, `convocatoria_detail`, `reporte.html`). Migrar el resto de las pantallas queda para la ola 3.
+
+### Decisiones tomadas
+- **`_paginacion` solo aparece con más de una página** y conserva todos los parámetros de la URL salvo `page`, con `{% querystring %}` de Django 5.2.
+- **`_estado_vacio` con filtros ofrece «Limpiar filtros»** con botón terciario, nunca la acción de alta.
+- **`_alerta` info reusa la nota informativa canónica**, porque `bg-info-soft`/`border-info-subtle` no están compilados ni existen como token; no se crearon tokens nuevos.
+- **`role` de `_alerta`:** alert en danger/warning, status en info/success.
+
+### Implementación
+Paginación, tarjetas de números, estados vacíos y alertas quedan disponibles como piezas únicas, ya en uso en tres pantallas.
+
+### Archivos
+`templates/components/_paginacion.html`, `_stat_card.html`, `_estado_vacio.html`, `_alerta.html` (los cuatro nuevos) · `core/templatetags/nodo_ui.py` · `programas/templates/programas/becas/revision/renaper_pendientes.html` · `relevamientos/convocatoria_detail.html` · `reportes/reporte.html` · `.claude/agents/chaco-design-system.md` · `core/tests/test_nodo_ui_piezas.py` (nuevo).
+
+### Base de datos
+No requiere.
+
+### Validación
+`manage.py test core.tests.test_nodo_ui_piezas programas.tests.test_renaper_pendientes_paginacion`: 35 OK. `check --deploy` sin avisos nuevos, `makemigrations --check` sin cambios, `design_audit` sobre los 7 templates 0/0, `compile_templates` 199 OK, `check_design_agent --changed` OK, ruff OK. Playwright 1440/390 base vs head: sin console.error, sin HTTP ≥ 400, sin scroll horizontal; el pie de `renaper_pendientes` da el mismo HTML y la misma captura en base y en head. Se mergeó `origin/development` sin rebase; único conflicto en el inventario, resuelto conservando ambas filas.
+
+### Puesta en marcha en el servidor
+No requiere. El PR mergeó como `64b06bb` (head `8b2d018`).
+
+### Pendientes / a definir
+Migrar el resto de las pantallas a estas cuatro piezas (ola 3, resuelto progresivamente de 96.19 en adelante).
+
+### Reversión
+Revertir el commit `64b06bb`.
+
+### Historial
+Entrada nueva.
+
+## 96.18 El alta rápida de usuario usa el modal del sistema y no `alert()`
+
+🟢 **HECHO — 30/09/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal (alta rápida de usuario, consumida desde 8 pantallas de Becas) |
+| **Etiquetas** | `#ui` `#usuarios` |
+| **Solicitante** | Auditoría de diseño de Becas (POP-2), plan W3-P-O |
+| **Fecha del pedido** | 29/09/2026 |
+| **Issue / épica** | Sin issue · PR #485 |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+### Pedido original
+El modal de alta rápida de usuario no seguía el canon de modales de Becas y usaba `alert()` nativo cuando faltaba elegir la convocatoria del territorial (DP-4).
+
+### Alcance acordado
+Solo `users/templates/user/_alta_rapida_modal.html`. No se tocaron las 8 pantallas que lo incluyen.
+
+### Decisiones tomadas
+- **El modal pasa al canon:** X con `aria-label`, panel `role="dialog" aria-modal aria-labelledby`, `max-h-[90vh]` con cuerpo desplazable, `becasModal.bind` para foco/Escape/scroll, cargando `becas-modal.js` solo si la página no lo trae ya.
+- **DP-4:** sin convocatoria elegida, el botón de territorial queda deshabilitado con una ayuda visible, sin `alert()`.
+- El contrato del POST (`users:usuario_alta_rapida`, campos, `data.user`) no cambia.
+
+### Implementación
+El alta rápida de usuario abre como modal accesible del sistema; elegir territorial sin convocatoria explica por qué está deshabilitado en vez de interrumpir con un `alert()`.
+
+### Archivos
+`.claude/agents/chaco-design-system.md` · `static/custom/css/nodo-buttons.css` · `users/templates/user/_alta_rapida_modal.html` · `users/tests/test_alta_rapida_modal.py`.
+
+### Base de datos
+No requiere.
+
+### Validación
+Tests de render y comportamiento del modal en verde; `design_audit`, `compile_templates`, `check_design_agent` y `check --deploy`/`makemigrations --check` sin novedades.
+
+### Puesta en marcha en el servidor
+No requiere. El PR mergeó como `9a0da11` (head `736b7f7`).
+
+### Pendientes / a definir
+Revisión visual en las pantallas reales que lo incluyen (el PR no corrió Playwright sobre las 8 pantallas consumidoras).
+
+### Reversión
+Revertir el commit `9a0da11`. El modal vuelve al markup anterior y al `alert()` de territorial.
+
+### Historial
+Entrada nueva.
+
+## 96.19 El listado de programas usa las piezas comunes y deja de mostrar paginación falsa
+
+🟢 **HECHO — 30/09/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · listado de programas |
+| **Etiquetas** | `#ui` |
+| **Solicitante** | Auditoría de diseño de Becas (TIT-13, TIT-14, TIT-18, CMP-1, CMP-11, CMP-13/14/15), plan W3-P-A1 |
+| **Fecha del pedido** | 29/09/2026 |
+| **Issue / épica** | Sin issue · PR #486 |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+### Pedido original
+El listado de programas repetía el `h1` a mano, mostraba una paginación falsa «1 de 1» con los botones siempre deshabilitados (la vista no pagina) y el estado Pausado se veía en rojo.
+
+### Alcance acordado
+`programa_list.html` y `_programas_table.html`. Sin cambios de datos, URLs, vista ni migraciones.
+
+### Decisiones tomadas
+- Encabezado con `{% page_header %}` (96.14) y acción «Nuevo programa» con ícono de Font Awesome.
+- Tabla con las clases `.nodo-*` (96.15).
+- Estado con `_pausable_estado_badge` `solo_manual=True` (96.13): Pausado pasa de danger a warning; «SIIS inactivo» sigue aparte.
+- Se saca la paginación falsa: el pie pasa a decir «N programas».
+
+### Implementación
+El listado de programas usa el encabezado y la tabla comunes; el estado Pausado se ve en ámbar y ya no ofrece una paginación que no existe.
+
+### Archivos
+`.claude/agents/chaco-design-system.md` · `programas/templates/programas/becas/config/_programas_table.html` · `config/programa_list.html` · `programas/tests/test_programa_list_ola3.py` (nuevo, 6 tests).
+
+### Base de datos
+No requiere.
+
+### Validación
+5 de 6 tests fallaban contra la base. `test_becas_modal` y `test_estado_badges` siguen en verde. `check --deploy` sin errores nuevos, `makemigrations --check` sin cambios, `compile_templates` 195 OK, `design_audit` 0/0, `check_design_agent` OK, ruff OK. Playwright 1440/390 base vs head: sin console.error, sin HTTP ≥ 400, sin scroll horizontal.
+
+### Puesta en marcha en el servidor
+No requiere. El PR mergeó como `b3df209` (head `44b76e4`).
+
+### Pendientes / a definir
+Ninguno declarado.
+
+### Reversión
+Revertir el commit `b3df209`.
+
+### Historial
+Entrada nueva.
+
+## 96.20 La pantalla de pausa usa el encabezado común y Cancelar vuelve a la entidad
+
+🟢 **HECHO — 30/09/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · pausar/reanudar (programas, segmentos, subsegmentos, convocatorias) |
+| **Etiquetas** | `#ui` `#pausas` |
+| **Solicitante** | Auditoría de diseño de Becas (TIT-7, CMP-20, DE-2), plan W3-P-J |
+| **Fecha del pedido** | 29/09/2026 |
+| **Issue / épica** | Sin issue · PR #487 |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+### Pedido original
+La pantalla de pausa tenía su propio encabezado y «Cancelar» usaba `history.back()`, que tras un error de validación volvía al mismo formulario en vez de a la entidad.
+
+### Alcance acordado
+Solo `pausa_form.html` y `views/pausas.py` (pasar `entidad_url`).
+
+### Decisiones tomadas
+- Encabezado con `{% page_header %}` («Pausar/Reanudar · objeto»), migas con `becas_migas`, volver circular a la entidad.
+- Card solo para el formulario, sin `max-w-3xl` (DE-2).
+- «Cancelar» pasa a ser un link a la URL real de la entidad, ya no `history.back()`.
+
+### Implementación
+Pausar o reanudar cualquier entidad de Becas muestra el encabezado común y «Cancelar» siempre vuelve al detalle de la entidad, no al mismo formulario.
+
+### Archivos
+`programas/templates/programas/becas/pausa_form.html` · `programas/tests/test_pausa_form.py` (nuevo, 6 tests) · `programas/views/pausas.py`.
+
+### Base de datos
+No requiere.
+
+### Validación
+Los tests fallaban contra la base (6 failures); en head, junto con `test_pausas`, en verde. Playwright 1440/390: sin console.error, sin HTTP ≥ 400, sin scroll horizontal.
+
+### Puesta en marcha en el servidor
+No requiere. El PR mergeó como `b49c3e3` (head `c5ad401`).
+
+### Pendientes / a definir
+Ninguno declarado.
+
+### Reversión
+Revertir el commit `b49c3e3`.
+
+### Historial
+Entrada nueva.
+
+## 96.21 Encabezado canónico y modales accesibles del subsegmento
+
+🟢 **HECHO — 30/09/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · subsegmento y requisitos por segmento |
+| **Etiquetas** | `#ui` `#requisitos` |
+| **Solicitante** | Auditoría de diseño de Becas (TIT-5, DE-7, CMP-7, CMP-25, TIT-10/11), plan de ola 3, PR L-C |
+| **Fecha del pedido** | 29/09/2026 |
+| **Issue / épica** | Sin issue · PR #489 |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+### Pedido original
+Aplicar a subsegmento y requisitos por segmento las piezas ya mergeadas (`page_header`, `becas_migas`, `x-becas-modal`, `.nodo-*`).
+
+### Alcance acordado
+`subsegmento_detail.html`, `requisitos_segmento.html`, `_requisitos_propios_panel.html`, `_requisitos_page_table.html`, `subsegmento_form.html`. Sin cambios de contrato (URLs, forms, `name=`, CSRF, permisos, JSON).
+
+### Decisiones tomadas
+- **«Segmento padre:»** se mantiene como label literal en la bajada, por instrucción del juez.
+- **El Cancelar del formulario de respaldo va al detalle de origen** (subsegmento si edita, segmento si crea), no siempre al segmento.
+- **Los 5 modales de estas dos pantallas migran a `x-becas-modal` + parciales;** `segmento_detail.html` y `programa_detail.html` quedan con la migración de sus propios modales pendiente (cerrada en 96.22 para segmento; `programa_detail.html` sigue pendiente).
+
+### Implementación
+Subsegmento y sus requisitos muestran encabezado con migas, badge de estado unificado, modales accesibles y acciones de fila con `aria-label` que nombra el requisito.
+
+### Archivos
+`.claude/agents/chaco-design-system.md` · `programas/templates/programas/becas/config/_requisitos_page_table.html` · `_requisitos_propios_panel.html` · `requisitos_segmento.html` · `subsegmento_detail.html` · `subsegmento_form.html` · `programas/tests/test_becas_config.py` (12 tests nuevos).
+
+### Base de datos
+No requiere.
+
+### Validación
+`manage.py test programas.tests.test_becas_config`: 69/69 OK. `check --deploy` sin avisos nuevos, `makemigrations --check` sin cambios, `compile_templates` 195 OK, `design_audit --changed` 0, `check_design_agent --changed` OK, ruff OK. No se corrió Playwright: el entorno del PR no permitió levantar un servidor con MySQL/Redis; se compensó con `compile_templates`, `design_audit --changed` y 12 tests de render que verifican el marcado exacto.
+
+### Puesta en marcha en el servidor
+No requiere. El PR mergeó como `7802881` (head `d8e98ca`).
+
+### Pendientes / a definir
+- Ninguno de 96.17 aplica a estas pantallas (no son listados paginados).
+- `segmento_detail.html` y `programa_detail.html` siguen con el marcado previo de modal (segmento cerrado en 96.22; `programa_detail.html` sigue pendiente).
+- Revisión visual con Playwright en vivo, no realizada en este PR.
+
+### Reversión
+Revertir el commit `7802881`.
+
+### Historial
+Entrada nueva.
+
+## 96.22 Piezas comunes en las pantallas de Segmentos
+
+🟢 **HECHO — 30/09/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · listado y detalle de Segmentos |
+| **Etiquetas** | `#ui` `#pausas` `#requisitos` |
+| **Solicitante** | Auditoría de diseño de Becas (TIT-13/14/18, POP-7/8/9/12/13, CMP-5/10/11, DC-2/5/6/7, ALR-8), plan de ola 3, PR L-B |
+| **Fecha del pedido** | 29/09/2026 |
+| **Issue / épica** | Sin issue · PR #490 |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+### Pedido original
+Aplicar a las pantallas de Segmentos las piezas comunes de la ola 2 y cerrar los desvíos de la auditoría que caen en esos archivos: «Activar» rojo, «Inactivo» rojo en vez de gris, paginación falsa, checkbox sin foco visible por una utilidad no compilada, y `coordinador_asignar` con avisos incompletos.
+
+### Alcance acordado
+`segmento_list.html`, `segmento_detail.html`, `segmento_form.html`, `_segmentos_table.html`, `_requisitos_panel.html`, `_subsegmentos_panel.html`, `views/configuracion.py`.
+
+### Decisiones tomadas
+- **«Activar segmento» no es una acción destructiva:** pasa a color de marca con `fa-circle-check` y confirma en tono de marca con «Sí, activar». «Desactivar» sigue en rojo, dice la consecuencia y confirma con «Sí, desactivar» (textos provisorios, a validar con negocio).
+- **El badge de estado sale de `_pausable_estado_badge` `solo_manual=True`** para no duplicar el bloqueo por SIIS.
+- **«Inactivo» es gris (DC-2):** apagar un segmento no es un error.
+- **La paginación falsa se quita** porque la vista no pagina.
+- **El checkbox del modal de edición pasa de `focus:ring-brand` (no compilado) a `.nodo-checks`.**
+- **`coordinador_asignar` deja un solo aviso por acción**, con el nombre del campo con error.
+
+### Implementación
+Las pantallas de Segmentos usan encabezado, tabla, badges y modales comunes; activar ya no se ve como una acción destructiva.
+
+### Archivos
+`.claude/agents/chaco-design-system.md` · `programas/templates/programas/becas/config/_requisitos_panel.html` · `_segmentos_table.html` · `_subsegmentos_panel.html` · `segmento_detail.html` · `segmento_form.html` · `segmento_list.html` · `programas/tests/test_becas_segmentos_diseno.py` (nuevo, 21 tests) · `programas/views/configuracion.py`.
+
+### Base de datos
+No requiere.
+
+### Validación
+`manage.py test programas`: 1205 OK; `test_becas_segmentos_diseno`: 21 OK; los 2 casos de `coordinador_asignar` fallan contra la base. `check --deploy` sin avisos nuevos, `makemigrations --check` sin cambios, `--tag performance` 4 OK, `design_audit --changed` 0/0, `compile_templates` 195 OK, ruff OK. Playwright 1440/390 en 4 pantallas: sin console.error, sin HTTP ≥ 400, sin scroll horizontal. **`check_design_agent.py --changed` dio error en este PR:** el entorno no permitía escribir en `.claude/`, así que el diff de una línea del inventario (fila «Canon visual backoffice») quedó sin aplicar.
+
+### Puesta en marcha en el servidor
+No requiere. El PR mergeó como `2ca908d` (head `c420d80`).
+
+### Pendientes / a definir
+- Aplicar a mano la línea del inventario que este PR no pudo escribir.
+- Las tarjetas de cupo (CMP-23) y los estados vacíos con/sin filtros (CMP-22) del detalle de segmento esperan consumir `_stat_card`/`_estado_vacio` (96.17), no aplicados en este PR.
+- La tabla del listado sigue desbordando ~52 px a 1440 px.
+- El modal de alta de requisito no ofrece `destino_siis`.
+
+### Reversión
+Revertir el commit `2ca908d`.
+
+### Historial
+Entrada nueva.
+
+## 96.23 El caso vuelve al origen, avisa una vez y usa los modales canónicos
+
+🟢 **HECHO — 30/09/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · revisión de casos (detalle del caso, bandeja del relevamiento, resumen de Becas del ciudadano) |
+| **Etiquetas** | `#ui` `#relevamientos` |
+| **Solicitante** | Auditoría de diseño de Becas (TIT-9, ALR-8, ALR-16, POP-10; decisiones DE-2, DE-3), plan de ola 3, PR L-D |
+| **Fecha del pedido** | 29/09/2026 |
+| **Issue / épica** | Sin issue · PR #491 |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+### Pedido original
+Al detalle de un caso se llega desde siete pantallas distintas, pero «volver» llevaba siempre a los casos del relevamiento (TIT-9); aprobar un caso dejaba hasta tres avisos flotantes seguidos (ALR-16); los errores del modal de SIIS salían uno por campo (ALR-8); los tres modales propios del caso no seguían el canon de accesibilidad (POP-10).
+
+### Alcance acordado
+Mismos contratos (URLs, `name=`, CSRF, capacidades). Afuera: errores inline por campo en el modal de SIIS (necesita que sea AJAX) y las piezas `_alerta`/`_stat_card` (no estaban en `development` al momento del PR).
+
+### Decisiones tomadas
+- **El origen viaja en `?next=` y se valida dos veces:** `url_has_allowed_host_and_scheme` más el prefijo `/becas/`, porque cada control por separado deja pasar algo. El `next` se conserva en los doce POST del caso.
+- **Las migas cuentan el camino recorrido:** desde una bandeja transversal (Pendientes de validación) arrancan en «Revisión», no en la jerarquía del programa.
+- **Aprobar compone un solo aviso** con el nivel del peor resultado de los tres desenlaces posibles.
+- **Los tres modales delegan foco/Tab/Escape/scroll en `becasModal.bind`.**
+- **`en_espera_activa` se resuelve por lote** en la bandeja del relevamiento (una consulta indexada, no `Exists(OuterRef)` por fila).
+
+### Implementación
+El caso vuelve a la pantalla desde la que se abrió; aprobar deja un solo aviso; los tres modales del caso siguen el canon de accesibilidad.
+
+### Archivos
+`.claude/agents/chaco-design-system.md` · `programas/templates/programas/becas/_resumen_ciudadano.html` · `revision/formulario_detalle.html` · `programas/tests/test_caso_origen_y_avisos.py` (nuevo, 23 tests) · `programas/views/revision.py`.
+
+### Base de datos
+No requiere.
+
+### Validación
+11 failures + 12 errors de 22 contra la base. `manage.py test programas`: 1207 OK. `--tag performance`: `becas_formulario_detalle` 17/20, `becas_revision_formularios` 15/17. `design_audit --changed` 0, `compile_templates` 195 OK, `check_design_agent --changed` OK, ruff OK. Playwright base vs head en :8811, 1440/390: 0 console.error, 0 HTTP ≥ 400 en ambos; con `?next=` externo el volver ignora el host; el modal de rechazo atrapa foco y cierra con Escape.
+
+### Puesta en marcha en el servidor
+No requiere. El PR mergeó como `233d8d0` (head `4454cbf`).
+
+### Pendientes / a definir
+- Migrar los seis bloques de alerta del caso a `_alerta.html` y las tres tarjetas de `_resumen_ciudadano.html` a `_stat_card.html`.
+- Desde la solapa de Becas del legajo el `?next=` apunta a `/legajos/…` y la validación lo descarta (ampliar los prefijos permitidos es una decisión de alcance aparte).
+
+### Reversión
+Revertir el commit `233d8d0`.
+
+### Historial
+Entrada nueva.
+
+## 96.24 Convocatorias con las piezas comunes (CMP-4, TIT-15/16, POP-12/13, ALR-15)
+
+🟢 **HECHO — 30/09/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · listado y detalle de convocatorias |
+| **Etiquetas** | `#ui` `#convocatorias` `#performance` |
+| **Solicitante** | Auditoría de diseño de Becas (CMP-4, TIT-15, TIT-16, POP-12, POP-13, ALR-15, CMP-M3/M4, DC-7), plan de ola 3, PR P-E |
+| **Fecha del pedido** | 29/09/2026 |
+| **Issue / épica** | Sin issue · PR #492 |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+### Pedido original
+El estado de una convocatoria en la tabla ignoraba la pausa heredada; «Configurar formulario» estaba mezclado dentro de la barra de solapas cuando en realidad abre otra pantalla; «Activar»/«Desactivar» no confirmaban con el verbo ni la consecuencia; los tres modales de la pantalla no seguían el canon.
+
+### Alcance acordado
+`_convocatorias_table.html`, `convocatoria_detail.html`, `convocatoria_form.html`, `convocatoria_list.html`, `_relevamientos_tab_table.html`, `_reactivar_convocatoria_js.html`, y el `select_related` de `_convocatorias_qs`.
+
+### Decisiones tomadas
+- **El estado sale del mapa único `_convocatoria_estado_badge`** (96.13) también en la tabla del listado, no solo en el detalle. Para que eso no cueste consultas por fila, `_convocatorias_qs` precarga `segmento__programa` y `subsegmento__segmento__programa` (sin eso, tres consultas por fila).
+- **Una barra de solapas contiene solo solapas:** «Configurar formulario» pasa a ser una acción del encabezado.
+- **Los contadores de las solapas usan variantes declaradas de `nodo-badges.css`.**
+- **«Desactivar» confirma en rojo con «Sí, desactivar»; «Activar» confirma en tono de marca con «Sí, activar»** (ya no es rojo).
+- **Los tres modales pasan a `x-becas-modal` + parciales;** el de reactivar conserva la invariante de seguridad del nombre por `x-text` (Cambio 95, 96.7) y su guard contra doble envío.
+
+### Implementación
+El listado de convocatorias respeta la pausa heredada sin sumar consultas; «Configurar formulario» abre desde el encabezado; activar/desactivar confirman con el verbo correcto.
+
+### Archivos
+`.claude/agents/chaco-design-system.md` · `programas/templates/programas/becas/relevamientos/_convocatorias_table.html` · `_reactivar_convocatoria_js.html` · `_relevamientos_tab_table.html` · `convocatoria_detail.html` · `convocatoria_form.html` · `convocatoria_list.html` · `programas/tests/test_becas_convocatorias_diseno.py` (nuevo, 17 tests) · `test_becas_handlers_inline.py` (ajustado) · `programas/views/relevamientos.py`.
+
+### Base de datos
+No requiere.
+
+### Validación
+`manage.py test programas`: 1201 OK. `--tag performance`: 4 OK (presupuesto `becas_convocatorias` de 12 queries intacto). Dos tests nuevos de N+1 comparan la cantidad de consultas con 1 y con 6 filas, y fallan sin el `select_related`. `check --deploy` sin avisos nuevos, `makemigrations --check` sin cambios, `design_audit --changed` 0/0, `compile_templates` 195 OK, `check_design_agent --changed` OK, ruff OK. Playwright base (`f7983b2`) vs head, 1440/390: 0 console.error, 0 HTTP ≥ 400, 0 scroll horizontal; a 390 px en la base el pie del modal quedaba cortado, en head queda fijo y visible.
+
+### Puesta en marcha en el servidor
+No requiere. El PR mergeó como `92f6472` (head `4b6ee22`).
+
+### Pendientes / a definir
+- Reemplazar por piezas de 96.17 la paginación de la solapa Casos, las cuatro tarjetas de números y los tres estados vacíos de esta pantalla.
+- Validar con negocio los textos de consecuencia de Activar/Desactivar.
+
+### Reversión
+Revertir el commit `92f6472`.
+
+### Historial
+Entrada nueva.
+
+## 96.25 Reportes con botones y alertas del sistema
+
+🟢 **HECHO — 30/09/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · reportes |
+| **Etiquetas** | `#ui` |
+| **Solicitante** | Auditoría de diseño de Becas (TIT-17, CMP-21, CMP-30), plan de ola 3, PR W3-P-K |
+| **Fecha del pedido** | 29/09/2026 |
+| **Issue / épica** | Sin issue · PR #493 |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+### Pedido original
+Los reportes de Becas tenían su propio encabezado, un botón legacy para exportar y un error de filtros con clases de color que no existen en el CSS compilado.
+
+### Alcance acordado
+`reporte.html` y `hub.html`.
+
+### Decisiones tomadas
+- Encabezado con `{% page_header %}` (TIT-17).
+- El botón de exportar XLSX pasa de `btn-primary` legacy a `btn-nodo btn-brand btn-base` (CMP-21).
+- El error de filtros usa `_alerta.html` tono danger en vez de clases inexistentes.
+- Filtros con `nodo-field`; tabla con `.nodo-*`; paginación con `_paginacion.html` (96.17).
+- El hub usa un ícono distinto por tarjeta (CMP-30).
+
+### Implementación
+Los reportes de Becas usan el encabezado, los botones, las alertas y la tabla comunes, sin cambiar ningún contrato.
+
+### Archivos
+`.claude/agents/chaco-design-system.md` · `programas/templates/programas/becas/reportes/hub.html` · `reporte.html` · `programas/tests/test_reportes_render_ola3.py` (nuevo).
+
+### Base de datos
+No requiere.
+
+### Validación
+`test_reportes_render_ola3` junto con `test_reportes_becas` y `test_reportes` en verde; `compile_templates`, `design_audit`, `check_design_agent`, ruff y `makemigrations --check` sin novedades.
+
+### Puesta en marcha en el servidor
+No requiere. El PR mergeó como `fe4b7f3` (head `97b7712`).
+
+### Pendientes / a definir
+Ninguno declarado.
+
+### Reversión
+Revertir el commit `fe4b7f3`.
+
+### Historial
+Entrada nueva.
+
+## 96.26 Cupo y beneficiarios con piezas comunes
+
+🟢 **HECHO — 30/09/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · Cupo y beneficiarios (`/becas/cupo/segmento/<id>/`) |
+| **Etiquetas** | `#ui` `#cupos` |
+| **Solicitante** | Auditoría de diseño de Becas (TIT-6, CMP-12, CMP-15, CMP-16, CMP-23, CMP-24, DE-2, DE-4), plan de ola 3 |
+| **Fecha del pedido** | 29/09/2026 |
+| **Issue / épica** | Sin issue · PR #494 |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+### Pedido original
+La pantalla de Cupo y beneficiarios tenía su propio encabezado sin migas, un botón «Exportar» deshabilitado sin función, SVG sueltos, tablas con estilos en línea y tarjetas de números propias.
+
+### Alcance acordado
+Solo `programas/templates/programas/becas/cupo/segmento_detail.html`.
+
+### Decisiones tomadas
+- Encabezado con `{% page_header %}` y migas `becas_migas`, ancho completo (DE-2, sin `max-w-6xl`); se saca el «Exportar» deshabilitado hasta que exista de verdad (DE-4/CMP-12).
+- Dar de baja pasa a `.nodo-icon-btn--danger`; Promover y Agregar a lista de espera a `btn-nodo btn-tertiary btn-sm`, conservando los `data-cupo-accion`/`data-pk`/`data-nombre` y el listener de seguridad del Cambio 95 (#464).
+- Las tarjetas usan `_stat_card` (96.17). SVG a Font Awesome.
+- **La pantalla no usa `_paginacion`:** tiene tres paginadores independientes con parámetros propios y el parcial fija `?page=`; se mantuvo la paginación propia, solo con clases en vez de estilos en línea.
+
+### Implementación
+Cupo y beneficiarios usa encabezado con migas, tarjetas y tabla comunes; las acciones de fila nombran a la persona.
+
+### Archivos
+`programas/templates/programas/becas/cupo/segmento_detail.html` · `programas/tests/test_becas_cupo_diseno.py` (nuevo, 4 tests).
+
+### Base de datos
+No requiere.
+
+### Validación
+`test_becas_cupo_diseno` (4) + `test_becas_handlers_inline` (12, incluida la seguridad de #464): OK. `design_audit` 0 errores, `compile_templates` 0, `check_design_agent` OK, ruff OK, `check --deploy` y `makemigrations --check` sin cambios. Sin Playwright en este PR.
+
+### Puesta en marcha en el servidor
+No requiere. El PR mergeó como `df23318` (head `342aae2`).
+
+### Pendientes / a definir
+- Parametrizar `_paginacion` para pantallas con más de un paginador.
+- Precargar `segmento.programa` en la vista (las migas hacen hoy una consulta extra).
+
+### Reversión
+Revertir el commit `df23318`.
+
+### Historial
+Entrada nueva.
+
+## 96.27 Proceso masivo con encabezado y tarjetas del sistema
+
+🟢 **HECHO — 30/09/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · proceso masivo de alta en SIIS |
+| **Etiquetas** | `#ui` `#siis` |
+| **Solicitante** | Auditoría de diseño de Becas (TIT-13, TIT-14, ALR-13), plan de ola 3, PR W3-P-M |
+| **Fecha del pedido** | 29/09/2026 |
+| **Issue / épica** | Sin issue · PR #495 |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+### Pedido original
+La pantalla del proceso masivo tenía un `h1` de 28 px en línea y un ancho máximo propio, y el contador «Pendientes de informar» no seguía el sistema de tarjetas.
+
+### Alcance acordado
+Solo `proceso_masivo.html`. No se tocó el JS de confirmación, guardas ni relectura de 96.10/96.5 (#469).
+
+### Decisiones tomadas
+- Encabezado con `{% page_header %}` (TIT-13, TIT-14, sin `h1` inline ni `max-w` de 760 px).
+- «Pendientes de informar» pasa a `_stat_card` (96.17).
+- El banner de aviso (la pantalla se relee cada 5 s, ALR-13) usa `_alerta.html role="status"`.
+
+### Implementación
+El proceso masivo usa el encabezado y las tarjetas comunes; el resto de su comportamiento (confirmaciones, guardas, relectura) no cambia.
+
+### Archivos
+`programas/templates/programas/becas/config/proceso_masivo.html` · `programas/tests/test_proceso_masivo_render_ola3.py` (nuevo).
+
+### Base de datos
+No requiere.
+
+### Validación
+`test_proceso_masivo.py` sigue en verde (54 tests en total). `compile_templates`, `design_audit`, `check_design_agent`, ruff sin novedades; sin migraciones ni build de Tailwind.
+
+### Puesta en marcha en el servidor
+No requiere. El PR mergeó como `a2a7b82` (head `c2f2213`).
+
+### Pendientes / a definir
+Ninguno declarado.
+
+### Reversión
+Revertir el commit `a2a7b82`.
+
+### Historial
+Entrada nueva.
+
+## 96.28 Piezas comunes en Relevamientos
+
+🟢 **HECHO — 30/09/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · relevamientos (`relevamiento_list`, `relevamiento_detail`, `relevamiento_form`) |
+| **Etiquetas** | `#ui` `#relevamientos` |
+| **Solicitante** | Auditoría de diseño de Becas (TIT-8, ALR-11, ALR-14, CMP-22, CMP-27), plan de ola 3, PR P-F |
+| **Fecha del pedido** | 29/09/2026 |
+| **Issue / épica** | Sin issue · PR #496 |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+### Pedido original
+El encabezado del relevamiento no tenía migas ni bajada estructurada; el modal de alta no seguía el canon de accesibilidad; el listado tenía una paginación manual y un estado vacío que no distinguía «sin datos» de «los filtros no traen nada».
+
+### Alcance acordado
+`relevamiento_list.html`, `relevamiento_detail.html`, `relevamiento_form.html`, `views/relevamientos.py`.
+
+### Decisiones tomadas
+- Encabezado en dos columnas con `{% page_header %}` (bajada: convocatoria con link, territorial, fechas), migas con `becas_migas`, «Reanudar» con `fa-play`. Desde una bandeja transversal las migas arrancan en «Revisión» (mismo criterio que 96.23).
+- El modal de alta (no AJAX) migra a `x-becas-modal` + parciales sin convertirlo a AJAX.
+- El estado vacío distingue con/sin filtros vía `hay_filtros` + `_estado_vacio` (96.17); la paginación manual pasa a `_paginacion`.
+- Se agregó `convocatoria__segmento__programa` al `select_related` del detalle para que las migas no sumen consultas (mismo JOIN que ya se usaba).
+
+### Implementación
+Las tres pantallas de relevamientos usan encabezado, migas, modal accesible, paginación y estado vacío comunes.
+
+### Archivos
+`programas/templates/programas/becas/relevamientos/relevamiento_detail.html` · `relevamiento_form.html` · `relevamiento_list.html` · `programas/tests/test_relevamiento_diseno.py` (nuevo, 14 tests) · `programas/views/relevamientos.py`.
+
+### Base de datos
+No requiere.
+
+### Validación
+`manage.py test programas.tests.test_relevamiento_diseno`: 14 OK. `test_becas_relevamientos`, `test_relevamiento_publico`, `test_padron`, `test_pausas` (132 tests, corridos otra vez después del merge de development): OK. `--tag performance` (`becas_relevamiento_detalle`, presupuesto 15 queries): OK, el `select_related` agregado no suma consultas. `compile_templates` 199 OK, `design_audit --changed` 0, `check_design_agent --changed` OK, ruff OK, `makemigrations --check` sin cambios. No se corrió Playwright en vivo (no se pudo levantar el `runserver` en el entorno del PR); se compensó con los tests de render, `design_audit` y `compile_templates`.
+
+### Puesta en marcha en el servidor
+No requiere. El PR mergeó como `aa78992` (head `15853f5`).
+
+### Pendientes / a definir
+Revisión visual con Playwright en vivo, pendiente por la limitación del entorno del PR.
+
+### Reversión
+Revertir el commit `aa78992`.
+
+### Historial
+Entrada nueva.
+
+## 96.29 Listas de revisión — ola 3
+
+🟢 **HECHO — 30/09/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · listas de Revisión (`formulario_list`, `personas_list`, `renaper_pendientes`) |
+| **Etiquetas** | `#ui` `#relevamientos` |
+| **Solicitante** | Auditoría de diseño de Becas, plan de ola 3, PR W3-P-G |
+| **Fecha del pedido** | 29/09/2026 |
+| **Issue / épica** | Sin issue · PR #497 |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+### Pedido original
+Las tres listas de Revisión no mostraban la etiqueta de lista de espera de un caso, no llevaban `?next=` al abrir el caso, y les faltaban las piezas comunes (encabezado, paginación, estado vacío, tabla) según cuál.
+
+### Alcance acordado
+`formulario_list.html`, `personas_list.html`, `renaper_pendientes.html`, `views/revision.py`.
+
+### Decisiones tomadas
+- **El badge «Lista de espera» se suma junto al del caso** (no lo reemplaza, igual criterio que 96.13); `personas_list` lo hidrata con una sola consulta por página (`espera=True`), sin N+1.
+- **Los links al caso llevan `?next={{ request.get_full_path|urlencode }}`** (consumido por la validación de 96.23).
+- `formulario_list` termina de sacarse `focus:ring-brand` y adopta tabla, ícono de acción, encabezado, paginación y estado vacío con `hay_filtros` («casos»); `personas_list` y `renaper_pendientes` reciben las piezas que les faltaban.
+
+### Implementación
+Las tres bandejas de Revisión muestran si un caso está en lista de espera, vuelven al origen correcto al abrir el caso y usan las piezas comunes de encabezado, tabla y paginación. `renaper_pendientes` no muestra badge de espera porque esa pantalla no muestra estado.
+
+### Archivos
+`.claude/agents/chaco-design-system.md` · `core/tests/test_nodo_tables_css.py` (ajustado) · `programas/templates/programas/becas/revision/formulario_list.html` · `personas_list.html` · `renaper_pendientes.html` · `programas/tests/test_becas_revision_listas.py` (nuevo, 7 tests) · `test_renaper_pendientes_paginacion.py` (ajustado) · `programas/views/revision.py`.
+
+### Base de datos
+No requiere.
+
+### Validación
+`test_becas_revision_listas` (7) + `test_becas_revision` (117 tests en total): OK. `--tag performance`: OK.
+
+### Puesta en marcha en el servidor
+No requiere. El PR mergeó como `e686c22` (head `108ae04`).
+
+### Pendientes / a definir
+Ninguno más allá de que `renaper_pendientes` no lleva badge de espera por no mostrar estado.
+
+### Reversión
+Revertir el commit `e686c22`.
+
+### Historial
+Entrada nueva.
+
+## 96.30 Catálogo de requisitos generales con piezas comunes
+
+🟢 **HECHO — 30/09/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · catálogo de requisitos generales (`/becas/config/preguntas/`) |
+| **Etiquetas** | `#ui` `#requisitos` |
+| **Solicitante** | Auditoría de diseño de Becas (TIT-10, DA-2, ALR-14), plan de ola 3, PR P-D |
+| **Fecha del pedido** | 29/09/2026 |
+| **Issue / épica** | Sin issue · PR #498 |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+### Pedido original
+El catálogo de requisitos generales mostraba un toast de éxito por cada autoguardado del orden (drag and drop), lo que resultaba ruidoso, y sus modales y formularios no seguían el canon de la ola 3.
+
+### Alcance acordado
+`pregunta_list.html`, `_preguntas_table.html`, `_preguntas_grupos.html`, `_pregunta_row.html`, `pregunta_form.html`, `requisito_form.html`, `nodo-catalogo-grupos.js`.
+
+### Decisiones tomadas
+- **DA-2:** el autoguardado y el drag ya no emiten toast de éxito; el estado va en un indicador en página («Guardando…» / «Orden guardado») y una región `aria-live`; los errores siguen avisando por toast.
+- `pregunta_form`/`requisito_form` usan `{% page_header %}` con Cancelar terciario al detalle de origen, sin flecha «←».
+- `pregunta_list` suma sus 3 modales a `x-becas-modal` + parciales y un estado vacío con/sin filtros con `_estado_vacio`.
+
+### Implementación
+El catálogo deja de interrumpir con un toast por cada arrastre y muestra el estado del guardado en la propia página; sus modales y formularios siguen el canon común.
+
+### Archivos
+`programas/templates/programas/becas/config/_pregunta_row.html` · `_preguntas_grupos.html` · `_preguntas_table.html` · `pregunta_form.html` · `pregunta_list.html` · `requisito_form.html` · `static/custom/js/nodo-catalogo-grupos.js` · `programas/tests/test_preguntas_diseno.py` (nuevo, 12 tests).
+
+### Base de datos
+No requiere.
+
+### Validación
+`test_preguntas_diseno` (12, el de DA-2 falla contra el código anterior) + `test_catalogo_drag` + `test_becas_config`: 92 OK. `design_audit` 0, `compile_templates` 0, `check_design_agent` OK, ruff OK, `makemigrations --check` sin cambios. Playwright 1440/390 (solo sobre head, sin comparar contra base): sin console.error ni HTTP ≥ 400, sin scroll horizontal.
+
+### Puesta en marcha en el servidor
+No requiere. El PR mergeó como `746f5ec` (head `bcc37d6`).
+
+### Pendientes / a definir
+Ninguno declarado.
+
+### Reversión
+Revertir el commit `746f5ec`.
+
+### Historial
+Entrada nueva.
+
+## 96.31 `design_audit` detecta `alert()`/`prompt()`/`confirm()` y se audita el JS de Becas
+
+🟢 **HECHO — 30/09/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal (auditoría mecánica de diseño) · Becas y Legajos (JS afectado) |
+| **Etiquetas** | `#ui` `#textos` |
+| **Solicitante** | Auditoría de diseño de Becas — cierre de la regla CONFIRM en `design_audit.py` |
+| **Fecha del pedido** | 29/09/2026 |
+| **Issue / épica** | Sin issue · PR #499 |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+### Pedido original
+`scripts/design_audit.py` no detectaba usos sueltos de `alert()`/`prompt()`/`confirm()` fuera de los templates ya cubiertos, y `static/custom/js/` no estaba en su alcance por defecto.
+
+### Alcance acordado
+La regla CONFIRM del script (detecta `alert()`/`prompt()`/`confirm()` y `window.*`, ignora `x.alert()`, `function alert` y líneas de comentario), sumar `static/custom/js` a `DEFAULT_TARGETS`, y reemplazar los usos reales encontrados por `window.toast`.
+
+### Decisiones tomadas
+- Se reemplazan los usos reales en `base.js`, `custom.js`, `modern-messages.js`, `ciudadanosdimensionesform.js`, `historial_contactos.html` y `programa_detail.html` (de Legajos) por `window.toast`.
+- Se borra `static/custom/js/ciudadano.js` por ser código muerto: sin referencias en el repo y apuntando a una URL inexistente.
+
+### Implementación
+`design_audit.py` ahora marca cualquier `alert()`/`prompt()`/`confirm()` suelto en el JS auditado, incluido `static/custom/js`; los avisos reales de Becas y Legajos que usaban ventanas nativas pasan a `window.toast`.
+
+### Archivos
+`scripts/design_audit.py` · `core/tests/test_design_audit_confirm.py` (nuevo) · `legajos/templates/legajos/historial_contactos.html` · `legajos/templates/legajos/programas/programa_detail.html` · `static/custom/js/base.js`, `custom.js`, `ciudadanosdimensionesform.js`, `modern-messages.js`. Se elimina `static/custom/js/ciudadano.js`.
+
+### Base de datos
+No requiere.
+
+### Validación
+El test nuevo cubre la regla CONFIRM (detección y exclusiones); los usos reemplazados se revisaron caso por caso.
+
+### Puesta en marcha en el servidor
+No requiere. El PR mergeó como `a7f4d1a` (head `59625ee`).
+
+### Pendientes / a definir
+Quedan fuera de esta corrida `conversaciones/conversaciones_lista_ws.js:82` y `detalle.html:183/187` (conversaciones está fuera de alcance del Cambio 96) y unos 16 errores HEX/FONT/ZINDEX en JS ajeno a Becas que la regla nueva expone en la corrida completa, sin corregir en este PR.
+
+### Reversión
+Revertir el commit `a7f4d1a`. La regla CONFIRM deja de exigirse; `ciudadano.js` habría que restaurarlo del historial si hiciera falta.
+
+### Historial
+Entrada nueva.
+
+## 96.32 Resumen fijo de la última carga de padrón
+
+🟢 **HECHO — 30/09/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · carga de padrón (convocatoria y relevamiento) |
+| **Etiquetas** | `#ui` `#convocatorias` `#relevamientos` |
+| **Solicitante** | Auditoría de diseño de Becas (DA-5, ALR-M3/M4), plan P-DA5 |
+| **Fecha del pedido** | 29/09/2026 |
+| **Issue / épica** | Sin issue · PR #500 |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+### Pedido original
+Cargar un padrón en una convocatoria o un relevamiento dejaba un mensaje de éxito y, aparte, un warning con filas ignoradas o localidades no reconocidas; el resultado de la última carga no quedaba visible al volver a la pantalla.
+
+### Alcance acordado
+`convocatoria_padron` y `relevamiento_padron` (`views/relevamientos.py`), y la sección de padrón de `convocatoria_detail.html`/`relevamiento_detail.html`.
+
+### Decisiones tomadas
+- **Un solo mensaje por carga**, con nivel warning si hubo filas ignoradas, fechas sin interpretar o localidades no reconocidas (antes: success + warning aparte).
+- **El resumen de la última carga se guarda en sesión**, con clave por objeto (no en base de datos), y se muestra con `_alerta.html` (96.17) en la sección de padrón, con los números y hasta 10 localidades no reconocidas; la carga siguiente lo reemplaza.
+
+### Implementación
+Después de cargar un padrón, la pantalla del objeto muestra el resumen fijo de esa carga (éxitos, ignorados, localidades no reconocidas) hasta que se cargue un padrón nuevo.
+
+### Archivos
+`.claude/agents/chaco-design-system.md` · `programas/templates/programas/becas/relevamientos/convocatoria_detail.html` · `relevamiento_detail.html` · `programas/tests/test_padron.py` (`ResumenFijoPadronTests`, 4 tests) · `programas/views/relevamientos.py`.
+
+### Base de datos
+No requiere.
+
+### Validación
+3 de 4 tests de `ResumenFijoPadronTests` fallaban contra la base (nivel warning con ignoradas, el detalle muestra el resumen, la segunda carga lo reemplaza).
+
+### Puesta en marcha en el servidor
+No requiere. El PR mergeó como `c27c90b` (head `7feb9d8`). El head incluye el fix posterior «el resumen fijo tolera requests sin sesión», aplicado antes del merge.
+
+### Pendientes / a definir
+Ninguno declarado.
+
+### Reversión
+Revertir el commit `c27c90b`.
+
+### Historial
+Entrada nueva.
 
 ---
 
