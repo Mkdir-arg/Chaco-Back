@@ -175,8 +175,6 @@ class ReactivarConvocatoriaNombreTests(TestCase):
             window.dispatchEvent = function (evento) {{ __log.eventos.push(evento); }};
             __click({{reactivarUrl: {json.dumps(url)}, nombre: {json.dumps(NOMBRE_CON_MARCADO)}}});
             var modal = reactivarConvocatoria('2026-09-29');
-            modal.$refs = {{fecha: {{focus: function () {{ __log.foco = 'fecha'; }}}}}};
-            modal.$nextTick = function (fn) {{ fn(); }};
             modal.abrir(__log.eventos[0].detail);
             __log.estado = {{abierto: modal.abierto, url: modal.url, nombre: modal.nombre, fecha: modal.fecha}};
             """,
@@ -188,7 +186,6 @@ class ReactivarConvocatoriaNombreTests(TestCase):
         self.assertEqual(
             log["estado"], {"abierto": True, "url": url, "nombre": NOMBRE_CON_MARCADO, "fecha": "2026-09-29"}
         )
-        self.assertEqual(log["foco"], "fecha")
 
 
 class ReactivarConvocatoriaModalTests(TestCase):
@@ -238,7 +235,10 @@ class ReactivarConvocatoriaModalTests(TestCase):
         self.assertIn(f'id="{dialogo["aria-labelledby"]}"', html)
         (raiz,) = [attrs for _, attrs in atributos_de(html) if "@becas-reactivar.window" in attrs]
         self.assertEqual(raiz["x-data"], f"reactivarConvocatoria('{self.hoy.isoformat()}')")
-        self.assertIn("@keydown.escape.window", raiz)
+        # Escape, foco, Tab atrapado y scroll del fondo los aporta becas-modal.js.
+        (overlay,) = [attrs for _, attrs in atributos_de(html) if "data-reactivar-modal" in attrs]
+        self.assertEqual(overlay["x-becas-modal"], "abierto")
+        self.assertIn("custom/js/becas-modal.js", html)
 
     def test_el_script_ya_no_depende_de_swal(self):
         script = script_con(self._html(), "data-reactivar-url")

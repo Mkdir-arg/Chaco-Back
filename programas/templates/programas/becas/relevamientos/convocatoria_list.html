@@ -1,5 +1,5 @@
 {% extends "includes/base.html" %}
-{% load rbac %}
+{% load rbac static %}
 {% block title %}Becas · Convocatorias{% endblock %}
 
 {% block main-content %}
@@ -8,49 +8,37 @@
      x-data="convocatoriasPage('{% url 'becas:segmento_subsegmentos_json' pk=0 %}')"
      @becas-saved.window="modalCrear=false">
 
-  <div class="flex items-end justify-between gap-4 flex-wrap mb-6">
-    <div>
-      <h1 class="text-3xl font-extrabold text-heading tracking-tight">Convocatorias</h1>
-      <p class="text-sm text-body-subtle mt-1">Períodos de inscripción por segmento y subsegmento. Cada convocatoria agrupa relevamientos y beneficiarios.</p>
-    </div>
-    {% if request.user|puede:"becas.convocatoria.crear" %}
-    <button type="button" @click="modalCrear=true" class="btn-nodo btn-brand btn-base">
-      <i class="fas fa-plus"></i> Nueva convocatoria
-    </button>
-    {% endif %}
+  {% load nodo_ui %}
+  <div class="mb-6">
+    {% page_header titulo="Convocatorias" bajada="Períodos de inscripción por segmento y subsegmento. Cada convocatoria agrupa relevamientos y casos." %}
+      {% if request.user|puede:"becas.convocatoria.crear" %}
+      <button type="button" @click="modalCrear=true" class="btn-nodo btn-brand btn-base">
+        <i class="fas fa-plus" aria-hidden="true"></i> Nueva convocatoria
+      </button>
+      {% endif %}
+    {% endpage_header %}
   </div>
 
   <div id="convocatorias-table" class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
     {% include "programas/becas/relevamientos/_convocatorias_table.html" %}
   </div>
 
-  {# Modal: Nueva convocatoria #}
-  <div x-show="modalCrear" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
+  {# Modal: Nueva convocatoria — x-becas-modal: foco, Tab atrapado, Escape y scroll del fondo (becas-modal.js) #}
+  <div x-show="modalCrear" x-cloak x-becas-modal="modalCrear" class="fixed inset-0 z-50 flex items-center justify-center p-4">
     <div class="absolute inset-0" style="background:rgba(0,0,0,.5);backdrop-filter:blur(4px)" @click="modalCrear=false"></div>
-    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto" @click.stop>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden" @click.stop
+         role="dialog" aria-modal="true" aria-labelledby="modal-convocatoria-crear-titulo">
 
-      {% comment %}HEADER{% endcomment %}
-      <div class="flex items-center justify-between px-6 py-5 border-b" style="border-color:var(--border-light)">
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-lg flex items-center justify-center text-lg"
-               style="background:var(--bg-brand-soft);color:var(--text-fg-brand)">
-            <i class="fas fa-bullhorn"></i>
-          </div>
-          <h3 class="text-lg font-bold text-heading">Nueva convocatoria</h3>
-        </div>
-        <button type="button" @click="modalCrear=false" aria-label="Cerrar"
-                class="p-1.5 rounded-lg text-body-subtle hover:text-heading hover:bg-secondary transition-colors">
-          <i class="fas fa-xmark text-base"></i>
-        </button>
-      </div>
+      {% include "programas/becas/_modal_header.html" with titulo="Nueva convocatoria" titulo_id="modal-convocatoria-crear-titulo" icono="fa-bullhorn" cerrar="modalCrear=false" %}
 
       <form method="post"
             action="{% url 'becas:convocatoria_crear' %}"
             data-ajax
-            data-convocatoria-modal>
+            data-convocatoria-modal
+            class="flex flex-col flex-1 min-h-0">
         {% csrf_token %}
         <input type="hidden" name="activo" value="on">
-        <div class="p-6 space-y-4">
+        <div class="p-6 space-y-4 overflow-y-auto min-h-0">
           <div>
             <label class="block text-sm font-medium text-heading mb-1">Nombre <span class="text-fg-danger">*</span></label>
             {{ form_convocatoria.nombre }}
@@ -95,10 +83,7 @@
           </div>
           <p class="text-xs text-fg-danger hidden" data-error="__all__"></p>
         </div>
-        <div class="flex justify-end gap-3 px-6 py-4 border-t bg-secondary" style="border-color:var(--border-light)">
-          <button type="button" @click="modalCrear=false" class="btn-nodo btn-tertiary btn-base">Cancelar</button>
-          <button type="submit" class="btn-nodo btn-brand btn-base"><i class="fas fa-plus"></i> Crear convocatoria</button>
-        </div>
+        {% include "programas/becas/_modal_footer.html" with cancelar="modalCrear=false" accion_texto="Crear convocatoria" accion_icono="fa-plus" %}
       </form>
     </div>
   </div>
@@ -107,6 +92,7 @@
 
 {% block customJS %}
 {% include "programas/becas/_ajax_js.html" %}
+<script src="{% static 'custom/js/becas-modal.js' %}"></script>
 {% include "programas/becas/relevamientos/_reactivar_convocatoria_js.html" %}
 <script>
 function convocatoriasPage(subsegmentosUrlTemplate) {

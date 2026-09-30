@@ -63,21 +63,7 @@
         </tbody>
       </table>
     </div>
-    {% if is_paginated %}
-    <div class="flex items-center justify-between gap-3 flex-wrap px-4 py-3 border-t border-light bg-secondary">
-      <span class="text-xs text-body-subtle">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }} · {{ page_obj.paginator.count }} caso{{ page_obj.paginator.count|pluralize }}</span>
-      <div class="flex gap-2">
-        {% if page_obj.has_previous %}
-        <a href="?page={{ page_obj.previous_page_number }}{% if filtros.fecha %}&amp;fecha={{ filtros.fecha|urlencode }}{% endif %}{% if filtros.territorial %}&amp;territorial={{ filtros.territorial|urlencode }}{% endif %}{% if filtros.segmento %}&amp;segmento={{ filtros.segmento|urlencode }}{% endif %}"
-           class="btn-nodo btn-tertiary btn-sm" aria-label="Página anterior"><i class="fas fa-chevron-left" aria-hidden="true"></i> Anterior</a>
-        {% endif %}
-        {% if page_obj.has_next %}
-        <a href="?page={{ page_obj.next_page_number }}{% if filtros.fecha %}&amp;fecha={{ filtros.fecha|urlencode }}{% endif %}{% if filtros.territorial %}&amp;territorial={{ filtros.territorial|urlencode }}{% endif %}{% if filtros.segmento %}&amp;segmento={{ filtros.segmento|urlencode }}{% endif %}"
-           class="btn-nodo btn-tertiary btn-sm" aria-label="Página siguiente">Siguiente <i class="fas fa-chevron-right" aria-hidden="true"></i></a>
-        {% endif %}
-      </div>
-    </div>
-    {% endif %}
+    {% include "components/_paginacion.html" with page_obj=page_obj entidad="caso" %}
     {% elif filtros.fecha or filtros.territorial or filtros.segmento %}
     <div class="py-14 px-6 text-center flex flex-col items-center gap-3">
       <div class="text-fg-brand"><i class="fas fa-magnifying-glass text-5xl" aria-hidden="true"></i></div>
