@@ -105,3 +105,25 @@ class ProgramaDetalleOla3Tests(TestCase):
         html = self._html()
         self.assertIn('x-becas-modal="modalInfo"', html)
         self.assertIn('id="modal-info-titulo"', html)
+
+    def test_alta_rapida_de_coordinador_se_apila_sobre_nuevo_segmento(self):
+        # RONDA 2, hallazgo MAJOR #1: con "Nuevo segmento" abierto, "Crear coordinador"
+        # tiene que quedar arriba en la pila de becas-modal.js (Tab atrapado y Escape
+        # solo para el anidado). El PR #485 le dio a este modal role=dialog +
+        # becasModal.bind (ver users/tests/test_alta_rapida_modal.py); acá solo se fija
+        # el contrato desde el lado de programa_detail.html: el botón que lo abre y el
+        # propio include quedan servidos en la misma página, después de becas-modal.js.
+        html = self._html()
+        self.assertIn('data-quick-user="coordinador"', html)
+        self.assertIn('data-user-select="#id_coordinador"', html)
+        self.assertIn('id="quick-user-modal"', html)
+        self.assertIn('role="dialog" aria-modal="true" aria-labelledby="quick-user-titulo"', html)
+        self.assertIn("becasModal.bind", html)
+        pos_becas_modal_js = html.index("custom/js/becas-modal.js")
+        pos_quick_user = html.index('id="quick-user-modal"')
+        self.assertLess(
+            pos_quick_user,
+            pos_becas_modal_js,
+            "el include del alta rapida va antes del bloque customJS, pero su propio "
+            "script se autoinyecta becas-modal.js si hace falta (ver _alta_rapida_modal.html)",
+        )
