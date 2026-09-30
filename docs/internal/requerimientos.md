@@ -273,6 +273,10 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 96.30 | Catálogo de requisitos generales con piezas comunes | Becas · requisitos generales | `#ui` `#requisitos` | Auditoría de diseño de Becas (TIT-10, DA-2, ALR-14) | 29/09/2026 | 🟢 **Hecho** | No requiere |
 | 96.31 | `design_audit` detecta `alert()`/`prompt()`/`confirm()` y se audita el JS de Becas | Transversal | `#ui` `#textos` | Auditoría de diseño de Becas | 29/09/2026 | 🟢 **Hecho** | No requiere |
 | 96.32 | Resumen fijo de la última carga de padrón | Becas · padrón | `#ui` `#convocatorias` `#relevamientos` | Auditoría de diseño de Becas (DA-5, ALR-M3/M4) | 29/09/2026 | 🟢 **Hecho** | No requiere |
+| 96.33 | Los avisos de error quedan hasta que el usuario los cierra | Transversal | `#ui` | Auditoría de diseño de Becas (DA-1) | 29/09/2026 | 🟢 **Hecho** | No requiere |
+| 96.34 | Candados contra la doble corrida masiva y el rechazo concurrente | Becas | `#siis` `#datos` `#cupos` | Detectado internamente en las revisiones de diseño de Becas | 29/09/2026 | 🟢 **Hecho** | No requiere |
+| 96.35 | Constructor de formularios: modales accesibles y sin toast de éxito en el autoguardado | Becas · constructor de formularios | `#ui` `#convocatorias` | Auditoría de diseño de Becas (DA-2, POP-19) | 29/09/2026 | 🟢 **Hecho** | No requiere |
+| 96.36 | El detalle del programa usa las piezas comunes (encabezado, modales, estados) | Becas | `#ui` `#requisitos` | Auditoría de diseño de Becas (CMP-1, CMP-7, DC-5, TIT-15) | 29/09/2026 | 🟢 **Hecho** | No requiere |
 | 97 | El check de seguridad (pip-audit) deja de bloquear los PRs: DRF 3.17.2 y anyio 4.14.2 | Transversal | `#infra` `#api` | Juez de la sesión — gate «Security / Pip Audit» rojo en todos los PRs | 29/09/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
@@ -10537,7 +10541,7 @@ Entrada nueva.
 
 # Cambio 96 — Ajustes de diseño de Becas (auditoría 29/09/2026)
 
-🟢 **HECHO — 30/09/2026** (tandas 1 a 3; sub-pedidos 96.1 a 96.32. En curso, fuera de este paraguas: PR #474, #488, #501 y el constructor de formularios — ola 3, L-E)
+🟢 **HECHO — 30/09/2026** (tandas 1 a 3; sub-pedidos 96.1 a 96.36)
 
 | | |
 |---|---|
@@ -10545,11 +10549,11 @@ Entrada nueva.
 | **Etiquetas** | `#ui` `#textos` `#relevamientos` |
 | **Solicitante** | PM — auditoría de diseño de Becas del 29/09/2026 y decisiones aprobadas en sesión |
 | **Fecha del pedido** | 29/09/2026 |
-| **Issue / épica** | Sin issue · 32 PRs contra `development` (#465 a #469, #471, #472, #475 a #487, #489 a #500) |
+| **Issue / épica** | Sin issue · 36 PRs contra `development` (#465 a #469, #471, #472, #474 a #502) |
 | **Partes afectadas** | Backoffice |
 | **Migración** | No requiere |
 
-Este cambio es el **paraguas** de la auditoría de diseño de Becas: cada PR es un sub-pedido (96.1 a 96.32) con su propio semáforo, PR y SHA. Tanda 1 (96.1-96.7, 29/09) resolvió los hallazgos puntuales de la primera revisión; tanda 2 (96.8-96.16, 29/09) cerró piezas base (modal accesible, ModernModal, mapa de estados, encabezado con migas, tabla densa) y los caminos de la lista de espera; tanda 3 (96.17-96.32, 30/09) construyó las piezas compartidas que faltaban de la ola 2 (paginación, tarjetas, estado vacío, alertas) y las aplicó pantalla por pantalla en la ola 3. El endurecimiento de dependencias que se mergeó en la misma sesión (#470) no es diseño y se registra aparte, en el Cambio 97. Quedan en curso, fuera de este paraguas: PR #474, #488, #501 y el constructor de formularios (ola 3, L-E).
+Este cambio es el **paraguas** de la auditoría de diseño de Becas: cada PR es un sub-pedido (96.1 a 96.36) con su propio semáforo, PR y SHA. Tanda 1 (96.1-96.7, 29/09) resolvió los hallazgos puntuales de la primera revisión; tanda 2 (96.8-96.16, 29/09) cerró piezas base (modal accesible, ModernModal, mapa de estados, encabezado con migas, tabla densa) y los caminos de la lista de espera; tanda 3 (96.17-96.36, 30/09) construyó las piezas compartidas que faltaban de la ola 2 (paginación, tarjetas, estado vacío, alertas), las aplicó pantalla por pantalla en la ola 3 (incluido el detalle de programa y el constructor de formularios) y cerró los dos candados de concurrencia detectados en revisión. El endurecimiento de dependencias que se mergeó en la misma sesión (#470) no es diseño y se registra aparte, en el Cambio 97.
 
 ## Pedido original
 
@@ -10577,7 +10581,7 @@ Las decisiones técnicas de cada PR están en su sub-pedido.
 
 ## Implementación
 
-Ver los sub-pedidos: 96.1 (etiqueta gris), 96.2 (avisos de «Guardar y configurar» y color de los avisos de Django), 96.3 (menú lateral), 96.4 (Pendientes de validación), 96.5 (proceso masivo), 96.6 (firma de `window.toast`), 96.7 (Reactivar convocatoria), 96.8 (convocatoria pausada y solapa «Casos»), 96.9 (modal accesible reutilizable), 96.10 (ModernModal con tono de ícono), 96.11 (un solo sistema de avisos en los modales de Becas), 96.12 (el caso muestra su estado real y no se aprueba en espera), 96.13 (un color por estado en todas las pantallas), 96.14 (encabezado reutilizable con migas), 96.15 (tabla densa y botón de ícono), 96.16 (la lista de espera se respeta en todos los caminos), 96.17 (paginación, tarjetas, estado vacío y alertas reutilizables), 96.18 (alta rápida de usuario sin `alert()`), 96.19 (listado de programas), 96.20 (pantalla de pausa), 96.21 (subsegmento y requisitos por segmento), 96.22 (Segmentos), 96.23 (el caso vuelve al origen), 96.24 (Convocatorias con piezas comunes), 96.25 (Reportes), 96.26 (Cupo y beneficiarios), 96.27 (proceso masivo con encabezado y tarjetas), 96.28 (Relevamientos), 96.29 (listas de Revisión), 96.30 (catálogo de requisitos generales), 96.31 (`design_audit` detecta `alert()`/`prompt()`/`confirm()`) y 96.32 (resumen fijo de la carga de padrón).
+Ver los sub-pedidos: 96.1 (etiqueta gris), 96.2 (avisos de «Guardar y configurar» y color de los avisos de Django), 96.3 (menú lateral), 96.4 (Pendientes de validación), 96.5 (proceso masivo), 96.6 (firma de `window.toast`), 96.7 (Reactivar convocatoria), 96.8 (convocatoria pausada y solapa «Casos»), 96.9 (modal accesible reutilizable), 96.10 (ModernModal con tono de ícono), 96.11 (un solo sistema de avisos en los modales de Becas), 96.12 (el caso muestra su estado real y no se aprueba en espera), 96.13 (un color por estado en todas las pantallas), 96.14 (encabezado reutilizable con migas), 96.15 (tabla densa y botón de ícono), 96.16 (la lista de espera se respeta en todos los caminos), 96.17 (paginación, tarjetas, estado vacío y alertas reutilizables), 96.18 (alta rápida de usuario sin `alert()`), 96.19 (listado de programas), 96.20 (pantalla de pausa), 96.21 (subsegmento y requisitos por segmento), 96.22 (Segmentos), 96.23 (el caso vuelve al origen), 96.24 (Convocatorias con piezas comunes), 96.25 (Reportes), 96.26 (Cupo y beneficiarios), 96.27 (proceso masivo con encabezado y tarjetas), 96.28 (Relevamientos), 96.29 (listas de Revisión), 96.30 (catálogo de requisitos generales), 96.31 (`design_audit` detecta `alert()`/`prompt()`/`confirm()`), 96.32 (resumen fijo de la carga de padrón), 96.33 (avisos de error persistentes), 96.34 (candados contra doble corrida masiva y rechazo concurrente), 96.35 (constructor de formularios) y 96.36 (detalle del programa).
 
 ## Archivos
 
@@ -10600,10 +10604,11 @@ No requiere nada más que el deploy.
 **Resueltos en las tandas 2 y 3** (quedan solo como referencia histórica):
 
 - **Piezas compartidas de la ola 2** (`becasModal`, `_modal_header`, `_modal_footer`, `_paginacion`, `_estado_vacio`, `_stat_card`, `_alerta`): construidas y en uso. `becasModal`/`_modal_header`/`_modal_footer` en *96.9*; `_paginacion`/`_estado_vacio`/`_stat_card`/`_alerta` en *96.17*. Los pies y modales inline de 96.4 y 96.7 se migraron a ellas en *96.29* y *96.24* respectivamente.
+- **Candado de servidor en `proceso_masivo_lanzar`** (`programas/views/proceso_masivo.py:58-78`): `CorridaSiis.en_curso() is None` y el `create` no son atómicos; dos pestañas o dos usuarios pueden lanzar dos corridas EN_CURSO. **Resuelto en *96.34* (PR #501)**, junto con la misma carrera en rechazar y resolver duplicados. *(96.5, 96.10)*
 
 **Abiertos, cada uno con su sub-pedido:**
 
-- **Candado de servidor en `proceso_masivo_lanzar`** (`programas/views/proceso_masivo.py:58-78`): `CorridaSiis.en_curso() is None` y el `create` no son atómicos; dos pestañas o dos usuarios pueden lanzar dos corridas EN_CURSO. **En curso, PR #501.** *(96.5)*
+- **Si `CorridaSiis.en_curso()` pasa a ser por programa, el candado de 96.34 tiene que ser el del programa**, no la centinela global (`ProgramaSiis` de menor pk). *(96.34)*
 - **Clic en «Sí» antes de 400 ms sin aviso:** en el modal del proceso masivo el clic se ignora en silencio durante los primeros 400 ms. *(96.5)*
 - **Sidebar:** doble `aria-current` en `/becas/reportes/` con el menú colapsado, y la condición `'dispositivos' in` coincide con `legajos/.../dispositivos/` y marca el ítem equivocado. *(96.3)*
 - **`programas/views/relevamientos.py:394`:** redirige a `next` sin validar el host (open redirect). Preexistente, detectado en la revisión de 96.7. *(96.7)*
@@ -10617,7 +10622,7 @@ No requiere nada más que el deploy.
 - **Validar con negocio los textos de consecuencia** de las confirmaciones de Activar/Desactivar/Pausar. *(96.5, 96.22, 96.24)*
 - **Parametrizar `_paginacion`** para pantallas con más de un paginador (Cupo y beneficiarios tiene tres). *(96.26)*
 - **16 errores HEX/FONT/ZINDEX en JS ajeno a Becas**, expuestos por la regla CONFIRM nueva de `design_audit`, y `conversaciones/conversaciones_lista_ws.js`/`detalle.html` sin migrar a `window.toast` (conversaciones queda fuera de alcance de este Cambio). *(96.31)*
-- **Revisión visual con Playwright en vivo** pendiente en 96.21 y 96.28 (el entorno del PR no permitió levantar el servidor completo).
+- **Revisión visual con Playwright en vivo** pendiente en 96.21, 96.28 y 96.35 (el entorno del PR no permitió levantar el servidor completo ni invocar el intérprete del entorno E2E).
 
 ## Reversión
 
@@ -10627,6 +10632,7 @@ Cada sub-pedido se revierte por separado, revirtiendo el commit de su PR. Ningun
 
 Entrada nueva (tanda 1, 29/09/2026).
 30/09/2026 — tandas 2 y 3 (sub-pedidos 96.8 a 96.32).
+30/09/2026 — PR #474, #501, #502 y #488, mergeados después del cierre de la tanda 3 (sub-pedidos 96.33 a 96.36).
 
 ## 96.1 La etiqueta gris vuelve a tener estilo en todo el sistema
 
@@ -12245,6 +12251,210 @@ Ninguno declarado.
 
 ### Reversión
 Revertir el commit `c27c90b`.
+
+### Historial
+Entrada nueva.
+
+## 96.33 Los avisos de error quedan hasta que el usuario los cierra
+
+🟢 **HECHO — 30/09/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal (`nodo-toast`, backoffice y portal) |
+| **Etiquetas** | `#ui` |
+| **Solicitante** | Auditoría de diseño de Becas (DA-1) |
+| **Fecha del pedido** | 29/09/2026 |
+| **Issue / épica** | Sin issue · PR #474 |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+### Pedido original
+Los toasts de error se cerraban solos igual que los de éxito/información, sin dar tiempo a leerlos.
+
+### Alcance acordado
+Solo `nodo-toast.js`/`nodo-toast.css`. No tocó vistas.
+
+### Decisiones tomadas
+- **DA-1:** los toasts de error no se cierran solos (sin barra ni temporizador); se cierran con el botón o con Escape (el error con foco, o el último error visible). success/info/warning siguen en 7 s, con barra y pausa en hover/foco.
+- **`opts.duration` explícita manda también para error.**
+- **Un error persistente idéntico ya visible no se apila:** devuelve el existente.
+- **En ≤640 px con un modal abierto**, el error se apoya entre el encabezado y el pie del modal si hay ≥120 px libres; si no, se comporta como un toast común (ajuste de DA-1 para móvil). Sin modal, reserva `padding-bottom` en el body para no tapar contenido.
+
+### Implementación
+Un error queda visible hasta que el usuario lo cierra (botón o Escape); el resto de los avisos sigue desapareciendo solo a los 7 s.
+
+### Archivos
+`.claude/agents/chaco-design-system.md` · `core/tests/test_nodo_toast_persistencia.py` (nuevo) · `static/custom/css/nodo-toast.css` (solo comentarios) · `static/custom/js/nodo-toast.js`.
+
+### Base de datos
+No requiere.
+
+### Validación
+7 tests sobre el `nodo-toast.js` real (node, DOM simulado); sin el cambio fallan 4 (sin barra en error, dedupe, Escape ×2). `check --deploy`, `makemigrations --check`, `compile_templates` 0, `design_audit` 0 errores, `check_design_agent` OK, ruff OK. Playwright 1440/390 (usuario sin capacidad en `/usuarios/` → error «No tiene permisos»): el error sigue visible a 11,5 s sin barra; el success se va antes de 8,5 s; Escape lo cierra; sin console.error, sin HTTP ≥ 400, sin scroll horizontal.
+
+### Puesta en marcha en el servidor
+No requiere. El PR mergeó como `46fba57` (head `6d235a9`).
+
+### Pendientes / a definir
+Ninguno declarado.
+
+### Reversión
+Revertir el commit `46fba57`. Los errores vuelven a cerrarse solos a los 7 s.
+
+### Historial
+Entrada nueva.
+
+## 96.34 Candados contra la doble corrida masiva y el rechazo concurrente
+
+🟢 **HECHO — 30/09/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · proceso masivo y revisión de casos |
+| **Etiquetas** | `#siis` `#datos` `#cupos` |
+| **Solicitante** | Detectado internamente en las revisiones de diseño de Becas (29/09/2026); un revisor reprodujo la doble corrida con 1 s de latencia entre dos pestañas |
+| **Fecha del pedido** | 29/09/2026 |
+| **Issue / épica** | Sin issue · PR #501 · cierra el pendiente de 96.5/96.10 |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+### Pedido original
+«Entre `CorridaSiis.en_curso()` y el `create()` no hay lock: dos pestañas o dos usuarios pueden lanzar dos corridas EN_CURSO a la vez.» Y, en revisión: «rechazar y resolver duplicados no toman lock → carrera con promover/aprobar (actualización perdida).»
+
+### Alcance acordado
+El candado del proceso masivo, la relectura del estado en `formulario_rechazar` y los dos re-chequeos faltantes de `formulario_resolver_duplicado`. Afuera: cambiar el alcance de `CorridaSiis.en_curso()` (sigue siendo global, no por programa) y cualquier migración.
+
+### Decisiones tomadas
+- **La centinela del candado es global** (el `ProgramaSiis` de menor pk), no por programa: `en_curso()` mira todas las corridas y un candado por programa dejaría pasar dos lanzamientos sobre programas distintos. Sin fila nueva de configuración, para no arrastrar una migración por un candado.
+- **`crear_corrida()` devuelve `None` en vez de lanzar**; el chequeo de la vista se conserva como filtro barato.
+- **La consulta a SIIS queda afuera de la transacción en el rechazo** (I/O de red); el estado se relee después de la consulta, ya adentro del `atomic()`.
+- **La carrera se prueba simulada, no con hilos**, porque `select_for_update()` es un no-op sobre SQLite.
+- **Los textos de error nuevos son provisorios** («Otro usuario resolvió este caso mientras lo rechazabas. No se cambió nada.», «El conflicto ya lo resolvió otro usuario.», «Esta carga ya fue resuelta y no puede descartarse desde aquí.»); propuesta por defecto: dejarlos así.
+
+### Implementación
+Lanzar el proceso masivo por segunda vez mientras corre uno deja una sola corrida; rechazar un caso que otro usuario aprobó mientras tanto ya no lo pisa y avisa sin cambiar nada; lo mismo al resolver un duplicado si el conflicto ya lo resolvió otra pestaña o la carga a descartar ya fue aprobada.
+
+### Archivos
+`programas/services/proceso_masivo.py` (`_tomar_candado()`, `crear_corrida()`) · `programas/views/proceso_masivo.py` (la vista delega la creación; `MENSAJE_EN_CURSO`) · `programas/views/revision.py` (`formulario_rechazar`, `formulario_resolver_duplicado`) · `programas/tests/test_candados_concurrencia.py` (nuevo, 10 tests).
+
+### Base de datos
+No requiere. Ninguna columna nueva, ninguna migración.
+
+### Validación
+`test_candados_concurrencia` 10 OK (4 fallan contra el código previo, simulando la carrera). `manage.py test` sobre `test_proceso_masivo`, `test_becas_revision`, `test_cupo_espera_reglas`, `test_caso_estado_espera_duplicado`: 191 OK. `--tag performance` 4 OK, 19,9 s. `check --deploy` 0 errores nuevos, `makemigrations --check` sin cambios, ruff limpio, `compile_templates` 199 OK, `design_audit --changed` 0/0, `check_design_agent --changed` OK. No tocó UI.
+
+### Puesta en marcha en el servidor
+No requiere. El PR mergeó como `3ace0c8` (head `d2ced7e`).
+
+### Pendientes / a definir
+Si `CorridaSiis.en_curso()` pasa a ser por programa, el candado tiene que ser el del programa, no la centinela global.
+
+### Reversión
+Revertir el commit `3ace0c8`. No hay datos que se pierdan: el cambio no escribe ni migra nada.
+
+### Historial
+Entrada nueva. Cierra el pendiente «candado de servidor en `proceso_masivo_lanzar`» registrado en 96.5 y 96.10.
+
+## 96.35 Constructor de formularios: modales accesibles y sin toast de éxito en el autoguardado
+
+🟢 **HECHO — 30/09/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · constructor de formularios de la convocatoria |
+| **Etiquetas** | `#ui` `#convocatorias` |
+| **Solicitante** | Auditoría de diseño de Becas (DA-2, POP-19), plan de ola 3, PR L-E |
+| **Fecha del pedido** | 29/09/2026 |
+| **Issue / épica** | Sin issue · PR #502 |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+### Pedido original
+DA-2: el autoguardado del constructor mostraba un toast de éxito por cada arrastre o edición. POP-19: si `ModernModal` no estaba cargado, `confirmar()` fallaba abierto y ejecutaba eliminar/restablecer sin preguntar. Más la regla común de ola 3: migrar los modales del constructor a `x-becas-modal` + parciales y el encabezado a `{% page_header %}`.
+
+### Alcance acordado
+`convocatoria_formulario.html` y `nodo-constructor.js`; cambio aditivo y retrocompatible en `_modal_header.html`. No incluye el catálogo general de preguntas (96.30) ni otras pantallas.
+
+### Decisiones tomadas
+- **El autoguardado no lleva toast de éxito;** el indicador `aria-live="polite"` del encabezado («Guardando…/Guardado en vivo») es la única señal. Los errores siguen yendo por `window.toast('error', …)`.
+- **Sin `ModernModal`, las acciones destructivas no se ejecutan: falla cerrado** (antes fallaba abierto).
+- **El estado Alpine sigue siendo un único `modal` (string);** se agregan 5 pares get/set (`mGrupo`, `mTexto`, `mPropio`, `mEtiqueta`, `mCondicion`) para que `x-becas-modal` tenga una variable asignable sin duplicar el estado.
+- **El modal de condición no usa `_modal_footer.html`:** tiene un tercer botón condicional («Quitar condición») en `justify-between` que no encaja en la forma fija (Cancelar + una acción); mantiene un pie propio con las mismas clases canon.
+- **`_modal_header.html` gana `titulo_x_text` y `subtitulo`, opcionales y retrocompatibles,** para el título dinámico Nuevo/Editar y la descripción del campo propio/condición; no cambia el comportamiento de los consumidores existentes (`programa_list.html`, 96.9).
+
+### Implementación
+Los 5 modales del constructor (grupo, texto, campo propio, etiqueta, condición) son diálogos accesibles (foco, Tab, Escape, scroll de fondo); el autoguardado es silencioso salvo error; las confirmaciones destructivas no se ejecutan si falta el motor de confirmación; el encabezado suma migas.
+
+### Archivos
+`.claude/agents/chaco-design-system.md` · `programas/templates/programas/becas/_modal_header.html` · `formulario/convocatoria_formulario.html` · `programas/tests/test_constructor_confirmacion_y_autoguardado.py` (nuevo, 11 tests) · `static/custom/js/nodo-constructor.js`.
+
+### Base de datos
+No requiere.
+
+### Validación
+`test_constructor_confirmacion_y_autoguardado`: 11/11 OK. Chequeo manual rojo→verde contra el `nodo-constructor.js` previo: confirma que POP-19 sí ejecutaba el fetch sin ModernModal y que DA-2 sí mostraba un toast de éxito. `manage.py test programas core`: 1477 OK (1 skipped), corrido después del merge de `origin/development` (que trajo ~15 PRs paralelos de la ola 3). `--tag performance` 4/4 OK. `check`/`check --deploy` sin novedades, `makemigrations --check` sin cambios, `compile_templates` 199 OK, `design_audit --changed` 0/0, `check_design_agent --changed` y sin `--changed` OK, ruff limpio.
+
+### Puesta en marcha en el servidor
+No requiere. El PR mergeó como `805cb8c` (head `8c36532`).
+
+### Pendientes / a definir
+**Revisión visual con Playwright a 1440 y 390 px no se hizo** (la sesión no tuvo permiso para invocar el intérprete del entorno E2E, fuera del worktree). Se cubrió la parte estructural/accesible con tests de render (role=dialog ×5, aria-live visible, `x-becas-modal`, labels), pero falta la revisión visual real (backdrop, recorte del panel en 390 px, scroll horizontal, consola).
+
+### Reversión
+Revertir el commit `805cb8c`.
+
+### Historial
+Entrada nueva.
+
+## 96.36 El detalle del programa usa las piezas comunes (encabezado, modales, estados)
+
+🟢 **HECHO — 30/09/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · detalle de programa (`/becas/config/programas/<id>/`) |
+| **Etiquetas** | `#ui` `#requisitos` |
+| **Solicitante** | Auditoría de diseño de Becas (CMP-1, CMP-7, DC-5, TIT-15), plan de ola 3, PR W3-L-A |
+| **Fecha del pedido** | 29/09/2026 |
+| **Issue / épica** | Sin issue · PR #488 |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+### Pedido original
+El detalle del programa no usaba las piezas comunes de encabezado, estado y modales de la ola 3; el estado Pausado se veía en rojo; «Reanudar» no tenía el ícono correcto; las acciones de fila del panel de requisitos no eran accesibles.
+
+### Alcance acordado
+`programa_detail.html` y `_requisitos_programa_panel.html`. Sin cambios de contrato.
+
+### Decisiones tomadas
+- Encabezado con `{% page_header %}` (mismo título, bajada, badges y acciones).
+- Estado con `_pausable_estado_badge` `solo_manual=True` (96.13): Pausado pasa de rojo a warning (CMP-1); «SIIS inactivo» sigue aparte.
+- **DC-5:** «Reanudar» con `fa-play` en `btn-brand`; «Pausar» sigue `btn-danger` `fa-pause`.
+- Los 3 modales (segmento, alta y edición de requisito) pasan a `x-becas-modal` + `_modal_header`/`_modal_footer` (foco, Escape, `max-h`); forms, `name=` y campos intactos.
+- Tabs con bold/medium alternado y contador `bg-brand-soft` en la activa (TIT-15).
+- El panel de requisitos usa `.nodo-icon-btn` con `aria-label` que nombra el requisito (CMP-7); eliminar con `data-confirm-danger="true"` y «Sí, eliminar»; el ojo de la tabla de segmentos pasa a Font Awesome con `aria-label`.
+
+### Implementación
+El detalle del programa usa encabezado, badge de estado, modales y acciones de fila comunes; Pausado se ve en ámbar y Reanudar tiene el ícono correcto.
+
+### Archivos
+`.claude/agents/chaco-design-system.md` · `programas/templates/programas/becas/config/_requisitos_programa_panel.html` · `_siis_programa_modal.html` · `programa_detail.html` · `programas/tests/test_becas_modal.py` (ajustado) · `test_programa_detail_ola3.py` (nuevo).
+
+### Base de datos
+No requiere.
+
+### Validación
+`manage.py test programas.tests.test_programa_detail_ola3 test_becas_config test_becas_rbac`: 74 OK. `design_audit --changed` 0, `compile_templates` 0, `check_design_agent` OK, ruff OK, `makemigrations --check` sin cambios. Playwright 1440/390 (solo sobre head): sin console.error ni HTTP ≥ 400, sin scroll horizontal; los 3 modales toman foco, atrapan Tab y cierran con Escape.
+
+### Puesta en marcha en el servidor
+No requiere. El PR mergeó como `9376d17` (head `4c4c088`).
+
+### Pendientes / a definir
+Ninguno declarado.
+
+### Reversión
+Revertir el commit `9376d17`.
 
 ### Historial
 Entrada nueva.
