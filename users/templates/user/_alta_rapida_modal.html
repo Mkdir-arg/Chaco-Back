@@ -2,16 +2,24 @@
 {% comment %}
 Alta rápida de usuario (coordinador / referente / territorial) desde las pantallas de Becas.
 Modal canónico: panel role=dialog, encabezado con X, cuerpo desplazable y pie gris.
-Foco, Escape y scroll del fondo los resuelve static/custom/js/becas-modal.js (se carga
-solo si la página no lo trajo). Contrato: POST a users:usuario_alta_rapida, respuesta data.user.
+El cierre (X, Cancelar, backdrop, Escape) lo resuelve este mismo script con
+[data-quick-user-close], para no quedar encerrado si becas-modal.js no llega a cargar
+(bloqueado o 404). Si becas-modal.js está disponible, además se usa becasModal.bind
+para el foco inicial y la trampa de Tab (no para cerrar). Contrato: POST a
+users:usuario_alta_rapida, respuesta data.user.
+
+No reutiliza programas/becas/_modal_header.html ni _modal_footer.html: esos parciales
+cierran solo vía data-becas-modal-cerrar (dependencia dura de becas-modal.js) y viven
+en la app programas, mientras este modal es de la app users y necesita seguir
+funcionando sin ese script.
 {% endcomment %}
 <div id="quick-user-modal" class="fixed inset-0 z-[70] flex items-center justify-center p-4" style="display:none;">
-  <div class="absolute inset-0 bg-black/50" data-becas-modal-cerrar></div>
+  <div class="absolute inset-0 bg-black/50" data-becas-modal-cerrar data-quick-user-close></div>
   <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden" role="dialog" aria-modal="true" aria-labelledby="quick-user-titulo">
     <div class="flex items-center gap-3 px-6 py-5 border-b border-light flex-shrink-0">
       <div class="flex items-center justify-center w-10 h-10 rounded-lg flex-shrink-0 text-lg bg-brand-soft text-fg-brand"><i class="fas fa-user-plus" aria-hidden="true"></i></div>
       <h3 id="quick-user-titulo" class="text-lg font-bold text-heading flex-1 min-w-0">Crear <span data-quick-user-title>usuario</span></h3>
-      <button type="button" data-becas-modal-cerrar aria-label="Cerrar" class="p-1.5 rounded-lg text-body-subtle hover:text-heading hover:bg-secondary transition-colors flex-shrink-0"><i class="fas fa-xmark text-base" aria-hidden="true"></i></button>
+      <button type="button" data-becas-modal-cerrar data-quick-user-close aria-label="Cerrar" class="p-1.5 rounded-lg text-body-subtle hover:text-heading hover:bg-secondary transition-colors flex-shrink-0"><i class="fas fa-xmark text-base" aria-hidden="true"></i></button>
     </div>
     <form id="quick-user-form" action="{% url 'users:usuario_alta_rapida' %}" class="flex flex-col min-h-0 flex-1">
       {% csrf_token %}<input type="hidden" name="tipo"><input type="hidden" name="segmento_id">
@@ -25,10 +33,10 @@ solo si la página no lo trajo). Contrato: POST a users:usuario_alta_rapida, res
         <div class="md:col-span-2"><label for="quick-user-institucion" class="block text-sm font-medium text-heading mb-1">Institución</label><input id="quick-user-institucion" class="nodo-field" name="institucion"></div>
         <div class="md:col-span-2"><label for="quick-user-observacion" class="block text-sm font-medium text-heading mb-1">Observación</label><textarea id="quick-user-observacion" class="nodo-field" name="observacion" rows="2"></textarea></div>
         <div class="md:col-span-2"><label for="quick-user-password" class="block text-sm font-medium text-heading mb-1">Contraseña provisoria</label><input id="quick-user-password" class="nodo-field" name="password" type="password" aria-describedby="quick-user-password-ayuda"><p id="quick-user-password-ayuda" class="text-xs mt-1 text-body-subtle">Con email informado no hace falta: el sistema genera una clave provisoria y se la envía al usuario.</p></div>
-        <div id="quick-user-error" class="md:col-span-2 text-sm text-fg-danger" role="alert"></div>
+        <div id="quick-user-error" class="md:col-span-2 text-sm text-fg-danger" role="alert" tabindex="-1"></div>
       </div>
       <div class="flex justify-end gap-3 px-6 py-4 border-t border-light bg-secondary flex-shrink-0">
-        <button type="button" data-becas-modal-cerrar class="btn-nodo btn-tertiary btn-base">Cancelar</button>
+        <button type="button" data-becas-modal-cerrar data-quick-user-close class="btn-nodo btn-tertiary btn-base">Cancelar</button>
         <button type="submit" data-quick-user-submit class="btn-nodo btn-brand btn-base">Crear y seleccionar</button>
       </div>
     </form>
@@ -43,12 +51,37 @@ solo si la página no lo trajo). Contrato: POST a users:usuario_alta_rapida, res
   const AYUDA = 'Elegí primero la convocatoria: el territorial se crea dentro de su segmento.';
   const submit = form.querySelector('[data-quick-user-submit]');
   const error = document.getElementById('quick-user-error');
+  const abierto = () => modal.style.display !== 'none';
   const close = () => { modal.style.display = 'none'; };
-  const cargarModal = () => {
-    if (window.becasModal) { window.becasModal.bind(modal, {onClose: close}); return; }
+  // Cierre propio: funciona aunque becas-modal.js no llegue a cargar (bloqueado o
+  // 404). Si becas-modal.js SÍ está, además se usa becasModal.bind para foco inicial
+  // y trampa de Tab, pero el cierre no depende de él.
+  modal.addEventListener('click', event => {
+    const boton = event.target.closest && event.target.closest('[data-quick-user-close]');
+    if (boton && modal.contains(boton)) close();
+  });
+  document.addEventListener('keydown', event => {
+    if ((event.key !== 'Escape' && event.key !== 'Esc') || event.defaultPrevented || !abierto()) return;
+    const activo = document.activeElement;
+    if (activo && activo.closest && !modal.contains(activo) && activo.closest('[role="dialog"], [role="alertdialog"], [aria-modal="true"]')) return;
+    close();
+  });
+  const enlazarBecasModal = () => { if (window.becasModal) window.becasModal.bind(modal, {onClose: close}); };
+  const inyectarModal = () => {
+    if (window.becasModal) { enlazarBecasModal(); return; }
+    const existente = document.querySelector('script[src*="becas-modal.js"]');
+    if (existente) { existente.addEventListener('load', enlazarBecasModal); return; }
     const s = document.createElement('script'); s.src = "{% static 'custom/js/becas-modal.js' %}";
-    s.onload = () => window.becasModal && window.becasModal.bind(modal, {onClose: close});
+    s.dataset.quickUserAutoload = '1';
+    s.addEventListener('load', enlazarBecasModal);
     document.head.appendChild(s);
+  };
+  // Se difiere hasta que el documento termine de parsearse: si la página trae su
+  // propio <script src=…becas-modal.js> MÁS ABAJO de este include, para entonces ya
+  // corrió (evita inyectar una segunda copia — hallazgo de revisión del PR).
+  const cargarModal = () => {
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', inyectarModal, {once: true});
+    else inyectarModal();
   };
   const segmentoDe = button => {
     let segmento = button.dataset.segmentId || '';
@@ -58,10 +91,12 @@ solo si la página no lo trajo). Contrato: POST a users:usuario_alta_rapida, res
     }
     return segmento;
   };
-  // DP-4: el territorial se crea dentro de un segmento; sin convocatoria el botón se deshabilita y explica por qué.
+  // DP-4: el territorial se crea dentro de un segmento; sin convocatoria el botón
+  // queda aria-disabled (no disabled) para que el lector de pantalla llegue a la
+  // ayuda con aria-describedby; el click se bloquea a mano.
   const sincronizarTerritorial = () => document.querySelectorAll('[data-quick-user="territorial"]').forEach((button, i) => {
     const falta = !segmentoDe(button);
-    button.disabled = falta;
+    button.setAttribute('aria-disabled', falta ? 'true' : 'false');
     let ayuda = button.nextElementSibling && button.nextElementSibling.hasAttribute('data-quick-user-ayuda') ? button.nextElementSibling : null;
     if (falta && !ayuda) {
       ayuda = document.createElement('p'); ayuda.id = 'quick-user-ayuda-' + i; ayuda.dataset.quickUserAyuda = '';
@@ -72,6 +107,7 @@ solo si la página no lo trajo). Contrato: POST a users:usuario_alta_rapida, res
   document.addEventListener('change', sincronizarTerritorial);
   sincronizarTerritorial();
   document.querySelectorAll('[data-quick-user]').forEach(button => button.addEventListener('click', () => {
+    if (button.getAttribute('aria-disabled') === 'true') return;
     const tipo = button.dataset.quickUser; target = document.querySelector(button.dataset.userSelect);
     const segmento = segmentoDe(button);
     if (tipo === 'territorial' && !segmento) return;
@@ -89,7 +125,15 @@ solo si la página no lo trajo). Contrato: POST a users:usuario_alta_rapida, res
       try { data = await response.json(); } catch (e) {
         window.toast('error', 'No pudimos crear el usuario (respuesta inesperada del servidor). Probá de nuevo.'); return;
       }
-      if (!response.ok) { error.textContent = data.message || Object.values(data.errors || {}).flat().join(' '); return; }
+      if (!response.ok) {
+        const errores = data.errors || {};
+        error.textContent = data.message || Object.values(errores).flat().join(' ');
+        error.scrollIntoView({block: 'nearest'});
+        const primerCampo = Object.keys(errores)[0];
+        const campo = primerCampo && form.elements.namedItem(primerCampo);
+        (campo || error).focus();
+        return;
+      }
       if (target) { const option = new Option(data.user.label, data.user.id, true, true); option.dataset.segmento = data.user.segmento_id || ''; target.add(option); target.dispatchEvent(new Event('change', {bubbles:true})); }
       close();
     } catch (e) {
