@@ -11,11 +11,11 @@ import threading
 from dataclasses import dataclass, field
 
 from django.core.exceptions import ValidationError
-from django.db import connection
+from django.db import connection, transaction
 from django.db.models import OuterRef, Q, Subquery
 from django.utils import timezone
 
-from programas.models import CorridaSiis, EnvioSIIS, Formulario, ValidacionSIS
+from programas.models import CorridaSiis, EnvioSIIS, Formulario, ProgramaSiis, ValidacionSIS
 from programas.services.avisos_resolucion import enviar_aviso_resolucion
 from programas.services.cupo import CasoEnListaEspera, aprobar_o_poner_en_espera
 from programas.services.siis_envio import (
@@ -283,6 +283,42 @@ def procesar_caso(caso, responsable, catalogos, cuenta, *, avisar=False, solo_en
 # ---------------------------------------------------------------------------
 # Corrida
 # ---------------------------------------------------------------------------
+def _tomar_candado():
+    """Bloquea la fila centinela hasta que cierre la transacción.
+
+    La centinela es el ``ProgramaSiis`` de menor pk, y es global a propósito:
+    ``CorridaSiis.en_curso()`` mira **todas** las corridas, no las de un
+    programa, así que un candado por programa dejaría pasar dos lanzamientos
+    sobre programas distintos. La fila siempre existe —se lanza desde un
+    ``ProgramaSiis``— y el candado se suelta en el commit, que acá está a dos
+    consultas de distancia.
+    """
+    return ProgramaSiis.objects.select_for_update().order_by("pk").values_list("pk", flat=True).first()
+
+
+def crear_corrida(*, programa, solicitada_por, total_pedido):
+    """La corrida nueva, o ``None`` si ya había una viva.
+
+    Entre preguntar ``en_curso()`` y crear la fila hay una ventana: con un
+    segundo de latencia, dos pestañas —o dos personas— lanzaban dos corridas
+    EN_CURSO a la vez y los dos hilos procesaban los mismos casos, aprobándolos
+    e informándolos a SIIS por duplicado. Acá el chequeo pasa a hacerse con el
+    candado ya tomado, así el segundo request lee la corrida del primero (la
+    base corre en READ COMMITTED: al soltarse el candado, la lectura siguiente
+    ve lo que el otro commiteó) y se va sin escribir nada.
+
+    Devuelve ``None`` en vez de lanzar para no abortar la transacción: lo único
+    que hay dentro es la lectura del candado, y un rollback acá no aporta nada.
+    """
+    with transaction.atomic():
+        _tomar_candado()
+        if CorridaSiis.en_curso() is not None:
+            return None
+        return CorridaSiis.objects.create(
+            programa=programa, solicitada_por=solicitada_por, total_pedido=total_pedido
+        )
+
+
 def _lotes(lista, tamano):
     for inicio in range(0, len(lista), tamano):
         yield lista[inicio : inicio + tamano]

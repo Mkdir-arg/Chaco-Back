@@ -1008,6 +1008,13 @@ def formulario_resolver_duplicado(request, pk):
         if previo is None:
             messages.error(request, "No se encontró la carga anterior vinculada.")
             return redirect(_url_caso(request, formulario))
+        # Las dos guardas de arriba —``conflicto_resuelto`` y el estado— se
+        # miraron sobre una lectura sin candado. Se rehacen acá, con las dos
+        # filas bloqueadas, porque entre una y otra pudo resolverse el conflicto
+        # desde otra pestaña o aprobarse el caso desde la revisión.
+        if formulario.conflicto_resuelto:
+            messages.error(request, "El conflicto ya lo resolvió otro usuario.")
+            return redirect(_url_caso(request, formulario))
 
         # Ninguna de las dos ramas manda el aviso del Cambio 44, y es deliberado:
         # las dos cargas son de la MISMA persona en el mismo relevamiento, asi que
@@ -1017,6 +1024,9 @@ def formulario_resolver_duplicado(request, pk):
         # corresponde. Avisar aca le diria "no fue aprobada" a alguien cuyo tramite
         # sigue abierto.
         if decision == "conservar_previo":
+            if formulario.estado != Formulario.Estado.ENVIADO:
+                messages.error(request, "Esta carga ya fue resuelta y no puede descartarse desde aquí.")
+                return redirect(_url_caso(request, formulario))
             estado_anterior = formulario.estado
             formulario.estado = Formulario.Estado.RECHAZADO
             formulario.motivo_rechazo = f"Carga duplicada del Formulario {previo.numero}."
@@ -1079,13 +1089,27 @@ def formulario_rechazar(request, pk):
             return redirect(_url_caso(request, formulario))
         estado_anterior = formulario.estado
         with transaction.atomic():
-            formulario.estado = Formulario.Estado.RECHAZADO
-            formulario.motivo_rechazo = motivo
-            formulario.save(update_fields=["estado", "motivo_rechazo", "modificado"])
-            registrar_traza(formulario, request.user, [("estado", estado_anterior, f"RECHAZADO: {motivo}")])
-            # Rechazado sale de la lista de espera: si no, seguía ocupando un
-            # lugar y se lo podía promover a APROBADO desde Cupo.
-            cerrar_espera_activa(formulario, request.user, "caso rechazado")
+            # La guarda de arriba mira un caso leído antes de consultar a SIIS:
+            # en esa ventana otro request (o el proceso masivo) puede aprobarlo.
+            # Sin candado, este rechazo pisaba esa aprobación —le liberaba el
+            # cupo y le mandaba el correo de «no fue aprobado»— sin dejar rastro
+            # de que había algo que pisar. Se relee el estado bajo candado y se
+            # decide con ese, no con el de hace un rato.
+            estado_actual = (
+                Formulario.objects.select_for_update().filter(pk=formulario.pk).values_list("estado", flat=True).first()
+            )
+            pisaria_otra_resolucion = estado_actual != Formulario.Estado.ENVIADO
+            if not pisaria_otra_resolucion:
+                formulario.estado = Formulario.Estado.RECHAZADO
+                formulario.motivo_rechazo = motivo
+                formulario.save(update_fields=["estado", "motivo_rechazo", "modificado"])
+                registrar_traza(formulario, request.user, [("estado", estado_anterior, f"RECHAZADO: {motivo}")])
+                # Rechazado sale de la lista de espera: si no, seguía ocupando un
+                # lugar y se lo podía promover a APROBADO desde Cupo.
+                cerrar_espera_activa(formulario, request.user, "caso rechazado")
+        if pisaria_otra_resolucion:
+            messages.error(request, "Otro usuario resolvió este caso mientras lo rechazabas. No se cambió nada.")
+            return redirect(_url_caso(request, formulario))
         # Aviso al ciudadano (Cambio 44), con el motivo textual tal como lo
         # escribió el técnico (decisión del cliente). Si el correo falla, el
         # rechazo ya quedó firme: el servicio loguea y devuelve False.
