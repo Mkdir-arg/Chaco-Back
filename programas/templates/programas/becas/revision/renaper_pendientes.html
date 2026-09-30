@@ -1,17 +1,11 @@
 {% extends "includes/base.html" %}
+{% load nodo_ui %}
 {% block title %}Becas · Pendientes de validación{% endblock %}
 
 {% block main-content %}
 <div class="space-y-6">
-  <div class="flex items-start gap-3 min-w-0">
-    <a href="{% url 'becas:revision' %}" class="btn-tertiary btn-back-circle" aria-label="Volver a Revisión">
-      <i class="fas fa-arrow-left" aria-hidden="true"></i>
-    </a>
-    <div class="min-w-0">
-      <h1 class="text-3xl font-extrabold text-heading tracking-tight">Pendientes de validación</h1>
-      <p class="text-sm text-body-subtle mt-1">Casos cuya identidad todavía requiere validación.</p>
-    </div>
-  </div>
+  {% url 'becas:revision' as url_revision %}
+  {% page_header titulo="Pendientes de validación" bajada="Casos cuya identidad todavía requiere validación." volver_url=url_revision volver_label="Revisión" %}{% endpage_header %}
 
   <form method="get" data-dynamic-list-filters class="bg-white rounded-xl border border-base shadow-sm p-4 grid grid-cols-1 md:grid-cols-4 gap-3">
     <input type="date" name="fecha" value="{{ filtros.fecha }}" class="nodo-field" aria-label="Fecha">
@@ -31,18 +25,18 @@
     <div class="overflow-x-auto">
       <table class="w-full border-collapse">
         <thead>
-          <tr class="bg-secondary border-b border-base">
-            <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Persona</th>
-            <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Fecha</th>
-            <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Territorial</th>
-            <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Segmento</th>
-            <th class="relative px-4 py-[11px] text-right font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;"><span class="sr-only">Acciones</span></th>
+          <tr class="nodo-thead-row">
+            <th class="nodo-th">Persona</th>
+            <th class="nodo-th">Fecha</th>
+            <th class="nodo-th">Territorial</th>
+            <th class="nodo-th">Segmento</th>
+            <th class="nodo-th text-right"><span class="sr-only">Acciones</span></th>
           </tr>
         </thead>
         <tbody>
           {% for formulario in formularios %}
           <tr class="hover:bg-secondary">
-            <td class="px-4 py-[13px] text-sm border-t border-light text-heading font-medium">
+            <td class="nodo-td text-heading font-medium">
               {% if formulario.ciudadano %}
                 {{ formulario.ciudadano.nombre_completo }}
                 <span class="text-body-subtle font-normal">({{ formulario.ciudadano.dni }})</span>
@@ -50,11 +44,11 @@
                 <span class="text-body-subtle font-normal">Sin ciudadano vinculado</span>
               {% endif %}
             </td>
-            <td class="px-4 py-[13px] text-sm border-t border-light text-body">{{ formulario.creado|date:'d/m/Y' }}</td>
-            <td class="px-4 py-[13px] text-sm border-t border-light text-body">{% if formulario.relevamiento.territorial %}{{ formulario.relevamiento.territorial.username }}{% else %}Formulario público{% endif %}</td>
-            <td class="px-4 py-[13px] text-sm border-t border-light text-body">{{ formulario.relevamiento.convocatoria.segmento.nombre }}</td>
-            <td class="px-4 py-[13px] text-sm border-t border-light text-right">
-              <a href="{% url 'becas:formulario_detalle' formulario.pk %}" class="inline-flex p-1.5 rounded-lg text-body-subtle hover:text-fg-brand hover:bg-secondary" aria-label="{% if formulario.ciudadano %}Ver caso de {{ formulario.ciudadano.nombre_completo }}{% else %}Ver caso {{ formulario.numero }} sin ciudadano vinculado{% endif %}">
+            <td class="nodo-td text-body">{{ formulario.creado|date:'d/m/Y' }}</td>
+            <td class="nodo-td text-body">{% if formulario.relevamiento.territorial %}{{ formulario.relevamiento.territorial.username }}{% else %}Formulario público{% endif %}</td>
+            <td class="nodo-td text-body">{{ formulario.relevamiento.convocatoria.segmento.nombre }}</td>
+            <td class="nodo-td text-right">
+              <a href="{% url 'becas:formulario_detalle' formulario.pk %}?next={{ request.get_full_path|urlencode }}" class="nodo-icon-btn" aria-label="{% if formulario.ciudadano %}Ver caso de {{ formulario.ciudadano.nombre_completo }}{% else %}Ver caso {{ formulario.numero }} sin ciudadano vinculado{% endif %}">
                 <i class="fas fa-eye" aria-hidden="true"></i>
               </a>
             </td>
@@ -63,34 +57,12 @@
         </tbody>
       </table>
     </div>
-    {% if is_paginated %}
-    <div class="flex items-center justify-between gap-3 flex-wrap px-4 py-3 border-t border-light bg-secondary">
-      <span class="text-xs text-body-subtle">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }} · {{ page_obj.paginator.count }} caso{{ page_obj.paginator.count|pluralize }}</span>
-      <div class="flex gap-2">
-        {% if page_obj.has_previous %}
-        <a href="?page={{ page_obj.previous_page_number }}{% if filtros.fecha %}&amp;fecha={{ filtros.fecha|urlencode }}{% endif %}{% if filtros.territorial %}&amp;territorial={{ filtros.territorial|urlencode }}{% endif %}{% if filtros.segmento %}&amp;segmento={{ filtros.segmento|urlencode }}{% endif %}"
-           class="btn-nodo btn-tertiary btn-sm" aria-label="Página anterior"><i class="fas fa-chevron-left" aria-hidden="true"></i> Anterior</a>
-        {% endif %}
-        {% if page_obj.has_next %}
-        <a href="?page={{ page_obj.next_page_number }}{% if filtros.fecha %}&amp;fecha={{ filtros.fecha|urlencode }}{% endif %}{% if filtros.territorial %}&amp;territorial={{ filtros.territorial|urlencode }}{% endif %}{% if filtros.segmento %}&amp;segmento={{ filtros.segmento|urlencode }}{% endif %}"
-           class="btn-nodo btn-tertiary btn-sm" aria-label="Página siguiente">Siguiente <i class="fas fa-chevron-right" aria-hidden="true"></i></a>
-        {% endif %}
-      </div>
-    </div>
-    {% endif %}
-    {% elif filtros.fecha or filtros.territorial or filtros.segmento %}
-    <div class="py-14 px-6 text-center flex flex-col items-center gap-3">
-      <div class="text-fg-brand"><i class="fas fa-magnifying-glass text-5xl" aria-hidden="true"></i></div>
-      <p class="text-[17px] font-bold text-heading">Ningún caso pendiente coincide con los filtros</p>
-      <p class="text-sm text-body max-w-xs">Los filtros seleccionados no tienen resultados.</p>
-      <a href="{% url 'becas:renaper_pendientes' %}" class="btn-nodo btn-tertiary btn-base mt-2">Limpiar filtros</a>
-    </div>
+    {% include "components/_paginacion.html" with page_obj=page_obj entidad="caso" %}
+    {% elif request.GET|hay_filtros %}
+      {% url 'becas:renaper_pendientes' as url_sin_filtros %}
+      {% include "components/_estado_vacio.html" with con_filtros=True titulo="Ningún caso pendiente coincide con los filtros" texto="Los filtros seleccionados no tienen resultados." accion_url=url_sin_filtros %}
     {% else %}
-    <div class="py-14 px-6 text-center flex flex-col items-center gap-3">
-      <div class="text-fg-brand"><i class="fas fa-circle-check text-5xl" aria-hidden="true"></i></div>
-      <p class="text-[17px] font-bold text-heading">No hay casos pendientes de validación</p>
-      <p class="text-sm text-body max-w-xs">Todas las identidades cargadas ya están validadas.</p>
-    </div>
+      {% include "components/_estado_vacio.html" with icono="fa-circle-check" titulo="No hay casos pendientes de validación" texto="Todas las identidades cargadas ya están validadas." %}
     {% endif %}
   </div>
 </div>

@@ -11,7 +11,7 @@ por segmento. La validación SIIS conserva y presenta el detalle auditable de EC
 import logging
 from datetime import datetime, time, timedelta
 from pathlib import Path
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlparse
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -22,8 +22,10 @@ from django.db import transaction
 from django.db.models import Count, OuterRef, Q, Subquery
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import Resolver404, resolve, reverse
 from django.utils import timezone
 from django.utils.dateparse import parse_date
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_GET, require_POST
 from django.views.generic import ListView
 
@@ -73,6 +75,28 @@ CAP_REVALIDAR_RENAPER = "becas.programa.administrar"
 #: Casos por página en la revisión de un relevamiento.
 CASOS_POR_PAGINA = 50
 EXTENSIONES_IMAGEN = {".avif", ".gif", ".jpeg", ".jpg", ".png", ".webp"}
+
+#: TIT-9 / DE-3: al caso se llega desde varias pantallas y el volver tiene que
+#: devolver a la de origen. La clave es el ``url_name`` del ``next`` validado y el
+#: valor, el nombre con el que se anuncia («Volver a …»). Un ``next`` que resuelva
+#: a cualquier otra vista se ignora: el volver cae en los casos del relevamiento,
+#: como antes.
+ETIQUETA_ORIGEN_CASO = {
+    "revision_formularios": "los casos del relevamiento",
+    "relevamiento_detalle": "el relevamiento",
+    "convocatoria_detalle": "la convocatoria",
+    "cupo_segmento": "Cupo y beneficiarios",
+    "revision": "la bandeja de casos",
+    "renaper_pendientes": "Pendientes de validación",
+    "becas_ciudadano_detalle": "el ciudadano",
+    "formulario_detalle": "el otro caso",
+}
+#: Bandejas transversales a los relevamientos: la jerarquía Programa → Segmento →
+#: Convocatoria → Relevamiento no es el camino que recorrió el usuario, así que las
+#: migas arrancan en «Revisión». El valor es la miga intermedia (``None`` = ninguna).
+BANDEJAS_CASO = {"revision": None, "renaper_pendientes": "Pendientes de validación"}
+#: ALR-16: de menor a mayor. Un aviso compuesto sale con el nivel del peor resultado.
+NIVELES_AVISO = ("success", "info", "warning", "error")
 
 
 def _aware_start(fecha):
@@ -166,7 +190,7 @@ def _marcar_carga_duplicada_pendiente(formularios):
     return formularios
 
 
-def _pagina_hidratada(pks, orden, duplicados=True):
+def _pagina_hidratada(pks, orden, duplicados=True, espera=False):
     """Trae los datos de presentación **solo** de los casos de la página.
 
     La página se elige con una consulta liviana (ver ``RevisionPersonasListView``) y
@@ -174,6 +198,9 @@ def _pagina_hidratada(pks, orden, duplicados=True):
     revisión abre las respuestas (``data``, ``respuestas``), los datos para SIIS ni la
     foto del formulario (``definicion``, ~7 KB por caso): los cuatro JSON se difieren,
     que son casi todo el ancho de la fila y un ``json.loads`` cada uno.
+
+    ``espera=True`` suma ``en_espera_activa`` (una consulta por página) para que el
+    listado pueda mostrar «Lista de espera» junto al estado.
     """
     filas = (
         Formulario.objects.filter(pk__in=pks)
@@ -181,7 +208,8 @@ def _pagina_hidratada(pks, orden, duplicados=True):
         .defer("data", "respuestas", "definicion", "datos_siis")
         .order_by(*orden)
     )
-    return _marcar_carga_duplicada_pendiente(filas) if duplicados else list(filas)
+    pagina = _marcar_carga_duplicada_pendiente(filas) if duplicados else list(filas)
+    return _marcar_en_espera_activa(pagina) if espera else pagina
 
 
 def _assert_scope_relevamiento(request, relevamiento):
@@ -224,27 +252,128 @@ def _sin_formularios_publicos_si_no_puede(qs, user):
     return qs.exclude(relevamiento__tipo=Relevamiento.Tipo.PUBLICO)
 
 
-def _informar_a_siis(request, formulario):
+def _informar_a_siis(formulario, user):
     """Alta del beneficiario en SIIS tras la aprobación.
 
     Va afuera de la transacción del servicio y **nunca deshace la aprobación**:
     un fallo acá se registra (o se loguea) y el coordinador reintenta desde el
-    caso. Devuelve el ``EnvioSIIS`` o ``None`` si ni siquiera se pudo registrar.
+    caso. Devuelve ``(envio, nivel, texto)`` —``envio`` es ``None`` si ni siquiera
+    se pudo registrar— y no avisa por su cuenta: quien llama decide si el texto va
+    solo o pegado al del desenlace (ALR-16).
     """
     try:
-        envio = enviar_beneficiario_a_siis(formulario, request.user)
+        envio = enviar_beneficiario_a_siis(formulario, user)
     except Exception:  # noqa: BLE001 — la aprobación ya está confirmada
         logger.exception("Fallo inesperado al informar el beneficiario %s a SIIS", formulario.pk)
-        messages.error(request, "No se pudo informar el beneficiario a SIIS; reintentá desde el caso.")
-        return None
+        return None, "error", "No se pudo informar el beneficiario a SIIS; reintentá desde el caso."
     nivel, texto = mensaje_envio(envio)
-    getattr(messages, nivel)(request, texto)
-    return envio
+    return envio, nivel, texto
 
 
 def _espera_activa(formulario):
     """Entradas de lista de espera todavía no promovidas del caso."""
     return ListaEspera.objects.filter(formulario=formulario, promovido=False)
+
+
+def _marcar_en_espera_activa(formularios):
+    """Deja ``en_espera_activa`` en cada caso de la página.
+
+    Lo consume ``_formulario_estado_badge.html`` para sumar «Lista de espera» al
+    estado. Se resuelve por lote sobre los ids de la página —una consulta indexada—
+    y no con ``Exists(OuterRef("pk"))``: ``ListaEspera`` tiene pocas filas frente a
+    ``programas_formulario``, así que la subconsulta dependiente se paga por fila
+    (misma trampa que ``_marcar_carga_duplicada_pendiente``).
+    """
+    formularios = list(formularios)
+    ids = [f.pk for f in formularios]
+    en_espera = (
+        set(ListaEspera.objects.filter(formulario_id__in=ids, promovido=False).values_list("formulario_id", flat=True))
+        if ids
+        else set()
+    )
+    for formulario in formularios:
+        formulario.en_espera_activa = formulario.pk in en_espera
+    return formularios
+
+
+def _next_valido(request):
+    """El ``next`` de la request, solo si es una ruta interna de ``/becas/``.
+
+    TIT-9 / DE-3. Se pide lo mismo dos veces a propósito: ``url_has_allowed_host_and_scheme``
+    descarta lo que apunte a otro host o a otro esquema (``//malo.tld/x``,
+    ``javascript:…``) y el prefijo descarta el resto del sistema, así que el volver
+    del caso nunca puede llevar afuera. Cualquier otra cosa devuelve ``""`` y el
+    llamador cae en el destino de siempre.
+    """
+    candidato = request.GET.get("next") or ""
+    if not candidato:
+        return ""
+    if not url_has_allowed_host_and_scheme(
+        candidato, allowed_hosts={request.get_host()}, require_https=request.is_secure()
+    ):
+        return ""
+    if not candidato.startswith("/becas/"):
+        return ""
+    return candidato
+
+
+def _query_next(request):
+    """``"?next=…"`` para pegar a una URL, o ``""`` si no hay origen válido."""
+    siguiente = _next_valido(request)
+    return f"?{urlencode({'next': siguiente})}" if siguiente else ""
+
+
+def _url_caso(request, formulario):
+    """URL del caso conservando el origen: los POST vuelven a donde estaba el usuario."""
+    return reverse("becas:formulario_detalle", args=[formulario.pk]) + _query_next(request)
+
+
+def _nombre_de_url(url):
+    """``url_name`` de una ruta interna, o ``""`` si no resuelve."""
+    try:
+        return resolve(urlparse(url).path).url_name or ""
+    except Resolver404:
+        return ""
+
+
+def _origen_del_caso(request, formulario):
+    """``(volver_url, volver_label, migas)`` del caso según el ``next`` validado.
+
+    Sin origen (o con uno que no es una pantalla que enlace al caso) vuelve a los
+    casos del relevamiento, como siempre. ``migas`` viene vacío salvo en las bandejas
+    transversales: ahí la ruta es «Revisión → bandeja → Caso N», y en el resto la
+    arma ``{% becas_migas %}`` con la jerarquía del programa.
+    """
+    destino = _next_valido(request)
+    nombre = _nombre_de_url(destino) if destino else ""
+    if nombre not in ETIQUETA_ORIGEN_CASO:
+        return (
+            reverse("becas:revision_formularios", args=[formulario.relevamiento_id]),
+            "los casos del relevamiento",
+            [],
+        )
+    migas = []
+    if nombre in BANDEJAS_CASO:
+        migas = [{"label": "Revisión", "url": reverse("becas:revision")}]
+        if BANDEJAS_CASO[nombre]:
+            migas.append({"label": BANDEJAS_CASO[nombre], "url": destino})
+        migas.append({"label": f"Caso {formulario.numero}", "url": None})
+    return destino, ETIQUETA_ORIGEN_CASO[nombre], migas
+
+
+def _aviso_unico(request, partes):
+    """ALR-16: un solo mensaje por acción, con el nivel del peor resultado.
+
+    ``partes`` es ``[(nivel, texto), …]`` en el orden en que se lee. Aprobar un caso
+    dejaba hasta tres avisos encimados (el desenlace, el veredicto de SIIS y el alta
+    del beneficiario); ahora sale uno, y si alguna parte falló el aviso entero se ve
+    como error o advertencia.
+    """
+    partes = [(nivel, texto) for nivel, texto in partes if texto]
+    if not partes:
+        return
+    nivel = max((nivel for nivel, _ in partes), key=NIVELES_AVISO.index)
+    getattr(messages, nivel)(request, " ".join(texto.strip() for _, texto in partes))
 
 
 def _tiene_conflicto_duplicado_pendiente(formulario):
@@ -294,7 +423,7 @@ class RevisionPersonasListView(CapacidadRequeridaMixin, LoginRequiredMixin, List
 
     def paginate_queryset(self, queryset, page_size):
         paginator, page, object_list, is_paginated = super().paginate_queryset(queryset, page_size)
-        return paginator, page, _pagina_hidratada([f.pk for f in object_list], self.orden), is_paginated
+        return paginator, page, _pagina_hidratada([f.pk for f in object_list], self.orden, espera=True), is_paginated
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
@@ -407,7 +536,9 @@ def revision_formularios(request, relevamiento_pk):
         "programas/becas/revision/formulario_list.html",
         {
             "relevamiento": relevamiento,
-            "formularios": _pagina_hidratada([f.pk for f in pagina], ("numero",)),
+            # ``en_espera_activa``: el listado puede mostrar «Lista de espera» junto
+            # al estado sin una consulta por fila (CMP-M1, mapa de estados).
+            "formularios": _pagina_hidratada([f.pk for f in pagina], ("numero",), espera=True),
             "page_obj": pagina,
             "paginator": paginador,
             "is_paginated": pagina.has_other_pages(),
@@ -483,7 +614,13 @@ def _sin_vinculados(bloques):
 def formulario_detalle(request, pk):
     formulario = get_object_or_404(
         # ``programa`` lo lee ``motivo_bloqueo_aprobacion``; sin el va una consulta suelta.
-        Formulario.objects.select_related("relevamiento__convocatoria__segmento__programa", "ciudadano")
+        # ``subsegmento`` lo lee ``becas_migas`` para armar la ruta: es un LEFT JOIN
+        # más, no una consulta más.
+        Formulario.objects.select_related(
+            "relevamiento__convocatoria__segmento__programa",
+            "relevamiento__convocatoria__subsegmento",
+            "ciudadano",
+        )
         # CMP-N1: la posición en la lista de espera viaja en la misma consulta.
         .annotate(posicion_espera=Subquery(_espera_activa(OuterRef("pk")).values("posicion")[:1])),
         pk=pk,
@@ -523,7 +660,7 @@ def formulario_detalle(request, pk):
                 messages.success(request, f"Caso actualizado ({n} cambio(s) registrado(s)).")
             else:
                 messages.info(request, "No hubo cambios para guardar.")
-            return redirect("becas:formulario_detalle", pk=formulario.pk)
+            return redirect(_url_caso(request, formulario))
     else:
         form = FormularioRevisionForm(instance=formulario)
 
@@ -574,12 +711,20 @@ def formulario_detalle(request, pk):
         if puede_enviar_siis and not ya_enviado:
             datos_siis_form = DatosSiisForm(initial=formulario.datos_siis or {})
     detalles_envio_siis = _detalles_envio_siis(envio_siis)
+    volver_url, volver_label, migas_origen = _origen_del_caso(request, formulario)
     return render(
         request,
         "programas/becas/revision/formulario_detalle.html",
         {
             "formulario": formulario,
             "relevamiento": formulario.relevamiento,
+            "titulo_caso": f"Caso {formulario.numero}",
+            # TIT-9 / DE-3: volver a la pantalla de origen, no siempre al relevamiento.
+            "volver_url": volver_url,
+            "volver_label": volver_label,
+            "migas_origen": migas_origen,
+            # El origen viaja en los POST del caso para no perderlo al guardar.
+            "next_qs": _query_next(request),
             "form": form,
             "genero_form": CiudadanoGeneroRevisionForm(
                 initial={"genero": formulario.ciudadano.genero if formulario.ciudadano else ""}
@@ -631,20 +776,20 @@ def formulario_validar_sis(request, pk):
     )
     _assert_scope_formulario(request, formulario)
     if request.method != "POST":
-        return redirect("becas:formulario_detalle", pk=formulario.pk)
+        return redirect(_url_caso(request, formulario))
 
     try:
         validacion = validar_formulario_en_siis(formulario, request.user)
     except ValueError as error:
         messages.error(request, str(error))
-        return redirect("becas:formulario_detalle", pk=formulario.pk)
+        return redirect(_url_caso(request, formulario))
     if validacion.estado == ValidacionSIS.Estado.OK:
         messages.success(request, "SIIS informo que la persona es compatible.")
     elif validacion.estado == ValidacionSIS.Estado.RECHAZADO:
         messages.warning(request, f"SIIS rechazo la compatibilidad: {validacion.motivo or 'sin motivo informado'}")
     else:
         messages.error(request, validacion.motivo or "No se pudo validar contra SIIS.")
-    return redirect("becas:formulario_detalle", pk=formulario.pk)
+    return redirect(_url_caso(request, formulario))
 
 
 @login_required
@@ -659,8 +804,9 @@ def formulario_enviar_siis(request, pk):
     if formulario.estado != Formulario.Estado.APROBADO:
         messages.error(request, "Solo se informan a SIIS los casos aprobados.")
     else:
-        _informar_a_siis(request, formulario)
-    return redirect("becas:formulario_detalle", pk=formulario.pk)
+        _, nivel, texto = _informar_a_siis(formulario, request.user)
+        getattr(messages, nivel)(request, texto)
+    return redirect(_url_caso(request, formulario))
 
 
 @login_required
@@ -673,10 +819,15 @@ def formulario_datos_siis(request, pk):
     _assert_scope_formulario(request, formulario)
     form = DatosSiisForm(request.POST)
     if not form.is_valid():
-        for campo, errores in form.errors.items():
-            etiqueta = form.fields[campo].label if campo in form.fields else "Datos SIIS"
-            messages.error(request, f"{etiqueta}: {' '.join(errores)}")
-        return redirect("becas:formulario_detalle", pk=formulario.pk)
+        # ALR-8: era un aviso flotante por cada campo con error, encimados. Va uno
+        # solo que los enumera; el modal no es AJAX, así que no hay dónde ponerlos
+        # inline sin reescribir el envío (DA-3 queda para ese cambio).
+        detalle = "; ".join(
+            f"{form.fields[campo].label if campo in form.fields else 'Datos SIIS'}: {' '.join(errores)}"
+            for campo, errores in form.errors.items()
+        )
+        messages.error(request, f"No se guardaron los datos para SIIS. Revisá: {detalle}")
+        return redirect(_url_caso(request, formulario))
     anteriores = formulario.datos_siis if isinstance(formulario.datos_siis, dict) else {}
     nuevos = form.como_datos_siis()
     cambios = [
@@ -692,7 +843,7 @@ def formulario_datos_siis(request, pk):
         messages.success(request, "Datos para SIIS guardados. Reenviá el caso para informarlo.")
     else:
         messages.info(request, "No hubo cambios para guardar.")
-    return redirect("becas:formulario_detalle", pk=formulario.pk)
+    return redirect(_url_caso(request, formulario))
 
 
 @login_required
@@ -739,25 +890,25 @@ def formulario_actualizar_genero(request, pk):
     formulario = get_object_or_404(Formulario.objects.select_related("ciudadano"), pk=pk)
     _assert_scope_formulario(request, formulario)
     if request.method != "POST":
-        return redirect("becas:formulario_detalle", pk=formulario.pk)
+        return redirect(_url_caso(request, formulario))
     if formulario.ciudadano is None:
         messages.error(request, "El caso no tiene un ciudadano vinculado.")
-        return redirect("becas:formulario_detalle", pk=formulario.pk)
+        return redirect(_url_caso(request, formulario))
     if formulario.validado_renaper and formulario.ciudadano.genero:
         messages.info(request, "La identidad ya fue validada; el sexo es de solo lectura.")
-        return redirect("becas:formulario_detalle", pk=formulario.pk)
+        return redirect(_url_caso(request, formulario))
 
     form = CiudadanoGeneroRevisionForm(request.POST)
     if not form.is_valid():
         messages.error(request, "Seleccioná un sexo válido.")
-        return redirect("becas:formulario_detalle", pk=formulario.pk)
+        return redirect(_url_caso(request, formulario))
 
     ciudadano = formulario.ciudadano
     genero_anterior = ciudadano.genero
     genero_nuevo = form.cleaned_data["genero"]
     if genero_anterior == genero_nuevo:
         messages.info(request, "El sexo no cambió.")
-        return redirect("becas:formulario_detalle", pk=formulario.pk)
+        return redirect(_url_caso(request, formulario))
 
     etiquetas = dict(ciudadano.Genero.choices)
     ciudadano.genero = genero_nuevo
@@ -771,7 +922,7 @@ def formulario_actualizar_genero(request, pk):
         messages.success(request, "Sexo guardado.")
     else:
         messages.success(request, "Sexo guardado. Ya podés revalidar con Base de Personas.")
-    return redirect("becas:formulario_detalle", pk=formulario.pk)
+    return redirect(_url_caso(request, formulario))
 
 
 @login_required
@@ -782,7 +933,7 @@ def formulario_aprobar(request, pk):
     if request.method == "POST":
         if _tiene_conflicto_duplicado_pendiente(formulario):
             messages.error(request, "Primero debés resolver el conflicto de cargas duplicadas.")
-            return redirect("becas:formulario_detalle", pk=formulario.pk)
+            return redirect(_url_caso(request, formulario))
         # CMP-N1 (decisión del usuario): quien está en lista de espera se aprueba
         # promoviéndolo desde Cupo. Aprobarlo acá, con cupo libre, lo pasaba a
         # APROBADO y dejaba su fila de ``ListaEspera`` activa, colgando.
@@ -790,37 +941,44 @@ def formulario_aprobar(request, pk):
         # mirar ``aprobar_o_poner_en_espera`` bajo el lock del segmento.
         if _espera_activa(formulario).exists():
             messages.error(request, MENSAJE_CASO_EN_ESPERA)
-            return redirect("becas:formulario_detalle", pk=formulario.pk)
+            return redirect(_url_caso(request, formulario))
         try:
             validacion = validar_formulario_en_siis(formulario, request.user)
             resultado = aprobar_o_poner_en_espera(formulario, request.user)
         except (ValidationError, ValueError) as error:
             messages.error(request, getattr(error, "message", str(error)))
         else:
+            # ALR-16: «Aprobar» tenía tres desenlaces que avisaban por separado y se
+            # encimaban en pantalla (el resultado, el veredicto de SIIS y el alta del
+            # beneficiario). Se juntan en un aviso, en el orden en que se lee, con el
+            # nivel del peor resultado: si el alta falló, el aviso entero es un error.
+            partes = []
+            if resultado == "aprobado":
+                partes.append(("success", "Caso aprobado."))
+            else:
+                segmento = formulario.relevamiento.convocatoria.segmento
+                partes.append(
+                    ("warning", f"No hay cupo disponible en {segmento.nombre}: se agregó a la lista de espera.")
+                )
             # Cambio 81: el veredicto de SIIS no frena la aprobación, pero queda
             # dicho en pantalla para que el revisor sepa con qué aprobó.
             if validacion.estado == ValidacionSIS.Estado.RECHAZADO:
-                messages.warning(
-                    request,
-                    "SIIS informó que la persona no es compatible: "
-                    f"{validacion.motivo or 'sin motivo informado'}. La decisión quedó registrada igual.",
+                partes.append(
+                    (
+                        "warning",
+                        "SIIS informó que la persona no es compatible: "
+                        f"{validacion.motivo or 'sin motivo informado'}. La decisión quedó registrada igual.",
+                    )
                 )
             elif validacion.estado == ValidacionSIS.Estado.ERROR:
-                messages.warning(
-                    request,
-                    "SIIS no respondió y la consulta quedó sin veredicto; el intento quedó registrado.",
+                partes.append(
+                    ("warning", "SIIS no respondió y la consulta quedó sin veredicto; el intento quedó registrado.")
                 )
             if resultado == "aprobado":
-                messages.success(request, "Caso aprobado.")
                 # Alta del beneficiario en SIIS: solo quien quedó APROBADO con cupo.
                 # Quien cae en lista de espera todavía no es beneficiario.
-                _informar_a_siis(request, formulario)
-            else:
-                segmento = formulario.relevamiento.convocatoria.segmento
-                messages.warning(
-                    request,
-                    f"No hay cupo disponible en {segmento.nombre}: se agregó a la lista de espera.",
-                )
+                partes.append(_informar_a_siis(formulario, request.user)[1:])
+            _aviso_unico(request, partes)
             # Aviso al ciudadano (Cambio 44). Va acá y no dentro de
             # ``aprobar_o_poner_en_espera``: el servicio es ``@transaction.atomic``
             # y un rollback dejaría el correo enviado sin forma de retractarlo.
@@ -832,7 +990,7 @@ def formulario_aprobar(request, pk):
                 protocol="https" if request.is_secure() else "http",
                 domain=request.get_host(),
             )
-    return redirect("becas:formulario_detalle", pk=formulario.pk)
+    return redirect(_url_caso(request, formulario))
 
 
 @login_required
@@ -841,7 +999,7 @@ def formulario_resolver_duplicado(request, pk):
     formulario = get_object_or_404(Formulario, pk=pk, conflicto_duplicado=True)
     _assert_scope_formulario(request, formulario)
     if request.method != "POST" or formulario.conflicto_resuelto:
-        return redirect("becas:formulario_detalle", pk=formulario.pk)
+        return redirect(_url_caso(request, formulario))
 
     decision = request.POST.get("decision")
     with transaction.atomic():
@@ -849,7 +1007,7 @@ def formulario_resolver_duplicado(request, pk):
         previo = Formulario.objects.select_for_update().filter(pk=formulario.duplicado_de_id).first()
         if previo is None:
             messages.error(request, "No se encontró la carga anterior vinculada.")
-            return redirect("becas:formulario_detalle", pk=formulario.pk)
+            return redirect(_url_caso(request, formulario))
 
         # Ninguna de las dos ramas manda el aviso del Cambio 44, y es deliberado:
         # las dos cargas son de la MISMA persona en el mismo relevamiento, asi que
@@ -874,7 +1032,7 @@ def formulario_resolver_duplicado(request, pk):
         elif decision == "conservar_actual":
             if previo.estado != Formulario.Estado.ENVIADO:
                 messages.error(request, "La carga anterior ya fue procesada y no puede reemplazarse desde aquí.")
-                return redirect("becas:formulario_detalle", pk=formulario.pk)
+                return redirect(_url_caso(request, formulario))
             previo.estado = Formulario.Estado.RECHAZADO
             previo.motivo_rechazo = f"Reemplazado por la carga duplicada del Formulario {formulario.numero}."
             previo.save(update_fields=["estado", "motivo_rechazo", "modificado"])
@@ -890,7 +1048,7 @@ def formulario_resolver_duplicado(request, pk):
             messages.success(request, f"Se conservó esta carga y se descartó el caso {previo.numero}.")
         else:
             messages.error(request, "Seleccioná qué carga querés conservar.")
-    return redirect("becas:formulario_detalle", pk=formulario.pk)
+    return redirect(_url_caso(request, formulario))
 
 
 @login_required
@@ -901,7 +1059,7 @@ def formulario_rechazar(request, pk):
     if request.method == "POST":
         if _tiene_conflicto_duplicado_pendiente(formulario):
             messages.error(request, "Primero debés resolver el conflicto de cargas duplicadas.")
-            return redirect("becas:formulario_detalle", pk=formulario.pk)
+            return redirect(_url_caso(request, formulario))
         # Simetria con la aprobacion, que corta en ``aprobar_o_poner_en_espera``.
         # Sin esta guarda un doble clic rechazaba dos veces --y desde el Cambio 44
         # mandaba dos correos-- y un POST armado a mano podia rechazar a un
@@ -909,16 +1067,16 @@ def formulario_rechazar(request, pk):
         # aprobado.
         if formulario.estado != Formulario.Estado.ENVIADO:
             messages.error(request, "Solo se pueden rechazar casos pendientes de resolución.")
-            return redirect("becas:formulario_detalle", pk=formulario.pk)
+            return redirect(_url_caso(request, formulario))
         motivo = (request.POST.get("motivo") or "").strip()
         if not motivo:
             messages.error(request, "Debés indicar el motivo del rechazo.")
-            return redirect("becas:formulario_detalle", pk=formulario.pk)
+            return redirect(_url_caso(request, formulario))
         try:
             validacion = validar_formulario_en_siis(formulario, request.user)
         except ValueError as error:
             messages.error(request, str(error))
-            return redirect("becas:formulario_detalle", pk=formulario.pk)
+            return redirect(_url_caso(request, formulario))
         estado_anterior = formulario.estado
         with transaction.atomic():
             formulario.estado = Formulario.Estado.RECHAZADO
@@ -941,7 +1099,7 @@ def formulario_rechazar(request, pk):
         if validacion.estado == ValidacionSIS.Estado.ERROR:
             messages.warning(request, "SIIS no respondió correctamente; quedó registrado para reintentar.")
         messages.success(request, "Caso rechazado.")
-    return redirect("becas:formulario_detalle", pk=formulario.pk)
+    return redirect(_url_caso(request, formulario))
 
 
 @login_required
@@ -950,7 +1108,7 @@ def formulario_revalidar_renaper(request, pk):
     formulario = get_object_or_404(Formulario.objects.select_related("ciudadano"), pk=pk)
     _assert_scope_formulario(request, formulario)
     if request.method != "POST":
-        return redirect("becas:formulario_detalle", pk=formulario.pk)
+        return redirect(_url_caso(request, formulario))
     if not gran_base_activa():
         # Cambio 57: apagada por configuración mientras el servicio no responde.
         messages.error(
@@ -958,19 +1116,19 @@ def formulario_revalidar_renaper(request, pk):
             "Base de Personas está desactivada por configuración. Usá «Validar contra el padrón» "
             "o la validación manual.",
         )
-        return redirect("becas:formulario_detalle", pk=formulario.pk)
+        return redirect(_url_caso(request, formulario))
     ciudadano = formulario.ciudadano
     if ciudadano is None:
         messages.error(request, "El caso no tiene un ciudadano vinculado para revalidar.")
-        return redirect("becas:formulario_detalle", pk=formulario.pk)
+        return redirect(_url_caso(request, formulario))
     if ciudadano.genero not in ("F", "M"):
         messages.error(request, "Completá el sexo F o M antes de consultar Base de Personas.")
-        return redirect("becas:formulario_detalle", pk=formulario.pk)
+        return redirect(_url_caso(request, formulario))
     resultado = consultar_persona(ciudadano.dni, ciudadano.genero)
     if not resultado.get("success"):
         mensaje = resultado.get("error") or "Base de Personas no pudo validar a la persona."
         messages.error(request, mensaje)
-        return redirect("becas:formulario_detalle", pk=formulario.pk)
+        return redirect(_url_caso(request, formulario))
 
     datos = resultado.get("data") or {}
     cambios = []
@@ -1008,7 +1166,7 @@ def formulario_revalidar_renaper(request, pk):
         registrar_traza(formulario, request.user, cambios)
 
     messages.success(request, "Identidad revalidada correctamente con Base de Personas.")
-    return redirect("becas:formulario_detalle", pk=formulario.pk)
+    return redirect(_url_caso(request, formulario))
 
 
 @login_required
@@ -1021,24 +1179,24 @@ def formulario_validar_padron(request, pk):
     formulario = get_object_or_404(Formulario.objects.select_related("ciudadano", "relevamiento__convocatoria"), pk=pk)
     _assert_scope_formulario(request, formulario)
     if request.method != "POST":
-        return redirect("becas:formulario_detalle", pk=formulario.pk)
+        return redirect(_url_caso(request, formulario))
     if formulario.validado_renaper:
         messages.error(request, "La identidad de este caso ya está validada.")
-        return redirect("becas:formulario_detalle", pk=formulario.pk)
+        return redirect(_url_caso(request, formulario))
     ciudadano = formulario.ciudadano
     if ciudadano is None or not ciudadano.dni:
         messages.error(request, "El caso necesita un ciudadano con DNI para buscarlo en el padrón.")
-        return redirect("becas:formulario_detalle", pk=formulario.pk)
+        return redirect(_url_caso(request, formulario))
     fila = fila_padron(formulario.relevamiento, ciudadano.dni, ciudadano.genero)
     if fila is None:
         messages.error(request, f"El DNI {ciudadano.dni} no figura en el padrón de la convocatoria con ese sexo.")
-        return redirect("becas:formulario_detalle", pk=formulario.pk)
+        return redirect(_url_caso(request, formulario))
     if not fila.tiene_identidad:
         messages.error(
             request,
             "La persona figura en el padrón pero sin nombre y apellido: subí un padrón con esos datos o validá a mano.",
         )
-        return redirect("becas:formulario_detalle", pk=formulario.pk)
+        return redirect(_url_caso(request, formulario))
 
     with transaction.atomic():
         cambios = [("Validación de identidad", "Pendiente", "Validada por padrón")]
@@ -1060,7 +1218,7 @@ def formulario_validar_padron(request, pk):
         formulario.save(update_fields=["validado_renaper", "origen_validacion", "modificado"])
         registrar_traza(formulario, request.user, cambios)
     messages.success(request, "Identidad validada contra el padrón de la convocatoria.")
-    return redirect("becas:formulario_detalle", pk=formulario.pk)
+    return redirect(_url_caso(request, formulario))
 
 
 @login_required
@@ -1081,18 +1239,18 @@ def formulario_forzar_identidad(request, pk):
     formulario = get_object_or_404(Formulario.objects.select_related("ciudadano"), pk=pk)
     _assert_scope_formulario(request, formulario)
     if request.method != "POST":
-        return redirect("becas:formulario_detalle", pk=formulario.pk)
+        return redirect(_url_caso(request, formulario))
     if formulario.validado_renaper:
         messages.error(request, "La identidad de este caso ya está validada.")
-        return redirect("becas:formulario_detalle", pk=formulario.pk)
+        return redirect(_url_caso(request, formulario))
     if formulario.ciudadano_id is None or not formulario.ciudadano.dni:
         messages.error(request, "El caso necesita un ciudadano con DNI antes de validar la identidad.")
-        return redirect("becas:formulario_detalle", pk=formulario.pk)
+        return redirect(_url_caso(request, formulario))
 
     form = ForzarIdentidadForm(request.POST)
     if not form.is_valid():
         messages.error(request, next(iter(form.errors.values()))[0])
-        return redirect("becas:formulario_detalle", pk=formulario.pk)
+        return redirect(_url_caso(request, formulario))
 
     motivo = form.cleaned_data["motivo"]
     with transaction.atomic():
@@ -1118,7 +1276,7 @@ def formulario_forzar_identidad(request, pk):
         request,
         "Identidad validada manualmente. Queda registrado en la traza junto con el motivo.",
     )
-    return redirect("becas:formulario_detalle", pk=formulario.pk)
+    return redirect(_url_caso(request, formulario))
 
 
 # Estados desde los que se puede cerrar la revisión: el campo ya está cerrado,

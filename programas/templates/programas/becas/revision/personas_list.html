@@ -1,23 +1,19 @@
 {% extends "includes/base.html" %}
+{% load nodo_ui %}
 {% block title %}Becas · Revisión{% endblock %}
 
 {% block main-content %}
-<div class="mb-8">
+<div class="space-y-6">
 
-  <div class="mb-6 flex items-start justify-between gap-4 flex-wrap">
-    <div>
-      <h1 class="text-3xl font-extrabold text-heading tracking-tight">Revisión de casos</h1>
-      <p class="text-sm text-body-subtle mt-1">Todas las personas relevadas en campo — entrá a cada caso para revisarlo</p>
-    </div>
+  {% page_header titulo="Revisión de casos" bajada="Todas las personas relevadas en campo — entrá a cada caso para revisarlo" %}
     {% if puede_revalidar_renaper %}
       <a href="{% url 'becas:renaper_pendientes' %}" class="btn-nodo btn-tertiary btn-base">
-        <i class="fas fa-id-card"></i> Pendientes de validación ({{ pendientes_renaper }})
+        <i class="fas fa-id-card" aria-hidden="true"></i> Pendientes de validación ({{ pendientes_renaper }})
       </a>
     {% endif %}
-  </div>
+  {% endpage_header %}
 
-  {# Filter bar #}
-  <form method="get" data-dynamic-list-filters class="flex items-center gap-3 mb-4 flex-wrap">
+  <form method="get" data-dynamic-list-filters class="flex items-center gap-3 flex-wrap">
     <label class="text-sm text-body-subtle font-medium" for="filtro-estado">Estado:</label>
     <select name="estado" id="filtro-estado"
             class="nodo-field max-w-xs">
@@ -73,13 +69,13 @@
               {% endif %}
             </td>
             <td class="nodo-td">
-              {% include "programas/becas/_formulario_estado_badge.html" with estado=f.estado dot=True color_enviado="warning" %}
+              {% include "programas/becas/_formulario_estado_badge.html" with estado=f.estado en_espera_activa=f.en_espera_activa color_enviado="warning" %}
               {% if f.conflicto_duplicado and not f.conflicto_resuelto or f.tiene_carga_duplicada_pendiente %}
-                <span class="badge badge-warning mt-1"><i class="fas fa-code-compare"></i> Duplicado por resolver</span>
+                <span class="badge badge-warning mt-1"><i class="fas fa-code-compare" aria-hidden="true"></i> Duplicado por resolver</span>
               {% endif %}
             </td>
             <td class="nodo-td text-right">
-              <a href="{% url 'becas:formulario_detalle' f.pk %}" class="nodo-icon-btn"
+              <a href="{% url 'becas:formulario_detalle' f.pk %}?next={{ request.get_full_path|urlencode }}" class="nodo-icon-btn"
                  aria-label="Ver caso de {% if f.ciudadano %}{{ f.ciudadano.nombre }} {{ f.ciudadano.apellido }}{% elif f.datos_identificacion %}{{ f.datos_identificacion.nombre }} {{ f.datos_identificacion.apellido }}{% else %}persona sin identificar{% endif %}">
                 <i class="fas fa-eye" aria-hidden="true"></i>
               </a>
@@ -89,27 +85,12 @@
         </tbody>
       </table>
     </div>
-    {% if is_paginated %}
-    <div class="flex items-center justify-between px-4 py-3 border-t border-light bg-secondary">
-      <span class="text-xs text-body-subtle">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }} · {{ page_obj.paginator.count }} persona{{ page_obj.paginator.count|pluralize }}</span>
-      <div class="flex gap-2">
-        {% if page_obj.has_previous %}
-        <a href="?page={{ page_obj.previous_page_number }}{% if estado_actual %}&estado={{ estado_actual }}{% endif %}"
-           class="btn-nodo btn-tertiary btn-sm" aria-label="Página anterior"><i class="fas fa-chevron-left"></i> Anterior</a>
-        {% endif %}
-        {% if page_obj.has_next %}
-        <a href="?page={{ page_obj.next_page_number }}{% if estado_actual %}&estado={{ estado_actual }}{% endif %}"
-           class="btn-nodo btn-tertiary btn-sm" aria-label="Página siguiente">Siguiente <i class="fas fa-chevron-right"></i></a>
-        {% endif %}
-      </div>
-    </div>
-    {% endif %}
+    {% include "components/_paginacion.html" with page_obj=page_obj entidad="caso" %}
+    {% elif request.GET|hay_filtros %}
+      {% url 'becas:revision' as url_sin_filtros %}
+      {% include "components/_estado_vacio.html" with con_filtros=True titulo="Ningún caso coincide con el filtro" texto="Probá con otro estado." accion_url=url_sin_filtros %}
     {% else %}
-    <div class="py-14 px-6 text-center flex flex-col items-center gap-3">
-      <div class="text-fg-brand"><i class="fas fa-users text-5xl"></i></div>
-      <p class="text-[17px] font-bold text-heading">Sin personas relevadas</p>
-      <p class="text-sm text-body max-w-xs">Aparecerán acá a medida que los territoriales carguen y sincronicen formularios.</p>
-    </div>
+      {% include "components/_estado_vacio.html" with icono="fa-users" titulo="Sin personas relevadas" texto="Aparecerán acá a medida que los territoriales carguen y sincronicen formularios." %}
     {% endif %}
   </div>
 </div>

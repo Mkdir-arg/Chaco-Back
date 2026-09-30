@@ -20,9 +20,17 @@
     text-decoration: none;
 }
 
-.btn-nodo:disabled {
+.btn-nodo:disabled,
+.btn-nodo[aria-disabled="true"] {
     cursor: not-allowed;
     /* Sin opacity: cada variante define su fondo/texto gris de disabled (spec del sistema). */
+}
+
+/* aria-disabled deja el botón enfocable a propósito (a diferencia de disabled): el
+   lector de pantalla llega a él y a su aria-describedby. pointer-events lo saca del
+   mouse; el click con teclado lo bloquea el propio handler del botón. */
+.btn-nodo[aria-disabled="true"] {
+    pointer-events: none;
 }
 
 /* Button Sizes */
@@ -153,7 +161,8 @@
     outline-offset: 2px;
 }
 
-.btn-tertiary:disabled {
+.btn-tertiary:disabled,
+.btn-tertiary[aria-disabled="true"] {
     background: var(--bg-disabled, #f3f4f6);
     border: 1px solid var(--border-base, #e5e7eb);
     color: var(--text-fg-disabled, #99a1af) !important;
@@ -161,7 +170,9 @@
 }
 
 .btn-tertiary:disabled i,
-.btn-tertiary:disabled span {
+.btn-tertiary:disabled span,
+.btn-tertiary[aria-disabled="true"] i,
+.btn-tertiary[aria-disabled="true"] span {
     color: var(--text-fg-disabled, #99a1af) !important;
 }
 

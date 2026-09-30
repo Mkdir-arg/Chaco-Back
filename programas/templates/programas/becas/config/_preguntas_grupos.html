@@ -23,15 +23,16 @@
       </div>
       {% if grupo and puede_ordenar %}
       <div class="flex items-center gap-1">
-        <button type="button" class="text-body-subtle hover:text-heading p-1.5 rounded-lg hover:bg-white" title="Editar grupo" aria-label="Editar grupo {{ grupo.nombre }}"
+        <button type="button" class="nodo-icon-btn" title="Editar grupo" aria-label="Editar grupo {{ grupo.nombre }}"
                 @click="openGrupo('{% url 'becas:grupo_editar' grupo.pk %}', '{{ grupo.nombre|escapejs }}', '{{ grupo.subtitulo|escapejs }}', '{{ grupo.canal }}', '{{ grupo.pk }}')">
-          <i class="fas fa-edit"></i>
+          <i class="fas fa-edit" aria-hidden="true"></i>
         </button>
         {% if not grupo.protegido and not preguntas %}
-        <button type="button" class="text-body-subtle hover:text-fg-danger p-1.5 rounded-lg hover:bg-white" title="Eliminar grupo" aria-label="Eliminar grupo {{ grupo.nombre }}"
+        <button type="button" class="nodo-icon-btn nodo-icon-btn--danger" title="Eliminar grupo" aria-label="Eliminar grupo {{ grupo.nombre }}"
                 data-confirm-url="{% url 'becas:grupo_eliminar' grupo.pk %}"
-                data-confirm-title="¿Eliminar grupo?" data-confirm-text="{{ grupo.nombre }}" data-confirm-ok="Sí, eliminar">
-          <i class="fas fa-trash"></i>
+                data-confirm-title="¿Eliminar grupo?" data-confirm-text="{{ grupo.nombre }}" data-confirm-ok="Sí, eliminar"
+                data-confirm-danger="true">
+          <i class="fas fa-trash" aria-hidden="true"></i>
         </button>
         {% endif %}
       </div>
@@ -58,15 +59,6 @@
   {% endfor %}
 </div>
 {% else %}
-<div class="py-14 px-6 text-center flex flex-col items-center gap-3">
-  <div class="text-fg-brand"><i class="fas fa-clipboard-list text-5xl"></i></div>
-  <p class="text-[17px] font-bold text-heading">No hay preguntas configuradas</p>
-  <p class="text-sm text-body max-w-xs">Agregá las preguntas que aparecerán en todos los formularios del programa.</p>
-  {% if request.user|puede:"becas.pregunta.crear" %}
-  <button type="button" @click="modalCrear=true" class="btn-nodo btn-brand btn-base mt-2">
-    <i class="fas fa-plus"></i> Nueva pregunta
-  </button>
-  {% endif %}
-</div>
+{% include "components/_estado_vacio.html" with icono="fa-clipboard-list" titulo="No hay preguntas configuradas" texto="Usá «Nueva pregunta» para agregar las que aparecerán en todos los formularios del programa." %}
 {% endif %}
 {% endwith %}

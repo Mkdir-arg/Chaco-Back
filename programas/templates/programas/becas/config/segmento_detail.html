@@ -1,6 +1,6 @@
 {% extends "includes/base.html" %}
 {% load becas_extras %}
-{% load rbac %}
+{% load rbac static nodo_ui %}
 {% block title %}Becas · {{ segmento.nombre }}{% endblock %}
 
 {% block main-content %}
@@ -54,42 +54,25 @@
      }"
      @becas-saved.window="modalSub=false; modalSubEdit=false; modalReq=false; modalReqEdit=false; subCupo=''">
 
-  {# Breadcrumb + título + estado #}
-  <div>
-    <div class="flex items-start justify-between gap-4 flex-wrap">
-      <div class="flex items-start gap-3 min-w-0">
-        <a href="{% url 'becas:segmentos' %}"
-           class="btn-tertiary btn-back-circle"
-           aria-label="Volver a segmentos">
-          <i class="fas fa-arrow-left" aria-hidden="true"></i>
-        </a>
-        <div class="min-w-0">
-          <h1 class="text-3xl font-extrabold text-heading tracking-tight">{{ segmento.nombre }}</h1>
-          {% if segmento.programa_id %}
-          <p class="text-sm text-body-subtle mt-1">
-            Programa: <a href="{% url 'becas:programa_detalle' segmento.programa_id %}" class="text-fg-brand hover:underline font-medium">{{ segmento.programa.nombre }}</a>
-          </p>
-          {% endif %}
-          {% if segmento.descripcion %}<p class="text-sm text-body-subtle mt-1">{{ segmento.descripcion }}</p>{% endif %}
-        </div>
-      </div>
-      <div class="flex items-center gap-2 flex-wrap">
-        {% if segmento.activo %}<span class="badge badge-success badge-dot">Activo</span>
-        {% else %}<span class="badge badge-danger badge-dot">Inactivo</span>{% endif %}
-        {% if segmento.programa.siis_bloqueado %}<span class="badge badge-warning badge-dot">SIIS inactivo</span>{% endif %}
-        {% if segmento.programa_id %}
-        <button type="button" @click="openInfo({{ segmento.programa|siis_info }})"
-                class="btn-nodo btn-secondary btn-sm flex items-center gap-1.5"
-                aria-label="Ver detalle del programa SIIS">
-          <i class="fas fa-info-circle"></i> Programa SIIS
-        </button>
-        {% endif %}
-        <a href="{% url 'becas:cupo_segmento' segmento.pk %}" class="btn-nodo btn-secondary btn-sm flex items-center gap-1.5">
-          <i class="fas fa-users"></i> Cupo y beneficiarios
-        </a>
-      </div>
-    </div>
-  </div>
+  {% becas_migas segmento as migas %}
+  {% url 'becas:segmentos' as url_segmentos %}
+  {% page_header titulo=segmento.nombre volver_url=url_segmentos volver_label="segmentos" migas=migas %}
+    {% bajada %}{% if segmento.programa_id %}Programa: <a href="{% url 'becas:programa_detalle' segmento.programa_id %}" class="text-fg-brand hover:underline font-medium">{{ segmento.programa.nombre }}</a>{% if segmento.descripcion %} · {% endif %}{% endif %}{{ segmento.descripcion }}{% endbajada %}
+    {% comment %}CMP-10: el segmento pausado no tenía etiqueta. `solo_manual=True` porque
+    el bloqueo por SIIS viaja al lado como badge propio (otra dimensión).{% endcomment %}
+    {% include "programas/becas/_pausable_estado_badge.html" with objeto=segmento solo_manual=True %}
+    {% if segmento.programa.siis_bloqueado %}<span class="badge badge-warning badge-dot">SIIS inactivo</span>{% endif %}
+    {% if segmento.programa_id %}
+    <button type="button" @click="openInfo({{ segmento.programa|siis_info }})"
+            class="btn-nodo btn-secondary btn-sm flex items-center gap-1.5"
+            aria-label="Ver detalle del programa SIIS">
+      <i class="fas fa-circle-info" aria-hidden="true"></i> Programa SIIS
+    </button>
+    {% endif %}
+    <a href="{% url 'becas:cupo_segmento' segmento.pk %}" class="btn-nodo btn-secondary btn-sm flex items-center gap-1.5">
+      <i class="fas fa-users" aria-hidden="true"></i> Cupo y beneficiarios
+    </a>
+  {% endpage_header %}
 
   {% if segmento.programa.siis_bloqueado %}
   <div class="rounded-lg bg-warning-soft border border-warning-subtle p-4 text-sm" role="alert">
@@ -199,17 +182,32 @@
                 {% endif %}
               </div>
             </div>
+            {% comment %}POP-13 / CMP-5 / POP-12: desactivar es destructivo (rojo, confirmación
+            roja, la consecuencia y «Sí, desactivar»); activar no lo es y va con el color de
+            marca, ícono de tilde y confirmación de marca. DC-5: «Reanudar» con fa-play.
+            Los textos de consecuencia son los del mockup y se validan con negocio.{% endcomment %}
             <div class="flex flex-wrap gap-3 pt-2">
-              <button type="submit" form="form-segmento" class="btn-nodo btn-brand btn-base"><i class="fas fa-check"></i> Guardar cambios</button>
+              <button type="submit" form="form-segmento" class="btn-nodo btn-brand btn-base"><i class="fas fa-check" aria-hidden="true"></i> Guardar cambios</button>
+              {% if segmento.activo %}
               <button type="button" class="btn-nodo btn-danger btn-base"
                       data-confirm-url="{% url 'becas:segmento_toggle' segmento.pk %}"
-                      data-confirm-title="{% if segmento.activo %}¿Desactivar segmento?{% else %}¿Activar segmento?{% endif %}"
-                      data-confirm-text="{{ segmento.nombre }}" data-confirm-icon="question" data-confirm-ok="Sí">
-                <i class="fas fa-ban"></i> {% if segmento.activo %}Desactivar{% else %}Activar{% endif %} segmento
+                      data-confirm-title="¿Desactivar el segmento?"
+                      data-confirm-text="«{{ segmento.nombre }}» deja de estar disponible para operar. Podés volver a activarlo cuando quieras."
+                      data-confirm-danger="true" data-confirm-icon="danger" data-confirm-ok="Sí, desactivar">
+                <i class="fas fa-ban" aria-hidden="true"></i> Desactivar segmento
               </button>
+              {% else %}
+              <button type="button" class="btn-nodo btn-brand btn-base"
+                      data-confirm-url="{% url 'becas:segmento_toggle' segmento.pk %}"
+                      data-confirm-title="¿Activar el segmento?"
+                      data-confirm-text="«{{ segmento.nombre }}» vuelve a estar disponible para operar."
+                      data-confirm-danger="false" data-confirm-icon="info" data-confirm-ok="Sí, activar">
+                <i class="fas fa-circle-check" aria-hidden="true"></i> Activar segmento
+              </button>
+              {% endif %}
               {% if request.user|puede:"becas.programa.administrar" %}
               <a href="{% url 'becas:gestionar_pausa' 'segmento' segmento.pk %}" class="btn-nodo {% if segmento.pausado %}btn-brand{% else %}btn-danger{% endif %} btn-base">
-                <i class="fas fa-pause"></i> {% if segmento.pausado %}Reanudar{% else %}Pausar{% endif %} segmento
+                <i class="fas {% if segmento.pausado %}fa-play{% else %}fa-pause{% endif %}" aria-hidden="true"></i> {% if segmento.pausado %}Reanudar{% else %}Pausar{% endif %} segmento
               </a>
               {% endif %}
             </div>
@@ -232,12 +230,13 @@
                   {{ asig.coordinador.get_full_name|default:asig.coordinador.username }}
                 </span>
                 {% if request.user|puede:"becas.coordinador.editar" %}
-                <button type="button" class="text-body-subtle hover:text-fg-danger p-1" title="Quitar"
+                <button type="button" class="nodo-icon-btn nodo-icon-btn--danger"
+                        aria-label="Quitar a {{ asig.coordinador.get_full_name|default:asig.coordinador.username }} como coordinador"
                         data-confirm-url="{% url 'becas:coordinador_desasignar' asig.pk %}" data-confirm-danger="false" data-confirm-icon="warning"
                         data-confirm-title="¿Quitar coordinador?"
                         data-confirm-text="{{ asig.coordinador.get_full_name|default:asig.coordinador.username }} dejará de coordinar este segmento."
                         data-confirm-ok="Sí, quitar">
-                  <i class="fas fa-trash"></i>
+                  <i class="fas fa-trash" aria-hidden="true"></i>
                 </button>
                 {% endif %}
               </div>
@@ -304,7 +303,7 @@
             <dl class="space-y-2.5 text-sm">
               <div class="flex justify-between items-center">
                 <dt class="text-body-subtle">Estado</dt>
-                <dd>{% if segmento.activo %}<span class="badge badge-success badge-dot">Activo</span>{% else %}<span class="badge badge-danger badge-dot">Inactivo</span>{% endif %}</dd>
+                <dd>{% include "programas/becas/_pausable_estado_badge.html" with objeto=segmento solo_manual=True %}</dd>
               </div>
               <div class="flex justify-between">
                 <dt class="text-body-subtle">Coordinador</dt>
@@ -355,10 +354,10 @@
             <tbody>
               {% for req in requisitos_programa %}
               <tr class="hover:bg-secondary">
-                <td class="px-4 py-[13px] text-sm border-t border-light text-body-subtle font-semibold" style="width:64px">{{ req.orden }}</td>
-                <td class="px-4 py-[13px] text-sm border-t border-light text-heading font-medium">{{ req.texto }}</td>
-                <td class="px-4 py-[13px] text-sm border-t border-light"><span class="badge badge-white">{{ req.get_tipo_display }}</span></td>
-                <td class="px-4 py-[13px] text-sm border-t border-light">
+                <td class="nodo-td text-body-subtle font-semibold" style="width:64px">{{ req.orden }}</td>
+                <td class="nodo-td text-heading font-medium">{{ req.texto }}</td>
+                <td class="nodo-td"><span class="badge badge-white">{{ req.get_tipo_display }}</span></td>
+                <td class="nodo-td">
                   {% if req.obligatorio %}<span class="badge badge-brand">Obligatorio</span>{% else %}<span class="badge badge-gray">Opcional</span>{% endif %}
                 </td>
               </tr>
@@ -386,34 +385,22 @@
   </div>
 
   {# ============ Modal: Nuevo subsegmento ============ #}
-  <div x-show="modalSub" x-cloak @click="modalSub=false" class="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style="background:rgba(0,0,0,.5)">
-    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[540px] overflow-hidden" @click.stop>
-
-      {% comment %}HEADER{% endcomment %}
-      <div class="flex items-center justify-between px-6 py-5 border-b" style="border-color:var(--border-light)">
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-lg flex items-center justify-center text-lg"
-               style="background:var(--bg-brand-soft);color:var(--text-fg-brand)">
-            <i class="fas fa-layer-group"></i>
-          </div>
-          <h3 class="text-lg font-bold text-heading">Nuevo subsegmento</h3>
-        </div>
-        <button type="button" @click="modalSub=false" aria-label="Cerrar"
-                class="p-1.5 rounded-lg text-body-subtle hover:text-heading hover:bg-secondary transition-colors">
-          <i class="fas fa-xmark text-base"></i>
-        </button>
-      </div>
+  {# x-becas-modal: foco, Tab atrapado, Escape y scroll del fondo (becas-modal.js) #}
+  <div x-show="modalSub" x-cloak x-becas-modal="modalSub" @click="modalSub=false" class="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style="background:rgba(0,0,0,.5)">
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[540px] max-h-[90vh] flex flex-col overflow-hidden" @click.stop
+         role="dialog" aria-modal="true" aria-labelledby="modal-sub-crear-titulo">
+      {% include "programas/becas/_modal_header.html" with titulo="Nuevo subsegmento" titulo_id="modal-sub-crear-titulo" icono="fa-layer-group" cerrar="modalSub=false" %}
 
       {% comment %}FORM envuelve body + footer{% endcomment %}
-      <form method="post" action="{% url 'becas:subsegmento_crear' segmento.pk %}" data-ajax>
+      <form method="post" action="{% url 'becas:subsegmento_crear' segmento.pk %}" data-ajax class="flex flex-col flex-1 min-h-0">
         {% csrf_token %}
 
         {% comment %}BODY{% endcomment %}
-        <div class="p-6 space-y-5">
+        <div class="p-6 space-y-5 overflow-y-auto min-h-0">
 
           <div>
-            <label class="block text-[13px] font-semibold text-heading mb-1.5">
-              Nombre<span class="text-fg-danger" style="margin-left:3px">*</span>
+            <label for="{{ form_subsegmento.nombre.id_for_label }}" class="block text-sm font-medium text-heading mb-1">
+              Nombre <span class="text-fg-danger">*</span>
             </label>
             {{ form_subsegmento.nombre }}
             <p class="mt-1 text-xs text-fg-danger hidden" data-error="nombre"></p>
@@ -421,7 +408,7 @@
 
           {% comment %}Descripción{% endcomment %}
           <div>
-            <label class="block text-[13px] font-semibold text-heading mb-1.5">
+            <label for="{{ form_subsegmento.descripcion.id_for_label }}" class="block text-sm font-medium text-heading mb-1">
               Descripción
             </label>
             {{ form_subsegmento.descripcion }}
@@ -430,7 +417,7 @@
 
           {% comment %}Referente asignado — solo Coordinadores Regionales{% endcomment %}
           <div>
-            <label class="block text-[13px] font-semibold text-heading mb-1.5">
+            <label for="{{ form_subsegmento.referente.id_for_label }}" class="block text-sm font-medium text-heading mb-1">
               Referente asignado
             </label>
             {{ form_subsegmento.referente }}
@@ -440,17 +427,17 @@
             <button type="button" data-quick-user="referente"
                     data-user-select="#{{ form_subsegmento.referente.id_for_label }}"
                     class="btn-nodo btn-tertiary btn-base mt-2">
-              <i class="fas fa-user-plus"></i> Crear referente
+              <i class="fas fa-user-plus" aria-hidden="true"></i> Crear referente
             </button>
             {% endif %}
           </div>
 
           {% comment %}Cupo máximo{% endcomment %}
           <div>
-            <label class="block text-[13px] font-semibold text-heading mb-1.5">
-              Cupo máximo<span class="text-fg-danger" style="margin-left:3px">*</span>
+            <label for="sub-crear-cupo" class="block text-sm font-medium text-heading mb-1">
+              Cupo máximo <span class="text-fg-danger">*</span>
             </label>
-            <input type="number" name="cupo_maximo" min="0" required
+            <input type="number" id="sub-crear-cupo" name="cupo_maximo" min="0" required
                    class="nodo-field"
                    x-model="subCupo"
                    placeholder="Disponible: {{ cupo_disponible }}"
@@ -483,68 +470,50 @@
           <p class="text-xs text-fg-danger hidden" data-error="__all__"></p>
         </div>
 
-        {% comment %}FOOTER{% endcomment %}
-        <div class="flex justify-end gap-3 px-6 py-4 border-t bg-secondary"
-             style="border-color:var(--border-light)">
-          <button type="button" @click="modalSub=false" class="btn-nodo btn-tertiary btn-base">Cancelar</button>
-          <button type="submit" class="btn-nodo btn-brand btn-base">Crear subsegmento</button>
-        </div>
+        {% include "programas/becas/_modal_footer.html" with cancelar="modalSub=false" accion_texto="Crear subsegmento" %}
 
       </form>
     </div>
   </div>
 
   {# ============ Modal: Editar subsegmento ============ #}
-  <div x-show="modalSubEdit" x-cloak @click="modalSubEdit=false" class="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style="background:rgba(0,0,0,.5)">
-    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[540px] overflow-hidden" @click.stop>
-
-      {% comment %}HEADER{% endcomment %}
-      <div class="flex items-center justify-between px-6 py-5 border-b" style="border-color:var(--border-light)">
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-lg flex items-center justify-center text-lg"
-               style="background:var(--bg-brand-soft);color:var(--text-fg-brand)">
-            <i class="fas fa-layer-group"></i>
-          </div>
-          <h3 class="text-lg font-bold text-heading">Editar subsegmento</h3>
-        </div>
-        <button type="button" @click="modalSubEdit=false" aria-label="Cerrar"
-                class="p-1.5 rounded-lg text-body-subtle hover:text-heading hover:bg-secondary transition-colors">
-          <i class="fas fa-xmark text-base"></i>
-        </button>
-      </div>
+  <div x-show="modalSubEdit" x-cloak x-becas-modal="modalSubEdit" @click="modalSubEdit=false" class="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style="background:rgba(0,0,0,.5)">
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[540px] max-h-[90vh] flex flex-col overflow-hidden" @click.stop
+         role="dialog" aria-modal="true" aria-labelledby="modal-sub-editar-titulo">
+      {% include "programas/becas/_modal_header.html" with titulo="Editar subsegmento" titulo_id="modal-sub-editar-titulo" icono="fa-layer-group" cerrar="modalSubEdit=false" %}
 
       {% comment %}FORM envuelve body + footer{% endcomment %}
-      <form method="post" :action="subEditUrl" data-ajax data-reset="false">
+      <form method="post" :action="subEditUrl" data-ajax data-reset="false" class="flex flex-col flex-1 min-h-0">
         {% csrf_token %}
         <input type="hidden" name="origin" value="panel">
 
         {% comment %}BODY{% endcomment %}
-        <div class="p-6 space-y-5">
+        <div class="p-6 space-y-5 overflow-y-auto min-h-0">
 
           {% comment %}Nombre{% endcomment %}
           <div>
-            <label class="block text-[13px] font-semibold text-heading mb-1.5">
-              Nombre<span class="text-fg-danger" style="margin-left:3px">*</span>
+            <label for="sub-editar-nombre" class="block text-sm font-medium text-heading mb-1">
+              Nombre <span class="text-fg-danger">*</span>
             </label>
-            <input type="text" name="nombre" required class="nodo-field" x-model="subEditNombre">
+            <input type="text" id="sub-editar-nombre" name="nombre" required class="nodo-field" x-model="subEditNombre">
             <p class="mt-1 text-xs text-fg-danger hidden" data-error="nombre"></p>
           </div>
 
           {% comment %}Descripción{% endcomment %}
           <div>
-            <label class="block text-[13px] font-semibold text-heading mb-1.5">
+            <label for="sub-editar-descripcion" class="block text-sm font-medium text-heading mb-1">
               Descripción
             </label>
-            <textarea name="descripcion" rows="2" class="nodo-field" x-model="subEditDesc"></textarea>
+            <textarea id="sub-editar-descripcion" name="descripcion" rows="2" class="nodo-field" x-model="subEditDesc"></textarea>
             <p class="mt-1 text-xs text-fg-danger hidden" data-error="descripcion"></p>
           </div>
 
           {% comment %}Referente asignado{% endcomment %}
           <div>
-            <label class="block text-[13px] font-semibold text-heading mb-1.5">
+            <label for="sub-editar-referente" class="block text-sm font-medium text-heading mb-1">
               Referente asignado
             </label>
-            <select name="referente" class="nodo-field" x-model="subEditReferente">
+            <select id="sub-editar-referente" name="referente" class="nodo-field" x-model="subEditReferente">
               {% for value, label in form_subsegmento.referente.field.choices %}
               <option value="{{ value }}">{{ label }}</option>
               {% endfor %}
@@ -555,184 +524,143 @@
 
           {% comment %}Cupo máximo{% endcomment %}
           <div>
-            <label class="block text-[13px] font-semibold text-heading mb-1.5">
-              Cupo máximo<span class="text-fg-danger" style="margin-left:3px">*</span>
+            <label for="sub-editar-cupo" class="block text-sm font-medium text-heading mb-1">
+              Cupo máximo <span class="text-fg-danger">*</span>
             </label>
-            <input type="number" name="cupo_maximo" min="0" required class="nodo-field" x-model="subEditCupo">
+            <input type="number" id="sub-editar-cupo" name="cupo_maximo" min="0" required class="nodo-field" x-model="subEditCupo">
             <p class="mt-1 text-xs text-fg-danger hidden" data-error="cupo_maximo"></p>
           </div>
 
           <p class="text-xs text-fg-danger hidden" data-error="__all__"></p>
         </div>
 
-        {% comment %}FOOTER{% endcomment %}
-        <div class="flex justify-end gap-3 px-6 py-4 border-t bg-secondary"
-             style="border-color:var(--border-light)">
-          <button type="button" @click="modalSubEdit=false" class="btn-nodo btn-tertiary btn-base">Cancelar</button>
-          <button type="submit" class="btn-nodo btn-brand btn-base"><i class="fas fa-check"></i> Guardar cambios</button>
-        </div>
+        {% include "programas/becas/_modal_footer.html" with cancelar="modalSubEdit=false" accion_texto="Guardar cambios" accion_icono="fa-check" %}
 
       </form>
     </div>
   </div>
 
   {# ============ Modal: Nuevo requisito ============ #}
-  <div x-show="modalReq" x-cloak @click="modalReq=false" class="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style="background:rgba(0,0,0,.5)">
-    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden" @click.stop>
-
-      {% comment %}HEADER{% endcomment %}
-      <div class="flex items-center justify-between px-6 py-5 border-b" style="border-color:var(--border-light)">
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style="background:var(--bg-brand-soft);color:var(--text-fg-brand)">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z" />
-            </svg>
-          </div>
-          <h3 class="text-lg font-bold text-heading">Nuevo requisito</h3>
-        </div>
-        <button type="button" @click="modalReq=false" aria-label="Cerrar"
-                class="p-1.5 rounded-lg text-body-subtle hover:text-heading hover:bg-secondary transition-colors">
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-      </div>
+  <div x-show="modalReq" x-cloak x-becas-modal="modalReq" @click="modalReq=false" class="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style="background:rgba(0,0,0,.5)">
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden" @click.stop
+         role="dialog" aria-modal="true" aria-labelledby="modal-req-crear-titulo">
+      {% include "programas/becas/_modal_header.html" with titulo="Nuevo requisito" titulo_id="modal-req-crear-titulo" icono="fa-clipboard-list" cerrar="modalReq=false" %}
 
       {% comment %}FORM envuelve body + footer{% endcomment %}
-      <form method="post" action="{% url 'becas:requisito_crear' segmento.pk %}" id="form-req-crear" data-ajax>
+      <form method="post" action="{% url 'becas:requisito_crear' segmento.pk %}" id="form-req-crear" data-ajax class="flex flex-col flex-1 min-h-0">
         {% csrf_token %}
         <input type="hidden" name="scope" value="segmento">
 
         {% comment %}BODY{% endcomment %}
-        <div class="p-6 space-y-5">
+        <div class="p-6 space-y-5 overflow-y-auto min-h-0">
           <div>
-            <label class="block text-sm font-medium text-heading mb-1">Pregunta <span class="text-fg-danger">*</span></label>
+            <label for="{{ form_requisito.texto.id_for_label }}" class="block text-sm font-medium text-heading mb-1">Pregunta <span class="text-fg-danger">*</span></label>
             {{ form_requisito.texto }}
             <p class="mt-1 text-xs text-fg-danger hidden" data-error="texto"></p>
           </div>
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
-              <label class="block text-sm font-medium text-heading mb-1">Tipo de campo <span class="text-fg-danger">*</span></label>
+              <label for="{{ form_requisito.tipo.id_for_label }}" class="block text-sm font-medium text-heading mb-1">Tipo de campo <span class="text-fg-danger">*</span></label>
               {{ form_requisito.tipo }}
               <p class="mt-1 text-xs text-fg-danger hidden" data-error="tipo"></p>
             </div>
             <div>
-              <label class="block text-sm font-medium text-heading mb-1">Obligatorio</label>
+              <label for="{{ form_requisito.obligatorio.id_for_label }}" class="block text-sm font-medium text-heading mb-1">Obligatorio</label>
               {{ form_requisito.obligatorio }}
             </div>
             <div>
-              <label class="block text-sm font-medium text-heading mb-1">Orden</label>
+              <label for="{{ form_requisito.orden.id_for_label }}" class="block text-sm font-medium text-heading mb-1">Orden</label>
               {{ form_requisito.orden }}
               <p class="mt-1 text-xs text-fg-danger hidden" data-error="orden"></p>
             </div>
           </div>
           <div data-opciones-wrapper>
-            <label class="block text-sm font-medium text-heading mb-1">{{ form_requisito.opciones_texto.label }}</label>
+            <label for="{{ form_requisito.opciones_texto.id_for_label }}" class="block text-sm font-medium text-heading mb-1">{{ form_requisito.opciones_texto.label }}</label>
             {{ form_requisito.opciones_texto }}
             <p class="text-xs text-body-subtle mt-1">{{ form_requisito.opciones_texto.help_text }}</p>
             <p class="mt-1 text-xs text-fg-danger hidden" data-error="opciones_texto"></p>
           </div>
           <div data-presentacion-wrapper>
-            <label class="block text-sm font-medium text-heading mb-1">{{ form_requisito.presentacion.label }}</label>
+            <label for="{{ form_requisito.presentacion.id_for_label }}" class="block text-sm font-medium text-heading mb-1">{{ form_requisito.presentacion.label }}</label>
             {{ form_requisito.presentacion }}
             <p class="text-xs text-body-subtle mt-1">{{ form_requisito.presentacion.help_text }}</p>
             <p class="mt-1 text-xs text-fg-danger hidden" data-error="presentacion"></p>
           </div>
           <div>
-            <label class="block text-sm font-medium text-heading mb-1">{{ form_requisito.canal.label }}</label>
+            <label for="{{ form_requisito.canal.id_for_label }}" class="block text-sm font-medium text-heading mb-1">{{ form_requisito.canal.label }}</label>
             {{ form_requisito.canal }}
             <p class="text-xs text-body-subtle mt-1">Ambos canales, solo la app de campo o solo el link público.</p>
             <p class="mt-1 text-xs text-fg-danger hidden" data-error="canal"></p>
           </div>
         </div>
 
-        {% comment %}FOOTER{% endcomment %}
-        <div class="flex justify-end gap-3 px-6 py-4 border-t bg-secondary" style="border-color:var(--border-light)">
-          <button type="button" @click="modalReq=false" class="btn-nodo btn-tertiary btn-base">Cancelar</button>
-          <button type="submit" class="btn-nodo btn-brand btn-base">Crear requisito</button>
-        </div>
+        {% include "programas/becas/_modal_footer.html" with cancelar="modalReq=false" accion_texto="Crear requisito" %}
       </form>
     </div>
   </div>
 
   {# ============ Modal: Editar requisito ============ #}
-  <div x-show="modalReqEdit" x-cloak @click="modalReqEdit=false" class="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style="background:rgba(0,0,0,.5)">
-    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden" @click.stop>
-
-      {% comment %}HEADER{% endcomment %}
-      <div class="flex items-center justify-between px-6 py-5 border-b" style="border-color:var(--border-light)">
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style="background:var(--bg-brand-soft);color:var(--text-fg-brand)">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
-            </svg>
-          </div>
-          <h3 class="text-lg font-bold text-heading">Editar requisito</h3>
-        </div>
-        <button type="button" @click="modalReqEdit=false" aria-label="Cerrar"
-                class="p-1.5 rounded-lg text-body-subtle hover:text-heading hover:bg-secondary transition-colors">
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-      </div>
+  <div x-show="modalReqEdit" x-cloak x-becas-modal="modalReqEdit" @click="modalReqEdit=false" class="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style="background:rgba(0,0,0,.5)">
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden" @click.stop
+         role="dialog" aria-modal="true" aria-labelledby="modal-req-editar-titulo">
+      {% include "programas/becas/_modal_header.html" with titulo="Editar requisito" titulo_id="modal-req-editar-titulo" icono="fa-pen-to-square" cerrar="modalReqEdit=false" %}
 
       {% comment %}FORM envuelve body + footer{% endcomment %}
-      <form method="post" :action="editReqUrl" id="form-req-editar" data-ajax data-reset="false">
+      <form method="post" :action="editReqUrl" id="form-req-editar" data-ajax data-reset="false" class="flex flex-col flex-1 min-h-0">
         {% csrf_token %}
         <input type="hidden" name="scope" value="segmento">
 
         {% comment %}BODY{% endcomment %}
-        <div class="p-6 space-y-5">
+        <div class="p-6 space-y-5 overflow-y-auto min-h-0">
           <div>
-            <label class="block text-sm font-medium text-heading mb-1">Pregunta <span class="text-fg-danger">*</span></label>
-            <input type="text" name="texto" x-model="editReqTexto" required class="nodo-field">
+            <label for="req-editar-texto" class="block text-sm font-medium text-heading mb-1">Pregunta <span class="text-fg-danger">*</span></label>
+            <input type="text" id="req-editar-texto" name="texto" x-model="editReqTexto" required class="nodo-field">
             <p class="mt-1 text-xs text-fg-danger hidden" data-error="texto"></p>
           </div>
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
-              <label class="block text-sm font-medium text-heading mb-1">Tipo de campo <span class="text-fg-danger">*</span></label>
-              <select name="tipo" x-model="editReqTipo" class="nodo-field">
+              <label for="req-editar-tipo" class="block text-sm font-medium text-heading mb-1">Tipo de campo <span class="text-fg-danger">*</span></label>
+              <select id="req-editar-tipo" name="tipo" x-model="editReqTipo" class="nodo-field">
                 {% for val, label in form_requisito.tipo.field.choices %}
                 <option value="{{ val }}">{{ label }}</option>
                 {% endfor %}
               </select>
             </div>
             <div>
-              <label class="block text-sm font-medium text-heading mb-1">Obligatorio</label>
-              <select name="obligatorio" x-model="editReqObligatorio" class="nodo-field">
+              <label for="req-editar-obligatorio" class="block text-sm font-medium text-heading mb-1">Obligatorio</label>
+              <select id="req-editar-obligatorio" name="obligatorio" x-model="editReqObligatorio" class="nodo-field">
                 <option value="True">Obligatorio</option>
                 <option value="False">Opcional</option>
               </select>
             </div>
             <div>
-              <label class="block text-sm font-medium text-heading mb-1">Orden</label>
-              <input type="number" name="orden" x-model="editReqOrden" min="0" placeholder="Automático" class="nodo-field">
+              <label for="req-editar-orden" class="block text-sm font-medium text-heading mb-1">Orden</label>
+              <input type="number" id="req-editar-orden" name="orden" x-model="editReqOrden" min="0" placeholder="Automático" class="nodo-field">
               <p class="mt-1 text-xs text-fg-danger hidden" data-error="orden"></p>
             </div>
           </div>
           <div x-show="editReqTipo === 'SELECTOR' || editReqTipo === 'SELECTOR_MULTIPLE'">
-            <label class="block text-sm font-medium text-heading mb-1">Opciones (una por línea)</label>
-            <textarea name="opciones_texto" x-model="editReqOpciones" rows="4" class="nodo-field"></textarea>
+            <label for="req-editar-opciones" class="block text-sm font-medium text-heading mb-1">Opciones (una por línea)</label>
+            <textarea id="req-editar-opciones" name="opciones_texto" x-model="editReqOpciones" rows="4" class="nodo-field"></textarea>
             <p class="text-xs text-body-subtle mt-1">Solo para Selector / Selector múltiple.</p>
           </div>
           <div x-show="editReqTipo === 'SELECTOR' || editReqTipo === 'SELECTOR_MULTIPLE'">
-            <label class="block text-sm font-medium text-heading mb-1">Presentación</label>
-            <select name="presentacion" x-model="editReqPresentacion" class="nodo-field">
+            <label for="req-editar-presentacion" class="block text-sm font-medium text-heading mb-1">Presentación</label>
+            <select id="req-editar-presentacion" name="presentacion" x-model="editReqPresentacion" class="nodo-field">
               {% for val, label in presentacion_choices %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
             </select>
             <p class="text-xs text-body-subtle mt-1">Cómo elige la persona entre las opciones.</p>
           </div>
           <div>
-            <label class="block text-sm font-medium text-heading mb-1">Se pide en</label>
-            <select name="canal" x-model="editReqCanal" class="nodo-field">
+            <label for="req-editar-canal" class="block text-sm font-medium text-heading mb-1">Se pide en</label>
+            <select id="req-editar-canal" name="canal" x-model="editReqCanal" class="nodo-field">
               {% for val, label in canal_choices %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
             </select>
             <p class="text-xs text-body-subtle mt-1">Ambos canales, solo la app de campo o solo el link público.</p>
           </div>
           <div>
-            <label class="block text-sm font-medium text-heading mb-1">Este dato alimenta a SIIS como</label>
-            <select name="destino_siis" x-model="editReqDestino" class="nodo-field">
+            <label for="req-editar-destino" class="block text-sm font-medium text-heading mb-1">Este dato alimenta a SIIS como</label>
+            <select id="req-editar-destino" name="destino_siis" x-model="editReqDestino" class="nodo-field">
               <option value="">No alimenta a SIIS</option>
               {% for val, label in destino_siis_choices %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
             </select>
@@ -741,11 +669,7 @@
           </div>
         </div>
 
-        {% comment %}FOOTER{% endcomment %}
-        <div class="flex justify-end gap-3 px-6 py-4 border-t bg-secondary" style="border-color:var(--border-light)">
-          <button type="button" @click="modalReqEdit=false" class="btn-nodo btn-tertiary btn-base">Cancelar</button>
-          <button type="submit" class="btn-nodo btn-brand btn-base"><i class="fas fa-check"></i> Guardar cambios</button>
-        </div>
+        {% include "programas/becas/_modal_footer.html" with cancelar="modalReqEdit=false" accion_texto="Guardar cambios" accion_icono="fa-check" %}
       </form>
     </div>
   </div>
@@ -758,4 +682,5 @@
 {% block customJS %}
 {% include "programas/becas/_ajax_js.html" %}
 {% include "programas/becas/config/_tipo_selector_js.html" %}
+<script src="{% static 'custom/js/becas-modal.js' %}"></script>
 {% endblock %}
