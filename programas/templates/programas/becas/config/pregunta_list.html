@@ -1,5 +1,5 @@
 {% extends "includes/base.html" %}
-{% load rbac static %}
+{% load rbac static nodo_ui %}
 {% block title %}Becas · Requisitos generales{% endblock %}
 
 {% block main-content %}
@@ -86,26 +86,22 @@
          this.modalEdit = true;
        }
      }"
-     @keydown.escape.window="modalCrear=false; modalEdit=false; modalGrupo=false"
      @becas-saved.window="modalCrear=false; modalEdit=false; modalGrupo=false">
 
-  <div class="flex items-end justify-between gap-4 flex-wrap mb-6">
-    <div>
-      <h1 class="text-3xl font-extrabold text-heading tracking-tight">Requisitos generales</h1>
-      <p class="text-sm text-body-subtle mt-1">Catálogo agrupado que alimenta todos los formularios. Arrastrá desde la manija para ordenar grupos y preguntas; se guarda al soltar.</p>
-    </div>
-    <div class="flex items-center gap-2 flex-wrap">
+  <div class="mb-6">
+    {% page_header titulo="Requisitos generales" bajada="Catálogo agrupado que alimenta todos los formularios. Arrastrá desde la manija para ordenar grupos y preguntas; se guarda al soltar." %}
+      <span id="catalogo-guardado" class="text-xs text-body-subtle" aria-hidden="true"></span>
       {% if request.user|puede:"becas.pregunta.editar" %}
       <button type="button" @click="openGrupo('{% url 'becas:grupo_crear' %}', '', '', 'ambos')" class="btn-nodo btn-secondary btn-base">
-        <i class="fas fa-layer-group"></i> Nuevo grupo
+        <i class="fas fa-layer-group" aria-hidden="true"></i> Nuevo grupo
       </button>
       {% endif %}
       {% if request.user|puede:"becas.pregunta.crear" %}
       <button type="button" @click="modalCrear=true" class="btn-nodo btn-brand btn-base">
-        <i class="fas fa-plus"></i> Nueva pregunta
+        <i class="fas fa-plus" aria-hidden="true"></i> Nueva pregunta
       </button>
       {% endif %}
-    </div>
+    {% endpage_header %}
   </div>
 
   <form method="get" data-dynamic-list-filters class="mb-4">
@@ -144,34 +140,19 @@
   </div>
 
   {# Modal: Nueva pregunta #}
-  <div x-show="modalCrear" x-cloak @click="modalCrear=false" class="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style="background:rgba(0,0,0,.5)">
-    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden" @click.stop>
-
-      {% comment %}HEADER{% endcomment %}
-      <div class="flex items-center justify-between px-6 py-5 border-b" style="border-color:var(--border-light)">
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style="background:var(--bg-brand-soft);color:var(--text-fg-brand)">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z" />
-            </svg>
-          </div>
-          <h3 class="text-lg font-bold text-heading">Nueva pregunta</h3>
-        </div>
-        <button type="button" @click="modalCrear=false" aria-label="Cerrar"
-                class="p-1.5 rounded-lg text-body-subtle hover:text-heading hover:bg-secondary transition-colors">
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-      </div>
+  <div x-show="modalCrear" x-cloak x-becas-modal="modalCrear" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/50" style="backdrop-filter:blur(4px)" @click="modalCrear=false"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden" @click.stop
+         role="dialog" aria-modal="true" aria-labelledby="modal-crear-titulo">
+      {% include "programas/becas/_modal_header.html" with titulo="Nueva pregunta" titulo_id="modal-crear-titulo" icono="fa-clipboard-list" cerrar="modalCrear=false" %}
 
       {% comment %}FORM envuelve body + footer{% endcomment %}
-      <form method="post" action="{% url 'becas:pregunta_crear' %}" data-ajax>
+      <form method="post" action="{% url 'becas:pregunta_crear' %}" data-ajax class="flex flex-col flex-1 min-h-0">
         {% csrf_token %}
         <input type="hidden" name="activo" value="on">
 
         {% comment %}BODY{% endcomment %}
-        <div class="p-6 space-y-5">
+        <div class="p-6 space-y-5 overflow-y-auto min-h-0">
           <div>
             <label class="block text-sm font-medium text-heading mb-1">Texto <span class="text-fg-danger">*</span></label>
             <input type="text" name="texto" required class="nodo-field">
@@ -234,43 +215,24 @@
           </div>
         </div>
 
-        {% comment %}FOOTER{% endcomment %}
-        <div class="flex justify-end gap-3 px-6 py-4 border-t bg-secondary" style="border-color:var(--border-light)">
-          <button type="button" @click="modalCrear=false" class="btn-nodo btn-tertiary btn-base">Cancelar</button>
-          <button type="submit" class="btn-nodo btn-brand btn-base"><i class="fas fa-plus"></i> Crear pregunta</button>
-        </div>
+        {% include "programas/becas/_modal_footer.html" with cancelar="modalCrear=false" accion_icono="fa-plus" accion_texto="Crear pregunta" %}
       </form>
     </div>
   </div>
 
   {# Modal: Editar pregunta #}
-  <div x-show="modalEdit" x-cloak @click="modalEdit=false" class="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style="background:rgba(0,0,0,.5)">
-    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden" @click.stop>
-
-      {% comment %}HEADER{% endcomment %}
-      <div class="flex items-center justify-between px-6 py-5 border-b" style="border-color:var(--border-light)">
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style="background:var(--bg-brand-soft);color:var(--text-fg-brand)">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
-            </svg>
-          </div>
-          <h3 class="text-lg font-bold text-heading">Editar pregunta</h3>
-        </div>
-        <button type="button" @click="modalEdit=false" aria-label="Cerrar"
-                class="p-1.5 rounded-lg text-body-subtle hover:text-heading hover:bg-secondary transition-colors">
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-      </div>
+  <div x-show="modalEdit" x-cloak x-becas-modal="modalEdit" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/50" style="backdrop-filter:blur(4px)" @click="modalEdit=false"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden" @click.stop
+         role="dialog" aria-modal="true" aria-labelledby="modal-edit-titulo">
+      {% include "programas/becas/_modal_header.html" with titulo="Editar pregunta" titulo_id="modal-edit-titulo" icono="fa-pen" cerrar="modalEdit=false" %}
 
       {% comment %}FORM envuelve body + footer{% endcomment %}
-      <form method="post" :action="editUrl" data-ajax data-reset="false">
+      <form method="post" :action="editUrl" data-ajax data-reset="false" class="flex flex-col flex-1 min-h-0">
         {% csrf_token %}
 
         {% comment %}BODY{% endcomment %}
-        <div class="p-6 space-y-5">
+        <div class="p-6 space-y-5 overflow-y-auto min-h-0">
           <div>
             <label class="block text-sm font-medium text-heading mb-1">Texto <span class="text-fg-danger">*</span></label>
             <input type="text" name="texto" x-model="editTexto" required class="nodo-field">
@@ -340,11 +302,7 @@
           </div>
         </div>
 
-        {% comment %}FOOTER{% endcomment %}
-        <div class="flex justify-end gap-3 px-6 py-4 border-t bg-secondary" style="border-color:var(--border-light)">
-          <button type="button" @click="modalEdit=false" class="btn-nodo btn-tertiary btn-base">Cancelar</button>
-          <button type="submit" class="btn-nodo btn-brand btn-base"><i class="fas fa-check"></i> Guardar cambios</button>
-        </div>
+        {% include "programas/becas/_modal_footer.html" with cancelar="modalEdit=false" accion_icono="fa-check" accion_texto="Guardar cambios" %}
       </form>
     </div>
   </div>
@@ -356,25 +314,18 @@
     {# va acá para que «Nuevo grupo» tenga sus fuentes igual. Nunca se duplica. #}
     {{ condicion_datos|json_script:"catalogo-condicion-datos" }}
   {% endif %}
-  <div x-show="modalGrupo" x-cloak @click="modalGrupo=false" class="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style="background:rgba(0,0,0,.5)">
-    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" @click.stop>
-      <div class="flex items-center justify-between px-6 py-5 border-b" style="border-color:var(--border-light)">
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style="background:var(--bg-brand-soft);color:var(--text-fg-brand)">
-            <i class="fas fa-layer-group"></i>
-          </div>
-          <h3 class="text-lg font-bold text-heading" x-text="grupoEsNuevo ? 'Nuevo grupo' : 'Editar grupo'"></h3>
-        </div>
-        <button type="button" @click="modalGrupo=false" aria-label="Cerrar"
-                class="p-1.5 rounded-lg text-body-subtle hover:text-heading hover:bg-secondary transition-colors">
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
+  <div x-show="modalGrupo" x-cloak x-becas-modal="modalGrupo" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/50" style="backdrop-filter:blur(4px)" @click="modalGrupo=false"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden" @click.stop
+         role="dialog" aria-modal="true" aria-labelledby="modal-grupo-titulo">
+      <div class="flex items-center gap-3 px-6 py-5 border-b border-light flex-shrink-0">
+        <div class="flex items-center justify-center w-10 h-10 rounded-lg flex-shrink-0 text-lg bg-brand-soft text-fg-brand"><i class="fas fa-layer-group" aria-hidden="true"></i></div>
+        <h3 id="modal-grupo-titulo" class="text-lg font-bold text-heading flex-1 min-w-0" x-text="grupoEsNuevo ? 'Nuevo grupo' : 'Editar grupo'"></h3>
+        <button type="button" data-becas-modal-cerrar @click="modalGrupo=false" aria-label="Cerrar" class="p-1.5 rounded-lg text-body-subtle hover:text-heading hover:bg-secondary transition-colors flex-shrink-0"><i class="fas fa-xmark text-base" aria-hidden="true"></i></button>
       </div>
-      <form method="post" :action="grupoUrl" data-ajax data-reset="false">
+      <form method="post" :action="grupoUrl" data-ajax data-reset="false" class="flex flex-col flex-1 min-h-0">
         {% csrf_token %}
-        <div class="p-6 space-y-5">
+        <div class="p-6 space-y-5 overflow-y-auto min-h-0">
           <div>
             <label class="block text-sm font-medium text-heading mb-1" for="grupo-nombre">Nombre <span class="text-fg-danger">*</span></label>
             <input id="grupo-nombre" type="text" name="nombre" x-model="grupoNombre" required maxlength="120" class="nodo-field" placeholder="Ej.: Situación habitacional">
@@ -396,9 +347,7 @@
             <p class="block text-sm font-medium text-heading mb-1">Condición por defecto</p>
             <p class="text-xs text-body-subtle mb-2">Con esta condición entra el grupo a cada formulario <strong>nuevo</strong>; cada convocatoria la ajusta después en su constructor. Los formularios ya diseñados no cambian.</p>
             <template x-if="!grupoFuentes.length">
-              <div class="rounded-lg bg-warning-soft border border-warning-subtle px-4 py-3 text-sm text-body" role="alert">
-                No hay campos en grupos anteriores del catálogo que puedan condicionar este grupo.
-              </div>
+              <div>{% include "components/_alerta.html" with tono="warning" titulo="Sin campos para condicionar" texto="No hay campos en grupos anteriores del catálogo que puedan condicionar este grupo." %}</div>
             </template>
             <div class="space-y-2" x-show="grupoFuentes.length">
               <div class="flex items-center gap-2 text-sm text-body flex-wrap" x-show="grupoCond.reglas.length > 1">
@@ -426,7 +375,7 @@
                     <input x-show="necesitaValor(r) && (!opcionesDe(r.fuente).length || conLista(r.op))" x-model="r.valor" :type="tipoInputR(r)" class="nodo-field" aria-label="Valor" :placeholder="conLista(r.op) ? 'valores separados por coma' : ''">
                     <span x-show="!necesitaValor(r)" class="text-xs text-body-subtle">Sin valor</span>
                   </div>
-                  <button type="button" @click="grupoCond.reglas.splice(i, 1)" class="text-body-subtle hover:text-fg-danger p-2" aria-label="Quitar regla"><i class="fas fa-times"></i></button>
+                  <button type="button" @click="grupoCond.reglas.splice(i, 1)" class="text-body-subtle hover:text-fg-danger p-2" aria-label="Quitar regla"><i class="fas fa-times" aria-hidden="true"></i></button>
                 </div>
               </template>
               <button type="button" @click="grupoCond.reglas.push({fuente: '', op: '', valor: ''})" class="btn-nodo btn-secondary btn-sm"><i class="fas fa-plus"></i> Regla</button>
@@ -435,10 +384,7 @@
             <p class="mt-1 text-xs text-fg-danger hidden" data-error="condicion_defecto"></p>
           </div>
         </div>
-        <div class="flex justify-end gap-3 px-6 py-4 border-t bg-secondary" style="border-color:var(--border-light)">
-          <button type="button" @click="modalGrupo=false" class="btn-nodo btn-tertiary btn-base">Cancelar</button>
-          <button type="submit" class="btn-nodo btn-brand btn-base"><i class="fas fa-check"></i> <span x-text="grupoEsNuevo ? 'Crear grupo' : 'Guardar cambios'"></span></button>
-        </div>
+        {% include "programas/becas/_modal_footer.html" with cancelar="modalGrupo=false" accion_icono="fa-check" accion_texto="Guardar" %}
       </form>
     </div>
   </div>
@@ -447,6 +393,7 @@
 
 {% block customJS %}
 {% include "programas/becas/_ajax_js.html" %}
+<script src="{% static 'custom/js/becas-modal.js' %}"></script>
 <script src="{% static 'vendor/sortablejs/Sortable.min.js' %}"></script>
 <script src="{% static 'custom/js/nodo-catalogo-grupos.js' %}"></script>
 {% endblock %}
