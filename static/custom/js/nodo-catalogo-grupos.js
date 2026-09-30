@@ -12,6 +12,10 @@
  * cruza al grupo vecino en los bordes). Cada movimiento se anuncia en una
  * región aria-live y se guarda con una pequeña demora para no disparar un
  * POST por cada pulsación; al re-renderizar, el foco vuelve a la manija.
+ *
+ * Confirmación del autoguardado (DA-2): sin toast de éxito. El estado
+ * «Guardando…» / «Orden guardado» vive en `#catalogo-guardado` (indicador de
+ * la página) y en la región aria-live; los errores sí salen por toast.
  */
 (function () {
   'use strict';
@@ -21,8 +25,15 @@
     return m ? decodeURIComponent(m.pop()) : '';
   }
 
+  // Solo los errores van por toast (DA-2): un autoguardado exitoso no debe
+  // apilar un aviso por cada soltada; su confirmación es el indicador de la página.
   function aviso(mensaje, tipo) {
-    if (typeof window.toast === 'function') { window.toast(tipo || 'success', mensaje); }
+    if (typeof window.toast === 'function') { window.toast(tipo || 'error', mensaje); }
+  }
+
+  function indicar(texto) {
+    var el = document.getElementById('catalogo-guardado');
+    if (el) { el.textContent = texto; }
   }
 
   function anunciar(texto) {
@@ -85,6 +96,7 @@
       if (!root.isConnected) { return; }
       var focoSel = selectorDelFoco();
       root.classList.add('is-saving');
+      indicar('Guardando…');
       fetch(url, {
         method: 'POST',
         headers: {
@@ -105,7 +117,8 @@
             tgt.innerHTML = data.html;
             if (window.Alpine && typeof window.Alpine.initTree === 'function') { window.Alpine.initTree(tgt); }
           }
-          aviso(data.message || 'Orden guardado.');
+          indicar('Orden guardado');
+          anunciar('Orden guardado.');
           init();
           if (focoSel) {
             var grip = document.querySelector(focoSel);
@@ -113,10 +126,12 @@
           }
         } else {
           root.classList.remove('is-saving');
+          indicar('No se guardó el orden');
           aviso(data.error || 'No se pudo guardar el orden. Recargá la página.', 'error');
         }
       }).catch(function () {
         root.classList.remove('is-saving');
+        indicar('No se guardó el orden');
         aviso('No se pudo guardar el orden. Revisá la conexión.', 'error');
       });
     }
