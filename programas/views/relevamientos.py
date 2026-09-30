@@ -120,8 +120,14 @@ def _sin_formularios_publicos_si_no_puede(qs, user):
 
 
 def _convocatorias_qs(request):
+    # El badge de estado de cada fila mira ``pausa_efectiva``, que sube por
+    # segmento → programa y por subsegmento → segmento → programa: sin estas
+    # relaciones precargadas el listado hace tres consultas por convocatoria.
     return (
-        Convocatoria.objects.select_related("segmento", "subsegmento")
+        Convocatoria.objects.select_related(
+            "segmento__programa",
+            "subsegmento__segmento__programa",
+        )
         .defer("descripcion", "segmento__descripcion", "subsegmento__descripcion")
         .annotate(n_relevamientos=Count("relevamientos", distinct=True))
         .filter(pk__in=convocatorias_visibles(request.user))
