@@ -54,8 +54,9 @@ class ModalNuevoProgramaRenderTests(TestCase):
         self.assertIn(">Nuevo programa</h3>", self.html)
 
     def test_overlay_usa_la_directiva_y_la_pagina_carga_el_script(self):
-        overlay = self._uno(lambda a: "x-becas-modal" in a)
-        self.assertEqual(overlay["x-becas-modal"], "modalCrear")
+        # El listado también incluye el pop-up SIIS (_siis_programa_modal.html, modalInfo),
+        # que usa la misma directiva: se busca el overlay del alta.
+        overlay = self._uno(lambda a: a.get("x-becas-modal") == "modalCrear")
         self.assertEqual(overlay.get("x-show"), "modalCrear")
         self.assertIn("custom/js/becas-modal.js", self.html)
 
