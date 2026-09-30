@@ -153,7 +153,7 @@ class AlertasRelevamientoFormTests(_Base):
         self.assertEqual(resp.status_code, 200)
         self.assertContains(
             resp,
-            'class="mb-4 rounded-lg bg-warning-soft border border-warning-subtle p-4 text-sm text-fg-warning" role="alert"',
+            'class="rounded-lg bg-warning-soft border border-warning-subtle p-4 text-sm" role="alert"',
         )
 
     def test_non_field_errors_con_borde_y_rol_alert(self):
@@ -193,3 +193,34 @@ class ModalAltaRelevamientoListTests(_Base):
         resp = self.client.get(reverse("becas:relevamientos"))
         self.assertContains(resp, f'class="nodo-icon-btn" aria-label="Ver {self.relevamiento.nombre}"')
         self.assertContains(resp, "nodo-thead-row")
+
+
+class EstadoVacioYPaginacionListTests(_Base):
+    """CMP-22 (estado vacío con/sin filtros) y CMP-27 (paginación canónica)."""
+
+    def test_sin_relevamientos_y_sin_filtros(self):
+        self.relevamiento.delete()
+        self.client.force_login(self.admin)
+        resp = self.client.get(reverse("becas:relevamientos"))
+        self.assertContains(resp, "No hay relevamientos")
+        self.assertNotContains(resp, "Ningún relevamiento coincide")
+
+    def test_filtros_sin_resultados_ofrece_limpiar(self):
+        self.client.force_login(self.admin)
+        resp = self.client.get(reverse("becas:relevamientos"), {"q": "no-existe-ningun-relevamiento"})
+        self.assertContains(resp, "Ningún relevamiento coincide con los filtros")
+        self.assertContains(resp, "Limpiar filtros")
+
+    def test_paginacion_canonica_aparece_con_mas_de_25(self):
+        for i in range(30):
+            Relevamiento.objects.create(
+                convocatoria=self.convocatoria,
+                territorial=self.territorial,
+                fecha_asignada=timezone.make_aware(datetime(2026, 6, 1, 12, 0)),
+                fecha_hasta=timezone.make_aware(datetime(2026, 6, 10, 12, 0)),
+                zona=f"Zona {i}",
+            )
+        self.client.force_login(self.admin)
+        resp = self.client.get(reverse("becas:relevamientos"))
+        self.assertContains(resp, "Página 1 de 2 · 31 relevamientos")
+        self.assertContains(resp, 'aria-label="Página siguiente"')

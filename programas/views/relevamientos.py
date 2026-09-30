@@ -588,9 +588,6 @@ class RelevamientoListView(CapacidadRequeridaMixin, LoginRequiredMixin, ListView
             "fecha_desde": self.request.GET.get("fecha_desde", ""),
             "fecha_hasta": self.request.GET.get("fecha_hasta", ""),
         }
-        query_params = self.request.GET.copy()
-        query_params.pop("page", None)
-        ctx["querystring"] = query_params.urlencode()
         # Form + nombre autogenerado para el modal "Nuevo relevamiento".
         ctx["puede_publico"] = _puede_publico(self.request.user)
         form_crear = RelevamientoForm(
