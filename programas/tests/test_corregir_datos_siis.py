@@ -191,6 +191,47 @@ class LocalidadTests(_BaseCorreccionTest):
         self.assertIn("no cruza y su DNI no está en la planilla", salida)
 
 
+class IdDeLocalidadPorProvinciaTests(_BaseCorreccionTest):
+    """El id de localidad se repite entre provincias: el 1 son 28 localidades.
+
+    Quedarse con el id y buscar su provincia después con ``filter(siis_id=...)``
+    devuelve la primera por orden alfabético de provincia —para el 1, ASUNCION
+    (PARAGUAY)— y el par resultante existe en el padrón, así que SIIS lo acepta
+    sin devolver error. Es la misma clase de fallo silencioso que dejó 4.139
+    personas en la localidad equivocada el 01/10/2026.
+    """
+
+    def setUp(self):
+        super().setUp()
+        crear_tabla_localidades()
+        # La misma Resistencia en otra provincia, como en el padrón real.
+        otra = ProvinciaSiis.objects.create(siis_id=89, nombre="ASUNCION (PARAGUAY)", clave="asuncion (paraguay)")
+        LocalidadSiis.objects.create(siis_id=1, provincia=otra, nombre="ASUNCION", clave="asuncion")
+
+    def test_el_nacimiento_heredado_se_queda_en_la_provincia_del_domicilio(self):
+        self.responder("prov_actual", "Chaco", texto="Provincia")
+        self.responder("loc_actual", "Resistencia", texto="Localidad")
+        self.responder("prov_nacim", "", texto="Provincia Nacimiento")
+        self.responder("loc_nacim", "Sin Informar", texto="Localidad de nacimiento")
+
+        self.correr("--heredar-nacimiento", "--aplicar")
+
+        correcciones = self.correcciones()
+        self.assertEqual(correcciones["loc_nacim"], 1)
+        self.assertEqual(correcciones["prov_nacim"], 1, "heredó la provincia de Asunción en vez de Chaco")
+
+    def test_un_nombre_que_existe_en_dos_provincias_no_se_resuelve_a_ciegas(self):
+        """Sin saber la provincia, un nombre repetido no alcanza para decidir."""
+        otra = ProvinciaSiis.objects.get(siis_id=89)
+        LocalidadSiis.objects.create(siis_id=7, provincia=otra, nombre="MACHAGAI", clave="machagai")
+        self.responder("prov_actual", "Provincia que no existe", texto="Provincia")
+        self.responder("loc_actual", "Machagai", texto="Localidad")
+
+        self.correr("--aplicar")
+
+        self.assertNotIn("loc_actual", self.correcciones())
+
+
 class BarrioTests(_BaseCorreccionTest):
     def setUp(self):
         super().setUp()

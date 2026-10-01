@@ -44,6 +44,7 @@ from programas.services.siis import catalogo
 from programas.services.siis_envio import (
     CatalogoNoDisponible,
     Catalogos,
+    clave_nombre,
     respuestas_por_destino,
 )
 
@@ -187,15 +188,18 @@ class Command(BaseCommand):
 
     # ── Una corrección ──────────────────────────────────────────────────────
 
-    def _con_provincia(self, campo_loc, campo_prov, localidad_id, corrigio_provincia):
-        """La corrección de una localidad, más su provincia si hubo que cambiarla."""
-        correccion = {campo_loc: int(localidad_id)}
+    def _con_provincia(self, campo_loc, campo_prov, encontrada, corrigio_provincia):
+        """La corrección de una localidad, más su provincia si hubo que cambiarla.
+
+        Cuando se resolvió sin acotar la provincia, ``encontrada`` es la
+        ``LocalidadSiis`` entera: el id solo no alcanza para saber de qué
+        provincia es, porque se repite entre ellas.
+        """
         if not corrigio_provincia:
-            return correccion
-        localidad = LocalidadSiis.objects.filter(siis_id=localidad_id).select_related("provincia").first()
-        if localidad is not None and localidad.provincia_id:
-            correccion[campo_prov] = localidad.provincia.siis_id
-        return correccion
+            return {campo_loc: int(encontrada)}
+        if encontrada is None or not encontrada.provincia_id:
+            return None
+        return {campo_loc: int(encontrada.siis_id), campo_prov: encontrada.provincia.siis_id}
 
     def _variantes(self, texto, provincia_texto):
         """El mismo nombre, sin lo que la gente le agrega y el catálogo no tiene.
@@ -232,9 +236,9 @@ class Command(BaseCommand):
             if encontrado is not None:
                 return encontrado, False
         for variante in self._variantes(texto, provincia_texto):
-            encontrado = self._resolver(catalogos, variante, None)
-            if encontrado is not None:
-                return encontrado, True
+            encontrada = self._localidad_unica(variante)
+            if encontrada is not None:
+                return encontrada, True
         return None, False
 
     def _resolver(self, catalogos, texto, provincia_id):
@@ -246,6 +250,27 @@ class Command(BaseCommand):
             return catalogos.localidad_id(texto, provincia_id)
         except CatalogoNoDisponible:
             return None
+
+    @staticmethod
+    def _localidad_unica(texto):
+        """La ``LocalidadSiis`` cuando el nombre es único en todo el catálogo.
+
+        Devuelve el **objeto**, no el id, porque el id de localidad se repite
+        entre provincias: el 1 son 28 localidades distintas. Quedarse con el id
+        y buscar después su provincia con ``filter(siis_id=...)`` señala a otra
+        —para el 1, Asunción (Paraguay)— y el par resultante existe en el
+        padrón, así que SIIS lo acepta sin devolver error. Es la misma clase de
+        fallo silencioso que dejó 4.139 personas en la localidad equivocada el
+        01/10/2026.
+
+        Solo mira el catálogo propio: para geografía, la API no es una fuente
+        confiable (Cambio 85).
+        """
+        clave = clave_nombre(texto or "")
+        if not clave:
+            return None
+        candidatas = list(LocalidadSiis.objects.filter(clave=clave).select_related("provincia")[:2])
+        return candidatas[0] if len(candidatas) == 1 else None
 
     def _provincia(self, catalogos, correcciones, respuestas):
         valor = correcciones.get("prov_actual")
@@ -274,8 +299,10 @@ class Command(BaseCommand):
         # cargada no es la de esa localidad.
         propio, corrigio_provincia = self._resolver_con_variantes(catalogos, declarado, provincia_id, provincia_texto)
         if propio is not None:
-            cuenta["loc_limpiada_del_texto" if not corrigio_provincia else "loc_resuelta_sin_provincia"] += 1
-            return self._con_provincia("loc_actual", "prov_actual", propio, corrigio_provincia)
+            correccion = self._con_provincia("loc_actual", "prov_actual", propio, corrigio_provincia)
+            if correccion is not None:
+                cuenta["loc_limpiada_del_texto" if not corrigio_provincia else "loc_resuelta_sin_provincia"] += 1
+                return correccion
 
         dni = _digitos(getattr(caso.ciudadano, "dni", ""))
         texto = planilla.get(dni) or planilla.get(dni.lstrip("0")) or planilla.get(dni.zfill(8))
@@ -293,18 +320,14 @@ class Command(BaseCommand):
         # con «Ciudad Autónoma de Buenos Aires» cargada. Se reintenta sin acotar
         # y, si el nombre es único en todo el catálogo, se corrige también la
         # provincia: la localidad que da el organismo manda sobre lo tipeado.
-        suelta = self._resolver(catalogos, texto, None)
-        if suelta is None:
+        suelta = self._localidad_unica(texto)
+        if suelta is None or not suelta.provincia_id:
             cuenta["loc_planilla_no_cruza"] += 1
             self.sin_cruce[texto] = self.sin_cruce.get(texto, 0) + 1
             return None
-        localidad = LocalidadSiis.objects.filter(siis_id=suelta).select_related("provincia").first()
-        if localidad is None or localidad.provincia_id is None:
-            cuenta["loc_planilla_no_cruza"] += 1
-            return None
         cuenta["loc_corregida"] += 1
         cuenta["prov_corregida"] += 1
-        return {"loc_actual": suelta, "prov_actual": localidad.provincia.siis_id}
+        return {"loc_actual": int(suelta.siis_id), "prov_actual": suelta.provincia.siis_id}
 
     def _fecha_de_renaper(self, caso, renaper, cuenta):
         """La fecha de nacimiento del titular cuando la cargada es imposible.
@@ -378,26 +401,25 @@ class Command(BaseCommand):
         if self._resolver(catalogos, texto, prov_nacim) is not None:
             return None
 
-        suelta = self._resolver(catalogos, texto, None)
-        if suelta is not None:
-            localidad = LocalidadSiis.objects.filter(siis_id=suelta).select_related("provincia").first()
-            if localidad is not None and localidad.provincia_id:
-                cuenta["nacim_resuelta_sin_provincia"] += 1
-                return {"loc_nacim": suelta, "prov_nacim": localidad.provincia.siis_id}
+        suelta = self._localidad_unica(texto)
+        if suelta is not None and suelta.provincia_id:
+            cuenta["nacim_resuelta_sin_provincia"] += 1
+            return {"loc_nacim": int(suelta.siis_id), "prov_nacim": suelta.provincia.siis_id}
 
+        # Heredar el domicilio: hace falta la localidad **y su provincia**, no el
+        # id solo. El id se repite entre provincias —el 1 son 28 localidades— así
+        # que buscar la provincia después daría Asunción para quien vive en
+        # Resistencia, y el par existe en el padrón: SIIS lo aceptaría sin error.
+        provincia_actual = correcciones.get("prov_actual")
         heredada = correcciones.get("loc_actual")
-        if heredada in (None, ""):
+        if heredada in (None, "") or provincia_actual in (None, ""):
             provincia_actual = self._provincia(catalogos, correcciones, respuestas)
             heredada = self._resolver(catalogos, respuestas.get("loc_actual", ""), provincia_actual)
-        if heredada in (None, ""):
-            cuenta["nacim_sin_salida"] += 1
-            return None
-        localidad = LocalidadSiis.objects.filter(siis_id=heredada).select_related("provincia").first()
-        if localidad is None or not localidad.provincia_id:
+        if heredada in (None, "") or provincia_actual in (None, ""):
             cuenta["nacim_sin_salida"] += 1
             return None
         cuenta["nacim_heredada_del_domicilio"] += 1
-        return {"loc_nacim": int(heredada), "prov_nacim": localidad.provincia.siis_id}
+        return {"loc_nacim": int(heredada), "prov_nacim": int(provincia_actual)}
 
     def _corregir_apoderado(self, caso, fecha, hoy, cuenta):
         nacimiento = caso.ciudadano.fecha_nacimiento if caso.ciudadano_id else None

@@ -8,12 +8,15 @@ localidad equivocada.
 """
 
 from io import StringIO
+from pathlib import Path
 from unittest.mock import patch
 
+from django.conf import settings
 from django.core.management import call_command
 from django.core.management.base import CommandError
-from django.test import override_settings
+from django.test import SimpleTestCase, override_settings
 
+from programas.management.commands.correr_alta_siis import _sentencias
 from programas.models import LocalidadSiis, ProvinciaSiis, RequisitoNativo
 from programas.tests.test_corregir_datos_siis import (
     _BaseCorreccionTest,
@@ -184,6 +187,40 @@ class FrenoDelCasoDePruebaTests(_BaseAltaTest):
         salida = self.correr("--continuar")
 
         self.assertIn("PASO 7", salida)
+
+
+class ParserDeSqlTests(SimpleTestCase):
+    """Los ``.sql`` del organismo se ejecutan desde Django: el pod no trae cliente."""
+
+    def test_saltea_el_punto_y_coma_de_un_comentario(self):
+        """``DatosPersonas.sql`` tiene uno en su cabecera y partía el archivo mal."""
+        sql = "-- Generado el 2026-09-18; 10321 filas\nSELECT 1;\nSELECT 2;"
+
+        self.assertEqual(list(_sentencias(sql)), ["SELECT 1", "SELECT 2"])
+
+    def test_el_punto_y_coma_dentro_de_una_cadena_no_corta(self):
+        sql = "INSERT INTO t (x) VALUES ('hola; chau');"
+
+        self.assertEqual(list(_sentencias(sql)), ["INSERT INTO t (x) VALUES ('hola; chau')"])
+
+    def test_dos_guiones_dentro_de_una_cadena_no_son_comentario(self):
+        sql = "INSERT INTO t (x) VALUES ('Villa -- Angela');"
+
+        self.assertEqual(list(_sentencias(sql)), ["INSERT INTO t (x) VALUES ('Villa -- Angela')"])
+
+    def test_los_sql_del_repo_se_parten_sin_sentencias_vacias(self):
+        """Contra los archivos de verdad, no contra un ejemplo inventado."""
+        for archivo in ("Aprobados.sql", "Localidades.sql", "DatosPersonas.sql"):
+            ruta = Path(settings.BASE_DIR) / "scripts" / archivo
+            if not ruta.exists():
+                continue
+            with self.subTest(archivo=archivo):
+                sentencias = list(_sentencias(ruta.read_text(encoding="utf-8")))
+                self.assertTrue(sentencias, f"{archivo} no produjo ninguna sentencia")
+                for sentencia in sentencias:
+                    self.assertTrue(sentencia.strip(), f"{archivo} produjo una sentencia vacía")
+                # La primera tiene que ser SQL de verdad, no un resto de comentarios.
+                self.assertRegex(sentencias[0].upper(), r"^(DROP|CREATE|SET|INSERT|SELECT)")
 
 
 class EnsayoTests(_BaseAltaTest):

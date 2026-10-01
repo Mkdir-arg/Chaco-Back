@@ -67,16 +67,47 @@ FECHA_APODERADO = "1990-01-01"
 BARRIO_GENERICO = "Sin especificar"
 
 
+def _sin_comentarios(texto):
+    """Saca los comentarios ``--`` que no estén dentro de una cadena.
+
+    Hace falta antes de partir por ``;``: ``DatosPersonas.sql`` tiene un punto y
+    coma adentro de un comentario de cabecera, y sin esto la primera «sentencia»
+    queda hecha solo de comentarios («Query was empty») y la siguiente arranca
+    con texto suelto.
+    """
+    salida = []
+    for linea in texto.splitlines():
+        limpia, comilla, i = [], None, 0
+        while i < len(linea):
+            caracter = linea[i]
+            if comilla:
+                if caracter == "\\" and i + 1 < len(linea):
+                    limpia.append(linea[i : i + 2])
+                    i += 2
+                    continue
+                if caracter == comilla:
+                    comilla = None
+            elif caracter in ("'", '"'):
+                comilla = caracter
+            elif caracter == "-" and linea[i : i + 2] == "--":
+                break
+            limpia.append(caracter)
+            i += 1
+        salida.append("".join(limpia))
+    return "\n".join(salida)
+
+
 def _sentencias(texto):
     """Parte un ``.sql`` en sentencias, respetando las comillas.
 
-    Un ``split(";")`` a secas rompe en cuanto un valor trae un punto y coma; acá
-    se recorre el texto llevando cuenta de si está dentro de comillas.
+    Un ``split(";")`` a secas rompe en cuanto un valor —o un comentario— trae un
+    punto y coma; acá se sacan primero los comentarios y después se recorre el
+    texto llevando cuenta de si está dentro de comillas.
     """
     sentencia = []
     comilla = None
     anterior = ""
-    for caracter in texto:
+    for caracter in _sin_comentarios(texto):
         if comilla:
             if caracter == comilla and anterior != "\\":
                 comilla = None
@@ -199,6 +230,20 @@ class Command(BaseCommand):
         if faltan:
             raise CommandError("No se puede arrancar:\n   - " + "\n   - ".join(faltan))
 
+        # Lo ya informado no se reenvía: si una corrida anterior quedó mal y los
+        # casos tienen que volver a salir, hay que borrarlos primero —y solo
+        # después de que SIIS los haya borrado de su lado, porque su API no
+        # deduplica—. Decirlo acá evita confundir «no se tocaron» con «entraron».
+        informados = (
+            EnvioSIIS.objects.filter(estado=EnvioSIIS.Estado.ENVIADO).values("formulario_id").distinct().count()
+        )
+        if informados:
+            self._log(
+                f"   {informados} caso(s) ya informados a SIIS: NO se vuelven a mandar. Si tienen que salir de "
+                "nuevo, hay que borrar sus EnvioSIIS, y solo después de que SIIS los haya purgado.",
+                self.style.WARNING,
+            )
+
         self._log("   Destinos SIIS marcados: los 7")
         self._log(f"   Programas con identificadores: {programas.count()}")
         if aplicar:
@@ -247,9 +292,14 @@ class Command(BaseCommand):
             self._log("   No se mandó ningún caso: no quedan candidatos completos.", self.style.WARNING)
             return
         payload = envio.payload if isinstance(envio.payload, dict) else {}
-        loc_id = payload.get("loc_actual")
-        localidad = LocalidadSiis.objects.filter(siis_id=loc_id).first() if loc_id else None
-        provincia = ProvinciaSiis.objects.filter(siis_id=payload.get("prov_actual")).first()
+        loc_id, prov_id = payload.get("loc_actual"), payload.get("prov_actual")
+        provincia = ProvinciaSiis.objects.filter(siis_id=prov_id).first() if prov_id else None
+        # Acotada a su provincia: el id de localidad se repite entre provincias
+        # —el 1 son 28 localidades— y buscarlo suelto diría «ASUNCION» para quien
+        # vive en Resistencia, que es una alarma falsa justo donde más importa.
+        localidad = (
+            LocalidadSiis.objects.filter(siis_id=loc_id, provincia=provincia).first() if loc_id and provincia else None
+        )
         self._log("")
         self._log("   Caso de prueba enviado:", self.style.MIGRATE_HEADING)
         self._log(f"      caso          {envio.formulario_id}")
