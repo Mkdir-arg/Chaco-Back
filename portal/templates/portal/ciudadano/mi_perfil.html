@@ -145,7 +145,7 @@
                 </div>
                 <h3 class="text-lg font-semibold" style="color: var(--text-heading);">Mis consultas recientes</h3>
             </div>
-            <a href="{% url 'conversaciones:chat_ciudadano' %}"
+            <a href="{% url 'portal:ciudadano_nueva_consulta' %}"
                class="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
                style="background: var(--gradient-brand); color: var(--text-white);"
                onmouseover="this.style.filter='brightness(0.93)'"
@@ -185,7 +185,7 @@
             <div class="text-center py-8" style="color: var(--text-body-subtle);">
                 <i class="fas fa-headset text-3xl mb-3 opacity-40"></i>
                 <p class="text-sm mb-4">Aún no realizaste consultas.</p>
-                <a href="{% url 'conversaciones:chat_ciudadano' %}"
+                <a href="{% url 'portal:ciudadano_nueva_consulta' %}"
                    class="inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-colors"
                    style="background: var(--gradient-brand); color: var(--text-white);"
                    onmouseover="this.style.filter='brightness(0.93)'"

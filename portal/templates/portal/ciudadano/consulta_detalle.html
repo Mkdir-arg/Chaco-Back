@@ -45,7 +45,6 @@
     id="portal-consulta-detalle-app"
     class="rounded-2xl shadow-sm flex flex-col animate-fadeInUp"
     style="min-height: 420px; background: var(--bg-primary); border: 1px solid var(--border-base);"
-    data-messages-url-template="{% url 'conversaciones:obtener_mensajes_ciudadano' 0 %}"
 >
 
     <!-- Mensajes -->
@@ -139,85 +138,10 @@
         }
     })();
 
-    // Polling de nuevos mensajes (cada 4 segundos) si la conversación está abierta
-    {% if puede_enviar %}
-    var consultaDetalleApp = document.getElementById('portal-consulta-detalle-app');
-    var conversacionId = {{ conversacion.id }};
-    var mensajesCargados = new Set();
-    var ultimoMensajeId = 0;
-
-    function buildConversationUrl(template, conversationId) {
-        return template.replace('/0/', `/${conversationId}/`);
-    }
-
-    // Registrar IDs ya renderizados por el servidor
-    document.querySelectorAll('[data-msg-id]').forEach(function (el) {
-        mensajesCargados.add(el.dataset.msgId + '-' + el.dataset.remitente);
-        var idNum = parseInt(el.dataset.msgId, 10);
-        if (!isNaN(idNum) && idNum > ultimoMensajeId) ultimoMensajeId = idNum;
-    });
-
-    function agregarMensaje(contenido, remitente, fecha) {
-        var container = document.getElementById('mensajesContainer');
-        var esCiudadano = remitente === 'ciudadano';
-
-        var wrapper = document.createElement('div');
-        wrapper.className = 'flex ' + (esCiudadano ? 'justify-end' : 'justify-start');
-
-        var inner = document.createElement('div');
-        inner.className = 'max-w-xs lg:max-w-md';
-
-        var etiqueta = document.createElement('p');
-        etiqueta.className = 'text-xs mb-1 ' + (esCiudadano ? 'text-right' : 'text-left');
-        etiqueta.style.color = 'var(--text-body-subtle)';
-        etiqueta.textContent = esCiudadano ? 'Vos' : 'Atención ciudadana';
-
-        var burbuja = document.createElement('div');
-        burbuja.className = 'px-4 py-3 rounded-2xl ' + (esCiudadano ? 'text-white rounded-br-sm' : 'rounded-bl-sm');
-        if (esCiudadano) {
-            burbuja.style.background = 'var(--gradient-brand)';
-        } else {
-            burbuja.style.background = 'var(--bg-tertiary)';
-            burbuja.style.color = 'var(--text-heading)';
-        }
-
-        var texto = document.createElement('p');
-        texto.className = 'text-sm leading-relaxed';
-        texto.textContent = contenido;
-
-        var hora = document.createElement('p');
-        hora.className = 'text-xs opacity-60 mt-1.5 ' + (esCiudadano ? 'text-right' : 'text-left');
-        hora.textContent = fecha;
-
-        burbuja.appendChild(texto);
-        burbuja.appendChild(hora);
-        inner.appendChild(etiqueta);
-        inner.appendChild(burbuja);
-        wrapper.appendChild(inner);
-
-        container.appendChild(wrapper);
-        container.scrollTop = container.scrollHeight;
-    }
-
-    async function cargarMensajesNuevos() {
-        try {
-            var url = buildConversationUrl(consultaDetalleApp.dataset.messagesUrlTemplate, conversacionId) + '?since=' + ultimoMensajeId;
-            var response = await fetch(url);
-            var data = await response.json();
-            data.mensajes.forEach(function (msg) {
-                var key = msg.id + '-' + msg.remitente;
-                if (!mensajesCargados.has(key)) {
-                    agregarMensaje(msg.contenido, msg.remitente, msg.fecha);
-                    mensajesCargados.add(key);
-                }
-                if (msg.id > ultimoMensajeId) ultimoMensajeId = msg.id;
-            });
-        } catch (e) {
-            // Ignorar errores de red silenciosamente
-        }
-    }
-
-    setInterval(cargarMensajesNuevos, 4000);
-    {% endif %}
+    // El polling de mensajes nuevos consumía /conversaciones/<id>/mensajes/, una ruta
+    // pública sin login ni control de propietario: cualquiera leía la conversación de
+    // cualquier otro. Se desmontó junto con el resto del chat público (G1-01 y G1-02,
+    // auditoría oct-2026). Los mensajes se ven al cargar la página, que los renderiza
+    // el servidor.
 </script>
 {% endblock %}

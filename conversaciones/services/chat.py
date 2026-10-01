@@ -3,9 +3,8 @@ import logging
 from django.contrib.auth.models import User
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
-from django.utils.html import escape
 
-from ..models import Conversacion, Mensaje
+from ..models import Mensaje
 from ..selectors import get_conversaciones_sin_asignar
 from .core import AsignadorAutomatico, MetricasService, NotificacionService
 
@@ -24,83 +23,11 @@ def _notificar_grupo(nombre_grupo, payload):
         logger.warning("No se pudo enviar notificación realtime: %s", exc)
 
 
-def consultar_renaper_para_chat(dni, sexo):
-    from legajos.services.consulta_renaper import consultar_datos_renaper
-
-    return consultar_datos_renaper(dni, sexo)
-
-
-def iniciar_conversacion_publica(cleaned_data):
-    conversacion = Conversacion.objects.create(
-        tipo=cleaned_data["tipo"],
-        dni_ciudadano=cleaned_data["dni"] if cleaned_data["tipo"] == "personal" and cleaned_data["dni"] else None,
-        sexo_ciudadano=cleaned_data["sexo"] if cleaned_data["tipo"] == "personal" and cleaned_data["sexo"] else None,
-        prioridad=cleaned_data["prioridad"],
-        estado="activa",
-    )
-
-    if conversacion.tipo == "personal" and conversacion.dni_ciudadano and conversacion.sexo_ciudadano:
-        try:
-            from legajos.models import Ciudadano
-
-            datos_renaper = cleaned_data.get("datos_renaper") or {}
-            Ciudadano.objects.get_or_create(
-                dni=conversacion.dni_ciudadano,
-                defaults={
-                    "nombre": datos_renaper.get("nombre", "Usuario"),
-                    "apellido": datos_renaper.get("apellido", "Chat"),
-                    "genero": conversacion.sexo_ciudadano,
-                    "domicilio": datos_renaper.get("domicilio", ""),
-                },
-            )
-        except Exception as exc:
-            logger.warning("No se pudo vincular/crear ciudadano para conversación %s: %s", conversacion.id, exc)
-
-    if AsignadorAutomatico.asignar_conversacion_automatica(conversacion):
-        conversacion.refresh_from_db()
-
-    NotificacionService.notificar_nueva_conversacion(conversacion)
-    _notificar_grupo(
-        "conversaciones_list",
-        {
-            "type": "nueva_conversacion",
-            "conversacion_id": conversacion.id,
-            "mensaje": f"Nueva conversación #{conversacion.id} creada",
-        },
-    )
-    return conversacion
-
-
-def crear_mensaje_ciudadano(conversacion_id, contenido):
-    conversacion = get_object_or_404(Conversacion, id=conversacion_id)
-    mensaje = Mensaje.objects.create(
-        conversacion=conversacion,
-        remitente="ciudadano",
-        contenido=escape(contenido),
-    )
-
-    _notificar_grupo(
-        f"conversacion_{conversacion_id}",
-        {
-            "type": "chat_message",
-            "mensaje": {
-                "id": mensaje.id,
-                "contenido": mensaje.contenido,
-                "remitente": "ciudadano",
-                "fecha": mensaje.fecha_envio.strftime("%H:%M"),
-                "usuario": "Ciudadano",
-            },
-        },
-    )
-    _notificar_grupo(
-        "conversaciones_list",
-        {
-            "type": "nuevo_mensaje",
-            "conversacion_id": conversacion_id,
-            "mensaje": f"Nuevo mensaje en conversación #{conversacion_id}",
-        },
-    )
-    return mensaje
+# Acá vivían `consultar_renaper_para_chat`, `iniciar_conversacion_publica` y
+# `crear_mensaje_ciudadano`, que solo alimentaban las rutas públicas del chat.
+# El alta anónima creaba el legajo de cualquier DNI con el nombre que mandara el
+# cliente y la consulta devolvía los datos de RENAPER sin login (G1-01 y G1-02,
+# auditoría oct-2026): se eliminan junto con sus rutas.
 
 
 def asignar_conversacion_operador(conversacion, operador, usuario_asignador):
