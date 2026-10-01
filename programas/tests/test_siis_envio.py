@@ -11,6 +11,7 @@ from unittest.mock import patch
 from django.contrib.auth.models import User
 from django.core.management import call_command
 from django.core.management.base import CommandError
+from django.db.models import Count
 from django.test import SimpleTestCase, TestCase, override_settings
 
 from legajos.models import Ciudadano
@@ -902,6 +903,20 @@ class CatalogoGeograficoPropioTests(TestCase):
         self.assertEqual(self.catalogos.localidad_id("Juan José Castelli", 1), 64)
         self.assertEqual(self.catalogos.localidad_id("JUAN JOSE CASTELLI", 1), 64)
 
+    def test_el_id_de_localidad_es_por_provincia_y_no_global(self):
+        """Verificado contra el padrón del organismo el 01/10/2026.
+
+        El mismo número vale una localidad distinta en cada provincia, y por eso
+        el payload manda ``prov_actual`` y ``loc_actual`` juntos.
+        """
+        repetidos = (
+            LocalidadSiis.objects.values("siis_id")
+            .annotate(provincias=Count("provincia", distinct=True))
+            .filter(provincias__gt=1)
+        )
+
+        self.assertTrue(repetidos.exists(), "si el id fuera único global, la clave compuesta sobraría")
+
     def test_la_equivalencia_traduce_el_nombre_cargado(self):
         self.assertEqual(self.catalogos.localidad_id("Sáenz Peña", 1), 42)
         self.assertEqual(self.catalogos.localidad_id("General José de San Martín", 1), 27)
@@ -924,6 +939,71 @@ class CatalogoGeograficoPropioTests(TestCase):
 
     def test_un_nombre_que_no_esta_no_inventa_nada(self):
         self.assertIsNone(self.catalogos.localidad_id("Localidad Inexistente", 1))
+
+
+class VerificarApiTests(TestCase):
+    """``--verificar-api``: avisa cuando la API dice otros ids que el catálogo.
+
+    El 01/10/2026 la API devolvió posiciones de una lista en vez de ids —Fontana
+    como 3, que en el padrón es Puerto Vilelas— y 4.139 personas quedaron
+    registradas en otra localidad, sin un solo error de SIIS.
+    """
+
+    def setUp(self):
+        call_command("seed_catalogo_siis", stdout=StringIO())
+
+    def _correr(self, respuesta):
+        salida = StringIO()
+        with patch("programas.services.siis.catalogo", side_effect=respuesta):
+            call_command("seed_catalogo_siis", "--verificar-api", stdout=salida, stderr=salida)
+        return salida.getvalue()
+
+    def test_denuncia_el_id_que_no_coincide(self):
+        def api(nombre):
+            if nombre == "localidades":
+                # Lo que devolvió de verdad: Fontana con el id de Puerto Vilelas.
+                return [{"id": 3, "nombre": "FONTANA"}]
+            return []
+
+        salida = self._correr(api)
+
+        self.assertIn("DISTINTO id", salida)
+        self.assertIn("FONTANA", salida)
+        self.assertIn("PUERTO VILELAS", salida)  # dice quién ocupa de verdad ese id
+        self.assertIn("conflicto", salida)
+
+    def test_avisa_cuando_la_api_devuelve_muchas_menos(self):
+        """Diez localidades contra 275 es la señal de que la lista viene recortada."""
+        salida = self._correr(lambda nombre: [{"id": 1, "nombre": "RESISTENCIA"}] if nombre == "localidades" else [])
+
+        self.assertIn("muchas menos", salida)
+
+    def test_sin_conflictos_lo_dice(self):
+        def api(nombre):
+            if nombre == "localidades":
+                return [{"id": 64, "nombre": "JUAN JOSE CASTELLI"}]
+            if nombre == "provincias":
+                return [{"id": 1, "nombre": "CHACO"}]
+            return []
+
+        salida = self._correr(api)
+
+        self.assertIn("coinciden", salida)
+        self.assertNotIn("DISTINTO id", salida)
+
+    def test_la_api_caida_no_rompe_la_verificacion(self):
+        """El catálogo propio no depende de la API: no poder consultarla no es un error."""
+        salida = self._correr(SiisCatalogError("502"))
+
+        self.assertIn("no respondió", salida)
+        self.assertIn("el catálogo propio es el que manda", salida.lower())
+
+    def test_no_modifica_el_catalogo(self):
+        antes = LocalidadSiis.objects.count()
+
+        self._correr(lambda nombre: [{"id": 3, "nombre": "FONTANA"}] if nombre == "localidades" else [])
+
+        self.assertEqual(LocalidadSiis.objects.count(), antes)
 
 
 class DomicilioSinAlturaTests(ArmarPayloadTests):

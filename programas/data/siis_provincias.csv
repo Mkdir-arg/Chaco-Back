@@ -1,3 +1,7 @@
+# Padron de provincias de SIIS, tal como lo entrego el organismo.
+#
+# Fuente: Tablas_Provincias_Localidades.xlsx, hoja "Provincias" (PciaId, PciaDen).
+# Verificado el 01/10/2026 contra ese archivo: las 30 coinciden, sin diferencias.
 siis_id,nombre
 1,CHACO
 2,CORRIENTES

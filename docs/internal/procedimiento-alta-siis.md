@@ -56,13 +56,28 @@ mariadb -h <host> -u <usuario> -p --skip-ssl <base> < scripts/Localidades.sql
 
 ---
 
-## 4 · Catálogo geográfico
+## 4 · Catálogo geográfico — EL PASO QUE MÁS CARO SALE SALTEAR
 
 ```bash
 python manage.py seed_catalogo_siis
 ```
 
-Esperado: 30 provincias · 275 localidades · 32 equivalencias
+Esperado: **30 provincias · 275 localidades · 32 equivalencias**
+
+Verificar que diga esos tres números antes de seguir:
+
+```sql
+SELECT (SELECT COUNT(*) FROM programas_provinciasiis) AS prov,
+       (SELECT COUNT(*) FROM programas_localidadsiis) AS loc,
+       (SELECT COUNT(*) FROM programas_aliaslocalidadsiis) AS alias;
+```
+
+> **Un restore deja este catálogo vacío** (producción lo tiene así). Y sin él, el
+> sistema cae a la API de SIIS, que **devuelve posiciones de una lista, no ids**:
+> el 01/10/2026 eso mandó 4.139 altas con la localidad equivocada —un chico de
+> Machagai quedó registrado en Colonia Popular, uno de Sáenz Peña en Fontana—.
+> Resistencia y Barranqueras coincidieron de casualidad, por estar primeras en
+> las dos listas.
 
 ⏱ 10 seg
 
@@ -87,6 +102,7 @@ el restore termine del todo y reintentar.
 python manage.py corregir_datos_siis \
     --fecha-nacimiento-renaper --heredar-nacimiento \
     --barrio-generico "Sin especificar" --fecha-apoderado 1990-01-01 \
+    --estado-civil-sin-equivalente "Soltero/a" \
     --aplicar --limite 999999
 ```
 
@@ -99,6 +115,7 @@ Esperado, aproximado:
 | Barrio | ~186 |
 | Fecha del apoderado | ~520 |
 | Fecha de nacimiento del titular (legajo) | 31 |
+| Estado civil que SIIS no tiene («Separado/a») | 11 |
 
 Mirar dos líneas del resumen: **"la planilla tampoco cruza"** y **"su DNI no está en la
 planilla"**. Son la lista de trabajo para la próxima vuelta.
@@ -107,16 +124,29 @@ planilla"**. Son la lista de trabajo para la próxima vuelta.
 
 ---
 
-## 7 · UN caso, y parar
+## 7 · UN caso, y parar — NO ES UN TRÁMITE
 
 ```bash
 python manage.py procesar_casos_siis --solo-completos --total 1 --lote 40 --aplicar --usuario <usuario>
 ```
 
-**Frenar acá.** Verificar en SIIS con qué **domicilio** quedó esa persona.
+**Frenar acá.** Pedirle a alguien que abra ese caso en SIIS y verifique con qué
+**localidad** quedó registrado.
 
-> Sin confirmar: si SIIS lee el id de localidad como global en vez de por provincia,
-> las altas entran mal **y las acepta sin dar error**.
+Elegir un caso del interior (Machagai, Quitilipi, Sáenz Peña), **no de Resistencia**:
+una localidad mal mapeada puede coincidir igual si está primera en las dos listas.
+
+Y controlar el id contra el catálogo antes de mirar en SIIS:
+
+```sql
+SELECT JSON_VALUE(e.payload, '$.loc_actual') AS id_enviado,
+       (SELECT nombre FROM programas_localidadsiis
+        WHERE siis_id = JSON_VALUE(e.payload, '$.loc_actual')) AS deberia_ser
+FROM programas_enviosiis e WHERE e.estado = 'ENVIADO' ORDER BY e.id DESC LIMIT 1;
+```
+
+> El 01/10/2026 se salteó esta verificación y 4.139 personas quedaron con el
+> domicilio equivocado. SIIS las aceptó sin un solo error.
 
 ⏱ 1 min + verificación humana
 

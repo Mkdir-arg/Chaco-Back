@@ -224,6 +224,20 @@ class Catalogos:
         return self._buscar("localidades", nombre)
 
     def estado_civil_id(self, nombre):
+        """Contra la API, como provincias y localidades, pero acá los ids sí son los de SIIS.
+
+        Se verificó el 01/10/2026 contra la tabla del manual M2M v4.2 (1 =
+        Soltero/a, 2 = Casado/a, 5 = Conviviente), porque este es el mismo
+        endpoint ``/catalogos/*`` que para localidades devuelve posiciones de
+        lista en vez de ids. Lo que la API contesta acá coincide con el manual
+        en los tres valores que el manual documenta, así que no hace falta un
+        catálogo propio de respaldo.
+
+        Lo que sí falta en SIIS es **Separado/a**: el relevamiento lo ofrece,
+        no tiene equivalente en el catálogo y el caso queda sin poder enviarse
+        (``est_civil`` es obligatorio). Son pocos y se destraban cargando la
+        corrección a mano en ``datos_siis``.
+        """
         return self._buscar("estados-civiles", nombre, sin_genero=True)
 
     def nombre_de(self, nombre_catalogo, item_id):

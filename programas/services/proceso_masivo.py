@@ -30,6 +30,8 @@ LOTE = 40
 MAX_ERRORES = 10
 # Casos que se traen de la base por vez al hidratar una lista de ids (abajo).
 LOTE_LECTURA = 200
+# Ids que se piden por consulta al recorrer la tabla por rangos de pk.
+PAGINA_IDS = 2000
 # Lo que el circuito lee de cada caso sin volver a la base: lo comparten
 # ``candidatos`` y la hidratación por lotes.
 SELECT_RELATED_CASOS = ("ciudadano", "relevamiento__convocatoria__segmento__programa", "apoderado_ciudadano")
@@ -177,13 +179,31 @@ def candidatos(
     return casos
 
 
-def ids_de(casos, limite=None):
-    """Solo los ids de ``casos`` (un queryset de :func:`candidatos`), en orden de
-    pk; con ``limite``, los primeros ``limite``."""
-    ids = casos.values_list("pk", flat=True)
-    if limite:
-        ids = ids[:limite]
-    return list(ids)
+def ids_de(casos, limite=None, pagina=PAGINA_IDS):
+    """Solo los ids de ``casos`` (un queryset de :func:`candidatos`), en orden de pk.
+
+    Se piden **por rangos de pk**, no de una sola vez. ``programas_formulario``
+    pesa 283 MB —la foto del formulario son 27 KB por caso— y en InnoDB el índice
+    primario *es* la tabla: un ``SELECT id ... ORDER BY id`` sin acotar recorre
+    los 283 MB enteros y no entra en el ``read_timeout`` de 10 s de ECOM. El
+    síntoma es engañoso, porque depende de cuánta I/O esté haciendo el servidor:
+    el mismo comando entra si pasaron unos minutos desde el anterior y muere con
+    «Lost connection» si se lanza enseguida. Con ``WHERE pk > N LIMIT pagina``
+    cada consulta lee un trozo acotado y el tiempo deja de depender de eso.
+    """
+    recogidos = []
+    ultimo = 0
+    while True:
+        falta = (limite - len(recogidos)) if limite else None
+        if falta is not None and falta <= 0:
+            break
+        tramo = casos.filter(pk__gt=ultimo).order_by("pk").values_list("pk", flat=True)
+        tramo = list(tramo[: min(pagina, falta) if falta else pagina])
+        if not tramo:
+            break
+        recogidos.extend(tramo)
+        ultimo = tramo[-1]
+    return recogidos
 
 
 def hidratar(ids):

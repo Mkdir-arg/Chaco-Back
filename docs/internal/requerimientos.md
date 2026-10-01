@@ -285,6 +285,8 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 103 | El nombre de un rol ya no inyecta código en el backoffice (SEC-08) | Transversal · shell del backoffice | `#usuarios` `#rbac` `#ui` | Auditoría de seguridad oct-2026 (SEC-08), Ola 0 | 01/10/2026 | 🟢 **Hecho** | No requiere |
 | 104 | Los seeds de arranque ya no pisan lo configurado en Roles: las capacidades opt-in sobreviven y se respetan nombre, activo y estado del programa | Transversal — bootstrap y RBAC | `#rbac` `#infra` `#datos` | Auditoría de código oct-2026, hallazgo OPS-06 (Ola 0, PR H5) | 01/10/2026 | 🟢 **Hecho** | No requiere |
 | 105 | Los tests del coordinador regional no dependen de la fecha de hoy | Transversal | `#infra` `#convocatorias` | Juez de la sesión — Ola 0 de la auditoría integral oct-2026: el Backend CI quedó rojo en todos los PRs | 01/10/2026 | 🟢 **Hecho** | No requiere |
+| 106 | Un comando único corre el alta en SIIS de punta a punta, y las consultas de ids dejan de morir por timeout | Becas · alta de beneficiarios en SIIS | `#siis` `#infra` `#performance` | PM — en sesión, después de la corrida del 01/10: «quiero armar un comando único que haga todos los pasos» y «¿tenemos forma de evitar el Lost connection?» | 01/10/2026 | 🟢 **Hecho** | No requiere |
+| 107 | El estado civil que SIIS no tiene deja de dejar casos afuera, y el resto queda verificado contra el manual | Becas · alta de beneficiarios en SIIS | `#siis` `#datos` | PM — en sesión, al revisar el hallazgo de la revisión independiente: «a esos casos ponele Soltero/a los de Separado/a» | 01/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -13357,5 +13359,253 @@ Revertir el commit devuelve las fechas fijas y, con ellas, las dos fallas.
 
 - **01/10/2026 (este cambio)** — detectado por la Ola 0 de la auditoría integral oct-2026 al ver el Backend CI
   rojo en todos los PRs; arreglado con fechas relativas a hoy.
+
+---
+
+# Cambio 106 — Un comando único para el alta en SIIS, y el fin de los «Lost connection»
+
+🟢 **HECHO — 01/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · alta de beneficiarios en SIIS |
+| **Etiquetas** | `#siis` `#infra` `#performance` |
+| **Solicitante** | PM — en sesión, durante la corrida del 01/10 en el ambiente de test |
+| **Fecha del pedido** | 01/10/2026 |
+| **Issue / épica** | Sin issue (pedido en sesión) |
+| **Partes afectadas** | Comando nuevo `correr_alta_siis`; `ids_de` y los tres comandos que arman listas de ids |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> «Quiero armar un comando único que haga todos los pasos desde ejecutar los scripts, actualizar los datos,
+> calcular los lotes en base a los casos y enviar, todos menos la configuración que se hace desde el back.»
+>
+> Y después, sobre el error que lo frenaba: «¿tenemos forma de evitar el `Lost connection to server during
+> query`? Me di cuenta que corriendo los comandos con minutos de separación arranca; si los corro uno tras del
+> otro, falla.»
+
+## Qué lo motivó
+
+La corrida del 01/10 en test terminó con **4.139 personas registradas en SIIS con la localidad equivocada**. La
+causa fue saltearse `seed_catalogo_siis`: un restore deja el catálogo geográfico vacío, y sin él las
+localidades se resuelven contra la API de SIIS, que **devuelve posiciones de una lista en vez de ids**. Un
+chico de Machagai quedó en Colonia Popular; uno de Sáenz Peña, en Fontana. Resistencia y Barranqueras
+coincidieron de casualidad por estar primeras en las dos listas, y SIIS aceptó las 4.139 sin un solo error.
+
+El circuito eran cinco comandos sueltos que había que correr en orden, con dos configuraciones de pantalla
+previas y tres tablas cargadas a mano. Nada verificaba que el paso anterior se hubiera hecho.
+
+## Alcance acordado
+
+- Un comando que encadene el circuito entero y **verifique lo que no puede resolver solo**.
+- **Afuera:** la configuración de pantalla —marcar el destino SIIS de las preguntas y cargar los
+  identificadores del programa—, porque son decisiones del organismo. El comando corta y dice cuál falta.
+
+## Decisiones tomadas
+
+- **Tres frenos, no uno.** (1) No arranca sin la configuración de pantalla, y lista todo lo que falta de una
+  vez en vez de obligar a correrlo cinco veces. (2) No sigue si el catálogo quedó vacío después del seed. (3)
+  Manda **un caso de prueba y para**, mostrando con qué localidad salió y contra cuál del catálogo
+  corresponde; sin `--continuar` no hace la corrida grande.
+- **El caso de prueba avisa que sea del interior.** Verificar con uno de Resistencia no prueba nada: es
+  justamente la localidad que coincide por casualidad en las dos numeraciones.
+- **Los `.sql` se ejecutan desde Django**, no con el cliente de base: el pod no lo trae. Para partirlos en
+  sentencias hay un parser que respeta las comillas, porque un `split(";")` se rompe con el primer valor que
+  traiga un punto y coma.
+- **El total de la corrida se calcula** de los candidatos que haya. No hay que estimar un número ni repetir el
+  comando siete veces.
+- **Los identificadores se exigen sobre los programas que los tienen cargados, no sobre todos**: un programa
+  viejo sin configurar no puede frenar el alta de otro que sí está listo.
+
+## El «Lost connection», y por qué el síntoma engañaba
+
+`programas_formulario` pesa **283 MB** en producción —la foto del formulario son 27 KB por caso— y en InnoDB
+el índice primario **es** la tabla. Un `SELECT id ... ORDER BY id` sin acotar recorre los 283 MB enteros y no
+entra en el `read_timeout` de 10 s de ECOM.
+
+Lo que lo hacía difícil de leer es que **dependía de la I/O del momento**: el mismo comando entraba si habían
+pasado unos minutos desde el anterior y moría lanzado enseguida, porque InnoDB todavía estaba bajando páginas
+sucias a disco y competía por el disco.
+
+`ids_de` ahora pide los ids **por rangos de pk** (`WHERE pk > N ORDER BY pk LIMIT 2000`), así cada consulta lee
+un trozo acotado y el tiempo deja de depender de eso. Se aplicó también en `completar_casos_renaper` y
+`corregir_datos_siis`, que armaban su propia lista.
+
+## Implementación
+
+```
+python manage.py correr_alta_siis                                   # ensayo completo
+python manage.py correr_alta_siis --aplicar --usuario <user>        # para en el caso de prueba
+python manage.py correr_alta_siis --aplicar --usuario <user> --continuar
+```
+
+Pasos: precondiciones → insumos (`.sql`) → catálogo → RENAPER → corrección → caso de prueba → corrida
+completa. Cada uno es el comando que ya existía, con sus propias garantías de reentrada.
+
+## Archivos
+
+- `programas/management/commands/correr_alta_siis.py` — el orquestador.
+- `programas/services/proceso_masivo.py` — `ids_de` por rangos de pk (`PAGINA_IDS`).
+- `programas/management/commands/completar_casos_renaper.py` y `corregir_datos_siis.py` — usan `ids_de`.
+- `programas/tests/test_correr_alta_siis.py` (16 tests) y `test_proceso_masivo.py` (4 más).
+- `docs/internal/procedimiento-alta-siis.md` — el procedimiento para correrlo a mano, con las dos advertencias
+  que salieron caras el 01/10.
+
+## Base de datos
+
+No requiere migración.
+
+## Validación
+
+- Contra el ambiente de test, los dos comandos pesados **uno tras otro sin pausa**: `completar_casos_renaper`
+  (7.506 casos, 128 s) y `corregir_datos_siis` (3.367 casos, 68 s), **ninguno con `Lost connection`**. Antes,
+  encadenados así, el segundo moría.
+- `correr_alta_siis --solo-precondiciones` contra test: detecta la configuración correctamente.
+- Tests: 16 del orquestador + 4 de la paginación; suites de `test_siis_envio`, `test_corregir_datos_siis` y
+  `test_proceso_masivo` en verde. `ruff check programas/` limpio.
+
+## Puesta en marcha en el servidor
+
+Deploy estándar sin migración.
+
+## Pendientes / a definir
+
+- **Los 4.139 de la corrida del 01/10 siguen en SIIS con la localidad equivocada.** Hay que pedirle a ECOM que
+  los borre de la tabla intermedia; recién después se pueden liberar los `EnvioSIIS` locales y reenviarlos.
+- **Falta confirmar cuál numeración de localidades es la de SIIS**: la del catálogo del organismo (Machagai 44)
+  o la que devuelve su API (Machagai 9). La evidencia apunta a la del organismo —la API devuelve posiciones de
+  lista—, pero conviene que alguien lo verifique en SIIS antes de la próxima corrida.
+- `procesar_casos_siis` no tiene un `--todos`: hay que pasarle un número grande. El orquestador lo calcula
+  solo, así que solo molesta si se corre el comando suelto.
+
+## Reversión
+
+Revertir el commit saca el orquestador y vuelve `ids_de` a pedir todos los ids de una. Los comandos sueltos
+siguen funcionando igual; vuelve el `Lost connection` al encadenarlos.
+
+## Historial
+
+- **01/10/2026** — la corrida en test con el catálogo vacío mandó 4.139 altas con la localidad equivocada.
+- **01/10/2026 (este cambio)** — el circuito pasa a ser un comando con frenos, y las consultas de ids dejan de
+  recorrer la tabla entera.
+
+---
+
+# Cambio 107 — El estado civil que SIIS no tiene, y la verificación del que sí
+
+🟢 **HECHO — 01/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · alta de beneficiarios en SIIS |
+| **Etiquetas** | `#siis` `#datos` |
+| **Solicitante** | PM — en sesión, revisando los hallazgos de la revisión independiente del Cambio 106 |
+| **Fecha del pedido** | 01/10/2026 |
+| **Issue / épica** | Sin issue (pedido en sesión) |
+| **Partes afectadas** | `corregir_datos_siis`, `correr_alta_siis`, `siis_envio.Catalogos` |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> «A esos casos ponele Soltero/a, los de Separado/a.»
+
+Antes, el pedido de verificar el hallazgo que lo destapó:
+
+> «Dale, miralo así cerramos el tema.»
+
+## Qué lo motivó
+
+Una revisión independiente del Cambio 106 marcó que `est_civil` se resuelve **solo contra la API de SIIS** —el
+mismo endpoint `/catalogos/*` que para localidades devuelve posiciones de lista en vez de ids— y que nadie
+había mirado si ahí pasaba lo mismo. Si pasaba, el estado civil de las 4.139 altas del 01/10 también estaba
+mal y había que sumarlo a lo que ECOM tiene que borrar.
+
+## Lo que se verificó
+
+**No pasa: los ids del estado civil son los de SIIS.** Lo que se mandó el 01/10, cruzado contra la tabla del
+manual M2M:
+
+| Respuesta | Id enviado | Casos | Manual M2M |
+|---|---|---|---|
+| Soltero/a | 1 | 4.085 | 1 = Soltero/a ✔ |
+| Casado/a | 2 | 49 | 2 = Casado/a ✔ |
+| Divorciado/a | 3 | 3 | no documentado |
+| Viudo/a | 4 | 2 | no documentado |
+| — | 5 | — | 5 = Conviviente |
+
+Coincide en los tres valores que el manual documenta, y 3 y 4 caen justo en los huecos que quedan entre 2 y 5.
+El detalle que lo confirma: si fueran posiciones de una lista alfabética, *Casado* sería 1 y *Soltero* 4. El
+orden que devuelve la API es el de una tabla real, no el de un listado.
+
+**El estado civil de las 4.139 altas está bien.** No hay nada que sumarle al borrado que se le pidió a ECOM.
+
+## Lo que sí apareció
+
+El hueco al revés: el relevamiento ofrece **«Separado/a»** y el catálogo de SIIS no lo tiene. Como `est_civil`
+es obligatorio, esos casos quedan con un faltante y **ni se intentan**: no aparecen entre los rechazados, que
+es donde uno iría a buscarlos. Eran **11** en el ambiente de test, todos en «sin intento».
+
+## Decisiones tomadas
+
+- **«Separado/a» viaja como «Soltero/a»** (id 1). Lo decidió el PM el 01/10/2026. SIIS no tiene un equivalente
+  y la alternativa era dejar los casos afuera.
+- **El reemplazo se pasa por opción, no se hardcodea.** `--estado-civil-sin-equivalente` recibe el **nombre**,
+  no el id, y se resuelve contra el catálogo: si cambia la numeración de SIIS, la corrección sigue apuntando a
+  donde corresponde.
+- **Corta antes de escribir si el reemplazo tampoco existe**, y lista los estados civiles que SIIS sí tiene.
+  Descubrirlo caso por caso con el id en `None` sería peor.
+- **Un error de la API se informa como error de la API.** `_catalogo_que_se_rinde` se traga la falla y devuelve
+  una lista vacía, así que el catálogo se pide aparte para este chequeo: si no, un SIIS caído diría «ese estado
+  civil no existe», que es la pista equivocada.
+- **Solo se toca lo que no cruza.** Un estado civil que la API reconoce no se pisa nunca, y la respuesta vacía
+  tampoco se completa: ahí el dato no está, y ponerle uno sería inventarlo.
+- La corrección va a `datos_siis`, como las otras cuatro: **la respuesta del ciudadano queda intacta**.
+
+## Implementación
+
+```
+python manage.py corregir_datos_siis --estado-civil-sin-equivalente "Soltero/a" --aplicar
+```
+
+El orquestador lo pasa solo, con «Soltero/a» por defecto (`ESTADO_CIVIL_SIN_EQUIVALENTE`), así que la corrida
+de punta a punta ya lo incluye.
+
+## Archivos
+
+- `programas/management/commands/corregir_datos_siis.py` — la quinta corrección y su resumen.
+- `programas/management/commands/correr_alta_siis.py` — la pasa al paso 5.
+- `programas/services/siis_envio.py` — queda escrito en `estado_civil_id()` qué se verificó y contra qué.
+- `programas/tests/test_corregir_datos_siis.py` — 8 tests nuevos.
+- `docs/internal/procedimiento-alta-siis.md` — el comando del paso 6 y la fila de la tabla.
+
+## Base de datos
+
+No requiere migración.
+
+## Validación
+
+- Contra el ambiente de test: los 4.139 enviados cruzados con lo que declaró cada persona (tabla de arriba), y
+  los 11 «Separado/a» confirmados en «sin intento», ninguno con un envío registrado.
+- La tabla del estado civil salió del `Manual_Integracion_M2M_SIIS_API` que entregó ECOM.
+- Tests: `test_corregir_datos_siis` 31, `test_correr_alta_siis` 20, `test_siis_envio` 135, `test_proceso_masivo`
+  en verde. `manage.py check` sin issues y `ruff check` limpio.
+
+## Pendientes / a definir
+
+- **Confirmar con ECOM el id de «Divorciado/a» (3) y «Viudo/a» (4)**, que el manual no documenta. La evidencia
+  los ubica bien, pero son 5 casos y una confirmación cuesta un mail.
+- Si SIIS llegara a agregar «Separado/a» a su catálogo, la corrección deja de aplicarse sola: el comando solo
+  toca lo que no cruza.
+
+## Reversión
+
+Revertir el commit saca la opción. Los 11 casos vuelven a quedar afuera del envío, sin error visible.
+
+## Historial
+
+- **01/10/2026** — la revisión independiente del Cambio 106 marca que nadie verificó los ids del estado civil.
+- **01/10/2026 (este cambio)** — se verifican contra el manual (están bien) y se resuelve el «Separado/a» que
+  SIIS no tiene.
 
 ---

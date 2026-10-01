@@ -7,6 +7,7 @@ escribe en la corrección del caso sin tocar la respuesta del ciudadano.
 
 from datetime import date, timedelta
 from io import StringIO
+from unittest.mock import patch
 
 from django.core.management import call_command
 from django.core.management.base import CommandError
@@ -14,7 +15,8 @@ from django.db import connection
 from django.utils import timezone
 
 from programas.models import AliasLocalidadSiis, LocalidadSiis, ProvinciaSiis
-from programas.tests.test_siis_envio import _BaseEnvioTest
+from programas.services.siis import SiisCatalogError
+from programas.tests.test_siis_envio import _BaseEnvioTest, _catalogo_falso
 
 TABLA_LOCALIDADES = "localidades_corregidas"
 TABLA_RENAPER = "ciudadanos_renaper"
@@ -191,6 +193,47 @@ class LocalidadTests(_BaseCorreccionTest):
         self.assertIn("no cruza y su DNI no está en la planilla", salida)
 
 
+class IdDeLocalidadPorProvinciaTests(_BaseCorreccionTest):
+    """El id de localidad se repite entre provincias: el 1 son 28 localidades.
+
+    Quedarse con el id y buscar su provincia después con ``filter(siis_id=...)``
+    devuelve la primera por orden alfabético de provincia —para el 1, ASUNCION
+    (PARAGUAY)— y el par resultante existe en el padrón, así que SIIS lo acepta
+    sin devolver error. Es la misma clase de fallo silencioso que dejó 4.139
+    personas en la localidad equivocada el 01/10/2026.
+    """
+
+    def setUp(self):
+        super().setUp()
+        crear_tabla_localidades()
+        # La misma Resistencia en otra provincia, como en el padrón real.
+        otra = ProvinciaSiis.objects.create(siis_id=89, nombre="ASUNCION (PARAGUAY)", clave="asuncion (paraguay)")
+        LocalidadSiis.objects.create(siis_id=1, provincia=otra, nombre="ASUNCION", clave="asuncion")
+
+    def test_el_nacimiento_heredado_se_queda_en_la_provincia_del_domicilio(self):
+        self.responder("prov_actual", "Chaco", texto="Provincia")
+        self.responder("loc_actual", "Resistencia", texto="Localidad")
+        self.responder("prov_nacim", "", texto="Provincia Nacimiento")
+        self.responder("loc_nacim", "Sin Informar", texto="Localidad de nacimiento")
+
+        self.correr("--heredar-nacimiento", "--aplicar")
+
+        correcciones = self.correcciones()
+        self.assertEqual(correcciones["loc_nacim"], 1)
+        self.assertEqual(correcciones["prov_nacim"], 1, "heredó la provincia de Asunción en vez de Chaco")
+
+    def test_un_nombre_que_existe_en_dos_provincias_no_se_resuelve_a_ciegas(self):
+        """Sin saber la provincia, un nombre repetido no alcanza para decidir."""
+        otra = ProvinciaSiis.objects.get(siis_id=89)
+        LocalidadSiis.objects.create(siis_id=7, provincia=otra, nombre="MACHAGAI", clave="machagai")
+        self.responder("prov_actual", "Provincia que no existe", texto="Provincia")
+        self.responder("loc_actual", "Machagai", texto="Localidad")
+
+        self.correr("--aplicar")
+
+        self.assertNotIn("loc_actual", self.correcciones())
+
+
 class BarrioTests(_BaseCorreccionTest):
     def setUp(self):
         super().setUp()
@@ -303,3 +346,91 @@ class AliasDeLocalidadTests(_BaseCorreccionTest):
         self.correr("--aplicar")
 
         self.assertEqual(self.correcciones()["loc_actual"], 44)
+
+
+@patch("programas.management.commands.corregir_datos_siis.catalogo", _catalogo_falso)
+class EstadoCivilSinEquivalenteTests(_BaseCorreccionTest):
+    """«Separado/a»: el relevamiento lo ofrece y el catálogo de SIIS no lo tiene.
+
+    Sin reemplazo el caso no se intenta siquiera, porque ``est_civil`` es
+    obligatorio y un faltante lo deja afuera del universo de enviables: no
+    aparece entre los rechazados, que es donde uno iría a buscarlo.
+    """
+
+    def setUp(self):
+        super().setUp()
+        crear_tabla_localidades()
+
+    def test_el_declarado_que_siis_no_tiene_queda_con_el_de_reemplazo(self):
+        self.responder("est_civil", "Separado/a", texto="Estado civil")
+
+        salida = self.correr("--sin-localidades", "--estado-civil-sin-equivalente", "Soltero/a", "--aplicar")
+
+        self.assertEqual(self.correcciones()["est_civil"], 1)
+        self.assertIn("Separado/a", salida)
+
+    def test_no_toca_la_respuesta_del_ciudadano(self):
+        requisito = self.responder("est_civil", "Separado/a", texto="Estado civil")
+
+        self.correr("--sin-localidades", "--estado-civil-sin-equivalente", "Soltero/a", "--aplicar")
+
+        self.formulario.refresh_from_db()
+        self.assertEqual(self.formulario.data["requisitos"][str(requisito.pk)], "Separado/a")
+
+    def test_el_que_si_cruza_no_se_pisa(self):
+        self.responder("est_civil", "Casado/a", texto="Estado civil")
+
+        self.correr("--sin-localidades", "--estado-civil-sin-equivalente", "Soltero/a", "--aplicar")
+
+        self.assertNotIn("est_civil", self.correcciones())
+
+    def test_la_respuesta_vacia_no_se_completa(self):
+        """Ahí el dato no está: ponerle uno sería inventarlo, no corregirlo."""
+        self.responder("est_civil", "", texto="Estado civil")
+
+        self.correr("--sin-localidades", "--estado-civil-sin-equivalente", "Soltero/a", "--aplicar")
+
+        self.assertNotIn("est_civil", self.correcciones())
+
+    def test_sin_la_opcion_no_corrige_ninguno(self):
+        self.responder("est_civil", "Separado/a", texto="Estado civil")
+
+        self.correr("--sin-localidades", "--aplicar")
+
+        self.assertNotIn("est_civil", self.correcciones())
+
+    def test_la_correccion_previa_no_se_pisa(self):
+        self.responder("est_civil", "Separado/a", texto="Estado civil")
+        self.formulario.datos_siis = {"est_civil": 5}
+        self.formulario.save(update_fields=["datos_siis"])
+
+        self.correr("--sin-localidades", "--estado-civil-sin-equivalente", "Soltero/a", "--aplicar")
+
+        self.assertEqual(self.correcciones()["est_civil"], 5)
+
+    def test_un_reemplazo_que_siis_tampoco_tiene_corta_antes_de_escribir(self):
+        self.responder("est_civil", "Separado/a", texto="Estado civil")
+
+        with self.assertRaises(CommandError) as ctx:
+            self.correr("--sin-localidades", "--estado-civil-sin-equivalente", "Amancebado", "--aplicar")
+
+        self.assertIn("Amancebado", str(ctx.exception))
+        self.assertEqual(self.correcciones(), {})
+
+
+class EstadoCivilSinCatalogoTests(_BaseCorreccionTest):
+    def test_con_la_api_caida_dice_que_es_la_api_y_no_el_estado_civil(self):
+        """``_catalogo_que_se_rinde`` se traga el error: sin esto diría que el
+        estado civil no existe, que es la pista equivocada."""
+        crear_tabla_localidades()
+        self.responder("est_civil", "Separado/a", texto="Estado civil")
+
+        def falla(nombre):
+            raise SiisCatalogError("sin credenciales")
+
+        with patch("programas.management.commands.corregir_datos_siis.catalogo", falla):
+            with self.assertRaises(CommandError) as ctx:
+                self.correr("--sin-localidades", "--estado-civil-sin-equivalente", "Soltero/a", "--aplicar")
+
+        self.assertIn("catálogo de estados civiles", str(ctx.exception))
+        self.assertIn("sin credenciales", str(ctx.exception))
