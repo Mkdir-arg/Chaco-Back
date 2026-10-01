@@ -6,6 +6,8 @@ from uuid import uuid4
 
 from django.contrib.auth.models import User
 from django.core.cache import cache
+from django.db import connection
+from django.http import Http404
 from django.test import RequestFactory, TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -13,6 +15,7 @@ from django.utils import timezone
 from core.services.throttle import rate_limit_excedido
 from legajos.models import Ciudadano
 from portal.services import inscripcion as servicio
+from portal.views.inscripcion import _get_relevamiento
 from programas.models import Convocatoria, Formulario, Relevamiento, Segmento
 from programas.services.padron import cargar_padron
 
@@ -341,3 +344,58 @@ class PieDeContactoTests(_BaseInscripcionTest):
         self.assertTemplateUsed(resp, "portal/inscripcion/paso2.html")
         self.assertContains(resp, self.CONTACTO)
         self.assertContains(resp, "3625153720")
+
+
+class TokenPublicoEnCualquierFormaTests(_BaseInscripcionTest):
+    """Cambio 99: MariaDB guarda ``token_publico`` con guiones y una base
+    restaurada desde PRD (MySQL) lo trae en hex de 32. El link tiene que
+    encontrar el relevamiento con las dos formas, en una sola consulta."""
+
+    def _guardar_token_como(self, rel, texto):
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "UPDATE programas_relevamiento SET token_publico = %s WHERE id = %s",
+                [texto, rel.pk],
+            )
+
+    def _paso2(self, token):
+        # El paso 2 sin paso 1 redirige al paso 1 sin renderizar: 302 = el
+        # relevamiento se encontró, 404 = no.
+        return self.client.get(reverse("portal:inscripcion_paso2", kwargs={"token": token}))
+
+    def test_encuentra_el_token_guardado_en_hex(self):
+        token = self.relevamiento.token_publico
+        self._guardar_token_como(self.relevamiento, token.hex)
+        self.assertRedirects(self._paso2(token), self._url(), fetch_redirect_response=False)
+
+    def test_encuentra_el_token_guardado_con_guiones(self):
+        token = self.relevamiento.token_publico
+        self._guardar_token_como(self.relevamiento, str(token))
+        self.assertRedirects(self._paso2(token), self._url(), fetch_redirect_response=False)
+
+    def test_la_busqueda_es_una_sola_consulta(self):
+        token = self.relevamiento.token_publico
+        self._guardar_token_como(self.relevamiento, str(token))
+        with self.assertNumQueries(1):
+            rel = _get_relevamiento(token)
+            rel.convocatoria.segmento.programa
+        self.assertEqual(rel.pk, self.relevamiento.pk)
+        self.assertEqual(rel.token_publico, token)
+
+    def test_token_inexistente_da_404(self):
+        with self.assertRaises(Http404):
+            _get_relevamiento(uuid4())
+        try:
+            resp = self._paso2(uuid4())
+        except AttributeError as exc:
+            _tolerar_render_local(exc)
+            return
+        self.assertEqual(resp.status_code, 404)
+
+    def test_relevamiento_territorial_con_token_da_404(self):
+        territorial = User.objects.create_user("terri_token", password="x")
+        rel = self._rel_publico(tipo=Relevamiento.Tipo.TERRITORIAL, territorial=territorial)
+        token = uuid4()
+        self._guardar_token_como(rel, str(token))
+        with self.assertRaises(Http404):
+            _get_relevamiento(token)

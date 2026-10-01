@@ -21,6 +21,8 @@ Devuelve código de salida distinto de 0 si algún paso falla, para usarlo como
 chequeo de despliegue.
 """
 
+import uuid
+
 from django.conf import settings
 from django.contrib.auth.models import Group
 from django.core.cache import cache
@@ -283,7 +285,15 @@ class Command(BaseCommand):
                 rel = None
             return rel
         if options["token"]:
-            rel = publicos.filter(token_publico=options["token"]).select_related("convocatoria").first()
+            from programas.services.becas import relevamiento_publico_por_token
+
+            try:
+                token = uuid.UUID(str(options["token"]).strip())
+            except ValueError:
+                self._error(f"el token {options['token']} no es un UUID válido")
+                return None
+            # En hex o con guiones, según el motor que guardó la fila (Cambio 99).
+            rel = relevamiento_publico_por_token(token, publicos).select_related("convocatoria").first()
             if rel is None:
                 self._error(f"ningún relevamiento público tiene el token {options['token']}")
             return rel
