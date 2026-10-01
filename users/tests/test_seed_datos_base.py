@@ -8,8 +8,9 @@ así que no puede pisar lo que la pantalla de Roles y la de Programas dejan edit
   (regla del Cambio 29): si alguien saca una a mano, vuelve.
 - Las capacidades **opt-in** (``becas.relevamiento.publico``, Cambios 41 y 91) se
   encienden tildándolas en Roles y **sobreviven** al seed.
-- Un rol existente conserva su nombre y su estado activo/inactivo; renombrarlo no
-  hace que el arranque cree uno nuevo.
+- Un rol existente conserva su descripción y su estado activo/inactivo. Los roles se
+  identifican solo por nombre: uno renombrado deja de ser «sembrado» (el arranque crea
+  otro con el nombre canónico) y un rol hecho a mano nunca recibe capacidades del seed.
 - «Operador de backoffice» solo se siembra al crearlo.
 - ``crear_programas`` no pisa el estado ni los demás campos del Programa Becas.
 
@@ -23,7 +24,7 @@ from unittest import mock
 
 from django.contrib.auth.models import Group, Permission
 from django.contrib.contenttypes.models import ContentType
-from django.core.management import call_command
+from django.core.management import CommandError, call_command
 from django.test import TestCase
 
 from core import rbac
@@ -100,27 +101,34 @@ class SeedRolesBecasTests(TestCase):
 
         self.assertEqual(RolMeta.objects.get(grupo=self.referente).descripcion, "Texto propio del cliente")
 
-    def test_un_rol_renombrado_no_se_duplica(self):
+    def test_un_rol_renombrado_genera_uno_nuevo_con_el_nombre_canonico(self):
+        # Conducta documentada (D-O06): los roles se identifican solo por nombre.
+        # Reconocer el renombre exige la clave estable de la fase 2 de OPS-06.
         self.referente.name = "Referente de Becas"
         self.referente.save()
         roles_antes = Group.objects.count()
 
         _correr()
 
-        self.assertEqual(Group.objects.count(), roles_antes)
-        self.assertFalse(Group.objects.filter(name=seed_becas.ROL_REFERENTE).exists())
+        self.assertEqual(Group.objects.count(), roles_antes + 1)
+        nuevo = Group.objects.get(name=seed_becas.ROL_REFERENTE)
+        self.assertNotEqual(nuevo.pk, self.referente.pk)
+        self.assertEqual(_codigos(nuevo), _base(seed_becas.ROL_REFERENTE))
         self.referente.refresh_from_db()
         self.assertEqual(self.referente.name, "Referente de Becas")
 
-    def test_un_rol_renombrado_sigue_sincronizando_sus_capacidades_base(self):
+    def test_un_rol_renombrado_deja_de_sincronizarse(self):
         self.referente.name = "Referente de Becas"
         self.referente.save()
         self.referente.permissions.remove(_perm("becas.revision.ver"))
-        self.referente.permissions.add(_perm(PUBLICO))
+        self.referente.permissions.add(_perm("becas.revision.editar"))
+        RolMeta.objects.filter(grupo=self.referente).update(activo=False)
+        antes = _codigos(self.referente)
 
         _correr()
 
-        self.assertEqual(_codigos(self.referente), _base(seed_becas.ROL_REFERENTE) | {PUBLICO})
+        self.assertEqual(_codigos(self.referente), antes)
+        self.assertFalse(RolMeta.objects.get(grupo=self.referente).activo)
 
     def test_un_rol_borrado_se_vuelve_a_crear(self):
         self.referente.delete()
@@ -132,19 +140,43 @@ class SeedRolesBecasTests(TestCase):
         self.assertTrue(nuevo.meta.activo)
         self.assertEqual(nuevo.meta.categoria, rbac.CATEGORIA_PROGRAMA)
 
-    def test_un_rol_propio_del_programa_no_se_adopta(self):
-        # Un rol creado desde Roles con otras capacidades no es «el Referente renombrado».
-        propio = Group.objects.create(name="Mi rol de Becas")
+    def _rol_a_mano(self, nombre, capacidades):
+        propio = Group.objects.create(name=nombre)
         RolMeta.objects.create(grupo=propio, categoria=rbac.CATEGORIA_PROGRAMA, programa=self.referente.meta.programa)
-        propio.permissions.set([_perm("becas.segmento.ver"), _perm("becas.convocatoria.ver")])
-        self.referente.delete()
+        propio.permissions.set([_perm(c) for c in capacidades])
+        return propio
+
+    def test_un_rol_hecho_a_mano_parecido_al_oficial_no_recibe_capacidades(self):
+        # Revisión del PR #508: «Admin Becas (acotado)», copia del Administrador sin
+        # las capacidades de administrar usuarios y roles del programa. Con la
+        # heurística por similitud el seed lo adoptaba y le devolvía esas dos
+        # capacidades (escalada). Se prueba con el oficial presente y borrado.
+        acotadas = _base(seed_becas.ROL_ADMIN) - set(rbac.CAPS_ADMIN_PROGRAMA)
+        acotado = self._rol_a_mano("Admin Becas (acotado)", acotadas)
+
+        _correr()
+        self.assertEqual(_codigos(acotado), acotadas)
+
+        Group.objects.get(name=seed_becas.ROL_ADMIN).delete()
+        _correr()
+
+        self.assertEqual(_codigos(acotado), acotadas)
+        acotado.refresh_from_db()
+        self.assertEqual(acotado.name, "Admin Becas (acotado)")
+        self.assertEqual(_codigos(Group.objects.get(name=seed_becas.ROL_ADMIN)), _base(seed_becas.ROL_ADMIN))
+
+    def test_un_rol_a_mano_identico_al_oficial_borrado_no_lo_reemplaza(self):
+        # Territorial tiene una sola capacidad: cualquier rol con solo becas.campo
+        # era «idéntico» y la heurística lo capturaba.
+        propio = self._rol_a_mano("Territorial zona norte", ["becas.campo"])
+        Group.objects.get(name=seed_becas.ROL_TERRITORIAL).delete()
 
         _correr()
 
-        self.assertTrue(Group.objects.filter(name=seed_becas.ROL_REFERENTE).exists())
+        self.assertTrue(Group.objects.filter(name=seed_becas.ROL_TERRITORIAL).exists())
         propio.refresh_from_db()
-        self.assertEqual(propio.name, "Mi rol de Becas")
-        self.assertEqual(_codigos(propio), {"becas.segmento.ver", "becas.convocatoria.ver"})
+        self.assertEqual(propio.name, "Territorial zona norte")
+        self.assertEqual(_codigos(propio), {"becas.campo"})
 
     def test_es_idempotente(self):
         _correr()
@@ -232,3 +264,15 @@ class CrearProgramasTests(TestCase):
         _correr("crear_programas")
 
         self.assertEqual(Programa.objects.filter(codigo=seed_becas.PROGRAMA_BECAS_CODIGO).count(), 1)
+
+    def test_un_programa_becas_con_otro_codigo_frena_en_vez_de_duplicar(self):
+        # Sin programa «BECAS» pero con uno de tipo Becas: datos inconsistentes. Crear
+        # un segundo programa lo taparía en silencio; el arranque frena y lo explica.
+        Programa.objects.create(codigo="BECAS_VIEJO", nombre="Becas", tipo=Programa.TipoPrograma.BECAS)
+
+        for comando in ("crear_programas", "seed_becas"):
+            with self.subTest(comando=comando):
+                with self.assertRaisesMessage(CommandError, "BECAS_VIEJO"):
+                    _correr(comando)
+                self.assertFalse(Programa.objects.filter(codigo=seed_becas.PROGRAMA_BECAS_CODIGO).exists())
+                self.assertEqual(Programa.objects.filter(tipo=Programa.TipoPrograma.BECAS).count(), 1)

@@ -12724,23 +12724,28 @@ OPS-06: «Seeds de arranque pisan la configuración que el ABM deja editar». El
   base que se saca a mano vuelve; una capacidad ajena que se agrega a mano se va (igual que antes); una opt-in
   tildada se queda. Las opt-in viven en `seed_becas.CAPACIDADES_OPT_IN` —hoy solo `becas.relevamiento.publico`— y
   es la misma lista que se excluye del sembrado: ningún rol la recibe por seed.
-- **De un rol existente se respetan nombre, descripción, activo y protegido** (D-O06, default de la auditoría).
-  Esos datos se crean una sola vez, cuando el rol nace. Sí se siguen alineando, junto con las capacidades base,
+- **De un rol existente se respetan descripción, activo y protegido** (D-O06, default de la auditoría). Esos
+  datos se crean una sola vez, cuando el rol nace. Sí se siguen alineando, junto con las capacidades base,
   **la categoría «Programa» y el programa Becas**: son los que hacen que las capacidades `becas.*` se evalúen
   contra el Programa Becas, y sin ellos el rol quedaría sembrado pero inservible.
-- **Un rol renombrado se reconoce por sus capacidades, sin migración.** Si un rol sembrado no aparece por nombre,
-  se adopta el rol del programa Becas —que no tenga el nombre de otro rol sembrado— cuyas capacidades (sin las
-  opt-in) coincidan en al menos un 80 % con las base, y solo si no hay empate. Motivo: el seed alinea esas
-  capacidades en cada arranque, así que son la única huella estable mientras no exista la clave de la fase 2. El
-  umbral separa con holgura los cinco roles entre sí (el par más parecido, Coordinador y Coordinador Regional,
-  coincide en un 63 %) y tolera que el código agregue o quite una capacidad. Si no hay candidato claro **se crea el
-  rol, como antes**: duplicar es preferible a adoptar un rol ajeno. Un rol **borrado** se vuelve a crear en el
-  siguiente arranque (sin marca persistente no se distingue de uno que nunca existió).
+- **Los roles sembrados se identifican solo por nombre** (D-O06). Un rol renombrado desde Roles deja de ser un
+  rol sembrado: el seed no lo toca más —ni capacidades ni estado— y en el siguiente arranque **crea otro con el
+  nombre canónico**. Es la conducta de siempre y queda documentada como esperada hasta la fase 2 (clave estable en
+  `RolMeta`). Se descartó reconocer el renombre por similitud de capacidades: no hay umbral seguro sin una clave,
+  porque esa heurística adopta —y reescribe— roles hechos a mano (ver Historial, ronda 2). Un rol **borrado** se
+  vuelve a crear en el siguiente arranque (sin marca persistente no se distingue de uno que nunca existió).
+- **Un rol hecho a mano nunca recibe capacidades del seed**, aunque se parezca a uno oficial o el oficial se haya
+  borrado. El seed solo escribe sobre los cinco nombres canónicos.
 - **«Operador de backoffice» se siembra solo al crearlo.** Si ya existe, el arranque no le toca ni el estado ni
   las capacidades. No se lo marca protegido ni se le quitan `usuario.administrar`/`rol.administrar`: eso es
   decisión del PM. El log decía «6 capacidades» y siembra 5: ahora cuenta la lista real.
-- **`crear_programas` solo crea, y busca por `codigo`** (único en el modelo), con `get_or_create(codigo="BECAS")`.
-  Si el programa existe no le toca nada: estado, nombre, color y orden se editan desde Configuración → Programas.
+- **`crear_programas` solo crea, y busca por `codigo`** (único en el modelo): delega en
+  `seed_becas.asegurar_programa_becas`. Si el programa existe no le toca nada: estado, nombre, color y orden se
+  editan desde Configuración → Programas.
+- **Sin programa `BECAS` pero con uno de tipo Becas, el arranque frena con `CommandError`** en vez de crear un
+  segundo programa. Es un ambiente con datos inconsistentes; crear otro cambiaría una falla ruidosa (antes,
+  `MultipleObjectsReturned`) por una silenciosa (dos programas Becas). El mensaje nombra los códigos encontrados y
+  dice qué corregir.
 - **Icono y color: una sola fuente, `seed_becas.PROGRAMA_BECAS_DEFAULTS`,** que usan los dos comandos. Se eligieron
   los valores de `crear_programas` (`graduation-cap`, `#5059BC`, orden 2, descripción «Programa de Becas») y no los
   de `asegurar_programa_becas` (`school`, `#0ea5e9`): en el arranque `crear_programas` corre después de `seed_becas`
@@ -12749,13 +12754,13 @@ OPS-06: «Seeds de arranque pisan la configuración que el ABM deja editar». El
 
 ## Implementación
 
-- `seed_becas.asegurar_roles_becas`: resuelve cada rol por nombre o, si no está, por `_rol_renombrado`; crea el
-  `Group` y la `RolMeta` solo si faltan; alinea categoría y programa; y deja las capacidades en base ∪ opt-in que
-  ya tenía.
-- `seed_becas.asegurar_programa_becas`: `get_or_create(codigo="BECAS", defaults=PROGRAMA_BECAS_DEFAULTS)`.
+- `seed_becas.asegurar_roles_becas`: resuelve cada rol por nombre (`get_or_create(name=...)`); crea la `RolMeta`
+  solo si falta; alinea categoría y programa; y deja las capacidades en base ∪ opt-in que ya tenía.
+- `seed_becas.asegurar_programa_becas`: busca por `codigo="BECAS"`; si falta y hay otro programa de tipo Becas,
+  `CommandError`; si no, lo crea con `PROGRAMA_BECAS_DEFAULTS`.
 - `seed_rbac`: «Operador de backoffice» con `get_or_create` del grupo y de su `RolMeta`; `permissions.set()` solo
   si el grupo se acaba de crear.
-- `crear_programas`: `get_or_create` por `codigo` con los defaults compartidos; ya no actualiza nada.
+- `crear_programas`: delega en `asegurar_programa_becas`; ya no actualiza nada.
 - Docstrings de `seed_becas`, `seed_rbac` y `seed_datos_base` actualizados con la regla nueva.
 
 ## Archivos
@@ -12764,7 +12769,7 @@ OPS-06: «Seeds de arranque pisan la configuración que el ABM deja editar». El
 - `users/management/commands/seed_rbac.py`
 - `users/management/commands/seed_datos_base.py` (solo docstring)
 - `legajos/management/commands/crear_programas.py`
-- `users/tests/test_seed_datos_base.py` — nuevo: 17 tests
+- `users/tests/test_seed_datos_base.py` — nuevo: 19 tests
 
 ## Base de datos
 
@@ -12773,16 +12778,19 @@ existentes.
 
 ## Validación
 
-- **TDD:** los tests se escribieron primero; contra el código anterior fallaban 9 de 16 (opt-in borrada, rol
-  desactivado reactivado, descripción pisada, rol renombrado duplicado, renombrado sin sincronizar, Operador
-  reactivado con capacidades, programa suspendido vuelto a activo, icono/color distintos según el comando y
-  `MultipleObjectsReturned` con dos programas de tipo Becas). Después del arreglo pasan los 17 (se sumó uno: un
-  rol propio del programa con otras capacidades no se adopta).
+- **TDD:** los tests se escribieron primero; contra `development` fallaban 9 de los 16 iniciales (opt-in
+  borrada, rol desactivado reactivado, descripción pisada, Operador reactivado con capacidades, programa
+  suspendido vuelto a activo, icono/color distintos según el comando, `MultipleObjectsReturned` con dos programas
+  de tipo Becas, y los dos de renombre de la ronda 1). En la ronda 2 los tests de renombre pasaron a afirmar la
+  conducta por nombre y se sumaron los de roles hechos a mano y el `CommandError`: los 6 nuevos o cambiados fallan
+  contra el head de la ronda 1 (`c8511cd`). Hoy pasan los 19.
 - Cubren además lo que **no** tenía que cambiar: una capacidad base quitada a mano vuelve (Cambio 29), una ajena
   agregada a mano se va, un rol borrado se recrea completo, y `seed_datos_base` corrido tres veces seguidas deja los
   mismos roles con las mismas pk y capacidades (idempotencia).
 - `manage.py check` sin observaciones · `makemigrations --check --dry-run` sin cambios · suite completa de Django
-  en verde (Python 3.12 + Django 5.2.17) · `ruff check` y `ruff format --check` limpios sobre lo tocado.
+  (Python 3.12 + Django 5.2.17) en verde salvo 2 tests ajenos de `programas.tests.test_coordinador_regional`, que
+  tienen `fecha_fin: "2026-09-30"` fija y vencen el 01/10 (los arregla otro PR) · `ruff check` y
+  `ruff format --check` limpios sobre lo tocado.
 
 ## Puesta en marcha en el servidor
 
@@ -12798,7 +12806,12 @@ siguientes la conservan.
   `rol.administrar`, o sea que administra usuarios y roles. Definir si se lo marca protegido, si se le recortan
   esas dos capacidades, o si queda como está. Este cambio solo deja de revertir lo que se haga desde Roles.
 - **Fase 2 de OPS-06:** clave estable en `RolMeta` (con migración) para identificar los roles sembrados sin
-  depender del nombre ni de la similitud de capacidades; permitiría también no recrear un rol borrado a propósito.
+  depender del nombre. Resolvería el renombre (hoy genera un rol nuevo con el nombre canónico) y permitiría no
+  recrear un rol borrado a propósito.
+- **No es bug: la categoría y el programa de los cinco roles de Becas los sigue realineando el seed.** Si alguien
+  cambia desde Roles la categoría o el programa de, por ejemplo, «Becas — Coordinador», el siguiente arranque los
+  vuelve a «Programa» sobre Becas. Es una decisión consciente (ver *Decisiones tomadas*): sin ese alcance las
+  capacidades `becas.*` del rol no aplican. Si hace falta un rol de Becas con otro alcance, se crea con otro nombre.
 - Verificar en producción el rol «Becas — Referente» después del deploy (ver *Puesta en marcha*).
 
 ## Reversión
@@ -12809,6 +12822,22 @@ de todos los roles de Becas, a reactivar los roles y el programa que estuvieran 
 
 ## Historial
 
-No aplica: entrada nueva.
+**01/10/2026 — Ronda 2 de revisión del PR #508.** La ronda 1 decía: «**Un rol renombrado se reconoce por sus
+capacidades, sin migración**: se adopta el rol del programa Becas cuyas capacidades (sin las opt-in) coincidan en al
+menos un 80 % con las base, y solo si no hay empate». El revisor independiente la reprodujo adoptando roles
+hechos a mano y reescribiéndoles las capacidades:
+
+- «Admin Becas (acotado)», copia del Administrador sin las dos capacidades de administrar usuarios y roles del
+  programa (coincidencia 0,94): adoptado, y el seed le **devolvía** esas dos capacidades (escalada).
+- Una copia del Coordinador con el oficial borrado: capturada, y el oficial no se recreaba más.
+- Un Referente con dos capacidades extra: las perdía en cada arranque.
+- Territorial tiene una sola capacidad: cualquier rol con solo `becas.campo` coincidía al 100 %.
+
+Conclusión: no hay umbral seguro sin una clave estable. Se sacó la heurística y los roles se resuelven **solo por
+nombre** (default D-O06). Los tests de renombre pasaron a afirmar que se crea un rol nuevo con el nombre canónico y
+que el renombrado no se toca; se sumaron dos tests que fijan que un rol hecho a mano parecido a uno oficial no
+recibe capacidades del seed. En la misma ronda: `asegurar_programa_becas` frena con `CommandError` si falta el
+programa `BECAS` pero hay otro de tipo Becas (antes lo creaba al lado), `crear_programas` delega en esa función, y
+se anotó en *Pendientes* que la categoría y el programa de los roles de Becas los sigue realineando el seed.
 
 ---
