@@ -76,4 +76,6 @@ class ApiBackofficeSoloSesionTests(TestCase):
         respuesta = self.client.get("/api/users/users/")
 
         self.assertEqual(respuesta.status_code, 302)
-        self.assertEqual(respuesta["Location"], reverse("portal:ciudadano_mi_perfil"))
+        # SEC-29: «mi perfil» ya no existe (el portal ciudadano está apagado); el
+        # middleware sigue sacando al ciudadano de la API, ahora hacia la home.
+        self.assertEqual(respuesta["Location"], reverse("portal:home"))

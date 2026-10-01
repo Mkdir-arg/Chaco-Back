@@ -183,7 +183,8 @@ class VistasProtegidasPorCapacidadTests(TestCase):
 
 
 class PortalCiudadanoSinLegajoTests(TestCase):
-    """Un usuario con el marcador de portal pero sin legajo no debe romper (500)."""
+    """SEC-29: el portal ciudadano está apagado, pero el marcador sigue separando
+    portal de backoffice. Un usuario con el marcador y sin legajo no debe romper."""
 
     def test_portal_sin_legajo_redirige_sin_500(self):
         g = Group.objects.create(name=rbac.GRUPO_CIUDADANO_PORTAL)
@@ -192,8 +193,12 @@ class PortalCiudadanoSinLegajoTests(TestCase):
         u.groups.add(g)
         self.client.force_login(u)
 
-        resp = self.client.get(reverse("portal:ciudadano_mi_perfil"))
-        self.assertEqual(resp.status_code, 302)  # degrada al login, no 500
+        resp = self.client.get(reverse("legajos:ciudadanos"))
+        self.assertEqual(resp.status_code, 302)  # el middleware lo saca del backoffice, no 500
+        self.assertEqual(resp["Location"], reverse("portal:home"))
+
+        # Y la home del portal sí la puede ver, sin rebote ni 500.
+        self.assertEqual(self.client.get(reverse("portal:home")).status_code, 200)
 
 
 class MotorPuedeProgramaTests(TestCase):
