@@ -280,6 +280,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 97 | El check de seguridad (pip-audit) deja de bloquear los PRs: DRF 3.17.2 y anyio 4.14.2 | Transversal | `#infra` `#api` | Juez de la sesión — gate «Security / Pip Audit» rojo en todos los PRs | 29/09/2026 | 🟢 **Hecho** | No requiere |
 | 98 | Corregir los datos que impiden informar un caso a SIIS (localidad, barrio, nacimiento, apoderado) | Becas · alta de beneficiarios en SIIS | `#siis` `#datos` `#relevamientos` | PM — en sesión, sobre los rechazos de la corrida del 23/09: «quiero solucionar los casos que nosotros podemos solucionar» | 30/09/2026 | 🟢 **Hecho** | No requiere |
 | 105 | Los tests del coordinador regional no dependen de la fecha de hoy | Transversal | `#infra` `#convocatorias` | Juez de la sesión — Ola 0 de la auditoría integral oct-2026: el Backend CI quedó rojo en todos los PRs | 01/10/2026 | 🟢 **Hecho** | No requiere |
+| 106 | Un comando único corre el alta en SIIS de punta a punta, y las consultas de ids dejan de morir por timeout | Becas · alta de beneficiarios en SIIS | `#siis` `#infra` `#performance` | PM — en sesión, después de la corrida del 01/10: «quiero armar un comando único que haga todos los pasos» y «¿tenemos forma de evitar el Lost connection?» | 01/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -12756,5 +12757,135 @@ Revertir el commit devuelve las fechas fijas y, con ellas, las dos fallas.
 
 - **01/10/2026 (este cambio)** — detectado por la Ola 0 de la auditoría integral oct-2026 al ver el Backend CI
   rojo en todos los PRs; arreglado con fechas relativas a hoy.
+
+---
+
+# Cambio 106 — Un comando único para el alta en SIIS, y el fin de los «Lost connection»
+
+🟢 **HECHO — 01/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · alta de beneficiarios en SIIS |
+| **Etiquetas** | `#siis` `#infra` `#performance` |
+| **Solicitante** | PM — en sesión, durante la corrida del 01/10 en el ambiente de test |
+| **Fecha del pedido** | 01/10/2026 |
+| **Issue / épica** | Sin issue (pedido en sesión) |
+| **Partes afectadas** | Comando nuevo `correr_alta_siis`; `ids_de` y los tres comandos que arman listas de ids |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> «Quiero armar un comando único que haga todos los pasos desde ejecutar los scripts, actualizar los datos,
+> calcular los lotes en base a los casos y enviar, todos menos la configuración que se hace desde el back.»
+>
+> Y después, sobre el error que lo frenaba: «¿tenemos forma de evitar el `Lost connection to server during
+> query`? Me di cuenta que corriendo los comandos con minutos de separación arranca; si los corro uno tras del
+> otro, falla.»
+
+## Qué lo motivó
+
+La corrida del 01/10 en test terminó con **4.139 personas registradas en SIIS con la localidad equivocada**. La
+causa fue saltearse `seed_catalogo_siis`: un restore deja el catálogo geográfico vacío, y sin él las
+localidades se resuelven contra la API de SIIS, que **devuelve posiciones de una lista en vez de ids**. Un
+chico de Machagai quedó en Colonia Popular; uno de Sáenz Peña, en Fontana. Resistencia y Barranqueras
+coincidieron de casualidad por estar primeras en las dos listas, y SIIS aceptó las 4.139 sin un solo error.
+
+El circuito eran cinco comandos sueltos que había que correr en orden, con dos configuraciones de pantalla
+previas y tres tablas cargadas a mano. Nada verificaba que el paso anterior se hubiera hecho.
+
+## Alcance acordado
+
+- Un comando que encadene el circuito entero y **verifique lo que no puede resolver solo**.
+- **Afuera:** la configuración de pantalla —marcar el destino SIIS de las preguntas y cargar los
+  identificadores del programa—, porque son decisiones del organismo. El comando corta y dice cuál falta.
+
+## Decisiones tomadas
+
+- **Tres frenos, no uno.** (1) No arranca sin la configuración de pantalla, y lista todo lo que falta de una
+  vez en vez de obligar a correrlo cinco veces. (2) No sigue si el catálogo quedó vacío después del seed. (3)
+  Manda **un caso de prueba y para**, mostrando con qué localidad salió y contra cuál del catálogo
+  corresponde; sin `--continuar` no hace la corrida grande.
+- **El caso de prueba avisa que sea del interior.** Verificar con uno de Resistencia no prueba nada: es
+  justamente la localidad que coincide por casualidad en las dos numeraciones.
+- **Los `.sql` se ejecutan desde Django**, no con el cliente de base: el pod no lo trae. Para partirlos en
+  sentencias hay un parser que respeta las comillas, porque un `split(";")` se rompe con el primer valor que
+  traiga un punto y coma.
+- **El total de la corrida se calcula** de los candidatos que haya. No hay que estimar un número ni repetir el
+  comando siete veces.
+- **Los identificadores se exigen sobre los programas que los tienen cargados, no sobre todos**: un programa
+  viejo sin configurar no puede frenar el alta de otro que sí está listo.
+
+## El «Lost connection», y por qué el síntoma engañaba
+
+`programas_formulario` pesa **283 MB** en producción —la foto del formulario son 27 KB por caso— y en InnoDB
+el índice primario **es** la tabla. Un `SELECT id ... ORDER BY id` sin acotar recorre los 283 MB enteros y no
+entra en el `read_timeout` de 10 s de ECOM.
+
+Lo que lo hacía difícil de leer es que **dependía de la I/O del momento**: el mismo comando entraba si habían
+pasado unos minutos desde el anterior y moría lanzado enseguida, porque InnoDB todavía estaba bajando páginas
+sucias a disco y competía por el disco.
+
+`ids_de` ahora pide los ids **por rangos de pk** (`WHERE pk > N ORDER BY pk LIMIT 2000`), así cada consulta lee
+un trozo acotado y el tiempo deja de depender de eso. Se aplicó también en `completar_casos_renaper` y
+`corregir_datos_siis`, que armaban su propia lista.
+
+## Implementación
+
+```
+python manage.py correr_alta_siis                                   # ensayo completo
+python manage.py correr_alta_siis --aplicar --usuario <user>        # para en el caso de prueba
+python manage.py correr_alta_siis --aplicar --usuario <user> --continuar
+```
+
+Pasos: precondiciones → insumos (`.sql`) → catálogo → RENAPER → corrección → caso de prueba → corrida
+completa. Cada uno es el comando que ya existía, con sus propias garantías de reentrada.
+
+## Archivos
+
+- `programas/management/commands/correr_alta_siis.py` — el orquestador.
+- `programas/services/proceso_masivo.py` — `ids_de` por rangos de pk (`PAGINA_IDS`).
+- `programas/management/commands/completar_casos_renaper.py` y `corregir_datos_siis.py` — usan `ids_de`.
+- `programas/tests/test_correr_alta_siis.py` (16 tests) y `test_proceso_masivo.py` (4 más).
+- `docs/internal/procedimiento-alta-siis.md` — el procedimiento para correrlo a mano, con las dos advertencias
+  que salieron caras el 01/10.
+
+## Base de datos
+
+No requiere migración.
+
+## Validación
+
+- Contra el ambiente de test, los dos comandos pesados **uno tras otro sin pausa**: `completar_casos_renaper`
+  (7.506 casos, 128 s) y `corregir_datos_siis` (3.367 casos, 68 s), **ninguno con `Lost connection`**. Antes,
+  encadenados así, el segundo moría.
+- `correr_alta_siis --solo-precondiciones` contra test: detecta la configuración correctamente.
+- Tests: 16 del orquestador + 4 de la paginación; suites de `test_siis_envio`, `test_corregir_datos_siis` y
+  `test_proceso_masivo` en verde. `ruff check programas/` limpio.
+
+## Puesta en marcha en el servidor
+
+Deploy estándar sin migración.
+
+## Pendientes / a definir
+
+- **Los 4.139 de la corrida del 01/10 siguen en SIIS con la localidad equivocada.** Hay que pedirle a ECOM que
+  los borre de la tabla intermedia; recién después se pueden liberar los `EnvioSIIS` locales y reenviarlos.
+- **Falta confirmar cuál numeración de localidades es la de SIIS**: la del catálogo del organismo (Machagai 44)
+  o la que devuelve su API (Machagai 9). La evidencia apunta a la del organismo —la API devuelve posiciones de
+  lista—, pero conviene que alguien lo verifique en SIIS antes de la próxima corrida.
+- `procesar_casos_siis` no tiene un `--todos`: hay que pasarle un número grande. El orquestador lo calcula
+  solo, así que solo molesta si se corre el comando suelto.
+
+## Reversión
+
+Revertir el commit saca el orquestador y vuelve `ids_de` a pedir todos los ids de una. Los comandos sueltos
+siguen funcionando igual; vuelve el `Lost connection` al encadenarlos.
+
+## Historial
+
+- **01/10/2026** — la corrida en test con el catálogo vacío mandó 4.139 altas con la localidad equivocada.
+- **01/10/2026 (este cambio)** — el circuito pasa a ser un comando con frenos, y las consultas de ids dejan de
+  recorrer la tabla entera.
 
 ---

@@ -39,6 +39,7 @@ from django.utils import timezone
 
 from legajos.models import Ciudadano
 from programas.models import EnvioSIIS, Formulario, LocalidadSiis
+from programas.services import proceso_masivo
 from programas.services.siis import catalogo
 from programas.services.siis_envio import (
     CatalogoNoDisponible,
@@ -468,10 +469,12 @@ class Command(BaseCommand):
         catalogos = Catalogos(cargar=_catalogo_que_se_rinde())
         # Los pendientes: todo caso que todavía no tiene un alta ENVIADO.
         informados = EnvioSIIS.objects.filter(estado=EnvioSIIS.Estado.ENVIADO).values_list("formulario_id", flat=True)
-        casos = Formulario.objects.exclude(pk__in=informados).order_by("pk")
+        casos = Formulario.objects.exclude(pk__in=informados)
         if options["convocatoria"]:
             casos = casos.filter(relevamiento__convocatoria_id=options["convocatoria"])
-        ids = list(casos.values_list("pk", flat=True)[: options["limite"] or None])
+        # Por rangos de pk (ver ``ids_de``): sin eso, pedir los ids de los 7.500
+        # pendientes recorre los 283 MB de la tabla y muere por read_timeout.
+        ids = proceso_masivo.ids_de(casos, limite=options["limite"] or None)
         if not ids:
             self._log("No hay casos pendientes que corregir.", self.style.SUCCESS)
             return
