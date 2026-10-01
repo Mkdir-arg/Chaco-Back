@@ -282,6 +282,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 100 | La API del backoffice solo por sesión, y se retira la consulta RENAPER anónima | Transversal · API DRF · Legajos | `#api` `#sesion` `#rbac` | Auditoría integral oct-2026 — SEC-01 y SEC-04 (Ola 0, hotfix de seguridad) | 01/10/2026 | 🟢 **Hecho** | No requiere |
 | 101 | Desmontar las rutas públicas de conversaciones: creaban legajos de cualquier DNI y filtraban RENAPER sin login | Conversaciones · chat público · Portal ciudadano | `#rbac` `#datos` `#ui` | Auditoría integral oct-2026 (G1-01 y G1-02, severidad ALTA, ola 0) | 01/10/2026 | 🟢 **Hecho** | No requiere |
 | 103 | El nombre de un rol ya no inyecta código en el backoffice (SEC-08) | Transversal · shell del backoffice | `#usuarios` `#rbac` `#ui` | Auditoría de seguridad oct-2026 (SEC-08), Ola 0 | 01/10/2026 | 🟢 **Hecho** | No requiere |
+| 104 | Los seeds de arranque ya no pisan lo configurado en Roles: las capacidades opt-in sobreviven y se respetan nombre, activo y estado del programa | Transversal — bootstrap y RBAC | `#rbac` `#infra` `#datos` | Auditoría de código oct-2026, hallazgo OPS-06 (Ola 0, PR H5) | 01/10/2026 | 🟢 **Hecho** | No requiere |
 | 105 | Los tests del coordinador regional no dependen de la fecha de hoy | Transversal | `#infra` `#convocatorias` | Juez de la sesión — Ola 0 de la auditoría integral oct-2026: el Backend CI quedó rojo en todos los PRs | 01/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
@@ -2222,6 +2223,14 @@ No aplica: entrada nueva.
 `seed_datos_base` ejecutado quedan creados los cinco grupos de Becas que faltaban en su
 ambiente, que es el desfasaje que originó este cambio. Ver **Cambio 50**.
 
+**01/10/2026 — `seed_becas` ya no reemplaza el conjunto entero.** La decisión «`seed_becas` **reemplaza** el
+conjunto de capacidades de cada rol» chocaba con la de los Cambios 41 y 91 (la capacidad opt-in
+`becas.relevamiento.publico` se enciende tildándola en Roles): cada arranque la borraba. Desde el **Cambio 104** el
+seed sigue sincronizando las capacidades **base** —una que se saque a mano vuelve, así que esta entrada sigue
+valiendo para lo que motivó la regla—, pero conserva las **opt-in** que el rol ya tenga, y respeta el nombre, la
+descripción y el estado activo de un rol existente. El bootstrap no se recorta: sigue siendo
+`seed_datos_base crear_programas` (más `seed_catalogo_siis` desde el Cambio 86).
+
 # Cambio 30 — La guía cubre el despliegue en Kubernetes desde cero
 
 🟢 **HECHO — 11/08/2026**
@@ -3881,6 +3890,12 @@ y toda inscripción quedaba `origen=manual`. Con las credenciales cargadas el ci
 probar de verdad, lo que convierte el pendiente de **los 65 casos de QA** en el trabajo que
 sigue. También queda verificable el arreglo del bloque anterior de este historial, que dependía
 de estas mismas credenciales para comprobarse contra el servicio real. Ver **Cambio 50**.
+
+**01/10/2026 — La capacidad tildada a mano ya sobrevive al arranque.** *Puesta en marcha* decía que encender
+`becas.relevamiento.publico` es «tildarla en la pantalla de Roles, sin deploy». Era cierto hasta el siguiente
+arranque del contenedor: `seed_becas` reemplazaba las capacidades de cada rol de Becas y la borraba (así se habría
+perdido la del «Becas — Referente» en producción, tildada el 25/09, con el deploy del 28/09). Desde el
+**Cambio 104** el seed la conserva. Hay que volver a tildarla una vez, después del deploy de ese cambio.
 
 ---
 
@@ -12982,6 +12997,171 @@ Revertir el commit del PR. No hay datos involucrados; vuelve la vulnerabilidad.
 ## Historial
 
 Entrada nueva.
+
+---
+
+# Cambio 104 — Los seeds de arranque ya no pisan lo configurado en Roles
+
+🟢 **HECHO — 01/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal — bootstrap del contenedor y RBAC (roles de Becas, «Operador de backoffice», Programa Becas) |
+| **Etiquetas** | `#rbac` `#infra` `#datos` |
+| **Solicitante** | Auditoría de código oct-2026, hallazgo **OPS-06** (ALTA, confirmado con test); hotfix de la Ola 0 (PR H5) |
+| **Fecha del pedido** | 01/10/2026 |
+| **Issue / épica** | Sin issue · auditoría oct-2026, Ola 0 |
+| **Partes afectadas** | Servidor/API · Infra/ECOM (el bootstrap corre en cada arranque; en ECOM, en el initContainer de cada pod nuevo) |
+| **Migración** | No requiere |
+
+## Pedido original
+
+OPS-06: «Seeds de arranque pisan la configuración que el ABM deja editar». El bootstrap del entrypoint
+(`seed_datos_base crear_programas seed_catalogo_siis`) corre en cada arranque, y:
+
+1. `seed_becas` hacía `permissions.set()` sobre cada rol de Becas con su lista base. Como esa lista excluye
+   `becas.relevamiento.publico` (RN-P13), **cada arranque le sacaba la capacidad opt-in** a los roles donde se la
+   había tildado a mano. Caso concreto: el 25/09 se tildó en «Becas — Referente» en producción (Cambios 41 y 91:
+   «se enciende tildándola en Roles, sin deploy») y el deploy del 28/09 probablemente se la sacó.
+2. También forzaba `activo=True` y la descripción (`update_or_create`): un rol desactivado volvía a activo. Y lo
+   buscaba por nombre: un rol renombrado hacía que el arranque creara un segundo rol con el nombre original.
+3. `seed_rbac` reactivaba «Operador de backoffice» y le volvía a poner sus capacidades —entre ellas
+   `usuario.administrar` y `rol.administrar`— aunque se lo hubiera desactivado y vaciado desde Roles.
+4. `crear_programas` hacía `update_or_create(tipo=BECAS)` con `estado=ACTIVO`: un programa suspendido volvía a
+   activo en cada arranque. Y `Programa.tipo` no es único: un segundo programa de tipo Becas daba
+   `MultipleObjectsReturned` y el contenedor no arrancaba.
+
+## Alcance acordado
+
+- **Entra:** los tres comandos (`seed_becas`, `seed_rbac`, `crear_programas`) y sus tests.
+- **Afuera:** la identificación estable de los roles sembrados por una clave en `RolMeta` (fase 2 de OPS-06, con
+  migración); proteger «Operador de backoffice» o recortarle capacidades (decisión del PM, ver Pendientes); el rol
+  protegido «Administrador» (no se edita desde Roles, así que el seed lo sigue alineando entero).
+
+## Decisiones tomadas
+
+- **Las capacidades opt-in sobreviven al seed; las base se siguen sincronizando.** Esto **actualiza la regla del
+  Cambio 29** («`seed_becas` reemplaza el conjunto de capacidades de cada rol»), que chocaba con la de los
+  Cambios 41 y 91 («se enciende tildándola en Roles, sin deploy»). Ahora cada rol de Becas queda, después de
+  cada arranque, con **exactamente sus capacidades base del código más las opt-in que ya tuviera**. Una capacidad
+  base que se saca a mano vuelve; una capacidad ajena que se agrega a mano se va (igual que antes); una opt-in
+  tildada se queda. Las opt-in viven en `seed_becas.CAPACIDADES_OPT_IN` —hoy solo `becas.relevamiento.publico`— y
+  es la misma lista que se excluye del sembrado: ningún rol la recibe por seed.
+- **De un rol existente se respetan descripción, activo y protegido** (D-O06, default de la auditoría). Esos
+  datos se crean una sola vez, cuando el rol nace. Sí se siguen alineando, junto con las capacidades base,
+  **la categoría «Programa» y el programa Becas**: son los que hacen que las capacidades `becas.*` se evalúen
+  contra el Programa Becas, y sin ellos el rol quedaría sembrado pero inservible.
+- **Los roles sembrados se identifican solo por nombre** (D-O06). Un rol renombrado desde Roles deja de ser un
+  rol sembrado: el seed no lo toca más —ni capacidades ni estado— y en el siguiente arranque **crea otro con el
+  nombre canónico**. Es la conducta de siempre y queda documentada como esperada hasta la fase 2 (clave estable en
+  `RolMeta`). Se descartó reconocer el renombre por similitud de capacidades: no hay umbral seguro sin una clave,
+  porque esa heurística adopta —y reescribe— roles hechos a mano (ver Historial, ronda 2). Un rol **borrado** se
+  vuelve a crear en el siguiente arranque (sin marca persistente no se distingue de uno que nunca existió).
+- **Un rol hecho a mano nunca recibe capacidades del seed**, aunque se parezca a uno oficial o el oficial se haya
+  borrado. El seed solo escribe sobre los cinco nombres canónicos.
+- **«Operador de backoffice» se siembra solo al crearlo.** Si ya existe, el arranque no le toca ni el estado ni
+  las capacidades. No se lo marca protegido ni se le quitan `usuario.administrar`/`rol.administrar`: eso es
+  decisión del PM. El log decía «6 capacidades» y siembra 5: ahora cuenta la lista real.
+- **`crear_programas` solo crea, y busca por `codigo`** (único en el modelo): delega en
+  `seed_becas.asegurar_programa_becas`. Si el programa existe no le toca nada: estado, nombre, color y orden se
+  editan desde Configuración → Programas.
+- **Sin programa `BECAS` pero con uno de tipo Becas, el arranque frena con `CommandError`** en vez de crear un
+  segundo programa. Es un ambiente con datos inconsistentes; crear otro cambiaría una falla ruidosa (antes,
+  `MultipleObjectsReturned`) por una silenciosa (dos programas Becas). El mensaje nombra los códigos encontrados y
+  dice qué corregir.
+- **Icono y color: una sola fuente, `seed_becas.PROGRAMA_BECAS_DEFAULTS`,** que usan los dos comandos. Se eligieron
+  los valores de `crear_programas` (`graduation-cap`, `#5059BC`, orden 2, descripción «Programa de Becas») y no los
+  de `asegurar_programa_becas` (`school`, `#0ea5e9`): en el arranque `crear_programas` corre después de `seed_becas`
+  y los imponía, así que **son los que ya tienen todos los ambientes**. Un ambiente nuevo nace igual que los
+  existentes, y `graduation-cap` es además el ícono de Becas en el menú (`core/rbac.py`).
+
+## Implementación
+
+- `seed_becas.asegurar_roles_becas`: resuelve cada rol por nombre (`get_or_create(name=...)`); crea la `RolMeta`
+  solo si falta; alinea categoría y programa; y deja las capacidades en base ∪ opt-in que ya tenía.
+- `seed_becas.asegurar_programa_becas`: busca por `codigo="BECAS"`; si falta y hay otro programa de tipo Becas,
+  `CommandError`; si no, lo crea con `PROGRAMA_BECAS_DEFAULTS`.
+- `seed_rbac`: «Operador de backoffice» con `get_or_create` del grupo y de su `RolMeta`; `permissions.set()` solo
+  si el grupo se acaba de crear.
+- `crear_programas`: delega en `asegurar_programa_becas`; ya no actualiza nada.
+- Docstrings de `seed_becas`, `seed_rbac` y `seed_datos_base` actualizados con la regla nueva.
+
+## Archivos
+
+- `programas/management/commands/seed_becas.py`
+- `users/management/commands/seed_rbac.py`
+- `users/management/commands/seed_datos_base.py` (solo docstring)
+- `legajos/management/commands/crear_programas.py`
+- `users/tests/test_seed_datos_base.py` — nuevo: 19 tests
+
+## Base de datos
+
+No requiere migración. El cambio está en qué escribe el bootstrap: deja de sobrescribir campos de registros
+existentes.
+
+## Validación
+
+- **TDD:** los tests se escribieron primero; contra `development` fallaban 9 de los 16 iniciales (opt-in
+  borrada, rol desactivado reactivado, descripción pisada, Operador reactivado con capacidades, programa
+  suspendido vuelto a activo, icono/color distintos según el comando, `MultipleObjectsReturned` con dos programas
+  de tipo Becas, y los dos de renombre de la ronda 1). En la ronda 2 los tests de renombre pasaron a afirmar la
+  conducta por nombre y se sumaron los de roles hechos a mano y el `CommandError`: los 6 nuevos o cambiados fallan
+  contra el head de la ronda 1 (`c8511cd`). Hoy pasan los 19.
+- Cubren además lo que **no** tenía que cambiar: una capacidad base quitada a mano vuelve (Cambio 29), una ajena
+  agregada a mano se va, un rol borrado se recrea completo, y `seed_datos_base` corrido tres veces seguidas deja los
+  mismos roles con las mismas pk y capacidades (idempotencia).
+- `manage.py check` sin observaciones · `makemigrations --check --dry-run` sin cambios · suite completa de Django
+  (Python 3.12 + Django 5.2.17) en verde salvo 2 tests ajenos de `programas.tests.test_coordinador_regional`, que
+  tienen `fecha_fin: "2026-09-30"` fija y vencen el 01/10 (los arregla otro PR) · `ruff check` y
+  `ruff format --check` limpios sobre lo tocado.
+
+## Puesta en marcha en el servidor
+
+Deploy estándar sin migración. **Después del deploy de este cambio** (no antes: el arranque viejo se la vuelve
+a sacar), el PM tiene que revisar en producción el rol «Becas — Referente» y **volver a tildar
+«Crear y ver relevamientos de formulario público» (`becas.relevamiento.publico`)** si el deploy del 28/09 se la
+sacó. Lo mismo para cualquier otro rol de Becas donde se la haya encendido. Desde este cambio, los arranques
+siguientes la conservan.
+
+## Pendientes / a definir
+
+- **DECISIÓN CLIENTE — «Operador de backoffice».** No es protegido y trae `usuario.administrar` y
+  `rol.administrar`, o sea que administra usuarios y roles. Definir si se lo marca protegido, si se le recortan
+  esas dos capacidades, o si queda como está. Este cambio solo deja de revertir lo que se haga desde Roles.
+- **Fase 2 de OPS-06:** clave estable en `RolMeta` (con migración) para identificar los roles sembrados sin
+  depender del nombre. Resolvería el renombre (hoy genera un rol nuevo con el nombre canónico) y permitiría no
+  recrear un rol borrado a propósito.
+- **No es bug: la categoría y el programa de los cinco roles de Becas los sigue realineando el seed.** Si alguien
+  cambia desde Roles la categoría o el programa de, por ejemplo, «Becas — Coordinador», el siguiente arranque los
+  vuelve a «Programa» sobre Becas. Es una decisión consciente (ver *Decisiones tomadas*): sin ese alcance las
+  capacidades `becas.*` del rol no aplican. Si hace falta un rol de Becas con otro alcance, se crea con otro nombre.
+- Verificar en producción el rol «Becas — Referente» después del deploy (ver *Puesta en marcha*).
+
+## Reversión
+
+Revertir el commit. No hay datos que se pierdan, pero el siguiente arranque vuelve a sacar las capacidades opt-in
+de todos los roles de Becas, a reactivar los roles y el programa que estuvieran desactivados, y a reactivar
+«Operador de backoffice» con sus cinco capacidades.
+
+## Historial
+
+**01/10/2026 — Ronda 2 de revisión del PR #508.** La ronda 1 decía: «**Un rol renombrado se reconoce por sus
+capacidades, sin migración**: se adopta el rol del programa Becas cuyas capacidades (sin las opt-in) coincidan en al
+menos un 80 % con las base, y solo si no hay empate». El revisor independiente la reprodujo adoptando roles
+hechos a mano y reescribiéndoles las capacidades:
+
+- «Admin Becas (acotado)», copia del Administrador sin las dos capacidades de administrar usuarios y roles del
+  programa (coincidencia 0,94): adoptado, y el seed le **devolvía** esas dos capacidades (escalada).
+- Una copia del Coordinador con el oficial borrado: capturada, y el oficial no se recreaba más.
+- Un Referente con dos capacidades extra: las perdía en cada arranque.
+- Territorial tiene una sola capacidad: cualquier rol con solo `becas.campo` coincidía al 100 %.
+
+Conclusión: no hay umbral seguro sin una clave estable. Se sacó la heurística y los roles se resuelven **solo por
+nombre** (default D-O06). Los tests de renombre pasaron a afirmar que se crea un rol nuevo con el nombre canónico y
+que el renombrado no se toca; se sumaron dos tests que fijan que un rol hecho a mano parecido a uno oficial no
+recibe capacidades del seed. En la misma ronda: `asegurar_programa_becas` frena con `CommandError` si falta el
+programa `BECAS` pero hay otro de tipo Becas (antes lo creaba al lado), `crear_programas` delega en esa función, y
+se anotó en *Pendientes* que la categoría y el programa de los roles de Becas los sigue realineando el seed.
 
 ---
 
