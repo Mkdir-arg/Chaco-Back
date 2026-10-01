@@ -48,6 +48,8 @@ htmlcov/
 node_modules/
 .codex-linux-first/
 .claude/worktrees/
+# Permisos y config por maquina; cada quien tiene los suyos
+.claude/settings.local.json
 .github/worklog/
 awslabs-mcp/
 # Salida local de perf_audit.py; no se versiona
