@@ -288,6 +288,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 105 | Los tests del coordinador regional no dependen de la fecha de hoy | Transversal | `#infra` `#convocatorias` | Juez de la sesión — Ola 0 de la auditoría integral oct-2026: el Backend CI quedó rojo en todos los PRs | 01/10/2026 | 🟢 **Hecho** | No requiere |
 | 106 | Un comando único corre el alta en SIIS de punta a punta, y las consultas de ids dejan de morir por timeout | Becas · alta de beneficiarios en SIIS | `#siis` `#infra` `#performance` | PM — en sesión, después de la corrida del 01/10: «quiero armar un comando único que haga todos los pasos» y «¿tenemos forma de evitar el Lost connection?» | 01/10/2026 | 🟢 **Hecho** | No requiere |
 | 107 | El estado civil que SIIS no tiene deja de dejar casos afuera, y el resto queda verificado contra el manual | Becas · alta de beneficiarios en SIIS | `#siis` `#datos` | PM — en sesión, al revisar el hallazgo de la revisión independiente: «a esos casos ponele Soltero/a los de Separado/a» | 01/10/2026 | 🟢 **Hecho** | No requiere |
+| 108 | El alta puede ir a una tabla intermedia propia en vez de a SIIS, y nada se queda ahí | Becas · alta de beneficiarios en SIIS | `#siis` `#datos` | PM — en sesión, pedido del cliente: «tener la opción de enviarlo a una tabla local o enviarlo a SIIS» | 01/10/2026 | 🟢 **Hecho** | `0074_altaintermediasiis` |
 
 **Notas del índice**
 
@@ -13691,5 +13692,107 @@ Revertir el commit saca la opción. Los 11 casos vuelven a quedar afuera del env
 - **01/10/2026** — la revisión independiente del Cambio 106 marca que nadie verificó los ids del estado civil.
 - **01/10/2026 (este cambio)** — se verifican contra el manual (están bien) y se resuelve el «Separado/a» que
   SIIS no tiene.
+
+---
+
+# Cambio 108 — El alta puede quedarse de este lado, y una corrida a SIIS vacía esa tabla
+
+🟢 **HECHO — 01/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · alta de beneficiarios en SIIS |
+| **Etiquetas** | `#siis` `#datos` |
+| **Solicitante** | PM — en sesión, trayendo un pedido del cliente |
+| **Fecha del pedido** | 01/10/2026 |
+| **Issue / épica** | Sin issue (pedido en sesión) |
+| **Partes afectadas** | `AltaIntermediaSIIS` (modelo nuevo), `siis_envio`, `proceso_masivo`, `procesar_casos_siis`, `correr_alta_siis` |
+| **Migración** | `0074_altaintermediasiis` |
+
+## Pedido original
+
+> «Vamos con un cambio en el proceso que me pidieron, tenemos que sumar algo: la idea es tener la opción de
+> enviarlo a una tabla local, o una opción de enviarlo a SIIS.»
+
+Y la regla que lo ata, en palabras del PM:
+
+> «Si se guarda en la tabla intermedia tiene que tener un flag de si en algún momento se sincronizó eso a
+> SIIS. Si lo guardo en la intermedia y no en SIIS, y en algún momento pongo enviar a SIIS, se tiene que
+> fijar lo que se guardó en la intermedia y también llevarlo, para que no quede solo en esa tabla.»
+
+## Qué lo motivó
+
+Dos necesidades que se resuelven con la misma pieza:
+
+1. **Revisar una corrida antes de que SIIS la vea.** Hoy la única verificación posible es mandar un caso de
+   prueba y pedirle a alguien de ECOM que lo abra. El 01/10 eso dejó 4.139 altas con la localidad equivocada,
+   y después 4 más con la provincia inventada, porque SIIS acepta un par localidad/provincia que existe en su
+   padrón aunque no sea el de la persona. Nada de eso se ve desde acá.
+2. **Entregarle los datos al organismo** para que los levante con un proceso propio, sin pasar por la API.
+
+## Alcance acordado
+
+- Los dos destinos son **excluyentes**: una corrida va a la tabla, o va a SIIS.
+- Lo elige **una opción del comando**, no una pantalla.
+- **Afuera:** promover desde la pantalla de revisión, y cualquier interfaz web sobre la tabla.
+
+## Decisiones tomadas
+
+- **Columnas de verdad, no un JSON.** El organismo tiene que poder consultarla por SQL y exportarla; y del
+  lado nuestro, revisar una corrida es escribir `WHERE loc_actual = 9`. Un `JSONField` no sirve para ninguna
+  de las dos cosas. La tabla se llama `siis_tabla_intermedia`, legible desde fuera de Django.
+- **Una corrida con `--destino siis` vacía la tabla primero**, antes de elegir candidatos. Es lo que impide
+  que un alta guardada se quede ahí para siempre. Va antes y no después porque las que se sincronizan dejan su
+  `EnvioSIIS`, y así no vuelven a entrar como casos nuevos en la misma corrida.
+- **Se manda el payload tal como se guardó, no uno recalculado.** Es lo que alguien revisó. Si entre medio se
+  corrigieron datos, hay que volver a guardarlo con `--destino tabla` para regenerarlo.
+- **Guardar no deja `EnvioSIIS`.** El caso no está en SIIS, así que no puede figurar como informado: sigue
+  siendo candidato hasta que llegue de verdad.
+- **Una fila por caso**, que se pisa mientras no esté sincronizada. Una vez sincronizada el caso ya tiene un
+  `EnvioSIIS` en `ENVIADO`, así que no vuelve a entrar.
+- **Con `--destino tabla` no hay caso de prueba ni freno** en el orquestador: SIIS no ve nada, no hay nada que
+  verificar del otro lado. La revisión es sobre la tabla.
+
+## Implementación
+
+```
+python manage.py procesar_casos_siis --destino tabla --aplicar --usuario <user>   # queda acá
+python manage.py procesar_casos_siis --destino siis  --aplicar --usuario <user>   # vacía la tabla y sigue
+python manage.py correr_alta_siis --destino tabla --aplicar --usuario <user>      # circuito entero, sin tocar SIIS
+```
+
+Todo el circuito previo --saneamiento, filtro por `aprobados_materias`, prevalidación de compatibilidad,
+aprobación-- es el mismo. Lo único que cambia es a dónde desemboca: `cargar_beneficiario(payload)` o la tabla.
+
+## Base de datos
+
+`0074_altaintermediasiis`: crea `siis_tabla_intermedia` con los 30 campos del payload del manual M2M, el flag
+`sincronizado` con índice, `sincronizado_en`, el FK al `EnvioSIIS` que la sincronizó y quién la guardó.
+
+## Validación
+
+- 17 tests nuevos en `test_tabla_intermedia_siis.py` y 3 en `test_correr_alta_siis.py`. Cubren que guardar no
+  llame a la API, que el caso guardado siga siendo candidato, que sincronizar mande lo guardado y no un
+  payload recalculado, que un rechazo deje la fila pendiente, y que una corrida a SIIS vacíe la tabla primero.
+- Suite completa de `programas`: **1.432 tests en verde**. `manage.py check` sin issues, `ruff` limpio y
+  `makemigrations --check` sin cambios pendientes.
+
+## Pendientes / a definir
+
+- **No hay pantalla**: la tabla se consulta por SQL o por el admin. Si el cliente quiere revisarla desde el
+  backoffice, es otro pedido.
+- Promover un caso suelto desde la pantalla de revisión sigue yendo directo a SIIS, sin pasar por la tabla.
+
+## Reversión
+
+Revertir el commit saca la opción; el destino vuelve a ser siempre SIIS. La tabla queda con lo que tenga: hay
+que vaciarla antes, o las filas sin sincronizar se pierden de vista.
+
+## Historial
+
+- **01/10/2026** — la corrida en test dejó 4 altas con la provincia inventada sin que nada lo avisara; el
+  pedido del cliente llega el mismo día.
+- **01/10/2026 (este cambio)** — el alta puede quedarse de este lado para revisarla, y una corrida a SIIS
+  arrastra lo que haya quedado.
 
 ---

@@ -255,7 +255,13 @@ class RespuestasPorDestinoRequisitosTests(_BaseEnvioTest):
         self.assertNotIn("barrio_actual", siis_envio.respuestas_por_destino(self.formulario))
 
 
-class ArmarPayloadTests(_BaseEnvioTest):
+class _ConPayloadCompleto(_BaseEnvioTest):
+    """El caso con todas las respuestas puestas: ``armar_payload`` no deja faltantes.
+
+    Aparte de los tests que lo usan para que otras suites puedan partir de acá
+    sin heredar treinta casos que no les tocan.
+    """
+
     def setUp(self):
         super().setUp()
         self.cat = Catalogos(cargar=_catalogo_falso)
@@ -303,6 +309,8 @@ class ArmarPayloadTests(_BaseEnvioTest):
         self.formulario.data["globales"][str(pregunta.pk)] = valor
         self.formulario.save(update_fields=["data"])
 
+
+class ArmarPayloadTests(_ConPayloadCompleto):
     def test_adulto_completo_calza_con_la_modalidad_a_del_manual(self):
         payload, faltantes = armar_payload(self.formulario, catalogos=self.cat, hoy=date(2026, 9, 14))
         self.assertEqual(faltantes, {})

@@ -244,3 +244,67 @@ class EnsayoTests(_BaseAltaTest):
         self.assertIn("completar_casos_renaper", con_aplicar)
         self.assertIn("corregir_datos_siis", con_aplicar)
         self.assertIn("procesar_casos_siis", con_aplicar)
+
+
+class DestinoTests(_BaseAltaTest):
+    """``--destino tabla`` no llama a SIIS, así que no hay nada que frenar."""
+
+    def test_con_destino_tabla_no_hay_caso_de_prueba_ni_freno(self):
+        salida = self.correr("--destino", "tabla", "--aplicar", "--usuario", self.user.username)
+
+        self.assertIn("tabla intermedia", salida)
+        self.assertNotIn("FRENO", salida)
+        self.assertEqual(self.llamadas.count("procesar_casos_siis"), 1)
+
+    def test_el_destino_le_llega_al_comando_que_manda(self):
+        self.correr("--destino", "tabla", "--aplicar", "--usuario", self.user.username)
+
+        envio = [llamada for llamada in self.argumentos if llamada.args[0] == "procesar_casos_siis"][-1]
+        self.assertIn("tabla", envio.args)
+
+    def test_por_defecto_sigue_yendo_a_siis_y_frena(self):
+        salida = self.correr("--aplicar", "--usuario", self.user.username)
+
+        self.assertIn("FRENO", salida)
+
+
+class TandasTests(_BaseAltaTest):
+    """El paso 7 manda de a tandas: con el total de una, el pod se queda sin memoria."""
+
+    def _totales(self):
+        """El ``--total`` de cada llamada a ``procesar_casos_siis`` del paso 7."""
+        totales = []
+        for llamada in self.argumentos:
+            # El caso de prueba del paso 6 tambien llama al comando, pero sin
+            # --destino: asi se distingue de las tandas del paso 7.
+            if llamada.args[0] != "procesar_casos_siis" or "--destino" not in llamada.args:
+                continue
+            totales.append(int(llamada.args[llamada.args.index("--total") + 1]))
+        return totales
+
+    @patch("programas.management.commands.correr_alta_siis.TANDA", 2)
+    @patch("programas.management.commands.correr_alta_siis.Command._cuantos_quedan")
+    def test_nunca_le_pide_mas_de_una_tanda(self, quedan):
+        quedan.side_effect = [5, 3, 1, 0]
+
+        self.correr("--continuar", "--aplicar", "--usuario", self.user.username)
+
+        self.assertTrue(self._totales())
+        self.assertTrue(all(t <= 2 for t in self._totales()), self._totales())
+
+    @patch("programas.management.commands.correr_alta_siis.TANDA", 2)
+    @patch("programas.management.commands.correr_alta_siis.Command._cuantos_quedan")
+    def test_corta_si_la_cuenta_deja_de_bajar(self, quedan):
+        """Lo que queda no se puede mandar: insistir sería un lazo infinito."""
+        quedan.side_effect = [4, 4, 4, 4, 4, 4]
+
+        salida = self.correr("--continuar", "--aplicar", "--usuario", self.user.username)
+
+        self.assertIn("no bajan", salida)
+        self.assertEqual(len(self._totales()), 1)
+
+    @patch("programas.management.commands.correr_alta_siis.Command._cuantos_quedan", return_value=9000)
+    def test_en_ensayo_una_vuelta_alcanza(self, _quedan):
+        self.correr("--continuar")
+
+        self.assertEqual(len(self._totales()), 1)
