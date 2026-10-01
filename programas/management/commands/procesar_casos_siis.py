@@ -52,9 +52,16 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand, CommandError
 
-from programas.models import Formulario
+from programas.models import AltaIntermediaSIIS, Formulario
 from programas.services import proceso_masivo
-from programas.services.siis_envio import CatalogoNoDisponible, Catalogos
+from programas.services.siis_envio import (
+    DESTINO_SIIS,
+    DESTINO_TABLA,
+    DESTINOS,
+    CatalogoNoDisponible,
+    Catalogos,
+    sincronizar_tabla_intermedia,
+)
 
 TOTAL_POR_DEFECTO = 1000
 LOTE_POR_DEFECTO = proceso_masivo.LOTE
@@ -106,6 +113,16 @@ class Command(BaseCommand):
             action="store_true",
             help="Salta validación y aprobación: solo informa el alta de los ya aprobados.",
         )
+        parser.add_argument(
+            "--destino",
+            choices=list(DESTINOS),
+            default=DESTINO_SIIS,
+            help=(
+                "A dónde va el alta. «siis» la manda a la API (por defecto). «tabla» la guarda en la "
+                "tabla intermedia de este lado, sin llamar a SIIS, para revisarla o entregarla. "
+                "Con «siis» se manda primero lo que haya quedado en esa tabla."
+            ),
+        )
         parser.add_argument("--convocatoria", type=int, default=None, help="Acota a una convocatoria por id.")
         parser.add_argument("--relevamiento", type=int, default=None, help="Acota a un relevamiento por id.")
         parser.add_argument("--segmento", type=int, default=None, help="Acota a un segmento por id.")
@@ -131,6 +148,25 @@ class Command(BaseCommand):
 
     # ── Orquestación ────────────────────────────────────────────────────────
 
+    def _vaciar_tabla_intermedia(self, responsable, aplicar):
+        """Manda a SIIS lo que haya quedado guardado de este lado.
+
+        Va antes de elegir candidatos: así las que se sincronizan dejan su
+        ``EnvioSIIS`` y no vuelven a entrar como casos nuevos en la misma
+        corrida. Sin esto, un alta guardada con ``--destino tabla`` se quedaría
+        ahí para siempre, que es justo lo que no puede pasar.
+        """
+        pendientes = AltaIntermediaSIIS.objects.filter(sincronizado=False).count()
+        if not pendientes:
+            return
+        self._log(f"Tabla intermedia: {pendientes} alta(s) guardada(s) sin informar. Van primero.")
+        if not aplicar:
+            self._log("   (ensayo: no se manda ninguna)", self.style.WARNING)
+            return
+        cuenta = sincronizar_tabla_intermedia(responsable)
+        self._log(f"   informadas {cuenta['altas']} · rechazadas {cuenta['rechazadas']} · errores {cuenta['errores']}")
+        self._log("")
+
     def handle(self, *args, **options):
         aplicar = options["aplicar"]
         tamano = max(1, options["lote"])
@@ -154,6 +190,15 @@ class Command(BaseCommand):
             )
         catalogos = Catalogos()
         cuenta = proceso_masivo.Cuenta()
+        destino = options["destino"]
+        if destino == DESTINO_TABLA:
+            self._log(
+                "Destino: la tabla intermedia de este lado. NO se llama a SIIS.\n"
+                "   Para mandarlas de verdad, volvé a correr con --destino siis.",
+                self.style.WARNING,
+            )
+        else:
+            self._vaciar_tabla_intermedia(responsable, aplicar)
         filtros = {
             "convocatoria": options["convocatoria"],
             "relevamiento": options["relevamiento"],
@@ -241,6 +286,7 @@ class Command(BaseCommand):
                     cuenta,
                     avisar=options["avisar"],
                     solo_enviar=options["solo_enviar"],
+                    destino=destino,
                 )
                 if resultado == "tecnico":
                     seguidos += 1
@@ -273,6 +319,8 @@ class Command(BaseCommand):
         self._log(f"   {'altas con datos incompletos':38} {cuenta.incompletos:6}")
         self._log(f"   {'altas rechazadas por SIIS':38} {cuenta.rechazados:6}")
         self._log(f"   {'altas con error técnico':38} {cuenta.errores:6}")
+        if cuenta.guardadas:
+            self._log(f"   {'guardadas en la tabla intermedia':38} {cuenta.guardadas:6}")
         segundos = time.monotonic() - arranque
         if detenido:
             self._log(
