@@ -1,4 +1,6 @@
-from django.contrib.auth.models import Group, User
+from django.contrib.auth.models import AnonymousUser, Group, User
+from django.contrib.messages.middleware import MessageMiddleware
+from django.contrib.sessions.middleware import SessionMiddleware
 from django.http import HttpResponse
 from django.test import RequestFactory, TestCase
 from django.urls import reverse
@@ -15,10 +17,14 @@ class CiudadanoRequiredTests(TestCase):
         self.user.groups.add(self.grupo)
         self.ciudadano = Ciudadano.objects.create(dni="30111222", nombre="Ana", apellido="Perez", usuario=self.user)
 
-    def _request(self):
-        request = RequestFactory().get("/portal/mi-perfil/")
+    def _request(self, user=None):
+        # SEC-29: las vistas con este decorador ya no tienen ruta publicada, así que
+        # el decorador se ejercita directo sobre un request armado a mano.
+        request = RequestFactory().get("/portal/")
+        SessionMiddleware(lambda r: HttpResponse()).process_request(request)
+        MessageMiddleware(lambda r: HttpResponse()).process_request(request)
         # Instancia fresca: la que creó el legajo ya lo tiene en su caché de relaciones.
-        request.user = User.objects.get(pk=self.user.pk)
+        request.user = user if user is not None else User.objects.get(pk=self.user.pk)
         # Grupos ya resueltos, como los deja el middleware del portal en un request real.
         es_ciudadano_portal(request.user)
         return request
@@ -43,12 +49,33 @@ class CiudadanoRequiredTests(TestCase):
         self.assertEqual(visto["ciudadano"], self.ciudadano)
         self.assertIs(visto["usuario"], request.user)
 
-    def test_sin_legajo_vinculado_cierra_sesion_y_redirige_al_login(self):
-        huerfano = User.objects.create_user(username="sin-legajo", password="secret")
+    def test_sin_legajo_vinculado_cierra_sesion_y_redirige_a_la_home_del_portal(self):
+        huerfano = User.objects.create_user(username="sin-legajo", password="secret")  # nosec B106
         huerfano.groups.add(self.grupo)
-        self.client.force_login(huerfano)
 
-        respuesta = self.client.get(reverse("portal:ciudadano_mis_consultas"))
+        @ciudadano_required
+        def vista(request):
+            return HttpResponse("no debería llegar")
 
-        self.assertRedirects(respuesta, reverse("portal:ciudadano_login"), fetch_redirect_response=False)
-        self.assertNotIn("_auth_user_id", self.client.session)
+        request = self._request(user=huerfano)
+        request.session["_auth_user_id"] = str(huerfano.pk)
+
+        respuesta = vista(request)
+
+        self.assertEqual(respuesta.status_code, 302)
+        self.assertEqual(respuesta["Location"], reverse("portal:home"))
+        self.assertNotIn("_auth_user_id", request.session)
+
+    def test_quien_no_es_ciudadano_del_portal_va_a_la_home_del_portal(self):
+        """SEC-29: el login del portal ya no existe; el decorador manda a portal:home."""
+
+        @ciudadano_required
+        def vista(request):
+            return HttpResponse("no debería llegar")
+
+        request = self._request(user=AnonymousUser())
+
+        respuesta = vista(request)
+
+        self.assertEqual(respuesta.status_code, 302)
+        self.assertEqual(respuesta["Location"], reverse("portal:home"))

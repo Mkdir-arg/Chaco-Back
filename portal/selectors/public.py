@@ -16,16 +16,9 @@ def _build_portal_home_context():
                 estado__in=["ACTIVO", "EN_SEGUIMIENTO"]
             ).count(),
         },
-        "ciudadano_items": [
-            "Mis programas sociales e inscripciones",
-            "Consultas al equipo del programa",
-            "Mis datos personales y contraseña",
-        ],
-        "consulta_items": [
-            "Nueva consulta desde tu perfil",
-            "Historial de tus conversaciones",
-            "Respuesta del equipo del programa en tu cuenta",
-        ],
+        # SEC-29: las listas de «qué podés hacer con tu cuenta» (ciudadano_items /
+        # consulta_items) se fueron junto con el portal ciudadano: la home ya no
+        # ofrece login ni registro.
     }
 
 

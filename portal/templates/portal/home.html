@@ -100,42 +100,20 @@
                     <span class="text-white text-opacity-80">en un solo lugar</span>
                 </h1>
                 <p class="text-lg text-white text-opacity-75 leading-relaxed mb-8 max-w-xl">
-                    Seguí tus programas e inscripciones, consultá al equipo de tu
-                    programa y mantené tus datos al día, con tu DNI.
+                    Conocé los programas sociales del Gobierno del Chaco. Si el programa
+                    te invitó a inscribirte, vas a recibir un link: ingresá desde ese
+                    link y completá tu inscripción con tu DNI.
                 </p>
-
-                <div class="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
-                    <a href="{% url 'portal:ciudadano_login' %}"
-                       class="inline-flex items-center justify-center gap-2 bg-white font-bold py-4 px-8 rounded-2xl transition-all duration-300 hover:shadow-2xl hover:scale-105"
-                       style="color: var(--text-fg-brand);">
-                        <i class="fas fa-user-circle text-lg"></i>
-                        Accedé a tu perfil
-                    </a>
-                    <a href="{% url 'portal:ciudadano_registro_step1' %}"
-                       class="inline-flex items-center justify-center gap-2 border-2 border-white border-opacity-50 text-white font-semibold py-4 px-8 rounded-2xl transition-all duration-300 hover:bg-white hover:bg-opacity-10">
-                        <i class="fas fa-user-plus"></i>
-                        Registrarme
-                    </a>
-                </div>
             </div>
 
-            <!-- Grid de accesos rápidos -->
-            <div class="grid grid-cols-2 gap-4 shrink-0 w-full max-w-xs">
-                <a href="{% url 'portal:ciudadano_login' %}?next={% url 'portal:ciudadano_mis_programas' %}"
-                   class="bg-white bg-opacity-15 backdrop-blur-sm hover:bg-opacity-25 rounded-2xl p-5 text-center transition-all duration-200 group">
-                    <i class="fas fa-hands-helping text-3xl mb-2 group-hover:scale-110 transition-transform inline-block"></i>
-                    <p class="text-sm font-semibold">Programas</p>
-                </a>
-                <a href="{% url 'portal:ciudadano_login' %}?next={% url 'portal:ciudadano_mis_consultas' %}"
-                   class="bg-white bg-opacity-15 backdrop-blur-sm hover:bg-opacity-25 rounded-2xl p-5 text-center transition-all duration-200 group">
-                    <i class="fas fa-comments text-3xl mb-2 group-hover:scale-110 transition-transform inline-block"></i>
-                    <p class="text-sm font-semibold">Consultas</p>
-                </a>
-                <a href="{% url 'portal:ciudadano_login' %}?next={% url 'portal:ciudadano_mis_datos' %}"
-                   class="bg-white bg-opacity-15 backdrop-blur-sm hover:bg-opacity-25 rounded-2xl p-5 text-center transition-all duration-200 group">
-                    <i class="fas fa-id-card text-3xl mb-2 group-hover:scale-110 transition-transform inline-block"></i>
-                    <p class="text-sm font-semibold">Mis datos</p>
-                </a>
+            <!-- Cómo se ingresa -->
+            <div class="bg-white bg-opacity-15 backdrop-blur-sm rounded-2xl p-6 shrink-0 w-full max-w-xs">
+                <i class="fas fa-link text-3xl mb-3 inline-block"></i>
+                <p class="font-bold mb-1">Se ingresa por link</p>
+                <p class="text-sm text-white text-opacity-75 leading-relaxed">
+                    La inscripción se hace desde el link que envía el programa. No hace
+                    falta crear una cuenta.
+                </p>
             </div>
         </div>
     </section>
@@ -159,100 +137,6 @@
     </div>
 
     <!-- ══════════════════════════════════════════════════════
-         DOS ACCESOS PRINCIPALES
-    ══════════════════════════════════════════════════════ -->
-    <section class="section">
-        <div class="grid md:grid-cols-2 gap-6">
-
-            <!-- CIUDADANOS -->
-            <div class="bg-white rounded-3xl border border-[var(--border-base)] overflow-hidden card-lift">
-                <!-- Cabecera con color -->
-                <div class="p-8 text-white relative overflow-hidden"
-                     style="background: var(--gradient-brand);">
-                    <div class="absolute -right-6 -top-6 w-32 h-32 rounded-full bg-white opacity-10"></div>
-                    <div class="relative z-10">
-                        <div class="inline-flex items-center gap-2 bg-white bg-opacity-20 text-xs font-bold uppercase tracking-widest px-3 py-1 rounded-full mb-4">
-                            <i class="fas fa-user"></i> Ciudadanos
-                        </div>
-                        <h2 class="text-2xl font-extrabold mb-2">Mi Perfil Ciudadano</h2>
-                        <p class="text-white text-opacity-80 text-sm leading-relaxed">
-                            Accedé a todos tus datos, programas y servicios personalizados
-                        </p>
-                    </div>
-                </div>
-                <!-- Cuerpo -->
-                <div class="p-8">
-                    <div class="space-y-3 mb-7">
-                        {% for item in ciudadano_items %}
-                        <div class="flex items-center gap-3 text-sm text-[var(--text-heading)]">
-                            <div class="w-6 h-6 rounded-full flex items-center justify-center shrink-0"
-                                 style="background: var(--bg-brand);">
-                                <i class="fas fa-check text-white" style="font-size: 0.6rem;"></i>
-                            </div>
-                            {{ item }}
-                        </div>
-                        {% endfor %}
-                    </div>
-                    <div class="flex gap-3">
-                        <a href="{% url 'portal:ciudadano_login' %}"
-                           class="flex-1 text-center text-white font-bold py-3 rounded-xl transition-all duration-300 hover:shadow-lg hover:opacity-90"
-                           style="background: var(--gradient-brand);">
-                            <i class="fas fa-sign-in-alt mr-2"></i>Ingresar
-                        </a>
-                        <a href="{% url 'portal:ciudadano_registro_step1' %}"
-                           class="flex-1 text-center font-semibold py-3 rounded-xl border-2 transition-all duration-300 hover:bg-gray-50"
-                           style="color: var(--text-fg-brand); border-color: var(--border-brand);">
-                            <i class="fas fa-user-plus mr-2"></i>Registrarme
-                        </a>
-                    </div>
-                </div>
-            </div>
-
-            <!-- CONSULTAS AL PROGRAMA -->
-            <div class="bg-white rounded-3xl border border-[var(--border-base)] overflow-hidden card-lift">
-                <div class="p-8 text-white relative overflow-hidden"
-                     style="background: var(--gradient-brand);">
-                    <div class="absolute -right-6 -top-6 w-32 h-32 rounded-full bg-white opacity-10"></div>
-                    <div class="relative z-10">
-                        <div class="inline-flex items-center gap-2 bg-white bg-opacity-20 text-xs font-bold uppercase tracking-widest px-3 py-1 rounded-full mb-4">
-                            <i class="fas fa-comments"></i> Consultas
-                        </div>
-                        <h2 class="text-2xl font-extrabold mb-2">Consultas al programa</h2>
-                        <p class="text-white text-opacity-80 text-sm leading-relaxed">
-                            Hacé tu consulta al equipo del programa y seguí la respuesta desde tu cuenta
-                        </p>
-                    </div>
-                </div>
-                <div class="p-8">
-                    <div class="space-y-3 mb-7">
-                        {% for item in consulta_items %}
-                        <div class="flex items-center gap-3 text-sm text-[var(--text-heading)]">
-                            <div class="w-6 h-6 rounded-full flex items-center justify-center shrink-0"
-                                 style="background: var(--bg-brand);">
-                                <i class="fas fa-check text-white" style="font-size: 0.6rem;"></i>
-                            </div>
-                            {{ item }}
-                        </div>
-                        {% endfor %}
-                    </div>
-                    <div class="flex gap-3">
-                        <a href="{% url 'portal:ciudadano_login' %}?next={% url 'portal:ciudadano_nueva_consulta' %}"
-                           class="flex-1 text-center text-white font-bold py-3 rounded-xl transition-all duration-300 hover:shadow-lg hover:opacity-90"
-                           style="background: var(--gradient-brand);">
-                            <i class="fas fa-pen mr-2"></i>Hacer una consulta
-                        </a>
-                        <a href="{% url 'portal:ciudadano_login' %}?next={% url 'portal:ciudadano_mis_consultas' %}"
-                           class="flex-1 text-center font-semibold py-3 rounded-xl border-2 transition-all duration-300 hover:bg-gray-50"
-                           style="color: var(--text-fg-brand); border-color: var(--border-brand);">
-                            <i class="fas fa-list mr-2"></i>Ver mis consultas
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- ══════════════════════════════════════════════════════
          PROGRAMAS DEL GOBIERNO DEL CHACO
     ══════════════════════════════════════════════════════ -->
     {% if programas %}
@@ -263,13 +147,8 @@
                     <i class="fas fa-hands-helping"></i> Programas sociales
                 </div>
                 <h2 class="text-2xl font-extrabold text-[var(--text-heading)]">Programas del Gobierno del Chaco</h2>
-                <p class="text-[var(--text-body-subtle)] mt-1 text-sm">Conocé los programas activos y seguí tu inscripción desde tu cuenta</p>
+                <p class="text-[var(--text-body-subtle)] mt-1 text-sm">Conocé los programas activos del Gobierno del Chaco</p>
             </div>
-            <a href="{% url 'portal:ciudadano_login' %}?next={% url 'portal:ciudadano_mis_programas' %}"
-               class="hidden md:inline-flex items-center gap-2 text-sm font-semibold transition-colors"
-               style="color: var(--text-fg-brand);">
-                Ver mis programas <i class="fas fa-arrow-right text-xs"></i>
-            </a>
         </div>
 
         <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -293,13 +172,6 @@
                 {% else %}
                 <p class="text-[var(--text-body-subtle)] text-sm italic">Programa social del Gobierno del Chaco</p>
                 {% endif %}
-                <div class="mt-4 pt-4 border-t border-[var(--border-light)]">
-                    <a href="{% url 'portal:ciudadano_login' %}"
-                       class="inline-flex items-center gap-1 text-xs font-semibold transition-colors"
-                       style="color: {{ programa.color|default:'var(--bg-brand)' }};">
-                        Consultá tu inscripción <i class="fas fa-arrow-right text-xs"></i>
-                    </a>
-                </div>
             </div>
             {% endfor %}
         </div>
@@ -328,27 +200,24 @@
     ══════════════════════════════════════════════════════ -->
     <section class="grid md:grid-cols-5 gap-6 mb-4">
 
-        <!-- CTA ingreso ciudadano -->
+        <!-- Cómo se hace la inscripción -->
         <div class="md:col-span-3 cta-section p-10 text-white">
             <div class="relative z-10">
                 <div class="section-label bg-white bg-opacity-20 text-white mb-6">
-                    <i class="fas fa-star"></i> Acceso ciudadano
+                    <i class="fas fa-star"></i> Cómo inscribirte
                 </div>
-                <h2 class="text-3xl font-extrabold mb-4">¿Ya tenés tu cuenta?<br>Ingresá ahora</h2>
+                <h2 class="text-3xl font-extrabold mb-4">La inscripción se hace<br>desde el link del programa</h2>
                 <p class="text-white text-opacity-75 mb-8 leading-relaxed">
-                    Con tu DNI y contraseña podés ver tus programas y consultas
-                    desde cualquier dispositivo.
+                    Cuando el programa abre una convocatoria, te envía un link de
+                    inscripción. Entrá desde ese link, confirmá tu DNI y completá el
+                    formulario. No hace falta crear una cuenta ni recordar una contraseña.
                 </p>
-                <div class="flex flex-col sm:flex-row gap-4">
-                    <a href="{% url 'portal:ciudadano_login' %}"
-                       class="inline-flex items-center justify-center gap-2 bg-white font-bold py-4 px-8 rounded-2xl transition-all hover:shadow-xl hover:scale-105"
-                       style="color: var(--text-fg-brand);">
-                        <i class="fas fa-sign-in-alt"></i> Ingresar
-                    </a>
-                    <a href="{% url 'portal:ciudadano_registro_step1' %}"
-                       class="inline-flex items-center justify-center gap-2 border-2 border-white border-opacity-60 text-white font-semibold py-4 px-8 rounded-2xl transition-all hover:bg-white hover:bg-opacity-10">
-                        <i class="fas fa-user-plus"></i> Crear cuenta
-                    </a>
+                <div class="flex items-center gap-3 text-white text-opacity-90">
+                    <i class="fas fa-shield-alt text-2xl"></i>
+                    <p class="text-sm leading-relaxed">
+                        Si alguien te pide una contraseña del portal, desconfiá:
+                        acá no se crean cuentas.
+                    </p>
                 </div>
             </div>
         </div>

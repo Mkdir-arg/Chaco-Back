@@ -279,6 +279,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 96.36 | El detalle del programa usa las piezas comunes (encabezado, modales, estados) | Becas | `#ui` `#requisitos` | Auditoría de diseño de Becas (CMP-1, CMP-7, DC-5, TIT-15) | 29/09/2026 | 🟢 **Hecho** | No requiere |
 | 97 | El check de seguridad (pip-audit) deja de bloquear los PRs: DRF 3.17.2 y anyio 4.14.2 | Transversal | `#infra` `#api` | Juez de la sesión — gate «Security / Pip Audit» rojo en todos los PRs | 29/09/2026 | 🟢 **Hecho** | No requiere |
 | 98 | Corregir los datos que impiden informar un caso a SIIS (localidad, barrio, nacimiento, apoderado) | Becas · alta de beneficiarios en SIIS | `#siis` `#datos` `#relevamientos` | PM — en sesión, sobre los rechazos de la corrida del 23/09: «quiero solucionar los casos que nosotros podemos solucionar» | 30/09/2026 | 🟢 **Hecho** | No requiere |
+| 102 | Apagar el registro y el perfil del portal ciudadano | Portal ciudadano | `#sesion` `#usuarios` `#ui` `#datos` | Auditoría integral oct-2026 — hallazgo SEC-29 (Ola 0, hotfix de seguridad) | 01/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -12661,3 +12662,99 @@ no tienen vuelta automática (el dump previo es el respaldo).
 - **30/09/2026 (este cambio)** — diagnóstico de los tres grupos y corrección de los datos.
 
 ---
+
+# Cambio 102 — Apagar el registro y el perfil del portal ciudadano
+
+🟢 **HECHO — 01/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Portal ciudadano |
+| **Etiquetas** | `#sesion` `#usuarios` `#ui` `#datos` |
+| **Solicitante** | Auditoría integral oct-2026 — hallazgo **SEC-29** (Ola 0, hotfix de seguridad) |
+| **Fecha del pedido** | 01/10/2026 |
+| **Issue / épica** | Sin issue (plan de olas de la auditoría, `docs/internal/auditoria-2026-10/`) |
+| **Partes afectadas** | `portal/urls.py`, home del portal, `core/middleware.py`, `core/decorators.py`, presupuestos de performance, comando nuevo `desactivar_usuarios_portal` |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> **SEC-29 · Registro del portal: crea una cuenta sobre cualquier legajo existente con solo el DNI.**
+> Severidad ALTA. Estado: CONFIRMADO con test (paso 1 de `SEC01BasicAuthTests`).
+> Propuesta de la ficha: «el portal está sin uso (decisión del PM, 29-sep-2026). En `portal/urls.py`, quitar
+> todas las rutas `mi-perfil/*` y dejar `""`, `csrf/` e `inscripcion/<uuid:token>/…` (la inscripción pública
+> **sí** queda)».
+
+## El problema
+
+El registro del portal tenía un camino `legajo_existente`: si ya había un `Ciudadano` con el DNI tipeado y sin
+usuario asociado, el flujo **no consultaba RENAPER ni verificaba el sexo**. Con solo el DNI —un dato público—
+cualquiera completaba los dos pasos y quedaba logueado como dueño de ese legajo. Con cualquier otro DNI, además,
+el paso 1 devolvía el nombre completo que trae RENAPER.
+
+Esa cuenta no era solo «ver mi perfil»: era la puerta de entrada de otros dos hallazgos de la misma auditoría.
+Con la sesión, `PortalCiudadanoMiddleware` la sacaba del backoffice; con las **mismas credenciales por Basic auth
+contra `/api/`** el middleware no corre y la cuenta leía los endpoints del backoffice (SEC-01), y también bajaba
+documentos de `/media/` (SEC-09).
+
+## Alcance acordado
+
+- **Se apaga la superficie**, no se parchea el registro: el portal ciudadano no está en uso (decisión del PM del
+  29/09/2026) y arreglar el registro sería endurecer un flujo que nadie usa.
+- **La inscripción pública por link se queda tal cual.** Es la superficie de `/portal/` que sí se usa en
+  producción (Cambio 41) y no comparte nada con el registro: no crea usuario, no inicia sesión y se entra por un
+  token que no es adivinable.
+- **Afuera:** borrar las vistas, los servicios y los templates del portal ciudadano. Quedan en el repo sin ruta.
+
+## Decisiones tomadas
+
+- **El corte es a nivel de URL.** `portal/urls.py` deja de publicar todas las rutas `mi-perfil/*` y conserva `""`,
+  `csrf/` y los tres pasos de `inscripcion/<uuid:token>/`. Las vistas, los formularios, los servicios y los
+  templates del portal ciudadano **siguen en el repo pero sin ruta**: si el portal vuelve, la vuelta tiene que
+  arreglar antes el registro (consultar RENAPER y verificar sexo también en el camino `legajo_existente`) y
+  recién después reponer las rutas. Un `grep` de `portal:ciudadano_` muestra referencias vivas solo dentro de ese
+  código ya inalcanzable.
+- **El middleware sigue siendo la barrera; cambia a dónde manda.** `PortalCiudadanoMiddleware` redirigía a
+  `portal:ciudadano_mi_perfil`, que ya no existe: ahora manda a `portal:home`. La separación backoffice/portal es
+  la misma. Lo mismo con `core.decorators.ciudadano_required`, que redirigía al login del portal.
+- **La home del portal se reescribe alrededor del link.** Tenía ocho CTA de «Ingresar» / «Registrarme» y dos
+  tarjetas («Mi Perfil Ciudadano», «Consultas al programa») que son exactamente lo que se apagó: sin ese cambio,
+  `portal:home` reventaba con `NoReverseMatch`. Queda una página que explica los programas y que la inscripción
+  se hace por el link que envía el programa, sin cuenta ni contraseña. Las listas `ciudadano_items` /
+  `consulta_items` del selector se van con las tarjetas.
+- **DECISIÓN CLIENTE (D-29), default aplicado: las cuentas existentes se desactivan, pero no desde una
+  migración.** Se agrega el comando `python manage.py desactivar_usuarios_portal`, cuyo **default es `--dry-run`**
+  (solo cuenta) y que necesita `--aplicar` para escribir. Desactivar usuarios es una operación sobre datos reales:
+  la decide y la ejecuta quien opera la base, después de contar cuántas cuentas activas hay en producción
+  (pregunta abierta **P-08** de la auditoría). **No se corrió contra ninguna base.** El comando no toca a los
+  superusuarios ni a quien además pertenece a algún grupo de backoffice: ese es alguien que opera el sistema.
+- **La documentación de la API se corrige a mano, salvo el Postman.** `docs/api/README.md` listaba el login y el
+  registro del portal como endpoints públicos: ahora dice que están dados de baja y qué queda de `/portal/`.
+  `docs/api/portal.postman_collection.json` **queda obsoleta a propósito**: son 600 líneas que describen solo el
+  portal ciudadano y regenerarla no es parte de este arreglo; el README avisa que no sirve.
+- **Los presupuestos de performance pierden tres rutas.** `portal_perfil`, `portal_programas` y `portal_consultas`
+  se dan de baja de `scripts/perf_budgets.json`, `scripts/perf_audit.py` y `scripts/perf_http_probe.py` —el test
+  de presupuestos exige que el manifiesto y el archivo coincidan exactamente—. `portal_home` se conserva: es la
+  única superficie de `/portal/` sin token que sigue publicada, y ahora además es a dónde manda el middleware.
+
+## Verificación
+
+- `portal/tests/test_portal_apagado.py` — las 17 rutas `mi-perfil/*` dan 404 y ninguno de los 19 nombres de URL
+  del portal ciudadano resuelve; la home y el `csrf/` siguen en 200; **los tres pasos de la inscripción pública
+  siguen ruteando y el paso 1 responde 200**; un ciudadano que pisa el backoffice va a `portal:home` y puede ver
+  esa home sin rebotar. Antes del arreglo fallaban 33 aserciones de este archivo.
+- `portal/tests/test_desactivar_usuarios_portal.py` — el dry-run por defecto no cambia nada; `--aplicar` desactiva
+  solo a los del grupo `Ciudadanos` y deja intactos al operador de backoffice, al usuario sin grupo, al
+  superusuario y al que tiene los dos grupos; es idempotente y no falla si el grupo no existe.
+- Se dan de baja `test_ciudadano_auth.py`, `test_ciudadano_consultas.py` y `test_ciudadano_perfil.py`: probaban
+  por HTTP un flujo que ya no tiene ruta. `core/tests/test_decorators.py` pasa a ejercitar el decorador sobre un
+  request armado a mano y `users/tests/test_rbac.py` comprueba la barrera por una URL del backoffice.
+- `manage.py check`, `makemigrations --check --dry-run`, suite completa, `--tag performance`, `ruff check` /
+  `format --check`, `scripts/compile_templates.py` (0) y `scripts/design_audit.py --changed` (0 errores).
+
+## Pendientes
+
+- **P-08** — cuántas cuentas del grupo `Ciudadanos` están activas en producción. Con ese número el PM decide
+  cuándo correr `desactivar_usuarios_portal --aplicar`. **El comando todavía no se ejecutó en ningún ambiente.**
+- **SEC-01** (defaults de DRF) y **SEC-09** (`/media/` detrás de login) van en PRs propios de la misma Ola 0:
+  apagar el registro cierra la puerta de entrada más barata, no los dos agujeros.

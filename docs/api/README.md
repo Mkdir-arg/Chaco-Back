@@ -40,7 +40,11 @@ X-CSRFToken: <valor-de-la-cookie-csrftoken>
 
 ### Para endpoints del portal ciudadano
 
-Misma mecánica pero usando `POST /portal/mi-perfil/login/` con DNI como username.
+**Dados de baja (SEC-29, Cambio 102).** El portal ciudadano está apagado: `portal/urls.py` ya no publica
+ninguna ruta `mi-perfil/*` y todas responden 404. No hay login de ciudadano. De `/portal/` quedan la home
+(`GET /portal/`), `GET /portal/csrf/` y los tres pasos de la inscripción pública por link
+(`/portal/inscripcion/<uuid:token>/…`). `docs/api/portal.postman_collection.json` todavía describe los
+endpoints viejos: quedó obsoleta junto con ellos.
 
 ### Endpoints públicos (sin autenticación)
 
@@ -48,8 +52,8 @@ Misma mecánica pero usando `POST /portal/mi-perfil/login/` con DNI como usernam
 - `GET /conversaciones/chat/` — pantalla de chat
 - `POST /conversaciones/consultar-renaper/` — verificación RENAPER
 - `POST /conversaciones/iniciar/` — iniciar conversación
-- `GET|POST /portal/mi-perfil/login/` — login ciudadano
-- `GET|POST /portal/mi-perfil/registro/` — registro paso 1 y 2
+- `GET /portal/` — home del portal
+- `GET|POST /portal/inscripcion/<uuid:token>/` — inscripción pública por link (Cambio 41)
 
 ## Convenciones de los request bodies
 

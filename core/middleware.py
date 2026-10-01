@@ -88,7 +88,9 @@ class PortalCiudadanoMiddleware:
             and not request.path.startswith("/media/")
             and rbac.es_ciudadano_portal(request.user)
         ):
-            return redirect("portal:ciudadano_mi_perfil")
+            # SEC-29: «mi perfil» ya no existe (el portal ciudadano está apagado).
+            # La barrera sigue siendo la misma; cambia solo a dónde se lo manda.
+            return redirect("portal:home")
         return self.get_response(request)
 
 
