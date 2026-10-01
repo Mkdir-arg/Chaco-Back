@@ -4,7 +4,7 @@ El rol ve el segmento que contiene su subsegmento solo como contexto: no puede
 configurarlo ni asomarse a los subsegmentos de sus pares.
 """
 
-from datetime import date
+from datetime import timedelta
 from io import StringIO
 
 from django.contrib.auth.models import Group, User
@@ -12,6 +12,7 @@ from django.core.management import call_command
 from django.http import Http404
 from django.test import RequestFactory, TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from programas.forms import ConvocatoriaForm, RelevamientoForm, SubsegmentoForm
 from programas.management.commands.seed_becas import ROL_ADMIN, ROL_COORDINADOR_REGIONAL
@@ -34,6 +35,12 @@ class CoordinadorRegionalTests(TestCase):
     def setUp(self):
         call_command("seed_becas", stdout=StringIO())
         self.rol = Group.objects.get(name=ROL_COORDINADOR_REGIONAL)
+
+        # Relativas a hoy: una convocatoria activa con la fecha de fin vencida
+        # no pasa la validación "fecha manda" de ``ConvocatoriaForm``.
+        hoy = timezone.localdate()
+        self.fecha_inicio = hoy - timedelta(days=30)
+        self.fecha_fin = hoy + timedelta(days=30)
 
         self.segmento = Segmento.objects.create(nombre="Fuego y Barro", cupo_maximo=300)
         self.otro_segmento = Segmento.objects.create(nombre="Producción", cupo_maximo=300)
@@ -106,21 +113,21 @@ class CoordinadorRegionalTests(TestCase):
             nombre="Propia",
             segmento=self.segmento,
             subsegmento=self.sub_ana,
-            fecha_inicio=date(2026, 1, 1),
-            fecha_fin=date(2026, 12, 31),
+            fecha_inicio=self.fecha_inicio,
+            fecha_fin=self.fecha_fin,
         )
         del_par = Convocatoria.objects.create(
             nombre="Del par",
             segmento=self.segmento,
             subsegmento=self.sub_beto,
-            fecha_inicio=date(2026, 1, 1),
-            fecha_fin=date(2026, 12, 31),
+            fecha_inicio=self.fecha_inicio,
+            fecha_fin=self.fecha_fin,
         )
         del_segmento = Convocatoria.objects.create(
             nombre="Sin subsegmento",
             segmento=self.segmento,
-            fecha_inicio=date(2026, 1, 1),
-            fecha_fin=date(2026, 12, 31),
+            fecha_inicio=self.fecha_inicio,
+            fecha_fin=self.fecha_fin,
         )
 
         visibles = convocatorias_visibles(self.ana)
@@ -135,15 +142,15 @@ class CoordinadorRegionalTests(TestCase):
             nombre="Propia",
             segmento=self.segmento,
             subsegmento=self.sub_ana,
-            fecha_inicio=date(2026, 1, 1),
-            fecha_fin=date(2026, 12, 31),
+            fecha_inicio=self.fecha_inicio,
+            fecha_fin=self.fecha_fin,
         )
         del_par = Convocatoria.objects.create(
             nombre="Del par",
             segmento=self.segmento,
             subsegmento=self.sub_beto,
-            fecha_inicio=date(2026, 1, 1),
-            fecha_fin=date(2026, 12, 31),
+            fecha_inicio=self.fecha_inicio,
+            fecha_fin=self.fecha_fin,
         )
 
         form = RelevamientoForm(convocatorias_permitidas=convocatorias_visibles(self.ana))
@@ -162,8 +169,8 @@ class CoordinadorRegionalTests(TestCase):
             "nombre": "Convocatoria de Ana",
             "segmento": self.segmento.pk,
             "subsegmento": self.sub_ana.pk,
-            "fecha_inicio": "2026-09-01",
-            "fecha_fin": "2026-09-30",
+            "fecha_inicio": self.fecha_inicio.isoformat(),
+            "fecha_fin": self.fecha_fin.isoformat(),
             "descripcion": "",
             "activo": "on",
         }
