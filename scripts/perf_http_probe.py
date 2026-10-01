@@ -27,10 +27,8 @@ LECTURAS = (
     ("legajo_detalle", "legajos:ciudadano_detalle", "/legajos/ciudadanos/{ciudadano_pk}/", "backoffice", 200),
     ("conversaciones_lista", "conversaciones:lista", "/conversaciones/", "backoffice", 200),
     ("conversacion_detalle", "conversaciones:detalle", "/conversaciones/{conversacion_pk}/", "backoffice", 200),
+    # SEC-29: el portal ciudadano está apagado; de /portal/ sólo queda la home pública.
     ("portal_home", "portal:home", "/portal/", "anonymous", 200),
-    ("portal_perfil", "portal:ciudadano_mi_perfil", "/portal/mi-perfil/", "citizen", 200),
-    ("portal_programas", "portal:ciudadano_mis_programas", "/portal/mi-perfil/programas/", "citizen", 200),
-    ("portal_consultas", "portal:ciudadano_mis_consultas", "/portal/mi-perfil/consultas/", "citizen", 200),
     ("becas_segmentos", "becas:segmentos", "/becas/config/segmentos/", "backoffice", 200),
     ("becas_convocatorias", "becas:convocatorias", "/becas/convocatorias/", "backoffice", 200),
     ("becas_relevamientos", "becas:relevamientos", "/becas/relevamientos/", "backoffice", 200),
@@ -135,20 +133,6 @@ class Session:
             raise ProbeError(f"login de {username!r} devolvió status {response['status']}")
         if is_login_redirect(response):
             raise ProbeError(f"login de {username!r} redirigió nuevamente al login")
-        return response
-
-    def portal_login(self, username, password):
-        path = "/portal/mi-perfil/login/"
-        token, page = self.csrf(path)
-        if token is None:
-            raise ProbeError(f"no se obtuvo CSRF del portal (status {page['status']})")
-        response = self.request(
-            path,
-            data={"csrfmiddlewaretoken": token, "username": username, "password": password},
-            referer=self.base_url + path,
-        )
-        if response["status"] != 302 or is_login_redirect(response):
-            raise ProbeError("el login de ciudadano no completó una sesión válida")
         return response
 
 
@@ -511,10 +495,9 @@ def run(args):
     output = {"herramienta": "perf_http_probe", "fase_solicitada": args.fase, "fases": {}}
     admin = Session(args.base_url, args.timeout)
     admin.login(args.usuario, args.password)
-    citizen = Session(args.base_url, args.timeout)
-    citizen.portal_login("perf_ciudadano", args.password)
     anonymous = Session(args.base_url, args.timeout)
-    sessions = {"anonymous": anonymous, "backoffice": admin, "citizen": citizen}
+    # SEC-29: ya no hay login de ciudadano; el actor "citizen" quedó sin rutas que medir.
+    sessions = {"anonymous": anonymous, "backoffice": admin}
     api = Session(args.base_url, args.timeout)
 
     phases = ("lecturas", "escrituras", "concurrencia") if args.fase == "todas" else (args.fase,)

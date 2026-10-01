@@ -301,25 +301,9 @@ def build_targets(worker_id=None):
                 "url": reverse("becas:formulario_detalle", kwargs={"pk": formulario.pk}),
                 "actor": "backoffice",
             },
+            # SEC-29: las rutas del portal ciudadano (perfil, programas, consultas) ya no
+            # existen; la única superficie del portal que queda presupuestada es su home.
             {"key": "portal_home", "route": "portal:home", "url": reverse("portal:home"), "actor": "anonymous"},
-            {
-                "key": "portal_perfil",
-                "route": "portal:ciudadano_mi_perfil",
-                "url": reverse("portal:ciudadano_mi_perfil"),
-                "actor": "citizen",
-            },
-            {
-                "key": "portal_programas",
-                "route": "portal:ciudadano_mis_programas",
-                "url": reverse("portal:ciudadano_mis_programas"),
-                "actor": "citizen",
-            },
-            {
-                "key": "portal_consultas",
-                "route": "portal:ciudadano_mis_consultas",
-                "url": reverse("portal:ciudadano_mis_consultas"),
-                "actor": "citizen",
-            },
             {
                 "key": "becas_segmentos",
                 "route": "becas:segmentos",
