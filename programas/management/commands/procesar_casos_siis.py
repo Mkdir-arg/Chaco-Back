@@ -204,6 +204,10 @@ class Command(BaseCommand):
             "relevamiento": options["relevamiento"],
             "segmento": options["segmento"],
             "solo_enviar": options["solo_enviar"],
+            # Sin esto, con destino tabla cada vuelta vuelve a agarrar los mismos
+            # candidatos --guardarlos no deja ``EnvioSIIS``-- y los pisa: la tabla
+            # se queda clavada en el tamaño de la primera tanda.
+            "destino": destino,
         }
         filtrar_materias = not options["sin_filtro_materias"]
         try:

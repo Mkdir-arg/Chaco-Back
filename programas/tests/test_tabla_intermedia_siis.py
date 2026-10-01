@@ -16,11 +16,22 @@ from programas.models import AltaIntermediaSIIS, EnvioSIIS, Formulario
 from programas.services import proceso_masivo
 from programas.services.siis_envio import (
     DESTINO_TABLA,
+    Catalogos,
     guardar_en_tabla_intermedia,
     payload_de,
     sincronizar_tabla_intermedia,
 )
 from programas.tests.test_siis_envio import _catalogo_falso, _ConPayloadCompleto
+
+
+def _catalogos_falsos():
+    """``Catalogos`` con el catálogo de mentira.
+
+    No alcanza con parchear ``siis_envio.catalogo``: ``Catalogos.__init__`` lo
+    toma como valor por defecto de un argumento, que se evalúa al importar el
+    módulo. Hay que inyectar la clase donde el comando la construye.
+    """
+    return Catalogos(cargar=_catalogo_falso)
 
 
 def _alta_ok(payload):
@@ -192,7 +203,7 @@ class DestinoEnElProcesoMasivoTests(_BaseTablaTest):
 class ComandoTests(_BaseTablaTest):
     def correr(self, *args):
         salida = StringIO()
-        with patch("programas.services.siis_envio.catalogo", _catalogo_falso):
+        with patch("programas.management.commands.procesar_casos_siis.Catalogos", _catalogos_falsos):
             call_command("procesar_casos_siis", "--sin-filtro-materias", *args, stdout=salida, stderr=salida)
         return salida.getvalue()
 
@@ -219,3 +230,58 @@ class ComandoTests(_BaseTablaTest):
         alta.refresh_from_db()
         self.assertIn("ensayo", salida.lower())
         self.assertFalse(alta.sincronizado)
+
+
+@override_settings(SIIS_API_CLIENT_ID="id-de-prueba", SIIS_API_CLIENT_SECRET="secreto-de-prueba")
+class NoReprocesaLoGuardadoTests(_BaseTablaTest):
+    """Una segunda vuelta no puede volver a agarrar lo que ya está en la tabla.
+
+    Guardar no deja ``EnvioSIIS`` --el caso no está en SIIS-- así que el filtro
+    por destino es lo único que lo saca de los candidatos. Sin él, correr el
+    comando diez veces deja la tabla clavada en el tamaño de la primera tanda y
+    cada vuelta prevalida de nuevo contra SIIS para nada. Pasó el 01/10/2026: la
+    exclusión estaba escrita en ``candidatos()`` y el comando nunca le pasaba el
+    destino.
+    """
+
+    def correr(self):
+        salida = StringIO()
+        with patch("programas.management.commands.procesar_casos_siis.Catalogos", _catalogos_falsos):
+            call_command(
+                "procesar_casos_siis",
+                "--sin-filtro-materias",
+                # Sin --solo-enviar el comando prevalida contra SIIS de verdad.
+                "--solo-enviar",
+                "--destino",
+                "tabla",
+                "--aplicar",
+                "--usuario",
+                self.user.username,
+                stdout=salida,
+                stderr=salida,
+            )
+        return salida.getvalue()
+
+    def test_la_segunda_vuelta_no_lo_vuelve_a_procesar(self):
+        self.correr()
+        self.assertEqual(AltaIntermediaSIIS.objects.count(), 1)
+
+        salida = self.correr()
+
+        self.assertIn("No hay casos que procesar", salida)
+        self.assertEqual(AltaIntermediaSIIS.objects.count(), 1)
+
+    def test_el_filtro_por_destino_le_llega_a_candidatos(self):
+        self.guardar()
+
+        pendientes = proceso_masivo.candidatos(filtrar_materias=False, destino=DESTINO_TABLA)
+
+        self.assertNotIn(self.formulario.pk, set(pendientes.values_list("pk", flat=True)))
+
+    def test_con_destino_siis_el_guardado_sigue_siendo_candidato(self):
+        """Tiene que poder sincronizarse: ahí sí vuelve a entrar."""
+        self.guardar()
+
+        pendientes = proceso_masivo.candidatos(filtrar_materias=False)
+
+        self.assertIn(self.formulario.pk, set(pendientes.values_list("pk", flat=True)))
