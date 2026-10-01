@@ -12,11 +12,23 @@ de nuevo después de actualizar los CSV sincroniza los nombres sin duplicar nada
 estar referenciada por una equivalencia ya usada.
 
     python manage.py seed_catalogo_siis
-    python manage.py seed_catalogo_siis --revisar     # qué localidades cargadas no cruzan
+    python manage.py seed_catalogo_siis --revisar        # qué localidades cargadas no cruzan
+    python manage.py seed_catalogo_siis --verificar-api  # si la API dice otros ids
 
 ``--revisar`` recorre los casos y lista los nombres de localidad que hoy no
 resuelven, con cuántos casos pesa cada uno: es la lista de la que salen las
 equivalencias nuevas. No modifica nada.
+
+``--verificar-api`` contrasta estos CSV con lo que devuelve la API y avisa de los
+ids que no coinciden. El 01/10/2026 la API devolvió **posiciones de una lista**
+en vez de ids —Fontana como 3, que en el padrón del organismo es Puerto Vilelas—
+y 4.139 personas quedaron registradas en otra localidad, sin un solo error de
+SIIS. Tampoco modifica nada.
+
+**El id de localidad es por provincia, no global**: el padrón del organismo tiene
+277 filas pero solo 166 ids distintos, porque el mismo número se repite entre
+provincias. Por eso la clave de ``LocalidadSiis`` es (provincia, siis_id) y el
+payload manda ``prov_actual`` y ``loc_actual`` juntos.
 """
 
 import collections
@@ -50,6 +62,14 @@ class Command(BaseCommand):
             "--revisar",
             action="store_true",
             help="No carga nada: lista las localidades cargadas en los casos que hoy no cruzan.",
+        )
+        parser.add_argument(
+            "--verificar-api",
+            action="store_true",
+            help=(
+                "No carga nada: contrasta el catálogo propio con lo que devuelve la API de SIIS y avisa de los "
+                "ids que no coinciden. Para detectar antes lo que el 01/10/2026 se detectó después."
+            ),
         )
 
     def _log(self, texto="", estilo=None):
@@ -182,10 +202,88 @@ class Command(BaseCommand):
                 for nombre, n in sin_cruce.most_common(15):
                     self._log(f"      {n:5}  {nombre}")
 
+    # ── Contraste con la API ────────────────────────────────────────────────
+
+    def _verificar_api(self):
+        """Compara el catálogo propio con lo que devuelve la API de SIIS.
+
+        El 01/10/2026 la API devolvió **posiciones de una lista** en lugar de los
+        ids reales —Fontana como 3, que en el padrón del organismo es Puerto
+        Vilelas— y 4.139 personas quedaron registradas en otra localidad, sin que
+        SIIS devolviera un solo error. Esto existe para que esa discrepancia se
+        vea antes y no después.
+
+        No modifica nada: informa y devuelve cuántos choques encontró.
+        """
+        from programas.services.siis import SiisCatalogError, catalogo
+
+        choques = 0
+        for nombre_api, modelo, etiqueta in (
+            ("provincias", ProvinciaSiis, "PROVINCIAS"),
+            ("localidades", LocalidadSiis, "LOCALIDADES"),
+        ):
+            self._log("")
+            self._log(f"{etiqueta} — catálogo propio contra la API", self.style.MIGRATE_HEADING)
+            try:
+                items = list(catalogo(nombre_api))
+            except SiisCatalogError as exc:
+                self._log(f"   La API no respondió: {exc}", self.style.WARNING)
+                self._log("   El alta igual funciona: el catálogo propio es el que manda (Cambio 85).")
+                continue
+
+            propio = {c.clave: c for c in modelo.objects.all()}
+            self._log(f"   la API devuelve {len(items)} · el catálogo propio tiene {len(propio)}")
+            if len(items) < len(propio) / 2:
+                self._log(
+                    "   La API devuelve muchas menos de las que hay: tratar sus ids con desconfianza.",
+                    self.style.WARNING,
+                )
+
+            distintos, ausentes = [], 0
+            for item in items:
+                propia = propio.get(clave_nombre(item.get("nombre", "")))
+                if propia is None:
+                    ausentes += 1
+                elif propia.siis_id != item.get("id"):
+                    distintos.append(
+                        (propia.nombre, propia.siis_id, item.get("id"), getattr(propia, "provincia", None))
+                    )
+
+            if distintos:
+                choques += len(distintos)
+                self._log(f"   {len(distintos)} con el MISMO nombre y DISTINTO id. Las primeras:", self.style.ERROR)
+                for nombre, id_propio, id_api, provincia in distintos[:12]:
+                    # Dentro de su provincia: el id de localidad no es único a
+                    # nivel país, así que buscarlo suelto señalaría a otra.
+                    ocupantes = modelo.objects.filter(siis_id=id_api)
+                    if provincia is not None:
+                        ocupantes = ocupantes.filter(provincia=provincia)
+                    quien = ocupantes.first()
+                    ocupa = f" (el {id_api} es {quien.nombre})" if quien else ""
+                    self._log(f"      {nombre:32} propio={id_propio:>4}  api={id_api}{ocupa}")
+            else:
+                self._log("   Ningún id en conflicto.", self.style.SUCCESS)
+            if ausentes:
+                self._log(f"   {ausentes} que la API trae y el catálogo propio no tiene.")
+        return choques
+
     def handle(self, *args, **options):
         if options["revisar"]:
             self._revisar()
             self._log("\nRevisión terminada, no se modificó nada.", self.style.SUCCESS)
+            return
+        if options["verificar_api"]:
+            choques = self._verificar_api()
+            self._log("")
+            if choques:
+                self._log(
+                    f"{choques} id(s) en conflicto. El catálogo propio es el que manda: el payload se arma con "
+                    "sus ids y está verificado contra el padrón que entregó el organismo. Lo que hay que revisar "
+                    "es la API, no el catálogo.",
+                    self.style.WARNING,
+                )
+            else:
+                self._log("El catálogo propio y la API coinciden.", self.style.SUCCESS)
             return
         self._cargar()
         self._log("\nListo. Corré --revisar para ver qué falta.", self.style.SUCCESS)

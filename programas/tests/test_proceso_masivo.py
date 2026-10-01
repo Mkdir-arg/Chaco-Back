@@ -14,6 +14,7 @@ from django.contrib.auth.models import User
 from django.core.management import call_command
 from django.db import connection
 from django.test import TestCase
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
 
@@ -182,6 +183,49 @@ class CandidatosTests(_BaseProcesoTest):
             for hidratado in hidratados:
                 self.assertIsNotNone(hidratado.ciudadano)
                 self.assertEqual(hidratado.relevamiento.convocatoria.segmento.programa, self.programa)
+
+
+class IdsPorRangoTests(_BaseProcesoTest):
+    """``ids_de`` pide los ids por rangos de pk, no todos de una.
+
+    La tabla de casos pesa 283 MB en producción —27 KB de foto por caso— y en
+    InnoDB el índice primario es la tabla: traer todos los ids de una la recorre
+    entera y muere por el ``read_timeout`` de 10 s de ECOM. El síntoma engañaba,
+    porque entraba o no según la I/O del servidor: el mismo comando andaba tras
+    unos minutos de pausa y fallaba lanzado enseguida después de otro.
+    """
+
+    def test_devuelve_todos_los_ids_en_orden(self):
+        casos = [self._caso() for _ in range(5)]
+
+        ids = proceso_masivo.ids_de(proceso_masivo.candidatos(), pagina=2)
+
+        self.assertEqual(ids, sorted(c.pk for c in casos))
+
+    def test_pagina_de_a_poco_en_vez_de_una_consulta_grande(self):
+        for _ in range(5):
+            self._caso()
+
+        candidatos = proceso_masivo.candidatos()  # fuera: lee aprobados_materias
+        with CaptureQueriesContext(connection) as consultas:
+            proceso_masivo.ids_de(candidatos, pagina=2)
+
+        paginas = [c["sql"] for c in consultas if "LIMIT 2" in c["sql"]]
+        # 5 casos de a 2: tres páginas con datos y una vacía que corta el bucle.
+        self.assertEqual(len(paginas), 4, paginas)
+        # Y cada una arranca donde terminó la anterior.
+        self.assertTrue(all('"id" >' in sql for sql in paginas), paginas)
+
+    def test_respeta_el_limite_sin_pedir_de_mas(self):
+        for _ in range(6):
+            self._caso()
+
+        ids = proceso_masivo.ids_de(proceso_masivo.candidatos(), limite=3, pagina=2)
+
+        self.assertEqual(len(ids), 3)
+
+    def test_sin_candidatos_no_entra_en_un_bucle_infinito(self):
+        self.assertEqual(proceso_masivo.ids_de(proceso_masivo.candidatos(), pagina=2), [])
 
 
 class ElegirCompletosTests(_BaseProcesoTest):

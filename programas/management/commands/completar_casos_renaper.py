@@ -63,6 +63,7 @@ from django.utils import timezone
 
 from programas.models import Convocatoria, Formulario, RequisitoNativo
 from programas.services.diseno import clave_requisito, obtener_o_crear_diseno
+from programas.services.proceso_masivo import ids_de
 from programas.services.respuestas import (
     COLUMNAS_FIJAS,
     _identidad_de,
@@ -341,12 +342,16 @@ class Command(BaseCommand):
         # ECOM eso supera su ``read_timeout`` de 10 s: la consulta muere con
         # «Lost connection to server during query» antes de devolver nada. Una
         # lista de 6.682 enteros, en cambio, vuelve al instante.
-        ids = Formulario.objects.order_by("pk")
+        casos = Formulario.objects.all()
         if options["convocatoria"]:
-            ids = ids.filter(relevamiento__convocatoria_id=options["convocatoria"])
-        if options["limite"]:
-            ids = ids[: options["limite"]]
-        ids = list(ids.values_list("pk", flat=True))
+            casos = casos.filter(relevamiento__convocatoria_id=options["convocatoria"])
+        # Por rangos de pk: la tabla pesa 283 MB --27 KB de foto por caso-- y en
+        # InnoDB el índice primario es la tabla, así que pedir todos los ids de
+        # una recorre los 283 MB y no entra en el ``read_timeout`` de 10 s de
+        # ECOM. Entra o no según cuánta I/O esté haciendo el servidor, que es lo
+        # que hacía que el mismo comando funcionara tras unos minutos de pausa y
+        # muriera lanzado enseguida después de otro.
+        ids = ids_de(casos, limite=options["limite"] or None)
         if not ids:
             self._log("No hay casos que procesar.")
             return
