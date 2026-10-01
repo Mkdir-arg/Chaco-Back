@@ -34,7 +34,7 @@ hide:
 
     ---
 
-    **Septiembre 2026 (en curso):** esfuerzo real 920h 30min, se imputan las 850h del presupuesto (100%) y quedan 70h 30min de remanente para octubre — al 28/09
+    **Septiembre 2026 (cerrado):** esfuerzo real 942h 30min, imputadas las 850h del presupuesto (100%); 92h 30min pasan a octubre como consumo inicial
 
     **Agosto 2026 (cerrado):** 700h de 700h (100%) — presupuesto completo
 
