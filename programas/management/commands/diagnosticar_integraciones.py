@@ -292,7 +292,7 @@ class Command(BaseCommand):
             except ValueError:
                 self._error(f"el token {options['token']} no es un UUID válido")
                 return None
-            # En hex o con guiones, según el motor que guardó la fila (Cambio 95).
+            # En hex o con guiones, según el motor que guardó la fila (Cambio 99).
             rel = relevamiento_publico_por_token(token, publicos).select_related("convocatoria").first()
             if rel is None:
                 self._error(f"ningún relevamiento público tiene el token {options['token']}")

@@ -101,7 +101,7 @@ def _get_relevamiento(token):
     # La cadena de pausa (segmento → programa, subsegmento → segmento) y el
     # diseño del formulario vienen en el mismo SELECT: ``habilitado_en`` y la
     # definición del paso 2 los pedían aparte en cada request (Cambio 91).
-    # El token se busca en hex y con guiones (Cambio 95): MariaDB lo guarda con
+    # El token se busca en hex y con guiones (Cambio 99): MariaDB lo guarda con
     # guiones y una base restaurada desde PRD (MySQL) trae filas en hex.
     return get_object_or_404(
         relevamiento_publico_por_token(

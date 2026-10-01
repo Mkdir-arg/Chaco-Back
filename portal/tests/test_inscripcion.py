@@ -347,7 +347,7 @@ class PieDeContactoTests(_BaseInscripcionTest):
 
 
 class TokenPublicoEnCualquierFormaTests(_BaseInscripcionTest):
-    """Cambio 95: MariaDB guarda ``token_publico`` con guiones y una base
+    """Cambio 99: MariaDB guarda ``token_publico`` con guiones y una base
     restaurada desde PRD (MySQL) lo trae en hex de 32. El link tiene que
     encontrar el relevamiento con las dos formas, en una sola consulta."""
 

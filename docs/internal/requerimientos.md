@@ -12695,7 +12695,7 @@ no tienen vuelta automática (el dump previo es el respaldo).
 | **Etiquetas** | `#relevamientos` `#datos` `#infra` |
 | **Solicitante** | PM — en sesión, con el log del pod: 500 en `POST /becas/relevamientos/nuevo/` desde `/becas/convocatorias/3/` en `datanach.ecomdev.ar` |
 | **Fecha del pedido** | 29/09/2026 |
-| **Issue / épica** | Sin issue (pedido en sesión) · continúa el Cambio 41 y las migraciones `programas.0047/0048`, `users.0023` y `legajos.0007` |
+| **Issue / épica** | Sin issue (pedido en sesión) · PR contra `development` desde `fix/token-publico-mariadb` · continúa el Cambio 41 y las migraciones `programas.0047/0048`, `users.0023` y `legajos.0007` |
 | **Partes afectadas** | `programas_relevamiento.token_publico` · `_get_relevamiento` del portal · `diagnosticar_integraciones --token` |
 | **Migración** | `programas.0073_ampliar_relevamiento_token_publico` |
 
@@ -12760,7 +12760,11 @@ el alta vuelve a dar 500.
 
 ## Historial
 
-Entrada nueva. Diagnóstico con el log del pod de testing del 29/09/2026.
+- **29/09/2026** — entrada nueva. Diagnóstico con el log del pod de testing.
+- **01/10/2026 (este cambio)** — el arreglo había quedado en `fix/token-publico-uuid-mariadb`, una rama sin PR y
+  sobre una base vieja, numerado como «Cambio 95». Se reaplicó sobre `development` en
+  `fix/token-publico-mariadb` y pasa a ser el **Cambio 99**: el 95 de `development` es otro tema (datos del
+  ciudadano fuera de los handlers inline). La `0073` sigue colgando de la `0072`, que sigue siendo la última.
 
 ---
 

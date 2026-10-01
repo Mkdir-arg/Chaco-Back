@@ -278,7 +278,7 @@ class LinkPublicoTests(BaseDiagnosticoTests):
         self.assertIn(f"relevamiento #{rel.pk}", salida)
 
     def test_busca_por_token_guardado_con_guiones(self):
-        # Cambio 95: MariaDB guarda el token con guiones; el lookup del ORM
+        # Cambio 99: MariaDB guarda el token con guiones; el lookup del ORM
         # mandaba solo una forma y no lo encontraba.
         rel = self._publico()
         with connection.cursor() as cursor:

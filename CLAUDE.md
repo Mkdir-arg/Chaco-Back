@@ -277,7 +277,7 @@ Igual se dejan en verde salvo que el rojo sea preexistente y ajeno al cambio.
   que una columna `char(32)` da *"Data too long"* y un lookup `campo=uuid` no encuentra
   filas en hex (las trae un restore). Todo `UUIDField` nuevo necesita su migración a
   `char(36)` (patrón de `programas.0073`) y búsqueda con `q_uuid_en_texto`
-  (`programas/services/becas.py`). Cambio 95.
+  (`programas/services/becas.py`). Cambio 99.
 - **La base de ECOM no tiene tablas de timezone.** No usar `TruncWeek`/`TruncDate` sobre un
   `DateTimeField` con `USE_TZ` en código que corre en ECOM: Django lo traduce a
   `CONVERT_TZ`, que devuelve `NULL` y rompe **solo en producción**. Agrupar en Python
