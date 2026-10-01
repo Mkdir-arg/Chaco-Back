@@ -2869,6 +2869,95 @@ class EnvioSIIS(models.Model):
         return self.estado == self.Estado.ERROR
 
 
+class AltaIntermediaSIIS(TimeStamped):
+    """El alta de un beneficiario guardada acá en vez de mandada a SIIS.
+
+    Es la misma tabla intermedia que tiene SIIS, pero de este lado: el proceso
+    masivo arma el payload igual que siempre y, con ``--destino tabla``, lo
+    escribe acá sin llamar a la API. Sirve para las dos cosas que se pidieron:
+    revisar una corrida entera antes de que SIIS la vea --lo que hoy se hace a
+    ojo con un caso de prueba--, y entregarle los datos al organismo para que
+    los levante con un proceso propio.
+
+    **Los campos son columnas de verdad, no un JSON.** Un JSON no se consulta
+    desde SQL ni se exporta a una planilla, y el punto de esta tabla es que
+    alguien la mire: ``WHERE loc_actual = 9`` tiene que poder escribirse.
+
+    ``sincronizado`` es la pieza que evita que algo se quede acá para siempre.
+    Una corrida con ``--destino siis`` **primero vacía esta tabla** --manda todo
+    lo que tenga el flag en falso-- y recién después sigue con los casos nuevos.
+    Al sincronizar se manda **lo guardado**, no un payload recalculado: es lo
+    que se revisó. Si entre medio se corrigieron datos, hay que volver a
+    guardarlo con ``--destino tabla`` para regenerarlo.
+
+    Una fila por caso: volver a guardarlo pisa la anterior mientras no esté
+    sincronizada.
+    """
+
+    formulario = models.OneToOneField(
+        Formulario, on_delete=models.CASCADE, related_name="alta_intermedia", verbose_name="Formulario"
+    )
+    # --- Titular ---
+    tdoc = models.PositiveSmallIntegerField(verbose_name="Tipo de documento")
+    dni = models.PositiveIntegerField(db_index=True)
+    cuil_pref = models.PositiveSmallIntegerField(null=True, blank=True)
+    cuil_dig = models.PositiveSmallIntegerField(null=True, blank=True)
+    apellido = models.CharField(max_length=50, blank=True, default="")
+    nombre = models.CharField(max_length=50, blank=True, default="")
+    sexo = models.CharField(max_length=1, blank=True, default="")
+    est_civil = models.PositiveSmallIntegerField(null=True, blank=True)
+    fecha_nacim = models.DateField(null=True, blank=True)
+    prov_nacim = models.PositiveSmallIntegerField(null=True, blank=True)
+    loc_nacim = models.PositiveSmallIntegerField(null=True, blank=True)
+    celular = models.CharField(max_length=10, blank=True, default="")
+    correo_electron = models.CharField(max_length=50, blank=True, default="")
+    # --- Domicilio ---
+    prov_actual = models.PositiveSmallIntegerField(null=True, blank=True)
+    loc_actual = models.PositiveSmallIntegerField(null=True, blank=True)
+    barrio_actual = models.CharField(max_length=50, blank=True, default="")
+    calle_actual = models.CharField(max_length=50, blank=True, default="")
+    nro_actual = models.PositiveIntegerField(null=True, blank=True)
+    piso_actual = models.PositiveSmallIntegerField(null=True, blank=True)
+    dpto_actual = models.CharField(max_length=50, blank=True, default="")
+    # --- Programa ---
+    id_plan_soc = models.PositiveIntegerField(null=True, blank=True)
+    jurid = models.PositiveIntegerField(null=True, blank=True)
+    id_fun_x_plan = models.PositiveIntegerField(null=True, blank=True)
+    # --- Apoderado: obligatorio solo si el titular es menor ---
+    dni_apoderado = models.PositiveIntegerField(null=True, blank=True)
+    cuil_pref_apoderado = models.PositiveSmallIntegerField(null=True, blank=True)
+    cuil_dig_apoderado = models.PositiveSmallIntegerField(null=True, blank=True)
+    apellido_apoderado = models.CharField(max_length=50, blank=True, default="")
+    nombre_apoderado = models.CharField(max_length=50, blank=True, default="")
+    sexo_apoderado = models.CharField(max_length=1, blank=True, default="")
+    fecha_nacim_apoderado = models.DateField(null=True, blank=True)
+    # --- Sincronización ---
+    sincronizado = models.BooleanField(default=False, db_index=True, verbose_name="Ya se informó a SIIS desde acá")
+    sincronizado_en = models.DateTimeField(null=True, blank=True)
+    envio = models.ForeignKey(
+        "EnvioSIIS",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="altas_intermedias",
+        verbose_name="Envío que la sincronizó",
+    )
+    guardado_por = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True, related_name="altas_intermedias_guardadas"
+    )
+
+    class Meta:
+        # Nombre legible desde SQL: el organismo la consulta sin pasar por Django.
+        db_table = "siis_tabla_intermedia"
+        ordering = ["-creado", "-pk"]
+        verbose_name = "Alta en la tabla intermedia"
+        verbose_name_plural = "Altas en la tabla intermedia"
+
+    def __str__(self):
+        marca = "sincronizada" if self.sincronizado else "pendiente"
+        return f"Formulario #{self.formulario_id} · DNI {self.dni} · {marca}"
+
+
 class ListaEspera(TimeStamped):
     """Persona validada-OK sin cupo disponible. La lógica de promoción depende
     de SIIS y queda fuera del alcance de esta versión; el modelo es la base."""

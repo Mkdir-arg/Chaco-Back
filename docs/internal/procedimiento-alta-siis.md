@@ -96,6 +96,30 @@ el restore termine del todo y reintentar.
 
 ---
 
+## 5b · (Opcional) Dejarlo en la tabla intermedia primero
+
+Si se quiere revisar la corrida entera antes de que SIIS vea nada:
+
+```bash
+python manage.py correr_alta_siis --destino tabla --aplicar --usuario <user>
+```
+
+No llama a SIIS. Deja las altas en `siis_tabla_intermedia`, con los campos como columnas, para revisarlas por
+SQL o entregárselas al organismo. No hay caso de prueba ni freno: no hay nada que verificar del otro lado.
+
+Revisión típica antes de mandar:
+
+```sql
+SELECT prov_actual, loc_actual, COUNT(*) FROM siis_tabla_intermedia GROUP BY 1, 2 ORDER BY 3 DESC;
+SELECT COUNT(*) FROM siis_tabla_intermedia WHERE fecha_nacim_apoderado < '1753-01-01';
+SELECT COUNT(*) FROM siis_tabla_intermedia WHERE nro_actual >= 10000;
+```
+
+Cuando esté revisado, la corrida normal con `--destino siis` **vacía esa tabla primero** y después sigue con
+los casos nuevos. Nada se queda ahí.
+
+---
+
 ## 6 · Corregir los datos
 
 ```bash

@@ -11,6 +11,8 @@ import re
 import unicodedata
 from datetime import date
 
+from django.utils import timezone
+
 from programas.models import EnvioSIIS, Formulario, PreguntaGlobal
 from programas.services.dashboard_becas import respuesta_de
 from programas.services.siis import SiisCatalogError, cargar_beneficiario, catalogo
@@ -587,6 +589,38 @@ def armar_payload(formulario, catalogos=None, hoy=None):
 # ---------------------------------------------------------------------------
 # Servicio
 # ---------------------------------------------------------------------------
+# Los dos destinos posibles del alta. «tabla» no llama a la API: deja el payload
+# en la tabla intermedia de este lado para revisarlo, o para que el organismo lo
+# levante con un proceso propio.
+DESTINO_SIIS = "siis"
+DESTINO_TABLA = "tabla"
+DESTINOS = (DESTINO_SIIS, DESTINO_TABLA)
+
+# Las columnas de ``AltaIntermediaSIIS`` que son campos del payload. El orden es
+# el del manual M2M; las fechas se guardan como ``date`` y vuelven en ISO.
+CAMPOS_TABLA = (
+    "tdoc", "dni", "cuil_pref", "cuil_dig", "apellido", "nombre", "sexo", "est_civil",
+    "fecha_nacim", "prov_nacim", "loc_nacim", "celular", "correo_electron",
+    "prov_actual", "loc_actual", "barrio_actual", "calle_actual", "nro_actual",
+    "piso_actual", "dpto_actual", "id_plan_soc", "jurid", "id_fun_x_plan",
+    "dni_apoderado", "cuil_pref_apoderado", "cuil_dig_apoderado", "apellido_apoderado",
+    "nombre_apoderado", "sexo_apoderado", "fecha_nacim_apoderado",
+)  # fmt: skip
+CAMPOS_FECHA = ("fecha_nacim", "fecha_nacim_apoderado")
+
+
+def _base_envio(formulario, solicitado_por):
+    """Los datos de auditoría del ``EnvioSIIS``, sin el payload."""
+    programa = formulario.relevamiento.convocatoria.segmento.programa
+    return {
+        "formulario": formulario,
+        "id_programa": programa.siis_id_plan_soc_efectivo if programa else None,
+        "id_funcion": programa.siis_funcion_id if programa else None,
+        "documento": str(formulario.ciudadano.dni if formulario.ciudadano_id else "")[:20],
+        "solicitado_por": solicitado_por,
+    }
+
+
 def enviar_beneficiario_a_siis(formulario, solicitado_por, catalogos=None, exigir_aprobado=True):
     """Da de alta al beneficiario en SIIS y **siempre** deja un ``EnvioSIIS``.
 
@@ -607,14 +641,7 @@ def enviar_beneficiario_a_siis(formulario, solicitado_por, catalogos=None, exigi
     if vigente:
         return vigente
 
-    programa = formulario.relevamiento.convocatoria.segmento.programa
-    base = {
-        "formulario": formulario,
-        "id_programa": programa.siis_id_plan_soc_efectivo if programa else None,
-        "id_funcion": programa.siis_funcion_id if programa else None,
-        "documento": str(formulario.ciudadano.dni if formulario.ciudadano_id else "")[:20],
-        "solicitado_por": solicitado_por,
-    }
+    base = _base_envio(formulario, solicitado_por)
     try:
         payload, faltantes = armar_payload(formulario, catalogos=catalogos)
     except CatalogoNoDisponible as exc:
@@ -634,6 +661,16 @@ def enviar_beneficiario_a_siis(formulario, solicitado_por, catalogos=None, exigi
             **base,
         )
 
+    return _mandar_a_siis(payload, base)
+
+
+def _mandar_a_siis(payload, base):
+    """Llama a la API y deja el ``EnvioSIIS`` con lo que haya contestado.
+
+    Aparte porque la sincronización de la tabla intermedia manda un payload que
+    ya estaba guardado, en vez de armarlo del caso, y el registro del intento
+    tiene que ser idéntico en los dos caminos.
+    """
     resultado = cargar_beneficiario(payload)
     if resultado.get("success"):
         return EnvioSIIS.objects.create(
@@ -655,6 +692,115 @@ def enviar_beneficiario_a_siis(formulario, solicitado_por, catalogos=None, exigi
         respuesta=resultado.get("data") or {},
         **base,
     )
+
+
+def guardar_en_tabla_intermedia(formulario, solicitado_por, catalogos=None, exigir_aprobado=True):
+    """Deja el alta en la tabla intermedia de este lado. **No llama a SIIS.**
+
+    Devuelve ``(alta, envio)``: el ``alta`` cuando se guardó, y el ``envio``
+    cuando no se pudo --payload incompleto o catálogo caído-- con el mismo
+    registro que dejaría un intento real, para que el caso aparezca en los
+    resúmenes por el motivo correcto.
+
+    Un caso ya informado a SIIS no se guarda: ya está del otro lado.
+    """
+    from programas.models import AltaIntermediaSIIS
+
+    if exigir_aprobado and formulario.estado != Formulario.Estado.APROBADO:
+        raise ValueError("Solo se informan a SIIS los casos aprobados.")
+    if formulario.envios_sis.filter(estado=EnvioSIIS.Estado.ENVIADO).exists():
+        return None, None
+
+    base = _base_envio(formulario, solicitado_por)
+    try:
+        payload, faltantes = armar_payload(formulario, catalogos=catalogos)
+    except CatalogoNoDisponible as exc:
+        return None, EnvioSIIS.objects.create(
+            estado=EnvioSIIS.Estado.ERROR, codigo_error="ERROR_TECNICO", detalles={"catalogo": [str(exc)]}, **base
+        )
+    base["id_programa"] = payload.get("id_plan_soc", base["id_programa"])
+    base["id_funcion"] = payload.get("id_fun_x_plan", base["id_funcion"])
+    if faltantes:
+        return None, EnvioSIIS.objects.create(
+            estado=EnvioSIIS.Estado.INCOMPLETO,
+            codigo_error="DATOS_INCOMPLETOS",
+            detalles=faltantes,
+            payload=payload,
+            **base,
+        )
+
+    valores = {campo: payload.get(campo) for campo in CAMPOS_TABLA}
+    for campo in CAMPOS_FECHA:
+        valores[campo] = _fecha_corregida(valores[campo])
+    for campo, valor in valores.items():
+        if valor is None and campo in ("apellido", "nombre", "sexo", "celular", "correo_electron",
+                                       "barrio_actual", "calle_actual", "dpto_actual",
+                                       "apellido_apoderado", "nombre_apoderado", "sexo_apoderado"):  # fmt: skip
+            valores[campo] = ""
+    valores["sincronizado"] = False
+    valores["sincronizado_en"] = None
+    valores["envio"] = None
+    valores["guardado_por"] = solicitado_por
+    alta, _ = AltaIntermediaSIIS.objects.update_or_create(formulario=formulario, defaults=valores)
+    return alta, None
+
+
+def payload_de(alta):
+    """El payload tal como se guardó, listo para mandar. Los vacíos no viajan."""
+    payload = {}
+    for campo in CAMPOS_TABLA:
+        valor = getattr(alta, campo)
+        if valor is None or valor == "":
+            continue
+        payload[campo] = valor.isoformat() if campo in CAMPOS_FECHA else valor
+    return payload
+
+
+def sincronizar_tabla_intermedia(solicitado_por, limite=None, al_terminar=None):
+    """Manda a SIIS lo que quedó pendiente en la tabla intermedia local.
+
+    Es lo que evita que un alta se quede guardada acá para siempre: una corrida
+    con destino SIIS vacía esto **antes** de seguir con los casos nuevos.
+
+    Se manda el payload **tal como se guardó**, no uno recalculado: es lo que se
+    revisó. Si entre medio se corrigieron datos, hay que volver a guardarlo con
+    ``--destino tabla`` para regenerarlo.
+
+    Devuelve ``{"altas": n, "rechazadas": n, "errores": n}``. ``al_terminar`` se
+    llama con cada ``(alta, envio)`` para informar el avance.
+    """
+    from programas.models import AltaIntermediaSIIS
+
+    cuenta = {"altas": 0, "rechazadas": 0, "errores": 0}
+    pendientes = (
+        AltaIntermediaSIIS.objects.filter(sincronizado=False)
+        .select_related("formulario__ciudadano", "formulario__relevamiento__convocatoria__segmento__programa")
+        .order_by("pk")
+    )
+    if limite:
+        pendientes = pendientes[:limite]
+    for alta in list(pendientes):
+        formulario = alta.formulario
+        if formulario.envios_sis.filter(estado=EnvioSIIS.Estado.ENVIADO).exists():
+            # Alguien lo mandó por otro camino: la fila ya no tiene nada que hacer.
+            alta.sincronizado = True
+            alta.sincronizado_en = timezone.now()
+            alta.save(update_fields=["sincronizado", "sincronizado_en", "modificado"])
+            continue
+        envio = _mandar_a_siis(payload_de(alta), _base_envio(formulario, solicitado_por))
+        if envio.estado == EnvioSIIS.Estado.ENVIADO:
+            alta.sincronizado = True
+            alta.sincronizado_en = timezone.now()
+            alta.envio = envio
+            alta.save(update_fields=["sincronizado", "sincronizado_en", "envio", "modificado"])
+            cuenta["altas"] += 1
+        elif envio.estado == EnvioSIIS.Estado.RECHAZADO:
+            cuenta["rechazadas"] += 1
+        else:
+            cuenta["errores"] += 1
+        if al_terminar is not None:
+            al_terminar(alta, envio)
+    return cuenta
 
 
 def mensaje_envio(envio):

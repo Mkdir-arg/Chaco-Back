@@ -43,6 +43,8 @@ from django.db import connection
 
 from programas.models import EnvioSIIS, LocalidadSiis, ProgramaSiis, ProvinciaSiis, RequisitoNativo
 from programas.services import proceso_masivo
+from programas.services.siis_envio import DESTINO_SIIS, DESTINO_TABLA
+from programas.services.siis_envio import DESTINOS as DESTINOS_DEL_ALTA
 
 # Los siete destinos que tiene que tener marcado alguna pregunta para que el
 # payload se pueda armar. Sin esto el sistema no ve ninguna respuesta del
@@ -150,6 +152,16 @@ class Command(BaseCommand):
             "--scripts",
             default=None,
             help="Directorio de los .sql del organismo. Por defecto scripts/ del repo.",
+        )
+        parser.add_argument(
+            "--destino",
+            choices=list(DESTINOS_DEL_ALTA),
+            default=DESTINO_SIIS,
+            help=(
+                "A dónde van las altas. «siis» a la API (por defecto). «tabla» a la tabla intermedia "
+                "de este lado, para revisarlas antes: ahí no hay caso de prueba ni freno, porque "
+                "SIIS no ve nada. Después se mandan corriendo lo mismo con --destino siis."
+            ),
         )
         parser.add_argument("--fecha-apoderado", default=FECHA_APODERADO, help=f"Por defecto {FECHA_APODERADO}.")
         parser.add_argument("--barrio-generico", default=BARRIO_GENERICO, help=f"Por defecto «{BARRIO_GENERICO}».")
@@ -366,11 +378,17 @@ class Command(BaseCommand):
             *(("--aplicar",) if aplicar else ()),
         )
 
+        destino = options["destino"]
         pendientes = len(proceso_masivo.ids_de(proceso_masivo.candidatos()))
-        self._paso(6, f"Caso de prueba ({pendientes} candidatos esperando)")
-        self._verificacion(options["usuario"], aplicar)
+        if destino == DESTINO_TABLA:
+            # Sin caso de prueba ni freno: no se llama a SIIS, así que no hay
+            # nada que verificar del otro lado. La revisión es sobre la tabla.
+            self._paso(6, f"A la tabla intermedia · {pendientes} casos")
+        else:
+            self._paso(6, f"Caso de prueba ({pendientes} candidatos esperando)")
+            self._verificacion(options["usuario"], aplicar)
 
-        if not options["continuar"]:
+        if destino != DESTINO_TABLA and not options["continuar"]:
             self._log("")
             self._log(
                 "FRENO. Antes de mandar el resto, alguien tiene que abrir ese caso en SIIS y verificar\n"
@@ -381,8 +399,9 @@ class Command(BaseCommand):
             )
             return
 
-        pendientes = len(proceso_masivo.ids_de(proceso_masivo.candidatos()))
-        self._paso(7, f"Corrida completa · {pendientes} casos")
+        if destino != DESTINO_TABLA:
+            pendientes = len(proceso_masivo.ids_de(proceso_masivo.candidatos()))
+            self._paso(7, f"Corrida completa · {pendientes} casos")
         if not pendientes:
             self._log("   No queda ninguno por mandar.", self.style.SUCCESS)
         else:
@@ -395,6 +414,8 @@ class Command(BaseCommand):
                 str(options["lote"]),
                 "--pausa",
                 str(options["pausa"]),
+                "--destino",
+                destino,
                 *(("--aplicar",) if aplicar else ()),
                 *(("--usuario", options["usuario"]) if options["usuario"] else ()),
             )

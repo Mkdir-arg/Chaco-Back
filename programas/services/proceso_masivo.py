@@ -19,10 +19,13 @@ from programas.models import CorridaSiis, EnvioSIIS, Formulario, ProgramaSiis, V
 from programas.services.avisos_resolucion import enviar_aviso_resolucion
 from programas.services.cupo import CasoEnListaEspera, aprobar_o_poner_en_espera
 from programas.services.siis_envio import (
+    DESTINO_SIIS,
+    DESTINO_TABLA,
     CatalogoNoDisponible,
     Catalogos,
     armar_payload,
     enviar_beneficiario_a_siis,
+    guardar_en_tabla_intermedia,
 )
 from programas.services.validacion_siis import validar_formulario_en_siis
 
@@ -114,6 +117,8 @@ class Cuenta:
     incompletos: int = 0
     rechazados: int = 0
     errores: int = 0
+    # Altas que quedaron en la tabla intermedia de este lado, sin ir a SIIS.
+    guardadas: int = 0
     descartados: dict = field(default_factory=dict)
 
 
@@ -250,7 +255,7 @@ def elegir_completos(casos, catalogos, total, cuenta):
     return elegidos, descartados
 
 
-def procesar_caso(caso, responsable, catalogos, cuenta, *, avisar=False, solo_enviar=False):
+def procesar_caso(caso, responsable, catalogos, cuenta, *, avisar=False, solo_enviar=False, destino=DESTINO_SIIS):
     """Valida, aprueba e informa un caso. Devuelve ``"tecnico"`` si falló SIIS.
 
     Un caso que falla en un paso no avanza al siguiente y no interrumpe al resto.
@@ -287,7 +292,18 @@ def procesar_caso(caso, responsable, catalogos, cuenta, *, avisar=False, solo_en
             if avisar:
                 enviar_aviso_resolucion(caso, resultado)
 
-    envio = enviar_beneficiario_a_siis(caso, responsable, catalogos=catalogos)
+    if destino == DESTINO_TABLA:
+        # El alta se guarda de este lado y no se llama a la API. El caso sigue
+        # siendo candidato hasta que llegue a SIIS de verdad: la fila guardada
+        # es una copia para revisar, no un alta hecha.
+        alta, envio = guardar_en_tabla_intermedia(caso, responsable, catalogos=catalogos)
+        if alta is not None:
+            cuenta.guardadas += 1
+            return None
+        if envio is None:
+            return None
+    else:
+        envio = enviar_beneficiario_a_siis(caso, responsable, catalogos=catalogos)
     if envio.estado == EnvioSIIS.Estado.ENVIADO:
         cuenta.altas += 1
     elif envio.estado == EnvioSIIS.Estado.INCOMPLETO:

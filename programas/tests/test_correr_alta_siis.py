@@ -244,3 +244,25 @@ class EnsayoTests(_BaseAltaTest):
         self.assertIn("completar_casos_renaper", con_aplicar)
         self.assertIn("corregir_datos_siis", con_aplicar)
         self.assertIn("procesar_casos_siis", con_aplicar)
+
+
+class DestinoTests(_BaseAltaTest):
+    """``--destino tabla`` no llama a SIIS, así que no hay nada que frenar."""
+
+    def test_con_destino_tabla_no_hay_caso_de_prueba_ni_freno(self):
+        salida = self.correr("--destino", "tabla", "--aplicar", "--usuario", self.user.username)
+
+        self.assertIn("tabla intermedia", salida)
+        self.assertNotIn("FRENO", salida)
+        self.assertEqual(self.llamadas.count("procesar_casos_siis"), 1)
+
+    def test_el_destino_le_llega_al_comando_que_manda(self):
+        self.correr("--destino", "tabla", "--aplicar", "--usuario", self.user.username)
+
+        envio = [llamada for llamada in self.argumentos if llamada.args[0] == "procesar_casos_siis"][-1]
+        self.assertIn("tabla", envio.args)
+
+    def test_por_defecto_sigue_yendo_a_siis_y_frena(self):
+        salida = self.correr("--aplicar", "--usuario", self.user.username)
+
+        self.assertIn("FRENO", salida)
