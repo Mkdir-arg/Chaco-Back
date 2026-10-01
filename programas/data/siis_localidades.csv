@@ -1,3 +1,19 @@
+# Padron de localidades de SIIS, tal como lo entrego el organismo.
+#
+# Fuente: Tablas_Provincias_Localidades.xlsx, hoja "Localidades" (PciaId, LocId,
+# LocDen). Verificado fila por fila el 01/10/2026: las 165 localidades de Chaco
+# coinciden exactamente; la unica diferencia en todo el padron es la fila
+# (provincia 21, localidad 99), que en el Excel viene con el nombre literal
+# "NULL" y por eso no se carga.
+#
+# El id de localidad es POR PROVINCIA, no global: el mismo numero se repite entre
+# provincias (277 filas, 166 ids distintos). La clave es (provincia, localidad), y
+# por eso el payload manda prov_actual y loc_actual juntos.
+#
+# Este catalogo es el que manda, no la API (Cambio 85). El 01/10/2026 la API
+# devolvio posiciones de una lista en vez de ids --Fontana como 3, que aca es
+# Puerto Vilelas-- y 4.139 personas quedaron registradas en otra localidad.
+# `seed_catalogo_siis --verificar-api` contrasta las dos cosas.
 provincia_siis_id,siis_id,nombre
 1,1,RESISTENCIA
 1,2,BARRANQUERAS
