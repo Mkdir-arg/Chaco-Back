@@ -7,12 +7,10 @@ app_name = "conversaciones"
 urlpatterns = [
     # API URLs
     path("api/", include("conversaciones.api_urls")),
-    # URLs públicas para ciudadanos
-    path("chat/", views.chat_ciudadano, name="chat_ciudadano"),
-    path("consultar-renaper/", views.consultar_renaper, name="consultar_renaper"),
-    path("iniciar/", views.iniciar_conversacion, name="iniciar_conversacion"),
-    path("<int:conversacion_id>/enviar/", views.enviar_mensaje_ciudadano, name="enviar_mensaje_ciudadano"),
-    path("<int:conversacion_id>/mensajes/", views.obtener_mensajes_ciudadano, name="obtener_mensajes_ciudadano"),
+    # Las URLs públicas del chat (chat/, consultar-renaper/, iniciar/, <id>/enviar/
+    # y <id>/mensajes/) quedaron desmontadas: sin login creaban el legajo de
+    # cualquier DNI y devolvían sus datos de RENAPER (G1-01 y G1-02, auditoría
+    # oct-2026). El ciudadano consulta por el portal, con sesión.
     # URLs del backoffice
     path("", views.lista_conversaciones, name="lista"),
     path("<int:conversacion_id>/", views.detalle_conversacion, name="detalle"),

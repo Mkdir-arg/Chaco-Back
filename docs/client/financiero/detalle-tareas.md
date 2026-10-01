@@ -963,41 +963,67 @@
 | 28/09 | Pablo Cao | Becas | El teléfono viaja a SIIS en los diez dígitos que admite la tabla | El celular se informa en el formato que el servicio acepta, sin perder el dato original. | 3 h | 6 h |
 | | | | **Total 21 al 28/09** | | **181 h** | **123 h** |
 
+### :material-package-variant-closed: Consumo del 29 y 30 de septiembre — por entregable
+
+!!! note "Cierre del mes: endurecimiento y unificación de la interfaz"
+    Los dos últimos días del mes fueron de **consolidación**: se sacaron los datos del ciudadano del HTML
+    de las pantallas, se destrabó el link público en el ambiente del organismo, y se armó un juego de
+    **piezas comunes de interfaz** que después se aplicó a trece pantallas de Becas de una sola pasada.
+    Las horas de estos dos días son **solo de Matías Fariña**.
+
+| Período | Persona | Programa | Entregable | Qué incluye | Horas | Equiv. |
+|---|---|---|---|---|---:|---:|
+| 29/09 | Matías Fariña | Becas | Los datos del ciudadano salen del HTML y de los handlers en línea | Cupo, legajo y alertas dejan de inyectar datos de la persona en el código de la página. | 3 h | 6 h |
+| 29/09 | Matías Fariña | Becas | El link público vuelve a abrir en el ambiente del organismo | El identificador del link entra en la base del organismo y se encuentra con o sin guiones. | 2 h | 4 h |
+| 29/09 | Matías Fariña | Becas | Ronda de correcciones sobre lo reportado | Confirmaciones del proceso masivo, reactivar una convocatoria vencida, el menú marcando la pantalla activa, paginación de Pendientes de validación y avisos con su color y su mensaje real. | 3 h | 6 h |
+| 29/09 | Matías Fariña | Transversal | Ventanas y avisos del sistema reutilizables | Ventana emergente accesible (foco, tecla Escape, alto máximo) y avisos de error que quedan hasta que la persona los cierra. | 1,5 h | 3 h |
+| 29/09 | Matías Fariña | Transversal | Actualización de dependencias por seguridad | Cierre de las vulnerabilidades que reportó la auditoría automática. | 1 h | — |
+| 29/09 | Matías Fariña | Transversal | Coordinación diaria e informe | Coordinación del día y armado del informe. | 0,5 h | — |
+| 30/09 | Matías Fariña | Transversal | Piezas comunes de interfaz | Encabezado con migas de pan, paginación, tarjetas de números, estado vacío, alertas y tablas, definidos una sola vez para todo el sistema. | 3 h | 6 h |
+| 30/09 | Matías Fariña | Becas | Las pantallas de Becas pasan a las piezas comunes | Trece pantallas: programas, segmentos, subsegmentos, convocatorias, relevamientos, cupo, reportes, revisión, preguntas, proceso masivo, padrón, constructor y detalle del caso. | 5 h | 10 h |
+| 30/09 | Matías Fariña | Becas | Corrección de datos para el alta en SIIS | Herramienta que alinea los datos contra el listado de aprobados y el catálogo de localidades del organismo. | 2 h | 4 h |
+| 30/09 | Matías Fariña | Transversal | Coordinación diaria e informe | Coordinación del día y armado del informe. | 1 h | — |
+| | | | **Total 29 y 30/09** | | **22 h** | **39 h** |
+
 ### :material-briefcase-outline: Consumo de septiembre por programa
 
 | Programa | Horas septiembre |
 |---|---:|
-| Becas | 689 h 00 min |
-| Transversal | 197 h 30 min |
+| Becas | 704 h 00 min |
+| Transversal | 204 h 30 min |
 | Dispositivos | 34 h 00 min |
-| **Esfuerzo real de septiembre 2026 (al 28/09)** | **920 h 30 min** |
+| **Esfuerzo real de septiembre 2026 (mes cerrado)** | **942 h 30 min** |
 | *Imputado a septiembre (100% del presupuesto)* | *850 h 00 min* |
-| *Remanente trasladado a octubre* | *70 h 30 min* |
+| *Remanente trasladado a octubre* | *92 h 30 min* |
 
 !!! note "Qué incluye"
     Las horas de Becas incluyen las **103 h 30 min trasladadas de agosto**, cuyo detalle día por día está
-    en las secciones de ese mes. El trabajo propio de septiembre al 20/09 es de **636 h**.
+    en las secciones de ese mes. El trabajo propio de septiembre es de **839 h**: sumadas las
+    103 h 30 min que llegaron de agosto, el esfuerzo real del mes es de **942 h 30 min**, de las que
+    se imputan **850 h** y **92 h 30 min** pasan a octubre.
 
 ---
 
 ## :material-account-group: Consumo por persona — acumulado del proyecto
 
-| Persona | Rol | Junio | Julio | Agosto | Septiembre *(al 28/09)* | **Total** |
+| Persona | Rol | Junio | Julio | Agosto | Septiembre | **Total** |
 |---|---|---:|---:|---:|---:|---:|
 | Juani Portilla | Desarrollo, automatización de pruebas y rendimiento | 113,4 | 263,8 | 197,0 | 196,5 | **770 h 43 min** |
-| Matías Fariña | Análisis funcional, gestión y publicaciones | 112,5 | 146,0 | 230,0 | 207,5 | **696 h 01 min** |
+| Matías Fariña | Análisis funcional, gestión y publicaciones | 112,5 | 146,0 | 230,0 | 229,5 | **718 h 01 min** |
 | Pablo Cao | Desarrollo del backoffice, del portal y de la app de campo | 96,0 | 40,3 | 219,0 | 197,5 | **552 h 47 min** |
 | Matías Abate | Pruebas funcionales, casos de prueba y documentación | — | 50,0 | 157,5 | 177,0 | **384 h 30 min** |
 | Nahuel De Francesco | Adaptación al proyecto *(desde el 09/09)* | — | — | — | 38,5 | **38 h 30 min** |
 | Agostina Coppola | Análisis funcional y testing *(hasta agosto)* | 112,3 | — | — | — | **112 h 17 min** |
 | Equipo UX | Mockups del programa *(junio)* | 65,0 | — | — | — | **65 h 00 min** |
-| **Total del mes** | | **499 h 12 min** | **500 h 00 min** | **803 h 30 min** | **817 h 00 min** | **2.619 h 42 min** |
+| **Total del mes** | | **499 h 12 min** | **500 h 00 min** | **803 h 30 min** | **839 h 00 min** | **2.641 h 42 min** |
 
 !!! note "Cómo leer esta tabla"
     Las columnas mensuales van en horas decimales, tal como las publica la página de cada mes; los totales
     por persona van en horas y minutos. La suma por persona difiere en **6 minutos** del total del proyecto
     por el redondeo del registro de julio. Agosto es **esfuerzo real** (803 h 30 min): al cliente se le
-    imputaron 700 h y el resto se trasladó a septiembre.
+    imputaron 700 h y el resto se trasladó a septiembre. Septiembre también es **esfuerzo real**
+    (839 h propias + 103 h 30 min de agosto = 942 h 30 min): se imputaron 850 h y 92 h 30 min
+    pasaron a octubre.
 
 ### :material-clipboard-text-outline: En qué trabajó cada uno en septiembre
 
@@ -1034,9 +1060,9 @@
 
 
 
-    **157.182 minutos** (2.619 h 42 min)
+    **158.502 minutos** (2.641 h 42 min)
 
-    Junio 499 h 12 min + julio 500 h 00 min + agosto 803 h 30 min + septiembre 817 h 00 min (al 28/09).
+    Junio 499 h 12 min + julio 500 h 00 min + agosto 803 h 30 min + septiembre 839 h 00 min.
     (El contador anterior decía 1.939 h 42 min: no sumaba bien los cuatro meses; se corrigió al recalcularlo.)
 
     Es el **esfuerzo real ejecutado**. A efectos de imputación, agosto cierra por 700 h y sus 103 h 30 min de
