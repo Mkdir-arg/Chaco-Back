@@ -280,6 +280,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 97 | El check de seguridad (pip-audit) deja de bloquear los PRs: DRF 3.17.2 y anyio 4.14.2 | Transversal | `#infra` `#api` | Juez de la sesión — gate «Security / Pip Audit» rojo en todos los PRs | 29/09/2026 | 🟢 **Hecho** | No requiere |
 | 98 | Corregir los datos que impiden informar un caso a SIIS (localidad, barrio, nacimiento, apoderado) | Becas · alta de beneficiarios en SIIS | `#siis` `#datos` `#relevamientos` | PM — en sesión, sobre los rechazos de la corrida del 23/09: «quiero solucionar los casos que nosotros podemos solucionar» | 30/09/2026 | 🟢 **Hecho** | No requiere |
 | 100 | La API del backoffice solo por sesión, y se retira la consulta RENAPER anónima | Transversal · API DRF · Legajos | `#api` `#sesion` `#rbac` | Auditoría integral oct-2026 — SEC-01 y SEC-04 (Ola 0, hotfix de seguridad) | 01/10/2026 | 🟢 **Hecho** | No requiere |
+| 101 | Desmontar las rutas públicas de conversaciones: creaban legajos de cualquier DNI y filtraban RENAPER sin login | Conversaciones · chat público · Portal ciudadano | `#rbac` `#datos` `#ui` | Auditoría integral oct-2026 (G1-01 y G1-02, severidad ALTA, ola 0) | 01/10/2026 | 🟢 **Hecho** | No requiere |
 | 103 | El nombre de un rol ya no inyecta código en el backoffice (SEC-08) | Transversal · shell del backoffice | `#usuarios` `#rbac` `#ui` | Auditoría de seguridad oct-2026 (SEC-08), Ola 0 | 01/10/2026 | 🟢 **Hecho** | No requiere |
 | 105 | Los tests del coordinador regional no dependen de la fecha de hoy | Transversal | `#infra` `#convocatorias` | Juez de la sesión — Ola 0 de la auditoría integral oct-2026: el Backend CI quedó rojo en todos los PRs | 01/10/2026 | 🟢 **Hecho** | No requiere |
 
@@ -12801,6 +12802,115 @@ Revertir el commit devuelve la ruta `/api/legajos/renaper/consultar/` como anón
 HTTP Basic en toda la API. **No se recomienda:** las dos cosas son los agujeros CRÍTICOS que este cambio
 cierra. Si hubiera que revertir solo una, son independientes: `config/settings.py` es SEC-01 y los tres
 archivos de `legajos/` son SEC-04. No se pierden datos en ninguno de los dos casos.
+
+---
+
+# Cambio 101 — Desmontar las rutas públicas de conversaciones: creaban legajos de cualquier DNI y filtraban RENAPER sin login
+
+🟢 **HECHO — 01/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Conversaciones · chat público · Portal ciudadano (perfil y detalle de consulta) |
+| **Etiquetas** | `#rbac` `#datos` `#ui` |
+| **Solicitante** | Auditoría integral oct-2026, hallazgos **G1-01** y **G1-02** (severidad ALTA, ola 0 — hotfix de seguridad) |
+| **Fecha del pedido** | 01/10/2026 |
+| **Issue / épica** | Sin issue · PR contra `development` desde `fix/ola0-conversaciones-publicas` |
+| **Partes afectadas** | Backoffice (app `conversaciones`) y Portal ciudadano |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Dos hallazgos de la auditoría oct-2026 sobre la misma superficie: las cinco rutas públicas del chat de
+`conversaciones`, montadas sin login.
+
+- **G1-01 — el chat anónimo creaba el legajo de cualquier DNI con el nombre que quisiera el cliente.**
+  `POST /conversaciones/iniciar/` tomaba un `datos_renaper` que mandaba el navegador (un `forms.JSONField`,
+  sin contrastar contra nada) y el servicio hacía
+  `Ciudadano.objects.get_or_create(dni=…, defaults={"nombre": datos_renaper["nombre"], …})`.
+  Un script con la cookie CSRF de `/conversaciones/chat/` podía sembrar legajos falsos para una lista de DNI.
+  El daño no quedaba ahí: cuando esas personas se inscriben, el caso se vincula a ese legajo, y ni
+  `resolver_ciudadano_offline` ni la validación por padrón pisan nombre y apellido ya cargados — el alta a SIIS
+  sale con el nombre falso y eso es **irreversible**. Además dejaba una `Conversacion` activa por request.
+- **G1-02 — segundo oráculo RENAPER anónimo.** `POST /conversaciones/consultar-renaper/` devolvía nombre,
+  apellido, fecha de nacimiento y **domicilio** de cualquier DNI, y distinguía «fallecido». El límite de 10
+  consultas por minuto por IP no es una defensa frente a cualquier pool de direcciones. Es la misma fuga que
+  SEC-04 por otra puerta: cerrar solo SEC-04 dejaba esta abierta.
+
+## Alcance acordado
+
+Este cambio es la **fase 1 (ola 0)**: desmontar las rutas y lo que quedó huérfano de ellas.
+
+- **Afuera, reservado para la fase 2 (ola 7, A5-42/A6-28):** los `include` de `conversaciones/` y
+  `api/conversaciones/` en `config/urls.py`, las rutas `ws/conversaciones/…` de `conversaciones/routing.py`
+  (conservando **`ws/alertas/`**, que son las alertas de legajos del backoffice), el backoffice de conversaciones
+  (cola, dashboard, métricas) y las entradas del menú lateral.
+- Sin cambio funcional en el backoffice de conversaciones: la cola, el detalle y la respuesta del operador
+  siguen igual.
+
+## Decisiones tomadas
+
+- **Se desmontan las cinco rutas públicas**, no solo el `get_or_create`. La ficha admitía como mínimo borrar el
+  alta de legajo, pero el oráculo RENAPER de G1-02 vive en la misma superficie y la decisión de negocio ya está
+  tomada desde el 29/09/2026: conversaciones y el chat del portal **no se usan** (registrado en los Cambios 95 y
+  96). Dejar las rutas en pie para borrarles una línea mantiene abierta la fuga de datos.
+- **Se eliminan las vistas y lo que solo las alimentaba**, no se dejan colgadas sin ruta: las vistas
+  `chat_ciudadano`, `consultar_renaper`, `iniciar_conversacion`, `enviar_mensaje_ciudadano` y
+  `obtener_mensajes_ciudadano`; los servicios `iniciar_conversacion_publica` (donde vive el `get_or_create`),
+  `consultar_renaper_para_chat` y `crear_mensaje_ciudadano`; los formularios `IniciarConversacionForm` (el del
+  `datos_renaper = forms.JSONField`) y `RenaperConsultaForm`; y la plantilla `chat_ciudadano.html`. Código muerto
+  con un `get_or_create` de legajos adentro es una trampa para el próximo que lo lea.
+- **`MensajeConversacionForm` y `evaluar_conversacion` se quedan:** los usa el backoffice y la evaluación de la
+  conversación, que no son parte del hallazgo.
+- **El portal pierde el poller de mensajes, no la pantalla.** `consulta_detalle.html` consultaba cada 4 segundos
+  `/conversaciones/<id>/mensajes/`, una ruta sin login **ni control de propietario**: cualquiera leía la
+  conversación de cualquier otro. Se quitó el poller; los mensajes se ven al cargar la página, que los renderiza
+  el servidor, y enviar un mensaje sigue funcionando por `portal:ciudadano_enviar_mensaje` (que sí pide sesión).
+- **Los dos accesos «Nueva consulta» del perfil del ciudadano apuntan ahora a `portal:ciudadano_nueva_consulta`**,
+  el alta con login que el portal ya tenía, en vez del chat anónimo. Es el camino correcto y evita dejar un
+  `NoReverseMatch` en una pantalla viva.
+- **Los dos endpoints quedan en 404, no en 403.** Son rutas que dejan de existir: no hay que informarle a un
+  escaneo anónimo que la funcionalidad está ahí pero cerrada.
+
+## Implementación
+
+- `conversaciones/urls.py`: se quitan las cinco rutas públicas, con el motivo anotado en el lugar donde estaban.
+- `conversaciones/views/public.py`: quedan `evaluar_conversacion` y los dos helpers de payload.
+- `conversaciones/views/__init__.py` y `conversaciones/services/__init__.py`: se bajan los símbolos eliminados.
+- `conversaciones/services/chat.py` y `conversaciones/forms/chat.py`: se borran las piezas del chat público y los
+  imports que quedaban sin uso.
+- `portal/templates/portal/ciudadano/mi_perfil.html` y `consulta_detalle.html`: referencias y poller, como arriba.
+
+## Cómo se verificó
+
+- **Tests nuevos** en `conversaciones/tests/test_public.py` (los tres fallan contra `917e583`, el código previo):
+  `iniciar/` anónimo con `datos_renaper` → 404 y no nace el `Ciudadano` ni la `Conversacion`;
+  `consultar-renaper/` anónimo → 404 con `consultar_datos_renaper` mockeado y `assert_not_called` (contra el
+  código viejo el mock **sí** se llamaba); `chat/`, `<id>/enviar/` y `<id>/mensajes/` → 404.
+- **Tests existentes de las rutas desmontadas:** se retiraron los de `IniciarConversacionForm`,
+  `iniciar_conversacion_publica` y `chat_ciudadano`, y `test_evaluar_conversacion_requiere_csrf_…` ahora toma la
+  cookie CSRF del detalle del backoffice (la emitía el chat público). `test_package_exports` apunta a los
+  símbolos que quedan.
+- `manage.py check` limpio, `makemigrations --check --dry-run` sin cambios, `scripts/compile_templates.py` en 0
+  errores, `ruff check` y `ruff format --check` en verde, y la suite completa en el venv de Python 3.12 +
+  Django 5.2.
+
+## Reversión
+
+Revertir el commit devuelve las cinco rutas, sus vistas, servicios, formularios y la plantilla del chat, y con
+ellas los dos hallazgos. No hay datos que migrar: las conversaciones y los legajos ya creados no se tocan.
+
+## Pendientes / a definir
+
+- **Fase 2 (ola 7)**: apagar la app completa — `include`s de `config/urls.py`, rutas `ws/conversaciones/…` de
+  `routing.py` (conservando `ws/alertas/`), el backoffice de conversaciones, las entradas del menú lateral, la
+  tarjeta de `inicio.html` y la solapa `tab-conversaciones` de `ciudadano_detail.html`.
+- **Auditar en producción** qué legajos nacieron por esta puerta (procedimiento P-10 de la auditoría): los
+  `Ciudadano` creados con los defaults del chat (`nombre="Usuario"`, `apellido="Chat"`) son los que no traían
+  `datos_renaper`; los sembrados con nombre falso no se distinguen por forma y hay que cruzarlos contra las
+  `Conversacion` de tipo `personal`.
+- **Si algún día se reactiva el chat**, la consulta a RENAPER tiene que devolver «coincide / no coincide» contra
+  lo que la persona tipeó, nunca el domicilio, y una conversación no puede crear legajos.
 
 ---
 
