@@ -5,9 +5,17 @@ Crea/asegura, sin duplicar al repetirse:
    RBAC (roles de categoría "Programa") y la futura solapa del legajo.
 2. Los adjuntos obligatorios fijos del formulario, modelados como
    ``PreguntaGlobal`` tipo ARCHIVO (#73 / §7.1 del análisis).
-3. Los tres roles del programa (Admin / Coordinador / Territorial) integrados al
-   RBAC (Group + RolMeta categoría "Programa", acotados al Programa Becas), con
-   sus capacidades (#79).
+3. Los cinco roles del programa (Administrador / Coordinador / Coordinador
+   Regional / Referente / Territorial) integrados al RBAC (Group + RolMeta
+   categoría "Programa", acotados al Programa Becas), con sus capacidades (#79).
+
+Corre en cada arranque (``seed_datos_base``), así que **no pisa lo que la pantalla
+de Roles deja editar** (Cambio 104): de un rol existente solo sincroniza las
+capacidades base y el alcance (categoría Programa sobre Becas); la descripción, el
+estado activo y las capacidades opt-in (``CAPACIDADES_OPT_IN``) quedan como las dejó
+el administrador. Los roles se identifican **solo por nombre**: uno renombrado desde
+Roles deja de ser un rol sembrado y el arranque crea otro con el nombre canónico
+(ver ``asegurar_roles_becas``).
 
 Ejecutar tras ``migrate`` (las capacidades ``becas.*`` se materializan ahí)::
 
@@ -16,7 +24,7 @@ Ejecutar tras ``migrate`` (las capacidades ``becas.*`` se materializan ahí)::
 
 from django.contrib.auth.models import Group, Permission
 from django.contrib.contenttypes.models import ContentType
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
 from core import rbac
@@ -42,6 +50,12 @@ ROL_COORDINADOR_REGIONAL = "Becas — Coordinador Regional"
 ROL_REFERENTE = "Becas — Referente"
 ROL_TERRITORIAL = "Becas — Territorial"
 
+# Capacidades opt-in (Cambio 104): ningún rol las recibe por seed, se encienden
+# tildándolas en la pantalla de Roles, y el seed las **conserva** en los roles que
+# ya las tienen. Antes cada arranque las borraba (``permissions.set``).
+# becas.relevamiento.publico: RN-P13, análisis #289 (Cambios 41 y 91).
+CAPACIDADES_OPT_IN = frozenset({"becas.relevamiento.publico"})
+
 
 def _capacidades_admin_becas():
     """Capacidades del Administrador: todas las finas de Becas salvo ``becas.campo``
@@ -53,10 +67,10 @@ def _capacidades_admin_becas():
     los usuarios ni los roles de Becas, y como ``asegurar_roles_becas`` usa
     ``permissions.set()``, una corrida del seed revertiría el traspaso de ``users.0020``.
     """
-    # becas.relevamiento.publico se excluye a propósito (RN-P13, análisis #289):
-    # el lanzamiento del formulario público está gateado y la capacidad se
-    # asigna manualmente desde la pantalla de Roles, nunca por seed.
-    excluidas = ("becas.campo", "becas.relevamiento.publico")
+    # Las opt-in se excluyen a propósito (RN-P13, análisis #289): el lanzamiento
+    # del formulario público está gateado y la capacidad se asigna manualmente
+    # desde la pantalla de Roles, nunca por seed.
+    excluidas = {"becas.campo", *CAPACIDADES_OPT_IN}
     finas = [c for c in rbac.codigos_de_capacidad() if c.startswith("becas.") and c not in excluidas]
     return finas + list(rbac.CAPS_ADMIN_PROGRAMA)
 
@@ -142,20 +156,45 @@ ADJUNTOS_OBLIGATORIOS = [
 ]
 
 
+# Única fuente de los datos con que nace el Programa Becas: la usan ``seed_becas`` y
+# ``crear_programas`` (Cambio 104). Son los valores que ya tienen los ambientes:
+# ``crear_programas`` corre después de ``seed_becas`` en el arranque y los imponía.
+PROGRAMA_BECAS_DEFAULTS = {
+    "nombre": "Becas",
+    "tipo": Programa.TipoPrograma.BECAS,
+    "descripcion": "Programa de Becas",
+    "naturaleza": Programa.Naturaleza.PERSISTENTE,
+    "estado": Programa.Estado.ACTIVO,
+    "icono": "graduation-cap",
+    "color": "#5059BC",
+    "orden": 2,
+}
+
+
 def asegurar_programa_becas():
-    """Devuelve la instancia genérica del Programa Becas (la crea si falta)."""
-    programa, _ = Programa.objects.get_or_create(
-        codigo=PROGRAMA_BECAS_CODIGO,
-        defaults={
-            "nombre": "Becas",
-            "tipo": "BECAS",
-            "descripcion": "Programa de Becas: relevamiento territorial y asignación de cupos.",
-            "naturaleza": Programa.Naturaleza.PERSISTENTE,
-            "estado": Programa.Estado.ACTIVO,
-            "icono": "school",
-            "color": "#0ea5e9",
-        },
-    )
+    """Devuelve la instancia genérica del Programa Becas (la crea si falta).
+
+    Si ya existe no le toca nada: el estado, el nombre, el color y el orden se editan
+    desde Configuración → Programas y el arranque no los revierte (Cambio 104).
+
+    Si no hay programa con ``codigo="BECAS"`` pero sí alguno de tipo Becas, frena con
+    ``CommandError`` en vez de crear un segundo programa: es un ambiente con datos
+    inconsistentes y crear otro lo taparía en silencio (antes ``crear_programas``
+    fallaba ruidosamente con ``MultipleObjectsReturned``).
+    """
+    programa = Programa.objects.filter(codigo=PROGRAMA_BECAS_CODIGO).first()
+    if programa is None:
+        otros = list(
+            Programa.objects.filter(tipo=Programa.TipoPrograma.BECAS).values_list("codigo", flat=True).order_by("pk")
+        )
+        if otros:
+            raise CommandError(
+                f"No existe el programa con código «{PROGRAMA_BECAS_CODIGO}», pero hay programa(s) de tipo Becas "
+                f"con otro código: {', '.join(otros)}. No se crea un segundo programa Becas: corregí el código del "
+                f"programa existente a «{PROGRAMA_BECAS_CODIGO}» (o su tipo, si no es el programa Becas) y volvé a "
+                "correr el arranque."
+            )
+        programa = Programa.objects.create(codigo=PROGRAMA_BECAS_CODIGO, **PROGRAMA_BECAS_DEFAULTS)
     # Evita conservar una instancia con PK obsoleta entre recreaciones de la
     # base de test o ejecuciones idempotentes del seed.
     from django.core.cache import cache
@@ -294,7 +333,18 @@ def asegurar_catalogo_protegido():
 
 
 def asegurar_roles_becas(programa):
-    """Crea/asegura los 3 roles del programa con sus capacidades (idempotente).
+    """Crea/asegura los cinco roles del programa con sus capacidades (idempotente).
+
+    Los roles se identifican **solo por nombre** (D-O06). Un rol que falta se crea
+    activo, con su descripción y sus capacidades base. De un rol que ya existe solo se
+    sincronizan las capacidades —quedan exactamente las base del código (Cambio 29)
+    más las opt-in que el administrador le haya tildado (Cambio 104)— y el alcance
+    (categoría Programa sobre Becas). La descripción y el estado activo no se tocan.
+
+    Un rol renombrado desde Roles deja de ser un rol sembrado: el seed no lo toca y
+    crea uno nuevo con el nombre canónico. Reconocerlo exige una clave estable en
+    ``RolMeta`` (fase 2 de OPS-06); adivinarlo por capacidades hacía adoptar —y
+    reescribir— roles creados a mano.
 
     Requiere que las ``Permission`` de las capacidades ``becas.*`` existan (las
     materializa ``migrate`` desde ``Capacidad.Meta.permissions``); por las dudas
@@ -310,9 +360,14 @@ def asegurar_roles_becas(programa):
         )
         return perm
 
+    opt_in = [rbac.codename_de(c) for c in CAPACIDADES_OPT_IN]
+
     for nombre, cfg in ROLES_BECAS.items():
         group, _ = Group.objects.get_or_create(name=nombre)
-        RolMeta.objects.update_or_create(
+        # Descripción, protegido y activo solo al crear la RolMeta: si existe, son del
+        # ABM. La categoría y el programa sí se alinean, como las capacidades base: sin
+        # ellos las capacidades becas.* no se evalúan contra el Programa Becas.
+        meta, _ = RolMeta.objects.get_or_create(
             grupo=group,
             defaults={
                 "descripcion": cfg["descripcion"],
@@ -322,7 +377,12 @@ def asegurar_roles_becas(programa):
                 "programa": programa,
             },
         )
-        group.permissions.set([_perm(c) for c in cfg["capacidades"]])
+        if meta.categoria != rbac.CATEGORIA_PROGRAMA or meta.programa_id != programa.pk:
+            meta.categoria = rbac.CATEGORIA_PROGRAMA
+            meta.programa = programa
+            meta.save(update_fields=["categoria", "programa"])
+        conservar = set(group.permissions.filter(content_type=ct, codename__in=opt_in))
+        group.permissions.set({_perm(c) for c in cfg["capacidades"]} | conservar)
 
 
 class Command(BaseCommand):

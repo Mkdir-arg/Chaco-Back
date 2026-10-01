@@ -4,7 +4,8 @@ Seed idempotente del RBAC. Reemplaza a ``create_groups`` y ``setup_grupos``.
 Hace, sin duplicar nada al repetirse:
 1. Asegura las ``Permission`` del catálogo de capacidades (``core.rbac.CATALOGO``).
 2. Crea/asegura ``RolMeta`` para cada ``Group`` existente (con su categoría).
-3. Crea/asegura el rol protegido ``Administrador`` con **todas** las capacidades.
+3. Crea/asegura el rol protegido ``Administrador`` con **todas** las capacidades,
+   y crea «Operador de backoffice» si falta (si existe, no lo toca).
 4. Asigna el rol ``Administrador`` a los superusuarios (acceso garantizado).
 
 Ejecutar tras cada ``migrate``::
@@ -85,7 +86,9 @@ class Command(BaseCommand):
 
         # 3b. Rol restringido "Operador de backoffice" (#59): menú acotado, sin
         # módulos operativos (Dashboard/Relevamientos/Conversaciones) ni alta de
-        # ciudadanos. Idempotente: ``set`` deja exactamente estas 6 capacidades.
+        # ciudadanos. Se siembra **solo al crearlo** (Cambio 104): no es protegido, así
+        # que la pantalla de Roles lo deja editar, desactivar y vaciar, y el arranque
+        # no puede revertir eso (antes lo reactivaba con usuario/rol.administrar).
         self.stdout.write(self.style.MIGRATE_LABEL("\nRol Operador de backoffice..."))
         caps_operador = [
             "ciudadano.ver",
@@ -94,8 +97,8 @@ class Command(BaseCommand):
             "usuario.administrar",
             "rol.administrar",
         ]
-        op_group, _ = Group.objects.get_or_create(name="Operador de backoffice")
-        RolMeta.objects.update_or_create(
+        op_group, op_creado = Group.objects.get_or_create(name="Operador de backoffice")
+        RolMeta.objects.get_or_create(
             grupo=op_group,
             defaults={
                 "descripcion": (
@@ -107,8 +110,13 @@ class Command(BaseCommand):
                 "activo": True,
             },
         )
-        op_group.permissions.set([codename_a_perm[rbac.codename_de(c)] for c in caps_operador])
-        self.stdout.write(self.style.SUCCESS("  ✓ Operador de backoffice con 6 capacidades"))
+        if op_creado:
+            op_group.permissions.set([codename_a_perm[rbac.codename_de(c)] for c in caps_operador])
+            self.stdout.write(
+                self.style.SUCCESS(f"  ✓ Operador de backoffice creado con {len(caps_operador)} capacidades")
+            )
+        else:
+            self.stdout.write("  · Operador de backoffice ya existe (no se tocan sus capacidades ni su estado)")
 
         # 4. Asignar Administrador a los superusuarios (garantiza acceso post-deploy).
         superusers = User.objects.filter(is_superuser=True)

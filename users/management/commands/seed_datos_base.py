@@ -10,10 +10,12 @@ Hace, sin duplicar nada al repetirse:
 2. Corre ``seed_rbac`` (capacidades, RolMeta, roles Administrador y Operador
    de backoffice) y ``seed_becas`` (Programa Becas + sus 5 roles de programa:
    Administrador / Coordinador / Coordinador Regional / Referente / Territorial
-   + adjuntos obligatorios). Como ``seed_becas`` **reemplaza** el conjunto de
-   capacidades de cada rol, correr esto en cada arranque es lo que mantiene los
-   roles alineados con el código; un bootstrap que lo omita los deja congelados
-   en el estado en que se sembró la base.
+   + adjuntos obligatorios). Como ``seed_becas`` **sincroniza las capacidades
+   base** de cada rol, correr esto en cada arranque es lo que mantiene los roles
+   alineados con el código; un bootstrap que lo omita los deja congelados en el
+   estado en que se sembró la base. Lo que la pantalla de Roles deja editar —nombre,
+   descripción, activo y las capacidades opt-in como ``becas.relevamiento.publico``—
+   sobrevive al arranque (Cambio 104).
 3. Crea los **roles de menú** (uno por sección del sidebar) con sus
    capacidades y RolMeta. Solo al crearlos: si el rol ya existe no se le
    tocan las capacidades, para respetar lo editado desde el ABM de Roles.
