@@ -1,5 +1,4 @@
 from pathlib import Path
-from unittest.mock import patch
 
 from django.conf import settings
 from django.contrib.auth.models import Group, Permission, User
@@ -9,7 +8,7 @@ from django.test import Client, TestCase, override_settings
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
-from conversaciones.forms.chat import IniciarConversacionForm, MensajeConversacionForm
+from conversaciones.forms.chat import MensajeConversacionForm
 from conversaciones.models import Conversacion, HistorialAlertaConversacion, Mensaje
 from conversaciones.selectors.conversaciones import (
     get_alertas_conversaciones_count,
@@ -17,7 +16,6 @@ from conversaciones.selectors.conversaciones import (
 )
 from conversaciones.services.chat import (
     crear_mensaje_operador,
-    iniciar_conversacion_publica,
     marcar_mensajes_ciudadano_leidos,
 )
 from core import rbac
@@ -32,18 +30,7 @@ def _conceder_conversacion_operar(group):
     group.permissions.add(perm)
 
 
-class IniciarConversacionFormTests(TestCase):
-    def test_acepta_conversacion_personal_sin_endurecer_contrato_legacy(self):
-        form = IniciarConversacionForm(
-            {
-                "tipo": "personal",
-                "prioridad": "normal",
-            }
-        )
-
-        self.assertTrue(form.is_valid())
-        self.assertEqual(form.cleaned_data["tipo"], "personal")
-
+class MensajeConversacionFormTests(TestCase):
     def test_mensaje_form_normaliza_espacios(self):
         form = MensajeConversacionForm({"mensaje": "  hola  "})
 
@@ -59,24 +46,6 @@ class ChatServicesTests(TestCase):
             first_name="Operador",
             last_name="Chat",
         )
-
-    @patch("conversaciones.services.chat.NotificacionService.notificar_nueva_conversacion")
-    @patch("conversaciones.services.chat.AsignadorAutomatico.asignar_conversacion_automatica", return_value=False)
-    def test_iniciar_conversacion_publica_crea_conversacion_activa(self, mock_asignar, mock_notificar):
-        conversacion = iniciar_conversacion_publica(
-            {
-                "tipo": "anonima",
-                "dni": "",
-                "sexo": "",
-                "datos_renaper": {},
-                "prioridad": "alta",
-            }
-        )
-
-        self.assertEqual(conversacion.estado, "activa")
-        self.assertEqual(conversacion.prioridad, "alta")
-        mock_asignar.assert_called_once_with(conversacion)
-        mock_notificar.assert_called_once_with(conversacion)
 
     def test_crear_mensaje_operador_autoasigna_si_no_tiene_operador(self):
         conversacion = Conversacion.objects.create(tipo="anonima", prioridad="normal", estado="activa")
@@ -164,42 +133,14 @@ class ConversacionesViewsContractTests(TestCase):
     def _csrf_headers(self):
         return {"HTTP_X_CSRFTOKEN": self.client.cookies["csrftoken"].value}
 
-    def test_chat_ciudadano_emite_cookie_csrf(self):
-        response = self.client.get(reverse("conversaciones:chat_ciudadano"))
-
-        self.assertEqual(response.status_code, 200)
-        self.assertIn("csrftoken", self.client.cookies)
-        html = response.content.decode()
-        self.assertIn("/static/custom/css/tailwind.css", html)
-        self.assertNotIn("cdn.tailwindcss.com", html)
-
-    @patch("conversaciones.views.public.iniciar_conversacion_publica")
-    def test_iniciar_conversacion_publica_requiere_csrf_y_devuelve_contrato(self, mock_iniciar):
-        mock_iniciar.return_value = Conversacion(id=44)
-        url = reverse("conversaciones:iniciar_conversacion")
-
-        self.client.get(reverse("conversaciones:chat_ciudadano"))
-        forbidden = self.client.post(
-            url,
-            data='{"tipo":"anonima","prioridad":"normal"}',
-            content_type="application/json",
-        )
-        allowed = self.client.post(
-            url,
-            data='{"tipo":"anonima","prioridad":"normal"}',
-            content_type="application/json",
-            **self._csrf_headers(),
-        )
-
-        self.assertEqual(forbidden.status_code, 403)
-        self.assertEqual(allowed.status_code, 200)
-        self.assertEqual(allowed.json(), {"success": True, "conversacion_id": 44})
-
-    def test_evaluar_conversacion_publica_requiere_csrf_y_actualiza_satisfaccion(self):
+    def test_evaluar_conversacion_requiere_csrf_y_actualiza_satisfaccion(self):
         conversacion = Conversacion.objects.create(tipo="anonima", prioridad="normal", estado="cerrada")
         url = reverse("conversaciones:evaluar", args=[conversacion.id])
 
-        self.client.get(reverse("conversaciones:chat_ciudadano"))
+        # La cookie CSRF la emitía el chat público, ya desmontado: se toma del detalle
+        # del backoffice, que es la pantalla que hoy sigue en pie.
+        self.client.force_login(self.operador)
+        self.client.get(reverse("conversaciones:detalle", args=[conversacion.id]))
         forbidden = self.client.post(
             url,
             data='{"satisfaccion":5}',

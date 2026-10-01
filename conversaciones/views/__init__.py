@@ -16,10 +16,5 @@ from .backoffice import (
     tiene_permiso_conversaciones,
 )
 from .public import (
-    chat_ciudadano,
-    consultar_renaper,
-    enviar_mensaje_ciudadano,
     evaluar_conversacion,
-    iniciar_conversacion,
-    obtener_mensajes_ciudadano,
 )
