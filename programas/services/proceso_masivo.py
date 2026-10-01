@@ -12,10 +12,17 @@ from dataclasses import dataclass, field
 
 from django.core.exceptions import ValidationError
 from django.db import connection, transaction
-from django.db.models import OuterRef, Q, Subquery
+from django.db.models import Exists, OuterRef, Q, Subquery
 from django.utils import timezone
 
-from programas.models import CorridaSiis, EnvioSIIS, Formulario, ProgramaSiis, ValidacionSIS
+from programas.models import (
+    AltaIntermediaSIIS,
+    CorridaSiis,
+    EnvioSIIS,
+    Formulario,
+    ProgramaSiis,
+    ValidacionSIS,
+)
 from programas.services.avisos_resolucion import enviar_aviso_resolucion
 from programas.services.cupo import CasoEnListaEspera, aprobar_o_poner_en_espera
 from programas.services.siis_envio import (
@@ -130,6 +137,7 @@ def candidatos(
     segmento=None,
     solo_enviar=False,
     filtrar_materias=True,
+    destino=DESTINO_SIIS,
 ):
     """Casos que todavía no se informaron a SIIS.
 
@@ -143,6 +151,11 @@ def candidatos(
     Con ``filtrar_materias`` (el default) solo entran los DNI de
     ``aprobados_materias`` (Cambio 90). Si la tabla no existe, lanza
     ``TablaAprobadosMateriasFaltante`` en vez de devolver a todos.
+
+    Con ``destino="tabla"`` se saltean además los que ya están guardados en la
+    tabla intermedia sin sincronizar: guardarlos no deja ``EnvioSIIS``, así que
+    sin esto volverían a salir como candidatos en cada vuelta y una corrida por
+    tandas no terminaría nunca.
     """
     ultimo = EnvioSIIS.objects.filter(formulario=OuterRef("pk")).order_by("-creado", "-id").values("estado")[:1]
     casos = (
@@ -174,6 +187,11 @@ def candidatos(
     casos = casos.exclude(estado=Formulario.Estado.ENVIADO, lista_espera__promovido=False)
     if filtrar_materias:
         casos = casos.filter(ciudadano__dni__in=dnis_aprobados_materias())
+    if destino == DESTINO_TABLA:
+        # Con ``Exists`` sobre la clave foránea, que está indexada: un ``pk__in``
+        # con miles de ids contra la base de ECOM no entra en su read_timeout.
+        guardado = AltaIntermediaSIIS.objects.filter(formulario=OuterRef("pk"), sincronizado=False)
+        casos = casos.exclude(Exists(guardado))
     # Sin ``distinct()``: nada acá multiplica filas (los ``select_related`` son
     # claves foráneas hacia adelante y el conflicto de carga se excluye con una
     # subconsulta), así que cada caso ya sale una sola vez. Con DISTINCT, en

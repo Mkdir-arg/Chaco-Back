@@ -65,6 +65,11 @@ INSUMOS = (
 )
 LOTE = 40
 PAUSA = 2.0
+# Casos por invocación del comando que manda. El comando arma el payload de
+# todos los candidatos antes de empezar, y cada caso arrastra la foto del
+# formulario --27 KB--: con 7.434 de una, el pod se queda sin memoria y muere
+# con exit 137. Pasó el 01/10/2026.
+TANDA = 500
 FECHA_APODERADO = "1990-01-01"
 BARRIO_GENERICO = "Sin especificar"
 # SIIS no tiene «Separado/a» y el campo es obligatorio: sin reemplazo esos
@@ -328,6 +333,53 @@ class Command(BaseCommand):
         self._log(f"      loc_actual    {loc_id} → {localidad.nombre if localidad else '??? NO ESTÁ EN EL CATÁLOGO'}")
         self._log(f"      prov_actual   {payload.get('prov_actual')} → {provincia.nombre if provincia else '???'}")
 
+    def _cuantos_quedan(self, destino):
+        return len(proceso_masivo.ids_de(proceso_masivo.candidatos(destino=destino)))
+
+    def _por_tandas(self, pendientes, destino, aplicar, options):
+        """Llama al comando que manda de a ``TANDA`` casos, no todos de una.
+
+        Cada invocación es un proceso aparte --``call_command`` no, pero sí una
+        pasada completa que suelta lo que armó--, y sobre todo le pide a la base
+        solo los casos de esa tanda. Pasarle el total de una fue lo que mató al
+        pod el 01/10 con 7.434 candidatos.
+
+        Corta cuando no queda nadie, o cuando la cuenta deja de bajar: lo que
+        queda no se puede mandar --error técnico persistente, rechazo-- y seguir
+        insistiendo sería un lazo infinito.
+        """
+        vuelta = 0
+        antes = None
+        while pendientes:
+            if antes is not None and pendientes >= antes:
+                self._log(
+                    f"   Quedan {pendientes} y no bajan: lo que falta no se puede mandar. Corto acá.",
+                    self.style.WARNING,
+                )
+                return
+            antes = pendientes
+            vuelta += 1
+            self._log(f"   tanda {vuelta} · {min(pendientes, TANDA)} de {pendientes} pendientes")
+            self._correr(
+                "procesar_casos_siis",
+                "--solo-completos",
+                "--total",
+                str(min(pendientes, TANDA)),
+                "--lote",
+                str(options["lote"]),
+                "--pausa",
+                str(options["pausa"]),
+                "--destino",
+                destino,
+                *(("--aplicar",) if aplicar else ()),
+                *(("--usuario", options["usuario"]) if options["usuario"] else ()),
+            )
+            if not aplicar:
+                # En ensayo nada cambia de estado: una vuelta alcanza para ver qué haría.
+                return
+            pendientes = self._cuantos_quedan(destino)
+        self._log("   No queda ninguno pendiente.", self.style.SUCCESS)
+
     # ── Orquestación ────────────────────────────────────────────────────────
 
     def handle(self, *args, **options):
@@ -379,7 +431,7 @@ class Command(BaseCommand):
         )
 
         destino = options["destino"]
-        pendientes = len(proceso_masivo.ids_de(proceso_masivo.candidatos()))
+        pendientes = self._cuantos_quedan(destino)
         if destino == DESTINO_TABLA:
             # Sin caso de prueba ni freno: no se llama a SIIS, así que no hay
             # nada que verificar del otro lado. La revisión es sobre la tabla.
@@ -400,25 +452,12 @@ class Command(BaseCommand):
             return
 
         if destino != DESTINO_TABLA:
-            pendientes = len(proceso_masivo.ids_de(proceso_masivo.candidatos()))
+            pendientes = self._cuantos_quedan(destino)
             self._paso(7, f"Corrida completa · {pendientes} casos")
         if not pendientes:
             self._log("   No queda ninguno por mandar.", self.style.SUCCESS)
         else:
-            self._correr(
-                "procesar_casos_siis",
-                "--solo-completos",
-                "--total",
-                str(pendientes),
-                "--lote",
-                str(options["lote"]),
-                "--pausa",
-                str(options["pausa"]),
-                "--destino",
-                destino,
-                *(("--aplicar",) if aplicar else ()),
-                *(("--usuario", options["usuario"]) if options["usuario"] else ()),
-            )
+            self._por_tandas(pendientes, destino, aplicar, options)
 
         self._log("")
         self._log("Resumen del alta", self.style.MIGRATE_HEADING)
