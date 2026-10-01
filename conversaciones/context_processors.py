@@ -21,7 +21,6 @@ def user_groups(request):
             groups = []
         return {
             "user_groups_list": groups,
-            "user_groups_json": str(groups).replace("'", '"'),
             "user_primary_group": groups[0] if groups else None,
             "user_is_superuser": request.user.is_superuser,
             "websockets_enabled": getattr(settings, "WEBSOCKETS_ENABLED", False),
@@ -29,7 +28,6 @@ def user_groups(request):
         }
     return {
         "user_groups_list": [],
-        "user_groups_json": "[]",
         "user_primary_group": None,
         "user_is_superuser": False,
         "websockets_enabled": getattr(settings, "WEBSOCKETS_ENABLED", False),

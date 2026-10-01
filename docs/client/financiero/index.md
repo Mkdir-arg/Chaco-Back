@@ -9,18 +9,18 @@
 
 <div class="grid cards" markdown>
 
--   :material-calendar-clock: **Septiembre 2026**
+-   :material-calendar-clock: **Octubre 2026**
 
     ---
 
     :material-wallet-outline: Presupuesto: **850 horas**<br>
-    :material-progress-clock: Esfuerzo real: **920 h 30 min** — al 28/09, incluye el traslado de agosto<br>
-    :material-clock-check-outline: Imputado: **850 horas** (100%)<br>
-    :material-swap-horizontal: Remanente para octubre: **70 h 30 min**
+    :material-clock-check-outline: Consumido: **92 h 30 min** (11%)<br>
+    :material-check-circle-outline: Saldo: **757 h 30 min** disponibles<br>
+    :material-swap-horizontal: Arranca con el traslado del excedente de septiembre
 
     **Estado:** :material-circle:{ style="color: #3b82f6" } En curso
 
-    [:octicons-arrow-right-16: Ver detalle del mes](mes-2026-09.md)
+    [:octicons-arrow-right-16: Ver detalle del mes](mes-2026-10.md)
 
 </div>
 
@@ -29,6 +29,19 @@
 ## :material-archive-check-outline: Meses cerrados
 
 <div class="grid cards" markdown>
+
+-   :material-calendar-check: **Septiembre 2026**
+
+    ---
+
+    :material-wallet-outline: Presupuesto: **850 horas**
+    :material-clock-check-outline: Imputado: **850 horas** (100%)
+    :material-progress-clock: Esfuerzo real: **942 h 30 min**
+    :material-swap-horizontal: Trasladado a octubre: **92 h 30 min**
+
+    **Estado:** :material-circle:{ style="color: #10b981" } Cerrado al 100% del presupuesto
+
+    [:octicons-arrow-right-16: Ver resumen del mes](mes-2026-09.md)
 
 -   :material-calendar-check: **Agosto 2026**
 
