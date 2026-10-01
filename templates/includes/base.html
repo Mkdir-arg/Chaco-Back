@@ -367,9 +367,11 @@
 
         <!-- Alertas WebSocket -->
         {% if user.is_authenticated %}
+            {# SEC-08: los nombres de rol son texto libre; json_script los escapa para que no rompan ni inyecten el <script>. #}
+            {{ user_groups_list|json_script:"user-groups-data" }}
             <script>
                 // Pasar grupos del usuario al JavaScript
-                window.userGroups = {{ user_groups_json|safe }};
+                window.userGroups = JSON.parse(document.getElementById("user-groups-data").textContent);
                 window.isSuperuser = {{ user_is_superuser|yesno:"true,false" }};
                 window.websocketsEnabled = {{ websockets_enabled|yesno:"true,false" }};
                 window.conversacionesConfig = {
