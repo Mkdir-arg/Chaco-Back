@@ -1,0 +1,233 @@
+{
+ "seed_s": 10.0,
+ "A4-02": {
+  "p1": {
+   "status": 200,
+   "queries": 16,
+   "ms": 125,
+   "consultas_pagina_formulario": 2,
+   "pagina_trae_definicion": true,
+   "pagina_trae_respuestas": true,
+   "pagina_trae_datos_siis": true,
+   "order_by": [
+    "ORDER BY \"programas_formulario\".\"modificado\" ASC LIMIT 50",
+    "ORDER BY \"programas_formulario\".\"creado\" ASC LIMIT 50"
+   ],
+   "counts": [
+    "SELECT COUNT(*) AS \"__count\" FROM \"programas_formulario\" INNER JOIN \"programas_relevamiento\" ON (\"programas_formulario\".\"relevamiento_id\" = \"programas_relevamiento\".\"id\") INNER JOIN \"programas_convoca",
+    "SELECT COUNT(*) AS \"__count\" FROM \"programas_formulario\" INNER JOIN \"programas_relevamiento\" ON (\"programas_formulario\".\"relevamiento_id\" = \"programas_relevamiento\".\"id\") INNER JOIN \"programas_convoca",
+    "SELECT COUNT(*) AS \"__count\" FROM \"programas_listaespera\" WHERE (NOT \"programas_listaespera\".\"promovido\" AND \"programas_listaespera\".\"segmento_id\" = 1)",
+    "SELECT COUNT(*) AS \"__count\" FROM \"programas_formulario\" INNER JOIN \"programas_relevamiento\" ON (\"programas_formulario\".\"relevamiento_id\" = \"programas_relevamiento\".\"id\") INNER JOIN \"programas_convoca",
+    "SELECT COUNT(*) AS \"__count\" FROM \"conversaciones_conversacion\" WHERE (\"conversaciones_conversacion\".\"estado\" = 'pendiente' AND \"conversaciones_conversacion\".\"operador_asignado_id\" IS NULL)"
+   ]
+  },
+  "sql_pagina_ejemplo": "SELECT \"programas_formulario\".\"id\", \"programas_formulario\".\"creado\", \"programas_formulario\".\"modificado\", \"programas_formulario\".\"relevamiento_id\", \"programas_formulario\".\"numero\", \"programas_formulario\".\"ciudadano_id\", \"programas_formulario\".\"estado\", \"programas_formulario\".\"client_uuid\", \"programas_formulario\".\"capturado_en\", \"programas_formulario\".\"motivo_rechazo\", \"programas_formulario\".\"conflicto_duplicado\", \"programas_formulario\".\"conflicto_resuelto\", \"programas_formulario\".\"duplicado_de_id\", \"programas_formulario\".\"validado_renaper\", \"programas_formulario\".\"origen_validacion\", \"programas_formulario\".\"identidad_forzada\", \"programas_formulario\".\"identidad_forzada_motivo\", \"programas_formulario\".\"celular\", \"programas_formulario\".\"email_contacto\", \"programas_formulario\".\"apoderado_nombre\", \"programas_formulario\".\"apoderado_apellido\", \"programas_formulario\".\"apoderado_dni\", \"programas_formulario\".\"apoderado_genero\", \"programas_formulario\".\"apoderado_fecha_nacimiento\", \"programas_formulario\".\"apoderado_ciudadano_id\", \"programas_formulario\".\"gps_lat\", \"programas_formulario\".\"gps_lng\", \"programas_formulario\".\"respuestas\", \"programas_formulario\".\"definicion\", \"programas_formulario\".\"dni_titular\", \"programas_formulario\".\"datos_siis\", \"programas_formulario\".\"created_by_id\", \"programas_relevamiento\".\"id\", \"programas_relevamiento\".\"creado\", \"programas_relevamiento\".\"modificado\", \"programas_relevamiento\".\"pausado\", \"programas_relevamiento\".\"pausa_motivo\", \"programas_relevamiento\".\"pausado_por_id\", \"programas_relevamiento\".\"pausado_en\", \"programas_relevamiento\".\"nombre\", \"programas_relevamiento\".\"numero\", \"programas_relevamiento\".\"convocatoria_id\", \"programas_relevamiento\".\"tipo\", \"programas_relevamiento\".\"territorial_id\", \"programas_relevamiento\".\"token_publico\", \"programas_relevamiento\".\"padron_archivo\", \"programas_relevamiento\".\"confirmar_por_email\", \"programas_relevamiento\".\"fecha_asignada\", \"programas_relevamiento\".\"fecha_hasta\", \"programas_relevamiento\".\"zona\", \"programas_relevamiento\".\"cupo_maximo\", \"programas_relevamiento\".\"observaciones\", \"programas_relevamiento\".\"estado\", \"programas_relevamiento\".\"fecha_finalizado\", \"programas_convocatoria\".\"id\", \"programas_convocatoria\".\"creado\", \"programas_convocatoria\".\"modificado\", \"programas_convocatoria\".\"pausado\", \"programas_convocatoria\".\"pausa_motivo\", \"programas_convocatoria\".\"pausado_por_id\", \"programas_convocatoria\".\"pausado_en\", \"programas_convocatoria\".\"nombre\", \"programas_convocatoria\".\"segmento_id\", \"programas_convocatoria\".\"subsegmento_id\", \"programas_convocatoria\".\"fecha_inicio\", \"programas_convocatoria\".\"fecha_fin\", \"programas_convocatoria\".\"descripcion\", \"programas_convocatoria\".\"activo\", \"programas_convocatoria\".\"cerrada_automaticamente\", \"programas_convocatoria\".\"cerrada_el\", \"programas_convocatoria\".\"padron_archivo\", \"legajos_ciudadano\".\"id\", \"legajos_ciudadano\".\"creado\", \"legajos_ciudadano\".\"modificado\", \"legajos_ciudadano\".\"dni\", \"legajos_ciudadano\".\"nombre\", \"legajos_ciudadano\".\"apelli",
+  "?pendientes_page=50&beneficiarios_page=50": {
+   "status": 200,
+   "queries": 13,
+   "ms": 211,
+   "consultas_pagina_formulario": 2,
+   "pagina_trae_definicion": true,
+   "pagina_trae_respuestas": true,
+   "pagina_trae_datos_siis": true,
+   "order_by": [
+    "ORDER BY \"programas_formulario\".\"modificado\" ASC LIMIT 25 OFFSET 2200",
+    "ORDER BY \"programas_formulario\".\"creado\" ASC LIMIT 19 OFFSET 2300"
+   ],
+   "counts": [
+    "SELECT COUNT(*) AS \"__count\" FROM \"programas_formulario\" INNER JOIN \"programas_relevamiento\" ON (\"programas_formulario\".\"relevamiento_id\" = \"programas_relevamiento\".\"id\") INNER JOIN \"programas_convoca",
+    "SELECT COUNT(*) AS \"__count\" FROM \"programas_formulario\" INNER JOIN \"programas_relevamiento\" ON (\"programas_formulario\".\"relevamiento_id\" = \"programas_relevamiento\".\"id\") INNER JOIN \"programas_convoca",
+    "SELECT COUNT(*) AS \"__count\" FROM \"programas_listaespera\" WHERE (NOT \"programas_listaespera\".\"promovido\" AND \"programas_listaespera\".\"segmento_id\" = 1)",
+    "SELECT COUNT(*) AS \"__count\" FROM \"programas_formulario\" INNER JOIN \"programas_relevamiento\" ON (\"programas_formulario\".\"relevamiento_id\" = \"programas_relevamiento\".\"id\") INNER JOIN \"programas_convoca"
+   ]
+  },
+  "volumen": {
+   "ENVIADO": 2319,
+   "APROBADO": 2225,
+   "RECHAZADO": 513
+  }
+ },
+ "A4-03": {
+  "armar_reporte_s": 0.33,
+  "filas": 5000,
+  "columnas": 22,
+  "openpyxl_s": 1.65,
+  "xlsx_mb": 0.5,
+  "gzip_s": 0.024,
+  "gzip_ratio": 0.448,
+  "pico_mb_armar_reporte": 9.2,
+  "pico_mb_total": 9.2,
+  "url": "/becas/config/programas/1/dashboard/respuestas/21/xlsx/",
+  "request_s": 2.3,
+  "request_status": 200,
+  "request_content_encoding": "gzip"
+ },
+ "A4-04": {
+  "pendientes_cruzados": 1667,
+  "filas_padron": 50000,
+  "queries": 3907,
+  "segundos_sqlite": 7.97,
+  "por_tipo": {
+   "UPDATE legajos_ciudadano": 1667,
+   "INSERT programas_tracaformulario": 1667,
+   "INSERT programas_padronhabilitado": 556,
+   "UPDATE programas_formulario": 12,
+   "SAVEPOINT ?": 1,
+   "DELETE programas_padronhabilitado": 1,
+   "SELECT programas_padronhabilitado": 1,
+   "SELECT programas_formulario": 1,
+   "RELEASE ?": 1
+  },
+  "cache_delete": 6668,
+  "inserts_padron_sqlite": 556
+ },
+ "A4-07": {
+  "queries_por_armar_payload": 6,
+  "tablas": {
+   "programas_preguntaglobal": 1,
+   "programas_requisitonativo": 1,
+   "programas_provinciasiis": 2,
+   "programas_localidadsiis": 2
+  },
+  "elegir_completos_200_queries": 1200,
+  "elegir_completos_200_ms_sqlite": 554,
+  "hidratar_200_queries": 1,
+  "hidratar_trae_definicion": true,
+  "hidratar_trae_respuestas": true,
+  "bytes_json_por_caso": 5981,
+  "bytes_definicion_por_caso": 5292
+ },
+ "A4-08": {
+  "dnis_en_set": 15531,
+  "count": 4487,
+  "count_ms_sqlite": 72,
+  "sql_bytes": 187855,
+  "sql_sin_in": "SELECT COUNT(*) AS \"__count\" FROM \"programas_formulario\" INNER JOIN \"programas_relevamiento\" ON (\"programas_formulario\".\"relevamiento_id\" = \"programas_relevamiento\".\"id\") INNER JOIN \"programas_convocatoria\" ON (\"programas_relevamiento\".\"convocatoria_id\" = \"programas_convocatoria\".\"id\") INNER JOIN \"programas_segmento\" ON (\"programas_convocatoria\".\"segmento_id\" = \"programas_segmento\".\"id\") INNER JOIN \"legajos_ciudadano\" ON (\"programas_formulario\".\"ciudadano_id\" = \"legajos_ciudadano\".\"id\") WHERE (((SELECT U0.\"estado\" AS \"estado\" FROM \"programas_enviosiis\" U0 WHERE U0.\"formulario_id\" = (\"programas_formulario\".\"id\") ORDER BY U0.\"creado\" DESC, U0.\"id\" DESC LIMIT 1) IS NULL OR NOT ((SELECT U0.\"estado\" AS \"estado\" FROM \"programas_enviosiis\" U0 WHERE U0.\"formulario_id\" = (\"programas_formulario\".\"id\") ORDER BY U0.\"creado\" DESC, U0.\"id\" DESC LIMIT 1) = 'ENVIADO')) AND \"programas_formulario\".\"estado\" IN ('APROBADO', 'ENVIADO') AND \"programas_segmento\".\"programa_id\" = 1 AND NOT (\"programas_formulario\".\"conflicto_duplicado\" AND NOT \"programas_formulario\".\"conflicto_resuelto\") AND NOT (EXISTS(SELECT 1 AS \"a\" FROM \"programas_formulario\" U1 WHERE (NOT U1.\"conflicto_resuelto\" AND U1.\"duplicado_de_id\" = (\"programas_formulario\".\"id\")) LIMIT 1)) AND NOT (\"programas_formulario\".\"estado\" = 'ENVIADO' AND EXISTS(SELECT 1 AS \"a\" FROM \"programas_listaespera\" U1 WHERE (NOT U1.\"promovido\" AND U1.\"formulario_id\" = (\"programas_formulario\".\"id\")) LIMIT 1)) AND \"legajos_ciudadano\".\"dni\" IN ('30002860', '4694",
+  "get_status": 200,
+  "get_queries": 13,
+  "get_bytes_sql": 193021,
+  "table_names_por_get": 1
+ },
+ "A4-13": {
+  "queries_relevamiento_disponible": 4,
+  "sql": [
+   "SELECT \"programas_convocatoria\".\"id\", \"programas_convocatoria\".\"creado\", \"programas_convocatoria\".\"modificado\", \"programas_convocatoria\".\"pausado\", \"programas_convocatoria\".\"pausa_motivo\", \"programas_convocatoria\".\"pausado_por_id\", \"programas_convocatoria\".\"pausado_en\", \"programas_convocatoria\".\"nombre\", \"programas_convocatoria\".\"segmento_id\", \"programas_convocatoria\".\"subsegmento_id\", \"programas_convocatoria\".\"fecha_inicio\", \"programas_convocatoria\".\"fecha_fin\", \"programas_convocatoria\".\"descripcion\", \"programas_convocatoria\".\"activo\", \"programas_convocatoria\".\"cerrada_automaticamente\", \"programas_convocatoria\".\"cerrada_el\", \"programas_convocatoria\".\"padron_archivo\" FROM \"programas_convocatoria\" WHERE \"programas_convocatoria\".\"id\" = 21 LIMIT 21",
+   "SELECT \"programas_segmento\".\"id\", \"programas_segmento\".\"creado\", \"programas_segmento\".\"modificado\", \"programas_segmento\".\"pausado\", \"programas_segmento\".\"pausa_motivo\", \"programas_segmento\".\"pausado_por_id\", \"programas_segmento\".\"pausado_en\", \"programas_segmento\".\"programa_id\", \"programas_segmento\".\"nombre\", \"programas_segmento\".\"descripcion\", \"programas_segmento\".\"cupo_maximo\", \"programas_segmento\".\"requiere_gps\", \"programas_segmento\".\"activo\", \"programas_segmento\".\"siis_jurid\", \"programas_segmento\".\"siis_id_fun_x_plan\" FROM \"programas_segmento\" WHERE \"programas_segmento\".\"id\" = 1 LIMIT 21",
+   "SELECT \"programas_programasiis\".\"id\", \"programas_programasiis\".\"creado\", \"programas_programasiis\".\"modificado\", \"programas_programasiis\".\"pausado\", \"programas_programasiis\".\"pausa_motivo\", \"programas_programasiis\".\"pausado_por_id\", \"programas_programasiis\".\"pausado_en\", \"programas_programasiis\".\"nombre\", \"programas_programasiis\".\"siis_programa_id\", \"programas_programasiis\".\"siis_programa_datos\", \"programas_programasiis\".\"siis_programa_estado\", \"programas_programasiis\".\"siis_vinculado_en\", \"programas_programasiis\".\"siis_verificado_en\", \"programas_programasiis\".\"siis_id_plan_soc\", \"programas_programasiis\".\"siis_jurid\", \"programas_programasiis\".\"siis_funcion_id\", \"programas_programasiis\".\"siis_funcion_nombre\" FROM \"programas_programasiis\" WHERE \"programas_programasiis\".\"id\" = 1 LIMIT 21",
+   "SELECT COUNT(*) AS \"__count\" FROM \"programas_formulario\" WHERE \"programas_formulario\".\"relevamiento_id\" = 201"
+  ],
+  "paso1_get_status": 200,
+  "paso1_get_queries": 6,
+  "paso1_counts": [
+   "SELECT COUNT(*) AS \"__count\" FROM \"programas_formulario\" WHERE \"programas_formulario\".\"relevamiento_id\" = 201"
+  ]
+ },
+ "A4-03-perfil": {
+  "respuesta_libro_s": 29.49,
+  "bytesio_s": 9.13,
+  "top": "         26755346 function calls (26074918 primitive calls) in 29.490 seconds\n\n   Ordered by: internal time\n   List reduced from 616 to 12 due to restriction <12>\n\n   ncalls  tottime  percall  cumtime  percall filename:lineno(function)\n  1140082    5.311    0.000   11.290    0.000 C:\\Users\\mkdir\\Proyectos\\Chaco\\.venv312\\Lib\\site-packages\\et_xmlfile\\incremental_tree.py:372(write_elem_start)\n1120077/440027    2.845    0.000   14.228    0.000 C:\\Users\\mkdir\\Proyectos\\Chaco\\.venv312\\Lib\\site-packages\\et_xmlfile\\incremental_tree.py:566(_serialize_ns_xml)\n  4200738    2.095    0.000    2.096    0.000 {method 'write' of '_io.TextIOWrapper' objects}\n   440023    2.035    0.000   19.397    0.000 C:\\Users\\mkdir\\Proyectos\\Chaco\\.venv312\\Lib\\site-packages\\openpyxl\\cell\\_writer.py:45(etree_write_cell)\n   460032    1.731    0.000    2.764    0.000 C:\\Users\\mkdir\\Proyectos\\Chaco\\.venv312\\Lib\\site-packages\\et_xmlfile\\incremental_tree.py:279(process_attribs)\n  5410208    1.505    0.000    1.505    0.000 {built-in method builtins.isinstance}\n   440023    1.165    0.000    3.229    0.000 C:\\Users\\mkdir\\Proyectos\\Chaco\\.venv312\\Lib\\site-packages\\openpyxl\\cell\\cell.py:176(_bind_value)\n   460026    1.010    0.000    4.970    0.000 C:\\Users\\mkdir\\Proyectos\\Chaco\\.venv312\\Lib\\site-packages\\openpyxl\\worksheet\\_write_only.py:123(_values_to_row)\n    20003    0.917    0.000   26.087    0.001 C:\\Users\\mkdir\\Proyectos\\Chaco\\.venv312\\Lib\\site-packages\\openpyxl\\worksheet\\_writer.py:130(write_row)\n   440001    0.864    0.000    1.725    0.000 C:\\Users\\mkdir\\AppData\\Local\\Temp\\claude\\c--Users-mkdir-Proyectos-Chaco\\62ce759b-b147-48f2-8883-9372d3af0d76\\scratchpad\\wt_v4\\programas\\services\\exportacion_reportes.py:12(celda_segura)\n   360023    0.783    0.000    1.664    0.000 C:\\Users\\mkdir\\Proyectos\\Chaco\\.venv312\\Lib\\site-packages\\openpyxl\\cell\\cell.py:153(check_string)\n   440027    0.711    0.000   15.074    0.000 C:\\Users\\mkdir\\Proyectos\\Chaco\\.venv312\\Lib\\site-packages\\et_xmlfile\\xmlfile.py:95(write)\n\n\n",
+  "muestra_fila": [
+   "201",
+   "Relevamiento 001 · BENCH Convocatoria pública",
+   "Link público",
+   "",
+   "201",
+   "1",
+   "Enviado",
+   "31/08/2026 20:26",
+   "201",
+   "30000000",
+   "Apellido0, Nombre0",
+   "No",
+   "3624000000",
+   "caso0@bench.invalid",
+   "",
+   "",
+   "adjunto_0.jpg",
+   "adjunto_0.jpg",
+   "adjunto_0.jpg",
+   "adjunto_0.jpg",
+   "adjunto_0.jpg",
+   "Respuesta de texto del caso 0: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  ]
+ },
+ "A4-04-exacto": {
+  "validados": 6667,
+  "sentencias": {
+   "UPDATE legajos_ciudadano": 6667,
+   "INSERT programas_tracaformulario": 6667,
+   "INSERT programas_padronhabilitado": 556,
+   "UPDATE programas_formulario": 47,
+   "SAVEPOINT ?": 1,
+   "DELETE programas_padronhabilitado": 1,
+   "SELECT programas_padronhabilitado": 1,
+   "SELECT programas_formulario": 1,
+   "RELEASE ?": 1
+  },
+  "total_sentencias": 13942,
+  "segundos_con_profiler": 36.0,
+  "bytes_insert_padron_aprox_mysql_un_insert": 8056226,
+  "perfil": "         57426956 function calls (54820397 primitive calls) in 35.974 seconds\n\n   Ordered by: cumulative time\n   List reduced from 739 to 25 due to restriction <25>\n\n   ncalls  tottime  percall  cumtime  percall filename:lineno(function)\n        1    0.015    0.015   36.026   36.026 C:\\Users\\mkdir\\AppData\\Roaming\\uv\\python\\cpython-3.12-windows-x86_64-none\\Lib\\contextlib.py:78(inner)\n        1    0.116    0.116   36.010   36.010 C:\\Users\\mkdir\\AppData\\Local\\Temp\\claude\\c--Users-mkdir-Proyectos-Chaco\\62ce759b-b147-48f2-8883-9372d3af0d76\\scratchpad\\wt_v4\\programas\\services\\padron.py:282(cargar_padron)\n        1    0.125    0.125   25.964   25.964 C:\\Users\\mkdir\\AppData\\Local\\Temp\\claude\\c--Users-mkdir-Proyectos-Chaco\\62ce759b-b147-48f2-8883-9372d3af0d76\\scratchpad\\wt_v4\\programas\\services\\padron.py:413(validar_casos_pendientes)\n    13340    0.055    0.000   24.712    0.002 C:\\Users\\mkdir\\Proyectos\\Chaco\\.venv312\\Lib\\site-packages\\django\\db\\models\\manager.py:85(manager_method)\n        1    0.143    0.143   13.693   13.693 C:\\Users\\mkdir\\Proyectos\\Chaco\\.venv312\\Lib\\site-packages\\django\\db\\models\\query.py:869(bulk_update)\n       47    0.001    0.000   12.272    0.261 C:\\Users\\mkdir\\Proyectos\\Chaco\\.venv312\\Lib\\site-packages\\django\\db\\models\\query.py:1227(update)\n     6668    0.164    0.000   10.752    0.002 C:\\Users\\mkdir\\Proyectos\\Chaco\\.venv312\\Lib\\site-packages\\django\\db\\models\\query.py:747(bulk_create)\n241013/40532    0.607    0.000    9.611    0.000 C:\\Users\\mkdir\\Proyectos\\Chaco\\.venv312\\Lib\\site-packages\\django\\db\\models\\expressions.py:279(resolve_expression)\n     6668    0.104    0.000    8.968    0.001 C:\\Users\\mkdir\\Proyectos\\Chaco\\.venv312\\Lib\\site-packages\\django\\db\\models\\query.py:1878(_batched_insert)\n    66670    0.124    0.000    8.880    0.000 C:\\Users\\mkdir\\Proyectos\\Chaco\\.venv312\\Lib\\site-packages\\django\\db\\models\\expressions.py:1608(resolve_expression)\n     7223    0.042    0.000    8.715    0.001 C:\\Users\\mkdir\\Proyectos\\Chaco\\.venv312\\Lib\\site-packages\\django\\db\\models\\query.py:1848(_insert)\n     7223    0.079    0.000    8.552    0.001 C:\\Users\\mkdir\\Proyectos\\Chaco\\.venv312\\Lib\\site-packages\\django\\db\\models\\sql\\compiler.py:1871(execute_sql)\n     6717    0.031    0.000    7.995    0.001 C:\\Users\\mkdir\\Proyectos\\Chaco\\.venv312\\Lib\\site-packages\\django\\db\\models\\sql\\compiler.py:1593(execute_sql)\n     6714    0.021    0.000    7.338    0.001 C:\\Users\\mkdir\\Proyectos\\Chaco\\.venv312\\Lib\\site-packages\\django\\db\\models\\sql\\compiler.py:2053(execute_sql)\n     6714    0.092    0.000    6.617    0.001 C:\\Users\\mkdir\\Proyectos\\Chaco\\.venv312\\Lib\\site-packages\\django\\db\\models\\sql\\compiler.py:1984(as_sql)\n     7223    0.492    0.000    6.591    0.001 C:\\Users\\mkdir\\Proyectos\\Chaco\\.venv312\\Lib\\site-packages\\django\\db\\models\\sql\\compiler.py:1791(as_sql)\n     6714    0.014    0.000    6.289    0.001 C:\\Users\\mkdir\\Proyectos\\Chaco\\.venv312\\Lib\\site-packages\\django\\db\\models\\sql\\subqueries.py:108(add_update_fields)\n       47    0.001    0.000    6.272    0.133 C:\\Users\\mkdir\\Proyectos\\Chaco\\.venv312\\Lib\\site-packages\\django\\db\\models\\sql\\subqueries.py:80(add_update_values)\n    73394    0.389    0.000    5.402    0.000 C:\\Users\\mkdir\\Proyectos\\Chaco\\.venv312\\Lib\\site-packages\\django\\db\\models\\sql\\query.py:1659(_add_q)\n    66670    0.100    0.000    4.904    0.000 C:\\Users\\mkdir\\Proyectos\\Chaco\\.venv312\\Lib\\site-packages\\django\\db\\models\\query_utils.py:90(resolve_expression)\n     6667    0.069    0.000    4.246    0.001 C:\\Users\\mkdir\\AppData\\Local\\Temp\\claude\\c--Users-mkdir-Proyectos-Chaco\\62ce759b-b147-48f2-8883-9372d3af0d76\\scratchpad\\wt_v4\\programas\\services\\becas.py:202(registrar_traza)\n     6667    0.060    0.000    3.947    0.001 C:\\Users\\mkdir\\Proyectos\\Chaco\\.venv312\\Lib\\site-packages\\django\\db\\models\\base.py:830(save)\n    73395    0.780    0.000    3.863    0.000 C:\\Users\\mkdir\\Proyectos\\Chaco\\.venv312\\Lib\\site-packages\\django\\db\\models\\sql\\query.py:1465(build_filter)\n     6667    0.074    0.000    3.821    0.001 C:\\Users\\mkdir\\Proyectos\\Chaco\\.venv312\\Lib\\site-packages\\django\\db\\models\\base.py:962(save_base)\n        2    0.000    0.000    3.716    1.858 C:\\Users\\mkdir\\Proyectos\\Chaco\\.venv312\\Lib\\site-packages\\django\\db\\models\\query.py:371(__iter__)\n\n\n"
+ },
+ "V3-NEW-03": {
+  "ciudadanos_activos": 20200,
+  "ciudadanos_con_legajo": 200,
+  "sentencias_corrida_1": 61821,
+  "por_tabla_corrida_1": {
+   "SELECT legajos_ciudadano": 20201,
+   "UPDATE legajos_alertaciudadano": 20200,
+   "SELECT legajos_legajoatencion": 20200,
+   "SELECT legajos_historialcontacto": 400,
+   "SELECT legajos_alertaciudadano": 310,
+   "INSERT legajos_alertaciudadano": 310,
+   "SELECT programas_inscripcionprograma": 200
+  },
+  "segundos_sqlite_corrida_1": 38.0,
+  "sentencias_corrida_2": 61611,
+  "alertas_antes_1_2": [
+   200,
+   510,
+   610
+  ]
+ },
+ "A4-04-antes-despues": {
+  "antes": {
+   "validados": 6667,
+   "sentencias": 13942,
+   "detalle": {
+    "UPDATE legajos_ciudadano": 6667,
+    "INSERT programas_tracaformulario": 6667,
+    "INSERT programas_padronhabilitado": 556,
+    "UPDATE programas_formulario": 47,
+    "SAVEPOINT ?": 1,
+    "DELETE programas_padronhabilitado": 1,
+    "SELECT programas_padronhabilitado": 1,
+    "SELECT programas_formulario": 1
+   },
+   "segundos_sqlite": 18.4,
+   "trazas": 22266,
+   "validados_en_base": 20000
+  },
+  "despues": {
+   "validados": 6667,
+   "sentencias": 676,
+   "detalle": {
+    "INSERT programas_padronhabilitado": 556,
+    "INSERT programas_tracaformulario": 81,
+    "UPDATE legajos_ciudadano": 27,
+    "UPDATE programas_formulario": 7,
+    "SAVEPOINT ?": 1,
+    "DELETE programas_padronhabilitado": 1,
+    "SELECT programas_padronhabilitado": 1,
+    "SELECT programas_formulario": 1
+   },
+   "segundos_sqlite": 13.6,
+   "trazas": 22266,
+   "validados_en_base": 20000
+  }
+ },
+ "A4-07-perfil": {
+  "ms_por_caso_sin_profiler": 2.53,
+  "top": "         3083286 function calls (2960545 primitive calls) in 2.989 seconds\n\n   Ordered by: internal time\n   List reduced from 367 to 12 due to restriction <12>\n\n   ncalls  tottime  percall  cumtime  percall filename:lineno(function)\n6057/4000    0.077    0.000    0.500    0.000 C:\\Users\\mkdir\\Proyectos\\Chaco\\.venv312\\Lib\\site-packages\\django\\db\\models\\sql\\query.py:1465(build_filter)\n    20114    0.060    0.000    0.080    0.000 C:\\Users\\mkdir\\Proyectos\\Chaco\\.venv312\\Lib\\site-packages\\django\\db\\models\\sql\\query.py:1741(names_to_path)\n     9500    0.060    0.000    0.140    0.000 C:\\Users\\mkdir\\Proyectos\\Chaco\\.venv312\\Lib\\site-packages\\django\\db\\models\\sql\\query.py:378(clone)\n     3000    0.060    0.000    0.060    0.000 {function SQLiteCursorWrapper.execute at 0x00000281D0F08C20}\n   224098    0.059    0.000    0.078    0.000 {built-in method builtins.isinstance}\n    14057    0.059    0.000    0.162    0.000 C:\\Users\\mkdir\\Proyectos\\Chaco\\.venv312\\Lib\\site-packages\\django\\db\\models\\sql\\query.py:1857(setup_joins)\n    15057    0.055    0.000    0.202    0.000 C:\\Users\\mkdir\\AppData\\Roaming\\uv\\python\\cpython-3.12-windows-x86_64-none\\Lib\\copy.py:61(copy)\n143070/133070    0.052    0.000    0.103    0.000 {built-in method builtins.getattr}\n     8000    0.049    0.000    0.224    0.000 C:\\Users\\mkdir\\Proyectos\\Chaco\\.venv312\\Lib\\site-packages\\django\\db\\models\\sql\\compiler.py:336(_order_by_pairs)\n35114/16000    0.046    0.000    0.434    0.000 C:\\Users\\mkdir\\Proyectos\\Chaco\\.venv312\\Lib\\site-packages\\django\\db\\models\\sql\\compiler.py:572(compile)\n     3000    0.044    0.000    1.228    0.000 C:\\Users\\mkdir\\Proyectos\\Chaco\\.venv312\\Lib\\site-packages\\django\\db\\models\\sql\\compiler.py:755(as_sql)\n   184653    0.042    0.000    0.042    0.000 {built-in method builtins.hasattr}\n\n\n"
+ }
+}
