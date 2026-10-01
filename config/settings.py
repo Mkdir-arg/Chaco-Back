@@ -402,6 +402,16 @@ CIUDADANO_CACHE_TIMEOUT = 600
 SLOW_REQUEST_MS = int(os.environ.get("SLOW_REQUEST_MS", "3000"))
 
 REST_FRAMEWORK = {
+    # Solo sesión: HTTP Basic (default de DRF) salteaba las tres barreras que el
+    # login web sí respeta —la separación portal/backoffice, la sesión única de
+    # backoffice y el cambio de clave provisoria—, porque los middlewares eximen
+    # `/api/` a propósito (SEC-01, auditoría oct-2026). La app de campo de Becas
+    # no se ve afectada: declara `TokenAuthentication` en sus propias vistas
+    # (`programas/api/views.py`) y su login hereda `permission_classes = ()`.
+    "DEFAULT_AUTHENTICATION_CLASSES": ["rest_framework.authentication.SessionAuthentication"],
+    # Default de DRF era `AllowAny`: una vista nueva nacía pública salvo que se
+    # acordara de declarar permisos. Se invierte el default.
+    "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 10,
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",

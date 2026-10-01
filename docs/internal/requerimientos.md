@@ -279,6 +279,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 96.36 | El detalle del programa usa las piezas comunes (encabezado, modales, estados) | Becas | `#ui` `#requisitos` | Auditoría de diseño de Becas (CMP-1, CMP-7, DC-5, TIT-15) | 29/09/2026 | 🟢 **Hecho** | No requiere |
 | 97 | El check de seguridad (pip-audit) deja de bloquear los PRs: DRF 3.17.2 y anyio 4.14.2 | Transversal | `#infra` `#api` | Juez de la sesión — gate «Security / Pip Audit» rojo en todos los PRs | 29/09/2026 | 🟢 **Hecho** | No requiere |
 | 98 | Corregir los datos que impiden informar un caso a SIIS (localidad, barrio, nacimiento, apoderado) | Becas · alta de beneficiarios en SIIS | `#siis` `#datos` `#relevamientos` | PM — en sesión, sobre los rechazos de la corrida del 23/09: «quiero solucionar los casos que nosotros podemos solucionar» | 30/09/2026 | 🟢 **Hecho** | No requiere |
+| 100 | La API del backoffice solo por sesión, y se retira la consulta RENAPER anónima | Transversal · API DRF · Legajos | `#api` `#sesion` `#rbac` | Auditoría integral oct-2026 — SEC-01 y SEC-04 (Ola 0, hotfix de seguridad) | 01/10/2026 | 🟢 **Hecho** | No requiere |
 | 103 | El nombre de un rol ya no inyecta código en el backoffice (SEC-08) | Transversal · shell del backoffice | `#usuarios` `#rbac` `#ui` | Auditoría de seguridad oct-2026 (SEC-08), Ola 0 | 01/10/2026 | 🟢 **Hecho** | No requiere |
 | 105 | Los tests del coordinador regional no dependen de la fecha de hoy | Transversal | `#infra` `#convocatorias` | Juez de la sesión — Ola 0 de la auditoría integral oct-2026: el Backend CI quedó rojo en todos los PRs | 01/10/2026 | 🟢 **Hecho** | No requiere |
 
@@ -12661,6 +12662,145 @@ no tienen vuelta automática (el dump previo es el respaldo).
 
 - **23/09/2026** — corrida en testing: 3.729 altas, 265 rechazos y 44 errores.
 - **30/09/2026 (este cambio)** — diagnóstico de los tres grupos y corrección de los datos.
+
+---
+
+# Cambio 100 — La API del backoffice solo por sesión, y se retira la consulta RENAPER anónima
+
+🟢 **HECHO — 01/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · API DRF (`/api/`) · Legajos |
+| **Etiquetas** | `#api` `#sesion` `#rbac` |
+| **Solicitante** | Auditoría integral de octubre 2026 — hallazgos **SEC-01** y **SEC-04**, los dos CRÍTICOS y confirmados con test de reproducción. Ola 0 (hotfix de seguridad) |
+| **Fecha del pedido** | 01/10/2026 |
+| **Issue / épica** | Sin issue — auditoría oct-2026, `docs/internal/auditoria-2026-10/` |
+| **Partes afectadas** | Servidor/API · Backoffice · Mobile (verificado: sin impacto) |
+| **Migración** | No requiere |
+
+## Pedido original
+
+De la auditoría, dos agujeros independientes sobre la misma superficie `/api/`:
+
+- **SEC-01** — «HTTP Basic en `/api/` saltea la barrera portal/backoffice, la sesión única y la clave
+  provisoria». Con `Authorization: Basic <dni>:<clave>`, un ciudadano del portal listaba el personal
+  (`/api/users/users/`), el padrón (`/api/legajos/ciudadanos/`) y daba de alta provincias.
+- **SEC-04** — «Consulta RENAPER anónima con el payload crudo y un throttle que se evade por
+  `X-Forwarded-For`». `POST /api/legajos/renaper/consultar/` era `AllowAny` y devolvía `datos_api`, el
+  payload sin filtrar de RENAPER (calle, número, piso, provincia), más un oráculo de defunción en la rama
+  de error.
+
+## Alcance acordado
+
+**Entra:**
+
+- SEC-04 completo salvo el punto de infraestructura: se retira la ruta, su vista y su throttle, y se
+  reescribe el test como test invertido.
+- SEC-01 **solo el punto 1** de la propuesta: el default de autenticación y de permisos de DRF.
+
+**Queda explícitamente afuera:**
+
+- **El punto 2 de SEC-01** (`BackofficeAutenticado` como defensa en profundidad sobre cada ViewSet con
+  `permission_classes` explícitas, que **no heredan** el default). Va en otro PR.
+- **`/api/becas/renaper/consultar/`** (`programas/api_urls.py`): es un alias autenticado de
+  `consultar_persona_becas` y **lo usa la app móvil en producción**. No se toca.
+- **El punto 5 de SEC-04** — revisar los access logs de nginx (icore) y del ingress (ECOM) de los últimos
+  90 días para contar quién usó la ruta retirada. No es código; queda en *Pendientes*.
+
+## Decisiones tomadas
+
+- **Se invierte el default de DRF, no se parchea vista por vista.** `DEFAULT_AUTHENTICATION_CLASSES` pasa a
+  `[SessionAuthentication]` y `DEFAULT_PERMISSION_CLASSES` a `[IsAuthenticated]`. Motivo: la causa raíz no
+  era una vista mal configurada sino el default del framework — con `BasicAuthentication` activa, los tres
+  middlewares que sí respeta el login web (`PortalCiudadanoMiddleware`, la sesión única de backoffice y el
+  cambio de clave provisoria) quedaban fuera de juego, porque `users/middleware.py` exime `/api/` **a
+  propósito** desde el Cambio 37 («ahí la autenticación es por token de Mobile y el cambio de clave se
+  resuelve en el navegador»). Ese supuesto solo se sostiene si Basic no existe.
+- **No se agrega `TokenAuthentication` al default.** La app de campo no lo necesita: declara
+  `authentication_classes = [TokenAuthentication, SessionAuthentication]` en sus propias vistas
+  (`programas/api/views.py`) y `ObtainCampoToken` hereda `permission_classes = ()` de `ObtainAuthToken`,
+  así que el login de la app sigue funcionando. Ponerlo global ampliaría la superficie de token a toda la
+  API del backoffice sin que nadie lo pida.
+- **La ruta vieja se borra, no se protege.** No tiene consumidores: la app móvil dejó de usarla el
+  28/06/2026 (commit `16f9ed6`) y hoy llama a `/api/becas/renaper/consultar/`. En el backend solo la
+  llamaba su propio test. Protegerla habría dejado viva una vista que devuelve el payload crudo del
+  organismo; borrarla cierra también el oráculo de defunción de la rama de error.
+- **La tasa `"renaper": "30/min"` de `DEFAULT_THROTTLE_RATES` se conserva** aunque hoy quede sin
+  consumidor: está reservada para SEC-25. Lo que **no** se hace es tocar `NUM_PROXIES` para arreglar la
+  evasión por `X-Forwarded-For` — es distinto en DEV (1, nginx) y en ECOM (ingress), y el repo ya tiene la
+  pieza correcta para eso (`TRUSTED_PROXY_NETS` + `core/services/throttle.py:ip_cliente`). Al borrarse el
+  único throttle por IP de DRF, el problema desaparece con la ruta.
+- **El test del alias de Becas verifica además que `datos_api` viaja vacío.** `consultar_persona_becas`
+  devuelve `"datos_api": {}` por diseño: es lo que diferencia al alias que sobrevive de la ruta que se
+  retira, y conviene que un test lo sostenga.
+
+## Implementación
+
+- `POST /api/legajos/renaper/consultar/` **ya no existe**: devuelve 404 y el nombre de URL
+  `renaper_consultar` no resuelve.
+- Toda la API del backoffice exige **sesión iniciada**. Un pedido con `Authorization: Basic …` recibe
+  401/403, aunque las credenciales sean válidas y de un superusuario.
+- Una vista DRF nueva nace **cerrada**: si no declara permisos, pide usuario autenticado en lugar de
+  quedar pública.
+- La app de campo de Becas no cambia: `POST /api/becas/auth/token/` sigue entregando token y las rutas
+  `/api/becas/…` siguen respondiendo 200 con `Token`.
+- La inscripción pública por link (`/portal/inscripcion/<uuid>/`) no se ve afectada: el portal **no usa
+  DRF** en ningún punto — su ingesta pasa por vistas Django normales desde el Cambio 41.
+
+## Archivos
+
+- `config/settings.py` — `REST_FRAMEWORK`: `DEFAULT_AUTHENTICATION_CLASSES` y `DEFAULT_PERMISSION_CLASSES`
+- `legajos/urls/api.py` — se retira `path("renaper/consultar/", …, name="renaper_consultar")`
+- `legajos/api_views/__init__.py` — se retiran `consultar_renaper_api` y `RenaperRateThrottle`
+- `legajos/tests/test_renaper_api.py` — reescrito como test invertido
+- `core/tests/test_api_auth.py` *(nuevo)* — 3 tests
+- `programas/tests/test_becas_api.py` — 2 tests de no regresión de las rutas que usa la app
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+- **Los tests nuevos fallan contra el código anterior**, que es lo que demuestra el agujero: restaurando
+  los tres archivos de código desde `917e583`, `test_basic_auth_rechazada_en_api_backoffice` da
+  `AssertionError: 200 not found in (401, 403)` en las **tres** URLs (`/api/users/users/`,
+  `/api/legajos/ciudadanos/`, `/api/buscar-ciudadanos/?q=123`) y `test_renaper_legacy_no_existe` da
+  `NoReverseMatch not raised`. Con el cambio aplicado, los dos pasan.
+- `manage.py test core.tests.test_api_auth legajos.tests.test_renaper_api programas.tests.test_becas_api`:
+  **56 OK**.
+- `manage.py test portal` (inscripción pública por link y su CSRF) y `manage.py test legajos dashboard
+  users core`: en verde.
+- Suite completa en verde, sobre Python 3.12 + Django 5.2.17 (`.venv312`, igual al CI).
+- `manage.py check` sin avisos. `makemigrations --check --dry-run`: sin migraciones pendientes.
+- `ruff check` y `ruff format --check` sobre los 6 archivos: limpio.
+- No tocó UI: no corresponde `design_audit.py` ni `compile_templates.py`.
+
+## Puesta en marcha en el servidor
+
+No requiere nada además del deploy. **Aviso para ECOM:** si algún monitoreo externo pegara a `/api/` con
+HTTP Basic, dejará de funcionar. El healthcheck no está afectado: vive en `/health/`, fuera de DRF.
+
+## Pendientes / a definir
+
+- **Punto 5 de SEC-04 (no es código):** revisar los access logs de nginx (icore-srv) y del ingress de ECOM
+  de los últimos 90 días —`grep "/api/legajos/renaper/consultar/"`, contando por IP— para dimensionar si
+  la ruta anónima llegó a explotarse. La auditoría la clasifica como incidente (decisión D-04).
+- **Punto 2 de SEC-01:** `core/api_permissions.py` con `BackofficeAutenticado`, aplicado como primer
+  elemento de `permission_classes` en los ViewSets que hoy las declaran explícitas y por lo tanto **no
+  heredan** el default nuevo (`CiudadanoViewSet`, `AlertasViewSet`, `UserViewSet`, `GroupViewSet`,
+  `ProfileViewSet`, los de `core/api_views` y las 5 vistas de `dashboard/api_views`).
+- **SEC-29**, la puerta de entrada de la cadena: el registro anónimo del portal sobre el DNI de un
+  ciudadano que ya existe.
+- **SEC-25**, que es donde se reusa la tasa `"renaper"` que quedó reservada.
+
+## Reversión
+
+Revertir el commit devuelve la ruta `/api/legajos/renaper/consultar/` como anónima y vuelve a habilitar
+HTTP Basic en toda la API. **No se recomienda:** las dos cosas son los agujeros CRÍTICOS que este cambio
+cierra. Si hubiera que revertir solo una, son independientes: `config/settings.py` es SEC-01 y los tres
+archivos de `legajos/` son SEC-04. No se pierden datos en ninguno de los dos casos.
 
 ---
 

@@ -320,6 +320,36 @@ class PersonasBecasApiTests(_BaseApiTest):
         )
         self.assertEqual(resp.status_code, 400)
 
+    # SEC-04 (auditoría oct-2026): al retirar la consulta RENAPER anónima de
+    # Legajos, el alias que la app usa en producción tiene que quedar intacto y
+    # seguir exigiendo token. `personas/consultar/` ya lo cubre
+    # `test_consultar_persona_requiere_token`, arriba.
+    @patch("programas.services.identidad.consultar_persona")
+    def test_alias_renaper_becas_sigue_autenticado(self, mock_consultar):
+        mock_consultar.return_value = {
+            "success": True,
+            "data": {
+                "dni": "40400400",
+                "nombre": "Juan",
+                "apellido": "Perez",
+                "fecha_nacimiento": "1990-01-02",
+                "sexo": "M",
+            },
+            "datos_api": {"raw": True},
+        }
+        url = reverse("becas_api:renaper-consultar")
+        self.assertEqual(url, "/api/becas/renaper/consultar/")
+
+        anonimo = self.client.post(url, {"dni": "40400400", "sexo": "M"}, format="json")
+        self.assertIn(anonimo.status_code, (401, 403))
+
+        self.autenticar(self.terri)
+        resp = self.client.post(url, {"dni": "40400400", "sexo": "M"}, format="json")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data["data"]["dni"], "40400400")
+        # El alias no filtra el payload crudo del servicio externo.
+        self.assertEqual(resp.data["datos_api"], {})
+
 
 class FormularioSyncTests(_BaseApiTest):
     def setUp(self):
