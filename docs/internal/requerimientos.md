@@ -279,6 +279,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 96.36 | El detalle del programa usa las piezas comunes (encabezado, modales, estados) | Becas | `#ui` `#requisitos` | Auditoría de diseño de Becas (CMP-1, CMP-7, DC-5, TIT-15) | 29/09/2026 | 🟢 **Hecho** | No requiere |
 | 97 | El check de seguridad (pip-audit) deja de bloquear los PRs: DRF 3.17.2 y anyio 4.14.2 | Transversal | `#infra` `#api` | Juez de la sesión — gate «Security / Pip Audit» rojo en todos los PRs | 29/09/2026 | 🟢 **Hecho** | No requiere |
 | 98 | Corregir los datos que impiden informar un caso a SIIS (localidad, barrio, nacimiento, apoderado) | Becas · alta de beneficiarios en SIIS | `#siis` `#datos` `#relevamientos` | PM — en sesión, sobre los rechazos de la corrida del 23/09: «quiero solucionar los casos que nosotros podemos solucionar» | 30/09/2026 | 🟢 **Hecho** | No requiere |
+| 103 | El nombre de un rol ya no inyecta código en el backoffice (SEC-08) | Transversal · shell del backoffice | `#usuarios` `#rbac` `#ui` | Auditoría de seguridad oct-2026 (SEC-08), Ola 0 | 01/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -12659,5 +12660,76 @@ no tienen vuelta automática (el dump previo es el respaldo).
 
 - **23/09/2026** — corrida en testing: 3.729 altas, 265 rechazos y 44 errores.
 - **30/09/2026 (este cambio)** — diagnóstico de los tres grupos y corrección de los datos.
+
+---
+
+# Cambio 103 — El nombre de un rol ya no inyecta código en el backoffice
+
+🟢 **HECHO — 01/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · shell del backoffice (`templates/includes/base.html`) |
+| **Etiquetas** | `#usuarios` `#rbac` `#ui` |
+| **Solicitante** | Auditoría de seguridad oct-2026, hallazgo SEC-08 (severidad alta, confirmado con test), Ola 0 de hotfixes |
+| **Fecha del pedido** | 01/10/2026 |
+| **Issue / épica** | Sin issue · PR H4 de la Ola 0 |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+## Pedido original
+
+SEC-08, auditoría oct-2026: «XSS almacenado por el nombre de un rol, en todas las páginas del backoffice». El context processor `conversaciones.context_processors.user_groups` armaba `user_groups_json` con `str(groups).replace("'", '"')` y `base.html` lo imprimía con `|safe` dentro de un `<script>`. Un rol llamado `Op</script><script>alert(document.domain)</script>` se ejecutaba en cada página de sus usuarios; un rol `Rol d'Ejemplo` producía `["Rol d"Ejemplo"]`, un SyntaxError que tiraba el `<script>` entero (también `window.conversacionesConfig`).
+
+## Alcance acordado
+
+- Entra: dejar de interpolar los nombres de rol como código. `base.html` los recibe por `json_script` y el context processor deja de exponer `user_groups_json`.
+- Afuera: restringir caracteres en `RolForm.clean_name` (cambia el comportamiento del ABM de Roles; queda como sugerencia, ver Pendientes) y sacar `'unsafe-inline'` de la CSP.
+
+## Decisiones tomadas
+
+- **`json_script` y no un escape a mano.** Es el filtro de Django pensado para esto: escapa `<`, `>` y `&` como `<`/`>`/`&`, así que ni `</script>` ni las comillas pueden cerrar el bloque, y el JSON siempre es válido.
+- **Se borra `user_groups_json` en vez de arreglarlo.** No tenía otros consumidores (grep sobre `.py`, `.html` y `.js`) y ya existía `user_groups_list` con los mismos datos; dejar la clave invitaba a volver a usarla con `|safe`.
+- **El contrato de `window.userGroups` no cambia:** sigue siendo un array de strings. Sus lectores (`static/custom/js/alertas_conversaciones*.js`) no se tocan.
+- **No se agrega whitelist de caracteres al nombre del rol.** El arreglo de salida alcanza para cerrar el XSS; limitar la entrada es otra decisión del ABM.
+
+## Implementación
+
+Los nombres de los roles del usuario viajan al navegador dentro de un `<script id="user-groups-data" type="application/json">` y el shell los lee con `JSON.parse`. Un rol con comillas, apóstrofes o etiquetas se muestra como texto y no rompe ni ejecuta nada.
+
+## Archivos
+
+- `conversaciones/context_processors.py` — sale la clave `user_groups_json` (usuario logueado y anónimo).
+- `templates/includes/base.html` — `{{ user_groups_list|json_script:"user-groups-data" }}` y `window.userGroups = JSON.parse(...)`.
+- `.claude/agents/chaco-design-system.md` — fila «Shell backoffice»: el contrato de cómo llegan los grupos al JS (pieza canónica tocada).
+- `core/tests/test_base_template_xss.py` — tests nuevos.
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+- TDD: `core.tests.test_base_template_xss` (`test_nombre_de_rol_no_rompe_script`, `test_apostrofe_en_nombre_de_rol`) falló con el código anterior por las dos razones de la ficha y pasa con el arreglo.
+- Python 3.12 + Django 5.2.17: `manage.py check` sin observaciones; `makemigrations --check --dry-run` sin cambios; suite completa: 2012 tests, 2 fallas y 1 salteado. Las 2 fallas (`programas.tests.test_coordinador_regional`: `test_el_regional_crea_con_su_subsegmento` y `test_para_otros_roles_el_subsegmento_sigue_siendo_opcional`) son preexistentes y ajenas: fallan igual sobre `origin/development` limpio desde el 01/10/2026, porque el formulario de convocatoria rechaza una fecha de fin que el test fija y ya quedó en el pasado.
+- `scripts/design_audit.py --changed`: 0 errores, 0 warnings. `scripts/compile_templates.py`: 0 errores. `scripts/check_design_agent.py --changed`: OK.
+- `ruff check` y `ruff format --check` sobre los archivos Python tocados: OK.
+
+## Puesta en marcha en el servidor
+
+No requiere nada más que el deploy.
+
+## Pendientes / a definir
+
+- **Sugerencia, no implementada:** validar en `RolForm.clean_name` un juego de caracteres permitido para el nombre del rol (defensa en profundidad). Cambia lo que acepta el ABM de Roles: lo decide el PM.
+- La CSP del backoffice sigue con `'unsafe-inline'` (`config/middlewares/security_headers.py`); sacarlo exige mover los scripts inline del shell y queda para otra ola.
+
+## Reversión
+
+Revertir el commit del PR. No hay datos involucrados; vuelve la vulnerabilidad.
+
+## Historial
+
+Entrada nueva.
 
 ---
