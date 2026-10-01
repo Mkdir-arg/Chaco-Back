@@ -38,7 +38,7 @@ from portal.services.inscripcion import (
     relevamiento_disponible,
 )
 from programas.models import Relevamiento
-from programas.services.becas import definicion_formulario
+from programas.services.becas import definicion_formulario, relevamiento_publico_por_token
 from programas.services.identidad import identificar
 from programas.services.inscripcion_publica import (
     InscripcionDuplicada,
@@ -101,14 +101,17 @@ def _get_relevamiento(token):
     # La cadena de pausa (segmento → programa, subsegmento → segmento) y el
     # diseño del formulario vienen en el mismo SELECT: ``habilitado_en`` y la
     # definición del paso 2 los pedían aparte en cada request (Cambio 91).
+    # El token se busca en hex y con guiones (Cambio 99): MariaDB lo guarda con
+    # guiones y una base restaurada desde PRD (MySQL) trae filas en hex.
     return get_object_or_404(
-        Relevamiento.objects.select_related(
-            "convocatoria__segmento__programa",
-            "convocatoria__subsegmento__segmento__programa",
-            "convocatoria__diseno",
-        ),
-        token_publico=token,
-        tipo=Relevamiento.Tipo.PUBLICO,
+        relevamiento_publico_por_token(
+            token,
+            Relevamiento.objects.select_related(
+                "convocatoria__segmento__programa",
+                "convocatoria__subsegmento__segmento__programa",
+                "convocatoria__diseno",
+            ),
+        )
     )
 
 
