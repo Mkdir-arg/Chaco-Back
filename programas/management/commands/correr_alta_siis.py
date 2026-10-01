@@ -65,6 +65,9 @@ LOTE = 40
 PAUSA = 2.0
 FECHA_APODERADO = "1990-01-01"
 BARRIO_GENERICO = "Sin especificar"
+# SIIS no tiene «Separado/a» y el campo es obligatorio: sin reemplazo esos
+# casos ni se intentan. Decisión del organismo del 01/10/2026.
+ESTADO_CIVIL_SIN_EQUIVALENTE = "Soltero/a"
 
 
 def _sin_comentarios(texto):
@@ -150,6 +153,11 @@ class Command(BaseCommand):
         )
         parser.add_argument("--fecha-apoderado", default=FECHA_APODERADO, help=f"Por defecto {FECHA_APODERADO}.")
         parser.add_argument("--barrio-generico", default=BARRIO_GENERICO, help=f"Por defecto «{BARRIO_GENERICO}».")
+        parser.add_argument(
+            "--estado-civil-sin-equivalente",
+            default=ESTADO_CIVIL_SIN_EQUIVALENTE,
+            help=f"Para los que SIIS no tiene («Separado/a»). Por defecto «{ESTADO_CIVIL_SIN_EQUIVALENTE}».",
+        )
         parser.add_argument("--lote", type=int, default=LOTE, help=f"Casos por lote del envío. Por defecto {LOTE}.")
         parser.add_argument("--pausa", type=float, default=PAUSA, help=f"Segundos entre lotes. Por defecto {PAUSA}.")
         parser.add_argument(
@@ -351,6 +359,8 @@ class Command(BaseCommand):
             options["barrio_generico"],
             "--fecha-apoderado",
             options["fecha_apoderado"],
+            "--estado-civil-sin-equivalente",
+            options["estado_civil_sin_equivalente"],
             "--limite",
             "999999",
             *(("--aplicar",) if aplicar else ()),

@@ -102,6 +102,7 @@ el restore termine del todo y reintentar.
 python manage.py corregir_datos_siis \
     --fecha-nacimiento-renaper --heredar-nacimiento \
     --barrio-generico "Sin especificar" --fecha-apoderado 1990-01-01 \
+    --estado-civil-sin-equivalente "Soltero/a" \
     --aplicar --limite 999999
 ```
 
@@ -114,6 +115,7 @@ Esperado, aproximado:
 | Barrio | ~186 |
 | Fecha del apoderado | ~520 |
 | Fecha de nacimiento del titular (legajo) | 31 |
+| Estado civil que SIIS no tiene («Separado/a») | 11 |
 
 Mirar dos líneas del resumen: **"la planilla tampoco cruza"** y **"su DNI no está en la
 planilla"**. Son la lista de trabajo para la próxima vuelta.
