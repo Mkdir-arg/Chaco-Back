@@ -295,6 +295,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 112 | Los archivos subidos dejan de bajarse sin sesión | Transversal · archivos | `#infra` `#rbac` `#datos` | Juez de la sesión — Ola 0 de la auditoría integral oct-2026 (SEC-09, etapa 1) | 03/10/2026 | 🟢 **Hecho** | No requiere |
 | 113 | La API REST de usuarios y roles queda apagada salvo `me` | Transversal · API DRF (`/api/users/`) | `#api` `#rbac` `#usuarios` | Auditoría integral oct-2026 — SEC-05, SEC-16 y SEC-17, decisión D-05 (Ola 0, segunda tanda, PR H11) | 03/10/2026 | 🟢 **Hecho** | No requiere |
 | 114 | La API de ciudadanos es de solo lectura, pide capacidad y solo contesta búsquedas | Legajos · API DRF (`/api/legajos/`) | `#api` `#rbac` `#datos` | Auditoría integral oct-2026 — SEC-02 (+ V1-NEW-03) y SEC-01 punto 2 en legajos (Ola 0, segunda tanda, PR H12) | 03/10/2026 | 🟢 **Hecho** | No requiere |
+| 115 | El catálogo geográfico de la API es de solo lectura y las APIs del dashboard piden capacidad | Transversal · API DRF (`/api/core/`, `/api/` del dashboard) · home del backoffice | `#api` `#rbac` `#sesion` `#ui` | Auditoría integral oct-2026 — SEC-13 y SEC-14 (Ola 0, segunda tanda, PR H13) | 03/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -14595,3 +14596,166 @@ datos ni migraciones de por medio.
   CRUD para cualquier usuario con sesión.
 - **03/10/2026** — Cambio 109: queda disponible `BackofficeAutenticado` en `core/api_permissions.py`.
 - **03/10/2026 (este cambio)** — se aplica en legajos: solo lectura, capacidad, sensibles y búsqueda.
+
+---
+
+# Cambio 115 — El catálogo geográfico de la API es de solo lectura y las APIs del dashboard piden capacidad
+
+🟢 **HECHO — 03/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · API DRF (`/api/core/` y las 5 vistas de `/api/` del dashboard) · home del backoffice |
+| **Etiquetas** | `#api` `#rbac` `#sesion` `#ui` |
+| **Solicitante** | Auditoría integral de octubre 2026 — hallazgos **SEC-13** y **SEC-14** (Ola 0, segunda tanda, PR H13) |
+| **Fecha del pedido** | 03/10/2026 |
+| **Issue / épica** | Sin issue — auditoría oct-2026, `docs/internal/auditoria-2026-10/` |
+| **Partes afectadas** | `core/api_views/__init__.py`, `core/api_permissions.py`, `core/views/public.py`, `dashboard/api_views/__init__.py`, `templates/inicio.html`, `.claude/agents/chaco-design-system.md` |
+| **Migración** | No requiere |
+
+## Pedido original
+
+De la ficha **SEC-13** (ALTA, reproducida con `SEC13GeoApiTests`):
+
+> DELETE `/api/core/provincias/<id>/` sin capacidad → 204 (cascada a municipios y localidades). En
+> `core/api_views/__init__.py`, `ProvinciaViewSet`, `MunicipioViewSet` y `LocalidadViewSet` →
+> `viewsets.ReadOnlyModelViewSet` (el ABM es web, `configuracion/views/geografia.py`, con
+> `config.administrar`). Revisar que `SexoViewSet`, `MesViewSet` y `DiaViewSet` sean ReadOnly.
+
+De la ficha **SEC-14** (ALTA, reproducida con `SEC14DashboardApiTests`):
+
+> Sin `ciudadano.ver`, GET `/api/buscar-ciudadanos/?q=301` → 200 con nombre y DNI (hasta 20 y `has_more`).
+> `buscar_ciudadanos` con `ciudadano.ver`; `alertas_criticas` y `actividad_reciente` con `ciudadano.sensible`
+> y resolviendo las alertas con `FiltrosUsuarioService.obtener_alertas_usuario(request.user)`;
+> `metricas_dashboard` y `tendencias_datos` con `dashboard.ver`. En `core/views/public.py` (`inicio_view`):
+> `derivaciones_pendientes` solo si `puede(user, "ciudadano.ver")` y `conversaciones_sin_asignar` solo si
+> `puede(user, "conversacion.operar")`.
+
+Y el punto 2 de **SEC-01** para estos dos archivos: `BackofficeAutenticado` como primer permiso en todas las
+vistas DRF de `core/api_views` y `dashboard/api_views`.
+
+## Qué lo motivó
+
+Las dos superficies compartían la misma causa: la vista declara `permission_classes` y por eso **no hereda**
+el default que dejó el Cambio 100, así que lo único que pedía era «estar autenticado».
+
+- **Geografía (SEC-13).** El catálogo era un `ModelViewSet`. Nadie escribe por esa API —el ABM es la pantalla
+  de Configuración → Geografía, y el combo de domicilio usa `core.views.public.load_municipios` /
+  `load_localidad`, no `/api/core/`—, pero cualquier usuario del backoffice con sesión podía borrar una
+  provincia y llevarse en cascada sus municipios y localidades.
+- **Dashboard (SEC-14).** `/api/buscar-ciudadanos/?q=301` devolvía nombre y DNI por prefijo, 20 por consulta
+  más `has_more`: con eso se enumera el padrón entero sin tener `ciudadano.ver`. Las alertas y la actividad
+  reciente salían del alcance global, sin pasar por `FiltrosUsuarioService`, que es la pieza que ya acota las
+  alertas al usuario en el resto de Legajos.
+
+## Alcance acordado
+
+**Entra:** los seis ViewSets de `core/api_views` a solo lectura con `BackofficeAutenticado`; las cinco vistas
+de `dashboard/api_views` con `BackofficeAutenticado` + la capacidad que corresponde; `inicio_view` armando
+los dos feeds solo para quien tiene la capacidad; el endurecimiento de `BackofficeAutenticado` con
+`is_active`; y el ajuste de `inicio.html` para que ninguna pieza pida una API que no puede consumir.
+
+**Queda afuera:** `/api/legajos/`, `/api/users/` y `/api/becas/`, que son de los otros PRs de la tanda.
+
+## Decisiones tomadas
+
+- **El catálogo geográfico queda de solo lectura, no detrás de una capacidad.** La lectura la necesita
+  cualquier pantalla del backoffice (domicilios, filtros) y no expone datos de personas: es un nomenclador
+  del Estado. Lo que había que cerrar era la escritura, y la escritura ya tiene dueño en la web.
+- **`Sexo`, `Mes` y `Dia` ya eran `ReadOnlyModelViewSet`** (lo pedía la ficha «revisar»): solo se les cambió
+  `IsAuthenticated` por `BackofficeAutenticado`.
+- **`metricas_dashboard` y `tendencias_datos` → `dashboard.ver`**, siguiendo la ficha. Son el mismo dato que
+  muestra la sección Dashboard, que ya se esconde del menú con esa capacidad
+  (`templates/includes/sidebar/opciones.html`).
+- **`alertas_criticas` y `actividad_reciente` → `ciudadano.sensible`**, y las alertas salen de
+  `FiltrosUsuarioService.obtener_alertas_usuario(request.user)`. La capacidad decide si se entra; el servicio
+  decide **qué alertas** se ven. Sin él, un usuario con la capacidad veía alertas de legajos ajenos.
+- **`BackofficeAutenticado` también exige `is_active`.** `SessionAuthentication` no vuelve a mirar ese campo:
+  la sesión abierta antes de dar de baja a una cuenta seguía entrando a `/api/` hasta vencer.
+- **Un superusuario dentro del grupo `Ciudadanos` queda denegado a propósito** (fail-closed). Acá no hay
+  bypass de `is_superuser` como en `rbac.puede`: una cuenta en las dos superficies a la vez es un error de
+  datos —el portal y el backoffice son excluyentes, es lo que asume `PortalCiudadanoMiddleware`— y se corrige
+  sacándola del grupo, no relajando el permiso. Queda documentado en el docstring y con test.
+- **Si una pieza de la home no puede consumir su API, no se dibuja.** La ficha solo pedía el cambio de
+  servidor, pero la tarjeta «Tendencias» de `inicio.html` no estaba condicionada y habría quedado pidiendo
+  403 en consola a todo usuario sin `dashboard.ver`. Se condicionaron con el filtro `puede` la tarjeta de
+  tendencias (`dashboard.ver`), la tarjeta de búsqueda rápida (`ciudadano.ver` el typeahead, que pega a
+  `dashboard:api_buscar_ciudadanos`; la tarjeta entera si tampoco hay `ciudadano.crear`), el feed de
+  derivaciones (`ciudadano.ver`) y el de conversaciones sin asignar (`conversacion.operar`), más la sección
+  «Mi trabajo de hoy» entera si no queda ninguno de los dos. Lo que ya estaba condicionado por
+  `ciudadano.ver` era el botón «Ver ciudadanos» del hero, **no** el buscador: dejarlo visible lo convertía en
+  un control muerto —403 con `data.results` indefinido y la lista vaciándose en silencio—. Y como los
+  contadores del hero se fuerzan a 0 sin capacidad, el texto «Todo al día. Sin tareas pendientes urgentes»
+  queda solo para quien puede ver esas pendencias; el resto lee el saludo neutro.
+
+## Implementación
+
+`core/api_views/__init__.py` — los seis ViewSets:
+
+```python
+class ProvinciaViewSet(viewsets.ReadOnlyModelViewSet):
+    permission_classes = [BackofficeAutenticado]
+```
+
+`dashboard/api_views/__init__.py` — las cinco vistas:
+
+| Vista | Permisos |
+|---|---|
+| `metricas_dashboard` | `BackofficeAutenticado`, `RequiereCapacidad("dashboard.ver")` |
+| `tendencias_datos` | `BackofficeAutenticado`, `RequiereCapacidad("dashboard.ver")` |
+| `buscar_ciudadanos` | `BackofficeAutenticado`, `RequiereCapacidad("ciudadano.ver")` |
+| `alertas_criticas` | `BackofficeAutenticado`, `RequiereCapacidad("ciudadano.sensible")` |
+| `actividad_reciente` | `BackofficeAutenticado`, `RequiereCapacidad("ciudadano.sensible")` |
+
+`core/api_permissions.py`:
+
+```python
+def has_permission(self, request, view):
+    usuario = request.user
+    return usuario.is_authenticated and usuario.is_active and not rbac.es_ciudadano_portal(usuario)
+```
+
+## Validación
+
+- **Tests nuevos**, en rojo antes del arreglo (17 de 18 fallaban):
+  - `core/tests/test_api_geo.py` — `test_escritura_405` (POST/PUT/PATCH/DELETE sobre provincias, municipios y
+    localidades → 405 y las filas siguen existiendo), `test_lectura_autenticado_200` (las nueve rutas de
+    lectura, incluidas las acciones `municipios` y `localidades`) y
+    `test_ciudadano_del_portal_no_lee_el_catalogo`.
+  - `dashboard/tests/test_api_rbac.py` — `test_buscar_ciudadanos_sin_capacidad_403`,
+    `test_con_ciudadano_ver_200`, los 403/200 de alertas, actividad, métricas y tendencias, y
+    `test_alertas_criticas_respetan_el_alcance_del_usuario` (sin legajos propios solo quedan las CRÍTICAS).
+  - `core/tests/test_api_permissions.py` — `test_usuario_dado_de_baja_no_pasa` (rojo antes) y
+    `test_superusuario_en_el_grupo_ciudadanos_no_pasa` (verde antes: fija la decisión fail-closed).
+  - `core/tests/test_inicio_rbac.py` — renderiza `/inicio/` con un rol acotado (solo `config.*`) y verifica
+    que no aparecen el buscador, los paneles ni el gráfico, y que el hero no dice «Todo al día»; más los dos
+    contrastes con `ciudadano.ver` y con `dashboard.ver`.
+- `manage.py check` sin issues y `makemigrations --check --dry-run` sin cambios.
+- Suite completa en verde con `.venv312` (Python 3.12 + Django 5.2.17, igual al CI), en dos tandas:
+  `core dashboard legajos users configuracion config conversaciones portal` → 688 OK, y `programas` → OK.
+- `design_audit.py --changed` 0 errores / 0 warnings, `compile_templates.py` 198 OK / 0 errores,
+  `check_design_agent.py --changed` OK, `ruff check` y `ruff format --check` limpios.
+
+## Pendientes / a definir
+
+- Con `dashboard.ver`, la tarjeta «Tendencias» de la home deja de verse para los roles que no la tengan —en
+  los seeds, «Operador de backoffice»—. Es lo que dice la ficha; si el cliente la quiere visible para todos,
+  la decisión es cambiarle la capacidad a `tendencias_datos`, no sacarla de la pantalla.
+- `actividad_reciente` pide `ciudadano.sensible`, pero lo que más muestra son inscripciones y derivaciones:
+  un perfil con `ciudadano.ver` + `dashboard.ver` queda afuera. Hoy no tiene consumidor, así que no rompe
+  nada; si la home pasa a consumirla, revisar si la capacidad correcta no es `ciudadano.ver`.
+- Sigue abierto el seguimiento **R0-04** de SEC-01: la raíz `/api/becas/` acepta `TokenAuthentication`, que es
+  lo que necesita la app de campo.
+
+## Reversión
+
+Revertir el commit devuelve los `ModelViewSet` de geografía y deja las cinco vistas del dashboard en
+`IsAuthenticated`: vuelven los dos agujeros. No hay datos ni migraciones involucrados.
+
+## Historial
+
+- **01/10/2026** — Cambio 100: el default de DRF pasa a sesión + `IsAuthenticated`; queda anotado que el punto
+  2 de SEC-01 va en otro PR.
+- **03/10/2026** — Cambio 109: queda disponible `BackofficeAutenticado`, sin aplicarla a ninguna vista.
+- **03/10/2026 (este cambio)** — SEC-13 y SEC-14 cerrados, y la clase aplicada en `core/api_views` y
+  `dashboard/api_views`.

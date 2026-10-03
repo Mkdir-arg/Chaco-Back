@@ -1,9 +1,19 @@
+"""API de catálogos de `core`: **solo lectura**.
+
+El ABM de la geografía es web (`configuracion/views/geografia.py`, con
+`config.administrar`): nadie escribe por acá. Como `ModelViewSet`, en cambio, un
+`DELETE /api/core/provincias/<id>/` con la sesión de cualquier usuario del
+backoffice borraba la provincia y, en cascada, sus municipios y localidades
+(SEC-13, auditoría oct-2026).
+"""
+
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.utils import extend_schema, extend_schema_view
-from rest_framework import status, viewsets
+from rest_framework import viewsets
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+
+from core.api_permissions import BackofficeAutenticado
 
 from ..models import Dia, Localidad, Mes, Municipio, Provincia, Sexo
 from ..serializers import (
@@ -18,22 +28,18 @@ from ..serializers import (
 
 @extend_schema_view(
     list=extend_schema(description="Lista todas las provincias"),
-    create=extend_schema(description="Crea una nueva provincia"),
     retrieve=extend_schema(description="Obtiene una provincia específica"),
-    update=extend_schema(description="Actualiza una provincia"),
-    partial_update=extend_schema(description="Actualiza parcialmente una provincia"),
-    destroy=extend_schema(description="Elimina una provincia"),
 )
-class ProvinciaViewSet(viewsets.ModelViewSet):
+class ProvinciaViewSet(viewsets.ReadOnlyModelViewSet):
     """
-    ViewSet para gestionar provincias.
+    ViewSet de solo lectura para provincias.
 
-    Permite realizar operaciones CRUD sobre las provincias del sistema.
+    El alta, la edición y la baja se hacen desde Configuración → Geografía.
     """
 
     queryset = Provincia.objects.all()
     serializer_class = ProvinciaSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [BackofficeAutenticado]
     search_fields = ["nombre"]
     ordering = ["nombre"]
 
@@ -49,20 +55,16 @@ class ProvinciaViewSet(viewsets.ModelViewSet):
 
 @extend_schema_view(
     list=extend_schema(description="Lista todos los municipios"),
-    create=extend_schema(description="Crea un nuevo municipio"),
     retrieve=extend_schema(description="Obtiene un municipio específico"),
-    update=extend_schema(description="Actualiza un municipio"),
-    partial_update=extend_schema(description="Actualiza parcialmente un municipio"),
-    destroy=extend_schema(description="Elimina un municipio"),
 )
-class MunicipioViewSet(viewsets.ModelViewSet):
+class MunicipioViewSet(viewsets.ReadOnlyModelViewSet):
     """
-    ViewSet para gestionar municipios.
+    ViewSet de solo lectura para municipios.
     """
 
     queryset = Municipio.objects.select_related("provincia")
     serializer_class = MunicipioSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [BackofficeAutenticado]
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ["provincia"]
     search_fields = ["nombre"]
@@ -80,20 +82,16 @@ class MunicipioViewSet(viewsets.ModelViewSet):
 
 @extend_schema_view(
     list=extend_schema(description="Lista todas las localidades"),
-    create=extend_schema(description="Crea una nueva localidad"),
     retrieve=extend_schema(description="Obtiene una localidad específica"),
-    update=extend_schema(description="Actualiza una localidad"),
-    partial_update=extend_schema(description="Actualiza parcialmente una localidad"),
-    destroy=extend_schema(description="Elimina una localidad"),
 )
-class LocalidadViewSet(viewsets.ModelViewSet):
+class LocalidadViewSet(viewsets.ReadOnlyModelViewSet):
     """
-    ViewSet para gestionar localidades.
+    ViewSet de solo lectura para localidades.
     """
 
     queryset = Localidad.objects.select_related("municipio__provincia")
     serializer_class = LocalidadSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [BackofficeAutenticado]
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ["municipio"]
     search_fields = ["nombre"]
@@ -111,7 +109,7 @@ class SexoViewSet(viewsets.ReadOnlyModelViewSet):
 
     queryset = Sexo.objects.all()
     serializer_class = SexoSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [BackofficeAutenticado]
 
 
 @extend_schema_view(
@@ -125,7 +123,7 @@ class MesViewSet(viewsets.ReadOnlyModelViewSet):
 
     queryset = Mes.objects.all()
     serializer_class = MesSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [BackofficeAutenticado]
 
 
 @extend_schema_view(
@@ -139,4 +137,4 @@ class DiaViewSet(viewsets.ReadOnlyModelViewSet):
 
     queryset = Dia.objects.all()
     serializer_class = DiaSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [BackofficeAutenticado]

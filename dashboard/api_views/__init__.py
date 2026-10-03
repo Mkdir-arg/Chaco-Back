@@ -1,3 +1,11 @@
+"""APIs del dashboard: cada una pide la capacidad de lo que devuelve.
+
+SEC-14 (auditoría oct-2026): alcanzaba con estar autenticado. `buscar-ciudadanos`
+devolvía nombre y DNI del padrón por prefijo —hasta 20 por consulta más `has_more`,
+suficiente para enumerarlo— y las alertas y la actividad reciente salían del alcance
+global, sin pasar por `FiltrosUsuarioService`.
+"""
+
 import logging
 from datetime import datetime, timedelta
 
@@ -5,10 +13,11 @@ from django.db.models import Count, Q
 from django.utils import timezone
 from django.utils.html import escape
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from core.api_permissions import BackofficeAutenticado, RequiereCapacidad
 from legajos.models import AlertaCiudadano, Ciudadano
+from legajos.services.filtros_usuario import FiltrosUsuarioService
 from programas.models import DerivacionPrograma, InscripcionPrograma
 from users.models import User
 
@@ -16,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 
 @api_view(["GET"])
-@permission_classes([IsAuthenticated])
+@permission_classes([BackofficeAutenticado, RequiereCapacidad("dashboard.ver")])
 def metricas_dashboard(request):
     """Obtiene metricas principales del dashboard (datos globales, cacheados 60 s)."""
     from django.core.cache import cache
@@ -59,7 +68,7 @@ def _calcular_metricas_dashboard():
 
 
 @api_view(["GET"])
-@permission_classes([IsAuthenticated])
+@permission_classes([BackofficeAutenticado, RequiereCapacidad("ciudadano.ver")])
 def buscar_ciudadanos(request):
     """Busqueda rapida de ciudadanos."""
     query = escape(request.GET.get("q", "").strip())
@@ -86,12 +95,13 @@ def buscar_ciudadanos(request):
 
 
 @api_view(["GET"])
-@permission_classes([IsAuthenticated])
+@permission_classes([BackofficeAutenticado, RequiereCapacidad("ciudadano.sensible")])
 def alertas_criticas(request):
-    """Obtiene alertas criticas activas."""
+    """Obtiene alertas criticas activas, acotadas al alcance del usuario."""
     try:
         alertas = (
-            AlertaCiudadano.objects.filter(activa=True, prioridad__in=["CRITICA", "ALTA"])
+            FiltrosUsuarioService.obtener_alertas_usuario(request.user)
+            .filter(prioridad__in=["CRITICA", "ALTA"])
             .select_related("ciudadano")
             .order_by("-creado")[:5]
         )
@@ -123,7 +133,7 @@ def alertas_criticas(request):
 
 
 @api_view(["GET"])
-@permission_classes([IsAuthenticated])
+@permission_classes([BackofficeAutenticado, RequiereCapacidad("ciudadano.sensible")])
 def actividad_reciente(request):
     """Obtiene actividad reciente del sistema."""
     try:
@@ -133,7 +143,11 @@ def actividad_reciente(request):
         derivaciones = DerivacionPrograma.objects.select_related(
             "ciudadano", "programa_origen", "programa_destino", "derivado_por"
         ).order_by("-creado")[:3]
-        alertas = AlertaCiudadano.objects.select_related("ciudadano").filter(activa=True).order_by("-creado")[:2]
+        alertas = (
+            FiltrosUsuarioService.obtener_alertas_usuario(request.user)
+            .select_related("ciudadano")
+            .order_by("-creado")[:2]
+        )
 
         actividades = []
 
@@ -192,7 +206,7 @@ def actividad_reciente(request):
 
 
 @api_view(["GET"])
-@permission_classes([IsAuthenticated])
+@permission_classes([BackofficeAutenticado, RequiereCapacidad("dashboard.ver")])
 def tendencias_datos(request):
     """Obtiene datos para grafico de tendencias."""
     periodo = request.GET.get("periodo", "30d")

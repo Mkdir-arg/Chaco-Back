@@ -14,6 +14,7 @@ from dashboard.utils import (
     contar_usuarios,
 )
 
+from ..rbac import puede
 from ..selectors import get_localidades_values, get_municipios_values
 
 
@@ -84,26 +85,36 @@ def inicio_view(request):
     }
 
     # --- Mi trabajo de hoy ---
-    derivaciones_pendientes = (
-        DerivacionPrograma.objects.filter(estado="PENDIENTE")
-        .select_related("ciudadano", "programa_origen", "programa_destino")
-        .order_by("-creado")
-    )
-    context["derivaciones_pendientes_count"] = derivaciones_pendientes.count()
-    context["derivaciones_pendientes"] = derivaciones_pendientes[:8]
+    # Los dos paneles nombran ciudadanos y DNIs: van detrás de la capacidad que
+    # habilita la pantalla de la que salen (SEC-14, auditoría oct-2026). La home la
+    # ve cualquier usuario autenticado del backoffice, así que sin capacidad el panel
+    # directamente no se arma (el template lo esconde con el mismo `|puede`).
+    context["derivaciones_pendientes_count"] = 0
+    context["derivaciones_pendientes"] = []
+    if puede(request.user, "ciudadano.ver"):
+        derivaciones_pendientes = (
+            DerivacionPrograma.objects.filter(estado="PENDIENTE")
+            .select_related("ciudadano", "programa_origen", "programa_destino")
+            .order_by("-creado")
+        )
+        context["derivaciones_pendientes_count"] = derivaciones_pendientes.count()
+        context["derivaciones_pendientes"] = derivaciones_pendientes[:8]
 
-    try:
-        from conversaciones.models import Conversacion
-        from conversaciones.selectors import get_conversaciones_pendientes_count
+    context["conversaciones_sin_asignar_count"] = 0
+    context["conversaciones_sin_asignar"] = []
+    if puede(request.user, "conversacion.operar"):
+        try:
+            from conversaciones.models import Conversacion
+            from conversaciones.selectors import get_conversaciones_pendientes_count
 
-        conversaciones_sin_asignar = Conversacion.objects.filter(
-            estado="pendiente", operador_asignado__isnull=True
-        ).order_by("-fecha_inicio")
-        context["conversaciones_sin_asignar_count"] = get_conversaciones_pendientes_count(request.user)
-        context["conversaciones_sin_asignar"] = conversaciones_sin_asignar[:8]
-    except Exception:
-        context["conversaciones_sin_asignar_count"] = 0
-        context["conversaciones_sin_asignar"] = []
+            conversaciones_sin_asignar = Conversacion.objects.filter(
+                estado="pendiente", operador_asignado__isnull=True
+            ).order_by("-fecha_inicio")
+            context["conversaciones_sin_asignar_count"] = get_conversaciones_pendientes_count(request.user)
+            context["conversaciones_sin_asignar"] = conversaciones_sin_asignar[:8]
+        except Exception:
+            context["conversaciones_sin_asignar_count"] = 0
+            context["conversaciones_sin_asignar"] = []
 
     # --- Inscripciones activas por programa (gráfico) ---
     # Era la única lectura pesada de la home sin cachear: agrega toda la tabla de

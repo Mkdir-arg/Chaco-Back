@@ -44,3 +44,20 @@ class BackofficeAutenticadoTests(TestCase):
         root = User.objects.create_superuser("root-api", "root-api@example.com", "Clave-Seg-2026x")
 
         self.assertTrue(self._permiso(root))
+
+    def test_usuario_dado_de_baja_no_pasa(self):
+        # `SessionAuthentication` no vuelve a mirar `is_active`: la sesión abierta
+        # antes de la baja seguiría autenticando contra `/api/`.
+        agente = User.objects.create_user("agente-baja", password="Clave-Seg-2026x")
+        agente.is_active = False
+
+        self.assertFalse(self._permiso(agente))
+
+    def test_superusuario_en_el_grupo_ciudadanos_no_pasa(self):
+        # Fail-closed deliberado: acá no hay bypass de `is_superuser`. Si una cuenta
+        # quedó en los dos mundos, es un error de datos y la API del backoffice se
+        # cierra; se arregla sacándola del grupo del portal, no relajando el permiso.
+        root = User.objects.create_superuser("root-portal", "root-portal@example.com", "Clave-Seg-2026x")
+        root.groups.add(self.grupo_portal)
+
+        self.assertFalse(self._permiso(root))
