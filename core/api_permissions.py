@@ -18,12 +18,24 @@ class BackofficeAutenticado(BasePermission):
     declaran `permission_classes` explícitas **no heredan** ese default: ahí va
     esta clase como primer elemento. No evalúa capacidades —de eso se ocupa
     `RequiereCapacidad`—, solo separa las dos superficies.
+
+    Exige además `is_active`: `SessionAuthentication` no vuelve a mirar ese campo,
+    así que la sesión abierta antes de dar de baja a un usuario seguiría entrando a
+    `/api/` hasta vencer.
+
+    **Un superusuario dentro del grupo `Ciudadanos` queda denegado a propósito**
+    (fail-closed): acá no hay bypass de `is_superuser` como en `rbac.puede`. Una
+    cuenta en las dos superficies a la vez es un error de datos —el portal y el
+    backoffice son excluyentes, es lo que asume `PortalCiudadanoMiddleware`— y
+    frente a la duda la API del backoffice se cierra. Se corrige sacando la cuenta
+    del grupo del portal, no relajando este permiso.
     """
 
     message = "Esta API es del backoffice."
 
     def has_permission(self, request, view):
-        return request.user.is_authenticated and not rbac.es_ciudadano_portal(request.user)
+        usuario = request.user
+        return usuario.is_authenticated and usuario.is_active and not rbac.es_ciudadano_portal(usuario)
 
 
 def RequiereCapacidad(*codigos):

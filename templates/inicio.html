@@ -564,12 +564,14 @@
     </div>
 
     {# ── Mi trabajo de hoy ── #}
+    {% if user|puede:"ciudadano.ver" or user|puede:"conversacion.operar" %}
     <div class="ini-section-title">
         <h2>Mi trabajo de hoy</h2>
     </div>
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-7">
 
         {# Derivaciones pendientes #}
+        {% if user|puede:"ciudadano.ver" %}
         <div class="ds-card">
             <div class="ds-card-header flex items-center justify-between">
                 <div class="flex items-center gap-3">
@@ -613,8 +615,10 @@
             </div>
             {% endif %}
         </div>
+        {% endif %}
 
         {# Conversaciones sin asignar #}
+        {% if user|puede:"conversacion.operar" %}
         <div class="ds-card">
             <div class="ds-card-header flex items-center justify-between">
                 <div class="flex items-center gap-3">
@@ -660,7 +664,9 @@
             </div>
             {% endif %}
         </div>
+        {% endif %}
     </div>
+    {% endif %}
 
     {# ── Accesos rápidos ── #}
     <div class="ini-section-title">
@@ -776,6 +782,8 @@
         </div>
 
         {# Gráfico de tendencias (Chart.js, datos dinámicos via API) #}
+        {# Los datos salen de dashboard:api_tendencias, que pide dashboard.ver (SEC-14). #}
+        {% if user|puede:"dashboard.ver" %}
         <div class="ds-card" style="display: flex; flex-direction: column;">
             <div class="ds-card-header" style="display: flex; align-items: center; justify-content: space-between;">
                 <div>
@@ -798,6 +806,7 @@
                 <canvas id="chartTendencias" style="width: 100%; height: 100%;"></canvas>
             </div>
         </div>
+        {% endif %}
     </div>
 
 </div>
