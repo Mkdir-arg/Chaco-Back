@@ -14536,9 +14536,14 @@ los dos feeds solo para quien tiene la capacidad; el endurecimiento de `Backoffi
 - **Si una pieza de la home no puede consumir su API, no se dibuja.** La ficha solo pedía el cambio de
   servidor, pero la tarjeta «Tendencias» de `inicio.html` no estaba condicionada y habría quedado pidiendo
   403 en consola a todo usuario sin `dashboard.ver`. Se condicionaron con el filtro `puede` la tarjeta de
-  tendencias (`dashboard.ver`), el feed de derivaciones (`ciudadano.ver`) y el de conversaciones sin asignar
-  (`conversacion.operar`), más la sección «Mi trabajo de hoy» entera si no queda ninguno de los dos. El
-  buscador de ciudadanos ya estaba condicionado por `ciudadano.ver`.
+  tendencias (`dashboard.ver`), la tarjeta de búsqueda rápida (`ciudadano.ver` el typeahead, que pega a
+  `dashboard:api_buscar_ciudadanos`; la tarjeta entera si tampoco hay `ciudadano.crear`), el feed de
+  derivaciones (`ciudadano.ver`) y el de conversaciones sin asignar (`conversacion.operar`), más la sección
+  «Mi trabajo de hoy» entera si no queda ninguno de los dos. Lo que ya estaba condicionado por
+  `ciudadano.ver` era el botón «Ver ciudadanos» del hero, **no** el buscador: dejarlo visible lo convertía en
+  un control muerto —403 con `data.results` indefinido y la lista vaciándose en silencio—. Y como los
+  contadores del hero se fuerzan a 0 sin capacidad, el texto «Todo al día. Sin tareas pendientes urgentes»
+  queda solo para quien puede ver esas pendencias; el resto lee el saludo neutro.
 
 ## Implementación
 
@@ -14579,6 +14584,9 @@ def has_permission(self, request, view):
     `test_alertas_criticas_respetan_el_alcance_del_usuario` (sin legajos propios solo quedan las CRÍTICAS).
   - `core/tests/test_api_permissions.py` — `test_usuario_dado_de_baja_no_pasa` (rojo antes) y
     `test_superusuario_en_el_grupo_ciudadanos_no_pasa` (verde antes: fija la decisión fail-closed).
+  - `core/tests/test_inicio_rbac.py` — renderiza `/inicio/` con un rol acotado (solo `config.*`) y verifica
+    que no aparecen el buscador, los paneles ni el gráfico, y que el hero no dice «Todo al día»; más los dos
+    contrastes con `ciudadano.ver` y con `dashboard.ver`.
 - `manage.py check` sin issues y `makemigrations --check --dry-run` sin cambios.
 - Suite completa en verde con `.venv312` (Python 3.12 + Django 5.2.17, igual al CI), en dos tandas:
   `core dashboard legajos users configuracion config conversaciones portal` → 688 OK, y `programas` → OK.
@@ -14590,6 +14598,9 @@ def has_permission(self, request, view):
 - Con `dashboard.ver`, la tarjeta «Tendencias» de la home deja de verse para los roles que no la tengan —en
   los seeds, «Operador de backoffice»—. Es lo que dice la ficha; si el cliente la quiere visible para todos,
   la decisión es cambiarle la capacidad a `tendencias_datos`, no sacarla de la pantalla.
+- `actividad_reciente` pide `ciudadano.sensible`, pero lo que más muestra son inscripciones y derivaciones:
+  un perfil con `ciudadano.ver` + `dashboard.ver` queda afuera. Hoy no tiene consumidor, así que no rompe
+  nada; si la home pasa a consumirla, revisar si la capacidad correcta no es `ciudadano.ver`.
 - Sigue abierto el seguimiento **R0-04** de SEC-01: la raíz `/api/becas/` acepta `TokenAuthentication`, que es
   lo que necesita la app de campo.
 

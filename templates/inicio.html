@@ -440,7 +440,8 @@
                 {% if conversaciones_sin_asignar_count %} y <strong>{{ conversaciones_sin_asignar_count }} conversación{% if conversaciones_sin_asignar_count != 1 %}es{% endif %} sin asignar</strong>{% endif %}.
                 Este es el resumen de tu jornada.
                 {% elif conversaciones_sin_asignar_count %}Tenés <strong>{{ conversaciones_sin_asignar_count }} conversación{% if conversaciones_sin_asignar_count != 1 %}es{% endif %} sin asignar</strong>. Este es el resumen de tu jornada.
-                {% else %}Todo al día. Sin tareas pendientes urgentes. Este es el resumen de tu jornada.{% endif %}
+                {% elif user|puede:"ciudadano.ver" or user|puede:"conversacion.operar" %}Todo al día. Sin tareas pendientes urgentes. Este es el resumen de tu jornada.
+                {% else %}Este es el resumen de tu jornada.{% endif %}
             </p>
         </div>
         {% if user|puede:"ciudadano.ver" %}
@@ -524,8 +525,11 @@
     </div>
 
     {# ── Búsqueda rápida ── #}
+    {% if user|puede:"ciudadano.ver" or user|puede:"ciudadano.crear" %}
     <div class="ds-card search-card mb-7" style="padding: 18px 20px;">
         <div class="flex gap-3 items-center">
+            {# El typeahead pega a dashboard:api_buscar_ciudadanos, que pide ciudadano.ver (SEC-14). #}
+            {% if user|puede:"ciudadano.ver" %}
             <div class="search-container flex-1">
                 <span class="search-icon">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
@@ -552,6 +556,7 @@
                     </div>
                 </div>
             </div>
+            {% endif %}
             {% if user|puede:"ciudadano.crear" %}
             <a href="{% url 'legajos:ciudadano_nuevo' %}" class="btn-nodo btn-brand btn-sm">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
@@ -562,6 +567,7 @@
             {% endif %}
         </div>
     </div>
+    {% endif %}
 
     {# ── Mi trabajo de hoy ── #}
     {% if user|puede:"ciudadano.ver" or user|puede:"conversacion.operar" %}
