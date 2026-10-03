@@ -104,7 +104,7 @@ arranque. Ninguna de estas fallas se ve en pantalla ni deja traza en el log.
 | `LOCAL_BOOTSTRAP_COMMANDS` | `seed_datos_base crear_programas` | sembrado obligatorio (ver la advertencia de abajo) |
 | `LOCAL_OPTIONAL_BOOTSTRAP_COMMANDS` | vacío | comandos extra que pueden fallar sin abortar el arranque |
 | `DJANGO_ENV_FILE` | p. ej. `.env.local` | archivo de entorno a cargar. Se carga **sin sobreescribir** lo que ya viene en el entorno |
-| `SERVE_MEDIA` | `True` cuando no hay un nginx sirviendo `/media/` | archivos adjuntos accesibles |
+| `SERVE_MEDIA` | `True` siempre (desde SEC-09 nginx ya no sirve `/media/`) | archivos adjuntos accesibles, detrás de login |
 | `WEBSOCKETS_ENABLED` | se deduce de `APP_RUNTIME` (`True` solo con `daphne`) | con `gunicorn` hay que ponerla en `True` si otro contenedor daphne atiende `/ws/` |
 | `DJANGO_SYNCDB_PROJECT_APPS` | `False` | solo para CI |
 

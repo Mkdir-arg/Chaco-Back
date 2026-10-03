@@ -3,11 +3,14 @@
 G1-01 y G1-02 de la auditoría oct-2026: sin login, cualquiera creaba el legajo
 de cualquier DNI con el nombre que quisiera (`iniciar/`) y leía nombre,
 apellido, nacimiento y domicilio de cualquier DNI (`consultar-renaper/`).
+R0-01 cierra la última que quedaba: `<id>/evaluar/`, que dejaba a un anónimo
+pisar la evaluación de cualquier conversación por id.
 """
 
 from unittest.mock import patch
 
 from django.test import TestCase
+from django.urls import NoReverseMatch, reverse
 
 from conversaciones.models import Conversacion
 from legajos.models import Ciudadano
@@ -57,3 +60,26 @@ class RutasPublicasDesmontadasTests(TestCase):
             404,
         )
         self.assertEqual(self.client.get(f"/conversaciones/{conversacion.id}/mensajes/").status_code, 404)
+
+    def test_evaluar_publico_desmontado(self):
+        """R0-01: la última escritura anónima de la app tampoco existe."""
+        conversacion = Conversacion.objects.create(
+            tipo="anonima",
+            prioridad="normal",
+            estado="cerrada",
+            satisfaccion=2,
+        )
+
+        response = self.client.post(
+            f"/conversaciones/{conversacion.id}/evaluar/",
+            data='{"satisfaccion":5}',
+            content_type="application/json",
+        )
+
+        conversacion.refresh_from_db()
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(conversacion.satisfaccion, 2)
+
+    def test_el_nombre_de_url_evaluar_no_resuelve(self):
+        with self.assertRaises(NoReverseMatch):
+            reverse("conversaciones:evaluar", args=[1])

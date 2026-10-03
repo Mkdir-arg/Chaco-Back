@@ -49,8 +49,9 @@ urlpatterns = [
         views_derivacion_programa.rechazar_derivacion_programa,
         name="derivacion_ciudadano_rechazar",
     ),
-    path("test-contactos/", views_simple.dashboard_contactos_simple, name="test_contactos"),
-    path("test-api/", views_simple.test_api, name="test_api"),
+    # `test-contactos/` (un alias de `dashboard-contactos/`) y `test-api/` quedaron
+    # desmontadas junto con `alertas/debug/` y `alertas/test/`: eran rutas de prueba
+    # publicadas en el backoffice (SEC-19, auditoría oct-2026).
     path(
         "<uuid:legajo_id>/historial-contactos/",
         views_contactos_panel.historial_contactos_simple,
@@ -96,6 +97,4 @@ urlpatterns = [
     path("alertas/<int:alerta_id>/cerrar-ajax/", views_alertas.cerrar_alerta_ajax, name="cerrar_alerta_ajax"),
     path("alertas/count/", views_alertas.alertas_count_ajax, name="alertas_count_ajax"),
     path("alertas/preview/", views_alertas.alertas_preview_ajax, name="alertas_preview_ajax"),
-    path("alertas/debug/", views_alertas.debug_alertas, name="debug_alertas"),
-    path("alertas/test/", views_alertas.test_alertas_page, name="test_alertas"),
 ]

@@ -417,7 +417,7 @@ DRF expone APIs paginadas (`PageNumberPagination`, `PAGE_SIZE=10`) montadas bajo
 |---|---|
 | `/api/legajos/` | Ciudadanos, derivaciones, programas |
 | `/api/core/` | Modelos base, geografía |
-| `/api/users/` | Usuarios y roles |
+| `/api/users/` | Solo `me`: el usuario de la sesión (el ABM de usuarios y roles es web) |
 | `/api/conversaciones/` | Mensajería REST (sin WebSocket) |
 
 ### 8.2 Documentación OpenAPI
