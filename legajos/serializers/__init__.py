@@ -1,10 +1,16 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
 
+from core import rbac
+
 from ..models import (
     AlertaCiudadano,
     Ciudadano,
 )
+
+# Datos de contacto del ciudadano: solo para quien tenga ``ciudadano.sensible``
+# (SEC-02, auditoría oct-2026).
+CAMPOS_SENSIBLES = ("telefono", "email", "domicilio")
 
 
 class CiudadanoSerializer(serializers.ModelSerializer):
@@ -33,6 +39,20 @@ class CiudadanoSerializer(serializers.ModelSerializer):
 
     def get_legajos_count(self, obj):
         return getattr(obj, "legajos_count", obj.inscripciones_programas.count())
+
+    def to_representation(self, instance):
+        """Oculta los datos de contacto salvo que el usuario tenga ``ciudadano.sensible``.
+
+        Sin request en el contexto (uso programático) se oculta igual: el default
+        es el más restrictivo.
+        """
+        datos = super().to_representation(instance)
+        request = self.context.get("request")
+        usuario = getattr(request, "user", None)
+        if not rbac.puede(usuario, "ciudadano.sensible"):
+            for campo in CAMPOS_SENSIBLES:
+                datos.pop(campo, None)
+        return datos
 
 
 class UserSerializer(serializers.ModelSerializer):

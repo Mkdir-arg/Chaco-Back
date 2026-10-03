@@ -7,6 +7,8 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from core.api_permissions import BackofficeAutenticado
+
 from ..models import Ciudadano
 from ..models.contactos import (
     HistorialContacto,
@@ -22,7 +24,7 @@ from ..serializers.contactos import (
 
 class HistorialContactoViewSet(viewsets.ModelViewSet):
     queryset = HistorialContacto.objects.select_related("legajo", "profesional").all()
-    permission_classes = [IsAuthenticated]
+    permission_classes = [BackofficeAutenticado, IsAuthenticated]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ["tipo_contacto", "estado", "seguimiento_requerido", "profesional"]
     search_fields = ["motivo", "resumen", "legajo__codigo"]
@@ -69,7 +71,7 @@ class HistorialContactoViewSet(viewsets.ModelViewSet):
 class VinculoFamiliarViewSet(viewsets.ModelViewSet):
     queryset = VinculoFamiliar.objects.select_related("ciudadano_principal", "ciudadano_vinculado").all()
     serializer_class = VinculoFamiliarSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [BackofficeAutenticado, IsAuthenticated]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     filterset_fields = ["tipo_vinculo", "es_contacto_emergencia", "es_referente_tratamiento", "activo"]
     search_fields = ["ciudadano_principal__nombre", "ciudadano_vinculado__nombre"]

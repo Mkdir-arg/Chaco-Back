@@ -294,6 +294,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 111 | Fuera las rutas de debug de Legajos y la evaluación anónima del chat | Legajos · Conversaciones | `#rbac` `#ui` `#api` | Auditoría integral oct-2026 — SEC-19 y R0-01 (Ola 0, segunda tanda) | 03/10/2026 | 🟢 **Hecho** | No requiere |
 | 112 | Los archivos subidos dejan de bajarse sin sesión | Transversal · archivos | `#infra` `#rbac` `#datos` | Juez de la sesión — Ola 0 de la auditoría integral oct-2026 (SEC-09, etapa 1) | 03/10/2026 | 🟢 **Hecho** | No requiere |
 | 113 | La API REST de usuarios y roles queda apagada salvo `me` | Transversal · API DRF (`/api/users/`) | `#api` `#rbac` `#usuarios` | Auditoría integral oct-2026 — SEC-05, SEC-16 y SEC-17, decisión D-05 (Ola 0, segunda tanda, PR H11) | 03/10/2026 | 🟢 **Hecho** | No requiere |
+| 114 | La API de ciudadanos es de solo lectura, pide capacidad y solo contesta búsquedas | Legajos · API DRF (`/api/legajos/`) | `#api` `#rbac` `#datos` | Auditoría integral oct-2026 — SEC-02 (+ V1-NEW-03) y SEC-01 punto 2 en legajos (Ola 0, segunda tanda, PR H12) | 03/10/2026 | 🟢 **Hecho** | No requiere |
 | 115 | El catálogo geográfico de la API es de solo lectura y las APIs del dashboard piden capacidad | Transversal · API DRF (`/api/core/`, `/api/` del dashboard) · home del backoffice | `#api` `#rbac` `#sesion` `#ui` | Auditoría integral oct-2026 — SEC-13 y SEC-14 (Ola 0, segunda tanda, PR H13) | 03/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
@@ -14456,6 +14457,148 @@ involucrados: el cambio es solo de ruteo y permisos.
 - **03/10/2026** — Cambio 109: queda disponible `BackofficeAutenticado`, el permiso que usa `me`.
 - **03/10/2026 (este cambio)** — se apaga la API salvo `me`.
 
+---
+
+# Cambio 114 — La API de ciudadanos es de solo lectura, pide capacidad y solo contesta búsquedas
+
+🟢 **HECHO — 03/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Legajos · API DRF (`/api/legajos/`) |
+| **Etiquetas** | `#api` `#rbac` `#datos` |
+| **Solicitante** | Auditoría integral de octubre 2026 — hallazgo **SEC-02** (incluye **V1-NEW-03**) y el punto 2 de **SEC-01** aplicado a legajos (Ola 0, segunda tanda, PR H12) |
+| **Fecha del pedido** | 03/10/2026 |
+| **Issue / épica** | Sin issue — auditoría oct-2026, `docs/internal/auditoria-2026-10/` |
+| **Partes afectadas** | `legajos/api_views/__init__.py`, `legajos/api_views/contactos.py`, `legajos/serializers/__init__.py`, `legajos/templates/legajos/ciudadano_detail.html` |
+| **Migración** | No requiere |
+
+## Pedido original
+
+De la ficha SEC-02 (severidad CRÍTICA, confirmada con test):
+
+> Un usuario sin roles hace PATCH `{"dni": "99999999"}` → 200 y el DNI cambia; DELETE → 204 (cascada
+> sobre alertas, inscripciones y derivaciones). Además (V1-NEW-03) `search_fields` está declarado pero
+> `filter_backends = [DjangoFilterBackend]` no incluye `SearchFilter`: el `?search=` de «Agregar
+> familiar» se ignora y devuelve 10 ciudadanos cualesquiera.
+
+Y la propuesta: `ReadOnlyModelViewSet`, `permission_classes = [BackofficeAutenticado,
+RequiereCapacidad("ciudadano.ver")]`, borrar `email`, `telefono` y `domicilio` del `to_representation`
+salvo `ciudadano.sensible`, `SearchFilter` en `filter_backends` y búsqueda mínima de 3 caracteres.
+
+## Qué lo motivó
+
+`CiudadanoViewSet` era un `ModelViewSet` con `permission_classes = [IsAuthenticated]`. El Cambio 100
+cerró el vector por HTTP Basic, pero no el de fondo: **cualquier** usuario del backoffice con sesión
+—sin un solo rol tildado— podía listar el padrón completo paginando, cambiarle el DNI a un ciudadano
+con un PATCH y borrarlo con un DELETE. El serializer además exponía teléfono, correo y domicilio a
+cualquiera que pudiera leer, sin mirar `ciudadano.sensible`.
+
+El bug funcional (V1-NEW-03) venía de la misma vista: `search_fields` declarado sin `SearchFilter` en
+`filter_backends` es ruido —DRF lo ignora en silencio—, así que el buscador de «Agregar familiar»
+devolvía los primeros 10 ciudadanos del padrón ordenados por apellido, tecleara lo que tecleara el
+usuario.
+
+## Alcance acordado
+
+**Entra:** `CiudadanoViewSet` a solo lectura con capacidad y búsqueda real; los datos de contacto
+detrás de `ciudadano.sensible`; `BackofficeAutenticado` como primer permiso en las cuatro vistas DRF
+de `legajos/api_views` (`CiudadanoViewSet`, `AlertasViewSet`, `HistorialContactoViewSet`,
+`VinculoFamiliarViewSet`); el umbral del buscador del template alineado en 3 caracteres.
+
+**Queda afuera (a propósito):** `legajos/urls/__init__.py` y `legajos/views/alertas.py`, que los toca
+otro PR de la misma tanda; el retiro de la red familiar (decisión **D-L03** = B, Ola 5), que es lo que
+a la larga deja sin consumidor a esta API.
+
+## Decisiones tomadas
+
+- **`ReadOnlyModelViewSet`, no permisos por método.** El único consumidor de la API es un GET
+  (`ciudadano_detail.html`, buscador de «Agregar familiar»). El alta y la edición de un ciudadano van
+  por el backoffice, que aplica sus propias reglas de negocio; una segunda puerta de escritura sin esas
+  reglas no aporta nada. POST, PATCH, PUT y DELETE devuelven 405.
+- **La API contesta búsquedas, no listados.** Con menos de 3 caracteres en `?search=` —incluso sin
+  `?search=`— el queryset queda vacío. Si no, `ciudadano.ver` alcanzaría para bajarse el padrón entero
+  paginando, que es la mitad de lo que SEC-02 quiere cerrar. Consecuencia buscada: el *retrieve* por id
+  también devuelve 404; nadie lo usa.
+- **El umbral del cliente sube de 2 a 3** en `ciudadano_detail.html`, para que no haya un tramo en el
+  que el usuario teclea, se dispara el fetch y la respuesta siempre es «no se encontraron ciudadanos».
+- **Los sensibles se ocultan en `to_representation`, no sacando campos del serializer.** Así quien
+  tenga `ciudadano.sensible` los sigue viendo y el resto recibe el objeto sin esas claves. Sin request
+  en el contexto (uso programático) se ocultan igual: el default es el más restrictivo.
+- **`ciudadano.sensible` ya existe en el `CATALOGO`** de `core/rbac.py` (módulo `ciudadanos`, «Ver datos
+  sensibles»), así que no hubo que inventar ninguna capacidad ni dejar una decisión abierta.
+- **`AlertasViewSet` y los dos ViewSets de contactos quedan con `[BackofficeAutenticado,
+  IsAuthenticated]`**, sin capacidad. Este cambio es SEC-01 punto 2: separar portal de backoffice. Qué
+  capacidad pedirle a las alertas es otra discusión (hoy `FiltrosUsuarioService` ya acota por usuario) y
+  no se resuelve acá.
+
+## Implementación
+
+```python
+class CiudadanoViewSet(viewsets.ReadOnlyModelViewSet):
+    permission_classes = [BackofficeAutenticado, RequiereCapacidad("ciudadano.ver")]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+    search_fields = ["nombre", "apellido", "dni"]
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        busqueda = self.request.query_params.get("search", "").strip()
+        if len(busqueda) < BUSQUEDA_MINIMA:  # 3
+            return queryset.none()
+        return queryset
+```
+
+```python
+# legajos/serializers/__init__.py
+CAMPOS_SENSIBLES = ("telefono", "email", "domicilio")
+
+def to_representation(self, instance):
+    datos = super().to_representation(instance)
+    if not rbac.puede(getattr(self.context.get("request"), "user", None), "ciudadano.sensible"):
+        for campo in CAMPOS_SENSIBLES:
+            datos.pop(campo, None)
+    return datos
+```
+
+## Validación
+
+- `legajos/tests/test_api_ciudadanos_rbac.py`, 10 tests nuevos: sin capacidad → 403; ciudadano del
+  portal → 403; PATCH/DELETE/POST → 405 incluso con `ciudadano.editar` y `ciudadano.eliminar`; con
+  `ciudadano.ver` → 200 y sin teléfono, correo ni domicilio; con `ciudadano.sensible` → los tres
+  campos; `?search=peralta` devuelve solo a Peralta; sin búsqueda y con 2 caracteres → vacío; el
+  ciudadano del portal no entra a `/api/legajos/alertas/`. **Los 10 fallaban antes del cambio** (11
+  asserts rotos).
+- `legajos/tests/test_ciudadano_detail_innerhtml.py`: el test de escapado de la búsqueda tecleaba
+  `'an'` (2 caracteres) y con el umbral nuevo ya no dispara el fetch; pasa a `'ana'`. El test sigue
+  verificando lo mismo (Cambio 95).
+- `manage.py check`, `makemigrations --check --dry-run`, la suite completa, `ruff check` y
+  `ruff format --check` sobre los archivos tocados, y `compile_templates.py` en 0.
+
+## Pendientes / a definir
+
+- **`legajos/urls/api_contactos.py` no está incluido en `config/urls.py`**: `HistorialContactoViewSet` y
+  `VinculoFamiliarViewSet` no tienen URL, así que su `BackofficeAutenticado` hoy no protege nada (el
+  test lo verifica por declaración, no por HTTP). Si alguna vez se montan, ya nacen con el permiso.
+- `design_audit --changed` deja **1 error TWBUILD preexistente** en `ciudadano_detail.html:143`
+  (`xl:grid-cols-[minmax(0,1fr)_auto]` fuera del CSS compilado), ajeno a este cambio: se arregla
+  corriendo `npm run build:tailwind`, que mete un diff de CSS que acá no corresponde.
+- Si se aplica la decisión **D-L03** (retirar la red familiar, Ola 5), esta API se queda sin consumidor
+  y puede desmontarse entera.
+
+## Reversión
+
+Revertir el commit devuelve el `ModelViewSet` con `IsAuthenticated` y reabre SEC-02 completo. No hay
+datos ni migraciones de por medio.
+
+## Historial
+
+- **01/10/2026** — Cambio 100: `/api/` solo por sesión. Cierra el vector por HTTP Basic de SEC-02, no el
+  CRUD para cualquier usuario con sesión.
+- **03/10/2026** — Cambio 109: queda disponible `BackofficeAutenticado` en `core/api_permissions.py`.
+- **03/10/2026 (este cambio)** — se aplica en legajos: solo lectura, capacidad, sensibles y búsqueda.
+
+---
+
 # Cambio 115 — El catálogo geográfico de la API es de solo lectura y las APIs del dashboard piden capacidad
 
 🟢 **HECHO — 03/10/2026**
@@ -14616,5 +14759,3 @@ Revertir el commit devuelve los `ModelViewSet` de geografía y deja las cinco vi
 - **03/10/2026** — Cambio 109: queda disponible `BackofficeAutenticado`, sin aplicarla a ninguna vista.
 - **03/10/2026 (este cambio)** — SEC-13 y SEC-14 cerrados, y la clase aplicada en `core/api_views` y
   `dashboard/api_views`.
-
----
