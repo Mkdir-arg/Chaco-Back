@@ -290,6 +290,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 107 | El estado civil que SIIS no tiene deja de dejar casos afuera, y el resto queda verificado contra el manual | Becas · alta de beneficiarios en SIIS | `#siis` `#datos` | PM — en sesión, al revisar el hallazgo de la revisión independiente: «a esos casos ponele Soltero/a los de Separado/a» | 01/10/2026 | 🟢 **Hecho** | No requiere |
 | 108 | El alta puede ir a una tabla intermedia propia en vez de a SIIS, y nada se queda ahí | Becas · alta de beneficiarios en SIIS | `#siis` `#datos` | PM — en sesión, pedido del cliente: «tener la opción de enviarlo a una tabla local o enviarlo a SIIS» | 01/10/2026 | 🟢 **Hecho** | `0074_altaintermediasiis` |
 | 109 | Un permiso base `BackofficeAutenticado` para las vistas de la API que no heredan el default | Transversal · API DRF (`/api/`) | `#api` `#rbac` `#sesion` | Auditoría integral oct-2026 — SEC-01 punto 2 (Ola 0, segunda tanda, PR H7) | 03/10/2026 | 🟢 **Hecho** | No requiere |
+| 113 | La API REST de usuarios y roles queda apagada salvo `me` | Transversal · API DRF (`/api/users/`) | `#api` `#rbac` `#usuarios` | Auditoría integral oct-2026 — SEC-05, SEC-16 y SEC-17, decisión D-05 (Ola 0, segunda tanda, PR H11) | 03/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -13893,5 +13894,160 @@ revertir este cambio rompe el import de esas vistas.
 - **01/10/2026** — Cambio 100: el default de DRF pasa a sesión + `IsAuthenticated`, y se deja anotado que el
   punto 2 de SEC-01 va en otro PR.
 - **03/10/2026 (este cambio)** — queda la pieza; aplicarla es trabajo de los PRs H11-H13.
+
+---
+
+# Cambio 113 — La API REST de usuarios y roles queda apagada salvo `me`
+
+🟢 **HECHO — 03/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · API DRF (`/api/users/`) |
+| **Etiquetas** | `#api` `#rbac` `#usuarios` |
+| **Solicitante** | Auditoría integral de octubre 2026 — hallazgos **SEC-05** (CRÍTICA), **SEC-16** y **SEC-17**, decisión **D-05** (Ola 0, segunda tanda, PR H11) |
+| **Fecha del pedido** | 03/10/2026 |
+| **Issue / épica** | Sin issue — auditoría oct-2026, `docs/internal/auditoria-2026-10/` |
+| **Partes afectadas** | Servidor/API |
+| **Migración** | No requiere |
+
+## Pedido original
+
+De la tabla de decisiones de la auditoría:
+
+> **D-05** — ¿Se conserva la API REST `/api/users/`? **No: apagarla y dejar `me`.** (SEC-05, SEC-16, SEC-17)
+
+Y de la ficha SEC-05:
+
+> Borrar `UserViewSet`, `GroupViewSet` y `ProfileViewSet` de `users/api_urls.py` y dejar solo `me`
+> (no hay consumidores: el ABM web cubre todo). Cierra también SEC-16 y SEC-17.
+
+## Qué lo motivó
+
+`/api/users/` era un ABM de usuarios y roles **paralelo** al del backoffice web, con los mismos poderes y
+ninguna de sus reglas. Tres agujeros confirmados con test:
+
+- **SEC-05 (CRÍTICA):** `UserViewSet.get_permissions()` devolvía `[IsAuthenticated()]` para toda acción
+  fuera del CRUD, y eso **pisaba** el `permission_classes` declarado en los `@action` `activate` y
+  `deactivate`. Cualquier usuario del backoffice con sesión —sin una sola capacidad— hacía POST
+  `deactivate` y dejaba inactivo a otro, incluso al único administrador.
+- **SEC-16 (MEDIA):** `GET /api/users/users/?is_staff=true` y `GET /api/users/groups/<id>/users/`
+  devolvían el padrón del personal con `is_superuser` y, por el `ProfileSerializer` anidado, **DNI,
+  teléfono y la observación interna** de cada uno. También alcanzaba con estar autenticado.
+- **SEC-17 (MEDIA):** con `rol.administrar`, `PATCH /api/users/groups/<id>/` renombraba un rol
+  **protegido**. Como `rbac.es_ciudadano_portal` resuelve por nombre de grupo, renombrar `Ciudadanos`
+  dejaba de identificar a los ciudadanos del portal y **los habilitaba a entrar al backoffice**. Los
+  serializers, además, asignaban roles inactivos (`queryset=Group.objects.all()`), no llamaban a
+  `asegurar_admin_restante` ni corrían `validate_password`.
+
+El ABM web ya hace todo eso bien: alcance por programa, roles asignables según el operador, roles
+protegidos, `asegurar_admin_restante` y validación de contraseñas. Mantener dos caminos de escritura
+significaba mantener dos veces cada regla, y el de la API nació sin ninguna.
+
+## Alcance acordado
+
+**Entra:** retirar del ruteo y del código los tres ViewSets (`UserViewSet`, `GroupViewSet`,
+`ProfileViewSet`) con sus acciones (`activate`, `deactivate`, `change_password`, `groups/<id>/users`) y
+los serializers que quedaban sin uso. Queda una sola vista de lectura, `GET /api/users/me/`.
+
+**Queda afuera (a propósito):**
+
+- El ABM web de usuarios y roles (`users/views/admin.py`, `users/services/admin.py`, `users/forms`,
+  `users/selectors`): no se toca. Es el único camino de escritura y sigue igual.
+- La alternativa «conservar la API con permisos finos» que la ficha describía como plan B. Se aplicó el
+  default de D-05.
+
+## Decisiones tomadas
+
+- **Se apaga, no se endurece.** La ficha ofrecía dos caminos: blindar cada acción con
+  `BackofficeAutenticado` + `RequiereCapacidad` y replicar las reglas del ABM, o retirar la API. Se
+  retiró, por el motivo que la hacía peligrosa: cada regla de negocio nueva del ABM web habría que
+  acordarse de copiarla acá, y la evidencia es que no pasó ni una vez en toda la vida del módulo.
+- **No hay consumidores.** Se verificó por `grep` sobre todo el repo: `/api/users/` no aparece en ningún
+  template, JS de `static/`, servicio ni comando. Los únicos usos eran tests y la colección de Postman.
+  La app de campo consume `/api/becas/*` con `TokenAuthentication` propia (`programas/api_urls.py`), así
+  que no la toca.
+- **`me` cambia de ruta: `/api/users/users/me/` → `/api/users/me/`.** Era una `@action` del ViewSet
+  retirado, así que colgaba del prefijo `users/`. Se mueve a una vista propia en la ruta que nombra la
+  ficha. Sin consumidores, el cambio de URL no rompe nada.
+- **`me` es de solo lectura.** Antes el mismo ViewSet servía `me` y el CRUD. Ahora es una `APIView` con
+  un único `get` sobre `request.user`: no hay forma de llegar a otro usuario ni de escribir.
+- **`change_password` por API se retira sin reemplazo.** No tenía consumidores y no corría
+  `validate_password`, `update_session_auth_hash` ni borraba el Token de la app. El cambio de contraseña
+  del backoffice es el flujo web, que sí respeta `CambioContrasenaObligatorioMiddleware`.
+- **El permiso es `BackofficeAutenticado` solo, sin capacidad.** Ver los propios datos no necesita
+  capacidad; lo que sí hace falta es que no sea un ciudadano del portal, que es exactamente lo que esa
+  clase separa (Cambio 109).
+- **Se conservan `UserSerializer`, `ProfileSerializer` y `GroupSerializer`**, que son lo que arma la
+  respuesta de `me`. El `dni` y la `observacion` del perfil anidado siguen ahí porque ahora son
+  **siempre los del propio usuario**: el riesgo de SEC-16 era el listado de terceros, no el perfil propio.
+
+## Implementación
+
+`GET /api/users/me/` devuelve los datos del usuario de la sesión actual —username, nombre, mail, roles y
+perfil— y nada más. Cualquier otra ruta bajo `/api/users/` responde **404**: no existe.
+
+- Un ciudadano del portal con sesión que pise `/api/users/me/` es redirigido por
+  `PortalCiudadanoMiddleware` (302); si llegara sin pasar por el middleware, `BackofficeAutenticado` lo
+  frena con 403. Anónimo: 403.
+- Dar de alta, editar, activar, desactivar un usuario, o crear, renombrar y borrar roles, se hace
+  **únicamente** por el backoffice web, que ya valida alcance, roles protegidos y que no quede el sistema
+  sin administrador.
+
+## Archivos
+
+- `users/api_urls.py` — el router de DRF con los tres prefijos se reemplaza por una sola `path("me/")`.
+- `users/api_views/__init__.py` — se retiran los tres ViewSets; queda `UsuarioActualView`.
+- `users/serializers/__init__.py` — se retiran `UserCreateSerializer`, `UserUpdateSerializer` y
+  `ChangePasswordSerializer` (sin uso tras el cambio).
+- `users/tests/test_api_rbac.py` — reescrito: ahora verifica que la API esté apagada.
+- `users/tests/test_package_exports.py` — el test de exports apuntaba a los ViewSets retirados.
+- `core/tests/test_api_auth.py` — usaba `/api/users/users/` como URL de muestra del backoffice (SEC-01);
+  pasa a `/api/users/me/`.
+- `docs/api/users.postman_collection.json` y `docs/client/architecture.md` — documentaban los endpoints
+  retirados.
+
+## Base de datos
+
+No requiere. No hay cambios de modelos ni migración.
+
+## Validación
+
+- `users/tests/test_api_rbac.py`, 11 tests nuevos. Antes del cambio fallaban: `deactivate` sin capacidad
+  daba **200** y dejaba a la víctima inactiva (SEC-05), el listado de staff daba **200** con
+  `is_superuser` (SEC-16), el PATCH del rol protegido `Ciudadanos` daba **200** y lo renombraba (SEC-17),
+  y el alta por API daba **201**. Ahora las cuatro dan 404.
+  - `test_api_users_solo_me`: las 10 rutas retiradas no resuelven (`Resolver404`) y `/api/users/me/`
+    resuelve a `usuario-actual`.
+  - `me`: 200 con sesión de backoffice, 403 anónimo, 403 ciudadano del portal por `force_authenticate`,
+    302 a `portal:home` con sesión real (middleware), y devuelve el propio usuario y no otro.
+- `manage.py check` sin issues y `makemigrations --check --dry-run` → «No changes detected».
+- Suite completa en Python 3.12 + Django 5.2 (igual al CI), en dos tandas: 680 tests OK en
+  `legajos core users configuracion dashboard config conversaciones portal`, y `programas` OK.
+- `ruff check` y `ruff format --check` limpios sobre los archivos tocados. No se tocó UI.
+
+## Puesta en marcha en el servidor
+
+Nada especial: entra con el deploy. Si alguien tenía una colección de Postman vieja apuntando a
+`/api/users/users/`, va a recibir 404 — es el efecto buscado.
+
+## Pendientes / a definir
+
+- Si en algún momento hace falta un ABM de usuarios desde afuera (otra app, un script), **no** se
+  reviven estos ViewSets: se expone un endpoint acotado que delegue en `UsuariosAdminService`, que es
+  donde viven las reglas.
+
+## Reversión
+
+Revertir el commit devuelve los tres ViewSets y sus rutas —y con ellos los tres agujeros—. No hay datos
+involucrados: el cambio es solo de ruteo y permisos.
+
+## Historial
+
+- **01/10/2026** — Cambio 100: el default de DRF pasa a sesión + `IsAuthenticated`, lo que cerró el
+  acceso por HTTP Basic (un ciudadano del portal ya no entraba a esta API con Basic), pero no el vector
+  de un usuario de backoffice con sesión.
+- **03/10/2026** — Cambio 109: queda disponible `BackofficeAutenticado`, el permiso que usa `me`.
+- **03/10/2026 (este cambio)** — se apaga la API salvo `me`.
 
 ---

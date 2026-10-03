@@ -377,216 +377,22 @@
       ]
     },
     {
-      "name": "API REST — Usuarios",
-      "description": "DRF ViewSet. Base: /api/users/users/",
+      "name": "API REST — Usuario actual",
+      "description": "Lo único que queda de la API REST de usuarios: el perfil propio, de solo lectura. Los ViewSets de usuarios, roles y perfiles se retiraron (D-05 de la auditoría oct-2026); el ABM es el del backoffice web.",
       "item": [
         {
-          "name": "Listar usuarios",
+          "name": "Mi usuario",
           "request": {
             "method": "GET",
             "header": [
               { "key": "Cookie", "value": "sessionid=<session-id>" }
             ],
             "url": {
-              "raw": "http://localhost:8000/api/users/users/",
+              "raw": "http://localhost:8000/api/users/me/",
               "protocol": "http",
               "host": ["localhost"],
               "port": "8000",
-              "path": ["api", "users", "users", ""]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Crear usuario",
-          "request": {
-            "method": "POST",
-            "header": [
-              { "key": "Cookie", "value": "sessionid=<session-id>" },
-              { "key": "X-CSRFToken", "value": "<csrf-token>" },
-              { "key": "Content-Type", "value": "application/json" }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"username\": \"nuevo.usuario\",\n  \"email\": \"nuevo@ejemplo.gob.ar\",\n  \"first_name\": \"María\",\n  \"last_name\": \"González\",\n  \"password\": \"Contraseña1234!\",\n  \"password_confirm\": \"Contraseña1234!\",\n  \"is_active\": true,\n  \"groups\": [1]\n}",
-              "options": { "raw": { "language": "json" } }
-            },
-            "url": {
-              "raw": "http://localhost:8000/api/users/users/",
-              "protocol": "http",
-              "host": ["localhost"],
-              "port": "8000",
-              "path": ["api", "users", "users", ""]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Obtener usuario",
-          "request": {
-            "method": "GET",
-            "header": [
-              { "key": "Cookie", "value": "sessionid=<session-id>" }
-            ],
-            "url": {
-              "raw": "http://localhost:8000/api/users/users/1/",
-              "protocol": "http",
-              "host": ["localhost"],
-              "port": "8000",
-              "path": ["api", "users", "users", "1", ""]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Actualizar usuario (PATCH)",
-          "request": {
-            "method": "PATCH",
-            "header": [
-              { "key": "Cookie", "value": "sessionid=<session-id>" },
-              { "key": "X-CSRFToken", "value": "<csrf-token>" },
-              { "key": "Content-Type", "value": "application/json" }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"email\": \"actualizado@ejemplo.gob.ar\",\n  \"first_name\": \"María José\",\n  \"is_active\": true,\n  \"groups\": [1, 2]\n}",
-              "options": { "raw": { "language": "json" } }
-            },
-            "url": {
-              "raw": "http://localhost:8000/api/users/users/1/",
-              "protocol": "http",
-              "host": ["localhost"],
-              "port": "8000",
-              "path": ["api", "users", "users", "1", ""]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Eliminar usuario",
-          "request": {
-            "method": "DELETE",
-            "header": [
-              { "key": "Cookie", "value": "sessionid=<session-id>" },
-              { "key": "X-CSRFToken", "value": "<csrf-token>" }
-            ],
-            "url": {
-              "raw": "http://localhost:8000/api/users/users/1/",
-              "protocol": "http",
-              "host": ["localhost"],
-              "port": "8000",
-              "path": ["api", "users", "users", "1", ""]
-            }
-          },
-          "response": []
-        }
-      ]
-    },
-    {
-      "name": "API REST — Grupos",
-      "description": "DRF ViewSet para grupos Django. Base: /api/users/groups/",
-      "item": [
-        {
-          "name": "Listar grupos",
-          "request": {
-            "method": "GET",
-            "header": [
-              { "key": "Cookie", "value": "sessionid=<session-id>" }
-            ],
-            "url": {
-              "raw": "http://localhost:8000/api/users/groups/",
-              "protocol": "http",
-              "host": ["localhost"],
-              "port": "8000",
-              "path": ["api", "users", "groups", ""]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Crear grupo",
-          "request": {
-            "method": "POST",
-            "header": [
-              { "key": "Cookie", "value": "sessionid=<session-id>" },
-              { "key": "X-CSRFToken", "value": "<csrf-token>" },
-              { "key": "Content-Type", "value": "application/json" }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"Operadores Legajos\"\n}",
-              "options": { "raw": { "language": "json" } }
-            },
-            "url": {
-              "raw": "http://localhost:8000/api/users/groups/",
-              "protocol": "http",
-              "host": ["localhost"],
-              "port": "8000",
-              "path": ["api", "users", "groups", ""]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Obtener grupo",
-          "request": {
-            "method": "GET",
-            "header": [
-              { "key": "Cookie", "value": "sessionid=<session-id>" }
-            ],
-            "url": {
-              "raw": "http://localhost:8000/api/users/groups/1/",
-              "protocol": "http",
-              "host": ["localhost"],
-              "port": "8000",
-              "path": ["api", "users", "groups", "1", ""]
-            }
-          },
-          "response": []
-        }
-      ]
-    },
-    {
-      "name": "API REST — Perfiles",
-      "description": "DRF ViewSet para perfiles de usuario. Base: /api/users/profiles/",
-      "item": [
-        {
-          "name": "Listar perfiles",
-          "request": {
-            "method": "GET",
-            "header": [
-              { "key": "Cookie", "value": "sessionid=<session-id>" }
-            ],
-            "url": {
-              "raw": "http://localhost:8000/api/users/profiles/",
-              "protocol": "http",
-              "host": ["localhost"],
-              "port": "8000",
-              "path": ["api", "users", "profiles", ""]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Actualizar perfil (modo oscuro)",
-          "request": {
-            "method": "PATCH",
-            "header": [
-              { "key": "Cookie", "value": "sessionid=<session-id>" },
-              { "key": "X-CSRFToken", "value": "<csrf-token>" },
-              { "key": "Content-Type", "value": "application/json" }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"dark_mode\": true\n}",
-              "options": { "raw": { "language": "json" } }
-            },
-            "url": {
-              "raw": "http://localhost:8000/api/users/profiles/1/",
-              "protocol": "http",
-              "host": ["localhost"],
-              "port": "8000",
-              "path": ["api", "users", "profiles", "1", ""]
+              "path": ["api", "users", "me", ""]
             }
           },
           "response": []
