@@ -1,13 +1,7 @@
-from django.urls import include, path
-from rest_framework.routers import DefaultRouter
+from django.urls import path
 
-from .api_views import GroupViewSet, ProfileViewSet, UserViewSet
-
-router = DefaultRouter()
-router.register(r"users", UserViewSet)
-router.register(r"groups", GroupViewSet)
-router.register(r"profiles", ProfileViewSet)
+from .api_views import UsuarioActualView
 
 urlpatterns = [
-    path("", include(router.urls)),
+    path("me/", UsuarioActualView.as_view(), name="usuario-actual"),
 ]

@@ -27,9 +27,12 @@ class UsersPackageExportsTests(SimpleTestCase):
         self.assertTrue(callable(create_user_profile))
         self.assertTrue(callable(save_user_profile))
 
-    def test_api_views_package_exports_viewsets(self):
-        from users.api_views import GroupViewSet, ProfileViewSet, UserViewSet
+    def test_api_views_package_exports_la_vista_de_me(self):
+        # Los ViewSets de usuarios, roles y perfiles se retiraron (D-05 de la
+        # auditoría oct-2026): la API solo expone el usuario de la sesión.
+        import users.api_views as api_views
+        from users.api_views import UsuarioActualView
 
-        self.assertIsNotNone(UserViewSet)
-        self.assertIsNotNone(GroupViewSet)
-        self.assertIsNotNone(ProfileViewSet)
+        self.assertIsNotNone(UsuarioActualView)
+        for retirado in ("UserViewSet", "GroupViewSet", "ProfileViewSet"):
+            self.assertFalse(hasattr(api_views, retirado), retirado)
