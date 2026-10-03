@@ -133,31 +133,9 @@ class ConversacionesViewsContractTests(TestCase):
     def _csrf_headers(self):
         return {"HTTP_X_CSRFTOKEN": self.client.cookies["csrftoken"].value}
 
-    def test_evaluar_conversacion_requiere_csrf_y_actualiza_satisfaccion(self):
-        conversacion = Conversacion.objects.create(tipo="anonima", prioridad="normal", estado="cerrada")
-        url = reverse("conversaciones:evaluar", args=[conversacion.id])
-
-        # La cookie CSRF la emitía el chat público, ya desmontado: se toma del detalle
-        # del backoffice, que es la pantalla que hoy sigue en pie.
-        self.client.force_login(self.operador)
-        self.client.get(reverse("conversaciones:detalle", args=[conversacion.id]))
-        forbidden = self.client.post(
-            url,
-            data='{"satisfaccion":5}',
-            content_type="application/json",
-        )
-        allowed = self.client.post(
-            url,
-            data='{"satisfaccion":4}',
-            content_type="application/json",
-            **self._csrf_headers(),
-        )
-
-        conversacion.refresh_from_db()
-        self.assertEqual(forbidden.status_code, 403)
-        self.assertEqual(allowed.status_code, 200)
-        self.assertEqual(allowed.json(), {"success": True})
-        self.assertEqual(conversacion.satisfaccion, 4)
+    # El contrato de `conversaciones:evaluar` se retiró con la ruta: era la última
+    # escritura anónima de la app (R0-01, auditoría oct-2026). Que ya no exista lo
+    # cubre `conversaciones/tests/test_public.py`.
 
     def test_enviar_mensaje_operador_requiere_csrf_y_devuelve_contrato(self):
         conversacion = Conversacion.objects.create(tipo="anonima", prioridad="normal", estado="activa")

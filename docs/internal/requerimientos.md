@@ -289,7 +289,11 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 106 | Un comando único corre el alta en SIIS de punta a punta, y las consultas de ids dejan de morir por timeout | Becas · alta de beneficiarios en SIIS | `#siis` `#infra` `#performance` | PM — en sesión, después de la corrida del 01/10: «quiero armar un comando único que haga todos los pasos» y «¿tenemos forma de evitar el Lost connection?» | 01/10/2026 | 🟢 **Hecho** | No requiere |
 | 107 | El estado civil que SIIS no tiene deja de dejar casos afuera, y el resto queda verificado contra el manual | Becas · alta de beneficiarios en SIIS | `#siis` `#datos` | PM — en sesión, al revisar el hallazgo de la revisión independiente: «a esos casos ponele Soltero/a los de Separado/a» | 01/10/2026 | 🟢 **Hecho** | No requiere |
 | 108 | El alta puede ir a una tabla intermedia propia en vez de a SIIS, y nada se queda ahí | Becas · alta de beneficiarios en SIIS | `#siis` `#datos` | PM — en sesión, pedido del cliente: «tener la opción de enviarlo a una tabla local o enviarlo a SIIS» | 01/10/2026 | 🟢 **Hecho** | `0074_altaintermediasiis` |
+| 109 | Un permiso base `BackofficeAutenticado` para las vistas de la API que no heredan el default | Transversal · API DRF (`/api/`) | `#api` `#rbac` `#sesion` | Auditoría integral oct-2026 — SEC-01 punto 2 (Ola 0, segunda tanda, PR H7) | 03/10/2026 | 🟢 **Hecho** | No requiere |
 | 110 | El admin de un programa no toma cuentas ajenas: ni superusuarios, ni admins globales, ni usuarios de otro programa | Transversal · ABM de Usuarios | `#rbac` `#usuarios` `#sesion` | Auditoría integral oct-2026 — SEC-03 (severidad crítica, confirmado con test), Ola 0 | 03/10/2026 | 🟢 **Hecho** | No requiere |
+| 111 | Fuera las rutas de debug de Legajos y la evaluación anónima del chat | Legajos · Conversaciones | `#rbac` `#ui` `#api` | Auditoría integral oct-2026 — SEC-19 y R0-01 (Ola 0, segunda tanda) | 03/10/2026 | 🟢 **Hecho** | No requiere |
+| 112 | Los archivos subidos dejan de bajarse sin sesión | Transversal · archivos | `#infra` `#rbac` `#datos` | Juez de la sesión — Ola 0 de la auditoría integral oct-2026 (SEC-09, etapa 1) | 03/10/2026 | 🟢 **Hecho** | No requiere |
+| 113 | La API REST de usuarios y roles queda apagada salvo `me` | Transversal · API DRF (`/api/users/`) | `#api` `#rbac` `#usuarios` | Auditoría integral oct-2026 — SEC-05, SEC-16 y SEC-17, decisión D-05 (Ola 0, segunda tanda, PR H11) | 03/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -13798,6 +13802,106 @@ que vaciarla antes, o las filas sin sincronizar se pierden de vista.
 
 ---
 
+# Cambio 109 — Un permiso base para las vistas de la API que no heredan el default
+
+🟢 **HECHO — 03/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · API DRF (`/api/`) |
+| **Etiquetas** | `#api` `#rbac` `#sesion` |
+| **Solicitante** | Auditoría integral de octubre 2026 — hallazgo **SEC-01**, punto 2 de la propuesta (Ola 0, segunda tanda, PR H7) |
+| **Fecha del pedido** | 03/10/2026 |
+| **Issue / épica** | Sin issue — auditoría oct-2026, `docs/internal/auditoria-2026-10/` |
+| **Partes afectadas** | `core/api_permissions.py` |
+| **Migración** | No requiere |
+
+## Pedido original
+
+De la ficha SEC-01, lo que el Cambio 100 dejó explícitamente afuera:
+
+> Defensa en profundidad (recomendada): `core/api_permissions.py` con
+> `class BackofficeAutenticado(BasePermission)` → `request.user.is_authenticated and not
+> rbac.es_ciudadano_portal(request.user)`, como primer elemento de `permission_classes` en
+> `CiudadanoViewSet`, `AlertasViewSet`, `UserViewSet`, `GroupViewSet`, `ProfileViewSet`, los ViewSets de
+> `core/api_views` y las 5 vistas de `dashboard/api_views` (las vistas con `permission_classes`
+> explícitas **no heredan** el default).
+
+## Qué lo motivó
+
+El Cambio 100 invirtió el default de DRF: `DEFAULT_AUTHENTICATION_CLASSES = [SessionAuthentication]` y
+`DEFAULT_PERMISSION_CLASSES = [IsAuthenticated]`. Eso cerró la puerta grande —Basic ya no autentica contra
+`/api/`— pero el default **solo se aplica a las vistas que no declaran `permission_classes`**. Una vista que
+sí los declara se queda con lo que diga su lista, y si esa lista no exige sesión de backoffice, el único
+freno para un ciudadano del portal con sesión es `PortalCiudadanoMiddleware`. Un permiso explícito en la
+vista no depende de que el middleware siga en su lugar.
+
+## Alcance acordado
+
+**Entra:** la clase `BackofficeAutenticado` en `core/api_permissions.py`, con sus tests.
+
+**Queda afuera (a propósito):** aplicarla a las vistas. Eso se hace en los PRs H11-H13 de la misma tanda,
+cada uno sobre sus archivos, para que los cambios no choquen entre ramas paralelas. Este cambio solo deja la
+pieza disponible.
+
+## Decisiones tomadas
+
+- **Va en `core/api_permissions.py`, junto a `RequiereCapacidad`.** Es el único lugar de permisos DRF del
+  repo y la ficha lo nombra así; no se crean permisos sueltos por app.
+- **No evalúa capacidades.** `BackofficeAutenticado` solo separa las dos superficies (portal / backoffice);
+  qué puede hacer cada quien lo sigue decidiendo `RequiereCapacidad(...)`, que se compone después en la misma
+  lista. Un usuario de backoffice sin ninguna capacidad pasa este permiso y lo frena el siguiente.
+- **Clase, no fábrica.** `RequiereCapacidad` es una función porque recibe códigos; esta no recibe nada, así
+  que se usa `permission_classes = [BackofficeAutenticado, ...]` sin paréntesis.
+- **Se reusa `rbac.es_ciudadano_portal`**, que ya cachea el resultado por request y es la misma pieza que
+  usan `PortalCiudadanoMiddleware` y `ciudadano_required`. No se mira el nombre del grupo a mano.
+
+## Implementación
+
+```python
+class BackofficeAutenticado(BasePermission):
+    message = "Esta API es del backoffice."
+
+    def has_permission(self, request, view):
+        return request.user.is_authenticated and not rbac.es_ciudadano_portal(request.user)
+```
+
+Uso previsto, en las vistas que declaran permisos explícitos:
+
+```python
+permission_classes = [BackofficeAutenticado, RequiereCapacidad("usuario.administrar")]
+```
+
+## Validación
+
+- `core/tests/test_api_permissions.py`, 4 tests nuevos: anónimo → `False`, ciudadano del portal → `False`,
+  usuario de backoffice sin capacidades → `True`, superusuario → `True`. Antes del cambio el módulo no
+  importaba (`ImportError`).
+- `manage.py check`, `makemigrations --check --dry-run` y la suite completa en verde; `ruff check` y
+  `ruff format --check` limpios sobre los archivos tocados.
+
+## Pendientes / a definir
+
+- **Aplicarla a las vistas**: PRs H11-H13 de la Ola 0 (SEC-02, SEC-05, SEC-13, SEC-14). Hasta entonces la
+  clase existe pero no protege nada.
+- Sigue abierto el seguimiento **R0-04** de la ficha: la raíz `/api/becas/` acepta `TokenAuthentication`,
+  que es lo que necesita la app de campo.
+
+## Reversión
+
+Revertir el commit saca la clase. Mientras ninguna vista la use no hay impacto; una vez aplicada en H11-H13,
+revertir este cambio rompe el import de esas vistas.
+
+## Historial
+
+- **01/10/2026** — Cambio 100: el default de DRF pasa a sesión + `IsAuthenticated`, y se deja anotado que el
+  punto 2 de SEC-01 va en otro PR.
+- **03/10/2026 (este cambio)** — queda la pieza; aplicarla es trabajo de los PRs H11-H13.
+
+---
+
+---
+
 # Cambio 110 — El admin de un programa no toma cuentas ajenas
 
 🟢 **HECHO — 03/10/2026**
@@ -13929,3 +14033,424 @@ decidió que el admin de un programa podía cambiarle el correo a un usuario mul
 default de la decisión D-03 de la auditoría oct-2026. El resto del Cambio 67 sigue vigente.
 
 ---
+
+# Cambio 111 — Fuera las rutas de debug de Legajos y la evaluación anónima del chat
+
+🟢 **HECHO — 03/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Legajos · Conversaciones |
+| **Etiquetas** | `#rbac` `#ui` `#api` |
+| **Solicitante** | Auditoría integral oct-2026 — hallazgos SEC-19 y R0-01 (Ola 0, segunda tanda) |
+| **Fecha del pedido** | 03/10/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Dos hallazgos de la misma familia: superficie de prueba que quedó publicada en producción.
+
+- **SEC-19 (MEDIA, confirmado con test):** `/legajos/alertas/debug/` arma el HTML a mano, con f-strings, e
+  interpola sin escapar el nombre del ciudadano, el mensaje de la alerta, el `username` y los nombres de grupo.
+  Un ciudadano cargado con nombre `<img src=x onerror=alert(1)>` y una alerta CRÍTICA se lo devuelve literal a
+  cualquier usuario logueado, incluso a uno sin un solo rol: XSS almacenado. Junto a ella conviven otras tres
+  rutas de prueba publicadas: `/legajos/alertas/test/` (500), `/legajos/test-contactos/` y `/legajos/test-api/`.
+- **R0-01 (BAJA, MINOR del revisor de #510):** `POST /conversaciones/<id>/evaluar/` acepta escritura anónima. Con
+  solo la cookie CSRF, cualquiera pisa la satisfacción de cualquier conversación por id. No expone datos, pero
+  era la última escritura sin login que quedaba en la app.
+
+## Alcance acordado
+
+- **Entra:** borrar las cuatro rutas de debug/prueba de Legajos con sus vistas, y desmontar
+  `conversaciones/<id>/evaluar/` con la cadena que solo la alimentaba.
+- **Afuera:** `legajos/api_views/` (va en SEC-20 y SEC-11), `conversaciones/routing.py` y `ws/alertas/`, y el
+  resto del código muerto de Legajos (LEG-06). La fase 2 de G1-01 —apagar la app de conversaciones entera— sigue
+  reservada para la Ola 7.
+
+## Decisiones tomadas
+
+- **Se borran las rutas, no se les arregla el escape.** `debug_alertas` existe para mirar contadores en
+  desarrollo; sanitizar su HTML sería conservar en producción una pantalla que nadie usa. Las otras tres son del
+  mismo tipo: `test-contactos/` es un alias literal de `dashboard-contactos/` (misma vista), `test-api/` devuelve
+  `{"status": "ok"}` y `alertas/test/` renderizaba `legajos/test_alertas.html`, una plantilla **que ya no existe
+  en el repo** —por eso respondía 500—.
+- **Las cuatro quedan en 404, no en 403.** Igual criterio que el Cambio 101: son rutas que dejan de existir, y no
+  hay por qué avisarle a un escaneo que la funcionalidad sigue ahí pero cerrada.
+- **`<id>/evaluar/` se desmonta en vez de pedirle login.** La ficha admitía las dos salidas. Ningún template ni
+  JS del repo la llama: el chat público que la consumía se fue en el Cambio 101 y el backoffice nunca le puso un
+  botón. Exigir sesión habría dejado un endpoint de escritura vivo que nadie usa.
+- **Esto corrige la decisión del Cambio 101** («`evaluar_conversacion` se queda: lo usa el backoffice»). Al
+  revisar el código, el backoffice **no** la usa, y hay un detalle que esa decisión no vio: existían *dos*
+  vistas con ese nombre, una en `views/public.py` (sin `login_required`) y otra en `views/backoffice.py` (con
+  `login_required` y permiso). Como `views/__init__.py` importaba `.public` **después** de `.backoffice`, la
+  pública tapaba a la protegida y era la que atendía la ruta. La versión con permisos nunca llegó a ejecutarse.
+- **Se elimina la cadena entera, no se deja colgada sin ruta:** el módulo `conversaciones/views/public.py`
+  completo (solo tenía esa vista y sus dos helpers de payload), la vista homónima del backoffice, el formulario
+  `EvaluarConversacionForm` y el servicio `evaluar_conversacion`. Mismo criterio que el Cambio 101: código muerto
+  con una escritura adentro es una trampa para el próximo que lo lea.
+- **El campo `Conversacion.satisfaccion` y sus métricas no se tocan.** La columna, el índice y el promedio de la
+  pantalla de métricas quedan como están: lo que se va es la única forma de escribirla, que era anónima. Si el
+  cliente pide que el operador evalúe la conversación, es un pedido nuevo con su pantalla y su capacidad.
+
+## Implementación
+
+- `/legajos/alertas/debug/`, `/legajos/alertas/test/`, `/legajos/test-contactos/` y `/legajos/test-api/` ya no
+  existen: responden 404 para cualquier usuario. El dashboard de alertas (`/legajos/alertas/`), sus dos endpoints
+  AJAX (`count/`, `preview/`), el cierre de alerta y `/legajos/dashboard-contactos/` siguen igual.
+- `POST /conversaciones/<id>/evaluar/` responde 404. La cola, el detalle, la asignación, la respuesta del
+  operador, el cierre y las métricas del backoffice de conversaciones no cambian.
+
+## Archivos
+
+- `legajos/urls/__init__.py` — se quitan las cuatro rutas, con el motivo anotado donde estaban.
+- `legajos/views/alertas.py` — se eliminan `debug_alertas` y `test_alertas_page`, y los imports de modelos que
+  solo ellas usaban.
+- `legajos/views/dashboard_simple.py` — se elimina `test_api` y el import de `JsonResponse` que quedaba sin uso.
+- `conversaciones/urls.py` — se quita la ruta `<id>/evaluar/`.
+- `conversaciones/views/public.py` — **eliminado** (quedaba vacío de contenido útil).
+- `conversaciones/views/__init__.py`, `conversaciones/views/backoffice.py`, `conversaciones/forms/chat.py`,
+  `conversaciones/services/chat.py`, `conversaciones/services/__init__.py` — se bajan la vista duplicada, el
+  formulario, el servicio y los símbolos exportados.
+- `legajos/tests/test_rutas_debug.py` *(nuevo)* — 3 tests.
+- `conversaciones/tests/test_public.py` — 2 tests nuevos.
+- `conversaciones/tests/test_chat_services.py` y `conversaciones/tests/test_package_exports.py` — se retiran las
+  dos referencias a la ruta y al símbolo eliminados.
+
+## Base de datos
+
+No requiere. Ninguna columna cambia; `Conversacion.satisfaccion` conserva los valores cargados.
+
+## Validación
+
+- **Tests nuevos, los cinco fallando contra `1d48eb15`:** `test_rutas_de_debug_no_existen` (`NoReverseMatch` para
+  los cuatro nombres), `test_las_urls_de_debug_devuelven_404`,
+  `test_el_nombre_del_ciudadano_no_vuelve_sin_escapar` (el payload `<img src=x onerror=alert(1)>` ya no vuelve en
+  el cuerpo), `test_evaluar_publico_desmontado` (POST anónimo → 404 y la satisfacción sin cambios; contra el
+  código viejo daba **200 y la pisaba**) y `test_el_nombre_de_url_evaluar_no_resuelve`.
+- `manage.py check` sin issues y `makemigrations --check --dry-run` sin cambios.
+- Suite completa en Python 3.12 + Django 5.2 (el del CI), en dos tandas: 674 tests de
+  `legajos core users configuracion dashboard config conversaciones portal` en verde, y la suite de `programas`
+  en verde.
+- `ruff check` y `ruff format --check` limpios; `scripts/compile_templates.py` en 0 errores (198 plantillas).
+
+## Puesta en marcha en el servidor
+
+Nada extra: alcanza con el deploy.
+
+## Pendientes / a definir
+
+- **Fase 2 de G1-01 (Ola 7):** apagar la app de conversaciones completa — los `include` de `config/urls.py`, las
+  rutas `ws/conversaciones/…` (conservando `ws/alertas/`), el backoffice y las entradas del menú.
+- **LEG-06:** el resto del código muerto de Legajos, que no entra acá.
+- Si el cliente quiere que el operador evalúe la conversación desde el backoffice, hay que rehacer la pantalla,
+  el servicio y la capacidad: este cambio deja la columna pero no la forma de escribirla.
+
+## Reversión
+
+Revertir el commit devuelve las cuatro rutas de Legajos con sus vistas y la ruta `<id>/evaluar/` con su cadena
+—y con ellas los dos hallazgos, incluido el XSS almacenado—. No hay datos que migrar.
+
+---
+
+# Cambio 112 — Los archivos subidos dejan de bajarse sin sesión
+
+🟢 **HECHO — 03/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · archivos subidos (`/media/`) |
+| **Etiquetas** | `#infra` `#rbac` `#datos` |
+| **Solicitante** | Juez de la sesión — Ola 0 de la auditoría integral oct-2026, hallazgo **SEC-09** (etapa 1) |
+| **Fecha del pedido** | 03/10/2026 |
+| **Issue / épica** | sin issue — se sigue por `docs/internal/auditoria-2026-10/` |
+| **Partes afectadas** | Servidor/API · Infra (nginx de icore-srv) · Backoffice. **Mobile no se toca** (no descarga `/media/`) |
+| **Migración** | No requiere |
+
+## Pedido original
+
+De la ficha SEC-09 de la auditoría: «`/media/`: nginx lo sirve sin login en DEV; en ECOM cualquier
+sesión (también la de un ciudadano) baja cualquier archivo». Ahí viven las fotos de DNI, los
+certificados que sube el ciudadano, la documentación de los merenderos y el Excel del padrón.
+
+## Alcance acordado
+
+**Entra (etapa 1):** cerrar las dos puertas por las que hoy se baja un archivo sin sesión de backoffice.
+
+**Queda explícitamente afuera (etapa 2, Ola 2):** la **pertenencia por archivo** —que un operador solo
+baje los adjuntos que le corresponden por capacidad y alcance—, la vista `media_protegida` con
+`X-Accel-Redirect`, y pasar a nombres UUID los `upload_to` que todavía conservan el nombre original
+(`adjuntos/`, `ciudadanos/fotos/`, `admisiones/f00/`, `merenderos/solicitudes/`). Después de este
+cambio, cualquier usuario de backoffice autenticado sigue pudiendo bajar cualquier archivo: lo que se
+cierra acá es el acceso **sin sesión** y el de la sesión de un ciudadano del portal.
+
+## Decisiones tomadas
+
+- **`/media/` lo sirve Django, no nginx.** Motivo: era el único camino para que el `login_required`
+  que ya existía en `config/urls.py` desde el Cambio 41 tuviera efecto en la VM. En nginx el bloque
+  `location /media/ { alias /media/; expires 7d; }` lo servía desde el disco sin que la app se
+  enterara, y encima con 7 días de caché: una vez filtrada la URL, el archivo quedaba accesible
+  aunque después se corrigiera el permiso. El Cambio 41 dejó esto anotado como «pendiente de
+  infraestructura, no de código» y el Cambio 46 lo repitió; esta entrada lo cierra.
+- **Queda un `location /protected-media/` marcado `internal`.** Motivo: es la pieza que la etapa 2
+  necesita para delegar el envío del archivo en nginx (`X-Accel-Redirect`) sin pagar el streaming por
+  Django. `internal` significa que nginx **no** lo sirve a un pedido del navegador: solo lo alcanza
+  una respuesta de la app. Hoy no lo usa nadie; dejarlo armado evita volver a tocar la VM en la Ola 2.
+- **`SERVE_MEDIA=True` para `web` en el compose de producción.** Motivo: es la contracara obligatoria
+  de lo anterior. Sin el flag, la ruta `/media/` no existe en el urlconf y los adjuntos darían 404 en
+  todo el backoffice. Las dos cosas van en el mismo commit a propósito.
+- **`PortalCiudadanoMiddleware` deja de eximir `/media/`.** Motivo: la exención convertía la sesión de
+  un ciudadano del portal —la superficie pública, con autorregistro hasta SEC-29— en una llave para
+  los adjuntos del backoffice. `/static/` sigue exento: ahí no hay nada subido por un usuario.
+- **No se tocó la caché de los archivos:** al pasar por Django ya no hay cabecera `expires 7d`, que
+  era parte del problema.
+- **No afecta a ECOM.** Verificado en el código: el `.gitlab-ci.yml` de ECOM solo construye la imagen
+  del `Dockerfile` y la publica en su registry; no lee `nginx.conf` ni `docker-compose.prod.yml`, que
+  son exclusivos de icore-srv. Lo único que llega a ECOM de este cambio es el middleware, y ahí
+  `SERVE_MEDIA` ya venía en `True` (`.env.qa.example`), así que el efecto es el que se busca: la
+  sesión de un ciudadano deja de bajar archivos.
+
+## Implementación
+
+- Un pedido a `/media/...` sin sesión termina en la pantalla de login, no en el archivo.
+- Un ciudadano del portal autenticado que pida `/media/...` vuelve al portal, como cualquier otra URL
+  de backoffice.
+- Un usuario de backoffice con sesión descarga el archivo igual que antes.
+- En la VM, los archivos ya no se sirven desde el disco por nginx: los entrega la app.
+
+## Archivos
+
+- `nginx.conf` — los dos bloques `location /media/` (server `:80` y server `:443`) reemplazados por
+  `location /protected-media/` con `internal`, `Content-Disposition: attachment` y `nosniff`.
+  `/media/` ahora cae en `location /` y va al upstream de Django.
+- `docker-compose.prod.yml` — `SERVE_MEDIA=True` en el `environment` del servicio `web`.
+- `core/middleware.py` — `PortalCiudadanoMiddleware` ya no exime `/media/`.
+- `core/tests/test_media_protegida.py` — nuevo.
+- `docs/internal/processes.md` — la fila de `SERVE_MEDIA` decía «`True` cuando no hay un nginx
+  sirviendo `/media/`»; ya no hay ningún caso en que vaya apagada.
+- `programas/tests/test_becas_api.py` — docstring que afirmaba que `/media/` lo sirve nginx sin pasar
+  por Django.
+
+## Base de datos
+
+No requiere. Sin migración y sin columnas nuevas.
+
+## Validación
+
+- `core/tests/test_media_protegida.py`, 6 tests nuevos. Antes del arreglo fallaban 4: el ciudadano del
+  portal bajaba el adjunto con **200**, y los tres contratos de despliegue (sin `location /media/`,
+  `/protected-media/` `internal` en los dos servers, `SERVE_MEDIA=True` en `web`) no se cumplían. Los
+  otros dos —anónimo redirigido al login y operador de backoffice descargando el archivo— ya pasaban
+  y quedan como guardia de regresión.
+- `nginx -t` sobre el `nginx.conf` nuevo, en un contenedor `nginx:alpine` con los upstreams
+  resolviendo y un certificado autofirmado: *syntax is ok / test is successful*.
+- Suite completa con Python 3.12 + Django 5.2.17 (igual al CI): **2.115 tests, OK** (677 en
+  `core legajos users configuracion dashboard conversaciones portal healthcheck` + 1.438 en
+  `programas config`, 1 skip preexistente).
+- `manage.py check` sin issues · `makemigrations --check --dry-run` sin cambios · `ruff check` y
+  `ruff format --check` limpios. No se tocó UI, así que no corresponde auditoría de diseño.
+
+## Puesta en marcha en el servidor
+
+Necesita deploy en **icore-srv** (DEV, `relevamiento-deshum.ecomdev.ar`): el cambio es de
+configuración de nginx y del compose, no de base de datos. **No lo hizo el desarrollo**; queda para el
+PM, después del merge y del release a `main`:
+
+```bash
+git pull --ff-only origin main
+docker compose -f docker-compose.prod.yml up -d --build --force-recreate web websocket
+# recién cuando `web` esté healthy — nginx cachea la IP del upstream al arrancar
+docker compose -f docker-compose.prod.yml restart nginx
+```
+
+`nginx.conf` está montado como volumen, así que el `restart` alcanza para que tome el archivo nuevo;
+conviene confirmarlo con
+`docker compose -f docker-compose.prod.yml exec nginx nginx -T | grep -A3 protected-media`.
+
+Verificación, sin cookie de sesión:
+
+```bash
+curl -I https://relevamiento-deshum.ecomdev.ar/media/<ruta_conocida>   # esperado: 302 al login
+curl -I https://relevamiento-deshum.ecomdev.ar/protected-media/<ruta>  # esperado: 404 (es internal)
+```
+
+Y con sesión de backoffice, abrir un adjunto desde el detalle de un ciudadano: tiene que descargarse.
+
+## Pendientes / a definir
+
+- **Etapa 2 (Ola 2):** pertenencia por archivo, `X-Accel-Redirect` y UUID en los `upload_to`
+  restantes. Hasta entonces, cualquier usuario de backoffice autenticado baja cualquier archivo.
+- **Caché:** los archivos pasan a servirse por la app, sin la cabecera `expires 7d`. Si alguna
+  pantalla con muchas miniaturas se nota más lenta, la respuesta es la etapa 2
+  (`X-Accel-Redirect` devuelve el envío a nginx), no reabrir el bloque.
+- El servicio `websocket` monta `./media` pero no sirve `/media/`; no hace falta tocarlo.
+
+## Reversión
+
+Revertir el commit devuelve los dos bloques `location /media/` a nginx, saca `SERVE_MEDIA=True` del
+compose y restituye la exención del middleware; después hay que recrear `web` y `nginx` en la VM. No
+se pierde ningún dato: los archivos no se mueven ni se renombran. La reversión reabre SEC-09 completo.
+
+## Historial
+
+- **24/08/2026 (Cambio 41)** — `/media/` quedó detrás de login *donde lo sirve Django*, y se anotó que
+  en la VM con nginx adelante eso no aplicaba: «pendiente de infraestructura, no de código».
+- **26/08/2026 (Cambio 46)** — se volvió a registrar el mismo hueco al endurecer la subida de archivos.
+- **03/10/2026 (este cambio)** — se cierra la parte de infraestructura. La pertenencia por archivo
+  sigue abierta en la Ola 2.
+
+---
+
+# Cambio 113 — La API REST de usuarios y roles queda apagada salvo `me`
+
+🟢 **HECHO — 03/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · API DRF (`/api/users/`) |
+| **Etiquetas** | `#api` `#rbac` `#usuarios` |
+| **Solicitante** | Auditoría integral de octubre 2026 — hallazgos **SEC-05** (CRÍTICA), **SEC-16** y **SEC-17**, decisión **D-05** (Ola 0, segunda tanda, PR H11) |
+| **Fecha del pedido** | 03/10/2026 |
+| **Issue / épica** | Sin issue — auditoría oct-2026, `docs/internal/auditoria-2026-10/` |
+| **Partes afectadas** | Servidor/API |
+| **Migración** | No requiere |
+
+## Pedido original
+
+De la tabla de decisiones de la auditoría:
+
+> **D-05** — ¿Se conserva la API REST `/api/users/`? **No: apagarla y dejar `me`.** (SEC-05, SEC-16, SEC-17)
+
+Y de la ficha SEC-05:
+
+> Borrar `UserViewSet`, `GroupViewSet` y `ProfileViewSet` de `users/api_urls.py` y dejar solo `me`
+> (no hay consumidores: el ABM web cubre todo). Cierra también SEC-16 y SEC-17.
+
+## Qué lo motivó
+
+`/api/users/` era un ABM de usuarios y roles **paralelo** al del backoffice web, con los mismos poderes y
+ninguna de sus reglas. Tres agujeros confirmados con test:
+
+- **SEC-05 (CRÍTICA):** `UserViewSet.get_permissions()` devolvía `[IsAuthenticated()]` para toda acción
+  fuera del CRUD, y eso **pisaba** el `permission_classes` declarado en los `@action` `activate` y
+  `deactivate`. Cualquier usuario del backoffice con sesión —sin una sola capacidad— hacía POST
+  `deactivate` y dejaba inactivo a otro, incluso al único administrador.
+- **SEC-16 (MEDIA):** `GET /api/users/users/?is_staff=true` y `GET /api/users/groups/<id>/users/`
+  devolvían el padrón del personal con `is_superuser` y, por el `ProfileSerializer` anidado, **DNI,
+  teléfono y la observación interna** de cada uno. También alcanzaba con estar autenticado.
+- **SEC-17 (MEDIA):** con `rol.administrar`, `PATCH /api/users/groups/<id>/` renombraba un rol
+  **protegido**. Como `rbac.es_ciudadano_portal` resuelve por nombre de grupo, renombrar `Ciudadanos`
+  dejaba de identificar a los ciudadanos del portal y **los habilitaba a entrar al backoffice**. Los
+  serializers, además, asignaban roles inactivos (`queryset=Group.objects.all()`), no llamaban a
+  `asegurar_admin_restante` ni corrían `validate_password`.
+
+El ABM web ya hace todo eso bien: alcance por programa, roles asignables según el operador, roles
+protegidos, `asegurar_admin_restante` y validación de contraseñas. Mantener dos caminos de escritura
+significaba mantener dos veces cada regla, y el de la API nació sin ninguna.
+
+## Alcance acordado
+
+**Entra:** retirar del ruteo y del código los tres ViewSets (`UserViewSet`, `GroupViewSet`,
+`ProfileViewSet`) con sus acciones (`activate`, `deactivate`, `change_password`, `groups/<id>/users`) y
+los serializers que quedaban sin uso. Queda una sola vista de lectura, `GET /api/users/me/`.
+
+**Queda afuera (a propósito):**
+
+- El ABM web de usuarios y roles (`users/views/admin.py`, `users/services/admin.py`, `users/forms`,
+  `users/selectors`): no se toca. Es el único camino de escritura y sigue igual.
+- La alternativa «conservar la API con permisos finos» que la ficha describía como plan B. Se aplicó el
+  default de D-05.
+
+## Decisiones tomadas
+
+- **Se apaga, no se endurece.** La ficha ofrecía dos caminos: blindar cada acción con
+  `BackofficeAutenticado` + `RequiereCapacidad` y replicar las reglas del ABM, o retirar la API. Se
+  retiró, por el motivo que la hacía peligrosa: cada regla de negocio nueva del ABM web habría que
+  acordarse de copiarla acá, y la evidencia es que no pasó ni una vez en toda la vida del módulo.
+- **No hay consumidores.** Se verificó por `grep` sobre todo el repo: `/api/users/` no aparece en ningún
+  template, JS de `static/`, servicio ni comando. Los únicos usos eran tests y la colección de Postman.
+  La app de campo consume `/api/becas/*` con `TokenAuthentication` propia (`programas/api_urls.py`), así
+  que no la toca.
+- **`me` cambia de ruta: `/api/users/users/me/` → `/api/users/me/`.** Era una `@action` del ViewSet
+  retirado, así que colgaba del prefijo `users/`. Se mueve a una vista propia en la ruta que nombra la
+  ficha. Sin consumidores, el cambio de URL no rompe nada.
+- **`me` es de solo lectura.** Antes el mismo ViewSet servía `me` y el CRUD. Ahora es una `APIView` con
+  un único `get` sobre `request.user`: no hay forma de llegar a otro usuario ni de escribir.
+- **`change_password` por API se retira sin reemplazo.** No tenía consumidores y no corría
+  `validate_password`, `update_session_auth_hash` ni borraba el Token de la app. El cambio de contraseña
+  del backoffice es el flujo web, que sí respeta `CambioContrasenaObligatorioMiddleware`.
+- **El permiso es `BackofficeAutenticado` solo, sin capacidad.** Ver los propios datos no necesita
+  capacidad; lo que sí hace falta es que no sea un ciudadano del portal, que es exactamente lo que esa
+  clase separa (Cambio 109).
+- **Se conservan `UserSerializer`, `ProfileSerializer` y `GroupSerializer`**, que son lo que arma la
+  respuesta de `me`. El `dni` y la `observacion` del perfil anidado siguen ahí porque ahora son
+  **siempre los del propio usuario**: el riesgo de SEC-16 era el listado de terceros, no el perfil propio.
+
+## Implementación
+
+`GET /api/users/me/` devuelve los datos del usuario de la sesión actual —username, nombre, mail, roles y
+perfil— y nada más. Cualquier otra ruta bajo `/api/users/` responde **404**: no existe.
+
+- Un ciudadano del portal con sesión que pise `/api/users/me/` es redirigido por
+  `PortalCiudadanoMiddleware` (302); si llegara sin pasar por el middleware, `BackofficeAutenticado` lo
+  frena con 403. Anónimo: 403.
+- Dar de alta, editar, activar, desactivar un usuario, o crear, renombrar y borrar roles, se hace
+  **únicamente** por el backoffice web, que ya valida alcance, roles protegidos y que no quede el sistema
+  sin administrador.
+
+## Archivos
+
+- `users/api_urls.py` — el router de DRF con los tres prefijos se reemplaza por una sola `path("me/")`.
+- `users/api_views/__init__.py` — se retiran los tres ViewSets; queda `UsuarioActualView`.
+- `users/serializers/__init__.py` — se retiran `UserCreateSerializer`, `UserUpdateSerializer` y
+  `ChangePasswordSerializer` (sin uso tras el cambio).
+- `users/tests/test_api_rbac.py` — reescrito: ahora verifica que la API esté apagada.
+- `users/tests/test_package_exports.py` — el test de exports apuntaba a los ViewSets retirados.
+- `core/tests/test_api_auth.py` — usaba `/api/users/users/` como URL de muestra del backoffice (SEC-01);
+  pasa a `/api/users/me/`.
+- `docs/api/users.postman_collection.json` y `docs/client/architecture.md` — documentaban los endpoints
+  retirados.
+
+## Base de datos
+
+No requiere. No hay cambios de modelos ni migración.
+
+## Validación
+
+- `users/tests/test_api_rbac.py`, 11 tests nuevos. Antes del cambio fallaban: `deactivate` sin capacidad
+  daba **200** y dejaba a la víctima inactiva (SEC-05), el listado de staff daba **200** con
+  `is_superuser` (SEC-16), el PATCH del rol protegido `Ciudadanos` daba **200** y lo renombraba (SEC-17),
+  y el alta por API daba **201**. Ahora las cuatro dan 404.
+  - `test_api_users_solo_me`: las 10 rutas retiradas no resuelven (`Resolver404`) y `/api/users/me/`
+    resuelve a `usuario-actual`.
+  - `me`: 200 con sesión de backoffice, 403 anónimo, 403 ciudadano del portal por `force_authenticate`,
+    302 a `portal:home` con sesión real (middleware), y devuelve el propio usuario y no otro.
+- `manage.py check` sin issues y `makemigrations --check --dry-run` → «No changes detected».
+- Suite completa en Python 3.12 + Django 5.2 (igual al CI), en dos tandas: 680 tests OK en
+  `legajos core users configuracion dashboard config conversaciones portal`, y `programas` OK.
+- `ruff check` y `ruff format --check` limpios sobre los archivos tocados. No se tocó UI.
+
+## Puesta en marcha en el servidor
+
+Nada especial: entra con el deploy. Si alguien tenía una colección de Postman vieja apuntando a
+`/api/users/users/`, va a recibir 404 — es el efecto buscado.
+
+## Pendientes / a definir
+
+- Si en algún momento hace falta un ABM de usuarios desde afuera (otra app, un script), **no** se
+  reviven estos ViewSets: se expone un endpoint acotado que delegue en `UsuariosAdminService`, que es
+  donde viven las reglas.
+
+## Reversión
+
+Revertir el commit devuelve los tres ViewSets y sus rutas —y con ellos los tres agujeros—. No hay datos
+involucrados: el cambio es solo de ruteo y permisos.
+
+## Historial
+
+- **01/10/2026** — Cambio 100: el default de DRF pasa a sesión + `IsAuthenticated`, lo que cerró el
+  acceso por HTTP Basic (un ciudadano del portal ya no entraba a esta API con Basic), pero no el vector
+  de un usuario de backoffice con sesión.
+- **03/10/2026** — Cambio 109: queda disponible `BackofficeAutenticado`, el permiso que usa `me`.
+- **03/10/2026 (este cambio)** — se apaga la API salvo `me`.

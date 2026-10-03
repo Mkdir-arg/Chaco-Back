@@ -36,7 +36,8 @@ class ApiBackofficeSoloSesionTests(TestCase):
     """SEC-01: `/api/` no acepta HTTP Basic, y lo que sí se usa sigue andando."""
 
     URLS_BACKOFFICE = (
-        "/api/users/users/",
+        # `/api/users/` quedó reducida a `me` (D-05, auditoría oct-2026).
+        "/api/users/me/",
         "/api/legajos/ciudadanos/",
         "/api/buscar-ciudadanos/?q=123",
     )
@@ -73,7 +74,7 @@ class ApiBackofficeSoloSesionTests(TestCase):
         ciudadano.groups.add(Group.objects.create(name=rbac.GRUPO_CIUDADANO_PORTAL))
         self.client.force_login(ciudadano)
 
-        respuesta = self.client.get("/api/users/users/")
+        respuesta = self.client.get("/api/users/me/")
 
         self.assertEqual(respuesta.status_code, 302)
         # SEC-29: «mi perfil» ya no existe (el portal ciudadano está apagado); el
