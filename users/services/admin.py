@@ -57,12 +57,17 @@ class UsuariosAdminService:
     @staticmethod
     def _apply_user_data(form, user):
         cleaned_data = form.cleaned_data
-        user.username = cleaned_data["username"]
-        user.email = cleaned_data["email"]
+        # SEC-03: un admin de programa no toca las credenciales de quien tiene roles
+        # fuera de su alcance. El form ya deshabilita esos campos; acá se ignora el
+        # POST igual, para que el servicio no dependa de cómo se armó el formulario.
+        credenciales_editables = getattr(form, "credenciales_editables", True)
+        if credenciales_editables:
+            user.username = cleaned_data["username"]
+            user.email = cleaned_data["email"]
         user.first_name = cleaned_data["first_name"]
         user.last_name = cleaned_data["last_name"]
 
-        password = cleaned_data.get("password")
+        password = cleaned_data.get("password") if credenciales_editables else None
         if password:
             user.set_password(password)
         elif hasattr(form, "_original_password_hash"):
