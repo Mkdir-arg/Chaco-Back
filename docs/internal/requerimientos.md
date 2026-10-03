@@ -289,6 +289,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 106 | Un comando único corre el alta en SIIS de punta a punta, y las consultas de ids dejan de morir por timeout | Becas · alta de beneficiarios en SIIS | `#siis` `#infra` `#performance` | PM — en sesión, después de la corrida del 01/10: «quiero armar un comando único que haga todos los pasos» y «¿tenemos forma de evitar el Lost connection?» | 01/10/2026 | 🟢 **Hecho** | No requiere |
 | 107 | El estado civil que SIIS no tiene deja de dejar casos afuera, y el resto queda verificado contra el manual | Becas · alta de beneficiarios en SIIS | `#siis` `#datos` | PM — en sesión, al revisar el hallazgo de la revisión independiente: «a esos casos ponele Soltero/a los de Separado/a» | 01/10/2026 | 🟢 **Hecho** | No requiere |
 | 108 | El alta puede ir a una tabla intermedia propia en vez de a SIIS, y nada se queda ahí | Becas · alta de beneficiarios en SIIS | `#siis` `#datos` | PM — en sesión, pedido del cliente: «tener la opción de enviarlo a una tabla local o enviarlo a SIIS» | 01/10/2026 | 🟢 **Hecho** | `0074_altaintermediasiis` |
+| 110 | El admin de un programa no toma cuentas ajenas: ni superusuarios, ni admins globales, ni usuarios de otro programa | Transversal · ABM de Usuarios | `#rbac` `#usuarios` `#sesion` | Auditoría integral oct-2026 — SEC-03 (severidad crítica, confirmado con test), Ola 0 | 03/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -13794,5 +13795,137 @@ que vaciarla antes, o las filas sin sincronizar se pierden de vista.
   pedido del cliente llega el mismo día.
 - **01/10/2026 (este cambio)** — el alta puede quedarse de este lado para revisarla, y una corrida a SIIS
   arrastra lo que haya quedado.
+
+---
+
+# Cambio 110 — El admin de un programa no toma cuentas ajenas
+
+🟢 **HECHO — 03/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · ABM de Usuarios del backoffice (`/usuarios/`) |
+| **Etiquetas** | `#rbac` `#usuarios` `#sesion` |
+| **Solicitante** | Auditoría integral oct-2026, hallazgo SEC-03 (severidad crítica, confirmado con test; absorbe A5-03 y G1b-01), Ola 0 de hotfixes |
+| **Fecha del pedido** | 03/10/2026 |
+| **Issue / épica** | Sin issue · PR H8 de la Ola 0 |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+## Pedido original
+
+SEC-03, auditoría oct-2026: «el admin de usuarios de un programa toma la cuenta de un superusuario, de un admin
+global o de un usuario de otro programa». El chequeo de alcance (`puede_gestionar_usuario`) daba verdadero si el
+usuario tenía **un** rol activo del programa del operador, sin mirar el resto de sus roles. Con eso, un operador con
+`programa.usuario.administrar` de Becas podía abrir la ficha de `root` —superusuario con un rol «Operador Becas»—,
+cambiarle el correo a `atacante@evil.test`, ponerle una clave propia y apagarle la cuenta desde el toggle. La
+variante G1b-01: el admin de usuarios de Dispositivos le cambiaba clave y correo al admin de Becas que además tenía
+un rol operativo de Dispositivos, y lo desactivaba; el usuario conservaba su rol de Becas, ya con las credenciales
+del atacante.
+
+## Alcance acordado
+
+- Entra: el alcance del ABM web de Usuarios (`users/selectors/usuarios.py`, `users/forms`, `users/services/admin.py`,
+  `users/views/admin.py`), puntos 1 y 2 de la propuesta de la ficha.
+- Afuera: la API DRF de usuarios (`users/api_views`, `users/api_urls`), que la toca otro PR de la misma ola.
+- Afuera: que el mismo admin pueda autootorgarse capacidades editando su rol (G1b-02, Ola 2), y el listado de
+  usuarios, que sigue mostrando a quien ahora no se puede editar.
+
+## Decisiones tomadas
+
+- **DECISIÓN CLIENTE (default de D-03 aplicado): un admin de programa no edita usuario, correo ni contraseña —ni usa
+  el toggle— sobre un usuario que tiene roles fuera de su alcance.** Sí sigue editando sus datos generales (nombre y
+  apellido) y los roles de su propio programa. Motivo: el guardado de roles es acotado y no pisa lo de afuera, pero
+  la clave, el correo y el estado de la cuenta **son la cuenta entera**: quien los cambia se queda con el usuario
+  completo, incluidos los roles que no administra.
+- **Esto modifica una decisión registrada: el TC-67-04 del Cambio 67 (ABM de Usuarios con alcance de programa).** Esa
+  prueba fijaba que el admin de Becas podía cambiarle el correo a un usuario de Becas + Vivienda. Con D-03 deja de
+  poder: se reescribió como `test_editar_datos_generales_no_toca_las_credenciales_de_un_multiprograma`, que verifica
+  que el nombre y los roles en alcance sí se guardan y el correo no se mueve. El resto de los casos del Cambio 67
+  (TC-67-01 a TC-67-09) quedan igual.
+- **Dos niveles de alcance, no uno.** `puede_gestionar_usuario` sigue respondiendo «¿puedo abrirlo y editar sus
+  roles?»; el nuevo `puede_gestionar_credenciales` responde «¿puedo tocar la cuenta?». Separarlos evita el único otro
+  camino posible —sacar del alcance a todo multiprograma—, que le habría quitado al admin de programa la gestión de
+  roles que hoy usa (TC-67-05) sin ganar seguridad.
+- **El bloqueo del toggle avisa y vuelve al listado, no devuelve un 403 pelado.** La ficha proponía 403; el ABM entero
+  usa `messages.error` + redirect (`_ScopeDenied` en `UserUpdateView`), y un 403 crudo en medio de una pantalla HTML
+  es una regresión de uso sin ganancia: la operación se rechaza igual y el estado de la cuenta no cambia.
+- **Los campos se deshabilitan en el formulario, no se ocultan.** `disabled = True` hace que Django ignore lo que
+  venga en el POST y use el valor actual, así el bloqueo no depende de que el navegador respete el atributo; el campo
+  queda a la vista con el texto «Solo lo puede cambiar quien administre todos los roles de este usuario», que explica
+  por qué no se puede en vez de hacer desaparecer un dato.
+- **El servicio también ignora esos campos**, por `form.credenciales_editables`. Es redundante con el formulario a
+  propósito: `UsuariosAdminService` lo consumen también el alta rápida y los tests, y la regla no puede depender de
+  cómo se armó el form. Sin el atributo (p. ej. `UserCreationForm`) el comportamiento es el de siempre.
+- **Un rol desactivado no cuenta como «fuera de alcance»** (no otorga nada), pero un grupo **sin `RolMeta`** sí: nunca
+  es asignable desde el ABM, así que se trata como ajeno.
+- **Un rol global con capacidades de admin de programa también excluye al usuario.** `exclude(meta__programa__in=…)`
+  deja afuera los roles sin programa: quien administra usuarios «en general» no cae bajo el alcance de un programa.
+
+## Implementación
+
+- `puede_gestionar_usuario`, rama de admin de programa: devuelve falso si el target es superusuario, si tiene alguna
+  capacidad de `rbac.CAPS_ADMINISTRACION`, o si tiene un rol activo con alguna de `rbac.CAPS_ADMIN_PROGRAMA` que no
+  sea de un programa que el operador administre. Cubre `UserUpdateView.get_object` y `UserToggleActivoView.post`, que
+  ya lo llamaban.
+- `puede_gestionar_credenciales(operador, target)` (nuevo): exige lo anterior **y** que todos los roles del target
+  estén dentro de `alcance_roles_ids(operador)`. Para el admin global devuelve verdadero siempre.
+- `CustomUserChangeForm.__init__` guarda `self.credenciales_editables` y, si es falso, deshabilita `username`,
+  `email` y `password` con su texto de ayuda.
+- `UsuariosAdminService._apply_user_data` aplica usuario, correo y clave solo si `form.credenciales_editables`.
+- `UserToggleActivoView.post` suma el chequeo de credenciales, con su propio aviso.
+
+## Archivos
+
+- `users/selectors/usuarios.py` — guarda de SEC-03 en `puede_gestionar_usuario` y `puede_gestionar_credenciales`.
+- `users/forms/__init__.py` — campos deshabilitados en `CustomUserChangeForm`.
+- `users/services/admin.py` — `_apply_user_data` respeta `credenciales_editables`.
+- `users/views/admin.py` — chequeo en `UserToggleActivoView`.
+- `users/tests/test_usuarios_abm.py` — clase `Sec03TomaDeCuentasTests` (6 tests) y TC-67-04 reescrito.
+
+## Base de datos
+
+No requiere. Ningún dato existente cambia; lo que cambia es quién puede escribirlo.
+
+## Validación
+
+- TDD: los 5 tests de rechazo de `Sec03TomaDeCuentasTests` y el TC-67-04 reescrito **fallaban** con el código
+  anterior, cada uno por el motivo de la ficha (el superusuario abría en 200, la clave quedaba cambiada, la cuenta
+  quedaba inactiva). El sexto, `test_admin_programa_sigue_editando_al_usuario_que_solo_es_de_su_programa`, pasaba
+  antes y después: fija que el alcance legítimo no se achicó.
+- La PoC de la auditoría (`poc/test_repro_usuarios.py::G1b01ToggleCrossProgramTests`, que afirma el comportamiento
+  defectuoso) se copió al worktree y ahora **falla en sus 2 tests**; se borró sin commitear, como pide el método.
+- Python 3.12 + Django 5.2.17 (`.venv312`, igual al CI): `manage.py check` sin observaciones;
+  `makemigrations --check --dry-run` sin cambios. Suite completa en dos tandas, las dos **en verde**:
+  `legajos core users configuracion dashboard config conversaciones portal` → 676 tests OK; `programas` → 1.438 tests
+  OK (1 salteado). `users` sola: 265 tests OK.
+- `ruff check` y `ruff format --check` sobre los archivos tocados: OK. Sin cambios de UI (ningún template, CSS ni JS):
+  no corresponden `design_audit` ni `compile_templates`.
+
+## Puesta en marcha en el servidor
+
+No requiere nada más que el deploy. Antes conviene correr el pre-chequeo **P-04** de la auditoría (README §3): lista
+los superusuarios con roles de programa y los usuarios multiprograma de producción, que son exactamente los que a
+partir de este cambio dejan de ser editables por un admin de programa. Si a alguno de ellos hoy lo gestiona un admin
+de programa en el día a día, pasa a necesitar un admin global.
+
+## Pendientes / a definir
+
+- **La API DRF de usuarios queda con el chequeo viejo** hasta que entre el PR paralelo de la Ola 0 que la toca.
+- **El listado sigue mostrando a los usuarios que ya no se pueden editar**, con sus botones de editar y de
+  activar/desactivar: hoy avisan y vuelven. Esconder las acciones según alcance es un ajuste de UI que no cambia la
+  seguridad y queda para cuando se toque esa pantalla.
+- **G1b-02 (Ola 2):** el admin de usuarios de un programa todavía puede autootorgarse capacidades por el ABM de Roles.
+  Este cambio no lo cubre.
+
+## Reversión
+
+Revertir el commit del PR. No hay datos que deshacer; vuelve el alcance anterior y con él la toma de cuentas.
+
+## Historial
+
+Entrada nueva. **Modifica el TC-67-04 del Cambio 67** (ABM de Usuarios con alcance de programa): donde ese cambio
+decidió que el admin de un programa podía cambiarle el correo a un usuario multiprograma, acá deja de poder, por el
+default de la decisión D-03 de la auditoría oct-2026. El resto del Cambio 67 sigue vigente.
 
 ---

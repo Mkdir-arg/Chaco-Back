@@ -472,6 +472,18 @@ class CustomUserChangeForm(RolesPorAmbitoMixin, forms.ModelForm):
         self.fields["groups"].queryset = asignables
         self._original_password_hash = self.instance.password
         self.fields["password"].initial = ""
+        # SEC-03: si el usuario tiene roles fuera del alcance del operador, sus
+        # credenciales no se tocan desde acá (los roles en alcance sí). Deshabilitar
+        # el campo hace que Django ignore lo que venga en el POST y use el valor
+        # actual, así el bloqueo no depende de que el navegador respete el atributo.
+        from users.selectors.usuarios import puede_gestionar_credenciales
+
+        self.credenciales_editables = puede_gestionar_credenciales(operador, self.instance)
+        if not self.credenciales_editables:
+            aviso = "Solo lo puede cambiar quien administre todos los roles de este usuario."
+            for nombre in ("username", "email", "password"):
+                self.fields[nombre].disabled = True
+                self.fields[nombre].help_text = aviso
         _agregar_campos_perfil_usuario(self)
         _agregar_campo_segmento_territorial(self, operador)
         _agregar_campos_jerarquia_becas(self)

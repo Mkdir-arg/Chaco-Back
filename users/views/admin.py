@@ -15,6 +15,7 @@ from core.rbac import CapacidadRequeridaMixin
 from ..forms import CustomUserChangeForm, UserCreationForm
 from ..selectors.usuarios import (
     alcance_roles_ids,
+    puede_gestionar_credenciales,
     puede_gestionar_usuario,
 )
 from ..services import UsuariosService
@@ -149,6 +150,11 @@ class UserToggleActivoView(AdminRequiredMixin, View):
         user = get_object_or_404(User, pk=pk)
         if not puede_gestionar_usuario(request.user, user):
             messages.error(request, "No tiene permisos para acceder a esta sección.")
+            return redirect("users:usuarios")
+        # SEC-03: activar o desactivar es sobre la cuenta entera, no sobre los roles
+        # del programa, así que exige alcance sobre todos los roles del usuario.
+        if not puede_gestionar_credenciales(request.user, user):
+            messages.error(request, "No podés activar o desactivar a un usuario con roles fuera de tu alcance.")
             return redirect("users:usuarios")
         if user == request.user and user.is_active:
             messages.error(request, "No podés desactivar tu propio usuario.")
