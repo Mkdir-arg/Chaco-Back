@@ -11,28 +11,28 @@ Base verificada: `origin/development @ 917e583`. PoC: `poc/test_repro_seguridad.
 
 | ID | Título | Sev. | Estado | Ola | Esf. | Avance 03-oct |
 |---|---|---|---|---|---|---|
-| SEC-01 | HTTP Basic en `/api/` saltea portal, sesión única y clave provisoria | CRÍTICA | CONF. test | 0 | S | 🟡 |
-| SEC-02 | `CiudadanoViewSet`: CRUD del padrón para cualquier autenticado | CRÍTICA | CONF. test | 0 | S | ⬜ |
-| SEC-03 | Admin de usuarios de un programa toma cuentas de superusuarios, admins globales y multiprograma | CRÍTICA | CONF. test | 0 | M | ⬜ |
+| SEC-01 | HTTP Basic en `/api/` saltea portal, sesión única y clave provisoria | CRÍTICA | CONF. test | 0 (hecho) / 2 (resto) | S | 🟡 |
+| SEC-02 | `CiudadanoViewSet`: CRUD del padrón para cualquier autenticado | CRÍTICA | CONF. test | 0 | S | ✅ |
+| SEC-03 | Admin de usuarios de un programa toma cuentas de superusuarios, admins globales y multiprograma | CRÍTICA | CONF. test | 0 | M | ✅ |
 | SEC-04 | Consulta RENAPER anónima con payload crudo y throttle evadible | CRÍTICA | CONF. test | 0 | S | ✅ |
-| SEC-05 | `activate`/`deactivate` de usuarios por API para cualquier autenticado | CRÍTICA | CONF. test | 0 | S | ⬜ |
+| SEC-05 | `activate`/`deactivate` de usuarios por API para cualquier autenticado | CRÍTICA | CONF. test | 0 | S | ✅ |
 | SEC-06 | Capacidades `becas.*` otorgables en roles de otro programa | ALTA | CONF. test | 2 | M | ⬜ |
 | SEC-07 | `programa.configurar` en un rol de programa habilita el wizard de todos | ALTA | CONF. test | 2 | S-M | ⬜ |
 | SEC-08 | XSS almacenado por nombre de rol en todas las páginas | ALTA | CONF. test | 0 | S | ✅ |
-| SEC-09 | `/media/` sin login en DEV (nginx); sin pertenencia en ECOM | ALTA (DEV) / MEDIA (ECOM) | CONF. test | 0 (etapa 1) / 2 (etapa 2) | S + M | ⬜ |
+| SEC-09 | `/media/` sin login en DEV (nginx); sin pertenencia en ECOM | ALTA (DEV) / MEDIA (ECOM) | CONF. test | 0 (etapa 1) / 2 (etapa 2) | S + M | 🟡 |
 | SEC-10 | Adjuntos de ciudadano/legajo sin capacidad ni pertenencia | ALTA | CONF. test | 2 | S-M | ⬜ |
 | SEC-11 | APIs JSON de legajos (riesgo, alertas, timeline) sin capacidad | ALTA | CONF. test | 2 | S | ⬜ |
 | SEC-12 | Derivaciones por GET (CSRF) sin capacidad; inscripción por `is_staff` | ALTA | CONF. test | 2 | S | ⬜ |
-| SEC-13 | Catálogo geográfico escribible por API | ALTA | CONF. test | 0 | S | ⬜ |
-| SEC-14 | APIs del dashboard: enumeración del padrón y alertas globales | ALTA | CONF. test | 0 | S | ⬜ |
+| SEC-13 | Catálogo geográfico escribible por API | ALTA | CONF. test | 0 | S | ✅ |
+| SEC-14 | APIs del dashboard: enumeración del padrón y alertas globales | ALTA | CONF. test | 0 | S | ✅ |
 | SEC-29 | Registro del portal sobre cualquier legajo con solo el DNI | ALTA | CONF. test | 0 | S | 🟡 |
 | G1-01 | Chat público crea legajos de cualquier DNI con nombre falso que llegan a SIIS | ALTA | CONF. lectura | 0 | S | 🟡 |
 | G1-02 | Segundo oráculo RENAPER anónimo en `/conversaciones/consultar-renaper/` | ALTA | CONF. lectura | 0 | S | ✅ |
 | SEC-15 | Uploads de F-00 y merenderos sin lista blanca ni tope | MEDIA | CONF. test | 2 | S | ⬜ |
-| SEC-16 | `/api/users/` lista personal con DNI e `is_superuser` | MEDIA | CONF. test | 0 | (en SEC-05) | ⬜ |
-| SEC-17 | La API de usuarios/roles saltea reglas del ABM | MEDIA | CONF. test | 0 | (en SEC-05) | ⬜ |
+| SEC-16 | `/api/users/` lista personal con DNI e `is_superuser` | MEDIA | CONF. test | 0 | (en SEC-05) | ✅ |
+| SEC-17 | La API de usuarios/roles saltea reglas del ABM | MEDIA | CONF. test | 0 | (en SEC-05) | ✅ |
 | SEC-18 | Alertas: cerrar cualquiera por id; CRÍTICAS globales a quien no tiene legajos | MEDIA | CONF. test | 2 | S | ⬜ |
-| SEC-19 | XSS en `/legajos/alertas/debug/` y rutas de prueba publicadas | MEDIA | CONF. test | 0 | S | ⬜ |
+| SEC-19 | XSS en `/legajos/alertas/debug/` y rutas de prueba publicadas | MEDIA | CONF. test | 0 | S | ✅ |
 | SEC-20 | Inyección de fórmulas en CSV/XLSX (incluye export de ciudadanos) | MEDIA | CONF. lectura | 2 | S | ⬜ |
 | SEC-21 | Cupo: el Coordinador Regional ve y muta casos de sus pares | MEDIA | CONF. lectura | 2 | S | ⬜ |
 | SEC-22 | Reportes, XLSX y cupo ignoran RN-P13 | MEDIA | CONF. lectura | 2 | S-M | ⬜ |
@@ -52,8 +52,15 @@ Base verificada: `origin/development @ 917e583`. PoC: `poc/test_repro_seguridad.
 | SEC-37 | Link público, paso 2: muestra nombre y fecha a partir de DNI + sexo | BAJA | CONF. (riesgo aceptado, Cambio 71) | 2 | S | ⬜ |
 | G1c-10 | `/admin/` y `admin/doc/` montados en todos los entornos | BAJA | CONF. ajustado | 2 | S | ⬜ |
 | G1c-16 | Payload crudo de RENAPER en sesión (24 h) y caché (10 min) | BAJA | CONF. lectura | 2 | S | ⬜ |
-| R0-01 | `/conversaciones/<id>/evaluar/` acepta escritura anónima | BAJA (MINOR) | revisión Ola 0 | 0 | S | ⬜ |
+| R0-01 | `/conversaciones/<id>/evaluar/` acepta escritura anónima | BAJA (MINOR) | revisión Ola 0 | 0 | S | ✅ |
 | R0-05 | `DEFAULT_THROTTLE_RATES["renaper"]` sin consumidor | BAJA (MINOR) | revisión Ola 0 | 2 (con SEC-25) | incluido en SEC-25 | ⬜ |
+| R0b-04 | `retrieve` de `/api/legajos/ciudadanos/<pk>/` da 404 sin `?search=` | BAJA (MINOR) | revisión Ola 0 (2ª tanda) | 2 (Legajos) | S | ⬜ |
+| R0b-05 | `CiudadanoViewSet` declara `ordering` sin `OrderingFilter`: pagina sin orden | BAJA (MINOR) | revisión Ola 0 (2ª tanda) | 2 (Legajos) | incluido en R0b-04 | ⬜ |
+| R0b-06 | `AlertasViewSet` sin capacidad decidida | BAJA (MINOR) | revisión Ola 0 (2ª tanda) | 2 (con SEC-18) | incluido en SEC-18 | ⬜ |
+| R0b-07 | `config/urls.py` monta `/media/` abierto con `DEBUG=True` antes del bloque `SERVE_MEDIA` | BAJA (MINOR) | revisión Ola 0 (2ª tanda) | 2 (Media) | S | ⬜ |
+| R0b-08 | Comentarios que todavía dicen que nginx sirve `/media/` | BAJA (MINOR) | revisión Ola 0 (2ª tanda) | 2 (Media) | incluido en R0b-07 | ⬜ |
+| R0b-09 | `actividad_reciente` pide `ciudadano.sensible` pero muestra inscripciones y derivaciones sin alcance | BAJA (MINOR) | revisión Ola 0 (2ª tanda) | 2 (Legajos) | S | ⬜ |
+| R0b-11 | Desplegar SEC-09 etapa 1 en icore-srv (`web` antes que `nginx`) | — (operativo, PM) | revisión Ola 0 (2ª tanda) | PM | — | ⬜ |
 
 ---
 
@@ -62,7 +69,7 @@ Base verificada: `origin/development @ 917e583`. PoC: `poc/test_repro_seguridad.
 ### SEC-01 · HTTP Basic en `/api/` saltea la barrera portal/backoffice, la sesión única y la clave provisoria
 **Severidad:** CRÍTICA · **Estado:** CONFIRMADO con test (`SEC01BasicAuthTests`, 2 tests) · **Origen:** A5-01, A3-02 (parte Basic) · **Ola:** 0 · **Esfuerzo:** S · **Decisión:** —
 
-**Resolución:** 🟡 Parcial en #509 (Cambio 100), 01-oct-2026 — hecho el punto 1: `DEFAULT_AUTHENTICATION_CLASSES = [SessionAuthentication]` y `DEFAULT_PERMISSION_CLASSES = [IsAuthenticated]`; Basic ya no autentica en `/api/` y el ciudadano con sesión cae en `PortalCiudadanoMiddleware`. Falta: el punto 2 (`BackofficeAutenticado` en las vistas con `permission_classes` explícitas, que no heredan el default), que sigue en la Ola 0 (PR 2, con SEC-02/05/13/14); H-08 con ECOM. Seguimiento: R0-04 (raíz `/api/becas/` con Token).
+**Resolución:** 🟡 Parcial en #509 (Cambio 100), 01-oct-2026 — hecho el punto 1: `DEFAULT_AUTHENTICATION_CLASSES = [SessionAuthentication]` y `DEFAULT_PERMISSION_CLASSES = [IsAuthenticated]`; Basic ya no autentica en `/api/` y el ciudadano con sesión cae en `PortalCiudadanoMiddleware`. Punto 2 hecho el 03-oct-2026 sobre toda la lista de la ficha: #536 (Cambio 109) crea `BackofficeAutenticado` en `core/api_permissions.py` (#541 le suma `is_active` y deja fail-closed al superusuario dentro de `Ciudadanos`); se aplica en `users` (#540, Cambio 113: solo queda `UsuarioActualView`), `legajos` (#542, Cambio 114: `CiudadanoViewSet`, `AlertasViewSet`, `HistorialContactoViewSet`, `VinculoFamiliarViewSet`), `core/api_views` (6 ViewSets) y las 5 vistas de `dashboard/api_views` (#541, Cambio 115). **Falta (verificado contra `719dc0a`):** vistas DRF del backoffice fuera de la lista de la ficha que siguen sin `BackofficeAutenticado`: las 4 de `conversaciones/api_views` (`@login_required` + default; se van con la fase 2 de G1-01), las 8 de `core/views/performance.py` (`IsPerformanceAdmin`/`IsAdminUser`; se van con OPS-10), `SpectacularAPIView`/`SwaggerView`/`RedocView` (`config/urls.py:55-57`, `login_required` + `AllowAny` de Spectacular) y las raíces de los `DefaultRouter` de `/api/legajos/` y `/api/core/`. Ninguna es explotable hoy (sesión solo por cookie → el middleware frena al ciudadano; las de performance piden `config.administrar`/`is_staff`), así que el resto pasa a la **Ola 2, PR 8** (2 h). La app de campo (`programas/api/views.py`, Token + `CampoBecasPermission`) no es backoffice y queda fuera. Operativo: H-08 con ECOM. Seguimiento: R0-04 (raíz `/api/becas/` con Token).
 - **Ubicación:** `config/settings.py:404-413` (`REST_FRAMEWORK`); middlewares `core/middleware.py:81-95` (`PortalCiudadanoMiddleware`), `users/middleware.py:9-66` (sesión única y clave provisoria; exime `/api/` a propósito).
 - **Escenario (reproducido):** (1) un anónimo se registra en `/portal/mi-perfil/registro/` con el DNI de un `Ciudadano` existente (SEC-29); (2) con sesión, `/api/users/users/` da 302; (3) con `Authorization: Basic <dni>:<clave>`: `/api/users/users/` → 200 (lista el personal), `/api/legajos/ciudadanos/` → 200 (padrón), `/api/buscar-ciudadanos/?q=301` → 200, POST `/api/core/provincias/` → 201; (4) un territorial (solo `becas.campo`, con el login web prohibido por `users/forms/auth.py:44-51`) recibe 200 en `/api/legajos/ciudadanos/` por Basic. nginx reenvía `Authorization` sin tocarlo.
 - **Causa raíz:** causa transversal 1.
@@ -82,7 +89,7 @@ Base verificada: `origin/development @ 917e583`. PoC: `poc/test_repro_seguridad.
 ### SEC-02 · `CiudadanoViewSet`: CRUD completo del padrón para cualquier autenticado
 **Severidad:** CRÍTICA · **Estado:** CONFIRMADO con test (`SEC02CiudadanoApiTests`) · **Origen:** A5-02, A3-02; incluye V1-NEW-03 · **Ola:** 0 · **Esfuerzo:** S · **Decisión:** —
 
-**⚠ Actualizar (03-oct-2026):** el vector por Basic de un ciudadano quedó cerrado por SEC-01 (#509); el CRUD sigue abierto para cualquier usuario del backoffice con sesión. `CiudadanoViewSet` hoy en `legajos/api_views/__init__.py:28`.
+**Resolución:** ✅ Resuelto en #542 (Cambio 114), 03-oct-2026 — `CiudadanoViewSet` pasa a `ReadOnlyModelViewSet` con `[BackofficeAutenticado, RequiereCapacidad("ciudadano.ver")]`, `SearchFilter` en `filter_backends` (cierra V1-NEW-03) y queryset vacío con menos de 3 caracteres de `?search=` (la API contesta búsquedas, no listados); el serializer oculta `telefono`, `email` y `domicilio` sin `ciudadano.sensible`; el buscador de «Agregar familiar» sube su umbral a 3 caracteres. Tests en `legajos/tests/test_api_ciudadanos_rbac.py` (10). Seguimientos: R0b-04 (`retrieve` da 404 sin `?search=`) y R0b-05 (sin `OrderingFilter`).
 - **Ubicación:** `legajos/api_views/__init__.py:36-51`; serializer `legajos/serializers/__init__.py:10-32`.
 - **Escenario (reproducido):** un usuario sin roles hace PATCH `{"dni": "99999999"}` → 200 y el DNI cambia; DELETE → 204 (cascada sobre alertas, inscripciones y derivaciones). Además (V1-NEW-03) `search_fields` está declarado pero `filter_backends = [DjangoFilterBackend]` no incluye `SearchFilter`: el `?search=` de «Agregar familiar» (`ciudadano_detail.html:1224`) se ignora y devuelve 10 ciudadanos cualesquiera.
 - **Causa raíz:** `ModelViewSet` con solo `IsAuthenticated`; serializer que deja escribir dni, nacimiento, teléfono, email y domicilio.
@@ -93,6 +100,8 @@ Base verificada: `origin/development @ 917e583`. PoC: `poc/test_repro_seguridad.
 
 ### SEC-03 · El admin de usuarios de un programa toma la cuenta de un superusuario, de un admin global o de un usuario de otro programa
 **Severidad:** CRÍTICA · **Estado:** CONFIRMADO con test (`SEC03TomaSuperusuarioTests`; ampliación en `poc/test_repro_usuarios.py::G1b01ToggleCrossProgramTests`, 2 tests) · **Origen:** A5-03, G1b-01 · **Ola:** 0 · **Esfuerzo:** M · **Decisión:** D-03 (email de multiprograma)
+
+**Resolución:** ✅ Resuelto en #539 (Cambio 110), 03-oct-2026, incluida la ampliación G1b-01 — `puede_gestionar_usuario` rechaza al superusuario, a quien tenga `CAPS_ADMINISTRACION` y a quien tenga un rol activo con `CAPS_ADMIN_PROGRAMA` de un programa que el operador no administra; el nuevo `puede_gestionar_credenciales` exige que **todos** los roles del target estén en `alcance_roles_ids(operador)` (default de D-03), y si no, `CustomUserChangeForm` deshabilita usuario, correo y clave, `_apply_user_data` los ignora y el toggle se rechaza con aviso. TC-67-04 reescrito; tests en `users/tests/test_usuarios_abm.py::Sec03TomaDeCuentasTests`. Operativo: P-04 en PRD (R0b-12). Seguimientos: R0b-01 (help_text invisible), R0b-02 (rol desactivado), R0b-03 (P-04 incompleto), R0b-10 (botones en el listado).
 - **Ubicación:** `users/selectors/usuarios.py:87-112` (`puede_gestionar_usuario`: True si el target tiene **un** rol activo del programa del operador); `users/forms/__init__.py:399-480` y `:423-432` (`CustomUserChangeForm` expone username, email y password); `users/services/admin.py:58-68` (`_apply_user_data` hace `set_password` y cambia email); `users/views/admin.py:150` (`UserToggleActivoView`, mismo chequeo).
 - **Escenario (reproducido):** (a) un usuario con `programa.usuario.administrar` (rol de Becas) edita a `root` (superusuario con un rol «Operador Becas») → email `atacante@evil.test`, `check_password("Pwn3d-Clave-2026") == True`, y el toggle lo deja inactivo. (b) (G2) el admin de usuarios de Dispositivos **desactiva** al admin de Becas que además tiene un rol operativo de Dispositivos, y le cambia clave y email: el usuario conserva su rol de Becas con credenciales del atacante.
 - **Causa raíz:** el chequeo de alcance mira «algún rol del programa», no «todos los roles del target»; no excluye superusuarios, admins globales (`CAPS_ADMINISTRACION`) ni admins de otro programa (`CAPS_ADMIN_PROGRAMA`).
@@ -129,7 +138,7 @@ Base verificada: `origin/development @ 917e583`. PoC: `poc/test_repro_seguridad.
 ### SEC-05 · `activate` y `deactivate` de usuarios por API para cualquier autenticado
 **Severidad:** CRÍTICA · **Estado:** CONFIRMADO con test (`SEC05ActivateDeactivateTests`) · **Origen:** A5-05 · **Ola:** 0 · **Esfuerzo:** S · **Decisión:** D-05 (apagar la API de usuarios)
 
-**⚠ Actualizar (03-oct-2026):** el vector por Basic de un ciudadano quedó cerrado por SEC-01 (#509); `activate`/`deactivate` siguen abiertos para cualquier usuario del backoffice con sesión.
+**Resolución:** ✅ Resuelto en #540 (Cambio 113), 03-oct-2026, con el default de D-05 — `/api/users/` queda solo con `GET /api/users/me/` (`UsuarioActualView`, `[BackofficeAutenticado]`); se retiraron `UserViewSet`, `GroupViewSet` y `ProfileViewSet` (con `activate`, `deactivate`, `change_password` y `groups/<id>/users`) y sus serializers de escritura; todo lo demás bajo `/api/users/` da 404. Sin consumidores (grep). `me` se mudó de `/api/users/users/me/` a `/api/users/me/`. Tests en `users/tests/test_api_rbac.py` (11, con las PoC de SEC-05/16/17 invertidas). Cierra también SEC-16 y SEC-17.
 - **Ubicación:** `users/api_views/__init__.py:53-57` (`get_permissions()` devuelve `[IsAuthenticated()]` para toda acción fuera de CRUD y pisa el `permission_classes` de los `@action` en `:93` y `:102`).
 - **Escenario (reproducido):** un usuario plano hace POST `deactivate` → 200 y la víctima queda inactiva. Encadenado con SEC-01, lo hace un ciudadano del portal.
 - **Propuesta (default D-05):** borrar `UserViewSet`, `GroupViewSet` y `ProfileViewSet` de `users/api_urls.py` y dejar solo `me` (no hay consumidores: el ABM web cubre todo). Cierra también SEC-16 y SEC-17. **Alternativa si D-05 = conservar:**
@@ -195,7 +204,7 @@ Base verificada: `origin/development @ 917e583`. PoC: `poc/test_repro_seguridad.
 ### SEC-09 · `/media/`: nginx lo sirve sin login en DEV; en ECOM cualquier sesión (también la de un ciudadano) baja cualquier archivo
 **Severidad:** ALTA en DEV, MEDIA en ECOM · **Estado:** CONFIRMADO-AJUSTADO (lectura de nginx + test `SEC09MediaTests` con `SERVE_MEDIA=True`) · **Origen:** A5-09, A2-12 · **Ola:** 0 (etapa 1) y 2 (etapa 2) · **Esfuerzo:** S + M · **Decisión:** D-09 (coordinación ECOM)
 
-**⚠ Actualizar (03-oct-2026):** ya no se pueden crear cuentas de ciudadano (SEC-29, #511), pero las existentes siguen activas hasta correr `desactivar_usuarios_portal` en PRD; el escenario con `SERVE_MEDIA=True` y el de nginx en DEV siguen igual.
+**Resolución:** 🟡 Parcial en #538 (Cambio 112), 03-oct-2026 — etapa 1 hecha en código: `nginx.conf` reemplaza los dos `location /media/` por `location /protected-media/` (`internal`, `attachment`, `nosniff`) y `/media/` cae en Django; `SERVE_MEDIA=True` para `web` en `docker-compose.prod.yml`; `PortalCiudadanoMiddleware` deja de eximir `/media/` (la sesión de un ciudadano ya no baja adjuntos, también en ECOM). Tests en `core/tests/test_media_protegida.py` (6). **Falta:** desplegarlo en icore-srv (R0b-11, operativo del PM: `web` antes que `nginx`; hasta entonces DEV sigue sirviendo `/media/` sin login) y la **etapa 2** (pertenencia por archivo, `X-Accel-Redirect`, `upload_to` con UUID), que sigue en la Ola 2, PR 7: hoy cualquier usuario de backoffice con sesión baja cualquier archivo. Seguimientos: R0b-07 (`/media/` abierto con `DEBUG=True`) y R0b-08 (comentarios viejos).
 - **Ubicación:** `nginx.conf:62-65` y `:134-137` (`location /media/ { alias /media/; expires 7d; }`) → `docker-compose.prod.yml` → icore-srv (DEV `relevamiento-deshum.ecomdev.ar`); ECOM (`SERVE_MEDIA=True`): `config/urls.py:71-81` con `login_required(_media_serve)` sin pertenencia; `core/middleware.py:88` exime `/media/` para ciudadanos. Solo adjuntos y padrones de Becas usan UUID; `adjuntos/`, `ciudadanos/fotos/`, `admisiones/f00/` y `merenderos/solicitudes/%Y/%m/` conservan el nombre original.
 - **Escenario:** con `SERVE_MEDIA=True`, anónimo → 302; ciudadano del portal (SEC-29) → **200** con el contenido. En DEV, por nginx, lo baja cualquiera sin sesión durante 7 días desde caché.
 - **Propuesta:**
@@ -232,7 +241,7 @@ Base verificada: `origin/development @ 917e583`. PoC: `poc/test_repro_seguridad.
 ### SEC-13 · Catálogo geográfico escribible por cualquier autenticado vía `/api/core/`
 **Severidad:** ALTA · **Estado:** CONFIRMADO con test (`SEC13GeoApiTests`) · **Origen:** A5-13 (absorbe A5-40) · **Ola:** 0 · **Esfuerzo:** S · **Decisión:** —
 
-**⚠ Actualizar (03-oct-2026):** la escritura por Basic de un ciudadano quedó cerrada por SEC-01 (#509); el DELETE con la sesión de cualquier usuario del backoffice sigue.
+**Resolución:** ✅ Resuelto en #541 (Cambio 115), 03-oct-2026 — `ProvinciaViewSet`, `MunicipioViewSet` y `LocalidadViewSet` pasan a `ReadOnlyModelViewSet`; los seis ViewSets de `core/api_views` (también `Sexo`, `Mes` y `Dia`, que ya eran de lectura) quedan con `[BackofficeAutenticado]`. Nadie escribía por `/api/core/` (el combo de domicilio usa `load_municipios`/`load_localidad`). Tests en `core/tests/test_api_geo.py` (escritura → 405 y las filas siguen; lectura 200; ciudadano del portal no lee).
 - **Escenario (reproducido):** DELETE `/api/core/provincias/<id>/` sin capacidad → 204 (cascada a municipios y localidades). Con Basic de ciudadano, POST → 201. A5-40 (`static/custom/js/localidades_modal.js:45` pinta nombres con `innerHTML`) queda casi nulo al cerrar esto; el archivo además es JS huérfano (FE-14).
 - **Propuesta:** en `core/api_views/__init__.py`, `ProvinciaViewSet`, `MunicipioViewSet` y `LocalidadViewSet` → `viewsets.ReadOnlyModelViewSet` (el ABM es web, `configuracion/views/geografia.py`, con `config.administrar`). Revisar que `SexoViewSet`, `MesViewSet` y `DiaViewSet` sean ReadOnly.
 - **Tests a agregar:** `core/tests/test_api_geo.py::test_escritura_405` y `::test_lectura_autenticado_200`.
@@ -240,6 +249,8 @@ Base verificada: `origin/development @ 917e583`. PoC: `poc/test_repro_seguridad.
 
 ### SEC-14 · APIs del dashboard: enumeración del padrón por prefijo de DNI y alertas globales
 **Severidad:** ALTA · **Estado:** CONFIRMADO con test (`SEC14DashboardApiTests`) · **Origen:** A5-14 · **Ola:** 0 · **Esfuerzo:** S · **Decisión:** —
+
+**Resolución:** ✅ Resuelto en #541 (Cambio 115), 03-oct-2026 — las 5 vistas de `dashboard/api_views` llevan `BackofficeAutenticado` + capacidad: `buscar_ciudadanos` → `ciudadano.ver`; `alertas_criticas` y `actividad_reciente` → `ciudadano.sensible`, con las alertas resueltas por `FiltrosUsuarioService.obtener_alertas_usuario`; `metricas_dashboard` y `tendencias_datos` → `dashboard.ver`. En `inicio_view`, derivaciones solo con `ciudadano.ver` y conversaciones sin asignar solo con `conversacion.operar`; `templates/inicio.html` condiciona con `|puede` la tarjeta de tendencias y los feeds de «Mi trabajo de hoy» (desvío deliberado, registrado). Tests en `dashboard/tests/test_api_rbac.py` y `core/tests/test_inicio_rbac.py`. Seguimiento: R0b-09 (`actividad_reciente` mezcla inscripciones y derivaciones sin alcance bajo `ciudadano.sensible`).
 - **Escenario (reproducido):** sin `ciudadano.ver`, GET `/api/buscar-ciudadanos/?q=301` → 200 con nombre y DNI (hasta 20 y `has_more`). G1b-05 (cuentas activas sin roles) lo agrava.
 - **Propuesta (`dashboard/api_views/__init__.py`):** `buscar_ciudadanos` con `@permission_classes([BackofficeAutenticado, RequiereCapacidad("ciudadano.ver")])` (el buscador de `inicio.html:839` ya está dentro de `{% if user|puede:"ciudadano.ver" %}`); `alertas_criticas` y `actividad_reciente` con `ciudadano.sensible` y resolviendo las alertas con `FiltrosUsuarioService.obtener_alertas_usuario(request.user)`; `metricas_dashboard` y `tendencias_datos` con `dashboard.ver`. En `core/views/public.py` (`inicio_view`): `derivaciones_pendientes` solo si `puede(user, "ciudadano.ver")` y `conversaciones_sin_asignar` solo si `puede(user, "conversacion.operar")`.
 - **Tests a agregar:** `dashboard/tests/test_api_rbac.py::test_buscar_ciudadanos_sin_capacidad_403` y `::test_con_ciudadano_ver_200`.
@@ -258,7 +269,7 @@ Base verificada: `origin/development @ 917e583`. PoC: `poc/test_repro_seguridad.
 ### G1-01 · Chat público de conversaciones: cualquiera, sin login, crea el legajo de cualquier DNI con el nombre que quiera, y ese legajo después alimenta Becas y SIIS
 **Severidad:** ALTA · **Estado:** CONFIRMADO (lectura) · **Origen:** G1-01; resuelve también A5-42 y A6-28 en su fase 2 · **Ola:** 0 (rutas públicas) / 7 (apagado completo) · **Esfuerzo:** S · **Decisión:** tomada (conversaciones sin uso, 29-sep-2026)
 
-**Resolución:** 🟡 Parcial en #510 (Cambio 101), 01-oct-2026 — hecha la parte de la Ola 0: desmontadas `chat/`, `consultar-renaper/`, `iniciar/`, `<id>/enviar/` y `<id>/mensajes/`, y borrados `iniciar_conversacion_publica` (el `get_or_create` de legajos), sus forms y `chat_ciudadano.html`. Falta: la fase 2 (Ola 7); `<id>/evaluar/` sigue aceptando escritura anónima (R0-01, Ola 0); P-10 en PRD (operativo).
+**Resolución:** 🟡 Parcial en #510 (Cambio 101), 01-oct-2026 — hecha la parte de la Ola 0: desmontadas `chat/`, `consultar-renaper/`, `iniciar/`, `<id>/enviar/` y `<id>/mensajes/`, y borrados `iniciar_conversacion_publica` (el `get_or_create` de legajos), sus forms y `chat_ciudadano.html`. Falta: la fase 2 (Ola 7); P-10 en PRD (operativo). `<id>/evaluar/` (R0-01) se desmontó en #537 (Cambio 111), 03-oct-2026: ya no queda escritura anónima en `conversaciones`.
 - **Ubicación:** `conversaciones/urls.py:13` (`iniciar/`); `conversaciones/views/public.py:108-139` (sin login ni rate limit); `conversaciones/forms/chat.py:17-22` (`datos_renaper = forms.JSONField` que manda el cliente); `conversaciones/services/chat.py:33-55` (`Ciudadano.objects.get_or_create(dni=…, defaults={nombre: datos_renaper["nombre"], …})`). Consumidores del legajo: `programas/services/becas.py:260-279` (`resolver_ciudadano_offline` no pisa nombre ni apellido), `programas/services/padron.py:466-480` (solo completa vacíos), `programas/services/siis_envio.py:437-452` (el alta usa `ciudadano.nombre/apellido`).
 - **Escenario:** un script toma la cookie CSRF de `/conversaciones/chat/` y hace `POST /conversaciones/iniciar/` con `{"tipo":"personal","dni":"45123456","sexo":"F","datos_renaper":{"nombre":"X","apellido":"Y"}}` para una lista de DNI. Cuando esas personas se inscriben, su caso se vincula a ese legajo; la validación por padrón o Gran Base marca el caso como validado pero no corrige el legajo (SIIS-08) y el alta a SIIS sale con el nombre falso (irreversible). Además deja una `Conversacion` activa por request.
 - **Propuesta:**
@@ -291,12 +302,16 @@ Base verificada: `origin/development @ 917e583`. PoC: `poc/test_repro_seguridad.
 
 ### SEC-16 · `/api/users/users/` y `/api/users/groups/<id>/users/` listan el personal con DNI, teléfono e `is_superuser`
 **Severidad:** MEDIA · **Estado:** CONFIRMADO con test (`SEC16UsersApiListTests`) · **Origen:** A5-16 (+ `GroupViewSet.users`, `users/api_views/__init__.py:159-169`) · **Ola:** 0 · **Esfuerzo:** incluido en SEC-05 · **Decisión:** D-05
+
+**Resolución:** ✅ Resuelto en #540 (Cambio 113), 03-oct-2026, con SEC-05 — `/api/users/users/` y `/api/users/groups/<id>/users/` ya no existen (404); `me` solo devuelve al propio usuario. PoC `SEC16UsersApiListTests` invertida en `users/tests/test_api_rbac.py`.
 - **Escenario (reproducido):** usuario plano, GET `?is_staff=true` → 200 con `is_superuser` (también `?groups=<id Administrador>`).
 - **Propuesta:** la de SEC-05 (apagar la API salvo `me`). Si se conserva: list/retrieve con `CAPS_ENTRADA_ABM_USUARIOS` y `get_queryset = usuarios_visibles_para(self.request.user)`, y sacar `dni` y `observacion` de `ProfileSerializer` anidado en `UserSerializer`.
 - **Tests a agregar:** `test_list_sin_capacidad_403` (o 404 si se apaga) y `test_me_200`.
 
 ### SEC-17 · La API REST de usuarios y roles saltea las reglas del ABM web
 **Severidad:** MEDIA · **Estado:** CONFIRMADO con test (`SEC17RenombrarCiudadanosTests`) · **Origen:** A5-17 · **Ola:** 0 · **Esfuerzo:** incluido en SEC-05 (apagar) / M (conservar) · **Decisión:** D-05
+
+**Resolución:** ✅ Resuelto en #540 (Cambio 113), 03-oct-2026, con SEC-05 (camino «apagar» de D-05) — no queda escritura de usuarios ni roles por API: el PATCH del rol protegido `Ciudadanos`, el alta y la asignación de roles inactivos dan 404. PoC `SEC17RenombrarCiudadanosTests` invertida.
 - **Escenario (reproducido):** con `rol.administrar`, PATCH `/api/users/groups/<Ciudadanos>/ {"name": "Ciudadanos2"}` → 200 aunque `protegido=True`; `es_ciudadano_portal` resuelve por nombre (`rbac.py:628`), así que los ciudadanos dejan de detectarse y **entran al backoffice**. Además `groups = PrimaryKeyRelatedField(queryset=Group.objects.all())` asigna roles inactivos, y no se llama a `asegurar_admin_restante` ni a `validate_password`.
 - **Propuesta:** apagar la escritura (SEC-05). Si se conserva: `update`/`partial_update` de `GroupViewSet` → 400 si `meta.protegido`; serializers de usuario validan `groups` contra `_roles_asignables_queryset(operador)` y corren `asegurar_admin_restante` en `transaction.atomic`.
 - **Tests a agregar:** `test_patch_rol_protegido_400`, `test_patch_usuario_que_deja_sin_admin_400` (o 404 si se apaga).
@@ -304,7 +319,7 @@ Base verificada: `origin/development @ 917e583`. PoC: `poc/test_repro_seguridad.
 ### SEC-18 · Alertas: cerrar cualquiera por id; las CRÍTICAS de todo el sistema visibles para quien no tiene legajos
 **Severidad:** MEDIA · **Estado:** CONFIRMADO con test (`SEC11…alertas_dashboard`; `test_repro_dispositivos_legajos.py::A313A314`) · **Origen:** A5-18, A3-13 (= LEG-07), G1c-05, G1c-06 · **Ola:** 2 · **Esfuerzo:** S · **Decisión:** D-18
 
-**⚠ Actualizar (03-oct-2026):** `AlertasViewSet.cerrar` hoy en `legajos/api_views/__init__.py:78` (el archivo perdió la vista de RENAPER, SEC-04).
+**⚠ Actualizar (03-oct-2026):** `AlertasViewSet` hoy en `legajos/api_views/__init__.py:65` y `cerrar` en `:95` (`AlertasService.cerrar_alerta(pk, request.user)`, todavía sin `get_object()`). #542 (Cambio 114) le sumó `BackofficeAutenticado`, pero sigue sin capacidad (`[BackofficeAutenticado, IsAuthenticated]`): decidirla en este PR (R0b-06).
 - **Ubicación:** `legajos/services/filtros_usuario.py:31-33` (sin legajos propios, `filtros = Q(prioridad="CRITICA")`); `legajos/services/alertas.py:206-218` (`cerrar_alerta` con `AlertaCiudadano.objects.get(id=…)`); entradas `cerrar_alerta_api`, `cerrar_alerta_ajax` (`legajos/views/contactos_api.py:123-135`, `legajos/views/alertas.py:64-71`) y `AlertasViewSet.cerrar` (`legajos/api_views/__init__.py:84-93`, `detail=True` sin `get_object()`); `legajos/views/alertas.py:11,74,91` solo `login_required`.
 - **Escenario (reproducido):** un usuario sin roles ni legajos ve «riesgo» en `/legajos/alertas/`; `POST /legajos/alertas/<n>/cerrar-ajax/` con n = 1..N silencia todas las alertas del sistema.
 - **Propuesta:** en el fallback, `return AlertaCiudadano.objects.none()` (o `Q(pk__in=[])`); `cerrar_alerta(alerta_id, usuario)` → `FiltrosUsuarioService.obtener_alertas_usuario(usuario).get(id=alerta_id)` (si no existe, False); `AlertasViewSet.cerrar` usa `self.get_object()`; `@requiere("ciudadano.ver")` en `alertas_dashboard`, `alertas_count_ajax`, `alertas_preview_ajax` y `cerrar_alerta_ajax`. Default D-18: aceptar que el badge quede en 0 para quien hoy ve CRÍTICAS globales (las globales las ve `config.administrar`, ya previsto en `filtros_usuario.py:20-21`).
@@ -314,6 +329,8 @@ Base verificada: `origin/development @ 917e583`. PoC: `poc/test_repro_seguridad.
 
 ### SEC-19 · XSS almacenado en `/legajos/alertas/debug/` y rutas de prueba publicadas
 **Severidad:** MEDIA · **Estado:** CONFIRMADO con test (`SEC18DebugXssTests`; `A313A314`) · **Origen:** A5-19, A3-14 (= LEG-08), A6-16 (= FE-15) · **Ola:** 0 · **Esfuerzo:** S · **Decisión:** —
+
+**Resolución:** ✅ Resuelto en #537 (Cambio 111), 03-oct-2026 — desmontadas `alertas/debug/`, `alertas/test/`, `test-contactos/` y `test-api/` (las cuatro → 404) y borradas `debug_alertas`, `test_alertas_page` y `test_api`. No hubo templates que borrar: `legajos/test_alertas.html` ya no existía (de ahí el 500) y `dashboard_simple.html` se conserva porque lo usa `dashboard-contactos/`. Test en `legajos/tests/test_rutas_debug.py`.
 - **Ubicación:** `legajos/views/alertas.py:118-203` (sink en `:171`: `f"<li>… {alerta.ciudadano.nombre_completo}: {alerta.mensaje}</li>"` en `HttpResponse`; también entran sin escapar `request.user.username` y los nombres de grupo); rutas `legajos/urls/__init__.py:52-53`, `:99-100`.
 - **Escenario (reproducido):** un ciudadano con nombre `<img src=x onerror=alert(1)>` y una alerta CRÍTICA hacen que `/legajos/alertas/debug/` lo devuelva literal a un usuario sin roles. En navegador (V5a): `/legajos/test-contactos/` 200 con `main` vacío, `/legajos/alertas/test/` 500, `/legajos/alertas/debug/` y `/legajos/test-api/` 200.
 - **Propuesta:** borrar las rutas `alertas/debug/`, `alertas/test/`, `test-contactos/` y `test-api/` de `legajos/urls/__init__.py`, y las vistas `debug_alertas`, `test_alertas_page` (`legajos/views/alertas.py:118-203`) y `test_api` (`dashboard_simple.py`) con sus templates. El resto del código muerto de Legajos va en LEG-06.
@@ -464,6 +481,8 @@ las líneas son de `origin/development @ 7393c41`.
 
 ### R0-01 · `/conversaciones/<id>/evaluar/` acepta escritura anónima
 **Severidad:** BAJA (MINOR del revisor) · **Estado:** CONFIRMADO (lectura) · **Origen:** revisión de la Ola 0 · **Ola:** 0 · **Esfuerzo:** S
+
+**Resolución:** ✅ Resuelto en #537 (Cambio 111), 03-oct-2026 — ruta `<id>/evaluar/` desmontada (default «desmontar», sin consumidor). Se borró la cadena entera: `conversaciones/views/public.py`, la `evaluar_conversacion` homónima del backoffice (la pública la tapaba por orden de import), `EvaluarConversacionForm` y el servicio. `Conversacion.satisfaccion` y sus métricas quedan. Tests en `conversaciones/tests/test_public.py`.
 - **Ubicación:** `conversaciones/urls.py:21` → `conversaciones/views/public.py:29` (`evaluar_conversacion`, sin `login_required` ni dueño).
 - **Escenario:** un anónimo con la cookie CSRF hace `POST /conversaciones/<n>/evaluar/` con `{"satisfaccion": …}` y pisa la evaluación de cualquier conversación por id. Lo dejó el revisor de #510 (G1-01) como MINOR: no expone datos, pero es la última escritura anónima de la app.
 - **Propuesta:** desmontar la ruta (el chat público que la usaba ya no existe) o exigir `login_required` + permiso de conversaciones; se resuelve también con la fase 2 de G1-01.
@@ -473,3 +492,52 @@ las líneas son de `origin/development @ 7393c41`.
 **Severidad:** BAJA (MINOR del revisor) · **Estado:** CONFIRMADO (lectura) · **Origen:** revisión de la Ola 0 · **Ola:** 2 (con SEC-25) · **Esfuerzo:** incluido en SEC-25
 - **Ubicación:** `config/settings.py:421`. El único consumidor era `RenaperRateThrottle`, borrado con SEC-04 (#509).
 - **Propuesta:** usarla en el throttle de `consultar_persona_becas` (SEC-25) o borrarla.
+
+## Seguimientos de la revisión de la Ola 0, segunda tanda (agregados el 03-oct-2026)
+
+Observaciones MINOR de los revisores de #536-#542 y seguimientos operativos. Las líneas son de
+`origin/development @ 719dc0a`.
+
+### R0b-04 · `retrieve` de `/api/legajos/ciudadanos/<pk>/` da 404 sin `?search=`
+**Severidad:** BAJA (MINOR del revisor de #542) · **Estado:** CONFIRMADO (lectura) · **Origen:** revisión de la Ola 0, 2ª tanda · **Ola:** 2 (PR 3, Legajos) · **Esfuerzo:** S
+- **Ubicación:** `legajos/api_views/__init__.py:49-59` (`get_queryset` devuelve `none()` con menos de 3 caracteres de `?search=`, también en `retrieve`).
+- **Escenario:** `GET /api/legajos/ciudadanos/<pk>/` con `ciudadano.ver` → 404 aunque el ciudadano exista. Hoy no hay consumidor (el único es el `?search=` de `ciudadano_detail.html`), pero el 404 engaña a quien lo use después.
+- **Propuesta:** decidirlo y dejarlo explícito: aplicar el mínimo de búsqueda solo si `self.action == "list"`, o sacar `retrieve` del ViewSet (`mixins.ListModelMixin` + `GenericViewSet`) para que la ruta no exista.
+- **Test:** `retrieve` con `ciudadano.ver` → 200 (o ruta inexistente), sin capacidad → 403.
+
+### R0b-05 · `CiudadanoViewSet` declara `ordering` sin `OrderingFilter`: pagina sin orden estable
+**Severidad:** BAJA (MINOR del revisor de #542) · **Estado:** CONFIRMADO (lectura) · **Origen:** revisión de la Ola 0, 2ª tanda · **Ola:** 2 (PR 3, Legajos) · **Esfuerzo:** incluido en R0b-04
+- **Ubicación:** `legajos/api_views/__init__.py:43-47` (`filter_backends = [DjangoFilterBackend, filters.SearchFilter]`; `ordering_fields`/`ordering` solo los lee `OrderingFilter`).
+- **Propuesta:** sumar `filters.OrderingFilter` a `filter_backends` (o `.order_by("apellido", "nombre", "pk")` en `get_queryset`) para que la paginación sea determinística.
+- **Test:** dos páginas consecutivas de una búsqueda no repiten ni saltean filas.
+
+### R0b-06 · `AlertasViewSet` sin capacidad decidida
+**Severidad:** BAJA (MINOR del revisor de #542) · **Estado:** CONFIRMADO (lectura) · **Origen:** revisión de la Ola 0, 2ª tanda · **Ola:** 2 (con SEC-18) · **Esfuerzo:** incluido en SEC-18
+- **Ubicación:** `legajos/api_views/__init__.py:65-72` (`permission_classes = [BackofficeAutenticado, IsAuthenticated]`; el queryset ya sale de `FiltrosUsuarioService`).
+- **Propuesta:** `RequiereCapacidad("ciudadano.ver")` para `list`/`count` y la que fije D-11 para el contenido de la alerta; `cerrar` con `get_object()` (SEC-18). Mismo criterio que `alertas_criticas` (SEC-14).
+- **Test:** sin capacidad → 403 en `list`, `count` y `cerrar`.
+
+### R0b-07 · `config/urls.py` monta `/media/` abierto con `DEBUG=True` antes del bloque `SERVE_MEDIA`
+**Severidad:** BAJA (MINOR del revisor de #538) · **Estado:** CONFIRMADO (lectura) · **Origen:** revisión de la Ola 0, 2ª tanda · **Ola:** 2 (PR 7, Media) · **Esfuerzo:** S
+- **Ubicación:** `config/urls.py:67` (`urlpatterns += static(settings.MEDIA_URL, ...)`, sin login, activo con `DEBUG=True`) antes de `:72-81` (`login_required(_media_serve)`). Con los dos activos gana el primero.
+- **Escenario:** un ambiente con `DEBUG=True` y `SERVE_MEDIA=True` sirve `/media/` sin sesión.
+- **Propuesta:** no registrar `static(MEDIA_URL)` cuando `SERVE_MEDIA=True` (o nunca: usar siempre la ruta con login, también en dev); en la etapa 2 de SEC-09 la reemplaza `media_protegida`.
+- **Test:** con `DEBUG=True` y `SERVE_MEDIA=True`, anónimo → 302.
+
+### R0b-08 · Comentarios que todavía dicen que nginx sirve `/media/`
+**Severidad:** BAJA (MINOR del revisor de #538) · **Estado:** CONFIRMADO (lectura) · **Origen:** revisión de la Ola 0, 2ª tanda · **Ola:** 2 (PR 7, Media) · **Esfuerzo:** incluido en R0b-07
+- **Ubicación:** `.env.qa.example:77-79` («en la VM lo sirve nginx y esto queda en False»: falso desde #538, la VM usa `SERVE_MEDIA=True`); también `docs/client/architecture.md:203` («excepto `/static/` y `/media/`»: el middleware ya no exime `/media/`; ese mismo párrafo es el de R0-02).
+- **Propuesta:** reescribir los dos textos según SEC-09 etapa 1.
+
+### R0b-09 · `actividad_reciente` pide `ciudadano.sensible` pero muestra inscripciones y derivaciones sin alcance
+**Severidad:** BAJA (MINOR del revisor de #541) · **Estado:** CONFIRMADO (lectura) · **Origen:** revisión de la Ola 0, 2ª tanda · **Ola:** 2 (PR 3, Legajos) · **Esfuerzo:** S
+- **Ubicación:** `dashboard/api_views/__init__.py:135-146` (`@permission_classes([BackofficeAutenticado, RequiereCapacidad("ciudadano.sensible")])`; `InscripcionPrograma.objects…` y `DerivacionPrograma.objects…` globales; solo las alertas pasan por `FiltrosUsuarioService`).
+- **Escenario:** la capacidad no corresponde al contenido: quien tiene `ciudadano.sensible` ve las últimas inscripciones y derivaciones de todos los programas, y quien solo tiene `ciudadano.ver` no ve nada.
+- **Propuesta:** separar por tipo de evento: inscripciones y derivaciones con `ciudadano.ver` (acotadas como en SEC-12/D-12), alertas con `ciudadano.sensible` (D-11); o partir el feed en dos endpoints.
+- **Test:** con `ciudadano.ver` solo, el feed trae inscripciones y no alertas; sin capacidad → 403.
+
+### R0b-11 · Desplegar SEC-09 etapa 1 en icore-srv (operativo, PM)
+**Severidad:** — (operativo, sin código) · **Origen:** #538 (Cambio 112) · **Ola:** PM · **Esfuerzo:** —
+- **Qué:** hasta desplegarlo, DEV (`relevamiento-deshum.ecomdev.ar`) sigue sirviendo `/media/` por nginx sin login y con `expires 7d`.
+- **Orden:** pull → build y recrear **`web` primero** (con `SERVE_MEDIA=True`) → después `nginx` (el gotcha de IP cacheada obliga a reiniciarlo igual). Si `nginx` va antes, `/media/` cae en Django sin la ruta y los adjuntos dan 404.
+- **Verificación:** `curl -I https://relevamiento-deshum.ecomdev.ar/media/<ruta_conocida>` sin cookie → 302; con sesión de backoffice → 200. Los archivos que ya bajó alguien pueden seguir en cachés de navegador hasta 7 días.

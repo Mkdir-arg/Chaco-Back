@@ -19,6 +19,11 @@ PoC: `poc/test_repro_usuarios.py`. Lo de la API REST de usuarios está en SEC-05
 | G1b-12 | Dashboard de Becas: período sin tope y `?recalcular=1` sin freno | BAJA | CONF. ajustado | 4 | S | ⬜ |
 | G2-04 | Inicio: los contadores no miden lo que dicen sus etiquetas | BAJA | CONF. lectura | 5 | S | ⬜ |
 | G2-06 | El login pide «Tu correo electrónico» pero autentica por `username` | BAJA | CONF. lectura | 5 | S | ⬜ |
+| R0b-01 | `user_form.html` no muestra el `help_text` de los campos que SEC-03 bloquea | BAJA (MINOR) | revisión Ola 0 (2ª tanda) | 2 (Usuarios) | S | ⬜ |
+| R0b-02 | SEC-03: un rol desactivado no cuenta como fuera de alcance | BAJA (MINOR) | revisión Ola 0 (2ª tanda) | 2 (Usuarios) | S | ⬜ |
+| R0b-03 | P-04 no cubre roles Backoffice/Sistema sin programa | BAJA (MINOR) | revisión Ola 0 (2ª tanda) | 2 (Usuarios; antes de R0b-12) | S | ⬜ |
+| R0b-10 | Listado de usuarios: editar y activar/desactivar visibles para usuarios no gestionables | BAJA (MINOR) | revisión Ola 0 (2ª tanda) | 2 (Usuarios) | S | ⬜ |
+| R0b-12 | Correr P-04 (ampliado por R0b-03) en PRD | — (operativo, PM) | revisión Ola 0 (2ª tanda) | PM | — | ⬜ |
 
 ---
 
@@ -102,3 +107,38 @@ PoC: `poc/test_repro_usuarios.py`. Lo de la API REST de usuarios está en SEC-05
 **Severidad:** BAJA · **Estado:** CONFIRMADO (lectura) · **Origen:** G2-06 · **Ola:** 5 · **Esfuerzo:** S
 - **Ubicación:** `users/templates/user/login.html:146`, `:155`; `users/forms/auth.py:23`; sin `AUTHENTICATION_BACKENDS` propio (ModelBackend por username); el ABM (`user_form.html:156`) y el alta rápida (`_alta_rapida_modal.html:27`) piden «Nombre de usuario» libre; el correo de credenciales informa «Usuario: {{ username }}».
 - **Propuesta:** rotular «Usuario» (lo más chico; default). Alternativa: backend que acepte email **solo si es único**, lo que exige validar unicidad del email en `users/forms/__init__.py` (hoy no). V-UI.
+
+## Seguimientos de la revisión de la Ola 0, segunda tanda (agregados el 03-oct-2026)
+
+Observaciones MINOR del revisor de #539 (SEC-03, Cambio 110) y un seguimiento operativo. Las líneas son de
+`origin/development @ 719dc0a`. Van juntas en el PR 2 de la Ola 2 (*Usuarios*).
+
+### R0b-01 · `user_form.html` no muestra el `help_text` de los campos que SEC-03 bloquea
+**Severidad:** BAJA (MINOR del revisor de #539) · **Estado:** CONFIRMADO (lectura) · **Origen:** revisión de la Ola 0, 2ª tanda · **Ola:** 2 (PR 2, Usuarios) · **Esfuerzo:** S
+- **Ubicación:** `users/forms/__init__.py:476-486` (deshabilita `username`, `email` y `password` y les pone el aviso en `help_text`); `users/templates/user/user_form.html:156-164` y `:205-207` renderizan label, campo y errores, nunca `help_text`.
+- **Escenario:** el admin de programa ve los campos grises sin saber por qué; el aviso nunca llega a la pantalla.
+- **Propuesta:** renderizar `{{ form.<campo>.help_text }}` debajo de cada campo (con el estilo de ayuda del sistema de diseño), o un aviso único arriba del bloque cuando `not form.credenciales_editables`. V-UI.
+- **Test:** GET de la edición de un usuario multiprograma por un admin de programa contiene el texto del aviso.
+
+### R0b-02 · SEC-03: un rol desactivado no cuenta como fuera de alcance
+**Severidad:** BAJA (MINOR del revisor de #539) · **Estado:** CONFIRMADO (lectura) · **Origen:** revisión de la Ola 0, 2ª tanda · **Ola:** 2 (PR 2, Usuarios) · **Esfuerzo:** S
+- **Ubicación:** `users/selectors/usuarios.py:145-147` (`puede_gestionar_credenciales` hace `.exclude(meta__activo=False)`: un rol inactivo de otro programa no frena).
+- **Escenario:** el admin de Becas cambia clave y correo de un usuario que tiene, además, un rol **desactivado** de admin de Dispositivos; si después alguien reactiva ese rol, el usuario recupera el acceso a Dispositivos con credenciales que puso el admin de Becas (el mismo vector de G1b-01, diferido).
+- **Propuesta:** contar los roles inactivos como fuera de alcance (sacar el `exclude`), o fijar la decisión contraria en `requerimientos.md` con este escenario.
+- **Test:** usuario con rol de Becas + rol inactivo de otro programa → el admin de Becas no edita credenciales.
+
+### R0b-03 · P-04 no cubre roles Backoffice/Sistema sin programa
+**Severidad:** BAJA (MINOR del revisor de #539) · **Estado:** CONFIRMADO (lectura) · **Origen:** revisión de la Ola 0, 2ª tanda · **Ola:** 2 (PR 2, Usuarios; conviene hacerlo antes de R0b-12) · **Esfuerzo:** S
+- **Ubicación:** README §3, P-04: la primera consulta hace `JOIN programas_programa` (descarta los roles sin programa) y la segunda `JOIN users_rolmeta` (descarta los grupos sin `RolMeta`, que `puede_gestionar_credenciales` cuenta como fuera de alcance).
+- **Propuesta:** `LEFT JOIN` a `programas_programa` y a `users_rolmeta` y listar, por usuario activo con algún rol de programa, cuántos roles de categoría Backoffice/Sistema (programa nulo) y cuántos grupos sin `RolMeta` tiene: son las cuentas cuyas credenciales el admin de programa dejó de poder tocar con SEC-03.
+
+### R0b-10 · Listado de usuarios: editar y activar/desactivar visibles para usuarios no gestionables
+**Severidad:** BAJA (MINOR del revisor de #539) · **Estado:** CONFIRMADO (lectura) · **Origen:** revisión de la Ola 0, 2ª tanda · **Ola:** 2 (PR 2, Usuarios) · **Esfuerzo:** S
+- **Ubicación:** `users/templates/user/user_list.html:71` (link a `usuario_editar`) y `:97` (form de `usuario_toggle`): solo se esconden para el propio usuario.
+- **Escenario:** el admin de programa ve los botones sobre un superusuario o un multiprograma; al usarlos recibe redirect con aviso (el servidor ya rechaza).
+- **Propuesta:** anotar por fila `gestionable` y `credenciales_editables` en la vista del listado (en lote, sin N+1) y esconder o deshabilitar los botones. V-UI.
+- **Test:** el listado de un admin de programa no tiene la URL de edición ni de toggle de un superusuario.
+
+### R0b-12 · Correr P-04 en PRD (operativo, PM)
+**Severidad:** — (operativo, sin código) · **Origen:** #539 (Cambio 110) · **Ola:** PM · **Esfuerzo:** —
+- **Qué:** correr P-04 (README §3), ampliado por R0b-03, en PRD de ECOM, antes o junto con el release que lleve SEC-03, para saber qué cuentas dejan de ser editables por un admin de programa (superusuarios con rol de programa, multiprograma, roles Backoffice/Sistema) y avisarle a sus admins que esas altas pasan por un admin global.
