@@ -26,5 +26,5 @@ class ConfigurarColaForm(forms.Form):
         return self.cleaned_data.get("max_conversaciones") or 5
 
 
-class EvaluarConversacionForm(forms.Form):
-    satisfaccion = forms.IntegerField(min_value=1, max_value=5)
+# `EvaluarConversacionForm` se fue con `<id>/evaluar/`: era el único lugar que lo
+# validaba y la ruta aceptaba escritura anónima (R0-01, auditoría oct-2026).

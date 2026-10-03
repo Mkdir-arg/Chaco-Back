@@ -289,6 +289,8 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 106 | Un comando único corre el alta en SIIS de punta a punta, y las consultas de ids dejan de morir por timeout | Becas · alta de beneficiarios en SIIS | `#siis` `#infra` `#performance` | PM — en sesión, después de la corrida del 01/10: «quiero armar un comando único que haga todos los pasos» y «¿tenemos forma de evitar el Lost connection?» | 01/10/2026 | 🟢 **Hecho** | No requiere |
 | 107 | El estado civil que SIIS no tiene deja de dejar casos afuera, y el resto queda verificado contra el manual | Becas · alta de beneficiarios en SIIS | `#siis` `#datos` | PM — en sesión, al revisar el hallazgo de la revisión independiente: «a esos casos ponele Soltero/a los de Separado/a» | 01/10/2026 | 🟢 **Hecho** | No requiere |
 | 108 | El alta puede ir a una tabla intermedia propia en vez de a SIIS, y nada se queda ahí | Becas · alta de beneficiarios en SIIS | `#siis` `#datos` | PM — en sesión, pedido del cliente: «tener la opción de enviarlo a una tabla local o enviarlo a SIIS» | 01/10/2026 | 🟢 **Hecho** | `0074_altaintermediasiis` |
+| 109 | Un permiso base `BackofficeAutenticado` para las vistas de la API que no heredan el default | Transversal · API DRF (`/api/`) | `#api` `#rbac` `#sesion` | Auditoría integral oct-2026 — SEC-01 punto 2 (Ola 0, segunda tanda, PR H7) | 03/10/2026 | 🟢 **Hecho** | No requiere |
+| 111 | Fuera las rutas de debug de Legajos y la evaluación anónima del chat | Legajos · Conversaciones | `#rbac` `#ui` `#api` | Auditoría integral oct-2026 — SEC-19 y R0-01 (Ola 0, segunda tanda) | 03/10/2026 | 🟢 **Hecho** | No requiere |
 | 112 | Los archivos subidos dejan de bajarse sin sesión | Transversal · archivos | `#infra` `#rbac` `#datos` | Juez de la sesión — Ola 0 de la auditoría integral oct-2026 (SEC-09, etapa 1) | 03/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
@@ -13798,6 +13800,226 @@ que vaciarla antes, o las filas sin sincronizar se pierden de vista.
 
 ---
 
+# Cambio 109 — Un permiso base para las vistas de la API que no heredan el default
+
+🟢 **HECHO — 03/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · API DRF (`/api/`) |
+| **Etiquetas** | `#api` `#rbac` `#sesion` |
+| **Solicitante** | Auditoría integral de octubre 2026 — hallazgo **SEC-01**, punto 2 de la propuesta (Ola 0, segunda tanda, PR H7) |
+| **Fecha del pedido** | 03/10/2026 |
+| **Issue / épica** | Sin issue — auditoría oct-2026, `docs/internal/auditoria-2026-10/` |
+| **Partes afectadas** | `core/api_permissions.py` |
+| **Migración** | No requiere |
+
+## Pedido original
+
+De la ficha SEC-01, lo que el Cambio 100 dejó explícitamente afuera:
+
+> Defensa en profundidad (recomendada): `core/api_permissions.py` con
+> `class BackofficeAutenticado(BasePermission)` → `request.user.is_authenticated and not
+> rbac.es_ciudadano_portal(request.user)`, como primer elemento de `permission_classes` en
+> `CiudadanoViewSet`, `AlertasViewSet`, `UserViewSet`, `GroupViewSet`, `ProfileViewSet`, los ViewSets de
+> `core/api_views` y las 5 vistas de `dashboard/api_views` (las vistas con `permission_classes`
+> explícitas **no heredan** el default).
+
+## Qué lo motivó
+
+El Cambio 100 invirtió el default de DRF: `DEFAULT_AUTHENTICATION_CLASSES = [SessionAuthentication]` y
+`DEFAULT_PERMISSION_CLASSES = [IsAuthenticated]`. Eso cerró la puerta grande —Basic ya no autentica contra
+`/api/`— pero el default **solo se aplica a las vistas que no declaran `permission_classes`**. Una vista que
+sí los declara se queda con lo que diga su lista, y si esa lista no exige sesión de backoffice, el único
+freno para un ciudadano del portal con sesión es `PortalCiudadanoMiddleware`. Un permiso explícito en la
+vista no depende de que el middleware siga en su lugar.
+
+## Alcance acordado
+
+**Entra:** la clase `BackofficeAutenticado` en `core/api_permissions.py`, con sus tests.
+
+**Queda afuera (a propósito):** aplicarla a las vistas. Eso se hace en los PRs H11-H13 de la misma tanda,
+cada uno sobre sus archivos, para que los cambios no choquen entre ramas paralelas. Este cambio solo deja la
+pieza disponible.
+
+## Decisiones tomadas
+
+- **Va en `core/api_permissions.py`, junto a `RequiereCapacidad`.** Es el único lugar de permisos DRF del
+  repo y la ficha lo nombra así; no se crean permisos sueltos por app.
+- **No evalúa capacidades.** `BackofficeAutenticado` solo separa las dos superficies (portal / backoffice);
+  qué puede hacer cada quien lo sigue decidiendo `RequiereCapacidad(...)`, que se compone después en la misma
+  lista. Un usuario de backoffice sin ninguna capacidad pasa este permiso y lo frena el siguiente.
+- **Clase, no fábrica.** `RequiereCapacidad` es una función porque recibe códigos; esta no recibe nada, así
+  que se usa `permission_classes = [BackofficeAutenticado, ...]` sin paréntesis.
+- **Se reusa `rbac.es_ciudadano_portal`**, que ya cachea el resultado por request y es la misma pieza que
+  usan `PortalCiudadanoMiddleware` y `ciudadano_required`. No se mira el nombre del grupo a mano.
+
+## Implementación
+
+```python
+class BackofficeAutenticado(BasePermission):
+    message = "Esta API es del backoffice."
+
+    def has_permission(self, request, view):
+        return request.user.is_authenticated and not rbac.es_ciudadano_portal(request.user)
+```
+
+Uso previsto, en las vistas que declaran permisos explícitos:
+
+```python
+permission_classes = [BackofficeAutenticado, RequiereCapacidad("usuario.administrar")]
+```
+
+## Validación
+
+- `core/tests/test_api_permissions.py`, 4 tests nuevos: anónimo → `False`, ciudadano del portal → `False`,
+  usuario de backoffice sin capacidades → `True`, superusuario → `True`. Antes del cambio el módulo no
+  importaba (`ImportError`).
+- `manage.py check`, `makemigrations --check --dry-run` y la suite completa en verde; `ruff check` y
+  `ruff format --check` limpios sobre los archivos tocados.
+
+## Pendientes / a definir
+
+- **Aplicarla a las vistas**: PRs H11-H13 de la Ola 0 (SEC-02, SEC-05, SEC-13, SEC-14). Hasta entonces la
+  clase existe pero no protege nada.
+- Sigue abierto el seguimiento **R0-04** de la ficha: la raíz `/api/becas/` acepta `TokenAuthentication`,
+  que es lo que necesita la app de campo.
+
+## Reversión
+
+Revertir el commit saca la clase. Mientras ninguna vista la use no hay impacto; una vez aplicada en H11-H13,
+revertir este cambio rompe el import de esas vistas.
+
+## Historial
+
+- **01/10/2026** — Cambio 100: el default de DRF pasa a sesión + `IsAuthenticated`, y se deja anotado que el
+  punto 2 de SEC-01 va en otro PR.
+- **03/10/2026 (este cambio)** — queda la pieza; aplicarla es trabajo de los PRs H11-H13.
+
+---
+
+---
+
+# Cambio 111 — Fuera las rutas de debug de Legajos y la evaluación anónima del chat
+
+🟢 **HECHO — 03/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Legajos · Conversaciones |
+| **Etiquetas** | `#rbac` `#ui` `#api` |
+| **Solicitante** | Auditoría integral oct-2026 — hallazgos SEC-19 y R0-01 (Ola 0, segunda tanda) |
+| **Fecha del pedido** | 03/10/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Dos hallazgos de la misma familia: superficie de prueba que quedó publicada en producción.
+
+- **SEC-19 (MEDIA, confirmado con test):** `/legajos/alertas/debug/` arma el HTML a mano, con f-strings, e
+  interpola sin escapar el nombre del ciudadano, el mensaje de la alerta, el `username` y los nombres de grupo.
+  Un ciudadano cargado con nombre `<img src=x onerror=alert(1)>` y una alerta CRÍTICA se lo devuelve literal a
+  cualquier usuario logueado, incluso a uno sin un solo rol: XSS almacenado. Junto a ella conviven otras tres
+  rutas de prueba publicadas: `/legajos/alertas/test/` (500), `/legajos/test-contactos/` y `/legajos/test-api/`.
+- **R0-01 (BAJA, MINOR del revisor de #510):** `POST /conversaciones/<id>/evaluar/` acepta escritura anónima. Con
+  solo la cookie CSRF, cualquiera pisa la satisfacción de cualquier conversación por id. No expone datos, pero
+  era la última escritura sin login que quedaba en la app.
+
+## Alcance acordado
+
+- **Entra:** borrar las cuatro rutas de debug/prueba de Legajos con sus vistas, y desmontar
+  `conversaciones/<id>/evaluar/` con la cadena que solo la alimentaba.
+- **Afuera:** `legajos/api_views/` (va en SEC-20 y SEC-11), `conversaciones/routing.py` y `ws/alertas/`, y el
+  resto del código muerto de Legajos (LEG-06). La fase 2 de G1-01 —apagar la app de conversaciones entera— sigue
+  reservada para la Ola 7.
+
+## Decisiones tomadas
+
+- **Se borran las rutas, no se les arregla el escape.** `debug_alertas` existe para mirar contadores en
+  desarrollo; sanitizar su HTML sería conservar en producción una pantalla que nadie usa. Las otras tres son del
+  mismo tipo: `test-contactos/` es un alias literal de `dashboard-contactos/` (misma vista), `test-api/` devuelve
+  `{"status": "ok"}` y `alertas/test/` renderizaba `legajos/test_alertas.html`, una plantilla **que ya no existe
+  en el repo** —por eso respondía 500—.
+- **Las cuatro quedan en 404, no en 403.** Igual criterio que el Cambio 101: son rutas que dejan de existir, y no
+  hay por qué avisarle a un escaneo que la funcionalidad sigue ahí pero cerrada.
+- **`<id>/evaluar/` se desmonta en vez de pedirle login.** La ficha admitía las dos salidas. Ningún template ni
+  JS del repo la llama: el chat público que la consumía se fue en el Cambio 101 y el backoffice nunca le puso un
+  botón. Exigir sesión habría dejado un endpoint de escritura vivo que nadie usa.
+- **Esto corrige la decisión del Cambio 101** («`evaluar_conversacion` se queda: lo usa el backoffice»). Al
+  revisar el código, el backoffice **no** la usa, y hay un detalle que esa decisión no vio: existían *dos*
+  vistas con ese nombre, una en `views/public.py` (sin `login_required`) y otra en `views/backoffice.py` (con
+  `login_required` y permiso). Como `views/__init__.py` importaba `.public` **después** de `.backoffice`, la
+  pública tapaba a la protegida y era la que atendía la ruta. La versión con permisos nunca llegó a ejecutarse.
+- **Se elimina la cadena entera, no se deja colgada sin ruta:** el módulo `conversaciones/views/public.py`
+  completo (solo tenía esa vista y sus dos helpers de payload), la vista homónima del backoffice, el formulario
+  `EvaluarConversacionForm` y el servicio `evaluar_conversacion`. Mismo criterio que el Cambio 101: código muerto
+  con una escritura adentro es una trampa para el próximo que lo lea.
+- **El campo `Conversacion.satisfaccion` y sus métricas no se tocan.** La columna, el índice y el promedio de la
+  pantalla de métricas quedan como están: lo que se va es la única forma de escribirla, que era anónima. Si el
+  cliente pide que el operador evalúe la conversación, es un pedido nuevo con su pantalla y su capacidad.
+
+## Implementación
+
+- `/legajos/alertas/debug/`, `/legajos/alertas/test/`, `/legajos/test-contactos/` y `/legajos/test-api/` ya no
+  existen: responden 404 para cualquier usuario. El dashboard de alertas (`/legajos/alertas/`), sus dos endpoints
+  AJAX (`count/`, `preview/`), el cierre de alerta y `/legajos/dashboard-contactos/` siguen igual.
+- `POST /conversaciones/<id>/evaluar/` responde 404. La cola, el detalle, la asignación, la respuesta del
+  operador, el cierre y las métricas del backoffice de conversaciones no cambian.
+
+## Archivos
+
+- `legajos/urls/__init__.py` — se quitan las cuatro rutas, con el motivo anotado donde estaban.
+- `legajos/views/alertas.py` — se eliminan `debug_alertas` y `test_alertas_page`, y los imports de modelos que
+  solo ellas usaban.
+- `legajos/views/dashboard_simple.py` — se elimina `test_api` y el import de `JsonResponse` que quedaba sin uso.
+- `conversaciones/urls.py` — se quita la ruta `<id>/evaluar/`.
+- `conversaciones/views/public.py` — **eliminado** (quedaba vacío de contenido útil).
+- `conversaciones/views/__init__.py`, `conversaciones/views/backoffice.py`, `conversaciones/forms/chat.py`,
+  `conversaciones/services/chat.py`, `conversaciones/services/__init__.py` — se bajan la vista duplicada, el
+  formulario, el servicio y los símbolos exportados.
+- `legajos/tests/test_rutas_debug.py` *(nuevo)* — 3 tests.
+- `conversaciones/tests/test_public.py` — 2 tests nuevos.
+- `conversaciones/tests/test_chat_services.py` y `conversaciones/tests/test_package_exports.py` — se retiran las
+  dos referencias a la ruta y al símbolo eliminados.
+
+## Base de datos
+
+No requiere. Ninguna columna cambia; `Conversacion.satisfaccion` conserva los valores cargados.
+
+## Validación
+
+- **Tests nuevos, los cinco fallando contra `1d48eb15`:** `test_rutas_de_debug_no_existen` (`NoReverseMatch` para
+  los cuatro nombres), `test_las_urls_de_debug_devuelven_404`,
+  `test_el_nombre_del_ciudadano_no_vuelve_sin_escapar` (el payload `<img src=x onerror=alert(1)>` ya no vuelve en
+  el cuerpo), `test_evaluar_publico_desmontado` (POST anónimo → 404 y la satisfacción sin cambios; contra el
+  código viejo daba **200 y la pisaba**) y `test_el_nombre_de_url_evaluar_no_resuelve`.
+- `manage.py check` sin issues y `makemigrations --check --dry-run` sin cambios.
+- Suite completa en Python 3.12 + Django 5.2 (el del CI), en dos tandas: 674 tests de
+  `legajos core users configuracion dashboard config conversaciones portal` en verde, y la suite de `programas`
+  en verde.
+- `ruff check` y `ruff format --check` limpios; `scripts/compile_templates.py` en 0 errores (198 plantillas).
+
+## Puesta en marcha en el servidor
+
+Nada extra: alcanza con el deploy.
+
+## Pendientes / a definir
+
+- **Fase 2 de G1-01 (Ola 7):** apagar la app de conversaciones completa — los `include` de `config/urls.py`, las
+  rutas `ws/conversaciones/…` (conservando `ws/alertas/`), el backoffice y las entradas del menú.
+- **LEG-06:** el resto del código muerto de Legajos, que no entra acá.
+- Si el cliente quiere que el operador evalúe la conversación desde el backoffice, hay que rehacer la pantalla,
+  el servicio y la capacidad: este cambio deja la columna pero no la forma de escribirla.
+
+## Reversión
+
+Revertir el commit devuelve las cuatro rutas de Legajos con sus vistas y la ruta `<id>/evaluar/` con su cadena
+—y con ellas los dos hallazgos, incluido el XSS almacenado—. No hay datos que migrar.
+
+---
+
 # Cambio 112 — Los archivos subidos dejan de bajarse sin sesión
 
 🟢 **HECHO — 03/10/2026**
@@ -13943,5 +14165,3 @@ se pierde ningún dato: los archivos no se mueven ni se renombran. La reversión
 - **26/08/2026 (Cambio 46)** — se volvió a registrar el mismo hueco al endurecer la subida de archivos.
 - **03/10/2026 (este cambio)** — se cierra la parte de infraestructura. La pertenencia por archivo
   sigue abierta en la Ola 2.
-
----
