@@ -1215,7 +1215,8 @@ document.getElementById('buscarCiudadano').addEventListener('input', function() 
     clearTimeout(timeoutBusqueda);
     const query = this.value.trim();
 
-    if (query.length < 2) {
+    // La API contesta desde 3 caracteres (SEC-02): con menos no se consulta.
+    if (query.length < 3) {
         document.getElementById('resultadosBusqueda').innerHTML = '';
         return;
     }

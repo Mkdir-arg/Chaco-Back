@@ -56,7 +56,8 @@ class CiudadanoDetailInnerHtmlTests(TestCase):
 
         log = self._correr(
             {"/api/legajos/ciudadanos/": respuesta},
-            "__el('buscarCiudadano').value = 'an';\n__disparar('#buscarCiudadano', 'input');\n",
+            # 3 caracteres: desde SEC-02 el buscador no consulta con menos.
+            "__el('buscarCiudadano').value = 'ana';\n__disparar('#buscarCiudadano', 'input');\n",
         )
 
         html = log["html"]["#resultadosBusqueda"]
