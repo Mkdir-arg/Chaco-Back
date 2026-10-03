@@ -82,10 +82,11 @@ class PortalCiudadanoMiddleware:
 
     def __call__(self, request):
         # Los checks de path van primero: cortan sin pagar la query de grupos.
+        # `/media/` NO está exento (SEC-09): ahí viven los adjuntos del backoffice
+        # y la exención dejaba que cualquier sesión de ciudadano los bajara.
         if (
             not request.path.startswith("/portal/")
             and not request.path.startswith("/static/")
-            and not request.path.startswith("/media/")
             and rbac.es_ciudadano_portal(request.user)
         ):
             # SEC-29: «mi perfil» ya no existe (el portal ciudadano está apagado).

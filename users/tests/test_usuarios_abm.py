@@ -314,8 +314,12 @@ class UsuarioAlcanceProgramaTests(TestCase):
         self.assertIn("Operador Vivienda", nombres)  # rol fuera de alcance preservado
         self.assertNotIn("Operador Becas", nombres)  # rol en alcance, deseleccionado
 
-    def test_editar_datos_generales_afecta_la_cuenta(self):  # TC-67-04
-        user = User.objects.create_user("multi3", password="x")
+    def test_editar_datos_generales_no_toca_las_credenciales_de_un_multiprograma(self):  # TC-67-04
+        # Ajustado por la decisión D-03 de la auditoría oct-2026 (SEC-03): el admin de
+        # un programa sigue editando los datos generales y los roles de su alcance, pero
+        # deja de poder cambiarle el correo (ni el usuario ni la clave) a alguien que
+        # además tiene roles de otro programa. Antes esta prueba fijaba lo contrario.
+        user = User.objects.create_user("multi3", password="x", email="original@x.com")
         user.groups.add(self.rol_becas, self.rol_vivienda)
         form = CustomUserChangeForm(
             data={
@@ -332,7 +336,8 @@ class UsuarioAlcanceProgramaTests(TestCase):
         self.assertTrue(form.is_valid(), form.errors)
         UsuariosAdminService.update_user_from_form(form, alcance_group_ids=alcance_roles_ids(self.admin_becas))
         user.refresh_from_db()
-        self.assertEqual(user.email, "nuevo@x.com")
+        self.assertEqual(user.email, "original@x.com")  # el correo no se movió
+        self.assertEqual(user.first_name, "N")  # los datos generales sí
         self.assertTrue(user.groups.filter(name="Operador Vivienda").exists())
 
     def test_acceso_directo_a_usuario_fuera_de_alcance_redirige(self):  # TC-67-06
@@ -387,6 +392,142 @@ class UsuarioAlcanceProgramaTests(TestCase):
 
         self.assertNotIn(u_vivienda, set(filtrados))
         self.assertEqual(list(filtrados), [])
+
+
+class Sec03TomaDeCuentasTests(TestCase):
+    """SEC-03 (auditoría oct-2026) — el admin de un programa no toma cuentas ajenas.
+
+    El alcance de edición alcanza con que el usuario tenga **un** rol del programa, y
+    con eso el admin de un programa podía cambiarle clave y correo —o apagar la
+    cuenta— a un superusuario, a un admin global o al admin de otro programa que
+    compartiera un rol operativo con él.
+    """
+
+    def setUp(self):
+        self.becas = Programa.objects.create(codigo="BECAS", nombre="Becas")
+        self.vivienda = Programa.objects.create(codigo="VIVIENDA", nombre="Vivienda")
+
+        self.rol_admin_becas = self._rol("Admin usuarios Becas", ["programa.usuario.administrar"], self.becas)
+        self.rol_admin_vivienda = self._rol("Admin usuarios Vivienda", ["programa.usuario.administrar"], self.vivienda)
+        self.rol_becas = self._rol("Operador Becas", [], self.becas)
+        self.rol_vivienda = self._rol("Operador Vivienda", [], self.vivienda)
+        self.rol_global = self._rol("Administrador global", ["usuario.administrar", "rol.administrar"])
+
+        self.admin_becas = self._usuario("adm-becas", self.rol_admin_becas)
+        # Un segundo admin de cada programa y un superusuario de respaldo: así el guard
+        # de "no dejar sin administrador" (RN-8) nunca puede ser el motivo del rechazo.
+        self._usuario("adm-becas-2", self.rol_admin_becas)
+        self._usuario("adm-vivienda-2", self.rol_admin_vivienda)
+        self.su = User.objects.create_superuser("root", "root@example.com", "x")
+
+    def _rol(self, nombre, capacidades, programa=None):
+        grupo = Group.objects.create(name=nombre)
+        RolMeta.objects.create(
+            grupo=grupo,
+            categoria=rbac.CATEGORIA_PROGRAMA if programa else "Sistema",
+            programa=programa,
+            activo=True,
+        )
+        for codigo in capacidades:
+            grupo.permissions.add(_perm(codigo))
+        return grupo
+
+    def _usuario(self, username, *roles, password="Clave-Segura-2026"):
+        user = User.objects.create_user(username, password=password, email=f"{username}@x.test")
+        user.groups.add(*roles)
+        return user
+
+    def _post_edicion(self, target, roles, **extra):
+        data = {
+            "username": target.username,
+            "email": target.email,
+            "password": "",
+            "groups": [str(rol.pk) for rol in roles],
+            "first_name": target.first_name,
+            "last_name": target.last_name,
+        }
+        data.update(extra)
+        return self.client.post(reverse("users:usuario_editar", args=[target.pk]), data)
+
+    def test_admin_programa_no_edita_superusuario(self):
+        self.su.groups.add(self.rol_becas)  # el superusuario tiene un rol del programa del operador
+        self.client.force_login(self.admin_becas)
+
+        get = self.client.get(reverse("users:usuario_editar", args=[self.su.pk]))
+        post = self._post_edicion(self.su, [self.rol_becas], email="atacante@evil.test", password="Pwn3d-Clave-2026")
+
+        self.assertEqual(get.status_code, 302)
+        self.assertEqual(post.status_code, 302)
+        self.su.refresh_from_db()
+        self.assertEqual(self.su.email, "root@example.com")
+        self.assertFalse(self.su.check_password("Pwn3d-Clave-2026"))
+
+    def test_admin_programa_no_desactiva_admin_global(self):
+        jefe = self._usuario("jefe-global", self.rol_global, self.rol_becas)
+        self.client.force_login(self.admin_becas)
+
+        resp = self.client.post(reverse("users:usuario_toggle", args=[jefe.pk]))
+
+        self.assertEqual(resp.status_code, 302)
+        jefe.refresh_from_db()
+        self.assertTrue(jefe.is_active)
+
+    def test_admin_programa_no_cambia_clave_de_multiprograma(self):
+        multi = self._usuario("multi", self.rol_becas, self.rol_vivienda)
+        self.client.force_login(self.admin_becas)
+
+        resp = self._post_edicion(
+            multi,
+            [self.rol_becas],
+            email="atacante@evil.test",
+            password="Pwn3d-Clave-2026",
+            first_name="Nombre",
+        )
+
+        self.assertEqual(resp.status_code, 302, getattr(resp, "context", None) and resp.context["form"].errors)
+        multi.refresh_from_db()
+        self.assertTrue(multi.check_password("Clave-Segura-2026"))
+        self.assertEqual(multi.email, "multi@x.test")
+        self.assertEqual(multi.first_name, "Nombre")  # lo que sí puede editar se guardó
+
+    def test_admin_programa_no_desactiva_usuario_con_rol_de_otro_programa(self):
+        # G1b-01 invertido: el admin de Vivienda y el admin de Becas comparten un rol
+        # operativo de Vivienda; eso no habilita a apagarle la cuenta.
+        victima = self._usuario("adm-becas-victima", self.rol_admin_becas, self.rol_vivienda)
+        atacante = self._usuario("adm-vivienda", self.rol_admin_vivienda)
+        self.client.force_login(atacante)
+
+        resp = self.client.post(reverse("users:usuario_toggle", args=[victima.pk]))
+
+        self.assertEqual(resp.status_code, 302)
+        victima.refresh_from_db()
+        self.assertTrue(victima.is_active)
+
+    def test_admin_programa_no_cambia_clave_de_admin_de_otro_programa(self):
+        # G1b-01 invertido, segunda mitad: tampoco le cambia clave ni correo.
+        victima = self._usuario("adm-becas-victima", self.rol_admin_becas, self.rol_vivienda)
+        atacante = self._usuario("adm-vivienda", self.rol_admin_vivienda)
+        self.client.force_login(atacante)
+
+        resp = self._post_edicion(victima, [self.rol_vivienda], email="evil@x.test", password="Pwn3d-Clave-2026")
+
+        self.assertEqual(resp.status_code, 302)
+        victima.refresh_from_db()
+        self.assertTrue(victima.check_password("Clave-Segura-2026"))
+        self.assertEqual(victima.email, "adm-becas-victima@x.test")
+        self.assertTrue(victima.groups.filter(pk=self.rol_admin_becas.pk).exists())
+
+    def test_admin_programa_sigue_editando_al_usuario_que_solo_es_de_su_programa(self):
+        # Contracara: el alcance legítimo no se achica. Credenciales incluidas.
+        propio = self._usuario("solo-becas", self.rol_becas)
+        self.client.force_login(self.admin_becas)
+
+        resp = self._post_edicion(propio, [self.rol_becas], email="nuevo@x.test", password="Clave-Nueva-2026")
+
+        self.assertEqual(resp.status_code, 302, getattr(resp, "context", None) and resp.context["form"].errors)
+        propio.refresh_from_db()
+        self.assertEqual(propio.email, "nuevo@x.test")
+        self.assertTrue(propio.check_password("Clave-Nueva-2026"))
 
 
 class ProgramaSinAdminTests(TestCase):

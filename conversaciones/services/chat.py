@@ -6,7 +6,7 @@ from django.utils import timezone
 
 from ..models import Mensaje
 from ..selectors import get_conversaciones_sin_asignar
-from .core import AsignadorAutomatico, MetricasService, NotificacionService
+from .core import AsignadorAutomatico, NotificacionService
 
 logger = logging.getLogger(__name__)
 
@@ -103,12 +103,9 @@ def ejecutar_asignacion_automatica():
     return asignadas, sin_operadores
 
 
-def evaluar_conversacion(conversacion, satisfaccion):
-    conversacion.satisfaccion = satisfaccion
-    conversacion.save(update_fields=["satisfaccion"])
-    if conversacion.operador_asignado:
-        MetricasService.actualizar_metricas_operador(conversacion.operador_asignado)
-    return conversacion
+# `evaluar_conversacion` solo lo llamaban las dos vistas homónimas, que se fueron
+# con la ruta `<id>/evaluar/` (R0-01, auditoría oct-2026). El campo
+# `Conversacion.satisfaccion` y las métricas que lo promedian quedan como están.
 
 
 def marcar_mensajes_ciudadano_leidos(conversacion):

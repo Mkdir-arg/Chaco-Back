@@ -944,8 +944,10 @@ class FormularioSyncTests(_BaseApiTest):
 class AdjuntoValidacionTests(_BaseApiTest):
     """La API aceptaba cualquier archivo, de cualquier peso.
 
-    ``/media/`` lo sirve nginx sin pasar por Django, asi que un ``.html`` o un
-    ``.svg`` subido por ahi se ejecutaria en el origen del sitio.
+    Un ``.html`` o un ``.svg`` subido por ahi se ejecuta en el origen del sitio
+    al abrirlo. Desde SEC-09 ``/media/`` pasa por Django y exige sesion, pero eso
+    acota quien lo abre, no que el archivo sea peligroso: la validacion de tipo
+    sigue siendo la barrera.
     """
 
     def setUp(self):

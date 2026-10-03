@@ -12,7 +12,6 @@ from core.rbac import requiere
 from ..forms import (
     AsignarConversacionForm,
     ConfigurarColaForm,
-    EvaluarConversacionForm,
     MensajeConversacionForm,
 )
 from ..models import Conversacion
@@ -37,9 +36,6 @@ from ..services.chat import (
 )
 from ..services.chat import (
     cerrar_conversacion as cerrar_conversacion_service,
-)
-from ..services.chat import (
-    evaluar_conversacion as evaluar_conversacion_service,
 )
 
 
@@ -219,16 +215,10 @@ def asignacion_automatica(request):
     return redirect("conversaciones:lista")
 
 
-@login_required
-@user_passes_test(tiene_permiso_conversaciones)
-def evaluar_conversacion(request, conversacion_id):
-    conversacion = get_object_or_404(Conversacion, id=conversacion_id)
-    if request.method == "POST":
-        form = EvaluarConversacionForm(request.POST)
-        if form.is_valid():
-            evaluar_conversacion_service(conversacion, form.cleaned_data["satisfaccion"])
-            return JsonResponse({"success": True})
-    return JsonResponse({"success": False})
+# Acá vivía la otra `evaluar_conversacion`, la del backoffice. Nunca llegó a
+# atenderse: el paquete importaba `.public` después que `.backoffice` y la tapaba,
+# así que `<id>/evaluar/` era la vista anónima. Desmontada la ruta (R0-01), esta
+# quedaba sin forma de alcanzarse y tampoco la pedía ninguna pantalla.
 
 
 @login_required
