@@ -1,4 +1,4 @@
-﻿# Requerimientos — archivo vivo
+# Requerimientos — archivo vivo
 
 **Qué es:** el registro único y permanente de todo lo que se desarrolla en este sistema. Un desarrollo no está terminado hasta que tiene su entrada acá.  
 **Alcance:** todos los programas y módulos — Becas/Programas, Dispositivos y Merenderos, Legajos, Portal, Conversaciones y transversales.  
@@ -289,6 +289,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 106 | Un comando único corre el alta en SIIS de punta a punta, y las consultas de ids dejan de morir por timeout | Becas · alta de beneficiarios en SIIS | `#siis` `#infra` `#performance` | PM — en sesión, después de la corrida del 01/10: «quiero armar un comando único que haga todos los pasos» y «¿tenemos forma de evitar el Lost connection?» | 01/10/2026 | 🟢 **Hecho** | No requiere |
 | 107 | El estado civil que SIIS no tiene deja de dejar casos afuera, y el resto queda verificado contra el manual | Becas · alta de beneficiarios en SIIS | `#siis` `#datos` | PM — en sesión, al revisar el hallazgo de la revisión independiente: «a esos casos ponele Soltero/a los de Separado/a» | 01/10/2026 | 🟢 **Hecho** | No requiere |
 | 108 | El alta puede ir a una tabla intermedia propia en vez de a SIIS, y nada se queda ahí | Becas · alta de beneficiarios en SIIS | `#siis` `#datos` | PM — en sesión, pedido del cliente: «tener la opción de enviarlo a una tabla local o enviarlo a SIIS» | 01/10/2026 | 🟢 **Hecho** | `0074_altaintermediasiis` |
+| 109 | Un permiso base `BackofficeAutenticado` para las vistas de la API que no heredan el default | Transversal · API DRF (`/api/`) | `#api` `#rbac` `#sesion` | Auditoría integral oct-2026 — SEC-01 punto 2 (Ola 0, segunda tanda, PR H7) | 03/10/2026 | 🟢 **Hecho** | No requiere |
 | 111 | Fuera las rutas de debug de Legajos y la evaluación anónima del chat | Legajos · Conversaciones | `#rbac` `#ui` `#api` | Auditoría integral oct-2026 — SEC-19 y R0-01 (Ola 0, segunda tanda) | 03/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
@@ -13798,6 +13799,106 @@ que vaciarla antes, o las filas sin sincronizar se pierden de vista.
 
 ---
 
+# Cambio 109 — Un permiso base para las vistas de la API que no heredan el default
+
+🟢 **HECHO — 03/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · API DRF (`/api/`) |
+| **Etiquetas** | `#api` `#rbac` `#sesion` |
+| **Solicitante** | Auditoría integral de octubre 2026 — hallazgo **SEC-01**, punto 2 de la propuesta (Ola 0, segunda tanda, PR H7) |
+| **Fecha del pedido** | 03/10/2026 |
+| **Issue / épica** | Sin issue — auditoría oct-2026, `docs/internal/auditoria-2026-10/` |
+| **Partes afectadas** | `core/api_permissions.py` |
+| **Migración** | No requiere |
+
+## Pedido original
+
+De la ficha SEC-01, lo que el Cambio 100 dejó explícitamente afuera:
+
+> Defensa en profundidad (recomendada): `core/api_permissions.py` con
+> `class BackofficeAutenticado(BasePermission)` → `request.user.is_authenticated and not
+> rbac.es_ciudadano_portal(request.user)`, como primer elemento de `permission_classes` en
+> `CiudadanoViewSet`, `AlertasViewSet`, `UserViewSet`, `GroupViewSet`, `ProfileViewSet`, los ViewSets de
+> `core/api_views` y las 5 vistas de `dashboard/api_views` (las vistas con `permission_classes`
+> explícitas **no heredan** el default).
+
+## Qué lo motivó
+
+El Cambio 100 invirtió el default de DRF: `DEFAULT_AUTHENTICATION_CLASSES = [SessionAuthentication]` y
+`DEFAULT_PERMISSION_CLASSES = [IsAuthenticated]`. Eso cerró la puerta grande —Basic ya no autentica contra
+`/api/`— pero el default **solo se aplica a las vistas que no declaran `permission_classes`**. Una vista que
+sí los declara se queda con lo que diga su lista, y si esa lista no exige sesión de backoffice, el único
+freno para un ciudadano del portal con sesión es `PortalCiudadanoMiddleware`. Un permiso explícito en la
+vista no depende de que el middleware siga en su lugar.
+
+## Alcance acordado
+
+**Entra:** la clase `BackofficeAutenticado` en `core/api_permissions.py`, con sus tests.
+
+**Queda afuera (a propósito):** aplicarla a las vistas. Eso se hace en los PRs H11-H13 de la misma tanda,
+cada uno sobre sus archivos, para que los cambios no choquen entre ramas paralelas. Este cambio solo deja la
+pieza disponible.
+
+## Decisiones tomadas
+
+- **Va en `core/api_permissions.py`, junto a `RequiereCapacidad`.** Es el único lugar de permisos DRF del
+  repo y la ficha lo nombra así; no se crean permisos sueltos por app.
+- **No evalúa capacidades.** `BackofficeAutenticado` solo separa las dos superficies (portal / backoffice);
+  qué puede hacer cada quien lo sigue decidiendo `RequiereCapacidad(...)`, que se compone después en la misma
+  lista. Un usuario de backoffice sin ninguna capacidad pasa este permiso y lo frena el siguiente.
+- **Clase, no fábrica.** `RequiereCapacidad` es una función porque recibe códigos; esta no recibe nada, así
+  que se usa `permission_classes = [BackofficeAutenticado, ...]` sin paréntesis.
+- **Se reusa `rbac.es_ciudadano_portal`**, que ya cachea el resultado por request y es la misma pieza que
+  usan `PortalCiudadanoMiddleware` y `ciudadano_required`. No se mira el nombre del grupo a mano.
+
+## Implementación
+
+```python
+class BackofficeAutenticado(BasePermission):
+    message = "Esta API es del backoffice."
+
+    def has_permission(self, request, view):
+        return request.user.is_authenticated and not rbac.es_ciudadano_portal(request.user)
+```
+
+Uso previsto, en las vistas que declaran permisos explícitos:
+
+```python
+permission_classes = [BackofficeAutenticado, RequiereCapacidad("usuario.administrar")]
+```
+
+## Validación
+
+- `core/tests/test_api_permissions.py`, 4 tests nuevos: anónimo → `False`, ciudadano del portal → `False`,
+  usuario de backoffice sin capacidades → `True`, superusuario → `True`. Antes del cambio el módulo no
+  importaba (`ImportError`).
+- `manage.py check`, `makemigrations --check --dry-run` y la suite completa en verde; `ruff check` y
+  `ruff format --check` limpios sobre los archivos tocados.
+
+## Pendientes / a definir
+
+- **Aplicarla a las vistas**: PRs H11-H13 de la Ola 0 (SEC-02, SEC-05, SEC-13, SEC-14). Hasta entonces la
+  clase existe pero no protege nada.
+- Sigue abierto el seguimiento **R0-04** de la ficha: la raíz `/api/becas/` acepta `TokenAuthentication`,
+  que es lo que necesita la app de campo.
+
+## Reversión
+
+Revertir el commit saca la clase. Mientras ninguna vista la use no hay impacto; una vez aplicada en H11-H13,
+revertir este cambio rompe el import de esas vistas.
+
+## Historial
+
+- **01/10/2026** — Cambio 100: el default de DRF pasa a sesión + `IsAuthenticated`, y se deja anotado que el
+  punto 2 de SEC-01 va en otro PR.
+- **03/10/2026 (este cambio)** — queda la pieza; aplicarla es trabajo de los PRs H11-H13.
+
+---
+
+---
+
 # Cambio 111 — Fuera las rutas de debug de Legajos y la evaluación anónima del chat
 
 🟢 **HECHO — 03/10/2026**
@@ -13915,5 +14016,3 @@ Nada extra: alcanza con el deploy.
 
 Revertir el commit devuelve las cuatro rutas de Legajos con sus vistas y la ruta `<id>/evaluar/` con su cadena
 —y con ellas los dos hallazgos, incluido el XSS almacenado—. No hay datos que migrar.
-
----

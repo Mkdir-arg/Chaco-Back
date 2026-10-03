@@ -1,13 +1,29 @@
-"""Permission classes de DRF basadas en capacidades del RBAC.
+"""Permission classes de DRF del backoffice.
 
 Uso::
 
-    permission_classes = [RequiereCapacidad("usuario.administrar")]
+    permission_classes = [BackofficeAutenticado, RequiereCapacidad("usuario.administrar")]
 """
 
 from rest_framework.permissions import BasePermission
 
 from core import rbac
+
+
+class BackofficeAutenticado(BasePermission):
+    """Exige sesión de backoffice: usuario autenticado que no sea del portal.
+
+    Defensa en profundidad (SEC-01, auditoría oct-2026). El Cambio 100 dejó
+    `IsAuthenticated` como `DEFAULT_PERMISSION_CLASSES`, pero las vistas que
+    declaran `permission_classes` explícitas **no heredan** ese default: ahí va
+    esta clase como primer elemento. No evalúa capacidades —de eso se ocupa
+    `RequiereCapacidad`—, solo separa las dos superficies.
+    """
+
+    message = "Esta API es del backoffice."
+
+    def has_permission(self, request, view):
+        return request.user.is_authenticated and not rbac.es_ciudadano_portal(request.user)
 
 
 def RequiereCapacidad(*codigos):
