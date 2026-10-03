@@ -289,6 +289,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 106 | Un comando único corre el alta en SIIS de punta a punta, y las consultas de ids dejan de morir por timeout | Becas · alta de beneficiarios en SIIS | `#siis` `#infra` `#performance` | PM — en sesión, después de la corrida del 01/10: «quiero armar un comando único que haga todos los pasos» y «¿tenemos forma de evitar el Lost connection?» | 01/10/2026 | 🟢 **Hecho** | No requiere |
 | 107 | El estado civil que SIIS no tiene deja de dejar casos afuera, y el resto queda verificado contra el manual | Becas · alta de beneficiarios en SIIS | `#siis` `#datos` | PM — en sesión, al revisar el hallazgo de la revisión independiente: «a esos casos ponele Soltero/a los de Separado/a» | 01/10/2026 | 🟢 **Hecho** | No requiere |
 | 108 | El alta puede ir a una tabla intermedia propia en vez de a SIIS, y nada se queda ahí | Becas · alta de beneficiarios en SIIS | `#siis` `#datos` | PM — en sesión, pedido del cliente: «tener la opción de enviarlo a una tabla local o enviarlo a SIIS» | 01/10/2026 | 🟢 **Hecho** | `0074_altaintermediasiis` |
+| 112 | Los archivos subidos dejan de bajarse sin sesión | Transversal · archivos | `#infra` `#rbac` `#datos` | Juez de la sesión — Ola 0 de la auditoría integral oct-2026 (SEC-09, etapa 1) | 03/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -13794,5 +13795,153 @@ que vaciarla antes, o las filas sin sincronizar se pierden de vista.
   pedido del cliente llega el mismo día.
 - **01/10/2026 (este cambio)** — el alta puede quedarse de este lado para revisarla, y una corrida a SIIS
   arrastra lo que haya quedado.
+
+---
+
+# Cambio 112 — Los archivos subidos dejan de bajarse sin sesión
+
+🟢 **HECHO — 03/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · archivos subidos (`/media/`) |
+| **Etiquetas** | `#infra` `#rbac` `#datos` |
+| **Solicitante** | Juez de la sesión — Ola 0 de la auditoría integral oct-2026, hallazgo **SEC-09** (etapa 1) |
+| **Fecha del pedido** | 03/10/2026 |
+| **Issue / épica** | sin issue — se sigue por `docs/internal/auditoria-2026-10/` |
+| **Partes afectadas** | Servidor/API · Infra (nginx de icore-srv) · Backoffice. **Mobile no se toca** (no descarga `/media/`) |
+| **Migración** | No requiere |
+
+## Pedido original
+
+De la ficha SEC-09 de la auditoría: «`/media/`: nginx lo sirve sin login en DEV; en ECOM cualquier
+sesión (también la de un ciudadano) baja cualquier archivo». Ahí viven las fotos de DNI, los
+certificados que sube el ciudadano, la documentación de los merenderos y el Excel del padrón.
+
+## Alcance acordado
+
+**Entra (etapa 1):** cerrar las dos puertas por las que hoy se baja un archivo sin sesión de backoffice.
+
+**Queda explícitamente afuera (etapa 2, Ola 2):** la **pertenencia por archivo** —que un operador solo
+baje los adjuntos que le corresponden por capacidad y alcance—, la vista `media_protegida` con
+`X-Accel-Redirect`, y pasar a nombres UUID los `upload_to` que todavía conservan el nombre original
+(`adjuntos/`, `ciudadanos/fotos/`, `admisiones/f00/`, `merenderos/solicitudes/`). Después de este
+cambio, cualquier usuario de backoffice autenticado sigue pudiendo bajar cualquier archivo: lo que se
+cierra acá es el acceso **sin sesión** y el de la sesión de un ciudadano del portal.
+
+## Decisiones tomadas
+
+- **`/media/` lo sirve Django, no nginx.** Motivo: era el único camino para que el `login_required`
+  que ya existía en `config/urls.py` desde el Cambio 41 tuviera efecto en la VM. En nginx el bloque
+  `location /media/ { alias /media/; expires 7d; }` lo servía desde el disco sin que la app se
+  enterara, y encima con 7 días de caché: una vez filtrada la URL, el archivo quedaba accesible
+  aunque después se corrigiera el permiso. El Cambio 41 dejó esto anotado como «pendiente de
+  infraestructura, no de código» y el Cambio 46 lo repitió; esta entrada lo cierra.
+- **Queda un `location /protected-media/` marcado `internal`.** Motivo: es la pieza que la etapa 2
+  necesita para delegar el envío del archivo en nginx (`X-Accel-Redirect`) sin pagar el streaming por
+  Django. `internal` significa que nginx **no** lo sirve a un pedido del navegador: solo lo alcanza
+  una respuesta de la app. Hoy no lo usa nadie; dejarlo armado evita volver a tocar la VM en la Ola 2.
+- **`SERVE_MEDIA=True` para `web` en el compose de producción.** Motivo: es la contracara obligatoria
+  de lo anterior. Sin el flag, la ruta `/media/` no existe en el urlconf y los adjuntos darían 404 en
+  todo el backoffice. Las dos cosas van en el mismo commit a propósito.
+- **`PortalCiudadanoMiddleware` deja de eximir `/media/`.** Motivo: la exención convertía la sesión de
+  un ciudadano del portal —la superficie pública, con autorregistro hasta SEC-29— en una llave para
+  los adjuntos del backoffice. `/static/` sigue exento: ahí no hay nada subido por un usuario.
+- **No se tocó la caché de los archivos:** al pasar por Django ya no hay cabecera `expires 7d`, que
+  era parte del problema.
+- **No afecta a ECOM.** Verificado en el código: el `.gitlab-ci.yml` de ECOM solo construye la imagen
+  del `Dockerfile` y la publica en su registry; no lee `nginx.conf` ni `docker-compose.prod.yml`, que
+  son exclusivos de icore-srv. Lo único que llega a ECOM de este cambio es el middleware, y ahí
+  `SERVE_MEDIA` ya venía en `True` (`.env.qa.example`), así que el efecto es el que se busca: la
+  sesión de un ciudadano deja de bajar archivos.
+
+## Implementación
+
+- Un pedido a `/media/...` sin sesión termina en la pantalla de login, no en el archivo.
+- Un ciudadano del portal autenticado que pida `/media/...` vuelve al portal, como cualquier otra URL
+  de backoffice.
+- Un usuario de backoffice con sesión descarga el archivo igual que antes.
+- En la VM, los archivos ya no se sirven desde el disco por nginx: los entrega la app.
+
+## Archivos
+
+- `nginx.conf` — los dos bloques `location /media/` (server `:80` y server `:443`) reemplazados por
+  `location /protected-media/` con `internal`, `Content-Disposition: attachment` y `nosniff`.
+  `/media/` ahora cae en `location /` y va al upstream de Django.
+- `docker-compose.prod.yml` — `SERVE_MEDIA=True` en el `environment` del servicio `web`.
+- `core/middleware.py` — `PortalCiudadanoMiddleware` ya no exime `/media/`.
+- `core/tests/test_media_protegida.py` — nuevo.
+- `docs/internal/processes.md` — la fila de `SERVE_MEDIA` decía «`True` cuando no hay un nginx
+  sirviendo `/media/`»; ya no hay ningún caso en que vaya apagada.
+- `programas/tests/test_becas_api.py` — docstring que afirmaba que `/media/` lo sirve nginx sin pasar
+  por Django.
+
+## Base de datos
+
+No requiere. Sin migración y sin columnas nuevas.
+
+## Validación
+
+- `core/tests/test_media_protegida.py`, 6 tests nuevos. Antes del arreglo fallaban 4: el ciudadano del
+  portal bajaba el adjunto con **200**, y los tres contratos de despliegue (sin `location /media/`,
+  `/protected-media/` `internal` en los dos servers, `SERVE_MEDIA=True` en `web`) no se cumplían. Los
+  otros dos —anónimo redirigido al login y operador de backoffice descargando el archivo— ya pasaban
+  y quedan como guardia de regresión.
+- `nginx -t` sobre el `nginx.conf` nuevo, en un contenedor `nginx:alpine` con los upstreams
+  resolviendo y un certificado autofirmado: *syntax is ok / test is successful*.
+- Suite completa con Python 3.12 + Django 5.2.17 (igual al CI): **2.115 tests, OK** (677 en
+  `core legajos users configuracion dashboard conversaciones portal healthcheck` + 1.438 en
+  `programas config`, 1 skip preexistente).
+- `manage.py check` sin issues · `makemigrations --check --dry-run` sin cambios · `ruff check` y
+  `ruff format --check` limpios. No se tocó UI, así que no corresponde auditoría de diseño.
+
+## Puesta en marcha en el servidor
+
+Necesita deploy en **icore-srv** (DEV, `relevamiento-deshum.ecomdev.ar`): el cambio es de
+configuración de nginx y del compose, no de base de datos. **No lo hizo el desarrollo**; queda para el
+PM, después del merge y del release a `main`:
+
+```bash
+git pull --ff-only origin main
+docker compose -f docker-compose.prod.yml up -d --build --force-recreate web websocket
+# recién cuando `web` esté healthy — nginx cachea la IP del upstream al arrancar
+docker compose -f docker-compose.prod.yml restart nginx
+```
+
+`nginx.conf` está montado como volumen, así que el `restart` alcanza para que tome el archivo nuevo;
+conviene confirmarlo con
+`docker compose -f docker-compose.prod.yml exec nginx nginx -T | grep -A3 protected-media`.
+
+Verificación, sin cookie de sesión:
+
+```bash
+curl -I https://relevamiento-deshum.ecomdev.ar/media/<ruta_conocida>   # esperado: 302 al login
+curl -I https://relevamiento-deshum.ecomdev.ar/protected-media/<ruta>  # esperado: 404 (es internal)
+```
+
+Y con sesión de backoffice, abrir un adjunto desde el detalle de un ciudadano: tiene que descargarse.
+
+## Pendientes / a definir
+
+- **Etapa 2 (Ola 2):** pertenencia por archivo, `X-Accel-Redirect` y UUID en los `upload_to`
+  restantes. Hasta entonces, cualquier usuario de backoffice autenticado baja cualquier archivo.
+- **Caché:** los archivos pasan a servirse por la app, sin la cabecera `expires 7d`. Si alguna
+  pantalla con muchas miniaturas se nota más lenta, la respuesta es la etapa 2
+  (`X-Accel-Redirect` devuelve el envío a nginx), no reabrir el bloque.
+- El servicio `websocket` monta `./media` pero no sirve `/media/`; no hace falta tocarlo.
+
+## Reversión
+
+Revertir el commit devuelve los dos bloques `location /media/` a nginx, saca `SERVE_MEDIA=True` del
+compose y restituye la exención del middleware; después hay que recrear `web` y `nginx` en la VM. No
+se pierde ningún dato: los archivos no se mueven ni se renombran. La reversión reabre SEC-09 completo.
+
+## Historial
+
+- **24/08/2026 (Cambio 41)** — `/media/` quedó detrás de login *donde lo sirve Django*, y se anotó que
+  en la VM con nginx adelante eso no aplicaba: «pendiente de infraestructura, no de código».
+- **26/08/2026 (Cambio 46)** — se volvió a registrar el mismo hueco al endurecer la subida de archivos.
+- **03/10/2026 (este cambio)** — se cierra la parte de infraestructura. La pertenencia por archivo
+  sigue abierta en la Ola 2.
 
 ---
