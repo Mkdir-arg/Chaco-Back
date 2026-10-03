@@ -907,7 +907,7 @@ que un cambio funcional.**
   `contexto_identidad`, `contexto_siis`, `contexto_respuestas` a `programas/selectors/revision.py`.
 
 ### RED-55 · Los context processors corren en cada render y tragan toda excepción sin log
-**Severidad:** MEDIA · **Estado:** CONFIRMADO (lectura) · **Origen:** RS-R4-21 (VR2: CONFIRMADO) · **Ola:** R (va con OPS-03, que pasa a la Ola R) · **Esfuerzo:** S (2 h)
+**Severidad:** MEDIA (era BAJA en RS-R4-21 y VR2: se sube porque corre en el 100 % del tráfico autenticado y hoy convierte un `OperationalError` en «usuario sin grupos» sin rastro; va con OPS-03) · **Estado:** CONFIRMADO (lectura) · **Origen:** RS-R4-21 (VR2: CONFIRMADO) · **Ola:** R (va con OPS-03, que pasa a la Ola R) · **Esfuerzo:** S (2 h)
 - **Ubicación:** `core/context_processors.py:34-42` (`sidebar_badges`) y `conversaciones/context_processors.py:12-28`
   (`user_groups`), los dos con `except Exception` sin log, en el 100 % del tráfico autenticado.
 - **Qué cambio lo rompería sin que nadie se entere:** nada: un `OperationalError` de MariaDB por `read_timeout` ya se
@@ -1080,7 +1080,7 @@ en los **Anexos A-D** de este archivo.
 - **Qué cambio lo rompería sin que nadie se entere:** una migración de datos que use un campo agregado después de ella, o
   que asuma un `NOT NULL` que en PRD es NULL: CI verde (no itera), initContainer en CrashLoop en PRD.
 - **Propuesta:** (1) job `migration-roundtrip` del **Anexo B** en `pr-performance.yml` (matriz `mariadb:10.11`, `mariadb:11`,
-  `mysql:8.0`: forward hasta la release anterior → `seed_perf --scale 200` → forward del PR **con datos** → backward a la
+  `mysql:8.0`: forward hasta la release anterior → `seed_perf --scale 200` **con el código de la release anterior** → forward del PR **con datos** → backward a la
   release anterior → forward → `migrate --check`), con `continue-on-error: true` hasta cerrar RED-18 y declarar las barreras
   de RED-15 (default D-RED-03: dos semanas, después obligatorio); (2) tests de migración con el registro **histórico**:
   `MigrationExecutor(connection).loader.project_state(("users", "0006_…")).apps` en vez de `django.apps.apps` en los cuatro
@@ -1294,9 +1294,10 @@ desde base vacía), `pr-security.yml` (`pip-audit`), `pr-quality.yml` (ruff, ruf
 
 ### RED-21 · `publish-main.yml` genera el release sin exigir CI verde y con un denylist escrito a mano
 **Severidad:** ALTA (era CRÍTICA) · **Estado:** CONFIRMADO (lectura: `grep -c "manage.py\|coverage\|docker build" publish-main.yml` → 0) · **Origen:** RS-R6-03 (VR2: CONFIRMADO) · **Ola:** R · **Esfuerzo:** S (2 h)
-- **Ubicación:** `.github/workflows/publish-main.yml:4-7` (`on: push: branches: [development]`), `:28-44` (guard con dos
-  listas literales: 14 rutas prohibidas y 9 requeridas), `:46-62`; `.gitattributes:11-25` (otra lista parecida, no igual:
-  `CONTEXT.md`, 17.907 bytes de documentación interna en la raíz, no está en ninguna y viaja al release).
+- **Ubicación:** `.github/workflows/publish-main.yml:4-7` (`on: push: branches: [development]`), `:28-46` (guard con dos
+  listas literales: 15 rutas prohibidas y 10 requeridas), `:46-62`; `.gitattributes:11-25` duplica hoy exactamente las 15
+  prohibidas, a mano y sin nada que las mantenga sincronizadas (y `CONTEXT.md`, 17.907 bytes de documentación interna en la
+  raíz, no está en ninguna y viaja al release).
 - **Qué cambio lo rompería sin que nadie se entere:** commitear `NOTAS.md`, `.cursor/` o una carpeta de trabajo en la raíz:
   no está en ninguna lista, viaja a `main`, a ECOM y a la imagen de PRD.
 - **Propuesta:** (1) derivar el denylist de `.gitattributes` (`git check-attr export-ignore` sobre `git ls-files`) y fallar
@@ -1366,7 +1367,8 @@ desde base vacía), `pr-security.yml` (`pip-audit`), `pr-quality.yml` (ruff, ruf
   - `python scripts/requerimientos.py --check` (`PYTHONIOENCODING=utf-8`);
   - `python manage.py collectstatic --noinput` con `DJANGO_DEBUG=False` y `ENVIRONMENT=prd` (variables de base dummy: no se
     conecta), fallando si no queda el manifest;
-  - `design_audit` con **ratchet**: `actual=$(python scripts/design_audit.py | sed -nE 's/.*: ([0-9]+) error.*/\1/p')`
+  - `design_audit` con **ratchet**: `actual=$( { python scripts/design_audit.py || true; } | sed -nE 's/.*: ([0-9]+) error.*/\1/p')` (el script sale
+    con 1 cuando hay errores y Actions corre con `-e -o pipefail`: sin el `|| true` el paso aborta antes de comparar)
     contra el techo de `.design-audit-ratchet` (valor inicial: lo que mida el PR que lo crea; hoy 44); falla si sube y
     avisa (`::notice::`) si baja. Cuando la Ola 6 entregue `--ratchet`, este paso lo reemplaza.
   - Opcional (`::warning::`, no bloqueante): un PR con `feat`/`fix` en el título que no toca `docs/internal/requerimientos.md`.
@@ -1387,9 +1389,10 @@ desde base vacía), `pr-security.yml` (`pip-audit`), `pr-quality.yml` (ruff, ruf
   `core/tests/test_checks_entorno.py`: `test_siis_vacio_es_error`, `test_siis_de_desarrollo_en_produccion_es_error`
   (`override_settings` + `patch.dict(os.environ, {"DATANACH_ES_PRODUCCION": "1"})`) y
   `test_siis_de_desarrollo_fuera_de_produccion_no_es_error`.
-- **Dependencias:** antes de mergear, confirmar con ECOM (H-09) que PRD define `SIIS_API_URL` y pedirles
-  `DATANACH_ES_PRODUCCION=1`: si la variable faltara, el check frenaría el deploy (que es el comportamiento buscado, pero
-  hay que avisarlo).
+- **Dependencias:** confirmar con ECOM (H-09) que PRD define `SIIS_API_URL` y pedirles `DATANACH_ES_PRODUCCION=1`. Un check
+  con `deploy=True` no corre al arrancar el contenedor, solo con `manage.py check --deploy` (nuestro CI; en ECOM, recién con
+  la etapa `verify` de RED-22): sin la variable el check de PRD nunca dispara, y sin `SIIS_API_URL` lo que queda rojo es el
+  CI. Para frenar el arranque en PRD habría que llamar al check desde el entrypoint.
 
 ### RED-62 · Los presupuestos de performance son autodeclarados
 **Severidad:** MEDIA · **Estado:** CONFIRMADO (lectura) · **Origen:** RS-R6-11 (VR2: CONFIRMADO) · **Ola:** 4 · **Esfuerzo:** S (2 h)
@@ -1801,14 +1804,15 @@ En `.github/workflows/pr-performance.yml`, junto al único `migrate` real que ya
         run: |
           git worktree add ../anterior "$(git describe --tags --abbrev=0 --match 'release-*' HEAD^ 2>/dev/null || echo HEAD~50)"
           (cd ../anterior && python manage.py migrate --noinput)
-      - name: Sembrar datos (las migraciones del PR corren sobre filas)
-        run: python manage.py seed_perf --scale 200
+      - name: Sembrar datos con el código de la release anterior (las migraciones del PR corren sobre filas)
+        run: (cd ../anterior && python manage.py seed_perf --scale 200)
       - name: Forward del PR
         run: python manage.py migrate --noinput
       - name: Backward a la release anterior
         run: |
-          for app in programas legajos users core configuracion; do
-            destino="$(cd ../anterior && python manage.py showmigrations "$app" | grep '\[X\]' | tail -1 | awk '{print $2}')"
+          # configuracion no tiene migraciones; dashboard y conversaciones sí participan del plan de reversa (VR2 §2.5)
+          for app in programas legajos users core dashboard conversaciones; do
+            destino="$(cd ../anterior && python manage.py showmigrations "$app" | grep '\[X\]' | tail -1 | awk '{print $2}' || true)"
             [ -n "$destino" ] && python manage.py migrate "$app" "$destino" --noinput
           done
       - name: Forward de nuevo

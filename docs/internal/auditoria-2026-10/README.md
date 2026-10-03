@@ -879,8 +879,9 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
      de un PR verde; `/pushGitLabecom` está partido en TEST y PRD.
 - **Riesgo de deploy:** bajo. Código de producción que cambia (todo chico y con test): `drf_spectacular` en `INSTALLED_APPS`;
   `CiudadanoConfirmarView.dispatch` (RED-73); `normalizar_dni` con `Decimal` (RED-47); `_programa_o_denegar` (RED-56: un
-  Programa BECAS ausente pasa a dar 403 en vez de abrir); `SIIS_API_URL` sin default y el system check (RED-61: **confirmar
-  antes con ECOM** que PRD define la variable y pedir `DATANACH_ES_PRODUCCION=1`, o el deploy frena); logging a stdout
+  Programa BECAS ausente pasa a dar 403 en vez de abrir); `SIIS_API_URL` sin default y el system check (RED-61: confirmar con ECOM
+  que PRD define la variable y pedir `DATANACH_ES_PRODUCCION=1`; sin la variable el check de PRD nunca dispara, y sin
+  `SIIS_API_URL` lo que queda rojo es `check --deploy` en el CI, no el deploy); logging a stdout
   (OPS-03: avisar a ECOM del volumen); `/health/ready/` (OPS-04); `verificar_esquema_migraciones` en el entrypoint (OPS-01,
   con `SKIP_SCHEMA_GUARD`); `logger.exception` en los context processors; LF en `exportacion_reportes.py`; las reversas de
   `0047`, `0048` y `legajos.0007` (solo el camino de vuelta); `DATOS_SIIS_DIR` para `correr_alta_siis` (requiere montar el
