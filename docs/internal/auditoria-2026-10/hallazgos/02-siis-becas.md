@@ -16,68 +16,71 @@ indicación.
 - El Cambio 88 decidió correr el masivo en un hilo del pod (no CronJob) y afirma que «es retomable por construcción»;
   SIIS-02 muestra que no lo es si el proceso muere entre el POST y el registro.
 
-| ID | Título | Sev. | Estado | Ola | Esf. |
-|---|---|---|---|---|---|
-| SIIS-01 | El alta en SIIS no tiene exclusión mutua | CRÍTICA | CONF. test | 1 | M |
-| SIIS-02 | Resultado ambiguo registrado como ERROR reintentable; proceso muerto sin rastro | ALTA | CONF. test | 1 | M |
-| SIIS-03 | Masivo: se da por muerto vivo, no se puede frenar, zombis, comandos sin candado | ALTA (MEDIA tras SIIS-01) | CONF. test | 1 | S |
-| SIIS-04 | El masivo informa casos que cambiaron de estado después de hidratarlos | ALTA | CONF. test | 1 | S |
-| SIIS-06 | Catálogo vacío de SIIS bloquea todos los programas | ALTA | CONF. test | 1 | S |
-| SIIS-07 | `token_publico` en `char(32)`: el arreglo está en una rama sin mergear | ALTA | CONF. (merge simulado) | 1 | S |
-| SIIS-08 | Identidad validada no corrige un legajo autodeclarado; a SIIS viajan datos sin validar | ALTA | CONF. lectura | 1 | M |
-| V2-NEW-03 | Medir altas duplicadas ya existentes en PRD antes de migrar | ALTA (operativo) | — | 1 (paso 0) | S |
-| SIIS-05 | Mismo DNI y plan informados desde casos distintos | MEDIA | CONF. test | 1 | S |
-| SIIS-09 | Llamadas externas encadenadas que superan los 60 s de nginx | MEDIA | CONF. lectura | 1 | S-M |
-| SIIS-10 | `normalizar_persona` toma claves de objetos anidados | MEDIA | CONF. test | 3 | S |
-| SIIS-11 | JSON de SIIS que no es objeto → `AttributeError` | MEDIA | CONF. test | 1 | S |
-| SIIS-12 | El payload no prevalida al apoderado | MEDIA | CONF. test | 1 | S |
-| SIIS-13 | Link abierto: un DNI ajeno bloquea al titular | MEDIA | CONF. ajustado | 3 | S |
-| BEC-01 | Aprobar y promover no bloquean la fila del caso | MEDIA | CONF. test | 1 | S |
-| BEC-02 | Agregar a espera y dar de baja chequean antes del lock | MEDIA | CONF. test | 1 | S |
-| BEC-03 | La revisión reevalúa condiciones de edad con la fecha de hoy | MEDIA | CONF. lectura | 3 | S |
-| BEC-04 | Condición con fuente fuera del canal queda colgando | MEDIA | CONF. lectura | 3 | S |
-| BEC-05 | El cupo del subsegmento nunca se aplica | MEDIA | CONF. ajustado (decisión) | 3 | S |
-| BEC-06 | Se puede cambiar segmento/subsegmento de una convocatoria con casos | MEDIA | CONF. lectura | 3 | S |
-| BEC-07 | El cupo del segmento se puede bajar por debajo de los aprobados | MEDIA | CONF. lectura | 3 | S |
-| BEC-09 | No se puede rechazar un caso sin ciudadano con DNI o sin programa SIIS | MEDIA | CONF. lectura | 3 | S |
-| BEC-10 | Un relevamiento con casos en espera no se puede terminar | MEDIA | CONF. (decisión) | 3 | S |
-| BEC-11 | El masivo aprueba a quien SIIS declaró incompatible | MEDIA | CONF. (decisión) | 1 | S |
-| G1-03 | La app lee solo la primera página (10) de casos y relevamientos | MEDIA | CONF. lectura | 3 | S |
-| G1-04 | Captura offline que sincroniza después del corte de las 03:10 → 409 permanente | MEDIA | CONF. lectura (pendiente Cambio 54) | 3 | M |
-| G1-05 | El servidor no valida lo que carga la app | MEDIA | CONF. lectura | 3 | M |
-| G1-08 | El mapeo a SIIS lee el catálogo de hoy, no la foto del caso | MEDIA | CONF. lectura | 1 | M |
-| G1-09 | `pregunta_toggle_activo` saltea «una sola activa por destino SIIS» | MEDIA | CONF. lectura | 1 | S |
-| G2-01 | Excel de respuestas y dashboard leen `data`: faltan los campos propios del constructor | MEDIA | CONF. test | 3 | M |
-| SIIS-14 | RENAPER: DNI en logs y token que no se invalida con 401 | BAJA | CONF. test (401) | 3 | S |
-| SIIS-15 | Comprobante renderizado fuera del `try` | BAJA | CONF. lectura | 3 | S |
-| SIIS-16 | Adjuntos anónimos validados solo por extensión | BAJA | CONF. lectura | 3 | S |
-| SIIS-17 | «Completar datos para SIIS»: correcciones no se borran y se pisan | BAJA | CONF. lectura | 1 | S |
-| SIIS-18 | Filtro de localidades por provincia con otras claves | BAJA | CONF. lectura | 3 | S |
-| SIIS-19 | `diagnosticar_siis --alta` sin guarda de PRD y DNI por defecto | BAJA | CONF. lectura | 1 | S |
-| SIIS-20 | `RENAPER_TEST_MODE` sin guarda en PRD | BAJA | CONF. lectura | 3 | S |
-| SIIS-21 | Captcha aritmético deja agotar la cuota por DNI de un tercero | BAJA | CONF. ajustado | 3 | S |
-| BEC-14 | Doble clic en «Aprobar» | BAJA | CONF. lectura | 1 | S |
-| BEC-15 | Carga de padrón concurrente | BAJA | CONF. lectura | 3 | S |
-| BEC-16 | Constructor: mutaciones sin candado y `reconciliar` en cada request | BAJA | CONF. lectura | 3 | S |
-| BEC-17 | Pausar/reanudar con doble envío duplica eventos | BAJA | CONF. lectura | 3 | S |
-| BEC-18 | Fechas UTC en Python fuera de Dispositivos | BAJA | CONF. lectura | 3 | S |
-| BEC-19 | Redirect a `POST['next']` sin validar | BAJA | CONF. lectura | 2 | S |
-| BEC-20 | Convocatoria acepta fin anterior al inicio | BAJA | CONF. lectura | 3 | S |
-| BEC-21 | El masivo selecciona casos no aprobables y no mira pausas | BAJA | CONF. lectura | 1 | S |
-| BEC-23 | La solapa Becas del legajo muestra casos fuera de alcance | BAJA | CONF. ajustado (decisión) | 2 | S |
-| BEC-24 | Edición de contacto/apoderado en revisión no atómica | BAJA | CONF. lectura | 3 | S |
-| BEC-25 | `siguiente_nombre` calculado sin convocatoria y sin uso | BAJA | CONF. lectura | 7 | S |
-| G1-06 | Fecha de nacimiento ilegible de la app → caso sin legajo y bucle de 500 | BAJA | CONF. lectura | 3 | S |
-| G1-07 | Adjuntos de la app sin idempotencia ni control de pertenencia | BAJA | CONF. lectura | 3 | S |
-| G1-10 | Entre requisitos con el mismo destino gana el de mayor `orden` | BAJA | CONF. lectura | 1 | S |
-| G1-11 | CUIL calculado aunque el caso tenga el real | BAJA | PLAUSIBLE | 3 | S |
-| G1-12 | El padrón acepta fechas futuras o absurdas | BAJA | CONF. lectura | 3 | S |
-| G1-13 | Personas: un 404 se informa como 502 | BAJA | CONF. lectura | 3 | S |
-| G1-14 | El correo de resolución no deja registro | BAJA | CONF. lectura | 3 | S |
-| G1-16 | Captura offline guardada con la foto del momento de sincronizar | BAJA | PLAUSIBLE | 3 | M |
-| G1c-15 | Cliente RENAPER: `Retry(total=0)` convierte un 503 en «error de conexión» | BAJA | CONF. test | 3 | S |
-| G3-06 | `corregir_datos_siis` pisa `datos_siis` con copia leída fuera de la transacción | BAJA | PLAUSIBLE | 1 | S |
-| BEC-22 | Vencimientos: UPDATE por pk sin volver a filtrar estado | INFO (V2: BAJA) | CONF. lectura | 3 | S |
+| ID | Título | Sev. | Estado | Ola | Esf. | Avance 03-oct |
+|---|---|---|---|---|---|---|
+| SIIS-01 | El alta en SIIS no tiene exclusión mutua | CRÍTICA | CONF. test | 1 | M | ⬜ |
+| SIIS-02 | Resultado ambiguo registrado como ERROR reintentable; proceso muerto sin rastro | ALTA | CONF. test | 1 | M | ⬜ |
+| SIIS-03 | Masivo: se da por muerto vivo, no se puede frenar, zombis, comandos sin candado | ALTA (MEDIA tras SIIS-01) | CONF. test | 1 | S | ⬜ |
+| SIIS-04 | El masivo informa casos que cambiaron de estado después de hidratarlos | ALTA | CONF. test | 1 | S | ⬜ |
+| SIIS-06 | Catálogo vacío de SIIS bloquea todos los programas | ALTA | CONF. test | 1 | S | ⬜ |
+| SIIS-07 | `token_publico` en `char(32)`: el arreglo está en una rama sin mergear | ALTA | CONF. (merge simulado) | 1 | S | ✅ |
+| SIIS-08 | Identidad validada no corrige un legajo autodeclarado; a SIIS viajan datos sin validar | ALTA | CONF. lectura | 1 | M | ⬜ |
+| V2-NEW-03 | Medir altas duplicadas ya existentes en PRD antes de migrar | ALTA (operativo) | — | 1 (paso 0) | S | ⬜ |
+| SIIS-05 | Mismo DNI y plan informados desde casos distintos | MEDIA | CONF. test | 1 | S | ⬜ |
+| SIIS-09 | Llamadas externas encadenadas que superan los 60 s de nginx | MEDIA | CONF. lectura | 1 | S-M | ⬜ |
+| SIIS-10 | `normalizar_persona` toma claves de objetos anidados | MEDIA | CONF. test | 3 | S | ⬜ |
+| SIIS-11 | JSON de SIIS que no es objeto → `AttributeError` | MEDIA | CONF. test | 1 | S | ⬜ |
+| SIIS-12 | El payload no prevalida al apoderado | MEDIA | CONF. test | 1 | S | ⬜ |
+| SIIS-13 | Link abierto: un DNI ajeno bloquea al titular | MEDIA | CONF. ajustado | 3 | S | ⬜ |
+| BEC-01 | Aprobar y promover no bloquean la fila del caso | MEDIA | CONF. test | 1 | S | ⬜ |
+| BEC-02 | Agregar a espera y dar de baja chequean antes del lock | MEDIA | CONF. test | 1 | S | ⬜ |
+| BEC-03 | La revisión reevalúa condiciones de edad con la fecha de hoy | MEDIA | CONF. lectura | 3 | S | ⬜ |
+| BEC-04 | Condición con fuente fuera del canal queda colgando | MEDIA | CONF. lectura | 3 | S | ⬜ |
+| BEC-05 | El cupo del subsegmento nunca se aplica | MEDIA | CONF. ajustado (decisión) | 3 | S | ⬜ |
+| BEC-06 | Se puede cambiar segmento/subsegmento de una convocatoria con casos | MEDIA | CONF. lectura | 3 | S | ⬜ |
+| BEC-07 | El cupo del segmento se puede bajar por debajo de los aprobados | MEDIA | CONF. lectura | 3 | S | ⬜ |
+| BEC-09 | No se puede rechazar un caso sin ciudadano con DNI o sin programa SIIS | MEDIA | CONF. lectura | 3 | S | ⬜ |
+| BEC-10 | Un relevamiento con casos en espera no se puede terminar | MEDIA | CONF. (decisión) | 3 | S | ⬜ |
+| BEC-11 | El masivo aprueba a quien SIIS declaró incompatible | MEDIA | CONF. (decisión) | 1 | S | ⬜ |
+| G1-03 | La app lee solo la primera página (10) de casos y relevamientos | MEDIA | CONF. lectura | 3 | S | ⬜ |
+| G1-04 | Captura offline que sincroniza después del corte de las 03:10 → 409 permanente | MEDIA | CONF. lectura (pendiente Cambio 54) | 3 | M | ⬜ |
+| G1-05 | El servidor no valida lo que carga la app | MEDIA | CONF. lectura | 3 | M | ⬜ |
+| G1-08 | El mapeo a SIIS lee el catálogo de hoy, no la foto del caso | MEDIA | CONF. lectura | 1 | M | ⬜ |
+| G1-09 | `pregunta_toggle_activo` saltea «una sola activa por destino SIIS» | MEDIA | CONF. lectura | 1 | S | ⬜ |
+| G2-01 | Excel de respuestas y dashboard leen `data`: faltan los campos propios del constructor | MEDIA | CONF. test | 3 | M | ⬜ |
+| SIIS-14 | RENAPER: DNI en logs y token que no se invalida con 401 | BAJA | CONF. test (401) | 3 | S | ⬜ |
+| SIIS-15 | Comprobante renderizado fuera del `try` | BAJA | CONF. lectura | 3 | S | ⬜ |
+| SIIS-16 | Adjuntos anónimos validados solo por extensión | BAJA | CONF. lectura | 3 | S | ⬜ |
+| SIIS-17 | «Completar datos para SIIS»: correcciones no se borran y se pisan | BAJA | CONF. lectura | 1 | S | ⬜ |
+| SIIS-18 | Filtro de localidades por provincia con otras claves | BAJA | CONF. lectura | 3 | S | ⬜ |
+| SIIS-19 | `diagnosticar_siis --alta` sin guarda de PRD y DNI por defecto | BAJA | CONF. lectura | 1 | S | ⬜ |
+| SIIS-20 | `RENAPER_TEST_MODE` sin guarda en PRD | BAJA | CONF. lectura | 3 | S | ⬜ |
+| SIIS-21 | Captcha aritmético deja agotar la cuota por DNI de un tercero | BAJA | CONF. ajustado | 3 | S | ⬜ |
+| BEC-14 | Doble clic en «Aprobar» | BAJA | CONF. lectura | 1 | S | ⬜ |
+| BEC-15 | Carga de padrón concurrente | BAJA | CONF. lectura | 3 | S | ⬜ |
+| BEC-16 | Constructor: mutaciones sin candado y `reconciliar` en cada request | BAJA | CONF. lectura | 3 | S | ⬜ |
+| BEC-17 | Pausar/reanudar con doble envío duplica eventos | BAJA | CONF. lectura | 3 | S | ⬜ |
+| BEC-18 | Fechas UTC en Python fuera de Dispositivos | BAJA | CONF. lectura | 3 | S | ⬜ |
+| BEC-19 | Redirect a `POST['next']` sin validar | BAJA | CONF. lectura | 2 | S | ⬜ |
+| BEC-20 | Convocatoria acepta fin anterior al inicio | BAJA | CONF. lectura | 3 | S | ⬜ |
+| BEC-21 | El masivo selecciona casos no aprobables y no mira pausas | BAJA | CONF. lectura | 1 | S | ⬜ |
+| BEC-23 | La solapa Becas del legajo muestra casos fuera de alcance | BAJA | CONF. ajustado (decisión) | 2 | S | ⬜ |
+| BEC-24 | Edición de contacto/apoderado en revisión no atómica | BAJA | CONF. lectura | 3 | S | ⬜ |
+| BEC-25 | `siguiente_nombre` calculado sin convocatoria y sin uso | BAJA | CONF. lectura | 7 | S | ⬜ |
+| G1-06 | Fecha de nacimiento ilegible de la app → caso sin legajo y bucle de 500 | BAJA | CONF. lectura | 3 | S | ⬜ |
+| G1-07 | Adjuntos de la app sin idempotencia ni control de pertenencia | BAJA | CONF. lectura | 3 | S | ⬜ |
+| G1-10 | Entre requisitos con el mismo destino gana el de mayor `orden` | BAJA | CONF. lectura | 1 | S | ⬜ |
+| G1-11 | CUIL calculado aunque el caso tenga el real | BAJA | PLAUSIBLE | 3 | S | ⬜ |
+| G1-12 | El padrón acepta fechas futuras o absurdas | BAJA | CONF. lectura | 3 | S | ⬜ |
+| G1-13 | Personas: un 404 se informa como 502 | BAJA | CONF. lectura | 3 | S | ⬜ |
+| G1-14 | El correo de resolución no deja registro | BAJA | CONF. lectura | 3 | S | ⬜ |
+| G1-16 | Captura offline guardada con la foto del momento de sincronizar | BAJA | PLAUSIBLE | 3 | M | ⬜ |
+| G1c-15 | Cliente RENAPER: `Retry(total=0)` convierte un 503 en «error de conexión» | BAJA | CONF. test | 3 | S | ⬜ |
+| G3-06 | `corregir_datos_siis` pisa `datos_siis` con copia leída fuera de la transacción | BAJA | PLAUSIBLE | 1 | S | ⬜ |
+| BEC-22 | Vencimientos: UPDATE por pk sin volver a filtrar estado | INFO (V2: BAJA) | CONF. lectura | 3 | S | ⬜ |
+| R0-04 | La raíz `GET /api/becas/` responde 403 con `Authorization: Token` | BAJA (MINOR) | revisión Ola 0 | 3 (app de campo) | S | ⬜ |
+| R0-06 | `_get_relevamiento` puede dar `MultipleObjectsReturned` (500) | BAJA (MINOR) | revisión Ola 0 | 3 (link público) | S | ⬜ |
+| R0-07 | `q_uuid_en_texto` sin guarda de tipo | BAJA (MINOR) | revisión Ola 0 | 3 (link público) | S | ⬜ |
 
 ---
 
@@ -85,6 +88,8 @@ indicación.
 
 ### SIIS-01 · El alta en SIIS no tiene exclusión mutua
 **Severidad:** CRÍTICA · **Estado:** CONFIRMADO con test (`SiisAltaSinExclusionTests.test_reentrada_con_primero_en_vuelo_duplica_alta`: 2 POST y 2 `ENVIADO`) · **Origen:** A1-01, A2-02, A8-S1 (comandos), A4-01 (punto 3), V2-NEW-04 · **Ola:** 1 · **Esfuerzo:** M · **Decisión:** — (SIIS-05 tiene la suya)
+
+**⚠ Actualizar (03-oct-2026):** #517/#518 (01-oct) sumaron una **séptima vía** de alta sin exclusión: `sincronizar_tabla_intermedia` (`siis_envio.py:759`), que `procesar_casos_siis --destino siis` y `correr_alta_siis` corren antes de los candidatos, con el mismo check-then-act (`envios_sis.filter(ENVIADO).exists()` → `_mandar_a_siis`). El POST quedó en `_mandar_a_siis` (`:667`) y `enviar_beneficiario_a_siis` está en `:624`. La migración de SIIS-01 ya no puede ser la `0074` (la ocupa `0074_altaintermediasiis`): es la siguiente libre. La reserva tiene que cubrir también la sincronización de la tabla intermedia.
 - **Ubicación:** `programas/services/siis_envio.py:592-631` (`enviar_beneficiario_a_siis`: lee `envios_sis.filter(estado=ENVIADO)` sin lock → `armar_payload` → `cargar_beneficiario` (HTTP de hasta 40 s) → recién después `EnvioSIIS.objects.create(ENVIADO)`); modelo `programas/models/__init__.py:2824` (`EnvioSIIS`).
 - **Las seis vías de envío, todas sin exclusión:** botón «Informar/Reenviar» (`revision.py:798-810`), aprobar (`revision.py:980`), promover desde Cupo (`views/cupo.py:45,194`), hilo del masivo (`proceso_masivo.py:270`) y los comandos `reenviar_siis_pendientes` (:41), `enviar_casos_siis` (:258) y `procesar_casos_siis` (:237 vía `procesar_caso`). `diagnosticar_siis --alta` llama a `cargar_beneficiario` directo (SIIS-19). El form de la plantilla (`formulario_detalle.html:657-660`) no tiene guard de doble envío.
 - **Escenario:** doble clic, masivo + botón, o un comando a mano mientras el primer POST espera a SIIS → dos altas del mismo beneficiario, **irreversibles** (SIIS no tiene baja).
@@ -138,6 +143,8 @@ indicación.
 
 ### SIIS-02 · Un resultado ambiguo se registra como ERROR reintentable, y un proceso muerto entre el POST y el registro no deja rastro
 **Severidad:** ALTA · **Estado:** CONFIRMADO-AJUSTADO con test (`ResultadoAmbiguoTests`) · **Origen:** A2-03, A1-03, A8-S1 (ReadTimeout), A2-15 · **Ola:** 1 · **Esfuerzo:** M · **Decisión:** D-S02 (contrato 5xx con ECOM)
+
+**⚠ Actualizar (03-oct-2026):** la fila «Ctrl+C a mitad: Seguro» del punto 5 está hoy en `docs/internal/procedimiento-alta-siis.md:210` (el archivo entró a `development` con #513), y el docstring de `correr_alta_siis` repite «volver a lanzarlo… no duplica nada»: corregir los dos.
 - **Ubicación:** `programas/services/siis.py:326-381` (`cargar_beneficiario` mete en `ERROR_TECNICO, reintentable=True` toda `RequestException`, cualquier 5xx y cualquier HTTP sin código; 404/409/422/429 → `ERROR_INTERNO`, en `CODIGOS_REINTENTABLES`; `_token()` dentro del mismo `try`).
 - **Ajuste:** no hay cron nocturno que reintente (A2-03 lo afirmaba). El reintento automático existe igual: `candidatos()` toma todo APROBADO cuyo último envío ≠ ENVIADO, así que **la próxima corrida del masivo** reenvía los ERROR; también el botón «Reenviar» y los comandos a mano. A1-03 se confirma por el mecanismo: gunicorn `--max-requests 1000 --max-requests-jitter 100 --graceful-timeout 30` (`docker-entrypoint.sh:115-122`) recicla el worker y mata el hilo daemon; igual cada deploy o reinicio.
 - **Propuesta:**
@@ -164,6 +171,8 @@ indicación.
 
 ### SIIS-03 · Proceso masivo: se da por muerto estando vivo, no se puede frenar, un zombi convive con la corrida nueva y los comandos ignoran el candado
 **Severidad:** ALTA (MEDIA con SIIS-01 resuelto) · **Estado:** CONFIRMADO con test (`LatidoTests`, `test_comando_reenviar_ignora_corrida_viva`) · **Origen:** A1-02, A4-01, A8-S2, A8-S1 (comandos), V2-NEW-01, V2-NEW-02, A5-33 · **Ola:** 1 · **Esfuerzo:** S (puntos 1-6) / M (punto 7) · **Decisión:** D-S03 (CronJob)
+
+**⚠ Actualizar (03-oct-2026):** `correr()` hoy en `proceso_masivo.py:395` (`ids_de` + `hidratar_por_lotes` en `:410`). #513 sumó `correr_alta_siis`, que encadena `procesar_casos_siis` por tandas de 500 (`_por_tandas`) sin `_tomar_candado()` ni `en_curso()`: es otro comando que ignora la corrida viva (punto 6).
 - **Ubicación:** `programas/services/proceso_masivo.py:356-358` (primer latido recién después de `ids_de + hidratar_por_lotes + elegir_completos` sobre todos los candidatos), `:360-389` (latido, `MAX_ERRORES` y freno evaluados por lote de 40), `:367`; `programas/models/__init__.py:3103` (`LATIDO_VENCIDO = 2 min`); `programas/views/proceso_masivo.py:97` (`proceso_masivo_frenar` usa `en_curso()`), `:101-106`.
 - **Escenario (reproducido):** dentro de `elegir_completos` el latido es `None` (con 7.496 candidatos × 6-8 consultas por `armar_payload`, la selección tarda ~40-65 s según V4 y **se acerca** a los 2 min, ver PERF-01); por caso: token, validar y alta, hasta 40 s cada uno; `en_curso()` devuelve `None` y `crear_corrida` crea otra **con el hilo viejo vivo** (2 corridas EN_CURSO). V2-NEW-01: una corrida viva pero lenta aparece «interrumpida» y **no se puede frenar**. V2-NEW-02: con SIIS caído siguen hasta 30 casos más tras el décimo error (más de 40 min golpeando un servicio caído). Comandos `reenviar_siis_pendientes`, `enviar_casos_siis --aplicar` y `procesar_casos_siis --aplicar` no toman `_tomar_candado()` ni miran `en_curso()`. A5-33: «Frenar» detiene la corrida global aunque sea de otro `ProgramaSiis`.
 - **Propuesta (se respeta el hilo del Cambio 88):**
@@ -180,6 +189,8 @@ indicación.
 
 ### SIIS-04 · El masivo informa casos que cambiaron de estado después de hidratarlos
 **Severidad:** ALTA · **Estado:** CONFIRMADO con test (`EstadoViejoEnMasivoTests`) · **Origen:** A1-04, V2-NEW-06 · **Ola:** 1 · **Esfuerzo:** S (dentro de SIIS-01)
+
+**⚠ Actualizar (03-oct-2026):** #517 sumó dos caminos: `guardar_en_tabla_intermedia` chequea el estado sobre el objeto hidratado y `sincronizar_tabla_intermedia` manda el payload guardado **sin releer el estado**, así que un caso que pasó a BAJA después de guardarse en la tabla se informa igual. La relectura bajo lock de SIIS-01 tiene que cubrir ese camino.
 - **Escenario (reproducido):** se hidrata un APROBADO, pasa a BAJA por `update()` y `procesar_caso` lo manda igual a SIIS. Igual en `enviar_casos_siis` (ventana menor). V2-NEW-06: con `--estados ENVIADO,RECHAZADO --si-entiendo` (`exigir_aprobado=False`) un caso que pasó a BAJA entre el listado y su lote se informa igual.
 - **Propuesta:** la reserva de SIIS-01 relee `estado` con `select_for_update` y lanza `ValueError` si no es APROBADO; en `procesar_caso` (`proceso_masivo.py:270`) capturarlo → `cuenta.no_aprobable += 1; return None`. Con `exigir_aprobado=False`, la función recibe `estados_permitidos` y exige que el estado releído siga dentro.
 - **Tests a agregar:** el de la PoC invertido (`cargar.call_count == 0`, `cuenta.no_aprobable == 1`); `test_enviar_casos_estado_cambiado_no_se_informa`.
@@ -193,6 +204,8 @@ indicación.
 
 ### SIIS-07 · `token_publico` en `char(32)`: el arreglo está en una rama sin mergear
 **Severidad:** ALTA · **Estado:** CONFIRMADO-AJUSTADO (merge simulado: tests OK y `makemigrations --check` limpio) · **Origen:** A1-05, A2-05, A8-S3 · **Ola:** 1 (primer PR) · **Esfuerzo:** S · **Decisión:** pregunta abierta H-03 (¿la rama quedó sin PR a propósito?)
+
+**Resolución:** ✅ Resuelto en #515 (Cambio 99), 01-oct-2026 — migración `programas.0073_ampliar_relevamiento_token_publico` (`char(36)`; normaliza a guiones solo si el motor tiene UUID nativo) y búsqueda en las dos formas con `q_uuid_en_texto` / `relevamiento_publico_por_token` (portal y `diagnosticar_integraciones --token`). Queda operativo: P-11/P-12 y confirmar en testing de ECOM el alta y un link viejo después del deploy (no consta la prueba contra MariaDB 10.7+ real). Seguimientos: R0-06 y R0-07.
 - **Ubicación:** `programas/models/__init__.py:1812`; `development` busca con `token_publico=token` (`portal/views/inscripcion.py:110`, `diagnosticar_integraciones.py:286`). El resto de los `UUIDField` ya están ampliados (0047/0048, users 0023, legajos 0007): **solo falta este**.
 - **Escenario:** con MariaDB ≥10.7, Django 5 manda UUID con guiones a una columna `char(32)` → «Data too long» al crear un relevamiento público y fallos al buscar el link. Si PRD es ≥10.7, **el alta pública hoy da 500 en PRD** (confirmar con P-11).
 - **Estado de `origin/fix/token-publico-uuid-mariadb`:** 4 commits sobre `5a210cf` (`e94f85b` código, `8c598a3` y `59b7352` requerimientos, `fad9f07` CLAUDE.md). Migración `programas/0073_ampliar_relevamiento_token_publico.py` (`RunPython` solo en MySQL/MariaDB: `MODIFY char(36) NULL` y normalización a guiones si `has_native_uuid_field`; reversa a hex y `char(32)`; `atomic=False`; depende de `0072_formulario_dni_titular`, que **sigue siendo la última de `development`**); `q_uuid_en_texto` y `relevamiento_publico_por_token` en `programas/services/becas.py`; `_get_relevamiento` del portal; `--token` de `diagnosticar_integraciones`; tests en `portal/tests/test_inscripcion.py`, `test_becas_models.py`, `test_diagnosticar_integraciones.py`. Merge simulado: **conflicto solo en `docs/internal/requerimientos.md`**.
@@ -206,6 +219,8 @@ indicación.
 
 ### SIIS-08 · Una identidad validada no corrige un legajo autodeclarado, y a SIIS viajan los datos sin validar
 **Severidad:** ALTA · **Estado:** CONFIRMADO (lectura) · **Origen:** A2-06 · **Ola:** 1 · **Esfuerzo:** M · **Decisión:** D-S08
+
+**⚠ Actualizar (03-oct-2026):** `resolver_ciudadano_offline` hoy en `programas/services/becas.py:262` (#515 sumó `q_uuid_en_texto` más arriba).
 - **Ubicación:** `programas/services/becas.py:241-279` (`resolver_ciudadano_offline`: si el ciudadano existe, solo completa `genero`/`localidad` y descarta `datos_identificacion` de origen padrón o personas); `armar_payload` usa `formulario.ciudadano`.
 - **Escenario:** un legajo creado antes con datos autodeclarados (o falsos, G1-01) recibe un caso validado por padrón o Gran Base; el caso queda validado pero el alta a SIIS sale con el nombre del legajo.
 - **Propuesta (default D-S08 = opción mínima, sin migración):** en `resolver_ciudadano_offline`, si `not creado` y `datos.get("origen") in ("padron", "personas")`, comparar nombre, apellido y fecha normalizados; si difieren, `registrar_traza(... "Identidad del legajo distinta a la validada" ...)` y `formulario.datos_siis["_identidad_en_conflicto"] = {campo: (legajo, validado)}`; en `armar_payload`, si existe la clave, `faltantes["identidad"] = "El legajo no coincide con la identidad validada: corregir antes de informar"`. De fondo (con migración): `Ciudadano.identidad_origen` (`manual`/`padron`/`personas`/`renaper`) seteado en todas las altas; si el legajo es `manual` y llega una identidad validada, se actualiza.
@@ -248,6 +263,8 @@ indicación.
 
 ### SIIS-12 · El payload no prevalida al apoderado
 **Severidad:** MEDIA · **Estado:** CONFIRMADO con test (`ApoderadoTests`: apoderado de 10 años con el DNI del titular → `faltantes == {}`) · **Origen:** A2-13 · **Ola:** 1 · **Esfuerzo:** S
+
+**⚠ Actualizar (03-oct-2026):** `_apoderado` hoy en `siis_envio.py:349` (las líneas de `siis_envio.py` posteriores a `Catalogos.estado_civil_id` corrieron +16 con #513).
 - **Ubicación:** `programas/services/siis_envio.py:333-378` (`_apoderado`). El Cambio 98 midió 265 rechazos (248 «debe ser mayor de 18», 17 «fecha futura») y 448 casos con el alumno como apoderado; corrigió datos, no el payload.
 - **Propuesta:** `_apoderado(formulario, faltantes, correcciones, hoy, dni_titular)`: fecha futura → `faltantes["fecha_nacim_apoderado"] = "Fecha futura"`; menor de 18 → `"El apoderado debe ser mayor de 18 años"`; mismo DNI → `faltantes["dni_apoderado"] = "El apoderado no puede ser el propio titular"`. Validar después de aplicar las correcciones de `datos_siis` (Cambio 98).
 - **Tests a agregar:** tres casos (15 años, fecha futura, mismo DNI) → `faltantes` con la clave y `cargar_beneficiario` sin llamar.
@@ -322,6 +339,8 @@ indicación.
 
 ### BEC-11 · El proceso masivo aprueba e informa a personas que SIIS declaró incompatibles
 **Severidad:** MEDIA · **Estado:** CONFIRMADO (decisión) · **Origen:** A1-15 · **Ola:** 1 · **Esfuerzo:** S · **Decisión:** D-B11
+
+**⚠ Actualizar (03-oct-2026):** `procesar_caso` hoy en `proceso_masivo.py:276` (#517 le sumó el parámetro `destino`).
 - **Ubicación:** `programas/services/proceso_masivo.py:238-268` (`RECHAZADO` no corta; solo `ERROR`). El Cambio 81 quitó el bloqueo porque «la aprobación es una decisión técnica del revisor»; en la corrida no hay revisor.
 - **Propuesta (default D-B11 = no aprobar en lote):** en `procesar_caso`, si `validacion.estado == RECHAZADO`, `cuenta.incompatibles += 1` y dejar el caso para revisión manual (contador en `mensaje` o columna nueva en `CorridaSiis` con migración). Registrar la decisión (extiende el Cambio 81).
 - **Tests a agregar:** `test_proceso_masivo.IncompatiblesTests.test_rechazado_por_siis_no_se_aprueba_en_lote`.
@@ -350,6 +369,8 @@ indicación.
 
 ### G1-08 · El mapeo a SIIS lee el catálogo de hoy, no la foto del caso
 **Severidad:** MEDIA · **Estado:** CONFIRMADO (lectura) · **Origen:** G1-08 · **Ola:** 1 · **Esfuerzo:** M
+
+**⚠ Actualizar (03-oct-2026):** líneas de `siis_envio.py` corridas +16 (#513): `respuestas_por_destino` en `:323`, el `CALLE_SIN_NUMERO` en `:507-516`. Ojo con #517: la tabla intermedia guarda el payload ya mapeado y la sincronización lo manda tal cual, sin recalcularlo.
 - **Ubicación:** `programas/services/siis_envio.py:307` (`PreguntaGlobal.objects.filter(activo=True).exclude(destino_siis="")`), `:491-500` (sin `calle_altura` → `CALLE_SIN_NUMERO` + altura 1); `programas/views/configuracion.py:1008-1041` (`pregunta_toggle_activo`, `PreguntaGlobalUpdateView` deja cambiar `destino_siis`). El Cambio 58 (D3) guarda la foto para que «un caso viejo nunca se reinterprete».
 - **Escenario:** el admin desactiva «Calle y altura» para reemplazarla: todos los casos aún no informados salen a SIIS como «Planta urbana sin número», altura 1, sin error ni faltante (Cambio 89); con barrio o estado civil pasan a INCOMPLETO de golpe. Irreversible en SIIS.
 - **Propuesta:** guardar `destino_siis` en la foto (`diseno.serializar`) y que `respuestas_por_destino` lo tome de `formulario.definicion`, con el catálogo vivo solo como respaldo para casos sin foto. Mientras tanto, en `pregunta_toggle_activo`, confirmación explícita si la pregunta tiene `destino_siis` y hay casos APROBADO sin envío ENVIADO (P-14 da el número).
@@ -358,6 +379,8 @@ indicación.
 
 ### G1-09 · `pregunta_toggle_activo` saltea la regla «una sola pregunta activa por destino SIIS»
 **Severidad:** MEDIA · **Estado:** CONFIRMADO (lectura) · **Origen:** G1-09 · **Ola:** 1 · **Esfuerzo:** S
+
+**⚠ Actualizar (03-oct-2026):** `respuestas_por_destino` hoy en `siis_envio.py:323-327` (+16, #513).
 - **Ubicación:** `programas/forms.py:1161-1175` (regla solo en `PreguntaGlobalForm.clean`); `programas/views/configuracion.py:1028-1041`; `programas/services/siis_envio.py:307-311` (`values_list` sin `order_by`).
 - **Escenario:** dos preguntas activas con destino `est_civil`: lo informado depende del orden físico de la tabla.
 - **Propuesta:** al activar, rechazar si `PreguntaGlobal.objects.filter(activo=True, destino_siis=pregunta.destino_siis).exclude(pk=pk).exists()` (mismo mensaje del form); en `respuestas_por_destino`, `order_by("orden", "id")`.
@@ -469,6 +492,8 @@ indicación.
 
 ### BEC-21 · Proceso masivo: selecciona casos que no se pueden aprobar y no mira pausas ni el bloqueo SIIS
 **Severidad:** BAJA · **Origen:** A1-26 · **Ola:** 1 · **Esfuerzo:** S
+
+**⚠ Actualizar (03-oct-2026):** `candidatos` hoy en `proceso_masivo.py:132-203` (#517 le sumó `destino`) y `elegir_completos` en `:252-273`.
 - **Ubicación:** `programas/services/proceso_masivo.py:118-177` (`candidatos`), `:209-230`.
 - **Propuesta:** para ENVIADO exigir `validado_renaper=True` y `ciudadano__dni` no vacío; excluir los de pausa efectiva (al menos `pausado=True` en relevamiento/convocatoria/segmento/programa). Confirmar si la pausa frena el masivo (el Cambio 15 solo habla de campo).
 - **Test:** `test_proceso_masivo.CandidatosTests.test_excluye_enviados_sin_identidad_validada`.
@@ -492,6 +517,8 @@ indicación.
 
 ### G1-06 · Una fecha de nacimiento ilegible de la app deja el caso sin legajo y en bucle de 500
 **Severidad:** BAJA · **Estado:** CONFIRMADO (mecanismo; frecuencia PLAUSIBLE) · **Origen:** G1-06 · **Ola:** 3 · **Esfuerzo:** S
+
+**⚠ Actualizar (03-oct-2026):** el texto crudo de la fecha llega al ORM en `programas/services/becas.py:281-290` (antes `:260-269`).
 - **Ubicación:** `programas/api/serializers.py:128-133` (`parse_date` → None para `"1/2/2000"`; `ValueError` tragado para `"2000-02-30"`); `programas/services/becas.py:260-269` (pasa el texto crudo al ORM); app `RelevamientoDetailScreen.js:247-253`.
 - **Escenario:** el caso se inserta, `_completar_alta` explota después del commit → 500 → la app reintenta (5xx) 8 veces; el caso queda sin legajo y RN-22 no se evaluó.
 - **Propuesta:** en `FormularioSerializer.validate`, normalizar con `programas.services.personas.fecha_iso` y 400 si queda vacía habiendo texto; `parse_date` defensivo en `resolver_ciudadano_offline`.
@@ -505,12 +532,16 @@ indicación.
 
 ### G1-10 · Entre requisitos de distinto nivel con el mismo destino SIIS gana el de mayor `orden`
 **Severidad:** BAJA · **Origen:** G1-10 · **Ola:** 1 · **Esfuerzo:** S
+
+**⚠ Actualizar (03-oct-2026):** el orden de requisitos hoy en `siis_envio.py:329-346` (+16, #513).
 - **Ubicación:** `programas/services/siis_envio.py:313-330`; `programas/forms.py:1234-1245`.
 - **Propuesta:** ordenar por especificidad (programa → segmento → subsegmento) y después por `orden`.
 - **Test:** requisito de programa y de subsegmento con el mismo destino → el payload lleva el del subsegmento.
 
 ### G1-11 · El CUIL se calcula por módulo 11 aunque el caso tenga el CUIL real
 **Severidad:** BAJA · **Estado:** PLAUSIBLE · **Origen:** G1-11 · **Ola:** 3 · **Esfuerzo:** S · **Decisión:** D-G11 (Cambio 80)
+
+**⚠ Actualizar (03-oct-2026):** `calcular_cuil` hoy en `siis_envio.py:56`; los usos en `:385-387` y `:463-466` (+16, #513).
 - **Ubicación:** `programas/services/siis_envio.py:54-70`, `:369-371`, `:447-450`; decisión del Cambio 80 y Cambio 79.
 - **Propuesta:** medir primero cuántos casos con respuesta «Cuit Alumno» difieren de `calcular_cuil`; si hay diferencias, preferir el CUIL respondido cuando sus 8 dígitos centrales coinciden con el DNI.
 - **Test:** CUIL real `23-…` válido para el DNI → el payload lleva ese prefijo y dígito.
@@ -529,6 +560,8 @@ indicación.
 
 ### G1-14 · El correo de resolución no deja registro
 **Severidad:** BAJA · **Origen:** G1-14 · **Ola:** 3 · **Esfuerzo:** S
+
+**⚠ Actualizar (03-oct-2026):** en el masivo, el retorno de `enviar_aviso_resolucion` se descarta hoy en `proceso_masivo.py:307` y `:311`.
 - **Ubicación:** `programas/services/avisos_resolucion.py:123-142`; llamadas en `revision.py`, `views/cupo.py`, `proceso_masivo.py:263-268` (se descarta el retorno).
 - **Propuesta:** `registrar_traza` «Aviso por correo: enviado / falló» y botón «Reenviar aviso» en el detalle (UI: V-UI); en el masivo, una conexión SMTP por lote (`get_connection()`).
 - **Test:** `EmailMultiAlternatives.send` que lanza → la traza registra «falló».
@@ -548,6 +581,8 @@ indicación.
 
 ### G3-06 · `corregir_datos_siis` pisa `datos_siis` con una copia leída fuera de la transacción y sin traza
 **Severidad:** BAJA · **Estado:** PLAUSIBLE · **Origen:** G3-06 · **Ola:** 1 · **Esfuerzo:** S
+
+**⚠ Actualizar (03-oct-2026):** #513 lo encadena: el paso 5 de `correr_alta_siis` corre `corregir_datos_siis --aplicar --limite 999999` en cada corrida, así que la ventana de pisada ya no es solo manual. La lectura de pendientes está hoy en `corregir_datos_siis.py:557` y el `bulk_update` en `:614-618`.
 - **Ubicación:** `programas/management/commands/corregir_datos_siis.py:476-526` (lee el lote sin `select_for_update`, `datos = dict(caso.datos_siis); datos.update(nuevos)` y `bulk_update` del JSON completo).
 - **Escenario:** mientras corre `--aplicar`, un coordinador guarda una corrección desde la ficha (`revision.py:815`) o el masivo informa el caso: la corrección manual se pierde sin traza.
 - **Propuesta:** por lote, `select_for_update()` de los ids dentro de la `atomic`, releer y mergear ahí; saltear casos con `EnvioSIIS` vigente (o `ENVIADO`) releídos en ese momento; `TracaFormulario(campo="datos_siis", editado_por=<--usuario>)` por caso.
@@ -559,3 +594,27 @@ indicación.
 **Severidad:** INFO (V2 la dejó BAJA; G3 la baja a INFO: ids leídos y escritos en la misma `atomic`, separados por milisegundos) · **Origen:** A1-27, G1c-14 · **Ola:** 3 · **Esfuerzo:** S (una línea)
 - **Ubicación:** `programas/services/vencimientos.py:75-93`.
 - **Propuesta:** agregar `estado__in=ESTADOS_RELEVAMIENTO_ABIERTOS` a los dos `update()` y devolver la suma de filas afectadas en vez de `len(ids)`. Se hace en el mismo PR que G1-04.
+
+## Seguimientos de la revisión de la Ola 0 (agregados el 03-oct-2026)
+
+Observaciones MINOR que dejaron los revisores de los PRs de la Ola 0. No son de la base auditada (`917e583`):
+las líneas son de `origin/development @ 7393c41`.
+
+### R0-04 · La raíz `GET /api/becas/` responde 403 con `Authorization: Token`
+**Severidad:** BAJA (MINOR del revisor) · **Estado:** CONFIRMADO (lectura) · **Origen:** revisión de la Ola 0 · **Ola:** 3 (app de campo) · **Esfuerzo:** S
+- **Ubicación:** `programas/api_urls.py` (`DefaultRouter` → `APIRootView`). Desde #509 (SEC-01) hereda `SessionAuthentication` + `IsAuthenticated`: con Token responde 403 (antes 200, `AllowAny`).
+- **Propuesta:** confirmar en `Chaco-mobile` que la app no la consulta; si no la usa, dejarla así (o `DefaultRouter(include_root_view=False)`); si la usa, declarar `TokenAuthentication` en la vista raíz.
+- **Test:** `GET /api/becas/` con Token → el código decidido.
+
+### R0-06 · `_get_relevamiento` puede dar `MultipleObjectsReturned` (500)
+**Severidad:** BAJA (MINOR del revisor) · **Estado:** CONFIRMADO (lectura) · **Origen:** revisión de la Ola 0 · **Ola:** 3 (link público) · **Esfuerzo:** S
+- **Ubicación:** `portal/views/inscripcion.py:100-114` (`get_object_or_404(relevamiento_publico_por_token(...))`).
+- **Escenario:** el índice único compara texto: después de un restore pueden convivir el mismo UUID en hex y con guiones en dos filas. El `OR` de `q_uuid_en_texto` trae las dos y `get_object_or_404` lanza `MultipleObjectsReturned` → 500 en el link público.
+- **Propuesta:** `.order_by("pk").first()` + `Http404` si es `None` (como `formulario_por_client_uuid`), o registrar el duplicado.
+- **Test:** dos relevamientos con el mismo token en las dos formas → el link responde 200 (o 404), nunca 500.
+
+### R0-07 · `q_uuid_en_texto` sin guarda de tipo
+**Severidad:** BAJA (MINOR del revisor) · **Estado:** CONFIRMADO (lectura) · **Origen:** revisión de la Ola 0 · **Ola:** 3 (link público) · **Esfuerzo:** S
+- **Ubicación:** `programas/services/becas.py:155-169`. Usa `valor.hex`: con `None` o un `str` lanza `AttributeError`. Hoy los llamadores le pasan un `uuid.UUID` (conversor de la URL, `uuid.UUID(...)` en `diagnosticar_integraciones`), pero no está protegido.
+- **Propuesta:** aceptar `str` (`uuid.UUID(str(valor))`) y devolver `Q(pk__in=[])` con `None` o un valor inválido.
+- **Test:** `q_uuid_en_texto("token_publico", None)` y con un texto inválido → sin excepción y sin resultados.

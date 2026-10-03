@@ -9,49 +9,51 @@ Base verificada: `origin/development @ 917e583`. PoC: `poc/test_repro_seguridad.
 3. El `CATALOGO` no acota los módulos `becas_*` ni `programas` (`rbac.py:46-237`), así que `_modulo_asignable_en_programa` (`:417-426`) los ofrece en cualquier programa y `RolForm.clean` (`users/forms/roles.py:137-146`) los acepta.
 4. Vistas de legajos y dashboard con solo `login_required` / `IsAuthenticated`, mientras las pantallas equivalentes exigen `ciudadano.*`.
 
-| ID | Título | Sev. | Estado | Ola | Esf. |
-|---|---|---|---|---|---|
-| SEC-01 | HTTP Basic en `/api/` saltea portal, sesión única y clave provisoria | CRÍTICA | CONF. test | 0 | S |
-| SEC-02 | `CiudadanoViewSet`: CRUD del padrón para cualquier autenticado | CRÍTICA | CONF. test | 0 | S |
-| SEC-03 | Admin de usuarios de un programa toma cuentas de superusuarios, admins globales y multiprograma | CRÍTICA | CONF. test | 0 | M |
-| SEC-04 | Consulta RENAPER anónima con payload crudo y throttle evadible | CRÍTICA | CONF. test | 0 | S |
-| SEC-05 | `activate`/`deactivate` de usuarios por API para cualquier autenticado | CRÍTICA | CONF. test | 0 | S |
-| SEC-06 | Capacidades `becas.*` otorgables en roles de otro programa | ALTA | CONF. test | 2 | M |
-| SEC-07 | `programa.configurar` en un rol de programa habilita el wizard de todos | ALTA | CONF. test | 2 | S-M |
-| SEC-08 | XSS almacenado por nombre de rol en todas las páginas | ALTA | CONF. test | 0 | S |
-| SEC-09 | `/media/` sin login en DEV (nginx); sin pertenencia en ECOM | ALTA (DEV) / MEDIA (ECOM) | CONF. test | 0 (etapa 1) / 2 (etapa 2) | S + M |
-| SEC-10 | Adjuntos de ciudadano/legajo sin capacidad ni pertenencia | ALTA | CONF. test | 2 | S-M |
-| SEC-11 | APIs JSON de legajos (riesgo, alertas, timeline) sin capacidad | ALTA | CONF. test | 2 | S |
-| SEC-12 | Derivaciones por GET (CSRF) sin capacidad; inscripción por `is_staff` | ALTA | CONF. test | 2 | S |
-| SEC-13 | Catálogo geográfico escribible por API | ALTA | CONF. test | 0 | S |
-| SEC-14 | APIs del dashboard: enumeración del padrón y alertas globales | ALTA | CONF. test | 0 | S |
-| SEC-29 | Registro del portal sobre cualquier legajo con solo el DNI | ALTA | CONF. test | 0 | S |
-| G1-01 | Chat público crea legajos de cualquier DNI con nombre falso que llegan a SIIS | ALTA | CONF. lectura | 0 | S |
-| G1-02 | Segundo oráculo RENAPER anónimo en `/conversaciones/consultar-renaper/` | ALTA | CONF. lectura | 0 | S |
-| SEC-15 | Uploads de F-00 y merenderos sin lista blanca ni tope | MEDIA | CONF. test | 2 | S |
-| SEC-16 | `/api/users/` lista personal con DNI e `is_superuser` | MEDIA | CONF. test | 0 | (en SEC-05) |
-| SEC-17 | La API de usuarios/roles saltea reglas del ABM | MEDIA | CONF. test | 0 | (en SEC-05) |
-| SEC-18 | Alertas: cerrar cualquiera por id; CRÍTICAS globales a quien no tiene legajos | MEDIA | CONF. test | 2 | S |
-| SEC-19 | XSS en `/legajos/alertas/debug/` y rutas de prueba publicadas | MEDIA | CONF. test | 0 | S |
-| SEC-20 | Inyección de fórmulas en CSV/XLSX (incluye export de ciudadanos) | MEDIA | CONF. lectura | 2 | S |
-| SEC-21 | Cupo: el Coordinador Regional ve y muta casos de sus pares | MEDIA | CONF. lectura | 2 | S |
-| SEC-22 | Reportes, XLSX y cupo ignoran RN-P13 | MEDIA | CONF. lectura | 2 | S-M |
-| SEC-23 | App de campo: PATCH y adjuntos sobre casos resueltos | MEDIA | CONF. lectura | 2 | S |
-| SEC-24 | La app se autovalida la identidad con `origen: personas` | MEDIA | CONF. lectura | 2 | M |
-| SEC-25 | `consultar_persona_becas` sin throttle | MEDIA | CONF. lectura | 2 | S |
-| SEC-26 | Login, admin, recupero, clave provisoria y token de campo sin límites ni rotación | MEDIA | CONF. test (parte) | 2 | M |
-| SEC-27 | RENAPER con `verify=False` | MEDIA | CONF. lectura | 2 | S |
-| G1c-04 | `/ws/alertas/` difunde fuera de alcance, sin Origin y sin revalidar | MEDIA | CONF. test | 2 | M |
-| SEC-30 | Requisitos/subsegmentos/coordinadores validados solo contra el segmento (Regional) | BAJA | CONF. lectura (latente) | 2 | S |
-| SEC-31 | Padrón .xlsx: límite solo sobre el comprimido (zip bomb) | BAJA | PLAUSIBLE | 2 | S |
-| SEC-32 | Consulta RENAPER desde la admisión sin `ciudadano.*`, por GET | BAJA | CONF. lectura | 2 | S |
-| SEC-33 | El mapa del caso manda GPS a OpenStreetMap en cada apertura | BAJA | CONF. lectura | 2 | S |
-| SEC-34 | `EntregaMercaderiaCreateView` busca antes de autorizar | BAJA | CONF. lectura | 2 | S |
-| SEC-35 | Cookies seguras y HSTS dependen de `ENVIRONMENT=prd`; inactividad solo en JS | BAJA | PLAUSIBLE | 2 | S |
-| SEC-36 | `programa_list` sin capacidad; errores con `str(exc)` al usuario | BAJA | CONF. lectura | 2 | S |
-| SEC-37 | Link público, paso 2: muestra nombre y fecha a partir de DNI + sexo | BAJA | CONF. (riesgo aceptado, Cambio 71) | 2 | S |
-| G1c-10 | `/admin/` y `admin/doc/` montados en todos los entornos | BAJA | CONF. ajustado | 2 | S |
-| G1c-16 | Payload crudo de RENAPER en sesión (24 h) y caché (10 min) | BAJA | CONF. lectura | 2 | S |
+| ID | Título | Sev. | Estado | Ola | Esf. | Avance 03-oct |
+|---|---|---|---|---|---|---|
+| SEC-01 | HTTP Basic en `/api/` saltea portal, sesión única y clave provisoria | CRÍTICA | CONF. test | 0 | S | 🟡 |
+| SEC-02 | `CiudadanoViewSet`: CRUD del padrón para cualquier autenticado | CRÍTICA | CONF. test | 0 | S | ⬜ |
+| SEC-03 | Admin de usuarios de un programa toma cuentas de superusuarios, admins globales y multiprograma | CRÍTICA | CONF. test | 0 | M | ⬜ |
+| SEC-04 | Consulta RENAPER anónima con payload crudo y throttle evadible | CRÍTICA | CONF. test | 0 | S | ✅ |
+| SEC-05 | `activate`/`deactivate` de usuarios por API para cualquier autenticado | CRÍTICA | CONF. test | 0 | S | ⬜ |
+| SEC-06 | Capacidades `becas.*` otorgables en roles de otro programa | ALTA | CONF. test | 2 | M | ⬜ |
+| SEC-07 | `programa.configurar` en un rol de programa habilita el wizard de todos | ALTA | CONF. test | 2 | S-M | ⬜ |
+| SEC-08 | XSS almacenado por nombre de rol en todas las páginas | ALTA | CONF. test | 0 | S | ✅ |
+| SEC-09 | `/media/` sin login en DEV (nginx); sin pertenencia en ECOM | ALTA (DEV) / MEDIA (ECOM) | CONF. test | 0 (etapa 1) / 2 (etapa 2) | S + M | ⬜ |
+| SEC-10 | Adjuntos de ciudadano/legajo sin capacidad ni pertenencia | ALTA | CONF. test | 2 | S-M | ⬜ |
+| SEC-11 | APIs JSON de legajos (riesgo, alertas, timeline) sin capacidad | ALTA | CONF. test | 2 | S | ⬜ |
+| SEC-12 | Derivaciones por GET (CSRF) sin capacidad; inscripción por `is_staff` | ALTA | CONF. test | 2 | S | ⬜ |
+| SEC-13 | Catálogo geográfico escribible por API | ALTA | CONF. test | 0 | S | ⬜ |
+| SEC-14 | APIs del dashboard: enumeración del padrón y alertas globales | ALTA | CONF. test | 0 | S | ⬜ |
+| SEC-29 | Registro del portal sobre cualquier legajo con solo el DNI | ALTA | CONF. test | 0 | S | 🟡 |
+| G1-01 | Chat público crea legajos de cualquier DNI con nombre falso que llegan a SIIS | ALTA | CONF. lectura | 0 | S | 🟡 |
+| G1-02 | Segundo oráculo RENAPER anónimo en `/conversaciones/consultar-renaper/` | ALTA | CONF. lectura | 0 | S | ✅ |
+| SEC-15 | Uploads de F-00 y merenderos sin lista blanca ni tope | MEDIA | CONF. test | 2 | S | ⬜ |
+| SEC-16 | `/api/users/` lista personal con DNI e `is_superuser` | MEDIA | CONF. test | 0 | (en SEC-05) | ⬜ |
+| SEC-17 | La API de usuarios/roles saltea reglas del ABM | MEDIA | CONF. test | 0 | (en SEC-05) | ⬜ |
+| SEC-18 | Alertas: cerrar cualquiera por id; CRÍTICAS globales a quien no tiene legajos | MEDIA | CONF. test | 2 | S | ⬜ |
+| SEC-19 | XSS en `/legajos/alertas/debug/` y rutas de prueba publicadas | MEDIA | CONF. test | 0 | S | ⬜ |
+| SEC-20 | Inyección de fórmulas en CSV/XLSX (incluye export de ciudadanos) | MEDIA | CONF. lectura | 2 | S | ⬜ |
+| SEC-21 | Cupo: el Coordinador Regional ve y muta casos de sus pares | MEDIA | CONF. lectura | 2 | S | ⬜ |
+| SEC-22 | Reportes, XLSX y cupo ignoran RN-P13 | MEDIA | CONF. lectura | 2 | S-M | ⬜ |
+| SEC-23 | App de campo: PATCH y adjuntos sobre casos resueltos | MEDIA | CONF. lectura | 2 | S | ⬜ |
+| SEC-24 | La app se autovalida la identidad con `origen: personas` | MEDIA | CONF. lectura | 2 | M | ⬜ |
+| SEC-25 | `consultar_persona_becas` sin throttle | MEDIA | CONF. lectura | 2 | S | ⬜ |
+| SEC-26 | Login, admin, recupero, clave provisoria y token de campo sin límites ni rotación | MEDIA | CONF. test (parte) | 2 | M | ⬜ |
+| SEC-27 | RENAPER con `verify=False` | MEDIA | CONF. lectura | 2 | S | ⬜ |
+| G1c-04 | `/ws/alertas/` difunde fuera de alcance, sin Origin y sin revalidar | MEDIA | CONF. test | 2 | M | ⬜ |
+| SEC-30 | Requisitos/subsegmentos/coordinadores validados solo contra el segmento (Regional) | BAJA | CONF. lectura (latente) | 2 | S | ⬜ |
+| SEC-31 | Padrón .xlsx: límite solo sobre el comprimido (zip bomb) | BAJA | PLAUSIBLE | 2 | S | ⬜ |
+| SEC-32 | Consulta RENAPER desde la admisión sin `ciudadano.*`, por GET | BAJA | CONF. lectura | 2 | S | ⬜ |
+| SEC-33 | El mapa del caso manda GPS a OpenStreetMap en cada apertura | BAJA | CONF. lectura | 2 | S | ⬜ |
+| SEC-34 | `EntregaMercaderiaCreateView` busca antes de autorizar | BAJA | CONF. lectura | 2 | S | ⬜ |
+| SEC-35 | Cookies seguras y HSTS dependen de `ENVIRONMENT=prd`; inactividad solo en JS | BAJA | PLAUSIBLE | 2 | S | ⬜ |
+| SEC-36 | `programa_list` sin capacidad; errores con `str(exc)` al usuario | BAJA | CONF. lectura | 2 | S | ⬜ |
+| SEC-37 | Link público, paso 2: muestra nombre y fecha a partir de DNI + sexo | BAJA | CONF. (riesgo aceptado, Cambio 71) | 2 | S | ⬜ |
+| G1c-10 | `/admin/` y `admin/doc/` montados en todos los entornos | BAJA | CONF. ajustado | 2 | S | ⬜ |
+| G1c-16 | Payload crudo de RENAPER en sesión (24 h) y caché (10 min) | BAJA | CONF. lectura | 2 | S | ⬜ |
+| R0-01 | `/conversaciones/<id>/evaluar/` acepta escritura anónima | BAJA (MINOR) | revisión Ola 0 | 0 | S | ⬜ |
+| R0-05 | `DEFAULT_THROTTLE_RATES["renaper"]` sin consumidor | BAJA (MINOR) | revisión Ola 0 | 2 (con SEC-25) | incluido en SEC-25 | ⬜ |
 
 ---
 
@@ -59,6 +61,8 @@ Base verificada: `origin/development @ 917e583`. PoC: `poc/test_repro_seguridad.
 
 ### SEC-01 · HTTP Basic en `/api/` saltea la barrera portal/backoffice, la sesión única y la clave provisoria
 **Severidad:** CRÍTICA · **Estado:** CONFIRMADO con test (`SEC01BasicAuthTests`, 2 tests) · **Origen:** A5-01, A3-02 (parte Basic) · **Ola:** 0 · **Esfuerzo:** S · **Decisión:** —
+
+**Resolución:** 🟡 Parcial en #509 (Cambio 100), 01-oct-2026 — hecho el punto 1: `DEFAULT_AUTHENTICATION_CLASSES = [SessionAuthentication]` y `DEFAULT_PERMISSION_CLASSES = [IsAuthenticated]`; Basic ya no autentica en `/api/` y el ciudadano con sesión cae en `PortalCiudadanoMiddleware`. Falta: el punto 2 (`BackofficeAutenticado` en las vistas con `permission_classes` explícitas, que no heredan el default), que sigue en la Ola 0 (PR 2, con SEC-02/05/13/14); H-08 con ECOM. Seguimiento: R0-04 (raíz `/api/becas/` con Token).
 - **Ubicación:** `config/settings.py:404-413` (`REST_FRAMEWORK`); middlewares `core/middleware.py:81-95` (`PortalCiudadanoMiddleware`), `users/middleware.py:9-66` (sesión única y clave provisoria; exime `/api/` a propósito).
 - **Escenario (reproducido):** (1) un anónimo se registra en `/portal/mi-perfil/registro/` con el DNI de un `Ciudadano` existente (SEC-29); (2) con sesión, `/api/users/users/` da 302; (3) con `Authorization: Basic <dni>:<clave>`: `/api/users/users/` → 200 (lista el personal), `/api/legajos/ciudadanos/` → 200 (padrón), `/api/buscar-ciudadanos/?q=301` → 200, POST `/api/core/provincias/` → 201; (4) un territorial (solo `becas.campo`, con el login web prohibido por `users/forms/auth.py:44-51`) recibe 200 en `/api/legajos/ciudadanos/` por Basic. nginx reenvía `Authorization` sin tocarlo.
 - **Causa raíz:** causa transversal 1.
@@ -77,6 +81,8 @@ Base verificada: `origin/development @ 917e583`. PoC: `poc/test_repro_seguridad.
 
 ### SEC-02 · `CiudadanoViewSet`: CRUD completo del padrón para cualquier autenticado
 **Severidad:** CRÍTICA · **Estado:** CONFIRMADO con test (`SEC02CiudadanoApiTests`) · **Origen:** A5-02, A3-02; incluye V1-NEW-03 · **Ola:** 0 · **Esfuerzo:** S · **Decisión:** —
+
+**⚠ Actualizar (03-oct-2026):** el vector por Basic de un ciudadano quedó cerrado por SEC-01 (#509); el CRUD sigue abierto para cualquier usuario del backoffice con sesión. `CiudadanoViewSet` hoy en `legajos/api_views/__init__.py:28`.
 - **Ubicación:** `legajos/api_views/__init__.py:36-51`; serializer `legajos/serializers/__init__.py:10-32`.
 - **Escenario (reproducido):** un usuario sin roles hace PATCH `{"dni": "99999999"}` → 200 y el DNI cambia; DELETE → 204 (cascada sobre alertas, inscripciones y derivaciones). Además (V1-NEW-03) `search_fields` está declarado pero `filter_backends = [DjangoFilterBackend]` no incluye `SearchFilter`: el `?search=` de «Agregar familiar» (`ciudadano_detail.html:1224`) se ignora y devuelve 10 ciudadanos cualesquiera.
 - **Causa raíz:** `ModelViewSet` con solo `IsAuthenticated`; serializer que deja escribir dni, nacimiento, teléfono, email y domicilio.
@@ -105,6 +111,8 @@ Base verificada: `origin/development @ 917e583`. PoC: `poc/test_repro_seguridad.
 
 ### SEC-04 · Consulta RENAPER anónima con el payload crudo y un throttle que se evade por `X-Forwarded-For`
 **Severidad:** CRÍTICA · **Estado:** CONFIRMADO con test (`SEC04RenaperAnonimoTests`) · **Origen:** A5-04, A3-01, A2-01, V1-NEW-04 · **Ola:** 0 · **Esfuerzo:** S · **Decisión:** D-04 (incidente)
+
+**Resolución:** ✅ Resuelto en #509 (Cambio 100), 01-oct-2026 — se borraron la ruta `/api/legajos/renaper/consultar/`, la vista `consultar_renaper_api` y `RenaperRateThrottle`; `legajos/tests/test_renaper_api.py` quedó como test invertido. `/api/becas/renaper/consultar/` sigue intacto. Queda operativo (D-04): revisar los logs de 90 días (P-15). Seguimiento: la tasa `renaper` quedó sin consumidor (R0-05).
 - **Ubicación:** ruta `legajos/urls/api.py:15` (`renaper/consultar/`); vista `legajos/api_views/__init__.py:96-133` (`@permission_classes([AllowAny])`, devuelve `"datos_api": resultado.get("datos_api")` = `datos` crudo de RENAPER, `consulta_renaper.py:489`); rama de error `:113-121` devuelve `fallecido` (oráculo de defunción).
 - **Escenario (reproducido):** un anónimo recibe 200 con `datos_api.calle` (calle, número, piso, provincia). 40/40 pedidos con `X-Forwarded-For` rotado dan 200; sin rotar, 429 en el pedido 31. Sin `NUM_PROXIES`, DRF 3.16 usa el XFF completo como identidad (`throttling.py:40`) y nginx conserva el valor del cliente. RENAPER está vivo en PRD (Cambio 79).
 - **Consumidores:** ninguno. La app móvil dejó de usar esta ruta el 28-jun-2026 (commit `16f9ed6`; la usó del 24 al 28-jun desde `8a5d412`). Hoy la build de ECOM (`ecom/main 765696a`) llama a **`POST /api/becas/renaper/consultar/`**, que es un alias autenticado de `consultar_persona_becas` en `programas/api_urls.py:22`, y `origin/main` (`a66c2d3`) a `/api/becas/personas/consultar/`. En el backend solo la llama su test.
@@ -120,6 +128,8 @@ Base verificada: `origin/development @ 917e583`. PoC: `poc/test_repro_seguridad.
 
 ### SEC-05 · `activate` y `deactivate` de usuarios por API para cualquier autenticado
 **Severidad:** CRÍTICA · **Estado:** CONFIRMADO con test (`SEC05ActivateDeactivateTests`) · **Origen:** A5-05 · **Ola:** 0 · **Esfuerzo:** S · **Decisión:** D-05 (apagar la API de usuarios)
+
+**⚠ Actualizar (03-oct-2026):** el vector por Basic de un ciudadano quedó cerrado por SEC-01 (#509); `activate`/`deactivate` siguen abiertos para cualquier usuario del backoffice con sesión.
 - **Ubicación:** `users/api_views/__init__.py:53-57` (`get_permissions()` devuelve `[IsAuthenticated()]` para toda acción fuera de CRUD y pisa el `permission_classes` de los `@action` en `:93` y `:102`).
 - **Escenario (reproducido):** un usuario plano hace POST `deactivate` → 200 y la víctima queda inactiva. Encadenado con SEC-01, lo hace un ciudadano del portal.
 - **Propuesta (default D-05):** borrar `UserViewSet`, `GroupViewSet` y `ProfileViewSet` de `users/api_urls.py` y dejar solo `me` (no hay consumidores: el ABM web cubre todo). Cierra también SEC-16 y SEC-17. **Alternativa si D-05 = conservar:**
@@ -168,6 +178,8 @@ Base verificada: `origin/development @ 917e583`. PoC: `poc/test_repro_seguridad.
 
 ### SEC-08 · XSS almacenado por el nombre de un rol, en todas las páginas del backoffice
 **Severidad:** ALTA · **Estado:** CONFIRMADO con test (`SEC08XssRolTests`, 2 tests) · **Origen:** A5-08, V1-NEW-01 · **Ola:** 0 · **Esfuerzo:** S · **Decisión:** —
+
+**Resolución:** ✅ Resuelto en #507 (Cambio 103), 01-oct-2026 — `base.html` recibe los grupos con `json_script` y el context processor dejó de exponer `user_groups_json`; tests en `core/tests/test_base_template_xss.py`. La whitelist opcional de `RolForm.clean_name` no se hizo (decisión registrada en el Cambio 103).
 - **Ubicación:** `conversaciones/context_processors.py:24` (`str(groups).replace("'", '"')`); `templates/includes/base.html:372` (`window.userGroups = {{ user_groups_json|safe }};`); CSP con `'unsafe-inline'` (`config/middlewares/security_headers.py:38`).
 - **Escenario (reproducido):** un rol `Op</script><script>alert(document.domain)</script>` se renderiza literal en `/inicio/`; un rol `Rol d'Ejemplo` produce `["Rol d"Ejemplo"]`, SyntaxError que aborta el `<script>` entero (incluido `window.conversacionesConfig`) en todas las páginas de sus usuarios. Pueden crear roles quienes tienen `rol.administrar` o `programa.rol.administrar`; `RolForm.clean_name` no restringe caracteres. Encadena con G2-03 (cambio de clave sin la actual).
 - **Propuesta:** en `conversaciones/context_processors.py` borrar la clave `user_groups_json` (ya existe `user_groups_list`); en `base.html:372`:
@@ -182,6 +194,8 @@ Base verificada: `origin/development @ 917e583`. PoC: `poc/test_repro_seguridad.
 
 ### SEC-09 · `/media/`: nginx lo sirve sin login en DEV; en ECOM cualquier sesión (también la de un ciudadano) baja cualquier archivo
 **Severidad:** ALTA en DEV, MEDIA en ECOM · **Estado:** CONFIRMADO-AJUSTADO (lectura de nginx + test `SEC09MediaTests` con `SERVE_MEDIA=True`) · **Origen:** A5-09, A2-12 · **Ola:** 0 (etapa 1) y 2 (etapa 2) · **Esfuerzo:** S + M · **Decisión:** D-09 (coordinación ECOM)
+
+**⚠ Actualizar (03-oct-2026):** ya no se pueden crear cuentas de ciudadano (SEC-29, #511), pero las existentes siguen activas hasta correr `desactivar_usuarios_portal` en PRD; el escenario con `SERVE_MEDIA=True` y el de nginx en DEV siguen igual.
 - **Ubicación:** `nginx.conf:62-65` y `:134-137` (`location /media/ { alias /media/; expires 7d; }`) → `docker-compose.prod.yml` → icore-srv (DEV `relevamiento-deshum.ecomdev.ar`); ECOM (`SERVE_MEDIA=True`): `config/urls.py:71-81` con `login_required(_media_serve)` sin pertenencia; `core/middleware.py:88` exime `/media/` para ciudadanos. Solo adjuntos y padrones de Becas usan UUID; `adjuntos/`, `ciudadanos/fotos/`, `admisiones/f00/` y `merenderos/solicitudes/%Y/%m/` conservan el nombre original.
 - **Escenario:** con `SERVE_MEDIA=True`, anónimo → 302; ciudadano del portal (SEC-29) → **200** con el contenido. En DEV, por nginx, lo baja cualquiera sin sesión durante 7 días desde caché.
 - **Propuesta:**
@@ -217,6 +231,8 @@ Base verificada: `origin/development @ 917e583`. PoC: `poc/test_repro_seguridad.
 
 ### SEC-13 · Catálogo geográfico escribible por cualquier autenticado vía `/api/core/`
 **Severidad:** ALTA · **Estado:** CONFIRMADO con test (`SEC13GeoApiTests`) · **Origen:** A5-13 (absorbe A5-40) · **Ola:** 0 · **Esfuerzo:** S · **Decisión:** —
+
+**⚠ Actualizar (03-oct-2026):** la escritura por Basic de un ciudadano quedó cerrada por SEC-01 (#509); el DELETE con la sesión de cualquier usuario del backoffice sigue.
 - **Escenario (reproducido):** DELETE `/api/core/provincias/<id>/` sin capacidad → 204 (cascada a municipios y localidades). Con Basic de ciudadano, POST → 201. A5-40 (`static/custom/js/localidades_modal.js:45` pinta nombres con `innerHTML`) queda casi nulo al cerrar esto; el archivo además es JS huérfano (FE-14).
 - **Propuesta:** en `core/api_views/__init__.py`, `ProvinciaViewSet`, `MunicipioViewSet` y `LocalidadViewSet` → `viewsets.ReadOnlyModelViewSet` (el ABM es web, `configuracion/views/geografia.py`, con `config.administrar`). Revisar que `SexoViewSet`, `MesViewSet` y `DiaViewSet` sean ReadOnly.
 - **Tests a agregar:** `core/tests/test_api_geo.py::test_escritura_405` y `::test_lectura_autenticado_200`.
@@ -231,6 +247,8 @@ Base verificada: `origin/development @ 917e583`. PoC: `poc/test_repro_seguridad.
 
 ### SEC-29 · Registro del portal: crea una cuenta sobre cualquier legajo existente con solo el DNI (puerta de entrada de SEC-01 y SEC-09)
 **Severidad:** ALTA (sube desde BAJA) · **Estado:** CONFIRMADO con test (paso 1 de `SEC01BasicAuthTests`) · **Origen:** A5-41 · **Ola:** 0 · **Esfuerzo:** S · **Decisión:** D-29
+
+**Resolución:** 🟡 Parcial en #511 (Cambio 102), 01-oct-2026 — `portal/urls.py` ya no publica `mi-perfil/*` (quedan `""`, `csrf/` y la inscripción por link); el middleware y `ciudadano_required` mandan a `portal:home`; comando nuevo `desactivar_usuarios_portal` (ensayo por defecto); tests en `portal/tests/test_portal_apagado.py`. Falta (operativo, PM): P-08 y `desactivar_usuarios_portal --aplicar` en PRD; no se corrió en ningún ambiente, así que las cuentas de ciudadano existentes siguen activas (ver SEC-09). Seguimiento: R0-02 (docs que nombran `portal:ciudadano_mi_perfil`).
 - **Ubicación:** `portal/services/ciudadano_auth.py:56-64` (si existe un `Ciudadano` con ese DNI sin usuario, el flujo `legajo_existente` no consulta RENAPER ni verifica sexo); `portal/views/ciudadano_auth.py:66-132`; `portal/templates/portal/ciudadano/registro_step2.html:33-36`.
 - **Escenario (reproducido):** step1 con DNI de un legajo existente → 302; step2 → 302 y queda logueado como dueño del legajo. Con cualquier DNI y sexo obtiene además el nombre completo de RENAPER.
 - **Propuesta:** el portal está sin uso (decisión del PM, 29-sep-2026). En `portal/urls.py`, quitar todas las rutas `mi-perfil/*` y dejar `""`, `csrf/` e `inscripcion/<uuid:token>/…` (la inscripción pública **sí** queda). `core/middleware.py:91` redirige a `portal:ciudadano_mi_perfil`: cambiarlo a `portal:home`. Grep `{% url 'portal:ciudadano_` y `compile_templates.py` para que no quede ninguna referencia. Datos (default D-29): `User.objects.filter(groups__name="Ciudadanos").update(is_active=False)` en una migración de datos o un comando, después de contar con P-08.
@@ -239,6 +257,8 @@ Base verificada: `origin/development @ 917e583`. PoC: `poc/test_repro_seguridad.
 
 ### G1-01 · Chat público de conversaciones: cualquiera, sin login, crea el legajo de cualquier DNI con el nombre que quiera, y ese legajo después alimenta Becas y SIIS
 **Severidad:** ALTA · **Estado:** CONFIRMADO (lectura) · **Origen:** G1-01; resuelve también A5-42 y A6-28 en su fase 2 · **Ola:** 0 (rutas públicas) / 7 (apagado completo) · **Esfuerzo:** S · **Decisión:** tomada (conversaciones sin uso, 29-sep-2026)
+
+**Resolución:** 🟡 Parcial en #510 (Cambio 101), 01-oct-2026 — hecha la parte de la Ola 0: desmontadas `chat/`, `consultar-renaper/`, `iniciar/`, `<id>/enviar/` y `<id>/mensajes/`, y borrados `iniciar_conversacion_publica` (el `get_or_create` de legajos), sus forms y `chat_ciudadano.html`. Falta: la fase 2 (Ola 7); `<id>/evaluar/` sigue aceptando escritura anónima (R0-01, Ola 0); P-10 en PRD (operativo).
 - **Ubicación:** `conversaciones/urls.py:13` (`iniciar/`); `conversaciones/views/public.py:108-139` (sin login ni rate limit); `conversaciones/forms/chat.py:17-22` (`datos_renaper = forms.JSONField` que manda el cliente); `conversaciones/services/chat.py:33-55` (`Ciudadano.objects.get_or_create(dni=…, defaults={nombre: datos_renaper["nombre"], …})`). Consumidores del legajo: `programas/services/becas.py:260-279` (`resolver_ciudadano_offline` no pisa nombre ni apellido), `programas/services/padron.py:466-480` (solo completa vacíos), `programas/services/siis_envio.py:437-452` (el alta usa `ciudadano.nombre/apellido`).
 - **Escenario:** un script toma la cookie CSRF de `/conversaciones/chat/` y hace `POST /conversaciones/iniciar/` con `{"tipo":"personal","dni":"45123456","sexo":"F","datos_renaper":{"nombre":"X","apellido":"Y"}}` para una lista de DNI. Cuando esas personas se inscriben, su caso se vincula a ese legajo; la validación por padrón o Gran Base marca el caso como validado pero no corrige el legajo (SIIS-08) y el alta a SIIS sale con el nombre falso (irreversible). Además deja una `Conversacion` activa por request.
 - **Propuesta:**
@@ -251,6 +271,8 @@ Base verificada: `origin/development @ 917e583`. PoC: `poc/test_repro_seguridad.
 
 ### G1-02 · Segundo oráculo RENAPER anónimo: `/conversaciones/consultar-renaper/` devuelve nombre, apellido, nacimiento y domicilio de cualquier DNI
 **Severidad:** ALTA · **Estado:** CONFIRMADO (lectura) · **Origen:** G1-02 · **Ola:** 0 · **Esfuerzo:** S · **Decisión:** tomada (conversaciones sin uso)
+
+**Resolución:** ✅ Resuelto en #510 (Cambio 101), 01-oct-2026 — `consultar-renaper/` desmontada; se borraron la vista `consultar_renaper`, el servicio `consultar_renaper_para_chat` y `RenaperConsultaForm`; test en `conversaciones/tests/test_public.py`.
 - **Ubicación:** `conversaciones/urls.py:12`; `conversaciones/views/public.py:45-105` (sin login; `rate_limit_excedido(..., limite=10, ventana_segundos=60)` por IP real vía `ip_cliente`); `conversaciones/services/chat.py:27-30` → `legajos.services.consulta_renaper.consultar_datos_renaper`. La respuesta incluye `"domicilio"` y distingue «fallecido».
 - **Escenario:** mismo patrón que SEC-04 por otra puerta; 10/min por IP se multiplica con cualquier pool de IPs. **Si se cierra solo SEC-04, este queda abierto.**
 - **Propuesta:** desmontarlo junto con G1-01. Si algún día se reactiva el chat, la consulta debe devolver solo «coincide / no coincide» contra lo que la persona tipeó, nunca el domicilio.
@@ -281,6 +303,8 @@ Base verificada: `origin/development @ 917e583`. PoC: `poc/test_repro_seguridad.
 
 ### SEC-18 · Alertas: cerrar cualquiera por id; las CRÍTICAS de todo el sistema visibles para quien no tiene legajos
 **Severidad:** MEDIA · **Estado:** CONFIRMADO con test (`SEC11…alertas_dashboard`; `test_repro_dispositivos_legajos.py::A313A314`) · **Origen:** A5-18, A3-13 (= LEG-07), G1c-05, G1c-06 · **Ola:** 2 · **Esfuerzo:** S · **Decisión:** D-18
+
+**⚠ Actualizar (03-oct-2026):** `AlertasViewSet.cerrar` hoy en `legajos/api_views/__init__.py:78` (el archivo perdió la vista de RENAPER, SEC-04).
 - **Ubicación:** `legajos/services/filtros_usuario.py:31-33` (sin legajos propios, `filtros = Q(prioridad="CRITICA")`); `legajos/services/alertas.py:206-218` (`cerrar_alerta` con `AlertaCiudadano.objects.get(id=…)`); entradas `cerrar_alerta_api`, `cerrar_alerta_ajax` (`legajos/views/contactos_api.py:123-135`, `legajos/views/alertas.py:64-71`) y `AlertasViewSet.cerrar` (`legajos/api_views/__init__.py:84-93`, `detail=True` sin `get_object()`); `legajos/views/alertas.py:11,74,91` solo `login_required`.
 - **Escenario (reproducido):** un usuario sin roles ni legajos ve «riesgo» en `/legajos/alertas/`; `POST /legajos/alertas/<n>/cerrar-ajax/` con n = 1..N silencia todas las alertas del sistema.
 - **Propuesta:** en el fallback, `return AlertaCiudadano.objects.none()` (o `Q(pk__in=[])`); `cerrar_alerta(alerta_id, usuario)` → `FiltrosUsuarioService.obtener_alertas_usuario(usuario).get(id=alerta_id)` (si no existe, False); `AlertasViewSet.cerrar` usa `self.get_object()`; `@requiere("ciudadano.ver")` en `alertas_dashboard`, `alertas_count_ajax`, `alertas_preview_ajax` y `cerrar_alerta_ajax`. Default D-18: aceptar que el badge quede en 0 para quien hoy ve CRÍTICAS globales (las globales las ve `config.administrar`, ya previsto en `filtros_usuario.py:20-21`).
@@ -340,6 +364,8 @@ Base verificada: `origin/development @ 917e583`. PoC: `poc/test_repro_seguridad.
 
 ### SEC-25 · `consultar_persona_becas` sin throttle (enumeración contra la Gran Base)
 **Severidad:** MEDIA · **Estado:** CONFIRMADO (lectura) · **Origen:** A5-25 · **Ola:** 2 · **Esfuerzo:** S · **Decisión:** D-25
+
+**⚠ Actualizar (03-oct-2026):** la tasa `DEFAULT_THROTTLE_RATES["renaper"]` quedó sin consumidor al borrar `RenaperRateThrottle` (SEC-04, #509): usarla acá o borrarla (R0-05).
 - **Ubicación:** `programas/api/views.py:212-250` (sin `throttle_classes`; devuelve nombre, apellido y nacimiento de cualquier DNI y sexo).
 - **Propuesta:** `@throttle_classes([ScopedRateThrottle])` con `throttle_scope = "personas_campo"` y en settings `"personas_campo": "120/hour"` (default D-25; por usuario porque el request está autenticado). Aplica también al alias `/api/becas/renaper/consultar/`.
 - **Tests a agregar:** N+1 consultas → 429.
@@ -430,3 +456,20 @@ Base verificada: `origin/development @ 917e583`. PoC: `poc/test_repro_seguridad.
 **Severidad:** BAJA · **Estado:** CONFIRMADO (lectura) · **Origen:** G1c-16 · **Ola:** 2 · **Esfuerzo:** S
 - **Ubicación:** `legajos/services/ciudadanos.py:27-29` (guarda `datos_api` crudo en la sesión, Redis en prd, hasta confirmar o abandonar); `legajos/services/consulta_renaper.py:360-372`, `:489` (caché 10 min); `legajos/views/ciudadanos.py:185`.
 - **Propuesta:** lista blanca de campos en sesión; no cachear `datos_api`; limpiar la sesión en el GET de `ciudadano_nuevo`.
+
+## Seguimientos de la revisión de la Ola 0 (agregados el 03-oct-2026)
+
+Observaciones MINOR que dejaron los revisores de los PRs de la Ola 0. No son de la base auditada (`917e583`):
+las líneas son de `origin/development @ 7393c41`.
+
+### R0-01 · `/conversaciones/<id>/evaluar/` acepta escritura anónima
+**Severidad:** BAJA (MINOR del revisor) · **Estado:** CONFIRMADO (lectura) · **Origen:** revisión de la Ola 0 · **Ola:** 0 · **Esfuerzo:** S
+- **Ubicación:** `conversaciones/urls.py:21` → `conversaciones/views/public.py:29` (`evaluar_conversacion`, sin `login_required` ni dueño).
+- **Escenario:** un anónimo con la cookie CSRF hace `POST /conversaciones/<n>/evaluar/` con `{"satisfaccion": …}` y pisa la evaluación de cualquier conversación por id. Lo dejó el revisor de #510 (G1-01) como MINOR: no expone datos, pero es la última escritura anónima de la app.
+- **Propuesta:** desmontar la ruta (el chat público que la usaba ya no existe) o exigir `login_required` + permiso de conversaciones; se resuelve también con la fase 2 de G1-01.
+- **Test:** `POST` anónimo a `/conversaciones/<id>/evaluar/` → 404 (o 302) y la conversación sin cambios.
+
+### R0-05 · `DEFAULT_THROTTLE_RATES["renaper"]` sin consumidor
+**Severidad:** BAJA (MINOR del revisor) · **Estado:** CONFIRMADO (lectura) · **Origen:** revisión de la Ola 0 · **Ola:** 2 (con SEC-25) · **Esfuerzo:** incluido en SEC-25
+- **Ubicación:** `config/settings.py:421`. El único consumidor era `RenaperRateThrottle`, borrado con SEC-04 (#509).
+- **Propuesta:** usarla en el throttle de `consultar_persona_becas` (SEC-25) o borrarla.

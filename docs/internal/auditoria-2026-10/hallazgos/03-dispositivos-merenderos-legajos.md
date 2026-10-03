@@ -25,29 +25,29 @@ aceptación de la v2** (README §7), con el test nombrado para que la task lo he
 **D-V1 (transversal):** ¿se va a operar Dispositivos/Merenderos v1 en PRD antes de que se apruebe la v2? Default:
 **no**. Si es sí, DIS-02, DIS-03, DIS-04 (y DIS-05/06, MER-01 punto a) pasan a «parchear v1», empezando por DIS-03.
 
-| ID | Título | Sev. | Estado | Tratamiento | Ola | Esf. |
-|---|---|---|---|---|---|---|
-| DIS-01 | `__date` sobre DateTimeField en parte F-01, listado y exports (CONVERT_TZ → NULL) | ALTA (latente) | CONF. test (SQL compilado) | Parchear v1 + criterio v2 | 5 | S |
-| DIS-02 | Doble estadía ALOJADA de la misma persona en el mismo dispositivo | ALTA | CONF. test (matiz) | Criterio v2 (v1 si D-V1 = sí) | v2 | S / M |
-| DIS-03 | Espera de traslado huérfana; traslado pendiente imposible de cancelar | ALTA | CONF. test | Criterio v2 (1er parche si D-V1 = sí) | v2 | M |
-| LEG-03 | Solapa «Red Familiar» rota; API de vínculos abierta y sin filtro | ALTA (V5a) / MEDIA (V3) | CONF. test | Parchear v1 | 5 | S / M |
-| DIS-04 | Cerrar/inactivar con alojados; promover en dispositivo no activo | MEDIA | CONF. test | Criterio v2 | v2 | S |
-| DIS-05 | «Alojar» con cama tomada se degrada en silencio a espera | MEDIA | CONF. test | Criterio v2 | v2 | S |
-| DIS-06 | El egreso acepta fechas futuras | MEDIA | CONF. test | Criterio v2 | v2 | S |
-| LEG-01 | La pasada horaria de alertas recrea y re-notifica | MEDIA | CONF. test | Parchear v1 | 4 | S-M |
-| LEG-04 | Endpoints AJAX de legajos tragan excepciones; un blob faltante vacía la lista | MEDIA | CONF. test | Parchear v1 | 5 | S |
-| G1c-08 | Alta/edición de ciudadano: DNI sin normalizar, confirmación RENAPER alterable | MEDIA | CONF. test | Parchear v1 | 3 | M |
-| DIS-07 | Camas RESERVADAS cuentan como libres | BAJA | CONF. test | Criterio v2 | v2 | S |
-| DIS-08 | Fechas UTC en indicador y export de movimientos | BAJA | CONF. test | Parchear v1 + criterio v2 | 5 | S |
-| DIS-09 | El egreso cierra la membresía aunque haya espera en otro dispositivo | BAJA | CONF. test | Criterio v2 | v2 | S |
-| DIS-10 | Edición del dispositivo: cambio de tipo con estadías | BAJA | PARCIAL | Criterio v2 | v2 | S |
-| V6-NEW-02 | Borrar un campo de tipo con archivos da 500 (Cambio 48 B4) | BAJA | CONF. lectura | Criterio v2 | v2 | S |
-| MER-01 | Merendero SUSPENDIDO sin vuelta y grilla no consultable | BAJA | CONF. (conforme spec v1) | Criterio v2 | v2 | S |
-| MER-02 | Entregas de mercadería sin anulación ni idempotencia | BAJA | CONF. lectura | Criterio v2 | v2 | S |
-| LEG-02 | Reinscribir con una inscripción no activa rompe `unique_together` | BAJA | CONF. test | Parchear v1 | 5 | S |
-| LEG-05 | Subida múltiple de adjuntos no atómica | BAJA | CONF. test | Parchear v1 | 5 | S |
-| LEG-06 | Código muerto de legajos y derivaciones sin dónde procesarse | BAJA | CONF. lectura | Parchear v1 | 7 | S |
-| G1c-17 | Difusión de alertas críticas es código muerto; channel layer InMemory fuera de prd | BAJA | CONF. lectura | Parchear v1 | 2 | S |
+| ID | Título | Sev. | Estado | Tratamiento | Ola | Esf. | Avance 03-oct |
+|---|---|---|---|---|---|---|---|
+| DIS-01 | `__date` sobre DateTimeField en parte F-01, listado y exports (CONVERT_TZ → NULL) | ALTA (latente) | CONF. test (SQL compilado) | Parchear v1 + criterio v2 | 5 | S | ⬜ |
+| DIS-02 | Doble estadía ALOJADA de la misma persona en el mismo dispositivo | ALTA | CONF. test (matiz) | Criterio v2 (v1 si D-V1 = sí) | v2 | S / M | ⬜ |
+| DIS-03 | Espera de traslado huérfana; traslado pendiente imposible de cancelar | ALTA | CONF. test | Criterio v2 (1er parche si D-V1 = sí) | v2 | M | ⬜ |
+| LEG-03 | Solapa «Red Familiar» rota; API de vínculos abierta y sin filtro | ALTA (V5a) / MEDIA (V3) | CONF. test | Parchear v1 | 5 | S / M | ⬜ |
+| DIS-04 | Cerrar/inactivar con alojados; promover en dispositivo no activo | MEDIA | CONF. test | Criterio v2 | v2 | S | ⬜ |
+| DIS-05 | «Alojar» con cama tomada se degrada en silencio a espera | MEDIA | CONF. test | Criterio v2 | v2 | S | ⬜ |
+| DIS-06 | El egreso acepta fechas futuras | MEDIA | CONF. test | Criterio v2 | v2 | S | ⬜ |
+| LEG-01 | La pasada horaria de alertas recrea y re-notifica | MEDIA | CONF. test | Parchear v1 | 4 | S-M | ⬜ |
+| LEG-04 | Endpoints AJAX de legajos tragan excepciones; un blob faltante vacía la lista | MEDIA | CONF. test | Parchear v1 | 5 | S | ⬜ |
+| G1c-08 | Alta/edición de ciudadano: DNI sin normalizar, confirmación RENAPER alterable | MEDIA | CONF. test | Parchear v1 | 3 | M | ⬜ |
+| DIS-07 | Camas RESERVADAS cuentan como libres | BAJA | CONF. test | Criterio v2 | v2 | S | ⬜ |
+| DIS-08 | Fechas UTC en indicador y export de movimientos | BAJA | CONF. test | Parchear v1 + criterio v2 | 5 | S | ⬜ |
+| DIS-09 | El egreso cierra la membresía aunque haya espera en otro dispositivo | BAJA | CONF. test | Criterio v2 | v2 | S | ⬜ |
+| DIS-10 | Edición del dispositivo: cambio de tipo con estadías | BAJA | PARCIAL | Criterio v2 | v2 | S | ⬜ |
+| V6-NEW-02 | Borrar un campo de tipo con archivos da 500 (Cambio 48 B4) | BAJA | CONF. lectura | Criterio v2 | v2 | S | ⬜ |
+| MER-01 | Merendero SUSPENDIDO sin vuelta y grilla no consultable | BAJA | CONF. (conforme spec v1) | Criterio v2 | v2 | S | ⬜ |
+| MER-02 | Entregas de mercadería sin anulación ni idempotencia | BAJA | CONF. lectura | Criterio v2 | v2 | S | ⬜ |
+| LEG-02 | Reinscribir con una inscripción no activa rompe `unique_together` | BAJA | CONF. test | Parchear v1 | 5 | S | ⬜ |
+| LEG-05 | Subida múltiple de adjuntos no atómica | BAJA | CONF. test | Parchear v1 | 5 | S | ⬜ |
+| LEG-06 | Código muerto de legajos y derivaciones sin dónde procesarse | BAJA | CONF. lectura | Parchear v1 | 7 | S | ⬜ |
+| G1c-17 | Difusión de alertas críticas es código muerto; channel layer InMemory fuera de prd | BAJA | CONF. lectura | Parchear v1 | 2 | S | ⬜ |
 
 ---
 

@@ -15,36 +15,36 @@ este archivo: se absorbió en LEG-03 (D-L03, `03-dispositivos-merenderos-legajos
 Dispositivos y Merenderos: si D-V1 = no se operan antes de la v2, sus pantallas solo reciben los fixes de bug (FE-10,
 FE-18, FE-19); las migraciones de estilo de esos dos módulos las hereda la v2.
 
-| ID | Título | Sev. | Estado | Ola | Esf. |
-|---|---|---|---|---|---|
-| FE-02 | `toastr` no cargado en el legajo: «Subir archivos» no envía nada | ALTA | CONF. navegador | 5 | S |
-| FE-04 | Geografía pagina de a 20 sin controles de paginación | ALTA | CONF. navegador | 5 | S |
-| FE-05 | Wizard «Nuevo programa»: el JS está en un bloque sin destino | ALTA | CONF. navegador | 5 | S |
-| FE-06 | Clases que el build no genera: botones invisibles, backdrop transparente | ALTA | CONF. ajustado (navegador) | 5 | S |
-| FE-01 | `mobile-enhancements.js` global altera controles, modales y swipe | MEDIA (A6: ALTA) | CONF. ajustado | 5 | S |
-| FE-07 | Modales de Configuración en la esquina y con botones sin tamaño | MEDIA | CONF. navegador | 5 | M |
-| FE-08 | Errores no de campo invisibles | MEDIA | CONF. | 5 | S |
-| FE-09 | Links a `/legajos/<id>/`, ruta inexistente | MEDIA | CONF. ajustado | 5 | S |
-| FE-10 | Prestación mensual ilegible en celular | MEDIA | CONF. navegador | 5 | S |
-| FE-11 | Componentes canónicos solo en Becas | MEDIA | CONF. | 5 | L |
-| FE-12 | Tablas con estilos en línea e iconografía mezclada | MEDIA | CONF. | 5 | M |
-| FE-13 | `design_audit`: decodificador roto y sin regla «clase sin definición» | MEDIA | CONF. ajustado | 6 | S |
-| FE-17 | Paginaciones falsas o copiadas | MEDIA | CONF. | 5 | M |
-| FE-18 | Badges de estado incoherentes | MEDIA | CONF. | 5 | S |
-| FE-19 | Confirmaciones con colores invertidos y handler copiado | MEDIA | CONF. ajustado | 5 | S |
-| FE-20 | Wrapper legacy `includes/main.html`: contenido desplazado; 403/404/500 sin estilo | MEDIA | CONF. navegador | 5 | M |
-| FE-21 | Modales de Legajos sin Escape ni foco | MEDIA | CONF. | 5 | S |
-| V5A-NEW-01 | `tailwind.css` committeado desactualizado y sin gate | MEDIA | CONF. | 6 | S |
-| V5A-NEW-07 | Deuda de accesibilidad en las pantallas candidatas a referencia | MEDIA | CONF. | 6 (a) / 5 (b) | (a) en paso 3 · (b) 2 × S |
-| FE-14 | 29 JS y 1 CSS huérfanos | BAJA (A6: MEDIA) | CONF. ajustado | 7 | S |
-| FE-16 | «Gestión de Programas» de Legajos con KPIs sin valor | BAJA | CONF. | 5 | S |
-| FE-22 | Dashboards fuera de canon | BAJA | CONF. | 5 | M |
-| FE-23 | `_field.html` duplicado | BAJA | CONF. ajustado | 5 | S |
-| FE-24 | Solapas sin ARIA ni teclado | BAJA | CONF. | 5 | S |
-| FE-25 | Avisos paralelos en `alertas_websocket.js` | BAJA | CONF. código | 5 | S |
-| FE-26 | Doble envío en formularios clásicos | BAJA | PLAUSIBLE | 5 | S |
-| V5A-NEW-04 | Edición del ciudadano: hero fuera de canon y texto técnico visible | BAJA | CONF. navegador | 5 | S |
-| V5A-NEW-08 | `compile_templates.py` compila templates de terceros | BAJA | CONF. | 6 | S |
+| ID | Título | Sev. | Estado | Ola | Esf. | Avance 03-oct |
+|---|---|---|---|---|---|---|
+| FE-02 | `toastr` no cargado en el legajo: «Subir archivos» no envía nada | ALTA | CONF. navegador | 5 | S | ⬜ |
+| FE-04 | Geografía pagina de a 20 sin controles de paginación | ALTA | CONF. navegador | 5 | S | ⬜ |
+| FE-05 | Wizard «Nuevo programa»: el JS está en un bloque sin destino | ALTA | CONF. navegador | 5 | S | ⬜ |
+| FE-06 | Clases que el build no genera: botones invisibles, backdrop transparente | ALTA | CONF. ajustado (navegador) | 5 | S | ⬜ |
+| FE-01 | `mobile-enhancements.js` global altera controles, modales y swipe | MEDIA (A6: ALTA) | CONF. ajustado | 5 | S | ⬜ |
+| FE-07 | Modales de Configuración en la esquina y con botones sin tamaño | MEDIA | CONF. navegador | 5 | M | ⬜ |
+| FE-08 | Errores no de campo invisibles | MEDIA | CONF. | 5 | S | ⬜ |
+| FE-09 | Links a `/legajos/<id>/`, ruta inexistente | MEDIA | CONF. ajustado | 5 | S | ⬜ |
+| FE-10 | Prestación mensual ilegible en celular | MEDIA | CONF. navegador | 5 | S | ⬜ |
+| FE-11 | Componentes canónicos solo en Becas | MEDIA | CONF. | 5 | L | ⬜ |
+| FE-12 | Tablas con estilos en línea e iconografía mezclada | MEDIA | CONF. | 5 | M | ⬜ |
+| FE-13 | `design_audit`: decodificador roto y sin regla «clase sin definición» | MEDIA | CONF. ajustado | 6 | S | ⬜ |
+| FE-17 | Paginaciones falsas o copiadas | MEDIA | CONF. | 5 | M | ⬜ |
+| FE-18 | Badges de estado incoherentes | MEDIA | CONF. | 5 | S | ⬜ |
+| FE-19 | Confirmaciones con colores invertidos y handler copiado | MEDIA | CONF. ajustado | 5 | S | ⬜ |
+| FE-20 | Wrapper legacy `includes/main.html`: contenido desplazado; 403/404/500 sin estilo | MEDIA | CONF. navegador | 5 | M | ⬜ |
+| FE-21 | Modales de Legajos sin Escape ni foco | MEDIA | CONF. | 5 | S | ⬜ |
+| V5A-NEW-01 | `tailwind.css` committeado desactualizado y sin gate | MEDIA | CONF. | 6 | S | ⬜ |
+| V5A-NEW-07 | Deuda de accesibilidad en las pantallas candidatas a referencia | MEDIA | CONF. | 6 (a) / 5 (b) | (a) en paso 3 · (b) 2 × S | ⬜ |
+| FE-14 | 29 JS y 1 CSS huérfanos | BAJA (A6: MEDIA) | CONF. ajustado | 7 | S | ⬜ |
+| FE-16 | «Gestión de Programas» de Legajos con KPIs sin valor | BAJA | CONF. | 5 | S | ⬜ |
+| FE-22 | Dashboards fuera de canon | BAJA | CONF. | 5 | M | ⬜ |
+| FE-23 | `_field.html` duplicado | BAJA | CONF. ajustado | 5 | S | ⬜ |
+| FE-24 | Solapas sin ARIA ni teclado | BAJA | CONF. | 5 | S | ⬜ |
+| FE-25 | Avisos paralelos en `alertas_websocket.js` | BAJA | CONF. código | 5 | S | ⬜ |
+| FE-26 | Doble envío en formularios clásicos | BAJA | PLAUSIBLE | 5 | S | ⬜ |
+| V5A-NEW-04 | Edición del ciudadano: hero fuera de canon y texto técnico visible | BAJA | CONF. navegador | 5 | S | ⬜ |
+| V5A-NEW-08 | `compile_templates.py` compila templates de terceros | BAJA | CONF. | 6 | S | ⬜ |
 
 ---
 

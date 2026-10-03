@@ -1,5 +1,56 @@
 # Auditoría integral de DATAÑACH (Chaco) — octubre 2026
 
+## Estado al 03-oct-2026
+
+Contrastado contra el código de `origin/development @ 7393c41` (PRs #507 a #518, todos mergeados el 01-oct-2026). Cada
+ficha resuelta o parcial lleva una línea **Resolución:** debajo de su severidad; las pendientes cuyo código o escenario
+cambió llevan **⚠ Actualizar (03-oct-2026)**. Las tablas índice de `hallazgos/` tienen la columna «Avance 03-oct»
+(✅ resuelto · 🟡 parcial · ⬜ pendiente).
+
+| Severidad | Total | ✅ Resueltos | 🟡 Parciales | ⬜ Pendientes |
+|---|---:|---:|---:|---:|
+| CRÍTICA | 6 | 1 | 1 | 4 |
+| ALTA | 33 | 3 | 3 | 27 |
+| MEDIA | 75 | 0 | 0 | 75 |
+| BAJA | 91 | 0 | 0 | 91 |
+| INFO | 1 | 0 | 0 | 1 |
+| **Total auditado** | **206** | **4** | **4** | **198** |
+| Seguimientos nuevos de la revisión de la Ola 0 (R0-01..07, BAJA/MINOR) | 7 | 0 | 0 | 7 |
+
+**Resueltos y parciales**
+
+| ID | Sev. | Avance | PR · Cambio | Qué quedó / qué falta |
+|---|---|---|---|---|
+| SEC-04 | CRÍTICA | ✅ | #509 · Cambio 100 | Ruta, vista y throttle borrados; `/api/becas/renaper/consultar/` intacto. Operativo: logs de 90 días (P-15, D-04) |
+| SEC-08 | ALTA | ✅ | #507 · Cambio 103 | `json_script` en `base.html`; sin whitelist en `RolForm.clean_name` (decidido) |
+| G1-02 | ALTA | ✅ | #510 · Cambio 101 | `consultar-renaper/` desmontada y su código borrado |
+| SIIS-07 | ALTA | ✅ | #515 · Cambio 99 | Migración `0073` + `q_uuid_en_texto`. Operativo: P-11/P-12 y prueba en testing de ECOM; seguimientos R0-06, R0-07 |
+| SEC-01 | CRÍTICA | 🟡 | #509 · Cambio 100 | Hecho el punto 1 (defaults DRF: solo sesión + `IsAuthenticated`). Falta el punto 2 (`BackofficeAutenticado`) → Ola 0, PR 2 |
+| SEC-29 | ALTA | 🟡 | #511 · Cambio 102 | Rutas `mi-perfil/*` apagadas + comando `desactivar_usuarios_portal`. Falta correrlo en PRD tras P-08 (PM) |
+| G1-01 | ALTA | 🟡 | #510 · Cambio 101 | Rutas públicas desmontadas. Falta la fase 2 (Ola 7), `evaluar/` anónimo (R0-01, Ola 0) y P-10 |
+| OPS-06 | ALTA | 🟡 | #508 · Cambio 104 | Opt-in, activo, Operador (DECISIÓN PM 01-oct: queda como está) y `crear_programas`. Falta la fase 2 `RolMeta.clave` → Ola 2, PR 1 (+4 h); P-05 y re-tildar en PRD (PM) |
+
+**PRs sin ficha propia.** #512 (Cambio 105) arregló las fechas fijas de `test_coordinador_regional.py` (no es un
+hallazgo; dejó R0-03 como seguimiento). #513, #516, #517 y #518 son desarrollo nuevo (comando `correr_alta_siis`,
+`ids_de` por rangos de pk, lista de aprobados, tabla intermedia `AltaIntermediaSIIS` y `--destino`): **no cierran
+ninguna ficha** y suman caminos nuevos a SIIS-01 (séptima vía de alta sin exclusión: `sincronizar_tabla_intermedia`),
+SIIS-03 (otro comando que ignora la corrida viva), SIIS-04 (la tabla intermedia se manda sin releer el estado) y G3-06
+(`correr_alta_siis` corre `corregir_datos_siis --aplicar`). Además la migración `0074` quedó tomada por
+`0074_altaintermediasiis`: la de SIIS-01 pasa a ser la siguiente libre.
+
+**La Ola 0 no está completa.** De sus 16 ítems, 3 están resueltos, 4 parciales y **9 sin tocar**: **3 CRÍTICA**
+(SEC-02, SEC-03, SEC-05), 3 ALTA (SEC-09 etapa 1, SEC-13, SEC-14) y 3 MEDIA (SEC-16, SEC-17, SEC-19). Con el punto 2
+de SEC-01 y el seguimiento R0-01 son 11 ítems. Siguen en la
+Ola 0 (§6). SEC-01 cerró el vector por Basic de un ciudadano, pero SEC-02, SEC-05, SEC-13 y SEC-14 siguen abiertos
+para cualquier usuario del backoffice con sesión.
+
+**Pendientes operativos (PM / ECOM), sin código:** P-08 y `desactivar_usuarios_portal --aplicar` en PRD (SEC-29);
+P-05 y volver a tildar `becas.relevamiento.publico` donde haga falta (OPS-06); P-11/P-12 y prueba del link público en
+testing (SIIS-07); P-15 (D-04); P-10 (G1-01); H-08 (SEC-01).
+
+**Horas del plan:** 620 h restantes del plan original (se cerraron 16 h) + 16 h nuevas (fase 2 de OPS-06, 4 h; R0, 12 h)
+= **636 h** (detalle por ola en §6).
+
 Base auditada: `origin/development @ 917e583` (01-oct-2026). Producción: MariaDB de ECOM. Documento consolidado de tres
 pasadas: descubrimiento (8 áreas), verificación adversarial independiente con tests, y profundización de huecos.
 
@@ -183,25 +234,28 @@ refutadas y varias ajustadas, más 5 problemas nuevos; se trata como un único f
 
 ### 1.4 Top-10 de riesgos, en lenguaje claro
 1. **Cualquiera en internet consulta datos de RENAPER** (domicilio, si la persona falleció) de cualquier DNI, sin login,
-   por dos puertas distintas (SEC-04, G1-02).
+   por dos puertas distintas (SEC-04, G1-02). *(✅ 03-oct: las dos cerradas, #509 y #510.)*
 2. **Un beneficiario puede quedar dado de alta dos veces en SIIS** (que no tiene baja) por un doble clic, por el proceso
    masivo junto con el botón, o porque un corte de red se registra como «error, reintentar» (SIIS-01, SIIS-02).
 3. **Un anónimo se crea una cuenta de «ciudadano» sobre un legajo existente con solo el DNI** y con esa cuenta usa la API
-   del backoffice: lista el personal, el padrón y crea provincias (SEC-29, SEC-01).
+   del backoffice: lista el personal, el padrón y crea provincias (SEC-29, SEC-01). *(🟡 03-oct: registro apagado
+   y Basic cerrado, #511 y #509; falta desactivar las cuentas existentes en PRD.)*
 4. **El admin de un programa puede tomar la cuenta de un superusuario** o de un usuario de otro programa, y quien
    administra solo roles o solo usuarios puede darse el control total del programa (SEC-03, G1b-02, SEC-05).
 5. **Cualquier usuario logueado puede cambiar o borrar ciudadanos y provincias por API** y desactivar a otros usuarios
    (SEC-02, SEC-13, SEC-05).
 6. **Desde el chat público se crean legajos con nombres inventados** que después se usan para informar a SIIS (G1-01).
+   *(✅ 03-oct: el chat ya no crea legajos, #510; G1-01 queda 🟡 por la fase 2 y `evaluar/`.)*
 7. **Un nombre de rol con código se ejecuta en todas las páginas del backoffice**, y con una sesión robada se cambia la
-   clave sin conocer la actual (SEC-08, G2-03).
+   clave sin conocer la actual (SEC-08, G2-03). *(🟡 03-oct: el XSS se cerró, #507; G2-03 sigue.)*
 8. **Cada deploy borra configuración hecha a mano en Roles** (p. ej. la capacidad de ver los casos del link público del
    Referente, tildada el 25/09 y probablemente perdida en el deploy del 28/09), y reactiva roles desactivados (OPS-06).
+   *(🟡 03-oct: #508 dejó de pisarla; falta verificar con P-05 y volver a tildar en PRD.)*
 9. **Borrar una pregunta o un requisito borra en silencio los documentos (fotos de DNI) de todos los casos**; el revisor
    los ve como «faltantes» (DAT-01).
 10. **Producción está ciega ante errores** (los tracebacks de los 500 no llegan a los logs de ECOM) y el alta de
     relevamientos públicos puede dar 500 en MariaDB ≥ 10.7 con un arreglo que está en una rama sin mergear (OPS-03,
-    SIIS-07).
+    SIIS-07). *(🟡 03-oct: SIIS-07 mergeado, #515; OPS-03 sigue.)*
 
 ---
 
@@ -216,7 +270,7 @@ indica qué ítems no conviene cerrar sin la respuesta.
 |---|---|---|---|
 | H-01 | ¿Qué versión de MariaDB corre en PRD (y en testing de ECOM)? | Correr P-11. Mientras tanto, asumir ≥ 10.7 (UUID nativo) | SIIS-07 (prueba), TST-01 (matriz), SIIS-03 punto 7 (`SKIP LOCKED`) |
 | H-02 | ¿ECOM tiene instalado el CronJob `generar_alertas`? | Inferirlo con P-16 y preguntarlo a ECOM | Severidad de LEG-01/PERF-20; G1c-04 (agravante) |
-| H-03 | ¿La rama `fix/token-publico-uuid-mariadb` quedó sin PR a propósito? | Mergearla en la Ola 1 con el requerimiento renumerado | SIIS-07 → SIIS-01 (migración 0074) |
+| H-03 | ¿La rama `fix/token-publico-uuid-mariadb` quedó sin PR a propósito? | ✅ Resuelta (01-oct): mergeada en #515 como Cambio 99 | — (la migración de SIIS-01 ya no es la 0074: la ocupa `0074_altaintermediasiis`) |
 | H-04 | ¿La Ola 0 va como hotfix fuera del ciclo o como prioridad 1 del plan? | Hotfix fuera de ciclo (cierra exposición anónima de datos personales) | Calendario de la Ola 0 |
 | H-05 | Manifiestos reales de ECOM: `LOCAL_BOOTSTRAP_COMMANDS` del initContainer, CronJobs (deadlines, `timeZone`), ingress (timeout, `Origin` en `/ws/`, `/media/`), réplicas | Pedirlos a ECOM (`kubectl get … -o yaml`) | OPS-06 (impacto), G3-04, G1c-04, OPS-07, PERF-03, SEC-09 etapa 2 |
 | H-06 | Configuración del Redis de ECOM (política de evicción, bases separadas) | Pedirla a ECOM | PERF-10, G1c-12 |
@@ -269,7 +323,7 @@ indica qué ítems no conviene cerrar sin la respuesta.
 | D-C08 | Alta manual de ciudadano después de un resultado «fallecido» | Guardar `estado_renaper=FALLECIDO` | G1c-08 |
 | D-O04 | ¿`/health/ready/` como readinessProbe? | No: solo monitoreo externo | OPS-04 |
 | D-O05 | ¿Subir `read_timeout` solo para `migrate`? (choca con el Cambio 91) | Sí, solo en `migrate` | OPS-05 |
-| D-O06 | Roles sembrados: ¿editables? ¿«Operador de backoffice» sigue con `usuario.administrar` y `rol.administrar`? | Respetar activo y nombre; sincronizar solo capacidades base; las opt-in sobreviven; el Operador se crea solo si no existe (sacarle las dos capacidades de admin si el #59 quería un operador acotado) | OPS-06 |
+| D-O06 | Roles sembrados: ¿editables? ¿«Operador de backoffice» sigue con `usuario.administrar` y `rol.administrar`? | ✅ Decidida (PM, 01-oct): respetar activo y nombre; sincronizar solo capacidades base; las opt-in sobreviven; el Operador se crea solo si no existe y **queda como está** (no protegido, conserva sus capacidades). Aplicado en #508 | OPS-06 (fase 2 pendiente) |
 | D-D01 | ¿Un requisito en uso se desactiva o se prohíbe tocarlo? | Se desactiva (fase 2 de DAT-01) | DAT-01 fase 2 |
 | D-F01 | ¿Swipe para abrir el sidebar en celular? | No | FE-01 |
 | D-F16 | «Gestión de Programas» de Legajos: ¿borrar o arreglar? | Borrar | FE-16 |
@@ -463,28 +517,35 @@ SELECT REGEXP_REPLACE(dni, '[^0-9]', '') AS dni_normalizado, COUNT(*) AS n, GROU
 ## 4. Hallazgos por dominio (índice)
 
 Fichas completas en `hallazgos/`. Orden por severidad dentro de cada dominio. «Ola» remite a §6; «v2» a §7.
+Avance al 03-oct-2026: ✅ resuelto · 🟡 parcial; sin marca = ⬜ pendiente.
 
-### 4.1 Seguridad y autorización → `hallazgos/01-seguridad.md` (41)
-- **CRÍTICA:** SEC-01 Basic en `/api/` (0) · SEC-02 CRUD del padrón por API (0) · SEC-03 toma de cuentas por el admin de
-  programa (0) · SEC-04 RENAPER anónimo (0) · SEC-05 activar/desactivar usuarios por API (0).
-- **ALTA:** SEC-06 `becas.*` en roles de otro programa (2) · SEC-07 `programa.configurar` global (2) · SEC-08 XSS por
+### 4.1 Seguridad y autorización → `hallazgos/01-seguridad.md` (41 + 2 seguimientos)
+Avance: 3 ✅ · 3 🟡 · 35 ⬜ (+ R0-01, R0-05 ⬜).
+- **CRÍTICA:** 🟡 SEC-01 Basic en `/api/` (0) · SEC-02 CRUD del padrón por API (0) · SEC-03 toma de cuentas por el admin de
+  programa (0) · ✅ SEC-04 RENAPER anónimo (0) · SEC-05 activar/desactivar usuarios por API (0).
+- **ALTA:** SEC-06 `becas.*` en roles de otro programa (2) · SEC-07 `programa.configurar` global (2) · ✅ SEC-08 XSS por
   nombre de rol (0) · SEC-09 `/media/` sin login en DEV (0/2) · SEC-10 adjuntos sin capacidad (2) · SEC-11 APIs JSON de
   legajos (2) · SEC-12 derivaciones por GET (2) · SEC-13 geografía escribible (0) · SEC-14 APIs del dashboard (0) ·
-  SEC-29 registro del portal (0) · G1-01 chat público crea legajos (0) · G1-02 segundo oráculo RENAPER (0).
+  🟡 SEC-29 registro del portal (0) · 🟡 G1-01 chat público crea legajos (0/7) · ✅ G1-02 segundo oráculo RENAPER (0).
 - **MEDIA:** SEC-15 uploads · SEC-16 lista de personal · SEC-17 API de roles · SEC-18 alertas · SEC-19 debug con XSS ·
   SEC-20 CSV injection · SEC-21 cupo del Regional · SEC-22 RN-P13 · SEC-23 PATCH de la app · SEC-24 autovalidación ·
   SEC-25 throttle de personas · SEC-26 login/token/clave provisoria · SEC-27 `verify=False` · G1c-04 `/ws/alertas/`.
 - **BAJA:** SEC-30 a SEC-37 · G1c-10 admin en todos los entornos · G1c-16 payload RENAPER en sesión.
+- **Seguimientos (BAJA/MINOR):** R0-01 `evaluar/` anónimo de conversaciones (0) · R0-05 tasa `renaper` sin consumidor (2).
 
-### 4.2 SIIS, Becas, app de campo y reportes → `hallazgos/02-siis-becas.md` (60)
+### 4.2 SIIS, Becas, app de campo y reportes → `hallazgos/02-siis-becas.md` (60 + 3 seguimientos)
+Avance: 1 ✅ · 0 🟡 · 59 ⬜ (+ R0-04, R0-06, R0-07 ⬜).
 - **CRÍTICA:** SIIS-01 alta sin exclusión mutua (1).
 - **ALTA:** SIIS-02 resultado ambiguo · SIIS-03 masivo · SIIS-04 estado viejo en masivo · SIIS-06 catálogo vacío ·
-  SIIS-07 `token_publico` · SIIS-08 identidad validada vs legajo · V2-NEW-03 duplicados existentes (todos Ola 1).
+  ✅ SIIS-07 `token_publico` · SIIS-08 identidad validada vs legajo · V2-NEW-03 duplicados existentes (todos Ola 1).
 - **MEDIA:** SIIS-05, 09, 10, 11, 12, 13 · BEC-01, 02, 03, 04, 05, 06, 07, 09, 10, 11 · G1-03, 04, 05, 08, 09 · G2-01.
 - **BAJA:** SIIS-14 a 21 · BEC-14 a 21, 23, 24, 25 · G1-06, 07, 10, 11, 12, 13, 14, 16 · G1c-15 · G3-06.
 - **INFO:** BEC-22.
+- **Seguimientos (BAJA/MINOR):** R0-04 raíz `/api/becas/` con Token (3) · R0-06 `MultipleObjectsReturned` en el link (3) ·
+  R0-07 `q_uuid_en_texto` sin guarda (3).
 
 ### 4.3 Dispositivos, Merenderos y Legajos → `hallazgos/03-dispositivos-merenderos-legajos.md` (21)
+Avance: 21 ⬜.
 - **ALTA:** DIS-01 `__date`/CONVERT_TZ (parchear v1, Ola 5) · DIS-02 doble alojamiento (v2) · DIS-03 espera huérfana
   (v2) · LEG-03 red familiar (Ola 5).
 - **MEDIA:** DIS-04, 05, 06 (v2) · LEG-01 alertas recreadas (Ola 4) · LEG-04 AJAX que traga errores (Ola 5) · G1c-08 alta
@@ -493,22 +554,28 @@ Fichas completas en `hallazgos/`. Orden por severidad dentro de cada dominio. «
   G1c-17 (Ola 2).
 
 ### 4.4 Performance → `hallazgos/04-performance.md` (21)
+Avance: 21 ⬜ (PERF-01 con «⚠ Actualizar» por #513).
 - **ALTA:** PERF-04 padrón · PERF-02 cupo.
 - **MEDIA:** PERF-01 payload/hidratar · PERF-03 Excel · PERF-07 pantalla del masivo · PERF-11 foto `definicion` (Ola 7) ·
   PERF-20 `generar_alertas` · G1b-11 export del dashboard · G1c-09 fichas del admin.
 - **BAJA:** PERF-06, 08, 10, 12, 13, 15, 16, 19 · PERF-17, 18 (v2) · G1c-11 · G3-03 (Ola 2).
 
-### 4.5 Datos, operación, CI y tests → `hallazgos/05-datos-operacion-tests.md` (24)
-- **ALTA:** OPS-06 seeds de arranque (Ola 0) · DAT-01 cascada de adjuntos · OPS-03 logs de 500.
+### 4.5 Datos, operación, CI y tests → `hallazgos/05-datos-operacion-tests.md` (24 + 2 seguimientos)
+Avance: 0 ✅ · 1 🟡 · 23 ⬜ (+ R0-02, R0-03 ⬜).
+- **ALTA:** 🟡 OPS-06 seeds de arranque (Ola 0; fase 2 → Ola 2) · DAT-01 cascada de adjuntos · OPS-03 logs de 500.
 - **MEDIA:** OPS-01, 02, 04, 05, 07 · TST-01, 02 · G1c-12.
 - **BAJA:** DAT-02, 03, 05 · V2-NEW-05 · OPS-11, 12 · TST-03 · G2-05 · G3-04, 05 · OPS-10, 13, 14 (Ola 7).
+- **Seguimientos (BAJA/MINOR):** R0-02 docs con `portal:ciudadano_mi_perfil` (7) · R0-03 fecha fija que vence el
+  01-ene-2027 (3, antes del 31-dic-2026).
 
 ### 4.6 Usuarios, roles y dashboards → `hallazgos/06-usuarios-dashboards.md` (11)
+Avance: 11 ⬜.
 - **ALTA:** G1b-02 autootorgamiento de capacidades.
 - **MEDIA:** G1b-05 cuentas fantasma · G1b-06 capacidades globales borradas · G2-03 cambio de clave sin la actual.
 - **BAJA:** G1b-07, 08, 09, 10, 12 · G2-04 · G2-06.
 
 ### 4.7 Front del backoffice → `hallazgos/07-front.md` (28)
+Avance: 28 ⬜.
 - **ALTA:** FE-02 `toastr` · FE-04 paginación de Geografía · FE-05 wizard · FE-06 clases inexistentes.
 - **MEDIA:** FE-01, 07, 08, 09, 10, 11, 12, 13, 17, 18, 19, 20, 21 · V5A-NEW-01 · V5A-NEW-07.
 - **BAJA:** FE-14, 16, 22, 23, 24, 25, 26 · V5A-NEW-04 · V5A-NEW-08.
@@ -565,18 +632,23 @@ Decisiones D1-D5 en §2.3.
 para implementación asistida por agente, incluyendo test, verificación y entrada de requerimientos (no incluye QA
 funcional ni coordinación con ECOM). Las horas de cada ola suman los esfuerzos de sus ítems.
 
-| Ola | Objetivo | Ítems | Horas |
-|---|---|---:|---:|
-| 0 | Hotfix de seguridad y seeds | 16 | 36 |
-| 1 | Integridad SIIS | 23 | 72 |
-| 2 | Autorización (RBAC, legajos, alcance de Becas, usuarios) | 36 | 116 |
-| 3 | Datos, operación, CI, app de campo y reglas de Becas | 55 | 158 |
-| 4 | Performance | 19 | 52 |
-| 5 | Bugs de front y parches v1 de Legajos/Dispositivos | 31 (+ V5A-NEW-07 b) | 114 |
-| 6 | Agente de diseño | 4 (+8 pasos) | 42 |
-| 7 | Deuda | 9 (+ fase 2 de G1-01) | 46 |
-| v2 | Criterios de aceptación de la v2 (§7), no se implementan en v1 | 13 | — |
-| **Total** | | **206** | **636** |
+| Ola | Objetivo | Ítems | Horas | Ítems al 03-oct | Horas al 03-oct |
+|---|---|---:|---:|---:|---:|
+| 0 | Hotfix de seguridad y seeds | 16 | 36 | 11 (9 pendientes + SEC-01 parcial + R0-01) | 24 |
+| 1 | Integridad SIIS | 23 | 72 | 22 (− SIIS-07) | 70 |
+| 2 | Autorización (RBAC, legajos, alcance de Becas, usuarios) | 36 | 116 | 38 (+ fase 2 de OPS-06, + R0-05) | 120 |
+| 3 | Datos, operación, CI, app de campo y reglas de Becas | 55 | 158 | 59 (+ R0-03, R0-04, R0-06, R0-07) | 166 |
+| 4 | Performance | 19 | 52 | 19 | 52 |
+| 5 | Bugs de front y parches v1 de Legajos/Dispositivos | 31 (+ V5A-NEW-07 b) | 114 | 31 (+ V5A-NEW-07 b) | 114 |
+| 6 | Agente de diseño | 4 (+8 pasos) | 42 | 4 (+8 pasos) | 42 |
+| 7 | Deuda | 9 (+ fase 2 de G1-01) | 46 | 10 (+ fase 2 de G1-01; + R0-02) | 48 |
+| v2 | Criterios de aceptación de la v2 (§7), no se implementan en v1 | 13 | — | 13 | — |
+| **Total** | | **206** | **636** | **207** | **636** |
+
+Al 03-oct-2026 se cerraron 16 h del plan (SEC-04, SEC-08, G1-02, SIIS-07, la parte hecha de SEC-29, G1-01 y OPS-06; el
+punto 2 de SEC-01 conserva sus 2 h) y entraron 16 h nuevas (fase 2 de OPS-06, 4 h, que el plan no contaba —ver m-6—, y
+los seguimientos R0, 6 × 2 h; R0-05 va dentro de SEC-25). SEC-29 queda fuera de las olas: lo que falta es operativo.
+Los 207 ítems al 03-oct = 198 pendientes + SEC-01, OPS-06 (parciales) + 7 R0; G1-01 sigue como «fase 2» de la Ola 7.
 
 ### Dependencias entre olas
 ```mermaid
@@ -603,7 +675,14 @@ tracebacks no se diagnostica el deploy de las olas siguientes.
 ### Ola 0 — Hotfix de seguridad y seeds de arranque
 - **Objetivo:** cerrar toda exposición anónima o de ciudadano del portal, las escrituras por API de cualquier
   autenticado, la toma de cuentas y el XSS global; y que los deploys dejen de pisar la configuración de Roles.
-- **PRs y orden:**
+- **Avance al 03-oct-2026 (PRs #507-#511, 01-oct):** ✅ SEC-04, SEC-08, G1-02 · 🟡 SEC-01 (punto 1), SEC-29 (falta
+  correr `desactivar_usuarios_portal` en PRD), G1-01 (fase Ola 0), OPS-06 (fase 2 → Ola 2). **Queda abierto (24 h):**
+  1. *Superficie anónima restante:* SEC-19 (rutas de debug/test) y R0-01 (`conversaciones/<id>/evaluar/` anónimo). 4 h.
+  2. *APIs del backoffice:* punto 2 de SEC-01 (`BackofficeAutenticado`), SEC-05 (+SEC-16, SEC-17), SEC-02, SEC-13,
+     SEC-14. 10 h.
+  3. *Cuentas:* SEC-03 (con la ampliación G1b-01). 8 h.
+  4. *Infra DEV:* SEC-09 etapa 1 (nginx de icore). 2 h.
+- **PRs y orden (plan original, para referencia):**
   1. *Superficie anónima:* SEC-04 (borrar `/api/legajos/renaper/consultar/`, **sin tocar** `/api/becas/renaper/consultar/`),
      G1-01 + G1-02 (desmontar rutas públicas de conversaciones), SEC-29 (apagar `mi-perfil/*`), SEC-01 (defaults DRF +
      `BackofficeAutenticado`/`RequiereCapacidad`), SEC-19 (rutas de debug/test). 12 h.
@@ -628,9 +707,10 @@ tracebacks no se diagnostica el deploy de las olas siguientes.
   robusto; catálogo y payload sin sorpresas.
 - **PRs y orden:**
   0. V2-NEW-03: correr P-01 en PRD (sin código). 2 h.
-  1. SIIS-07: mergear `fix/token-publico-uuid-mariadb` con el requerimiento renumerado; probar la 0073 en MariaDB ≥ 10.7. 2 h.
-  2. SIIS-01 + SIIS-02 + SIIS-04 + SIIS-05 + BEC-14 (migración 0074 de `EnvioSIIS`, comando `conciliar_envios_siis`,
-     guard de UI). 22 h.
+  1. ✅ SIIS-07: mergeado en #515 (Cambio 99), 01-oct. Queda operativo: P-11/P-12 y prueba en testing de ECOM.
+  2. SIIS-01 + SIIS-02 + SIIS-04 + SIIS-05 + BEC-14 (migración de `EnvioSIIS` —la siguiente libre: la 0074 es
+     `altaintermediasiis`, #517—, comando `conciliar_envios_siis`, guard de UI). **Incluye la séptima vía
+     `sincronizar_tabla_intermedia` y `correr_alta_siis` (⚠ en SIIS-01, 03 y 04).** 22 h.
   3. SIIS-03 (+A5-33) + BEC-11 + BEC-21 (masivo). 6 h.
   4. SIIS-06, SIIS-11, SIIS-12, BEC-01, BEC-02 (independientes, S). 10 h.
   5. SIIS-09 (+PERF-09) **después** del PR 2. 4 h.
@@ -639,10 +719,11 @@ tracebacks no se diagnostica el deploy de las olas siguientes.
 - **Hecho cuando:** V-STD; PoC invertidas de `poc/test_repro_siis_becas.py` pasan (SIIS-01: 1 sola llamada y un solo
   `vigente`; SIIS-02: `ReadTimeout` → INCIERTO no reintentable; SIIS-03: latido por caso, freno, comandos abortan con
   corrida viva; SIIS-04: no informa casos en BAJA; SIIS-05: `DUPLICADO_LOCAL`; SIIS-06: catálogo vacío no escribe;
-  SIIS-11/12; BEC-01/02); la migración 0074 probada en MariaDB real con varios NULL en el índice único y con un formulario
+  SIIS-11/12; BEC-01/02); la migración de `EnvioSIIS` (ya no la 0074) probada en MariaDB real con varios NULL en el índice único y con un formulario
   con 2 `ENVIADO`; `manage.py test programas` completo en verde.
-- **Riesgo de deploy:** medio. Dos migraciones: 0073 (`programas_relevamiento`, tabla chica, `RunPython` con `MODIFY`) y
-  0074 (`programas_enviosiis`: decenas de miles de filas, AddField + índice único + índice `(documento, id_programa)` +
+- **Riesgo de deploy:** medio. Dos migraciones: 0073 (`programas_relevamiento`, tabla chica, `RunPython` con `MODIFY`; ya
+  mergeada en #515) y la de `EnvioSIIS` (hoy sería la 0075; `programas_enviosiis`: decenas de miles de filas, AddField +
+  índice único + índice `(documento, id_programa)` +
   migración de datos). Requisitos: P-01 corrido; no desplegar con una corrida masiva en curso; acordar con ECOM el
   procedimiento de conciliación de INCIERTOS (D-S02) y pedir la clave de idempotencia.
 
@@ -651,12 +732,13 @@ tracebacks no se diagnostica el deploy de las olas siguientes.
   dependa solo de estar logueado.
 - **PRs y orden:**
   1. *Catálogo y roles:* SEC-06 (catálogo + migración de datos + exports + masivo + RENAPER pendientes), SEC-07
-     (`puede_sin_programa`), G1b-02, G1b-06. 22 h.
+     (`puede_sin_programa`), G1b-02, G1b-06 y la **fase 2 de OPS-06** (`RolMeta.clave`, con migración; viene de la
+     Ola 0). 26 h.
   2. *Usuarios:* G1b-05, G1b-07, G1b-08, SEC-26, G2-03. 16 h.
   3. *Legajos:* SEC-10, SEC-11, SEC-12, SEC-18. 10 h.
   4. *WebSocket de alertas:* G1c-04, G1c-17, G3-03. 12 h.
   5. *Alcance en Becas:* SEC-21, SEC-22, SEC-20, SEC-30, BEC-19, BEC-23. 14 h.
-  6. *App de campo:* SEC-23 (+G1-15), SEC-24, SEC-25. 12 h.
+  6. *App de campo:* SEC-23 (+G1-15), SEC-24, SEC-25 (+ R0-05: usar o borrar la tasa `renaper`). 12 h.
   7. *Media y uploads:* SEC-09 etapa 2, SEC-15, SEC-31. 12 h.
   8. *Bajos:* SEC-27, SEC-32, SEC-33, SEC-34, SEC-35, SEC-36, SEC-37, G1c-10, G1c-16. 18 h.
 - **Hecho cuando:** V-STD (+ V-UI en los PR con templates); PoC invertidas de `poc/test_repro_seguridad.py` (SEC-06, 07,
@@ -676,12 +758,13 @@ tracebacks no se diagnostica el deploy de las olas siguientes.
   1. *Operación y deploy:* OPS-03 (adelantable), OPS-01, OPS-04, OPS-05, OPS-07, OPS-11, OPS-12, G3-04, G3-05. 24 h.
   2. *Datos y catálogo:* DAT-01, DAT-02, DAT-03, DAT-05, V2-NEW-05, G1c-08. 18 h.
   3. *Comandos peligrosos:* OPS-02, G2-05, G1c-12. 6 h.
-  4. *CI y tests:* TST-01 (matriz MariaDB), TST-02, TST-03. 18 h.
-  5. *App de campo:* G1-03, G1-04 (+BEC-22), G1-05, G1-06, G1-07, G1-16. 32 h.
+  4. *CI y tests:* TST-01 (matriz MariaDB), TST-02, TST-03, R0-03 (fecha fija que vence el 01-ene-2027: **antes del
+     31-dic-2026**). 20 h.
+  5. *App de campo:* G1-03, G1-04 (+BEC-22), G1-05, G1-06, G1-07, G1-16, R0-04 (raíz `/api/becas/` con Token). 34 h.
   6. *Reglas de Becas:* BEC-03, BEC-04, BEC-05, BEC-06, BEC-07, BEC-09, BEC-10, BEC-15, BEC-16, BEC-17, BEC-18,
      BEC-20, BEC-24. 26 h.
   7. *Integraciones y link público:* SIIS-10, SIIS-13, SIIS-14 (+G3-02), SIIS-15, SIIS-16, SIIS-18, SIIS-20, SIIS-21,
-     G1c-15, G1-11, G1-12, G1-13, G1-14. 26 h.
+     G1c-15, G1-11, G1-12, G1-13, G1-14, R0-06, R0-07 (link público y `q_uuid_en_texto`). 30 h.
   8. *Reportes:* G2-01. 8 h.
 - **Hecho cuando:** V-STD (+ V-UI donde aplique); PoC invertidas de `poc/test_repro_datos_operacion.py` (DAT-01, OPS-03,
   OPS-04), `test_repro_admin_cron_renaper.py` (G1c-08, RENAPER 401/503) y `test_repro_dashboard_campos_propios.py`
@@ -740,7 +823,8 @@ tracebacks no se diagnostica el deploy de las olas siguientes.
 - **Ítems:** OPS-10 (módulos de «optimización» y sus comandos), OPS-13 (dependencias), OPS-14 (código muerto; `.py` con CR),
   FE-14 (29 JS huérfanos), LEG-06 (código muerto de Legajos), BEC-25, G1b-09, G1b-10, **G1-01 fase 2** (apagar
   conversaciones completo: includes, `ws/conversaciones/…` y `ws/alertas-conversaciones/` —**no** `ws/alertas/`—, menú,
-  card del inicio y solapa del legajo; 2 h) y **PERF-11** (tabla
+  card del inicio y solapa del legajo; 2 h; R0-01 se cierra antes, en la Ola 0), **R0-02** (CLAUDE.md y
+  `docs/client/architecture.md` con `portal:ciudadano_mi_perfil`; 2 h) y **PERF-11** (tabla
   `FotoDefinicion`, plan propio, L).
 - **Hecho cuando:** V-STD + V-UI; `git grep -n "phase2\|core.performance.monitoring"` vacío; `pip-audit` y build de imagen
   OK; `collectstatic` sin 404.

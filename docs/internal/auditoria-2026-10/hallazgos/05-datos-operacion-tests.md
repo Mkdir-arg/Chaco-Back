@@ -3,32 +3,34 @@
 Fichas completas del dominio. Convenciones, `V-STD` y `V-UI`: README §0. PoC: `poc/test_repro_datos_operacion.py` y
 `poc/test_repro_admin_cron_renaper.py` (seeds).
 
-| ID | Título | Sev. | Estado | Ola | Esf. |
-|---|---|---|---|---|---|
-| OPS-06 | **Seeds de arranque pisan configuración del ABM** (capacidades, roles, Operador de backoffice, programa Becas) | ALTA | CONF. test | **0** | S-M |
-| DAT-01 | Borrar una pregunta o requisito borra los adjuntos de todos los casos | ALTA | CONF. test | 3 | S (+M fase 2) |
-| OPS-03 | Los tracebacks de 500 no llegan a stdout | ALTA | CONF. test | 3 (adelantable) | S |
-| OPS-01 | Sin guarda de coherencia `django_migrations` ↔ esquema antes de `migrate` | MEDIA | CONF. código | 3 | M |
-| OPS-02 | `crear_usuarios_sistema` y seeds demo con claves conocidas viajan en el release | MEDIA | CONF. ajustado | 3 | S |
-| OPS-04 | `/health/` siempre 200 y tapa `health_check.urls` | MEDIA | CONF. test | 3 | S |
-| OPS-05 | `read_timeout=10 s` también corta `migrate` | MEDIA | PLAUSIBLE | 3 | S |
-| OPS-07 | Bootstrap frágil (`set -eu`, opcionales fatales, réplicas) | MEDIA | CONF. ajustado | 3 | S |
-| TST-01 | La CI no prueba MariaDB | MEDIA | CONF. ajustado (tesis central refutada) | 3 | M |
-| TST-02 | Configuración sin tests de comportamiento; tests que no prueban nada | MEDIA | CONF. | 3 | M |
-| G1c-12 | `debug_ciudadanos` hace `FLUSHDB` del Redis compartido | MEDIA | CONF. código | 3 | S |
-| DAT-02 | El admin de Django borra casos y relevamientos con su auditoría | BAJA | CONF. ajustado | 3 | S |
-| DAT-03 | `dni_titular` desincronizado del DNI real | BAJA | PLAUSIBLE | 3 | S |
-| DAT-05 | El Excel del padrón reemplazado/quitado queda en `media/` (o se borra antes del commit) | BAJA | CONF. | 3 | S |
-| V2-NEW-05 | Un restore deja pks de legajo en hex que el ORM de MariaDB no encuentra | BAJA | a confirmar | 3 | S |
-| OPS-10 | Módulos de «optimización» con DDL y `SET GLOBAL` en el release | BAJA | CONF. ajustado | 7 | S-M |
-| OPS-11 | `migrate --run-syncdb` en el entrypoint | BAJA | CONF. ajustado | 3 | S |
-| OPS-12 | QA no reproduce el cache de PRD y declara `ENVIRONMENT=prd` | BAJA | CONF. | 3 | S |
-| OPS-13 | Dependencias sin uso en la imagen | BAJA | CONF. | 7 | S |
-| OPS-14 | Código muerto o stub; un `.py` vivo que git trata como binario | BAJA | CONF. | 7 | S |
-| TST-03 | Coverage global de 48 % sobre todo el repo | BAJA | CONF. | 3 | S |
-| G2-05 | `import_users_from_csv` reparte grupos de un usuario fijo y pisa cuentas | BAJA | CONF. lectura | 3 | S |
-| G3-04 | CronJobs de referencia sin deadlines, `backoffLimit` ni `timeZone` | BAJA | PLAUSIBLE | 3 | S |
-| G3-05 | Cron de icore sin versionar y sin vigilancia | BAJA | CONF. lectura | 3 | S |
+| ID | Título | Sev. | Estado | Ola | Esf. | Avance 03-oct |
+|---|---|---|---|---|---|---|
+| OPS-06 | **Seeds de arranque pisan configuración del ABM** (capacidades, roles, Operador de backoffice, programa Becas) | ALTA | CONF. test | **0** | S-M | 🟡 |
+| DAT-01 | Borrar una pregunta o requisito borra los adjuntos de todos los casos | ALTA | CONF. test | 3 | S (+M fase 2) | ⬜ |
+| OPS-03 | Los tracebacks de 500 no llegan a stdout | ALTA | CONF. test | 3 (adelantable) | S | ⬜ |
+| OPS-01 | Sin guarda de coherencia `django_migrations` ↔ esquema antes de `migrate` | MEDIA | CONF. código | 3 | M | ⬜ |
+| OPS-02 | `crear_usuarios_sistema` y seeds demo con claves conocidas viajan en el release | MEDIA | CONF. ajustado | 3 | S | ⬜ |
+| OPS-04 | `/health/` siempre 200 y tapa `health_check.urls` | MEDIA | CONF. test | 3 | S | ⬜ |
+| OPS-05 | `read_timeout=10 s` también corta `migrate` | MEDIA | PLAUSIBLE | 3 | S | ⬜ |
+| OPS-07 | Bootstrap frágil (`set -eu`, opcionales fatales, réplicas) | MEDIA | CONF. ajustado | 3 | S | ⬜ |
+| TST-01 | La CI no prueba MariaDB | MEDIA | CONF. ajustado (tesis central refutada) | 3 | M | ⬜ |
+| TST-02 | Configuración sin tests de comportamiento; tests que no prueban nada | MEDIA | CONF. | 3 | M | ⬜ |
+| G1c-12 | `debug_ciudadanos` hace `FLUSHDB` del Redis compartido | MEDIA | CONF. código | 3 | S | ⬜ |
+| DAT-02 | El admin de Django borra casos y relevamientos con su auditoría | BAJA | CONF. ajustado | 3 | S | ⬜ |
+| DAT-03 | `dni_titular` desincronizado del DNI real | BAJA | PLAUSIBLE | 3 | S | ⬜ |
+| DAT-05 | El Excel del padrón reemplazado/quitado queda en `media/` (o se borra antes del commit) | BAJA | CONF. | 3 | S | ⬜ |
+| V2-NEW-05 | Un restore deja pks de legajo en hex que el ORM de MariaDB no encuentra | BAJA | a confirmar | 3 | S | ⬜ |
+| OPS-10 | Módulos de «optimización» con DDL y `SET GLOBAL` en el release | BAJA | CONF. ajustado | 7 | S-M | ⬜ |
+| OPS-11 | `migrate --run-syncdb` en el entrypoint | BAJA | CONF. ajustado | 3 | S | ⬜ |
+| OPS-12 | QA no reproduce el cache de PRD y declara `ENVIRONMENT=prd` | BAJA | CONF. | 3 | S | ⬜ |
+| OPS-13 | Dependencias sin uso en la imagen | BAJA | CONF. | 7 | S | ⬜ |
+| OPS-14 | Código muerto o stub; un `.py` vivo que git trata como binario | BAJA | CONF. | 7 | S | ⬜ |
+| TST-03 | Coverage global de 48 % sobre todo el repo | BAJA | CONF. | 3 | S | ⬜ |
+| G2-05 | `import_users_from_csv` reparte grupos de un usuario fijo y pisa cuentas | BAJA | CONF. lectura | 3 | S | ⬜ |
+| G3-04 | CronJobs de referencia sin deadlines, `backoffLimit` ni `timeZone` | BAJA | PLAUSIBLE | 3 | S | ⬜ |
+| G3-05 | Cron de icore sin versionar y sin vigilancia | BAJA | CONF. lectura | 3 | S | ⬜ |
+| R0-02 | `CLAUDE.md` y `docs/client/architecture.md` todavía nombran `portal:ciudadano_mi_perfil` | BAJA (MINOR) | revisión Ola 0 | 7 | S | ⬜ |
+| R0-03 | Fecha fija en `programas/tests/test_becas_relevamientos.py:636-648` que vence el 01-ene-2027 | BAJA (MINOR) | revisión Ola 0 | 3 (CI y tests) | S | ⬜ |
 
 ---
 
@@ -36,6 +38,8 @@ Fichas completas del dominio. Convenciones, `V-STD` y `V-UI`: README §0. PoC: `
 
 ### OPS-06 · Seeds de arranque pisan la configuración que el ABM deja editar
 **Severidad:** ALTA (sube desde la MEDIA de OPS-06 de V6 por G1c-02) · **Estado:** CONFIRMADO con test (`poc/test_repro_admin_cron_renaper.py::G1c02SeedPisaCapacidadesTests`; `poc/test_repro_usuarios.py::G2OperadorBackofficeSeedTests`); impacto en PRD PLAUSIBLE con alta probabilidad · **Origen:** A8-08, G1c-02, G1c-03, G2-02 · **Ola:** **0** · **Esfuerzo:** S-M (M si se agrega `RolMeta.clave`) · **Decisión:** D-O06
+
+**Resolución:** 🟡 Parcial en #508 (Cambio 104), 01-oct-2026 — puntos 1-3: las opt-in (`seed_becas.CAPACIDADES_OPT_IN`) sobreviven al seed; de un rol existente no se pisan descripción, activo ni protegido; «Operador de backoffice» se siembra solo al crearlo; `crear_programas` busca por `codigo` y no toca un programa existente (cubre G1c-03); tests en `users/tests/test_seed_datos_base.py`. DECISIÓN PM 01-oct (D-O06): «Operador de backoffice» queda como está (no protegido, conserva sus capacidades). Falta: la fase 2 (`RolMeta.clave`: un rol renombrado sigue generando un segundo rol en el arranque, escenario 3) → Ola 2, PR 1 (+4 h); P-05 en PRD y volver a tildar `becas.relevamiento.publico` donde el deploy del 28/09 la haya borrado (operativo, PM).
 - **Ubicación:** `programas/management/commands/seed_becas.py:296-325` (`group.permissions.set(...)` por rol, línea 325; `:56-61` excluye `becas.relevamiento.publico`), `:313-325` (`asegurar_roles_becas`: `update_or_create(... "activo": True, "protegido": False ...)`); `users/management/commands/seed_rbac.py:86-111` (`RolMeta.update_or_create(... "protegido": False, "activo": True)` + `permissions.set` con `usuario.administrar` y `rol.administrar` sobre «Operador de backoffice», línea 110); `legajos/management/commands/crear_programas.py:28-40` (`update_or_create(tipo=BECAS, defaults={estado ACTIVO, nombre, color, orden})`); `users/views/roles.py:80-127` (el ABM permite renombrar, desactivar y borrar roles); `configuracion/views/programas.py:430-452` (permite cambiar el estado del programa); `docker-entrypoint.sh:61-62` (default `seed_datos_base crear_programas seed_catalogo_siis` en cada arranque).
 - **¿Corre en cada arranque en ECOM?** Sí según lo documentado: Historial del Cambio 30 (27/08) dice que ECOM usa el initContainer `bootstrap`; `docker/k8s/bootstrap-initcontainer.yaml` corre `args: ["bootstrap"]` → `LOCAL_BOOTSTRAP_COMMANDS` = `seed_datos_base crear_programas` (`.env.qa.example:95`) o el default. **Todo pod nuevo (deploy, reschedule, reinicio) lo ejecuta.** En icore, en cada `up` de `web`. El manifiesto real de ECOM no está en el repo (por eso PLAUSIBLE).
 - **Escenarios:**
@@ -62,6 +66,8 @@ Fichas completas del dominio. Convenciones, `V-STD` y `V-UI`: README §0. PoC: `
 
 ### DAT-01 · Borrar una pregunta general o un requisito nativo borra los adjuntos de todos los casos
 **Severidad:** ALTA (era CRÍTICA; sube a CRÍTICA si PRD no tiene backups de base con retención) · **Estado:** CONFIRMADO-AJUSTADO con test (`A801CascadeTests`) · **Origen:** A8-01, G1c-01 (aporte); relacionado: V6-NEW-02 (Dispositivos, patrón opuesto) · **Ola:** 3 · **Esfuerzo:** S (fase 1) / M (fase 2) · **Decisión:** D-D01
+
+**⚠ Actualizar (03-oct-2026):** `seed_becas.py` cambió con #508: `ADJUNTOS_OBLIGATORIOS` está hoy en `:150` y su alta en `:209`; las preguntas ARCHIVO siguen sin `protegido`.
 - **Ubicación:** `programas/models/__init__.py:2706-2721` (`AdjuntoFormulario.pregunta_global` y `.requisito_nativo` con `on_delete=CASCADE`); `programas/views/configuracion.py:682-695` (`requisito_eliminar`, sin guarda), `:1046-1057` (`pregunta_eliminar`, solo frena `protegido`); admin `PreguntaGlobalAdmin`, `RequisitoNativoAdmin`, `ProgramaSiisAdmin` (`RequisitoNativo.programa` CASCADE); `seed_becas.py:133-139`, `:163-176` (siembra las 5 preguntas ARCHIVO —«Foto DNI - Frente/Dorso», «Certificado de domicilio»…— **sin `protegido`** y las busca por `get_or_create(texto=…)`); `_pregunta_row.html:72-79` (botón Eliminar si `not p.protegido`).
 - **Escenario (reproducido):** pregunta ARCHIVO con adjunto en un caso FINALIZADO + un `ItemDiseno` que la usa → POST → 302; `adjunto existe: False`, `item diseno existe: False`, `archivo en storage: True`, `data residual: {'globales': {'18': {'archivo_adjunto': True}}}`. Igual con el requisito. Agravantes: la revisión arma la vista desde la foto (`respuestas.py:_adjuntos_por_clave`), así que el revisor ve el documento **como faltante**, no como borrado; el modal del requisito dice «deja de pedirse… No se puede deshacer» (`_requisitos_panel.html:51`); si se borra «Foto DNI - Frente», el próximo arranque la recrea con otro pk y la pantalla se ve sana (G1c-01).
 - **Lo que NO hay que hacer:** pasar `ItemDiseno.pregunta/requisito` a PROTECT: el Cambio 58 decidió «el diseño sigue al catálogo (auto-append, remove)».
@@ -136,6 +142,8 @@ Fichas completas del dominio. Convenciones, `V-STD` y `V-UI`: README §0. PoC: `
 
 ### TST-02 · Configuración sin tests de comportamiento; tests que no prueban nada
 **Severidad:** MEDIA · **Estado:** CONFIRMADO · **Origen:** A8-14 · **Ola:** 3 · **Esfuerzo:** M
+
+**⚠ Actualizar (03-oct-2026):** el ítem (2) del Top-5 (`seed_datos_base` idempotente y respetuoso del ABM) ya existe: `users/tests/test_seed_datos_base.py` (#508). En el mapa de cobertura, `seed_datos_base` y `crear_programas` ya tienen test.
 - **Ubicación:** `configuracion/views/*.py` (~942 LOC; `models/`, `services/` y `migrations/` vacíos); único test que toca rutas `configuracion:` es `users/tests/test_menu_rbac.py` (solo el menú); `configuracion/tests/test_services_actividades.py:5-6` y `tramites/tests/test_package_exports.py:6` (`assertTrue(True)`); el wizard crea `Programa` (`configuracion/views/programas.py:197`) y el ABM borra secretarías (`secretaria.py:108,218`) sin tests.
 - **Propuesta:** borrar los dos `assertTrue(True)`; tests de RBAC de cada vista (sin `config.administrar` → redirect/403), del wizard de 4 pasos con estado en sesión, de `programa_cambiar_estado` (activar sin naturaleza → error) y del borrado de secretaría con subsecretarías (mensaje y no se borra).
 - **Verificación:** coverage de `configuracion/` de ~0 % de vistas a > 60 %.
@@ -170,6 +178,8 @@ Fichas completas del dominio. Convenciones, `V-STD` y `V-UI`: README §0. PoC: `
 
 ### V2-NEW-05 · Un restore posterior a `legajos.0007` deja pks de legajo en hex que el ORM de MariaDB no encuentra
 **Severidad:** BAJA · **Estado:** a confirmar con P-12 · **Origen:** V2-NEW-05 · **Ola:** 3 · **Esfuerzo:** S
+
+**⚠ Actualizar (03-oct-2026):** `q_uuid_en_texto` (#515) cubre `token_publico` y `client_uuid`, no los pk de legajo: este ítem sigue igual.
 - **Ubicación:** `legajos/migrations/0007_ampliar_uuid_legajos.py` normaliza una sola vez; si se restaura una base con filas en hex (dump de un motor sin UUID nativo), `LegajoAtencion.objects.get(pk=uuid)` manda guiones y no encuentra: 404 en el detalle del legajo.
 - **Propuesta:** comando idempotente que re-corra `_normalizar_uuid` (misma función de la migración) y agregarlo al procedimiento de restore (memoria: «Restore de PRD deja tablas huérfanas»).
 
@@ -231,8 +241,8 @@ Fichas completas del dominio. Convenciones, `V-STD` y `V-UI`: README §0. PoC: `
 | `procesar_vencimientos` | k8s 03:10 (UTC); icore `docker/cron/procesar_vencimientos.cron` 03:10; **arranque** de `web` (compose prod, opcional) | diaria + cada arranque | k8s `Forbid`; resto no | BAJA: idempotente, una `atomic` por regla (BEC-22 INFO). Bajo `set -eu` en el arranque (OPS-07). Revierte reaperturas (pendiente Cambio 54, G1-04). |
 | `limpiar_alertas_conversaciones` | k8s 03:30; icore crontab, **sin snippet** | diaria | k8s `Forbid` | BAJA: un `DELETE … WHERE creado < X` sin lotes; si la tabla creciera podría pasar los 10 s de `read_timeout`. App sin uso. |
 | `sincronizar_programas_siis` | k8s 04:00; icore `docker/cron/sincronizar_programas_siis.cron` 04:00 | diaria | k8s `Forbid` | SIIS-06 (catálogo vacío); `CommandError` si SIIS cae; en k8s se reintenta hasta 6 veces (G3-04). |
-| `seed_datos_base` (→ `seed_rbac`, `seed_becas`, roles de menú, `loaddata` si vacío) | `docker-entrypoint.sh:61-62` → web de icore en cada `up`; initContainer `bootstrap` de ECOM en cada pod | cada arranque o deploy | no (réplicas: OPS-07) | **ALTA: OPS-06.** `seed_becas` en `@transaction.atomic`. |
-| `crear_programas` | ídem | cada arranque | no | OPS-06 (pisa estado/nombre/color/orden; `MultipleObjectsReturned` con dos `tipo=BECAS`). |
+| `seed_datos_base` (→ `seed_rbac`, `seed_becas`, roles de menú, `loaddata` si vacío) | `docker-entrypoint.sh:61-62` → web de icore en cada `up`; initContainer `bootstrap` de ECOM en cada pod | cada arranque o deploy | no (réplicas: OPS-07) | **ALTA: OPS-06** (🟡 al 03-oct: #508 dejó de pisar opt-in, activo y Operador; falta `RolMeta.clave`). `seed_becas` en `@transaction.atomic`. |
+| `crear_programas` | ídem | cada arranque | no | OPS-06 (pisaba estado/nombre/color/orden; `MultipleObjectsReturned` con dos `tipo=BECAS`). ✅ al 03-oct: #508 lo crea solo si falta, por `codigo`, y frena con `CommandError` si hay otro de tipo Becas. |
 | `seed_catalogo_siis` | ídem | cada arranque | no | BAJA: ~700 consultas en una `atomic` (`update_or_create` hace UPDATE siempre); un CSV incoherente impide arrancar (OPS-07). |
 | `migrate --run-syncdb` / `collectstatic` | ídem (`RUN_MIGRATIONS`, `RUN_COLLECTSTATIC`) | cada arranque | no | OPS-05, OPS-07, OPS-11; restore de PRD con tablas huérfanas (nunca `--fake`). |
 | Proceso masivo SIIS (hilo en `web`, `CorridaSiis`) | pantalla `/becas/config/programas/<pk>/proceso-masivo/` | a pedido | latido | SIIS-01/02/03. |
@@ -241,6 +251,22 @@ Fichas completas del dominio. Convenciones, `V-STD` y `V-UI`: README §0. PoC: `
 `setup_system`, `initialize_phase2` (OPS-10); `crear_usuarios_sistema` y seeds demo (OPS-02); `setup_roles_contactos` y
 `setup_groups` (OPS-02); `import_users_from_csv` (G2-05); `corregir_datos_siis` (G3-06); `reenviar_siis_pendientes`
 (el Cambio 27 lo pensó para cron, no está programado), `enviar_casos_siis`, `procesar_casos_siis`, `validar_casos_siis` y
-`completar_casos_renaper` (SIIS-01/03, PERF-06); `cerrar_espera_colgada` (correcto: ensayo por defecto y
+`completar_casos_renaper` (SIIS-01/03, PERF-06); `correr_alta_siis` (#513, 01-oct: encadena los `.sql` del organismo, `seed_catalogo_siis`, `completar_casos_renaper`, `corregir_datos_siis --aplicar` y `procesar_casos_siis` por tandas de 500, sin candado de corrida; SIIS-01/03/04, G3-06); `cerrar_espera_colgada` (correcto: ensayo por defecto y
 `select_for_update`); `verificar_usuarios` (inocuo); `load_fixtures`, `load_initial_data`, `cargar_config_dispositivos`,
 `import_padron_dispositivos` (sin revisar en profundidad) y `diagnosticar_*` (SIIS-19).
+
+## Seguimientos de la revisión de la Ola 0 (agregados el 03-oct-2026)
+
+Observaciones MINOR que dejaron los revisores de los PRs de la Ola 0. No son de la base auditada (`917e583`):
+las líneas son de `origin/development @ 7393c41`.
+
+### R0-02 · `CLAUDE.md` y `docs/client/architecture.md` todavía nombran `portal:ciudadano_mi_perfil`
+**Severidad:** BAJA (MINOR del revisor) · **Estado:** CONFIRMADO (lectura) · **Origen:** revisión de la Ola 0 · **Ola:** 7 · **Esfuerzo:** S
+- **Ubicación:** `CLAUDE.md:165` y `docs/client/architecture.md:203` dicen que `PortalCiudadanoMiddleware` redirige a `portal:ciudadano_mi_perfil`; desde #511 (SEC-29) redirige a `portal:home` y esa ruta no existe.
+- **Propuesta:** actualizar los dos textos (documentación; `CLAUDE.md` no viaja en el release).
+
+### R0-03 · Fecha fija en `programas/tests/test_becas_relevamientos.py:636-648` que vence el 01-ene-2027
+**Severidad:** BAJA (MINOR del revisor) · **Estado:** CONFIRMADO (lectura) · **Origen:** revisión de la Ola 0 · **Ola:** 3 (CI y tests) · **Esfuerzo:** S
+- **Ubicación:** `ConvocatoriaTests.test_crear_convocatoria` manda `fecha_fin = "2026-12-31"` con `activo: "on"`; desde el 01-ene-2027 `ConvocatoriaForm.clean()` la rechaza y el Backend CI de todos los PRs queda rojo (mismo patrón que el Cambio 105).
+- **Propuesta:** fechas relativas (`timezone.localdate()` ± `timedelta`), como el Cambio 105; buscar otras fechas fijas con `grep -rn '"202[6-9]-' */tests/`.
+- **Plazo:** antes del 31-dic-2026.

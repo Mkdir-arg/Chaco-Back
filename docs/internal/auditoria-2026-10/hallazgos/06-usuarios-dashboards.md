@@ -6,19 +6,19 @@ PoC: `poc/test_repro_usuarios.py`. Lo de la API REST de usuarios está en SEC-05
 «Operador de backoffice» en OPS-06 (absorbe G2-02); `import_users_from_csv` en G2-05; el export del dashboard en G1b-11
 (performance) y G2-01 (campos propios, dominio Becas).
 
-| ID | Título | Sev. | Estado | Ola | Esf. |
-|---|---|---|---|---|---|
-| G1b-02 | Capacidades «parciales» del programa se autootorgan las demás (contradice Cambio 20) | ALTA | CONF. test | 2 | M |
-| G1b-05 | Operador no global deja cuentas activas sin rol, que entran al backoffice | MEDIA | CONF. test | 2 | S |
-| G1b-06 | Admin de programa borra en silencio capacidades globales del rol al guardarlo | MEDIA | CONF. test | 2 | S |
-| G2-03 | «Cambiar contraseña» abierto para cualquier sesión y sin pedir la clave actual | MEDIA | CONF. test | 2 | S |
-| G1b-07 | Desactivar el último rol admin: 500 (programa) o sistema sin admin (global) | BAJA | CONF. test | 2 | S |
-| G1b-08 | Claves tipeadas por un operador sin validadores ni cambio obligatorio | BAJA | CONF. lectura | 2 | S |
-| G1b-09 | «Último administrador» salteable con dos operaciones simultáneas | BAJA | PLAUSIBLE | 7 | M |
-| G1b-10 | Alta rápida: 500 ante colisión en carrera | BAJA | CONF. ajustado | 7 | S |
-| G1b-12 | Dashboard de Becas: período sin tope y `?recalcular=1` sin freno | BAJA | CONF. ajustado | 4 | S |
-| G2-04 | Inicio: los contadores no miden lo que dicen sus etiquetas | BAJA | CONF. lectura | 5 | S |
-| G2-06 | El login pide «Tu correo electrónico» pero autentica por `username` | BAJA | CONF. lectura | 5 | S |
+| ID | Título | Sev. | Estado | Ola | Esf. | Avance 03-oct |
+|---|---|---|---|---|---|---|
+| G1b-02 | Capacidades «parciales» del programa se autootorgan las demás (contradice Cambio 20) | ALTA | CONF. test | 2 | M | ⬜ |
+| G1b-05 | Operador no global deja cuentas activas sin rol, que entran al backoffice | MEDIA | CONF. test | 2 | S | ⬜ |
+| G1b-06 | Admin de programa borra en silencio capacidades globales del rol al guardarlo | MEDIA | CONF. test | 2 | S | ⬜ |
+| G2-03 | «Cambiar contraseña» abierto para cualquier sesión y sin pedir la clave actual | MEDIA | CONF. test | 2 | S | ⬜ |
+| G1b-07 | Desactivar el último rol admin: 500 (programa) o sistema sin admin (global) | BAJA | CONF. test | 2 | S | ⬜ |
+| G1b-08 | Claves tipeadas por un operador sin validadores ni cambio obligatorio | BAJA | CONF. lectura | 2 | S | ⬜ |
+| G1b-09 | «Último administrador» salteable con dos operaciones simultáneas | BAJA | PLAUSIBLE | 7 | M | ⬜ |
+| G1b-10 | Alta rápida: 500 ante colisión en carrera | BAJA | CONF. ajustado | 7 | S | ⬜ |
+| G1b-12 | Dashboard de Becas: período sin tope y `?recalcular=1` sin freno | BAJA | CONF. ajustado | 4 | S | ⬜ |
+| G2-04 | Inicio: los contadores no miden lo que dicen sus etiquetas | BAJA | CONF. lectura | 5 | S | ⬜ |
+| G2-06 | El login pide «Tu correo electrónico» pero autentica por `username` | BAJA | CONF. lectura | 5 | S | ⬜ |
 
 ---
 

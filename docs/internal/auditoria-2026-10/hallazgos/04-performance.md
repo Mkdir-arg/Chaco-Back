@@ -11,29 +11,29 @@ MariaDB ni la latencia de ida y vuelta: esos puntos quedan **NO-MEDIDO en MariaD
 `scripts/perf_budgets.json` + `scripts/perf_audit.py::build_targets` (los dos en el mismo PR: `core/tests/test_performance_budgets.py`
 exige que coincidan).
 
-| ID | Título | Sev. | Estado | Ola | Esf. |
-|---|---|---|---|---|---|
-| PERF-04 | Carga de padrón: cruce caso por caso (13.942 sentencias) | ALTA | CONF. medido; prototipo listo | 4 | M |
-| PERF-02 | Cupo y beneficiarios: páginas anchas con join | ALTA | CONF. (forma medida; MariaDB NO-MEDIDO) | 4 | S |
-| PERF-01 | `armar_payload` por candidato y `hidratar()` con JSON que nadie lee | MEDIA | CONF. ajustado | 4 | S |
-| PERF-03 | Excel de respuestas por persona: 8,9 s de CPU en el request | MEDIA (baja desde ALTA) | CONF. ajustado | 4 | S-M |
-| PERF-07 | Pantalla del masivo: `count()` con 15.532 literales cada 5 s | MEDIA | CONF. ajustado | 4 | S |
-| PERF-11 | La foto `definicion` en cada caso (88 % de los bytes) | MEDIA (estructural) | CONF. medido | 7 | L |
-| PERF-20 | `generar_alertas` recorre todos los ciudadanos activos cada hora | MEDIA | CONF. medido | 4 | S |
-| G1b-11 | Export del dashboard: un `JSON_EXTRACT` por pregunta sobre todo el recorte | MEDIA | PLAUSIBLE | 4 | M |
-| G1c-09 | Admin: fichas de Formulario y Derivación que crecen con la tabla | MEDIA | CONF. test | 4 | S |
-| PERF-06 | `validar_casos_siis` trae todo con JSON en una consulta | BAJA | CONF. código | 4 | S |
-| PERF-08 | `CONN_MAX_AGE = 60` bajo daphne no reutiliza conexiones | BAJA | CONF. ajustado (sonda) | 4 | S |
-| PERF-10 | Redis compartido (sesiones + cache, `allkeys-lru`) y sesión por visita pública | BAJA | CONF. ajustado | 4 | S |
-| PERF-12 | `COUNT(*)` del cupo del link | BAJA | CONF. ajustado | 4 | — (medir) |
-| PERF-13 | Bandeja filtrada por estado raro sin índice combinado | BAJA | PLAUSIBLE | 4 | S (medir) |
-| PERF-15 | Conteos de padrón en cada detalle | BAJA | CONF. código | 4 | S (medir) |
-| PERF-16 | Señal de `Ciudadano`: 4 DEL de Redis por save | BAJA | CONF. medido | 4 | S |
-| PERF-17 | Listados operativos sin paginar (Dispositivos/Merenderos/convocatorias) | BAJA | CONF. código | v2 (criterio) | S |
-| PERF-18 | Ocupación de Dispositivos con `Count(distinct)` sobre camas × admisiones | BAJA | CONF. código | v2 (criterio) | S |
-| PERF-19 | «Último intento» sin índice y subconsulta evaluada dos veces | BAJA | CONF. ajustado | 4 | S |
-| G1c-11 | Admin: N+1 en listados | BAJA | CONF. lectura | 4 | S |
-| G3-03 | `alertas_websocket.js` cargado para todos, con 5 reintentos inútiles | BAJA | CONF. lectura | 2 | S |
+| ID | Título | Sev. | Estado | Ola | Esf. | Avance 03-oct |
+|---|---|---|---|---|---|---|
+| PERF-04 | Carga de padrón: cruce caso por caso (13.942 sentencias) | ALTA | CONF. medido; prototipo listo | 4 | M | ⬜ |
+| PERF-02 | Cupo y beneficiarios: páginas anchas con join | ALTA | CONF. (forma medida; MariaDB NO-MEDIDO) | 4 | S | ⬜ |
+| PERF-01 | `armar_payload` por candidato y `hidratar()` con JSON que nadie lee | MEDIA | CONF. ajustado | 4 | S | ⬜ |
+| PERF-03 | Excel de respuestas por persona: 8,9 s de CPU en el request | MEDIA (baja desde ALTA) | CONF. ajustado | 4 | S-M | ⬜ |
+| PERF-07 | Pantalla del masivo: `count()` con 15.532 literales cada 5 s | MEDIA | CONF. ajustado | 4 | S | ⬜ |
+| PERF-11 | La foto `definicion` en cada caso (88 % de los bytes) | MEDIA (estructural) | CONF. medido | 7 | L | ⬜ |
+| PERF-20 | `generar_alertas` recorre todos los ciudadanos activos cada hora | MEDIA | CONF. medido | 4 | S | ⬜ |
+| G1b-11 | Export del dashboard: un `JSON_EXTRACT` por pregunta sobre todo el recorte | MEDIA | PLAUSIBLE | 4 | M | ⬜ |
+| G1c-09 | Admin: fichas de Formulario y Derivación que crecen con la tabla | MEDIA | CONF. test | 4 | S | ⬜ |
+| PERF-06 | `validar_casos_siis` trae todo con JSON en una consulta | BAJA | CONF. código | 4 | S | ⬜ |
+| PERF-08 | `CONN_MAX_AGE = 60` bajo daphne no reutiliza conexiones | BAJA | CONF. ajustado (sonda) | 4 | S | ⬜ |
+| PERF-10 | Redis compartido (sesiones + cache, `allkeys-lru`) y sesión por visita pública | BAJA | CONF. ajustado | 4 | S | ⬜ |
+| PERF-12 | `COUNT(*)` del cupo del link | BAJA | CONF. ajustado | 4 | — (medir) | ⬜ |
+| PERF-13 | Bandeja filtrada por estado raro sin índice combinado | BAJA | PLAUSIBLE | 4 | S (medir) | ⬜ |
+| PERF-15 | Conteos de padrón en cada detalle | BAJA | CONF. código | 4 | S (medir) | ⬜ |
+| PERF-16 | Señal de `Ciudadano`: 4 DEL de Redis por save | BAJA | CONF. medido | 4 | S | ⬜ |
+| PERF-17 | Listados operativos sin paginar (Dispositivos/Merenderos/convocatorias) | BAJA | CONF. código | v2 (criterio) | S | ⬜ |
+| PERF-18 | Ocupación de Dispositivos con `Count(distinct)` sobre camas × admisiones | BAJA | CONF. código | v2 (criterio) | S | ⬜ |
+| PERF-19 | «Último intento» sin índice y subconsulta evaluada dos veces | BAJA | CONF. ajustado | 4 | S | ⬜ |
+| G1c-11 | Admin: N+1 en listados | BAJA | CONF. lectura | 4 | S | ⬜ |
+| G3-03 | `alertas_websocket.js` cargado para todos, con 5 reintentos inútiles | BAJA | CONF. lectura | 2 | S | ⬜ |
 
 Refutado: **A4-15 / PERF-14** (GZip sobre xlsx): ver README §8.
 
@@ -92,6 +92,8 @@ Refutado: **A4-15 / PERF-14** (GZip sobre xlsx): ver README §8.
 
 ### PERF-01 · `armar_payload` por candidato: consultas repetidas; `hidratar()` trae `definicion` y `respuestas` que nadie lee
 **Severidad:** MEDIA · **Estado:** CONFIRMADO-AJUSTADO (6 consultas por llamada, 8 con `ProvinciaSiis` cargado; no 8-10) · **Origen:** A4-07, A4-01 (parte perf), V4-NEW-02 · **Ola:** 4 · **Esfuerzo:** S
+
+**⚠ Actualizar (03-oct-2026):** `hidratar()` hoy en `proceso_masivo.py:232` (sigue sin `defer`); `procesar_casos_siis.py:202` pasó a `:251`. Con #513, `correr_alta_siis` manda por tandas de 500 y acota la consulta de `hidratar`, pero `procesar_casos_siis --total N` a mano sigue trayendo N de una. `ids_de` ya pide por rangos de pk (`PAGINA_IDS = 2000`, #513).
 - **Ubicación:** `programas/services/siis_envio.py:293-330` (`respuestas_por_destino` consulta `PreguntaGlobal` y `RequisitoNativo` en cada caso), `:172-224` (`Catalogos.provincia_id` / `localidad_id`: 1 a 3 consultas por campo, dos domicilios), `:605` (vuelve a armar el payload); `programas/services/proceso_masivo.py:192` (`hidratar` sin `defer`); `procesar_casos_siis.py:202` (hidrata hasta 5.000 casos en **una** consulta, ~35 MB).
 - **Medición:** `elegir_completos` sobre 200 casos = 1.200 consultas, 2,5 ms/caso; cProfile: lo caro es armar el SQL (`compiler.as_sql` 1,2 de 3,0 s). Con 7.496 candidatos: 45-60 mil consultas, ~40-65 s antes del primer latido (insumo de SIIS-03). `definicion` + `respuestas` ≈ 88 % de los bytes por caso; `armar_payload`, `validacion_siis`, `cupo` y `avisos_resolucion` no las leen y todos los `save()` usan `update_fields`.
 - **Propuesta:**
