@@ -7,14 +7,14 @@ Fichas completas del dominio. Convenciones, `V-STD` y `V-UI`: README §0. PoC: `
 |---|---|---|---|---|---|---|
 | OPS-06 | **Seeds de arranque pisan configuración del ABM** (capacidades, roles, Operador de backoffice, programa Becas) | ALTA | CONF. test | **0** | S-M | 🟡 |
 | DAT-01 | Borrar una pregunta o requisito borra los adjuntos de todos los casos | ALTA | CONF. test | 3 | S (+M fase 2) | ⬜ |
-| OPS-03 | Los tracebacks de 500 no llegan a stdout | ALTA | CONF. test | 3 (adelantable) | S | ⬜ |
-| OPS-01 | Sin guarda de coherencia `django_migrations` ↔ esquema antes de `migrate` | MEDIA | CONF. código | 3 | M | ⬜ |
+| OPS-03 | Los tracebacks de 500 no llegan a stdout | ALTA | CONF. test | **R** (antes 3) | S | ⬜ |
+| OPS-01 | Sin guarda de coherencia `django_migrations` ↔ esquema antes de `migrate` | MEDIA | CONF. código | **R** (antes 3) | M | ⬜ |
 | OPS-02 | `crear_usuarios_sistema` y seeds demo con claves conocidas viajan en el release | MEDIA | CONF. ajustado | 3 | S | ⬜ |
-| OPS-04 | `/health/` siempre 200 y tapa `health_check.urls` | MEDIA | CONF. test | 3 | S | ⬜ |
+| OPS-04 | `/health/` siempre 200 y tapa `health_check.urls` | MEDIA | CONF. test | **R** (antes 3) | S | ⬜ |
 | OPS-05 | `read_timeout=10 s` también corta `migrate` | MEDIA | PLAUSIBLE | 3 | S | ⬜ |
 | OPS-07 | Bootstrap frágil (`set -eu`, opcionales fatales, réplicas) | MEDIA | CONF. ajustado | 3 | S | ⬜ |
-| TST-01 | La CI no prueba MariaDB | MEDIA | CONF. ajustado (tesis central refutada) | 3 | M | ⬜ |
-| TST-02 | Configuración sin tests de comportamiento; tests que no prueban nada | MEDIA | CONF. | 3 | M | ⬜ |
+| TST-01 | La CI no prueba MariaDB | MEDIA | CONF. ajustado (tesis central refutada) | **R** (antes 3) | M | ⬜ |
+| TST-02 | Configuración sin tests de comportamiento; tests que no prueban nada | MEDIA | CONF. | **R** (antes 3) | M (+S-M) | ⬜ |
 | G1c-12 | `debug_ciudadanos` hace `FLUSHDB` del Redis compartido | MEDIA | CONF. código | 3 | S | ⬜ |
 | DAT-02 | El admin de Django borra casos y relevamientos con su auditoría | BAJA | CONF. ajustado | 3 | S | ⬜ |
 | DAT-03 | `dni_titular` desincronizado del DNI real | BAJA | PLAUSIBLE | 3 | S | ⬜ |
@@ -25,12 +25,12 @@ Fichas completas del dominio. Convenciones, `V-STD` y `V-UI`: README §0. PoC: `
 | OPS-12 | QA no reproduce el cache de PRD y declara `ENVIRONMENT=prd` | BAJA | CONF. | 3 | S | ⬜ |
 | OPS-13 | Dependencias sin uso en la imagen | BAJA | CONF. | 7 | S | ⬜ |
 | OPS-14 | Código muerto o stub; un `.py` vivo que git trata como binario | BAJA | CONF. | 7 | S | ⬜ |
-| TST-03 | Coverage global de 48 % sobre todo el repo | BAJA | CONF. | 3 | S | ⬜ |
+| TST-03 | Coverage global de 48 % sobre todo el repo | BAJA | CONF. | **R** (antes 3) | S | ⬜ |
 | G2-05 | `import_users_from_csv` reparte grupos de un usuario fijo y pisa cuentas | BAJA | CONF. lectura | 3 | S | ⬜ |
 | G3-04 | CronJobs de referencia sin deadlines, `backoffLimit` ni `timeZone` | BAJA | PLAUSIBLE | 3 | S | ⬜ |
 | G3-05 | Cron de icore sin versionar y sin vigilancia | BAJA | CONF. lectura | 3 | S | ⬜ |
 | R0-02 | `CLAUDE.md` y `docs/client/architecture.md` todavía nombran `portal:ciudadano_mi_perfil` | BAJA (MINOR) | revisión Ola 0 | 7 | S | ⬜ |
-| R0-03 | Fecha fija en `programas/tests/test_becas_relevamientos.py:636-648` que vence el 01-ene-2027 | BAJA (MINOR) | revisión Ola 0 | 3 (CI y tests) | S | ⬜ |
+| R0-03 | Fecha fija en `programas/tests/test_becas_relevamientos.py:636-648` que vence el 01-ene-2027 | BAJA (MINOR) | revisión Ola 0 | **R** (antes 3; antes del 31-dic-2026) | S | ⬜ |
 
 ---
 
@@ -82,6 +82,9 @@ Fichas completas del dominio. Convenciones, `V-STD` y `V-UI`: README §0. PoC: `
 
 ### OPS-03 · Los tracebacks de 500 no llegan a stdout
 **Severidad:** ALTA · **Estado:** CONFIRMADO con test (`A804LoggingTests`: `django.request` con handlers `[error_file, warning_file]` y `propagate=False`) · **Origen:** A8-04 · **Ola:** 3 (independiente; se recomienda adelantarlo al primer release porque sin tracebacks no se diagnostica el resto) · **Esfuerzo:** S
+
+**Ampliado por RS-R4-21 (04-oct-2026, frente Red de seguridad):** pasa a la **Ola R** (PR R-15) junto con RED-55: los dos `except Exception` de los context processors (`core/context_processors.py:41`, `conversaciones/context_processors.py:20`) deben loguear con `logger.exception`, y sin este cambio esos logs tampoco llegarían a ECOM.
+
 - **Ubicación:** `config/settings.py` (`LOGGING`; `:557` es `"django.request": {"handlers": ["error_file", "warning_file"], …, "propagate": False}`); `settings_production.py` no lo toca; `.dockerignore` excluye `logs`; en k8s `logs/` es efímero; en icore está montado (`./logs:/app/logs`) y crece sin retención. `kubectl logs` solo muestra la línea `core.requests … status=500` del middleware.
 - **Propuesta:**
   ```python
@@ -105,6 +108,9 @@ Fichas completas del dominio. Convenciones, `V-STD` y `V-UI`: README §0. PoC: `
 
 ### OPS-01 · Sin guarda de coherencia entre `django_migrations` y el esquema antes de `migrate`
 **Severidad:** MEDIA (era ALTA) · **Estado:** CONFIRMADO en código; el estado de icore es PLAUSIBLE (filas viejas `0057_catalogo_grupos_origen_canal`…`0062_padron_relevamiento_herencia` de `a9fc4ee`; `development` las numera 0060-0065) · **Origen:** A8-02 · **Ola:** 3 · **Esfuerzo:** M
+
+**Ampliado por RS-VR2-NEW-03 y RS-R5-02 (04-oct-2026):** pasa a la **Ola R** (PR R-15). Un rollback fallido en MariaDB es un segundo origen de tablas huérfanas, distinto del restore (RED-15): `verificar_esquema_migraciones` tiene que incluir también el chequeo **inverso** (tablas que existen en la base y no corresponden a ningún modelo del estado final, p. ej. `legajos_derivacion`). El job `migration-roundtrip` (RED-17, Anexo B de `08-red-de-seguridad.md`) lo corre como último paso.
+
 - **Ubicación:** `docker-entrypoint.sh:38-41` (comentario `:31-37`, Cambio 78).
 - **Escenario:** en icore, el deploy de `development` aplica 0057-0059 (índices) y muere en `0060_catalogo_grupos_origen_canal` con 1050 `Table already exists`: CrashLoop críptico.
 - **Propuesta:** (1) comando de solo lectura `verificar_esquema_migraciones`: `MigrationLoader(connection)`, `applied - disk` (filas sin archivo) y, para cada migración no aplicada del plan, las `CreateModel` cuya `db_table` ya está en `connection.introspection.table_names()` → `CommandError` con la lista y la instrucción («renombrar en `django_migrations`…» / «borrar las tablas huérfanas, NUNCA `--fake`»); (2) en el entrypoint, antes de la línea 40, `python manage.py verificar_esquema_migraciones` (salteable con `SKIP_SCHEMA_GUARD=true`); (3) script SQL versionado para icore: `UPDATE django_migrations SET name='0060_catalogo_grupos_origen_canal' WHERE app='programas' AND name='0057_catalogo_grupos_origen_canal';` y así con las 6 (consultar antes con P-13). **Descartado:** `replaces` (0060 depende de 0059; muy probablemente `InconsistentMigrationHistory`; no se probó).
@@ -118,6 +124,9 @@ Fichas completas del dominio. Convenciones, `V-STD` y `V-UI`: README §0. PoC: `
 
 ### OPS-04 · `/health/` siempre 200 y tapa `health_check.urls`
 **Severidad:** MEDIA (era ALTA) · **Estado:** CONFIRMADO con test (`A805HealthTests`: `resolve('/health/')` → `healthcheck.views.basic`; con la DB caída responde `200 OK`) · **Origen:** A8-05 · **Ola:** 3 · **Esfuerzo:** S · **Decisión:** D-O04
+
+**Ampliado por RS-R6-06 y RS-R5-09 punto 2 (04-oct-2026, duplicados):** pasa a la **Ola R** (PR R-15). Consecuencia operativa que la ficha no decía: `/health/` es el gate de éxito **y** del rollback automático de `scripts/deploy_prod.sh` (`:17`, `:77-88`, `:143-153`), así que ese rollback nunca se dispara por un esquema roto ni por un `collectstatic` fallido. El cambio de `HEALTH_URL` a `/health/ready/` y los `post_deploy_checks()` están en RED-59; test extra `core/tests/test_scripts_deploy.py::DeployProdTests.test_deploy_prod_usa_ready` (lee el script y afirma que el default termina en `/health/ready/`).
+
 - **Ubicación:** `config/urls.py:40` (gana sobre `:59`, `health_check.urls`, inalcanzable); sondas de compose y de `docker/k8s/bootstrap-initcontainer.yaml` apuntan a `/health/`; `nginx.conf:41,119` la expone sin login.
 - **Propuesta:** `/health/` queda como liveness sin I/O (no romper las sondas de ECOM); agregar `/health/ready/`: `connection.ensure_connection(); with connection.cursor() as c: c.execute("SELECT 1")` y, si `ENVIRONMENT=="prd"`, `caches["sessions"].get("health")` (acotados por los timeouts ya configurados); 503 con JSON `{db, cache}` si algo falla. Borrar `path("health/", include("health_check.urls"))` y sacar `health_check*` de `INSTALLED_APPS` y `requirements.txt` (OPS-13). No publicarla en nginx. D-O04: usarla como readinessProbe (default: solo monitoreo; nunca como liveness: con una sola base, sacaría todos los pods a la vez).
 - **Tests:** `/health/ready/` → 503 con `ensure_connection` parcheado; `/health/` → 200 igual.
@@ -130,18 +139,26 @@ Fichas completas del dominio. Convenciones, `V-STD` y `V-UI`: README §0. PoC: `
 
 ### OPS-07 · Bootstrap frágil
 **Severidad:** MEDIA · **Estado:** CONFIRMADO-AJUSTADO · **Origen:** A8-09, V6-NEW-04 · **Ola:** 3 · **Esfuerzo:** S
+
+**Ampliado por RS-R5-07 (04-oct-2026):** lo que corre en carrera entre réplicas no es solo el seed: es el **`migrate`** mismo (reproducido en MariaDB 11.8: dos `migrate` en paralelo, uno muere con 1050/1060). El comando `bootstrap_lock` con `GET_LOCK` tiene que envolver también el `migrate` (`GET_LOCK('datanach_migrate', 900)`); el resto (un solo migrador, regla expand/contract) es RED-19 en la Ola R.
+
 - **Ubicación:** `docker-entrypoint.sh:2`, `:22-25` (`set -eu`, sin `|| true`); `docker-compose.prod.yml:56` (`LOCAL_OPTIONAL_BOOTSTRAP_COMMANDS=procesar_vencimientos`); `programas/management/commands/procesar_vencimientos.py:49-62` (no aísla reglas); `docs/internal/processes.md:105` dice que los opcionales «pueden fallar sin abortar el arranque» (falso: V6-NEW-04). Carrera entre réplicas si el pod web corre el bootstrap y hay más de una (ECOM usa un Job/initContainer, Cambio 78); un CSV incoherente de `seed_catalogo_siis` también impide arrancar.
 - **Propuesta:** opcionales no fatales: `for c in $LOCAL_OPTIONAL_BOOTSTRAP_COMMANDS; do python manage.py "$c" || echo "AVISO: $c falló; se sigue"; done` (alinea código y doc); en `procesar_vencimientos`, `try/except Exception` por regla con `logger.exception` y `CommandError` al final si alguna falló; para varias réplicas, `SELECT GET_LOCK('datanach_bootstrap', 600)` (MySQL y MariaDB) desde un comando `bootstrap_lock`, o documentar «réplicas > 1 ⇒ Job único».
 - **Tests:** dos reglas, la primera lanza → la segunda aplica y el comando termina en `CommandError`.
 
 ### TST-01 · La CI no prueba MariaDB
 **Severidad:** MEDIA (era ALTA) · **Estado:** CONFIRMADO-AJUSTADO; **la tesis central de A8-07 está refutada**: el job «Ephemeral MySQL Redis Contract» (`pr-performance.yml` → `ephemeral-stack-contract`, `mysql:8.0`) corre `migrate` real en cada PR (log del run 36751292857: `legajos.0007`, `programas.0047`, `0048`, `0072`, `users.0023` → OK) · **Origen:** A8-07 · **Ola:** 3 · **Esfuerzo:** M · **Decisión:** pregunta H-01 (versión MariaDB)
+
+**Ampliado por RS-R2-03 parte (a), RS-R2-07 punto 1, RS-R5-11 y RS-R7-05 capa 2 (04-oct-2026, duplicados):** pasa a la **Ola R** (PR R-11). Lo que agregan: (1) el caso concreto de un test ya escrito que **nunca corre**: `programas/tests/test_becas_models.py::UUIDExternosMySQLTests` da `OK (skipped=1)` en todos los jobs; se marca `@tag("mysql")` y entra al paso `--tag mysql`; (2) migraciones sobre datos: lo resuelve el job `migration-roundtrip` (RED-17), que comparte los servicios de esta matriz; (3) carrera real del cupo: `TransactionTestCase` `@tag("mysql")` con dos hilos sobre `aprobar_o_poner_en_espera` con un lugar libre → un APROBADO y una `ListaEspera` (RED-67); (4) en el paso `--tag mysql` corren también los casos de SQL compilado de RED-07, RED-08 y RED-09 contra el motor real.
+
 - **Lo que sí falta:** (1) la rama `features.has_native_uuid_field` (solo MariaDB 10.7+, `legajos/0007:57-58`: el bug de septiembre); (2) ningún test de la suite corre sobre MySQL/MariaDB (solo probes de performance): `KeyTransform`, `Trunc*`/`CONVERT_TZ` y UUID con guiones sin red; (3) migraciones sobre datos (el migrate arranca de base vacía).
 - **Propuesta:** matriz en `ephemeral-stack-contract`: `mysql:8.0` y `mariadb:<versión de ECOM; 10.11 por default hasta confirmar con P-11>`, más un paso `python manage.py test --tag mysql` (sin `PYTEST_RUNNING`, usa la base del servicio) con 3-4 tests marcados: guardar y buscar por `token_publico`/`client_uuid`, `q_uuid_en_texto`, un `JSON_EXTRACT` con clave numérica y dashboard sin `Trunc*`; sumar los de DIS-01 (`__date`) y SIIS-01 (`UniqueConstraint` con NULL).
 - **Verificación:** el job falla con un `__date` sobre DateTimeField introducido a propósito en una rama de prueba. Costo: 2-4 min más de CI.
 
 ### TST-02 · Configuración sin tests de comportamiento; tests que no prueban nada
 **Severidad:** MEDIA · **Estado:** CONFIRMADO · **Origen:** A8-14 · **Ola:** 3 · **Esfuerzo:** M
+
+**Ampliado por RS-R1-09, RS-R1-13, RS-R2-08 y RS-R7 (04-oct-2026):** pasa a la **Ola R** (PR R-20) y suma S-M (4 h). (1) Ítem 3 del Top-5 con el detalle cerrado (RS-R1-09: `generar_alertas` 0 %, `legajos/services/alertas.py` 35 %): `legajos/tests/test_generar_alertas.py::GenerarAlertasTests` con `test_un_ciudadano_sin_contacto_reciente_genera_su_alerta`, `test_dos_pasadas_seguidas_no_duplican_la_alerta`, `test_la_alerta_que_ya_no_aplica_se_desactiva`, `test_un_ciudadano_sin_legajo_no_rompe_la_pasada` y `test_el_envio_por_websocket_se_llama_una_vez_por_alerta_nueva` (`patch` de `_enviar_notificacion_alerta`); el de `assertNumQueries` va con PERF-20 (Ola 4). (2) Configuración, medido (RS-R1-13): 3 tests para 30 rutas, `configuracion/views/programas.py` 22 %; mínimo en R: `configuracion/tests/test_wizard_programas.py::WizardDeProgramaTests` (`test_los_cuatro_pasos_crean_el_programa_con_todo`, `test_entrar_al_paso_3_sin_haber_hecho_el_1_redirige`, `test_sin_config_administrar_los_ocho_pasos_dan_403`, `test_activar_un_programa_sin_naturaleza_avisa_y_no_activa`) y `configuracion/tests/test_secretarias.py::BorradoDeSecretariaTests`; es el piso que SEC-07 necesita. (3) Los comandos sin test `completar_casos_renaper`, `validar_casos_siis` y `sincronizar_programas_siis` están en RED-32. (4) Los «tests que faltan» que midió la prueba de mutación (bordes y particiones) están en RED-25 a RED-29, RED-66 a RED-70 y RED-87.
 
 **⚠ Actualizar (03-oct-2026):** el ítem (2) del Top-5 (`seed_datos_base` idempotente y respetuoso del ABM) ya existe: `users/tests/test_seed_datos_base.py` (#508). En el mapa de cobertura, `seed_datos_base` y `crear_programas` ya tienen test.
 - **Ubicación:** `configuracion/views/*.py` (~942 LOC; `models/`, `services/` y `migrations/` vacíos); único test que toca rutas `configuracion:` es `users/tests/test_menu_rbac.py` (solo el menú); `configuracion/tests/test_services_actividades.py:5-6` y `tramites/tests/test_package_exports.py:6` (`assertTrue(True)`); el wizard crea `Programa` (`configuracion/views/programas.py:197`) y el ABM borra secretarías (`secretaria.py:108,218`) sin tests.
@@ -206,11 +223,17 @@ Fichas completas del dominio. Convenciones, `V-STD` y `V-UI`: README §0. PoC: `
 
 ### OPS-14 · Código muerto o stub; un `.py` vivo que git trata como binario
 **Severidad:** BAJA (la conversión a LF conviene ya) · **Origen:** A8-18 · **Ola:** 7 · **Esfuerzo:** S
+
+**Ampliado por RS-R4-20 y RS-R7 (04-oct-2026):** la conversión de `exportacion_reportes.py` a LF y la regla `*.py text eol=lf` se adelantan a la **Ola R** como RED-82 (con un test que impide un `.py` con CR solitario); además del diff ilegible, pylint lo omite sin fallar. El resto de esta ficha sigue en la Ola 7.
+
 - **Ubicación:** `programas/services/exportacion_reportes.py` con fin de línea CR: `git ls-files --eol` lo marca `i/-text` (**binario**: los diffs de PR no muestran su contenido) y es código vivo (lo importan `views/dashboard_becas.py`, `reportes.py`, `reportes_becas.py`); `tramites/` (app en `INSTALLED_APPS` con `urlpatterns = []`); `docker/django/entrypoint_final.py` (dice «SISOC», corre un script inexistente); `core/services/cache.py` (sin importadores); capacidad `ciudadano.eliminar` (`core/rbac.py:41`, rol «Gestión de Ciudadanos» en `seed_datos_base.py:51`) sin ninguna vista que la use; `legajos/services/ml_predictor.py` (heurística sobre legajos que no se crean).
 - **Propuesta:** convertir `exportacion_reportes.py` a LF y agregar `*.py text eol=lf` en `.gitattributes`; borrar `tramites`, `docker/django/`, `core/services/cache.py` y la capacidad `ciudadano.eliminar` (con migración de `users` `AlterModelOptions`, como 0015/0018/0021/0026; ojo con G1c-08 punto 3, que la menciona como alternativa). Verificación: suite, `manage.py check`, `makemigrations --check`.
 
 ### TST-03 · El coverage de 48 % se mide sobre todo el repo
 **Severidad:** BAJA · **Origen:** A8-20 · **Ola:** 3 · **Esfuerzo:** S
+
+**Ampliado por RS-R1-14 (04-oct-2026, duplicado):** pasa a la **Ola R** (PR R-20). Medido sobre las apps del producto el coverage es **76 %** (21.746 stmts), 28 puntos sobre el `fail_under`. El paso por módulo cubre los 9 de los flujos críticos, hoy entre 91 % y 98 %: `coverage report --fail-under=90 --include=programas/services/siis_envio.py,programas/services/proceso_masivo.py,programas/services/cupo.py,programas/services/inscripcion_publica.py,programas/services/padron.py,programas/services/respuestas.py,programas/api/views.py,portal/views/inscripcion.py,core/rbac.py`. Con el `omit`, subir `fail_under` a 74 y activar `branch = true` midiendo de nuevo antes de fijarlo.
+
 - **Ubicación:** `pyproject.toml:24-39` (`source=["."]`, `fail_under = 48`).
 - **Propuesta:** sumar `core/performance/*` muerto, `scripts/*`, `awslabs-mcp/*`, `docker/*` y los comandos demo al `omit`; paso separado en `pr-backend.yml`: `coverage report --include=programas/services/siis_envio.py,programas/services/proceso_masivo.py,programas/services/cupo.py,programas/services/inscripcion_publica.py --fail-under=80`.
 
@@ -267,6 +290,9 @@ las líneas son de `origin/development @ 7393c41`.
 
 ### R0-03 · Fecha fija en `programas/tests/test_becas_relevamientos.py:636-648` que vence el 01-ene-2027
 **Severidad:** BAJA (MINOR del revisor) · **Estado:** CONFIRMADO (lectura) · **Origen:** revisión de la Ola 0 · **Ola:** 3 (CI y tests) · **Esfuerzo:** S
+
+**Ampliado (04-oct-2026):** pasa a la **Ola R** (PR R-20, cobertura y regresión). El plazo sigue siendo antes del 31-dic-2026.
+
 - **Ubicación:** `ConvocatoriaTests.test_crear_convocatoria` manda `fecha_fin = "2026-12-31"` con `activo: "on"`; desde el 01-ene-2027 `ConvocatoriaForm.clean()` la rechaza y el Backend CI de todos los PRs queda rojo (mismo patrón que el Cambio 105).
 - **Propuesta:** fechas relativas (`timezone.localdate()` ± `timedelta`), como el Cambio 105; buscar otras fechas fijas con `grep -rn '"202[6-9]-' */tests/`.
 - **Plazo:** antes del 31-dic-2026.

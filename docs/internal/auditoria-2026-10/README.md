@@ -64,7 +64,27 @@ volver a tildar `becas.relevamiento.publico` donde haga falta (OPS-06); P-11/P-1
 PM, H-04).
 
 **Horas del plan:** 636 h al cierre de la primera tanda − 22 h cerradas en la Ola 0 (todo lo que quedaba salvo las 2 h
-del resto de SEC-01, que pasan a la Ola 2) + 14 h nuevas (R0b-01..10) = **628 h** (detalle por ola en §6).
+del resto de SEC-01, que pasan a la Ola 2) + 14 h nuevas (R0b-01..10) = 628 h; **+ 340 h del frente Red de seguridad
+(04-oct) = 968 h** (detalle por ola en §6).
+
+**Frente nuevo · Red de seguridad (04-oct-2026) → `hallazgos/08-red-de-seguridad.md` (IDs `RED-NN`).** Pedido del PM:
+poder cambiar código sin romper nada sin enterarse. Mide si la suite, el CI y el deploy **detectan** una regresión
+(cobertura de flujos críticos, regresión de bugs pasados, contratos con la app de campo, dependencias ocultas, migraciones y
+rollback en MariaDB, gates de CI/CD y una prueba de mutación de 49 cambios: 37 detectados, 76 %). Todo queda como tareas de
+la nueva **Ola R** (§6), antes de la Ola 1; el hallazgo CRÍTICO (datos personales en el repo público) necesita una decisión
+del cliente (D-RED-01, §2.4).
+
+| Severidad | RED | ⬜ Pendientes |
+|---|---:|---:|
+| CRÍTICA | 1 | 1 |
+| ALTA | 28 | 28 |
+| MEDIA | 41 | 41 |
+| BAJA | 18 | 18 |
+| **Total** | **88** | **88** |
+
+Además amplían fichas existentes (sin ID nuevo): TST-01, TST-02, TST-03, OPS-01, OPS-03, OPS-04, OPS-07, OPS-14,
+V5A-NEW-01, FE-13, LEG-03, LEG-06 y G1-01; OPS-01, OPS-03, OPS-04, TST-01, TST-02, TST-03 y R0-03 pasan de la Ola 3 a la
+Ola R. Refutado: RS-R4-01 y parte de RS-R1-08 (§8.3). Trazabilidad: §9.4.
 
 Base auditada: `origin/development @ 917e583` (01-oct-2026). Producción: MariaDB de ECOM. Documento consolidado de tres
 pasadas: descubrimiento (8 áreas), verificación adversarial independiente con tests, y profundización de huecos.
@@ -85,6 +105,7 @@ las olas (§6).
 | `hallazgos/05-datos-operacion-tests.md` | Fichas de datos, operación, CI y tests (DAT, OPS, TST, G1c-12, G2-05, G3-04/05) + inventario de comandos programados |
 | `hallazgos/06-usuarios-dashboards.md` | Fichas del ABM de usuarios/roles y dashboards (G1b, G2) |
 | `hallazgos/07-front.md` | Fichas de front (FE, V5A-NEW) |
+| `hallazgos/08-red-de-seguridad.md` | Frente Red de seguridad (RED): cobertura, regresión, contratos, dependencias ocultas, migraciones y rollback, gates de CI/CD, las 10 partes más frágiles, procesos manuales, prueba de mutación y anexos (checklist de migraciones, job de ida y vuelta, expand/contract, runbook de rollback) |
 | `anexo-agente-diseno.md` | Especificación completa de la Ola 6 (agente de diseño) |
 | `anexo-front-clases-inexistentes.md` | Las 120 clases que no existen en el CSS cargable y el diff del build |
 | `anexo-mediciones-performance.md` | Método, mediciones y criterios de cierre en el banco |
@@ -183,6 +204,8 @@ Las fichas viven en `hallazgos/` (una por dominio) para que cada sesión lea sol
 - Las líneas citadas son de `917e583`: si se movieron, buscar por nombre de función.
 - **Decisión:** si la ficha tiene una D-xx abierta, implementar el **default** de §2 salvo que el PM haya decidido otra
   cosa (registrarlo en *Decisiones tomadas* de la entrada de requerimientos).
+- **Test permanente (desde el 04-oct-2026, RED-34):** al cerrar una ficha, debajo de su «Resolución:» va la línea
+  «Test permanente: `<app>/tests/<archivo>::<Clase>.<test>`». La PoC invertida no alcanza: `docs/` no lo descubre el runner.
 
 ### 0.4 Qué NO hacer (detalle en §8)
 - No mantener un `select_for_update` durante el HTTP a SIIS; no creer que en MariaDB «solo el candado da unicidad».
@@ -196,6 +219,10 @@ Las fichas viven en `hallazgos/` (una por dominio) para que cada sesión lea sol
   del link; no reescribir el xlsx fila a fila; no queryset por defecto que difiera `definicion`.
 - No usar `replaces` ni `--fake` para la renumeración de migraciones de icore.
 - No columna generada por `RunSQL` para unicidad de alojamiento; no deduplicar entregas «idénticas en < 1 min».
+- Red de seguridad: no copiar el helper `_sql_mysql` de la PoC `A305SQL` (errorea con `GROUP BY`; usar el de RED-07); no
+  afirmar atomicidad con `getattr(fn, "_atomic")` (siempre `False`); no escribir «ninguna vista importa de otra» (ratchet,
+  RED-79); no exigir aprobaciones en el ruleset (misma cuenta en todos los PRs, RED-20); no validar la URL de SIIS con
+  `settings.ENVIRONMENT` (RED-61); no consultar check-runs del merge commit para «CI verde» (RED-21).
 - Agente de diseño: no `design_conformidad.py`, ni `design_skeleton.py`/*similarity*, ni 20 reglas bloqueantes, ni
   `design_baseline.json`, ni mover parciales de Becas a `components/`, ni `ModernModal` con `input`, ni fichas dentro de
   `.claude/agents/`.
@@ -244,7 +271,9 @@ pasada 3 otros 59 (G1 16, G1b 12, G1c 18, G2 6, G3 7); muchos resultaron duplica
 | Front del backoffice | 0 | 4 | 15 | 9 | 0 | 28 |
 | **Total** | **6** | **33** | **75** | **91** | **1** | **206** |
 
-Además, el **sistema del agente de diseño** (A7) tiene un diagnóstico propio (§5): de 37 afirmaciones verificadas, 4
+Además, el **frente Red de seguridad** (04-oct, `hallazgos/08-red-de-seguridad.md`) suma 88 fichas RED (1 CRÍTICA, 28
+ALTA, 41 MEDIA, 18 BAJA) que no están en esta tabla: miden la capacidad de detectar regresiones, no defectos del producto
+(salvo RED-01). Y el **sistema del agente de diseño** (A7) tiene un diagnóstico propio (§5): de 37 afirmaciones verificadas, 4
 refutadas y varias ajustadas, más 5 problemas nuevos; se trata como un único frente de trabajo (Ola 6).
 
 ### 1.4 Top-10 de riesgos, en lenguaje claro
@@ -284,7 +313,7 @@ indica qué ítems no conviene cerrar sin la respuesta.
 
 | ID | Pregunta | Default / cómo resolverla | Bloquea |
 |---|---|---|---|
-| H-01 | ¿Qué versión de MariaDB corre en PRD (y en testing de ECOM)? | Correr P-11. Mientras tanto, asumir ≥ 10.7 (UUID nativo) | SIIS-07 (prueba), TST-01 (matriz), SIIS-03 punto 7 (`SKIP LOCKED`) |
+| H-01 | ¿Qué versión de MariaDB corre en PRD (y en testing de ECOM)? | Correr P-11. Mientras tanto, asumir ≥ 10.7 (UUID nativo); las matrices de CI usan `mariadb:10.11` y `mariadb:11` hasta tener la respuesta | SIIS-07 (prueba), TST-01 (matriz), SIIS-03 punto 7 (`SKIP LOCKED`), RED-17 y RED-23 (motor del job de migraciones y del `release-gate`) |
 | H-02 | ¿ECOM tiene instalado el CronJob `generar_alertas`? | Inferirlo con P-16 y preguntarlo a ECOM | Severidad de LEG-01/PERF-20; G1c-04 (agravante) |
 | H-03 | ¿La rama `fix/token-publico-uuid-mariadb` quedó sin PR a propósito? | ✅ Resuelta (01-oct): mergeada en #515 como Cambio 99 | — (la migración de SIIS-01 ya no es la 0074: la ocupa `0074_altaintermediasiis`) |
 | H-04 | ¿La Ola 0 va como hotfix fuera del ciclo o como prioridad 1 del plan? | Hotfix fuera de ciclo (cierra exposición anónima de datos personales) | Calendario de la Ola 0 |
@@ -294,6 +323,9 @@ indica qué ítems no conviene cerrar sin la respuesta.
 | H-08 | ¿Algún monitoreo de ECOM usa HTTP Basic contra `/api/`? | Preguntar; el healthcheck está en `/health/`, fuera de DRF | Riesgo de deploy de SEC-01 |
 | H-09 | `ENVIRONMENT` y `DJANGO_SETTINGS_MODULE` en testing y PRD de ECOM | Pedirlos a ECOM | SEC-35, OPS-12, SIIS-20 |
 | H-10 | ¿Se usan los legajos de atención (Legajos «clínico»)? | Si no: retirar el CronJob de alertas | PERF-20, LEG-01 |
+| H-11 | ¿ECOM hace un dump automático de la base antes de cada deploy? ¿Con qué retención y quién lo restaura? | Preguntarlo por escrito; hasta tener respuesta, pedir el dump a mano antes de cada espejo de `main` con migraciones (runbook D.0) | RED-60 (runbook), RED-15 y RED-14 (rollback por restore), H-07 |
+| H-12 | ¿ECOM acepta agregar a su `.gitlab-ci.yml` una etapa `verify` y un tag inmutable por commit (`:${CI_COMMIT_SHORT_SHA}`)? | Proponerlo por escrito (RED-22, RED-16); si no, el `release-gate.yml` de nuestro lado verifica antes del espejo | RED-16, RED-22, RED-23 |
+| H-13 | ¿Qué zona horaria tienen los contenedores de ECOM? (`kubectl exec <pod> -- date`) | Asumir UTC (ni `Dockerfile` ni manifiestos definen `TZ`) | Severidad de RED-50 |
 
 ### 2.2 Decisiones de producto y seguridad
 
@@ -354,6 +386,39 @@ indica qué ítems no conviene cerrar sin la respuesta.
 | D3 | Íconos | Font Awesome en el contenido; Heroicons solo en sidebar y navbar |
 | D4 | Wizard de backoffice | Frenar y preguntar; no se define ahora |
 | D5 | Avatar con gradiente en filas de la golden de detalle | Iniciales en `bg-brand-soft text-fg-brand` |
+
+### 2.4 Decisiones del frente Red de seguridad (04-oct-2026)
+
+**D-RED-01 · DECISIÓN CLIENTE · Datos personales en el repositorio público (RED-01).** `scripts/DatosPersonas.sql` (respuesta
+de RENAPER de 10.321 personas, con domicilio, incluidos menores), `scripts/Aprobados.sql` y `scripts/Localidades.sql` (indexados
+por DNI) están versionados en `Mkdir-arg/Chaco-Back`, que es **público**; viajan a `main`, al GitLab de ECOM y, por el
+`COPY . .` del `Dockerfile`, **dentro de la imagen de producción**. Hay una decisión previa del PM (Cambio 79,
+`requerimientos.md:8900`: «`scripts/DatosPersonas.sql` queda en el repo por decisión del PM») que **no contempla** que el repo
+es público, que el archivo sale en el release y en la imagen, ni la Ley 25.326; hay que reponerle esos datos al PM y al
+cliente antes de cualquier otra cosa.
+- **Opción recomendada:** (1) pasar el repo a **privado**; (2) **sacar los archivos de `HEAD`** ya (no espera la decisión) con
+  `.gitignore`, `export-ignore` en `.gitattributes` y `.dockerignore`; (3) **purgar el historial** (`git filter-repo`),
+  coordinado antes con ECOM porque reescribe `main`, más el pedido a GitHub Support de limpiar refs de PR y vistas cacheadas,
+  y un barrido con `gitleaks`/`trufflehog` del historial completo; (4) reconstruir la imagen de PRD sin los archivos; (5)
+  **fuente alternativa** para `correr_alta_siis` (`DATOS_SIIS_DIR` montado como volumen o secret, con un README versionado
+  sin datos que diga de dónde salen los volcados).
+- **Cumplimiento:** si corresponde notificar o evaluar el incidente bajo la **Ley 25.326** lo decide **el organismo
+  responsable de la base** (el Ministerio), no el equipo. Nuestra parte: informarlo por escrito con estos datos y dejar
+  registrada la decisión en `requerimientos.md` como decisión del cliente.
+- **Bloquea:** los pasos 1, 3 y 4 (los pasos 2 y 5 y el gate del PR R-01 avanzan sin esperar).
+
+| ID | Pregunta | Default recomendado | Bloquea |
+|---|---|---|---|
+| D-RED-02 | ¿Se le pide a ECOM un tag de imagen inmutable por commit además de `:latest`? | Sí (una línea en su pipeline); el rollback de PRD pasa de 5-7 min de build a segundos | RED-16, runbook D.2.1 |
+| D-RED-03 | ¿El job `migration-roundtrip` entra obligatorio (CI rojo hasta arreglar la reversa en MariaDB) o con `continue-on-error`? | `continue-on-error` dos semanas (hasta RED-18 y las barreras de RED-15), después obligatorio | RED-17 |
+| D-RED-04 | ¿Se graban respuestas **reales** de RENAPER, Personas y SIIS (anonimizadas) como fixtures de test? | No: fixture **sintético** acordado y compartido por todos los tests (cubre el 90 % del valor sin tocar datos de personas). Si el PM aprueba grabar: solo con `RENAPER_TEST_MODE=1` contra el DNI de prueba y con revisión antes de versionar | RED-41 |
+| D-RED-05 | ¿Se arregla la reversa de las migraciones UUID (L) o se declaran barrera de reversa? | Barrera: por debajo de `legajos.0007`, `programas.0047/0048/0073` y `users.0023` solo se vuelve con restore | RED-15 |
+| D-RED-06 | ¿Se reconstruye un e2e con Playwright? | No por ahora: borrar los residuos de `tests/e2e/`; si se hace, solo constructor y paso 2 del link, nightly, nunca como gate | RED-72 |
+| D-RED-07 | Preferencia de tema oscuro: (A) se persiste solo en el navegador o (B) se guarda en el perfil | A: borrar `sendThemePreference` y `dark_mode` del serializer | RED-75 |
+| D-RED-08 | ¿Se conserva la opción de workers gevent? | No: borrar el parche y las dependencias (Ola 7); hasta entonces, el entrypoint aborta si se pide | RED-45 |
+| D-RED-09 | ¿La publicación de `docs/client/` en Pages requiere aprobación? | Sí: `environment: github-pages` con revisores + chequeo de patrones | RED-64 |
+| D-RED-10 | ¿Se unifica la respuesta de la pausa de la app (409 en cinco endpoints, 400 en el PATCH)? | No ahora: el test fija el contrato tal cual; unificar solo con un release coordinado de `Chaco-mobile` | RED-03 |
+| D-RED-11 | Lista de espera: ¿la posición se reutiliza después de promover? ¿Se agrega unicidad `(segmento, posicion)`? | Fijar la conducta de hoy en el test (el máximo se calcula sobre no promovidos); unicidad con columna nullable junto con BEC-02 | RED-68 |
 
 ---
 
@@ -603,6 +668,22 @@ Avance: 28 ⬜.
 - **MEDIA:** FE-01, 07, 08, 09, 10, 11, 12, 13, 17, 18, 19, 20, 21 · V5A-NEW-01 · V5A-NEW-07.
 - **BAJA:** FE-14, 16, 22, 23, 24, 25, 26 · V5A-NEW-04 · V5A-NEW-08.
 
+### 4.8 Red de seguridad → `hallazgos/08-red-de-seguridad.md` (88, frente del 04-oct-2026)
+Avance: 88 ⬜. Agrupadas por tema: (a) flujos críticos y cobertura, (b) regresión de bugs pasados, (c) contratos, tipado y
+validaciones, (d) duplicación y dependencias ocultas, (e) migraciones y rollback, (f) gates de CI/CD y deploy, (g) las 10
+partes más frágiles, (h) procesos que dependen de que nadie se equivoque, (i) prueba de mutación; anexos A-D.
+- **CRÍTICA:** RED-01 datos personales en el repo público, el release y la imagen de PRD (R, hotfix; D-RED-01).
+- **ALTA:** RED-02 barrido del URLconf · RED-03 pausa y errores de la app de campo · RED-04 ABM de roles por HTTP ·
+  RED-05 adjunto punta a punta · RED-06 Legajos sin tests · RED-07 `Trunc*`/`CONVERT_TZ` · RED-08 forma del `WHERE` ·
+  RED-09 `UUIDField` · RED-10 alta bajo lock sin presupuesto · RED-11 contrato JSON de `/api/becas/` · RED-12
+  `definicion_formulario` · RED-13 shell depende de `conversaciones` (R + 7) · RED-14 rollback con `NOT NULL` · RED-15
+  reversa en MariaDB · RED-16 sin artefacto inmutable · RED-17 migraciones nunca hacia atrás · RED-18 reversa UUID ·
+  RED-19 `migrate` en cada pod · RED-20 protección de rama · RED-21 `publish-main` · RED-22 pipeline de ECOM · RED-23
+  `/pushGitLabecom` · RED-24 contratos del repo · RED-25 a RED-29 mutaciones sobrevivientes (capacidad y alcance de la
+  app, cupo 0, `FINALIZANDO`, estado al enviar). Todas Ola R.
+- **MEDIA:** RED-30 a RED-70 (Ola R salvo RED-33 → 5, RED-48 y RED-58 → 3, RED-53 → 1, RED-62 → 4, RED-64 → 7).
+- **BAJA:** RED-71 a RED-88 (Ola R salvo RED-75 → 5, RED-76 y RED-86 → 7, RED-80 → 2).
+
 ---
 
 ## 5. Agente de diseño (resumen; especificación completa en `anexo-agente-diseno.md`)
@@ -655,18 +736,22 @@ Decisiones D1-D5 en §2.3.
 para implementación asistida por agente, incluyendo test, verificación y entrada de requerimientos (no incluye QA
 funcional ni coordinación con ECOM). Las horas de cada ola suman los esfuerzos de sus ítems.
 
-| Ola | Objetivo | Ítems | Horas | Ítems al 03-oct | Horas al 03-oct |
-|---|---|---:|---:|---:|---:|
-| 0 | Hotfix de seguridad y seeds | 16 | 36 | 0 (completa en código; lo operativo, en «Estado») | 0 |
-| 1 | Integridad SIIS | 23 | 72 | 22 (− SIIS-07) | 70 |
-| 2 | Autorización (RBAC, legajos, alcance de Becas, usuarios) | 36 | 116 | 50 (+ fase 2 de OPS-06, R0-05, resto de SEC-01, etapa 2 de SEC-09, R0b-01..10) | 136 |
-| 3 | Datos, operación, CI, app de campo y reglas de Becas | 55 | 158 | 59 (+ R0-03, R0-04, R0-06, R0-07) | 166 |
-| 4 | Performance | 19 | 52 | 19 | 52 |
-| 5 | Bugs de front y parches v1 de Legajos/Dispositivos | 31 (+ V5A-NEW-07 b) | 114 | 31 (+ V5A-NEW-07 b) | 114 |
-| 6 | Agente de diseño | 4 (+8 pasos) | 42 | 4 (+8 pasos) | 42 |
-| 7 | Deuda | 9 (+ fase 2 de G1-01) | 46 | 10 (+ fase 2 de G1-01; + R0-02) | 48 |
-| v2 | Criterios de aceptación de la v2 (§7), no se implementan en v1 | 13 | — | 13 | — |
-| **Total** | | **206** | **636** | **208** | **628** |
+| Ola | Objetivo | Ítems | Horas | Ítems al 03-oct | Horas al 03-oct | Ítems al 04-oct (con Red de seguridad) | Horas al 04-oct |
+|---|---|---:|---:|---:|---:|---:|---:|
+| 0 | Hotfix de seguridad y seeds | 16 | 36 | 0 (completa en código; lo operativo, en «Estado») | 0 | 0 | 0 |
+| **R** | **Red de seguridad: poder cambiar código sin romper nada sin enterarse** | — | — | — | — | **85** (78 RED con parte en R + OPS-01, OPS-03, OPS-04, TST-01, TST-02, TST-03, R0-03) | **274** |
+| 1 | Integridad SIIS | 23 | 72 | 22 (− SIIS-07) | 70 | 23 (+ RED-53; + parte de RED-32) | 78 |
+| 2 | Autorización (RBAC, legajos, alcance de Becas, usuarios) | 36 | 116 | 50 (+ fase 2 de OPS-06, R0-05, resto de SEC-01, etapa 2 de SEC-09, R0b-01..10) | 136 | 51 (+ RED-80; + partes de RED-52, RED-79) | 142 |
+| 3 | Datos, operación, CI, app de campo y reglas de Becas | 55 | 158 | 59 (+ R0-03, R0-04, R0-06, R0-07) | 166 | 54 (− 7 a la Ola R; + RED-48, RED-58; + partes de RED-09, 35, 40, 50) | 152 |
+| 4 | Performance | 19 | 52 | 19 | 52 | 20 (+ RED-62; + partes de RED-10, 49, 51, 83) | 64 |
+| 5 | Bugs de front y parches v1 de Legajos/Dispositivos | 31 (+ V5A-NEW-07 b) | 114 | 31 (+ V5A-NEW-07 b) | 114 | 33 (+ RED-33, RED-75; + partes de RED-42, 53) (+ V5A-NEW-07 b) | 128 |
+| 6 | Agente de diseño | 4 (+8 pasos) | 42 | 4 (+8 pasos) | 42 | 4 (+8 pasos) | 42 |
+| 7 | Deuda | 9 (+ fase 2 de G1-01) | 46 | 10 (+ fase 2 de G1-01; + R0-02) | 48 | 13 (+ RED-64, 76, 86; + partes de RED-13, 37, 39, 54, 78, 85) | 88 |
+| v2 | Criterios de aceptación de la v2 (§7), no se implementan en v1 | 13 | — | 13 | — | 13 | — |
+| **Total** | | **206** | **636** | **208** | **628** | **296** | **968** |
+
+Cada ficha RED cuenta como ítem una sola vez, en la primera ola donde tiene trabajo (por eso la columna suma 296 = 208 +
+88); si tiene una segunda parte en otra ola, esas horas se suman en esa ola («+ partes de …»).
 
 Primera tanda (PRs #507-#518, 01-oct): se cerraron 16 h del plan (SEC-04, SEC-08, G1-02, SIIS-07, la parte hecha de
 SEC-29, G1-01 y OPS-06) y entraron 16 h nuevas (fase 2 de OPS-06, 4 h, que el plan no contaba —ver m-6—, y los
@@ -675,14 +760,21 @@ seguimientos R0, 6 × 2 h; R0-05 va dentro de SEC-25) → 636 h. Segunda tanda (
 y entraron 14 h de seguimientos R0b (R0b-01, 02, 03, 04, 07, 09 y 10 a 2 h; R0b-05, 06 y 08 van dentro de otro ítem;
 R0b-11 y R0b-12 son operativos, sin horas) → **628 h**. SEC-29 queda fuera de las olas: lo que falta es operativo.
 Los 208 ítems al 03-oct = 189 pendientes + SEC-01, SEC-09, OPS-06 (parciales, en la Ola 2) + 6 R0 + 10 R0b; G1-01
-sigue como «fase 2» de la Ola 7.
+sigue como «fase 2» de la Ola 7. Frente Red de seguridad (04-oct): **+340 h** = 238 h de partes en la Ola R de las fichas
+RED (214 h de los seis análisis + 24 h de la prueba de mutación) + 4 h que suma TST-02 (ampliado por RS-R1-09) + 98 h de
+partes RED en las Olas 1 (8), 2 (6), 3 (18), 4 (12), 5 (14) y 7 (40). Además se **mueven** 32 h de la Ola 3 a la Ola R
+(OPS-01, OPS-03, OPS-04, TST-01, TST-02, TST-03, R0-03) → **968 h**. No se planifican: el arreglo de fondo de la reversa
+UUID (D-RED-05), el corte de `programas/models/__init__.py` (RED-46), un e2e (D-RED-06) ni la adopción completa de mypy
+(RED-76).
 
 ### Dependencias entre olas
 ```mermaid
 graph TD
   P["Pre-chequeos PRD (§3)"] --> O0
-  O0["Ola 0 · Hotfix seguridad + seeds"] --> O1["Ola 1 · Integridad SIIS"]
-  O0 --> O2["Ola 2 · Autorización"]
+  O0["Ola 0 · Hotfix seguridad + seeds"] --> OR["Ola R · Red de seguridad"]
+  OR -->|"PR R-01 a R-10 antes"| O1["Ola 1 · Integridad SIIS"]
+  OR -->|"PR R-19 y R-21 antes"| O2["Ola 2 · Autorización"]
+  OR -->|"PR R-11 a R-16 antes"| O3
   O0 --> O6["Ola 6 · Agente de diseño"]
   O1 --> O3["Ola 3 · Datos, operación, app, reglas"]
   O2 --> O3
@@ -696,8 +788,9 @@ graph TD
   O5b --> O7
 ```
 La Ola 6 es independiente del resto del backend: conviene correrla **en paralelo** con las Olas 1-2 (otro implementador)
-por su fecha límite. OPS-03 (logs a stdout, Ola 3) es independiente y conviene adelantarlo al primer release, porque sin
-tracebacks no se diagnostica el deploy de las olas siguientes.
+por su fecha límite. OPS-03 (logs a stdout) pasó a la Ola R: sin tracebacks no se diagnostica el deploy de las olas
+siguientes. La Ola R no tiene que terminar entera antes de la Ola 1: cada ola espera solo los PRs de la Ola R que protegen
+lo que va a tocar (flechas del diagrama y lista de la Ola R).
 
 ### Ola 0 — Hotfix de seguridad y seeds de arranque
 - **Objetivo:** cerrar toda exposición anónima o de ciudadano del portal, las escrituras por API de cualquier
@@ -733,6 +826,68 @@ tracebacks no se diagnostica el deploy de las olas siguientes.
   (gotcha de IP cacheada). Si H-04 = hotfix fuera de ciclo: release a `main` y espejado a ECOM test → PRD
   (`/pushGitLabecom`, lo decide el PM).
 
+### Ola R — Red de seguridad
+- **Objetivo:** poder cambiar código sin romper nada sin enterarse. Que todo lo que las Olas 1 a 7 van a tocar tenga antes
+  un test que se ponga rojo si se rompe, que el CI pruebe el motor de producción (MariaDB) y las migraciones en las dos
+  direcciones, que ningún gate dependa de la buena voluntad (protección de rama, release que exige CI verde, verificación
+  antes de PRD), y cerrar la exposición de datos personales del repo. Fichas: `hallazgos/08-red-de-seguridad.md`.
+- **Regla de la ola:** casi todo son tests, workflows y documentación; el código de producción que cambia es mínimo y está
+  listado en «Riesgo». Un test que hoy falla por un bug de otra ola entra con `@unittest.expectedFailure` y el ID de la
+  ficha; los ratchets fijan lo que existe hoy y solo bajan. Cada PR deja su línea «Test permanente» (RED-34).
+- **PRs en orden (primero lo que desbloquea a los demás):**
+
+| PR | Contenido | Horas | Antes de |
+|---|---|---:|---|
+| R-01 | **Hotfix de datos personales:** RED-01 (sacar de `HEAD`, ignores, `DATOS_SIIS_DIR`, gate `Sin datos personales`); privado y purga según D-RED-01 | 8 | todo (independiente, primero) |
+| R-02 | **Runbook de rollback** en `processes.md` (Anexo D) y barreras de reversa: RED-60, RED-15 | 4 | el próximo deploy con migración |
+| R-03 | **Protección de rama y gates baratos** (lo aplica el dueño del repo): RED-20 (rulesets, filtros `paths` dentro del job), RED-63 (`ruff --select F` obligatorio, excepciones con vencimiento), RED-85 (actions por SHA) | 8 | que cualquier gate nuevo sea obligatorio |
+| R-04 | **Esquema y docs de la API:** RED-36 (`drf_spectacular` en `INSTALLED_APPS`), RED-37 (anotar serializers, `ConsultaPersonaSerializer`, allowlist de errores) | 6 | R-18 (gate de esquema) |
+| R-05 | **Superficie y humo:** RED-02 (barrido anónimo del URLconf), RED-30 (ninguna pantalla da 500), RED-73, RED-71 (CORS) | 8 | Ola 2 |
+| R-06 | **Caracterización antes de la Ola 1:** RED-32 (comandos SIIS/RENAPER sin red), RED-54 (contexto del detalle de revisión), RED-47 (`normalizar_dni`), RED-56 (guards fallan cerrados), RED-61 (`SIIS_API_URL`), RED-69 y RED-87 (bordes del payload SIIS) | 18 | Ola 1 |
+| R-07 | **Contrato de la app de campo:** RED-11 (claves exactas), RED-03 (pausa, período, errores), RED-10 (`assertNumQueries` del alta), RED-25 (capacidad), RED-26 (alcance de casos) | 12 | Ola 1, Ola 3 (app) |
+| R-08 | **Particiones de estados (mutación):** RED-28, RED-29, RED-66 con `subTest` sobre todo el enum | 6 | Ola 1, G1-04 |
+| R-09 | **Cupo y lista de espera:** RED-27 (cupo 0), RED-67 (contrato de candados), RED-68 (posición) | 6 | Ola 1 (BEC-01/02), Ola 4 (PERF-02) |
+| R-10 | **Motor y forma del SQL:** RED-07 (`core/tests/test_sql_motor_real.py` + `_sql_mysql` corregido), RED-08, RED-09 | 10 | Olas 1, 3 y 5 (DIS-01) |
+| R-11 | **Motor real en CI:** TST-01 (matriz `mariadb:10.11`/`mariadb:11`/`mysql:8.0` + `test --tag mysql`; ampliado) | 8 | R-13, Ola 3 |
+| R-12 | **Contrato de migraciones:** RED-14 (`scripts/check_migraciones.py`, columnas que toleran código viejo), RED-57 (reversas declaradas), RED-18 (reversa UUID), RED-84 (`Reversión` en `--check`), RED-83 (índices redundantes, ratchet) | 18 | toda migración nueva |
+| R-13 | **Job `migration-roundtrip`** (Anexo B): RED-17, RED-19 (un solo migrador, expand/contract) | 14 | Ola 3 (G1-04, G1-05, DAT-01) |
+| R-14 | **Gates del release:** RED-24 (`Contratos del repo`), RED-21 (`publish-main` exige CI verde), RED-65, RED-23 (`release-gate.yml` + `/pushGitLabecom` en dos), RED-22 (propuesta a ECOM) | 22 | el próximo espejo a ECOM |
+| R-15 | **Operación y deploy** (desde la Ola 3): OPS-03, OPS-04, OPS-01 (ampliados), RED-59 (`deploy_prod.sh`), RED-16 (tag de release), RED-55 | 18 | el próximo deploy en icore |
+| R-16 | **Becas: adjuntos, borrados, atomicidad, padrón:** RED-05, RED-31, RED-35, RED-77, RED-49, RED-50, RED-81, RED-70 | 22 | Ola 3 (DAT-01, BEC-*), SEC-20 |
+| R-17 | **Definición y condiciones (dos repos):** RED-12, RED-38 | 16 | cualquier cambio del constructor |
+| R-18 | **Contratos del backoffice y job `Contratos de API`:** RED-42, RED-39, RED-40, RED-41 (D-RED-04), RED-43, RED-44 | 18 | Ola 2 (capacidades), Ola 5 |
+| R-19 | **Legajos y Roles por HTTP:** RED-06 (humo de 36 rutas + alertas), RED-04 (escrituras del ABM de roles) | 10 | Ola 2 |
+| R-20 | **Cobertura y regresión** (desde la Ola 3): TST-02 (+generar_alertas y wizard), TST-03 (+gate por módulo), R0-03 (**antes del 31-dic-2026**), RED-34, RED-74, RED-72, RED-88 | 24 | — |
+| R-21 | **Arquitectura y dependencias ocultas (ratchets):** RED-46, RED-79, RED-13, RED-45, RED-52, RED-51, RED-78, RED-82 | 18 | Ola 2 (SEC-21), Ola 7 (G1-01 fase 2, OPS-10) |
+| | **Total Ola R** | **274** | |
+
+- **Mínimo antes de la Ola 1:** R-01 a R-10 (86 h). R-11 a R-16 antes de la Ola 3; R-19 y R-21 antes de la Ola 2. El resto
+  puede ir en paralelo con otro implementador.
+- **Hecho cuando (verificable):**
+  1. `gh api repos/Mkdir-arg/Chaco-Back/rulesets` lista los rulesets de `development` y `main`; un push directo a
+     `development` es rechazado y un PR con un test roto no se puede mergear.
+  2. `git ls-files "*.sql"` sin volcados de personas; `core.tests.test_release_sin_datos` y el job `Sin datos personales` en
+     verde; la imagen construida no contiene `scripts/*.sql`; D-RED-01 registrada en `requerimientos.md`.
+  3. `manage.py spectacular --validate --file /dev/null` corre en el job `Contratos de API`; `/api/docs/` responde 200 con
+     sesión de backoffice.
+  4. V-STD con la suite completa en verde, con los tests nuevos de cada ficha (los `expectedFailure` nombran su ficha).
+  5. Los jobs `Contratos del repo`, `Contratos de API`, `Ruff errores` y `Sin datos personales` existen y son obligatorios; el
+     job `migration-roundtrip` corre en los tres motores (con `continue-on-error` hasta D-RED-03).
+  6. **Re-correr la prueba de mutación** (catálogo de RS-R7, 49 mutaciones): las 12 supervivientes (M11, M14, M17, M19, M21,
+     M23, M27, M33, M34, M43, M44, M49) ahora las detecta al menos un test; M21 y M43 por el contrato de candados (RED-67).
+  7. `processes.md` tiene el runbook del Anexo D y no menciona `--fake`; `publish-main.yml` falla ante un commit que no viene
+     de un PR verde; `/pushGitLabecom` está partido en TEST y PRD.
+- **Riesgo de deploy:** bajo. Código de producción que cambia (todo chico y con test): `drf_spectacular` en `INSTALLED_APPS`;
+  `CiudadanoConfirmarView.dispatch` (RED-73); `normalizar_dni` con `Decimal` (RED-47); `_programa_o_denegar` (RED-56: un
+  Programa BECAS ausente pasa a dar 403 en vez de abrir); `SIIS_API_URL` sin default y el system check (RED-61: **confirmar
+  antes con ECOM** que PRD define la variable y pedir `DATANACH_ES_PRODUCCION=1`, o el deploy frena); logging a stdout
+  (OPS-03: avisar a ECOM del volumen); `/health/ready/` (OPS-04); `verificar_esquema_migraciones` en el entrypoint (OPS-01,
+  con `SKIP_SCHEMA_GUARD`); `logger.exception` en los context processors; LF en `exportacion_reportes.py`; las reversas de
+  `0047`, `0048` y `legajos.0007` (solo el camino de vuelta); `DATOS_SIIS_DIR` para `correr_alta_siis` (requiere montar el
+  directorio en icore y en ECOM antes de la próxima corrida); el guard de gevent en el entrypoint. Sin migraciones de
+  esquema. Operativos: la purga del historial reescribe `main` y el espejo de ECOM (coordinar antes); los rulesets cambian
+  cómo se mergea (PR obligatorio, rama al día). Costo de CI: +5-10 min por PR (matriz de motores, contratos, roundtrip).
+
 ### Ola 1 — Integridad SIIS
 - **Objetivo:** que ningún camino pueda duplicar un alta ni registrar un resultado ambiguo como reintentable; masivo
   robusto; catálogo y payload sin sorpresas.
@@ -747,6 +902,10 @@ tracebacks no se diagnostica el deploy de las olas siguientes.
   5. SIIS-09 (+PERF-09) **después** del PR 2. 4 h.
   6. SIIS-08 + G1-08 + G1-09 + G1-10 (qué viaja a SIIS). 20 h.
   7. SIIS-19, SIIS-17, G3-06 (herramientas y correcciones manuales). 6 h.
+  8. *Red de seguridad (04-oct):* RED-53 (`ComandoSiisBase`, dentro del PR 2 o 3: un candado que se agrega en un comando se
+     agrega en los cuatro) y la segunda parte de RED-32 (suite de comportamiento de `validar_casos_siis`, con el PR 7). 8 h.
+  **Prerrequisito:** PRs R-01 a R-10 de la Ola R (caracterización de comandos y del detalle de revisión, contrato de la
+  app, particiones de estados, cupo y forma del SQL).
 - **Hecho cuando:** V-STD; PoC invertidas de `poc/test_repro_siis_becas.py` pasan (SIIS-01: 1 sola llamada y un solo
   `vigente`; SIIS-02: `ReadTimeout` → INCIERTO no reintentable; SIIS-03: latido por caso, freno, comandos abortan con
   corrida viva; SIIS-04: no informa casos en BAJA; SIIS-05: `DUPLICADO_LOCAL`; SIIS-06: catálogo vacío no escribe;
@@ -773,6 +932,9 @@ tracebacks no se diagnostica el deploy de las olas siguientes.
   7. *Media y uploads:* SEC-09 etapa 2, SEC-15, SEC-31, R0b-07 (+ R0b-08). 14 h.
   8. *Bajos:* SEC-27, SEC-32, SEC-33, SEC-34, SEC-35, SEC-36, SEC-37, G1c-10, G1c-16 y el resto de SEC-01
      (`BackofficeAutenticado` fuera de la lista de la ficha; viene de la Ola 0). 20 h.
+  9. *Red de seguridad (04-oct):* RED-80 (cache de `programa_*`, con el PR 1), segunda parte de RED-52 (`save_user_profile`
+     explícito, con el PR 2) y de RED-79 (mover los guards de alcance y constantes a `autorizacion.py`, con el PR 5). 6 h.
+  **Prerrequisito:** PRs R-19 (Legajos y Roles por HTTP) y R-21 (ratchets de arquitectura) de la Ola R.
 - **Hecho cuando:** V-STD (+ V-UI en los PR con templates); PoC invertidas de `poc/test_repro_seguridad.py` (SEC-06, 07,
   09, 10, 11, 12, 15) y `poc/test_repro_usuarios.py` (G1b-02, 05, 06, 07; SEC-26; G2-03) y
   `test_repro_admin_cron_renaper.py::G1c04…`; `programas/tests/test_dispositivos_config.py` sigue en verde; P-02, P-03 y
@@ -787,26 +949,31 @@ tracebacks no se diagnostica el deploy de las olas siguientes.
 - **Objetivo:** que no se pierdan datos (adjuntos, capturas offline), que el despliegue sea diagnosticable y robusto, que
   la CI pruebe el motor real, y cerrar las reglas de negocio de Becas.
 - **PRs y orden:**
-  1. *Operación y deploy:* OPS-03 (adelantable), OPS-01, OPS-04, OPS-05, OPS-07, OPS-11, OPS-12, G3-04, G3-05. 24 h.
+  1. *Operación y deploy:* OPS-05, OPS-07 (ampliado: el candado envuelve también el `migrate`), OPS-11, OPS-12, G3-04,
+     G3-05. 12 h. (OPS-01, OPS-03 y OPS-04 pasaron a la Ola R, PR R-15.)
   2. *Datos y catálogo:* DAT-01, DAT-02, DAT-03, DAT-05, V2-NEW-05, G1c-08. 18 h.
   3. *Comandos peligrosos:* OPS-02, G2-05, G1c-12. 6 h.
-  4. *CI y tests:* TST-01 (matriz MariaDB), TST-02, TST-03, R0-03 (fecha fija que vence el 01-ene-2027: **antes del
-     31-dic-2026**). 20 h.
+  4. *CI y tests:* pasó entero a la Ola R (TST-01 → R-11; TST-02, TST-03 y R0-03 → R-20).
   5. *App de campo:* G1-03, G1-04 (+BEC-22), G1-05, G1-06, G1-07, G1-16, R0-04 (raíz `/api/becas/` con Token). 34 h.
   6. *Reglas de Becas:* BEC-03, BEC-04, BEC-05, BEC-06, BEC-07, BEC-09, BEC-10, BEC-15, BEC-16, BEC-17, BEC-18,
      BEC-20, BEC-24. 26 h.
   7. *Integraciones y link público:* SIIS-10, SIIS-13, SIIS-14 (+G3-02), SIIS-15, SIIS-16, SIIS-18, SIIS-20, SIIS-21,
      G1c-15, G1-11, G1-12, G1-13, G1-14, R0-06, R0-07 (link público y `q_uuid_en_texto`). 30 h.
   8. *Reportes:* G2-01. 8 h.
-- **Hecho cuando:** V-STD (+ V-UI donde aplique); PoC invertidas de `poc/test_repro_datos_operacion.py` (DAT-01, OPS-03,
-  OPS-04), `test_repro_admin_cron_renaper.py` (G1c-08, RENAPER 401/503) y `test_repro_dashboard_campos_propios.py`
+  9. *Red de seguridad (04-oct):* RED-48 (una sola regla de DNI, con G1c-08), RED-58 (plantilla de migración
+     re-entrante, con OPS-05) y segundas partes de RED-09 (`q_uuid_en_texto` a `core/db.py`, con el PR 7), RED-35
+     (atomicidad del resto de las escrituras), RED-40 (`validators` en los `JSONField`, con G1-05) y RED-50 (una sola
+     `edad_en_anios` con `timezone.localdate()` + regla `DTZ011`). 18 h.
+  **Prerrequisito:** PRs R-11 a R-16 de la Ola R (motor real en CI, contrato de migraciones, job de ida y vuelta, gates del
+  release, operación, y los tests de Becas que DAT-01 y las reglas van a invertir).
+- **Hecho cuando:** V-STD (+ V-UI donde aplique); PoC invertidas de `poc/test_repro_datos_operacion.py` (DAT-01; OPS-03 y
+  OPS-04 se invierten en la Ola R), `test_repro_admin_cron_renaper.py` (G1c-08, RENAPER 401/503) y `test_repro_dashboard_campos_propios.py`
   (G2-01); el job de CI con `mariadb:<versión de P-11>` corre `migrate` y `test --tag mysql` en verde; `seed_datos_base`
-  tiene tests de idempotencia; los «Top-5 tests faltantes» de TST-02 existen.
+  tiene tests de idempotencia (los «Top-5 tests faltantes» de TST-02 pasaron a la Ola R).
 - **Riesgo de deploy:** medio. DAT-01 es una migración solo de estado (sin DDL). G1-04 y G1-05 agregan columnas a
   `programas_formulario` (la tabla más grande): nullable o con default, en una sola migración, ensayada en el banco de 20k
-  con el `read_timeout` de migrate (OPS-05). OPS-01 y OPS-05 cambian el entrypoint (unos segundos más al arranque;
-  `SKIP_SCHEMA_GUARD` de escape). OPS-03 aumenta el volumen de stdout (avisar a ECOM). OPS-12 hace que QA dependa de Redis.
-  TST-01 suma 2-4 min de CI.
+  con el `read_timeout` de migrate (OPS-05). OPS-05 cambia el entrypoint (OPS-01, que también lo cambia, y OPS-03, que
+  aumenta el volumen de stdout, pasaron a la Ola R). OPS-12 hace que QA dependa de Redis.
 
 ### Ola 4 — Performance
 - **Objetivo:** que padrón, cupo, masivo, exports y el cron horario escalen a 40k casos sin acercarse al `read_timeout`
@@ -814,7 +981,10 @@ tracebacks no se diagnostica el deploy de las olas siguientes.
 - **PRs y orden:** (1) PERF-04 + PERF-16 (padrón; prototipo listo) 10 h · (2) PERF-02 (cupo) 2 h · (3) PERF-01 (+V4-NEW-02),
   PERF-19, PERF-07, PERF-06 (circuito SIIS) 8 h · (4) PERF-20 + LEG-01 (alertas) 6 h · (5) PERF-03 (`lxml` + botón CSV),
   G1b-11, G1b-12 (exports y dashboard) 14 h · (6) PERF-08, PERF-10 (config) 4 h · (7) G1c-09, G1c-11 (admin) 4 h · (8)
-  PERF-12, PERF-13, PERF-15 (medir en el banco; índice solo si el plan lo pide) 4 h.
+  PERF-12, PERF-13, PERF-15 (medir en el banco; índice solo si el plan lo pide) 4 h · (9) *Red de seguridad (04-oct):*
+  RED-62 (presupuestos que suben exigen justificación) y segundas partes de RED-10 (destinos del Performance Guard para el
+  paso 2 del link y el alta por API), RED-49 (renombrar las tres acepciones de `cupo_disponible`, con PERF-02), RED-51
+  (cache del dashboard por modelo) y RED-83 (quitar los índices redundantes) 12 h.
 - **Hecho cuando:** V-STD + `test --tag performance`; presupuestos nuevos en `perf_budgets.json` (`becas_cupo_segmento`,
   `becas_proceso_masivo`); tests de consultas constantes (PERF-04, PERF-01, PERF-20, G1c-09); los criterios de cierre en
   el banco MariaDB de `anexo-mediciones-performance.md`.
@@ -830,7 +1000,9 @@ tracebacks no se diagnostica el deploy de las olas siguientes.
   LEG-05, LEG-02, LEG-03, FE-09, FE-21 14 h · (3) Configuración: FE-04, FE-05, FE-08 6 h · (4) FE-06 ya; FE-07, FE-01 y FE-10
   **después de la Ola 6 paso 3** (en ese orden: FE-07 antes o con FE-01; FE-01 antes que FE-10) 14 h · (5) FE-18, FE-19, FE-25, FE-26 8 h · (6) **después de la
   Ola 6 paso 4:** FE-11, FE-12, FE-17, FE-20, FE-23, FE-24 48 h · (7) FE-22, FE-16, V5A-NEW-04, G2-04, G2-06, V5A-NEW-07 parte (b) (labels de `convocatoria_list` y deuda de
-  `_dashboard_panel`) 20 h.
+  `_dashboard_panel`) 20 h · (8) *Red de seguridad (04-oct):* RED-33 (tests HTTP de las vistas de Dispositivos y
+  Merenderos, con el PR 1), RED-75 (`/set_dark_mode/`, D-RED-07) y segundas partes de RED-42 (URLs literales →
+  `{% url %}`) y RED-53 (`_subir_padron`) 14 h.
 - **Hecho cuando:** V-STD + V-UI (desde la Ola 6, `--ratchet` = 0 nuevos y `--arquetipo` OK en pantallas migradas); PoC
   invertidas de `poc/test_repro_dispositivos_legajos.py` (DIS-01, DIS-08, LEG-02..05); las verificaciones de Playwright de
   cada ficha FE (a 1440 y 390 px); CLASSDEF en 0 para los archivos tocados.
@@ -857,7 +1029,12 @@ tracebacks no se diagnostica el deploy de las olas siguientes.
   conversaciones completo: includes, `ws/conversaciones/…` y `ws/alertas-conversaciones/` —**no** `ws/alertas/`—, menú,
   card del inicio y solapa del legajo; 2 h; R0-01 se cierra antes, en la Ola 0), **R0-02** (CLAUDE.md y
   `docs/client/architecture.md` con `portal:ciudadano_mi_perfil`; 2 h) y **PERF-11** (tabla
-  `FotoDefinicion`, plan propio, L).
+  `FotoDefinicion`, plan propio, L). **Red de seguridad (04-oct), 40 h:** RED-64 (aprobación antes de publicar
+  `docs/client/`), RED-76 (mypy gradual), RED-86 (suite en paralelo, después de RED-88) y segundas partes de RED-13
+  (desacoplar el shell y la señal de `conversaciones` **antes** de G1-01 fase 2: +8 h), RED-37 (esquema del dashboard),
+  RED-39 (un solo sobre de error JSON), RED-54 (partir `formulario_detalle`), RED-78 (borrar `DashboardView`) y RED-85
+  (`requirements-ci.txt` + dependabot). RED-45 (borrar el parche de gevent) y RED-65 (sacar del guard del release los
+  artefactos muertos) van dentro de OPS-13 y OPS-10/OPS-14, sin horas extra.
 - **Hecho cuando:** V-STD + V-UI; `git grep -n "phase2\|core.performance.monitoring"` vacío; `pip-audit` y build de imagen
   OK; `collectstatic` sin 404.
 - **Riesgo de deploy:** bajo, salvo PERF-11 (migración de datos larga sobre `programas_formulario`: plan propio con ECOM,
@@ -942,6 +1119,47 @@ pantalla.
 - `TruncMonth` sobre un DateField «usa CONVERT_TZ» — falso: compila a `DATE_FORMAT` (seguro).
 - G1b-10 «500 en el alta rápida ante colisión» — solo en una carrera (el form ya valida unicidad).
 - G1c-14 (vencimientos) — impacto real INFO (BEC-22).
+
+### 8.3 Frente Red de seguridad: refutado por VR1/VR2 y propuestas corregidas (04-oct-2026)
+
+**Refutado (sin ficha):**
+
+| Afirmación | Por qué no | Qué queda |
+|---|---|---|
+| RS-R4-01: las dos copias del guard de alcance de `revision.py` «perdieron el `programa=`» y un coordinador de otro programa abre la revisión y aprueba casos de Becas | **REFUTADO como seguridad** (VR2, con test): el `programa=` se resuelve **adentro** de `programas/services/autorizacion.py` (`programa = programa or programa_becas(user)`); un usuario con todas las capacidades del Administrador de Becas en un rol de otro programa recibe `PermissionDenied` en los tres guards y 403 en las tres vistas. Y sin Programa BECAS sembrado, los tres degradan igual | La duplicación (BAJA) va en RED-79; lo que destapó el experimento —los guards fallan **abiertos** sin el Programa BECAS— es RED-56 |
+| RS-R1-08: `ApiCorsMiddleware` «refleja cualquier `Origin`» y reparte `Allow-Credentials` en producción | **Refutado** (VR1, con test): `Origin: https://evil.example` sobre `/api/` → sin `Access-Control-Allow-Origin` ni `-Credentials`; `DJANGO_CORS_ALLOWED_ORIGINS` no existe en ningún entorno y `_is_dev_origin` corta con `DEBUG=False`: hoy el middleware es un no-op | RED-71 (BAJA): tests de contrato y corregir la frase del Cambio 52 |
+| RS-R1-08: el `OPTIONS` anónimo a `/api/` es «una superficie que el barrido de la Ola 0 no cubrió» | Responde 200 con cuerpo vacío sin tocar la base, también para rutas inexistentes: no filtra, no escribe ni sirve para enumerar | Un test que lo deja escrito (RED-71) |
+| RS-R1-08: el prefijo de `_is_dev_origin` (`10.atacante.com`) es explotable | Solo con `DEBUG=True` (máquina de desarrollo) y controlando un hostname con ese prefijo | Test con `DEBUG=False` (RED-71) |
+
+**Propuestas corregidas (no reintroducir la versión original):**
+
+| Propuesta original | Por qué no | Qué se hace |
+|---|---|---|
+| Copiar el helper `_sql_mysql` de la PoC `A305SQL` (RS-R2-01) | Con un queryset agrupado abre conexión real (`allows_group_by_selected_pks` lee `mysql_is_mariadb`) y errorea en CI | El helper corregido de RED-07, una sola vez en `core/tests/test_sql_motor_real.py` |
+| Afirmar atomicidad con `getattr(fn, "_atomic", False) or "atomic" in inspect.getsource(fn)` (RS-R2-09) | `atomic` usa `@wraps`: `_atomic` no existe y la condición depende de un `grep` que da verde con un comentario | Prueba conductual: hacer fallar el último paso y afirmar que nada quedó escrito (RED-35) |
+| Fijar la allowlist pública en 44 rutas (RS-R1-01) | El número depende de cómo cada script concreta los `re_path` (VR1 midió 288/17) | Medirla con el propio test al escribirlo (RED-02) |
+| `test_ninguna_vista_importa_de_otra_vista` (RS-R4-14) | Falla en 9 lugares, no en 2, y `ajax_utils` es compartido a propósito: lo terminarían apagando | Ratchet de aristas y ciclos conocidos (RED-79) |
+| Seis tests de caracterización de comandos SIIS «antes de la Ola 1» como prerrequisito más caro (RS-R4-15) | La columna «0 citas» medía nombres de función; 4 de los 6 comandos ya se ejercen con `call_command` | Caracterizar solo `validar_casos_siis`, `completar_casos_renaper` y `sincronizar_programas_siis` (RED-32) |
+| Unificar los DNI importando `normalizar_dni` en las copias (RS-R4-05) | La canónica también agrega un 0 con `Decimal` | `normalizar_dni` con `float` y `Decimal` (RED-47) |
+| Test de paridad de los tres guards como red de SEC-06 (RS-R4-01) | Pasa hoy: no documenta nada | Test de que los guards fallan cerrados (RED-56); la paridad, como ratchet barato |
+| Un 409 para los seis endpoints de la pausa (RS-R1-02) | El PATCH contesta 400 sin `pausado`; el test nacería rojo y se «arreglaría» el test | Afirmar el código real de cada endpoint (RED-03, D-RED-10) |
+| Grabar respuestas reales de RENAPER/SIIS en DEV (RS-R3-10) | icore tiene datos reales y `ENVIRONMENT=prd`; versionar una respuesta de un organismo de identidad requiere decisión | Fixture sintético compartido por defecto (RED-41, D-RED-04) |
+| `--fail-on-warn` en el primer gate de esquema (RS-R3-01/12) | Hoy hay 24 warnings: el gate nacería rojo | Allowlist que se vacía; `--fail-on-warn` cuando quede vacía (RED-37, RED-43) |
+| «CI verde» consultando los check-runs del commit publicado o del commit de `development` (RS-R6-03, RS-R6-05) | El merge commit no tiene check-runs: el paso pasaría siempre | Buscar el PR del commit (`commits/<sha>/pulls`) y mirar los checks de su head (RED-21, RED-23) |
+| Ruleset con 1 aprobación obligatoria (RS-R6-02) | Todos los PRs salen de la misma cuenta y GitHub no deja aprobar el propio: bloquearía todos los merges | `required_approving_review_count: 0`; la revisión independiente sigue siendo «Aprobado @ SHA» (RED-20) |
+| Jobs gemelos `…-skipped` para los workflows con `paths` (RS-R6-02/17) | Duplicación innecesaria | Filtro dentro del job con `dorny/paths-filter` (RED-20) |
+| Error de `SIIS_API_URL` cuando apunta a `*.ecomdev.ar` con `ENVIRONMENT == "prd"` (RS-R6-10) | QA e icore también valen `prd` y QA usa legítimamente el SIIS de desarrollo: el check frenaría testing | Variable explícita `DATANACH_ES_PRODUCCION=1` solo en PRD (RED-61) |
+| Arreglar ya la reversa UUID de `legajos.0007` (RS-R5-02 pt. 2) | L, toca migraciones aplicadas en PRD y el riesgo lo cubre el runbook | Barrera de reversa (RED-15, D-RED-05) |
+| Esperar el error `1060 Duplicate column` en la carrera de `migrate` (RS-R5-07) | El error depende de dónde se crucen los procesos (1050 desde base vacía) | RED-19 no busca un código de error específico |
+
+**Afirmaciones ajustadas (para no volver a citarlas):** «36 de los últimos 200 commits sin PR» (RS-R6-02) estaba mal
+enunciado (`--no-merges -200` se remonta a mayo): la cifra verificable es 23 commits de código sin PR en 90 días; «15
+reversas noop» son 14 con `RunPython.noop` más `users/0007`, que es otro patrón; «49 usos de `transaction.atomic`» son 39;
+«11 sitios con el prefijo `pg-`/`rn-`» son 8 (los otros 3 son `g-`/`t-`); `cupo_disponible` sí aparece en tests, como
+property del modelo; `estado` sí tiene tipo en el esquema (`EstadoFb6Enum`); la función se llama
+`formulario_por_client_uuid`; «DNI válido» tiene 6 implementaciones, no 7; RS-R6-01 sí tenía antecedente (Cambio 79);
+RS-R6-07 y RS-R6-08 no eran temas nuevos (V5A-NEW-01, FE-13); `tests/e2e/` no existe en ninguna rama y la memoria de trabajo
+que lo da por «en verde» hay que corregirla.
 
 ---
 
@@ -1259,6 +1477,125 @@ Estado: CONF. test / CONF. lectura / PLAUSIBLE / REFUTADO / absorbido (= su cont
 | V6-NEW-05 | DAT-05 | `quitar_padron_propio` |
 | V6-NEW-06 | OPS-02 | comandos legacy de grupos |
 | V2-NEW-03, V2-NEW-05, V5A-NEW-01, 04, 07, 08, V6-NEW-02 | mismos IDs | canónicos propios |
+
+### 9.4 Frente Red de seguridad (RS-R1 a RS-R7, VR1, VR2) → canónico
+
+Estado después de VR1/VR2 (las mediciones de RS-R7 son corridas reales: CONF. test). «absorbido» = vive en el canónico
+indicado; si el canónico es una ficha existente, lleva la línea «Ampliado por RS-…».
+
+| Origen | Canónico | Estado |
+|---|---|---|
+| RS-R1-01 | RED-02 | CONF. ajustado (test) |
+| RS-R1-02 | RED-03 | CONF. ajustado (coverage) |
+| RS-R1-03 | RED-04 | CONF. test (coverage) |
+| RS-R1-04 | RED-05 | CONF. lectura |
+| RS-R1-05 | RED-06 (capa 1; la capa 2 va en SEC-10/11/12/18) | CONF. ajustado (coverage) |
+| RS-R1-06 | RED-30 (humo) + RED-36 (Spectacular) | CONF. test; parte duplicada de RS-R3-01 |
+| RS-R1-07 | RED-31 | CONF. test (coverage) |
+| RS-R1-08 | RED-71 | CONF. ajustado; tres sub-afirmaciones REFUTADAS (§8.3) |
+| RS-R1-09 | TST-02 | absorbido (duplicado; ítem 3 del Top-5) |
+| RS-R1-10 | RED-32 | CONF. test (coverage) |
+| RS-R1-11 | RED-33 | CONF. test (coverage) |
+| RS-R1-12 | RED-72 | CONF. ajustado |
+| RS-R1-13 | TST-02 | absorbido (duplicado) |
+| RS-R1-14 | TST-03 | absorbido (duplicado) |
+| RS-R1-15 | RED-03 | absorbido |
+| RS-R2-01 | RED-07 | CONF. ajustado (la propuesta no compilaba) |
+| RS-R2-02 | RED-08 | CONF. test |
+| RS-R2-03 | RED-09 (parte b) + TST-01 (parte a) | CONF. test; (a) absorbido |
+| RS-R2-04 | RED-34 | CONF. ajustado |
+| RS-R2-05 | RED-10 | CONF. lectura |
+| RS-R2-06 | RED-06 | absorbido (mismo PR) |
+| RS-R2-07 | RED-17 (modelos históricos) + TST-01 (punto 1) | CONF.; punto 1 absorbido |
+| RS-R2-08 | RED-32 | absorbido (duplicado de RS-R1-10) |
+| RS-R2-09 | RED-35 | CONF. ajustado (aserción corregida) |
+| RS-R2-10 | RED-74 | CONF. lectura |
+| RS-R3-01 | RED-36 | CONF. ajustado (test) |
+| RS-R3-02 | RED-11 | CONF. ajustado |
+| RS-R3-03 | RED-37 | CONF. ajustado (test) |
+| RS-R3-04 | RED-12 | CONF. lectura |
+| RS-R3-05 | RED-38 | CONF. lectura |
+| RS-R3-06 | RED-75 | CONF. ajustado (test) |
+| RS-R3-07 | RED-76 (paso 3 en RED-37) | CONF. ajustado |
+| RS-R3-08 | RED-39 | CONF. lectura |
+| RS-R3-09 | RED-40 | CONF. lectura |
+| RS-R3-10 | RED-41 | CONF. ajustado (reserva de datos personales, D-RED-04) |
+| RS-R3-11 | RED-42 (+ LEG-03 y LEG-06 ampliados) | CONF. test |
+| RS-R3-12 | RED-43 | CONF. lectura |
+| RS-R4-01 | — (la duplicación, en RED-79; el hallazgo nuevo, RED-56) | **REFUTADO** como seguridad (§8.3) |
+| RS-R4-02 | RED-45 | CONF. lectura |
+| RS-R4-03 | RED-13 (+ G1-01 ampliado) | CONF. lectura |
+| RS-R4-04 | RED-46 | CONF. test (radon) |
+| RS-R4-05 | RED-47 | CONF. ajustado (test) |
+| RS-R4-06 | RED-48 | CONF. lectura |
+| RS-R4-07 | RED-49 | CONF. lectura |
+| RS-R4-08 | RED-50 | CONF. ajustado |
+| RS-R4-09 | RED-77 | CONF. ajustado |
+| RS-R4-10 | RED-78 | CONF. test |
+| RS-R4-11 | RED-51 | CONF. lectura |
+| RS-R4-12 | RED-52 | CONF. ajustado |
+| RS-R4-13 | RED-13 | absorbido (mismo PR) |
+| RS-R4-14 | RED-79 | CONF. ajustado (ratchet) |
+| RS-R4-15 | RED-32 | absorbido (ajustado: 2 comandos, no 6) |
+| RS-R4-16 | RED-53 (punto 3 en RED-79) | CONF. test |
+| RS-R4-17 | RED-54 | CONF. test (radon) |
+| RS-R4-18 | RED-80 | CONF. lectura |
+| RS-R4-19 | RED-81 | CONF. lectura |
+| RS-R4-20 | RED-82 (+ OPS-14 ampliado) | CONF. test |
+| RS-R4-21 | RED-55 (+ OPS-03 ampliado) | CONF. lectura |
+| RS-R5-01 | RED-14 | CONF. test (MariaDB 11.8) |
+| RS-R5-02 | RED-15 | CONF. test (MariaDB 11.8) |
+| RS-R5-03 | RED-16 | CONF. lectura |
+| RS-R5-04 | RED-17 | CONF. test |
+| RS-R5-05 | RED-57 | CONF. ajustado (test) |
+| RS-R5-06 | RED-18 | CONF. test (MariaDB 11.8) |
+| RS-R5-07 | RED-19 (+ OPS-07 ampliado) | CONF. ajustado (test) |
+| RS-R5-08 | RED-58 | CONF. test |
+| RS-R5-09 | RED-59 (punto 2 en OPS-04, ampliado) | CONF. lectura |
+| RS-R5-10 | RED-60 | CONF. lectura |
+| RS-R5-11 | RED-17 (+ TST-01) | absorbido |
+| RS-R5-12 | RED-83 | CONF. test |
+| RS-R5-13 | RED-84 | CONF. lectura |
+| RS-R6-01 | RED-01 | CONF. ajustado (antecedente: Cambio 79) |
+| RS-R6-02 | RED-20 | CONF. ajustado (métrica corregida) |
+| RS-R6-03 | RED-21 | CONF. lectura (YAML corregido) |
+| RS-R6-04 | RED-22 | CONF. lectura |
+| RS-R6-05 | RED-23 | CONF. lectura (YAML corregido) |
+| RS-R6-06 | OPS-04 | absorbido (duplicado) |
+| RS-R6-07 | V5A-NEW-01 | absorbido (duplicado) |
+| RS-R6-08 | FE-13 | absorbido (duplicado) |
+| RS-R6-09 | RED-24 | CONF. test |
+| RS-R6-10 | RED-61 | CONF. lectura (propuesta corregida) |
+| RS-R6-11 | RED-62 | CONF. lectura |
+| RS-R6-12 | RED-63 | CONF. lectura |
+| RS-R6-13 | RED-85 | CONF. lectura |
+| RS-R6-14 | RED-44 | CONF. test (prototipo) |
+| RS-R6-15 | RED-64 | CONF. lectura |
+| RS-R6-16 | RED-65 | CONF. lectura |
+| RS-R6-17 | RED-20 | absorbido |
+| RS-R6-18 | RED-86 | CONF. test |
+| RS-R6-19 | RED-07 | absorbido |
+| RS-R6-20 | RED-09 | absorbido |
+| RS-R7-01 | RED-25 | CONF. test (mutación M11) |
+| RS-R7-02 | RED-26 | CONF. test (mutación M14) |
+| RS-R7-03 | RED-66 | CONF. test (mutación M17) |
+| RS-R7-04 | RED-27 | CONF. test (mutación M19) |
+| RS-R7-05 | RED-67 (capa 2 en TST-01) | CONF. test (mutaciones M21, M43) |
+| RS-R7-06 | RED-68 | CONF. test (mutación M23) |
+| RS-R7-07 | RED-28 | CONF. test (mutación M27) |
+| RS-R7-08 | RED-87 | CONF. test (mutación M33) |
+| RS-R7-09 | RED-69 | CONF. test (mutación M34) |
+| RS-R7-10 | RED-29 | CONF. test (mutación M44) |
+| RS-R7-11 | RED-70 | CONF. test (mutación M49) |
+| RS-R7 nota 2 (terminadores CR) | RED-82 | absorbido |
+| RS-R7 nota 3 (`--parallel` y `pickle`) | RED-88 | CONF. test |
+| RS-VR1-NEW-01 | RED-73 | CONF. test |
+| RS-VR1-NEW-02 | RED-03 | absorbido |
+| RS-VR1-NEW-03 | — | resuelto en la consolidación (referencias cruzadas del informe RS-R1; no es del producto) |
+| RS-VR2-NEW-01 | RED-56 | CONF. test |
+| RS-VR2-NEW-02 | RED-47 | absorbido |
+| RS-VR2-NEW-03 | RED-15 (+ OPS-01 ampliado) | absorbido |
+| RS-VR2-NEW-04 | RED-50 | absorbido |
 
 ---
 
