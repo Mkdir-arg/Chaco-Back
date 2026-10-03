@@ -6,7 +6,6 @@ from .chat import (  # noqa: F401
     configurar_operador_cola,
     crear_mensaje_operador,
     ejecutar_asignacion_automatica,
-    evaluar_conversacion,
     marcar_mensajes_ciudadano_leidos,
 )
 from .core import AsignadorAutomatico, MetricasService, NotificacionService  # noqa: F401
