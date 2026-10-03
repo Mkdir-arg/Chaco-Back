@@ -15,6 +15,7 @@ from .backoffice import (
     reasignar_conversacion,
     tiene_permiso_conversaciones,
 )
-from .public import (
-    evaluar_conversacion,
-)
+
+# El módulo `.public` desapareció con `<id>/evaluar/`: solo tenía esa vista y sus
+# dos helpers de payload, y la vista aceptaba el POST de cualquier anónimo
+# (R0-01, auditoría oct-2026).
