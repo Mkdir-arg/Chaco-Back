@@ -3,7 +3,7 @@ from datetime import timedelta
 
 from django.contrib.auth.decorators import login_required
 from django.db import models
-from django.http import HttpResponse, JsonResponse
+from django.http import HttpResponse
 from django.shortcuts import render
 from django.utils import timezone
 
@@ -20,10 +20,8 @@ def dashboard_contactos_simple(request):
     return render(request, "legajos/dashboard_simple.html", {"titulo": "Dashboard de Contactos - Funcionando!"})
 
 
-@login_required
-def test_api(request):
-    """API de prueba"""
-    return JsonResponse({"status": "ok", "message": "Las APIs funcionan correctamente"})
+# `test_api`, la vista de la ruta de prueba `test-api/`, se eliminó con ella
+# (SEC-19, auditoría oct-2026).
 
 
 @login_required
