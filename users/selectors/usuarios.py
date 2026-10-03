@@ -88,10 +88,15 @@ def puede_gestionar_usuario(operador, target):
     """¿El operador puede editar a ``target`` según su alcance?
 
     Admin global: siempre. Admin de programa: solo si el usuario tiene al menos
-    un rol de alguno de los programas que administra.
+    un rol de alguno de los programas que administra, **y** no es una cuenta que
+    lo excede (SEC-03): superusuario, admin global o admin de otro programa. Sin
+    esa guarda alcanzaba con compartir un rol operativo para tomarle la cuenta.
     """
     if es_admin_global_usuarios(operador):
         return True
+    # SEC-03: ningún alcance acotado llega a una cuenta que lo excede.
+    if target.is_superuser or rbac.puede_alguna(target, rbac.CAPS_ADMINISTRACION):
+        return False
     if es_gestor_territorial(operador):
         from programas.services.autorizacion import (
             grupos_territoriales_becas,
@@ -109,4 +114,34 @@ def puede_gestionar_usuario(operador, target):
         )
         return permitido
     programas = set(programas_administrables_usuarios(operador).values_list("pk", flat=True))
+    # Admin de OTRO programa (o de todos, con un rol global): compartir un rol
+    # operativo no lo pone bajo el alcance de este operador.
+    codenames_admin = [rbac.codename_de(c) for c in rbac.CAPS_ADMIN_PROGRAMA]
+    if (
+        target.groups.filter(meta__activo=True, permissions__codename__in=codenames_admin)
+        .exclude(meta__programa__in=programas)
+        .exists()
+    ):
+        return False
     return target.groups.filter(meta__programa__in=programas, meta__activo=True).exists()
+
+
+def puede_gestionar_credenciales(operador, target):
+    """¿El operador puede tocar usuario, correo y contraseña de ``target``, y activarlo?
+
+    Para los roles alcanza con que el usuario tenga **un** rol del programa: el
+    guardado es acotado y no pisa lo de afuera. Las credenciales y el estado de la
+    cuenta, en cambio, son la cuenta entera, así que exigen que **todos** los roles
+    del target estén dentro del alcance del operador (SEC-03, decisión D-03 de la
+    auditoría oct-2026). El admin global no tiene restricción.
+    """
+    if operador is None or not getattr(target, "pk", None):
+        return True
+    if not puede_gestionar_usuario(operador, target):
+        return False
+    alcance = alcance_roles_ids(operador)
+    if alcance is None:  # admin global
+        return True
+    # Los roles desactivados no otorgan nada, así que no cuentan; un grupo sin
+    # ``RolMeta`` sí cuenta como fuera de alcance (nunca es asignable desde el ABM).
+    return not target.groups.exclude(pk__in=alcance).exclude(meta__activo=False).exists()
