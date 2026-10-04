@@ -14,7 +14,11 @@ Severidad y propuesta son las **finales** de VR1/VR2; lo refutado está en READM
 duplicados de fichas existentes se agregaron a esas fichas con la línea «Ampliado por RS-…» (trazabilidad en README
 §9.4).
 
-**Conteo:** 1 CRÍTICA · 28 ALTA · 41 MEDIA · 18 BAJA = **88 fichas**, todas ⬜. Además amplían fichas existentes:
+**Conteo:** 2 CRÍTICA · 28 ALTA · 41 MEDIA · 18 BAJA = **89 fichas** (las 88 del relevamiento del 03/04-oct más
+**RED-89**, que salió de la revisión del PR R-05, se midió el 04-oct y es la **segunda CRÍTICA** del frente). Avance al
+cierre de la **Ola R mínima** (PRs R-01 a R-10, mergeados el 04-oct): **30 ✅ · 3 🟡 · 56 ⬜**; por severidad (✅/🟡/⬜),
+CRÍTICA 0/1/1, ALTA 12/2/14, MEDIA 14/0/27, BAJA 4/0/14. Los tres 🟡 son RED-01 y RED-20 (el código está, falta el paso
+del dueño del repo) y RED-10 (falta el gemelo del link público). Además amplían fichas existentes:
 TST-01, TST-02, TST-03, OPS-01, OPS-03, OPS-04, OPS-07, OPS-14 y R0-03 (`05-…`), V5A-NEW-01 y FE-13 (`07-…`), LEG-03
 y LEG-06 (`03-…`) y G1-01 (`01-…`). OPS-01, OPS-03, OPS-04, TST-01, TST-02, TST-03 y R0-03 pasan de la Ola 3 a la Ola R.
 
@@ -35,7 +39,7 @@ con lo que existe hoy; la lista solo baja.
 
 | ID | Título | Sev. | Estado | Ola | Esf. | Avance 03-oct |
 |---|---|---|---|---|---|---|
-| RED-01 | Datos personales reales (10.321 personas) en un repo público, en el release y en la imagen de PRD | CRÍTICA | CONF. lectura (API + git) | R (hotfix) | M | ⬜ |
+| RED-01 | Datos personales reales (10.321 personas) en un repo público, en el release y en la imagen de PRD | CRÍTICA | CONF. lectura (API + git) | R (hotfix) | M | 🟡 (falta el PM) |
 | RED-02 | Ningún test recorre el URLconf: una ruta que vuelva a quedar abierta pasa el CI | ALTA | CONF. test (barrido) | R | S | ✅ |
 | RED-03 | App de campo: pausa probada en 1 de 6 endpoints, período en 3, ramas de error en ninguna | ALTA | CONF. test (coverage) | R | S-M | ✅ |
 | RED-04 | Crear, eliminar y activar un rol no se ejecutan por HTTP en ningún test | ALTA | CONF. test (coverage) | R | S-M | ⬜ |
@@ -54,7 +58,7 @@ con lo que existe hoy; la lista solo baja.
 | RED-17 | Ninguna migración se prueba hacia atrás ni sobre datos; los tests de migración usan los modelos de hoy | ALTA | CONF. test | R | M + S | ⬜ |
 | RED-18 | La reversa de `0047`, `0048` y `legajos.0007` falla con «Data truncated» | ALTA | CONF. test (MariaDB 11.8) | R | S | ⬜ |
 | RED-19 | Rolling en k8s: cada pod corre `migrate` (choque) y no hay regla expand/contract | ALTA | CONF. test (MariaDB 11.8) | R (+3 en OPS-07) | S-M | ⬜ |
-| RED-20 | `development` y `main` sin protección de rama: ningún check es obligatorio | ALTA | CONF. lectura (API) | R | S-M | ⬜ |
+| RED-20 | `development` y `main` sin protección de rama: ningún check es obligatorio | ALTA | CONF. lectura (API) | R | S-M | 🟡 (falta el PM) |
 | RED-21 | `publish-main.yml` genera el release sin exigir CI verde y con un denylist escrito a mano | ALTA | CONF. lectura | R | S | ⬜ |
 | RED-22 | El pipeline de ECOM solo construye la imagen: cero verificación antes del deploy a PRD | ALTA | CONF. lectura | R (propuesta a ECOM) | S | ⬜ |
 | RED-23 | `/pushGitLabecom` empuja `test` y `main` en la misma corrida, sin exigir CI ni testing verificado | ALTA | CONF. lectura | R | M | ⬜ |
@@ -66,12 +70,12 @@ con lo que existe hoy; la lista solo baja.
 | RED-29 | El envío del link público no prueba que el relevamiento siga `EN_CURSO` | ALTA | CONF. test (mutación M44) | R | S | ✅ |
 | RED-30 | Sin test de humo por pantalla: nada afirma «ninguna ruta da 500» | MEDIA | CONF. test (barrido) | R | S | ✅ |
 | RED-31 | `requisito_eliminar` y `subsegmento_eliminar` no se ejecutan en ningún test | MEDIA | CONF. test (coverage) | R | S | ⬜ |
-| RED-32 | Comandos contra SIIS y RENAPER sin red (`validar_casos_siis`, `completar_casos_renaper`, `sincronizar_programas_siis`) | MEDIA | CONF. test (coverage) | R (+1) | S-M (+S-M) | ✅ (R) |
+| RED-32 | Comandos contra SIIS y RENAPER sin red (`validar_casos_siis`, `completar_casos_renaper`, `sincronizar_programas_siis`) | MEDIA | CONF. test (coverage) | R (+1) | S-M (+S-M) | ✅ (R; falta Ola 1) |
 | RED-33 | Dispositivos y Merenderos: las vistas que operan no tienen test HTTP | MEDIA | CONF. test (coverage) | 5 | M | ⬜ |
 | RED-34 | Nada obliga a que una ficha cerrada deje un test permanente (0 tests bajo `docs/`) | MEDIA | CONF. test | R | S | ⬜ |
 | RED-35 | Ningún test afirma que las escrituras críticas sigan siendo atómicas | MEDIA | CONF. lectura | R (+3) | S (+S-M) | ⬜ |
-| RED-36 | `drf_spectacular` fuera de `INSTALLED_APPS`: `/api/docs/` y `/api/redoc/` dan 500 | MEDIA | CONF. test | R (primero) | S | ⬜ |
-| RED-37 | El esquema OpenAPI publica tipos falsos y pierde 11 vistas | MEDIA | CONF. test | R (+7) | S-M (+S-M) | ⬜ |
+| RED-36 | `drf_spectacular` fuera de `INSTALLED_APPS`: `/api/docs/` y `/api/redoc/` dan 500 | MEDIA | CONF. test | R (primero) | S | ✅ |
+| RED-37 | El esquema OpenAPI publica tipos falsos y pierde 11 vistas | MEDIA | CONF. test | R (+7) | S-M (+S-M) | ✅ (R; falta Ola 7) |
 | RED-38 | Tres motores de condiciones (1 Python + 2 JS, dos repos) sin vectores compartidos | MEDIA | CONF. lectura (dos repos) | R | M | ⬜ |
 | RED-39 | Cinco sobres de error JSON leídos con fallback silencioso | MEDIA | CONF. lectura | R (+7) | S (+M) | ⬜ |
 | RED-40 | `JSONField` con estructura implícita: 0 `validators` y nada sobre datos viejos | MEDIA | CONF. lectura | R (+3) | S-M (+S) | ⬜ |
@@ -88,7 +92,7 @@ con lo que existe hoy; la lista solo baja.
 | RED-51 | Dos `invalidate_dashboard_cache`; `stats_legajos` colgado del modelo equivocado | MEDIA | CONF. lectura | R (+4) | S (+S) | ⬜ |
 | RED-52 | Contrato implícito por `user._state.fields_cache["profile"]` | MEDIA | CONF. lectura | R (+2) | S (+S) | ⬜ |
 | RED-53 | Clones literales entre los comandos SIIS y entre las vistas de padrón | MEDIA | CONF. test (pylint + AST) | 1 (+5) | S-M (+S) | ⬜ |
-| RED-54 | `revision.py` (1.331 líneas): ningún test fija el contexto del detalle | MEDIA | CONF. test (radon) | R (+7) | S-M (+M) | ✅ |
+| RED-54 | `revision.py` (1.331 líneas): ningún test fija el contexto del detalle | MEDIA | CONF. test (radon) | R (+7) | S-M (+M) | ✅ (R; falta Ola 7) |
 | RED-55 | Los context processors corren en cada render y tragan toda excepción sin log | MEDIA | CONF. lectura | R | S | ⬜ |
 | RED-56 | Los guards de alcance de Becas fallan abiertos si el Programa BECAS no está sembrado | MEDIA | CONF. test | R | S | ✅ |
 | RED-57 | 14 reversas `RunPython.noop` (más `users/0007`) pierden datos e informan `OK` | MEDIA | CONF. test (SQLite con datos) | R | S-M | ⬜ |
@@ -119,13 +123,19 @@ con lo que existe hoy; la lista solo baja.
 | RED-82 | `exportacion_reportes.py` con terminadores CR: git lo trata como binario y pylint lo saltea | BAJA | CONF. test | R | S | ⬜ |
 | RED-83 | Índices duplicados en `programas_formulario` y `legajos_ciudadano` | BAJA | CONF. test (`information_schema`) | R (+4) | S (+S) | ⬜ |
 | RED-84 | `requerimientos.py --check` no verifica la sección «Reversión» | BAJA | CONF. lectura | R | S | ⬜ |
-| RED-85 | Herramientas del CI sin pinear y actions por tag en workflows con `contents: write` | BAJA | CONF. lectura | R (+7) | S (+S) | ⬜ |
+| RED-85 | Herramientas del CI sin pinear y actions por tag en workflows con `contents: write` | BAJA | CONF. lectura | R (+7) | S (+S) | ✅ (R; falta Ola 7) |
 | RED-86 | Job de tests con timeout de 15 min, sin `--parallel` ni alarma de crecimiento | BAJA | CONF. test (`gh run list`) | 7 | S | ⬜ |
 | RED-87 | El largo mínimo del barrio del payload SIIS no se prueba en su borde | BAJA | CONF. test (mutación M33) | R | S | ✅ |
 | RED-88 | `manage.py test core users portal --parallel` revienta con `cannot pickle 'traceback'` | BAJA | CONF. test | R | S | ⬜ |
+| RED-89 | Ningún test recorre el URLconf con un usuario **sin rol**: 200 en 31 rutas, y 17 de Legajos dejan borrar adjuntos y cerrar alertas ajenas (SEC-10, SEC-18, SEC-11) | CRÍTICA | CONF. test (barrido 04-oct) | R (**primero**) | S-M | ⬜ |
 
 «Ola» con paréntesis = la ficha tiene una segunda parte en esa ola (detalle en la ficha y en README §6). Horas: S = 2,
 S-M = 4, M = 8, L = 20 (README §6).
+
+**Convención de la columna «Avance»:** `✅ (R; falta Ola N)` = **la parte de la Ola R está cerrada** y lo que queda es la
+segunda parte, que ya estaba planificada en esa otra ola (y cuyas horas se cuentan allá). `🟡` se reserva para una ficha
+cuya **propia parte de la Ola R** quedó incompleta —RED-01 y RED-20, que esperan un paso del dueño del repo, y RED-10,
+a la que le falta un test—. Un `⬜` nunca lleva paréntesis.
 
 ---
 
@@ -133,6 +143,8 @@ S-M = 4, M = 8, L = 20 (README §6).
 
 ### RED-02 · Ningún test recorre el URLconf: una ruta que vuelva a quedar abierta pasa el CI
 **Severidad:** ALTA · **Estado:** CONFIRMADO con test (barrido propio de VR1: 288 rutas) · **Origen:** RS-R1-01 (VR1: CONFIRMADO-AJUSTADO) · **Ola:** R · **Esfuerzo:** S (2 h)
+
+**Resolución:** ✅ Resuelto en #553 (Cambio 122, PR R-05), 04-oct-2026 — `core/tests/test_superficie_publica.py` recorre `get_resolver()` recursivo, concreta cada patrón con valores de juguete y lo descarta si no vuelve a resolver. El número de rutas lo mide el propio archivo y no se copia de ningún informe: **315** al 04-oct (los 33 patrones que quedan fuera son los sufijos de formato de DRF, que repiten una ruta ya cubierta). `SuperficieAnonimaTests.test_ninguna_ruta_responde_al_anonimo` exige que toda ruta rebote al anónimo —`401/403/426` o redirección cuyo **path exacto** sea el login o `portal:home`, no un `in`, porque el login vive en la raíz—, con `ALLOWLIST_PUBLICA` literal de 17 entradas, un motivo escrito por entrada y un ratchet que falla en los **dos** sentidos (publicar una ruta tiene que ser deliberado; una entrada que dejó de hacer falta hay que sacarla). **Un MAJOR de la ronda 2 cambió el test de raíz:** `404` y `405` estaban entre los estados que «rebotan» y dejaban ciego al barrido —el revisor le sacó `CapacidadRequeridaMixin` y `LoginRequiredMixin` a `CiudadanoDetailView` sin conseguir ponerlo en rojo—; la versión final no los acepta, repite con POST las rutas POST-only y manda a la allowlist los 404 legítimos del anónimo (las tres del link público de inscripción). Con eso el barrido encontró por su cuenta un segundo caso del molde de RED-73 en `EntregaMercaderiaCreateView`, que se arregló en el mismo PR. Mutación de control: sacar `@login_required` de `archivos_ciudadano_api` → rojo. **Test permanente:** `core.tests.test_superficie_publica.SuperficieAnonimaTests.test_ninguna_ruta_responde_al_anonimo`. **Lo que esta ficha no cubre tiene ahora ficha propia:** el mismo barrido con un usuario de backoffice **sin ningún rol** es **RED-89**.
 - **Ubicación:** no existe el test. Solo `core/tests/test_media_protegida.py:40` (para `/media/`) y
   `core/tests/test_url_namespaces.py` (5 nombres) miran el URLconf; `git grep -n "get_resolver\|url_patterns" */tests/` → 0.
 - **Qué es frágil:** la Ola 0 cerró once superficies abiertas una por una, cada una con su test puntual. Ningún test
@@ -163,10 +175,11 @@ S-M = 4, M = 8, L = 20 (README §6).
   `401/403/426` o la redirección, repite con POST las rutas POST-only y manda a la allowlist los 404 legítimos del
   anónimo. Con eso el barrido encontró un segundo caso del molde de RED-73 en `EntregaMercaderiaCreateView`. (2) El
   ratchet falla en los **dos** sentidos, no solo al crecer: una entrada que dejó de hacer falta hay que sacarla.
-- **Hallazgo abierto que esta ficha no cubre:** el barrido pregunta por el anónimo. Con un usuario de backoffice
-  autenticado y **sin ningún rol**, 40 rutas contestan `200` (`/inicio/`, `/legajos/alertas/`,
-  `/legajos/ciudadanos/<id>/archivos/`, la api-root de DRF, los `ajax/load-*`). Algunas son deliberadas y otras no; hace
-  falta mirarlas de a una. **Pide ficha propia: «barrido del URLconf con usuario sin rol»**, hermana de esta.
+- **Hallazgo abierto que esta ficha no cubre → ahora es `RED-89`:** el barrido pregunta por el anónimo. Con un usuario de
+  backoffice autenticado y **sin ningún rol**, 44 rutas contestan `200` y 31 de ellas no son públicas (`/inicio/`,
+  `/legajos/alertas/`, `/legajos/ciudadanos/<id>/archivos/`, la api-root de DRF, los `ajax/load-*`). El revisor del PR lo
+  levantó con una primera medición de 40; el conteo definitivo, con la clasificación de cuáles son deliberadas y cuáles
+  exponen datos, está en **RED-89**.
 
 ### RED-03 · App de campo: la pausa está probada en 1 de 6 endpoints, el período en 3 y las ramas de error en ninguna
 **Severidad:** ALTA · **Estado:** CONFIRMADO con test (coverage: `programas/api/views.py` 92 %, líneas sin ejecutar leídas una por una) · **Origen:** RS-R1-02 (VR1: CONFIRMADO-AJUSTADO), RS-R1-15, RS-VR1-NEW-02 · **Ola:** R · **Esfuerzo:** S-M (4 h) · **Decisión:** D-RED-10
@@ -287,6 +300,8 @@ y `::PeriodoEnTodosLosEndpointsTests.test_fuera_del_periodo_se_rechaza_y_no_escr
 
 ### RED-30 · Sin test de humo por pantalla: nada afirma «ninguna ruta da 500»
 **Severidad:** MEDIA · **Estado:** CONFIRMADO con test (barrido con superusuario: 305 rutas, 3 con `>= 500`) · **Origen:** RS-R1-06 parte propia (VR1: la parte de Spectacular es RED-36) · **Ola:** R · **Esfuerzo:** S (2 h)
+
+**Resolución:** ✅ Resuelto en #553 (Cambio 122, PR R-05), 04-oct-2026 — `NingunaPantallaDa500Tests.test_ninguna_pantalla_da_500` corre el mismo recorrido de RED-02 con un superusuario y falla ante cualquier `>= 500`. `EXCEPCIONES_HUMO` quedó **vacía**: `/api/docs/` y `/api/redoc/` estuvieron ahí por RED-36 y salieron al mergearse el PR R-04 (Cambio 118), y `test_las_excepciones_del_humo_siguen_siendo_necesarias` se pone rojo el día que una excepción deje de hacer falta. Fuera del humo quedan solo los dos proxies al catálogo de SIIS, que sin la red del organismo contestan **503 a propósito** (`SiisCatalogError` → `JsonResponse(status=503)`): degradación declarada, no una pantalla rota. Hay además `test_la_sesion_del_humo_entra_al_backoffice`, para que un middleware que redirija todo no deje el humo barriendo la nada. **Dónde la ficha no coincidía con el código:** los proxies no se llaman `becas:siis_localidades_json`/`becas:siis_funciones_json` sino `becas:siis_localidades`/`becas:siis_funciones`. Mutación de control: renombrar el template de `RolListView` → rojo. **Test permanente:** `core.tests.test_superficie_publica.NingunaPantallaDa500Tests.test_ninguna_pantalla_da_500`.
 - **Ubicación / qué es frágil:** los tests entran por las vistas que les interesan. Una pantalla que depende de un
   template, un tag o un `select_related` puede quedar en 500 permanente sin que la suite diga nada (hoy: `/api/docs/` y
   `/api/redoc/` con `TemplateDoesNotExist`, RED-36).
@@ -377,6 +392,8 @@ verdad (contador de errores seguidos, `--max-errores`) y `test_un_caso_que_falla
 
 ### RED-71 · `ApiCorsMiddleware` sin tests de contrato (y el Cambio 52 lo da por inexistente)
 **Severidad:** BAJA (era MEDIA; VR1 refutó el encuadre de vulnerabilidad: README §8.3) · **Estado:** CONFIRMADO con test (ajustado) · **Origen:** RS-R1-08 (VR1: CONFIRMADO-AJUSTADO) · **Ola:** R · **Esfuerzo:** S (2 h)
+
+**Resolución:** ✅ Resuelto en #553 (Cambio 122, PR R-05), 04-oct-2026 — `core/tests/test_cors_api.py` fija el contrato de `ApiCorsMiddleware` en tres clases: `ApiCorsTests` (6 tests: sin orígenes configurados ninguna respuesta lleva `Allow-Origin`; un origen de la lista recibe las cabeceras y otro no; con `DEBUG=False` un host privado no pasa y con `DEBUG=True` el prefijo de dev acepta un host ajeno —`10.atacante.com`, que es el agujero que la ficha señala—; una ruta fuera de `/api/` nunca lleva CORS; sin cabecera `Origin` no agrega nada), `OptionsAnonimoTests` (2) y `ConfiguracionCorsTests` (3: el middleware está montado, **ningún** `.env.*.example` trae orígenes cargados, y la variable está documentada vacía con su porqué). El gotcha de la ficha se resolvió como decía: `allowed_origins` se lee en `__init__` con `os.getenv`, así que `override_settings` no sirve y los tests instancian el middleware con la variable puesta. La frase imprecisa del **Cambio 52** («no hay `django-cors-headers` en el proyecto, así que ningún sitio externo puede leerlo») **no se reescribe** —el archivo de requerimientos no se reescribe nunca—: la conclusión sigue siendo correcta, la corrección del motivo queda registrada en el Cambio 122 y lo que ahora la sostiene es este módulo. **Test permanente:** `core.tests.test_cors_api.ApiCorsTests` y `core.tests.test_cors_api.ConfiguracionCorsTests`. **Operativo (PM / ECOM):** `DJANGO_CORS_ALLOWED_ORIGINS` tiene que seguir **vacía** en testing y en PRD; el test solo cubre los `.env.*.example` del repo.
 - **Ubicación:** `core/middleware.py:40-71` (`ApiCorsMiddleware`, montado en `config/settings.py:130`), `_is_dev_origin`
   en `:21-37`; coverage del módulo 68 % (`22-37`, `49`, `61-71` sin ejecutar).
 - **Qué es frágil:** hoy es un no-op en todos los entornos (`DJANGO_CORS_ALLOWED_ORIGINS` no existe en ningún
@@ -408,6 +425,8 @@ verdad (contador de errores seguidos, `--max-errores`) y `test_un_caso_que_falla
 
 ### RED-73 · `CiudadanoConfirmarView` decide antes de mirar si hay sesión
 **Severidad:** BAJA · **Estado:** CONFIRMADO con test (barrido de VR1) · **Origen:** RS-VR1-NEW-01 · **Ola:** R · **Esfuerzo:** S (2 h)
+
+**Resolución:** ✅ Resuelto en #553 (Cambio 122, PR R-05), 04-oct-2026 — de los dos caminos de la propuesta se eligió **mover la precondición a los handlers**, no poner `if not request.user.is_authenticated` arriba del `dispatch`: la precondición de RENAPER vive ahora en `CiudadanoConfirmarView._sin_datos_de_renaper`, que llaman `get` y `post`, o sea ya con `CapacidadRequeridaMixin` y `LoginRequiredMixin` resueltos. Un anónimo va al login con su `?next=`, y no se estrena una sesión anónima solo para colgarle el `messages.error`. **Dónde la ficha no coincidía con el código:** el `test_sin_capacidad_da_403` que pedía la propuesta no corresponde —el contrato real del backoffice sin capacidad es **redirect** al inicio, y el 403 es solo para `XMLHttpRequest`—, así que los tests quedaron escritos contra el contrato real (`test_sin_capacidad_no_llega_al_alta_aunque_no_haya_datos_de_renaper` y `test_sin_capacidad_por_ajax_da_403`), más `test_con_capacidad_y_sin_datos_de_renaper_vuelve_al_alta`, que mantiene viva la precondición para quien sí puede crear. El mismo molde apareció una segunda vez en `EntregaMercaderiaCreateView` (Merenderos) —lo encontró el barrido de RED-02, no la ficha— y se arregló acá con la misma forma. **Test permanente:** `legajos.tests.test_ciudadanos_alta.ConfirmarTests.test_un_anonimo_va_al_login_no_al_alta`; el segundo caso lo protege el barrido de RED-02.
 - **Ubicación:** `legajos/views/ciudadanos.py:153-164`: el `dispatch` lee la sesión de RENAPER y redirige a
   `legajos:ciudadano_nuevo` **antes** de `super().dispatch()`, que es donde corren `LoginRequiredMixin` y la capacidad.
 - **Qué es frágil:** no hay fuga (lee la sesión del propio solicitante), pero es la única ruta del barrido que no se
@@ -417,6 +436,109 @@ verdad (contador de errores seguidos, `--max-errores`) y `test_un_caso_que_falla
   línea (o mover la precondición a `get`/`post`). Tests en `legajos/tests/test_ciudadanos_alta.py::ConfirmarTests`:
   `test_un_anonimo_va_al_login_no_al_alta` (redirección a `settings.LOGIN_URL`) y
   `test_sin_capacidad_da_403_aunque_no_haya_datos_de_renaper`.
+
+### RED-89 · Ningún test recorre el URLconf con un usuario sin rol: 200 en 31 rutas, y 17 de Legajos dejan borrar adjuntos y cerrar alertas ajenas
+**Severidad:** CRÍTICA (subida de ALTA en la ronda 2 del PR #555, al medirse el borrado; la misma medición subió **SEC-10** a CRÍTICA, que es la ficha dueña del arreglo: `DELETE /legajos/archivos/<id>/eliminar/` hace **hard delete** de cualquier `Adjunto` —`archivo.delete()`, sin papelera ni auditoría— para **cualquier** cuenta de backoffice autenticada, incluido un rol de Becas o de Dispositivos sin una sola capacidad de Legajos. Mismo encuadre que SEC-02: «cualquier autenticado escribe sobre datos del ciudadano». No es CRÍTICA-por-anónimo —las cuentas las crea el administrador y `PortalCiudadanoMiddleware` deja a los ciudadanos del portal afuera—, pero el daño es destructivo e irreversible, y los documentos del ciudadano son justo lo que **la etapa 1 de SEC-09** puso detrás de login) · **Estado:** CONFIRMADO con test (barrido propio, 04-oct-2026, sobre `origin/development @ cdd9c71`; borrado y escrituras re-medidos en la ronda 2 sobre `@ 005508b`) · **Origen:** revisor del PR R-05 (#553); anotado como hallazgo abierto en RED-02 y en los *Pendientes* del Cambio 122; borrado medido por el revisor del PR #555. **La medición no descubre rutas nuevas: confirma y agrava `SEC-10` (adjuntos), `SEC-18` (alertas y el `pk` no numérico) y `SEC-11` (las APIs JSON de legajos)**, que son las dueñas del arreglo y ya estaban en la Ola 2. Lo propio de esta ficha es el **barrido** que lo habría detectado y el ratchet que impide que vuelva · **Ola:** R (**primero**, PR R-19) · **Esfuerzo:** S-M (4 h; las capacidades las cuentan SEC-10, SEC-11 y SEC-18, que se adelantan al mismo PR — ver D-RED-14)
+- **Ubicación exacta de las 17 rutas de Legajos** (nombre de URL → vista; `legajos/urls/__init__.py`). Las once de
+  `legajos/views/contactos_api.py` y las cuatro de `legajos/views/alertas.py` llevan **solo `@login_required`**; las dos
+  de `legajos/api_views/__init__.py:65-102` cuelgan de `AlertasViewSet`, con
+  `permission_classes = [BackofficeAutenticado, IsAuthenticated]` y **ninguna capacidad**:
+
+  | URL | Vista | Archivo:línea |
+  |---|---|---|
+  | `legajos:alertas_dashboard` `/legajos/alertas/` | `alertas_dashboard` | `legajos/views/alertas.py:18` |
+  | `legajos:alertas_count_ajax` `/legajos/alertas/count/` | `alertas_count_ajax` | `legajos/views/alertas.py:81` |
+  | `legajos:alertas_preview_ajax` `/legajos/alertas/preview/` | `alertas_preview_ajax` | `legajos/views/alertas.py:98` |
+  | `legajos:cerrar_alerta_ajax` `/legajos/alertas/<id>/cerrar-ajax/` | `cerrar_alerta_ajax` | `legajos/views/alertas.py:71` |
+  | `legajos:cerrar_alerta_ciudadano` `/legajos/alertas/<id>/cerrar/` | `cerrar_alerta_api` | `legajos/views/contactos_api.py:124` |
+  | `legajos:alertas_ciudadano` `/legajos/ciudadanos/<id>/alertas/` | `alertas_ciudadano_api` | `legajos/views/contactos_api.py:97` |
+  | `legajos:actividades_ciudadano` `/legajos/ciudadanos/<id>/actividades/` | `actividades_ciudadano_api` | `legajos/views/contactos_api.py:18` |
+  | `legajos:timeline_ciudadano` `/legajos/ciudadanos/<id>/timeline/` | `timeline_ciudadano_api` | `legajos/views/contactos_api.py:174` |
+  | `legajos:archivos_ciudadano` `/legajos/ciudadanos/<id>/archivos/` | `archivos_ciudadano_api` | `legajos/views/contactos_api.py:75` |
+  | `legajos:archivos_legajo` `/legajos/<uuid>/archivos/` | `archivos_legajo_api` | `legajos/views/contactos_api.py:183` |
+  | `legajos:evolucion_legajo` `/legajos/<uuid>/evolucion/` | `evolucion_legajo_api` | `legajos/views/contactos_api.py:156` |
+  | `legajos:prediccion_riesgo` `/legajos/ciudadanos/<id>/prediccion-riesgo/` | `prediccion_riesgo_api` | `legajos/views/contactos_api.py:139` |
+  | `legajos:subir_archivos_ciudadano` `/legajos/ciudadanos/<id>/subir-archivos/` | `subir_archivos_ciudadano` | `legajos/views/contactos_api.py:27` |
+  | `legajos:subir_archivos` `/legajos/<uuid>/subir-archivos/` | `subir_archivos_legajo` | `legajos/views/contactos_api.py:51` |
+  | `legajos:eliminar_archivo` `/legajos/archivos/<id>/eliminar/` | `eliminar_archivo` → `eliminar_archivo_por_id` (`legajos/services/contactos.py:47`) | `legajos/views/contactos_api.py:84` |
+  | `alertaciudadano-list` `/api/legajos/alertas/` | `AlertasViewSet.list` | `legajos/api_views/__init__.py:65` |
+  | `alertaciudadano-count` `/api/legajos/alertas/count/` | `AlertasViewSet.count` | `legajos/api_views/__init__.py:85` |
+
+  La decimoctava, `alertaciudadano-cerrar` `/api/legajos/alertas/<id>/cerrar/`
+  (`AlertasViewSet.cerrar`, `legajos/api_views/__init__.py:95`), **no está entre las 31** porque con la base vacía del
+  barrido no hay objeto que cerrar (404 con `pk` numérico, 500 con el `pk` de juguete del recorrido); con una alerta
+  sembrada contesta 200 y escribe.
+- **Qué es frágil:** la Ola 0 y RED-02 cerraron la pregunta «¿qué ve un **anónimo**?». Nadie preguntó «¿qué ve un
+  **autenticado sin rol**?», que es el usuario recién creado, el del programa equivocado y el que quedó sin capacidades
+  después de un cambio de rol. `core/tests/test_superficie_publica.py` no lo cubre: su cliente es anónimo.
+- **Qué cambio lo rompería sin que nadie se entere:** nada tiene que romperse, ya está así; y una vista nueva de Legajos
+  copiada del molde de al lado (`@login_required` solo) suma otra ruta sin que ningún test diga nada.
+- **Evidencia (medida el 04-oct-2026 con un `User` recién creado, sin grupos, sin `user_permissions` y sin
+  `is_superuser`, sobre el mismo recorrido de `core/tests/test_superficie_publica.rutas_concretas()`):** de las **315**
+  rutas, **44 contestan 200**. 13 están en `ALLOWLIST_PUBLICA` (login, recupero, `/portal/`, `/health/`): quedan **31
+  rutas de backoffice** abiertas a un usuario sin rol. Repetida con un `Ciudadano` real («Mirta Quiroga») y una
+  `AlertaCiudadano` CRÍTICA suya:
+
+  | Grupo | Rutas | Qué se midió |
+  |---|---:|---|
+  | **Legajos — exponen datos** | 7 | **3 traen el nombre del ciudadano:** `/legajos/alertas/` (HTML de 59 KB: «Mirta Quiroga» y el texto de la alerta), `/legajos/alertas/preview/` (`ciudadano_nombre` + `mensaje`) y `/api/legajos/alertas/` (ídem en JSON paginado). **2 traen solo el texto de la alerta**, no el nombre: `/legajos/ciudadanos/<id>/alertas/` y `/legajos/ciudadanos/<id>/timeline/`. **2 son un contador global:** `/legajos/alertas/count/` y `/api/legajos/alertas/count/` (`{"count": 1, "criticas": 1}`) |
+  | **Legajos — escrituras** | 5 | **Las 5 medidas, todas con efecto real.** `DELETE /legajos/archivos/<id>/eliminar/` → 200 `{"success": true}` y el `Adjunto` **deja de existir** (`Adjunto.objects.filter(pk=…).exists()` → `False`): es un **hard delete** sin papelera ni auditoría, vía `eliminar_archivo_por_id`, que hace `get_object_or_404(Adjunto, id=…).delete()` sin mirar de quién es el adjunto. `POST /legajos/alertas/<id>/cerrar-ajax/` y `POST /legajos/alertas/<id>/cerrar/` → 200 y la alerta ajena queda en `activa=False`. `POST /legajos/ciudadanos/<id>/subir-archivos/` y `POST /legajos/<uuid>/subir-archivos/` llegan al handler —contestan «No se seleccionaron archivos», o sea el guard no las frenó— y con un archivo adjunto escribirían. **Una sexta, fuera de las 31:** `POST /api/legajos/alertas/<id>/cerrar/` da 404 con la base vacía, pero con una alerta sembrada contesta 200 y la cierra |
+  | **Legajos — resto** | 5 | `/legajos/ciudadanos/<id>/{actividades,archivos,prediccion-riesgo}/` y `/legajos/<uuid>/{archivos,evolucion}/`: con la base de prueba vacía devuelven listas vacías o scores en cero; el payload lo arman los mismos selectores que los de arriba, sin filtro de alcance, así que con datos devuelven los del ciudadano pedido |
+  | **Catálogos y agregados — legítimas** | 10 | las 3 api-root de DRF (`/api/core/`, `/api/legajos/`, `/api/becas/`: listan nombres de endpoints), `/api/core/{dias,localidades}/`, los 3 `ajax/load-{localidades,municipios,subsecretarias}/`, `/configuracion/programas/` (catálogo institucional) e **`/inicio/`**, que es deliberada: se verificó que su HTML **no** contiene ni el nombre ni el DNI del ciudadano sembrado, solo contadores agregados |
+  | **Conversaciones — legítimas** | 4 | `/{api/conversaciones,conversaciones/api}/alertas/{count,preview}/`: **tienen el guard adentro de la vista**, no en el decorador. `alertas_conversaciones_count` y `alertas_conversaciones_preview` (`conversaciones/api_views/__init__.py:17-40`) llaman a `usuario_tiene_permiso_conversaciones(request.user)` y, si da `False`, devuelven `{"count": 0}` y `{"results": []}` con **200**. O sea: contestan, pero vacío. No exponen nada |
+
+  Suma: 7 + 5 + 5 (Legajos) + 10 + 4 = **31**.
+
+  Un hallazgo lateral del mismo barrido: `POST /api/legajos/alertas/x/cerrar/` —el `pk` de juguete del recorrido no es
+  numérico— da **500**, porque `AlertasService.cerrar_alerta` recibe el `pk` crudo; es la única ruta del URLconf que
+  revienta con este usuario.
+- **Propuesta (mismo molde que RED-02, en dos partes):**
+  1. **Ola R, PR R-19 (4 h) — el barrido.** En `core/tests/test_superficie_publica.py`, tercera clase
+     `SuperficieSinRolTests.test_ninguna_ruta_privada_responde_a_un_usuario_sin_rol`: mismo `rutas_concretas()`, cliente
+     con un `User` sin grupos ni permisos, `ALLOWLIST_SIN_ROL` **literal y medida** con un motivo de una línea por
+     entrada, y el ratchet de las dos direcciones que ya usa `ALLOWLIST_PUBLICA`. Rebotar acá es 403, redirect al inicio
+     o el 403 de `XMLHttpRequest` (contrato real de `_respuesta_sin_permiso`, el mismo que fijó RED-73).
+
+     **Qué va a cada lado, decidido** (el implementador no tiene que volver a juzgarlo):
+
+     | Rutas | Dónde van | Motivo |
+     |---|---|---|
+     | Las 13 de `ALLOWLIST_PUBLICA` | `ALLOWLIST_SIN_ROL` | si un anónimo puede, un autenticado también |
+     | 3 api-root de DRF, `/api/core/{dias,localidades}/`, 3 `ajax/load-*`, `/configuracion/programas/` | `ALLOWLIST_SIN_ROL` | catálogo o índice de endpoints, sin datos de personas |
+     | `/inicio/` | `ALLOWLIST_SIN_ROL` | «es el destino al que redirige el propio `_respuesta_sin_permiso`; solo contadores agregados, verificado» |
+     | **Las 4 de Conversaciones** | **`ALLOWLIST_SIN_ROL`**, con el motivo literal **«responde vacío, el guard está adentro de la vista (`usuario_tiene_permiso_conversaciones`)»** | contestan 200 pero con `count: 0` y `results: []`: no exponen nada, y `conversaciones` está fuera de uso. **No** van a `expectedFailure`: ponerlas ahí afirmaría que hay un bug que arreglar, y no lo hay |
+     | **Las 17 de Legajos** | **`@unittest.expectedFailure`** con «RED-89» en el docstring | son el bug; el PR del punto 2 saca el decorador y las deja rebotando |
+
+     El `expectedFailure` va en un test aparte (`test_las_rutas_de_legajos_siguen_abiertas_red89`) que recorre la lista
+     literal de las 17, para que el test principal quede verde de verdad y el día que se arregle Legajos el
+     `unexpectedSuccess` avise solo.
+  2. **Las capacidades no son de esta ficha: ya tienen dueño.** Esta ficha **no** escribe una propuesta de autorización
+     paralela —sería una tercera copia de la misma regla—. El arreglo de las 17 rutas vive en tres fichas de
+     `01-seguridad.md` que esta medición confirma y agrava, y que por **D-RED-14** se adelantan al mismo PR R-19:
+
+     | Ficha | Qué cubre de las 17 | Dónde se hace |
+     |---|---|---|
+     | **SEC-10** (CRÍTICA, 4 h) | las 5 de adjuntos: `archivos_ciudadano_api`, `archivos_legajo_api`, los dos `subir_archivos_*` y `eliminar_archivo`. Su propuesta es mejor que un `@requiere` suelto: ruta nueva con el dueño en la URL y `eliminar_archivo_de_objeto(instance, archivo_id)`, que filtra por `content_type` + `object_id`, más `archivo.archivo.delete(save=False)` para no dejar el blob huérfano | **R-19, completa** |
+     | **SEC-18** (MEDIA, 2 h) | las 7 de alertas: el dashboard, los dos `count`, el `preview`, las **dos** entradas de cierre que están entre las 17 (`cerrar_alerta_ajax` y `cerrar_alerta_api`), más `AlertasViewSet.cerrar`, la 18.ª, que queda fuera del barrido pero es el mismo agujero. Incluye el `self.get_object()` que además mata el 500 del `pk` no numérico, y el fallback `AlertaCiudadano.objects.none()` de `FiltrosUsuarioService` | **R-19, completa** |
+     | **SEC-11** (ALTA, 2 h) | las 5 restantes (`actividades`, `evolucion`, `timeline`, `alertas_ciudadano_api`, `prediccion-riesgo`) | **partida:** en R-19 van las 5 (1 h); en la Ola 2, el ascenso de 3 de ellas (1 h) — ver el piso de abajo |
+
+     **El piso de `ciudadano.ver` cubre las 17, también las sensibles.** Tres de las de SEC-11 —`timeline_ciudadano_api`,
+     `alertas_ciudadano_api` y `prediccion_riesgo_api`— tienen como capacidad **fina** `ciudadano.sensible`, que depende
+     de **D-11** y por eso quedaba en la Ola 2. Si R-19 las dejara con solo `@login_required` a la espera de esa
+     decisión, el PR no podría sacar sus `expectedFailure` y cerraría con tres rutas abiertas: la ficha quedaría «hecha»
+     con el agujero puesto. Así que **R-19 les pone `@requiere("ciudadano.ver")` como piso** —una capacidad que ya
+     existe y no necesita decisión— y la **Ola 2 (PR 3) las sube a `ciudadano.sensible`** cuando D-11 se resuelva.
+     Subir un `@requiere` de una capacidad a otra es un cambio de una línea por vista: el reparto de horas no se mueve
+     (R-19 1 h, Ola 2 1 h).
+
+     Lo que R-19 tiene que dejar escrito al cerrar: **los 17 `expectedFailure` del punto 1 sacados, sin excepciones**
+     (de ahí el piso de arriba), el conteo de `ALLOWLIST_SIN_ROL` ajustado en el mismo commit, y la línea
+     «Resolución:» de SEC-10 y SEC-18 (RED-34). SEC-11 queda 🟡 hasta que la Ola 2 cierre lo de `ciudadano.sensible`.
+- **Verificación:** la clase nueva en verde con `& $env:PY manage.py test core.tests.test_superficie_publica`; con el
+  punto 2 hecho, **los 17 `expectedFailure` sacados** (ninguna de las 17 queda con solo `@login_required`) y el conteo
+  de la allowlist bajado en el mismo commit. Mutaciones de control:
+  sacarle el `@requiere` a `alertas_preview_ajax` tiene que poner el barrido en rojo, y el borrado tiene su propio test
+  de regresión (`legajos/tests/`: un usuario sin rol hace `DELETE` sobre un `Adjunto` ajeno → rebota y el adjunto sigue).
 
 ## (b) Regresión de bugs pasados
 
@@ -686,6 +808,8 @@ forma de **cada campo** de `definicion_formulario` sigue siendo RED-12 (PR R-17)
 
 ### RED-36 · `drf_spectacular` fuera de `INSTALLED_APPS`: `/api/docs/` y `/api/redoc/` dan 500
 **Severidad:** MEDIA (era ALTA: las tres rutas están detrás de `login_required`; el 500 solo lo ve el personal) · **Estado:** CONFIRMADO con test (VR1: `/api/schema/` 200; `/api/docs/` y `/api/redoc/` → `TemplateDoesNotExist`; `"spectacular" in get_commands()` → `False`) · **Origen:** RS-R3-01 (VR1: CONFIRMADO-AJUSTADO), RS-R1-06 parte Spectacular · **Ola:** R (**primero**: desbloquea RED-37 y RED-43) · **Esfuerzo:** S (2 h)
+
+**Resolución:** ✅ Resuelto en #546 (Cambio 118, PR R-04), 04-oct-2026 — `"drf_spectacular"` entró en `INSTALLED_APPS` de `config/settings.py`, después de `rest_framework.authtoken`. Era literalmente lo único que faltaba: el `DEFAULT_SCHEMA_CLASS`, los `SPECTACULAR_SETTINGS`, las tres rutas de `config/urls.py` y hasta la excepción de CSP de `/api/docs/` en `config/middlewares/security_headers.py` ya estaban. `/api/docs/` y `/api/redoc/` responden 200 con sesión de backoffice y 302 al login sin sesión, y `manage.py spectacular --validate --file /dev/null` existe y termina en 0 —sin eso ningún gate de esquema era posible, que es lo que desbloquea RED-37 y RED-43—. **Decisión de producto, aplicada por default:** Swagger-UI y Redoc se sirven desde el propio sistema con `drf-spectacular-sidecar` en vez de los CDN de terceros; el HTML servido referencia solo `/static/…` (cuatro etiquetas en `/api/docs/`, una en `/api/redoc/`) y `collectstatic` copia ~2,5 MB más. La exención de CSP se mantiene aunque el CDN ya no la necesite. **Test permanente:** `core.tests.test_api_schema_contrato.DocumentacionDeApiTests` (`test_schema_docs_y_redoc_responden_200`, `test_schema_docs_y_redoc_siguen_detras_de_login`, `test_el_comando_spectacular_esta_disponible`) y `core.tests.test_api_schema_contrato.DocumentacionSinTercerosTests` (2). Antes del cambio el módulo daba 5 fallas y 2 errores (`TemplateDoesNotExist: drf_spectacular/swagger_ui.html` y `…/redoc.html`). **Sigue pendiente, en otra ficha:** poner las tres rutas detrás de `BackofficeAutenticado` es el resto de SEC-01 (Ola 2, PR 8); `drf-spectacular-sidecar` se actualiza a mano, porque `pip-audit` sobre `drf-spectacular` no avisa de un CVE en los assets vendorizados; y en el deploy a icore conviene verificar que `/static/drf_spectacular_sidecar/` quedó servido antes de dar `/api/docs/` por buena.
 - **Ubicación:** `config/settings.py:86-103` (`INSTALLED_APPS` sin `drf_spectacular`), `:417` (`DEFAULT_SCHEMA_CLASS`),
   `:634-641`; `config/urls.py:55-57`; `config/middlewares/security_headers.py:108` hasta tiene una excepción de CSP para
   `/api/docs/`.
@@ -698,6 +822,8 @@ forma de **cada campo** de `definicion_formulario` sigue siendo RED-12 (PR R-17)
 
 ### RED-37 · El esquema OpenAPI publica tipos falsos y pierde 11 vistas
 **Severidad:** MEDIA (nadie genera un cliente desde el esquema hoy; el daño es potencial) · **Estado:** CONFIRMADO con test (VR1 reprodujo exacto: 54 paths, 11 `Error [`, 24 `Warning`) · **Origen:** RS-R3-03 (VR1: CONFIRMADO-AJUSTADO) · **Ola:** R (puntos 1-2) + 7 (punto 3) · **Esfuerzo:** S-M (4 h) + S-M (4 h)
+
+**Resolución:** ✅ **Los puntos 1 y 2 —la parte de la Ola R— resueltos** en #546 (Cambio 118, PR R-04), 04-oct-2026; **el punto 3 sigue en la Ola 7**. Punto 1: `get_pausado(self, obj) -> bool`, `get_pausa_motivo(…) -> str` y `get_definicion_formulario(…) -> dict` anotados en `programas/api/serializers.py`; `cupo_disponible` y `cupo_completo` se declaran **en el serializer y no en el modelo**, porque son propiedades de la relación convocatoria-segmento. Punto 2: `ConsultaPersonaSerializer` real (`dni`, `sexo` con `choices`, `relevamiento` opcional) **reemplaza** la validación manual de `programas/api/views.py`, con `@extend_schema(request=…, responses={200, 400, 404, 502})` sobre `consultar_persona_becas`; el cuerpo del 400 no cambia y el único trato que sí cambió es que un `relevamiento` que no sea un id entero ahora da 400 (antes `true` y una cadena pasaban). El esquema sigue con 54 paths; los errores bajan de **11 a 10** y los warnings de **24 a 15**, los dos con ratchet que solo baja. La allowlist nace en **10** y no en las 11 de la ficha porque `consultar_persona_becas` salió de la lista al anotarse. El esquema además dejó de reportarse como issues de `manage.py check --deploy`: el mismo dato, con allowlist y ratchet, lo da `EsquemaOpenApiTests`. **Test permanente:** `core.tests.test_api_schema_contrato.EsquemaOpenApiTests` (`test_el_esquema_se_genera_sin_errores`, `test_el_esquema_no_suma_warnings`, `test_relevamiento_detail_publica_los_tipos_reales`, `test_consultar_persona_declara_su_cuerpo`). **Falta (Ola 7, 4 h):** `@extend_schema(responses=inline_serializer(...))` en las 5 vistas del dashboard y en las de `core/views/performance.py` (si OPS-10 no las borra antes), y los 15 warnings restantes —`get_dispositivo_nombre` y `get_legajos_count` de legajos, `get_full_name` de users, dos parámetros de path sin tipo y dos colisiones de enum que se arreglan con `ENUM_NAME_OVERRIDES`—. El gate de esquema en el CI es **RED-43** (PR R-18).
 - **Ubicación:** `programas/api/serializers.py:21-22, 46-51, 55, 60-61` (`SerializerMethodField` sin anotar);
   `programas/api/views.py:215` (`consultar_persona_becas`, sin serializer de request); `dashboard/api_views/__init__.py:29,
   72, 99, 137, 210`.
@@ -1366,6 +1492,8 @@ desde base vacía), `pr-security.yml` (`pip-audit`), `pr-quality.yml` (ruff, ruf
 
 ### RED-01 · Datos personales reales (10.321 personas) en un repo público, en el release y en la imagen de PRD
 **Severidad:** CRÍTICA (el único hallazgo del frente con daño real hoy: los datos están expuestos en este momento) · **Estado:** CONFIRMADO (lectura por API y git; VR2 leyó solo el encabezado del archivo, ninguna fila) · **Origen:** RS-R6-01 (VR2: CONFIRMADO-AJUSTADO: hay una decisión previa del PM que el informe no vio) · **Ola:** R (**hotfix**, primer PR) · **Esfuerzo:** M (8 h de código; la purga y la coordinación con ECOM son operativas) · **Decisión:** **D-RED-01 (DECISIÓN CLIENTE)**
+
+**Resolución:** 🟡 Parcial en #547 (Cambio 116, PR R-01), 04-oct-2026 — **la parte de código está hecha; el repo privado y la purga del historial los ejecuta el PM (D-RED-01)**. Hecho, en el orden de la propuesta: (1) los tres volcados salieron de `HEAD` con `git rm --cached` —quedan en el disco de quien los tenga, borrarlos de ahí no es parte de esto— y las **cuatro barreras** que impiden que vuelvan: `scripts/*.sql` en `.gitignore`, en `.dockerignore` (corta el `COPY . .` del `Dockerfile`) y como `export-ignore` en `.gitattributes` (corta el release de `main` y el espejo de ECOM), con `scripts/aprobados_materias_plantilla.sql` exceptuada explícitamente en las tres, porque es el molde que el operador necesita leer. `Localidades.sql` también salió: se verificó su cabecera y es un padrón indexado por DNI, no un nomenclador —el nomenclador es `core/fixtures/localidad_municipio_provincia.json`, que se queda—. (2) `DATOS_SIIS_DIR` (default `/datos-siis`) como fuente de los insumos, desde `programas/management/commands/_insumos_siis.py`, con `CommandError` que nombra la variable si el directorio no está montado —el modo de falla que importa es el pod sin el volumen, y saltearlo en silencio terminaba en «la tabla no existe» tres pasos después— y `scripts/README-datos-siis.md` versionado sin un solo dato. (4) el gate: **una sola** heurística de «esto es un volcado» en `scripts/check_datos_personales.py`, con tres reglas y techo de 512 KB, que usan el job `Sin datos personales` de `pr-datos.yml` (en PR **y en push** a `development`) y los **dos** pases de `publish-main.yml`, uno sobre los archivos versionados —antes de que `git archive` aplique el `export-ignore`— y otro sobre el árbol del release. Nunca imprime el contenido: solo ruta, tamaño y cantidad de filas. **Tres desvíos de la ficha, los tres por rondas de revisión y declarados en el Cambio 116:** una heurística en Python en lugar de las dos que proponía la ficha (una en el YAML, otra en el test), que se separan en el primer ajuste y marcan en rojo la plantilla sin datos; la detección del `mysqldump` **real** —sin lista de columnas y con todas las tuplas en una sola línea por `--extended-insert`—, que la propuesta no veía y por la que un volcado sintético de 5.000 personas pasaba los tres modos; y exenciones del techo por **ruta exacta** en vez de glob, porque `core/fixtures/*` era el escondite obvio del próximo volcado (un `padron.json` de 1,8 MB pasaba). Verificado que rechaza de verdad: los dos casos plantados en el árbol del release salieron con exit 1. **Test permanente:** `core.tests.test_release_sin_datos.ReleaseSinDatosTests.test_ningun_sql_versionado_tiene_volcado_de_personas` (14 tests en el módulo; daban 11 fallos y 1 error sobre `HEAD`) y `programas.tests.test_correr_alta_siis.InsumosDesdeDatosSiisDirTests`. **Queda operativo (PM, D-RED-01), en este orden:** repo a **privado**; avisar a ECOM **antes** de purgar, porque la purga reescribe `main` y su pipeline despliega PRD; `git filter-repo --invert-paths` de los tres archivos y force push de ramas y tags; pedido a GitHub Support por las referencias de PR y las vistas cacheadas; barrido con `gitleaks`/`trufflehog` sobre el historial completo; imagen de PRD reconstruida. **Y antes de la próxima corrida de alta SIIS:** montar `DATOS_SIIS_DIR` en icore y en ECOM. **Agujero conocido que sigue abierto:** un volcado chico en un formato que las tres reglas no reconocen (JSON, Parquet, un export binario); lo que lo ataja es el techo de 512 KB.
 - **Ubicación:** `scripts/DatosPersonas.sql` (2.874.634 bytes; encabezado «10321 filas»: DNI, CUIL, nombre, sexo, fecha de
   nacimiento y domicilio completo devueltos por RENAPER, incluye menores), `scripts/Aprobados.sql` (111.036 bytes, DNI de
   aprobados) y `scripts/Localidades.sql` (172.299 bytes, también indexado por DNI). **Este documento no reproduce ningún
@@ -1638,7 +1766,7 @@ entrypoint: queda para R-15.
 ### RED-85 · Herramientas del CI sin pinear y actions por tag en workflows con `contents: write`
 **Severidad:** BAJA (era MEDIA) · **Estado:** CONFIRMADO (lectura: 7 `pip install` sin versión) · **Origen:** RS-R6-13 (VR2: CONFIRMADO) · **Ola:** R (pinear las actions con `contents: write`) + 7 (el resto) · **Esfuerzo:** S (2 h) + S (2 h)
 
-**Resolución:** 🟡 Parte de la Ola R hecha en #554 (Cambio 121, PR R-03), 04-oct-2026; **la Ola 7 sigue abierta**. Pineadas por SHA, con el tag en comentario al lado: `actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09` (v5.1.0) en `publish-main.yml` y `docs-auto-deploy.yml`, `actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1` (v6.3.0) en `docs-auto-deploy.yml`, y `dorny/paths-filter@0e4a8c6effa4802afeda77dc8d303f8176d7dfad` (v3.0.4) en sus cuatro usos nuevos (RED-20). Los SHA se resolvieron por API (`git/ref/tags` y, en `paths-filter`, dereferenciando el tag anotado), no de memoria. Bandit quedó con versión fija (`==1.9.4`) como adelanto de la parte de herramientas. **Sigue pendiente (Ola 7):** `requirements-ci.txt` con versiones fijas para los otros seis `pip install` sueltos (`ruff`, `coverage`, `pip-audit`, `mkdocs-material`) y el dependabot semanal sobre ese archivo; las actions de `pr-*.yml` siguen por tag, porque ninguno de esos workflows tiene `contents: write`. **Prioridad nueva, señalada por el revisor del PR R-03:** de los seis `pip install` sueltos, el que más urge es **`pip-audit`**, porque desde el Cambio 121 `Pip Audit` es un check **obligatorio** del ruleset y su base de advisories cambia sola: un advisory nuevo sobre cualquier dependencia de `requirements.txt`, o un release de `pip-audit` que estreche una regla, frena **todos** los merges abiertos, incluidos los PRs que no tocaron nada. Mientras tanto la salida no es destildar el check: es agregar la advisory a `security/excepciones.toml` con `motivo`, un `vence_el` corto y el ticket, en un PR de una línea —eso devuelve el verde y deja la deuda con fecha, que es el punto de RED-63—. Mismo razonamiento, un escalón más abajo, para `ruff`: `Ruff estilo` hoy da 0 y es candidato a bloquear, pero no se enciende hasta que Ruff esté pineado, o un release con una regla E/W nueva pone en rojo un PR que no cambió nada. **Test permanente:** `core.tests.test_gates_ci.ActionsPineadasTests` (4 tests; uno de ellos afirma que los workflows con `contents: write` siguen siendo esos dos, para que un tercero avise antes de que nadie lo pinee).
+**Resolución:** ✅ **Parte de la Ola R resuelta** en #554 (Cambio 121, PR R-03), 04-oct-2026; **la Ola 7 sigue abierta**. Pineadas por SHA, con el tag en comentario al lado: `actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09` (v5.1.0) en `publish-main.yml` y `docs-auto-deploy.yml`, `actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1` (v6.3.0) en `docs-auto-deploy.yml`, y `dorny/paths-filter@0e4a8c6effa4802afeda77dc8d303f8176d7dfad` (v3.0.4) en sus cuatro usos nuevos (RED-20). Los SHA se resolvieron por API (`git/ref/tags` y, en `paths-filter`, dereferenciando el tag anotado), no de memoria. Bandit quedó con versión fija (`==1.9.4`) como adelanto de la parte de herramientas. **Sigue pendiente (Ola 7):** `requirements-ci.txt` con versiones fijas para los otros seis `pip install` sueltos (`ruff`, `coverage`, `pip-audit`, `mkdocs-material`) y el dependabot semanal sobre ese archivo; las actions de `pr-*.yml` siguen por tag, porque ninguno de esos workflows tiene `contents: write`. **Prioridad nueva, señalada por el revisor del PR R-03:** de los seis `pip install` sueltos, el que más urge es **`pip-audit`**, porque desde el Cambio 121 `Pip Audit` es un check **obligatorio** del ruleset y su base de advisories cambia sola: un advisory nuevo sobre cualquier dependencia de `requirements.txt`, o un release de `pip-audit` que estreche una regla, frena **todos** los merges abiertos, incluidos los PRs que no tocaron nada. Mientras tanto la salida no es destildar el check: es agregar la advisory a `security/excepciones.toml` con `motivo`, un `vence_el` corto y el ticket, en un PR de una línea —eso devuelve el verde y deja la deuda con fecha, que es el punto de RED-63—. Mismo razonamiento, un escalón más abajo, para `ruff`: `Ruff estilo` hoy da 0 y es candidato a bloquear, pero no se enciende hasta que Ruff esté pineado, o un release con una regla E/W nueva pone en rojo un PR que no cambió nada. **Test permanente:** `core.tests.test_gates_ci.ActionsPineadasTests` (4 tests; uno de ellos afirma que los workflows con `contents: write` siguen siendo esos dos, para que un tercero avise antes de que nadie lo pinee).
 - **Ubicación:** `pr-quality.yml:30,48,68`, `pr-backend.yml:88`, `pr-security.yml:26`, `docs-auto-deploy.yml:32` (`pip install
   ruff|bandit|coverage|pip-audit|mkdocs-material`); `publish-main.yml:21` (`actions/checkout@v5`) y
   `docs-auto-deploy.yml:22,25`, los dos con `permissions: contents: write`.

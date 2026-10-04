@@ -16,12 +16,12 @@ Base verificada: `origin/development @ 917e583`. PoC: `poc/test_repro_seguridad.
 | SEC-03 | Admin de usuarios de un programa toma cuentas de superusuarios, admins globales y multiprograma | CRÍTICA | CONF. test | 0 | M | ✅ |
 | SEC-04 | Consulta RENAPER anónima con payload crudo y throttle evadible | CRÍTICA | CONF. test | 0 | S | ✅ |
 | SEC-05 | `activate`/`deactivate` de usuarios por API para cualquier autenticado | CRÍTICA | CONF. test | 0 | S | ✅ |
+| SEC-10 | Adjuntos de ciudadano/legajo sin capacidad ni pertenencia: cualquier autenticado **borra** el documento | CRÍTICA (04-oct) | CONF. test | 2 → **R (en R-19)** | S-M | ⬜ |
 | SEC-06 | Capacidades `becas.*` otorgables en roles de otro programa | ALTA | CONF. test | 2 | M | ⬜ |
 | SEC-07 | `programa.configurar` en un rol de programa habilita el wizard de todos | ALTA | CONF. test | 2 | S-M | ⬜ |
 | SEC-08 | XSS almacenado por nombre de rol en todas las páginas | ALTA | CONF. test | 0 | S | ✅ |
 | SEC-09 | `/media/` sin login en DEV (nginx); sin pertenencia en ECOM | ALTA (DEV) / MEDIA (ECOM) | CONF. test | 0 (etapa 1) / 2 (etapa 2) | S + M | 🟡 |
-| SEC-10 | Adjuntos de ciudadano/legajo sin capacidad ni pertenencia | ALTA | CONF. test | 2 | S-M | ⬜ |
-| SEC-11 | APIs JSON de legajos (riesgo, alertas, timeline) sin capacidad | ALTA | CONF. test | 2 | S | ⬜ |
+| SEC-11 | APIs JSON de legajos (riesgo, alertas, timeline) sin capacidad | ALTA | CONF. test | **R-19** (`ciudadano.ver` de piso en las 5) / 2 (subir 3 a `ciudadano.sensible`, D-11) | S | ⬜ |
 | SEC-12 | Derivaciones por GET (CSRF) sin capacidad; inscripción por `is_staff` | ALTA | CONF. test | 2 | S | ⬜ |
 | SEC-13 | Catálogo geográfico escribible por API | ALTA | CONF. test | 0 | S | ✅ |
 | SEC-14 | APIs del dashboard: enumeración del padrón y alertas globales | ALTA | CONF. test | 0 | S | ✅ |
@@ -31,7 +31,7 @@ Base verificada: `origin/development @ 917e583`. PoC: `poc/test_repro_seguridad.
 | SEC-15 | Uploads de F-00 y merenderos sin lista blanca ni tope | MEDIA | CONF. test | 2 | S | ⬜ |
 | SEC-16 | `/api/users/` lista personal con DNI e `is_superuser` | MEDIA | CONF. test | 0 | (en SEC-05) | ✅ |
 | SEC-17 | La API de usuarios/roles saltea reglas del ABM | MEDIA | CONF. test | 0 | (en SEC-05) | ✅ |
-| SEC-18 | Alertas: cerrar cualquiera por id; CRÍTICAS globales a quien no tiene legajos | MEDIA | CONF. test | 2 | S | ⬜ |
+| SEC-18 | Alertas: cerrar cualquiera por id; CRÍTICAS globales a quien no tiene legajos | MEDIA | CONF. test | 2 → **R (en R-19)** | S | ⬜ |
 | SEC-19 | XSS en `/legajos/alertas/debug/` y rutas de prueba publicadas | MEDIA | CONF. test | 0 | S | ✅ |
 | SEC-20 | Inyección de fórmulas en CSV/XLSX (incluye export de ciudadanos) | MEDIA | CONF. lectura | 2 | S | ⬜ |
 | SEC-21 | Cupo: el Coordinador Regional ve y muta casos de sus pares | MEDIA | CONF. lectura | 2 | S | ⬜ |
@@ -215,7 +215,18 @@ Base verificada: `origin/development @ 917e583`. PoC: `poc/test_repro_seguridad.
 - **Dependencias:** Cambio 41 dejaba este pendiente de infraestructura; la app móvil **no** descarga `/media/` (verificado), así que `login_required` no la rompe. Mitigación de fondo para SEC-15.
 
 ### SEC-10 · Adjuntos de ciudadano y legajo: listar, subir y borrar sin capacidad ni pertenencia, con errores internos al cliente
-**Severidad:** ALTA · **Estado:** CONFIRMADO con test (`SEC10AdjuntosTests`) · **Origen:** A5-10, A3-03 (adjuntos), A3-17 (fuga de `str(exc)`) · **Ola:** 2 · **Esfuerzo:** S-M · **Decisión:** —
+**Severidad:** **CRÍTICA** (era ALTA) · **Estado:** CONFIRMADO con test (`SEC10AdjuntosTests`) · **Origen:** A5-10, A3-03 (adjuntos), A3-17 (fuga de `str(exc)`) · **Ola:** 2 → **R, dentro del PR R-19** · **Esfuerzo:** S-M · **Decisión:** —
+
+**Re-evaluada el 04-oct-2026 por RED-89.** El barrido con un usuario de backoffice **sin ningún rol** volvió a medir el
+borrado sobre `development @ cdd9c71`: `DELETE /legajos/archivos/<id>/eliminar/` → 200 `{"success": true}` y
+`Adjunto.objects.filter(pk=…).exists()` → `False`. Es **hard delete sin papelera ni auditoría**, disponible para
+**cualquier** cuenta de backoffice —incluido un rol de Becas o de Dispositivos sin una sola capacidad de Legajos—, sobre
+documentos de cualquier ciudadano. Es el mismo criterio que puso a **SEC-02** en CRÍTICA («cualquier autenticado escribe
+sobre datos del ciudadano»), con el agravante de que acá el daño es **irreversible**: lo que se destruye son los
+documentos que la etapa 1 de SEC-09 puso detrás de login. Por eso sube a CRÍTICA y se adelanta a la Ola R.
+
+**Ampliado por RED-89 — se implementa en R-19 (Ola R).** La ficha se ejecuta **completa** en ese PR, no en la Ola 2
+(README §2.4 D-RED-14 y §6). Sus 4 h se mueven de la Ola 2 (PR 3) a la Ola R.
 - **Ubicación:** `legajos/views/contactos_api.py:26-93` y `:182-188` (solo `@login_required`); `legajos/services/contactos.py:47-50` (`get_object_or_404(Adjunto, id=archivo_id).delete()` sin dueño); todos los `except Exception` devuelven `str(exc)` con 200.
 - **Escenario (reproducido):** un usuario sin capacidades hace DELETE `/legajos/archivos/<id>/eliminar/` sobre un adjunto ajeno → `{"success": true}` y la fila se borra; el archivo físico queda huérfano.
 - **Propuesta:** `@requiere("ciudadano.ver")` en `archivos_ciudadano_api` y `archivos_legajo_api`; `@requiere("ciudadano.editar")` en `subir_archivos_ciudadano`, `subir_archivos_legajo` y `eliminar_archivo`; ruta nueva `ciudadanos/<int:ciudadano_id>/archivos/<int:archivo_id>/eliminar/` (y la de legajo con uuid); servicio `eliminar_archivo_de_objeto(instance, archivo_id)` = `Adjunto.objects.get(content_type=ContentType.objects.get_for_model(type(instance)), object_id=instance.id, pk=archivo_id)` → `archivo.archivo.delete(save=False)` → `archivo.delete()`; ajustar el `fetch` de `ciudadano_detail.html`; reemplazar `str(exc)` por mensaje genérico + `logger.exception` y status 500 (dejar `ContactosFilesError` con 400). La robustez del listado (blob faltante, N+1) es LEG-04: mismo PR.
@@ -224,9 +235,25 @@ Base verificada: `origin/development @ 917e583`. PoC: `poc/test_repro_seguridad.
 - **Dependencias:** FE-02 (el mismo template usa `toastr`, que no está cargado: arreglar antes o junto para poder probar la subida).
 
 ### SEC-11 · APIs JSON de legajos (timeline, actividades, alertas, predicción de riesgo, evolución, historial) sin capacidad
-**Severidad:** ALTA · **Estado:** CONFIRMADO con test (`SEC11LegajosJsonTests`) · **Origen:** A5-11, A3-03 (parte no adjuntos) · **Ola:** 2 · **Esfuerzo:** S · **Decisión:** D-11
+**Severidad:** ALTA · **Estado:** CONFIRMADO con test (`SEC11LegajosJsonTests`) · **Origen:** A5-11, A3-03 (parte no adjuntos) · **Ola:** 2 (la parte `ciudadano.ver`/`ciudadano.editar`, adelantada a **R-19**) · **Esfuerzo:** S · **Decisión:** D-11
+
+**Ampliado por RED-89 — se implementa en R-19 (Ola R), partida en dos.** El barrido del 04-oct confirmó estas rutas con
+un usuario sin rol.
+
+**Va a R-19:** `@requiere("ciudadano.ver")` en **las cinco**, como **piso**: `actividades_ciudadano_api`,
+`evolucion_legajo_api` y `contactos_panel.historial_contactos_simple` —donde `ciudadano.ver` es además la capacidad
+definitiva— y también `timeline_ciudadano_api`, `alertas_ciudadano_api` y `prediccion_riesgo_api`, cuya capacidad fina
+es `ciudadano.sensible`. **El piso no es un atajo: es lo que permite que R-19 cierre en verde.** Si esas tres quedaran
+con solo `@login_required` esperando a D-11, el PR no podría sacar sus `expectedFailure` del barrido de RED-89 y
+cerraría con tres rutas abiertas a cualquier autenticado. `ciudadano.ver` ya existe y no necesita decisión, así que
+tapa el agujero hoy sin anticiparse a nada. (`archivos_*` van con SEC-10, en el mismo PR.)
+
+**Queda en la Ola 2 (PR 3):** **subir** esas tres de `ciudadano.ver` a `@requiere("ciudadano.sensible")` cuando se
+resuelva **D-11**, coordinado con G1c-04. Es una línea por vista.
+
+De las 2 h, 1 se mueve a la Ola R y 1 queda en la Ola 2. La ficha queda **🟡** al cerrar R-19 y ✅ con la Ola 2.
 - **Escenario (reproducido):** un usuario sin capacidades recibe 200 en `timeline`, `alertas`, `prediccion-riesgo` y `actividades`, con el tipo «Riesgo Suicida».
-- **Propuesta:** `@requiere("ciudadano.ver")` en `actividades_ciudadano_api`, `evolucion_legajo_api` y `contactos_panel.historial_contactos_simple`; `@requiere("ciudadano.sensible")` en `timeline_ciudadano_api`, `alertas_ciudadano_api` y `prediccion_riesgo_api` (default D-11). `cerrar_alerta_api` → SEC-18.
+- **Propuesta:** `@requiere("ciudadano.ver")` en `actividades_ciudadano_api`, `evolucion_legajo_api` y `contactos_panel.historial_contactos_simple`; `@requiere("ciudadano.sensible")` en `timeline_ciudadano_api`, `alertas_ciudadano_api` y `prediccion_riesgo_api` (default D-11) — **en dos pasos desde el 04-oct: R-19 pone `ciudadano.ver` en las seis y la Ola 2 sube esas tres a `ciudadano.sensible`** (ver el bloque de arriba). `cerrar_alerta_api` → SEC-18.
 - **Tests a agregar:** `legajos/tests/test_contactos_api_rbac.py`: test parametrizado por nombre de URL con usuario sin roles → 403 (con `X-Requested-With` el decorador devuelve JSON 403).
 - **Verificación:** V-STD + `manage.py test legajos`.
 
@@ -319,7 +346,16 @@ Base verificada: `origin/development @ 917e583`. PoC: `poc/test_repro_seguridad.
 - **Tests a agregar:** `test_patch_rol_protegido_400`, `test_patch_usuario_que_deja_sin_admin_400` (o 404 si se apaga).
 
 ### SEC-18 · Alertas: cerrar cualquiera por id; las CRÍTICAS de todo el sistema visibles para quien no tiene legajos
-**Severidad:** MEDIA · **Estado:** CONFIRMADO con test (`SEC11…alertas_dashboard`; `test_repro_dispositivos_legajos.py::A313A314`) · **Origen:** A5-18, A3-13 (= LEG-07), G1c-05, G1c-06 · **Ola:** 2 · **Esfuerzo:** S · **Decisión:** D-18
+**Severidad:** MEDIA · **Estado:** CONFIRMADO con test (`SEC11…alertas_dashboard`; `test_repro_dispositivos_legajos.py::A313A314`) · **Origen:** A5-18, A3-13 (= LEG-07), G1c-05, G1c-06 · **Ola:** 2 → **R, dentro del PR R-19** · **Esfuerzo:** S · **Decisión:** D-18
+
+**Ampliado por RED-89 — se implementa en R-19 (Ola R).** La ficha se ejecuta **completa** en ese PR; sus 2 h se mueven
+de la Ola 2 (PR 3) a la Ola R. Lo que el barrido del 04-oct agregó, medido con un usuario sin ningún rol: las tres
+entradas de cierre —`cerrar_alerta_ajax` y `cerrar_alerta_api`, que están entre las 17 del barrido, más
+`AlertasViewSet.cerrar`, la 18.ª, que queda fuera porque con la base vacía no hay objeto que cerrar— devuelven 200 y dejan la alerta
+ajena en `activa=False`, y `/legajos/alertas/`, `/legajos/alertas/preview/` y `/api/legajos/alertas/` traen el **nombre
+del ciudadano y el texto de la alerta**. Además, `POST /api/legajos/alertas/<pk>/cerrar/` con un `pk` **no numérico** da
+**500** (`AlertasService.cerrar_alerta` recibe el `pk` crudo): lo cierra el `self.get_object()` que esta ficha ya pide,
+y conviene agregarle su test (`test_api_cerrar_con_pk_no_numerico_da_404`).
 
 **⚠ Actualizar (03-oct-2026):** `AlertasViewSet` hoy en `legajos/api_views/__init__.py:65` y `cerrar` en `:95` (`AlertasService.cerrar_alerta(pk, request.user)`, todavía sin `get_object()`). #542 (Cambio 114) le sumó `BackofficeAutenticado`, pero sigue sin capacidad (`[BackofficeAutenticado, IsAuthenticated]`): decidirla en este PR (R0b-06).
 - **Ubicación:** `legajos/services/filtros_usuario.py:31-33` (sin legajos propios, `filtros = Q(prioridad="CRITICA")`); `legajos/services/alertas.py:206-218` (`cerrar_alerta` con `AlertaCiudadano.objects.get(id=…)`); entradas `cerrar_alerta_api`, `cerrar_alerta_ajax` (`legajos/views/contactos_api.py:123-135`, `legajos/views/alertas.py:64-71`) y `AlertasViewSet.cerrar` (`legajos/api_views/__init__.py:84-93`, `detail=True` sin `get_object()`); `legajos/views/alertas.py:11,74,91` solo `login_required`.
