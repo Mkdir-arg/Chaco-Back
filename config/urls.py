@@ -54,7 +54,13 @@ urlpatterns = [
     # que llegara por el link público (seguridad, 26/08/2026).
     path("api/schema/", login_required(SpectacularAPIView.as_view()), name="schema"),
     path("api/docs/", login_required(SpectacularSwaggerView.as_view(url_name="schema")), name="swagger-ui"),
-    path("api/redoc/", login_required(SpectacularRedocView.as_view(url_name="schema")), name="redoc"),
+    # `template_name`: la plantilla del paquete trae Google Fonts escrito a mano
+    # y `REDOC_DIST = "SIDECAR"` no la toca. La nuestra es la misma sin eso.
+    path(
+        "api/redoc/",
+        login_required(SpectacularRedocView.as_view(url_name="schema", template_name="api/redoc.html")),
+        name="redoc",
+    ),
     # Health Check
     path("health/", include("health_check.urls")),
 ]

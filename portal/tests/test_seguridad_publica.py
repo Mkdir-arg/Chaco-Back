@@ -467,22 +467,20 @@ class SinRecursosDeTercerosTests(TestCase):
         "https://www.googletagmanager.com/ns.html",
     )
 
-    # Plantillas que vienen dentro de una dependencia: nadie de acá las escribe,
-    # así que el riesgo que cubre este test --alguien pega un <script> de un CDN
-    # en una pantalla nuestra-- no aplica. Se listan una por una igual, para que
-    # una dependencia nueva con plantillas no entre sin que se vea.
+    # Archivos que están dentro de una dependencia y que **no se sirven**. El
+    # barrido recorre el `templates/` de cada app instalada, así que los ve
+    # igual. Se listan uno por uno para que una dependencia nueva con plantillas
+    # no entre sin que se vea.
     #
-    # `drf_spectacular` sirve `/api/docs/` y `/api/redoc/` (RED-36), las dos
-    # detrás del login de backoffice y fuera del portal público. Además de estas
-    # fuentes, Redoc y Swagger-UI traen su bundle de jsDelivr por los defaults de
-    # `REDOC_DIST` / `SWAGGER_UI_DIST`, que esta expresión regular no ve porque
-    # llegan por variable de plantilla. Cerrar las dos cosas es instalar
-    # `drf-spectacular-sidecar` y apuntar esos settings a `SIDECAR`: es una
-    # dependencia nueva, así que la decide el PM (Cambio 118).
-    DE_DEPENDENCIAS = (
-        "drf_spectacular/redoc.html",
-        "drf_spectacular/swagger_ui.html",
-    )
+    # `drf_spectacular/redoc.html` trae tres etiquetas de Google Fonts escritas
+    # a mano. `/api/redoc/` no la usa: `config/urls.py` le pasa
+    # `template_name="api/redoc.html"`, que es la misma sin eso y que este mismo
+    # barrido sí revisa (RED-36, Cambio 118). Que los bundles de Redoc y
+    # Swagger-UI tampoco salgan a un CDN lo cubre
+    # `core.tests.test_api_schema_contrato.DocumentacionSinTercerosTests`, que
+    # mira el HTML servido y no el archivo: las URLs llegan por variable de
+    # plantilla y esta expresión regular no las vería.
+    DE_DEPENDENCIAS = ("drf_spectacular/redoc.html",)
 
     def test_ninguna_plantilla_carga_recursos_externos(self):
         from pathlib import Path

@@ -456,6 +456,54 @@ class PersonasBecasApiTests(_BaseApiTest):
         self.assertEqual(resp.data["data"]["sexo"], "M")
         mock_consultar.assert_called_once_with("40400400", "M")
 
+    # `relevamiento` es el único campo cuyo trato cambió al pasar la validación
+    # al serializer, así que queda fijado entero. Lo vacío siempre significó
+    # «todos los vigentes del territorial» y se conserva; lo que no es un id
+    # entero ahora da el 400 de siempre en vez de un 500 (`true` y `1.9` antes
+    # colaban como id 1 por la coerción del ORM, y `"abc"` reventaba en
+    # `filter(pk=...)`).
+    #
+    # La app no manda el campo: `Chaco-mobile/src/screens/RelevamientoDetailScreen.js`
+    # tiene el único POST al endpoint y su cuerpo es `{dni, sexo}`. Si una
+    # versión futura empieza a mandarlo, mandará el id entero.
+    RELEVAMIENTOS_RECHAZADOS = (True, 1.9, "abc", [1])
+
+    def test_consultar_persona_rechaza_un_relevamiento_que_no_es_un_id(self):
+        self.autenticar(self.terri)
+
+        for valor in self.RELEVAMIENTOS_RECHAZADOS:
+            with self.subTest(relevamiento=valor):
+                resp = self.client.post(
+                    reverse("becas_api:personas-consultar"),
+                    {"dni": "40400400", "sexo": "M", "relevamiento": valor},
+                    format="json",
+                )
+
+                self.assertEqual(resp.status_code, 400)
+                self.assertEqual(
+                    resp.data,
+                    {"success": False, "error": "DNI y sexo (F o M) son requeridos."},
+                )
+
+    @patch("programas.services.identidad.consultar_persona")
+    def test_consultar_persona_acepta_el_relevamiento_vacio_o_ausente(self, mock_consultar):
+        mock_consultar.return_value = {
+            "success": True,
+            "data": {"dni": "40400400", "nombre": "Juan", "apellido": "Perez", "sexo": "M"},
+            "datos_api": {},
+        }
+        self.autenticar(self.terri)
+
+        for valor in ({}, {"relevamiento": ""}, {"relevamiento": None}, {"relevamiento": self.rel.id}):
+            with self.subTest(extra=valor):
+                resp = self.client.post(
+                    reverse("becas_api:personas-consultar"),
+                    {"dni": "40400400", "sexo": "M", **valor},
+                    format="json",
+                )
+
+                self.assertEqual(resp.status_code, 200)
+
     # SEC-04 (auditoría oct-2026): al retirar la consulta RENAPER anónima de
     # Legajos, el alias que la app usa en producción tiene que quedar intacto y
     # seguir exigiendo token. `personas/consultar/` ya lo cubre

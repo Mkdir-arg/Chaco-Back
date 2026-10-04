@@ -16,6 +16,8 @@ fijan lo que hay hoy y **solo pueden bajar**: una vista nueva sin serializer o u
 `SerializerMethodField` sin anotar ponen el test en rojo.
 """
 
+import re
+
 from django.contrib.auth.models import User
 from django.core.management import get_commands
 from django.test import TestCase
@@ -104,6 +106,45 @@ class DocumentacionDeApiTests(TestCase):
                 respuesta = self.client.get(url)
                 self.assertEqual(respuesta.status_code, 302)
                 self.assertTrue(respuesta["Location"].startswith(login))
+
+
+class DocumentacionSinTercerosTests(TestCase):
+    """Ni Swagger-UI ni Redoc salen a buscar nada afuera.
+
+    Los defaults de `SWAGGER_UI_DIST` y `REDOC_DIST` apuntan a
+    `cdn.jsdelivr.net/npm/<paquete>@latest`: código de terceros, sin versión
+    fija, ejecutándose con la sesión de un usuario de backoffice. Se sirven
+    desde `/static/` con `SIDECAR` y la versión pineada en `requirements.txt`;
+    las fuentes que la plantilla del paquete traía escritas a mano salen con
+    `templates/api/redoc.html` (RED-36, revisión del PR R-04).
+    """
+
+    URLS = ("/api/docs/", "/api/redoc/")
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.staff = User.objects.create_user("doc-cdn", password="Clave-Seg-2026x", is_staff=True)
+
+    def test_el_html_no_referencia_dominios_externos(self):
+        self.client.force_login(self.staff)
+        externos = re.compile(r'(?:src|href)\s*=\s*["\'](?P<url>(?:https?:)?//[^"\']+)')
+
+        for url in self.URLS:
+            with self.subTest(url=url):
+                html = self.client.get(url).content.decode()
+
+                encontrados = [m.group("url") for m in externos.finditer(html)]
+                self.assertEqual(encontrados, [], f"{url} carga recursos de otro origen")
+
+    def test_los_bundles_salen_del_static_propio(self):
+        """La contracara: que no estén afuera porque no estén en ninguna parte."""
+        self.client.force_login(self.staff)
+
+        docs = self.client.get("/api/docs/").content.decode()
+        redoc = self.client.get("/api/redoc/").content.decode()
+
+        self.assertIn("/static/drf_spectacular_sidecar/swagger-ui-dist/swagger-ui-bundle.js", docs)
+        self.assertIn("/static/drf_spectacular_sidecar/redoc/bundles/redoc.standalone.js", redoc)
 
 
 class EsquemaOpenApiTests(TestCase):

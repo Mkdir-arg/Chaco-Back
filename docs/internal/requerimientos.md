@@ -14775,7 +14775,7 @@ Revertir el commit devuelve los `ModelViewSet` de geografía y deja las cinco vi
 | **Solicitante** | Auditoría integral de octubre 2026 — hallazgos **RED-36** y **RED-37** (Ola R, red de seguridad, PR R-04) |
 | **Fecha del pedido** | 04/10/2026 |
 | **Issue / épica** | Sin issue — auditoría oct-2026, `docs/internal/auditoria-2026-10/hallazgos/08-red-de-seguridad.md` |
-| **Partes afectadas** | `config/settings.py`, `programas/api/serializers.py`, `programas/api/views.py`, `core/tests/test_api_schema_contrato.py`, `programas/tests/test_becas_api.py`, `portal/tests/test_seguridad_publica.py` |
+| **Partes afectadas** | `config/settings.py`, `config/urls.py`, `config/middlewares/security_headers.py`, `requirements.txt`, `templates/api/redoc.html`, `programas/api/serializers.py`, `programas/api/views.py`, `core/tests/test_api_schema_contrato.py`, `programas/tests/test_becas_api.py`, `portal/tests/test_seguridad_publica.py` |
 | **Migración** | No requiere |
 
 ## Pedido original
@@ -14810,9 +14810,10 @@ Quien generara un cliente desde `/api/schema/` escribía código que no compila 
 
 ## Alcance acordado
 
-**Entra:** `"drf_spectacular"` en `INSTALLED_APPS`; los tipos reales de `RelevamientoListSerializer` y
-`RelevamientoDetailSerializer`; `ConsultaPersonaSerializer` y `ConsultaPersonaRespuestaSerializer` con su
-`@extend_schema`; y el test de contrato con sus dos ratchets.
+**Entra:** `"drf_spectacular"` en `INSTALLED_APPS`; **los bundles de Swagger-UI y Redoc servidos desde
+`/static/` con `drf-spectacular-sidecar`** (DECISIÓN CLIENTE, abajo); los tipos reales de
+`RelevamientoListSerializer` y `RelevamientoDetailSerializer`; `ConsultaPersonaSerializer` y
+`ConsultaPersonaRespuestaSerializer` con su `@extend_schema`; y el test de contrato con sus dos ratchets.
 
 **Queda afuera:** el punto 3 de RED-37 (las 5 vistas del dashboard y las de `core/views/performance.py` con
 `inline_serializer`) es de la Ola 7; el job `Contratos de API` que corre `spectacular --validate` en el CI es
@@ -14820,14 +14821,38 @@ el PR R-18; dejar las tres rutas detrás de `BackofficeAutenticado` es el resto 
 
 ## Decisiones tomadas
 
+- **DECISIÓN CLIENTE, aplicada por default: Swagger-UI y Redoc se sirven desde el propio sistema.** Los
+  defaults de `SWAGGER_UI_DIST` y `REDOC_DIST` apuntan a `cdn.jsdelivr.net/npm/<paquete>@latest`, y la
+  plantilla `redoc.html` del paquete trae tres etiquetas de Google Fonts escritas a mano. O sea: al volver a
+  servirse, esas dos pantallas ejecutaban código de terceros **sin versión fija** con la sesión de un usuario
+  de backoffice, y `config/middlewares/security_headers.py` las exime de CSP. Entra
+  `drf-spectacular-sidecar==2026.10.1` (versión pineada en `requirements.txt`), los tres settings en
+  `SIDECAR` y `templates/api/redoc.html` —copia de la del paquete sin las fuentes—, enchufada con
+  `template_name` en `config/urls.py`. El HTML servido no referencia un solo dominio externo; lo fija
+  `core.tests.test_api_schema_contrato.DocumentacionSinTercerosTests`.
+- **La exención de CSP de `/api/docs/` y `/api/redoc/` se mantiene.** Ya no hace falta por el CDN, pero el
+  bundle de Redoc levanta un `Worker` desde un `blob:`, y `worker-src` cae en `default-src 'self'`, que lo
+  bloquea. Abrir `blob:` para todo el sitio por una pantalla interna de documentación no compensa; lo que
+  impide que el CDN vuelva es el test, no la cabecera.
+- **El esquema deja de reportarse como issues de `manage.py check --deploy`.** `drf_spectacular` registra un
+  check `deploy=True` que vuelca cada warning y cada error del esquema: el comando pasaba de 5 a 30 issues,
+  25 líneas nuevas en cada corrida del CI, sin umbral ni forma de bajarlas de a una. Se apaga con
+  `ENABLE_DJANGO_DEPLOY_CHECK: False`; el mismo dato, con allowlist y ratchet, lo da `EsquemaOpenApiTests`.
 - **El cuerpo del 400 de `/api/becas/personas/consultar/` no cambia.** La ficha pide que el serializer
   *reemplace* la validación manual, y lo hace, pero la vista sigue devolviendo
   `{"success": false, "error": "DNI y sexo (F o M) son requeridos."}` en vez del diccionario por campo que
   daría `raise_exception=True`: **lo lee la app móvil en producción** (misma regla del Cambio 100). Las
-  normalizaciones también se conservan dentro del serializer —DNI a dígitos, sexo sin espacios y en
-  mayúscula, `relevamiento` vacío tratado como «todos los vigentes»—, así que no hay una sola entrada que
-  funcionara ayer y falle hoy. `programas.tests.test_becas_api.PersonasBecasApiTests` lo fija con siete
-  cuerpos rechazados y uno aceptado con DNI con puntos y sexo en minúscula.
+  normalizaciones también se conservan dentro del serializer: DNI a dígitos, sexo sin espacios y en
+  mayúscula, `relevamiento` vacío o ausente tratado como «todos los vigentes».
+  `programas.tests.test_becas_api.PersonasBecasApiTests` lo fija con siete cuerpos rechazados y uno aceptado
+  con DNI con puntos y sexo en minúscula.
+- **`relevamiento` que no sea un id entero pasa a dar 400.** Es el único trato que cambió. Antes `true` y
+  `1.9` colaban como id 1 por la coerción del ORM y `"abc"` reventaba en 500 dentro de `filter(pk=...)`;
+  ahora los cuatro casos dan el 400 de siempre. **La app no manda el campo:**
+  `Chaco-mobile/src/screens/RelevamientoDetailScreen.js` tiene el único POST al endpoint y su cuerpo es
+  `{dni, sexo}`; si una versión futura empieza a mandarlo, mandará el id entero. Queda fijado con
+  `test_consultar_persona_rechaza_un_relevamiento_que_no_es_un_id` y su contracara
+  `test_consultar_persona_acepta_el_relevamiento_vacio_o_ausente`.
 - **`cupo_disponible` y `cupo_completo` se declaran en el serializer, no en el modelo.** Son propiedades de
   `Relevamiento` que `ModelSerializer` resolvía como `ReadOnlyField`; se podía arreglar anotando el retorno
   de la propiedad, pero declararlas como `IntegerField(read_only=True)` y `BooleanField(read_only=True)` deja
@@ -14859,22 +14884,23 @@ el PR R-18; dejar las tres rutas detrás de `BackofficeAutenticado` es el resto 
 
 - `manage.py spectacular --validate --file /dev/null` termina en 0. El esquema sigue con 54 paths; los
   errores bajan de 11 a 10 (los de la allowlist) y los warnings de 24 a 15.
-- `core.tests.test_api_schema_contrato` (7 tests) en verde. Antes del cambio: 5 fallas y 2 errores
+- `core.tests.test_api_schema_contrato` (9 tests) en verde. Antes del cambio: 5 fallas y 2 errores
   (`TemplateDoesNotExist: drf_spectacular/swagger_ui.html` y `…/redoc.html`).
-- `manage.py check` sin issues, `check --deploy` en 0 y `makemigrations --check --dry-run` sin cambios.
+- El HTML servido de `/api/docs/` y `/api/redoc/` referencia solo `/static/…`: cuatro etiquetas y una,
+  respectivamente, todas del mismo origen.
+- `manage.py check` sin issues, `check --deploy` con los **mismos 5 issues que `development`** y
+  `makemigrations --check --dry-run` sin cambios.
 - Suite completa con `.venv312` (Python 3.12 + Django 5.2.17, igual al CI) en dos tandas:
   `core dashboard legajos users configuracion config conversaciones portal` y `programas`.
 - `ruff check` y `ruff format --check` limpios sobre los seis archivos tocados. No se tocó UI.
 
 ## Pendientes / a definir
 
-- **`/api/docs/` y `/api/redoc/` cargan Redoc, Swagger-UI y las fuentes desde CDNs públicos** (jsDelivr y
-  Google Fonts), que es lo que traen por default `REDOC_DIST` y `SWAGGER_UI_DIST` y lo que tienen hardcodeado
-  las plantillas del paquete. Las dos rutas están detrás del login de backoffice y fuera del portal público,
-  pero es una dependencia de cadena de suministro igual. Cerrarla es instalar `drf-spectacular-sidecar` y
-  apuntar esos settings a `SIDECAR`: **es una dependencia nueva, así que la decide el PM.** Mientras tanto,
-  `portal.tests.test_seguridad_publica.SinRecursosDeTercerosTests` exceptúa esas dos plantillas por nombre,
-  con el motivo escrito al lado; cualquier otra plantilla con un CDN sigue poniendo el test en rojo.
+- **`drf-spectacular-sidecar` hay que actualizarlo a mano.** Es un paquete de assets vendorizados: cada
+  versión es una foto de Swagger-UI y Redoc, y su número es una fecha (`2026.10.1`). Si alguno de los dos
+  tuviera un CVE, no lo avisa `pip-audit` sobre `drf-spectacular`: hay que subir el pin del sidecar.
+- **`collectstatic` ahora copia ~2,5 MB más** (los bundles). El entrypoint ya lo corre; en el deploy a icore
+  conviene mirar que `/static/drf_spectacular_sidecar/` quedó servido antes de dar `/api/docs/` por buena.
 - Las 10 vistas de `VISTAS_CON_ERROR_CONOCIDO` siguen fuera del esquema hasta la Ola 7 (punto 3 de RED-37).
   `run_phase2_tests_api` puede desaparecer entera con OPS-10.
 - Los 15 warnings restantes: `get_dispositivo_nombre` y `get_legajos_count` (legajos), `get_full_name`
@@ -14887,12 +14913,16 @@ el PR R-18; dejar las tres rutas detrás de `BackofficeAutenticado` es el resto 
 Revertir el commit saca `drf_spectacular` de `INSTALLED_APPS` —`/api/docs/` y `/api/redoc/` vuelven al 500— y
 devuelve la validación manual de `consultar_persona_becas`. No hay datos ni migraciones involucrados. El
 contrato HTTP de `/api/becas/*` es el mismo antes y después, así que la app móvil no se entera en ninguna de
-las dos direcciones.
+las dos direcciones. `drf-spectacular-sidecar` queda en `requirements.txt` sin que nada lo use: desinstalarlo
+es opcional.
 
 ## Historial
 
-- **04/10/2026 (este cambio)** — RED-36 y RED-37 (puntos 1 y 2) cerrados; queda anotado que el punto 3 va en
-  la Ola 7 y que el gate de CI es el PR R-18.
+- **04/10/2026** — RED-36 y RED-37 (puntos 1 y 2) cerrados; queda anotado que el punto 3 va en la Ola 7 y que
+  el gate de CI es el PR R-18.
+- **04/10/2026 (este cambio)** — ronda 2 de la revisión del PR #546: el juez aplica por default la decisión
+  del CDN (sidecar con versión pineada, plantilla propia de Redoc), se apaga el check de deploy del esquema y
+  queda documentado y con test el único cambio de trato de `relevamiento`.
 
 ---
 
