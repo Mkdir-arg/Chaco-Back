@@ -297,6 +297,8 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 114 | La API de ciudadanos es de solo lectura, pide capacidad y solo contesta búsquedas | Legajos · API DRF (`/api/legajos/`) | `#api` `#rbac` `#datos` | Auditoría integral oct-2026 — SEC-02 (+ V1-NEW-03) y SEC-01 punto 2 en legajos (Ola 0, segunda tanda, PR H12) | 03/10/2026 | 🟢 **Hecho** | No requiere |
 | 115 | El catálogo geográfico de la API es de solo lectura y las APIs del dashboard piden capacidad | Transversal · API DRF (`/api/core/`, `/api/` del dashboard) · home del backoffice | `#api` `#rbac` `#sesion` `#ui` | Auditoría integral oct-2026 — SEC-13 y SEC-14 (Ola 0, segunda tanda, PR H13) | 03/10/2026 | 🟢 **Hecho** | No requiere |
 | 116 | Los volcados de personas salen del repo y de la imagen | Transversal · alta en SIIS · repositorio, release e imagen | `#datos` `#infra` `#siis` | Auditoría integral oct-2026 — RED-01, decisión D-RED-01 (Ola R, PR R-01) | 04/10/2026 | 🟡 **Parcial** (la purga del historial y el repo privado los hace el PM) | No requiere |
+| 117 | El rollback de producción tiene un procedimiento escrito, y las migraciones que no se pueden revertir avisan antes de romper nada | Transversal · operación y deploy · migraciones | `#infra` `#datos` | Auditoría integral oct-2026 — RED-60 y RED-15 (Ola R «Red de seguridad», PR R-02) | 04/10/2026 | 🟢 **Hecho** | No requiere |
+| 120 | Los tests recorren el enum de estados entero, no solo el camino feliz | Becas · relevamientos (vencimientos, API de campo) · Portal (link público) | `#relevamientos` `#api` `#mobile` `#cupos` | Auditoría integral oct-2026 — RED-28, RED-29 y RED-66 (Ola R, red de seguridad, PR R-08) | 04/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -14984,3 +14986,304 @@ variable y sin el volumen, `correr_alta_siis` no carga insumos. No hay datos ni 
   el `expose: - "8001"` del servicio `web` en `docker-compose.prod.yml`: restaurado, y verificado
   parseando el YAML contra `origin/development` —el compose parsea **idéntico**, lo único que agrega este
   PR son comentarios—. Y la regla 2 no veía el `mysqldump` real, el de `--extended-insert`.
+
+---
+
+# Cambio 117 — El rollback de producción tiene un procedimiento escrito, y las migraciones que no se pueden revertir avisan antes de romper nada
+
+🟢 **HECHO — 04/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · operación y deploy (icore-srv y ECOM) · migraciones |
+| **Etiquetas** | `#infra` `#datos` |
+| **Solicitante** | Auditoría integral de octubre 2026 — hallazgos **RED-60** y **RED-15** (Ola R «Red de seguridad», PR R-02) |
+| **Fecha del pedido** | 04/10/2026 |
+| **Issue / épica** | Sin issue — auditoría oct-2026, `docs/internal/auditoria-2026-10/hallazgos/08-red-de-seguridad.md` |
+| **Partes afectadas** | `docs/internal/processes.md`; las cinco migraciones UUID (`programas.0047`, `programas.0048`, `programas.0073`, `legajos.0007`, `users.0023`); dos tests nuevos en `core/tests/` |
+| **Migración** | No requiere (ninguna migración nueva: se le agrega una operación sin efecto hacia adelante a cinco ya aplicadas) |
+
+## Pedido original
+
+De la ficha **RED-60** (MEDIA, confirmado por lectura):
+
+> `processes.md` enseña un rollback que destruye datos y autoriza `--fake`. `:256-258`
+> (`docker compose exec django python manage.py migrate <app> <anterior>`: el servicio se llama `web`, el
+> comando ni arranca, y la reversa traba MariaDB), `:282` («usar `--fake` solo si…»), `:280` («siempre hacer
+> backup» sin ningún mecanismo: buscar `mysqldump` o `mariadb-dump` en scripts, compose y workflows da 0).
+> Reemplazar §Rollback y §Gestión de migraciones con el runbook del **Anexo D**.
+
+De la ficha **RED-15** (ALTA, confirmado con test en MariaDB 11.8):
+
+> En MariaDB la reversa falla (errno 150) y deja tabla huérfana y `django_migrations` a mitad. Declarar
+> `legajos.0007`, `programas.0047/0048/0073` y `users.0023` como **barrera de reversa**, listadas en el
+> runbook D.4; en el runbook, «si el `migrate` falló durante una reversa, ir directo a D.4 (restore)».
+
+## Qué lo motivó
+
+El procedimiento escrito y la realidad del motor no coincidían en ningún punto. El comando de rollback de
+migraciones apuntaba a un servicio (`django`) que no existe en `docker-compose.prod.yml` —son `mysql`, `redis`,
+`web`, `websocket` y `nginx`—, así que ni siquiera arrancaba; y si alguien lo adaptaba al nombre correcto, lo
+que lograba era peor que no hacer nada: en MariaDB el plan de reversa se corta a mitad y deja la base en un
+estado que no corresponde a ninguna release. El respaldo, que es lo único que permite volver de verdad, estaba
+escrito como una buena intención («siempre hacer backup») sin un solo comando.
+
+## Alcance acordado
+
+**Entra:** el runbook completo (D.0 a D.5) en `processes.md`, la sección de gestión de migraciones reescrita, la
+barrera de reversa en las cinco migraciones UUID y los dos tests que lo sostienen.
+
+**Queda afuera** (son de otros PRs de la Ola R): la marca `# REVERSA-NOOP:` y la barrera por pérdida de datos en
+`programas.0032`, `0056` y `0069` (RED-57, PR R-12); la normalización a hex en las reversas de `0047`, `0048` y
+`legajos.0007` (RED-18, PR R-12); el job `migration-roundtrip` de CI (RED-17, PR R-13); el chequeo inverso de
+`verificar_esquema_migraciones` (OPS-01, PR R-15); el tag inmutable de release (RED-16, PR R-15); y la
+validación de `## Reversión` en `requerimientos.py --check` (RED-84, PR R-12).
+
+## Decisiones tomadas
+
+- **D-RED-05 = barrera, no arreglo de fondo.** Sacar el `MODIFY` crudo de la reversa de las migraciones UUID es
+  trabajo largo sobre migraciones ya aplicadas en producción, y el riesgo lo cubre el runbook. Por debajo de
+  esas cinco migraciones solo se vuelve con restore.
+- **La barrera falla, no solo avisa.** La ficha pedía una marca en el archivo; un comentario no detiene a nadie
+  a las tres de la mañana. Se implementó como una operación extra al final de cada una de las cinco
+  migraciones: hacia adelante no hace nada, y al desaplicar —Django recorre las operaciones en orden inverso,
+  así que es la **primera** que corre— aborta con `IrreversibleError` y un mensaje que nombra la migración, dice
+  qué se rompería y remite al paso D.4. Aborta **antes** de cualquier DDL: la base queda como estaba.
+- **La barrera solo actúa en MySQL/MariaDB.** En otros motores la ida de esas migraciones ya era un no-op (todas
+  empiezan preguntando si el motor es `mysql` y, si no, vuelven), así que no hay nada que la vuelta pueda
+  romper y bloquearla sería ruido.
+- **Se agrega una operación en vez de tocar `restaurar_*`.** El cuerpo de las funciones de reversa queda intacto
+  para que el PR R-12 (RED-18, normalizar a hex antes de achicar) lo corrija sin pelearse con este cambio, y
+  para que siga siendo el camino correcto si alguna vez se revierte D-RED-05.
+- **`--fake` no se borra del documento: se prohíbe.** La ficha pedía que `processes.md` no lo mencionara, pero un
+  operador buscando `--fake` en el runbook tiene que encontrar el «no», no el silencio. Las dos menciones que
+  quedan son prohibiciones, y hay un test que verifica que ninguna lo autorice.
+- **El rollback de icore-srv opera sobre `main`, no sobre `development`.** El checkout de
+  `/home/icore/chaco` está en la rama de release (`.claude/commands/servidor.md`); `development` no se despliega
+  en ningún servidor. Y no se hace `reset --hard` sobre `main`: el próximo `git pull --ff-only origin main`
+  devolvería el servidor a la release rota sin que nadie se entere, así que el rollback crea una rama
+  `rollback/<timestamp>` —el mismo patrón que RED-59 le pide a `deploy_prod.sh`— que además queda visible en
+  `git status`.
+- **El dump de D.0 es el único camino de vuelta real, así que va con comando y verificación.** En icore se
+  escribe completo (incluido el `ls -lh ~/backups/` que confirma que el archivo existe y no pesa 0); en ECOM,
+  que es quien tiene la base de producción, se pide por escrito y se espera confirmación antes de espejar a
+  `main`.
+
+## Implementación
+
+`docs/internal/processes.md` reemplaza las dos secciones viejas:
+
+- **§Rollback** pasa a ser el runbook: **D.0** dump obligatorio antes de cada deploy con migración (comando de
+  `mysqldump` para icore, pedido escrito para ECOM, y anotar de qué release se viene); **D.1** tabla que dice
+  cuál de los caminos corresponde según lo que traía el deploy; **D.2** rollback de código, con el paso previo
+  **D.2.0** (consulta a `information_schema.COLUMNS` y `SET DEFAULT` sobre las columnas `NOT NULL` nuevas, para
+  que el código viejo pueda seguir dando de alta) y los dos escenarios **D.2.1** ECOM/Kubernetes y **D.2.2**
+  icore; **D.3** qué hacer con un `migrate` cortado hacia adelante; **D.4** el restore, con la lista de las ocho
+  barreras de reversa y los seis pasos; **D.5** el issue con label `incident` y la línea en `## Reversión`.
+- **§Gestión de migraciones en producción** deja de ser tres viñetas sueltas: dump obligatorio, ensayo del
+  `ALTER` grande en el banco de `scripts/perf_mysql/`, `--fake` prohibido, las migraciones no se revierten en
+  producción, avisar en el deploy cuando la migración es barrera, y la regla expand/contract en una línea.
+
+En las cinco migraciones UUID: el bloque de comentario `# BARRERA-DE-REVERSA:` arriba —por qué lo es y adónde
+ir—, y la operación `migrations.RunPython(sin_cambios, bloquear_reversa)` al final de `operations`.
+
+## Archivos
+
+- `docs/internal/processes.md` — runbook D.0–D.5 y la sección de migraciones reescrita.
+- `programas/migrations/0047_ampliar_formulario_client_uuid.py`, `0048_ampliar_validacionsis_id_consulta.py`,
+  `0073_ampliar_relevamiento_token_publico.py`, `legajos/migrations/0007_ampliar_uuid_legajos.py`,
+  `users/migrations/0023_ampliar_solicitud_cambio_email_token.py` — marca y barrera.
+- `core/tests/test_barreras_de_reversa.py` — **test permanente de RED-15**.
+- `core/tests/test_runbook_rollback.py` — **test permanente de RED-60**.
+- `docs/internal/auditoria-2026-10/hallazgos/08-red-de-seguridad.md` — RED-15 y RED-60 en ✅, con su línea
+  **Resolución**.
+
+## Base de datos
+
+Ninguna migración nueva y ningún cambio de esquema. Las cinco migraciones tocadas ya están aplicadas en todos
+los ambientes, así que la operación agregada no vuelve a correr; en una base desde cero corre y no hace nada.
+`makemigrations --check --dry-run` → «No changes detected».
+
+## Validación
+
+- Contenedor efímero **MariaDB 11.8.9** en el puerto 3317 (no se tocaron 3307 ni 3308), con un settings fuera
+  del repo que apunta ahí y sube los timeouts.
+- `migrate` completo hacia adelante: OK, 136 migraciones.
+- `migrate legajos 0006`, `migrate users 0022`, `migrate programas 0072`, `migrate programas 0046` y
+  `migrate legajos zero`: las cinco abortan con `IrreversibleError` y el mensaje de la barrera. El esquema queda
+  intacto (`client_uuid`, `legajos_legajoatencion.id`, `users_solicitudcambioemail.token` y `token_publico`
+  siguen en `char(36)`), sin tablas huérfanas, y el `migrate` hacia adelante posterior reaplica sin problemas:
+  `migrate --check` sale 0.
+- **Comparación contra el código de hoy** (worktree en `d9acc65f`, base limpia en el mismo contenedor):
+  `migrate legajos zero` muere con el error 1005 / errno 150 al recrear `legajos_derivacion`, deja esa tabla
+  huérfana y `django_migrations` repartido en un estado que no es ninguna release (`programas` en 0001, `users`
+  en 0002, `legajos` en 0004). Con la barrera, el mismo comando aborta limpio.
+- `core.tests.test_barreras_de_reversa` y `core.tests.test_runbook_rollback`: 10 tests. Antes del cambio los 10
+  fallaban; después, OK.
+- `manage.py check` sin issues; suite completa en el venv de Python 3.12 + Django 5.2 sin regresiones;
+  `ruff check` limpio sobre lo tocado.
+
+## Puesta en marcha en el servidor
+
+No requiere nada: es documentación y código que solo actúa en el camino de reversa. Lo que sí cambia es la
+operación — a partir de acá, **antes de cada deploy con migración hay que correr el dump de D.0**, y en ECOM
+pedirlo por escrito y esperar la confirmación antes de espejar a `main`.
+
+## Pendientes / a definir
+
+- El pedido escrito a ECOM (H-11) de que hagan y confirmen el dump antes de cada deploy con migración lo tiene
+  que mandar el PM; el runbook ya lo da por obligatorio.
+- Las barreras por pérdida de datos (`programas.0032`, `0056`, `0069`) están listadas en D.4 pero todavía no
+  tienen la marca en el archivo ni abortan: eso llega con RED-57 en el PR R-12.
+- Cuando exista el job `migration-roundtrip` (RED-17, PR R-13), su paso de reversa no puede bajar por debajo de
+  `programas.0073`: la barrera lo va a cortar, que es lo esperado.
+
+## Reversión
+
+Revertir el commit devuelve las dos secciones viejas de `processes.md` —con el comando que no arranca y la
+autorización de `--fake`— y saca la barrera de las cinco migraciones: volver a poder arrancar una reversa que
+en MariaDB termina a mitad de camino. No hay datos ni esquema involucrados.
+
+---
+
+# Cambio 120 — Los tests recorren el enum de estados entero, no solo el camino feliz
+
+🟢 **HECHO — 04/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · relevamientos (vencimientos, API de campo) · Portal (link público) |
+| **Etiquetas** | `#relevamientos` `#api` `#mobile` `#cupos` |
+| **Solicitante** | Auditoría integral oct-2026 — fichas RED-28, RED-29 y RED-66 (Ola R, red de seguridad, PR R-08) |
+| **Fecha del pedido** | 04/10/2026 |
+| **Issue / épica** | Sin issue (plan de la auditoría: `docs/internal/auditoria-2026-10/`) |
+| **Partes afectadas** | Servidor/API · Backoffice (indirecto: el cron de vencimientos) |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> «Particiones de estados (mutación): RED-28, RED-29, RED-66 con `subTest` sobre todo el enum.»
+> (README de la auditoría, Ola R, PR R-08.)
+
+Las tres fichas salen de la misma medición: la prueba de mutación RS-R7 aplicó 49 cambios chicos y
+plausibles al código y corrió la suite. Doce sobrevivieron —la suite siguió en verde con el código
+roto—. Tres de esas doce son el mismo agujero: **la suite prueba el camino feliz y el negativo
+grueso, pero nunca la partición completa de un enum de estados.**
+
+## Alcance acordado
+
+- **Solo tests**, más una constante inerte que la ficha RED-28 pide para poder afirmar la partición.
+- Las tres mutaciones supervivientes quedan muertas, verificado a mano una por una.
+- **Afuera:** arreglar conductas. Nada de lo que recorrieron los tests resultó ser un bug, así que
+  no hay ningún `expectedFailure` ni cambio de comportamiento. Lo que apareció como asimetría —la
+  segunda rama de la regla de vencimiento— se fijó como caracterización, no se tocó.
+
+## Decisiones tomadas
+
+- **Los `subTest` recorren listas literales, no las constantes del servicio.** Es el punto entero
+  del ejercicio: si `test_todos_los_estados_abiertos_pasan_a_revision` iterara sobre
+  `ESTADOS_RELEVAMIENTO_ABIERTOS`, sacarle `FINALIZANDO` a la constante achicaría también el
+  recorrido del test y la mutación seguiría viva. La lista está escrita a mano en el test, y
+  `test_la_particion_de_estados_cubre_el_enum` es el que enfrenta las dos.
+- **La partición se declara en el código, no solo en el test.** `vencimientos.py` suma
+  `ESTADOS_RELEVAMIENTO_CERRADOS` (`EN_REVISION`, `TERMINADO`), que la regla no usa. Sirve para que
+  un estado nuevo del modelo tenga que clasificarse de un lado o del otro: si no, el test de
+  partición se pone rojo en vez de dejarlo afuera del cron en silencio. La ficha la llamaba
+  `ESTADOS_CERRADOS`; se le puso el nombre largo por simetría con la de al lado.
+- **Las tres transiciones de la app de campo se prueban sobre el enum completo**, afirmando en la
+  misma pasada el camino feliz y el negativo. Es lo que fija el contrato con la APK: `reabrir`
+  acepta **solo** `FINALIZADO` (Cambio 54), `iniciar` sale de `ASIGNADO` y es idempotente sobre
+  `EN_CURSO` (la app reintenta tras un corte de red), y `finalizar` cierra desde `EN_CURSO` y desde
+  `FINALIZANDO` (la ventana de sincronización tardía).
+- **Por qué importa `reabrir`:** con la guarda neutralizada, un territorial puede devolver a campo
+  un relevamiento que el cron de las 03:10 ya mandó a `EN_REVISION` —contra la decisión del Cambio
+  54, «a `EN_REVISION` se llega solo por fecha»— y el cron se lo vuelve a cerrar al otro día. O uno
+  `TERMINADO`, con los reportes ya emitidos.
+- **El link público se prueba con la fecha vigente a propósito.** El re-chequeo bajo el lock es
+  `estado != EN_CURSO or not habilitado_en(now)`: si el test dejara vencer la fecha, pasaría igual
+  con el chequeo de estado borrado. El test arranca afirmando `habilitado_en(now)` para que lo único
+  que pueda rechazar sea el estado. El caso real que cubre: alguien abre el paso 1 a las 03:09, el
+  cron de las 03:10 cierra el relevamiento y el paso 2 crearía el caso igual, colgado de un
+  relevamiento que el revisor ya cerró.
+- **Se agregó la guarda de la vista al mismo recorrido** (`relevamiento_disponible`): es el otro
+  lado del mismo contrato —el paso 1 y el GET del paso 2— y comparte la partición.
+- **La asimetría de la regla de vencimiento se documenta, no se arregla.** La regla tiene dos ramas:
+  por convocatoria vencida cierra los cuatro estados abiertos; por `fecha_hasta` vencida, solo
+  `ASIGNADO` y `EN_CURSO`. O sea: un `FINALIZANDO` cuya ventana de campo pasó, con la convocatoria
+  todavía abierta, no se cierra solo —lo cierra recién el día que vence la convocatoria—.
+  `test_por_fecha_hasta_solo_vencen_asignado_y_en_curso` fija esa conducta recorriendo el enum
+  entero. Si la gracia de sincronización de G1-04 la cambia, el test lo marca.
+
+## Implementación
+
+El sistema se comporta igual que antes: no cambió ninguna regla. Lo que cambió es que ahora hay
+tests que se ponen rojos si alguien las cambia sin querer.
+
+- **Cierre automático por vencimiento** (`procesar_vencimientos`, cron de las 03:10): los cuatro
+  estados abiertos —`ASIGNADO`, `EN_CURSO`, `FINALIZANDO`, `FINALIZADO`— pasan a `EN_REVISION` al
+  vencer la convocatoria, y los dos cerrados no se tocan. `FINALIZANDO` no lo cubría ningún test.
+- **API de campo:** las tres transiciones (`iniciar`, `finalizar`, `reabrir`) tienen su recorrido
+  completo de estados, con el mensaje de error exacto y la afirmación de que el estado quedó intacto.
+- **Link público:** el envío del paso 2 rechaza cualquier estado que no sea `EN_CURSO`, con la fecha
+  vigente, y no crea el caso.
+
+## Archivos
+
+`programas/services/vencimientos.py` (solo la constante `ESTADOS_RELEVAMIENTO_CERRADOS`) ·
+`programas/tests/test_becas_vencimientos.py` · `programas/tests/test_becas_api.py` ·
+`portal/tests/test_inscripcion_envio.py` ·
+`docs/internal/auditoria-2026-10/hallazgos/08-red-de-seguridad.md` (resolución y «Test permanente»
+de las tres fichas).
+
+## Base de datos
+
+No requiere. Sin migraciones, sin columnas nuevas, sin datos tocados.
+
+## Validación
+
+- **Tests nuevos (10), todos verdes:**
+  - `programas/tests/test_becas_vencimientos.py::CascadaRelevamientoTests` —
+    `test_todos_los_estados_abiertos_pasan_a_revision`, `test_los_estados_cerrados_no_se_tocan`,
+    `test_la_particion_de_estados_cubre_el_enum`,
+    `test_por_fecha_hasta_solo_vencen_asignado_y_en_curso`.
+  - `programas/tests/test_becas_api.py::RelevamientoApiTests` —
+    `test_no_reabre_un_relevamiento_que_no_este_finalizado`,
+    `test_iniciar_solo_sale_de_asignado_y_es_idempotente_en_curso`,
+    `test_finalizar_solo_sale_de_en_curso_o_finalizando`.
+  - `portal/tests/test_inscripcion_envio.py::IngestaPublicaTests` —
+    `test_cerrado_entre_pasos_al_enviar_no_crea`, `test_en_curso_y_en_fecha_sigue_creando`,
+    `test_solo_en_curso_habilita_el_link`.
+- **Mutaciones verificadas a mano** (aplicar → correr → revertir), que es lo que el PR tiene que
+  demostrar: **M27** (sin `FINALIZANDO` en los abiertos) → 2 tests en rojo; `TERMINADO` de más en
+  los abiertos → 3 en rojo; **M17** (`if False:` en la guarda de `reabrir`) → 5 `subTest` en rojo;
+  la misma en `iniciar` → 5 en rojo; sin `FINALIZANDO` en `finalizar` → 1 en rojo; **M44**
+  (re-chequeo sin el estado) → `test_cerrado_entre_pasos_al_enviar_no_crea` en rojo; sin el estado
+  en `relevamiento_disponible` → 5 `subTest` en rojo.
+- `manage.py check` sin issues y `makemigrations --check --dry-run` sin cambios.
+- Suite completa en verde con `.venv312` (Python 3.12 + Django 5.2.17, igual al CI), en tres tandas:
+  `programas` → 1.445 OK (1 skip, el de MySQL), `core users legajos portal conversaciones
+  configuracion dashboard` → 728 OK, `healthcheck tramites scripts` → 6 OK.
+- `ruff check` y `ruff format --check` limpios sobre los cuatro archivos de código tocados.
+- Sin UI: no corresponde `design_audit.py` ni `compile_templates.py`.
+
+## Puesta en marcha en el servidor
+
+No requiere. Son tests y una constante; no cambia ninguna conducta en ejecución.
+
+## Pendientes / a definir
+
+- La asimetría de la segunda rama de `relevamientos_de_convocatoria_vencida` queda fijada como
+  caracterización, no resuelta: un `FINALIZANDO`/`FINALIZADO` con `fecha_hasta` pasada y la
+  convocatoria vigente no se cierra solo. Es la decisión que toca cuando se implemente la gracia de
+  sincronización (G1-04), y ahí hay que releer RED-28 y RED-29.
+- Las mutaciones que solo se manifiestan en MariaDB (los `select_for_update`) no las puede matar
+  esta suite en SQLite: van por RED-67 (PR R-09) y el paso `--tag mysql` de TST-01 (PR R-11).
+
+## Reversión
+
+Revertir el commit saca los diez tests y la constante. No hay datos ni conducta que revertir: el
+sistema queda exactamente como está hoy, pero las tres mutaciones vuelven a sobrevivir.
+
+## Historial
+
+No aplica: entrada nueva.

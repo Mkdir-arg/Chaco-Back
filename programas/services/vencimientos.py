@@ -35,6 +35,16 @@ ESTADOS_RELEVAMIENTO_ABIERTOS = (
     Relevamiento.Estado.FINALIZADO,
 )
 
+# La otra mitad de la partición: lo que el cierre automático no toca. No la usa
+# la regla —filtra por los abiertos—, pero deja explícito que todo estado del
+# enum cae en exactamente una de las dos tuplas. Un estado nuevo que no se
+# clasifique rompe `test_la_particion_de_estados_cubre_el_enum` (RED-28) en vez
+# de quedarse afuera del cron en silencio.
+ESTADOS_RELEVAMIENTO_CERRADOS = (
+    Relevamiento.Estado.EN_REVISION,
+    Relevamiento.Estado.TERMINADO,
+)
+
 
 def _hoy():
     return timezone.localdate()

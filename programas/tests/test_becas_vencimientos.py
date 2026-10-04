@@ -16,6 +16,25 @@ from django.utils import timezone
 from programas.forms import ConvocatoriaForm
 from programas.management.commands.seed_becas import ROL_ADMIN
 from programas.models import Convocatoria, Relevamiento, Segmento
+from programas.services.vencimientos import (
+    ESTADOS_RELEVAMIENTO_ABIERTOS,
+    ESTADOS_RELEVAMIENTO_CERRADOS,
+)
+
+# La partición escrita a mano, a propósito: los tests de abajo recorren estas
+# tuplas y no las constantes del servicio, así que sacarle o agregarle un estado
+# a `ESTADOS_RELEVAMIENTO_ABIERTOS` deja un test en rojo (RED-28, mutación M27).
+# `test_la_particion_de_estados_cubre_el_enum` las enfrenta con el enum real.
+ESTADOS_ABIERTOS_ESPERADOS = (
+    Relevamiento.Estado.ASIGNADO,
+    Relevamiento.Estado.EN_CURSO,
+    Relevamiento.Estado.FINALIZANDO,
+    Relevamiento.Estado.FINALIZADO,
+)
+ESTADOS_CERRADOS_ESPERADOS = (
+    Relevamiento.Estado.EN_REVISION,
+    Relevamiento.Estado.TERMINADO,
+)
 
 
 def _correr(*args):
@@ -136,6 +155,71 @@ class CascadaRelevamientoTests(_Base):
         _correr()
         asignado.refresh_from_db()
         self.assertEqual(asignado.estado, Relevamiento.Estado.EN_REVISION)
+
+    def test_todos_los_estados_abiertos_pasan_a_revision(self):
+        """RED-28: la partición completa de los estados que el cron cierra.
+
+        `FINALIZANDO` (el relevamiento que está sincronizando desde la app) no
+        lo cubría ningún test: sacarlo de `ESTADOS_RELEVAMIENTO_ABIERTOS` dejaba
+        esos relevamientos fuera del cierre automático para siempre y la suite
+        seguía en verde.
+        """
+        conv = self._conv(self.ayer)
+        rels = {estado: self._rel(conv, estado) for estado in ESTADOS_ABIERTOS_ESPERADOS}
+
+        _correr()
+
+        for estado, rel in rels.items():
+            with self.subTest(estado=estado):
+                rel.refresh_from_db()
+                self.assertEqual(rel.estado, Relevamiento.Estado.EN_REVISION)
+
+    def test_los_estados_cerrados_no_se_tocan(self):
+        """RED-28: la otra mitad de la partición. Un estado de más en la tupla
+        de abiertos cortaría trabajo que ya está cerrado."""
+        conv = self._conv(self.ayer)
+        rels = {estado: self._rel(conv, estado) for estado in ESTADOS_CERRADOS_ESPERADOS}
+
+        _correr()
+
+        for estado, rel in rels.items():
+            with self.subTest(estado=estado):
+                rel.refresh_from_db()
+                self.assertEqual(rel.estado, estado)
+
+    def test_la_particion_de_estados_cubre_el_enum(self):
+        """RED-28: todo estado del enum cae en exactamente una de las dos
+        tuplas, y las dos son las que recorren los tests de arriba. Un estado
+        nuevo sin clasificar deja de ser una omisión silenciosa."""
+        abiertos = set(ESTADOS_RELEVAMIENTO_ABIERTOS)
+        cerrados = set(ESTADOS_RELEVAMIENTO_CERRADOS)
+
+        self.assertEqual(abiertos | cerrados, set(Relevamiento.Estado))
+        self.assertEqual(abiertos & cerrados, set())
+        self.assertEqual(abiertos, set(ESTADOS_ABIERTOS_ESPERADOS))
+        self.assertEqual(cerrados, set(ESTADOS_CERRADOS_ESPERADOS))
+
+    def test_por_fecha_hasta_solo_vencen_asignado_y_en_curso(self):
+        """Caracterización (RED-28): la segunda rama de la regla —vencimiento
+        por `fecha_hasta` con la convocatoria todavía vigente— usa una lista de
+        estados más corta que la primera.
+
+        Conducta de hoy, recorriendo el enum entero: un `FINALIZANDO` o un
+        `FINALIZADO` cuya ventana de campo ya pasó **no** se cierra solo
+        mientras la convocatoria siga abierta; lo cierra el día que vence la
+        convocatoria. Si G1-04 cambia esto, este test lo marca.
+        """
+        conv = self._conv(self.manana)
+        rels = {estado: self._rel(conv, estado) for estado in Relevamiento.Estado}
+        vencen_por_fecha = {Relevamiento.Estado.ASIGNADO, Relevamiento.Estado.EN_CURSO}
+
+        _correr()
+
+        for estado, rel in rels.items():
+            with self.subTest(estado=estado):
+                rel.refresh_from_db()
+                esperado = Relevamiento.Estado.EN_REVISION if estado in vencen_por_fecha else estado
+                self.assertEqual(rel.estado, esperado)
 
 
 class FlagsComandoTests(_Base):
