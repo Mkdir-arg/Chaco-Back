@@ -1,10 +1,15 @@
+import logging
+
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.shortcuts import render
 
-from core.rbac import puede
+from core.rbac import puede, requiere
 
 from ..services import AlertasService, FiltrosUsuarioService
+from .mensajes import ERROR_GENERICO
+
+logger = logging.getLogger(__name__)
 
 # Acá vivían `debug_alertas` y `test_alertas_page`, las vistas de las rutas
 # `alertas/debug/` y `alertas/test/`. La primera armaba el HTML con f-strings e
@@ -12,9 +17,17 @@ from ..services import AlertasService, FiltrosUsuarioService
 # username y los nombres de grupo: XSS almacenado para cualquier usuario logueado,
 # incluso sin roles (SEC-19, auditoría oct-2026). La segunda renderizaba una
 # plantilla de prueba que ya ni existía en el repo (respondía 500).
+#
+# Las cuatro vistas de este módulo llevaban solo `@login_required`: el dashboard
+# y el preview traían el **nombre del ciudadano y el texto de la alerta** a
+# cualquier cuenta de backoffice, y `cerrar-ajax/` con `n = 1..N` silenciaba las
+# alertas de todo el sistema (SEC-18, auditoría oct-2026). Ahora piden
+# `ciudadano.ver`; el alcance de qué alertas entran lo sigue poniendo
+# `FiltrosUsuarioService`.
 
 
 @login_required
+@requiere("ciudadano.ver")
 def alertas_dashboard(request):
     """Vista principal del dashboard de alertas"""
     # Obtener alertas filtradas por usuario
@@ -68,6 +81,7 @@ def alertas_dashboard(request):
 
 
 @login_required
+@requiere("ciudadano.ver")
 def cerrar_alerta_ajax(request, alerta_id):
     """Cierra una alerta vía AJAX"""
     if request.method == "POST":
@@ -78,6 +92,7 @@ def cerrar_alerta_ajax(request, alerta_id):
 
 
 @login_required
+@requiere("ciudadano.ver")
 def alertas_count_ajax(request):
     """Obtiene el contador de alertas para el navbar (polled: cacheado 30 s)."""
     from django.core.cache import cache
@@ -95,6 +110,7 @@ def alertas_count_ajax(request):
 
 
 @login_required
+@requiere("ciudadano.ver")
 def alertas_preview_ajax(request):
     """Obtiene las últimas 5 alertas para el preview del navbar"""
     try:
@@ -117,5 +133,9 @@ def alertas_preview_ajax(request):
             )
 
         return JsonResponse({"results": alertas_data, "count": len(alertas_data), "status": "success"})
-    except Exception as e:
-        return JsonResponse({"error": str(e), "status": "error", "results": [], "count": 0})
+    except Exception:
+        # Antes: `str(e)` con HTTP 200. El `FieldError` del Cambio 66 vivió meses
+        # porque desde afuera la pantalla "andaba" (RED-06): ahora el fallo queda
+        # en el log con traza y el cliente ve un 500, no el detalle interno.
+        logger.exception("Error armando el preview de alertas")
+        return JsonResponse({"error": ERROR_GENERICO, "status": "error", "results": [], "count": 0}, status=500)

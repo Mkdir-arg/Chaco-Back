@@ -3,6 +3,7 @@ from datetime import timedelta
 
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
+from django.core.exceptions import ValidationError
 from django.utils import timezone
 
 from ..models import (
@@ -205,17 +206,32 @@ class AlertasService:
 
     @staticmethod
     def cerrar_alerta(alerta_id, usuario=None):
-        """Cierra una alerta específica."""
-        try:
-            alerta = AlertaCiudadano.objects.get(id=alerta_id)
-            alerta.activa = False
-            alerta.fecha_cierre = timezone.now()
-            if usuario:
-                alerta.cerrada_por = usuario
-            alerta.save()
-            return True
-        except AlertaCiudadano.DoesNotExist:
+        """Cierra una alerta **del alcance del usuario**.
+
+        Antes resolvía ``AlertaCiudadano.objects.get(id=alerta_id)`` sobre toda
+        la tabla: con `n = 1..N` cualquier cuenta de backoffice silenciaba las
+        alertas de todo el sistema (SEC-18, auditoría oct-2026). Ahora la busca
+        dentro de ``FiltrosUsuarioService.obtener_alertas_usuario``, el mismo
+        alcance con el que el usuario las ve; fuera de ahí devuelve ``False``.
+
+        Un ``alerta_id`` que no es un entero (el `pk` crudo de una ruta de DRF)
+        levantaba ``ValueError`` y la vista contestaba **500**: acá también es
+        ``False``.
+        """
+        from .filtros_usuario import FiltrosUsuarioService
+
+        if usuario is None:
             return False
+        try:
+            alerta = FiltrosUsuarioService.obtener_alertas_usuario(usuario).get(id=alerta_id)
+        except (AlertaCiudadano.DoesNotExist, ValueError, TypeError, ValidationError):
+            return False
+
+        alerta.activa = False
+        alerta.fecha_cierre = timezone.now()
+        alerta.cerrada_por = usuario
+        alerta.save()
+        return True
 
     @staticmethod
     def generar_alerta_mensaje_ciudadano(conversacion):

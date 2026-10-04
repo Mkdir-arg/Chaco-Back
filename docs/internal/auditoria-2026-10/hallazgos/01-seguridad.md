@@ -16,12 +16,12 @@ Base verificada: `origin/development @ 917e583`. PoC: `poc/test_repro_seguridad.
 | SEC-03 | Admin de usuarios de un programa toma cuentas de superusuarios, admins globales y multiprograma | CRÍTICA | CONF. test | 0 | M | ✅ |
 | SEC-04 | Consulta RENAPER anónima con payload crudo y throttle evadible | CRÍTICA | CONF. test | 0 | S | ✅ |
 | SEC-05 | `activate`/`deactivate` de usuarios por API para cualquier autenticado | CRÍTICA | CONF. test | 0 | S | ✅ |
-| SEC-10 | Adjuntos de ciudadano/legajo sin capacidad ni pertenencia: cualquier autenticado **borra** el documento | CRÍTICA (04-oct) | CONF. test | 2 → **R (en R-19)** | S-M | ⬜ |
+| SEC-10 | Adjuntos de ciudadano/legajo sin capacidad ni pertenencia: cualquier autenticado **borra** el documento | CRÍTICA (04-oct) | CONF. test | 2 → **R (en R-19)** | S-M | ✅ |
 | SEC-06 | Capacidades `becas.*` otorgables en roles de otro programa | ALTA | CONF. test | 2 | M | ⬜ |
 | SEC-07 | `programa.configurar` en un rol de programa habilita el wizard de todos | ALTA | CONF. test | 2 | S-M | ⬜ |
 | SEC-08 | XSS almacenado por nombre de rol en todas las páginas | ALTA | CONF. test | 0 | S | ✅ |
 | SEC-09 | `/media/` sin login en DEV (nginx); sin pertenencia en ECOM | ALTA (DEV) / MEDIA (ECOM) | CONF. test | 0 (etapa 1) / 2 (etapa 2) | S + M | 🟡 |
-| SEC-11 | APIs JSON de legajos (riesgo, alertas, timeline) sin capacidad | ALTA | CONF. test | **R-19** (`ciudadano.ver` de piso en las 5) / 2 (subir 3 a `ciudadano.sensible`, D-11) | S | ⬜ |
+| SEC-11 | APIs JSON de legajos (riesgo, alertas, timeline) sin capacidad | ALTA | CONF. test | **R-19** (`ciudadano.ver` de piso en las 5) / 2 (subir 3 a `ciudadano.sensible`, D-11) | S | 🟡 |
 | SEC-12 | Derivaciones por GET (CSRF) sin capacidad; inscripción por `is_staff` | ALTA | CONF. test | 2 | S | ⬜ |
 | SEC-13 | Catálogo geográfico escribible por API | ALTA | CONF. test | 0 | S | ✅ |
 | SEC-14 | APIs del dashboard: enumeración del padrón y alertas globales | ALTA | CONF. test | 0 | S | ✅ |
@@ -31,7 +31,7 @@ Base verificada: `origin/development @ 917e583`. PoC: `poc/test_repro_seguridad.
 | SEC-15 | Uploads de F-00 y merenderos sin lista blanca ni tope | MEDIA | CONF. test | 2 | S | ⬜ |
 | SEC-16 | `/api/users/` lista personal con DNI e `is_superuser` | MEDIA | CONF. test | 0 | (en SEC-05) | ✅ |
 | SEC-17 | La API de usuarios/roles saltea reglas del ABM | MEDIA | CONF. test | 0 | (en SEC-05) | ✅ |
-| SEC-18 | Alertas: cerrar cualquiera por id; CRÍTICAS globales a quien no tiene legajos | MEDIA | CONF. test | 2 → **R (en R-19)** | S | ⬜ |
+| SEC-18 | Alertas: cerrar cualquiera por id; CRÍTICAS globales a quien no tiene legajos | MEDIA | CONF. test | 2 → **R (en R-19)** | S | ✅ |
 | SEC-19 | XSS en `/legajos/alertas/debug/` y rutas de prueba publicadas | MEDIA | CONF. test | 0 | S | ✅ |
 | SEC-20 | Inyección de fórmulas en CSV/XLSX (incluye export de ciudadanos) | MEDIA | CONF. lectura | 2 | S | ⬜ |
 | SEC-21 | Cupo: el Coordinador Regional ve y muta casos de sus pares | MEDIA | CONF. lectura | 2 | S | ⬜ |
@@ -56,7 +56,7 @@ Base verificada: `origin/development @ 917e583`. PoC: `poc/test_repro_seguridad.
 | R0-05 | `DEFAULT_THROTTLE_RATES["renaper"]` sin consumidor | BAJA (MINOR) | revisión Ola 0 | 2 (con SEC-25) | incluido en SEC-25 | ⬜ |
 | R0b-04 | `retrieve` de `/api/legajos/ciudadanos/<pk>/` da 404 sin `?search=` | BAJA (MINOR) | revisión Ola 0 (2ª tanda) | 2 (Legajos) | S | ⬜ |
 | R0b-05 | `CiudadanoViewSet` declara `ordering` sin `OrderingFilter`: pagina sin orden | BAJA (MINOR) | revisión Ola 0 (2ª tanda) | 2 (Legajos) | incluido en R0b-04 | ⬜ |
-| R0b-06 | `AlertasViewSet` sin capacidad decidida | BAJA (MINOR) | revisión Ola 0 (2ª tanda) | 2 (con SEC-18) | incluido en SEC-18 | ⬜ |
+| R0b-06 | `AlertasViewSet` sin capacidad decidida | BAJA (MINOR) | revisión Ola 0 (2ª tanda) | 2 (con SEC-18) | incluido en SEC-18 | ✅ |
 | R0b-07 | `config/urls.py` monta `/media/` abierto con `DEBUG=True` antes del bloque `SERVE_MEDIA` | BAJA (MINOR) | revisión Ola 0 (2ª tanda) | 2 (Media) | S | ⬜ |
 | R0b-08 | Comentarios que todavía dicen que nginx sirve `/media/` | BAJA (MINOR) | revisión Ola 0 (2ª tanda) | 2 (Media) | incluido en R0b-07 | ⬜ |
 | R0b-09 | `actividad_reciente` pide `ciudadano.sensible` pero muestra inscripciones y derivaciones sin alcance | BAJA (MINOR) | revisión Ola 0 (2ª tanda) | 2 (Legajos) | S | ⬜ |
@@ -234,6 +234,25 @@ documentos que la etapa 1 de SEC-09 puso detrás de login. Por eso sube a CRÍTI
 - **Verificación:** V-STD + V-UI (`ciudadano_detail.html` cambia).
 - **Dependencias:** FE-02 (el mismo template usa `toastr`, que no está cargado: arreglar antes o junto para poder probar la subida).
 
+**Resolución:** ✅ Resuelto en #NNN (Cambio 126, PR R-19), 04-oct-2026 — `ciudadano.ver` para listar, `ciudadano.editar`
+para subir y borrar. `archivos/<int:archivo_id>/eliminar/` **se retiró** y la reemplazan
+`ciudadanos/<int:ciudadano_id>/archivos/<int:archivo_id>/eliminar/` y
+`<uuid:legajo_id>/archivos/<int:archivo_id>/eliminar/`: el dueño viaja en la URL y acota el `filter`, así que un
+adjunto de otro ciudadano no existe para la vista (404, la fila sigue). El servicio es
+`eliminar_archivo_de_objeto(instance, archivo_id)` con `content_type` + `object_id` y
+`archivo.archivo.delete(save=False)` antes de `archivo.delete()`, que es lo que deja de abandonar el blob en
+`MEDIA_ROOT`. Los `except Exception` ya no devuelven `str(exc)` con 200: mensaje genérico (`ERROR_GENERICO`),
+`logger.exception` con la traza y status real — 400 para `ContactosFilesError`, que sí es del usuario, 500 para lo
+inesperado. El `fetch` de `ciudadano_detail.html` arma la URL según `tipo_origen` (el adjunto cuelga del ciudadano o
+de uno de sus legajos) y manda `X-Requested-With`, para que el rebote por permisos llegue como JSON 403.
+**Dónde la ficha no coincidía con el código:** la propuesta nombraba una sola ruta nueva «y la de legajo con uuid»,
+pero el listado del detalle de ciudadano **mezcla** adjuntos del ciudadano y de sus legajos, así que el front tiene que
+elegir la ruta por fila; se resolvió con `tipo_origen`, que el serializador ya mandaba. FE-02 (`toastr`) sigue abierta
+y es ajena: la subida se probó por HTTP, no por UI. **Test permanente:**
+`legajos.tests.test_adjuntos_rbac` (en particular `AdjuntosRbacTests.test_la_ruta_sin_dueno_ya_no_existe`,
+`AdjuntosAcotadosAlDuenoTests.test_borrar_el_adjunto_de_otro_ciudadano_da_404_y_no_borra` y
+`AdjuntosAcotadosAlDuenoTests.test_el_archivo_fisico_se_borra_con_la_fila`).
+
 ### SEC-11 · APIs JSON de legajos (timeline, actividades, alertas, predicción de riesgo, evolución, historial) sin capacidad
 **Severidad:** ALTA · **Estado:** CONFIRMADO con test (`SEC11LegajosJsonTests`) · **Origen:** A5-11, A3-03 (parte no adjuntos) · **Ola:** 2 (la parte `ciudadano.ver`/`ciudadano.editar`, adelantada a **R-19**) · **Esfuerzo:** S · **Decisión:** D-11
 
@@ -256,6 +275,17 @@ De las 2 h, 1 se mueve a la Ola R y 1 queda en la Ola 2. La ficha queda **🟡**
 - **Propuesta:** `@requiere("ciudadano.ver")` en `actividades_ciudadano_api`, `evolucion_legajo_api` y `contactos_panel.historial_contactos_simple`; `@requiere("ciudadano.sensible")` en `timeline_ciudadano_api`, `alertas_ciudadano_api` y `prediccion_riesgo_api` (default D-11) — **en dos pasos desde el 04-oct: R-19 pone `ciudadano.ver` en las seis y la Ola 2 sube esas tres a `ciudadano.sensible`** (ver el bloque de arriba). `cerrar_alerta_api` → SEC-18.
 - **Tests a agregar:** `legajos/tests/test_contactos_api_rbac.py`: test parametrizado por nombre de URL con usuario sin roles → 403 (con `X-Requested-With` el decorador devuelve JSON 403).
 - **Verificación:** V-STD + `manage.py test legajos`.
+
+**Resolución:** 🟡 Parcial en #NNN (Cambio 126, PR R-19), 04-oct-2026 — las **seis** vistas quedaron con
+`@requiere("ciudadano.ver")`: `actividades_ciudadano_api`, `evolucion_legajo_api`,
+`contactos_panel.historial_contactos_simple`, `timeline_ciudadano_api`, `alertas_ciudadano_api` y
+`prediccion_riesgo_api`. Ninguna de las cinco del barrido de RED-89 queda abierta. **Falta la segunda mitad y por eso
+es 🟡:** subir `timeline_ciudadano_api`, `alertas_ciudadano_api` y `prediccion_riesgo_api` de `ciudadano.ver` a
+`@requiere("ciudadano.sensible")` cuando se resuelva **D-11** (Ola 2, PR 3, coordinado con G1c-04). Es una línea por
+vista; en el código las tres llevan el comentario `# piso; la capacidad fina es ciudadano.sensible (D-11, Ola 2)`
+para que se encuentren con un `git grep`. **Test permanente:**
+`legajos.tests.test_contactos_api_rbac.ContactosApiRbacTests.test_sin_rol_ninguna_contesta` (y
+`test_con_ciudadano_ver_todas_contestan`, que fija que quien hoy usa Legajos con su rol normal sigue entrando).
 
 ### SEC-12 · Derivaciones: aceptar o rechazar por GET (CSRF) sin capacidad; inscripción directa por `is_staff`
 **Severidad:** ALTA · **Estado:** CONFIRMADO con test (`SEC12DerivacionGetTests`) · **Origen:** A5-12, A3-04, G1c-07 · **Ola:** 2 · **Esfuerzo:** S (reusando `ciudadano.editar`) / M (capacidad nueva) · **Decisión:** D-12
@@ -364,6 +394,23 @@ y conviene agregarle su test (`test_api_cerrar_con_pk_no_numerico_da_404`).
 - **Tests a agregar:** `test_usuario_sin_legajos_no_ve_criticas`, `test_cerrar_alerta_fuera_de_alcance_no_la_cierra`, `test_api_cerrar_usa_get_object_404`.
 - **Verificación:** V-STD + `manage.py test legajos`.
 - **Dependencias:** G1c-04 (el WS difunde lo mismo sin alcance): mismo PR o seguido.
+
+**Resolución:** ✅ Resuelto en #NNN (Cambio 126, PR R-19), 04-oct-2026 — `@requiere("ciudadano.ver")` en
+`alertas_dashboard`, `alertas_count_ajax`, `alertas_preview_ajax`, `cerrar_alerta_ajax` y `cerrar_alerta_api`;
+`AlertasViewSet` cambia `IsAuthenticated` por `RequiereCapacidad("ciudadano.ver")` (**R0b-06**, que cierra con esta
+ficha) y `cerrar` usa `self.get_object()`, que resuelve sobre el queryset ya acotado y de paso mata el **500** del `pk`
+no numérico. El fallback de `FiltrosUsuarioService` pasa de `Q(prioridad="CRITICA")` a
+`AlertaCiudadano.objects.none()`: sin legajos propios el alcance es vacío (**default D-18**, el badge queda en 0; las
+globales las sigue viendo `config.administrar`). `AlertasService.cerrar_alerta` busca la alerta dentro de
+`obtener_alertas_usuario(usuario)` y devuelve `False` fuera de ahí, también ante un id no entero. **Dónde la ficha no
+coincidía con el código / efecto lateral a mirar:** `cerrar_alerta` aceptaba `usuario=None`; ahora sin usuario no hay
+alcance y devuelve `False` — no había llamadores así. Y `dashboard/tests/test_api_rbac.py` tenía un test que
+**afirmaba el fallback**: un usuario con `ciudadano.sensible` sin legajos veía las CRÍTICAS de todos. Se reescribió en
+dos (sin alcance → vacío; con legajo propio → solo las suyas), porque afirmaba justo lo que esta ficha vino a sacar.
+**Test permanente:** `legajos.tests.test_alertas_rbac` (en particular
+`AlertasAlcanceTests.test_un_usuario_sin_legajos_no_ve_las_criticas_del_sistema`,
+`AlertasAlcanceTests.test_cerrar_una_alerta_fuera_de_alcance_no_la_cierra` y
+`AlertasApiTests.test_con_pk_no_numerico_da_404_y_no_revienta`).
 
 ### SEC-19 · XSS almacenado en `/legajos/alertas/debug/` y rutas de prueba publicadas
 **Severidad:** MEDIA · **Estado:** CONFIRMADO con test (`SEC18DebugXssTests`; `A313A314`) · **Origen:** A5-19, A3-14 (= LEG-08), A6-16 (= FE-15) · **Ola:** 0 · **Esfuerzo:** S · **Decisión:** —
@@ -554,6 +601,11 @@ Observaciones MINOR de los revisores de #536-#542 y seguimientos operativos. Las
 - **Ubicación:** `legajos/api_views/__init__.py:65-72` (`permission_classes = [BackofficeAutenticado, IsAuthenticated]`; el queryset ya sale de `FiltrosUsuarioService`).
 - **Propuesta:** `RequiereCapacidad("ciudadano.ver")` para `list`/`count` y la que fije D-11 para el contenido de la alerta; `cerrar` con `get_object()` (SEC-18). Mismo criterio que `alertas_criticas` (SEC-14).
 - **Test:** sin capacidad → 403 en `list`, `count` y `cerrar`.
+
+**Resolución:** ✅ Resuelto en #NNN (Cambio 126, PR R-19), 04-oct-2026 — junto con SEC-18, en el mismo PR:
+`permission_classes = [BackofficeAutenticado, RequiereCapacidad("ciudadano.ver")]` y `cerrar` con `self.get_object()`.
+Subir la capacidad a `ciudadano.sensible` para el **contenido** de la alerta queda atado a D-11, igual que las tres
+vistas de SEC-11. **Test permanente:** `legajos.tests.test_alertas_rbac.AlertasApiTests`.
 
 ### R0b-07 · `config/urls.py` monta `/media/` abierto con `DEBUG=True` antes del bloque `SERVE_MEDIA`
 **Severidad:** BAJA (MINOR del revisor de #538) · **Estado:** CONFIRMADO (lectura) · **Origen:** revisión de la Ola 0, 2ª tanda · **Ola:** 2 (PR 7, Media) · **Esfuerzo:** S

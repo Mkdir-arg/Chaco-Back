@@ -29,6 +29,7 @@ def dashboard_contactos_simple(request):
 
 
 @login_required
+@requiere("ciudadano.ver")
 def historial_contactos_simple(request, legajo_id):
     """Vista simple para historial de contactos"""
     return render(

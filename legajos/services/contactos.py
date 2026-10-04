@@ -44,7 +44,28 @@ def subir_archivos_para_objeto(instance, archivos, etiqueta=""):
     return archivos_subidos
 
 
-def eliminar_archivo_por_id(archivo_id):
-    archivo = get_object_or_404(Adjunto, id=archivo_id)
+def eliminar_archivo_de_objeto(instance, archivo_id):
+    """Borra un adjunto **de ese objeto**, con su archivo físico.
+
+    Reemplaza a ``eliminar_archivo_por_id``, que hacía
+    ``get_object_or_404(Adjunto, id=…).delete()`` sin mirar de quién era el
+    adjunto: cualquier cuenta de backoffice borraba el documento de cualquier
+    ciudadano, sin papelera ni auditoría (SEC-10, auditoría oct-2026). El dueño
+    ahora viaja en la URL y acota el ``filter``: un id de otro ciudadano no
+    existe para esta vista y contesta 404.
+
+    ``archivo.delete()`` borra la fila pero **no** el blob: el ``FileField`` de
+    Django no tiene borrado en cascada desde la 1.3. Por eso el
+    ``archivo.archivo.delete(save=False)`` explícito, que lo saca del storage
+    antes de borrar la fila que lo referencia.
+    """
+    content_type = ContentType.objects.get_for_model(type(instance))
+    archivo = get_object_or_404(
+        Adjunto,
+        pk=archivo_id,
+        content_type=content_type,
+        object_id=instance.id,
+    )
+    archivo.archivo.delete(save=False)
     archivo.delete()
     return True

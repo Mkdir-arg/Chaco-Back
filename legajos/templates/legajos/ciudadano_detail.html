@@ -1527,6 +1527,11 @@ function cargarArchivos() {
                     const fecha = new Date(archivo.fecha_subida).toLocaleDateString('es-AR');
                     const extension = archivo.nombre.split('.').pop().toLowerCase();
                     const icono = getIconoArchivo(extension);
+                    // El dueño del adjunto viaja en la URL: el backend borra solo
+                    // los que cuelgan de ESE ciudadano o de ESE legajo (SEC-10).
+                    const urlEliminar = archivo.tipo_origen === 'legajo'
+                        ? `/legajos/${encodeURIComponent(archivo.legajo_id)}/archivos/${Number(archivo.id)}/eliminar/`
+                        : `/legajos/ciudadanos/{{ ciudadano.id }}/archivos/${Number(archivo.id)}/eliminar/`;
 
                     return `
                         <tr class="cd-row">
@@ -1552,7 +1557,7 @@ function cargarArchivos() {
                                     <a href="${escaparHtml(archivo.url)}" target="_blank" class="cd-btn-dl" title="Descargar">
                                         <i class="fas fa-download"></i>
                                     </a>
-                                    <button onclick="eliminarArchivo(${Number(archivo.id)})" class="cd-btn-del" title="Eliminar">
+                                    <button onclick="eliminarArchivo('${urlEliminar}')" class="cd-btn-del" title="Eliminar">
                                         <i class="fas fa-trash"></i>
                                     </button>
                                 </div>
@@ -1592,7 +1597,7 @@ function formatearTamano(bytes) {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
-function eliminarArchivo(archivoId) {
+function eliminarArchivo(urlEliminar) {
     Swal.fire({
         title: '¿Eliminar archivo?',
         text: 'Esta acción no se puede deshacer.',
@@ -1604,10 +1609,13 @@ function eliminarArchivo(archivoId) {
         buttonsStyling: false
     }).then((result) => {
         if (!result.isConfirmed) return;
-        fetch(`/legajos/archivos/${archivoId}/eliminar/`, {
+        fetch(urlEliminar, {
             method: 'DELETE',
             headers: {
-                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                // Sin esto, el rebote por falta de capacidad llega como el HTML
+                // del inicio y el front lo muestra como "error del sistema".
+                'X-Requested-With': 'XMLHttpRequest'
             }
         })
         .then(response => response.json())
@@ -1632,7 +1640,8 @@ document.getElementById('formArchivos').addEventListener('submit', function(e) {
         method: 'POST',
         body: formData,
         headers: {
-            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            'X-Requested-With': 'XMLHttpRequest'
         }
     })
     .then(response => response.json())

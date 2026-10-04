@@ -612,3 +612,147 @@ class RolesFiltrosTests(TestCase):
             item["capacidades_tabla"],
             [{"codigo": "dashboard.ver", "label": "Ver dashboard"}],
         )
+
+
+class RolesEscrituraHttpTests(TestCase):
+    """RED-04 · Crear, eliminar y activar un rol, **por HTTP**.
+
+    `RolForm` y `RolesAdminService` estaban probados llamándolos directo; por
+    HTTP solo se ejercitaban el listado y el GET de edición (coverage de
+    `users/views/roles.py`: 54 %). O sea: el orden en que la vista arma el form,
+    pasa el `operador` y captura las excepciones no lo verificaba nadie.
+
+    Lo que rompería sin ruido: `RolCreateView.post` es la única de las cuatro
+    escrituras que **no** llama a `puede_gestionar_rol` —confía en que
+    `RolForm(operador=request.user)` acote categoría, programa y capacidades—,
+    así que un refactor que deje de pasar `operador` le daría al admin de Becas
+    un rol global con todo tildado. Simétrico: sacar el `try/except
+    SinAdministradorError` de `RolDeleteView` deja borrar el último rol
+    administrador.
+    """
+
+    def setUp(self):
+        self.becas = Programa.objects.create(codigo="BECAS", nombre="Becas")
+        self.vivienda = Programa.objects.create(codigo="VIVIENDA", nombre="Vivienda")
+        self.rol_global_admin, self.admin = _rol_admin("Administradores globales")
+
+        self.rol_admin_becas = Group.objects.create(name="Admin roles Becas")
+        RolMeta.objects.create(
+            grupo=self.rol_admin_becas,
+            categoria=rbac.CATEGORIA_PROGRAMA,
+            programa=self.becas,
+            activo=True,
+        )
+        self.rol_admin_becas.permissions.add(_perm("programa.rol.administrar"))
+        self.admin_becas = User.objects.create_user("adm-roles-becas", password="x")
+        self.admin_becas.groups.add(self.rol_admin_becas)
+
+        self.rol_vivienda = Group.objects.create(name="Territorial Vivienda")
+        RolMeta.objects.create(
+            grupo=self.rol_vivienda,
+            categoria=rbac.CATEGORIA_PROGRAMA,
+            programa=self.vivienda,
+            activo=True,
+        )
+
+    def test_crear_rol_por_post_crea_grupo_rolmeta_y_capacidades(self):
+        self.client.force_login(self.admin)
+
+        respuesta = self.client.post(
+            reverse("users:rol_crear"),
+            {
+                "name": "Operador de legajos",
+                "categoria": rbac.CATEGORIA_BACKOFFICE,
+                "descripcion": "Ve y edita ciudadanos",
+                "capacidades": ["ciudadano.ver", "ciudadano.editar"],
+            },
+        )
+
+        self.assertRedirects(respuesta, reverse("users:roles"))
+        group = Group.objects.get(name="Operador de legajos")
+        self.assertEqual(group.meta.categoria, rbac.CATEGORIA_BACKOFFICE)
+        self.assertTrue(group.meta.activo)
+        self.assertFalse(group.meta.protegido)
+        self.assertCountEqual(rbac.capacidades_de_grupo(group), ["ciudadano.ver", "ciudadano.editar"])
+
+    def test_admin_de_programa_no_crea_un_rol_global_por_post(self):
+        """G1b-02 por la puerta real: el form del admin de programa no acepta
+        categoría global ni capacidades fuera de su alcance."""
+        self.client.force_login(self.admin_becas)
+
+        respuesta = self.client.post(
+            reverse("users:rol_crear"),
+            {
+                "name": "Rol global colado",
+                "categoria": rbac.CATEGORIA_BACKOFFICE,
+                "capacidades": ["usuario.administrar"],
+            },
+        )
+
+        self.assertEqual(respuesta.status_code, 200)  # vuelve al form con errores
+        self.assertFalse(Group.objects.filter(name="Rol global colado").exists())
+        self.assertTrue(respuesta.context["form"].errors)
+
+    def test_eliminar_el_ultimo_rol_administrador_no_borra_nada(self):
+        self.client.force_login(self.admin)
+
+        respuesta = self.client.post(reverse("users:rol_eliminar", args=[self.rol_global_admin.pk]))
+
+        self.assertRedirects(respuesta, reverse("users:roles"))
+        self.assertTrue(Group.objects.filter(pk=self.rol_global_admin.pk).exists())
+        self.assertTrue(RolMeta.objects.filter(grupo=self.rol_global_admin).exists())
+
+    def test_eliminar_rol_protegido_avisa_y_no_borra(self):
+        protegido = Group.objects.create(name=rbac.ROL_ADMINISTRADOR)
+        RolMeta.objects.create(grupo=protegido, categoria=rbac.CATEGORIA_SISTEMA, protegido=True, activo=True)
+        self.client.force_login(self.admin)
+
+        respuesta = self.client.post(reverse("users:rol_eliminar", args=[protegido.pk]), follow=True)
+
+        self.assertTrue(Group.objects.filter(pk=protegido.pk).exists())
+        self.assertIn("protegido", " ".join(m.message for m in respuesta.context["messages"]))
+
+    def test_toggle_de_rol_protegido_avisa_y_no_cambia(self):
+        protegido = Group.objects.create(name="Rol intocable")
+        meta = RolMeta.objects.create(grupo=protegido, categoria=rbac.CATEGORIA_SISTEMA, protegido=True, activo=True)
+        self.client.force_login(self.admin)
+
+        respuesta = self.client.post(reverse("users:rol_toggle", args=[protegido.pk]), follow=True)
+
+        meta.refresh_from_db()
+        self.assertTrue(meta.activo)
+        self.assertIn("protegido", " ".join(m.message for m in respuesta.context["messages"]))
+
+    def test_eliminar_y_toggle_solo_aceptan_post(self):
+        self.client.force_login(self.admin)
+
+        for nombre in ("users:rol_eliminar", "users:rol_toggle"):
+            with self.subTest(ruta=nombre):
+                respuesta = self.client.get(reverse(nombre, args=[self.rol_vivienda.pk]))
+                self.assertEqual(respuesta.status_code, 405)
+
+        self.assertTrue(Group.objects.filter(pk=self.rol_vivienda.pk).exists())
+
+    def test_rol_de_otro_programa_no_se_elimina_ni_se_desactiva(self):
+        """El admin de Becas no toca los roles de Vivienda (RN-8)."""
+        self.client.force_login(self.admin_becas)
+
+        eliminar = self.client.post(reverse("users:rol_eliminar", args=[self.rol_vivienda.pk]))
+        self.assertRedirects(eliminar, reverse("users:roles"))
+        self.assertTrue(Group.objects.filter(pk=self.rol_vivienda.pk).exists())
+
+        self.client.post(reverse("users:rol_toggle", args=[self.rol_vivienda.pk]))
+        self.rol_vivienda.meta.refresh_from_db()
+        self.assertTrue(self.rol_vivienda.meta.activo)
+
+    def test_sin_capacidad_de_roles_no_entra_a_ninguna_escritura(self):
+        sin_rol = User.objects.create_user("sin-rol-roles", password="x")
+        self.client.force_login(sin_rol)
+
+        crear = self.client.post(reverse("users:rol_crear"), {"name": "X", "categoria": "Backoffice"})
+        self.assertEqual(crear.status_code, 302)
+        self.assertFalse(Group.objects.filter(name="X").exists())
+
+        eliminar = self.client.post(reverse("users:rol_eliminar", args=[self.rol_vivienda.pk]))
+        self.assertEqual(eliminar.status_code, 302)
+        self.assertTrue(Group.objects.filter(pk=self.rol_vivienda.pk).exists())

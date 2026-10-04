@@ -13,7 +13,7 @@ from django.test import TestCase
 from django.urls import reverse
 
 from core import rbac
-from legajos.models import AlertaCiudadano, Ciudadano
+from legajos.models import AlertaCiudadano, Ciudadano, LegajoAtencion
 from users.models import Capacidad, RolMeta
 
 
@@ -87,8 +87,14 @@ class AlertasYActividadRbacTests(TestCase):
         self.assertEqual(respuesta.status_code, 200)
 
     def test_alertas_criticas_respetan_el_alcance_del_usuario(self):
-        # Sin legajos propios, `FiltrosUsuarioService` deja solo las CRÍTICAS: la
-        # consulta directa a `AlertaCiudadano` traía también las ALTAS de todos.
+        # El endpoint resuelve por `FiltrosUsuarioService`, no consultando
+        # `AlertaCiudadano` directo: así no trae las alertas de todo el sistema.
+        #
+        # Actualizado por SEC-18 (R-19, Cambio 126): sin legajos propios el
+        # alcance ahora es **vacío**. Antes caía en el fallback
+        # `Q(prioridad="CRITICA")` y este test afirmaba que veía las CRÍTICAS de
+        # todos —que es justo lo que la ficha vino a sacar— mientras filtraba la
+        # ALTA ajena. El responsable de un legajo sigue viendo las suyas.
         ciudadano = Ciudadano.objects.create(dni="30777666", nombre="Cora", apellido="Diaz")
         AlertaCiudadano.objects.create(
             ciudadano=ciudadano,
@@ -103,8 +109,28 @@ class AlertasYActividadRbacTests(TestCase):
 
         respuesta = self.client.get(reverse("dashboard:api_alertas_criticas"))
 
-        prioridades = {alerta["prioridad"] for alerta in respuesta.json()["results"]}
-        self.assertEqual(prioridades, {"CRITICA"})
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertEqual(respuesta.json()["results"], [])
+
+    def test_alertas_criticas_traen_las_del_legajo_propio_y_no_las_ajenas(self):
+        """Contracara del anterior: con alcance, el endpoint sí contesta."""
+        responsable = User.objects.create_user("agente-con-legajo", password="Clave-Seg-2026x")
+        responsable.groups.add(_rol_con("Sensible con legajos", ["ciudadano.sensible"]))
+        propio = Ciudadano.objects.create(dni="30777555", nombre="Dora", apellido="Luna")
+        legajo = LegajoAtencion.objects.create(responsable=responsable)
+        AlertaCiudadano.objects.create(
+            ciudadano=propio,
+            legajo=legajo,
+            tipo=AlertaCiudadano.TipoAlerta.RIESGO_ALTO,
+            prioridad=AlertaCiudadano.Prioridad.CRITICA,
+            mensaje="Alerta del legajo propio",
+            activa=True,
+        )
+        self.client.force_login(responsable)
+
+        resultados = self.client.get(reverse("dashboard:api_alertas_criticas")).json()["results"]
+
+        self.assertEqual([alerta["mensaje"] for alerta in resultados], ["Alerta del legajo propio"])
 
 
 class MetricasYTendenciasRbacTests(TestCase):
