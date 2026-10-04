@@ -296,6 +296,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 113 | La API REST de usuarios y roles queda apagada salvo `me` | Transversal · API DRF (`/api/users/`) | `#api` `#rbac` `#usuarios` | Auditoría integral oct-2026 — SEC-05, SEC-16 y SEC-17, decisión D-05 (Ola 0, segunda tanda, PR H11) | 03/10/2026 | 🟢 **Hecho** | No requiere |
 | 114 | La API de ciudadanos es de solo lectura, pide capacidad y solo contesta búsquedas | Legajos · API DRF (`/api/legajos/`) | `#api` `#rbac` `#datos` | Auditoría integral oct-2026 — SEC-02 (+ V1-NEW-03) y SEC-01 punto 2 en legajos (Ola 0, segunda tanda, PR H12) | 03/10/2026 | 🟢 **Hecho** | No requiere |
 | 115 | El catálogo geográfico de la API es de solo lectura y las APIs del dashboard piden capacidad | Transversal · API DRF (`/api/core/`, `/api/` del dashboard) · home del backoffice | `#api` `#rbac` `#sesion` `#ui` | Auditoría integral oct-2026 — SEC-13 y SEC-14 (Ola 0, segunda tanda, PR H13) | 03/10/2026 | 🟢 **Hecho** | No requiere |
+| 116 | Los volcados de personas salen del repo y de la imagen | Transversal · alta en SIIS · repositorio, release e imagen | `#datos` `#infra` `#siis` | Auditoría integral oct-2026 — RED-01, decisión D-RED-01 (Ola R, PR R-01) | 04/10/2026 | 🟡 **Parcial** (la purga del historial y el repo privado los hace el PM) | No requiere |
 
 **Notas del índice**
 
@@ -14759,3 +14760,188 @@ Revertir el commit devuelve los `ModelViewSet` de geografía y deja las cinco vi
 - **03/10/2026** — Cambio 109: queda disponible `BackofficeAutenticado`, sin aplicarla a ninguna vista.
 - **03/10/2026 (este cambio)** — SEC-13 y SEC-14 cerrados, y la clase aplicada en `core/api_views` y
   `dashboard/api_views`.
+
+---
+
+# Cambio 116 — Los volcados de personas salen del repo y de la imagen
+
+🟡 **PARCIAL — 04/10/2026** · la parte de código está hecha; el repo privado y la purga del historial
+los ejecuta el PM (ver *Pendientes*).
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · alta masiva en SIIS · repositorio, release de `main` e imagen de producción |
+| **Etiquetas** | `#datos` `#infra` `#siis` |
+| **Solicitante** | Auditoría integral de octubre 2026 — hallazgo **RED-01** y decisión **D-RED-01** (Ola R, hotfix, PR R-01) |
+| **Fecha del pedido** | 04/10/2026 |
+| **Issue / épica** | Sin issue — auditoría oct-2026, `docs/internal/auditoria-2026-10/hallazgos/08-red-de-seguridad.md` |
+| **Partes afectadas** | `.gitignore`, `.gitattributes`, `.dockerignore`, `.github/workflows/pr-datos.yml` (nuevo), `.github/workflows/publish-main.yml`, `scripts/check_datos_personales.py` (nuevo), `scripts/README-datos-siis.md` (nuevo), `config/settings.py`, `programas/management/commands/_insumos_siis.py` (nuevo), `correr_alta_siis.py`, `completar_casos_renaper.py`, `corregir_datos_siis.py`, `core/tests/test_release_sin_datos.py` (nuevo), `programas/tests/test_correr_alta_siis.py`, tres runbooks de `docs/internal/` |
+| **Migración** | No requiere |
+
+## Pedido original
+
+De la ficha **RED-01** (CRÍTICA; el único hallazgo del frente con daño consumado):
+
+> `scripts/DatosPersonas.sql` (2.874.634 bytes; 10.321 filas con DNI, CUIL, nombre, sexo, fecha de
+> nacimiento y domicilio completo devueltos por RENAPER, incluye menores), `scripts/Aprobados.sql`
+> (DNI de aprobados) y `scripts/Localidades.sql` (también indexado por DNI). El repositorio
+> `Mkdir-arg/Chaco-Back` es **público**; los `.sql` no están en `export-ignore`, así que viajan a
+> `main` y de ahí al GitLab de ECOM; el `Dockerfile` hace `COPY . .` y `.dockerignore` no los excluye:
+> están **dentro de la imagen de PRD**. Nada en CI, `.gitignore`, `.gitattributes` ni `.dockerignore`
+> impide subir otro volcado.
+
+## Qué lo motivó
+
+Había una decisión previa del PM —Cambio 79: «`scripts/DatosPersonas.sql` queda en el repo por decisión
+del PM»— que **no contempló** tres cosas: que el repositorio es público, que el archivo sale en el release
+y en la imagen de producción, y la Ley 25.326. No es una decisión que haya que revertir: es una decisión que
+se tomó sin esos datos. Este cambio la repone y deja la parte que le toca al PM escrita y acotada.
+
+El riesgo de que se repita no era teórico: el patrón «chore(becas): lista nueva de aprobados» ya existe en
+el historial (`661c1a43`, `917e583e`), y nada lo detectaba.
+
+## Alcance acordado
+
+**Entra:** sacar los tres volcados de `HEAD`; las cuatro barreras que impiden que vuelvan (`.gitignore`,
+`export-ignore`, `.dockerignore`, gate de CI); el guard del release; la fuente alternativa `DATOS_SIIS_DIR`
+para los comandos que los leían de la imagen; el README versionado sin datos; los tests.
+
+**Queda afuera (lo hace el PM, ver *Pendientes*):** pasar el repositorio a privado, purgar el historial con
+`git filter-repo`, el pedido a GitHub Support, el barrido con `gitleaks`/`trufflehog` y la evaluación legal
+de la Ley 25.326.
+
+## Decisiones tomadas
+
+- **`Localidades.sql` también sale, aunque el nombre diga «catálogo».** Se verificó el archivo: su cabecera
+  declara «una fila por persona: el DNI y la localidad de su domicilio». No es un nomenclador geográfico
+  —ese es `core/fixtures/localidad_municipio_provincia.json`, que se queda—, es un padrón indexado por DNI.
+- **La plantilla sin datos se queda versionada.** `scripts/aprobados_materias_plantilla.sql` tiene el
+  `CREATE TABLE` y tres DNI de ejemplo: es el insumo que el operador necesita leer, y sacarla dejaría al
+  organismo sin molde. Está como excepción explícita en `.gitignore` (`!`), en `.dockerignore` y en
+  `.gitattributes` (`-export-ignore`), y hay un test que verifica que sigue adentro.
+- **Los archivos quedan en disco, no se borran.** `git rm --cached`: el desarrollador que los tenga los
+  conserva, pero git deja de verlos. Borrarlos del disco de nadie no es parte de esto.
+- **Una sola heurística de «esto es un volcado», en Python y no en shell.** La ficha proponía el chequeo
+  inline en el YAML del job y, por separado, una regla distinta en el test (más de 100 filas de tuplas).
+  Dos heurísticas que se separan en el primer ajuste, y la del YAML marca en rojo la plantilla sin datos.
+  Quedó una sola, en `scripts/check_datos_personales.py`, que usan el gate del PR, el guard del release y
+  el test: **un `INSERT INTO` que nombre una columna de persona** (`dni`, `cuil`, `cuit`, `apellido`,
+  `fecha_nac`, `domicilio`) **y más de 100 filas de tuplas**. Las dos condiciones juntas: lo que distingue
+  un volcado de una plantilla es el volumen, no el nombre de la columna.
+- **El techo de 512 KB corre solo sobre lo que el PR agrega o modifica, no sobre el árbol completo.** Hay
+  grandes legítimos ya versionados (`core/fixtures/localidad_municipio_provincia.json` 1,5 MB,
+  `static/vendor/adminlte.min.css` 1,4 MB, `vis-network.min.js` 689 KB) y `docs/internal/requerimientos.md`
+  (995 KB) se toca en casi todos los PRs: con el techo global, ningún release saldría. Esos están exentos
+  del techo, no de la búsqueda de volcados.
+- **`DATOS_SIIS_DIR` por defecto `/datos-siis`, y si no está montado el comando corta.** Antes, un archivo
+  faltante era un WARNING y se salteaba; eso sigue igual para un archivo suelto, pero el **directorio**
+  ausente es ahora `CommandError`. Es el modo de falla que importa —el pod arranca sin el volumen— y
+  saltearlo en silencio terminaba en «la tabla no existe» tres pasos después.
+- **El mensaje de error nombra la variable y el README.** Los tres comandos dicen lo mismo, desde
+  `programas/management/commands/_insumos_siis.py` (el guión bajo lo saca del registro de comandos de
+  Django). `--scripts <dir>` le sigue ganando a la variable, para la corrida puntual.
+- **El guard de `publish-main.yml` revisa el árbol del release, no solo nombres.** El `export-ignore`
+  depende del `.gitattributes` del commit que se publica: si alguien lo afloja, el guard es lo que queda.
+  Los tres nombres también se agregaron a la lista de rutas prohibidas, que es barata y nombra el archivo.
+
+## Implementación
+
+Las cuatro barreras:
+
+| Dónde | Regla | Qué corta |
+|---|---|---|
+| `.gitignore` | `scripts/*.sql` más la excepción de la plantilla | Que entren al repo |
+| `.gitattributes` | `/scripts/*.sql export-ignore`, plantilla con `-export-ignore` | Que salgan en el release de `main` y en el espejo de ECOM |
+| `.dockerignore` | `scripts/*.sql` | Que el `COPY . .` del `Dockerfile` los meta en la imagen |
+| `pr-datos.yml` y `publish-main.yml` | `scripts/check_datos_personales.py` en sus tres modos | Que vuelva a pasar por otro camino |
+
+El verificador, un archivo, tres modos, la misma regla:
+
+```bash
+python scripts/check_datos_personales.py --diff <base-sha>   # lo que agrega un PR (+ techo de 512 KB)
+python scripts/check_datos_personales.py --versionados       # todo `git ls-files`
+python scripts/check_datos_personales.py --arbol <dir>       # el árbol del release, en publish-main
+```
+
+Nunca imprime el contenido del archivo: solo la ruta, el tamaño y la cantidad de filas.
+
+La fuente alternativa, en `config/settings.py`:
+
+```python
+DATOS_SIIS_DIR = os.getenv("DATOS_SIIS_DIR", "/datos-siis")
+```
+
+y en `correr_alta_siis._cargar_insumos`:
+
+```python
+base = Path(directorio or settings.DATOS_SIIS_DIR)
+if not base.is_dir():
+    raise CommandError(FALTA_DIRECTORIO.format(base=base))
+```
+
+`scripts/README-datos-siis.md` (versionado, sin un solo dato) dice qué tres archivos hacen falta, qué tabla
+carga cada uno, quién los genera, cómo se monta el volumen y qué impide que vuelvan.
+
+## Validación
+
+- **Tests nuevos, en rojo antes del cambio.** `core/tests/test_release_sin_datos.py` —el «test permanente»
+  de RED-01— daba 11 fallos y 1 error sobre `HEAD`: los tres volcados versionados, la heurística
+  marcándolos, los ignores ausentes y el workflow inexistente. Son 14 tests: el que nombra la ficha
+  (`test_ningun_sql_versionado_tiene_volcado_de_personas`), uno por barrera, y seis de la heurística
+  —incluidos el volcado sintético de 150 filas con DNI inventados que **sí** detecta y la plantilla real
+  que **no**—.
+- **`programas/tests/test_correr_alta_siis.py`:** clase nueva `InsumosDesdeDatosSiisDirTests` (directorio
+  sin montar da `CommandError` que nombra `DATOS_SIIS_DIR`; directorio montado; `--scripts` ganándole a la
+  variable; la precondición de tabla faltante nombrando la variable). Verificado por mutación: con la línea
+  vieja (`Path(settings.BASE_DIR) / "scripts"`) el primero falla con «CommandError not raised».
+- **El test que leía los `.sql` reales del repo pasó a archivos sintéticos** (`sintetizar_insumos()`): fija
+  la forma que al parser le costaba —punto y coma en el comentario de cabecera, dos guiones dentro de una
+  cadena— con DNI inventados.
+- `manage.py check` sin issues; `makemigrations --check --dry-run` sin cambios.
+- Suite completa en verde con `.venv312` (Python 3.12 y Django 5.2.17, igual al CI), en dos tandas.
+- `ruff check` y `ruff format --check` limpios sobre lo tocado. Sin cambios de UI: no corresponden
+  `design_audit.py` ni `compile_templates.py`.
+- Los dos workflows parsean como YAML y el job expone el nombre exacto `Sin datos personales`, que es el
+  que RED-20 va a marcar como obligatorio. El verificador se corrió en sus tres modos: `--versionados`
+  sobre los 1.611 archivos del repo y `--arbol` sobre el árbol real del release, los dos en OK.
+
+## Pendientes / a definir
+
+- **D-RED-01 · DECISIÓN CLIENTE · pendiente.** Si corresponde notificar o evaluar el incidente bajo la
+  **Ley 25.326** (seguridad de los datos, cesión) lo decide **el organismo responsable de la base**, no el
+  equipo. Nuestra parte es informarlo por escrito con los datos de la ficha y dejar esta constancia.
+  **Default aplicado mientras tanto:** la opción recomendada de la ficha, en su parte de código.
+- **Lo operativo lo ejecuta el PM, en este orden:**
+  1. Pasar `Mkdir-arg/Chaco-Back` a **privado**.
+  2. **Avisar a ECOM antes de purgar:** la purga reescribe `main`, y el espejo de ECOM despliega
+     producción desde su `main`.
+  3. `git filter-repo --invert-paths --path scripts/DatosPersonas.sql --path scripts/Aprobados.sql --path scripts/Localidades.sql`,
+     y force push de todas las ramas y tags.
+  4. Pedirle a GitHub Support que elimine las referencias de PR y las vistas cacheadas de los commits
+     viejos (la purga no las toca).
+  5. Barrido con `gitleaks` o `trufflehog` sobre el historial completo antes de dar la purga por suficiente.
+  6. Reconstruir la imagen de PRD sin los archivos.
+- **Antes de la próxima corrida de alta SIIS** hay que montar `DATOS_SIIS_DIR` en icore y en ECOM. Sin eso
+  `correr_alta_siis` corta en el paso 2 —a propósito, con el mensaje que nombra la variable—, pero corta.
+- El gate `Sin datos personales` **todavía no es obligatorio**: eso lo habilita RED-20 (PR R-03), que crea
+  los rulesets de rama. Hasta entonces el job corre y se ve, pero no bloquea el merge por sí solo.
+- Queda fuera del alcance de la heurística un volcado en un formato que no reconocemos (CSV, JSON, Parquet).
+  Lo que lo ataja es el techo de 512 KB sobre lo que el PR agrega, que es una red más gruesa.
+
+## Reversión
+
+Revertir el commit devuelve los ignores y el gate, pero **no vuelve a poner los archivos**: salieron del
+índice, no del disco de quien los tenga. Para volver atrás del todo habría que volver a agregarlos a mano,
+que es exactamente lo que no hay que hacer. Lo único con efecto operativo real es `DATOS_SIIS_DIR`: sin la
+variable y sin el volumen, `correr_alta_siis` no carga insumos. No hay datos ni migraciones de por medio.
+
+## Historial
+
+- **18/09/2026** — se genera `DatosPersonas.sql` con la respuesta de RENAPER para 10.321 personas.
+- **01/10/2026** — Cambio 79: el PM decide que el archivo queda en el repo. La decisión no contempla que el
+  repositorio es público, que el archivo viaja al release y a la imagen, ni la Ley 25.326.
+- **03/10/2026** — la auditoría integral lo levanta como RED-01, severidad CRÍTICA, único hallazgo del
+  frente con daño consumado.
+- **04/10/2026 (este cambio)** — los tres volcados salen de `HEAD`, de la imagen y del release; queda el
+  gate para que no vuelvan y `DATOS_SIIS_DIR` como fuente. La purga del historial y el repo privado quedan
+  para el PM.

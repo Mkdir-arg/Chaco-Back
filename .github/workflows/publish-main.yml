@@ -25,11 +25,17 @@ jobs:
       - name: Construir árbol de release
         run: mkdir -p "$RUNNER_TEMP/release" && git archive HEAD | tar -x -C "$RUNNER_TEMP/release"
 
+      # RED-01: si un volcado de personas se cuela igual --forzado al índice, o en un
+      # formato que los ignores no contemplan--, el release no sale. Es la última
+      # barrera antes de `main` y del espejo de ECOM, que es público aguas abajo.
+      - name: Sin datos personales en el release
+        run: python3 scripts/check_datos_personales.py --arbol "$RUNNER_TEMP/release"
+
       - name: Guard
         shell: bash
         run: |
           fail=0
-          for path in .claude .amazonq .github .mcp.json AGENTS.md CLAUDE.md ESTADOS.md PM.md QA.md docs mkdocs.yml scripts/design_audit.py scripts/compile_templates.py scripts/requerimientos.py scripts/perf_mysql; do
+          for path in .claude .amazonq .github .mcp.json AGENTS.md CLAUDE.md ESTADOS.md PM.md QA.md docs mkdocs.yml scripts/design_audit.py scripts/compile_templates.py scripts/requerimientos.py scripts/check_datos_personales.py scripts/perf_mysql scripts/DatosPersonas.sql scripts/Aprobados.sql scripts/Localidades.sql; do
             if [ -e "$RUNNER_TEMP/release/$path" ]; then
               echo "::error::El archivo prohibido $path aparece en el release"
               fail=1

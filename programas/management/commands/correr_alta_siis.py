@@ -12,7 +12,9 @@ Lo que hace, en orden:
 1. **Precondiciones.** Corta si falta algo, y dice exactamente qué.
 2. **Insumos.** Ejecuta los ``.sql`` que carga el organismo (``aprobados_materias``,
    ``localidades_corregidas``, ``ciudadanos_renaper``) desde el propio pod, que no
-   tiene cliente de base.
+   tiene cliente de base. Los lee del directorio que apunta ``DATOS_SIIS_DIR``
+   —un volumen montado—, no de la imagen: son datos personales de 10.321 personas
+   y no pueden viajar con el código (RED-01). Ver ``scripts/README-datos-siis.md``.
 3. **Catálogo geográfico** (``seed_catalogo_siis``).
 4. **RENAPER** (``completar_casos_renaper``).
 5. **Corrección de datos** (``corregir_datos_siis``).
@@ -41,6 +43,7 @@ from django.core.management import call_command
 from django.core.management.base import BaseCommand, CommandError
 from django.db import connection
 
+from programas.management.commands._insumos_siis import FALTA_DIRECTORIO, INSUMOS
 from programas.models import EnvioSIIS, LocalidadSiis, ProgramaSiis, ProvinciaSiis, RequisitoNativo
 from programas.services import proceso_masivo
 from programas.services.siis_envio import DESTINO_SIIS, DESTINO_TABLA
@@ -57,11 +60,6 @@ DESTINOS = (
     "est_civil",
     "prov_nacim",
     "loc_nacim",
-)
-INSUMOS = (
-    ("aprobados_materias", "Aprobados.sql", "decide quién va a SIIS"),
-    ("localidades_corregidas", "Localidades.sql", "localidades del organismo"),
-    ("ciudadanos_renaper", "DatosPersonas.sql", "CUIL y fechas de RENAPER"),
 )
 LOTE = 40
 PAUSA = 2.0
@@ -156,7 +154,7 @@ class Command(BaseCommand):
         parser.add_argument(
             "--scripts",
             default=None,
-            help="Directorio de los .sql del organismo. Por defecto scripts/ del repo.",
+            help="Directorio de los .sql del organismo. Por defecto el de DATOS_SIIS_DIR.",
         )
         parser.add_argument(
             "--destino",
@@ -250,7 +248,10 @@ class Command(BaseCommand):
             tablas = connection.introspection.table_names()
             for tabla, archivo, para_que in INSUMOS:
                 if tabla not in tablas:
-                    faltan.append(f"Falta la tabla `{tabla}` ({para_que}). Cargala con {archivo} o sacá --sin-insumos.")
+                    faltan.append(
+                        f"Falta la tabla `{tabla}` ({para_que}). Cargala con {archivo} desde el directorio "
+                        "que apunta DATOS_SIIS_DIR, o sacá --sin-insumos."
+                    )
 
         if faltan:
             raise CommandError("No se puede arrancar:\n   - " + "\n   - ".join(faltan))
@@ -277,7 +278,9 @@ class Command(BaseCommand):
     # ── Paso 2: insumos ─────────────────────────────────────────────────────
 
     def _cargar_insumos(self, directorio, aplicar):
-        base = Path(directorio) if directorio else Path(settings.BASE_DIR) / "scripts"
+        base = Path(directorio or settings.DATOS_SIIS_DIR)
+        if not base.is_dir():
+            raise CommandError(FALTA_DIRECTORIO.format(base=base))
         for tabla, archivo, para_que in INSUMOS:
             ruta = base / archivo
             if not ruta.exists():
