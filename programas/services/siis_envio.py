@@ -15,6 +15,7 @@ from django.utils import timezone
 
 from programas.models import EnvioSIIS, Formulario, PreguntaGlobal
 from programas.services.dashboard_becas import respuesta_de
+from programas.services.padron import normalizar_dni
 from programas.services.siis import SiisCatalogError, cargar_beneficiario, catalogo
 
 TDOC_DNI = 1
@@ -256,8 +257,10 @@ def _texto_mayus(valor):
     return " ".join(str(valor or "").split()).upper()[:LARGO_TEXTO]
 
 
-def _digitos(valor):
-    return re.sub(r"\D", "", str(valor or ""))
+# Alias de la función canónica del padrón (RED-47): la copia propia convertía
+# un DNI float o Decimal en un número con un 0 de más, y lo que viaja a SIIS es
+# un alta sin baja.
+_digitos = normalizar_dni
 
 
 def normalizar_celular(valor):

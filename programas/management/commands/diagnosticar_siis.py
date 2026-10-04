@@ -28,6 +28,7 @@ from django.conf import settings
 from django.core.cache import cache
 from django.core.management.base import BaseCommand
 
+from core.checks import VARIABLE_PRODUCCION, es_host_de_desarrollo, es_produccion
 from programas.services.siis import (
     CATALOGO_CACHE_KEY,
     CATALOGOS_MAESTROS,
@@ -141,11 +142,13 @@ class Command(BaseCommand):
             )
             return False
 
-        # El default apunta al entorno de test de ECOM: si un entorno productivo
-        # quedó con ese valor, el catálogo trae datos desactualizados sin fallar.
-        if "ecomdev.ar" in cliente.base_url and settings.ENVIRONMENT == "prd":
+        # RED-61: el disparador es DATANACH_ES_PRODUCCION y no ENVIRONMENT, que
+        # vale "prd" también en QA (el testing de ECOM usa el SIIS de desarrollo
+        # a propósito) y en icore. Mismo criterio que core.checks.
+        if es_produccion() and es_host_de_desarrollo(cliente.base_url):
             self._aviso(
-                f"ENVIRONMENT=prd pero SIIS_API_URL apunta a {cliente.base_url}, que es el entorno de test de ECOM."
+                f"{VARIABLE_PRODUCCION}=1 pero SIIS_API_URL apunta a {cliente.base_url}, "
+                "que es el entorno de test de ECOM."
             )
 
         # Dónde se cachean el token y el catálogo. Importa para SIIS: el endpoint
