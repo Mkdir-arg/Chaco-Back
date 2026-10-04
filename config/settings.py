@@ -85,6 +85,14 @@ INSTALLED_APPS = [
     "django_extensions",
     "rest_framework",
     "rest_framework.authtoken",
+    # Sin la app, `DEFAULT_SCHEMA_CLASS` y `SPECTACULAR_SETTINGS` quedaban
+    # colgados: `/api/docs/` y `/api/redoc/` daban 500 (`TemplateDoesNotExist`)
+    # y no existía `manage.py spectacular`, así que el esquema no se podía
+    # validar en CI (RED-36, auditoría oct-2026).
+    "drf_spectacular",
+    # Los bundles de Swagger-UI y Redoc, vendorizados. Va después de
+    # `drf_spectacular` y existe solo para que `collectstatic` los encuentre.
+    "drf_spectacular_sidecar",
     "channels",
     "django_redis",
     "health_check",
@@ -644,4 +652,18 @@ SPECTACULAR_SETTINGS = {
     "SERVE_INCLUDE_SCHEMA": False,
     "COMPONENT_SPLIT_REQUEST": True,
     "SCHEMA_PATH_PREFIX": "/api/",
+    # Sin esto, `/api/docs/` y `/api/redoc/` cargan Swagger-UI y Redoc desde
+    # `cdn.jsdelivr.net/...@latest`: código de terceros, sin versión fija, que
+    # se ejecuta con la sesión de un usuario de backoffice. `SIDECAR` los sirve
+    # desde `/static/`, con la versión pineada en `requirements.txt`.
+    "SWAGGER_UI_DIST": "SIDECAR",
+    "SWAGGER_UI_FAVICON_HREF": "SIDECAR",
+    "REDOC_DIST": "SIDECAR",
+    # `drf_spectacular/checks.py` registra un check `deploy=True` que vuelca cada
+    # warning y cada error del esquema como un issue más de `manage.py check
+    # --deploy`: 25 líneas nuevas en el log del CI, sin umbral y sin forma de
+    # bajarlas una por una. El mismo dato, con allowlist y ratchet, lo da
+    # `core.tests.test_api_schema_contrato.EsquemaOpenApiTests`, que sí falla si
+    # aparece uno nuevo. Acá solo sería ruido (RED-36, revisión del PR R-04).
+    "ENABLE_DJANGO_DEPLOY_CHECK": False,
 }

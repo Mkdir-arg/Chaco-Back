@@ -4,12 +4,13 @@ import uuid
 from datetime import date
 from importlib import import_module
 from io import StringIO
+from pathlib import Path
 
 from django.apps import apps
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.core.management import call_command
-from django.db import connection
+from django.db import connection, models
 from django.test import TestCase
 
 from legajos.models import Ciudadano
@@ -36,27 +37,104 @@ from programas.services.becas import (
 )
 from programas.services.inscripcion_publica import dni_en_convocatoria
 
+#: Ratchet de RED-09: toda columna UUID del esquema, con la migración que la amplió
+#: a ``char(36)``. En MariaDB 10.7+ Django 5 manda el UUID **con guiones**, así que una
+#: columna ``char(32)`` da «Data too long» y un lookup contra el hex no encuentra nada
+#: (incidente del 29/09/2026). La lista es literal a propósito: un ``UUIDField`` nuevo
+#: tiene que pasar por acá —y por su migración— o el test de abajo se pone rojo.
+#: Formato: (etiqueta del modelo, campo, tabla, columna, migración que la amplió).
+COLUMNAS_UUID_AMPLIADAS = (
+    ("programas.Formulario", "client_uuid", "programas_formulario", "client_uuid", "programas.0047"),
+    ("programas.ValidacionSIS", "id_consulta", "programas_validacionsis", "id_consulta", "programas.0048"),
+    (
+        "programas.InscripcionPrograma",
+        "legajo_id",
+        "programas_inscripcionprograma",
+        "legajo_id",
+        "programas.0048",
+    ),
+    ("programas.Relevamiento", "token_publico", "programas_relevamiento", "token_publico", "programas.0073"),
+    ("users.SolicitudCambioEmail", "token", "users_solicitudcambioemail", "token", "users.0023"),
+    ("legajos.LegajoAtencion", "id", "legajos_legajoatencion", "id", "legajos.0007"),
+    ("legajos.AlertaCiudadano", "legajo", "legajos_alertaciudadano", "legajo_id", "legajos.0007"),
+    ("legajos.HistorialContacto", "legajo", "legajos_historialcontacto", "legajo_id", "legajos.0007"),
+    ("legajos.Adjunto", "object_id", "legajos_adjunto", "object_id", "legajos.0007"),
+)
+
+
+def _modelos_del_repo():
+    """Modelos de las apps que viven en este repo (sin admin, auth, sessions…).
+
+    Mismo criterio que el lint hermano de ``core/tests/test_uuid_mariadb.py``: las
+    columnas de las apps de Django las amplía Django, no nosotros.
+    """
+    raiz = Path(__file__).resolve().parent.parent.parent
+    propias = {config.label for config in apps.get_app_configs() if raiz in Path(config.path).resolve().parents}
+    return [modelo for modelo in apps.get_models() if modelo._meta.app_label in propias]
+
 
 class UUIDExternosMySQLTests(TestCase):
     """Los UUID recibidos por API deben admitir su representación con guiones."""
+
+    def test_todo_uuidfield_nuevo_esta_en_la_lista_ampliada(self):
+        """RED-09: todo ``UUIDField`` del repo tiene que estar declarado en el ratchet.
+
+        Lo que fuerza este test es exactamente eso: que la columna esté **declarada**
+        junto con la migración que la amplió. Que esa migración exista y amplíe a
+        ``char(36)`` lo verifica ``test_cada_columna_uuid_declara_su_migracion_a_char36``;
+        que la columna **física** mida 36 lo verifica el test de más abajo, que solo
+        corre contra MySQL, y contra MariaDB lo verificará TST-01 (``--tag mysql``).
+
+        Recorre el esquema real de las apps del repo, incluidas las FK que apuntan a un
+        pk UUID (son columnas UUID igual). Corre en SQLite, que es donde corre el CI.
+        """
+        declaradas = {(etiqueta, campo) for etiqueta, campo, _, _, _ in COLUMNAS_UUID_AMPLIADAS}
+        reales = set()
+        for modelo in _modelos_del_repo():
+            for campo in modelo._meta.local_fields:
+                if isinstance(campo, models.UUIDField):
+                    reales.add((modelo._meta.label, campo.name))
+                elif campo.is_relation and isinstance(getattr(campo, "target_field", None), models.UUIDField):
+                    reales.add((modelo._meta.label, campo.name))
+
+        faltantes = sorted(reales - declaradas)
+        self.assertEqual(
+            faltantes,
+            [],
+            "UUIDField sin migración a char(36) ni entrada en COLUMNAS_UUID_AMPLIADAS: "
+            f"{faltantes}. Ver el patrón de programas/migrations/0073 y buscar con q_uuid_en_texto.",
+        )
+        sobrantes = sorted(declaradas - reales)
+        self.assertEqual(sobrantes, [], f"El ratchet nombra columnas que ya no existen: {sobrantes}")
+
+    def test_cada_columna_uuid_declara_su_migracion_a_char36(self):
+        """La migración que nombra el ratchet existe y amplía esa columna a ``char(36)``.
+
+        Sin esto el ratchet se satisface escribiendo cualquier número de migración: lo
+        que la convención de `CLAUDE.md` pide es la migración, no la línea en la lista.
+        Se lee el archivo del disco y no ``MigrationLoader`` a propósito: con
+        ``DJANGO_SYNCDB_PROJECT_APPS=True`` —que es como corre el CI— el loader ve las
+        apps del proyecto sin migraciones (`MIGRATION_MODULES = {...: None}`).
+        """
+        for etiqueta, campo, tabla, columna, migracion in COLUMNAS_UUID_AMPLIADAS:
+            with self.subTest(columna=f"{tabla}.{columna}"):
+                app_label, _, prefijo = migracion.partition(".")
+                carpeta = Path(apps.get_app_config(app_label).path) / "migrations"
+                archivos = sorted(carpeta.glob(f"{prefijo}_*.py"))
+                self.assertEqual(
+                    len(archivos), 1, f"{etiqueta}.{campo}: {migracion} no existe o es ambigua ({archivos})"
+                )
+                fuente = archivos[0].read_text(encoding="utf-8")
+                self.assertIn("char(36)", fuente, f"{migracion} no amplía ninguna columna a char(36)")
+                self.assertIn(tabla, fuente, f"{migracion} no menciona la tabla {tabla}")
+                self.assertIn(columna, fuente, f"{migracion} no menciona la columna {columna}")
 
     def test_columnas_uuid_externas_admiten_36_caracteres(self):
         if connection.vendor != "mysql":
             self.skipTest("La longitud física comprobada corresponde a MySQL.")
 
-        columnas = (
-            ("programas_formulario", "client_uuid"),
-            ("programas_validacionsis", "id_consulta"),
-            ("programas_inscripcionprograma", "legajo_id"),
-            ("programas_relevamiento", "token_publico"),
-            ("users_solicitudcambioemail", "token"),
-            ("legajos_legajoatencion", "id"),
-            ("legajos_alertaciudadano", "legajo_id"),
-            ("legajos_historialcontacto", "legajo_id"),
-            ("legajos_adjunto", "object_id"),
-        )
         with connection.cursor() as cursor:
-            for tabla, columna in columnas:
+            for _, _, tabla, columna, _ in COLUMNAS_UUID_AMPLIADAS:
                 cursor.execute(
                     """
                     SELECT CHARACTER_MAXIMUM_LENGTH
