@@ -16687,9 +16687,16 @@ No requiere migración. Tampoco hace falta re-tildar capacidades: `ciudadano.ver
 Con Python 3.12 + Django 5.2.17 (`.venv312`, igual al CI):
 
 - `manage.py check` → sin issues. `makemigrations --check --dry-run` → «No changes detected».
-- Suite completa partida: `legajos users core conversaciones configuracion dashboard portal` →
-  904 tests, OK (1 `expected failure` preexistente); `programas` → 1551 tests, OK (1 skip).
+- `manage.py test` (la suite entera **en un solo proceso**, como el CI) → **2457 tests, OK**
+  (1 skip, 1 `expected failure` preexistente). Antes, partida por apps:
+  `legajos users core conversaciones configuracion dashboard portal` → 904 OK; `programas` → 1551 OK.
+  **La corrida partida escondió un problema:** `alertas_count_ajax` cachea 30 s con la clave
+  `alertas_count:<user.id>`; la base se revierte entre tests pero la caché no, y los ids de usuario
+  se repiten de un `TestCase` a otro, así que en un solo proceso el contador llegaba con el valor
+  que había dejado otro test. Se arregló con `cache.clear()` en el `setUp` de los dos tests que lo
+  piden; en producción la clave por usuario es correcta.
 - `manage.py test --tag performance` → 4 tests, OK.
+- CI del PR #556: **los 12 checks en verde**.
 - `ruff check .` → All checks passed; `ruff format --check .` → 562 archivos formateados.
 - `scripts/compile_templates.py` → 199 compilados, 0 errores. `scripts/check_design_agent.py
   --changed` → OK. `scripts/design_audit.py --changed` → 1 error **preexistente** (`TWBUILD` en la
