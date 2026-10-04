@@ -18,7 +18,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v5
+      # RED-85: pineada por SHA. Un tag es mutable, y este workflow tiene
+      # `contents: write` sobre `main`, que es de donde sale el espejo a ECOM y la
+      # imagen de PRD: un tag comprometido acá es un camino directo a producción.
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           fetch-depth: 0
 

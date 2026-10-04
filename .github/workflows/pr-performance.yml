@@ -1,10 +1,15 @@
 name: Performance Guard
 
+# También en `push` (RED-20, punto 4): mismo motivo que en `pr-backend.yml`. Mientras no
+# estén aplicados los rulesets, es el único rastro visible de un push directo.
 on:
   pull_request:
     branches:
       - development
       - main
+  push:
+    branches:
+      - development
 
 permissions:
   contents: read

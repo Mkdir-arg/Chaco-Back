@@ -1,0 +1,23 @@
+{
+  "name": "main generada",
+  "target": "branch",
+  "enforcement": "active",
+  "conditions": {
+    "ref_name": {
+      "include": ["refs/heads/main"],
+      "exclude": []
+    }
+  },
+  "rules": [
+    { "type": "deletion" },
+    { "type": "non_fast_forward" },
+    { "type": "update" }
+  ],
+  "bypass_actors": [
+    {
+      "actor_id": 15368,
+      "actor_type": "Integration",
+      "bypass_mode": "always"
+    }
+  ]
+}
