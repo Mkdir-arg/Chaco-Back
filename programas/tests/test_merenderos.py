@@ -1,6 +1,8 @@
 from datetime import date
 from unittest.mock import patch
+from urllib.parse import urlparse
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group, Permission
 from django.contrib.contenttypes.models import ContentType
@@ -367,3 +369,53 @@ class MerenderosViewsTests(TestCase):
 
         self.assertEqual(respuesta_get.status_code, 403)
         self.assertEqual(respuesta_post.status_code, 403)
+
+
+class EntregaCreateAutorizaAntesDeBuscarTests(TestCase):
+    """El alta de entrega autoriza antes de buscar el merendero de la URL.
+
+    Mismo molde que RED-73: el `dispatch` hacía `get_object_or_404` antes de
+    `super().dispatch()`, así que la ruta le contestaba distinto a un anónimo
+    según existiera o no el merendero —404 contra 302 al login— y eso alcanza
+    para enumerar qué ids hay. Lo encontró el barrido de
+    `core/tests/test_superficie_publica.py`.
+    """
+
+    def setUp(self):
+        self.merendero = Merendero.objects.create(
+            codigo="MER-RED73",
+            nombre="Merendero con entregas",
+            domicilio="Calle 9",
+            responsable_nombre="Responsable",
+        )
+        self.url_existente = reverse("merenderos:entrega_crear", args=[self.merendero.pk])
+        self.url_inexistente = reverse("merenderos:entrega_crear", args=[self.merendero.pk + 1000])
+
+    def test_un_anonimo_va_al_login_exista_o_no_el_merendero(self):
+        for descripcion, url in (("existe", self.url_existente), ("no existe", self.url_inexistente)):
+            with self.subTest(merendero=descripcion):
+                respuesta = self.client.get(url)
+
+                self.assertEqual(respuesta.status_code, 302)
+                self.assertEqual(urlparse(respuesta["Location"]).path, reverse(settings.LOGIN_URL))
+
+    def test_sin_capacidad_da_403_exista_o_no_el_merendero(self):
+        usuario = get_user_model().objects.create_user(username="miron-merenderos", password="test")
+        self.client.force_login(usuario)
+
+        for descripcion, url in (("existe", self.url_existente), ("no existe", self.url_inexistente)):
+            with self.subTest(merendero=descripcion):
+                self.assertEqual(self.client.get(url).status_code, 403)
+
+    def test_con_capacidad_un_merendero_inexistente_sigue_dando_404(self):
+        """La precondición no se perdió: solo se corrió de lugar."""
+        admin = get_user_model().objects.create_superuser(username="admin-entregas", password="test")
+        Programa.objects.create(
+            codigo="MERENDEROS",
+            nombre="Merenderos",
+            tipo=Programa.TipoPrograma.MERENDEROS,
+        )
+        self.client.force_login(admin)
+
+        self.assertEqual(self.client.get(self.url_inexistente).status_code, 404)
+        self.assertEqual(self.client.get(self.url_existente).status_code, 200)

@@ -36,7 +36,7 @@ con lo que existe hoy; la lista solo baja.
 | ID | Título | Sev. | Estado | Ola | Esf. | Avance 03-oct |
 |---|---|---|---|---|---|---|
 | RED-01 | Datos personales reales (10.321 personas) en un repo público, en el release y en la imagen de PRD | CRÍTICA | CONF. lectura (API + git) | R (hotfix) | M | ⬜ |
-| RED-02 | Ningún test recorre el URLconf: una ruta que vuelva a quedar abierta pasa el CI | ALTA | CONF. test (barrido) | R | S | ⬜ |
+| RED-02 | Ningún test recorre el URLconf: una ruta que vuelva a quedar abierta pasa el CI | ALTA | CONF. test (barrido) | R | S | ✅ |
 | RED-03 | App de campo: pausa probada en 1 de 6 endpoints, período en 3, ramas de error en ninguna | ALTA | CONF. test (coverage) | R | S-M | ✅ |
 | RED-04 | Crear, eliminar y activar un rol no se ejecutan por HTTP en ningún test | ALTA | CONF. test (coverage) | R | S-M | ⬜ |
 | RED-05 | Ningún test sigue un adjunto desde el canal que lo sube hasta la revisión | ALTA | CONF. lectura | R (+3 con DAT-01) | M | ⬜ |
@@ -64,7 +64,7 @@ con lo que existe hoy; la lista solo baja.
 | RED-27 | Promover desde la lista de espera con cupo exactamente 0 no está probado | ALTA | CONF. test (mutación M19) | R | S | ✅ |
 | RED-28 | `FINALIZANDO` está en los estados abiertos de vencimientos y ningún test lo cubre | ALTA | CONF. test (mutación M27) | R | S | ✅ |
 | RED-29 | El envío del link público no prueba que el relevamiento siga `EN_CURSO` | ALTA | CONF. test (mutación M44) | R | S | ✅ |
-| RED-30 | Sin test de humo por pantalla: nada afirma «ninguna ruta da 500» | MEDIA | CONF. test (barrido) | R | S | ⬜ |
+| RED-30 | Sin test de humo por pantalla: nada afirma «ninguna ruta da 500» | MEDIA | CONF. test (barrido) | R | S | ✅ |
 | RED-31 | `requisito_eliminar` y `subsegmento_eliminar` no se ejecutan en ningún test | MEDIA | CONF. test (coverage) | R | S | ⬜ |
 | RED-32 | Comandos contra SIIS y RENAPER sin red (`validar_casos_siis`, `completar_casos_renaper`, `sincronizar_programas_siis`) | MEDIA | CONF. test (coverage) | R (+1) | S-M (+S-M) | ✅ (R) |
 | RED-33 | Dispositivos y Merenderos: las vistas que operan no tienen test HTTP | MEDIA | CONF. test (coverage) | 5 | M | ⬜ |
@@ -105,9 +105,9 @@ con lo que existe hoy; la lista solo baja.
 | RED-68 | La posición en la lista de espera no está probada en ningún lado | MEDIA | CONF. test (mutación M23) | R | S | ✅ |
 | RED-69 | Fecha de nacimiento ausente o futura sin test en el payload SIIS | MEDIA | CONF. test (mutación M34) | R | S | ✅ |
 | RED-70 | `celda_segura`: la limpieza de caracteres de control no está probada | MEDIA | CONF. test (mutación M49) | R | S | ⬜ |
-| RED-71 | `ApiCorsMiddleware` sin tests de contrato (y el Cambio 52 lo da por inexistente) | BAJA | CONF. test (ajustado) | R | S | ⬜ |
+| RED-71 | `ApiCorsMiddleware` sin tests de contrato (y el Cambio 52 lo da por inexistente) | BAJA | CONF. test (ajustado) | R | S | ✅ |
 | RED-72 | El harness e2e de Playwright no existe en el repo: quedan `.pyc` de julio | BAJA | CONF. lectura | R | S | ⬜ |
-| RED-73 | `CiudadanoConfirmarView` decide antes de mirar si hay sesión | BAJA | CONF. test (barrido) | R | S | ⬜ |
+| RED-73 | `CiudadanoConfirmarView` decide antes de mirar si hay sesión | BAJA | CONF. test (barrido) | R | S | ✅ |
 | RED-74 | Ocho arreglos mergeados sin ningún test | BAJA | CONF. lectura (git) | R | S | ⬜ |
 | RED-75 | `/set_dark_mode/` no existe: el toggle de tema postea a un 404 | BAJA | CONF. test (`resolve`) | 5 | S | ⬜ |
 | RED-76 | Tipado: 2,7 % de retornos anotados, sin mypy ni pyright | BAJA | CONF. test (AST) | 7 | S-M | ⬜ |
@@ -156,6 +156,17 @@ S-M = 4, M = 8, L = 20 (README §6).
     justificar cada excepción. `/legajos/ciudadanos/confirmar/` se clasifica cuando se cierre RED-73, no se allowlistea.
 - **Verificación:** `& $env:PY manage.py test core.tests.test_superficie_publica` (corre en ~3 s sobre SQLite); mutación
   de control: quitar el `login_required` de una vista de `contactos_api.py` → el test falla.
+- **Al implementarlo (Cambio 122) la propuesta se corrigió en dos puntos.** (1) Aceptar `404` y `405` como rebote —como
+  dice el guion de arriba— deja ciego al barrido: las URLs se concretan con valores de juguete sobre una base vacía, así
+  que el 404 es la respuesta esperable de buena parte del URLconf y aceptarlo tapa la pregunta. Se demostró sacándole los
+  mixins a `CiudadanoDetailView` sin conseguir poner el test en rojo. La versión final solo acepta
+  `401/403/426` o la redirección, repite con POST las rutas POST-only y manda a la allowlist los 404 legítimos del
+  anónimo. Con eso el barrido encontró un segundo caso del molde de RED-73 en `EntregaMercaderiaCreateView`. (2) El
+  ratchet falla en los **dos** sentidos, no solo al crecer: una entrada que dejó de hacer falta hay que sacarla.
+- **Hallazgo abierto que esta ficha no cubre:** el barrido pregunta por el anónimo. Con un usuario de backoffice
+  autenticado y **sin ningún rol**, 40 rutas contestan `200` (`/inicio/`, `/legajos/alertas/`,
+  `/legajos/ciudadanos/<id>/archivos/`, la api-root de DRF, los `ajax/load-*`). Algunas son deliberadas y otras no; hace
+  falta mirarlas de a una. **Pide ficha propia: «barrido del URLconf con usuario sin rol»**, hermana de esta.
 
 ### RED-03 · App de campo: la pausa está probada en 1 de 6 endpoints, el período en 3 y las ramas de error en ninguna
 **Severidad:** ALTA · **Estado:** CONFIRMADO con test (coverage: `programas/api/views.py` 92 %, líneas sin ejecutar leídas una por una) · **Origen:** RS-R1-02 (VR1: CONFIRMADO-AJUSTADO), RS-R1-15, RS-VR1-NEW-02 · **Ola:** R · **Esfuerzo:** S-M (4 h) · **Decisión:** D-RED-10
