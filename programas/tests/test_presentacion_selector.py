@@ -7,8 +7,10 @@ la app de campo. El control del portal se prueba en
 """
 
 from datetime import date, timedelta
+from io import StringIO
 
 from django.contrib.auth.models import Group, User
+from django.core.management import call_command
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -114,6 +116,10 @@ class PresentacionAltaBackofficeTests(TestCase):
     """El alta real por pantalla, con el permiso puesto."""
 
     def setUp(self):
+        # RED-56: desde que los guards de Becas fallan cerrados, el alcance no se
+        # puede evaluar sin el Programa BECAS sembrado (tampoco para un
+        # superusuario), así que el escenario lo incluye como en producción.
+        call_command("seed_becas", stdout=StringIO())
         self.admin = User.objects.create_user("admin_pres", password="x", is_staff=True, is_superuser=True)
         Group.objects.get_or_create(name="Administrador")
         self.client.force_login(self.admin)

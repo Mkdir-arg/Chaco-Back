@@ -45,6 +45,7 @@ from django.utils import timezone
 from legajos.models import Ciudadano
 from programas.models import EnvioSIIS, Formulario, LocalidadSiis
 from programas.services import proceso_masivo
+from programas.services.padron import normalizar_dni
 from programas.services.siis import catalogo
 from programas.services.siis_envio import (
     CatalogoNoDisponible,
@@ -63,8 +64,9 @@ BARRIO_MINIMO = 4
 BARRIO_SIN_DATO = {"-", "--", "---", ".", "..", "...", "_", "__", "___", "no", "n/a", "na", "s/n", "sn", "x", "0", "âŒ"}
 
 
-def _digitos(valor):
-    return "".join(c for c in str(valor or "") if c.isdigit())
+# Alias de la función canónica (RED-47): la copia propia agregaba un 0 al final
+# con el Decimal que devuelve el driver para la columna de ``ciudadanos_renaper``.
+_digitos = normalizar_dni
 
 
 def _edad(nacimiento, hoy):

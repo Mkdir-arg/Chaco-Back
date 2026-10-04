@@ -28,6 +28,19 @@ class ProcesoMasivoRenderOla3Tests(_BaseProcesoTest):
         self.assertIn('role="status"', html)
         self.assertNotIn('role="alert"', html)
 
+    def test_la_pantalla_dice_a_que_siis_se_informa(self):
+        """RED-61: antes de mandar miles de altas sin baja, se ve el destino."""
+        self._caso()
+        with self.settings(SIIS_API_URL="https://siisapi.ecomdev.ar"):
+            html = self.client.get(self.url).content.decode()
+        self.assertIn("siisapi.ecomdev.ar", html)
+
+    def test_sin_siis_configurado_la_pantalla_lo_dice(self):
+        self._caso()
+        with self.settings(SIIS_API_URL=""):
+            html = self.client.get(self.url).content.decode()
+        self.assertIn("SIIS_API_URL", html)
+
     def test_en_curso_no_usa_alert_y_conserva_la_relectura(self):
         CorridaSiis.objects.create(
             programa=self.programa, solicitada_por=self.admin, total_pedido=10, latido=timezone.now()
