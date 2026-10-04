@@ -41,9 +41,9 @@ con lo que existe hoy; la lista solo baja.
 | RED-04 | Crear, eliminar y activar un rol no se ejecutan por HTTP en ningún test | ALTA | CONF. test (coverage) | R | S-M | ⬜ |
 | RED-05 | Ningún test sigue un adjunto desde el canal que lo sube hasta la revisión | ALTA | CONF. lectura | R (+3 con DAT-01) | M | ⬜ |
 | RED-06 | Legajos: 23 de 36 rutas sin test; `/legajos/alertas/` ya dio 500 y sigue sin test | ALTA | CONF. test (coverage) | R (+2) | S-M + S | ⬜ |
-| RED-07 | Nada impide volver a poner `Trunc*`/`__date` sobre un `DateTimeField` (CONVERT_TZ, 500 en PRD) | ALTA | CONF. test (SQL compilado) | R | S-M | ⬜ |
-| RED-08 | Los tests del 500 del link público cuentan consultas, no la forma del `WHERE` | ALTA | CONF. test (SQL compilado) | R | S | ⬜ |
-| RED-09 | Un `UUIDField` nuevo sin `char(36)` pasa el CI; el único test de UUID se saltea siempre | ALTA | CONF. test | R (+3) | S-M (+S) | ⬜ |
+| RED-07 | Nada impide volver a poner `Trunc*`/`__date` sobre un `DateTimeField` (CONVERT_TZ, 500 en PRD) | ALTA | CONF. test (SQL compilado) | R | S-M | ✅ |
+| RED-08 | Los tests del 500 del link público cuentan consultas, no la forma del `WHERE` | ALTA | CONF. test (SQL compilado) | R | S | ✅ |
+| RED-09 | Un `UUIDField` nuevo sin `char(36)` pasa el CI; el único test de UUID se saltea siempre | ALTA | CONF. test | R (+3) | S-M (+S) | ✅ (R; falta Ola 3) |
 | RED-10 | Las dos escrituras que dieron 500 bajo el lock no tienen presupuesto de consultas | ALTA | CONF. lectura | R (+4) | S (+S-M) | ⬜ |
 | RED-11 | Ningún test fija la forma del JSON de `/api/becas/*` que lee la app de campo | ALTA | CONF. lectura (dos repos) | R | S | ⬜ |
 | RED-12 | `definicion_formulario` y los prefijos `pg-`/`rn-`: contrato de dos repos sin serializer ni test | ALTA | CONF. lectura (dos repos) | R | M | ⬜ |
@@ -412,6 +412,19 @@ motor, forma del SQL, migraciones y unas pocas vistas o comandos con cero cobert
   cualquier `Trunc*`/`__date` fuera de `tests/` y `migrations/`, con pragma `# sql-portable: ok`. La ejecución real de
   estos casos contra MariaDB va en TST-01 (`--tag mysql`).
 
+**Resolución:** ✅ Resuelto en el PR R-10 (Cambio 125), 04-oct-2026 — el módulo nuevo con los cuatro tests propuestos. El
+helper de la ficha funciona tal cual (compila con `GROUP BY` en 0,03 s sobre SQLite); se le sacó el guion bajo
+(`sql_mysql`) porque lo van a importar TST-01 y lo que venga, y acepta `QuerySet` o `Query`. Dos desvíos: (a) los tests no
+reescriben el queryset, lo **capturan** del código de producción con `consultas_de(*modelos)` —un context manager que
+intercepta `_fetch_all`/`exists`/`count`/`iterator` de los modelos indicados y deja pasar los demás, así que
+`test_tendencias_...` llama a la vista entera—, porque un test que reescribe el queryset sigue verde cuando el código real
+cambia; (b) la función del parte diario se llama `calcular_cantidades`, no `parte_f01`. Se agregó
+`test_hoy_los_reportes_de_dispositivos_si_compilan_convert_tz` (caracterización de DIS-01 que **tiene** que pasar) para que
+el `expectedFailure` no pueda quedar verde por una excepción tonta. Verificado a mano: `_serie_semanal` con `TruncWeek` → 2
+`subTest` en rojo; `tendencias_datos` con `TruncDate` → 1 en rojo. `scripts/check_sql_portable.py` (opcional) no se hizo:
+su lugar es el job `Contratos del repo` de RED-24 (PR R-14).
+**Test permanente:** `core/tests/test_sql_motor_real.py::SinConvertTZTests.test_la_serie_semanal_del_dashboard_no_compila_convert_tz`
+
 ### RED-08 · Los tests del 500 del link público cuentan consultas, no la forma del `WHERE`
 **Severidad:** ALTA · **Estado:** CONFIRMADO con test (las dos formas compiladas por VR1) · **Origen:** RS-R2-02 (VR1: CONFIRMADO) · **Ola:** R · **Esfuerzo:** S (2 h)
 - **Ubicación:** `programas/services/becas.py:140-178` (`formulario_por_client_uuid`, `q_uuid_en_texto`,
@@ -429,6 +442,16 @@ motor, forma del SQL, migraciones y unas pocas vistas o comandos con cero cobert
   "30111222")` con `_sql_mysql` y, para cada columna (`token_publico`, `client_uuid`, `dni_titular`),
   `assertNotRegex(sql, r"(REPLACE|CAST|LOWER|UPPER|CONCAT|TRIM)\s*\(\s*`?\w+`?\.`?<columna>`?")`. El nombre real de la
   función es `formulario_por_client_uuid` (RS-R2-02 decía otro).
+
+**Resolución:** ✅ Resuelto en el PR R-10 (Cambio 125), 04-oct-2026 — el test propuesto, con el regex tal cual, sobre las
+tres columnas y **contra los dos motores** (MySQL 8.0.32 y MariaDB 11.8: el manejo del `UUIDField` difiere). Además del
+`assertNotRegex` afirma que la columna aparece en una comparación de igualdad pelada (``\`columna\` = ``), que es lo que
+deja usar el índice. `dni_en_convocatoria` devuelve un `bool`, no un queryset: se capturan sus **dos** consultas con
+`consultas_de(Formulario)` y se compila cada una, lo que de paso fija que sigan siendo dos por su índice (Cambio 91) y no
+una con `OR`. Se agregó el pin invertido `test_la_forma_vieja_del_cambio_91_si_envuelve_la_columna`, sin el cual el
+`assertNotRegex` podría quedar verde para siempre mirando un patrón que ya no matchea nada. Verificado a mano:
+`formulario_por_client_uuid` reescrito con `Replace(Cast(...))` → el test en rojo en los dos motores.
+**Test permanente:** `core/tests/test_sql_motor_real.py::ColumnaSargableTests.test_las_busquedas_por_uuid_y_dni_no_envuelven_la_columna`
 
 ### RED-09 · Un `UUIDField` nuevo sin `char(36)` pasa el CI; el único test de UUID se saltea siempre
 **Severidad:** ALTA · **Estado:** CONFIRMADO con test (`UUIDExternosMySQLTests` → `OK (skipped=1)`) · **Origen:** RS-R2-03 parte (b) (VR1; la parte (a) es TST-01), RS-R6-20 (VR2: CONFIRMADO) · **Ola:** R (+3: mover el helper) · **Esfuerzo:** S-M (4 h) + S (2 h)
@@ -451,6 +474,21 @@ motor, forma del SQL, migraciones y unas pocas vistas o comandos con cero cobert
     externo (`client_uuid`, `token_publico`) sin pasar por `q_uuid_en_texto`; lista blanca por pragma.
   - **Ola 3 (PR 7, con R0-07):** mover `q_uuid_en_texto` de `programas/services/becas.py` a `core/db.py` (hoy legajos y
     users tendrían que importarlo cruzado).
+
+**Resolución:** ✅ **Parte R resuelta** en el PR R-10 (Cambio 125), 04-oct-2026; la parte de la Ola 3 sigue pendiente. El
+ratchet `COLUMNAS_UUID_AMPLIADAS` (9 entradas: modelo, campo, tabla, columna y migración que la amplió) vive en
+`programas/tests/test_becas_models.py` y lo consume **también** el test físico contra MySQL, así que no hay dos listas que
+puedan desincronizarse. El recorrido incluye las FK que apuntan a un pk UUID (`legajos.AlertaCiudadano.legajo`,
+`legajos.HistorialContacto.legajo`), que son columnas UUID igual; la ficha hablaba del «pk de `TimeStamped`» y en el código
+el pk UUID lo declara `core.models.base.LegajoBase`. Desvío del lint: barre **todas las apps del proyecto** (registro de
+apps de Django, menos tests y migraciones: 335 módulos, 2,4 s) y no solo `**/services/*.py` y `**/views/*.py`, porque el
+código del Cambio 91 vivía en `programas/api/views.py`, que no es ninguna de las dos. Mira solo métodos de búsqueda
+(`filter`, `exclude`, `get`, `get_or_create`, `update_or_create`) —escribir el UUID por kwarg en un `create()` es
+correcto— y saltea `__isnull`; pragma de excepción `# uuid-externo: ok`. Hoy no hay ninguna infracción. Verificado a mano:
+`UUIDField` nuevo en `ValidacionSIS` → ratchet en rojo nombrando modelo y campo;
+`bloqueado.formularios.filter(client_uuid=client_uuid)` en `programas/api/views.py` → lint en rojo con archivo y línea.
+**Test permanente:** `programas/tests/test_becas_models.py::UUIDExternosMySQLTests.test_todo_uuidfield_nuevo_esta_en_la_lista_ampliada`
+y `core/tests/test_uuid_mariadb.py::BusquedasUUIDTests.test_las_busquedas_por_uuid_usan_el_helper`
 
 ### RED-10 · Las dos escrituras que dieron 500 bajo el lock no tienen presupuesto de consultas
 **Severidad:** ALTA · **Estado:** CONFIRMADO (lectura de los 23 presupuestos) · **Origen:** RS-R2-05 (VR1: CONFIRMADO) · **Ola:** R (`assertNumQueries`) + 4 (destinos del Performance Guard) · **Esfuerzo:** S (2 h) + S-M (4 h)

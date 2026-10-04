@@ -297,6 +297,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 114 | La API de ciudadanos es de solo lectura, pide capacidad y solo contesta búsquedas | Legajos · API DRF (`/api/legajos/`) | `#api` `#rbac` `#datos` | Auditoría integral oct-2026 — SEC-02 (+ V1-NEW-03) y SEC-01 punto 2 en legajos (Ola 0, segunda tanda, PR H12) | 03/10/2026 | 🟢 **Hecho** | No requiere |
 | 115 | El catálogo geográfico de la API es de solo lectura y las APIs del dashboard piden capacidad | Transversal · API DRF (`/api/core/`, `/api/` del dashboard) · home del backoffice | `#api` `#rbac` `#sesion` `#ui` | Auditoría integral oct-2026 — SEC-13 y SEC-14 (Ola 0, segunda tanda, PR H13) | 03/10/2026 | 🟢 **Hecho** | No requiere |
 | 120 | Los tests recorren el enum de estados entero, no solo el camino feliz | Becas · relevamientos (vencimientos, API de campo) · Portal (link público) | `#relevamientos` `#api` `#mobile` `#cupos` | Auditoría integral oct-2026 — RED-28, RED-29 y RED-66 (Ola R, red de seguridad, PR R-08) | 04/10/2026 | 🟢 **Hecho** | No requiere |
+| 125 | El CI ve la forma del SQL que le llega al motor de producción | Transversal · dashboards · link público · Dispositivos (reportes) | `#performance` `#infra` `#datos` `#relevamientos` | Auditoría integral oct-2026 — RED-07, RED-08 y RED-09 (Ola R, red de seguridad, PR R-10) | 04/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -14900,6 +14901,183 @@ No requiere. Son tests y una constante; no cambia ninguna conducta en ejecución
 
 Revertir el commit saca los diez tests y la constante. No hay datos ni conducta que revertir: el
 sistema queda exactamente como está hoy, pero las tres mutaciones vuelven a sobrevivir.
+
+## Historial
+
+No aplica: entrada nueva.
+
+---
+
+# Cambio 125 — El CI ve la forma del SQL que le llega al motor de producción
+
+🟢 **HECHO — 04/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · dashboard de Becas · dashboard del backoffice · link público · Dispositivos (parte F-01 y reportes) |
+| **Etiquetas** | `#performance` `#infra` `#datos` `#relevamientos` |
+| **Solicitante** | Auditoría integral oct-2026 — fichas RED-07, RED-08 y RED-09 (Ola R, red de seguridad, PR R-10) |
+| **Fecha del pedido** | 04/10/2026 |
+| **Issue / épica** | Sin issue (plan de la auditoría: `docs/internal/auditoria-2026-10/`) |
+| **Partes afectadas** | Servidor/API · Backoffice (dashboards) · Portal (link público) |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> «Motor y forma del SQL: RED-07 (`core/tests/test_sql_motor_real.py` + `_sql_mysql` corregido),
+> RED-08, RED-09.» (README de la auditoría, Ola R, PR R-10.)
+
+Los tres bugs más caros de los últimos meses no se vieron en el CI porque **la suite corre sobre
+SQLite y el problema vive en la forma del SQL**, no en el resultado:
+
+- **Cambio 64** (500 del dashboard en PRD) y **Cambio 66** (`/api/tendencias/` en cero): `TruncWeek`
+  y `TruncDate` sobre un `DateTimeField` con `USE_TZ` se traducen a `CONVERT_TZ`. La base de ECOM no
+  tiene cargadas las tablas de zona horaria, así que `CONVERT_TZ` devuelve NULL. En SQLite los
+  números dan bien. La única defensa que quedó fueron **dos comentarios** en el código.
+- **Cambio 91** (165 respuestas 500 el 24/09/2026 en el paso 2 del link público, desde 91 IP):
+  normalizar la columna con `REPLACE(CAST(...))` en el `WHERE` anulaba el índice único, con el lock
+  del relevamiento tomado. Los dos tests que cuidaban esa búsqueda cuentan **consultas**, y la forma
+  vieja y la de hoy son una sola consulta: los dos siguen verdes con el código del bug.
+- **Incidente del 29/09/2026**: un `UUIDField` en una columna `char(32)` da «Data too long» en
+  MariaDB 10.7+ y un lookup contra el hex no encuentra las filas con guiones. La regla está escrita
+  en `CLAUDE.md` —o sea, en ningún gate— y el único test que verifica las columnas se saltea siempre
+  (los jobs exportan `PYTEST_RUNNING=1`, que fuerza SQLite).
+
+## Alcance acordado
+
+- **Solo tests.** No cambia ninguna conducta, ninguna consulta ni ningún modelo.
+- Tres redes nuevas: SQL compilado contra el backend de MySQL/MariaDB, ratchet de columnas UUID y
+  lint de AST sobre las búsquedas por UUID externo.
+- **Afuera:** arreglar DIS-01 (es la Ola 5), correr los casos contra un MariaDB real (es TST-01, PR
+  R-11, `--tag mysql`), y mover `q_uuid_en_texto` a `core/db.py` (es la segunda parte de RED-09, Ola
+  3, PR 7).
+
+## Decisiones tomadas
+
+- **Se compila el SQL, no se ejecuta.** `sql_mysql(queryset)` arma un `DatabaseWrapper` de MySQL a
+  mano, le siembra lo que el compilador le preguntaría al servidor (versión, sabor MariaDB o MySQL,
+  `sql_mode`) y compila. No abre ninguna conexión, corre en milisegundos y entra en la suite normal
+  sobre SQLite. El detalle que lo hace funcionar es fijar `allows_group_by_selected_pks` a mano: es
+  la propiedad que abre conexión al compilar un queryset **agrupado**, y es justo donde moría la
+  versión que proponía la PoC original de la auditoría.
+- **El helper vive una sola vez**, en `core/tests/test_sql_motor_real.py`. Lo van a consumir TST-01
+  (PR R-11) y lo que venga. La ficha lo nombraba `_sql_mysql`; se le sacó el guion bajo porque es un
+  helper **compartido entre módulos** y un nombre privado importado de afuera miente sobre su uso.
+- **Los tests compilan el queryset que arma el código de producción**, no una copia escrita en el
+  test. Para eso está `consultas_de(*modelos)`: un context manager que intercepta los querysets de
+  los modelos indicados justo antes de que toquen la base (`_fetch_all`, `exists`, `count`,
+  `iterator`) y los deja disponibles para compilar. Los querysets de los demás modelos —sesión,
+  usuario, permisos— se siguen ejecutando normalmente, así que adentro del bloque se puede llamar a
+  una vista completa. **Un test que reescribe el queryset sigue verde cuando el código real cambia,
+  que es exactamente el agujero que esta ficha viene a tapar.**
+- **Cada afirmación lleva su pin invertido.** `test_truncweek_si_compila_convert_tz` y
+  `test_la_forma_vieja_del_cambio_91_si_envuelve_la_columna` afirman que el patrón prohibido **sí**
+  aparece cuando el código lo tiene. Si Django cambiara de estrategia de compilación, se ponen rojos
+  y avisan; sin ellos, un `assertNotIn` puede quedar verde para siempre mirando un texto que ya no
+  existe.
+- **Las consultas se compilan contra los dos motores** (MySQL 8.0.32 y MariaDB 11.8). Es el
+  escenario real: local e icore-srv son MySQL, testing y PRD de ECOM son MariaDB, y el manejo del
+  `UUIDField` difiere entre los dos.
+- **DIS-01 entra como `expectedFailure`, no se arregla.** `registro_diario.calcular_cantidades` y
+  `reportes._movimientos_en_periodo` filtran con `__date` sobre `fecha_ingreso`/`fecha_egreso`, que
+  son `DateTimeField`: en ECOM los conteos del parte diario salen en cero y el reporte por período
+  no trae nada. Arreglarlo es la Ola 5; el test queda escrito y marcado con el ID de la ficha, y el
+  PR que lo arregle saca el decorador. Para que ese `expectedFailure` no pueda quedar «verde» por
+  una razón tonta (un `TypeError`, la captura rota), lo acompaña
+  `test_hoy_los_reportes_de_dispositivos_si_compilan_convert_tz`, que afirma la conducta de hoy y
+  **tiene** que pasar.
+- **El ratchet de UUID recorre el esquema, no las migraciones.** `apps.get_models()` junta todos los
+  `UUIDField` —incluidas las FK que apuntan a un pk UUID, que son columnas UUID igual— y los
+  enfrenta a `COLUMNAS_UUID_AMPLIADAS`, una lista literal de 9 entradas con modelo, campo, tabla,
+  columna y la migración que la amplió. Se descartó la variante que parsea las migraciones buscando
+  `AlterField`/`RunSQL`: es frágil y, sobre todo, **no ve el modelo nuevo**, que es el caso que hay
+  que atajar. La misma lista alimenta ahora el test físico contra MySQL, así que no hay dos listas
+  que puedan desincronizarse.
+- **El lint de UUID barre todas las apps del proyecto, no solo `services/` y `views/`.** La ficha
+  proponía esas dos carpetas; el código del Cambio 91 vivía en `programas/api/views.py`, que no es
+  ninguna de las dos. El barrido sale del registro de apps de Django (así cubre las que se agreguen)
+  y excluye tests y migraciones: 335 módulos, 2,4 s.
+- **El lint mira búsquedas, no escrituras.** `filter`, `exclude`, `get`, `get_or_create` y
+  `update_or_create` con un kwarg `client_uuid=`/`token_publico=`. Escribir el UUID por kwarg en un
+  `create()` es correcto; el problema es buscarlo. `__isnull` también queda afuera: no compara el
+  valor. La excepción justificada se marca con el pragma `# uuid-externo: ok` en la línea.
+
+## Implementación
+
+El sistema se comporta igual que antes. Lo que cambió es que ahora hay tests que se ponen rojos si
+alguien reintroduce cualquiera de los tres bugs.
+
+- **`core/tests/test_sql_motor_real.py`** (nuevo): el helper `sql_mysql`, el capturador
+  `consultas_de`, `SinConvertTZTests` (RED-07) y `ColumnaSargableTests` (RED-08).
+- **`core/tests/test_uuid_mariadb.py`** (nuevo): el lint de AST de RED-09.
+- **`programas/tests/test_becas_models.py`**: `COLUMNAS_UUID_AMPLIADAS` y el ratchet de modelos
+  (RED-09). El test físico contra MySQL pasa a leer la misma lista.
+
+## Archivos
+
+`core/tests/test_sql_motor_real.py` (nuevo) · `core/tests/test_uuid_mariadb.py` (nuevo) ·
+`programas/tests/test_becas_models.py` ·
+`docs/internal/auditoria-2026-10/hallazgos/08-red-de-seguridad.md` (resolución y «Test permanente»
+de las tres fichas).
+
+## Base de datos
+
+No requiere. Sin migraciones, sin columnas nuevas, sin datos tocados.
+
+## Validación
+
+- **Tests nuevos (10), 9 verdes y 1 `expectedFailure` declarado (DIS-01):**
+  - `core/tests/test_sql_motor_real.py::SinConvertTZTests` —
+    `test_la_serie_semanal_del_dashboard_no_compila_convert_tz`,
+    `test_tendencias_agrupa_por_la_columna_sin_convert_tz`, `test_truncweek_si_compila_convert_tz`,
+    `test_hoy_los_reportes_de_dispositivos_si_compilan_convert_tz` y
+    `test_ninguna_consulta_de_reporte_usa_convert_tz` (`expectedFailure`, DIS-01).
+  - `core/tests/test_sql_motor_real.py::ColumnaSargableTests` —
+    `test_las_busquedas_por_uuid_y_dni_no_envuelven_la_columna`,
+    `test_la_forma_vieja_del_cambio_91_si_envuelve_la_columna`.
+  - `core/tests/test_uuid_mariadb.py::BusquedasUUIDTests` —
+    `test_las_busquedas_por_uuid_usan_el_helper`, `test_el_lint_detecta_el_lookup_directo`.
+  - `programas/tests/test_becas_models.py::UUIDExternosMySQLTests` —
+    `test_todo_uuidfield_nuevo_esta_en_la_lista_ampliada`.
+- **Los bugs históricos reintroducidos a mano** (aplicar → correr → revertir), que es lo que este PR
+  tiene que demostrar:
+  - `_serie_semanal` reescrito con `TruncWeek` → `test_la_serie_semanal_...` en rojo en los dos
+    motores (`CONVERT_TZ` en el `GROUP BY`).
+  - `tendencias_datos` con `TruncDate("fecha_inscripcion")` → `test_tendencias_...` en rojo
+    (`DATE(CONVERT_TZ(...))`).
+  - `formulario_por_client_uuid` normalizando la columna con `Replace(Cast(...))` —el código que
+    estuvo vivo entre el 21/08 y el 25/09 de 2026— → `test_las_busquedas_por_uuid_y_dni_...` en rojo
+    en los dos motores.
+  - `UUIDField` nuevo en `ValidacionSIS` sin migración → el ratchet en rojo nombrando modelo y campo.
+  - `bloqueado.formularios.filter(client_uuid=client_uuid)` en `programas/api/views.py` → el lint en
+    rojo con archivo y línea.
+- `manage.py check` sin issues y `makemigrations --check --dry-run` sin cambios.
+- Suite completa en verde con `.venv312` (Python 3.12 + Django 5.2.17, igual al CI).
+- `ruff check` y `ruff format --check` limpios sobre los tres archivos tocados.
+- Sin UI: no corresponde `design_audit.py` ni `compile_templates.py`.
+
+## Puesta en marcha en el servidor
+
+No requiere. Son tests; no cambia ninguna conducta en ejecución.
+
+## Pendientes / a definir
+
+- **DIS-01 sigue vivo** (Ola 5): el parte diario F-01 y los reportes de Dispositivos filtran con
+  `__date` sobre `DateTimeField`. En ECOM los conteos salen en cero. El test ya está escrito; el PR
+  que lo arregle saca el `@unittest.expectedFailure`.
+- **Ejecución real contra MariaDB**: estos tests leen el SQL, no lo ejecutan. La corrida contra
+  `mariadb:10.11`/`mariadb:11`/`mysql:8.0` es TST-01 (PR R-11, `--tag mysql`).
+- **`q_uuid_en_texto` sigue en `programas/services/becas.py`**: moverlo a `core/db.py` es la segunda
+  parte de RED-09 (Ola 3, PR 7, con R0-07). Hoy legajos y users tendrían que importarlo cruzado, y
+  por eso el lint solo cubre `client_uuid` y `token_publico`.
+- **`scripts/check_sql_portable.py`** (el `::warning::` ante cualquier `Trunc*`/`__date` fuera de
+  tests y migraciones) queda sin hacer: la ficha lo da como opcional y su lugar es el job
+  `Contratos del repo`, que lo crea RED-24 (PR R-14).
+
+## Reversión
+
+Revertir el commit saca los diez tests. No hay datos ni conducta que revertir: el sistema queda
+exactamente como está hoy, pero los tres bugs vuelven a poder reintroducirse sin que el CI se entere.
 
 ## Historial
 
