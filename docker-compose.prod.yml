@@ -41,6 +41,13 @@ services:
       - ./staticfiles:/app/staticfiles
       - ./media:/app/media
       - ./logs:/app/logs
+      # Insumos del alta en SIIS (RED-01). Los .sql del organismo tienen datos
+      # personales reales: no estan en el repo ni en la imagen. Descomentar este
+      # volumen y DATOS_SIIS_DIR de abajo antes de la proxima corrida de alta SIIS,
+      # con los tres archivos en /srv/datos-siis (chmod 750, dueno el usuario del
+      # deploy). Sin esto `manage.py correr_alta_siis` corta en el paso 2 y dice por
+      # que. Que archivo es cada uno: scripts/README-datos-siis.md.
+      # - /srv/datos-siis:/datos-siis:ro
     expose:
       - "8001"
     env_file:
@@ -69,6 +76,8 @@ services:
       - GUNICORN_THREADS=2
       # El chat en vivo lo sirve el contenedor `websocket` (daphne); nginx enruta /ws/ ahi.
       - WEBSOCKETS_ENABLED=True
+      # Va junto con el volumen /datos-siis de arriba: los dos se descomentan o ninguno.
+      # - DATOS_SIIS_DIR=/datos-siis
     command: ["/app/docker-entrypoint.sh"]
     restart: unless-stopped
     networks:

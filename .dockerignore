@@ -23,3 +23,10 @@ docker-compose*.yml
 nginx-selfsigned.crt
 nginx-selfsigned.key
 .tmp_*
+
+# Volcados del organismo (RED-01): el `COPY . .` del Dockerfile los metía en la
+# imagen de producción. Los comandos de alta en SIIS los leen del directorio que
+# apunta DATOS_SIIS_DIR, montado como volumen, no de la imagen.
+scripts/*.sql
+# Excepción: el molde sin datos de `aprobados_materias`.
+!scripts/aprobados_materias_plantilla.sql

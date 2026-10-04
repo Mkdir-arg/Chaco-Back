@@ -23,3 +23,9 @@
 /scripts/compile_templates.py export-ignore
 /scripts/requerimientos.py export-ignore
 /scripts/perf_mysql export-ignore
+/scripts/check_datos_personales.py export-ignore
+
+# Volcados del organismo (RED-01): aunque alguien los fuerce al índice, no salen en
+# el release de main ni, por lo tanto, en el espejo de ECOM. El molde sin datos sí.
+/scripts/*.sql export-ignore
+/scripts/aprobados_materias_plantilla.sql -export-ignore
