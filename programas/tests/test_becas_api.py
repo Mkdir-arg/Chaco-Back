@@ -320,6 +320,55 @@ class PersonasBecasApiTests(_BaseApiTest):
         )
         self.assertEqual(resp.status_code, 400)
 
+    # RED-37: la validación manual pasó a `ConsultaPersonaSerializer` (para que
+    # el esquema publique el `requestBody`). Lo que sigue fija el contrato que
+    # la app en producción ya usa: mismo cuerpo de error, y las mismas entradas
+    # aceptadas (DNI con puntos, sexo en minúscula, `relevamiento` vacío).
+    CUERPOS_RECHAZADOS = (
+        {},
+        {"dni": "40400400"},
+        {"sexo": "M"},
+        {"dni": "", "sexo": "M"},
+        {"dni": "sin-digitos", "sexo": "M"},
+        {"dni": "40400400", "sexo": "X"},
+        {"dni": "40400400", "sexo": ""},
+    )
+
+    def test_consultar_persona_rechaza_con_el_cuerpo_de_siempre(self):
+        self.autenticar(self.terri)
+
+        for cuerpo in self.CUERPOS_RECHAZADOS:
+            with self.subTest(cuerpo=cuerpo):
+                resp = self.client.post(reverse("becas_api:personas-consultar"), cuerpo, format="json")
+
+                self.assertEqual(resp.status_code, 400)
+                self.assertEqual(
+                    resp.data,
+                    {"success": False, "error": "DNI y sexo (F o M) son requeridos."},
+                )
+
+    @patch("programas.services.identidad.consultar_persona")
+    def test_consultar_persona_sigue_normalizando_dni_y_sexo(self, mock_consultar):
+        mock_consultar.return_value = {
+            "success": True,
+            "data": {"dni": "40400400", "nombre": "Juan", "apellido": "Perez", "sexo": "M"},
+            "datos_api": {},
+        }
+        self.autenticar(self.terri)
+
+        resp = self.client.post(
+            reverse("becas_api:personas-consultar"),
+            # La app vieja manda el relevamiento vacío: siempre significó
+            # "todos los vigentes del territorial", no un 400.
+            {"dni": "40.400.400", "sexo": " m ", "relevamiento": ""},
+            format="json",
+        )
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data["data"]["dni"], "40400400")
+        self.assertEqual(resp.data["data"]["sexo"], "M")
+        mock_consultar.assert_called_once_with("40400400", "M")
+
     # SEC-04 (auditoría oct-2026): al retirar la consulta RENAPER anónima de
     # Legajos, el alias que la app usa en producción tiene que quedar intacto y
     # seguir exigiendo token. `personas/consultar/` ya lo cubre

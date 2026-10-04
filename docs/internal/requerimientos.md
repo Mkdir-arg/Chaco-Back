@@ -296,6 +296,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 113 | La API REST de usuarios y roles queda apagada salvo `me` | Transversal · API DRF (`/api/users/`) | `#api` `#rbac` `#usuarios` | Auditoría integral oct-2026 — SEC-05, SEC-16 y SEC-17, decisión D-05 (Ola 0, segunda tanda, PR H11) | 03/10/2026 | 🟢 **Hecho** | No requiere |
 | 114 | La API de ciudadanos es de solo lectura, pide capacidad y solo contesta búsquedas | Legajos · API DRF (`/api/legajos/`) | `#api` `#rbac` `#datos` | Auditoría integral oct-2026 — SEC-02 (+ V1-NEW-03) y SEC-01 punto 2 en legajos (Ola 0, segunda tanda, PR H12) | 03/10/2026 | 🟢 **Hecho** | No requiere |
 | 115 | El catálogo geográfico de la API es de solo lectura y las APIs del dashboard piden capacidad | Transversal · API DRF (`/api/core/`, `/api/` del dashboard) · home del backoffice | `#api` `#rbac` `#sesion` `#ui` | Auditoría integral oct-2026 — SEC-13 y SEC-14 (Ola 0, segunda tanda, PR H13) | 03/10/2026 | 🟢 **Hecho** | No requiere |
+| 118 | `/api/docs/` vuelve a andar y el esquema de la API dice la verdad | Transversal · API DRF · documentación (`/api/schema/`, `/api/docs/`, `/api/redoc/`) | `#api` `#mobile` `#infra` | Auditoría integral oct-2026 — RED-36 y RED-37 (Ola R, red de seguridad, PR R-04) | 04/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -14759,3 +14760,135 @@ Revertir el commit devuelve los `ModelViewSet` de geografía y deja las cinco vi
 - **03/10/2026** — Cambio 109: queda disponible `BackofficeAutenticado`, sin aplicarla a ninguna vista.
 - **03/10/2026 (este cambio)** — SEC-13 y SEC-14 cerrados, y la clase aplicada en `core/api_views` y
   `dashboard/api_views`.
+
+---
+
+# Cambio 118 — `/api/docs/` vuelve a andar y el esquema de la API dice la verdad
+
+🟢 **HECHO — 04/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · API DRF · documentación (`/api/schema/`, `/api/docs/`, `/api/redoc/`) · API de campo de Becas |
+| **Etiquetas** | `#api` `#mobile` `#infra` |
+| **Solicitante** | Auditoría integral de octubre 2026 — hallazgos **RED-36** y **RED-37** (Ola R, red de seguridad, PR R-04) |
+| **Fecha del pedido** | 04/10/2026 |
+| **Issue / épica** | Sin issue — auditoría oct-2026, `docs/internal/auditoria-2026-10/hallazgos/08-red-de-seguridad.md` |
+| **Partes afectadas** | `config/settings.py`, `programas/api/serializers.py`, `programas/api/views.py`, `core/tests/test_api_schema_contrato.py`, `programas/tests/test_becas_api.py`, `portal/tests/test_seguridad_publica.py` |
+| **Migración** | No requiere |
+
+## Pedido original
+
+De la ficha **RED-36** (MEDIA, confirmada con test):
+
+> `drf_spectacular` fuera de `INSTALLED_APPS`: `/api/docs/` y `/api/redoc/` dan 500. Sin la app no existe
+> `manage.py spectacular` (ningún gate de esquema es posible) y los templates de las vistas de documentación
+> no se encuentran. `CLAUDE.md` las anuncia como superficie viva.
+
+De la ficha **RED-37** (MEDIA, confirmada con test):
+
+> El esquema OpenAPI publica tipos falsos y pierde 11 vistas. `RelevamientoDetail` publica
+> `definicion_formulario`, `cupo_disponible`, `cupo_completo` y `pausado` como `string`;
+> `/api/becas/personas/consultar/` sin `requestBody`. (1) anotar el retorno de los `get_*` del serializer;
+> (2) `ConsultaPersonaSerializer` real (`dni`, `sexo` con `choices=("F","M")`, `relevamiento` opcional) que
+> **reemplace** la validación manual de `views.py:216-223`, con `@extend_schema(request=…, responses=…)`;
+> (3) Ola 7: `inline_serializer` en las 5 vistas del dashboard.
+
+## Qué lo motivó
+
+La configuración de `drf_spectacular` estaba completa —`DEFAULT_SCHEMA_CLASS`, `SPECTACULAR_SETTINGS`, las
+tres rutas de `config/urls.py` y hasta una excepción de CSP para `/api/docs/` en
+`config/middlewares/security_headers.py`— pero **la app nunca se agregó a `INSTALLED_APPS`**. Resultado:
+`/api/schema/` servía el YAML, pero `/api/docs/` y `/api/redoc/` morían con `TemplateDoesNotExist`, y
+`manage.py spectacular` no existía, así que no había forma de validar el esquema en el CI.
+
+Lo segundo es consecuencia de lo primero: nadie miraba el esquema, así que nadie vio que mentía. Los cuatro
+campos que la app de campo usa para decidir si puede cargar un caso —el cupo, si está completo y si el
+relevamiento está pausado— se publicaban como texto, y el POST de consulta de identidad aparecía sin cuerpo.
+Quien generara un cliente desde `/api/schema/` escribía código que no compila contra la API real.
+
+## Alcance acordado
+
+**Entra:** `"drf_spectacular"` en `INSTALLED_APPS`; los tipos reales de `RelevamientoListSerializer` y
+`RelevamientoDetailSerializer`; `ConsultaPersonaSerializer` y `ConsultaPersonaRespuestaSerializer` con su
+`@extend_schema`; y el test de contrato con sus dos ratchets.
+
+**Queda afuera:** el punto 3 de RED-37 (las 5 vistas del dashboard y las de `core/views/performance.py` con
+`inline_serializer`) es de la Ola 7; el job `Contratos de API` que corre `spectacular --validate` en el CI es
+el PR R-18; dejar las tres rutas detrás de `BackofficeAutenticado` es el resto de SEC-01 (Ola 2).
+
+## Decisiones tomadas
+
+- **El cuerpo del 400 de `/api/becas/personas/consultar/` no cambia.** La ficha pide que el serializer
+  *reemplace* la validación manual, y lo hace, pero la vista sigue devolviendo
+  `{"success": false, "error": "DNI y sexo (F o M) son requeridos."}` en vez del diccionario por campo que
+  daría `raise_exception=True`: **lo lee la app móvil en producción** (misma regla del Cambio 100). Las
+  normalizaciones también se conservan dentro del serializer —DNI a dígitos, sexo sin espacios y en
+  mayúscula, `relevamiento` vacío tratado como «todos los vigentes»—, así que no hay una sola entrada que
+  funcionara ayer y falle hoy. `programas.tests.test_becas_api.PersonasBecasApiTests` lo fija con siete
+  cuerpos rechazados y uno aceptado con DNI con puntos y sexo en minúscula.
+- **`cupo_disponible` y `cupo_completo` se declaran en el serializer, no en el modelo.** Son propiedades de
+  `Relevamiento` que `ModelSerializer` resolvía como `ReadOnlyField`; se podía arreglar anotando el retorno
+  de la propiedad, pero declararlas como `IntegerField(read_only=True)` y `BooleanField(read_only=True)` deja
+  el tipo en el archivo que define el contrato de la API y no toca `programas/models/__init__.py`. El valor
+  serializado es idéntico.
+- **La allowlist de errores nace en 10, no en 11.** La ficha la describe con las 11 vistas que el esquema no
+  puede publicar, pero una de ellas —`consultar_persona_becas`— la cierra este mismo cambio. Las otras 10
+  quedan listadas con su archivo y su ola.
+- **El ratchet de warnings queda en 15** (eran 24). Los que quedan son de `legajos`, `users`,
+  `core/views/performance.py` y dos colisiones de nombres de enum. El gate de CI suma `--fail-on-warn` cuando
+  llegue a 0 (RED-43).
+- **Las plantillas de `drf_spectacular` quedan exceptuadas del barrido de recursos de terceros.** Ver
+  *Pendientes*: es una excepción nombrada, no un agujero silencioso.
+
+## Implementación
+
+1. **`config/settings.py`** — `"drf_spectacular"` después de `rest_framework.authtoken`, con el comentario de
+   por qué. Es todo lo que RED-36 necesitaba: las rutas, el `DEFAULT_SCHEMA_CLASS` y los
+   `SPECTACULAR_SETTINGS` ya estaban.
+2. **`programas/api/serializers.py`** — `get_pausado(self, obj) -> bool`, `get_pausa_motivo(…) -> str`,
+   `get_definicion_formulario(…) -> dict`; `cupo_disponible` y `cupo_completo` declarados con su tipo; y los
+   dos serializers nuevos de la consulta de identidad.
+3. **`programas/api/views.py`** — `@extend_schema(request=ConsultaPersonaSerializer, responses={200, 400, 404,
+   502})` sobre `consultar_persona_becas`, y la validación manual reemplazada por el serializer.
+4. **`core/tests/test_api_schema_contrato.py`** (nuevo) — las tres rutas con sesión y sin sesión, el comando
+   `spectacular`, la allowlist de errores, el ratchet de warnings y los tipos publicados.
+
+## Verificación
+
+- `manage.py spectacular --validate --file /dev/null` termina en 0. El esquema sigue con 54 paths; los
+  errores bajan de 11 a 10 (los de la allowlist) y los warnings de 24 a 15.
+- `core.tests.test_api_schema_contrato` (7 tests) en verde. Antes del cambio: 5 fallas y 2 errores
+  (`TemplateDoesNotExist: drf_spectacular/swagger_ui.html` y `…/redoc.html`).
+- `manage.py check` sin issues, `check --deploy` en 0 y `makemigrations --check --dry-run` sin cambios.
+- Suite completa con `.venv312` (Python 3.12 + Django 5.2.17, igual al CI) en dos tandas:
+  `core dashboard legajos users configuracion config conversaciones portal` y `programas`.
+- `ruff check` y `ruff format --check` limpios sobre los seis archivos tocados. No se tocó UI.
+
+## Pendientes / a definir
+
+- **`/api/docs/` y `/api/redoc/` cargan Redoc, Swagger-UI y las fuentes desde CDNs públicos** (jsDelivr y
+  Google Fonts), que es lo que traen por default `REDOC_DIST` y `SWAGGER_UI_DIST` y lo que tienen hardcodeado
+  las plantillas del paquete. Las dos rutas están detrás del login de backoffice y fuera del portal público,
+  pero es una dependencia de cadena de suministro igual. Cerrarla es instalar `drf-spectacular-sidecar` y
+  apuntar esos settings a `SIDECAR`: **es una dependencia nueva, así que la decide el PM.** Mientras tanto,
+  `portal.tests.test_seguridad_publica.SinRecursosDeTercerosTests` exceptúa esas dos plantillas por nombre,
+  con el motivo escrito al lado; cualquier otra plantilla con un CDN sigue poniendo el test en rojo.
+- Las 10 vistas de `VISTAS_CON_ERROR_CONOCIDO` siguen fuera del esquema hasta la Ola 7 (punto 3 de RED-37).
+  `run_phase2_tests_api` puede desaparecer entera con OPS-10.
+- Los 15 warnings restantes: `get_dispositivo_nombre` y `get_legajos_count` (legajos), `get_full_name`
+  (users), las 7 vistas de `core/views/performance.py`, dos parámetros de path sin tipo en los viewsets de
+  Becas y dos colisiones de nombres de enum (`estado`, `ApoderadoGenero`) que se arreglan con
+  `ENUM_NAME_OVERRIDES`.
+
+## Reversión
+
+Revertir el commit saca `drf_spectacular` de `INSTALLED_APPS` —`/api/docs/` y `/api/redoc/` vuelven al 500— y
+devuelve la validación manual de `consultar_persona_becas`. No hay datos ni migraciones involucrados. El
+contrato HTTP de `/api/becas/*` es el mismo antes y después, así que la app móvil no se entera en ninguna de
+las dos direcciones.
+
+## Historial
+
+- **04/10/2026 (este cambio)** — RED-36 y RED-37 (puntos 1 y 2) cerrados; queda anotado que el punto 3 va en
+  la Ola 7 y que el gate de CI es el PR R-18.

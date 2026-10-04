@@ -467,6 +467,23 @@ class SinRecursosDeTercerosTests(TestCase):
         "https://www.googletagmanager.com/ns.html",
     )
 
+    # Plantillas que vienen dentro de una dependencia: nadie de acá las escribe,
+    # así que el riesgo que cubre este test --alguien pega un <script> de un CDN
+    # en una pantalla nuestra-- no aplica. Se listan una por una igual, para que
+    # una dependencia nueva con plantillas no entre sin que se vea.
+    #
+    # `drf_spectacular` sirve `/api/docs/` y `/api/redoc/` (RED-36), las dos
+    # detrás del login de backoffice y fuera del portal público. Además de estas
+    # fuentes, Redoc y Swagger-UI traen su bundle de jsDelivr por los defaults de
+    # `REDOC_DIST` / `SWAGGER_UI_DIST`, que esta expresión regular no ve porque
+    # llegan por variable de plantilla. Cerrar las dos cosas es instalar
+    # `drf-spectacular-sidecar` y apuntar esos settings a `SIDECAR`: es una
+    # dependencia nueva, así que la decide el PM (Cambio 118).
+    DE_DEPENDENCIAS = (
+        "drf_spectacular/redoc.html",
+        "drf_spectacular/swagger_ui.html",
+    )
+
     def test_ninguna_plantilla_carga_recursos_externos(self):
         from pathlib import Path
 
@@ -491,6 +508,8 @@ class SinRecursosDeTercerosTests(TestCase):
                 if plantilla in vistas:
                     continue
                 vistas.add(plantilla)
+                if plantilla.as_posix().endswith(self.DE_DEPENDENCIAS):
+                    continue
                 texto = plantilla.read_text(encoding="utf-8", errors="ignore")
                 for url in patron.findall(texto):
                     if not url.startswith(self.PERMITIDOS):

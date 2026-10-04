@@ -85,6 +85,11 @@ INSTALLED_APPS = [
     "django_extensions",
     "rest_framework",
     "rest_framework.authtoken",
+    # Sin la app, `DEFAULT_SCHEMA_CLASS` y `SPECTACULAR_SETTINGS` quedaban
+    # colgados: `/api/docs/` y `/api/redoc/` daban 500 (`TemplateDoesNotExist`)
+    # y no existía `manage.py spectacular`, así que el esquema no se podía
+    # validar en CI (RED-36, auditoría oct-2026).
+    "drf_spectacular",
     "channels",
     "django_redis",
     "health_check",
