@@ -253,17 +253,33 @@ diff tiene que actualizar `.claude/agents/chaco-design-system.md`, o
 
 ## Gates de CI
 
-Los PRs van contra `development`. Bloquean el merge:
+Los PRs van contra `development`. Estos checks **tienen que estar en verde** —y salen
+rojos si no lo están—, pero hoy el merge no los exige todavía: el repo no tiene
+protección de rama. Los dos rulesets que la encienden están versionados en
+[`docs/internal/rulesets/`](docs/internal/rulesets.md) y **los aplica el dueño del
+repo**; hasta entonces, no mergear en rojo es una regla del proceso, no un mecanismo.
 
-- **Backend CI** — `manage.py check --deploy`, `makemigrations --check --dry-run` y
-  `coverage run manage.py test` (`fail_under = 48` en `pyproject.toml`).
+- **Backend CI** — `manage.py check --deploy` (`Django System Check`),
+  `makemigrations --check --dry-run` (`Migration Check`) y `coverage run manage.py test`
+  (`Tests & Coverage`, `fail_under = 48` en `pyproject.toml`).
 - **Performance Guard** — tests `--tag performance` (presupuestos de queries en
   `scripts/perf_budgets.json`), comparación de duración y contrato MySQL/Redis efímero.
-- **Security** — `pip-audit`.
-- **Design Agent Contract** — solo si el PR toca UI, agentes o los `.md` de contrato.
+- **Security** — `pip-audit` (`Pip Audit`), con las excepciones de
+  `security/excepciones.toml`, que vencen.
+- **Datos** — `Sin datos personales`: ningún volcado de personas entra al repo.
+- **Code Quality** — `Ruff errores` (`ruff check . --select F`).
+- **Design Agent Contract** — `Validate inventory and authority`.
 
-No bloquean (`continue-on-error`): Ruff lint, Ruff format, Bandit, dependency-review.
-Igual se dejan en verde salvo que el rojo sea preexistente y ajeno al cambio.
+Los dos últimos corren en **todos** los PRs: el filtro por rutas está adentro del job,
+así que cuando el PR no toca Python o UI el check termina en verde sin hacer nada. Un
+check con `paths:` en el trigger no puede ser obligatorio, porque no reporta nunca.
+
+No bloquean (`continue-on-error`): `Ruff estilo` (E, W, I y formato), Bandit y
+dependency-review. Igual se dejan en verde salvo que el rojo sea preexistente y ajeno
+al cambio.
+
+`Backend CI`, `Performance Guard` y `Datos` corren además en `push` a `development`,
+para que un push directo deje un check rojo visible mientras no haya ruleset.
 
 ## Gotchas
 

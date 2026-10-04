@@ -4,7 +4,7 @@ Cubre el módulo puro (CUIL, dirección, catálogos, armado del payload), el
 servicio con registro auditable y el comando de reintento.
 """
 
-from datetime import date
+from datetime import date, timedelta
 from io import StringIO
 from unittest.mock import patch
 
@@ -364,6 +364,99 @@ class ArmarPayloadTests(_ConPayloadCompleto):
         _, faltantes = armar_payload(self.formulario, catalogos=self.cat)
         self.assertIn("barrio_actual", faltantes)
 
+    def test_el_barrio_de_cuatro_caracteres_es_el_minimo_aceptado(self):
+        """RED-87: el borde exacto de ``len(barrio) >= BARRIO_MINIMO``.
+
+        Los tests de al lado usan ``"108"`` (que se prefija a «Barrio 108», 10
+        caracteres) y ``"Sur"`` (3): ninguno toca el 4. Con ``>`` en vez de
+        ``>=`` todo barrio de cuatro letras cae a ``faltantes``, el caso queda
+        INCOMPLETO y la pantalla pide corregir un dato que está bien.
+        """
+        for barrio, aceptado in (("Sur", False), ("Sur2", True), ("Sur22", True)):
+            with self.subTest(barrio=barrio, largo=len(barrio)):
+                self._respuesta(self.p_barrio, barrio)
+                payload, faltantes = armar_payload(self.formulario, catalogos=self.cat)
+                if aceptado:
+                    self.assertEqual(payload["barrio_actual"], barrio)
+                    self.assertNotIn("barrio_actual", faltantes)
+                else:
+                    self.assertNotIn("barrio_actual", payload)
+                    self.assertIn("barrio_actual", faltantes)
+
+    def test_los_textos_largos_se_recortan_en_el_maximo_sin_perder_el_borde(self):
+        """RED-87: ``[:LARGO_TEXTO]`` del barrio y de la calle, en su borde."""
+        largo = siis_envio.LARGO_TEXTO
+        self._respuesta(self.p_barrio, "B" * largo)
+        self._respuesta(self.p_calle, f"{'C' * largo} 450")
+        payload, faltantes = armar_payload(self.formulario, catalogos=self.cat)
+        self.assertEqual(payload["barrio_actual"], "B" * largo)
+        self.assertEqual(payload["calle_actual"], "C" * largo)
+
+        self._respuesta(self.p_barrio, "B" * (largo + 1))
+        self._respuesta(self.p_calle, f"{'C' * (largo + 1)} 450")
+        payload, _ = armar_payload(self.formulario, catalogos=self.cat)
+        self.assertEqual(len(payload["barrio_actual"]), largo)
+        self.assertEqual(len(payload["calle_actual"]), largo)
+
+    def test_el_dni_de_diez_digitos_es_el_maximo_aceptado(self):
+        """RED-87: el borde de ``len(dni) <= 10``."""
+        for dni, aceptado in (("1234567890", True), ("12345678901", False)):
+            with self.subTest(dni=dni, largo=len(dni)):
+                self.ciudadano.dni = dni
+                self.ciudadano.save(update_fields=["dni"])
+                payload, faltantes = armar_payload(self.formulario, catalogos=self.cat)
+                if aceptado:
+                    self.assertEqual(payload["dni"], int(dni))
+                    self.assertNotIn("dni", faltantes)
+                else:
+                    self.assertNotIn("dni", payload)
+                    self.assertIn("dni", faltantes)
+
+    def test_fecha_de_nacimiento_ausente_o_futura_falta(self):
+        """RED-69: ``if nacimiento and nacimiento <= hoy``, las tres ramas.
+
+        Sin ``and nacimiento <= hoy`` un dedazo («2027-05-14») viaja a SIIS como
+        alta real, que no tiene baja; además ``_edad`` da negativo y dispara la
+        rama de apoderado. El borde —nacido hoy— tiene que pasar.
+        """
+        hoy = date(2026, 9, 14)
+        for nacimiento, falta in (
+            (None, True),
+            (hoy + timedelta(days=1), True),
+            (hoy, False),
+            (hoy - timedelta(days=1), False),
+        ):
+            with self.subTest(nacimiento=nacimiento):
+                self.ciudadano.fecha_nacimiento = nacimiento
+                self.ciudadano.save(update_fields=["fecha_nacimiento"])
+                payload, faltantes = armar_payload(self.formulario, catalogos=self.cat, hoy=hoy)
+                if falta:
+                    self.assertNotIn("fecha_nacim", payload)
+                    self.assertIn("fecha_nacim", faltantes)
+                else:
+                    self.assertEqual(payload["fecha_nacim"], nacimiento.isoformat())
+                    self.assertNotIn("fecha_nacim", faltantes)
+
+    def test_los_datos_de_identidad_vacios_tambien_faltan(self):
+        """Los negativos de al lado de la fecha: apellido, nombre y DNI."""
+        for campo, clave in (("apellido", "apellido"), ("nombre", "nombre"), ("dni", "dni")):
+            with self.subTest(campo=campo):
+                anterior = getattr(self.ciudadano, campo)
+                setattr(self.ciudadano, campo, "")
+                self.ciudadano.save(update_fields=[campo])
+                payload, faltantes = armar_payload(self.formulario, catalogos=self.cat)
+                self.assertNotIn(clave, payload)
+                self.assertIn(clave, faltantes)
+                setattr(self.ciudadano, campo, anterior)
+                self.ciudadano.save(update_fields=[campo])
+
+    def test_sin_ciudadano_faltan_los_cuatro_datos_de_la_persona(self):
+        self.formulario.ciudadano = None
+        self.formulario.save(update_fields=["ciudadano"])
+        _, faltantes = armar_payload(self.formulario, catalogos=self.cat)
+        for clave in ("dni", "apellido", "nombre", "sexo", "fecha_nacim"):
+            self.assertIn(clave, faltantes, clave)
+
     def test_datos_siis_pisan_las_respuestas(self):
         self._respuesta(self.p_loc, "J.j castelli")
         self.formulario.datos_siis = {"loc_actual": 37, "nro_actual": 15, "barrio_actual": "Barrio Norte"}
@@ -580,6 +673,15 @@ class EnviarBeneficiarioTests(ArmarPayloadTests):
         self.assertIn("loc_actual", envio.detalles)
         self.cargar.assert_not_called()
         self.assertEqual(mensaje_envio(envio)[0], "warning")
+
+    def test_una_fecha_de_nacimiento_futura_no_llega_a_siis(self):
+        """El otro lado de RED-69: el alta no tiene baja, así que ni se intenta."""
+        self.ciudadano.fecha_nacimiento = date(2027, 5, 14)
+        self.ciudadano.save(update_fields=["fecha_nacimiento"])
+        envio = enviar_beneficiario_a_siis(self.formulario, self.user, catalogos=self.cat)
+        self.cargar.assert_not_called()
+        self.assertEqual(envio.estado, EnvioSIIS.Estado.INCOMPLETO)
+        self.assertIn("fecha_nacim", envio.detalles)
 
     def test_400_registra_rechazado_con_detalles(self):
         self.cargar.return_value = {

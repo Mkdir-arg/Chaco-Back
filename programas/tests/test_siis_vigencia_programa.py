@@ -8,9 +8,11 @@ que cascadea igual.
 
 import json
 from datetime import date
+from io import StringIO
 from unittest.mock import patch
 
 from django.contrib.auth.models import User
+from django.core.management import call_command
 from django.template import Context, Template
 from django.test import TestCase
 
@@ -280,6 +282,11 @@ class BloqueoPorSiisTests(TestCase):
 
 class ListadoDeProgramasTests(TestCase):
     """El aviso de programas dados de baja en SIIS sale de la misma lista que la tabla."""
+
+    def setUp(self):
+        # RED-56: los guards de Becas fallan cerrados sin el Programa BECAS
+        # sembrado; el escenario lo incluye, como en producción.
+        call_command("seed_becas", stdout=StringIO())
 
     def _contexto(self):
         from django.db import connection

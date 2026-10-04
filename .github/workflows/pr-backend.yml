@@ -1,7 +1,15 @@
 name: Backend CI
 
+# También en `push` (RED-20, punto 4): hasta que estén aplicados los rulesets de
+# `docs/internal/rulesets/`, un `git push origin development` directo entra sin disparar
+# ningún workflow de verificación —todos son `on: pull_request`— pero sí dispara
+# `publish-main.yml`, que regenera `main` y es lo que se espeja a ECOM. Con esto un push
+# directo deja al menos un check rojo visible antes del espejo.
 on:
   pull_request:
+    branches:
+      - development
+  push:
     branches:
       - development
 
@@ -36,6 +44,9 @@ jobs:
           DJANGO_SYNCDB_PROJECT_APPS: "True"
           DJANGO_DEBUG: "False"
           DJANGO_ALLOWED_HOSTS: localhost
+          # RED-61: SIIS_API_URL ya no tiene default, y el check de entorno la
+          # exige con DEBUG=False. Host ficticio: acá no se habla con SIIS.
+          SIIS_API_URL: https://siis.invalido.local
         run: python manage.py check --deploy
 
   migration-check:

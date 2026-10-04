@@ -499,7 +499,11 @@ PERSONAS_API_TIMEOUT = int(os.getenv("PERSONAS_API_TIMEOUT", "20"))
 # padrón de la convocatoria. No cambia el resultado de quien está en el padrón:
 # le saca la espera del timeout a una API que no responde.
 PERSONAS_API_ACTIVA = os.getenv("PERSONAS_API_ACTIVA", "True").strip().lower() in ("true", "1", "si", "sí", "yes")
-SIIS_API_URL = os.getenv("SIIS_API_URL", "https://siisapi.ecomdev.ar").strip().rstrip("/")
+# Sin default a propósito (RED-61): el que había apuntaba al SIIS de desarrollo,
+# que responde 200. Si en producción la variable falta o cambia de nombre, el
+# alta se da por informada y el organismo nunca la recibe, en una integración sin
+# baja. Lo valida ``core.checks.entorno_de_integraciones`` (``check --deploy``).
+SIIS_API_URL = os.getenv("SIIS_API_URL", "").strip().rstrip("/")
 SIIS_API_CLIENT_ID = os.getenv("SIIS_API_CLIENT_ID", "")
 SIIS_API_CLIENT_SECRET = os.getenv("SIIS_API_CLIENT_SECRET", "")
 SIIS_API_CONNECT_TIMEOUT = int(os.getenv("SIIS_API_CONNECT_TIMEOUT", "10"))

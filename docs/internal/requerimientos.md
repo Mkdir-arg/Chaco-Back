@@ -301,7 +301,9 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 118 | `/api/docs/` vuelve a andar y el esquema de la API dice la verdad | Transversal · API DRF · documentación (`/api/schema/`, `/api/docs/`, `/api/redoc/`) | `#api` `#mobile` `#infra` | Auditoría integral oct-2026 — RED-36 y RED-37 (Ola R, red de seguridad, PR R-04) | 04/10/2026 | 🟢 **Hecho** | No requiere |
 | 119 | Red de seguridad del contrato de la app de campo: claves del JSON, pausa, período, errores, capacidad, alcance y presupuesto del alta | Becas · API de la app de campo (`/api/becas/`) | `#api` `#rbac` `#performance` `#datos` | Auditoría integral oct-2026 — RED-11, RED-03, RED-10, RED-25 y RED-26 (Ola R, PR R-07) | 04/10/2026 | 🟢 **Hecho** | No requiere |
 | 120 | Los tests recorren el enum de estados entero, no solo el camino feliz | Becas · relevamientos (vencimientos, API de campo) · Portal (link público) | `#relevamientos` `#api` `#mobile` `#cupos` | Auditoría integral oct-2026 — RED-28, RED-29 y RED-66 (Ola R, red de seguridad, PR R-08) | 04/10/2026 | 🟢 **Hecho** | No requiere |
+| 121 | Los gates del CI bloquean de verdad: protección de rama, Ruff de errores y actions pineadas | Transversal · CI de GitHub Actions · repositorio | `#infra` `#metodo` `#gestion` | Auditoría integral oct-2026 — RED-20, RED-63 y RED-85 (Ola R, red de seguridad, PR R-03) | 04/10/2026 | 🟡 **Parcial** (los dos rulesets los aplica el dueño del repo) | No requiere |
 | 122 | El URLconf se recorre entero: ninguna ruta queda abierta al anónimo y ninguna pantalla revienta | Transversal · toda la superficie HTTP · Legajos (confirmar alta) · Merenderos (entregas) · CORS de `/api/` | `#rbac` `#api` `#sesion` `#ui` | Auditoría integral oct-2026 — RED-02, RED-30, RED-73 y RED-71 (Ola R «Red de seguridad», PR R-05) | 04/10/2026 | 🟢 **Hecho** | No requiere |
+| 123 | Caracterizar lo que la Ola 1 va a reescribir, y que Becas y SIIS fallen cerrados | Becas · comandos SIIS/RENAPER · revisión de casos · alcance RBAC de Becas · configuración de entorno | `#siis` `#rbac` `#infra` `#datos` | Auditoría integral oct-2026 — RED-32, RED-54, RED-47, RED-56, RED-61, RED-69 y RED-87 (Ola R, red de seguridad, PR R-06) | 04/10/2026 | 🟢 **Hecho** | No requiere |
 | 124 | Cupo y lista de espera: la guarda del cupo 0, el contrato de los candados y la posición | Becas · cupo y lista de espera · Portal (link público) · API de campo | `#cupos` `#api` `#mobile` `#datos` | Auditoría integral oct-2026 — RED-27, RED-67 y RED-68 (Ola R, red de seguridad, PR R-09) | 04/10/2026 | 🟢 **Hecho** | No requiere |
 | 125 | El CI ve la forma del SQL que le llega al motor de producción | Transversal · dashboards · link público · Dispositivos (reportes) | `#performance` `#infra` `#datos` `#relevamientos` | Auditoría integral oct-2026 — RED-07, RED-08 y RED-09 (Ola R, red de seguridad, PR R-10) | 04/10/2026 | 🟢 **Hecho** | No requiere |
 
@@ -15605,6 +15607,220 @@ No aplica: entrada nueva.
 
 ---
 
+# Cambio 121 — Los gates del CI bloquean de verdad: protección de rama, Ruff de errores y actions pineadas
+
+🟡 **PARCIAL — 04/10/2026** (el repositorio quedó listo; los dos rulesets los aplica el dueño del repo)
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · CI de GitHub Actions · repositorio |
+| **Etiquetas** | `#infra` `#metodo` `#gestion` |
+| **Solicitante** | Auditoría integral oct-2026 — fichas RED-20, RED-63 y RED-85 (Ola R, red de seguridad, PR R-03) |
+| **Fecha del pedido** | 04/10/2026 |
+| **Issue / épica** | Sin issue · PR #554 (plan de la auditoría: `docs/internal/auditoria-2026-10/`) |
+| **Partes afectadas** | Infra (CI y repositorio de GitHub). Cero código de producción |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> «Protección de rama y gates baratos (**lo aplica el dueño del repo**): RED-20 (rulesets, filtros
+> `paths` dentro del job), RED-63 (`ruff --select F` obligatorio, excepciones con vencimiento),
+> RED-85 (actions por SHA).» (README de la auditoría, Ola R, PR R-03.)
+
+El punto de partida medido por la auditoría: `CLAUDE.md` §«Gates de CI» decía «Bloquean el merge» y
+no era cierto. `gh api repos/Mkdir-arg/Chaco-Back/rulesets` devolvía `[]` y
+`branches/development/protection` devolvía 404 —verificado de nuevo el 04/10/2026, antes de empezar—,
+así que un PR en rojo se mergeaba con el botón normal y **23 commits de código entraron en 90 días
+sin pasar por ningún PR**. Encima dos de los workflows filtraban por `paths:` en el trigger: un check
+que no corre nunca termina, y uno que no termina no puede ser obligatorio. Sin esto, cualquier gate
+que agreguen las olas siguientes es decorativo.
+
+## Alcance acordado
+
+- **Entra:** los dos rulesets escritos como JSON versionado y el procedimiento para aplicarlos; los
+  filtros de rutas movidos adentro del job; `Ruff errores` bloqueante; las excepciones de `pip-audit`
+  con vencimiento verificado; las actions de los dos workflows con `contents: write` pineadas por SHA;
+  `CLAUDE.md` corregido para que describa lo que de verdad se exige.
+- **Queda afuera, a propósito:** aplicar los rulesets (es del dueño del repo, y un automatismo con
+  permiso para escribirlos puede borrarlos); `requirements-ci.txt` y el dependabot semanal (segunda
+  parte de RED-85, Ola 7); los jobs `Contratos del repo` (RED-24, PR R-14) y `Contratos de API`
+  (RED-42, PR R-18); que `publish-main.yml` exija CI verde (RED-21, PR R-14). Los tres se suman a la
+  lista de obligatorios del ruleset cuando existan.
+- **Cero código de producción.** El PR toca workflows, dos archivos nuevos de soporte del CI,
+  documentación y un módulo de tests.
+
+## Decisiones tomadas
+
+- **El ruleset no exige aprobaciones (`required_approving_review_count: 0`), a propósito.** Todo el
+  equipo y los agentes publican con la misma cuenta y GitHub no deja aprobar el propio PR: pedir una
+  aprobación bloquearía todos los merges. Lo dice la ficha y lo repite §0.4 del README de la
+  auditoría. La revisión independiente sigue siendo el «Aprobado @ SHA» del proceso, no el botón.
+- **El filtro de rutas va adentro del job, no en el trigger.** Es la pieza central de RED-20: un
+  workflow con `paths:` no corre cuando el PR no toca esas rutas, su check no reporta y el PR queda
+  esperando para siempre un check que no va a llegar. Con `dorny/paths-filter` adentro, el job
+  **siempre termina** —en `success`, sin hacer nada, cuando no hay nada que revisar— y recién ahí
+  puede ser obligatorio. Se descartó la alternativa de jobs gemelos `…-skipped` (RS-R6-02/17), que
+  duplica cada job.
+- **`Validate inventory and authority` entra en la lista de checks obligatorios.** Es un desvío
+  declarado respecto de la lista literal de la ficha, que enumera seis contextos: el punto 3 de la
+  misma ficha mueve el filtro de `design-agent-contract.yml` adentro del job justificándolo con «el
+  check siempre termina y **puede ser obligatorio**», y `CLAUDE.md` ya lo describía como gate que
+  bloquea. Sacarlo de la lista es editar una línea del JSON.
+- **Ruff se parte en dos jobs, no se endurece entero.** `Ruff errores` corre `--select F` —nombre
+  indefinido, import roto, variable fantasma: nunca es estilo— y bloquea; `Ruff estilo` corre
+  `E,W,I` más `ruff format --check` y sigue en `continue-on-error`, como pide la ficha. Hoy el repo
+  da 0 también en estilo: lo que falta para encenderlo es fijar la versión de Ruff
+  (`requirements-ci.txt`, RED-85 / Ola 7), porque se instala sin pin y un release con una regla E/W
+  nueva volvería rojo un PR que no cambió nada. Verificado antes de encender el de errores: `ruff check . --select F` da **0
+  hallazgos** hoy sobre el repo entero.
+- **Las excepciones de `pip-audit` salen del YAML y pasan a `security/excepciones.toml`**, con
+  `id`, `motivo`, `vence_el` y `ticket` obligatorios. El workflow las valida antes de auditar y
+  genera las banderas `--ignore-vuln` desde el archivo: así renovar una excepción es editar una fecha
+  en un PR, que es exactamente la revisión que no existía.
+- **`vence_el` tiene que ser una fecha TOML, sin comillas.** Escrita como texto parsearía como string
+  y no vencería nunca; es el agujero obvio y tiene su propia regla y su propio test.
+- **DECISIÓN CLIENTE (default aplicado):** la única excepción viva, `PYSEC-2026-3447`
+  —`setuptools==80.9.0`, CVE-2026-59890, corregido en 83.0.0— queda con `vence_el = 2027-01-02`, o
+  sea 90 días. La ficha no fijaba plazo. Se eligió esa fecha para que caiga junto con el
+  `requirements-ci.txt` de la Ola 7, que es donde se toca el pin.
+- **Bandit queda no bloqueante pero con versión fija** (`bandit[toml]==1.9.4`): la parte de RED-85
+  que dice que un release de una herramienta no puede volver rojo un PR que no cambió nada.
+- **Se pinean por SHA solo las actions de los dos workflows con `contents: write`** (`publish-main.yml`
+  y `docs-auto-deploy.yml`) y `dorny/paths-filter` en todos sus usos. Es el recorte de la Ola R: ahí
+  un tag comprometido es un camino directo a `main`, al espejo de ECOM y a la imagen de PRD. El resto
+  de los workflows se pinea en la Ola 7, junto con `requirements-ci.txt`.
+- **`pr-backend.yml` y `pr-performance.yml` corren también en `push` a `development`** (punto 4 de la
+  ficha), para que mientras no haya ruleset un push directo deje al menos un check rojo visible antes
+  del espejo a ECOM. `pr-datos.yml` ya lo hacía desde el Cambio 116.
+- **El costo de CI de eso se asume, y es el doble por merge.** Cada merge a `development` dispara otra
+  vez `Backend CI` (~7 min) y `Performance Guard` (~2 min de contrato efímero más los presupuestos),
+  encima de lo que ya corrió en el PR. Se acepta porque el único escenario que cubre —un push directo
+  sin PR— es el que `publish-main.yml` convierte en release sin que nadie lo vea, y porque la ventana
+  es corta: **apenas estén aplicados los rulesets, el push directo deja de ser posible y estos dos
+  disparadores pasan a ser defensa en profundidad.** Si el costo molesta antes de eso, lo que se saca
+  es el `push` de `pr-performance.yml` (es el más caro y el menos informativo sobre un merge), no el
+  de `pr-backend.yml`.
+
+## Implementación
+
+**Los rulesets, listos para aplicar.** `docs/internal/rulesets/ruleset-development.json` y
+`ruleset-main.json`, más la guía `docs/internal/rulesets.md` con el comando exacto, la verificación,
+cómo actualizarlos por `id`, cómo aflojarlos a `evaluate` en una emergencia y qué dice cada regla. El
+de `development` exige PR, prohíbe borrado y reescritura, no deja bypass a nadie y pide nueve checks
+en verde con la rama al día (`strict`). El de `main` prohíbe `deletion`, `non_fast_forward` y
+`update` con un único bypass: la app de GitHub Actions (`actor_id: 15368`, verificado contra
+`/apps/github-actions`), que es quien publica el release.
+
+**Los checks que siempre reportan.** `pr-quality.yml` y `design-agent-contract.yml` perdieron el
+`paths:` del trigger; el filtro quedó adentro de cada job con `dorny/paths-filter`, y los pasos
+siguientes llevan un `if:` sobre su salida. Al filtro del contrato de diseño se le sumaron
+`tailwind.config.js`, `package.json` y `package-lock.json`, que la ficha pedía. Los dos workflows
+suman el permiso `pull-requests: read`, que es lo que `paths-filter` necesita para leer los archivos
+del PR.
+
+**El gate de Ruff.** `pr-quality.yml` pasa de `Ruff Lint` / `Ruff Format` / `Bandit Security Scan` a
+`Ruff errores` (bloqueante, `--select F`), `Ruff estilo` (`E,W,I` + formato, no bloqueante) y
+`Bandit Security Scan` (no bloqueante, versión fija).
+
+**Las excepciones de seguridad.** `security/excepciones.toml` y
+`scripts/check_excepciones_seguridad.py`, con dos modos: el informe (valida y explica qué hay vigente)
+y `--ignore-args` (emite las banderas para `pip-audit`). Los dos salen con 1 si una excepción venció,
+le falta una clave o tiene `vence_el` escrito como texto. `pr-security.yml` valida primero y audita
+después, leyendo los ignores del archivo.
+
+**Las actions pineadas.** `actions/checkout@fbc6f39…` (v5.1.0) en `publish-main.yml` y
+`docs-auto-deploy.yml`, `actions/setup-python@ece7cb0…` (v6.3.0) en `docs-auto-deploy.yml` y
+`dorny/paths-filter@0e4a8c6…` (v3.0.4) en sus cuatro usos, todos con el tag en comentario al lado.
+
+**`CLAUDE.md`.** §«Gates de CI» ahora dice la verdad: enumera los checks con el nombre exacto con el
+que reportan, aclara que **hoy el merge no los exige** y remite a `docs/internal/rulesets.md`, explica
+por qué los dos filtrados corren igual en todos los PRs y qué corre además en `push`.
+
+## Archivos
+
+- `.github/workflows/pr-quality.yml` — partido en `Ruff errores` / `Ruff estilo` / Bandit, sin `paths`
+  en el trigger, con `dorny/paths-filter` adentro de los tres jobs.
+- `.github/workflows/design-agent-contract.yml` — sin `paths` en el trigger, filtro adentro del job,
+  con `tailwind.config.js` y los `package*.json`.
+- `.github/workflows/pr-security.yml` — excepciones desde el TOML.
+- `.github/workflows/pr-backend.yml`, `.github/workflows/pr-performance.yml` — `push: development`.
+- `.github/workflows/publish-main.yml`, `.github/workflows/docs-auto-deploy.yml` — actions por SHA.
+- `security/excepciones.toml` (nuevo), `scripts/check_excepciones_seguridad.py` (nuevo).
+- `docs/internal/rulesets.md` (nuevo), `docs/internal/rulesets/ruleset-development.json` y
+  `ruleset-main.json` (nuevos).
+- `core/tests/test_gates_ci.py` (nuevo, 26 tests).
+- `CLAUDE.md` — §Gates de CI.
+- `docs/internal/auditoria-2026-10/hallazgos/08-red-de-seguridad.md` — resolución de las tres fichas.
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+- **TDD.** Los 26 tests nuevos se escribieron primero. Contra los workflows sin tocar: **14 fallan**
+  —no existe el job «Ruff errores», `design-agent-contract.yml` filtra por `paths`,
+  `pr-backend`/`pr-performance` no corren en `push`, el `--ignore-vuln` está a mano en el YAML, las
+  actions van por tag—. Después del cambio: **26 OK**.
+- `manage.py check` sin issues · `makemigrations --check --dry-run` sin cambios · suite completa en
+  Python 3.12 / Django 5.2.17 sin regresiones contra el baseline de la rama.
+- **Sintaxis de los workflows:** `actionlint` (imagen `rhysd/actionlint`, que incluye shellcheck y
+  pyflakes sobre los `run:`) sobre los ocho archivos → **0 hallazgos**. Encontró uno en la primera
+  versión del paso de `pip-audit` (SC2046, `$(…)` sin comillas) y se corrigió pasando a
+  `read -r -a ignores`, probado en bash con una excepción y con cero.
+- **Comportamiento del verificador de excepciones:** los cuatro modos probados a mano —informe,
+  `--ignore-args`, una excepción vencida y `--hoy` futuro— devuelven lo esperado y salen con 1 cuando
+  corresponde.
+- `ruff check` y `ruff format --check` limpios sobre los dos archivos Python nuevos;
+  `ruff check . --select F` da 0 sobre el repo entero, que es la condición para encender el gate.
+- `scripts/requerimientos.py --check` OK.
+- No tocó UI: no corresponde `design_audit` ni `compile_templates`.
+
+## Puesta en marcha en el servidor
+
+Nada en icore ni en ECOM. Lo que queda es **del dueño del repo en GitHub**, una sola vez:
+
+```bash
+gh api repos/Mkdir-arg/Chaco-Back/rulesets -X POST --input docs/internal/rulesets/ruleset-development.json
+gh api repos/Mkdir-arg/Chaco-Back/rulesets -X POST --input docs/internal/rulesets/ruleset-main.json
+```
+
+Conviene aplicarlos **después** de mergear los PRs de la Ola R que ya están abiertos: desde el
+momento en que el ruleset existe, todo PR necesita sus nueve checks en verde y la rama al día. La
+verificación y el procedimiento completo están en `docs/internal/rulesets.md`.
+
+## Pendientes / a definir
+
+- Aplicar los dos rulesets (dueño del repo). Hasta entonces RED-20 queda parcial y «no mergear en
+  rojo» sigue siendo una regla del proceso, no un mecanismo.
+- Confirmar el plazo de `PYSEC-2026-3447`: quedó el default de 90 días (02/01/2027).
+- Sumar al ruleset los checks que todavía no existen: `Contratos del repo` (RED-24, PR R-14),
+  `Contratos de API` (RED-42, PR R-18) y, cuando esté el pin de Ruff, `Ruff estilo`.
+- Segunda parte de RED-85 (Ola 7): `requirements-ci.txt` con versiones fijas en todos los workflows
+  y dependabot semanal sobre ese archivo.
+- **`Pip Audit` queda obligatorio con `pip-audit` instalado sin versión, y su base de advisories
+  cambia sola.** Es el riesgo conocido de hacerlo bloqueante antes de la Ola 7: un advisory nuevo
+  sobre cualquier dependencia de `requirements.txt` —o un release de `pip-audit` que estreche una
+  regla— pone en rojo todos los PRs abiertos, incluidos los que no tocaron nada. **Receta de salida,
+  escrita para que no haya que improvisarla:** agregar la advisory a `security/excepciones.toml` con
+  su `motivo`, un `vence_el` corto y el ticket, en un PR de una línea; eso devuelve el verde y deja
+  la deuda con fecha, que es el punto de RED-63. El arreglo de fondo es el mismo de arriba
+  (`requirements-ci.txt` con `pip-audit` pineado, Ola 7).
+
+## Reversión
+
+Revertir el commit devuelve los workflows a su forma anterior y saca los archivos nuevos. No hay
+datos ni esquema que revertir. Si para entonces los rulesets ya están aplicados, hay que sacarlos
+antes o corregirlos: `Ruff errores` dejaría de existir y todo PR quedaría esperando un check que no
+llega (`gh api repos/Mkdir-arg/Chaco-Back/rulesets/$ID -X PUT -f enforcement=evaluate` lo desactiva
+sin borrarlo).
+
+## Historial
+
+No aplica: entrada nueva.
+
+---
+
 # Cambio 122 — El URLconf se recorre entero: ninguna ruta queda abierta al anónimo y ninguna pantalla revienta
 
 🟢 **HECHO — 04/10/2026**
@@ -15821,6 +16037,156 @@ de revertir es volver a no tener ninguna afirmación ejecutable sobre el conjunt
   venda, encontró un bug real del molde RED-73 en `EntregaMercaderiaCreateView`, que se arregló acá. Además se
   vació `EXCEPCIONES_HUMO` (R-04 ya mergeado), se corrigió el conteo de patrones descartados —32, no 4— y se
   registró el hallazgo del usuario sin rol como pendiente.
+
+---
+
+# Cambio 123 — Caracterizar lo que la Ola 1 va a reescribir, y que Becas y SIIS fallen cerrados
+
+🟢 **HECHO — 04/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · comandos SIIS/RENAPER · revisión de casos · alcance RBAC de Becas · configuración de entorno |
+| **Etiquetas** | `#siis` `#rbac` `#infra` `#datos` |
+| **Solicitante** | Auditoría integral oct-2026 — fichas RED-32, RED-54, RED-47, RED-56, RED-61, RED-69 y RED-87 (Ola R, red de seguridad, PR R-06) |
+| **Fecha del pedido** | 04/10/2026 |
+| **Issue / épica** | Sin issue (plan de la auditoría: `docs/internal/auditoria-2026-10/`) |
+| **Partes afectadas** | Servidor/API · Backoffice (proceso masivo) · Comandos de operación · CI |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> «Caracterización antes de la Ola 1: RED-32 (comandos SIIS/RENAPER sin red), RED-54 (contexto del
+> detalle de revisión), RED-47 (`normalizar_dni`), RED-56 (guards fallan cerrados), RED-61
+> (`SIIS_API_URL`), RED-69 y RED-87 (bordes del payload SIIS).»
+> (README de la auditoría, Ola R, PR R-06.)
+
+La Ola 1 abre `siis_envio.py`, `proceso_masivo.py`, los seis comandos SIIS y `revision.py`. Tres de
+esos comandos estaban en **0 % de cobertura** y el detalle de revisión —155 líneas, ~36 claves de
+contexto, un template de 1.079— no tenía ningún test que fijara qué le pasa a la pantalla. Mientras
+se relevaba eso aparecieron cuatro cosas que no son falta de test sino conducta equivocada, todas
+chicas: tres copias de `normalizar_dni`, el alcance de Becas abriéndose solo cuando falta una fila, y
+una variable de entorno con un default que manda las altas al ambiente de desarrollo.
+
+## Alcance acordado
+
+- **Tests de caracterización y de borde** (la mayor parte del PR): los tres comandos, el contexto del
+  detalle, el payload de SIIS.
+- **Cuatro cambios de código chicos**, todos listados en el «Riesgo» de la Ola R: `normalizar_dni`
+  con `Decimal`, `_programa_o_denegar` en los guards de Becas, `SIIS_API_URL` sin default más un
+  system check propio, y el host de SIIS a la vista en la pantalla del proceso masivo.
+- **Afuera:** reescribir los comandos (es la Ola 1, PR 7), extraer el contexto del detalle a
+  selectores (Ola 7) y unificar las seis definiciones de «DNI válido» (RED-48, Ola 3).
+
+## Decisiones tomadas
+
+- **`normalizar_dni` es la única puerta.** Las tres copias (`completar_casos_renaper._solo_digitos`,
+  `corregir_datos_siis._digitos`, `siis_envio._digitos`) pasan a ser alias de la canónica, que ahora
+  acepta `Decimal` además de `float`. El cast va al **entero**, no a texto: `str(Decimal("30123456.0"))`
+  es `"30123456.0"` y deja `"301234560"`, un DNI que no cruza con nada. El driver de MySQL devuelve
+  `Decimal` cuando la columna es `DECIMAL`, que es el caso de `ciudadanos_renaper` —la crea un script
+  externo— así que el síntoma real era `corregir_datos_siis` informando «0 corregidos» sin error.
+  Un `NaN` o un decimal con parte fraccionaria siguen yendo por texto en vez de reventar.
+- **Los guards de Becas fallan cerrados** (`_programa_o_denegar`). Si `programa_becas()` devuelve
+  `None` —fila `BECAS` ausente o renombrada por un restore, un `crear_programas` que la recrea con
+  otro pk, un pod que arranca antes del bootstrap, o la clave `programas:becas` envenenada en el
+  Redis compartido con TTL 300— el RBAC caía al chequeo **global** y cualquier rol de cualquier
+  programa con una capacidad `becas.*` tildada entraba a Becas durante 300 s, se curaba solo y no
+  dejaba rastro. Ahora levanta `PermissionDenied` (403) en las seis puertas de `autorizacion.py`,
+  igual que Dispositivos (`dispositivos.py:56, 63, 77`), y **también para un superusuario**: la
+  guarda está antes del bypass del RBAC, como en Dispositivos.
+- **`SIIS_API_URL` pierde su default.** Apuntaba a `https://siisapi.ecomdev.ar`, el SIIS de
+  desarrollo, que responde 200: si en producción la variable falta o cambia de nombre, el alta se da
+  por informada y el organismo nunca la recibe, en una integración **sin baja**. Ahora vacía por
+  defecto, y un system check propio (`core/checks.py`, `deploy=True`) la exige con `DEBUG=False`.
+- **El disparador de producción es `DATANACH_ES_PRODUCCION=1`, no `settings.ENVIRONMENT`.** QA —el
+  testing de ECOM, que usa el SIIS de desarrollo legítimamente— e icore también valen `prd`
+  (OPS-12). Es una variable explícita que ECOM setea únicamente en PRD. El mismo criterio reemplaza
+  al `ENVIRONMENT == "prd"` que ya tenía `diagnosticar_siis`, que daba un falso aviso en QA.
+- **El check no frena el arranque.** Con `deploy=True` corre con `manage.py check --deploy`: nuestro
+  CI, y la etapa `verify` del pipeline de ECOM cuando exista (RED-22). Sin `DATANACH_ES_PRODUCCION`
+  el chequeo de host nunca dispara en PRD, y sin `SIIS_API_URL` lo que queda rojo es el CI, no el
+  deploy. Frenar el arranque exigiría llamarlo desde el entrypoint; queda para R-15.
+- **El destino de las altas se ve en la pantalla.** El proceso masivo informa a qué host de SIIS va a
+  escribir antes de lanzar miles de altas irreversibles, y lo dice explícitamente si la variable está
+  vacía. `diagnosticar_siis` ya lo mostraba.
+- **La caracterización de `sincronizar_programas_siis` contradice a su ficha, y gana el código.** La
+  ficha pedía `test_catalogo_vacio_no_pisa_nada`; el comando hace lo contrario **a propósito**:
+  `listar_programas_todos` pide `estado=TODOS` justamente porque una baja se ve como una ausencia,
+  así que un programa que no está en la respuesta pasa a `DESCONOCIDO` y queda bloqueado. El test se
+  llama `test_catalogo_vacio_marca_todo_desconocido` y deja el costo a la vista: un catálogo vacío
+  por un error del servicio bloquea todos los programas. Si eso se quiere cambiar, es una decisión
+  de la Ola 1, no un descuido.
+- **El contexto del detalle se compara por igualdad en los dos sentidos.** `ContextoDetalleTests`
+  declara las 36 claves de la vista y las 17 del entorno (builtins y context processors) por
+  separado: si alguien saca una clave el test lo dice, y si agrega una tiene que anotarla. Una clave
+  que deja de ponerse se renderiza como cadena vacía y la sección desaparece de la pantalla sin 500
+  y sin ningún test en rojo — y las Olas 1, 2, 3 y 5 tocan esa vista.
+- **El presupuesto de consultas del detalle queda en 15**, medido hoy. Es un ratchet: solo baja.
+- **`information_schema` se emula en SQLite en vez de saltear el test.** `completar_casos_renaper`
+  pregunta por el volcado de RENAPER con el catálogo de MySQL, y cortar con un mensaje útil en vez de
+  reventar a mitad es justo lo que hay que fijar. La alternativa del repo (`skipTest` si el motor no
+  es MySQL, como en `test_becas_models`) dejaría al CI sin la red, porque el CI corre SQLite. El test
+  adjunta una base en memoria llamada `information_schema` y registra la función `DATABASE()`: el SQL
+  del comando corre tal cual, sin tocarlo.
+
+## Qué se hizo
+
+| Ficha | Qué cambió |
+|---|---|
+| RED-32 | `programas/tests/test_comandos_siis_caracterizacion.py` (nuevo, 23 tests): los tres comandos, siempre con el cliente HTTP mockeado |
+| RED-54 | `ContextoDetalleTests` y `ConsultasDetalleTests` en `test_becas_revision.py` |
+| RED-47 | `padron.normalizar_dni` acepta `Decimal`; las tres copias pasan a alias; `NormalizarDniTests` en `test_padron.py` |
+| RED-56 | `_programa_o_denegar` en `autorizacion.py` (seis puertas); `GuardsFallanCerradoTests` en `test_becas_rbac.py` |
+| RED-61 | `SIIS_API_URL` sin default; `core/checks.py` nuevo; `.env.*.example`; host visible en el proceso masivo; `core/tests/test_checks_entorno.py` |
+| RED-69 | Las tres ramas de `if nacimiento and nacimiento <= hoy`, más el envío que no se intenta |
+| RED-87 | El borde exacto del barrio (4), del DNI (10) y del recorte a 50 caracteres |
+
+Cinco tests existentes que no sembraban el Programa BECAS pasaron a sembrarlo: `test_presentacion_selector`,
+`test_nodo_tables_css`, `test_nodo_ui_piezas`, `test_correcciones_review` y `test_correcciones_review_2`.
+Daban 403 con los guards cerrados, que es exactamente la conducta nueva.
+
+## Pendientes
+
+- **Confirmar con ECOM (H-09)** que PRD define `SIIS_API_URL` con el host productivo, y pedirles
+  `DATANACH_ES_PRODUCCION=1` en PRD (solo ahí). Sin esa variable el chequeo de host nunca dispara.
+- **Antes de espejar a ECOM hay que verificar que `SIIS_API_URL` esté definida en testing y en PRD.**
+  Es el único punto con filo de este cambio y conviene no leerlo de apuro: la protección que agrega
+  RED-61 es **solo de CI**. El check tiene `deploy=True`, así que corre con `manage.py check
+  --deploy` —el job `Django check` del PR— y **ningún entrypoint lo corre**: ni `scripts/startup.sh`
+  (que usa `check --database default`) ni el de producción. Dicho de otro modo: si en testing o en
+  PRD la variable no está, el contenedor **arranca igual** y SIIS falla ruidosamente —sin host no hay
+  a dónde ir— en vez de mandar las altas al ambiente de desarrollo en silencio, que es lo que hacía
+  antes. Eso es exactamente lo que se buscaba, pero el momento en que se descubre es la primera alta,
+  no el deploy. `docker-compose.yml:76` conserva `${SIIS_API_URL:-https://siisapi.ecomdev.ar}`:
+  ese default es **solo para el compose de desarrollo** y no aplica al despliegue de ECOM. Frenar el
+  arranque exigiría llamar al check desde el entrypoint, y eso queda para R-15.
+- La Ola 1 (PR 7) suma el resto de los tests de `validar_casos_siis` que pide RED-32 y la base común
+  de los comandos (RED-53).
+- La Ola 7 extrae `contexto_identidad`, `contexto_siis` y `contexto_respuestas` a
+  `programas/selectors/revision.py` (RED-54, segunda mitad).
+
+## Qué no se hizo
+
+- No se tocó `programas/api/serializers.py:168`, la quinta copia inline de la normalización: recibe
+  un string de DRF, nunca un `float` ni un `Decimal`. Unificarla es parte de RED-48 (Ola 3), que
+  además tiene que resolver las tres reglas de largo distintas.
+- No se tocó el default de `docker-compose.yml` (`${SIIS_API_URL:-https://siisapi.ecomdev.ar}`): ahí
+  el default es correcto y mantiene andando el entorno de desarrollo.
+- No se agregó `puede_operar_subsegmento` a las puertas de `_programa_o_denegar`: delega en
+  `puede_gestionar_segmento`, que ya la tiene, y la ficha nombra seis.
+
+## Reversibilidad
+
+Revertir el commit devuelve las tres copias de `normalizar_dni`, el default de `SIIS_API_URL` y el
+alcance de Becas abierto cuando falta la fila `BECAS`. Los tests nuevos se van con él. No hay
+migración ni dato que recuperar. El único efecto operativo del cambio es que
+`manage.py check --deploy` exige `SIIS_API_URL` en el entorno: el CI ya la define con un host
+ficticio.
+
+## Historial
+
+No aplica: entrada nueva.
 
 ---
 

@@ -1,0 +1,18 @@
+# Excepciones vigentes del gate «Pip Audit» (RED-63).
+#
+# Cada entrada necesita las cuatro claves y las verifica
+# `scripts/check_excepciones_seguridad.py`, que corre en `pr-security.yml` antes de
+# auditar. `vence_el` va como fecha TOML (sin comillas): pasada esa fecha el job se
+# pone rojo y hay que renovar la excepción en un PR o resolver la vulnerabilidad.
+# No existe la excepción sin vencimiento.
+#
+#   id        identificador de la advisory tal como lo nombra pip-audit
+#   motivo    por qué se convive con ella hoy, en una frase
+#   vence_el  fecha en la que vuelve a bloquear
+#   ticket    dónde se sigue (ficha de la auditoría o issue)
+
+[[pip_audit]]
+id = "PYSEC-2026-3447"
+motivo = "setuptools 80.9.0 (CVE-2026-59890, corregido en 83.0.0): está pineado en requirements.txt y subirlo arrastra la cadena de build; se revisa junto con requirements-ci.txt."
+vence_el = 2027-01-02
+ticket = "RED-85 (requirements-ci.txt, Ola 7)"

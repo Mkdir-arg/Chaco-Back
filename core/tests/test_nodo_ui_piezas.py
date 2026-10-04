@@ -1,7 +1,10 @@
 """Piezas reutilizables del backoffice: paginación, tarjeta de número, estado vacío,
 alerta inline y el filtro ``hay_filtros`` (W2-C9b, CMP-11/22/23, ALR-14/15)."""
 
+from io import StringIO
+
 from django.contrib.auth.models import AnonymousUser, User
+from django.core.management import call_command
 from django.core.paginator import Paginator
 from django.http import QueryDict
 from django.template import Context, Template
@@ -242,6 +245,9 @@ class ReporteEstadoVacioTest(TestCase):
     """Consumidor: el estado vacío del reporte distingue «sin datos» de «los filtros no traen nada»."""
 
     def setUp(self):
+        # RED-56: los guards de Becas fallan cerrados sin el Programa BECAS
+        # sembrado; el escenario lo incluye, como en producción.
+        call_command("seed_becas", stdout=StringIO())
         self.client.force_login(User.objects.create_superuser("admin-piezas", password="x"))
         self.url = reverse("becas:reporte_detalle", args=["avance"])
 

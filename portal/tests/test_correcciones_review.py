@@ -2,13 +2,14 @@
 (Fase 5, Historial del Cambio 40). Cada test reproduce el bug que se corrigió."""
 
 from datetime import date, timedelta
-from io import BytesIO
+from io import BytesIO, StringIO
 from unittest.mock import patch
 from uuid import uuid4
 
 from django.contrib.auth.models import User
 from django.core.exceptions import PermissionDenied
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.core.management import call_command
 from django.test import RequestFactory, TestCase
 from django.utils import timezone
 
@@ -39,6 +40,9 @@ def _xlsx(filas):
 
 class ReporteProduccionConPublicosTests(TestCase):
     def test_un_publico_no_rompe_el_reporte_ni_aparece(self):
+        # RED-56: los guards de Becas fallan cerrados sin el Programa BECAS
+        # sembrado; el escenario lo incluye, como en producción.
+        call_command("seed_becas", stdout=StringIO())
         admin = User.objects.create_superuser("root", "r@r.com", "x")
         seg = Segmento.objects.create(nombre="Seg", cupo_maximo=10)
         conv = Convocatoria.objects.create(
