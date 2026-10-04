@@ -299,6 +299,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 116 | Los volcados de personas salen del repo y de la imagen | Transversal · alta en SIIS · repositorio, release e imagen | `#datos` `#infra` `#siis` | Auditoría integral oct-2026 — RED-01, decisión D-RED-01 (Ola R, PR R-01) | 04/10/2026 | 🟡 **Parcial** (la purga del historial y el repo privado los hace el PM) | No requiere |
 | 117 | El rollback de producción tiene un procedimiento escrito, y las migraciones que no se pueden revertir avisan antes de romper nada | Transversal · operación y deploy · migraciones | `#infra` `#datos` | Auditoría integral oct-2026 — RED-60 y RED-15 (Ola R «Red de seguridad», PR R-02) | 04/10/2026 | 🟢 **Hecho** | No requiere |
 | 120 | Los tests recorren el enum de estados entero, no solo el camino feliz | Becas · relevamientos (vencimientos, API de campo) · Portal (link público) | `#relevamientos` `#api` `#mobile` `#cupos` | Auditoría integral oct-2026 — RED-28, RED-29 y RED-66 (Ola R, red de seguridad, PR R-08) | 04/10/2026 | 🟢 **Hecho** | No requiere |
+| 121 | Los gates del CI bloquean de verdad: protección de rama, Ruff de errores y actions pineadas | Transversal · CI de GitHub Actions · repositorio | `#infra` `#metodo` `#gestion` | Auditoría integral oct-2026 — RED-20, RED-63 y RED-85 (Ola R, red de seguridad, PR R-03) | 04/10/2026 | 🟡 **Parcial** (los dos rulesets los aplica el dueño del repo) | No requiere |
 
 **Notas del índice**
 
@@ -15283,6 +15284,200 @@ No requiere. Son tests y una constante; no cambia ninguna conducta en ejecución
 
 Revertir el commit saca los diez tests y la constante. No hay datos ni conducta que revertir: el
 sistema queda exactamente como está hoy, pero las tres mutaciones vuelven a sobrevivir.
+
+## Historial
+
+No aplica: entrada nueva.
+
+# Cambio 121 — Los gates del CI bloquean de verdad: protección de rama, Ruff de errores y actions pineadas
+
+🟡 **PARCIAL — 04/10/2026** (el repositorio quedó listo; los dos rulesets los aplica el dueño del repo)
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · CI de GitHub Actions · repositorio |
+| **Etiquetas** | `#infra` `#metodo` `#gestion` |
+| **Solicitante** | Auditoría integral oct-2026 — fichas RED-20, RED-63 y RED-85 (Ola R, red de seguridad, PR R-03) |
+| **Fecha del pedido** | 04/10/2026 |
+| **Issue / épica** | Sin issue (plan de la auditoría: `docs/internal/auditoria-2026-10/`) |
+| **Partes afectadas** | Infra (CI y repositorio de GitHub). Cero código de producción |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> «Protección de rama y gates baratos (**lo aplica el dueño del repo**): RED-20 (rulesets, filtros
+> `paths` dentro del job), RED-63 (`ruff --select F` obligatorio, excepciones con vencimiento),
+> RED-85 (actions por SHA).» (README de la auditoría, Ola R, PR R-03.)
+
+El punto de partida medido por la auditoría: `CLAUDE.md` §«Gates de CI» decía «Bloquean el merge» y
+no era cierto. `gh api repos/Mkdir-arg/Chaco-Back/rulesets` devolvía `[]` y
+`branches/development/protection` devolvía 404 —verificado de nuevo el 04/10/2026, antes de empezar—,
+así que un PR en rojo se mergeaba con el botón normal y **23 commits de código entraron en 90 días
+sin pasar por ningún PR**. Encima dos de los workflows filtraban por `paths:` en el trigger: un check
+que no corre nunca termina, y uno que no termina no puede ser obligatorio. Sin esto, cualquier gate
+que agreguen las olas siguientes es decorativo.
+
+## Alcance acordado
+
+- **Entra:** los dos rulesets escritos como JSON versionado y el procedimiento para aplicarlos; los
+  filtros de rutas movidos adentro del job; `Ruff errores` bloqueante; las excepciones de `pip-audit`
+  con vencimiento verificado; las actions de los dos workflows con `contents: write` pineadas por SHA;
+  `CLAUDE.md` corregido para que describa lo que de verdad se exige.
+- **Queda afuera, a propósito:** aplicar los rulesets (es del dueño del repo, y un automatismo con
+  permiso para escribirlos puede borrarlos); `requirements-ci.txt` y el dependabot semanal (segunda
+  parte de RED-85, Ola 7); los jobs `Contratos del repo` (RED-24, PR R-14) y `Contratos de API`
+  (RED-42, PR R-18); que `publish-main.yml` exija CI verde (RED-21, PR R-14). Los tres se suman a la
+  lista de obligatorios del ruleset cuando existan.
+- **Cero código de producción.** El PR toca workflows, dos archivos nuevos de soporte del CI,
+  documentación y un módulo de tests.
+
+## Decisiones tomadas
+
+- **El ruleset no exige aprobaciones (`required_approving_review_count: 0`), a propósito.** Todo el
+  equipo y los agentes publican con la misma cuenta y GitHub no deja aprobar el propio PR: pedir una
+  aprobación bloquearía todos los merges. Lo dice la ficha y lo repite §0.4 del README de la
+  auditoría. La revisión independiente sigue siendo el «Aprobado @ SHA» del proceso, no el botón.
+- **El filtro de rutas va adentro del job, no en el trigger.** Es la pieza central de RED-20: un
+  workflow con `paths:` no corre cuando el PR no toca esas rutas, su check no reporta y el PR queda
+  esperando para siempre un check que no va a llegar. Con `dorny/paths-filter` adentro, el job
+  **siempre termina** —en `success`, sin hacer nada, cuando no hay nada que revisar— y recién ahí
+  puede ser obligatorio. Se descartó la alternativa de jobs gemelos `…-skipped` (RS-R6-02/17), que
+  duplica cada job.
+- **`Validate inventory and authority` entra en la lista de checks obligatorios.** Es un desvío
+  declarado respecto de la lista literal de la ficha, que enumera seis contextos: el punto 3 de la
+  misma ficha mueve el filtro de `design-agent-contract.yml` adentro del job justificándolo con «el
+  check siempre termina y **puede ser obligatorio**», y `CLAUDE.md` ya lo describía como gate que
+  bloquea. Sacarlo de la lista es editar una línea del JSON.
+- **Ruff se parte en dos jobs, no se endurece entero.** `Ruff errores` corre `--select F` —nombre
+  indefinido, import roto, variable fantasma: nunca es estilo— y bloquea; `Ruff estilo` corre
+  `E,W,I` más `ruff format --check` y sigue en `continue-on-error` hasta limpiar la deuda de archivos
+  ajenos. Verificado antes de encenderlo, como pide la ficha: `ruff check . --select F` da **0
+  hallazgos** hoy sobre el repo entero.
+- **Las excepciones de `pip-audit` salen del YAML y pasan a `security/excepciones.toml`**, con
+  `id`, `motivo`, `vence_el` y `ticket` obligatorios. El workflow las valida antes de auditar y
+  genera las banderas `--ignore-vuln` desde el archivo: así renovar una excepción es editar una fecha
+  en un PR, que es exactamente la revisión que no existía.
+- **`vence_el` tiene que ser una fecha TOML, sin comillas.** Escrita como texto parsearía como string
+  y no vencería nunca; es el agujero obvio y tiene su propia regla y su propio test.
+- **DECISIÓN CLIENTE (default aplicado):** la única excepción viva, `PYSEC-2026-3447`
+  —`setuptools==80.9.0`, CVE-2026-59890, corregido en 83.0.0— queda con `vence_el = 2027-01-02`, o
+  sea 90 días. La ficha no fijaba plazo. Se eligió esa fecha para que caiga junto con el
+  `requirements-ci.txt` de la Ola 7, que es donde se toca el pin.
+- **Bandit queda no bloqueante pero con versión fija** (`bandit[toml]==1.9.4`): la parte de RED-85
+  que dice que un release de una herramienta no puede volver rojo un PR que no cambió nada.
+- **Se pinean por SHA solo las actions de los dos workflows con `contents: write`** (`publish-main.yml`
+  y `docs-auto-deploy.yml`) y `dorny/paths-filter` en todos sus usos. Es el recorte de la Ola R: ahí
+  un tag comprometido es un camino directo a `main`, al espejo de ECOM y a la imagen de PRD. El resto
+  de los workflows se pinea en la Ola 7, junto con `requirements-ci.txt`.
+- **`pr-backend.yml` y `pr-performance.yml` corren también en `push` a `development`** (punto 4 de la
+  ficha), para que mientras no haya ruleset un push directo deje al menos un check rojo visible antes
+  del espejo a ECOM. `pr-datos.yml` ya lo hacía desde el Cambio 116.
+
+## Implementación
+
+**Los rulesets, listos para aplicar.** `docs/internal/rulesets/ruleset-development.json` y
+`ruleset-main.json`, más la guía `docs/internal/rulesets.md` con el comando exacto, la verificación,
+cómo actualizarlos por `id`, cómo aflojarlos a `evaluate` en una emergencia y qué dice cada regla. El
+de `development` exige PR, prohíbe borrado y reescritura, no deja bypass a nadie y pide nueve checks
+en verde con la rama al día (`strict`). El de `main` prohíbe `deletion`, `non_fast_forward` y
+`update` con un único bypass: la app de GitHub Actions (`actor_id: 15368`, verificado contra
+`/apps/github-actions`), que es quien publica el release.
+
+**Los checks que siempre reportan.** `pr-quality.yml` y `design-agent-contract.yml` perdieron el
+`paths:` del trigger; el filtro quedó adentro de cada job con `dorny/paths-filter`, y los pasos
+siguientes llevan un `if:` sobre su salida. Al filtro del contrato de diseño se le sumaron
+`tailwind.config.js`, `package.json` y `package-lock.json`, que la ficha pedía. Los dos workflows
+suman el permiso `pull-requests: read`, que es lo que `paths-filter` necesita para leer los archivos
+del PR.
+
+**El gate de Ruff.** `pr-quality.yml` pasa de `Ruff Lint` / `Ruff Format` / `Bandit Security Scan` a
+`Ruff errores` (bloqueante, `--select F`), `Ruff estilo` (`E,W,I` + formato, no bloqueante) y
+`Bandit Security Scan` (no bloqueante, versión fija).
+
+**Las excepciones de seguridad.** `security/excepciones.toml` y
+`scripts/check_excepciones_seguridad.py`, con dos modos: el informe (valida y explica qué hay vigente)
+y `--ignore-args` (emite las banderas para `pip-audit`). Los dos salen con 1 si una excepción venció,
+le falta una clave o tiene `vence_el` escrito como texto. `pr-security.yml` valida primero y audita
+después, leyendo los ignores del archivo.
+
+**Las actions pineadas.** `actions/checkout@fbc6f39…` (v5.1.0) en `publish-main.yml` y
+`docs-auto-deploy.yml`, `actions/setup-python@ece7cb0…` (v6.3.0) en `docs-auto-deploy.yml` y
+`dorny/paths-filter@0e4a8c6…` (v3.0.4) en sus cuatro usos, todos con el tag en comentario al lado.
+
+**`CLAUDE.md`.** §«Gates de CI» ahora dice la verdad: enumera los checks con el nombre exacto con el
+que reportan, aclara que **hoy el merge no los exige** y remite a `docs/internal/rulesets.md`, explica
+por qué los dos filtrados corren igual en todos los PRs y qué corre además en `push`.
+
+## Archivos
+
+- `.github/workflows/pr-quality.yml` — partido en `Ruff errores` / `Ruff estilo` / Bandit, sin `paths`
+  en el trigger, con `dorny/paths-filter` adentro de los tres jobs.
+- `.github/workflows/design-agent-contract.yml` — sin `paths` en el trigger, filtro adentro del job,
+  con `tailwind.config.js` y los `package*.json`.
+- `.github/workflows/pr-security.yml` — excepciones desde el TOML.
+- `.github/workflows/pr-backend.yml`, `.github/workflows/pr-performance.yml` — `push: development`.
+- `.github/workflows/publish-main.yml`, `.github/workflows/docs-auto-deploy.yml` — actions por SHA.
+- `security/excepciones.toml` (nuevo), `scripts/check_excepciones_seguridad.py` (nuevo).
+- `docs/internal/rulesets.md` (nuevo), `docs/internal/rulesets/ruleset-development.json` y
+  `ruleset-main.json` (nuevos).
+- `core/tests/test_gates_ci.py` (nuevo, 26 tests).
+- `CLAUDE.md` — §Gates de CI.
+- `docs/internal/auditoria-2026-10/hallazgos/08-red-de-seguridad.md` — resolución de las tres fichas.
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+- **TDD.** Los 26 tests nuevos se escribieron primero. Contra los workflows sin tocar: **14 fallan**
+  —no existe el job «Ruff errores», `design-agent-contract.yml` filtra por `paths`,
+  `pr-backend`/`pr-performance` no corren en `push`, el `--ignore-vuln` está a mano en el YAML, las
+  actions van por tag—. Después del cambio: **26 OK**.
+- `manage.py check` sin issues · `makemigrations --check --dry-run` sin cambios · suite completa en
+  Python 3.12 / Django 5.2.17 sin regresiones contra el baseline de la rama.
+- **Sintaxis de los workflows:** `actionlint` (imagen `rhysd/actionlint`, que incluye shellcheck y
+  pyflakes sobre los `run:`) sobre los ocho archivos → **0 hallazgos**. Encontró uno en la primera
+  versión del paso de `pip-audit` (SC2046, `$(…)` sin comillas) y se corrigió pasando a
+  `read -r -a ignores`, probado en bash con una excepción y con cero.
+- **Comportamiento del verificador de excepciones:** los cuatro modos probados a mano —informe,
+  `--ignore-args`, una excepción vencida y `--hoy` futuro— devuelven lo esperado y salen con 1 cuando
+  corresponde.
+- `ruff check` y `ruff format --check` limpios sobre los dos archivos Python nuevos;
+  `ruff check . --select F` da 0 sobre el repo entero, que es la condición para encender el gate.
+- `scripts/requerimientos.py --check` OK.
+- No tocó UI: no corresponde `design_audit` ni `compile_templates`.
+
+## Puesta en marcha en el servidor
+
+Nada en icore ni en ECOM. Lo que queda es **del dueño del repo en GitHub**, una sola vez:
+
+```bash
+gh api repos/Mkdir-arg/Chaco-Back/rulesets -X POST --input docs/internal/rulesets/ruleset-development.json
+gh api repos/Mkdir-arg/Chaco-Back/rulesets -X POST --input docs/internal/rulesets/ruleset-main.json
+```
+
+Conviene aplicarlos **después** de mergear los PRs de la Ola R que ya están abiertos: desde el
+momento en que el ruleset existe, todo PR necesita sus nueve checks en verde y la rama al día. La
+verificación y el procedimiento completo están en `docs/internal/rulesets.md`.
+
+## Pendientes / a definir
+
+- Aplicar los dos rulesets (dueño del repo). Hasta entonces RED-20 queda parcial y «no mergear en
+  rojo» sigue siendo una regla del proceso, no un mecanismo.
+- Confirmar el plazo de `PYSEC-2026-3447`: quedó el default de 90 días (02/01/2027).
+- Sumar al ruleset los checks que todavía no existen: `Contratos del repo` (RED-24, PR R-14),
+  `Contratos de API` (RED-42, PR R-18) y, cuando la deuda llegue a 0, `Ruff estilo`.
+- Segunda parte de RED-85 (Ola 7): `requirements-ci.txt` con versiones fijas en todos los workflows
+  y dependabot semanal sobre ese archivo.
+
+## Reversión
+
+Revertir el commit devuelve los workflows a su forma anterior y saca los archivos nuevos. No hay
+datos ni esquema que revertir. Si para entonces los rulesets ya están aplicados, hay que sacarlos
+antes o corregirlos: `Ruff errores` dejaría de existir y todo PR quedaría esperando un check que no
+llega (`gh api repos/Mkdir-arg/Chaco-Back/rulesets/$ID -X PUT -f enforcement=evaluate` lo desactiva
+sin borrarlo).
 
 ## Historial
 

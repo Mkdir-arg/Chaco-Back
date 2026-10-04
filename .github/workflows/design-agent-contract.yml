@@ -1,24 +1,16 @@
 name: Design Agent Contract
 
+# Sin `paths:` en el trigger (RED-20): el check tiene que reportar en todo PR a
+# `development` para poder ser obligatorio. El filtro está adentro del job y, cuando el
+# PR no toca nada de UI ni del contrato, el job termina en `success` sin hacer nada.
 on:
   pull_request:
     branches:
       - development
-    paths:
-      - ".claude/agents/**"
-      - ".claude/settings.json"
-      - "AGENTS.md"
-      - "CLAUDE.md"
-      - "docs/design-kb/**"
-      - "scripts/check_design_agent.py"
-      - "scripts/test_check_design_agent.py"
-      - ".github/workflows/design-agent-contract.yml"
-      - "**/templates/**/*.html"
-      - "static/custom/css/**/*.css"
-      - "static/custom/js/**/*.js"
 
 permissions:
   contents: read
+  pull-requests: read
 
 jobs:
   contract:
@@ -31,12 +23,35 @@ jobs:
         with:
           fetch-depth: 0
 
+      - uses: dorny/paths-filter@0e4a8c6effa4802afeda77dc8d303f8176d7dfad # v3.0.4
+        id: filtro
+        with:
+          filters: |
+            diseno:
+              - '.claude/agents/**'
+              - '.claude/settings.json'
+              - 'AGENTS.md'
+              - 'CLAUDE.md'
+              - 'docs/design-kb/**'
+              - 'scripts/check_design_agent.py'
+              - 'scripts/test_check_design_agent.py'
+              - '.github/workflows/design-agent-contract.yml'
+              - '**/templates/**/*.html'
+              - 'static/custom/css/**/*.css'
+              - 'static/custom/js/**/*.js'
+              - 'tailwind.config.js'
+              - 'package.json'
+              - 'package-lock.json'
+
       - uses: actions/setup-python@v6
+        if: steps.filtro.outputs.diseno == 'true'
         with:
           python-version: "3.12"
 
       - name: Validate design-agent contract
+        if: steps.filtro.outputs.diseno == 'true'
         run: python scripts/check_design_agent.py --base "${{ github.event.pull_request.base.sha }}"
 
       - name: Test design-agent checker
+        if: steps.filtro.outputs.diseno == 'true'
         run: python scripts/test_check_design_agent.py

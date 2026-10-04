@@ -25,9 +25,18 @@ jobs:
       - name: Install pip-audit
         run: pip install pip-audit
 
+      # RED-63: los ignores salen de `security/excepciones.toml`, no del YAML. Cada
+      # entrada declara motivo, ticket y `vence_el`, y este paso pone el job en rojo el
+      # día que una excepción vence: renovarla es editar la fecha en un PR, que es
+      # exactamente la revisión que antes no existía.
+      - name: Excepciones de seguridad vigentes
+        run: python3 scripts/check_excepciones_seguridad.py
+
       - name: Audit dependencies
-        # PYSEC-2026-3447 conserva la excepción preexistente aprobada para CI.
-        run: pip-audit -r requirements.txt --ignore-vuln PYSEC-2026-3447
+        shell: bash
+        run: |
+          read -r -a ignores <<< "$(python3 scripts/check_excepciones_seguridad.py --ignore-args)"
+          pip-audit -r requirements.txt "${ignores[@]}"
 
   dependency-review:
     name: Dependency Review
