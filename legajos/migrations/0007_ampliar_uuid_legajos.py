@@ -1,4 +1,30 @@
 from django.db import migrations
+from django.db.migrations.exceptions import IrreversibleError
+
+# BARRERA-DE-REVERSA: por debajo de legajos.0007 solo se vuelve con restore (RED-15,
+# D-RED-05). La reversa baja las dos FK y achica cuatro columnas sin DDL transaccional:
+# si una falla, las FK ya no están y el reintento muere con un 1091. Y aguas abajo,
+# legajos.0004 recrea ``legajos_derivacion`` con el tipo UUID nativo de MariaDB contra un
+# char(32) (errno 150), dejando la tabla huérfana y ``django_migrations`` a mitad en seis
+# apps a la vez. Runbook D.4 de docs/internal/processes.md.
+MENSAJE_BARRERA = (
+    "legajos.0007 es una barrera de reversa (RED-15): revertirla deja las foreign keys "
+    "de legajos_alertaciudadano y legajos_historialcontacto caídas y el esquema a mitad "
+    "de camino. Volver atrás se hace con restore del dump previo al deploy: runbook D.4 "
+    "de docs/internal/processes.md. No reintentar ni usar --fake."
+)
+
+
+def sin_cambios(apps, schema_editor):
+    """La barrera no toca nada hacia adelante: solo existe para el camino de vuelta."""
+
+
+def bloquear_reversa(apps, schema_editor):
+    # Es la última operación de la migración, así que Django la corre **primera** al
+    # desaplicar: aborta antes de cualquier DDL.
+    if schema_editor.connection.vendor != "mysql":
+        return
+    raise IrreversibleError(MENSAJE_BARRERA)
 
 
 FK_ALERTA = "legajos_alertaciudad_legajo_id_82fefd0e_fk_legajos_l"
@@ -83,4 +109,5 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.RunPython(ampliar_uuid_legajos_mysql, restaurar_uuid_legajos_mysql),
+        migrations.RunPython(sin_cambios, bloquear_reversa),
     ]

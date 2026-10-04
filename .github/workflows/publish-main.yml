@@ -22,14 +22,26 @@ jobs:
         with:
           fetch-depth: 0
 
+      # RED-01, primero el repositorio: `git archive` ya aplicó `export-ignore`, así que
+      # un `scripts/*.sql` forzado al índice no aparecería en el árbol del release
+      # aunque siga versionado y visible en `development`. Esto mira lo que hay de
+      # verdad en el commit que se publica.
+      - name: Sin datos personales en el repositorio
+        run: python3 scripts/check_datos_personales.py --versionados
+
       - name: Construir árbol de release
         run: mkdir -p "$RUNNER_TEMP/release" && git archive HEAD | tar -x -C "$RUNNER_TEMP/release"
+
+      # Y después el release: si se cuela igual, en un formato que los ignores no
+      # contemplan, no sale. Es la última barrera antes de `main` y del espejo de ECOM.
+      - name: Sin datos personales en el release
+        run: python3 scripts/check_datos_personales.py --arbol "$RUNNER_TEMP/release"
 
       - name: Guard
         shell: bash
         run: |
           fail=0
-          for path in .claude .amazonq .github .mcp.json AGENTS.md CLAUDE.md ESTADOS.md PM.md QA.md docs mkdocs.yml scripts/design_audit.py scripts/compile_templates.py scripts/requerimientos.py scripts/perf_mysql; do
+          for path in .claude .amazonq .github .mcp.json AGENTS.md CLAUDE.md ESTADOS.md PM.md QA.md docs mkdocs.yml scripts/design_audit.py scripts/compile_templates.py scripts/requerimientos.py scripts/check_datos_personales.py scripts/perf_mysql scripts/DatosPersonas.sql scripts/Aprobados.sql scripts/Localidades.sql; do
             if [ -e "$RUNNER_TEMP/release/$path" ]; then
               echo "::error::El archivo prohibido $path aparece en el release"
               fail=1

@@ -244,19 +244,116 @@ ECOM tiraría abajo el arranque de `web`.
 
 ## Rollback
 
-Si el deploy falla o hay un error crítico en producción:
+Runbook completo. Se sigue en orden: **D.0** se hace antes del deploy, y si después hay
+que volver atrás, **D.1** dice cuál de los tres caminos corresponde. El que no está en
+la tabla —«revertir migraciones con `migrate <app> <anterior>`»— no es un camino: en
+MariaDB deja el esquema a mitad y la base sin corresponder a ninguna release.
+
+**D.0 · Antes de cada deploy con migración (obligatorio).**
+
+En icore-srv, como usuario `icore` (nunca con `sudo su`):
 
 ```bash
-# Volver a la imagen anterior
-docker compose -f docker-compose.prod.yml down
-docker compose -f docker-compose.prod.yml up -d --no-build
-# (ajustar tag de imagen según el caso)
+mkdir -p ~/backups
+# Las comillas simples son a propósito: MYSQL_ROOT_PASSWORD y DATABASE_NAME los resuelve
+# el contenedor (los trae de .env.production), no la shell del host, que no los tiene.
+docker compose -f docker-compose.prod.yml exec -T mysql \
+  sh -c 'mysqldump -uroot -p"$MYSQL_ROOT_PASSWORD" --single-transaction --routines --triggers "$DATABASE_NAME"' \
+  | gzip > ~/backups/chaco-$(date +%Y%m%d_%H%M%S)-pre-deploy.sql.gz
+ls -lh ~/backups/ | tail -3          # verificar que el archivo existe y no pesa 0
 ```
 
-Para rollback de migraciones:
+En ECOM el dump lo hacen ellos: se pide **por escrito** y se espera la confirmación
+**antes** de espejar a `main` (que despliega producción automáticamente).
+
+En los dos casos se anota, antes de empezar: de qué release se viene (tag o SHA de
+`main`) y cuál es la última migración aplicada.
+
 ```bash
-docker compose exec django python manage.py migrate <app> <migration_anterior>
+docker exec chaco-web-1 python manage.py showmigrations --plan | grep '\[X\]' | tail -1
 ```
+
+**D.1 · Qué rollback corresponde.**
+
+| Situación | Qué hacer |
+|---|---|
+| El deploy no traía migraciones | D.2 (solo código) |
+| Traía solo migraciones *expand* (columna nueva, tabla nueva, índice nuevo), aplicadas OK | D.2, previa verificación D.2.0 |
+| Traía *contract* (borrar o renombrar), datos destructivos o una **barrera de reversa** | D.4 (restore). **No** intentar `migrate <app> <anterior>` |
+| El `migrate` falló a mitad **hacia adelante**, dentro de una sola migración | D.3 primero, y recién después decidir |
+| El `migrate` falló durante una **reversa** | D.4 directo: la base ya quedó a mitad |
+
+**D.2 · Rollback de código.**
+
+**D.2.0 ·** Antes de bajar la release, listar las columnas `NOT NULL` sin default que la
+release nueva agregó: el código viejo no las manda en el `INSERT` y, con
+`STRICT_TRANS_TABLES`, MariaDB rechaza **toda alta** con
+*«Field … doesn't have a default value»* (el backoffice de lectura sigue andando, así
+que el síntoma llega por el territorial y no por el monitoreo).
+
+```sql
+SELECT TABLE_NAME, COLUMN_NAME FROM information_schema.COLUMNS
+ WHERE TABLE_SCHEMA = DATABASE() AND IS_NULLABLE = 'NO'
+   AND COLUMN_DEFAULT IS NULL AND EXTRA NOT LIKE '%auto_increment%'
+   AND TABLE_NAME IN ('programas_formulario', 'legajos_ciudadano', 'programas_padronhabilitado');
+```
+
+A cada columna que **no existía** en la release de destino:
+`ALTER TABLE <tabla> ALTER COLUMN <columna> SET DEFAULT '<valor>';` — es solo metadata,
+es instantáneo y se revierte con `DROP DEFAULT`.
+
+**D.2.1 · ECOM (Kubernetes).** Con tag inmutable de imagen,
+`kubectl set image deploy/<web> web=…:<sha anterior>` (segundos). Sin tag —hoy el
+pipeline publica siempre `:latest`— hay que hacer `git revert` del commit de alineación
+en `ecom/main`, esperar el build (5-7 min) y `kubectl rollout restart`.
+**`kubectl rollout undo` no sirve:** las dos revisiones apuntan a la misma `:latest`.
+Se verifica con un alta de caso de prueba, no con `/health/`.
+
+**D.2.2 · icore-srv.** El checkout de `/home/icore/chaco` está en **`main`** —la rama de
+release— y se adelanta con `git pull --ff-only origin main`; `development` no se
+despliega en ningún servidor. Se trabaja como usuario `icore`, nunca con `sudo su`.
+
+```bash
+cd /home/icore/chaco
+git fetch origin main
+# NO: git reset --hard sobre main. El próximo `git pull --ff-only origin main` lo
+# devuelve a la release rota sin que nadie se entere. Una rama propia deja el
+# rollback visible en `git status` y no pisa main.
+git switch --force-create "rollback/$(date +%Y%m%d_%H%M%S)" <SHA_ANTERIOR>
+docker compose -f docker-compose.prod.yml up -d --build --force-recreate web
+docker compose -f docker-compose.prod.yml restart nginx   # cachea la IP del upstream
+```
+
+Para volver al flujo normal una vez publicada la release corregida:
+`git switch main && git pull --ff-only origin main` y el deploy de siempre.
+
+**D.3 · `migrate` cortado hacia adelante.** No reintentar el deploy y **nunca** usar
+`--fake`: marcar como aplicada una migración que no corrió deja el esquema y
+`django_migrations` discrepando para siempre, y el próximo deploy falla en otro lado.
+Se diagnostica con `showmigrations --plan` y comparando `sqlmigrate <app> <NNNN>` contra
+`SHOW CREATE TABLE`; se completan a mano **solo** las operaciones que falten de *esa*
+migración y recién entonces se inserta su fila en `django_migrations`. Si falta más de
+una operación, o hay dudas: D.4.
+
+**D.4 · Restore.** Es el camino obligatorio para *contract*, datos borrados y barreras de
+reversa. Son barreras de reversa, por pérdida de datos, `programas.0032`,
+`programas.0056` y `programas.0069`; y por los UUID de MariaDB, `programas.0047`,
+`programas.0048`, `programas.0073`, `legajos.0007` y `users.0023`. Las cinco de UUID
+abortan solas con un mensaje que apunta acá si alguien intenta revertirlas.
+
+1. Bajar la app (`kubectl scale --replicas=0`, o `docker compose -f docker-compose.prod.yml stop web websocket`).
+2. `DROP DATABASE` + `CREATE DATABASE` + restore del dump de D.0. **Nunca restaurar
+   encima:** deja tablas huérfanas de la release nueva y el deploy siguiente muere con
+   *«Table already exists»*.
+3. Si el dump viene de otro motor, re-normalizar los UUID antes de levantar.
+4. Desplegar la release anterior y verificar que la última migración `[X]` sea la de esa
+   release.
+5. Levantar y verificar con un alta real.
+6. Registrar qué datos se perdieron entre el dump y el rollback.
+
+**D.5 · Después, siempre.** Issue en GitHub con label `incident`, y una línea en la
+sección `## Reversión` de la entrada de [`requerimientos.md`](requerimientos.md)
+correspondiente con lo que pasó de verdad al revertir.
 
 ## Gestión de incidentes
 
@@ -271,12 +368,32 @@ docker compose exec django python manage.py migrate <app> <migration_anterior>
 ### Pasos ante un incidente P1/P2
 
 1. Notificar en el canal del equipo con descripción del problema
-2. Revisar logs: `docker compose logs -f django`
+2. Revisar logs: `docker compose -f docker-compose.prod.yml logs -f web` (el servicio se
+   llama `web`; `django` no existe en el compose)
 3. Evaluar rollback si el problema es post-deploy
 4. Abrir issue en GitHub con label `incident` documentando causa y resolución
 
 ## Gestión de migraciones en producción
 
-- Siempre hacer backup de la base antes de migraciones que alteran tablas grandes
-- Migraciones con `ALTER TABLE` en tablas > 100k filas deben planificarse en horario de bajo tráfico
-- Usar `--fake` solo si se está seguro de que el esquema ya está aplicado manualmente
+- **El dump de D.0 es obligatorio** antes de cualquier deploy con migración, con el
+  comando escrito arriba y el archivo verificado. «Hacer backup» sin comando no es un
+  procedimiento: no hay ningún `mysqldump` automático en el repo.
+- Un `ALTER TABLE` sobre una tabla grande (`programas_formulario` ronda los 283 MB,
+  `legajos_ciudadano`, `programas_adjuntoformulario`) se ensaya antes en el banco de
+  [`scripts/perf_mysql/`](../../scripts/perf_mysql/) y se planifica en horario de bajo
+  tráfico.
+- **`--fake` no se usa.** Ni para destrabar un deploy ni para «ponerse al día»: deja el
+  esquema y `django_migrations` discrepando, y el próximo deploy falla en otro lado. Si
+  el `migrate` quedó cortado, el camino es D.3; si fue durante una reversa, D.4.
+- **Las migraciones no se revierten en producción.** El camino de vuelta es el restore de
+  D.4, y ahí está la lista completa de las que directamente no tienen reversa segura. De
+  esas ocho, **solo las cinco de UUID** llevan hoy la marca `# BARRERA-DE-REVERSA:` en su
+  archivo y abortan con un mensaje explícito antes de tocar la base si alguien lo
+  intenta; las tres de pérdida de datos (`programas.0032`, `0056` y `0069`) por ahora se
+  revierten en silencio y la única defensa es esta lista, hasta que RED-57 (PR R-12) les
+  ponga la marca.
+- Si la migración que se va a desplegar es barrera de reversa, **se dice en el aviso de
+  deploy**: a partir de ahí solo se vuelve con restore.
+- El esquema se mueve siempre primero y nunca hacia atrás dentro de la misma release
+  (*expand* en la release N, *contract* recién en N+2, cuando ninguna release viva lee la
+  columna).
