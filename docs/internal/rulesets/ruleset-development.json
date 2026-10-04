@@ -1,0 +1,43 @@
+{
+  "name": "development protegida",
+  "target": "branch",
+  "enforcement": "active",
+  "conditions": {
+    "ref_name": {
+      "include": ["refs/heads/development"],
+      "exclude": []
+    }
+  },
+  "rules": [
+    { "type": "deletion" },
+    { "type": "non_fast_forward" },
+    {
+      "type": "pull_request",
+      "parameters": {
+        "required_approving_review_count": 0,
+        "dismiss_stale_reviews_on_push": false,
+        "require_code_owner_review": false,
+        "require_last_push_approval": false,
+        "required_review_thread_resolution": false
+      }
+    },
+    {
+      "type": "required_status_checks",
+      "parameters": {
+        "strict_required_status_checks_policy": true,
+        "required_status_checks": [
+          { "context": "Django System Check" },
+          { "context": "Migration Check" },
+          { "context": "Tests & Coverage" },
+          { "context": "Query Budgets & Smoke Time" },
+          { "context": "Ephemeral MySQL Redis Contract" },
+          { "context": "Pip Audit" },
+          { "context": "Sin datos personales" },
+          { "context": "Ruff errores" },
+          { "context": "Validate inventory and authority" }
+        ]
+      }
+    }
+  ],
+  "bypass_actors": []
+}

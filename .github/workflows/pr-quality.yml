@@ -1,20 +1,60 @@
 name: Code Quality
 
+# Sin `paths:` en el trigger, a propósito (RED-20): un workflow filtrado por rutas no
+# corre cuando el PR no las toca, su check nunca reporta y un check que nunca reporta no
+# puede ser obligatorio —el PR queda esperando para siempre—. El filtro vive adentro de
+# cada job: el job termina igual, en `success`, cuando no hay nada que revisar.
+#
+# Los filtros están repetidos en los tres jobs porque GitHub Actions no soporta anclas
+# YAML (`&`/`*`): el parser las rechaza.
 on:
   pull_request:
     branches:
       - development
-    paths:
-      - "**/*.py"
-      - "pyproject.toml"
-      - ".github/workflows/pr-quality.yml"
 
 permissions:
   contents: read
+  pull-requests: read
 
 jobs:
-  lint:
-    name: Ruff Lint
+  # RED-63: la familia `F` de Ruff no es estilo —nombre indefinido, import roto, variable
+  # fantasma— y hasta hoy salía en amarillo junto con el resto. Este job bloquea.
+  ruff-errores:
+    name: Ruff errores
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dorny/paths-filter@0e4a8c6effa4802afeda77dc8d303f8176d7dfad # v3.0.4
+        id: filtro
+        with:
+          filters: |
+            python:
+              - '**/*.py'
+              - 'pyproject.toml'
+              - '.github/workflows/pr-quality.yml'
+
+      - uses: actions/setup-python@v5
+        if: steps.filtro.outputs.python == 'true'
+        with:
+          python-version: "3.12"
+
+      - name: Install Ruff
+        if: steps.filtro.outputs.python == 'true'
+        run: pip install ruff
+
+      - name: Run Ruff error checks
+        if: steps.filtro.outputs.python == 'true'
+        run: ruff check . --select F --output-format=github
+
+  # El estilo sigue sin bloquear, como pide RED-63. Hoy da 0, así que el candidato está:
+  # para encenderlo hace falta antes fijar la versión de Ruff (`requirements-ci.txt`,
+  # RED-85 / Ola 7), o un release con una regla E/W nueva vuelve rojo un PR que no cambió
+  # nada. Recién ahí se le saca el `continue-on-error` y se suma al ruleset.
+  ruff-estilo:
+    name: Ruff estilo
     runs-on: ubuntu-latest
     timeout-minutes: 5
     continue-on-error: true
@@ -22,33 +62,33 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: dorny/paths-filter@0e4a8c6effa4802afeda77dc8d303f8176d7dfad # v3.0.4
+        id: filtro
+        with:
+          filters: |
+            python:
+              - '**/*.py'
+              - 'pyproject.toml'
+              - '.github/workflows/pr-quality.yml'
+
       - uses: actions/setup-python@v5
+        if: steps.filtro.outputs.python == 'true'
         with:
           python-version: "3.12"
 
       - name: Install Ruff
+        if: steps.filtro.outputs.python == 'true'
         run: pip install ruff
 
-      - name: Run Ruff lint
-        run: ruff check . --output-format=github
-
-  format:
-    name: Ruff Format
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    continue-on-error: true
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Install Ruff
-        run: pip install ruff
+      # `--ignore E501` va explícito: un `--select` por línea de comandos pisa también el
+      # `ignore` de `pyproject.toml`, así que sin esto el job reportaría las 43 líneas
+      # largas que el repo ignora a propósito (`line-length = 120` con `E501` apagado).
+      - name: Run Ruff style checks
+        if: steps.filtro.outputs.python == 'true'
+        run: ruff check . --select E,W,I --ignore E501 --output-format=github
 
       - name: Check formatting
+        if: steps.filtro.outputs.python == 'true'
         run: ruff format --check . --diff
 
   bandit:
@@ -60,12 +100,26 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: dorny/paths-filter@0e4a8c6effa4802afeda77dc8d303f8176d7dfad # v3.0.4
+        id: filtro
+        with:
+          filters: |
+            python:
+              - '**/*.py'
+              - 'pyproject.toml'
+              - '.github/workflows/pr-quality.yml'
+
       - uses: actions/setup-python@v5
+        if: steps.filtro.outputs.python == 'true'
         with:
           python-version: "3.12"
 
+      # Versión fija (RED-85): un release de Bandit no puede volver rojo un PR que no
+      # cambió nada. Se sube a mano, en su propio PR.
       - name: Install Bandit
-        run: pip install "bandit[toml]"
+        if: steps.filtro.outputs.python == 'true'
+        run: pip install "bandit[toml]==1.9.4"
 
       - name: Run Bandit
+        if: steps.filtro.outputs.python == 'true'
         run: bandit -r . -c pyproject.toml
