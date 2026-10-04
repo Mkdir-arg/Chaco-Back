@@ -36,7 +36,7 @@ con lo que existe hoy; la lista solo baja.
 | ID | Título | Sev. | Estado | Ola | Esf. | Avance 03-oct |
 |---|---|---|---|---|---|---|
 | RED-01 | Datos personales reales (10.321 personas) en un repo público, en el release y en la imagen de PRD | CRÍTICA | CONF. lectura (API + git) | R (hotfix) | M | ⬜ |
-| RED-02 | Ningún test recorre el URLconf: una ruta que vuelva a quedar abierta pasa el CI | ALTA | CONF. test (barrido) | R | S | ⬜ |
+| RED-02 | Ningún test recorre el URLconf: una ruta que vuelva a quedar abierta pasa el CI | ALTA | CONF. test (barrido) | R | S | ✅ |
 | RED-03 | App de campo: pausa probada en 1 de 6 endpoints, período en 3, ramas de error en ninguna | ALTA | CONF. test (coverage) | R | S-M | ⬜ |
 | RED-04 | Crear, eliminar y activar un rol no se ejecutan por HTTP en ningún test | ALTA | CONF. test (coverage) | R | S-M | ⬜ |
 | RED-05 | Ningún test sigue un adjunto desde el canal que lo sube hasta la revisión | ALTA | CONF. lectura | R (+3 con DAT-01) | M | ⬜ |
@@ -64,7 +64,7 @@ con lo que existe hoy; la lista solo baja.
 | RED-27 | Promover desde la lista de espera con cupo exactamente 0 no está probado | ALTA | CONF. test (mutación M19) | R | S | ⬜ |
 | RED-28 | `FINALIZANDO` está en los estados abiertos de vencimientos y ningún test lo cubre | ALTA | CONF. test (mutación M27) | R | S | ✅ |
 | RED-29 | El envío del link público no prueba que el relevamiento siga `EN_CURSO` | ALTA | CONF. test (mutación M44) | R | S | ✅ |
-| RED-30 | Sin test de humo por pantalla: nada afirma «ninguna ruta da 500» | MEDIA | CONF. test (barrido) | R | S | ⬜ |
+| RED-30 | Sin test de humo por pantalla: nada afirma «ninguna ruta da 500» | MEDIA | CONF. test (barrido) | R | S | ✅ |
 | RED-31 | `requisito_eliminar` y `subsegmento_eliminar` no se ejecutan en ningún test | MEDIA | CONF. test (coverage) | R | S | ⬜ |
 | RED-32 | Comandos contra SIIS y RENAPER sin red (`validar_casos_siis`, `completar_casos_renaper`, `sincronizar_programas_siis`) | MEDIA | CONF. test (coverage) | R (+1) | S-M (+S-M) | ⬜ |
 | RED-33 | Dispositivos y Merenderos: las vistas que operan no tienen test HTTP | MEDIA | CONF. test (coverage) | 5 | M | ⬜ |
@@ -105,9 +105,9 @@ con lo que existe hoy; la lista solo baja.
 | RED-68 | La posición en la lista de espera no está probada en ningún lado | MEDIA | CONF. test (mutación M23) | R | S | ⬜ |
 | RED-69 | Fecha de nacimiento ausente o futura sin test en el payload SIIS | MEDIA | CONF. test (mutación M34) | R | S | ⬜ |
 | RED-70 | `celda_segura`: la limpieza de caracteres de control no está probada | MEDIA | CONF. test (mutación M49) | R | S | ⬜ |
-| RED-71 | `ApiCorsMiddleware` sin tests de contrato (y el Cambio 52 lo da por inexistente) | BAJA | CONF. test (ajustado) | R | S | ⬜ |
+| RED-71 | `ApiCorsMiddleware` sin tests de contrato (y el Cambio 52 lo da por inexistente) | BAJA | CONF. test (ajustado) | R | S | ✅ |
 | RED-72 | El harness e2e de Playwright no existe en el repo: quedan `.pyc` de julio | BAJA | CONF. lectura | R | S | ⬜ |
-| RED-73 | `CiudadanoConfirmarView` decide antes de mirar si hay sesión | BAJA | CONF. test (barrido) | R | S | ⬜ |
+| RED-73 | `CiudadanoConfirmarView` decide antes de mirar si hay sesión | BAJA | CONF. test (barrido) | R | S | ✅ |
 | RED-74 | Ocho arreglos mergeados sin ningún test | BAJA | CONF. lectura (git) | R | S | ⬜ |
 | RED-75 | `/set_dark_mode/` no existe: el toggle de tema postea a un 404 | BAJA | CONF. test (`resolve`) | 5 | S | ⬜ |
 | RED-76 | Tipado: 2,7 % de retornos anotados, sin mypy ni pyright | BAJA | CONF. test (AST) | 7 | S-M | ⬜ |
