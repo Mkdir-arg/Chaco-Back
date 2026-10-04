@@ -14,11 +14,11 @@ Severidad y propuesta son las **finales** de VR1/VR2; lo refutado está en READM
 duplicados de fichas existentes se agregaron a esas fichas con la línea «Ampliado por RS-…» (trazabilidad en README
 §9.4).
 
-**Conteo:** 1 CRÍTICA · 29 ALTA · 41 MEDIA · 18 BAJA = **89 fichas** (las 88 del relevamiento del 03/04-oct más
-**RED-89**, que salió de la revisión del PR R-05 y está medida el 04-oct). Avance al cierre de la **Ola R mínima**
-(PRs R-01 a R-10, mergeados el 04-oct): **29 ✅ · 4 🟡 · 56 ⬜**; por severidad, CRÍTICA 0/1/0, ALTA 12/2/15,
-MEDIA 14/0/27, BAJA 3/1/14. Los cuatro 🟡 son RED-01 y RED-20 (el código está, falta el paso del dueño del repo),
-RED-10 (falta el gemelo del link público) y RED-85 (falta la parte de la Ola 7). Además amplían fichas existentes:
+**Conteo:** 2 CRÍTICA · 28 ALTA · 41 MEDIA · 18 BAJA = **89 fichas** (las 88 del relevamiento del 03/04-oct más
+**RED-89**, que salió de la revisión del PR R-05, se midió el 04-oct y es la **segunda CRÍTICA** del frente). Avance al
+cierre de la **Ola R mínima** (PRs R-01 a R-10, mergeados el 04-oct): **30 ✅ · 3 🟡 · 56 ⬜**; por severidad (✅/🟡/⬜),
+CRÍTICA 0/1/1, ALTA 12/2/14, MEDIA 14/0/27, BAJA 4/0/14. Los tres 🟡 son RED-01 y RED-20 (el código está, falta el paso
+del dueño del repo) y RED-10 (falta el gemelo del link público). Además amplían fichas existentes:
 TST-01, TST-02, TST-03, OPS-01, OPS-03, OPS-04, OPS-07, OPS-14 y R0-03 (`05-…`), V5A-NEW-01 y FE-13 (`07-…`), LEG-03
 y LEG-06 (`03-…`) y G1-01 (`01-…`). OPS-01, OPS-03, OPS-04, TST-01, TST-02, TST-03 y R0-03 pasan de la Ola 3 a la Ola R.
 
@@ -70,7 +70,7 @@ con lo que existe hoy; la lista solo baja.
 | RED-29 | El envío del link público no prueba que el relevamiento siga `EN_CURSO` | ALTA | CONF. test (mutación M44) | R | S | ✅ |
 | RED-30 | Sin test de humo por pantalla: nada afirma «ninguna ruta da 500» | MEDIA | CONF. test (barrido) | R | S | ✅ |
 | RED-31 | `requisito_eliminar` y `subsegmento_eliminar` no se ejecutan en ningún test | MEDIA | CONF. test (coverage) | R | S | ⬜ |
-| RED-32 | Comandos contra SIIS y RENAPER sin red (`validar_casos_siis`, `completar_casos_renaper`, `sincronizar_programas_siis`) | MEDIA | CONF. test (coverage) | R (+1) | S-M (+S-M) | ✅ (R) |
+| RED-32 | Comandos contra SIIS y RENAPER sin red (`validar_casos_siis`, `completar_casos_renaper`, `sincronizar_programas_siis`) | MEDIA | CONF. test (coverage) | R (+1) | S-M (+S-M) | ✅ (R; falta Ola 1) |
 | RED-33 | Dispositivos y Merenderos: las vistas que operan no tienen test HTTP | MEDIA | CONF. test (coverage) | 5 | M | ⬜ |
 | RED-34 | Nada obliga a que una ficha cerrada deje un test permanente (0 tests bajo `docs/`) | MEDIA | CONF. test | R | S | ⬜ |
 | RED-35 | Ningún test afirma que las escrituras críticas sigan siendo atómicas | MEDIA | CONF. lectura | R (+3) | S (+S-M) | ⬜ |
@@ -92,7 +92,7 @@ con lo que existe hoy; la lista solo baja.
 | RED-51 | Dos `invalidate_dashboard_cache`; `stats_legajos` colgado del modelo equivocado | MEDIA | CONF. lectura | R (+4) | S (+S) | ⬜ |
 | RED-52 | Contrato implícito por `user._state.fields_cache["profile"]` | MEDIA | CONF. lectura | R (+2) | S (+S) | ⬜ |
 | RED-53 | Clones literales entre los comandos SIIS y entre las vistas de padrón | MEDIA | CONF. test (pylint + AST) | 1 (+5) | S-M (+S) | ⬜ |
-| RED-54 | `revision.py` (1.331 líneas): ningún test fija el contexto del detalle | MEDIA | CONF. test (radon) | R (+7) | S-M (+M) | ✅ |
+| RED-54 | `revision.py` (1.331 líneas): ningún test fija el contexto del detalle | MEDIA | CONF. test (radon) | R (+7) | S-M (+M) | ✅ (R; falta Ola 7) |
 | RED-55 | Los context processors corren en cada render y tragan toda excepción sin log | MEDIA | CONF. lectura | R | S | ⬜ |
 | RED-56 | Los guards de alcance de Becas fallan abiertos si el Programa BECAS no está sembrado | MEDIA | CONF. test | R | S | ✅ |
 | RED-57 | 14 reversas `RunPython.noop` (más `users/0007`) pierden datos e informan `OK` | MEDIA | CONF. test (SQLite con datos) | R | S-M | ⬜ |
@@ -123,14 +123,19 @@ con lo que existe hoy; la lista solo baja.
 | RED-82 | `exportacion_reportes.py` con terminadores CR: git lo trata como binario y pylint lo saltea | BAJA | CONF. test | R | S | ⬜ |
 | RED-83 | Índices duplicados en `programas_formulario` y `legajos_ciudadano` | BAJA | CONF. test (`information_schema`) | R (+4) | S (+S) | ⬜ |
 | RED-84 | `requerimientos.py --check` no verifica la sección «Reversión» | BAJA | CONF. lectura | R | S | ⬜ |
-| RED-85 | Herramientas del CI sin pinear y actions por tag en workflows con `contents: write` | BAJA | CONF. lectura | R (+7) | S (+S) | 🟡 (R; falta Ola 7) |
+| RED-85 | Herramientas del CI sin pinear y actions por tag en workflows con `contents: write` | BAJA | CONF. lectura | R (+7) | S (+S) | ✅ (R; falta Ola 7) |
 | RED-86 | Job de tests con timeout de 15 min, sin `--parallel` ni alarma de crecimiento | BAJA | CONF. test (`gh run list`) | 7 | S | ⬜ |
 | RED-87 | El largo mínimo del barrio del payload SIIS no se prueba en su borde | BAJA | CONF. test (mutación M33) | R | S | ✅ |
 | RED-88 | `manage.py test core users portal --parallel` revienta con `cannot pickle 'traceback'` | BAJA | CONF. test | R | S | ⬜ |
-| RED-89 | Un usuario de backoffice **sin ningún rol** recibe 200 en 31 rutas: lee y cierra alertas de ciudadanos ajenos | ALTA | CONF. test (barrido 04-oct) | R (+2) | S-M (+S-M) | ⬜ |
+| RED-89 | Un usuario de backoffice **sin ningún rol** borra adjuntos de cualquier ciudadano y cierra alertas ajenas: 200 en 31 rutas | CRÍTICA | CONF. test (barrido 04-oct) | R (**primero**) + 2 | S-M (+S-M) | ⬜ |
 
 «Ola» con paréntesis = la ficha tiene una segunda parte en esa ola (detalle en la ficha y en README §6). Horas: S = 2,
 S-M = 4, M = 8, L = 20 (README §6).
+
+**Convención de la columna «Avance»:** `✅ (R; falta Ola N)` = **la parte de la Ola R está cerrada** y lo que queda es la
+segunda parte, que ya estaba planificada en esa otra ola (y cuyas horas se cuentan allá). `🟡` se reserva para una ficha
+cuya **propia parte de la Ola R** quedó incompleta —RED-01 y RED-20, que esperan un paso del dueño del repo, y RED-10,
+a la que le falta un test—. Un `⬜` nunca lleva paréntesis.
 
 ---
 
@@ -432,14 +437,37 @@ verdad (contador de errores seguidos, `--max-errores`) y `test_un_caso_que_falla
   `test_un_anonimo_va_al_login_no_al_alta` (redirección a `settings.LOGIN_URL`) y
   `test_sin_capacidad_da_403_aunque_no_haya_datos_de_renaper`.
 
-### RED-89 · Un usuario de backoffice sin ningún rol recibe 200 en 31 rutas: lee y cierra alertas de ciudadanos ajenos
-**Severidad:** ALTA (requiere una cuenta de backoffice —que las crea el administrador, y el middleware del portal deja a los ciudadanos afuera—, pero cualquier cuenta sirve: un territorial de Becas con cero capacidades de Legajos lee nombre y texto de las alertas de cualquier ciudadano y las cierra) · **Estado:** CONFIRMADO con test (barrido propio, 04-oct-2026, sobre `origin/development @ cdd9c71`) · **Origen:** revisor del PR R-05 (#553); anotado como hallazgo abierto en RED-02 y en los *Pendientes* del Cambio 122 · **Ola:** R (el barrido y el ratchet, PR R-19) + 2 (poner las capacidades que faltan) · **Esfuerzo:** S-M (4 h) + S-M (4 h)
-- **Ubicación:** las 17 rutas de Legajos están casi todas en `legajos/views/contactos_api.py` (`actividades_ciudadano_api`,
-  `archivos_ciudadano_api`, `alertas_ciudadano_api`, `timeline_ciudadano_api`, `prediccion_riesgo_api`,
-  `evolucion_legajo_api`, `subir_archivos_ciudadano`, `subir_archivos`, `eliminar_archivo`), en
-  `legajos/views/alertas.py:81-118` (`alertas_count_ajax`, `alertas_preview_ajax`, el dashboard y los dos `cerrar`) y en
-  `legajos/api_views/__init__.py:65-102` (`AlertasViewSet`, con `permission_classes = [BackofficeAutenticado, IsAuthenticated]`
-  y **ninguna capacidad**). Todas las de `views/` llevan solo `@login_required`.
+### RED-89 · Un usuario de backoffice sin ningún rol borra adjuntos de cualquier ciudadano y cierra alertas ajenas: 200 en 31 rutas
+**Severidad:** CRÍTICA (subida de ALTA en la ronda 2 de la revisión del PR #555, al medirse el borrado: `DELETE /legajos/archivos/<id>/eliminar/` hace **hard delete** de cualquier `Adjunto` —`archivo.delete()`, sin papelera ni auditoría— para **cualquier** cuenta de backoffice autenticada, incluido un rol de Becas o de Dispositivos sin una sola capacidad de Legajos. Es el mismo encuadre que SEC-02: «cualquier autenticado escribe sobre datos del ciudadano». No es CRÍTICA-por-anónimo —las cuentas las crea el administrador y `PortalCiudadanoMiddleware` deja a los ciudadanos del portal afuera—, pero el daño es destructivo e irreversible, y los documentos del ciudadano son justo lo que SEC-09 puso detrás de login) · **Estado:** CONFIRMADO con test (barrido propio, 04-oct-2026, sobre `origin/development @ cdd9c71`; borrado y escrituras re-medidos en la ronda 2 sobre `@ 005508b`) · **Origen:** revisor del PR R-05 (#553); anotado como hallazgo abierto en RED-02 y en los *Pendientes* del Cambio 122; borrado medido por el revisor del PR #555 · **Ola:** R (**primero**: el barrido y el ratchet, PR R-19) + 2 (poner las capacidades que faltan; ver D-RED-14) · **Esfuerzo:** S-M (4 h) + S-M (4 h)
+- **Ubicación exacta de las 17 rutas de Legajos** (nombre de URL → vista; `legajos/urls/__init__.py`). Las once de
+  `legajos/views/contactos_api.py` y las cuatro de `legajos/views/alertas.py` llevan **solo `@login_required`**; las dos
+  de `legajos/api_views/__init__.py:65-102` cuelgan de `AlertasViewSet`, con
+  `permission_classes = [BackofficeAutenticado, IsAuthenticated]` y **ninguna capacidad**:
+
+  | URL | Vista | Archivo:línea |
+  |---|---|---|
+  | `legajos:alertas_dashboard` `/legajos/alertas/` | `alertas_dashboard` | `legajos/views/alertas.py:18` |
+  | `legajos:alertas_count_ajax` `/legajos/alertas/count/` | `alertas_count_ajax` | `legajos/views/alertas.py:81` |
+  | `legajos:alertas_preview_ajax` `/legajos/alertas/preview/` | `alertas_preview_ajax` | `legajos/views/alertas.py:98` |
+  | `legajos:cerrar_alerta_ajax` `/legajos/alertas/<id>/cerrar-ajax/` | `cerrar_alerta_ajax` | `legajos/views/alertas.py:71` |
+  | `legajos:cerrar_alerta_ciudadano` `/legajos/alertas/<id>/cerrar/` | `cerrar_alerta_api` | `legajos/views/contactos_api.py:124` |
+  | `legajos:alertas_ciudadano` `/legajos/ciudadanos/<id>/alertas/` | `alertas_ciudadano_api` | `legajos/views/contactos_api.py:97` |
+  | `legajos:actividades_ciudadano` `/legajos/ciudadanos/<id>/actividades/` | `actividades_ciudadano_api` | `legajos/views/contactos_api.py:18` |
+  | `legajos:timeline_ciudadano` `/legajos/ciudadanos/<id>/timeline/` | `timeline_ciudadano_api` | `legajos/views/contactos_api.py:174` |
+  | `legajos:archivos_ciudadano` `/legajos/ciudadanos/<id>/archivos/` | `archivos_ciudadano_api` | `legajos/views/contactos_api.py:75` |
+  | `legajos:archivos_legajo` `/legajos/<uuid>/archivos/` | `archivos_legajo_api` | `legajos/views/contactos_api.py:183` |
+  | `legajos:evolucion_legajo` `/legajos/<uuid>/evolucion/` | `evolucion_legajo_api` | `legajos/views/contactos_api.py:156` |
+  | `legajos:prediccion_riesgo` `/legajos/ciudadanos/<id>/prediccion-riesgo/` | `prediccion_riesgo_api` | `legajos/views/contactos_api.py:139` |
+  | `legajos:subir_archivos_ciudadano` `/legajos/ciudadanos/<id>/subir-archivos/` | `subir_archivos_ciudadano` | `legajos/views/contactos_api.py:27` |
+  | `legajos:subir_archivos` `/legajos/<uuid>/subir-archivos/` | `subir_archivos_legajo` | `legajos/views/contactos_api.py:51` |
+  | `legajos:eliminar_archivo` `/legajos/archivos/<id>/eliminar/` | `eliminar_archivo` → `eliminar_archivo_por_id` (`legajos/services/contactos.py:47`) | `legajos/views/contactos_api.py:84` |
+  | `alertaciudadano-list` `/api/legajos/alertas/` | `AlertasViewSet.list` | `legajos/api_views/__init__.py:65` |
+  | `alertaciudadano-count` `/api/legajos/alertas/count/` | `AlertasViewSet.count` | `legajos/api_views/__init__.py:85` |
+
+  La decimoctava, `alertaciudadano-cerrar` `/api/legajos/alertas/<id>/cerrar/`
+  (`AlertasViewSet.cerrar`, `legajos/api_views/__init__.py:95`), **no está entre las 31** porque con la base vacía del
+  barrido no hay objeto que cerrar (404 con `pk` numérico, 500 con el `pk` de juguete del recorrido); con una alerta
+  sembrada contesta 200 y escribe.
 - **Qué es frágil:** la Ola 0 y RED-02 cerraron la pregunta «¿qué ve un **anónimo**?». Nadie preguntó «¿qué ve un
   **autenticado sin rol**?», que es el usuario recién creado, el del programa equivocado y el que quedó sin capacidades
   después de un cambio de rol. `core/tests/test_superficie_publica.py` no lo cubre: su cliente es anónimo.
@@ -453,31 +481,48 @@ verdad (contador de errores seguidos, `--max-errores`) y `test_un_caso_que_falla
 
   | Grupo | Rutas | Qué se midió |
   |---|---:|---|
-  | **Legajos — exponen datos personales** | 7 | `/legajos/alertas/` (HTML de 59 KB) y `/legajos/alertas/preview/` traen **nombre y apellido del ciudadano y el texto de la alerta**; `/api/legajos/alertas/` lo mismo en JSON (`ciudadano_nombre`); `/legajos/ciudadanos/<id>/alertas/` y `/legajos/ciudadanos/<id>/timeline/` traen el texto; `/legajos/alertas/count/` y `/api/legajos/alertas/count/` el conteo global |
-  | **Legajos — escrituras** | 6 | **Medidas 3:** `POST /api/legajos/alertas/<id>/cerrar/`, `POST /legajos/alertas/<id>/cerrar-ajax/` y `POST /legajos/alertas/<id>/cerrar/` devuelven 200 y dejan la alerta ajena en `activa=False`. Las otras 3 tienen el mismo guard: `POST …/subir-archivos/` (×2) llega al handler —contesta «No se seleccionaron archivos», o sea el guard no la frenó— y `DELETE /legajos/archivos/<id>/eliminar/` |
-  | **Legajos — resto** | 4 | `/legajos/ciudadanos/<id>/{actividades,archivos,prediccion-riesgo}/` y `/legajos/<uuid>/{archivos,evolucion}/`: con la base de prueba vacía devuelven listas vacías; el payload lo arma el mismo selector que los anteriores |
+  | **Legajos — exponen datos** | 7 | **3 traen el nombre del ciudadano:** `/legajos/alertas/` (HTML de 59 KB: «Mirta Quiroga» y el texto de la alerta), `/legajos/alertas/preview/` (`ciudadano_nombre` + `mensaje`) y `/api/legajos/alertas/` (ídem en JSON paginado). **2 traen solo el texto de la alerta**, no el nombre: `/legajos/ciudadanos/<id>/alertas/` y `/legajos/ciudadanos/<id>/timeline/`. **2 son un contador global:** `/legajos/alertas/count/` y `/api/legajos/alertas/count/` (`{"count": 1, "criticas": 1}`) |
+  | **Legajos — escrituras** | 5 | **Las 5 medidas, todas con efecto real.** `DELETE /legajos/archivos/<id>/eliminar/` → 200 `{"success": true}` y el `Adjunto` **deja de existir** (`Adjunto.objects.filter(pk=…).exists()` → `False`): es un **hard delete** sin papelera ni auditoría, vía `eliminar_archivo_por_id`, que hace `get_object_or_404(Adjunto, id=…).delete()` sin mirar de quién es el adjunto. `POST /legajos/alertas/<id>/cerrar-ajax/` y `POST /legajos/alertas/<id>/cerrar/` → 200 y la alerta ajena queda en `activa=False`. `POST /legajos/ciudadanos/<id>/subir-archivos/` y `POST /legajos/<uuid>/subir-archivos/` llegan al handler —contestan «No se seleccionaron archivos», o sea el guard no las frenó— y con un archivo adjunto escribirían. **Una sexta, fuera de las 31:** `POST /api/legajos/alertas/<id>/cerrar/` da 404 con la base vacía, pero con una alerta sembrada contesta 200 y la cierra |
+  | **Legajos — resto** | 5 | `/legajos/ciudadanos/<id>/{actividades,archivos,prediccion-riesgo}/` y `/legajos/<uuid>/{archivos,evolucion}/`: con la base de prueba vacía devuelven listas vacías o scores en cero; el payload lo arman los mismos selectores que los de arriba, sin filtro de alcance, así que con datos devuelven los del ciudadano pedido |
   | **Catálogos y agregados — legítimas** | 10 | las 3 api-root de DRF (`/api/core/`, `/api/legajos/`, `/api/becas/`: listan nombres de endpoints), `/api/core/{dias,localidades}/`, los 3 `ajax/load-{localidades,municipios,subsecretarias}/`, `/configuracion/programas/` (catálogo institucional) e **`/inicio/`**, que es deliberada: se verificó que su HTML **no** contiene ni el nombre ni el DNI del ciudadano sembrado, solo contadores agregados |
-  | **Conversaciones** | 4 | `/{api/conversaciones,conversaciones/api}/alertas/{count,preview}/`: módulo sin uso hoy, pero abierto igual |
+  | **Conversaciones — legítimas** | 4 | `/{api/conversaciones,conversaciones/api}/alertas/{count,preview}/`: **tienen el guard adentro de la vista**, no en el decorador. `alertas_conversaciones_count` y `alertas_conversaciones_preview` (`conversaciones/api_views/__init__.py:17-40`) llaman a `usuario_tiene_permiso_conversaciones(request.user)` y, si da `False`, devuelven `{"count": 0}` y `{"results": []}` con **200**. O sea: contestan, pero vacío. No exponen nada |
 
-  Un hallazgo lateral del mismo barrido: `POST /api/legajos/alertas/x/cerrar/` con un `pk` no numérico da **500** —
-  `AlertasService.cerrar_alerta` recibe el `pk` crudo—; es la única ruta del URLconf que revienta con este usuario.
+  Suma: 7 + 5 + 5 (Legajos) + 10 + 4 = **31**.
+
+  Un hallazgo lateral del mismo barrido: `POST /api/legajos/alertas/x/cerrar/` —el `pk` de juguete del recorrido no es
+  numérico— da **500**, porque `AlertasService.cerrar_alerta` recibe el `pk` crudo; es la única ruta del URLconf que
+  revienta con este usuario.
 - **Propuesta (mismo molde que RED-02, en dos partes):**
   1. **Ola R, PR R-19 (4 h) — el barrido.** En `core/tests/test_superficie_publica.py`, tercera clase
      `SuperficieSinRolTests.test_ninguna_ruta_privada_responde_a_un_usuario_sin_rol`: mismo `rutas_concretas()`, cliente
-     con un `User` sin grupos ni permisos, y una `ALLOWLIST_SIN_ROL` **literal y medida** con las rutas que un usuario sin
-     rol sí puede ver (las 13 públicas más los catálogos, las api-root y `/inicio/`), cada una con su motivo de una línea,
-     más el ratchet de las dos direcciones que ya usa `ALLOWLIST_PUBLICA`. Las de Legajos **no** entran a la allowlist:
-     entran marcadas `@unittest.expectedFailure` con «RED-89» en el docstring, como pide la regla de la ola, y el PR del
-     punto 2 saca el decorador. Rebotar acá es 403, redirect al inicio o el 403 de `XMLHttpRequest` (contrato real de
-     `_respuesta_sin_permiso`, el mismo que fijó RED-73).
-  2. **Ola 2 (4 h) — las capacidades.** `@requiere("ciudadano.ver")` en las de lectura y `ciudadano.editar` en las seis
-     escrituras, con el alcance territorial que ya aplica `FiltrosUsuarioService`; `RequiereCapacidad` en `AlertasViewSet`
-     (hoy `BackofficeAutenticado + IsAuthenticated`, que es «cualquier usuario del backoffice»). Las de timeline y alertas
-     además caen bajo **D-11**, que ya decidió que piden `ciudadano.sensible`: coordinar con SEC-11 y G1c-04 para no
-     escribir dos veces la misma regla. De paso, `cerrar_alerta` tiene que validar el `pk` antes de usarlo (el 500).
+     con un `User` sin grupos ni permisos, `ALLOWLIST_SIN_ROL` **literal y medida** con un motivo de una línea por
+     entrada, y el ratchet de las dos direcciones que ya usa `ALLOWLIST_PUBLICA`. Rebotar acá es 403, redirect al inicio
+     o el 403 de `XMLHttpRequest` (contrato real de `_respuesta_sin_permiso`, el mismo que fijó RED-73).
+
+     **Qué va a cada lado, decidido** (el implementador no tiene que volver a juzgarlo):
+
+     | Rutas | Dónde van | Motivo |
+     |---|---|---|
+     | Las 13 de `ALLOWLIST_PUBLICA` | `ALLOWLIST_SIN_ROL` | si un anónimo puede, un autenticado también |
+     | 3 api-root de DRF, `/api/core/{dias,localidades}/`, 3 `ajax/load-*`, `/configuracion/programas/` | `ALLOWLIST_SIN_ROL` | catálogo o índice de endpoints, sin datos de personas |
+     | `/inicio/` | `ALLOWLIST_SIN_ROL` | «es el destino al que redirige el propio `_respuesta_sin_permiso`; solo contadores agregados, verificado» |
+     | **Las 4 de Conversaciones** | **`ALLOWLIST_SIN_ROL`**, con el motivo literal **«responde vacío, el guard está adentro de la vista (`usuario_tiene_permiso_conversaciones`)»** | contestan 200 pero con `count: 0` y `results: []`: no exponen nada, y `conversaciones` está fuera de uso. **No** van a `expectedFailure`: ponerlas ahí afirmaría que hay un bug que arreglar, y no lo hay |
+     | **Las 17 de Legajos** | **`@unittest.expectedFailure`** con «RED-89» en el docstring | son el bug; el PR del punto 2 saca el decorador y las deja rebotando |
+
+     El `expectedFailure` va en un test aparte (`test_las_rutas_de_legajos_siguen_abiertas_red89`) que recorre la lista
+     literal de las 17, para que el test principal quede verde de verdad y el día que se arregle Legajos el
+     `unexpectedSuccess` avise solo.
+  2. **Ola 2 (4 h) — las capacidades.** `@requiere("ciudadano.ver")` en las de lectura y `ciudadano.editar` en las cinco
+     escrituras (más la sexta, `AlertasViewSet.cerrar`), con el alcance territorial que ya aplica `FiltrosUsuarioService`;
+     `RequiereCapacidad` en `AlertasViewSet`, que hoy lleva `BackofficeAutenticado + IsAuthenticated`, o sea «cualquier
+     usuario del backoffice». `eliminar_archivo` es la que más urge: hoy borra de verdad. Las de timeline y alertas además
+     caen bajo **D-11**, que ya decidió que piden `ciudadano.sensible`: coordinar con SEC-11 y G1c-04 para no escribir dos
+     veces la misma regla. De paso, `cerrar_alerta` tiene que validar el `pk` antes de usarlo (el 500). **Ver D-RED-14:**
+     por la severidad CRÍTICA, el default es adelantar este punto al propio PR R-19 en vez de esperar a la Ola 2.
 - **Verificación:** la clase nueva en verde con `& $env:PY manage.py test core.tests.test_superficie_publica`; después del
-  punto 2, los `expectedFailure` sacados y el conteo de la allowlist bajado en el mismo commit. Mutación de control:
-  sacarle el `@requiere` a `alertas_preview_ajax` tiene que poner el barrido en rojo.
+  punto 2, los `expectedFailure` sacados y el conteo de la allowlist bajado en el mismo commit. Mutaciones de control:
+  sacarle el `@requiere` a `alertas_preview_ajax` tiene que poner el barrido en rojo, y el borrado tiene su propio test
+  de regresión (`legajos/tests/`: un usuario sin rol hace `DELETE` sobre un `Adjunto` ajeno → rebota y el adjunto sigue).
 
 ## (b) Regresión de bugs pasados
 
@@ -1705,7 +1750,7 @@ entrypoint: queda para R-15.
 ### RED-85 · Herramientas del CI sin pinear y actions por tag en workflows con `contents: write`
 **Severidad:** BAJA (era MEDIA) · **Estado:** CONFIRMADO (lectura: 7 `pip install` sin versión) · **Origen:** RS-R6-13 (VR2: CONFIRMADO) · **Ola:** R (pinear las actions con `contents: write`) + 7 (el resto) · **Esfuerzo:** S (2 h) + S (2 h)
 
-**Resolución:** 🟡 Parte de la Ola R hecha en #554 (Cambio 121, PR R-03), 04-oct-2026; **la Ola 7 sigue abierta**. Pineadas por SHA, con el tag en comentario al lado: `actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09` (v5.1.0) en `publish-main.yml` y `docs-auto-deploy.yml`, `actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1` (v6.3.0) en `docs-auto-deploy.yml`, y `dorny/paths-filter@0e4a8c6effa4802afeda77dc8d303f8176d7dfad` (v3.0.4) en sus cuatro usos nuevos (RED-20). Los SHA se resolvieron por API (`git/ref/tags` y, en `paths-filter`, dereferenciando el tag anotado), no de memoria. Bandit quedó con versión fija (`==1.9.4`) como adelanto de la parte de herramientas. **Sigue pendiente (Ola 7):** `requirements-ci.txt` con versiones fijas para los otros seis `pip install` sueltos (`ruff`, `coverage`, `pip-audit`, `mkdocs-material`) y el dependabot semanal sobre ese archivo; las actions de `pr-*.yml` siguen por tag, porque ninguno de esos workflows tiene `contents: write`. **Prioridad nueva, señalada por el revisor del PR R-03:** de los seis `pip install` sueltos, el que más urge es **`pip-audit`**, porque desde el Cambio 121 `Pip Audit` es un check **obligatorio** del ruleset y su base de advisories cambia sola: un advisory nuevo sobre cualquier dependencia de `requirements.txt`, o un release de `pip-audit` que estreche una regla, frena **todos** los merges abiertos, incluidos los PRs que no tocaron nada. Mientras tanto la salida no es destildar el check: es agregar la advisory a `security/excepciones.toml` con `motivo`, un `vence_el` corto y el ticket, en un PR de una línea —eso devuelve el verde y deja la deuda con fecha, que es el punto de RED-63—. Mismo razonamiento, un escalón más abajo, para `ruff`: `Ruff estilo` hoy da 0 y es candidato a bloquear, pero no se enciende hasta que Ruff esté pineado, o un release con una regla E/W nueva pone en rojo un PR que no cambió nada. **Test permanente:** `core.tests.test_gates_ci.ActionsPineadasTests` (4 tests; uno de ellos afirma que los workflows con `contents: write` siguen siendo esos dos, para que un tercero avise antes de que nadie lo pinee).
+**Resolución:** ✅ **Parte de la Ola R resuelta** en #554 (Cambio 121, PR R-03), 04-oct-2026; **la Ola 7 sigue abierta**. Pineadas por SHA, con el tag en comentario al lado: `actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09` (v5.1.0) en `publish-main.yml` y `docs-auto-deploy.yml`, `actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1` (v6.3.0) en `docs-auto-deploy.yml`, y `dorny/paths-filter@0e4a8c6effa4802afeda77dc8d303f8176d7dfad` (v3.0.4) en sus cuatro usos nuevos (RED-20). Los SHA se resolvieron por API (`git/ref/tags` y, en `paths-filter`, dereferenciando el tag anotado), no de memoria. Bandit quedó con versión fija (`==1.9.4`) como adelanto de la parte de herramientas. **Sigue pendiente (Ola 7):** `requirements-ci.txt` con versiones fijas para los otros seis `pip install` sueltos (`ruff`, `coverage`, `pip-audit`, `mkdocs-material`) y el dependabot semanal sobre ese archivo; las actions de `pr-*.yml` siguen por tag, porque ninguno de esos workflows tiene `contents: write`. **Prioridad nueva, señalada por el revisor del PR R-03:** de los seis `pip install` sueltos, el que más urge es **`pip-audit`**, porque desde el Cambio 121 `Pip Audit` es un check **obligatorio** del ruleset y su base de advisories cambia sola: un advisory nuevo sobre cualquier dependencia de `requirements.txt`, o un release de `pip-audit` que estreche una regla, frena **todos** los merges abiertos, incluidos los PRs que no tocaron nada. Mientras tanto la salida no es destildar el check: es agregar la advisory a `security/excepciones.toml` con `motivo`, un `vence_el` corto y el ticket, en un PR de una línea —eso devuelve el verde y deja la deuda con fecha, que es el punto de RED-63—. Mismo razonamiento, un escalón más abajo, para `ruff`: `Ruff estilo` hoy da 0 y es candidato a bloquear, pero no se enciende hasta que Ruff esté pineado, o un release con una regla E/W nueva pone en rojo un PR que no cambió nada. **Test permanente:** `core.tests.test_gates_ci.ActionsPineadasTests` (4 tests; uno de ellos afirma que los workflows con `contents: write` siguen siendo esos dos, para que un tercero avise antes de que nadie lo pinee).
 - **Ubicación:** `pr-quality.yml:30,48,68`, `pr-backend.yml:88`, `pr-security.yml:26`, `docs-auto-deploy.yml:32` (`pip install
   ruff|bandit|coverage|pip-audit|mkdocs-material`); `publish-main.yml:21` (`actions/checkout@v5`) y
   `docs-auto-deploy.yml:22,25`, los dos con `permissions: contents: write`.
