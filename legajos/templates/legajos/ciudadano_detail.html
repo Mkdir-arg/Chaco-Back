@@ -1,5 +1,5 @@
 {% extends "includes/base.html" %}
-{% load static %}
+{% load static rbac %}
 
 {% block title %}{{ ciudadano.apellido }}, {{ ciudadano.nombre }}{% endblock %}
 
@@ -962,10 +962,17 @@
                         Archivos
                     </h3>
                     <div class="flex items-center gap-4">
+                        {% comment %}
+                        Subir y borrar piden `ciudadano.editar` desde SEC-10; listar, solo
+                        `ciudadano.ver`. Sin la capacidad de escritura el botón llevaba a un
+                        403, así que no se ofrece.
+                        {% endcomment %}
+                        {% if request.user|puede:"ciudadano.editar" %}
                         <button onclick="abrirModalArchivos()" class="btn-nodo btn-brand btn-sm">
                             <i class="fas fa-upload" aria-hidden="true"></i>
                             <span>Subir archivo</span>
                         </button>
+                        {% endif %}
                         <div class="rounded-full border px-4 py-2" style="border-color: var(--border-base); background: var(--bg-secondary);">
                             <span class="text-lg font-bold" id="total-archivos" style="color: var(--text-heading);">-</span>
                             <span class="text-sm" style="color: var(--text-body-subtle);">archivos</span>
@@ -991,10 +998,12 @@
                     <i class="fas fa-folder-open mb-4 text-4xl" aria-hidden="true" style="color: var(--border-base-strong);"></i>
                     <h3 class="mb-2 text-lg font-semibold" style="color: var(--text-heading);">No hay archivos subidos</h3>
                     <p class="mb-6" style="color: var(--text-body-subtle);">Subí documentos, imágenes y otros archivos relacionados con el legajo</p>
+                    {% if request.user|puede:"ciudadano.editar" %}
                     <button onclick="abrirModalArchivos()" class="btn-nodo btn-brand btn-sm mx-auto">
                         <i class="fas fa-upload" aria-hidden="true"></i>
                         <span>Subir primer archivo</span>
                     </button>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -1066,6 +1075,7 @@
 </div>
 
 <!-- Modal Subir Archivos -->
+{% if request.user|puede:"ciudadano.editar" %}
 <div id="modalArchivos" class="fixed inset-0 z-50 hidden" style="background: rgba(0,0,0,0.5); backdrop-filter: blur(4px);">
     <div class="flex min-h-screen items-center justify-center p-4">
         <div class="w-full max-w-md overflow-hidden" style="background: var(--bg-white); border-radius: var(--radius-2xl); box-shadow: var(--shadow-xl);" role="dialog" aria-modal="true" aria-labelledby="modal-archivos-title">
@@ -1107,6 +1117,7 @@
         </div>
     </div>
 </div>
+{% endif %}
 
 <!-- defer: son 673 KB en medio del body que frenaban el parseo del resto de la
      página. Los diferidos corren antes de DOMContentLoaded, así que ``vis`` ya
@@ -1510,6 +1521,10 @@ function abrirModalArchivos() {
     document.getElementById('modalArchivos').classList.remove('hidden');
 }
 
+// Borrar un adjunto pide `ciudadano.editar` (SEC-10): sin la capacidad el botón
+// de la papelera no se dibuja. El guard real está en la vista; esto es la UI.
+const puedeEditarArchivos = {{ request.user|puede:"ciudadano.editar"|yesno:"true,false" }};
+
 function cargarArchivos() {
     fetch(`/legajos/ciudadanos/{{ ciudadano.id }}/archivos/`)
         .then(response => response.json())
@@ -1557,9 +1572,10 @@ function cargarArchivos() {
                                     <a href="${escaparHtml(archivo.url)}" target="_blank" class="cd-btn-dl" title="Descargar">
                                         <i class="fas fa-download"></i>
                                     </a>
+                                    ${puedeEditarArchivos ? `
                                     <button onclick="eliminarArchivo('${urlEliminar}')" class="cd-btn-del" title="Eliminar">
                                         <i class="fas fa-trash"></i>
-                                    </button>
+                                    </button>` : ''}
                                 </div>
                             </td>
                         </tr>
@@ -1630,7 +1646,9 @@ function eliminarArchivo(urlEliminar) {
     });
 }
 
-document.getElementById('formArchivos').addEventListener('submit', function(e) {
+// El modal solo se renderiza con `ciudadano.editar`: sin él, `getElementById`
+// devuelve null y el `addEventListener` cortaba el resto del script de la página.
+document.getElementById('formArchivos')?.addEventListener('submit', function(e) {
     e.preventDefault();
 
     const formData = new FormData(this);

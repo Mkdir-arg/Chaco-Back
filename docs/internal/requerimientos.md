@@ -16645,10 +16645,23 @@ además que **ninguna ruta le da 5xx** a este usuario.
 
 **Adjuntos (SEC-10).** Listar pide `ciudadano.ver`; subir y borrar, `ciudadano.editar`. El borrado
 pasa por `eliminar_archivo_de_objeto(instance, archivo_id)`, que filtra por `content_type` +
-`object_id` del dueño de la URL y borra el blob antes que la fila. El botón de la tabla de archivos
-del detalle de ciudadano arma la URL según de dónde cuelgue el adjunto (del ciudadano o de uno de
-sus legajos) y manda `X-Requested-With`, para que un rebote por permisos llegue como JSON 403 y no
-como el HTML del inicio.
+`object_id` del dueño de la URL, borra la fila y **agenda el archivo físico con
+`transaction.on_commit`**: el storage no participa de la transacción, así que borrar el blob primero
+y revertir después dejaría un adjunto apuntando a un archivo que ya no existe —el documento perdido
+igual—; al revés, lo peor que queda es un blob huérfano, recuperable. El botón de la tabla de
+archivos del detalle de ciudadano arma la URL según de dónde cuelgue el adjunto (del ciudadano o de
+uno de sus legajos) y manda `X-Requested-With`, para que un rebote por permisos llegue como JSON 403
+y no como el HTML del inicio. **La UI no ofrece lo que el guard va a negar:** «Subir archivo», su
+modal y la papelera de cada fila van dentro de `{% if request.user|puede:"ciudadano.editar" %}`.
+
+**La campana de alertas del navbar (SEC-18, lado UI).** El bloque entero —botón, contador,
+dropdown, los dos links al dashboard y el punto de estado del WebSocket— va dentro de
+`{% if request.user|puede:"ciudadano.ver" %}`, y `alertas_websocket.js` sale temprano si no
+encuentra `#alertas-counter`: no abre `ws/alertas/` ni pide endpoints que van a rebotar. Sin eso,
+a **todo usuario de Becas o de Dispositivos** le quedaba el dropdown en «Cargando alertas...» para
+siempre —el rebote devuelve el HTML del inicio y `response.json()` rompía— y los dos links iban a
+`/inicio/`. El JS, además, mira `response.ok` y el `content-type` antes de `json()` y deja un
+mensaje en lugar del spinner cuando algo falla.
 
 **Alertas (SEC-18 + R0b-06).** El dashboard, los dos contadores, el preview y las dos entradas de
 cierre piden `ciudadano.ver`; `AlertasViewSet` cambia `IsAuthenticated` por
@@ -16677,6 +16690,9 @@ contrato JSON de los tres endpoints AJAX.
 `users/tests/test_roles_abm.py`, `dashboard/tests/test_api_rbac.py`,
 `docs/internal/auditoria-2026-10/hallazgos/01-seguridad.md` y `08-red-de-seguridad.md`.
 
+De la ronda 2 de la revisión: `templates/includes/navbar.html`,
+`static/custom/js/alertas_websocket.js`, `core/tests/js_harness.py` y `scripts/design_audit.py`.
+
 ## Base de datos
 
 No requiere migración. Tampoco hace falta re-tildar capacidades: `ciudadano.ver` y
@@ -16687,8 +16703,9 @@ No requiere migración. Tampoco hace falta re-tildar capacidades: `ciudadano.ver
 Con Python 3.12 + Django 5.2.17 (`.venv312`, igual al CI):
 
 - `manage.py check` → sin issues. `makemigrations --check --dry-run` → «No changes detected».
-- `manage.py test` (la suite entera **en un solo proceso**, como el CI) → **2457 tests, OK**
-  (1 skip, 1 `expected failure` preexistente). Antes, partida por apps:
+- `manage.py test` (la suite entera **en un solo proceso**, como el CI) → **2463 tests, OK**
+  (1 skip, 1 `expected failure` preexistente) con la ronda 2 incluida; 2457 en la ronda 1. Antes,
+  partida por apps:
   `legajos users core conversaciones configuracion dashboard portal` → 904 OK; `programas` → 1551 OK.
   **La corrida partida escondió un problema:** `alertas_count_ajax` cachea 30 s con la clave
   `alertas_count:<user.id>`; la base se revierte entre tests pero la caché no, y los ids de usuario
@@ -16699,8 +16716,9 @@ Con Python 3.12 + Django 5.2.17 (`.venv312`, igual al CI):
 - CI del PR #556: **los 12 checks en verde**.
 - `ruff check .` → All checks passed; `ruff format --check .` → 562 archivos formateados.
 - `scripts/compile_templates.py` → 199 compilados, 0 errores. `scripts/check_design_agent.py
-  --changed` → OK. `scripts/design_audit.py --changed` → 1 error **preexistente** (`TWBUILD` en la
-  línea 143 de `ciudadano_detail.html`, ajena a este cambio: está igual en `development`).
+  --changed` → OK. `scripts/design_audit.py --changed` → **0 errores, 0 warnings** (el `TWBUILD` de
+  `ciudadano_detail.html:143` era un falso positivo del extractor de clases; ver *Pendientes*). La
+  corrida completa baja de 46 a 42 errores preexistentes por el mismo arreglo.
 - **Los tests fallan antes del cambio.** Verificado corriéndolos sobre `development` en un árbol
   aparte: `test_la_ruta_sin_dueno_ya_no_existe` → 200 en vez de 404, y el adjunto ajeno **borrado**
   con el archivo físico huérfano en disco; `test_sin_rol_no_cierra_una_alerta_ajena` → 200 en las
@@ -16719,14 +16737,46 @@ Ciudadanos» del seed ya las trae, pero un rol armado a mano podría no tenerlas
 - **SEC-11 queda 🟡.** Falta subir `timeline_ciudadano_api`, `alertas_ciudadano_api` y
   `prediccion_riesgo_api` de `ciudadano.ver` a `ciudadano.sensible`, cuando se resuelva **D-11**
   (Ola 2, PR 3, coordinado con G1c-04). Es una línea por vista.
-- **`alertas_websocket.js` no manda `X-Requested-With`.** A un usuario sin `ciudadano.ver` el badge
-  de alertas le queda oculto (el fetch recibe el HTML del inicio y el `.catch` lo esconde), que es
-  la conducta deseada, pero por el camino largo. Se ordena cuando se toque ese archivo.
-- **El `TWBUILD` de `ciudadano_detail.html`** necesita `npm run build:tailwind` y commitear el CSS.
-  Es de otro cambio; no se tocó acá para no mezclar un diff de CSS generado con uno de seguridad.
+- **El inventario del agente de diseño (`.claude/agents/chaco-design-system.md`) no se actualizó.**
+  La fila «Shell backoffice» debería decir que la campana del navbar y `alertas_websocket.js` siguen
+  a `ciudadano.ver`, y la regla general: *una pieza del shell que consume un endpoint con `@requiere`
+  se condiciona con la misma capacidad*. No se escribió porque el entorno de esta sesión no tiene
+  permiso de escritura sobre `.claude/`. Por eso el gating del script quedó **adentro del propio
+  script** (sale temprano si no hay `#alertas-counter`) y no en `templates/includes/base.html`, que
+  es evidencia canónica y habría exigido tocar el inventario en el mismo diff. La solución es buena
+  igual —el script es el cliente de la campana—, pero la línea del inventario queda pendiente.
+- **`npm run build:tailwind` NO se corrió, a propósito.** El `TWBUILD` de `ciudadano_detail.html:143`
+  era un **falso positivo** del propio `design_audit.py`: la clase
+  `xl:grid-cols-[minmax(0,1fr)_auto]` **ya estaba** en el CSS committeado, pero el extractor de
+  clases se cortaba en el espacio del escape `\2c ` (la coma) y la leía como
+  `xl:grid-cols-[minmax(0,`. Se arregló el extractor (la rama del hex va primero en la alternancia).
+  Regenerar el CSS, además, **habría sido riesgoso**: la corrida borra 12 clases que hoy están en el
+  build (`cursor-not-allowed`, `opacity-75`, `scale-75`, `px-8`, `mt-12`…) y agrega 4, o sea que el
+  `tailwind.css` de `development` viene de otro estado del árbol. Rehacerlo es un cambio visual
+  transversal con su propio QA, no parte de un PR de seguridad.
 - **Las vistas con el guard después del lookup** (Becas, cupo y beneficiarios) le contestan 404 al
   barrido y quedan fuera de su alcance. No son un agujero —el `PermissionDenied` existe— pero el
   orden conviene darlo vuelta en la ficha que las toque.
+
+Lo que dejó a la vista la revisión del PR (anotado, **no arreglado acá**):
+
+- **La rama `config.administrar` de `filtros_usuario.py:20` quedó muerta para el rol «Configuración»
+  del seed.** Ese rol trae `config.ver` y `config.administrar`, pero **no** `ciudadano.ver`: el
+  alcance global de alertas sigue calculándose para él, y las cuatro vistas que lo usarían ahora lo
+  rebotan antes. O sea que «ver todas las alertas» hoy es, en los hechos, solo del superusuario y de
+  quien tenga las dos capacidades. **Decisión del PM:** o se le tilda `ciudadano.ver` al rol
+  «Configuración», o se acepta que el alcance global sea del superusuario y la rama se retira. No se
+  tocó porque las dos salidas cambian quién ve datos del ciudadano, y eso no es una decisión técnica.
+- **Oráculo de existencia en las rutas con el guard después del lookup.** El molde está en
+  `programas/views/cupo.py:147-156`: `get_object_or_404` primero, `PermissionDenied` después. A un
+  `pk` inexistente contesta 404 y a uno real 403, así que **la diferencia de respuesta dice si el
+  objeto existe** a quien no tiene permiso para verlo. El barrido de RED-89 mide `2xx` y no lo ve.
+  Va como **ficha nueva** del frente de seguridad, no como parte de este cambio.
+- **Las alertas de Conversaciones con `legajo=None`** (las que genera `generar_alerta_mensaje_ciudadano`)
+  quedan visibles solo para el superusuario y para quien tenga `config.administrar`: el alcance
+  cuelga del legajo y esas alertas no tienen. Es **coherente con D-18** —sin legajo propio no hay
+  alcance— pero conviene decirlo, porque el operador de conversaciones que las genera no las ve en
+  `/legajos/alertas/`. Conversaciones está fuera de uso, así que no bloquea.
 
 ## Reversión
 

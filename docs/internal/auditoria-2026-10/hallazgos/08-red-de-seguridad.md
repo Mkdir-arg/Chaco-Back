@@ -16,9 +16,10 @@ duplicados de fichas existentes se agregaron a esas fichas con la línea «Ampli
 
 **Conteo:** 2 CRÍTICA · 28 ALTA · 41 MEDIA · 18 BAJA = **89 fichas** (las 88 del relevamiento del 03/04-oct más
 **RED-89**, que salió de la revisión del PR R-05, se midió el 04-oct y es la **segunda CRÍTICA** del frente). Avance al
-cierre de la **Ola R mínima** (PRs R-01 a R-10, mergeados el 04-oct): **30 ✅ · 3 🟡 · 56 ⬜**; por severidad (✅/🟡/⬜),
-CRÍTICA 0/1/1, ALTA 12/2/14, MEDIA 14/0/27, BAJA 4/0/14. Los tres 🟡 son RED-01 y RED-20 (el código está, falta el paso
-del dueño del repo) y RED-10 (falta el gemelo del link público). Además amplían fichas existentes:
+cierre de la **Ola R mínima** (PRs R-01 a R-10) **más R-19** (#556, Cambio 126), todos mergeados el 04-oct:
+**33 ✅ · 3 🟡 · 53 ⬜**; por severidad (✅/🟡/⬜), CRÍTICA 1/1/0, ALTA 14/2/12, MEDIA 14/0/27, BAJA 4/0/14. Los tres 🟡
+son RED-01 y RED-20 (el código está, falta el paso del dueño del repo) y RED-10 (falta el gemelo del link público).
+R-19 cerró RED-89, RED-04 y RED-06. Además amplían fichas existentes:
 TST-01, TST-02, TST-03, OPS-01, OPS-03, OPS-04, OPS-07, OPS-14 y R0-03 (`05-…`), V5A-NEW-01 y FE-13 (`07-…`), LEG-03
 y LEG-06 (`03-…`) y G1-01 (`01-…`). OPS-01, OPS-03, OPS-04, TST-01, TST-02, TST-03 y R0-03 pasan de la Ola 3 a la Ola R.
 
@@ -582,6 +583,27 @@ ficha —31 rutas— y deja el 404/405 anotado como límite explícito en el doc
 regla estricta. Mutación de control: la medición inicial del 04-oct, con las 17 todavía abiertas, listó
 `alertas_preview_ajax` entre las 31 — el barrido ve exactamente lo que tiene que ver. **Test permanente:**
 `core.tests.test_superficie_publica.SuperficieSinRolTests.test_ninguna_ruta_privada_responde_a_un_usuario_sin_rol`.
+
+**Queda anotado, sin arreglar (revisión del PR #556, 04-oct-2026):**
+
+- **Lo que este barrido estructuralmente no puede ver: el oráculo de existencia.** Una vista que
+  resuelve el objeto antes del guard —molde en `programas/views/cupo.py:147-156`,
+  `get_object_or_404` y después `PermissionDenied`— contesta **404 al `pk` inexistente y 403 al
+  real**. La diferencia le dice a quien no tiene permiso si el objeto existe, y el barrido, que mide
+  `2xx`, nunca la va a detectar (tampoco la vería el contrato estricto de RED-02: los dos casos son
+  «no 2xx»). Es un hallazgo **de otra naturaleza** —fuga por canal lateral, no superficie abierta— y
+  necesita su **ficha nueva** en el frente de seguridad, con su propio test: mismo endpoint, `pk`
+  inexistente vs. `pk` real, el mismo usuario sin capacidad, y las dos respuestas iguales.
+- **La rama `config.administrar` de `legajos/services/filtros_usuario.py:20` quedó muerta para el
+  rol «Configuración» del seed**, que trae `config.ver` y `config.administrar` pero **no**
+  `ciudadano.ver`: el alcance global se le sigue calculando y las vistas que lo usarían lo rebotan
+  antes. En los hechos, «ver todas las alertas» pasó a ser del superusuario. **Decisión del PM:**
+  tildarle `ciudadano.ver` a ese rol, o aceptarlo y retirar la rama. No se resolvió acá porque las
+  dos salidas cambian quién ve datos del ciudadano.
+- **Las alertas de Conversaciones nacen con `legajo=None`** (`generar_alerta_mensaje_ciudadano`), y
+  el alcance cuelga del legajo: solo las ven el superusuario y `config.administrar`. Es **coherente
+  con D-18** —sin legajo propio no hay alcance—, pero vale decirlo: el operador que las genera no
+  las encuentra en `/legajos/alertas/`. Conversaciones está fuera de uso, así que no bloquea.
 
 ## (b) Regresión de bugs pasados
 

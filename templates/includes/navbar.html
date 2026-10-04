@@ -1,4 +1,4 @@
-{% load static custom_filters %}
+{% load static custom_filters rbac %}
 <style>
     /* navbar-accent: color de texto para links de acento (ahora usa token de marca, no magenta) */
     .navbar-accent {
@@ -78,6 +78,14 @@
         </div>
         <div class="flex-1 sm:hidden"></div>
         <div class="flex items-center gap-x-3 sm:gap-x-4 lg:gap-x-6">
+            {% comment %}
+            Indicador de alertas. Los tres endpoints que alimenta —contador, preview
+            y el dashboard al que linkea— piden `ciudadano.ver` desde SEC-18: sin la
+            capacidad, la campana quedaba con el spinner colgado para siempre y los
+            dos links rebotaban al inicio. Misma capacidad que el guard de las vistas,
+            para que el menú y la vista no puedan quedar desalineados.
+            {% endcomment %}
+            {% if request.user|puede:"ciudadano.ver" %}
             <!-- Indicador de alertas -->
             <div class="relative" x-data="{ showDropdown: false }">
                 <button @click="showDropdown = !showDropdown"
@@ -123,10 +131,16 @@
                 </div>
             </div>
 
+            {% comment %}
+            El punto de estado lo pinta `alertas_websocket.js`, que es el cliente de
+            `ws/alertas/` y se carga con la misma capacidad: sin ella quedaba gris para
+            siempre, anunciando una conexión que nadie iba a abrir.
+            {% endcomment %}
             <!-- Estado WebSocket -->
             <div class="flex items-center">
                 <span id="websocket-status" class="w-2 h-2 rounded-full" style="background-color: var(--text-disabled);" title="Estado de conexión"></span>
             </div>
+            {% endif %}
             <!-- Profile dropdown -->
             <div class="relative shrink-0" x-data="{ open: false }">
                 <button type="button"

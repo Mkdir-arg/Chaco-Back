@@ -239,12 +239,17 @@ para subir y borrar. `archivos/<int:archivo_id>/eliminar/` **se retiró** y la r
 `ciudadanos/<int:ciudadano_id>/archivos/<int:archivo_id>/eliminar/` y
 `<uuid:legajo_id>/archivos/<int:archivo_id>/eliminar/`: el dueño viaja en la URL y acota el `filter`, así que un
 adjunto de otro ciudadano no existe para la vista (404, la fila sigue). El servicio es
-`eliminar_archivo_de_objeto(instance, archivo_id)` con `content_type` + `object_id` y
-`archivo.archivo.delete(save=False)` antes de `archivo.delete()`, que es lo que deja de abandonar el blob en
-`MEDIA_ROOT`. Los `except Exception` ya no devuelven `str(exc)` con 200: mensaje genérico (`ERROR_GENERICO`),
+`eliminar_archivo_de_objeto(instance, archivo_id)` con `content_type` + `object_id`, que borra la fila y agenda el
+blob con `transaction.on_commit`. **El orden importa y la revisión lo corrigió:** la primera versión borraba el blob
+*antes* que la fila, como decía la propuesta, y el storage no participa de la transacción — si algo revertía después,
+quedaba un `Adjunto` apuntando a un archivo que ya no existe, o sea el documento perdido igual. Al revés, lo peor que
+pasa es un blob huérfano, que es recuperable. Los `except Exception` ya no devuelven `str(exc)` con 200: mensaje genérico (`ERROR_GENERICO`),
 `logger.exception` con la traza y status real — 400 para `ContactosFilesError`, que sí es del usuario, 500 para lo
 inesperado. El `fetch` de `ciudadano_detail.html` arma la URL según `tipo_origen` (el adjunto cuelga del ciudadano o
-de uno de sus legajos) y manda `X-Requested-With`, para que el rebote por permisos llegue como JSON 403.
+de uno de sus legajos) y manda `X-Requested-With`, para que el rebote por permisos llegue como JSON 403. **La UI
+tampoco ofrece lo que el guard va a negar** (ronda 2 de la revisión): «Subir archivo», su modal y el botón de la
+papelera van dentro de `{% if request.user|puede:"ciudadano.editar" %}` (`{% load rbac %}`), y el listener del form se
+pide con `?.` porque el modal puede no existir.
 **Dónde la ficha no coincidía con el código:** la propuesta nombraba una sola ruta nueva «y la de legajo con uuid»,
 pero el listado del detalle de ciudadano **mezcla** adjuntos del ciudadano y de sus legajos, así que el front tiene que
 elegir la ruta por fila; se resolvió con `tipo_origen`, que el serializador ya mandaba. FE-02 (`toastr`) sigue abierta
@@ -402,7 +407,12 @@ ficha) y `cerrar` usa `self.get_object()`, que resuelve sobre el queryset ya aco
 no numérico. El fallback de `FiltrosUsuarioService` pasa de `Q(prioridad="CRITICA")` a
 `AlertaCiudadano.objects.none()`: sin legajos propios el alcance es vacío (**default D-18**, el badge queda en 0; las
 globales las sigue viendo `config.administrar`). `AlertasService.cerrar_alerta` busca la alerta dentro de
-`obtener_alertas_usuario(usuario)` y devuelve `False` fuera de ahí, también ante un id no entero. **Dónde la ficha no
+`obtener_alertas_usuario(usuario)` y devuelve `False` fuera de ahí, también ante un id no entero. **La campana del
+navbar sigue la misma capacidad** (ronda 2 de la revisión): el bloque entero —botón, contador, dropdown, los dos links
+al dashboard y el punto de estado del WebSocket— va dentro de `{% if request.user|puede:"ciudadano.ver" %}`, y
+`alertas_websocket.js` sale temprano si no encuentra `#alertas-counter`, así no abre `ws/alertas/` ni pide endpoints
+que van a rebotar. Sin eso, a todo usuario de Becas o de Dispositivos le quedaba el dropdown en «Cargando alertas...»
+para siempre (el rebote devuelve el HTML del inicio y `response.json()` rompía) y los dos links iban a `/inicio/`. **Dónde la ficha no
 coincidía con el código / efecto lateral a mirar:** `cerrar_alerta` aceptaba `usuario=None`; ahora sin usuario no hay
 alcance y devuelve `False` — no había llamadores así. Y `dashboard/tests/test_api_rbac.py` tenía un test que
 **afirmaba el fallback**: un usuario con `ciudadano.sensible` sin legajos veía las CRÍTICAS de todos. Se reescribió en

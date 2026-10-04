@@ -1,0 +1,53 @@
+fix(legajos): la UI sigue a la capacidad y el blob se borra al confirmar (R-19 ronda 2)
+
+MINOR de la revisión del PR #556, en un commit encima.
+
+1. La campana de alertas del navbar se renderizaba para todo usuario de
+   backoffice. Con las capacidades de SEC-18 puestas, a un rol de Becas o de
+   Dispositivos el contador le contestaba un rebote, response.json() reventaba y
+   el dropdown quedaba en «Cargando alertas...» para siempre; «Ver todas» y
+   «Dashboard de Alertas» iban a /inicio/. El bloque entero —botón, contador,
+   dropdown, los dos links y el punto de estado del WebSocket— va ahora dentro de
+   {% if request.user|puede:"ciudadano.ver" %}, con el filtro `puede` que ya
+   existe en core/templatetags/rbac.py. alertas_websocket.js sale temprano si no
+   encuentra #alertas-counter: no abre ws/alertas/ ni pide endpoints que van a
+   rebotar. El guard quedó en el script y no en includes/base.html —que es
+   evidencia canónica y exigiría tocar el inventario del agente de diseño en el
+   mismo diff, sin permiso de escritura en esta sesión—; el script es el cliente
+   de la campana, así que el lugar es coherente. Queda anotado en Pendientes.
+
+   Además el JS mira response.ok y el content-type antes de json() y deja un
+   mensaje en lugar del spinner cuando algo falla. El harness de JS de los tests
+   gana `headers` en su Response falsa, que es lo que trae una real.
+
+2. eliminar_archivo_de_objeto borraba el blob ANTES que la fila. El storage no
+   participa de la transacción: si algo revertía después, quedaba un Adjunto
+   apuntando a un archivo que ya no existe, o sea el documento perdido igual, que
+   es el daño que SEC-10 vino a evitar. Ahora borra la fila y agenda el archivo
+   con transaction.on_commit; lo peor que puede quedar es un blob huérfano, que
+   es recuperable. Dos tests: el borrado efectivo al confirmar y la transacción
+   revertida que deja fila y archivo en pie.
+
+3. «Subir archivo», su modal y la papelera de cada fila eran visibles para quien
+   solo tiene ciudadano.ver, y llevaban a un 403: van con ciudadano.editar.
+
+4. Anotados sin arreglar, en Pendientes del Cambio 126 y en RED-89: la rama
+   config.administrar de filtros_usuario.py quedó muerta para el rol
+   «Configuración» sin ciudadano.ver (decisión del PM); el oráculo de existencia
+   en las rutas con el guard después de resolver el objeto, que el barrido 2xx no
+   ve y necesita ficha propia; y las alertas de Conversaciones con legajo=None,
+   coherentes con D-18.
+
+5. R-19 marcado en el README de la auditoría: tabla de estado, tabla de la Ola R
+   y conteo de horas (86 → 107 cerradas, 199 → 178 restantes).
+
+Un hallazgo del camino: el TWBUILD de ciudadano_detail.html:143 no era deuda del
+CSS sino un falso positivo de design_audit.py. La clase
+xl:grid-cols-[minmax(0,1fr)_auto] YA estaba en el build; el extractor se cortaba
+en el espacio del escape \2c (la coma) y la leía como xl:grid-cols-[minmax(0,.
+Se arregló el extractor (la rama del hex va primero en la alternancia) y NO se
+regeneró el CSS: la corrida de build borra 12 clases que hoy están en el archivo
+committeado y agrega 4, o sea que viene de otro estado del árbol. Eso es un
+cambio visual transversal con su propio QA, no parte de un PR de seguridad.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
