@@ -127,7 +127,7 @@ con lo que existe hoy; la lista solo baja.
 | RED-86 | Job de tests con timeout de 15 min, sin `--parallel` ni alarma de crecimiento | BAJA | CONF. test (`gh run list`) | 7 | S | ⬜ |
 | RED-87 | El largo mínimo del barrio del payload SIIS no se prueba en su borde | BAJA | CONF. test (mutación M33) | R | S | ✅ |
 | RED-88 | `manage.py test core users portal --parallel` revienta con `cannot pickle 'traceback'` | BAJA | CONF. test | R | S | ⬜ |
-| RED-89 | Un usuario de backoffice **sin ningún rol** borra adjuntos de cualquier ciudadano y cierra alertas ajenas: 200 en 31 rutas | CRÍTICA | CONF. test (barrido 04-oct) | R (**primero**) + 2 | S-M (+S-M) | ⬜ |
+| RED-89 | Ningún test recorre el URLconf con un usuario **sin rol**: 200 en 31 rutas, y 17 de Legajos dejan borrar adjuntos y cerrar alertas ajenas (SEC-10, SEC-18, SEC-11) | CRÍTICA | CONF. test (barrido 04-oct) | R (**primero**) | S-M | ⬜ |
 
 «Ola» con paréntesis = la ficha tiene una segunda parte en esa ola (detalle en la ficha y en README §6). Horas: S = 2,
 S-M = 4, M = 8, L = 20 (README §6).
@@ -437,8 +437,8 @@ verdad (contador de errores seguidos, `--max-errores`) y `test_un_caso_que_falla
   `test_un_anonimo_va_al_login_no_al_alta` (redirección a `settings.LOGIN_URL`) y
   `test_sin_capacidad_da_403_aunque_no_haya_datos_de_renaper`.
 
-### RED-89 · Un usuario de backoffice sin ningún rol borra adjuntos de cualquier ciudadano y cierra alertas ajenas: 200 en 31 rutas
-**Severidad:** CRÍTICA (subida de ALTA en la ronda 2 de la revisión del PR #555, al medirse el borrado: `DELETE /legajos/archivos/<id>/eliminar/` hace **hard delete** de cualquier `Adjunto` —`archivo.delete()`, sin papelera ni auditoría— para **cualquier** cuenta de backoffice autenticada, incluido un rol de Becas o de Dispositivos sin una sola capacidad de Legajos. Es el mismo encuadre que SEC-02: «cualquier autenticado escribe sobre datos del ciudadano». No es CRÍTICA-por-anónimo —las cuentas las crea el administrador y `PortalCiudadanoMiddleware` deja a los ciudadanos del portal afuera—, pero el daño es destructivo e irreversible, y los documentos del ciudadano son justo lo que SEC-09 puso detrás de login) · **Estado:** CONFIRMADO con test (barrido propio, 04-oct-2026, sobre `origin/development @ cdd9c71`; borrado y escrituras re-medidos en la ronda 2 sobre `@ 005508b`) · **Origen:** revisor del PR R-05 (#553); anotado como hallazgo abierto en RED-02 y en los *Pendientes* del Cambio 122; borrado medido por el revisor del PR #555 · **Ola:** R (**primero**: el barrido y el ratchet, PR R-19) + 2 (poner las capacidades que faltan; ver D-RED-14) · **Esfuerzo:** S-M (4 h) + S-M (4 h)
+### RED-89 · Ningún test recorre el URLconf con un usuario sin rol: 200 en 31 rutas, y 17 de Legajos dejan borrar adjuntos y cerrar alertas ajenas
+**Severidad:** CRÍTICA (subida de ALTA en la ronda 2 del PR #555, al medirse el borrado; la misma medición subió **SEC-10** a CRÍTICA, que es la ficha dueña del arreglo: `DELETE /legajos/archivos/<id>/eliminar/` hace **hard delete** de cualquier `Adjunto` —`archivo.delete()`, sin papelera ni auditoría— para **cualquier** cuenta de backoffice autenticada, incluido un rol de Becas o de Dispositivos sin una sola capacidad de Legajos. Mismo encuadre que SEC-02: «cualquier autenticado escribe sobre datos del ciudadano». No es CRÍTICA-por-anónimo —las cuentas las crea el administrador y `PortalCiudadanoMiddleware` deja a los ciudadanos del portal afuera—, pero el daño es destructivo e irreversible, y los documentos del ciudadano son justo lo que **la etapa 1 de SEC-09** puso detrás de login) · **Estado:** CONFIRMADO con test (barrido propio, 04-oct-2026, sobre `origin/development @ cdd9c71`; borrado y escrituras re-medidos en la ronda 2 sobre `@ 005508b`) · **Origen:** revisor del PR R-05 (#553); anotado como hallazgo abierto en RED-02 y en los *Pendientes* del Cambio 122; borrado medido por el revisor del PR #555. **La medición no descubre rutas nuevas: confirma y agrava `SEC-10` (adjuntos), `SEC-18` (alertas y el `pk` no numérico) y `SEC-11` (las APIs JSON de legajos)**, que son las dueñas del arreglo y ya estaban en la Ola 2. Lo propio de esta ficha es el **barrido** que lo habría detectado y el ratchet que impide que vuelva · **Ola:** R (**primero**, PR R-19) · **Esfuerzo:** S-M (4 h; las capacidades las cuentan SEC-10, SEC-11 y SEC-18, que se adelantan al mismo PR — ver D-RED-14)
 - **Ubicación exacta de las 17 rutas de Legajos** (nombre de URL → vista; `legajos/urls/__init__.py`). Las once de
   `legajos/views/contactos_api.py` y las cuatro de `legajos/views/alertas.py` llevan **solo `@login_required`**; las dos
   de `legajos/api_views/__init__.py:65-102` cuelgan de `AlertasViewSet`, con
@@ -512,13 +512,18 @@ verdad (contador de errores seguidos, `--max-errores`) y `test_un_caso_que_falla
      El `expectedFailure` va en un test aparte (`test_las_rutas_de_legajos_siguen_abiertas_red89`) que recorre la lista
      literal de las 17, para que el test principal quede verde de verdad y el día que se arregle Legajos el
      `unexpectedSuccess` avise solo.
-  2. **Ola 2 (4 h) — las capacidades.** `@requiere("ciudadano.ver")` en las de lectura y `ciudadano.editar` en las cinco
-     escrituras (más la sexta, `AlertasViewSet.cerrar`), con el alcance territorial que ya aplica `FiltrosUsuarioService`;
-     `RequiereCapacidad` en `AlertasViewSet`, que hoy lleva `BackofficeAutenticado + IsAuthenticated`, o sea «cualquier
-     usuario del backoffice». `eliminar_archivo` es la que más urge: hoy borra de verdad. Las de timeline y alertas además
-     caen bajo **D-11**, que ya decidió que piden `ciudadano.sensible`: coordinar con SEC-11 y G1c-04 para no escribir dos
-     veces la misma regla. De paso, `cerrar_alerta` tiene que validar el `pk` antes de usarlo (el 500). **Ver D-RED-14:**
-     por la severidad CRÍTICA, el default es adelantar este punto al propio PR R-19 en vez de esperar a la Ola 2.
+  2. **Las capacidades no son de esta ficha: ya tienen dueño.** Esta ficha **no** escribe una propuesta de autorización
+     paralela —sería una tercera copia de la misma regla—. El arreglo de las 17 rutas vive en tres fichas de
+     `01-seguridad.md` que esta medición confirma y agrava, y que por **D-RED-14** se adelantan al mismo PR R-19:
+
+     | Ficha | Qué cubre de las 17 | Dónde se hace |
+     |---|---|---|
+     | **SEC-10** (CRÍTICA, 4 h) | las 5 de adjuntos: `archivos_ciudadano_api`, `archivos_legajo_api`, los dos `subir_archivos_*` y `eliminar_archivo`. Su propuesta es mejor que un `@requiere` suelto: ruta nueva con el dueño en la URL y `eliminar_archivo_de_objeto(instance, archivo_id)`, que filtra por `content_type` + `object_id`, más `archivo.archivo.delete(save=False)` para no dejar el blob huérfano | **R-19, completa** |
+     | **SEC-18** (MEDIA, 2 h) | las 7 de alertas: el dashboard, los dos `count`, el `preview`, las tres entradas de cierre y `AlertasViewSet`. Incluye el `self.get_object()` que además mata el 500 del `pk` no numérico, y el fallback `AlertaCiudadano.objects.none()` de `FiltrosUsuarioService` | **R-19, completa** |
+     | **SEC-11** (ALTA, 2 h) | las 5 restantes (`actividades`, `timeline`, `prediccion-riesgo`, `evolucion`, `alertas_ciudadano_api`) | **partida:** `ciudadano.ver`/`ciudadano.editar` en R-19 (1 h); `ciudadano.sensible` en timeline, alertas y riesgo **queda en la Ola 2** (1 h), porque depende de **D-11** y se coordina con G1c-04 |
+
+     Lo que R-19 tiene que dejar escrito al cerrar: los `expectedFailure` del punto 1 sacados, el conteo de
+     `ALLOWLIST_SIN_ROL` ajustado en el mismo commit, y la línea «Resolución:» de SEC-10 y SEC-18 (RED-34).
 - **Verificación:** la clase nueva en verde con `& $env:PY manage.py test core.tests.test_superficie_publica`; después del
   punto 2, los `expectedFailure` sacados y el conteo de la allowlist bajado en el mismo commit. Mutaciones de control:
   sacarle el `@requiere` a `alertas_preview_ajax` tiene que poner el barrido en rojo, y el borrado tiene su propio test
