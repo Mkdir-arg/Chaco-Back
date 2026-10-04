@@ -81,7 +81,21 @@ Cuatro barreras, todas con test en `core/tests/test_release_sin_datos.py`:
 3. **`.dockerignore`** — `scripts/*.sql`: el `COPY . .` del `Dockerfile` no los mete en
    la imagen.
 4. **El gate `Sin datos personales`** ([`scripts/check_datos_personales.py`](check_datos_personales.py))
-   — corre en cada PR (`.github/workflows/pr-datos.yml`) y sobre el árbol del release
-   (`publish-main.yml`). Rechaza archivos nuevos de más de 512 KB y cualquier archivo
-   con un `INSERT` sobre columnas de persona y más de 100 filas. La plantilla sin datos
-   pasa a propósito: tiene el `INSERT`, pero tres filas de ejemplo.
+   — corre en cada PR **y en cada push a `development`** (`.github/workflows/pr-datos.yml`),
+   y en `publish-main.yml` dos veces: sobre los archivos versionados **antes** de que
+   `git archive` aplique el `export-ignore`, y sobre el árbol del release después.
+   Rechaza un archivo por cuatro motivos:
+
+   | | Qué mira |
+   |---|---|
+   | Techo de tamaño | Más de 512 KB. La red para el formato que no reconocemos (JSON, Parquet, un export binario). Las exenciones son **rutas exactas** de los seis archivos grandes que ya estaban versionados, nunca un glob de directorio |
+   | `INSERT` con columnas | La lista de columnas nombra `dni`, `cuil`, `cuit`, `apellido`, `fecha_nac` o `domicilio`, y hay más de 100 filas |
+   | `INSERT` sin columnas | Lo que emite `mysqldump` por defecto: más de 100 filas y, en el contenido, más de 100 documentos o más de 50 CUIL distintos |
+   | Tabular sin SQL | `.csv`, `.tsv`, `.dump`, `.dat`, `.sql` con más de 100 líneas y más de 100 documentos distintos. Un padrón de 5.000 DNI en CSV pesa 60 KB: no lo atrapa ningún techo |
+
+   La plantilla sin datos pasa a propósito: tiene el `INSERT` con `dni`, pero tres filas
+   de ejemplo. Lo que distingue un volcado de una plantilla es el volumen.
+
+   El gate **todavía no bloquea el merge**: eso lo habilita RED-20, que crea los
+   rulesets de rama. Mientras tanto, el disparador por `push` es lo que cubre un
+   `git push origin development` directo.

@@ -22,12 +22,18 @@ jobs:
         with:
           fetch-depth: 0
 
+      # RED-01, primero el repositorio: `git archive` ya aplicó `export-ignore`, así que
+      # un `scripts/*.sql` forzado al índice no aparecería en el árbol del release
+      # aunque siga versionado y visible en `development`. Esto mira lo que hay de
+      # verdad en el commit que se publica.
+      - name: Sin datos personales en el repositorio
+        run: python3 scripts/check_datos_personales.py --versionados
+
       - name: Construir árbol de release
         run: mkdir -p "$RUNNER_TEMP/release" && git archive HEAD | tar -x -C "$RUNNER_TEMP/release"
 
-      # RED-01: si un volcado de personas se cuela igual --forzado al índice, o en un
-      # formato que los ignores no contemplan--, el release no sale. Es la última
-      # barrera antes de `main` y del espejo de ECOM, que es público aguas abajo.
+      # Y después el release: si se cuela igual, en un formato que los ignores no
+      # contemplan, no sale. Es la última barrera antes de `main` y del espejo de ECOM.
       - name: Sin datos personales en el release
         run: python3 scripts/check_datos_personales.py --arbol "$RUNNER_TEMP/release"
 

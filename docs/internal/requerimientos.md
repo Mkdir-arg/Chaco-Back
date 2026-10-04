@@ -14824,15 +14824,29 @@ de la Ley 25.326.
 - **Una sola heurística de «esto es un volcado», en Python y no en shell.** La ficha proponía el chequeo
   inline en el YAML del job y, por separado, una regla distinta en el test (más de 100 filas de tuplas).
   Dos heurísticas que se separan en el primer ajuste, y la del YAML marca en rojo la plantilla sin datos.
-  Quedó una sola, en `scripts/check_datos_personales.py`, que usan el gate del PR, el guard del release y
-  el test: **un `INSERT INTO` que nombre una columna de persona** (`dni`, `cuil`, `cuit`, `apellido`,
-  `fecha_nac`, `domicilio`) **y más de 100 filas de tuplas**. Las dos condiciones juntas: lo que distingue
-  un volcado de una plantilla es el volumen, no el nombre de la columna.
-- **El techo de 512 KB corre solo sobre lo que el PR agrega o modifica, no sobre el árbol completo.** Hay
-  grandes legítimos ya versionados (`core/fixtures/localidad_municipio_provincia.json` 1,5 MB,
-  `static/vendor/adminlte.min.css` 1,4 MB, `vis-network.min.js` 689 KB) y `docs/internal/requerimientos.md`
-  (995 KB) se toca en casi todos los PRs: con el techo global, ningún release saldría. Esos están exentos
-  del techo, no de la búsqueda de volcados.
+  Quedó una sola, en `scripts/check_datos_personales.py`, que usan el gate del PR, los dos pases del
+  release y el test.
+- **Tres reglas, no una, porque el nombre de la columna no siempre está** (ronda 2 de revisión). La
+  primera versión solo miraba un `INSERT INTO` con la lista de columnas pegada, y **`mysqldump` por
+  defecto no la emite**: ``INSERT INTO `t` VALUES (…),(…)``. Un volcado sintético de 5.000 personas en ese
+  formato pasaba los tres modos, y es el formato más probable, porque sale de exportar una tabla sin
+  pensarlo. Ahora: (1) `INSERT` con columnas de persona y más de 100 filas; (2) `INSERT` sin lista de
+  columnas, más de 100 filas y, en el contenido, más de 100 documentos o más de 50 CUIL distintos;
+  (3) tabular sin SQL (`.csv`, `.tsv`, `.dump`, `.dat`, `.sql`) con más de 100 líneas y más de 100
+  documentos distintos — un padrón de 5.000 DNI en CSV pesa 60 KB y no lo atrapa ningún techo. Las tres
+  exigen **volumen**: lo que distingue un volcado de una plantilla es la cantidad de personas.
+- **La regla 1 mira la lista de columnas, no todo el archivo.** Tal como estaba, un apellido que fuera
+  literalmente «Apellido» dentro de los datos la hacía disparar, y el mensaje decía «INSERT con columnas
+  de persona» sobre un `mysqldump` que no tenía ninguna. Acotarla al tramo entre el nombre de la tabla y
+  el `VALUES` no pierde detección: lo que la regla 1 deja pasar lo levantan la 2 y la 3.
+- **El techo de 512 KB corre en los tres modos y las exenciones son rutas exactas** (ronda 2 de revisión).
+  Antes corría solo sobre el diff del PR y exentaba `docs/*` y `core/fixtures/*.json` por glob: un
+  `core/fixtures/padron.json` de 1,7 MB con 40.000 DNI pasaba los tres modos. Un glob convierte a ese
+  directorio en el escondite obvio del próximo volcado. Ahora la lista son las seis rutas exactas que ya
+  estaban versionadas (`core/fixtures/localidad_municipio_provincia.json`, el HTML de `docs/design-kb/`,
+  `docs/internal/requerimientos.md`, `package-lock.json`, `adminlte.min.css` y `vis-network.min.js`), y un
+  test falla si aparece otro archivo versionado sobre el techo que no esté en la lista: se agrega a mano y
+  se revisa en el PR.
 - **`DATOS_SIIS_DIR` por defecto `/datos-siis`, y si no está montado el comando corta.** Antes, un archivo
   faltante era un WARNING y se salteaba; eso sigue igual para un archivo suelto, pero el **directorio**
   ausente es ahora `CommandError`. Es el modo de falla que importa —el pod arranca sin el volumen— y
@@ -14853,7 +14867,7 @@ Las cuatro barreras:
 | `.gitignore` | `scripts/*.sql` más la excepción de la plantilla | Que entren al repo |
 | `.gitattributes` | `/scripts/*.sql export-ignore`, plantilla con `-export-ignore` | Que salgan en el release de `main` y en el espejo de ECOM |
 | `.dockerignore` | `scripts/*.sql` | Que el `COPY . .` del `Dockerfile` los meta en la imagen |
-| `pr-datos.yml` y `publish-main.yml` | `scripts/check_datos_personales.py` en sus tres modos | Que vuelva a pasar por otro camino |
+| `pr-datos.yml` (PR **y push** a `development`) y los dos pases de `publish-main.yml` | `scripts/check_datos_personales.py` en sus tres modos | Que vuelva a pasar por otro camino |
 
 El verificador, un archivo, tres modos, la misma regla:
 
@@ -14903,7 +14917,12 @@ carga cada uno, quién los genera, cómo se monta el volumen y qué impide que v
   `design_audit.py` ni `compile_templates.py`.
 - Los dos workflows parsean como YAML y el job expone el nombre exacto `Sin datos personales`, que es el
   que RED-20 va a marcar como obligatorio. El verificador se corrió en sus tres modos: `--versionados`
-  sobre los 1.611 archivos del repo y `--arbol` sobre el árbol real del release, los dos en OK.
+  sobre los 1.616 archivos del repo, `--diff` sobre el propio PR y `--arbol` sobre el árbol real del
+  release (`git archive HEAD`, el mismo paso del workflow), los tres en OK.
+- **Que rechaza de verdad:** se plantaron en el árbol del release los dos casos que levantó la ronda 2
+  —un `mysqldump` sintético de 5.000 personas con DNI y CUIL inventados, y un
+  `core/fixtures/padron.json` de 1,8 MB— y el guard los marcó a los dos con exit 1. Los ocho tests
+  nuevos de la ronda 2 fallan contra la versión anterior del verificador y de los workflows.
 
 ## Pendientes / a definir
 
@@ -14924,9 +14943,14 @@ carga cada uno, quién los genera, cómo se monta el volumen y qué impide que v
 - **Antes de la próxima corrida de alta SIIS** hay que montar `DATOS_SIIS_DIR` en icore y en ECOM. Sin eso
   `correr_alta_siis` corta en el paso 2 —a propósito, con el mensaje que nombra la variable—, pero corta.
 - El gate `Sin datos personales` **todavía no es obligatorio**: eso lo habilita RED-20 (PR R-03), que crea
-  los rulesets de rama. Hasta entonces el job corre y se ve, pero no bloquea el merge por sí solo.
-- Queda fuera del alcance de la heurística un volcado en un formato que no reconocemos (CSV, JSON, Parquet).
-  Lo que lo ataja es el techo de 512 KB sobre lo que el PR agrega, que es una red más gruesa.
+  los rulesets de rama. Hasta entonces el job corre y se ve, pero no bloquea el merge por sí solo. Lo que
+  cubre el hueco mientras tanto es el disparador por `push` a `development` —hasta RED-20 un push directo
+  no disparaba ningún check— y el pase sobre los archivos versionados en `publish-main`, que corre
+  **antes** de que `git archive` aplique el `export-ignore`: sin él, un `scripts/*.sql` forzado al índice
+  quedaba fuera del release y aun así visible en el repositorio.
+- Queda fuera del alcance de las tres reglas un volcado en un formato que no reconocemos (JSON, Parquet,
+  un export binario). Lo que lo ataja es el techo de 512 KB, que desde la ronda 2 corre en los tres modos.
+  Un volcado chico en uno de esos formatos sigue siendo el agujero conocido.
 
 ## Reversión
 
@@ -14945,3 +14969,9 @@ variable y sin el volumen, `correr_alta_siis` no carga insumos. No hay datos ni 
 - **04/10/2026 (este cambio)** — los tres volcados salen de `HEAD`, de la imagen y del release; queda el
   gate para que no vuelvan y `DATOS_SIIS_DIR` como fuente. La purga del historial y el repo privado quedan
   para el PM.
+- **04/10/2026 (ronda 2 de revisión)** — cuatro MINOR del revisor independiente sobre el gate, que es la
+  protección central: detección del formato `mysqldump` sin lista de columnas y de un padrón tabular sin
+  SQL; exenciones del techo acotadas a rutas exactas y techo en los tres modos; el gate también en `push`
+  a `development` y `publish-main` revisando el repositorio antes del `export-ignore`; y el volumen de
+  `DATOS_SIIS_DIR` comentado en `docker-compose.prod.yml`, para que montarlo sea descubrible donde se lee
+  el deploy.

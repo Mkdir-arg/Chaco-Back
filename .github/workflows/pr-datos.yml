@@ -1,7 +1,15 @@
 name: Datos
 
+# También en `push`, no solo en el PR: hasta que RED-20 cree los rulesets de rama,
+# un `git push origin development` directo entra sin disparar ningún workflow de
+# verificación, y el `--arbol` de `publish-main` mira el árbol **después** del
+# `export-ignore`. Sin este disparador, un `scripts/*.sql` forzado al índice se
+# quedaría en el repositorio sin que ningún check lo marque.
 on:
   pull_request:
+    branches:
+      - development
+  push:
     branches:
       - development
 
@@ -20,6 +28,7 @@ jobs:
           fetch-depth: 0
 
       - name: Ningún archivo nuevo grande ni con volcados de personas
+        if: github.event_name == 'pull_request'
         run: python3 scripts/check_datos_personales.py --diff "${{ github.event.pull_request.base.sha }}"
 
       - name: Ningún volcado entre los archivos versionados
