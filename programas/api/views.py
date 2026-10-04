@@ -9,6 +9,7 @@ from datetime import timedelta
 from django.db import transaction
 from django.db.models import Count
 from django.utils import timezone
+from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import mixins, serializers, status, viewsets
 from rest_framework.authentication import SessionAuthentication, TokenAuthentication
 from rest_framework.authtoken.models import Token
@@ -22,6 +23,8 @@ from rest_framework.response import Response
 from core.rbac import puede
 from programas.api.serializers import (
     AdjuntoFormularioSerializer,
+    ConsultaPersonaRespuestaSerializer,
+    ConsultaPersonaSerializer,
     FormularioSerializer,
     RelevamientoDetailSerializer,
     RelevamientoListSerializer,
@@ -209,23 +212,34 @@ def _relevamientos_para_identificar(user, relevamiento_id):
     )
 
 
+@extend_schema(
+    request=ConsultaPersonaSerializer,
+    responses={
+        200: ConsultaPersonaRespuestaSerializer,
+        400: OpenApiResponse(description="Falta el DNI o el sexo no es F ni M."),
+        404: OpenApiResponse(description="No se la pudo identificar, o Base de Personas la informa fallecida."),
+        502: OpenApiResponse(description="Base de Personas falló."),
+    },
+)
 @api_view(["POST"])
 @authentication_classes([TokenAuthentication, SessionAuthentication])
 @permission_classes([IsAuthenticated, CampoBecasPermission])
 def consultar_persona_becas(request):
-    dni = normalizar_dni(request.data.get("dni"))
-    sexo = str(request.data.get("sexo") or "").strip().upper()
-
-    if not dni or sexo not in ("F", "M"):
+    entrada = ConsultaPersonaSerializer(data=request.data)
+    if not entrada.is_valid():
+        # El cuerpo del 400 es el de siempre: la app en producción lee `error`,
+        # no el diccionario de campos que devolvería `raise_exception=True`.
         return Response(
             {"success": False, "error": "DNI y sexo (F o M) son requeridos."},
             status=status.HTTP_400_BAD_REQUEST,
         )
+    dni = entrada.validated_data["dni"]
+    sexo = entrada.validated_data["sexo"]
 
     # Cascada del Cambio 57 en el servidor: padrón de la convocatoria → Base de
     # Personas (si está activa) → manual. Mismo contrato de respuesta que antes;
     # se suma ``origen`` para que la app lo repita en ``datos_identificacion``.
-    relevamientos = _relevamientos_para_identificar(request.user, request.data.get("relevamiento"))
+    relevamientos = _relevamientos_para_identificar(request.user, entrada.validated_data.get("relevamiento"))
     # El padrón efectivo se mira para todos los relevamientos vigentes de una
     # vez; la Gran Base se consulta una sola vez (no depende del relevamiento).
     elegido = objetivo_con_identidad(relevamientos, dni, sexo) or (relevamientos[0] if relevamientos else None)
