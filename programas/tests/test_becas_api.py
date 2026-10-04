@@ -15,6 +15,7 @@ from rest_framework.test import APITestCase
 from legajos.models import Ciudadano
 from programas.management.commands.seed_becas import ROL_COORDINADOR, ROL_TERRITORIAL
 from programas.models import (
+    AdjuntoFormulario,
     Convocatoria,
     Formulario,
     PreguntaGlobal,
@@ -77,6 +78,50 @@ class TokenAuthTests(_BaseApiTest):
     def test_sin_token_no_lista(self):
         resp = self.client.get(reverse("becas_api:relevamiento-list"))
         self.assertIn(resp.status_code, (401, 403))
+
+    # RED-25 (auditoría oct-2026): hasta acá la capacidad `becas.campo` solo se
+    # probaba en el **login** de la app. Los tres viewsets montan además
+    # `SessionAuthentication`, así que una sesión de backoffice entra por la
+    # misma puerta: borrar el `and puede(user, CAP)` de `CampoBecasPermission`
+    # dejaba el oráculo de identidad RENAPER/Personas abierto a todo el
+    # personal sin que fallara ningún test (mutación M11).
+
+    def _coordinador(self):
+        """Usuario de backoffice real, con rol y sin `becas.campo`."""
+        coord = User.objects.create_user("coord", password="secret123")
+        coord.groups.add(Group.objects.get(name=ROL_COORDINADOR))
+        return coord
+
+    def test_sesion_de_backoffice_sin_becas_campo_no_lista(self):
+        self.client.force_login(self._coordinador())
+
+        resp = self.client.get(reverse("becas_api:relevamiento-list"))
+
+        self.assertEqual(resp.status_code, 403)
+
+    @patch("programas.services.identidad.consultar_persona")
+    def test_sesion_de_backoffice_sin_becas_campo_no_consulta_persona(self, mock_consultar):
+        self.client.force_login(self._coordinador())
+
+        resp = self.client.post(
+            reverse("becas_api:personas-consultar"),
+            {"dni": "40400400", "sexo": "M"},
+            format="json",
+        )
+
+        self.assertEqual(resp.status_code, 403)
+        mock_consultar.assert_not_called()
+
+    def test_token_sin_capacidad_revocada_no_opera(self):
+        """El Token no caduca al sacarle el rol al usuario: la capacidad se
+        tiene que mirar en cada request, no solo al emitirlo."""
+        self.autenticar(self.terri)
+        self.assertEqual(self.client.get(reverse("becas_api:relevamiento-list")).status_code, 200)
+
+        self.terri.groups.clear()
+
+        resp = self.client.get(reverse("becas_api:relevamiento-list"))
+        self.assertEqual(resp.status_code, 403)
 
 
 class RelevamientoApiTests(_BaseApiTest):
@@ -333,6 +378,45 @@ class RelevamientoApiTests(_BaseApiTest):
         self.assertEqual(segunda.status_code, 200)
         self.rel.refresh_from_db()
         self.assertEqual(self.rel.estado, Relevamiento.Estado.EN_CURSO)
+
+    # RED-03 (auditoría oct-2026): las ramas de error de las transiciones no se
+    # ejecutaban en ningún test. Un `capturado_en` malformado que pase de 400 a
+    # 500 deja a la app en bucle de sincronización.
+    #
+    # El estado de origen de `iniciar`, `finalizar` y `reabrir` lo recorre
+    # entero RED-66 (Cambio 120), acá arriba: esos tres `subTest` sobre todo el
+    # enum subsumen los casos sueltos que este PR había escrito.
+
+    def test_una_fecha_de_captura_invalida_da_400_en_iniciar_y_en_finalizar(self):
+        """La app sincroniza con `capturado_en`; si manda basura, 400 con el
+        campo señalado —nunca un 500 que la deje reintentando—."""
+        self.autenticar(self.terri)
+
+        for accion in ("iniciar", "finalizar"):
+            for valor in ("ayer", "2026-13-45T99:99:99"):
+                with self.subTest(accion=accion, capturado_en=valor):
+                    resp = self.client.post(
+                        reverse(f"becas_api:relevamiento-{accion}", args=[self.rel.id]),
+                        {"capturado_en": valor},
+                        format="json",
+                    )
+
+                    self.assertEqual(resp.status_code, 400, resp.data)
+                    self.assertEqual(resp.data["capturado_en"], "La fecha de captura no es válida.")
+
+        self.rel.refresh_from_db()
+        self.assertEqual(self.rel.estado, Relevamiento.Estado.ASIGNADO)
+
+    def test_dni_existe_sin_dni_da_400(self):
+        self.autenticar(self.terri)
+        url = reverse("becas_api:relevamiento-dni-existe", args=[self.rel.id])
+
+        for params in ({}, {"dni": ""}, {"dni": "   "}, {"dni": "sin-numeros"}):
+            with self.subTest(params=params):
+                resp = self.client.get(url, params)
+
+                self.assertEqual(resp.status_code, 400, resp.data)
+                self.assertEqual(resp.data["dni"], "El DNI es requerido.")
 
 
 class PersonasBecasApiTests(_BaseApiTest):
@@ -1124,6 +1208,66 @@ class FormularioSyncTests(_BaseApiTest):
         form.refresh_from_db()
         self.assertEqual(form.celular, "111")
 
+    # RED-26 (auditoría oct-2026): `FormularioViewSet.get_queryset` es el ÚNICO
+    # filtro de alcance de `/api/becas/formularios/<id>/` (GET, PUT, PATCH y
+    # POST …/adjuntos/). Cambiarlo por `Formulario.objects.all()` —por ejemplo
+    # «para que un supervisor vea los casos de su equipo»— deja todos los casos
+    # de Becas (DNI, contacto, GPS, respuestas y adjuntos) visibles y
+    # **editables** por cualquier territorial con token, y no falla ningún test
+    # (mutación M14; la gemela de `RelevamientoViewSet` sí muere).
+
+    def _formulario_ajeno(self):
+        return Formulario.objects.create(
+            relevamiento=self.rel_ajeno,
+            celular="111",
+            email_contacto="ajeno@demo.local",
+        )
+
+    def test_no_accede_a_formulario_ajeno(self):
+        ajeno = self._formulario_ajeno()
+        self.autenticar(self.terri)
+
+        resp = self.client.get(reverse("becas_api:formulario-detail", args=[ajeno.pk]))
+
+        self.assertEqual(resp.status_code, 404)
+
+    def test_no_actualiza_formulario_ajeno(self):
+        ajeno = self._formulario_ajeno()
+        self.autenticar(self.terri)
+
+        resp = self.client.patch(
+            reverse("becas_api:formulario-detail", args=[ajeno.pk]),
+            {"celular": "999"},
+            format="json",
+        )
+
+        # Si SEC-23 (Ola 2) saca `UpdateModelMixin`, esto pasa a 405.
+        self.assertEqual(resp.status_code, 404)
+        ajeno.refresh_from_db()
+        self.assertEqual(ajeno.celular, "111")
+
+    def test_no_sube_adjunto_a_formulario_ajeno(self):
+        ajeno = self._formulario_ajeno()
+        pregunta = PreguntaGlobal.objects.create(texto="Foto del DNI", tipo=TipoCampo.ARCHIVO, orden=900)
+        self.autenticar(self.terri)
+
+        resp = self.client.post(
+            reverse("becas_api:formulario-adjuntos", args=[ajeno.pk]),
+            {"pregunta_global": pregunta.pk, "archivo": SimpleUploadedFile("dni.jpg", b"datos")},
+            format="multipart",
+        )
+
+        self.assertEqual(resp.status_code, 404)
+        self.assertEqual(ajeno.adjuntos.count(), 0)
+
+    def test_no_lista_los_adjuntos_de_un_formulario_ajeno(self):
+        ajeno = self._formulario_ajeno()
+        self.autenticar(self.terri)
+
+        resp = self.client.get(reverse("becas_api:formulario-adjuntos", args=[ajeno.pk]))
+
+        self.assertEqual(resp.status_code, 404)
+
 
 class AdjuntoValidacionTests(_BaseApiTest):
     """La API aceptaba cualquier archivo, de cualquier peso.
@@ -1175,3 +1319,269 @@ class AdjuntoValidacionTests(_BaseApiTest):
         resp = self._subir(grande)
         self.assertEqual(resp.status_code, 400)
         self.assertIn("5 MB", str(resp.data))
+
+    def test_lista_los_adjuntos_ya_subidos(self):
+        """RED-03: el `GET …/adjuntos/` no se ejecutaba en ningún test y es lo
+        que la app lee para no reenviar una foto que ya subió."""
+        url = reverse("becas_api:formulario-adjuntos", args=[self.formulario.pk])
+        vacio = self.client.get(url)
+        self._subir(SimpleUploadedFile("dni.jpg", b"datos"))
+
+        resp = self.client.get(url)
+
+        self.assertEqual(vacio.status_code, 200)
+        self.assertEqual(vacio.data, [])
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(len(resp.data), 1)
+        self.assertEqual(resp.data[0]["pregunta_global"], self.pregunta.pk)
+        self.assertEqual(resp.data[0]["formulario"], self.formulario.pk)
+        self.assertIsNone(resp.data[0]["requisito_nativo"])
+        # La app abre esta URL para mostrar la foto ya sincronizada.
+        self.assertTrue(resp.data[0]["archivo"].endswith(".jpg"), resp.data[0]["archivo"])
+
+    def test_el_get_de_adjuntos_no_mira_la_pausa_ni_el_periodo(self):
+        """Leer lo ya subido es seguro con el relevamiento pausado o vencido:
+        es lo que evita que la app reenvíe. Se fija el comportamiento de hoy."""
+        self._subir(SimpleUploadedFile("dni.jpg", b"datos"))
+        self.conv.pausado = True
+        self.conv.pausa_motivo = "Operativo suspendido"
+        self.conv.save(update_fields=["pausado", "pausa_motivo"])
+
+        resp = self.client.get(reverse("becas_api:formulario-adjuntos", args=[self.formulario.pk]))
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(len(resp.data), 1)
+
+
+class _SeisEndpointsTest(_BaseApiTest):
+    """Los seis endpoints de escritura que la app de campo usa en una jornada.
+
+    RED-03: la pausa estaba probada en **uno** (`iniciar`) y el período en tres.
+    Borrar el guard de cualquiera de los otros cinco —o que `_respuesta_pausa`
+    dejara de mirar la pausa heredada de la convocatoria— seguía dando la suite
+    en verde, con el campo cargando sobre un programa pausado.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.rel.estado = Relevamiento.Estado.EN_CURSO
+        self.rel.save(update_fields=["estado", "modificado"])
+        self.formulario = Formulario.objects.create(
+            relevamiento=self.rel,
+            celular="111",
+            email_contacto="a@b.com",
+        )
+        self.pregunta = PreguntaGlobal.objects.create(texto="Foto del DNI", tipo=TipoCampo.ARCHIVO, orden=900)
+        self.autenticar(self.terri)
+
+    def _url_rel(self, accion):
+        return reverse(f"becas_api:relevamiento-{accion}", args=[self.rel.pk])
+
+    def _iniciar(self):
+        return self.client.post(self._url_rel("iniciar"), {}, format="json")
+
+    def _finalizar(self):
+        return self.client.post(self._url_rel("finalizar"), {}, format="json")
+
+    def _reabrir(self):
+        return self.client.post(self._url_rel("reabrir"), {}, format="json")
+
+    def _crear_caso(self):
+        return self.client.post(
+            self._url_rel("formularios"),
+            {
+                "client_uuid": str(uuid4()),
+                "celular": "3624111222",
+                "email_contacto": "x@y.com",
+                "datos_identificacion": {"dni": "40400400", "nombre": "Juan", "apellido": "Perez"},
+            },
+            format="json",
+        )
+
+    def _editar_caso(self):
+        return self.client.patch(
+            reverse("becas_api:formulario-detail", args=[self.formulario.pk]),
+            {"celular": "999"},
+            format="json",
+        )
+
+    def _subir_adjunto(self):
+        return self.client.post(
+            reverse("becas_api:formulario-adjuntos", args=[self.formulario.pk]),
+            {"pregunta_global": self.pregunta.pk, "archivo": SimpleUploadedFile("dni.jpg", b"datos")},
+            format="multipart",
+        )
+
+    def _endpoints(self):
+        return [
+            ("iniciar", self._iniciar),
+            ("finalizar", self._finalizar),
+            ("reabrir", self._reabrir),
+            ("formularios POST", self._crear_caso),
+            ("formulario PATCH", self._editar_caso),
+            ("adjuntos POST", self._subir_adjunto),
+        ]
+
+    def _afirmar_que_nada_cambio(self):
+        self.rel.refresh_from_db()
+        self.formulario.refresh_from_db()
+        self.assertEqual(self.rel.estado, Relevamiento.Estado.EN_CURSO)
+        self.assertIsNone(self.rel.fecha_finalizado)
+        self.assertEqual(self.formulario.celular, "111")
+        self.assertEqual(Formulario.objects.count(), 1)
+        self.assertEqual(AdjuntoFormulario.objects.count(), 0)
+
+
+class PausaEnTodosLosEndpointsTests(_SeisEndpointsTest):
+    """El contrato de la pausa **no es uniforme, y se fija tal cual** (D-RED-10).
+
+    Cinco endpoints contestan ``409 {"detail", "pausado": true}``; el PATCH
+    contesta ``400 {"detail": [...]}`` porque `perform_update` levanta un
+    `ValidationError` de DRF, que además envuelve el mensaje en una lista.
+    Escribir un 409 para los seis haría que el próximo implementador «arregle»
+    el test en vez de la inconsistencia: unificarla es un release coordinado con
+    Chaco-mobile, no un cambio de servidor suelto.
+    """
+
+    #: El código **exacto** que contesta cada endpoint con el relevamiento
+    #: pausado. Es el contrato que lee la app: una regresión que pase cualquiera
+    #: de los cinco 409 a 400 (o al revés) tiene que fallar acá.
+    CODIGO_DE_PAUSA = {
+        "iniciar": 409,
+        "finalizar": 409,
+        "reabrir": 409,
+        "formularios POST": 409,
+        "formulario PATCH": 400,
+        "adjuntos POST": 409,
+    }
+
+    def setUp(self):
+        super().setUp()
+        self.conv.pausado = True
+        self.conv.pausa_motivo = "Operativo suspendido"
+        self.conv.save(update_fields=["pausado", "pausa_motivo"])
+
+    def _afirmar_respuesta_de_pausa(self, nombre, resp, motivo):
+        esperado = self.CODIGO_DE_PAUSA[nombre]
+        self.assertEqual(resp.status_code, esperado, resp.data)
+        self.assertIn(motivo, str(resp.data["detail"]))
+        if esperado == 409:
+            self.assertIs(resp.data["pausado"], True)
+        else:
+            # El PATCH no manda `pausado`: `perform_update` levanta un
+            # `ValidationError` de DRF y solo sobrevive `detail` (D-RED-10).
+            self.assertNotIn("pausado", resp.data)
+        self._afirmar_que_nada_cambio()
+
+    def test_la_pausa_bloquea_y_no_escribe(self):
+        for nombre, llamar in self._endpoints():
+            with self.subTest(endpoint=nombre):
+                resp = llamar()
+
+                self._afirmar_respuesta_de_pausa(nombre, resp, "Operativo suspendido")
+
+    def test_la_pausa_propia_del_relevamiento_tambien_bloquea(self):
+        """La cadena es relevamiento → convocatoria → segmento/subsegmento →
+        programa; acá se ejerce el primer eslabón, con el mismo código exacto
+        por endpoint que la pausa heredada."""
+        self.conv.pausado = False
+        self.conv.save(update_fields=["pausado", "modificado"])
+        self.rel.pausado = True
+        self.rel.pausa_motivo = "Territorial de licencia"
+        self.rel.save(update_fields=["pausado", "pausa_motivo", "modificado"])
+
+        for nombre, llamar in self._endpoints():
+            with self.subTest(endpoint=nombre):
+                resp = llamar()
+
+                self._afirmar_respuesta_de_pausa(nombre, resp, "Territorial de licencia")
+
+
+class PeriodoEnTodosLosEndpointsTests(_SeisEndpointsTest):
+    """Mismo barrido con la franja vencida y sin pausa: el período se miraba en
+    tres de los seis endpoints (faltaban `finalizar`, `reabrir` y `adjuntos`).
+    """
+
+    def setUp(self):
+        super().setUp()
+        ayer = timezone.localdate() - timedelta(days=1)
+        self.rel.fecha_asignada = ayer
+        self.rel.fecha_hasta = ayer
+        self.rel.save(update_fields=["fecha_asignada", "fecha_hasta", "modificado"])
+        self.rel.refresh_from_db()
+
+    def test_fuera_del_periodo_se_rechaza_y_no_escribe(self):
+        for nombre, llamar in self._endpoints():
+            with self.subTest(endpoint=nombre):
+                resp = llamar()
+
+                self.assertEqual(resp.status_code, 400, resp.data)
+                self.assertIn("período", str(resp.data["detail"]))
+                self.assertNotIn("pausado", resp.data)
+                self._afirmar_que_nada_cambio()
+
+
+class AltaBajoElLockTests(_BaseApiTest):
+    """RED-10: presupuesto de consultas del alta por la app de campo.
+
+    El POST de un caso trabaja con `select_for_update` sobre el relevamiento,
+    contra el `read_timeout` de 10 s de MySQL/MariaDB: cada consulta de más
+    adentro del lock la pagan en cola todos los dispositivos que sincronizan
+    (Cambio 91: 165 × 500; Cambio 93: el alta bajó de 32 a 10 consultas).
+    Agregar una lectura por caso —reconstruir la definición adentro del lock,
+    re-resolver identidad— deja el CI en verde y rompe en producción.
+
+    El número es el **medido hoy** sobre SQLite, el motor del CI. Como cualquier
+    presupuesto, solo puede bajar: subirlo exige justificarlo (RED-62).
+    """
+
+    CONSULTAS_ALTA = 29
+
+    def setUp(self):
+        super().setUp()
+        self.rel.estado = Relevamiento.Estado.EN_CURSO
+        self.rel.save(update_fields=["estado", "modificado"])
+        self.autenticar(self.terri)
+
+    def _payload(self):
+        return {
+            "client_uuid": str(uuid4()),
+            "celular": "3624111222",
+            "email_contacto": "x@y.com",
+            "datos_identificacion": {
+                "dni": "40400400",
+                "nombre": "Juan",
+                "apellido": "Perez",
+                "fecha_nacimiento": "1990-01-02",
+            },
+            "data": {"globales": {}, "requisitos": {}},
+        }
+
+    def test_el_alta_no_crece_en_consultas(self):
+        url = reverse("becas_api:relevamiento-formularios", args=[self.rel.pk])
+
+        with self.assertNumQueries(self.CONSULTAS_ALTA):
+            resp = self.client.post(url, self._payload(), format="json")
+
+        self.assertEqual(resp.status_code, 201, resp.data)
+
+    def test_el_alta_no_crece_con_mas_casos_ya_cargados(self):
+        """El mismo presupuesto con el relevamiento ya poblado: así el número
+        también fija que el alta **no escale** con la cantidad de casos. El
+        control de duplicados por DNI son dos lecturas por índice; resolverlo
+        recorriendo los casos en Python (una consulta por ciudadano) da el mismo
+        total con el relevamiento vacío y explota en campo, que es donde el
+        relevamiento tiene cientos."""
+        url = reverse("becas_api:relevamiento-formularios", args=[self.rel.pk])
+        for indice in range(5):
+            Formulario.objects.create(
+                relevamiento=self.rel,
+                ciudadano=Ciudadano.objects.create(dni=f"3011111{indice}", nombre="Previo", apellido="Caso"),
+                celular="111",
+                email_contacto="a@b.com",
+            )
+
+        with self.assertNumQueries(self.CONSULTAS_ALTA):
+            resp = self.client.post(url, self._payload(), format="json")
+
+        self.assertEqual(resp.status_code, 201, resp.data)
