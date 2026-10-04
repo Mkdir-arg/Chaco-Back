@@ -62,8 +62,8 @@ con lo que existe hoy; la lista solo baja.
 | RED-25 | La capacidad `becas.campo` no se prueba en los endpoints ni en el oráculo de identidad | ALTA | CONF. test (mutación M11) | R | S | ⬜ |
 | RED-26 | `FormularioViewSet` sin test de alcance: un territorial podría leer y editar casos ajenos | ALTA | CONF. test (mutación M14) | R | S | ⬜ |
 | RED-27 | Promover desde la lista de espera con cupo exactamente 0 no está probado | ALTA | CONF. test (mutación M19) | R | S | ⬜ |
-| RED-28 | `FINALIZANDO` está en los estados abiertos de vencimientos y ningún test lo cubre | ALTA | CONF. test (mutación M27) | R | S | ⬜ |
-| RED-29 | El envío del link público no prueba que el relevamiento siga `EN_CURSO` | ALTA | CONF. test (mutación M44) | R | S | ⬜ |
+| RED-28 | `FINALIZANDO` está en los estados abiertos de vencimientos y ningún test lo cubre | ALTA | CONF. test (mutación M27) | R | S | ✅ |
+| RED-29 | El envío del link público no prueba que el relevamiento siga `EN_CURSO` | ALTA | CONF. test (mutación M44) | R | S | ✅ |
 | RED-30 | Sin test de humo por pantalla: nada afirma «ninguna ruta da 500» | MEDIA | CONF. test (barrido) | R | S | ⬜ |
 | RED-31 | `requisito_eliminar` y `subsegmento_eliminar` no se ejecutan en ningún test | MEDIA | CONF. test (coverage) | R | S | ⬜ |
 | RED-32 | Comandos contra SIIS y RENAPER sin red (`validar_casos_siis`, `completar_casos_renaper`, `sincronizar_programas_siis`) | MEDIA | CONF. test (coverage) | R (+1) | S-M (+S-M) | ⬜ |
@@ -100,7 +100,7 @@ con lo que existe hoy; la lista solo baja.
 | RED-63 | Ruff y Bandit en `continue-on-error`; excepción de `pip-audit` sin vencimiento | MEDIA | CONF. lectura | R | S | ⬜ |
 | RED-64 | `docs/client/` se publica en GitHub Pages público en cada push, sin revisión | MEDIA | CONF. lectura (API) | 7 | S | ⬜ |
 | RED-65 | El guard de `publish-main.yml` exige artefactos muertos y va a bloquear OPS-10/OPS-14 | MEDIA | CONF. lectura | R (+7) | S | ⬜ |
-| RED-66 | `reabrir` de la app de campo no tiene test negativo de la transición | MEDIA | CONF. test (mutación M17) | R | S | ⬜ |
+| RED-66 | `reabrir` de la app de campo no tiene test negativo de la transición | MEDIA | CONF. test (mutación M17) | R | S | ✅ |
 | RED-67 | Ningún test afirma que se tome el `select_for_update` del cupo ni del link | MEDIA | CONF. test (mutaciones M21, M43) | R (+capa 2 en TST-01) | S | ⬜ |
 | RED-68 | La posición en la lista de espera no está probada en ningún lado | MEDIA | CONF. test (mutación M23) | R | S | ⬜ |
 | RED-69 | Fecha de nacimiento ausente o futura sin test en el payload SIIS | MEDIA | CONF. test (mutación M34) | R | S | ⬜ |
@@ -1632,6 +1632,15 @@ justificación empírica del paso `--tag mysql` de TST-01.
   (`set(Relevamiento.Estado) == set(ESTADOS_RELEVAMIENTO_ABIERTOS) | ESTADOS_CERRADOS`, con `ESTADOS_CERRADOS` declarado en
   `vencimientos.py`).
 
+**Resolución:** ✅ Resuelto en el PR R-08 (Cambio 120), 04-oct-2026 — los tres tests propuestos, más
+`test_por_fecha_hasta_solo_vencen_asignado_y_en_curso` (caracterización de la **segunda** rama de la regla, que usa una
+lista de estados más corta: con la convocatoria vigente, un `FINALIZANDO` o `FINALIZADO` con `fecha_hasta` pasada no se
+cierra solo). Las listas que recorren los `subTest` son literales, no las constantes del servicio: si lo fueran, la
+mutación M27 se llevaría puesta también al test. La constante nueva se llama `ESTADOS_RELEVAMIENTO_CERRADOS` (simetría
+con la de al lado) en vez de `ESTADOS_CERRADOS`. Verificado a mano: M27 → 2 tests en rojo; `TERMINADO` de más en la tupla
+de abiertos → 3 en rojo.
+**Test permanente:** `programas/tests/test_becas_vencimientos.py::CascadaRelevamientoTests.test_todos_los_estados_abiertos_pasan_a_revision`
+
 ### RED-29 · El envío del link público no prueba que el relevamiento siga `EN_CURSO`
 **Severidad:** ALTA · **Estado:** CONFIRMADO con test (mutación M44 sobrevive a 1.607 tests) · **Origen:** RS-R7-10 · **Ola:** R (PR de particiones; releer con G1-04) · **Esfuerzo:** S (2 h)
 - **Ubicación:** `programas/services/inscripcion_publica.py:128-131` (re-chequeo **bajo lock** en `_insertar_formulario`); el de
@@ -1644,6 +1653,13 @@ justificación empírica del paso `--tag mysql` de TST-01.
   (`subTest` sobre `FINALIZADO, EN_REVISION, TERMINADO, ASIGNADO` **con `fecha_hasta` vigente**, para aislar el estado de la
   fecha; `assertRaises(InscripcionNoDisponible)` y `formularios.count() == 0`) y `test_en_curso_y_en_fecha_sigue_creando`.
 
+**Resolución:** ✅ Resuelto en el PR R-08 (Cambio 120), 04-oct-2026 — los dos tests propuestos (el negativo recorre el enum
+entero menos `EN_CURSO`, así que incluye `FINALIZANDO`, y arranca afirmando `habilitado_en(now)` para que la fecha no pueda
+ser la que rechaza), más `test_solo_en_curso_habilita_el_link` sobre la guarda de la vista
+(`portal/services/inscripcion.py::relevamiento_disponible`, el otro lado del mismo contrato). Verificado a mano: M44 →
+`test_cerrado_entre_pasos_al_enviar_no_crea` en rojo; sacarle el estado a `relevamiento_disponible` → 5 `subTest` en rojo.
+**Test permanente:** `portal/tests/test_inscripcion_envio.py::IngestaPublicaTests.test_cerrado_entre_pasos_al_enviar_no_crea`
+
 ### RED-66 · `reabrir` de la app de campo no tiene test negativo de la transición
 **Severidad:** MEDIA · **Estado:** CONFIRMADO con test (mutación M17 sobrevive) · **Origen:** RS-R7-03 · **Ola:** R (PR de particiones) · **Esfuerzo:** S (2 h)
 - **Ubicación:** `programas/api/views.py:341-356` (`reabrir`; guarda en `:351`). Hay camino feliz
@@ -1655,6 +1671,14 @@ justificación empírica del paso `--tag mysql` de TST-01.
   `test_no_reabre_un_relevamiento_que_no_este_finalizado` (`subTest` sobre `ASIGNADO, EN_CURSO, FINALIZANDO, EN_REVISION,
   TERMINADO` → 400 con «Solo se puede reabrir un relevamiento finalizado.» y el estado intacto) y el mismo recorrido para
   `iniciar` y `finalizar`.
+
+**Resolución:** ✅ Resuelto en el PR R-08 (Cambio 120), 04-oct-2026 — las tres transiciones recorren `Relevamiento.Estado`
+completo (no una lista de estados «malos»): un estado nuevo entra solo al recorrido y hay que decidir de qué lado cae.
+Cada test afirma el camino feliz y el negativo en la misma pasada, incluida la idempotencia de `iniciar` sobre `EN_CURSO`
+y que `finalizar` también cierra desde `FINALIZANDO`. Verificado a mano: M17 (`if False:` en la guarda de `reabrir`) → 5
+`subTest` en rojo; la misma mutación en `iniciar` → 5 en rojo (más `test_iniciar_estado_invalido`); sacarle `FINALIZANDO`
+a `finalizar` → 1 en rojo.
+**Test permanente:** `programas/tests/test_becas_api.py::RelevamientoApiTests.test_no_reabre_un_relevamiento_que_no_este_finalizado`
 
 ### RED-67 · Ningún test afirma que se tome el `select_for_update` del cupo ni del link
 **Severidad:** MEDIA · **Estado:** CONFIRMADO con test (mutaciones M21 y M43 sobreviven; `grep -rn "select_for_update" programas/tests portal/tests` → solo un docstring) · **Origen:** RS-R7-05 · **Ola:** R (capa 1) + capa 2 dentro de TST-01 (Ampliado) · **Esfuerzo:** S (2 h)

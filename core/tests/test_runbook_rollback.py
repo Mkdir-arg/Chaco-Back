@@ -39,7 +39,9 @@ class RunbookRollbackTests(SimpleTestCase):
 
     def test_ningun_comando_del_runbook_opera_sobre_development(self):
         """icore-srv y el espejo de ECOM corren `main`; `development` no se despliega."""
-        comandos = re.findall(r"git (?:-C \S+ )?(?:switch|checkout|reset|pull|fetch)[^\n]*\bdevelopment\b", self.texto)
+        # El `[^\n`]*` corta en la comilla invertida: así un `git pull … main` seguido de
+        # una frase sobre `development` no cuenta como comando.
+        comandos = re.findall(r"git (?:-C \S+ )?(?:switch|checkout|reset|pull|fetch)[^\n`]*\bdevelopment\b", self.texto)
         self.assertEqual(comandos, [], "el runbook manda a operar sobre la rama de trabajo")
 
     def test_ningun_comando_apunta_a_un_servicio_inexistente(self):
