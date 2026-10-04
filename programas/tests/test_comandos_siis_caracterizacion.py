@@ -63,8 +63,9 @@ def preparar_information_schema():
 
 
 def crear_tabla_renaper(*filas):
-    """El volcado que carga ``scripts/DatosPersonas.sql``, con las columnas que
-    lee ``completar_casos_renaper``."""
+    """El volcado que carga ``DatosPersonas.sql`` —el del directorio que apunta
+    ``DATOS_SIIS_DIR``, desde RED-01— con las columnas que lee
+    ``completar_casos_renaper``."""
     with connection.cursor() as cur:
         cur.execute(
             f"CREATE TABLE {TABLA_RENAPER} ("
@@ -212,12 +213,21 @@ class CompletarCasosRenaperTests(_BaseEnvioTest):
         return creados
 
     def test_sin_tabla_de_renaper_aborta_con_mensaje_util(self):
-        """Primer freno: sin el volcado no hay nada que cruzar."""
+        """Primer freno: sin el volcado no hay nada que cruzar.
+
+        Desde RED-01 (PR R-01) los volcados no están en el repo, así que el
+        mensaje tiene que nombrar el archivo **y** la variable que dice dónde
+        buscarlo: con solo «cargá DatosPersonas.sql» el operador no sabe de
+        dónde sale. La ruta `scripts/` ya no corresponde.
+        """
         with self.assertRaises(CommandError) as ctx:
             self.correr()
-        self.assertIn("No existe la tabla", str(ctx.exception))
-        self.assertIn(TABLA_RENAPER, str(ctx.exception))
-        self.assertIn("scripts/DatosPersonas.sql", str(ctx.exception))
+        mensaje = str(ctx.exception)
+        self.assertIn("No existe la tabla", mensaje)
+        self.assertIn(TABLA_RENAPER, mensaje)
+        self.assertIn("DatosPersonas.sql", mensaje)
+        self.assertIn("DATOS_SIIS_DIR", mensaje)
+        self.assertNotIn("scripts/DatosPersonas.sql", mensaje)
 
     def test_sin_los_campos_del_catalogo_aborta_y_los_nombra(self):
         """Segundo freno: el comando escribe por texto del requisito, no por id."""

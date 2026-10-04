@@ -15714,6 +15714,17 @@ Daban 403 con los guards cerrados, que es exactamente la conducta nueva.
 
 - **Confirmar con ECOM (H-09)** que PRD define `SIIS_API_URL` con el host productivo, y pedirles
   `DATANACH_ES_PRODUCCION=1` en PRD (solo ahí). Sin esa variable el chequeo de host nunca dispara.
+- **Antes de espejar a ECOM hay que verificar que `SIIS_API_URL` esté definida en testing y en PRD.**
+  Es el único punto con filo de este cambio y conviene no leerlo de apuro: la protección que agrega
+  RED-61 es **solo de CI**. El check tiene `deploy=True`, así que corre con `manage.py check
+  --deploy` —el job `Django check` del PR— y **ningún entrypoint lo corre**: ni `scripts/startup.sh`
+  (que usa `check --database default`) ni el de producción. Dicho de otro modo: si en testing o en
+  PRD la variable no está, el contenedor **arranca igual** y SIIS falla ruidosamente —sin host no hay
+  a dónde ir— en vez de mandar las altas al ambiente de desarrollo en silencio, que es lo que hacía
+  antes. Eso es exactamente lo que se buscaba, pero el momento en que se descubre es la primera alta,
+  no el deploy. `docker-compose.yml:76` conserva `${SIIS_API_URL:-https://siisapi.ecomdev.ar}`:
+  ese default es **solo para el compose de desarrollo** y no aplica al despliegue de ECOM. Frenar el
+  arranque exigiría llamar al check desde el entrypoint, y eso queda para R-15.
 - La Ola 1 (PR 7) suma el resto de los tests de `validar_casos_siis` que pide RED-32 y la base común
   de los comandos (RED-53).
 - La Ola 7 extrae `contexto_identidad`, `contexto_siis` y `contexto_respuestas` a

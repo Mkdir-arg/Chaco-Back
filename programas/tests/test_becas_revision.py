@@ -1836,15 +1836,18 @@ class ContextoDetalleTests(_BaseRevisionTest):
 
 
 class ConsultasDetalleTests(_BaseRevisionTest):
-    """RED-54: presupuesto de consultas del detalle, como está hoy.
+    """RED-54: el número de consultas del detalle, clavado en el de hoy.
 
-    Es un ratchet: el número solo puede bajar. Si sube, alguien agregó una
-    consulta por fila o perdió un ``select_related`` en la pantalla más cara de
-    Becas (la que dio 500 por timeout contra la base de ECOM).
+    ``assertNumQueries`` es **igualdad**, no un techo: el test se pone rojo en
+    los dos sentidos y eso es a propósito. Si sube, alguien agregó una consulta
+    por fila o perdió un ``select_related`` en la pantalla más cara de Becas (la
+    que dio 500 por timeout contra la base de ECOM). Si baja, alguien la
+    optimizó y tiene que bajar el número **en el mismo commit**, que es lo que
+    deja el ratchet por escrito: el número solo puede ir para abajo a mano.
     """
 
     #: Medido hoy sobre el caso aprobado con una validación y un envío.
-    MAX_CONSULTAS = 15
+    CONSULTAS = 15
 
     def setUp(self):
         super().setUp()
@@ -1861,19 +1864,19 @@ class ConsultasDetalleTests(_BaseRevisionTest):
     def test_presupuesto_de_consultas(self):
         url = reverse("becas:formulario_detalle", args=[self.form_a.pk])
         self.client.get(url)  # calienta las cachés por proceso (capacidades, programa)
-        with self.assertNumQueries(self.MAX_CONSULTAS):
+        with self.assertNumQueries(self.CONSULTAS):
             self.assertEqual(self.client.get(url).status_code, 200)
 
     def test_mas_intentos_de_siis_no_agregan_consultas(self):
         """Lo que caza un N+1: el historial tiene que viajar en una consulta."""
         url = reverse("becas:formulario_detalle", args=[self.form_a.pk])
         self.client.get(url)
-        with self.assertNumQueries(self.MAX_CONSULTAS):
+        with self.assertNumQueries(self.CONSULTAS):
             self.client.get(url)
         for _ in range(5):
             EnvioSIIS.objects.create(
                 formulario=self.form_a, estado=EnvioSIIS.Estado.ERROR, documento=self.ciudadano.dni
             )
             ValidacionSIS.objects.create(formulario=self.form_a, estado=ValidacionSIS.Estado.ERROR)
-        with self.assertNumQueries(self.MAX_CONSULTAS):
+        with self.assertNumQueries(self.CONSULTAS):
             self.assertEqual(self.client.get(url).status_code, 200)
