@@ -23,7 +23,7 @@ from django.utils import timezone
 
 from legajos.models import Ciudadano
 from portal.forms.inscripcion import InscripcionPaso2Form
-from portal.services.inscripcion import clave_sesion
+from portal.services.inscripcion import clave_sesion, relevamiento_disponible
 from programas.management.commands.seed_becas import asegurar_catalogo_protegido
 from programas.models import (
     AdjuntoFormulario,
@@ -432,6 +432,61 @@ class IngestaPublicaTests(_BasePaso2Test):
             crear_formulario_publico(
                 self.relevamiento, identificacion=ident, form=self._form_valido(ident), client_uuid=ident["client_uuid"]
             )
+
+    def test_cerrado_entre_pasos_al_enviar_no_crea(self):
+        """RED-29: el re-chequeo **bajo el lock** mira el estado además de la
+        fecha, y eso no lo probaba nadie.
+
+        El caso real: alguien abre el paso 1 a las 03:09, el cron de las 03:10
+        pasa el relevamiento a EN_REVISION y el paso 2 crearía el caso igual,
+        colgado de un relevamiento que el revisor ya cerró. Recorre el enum
+        entero salvo EN_CURSO, siempre con la fecha vigente para que lo único
+        que pueda rechazar sea el estado.
+        """
+        self.assertTrue(self.relevamiento.habilitado_en(timezone.now()))
+        cerrados = [e for e in Relevamiento.Estado if e != Relevamiento.Estado.EN_CURSO]
+
+        for estado in cerrados:
+            with self.subTest(estado=estado):
+                Relevamiento.objects.filter(pk=self.relevamiento.pk).update(estado=estado)
+                ident = _identificacion()
+
+                with self.assertRaises(InscripcionNoDisponible):
+                    crear_formulario_publico(
+                        self.relevamiento,
+                        identificacion=ident,
+                        form=self._form_valido(ident),
+                        client_uuid=ident["client_uuid"],
+                    )
+
+                self.assertEqual(self.relevamiento.formularios.count(), 0)
+
+    def test_en_curso_y_en_fecha_sigue_creando(self):
+        """RED-29: la contracara, para que el test de arriba no pueda pasar por
+        estar rechazando todo."""
+        Relevamiento.objects.filter(pk=self.relevamiento.pk).update(estado=Relevamiento.Estado.EN_CURSO)
+        ident = _identificacion()
+
+        formulario, creado = crear_formulario_publico(
+            self.relevamiento, identificacion=ident, form=self._form_valido(ident), client_uuid=ident["client_uuid"]
+        )
+
+        self.assertTrue(creado)
+        self.assertEqual(self.relevamiento.formularios.count(), 1)
+        self.assertEqual(formulario.relevamiento_id, self.relevamiento.pk)
+
+    def test_solo_en_curso_habilita_el_link(self):
+        """RED-29, la guarda de la vista (paso 1 y GET del paso 2): misma
+        partición que el re-chequeo bajo el lock, sobre el enum entero."""
+        for estado in Relevamiento.Estado:
+            with self.subTest(estado=estado):
+                Relevamiento.objects.filter(pk=self.relevamiento.pk).update(estado=estado)
+                relevamiento = Relevamiento.objects.get(pk=self.relevamiento.pk)
+
+                self.assertEqual(
+                    relevamiento_disponible(relevamiento),
+                    estado == Relevamiento.Estado.EN_CURSO,
+                )
 
 
 class Paso2VistaTests(_BasePaso2Test):
