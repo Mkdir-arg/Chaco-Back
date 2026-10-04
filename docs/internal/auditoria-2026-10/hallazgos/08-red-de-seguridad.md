@@ -49,7 +49,7 @@ con lo que existe hoy; la lista solo baja.
 | RED-12 | `definicion_formulario` y los prefijos `pg-`/`rn-`: contrato de dos repos sin serializer ni test | ALTA | CONF. lectura (dos repos) | R | M | ⬜ |
 | RED-13 | El shell de todo el backoffice y `legajos.ready()` dependen de `conversaciones` | ALTA | CONF. lectura | R (test) + 7 | S + M | ⬜ |
 | RED-14 | Un rollback de release con una columna `NOT NULL` nueva rompe el alta de casos (error 1364) | ALTA | CONF. test (MariaDB 11.8) | R | M | ⬜ |
-| RED-15 | En MariaDB la reversa falla (errno 150) y deja tabla huérfana y `django_migrations` a mitad | ALTA | CONF. test (MariaDB 11.8) | R | S | ⬜ |
+| RED-15 | En MariaDB la reversa falla (errno 150) y deja tabla huérfana y `django_migrations` a mitad | ALTA | CONF. test (MariaDB 11.8) | R | S | ✅ |
 | RED-16 | No hay artefacto al que volver: ECOM publica solo `:latest` y `main` no se tagea | ALTA | CONF. lectura (rollout PLAUSIBLE) | R | S | ⬜ |
 | RED-17 | Ninguna migración se prueba hacia atrás ni sobre datos; los tests de migración usan los modelos de hoy | ALTA | CONF. test | R | M + S | ⬜ |
 | RED-18 | La reversa de `0047`, `0048` y `legajos.0007` falla con «Data truncated» | ALTA | CONF. test (MariaDB 11.8) | R | S | ⬜ |
@@ -94,7 +94,7 @@ con lo que existe hoy; la lista solo baja.
 | RED-57 | 14 reversas `RunPython.noop` (más `users/0007`) pierden datos e informan `OK` | MEDIA | CONF. test (SQLite con datos) | R | S-M | ⬜ |
 | RED-58 | `legajos.0007` no es re-entrante: un corte deja legajos sin FK y el reintento muere con 1091 | MEDIA | CONF. test (SQL) | 3 | S | ⬜ |
 | RED-59 | `deploy_prod.sh`: rollback sin base, detached HEAD y un health que siempre da 200 | MEDIA | CONF. lectura | R | S | ⬜ |
-| RED-60 | `processes.md` enseña un rollback que destruye datos y autoriza `--fake` | MEDIA | CONF. lectura | R (prioridad 1) | S | ⬜ |
+| RED-60 | `processes.md` enseña un rollback que destruye datos y autoriza `--fake` | MEDIA | CONF. lectura | R (prioridad 1) | S | ✅ |
 | RED-61 | `SIIS_API_URL` cae al SIIS de desarrollo y nada lo valida al arrancar | MEDIA | CONF. lectura (PRD PLAUSIBLE) | R | S | ⬜ |
 | RED-62 | Los presupuestos de performance son autodeclarados: subirlos en el mismo PR pasa | MEDIA | CONF. lectura | 4 | S | ⬜ |
 | RED-63 | Ruff y Bandit en `continue-on-error`; excepción de `pip-audit` sin vencimiento | MEDIA | CONF. lectura | R | S | ⬜ |
@@ -1092,6 +1092,8 @@ en los **Anexos A-D** de este archivo.
 
 ### RED-15 · En MariaDB la reversa falla (errno 150) y deja tabla huérfana y `django_migrations` a mitad
 **Severidad:** ALTA (era CRÍTICA) · **Estado:** CONFIRMADO con test (MariaDB 11.8: `migrate programas zero` → 1005 errno 150; reintento → 1050; recuperación hacia adelante «OK» con `legajos_derivacion` huérfana) · **Origen:** RS-R5-02 (VR2: CONFIRMADO), RS-VR2-NEW-03 · **Ola:** R (barrera + runbook) · **Esfuerzo:** S (2 h) · **Decisión:** D-RED-05
+
+**Resolución:** ✅ Resuelto en #549 (Cambio 117), 04-oct-2026, con el default de D-RED-05 (barrera) — `programas.0047`, `programas.0048`, `programas.0073`, `legajos.0007` y `users.0023` llevan el bloque `# BARRERA-DE-REVERSA:` y una operación `RunPython(sin_cambios, bloquear_reversa)` al final de `operations`: hacia adelante no hace nada y, al desaplicar (Django recorre en orden inverso, así que corre primera), aborta con `IrreversibleError` **antes de cualquier DDL**, nombrando la migración y remitiendo al paso D.4. Solo actúa en MySQL/MariaDB (fuera de ahí la ida ya era un no-op); verificado también que bloquea en `mysql:8.0.46`, donde el peligro de UUID con guiones no existe — consistente con «las migraciones no se revierten en producción», a tener en cuenta cuando exista el job `migration-roundtrip` (RED-17). El cuerpo de las funciones `restaurar_*` quedó intacto a propósito, para que RED-18 lo corrija sin chocar. Las ocho barreras (las cinco de UUID más `programas.0032`, `0056` y `0069`, que todavía no abortan: RED-57) están listadas en el paso D.4 del runbook. Verificado contra MariaDB 11.8 real: con la barrera, `migrate legajos zero` aborta sin tocar el esquema y el forward posterior reaplica (`migrate --check` en 0); sin ella, muere con errno 150, deja `legajos_derivacion` huérfana y `django_migrations` repartido entre seis apps. **Test permanente:** `core.tests.test_barreras_de_reversa.BarrerasDeReversaTests` (5 tests). Queda pendiente el chequeo inverso de `verificar_esquema_migraciones` (OPS-01, PR R-15).
 - **Ubicación:** `legajos/migrations/0007_ampliar_uuid_legajos.py:44-59` (`MODIFY … char(36)` por SQL crudo, fuera del estado
   de Django) + `legajos/migrations/0004_remove_derivacion.py` (su reversa recrea `legajos_derivacion` con el tipo nativo
   `uuid` de MariaDB ≥ 10.7, contra un `char(32)`).
@@ -1204,6 +1206,8 @@ en los **Anexos A-D** de este archivo.
 
 ### RED-60 · `processes.md` enseña un rollback que destruye datos y autoriza `--fake`
 **Severidad:** MEDIA · **Estado:** CONFIRMADO (lectura) · **Origen:** RS-R5-10 (VR2: CONFIRMADO; prioridad 1 dentro de las migraciones) · **Ola:** R (es media hora y evita que el próximo incidente lo empeore) · **Esfuerzo:** S (2 h)
+
+**Resolución:** ✅ Resuelto en #549 (Cambio 117), 04-oct-2026 — §Rollback de `processes.md` pasa a ser el runbook del Anexo D (D.0 dump obligatorio con el comando escrito para icore y el pedido a ECOM; D.1 qué camino corresponde; D.2 rollback de código con el paso previo D.2.0 de RED-14 y los escenarios ECOM/Kubernetes e icore; D.3 `migrate` cortado hacia adelante; D.4 restore con la lista de las ocho barreras; D.5 registro), y §Gestión de migraciones se reescribió: dump obligatorio, `--fake` prohibido, las migraciones no se revierten en producción y expand/contract. Tres desvíos respecto del Anexo D, todos code-first: (1) `--fake` **se prohíbe** en vez de desaparecer —el criterio 7 del «Hecho cuando» pedía que no se mencionara, pero el propio D.3 lo nombra, y quien lo busque tiene que encontrar el «no»—; (2) el comando de dump del Anexo D no funcionaba como estaba escrito (`$MYSQL_ROOT_PASSWORD` lo expandía la shell del host): quedó con `sh -c '…'` y `$DATABASE_NAME`; (3) D.2.2 opera sobre **`main`**, que es la rama del checkout de icore-srv (`.claude/commands/servidor.md`), con `git switch --force-create rollback/<ts>` en vez de `reset --hard`, que el próximo `pull --ff-only` desharía en silencio. Se corrigieron además las dos referencias al servicio `django`, que no existe en `docker-compose.prod.yml`. **Test permanente:** `core.tests.test_runbook_rollback.RunbookRollbackTests` (6 tests). Queda operativo: el pedido escrito a ECOM del dump previo al deploy (H-11).
 - **Ubicación:** `docs/internal/processes.md:256-258` (`docker compose exec django python manage.py migrate <app>
   <anterior>`: el servicio se llama `web`, el comando ni arranca, y la reversa traba MariaDB: RED-15), `:282` («usar
   `--fake` solo si…», lo contrario de `docker-entrypoint.sh:31-37` y OPS-01), `:280` («siempre hacer backup» sin ningún

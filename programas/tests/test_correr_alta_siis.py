@@ -7,15 +7,18 @@ esas tres cosas pasó de verdad el 01/10/2026 y costó 4.139 altas con la
 localidad equivocada.
 """
 
+import shutil
+import tempfile
 from io import StringIO
 from pathlib import Path
 from unittest.mock import patch
 
-from django.conf import settings
 from django.core.management import call_command
 from django.core.management.base import CommandError
+from django.db import connection
 from django.test import SimpleTestCase, override_settings
 
+from programas.management.commands._insumos_siis import INSUMOS
 from programas.management.commands.correr_alta_siis import _sentencias
 from programas.models import LocalidadSiis, ProvinciaSiis, RequisitoNativo
 from programas.tests.test_corregir_datos_siis import (
@@ -26,6 +29,29 @@ from programas.tests.test_corregir_datos_siis import (
 from programas.tests.test_proceso_masivo import crear_tabla_aprobados_materias
 
 DESTINOS = ("prov_actual", "loc_actual", "barrio_actual", "calle_altura", "est_civil", "prov_nacim", "loc_nacim")
+
+
+def sintetizar_insumos():
+    """Los tres `.sql` del organismo, con su forma y **sin un solo dato real**.
+
+    Reproduce lo que al parser le costó: un punto y coma dentro del comentario de
+    cabecera, un `--` dentro de una cadena («Villa -- Angela» existe) y un punto y
+    coma dentro de un valor. Los DNI son inventados.
+    """
+    archivos = {}
+    for indice, (tabla, archivo, para_que) in enumerate(INSUMOS):
+        filas = ",\n".join(f"('{40000000 + indice * 1000 + i}', 'Villa -- Angela; norte {i}')" for i in range(5))
+        archivos[archivo] = (
+            f"-- Volcado sintetico de `{tabla}`; {para_que}\n"
+            "-- Generado para los tests: ningun dato de persona real.\n"
+            "\n"
+            "SET NAMES utf8mb4;\n"
+            f"DROP TABLE IF EXISTS `{tabla}`;\n"
+            f"CREATE TABLE `{tabla}` (`dni` VARCHAR(20) NOT NULL, `texto` VARCHAR(120));\n"
+            f"INSERT INTO `{tabla}` (`dni`, `texto`) VALUES\n{filas};\n"
+            f"SELECT COUNT(*) FROM `{tabla}`;\n"
+        )
+    return archivos
 
 
 @override_settings(SIIS_API_CLIENT_ID="id-de-prueba", SIIS_API_CLIENT_SECRET="secreto-de-prueba")
@@ -62,6 +88,13 @@ class _BaseAltaTest(_BaseCorreccionTest):
                 # También cuando corta: hace falta para comprobar hasta dónde llegó.
                 self.argumentos = hijo.call_args_list
                 self.llamadas = [llamada.args[0] for llamada in hijo.call_args_list]
+        return salida.getvalue()
+
+    def correr_con_insumos(self, *args):
+        """Igual que ``correr`` pero sin ``--sin-insumos``: pasa por el paso 2."""
+        salida = StringIO()
+        with patch("programas.management.commands.correr_alta_siis.call_command"):
+            call_command("correr_alta_siis", *args, stdout=salida, stderr=salida)
         return salida.getvalue()
 
 
@@ -208,19 +241,72 @@ class ParserDeSqlTests(SimpleTestCase):
 
         self.assertEqual(list(_sentencias(sql)), ["INSERT INTO t (x) VALUES ('Villa -- Angela')"])
 
-    def test_los_sql_del_repo_se_parten_sin_sentencias_vacias(self):
-        """Contra los archivos de verdad, no contra un ejemplo inventado."""
-        for archivo in ("Aprobados.sql", "Localidades.sql", "DatosPersonas.sql"):
-            ruta = Path(settings.BASE_DIR) / "scripts" / archivo
-            if not ruta.exists():
-                continue
+    def test_los_sql_del_organismo_se_parten_sin_sentencias_vacias(self):
+        """Con archivos sintéticos, con la forma de los de verdad.
+
+        Antes esto leía ``scripts/DatosPersonas.sql`` del repo. Esos volcados tienen
+        datos personales reales y salieron del código (RED-01): lo que hay que fijar
+        es la **forma** —cabecera con punto y coma, tuplas con comillas—, no el
+        contenido, así que acá se arma con DNI inventados.
+        """
+        for archivo, contenido in sintetizar_insumos().items():
             with self.subTest(archivo=archivo):
-                sentencias = list(_sentencias(ruta.read_text(encoding="utf-8")))
+                sentencias = list(_sentencias(contenido))
                 self.assertTrue(sentencias, f"{archivo} no produjo ninguna sentencia")
                 for sentencia in sentencias:
                     self.assertTrue(sentencia.strip(), f"{archivo} produjo una sentencia vacía")
                 # La primera tiene que ser SQL de verdad, no un resto de comentarios.
                 self.assertRegex(sentencias[0].upper(), r"^(DROP|CREATE|SET|INSERT|SELECT)")
+
+
+class InsumosDesdeDatosSiisDirTests(_BaseAltaTest):
+    """Los `.sql` del organismo se leen de un volumen montado, no de la imagen (RED-01)."""
+
+    def _directorio_con_insumos(self):
+        carpeta = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, carpeta, True)
+        for archivo, contenido in sintetizar_insumos().items():
+            (carpeta / archivo).write_text(contenido, encoding="utf-8")
+        return carpeta
+
+    def test_sin_el_directorio_montado_corta_y_nombra_la_variable(self):
+        """El modo de falla que importa: el pod arranca sin el volumen."""
+        faltante = Path(tempfile.gettempdir()) / "datos-siis-que-no-existe"
+
+        with override_settings(DATOS_SIIS_DIR=str(faltante)):
+            with self.assertRaises(CommandError) as ctx:
+                self.correr_con_insumos()
+
+        self.assertIn("DATOS_SIIS_DIR", str(ctx.exception))
+        self.assertIn("README-datos-siis.md", str(ctx.exception))
+
+    def test_con_el_directorio_montado_los_lista_en_el_ensayo(self):
+        with override_settings(DATOS_SIIS_DIR=str(self._directorio_con_insumos())):
+            salida = self.correr_con_insumos()
+
+        for archivo in ("Aprobados.sql", "Localidades.sql", "DatosPersonas.sql"):
+            self.assertIn(archivo, salida)
+        self.assertIn("se ejecutaría", salida)
+
+    def test_scripts_le_gana_a_la_variable(self):
+        """La corrida puntual puede apuntar a otro lado sin tocar el entorno del pod."""
+        carpeta = self._directorio_con_insumos()
+
+        with override_settings(DATOS_SIIS_DIR="/directorio-inexistente-a-proposito"):
+            salida = self.correr_con_insumos("--scripts", str(carpeta))
+
+        self.assertIn("DatosPersonas.sql", salida)
+
+    def test_la_precondicion_de_tabla_faltante_nombra_la_variable(self):
+        """Si la tabla no está, el mensaje tiene que decir de dónde sale el archivo."""
+        with connection.cursor() as cur:
+            cur.execute("DROP TABLE aprobados_materias")
+
+        with self.assertRaises(CommandError) as ctx:
+            self.correr()
+
+        self.assertIn("DATOS_SIIS_DIR", str(ctx.exception))
+        self.assertIn("Aprobados.sql", str(ctx.exception))
 
 
 class EnsayoTests(_BaseAltaTest):

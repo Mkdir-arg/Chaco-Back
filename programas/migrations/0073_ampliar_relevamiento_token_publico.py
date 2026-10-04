@@ -1,4 +1,17 @@
 from django.db import migrations
+from django.db.migrations.exceptions import IrreversibleError
+
+# BARRERA-DE-REVERSA: por debajo de programas.0073 solo se vuelve con restore (RED-15,
+# D-RED-05). La reversa normaliza antes de achicar, pero el plan que pasa por acá sigue
+# bajando hasta las migraciones UUID viejas, que sí truncan y revientan a mitad de camino
+# dejando tablas huérfanas y ``django_migrations`` sin corresponder a ninguna release.
+# Runbook D.4 de docs/internal/processes.md.
+MENSAJE_BARRERA = (
+    "programas.0073 es una barrera de reversa (RED-15): el plan de reversa que pasa por "
+    "acá deja el esquema a mitad de camino en MariaDB. Volver atrás se hace con restore "
+    "del dump previo al deploy: runbook D.4 de docs/internal/processes.md. "
+    "No reintentar ni usar --fake."
+)
 
 # MariaDB 10.7+ tiene UUID nativo y Django 5 envía ``token_publico`` con guiones
 # (36 caracteres); la columna nació ``char(32)`` en la 0049 y el alta de un
@@ -21,6 +34,18 @@ def _normalizar_uuid(schema_editor, con_guiones):
         valor = f"REPLACE({COLUMNA}, '-', '')"
         condicion = f"CHAR_LENGTH({COLUMNA}) = 36"
     schema_editor.execute(f"UPDATE {TABLA} SET {COLUMNA} = {valor} WHERE {COLUMNA} IS NOT NULL AND {condicion}")
+
+
+def sin_cambios(apps, schema_editor):
+    """La barrera no toca nada hacia adelante: solo existe para el camino de vuelta."""
+
+
+def bloquear_reversa(apps, schema_editor):
+    # Es la última operación de la migración, así que Django la corre **primera** al
+    # desaplicar: aborta antes de cualquier DDL.
+    if schema_editor.connection.vendor != "mysql":
+        return
+    raise IrreversibleError(MENSAJE_BARRERA)
 
 
 def ampliar_token_publico_mysql(apps, schema_editor):
@@ -51,4 +76,5 @@ class Migration(migrations.Migration):
             ampliar_token_publico_mysql,
             restaurar_token_publico_mysql,
         ),
+        migrations.RunPython(sin_cambios, bloquear_reversa),
     ]

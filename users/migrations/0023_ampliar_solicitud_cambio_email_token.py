@@ -1,4 +1,29 @@
 from django.db import migrations
+from django.db.migrations.exceptions import IrreversibleError
+
+# BARRERA-DE-REVERSA: por debajo de users.0023 solo se vuelve con restore (RED-15,
+# D-RED-05). ``token`` es NOT NULL y único: achicarlo a char(32) con los UUID de 36 que
+# escribe Django 5 sobre MariaDB 10.7+ los trunca, y el plan de reversa que pasa por acá
+# sigue bajando hasta romper a mitad de camino en varias apps a la vez.
+# Runbook D.4 de docs/internal/processes.md.
+MENSAJE_BARRERA = (
+    "users.0023 es una barrera de reversa (RED-15): revertirla trunca "
+    "users_solicitudcambioemail.token y deja el esquema a mitad de camino. "
+    "Volver atrás se hace con restore del dump previo al deploy: runbook D.4 de "
+    "docs/internal/processes.md. No reintentar ni usar --fake."
+)
+
+
+def sin_cambios(apps, schema_editor):
+    """La barrera no toca nada hacia adelante: solo existe para el camino de vuelta."""
+
+
+def bloquear_reversa(apps, schema_editor):
+    # Es la última operación de la migración, así que Django la corre **primera** al
+    # desaplicar: aborta antes de cualquier DDL.
+    if schema_editor.connection.vendor != "mysql":
+        return
+    raise IrreversibleError(MENSAJE_BARRERA)
 
 
 def ampliar_token_mysql(apps, schema_editor):
@@ -42,4 +67,5 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.RunPython(ampliar_token_mysql, restaurar_token_mysql),
+        migrations.RunPython(sin_cambios, bloquear_reversa),
     ]
