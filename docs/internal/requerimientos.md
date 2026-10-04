@@ -15350,8 +15350,10 @@ que agreguen las olas siguientes es decorativo.
   bloquea. Sacarlo de la lista es editar una línea del JSON.
 - **Ruff se parte en dos jobs, no se endurece entero.** `Ruff errores` corre `--select F` —nombre
   indefinido, import roto, variable fantasma: nunca es estilo— y bloquea; `Ruff estilo` corre
-  `E,W,I` más `ruff format --check` y sigue en `continue-on-error` hasta limpiar la deuda de archivos
-  ajenos. Verificado antes de encenderlo, como pide la ficha: `ruff check . --select F` da **0
+  `E,W,I` más `ruff format --check` y sigue en `continue-on-error`, como pide la ficha. Hoy el repo
+  da 0 también en estilo: lo que falta para encenderlo es fijar la versión de Ruff
+  (`requirements-ci.txt`, RED-85 / Ola 7), porque se instala sin pin y un release con una regla E/W
+  nueva volvería rojo un PR que no cambió nada. Verificado antes de encender el de errores: `ruff check . --select F` da **0
   hallazgos** hoy sobre el repo entero.
 - **Las excepciones de `pip-audit` salen del YAML y pasan a `security/excepciones.toml`**, con
   `id`, `motivo`, `vence_el` y `ticket` obligatorios. El workflow las valida antes de auditar y

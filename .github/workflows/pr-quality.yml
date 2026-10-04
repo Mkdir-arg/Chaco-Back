@@ -49,8 +49,10 @@ jobs:
         if: steps.filtro.outputs.python == 'true'
         run: ruff check . --select F --output-format=github
 
-  # El estilo sigue sin bloquear hasta limpiar la deuda (hoy hay archivos ajenos sin
-  # formatear). Cuando llegue a 0 se le saca el `continue-on-error` y se suma al ruleset.
+  # El estilo sigue sin bloquear, como pide RED-63. Hoy da 0, así que el candidato está:
+  # para encenderlo hace falta antes fijar la versión de Ruff (`requirements-ci.txt`,
+  # RED-85 / Ola 7), o un release con una regla E/W nueva vuelve rojo un PR que no cambió
+  # nada. Recién ahí se le saca el `continue-on-error` y se suma al ruleset.
   ruff-estilo:
     name: Ruff estilo
     runs-on: ubuntu-latest
@@ -78,9 +80,12 @@ jobs:
         if: steps.filtro.outputs.python == 'true'
         run: pip install ruff
 
+      # `--ignore E501` va explícito: un `--select` por línea de comandos pisa también el
+      # `ignore` de `pyproject.toml`, así que sin esto el job reportaría las 43 líneas
+      # largas que el repo ignora a propósito (`line-length = 120` con `E501` apagado).
       - name: Run Ruff style checks
         if: steps.filtro.outputs.python == 'true'
-        run: ruff check . --select E,W,I --output-format=github
+        run: ruff check . --select E,W,I --ignore E501 --output-format=github
 
       - name: Check formatting
         if: steps.filtro.outputs.python == 'true'

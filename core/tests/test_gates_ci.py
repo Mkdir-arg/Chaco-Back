@@ -207,12 +207,26 @@ class RuffBloqueanteTests(SimpleTestCase):
         comandos = " ".join(paso.get("run", "") for paso in job["steps"])
         self.assertIn("--select F", comandos)
 
-    def test_el_job_de_estilo_sigue_sin_bloquear_hasta_limpiar_la_deuda(self):
+    def test_el_job_de_estilo_sigue_sin_bloquear(self):
+        """Hoy da 0, pero Ruff se instala sin versión: un release con una regla E/W nueva
+        volvería rojo un PR que no cambió nada. Se enciende cuando esté `requirements-ci.txt`
+        (RED-85, Ola 7).
+        """
         job = self._job("Ruff estilo")
 
         self.assertTrue(job.get("continue-on-error"))
         comandos = " ".join(paso.get("run", "") for paso in job["steps"])
         self.assertIn("E,W,I", comandos)
+
+    def test_el_job_de_estilo_no_reporta_las_lineas_largas_que_el_repo_ignora(self):
+        """Un `--select` por línea de comandos pisa también el `ignore` de `pyproject.toml`.
+
+        Sin el `--ignore E501` explícito, el job escupe las 43 líneas largas que el repo
+        ignora a propósito y el único job de estilo queda en rojo permanente, o sea mudo.
+        """
+        comandos = " ".join(paso.get("run", "") for paso in self._job("Ruff estilo")["steps"])
+
+        self.assertIn("--ignore E501", comandos)
 
     @unittest.skipUnless(shutil.which("ruff"), "hace falta ruff en el PATH")
     def test_ruff_select_f_no_tiene_hallazgos_hoy(self):
