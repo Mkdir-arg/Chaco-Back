@@ -221,6 +221,93 @@ class RelevamientoApiTests(_BaseApiTest):
         resp = self.client.post(reverse("becas_api:relevamiento-iniciar", args=[self.rel.id]))
         self.assertEqual(resp.status_code, 400)
 
+    # --- Particiones de estado de las tres transiciones de la app (RED-66) ----
+    #
+    # Las tres recorren el enum completo: un estado nuevo entra solo al recorrido
+    # y hay que decidir explícitamente de qué lado cae. El camino feliz lo cubre
+    # `test_iniciar_finalizar_reabrir`; lo que faltaba era el negativo, que es lo
+    # que sostiene el contrato con la app móvil (Cambio 54: «su `reabrir` sigue
+    # aceptando solo FINALIZADO») y la decisión «EN_REVISION no vuelve a campo
+    # por la app».
+
+    def _poner_estado(self, estado):
+        Relevamiento.objects.filter(pk=self.rel.pk).update(estado=estado)
+        self.rel.refresh_from_db()
+
+    def test_no_reabre_un_relevamiento_que_no_este_finalizado(self):
+        """RED-66: neutralizar la guarda de `reabrir` no rompía ningún test, y
+        deja al territorial devolver a campo un relevamiento que el cron ya
+        mandó a EN_REVISION (o uno TERMINADO, con reportes emitidos)."""
+        self.autenticar(self.terri)
+        url = reverse("becas_api:relevamiento-reabrir", args=[self.rel.id])
+
+        for estado in Relevamiento.Estado:
+            with self.subTest(estado=estado):
+                self._poner_estado(estado)
+
+                resp = self.client.post(url)
+
+                self.rel.refresh_from_db()
+                if estado == Relevamiento.Estado.FINALIZADO:
+                    self.assertEqual(resp.status_code, 200)
+                    self.assertEqual(self.rel.estado, Relevamiento.Estado.EN_CURSO)
+                    self.assertIsNone(self.rel.fecha_finalizado)
+                else:
+                    self.assertEqual(resp.status_code, 400)
+                    self.assertEqual(resp.data["detail"], "Solo se puede reabrir un relevamiento finalizado.")
+                    self.assertEqual(self.rel.estado, estado)
+
+    def test_iniciar_solo_sale_de_asignado_y_es_idempotente_en_curso(self):
+        """RED-66: el mismo recorrido para `iniciar`. EN_CURSO devuelve 200 sin
+        mover nada (la app reintenta el inicio tras un corte de red); el resto
+        de los estados son 400."""
+        self.autenticar(self.terri)
+        url = reverse("becas_api:relevamiento-iniciar", args=[self.rel.id])
+
+        for estado in Relevamiento.Estado:
+            with self.subTest(estado=estado):
+                self._poner_estado(estado)
+
+                resp = self.client.post(url)
+
+                self.rel.refresh_from_db()
+                if estado == Relevamiento.Estado.ASIGNADO:
+                    self.assertEqual(resp.status_code, 200)
+                    self.assertEqual(self.rel.estado, Relevamiento.Estado.EN_CURSO)
+                elif estado == Relevamiento.Estado.EN_CURSO:
+                    self.assertEqual(resp.status_code, 200)
+                    self.assertEqual(self.rel.estado, Relevamiento.Estado.EN_CURSO)
+                else:
+                    self.assertEqual(resp.status_code, 400)
+                    self.assertEqual(resp.data["detail"], "Solo se puede iniciar un relevamiento asignado.")
+                    self.assertEqual(self.rel.estado, estado)
+
+    def test_finalizar_solo_sale_de_en_curso_o_finalizando(self):
+        """RED-66: el mismo recorrido para `finalizar`. FINALIZANDO (la ventana
+        de sincronización tardía) también cierra; ASIGNADO, EN_REVISION y
+        TERMINADO no."""
+        self.autenticar(self.terri)
+        url = reverse("becas_api:relevamiento-finalizar", args=[self.rel.id])
+        cierran = {Relevamiento.Estado.EN_CURSO, Relevamiento.Estado.FINALIZANDO}
+
+        for estado in Relevamiento.Estado:
+            with self.subTest(estado=estado):
+                Relevamiento.objects.filter(pk=self.rel.pk).update(estado=estado, fecha_finalizado=None)
+                self.rel.refresh_from_db()
+
+                resp = self.client.post(url)
+
+                self.rel.refresh_from_db()
+                if estado in cierran:
+                    self.assertEqual(resp.status_code, 200)
+                    self.assertEqual(self.rel.estado, Relevamiento.Estado.FINALIZADO)
+                    self.assertIsNotNone(self.rel.fecha_finalizado)
+                else:
+                    self.assertEqual(resp.status_code, 400)
+                    self.assertEqual(resp.data["detail"], "El relevamiento no está en curso.")
+                    self.assertEqual(self.rel.estado, estado)
+                    self.assertIsNone(self.rel.fecha_finalizado)
+
     def test_no_permite_iniciar_relevamiento_fuera_de_fecha(self):
         self.rel.fecha_asignada = timezone.localdate() - timedelta(days=1)
         self.rel.fecha_hasta = self.rel.fecha_asignada
