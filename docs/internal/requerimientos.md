@@ -15299,7 +15299,7 @@ No aplica: entrada nueva.
 | **Etiquetas** | `#infra` `#metodo` `#gestion` |
 | **Solicitante** | Auditoría integral oct-2026 — fichas RED-20, RED-63 y RED-85 (Ola R, red de seguridad, PR R-03) |
 | **Fecha del pedido** | 04/10/2026 |
-| **Issue / épica** | Sin issue (plan de la auditoría: `docs/internal/auditoria-2026-10/`) |
+| **Issue / épica** | Sin issue · PR #554 (plan de la auditoría: `docs/internal/auditoria-2026-10/`) |
 | **Partes afectadas** | Infra (CI y repositorio de GitHub). Cero código de producción |
 | **Migración** | No requiere |
 
