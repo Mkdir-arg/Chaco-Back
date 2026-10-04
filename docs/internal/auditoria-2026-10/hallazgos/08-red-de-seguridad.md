@@ -61,7 +61,7 @@ con lo que existe hoy; la lista solo baja.
 | RED-24 | Sin gates de contratos del repo: `compile_templates`, `collectstatic`, `requerimientos --check`, `design_audit` | ALTA | CONF. test (corrida) | R | M | ⬜ |
 | RED-25 | La capacidad `becas.campo` no se prueba en los endpoints ni en el oráculo de identidad | ALTA | CONF. test (mutación M11) | R | S | ✅ |
 | RED-26 | `FormularioViewSet` sin test de alcance: un territorial podría leer y editar casos ajenos | ALTA | CONF. test (mutación M14) | R | S | ✅ |
-| RED-27 | Promover desde la lista de espera con cupo exactamente 0 no está probado | ALTA | CONF. test (mutación M19) | R | S | ⬜ |
+| RED-27 | Promover desde la lista de espera con cupo exactamente 0 no está probado | ALTA | CONF. test (mutación M19) | R | S | ✅ |
 | RED-28 | `FINALIZANDO` está en los estados abiertos de vencimientos y ningún test lo cubre | ALTA | CONF. test (mutación M27) | R | S | ✅ |
 | RED-29 | El envío del link público no prueba que el relevamiento siga `EN_CURSO` | ALTA | CONF. test (mutación M44) | R | S | ✅ |
 | RED-30 | Sin test de humo por pantalla: nada afirma «ninguna ruta da 500» | MEDIA | CONF. test (barrido) | R | S | ⬜ |
@@ -101,8 +101,8 @@ con lo que existe hoy; la lista solo baja.
 | RED-64 | `docs/client/` se publica en GitHub Pages público en cada push, sin revisión | MEDIA | CONF. lectura (API) | 7 | S | ⬜ |
 | RED-65 | El guard de `publish-main.yml` exige artefactos muertos y va a bloquear OPS-10/OPS-14 | MEDIA | CONF. lectura | R (+7) | S | ⬜ |
 | RED-66 | `reabrir` de la app de campo no tiene test negativo de la transición | MEDIA | CONF. test (mutación M17) | R | S | ✅ |
-| RED-67 | Ningún test afirma que se tome el `select_for_update` del cupo ni del link | MEDIA | CONF. test (mutaciones M21, M43) | R (+capa 2 en TST-01) | S | ⬜ |
-| RED-68 | La posición en la lista de espera no está probada en ningún lado | MEDIA | CONF. test (mutación M23) | R | S | ⬜ |
+| RED-67 | Ningún test afirma que se tome el `select_for_update` del cupo ni del link | MEDIA | CONF. test (mutaciones M21, M43) | R (+capa 2 en TST-01) | S | ✅ |
+| RED-68 | La posición en la lista de espera no está probada en ningún lado | MEDIA | CONF. test (mutación M23) | R | S | ✅ |
 | RED-69 | Fecha de nacimiento ausente o futura sin test en el payload SIIS | MEDIA | CONF. test (mutación M34) | R | S | ⬜ |
 | RED-70 | `celda_segura`: la limpieza de caracteres de control no está probada | MEDIA | CONF. test (mutación M49) | R | S | ⬜ |
 | RED-71 | `ApiCorsMiddleware` sin tests de contrato (y el Cambio 52 lo da por inexistente) | BAJA | CONF. test (ajustado) | R | S | ⬜ |
@@ -1728,6 +1728,13 @@ deja anotado en el test que, si SEC-23 (Ola 2) saca `UpdateModelMixin`, el esper
   `test_promover_sin_cupo_disponible_falla` (`cupo_maximo = 1` con un APROBADO; `assertRaises(ValidationError)` con «No hay
   cupo disponible»; el caso sigue ENVIADO y `promovido` en `False`) y `test_promover_con_el_ultimo_lugar_funciona`.
 
+**Resolución:** ✅ Resuelto en el PR R-09 (Cambio 124), 04-oct-2026 — los dos tests propuestos más dos bordes que
+aparecieron al leer el código: `cupo_maximo = 0` sin nadie aprobado y el segmento **ya excedido** (más aprobados que
+lugares, dato heredado). El tercero importa porque `get_cupo_stats` devuelve `max(cupo_maximo - ocupado, 0)`: el
+`cupo_disponible` nunca es negativo, así que la mutación `< 0` no es un borde mal puesto, es **la guarda borrada**.
+Verificado a mano: M19 → 3 tests en rojo.
+**Test permanente:** `programas/tests/test_cupo_espera_reglas.py::PromoverRespetaElCupoTests.test_promover_sin_cupo_disponible_falla`
+
 ### RED-28 · `FINALIZANDO` está en los estados abiertos de vencimientos y ningún test lo cubre
 **Severidad:** ALTA · **Estado:** CONFIRMADO con test (mutación M27 sobrevive) · **Origen:** RS-R7-07 · **Ola:** R (PR de particiones, con RED-29 y RED-66; releer al implementar G1-04) · **Esfuerzo:** S (2 h)
 - **Ubicación:** `programas/services/vencimientos.py:31-36` (`ESTADOS_RELEVAMIENTO_ABIERTOS`), consumida en `:66` y por la regla
@@ -1805,6 +1812,20 @@ a `finalizar` → 1 en rojo.
   `TransactionTestCase` `@tag("mysql")` con dos hilos sobre un segmento con un lugar → exactamente un APROBADO y una
   `ListaEspera`.
 
+**Resolución:** ✅ Capa 1 resuelta en el PR R-09 (Cambio 124), 04-oct-2026. La capa 2 (`TransactionTestCase` con dos
+hilos, `@tag("mysql")`) sigue abierta dentro de TST-01 (PR R-11), que es la que trae el motor real al CI.
+El espía no es `assert_called()` a secas: `core/tests/candados.py::candados_tomados` registra **desde qué función** se
+pidió el candado, porque sobre el mismo manager hay más de un lock en juego —`Formulario.save()` bloquea el
+relevamiento para numerar el caso— y un `assert_called()` quedaba verde con M43 aplicada (comprobado). Cubre los tres
+caminos del segmento (`aprobar_o_poner_en_espera`, `promover_lista_espera`, `agregar_a_lista_espera`), el
+`Relevamiento` del link público y el del POST de la app de campo, más el `Convocatoria` del duplicado, que la ficha no
+nombraba y es el otro lock del mismo envío. Los del link viven en `portal/tests/` —no en
+`test_candados_concurrencia.py` como decía la ficha— porque el fixture del paso 2 está ahí y moverlos obligaría a que
+los tests de `programas` importen los de `portal`. Verificado a mano, borrando una línea por vez: `cupo.py:205` → 1 en
+rojo, **M21** (`cupo.py:267`) → 2, `cupo.py:316` → 2, **M43** (`inscripcion_publica.py:89`) → 1,
+`inscripcion_publica.py:134` → 1, `api/views.py:387` → 1.
+**Test permanente:** `programas/tests/test_candados_concurrencia.py::ContratoDeCandadosTests.test_aprobar_toma_el_candado_del_segmento`
+
 ### RED-68 · La posición en la lista de espera no está probada en ningún lado
 **Severidad:** MEDIA · **Estado:** CONFIRMADO con test (mutación M23 sobrevive; ningún `assert` sobre `posicion`) · **Origen:** RS-R7-06 · **Ola:** R (tests; la constraint, con BEC-02 en la Ola 1) · **Esfuerzo:** S (2 h) · **Decisión:** D-RED-11
 - **Ubicación:** `programas/services/cupo.py:318-325` (`max_pos + 1`); `programas/models/__init__.py:2977,2984` (`posicion`,
@@ -1817,6 +1838,16 @@ a `finalizar` → 1 en rojo.
   conducta elegida en D-RED-11; hoy el máximo se calcula sobre no promovidos y el nuevo recibe 3) ·
   `test_el_listado_de_cupo_respeta_el_orden_de_llegada`. Con BEC-02, si D-RED-11 lo pide, `UniqueConstraint(fields=["segmento",
   "posicion"])` con columna nullable (no `condition=`: MariaDB no crea índices parciales, README §0.2).
+
+**Resolución:** ✅ Resuelto en el PR R-09 (Cambio 124), 04-oct-2026 — los tres tests propuestos, con el default de
+**D-RED-11** (se fija la conducta de hoy, no se cambia). Se agregó un cuarto, `test_la_posicion_del_ultimo_promovido_se_reutiliza`,
+porque al escribir `test_la_posicion_tras_promover` apareció que la conducta no es una sola: el máximo se calcula sobre
+los **no promovidos**, así que sacar al primero de la lista deja su lugar sin reutilizar (el nuevo recibe 3, como decía
+la ficha), pero sacar al **último** baja el máximo y la próxima alta **repite su posición** —quedan dos filas con la
+misma posición en el segmento, una promovida y una activa—. Eso es lo que define cómo puede entrar la unicidad de
+BEC-02: `UniqueConstraint(fields=["segmento", "posicion"])` sobre lo que hay hoy no cierra; hace falta liberar la
+posición al promover (columna nullable). Verificado a mano: M23 (`posicion = max_pos`) → los 4 tests en rojo.
+**Test permanente:** `programas/tests/test_cupo_espera_reglas.py::PosicionEnLaListaTests.test_las_altas_consecutivas_llevan_posiciones_correlativas`
 
 ### RED-69 · Fecha de nacimiento ausente o futura sin test en el payload SIIS
 **Severidad:** MEDIA · **Estado:** CONFIRMADO con test (mutación M34 sobrevive; la rama `else` no la ejecuta ningún test) · **Origen:** RS-R7-09 · **Ola:** R (o Ola 1, que abre `siis_envio.py`) · **Esfuerzo:** S (2 h)
