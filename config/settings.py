@@ -496,6 +496,12 @@ SIIS_API_CLIENT_ID = os.getenv("SIIS_API_CLIENT_ID", "")
 SIIS_API_CLIENT_SECRET = os.getenv("SIIS_API_CLIENT_SECRET", "")
 SIIS_API_CONNECT_TIMEOUT = int(os.getenv("SIIS_API_CONNECT_TIMEOUT", "10"))
 SIIS_API_TIMEOUT = int(os.getenv("SIIS_API_TIMEOUT", "30"))
+# Dónde están los .sql con los datos del organismo (RENAPER, aprobados, localidades)
+# que carga `manage.py correr_alta_siis`. Antes se leían de `scripts/` dentro de la
+# imagen, con los datos personales de 10.321 personas adentro (RED-01). Ahora es un
+# directorio montado como volumen o secret, que no viaja con el código ni con la
+# imagen. Si no está montado, los comandos cortan nombrando la variable.
+DATOS_SIIS_DIR = os.getenv("DATOS_SIIS_DIR", "/datos-siis")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 LOG_DIR = BASE_DIR / "logs"
