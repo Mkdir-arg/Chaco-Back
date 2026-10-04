@@ -309,13 +309,23 @@ en `ecom/main`, esperar el build (5-7 min) y `kubectl rollout restart`.
 **`kubectl rollout undo` no sirve:** las dos revisiones apuntan a la misma `:latest`.
 Se verifica con un alta de caso de prueba, no con `/health/`.
 
-**D.2.2 · icore-srv.**
+**D.2.2 · icore-srv.** El checkout de `/home/icore/chaco` está en **`main`** —la rama de
+release— y se adelanta con `git pull --ff-only origin main`; `development` no se
+despliega en ningún servidor. Se trabaja como usuario `icore`, nunca con `sudo su`.
 
 ```bash
-git -C <repo> switch development && git reset --hard <SHA_ANTERIOR>
+cd /home/icore/chaco
+git fetch origin main
+# NO: git reset --hard sobre main. El próximo `git pull --ff-only origin main` lo
+# devuelve a la release rota sin que nadie se entere. Una rama propia deja el
+# rollback visible en `git status` y no pisa main.
+git switch --force-create "rollback/$(date +%Y%m%d_%H%M%S)" <SHA_ANTERIOR>
 docker compose -f docker-compose.prod.yml up -d --build --force-recreate web
 docker compose -f docker-compose.prod.yml restart nginx   # cachea la IP del upstream
 ```
+
+Para volver al flujo normal una vez publicada la release corregida:
+`git switch main && git pull --ff-only origin main` y el deploy de siempre.
 
 **D.3 · `migrate` cortado hacia adelante.** No reintentar el deploy y **nunca** usar
 `--fake`: marcar como aplicada una migración que no corrió deja el esquema y
@@ -376,9 +386,12 @@ correspondiente con lo que pasó de verdad al revertir.
   esquema y `django_migrations` discrepando, y el próximo deploy falla en otro lado. Si
   el `migrate` quedó cortado, el camino es D.3; si fue durante una reversa, D.4.
 - **Las migraciones no se revierten en producción.** El camino de vuelta es el restore de
-  D.4. Las que directamente no tienen reversa segura llevan la marca
-  `# BARRERA-DE-REVERSA:` en su archivo y están listadas en D.4; las cinco de UUID
-  abortan con un mensaje explícito antes de tocar la base si alguien lo intenta.
+  D.4, y ahí está la lista completa de las que directamente no tienen reversa segura. De
+  esas ocho, **solo las cinco de UUID** llevan hoy la marca `# BARRERA-DE-REVERSA:` en su
+  archivo y abortan con un mensaje explícito antes de tocar la base si alguien lo
+  intenta; las tres de pérdida de datos (`programas.0032`, `0056` y `0069`) por ahora se
+  revierten en silencio y la única defensa es esta lista, hasta que RED-57 (PR R-12) les
+  ponga la marca.
 - Si la migración que se va a desplegar es barrera de reversa, **se dice en el aviso de
   deploy**: a partir de ahí solo se vuelve con restore.
 - El esquema se mueve siempre primero y nunca hacia atrás dentro de la misma release

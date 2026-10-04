@@ -37,6 +37,11 @@ class RunbookRollbackTests(SimpleTestCase):
         self.assertTrue("mysqldump" in self.texto, "el runbook no trae el comando de dump")
         self.assertTrue("~/backups/" in self.texto, "el dump no dice dónde se guarda")
 
+    def test_ningun_comando_del_runbook_opera_sobre_development(self):
+        """icore-srv y el espejo de ECOM corren `main`; `development` no se despliega."""
+        comandos = re.findall(r"git (?:-C \S+ )?(?:switch|checkout|reset|pull|fetch)[^\n]*\bdevelopment\b", self.texto)
+        self.assertEqual(comandos, [], "el runbook manda a operar sobre la rama de trabajo")
+
     def test_ningun_comando_apunta_a_un_servicio_inexistente(self):
         """Los servicios del compose son mysql, redis, web, websocket y nginx; `django` no."""
         apuntan_a_django = re.findall(r"docker compose (?:\S+ )*?[a-z]+ (?:-\S+ )*django\b", self.texto)

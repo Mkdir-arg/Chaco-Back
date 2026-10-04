@@ -14832,6 +14832,12 @@ validación de `## Reversión` en `requerimientos.py --check` (RED-84, PR R-12).
 - **`--fake` no se borra del documento: se prohíbe.** La ficha pedía que `processes.md` no lo mencionara, pero un
   operador buscando `--fake` en el runbook tiene que encontrar el «no», no el silencio. Las dos menciones que
   quedan son prohibiciones, y hay un test que verifica que ninguna lo autorice.
+- **El rollback de icore-srv opera sobre `main`, no sobre `development`.** El checkout de
+  `/home/icore/chaco` está en la rama de release (`.claude/commands/servidor.md`); `development` no se despliega
+  en ningún servidor. Y no se hace `reset --hard` sobre `main`: el próximo `git pull --ff-only origin main`
+  devolvería el servidor a la release rota sin que nadie se entere, así que el rollback crea una rama
+  `rollback/<timestamp>` —el mismo patrón que RED-59 le pide a `deploy_prod.sh`— que además queda visible en
+  `git status`.
 - **El dump de D.0 es el único camino de vuelta real, así que va con comando y verificación.** En icore se
   escribe completo (incluido el `ls -lh ~/backups/` que confirma que el archivo existe y no pesa 0); en ECOM,
   que es quien tiene la base de producción, se pide por escrito y se espera confirmación antes de espejar a
@@ -14863,6 +14869,8 @@ ir—, y la operación `migrations.RunPython(sin_cambios, bloquear_reversa)` al 
   `users/migrations/0023_ampliar_solicitud_cambio_email_token.py` — marca y barrera.
 - `core/tests/test_barreras_de_reversa.py` — **test permanente de RED-15**.
 - `core/tests/test_runbook_rollback.py` — **test permanente de RED-60**.
+- `docs/internal/auditoria-2026-10/hallazgos/08-red-de-seguridad.md` — RED-15 y RED-60 en ✅, con su línea
+  **Resolución**.
 
 ## Base de datos
 
