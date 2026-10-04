@@ -1,4 +1,29 @@
 from django.db import migrations
+from django.db.migrations.exceptions import IrreversibleError
+
+# BARRERA-DE-REVERSA: por debajo de programas.0048 solo se vuelve con restore (RED-15,
+# D-RED-05). Achicar estas tres columnas a char(32) trunca los UUID con guiones que
+# escribe Django 5 sobre MariaDB 10.7+; el plan de reversa que pasa por acá revienta
+# además aguas abajo y deja tablas huérfanas y ``django_migrations`` a mitad.
+# Runbook D.4 de docs/internal/processes.md.
+MENSAJE_BARRERA = (
+    "programas.0048 es una barrera de reversa (RED-15): revertirla trunca los UUID de "
+    "programas_formulario, programas_validacionsis y programas_inscripcionprograma, y "
+    "deja el esquema a mitad de camino. Volver atrás se hace con restore del dump previo "
+    "al deploy: runbook D.4 de docs/internal/processes.md. No reintentar ni usar --fake."
+)
+
+
+def sin_cambios(apps, schema_editor):
+    """La barrera no toca nada hacia adelante: solo existe para el camino de vuelta."""
+
+
+def bloquear_reversa(apps, schema_editor):
+    # Es la última operación de la migración, así que Django la corre **primera** al
+    # desaplicar: aborta antes de cualquier DDL.
+    if schema_editor.connection.vendor != "mysql":
+        return
+    raise IrreversibleError(MENSAJE_BARRERA)
 
 
 COLUMNAS_UUID = (
@@ -54,4 +79,5 @@ class Migration(migrations.Migration):
             ampliar_id_consulta_mysql,
             restaurar_id_consulta_mysql,
         ),
+        migrations.RunPython(sin_cambios, bloquear_reversa),
     ]

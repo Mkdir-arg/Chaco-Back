@@ -37,19 +37,19 @@ con lo que existe hoy; la lista solo baja.
 |---|---|---|---|---|---|---|
 | RED-01 | Datos personales reales (10.321 personas) en un repo público, en el release y en la imagen de PRD | CRÍTICA | CONF. lectura (API + git) | R (hotfix) | M | ⬜ |
 | RED-02 | Ningún test recorre el URLconf: una ruta que vuelva a quedar abierta pasa el CI | ALTA | CONF. test (barrido) | R | S | ⬜ |
-| RED-03 | App de campo: pausa probada en 1 de 6 endpoints, período en 3, ramas de error en ninguna | ALTA | CONF. test (coverage) | R | S-M | ⬜ |
+| RED-03 | App de campo: pausa probada en 1 de 6 endpoints, período en 3, ramas de error en ninguna | ALTA | CONF. test (coverage) | R | S-M | ✅ |
 | RED-04 | Crear, eliminar y activar un rol no se ejecutan por HTTP en ningún test | ALTA | CONF. test (coverage) | R | S-M | ⬜ |
 | RED-05 | Ningún test sigue un adjunto desde el canal que lo sube hasta la revisión | ALTA | CONF. lectura | R (+3 con DAT-01) | M | ⬜ |
 | RED-06 | Legajos: 23 de 36 rutas sin test; `/legajos/alertas/` ya dio 500 y sigue sin test | ALTA | CONF. test (coverage) | R (+2) | S-M + S | ⬜ |
-| RED-07 | Nada impide volver a poner `Trunc*`/`__date` sobre un `DateTimeField` (CONVERT_TZ, 500 en PRD) | ALTA | CONF. test (SQL compilado) | R | S-M | ⬜ |
-| RED-08 | Los tests del 500 del link público cuentan consultas, no la forma del `WHERE` | ALTA | CONF. test (SQL compilado) | R | S | ⬜ |
-| RED-09 | Un `UUIDField` nuevo sin `char(36)` pasa el CI; el único test de UUID se saltea siempre | ALTA | CONF. test | R (+3) | S-M (+S) | ⬜ |
-| RED-10 | Las dos escrituras que dieron 500 bajo el lock no tienen presupuesto de consultas | ALTA | CONF. lectura | R (+4) | S (+S-M) | ⬜ |
-| RED-11 | Ningún test fija la forma del JSON de `/api/becas/*` que lee la app de campo | ALTA | CONF. lectura (dos repos) | R | S | ⬜ |
+| RED-07 | Nada impide volver a poner `Trunc*`/`__date` sobre un `DateTimeField` (CONVERT_TZ, 500 en PRD) | ALTA | CONF. test (SQL compilado) | R | S-M | ✅ |
+| RED-08 | Los tests del 500 del link público cuentan consultas, no la forma del `WHERE` | ALTA | CONF. test (SQL compilado) | R | S | ✅ |
+| RED-09 | Un `UUIDField` nuevo sin `char(36)` pasa el CI; el único test de UUID se saltea siempre | ALTA | CONF. test | R (+3) | S-M (+S) | ✅ (R; falta Ola 3) |
+| RED-10 | Las dos escrituras que dieron 500 bajo el lock no tienen presupuesto de consultas | ALTA | CONF. lectura | R (+4) | S (+S-M) | 🟡 |
+| RED-11 | Ningún test fija la forma del JSON de `/api/becas/*` que lee la app de campo | ALTA | CONF. lectura (dos repos) | R | S | ✅ |
 | RED-12 | `definicion_formulario` y los prefijos `pg-`/`rn-`: contrato de dos repos sin serializer ni test | ALTA | CONF. lectura (dos repos) | R | M | ⬜ |
 | RED-13 | El shell de todo el backoffice y `legajos.ready()` dependen de `conversaciones` | ALTA | CONF. lectura | R (test) + 7 | S + M | ⬜ |
 | RED-14 | Un rollback de release con una columna `NOT NULL` nueva rompe el alta de casos (error 1364) | ALTA | CONF. test (MariaDB 11.8) | R | M | ⬜ |
-| RED-15 | En MariaDB la reversa falla (errno 150) y deja tabla huérfana y `django_migrations` a mitad | ALTA | CONF. test (MariaDB 11.8) | R | S | ⬜ |
+| RED-15 | En MariaDB la reversa falla (errno 150) y deja tabla huérfana y `django_migrations` a mitad | ALTA | CONF. test (MariaDB 11.8) | R | S | ✅ |
 | RED-16 | No hay artefacto al que volver: ECOM publica solo `:latest` y `main` no se tagea | ALTA | CONF. lectura (rollout PLAUSIBLE) | R | S | ⬜ |
 | RED-17 | Ninguna migración se prueba hacia atrás ni sobre datos; los tests de migración usan los modelos de hoy | ALTA | CONF. test | R | M + S | ⬜ |
 | RED-18 | La reversa de `0047`, `0048` y `legajos.0007` falla con «Data truncated» | ALTA | CONF. test (MariaDB 11.8) | R | S | ⬜ |
@@ -59,8 +59,8 @@ con lo que existe hoy; la lista solo baja.
 | RED-22 | El pipeline de ECOM solo construye la imagen: cero verificación antes del deploy a PRD | ALTA | CONF. lectura | R (propuesta a ECOM) | S | ⬜ |
 | RED-23 | `/pushGitLabecom` empuja `test` y `main` en la misma corrida, sin exigir CI ni testing verificado | ALTA | CONF. lectura | R | M | ⬜ |
 | RED-24 | Sin gates de contratos del repo: `compile_templates`, `collectstatic`, `requerimientos --check`, `design_audit` | ALTA | CONF. test (corrida) | R | M | ⬜ |
-| RED-25 | La capacidad `becas.campo` no se prueba en los endpoints ni en el oráculo de identidad | ALTA | CONF. test (mutación M11) | R | S | ⬜ |
-| RED-26 | `FormularioViewSet` sin test de alcance: un territorial podría leer y editar casos ajenos | ALTA | CONF. test (mutación M14) | R | S | ⬜ |
+| RED-25 | La capacidad `becas.campo` no se prueba en los endpoints ni en el oráculo de identidad | ALTA | CONF. test (mutación M11) | R | S | ✅ |
+| RED-26 | `FormularioViewSet` sin test de alcance: un territorial podría leer y editar casos ajenos | ALTA | CONF. test (mutación M14) | R | S | ✅ |
 | RED-27 | Promover desde la lista de espera con cupo exactamente 0 no está probado | ALTA | CONF. test (mutación M19) | R | S | ⬜ |
 | RED-28 | `FINALIZANDO` está en los estados abiertos de vencimientos y ningún test lo cubre | ALTA | CONF. test (mutación M27) | R | S | ✅ |
 | RED-29 | El envío del link público no prueba que el relevamiento siga `EN_CURSO` | ALTA | CONF. test (mutación M44) | R | S | ✅ |
@@ -94,7 +94,7 @@ con lo que existe hoy; la lista solo baja.
 | RED-57 | 14 reversas `RunPython.noop` (más `users/0007`) pierden datos e informan `OK` | MEDIA | CONF. test (SQLite con datos) | R | S-M | ⬜ |
 | RED-58 | `legajos.0007` no es re-entrante: un corte deja legajos sin FK y el reintento muere con 1091 | MEDIA | CONF. test (SQL) | 3 | S | ⬜ |
 | RED-59 | `deploy_prod.sh`: rollback sin base, detached HEAD y un health que siempre da 200 | MEDIA | CONF. lectura | R | S | ⬜ |
-| RED-60 | `processes.md` enseña un rollback que destruye datos y autoriza `--fake` | MEDIA | CONF. lectura | R (prioridad 1) | S | ⬜ |
+| RED-60 | `processes.md` enseña un rollback que destruye datos y autoriza `--fake` | MEDIA | CONF. lectura | R (prioridad 1) | S | ✅ |
 | RED-61 | `SIIS_API_URL` cae al SIIS de desarrollo y nada lo valida al arrancar | MEDIA | CONF. lectura (PRD PLAUSIBLE) | R | S | ✅ |
 | RED-62 | Los presupuestos de performance son autodeclarados: subirlos en el mismo PR pasa | MEDIA | CONF. lectura | 4 | S | ⬜ |
 | RED-63 | Ruff y Bandit en `continue-on-error`; excepción de `pip-audit` sin vencimiento | MEDIA | CONF. lectura | R | S | ⬜ |
@@ -184,6 +184,24 @@ S-M = 4, M = 8, L = 20 (README §6).
     `test_reabrir_uno_que_no_esta_finalizado_da_400` (ver también RED-66),
     `test_una_fecha_de_captura_invalida_da_400_en_iniciar_y_en_finalizar` (`subTest`), `test_dni_existe_sin_dni_da_400`.
 - **Verificación:** `& $env:PY manage.py test programas.tests.test_becas_api`.
+
+**Resolución:** ✅ Resuelto en el PR R-07 (Cambio 119), 04-oct-2026 — `programas/tests/test_becas_api.py` suma la base
+`_SeisEndpointsTest` (los seis endpoints de escritura de una jornada de campo: `iniciar`, `finalizar`, `reabrir`,
+`formularios` POST, `formulario` PATCH y `adjuntos` POST) y dos barridos con `subTest` sobre ella:
+`PausaEnTodosLosEndpointsTests` (pausa de la convocatoria y pausa propia del relevamiento) y
+`PeriodoEnTodosLosEndpointsTests` (franja vencida). Cada caso afirma el **código real** del endpoint —409 con
+`{"detail", "pausado": true}` en cinco, **400 solo con `detail`, y envuelto en lista, en el PATCH**, tal cual
+D-RED-10— y que nada se escribió (estado y `fecha_finalizado` del relevamiento, `celular` del caso,
+`Formulario.objects.count()`, `AdjuntoFormulario.objects.count()`). Las ramas de error entran en
+`RelevamientoApiTests` (`capturado_en` inválido en `iniciar` y en `finalizar`, `dni-existe` sin DNI) y el
+`GET …/adjuntos/` en `AdjuntoValidacionTests` (listado vacío, listado con un adjunto, y que leer lo ya subido sigue
+funcionando con el relevamiento pausado). **El estado de origen de las tres transiciones no se repite acá:** lo
+recorre entero RED-66 (Cambio 120, PR R-08), que entró primero; los casos sueltos que este PR había escrito
+(`finalizar` fuera de curso, `finalizar` desde `FINALIZANDO`, `reabrir` no finalizado) se podaron al mergear, porque
+los `subTest` sobre todo el enum los subsumen. Mutaciones de control ejercidas a mano: sacar el `_respuesta_pausa` de
+`finalizar` → rojo; sacarlo de `adjuntos` → rojo; `reabrir` sin `habilitado_en` → rojo.
+**Test permanente:** `programas/tests/test_becas_api.py::PausaEnTodosLosEndpointsTests.test_la_pausa_bloquea_y_no_escribe`
+y `::PeriodoEnTodosLosEndpointsTests.test_fuera_del_periodo_se_rechaza_y_no_escribe`.
 
 ### RED-04 · Crear, eliminar y activar un rol no se ejecutan por HTTP en ningún test
 **Severidad:** ALTA · **Estado:** CONFIRMADO con test (coverage: `users/views/roles.py` 54 %) · **Origen:** RS-R1-03 (VR1: CONFIRMADO) · **Ola:** R · **Esfuerzo:** S-M (4 h)
@@ -433,6 +451,25 @@ motor, forma del SQL, migraciones y unas pocas vistas o comandos con cero cobert
   cualquier `Trunc*`/`__date` fuera de `tests/` y `migrations/`, con pragma `# sql-portable: ok`. La ejecución real de
   estos casos contra MariaDB va en TST-01 (`--tag mysql`).
 
+**Resolución:** ✅ Resuelto en el PR R-10 (Cambio 125), 04-oct-2026 — el módulo nuevo con los cuatro tests propuestos. El
+helper compila con `GROUP BY` en 0,03 s sobre SQLite; se le sacó el guion bajo (`sql_mysql`) porque lo van a importar
+TST-01 y lo que venga, y acepta `QuerySet` o `Query`. **Corrección a la ficha:** la línea
+`w.features.__dict__["allows_group_by_selected_pks"] = False` del bloque de arriba no va. Lo que evita la conexión es
+sembrar `mysql_is_mariadb`, `mysql_version` y `mysql_server_data`, nada más; y esa propiedad vale `True` en MySQL 8 y en
+MariaDB sin `ONLY_FULL_GROUP_BY`, así que forzarla a `False` hacía que el SQL compilado **difiriera del que recibe el
+motor** (agrupa por el pk en vez de por todas las columnas). Lo fijan dos tests nuevos:
+`HelperSqlMysqlTests.test_compilar_no_abre_ninguna_conexion` (socket, `get_new_connection` y `cursor` bloqueados, con un
+queryset agrupado y los dos motores) y `test_el_backend_conserva_sus_features_reales`. Dos desvíos más: (a) los tests no
+reescriben el queryset, lo **capturan** del código de producción con `consultas_de(*modelos)` —un context manager que
+intercepta `_fetch_all`/`exists`/`count`/`iterator` de los modelos indicados y deja pasar los demás, así que
+`test_tendencias_...` llama a la vista entera—, porque un test que reescribe el queryset sigue verde cuando el código real
+cambia; (b) la función del parte diario se llama `calcular_cantidades`, no `parte_f01`. Se agregó
+`test_hoy_los_reportes_de_dispositivos_si_compilan_convert_tz` (caracterización de DIS-01 que **tiene** que pasar) para que
+el `expectedFailure` no pueda quedar verde por una excepción tonta. Verificado a mano: `_serie_semanal` con `TruncWeek` → 2
+`subTest` en rojo; `tendencias_datos` con `TruncDate` → 1 en rojo. `scripts/check_sql_portable.py` (opcional) no se hizo:
+su lugar es el job `Contratos del repo` de RED-24 (PR R-14).
+**Test permanente:** `core/tests/test_sql_motor_real.py::SinConvertTZTests.test_la_serie_semanal_del_dashboard_no_compila_convert_tz`
+
 ### RED-08 · Los tests del 500 del link público cuentan consultas, no la forma del `WHERE`
 **Severidad:** ALTA · **Estado:** CONFIRMADO con test (las dos formas compiladas por VR1) · **Origen:** RS-R2-02 (VR1: CONFIRMADO) · **Ola:** R · **Esfuerzo:** S (2 h)
 - **Ubicación:** `programas/services/becas.py:140-178` (`formulario_por_client_uuid`, `q_uuid_en_texto`,
@@ -450,6 +487,16 @@ motor, forma del SQL, migraciones y unas pocas vistas o comandos con cero cobert
   "30111222")` con `_sql_mysql` y, para cada columna (`token_publico`, `client_uuid`, `dni_titular`),
   `assertNotRegex(sql, r"(REPLACE|CAST|LOWER|UPPER|CONCAT|TRIM)\s*\(\s*`?\w+`?\.`?<columna>`?")`. El nombre real de la
   función es `formulario_por_client_uuid` (RS-R2-02 decía otro).
+
+**Resolución:** ✅ Resuelto en el PR R-10 (Cambio 125), 04-oct-2026 — el test propuesto, con el regex tal cual, sobre las
+tres columnas y **contra los dos motores** (MySQL 8.0.32 y MariaDB 11.8: el manejo del `UUIDField` difiere). Además del
+`assertNotRegex` afirma que la columna aparece en una comparación de igualdad pelada (``\`columna\` = ``), que es lo que
+deja usar el índice. `dni_en_convocatoria` devuelve un `bool`, no un queryset: se capturan sus **dos** consultas con
+`consultas_de(Formulario)` y se compila cada una, lo que de paso fija que sigan siendo dos por su índice (Cambio 91) y no
+una con `OR`. Se agregó el pin invertido `test_la_forma_vieja_del_cambio_91_si_envuelve_la_columna`, sin el cual el
+`assertNotRegex` podría quedar verde para siempre mirando un patrón que ya no matchea nada. Verificado a mano:
+`formulario_por_client_uuid` reescrito con `Replace(Cast(...))` → el test en rojo en los dos motores.
+**Test permanente:** `core/tests/test_sql_motor_real.py::ColumnaSargableTests.test_las_busquedas_por_uuid_y_dni_no_envuelven_la_columna`
 
 ### RED-09 · Un `UUIDField` nuevo sin `char(36)` pasa el CI; el único test de UUID se saltea siempre
 **Severidad:** ALTA · **Estado:** CONFIRMADO con test (`UUIDExternosMySQLTests` → `OK (skipped=1)`) · **Origen:** RS-R2-03 parte (b) (VR1; la parte (a) es TST-01), RS-R6-20 (VR2: CONFIRMADO) · **Ola:** R (+3: mover el helper) · **Esfuerzo:** S-M (4 h) + S (2 h)
@@ -473,6 +520,30 @@ motor, forma del SQL, migraciones y unas pocas vistas o comandos con cero cobert
   - **Ola 3 (PR 7, con R0-07):** mover `q_uuid_en_texto` de `programas/services/becas.py` a `core/db.py` (hoy legajos y
     users tendrían que importarlo cruzado).
 
+**Resolución:** ✅ **Parte R resuelta** en el PR R-10 (Cambio 125), 04-oct-2026; la parte de la Ola 3 sigue pendiente. El
+ratchet `COLUMNAS_UUID_AMPLIADAS` (9 entradas: modelo, campo, tabla, columna y migración que la amplió) vive en
+`programas/tests/test_becas_models.py` y lo consume **también** el test físico contra MySQL, así que no hay dos listas que
+puedan desincronizarse. El recorrido va sobre los modelos de **las apps del repo** (no `admin`, `auth`, `sessions`…: esas
+columnas las amplía Django) e incluye las FK que apuntan a un pk UUID (`legajos.AlertaCiudadano.legajo`,
+`legajos.HistorialContacto.legajo`), que son columnas UUID igual; la ficha hablaba del «pk de `TimeStamped`» y en el código
+el pk UUID lo declara `core.models.base.LegajoBase`. Además de la declaración, el ratchet verifica que la migración que
+nombra **exista y amplíe esa columna a `char(36)`** (`test_cada_columna_uuid_declara_su_migracion_a_char36`, leyendo el
+archivo del disco: con `DJANGO_SYNCDB_PROJECT_APPS=True` —que es como corre el CI— el `MigrationLoader` ve las apps del
+proyecto sin migraciones). Desvío del lint: barre **todas las apps del proyecto** (registro de apps de Django, menos tests
+y migraciones: 335 módulos, 2,4 s) y no solo `**/services/*.py` y `**/views/*.py`, porque el código del Cambio 91 vivía en
+`programas/api/views.py`, que no es ninguna de las dos. Reconoce las cuatro formas de escribir la búsqueda: kwarg directo,
+`Q(...)` —que puede armarse lejos del `filter` que lo usa—, `**{"client_uuid": v}` literal y travesía por relación
+(`relevamiento__formularios__client_uuid`, donde la columna comparada es el último segmento significativo; los lookups
+salen del registro del ORM, no de una lista a mano). Un `**variable` opaco se deja pasar: el lint no adivina. Escribir el
+UUID por kwarg en un `create()` es correcto y `__isnull` no compara el valor, así que ninguno es infracción; pragma de
+excepción `# uuid-externo: ok`. Hoy no hay ninguna infracción, y las ocho formas —cuatro que tienen que caer, cuatro que
+no— quedan fijadas con fuente sintética en el propio módulo. Verificado a mano: `UUIDField` nuevo en `ValidacionSIS` →
+ratchet en rojo nombrando modelo y campo; `programas.0073` cambiado por `0072` → rojo por «no amplía ninguna columna a
+char(36)»; `users.0023` por `users.0099` → rojo por inexistente;
+`bloqueado.formularios.filter(client_uuid=client_uuid)` en `programas/api/views.py` → lint en rojo con archivo y línea.
+**Test permanente:** `programas/tests/test_becas_models.py::UUIDExternosMySQLTests.test_todo_uuidfield_nuevo_esta_en_la_lista_ampliada`
+y `core/tests/test_uuid_mariadb.py::BusquedasUUIDTests.test_las_busquedas_por_uuid_usan_el_helper`
+
 ### RED-10 · Las dos escrituras que dieron 500 bajo el lock no tienen presupuesto de consultas
 **Severidad:** ALTA · **Estado:** CONFIRMADO (lectura de los 23 presupuestos) · **Origen:** RS-R2-05 (VR1: CONFIRMADO) · **Ola:** R (`assertNumQueries`) + 4 (destinos del Performance Guard) · **Esfuerzo:** S (2 h) + S-M (4 h)
 - **Ubicación:** `scripts/perf_audit.py:246-390` (`build_targets`, 23 destinos) y `scripts/perf_budgets.json`: no hay
@@ -488,6 +559,17 @@ motor, forma del SQL, migraciones y unas pocas vistas o comandos con cero cobert
   `inscripcion_publica_paso2` (anónimo, sesión del paso 1, `client_uuid` nuevo, `expected_status: 302`) y `becas_api_alta`
   (Token de territorial, `201`, `max_duplicate_queries: 1`) en `build_targets` + filas en `perf_budgets.json` con
   justificación en `adjustments` (y RED-62 para que no se suban en silencio).
+
+**Resolución:** 🟡 Parcial en el PR R-07 (Cambio 119), 04-oct-2026 — hecha la mitad del alta por la app:
+`programas/tests/test_becas_api.py::AltaBajoElLockTests` con `CONSULTAS_ALTA = 29`, el número **medido** sobre SQLite
+(el motor del CI) para el POST completo de un caso nuevo, y el mismo presupuesto repetido con el relevamiento ya
+poblado (5 casos con ciudadano) para que el número fije además que el alta **no escala** con el tamaño del
+relevamiento. Mutación de control: resolver el duplicado por DNI recorriendo los casos en Python en vez de las dos
+lecturas por índice → los dos tests en rojo (el segundo, por el N+1 por ciudadano). **Falta:** (1) el gemelo
+`portal/tests/test_inscripcion_envio.py::Paso2ConsultasTests.test_el_envio_no_crece_en_consultas`, que queda para el PR
+que toque el link público; (2) los dos destinos del Performance Guard (`inscripcion_publica_paso2`, `becas_api_alta`),
+que siguen en la Ola 4 como dice la ficha.
+**Test permanente:** `programas/tests/test_becas_api.py::AltaBajoElLockTests.test_el_alta_no_crece_en_consultas`.
 
 ### RED-34 · Nada obliga a que una ficha cerrada deje un test permanente
 **Severidad:** MEDIA (era ALTA: las PoC nunca se pensaron para correr; el hueco es de proceso) · **Estado:** CONFIRMADO con test (`unittest.defaultTestLoader.discover('docs')` → 0 tests) · **Origen:** RS-R2-04 (VR1: CONFIRMADO-AJUSTADO) · **Ola:** R · **Esfuerzo:** S (2 h)
@@ -550,6 +632,20 @@ la UI («pieza canónica → mismo diff actualiza el agente») falta para la API
   `test_tipos_del_contrato` (`formularios_count` int; `cupo_completo` y `pausado` bool; `definicion_formulario` dict con
   `items`, `globales`, `requisitos`, `requiere_gps`, `canal`, `version`) · `test_formulario_creado_devuelve_id`
   (`relevamientoService.js:846`). Conjunto **exacto**, no `assertIn`.
+
+**Resolución:** ✅ Resuelto en el PR R-07 (Cambio 119), 04-oct-2026 — `programas/tests/test_becas_api_contrato.py::
+ContratoAppDeCampoTests`, con las constantes literales del módulo (`CLAVES_RELEVAMIENTO_LIST`,
+`CLAVES_RELEVAMIENTO_DETAIL`, `CLAVES_DEFINICION`, `CLAVES_FORMULARIO`, `CLAVES_ADJUNTO`, `CLAVES_PAGINACION`) y el
+aviso de que agregar una clave es seguro pero renombrarla o sacarla es un release coordinado de `Chaco-mobile`. Se
+fijan con `assertEqual(sorted(...), ...)` —conjunto exacto— el listado y el detalle de relevamientos, el sobre de
+paginación de DRF, el caso creado y el listado de casos, y el adjunto subido y listado; más `test_tipos_del_contrato`
+(int/bool/str de cada clave, `definicion_formulario` dict con sus seis claves) y
+`test_el_contador_de_personas_cargadas_sale_anotado_y_cuenta` (`formularios_count`, `cupo_maximo`, `cupo_disponible`,
+`cupo_completo`, que no afirmaba ningún test). Mutación de control: renombrar `convocatoria_nombre` →
+`convocatoria` en `serializers.py:18` —que dejaba en verde los 54 tests que hoy tiene `test_becas_api.py`; el «76»
+de arriba es el número del relevamiento original, de otro corte del archivo— pone en rojo tres de estos tests. La
+forma de **cada campo** de `definicion_formulario` sigue siendo RED-12 (PR R-17).
+**Test permanente:** `programas/tests/test_becas_api_contrato.py::ContratoAppDeCampoTests.test_lista_de_relevamientos_tiene_exactamente_estas_claves`.
 
 ### RED-12 · `definicion_formulario` y los prefijos `pg-`/`rn-`: contrato de dos repos sin serializer ni test
 **Severidad:** ALTA · **Estado:** CONFIRMADO (lectura de los dos repos; 8 sitios Python con el prefijo literal) · **Origen:** RS-R3-04 (VR1: CONFIRMADO) · **Ola:** R · **Esfuerzo:** M (8 h)
@@ -1102,6 +1198,8 @@ en los **Anexos A-D** de este archivo.
 
 ### RED-15 · En MariaDB la reversa falla (errno 150) y deja tabla huérfana y `django_migrations` a mitad
 **Severidad:** ALTA (era CRÍTICA) · **Estado:** CONFIRMADO con test (MariaDB 11.8: `migrate programas zero` → 1005 errno 150; reintento → 1050; recuperación hacia adelante «OK» con `legajos_derivacion` huérfana) · **Origen:** RS-R5-02 (VR2: CONFIRMADO), RS-VR2-NEW-03 · **Ola:** R (barrera + runbook) · **Esfuerzo:** S (2 h) · **Decisión:** D-RED-05
+
+**Resolución:** ✅ Resuelto en #549 (Cambio 117), 04-oct-2026, con el default de D-RED-05 (barrera) — `programas.0047`, `programas.0048`, `programas.0073`, `legajos.0007` y `users.0023` llevan el bloque `# BARRERA-DE-REVERSA:` y una operación `RunPython(sin_cambios, bloquear_reversa)` al final de `operations`: hacia adelante no hace nada y, al desaplicar (Django recorre en orden inverso, así que corre primera), aborta con `IrreversibleError` **antes de cualquier DDL**, nombrando la migración y remitiendo al paso D.4. Solo actúa en MySQL/MariaDB (fuera de ahí la ida ya era un no-op); verificado también que bloquea en `mysql:8.0.46`, donde el peligro de UUID con guiones no existe — consistente con «las migraciones no se revierten en producción», a tener en cuenta cuando exista el job `migration-roundtrip` (RED-17). El cuerpo de las funciones `restaurar_*` quedó intacto a propósito, para que RED-18 lo corrija sin chocar. Las ocho barreras (las cinco de UUID más `programas.0032`, `0056` y `0069`, que todavía no abortan: RED-57) están listadas en el paso D.4 del runbook. Verificado contra MariaDB 11.8 real: con la barrera, `migrate legajos zero` aborta sin tocar el esquema y el forward posterior reaplica (`migrate --check` en 0); sin ella, muere con errno 150, deja `legajos_derivacion` huérfana y `django_migrations` repartido entre seis apps. **Test permanente:** `core.tests.test_barreras_de_reversa.BarrerasDeReversaTests` (5 tests). Queda pendiente el chequeo inverso de `verificar_esquema_migraciones` (OPS-01, PR R-15).
 - **Ubicación:** `legajos/migrations/0007_ampliar_uuid_legajos.py:44-59` (`MODIFY … char(36)` por SQL crudo, fuera del estado
   de Django) + `legajos/migrations/0004_remove_derivacion.py` (su reversa recrea `legajos_derivacion` con el tipo nativo
   `uuid` de MariaDB ≥ 10.7, contra un `char(32)`).
@@ -1214,6 +1312,8 @@ en los **Anexos A-D** de este archivo.
 
 ### RED-60 · `processes.md` enseña un rollback que destruye datos y autoriza `--fake`
 **Severidad:** MEDIA · **Estado:** CONFIRMADO (lectura) · **Origen:** RS-R5-10 (VR2: CONFIRMADO; prioridad 1 dentro de las migraciones) · **Ola:** R (es media hora y evita que el próximo incidente lo empeore) · **Esfuerzo:** S (2 h)
+
+**Resolución:** ✅ Resuelto en #549 (Cambio 117), 04-oct-2026 — §Rollback de `processes.md` pasa a ser el runbook del Anexo D (D.0 dump obligatorio con el comando escrito para icore y el pedido a ECOM; D.1 qué camino corresponde; D.2 rollback de código con el paso previo D.2.0 de RED-14 y los escenarios ECOM/Kubernetes e icore; D.3 `migrate` cortado hacia adelante; D.4 restore con la lista de las ocho barreras; D.5 registro), y §Gestión de migraciones se reescribió: dump obligatorio, `--fake` prohibido, las migraciones no se revierten en producción y expand/contract. Tres desvíos respecto del Anexo D, todos code-first: (1) `--fake` **se prohíbe** en vez de desaparecer —el criterio 7 del «Hecho cuando» pedía que no se mencionara, pero el propio D.3 lo nombra, y quien lo busque tiene que encontrar el «no»—; (2) el comando de dump del Anexo D no funcionaba como estaba escrito (`$MYSQL_ROOT_PASSWORD` lo expandía la shell del host): quedó con `sh -c '…'` y `$DATABASE_NAME`; (3) D.2.2 opera sobre **`main`**, que es la rama del checkout de icore-srv (`.claude/commands/servidor.md`), con `git switch --force-create rollback/<ts>` en vez de `reset --hard`, que el próximo `pull --ff-only` desharía en silencio. Se corrigieron además las dos referencias al servicio `django`, que no existe en `docker-compose.prod.yml`. **Test permanente:** `core.tests.test_runbook_rollback.RunbookRollbackTests` (6 tests). Queda operativo: el pedido escrito a ECOM del dump previo al deploy (H-11).
 - **Ubicación:** `docs/internal/processes.md:256-258` (`docker compose exec django python manage.py migrate <app>
   <anterior>`: el servicio se llama `web`, el comando ni arranca, y la reversa traba MariaDB: RED-15), `:282` («usar
   `--fake` solo si…», lo contrario de `docker-entrypoint.sh:31-37` y OPS-01), `:280` («siempre hacer backup» sin ningún
@@ -1675,6 +1775,13 @@ justificación empírica del paso `--tag mysql` de TST-01.
   `test_sesion_de_backoffice_sin_becas_campo_no_consulta_persona` (403 y `mock_consultar.assert_not_called()`) ·
   `test_token_sin_capacidad_revocada_no_opera` (Token emitido con la capacidad, después se quita el rol → 403).
 
+**Resolución:** ✅ Resuelto en el PR R-07 (Cambio 119), 04-oct-2026 — los tres tests propuestos, tal cual, en
+`programas/tests/test_becas_api.py::TokenAuthTests`. **Mata la mutación M11:** con
+`CampoBecasPermission.has_permission` sin `and puede(user, CAP)` los tres quedan en rojo (antes sobrevivía a 1.452
+tests). El tercero cubre además que la capacidad se mira **en cada request**: el Token no caduca al sacarle el rol al
+usuario.
+**Test permanente:** `programas/tests/test_becas_api.py::TokenAuthTests.test_sesion_de_backoffice_sin_becas_campo_no_consulta_persona`.
+
 ### RED-26 · `FormularioViewSet` sin test de alcance: un territorial podría leer y editar casos ajenos
 **Severidad:** ALTA · **Estado:** CONFIRMADO con test (mutación M14 sobrevive; la equivalente de `RelevamientoViewSet`, M13, muere) · **Origen:** RS-R7-02 · **Ola:** R (o en el PR de SEC-23, Ola 2, si va antes) · **Esfuerzo:** S (2 h)
 - **Ubicación:** `programas/api/views.py:447-450` (`get_queryset`, único filtro de alcance de `/api/becas/formularios/<id>/`:
@@ -1685,6 +1792,13 @@ justificación empírica del paso `--tag mysql` de TST-01.
 - **Propuesta:** en `programas/tests/test_becas_api.py::FormularioSyncTests` (ya tiene `self.terri2` y `self.rel_ajeno`):
   `test_no_accede_a_formulario_ajeno` (404) · `test_no_actualiza_formulario_ajeno` (`PATCH` → 404 y la base sin cambios; si
   SEC-23 saca `UpdateModelMixin`, pasa a esperar 405) · `test_no_sube_adjunto_a_formulario_ajeno` (404).
+
+**Resolución:** ✅ Resuelto en el PR R-07 (Cambio 119), 04-oct-2026 — los tres tests propuestos en
+`programas/tests/test_becas_api.py::FormularioSyncTests`, más
+`test_no_lista_los_adjuntos_de_un_formulario_ajeno` (el `GET …/adjuntos/`, que es el cuarto verbo que pasa por el
+mismo `get_queryset`). **Mata la mutación M14:** con `Formulario.objects.all()` los cuatro quedan en rojo. El PATCH
+deja anotado en el test que, si SEC-23 (Ola 2) saca `UpdateModelMixin`, el esperado pasa a 405.
+**Test permanente:** `programas/tests/test_becas_api.py::FormularioSyncTests.test_no_actualiza_formulario_ajeno`.
 
 ### RED-27 · Promover desde la lista de espera con cupo exactamente 0 no está probado
 **Severidad:** ALTA · **Estado:** CONFIRMADO con test (mutación M19 sobrevive; la simétrica de aprobar, M20, muere con 3 tests) · **Origen:** RS-R7-04 · **Ola:** R · **Esfuerzo:** S (2 h)

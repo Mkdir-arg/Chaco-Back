@@ -43,6 +43,7 @@ from django.db import connection, transaction
 from django.utils import timezone
 
 from legajos.models import Ciudadano
+from programas.management.commands._insumos_siis import falta_tabla
 from programas.models import EnvioSIIS, Formulario, LocalidadSiis
 from programas.services import proceso_masivo
 from programas.services.padron import normalizar_dni
@@ -168,7 +169,7 @@ class Command(BaseCommand):
         """
         tabla = "ciudadanos_renaper"
         if tabla not in connection.introspection.table_names():
-            raise CommandError(f"No existe la tabla `{tabla}`. Cargala primero con scripts/DatosPersonas.sql.")
+            raise CommandError(falta_tabla(tabla, "DatosPersonas.sql"))
         filas = {}
         with connection.cursor() as cur:
             cur.execute(f"SELECT dni_consultado, fecha_nacimiento FROM `{tabla}` WHERE `_ok` = 1")  # nosec B608

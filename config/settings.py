@@ -85,6 +85,14 @@ INSTALLED_APPS = [
     "django_extensions",
     "rest_framework",
     "rest_framework.authtoken",
+    # Sin la app, `DEFAULT_SCHEMA_CLASS` y `SPECTACULAR_SETTINGS` quedaban
+    # colgados: `/api/docs/` y `/api/redoc/` daban 500 (`TemplateDoesNotExist`)
+    # y no existía `manage.py spectacular`, así que el esquema no se podía
+    # validar en CI (RED-36, auditoría oct-2026).
+    "drf_spectacular",
+    # Los bundles de Swagger-UI y Redoc, vendorizados. Va después de
+    # `drf_spectacular` y existe solo para que `collectstatic` los encuentre.
+    "drf_spectacular_sidecar",
     "channels",
     "django_redis",
     "health_check",
@@ -500,6 +508,12 @@ SIIS_API_CLIENT_ID = os.getenv("SIIS_API_CLIENT_ID", "")
 SIIS_API_CLIENT_SECRET = os.getenv("SIIS_API_CLIENT_SECRET", "")
 SIIS_API_CONNECT_TIMEOUT = int(os.getenv("SIIS_API_CONNECT_TIMEOUT", "10"))
 SIIS_API_TIMEOUT = int(os.getenv("SIIS_API_TIMEOUT", "30"))
+# Dónde están los .sql con los datos del organismo (RENAPER, aprobados, localidades)
+# que carga `manage.py correr_alta_siis`. Antes se leían de `scripts/` dentro de la
+# imagen, con los datos personales de 10.321 personas adentro (RED-01). Ahora es un
+# directorio montado como volumen o secret, que no viaja con el código ni con la
+# imagen. Si no está montado, los comandos cortan nombrando la variable.
+DATOS_SIIS_DIR = os.getenv("DATOS_SIIS_DIR", "/datos-siis")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 LOG_DIR = BASE_DIR / "logs"
@@ -642,4 +656,18 @@ SPECTACULAR_SETTINGS = {
     "SERVE_INCLUDE_SCHEMA": False,
     "COMPONENT_SPLIT_REQUEST": True,
     "SCHEMA_PATH_PREFIX": "/api/",
+    # Sin esto, `/api/docs/` y `/api/redoc/` cargan Swagger-UI y Redoc desde
+    # `cdn.jsdelivr.net/...@latest`: código de terceros, sin versión fija, que
+    # se ejecuta con la sesión de un usuario de backoffice. `SIDECAR` los sirve
+    # desde `/static/`, con la versión pineada en `requirements.txt`.
+    "SWAGGER_UI_DIST": "SIDECAR",
+    "SWAGGER_UI_FAVICON_HREF": "SIDECAR",
+    "REDOC_DIST": "SIDECAR",
+    # `drf_spectacular/checks.py` registra un check `deploy=True` que vuelca cada
+    # warning y cada error del esquema como un issue más de `manage.py check
+    # --deploy`: 25 líneas nuevas en el log del CI, sin umbral y sin forma de
+    # bajarlas una por una. El mismo dato, con allowlist y ratchet, lo da
+    # `core.tests.test_api_schema_contrato.EsquemaOpenApiTests`, que sí falla si
+    # aparece uno nuevo. Acá solo sería ruido (RED-36, revisión del PR R-04).
+    "ENABLE_DJANGO_DEPLOY_CHECK": False,
 }

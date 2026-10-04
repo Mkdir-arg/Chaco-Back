@@ -61,6 +61,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import connection, transaction
 from django.utils import timezone
 
+from programas.management.commands._insumos_siis import falta_tabla
 from programas.models import Convocatoria, Formulario, RequisitoNativo
 from programas.services.diseno import clave_requisito, obtener_o_crear_diseno
 from programas.services.padron import normalizar_dni
@@ -170,9 +171,7 @@ class Command(BaseCommand):
                 [TABLA_RENAPER],
             )
             if not cur.fetchone()[0]:
-                raise CommandError(
-                    f"No existe la tabla `{TABLA_RENAPER}`. Cargala primero con scripts/DatosPersonas.sql."
-                )
+                raise CommandError(falta_tabla(TABLA_RENAPER, "DatosPersonas.sql"))
             # El nombre de la tabla es una constante del módulo, no una entrada
             # externa: no hay vector de inyección (Bandit B608).
             cur.execute(

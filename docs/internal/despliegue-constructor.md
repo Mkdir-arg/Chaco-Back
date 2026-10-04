@@ -334,7 +334,7 @@ Con el constructor arriba, los casos anteriores siguen sin foto y sin los campos
 resuelven (Cambio 79). Los dos corren en seco por defecto.
 
 ```bash
-mariadb -h<host> -u<usuario> -p <base> < scripts/DatosPersonas.sql     # la tabla de RENAPER
+mariadb -h<host> -u<usuario> -p <base> < $DATOS_SIIS_DIR/DatosPersonas.sql  # la tabla de RENAPER (ver scripts/README-datos-siis.md)
 python manage.py completar_casos_renaper                              # ensayo: leer los números
 python manage.py completar_casos_renaper --aplicar --pisar-existentes # lotes de 50, ~5 min contra ECOM
 python manage.py validar_casos_siis                                   # cuántos casos faltan validar
