@@ -296,9 +296,12 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 113 | La API REST de usuarios y roles queda apagada salvo `me` | Transversal · API DRF (`/api/users/`) | `#api` `#rbac` `#usuarios` | Auditoría integral oct-2026 — SEC-05, SEC-16 y SEC-17, decisión D-05 (Ola 0, segunda tanda, PR H11) | 03/10/2026 | 🟢 **Hecho** | No requiere |
 | 114 | La API de ciudadanos es de solo lectura, pide capacidad y solo contesta búsquedas | Legajos · API DRF (`/api/legajos/`) | `#api` `#rbac` `#datos` | Auditoría integral oct-2026 — SEC-02 (+ V1-NEW-03) y SEC-01 punto 2 en legajos (Ola 0, segunda tanda, PR H12) | 03/10/2026 | 🟢 **Hecho** | No requiere |
 | 115 | El catálogo geográfico de la API es de solo lectura y las APIs del dashboard piden capacidad | Transversal · API DRF (`/api/core/`, `/api/` del dashboard) · home del backoffice | `#api` `#rbac` `#sesion` `#ui` | Auditoría integral oct-2026 — SEC-13 y SEC-14 (Ola 0, segunda tanda, PR H13) | 03/10/2026 | 🟢 **Hecho** | No requiere |
+| 116 | Los volcados de personas salen del repo y de la imagen | Transversal · alta en SIIS · repositorio, release e imagen | `#datos` `#infra` `#siis` | Auditoría integral oct-2026 — RED-01, decisión D-RED-01 (Ola R, PR R-01) | 04/10/2026 | 🟡 **Parcial** (la purga del historial y el repo privado los hace el PM) | No requiere |
 | 117 | El rollback de producción tiene un procedimiento escrito, y las migraciones que no se pueden revertir avisan antes de romper nada | Transversal · operación y deploy · migraciones | `#infra` `#datos` | Auditoría integral oct-2026 — RED-60 y RED-15 (Ola R «Red de seguridad», PR R-02) | 04/10/2026 | 🟢 **Hecho** | No requiere |
+| 118 | `/api/docs/` vuelve a andar y el esquema de la API dice la verdad | Transversal · API DRF · documentación (`/api/schema/`, `/api/docs/`, `/api/redoc/`) | `#api` `#mobile` `#infra` | Auditoría integral oct-2026 — RED-36 y RED-37 (Ola R, red de seguridad, PR R-04) | 04/10/2026 | 🟢 **Hecho** | No requiere |
 | 120 | Los tests recorren el enum de estados entero, no solo el camino feliz | Becas · relevamientos (vencimientos, API de campo) · Portal (link público) | `#relevamientos` `#api` `#mobile` `#cupos` | Auditoría integral oct-2026 — RED-28, RED-29 y RED-66 (Ola R, red de seguridad, PR R-08) | 04/10/2026 | 🟢 **Hecho** | No requiere |
-| 122 | El URLconf se recorre entero: ninguna ruta queda abierta al anónimo y ninguna pantalla revienta | Transversal · toda la superficie HTTP · Legajos (confirmar alta) · CORS de `/api/` | `#rbac` `#api` `#sesion` `#ui` | Auditoría integral oct-2026 — RED-02, RED-30, RED-73 y RED-71 (Ola R «Red de seguridad», PR R-05) | 04/10/2026 | 🟢 **Hecho** | No requiere |
+| 122 | El URLconf se recorre entero: ninguna ruta queda abierta al anónimo y ninguna pantalla revienta | Transversal · toda la superficie HTTP · Legajos (confirmar alta) · Merenderos (entregas) · CORS de `/api/` | `#rbac` `#api` `#sesion` `#ui` | Auditoría integral oct-2026 — RED-02, RED-30, RED-73 y RED-71 (Ola R «Red de seguridad», PR R-05) | 04/10/2026 | 🟢 **Hecho** | No requiere |
+| 125 | El CI ve la forma del SQL que le llega al motor de producción | Transversal · dashboards · link público · Dispositivos (reportes) | `#performance` `#infra` `#datos` `#relevamientos` | Auditoría integral oct-2026 — RED-07, RED-08 y RED-09 (Ola R, red de seguridad, PR R-10) | 04/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -14765,6 +14768,230 @@ Revertir el commit devuelve los `ModelViewSet` de geografía y deja las cinco vi
 
 ---
 
+# Cambio 116 — Los volcados de personas salen del repo y de la imagen
+
+🟡 **PARCIAL — 04/10/2026** · la parte de código está hecha; el repo privado y la purga del historial
+los ejecuta el PM (ver *Pendientes*).
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · alta masiva en SIIS · repositorio, release de `main` e imagen de producción |
+| **Etiquetas** | `#datos` `#infra` `#siis` |
+| **Solicitante** | Auditoría integral de octubre 2026 — hallazgo **RED-01** y decisión **D-RED-01** (Ola R, hotfix, PR R-01) |
+| **Fecha del pedido** | 04/10/2026 |
+| **Issue / épica** | Sin issue — auditoría oct-2026, `docs/internal/auditoria-2026-10/hallazgos/08-red-de-seguridad.md` |
+| **Partes afectadas** | `.gitignore`, `.gitattributes`, `.dockerignore`, `.github/workflows/pr-datos.yml` (nuevo), `.github/workflows/publish-main.yml`, `scripts/check_datos_personales.py` (nuevo), `scripts/README-datos-siis.md` (nuevo), `config/settings.py`, `programas/management/commands/_insumos_siis.py` (nuevo), `correr_alta_siis.py`, `completar_casos_renaper.py`, `corregir_datos_siis.py`, `core/tests/test_release_sin_datos.py` (nuevo), `programas/tests/test_correr_alta_siis.py`, tres runbooks de `docs/internal/` |
+| **Migración** | No requiere |
+
+## Pedido original
+
+De la ficha **RED-01** (CRÍTICA; el único hallazgo del frente con daño consumado):
+
+> `scripts/DatosPersonas.sql` (2.874.634 bytes; 10.321 filas con DNI, CUIL, nombre, sexo, fecha de
+> nacimiento y domicilio completo devueltos por RENAPER, incluye menores), `scripts/Aprobados.sql`
+> (DNI de aprobados) y `scripts/Localidades.sql` (también indexado por DNI). El repositorio
+> `Mkdir-arg/Chaco-Back` es **público**; los `.sql` no están en `export-ignore`, así que viajan a
+> `main` y de ahí al GitLab de ECOM; el `Dockerfile` hace `COPY . .` y `.dockerignore` no los excluye:
+> están **dentro de la imagen de PRD**. Nada en CI, `.gitignore`, `.gitattributes` ni `.dockerignore`
+> impide subir otro volcado.
+
+## Qué lo motivó
+
+Había una decisión previa del PM —Cambio 79: «`scripts/DatosPersonas.sql` queda en el repo por decisión
+del PM»— que **no contempló** tres cosas: que el repositorio es público, que el archivo sale en el release
+y en la imagen de producción, y la Ley 25.326. No es una decisión que haya que revertir: es una decisión que
+se tomó sin esos datos. Este cambio la repone y deja la parte que le toca al PM escrita y acotada.
+
+El riesgo de que se repita no era teórico: el patrón «chore(becas): lista nueva de aprobados» ya existe en
+el historial (`661c1a43`, `917e583e`), y nada lo detectaba.
+
+## Alcance acordado
+
+**Entra:** sacar los tres volcados de `HEAD`; las cuatro barreras que impiden que vuelvan (`.gitignore`,
+`export-ignore`, `.dockerignore`, gate de CI); el guard del release; la fuente alternativa `DATOS_SIIS_DIR`
+para los comandos que los leían de la imagen; el README versionado sin datos; los tests.
+
+**Queda afuera (lo hace el PM, ver *Pendientes*):** pasar el repositorio a privado, purgar el historial con
+`git filter-repo`, el pedido a GitHub Support, el barrido con `gitleaks`/`trufflehog` y la evaluación legal
+de la Ley 25.326.
+
+## Decisiones tomadas
+
+- **`Localidades.sql` también sale, aunque el nombre diga «catálogo».** Se verificó el archivo: su cabecera
+  declara «una fila por persona: el DNI y la localidad de su domicilio». No es un nomenclador geográfico
+  —ese es `core/fixtures/localidad_municipio_provincia.json`, que se queda—, es un padrón indexado por DNI.
+- **La plantilla sin datos se queda versionada.** `scripts/aprobados_materias_plantilla.sql` tiene el
+  `CREATE TABLE` y tres DNI de ejemplo: es el insumo que el operador necesita leer, y sacarla dejaría al
+  organismo sin molde. Está como excepción explícita en `.gitignore` (`!`), en `.dockerignore` y en
+  `.gitattributes` (`-export-ignore`), y hay un test que verifica que sigue adentro.
+- **Los archivos quedan en disco, no se borran.** `git rm --cached`: el desarrollador que los tenga los
+  conserva, pero git deja de verlos. Borrarlos del disco de nadie no es parte de esto.
+- **Una sola heurística de «esto es un volcado», en Python y no en shell.** La ficha proponía el chequeo
+  inline en el YAML del job y, por separado, una regla distinta en el test (más de 100 filas de tuplas).
+  Dos heurísticas que se separan en el primer ajuste, y la del YAML marca en rojo la plantilla sin datos.
+  Quedó una sola, en `scripts/check_datos_personales.py`, que usan el gate del PR, los dos pases del
+  release y el test.
+- **Tres reglas, no una, porque el nombre de la columna no siempre está** (ronda 2 de revisión). La
+  primera versión solo miraba un `INSERT INTO` con la lista de columnas pegada, y **`mysqldump` por
+  defecto no la emite**: ``INSERT INTO `t` VALUES (…),(…)``. Un volcado sintético de 5.000 personas en ese
+  formato pasaba los tres modos, y es el formato más probable, porque sale de exportar una tabla sin
+  pensarlo. Ahora: (1) `INSERT` con columnas de persona y más de 100 filas; (2) `INSERT` sin lista de
+  columnas, más de 100 filas y, en el contenido, más de 100 documentos o más de 50 CUIL distintos;
+  (3) tabular sin SQL (`.csv`, `.tsv`, `.dump`, `.dat`, `.sql`) con más de 100 líneas y más de 100
+  documentos distintos — un padrón de 5.000 DNI en CSV pesa 60 KB y no lo atrapa ningún techo. Las tres
+  exigen **volumen**: lo que distingue un volcado de una plantilla es la cantidad de personas.
+- **Las tuplas no se cuentan por línea** (ronda 3 de revisión). `mysqldump` corre con `--extended-insert`
+  por defecto y mete todas las tuplas en **una sola línea**: contando líneas daban cero y un volcado de
+  5.000 personas de 184 KB —por debajo del techo— pasaba los tres modos. Se cuenta el máximo entre las
+  líneas que son una tupla y los separadores `),(` del texto, que cubre los dos formatos. Sobre los 1.616
+  archivos versionados no agrega ningún falso positivo.
+- **La regla 1 mira la lista de columnas, no todo el archivo.** Tal como estaba, un apellido que fuera
+  literalmente «Apellido» dentro de los datos la hacía disparar, y el mensaje decía «INSERT con columnas
+  de persona» sobre un `mysqldump` que no tenía ninguna. Acotarla al tramo entre el nombre de la tabla y
+  el `VALUES` no pierde detección: lo que la regla 1 deja pasar lo levantan la 2 y la 3.
+- **El techo de 512 KB corre en los tres modos y las exenciones son rutas exactas** (ronda 2 de revisión).
+  Antes corría solo sobre el diff del PR y exentaba `docs/*` y `core/fixtures/*.json` por glob: un
+  `core/fixtures/padron.json` de 1,7 MB con 40.000 DNI pasaba los tres modos. Un glob convierte a ese
+  directorio en el escondite obvio del próximo volcado. Ahora la lista son las seis rutas exactas que ya
+  estaban versionadas (`core/fixtures/localidad_municipio_provincia.json`, el HTML de `docs/design-kb/`,
+  `docs/internal/requerimientos.md`, `package-lock.json`, `adminlte.min.css` y `vis-network.min.js`), y un
+  test falla si aparece otro archivo versionado sobre el techo que no esté en la lista: se agrega a mano y
+  se revisa en el PR.
+- **`DATOS_SIIS_DIR` por defecto `/datos-siis`, y si no está montado el comando corta.** Antes, un archivo
+  faltante era un WARNING y se salteaba; eso sigue igual para un archivo suelto, pero el **directorio**
+  ausente es ahora `CommandError`. Es el modo de falla que importa —el pod arranca sin el volumen— y
+  saltearlo en silencio terminaba en «la tabla no existe» tres pasos después.
+- **El mensaje de error nombra la variable y el README.** Los tres comandos dicen lo mismo, desde
+  `programas/management/commands/_insumos_siis.py` (el guión bajo lo saca del registro de comandos de
+  Django). `--scripts <dir>` le sigue ganando a la variable, para la corrida puntual.
+- **El guard de `publish-main.yml` revisa el árbol del release, no solo nombres.** El `export-ignore`
+  depende del `.gitattributes` del commit que se publica: si alguien lo afloja, el guard es lo que queda.
+  Los tres nombres también se agregaron a la lista de rutas prohibidas, que es barata y nombra el archivo.
+
+## Implementación
+
+Las cuatro barreras:
+
+| Dónde | Regla | Qué corta |
+|---|---|---|
+| `.gitignore` | `scripts/*.sql` más la excepción de la plantilla | Que entren al repo |
+| `.gitattributes` | `/scripts/*.sql export-ignore`, plantilla con `-export-ignore` | Que salgan en el release de `main` y en el espejo de ECOM |
+| `.dockerignore` | `scripts/*.sql` | Que el `COPY . .` del `Dockerfile` los meta en la imagen |
+| `pr-datos.yml` (PR **y push** a `development`) y los dos pases de `publish-main.yml` | `scripts/check_datos_personales.py` en sus tres modos | Que vuelva a pasar por otro camino |
+
+El verificador, un archivo, tres modos, la misma regla:
+
+```bash
+python scripts/check_datos_personales.py --diff <base-sha>   # lo que agrega un PR (+ techo de 512 KB)
+python scripts/check_datos_personales.py --versionados       # todo `git ls-files`
+python scripts/check_datos_personales.py --arbol <dir>       # el árbol del release, en publish-main
+```
+
+Nunca imprime el contenido del archivo: solo la ruta, el tamaño y la cantidad de filas.
+
+La fuente alternativa, en `config/settings.py`:
+
+```python
+DATOS_SIIS_DIR = os.getenv("DATOS_SIIS_DIR", "/datos-siis")
+```
+
+y en `correr_alta_siis._cargar_insumos`:
+
+```python
+base = Path(directorio or settings.DATOS_SIIS_DIR)
+if not base.is_dir():
+    raise CommandError(FALTA_DIRECTORIO.format(base=base))
+```
+
+`scripts/README-datos-siis.md` (versionado, sin un solo dato) dice qué tres archivos hacen falta, qué tabla
+carga cada uno, quién los genera, cómo se monta el volumen y qué impide que vuelvan.
+
+## Validación
+
+- **Tests nuevos, en rojo antes del cambio.** `core/tests/test_release_sin_datos.py` —el «test permanente»
+  de RED-01— daba 11 fallos y 1 error sobre `HEAD`: los tres volcados versionados, la heurística
+  marcándolos, los ignores ausentes y el workflow inexistente. Son 14 tests: el que nombra la ficha
+  (`test_ningun_sql_versionado_tiene_volcado_de_personas`), uno por barrera, y seis de la heurística
+  —incluidos el volcado sintético de 150 filas con DNI inventados que **sí** detecta y la plantilla real
+  que **no**—.
+- **`programas/tests/test_correr_alta_siis.py`:** clase nueva `InsumosDesdeDatosSiisDirTests` (directorio
+  sin montar da `CommandError` que nombra `DATOS_SIIS_DIR`; directorio montado; `--scripts` ganándole a la
+  variable; la precondición de tabla faltante nombrando la variable). Verificado por mutación: con la línea
+  vieja (`Path(settings.BASE_DIR) / "scripts"`) el primero falla con «CommandError not raised».
+- **El test que leía los `.sql` reales del repo pasó a archivos sintéticos** (`sintetizar_insumos()`): fija
+  la forma que al parser le costaba —punto y coma en el comentario de cabecera, dos guiones dentro de una
+  cadena— con DNI inventados.
+- `manage.py check` sin issues; `makemigrations --check --dry-run` sin cambios.
+- Suite completa en verde con `.venv312` (Python 3.12 y Django 5.2.17, igual al CI), en dos tandas.
+- `ruff check` y `ruff format --check` limpios sobre lo tocado. Sin cambios de UI: no corresponden
+  `design_audit.py` ni `compile_templates.py`.
+- Los dos workflows parsean como YAML y el job expone el nombre exacto `Sin datos personales`, que es el
+  que RED-20 va a marcar como obligatorio. El verificador se corrió en sus tres modos: `--versionados`
+  sobre los 1.616 archivos del repo, `--diff` sobre el propio PR y `--arbol` sobre el árbol real del
+  release (`git archive HEAD`, el mismo paso del workflow), los tres en OK.
+- **Que rechaza de verdad:** se plantaron en el árbol del release los dos casos que levantó la ronda 2
+  —un `mysqldump` sintético de 5.000 personas con DNI y CUIL inventados, y un
+  `core/fixtures/padron.json` de 1,8 MB— y el guard los marcó a los dos con exit 1. Los ocho tests
+  nuevos de la ronda 2 fallan contra la versión anterior del verificador y de los workflows.
+
+## Pendientes / a definir
+
+- **D-RED-01 · DECISIÓN CLIENTE · pendiente.** Si corresponde notificar o evaluar el incidente bajo la
+  **Ley 25.326** (seguridad de los datos, cesión) lo decide **el organismo responsable de la base**, no el
+  equipo. Nuestra parte es informarlo por escrito con los datos de la ficha y dejar esta constancia.
+  **Default aplicado mientras tanto:** la opción recomendada de la ficha, en su parte de código.
+- **Lo operativo lo ejecuta el PM, en este orden:**
+  1. Pasar `Mkdir-arg/Chaco-Back` a **privado**.
+  2. **Avisar a ECOM antes de purgar:** la purga reescribe `main`, y el espejo de ECOM despliega
+     producción desde su `main`.
+  3. `git filter-repo --invert-paths --path scripts/DatosPersonas.sql --path scripts/Aprobados.sql --path scripts/Localidades.sql`,
+     y force push de todas las ramas y tags.
+  4. Pedirle a GitHub Support que elimine las referencias de PR y las vistas cacheadas de los commits
+     viejos (la purga no las toca).
+  5. Barrido con `gitleaks` o `trufflehog` sobre el historial completo antes de dar la purga por suficiente.
+  6. Reconstruir la imagen de PRD sin los archivos.
+- **Antes de la próxima corrida de alta SIIS** hay que montar `DATOS_SIIS_DIR` en icore y en ECOM. Sin eso
+  `correr_alta_siis` corta en el paso 2 —a propósito, con el mensaje que nombra la variable—, pero corta.
+- El gate `Sin datos personales` **todavía no es obligatorio**: eso lo habilita RED-20 (PR R-03), que crea
+  los rulesets de rama. Hasta entonces el job corre y se ve, pero no bloquea el merge por sí solo. Lo que
+  cubre el hueco mientras tanto es el disparador por `push` a `development` —hasta RED-20 un push directo
+  no disparaba ningún check— y el pase sobre los archivos versionados en `publish-main`, que corre
+  **antes** de que `git archive` aplique el `export-ignore`: sin él, un `scripts/*.sql` forzado al índice
+  quedaba fuera del release y aun así visible en el repositorio.
+- Queda fuera del alcance de las tres reglas un volcado en un formato que no reconocemos (JSON, Parquet,
+  un export binario). Lo que lo ataja es el techo de 512 KB, que desde la ronda 2 corre en los tres modos.
+  Un volcado chico en uno de esos formatos sigue siendo el agujero conocido.
+
+## Reversión
+
+Revertir el commit devuelve los ignores y el gate, pero **no vuelve a poner los archivos**: salieron del
+índice, no del disco de quien los tenga. Para volver atrás del todo habría que volver a agregarlos a mano,
+que es exactamente lo que no hay que hacer. Lo único con efecto operativo real es `DATOS_SIIS_DIR`: sin la
+variable y sin el volumen, `correr_alta_siis` no carga insumos. No hay datos ni migraciones de por medio.
+
+## Historial
+
+- **18/09/2026** — se genera `DatosPersonas.sql` con la respuesta de RENAPER para 10.321 personas.
+- **01/10/2026** — Cambio 79: el PM decide que el archivo queda en el repo. La decisión no contempla que el
+  repositorio es público, que el archivo viaja al release y a la imagen, ni la Ley 25.326.
+- **03/10/2026** — la auditoría integral lo levanta como RED-01, severidad CRÍTICA, único hallazgo del
+  frente con daño consumado.
+- **04/10/2026 (este cambio)** — los tres volcados salen de `HEAD`, de la imagen y del release; queda el
+  gate para que no vuelvan y `DATOS_SIIS_DIR` como fuente. La purga del historial y el repo privado quedan
+  para el PM.
+- **04/10/2026 (ronda 2 de revisión)** — cuatro MINOR del revisor independiente sobre el gate, que es la
+  protección central: detección del formato `mysqldump` sin lista de columnas y de un padrón tabular sin
+  SQL; exenciones del techo acotadas a rutas exactas y techo en los tres modos; el gate también en `push`
+  a `development` y `publish-main` revisando el repositorio antes del `export-ignore`; y el volumen de
+  `DATOS_SIIS_DIR` comentado en `docker-compose.prod.yml`, para que montarlo sea descubrible donde se lee
+  el deploy.
+- **04/10/2026 (ronda 3 de revisión)** — dos MAJOR. El bloque de comentarios del volumen se había comido
+  el `expose: - "8001"` del servicio `web` en `docker-compose.prod.yml`: restaurado, y verificado
+  parseando el YAML contra `origin/development` —el compose parsea **idéntico**, lo único que agrega este
+  PR son comentarios—. Y la regla 2 no veía el `mysqldump` real, el de `--extended-insert`.
+
+---
+
 # Cambio 117 — El rollback de producción tiene un procedimiento escrito, y las migraciones que no se pueden revertir avisan antes de romper nada
 
 🟢 **HECHO — 04/10/2026**
@@ -14919,6 +15146,168 @@ pedirlo por escrito y esperar la confirmación antes de espejar a `main`.
 Revertir el commit devuelve las dos secciones viejas de `processes.md` —con el comando que no arranca y la
 autorización de `--fake`— y saca la barrera de las cinco migraciones: volver a poder arrancar una reversa que
 en MariaDB termina a mitad de camino. No hay datos ni esquema involucrados.
+
+---
+
+# Cambio 118 — `/api/docs/` vuelve a andar y el esquema de la API dice la verdad
+
+🟢 **HECHO — 04/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · API DRF · documentación (`/api/schema/`, `/api/docs/`, `/api/redoc/`) · API de campo de Becas |
+| **Etiquetas** | `#api` `#mobile` `#infra` |
+| **Solicitante** | Auditoría integral de octubre 2026 — hallazgos **RED-36** y **RED-37** (Ola R, red de seguridad, PR R-04) |
+| **Fecha del pedido** | 04/10/2026 |
+| **Issue / épica** | Sin issue — auditoría oct-2026, `docs/internal/auditoria-2026-10/hallazgos/08-red-de-seguridad.md` |
+| **Partes afectadas** | `config/settings.py`, `config/urls.py`, `config/middlewares/security_headers.py`, `requirements.txt`, `templates/api/redoc.html`, `programas/api/serializers.py`, `programas/api/views.py`, `core/tests/test_api_schema_contrato.py`, `programas/tests/test_becas_api.py`, `portal/tests/test_seguridad_publica.py` |
+| **Migración** | No requiere |
+
+## Pedido original
+
+De la ficha **RED-36** (MEDIA, confirmada con test):
+
+> `drf_spectacular` fuera de `INSTALLED_APPS`: `/api/docs/` y `/api/redoc/` dan 500. Sin la app no existe
+> `manage.py spectacular` (ningún gate de esquema es posible) y los templates de las vistas de documentación
+> no se encuentran. `CLAUDE.md` las anuncia como superficie viva.
+
+De la ficha **RED-37** (MEDIA, confirmada con test):
+
+> El esquema OpenAPI publica tipos falsos y pierde 11 vistas. `RelevamientoDetail` publica
+> `definicion_formulario`, `cupo_disponible`, `cupo_completo` y `pausado` como `string`;
+> `/api/becas/personas/consultar/` sin `requestBody`. (1) anotar el retorno de los `get_*` del serializer;
+> (2) `ConsultaPersonaSerializer` real (`dni`, `sexo` con `choices=("F","M")`, `relevamiento` opcional) que
+> **reemplace** la validación manual de `views.py:216-223`, con `@extend_schema(request=…, responses=…)`;
+> (3) Ola 7: `inline_serializer` en las 5 vistas del dashboard.
+
+## Qué lo motivó
+
+La configuración de `drf_spectacular` estaba completa —`DEFAULT_SCHEMA_CLASS`, `SPECTACULAR_SETTINGS`, las
+tres rutas de `config/urls.py` y hasta una excepción de CSP para `/api/docs/` en
+`config/middlewares/security_headers.py`— pero **la app nunca se agregó a `INSTALLED_APPS`**. Resultado:
+`/api/schema/` servía el YAML, pero `/api/docs/` y `/api/redoc/` morían con `TemplateDoesNotExist`, y
+`manage.py spectacular` no existía, así que no había forma de validar el esquema en el CI.
+
+Lo segundo es consecuencia de lo primero: nadie miraba el esquema, así que nadie vio que mentía. Los cuatro
+campos que la app de campo usa para decidir si puede cargar un caso —el cupo, si está completo y si el
+relevamiento está pausado— se publicaban como texto, y el POST de consulta de identidad aparecía sin cuerpo.
+Quien generara un cliente desde `/api/schema/` escribía código que no compila contra la API real.
+
+## Alcance acordado
+
+**Entra:** `"drf_spectacular"` en `INSTALLED_APPS`; **los bundles de Swagger-UI y Redoc servidos desde
+`/static/` con `drf-spectacular-sidecar`** (DECISIÓN CLIENTE, abajo); los tipos reales de
+`RelevamientoListSerializer` y `RelevamientoDetailSerializer`; `ConsultaPersonaSerializer` y
+`ConsultaPersonaRespuestaSerializer` con su `@extend_schema`; y el test de contrato con sus dos ratchets.
+
+**Queda afuera:** el punto 3 de RED-37 (las 5 vistas del dashboard y las de `core/views/performance.py` con
+`inline_serializer`) es de la Ola 7; el job `Contratos de API` que corre `spectacular --validate` en el CI es
+el PR R-18; dejar las tres rutas detrás de `BackofficeAutenticado` es el resto de SEC-01 (Ola 2).
+
+## Decisiones tomadas
+
+- **DECISIÓN CLIENTE, aplicada por default: Swagger-UI y Redoc se sirven desde el propio sistema.** Los
+  defaults de `SWAGGER_UI_DIST` y `REDOC_DIST` apuntan a `cdn.jsdelivr.net/npm/<paquete>@latest`, y la
+  plantilla `redoc.html` del paquete trae tres etiquetas de Google Fonts escritas a mano. O sea: al volver a
+  servirse, esas dos pantallas ejecutaban código de terceros **sin versión fija** con la sesión de un usuario
+  de backoffice, y `config/middlewares/security_headers.py` las exime de CSP. Entra
+  `drf-spectacular-sidecar==2026.10.1` (versión pineada en `requirements.txt`), los tres settings en
+  `SIDECAR` y `templates/api/redoc.html` —copia de la del paquete sin las fuentes—, enchufada con
+  `template_name` en `config/urls.py`. El HTML servido no referencia un solo dominio externo; lo fija
+  `core.tests.test_api_schema_contrato.DocumentacionSinTercerosTests`.
+- **La exención de CSP de `/api/docs/` y `/api/redoc/` se mantiene.** Ya no hace falta por el CDN, pero el
+  bundle de Redoc levanta un `Worker` desde un `blob:`, y `worker-src` cae en `default-src 'self'`, que lo
+  bloquea. Abrir `blob:` para todo el sitio por una pantalla interna de documentación no compensa; lo que
+  impide que el CDN vuelva es el test, no la cabecera.
+- **El esquema deja de reportarse como issues de `manage.py check --deploy`.** `drf_spectacular` registra un
+  check `deploy=True` que vuelca cada warning y cada error del esquema: el comando pasaba de 5 a 30 issues,
+  25 líneas nuevas en cada corrida del CI, sin umbral ni forma de bajarlas de a una. Se apaga con
+  `ENABLE_DJANGO_DEPLOY_CHECK: False`; el mismo dato, con allowlist y ratchet, lo da `EsquemaOpenApiTests`.
+- **El cuerpo del 400 de `/api/becas/personas/consultar/` no cambia.** La ficha pide que el serializer
+  *reemplace* la validación manual, y lo hace, pero la vista sigue devolviendo
+  `{"success": false, "error": "DNI y sexo (F o M) son requeridos."}` en vez del diccionario por campo que
+  daría `raise_exception=True`: **lo lee la app móvil en producción** (misma regla del Cambio 100). Las
+  normalizaciones también se conservan dentro del serializer: DNI a dígitos, sexo sin espacios y en
+  mayúscula, `relevamiento` vacío o ausente tratado como «todos los vigentes».
+  `programas.tests.test_becas_api.PersonasBecasApiTests` lo fija con siete cuerpos rechazados y uno aceptado
+  con DNI con puntos y sexo en minúscula.
+- **`relevamiento` que no sea un id entero pasa a dar 400.** Es el único trato que cambió. Antes `true` y
+  `1.9` colaban como id 1 por la coerción del ORM y `"abc"` reventaba en 500 dentro de `filter(pk=...)`;
+  ahora los cuatro casos dan el 400 de siempre. **La app no manda el campo:**
+  `Chaco-mobile/src/screens/RelevamientoDetailScreen.js` tiene el único POST al endpoint y su cuerpo es
+  `{dni, sexo}`; si una versión futura empieza a mandarlo, mandará el id entero. Queda fijado con
+  `test_consultar_persona_rechaza_un_relevamiento_que_no_es_un_id` y su contracara
+  `test_consultar_persona_acepta_el_relevamiento_vacio_o_ausente`.
+- **`cupo_disponible` y `cupo_completo` se declaran en el serializer, no en el modelo.** Son propiedades de
+  `Relevamiento` que `ModelSerializer` resolvía como `ReadOnlyField`; se podía arreglar anotando el retorno
+  de la propiedad, pero declararlas como `IntegerField(read_only=True)` y `BooleanField(read_only=True)` deja
+  el tipo en el archivo que define el contrato de la API y no toca `programas/models/__init__.py`. El valor
+  serializado es idéntico.
+- **La allowlist de errores nace en 10, no en 11.** La ficha la describe con las 11 vistas que el esquema no
+  puede publicar, pero una de ellas —`consultar_persona_becas`— la cierra este mismo cambio. Las otras 10
+  quedan listadas con su archivo y su ola.
+- **El ratchet de warnings queda en 15** (eran 24). Los que quedan son de `legajos`, `users`,
+  `core/views/performance.py` y dos colisiones de nombres de enum. El gate de CI suma `--fail-on-warn` cuando
+  llegue a 0 (RED-43).
+- **Las plantillas de `drf_spectacular` quedan exceptuadas del barrido de recursos de terceros.** Ver
+  *Pendientes*: es una excepción nombrada, no un agujero silencioso.
+
+## Implementación
+
+1. **`config/settings.py`** — `"drf_spectacular"` después de `rest_framework.authtoken`, con el comentario de
+   por qué. Es todo lo que RED-36 necesitaba: las rutas, el `DEFAULT_SCHEMA_CLASS` y los
+   `SPECTACULAR_SETTINGS` ya estaban.
+2. **`programas/api/serializers.py`** — `get_pausado(self, obj) -> bool`, `get_pausa_motivo(…) -> str`,
+   `get_definicion_formulario(…) -> dict`; `cupo_disponible` y `cupo_completo` declarados con su tipo; y los
+   dos serializers nuevos de la consulta de identidad.
+3. **`programas/api/views.py`** — `@extend_schema(request=ConsultaPersonaSerializer, responses={200, 400, 404,
+   502})` sobre `consultar_persona_becas`, y la validación manual reemplazada por el serializer.
+4. **`core/tests/test_api_schema_contrato.py`** (nuevo) — las tres rutas con sesión y sin sesión, el comando
+   `spectacular`, la allowlist de errores, el ratchet de warnings y los tipos publicados.
+
+## Verificación
+
+- `manage.py spectacular --validate --file /dev/null` termina en 0. El esquema sigue con 54 paths; los
+  errores bajan de 11 a 10 (los de la allowlist) y los warnings de 24 a 15.
+- `core.tests.test_api_schema_contrato` (9 tests) en verde. Antes del cambio: 5 fallas y 2 errores
+  (`TemplateDoesNotExist: drf_spectacular/swagger_ui.html` y `…/redoc.html`).
+- El HTML servido de `/api/docs/` y `/api/redoc/` referencia solo `/static/…`: cuatro etiquetas y una,
+  respectivamente, todas del mismo origen.
+- `manage.py check` sin issues, `check --deploy` con los **mismos 5 issues que `development`** y
+  `makemigrations --check --dry-run` sin cambios.
+- Suite completa con `.venv312` (Python 3.12 + Django 5.2.17, igual al CI) en dos tandas:
+  `core dashboard legajos users configuracion config conversaciones portal` y `programas`.
+- `ruff check` y `ruff format --check` limpios sobre los seis archivos tocados. No se tocó UI.
+
+## Pendientes / a definir
+
+- **`drf-spectacular-sidecar` hay que actualizarlo a mano.** Es un paquete de assets vendorizados: cada
+  versión es una foto de Swagger-UI y Redoc, y su número es una fecha (`2026.10.1`). Si alguno de los dos
+  tuviera un CVE, no lo avisa `pip-audit` sobre `drf-spectacular`: hay que subir el pin del sidecar.
+- **`collectstatic` ahora copia ~2,5 MB más** (los bundles). El entrypoint ya lo corre; en el deploy a icore
+  conviene mirar que `/static/drf_spectacular_sidecar/` quedó servido antes de dar `/api/docs/` por buena.
+- Las 10 vistas de `VISTAS_CON_ERROR_CONOCIDO` siguen fuera del esquema hasta la Ola 7 (punto 3 de RED-37).
+  `run_phase2_tests_api` puede desaparecer entera con OPS-10.
+- Los 15 warnings restantes: `get_dispositivo_nombre` y `get_legajos_count` (legajos), `get_full_name`
+  (users), las 7 vistas de `core/views/performance.py`, dos parámetros de path sin tipo en los viewsets de
+  Becas y dos colisiones de nombres de enum (`estado`, `ApoderadoGenero`) que se arreglan con
+  `ENUM_NAME_OVERRIDES`.
+
+## Reversión
+
+Revertir el commit saca `drf_spectacular` de `INSTALLED_APPS` —`/api/docs/` y `/api/redoc/` vuelven al 500— y
+devuelve la validación manual de `consultar_persona_becas`. No hay datos ni migraciones involucrados. El
+contrato HTTP de `/api/becas/*` es el mismo antes y después, así que la app móvil no se entera en ninguna de
+las dos direcciones. `drf-spectacular-sidecar` queda en `requirements.txt` sin que nada lo use: desinstalarlo
+es opcional.
+
+## Historial
+
+- **04/10/2026** — RED-36 y RED-37 (puntos 1 y 2) cerrados; queda anotado que el punto 3 va en la Ola 7 y que
+  el gate de CI es el PR R-18.
+- **04/10/2026 (este cambio)** — ronda 2 de la revisión del PR #546: el juez aplica por default la decisión
+  del CDN (sidecar con versión pineada, plantilla propia de Redoc), se apaga el check de deploy del esquema y
+  queda documentado y con test el único cambio de trato de `relevamiento`.
 
 ---
 
@@ -15236,6 +15625,208 @@ un operador con `ciudadano.crear` se comporta igual que antes.
 Revertir el commit saca los tres archivos de test y devuelve el `dispatch` de `CiudadanoConfirmarView` a decidir
 antes de autorizar. No hay datos ni esquema involucrados. El costo real de revertir es volver a no tener
 ninguna afirmación ejecutable sobre el conjunto de la superficie HTTP.
+
+## Historial
+
+No aplica: entrada nueva.
+
+---
+
+# Cambio 125 — El CI ve la forma del SQL que le llega al motor de producción
+
+🟢 **HECHO — 04/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · dashboard de Becas · dashboard del backoffice · link público · Dispositivos (parte F-01 y reportes) |
+| **Etiquetas** | `#performance` `#infra` `#datos` `#relevamientos` |
+| **Solicitante** | Auditoría integral oct-2026 — fichas RED-07, RED-08 y RED-09 (Ola R, red de seguridad, PR R-10) |
+| **Fecha del pedido** | 04/10/2026 |
+| **Issue / épica** | Sin issue (plan de la auditoría: `docs/internal/auditoria-2026-10/`) |
+| **Partes afectadas** | Servidor/API · Backoffice (dashboards) · Portal (link público) |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> «Motor y forma del SQL: RED-07 (`core/tests/test_sql_motor_real.py` + `_sql_mysql` corregido),
+> RED-08, RED-09.» (README de la auditoría, Ola R, PR R-10.)
+
+Los tres bugs más caros de los últimos meses no se vieron en el CI porque **la suite corre sobre
+SQLite y el problema vive en la forma del SQL**, no en el resultado:
+
+- **Cambio 64** (500 del dashboard en PRD) y **Cambio 66** (`/api/tendencias/` en cero): `TruncWeek`
+  y `TruncDate` sobre un `DateTimeField` con `USE_TZ` se traducen a `CONVERT_TZ`. La base de ECOM no
+  tiene cargadas las tablas de zona horaria, así que `CONVERT_TZ` devuelve NULL. En SQLite los
+  números dan bien. La única defensa que quedó fueron **dos comentarios** en el código.
+- **Cambio 91** (165 respuestas 500 el 24/09/2026 en el paso 2 del link público, desde 91 IP):
+  normalizar la columna con `REPLACE(CAST(...))` en el `WHERE` anulaba el índice único, con el lock
+  del relevamiento tomado. Los dos tests que cuidaban esa búsqueda cuentan **consultas**, y la forma
+  vieja y la de hoy son una sola consulta: los dos siguen verdes con el código del bug.
+- **Incidente del 29/09/2026**: un `UUIDField` en una columna `char(32)` da «Data too long» en
+  MariaDB 10.7+ y un lookup contra el hex no encuentra las filas con guiones. La regla está escrita
+  en `CLAUDE.md` —o sea, en ningún gate— y el único test que verifica las columnas se saltea siempre
+  (los jobs exportan `PYTEST_RUNNING=1`, que fuerza SQLite).
+
+## Alcance acordado
+
+- **Solo tests.** No cambia ninguna conducta, ninguna consulta ni ningún modelo.
+- Tres redes nuevas: SQL compilado contra el backend de MySQL/MariaDB, ratchet de columnas UUID y
+  lint de AST sobre las búsquedas por UUID externo.
+- **Afuera:** arreglar DIS-01 (es la Ola 5), correr los casos contra un MariaDB real (es TST-01, PR
+  R-11, `--tag mysql`), y mover `q_uuid_en_texto` a `core/db.py` (es la segunda parte de RED-09, Ola
+  3, PR 7).
+
+## Decisiones tomadas
+
+- **Se compila el SQL, no se ejecuta.** `sql_mysql(queryset)` arma un `DatabaseWrapper` de MySQL a
+  mano, le siembra lo que el compilador le preguntaría al servidor —sabor (MariaDB o MySQL), versión
+  y `mysql_server_data`, de donde salen `sql_mode` y compañía— y compila. No abre ninguna conexión,
+  corre en milisegundos y entra en la suite normal sobre SQLite. **Sembrar esos tres atributos es lo
+  único que hace falta**, incluso con un queryset agrupado: las propiedades del backend que el
+  compilador consulta se resuelven a partir de ellos. No se fuerza ninguna, justamente para que el
+  SQL sea el que recibiría el motor de verdad —`allows_group_by_selected_pks`, por ejemplo, vale
+  `True` en MySQL 8 y forzarla a `False` cambiaría la forma del `GROUP BY`—. Lo afirman dos tests:
+  `test_compilar_no_abre_ninguna_conexion` (con socket, `get_new_connection` y `cursor` bloqueados) y
+  `test_el_backend_conserva_sus_features_reales`.
+- **El helper vive una sola vez**, en `core/tests/test_sql_motor_real.py`. Lo van a consumir TST-01
+  (PR R-11) y lo que venga. La ficha lo nombraba `_sql_mysql`; se le sacó el guion bajo porque es un
+  helper **compartido entre módulos** y un nombre privado importado de afuera miente sobre su uso.
+- **Los tests compilan el queryset que arma el código de producción**, no una copia escrita en el
+  test. Para eso está `consultas_de(*modelos)`: un context manager que intercepta los querysets de
+  los modelos indicados justo antes de que toquen la base (`_fetch_all`, `exists`, `count`,
+  `iterator`) y los deja disponibles para compilar. Los querysets de los demás modelos —sesión,
+  usuario, permisos— se siguen ejecutando normalmente, así que adentro del bloque se puede llamar a
+  una vista completa. **Un test que reescribe el queryset sigue verde cuando el código real cambia,
+  que es exactamente el agujero que esta ficha viene a tapar.**
+- **Cada afirmación lleva su pin invertido.** `test_truncweek_si_compila_convert_tz` y
+  `test_la_forma_vieja_del_cambio_91_si_envuelve_la_columna` afirman que el patrón prohibido **sí**
+  aparece cuando el código lo tiene. Si Django cambiara de estrategia de compilación, se ponen rojos
+  y avisan; sin ellos, un `assertNotIn` puede quedar verde para siempre mirando un texto que ya no
+  existe.
+- **Las consultas se compilan contra los dos motores** (MySQL 8.0.32 y MariaDB 11.8). Es el
+  escenario real: local e icore-srv son MySQL, testing y PRD de ECOM son MariaDB, y el manejo del
+  `UUIDField` difiere entre los dos.
+- **DIS-01 entra como `expectedFailure`, no se arregla.** `registro_diario.calcular_cantidades` y
+  `reportes._movimientos_en_periodo` filtran con `__date` sobre `fecha_ingreso`/`fecha_egreso`, que
+  son `DateTimeField`: en ECOM los conteos del parte diario salen en cero y el reporte por período
+  no trae nada. Arreglarlo es la Ola 5; el test queda escrito y marcado con el ID de la ficha, y el
+  PR que lo arregle saca el decorador. Para que ese `expectedFailure` no pueda quedar «verde» por
+  una razón tonta (un `TypeError`, la captura rota), lo acompaña
+  `test_hoy_los_reportes_de_dispositivos_si_compilan_convert_tz`, que afirma la conducta de hoy y
+  **tiene** que pasar.
+- **El ratchet de UUID recorre el esquema, no las migraciones.** Los modelos de **las apps del repo**
+  —`admin`, `auth`, `sessions` y compañía quedan afuera: esas columnas las amplía Django— y sus
+  `UUIDField`, incluidas las FK que apuntan a un pk UUID (son columnas UUID igual), se enfrentan a
+  `COLUMNAS_UUID_AMPLIADAS`, una lista literal de 9 entradas con modelo, campo, tabla, columna y la
+  migración que la amplió. Se descartó la variante que parsea las migraciones buscando
+  `AlterField`/`RunSQL`: es frágil y, sobre todo, **no ve el modelo nuevo**, que es el caso que hay
+  que atajar. La misma lista alimenta ahora el test físico contra MySQL, así que no hay dos listas
+  que puedan desincronizarse.
+- **La migración que nombra el ratchet tiene que existir y ampliar esa columna a `char(36)`.** Si no,
+  la lista se satisface escribiendo cualquier número y lo que la convención de `CLAUDE.md` pide es la
+  migración, no la línea. Lo verifica `test_cada_columna_uuid_declara_su_migracion_a_char36` leyendo
+  el archivo del disco, y no con `MigrationLoader`, porque con `DJANGO_SYNCDB_PROJECT_APPS=True` —que
+  es como corre el CI— el loader ve las apps del proyecto sin migraciones. La verificación **física**
+  de la columna sigue siendo del test que solo corre contra MySQL, y contra MariaDB será TST-01.
+- **El lint de UUID barre todas las apps del proyecto, no solo `services/` y `views/`.** La ficha
+  proponía esas dos carpetas; el código del Cambio 91 vivía en `programas/api/views.py`, que no es
+  ninguna de las dos. El barrido sale del registro de apps de Django (así cubre las que se agreguen)
+  y excluye tests y migraciones: 335 módulos, 2,4 s.
+- **El lint reconoce las cuatro formas de escribir la búsqueda**, no solo el kwarg directo: `Q(...)`
+  —que puede armarse lejos del `filter` que lo usa—, `**{"client_uuid": v}` literal y la travesía por
+  relación (`relevamiento__formularios__client_uuid`), donde la columna comparada es el **último
+  segmento significativo** del camino; para distinguir `campo__exact` de `relacion__campo` los lookups
+  salen del registro del ORM y no de una lista a mano que envejezca. Un `**variable` opaco se deja
+  pasar: el lint no adivina. Las ocho formas —las cuatro que tienen que caer y las cuatro que no—
+  quedan fijadas con fuente sintética en el propio módulo, sin tocar código de las apps.
+- **El lint mira búsquedas, no escrituras.** `filter`, `exclude`, `get`, `get_or_create`,
+  `update_or_create` y `Q`. Escribir el UUID por kwarg en un `create()` es correcto; el problema es
+  buscarlo. `__isnull` también queda afuera: no compara el valor. La excepción justificada se marca
+  con el pragma `# uuid-externo: ok` en la línea.
+
+## Implementación
+
+El sistema se comporta igual que antes. Lo que cambió es que ahora hay tests que se ponen rojos si
+alguien reintroduce cualquiera de los tres bugs.
+
+- **`core/tests/test_sql_motor_real.py`** (nuevo): el helper `sql_mysql`, el capturador
+  `consultas_de`, `SinConvertTZTests` (RED-07) y `ColumnaSargableTests` (RED-08).
+- **`core/tests/test_uuid_mariadb.py`** (nuevo): el lint de AST de RED-09.
+- **`programas/tests/test_becas_models.py`**: `COLUMNAS_UUID_AMPLIADAS` y el ratchet de modelos
+  (RED-09). El test físico contra MySQL pasa a leer la misma lista.
+
+## Archivos
+
+`core/tests/test_sql_motor_real.py` (nuevo) · `core/tests/test_uuid_mariadb.py` (nuevo) ·
+`programas/tests/test_becas_models.py` ·
+`docs/internal/auditoria-2026-10/hallazgos/08-red-de-seguridad.md` (resolución y «Test permanente»
+de las tres fichas).
+
+## Base de datos
+
+No requiere. Sin migraciones, sin columnas nuevas, sin datos tocados.
+
+## Validación
+
+- **Tests nuevos (14), 13 verdes y 1 `expectedFailure` declarado (DIS-01):**
+  - `core/tests/test_sql_motor_real.py::HelperSqlMysqlTests` —
+    `test_compilar_no_abre_ninguna_conexion`, `test_el_backend_conserva_sus_features_reales`.
+  - `core/tests/test_sql_motor_real.py::SinConvertTZTests` —
+    `test_la_serie_semanal_del_dashboard_no_compila_convert_tz`,
+    `test_tendencias_agrupa_por_la_columna_sin_convert_tz`, `test_truncweek_si_compila_convert_tz`,
+    `test_hoy_los_reportes_de_dispositivos_si_compilan_convert_tz` y
+    `test_ninguna_consulta_de_reporte_usa_convert_tz` (`expectedFailure`, DIS-01).
+  - `core/tests/test_sql_motor_real.py::ColumnaSargableTests` —
+    `test_las_busquedas_por_uuid_y_dni_no_envuelven_la_columna`,
+    `test_la_forma_vieja_del_cambio_91_si_envuelve_la_columna`.
+  - `core/tests/test_uuid_mariadb.py::BusquedasUUIDTests` —
+    `test_las_busquedas_por_uuid_usan_el_helper`,
+    `test_el_lint_detecta_las_cuatro_formas_de_escribir_la_busqueda`,
+    `test_el_lint_no_marca_lo_que_es_correcto`.
+  - `programas/tests/test_becas_models.py::UUIDExternosMySQLTests` —
+    `test_todo_uuidfield_nuevo_esta_en_la_lista_ampliada`,
+    `test_cada_columna_uuid_declara_su_migracion_a_char36`.
+- **Los bugs históricos reintroducidos a mano** (aplicar → correr → revertir), que es lo que este PR
+  tiene que demostrar:
+  - `_serie_semanal` reescrito con `TruncWeek` → `test_la_serie_semanal_...` en rojo en los dos
+    motores (`CONVERT_TZ` en el `GROUP BY`).
+  - `tendencias_datos` con `TruncDate("fecha_inscripcion")` → `test_tendencias_...` en rojo
+    (`DATE(CONVERT_TZ(...))`).
+  - `formulario_por_client_uuid` normalizando la columna con `Replace(Cast(...))` —el código que
+    estuvo vivo entre el 21/08 y el 25/09 de 2026— → `test_las_busquedas_por_uuid_y_dni_...` en rojo
+    en los dos motores.
+  - `UUIDField` nuevo en `ValidacionSIS` sin migración → el ratchet en rojo nombrando modelo y campo.
+  - `programas.0073` cambiado por `programas.0072` en el ratchet → rojo por «no amplía ninguna
+    columna a char(36)»; `users.0023` por `users.0099` → rojo por inexistente.
+  - `bloqueado.formularios.filter(client_uuid=client_uuid)` en `programas/api/views.py` → el lint en
+    rojo con archivo y línea.
+- `manage.py check` sin issues y `makemigrations --check --dry-run` sin cambios.
+- Suite completa en verde con `.venv312` (Python 3.12 + Django 5.2.17, igual al CI).
+- `ruff check` y `ruff format --check` limpios sobre los tres archivos tocados.
+- Sin UI: no corresponde `design_audit.py` ni `compile_templates.py`.
+
+## Puesta en marcha en el servidor
+
+No requiere. Son tests; no cambia ninguna conducta en ejecución.
+
+## Pendientes / a definir
+
+- **DIS-01 sigue vivo** (Ola 5): el parte diario F-01 y los reportes de Dispositivos filtran con
+  `__date` sobre `DateTimeField`. En ECOM los conteos salen en cero. El test ya está escrito; el PR
+  que lo arregle saca el `@unittest.expectedFailure`.
+- **Ejecución real contra MariaDB**: estos tests leen el SQL, no lo ejecutan. La corrida contra
+  `mariadb:10.11`/`mariadb:11`/`mysql:8.0` es TST-01 (PR R-11, `--tag mysql`).
+- **`q_uuid_en_texto` sigue en `programas/services/becas.py`**: moverlo a `core/db.py` es la segunda
+  parte de RED-09 (Ola 3, PR 7, con R0-07). Hoy legajos y users tendrían que importarlo cruzado, y
+  por eso el lint solo cubre `client_uuid` y `token_publico`.
+- **`scripts/check_sql_portable.py`** (el `::warning::` ante cualquier `Trunc*`/`__date` fuera de
+  tests y migraciones) queda sin hacer: la ficha lo da como opcional y su lugar es el job
+  `Contratos del repo`, que lo crea RED-24 (PR R-14).
+
+## Reversión
+
+Revertir el commit saca los diez tests. No hay datos ni conducta que revertir: el sistema queda
+exactamente como está hoy, pero los tres bugs vuelven a poder reintroducirse sin que el CI se entere.
 
 ## Historial
 
