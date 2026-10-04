@@ -6,6 +6,9 @@ botón que aprueba mil casos y los registra en un sistema provincial es
 prolijidad, no seguridad.
 """
 
+from urllib.parse import urlparse
+
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -36,6 +39,9 @@ class ProcesoMasivoView(CapacidadRequeridaMixin, LoginRequiredMixin, DetailView)
         ctx["corrida"] = CorridaSiis.objects.filter(programa=self.object).order_by("-creado").first()
         ctx["en_curso"] = CorridaSiis.en_curso()
         ctx["total_maximo"] = TOTAL_MAXIMO
+        # RED-61: el alta en SIIS no tiene baja, así que el destino se ve antes
+        # de lanzar. El host sale de SIIS_API_URL, que ya no tiene default.
+        ctx["siis_host"] = urlparse(settings.SIIS_API_URL).netloc or settings.SIIS_API_URL
         # Cambio 90: sin la tabla que decide quién va, la pantalla no ofrece
         # lanzar nada. Se muestra el motivo en vez de un 500.
         try:

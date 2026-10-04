@@ -11,6 +11,14 @@
   {# role=status: esta pantalla se relee sola cada 5 s y un alert se re-anunciaría (ALR-13). #}
   {% include "components/_alerta.html" with tono="warning" role="status" titulo="Esto aprueba casos y los da de alta en SIIS" texto="Cada caso se valida con SIIS, se aprueba y se informa. El alta no se puede deshacer desde acá. No se envía ningún correo al ciudadano." %}
 
+  {% comment %}RED-61: el alta no tiene baja, así que el destino se ve antes de lanzar.
+  Un host del ambiente equivocado responde 200 y el caso queda «informado» sin que el
+  organismo reciba nada.{% endcomment %}
+  <p class="text-sm text-body-subtle">
+    <i class="fa-solid fa-server mr-1" aria-hidden="true"></i>
+    {% if siis_host %}Se informa a <strong class="text-heading">{{ siis_host }}</strong>.{% else %}<strong class="text-heading">SIIS_API_URL no está configurada</strong>: no hay adónde informar.{% endif %}
+  </p>
+
   {% if tabla_materias_faltante %}
   {% comment %}Cambio 90: sin la tabla que decide quién va a SIIS no se ofrece lanzar
   nada. Fallar cerrado: si mandara a todos, cometería el error que la tabla evita.{% endcomment %}

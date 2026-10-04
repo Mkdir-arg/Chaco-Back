@@ -1659,3 +1659,224 @@ class UiEnvioSiisTests(_BaseAprobacionTest):
 
         self.assertContains(resp, "Historial de envíos (2)")
         self.assertContains(resp, "ERROR_BD_LEGACY")
+
+
+class ContextoDetalleTests(_BaseRevisionTest):
+    """RED-54: el contexto del detalle de revisión, fijado clave por clave.
+
+    ``formulario_detalle`` son 155 líneas y ~36 claves que consume un template de
+    1.079. Las Olas 1, 2, 3 y 5 tocan esta vista (SIIS-01, SEC-21, BEC-09,
+    FE-07): una clave que deje de ponerse se renderiza como cadena vacía y la
+    sección desaparece de la pantalla **sin 500 y sin ningún test en rojo**.
+
+    La comparación es por igualdad en los dos sentidos a propósito: si alguien
+    agrega una clave tiene que anotarla acá, y si alguien saca una, este test lo
+    dice. Las del entorno (builtins y context processors) van aparte para que el
+    diff muestre de qué lado está el cambio.
+    """
+
+    CLAVES_DE_LA_VISTA = frozenset(
+        {
+            "advertencia_aprobacion",
+            "bloques",
+            "conflicto_pendiente",
+            "convocatoria_tiene_padron",
+            "datos_siis_form",
+            "detalle_siis",
+            "detalles_envio_siis",
+            "envio_siis",
+            "form",
+            "formulario",
+            "formulario_comparacion",
+            "forzar_identidad_form",
+            "genero_form",
+            "globales_list",
+            "gran_base_activa",
+            "historial_envios_sis",
+            "historial_validaciones_sis",
+            "mapa",
+            "migas_origen",
+            "mostrar_apoderado",
+            "motivo_bloqueo_aprobacion",
+            "next_qs",
+            "posicion_espera",
+            "puede_enviar_siis",
+            "puede_revalidar_renaper",
+            "puede_validar_siis",
+            "puede_ver_cupo",
+            "relevamiento",
+            "requisitos_segmento",
+            "requisitos_subsegmento",
+            "tiene_conflicto_duplicado_pendiente",
+            "titulo_caso",
+            "trazas",
+            "validacion_sis",
+            "volver_label",
+            "volver_url",
+        }
+    )
+
+    #: Builtins del engine y context processors de ``config/settings.py``.
+    CLAVES_DEL_ENTORNO = frozenset(
+        {
+            "DEFAULT_MESSAGE_LEVELS",
+            "False",
+            "None",
+            "True",
+            "csrf_token",
+            "gtm_container_id",
+            "messages",
+            "perms",
+            "puede_conversaciones",
+            "request",
+            "session_idle_timeout_minutes",
+            "session_idle_warning_seconds",
+            "user",
+            "user_groups_list",
+            "user_is_superuser",
+            "user_primary_group",
+            "websockets_enabled",
+        }
+    )
+
+    def setUp(self):
+        super().setUp()
+        self.ciudadano = Ciudadano.objects.create(
+            dni="30123456", nombre="Ana", apellido="Gomez", fecha_nacimiento=date(1998, 4, 2), genero="F"
+        )
+        self.form_a.ciudadano = self.ciudadano
+        self.form_a.estado = Formulario.Estado.APROBADO
+        self.form_a.gps_lat = -27.451
+        self.form_a.gps_lng = -58.986
+        self.form_a.save(update_fields=["ciudadano", "estado", "gps_lat", "gps_lng"])
+        self.client.force_login(self.admin)
+
+    def _caso_completo(self):
+        """Adjunto, respuesta, una validación y un envío fallido: el caso rico."""
+        pregunta = PreguntaGlobal.objects.create(texto="Foto DNI", tipo=TipoCampo.ARCHIVO, orden=1)
+        AdjuntoFormulario.objects.create(
+            formulario=self.form_a,
+            pregunta_global=pregunta,
+            archivo=SimpleUploadedFile("dni.jpg", b"imagen", content_type="image/jpeg"),
+        )
+        texto = PreguntaGlobal.objects.create(texto="Ocupación", tipo=TipoCampo.STRING, orden=2)
+        self.form_a.data = {"globales": {str(texto.pk): "Estudiante"}, "requisitos": {}}
+        self.form_a.save(update_fields=["data"])
+        ValidacionSIS.objects.create(formulario=self.form_a, estado=ValidacionSIS.Estado.OK, solicitado_por=self.admin)
+        EnvioSIIS.objects.create(
+            formulario=self.form_a,
+            estado=EnvioSIIS.Estado.RECHAZADO,
+            documento=self.ciudadano.dni,
+            codigo_error="DATOS_INVALIDOS",
+            detalles={"barrio_actual": ["El campo barrio_actual debe contener al menos 4 caracteres."]},
+            solicitado_por=self.admin,
+        )
+        TracaFormulario.objects.create(
+            formulario=self.form_a, editado_por=self.admin, campo="Celular", valor_anterior="1", valor_nuevo="2"
+        )
+
+    def _claves(self, response):
+        # ``response.context`` es la lista de contextos de todos los templates
+        # renderizados (incluye los locales de cada ``include``); el de la vista
+        # es el primero.
+        return set(response.context[0].flatten())
+
+    def test_claves_del_contexto_del_detalle(self):
+        self._caso_completo()
+
+        resp = self.client.get(reverse("becas:formulario_detalle", args=[self.form_a.pk]))
+
+        self.assertEqual(resp.status_code, 200)
+        claves = self._claves(resp)
+        self.assertEqual(claves - self.CLAVES_DEL_ENTORNO, set(self.CLAVES_DE_LA_VISTA))
+        self.assertEqual(claves - self.CLAVES_DE_LA_VISTA, set(self.CLAVES_DEL_ENTORNO))
+        # Las que la pantalla usa para decidir si una sección existe: sin ellas
+        # la sección desaparece en silencio.
+        self.assertEqual(resp.context["validacion_sis"].estado, ValidacionSIS.Estado.OK)
+        self.assertEqual(resp.context["envio_siis"].codigo_error, "DATOS_INVALIDOS")
+        self.assertEqual(len(resp.context["historial_envios_sis"]), 1)
+        self.assertEqual(resp.context["detalles_envio_siis"][0][0], "barrio_actual")
+        self.assertEqual(len(resp.context["trazas"]), 1)
+        self.assertIn("embed_url", resp.context["mapa"])
+        self.assertTrue(resp.context["puede_enviar_siis"])
+        self.assertTrue(resp.context["mostrar_apoderado"])
+        self.assertEqual(resp.context["titulo_caso"], "Caso " + str(self.form_a.numero))
+
+    def test_detalle_de_caso_minimo_no_rompe(self):
+        """El otro extremo: sin ciudadano, sin GPS, sin adjuntos y sin SIIS."""
+        self.form_a.ciudadano = None
+        self.form_a.estado = Formulario.Estado.ENVIADO
+        self.form_a.gps_lat = None
+        self.form_a.gps_lng = None
+        self.form_a.data = {}
+        self.form_a.save()
+
+        resp = self.client.get(reverse("becas:formulario_detalle", args=[self.form_a.pk]))
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(self._claves(resp) - self.CLAVES_DEL_ENTORNO, set(self.CLAVES_DE_LA_VISTA))
+        self.assertIsNone(resp.context["mapa"])
+        self.assertIsNone(resp.context["validacion_sis"])
+        self.assertIsNone(resp.context["envio_siis"])
+        self.assertIsNone(resp.context["datos_siis_form"])
+        self.assertEqual(resp.context["historial_envios_sis"], [])
+        self.assertEqual(resp.context["detalles_envio_siis"], [])
+        self.assertIsNone(resp.context["posicion_espera"])
+        self.assertFalse(resp.context["tiene_conflicto_duplicado_pendiente"])
+
+    def test_un_caso_en_espera_informa_la_posicion_y_el_acceso_a_cupo(self):
+        self.form_a.estado = Formulario.Estado.ENVIADO
+        self.form_a.save(update_fields=["estado"])
+        ListaEspera.objects.create(formulario=self.form_a, segmento=self.seg_a, posicion=3)
+
+        resp = self.client.get(reverse("becas:formulario_detalle", args=[self.form_a.pk]))
+
+        self.assertEqual(resp.context["posicion_espera"], 3)
+        self.assertTrue(resp.context["puede_ver_cupo"])
+
+
+class ConsultasDetalleTests(_BaseRevisionTest):
+    """RED-54: el número de consultas del detalle, clavado en el de hoy.
+
+    ``assertNumQueries`` es **igualdad**, no un techo: el test se pone rojo en
+    los dos sentidos y eso es a propósito. Si sube, alguien agregó una consulta
+    por fila o perdió un ``select_related`` en la pantalla más cara de Becas (la
+    que dio 500 por timeout contra la base de ECOM). Si baja, alguien la
+    optimizó y tiene que bajar el número **en el mismo commit**, que es lo que
+    deja el ratchet por escrito: el número solo puede ir para abajo a mano.
+    """
+
+    #: Medido hoy sobre el caso aprobado con una validación y un envío.
+    CONSULTAS = 15
+
+    def setUp(self):
+        super().setUp()
+        self.ciudadano = Ciudadano.objects.create(
+            dni="30123457", nombre="Ana", apellido="Gomez", fecha_nacimiento=date(1998, 4, 2), genero="F"
+        )
+        self.form_a.ciudadano = self.ciudadano
+        self.form_a.estado = Formulario.Estado.APROBADO
+        self.form_a.save(update_fields=["ciudadano", "estado"])
+        self.client.force_login(self.admin)
+        ValidacionSIS.objects.create(formulario=self.form_a, estado=ValidacionSIS.Estado.OK)
+        EnvioSIIS.objects.create(formulario=self.form_a, estado=EnvioSIIS.Estado.ERROR, documento=self.ciudadano.dni)
+
+    def test_presupuesto_de_consultas(self):
+        url = reverse("becas:formulario_detalle", args=[self.form_a.pk])
+        self.client.get(url)  # calienta las cachés por proceso (capacidades, programa)
+        with self.assertNumQueries(self.CONSULTAS):
+            self.assertEqual(self.client.get(url).status_code, 200)
+
+    def test_mas_intentos_de_siis_no_agregan_consultas(self):
+        """Lo que caza un N+1: el historial tiene que viajar en una consulta."""
+        url = reverse("becas:formulario_detalle", args=[self.form_a.pk])
+        self.client.get(url)
+        with self.assertNumQueries(self.CONSULTAS):
+            self.client.get(url)
+        for _ in range(5):
+            EnvioSIIS.objects.create(
+                formulario=self.form_a, estado=EnvioSIIS.Estado.ERROR, documento=self.ciudadano.dni
+            )
+            ValidacionSIS.objects.create(formulario=self.form_a, estado=ValidacionSIS.Estado.ERROR)
+        with self.assertNumQueries(self.CONSULTAS):
+            self.assertEqual(self.client.get(url).status_code, 200)

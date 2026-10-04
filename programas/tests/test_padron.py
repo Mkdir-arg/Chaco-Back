@@ -7,6 +7,7 @@ La cascada de identidad y el cruce automático se prueban en
 """
 
 from datetime import date
+from decimal import Decimal
 from io import BytesIO, StringIO
 
 from django.contrib.auth.models import Group, User
@@ -15,11 +16,12 @@ from django.contrib.messages import get_messages
 from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
-from django.test import TestCase
+from django.test import SimpleTestCase, TestCase
 from django.urls import reverse
 
 from core.models import Localidad, Municipio, Provincia
 from programas.forms import RelevamientoForm
+from programas.management.commands import completar_casos_renaper, corregir_datos_siis
 from programas.management.commands.seed_becas import ROL_ADMIN
 from programas.models import Convocatoria, Relevamiento, Segmento
 from programas.services.padron import (
@@ -27,10 +29,12 @@ from programas.services.padron import (
     clave_localidad,
     esta_habilitado,
     fila_padron,
+    normalizar_dni,
     normalizar_fecha,
     parsear_padron,
     plantilla_padron,
 )
+from programas.services.siis_envio import _digitos as siis_envio_digitos
 
 XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
@@ -153,6 +157,54 @@ class NormalizacionTests(TestCase):
         self.assertEqual(clave_localidad("Sáenz Peña"), clave_localidad("SAENZ PENA"))
         self.assertEqual(clave_localidad("  Resistencia "), "resistencia")
         self.assertNotEqual(clave_localidad("Rcia."), clave_localidad("Resistencia"))
+
+
+class NormalizarDniTests(SimpleTestCase):
+    """RED-47: las cuatro puertas que normalizan un DNI tienen que dar lo mismo.
+
+    La canónica es ``padron.normalizar_dni``; las otras tres son copias que
+    viven en los comandos y en el armado del payload de SIIS. Cada una recibe
+    el DNI de una fuente distinta —openpyxl entrega ``float``, el driver de
+    MySQL entrega ``Decimal`` cuando la columna de ``ciudadanos_renaper`` es
+    ``DECIMAL``— y cualquiera de las dos, sin cast, agrega un ``0`` al final:
+    ``30123456.0`` → ``"301234560"``, que no cruza con nada y se informa como
+    «0 corregidos».
+    """
+
+    PUERTAS = {
+        "padron.normalizar_dni": normalizar_dni,
+        "completar_casos_renaper._solo_digitos": completar_casos_renaper._solo_digitos,
+        "corregir_datos_siis._digitos": corregir_datos_siis._digitos,
+        "siis_envio._digitos": siis_envio_digitos,
+    }
+
+    CASOS = [
+        (30123456.0, "30123456"),
+        (Decimal("30123456.0"), "30123456"),
+        ("30.123.456", "30123456"),
+        (" 30123456 ", "30123456"),
+        ("M30123456", "30123456"),
+        (None, ""),
+    ]
+
+    def test_las_cuatro_puertas_normalizan_igual(self):
+        for nombre, funcion in self.PUERTAS.items():
+            for crudo, esperado in self.CASOS:
+                with self.subTest(puerta=nombre, crudo=repr(crudo)):
+                    self.assertEqual(funcion(crudo), esperado)
+
+    def test_float_y_decimal_no_agregan_un_cero(self):
+        """El borde exacto de la ficha: el cast tiene que ser al entero, no a texto."""
+        for nombre, funcion in self.PUERTAS.items():
+            with self.subTest(puerta=nombre):
+                self.assertEqual(funcion(30123456.0), "30123456")
+                self.assertEqual(funcion(Decimal("30123456.0")), "30123456")
+
+    def test_lo_que_no_es_un_entero_disfrazado_sigue_yendo_por_texto(self):
+        """Un decimal con parte fraccionaria o un ``NaN`` no pueden romper la función."""
+        self.assertEqual(normalizar_dni(Decimal("30123456.5")), "301234565")
+        self.assertEqual(normalizar_dni(float("nan")), "")
+        self.assertEqual(normalizar_dni(Decimal("NaN")), "")
 
 
 class EstaHabilitadoTests(_BasePadronTest):

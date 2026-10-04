@@ -77,22 +77,39 @@ def programa_becas(user=None):
     return programa
 
 
+def _programa_o_denegar(user, programa=None):
+    """El Programa Becas con el que se evalúa el alcance, o 403 (RED-56).
+
+    Sin esta guarda, un ``programa_becas()`` en ``None`` —fila ``BECAS`` ausente
+    o renombrada por un restore, un ``crear_programas`` que la recrea con otro
+    pk, un pod que arranca antes del bootstrap, o la clave ``programas:becas``
+    envenenada en el Redis compartido con TTL 300— hace que el RBAC caiga al
+    chequeo **global**: cualquier rol de **cualquier** programa con una capacidad
+    ``becas.*`` tildada entra a Becas durante 300 s y se cura solo, sin rastro.
+    Se falla cerrado, igual que Dispositivos (``dispositivos.py:56, 63, 77``).
+    """
+    programa = programa or programa_becas(user)
+    if programa is None:
+        raise PermissionDenied("El Programa Becas no está configurado.")
+    return programa
+
+
 def es_admin_becas(user, programa=None):
     """¿El usuario administra el programa Becas (capacidad ``becas.programa.administrar``)?"""
-    programa = programa or programa_becas(user)
+    programa = _programa_o_denegar(user, programa)
     return rbac.puede(user, CAP_ADMINISTRAR, programa=programa)
 
 
 def es_coordinador_becas(user, programa=None):
     """¿El usuario puede gestionar/revisar Becas sin ser admin del programa?"""
-    programa = programa or programa_becas(user)
+    programa = _programa_o_denegar(user, programa)
     if es_admin_becas(user, programa=programa):
         return False
     return rbac.puede_alguna(user, CAPS_GESTION, programa=programa)
 
 
 def es_referente_becas(user, programa=None):
-    programa = programa or programa_becas(user)
+    programa = _programa_o_denegar(user, programa)
     return not es_admin_becas(user, programa=programa) and rbac.puede(user, CAP_REFERENTE, programa=programa)
 
 
@@ -103,7 +120,7 @@ def es_coordinador_regional_becas(user, programa=None):
     del Coordinador Regional es el subsegmento: ve el segmento que lo contiene
     solo como contexto y no puede configurarlo.
     """
-    programa = programa or programa_becas(user)
+    programa = _programa_o_denegar(user, programa)
     return not es_admin_becas(user, programa=programa) and rbac.puede(user, CAP_COORD_REGIONAL, programa=programa)
 
 
@@ -141,7 +158,7 @@ def puede_gestionar_segmento(user, segmento, programa=None):
     """
     if user is None or not getattr(user, "is_authenticated", False):
         return False
-    programa = programa or programa_becas(user)
+    programa = _programa_o_denegar(user, programa)
     if es_admin_becas(user, programa=programa):
         return True
     if es_referente_becas(user, programa=programa):
@@ -182,7 +199,7 @@ def segmentos_visibles(user, programa=None):
 
     if user is None or not getattr(user, "is_authenticated", False):
         return Segmento.objects.none()
-    programa = programa or programa_becas(user)
+    programa = _programa_o_denegar(user, programa)
     if es_admin_becas(user, programa=programa):
         return Segmento.objects.all()
     if es_referente_becas(user, programa=programa):

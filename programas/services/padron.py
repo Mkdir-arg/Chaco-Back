@@ -26,6 +26,7 @@ import re
 import unicodedata
 from dataclasses import dataclass, field
 from datetime import date, datetime
+from decimal import Decimal
 from io import BytesIO
 
 from django.core.exceptions import ValidationError
@@ -58,9 +59,18 @@ _FORMATOS_FECHA = ("%d/%m/%Y", "%Y-%m-%d", "%d-%m-%Y", "%d/%m/%y", "%Y/%m/%d")
 
 def normalizar_dni(valor):
     # openpyxl entrega floats (30123456.0) en Excels exportados desde CSV,
-    # pandas o LibreOffice; sin este cast el DNI quedaba con un 0 de más.
-    if isinstance(valor, float) and valor.is_integer():
-        valor = int(valor)
+    # pandas o LibreOffice, y el driver de MySQL entrega Decimal cuando la
+    # columna es DECIMAL (es el caso de ``ciudadanos_renaper``, que crea un
+    # script externo); sin este cast el DNI queda con un 0 de más y no cruza
+    # con nada (RED-47). Un NaN o un decimal con parte fraccionaria siguen
+    # yendo por texto en vez de reventar.
+    if isinstance(valor, (float, Decimal)):
+        try:
+            entero = int(valor)
+        except (ValueError, ArithmeticError):
+            entero = None
+        if entero is not None and valor == entero:
+            valor = entero
     return "".join(ch for ch in str(valor or "") if ch.isdigit())
 
 

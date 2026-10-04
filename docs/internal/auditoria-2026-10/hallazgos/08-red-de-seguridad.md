@@ -66,7 +66,7 @@ con lo que existe hoy; la lista solo baja.
 | RED-29 | El envío del link público no prueba que el relevamiento siga `EN_CURSO` | ALTA | CONF. test (mutación M44) | R | S | ✅ |
 | RED-30 | Sin test de humo por pantalla: nada afirma «ninguna ruta da 500» | MEDIA | CONF. test (barrido) | R | S | ⬜ |
 | RED-31 | `requisito_eliminar` y `subsegmento_eliminar` no se ejecutan en ningún test | MEDIA | CONF. test (coverage) | R | S | ⬜ |
-| RED-32 | Comandos contra SIIS y RENAPER sin red (`validar_casos_siis`, `completar_casos_renaper`, `sincronizar_programas_siis`) | MEDIA | CONF. test (coverage) | R (+1) | S-M (+S-M) | ⬜ |
+| RED-32 | Comandos contra SIIS y RENAPER sin red (`validar_casos_siis`, `completar_casos_renaper`, `sincronizar_programas_siis`) | MEDIA | CONF. test (coverage) | R (+1) | S-M (+S-M) | ✅ (R) |
 | RED-33 | Dispositivos y Merenderos: las vistas que operan no tienen test HTTP | MEDIA | CONF. test (coverage) | 5 | M | ⬜ |
 | RED-34 | Nada obliga a que una ficha cerrada deje un test permanente (0 tests bajo `docs/`) | MEDIA | CONF. test | R | S | ⬜ |
 | RED-35 | Ningún test afirma que las escrituras críticas sigan siendo atómicas | MEDIA | CONF. lectura | R (+3) | S (+S-M) | ⬜ |
@@ -81,21 +81,21 @@ con lo que existe hoy; la lista solo baja.
 | RED-44 | Una capacidad mal tipeada devuelve `False` en silencio y el superusuario no lo ve | MEDIA | CONF. test (prototipo) | R | S | ⬜ |
 | RED-45 | `GUNICORN_CMD_ARGS` con gevent activa un parche que apaga `validate_thread_sharing` | MEDIA | CONF. lectura | R (+7 en OPS-13) | S | ⬜ |
 | RED-46 | `programas/models/__init__.py` (3.252 líneas, 90 importadores) sin tests de contrato | MEDIA | CONF. test (radon) | R | S-M | ⬜ |
-| RED-47 | `normalizar_dni` y sus tres copias agregan un 0 con `float` o `Decimal` | MEDIA | CONF. test | R | S | ⬜ |
+| RED-47 | `normalizar_dni` y sus tres copias agregan un 0 con `float` o `Decimal` | MEDIA | CONF. test | R | S | ✅ |
 | RED-48 | «DNI válido» está implementado 6 veces con 3 reglas de largo | MEDIA | CONF. lectura | 3 | S-M | ⬜ |
 | RED-49 | `cupo_disponible` significa tres cosas y dos pantallas lo rotulan igual | MEDIA | CONF. lectura | R (+4) | S (+S) | ⬜ |
 | RED-50 | La edad (RN-22) está cuatro veces y tres usan `date.today()` (UTC en los contenedores) | MEDIA | CONF. lectura | R (+3) | S (+S-M) | ⬜ |
 | RED-51 | Dos `invalidate_dashboard_cache`; `stats_legajos` colgado del modelo equivocado | MEDIA | CONF. lectura | R (+4) | S (+S) | ⬜ |
 | RED-52 | Contrato implícito por `user._state.fields_cache["profile"]` | MEDIA | CONF. lectura | R (+2) | S (+S) | ⬜ |
 | RED-53 | Clones literales entre los comandos SIIS y entre las vistas de padrón | MEDIA | CONF. test (pylint + AST) | 1 (+5) | S-M (+S) | ⬜ |
-| RED-54 | `revision.py` (1.331 líneas): ningún test fija el contexto del detalle | MEDIA | CONF. test (radon) | R (+7) | S-M (+M) | ⬜ |
+| RED-54 | `revision.py` (1.331 líneas): ningún test fija el contexto del detalle | MEDIA | CONF. test (radon) | R (+7) | S-M (+M) | ✅ |
 | RED-55 | Los context processors corren en cada render y tragan toda excepción sin log | MEDIA | CONF. lectura | R | S | ⬜ |
-| RED-56 | Los guards de alcance de Becas fallan abiertos si el Programa BECAS no está sembrado | MEDIA | CONF. test | R | S | ⬜ |
+| RED-56 | Los guards de alcance de Becas fallan abiertos si el Programa BECAS no está sembrado | MEDIA | CONF. test | R | S | ✅ |
 | RED-57 | 14 reversas `RunPython.noop` (más `users/0007`) pierden datos e informan `OK` | MEDIA | CONF. test (SQLite con datos) | R | S-M | ⬜ |
 | RED-58 | `legajos.0007` no es re-entrante: un corte deja legajos sin FK y el reintento muere con 1091 | MEDIA | CONF. test (SQL) | 3 | S | ⬜ |
 | RED-59 | `deploy_prod.sh`: rollback sin base, detached HEAD y un health que siempre da 200 | MEDIA | CONF. lectura | R | S | ⬜ |
 | RED-60 | `processes.md` enseña un rollback que destruye datos y autoriza `--fake` | MEDIA | CONF. lectura | R (prioridad 1) | S | ✅ |
-| RED-61 | `SIIS_API_URL` cae al SIIS de desarrollo y nada lo valida al arrancar | MEDIA | CONF. lectura (PRD PLAUSIBLE) | R | S | ⬜ |
+| RED-61 | `SIIS_API_URL` cae al SIIS de desarrollo y nada lo valida al arrancar | MEDIA | CONF. lectura (PRD PLAUSIBLE) | R | S | ✅ |
 | RED-62 | Los presupuestos de performance son autodeclarados: subirlos en el mismo PR pasa | MEDIA | CONF. lectura | 4 | S | ⬜ |
 | RED-63 | Ruff y Bandit en `continue-on-error`; excepción de `pip-audit` sin vencimiento | MEDIA | CONF. lectura | R | S | ✅ |
 | RED-64 | `docs/client/` se publica en GitHub Pages público en cada push, sin revisión | MEDIA | CONF. lectura (API) | 7 | S | ⬜ |
@@ -103,7 +103,7 @@ con lo que existe hoy; la lista solo baja.
 | RED-66 | `reabrir` de la app de campo no tiene test negativo de la transición | MEDIA | CONF. test (mutación M17) | R | S | ✅ |
 | RED-67 | Ningún test afirma que se tome el `select_for_update` del cupo ni del link | MEDIA | CONF. test (mutaciones M21, M43) | R (+capa 2 en TST-01) | S | ✅ |
 | RED-68 | La posición en la lista de espera no está probada en ningún lado | MEDIA | CONF. test (mutación M23) | R | S | ✅ |
-| RED-69 | Fecha de nacimiento ausente o futura sin test en el payload SIIS | MEDIA | CONF. test (mutación M34) | R | S | ⬜ |
+| RED-69 | Fecha de nacimiento ausente o futura sin test en el payload SIIS | MEDIA | CONF. test (mutación M34) | R | S | ✅ |
 | RED-70 | `celda_segura`: la limpieza de caracteres de control no está probada | MEDIA | CONF. test (mutación M49) | R | S | ⬜ |
 | RED-71 | `ApiCorsMiddleware` sin tests de contrato (y el Cambio 52 lo da por inexistente) | BAJA | CONF. test (ajustado) | R | S | ⬜ |
 | RED-72 | El harness e2e de Playwright no existe en el repo: quedan `.pyc` de julio | BAJA | CONF. lectura | R | S | ⬜ |
@@ -121,7 +121,7 @@ con lo que existe hoy; la lista solo baja.
 | RED-84 | `requerimientos.py --check` no verifica la sección «Reversión» | BAJA | CONF. lectura | R | S | ⬜ |
 | RED-85 | Herramientas del CI sin pinear y actions por tag en workflows con `contents: write` | BAJA | CONF. lectura | R (+7) | S (+S) | ⬜ |
 | RED-86 | Job de tests con timeout de 15 min, sin `--parallel` ni alarma de crecimiento | BAJA | CONF. test (`gh run list`) | 7 | S | ⬜ |
-| RED-87 | El largo mínimo del barrio del payload SIIS no se prueba en su borde | BAJA | CONF. test (mutación M33) | R | S | ⬜ |
+| RED-87 | El largo mínimo del barrio del payload SIIS no se prueba en su borde | BAJA | CONF. test (mutación M33) | R | S | ✅ |
 | RED-88 | `manage.py test core users portal --parallel` revienta con `cannot pickle 'traceback'` | BAJA | CONF. test | R | S | ⬜ |
 
 «Ola» con paréntesis = la ficha tiene una segunda parte en esa ola (detalle en la ficha y en README §6). Horas: S = 2,
@@ -327,6 +327,27 @@ y `::PeriodoEnTodosLosEndpointsTests.test_fuera_del_periodo_se_rechaza_y_no_escr
     `test_diez_errores_tecnicos_seguidos_detienen_la_corrida` · `test_un_ok_entre_errores_reinicia_el_contador` ·
     `test_sin_credenciales_con_aplicar_corta_con_commanderror`; y `CompletarCasosRenaperTests.test_un_caso_que_falla_no_corta_el_resto`.
 - **Dependencias:** RED-53 (base común de los comandos) va en el mismo PR de la Ola 1.
+
+**Resolución:** ✅ Resuelto **la mitad de la Ola R** en el PR R-06 (Cambio 123), 04-oct-2026 — nuevo
+`programas/tests/test_comandos_siis_caracterizacion.py`, 23 tests, el cliente HTTP mockeado siempre (y donde el comando
+no debería salir a la red, el mock afirma que no se llamó). `validar_casos_siis`: el ensayo no escribe y cuenta bien, el
+host de SIIS se informa, las cuatro combinaciones de selección (`--incluir-rechazados`, `--reintentar-errores`,
+`--todos`, ya validado), y los dos frenos (`--aplicar` sin credenciales, `--usuario` inexistente).
+`completar_casos_renaper`: los dos frenos (sin tabla, sin campos del catálogo), el ensayo, el cruce real con su
+normalización de provincia y localidad, `--pisar-existentes`, `--sin-lugar-nacimiento`, `--limite`, `_ok = 0` y el
+avance **lote a lote**. `sincronizar_programas_siis`: sin cambios, catálogo vacío, `--dry-run` y SIIS caído.
+**Desvío de la ficha, a favor del código:** el test propuesto `test_catalogo_vacio_no_pisa_nada` se llama
+`test_catalogo_vacio_marca_todo_desconocido`, porque el comando pisa **a propósito** —`listar_programas_todos` pide
+`estado=TODOS` justamente porque una baja se ve como una ausencia— y el costo (un catálogo vacío por un error del
+servicio bloquea todos los programas) queda fijado a la vista para que la Ola 1 lo decida.
+**Nota de implementación:** `information_schema` y `DATABASE()` se emulan sobre SQLite (base adjunta en memoria + una
+función registrada en la conexión) en vez de saltear la clase en motores que no sean MySQL: el CI corre SQLite y
+saltearla dejaría a la guarda sin red. El SQL del comando corre tal cual.
+Verificado a mano: volver a un solo lote (`_lotes(ids, len(ids))`) → `test_procesa_por_lotes` en rojo; sacar el
+`exclude(estado=RECHAZADO)` de `_casos` → 4 tests en rojo.
+**Queda abierto (Ola 1, PR 7):** los seis tests de `validar_casos_siis` con `validar_formulario_en_siis` mockeado de
+verdad (contador de errores seguidos, `--max-errores`) y `test_un_caso_que_falla_no_corta_el_resto`, más RED-53.
+**Test permanente:** `programas/tests/test_comandos_siis_caracterizacion.py::CompletarCasosRenaperTests.test_procesa_por_lotes`
 
 ### RED-33 · Dispositivos y Merenderos: las vistas que operan no tienen test HTTP
 **Severidad:** MEDIA · **Estado:** CONFIRMADO con test (coverage) · **Origen:** RS-R1-11 (VR1: CONFIRMADO) · **Ola:** 5 (con los parches v1) · **Esfuerzo:** M (8 h)
@@ -905,6 +926,17 @@ que un cambio funcional.**
   (`subTest` sobre `[30123456.0, Decimal("30123456.0"), "30.123.456", " 30123456 ", "M30123456", None]`) y
   `test_float_y_decimal_no_agregan_un_cero` (hoy falla con `Decimal`).
 
+**Resolución:** ✅ Resuelto en el PR R-06 (Cambio 123), 04-oct-2026 — `padron.normalizar_dni` acepta `Decimal` además
+de `float` y las tres copias (`completar_casos_renaper._solo_digitos`, `corregir_datos_siis._digitos`,
+`siis_envio._digitos`) pasan a ser alias de ella. El cast va al **entero**, no a texto. Se agregó una guarda que la
+ficha no pedía: un `NaN` o un decimal con parte fraccionaria siguen yendo por texto en vez de reventar con
+`int(Decimal("NaN"))` (la propuesta literal, `valor == int(valor)`, levanta `InvalidOperation`).
+`NormalizarDniTests` recorre las **cuatro** puertas con `subTest` sobre los seis valores de la ficha; antes del cambio
+daba 11 fallas (los tres alias con `float` y las cuatro con `Decimal`).
+La quinta mención —`programas/api/serializers.py:168`, inline— no se tocó: recibe un string de DRF, nunca un `float` ni
+un `Decimal`, y unificarla es parte de RED-48, que además tiene que resolver las tres reglas de largo.
+**Test permanente:** `programas/tests/test_padron.py::NormalizarDniTests.test_float_y_decimal_no_agregan_un_cero`
+
 ### RED-48 · «DNI válido» está implementado 6 veces con 3 reglas de largo
 **Severidad:** MEDIA · **Estado:** CONFIRMADO (lectura; VR2 verificó 6 de las 7 que nombraba el informe) · **Origen:** RS-R4-06 (VR2: CONFIRMADO) · **Ola:** 3 (con G1c-08) · **Esfuerzo:** S-M (4 h)
 - **Ubicación:** `programas/api/serializers.py:169` y `programas/forms.py:745` (7 u 8), `programas/services/padron.py:182`
@@ -1002,6 +1034,21 @@ que un cambio funcional.**
   `ConsultasDetalleTests.test_presupuesto_de_consultas` (`assertNumQueries(N)` de hoy). **Ola 7:** extraer
   `contexto_identidad`, `contexto_siis`, `contexto_respuestas` a `programas/selectors/revision.py`.
 
+**Resolución:** ✅ Resuelta **la mitad de la Ola R** en el PR R-06 (Cambio 123), 04-oct-2026 — `ContextoDetalleTests`
+declara por separado las **36** claves que pone la vista y las **17** del entorno (builtins del engine y context
+processors) y las compara por igualdad en los dos sentidos: una clave que se cae pone el test en rojo, y una clave nueva
+hay que anotarla. Tres escenarios: el caso rico (APROBADO con adjunto, respuesta, GPS, una `ValidacionSIS`, un
+`EnvioSIIS` RECHAZADO con detalles y una traza), el caso mínimo (sin ciudadano, sin GPS, sin datos, ENVIADO) y el caso
+en lista de espera. `ConsultasDetalleTests` fija el presupuesto en **15 consultas** —el número de hoy, ratchet que solo
+baja— y agrega el test que caza un N+1: cinco envíos y cinco validaciones más no mueven el número.
+**Desvío de la ficha:** la propuesta decía `assertEqual(sorted(response.context.flatten()), CLAVES)`; `response.context`
+es un `ContextList` (todos los templates renderizados, incluidos los locales de cada `include`) y no tiene `flatten`.
+Se usa `response.context[0].flatten()`, que es el contexto de la vista.
+Verificado a mano: sacar `"mapa": mapa` del contexto → 2 tests en rojo.
+**Queda abierto (Ola 7):** extraer `contexto_identidad`, `contexto_siis` y `contexto_respuestas` a
+`programas/selectors/revision.py`.
+**Test permanente:** `programas/tests/test_becas_revision.py::ContextoDetalleTests.test_claves_del_contexto_del_detalle`
+
 ### RED-55 · Los context processors corren en cada render y tragan toda excepción sin log
 **Severidad:** MEDIA (era BAJA en RS-R4-21 y VR2: se sube porque corre en el 100 % del tráfico autenticado y hoy convierte un `OperationalError` en «usuario sin grupos» sin rastro; va con OPS-03) · **Estado:** CONFIRMADO (lectura) · **Origen:** RS-R4-21 (VR2: CONFIRMADO) · **Ola:** R (va con OPS-03, que pasa a la Ola R) · **Esfuerzo:** S (2 h)
 - **Ubicación:** `core/context_processors.py:34-42` (`sidebar_badges`) y `conversaciones/context_processors.py:12-28`
@@ -1030,6 +1077,22 @@ que un cambio funcional.**
   `test_los_tres_guards_dan_el_mismo_veredicto` (`_assert_scope`, `_assert_scope_relevamiento`, `_assert_scope_formulario`
   sobre un usuario de otro programa → `PermissionDenied` los tres; pasa hoy). El test completo que usó VR2 está en su
   informe (§A).
+
+**Resolución:** ✅ Resuelto en el PR R-06 (Cambio 123), 04-oct-2026 — `_programa_o_denegar(user, programa=None)` en
+`autorizacion.py`, aplicado en las seis apariciones: levanta `PermissionDenied("El Programa Becas no está
+configurado.")` cuando `programa_becas()` devuelve `None`. `puede_operar_subsegmento` quedó afuera a propósito: delega
+en `puede_gestionar_segmento`, que ya la tiene.
+`GuardsFallanCerradoTests` arma el escenario de VR2 (un rol de **otro** programa con `becas.programa.administrar`,
+`becas.revision.ver` y `becas.revision.editar` tildadas; el árbol del ABM de Roles muestra el catálogo entero, así que
+tildarlas es un clic) y recorre los tres guards de las vistas más las cuatro puertas de servicio. Antes del cambio: 7
+fallas. El ratchet con el programa sembrado pasaba ya.
+**Efecto no previsto por la ficha, decidido a favor de fallar cerrado:** la guarda está **antes** del bypass del RBAC,
+así que un superusuario también recibe 403 si falta la fila `BECAS` — igual que en Dispositivos
+(`dispositivos.py:56, 63, 77`), que es el patrón que la ficha pide copiar. El síntoma fue que cinco tests existentes que
+nunca sembraban el programa empezaron a dar 403 (`test_presentacion_selector`, `test_nodo_tables_css`,
+`test_nodo_ui_piezas`, `test_correcciones_review`, `test_correcciones_review_2`); se les agregó `seed_becas`, que es el
+escenario de producción.
+**Test permanente:** `programas/tests/test_becas_rbac.py::GuardsFallanCerradoTests.test_sin_programa_becas_los_tres_guards_deniegan`
 
 ### RED-77 · RN-2 del padrón escrita dos veces: property y filtro de queryset
 **Severidad:** BAJA (era MEDIA) · **Estado:** CONFIRMADO (lectura; 3 sitios) · **Origen:** RS-R4-09 (VR2: CONFIRMADO-AJUSTADO) · **Ola:** R · **Esfuerzo:** S (2 h)
@@ -1496,6 +1559,25 @@ desde base vacía), `pr-security.yml` (`pip-audit`), `pr-quality.yml` (ruff, ruf
   la etapa `verify` de RED-22): sin la variable el check de PRD nunca dispara, y sin `SIIS_API_URL` lo que queda rojo es el
   CI. Para frenar el arranque en PRD habría que llamar al check desde el entrypoint.
 
+**Resolución:** ✅ Resuelto en el PR R-06 (Cambio 123), 04-oct-2026, con los tres puntos de la propuesta ajustada.
+(1) `config/settings.py`: `os.getenv("SIIS_API_URL", "")`, y los dos `.env.*.example` explican de dónde sale el host y
+que en PRD va el productivo. (2) `core/checks.py` nuevo, registrado en `CoreConfig.ready`, con
+`@register(Tags.compatibility, deploy=True)`: `core.E001` si la variable está vacía con `DEBUG=False`, `core.E002` si
+apunta a `*.ecomdev.ar` **y** `DATANACH_ES_PRODUCCION=1`, y `core.W001` si `RENAPER_TEST_MODE` sigue prendido sin
+`DEBUG`. El host se compara por **dominio** (`hostname` del `urlparse`), no por substring: `siisapi.ecomdev.ar.atacante.com`
+no es el SIIS de desarrollo, y la comparación no depende de mayúsculas. El job `Django check` de `pr-backend.yml` define
+`SIIS_API_URL` con un host ficticio. (3) El proceso masivo muestra a qué host de SIIS va a escribir antes de lanzar, y
+lo dice explícitamente si está vacía; `diagnosticar_siis` ya lo mostraba y su aviso pasó de `ENVIRONMENT == "prd"` —que
+daba un falso positivo en QA e icore— al mismo `DATANACH_ES_PRODUCCION`.
+`core/tests/test_checks_entorno.py` cubre los tres mensajes, los dos bordes del host, el silencio con `DEBUG=True` y que
+el check esté registrado **solo** para `--deploy`. Verificado a mano: `check --deploy` sin la variable corta con
+`core.E001`; con el host ficticio pasa.
+**DECISIÓN CLIENTE (pendiente del PM, H-09):** confirmar con ECOM que PRD define `SIIS_API_URL` con el host productivo
+y pedirles `DATANACH_ES_PRODUCCION=1` **solo en PRD**. Sin esa variable el chequeo de host nunca dispara; sin
+`SIIS_API_URL` lo que queda rojo es el CI, no el deploy. Frenar el arranque exigiría llamar al check desde el
+entrypoint: queda para R-15.
+**Test permanente:** `core/tests/test_checks_entorno.py::ChecksDeEntornoTests.test_siis_de_desarrollo_en_produccion_es_error`
+
 ### RED-62 · Los presupuestos de performance son autodeclarados
 **Severidad:** MEDIA · **Estado:** CONFIRMADO (lectura) · **Origen:** RS-R6-11 (VR2: CONFIRMADO) · **Ola:** 4 · **Esfuerzo:** S (2 h)
 - **Ubicación:** `scripts/perf_budgets.json:6` (la regla «subir un `max_queries` requiere justificación» es prosa dentro del
@@ -1864,6 +1946,16 @@ posición al promover (columna nullable). Verificado a mano: M23 (`posicion = ma
   `subTest` con `None`, `hoy + 1 día` (los dos en `faltantes` y `cargar_beneficiario` no se llama) y `hoy` (pasa: el borde);
   en el mismo test, los negativos de `apellido`, `nombre` y `dni` vacíos.
 
+**Resolución:** ✅ Resuelto en el PR R-06 (Cambio 123), 04-oct-2026 —
+`test_fecha_de_nacimiento_ausente_o_futura_falta` recorre con `subTest` las cuatro situaciones (`None`, `hoy + 1 día`,
+`hoy` —el borde, que pasa— y `hoy - 1 día`), y `test_una_fecha_de_nacimiento_futura_no_llega_a_siis` cierra el otro lado:
+con un faltante el envío queda INCOMPLETO y `cargar_beneficiario` **no se llama**. Los negativos de identidad que pedía
+la ficha quedaron en dos tests propios (`test_los_datos_de_identidad_vacios_tambien_faltan` y
+`test_sin_ciudadano_faltan_los_cuatro_datos_de_la_persona`) en vez de dentro del mismo: son otro borde y conviene que el
+rojo diga cuál.
+Mutación M34 verificada a mano (aplicar, correr, revertir): `if nacimiento:` → 3 tests en rojo.
+**Test permanente:** `programas/tests/test_siis_envio.py::ArmarPayloadTests.test_fecha_de_nacimiento_ausente_o_futura_falta`
+
 ### RED-70 · `celda_segura`: la limpieza de caracteres de control no está probada
 **Severidad:** MEDIA · **Estado:** CONFIRMADO con test (mutación M49 sobrevive; la de fórmulas, M48, muere) · **Origen:** RS-R7-11 · **Ola:** R (o dentro de SEC-20, Ola 2, que toca la misma función) · **Esfuerzo:** S (2 h)
 - **Ubicación:** `programas/services/exportacion_reportes.py`, `celda_segura` (línea 22 del archivo, que usa terminadores CR:
@@ -1884,6 +1976,15 @@ posición al promover (columna nullable). Verificado a mano: M23 (`posicion = ma
   INCOMPLETO y la pantalla pide corregir un dato correcto (bloqueo silencioso de altas).
 - **Propuesta:** `programas/tests/test_siis_envio.py::ArmarPayloadTests.test_el_barrio_de_cuatro_caracteres_es_el_minimo_aceptado`
   (`"Sur2"` aceptado, `"Sur"` en `faltantes`) y el mismo borde para `len(dni) <= 10` (`:450`) y `[:LARGO_TEXTO]` (`:503,518`).
+
+**Resolución:** ✅ Resuelto en el PR R-06 (Cambio 123), 04-oct-2026 —
+`test_el_barrio_de_cuatro_caracteres_es_el_minimo_aceptado` recorre 3, 4 y 5 caracteres (`"Sur"`, `"Sur2"`, `"Sur22"`),
+y los otros dos bordes que pedía la ficha quedaron en tests propios:
+`test_el_dni_de_diez_digitos_es_el_maximo_aceptado` (10 y 11) y
+`test_los_textos_largos_se_recortan_en_el_maximo_sin_perder_el_borde` (`LARGO_TEXTO` exacto y uno más, en el barrio y en
+la calle).
+Mutación M33 verificada a mano (aplicar, correr, revertir): `>=` → `>` deja en rojo el `subTest` de 4 caracteres.
+**Test permanente:** `programas/tests/test_siis_envio.py::ArmarPayloadTests.test_el_barrio_de_cuatro_caracteres_es_el_minimo_aceptado`
 
 ### RED-88 · `manage.py test core users portal --parallel` revienta con `cannot pickle 'traceback'`
 **Severidad:** BAJA · **Estado:** CONFIRMADO con test (sin mutación: `--parallel N` → `TypeError: cannot pickle 'traceback' object` en `django/test/runner.py:541`; en serie, 643 OK; `programas --parallel 6`, 1.438 OK) · **Origen:** RS-R7 nota 3 (lo pidió el juez como ficha) · **Ola:** R · **Esfuerzo:** S (2 h)

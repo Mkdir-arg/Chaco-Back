@@ -6,5 +6,6 @@ class CoreConfig(AppConfig):
     name = "core"
 
     def ready(self):
-        """Importa las señales de cache cuando la app está lista."""
+        """Importa las señales de cache y registra los system checks propios."""
+        import core.checks  # noqa: F401, pylint: disable=import-outside-toplevel,unused-import
         import core.performance.cache_utils  # noqa: F401, pylint: disable=import-outside-toplevel,unused-import

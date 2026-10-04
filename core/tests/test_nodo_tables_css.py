@@ -8,11 +8,13 @@ comentario roto dejó muerta. El consumidor de prueba es la bandeja de revisión
 
 import re
 from datetime import date
+from io import StringIO
 from pathlib import Path
 
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.cache import cache
+from django.core.management import call_command
 from django.test import SimpleTestCase, TestCase
 from django.urls import reverse
 
@@ -150,6 +152,9 @@ class NodoIconBtnCssTests(SimpleTestCase):
 class PersonasListUsaLasPiezasTests(TestCase):
     def setUp(self):
         cache.clear()
+        # RED-56: los guards de Becas fallan cerrados sin el Programa BECAS
+        # sembrado; el escenario lo incluye, como en producción.
+        call_command("seed_becas", stdout=StringIO())
         segmento = Segmento.objects.create(nombre="Seg Tabla", cupo_maximo=100)
         convocatoria = Convocatoria.objects.create(
             nombre="Conv Tabla", segmento=segmento, fecha_inicio=date(2026, 1, 1), fecha_fin=date(2026, 12, 31)

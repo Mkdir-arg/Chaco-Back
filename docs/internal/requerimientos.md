@@ -302,6 +302,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 119 | Red de seguridad del contrato de la app de campo: claves del JSON, pausa, período, errores, capacidad, alcance y presupuesto del alta | Becas · API de la app de campo (`/api/becas/`) | `#api` `#rbac` `#performance` `#datos` | Auditoría integral oct-2026 — RED-11, RED-03, RED-10, RED-25 y RED-26 (Ola R, PR R-07) | 04/10/2026 | 🟢 **Hecho** | No requiere |
 | 120 | Los tests recorren el enum de estados entero, no solo el camino feliz | Becas · relevamientos (vencimientos, API de campo) · Portal (link público) | `#relevamientos` `#api` `#mobile` `#cupos` | Auditoría integral oct-2026 — RED-28, RED-29 y RED-66 (Ola R, red de seguridad, PR R-08) | 04/10/2026 | 🟢 **Hecho** | No requiere |
 | 121 | Los gates del CI bloquean de verdad: protección de rama, Ruff de errores y actions pineadas | Transversal · CI de GitHub Actions · repositorio | `#infra` `#metodo` `#gestion` | Auditoría integral oct-2026 — RED-20, RED-63 y RED-85 (Ola R, red de seguridad, PR R-03) | 04/10/2026 | 🟡 **Parcial** (los dos rulesets los aplica el dueño del repo) | No requiere |
+| 123 | Caracterizar lo que la Ola 1 va a reescribir, y que Becas y SIIS fallen cerrados | Becas · comandos SIIS/RENAPER · revisión de casos · alcance RBAC de Becas · configuración de entorno | `#siis` `#rbac` `#infra` `#datos` | Auditoría integral oct-2026 — RED-32, RED-54, RED-47, RED-56, RED-61, RED-69 y RED-87 (Ola R, red de seguridad, PR R-06) | 04/10/2026 | 🟢 **Hecho** | No requiere |
 | 124 | Cupo y lista de espera: la guarda del cupo 0, el contrato de los candados y la posición | Becas · cupo y lista de espera · Portal (link público) · API de campo | `#cupos` `#api` `#mobile` `#datos` | Auditoría integral oct-2026 — RED-27, RED-67 y RED-68 (Ola R, red de seguridad, PR R-09) | 04/10/2026 | 🟢 **Hecho** | No requiere |
 | 125 | El CI ve la forma del SQL que le llega al motor de producción | Transversal · dashboards · link público · Dispositivos (reportes) | `#performance` `#infra` `#datos` `#relevamientos` | Auditoría integral oct-2026 — RED-07, RED-08 y RED-09 (Ola R, red de seguridad, PR R-10) | 04/10/2026 | 🟢 **Hecho** | No requiere |
 
@@ -15812,6 +15813,156 @@ datos ni esquema que revertir. Si para entonces los rulesets ya están aplicados
 antes o corregirlos: `Ruff errores` dejaría de existir y todo PR quedaría esperando un check que no
 llega (`gh api repos/Mkdir-arg/Chaco-Back/rulesets/$ID -X PUT -f enforcement=evaluate` lo desactiva
 sin borrarlo).
+
+## Historial
+
+No aplica: entrada nueva.
+
+---
+
+# Cambio 123 — Caracterizar lo que la Ola 1 va a reescribir, y que Becas y SIIS fallen cerrados
+
+🟢 **HECHO — 04/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · comandos SIIS/RENAPER · revisión de casos · alcance RBAC de Becas · configuración de entorno |
+| **Etiquetas** | `#siis` `#rbac` `#infra` `#datos` |
+| **Solicitante** | Auditoría integral oct-2026 — fichas RED-32, RED-54, RED-47, RED-56, RED-61, RED-69 y RED-87 (Ola R, red de seguridad, PR R-06) |
+| **Fecha del pedido** | 04/10/2026 |
+| **Issue / épica** | Sin issue (plan de la auditoría: `docs/internal/auditoria-2026-10/`) |
+| **Partes afectadas** | Servidor/API · Backoffice (proceso masivo) · Comandos de operación · CI |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> «Caracterización antes de la Ola 1: RED-32 (comandos SIIS/RENAPER sin red), RED-54 (contexto del
+> detalle de revisión), RED-47 (`normalizar_dni`), RED-56 (guards fallan cerrados), RED-61
+> (`SIIS_API_URL`), RED-69 y RED-87 (bordes del payload SIIS).»
+> (README de la auditoría, Ola R, PR R-06.)
+
+La Ola 1 abre `siis_envio.py`, `proceso_masivo.py`, los seis comandos SIIS y `revision.py`. Tres de
+esos comandos estaban en **0 % de cobertura** y el detalle de revisión —155 líneas, ~36 claves de
+contexto, un template de 1.079— no tenía ningún test que fijara qué le pasa a la pantalla. Mientras
+se relevaba eso aparecieron cuatro cosas que no son falta de test sino conducta equivocada, todas
+chicas: tres copias de `normalizar_dni`, el alcance de Becas abriéndose solo cuando falta una fila, y
+una variable de entorno con un default que manda las altas al ambiente de desarrollo.
+
+## Alcance acordado
+
+- **Tests de caracterización y de borde** (la mayor parte del PR): los tres comandos, el contexto del
+  detalle, el payload de SIIS.
+- **Cuatro cambios de código chicos**, todos listados en el «Riesgo» de la Ola R: `normalizar_dni`
+  con `Decimal`, `_programa_o_denegar` en los guards de Becas, `SIIS_API_URL` sin default más un
+  system check propio, y el host de SIIS a la vista en la pantalla del proceso masivo.
+- **Afuera:** reescribir los comandos (es la Ola 1, PR 7), extraer el contexto del detalle a
+  selectores (Ola 7) y unificar las seis definiciones de «DNI válido» (RED-48, Ola 3).
+
+## Decisiones tomadas
+
+- **`normalizar_dni` es la única puerta.** Las tres copias (`completar_casos_renaper._solo_digitos`,
+  `corregir_datos_siis._digitos`, `siis_envio._digitos`) pasan a ser alias de la canónica, que ahora
+  acepta `Decimal` además de `float`. El cast va al **entero**, no a texto: `str(Decimal("30123456.0"))`
+  es `"30123456.0"` y deja `"301234560"`, un DNI que no cruza con nada. El driver de MySQL devuelve
+  `Decimal` cuando la columna es `DECIMAL`, que es el caso de `ciudadanos_renaper` —la crea un script
+  externo— así que el síntoma real era `corregir_datos_siis` informando «0 corregidos» sin error.
+  Un `NaN` o un decimal con parte fraccionaria siguen yendo por texto en vez de reventar.
+- **Los guards de Becas fallan cerrados** (`_programa_o_denegar`). Si `programa_becas()` devuelve
+  `None` —fila `BECAS` ausente o renombrada por un restore, un `crear_programas` que la recrea con
+  otro pk, un pod que arranca antes del bootstrap, o la clave `programas:becas` envenenada en el
+  Redis compartido con TTL 300— el RBAC caía al chequeo **global** y cualquier rol de cualquier
+  programa con una capacidad `becas.*` tildada entraba a Becas durante 300 s, se curaba solo y no
+  dejaba rastro. Ahora levanta `PermissionDenied` (403) en las seis puertas de `autorizacion.py`,
+  igual que Dispositivos (`dispositivos.py:56, 63, 77`), y **también para un superusuario**: la
+  guarda está antes del bypass del RBAC, como en Dispositivos.
+- **`SIIS_API_URL` pierde su default.** Apuntaba a `https://siisapi.ecomdev.ar`, el SIIS de
+  desarrollo, que responde 200: si en producción la variable falta o cambia de nombre, el alta se da
+  por informada y el organismo nunca la recibe, en una integración **sin baja**. Ahora vacía por
+  defecto, y un system check propio (`core/checks.py`, `deploy=True`) la exige con `DEBUG=False`.
+- **El disparador de producción es `DATANACH_ES_PRODUCCION=1`, no `settings.ENVIRONMENT`.** QA —el
+  testing de ECOM, que usa el SIIS de desarrollo legítimamente— e icore también valen `prd`
+  (OPS-12). Es una variable explícita que ECOM setea únicamente en PRD. El mismo criterio reemplaza
+  al `ENVIRONMENT == "prd"` que ya tenía `diagnosticar_siis`, que daba un falso aviso en QA.
+- **El check no frena el arranque.** Con `deploy=True` corre con `manage.py check --deploy`: nuestro
+  CI, y la etapa `verify` del pipeline de ECOM cuando exista (RED-22). Sin `DATANACH_ES_PRODUCCION`
+  el chequeo de host nunca dispara en PRD, y sin `SIIS_API_URL` lo que queda rojo es el CI, no el
+  deploy. Frenar el arranque exigiría llamarlo desde el entrypoint; queda para R-15.
+- **El destino de las altas se ve en la pantalla.** El proceso masivo informa a qué host de SIIS va a
+  escribir antes de lanzar miles de altas irreversibles, y lo dice explícitamente si la variable está
+  vacía. `diagnosticar_siis` ya lo mostraba.
+- **La caracterización de `sincronizar_programas_siis` contradice a su ficha, y gana el código.** La
+  ficha pedía `test_catalogo_vacio_no_pisa_nada`; el comando hace lo contrario **a propósito**:
+  `listar_programas_todos` pide `estado=TODOS` justamente porque una baja se ve como una ausencia,
+  así que un programa que no está en la respuesta pasa a `DESCONOCIDO` y queda bloqueado. El test se
+  llama `test_catalogo_vacio_marca_todo_desconocido` y deja el costo a la vista: un catálogo vacío
+  por un error del servicio bloquea todos los programas. Si eso se quiere cambiar, es una decisión
+  de la Ola 1, no un descuido.
+- **El contexto del detalle se compara por igualdad en los dos sentidos.** `ContextoDetalleTests`
+  declara las 36 claves de la vista y las 17 del entorno (builtins y context processors) por
+  separado: si alguien saca una clave el test lo dice, y si agrega una tiene que anotarla. Una clave
+  que deja de ponerse se renderiza como cadena vacía y la sección desaparece de la pantalla sin 500
+  y sin ningún test en rojo — y las Olas 1, 2, 3 y 5 tocan esa vista.
+- **El presupuesto de consultas del detalle queda en 15**, medido hoy. Es un ratchet: solo baja.
+- **`information_schema` se emula en SQLite en vez de saltear el test.** `completar_casos_renaper`
+  pregunta por el volcado de RENAPER con el catálogo de MySQL, y cortar con un mensaje útil en vez de
+  reventar a mitad es justo lo que hay que fijar. La alternativa del repo (`skipTest` si el motor no
+  es MySQL, como en `test_becas_models`) dejaría al CI sin la red, porque el CI corre SQLite. El test
+  adjunta una base en memoria llamada `information_schema` y registra la función `DATABASE()`: el SQL
+  del comando corre tal cual, sin tocarlo.
+
+## Qué se hizo
+
+| Ficha | Qué cambió |
+|---|---|
+| RED-32 | `programas/tests/test_comandos_siis_caracterizacion.py` (nuevo, 23 tests): los tres comandos, siempre con el cliente HTTP mockeado |
+| RED-54 | `ContextoDetalleTests` y `ConsultasDetalleTests` en `test_becas_revision.py` |
+| RED-47 | `padron.normalizar_dni` acepta `Decimal`; las tres copias pasan a alias; `NormalizarDniTests` en `test_padron.py` |
+| RED-56 | `_programa_o_denegar` en `autorizacion.py` (seis puertas); `GuardsFallanCerradoTests` en `test_becas_rbac.py` |
+| RED-61 | `SIIS_API_URL` sin default; `core/checks.py` nuevo; `.env.*.example`; host visible en el proceso masivo; `core/tests/test_checks_entorno.py` |
+| RED-69 | Las tres ramas de `if nacimiento and nacimiento <= hoy`, más el envío que no se intenta |
+| RED-87 | El borde exacto del barrio (4), del DNI (10) y del recorte a 50 caracteres |
+
+Cinco tests existentes que no sembraban el Programa BECAS pasaron a sembrarlo: `test_presentacion_selector`,
+`test_nodo_tables_css`, `test_nodo_ui_piezas`, `test_correcciones_review` y `test_correcciones_review_2`.
+Daban 403 con los guards cerrados, que es exactamente la conducta nueva.
+
+## Pendientes
+
+- **Confirmar con ECOM (H-09)** que PRD define `SIIS_API_URL` con el host productivo, y pedirles
+  `DATANACH_ES_PRODUCCION=1` en PRD (solo ahí). Sin esa variable el chequeo de host nunca dispara.
+- **Antes de espejar a ECOM hay que verificar que `SIIS_API_URL` esté definida en testing y en PRD.**
+  Es el único punto con filo de este cambio y conviene no leerlo de apuro: la protección que agrega
+  RED-61 es **solo de CI**. El check tiene `deploy=True`, así que corre con `manage.py check
+  --deploy` —el job `Django check` del PR— y **ningún entrypoint lo corre**: ni `scripts/startup.sh`
+  (que usa `check --database default`) ni el de producción. Dicho de otro modo: si en testing o en
+  PRD la variable no está, el contenedor **arranca igual** y SIIS falla ruidosamente —sin host no hay
+  a dónde ir— en vez de mandar las altas al ambiente de desarrollo en silencio, que es lo que hacía
+  antes. Eso es exactamente lo que se buscaba, pero el momento en que se descubre es la primera alta,
+  no el deploy. `docker-compose.yml:76` conserva `${SIIS_API_URL:-https://siisapi.ecomdev.ar}`:
+  ese default es **solo para el compose de desarrollo** y no aplica al despliegue de ECOM. Frenar el
+  arranque exigiría llamar al check desde el entrypoint, y eso queda para R-15.
+- La Ola 1 (PR 7) suma el resto de los tests de `validar_casos_siis` que pide RED-32 y la base común
+  de los comandos (RED-53).
+- La Ola 7 extrae `contexto_identidad`, `contexto_siis` y `contexto_respuestas` a
+  `programas/selectors/revision.py` (RED-54, segunda mitad).
+
+## Qué no se hizo
+
+- No se tocó `programas/api/serializers.py:168`, la quinta copia inline de la normalización: recibe
+  un string de DRF, nunca un `float` ni un `Decimal`. Unificarla es parte de RED-48 (Ola 3), que
+  además tiene que resolver las tres reglas de largo distintas.
+- No se tocó el default de `docker-compose.yml` (`${SIIS_API_URL:-https://siisapi.ecomdev.ar}`): ahí
+  el default es correcto y mantiene andando el entorno de desarrollo.
+- No se agregó `puede_operar_subsegmento` a las puertas de `_programa_o_denegar`: delega en
+  `puede_gestionar_segmento`, que ya la tiene, y la ficha nombra seis.
+
+## Reversibilidad
+
+Revertir el commit devuelve las tres copias de `normalizar_dni`, el default de `SIIS_API_URL` y el
+alcance de Becas abierto cuando falta la fila `BECAS`. Los tests nuevos se van con él. No hay
+migración ni dato que recuperar. El único efecto operativo del cambio es que
+`manage.py check --deploy` exige `SIIS_API_URL` en el entorno: el CI ya la define con un host
+ficticio.
 
 ## Historial
 

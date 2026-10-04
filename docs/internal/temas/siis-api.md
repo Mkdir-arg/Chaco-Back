@@ -107,9 +107,11 @@ código ya consume la versión vigente:
   CUIL, parser de dirección y servicio de envío), modelo `EnvioSIIS` y comando
   `reenviar_siis_pendientes`. Usa el mismo token, la misma `SIIS_API_URL` y las
   mismas credenciales: no agrega variables de entorno.
-- Configuración por env: `SIIS_API_URL` (default ya apunta al entorno de test),
+- Configuración por env: `SIIS_API_URL` (**sin default desde el Cambio 123**: si
+  falta, no se manda nada en vez de mandarlo al SIIS de desarrollo),
   `SIIS_API_CLIENT_ID`, `SIIS_API_CLIENT_SECRET`, `SIIS_API_CONNECT_TIMEOUT`,
-  `SIIS_API_TIMEOUT`.
+  `SIIS_API_TIMEOUT`. En PRD, además, `DATANACH_ES_PRODUCCION=1`, que es lo que
+  hace que `manage.py check --deploy` rechace apuntar al ambiente de test.
 
 ## Acotaciones del correo (27/07/2026)
 

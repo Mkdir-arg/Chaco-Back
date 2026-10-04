@@ -64,6 +64,7 @@ from django.utils import timezone
 from programas.management.commands._insumos_siis import falta_tabla
 from programas.models import Convocatoria, Formulario, RequisitoNativo
 from programas.services.diseno import clave_requisito, obtener_o_crear_diseno
+from programas.services.padron import normalizar_dni
 from programas.services.proceso_masivo import ids_de
 from programas.services.respuestas import (
     COLUMNAS_FIJAS,
@@ -107,8 +108,10 @@ def _norm(texto):
     return " ".join(limpio.lower().split())
 
 
-def _solo_digitos(valor):
-    return "".join(c for c in str(valor or "") if c.isdigit())
+# Alias de la función canónica: este comando cruza contra ``ciudadanos_renaper``,
+# cuya columna de DNI puede ser DECIMAL, y una copia propia le agregaba un 0 al
+# final (RED-47) — con lo que no cruzaba ninguna fila e informaba «0 corregidos».
+_solo_digitos = normalizar_dni
 
 
 def _localidad_legible(crudo):

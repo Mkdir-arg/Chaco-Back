@@ -1,7 +1,7 @@
 """Regresiones de la segunda revision del formulario publico de Becas (Fase 6)."""
 
 from datetime import date, timedelta
-from io import BytesIO
+from io import BytesIO, StringIO
 from unittest.mock import patch
 from uuid import uuid4
 
@@ -10,6 +10,7 @@ from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.core.exceptions import PermissionDenied
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.core.management import call_command
 from django.http import HttpResponse
 from django.test import RequestFactory, TestCase
 from django.utils import timezone
@@ -257,6 +258,9 @@ class PadronAtomicidadTests(TestCase):
 
 class ListadosPublicosScopeTests(TestCase):
     def setUp(self):
+        # RED-56: los guards de Becas fallan cerrados sin el Programa BECAS
+        # sembrado; el escenario lo incluye, como en producción.
+        call_command("seed_becas", stdout=StringIO())
         self.user = User.objects.create_user("operador")
         self.seg = Segmento.objects.create(nombre="Seg", cupo_maximo=10)
         self.conv = Convocatoria.objects.create(
