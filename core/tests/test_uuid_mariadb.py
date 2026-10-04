@@ -17,6 +17,7 @@ import ast
 from pathlib import Path
 
 from django.apps import apps
+from django.db import models
 from django.test import SimpleTestCase
 
 RAIZ = Path(__file__).resolve().parent.parent.parent
@@ -27,7 +28,12 @@ CAMPOS_UUID_EXTERNOS = frozenset({"client_uuid", "token_publico"})
 
 #: Métodos de queryset que comparan contra la columna. ``create``/``update`` quedan
 #: afuera a propósito: escribir el UUID por kwarg es correcto, el problema es buscarlo.
+#: ``Q(...)`` se reconoce aparte, porque puede armarse lejos del ``filter`` que lo usa.
 METODOS_DE_BUSQUEDA = frozenset({"filter", "exclude", "get", "get_or_create", "update_or_create"})
+
+#: Lookups registrados en el ORM, para distinguir `campo__exact` de una travesía
+#: `relacion__campo`. Sale de Django, no de una lista a mano que envejezca.
+LOOKUPS_CONOCIDOS = frozenset(models.CharField.get_lookups()) | frozenset(models.UUIDField.get_lookups())
 
 #: Lookups que no comparan el valor del UUID y por lo tanto no sufren el problema.
 LOOKUPS_INOCUOS = frozenset({"isnull"})
@@ -57,9 +63,60 @@ def _modulos_de_dominio():
 
 
 def _campo_de_lookup(kwarg):
-    """``client_uuid__exact`` → ``("client_uuid", "exact")``; ``dni`` → ``("dni", "")``."""
-    campo, _, lookup = kwarg.partition("__")
-    return campo, lookup
+    """Separa el campo del lookup, aguantando travesías por relaciones.
+
+    ``client_uuid`` → ``("client_uuid", "")`` · ``client_uuid__exact`` →
+    ``("client_uuid", "exact")`` · ``relevamiento__formularios__client_uuid`` →
+    ``("client_uuid", "")``. Lo que importa es el **último segmento significativo**:
+    en una travesía la columna comparada es la del final del camino.
+    """
+    segmentos = kwarg.split("__")
+    if len(segmentos) > 1 and segmentos[-1] in LOOKUPS_CONOCIDOS:
+        return segmentos[-2], segmentos[-1]
+    return segmentos[-1], ""
+
+
+def _es_llamada_de_busqueda(nodo):
+    """``qs.filter(...)``/``.get(...)``… o un ``Q(...)`` (incluido ``models.Q(...)``)."""
+    if isinstance(nodo.func, ast.Attribute):
+        return nodo.func.attr in METODOS_DE_BUSQUEDA or nodo.func.attr == "Q"
+    return isinstance(nodo.func, ast.Name) and nodo.func.id == "Q"
+
+
+def _nombre_de_llamada(nodo):
+    return nodo.func.attr if isinstance(nodo.func, ast.Attribute) else nodo.func.id
+
+
+def _kwargs_de(nodo):
+    """``(nombre, nodo_de_valor)`` de cada kwarg, resolviendo ``**{"campo": v}`` literal.
+
+    Un ``**variable`` que no sea un dict literal no se puede resolver estáticamente y
+    se deja pasar: el lint no adivina.
+    """
+    for kwarg in nodo.keywords:
+        if kwarg.arg is not None:
+            yield kwarg.arg, kwarg.value
+        elif isinstance(kwarg.value, ast.Dict):
+            for clave, valor in zip(kwarg.value.keys, kwarg.value.values):
+                if isinstance(clave, ast.Constant) and isinstance(clave.value, str):
+                    yield clave.value, valor
+
+
+def infracciones_en(fuente, etiqueta="<fuente>"):
+    """Búsquedas por un UUID externo sin ``q_uuid_en_texto``, como texto legible."""
+    lineas = fuente.splitlines()
+    infracciones = []
+    for nodo in ast.walk(ast.parse(fuente, filename=etiqueta)):
+        if not isinstance(nodo, ast.Call) or not _es_llamada_de_busqueda(nodo):
+            continue
+        for nombre, valor in _kwargs_de(nodo):
+            campo, lookup = _campo_de_lookup(nombre)
+            if campo not in CAMPOS_UUID_EXTERNOS or lookup in LOOKUPS_INOCUOS:
+                continue
+            if PRAGMA in lineas[valor.lineno - 1]:
+                continue
+            infracciones.append(f"{etiqueta}:{valor.lineno} → {_nombre_de_llamada(nodo)}({nombre}=…)")
+    return infracciones
 
 
 class BusquedasUUIDTests(SimpleTestCase):
@@ -68,24 +125,7 @@ class BusquedasUUIDTests(SimpleTestCase):
     def test_las_busquedas_por_uuid_usan_el_helper(self):
         infracciones = []
         for ruta in _modulos_de_dominio():
-            fuente = ruta.read_text(encoding="utf-8")
-            lineas = fuente.splitlines()
-            for nodo in ast.walk(ast.parse(fuente, filename=str(ruta))):
-                if not isinstance(nodo, ast.Call) or not isinstance(nodo.func, ast.Attribute):
-                    continue
-                if nodo.func.attr not in METODOS_DE_BUSQUEDA:
-                    continue
-                for kwarg in nodo.keywords:
-                    if kwarg.arg is None:
-                        continue
-                    campo, lookup = _campo_de_lookup(kwarg.arg)
-                    if campo not in CAMPOS_UUID_EXTERNOS or lookup in LOOKUPS_INOCUOS:
-                        continue
-                    if PRAGMA in lineas[kwarg.value.lineno - 1]:
-                        continue
-                    infracciones.append(
-                        f"{ruta.relative_to(RAIZ).as_posix()}:{kwarg.value.lineno} → .{nodo.func.attr}({kwarg.arg}=…)"
-                    )
+            infracciones += infracciones_en(ruta.read_text(encoding="utf-8"), ruta.relative_to(RAIZ).as_posix())
 
         self.assertEqual(
             sorted(infracciones),
@@ -95,16 +135,32 @@ class BusquedasUUIDTests(SimpleTestCase):
             f"caso está justificado, dejar «{PRAGMA}» en la línea. Infracciones: " + ", ".join(sorted(infracciones)),
         )
 
-    def test_el_lint_detecta_el_lookup_directo(self):
-        """Pin invertido: el lint tiene que reconocer la forma que busca prohibir."""
-        fuente = "Formulario.objects.filter(relevamiento=rel, client_uuid=valor)"
-        encontrados = [
-            kwarg.arg
-            for nodo in ast.walk(ast.parse(fuente))
-            if isinstance(nodo, ast.Call) and isinstance(nodo.func, ast.Attribute)
-            for kwarg in nodo.keywords
-            if nodo.func.attr in METODOS_DE_BUSQUEDA
-            and kwarg.arg
-            and _campo_de_lookup(kwarg.arg)[0] in CAMPOS_UUID_EXTERNOS
-        ]
-        self.assertEqual(encontrados, ["client_uuid"])
+    def test_el_lint_detecta_las_cuatro_formas_de_escribir_la_busqueda(self):
+        """Pin invertido sobre fuente sintética: las cuatro formas tienen que caer.
+
+        Sin esto el ratchet puede quedar verde para siempre por no reconocer la forma
+        que alguien escribió, que es peor que no tenerlo.
+        """
+        casos = {
+            "kwarg directo": "Formulario.objects.filter(relevamiento=rel, client_uuid=valor)",
+            "Q explícito": "Formulario.objects.filter(Q(client_uuid=valor) | Q(numero=1))",
+            "doble asterisco literal": 'Formulario.objects.get(**{"client_uuid": valor})',
+            "travesía por relación": "Relevamiento.objects.filter(formularios__client_uuid=valor)",
+        }
+        for etiqueta, fuente in casos.items():
+            with self.subTest(forma=etiqueta):
+                self.assertEqual(len(infracciones_en(fuente, etiqueta)), 1, infracciones_en(fuente, etiqueta))
+
+    def test_el_lint_no_marca_lo_que_es_correcto(self):
+        """Escribir el UUID, preguntar por NULL o usar el helper no son infracciones."""
+        casos = {
+            "escritura": 'Formulario.objects.create(client_uuid=valor, numero="1")',
+            "isnull": "Formulario.objects.filter(client_uuid__isnull=True)",
+            "helper": 'relevamiento.formularios.filter(q_uuid_en_texto("client_uuid", valor))',
+            "doble asterisco opaco": "Formulario.objects.filter(**filtros)",
+            "otro campo": "Formulario.objects.filter(dni_titular=valor)",
+            "pragma": f"Formulario.objects.filter(client_uuid=valor)  {PRAGMA}",
+        }
+        for etiqueta, fuente in casos.items():
+            with self.subTest(forma=etiqueta):
+                self.assertEqual(infracciones_en(fuente, etiqueta), [])

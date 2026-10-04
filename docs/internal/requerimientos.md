@@ -14955,11 +14955,15 @@ SQLite y el problema vive en la forma del SQL**, no en el resultado:
 ## Decisiones tomadas
 
 - **Se compila el SQL, no se ejecuta.** `sql_mysql(queryset)` arma un `DatabaseWrapper` de MySQL a
-  mano, le siembra lo que el compilador le preguntaría al servidor (versión, sabor MariaDB o MySQL,
-  `sql_mode`) y compila. No abre ninguna conexión, corre en milisegundos y entra en la suite normal
-  sobre SQLite. El detalle que lo hace funcionar es fijar `allows_group_by_selected_pks` a mano: es
-  la propiedad que abre conexión al compilar un queryset **agrupado**, y es justo donde moría la
-  versión que proponía la PoC original de la auditoría.
+  mano, le siembra lo que el compilador le preguntaría al servidor —sabor (MariaDB o MySQL), versión
+  y `mysql_server_data`, de donde salen `sql_mode` y compañía— y compila. No abre ninguna conexión,
+  corre en milisegundos y entra en la suite normal sobre SQLite. **Sembrar esos tres atributos es lo
+  único que hace falta**, incluso con un queryset agrupado: las propiedades del backend que el
+  compilador consulta se resuelven a partir de ellos. No se fuerza ninguna, justamente para que el
+  SQL sea el que recibiría el motor de verdad —`allows_group_by_selected_pks`, por ejemplo, vale
+  `True` en MySQL 8 y forzarla a `False` cambiaría la forma del `GROUP BY`—. Lo afirman dos tests:
+  `test_compilar_no_abre_ninguna_conexion` (con socket, `get_new_connection` y `cursor` bloqueados) y
+  `test_el_backend_conserva_sus_features_reales`.
 - **El helper vive una sola vez**, en `core/tests/test_sql_motor_real.py`. Lo van a consumir TST-01
   (PR R-11) y lo que venga. La ficha lo nombraba `_sql_mysql`; se le sacó el guion bajo porque es un
   helper **compartido entre módulos** y un nombre privado importado de afuera miente sobre su uso.
@@ -14986,21 +14990,35 @@ SQLite y el problema vive en la forma del SQL**, no en el resultado:
   una razón tonta (un `TypeError`, la captura rota), lo acompaña
   `test_hoy_los_reportes_de_dispositivos_si_compilan_convert_tz`, que afirma la conducta de hoy y
   **tiene** que pasar.
-- **El ratchet de UUID recorre el esquema, no las migraciones.** `apps.get_models()` junta todos los
-  `UUIDField` —incluidas las FK que apuntan a un pk UUID, que son columnas UUID igual— y los
-  enfrenta a `COLUMNAS_UUID_AMPLIADAS`, una lista literal de 9 entradas con modelo, campo, tabla,
-  columna y la migración que la amplió. Se descartó la variante que parsea las migraciones buscando
+- **El ratchet de UUID recorre el esquema, no las migraciones.** Los modelos de **las apps del repo**
+  —`admin`, `auth`, `sessions` y compañía quedan afuera: esas columnas las amplía Django— y sus
+  `UUIDField`, incluidas las FK que apuntan a un pk UUID (son columnas UUID igual), se enfrentan a
+  `COLUMNAS_UUID_AMPLIADAS`, una lista literal de 9 entradas con modelo, campo, tabla, columna y la
+  migración que la amplió. Se descartó la variante que parsea las migraciones buscando
   `AlterField`/`RunSQL`: es frágil y, sobre todo, **no ve el modelo nuevo**, que es el caso que hay
   que atajar. La misma lista alimenta ahora el test físico contra MySQL, así que no hay dos listas
   que puedan desincronizarse.
+- **La migración que nombra el ratchet tiene que existir y ampliar esa columna a `char(36)`.** Si no,
+  la lista se satisface escribiendo cualquier número y lo que la convención de `CLAUDE.md` pide es la
+  migración, no la línea. Lo verifica `test_cada_columna_uuid_declara_su_migracion_a_char36` leyendo
+  el archivo del disco, y no con `MigrationLoader`, porque con `DJANGO_SYNCDB_PROJECT_APPS=True` —que
+  es como corre el CI— el loader ve las apps del proyecto sin migraciones. La verificación **física**
+  de la columna sigue siendo del test que solo corre contra MySQL, y contra MariaDB será TST-01.
 - **El lint de UUID barre todas las apps del proyecto, no solo `services/` y `views/`.** La ficha
   proponía esas dos carpetas; el código del Cambio 91 vivía en `programas/api/views.py`, que no es
   ninguna de las dos. El barrido sale del registro de apps de Django (así cubre las que se agreguen)
   y excluye tests y migraciones: 335 módulos, 2,4 s.
-- **El lint mira búsquedas, no escrituras.** `filter`, `exclude`, `get`, `get_or_create` y
-  `update_or_create` con un kwarg `client_uuid=`/`token_publico=`. Escribir el UUID por kwarg en un
-  `create()` es correcto; el problema es buscarlo. `__isnull` también queda afuera: no compara el
-  valor. La excepción justificada se marca con el pragma `# uuid-externo: ok` en la línea.
+- **El lint reconoce las cuatro formas de escribir la búsqueda**, no solo el kwarg directo: `Q(...)`
+  —que puede armarse lejos del `filter` que lo usa—, `**{"client_uuid": v}` literal y la travesía por
+  relación (`relevamiento__formularios__client_uuid`), donde la columna comparada es el **último
+  segmento significativo** del camino; para distinguir `campo__exact` de `relacion__campo` los lookups
+  salen del registro del ORM y no de una lista a mano que envejezca. Un `**variable` opaco se deja
+  pasar: el lint no adivina. Las ocho formas —las cuatro que tienen que caer y las cuatro que no—
+  quedan fijadas con fuente sintética en el propio módulo, sin tocar código de las apps.
+- **El lint mira búsquedas, no escrituras.** `filter`, `exclude`, `get`, `get_or_create`,
+  `update_or_create` y `Q`. Escribir el UUID por kwarg en un `create()` es correcto; el problema es
+  buscarlo. `__isnull` también queda afuera: no compara el valor. La excepción justificada se marca
+  con el pragma `# uuid-externo: ok` en la línea.
 
 ## Implementación
 
@@ -15026,7 +15044,9 @@ No requiere. Sin migraciones, sin columnas nuevas, sin datos tocados.
 
 ## Validación
 
-- **Tests nuevos (10), 9 verdes y 1 `expectedFailure` declarado (DIS-01):**
+- **Tests nuevos (14), 13 verdes y 1 `expectedFailure` declarado (DIS-01):**
+  - `core/tests/test_sql_motor_real.py::HelperSqlMysqlTests` —
+    `test_compilar_no_abre_ninguna_conexion`, `test_el_backend_conserva_sus_features_reales`.
   - `core/tests/test_sql_motor_real.py::SinConvertTZTests` —
     `test_la_serie_semanal_del_dashboard_no_compila_convert_tz`,
     `test_tendencias_agrupa_por_la_columna_sin_convert_tz`, `test_truncweek_si_compila_convert_tz`,
@@ -15036,9 +15056,12 @@ No requiere. Sin migraciones, sin columnas nuevas, sin datos tocados.
     `test_las_busquedas_por_uuid_y_dni_no_envuelven_la_columna`,
     `test_la_forma_vieja_del_cambio_91_si_envuelve_la_columna`.
   - `core/tests/test_uuid_mariadb.py::BusquedasUUIDTests` —
-    `test_las_busquedas_por_uuid_usan_el_helper`, `test_el_lint_detecta_el_lookup_directo`.
+    `test_las_busquedas_por_uuid_usan_el_helper`,
+    `test_el_lint_detecta_las_cuatro_formas_de_escribir_la_busqueda`,
+    `test_el_lint_no_marca_lo_que_es_correcto`.
   - `programas/tests/test_becas_models.py::UUIDExternosMySQLTests` —
-    `test_todo_uuidfield_nuevo_esta_en_la_lista_ampliada`.
+    `test_todo_uuidfield_nuevo_esta_en_la_lista_ampliada`,
+    `test_cada_columna_uuid_declara_su_migracion_a_char36`.
 - **Los bugs históricos reintroducidos a mano** (aplicar → correr → revertir), que es lo que este PR
   tiene que demostrar:
   - `_serie_semanal` reescrito con `TruncWeek` → `test_la_serie_semanal_...` en rojo en los dos
@@ -15049,6 +15072,8 @@ No requiere. Sin migraciones, sin columnas nuevas, sin datos tocados.
     estuvo vivo entre el 21/08 y el 25/09 de 2026— → `test_las_busquedas_por_uuid_y_dni_...` en rojo
     en los dos motores.
   - `UUIDField` nuevo en `ValidacionSIS` sin migración → el ratchet en rojo nombrando modelo y campo.
+  - `programas.0073` cambiado por `programas.0072` en el ratchet → rojo por «no amplía ninguna
+    columna a char(36)»; `users.0023` por `users.0099` → rojo por inexistente.
   - `bloqueado.formularios.filter(client_uuid=client_uuid)` en `programas/api/views.py` → el lint en
     rojo con archivo y línea.
 - `manage.py check` sin issues y `makemigrations --check --dry-run` sin cambios.

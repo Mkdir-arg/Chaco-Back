@@ -22,6 +22,7 @@ comparación que ya no mira nada.
 La ejecución real de estos casos contra MariaDB es otra ficha (TST-01, ``--tag mysql``).
 """
 
+import socket
 import unittest
 import uuid
 from contextlib import contextmanager
@@ -32,7 +33,7 @@ from django.contrib.auth.models import User
 from django.db import connections
 from django.db.models import Count, QuerySet
 from django.db.models.functions import TruncWeek
-from django.test import TestCase
+from django.test import SimpleTestCase, TestCase
 from rest_framework.test import APIRequestFactory, force_authenticate
 
 from programas.models import (
@@ -53,17 +54,16 @@ from programas.services.registro_diario import calcular_cantidades
 UUID_CUALQUIERA = uuid.UUID("5d0f3f0a-9b1a-4a7e-8f1a-2b3c4d5e6f70")
 
 
-def sql_mysql(consulta, mariadb=False):
-    """SQL que ``consulta`` le mandaría a MySQL (o a MariaDB), sin tocar la red.
+def _wrapper_mysql(mariadb=False):
+    """Backend de MySQL (o MariaDB) listo para compilar, sin servidor del otro lado.
 
-    Acepta un ``QuerySet`` o una ``Query``. Arma un ``DatabaseWrapper`` de MySQL a
-    mano y le siembra lo que el compilador le preguntaría al servidor (versión,
-    sabor, ``sql_mode``), de modo que ``get_compiler`` nunca intente conectarse.
-    ``allows_group_by_selected_pks`` se fija a mano porque es la propiedad que
-    abre conexión al compilar un queryset agrupado.
-
-    Helper compartido: lo usan los tests de RED-07, RED-08, RED-09 y TST-01. Vive
-    una sola vez acá a propósito.
+    Le siembra lo que el compilador le preguntaría al servidor: sabor, versión y
+    ``mysql_server_data`` —de donde salen ``sql_mode`` y compañía—. **Esos tres
+    atributos son lo único que hace falta** para que compilar nunca intente
+    conectarse, incluso con un queryset agrupado: las propiedades del backend que el
+    compilador consulta (entre ellas ``allows_group_by_selected_pks``) se resuelven a
+    partir de ellos. Nada se fuerza a mano, así que el SQL que sale es el que
+    recibiría el motor de verdad.
     """
     ajustes = dict(connections["default"].settings_dict)
     ajustes.update({"ENGINE": "django.db.backends.mysql", "HOST": "127.0.0.1", "PORT": "1", "NAME": "x"})
@@ -79,7 +79,18 @@ def sql_mysql(consulta, mariadb=False):
         "lower_case_table_names": False,
         "has_zoneinfo_database": False,
     }
-    wrapper.features.__dict__["allows_group_by_selected_pks"] = False
+    return wrapper
+
+
+def sql_mysql(consulta, mariadb=False):
+    """SQL que ``consulta`` le mandaría a MySQL (o a MariaDB), sin tocar la red.
+
+    Acepta un ``QuerySet`` o una ``Query``.
+
+    Helper compartido: lo usan los tests de RED-07, RED-08, RED-09 y TST-01. Vive
+    una sola vez acá a propósito.
+    """
+    wrapper = _wrapper_mysql(mariadb=mariadb)
     return str(getattr(consulta, "query", consulta).get_compiler(connection=wrapper).as_sql()[0])
 
 
@@ -127,6 +138,54 @@ def consultas_de(*modelos):
 
     with mock.patch.multiple(QuerySet, _fetch_all=_fetch_all, exists=_exists, count=_count, iterator=_iterator):
         yield capturadas
+
+
+class HelperSqlMysqlTests(SimpleTestCase):
+    """El helper tiene que compilar sin servidor y sin falsear nada del backend."""
+
+    def test_compilar_no_abre_ninguna_conexion(self):
+        """Lo único que evita la conexión es sembrar sabor, versión y ``mysql_server_data``.
+
+        Se bloquean las tres puertas (socket, ``get_new_connection``, ``cursor``) y se
+        compila el caso más exigente —un queryset **agrupado**, que es el que obliga al
+        compilador a consultar propiedades del backend— contra los dos motores.
+        """
+
+        def _prohibido(*args, **kwargs):
+            raise AssertionError("sql_mysql intentó abrir una conexión")
+
+        agrupado = (
+            Formulario.objects.filter(relevamiento_id__in=[1, 2])
+            .annotate(semana=TruncWeek("creado"))
+            .values("semana")
+            .annotate(total=Count("id"))
+        )
+        from django.db.backends.mysql.base import DatabaseWrapper
+
+        with (
+            mock.patch.object(socket.socket, "connect", _prohibido),
+            mock.patch.object(socket, "create_connection", _prohibido),
+            mock.patch.object(DatabaseWrapper, "get_new_connection", _prohibido),
+            mock.patch.object(DatabaseWrapper, "cursor", _prohibido),
+        ):
+            for mariadb in (False, True):
+                with self.subTest(motor="mariadb" if mariadb else "mysql"):
+                    self.assertIn("GROUP BY", sql_mysql(agrupado, mariadb=mariadb))
+
+    def test_el_backend_conserva_sus_features_reales(self):
+        """Ningún atributo del backend se pisa: el SQL es el que recibiría el motor.
+
+        ``allows_group_by_selected_pks`` es `True` en MySQL 8 y en MariaDB sin
+        ``ONLY_FULL_GROUP_BY``; forzarlo a `False` —como hacía la primera versión de
+        este helper— cambia la forma del `GROUP BY` y el test pasaría a mirar un SQL
+        que ningún servidor emite.
+        """
+        agrupado = Formulario.objects.values("relevamiento_id").annotate(total=Count("id"))
+        for mariadb in (False, True):
+            with self.subTest(motor="mariadb" if mariadb else "mysql"):
+                wrapper = _wrapper_mysql(mariadb=mariadb)
+                self.assertTrue(wrapper.features.allows_group_by_selected_pks)
+                self.assertIn("GROUP BY", sql_mysql(agrupado, mariadb=mariadb))
 
 
 class SinConvertTZTests(TestCase):

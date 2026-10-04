@@ -4,6 +4,7 @@ import uuid
 from datetime import date
 from importlib import import_module
 from io import StringIO
+from pathlib import Path
 
 from django.apps import apps
 from django.contrib.auth.models import User
@@ -61,19 +62,35 @@ COLUMNAS_UUID_AMPLIADAS = (
 )
 
 
+def _modelos_del_repo():
+    """Modelos de las apps que viven en este repo (sin admin, auth, sessions…).
+
+    Mismo criterio que el lint hermano de ``core/tests/test_uuid_mariadb.py``: las
+    columnas de las apps de Django las amplía Django, no nosotros.
+    """
+    raiz = Path(__file__).resolve().parent.parent.parent
+    propias = {config.label for config in apps.get_app_configs() if raiz in Path(config.path).resolve().parents}
+    return [modelo for modelo in apps.get_models() if modelo._meta.app_label in propias]
+
+
 class UUIDExternosMySQLTests(TestCase):
     """Los UUID recibidos por API deben admitir su representación con guiones."""
 
     def test_todo_uuidfield_nuevo_esta_en_la_lista_ampliada(self):
-        """RED-09: un ``UUIDField`` nuevo sin su migración a ``char(36)`` no puede pasar el CI.
+        """RED-09: todo ``UUIDField`` del repo tiene que estar declarado en el ratchet.
 
-        Recorre el esquema real (incluidas las FK que apuntan a un pk UUID, que son
-        columnas UUID igual) y lo contrasta contra el ratchet. Corre en SQLite, que es
-        donde corre el CI: el test físico de abajo solo se ejecuta contra MySQL.
+        Lo que fuerza este test es exactamente eso: que la columna esté **declarada**
+        junto con la migración que la amplió. Que esa migración exista y amplíe a
+        ``char(36)`` lo verifica ``test_cada_columna_uuid_declara_su_migracion_a_char36``;
+        que la columna **física** mida 36 lo verifica el test de más abajo, que solo
+        corre contra MySQL, y contra MariaDB lo verificará TST-01 (``--tag mysql``).
+
+        Recorre el esquema real de las apps del repo, incluidas las FK que apuntan a un
+        pk UUID (son columnas UUID igual). Corre en SQLite, que es donde corre el CI.
         """
         declaradas = {(etiqueta, campo) for etiqueta, campo, _, _, _ in COLUMNAS_UUID_AMPLIADAS}
         reales = set()
-        for modelo in apps.get_models():
+        for modelo in _modelos_del_repo():
             for campo in modelo._meta.local_fields:
                 if isinstance(campo, models.UUIDField):
                     reales.add((modelo._meta.label, campo.name))
@@ -89,6 +106,28 @@ class UUIDExternosMySQLTests(TestCase):
         )
         sobrantes = sorted(declaradas - reales)
         self.assertEqual(sobrantes, [], f"El ratchet nombra columnas que ya no existen: {sobrantes}")
+
+    def test_cada_columna_uuid_declara_su_migracion_a_char36(self):
+        """La migración que nombra el ratchet existe y amplía esa columna a ``char(36)``.
+
+        Sin esto el ratchet se satisface escribiendo cualquier número de migración: lo
+        que la convención de `CLAUDE.md` pide es la migración, no la línea en la lista.
+        Se lee el archivo del disco y no ``MigrationLoader`` a propósito: con
+        ``DJANGO_SYNCDB_PROJECT_APPS=True`` —que es como corre el CI— el loader ve las
+        apps del proyecto sin migraciones (`MIGRATION_MODULES = {...: None}`).
+        """
+        for etiqueta, campo, tabla, columna, migracion in COLUMNAS_UUID_AMPLIADAS:
+            with self.subTest(columna=f"{tabla}.{columna}"):
+                app_label, _, prefijo = migracion.partition(".")
+                carpeta = Path(apps.get_app_config(app_label).path) / "migrations"
+                archivos = sorted(carpeta.glob(f"{prefijo}_*.py"))
+                self.assertEqual(
+                    len(archivos), 1, f"{etiqueta}.{campo}: {migracion} no existe o es ambigua ({archivos})"
+                )
+                fuente = archivos[0].read_text(encoding="utf-8")
+                self.assertIn("char(36)", fuente, f"{migracion} no amplía ninguna columna a char(36)")
+                self.assertIn(tabla, fuente, f"{migracion} no menciona la tabla {tabla}")
+                self.assertIn(columna, fuente, f"{migracion} no menciona la columna {columna}")
 
     def test_columnas_uuid_externas_admiten_36_caracteres(self):
         if connection.vendor != "mysql":

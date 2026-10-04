@@ -413,8 +413,14 @@ motor, forma del SQL, migraciones y unas pocas vistas o comandos con cero cobert
   estos casos contra MariaDB va en TST-01 (`--tag mysql`).
 
 **Resolución:** ✅ Resuelto en el PR R-10 (Cambio 125), 04-oct-2026 — el módulo nuevo con los cuatro tests propuestos. El
-helper de la ficha funciona tal cual (compila con `GROUP BY` en 0,03 s sobre SQLite); se le sacó el guion bajo
-(`sql_mysql`) porque lo van a importar TST-01 y lo que venga, y acepta `QuerySet` o `Query`. Dos desvíos: (a) los tests no
+helper compila con `GROUP BY` en 0,03 s sobre SQLite; se le sacó el guion bajo (`sql_mysql`) porque lo van a importar
+TST-01 y lo que venga, y acepta `QuerySet` o `Query`. **Corrección a la ficha:** la línea
+`w.features.__dict__["allows_group_by_selected_pks"] = False` del bloque de arriba no va. Lo que evita la conexión es
+sembrar `mysql_is_mariadb`, `mysql_version` y `mysql_server_data`, nada más; y esa propiedad vale `True` en MySQL 8 y en
+MariaDB sin `ONLY_FULL_GROUP_BY`, así que forzarla a `False` hacía que el SQL compilado **difiriera del que recibe el
+motor** (agrupa por el pk en vez de por todas las columnas). Lo fijan dos tests nuevos:
+`HelperSqlMysqlTests.test_compilar_no_abre_ninguna_conexion` (socket, `get_new_connection` y `cursor` bloqueados, con un
+queryset agrupado y los dos motores) y `test_el_backend_conserva_sus_features_reales`. Dos desvíos más: (a) los tests no
 reescriben el queryset, lo **capturan** del código de producción con `consultas_de(*modelos)` —un context manager que
 intercepta `_fetch_all`/`exists`/`count`/`iterator` de los modelos indicados y deja pasar los demás, así que
 `test_tendencias_...` llama a la vista entera—, porque un test que reescribe el queryset sigue verde cuando el código real
@@ -478,14 +484,23 @@ una con `OR`. Se agregó el pin invertido `test_la_forma_vieja_del_cambio_91_si_
 **Resolución:** ✅ **Parte R resuelta** en el PR R-10 (Cambio 125), 04-oct-2026; la parte de la Ola 3 sigue pendiente. El
 ratchet `COLUMNAS_UUID_AMPLIADAS` (9 entradas: modelo, campo, tabla, columna y migración que la amplió) vive en
 `programas/tests/test_becas_models.py` y lo consume **también** el test físico contra MySQL, así que no hay dos listas que
-puedan desincronizarse. El recorrido incluye las FK que apuntan a un pk UUID (`legajos.AlertaCiudadano.legajo`,
+puedan desincronizarse. El recorrido va sobre los modelos de **las apps del repo** (no `admin`, `auth`, `sessions`…: esas
+columnas las amplía Django) e incluye las FK que apuntan a un pk UUID (`legajos.AlertaCiudadano.legajo`,
 `legajos.HistorialContacto.legajo`), que son columnas UUID igual; la ficha hablaba del «pk de `TimeStamped`» y en el código
-el pk UUID lo declara `core.models.base.LegajoBase`. Desvío del lint: barre **todas las apps del proyecto** (registro de
-apps de Django, menos tests y migraciones: 335 módulos, 2,4 s) y no solo `**/services/*.py` y `**/views/*.py`, porque el
-código del Cambio 91 vivía en `programas/api/views.py`, que no es ninguna de las dos. Mira solo métodos de búsqueda
-(`filter`, `exclude`, `get`, `get_or_create`, `update_or_create`) —escribir el UUID por kwarg en un `create()` es
-correcto— y saltea `__isnull`; pragma de excepción `# uuid-externo: ok`. Hoy no hay ninguna infracción. Verificado a mano:
-`UUIDField` nuevo en `ValidacionSIS` → ratchet en rojo nombrando modelo y campo;
+el pk UUID lo declara `core.models.base.LegajoBase`. Además de la declaración, el ratchet verifica que la migración que
+nombra **exista y amplíe esa columna a `char(36)`** (`test_cada_columna_uuid_declara_su_migracion_a_char36`, leyendo el
+archivo del disco: con `DJANGO_SYNCDB_PROJECT_APPS=True` —que es como corre el CI— el `MigrationLoader` ve las apps del
+proyecto sin migraciones). Desvío del lint: barre **todas las apps del proyecto** (registro de apps de Django, menos tests
+y migraciones: 335 módulos, 2,4 s) y no solo `**/services/*.py` y `**/views/*.py`, porque el código del Cambio 91 vivía en
+`programas/api/views.py`, que no es ninguna de las dos. Reconoce las cuatro formas de escribir la búsqueda: kwarg directo,
+`Q(...)` —que puede armarse lejos del `filter` que lo usa—, `**{"client_uuid": v}` literal y travesía por relación
+(`relevamiento__formularios__client_uuid`, donde la columna comparada es el último segmento significativo; los lookups
+salen del registro del ORM, no de una lista a mano). Un `**variable` opaco se deja pasar: el lint no adivina. Escribir el
+UUID por kwarg en un `create()` es correcto y `__isnull` no compara el valor, así que ninguno es infracción; pragma de
+excepción `# uuid-externo: ok`. Hoy no hay ninguna infracción, y las ocho formas —cuatro que tienen que caer, cuatro que
+no— quedan fijadas con fuente sintética en el propio módulo. Verificado a mano: `UUIDField` nuevo en `ValidacionSIS` →
+ratchet en rojo nombrando modelo y campo; `programas.0073` cambiado por `0072` → rojo por «no amplía ninguna columna a
+char(36)»; `users.0023` por `users.0099` → rojo por inexistente;
 `bloqueado.formularios.filter(client_uuid=client_uuid)` en `programas/api/views.py` → lint en rojo con archivo y línea.
 **Test permanente:** `programas/tests/test_becas_models.py::UUIDExternosMySQLTests.test_todo_uuidfield_nuevo_esta_en_la_lista_ampliada`
 y `core/tests/test_uuid_mariadb.py::BusquedasUUIDTests.test_las_busquedas_por_uuid_usan_el_helper`
