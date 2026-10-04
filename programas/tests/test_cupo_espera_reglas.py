@@ -11,6 +11,7 @@ promoviéndolo desde Cupo. Antes la regla vivía solo en la vista de aprobar:
 - desde Cupo se podía «promover» a APROBADO a un caso ya RECHAZADO.
 """
 
+from datetime import date
 from io import StringIO
 from unittest.mock import patch
 
@@ -19,12 +20,15 @@ from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.urls import reverse
 
-from programas.models import CorridaSiis, EnvioSIIS, Formulario, ListaEspera, TracaFormulario
+from legajos.models import Ciudadano
+from programas.models import CorridaSiis, EnvioSIIS, Formulario, ListaEspera, TracaFormulario, ValidacionSIS
 from programas.services import proceso_masivo
 from programas.services.cupo import (
     CasoEnListaEspera,
+    agregar_a_lista_espera,
     aprobar_o_poner_en_espera,
     dar_baja_beneficiario,
+    get_cupo_stats,
     promover_lista_espera,
 )
 from programas.tests.test_becas_revision import _BaseAprobacionTest
@@ -44,6 +48,31 @@ class _BaseEsperaTest(_BaseAprobacionTest):
                 "valor_anterior", "valor_nuevo"
             )
         )
+
+    def _entrada_fresca(self, entrada=None):
+        """La fila como la carga la vista: recién leída de la base."""
+        return ListaEspera.objects.select_related("formulario", "segmento").get(pk=(entrada or self.entrada).pk)
+
+    def _caso_aprobable(self, dni):
+        """Un ENVIADO del segmento A que pasa el gate de ``validar_aprobacion``."""
+        ciudadano = Ciudadano.objects.create(
+            dni=dni, nombre="Persona", apellido=f"Numero {dni}", fecha_nacimiento=date(1990, 5, 3), genero="F"
+        )
+        formulario = Formulario.objects.create(
+            relevamiento=self.rel_a,
+            celular=f"3624{dni[:6]}",
+            ciudadano=ciudadano,
+            validado_renaper=True,
+        )
+        ValidacionSIS.objects.create(
+            formulario=formulario,
+            estado=ValidacionSIS.Estado.OK,
+            id_programa=self.programa.siis_id_plan_soc_efectivo,
+            documento=dni,
+            respuesta={"resultado": "OK", "apto": True},
+            solicitado_por=self.admin,
+        )
+        return formulario
 
 
 class AprobarEnEsperaServicioTests(_BaseEsperaTest):
@@ -186,6 +215,170 @@ class PromoverExigeEnviadoTests(_BaseEsperaTest):
         self.entrada.refresh_from_db()
         self.assertEqual(self.form_a.estado, Formulario.Estado.APROBADO)
         self.assertTrue(self.entrada.promovido)
+
+
+class PromoverRespetaElCupoTests(_BaseEsperaTest):
+    """RED-27: promover es la **segunda** puerta a APROBADO y tiene su propia
+    guarda de cupo, que hasta ahora ningún test tocaba (el único test que
+    promovía subía el cupo a 10 antes).
+
+    Importa porque aprobar dispara el alta en SIIS y **SIIS no tiene baja**: un
+    excedente informado no se deshace. Los tres casos de abajo cubren las tres
+    formas de llegar a cupo 0 —justo lleno, máximo 0 y ya excedido— y cualquiera
+    de los tres se pone rojo si la guarda se relaja a ``< 0``, que además es
+    inalcanzable: ``get_cupo_stats`` devuelve ``max(..., 0)``, así que
+    ``cupo_disponible`` nunca es negativo y ese ``<`` sería la guarda borrada.
+    """
+
+    def _beneficiarios(self, cuantos):
+        """Aprobados del segmento A: lo que ``get_cupo_stats`` cuenta como ocupado."""
+        for i in range(cuantos):
+            Formulario.objects.create(
+                relevamiento=self.rel_a, celular=f"36249000{i}", estado=Formulario.Estado.APROBADO
+            )
+
+    def _cupo(self, maximo, ocupado):
+        self.seg_a.cupo_maximo = maximo
+        self.seg_a.save(update_fields=["cupo_maximo"])
+        self._beneficiarios(ocupado)
+
+    def _no_promovio(self):
+        self.form_a.refresh_from_db()
+        self.entrada.refresh_from_db()
+        self.assertEqual(self.form_a.estado, Formulario.Estado.ENVIADO)
+        self.assertFalse(self.entrada.promovido)
+
+    def test_promover_sin_cupo_disponible_falla(self):
+        """El segmento está justo lleno: un lugar, un beneficiario."""
+        self._cupo(maximo=1, ocupado=1)
+
+        with self.assertRaises(ValidationError) as ctx:
+            promover_lista_espera(self._entrada_fresca(), self.admin)
+
+        self.assertIn("No hay cupo disponible", ctx.exception.message)
+        self._no_promovio()
+        self.assertEqual(get_cupo_stats(self.seg_a)["cupo_ocupado"], 1)
+
+    def test_promover_con_cupo_maximo_cero_falla(self):
+        """El borde puro: el segmento no tiene ningún lugar y nadie aprobado."""
+        self._cupo(maximo=0, ocupado=0)
+
+        with self.assertRaises(ValidationError) as ctx:
+            promover_lista_espera(self._entrada_fresca(), self.admin)
+
+        self.assertIn("No hay cupo disponible", ctx.exception.message)
+        self._no_promovio()
+
+    def test_promover_con_el_cupo_ya_excedido_tampoco_promueve(self):
+        """Dato heredado: más aprobados que lugares. El clamp deja disponible en 0."""
+        self._cupo(maximo=1, ocupado=2)
+        self.assertEqual(get_cupo_stats(self.seg_a)["cupo_disponible"], 0)
+
+        with self.assertRaises(ValidationError):
+            promover_lista_espera(self._entrada_fresca(), self.admin)
+
+        self._no_promovio()
+
+    def test_promover_con_el_ultimo_lugar_funciona(self):
+        """El otro lado de la guarda: con un lugar libre la promoción entra."""
+        self._cupo(maximo=2, ocupado=1)
+
+        promover_lista_espera(self._entrada_fresca(), self.admin)
+
+        self.form_a.refresh_from_db()
+        self.entrada.refresh_from_db()
+        self.assertEqual(self.form_a.estado, Formulario.Estado.APROBADO)
+        self.assertTrue(self.entrada.promovido)
+        self.assertEqual(get_cupo_stats(self.seg_a)["cupo_disponible"], 0)
+
+
+class PosicionEnLaListaTests(_BaseEsperaTest):
+    """RED-68 (D-RED-11): la posición decide a quién le toca el cupo que se libera.
+
+    Ningún test afirmaba nada sobre ella, así que cambiar ``max_pos + 1`` por
+    ``max_pos`` —o el ``aggregate`` por un ``count()``— dejaba toda la lista en
+    la misma posición y el orden de atención pasaba a decidirlo el orden físico
+    de la tabla, sin que nada se pusiera rojo.
+    """
+
+    def setUp(self):
+        super().setUp()
+        # La base deja a ``form_a`` en la posición 4: acá se arranca con la
+        # lista vacía porque lo que se mide es la numeración que asigna el
+        # servicio, no una fila puesta a mano.
+        self.entrada.delete()
+
+    def _posiciones(self):
+        return list(
+            ListaEspera.objects.filter(segmento=self.seg_a, promovido=False)
+            .order_by("posicion")
+            .values_list("posicion", flat=True)
+        )
+
+    def _agregar(self, formulario):
+        agregar_a_lista_espera(formulario, self.seg_a, self.admin)
+        return ListaEspera.objects.get(formulario=formulario, segmento=self.seg_a, promovido=False)
+
+    def test_las_altas_consecutivas_llevan_posiciones_correlativas(self):
+        for dni in ("41000001", "41000002"):
+            self._agregar(self._caso_aprobable(dni))
+        self._agregar(self.form_a)
+
+        self.assertEqual(self._posiciones(), [1, 2, 3])
+        self.assertEqual(ListaEspera.objects.get(formulario=self.form_a).posicion, 3)
+
+    def test_la_posicion_tras_promover(self):
+        """D-RED-11: el lugar que deja el promovido **no** se reutiliza.
+
+        El máximo se calcula sobre los no promovidos, así que sacar al primero
+        de la lista no renumera a nadie y el siguiente que entra sigue contando
+        desde el último activo.
+        """
+        primero = self._agregar(self.form_a)
+        self._agregar(self._caso_aprobable("41000003"))
+
+        promover_lista_espera(self._entrada_fresca(primero), self.admin)
+
+        self.assertEqual(self._posiciones(), [2])
+        tercero = self._agregar(self._caso_aprobable("41000004"))
+        self.assertEqual(tercero.posicion, 3)
+        self.assertEqual(self._posiciones(), [2, 3])
+
+    def test_la_posicion_del_ultimo_promovido_se_reutiliza(self):
+        """Caracterización (D-RED-11): si el que sale es el último de la lista,
+        el máximo baja y la próxima alta **repite** su posición.
+
+        Queda dos veces la posición 2 en el segmento: una promovida y una
+        activa. Es la razón por la que la unicidad `(segmento, posicion)` que
+        propone RED-68 solo puede entrar con columna nullable —liberando la
+        posición al promover— y no como constraint a secas sobre lo que hay.
+        """
+        self._agregar(self._caso_aprobable("41000005"))
+        ultimo = self._agregar(self.form_a)
+
+        promover_lista_espera(self._entrada_fresca(ultimo), self.admin)
+
+        nuevo = self._agregar(self._caso_aprobable("41000006"))
+        self.assertEqual(nuevo.posicion, 2)
+        self.assertEqual(
+            sorted(ListaEspera.objects.filter(segmento=self.seg_a).values_list("posicion", "promovido")),
+            [(1, False), (2, False), (2, True)],
+        )
+
+    def test_el_listado_de_cupo_respeta_el_orden_de_llegada(self):
+        """La pantalla de Cupo ordena por posición: el orden de llegada es el
+        orden de atención que ve el coordinador."""
+        llegada = [self._caso_aprobable("41000007"), self.form_a, self._caso_aprobable("41000008")]
+        for formulario in llegada:
+            self._agregar(formulario)
+
+        resp = self.client.get(reverse("becas:cupo_segmento", args=[self.seg_a.pk]))
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(
+            [(fila.posicion, fila.formulario_id) for fila in resp.context["lista_espera"]],
+            [(1, llegada[0].pk), (2, llegada[1].pk), (3, llegada[2].pk)],
+        )
 
 
 class MasivoRespetaLaEsperaTests(_BaseProcesoTest):

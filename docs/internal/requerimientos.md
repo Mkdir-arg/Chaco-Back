@@ -297,6 +297,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 114 | La API de ciudadanos es de solo lectura, pide capacidad y solo contesta búsquedas | Legajos · API DRF (`/api/legajos/`) | `#api` `#rbac` `#datos` | Auditoría integral oct-2026 — SEC-02 (+ V1-NEW-03) y SEC-01 punto 2 en legajos (Ola 0, segunda tanda, PR H12) | 03/10/2026 | 🟢 **Hecho** | No requiere |
 | 115 | El catálogo geográfico de la API es de solo lectura y las APIs del dashboard piden capacidad | Transversal · API DRF (`/api/core/`, `/api/` del dashboard) · home del backoffice | `#api` `#rbac` `#sesion` `#ui` | Auditoría integral oct-2026 — SEC-13 y SEC-14 (Ola 0, segunda tanda, PR H13) | 03/10/2026 | 🟢 **Hecho** | No requiere |
 | 120 | Los tests recorren el enum de estados entero, no solo el camino feliz | Becas · relevamientos (vencimientos, API de campo) · Portal (link público) | `#relevamientos` `#api` `#mobile` `#cupos` | Auditoría integral oct-2026 — RED-28, RED-29 y RED-66 (Ola R, red de seguridad, PR R-08) | 04/10/2026 | 🟢 **Hecho** | No requiere |
+| 124 | Cupo y lista de espera: la guarda del cupo 0, el contrato de los candados y la posición | Becas · cupo y lista de espera · Portal (link público) · API de campo | `#cupos` `#api` `#mobile` `#datos` | Auditoría integral oct-2026 — RED-27, RED-67 y RED-68 (Ola R, red de seguridad, PR R-09) | 04/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -14900,6 +14901,151 @@ No requiere. Son tests y una constante; no cambia ninguna conducta en ejecución
 
 Revertir el commit saca los diez tests y la constante. No hay datos ni conducta que revertir: el
 sistema queda exactamente como está hoy, pero las tres mutaciones vuelven a sobrevivir.
+
+## Historial
+
+No aplica: entrada nueva.
+
+---
+
+# Cambio 124 — Cupo y lista de espera: la guarda del cupo 0, el contrato de los candados y la posición
+
+🟢 **HECHO — 04/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · cupo y lista de espera · Portal (link público) · API de campo |
+| **Etiquetas** | `#cupos` `#api` `#mobile` `#datos` |
+| **Solicitante** | Auditoría integral oct-2026 — fichas RED-27, RED-67 y RED-68 (Ola R, red de seguridad, PR R-09) |
+| **Fecha del pedido** | 04/10/2026 |
+| **Issue / épica** | Sin issue (plan de la auditoría: `docs/internal/auditoria-2026-10/`) |
+| **Partes afectadas** | Backoffice (cupo y beneficiarios) · Portal (inscripción pública) · Servidor/API |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> «Cupo y lista de espera: RED-27 (cupo 0), RED-67 (contrato de candados), RED-68 (posición).»
+> (README de la auditoría, Ola R, PR R-09.)
+
+Las tres fichas salen de la prueba de mutación RS-R7, que aplicó 49 cambios chicos al código y
+corrió la suite entera: doce sobrevivieron. Tres de esas doce están en el mismo lugar —el cupo y la
+lista de espera de Becas, el único módulo donde una regresión silenciosa **se informa a SIIS, que
+no tiene baja**— y ninguna la detectaba un test.
+
+## Alcance acordado
+
+- **Solo tests**, más un helper de test compartido (`core/tests/candados.py`). Ni una línea de
+  código de producción.
+- Las cuatro mutaciones de las fichas (M19, M21, M23, M43) quedan muertas, verificadas a mano una
+  por una, más cuatro líneas de candado que las fichas no nombraban.
+- **Afuera:** cambiar conductas. Lo que apareció discutible —qué pasa con la posición que deja el
+  promovido— se fijó como caracterización según D-RED-11, no se tocó. Tampoco entra la unicidad
+  `(segmento, posicion)`: va con BEC-02, en la Ola 1.
+- **Afuera:** la carrera de verdad con dos hilos. Necesita el motor real y entra con TST-01 (PR R-11).
+
+## Decisiones tomadas
+
+- **El cupo 0 se prueba por sus tres caminos.** `cupo_maximo = 1` con un aprobado (el segmento justo
+  lleno), `cupo_maximo = 0` sin nadie, y el segmento **ya excedido** (más aprobados que lugares, un
+  dato heredado posible). El tercero es el que explica la ficha: `get_cupo_stats` devuelve
+  `max(cupo_maximo - ocupado, 0)`, así que `cupo_disponible` nunca es negativo y relajar la guarda
+  de `<= 0` a `< 0` no corre un borde, **borra la guarda entera**. Con esa mutación se promueve
+  siempre, el segmento termina con más aprobados que cupo y cada excedente viaja a SIIS.
+- **El contrato de candados se prueba por presencia, y nombrando al que lo pide.** En SQLite
+  `select_for_update()` es un no-op, así que ningún test de efecto se pone rojo si alguien borra la
+  línea al optimizar (PERF-02 y PERF-12 piden justamente achicar el trabajo bajo el lock). La
+  primera versión del espía era un `assert_called()` sobre el manager y **quedó verde con la
+  mutación M43 aplicada**: `Formulario.save()` también bloquea el relevamiento, para numerar el
+  caso, y tapaba la ausencia del lock del servicio. Por eso `candados_tomados` registra
+  `archivo.py:funcion` y el test afirma *quién* lo pidió.
+- **Dónde vive el helper.** `core/tests/candados.py`, al lado de `core/tests/js_harness.py` (mismo
+  precedente: módulo de utilidades dentro de un paquete de tests, que el discovery no levanta
+  porque no se llama `test_*`). Lo usan `programas` y `portal`, y así ninguno de los dos importa
+  los tests del otro.
+- **Los candados del link público quedan en `portal/tests/`**, no en
+  `programas/tests/test_candados_concurrencia.py` como decía la ficha: el fixture del paso 2 está
+  en portal y moverlo obligaría a que los tests de `programas` importaran los de `portal`.
+- **Se agregó el candado de la convocatoria**, que la ficha no nombraba: el duplicado por DNI se
+  mira por convocatoria completa y tiene su propio `select_for_update`. Sin él, dos envíos
+  simultáneos por relevamientos distintos de la misma convocatoria inscriben dos veces al mismo DNI.
+- **La posición: se fija la conducta de hoy (D-RED-11), y resultó ser dos conductas.** El máximo se
+  calcula sobre los **no promovidos**, así que depende de a quién se promueva:
+  - si sale el **primero**, su lugar no se reutiliza y el que entra sigue contando desde el último
+    activo (lista `[1, 2]`, se promueve el 1, el nuevo recibe 3);
+  - si sale el **último**, el máximo baja y la próxima alta **repite su posición**: quedan dos filas
+    con la misma posición en el segmento, una promovida y una activa.
+
+  Las dos quedan fijadas en tests. La segunda es la que decide cómo puede entrar la unicidad que
+  propone RED-68: `UniqueConstraint(fields=["segmento", "posicion"])` sobre los datos de hoy no
+  cierra —hay duplicados legítimos—, hace falta liberar la posición al promover, con columna
+  nullable (no `condition=`: MariaDB no crea índices parciales). Eso es trabajo de BEC-02, Ola 1.
+
+## Implementación
+
+El sistema se comporta igual que antes: no cambió ninguna regla. Lo que cambió es que ahora hay
+tests que se ponen rojos si alguien las cambia sin querer.
+
+- **Promoción con cupo 0** (`promover_lista_espera`): la única guarda de cupo de la segunda puerta
+  a APROBADO. El único test que promovía subía antes el cupo a 10, así que la guarda no se tocaba.
+- **Candados del cupo** (`aprobar_o_poner_en_espera`, `promover_lista_espera`,
+  `agregar_a_lista_espera`): los tres bloquean el segmento antes de leer el cupo o el
+  `Max("posicion")`.
+- **Candados del alta de casos:** el del relevamiento en el envío del link público y en el POST de
+  la app de campo, y el de la convocatoria en el chequeo de duplicado.
+- **Posición en la lista:** numeración correlativa, qué pasa con el lugar del promovido y el orden
+  con el que la pantalla de Cupo muestra la lista (que es el orden de atención que ve el coordinador).
+
+## Archivos
+
+`core/tests/candados.py` (nuevo) · `programas/tests/test_cupo_espera_reglas.py` ·
+`programas/tests/test_candados_concurrencia.py` · `portal/tests/test_inscripcion_envio.py` ·
+`docs/internal/auditoria-2026-10/hallazgos/08-red-de-seguridad.md` (resolución y «Test permanente»
+de las tres fichas).
+
+## Base de datos
+
+No requiere. Sin migraciones, sin columnas nuevas, sin datos tocados.
+
+## Validación
+
+- **Tests nuevos (15), todos verdes:**
+  - `programas/tests/test_cupo_espera_reglas.py::PromoverRespetaElCupoTests` —
+    `test_promover_sin_cupo_disponible_falla`, `test_promover_con_cupo_maximo_cero_falla`,
+    `test_promover_con_el_cupo_ya_excedido_tampoco_promueve`,
+    `test_promover_con_el_ultimo_lugar_funciona`.
+  - `programas/tests/test_cupo_espera_reglas.py::PosicionEnLaListaTests` —
+    `test_las_altas_consecutivas_llevan_posiciones_correlativas`, `test_la_posicion_tras_promover`,
+    `test_la_posicion_del_ultimo_promovido_se_reutiliza`,
+    `test_el_listado_de_cupo_respeta_el_orden_de_llegada`.
+  - `programas/tests/test_candados_concurrencia.py::ContratoDeCandadosTests` (4) y
+    `::ContratoDeCandadosApiTests` (1).
+  - `portal/tests/test_inscripcion_envio.py::ContratoDeCandadosPublicoTests` (2).
+- **Mutaciones verificadas a mano** (aplicar → correr → revertir): **M19** (`<= 0` → `< 0`) → 3 en
+  rojo; **M21** (sin el lock en `cupo.py:267`) → 2; **M23** (`posicion = max_pos`) → 4; **M43** (sin
+  el lock en `inscripcion_publica.py:89`) → 1. Además, las líneas de candado que las fichas no
+  nombraban: `cupo.py:205` → 1, `cupo.py:316` → 2, `inscripcion_publica.py:134` → 1,
+  `api/views.py:387` → 1.
+- `manage.py check` sin issues y `makemigrations --check --dry-run` sin cambios.
+- Suite completa en verde con `.venv312` (Python 3.12 + Django 5.2.17, igual al CI).
+- `ruff check` y `ruff format --check` limpios sobre los cuatro archivos tocados.
+- Sin UI: no corresponde `design_audit.py` ni `compile_templates.py`.
+
+## Puesta en marcha en el servidor
+
+No requiere. Son tests; no cambia ninguna conducta en ejecución.
+
+## Pendientes / a definir
+
+- **Capa 2 del contrato de candados** (RED-67): la carrera real, con dos hilos sobre el último lugar
+  de un segmento, necesita MariaDB. Va con TST-01 (PR R-11) y el paso `--tag mysql`.
+- **Unicidad `(segmento, posicion)`** (RED-68 / D-RED-11): los tests dejan documentado que hoy hay
+  duplicados legítimos, así que la constraint solo entra liberando la posición al promover, con
+  columna nullable. Es trabajo de BEC-02, Ola 1.
+
+## Reversión
+
+Revertir el commit saca los quince tests y el helper. No hay datos ni conducta que revertir: el
+sistema queda exactamente como está hoy, pero las cuatro mutaciones vuelven a sobrevivir.
 
 ## Historial
 

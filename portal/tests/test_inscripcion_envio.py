@@ -21,6 +21,7 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
+from core.tests.candados import candados_tomados
 from legajos.models import Ciudadano
 from portal.forms.inscripcion import InscripcionPaso2Form
 from portal.services.inscripcion import clave_sesion, relevamiento_disponible
@@ -487,6 +488,54 @@ class IngestaPublicaTests(_BasePaso2Test):
                     relevamiento_disponible(relevamiento),
                     estado == Relevamiento.Estado.EN_CURSO,
                 )
+
+
+class ContratoDeCandadosPublicoTests(_BasePaso2Test):
+    """RED-67 · capa 1: el envío del link bloquea el relevamiento y la convocatoria.
+
+    Hay un solo link público, así que todos los envíos pasan de a uno por el
+    ``select_for_update`` del relevamiento (Cambio 91): es lo que hace que el
+    cupo, la idempotencia por ``client_uuid`` y el duplicado por DNI decidan
+    sobre datos frescos. El duplicado se mira por convocatoria completa, así que
+    tiene su propio lock: sin él, dos envíos simultáneos por relevamientos
+    distintos de la misma convocatoria pasan los dos.
+
+    En SQLite el candado es un no-op, así que borrar la línea al optimizar
+    (PERF-02 y PERF-12 piden achicar el trabajo bajo el lock) no rompe ningún
+    test de efecto. Este afirma su presencia. La carrera real es la capa 2 de
+    TST-01, con MariaDB.
+
+    Vive acá y no en ``programas/tests/test_candados_concurrencia.py`` —donde la
+    ficha lo ubicaba junto con los del segmento— porque el fixture del paso 2
+    está acá: moverlo obligaría a que los tests de ``programas`` importen los
+    de ``portal``.
+    """
+
+    def _enviar(self):
+        ident = _identificacion()
+        form = self._form(identificacion=ident)
+        assert form.is_valid(), form.errors
+        return crear_formulario_publico(
+            self.relevamiento, identificacion=ident, form=form, client_uuid=ident["client_uuid"]
+        )
+
+    def test_el_envio_toma_el_candado_del_relevamiento(self):
+        with candados_tomados(Relevamiento.objects) as candados:
+            _, creado = self._enviar()
+
+        self.assertTrue(creado)
+        # El del servicio. El otro —``__init__.py:save``— es el que toma
+        # ``Formulario.save()`` para numerar el caso: por eso acá se mira quién
+        # pidió el candado y no solo que alguien lo haya pedido.
+        self.assertIn("inscripcion_publica.py:crear_formulario_publico", candados)
+
+    def test_el_envio_toma_el_candado_de_la_convocatoria(self):
+        """El duplicado se mira por convocatoria completa y tiene su propio lock."""
+        with candados_tomados(Convocatoria.objects) as candados:
+            _, creado = self._enviar()
+
+        self.assertTrue(creado)
+        self.assertIn("inscripcion_publica.py:_insertar_formulario", candados)
 
 
 class Paso2VistaTests(_BasePaso2Test):
