@@ -157,11 +157,24 @@ class CiudadanoConfirmarView(CapacidadRequeridaMixin, LoginRequiredMixin, Create
     template_name = "legajos/ciudadano_confirmar_form.html"
     success_url = reverse_lazy("legajos:ciudadanos")
 
-    def dispatch(self, request, *args, **kwargs):
-        if not CiudadanosService.get_renaper_data(request.session):
-            messages.error(request, "No hay datos de RENAPER disponibles. Inicie el proceso nuevamente.")
-            return redirect("legajos:ciudadano_nuevo")
-        return super().dispatch(request, *args, **kwargs)
+    def _sin_datos_de_renaper(self, request):
+        """La precondición del paso previo, o `None` si hay datos para confirmar.
+
+        Vive en `get`/`post` y no en `dispatch` (RED-73): arriba de
+        `super().dispatch()` corría **antes** que `CapacidadRequeridaMixin` y
+        `LoginRequiredMixin`, así que un anónimo terminaba en el alta —no en el
+        login— y estrenaba sesión solo para que le colgaran el `messages.error`.
+        """
+        if CiudadanosService.get_renaper_data(request.session):
+            return None
+        messages.error(request, "No hay datos de RENAPER disponibles. Inicie el proceso nuevamente.")
+        return redirect("legajos:ciudadano_nuevo")
+
+    def get(self, request, *args, **kwargs):
+        return self._sin_datos_de_renaper(request) or super().get(request, *args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        return self._sin_datos_de_renaper(request) or super().post(request, *args, **kwargs)
 
     def get_initial(self):
         datos = CiudadanosService.get_renaper_data(self.request.session)
