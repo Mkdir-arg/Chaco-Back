@@ -60,7 +60,7 @@ anónimo.
 |---|---|---|
 | **SEC-10** · CRÍTICA (era ALTA) · 4 h | las 5 de adjuntos, con borrado acotado al dueño y el blob borrado también | **adelantada completa a R-19** |
 | **SEC-18** · MEDIA · 2 h | las 7 de alertas, incluido el `self.get_object()` que mata el 500 del `pk` no numérico | **adelantada completa a R-19** |
-| **SEC-11** · ALTA · 2 h | las 5 APIs JSON restantes | **partida:** `ciudadano.ver`/`editar` en R-19 (1 h); `ciudadano.sensible` **queda en la Ola 2** (1 h), depende de D-11 |
+| **SEC-11** · ALTA · 2 h | las 5 APIs JSON restantes | **partida:** R-19 les pone `ciudadano.ver` **como piso a las 5** (1 h), para que ninguna quede abierta al cerrar; la Ola 2 **sube 3 a `ciudadano.sensible`** (1 h) cuando se resuelva D-11 |
 | **RED-89** · CRÍTICA · 4 h | el barrido con usuario sin rol, `ALLOWLIST_SIN_ROL` medida y el ratchet | **R-19** |
 
 **En consecuencia el PR R-19 pasa a ser el primero de lo que queda de la Ola R**, y las 7 h de SEC-10, SEC-18 y la mitad
@@ -512,7 +512,7 @@ cliente antes de cualquier otra cosa.
 | D-RED-11 | Lista de espera: ¿la posición se reutiliza después de promover? ¿Se agrega unicidad `(segmento, posicion)`? | Fijar la conducta de hoy en el test (el máximo se calcula sobre no promovidos); unicidad con columna nullable junto con BEC-02. 🟡 04-oct: **default aplicado** en #552 (Cambio 124) — la conducta queda fijada por test; **la decisión de fondo sigue abierta y hay que tomarla antes de BEC-02**, que es cuando entraría la unicidad | RED-68, BEC-02 |
 | D-RED-12 | ¿Swagger-UI y Redoc se sirven desde el propio sistema o desde los CDN de terceros? | Desde el propio sistema, con `drf-spectacular-sidecar`. ✅ 04-oct: **default aplicado** en #546 (Cambio 118). Costo: `collectstatic` copia ~2,5 MB más y el sidecar se actualiza a mano (`pip-audit` sobre `drf-spectacular` no avisa de un CVE en los assets vendorizados) | RED-36 |
 | D-RED-13 | ¿Qué plazo lleva la excepción de `pip-audit` por `PYSEC-2026-3447` (setuptools 80.9.0, CVE-2026-59890)? | 90 días. ✅ 04-oct: **default aplicado** en #554 (Cambio 121) — `security/excepciones.toml` con `vence_el = 2027-01-02` (fecha TOML, no texto) y ticket RED-85, que es donde se sube el pin; `ExcepcionesDeSeguridadTests` pone el PR en rojo el día que caduca | RED-63, RED-85 |
-| D-RED-14 | El barrido de RED-89 midió un hard delete de adjuntos por cualquier autenticado, lo que subió **SEC-10 a CRÍTICA**. ¿La autorización de las 17 rutas de Legajos espera al PR 3 de la Ola 2, o se adelanta al PR R-19? | **Se adelanta a R-19**, que pasa a ser el primero de lo que queda de la Ola R. El barrido solo *describe* el agujero; dejarlo descrito con `expectedFailure` hasta la Ola 2 deja abierto un borrado destructivo e irreversible de documentos del ciudadano. **Reparto, sin doble cobro:** R-19 hace el barrido (RED-89, 4 h) + **SEC-10 completa** (4 h) + **SEC-18 completa** (2 h) + la parte `ciudadano.ver`/`ciudadano.editar` de **SEC-11** (1 h); el PR 3 de la Ola 2 conserva `ciudadano.sensible` de SEC-11 (1 h, depende de **D-11** y se coordina con G1c-04), **SEC-12** y los seguimientos R0b-*. Las 7 h se **mueven** de la Ola 2 a la Ola R (PR 3: 14 → 7 h; R-19: 14 → 21 h); el total del plan no cambia por el movimiento. RED-89 **no** tiene segunda parte propia: sus capacidades son SEC-10, SEC-11 y SEC-18 | RED-89, SEC-10, SEC-11, SEC-18, D-11 |
+| D-RED-14 | El barrido de RED-89 midió un hard delete de adjuntos por cualquier autenticado, lo que subió **SEC-10 a CRÍTICA**. ¿La autorización de las 17 rutas de Legajos espera al PR 3 de la Ola 2, o se adelanta al PR R-19? | **Se adelanta a R-19**, que pasa a ser el primero de lo que queda de la Ola R. El barrido solo *describe* el agujero; dejarlo descrito con `expectedFailure` hasta la Ola 2 deja abierto un borrado destructivo e irreversible de documentos del ciudadano. **Reparto, sin doble cobro:** R-19 hace el barrido (RED-89, 4 h) + **SEC-10 completa** (4 h) + **SEC-18 completa** (2 h) + **SEC-11 con `ciudadano.ver` como piso en sus 5 rutas** (1 h); el PR 3 de la Ola 2 **sube 3 de esas 5 a `ciudadano.sensible`** cuando se resuelva **D-11** (1 h, coordinado con G1c-04), y conserva **SEC-12** y los seguimientos R0b-*. **Por qué el piso:** `timeline`, `alertas_ciudadano_api` y `prediccion-riesgo` piden `ciudadano.sensible`, que depende de D-11; si R-19 las dejara esperando, no podría sacar sus `expectedFailure` y cerraría con tres rutas abiertas. Con `ciudadano.ver` —que ya existe y no necesita decisión— **salen los 17** y ninguna queda abierta; subirlas después es una línea por vista, así que las horas no se mueven. Las 7 h se **mueven** de la Ola 2 a la Ola R (PR 3: 14 → 7 h; R-19: 14 → 21 h); el total del plan no cambia por el movimiento. RED-89 **no** tiene segunda parte propia: sus capacidades son SEC-10, SEC-11 y SEC-18 | RED-89, SEC-10, SEC-11, SEC-18, D-11 |
 
 **Pasos operativos que la Ola R dejó en manos del PM** (ninguno es código; el detalle de cada uno está en «Estado al
 04-oct-2026», arriba, y en la ficha correspondiente):
@@ -783,8 +783,9 @@ Avance al cierre de la Ola R mínima: **30 ✅ · 3 🟡 · 56 ⬜**. Agrupadas 
 validaciones, (d) duplicación y dependencias ocultas, (e) migraciones y rollback, (f) gates de CI/CD y deploy, (g) las 10
 partes más frágiles, (h) procesos que dependen de que nadie se equivoque, (i) prueba de mutación; anexos A-D.
 - **CRÍTICA:** RED-01 datos personales en el repo público, el release y la imagen de PRD (R, hotfix; D-RED-01) ·
-  **RED-89** un usuario de backoffice sin ningún rol borra adjuntos de cualquier ciudadano y cierra alertas ajenas
-  (R, **primero de lo que queda**; + 2, D-RED-14).
+  **RED-89** ningún test recorre el URLconf con un usuario sin rol: 200 en 31 rutas, y 17 de Legajos dejan borrar
+  adjuntos y cerrar alertas ajenas (R, **primero de lo que queda**; el arreglo es SEC-10, SEC-18 y SEC-11, adelantadas
+  al mismo PR por D-RED-14).
 - **ALTA:** RED-02 barrido del URLconf · RED-03 pausa y errores de la app de campo · RED-04 ABM de roles por HTTP ·
   RED-05 adjunto punta a punta · RED-06 Legajos sin tests · RED-07 `Trunc*`/`CONVERT_TZ` · RED-08 forma del `WHERE` ·
   RED-09 `UUIDField` · RED-10 alta bajo lock sin presupuesto · RED-11 contrato JSON de `/api/becas/` · RED-12
@@ -955,9 +956,11 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
   #554, #546, #553, #551, #548, #545, #552 y #550; Cambios 116-125). Quedan **199 h**: R-11 a R-21, más la ficha nueva
   **RED-89** que salió de la revisión de R-05 y entra en R-19. Tabla PR → fichas → estado y pendientes operativos:
   «Estado al 04-oct-2026», arriba.
-- **🔴 El que sigue es R-19, no R-11.** RED-89 resultó **CRÍTICA** al medirse el borrado (un usuario sin rol hace hard
-  delete de cualquier adjunto del ciudadano), así que el orden de abajo —pensado por dependencias— se altera en un
-  punto: **R-19 va primero**. R-11 a R-16 mantienen su lugar relativo, antes de la Ola 3.
+- **🔴 El que sigue es R-19, no R-11.** El barrido del 04-oct midió que un usuario sin rol hace **hard delete** de
+  cualquier adjunto del ciudadano: eso subió **SEC-10** a CRÍTICA, y **RED-89** es CRÍTICA por lo suyo —que ningún test
+  recorre el URLconf con un usuario sin rol, así que volvería a pasar sin que nadie se entere—. R-19 es el PR que cierra
+  las dos cosas (más SEC-18 y SEC-11, adelantadas por D-RED-14), así que el orden de abajo —pensado por dependencias—
+  se altera en un punto: **R-19 va primero**. R-11 a R-16 mantienen su lugar relativo, antes de la Ola 3.
 - **Objetivo:** poder cambiar código sin romper nada sin enterarse. Que todo lo que las Olas 1 a 7 van a tocar tenga antes
   un test que se ponga rojo si se rompe, que el CI pruebe el motor de producción (MariaDB) y las migraciones en las dos
   direcciones, que ningún gate dependa de la buena voluntad (protección de rama, release que exige CI verde, verificación
@@ -987,7 +990,7 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
 | R-16 | **Becas: adjuntos, borrados, atomicidad, padrón:** RED-05, RED-31, RED-35, RED-77, RED-49, RED-50, RED-81, RED-70 | 22 | Ola 3 (DAT-01, BEC-*), SEC-20 |
 | R-17 | **Definición y condiciones (dos repos):** RED-12, RED-38 | 16 | cualquier cambio del constructor |
 | R-18 | **Contratos del backoffice y job `Contratos de API`:** RED-42, RED-39, RED-40, RED-41 (D-RED-04), RED-43, RED-44 | 18 | Ola 2 (capacidades), Ola 5 |
-| **R-19** (🔴 **primero de lo que queda**) | **Legajos y Roles por HTTP:** **RED-89** (CRÍTICA: barrido con usuario sin rol + `ALLOWLIST_SIN_ROL` medida + ratchet, 4 h) y, adelantadas de la Ola 2 por **D-RED-14**, **SEC-10 completa** (CRÍTICA, 4 h: el hard delete de adjuntos), **SEC-18 completa** (+ R0b-06, 2 h: alertas y el `self.get_object()` que mata el 500) y la parte `ciudadano.ver`/`ciudadano.editar` de **SEC-11** (1 h); más RED-06 (humo de 36 rutas + alertas) y RED-04 (escrituras del ABM de roles) | 21 | Ola 2 |
+| **R-19** (🔴 **primero de lo que queda**) | **Legajos y Roles por HTTP:** **RED-89** (CRÍTICA: barrido con usuario sin rol + `ALLOWLIST_SIN_ROL` medida + ratchet, 4 h) y, adelantadas de la Ola 2 por **D-RED-14**, **SEC-10 completa** (CRÍTICA, 4 h: el hard delete de adjuntos), **SEC-18 completa** (+ R0b-06, 2 h: alertas y el `self.get_object()` que mata el 500) y **SEC-11 con `ciudadano.ver` de piso en sus 5 rutas** (1 h: así salen los 17 `expectedFailure` y ninguna queda abierta; la Ola 2 sube 3 a `ciudadano.sensible` con D-11); más RED-06 (humo de 36 rutas + alertas) y RED-04 (escrituras del ABM de roles) | 21 | Ola 2 |
 | R-20 | **Cobertura y regresión** (desde la Ola 3): TST-02 (+generar_alertas y wizard), TST-03 (+gate por módulo), R0-03 (**antes del 31-dic-2026**), RED-34, RED-74, RED-72, RED-88 | 24 | — |
 | R-21 | **Arquitectura y dependencias ocultas (ratchets):** RED-46, RED-79, RED-13, RED-45, RED-52, RED-51, RED-78, RED-82 | 18 | Ola 2 (SEC-21), Ola 7 (G1-01 fase 2, OPS-10) |
 | | **Total Ola R** | **285** | |
@@ -1059,10 +1062,12 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
      (`puede_sin_programa`), G1b-02, G1b-06 y la **fase 2 de OPS-06** (`RolMeta.clave`, con migración; viene de la
      Ola 0). 26 h.
   2. *Usuarios:* G1b-05, G1b-07, G1b-08, SEC-26, G2-03, R0b-01, R0b-02, R0b-03, R0b-10 (seguimientos de SEC-03). 24 h.
-  3. *Legajos:* **SEC-12**, la parte `ciudadano.sensible` de **SEC-11** (D-11: timeline, alertas y riesgo),
-     R0b-04 (+ R0b-05), R0b-09. 7 h. ⬅ **SEC-10 completa, SEC-18 completa (+ R0b-06) y la parte
-     `ciudadano.ver`/`ciudadano.editar` de SEC-11 se adelantaron al PR R-19 de la Ola R** (7 h movidas allá;
-     D-RED-14, por el hard delete que midió RED-89). No rehacerlas acá.
+  3. *Legajos:* **SEC-12**, el ascenso de `ciudadano.ver` a `ciudadano.sensible` en las tres rutas sensibles de
+     **SEC-11** (D-11: `timeline_ciudadano_api`, `alertas_ciudadano_api`, `prediccion_riesgo_api`), R0b-04 (+ R0b-05),
+     R0b-09. 7 h. ⬅ **SEC-10 completa, SEC-18 completa (+ R0b-06) y SEC-11 con `ciudadano.ver` de piso en sus cinco
+     rutas se adelantaron al PR R-19 de la Ola R** (7 h movidas allá; D-RED-14, por el hard delete que midió RED-89).
+     No rehacerlas acá: **ninguna de esas rutas llega a esta ola abierta**, lo único que falta es subir tres de
+     `ciudadano.ver` a `ciudadano.sensible` —una línea por vista— cuando D-11 se resuelva.
   4. *WebSocket de alertas:* G1c-04, G1c-17, G3-03. 12 h.
   5. *Alcance en Becas:* SEC-21, SEC-22, SEC-20, SEC-30, BEC-19, BEC-23. 14 h.
   6. *App de campo:* SEC-23 (+G1-15), SEC-24, SEC-25 (+ R0-05: usar o borrar la tasa `renaper`). 12 h.

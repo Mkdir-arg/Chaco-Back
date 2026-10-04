@@ -21,7 +21,7 @@ Base verificada: `origin/development @ 917e583`. PoC: `poc/test_repro_seguridad.
 | SEC-07 | `programa.configurar` en un rol de programa habilita el wizard de todos | ALTA | CONF. test | 2 | S-M | ⬜ |
 | SEC-08 | XSS almacenado por nombre de rol en todas las páginas | ALTA | CONF. test | 0 | S | ✅ |
 | SEC-09 | `/media/` sin login en DEV (nginx); sin pertenencia en ECOM | ALTA (DEV) / MEDIA (ECOM) | CONF. test | 0 (etapa 1) / 2 (etapa 2) | S + M | 🟡 |
-| SEC-11 | APIs JSON de legajos (riesgo, alertas, timeline) sin capacidad | ALTA | CONF. test | 2 (la parte `ciudadano.ver`/`editar`, en **R-19**) | S | ⬜ |
+| SEC-11 | APIs JSON de legajos (riesgo, alertas, timeline) sin capacidad | ALTA | CONF. test | **R-19** (`ciudadano.ver` de piso en las 5) / 2 (subir 3 a `ciudadano.sensible`, D-11) | S | ⬜ |
 | SEC-12 | Derivaciones por GET (CSRF) sin capacidad; inscripción por `is_staff` | ALTA | CONF. test | 2 | S | ⬜ |
 | SEC-13 | Catálogo geográfico escribible por API | ALTA | CONF. test | 0 | S | ✅ |
 | SEC-14 | APIs del dashboard: enumeración del padrón y alertas globales | ALTA | CONF. test | 0 | S | ✅ |
@@ -238,13 +238,22 @@ documentos que la etapa 1 de SEC-09 puso detrás de login. Por eso sube a CRÍTI
 **Severidad:** ALTA · **Estado:** CONFIRMADO con test (`SEC11LegajosJsonTests`) · **Origen:** A5-11, A3-03 (parte no adjuntos) · **Ola:** 2 (la parte `ciudadano.ver`/`ciudadano.editar`, adelantada a **R-19**) · **Esfuerzo:** S · **Decisión:** D-11
 
 **Ampliado por RED-89 — se implementa en R-19 (Ola R), partida en dos.** El barrido del 04-oct confirmó estas rutas con
-un usuario sin rol. **Va a R-19:** `@requiere("ciudadano.ver")` en `actividades_ciudadano_api`, `evolucion_legajo_api`,
-`archivos_*` (con SEC-10) y `contactos_panel.historial_contactos_simple` — capacidades que ya existen y no necesitan
-decisión. **Queda en la Ola 2 (PR 3):** `@requiere("ciudadano.sensible")` en `timeline_ciudadano_api`,
-`alertas_ciudadano_api` y `prediccion_riesgo_api`, que depende de **D-11** y se coordina con G1c-04. De las 2 h, 1 se
-mueve a la Ola R y 1 queda en la Ola 2.
+un usuario sin rol.
+
+**Va a R-19:** `@requiere("ciudadano.ver")` en **las cinco**, como **piso**: `actividades_ciudadano_api`,
+`evolucion_legajo_api` y `contactos_panel.historial_contactos_simple` —donde `ciudadano.ver` es además la capacidad
+definitiva— y también `timeline_ciudadano_api`, `alertas_ciudadano_api` y `prediccion_riesgo_api`, cuya capacidad fina
+es `ciudadano.sensible`. **El piso no es un atajo: es lo que permite que R-19 cierre en verde.** Si esas tres quedaran
+con solo `@login_required` esperando a D-11, el PR no podría sacar sus `expectedFailure` del barrido de RED-89 y
+cerraría con tres rutas abiertas a cualquier autenticado. `ciudadano.ver` ya existe y no necesita decisión, así que
+tapa el agujero hoy sin anticiparse a nada. (`archivos_*` van con SEC-10, en el mismo PR.)
+
+**Queda en la Ola 2 (PR 3):** **subir** esas tres de `ciudadano.ver` a `@requiere("ciudadano.sensible")` cuando se
+resuelva **D-11**, coordinado con G1c-04. Es una línea por vista.
+
+De las 2 h, 1 se mueve a la Ola R y 1 queda en la Ola 2. La ficha queda **🟡** al cerrar R-19 y ✅ con la Ola 2.
 - **Escenario (reproducido):** un usuario sin capacidades recibe 200 en `timeline`, `alertas`, `prediccion-riesgo` y `actividades`, con el tipo «Riesgo Suicida».
-- **Propuesta:** `@requiere("ciudadano.ver")` en `actividades_ciudadano_api`, `evolucion_legajo_api` y `contactos_panel.historial_contactos_simple`; `@requiere("ciudadano.sensible")` en `timeline_ciudadano_api`, `alertas_ciudadano_api` y `prediccion_riesgo_api` (default D-11). `cerrar_alerta_api` → SEC-18.
+- **Propuesta:** `@requiere("ciudadano.ver")` en `actividades_ciudadano_api`, `evolucion_legajo_api` y `contactos_panel.historial_contactos_simple`; `@requiere("ciudadano.sensible")` en `timeline_ciudadano_api`, `alertas_ciudadano_api` y `prediccion_riesgo_api` (default D-11) — **en dos pasos desde el 04-oct: R-19 pone `ciudadano.ver` en las seis y la Ola 2 sube esas tres a `ciudadano.sensible`** (ver el bloque de arriba). `cerrar_alerta_api` → SEC-18.
 - **Tests a agregar:** `legajos/tests/test_contactos_api_rbac.py`: test parametrizado por nombre de URL con usuario sin roles → 403 (con `X-Requested-With` el decorador devuelve JSON 403).
 - **Verificación:** V-STD + `manage.py test legajos`.
 
@@ -341,7 +350,8 @@ mueve a la Ola R y 1 queda en la Ola 2.
 
 **Ampliado por RED-89 — se implementa en R-19 (Ola R).** La ficha se ejecuta **completa** en ese PR; sus 2 h se mueven
 de la Ola 2 (PR 3) a la Ola R. Lo que el barrido del 04-oct agregó, medido con un usuario sin ningún rol: las tres
-entradas de cierre (`cerrar_alerta_ajax`, `cerrar_alerta_api` y `AlertasViewSet.cerrar`) devuelven 200 y dejan la alerta
+entradas de cierre —`cerrar_alerta_ajax` y `cerrar_alerta_api`, que están entre las 17 del barrido, más
+`AlertasViewSet.cerrar`, la 18.ª, que queda fuera porque con la base vacía no hay objeto que cerrar— devuelven 200 y dejan la alerta
 ajena en `activa=False`, y `/legajos/alertas/`, `/legajos/alertas/preview/` y `/api/legajos/alertas/` traen el **nombre
 del ciudadano y el texto de la alerta**. Además, `POST /api/legajos/alertas/<pk>/cerrar/` con un `pk` **no numérico** da
 **500** (`AlertasService.cerrar_alerta` recibe el `pk` crudo): lo cierra el `self.get_object()` que esta ficha ya pide,

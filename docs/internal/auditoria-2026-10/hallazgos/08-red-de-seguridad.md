@@ -519,13 +519,24 @@ verdad (contador de errores seguidos, `--max-errores`) y `test_un_caso_que_falla
      | Ficha | Qué cubre de las 17 | Dónde se hace |
      |---|---|---|
      | **SEC-10** (CRÍTICA, 4 h) | las 5 de adjuntos: `archivos_ciudadano_api`, `archivos_legajo_api`, los dos `subir_archivos_*` y `eliminar_archivo`. Su propuesta es mejor que un `@requiere` suelto: ruta nueva con el dueño en la URL y `eliminar_archivo_de_objeto(instance, archivo_id)`, que filtra por `content_type` + `object_id`, más `archivo.archivo.delete(save=False)` para no dejar el blob huérfano | **R-19, completa** |
-     | **SEC-18** (MEDIA, 2 h) | las 7 de alertas: el dashboard, los dos `count`, el `preview`, las tres entradas de cierre y `AlertasViewSet`. Incluye el `self.get_object()` que además mata el 500 del `pk` no numérico, y el fallback `AlertaCiudadano.objects.none()` de `FiltrosUsuarioService` | **R-19, completa** |
-     | **SEC-11** (ALTA, 2 h) | las 5 restantes (`actividades`, `timeline`, `prediccion-riesgo`, `evolucion`, `alertas_ciudadano_api`) | **partida:** `ciudadano.ver`/`ciudadano.editar` en R-19 (1 h); `ciudadano.sensible` en timeline, alertas y riesgo **queda en la Ola 2** (1 h), porque depende de **D-11** y se coordina con G1c-04 |
+     | **SEC-18** (MEDIA, 2 h) | las 7 de alertas: el dashboard, los dos `count`, el `preview`, las **dos** entradas de cierre que están entre las 17 (`cerrar_alerta_ajax` y `cerrar_alerta_api`), más `AlertasViewSet.cerrar`, la 18.ª, que queda fuera del barrido pero es el mismo agujero. Incluye el `self.get_object()` que además mata el 500 del `pk` no numérico, y el fallback `AlertaCiudadano.objects.none()` de `FiltrosUsuarioService` | **R-19, completa** |
+     | **SEC-11** (ALTA, 2 h) | las 5 restantes (`actividades`, `evolucion`, `timeline`, `alertas_ciudadano_api`, `prediccion-riesgo`) | **partida:** en R-19 van las 5 (1 h); en la Ola 2, el ascenso de 3 de ellas (1 h) — ver el piso de abajo |
 
-     Lo que R-19 tiene que dejar escrito al cerrar: los `expectedFailure` del punto 1 sacados, el conteo de
-     `ALLOWLIST_SIN_ROL` ajustado en el mismo commit, y la línea «Resolución:» de SEC-10 y SEC-18 (RED-34).
-- **Verificación:** la clase nueva en verde con `& $env:PY manage.py test core.tests.test_superficie_publica`; después del
-  punto 2, los `expectedFailure` sacados y el conteo de la allowlist bajado en el mismo commit. Mutaciones de control:
+     **El piso de `ciudadano.ver` cubre las 17, también las sensibles.** Tres de las de SEC-11 —`timeline_ciudadano_api`,
+     `alertas_ciudadano_api` y `prediccion_riesgo_api`— tienen como capacidad **fina** `ciudadano.sensible`, que depende
+     de **D-11** y por eso quedaba en la Ola 2. Si R-19 las dejara con solo `@login_required` a la espera de esa
+     decisión, el PR no podría sacar sus `expectedFailure` y cerraría con tres rutas abiertas: la ficha quedaría «hecha»
+     con el agujero puesto. Así que **R-19 les pone `@requiere("ciudadano.ver")` como piso** —una capacidad que ya
+     existe y no necesita decisión— y la **Ola 2 (PR 3) las sube a `ciudadano.sensible`** cuando D-11 se resuelva.
+     Subir un `@requiere` de una capacidad a otra es un cambio de una línea por vista: el reparto de horas no se mueve
+     (R-19 1 h, Ola 2 1 h).
+
+     Lo que R-19 tiene que dejar escrito al cerrar: **los 17 `expectedFailure` del punto 1 sacados, sin excepciones**
+     (de ahí el piso de arriba), el conteo de `ALLOWLIST_SIN_ROL` ajustado en el mismo commit, y la línea
+     «Resolución:» de SEC-10 y SEC-18 (RED-34). SEC-11 queda 🟡 hasta que la Ola 2 cierre lo de `ciudadano.sensible`.
+- **Verificación:** la clase nueva en verde con `& $env:PY manage.py test core.tests.test_superficie_publica`; con el
+  punto 2 hecho, **los 17 `expectedFailure` sacados** (ninguna de las 17 queda con solo `@login_required`) y el conteo
+  de la allowlist bajado en el mismo commit. Mutaciones de control:
   sacarle el `@requiere` a `alertas_preview_ajax` tiene que poner el barrido en rojo, y el borrado tiene su propio test
   de regresión (`legajos/tests/`: un usuario sin rol hace `DELETE` sobre un `Adjunto` ajeno → rebota y el adjunto sigue).
 
