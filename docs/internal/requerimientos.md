@@ -15466,7 +15466,7 @@ No aplica: entrada nueva.
 | **Solicitante** | Auditoría integral de octubre 2026 — hallazgos **RED-02**, **RED-30**, **RED-73** y **RED-71** (Ola R «Red de seguridad», PR R-05) |
 | **Fecha del pedido** | 04/10/2026 |
 | **Issue / épica** | Sin issue — auditoría oct-2026, `docs/internal/auditoria-2026-10/hallazgos/08-red-de-seguridad.md` |
-| **Partes afectadas** | `core/tests/test_superficie_publica.py` y `core/tests/test_cors_api.py` (nuevos); `legajos/tests/test_ciudadanos_alta.py` (nuevo); `legajos/views/ciudadanos.py` (`CiudadanoConfirmarView`); `.env.qa.example` |
+| **Partes afectadas** | `core/tests/test_superficie_publica.py` y `core/tests/test_cors_api.py` (nuevos); `legajos/tests/test_ciudadanos_alta.py` (nuevo); `legajos/views/ciudadanos.py` (`CiudadanoConfirmarView`); `programas/views/merenderos.py` (`EntregaMercaderiaCreateView`) y `programas/tests/test_merenderos.py`; `.env.qa.example` |
 | **Migración** | No requiere |
 
 ## Pedido original
@@ -15517,12 +15517,21 @@ de las 36 rutas de Legajos con datos reales (RED-06, PR R-19); poner `drf_specta
 
 - **La allowlist se escribe a mano, no se deriva del código.** Generarla preguntándole al código «¿esta vista
   tiene `@requiere`?» sería escribir el bug como si fuera la regla: si una vista quedó abierta, la lista
-  generada la declara correcta. La lista literal —13 entradas, una línea de motivo cada una— es lo que obliga
-  a justificar la excepción, y el ratchet `test_la_allowlist_publica_no_crecio` convierte agregar una ruta
-  pública en un cambio deliberado y revisable.
+  generada la declara correcta. La lista literal —17 entradas, una línea de motivo cada una— es lo que obliga
+  a justificar la excepción, y el ratchet `test_la_allowlist_publica_mide_lo_que_se_midio` convierte agregar
+  una ruta pública en un cambio deliberado y revisable.
 - **El número de rutas lo mide el propio test, no un informe.** RS-R1 contó 571/44 y VR1 288/17 con scripts
   distintos: el total depende enteramente de cómo cada uno concreta los `re_path`. Este barrido mide **315
-  patrones sobre 311 URLs únicas**, y de esas 311 hay **13 que no rebotan**, todas públicas por diseño.
+  patrones sobre 311 URLs únicas**, y de esas 311 hay **17 que no rebotan**, todas públicas por diseño.
+- **`404` y `405` no cuentan como rebote, y esa ausencia es el test.** La primera versión los aceptaba, y como
+  las URLs se concretan con valores de juguete sobre una base vacía, el 404 es la respuesta esperable de buena
+  parte del URLconf: aceptarlo tapaba la única pregunta que el barrido hace. El revisor lo demostró sacándole
+  `CapacidadRequeridaMixin` y `LoginRequiredMixin` a `CiudadanoDetailView` —queda un `DetailView` pelado que
+  contesta 404 al `pk` inexistente— y el barrido **seguía verde**. La regla correcta es que **el guard corre
+  antes del lookup del objeto y antes de que Django mire el método**, así que a un anónimo una ruta privada
+  nunca le contesta 404 ni 405. Las POST-only se repiten con POST (el cliente de test no verifica CSRF a
+  propósito: ese 403 llegaría antes que el guard y taparía la pregunta), y un 404 legítimo para el anónimo va a
+  `ALLOWLIST_PUBLICA` con su motivo, igual que un 200.
 - **«Rebotar» se compara por path exacto.** Primera versión del test: «el `Location` contiene
   `reverse(settings.LOGIN_URL)`». Como el login vive en la raíz, `reverse("users:login")` es `/` y **toda**
   redirección del sistema contenía esa cadena: el test pasaba sin mirar nada. Quedó como comparación del path
@@ -15556,6 +15565,12 @@ de las 36 rutas de Legajos con datos reales (RED-06, PR R-19); poner `drf_specta
   («no hay datos de RENAPER en la sesión») pasó a `_sin_datos_de_renaper`, que consultan `get` y `post`; la
   autorización vuelve a ser lo primero que corre. Para el operador con `ciudadano.crear` el comportamiento es
   idéntico; lo que cambia es que el anónimo va al login y el usuario sin capacidad va al inicio.
+- **`programas/views/merenderos.py`** — `EntregaMercaderiaCreateView` ya no busca el merendero en `dispatch`.
+  El `get_object_or_404` corría **antes** de `MerenderosPermissionMixin`, así que la ruta le contestaba 404 al
+  anónimo si el merendero no existía y 302 al login si existía: eso alcanza para enumerar qué ids hay. Pasó a
+  ser una `cached_property`, de modo que el lookup ocurre recién cuando lo piden `get_context_data` o
+  `form_valid`, ya con la autorización resuelta. Mismo molde que RED-73; lo encontró el propio barrido al dejar
+  de aceptar el 404 como rebote.
 - **`core/tests/test_cors_api.py`** (nuevo). Once tests sobre `ApiCorsMiddleware`: sin orígenes no hay
   cabeceras; un origen de la lista las recibe con `Allow-Credentials` y otro no; con `DEBUG=False` no pasa
   ningún host privado; el `OPTIONS` anónimo a `/api/` contesta 200 con cuerpo vacío **y cero consultas a la
@@ -15571,6 +15586,9 @@ de las 36 rutas de Legajos con datos reales (RED-06, PR R-19); poner `drf_specta
 | RED-73 | `legajos.tests.test_ciudadanos_alta.ConfirmarTests.test_un_anonimo_va_al_login_no_al_alta` |
 | RED-71 | `core.tests.test_cors_api.ApiCorsTests` (6 tests) y `ConfiguracionCorsTests` (3) |
 
+El segundo caso del molde de RED-73 —el que encontró el barrido, no la ficha— lo protege
+`programas.tests.test_merenderos.EntregaCreateAutorizaAntesDeBuscarTests` (3 tests).
+
 ## Dónde la ficha no coincidía con el código
 
 - **Los proxies a SIIS no están donde decía RED-30.** La ficha los nombra `becas:siis_localidades_json` y
@@ -15584,8 +15602,10 @@ de las 36 rutas de Legajos con datos reales (RED-06, PR R-19); poner `drf_specta
   normal es redirect a `core:inicio` con un `messages.error`. Se escribieron los dos tests, cada uno con el
   código que corresponde, en vez de forzar el 403 que la ficha suponía.
 - **El humo encontró una sola pantalla en 500, no tres.** VR1 midió 3 con `>= 500`; con el recorrido de este
-  archivo son `/api/docs/` y `/api/redoc/` (las dos de RED-36) más el 503 deliberado de SIIS. No apareció
-  ningún 500 de otra ola, así que **no hizo falta ningún `@unittest.expectedFailure`**.
+  archivo eran `/api/docs/` y `/api/redoc/` (las dos de RED-36) más el 503 deliberado de SIIS. No apareció
+  ningún 500 de otra ola, así que **no hizo falta ningún `@unittest.expectedFailure`**. Al mergearse el PR R-04
+  (Cambio 118) `drf_spectacular` entró en `INSTALLED_APPS` y las dos rutas dejaron de reventar:
+  `EXCEPCIONES_HUMO` **quedó vacía**, que es el estado al que el diccionario tiende por diseño.
 
 ## Validación
 
@@ -15602,6 +15622,11 @@ de las 36 rutas de Legajos con datos reales (RED-06, PR R-19); poner `drf_specta
 - **Mutación de control de RED-30:** renombrar el template de `RolListView` →
   `test_ninguna_pantalla_da_500` falla con `users:roles → /roles/ (500)`. Revertida.
 - `ruff check` y `ruff format --check` limpios sobre los cuatro archivos tocados.
+- **Mutación de control de la ronda 2 (la que propuso el revisor):** sacarle `CapacidadRequeridaMixin` y
+  `LoginRequiredMixin` a `CiudadanoDetailView` (`legajos/views/ciudadanos.py`). Con `404` dentro de
+  `ESTADOS_QUE_REBOTAN` el barrido quedaba **verde**; sin él la vista pasa a ser un `DetailView` pelado, el
+  `pk=1` de juguete sobre la base vacía devuelve 404 y `test_ninguna_ruta_responde_al_anonimo` la reporta como
+  abierta. Es el control que sostiene la regla «el guard corre antes del lookup».
 
 ## Puesta en marcha en el servidor
 
@@ -15610,25 +15635,37 @@ un operador con `ciudadano.crear` se comporta igual que antes.
 
 ## Pendientes / a definir
 
-- Cuando se mergee RED-36 (PR R-04, `drf_spectacular` en `INSTALLED_APPS`), `/api/docs/` y `/api/redoc/` dejan
-  de dar 500 y hay que **sacarlas de `EXCEPCIONES_HUMO`**: el test
-  `test_las_excepciones_del_humo_siguen_siendo_necesarias` se pone rojo para avisarlo.
+- **Falta el barrido con un usuario de backoffice sin ningún rol.** Lo levantó el revisor del PR y se midió:
+  un usuario autenticado y **sin una sola capacidad** recibe **200 en 40 rutas** —entre ellas `/inicio/`,
+  `/legajos/alertas/`, `/legajos/ciudadanos/<id>/archivos/`, la api-root de DRF y los `ajax/load-*`—. No es el
+  alcance de RED-02, que pregunta por el anónimo, y no se arregla acá: cada una de esas 40 hay que mirarla de
+  a una para decidir si es deliberada (el inicio lo es) o si le falta el `@requiere`. **Queda como ficha nueva
+  de la auditoría: «barrido del URLconf con usuario sin rol»**, hermana de RED-02 y con el mismo molde de test.
 - **La frase del Cambio 52 sigue como está.** Dice que «no hay `django-cors-headers` en el proyecto, así que
   ningún sitio externo puede leerlo»: la conclusión es correcta hoy, el motivo es impreciso —hay un CORS propio
   en `core/middleware.py`—. No se reescribe porque el archivo no se reescribe nunca (regla de oro); esta entrada
   es la corrección, y `core/tests/test_cors_api.py` es lo que ahora sostiene la conclusión.
 - El barrido concreta los patrones con valores de juguete: una ruta cuyo `re_path` no se pueda concretar sin
-  regex queda fuera. Hoy son 4 patrones sobre 315 (sufijos de formato de DRF, que repiten una ruta ya cubierta).
+  regex queda fuera. Hoy son **32 patrones** —los sufijos de formato de DRF (`\.(?P<format>[a-z0-9]+)/?$`), que
+  repiten una ruta ya cubierta sin el sufijo—. El número se midió sobre el recorrido real; la primera versión
+  de esta entrada decía 4, que era una estimación a ojo.
 
 ## Reversión
 
-Revertir el commit saca los tres archivos de test y devuelve el `dispatch` de `CiudadanoConfirmarView` a decidir
-antes de autorizar. No hay datos ni esquema involucrados. El costo real de revertir es volver a no tener
-ninguna afirmación ejecutable sobre el conjunto de la superficie HTTP.
+Revertir el commit saca los tres archivos de test y devuelve el `dispatch` de `CiudadanoConfirmarView` y el de
+`EntregaMercaderiaCreateView` a decidir antes de autorizar. No hay datos ni esquema involucrados. El costo real
+de revertir es volver a no tener ninguna afirmación ejecutable sobre el conjunto de la superficie HTTP.
 
 ## Historial
 
-No aplica: entrada nueva.
+- **04/10/2026 — ronda 2 de revisión del PR #553.** El revisor aprobó con un MAJOR: `404` y `405` estaban en
+  `ESTADOS_QUE_REBOTAN` y dejaban ciego al barrido —lo demostró sacándole los mixins a `CiudadanoDetailView` sin
+  conseguir ponerlo en rojo—. Se sacaron los dos códigos, las POST-only se repiten con POST, la allowlist pasó
+  de 13 a 17 entradas (`/api/becas/auth/token/` y las tres del link público de inscripción, que contestan 404
+  porque el token de juguete no existe) y el ratchet pasó a fallar en los dos sentidos. El barrido, ya sin la
+  venda, encontró un bug real del molde RED-73 en `EntregaMercaderiaCreateView`, que se arregló acá. Además se
+  vació `EXCEPCIONES_HUMO` (R-04 ya mergeado), se corrigió el conteo de patrones descartados —32, no 4— y se
+  registró el hallazgo del usuario sin rol como pendiente.
 
 ---
 

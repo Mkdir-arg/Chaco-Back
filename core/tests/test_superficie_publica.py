@@ -3,10 +3,10 @@
 Dos reglas que hasta ahora no estaban escritas en ningún lado ejecutable:
 
 - **RED-02** — toda ruta del backoffice rebota al anónimo (redirección al login o
-  `401/403/404/405/426`). Las excepciones viven en `ALLOWLIST_PUBLICA`, una lista
-  literal con un comentario por entrada: agregar una ruta pública pasa a ser un
-  cambio deliberado y revisable. La Ola 0 cerró once superficies abiertas una por
-  una, cada una con su test puntual; ninguno mira el conjunto.
+  `401/403/426`). Las excepciones viven en `ALLOWLIST_PUBLICA`, una lista literal
+  con un comentario por entrada: agregar una ruta pública pasa a ser un cambio
+  deliberado y revisable. La Ola 0 cerró once superficies abiertas una por una,
+  cada una con su test puntual; ninguno mira el conjunto.
 - **RED-30** — ninguna pantalla da 500 con un superusuario y la base mínima del
   test. Un `{% load %}` que falta, un template renombrado o un `select_related`
   sobre una relación que ya no existe dejan una pantalla rota sin que la suite
@@ -144,9 +144,31 @@ ALLOWLIST_PUBLICA = {
     "/portal/csrf/": "Semilla de CSRF del formulario público de inscripción (Cambio 52).",
     "/health/": "Sonda de salud del contenedor; la consulta el orquestador, sin sesión.",
     "/favicon.ico": "Redirección permanente al PNG estático.",
+    "/api/becas/auth/token/": "Login de la app de campo: cambia usuario y clave por token (400 sin credenciales).",
+    # Las tres del link público de inscripción (Cambio 41). Contestan 404 porque
+    # el token de juguete del barrido no existe, que es lo correcto: el 404 no
+    # distingue «token inválido» de «token vencido» y no filtra convocatorias.
+    "/portal/inscripcion/00000000-0000-0000-0000-000000000000/": "Paso 1 del link público de inscripción.",
+    "/portal/inscripcion/00000000-0000-0000-0000-000000000000/formulario/": "Paso 2 del link público.",
+    "/portal/inscripcion/00000000-0000-0000-0000-000000000000/confirmacion/": "Confirmación del link público.",
 }
 
-ESTADOS_QUE_REBOTAN = {401, 403, 404, 405, 426}
+#: Qué cuenta como «rebotar». **`404` y `405` no están**, y esa ausencia es el
+#: test: el guard de una ruta privada tiene que correr *antes* del lookup del
+#: objeto y antes de que Django mire el método, así que a un anónimo una ruta
+#: privada nunca le contesta ni 404 ni 405.
+#:
+#: La primera versión los aceptaba y eso dejaba ciego al barrido: como las URLs
+#: se concretan con valores de juguete sobre una base vacía, un 404 era la
+#: respuesta esperable de medio URLconf y tapaba la pregunta. La revisión del PR
+#: lo demostró sacándole `CapacidadRequeridaMixin` y `LoginRequiredMixin` a
+#: `CiudadanoDetailView`: queda un `DetailView` pelado, el `pk` de juguete no
+#: existe, la vista contesta 404 y **el test seguía verde**.
+#:
+#: Un 404 legítimo para el anónimo —una ruta pública cuyo objeto no existe, como
+#: el link de inscripción con un token inventado— va a `ALLOWLIST_PUBLICA` con su
+#: motivo, igual que un 200. Las rutas POST-only se repiten con POST en `_pedir`.
+ESTADOS_QUE_REBOTAN = {401, 403, 426}
 
 
 class SuperficieAnonimaTests(TestCase):
@@ -161,7 +183,7 @@ class SuperficieAnonimaTests(TestCase):
         self.anonimo = Client(raise_request_exception=False)
 
     def _rebota(self, respuesta):
-        """Rebotar es contestar `401/403/404/405/426` o mandar al login / al portal.
+        """Rebotar es contestar `401/403/426` o mandar al login / al portal.
 
         La comparación es por *path exacto*: `reverse(settings.LOGIN_URL)` es `/`
         (el login vive en la raíz), así que un `in` daría por bueno cualquier
@@ -173,11 +195,25 @@ class SuperficieAnonimaTests(TestCase):
             return urlparse(respuesta["Location"]).path in self.destinos_de_rebote
         return False
 
+    def _pedir(self, url):
+        """GET; si la vista solo acepta POST, se repite el pedido con POST.
+
+        El cliente **no** verifica CSRF a propósito: con la verificación puesta,
+        el 403 del token faltante llegaría antes que el guard y taparía la única
+        pregunta que importa acá, que es si la vista mira quién pide.
+        """
+        respuesta = self.anonimo.get(url)
+        if respuesta.status_code == 405:
+            respuesta = self.anonimo.post(url, {})
+        return respuesta
+
     def test_ninguna_ruta_responde_al_anonimo(self):
         abiertas = []
         for nombre, url in self.rutas:
-            respuesta = self.anonimo.get(url)
-            if self._rebota(respuesta) or url in ALLOWLIST_PUBLICA:
+            if url in ALLOWLIST_PUBLICA:
+                continue
+            respuesta = self._pedir(url)
+            if self._rebota(respuesta):
                 continue
             abiertas.append(f"{nombre} → {url} ({respuesta.status_code})")
 
@@ -190,9 +226,16 @@ class SuperficieAnonimaTests(TestCase):
         for esperada in ("/usuarios/", "/becas/convocatorias/", "/legajos/ciudadanos/", "/api/users/me/"):
             self.assertIn(esperada, urls)
 
-    def test_la_allowlist_publica_no_crecio(self):
-        """Ratchet: 13 rutas públicas medidas el 04-oct-2026. Solo puede bajar."""
-        self.assertEqual(len(ALLOWLIST_PUBLICA), 13)
+    def test_la_allowlist_publica_mide_lo_que_se_midio(self):
+        """Ratchet: 17 rutas que no rebotan, medidas el 04-oct-2026.
+
+        Falla si el número cambia **en cualquier sentido**. Hacia arriba porque
+        publicar una ruta tiene que ser deliberado; hacia abajo porque una
+        entrada que dejó de hacer falta hay que sacarla de la lista, no dejarla
+        cubriendo de más. En los dos casos el arreglo es el mismo: revisar la
+        lista y actualizar este número en el mismo commit.
+        """
+        self.assertEqual(len(ALLOWLIST_PUBLICA), 17)
 
     def test_la_allowlist_publica_no_tiene_entradas_muertas(self):
         """Una URL que ya no existe en el URLconf deja de justificar nada."""
@@ -204,13 +247,10 @@ class SuperficieAnonimaTests(TestCase):
 # RED-30 — ninguna pantalla revienta
 # --------------------------------------------------------------------------- #
 
-#: Rutas que hoy dan `>= 500` con sesión y que **no** se arreglan en este PR.
-#: Cada una con su ficha: cuando la ficha se cierre, la entrada se va y el test
-#: pasa a cubrir la ruta.
-EXCEPCIONES_HUMO = {
-    "/api/docs/": "RED-36 · `drf_spectacular` no está en INSTALLED_APPS: TemplateDoesNotExist.",
-    "/api/redoc/": "RED-36 · ídem.",
-}
+#: Rutas que dan `>= 500` por un bug de otra ola, con su ficha. Vacía: `/api/docs/`
+#: y `/api/redoc/` estuvieron acá por RED-36 y salieron cuando se mergeó el PR
+#: R-04 (Cambio 118), que puso `drf_spectacular` en `INSTALLED_APPS`.
+EXCEPCIONES_HUMO = {}
 
 #: Proxies al catálogo de SIIS. Salen a la red del organismo, que en el CI no
 #: existe, y ahí **contestan 503 a propósito** (`SiisCatalogError` →

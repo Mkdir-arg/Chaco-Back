@@ -9,6 +9,7 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.http import HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
+from django.utils.functional import cached_property
 from django.views import View
 from django.views.generic import CreateView, DetailView, ListView, UpdateView
 
@@ -185,9 +186,17 @@ class EntregaMercaderiaCreateView(MerenderosPermissionMixin, CreateView):
     form_class = EntregaMercaderiaForm
     template_name = "programas/merenderos/entrega_form.html"
 
-    def dispatch(self, request, *args, **kwargs):
-        self.merendero = get_object_or_404(Merendero, pk=kwargs["pk"])
-        return super().dispatch(request, *args, **kwargs)
+    @cached_property
+    def merendero(self):
+        """El merendero de la URL, buscado **después** del guard.
+
+        Estaba en un `dispatch` que corría antes de `MerenderosPermissionMixin`:
+        el 404 le contestaba a un anónimo si el merendero no existía y el 302 al
+        login si existía, o sea que la ruta filtraba qué ids hay. Mismo molde que
+        RED-73. Como `cached_property`, el lookup pasa a ocurrir recién cuando lo
+        pide `get_context_data` o `form_valid`, ya con la autorización resuelta.
+        """
+        return get_object_or_404(Merendero, pk=self.kwargs["pk"])
 
     def form_valid(self, form):
         try:

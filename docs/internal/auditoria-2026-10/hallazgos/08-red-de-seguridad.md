@@ -156,6 +156,17 @@ S-M = 4, M = 8, L = 20 (README §6).
     justificar cada excepción. `/legajos/ciudadanos/confirmar/` se clasifica cuando se cierre RED-73, no se allowlistea.
 - **Verificación:** `& $env:PY manage.py test core.tests.test_superficie_publica` (corre en ~3 s sobre SQLite); mutación
   de control: quitar el `login_required` de una vista de `contactos_api.py` → el test falla.
+- **Al implementarlo (Cambio 122) la propuesta se corrigió en dos puntos.** (1) Aceptar `404` y `405` como rebote —como
+  dice el guion de arriba— deja ciego al barrido: las URLs se concretan con valores de juguete sobre una base vacía, así
+  que el 404 es la respuesta esperable de buena parte del URLconf y aceptarlo tapa la pregunta. Se demostró sacándole los
+  mixins a `CiudadanoDetailView` sin conseguir poner el test en rojo. La versión final solo acepta
+  `401/403/426` o la redirección, repite con POST las rutas POST-only y manda a la allowlist los 404 legítimos del
+  anónimo. Con eso el barrido encontró un segundo caso del molde de RED-73 en `EntregaMercaderiaCreateView`. (2) El
+  ratchet falla en los **dos** sentidos, no solo al crecer: una entrada que dejó de hacer falta hay que sacarla.
+- **Hallazgo abierto que esta ficha no cubre:** el barrido pregunta por el anónimo. Con un usuario de backoffice
+  autenticado y **sin ningún rol**, 40 rutas contestan `200` (`/inicio/`, `/legajos/alertas/`,
+  `/legajos/ciudadanos/<id>/archivos/`, la api-root de DRF, los `ajax/load-*`). Algunas son deliberadas y otras no; hace
+  falta mirarlas de a una. **Pide ficha propia: «barrido del URLconf con usuario sin rol»**, hermana de esta.
 
 ### RED-03 · App de campo: la pausa está probada en 1 de 6 endpoints, el período en 3 y las ramas de error en ninguna
 **Severidad:** ALTA · **Estado:** CONFIRMADO con test (coverage: `programas/api/views.py` 92 %, líneas sin ejecutar leídas una por una) · **Origen:** RS-R1-02 (VR1: CONFIRMADO-AJUSTADO), RS-R1-15, RS-VR1-NEW-02 · **Ola:** R · **Esfuerzo:** S-M (4 h) · **Decisión:** D-RED-10
