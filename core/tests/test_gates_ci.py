@@ -64,6 +64,23 @@ def _todos_los_workflows():
     return {ruta.name: _cargar(ruta.name) for ruta in sorted(WORKFLOWS.glob("*.yml"))}
 
 
+# La lista literal de lo que el ruleset tiene que exigir. Va escrita a mano y no derivada
+# del JSON a propósito: los demás tests leen el JSON, así que sacarle un `context` los deja
+# a todos en verde —el gate desaparece y nadie se entera—. Este es el que lo enfrenta.
+# Agregar o quitar un check obligatorio implica tocar esta lista en el mismo PR.
+CHECKS_OBLIGATORIOS = {
+    "Django System Check",
+    "Migration Check",
+    "Tests & Coverage",
+    "Query Budgets & Smoke Time",
+    "Ephemeral MySQL Redis Contract",
+    "Pip Audit",
+    "Sin datos personales",
+    "Ruff errores",
+    "Validate inventory and authority",
+}
+
+
 def _contextos_obligatorios():
     ruleset = json.loads((RULESETS / "ruleset-development.json").read_text(encoding="utf-8"))
     for regla in ruleset["rules"]:
@@ -127,6 +144,29 @@ class RulesetsPropuestosTests(SimpleTestCase):
             self.main["bypass_actors"],
             [{"actor_id": 15368, "actor_type": "Integration", "bypass_mode": "always"}],
         )
+
+    def test_el_ruleset_de_development_exige_exactamente_estos_nueve_checks(self):
+        """Sacar un `context` del JSON no puede pasar en silencio.
+
+        Todos los demás tests leen la lista del propio archivo, así que borrar
+        `{"context": "Ruff errores"}` los dejaba a los 27 en verde: el gate se apagaba sin
+        que nada cayera. Este enfrenta el JSON contra la lista literal de arriba.
+        """
+        self.assertEqual(set(_contextos_obligatorios()), CHECKS_OBLIGATORIOS)
+
+    def test_no_hay_checks_obligatorios_repetidos(self):
+        contextos = _contextos_obligatorios()
+
+        self.assertEqual(len(contextos), len(set(contextos)))
+
+    def test_el_ruleset_de_main_no_exige_status_checks(self):
+        """`main` no recibe PRs: la escribe `publish-main.yml`. Si alguna vez exigiera un
+        check, el workflow que la publica quedaría esperándose a sí mismo.
+        """
+        tipos = {regla["type"] for regla in self.main["rules"]}
+
+        self.assertNotIn("required_status_checks", tipos)
+        self.assertNotIn("pull_request", tipos)
 
     def test_cada_check_obligatorio_existe_como_job_de_un_workflow(self):
         """Un `context` mal escrito deja el PR esperando para siempre un check que no llega."""

@@ -15689,6 +15689,14 @@ que agreguen las olas siguientes es decorativo.
 - **`pr-backend.yml` y `pr-performance.yml` corren también en `push` a `development`** (punto 4 de la
   ficha), para que mientras no haya ruleset un push directo deje al menos un check rojo visible antes
   del espejo a ECOM. `pr-datos.yml` ya lo hacía desde el Cambio 116.
+- **El costo de CI de eso se asume, y es el doble por merge.** Cada merge a `development` dispara otra
+  vez `Backend CI` (~7 min) y `Performance Guard` (~2 min de contrato efímero más los presupuestos),
+  encima de lo que ya corrió en el PR. Se acepta porque el único escenario que cubre —un push directo
+  sin PR— es el que `publish-main.yml` convierte en release sin que nadie lo vea, y porque la ventana
+  es corta: **apenas estén aplicados los rulesets, el push directo deja de ser posible y estos dos
+  disparadores pasan a ser defensa en profundidad.** Si el costo molesta antes de eso, lo que se saca
+  es el `push` de `pr-performance.yml` (es el más caro y el menos informativo sobre un merge), no el
+  de `pr-backend.yml`.
 
 ## Implementación
 
@@ -15784,9 +15792,17 @@ verificación y el procedimiento completo están en `docs/internal/rulesets.md`.
   rojo» sigue siendo una regla del proceso, no un mecanismo.
 - Confirmar el plazo de `PYSEC-2026-3447`: quedó el default de 90 días (02/01/2027).
 - Sumar al ruleset los checks que todavía no existen: `Contratos del repo` (RED-24, PR R-14),
-  `Contratos de API` (RED-42, PR R-18) y, cuando la deuda llegue a 0, `Ruff estilo`.
+  `Contratos de API` (RED-42, PR R-18) y, cuando esté el pin de Ruff, `Ruff estilo`.
 - Segunda parte de RED-85 (Ola 7): `requirements-ci.txt` con versiones fijas en todos los workflows
   y dependabot semanal sobre ese archivo.
+- **`Pip Audit` queda obligatorio con `pip-audit` instalado sin versión, y su base de advisories
+  cambia sola.** Es el riesgo conocido de hacerlo bloqueante antes de la Ola 7: un advisory nuevo
+  sobre cualquier dependencia de `requirements.txt` —o un release de `pip-audit` que estreche una
+  regla— pone en rojo todos los PRs abiertos, incluidos los que no tocaron nada. **Receta de salida,
+  escrita para que no haya que improvisarla:** agregar la advisory a `security/excepciones.toml` con
+  su `motivo`, un `vence_el` corto y el ticket, en un PR de una línea; eso devuelve el verde y deja
+  la deuda con fecha, que es el punto de RED-63. El arreglo de fondo es el mismo de arriba
+  (`requirements-ci.txt` con `pip-audit` pineado, Ola 7).
 
 ## Reversión
 

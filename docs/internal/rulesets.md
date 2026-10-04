@@ -90,6 +90,12 @@ No están `Ruff estilo`, `Bandit Security Scan` ni `Dependency Review`: los tres
 `continue-on-error` y un check no bloqueante en la lista de obligatorios siempre
 reporta verde, o sea que no agrega nada.
 
+**El único de la lista que puede ponerse rojo sin que nadie haya tocado nada es
+`Pip Audit`**, porque su base de advisories cambia sola y `pip-audit` todavía se
+instala sin versión (RED-85, Ola 7). Si frena los merges, la salida **no** es sacarlo
+del ruleset: es agregar la advisory a `security/excepciones.toml` con `motivo`, un
+`vence_el` corto y el ticket, en un PR de una línea.
+
 **Regla para agregar un check a la lista:** un `context` solo puede ser obligatorio
 si su job **siempre termina** en todo PR a `development`. Un workflow con `paths:`
 en el trigger no corre cuando el PR no toca esas rutas, el check nunca reporta y el
