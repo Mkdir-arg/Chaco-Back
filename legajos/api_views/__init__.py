@@ -1,9 +1,8 @@
 from django.db.models import Count
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.utils import extend_schema, extend_schema_view
-from rest_framework import filters, status, viewsets
+from rest_framework import filters, viewsets
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from core.api_permissions import BackofficeAutenticado, RequiereCapacidad
@@ -65,11 +64,17 @@ class CiudadanoViewSet(viewsets.ReadOnlyModelViewSet):
 class AlertasViewSet(viewsets.ReadOnlyModelViewSet):
     """
     ViewSet para consultar alertas del sistema.
+
+    Exige ``ciudadano.ver``: con solo ``IsAuthenticated`` cualquier cuenta de
+    backoffice listaba las alertas con el **nombre del ciudadano y el texto de
+    la alerta**, y ``cerrar`` silenciaba cualquiera por id (SEC-18 y R0b-06,
+    auditoría oct-2026). El contenido de la alerta es sensible: cuando se
+    resuelva D-11, la Ola 2 sube esta capacidad a ``ciudadano.sensible``.
     """
 
     queryset = AlertaCiudadano.objects.select_related("ciudadano", "legajo", "cerrada_por")
     serializer_class = AlertaCiudadanoSerializer
-    permission_classes = [BackofficeAutenticado, IsAuthenticated]
+    permission_classes = [BackofficeAutenticado, RequiereCapacidad("ciudadano.ver")]
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ["prioridad", "tipo", "ciudadano"]
     ordering = ["-creado"]  # Ordenar por fecha de creación descendente
@@ -93,10 +98,13 @@ class AlertasViewSet(viewsets.ReadOnlyModelViewSet):
     @extend_schema(description="Cierra una alerta específica")
     @action(detail=True, methods=["post"])
     def cerrar(self, request, pk=None):
-        """Cierra una alerta específica"""
-        success = AlertasService.cerrar_alerta(pk, request.user)
+        """Cierra una alerta del alcance del usuario.
 
-        if success:
-            return Response({"message": "Alerta cerrada correctamente"})
-        else:
-            return Response({"error": "Alerta no encontrada"}, status=status.HTTP_404_NOT_FOUND)
+        ``self.get_object()`` resuelve sobre ``get_queryset()``, que ya está
+        acotado por ``FiltrosUsuarioService``: una alerta fuera del alcance es
+        404, no un cierre silencioso. De paso mata el **500** que daba un `pk`
+        no numérico, que antes llegaba crudo a ``cerrar_alerta`` (SEC-18).
+        """
+        alerta = self.get_object()
+        AlertasService.cerrar_alerta(alerta.pk, request.user)
+        return Response({"message": "Alerta cerrada correctamente"})

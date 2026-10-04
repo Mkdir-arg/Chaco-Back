@@ -8,7 +8,7 @@ from .contactos import (  # noqa: F401
     ALLOWED_EXTENSIONS,
     MAX_FILE_SIZE,
     ContactosFilesError,
-    eliminar_archivo_por_id,
+    eliminar_archivo_de_objeto,
     subir_archivos_para_objeto,
 )
 from .derivaciones_programa import DerivacionProgramaResult, DerivacionProgramaService  # noqa: F401
