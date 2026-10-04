@@ -296,6 +296,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 113 | La API REST de usuarios y roles queda apagada salvo `me` | Transversal · API DRF (`/api/users/`) | `#api` `#rbac` `#usuarios` | Auditoría integral oct-2026 — SEC-05, SEC-16 y SEC-17, decisión D-05 (Ola 0, segunda tanda, PR H11) | 03/10/2026 | 🟢 **Hecho** | No requiere |
 | 114 | La API de ciudadanos es de solo lectura, pide capacidad y solo contesta búsquedas | Legajos · API DRF (`/api/legajos/`) | `#api` `#rbac` `#datos` | Auditoría integral oct-2026 — SEC-02 (+ V1-NEW-03) y SEC-01 punto 2 en legajos (Ola 0, segunda tanda, PR H12) | 03/10/2026 | 🟢 **Hecho** | No requiere |
 | 115 | El catálogo geográfico de la API es de solo lectura y las APIs del dashboard piden capacidad | Transversal · API DRF (`/api/core/`, `/api/` del dashboard) · home del backoffice | `#api` `#rbac` `#sesion` `#ui` | Auditoría integral oct-2026 — SEC-13 y SEC-14 (Ola 0, segunda tanda, PR H13) | 03/10/2026 | 🟢 **Hecho** | No requiere |
+| 117 | El rollback de producción tiene un procedimiento escrito, y las migraciones que no se pueden revertir avisan antes de romper nada | Transversal · operación y deploy · migraciones | `#infra` `#datos` | Auditoría integral oct-2026 — RED-60 y RED-15 (Ola R «Red de seguridad», PR R-02) | 04/10/2026 | 🟢 **Hecho** | No requiere |
 | 120 | Los tests recorren el enum de estados entero, no solo el camino feliz | Becas · relevamientos (vencimientos, API de campo) · Portal (link público) | `#relevamientos` `#api` `#mobile` `#cupos` | Auditoría integral oct-2026 — RED-28, RED-29 y RED-66 (Ola R, red de seguridad, PR R-08) | 04/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
@@ -14760,6 +14761,163 @@ Revertir el commit devuelve los `ModelViewSet` de geografía y deja las cinco vi
 - **03/10/2026** — Cambio 109: queda disponible `BackofficeAutenticado`, sin aplicarla a ninguna vista.
 - **03/10/2026 (este cambio)** — SEC-13 y SEC-14 cerrados, y la clase aplicada en `core/api_views` y
   `dashboard/api_views`.
+
+---
+
+# Cambio 117 — El rollback de producción tiene un procedimiento escrito, y las migraciones que no se pueden revertir avisan antes de romper nada
+
+🟢 **HECHO — 04/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · operación y deploy (icore-srv y ECOM) · migraciones |
+| **Etiquetas** | `#infra` `#datos` |
+| **Solicitante** | Auditoría integral de octubre 2026 — hallazgos **RED-60** y **RED-15** (Ola R «Red de seguridad», PR R-02) |
+| **Fecha del pedido** | 04/10/2026 |
+| **Issue / épica** | Sin issue — auditoría oct-2026, `docs/internal/auditoria-2026-10/hallazgos/08-red-de-seguridad.md` |
+| **Partes afectadas** | `docs/internal/processes.md`; las cinco migraciones UUID (`programas.0047`, `programas.0048`, `programas.0073`, `legajos.0007`, `users.0023`); dos tests nuevos en `core/tests/` |
+| **Migración** | No requiere (ninguna migración nueva: se le agrega una operación sin efecto hacia adelante a cinco ya aplicadas) |
+
+## Pedido original
+
+De la ficha **RED-60** (MEDIA, confirmado por lectura):
+
+> `processes.md` enseña un rollback que destruye datos y autoriza `--fake`. `:256-258`
+> (`docker compose exec django python manage.py migrate <app> <anterior>`: el servicio se llama `web`, el
+> comando ni arranca, y la reversa traba MariaDB), `:282` («usar `--fake` solo si…»), `:280` («siempre hacer
+> backup» sin ningún mecanismo: buscar `mysqldump` o `mariadb-dump` en scripts, compose y workflows da 0).
+> Reemplazar §Rollback y §Gestión de migraciones con el runbook del **Anexo D**.
+
+De la ficha **RED-15** (ALTA, confirmado con test en MariaDB 11.8):
+
+> En MariaDB la reversa falla (errno 150) y deja tabla huérfana y `django_migrations` a mitad. Declarar
+> `legajos.0007`, `programas.0047/0048/0073` y `users.0023` como **barrera de reversa**, listadas en el
+> runbook D.4; en el runbook, «si el `migrate` falló durante una reversa, ir directo a D.4 (restore)».
+
+## Qué lo motivó
+
+El procedimiento escrito y la realidad del motor no coincidían en ningún punto. El comando de rollback de
+migraciones apuntaba a un servicio (`django`) que no existe en `docker-compose.prod.yml` —son `mysql`, `redis`,
+`web`, `websocket` y `nginx`—, así que ni siquiera arrancaba; y si alguien lo adaptaba al nombre correcto, lo
+que lograba era peor que no hacer nada: en MariaDB el plan de reversa se corta a mitad y deja la base en un
+estado que no corresponde a ninguna release. El respaldo, que es lo único que permite volver de verdad, estaba
+escrito como una buena intención («siempre hacer backup») sin un solo comando.
+
+## Alcance acordado
+
+**Entra:** el runbook completo (D.0 a D.5) en `processes.md`, la sección de gestión de migraciones reescrita, la
+barrera de reversa en las cinco migraciones UUID y los dos tests que lo sostienen.
+
+**Queda afuera** (son de otros PRs de la Ola R): la marca `# REVERSA-NOOP:` y la barrera por pérdida de datos en
+`programas.0032`, `0056` y `0069` (RED-57, PR R-12); la normalización a hex en las reversas de `0047`, `0048` y
+`legajos.0007` (RED-18, PR R-12); el job `migration-roundtrip` de CI (RED-17, PR R-13); el chequeo inverso de
+`verificar_esquema_migraciones` (OPS-01, PR R-15); el tag inmutable de release (RED-16, PR R-15); y la
+validación de `## Reversión` en `requerimientos.py --check` (RED-84, PR R-12).
+
+## Decisiones tomadas
+
+- **D-RED-05 = barrera, no arreglo de fondo.** Sacar el `MODIFY` crudo de la reversa de las migraciones UUID es
+  trabajo largo sobre migraciones ya aplicadas en producción, y el riesgo lo cubre el runbook. Por debajo de
+  esas cinco migraciones solo se vuelve con restore.
+- **La barrera falla, no solo avisa.** La ficha pedía una marca en el archivo; un comentario no detiene a nadie
+  a las tres de la mañana. Se implementó como una operación extra al final de cada una de las cinco
+  migraciones: hacia adelante no hace nada, y al desaplicar —Django recorre las operaciones en orden inverso,
+  así que es la **primera** que corre— aborta con `IrreversibleError` y un mensaje que nombra la migración, dice
+  qué se rompería y remite al paso D.4. Aborta **antes** de cualquier DDL: la base queda como estaba.
+- **La barrera solo actúa en MySQL/MariaDB.** En otros motores la ida de esas migraciones ya era un no-op (todas
+  empiezan preguntando si el motor es `mysql` y, si no, vuelven), así que no hay nada que la vuelta pueda
+  romper y bloquearla sería ruido.
+- **Se agrega una operación en vez de tocar `restaurar_*`.** El cuerpo de las funciones de reversa queda intacto
+  para que el PR R-12 (RED-18, normalizar a hex antes de achicar) lo corrija sin pelearse con este cambio, y
+  para que siga siendo el camino correcto si alguna vez se revierte D-RED-05.
+- **`--fake` no se borra del documento: se prohíbe.** La ficha pedía que `processes.md` no lo mencionara, pero un
+  operador buscando `--fake` en el runbook tiene que encontrar el «no», no el silencio. Las dos menciones que
+  quedan son prohibiciones, y hay un test que verifica que ninguna lo autorice.
+- **El rollback de icore-srv opera sobre `main`, no sobre `development`.** El checkout de
+  `/home/icore/chaco` está en la rama de release (`.claude/commands/servidor.md`); `development` no se despliega
+  en ningún servidor. Y no se hace `reset --hard` sobre `main`: el próximo `git pull --ff-only origin main`
+  devolvería el servidor a la release rota sin que nadie se entere, así que el rollback crea una rama
+  `rollback/<timestamp>` —el mismo patrón que RED-59 le pide a `deploy_prod.sh`— que además queda visible en
+  `git status`.
+- **El dump de D.0 es el único camino de vuelta real, así que va con comando y verificación.** En icore se
+  escribe completo (incluido el `ls -lh ~/backups/` que confirma que el archivo existe y no pesa 0); en ECOM,
+  que es quien tiene la base de producción, se pide por escrito y se espera confirmación antes de espejar a
+  `main`.
+
+## Implementación
+
+`docs/internal/processes.md` reemplaza las dos secciones viejas:
+
+- **§Rollback** pasa a ser el runbook: **D.0** dump obligatorio antes de cada deploy con migración (comando de
+  `mysqldump` para icore, pedido escrito para ECOM, y anotar de qué release se viene); **D.1** tabla que dice
+  cuál de los caminos corresponde según lo que traía el deploy; **D.2** rollback de código, con el paso previo
+  **D.2.0** (consulta a `information_schema.COLUMNS` y `SET DEFAULT` sobre las columnas `NOT NULL` nuevas, para
+  que el código viejo pueda seguir dando de alta) y los dos escenarios **D.2.1** ECOM/Kubernetes y **D.2.2**
+  icore; **D.3** qué hacer con un `migrate` cortado hacia adelante; **D.4** el restore, con la lista de las ocho
+  barreras de reversa y los seis pasos; **D.5** el issue con label `incident` y la línea en `## Reversión`.
+- **§Gestión de migraciones en producción** deja de ser tres viñetas sueltas: dump obligatorio, ensayo del
+  `ALTER` grande en el banco de `scripts/perf_mysql/`, `--fake` prohibido, las migraciones no se revierten en
+  producción, avisar en el deploy cuando la migración es barrera, y la regla expand/contract en una línea.
+
+En las cinco migraciones UUID: el bloque de comentario `# BARRERA-DE-REVERSA:` arriba —por qué lo es y adónde
+ir—, y la operación `migrations.RunPython(sin_cambios, bloquear_reversa)` al final de `operations`.
+
+## Archivos
+
+- `docs/internal/processes.md` — runbook D.0–D.5 y la sección de migraciones reescrita.
+- `programas/migrations/0047_ampliar_formulario_client_uuid.py`, `0048_ampliar_validacionsis_id_consulta.py`,
+  `0073_ampliar_relevamiento_token_publico.py`, `legajos/migrations/0007_ampliar_uuid_legajos.py`,
+  `users/migrations/0023_ampliar_solicitud_cambio_email_token.py` — marca y barrera.
+- `core/tests/test_barreras_de_reversa.py` — **test permanente de RED-15**.
+- `core/tests/test_runbook_rollback.py` — **test permanente de RED-60**.
+- `docs/internal/auditoria-2026-10/hallazgos/08-red-de-seguridad.md` — RED-15 y RED-60 en ✅, con su línea
+  **Resolución**.
+
+## Base de datos
+
+Ninguna migración nueva y ningún cambio de esquema. Las cinco migraciones tocadas ya están aplicadas en todos
+los ambientes, así que la operación agregada no vuelve a correr; en una base desde cero corre y no hace nada.
+`makemigrations --check --dry-run` → «No changes detected».
+
+## Validación
+
+- Contenedor efímero **MariaDB 11.8.9** en el puerto 3317 (no se tocaron 3307 ni 3308), con un settings fuera
+  del repo que apunta ahí y sube los timeouts.
+- `migrate` completo hacia adelante: OK, 136 migraciones.
+- `migrate legajos 0006`, `migrate users 0022`, `migrate programas 0072`, `migrate programas 0046` y
+  `migrate legajos zero`: las cinco abortan con `IrreversibleError` y el mensaje de la barrera. El esquema queda
+  intacto (`client_uuid`, `legajos_legajoatencion.id`, `users_solicitudcambioemail.token` y `token_publico`
+  siguen en `char(36)`), sin tablas huérfanas, y el `migrate` hacia adelante posterior reaplica sin problemas:
+  `migrate --check` sale 0.
+- **Comparación contra el código de hoy** (worktree en `d9acc65f`, base limpia en el mismo contenedor):
+  `migrate legajos zero` muere con el error 1005 / errno 150 al recrear `legajos_derivacion`, deja esa tabla
+  huérfana y `django_migrations` repartido en un estado que no es ninguna release (`programas` en 0001, `users`
+  en 0002, `legajos` en 0004). Con la barrera, el mismo comando aborta limpio.
+- `core.tests.test_barreras_de_reversa` y `core.tests.test_runbook_rollback`: 10 tests. Antes del cambio los 10
+  fallaban; después, OK.
+- `manage.py check` sin issues; suite completa en el venv de Python 3.12 + Django 5.2 sin regresiones;
+  `ruff check` limpio sobre lo tocado.
+
+## Puesta en marcha en el servidor
+
+No requiere nada: es documentación y código que solo actúa en el camino de reversa. Lo que sí cambia es la
+operación — a partir de acá, **antes de cada deploy con migración hay que correr el dump de D.0**, y en ECOM
+pedirlo por escrito y esperar la confirmación antes de espejar a `main`.
+
+## Pendientes / a definir
+
+- El pedido escrito a ECOM (H-11) de que hagan y confirmen el dump antes de cada deploy con migración lo tiene
+  que mandar el PM; el runbook ya lo da por obligatorio.
+- Las barreras por pérdida de datos (`programas.0032`, `0056`, `0069`) están listadas en D.4 pero todavía no
+  tienen la marca en el archivo ni abortan: eso llega con RED-57 en el PR R-12.
+- Cuando exista el job `migration-roundtrip` (RED-17, PR R-13), su paso de reversa no puede bajar por debajo de
+  `programas.0073`: la barrera lo va a cortar, que es lo esperado.
+
+## Reversión
+
+Revertir el commit devuelve las dos secciones viejas de `processes.md` —con el comando que no arranca y la
+autorización de `--fake`— y saca la barrera de las cinco migraciones: volver a poder arrancar una reversa que
+en MariaDB termina a mitad de camino. No hay datos ni esquema involucrados.
 
 ---
 
