@@ -1,0 +1,34 @@
+{% comment %}
+Copia de `drf_spectacular/redoc.html` sin las tres etiquetas de Google Fonts, que
+el paquete trae escritas a mano y que `REDOC_DIST = "SIDECAR"` no alcanza a sacar
+(RED-36, revisión del PR R-04). Redoc cae a la tipografía del sistema, que para
+una pantalla interna de documentación de API alcanza y sobra.
+
+`config/urls.py` la enchufa con `SpectacularRedocView.as_view(template_name=…)`.
+Si se actualiza `drf-spectacular`, conviene mirar si su plantilla cambió:
+`portal.tests.test_seguridad_publica.SinRecursosDeTercerosTests` y
+`core.tests.test_api_schema_contrato.DocumentacionSinTercerosTests` son la red.
+{% endcomment %}<!DOCTYPE html>
+<html>
+  <head>
+    <title>{{ title|default:"Redoc" }}</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+      body { margin: 0; padding: 0; }
+    </style>
+  </head>
+  <body>
+    {% if settings %}
+    <div id="redoc-container"></div>
+    <script src="{{ redoc_standalone }}"></script>
+    <script>
+      const redocSettings = {{ settings|safe }};
+      Redoc.init("{{ schema_url }}", redocSettings, document.getElementById('redoc-container'))
+    </script>
+    {% else %}
+    <redoc spec-url="{{ schema_url }}"></redoc>
+    <script src="{{ redoc_standalone }}"></script>
+    {% endif %}
+  </body>
+</html>

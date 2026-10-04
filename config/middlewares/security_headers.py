@@ -105,6 +105,13 @@ class SecurityHeadersMiddleware:
         response = self.get_response(request)
         # El admin de Django y el navegador de la API traen su propio JS inline y
         # no son superficie pública: no vale la pena romperlos por esta política.
+        #
+        # Las dos de `/api/` siguen exentas aunque desde `SIDECAR` ya no carguen
+        # nada de un CDN (RED-36): el bundle de Redoc levanta un Worker desde un
+        # `blob:`, y `worker-src` acá cae en `default-src 'self'`, que lo
+        # bloquea. Abrir `blob:` para todo el sitio por una pantalla interna de
+        # documentación no vale la pena; lo que impide que vuelva el CDN es
+        # `core.tests.test_api_schema_contrato.DocumentacionSinTercerosTests`.
         if request.path.startswith(("/admin/", "/api/docs/", "/api/redoc/")):
             return response
         cabecera = "Content-Security-Policy-Report-Only" if self.solo_reportar else "Content-Security-Policy"

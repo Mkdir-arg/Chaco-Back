@@ -467,6 +467,21 @@ class SinRecursosDeTercerosTests(TestCase):
         "https://www.googletagmanager.com/ns.html",
     )
 
+    # Archivos que están dentro de una dependencia y que **no se sirven**. El
+    # barrido recorre el `templates/` de cada app instalada, así que los ve
+    # igual. Se listan uno por uno para que una dependencia nueva con plantillas
+    # no entre sin que se vea.
+    #
+    # `drf_spectacular/redoc.html` trae tres etiquetas de Google Fonts escritas
+    # a mano. `/api/redoc/` no la usa: `config/urls.py` le pasa
+    # `template_name="api/redoc.html"`, que es la misma sin eso y que este mismo
+    # barrido sí revisa (RED-36, Cambio 118). Que los bundles de Redoc y
+    # Swagger-UI tampoco salgan a un CDN lo cubre
+    # `core.tests.test_api_schema_contrato.DocumentacionSinTercerosTests`, que
+    # mira el HTML servido y no el archivo: las URLs llegan por variable de
+    # plantilla y esta expresión regular no las vería.
+    DE_DEPENDENCIAS = ("drf_spectacular/redoc.html",)
+
     def test_ninguna_plantilla_carga_recursos_externos(self):
         from pathlib import Path
 
@@ -491,6 +506,8 @@ class SinRecursosDeTercerosTests(TestCase):
                 if plantilla in vistas:
                     continue
                 vistas.add(plantilla)
+                if plantilla.as_posix().endswith(self.DE_DEPENDENCIAS):
+                    continue
                 texto = plantilla.read_text(encoding="utf-8", errors="ignore")
                 for url in patron.findall(texto):
                     if not url.startswith(self.PERMITIDOS):
