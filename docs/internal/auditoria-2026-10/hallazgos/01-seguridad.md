@@ -234,7 +234,7 @@ documentos que la etapa 1 de SEC-09 puso detrás de login. Por eso sube a CRÍTI
 - **Verificación:** V-STD + V-UI (`ciudadano_detail.html` cambia).
 - **Dependencias:** FE-02 (el mismo template usa `toastr`, que no está cargado: arreglar antes o junto para poder probar la subida).
 
-**Resolución:** ✅ Resuelto en #NNN (Cambio 126, PR R-19), 04-oct-2026 — `ciudadano.ver` para listar, `ciudadano.editar`
+**Resolución:** ✅ Resuelto en #556 (Cambio 126, PR R-19), 04-oct-2026 — `ciudadano.ver` para listar, `ciudadano.editar`
 para subir y borrar. `archivos/<int:archivo_id>/eliminar/` **se retiró** y la reemplazan
 `ciudadanos/<int:ciudadano_id>/archivos/<int:archivo_id>/eliminar/` y
 `<uuid:legajo_id>/archivos/<int:archivo_id>/eliminar/`: el dueño viaja en la URL y acota el `filter`, así que un
@@ -276,7 +276,7 @@ De las 2 h, 1 se mueve a la Ola R y 1 queda en la Ola 2. La ficha queda **🟡**
 - **Tests a agregar:** `legajos/tests/test_contactos_api_rbac.py`: test parametrizado por nombre de URL con usuario sin roles → 403 (con `X-Requested-With` el decorador devuelve JSON 403).
 - **Verificación:** V-STD + `manage.py test legajos`.
 
-**Resolución:** 🟡 Parcial en #NNN (Cambio 126, PR R-19), 04-oct-2026 — las **seis** vistas quedaron con
+**Resolución:** 🟡 Parcial en #556 (Cambio 126, PR R-19), 04-oct-2026 — las **seis** vistas quedaron con
 `@requiere("ciudadano.ver")`: `actividades_ciudadano_api`, `evolucion_legajo_api`,
 `contactos_panel.historial_contactos_simple`, `timeline_ciudadano_api`, `alertas_ciudadano_api` y
 `prediccion_riesgo_api`. Ninguna de las cinco del barrido de RED-89 queda abierta. **Falta la segunda mitad y por eso
@@ -395,7 +395,7 @@ y conviene agregarle su test (`test_api_cerrar_con_pk_no_numerico_da_404`).
 - **Verificación:** V-STD + `manage.py test legajos`.
 - **Dependencias:** G1c-04 (el WS difunde lo mismo sin alcance): mismo PR o seguido.
 
-**Resolución:** ✅ Resuelto en #NNN (Cambio 126, PR R-19), 04-oct-2026 — `@requiere("ciudadano.ver")` en
+**Resolución:** ✅ Resuelto en #556 (Cambio 126, PR R-19), 04-oct-2026 — `@requiere("ciudadano.ver")` en
 `alertas_dashboard`, `alertas_count_ajax`, `alertas_preview_ajax`, `cerrar_alerta_ajax` y `cerrar_alerta_api`;
 `AlertasViewSet` cambia `IsAuthenticated` por `RequiereCapacidad("ciudadano.ver")` (**R0b-06**, que cierra con esta
 ficha) y `cerrar` usa `self.get_object()`, que resuelve sobre el queryset ya acotado y de paso mata el **500** del `pk`
@@ -602,7 +602,7 @@ Observaciones MINOR de los revisores de #536-#542 y seguimientos operativos. Las
 - **Propuesta:** `RequiereCapacidad("ciudadano.ver")` para `list`/`count` y la que fije D-11 para el contenido de la alerta; `cerrar` con `get_object()` (SEC-18). Mismo criterio que `alertas_criticas` (SEC-14).
 - **Test:** sin capacidad → 403 en `list`, `count` y `cerrar`.
 
-**Resolución:** ✅ Resuelto en #NNN (Cambio 126, PR R-19), 04-oct-2026 — junto con SEC-18, en el mismo PR:
+**Resolución:** ✅ Resuelto en #556 (Cambio 126, PR R-19), 04-oct-2026 — junto con SEC-18, en el mismo PR:
 `permission_classes = [BackofficeAutenticado, RequiereCapacidad("ciudadano.ver")]` y `cerrar` con `self.get_object()`.
 Subir la capacidad a `ciudadano.sensible` para el **contenido** de la alerta queda atado a D-11, igual que las tres
 vistas de SEC-11. **Test permanente:** `legajos.tests.test_alertas_rbac.AlertasApiTests`.

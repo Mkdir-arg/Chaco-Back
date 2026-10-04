@@ -249,7 +249,7 @@ y `::PeriodoEnTodosLosEndpointsTests.test_fuera_del_periodo_se_rechaza_y_no_escr
   cualquier PR de la Ola 2.
 - **Verificación:** `& $env:PY manage.py test users.tests.test_roles_abm`.
 
-**Resolución:** ✅ Resuelto en #NNN (Cambio 126, PR R-19), 04-oct-2026 — `RolesEscrituraHttpTests` ejercita las cuatro
+**Resolución:** ✅ Resuelto en #556 (Cambio 126, PR R-19), 04-oct-2026 — `RolesEscrituraHttpTests` ejercita las cuatro
 escrituras por HTTP: los siete tests de la propuesta más `test_sin_capacidad_de_roles_no_entra_a_ninguna_escritura`
 (un usuario sin rol no crea ni elimina). Los ocho pasan **también sobre `development`**, que es lo esperado: RED-04 es
 un hueco de cobertura, no un bug — lo que se arregla es que el día que `RolCreateView.post` deje de pasar `operador` a
@@ -308,7 +308,7 @@ las capacidades a los módulos de alcance, así que el POST vuelve al form con e
      derivar_programa` no crea la derivación.
 - **Verificación:** `& $env:PY manage.py test legajos`.
 
-**Resolución:** ✅ Resuelto en #NNN (Cambio 126, PR R-19), 04-oct-2026 — los dos puntos de la capa 1, y la capa 2 se
+**Resolución:** ✅ Resuelto en #556 (Cambio 126, PR R-19), 04-oct-2026 — los dos puntos de la capa 1, y la capa 2 se
 adelantó al mismo PR por D-RED-14 (SEC-10, SEC-11 y SEC-18). `PantallasDeLegajosAbrenTests` abre las **37** rutas con
 un usuario con todas las capacidades y datos reales (ciudadano, legajo, derivación, adjunto, alerta) y falla ante
 cualquier `>= 500`; `test_el_mapa_cubre_todas_las_rutas_de_legajos` cruza el mapa literal contra
@@ -565,7 +565,7 @@ verdad (contador de errores seguidos, `--max-errores`) y `test_un_caso_que_falla
   sacarle el `@requiere` a `alertas_preview_ajax` tiene que poner el barrido en rojo, y el borrado tiene su propio test
   de regresión (`legajos/tests/`: un usuario sin rol hace `DELETE` sobre un `Adjunto` ajeno → rebota y el adjunto sigue).
 
-**Resolución:** ✅ Resuelto en #NNN (Cambio 126, PR R-19), 04-oct-2026 — `SuperficieSinRolTests` recorre el mismo
+**Resolución:** ✅ Resuelto en #556 (Cambio 126, PR R-19), 04-oct-2026 — `SuperficieSinRolTests` recorre el mismo
 `rutas_concretas()` de RED-02 con un `User` recién creado (sin grupos, sin `user_permissions`, sin `is_superuser`).
 `ALLOWLIST_SIN_ROL` quedó en **31 entradas**: las 17 de `ALLOWLIST_PUBLICA`, que hereda («si un anónimo puede, un
 autenticado también»), más **14 propias** —3 api-root de DRF, `/api/core/{dias,localidades}/`, los 3 `ajax/load-*`,
