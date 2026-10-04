@@ -12,6 +12,12 @@ La carrera se simula, no se corre: la suite usa SQLite en memoria, donde
 ``select_for_update()`` es un no-op y dos hilos de verdad no probarían nada. Lo
 que se comprueba es lo que sí depende del código: que la decisión se tome con lo
 que hay adentro del candado y no con lo que se leyó antes.
+
+De ahí sale también ``ContratoDeCandadosTests`` (RED-67): como en SQLite el
+candado no hace nada, borrar la línea del ``select_for_update()`` al optimizar
+no rompe ni un test, y en MariaDB se pierde la serialización. Ese contrato no se
+puede probar por su efecto, así que se prueba por su presencia, con
+``core.tests.candados.candados_tomados``.
 """
 
 from unittest.mock import patch
@@ -21,9 +27,13 @@ from django.contrib.messages import get_messages
 from django.urls import reverse
 from django.utils import timezone
 
-from programas.models import CorridaSiis, Formulario, TracaFormulario
+from core.tests.candados import candados_tomados
+from programas.models import CorridaSiis, Formulario, Relevamiento, Segmento, TracaFormulario
 from programas.services import proceso_masivo
+from programas.services.cupo import agregar_a_lista_espera, aprobar_o_poner_en_espera, promover_lista_espera
+from programas.tests.test_becas_api import _BaseApiTest
 from programas.tests.test_becas_revision import _BaseAprobacionTest
+from programas.tests.test_cupo_espera_reglas import _BaseEsperaTest
 from programas.tests.test_proceso_masivo import _BaseProcesoTest
 
 # A propósito escrito acá y no importado de la vista: lo que se comprueba es el
@@ -101,6 +111,91 @@ class CandadoCorridaMasivaTests(_BaseProcesoTest):
 
         self.assertIsNotNone(creada)
         self.assertEqual(CorridaSiis.objects.count(), 2)
+
+
+class ContratoDeCandadosTests(_BaseEsperaTest):
+    """RED-67 · capa 1: los tres caminos que tocan el cupo bloquean el segmento.
+
+    Lo que protege el candado es el cupo máximo: sin él, en MariaDB dos
+    aprobaciones simultáneas leen el mismo ``cupo_disponible`` y aprueban las
+    dos —cupo excedido y **dos altas en SIIS, que no tiene baja**—, y dos altas
+    a la lista leen el mismo ``Max("posicion")`` y se reparten la misma posición.
+
+    Es un contrato de forma, no de efecto: afirma que el candado se pide, y que
+    lo pide la función que tiene que pedirlo. La carrera de verdad —dos hilos
+    sobre un segmento con un lugar— es la capa 2, un ``TransactionTestCase`` con
+    ``@tag("mysql")`` que entra con el motor real del CI (TST-01, PR R-11).
+    """
+
+    def test_aprobar_toma_el_candado_del_segmento(self):
+        self.entrada.delete()
+
+        with candados_tomados(Segmento.objects) as candados:
+            self.assertEqual(aprobar_o_poner_en_espera(self.form_a, self.coord_a), "aprobado")
+
+        self.assertIn("cupo.py:aprobar_o_poner_en_espera", candados)
+
+    def test_mandar_a_la_lista_de_espera_toma_el_candado_del_segmento(self):
+        """Sin cupo, aprobar deriva a la lista: las dos ramas quedan cubiertas."""
+        self.entrada.delete()
+        self.seg_a.cupo_maximo = 0
+        self.seg_a.save(update_fields=["cupo_maximo"])
+
+        with candados_tomados(Segmento.objects) as candados:
+            self.assertEqual(aprobar_o_poner_en_espera(self.form_a, self.coord_a), "lista_espera")
+
+        self.assertEqual(candados, ["cupo.py:aprobar_o_poner_en_espera", "cupo.py:agregar_a_lista_espera"])
+
+    def test_promover_toma_el_candado_del_segmento(self):
+        with candados_tomados(Segmento.objects) as candados:
+            promover_lista_espera(self._entrada_fresca(), self.admin)
+
+        self.assertIn("cupo.py:promover_lista_espera", candados)
+        self.form_a.refresh_from_db()
+        self.assertEqual(self.form_a.estado, Formulario.Estado.APROBADO)
+
+    def test_agregar_a_la_lista_toma_el_candado_del_segmento(self):
+        self.entrada.delete()
+
+        with candados_tomados(Segmento.objects) as candados:
+            agregar_a_lista_espera(self.form_a, self.seg_a, self.admin)
+
+        self.assertIn("cupo.py:agregar_a_lista_espera", candados)
+        self.assertEqual(self.form_a.lista_espera.get().posicion, 1)
+
+
+class ContratoDeCandadosApiTests(_BaseApiTest):
+    """RED-67 · capa 1: el alta de la app de campo bloquea el relevamiento.
+
+    Sin el lock, dos dispositivos que sincronizan a la vez pasan el cupo del
+    relevamiento y el chequeo de duplicado por DNI.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.rel.estado = Relevamiento.Estado.EN_CURSO
+        self.rel.save(update_fields=["estado", "modificado"])
+        self.autenticar(self.terri)
+
+    def test_el_alta_de_campo_toma_el_candado_del_relevamiento(self):
+        with candados_tomados(Relevamiento.objects) as candados:
+            resp = self.client.post(
+                reverse("becas_api:relevamiento-formularios", args=[self.rel.id]),
+                {
+                    "client_uuid": "44444444-4444-4444-8444-444444444444",
+                    "celular": "3624111222",
+                    "email_contacto": "x@y.com",
+                    "datos_identificacion": {"dni": "40444444", "nombre": "Cuatro", "apellido": "Candado"},
+                },
+                format="json",
+            )
+
+        self.assertEqual(resp.status_code, 201)
+        # El de la vista, antes de decidir estado, cupo y duplicado. El otro
+        # —``__init__.py:save``— lo toma ``Formulario.save()`` para numerar el
+        # caso: por eso acá se mira quién pidió el candado y no solo que
+        # alguien lo haya pedido.
+        self.assertIn("views.py:formularios", candados)
 
 
 class CandadoRechazoTests(_BaseAprobacionTest):
