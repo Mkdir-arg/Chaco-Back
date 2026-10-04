@@ -14,6 +14,7 @@ Dos cosas lo cierran: la capacidad (`ciudadano.ver`) y el alcance
 
 from django.contrib.auth.models import Group, Permission, User
 from django.contrib.contenttypes.models import ContentType
+from django.core.cache import cache
 from django.test import Client, TestCase
 from django.urls import reverse
 from rest_framework.test import APIClient
@@ -50,6 +51,11 @@ class AlertasRbacTests(TestCase):
             prioridad=AlertaCiudadano.Prioridad.CRITICA,
             mensaje="Riesgo suicida detectado en la última entrevista",
         )
+
+    def setUp(self):
+        # `alertas_count_ajax` cachea 30 s por `user.id`, y la caché no se revierte
+        # entre tests como sí lo hace la base: ver `test_alertas_dashboard`.
+        cache.clear()
 
     def _cliente(self, usuario):
         cliente = Client()

@@ -12,6 +12,7 @@ badge del navbar sin que nada falle del lado del servidor.
 
 from django.contrib.auth.models import Group, Permission, User
 from django.contrib.contenttypes.models import ContentType
+from django.core.cache import cache
 from django.test import Client, TestCase
 from django.urls import reverse
 
@@ -54,6 +55,11 @@ class AlertasDashboardTests(TestCase):
         )
 
     def setUp(self):
+        # `alertas_count_ajax` cachea 30 s con la clave `alertas_count:<user.id>`.
+        # La base se revierte entre tests pero la caché no, y los ids de usuario se
+        # repiten de un `TestCase` a otro: sin esto el contador llega con el valor
+        # que dejó otro test y la suite completa falla donde las apps sueltas pasan.
+        cache.clear()
         self.cliente = Client()
         self.cliente.force_login(self.operador)
 
