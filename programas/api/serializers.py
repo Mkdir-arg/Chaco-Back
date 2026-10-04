@@ -8,6 +8,7 @@ from rest_framework import serializers
 from legajos.models import Ciudadano
 from programas.models import AdjuntoFormulario, Formulario, Relevamiento
 from programas.services.becas import definicion_formulario, es_menor
+from programas.services.padron import normalizar_dni
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +19,12 @@ class RelevamientoListSerializer(serializers.ModelSerializer):
     convocatoria_nombre = serializers.CharField(source="convocatoria.nombre", read_only=True)
     # Anotado en el queryset del viewset (evita un COUNT por ítem).
     formularios_count = serializers.IntegerField(read_only=True)
+    # Propiedades del modelo. Declaradas con su tipo porque `ModelSerializer` las
+    # resolvía como `ReadOnlyField` y el esquema las publicaba como `string`
+    # (RED-37): quien generara un cliente desde el esquema comparaba el cupo
+    # contra un texto. El valor que viaja es el mismo.
+    cupo_disponible = serializers.IntegerField(read_only=True)
+    cupo_completo = serializers.BooleanField(read_only=True)
     pausado = serializers.SerializerMethodField()
     pausa_motivo = serializers.SerializerMethodField()
 
@@ -43,10 +50,12 @@ class RelevamientoListSerializer(serializers.ModelSerializer):
             "pausa_motivo",
         ]
 
-    def get_pausado(self, obj):
+    # El hint de retorno no es decorativo: drf-spectacular lo lee para tipar el
+    # campo en el esquema (RED-37) y es el paso 3 de RED-76.
+    def get_pausado(self, obj) -> bool:
         return obj.pausa_efectiva is not None
 
-    def get_pausa_motivo(self, obj):
+    def get_pausa_motivo(self, obj) -> str:
         pausa = obj.pausa_efectiva
         return pausa.pausa_motivo if pausa else ""
 
@@ -57,7 +66,7 @@ class RelevamientoDetailSerializer(RelevamientoListSerializer):
     class Meta(RelevamientoListSerializer.Meta):
         fields = RelevamientoListSerializer.Meta.fields + ["definicion_formulario"]
 
-    def get_definicion_formulario(self, obj):
+    def get_definicion_formulario(self, obj) -> dict:
         return definicion_formulario(obj)
 
 
@@ -175,6 +184,46 @@ class FormularioSerializer(serializers.ModelSerializer):
             if valor_genero not in (Ciudadano.Genero.MASCULINO, Ciudadano.Genero.FEMENINO):
                 raise serializers.ValidationError({"apoderado_genero": "Seleccioná sexo F o M."})
         return attrs
+
+
+class ConsultaPersonaSerializer(serializers.Serializer):
+    """Cuerpo de ``POST /api/becas/personas/consultar/`` (y su alias RENAPER).
+
+    La vista validaba a mano y el esquema publicaba el POST sin ``requestBody``:
+    un cliente generado desde la documentación mandaba el cuerpo vacío (RED-37).
+
+    Las normalizaciones son las mismas que hacía la vista —DNI a dígitos, sexo
+    sin espacios y en mayúscula— para que no cambie qué entradas acepta la app
+    en producción.
+    """
+
+    SEXOS = (("F", "Femenino"), ("M", "Masculino"))
+
+    dni = serializers.CharField(help_text="DNI; se queda solo con los dígitos.")
+    sexo = serializers.ChoiceField(choices=SEXOS)
+    relevamiento = serializers.IntegerField(
+        required=False,
+        help_text="Relevamiento contra cuyo padrón identificar. Si no viene, se usan todos los vigentes.",
+    )
+
+    def to_internal_value(self, data):
+        crudo = data.dict() if hasattr(data, "dict") else dict(data)
+        crudo["dni"] = normalizar_dni(crudo.get("dni"))
+        crudo["sexo"] = str(crudo.get("sexo") or "").strip().upper()
+        # La app vieja no manda el relevamiento, y manda `""` o `null` cuando
+        # todavía no eligió uno: eso siempre significó "todos los vigentes".
+        if not crudo.get("relevamiento"):
+            crudo.pop("relevamiento", None)
+        return super().to_internal_value(crudo)
+
+
+class ConsultaPersonaRespuestaSerializer(serializers.Serializer):
+    """La respuesta 200 de la consulta de identidad (Cambio 57)."""
+
+    success = serializers.BooleanField()
+    origen = serializers.CharField(help_text="`padron`, `personas` o `manual`.")
+    data = serializers.DictField()
+    datos_api = serializers.DictField()
 
 
 # Adjuntos de la app de campo. El portal publico tiene su propia lista, mas
