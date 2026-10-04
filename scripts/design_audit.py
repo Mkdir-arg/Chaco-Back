@@ -213,7 +213,14 @@ def _clases_del_build() -> set[str] | None:
     limpias = set()
     # El CSS escapa lo que no es alfanumerico: `.xl\:top-6` es la clase
     # `xl:top-6`, y un hex seguido de espacio (coma, punto) es ese caracter.
-    for cruda in re.findall(r"\.((?:[-a-zA-Z0-9_]|\\.|\\[0-9a-f]{1,6} ?)+)", css):
+    #
+    # La rama del hex va PRIMERA: con `\\.` adelante, una coma escapada (`\2c `,
+    # lo que Tailwind emite dentro de un valor arbitrario) se consumía como
+    # `\2` + `c` y el nombre de la clase se cortaba en el espacio siguiente.
+    # `.xl\:grid-cols-\[minmax\(0\2c 1fr\)_auto\]` entraba al set como
+    # `xl:grid-cols-[minmax(0,` y la clase real quedaba marcada como «falta en el
+    # build» aunque estuviera ahí. Pasaba con toda utilidad arbitraria con coma.
+    for cruda in re.findall(r"\.((?:\\[0-9a-f]{1,6} ?|\\.|[-a-zA-Z0-9_])+)", css):
         sin_hex = re.sub(r"\\([0-9a-f]{1,6}) ?", lambda m: chr(int(m.group(1), 16)), cruda)
         limpias.add(sin_hex.replace("\\", ""))
     _CLASES_TW = limpias

@@ -75,7 +75,18 @@ urlpatterns = [
         views_contactos_api.subir_archivos_ciudadano,
         name="subir_archivos_ciudadano",
     ),
-    path("archivos/<int:archivo_id>/eliminar/", views_contactos_api.eliminar_archivo, name="eliminar_archivo"),
+    # El dueño va en la URL: `archivos/<id>/eliminar/` borraba cualquier adjunto
+    # del sistema por id, sin mirar de quién era (SEC-10, auditoría oct-2026).
+    path(
+        "ciudadanos/<int:ciudadano_id>/archivos/<int:archivo_id>/eliminar/",
+        views_contactos_api.eliminar_archivo_ciudadano,
+        name="eliminar_archivo_ciudadano",
+    ),
+    path(
+        "<uuid:legajo_id>/archivos/<int:archivo_id>/eliminar/",
+        views_contactos_api.eliminar_archivo_legajo,
+        name="eliminar_archivo_legajo",
+    ),
     path(
         "ciudadanos/<int:ciudadano_id>/alertas/",
         views_contactos_api.alertas_ciudadano_api,

@@ -201,43 +201,65 @@ class AlertasWebSocket {
         }, 10000);
     }
 
+    // El dropdown arranca con un spinner: cualquier camino que termine sin datos
+    // tiene que reemplazarlo, o la campana queda "Cargando alertas..." para siempre.
+    // Pasaba con un rebote por permisos (302 al inicio → 200 de HTML → `json()`
+    // revienta y el `catch` solo tocaba el contador).
+    mostrarMensajeEnPreview(mensaje, icono = 'fa-exclamation-triangle', color = 'text-gray-500') {
+        const preview = document.querySelector('#alertas-preview');
+        if (!preview) return;
+        preview.innerHTML = `
+            <div class="p-4 text-center ${color}">
+                <i class="fas ${icono} mb-2"></i>
+                <p>${escaparHtmlAlerta(mensaje)}</p>
+            </div>
+        `;
+    }
+
+    // `response.json()` sobre una respuesta que no es JSON —el HTML del inicio, una
+    // pantalla de error— tira un `SyntaxError` que no distingue de un fallo de red.
+    // Acá se mira antes el status y el content-type.
+    leerJson(response) {
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        const tipo = (response.headers && response.headers.get('content-type')) || '';
+        if (tipo && !tipo.includes('application/json')) {
+            throw new Error(`Respuesta no JSON (${tipo})`);
+        }
+        // Sin content-type no se adivina: si no es JSON, `json()` rechaza y el
+        // `.catch` de quien llama deja el mensaje en lugar del spinner.
+        return response.json();
+    }
+
     updateAlertasCounter() {
         // Actualizar contador de alertas en la UI
         const counter = document.querySelector('#alertas-counter');
         if (counter) {
             fetch('/legajos/alertas/count/')
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error(`HTTP ${response.status}`);
-                    }
-                    return response.json();
-                })
+                .then(response => this.leerJson(response))
                 .then(data => {
                     counter.textContent = data.count;
                     counter.classList.toggle('hidden', data.count === 0);
-                    
+
                     // Cargar preview de alertas
                     this.loadAlertasPreview();
                 })
                 .catch(error => {
                     console.error('Error actualizando contador de alertas:', error);
                     counter.classList.add('hidden');
+                    this.mostrarMensajeEnPreview('No se pudieron cargar las alertas');
                 });
         }
     }
-    
+
     loadAlertasPreview() {
         const preview = document.querySelector('#alertas-preview');
         if (!preview) return;
-        
+
         // Intentar primero el endpoint simple
         fetch('/legajos/alertas/preview/')
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
-                }
-                return response.json();
-            })
+            .then(response => this.leerJson(response))
             .then(data => {
                 const alertas = data.results || data;
                 if (alertas && alertas.length > 0) {
@@ -282,7 +304,7 @@ class AlertasWebSocket {
         
         // Usar endpoint de views_alertas como fallback
         fetch('/legajos/alertas/count/')
-            .then(response => response.json())
+            .then(response => this.leerJson(response))
             .then(data => {
                 if (data.count > 0) {
                     preview.innerHTML = `
@@ -345,8 +367,17 @@ class AlertasWebSocket {
 
 // Inicializar cuando el DOM esté listo
 document.addEventListener('DOMContentLoaded', () => {
+    // La campana del navbar es la única superficie de este script, y solo se
+    // renderiza para quien tiene `ciudadano.ver` (SEC-18): es la misma capacidad
+    // que piden `ws/alertas/`, el contador y el preview. Sin campana no hay nada
+    // que actualizar, así que no se abre el WebSocket ni se pide un endpoint que
+    // va a rebotar. El guard vive en el template, acá solo se lo respeta.
+    if (!document.querySelector('#alertas-counter')) {
+        return;
+    }
+
     window.alertasWS = new AlertasWebSocket();
-    
+
     // Cargar contador inicial
     setTimeout(() => {
         if (window.alertasWS) {

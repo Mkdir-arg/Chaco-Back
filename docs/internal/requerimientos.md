@@ -306,6 +306,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 123 | Caracterizar lo que la Ola 1 va a reescribir, y que Becas y SIIS fallen cerrados | Becas · comandos SIIS/RENAPER · revisión de casos · alcance RBAC de Becas · configuración de entorno | `#siis` `#rbac` `#infra` `#datos` | Auditoría integral oct-2026 — RED-32, RED-54, RED-47, RED-56, RED-61, RED-69 y RED-87 (Ola R, red de seguridad, PR R-06) | 04/10/2026 | 🟢 **Hecho** | No requiere |
 | 124 | Cupo y lista de espera: la guarda del cupo 0, el contrato de los candados y la posición | Becas · cupo y lista de espera · Portal (link público) · API de campo | `#cupos` `#api` `#mobile` `#datos` | Auditoría integral oct-2026 — RED-27, RED-67 y RED-68 (Ola R, red de seguridad, PR R-09) | 04/10/2026 | 🟢 **Hecho** | No requiere |
 | 125 | El CI ve la forma del SQL que le llega al motor de producción | Transversal · dashboards · link público · Dispositivos (reportes) | `#performance` `#infra` `#datos` `#relevamientos` | Auditoría integral oct-2026 — RED-07, RED-08 y RED-09 (Ola R, red de seguridad, PR R-10) | 04/10/2026 | 🟢 **Hecho** | No requiere |
+| 126 | Un usuario sin rol dejaba de ser inofensivo: borraba documentos del ciudadano y silenciaba alertas | Legajos (adjuntos, alertas, APIs del detalle) · Transversal (barrido del URLconf) · Usuarios (ABM de Roles) | `#rbac` `#api` `#ui` `#datos` | Auditoría integral oct-2026 — RED-89, SEC-10, SEC-18, SEC-11, RED-04 y RED-06 (Ola R, red de seguridad, PR R-19) | 04/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -16530,6 +16531,258 @@ No requiere. Son tests; no cambia ninguna conducta en ejecución.
 
 Revertir el commit saca los diez tests. No hay datos ni conducta que revertir: el sistema queda
 exactamente como está hoy, pero los tres bugs vuelven a poder reintroducirse sin que el CI se entere.
+
+## Historial
+
+No aplica: entrada nueva.
+
+---
+
+# Cambio 126 — Un usuario sin rol dejaba de ser inofensivo: borraba documentos del ciudadano y silenciaba alertas
+
+🟢 **HECHO — 04/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Legajos (adjuntos, alertas, APIs del detalle) · Transversal (barrido del URLconf) · Usuarios (ABM de Roles) |
+| **Etiquetas** | `#rbac` `#api` `#ui` `#datos` |
+| **Solicitante** | Auditoría integral oct-2026 — RED-89, SEC-10, SEC-18, SEC-11, RED-04 y RED-06 (Ola R «Red de seguridad», PR R-19) |
+| **Fecha del pedido** | 04/10/2026 |
+| **Issue / épica** | sin issue (plan de la auditoría, `docs/internal/auditoria-2026-10/README.md` §6) |
+| **Partes afectadas** | Backoffice (Legajos y ABM de Roles) |
+| **Migración** | No requiere |
+
+## Pedido original
+
+El revisor del PR R-05 dejó una pregunta sin responder: el barrido del URLconf que entró con el
+Cambio 122 mide qué contesta cada ruta **a un anónimo**, pero nadie preguntó qué contesta a un
+usuario de backoffice **autenticado y sin un solo rol** — el recién creado, el del programa
+equivocado, el que quedó sin capacidades después de un cambio de rol. Se midió el 04/10/2026 y la
+respuesta fue peor de lo esperado: **31 rutas** le contestan, y 17 de ellas son de Legajos.
+
+Lo más grave, reproducido: `DELETE /legajos/archivos/<id>/eliminar/` devolvía
+`200 {"success": true}` y **el documento del ciudadano dejaba de existir**. Sin papelera, sin
+auditoría, sin mirar de quién era el adjunto, para cualquier cuenta de backoffice —incluido un rol
+de Becas o de Dispositivos, que no tiene nada que ver con Legajos—. El archivo físico, además,
+quedaba huérfano en el volumen. Por eso SEC-10 pasó a CRÍTICA y este PR se adelantó al resto de la
+Ola R (decisión D-RED-14).
+
+## Alcance acordado
+
+**Entra:**
+
+1. El barrido que lo habría detectado: una tercera clase en el recorrido del URLconf que lo hace
+   con un usuario sin rol, con su allowlist literal y su ratchet (RED-89).
+2. Las 17 rutas de Legajos que el barrido encontró abiertas, cerradas con capacidad: las 5 de
+   adjuntos (SEC-10), las 7 de alertas más `AlertasViewSet.cerrar` (SEC-18 + R0b-06) y las 5 APIs
+   JSON del detalle (SEC-11).
+3. El borrado de adjuntos acotado al dueño y el archivo físico borrado también (SEC-10).
+4. Las escrituras del ABM de Roles ejercitadas por HTTP (RED-04) y el humo de las 37 rutas de
+   Legajos (RED-06).
+
+**Queda explícitamente afuera:**
+
+- **Subir `timeline`, `alertas_ciudadano` y `prediccion-riesgo` de `ciudadano.ver` a
+  `ciudadano.sensible`.** Es la segunda mitad de SEC-11 y depende de la decisión **D-11**, que
+  todavía no está tomada. Acá van con `ciudadano.ver` como **piso**: una capacidad que ya existe y
+  no necesita decisión, y que es lo que permite cerrar las 17 sin dejar tres abiertas esperando.
+  Subirlas después es una línea por vista.
+- **Las vistas que resuelven el objeto antes del guard** (`dar_baja_beneficiario_view` de Becas es
+  el molde): le contestan 404 al `pk` de juguete del barrido y 403 recién con un objeto real. Están
+  guardadas, pero en el orden equivocado; es trabajo de las fichas de esas vistas.
+- **Regenerar el CSS de Tailwind.** `ciudadano_detail.html` arrastra una violación `TWBUILD`
+  preexistente en su línea 143 (`xl:grid-cols-[minmax(0,1fr)_auto]`), de otro cambio y ajena a este.
+
+## Decisiones tomadas
+
+- **Las 4 rutas de Conversaciones van a la allowlist, no a la lista de bugs.** Contestan 200 pero
+  **vacío**: tienen el guard adentro de la vista (`usuario_tiene_permiso_conversaciones`), que
+  devuelve `{"count": 0}` y `{"results": []}` a quien no lo tiene. Ponerlas como pendientes
+  afirmaría que hay algo que arreglar, y no lo hay: es otra forma de escribir el mismo guard.
+- **`/inicio/` también va a la allowlist**, y a propósito: es el destino al que manda el propio
+  rebote por falta de permisos, así que si rebotara, rebotaría en bucle. Se verificó que su HTML
+  trae solo contadores agregados, ni el nombre ni el DNI de ningún ciudadano.
+- **El dueño del adjunto viaja en la URL.** `archivos/<id>/eliminar/` desaparece y la reemplazan
+  `ciudadanos/<id>/archivos/<id>/eliminar/` y `<uuid legajo>/archivos/<id>/eliminar/`. Un
+  `@requiere` suelto sobre la ruta vieja habría cerrado la puerta a quien no tiene capacidad, pero
+  **quien sí la tiene seguiría borrando el documento de cualquier ciudadano por id**. Con el dueño
+  en la URL, un adjunto ajeno simplemente no existe para la vista: 404.
+- **El archivo físico se borra con la fila.** `archivo.delete()` borra el registro y deja el blob:
+  el `FileField` de Django no tiene borrado en cascada. Va un `archivo.archivo.delete(save=False)`
+  explícito antes.
+- **Leer pide `ciudadano.ver`, escribir pide `ciudadano.editar`.** Listar adjuntos y abrir las APIs
+  del detalle es lectura; subir y borrar es escritura. Las alertas, incluido cerrarlas, quedan en
+  `ciudadano.ver` porque lo que las protege de verdad es el **alcance**, no la capacidad.
+- **Sin legajos propios, el alcance de alertas es vacío (D-18).** El fallback era
+  `Q(prioridad="CRITICA")`: le mostraba las alertas **críticas de todo el sistema** —con nombre del
+  ciudadano y texto de la alerta— justo a quien no tiene un solo legajo asignado, que es quien menos
+  motivo tiene para verlas. Se acepta que el badge le quede en 0. Las globales las sigue viendo
+  quien tiene `config.administrar`.
+- **Cerrar una alerta se resuelve dentro del alcance del usuario.** `cerrar_alerta` buscaba sobre
+  toda la tabla: con `n = 1..N` cualquier cuenta silenciaba las alertas del sistema entero. Ahora la
+  busca en `FiltrosUsuarioService.obtener_alertas_usuario(usuario)`, el mismo alcance con el que las
+  ve, y fuera de ahí devuelve `False`.
+- **El `pk` no numérico deja de dar 500.** `POST /api/legajos/alertas/x/cerrar/` era la **única**
+  ruta del URLconf que reventaba con este usuario: el `pk` crudo llegaba al servicio. Lo cierra el
+  `self.get_object()` que la ficha ya pedía, que además acota al alcance.
+- **Ningún error vuelve a publicar `str(exc)` con HTTP 200.** Las APIs de Legajos devolvían el texto
+  de la excepción —rutas, nombres de tabla— y el front lo mostraba como si fuera un mensaje de
+  negocio. Ahora: mensaje genérico, `logger.exception` con la traza y el status real (400 para los
+  errores de archivo, que sí son del usuario; 500 para lo inesperado).
+- **No hizo falta tocar el `CATALOGO` de `core/rbac.py`.** `ciudadano.ver` y `ciudadano.editar` ya
+  existen y el rol «Gestión de Ciudadanos» del seed las tiene tildadas las cinco del módulo, así que
+  quien hoy usa Legajos con su rol normal sigue entrando. Hay un test explícito para eso.
+
+## Implementación
+
+**El barrido (RED-89).** `core/tests/test_superficie_publica.py` suma `SuperficieSinRolTests`, que
+recorre el mismo URLconf que RED-02 y RED-30 pero con un `User` recién creado: sin grupos, sin
+`user_permissions`, sin `is_superuser`. Lo que no esté en `ALLOWLIST_SIN_ROL` tiene que rebotar —403
+(incluido el JSON del pedido AJAX), 426 o el redirect al inicio—. La allowlist son 31 entradas: las
+17 públicas que hereda de RED-02 («si un anónimo puede, un autenticado también») más 14 propias,
+cada una con su motivo en una línea. El ratchet falla en las dos direcciones. Un cuarto test afirma
+además que **ninguna ruta le da 5xx** a este usuario.
+
+**Adjuntos (SEC-10).** Listar pide `ciudadano.ver`; subir y borrar, `ciudadano.editar`. El borrado
+pasa por `eliminar_archivo_de_objeto(instance, archivo_id)`, que filtra por `content_type` +
+`object_id` del dueño de la URL, borra la fila y **agenda el archivo físico con
+`transaction.on_commit`**: el storage no participa de la transacción, así que borrar el blob primero
+y revertir después dejaría un adjunto apuntando a un archivo que ya no existe —el documento perdido
+igual—; al revés, lo peor que queda es un blob huérfano, recuperable. El botón de la tabla de
+archivos del detalle de ciudadano arma la URL según de dónde cuelgue el adjunto (del ciudadano o de
+uno de sus legajos) y manda `X-Requested-With`, para que un rebote por permisos llegue como JSON 403
+y no como el HTML del inicio. **La UI no ofrece lo que el guard va a negar:** «Subir archivo», su
+modal y la papelera de cada fila van dentro de `{% if request.user|puede:"ciudadano.editar" %}`.
+
+**La campana de alertas del navbar (SEC-18, lado UI).** El bloque entero —botón, contador,
+dropdown, los dos links al dashboard y el punto de estado del WebSocket— va dentro de
+`{% if request.user|puede:"ciudadano.ver" %}`, y `alertas_websocket.js` sale temprano si no
+encuentra `#alertas-counter`: no abre `ws/alertas/` ni pide endpoints que van a rebotar. Sin eso,
+a **todo usuario de Becas o de Dispositivos** le quedaba el dropdown en «Cargando alertas...» para
+siempre —el rebote devuelve el HTML del inicio y `response.json()` rompía— y los dos links iban a
+`/inicio/`. El JS, además, mira `response.ok` y el `content-type` antes de `json()` y deja un
+mensaje en lugar del spinner cuando algo falla.
+
+**Alertas (SEC-18 + R0b-06).** El dashboard, los dos contadores, el preview y las dos entradas de
+cierre piden `ciudadano.ver`; `AlertasViewSet` cambia `IsAuthenticated` por
+`RequiereCapacidad("ciudadano.ver")` y `cerrar` usa `self.get_object()`. El alcance deja de caer en
+el fallback de las CRÍTICAS globales.
+
+**APIs del detalle (SEC-11).** `actividades`, `evolucion`, `timeline`, `alertas` del ciudadano,
+`prediccion-riesgo` y el historial de contactos quedan con `@requiere("ciudadano.ver")`.
+
+**Red de seguridad (RED-04 y RED-06).** `RolesEscrituraHttpTests` ejercita por HTTP crear, eliminar
+y activar un rol —incluidos el admin de programa que no puede crear uno global, el último rol
+administrador que no se borra y el GET que da 405—. `PantallasDeLegajosAbrenTests` abre las 37 rutas
+de Legajos con datos reales y un usuario con todas las capacidades, y `AlertasDashboardTests` fija
+el 200 del dashboard para un operador de conversaciones (el `FieldError` del Cambio 66) y el
+contrato JSON de los tres endpoints AJAX.
+
+## Archivos
+
+`core/tests/test_superficie_publica.py`, `legajos/views/contactos_api.py`,
+`legajos/views/alertas.py`, `legajos/views/contactos_panel.py`, `legajos/views/mensajes.py` (nuevo),
+`legajos/api_views/__init__.py`, `legajos/services/contactos.py`, `legajos/services/alertas.py`,
+`legajos/services/filtros_usuario.py`, `legajos/services/__init__.py`, `legajos/urls/__init__.py`,
+`legajos/templates/legajos/ciudadano_detail.html`, `legajos/tests/test_adjuntos_rbac.py` (nuevo),
+`legajos/tests/test_alertas_rbac.py` (nuevo), `legajos/tests/test_contactos_api_rbac.py` (nuevo),
+`legajos/tests/test_humo_pantallas.py` (nuevo), `legajos/tests/test_alertas_dashboard.py` (nuevo),
+`users/tests/test_roles_abm.py`, `dashboard/tests/test_api_rbac.py`,
+`docs/internal/auditoria-2026-10/hallazgos/01-seguridad.md` y `08-red-de-seguridad.md`.
+
+De la ronda 2 de la revisión: `templates/includes/navbar.html`,
+`static/custom/js/alertas_websocket.js`, `core/tests/js_harness.py` y `scripts/design_audit.py`.
+
+## Base de datos
+
+No requiere migración. Tampoco hace falta re-tildar capacidades: `ciudadano.ver` y
+`ciudadano.editar` ya existen en el catálogo y en los roles del seed.
+
+## Validación
+
+Con Python 3.12 + Django 5.2.17 (`.venv312`, igual al CI):
+
+- `manage.py check` → sin issues. `makemigrations --check --dry-run` → «No changes detected».
+- `manage.py test` (la suite entera **en un solo proceso**, como el CI) → **2463 tests, OK**
+  (1 skip, 1 `expected failure` preexistente) con la ronda 2 incluida; 2457 en la ronda 1. Antes,
+  partida por apps:
+  `legajos users core conversaciones configuracion dashboard portal` → 904 OK; `programas` → 1551 OK.
+  **La corrida partida escondió un problema:** `alertas_count_ajax` cachea 30 s con la clave
+  `alertas_count:<user.id>`; la base se revierte entre tests pero la caché no, y los ids de usuario
+  se repiten de un `TestCase` a otro, así que en un solo proceso el contador llegaba con el valor
+  que había dejado otro test. Se arregló con `cache.clear()` en el `setUp` de los dos tests que lo
+  piden; en producción la clave por usuario es correcta.
+- `manage.py test --tag performance` → 4 tests, OK.
+- CI del PR #556: **los 12 checks en verde**.
+- `ruff check .` → All checks passed; `ruff format --check .` → 562 archivos formateados.
+- `scripts/compile_templates.py` → 199 compilados, 0 errores. `scripts/check_design_agent.py
+  --changed` → OK. `scripts/design_audit.py --changed` → **0 errores, 0 warnings** (el `TWBUILD` de
+  `ciudadano_detail.html:143` era un falso positivo del extractor de clases; ver *Pendientes*). La
+  corrida completa baja de 46 a 42 errores preexistentes por el mismo arreglo.
+- **Los tests fallan antes del cambio.** Verificado corriéndolos sobre `development` en un árbol
+  aparte: `test_la_ruta_sin_dueno_ya_no_existe` → 200 en vez de 404, y el adjunto ajeno **borrado**
+  con el archivo físico huérfano en disco; `test_sin_rol_no_cierra_una_alerta_ajena` → 200 en las
+  dos entradas; `test_sin_rol_ninguna_contesta` → 200 en las seis APIs;
+  `test_con_pk_no_numerico_da_404_y_no_revienta` → 500;
+  `test_un_usuario_sin_legajos_no_ve_las_criticas_del_sistema` → traía la alerta ajena.
+
+## Puesta en marcha en el servidor
+
+No requiere nada además del deploy. El PM debería confirmar que los usuarios que operan Legajos
+tienen `ciudadano.ver` (y `ciudadano.editar` quien sube o borra documentos): el rol «Gestión de
+Ciudadanos» del seed ya las trae, pero un rol armado a mano podría no tenerlas.
+
+## Pendientes / a definir
+
+- **SEC-11 queda 🟡.** Falta subir `timeline_ciudadano_api`, `alertas_ciudadano_api` y
+  `prediccion_riesgo_api` de `ciudadano.ver` a `ciudadano.sensible`, cuando se resuelva **D-11**
+  (Ola 2, PR 3, coordinado con G1c-04). Es una línea por vista.
+- **El inventario del agente de diseño (`.claude/agents/chaco-design-system.md`) no se actualizó.**
+  La fila «Shell backoffice» debería decir que la campana del navbar y `alertas_websocket.js` siguen
+  a `ciudadano.ver`, y la regla general: *una pieza del shell que consume un endpoint con `@requiere`
+  se condiciona con la misma capacidad*. No se escribió porque el entorno de esta sesión no tiene
+  permiso de escritura sobre `.claude/`. Por eso el gating del script quedó **adentro del propio
+  script** (sale temprano si no hay `#alertas-counter`) y no en `templates/includes/base.html`, que
+  es evidencia canónica y habría exigido tocar el inventario en el mismo diff. La solución es buena
+  igual —el script es el cliente de la campana—, pero la línea del inventario queda pendiente.
+- **`npm run build:tailwind` NO se corrió, a propósito.** El `TWBUILD` de `ciudadano_detail.html:143`
+  era un **falso positivo** del propio `design_audit.py`: la clase
+  `xl:grid-cols-[minmax(0,1fr)_auto]` **ya estaba** en el CSS committeado, pero el extractor de
+  clases se cortaba en el espacio del escape `\2c ` (la coma) y la leía como
+  `xl:grid-cols-[minmax(0,`. Se arregló el extractor (la rama del hex va primero en la alternancia).
+  Regenerar el CSS, además, **habría sido riesgoso**: la corrida borra 12 clases que hoy están en el
+  build (`cursor-not-allowed`, `opacity-75`, `scale-75`, `px-8`, `mt-12`…) y agrega 4, o sea que el
+  `tailwind.css` de `development` viene de otro estado del árbol. Rehacerlo es un cambio visual
+  transversal con su propio QA, no parte de un PR de seguridad.
+- **Las vistas con el guard después del lookup** (Becas, cupo y beneficiarios) le contestan 404 al
+  barrido y quedan fuera de su alcance. No son un agujero —el `PermissionDenied` existe— pero el
+  orden conviene darlo vuelta en la ficha que las toque.
+
+Lo que dejó a la vista la revisión del PR (anotado, **no arreglado acá**):
+
+- **La rama `config.administrar` de `filtros_usuario.py:20` quedó muerta para el rol «Configuración»
+  del seed.** Ese rol trae `config.ver` y `config.administrar`, pero **no** `ciudadano.ver`: el
+  alcance global de alertas sigue calculándose para él, y las cuatro vistas que lo usarían ahora lo
+  rebotan antes. O sea que «ver todas las alertas» hoy es, en los hechos, solo del superusuario y de
+  quien tenga las dos capacidades. **Decisión del PM:** o se le tilda `ciudadano.ver` al rol
+  «Configuración», o se acepta que el alcance global sea del superusuario y la rama se retira. No se
+  tocó porque las dos salidas cambian quién ve datos del ciudadano, y eso no es una decisión técnica.
+- **Oráculo de existencia en las rutas con el guard después del lookup.** El molde está en
+  `programas/views/cupo.py:147-156`: `get_object_or_404` primero, `PermissionDenied` después. A un
+  `pk` inexistente contesta 404 y a uno real 403, así que **la diferencia de respuesta dice si el
+  objeto existe** a quien no tiene permiso para verlo. El barrido de RED-89 mide `2xx` y no lo ve.
+  Va como **ficha nueva** del frente de seguridad, no como parte de este cambio.
+- **Las alertas de Conversaciones con `legajo=None`** (las que genera `generar_alerta_mensaje_ciudadano`)
+  quedan visibles solo para el superusuario y para quien tenga `config.administrar`: el alcance
+  cuelga del legajo y esas alertas no tienen. Es **coherente con D-18** —sin legajo propio no hay
+  alcance— pero conviene decirlo, porque el operador de conversaciones que las genera no las ve en
+  `/legajos/alertas/`. Conversaciones está fuera de uso, así que no bloquea.
+
+## Reversión
+
+Revertir el commit devuelve las capacidades, la ruta `archivos/<id>/eliminar/` y el fallback de las
+CRÍTICAS globales. No hay datos que migrar ni que perder. Lo que vuelve es el agujero: cualquier
+cuenta de backoffice borrando documentos del ciudadano sin dejar rastro.
 
 ## Historial
 

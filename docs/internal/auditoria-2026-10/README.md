@@ -18,6 +18,7 @@ columna «Avance» de la tabla índice de `hallazgos/08-red-de-seguridad.md` coi
 | #545 R-08 | 120 | RED-28, RED-29, RED-66 | ✅ ✅ ✅ | Particiones de estados con `subTest` sobre todo el enum |
 | #552 R-09 | 124 | RED-27, RED-67, RED-68 | ✅ ✅ ✅ | Cupo exacto 0, contrato de candados y posición en la lista de espera (default de **D-RED-11**) |
 | #550 R-10 | 125 | RED-07, RED-08, RED-09 | ✅ ✅ ✅ (R) | Motor y forma del SQL. De RED-09 falta la parte de la Ola 3 |
+| #556 R-19 | 126 | RED-89, SEC-10, SEC-18 (+R0b-06), SEC-11, RED-04, RED-06 | ✅ ✅ ✅ 🟡 ✅ ✅ | Barrido con usuario **sin rol** (`ALLOWLIST_SIN_ROL`, 31 entradas) y las 17 rutas de Legajos cerradas con capacidad: adjuntos acotados al dueño con el blob borrado en `on_commit`, alertas con alcance real y `self.get_object()`. **SEC-11 queda 🟡** hasta que D-11 suba 3 vistas a `ciudadano.sensible` (Ola 2). Operativo: decidir si el rol «Configuración» lleva `ciudadano.ver` (la rama `config.administrar` del alcance de alertas quedó muerta sin ella) |
 
 **Avance del frente 08 (89 fichas, con RED-89 nueva).**
 
@@ -852,7 +853,7 @@ funcional ni coordinación con ECOM). Las horas de cada ola suman los esfuerzos 
 | Ola | Objetivo | Ítems | Horas | Ítems al 03-oct | Horas al 03-oct | Ítems al 04-oct (con Red de seguridad) | Horas al 04-oct |
 |---|---|---:|---:|---:|---:|---:|---:|
 | 0 | Hotfix de seguridad y seeds | 16 | 36 | 0 (completa en código; lo operativo, en «Estado») | 0 | 0 | 0 |
-| **R** | **Red de seguridad: poder cambiar código sin romper nada sin enterarse** | — | — | — | — | **86** (79 RED con parte en R —78 del relevamiento + RED-89— + OPS-01, OPS-03, OPS-04, TST-01, TST-02, TST-03, R0-03; SEC-10, SEC-11 y SEC-18 se ejecutan en R-19 pero **siguen contadas como ítems de la Ola 2**, solo se mueven sus horas) | **285** · **86 cerradas el 04-oct (R-01..R-10) → 199 restantes** |
+| **R** | **Red de seguridad: poder cambiar código sin romper nada sin enterarse** | — | — | — | — | **86** (79 RED con parte en R —78 del relevamiento + RED-89— + OPS-01, OPS-03, OPS-04, TST-01, TST-02, TST-03, R0-03; SEC-10, SEC-11 y SEC-18 se ejecutan en R-19 pero **siguen contadas como ítems de la Ola 2**, solo se mueven sus horas) | **285** · **107 cerradas el 04-oct (R-01..R-10 y R-19) → 178 restantes** |
 | 1 | Integridad SIIS | 23 | 72 | 22 (− SIIS-07) | 70 | 23 (+ RED-53; + parte de RED-32) | 78 |
 | 2 | Autorización (RBAC, legajos, alcance de Becas, usuarios) | 36 | 116 | 50 (+ fase 2 de OPS-06, R0-05, resto de SEC-01, etapa 2 de SEC-09, R0b-01..10) | 136 | 51 (+ RED-80; + partes de RED-52, RED-79) | 135 (−7: SEC-10, SEC-18 y media SEC-11 se hacen en R-19, D-RED-14) |
 | 3 | Datos, operación, CI, app de campo y reglas de Becas | 55 | 158 | 59 (+ R0-03, R0-04, R0-06, R0-07) | 166 | 54 (− 7 a la Ola R; + RED-48, RED-58; + partes de RED-09, 35, 40, 50) | 152 |
@@ -861,7 +862,7 @@ funcional ni coordinación con ECOM). Las horas de cada ola suman los esfuerzos 
 | 6 | Agente de diseño | 4 (+8 pasos) | 42 | 4 (+8 pasos) | 42 | 4 (+8 pasos) | 42 |
 | 7 | Deuda | 9 (+ fase 2 de G1-01) | 46 | 10 (+ fase 2 de G1-01; + R0-02) | 48 | 13 (+ RED-64, 76, 86; + partes de RED-13, 37, 39, 54, 78, 85) | 88 |
 | v2 | Criterios de aceptación de la v2 (§7), no se implementan en v1 | 13 | — | 13 | — | 13 | — |
-| **Total** | | **206** | **636** | **208** | **628** | **297** | **972** · **86 cerradas → 886 restantes** |
+| **Total** | | **206** | **636** | **208** | **628** | **297** | **972** · **107 cerradas → 865 restantes** |
 
 Cada ficha RED cuenta como ítem una sola vez, en la primera ola donde tiene trabajo (por eso la columna suma 297 = 208 +
 89); si tiene una segunda parte en otra ola, esas horas se suman en esa ola («+ partes de …»).
@@ -953,14 +954,15 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
 
 ### Ola R — Red de seguridad
 - **✅ Mínimo completo al 04-oct-2026:** los PRs **R-01 a R-10** (86 h) están mergeados en `development` (#547, #549,
-  #554, #546, #553, #551, #548, #545, #552 y #550; Cambios 116-125). Quedan **199 h**: R-11 a R-21, más la ficha nueva
-  **RED-89** que salió de la revisión de R-05 y entra en R-19. Tabla PR → fichas → estado y pendientes operativos:
-  «Estado al 04-oct-2026», arriba.
-- **🔴 El que sigue es R-19, no R-11.** El barrido del 04-oct midió que un usuario sin rol hace **hard delete** de
-  cualquier adjunto del ciudadano: eso subió **SEC-10** a CRÍTICA, y **RED-89** es CRÍTICA por lo suyo —que ningún test
-  recorre el URLconf con un usuario sin rol, así que volvería a pasar sin que nadie se entere—. R-19 es el PR que cierra
-  las dos cosas (más SEC-18 y SEC-11, adelantadas por D-RED-14), así que el orden de abajo —pensado por dependencias—
-  se altera en un punto: **R-19 va primero**. R-11 a R-16 mantienen su lugar relativo, antes de la Ola 3.
+  #554, #546, #553, #551, #548, #545, #552 y #550; Cambios 116-125). Tabla PR → fichas → estado y pendientes
+  operativos: «Estado al 04-oct-2026», arriba.
+- **✅ R-19 cerrado el 04-oct-2026 (#556, Cambio 126), 21 h.** Era el urgente: el barrido midió que un usuario sin rol
+  hacía **hard delete** de cualquier adjunto del ciudadano —eso subió **SEC-10** a CRÍTICA— y **RED-89** era CRÍTICA
+  por lo suyo, que ningún test recorría el URLconf con un usuario sin rol. Las dos cerradas, más SEC-18 y SEC-11
+  (adelantadas por D-RED-14), RED-04 y RED-06. **SEC-11 queda 🟡** hasta que D-11 suba tres vistas a
+  `ciudadano.sensible` en la Ola 2.
+- **Quedan 178 h:** R-11 a R-21 menos R-19. El orden vuelve a ser el de dependencias: **R-11 a R-16 antes de la
+  Ola 3**, R-21 antes de la Ola 2.
 - **Objetivo:** poder cambiar código sin romper nada sin enterarse. Que todo lo que las Olas 1 a 7 van a tocar tenga antes
   un test que se ponga rojo si se rompe, que el CI pruebe el motor de producción (MariaDB) y las migraciones en las dos
   direcciones, que ningún gate dependa de la buena voluntad (protección de rama, release que exige CI verde, verificación
@@ -990,14 +992,14 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
 | R-16 | **Becas: adjuntos, borrados, atomicidad, padrón:** RED-05, RED-31, RED-35, RED-77, RED-49, RED-50, RED-81, RED-70 | 22 | Ola 3 (DAT-01, BEC-*), SEC-20 |
 | R-17 | **Definición y condiciones (dos repos):** RED-12, RED-38 | 16 | cualquier cambio del constructor |
 | R-18 | **Contratos del backoffice y job `Contratos de API`:** RED-42, RED-39, RED-40, RED-41 (D-RED-04), RED-43, RED-44 | 18 | Ola 2 (capacidades), Ola 5 |
-| **R-19** (🔴 **primero de lo que queda**) | **Legajos y Roles por HTTP:** **RED-89** (CRÍTICA: barrido con usuario sin rol + `ALLOWLIST_SIN_ROL` medida + ratchet, 4 h) y, adelantadas de la Ola 2 por **D-RED-14**, **SEC-10 completa** (CRÍTICA, 4 h: el hard delete de adjuntos), **SEC-18 completa** (+ R0b-06, 2 h: alertas y el `self.get_object()` que mata el 500) y **SEC-11 con `ciudadano.ver` de piso en sus 5 rutas** (1 h: así salen los 17 `expectedFailure` y ninguna queda abierta; la Ola 2 sube 3 a `ciudadano.sensible` con D-11); más RED-06 (humo de 36 rutas + alertas) y RED-04 (escrituras del ABM de roles) | 21 | Ola 2 |
+| ✅ R-19 | **Legajos y Roles por HTTP:** **RED-89** (CRÍTICA: barrido con usuario sin rol + `ALLOWLIST_SIN_ROL` medida + ratchet, 4 h) y, adelantadas de la Ola 2 por **D-RED-14**, **SEC-10 completa** (CRÍTICA, 4 h: el hard delete de adjuntos), **SEC-18 completa** (+ R0b-06, 2 h: alertas y el `self.get_object()` que mata el 500) y **SEC-11 con `ciudadano.ver` de piso en sus 5 rutas** (1 h: así salen los 17 `expectedFailure` y ninguna queda abierta; la Ola 2 sube 3 a `ciudadano.sensible` con D-11); más RED-06 (humo de 37 rutas + alertas) y RED-04 (escrituras del ABM de roles) — **#556, Cambio 126** | 21 | Ola 2 |
 | R-20 | **Cobertura y regresión** (desde la Ola 3): TST-02 (+generar_alertas y wizard), TST-03 (+gate por módulo), R0-03 (**antes del 31-dic-2026**), RED-34, RED-74, RED-72, RED-88 | 24 | — |
 | R-21 | **Arquitectura y dependencias ocultas (ratchets):** RED-46, RED-79, RED-13, RED-45, RED-52, RED-51, RED-78, RED-82 | 18 | Ola 2 (SEC-21), Ola 7 (G1-01 fase 2, OPS-10) |
 | | **Total Ola R** | **285** | |
 
 - **Mínimo antes de la Ola 1: ✅ hecho el 04-oct-2026.** R-01 a R-10 (86 h) están mergeados en `development` (detalle,
-  estado por ficha y lo que quedó operativo en «Estado al 04-oct-2026», arriba). **Quedan 199 h de la Ola R** (las 192
-  que faltaban más las 7 que se mudaron del PR 3 de la Ola 2 por D-RED-14)**:** R-11 a R-16 antes de la Ola 3; R-19 y
+  estado por ficha y lo que quedó operativo en «Estado al 04-oct-2026», arriba). **R-19 también está cerrado**
+  (#556, Cambio 126, 21 h): era el urgente de la ola. **Quedan 178 h de la Ola R:** R-11 a R-16 antes de la Ola 3;
   R-21 antes de la Ola 2. El resto puede ir en paralelo con otro implementador.
 - **Hecho cuando (verificable):**
   1. `gh api repos/Mkdir-arg/Chaco-Back/rulesets` lista los rulesets de `development` y `main`; un push directo a

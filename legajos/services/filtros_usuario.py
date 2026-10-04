@@ -30,7 +30,14 @@ class FiltrosUsuarioService:
             filtros |= Q(legajo_id__in=get_legajo_ids_for_programas(programas_usuario))
 
         if not filtros:
-            filtros = Q(prioridad="CRITICA")
+            # Sin legajos propios no hay alcance, y sin alcance no hay alertas.
+            # El fallback anterior era `Q(prioridad="CRITICA")`: le mostraba las
+            # alertas **críticas de todo el sistema** —con nombre del ciudadano y
+            # texto de la alerta— justo a quien no tiene ningún legajo asignado,
+            # que es el usuario con menos motivo para verlas (SEC-18, auditoría
+            # oct-2026). Las globales las ve quien tiene `config.administrar`,
+            # resuelto arriba. Default D-18: se acepta que el badge quede en 0.
+            return AlertaCiudadano.objects.none()
 
         return AlertaCiudadano.objects.filter(filtros, activa=True)
 

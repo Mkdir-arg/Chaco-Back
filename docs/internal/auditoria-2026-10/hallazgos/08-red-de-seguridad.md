@@ -16,9 +16,10 @@ duplicados de fichas existentes se agregaron a esas fichas con la línea «Ampli
 
 **Conteo:** 2 CRÍTICA · 28 ALTA · 41 MEDIA · 18 BAJA = **89 fichas** (las 88 del relevamiento del 03/04-oct más
 **RED-89**, que salió de la revisión del PR R-05, se midió el 04-oct y es la **segunda CRÍTICA** del frente). Avance al
-cierre de la **Ola R mínima** (PRs R-01 a R-10, mergeados el 04-oct): **30 ✅ · 3 🟡 · 56 ⬜**; por severidad (✅/🟡/⬜),
-CRÍTICA 0/1/1, ALTA 12/2/14, MEDIA 14/0/27, BAJA 4/0/14. Los tres 🟡 son RED-01 y RED-20 (el código está, falta el paso
-del dueño del repo) y RED-10 (falta el gemelo del link público). Además amplían fichas existentes:
+cierre de la **Ola R mínima** (PRs R-01 a R-10) **más R-19** (#556, Cambio 126), todos mergeados el 04-oct:
+**33 ✅ · 3 🟡 · 53 ⬜**; por severidad (✅/🟡/⬜), CRÍTICA 1/1/0, ALTA 14/2/12, MEDIA 14/0/27, BAJA 4/0/14. Los tres 🟡
+son RED-01 y RED-20 (el código está, falta el paso del dueño del repo) y RED-10 (falta el gemelo del link público).
+R-19 cerró RED-89, RED-04 y RED-06. Además amplían fichas existentes:
 TST-01, TST-02, TST-03, OPS-01, OPS-03, OPS-04, OPS-07, OPS-14 y R0-03 (`05-…`), V5A-NEW-01 y FE-13 (`07-…`), LEG-03
 y LEG-06 (`03-…`) y G1-01 (`01-…`). OPS-01, OPS-03, OPS-04, TST-01, TST-02, TST-03 y R0-03 pasan de la Ola 3 a la Ola R.
 
@@ -42,9 +43,9 @@ con lo que existe hoy; la lista solo baja.
 | RED-01 | Datos personales reales (10.321 personas) en un repo público, en el release y en la imagen de PRD | CRÍTICA | CONF. lectura (API + git) | R (hotfix) | M | 🟡 (falta el PM) |
 | RED-02 | Ningún test recorre el URLconf: una ruta que vuelva a quedar abierta pasa el CI | ALTA | CONF. test (barrido) | R | S | ✅ |
 | RED-03 | App de campo: pausa probada en 1 de 6 endpoints, período en 3, ramas de error en ninguna | ALTA | CONF. test (coverage) | R | S-M | ✅ |
-| RED-04 | Crear, eliminar y activar un rol no se ejecutan por HTTP en ningún test | ALTA | CONF. test (coverage) | R | S-M | ⬜ |
+| RED-04 | Crear, eliminar y activar un rol no se ejecutan por HTTP en ningún test | ALTA | CONF. test (coverage) | R | S-M | ✅ |
 | RED-05 | Ningún test sigue un adjunto desde el canal que lo sube hasta la revisión | ALTA | CONF. lectura | R (+3 con DAT-01) | M | ⬜ |
-| RED-06 | Legajos: 23 de 36 rutas sin test; `/legajos/alertas/` ya dio 500 y sigue sin test | ALTA | CONF. test (coverage) | R (+2) | S-M + S | ⬜ |
+| RED-06 | Legajos: 23 de 36 rutas sin test; `/legajos/alertas/` ya dio 500 y sigue sin test | ALTA | CONF. test (coverage) | R (+2) | S-M + S | ✅ |
 | RED-07 | Nada impide volver a poner `Trunc*`/`__date` sobre un `DateTimeField` (CONVERT_TZ, 500 en PRD) | ALTA | CONF. test (SQL compilado) | R | S-M | ✅ |
 | RED-08 | Los tests del 500 del link público cuentan consultas, no la forma del `WHERE` | ALTA | CONF. test (SQL compilado) | R | S | ✅ |
 | RED-09 | Un `UUIDField` nuevo sin `char(36)` pasa el CI; el único test de UUID se saltea siempre | ALTA | CONF. test | R (+3) | S-M (+S) | ✅ (R; falta Ola 3) |
@@ -127,7 +128,7 @@ con lo que existe hoy; la lista solo baja.
 | RED-86 | Job de tests con timeout de 15 min, sin `--parallel` ni alarma de crecimiento | BAJA | CONF. test (`gh run list`) | 7 | S | ⬜ |
 | RED-87 | El largo mínimo del barrio del payload SIIS no se prueba en su borde | BAJA | CONF. test (mutación M33) | R | S | ✅ |
 | RED-88 | `manage.py test core users portal --parallel` revienta con `cannot pickle 'traceback'` | BAJA | CONF. test | R | S | ⬜ |
-| RED-89 | Ningún test recorre el URLconf con un usuario **sin rol**: 200 en 31 rutas, y 17 de Legajos dejan borrar adjuntos y cerrar alertas ajenas (SEC-10, SEC-18, SEC-11) | CRÍTICA | CONF. test (barrido 04-oct) | R (**primero**) | S-M | ⬜ |
+| RED-89 | Ningún test recorre el URLconf con un usuario **sin rol**: 200 en 31 rutas, y 17 de Legajos dejan borrar adjuntos y cerrar alertas ajenas (SEC-10, SEC-18, SEC-11) | CRÍTICA | CONF. test (barrido 04-oct) | R (**primero**) | S-M | ✅ |
 
 «Ola» con paréntesis = la ficha tiene una segunda parte en esa ola (detalle en la ficha y en README §6). Horas: S = 2,
 S-M = 4, M = 8, L = 20 (README §6).
@@ -249,6 +250,16 @@ y `::PeriodoEnTodosLosEndpointsTests.test_fuera_del_periodo_se_rechaza_y_no_escr
   cualquier PR de la Ola 2.
 - **Verificación:** `& $env:PY manage.py test users.tests.test_roles_abm`.
 
+**Resolución:** ✅ Resuelto en #556 (Cambio 126, PR R-19), 04-oct-2026 — `RolesEscrituraHttpTests` ejercita las cuatro
+escrituras por HTTP: los siete tests de la propuesta más `test_sin_capacidad_de_roles_no_entra_a_ninguna_escritura`
+(un usuario sin rol no crea ni elimina). Los ocho pasan **también sobre `development`**, que es lo esperado: RED-04 es
+un hueco de cobertura, no un bug — lo que se arregla es que el día que `RolCreateView.post` deje de pasar `operador` a
+`RolForm`, o que alguien saque el `try/except SinAdministradorError` de `RolDeleteView`, el CI lo diga. **Dónde la
+ficha no coincidía con el código:** la propuesta decía «el `Group` no se crea **o** nace sin esa capacidad»; el
+comportamiento real es el primero, y más estricto — el form del admin de programa recorta `categoria` a `Programa` y
+las capacidades a los módulos de alcance, así que el POST vuelve al form con errores y no se crea nada.
+**Test permanente:** `users.tests.test_roles_abm.RolesEscrituraHttpTests`.
+
 ### RED-05 · Ningún test sigue un adjunto desde el canal que lo sube hasta la revisión
 **Severidad:** ALTA · **Estado:** CONFIRMADO (lectura; VR1 verificó el seam) · **Origen:** RS-R1-04 (VR1: CONFIRMADO) · **Ola:** R (el tercer test, con DAT-01 en la Ola 3) · **Esfuerzo:** M (8 h)
 - **Ubicación:** escritura en `programas/services/inscripcion_publica.py:194-208` (link) y `programas/api/views.py:487-490`
@@ -297,6 +308,21 @@ y `::PeriodoEnTodosLosEndpointsTests.test_fuera_del_periodo_se_rechaza_y_no_escr
   3. Capa 2 (Ola 2, en las fichas SEC-10/11/12/18): adjunto ajeno sin capacidad → 403; `.html` rechazado; `GET
      derivar_programa` no crea la derivación.
 - **Verificación:** `& $env:PY manage.py test legajos`.
+
+**Resolución:** ✅ Resuelto en #556 (Cambio 126, PR R-19), 04-oct-2026 — los dos puntos de la capa 1, y la capa 2 se
+adelantó al mismo PR por D-RED-14 (SEC-10, SEC-11 y SEC-18). `PantallasDeLegajosAbrenTests` abre las **37** rutas con
+un usuario con todas las capacidades y datos reales (ciudadano, legajo, derivación, adjunto, alerta) y falla ante
+cualquier `>= 500`; `test_el_mapa_cubre_todas_las_rutas_de_legajos` cruza el mapa literal contra
+`legajos.urls.urlpatterns`, así que una ruta nueva sin humo pone el test en rojo con su nombre.
+`AlertasDashboardTests` cubre el 200 para un operador de conversaciones (el `FieldError` del Cambio 66, que vuelve a
+romperlo si alguien reintroduce el `select_related` inválido), el 200 sin `conversacion.operar` y el contrato JSON de
+`count`, `preview` y `cerrar-ajax`. **Dónde la ficha no coincidía con el código:** son **37** rutas, no 36 — SEC-10
+partió `eliminar_archivo` en dos (una por dueño) en este mismo PR. Y el test del operador de conversaciones ahora
+necesita además `ciudadano.ver`: SEC-18 le puso esa capacidad al dashboard, así que un rol de conversaciones puro ya
+no entra (ver «Riesgos» del PR). De paso, `alertas_preview_ajax` dejó de devolver `str(e)` con HTTP 200 —el motivo por
+el que el `FieldError` vivió meses sin verse desde afuera—: ahora loguea la traza y contesta 500.
+**Test permanente:** `legajos.tests.test_humo_pantallas.PantallasDeLegajosAbrenTests.test_ninguna_pantalla_de_legajos_revienta`
+y `legajos.tests.test_alertas_dashboard.AlertasDashboardTests`.
 
 ### RED-30 · Sin test de humo por pantalla: nada afirma «ninguna ruta da 500»
 **Severidad:** MEDIA · **Estado:** CONFIRMADO con test (barrido con superusuario: 305 rutas, 3 con `>= 500`) · **Origen:** RS-R1-06 parte propia (VR1: la parte de Spectacular es RED-36) · **Ola:** R · **Esfuerzo:** S (2 h)
@@ -539,6 +565,45 @@ verdad (contador de errores seguidos, `--max-errores`) y `test_un_caso_que_falla
   de la allowlist bajado en el mismo commit. Mutaciones de control:
   sacarle el `@requiere` a `alertas_preview_ajax` tiene que poner el barrido en rojo, y el borrado tiene su propio test
   de regresión (`legajos/tests/`: un usuario sin rol hace `DELETE` sobre un `Adjunto` ajeno → rebota y el adjunto sigue).
+
+**Resolución:** ✅ Resuelto en #556 (Cambio 126, PR R-19), 04-oct-2026 — `SuperficieSinRolTests` recorre el mismo
+`rutas_concretas()` de RED-02 con un `User` recién creado (sin grupos, sin `user_permissions`, sin `is_superuser`).
+`ALLOWLIST_SIN_ROL` quedó en **31 entradas**: las 17 de `ALLOWLIST_PUBLICA`, que hereda («si un anónimo puede, un
+autenticado también»), más **14 propias** —3 api-root de DRF, `/api/core/{dias,localidades}/`, los 3 `ajax/load-*`,
+`/configuracion/programas/`, `/inicio/` y las **4 de Conversaciones** con el motivo literal acordado—. **Los 17
+`expectedFailure` no llegaron a escribirse: las 17 rutas se cerraron en el mismo PR** (SEC-10, SEC-11, SEC-18), así que
+el barrido nació en verde con las 17 rebotando. Hay un cuarto test, `test_ninguna_ruta_revienta_con_un_usuario_sin_rol`,
+que mata el **500** de `POST /api/legajos/alertas/x/cerrar/`. **Dónde la ficha no coincidía con el código:** el contrato
+de «rebotar» de RED-02 (`404` y `405` **no** rebotan) no se podía trasladar tal cual. Con él, el barrido lista ~24 rutas
+más —Becas/cupo, el wizard de `configuracion`, `marcar_leidos`— que **sí** tienen guard pero resuelven el objeto antes
+(`dar_baja_beneficiario_view`: `get_object_or_404` y después `PermissionDenied`), así que contestan 404 al `pk` de
+juguete. Cerrarlas es reordenar vistas de otras fichas y el barrido mediría lo mismo antes y después. Por eso
+`SuperficieSinRolTests` mide **qué le llega al usuario** (`2xx`), que es exactamente lo que reporta la evidencia de esta
+ficha —31 rutas— y deja el 404/405 anotado como límite explícito en el docstring; `SuperficieAnonimaTests` sostiene la
+regla estricta. Mutación de control: la medición inicial del 04-oct, con las 17 todavía abiertas, listó
+`alertas_preview_ajax` entre las 31 — el barrido ve exactamente lo que tiene que ver. **Test permanente:**
+`core.tests.test_superficie_publica.SuperficieSinRolTests.test_ninguna_ruta_privada_responde_a_un_usuario_sin_rol`.
+
+**Queda anotado, sin arreglar (revisión del PR #556, 04-oct-2026):**
+
+- **Lo que este barrido estructuralmente no puede ver: el oráculo de existencia.** Una vista que
+  resuelve el objeto antes del guard —molde en `programas/views/cupo.py:147-156`,
+  `get_object_or_404` y después `PermissionDenied`— contesta **404 al `pk` inexistente y 403 al
+  real**. La diferencia le dice a quien no tiene permiso si el objeto existe, y el barrido, que mide
+  `2xx`, nunca la va a detectar (tampoco la vería el contrato estricto de RED-02: los dos casos son
+  «no 2xx»). Es un hallazgo **de otra naturaleza** —fuga por canal lateral, no superficie abierta— y
+  necesita su **ficha nueva** en el frente de seguridad, con su propio test: mismo endpoint, `pk`
+  inexistente vs. `pk` real, el mismo usuario sin capacidad, y las dos respuestas iguales.
+- **La rama `config.administrar` de `legajos/services/filtros_usuario.py:20` quedó muerta para el
+  rol «Configuración» del seed**, que trae `config.ver` y `config.administrar` pero **no**
+  `ciudadano.ver`: el alcance global se le sigue calculando y las vistas que lo usarían lo rebotan
+  antes. En los hechos, «ver todas las alertas» pasó a ser del superusuario. **Decisión del PM:**
+  tildarle `ciudadano.ver` a ese rol, o aceptarlo y retirar la rama. No se resolvió acá porque las
+  dos salidas cambian quién ve datos del ciudadano.
+- **Las alertas de Conversaciones nacen con `legajo=None`** (`generar_alerta_mensaje_ciudadano`), y
+  el alcance cuelga del legajo: solo las ven el superusuario y `config.administrar`. Es **coherente
+  con D-18** —sin legajo propio no hay alcance—, pero vale decirlo: el operador que las genera no
+  las encuentra en `/legajos/alertas/`. Conversaciones está fuera de uso, así que no bloquea.
 
 ## (b) Regresión de bugs pasados
 

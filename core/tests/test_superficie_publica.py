@@ -11,8 +11,13 @@ Dos reglas que hasta ahora no estaban escritas en ningún lado ejecutable:
   test. Un `{% load %}` que falta, un template renombrado o un `select_related`
   sobre una relación que ya no existe dejan una pantalla rota sin que la suite
   diga nada.
+- **RED-89** — ninguna ruta privada le contesta a un usuario de backoffice **sin
+  ningún rol**: el recién creado, el del programa equivocado, el que quedó sin
+  capacidades después de un cambio de rol. Es la pregunta que RED-02 no hace
+  (su cliente es anónimo) y la que midió, el 04-oct-2026, que cualquier cuenta
+  de backoffice borraba adjuntos de cualquier ciudadano.
 
-El recorrido es el mismo para las dos: `get_resolver()` recursivo, cada patrón
+El recorrido es el mismo para las tres: `get_resolver()` recursivo, cada patrón
 concretado con valores de juguete y descartado si no vuelve a resolver. El número
 de rutas depende de cómo se concreten los `re_path`, así que no se copia de
 ningún informe: lo mide este archivo.
@@ -297,3 +302,146 @@ class NingunaPantallaDa500Tests(TestCase):
                 sanas.append(url)
 
         self.assertEqual(sanas, [], f"Ya no dan 500: {sanas}. Sacarlas de EXCEPCIONES_HUMO.")
+
+
+# --------------------------------------------------------------------------- #
+# RED-89 — qué contesta cada ruta a un usuario de backoffice SIN NINGÚN ROL
+# --------------------------------------------------------------------------- #
+
+#: Rutas que un autenticado **sin una sola capacidad** puede pedir, más allá de
+#: las públicas. Mismo criterio que `ALLOWLIST_PUBLICA`: literal, con un motivo
+#: por entrada, y con el ratchet de abajo para que sumar una sea deliberado.
+#:
+#: RED-02 contestó «¿qué ve un anónimo?»; nadie había preguntado «¿qué ve el
+#: usuario recién creado, el del programa equivocado, el que quedó sin
+#: capacidades después de un cambio de rol?». El barrido del 04-oct-2026 midió
+#: **31 rutas** abiertas a ese usuario, 17 de ellas de Legajos: borraba adjuntos
+#: ajenos (hard delete) y cerraba alertas de cualquiera. Esas 17 son las que
+#: cerró este mismo PR (SEC-10, SEC-11, SEC-18); las de acá son las que quedan
+#: por diseño.
+EXTRAS_SIN_ROL = {
+    # Índices de endpoints de DRF: listan nombres de rutas, ningún dato.
+    "/api/core/": "api-root de DRF: índice de endpoints, sin datos de personas.",
+    "/api/legajos/": "api-root de DRF: índice de endpoints, sin datos de personas.",
+    "/api/becas/": "api-root de DRF: índice de endpoints, sin datos de personas.",
+    # Catálogos institucionales y geográficos: los pueblan los formularios del
+    # backoffice, no contienen datos de personas.
+    "/api/core/dias/": "Catálogo de días de la semana.",
+    "/api/core/localidades/": "Catálogo geográfico de localidades.",
+    "/ajax/load-localidades/": "Catálogo geográfico encadenado de los formularios.",
+    "/ajax/load-municipios/": "Catálogo geográfico encadenado de los formularios.",
+    "/ajax/load-subsecretarias/": "Catálogo institucional encadenado de los formularios.",
+    "/configuracion/programas/": "Catálogo institucional de programas (nombres y estado).",
+    # `/inicio/` es el destino al que manda `_respuesta_sin_permiso`: si rebotara,
+    # rebotaría en bucle. Se verificó que su HTML trae solo contadores agregados,
+    # ni el nombre ni el DNI de ningún ciudadano (RED-89, 04-oct-2026).
+    "/inicio/": "Destino del propio rebote; solo contadores agregados, verificado.",
+    # Las cuatro de Conversaciones contestan 200 pero **vacío**: el guard está
+    # adentro de la vista (`usuario_tiene_permiso_conversaciones`), que devuelve
+    # `{"count": 0}` y `{"results": []}` a quien no lo tiene. No exponen nada, así
+    # que no son un bug que arreglar: son una forma distinta de escribir el guard.
+    "/api/conversaciones/alertas/count/": (
+        "responde vacío, el guard está adentro de la vista (`usuario_tiene_permiso_conversaciones`)"
+    ),
+    "/api/conversaciones/alertas/preview/": (
+        "responde vacío, el guard está adentro de la vista (`usuario_tiene_permiso_conversaciones`)"
+    ),
+    "/conversaciones/api/alertas/count/": (
+        "responde vacío, el guard está adentro de la vista (`usuario_tiene_permiso_conversaciones`)"
+    ),
+    "/conversaciones/api/alertas/preview/": (
+        "responde vacío, el guard está adentro de la vista (`usuario_tiene_permiso_conversaciones`)"
+    ),
+}
+
+#: Las públicas también: si un anónimo puede pedir una ruta, un autenticado sin
+#: rol también. Unir las dos listas evita que el día que se publique (o se cierre)
+#: una ruta haya que acordarse de tocar dos lugares.
+ALLOWLIST_SIN_ROL = {**ALLOWLIST_PUBLICA, **EXTRAS_SIN_ROL}
+
+
+class SuperficieSinRolTests(TestCase):
+    """RED-89 · Ninguna ruta privada contesta a un usuario de backoffice sin rol."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.rutas = rutas_concretas()
+        # Sin grupos, sin `user_permissions`, sin `is_superuser`: exactamente el
+        # usuario que crea el administrador antes de asignarle un rol.
+        cls.sin_rol = User.objects.create_user("sin_rol", "sin_rol@example.test", "x")
+
+    def setUp(self):
+        self.navegador = Client(raise_request_exception=False)
+        self.navegador.force_login(self.sin_rol)
+
+    def _expone(self, respuesta):
+        """¿La ruta le **contesta con cuerpo propio** a este usuario? (`2xx`).
+
+        La pregunta de RED-02 era «¿rebota?» y ahí `404` no cuenta como rebote: a
+        un anónimo el guard tiene que correr antes del lookup. Acá la pregunta es
+        la inversa —«¿qué le llega al usuario sin rol?»— y la respuesta medible es
+        el `2xx`: el `403`/`426` y el redirect de `_respuesta_sin_permiso` son
+        rebotes, y el `404`/`405` no le entrega nada.
+
+        **Lo que este barrido no ve, dicho explícito:** una vista que resuelve el
+        objeto *antes* del guard (`dar_baja_beneficiario_view` de Becas es el
+        molde) le contesta `404` al `pk` de juguete y `403` recién con un objeto
+        real. Está guardada, pero en el orden equivocado; ordenarlo es trabajo de
+        las fichas de esas vistas, no de este barrido, que mediría lo mismo antes
+        y después. `SuperficieAnonimaTests` sí sostiene la regla estricta.
+        """
+        return 200 <= respuesta.status_code < 300
+
+    def _pedir(self, url):
+        """GET; si la vista solo acepta POST, se repite con POST (ídem RED-02)."""
+        respuesta = self.navegador.get(url)
+        if respuesta.status_code == 405:
+            respuesta = self.navegador.post(url, {})
+        return respuesta
+
+    def test_la_sesion_del_barrido_es_un_usuario_sin_rol(self):
+        """Sin esto, el barrido podría estar midiendo a un anónimo (RED-02 otra vez)."""
+        self.assertEqual(self.sin_rol.groups.count(), 0)
+        self.assertEqual(self.sin_rol.user_permissions.count(), 0)
+        self.assertFalse(self.sin_rol.is_superuser)
+        # Entra al backoffice: `/inicio/` contesta 200 y es a donde lo manda el
+        # propio `_respuesta_sin_permiso`.
+        self.assertEqual(self.navegador.get(reverse("core:inicio")).status_code, 200)
+
+    def test_ninguna_ruta_privada_responde_a_un_usuario_sin_rol(self):
+        abiertas = []
+        for nombre, url in self.rutas:
+            if url in ALLOWLIST_SIN_ROL:
+                continue
+            respuesta = self._pedir(url)
+            if self._expone(respuesta):
+                abiertas.append(f"{nombre} → {url} ({respuesta.status_code})")
+
+        self.assertEqual(abiertas, [], "\n".join(["Rutas abiertas a un usuario sin rol:", *abiertas]))
+
+    def test_ninguna_ruta_revienta_con_un_usuario_sin_rol(self):
+        """`POST /api/legajos/alertas/x/cerrar/` daba 500: el `pk` no numérico
+        llegaba crudo a `AlertasService.cerrar_alerta` (RED-89, SEC-18). El humo
+        de RED-30 no lo veía porque corre con GET y con superusuario.
+        """
+        rotas = []
+        for nombre, url in self.rutas:
+            respuesta = self._pedir(url)
+            if respuesta.status_code >= 500:
+                rotas.append(f"{nombre} → {url} ({respuesta.status_code})")
+
+        self.assertEqual(rotas, [], "\n".join(["Rutas que revientan con un usuario sin rol:", *rotas]))
+
+    def test_la_allowlist_sin_rol_mide_lo_que_se_midio(self):
+        """Ratchet en las dos direcciones, igual que el de `ALLOWLIST_PUBLICA`.
+
+        14 entradas propias + las 17 públicas. El barrido del 04-oct-2026 midió
+        31 rutas abiertas a este usuario: estas 14 y las 17 de Legajos, que no
+        están acá porque este PR les puso capacidad (SEC-10, SEC-11, SEC-18).
+        """
+        self.assertEqual(len(EXTRAS_SIN_ROL), 14)
+        self.assertEqual(len(ALLOWLIST_SIN_ROL), 31)
+
+    def test_la_allowlist_sin_rol_no_tiene_entradas_muertas(self):
+        urls = {url for _, url in self.rutas}
+        self.assertEqual(sorted(set(ALLOWLIST_SIN_ROL) - urls), [])

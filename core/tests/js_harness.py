@@ -145,7 +145,14 @@ var fetch = function (url) {
   __log.fetches.push(url);
   var clave = Object.keys(__respuestas).find(function (k) { return url.indexOf(k) !== -1; });
   var cuerpo = clave ? __respuestas[clave] : {};
-  return Promise.resolve({ok: true, status: 200, json: function () { return Promise.resolve(cuerpo); }});
+  // `headers` incluido a propósito: una Response real siempre las trae, y hay
+  // scripts que miran el content-type antes de `json()` para no reventar con un
+  // HTML (el rebote por permisos devuelve el inicio, no JSON).
+  return Promise.resolve({
+    ok: true, status: 200,
+    headers: {get: function (nombre) { return String(nombre).toLowerCase() === 'content-type' ? 'application/json' : null; }},
+    json: function () { return Promise.resolve(cuerpo); }
+  });
 };
 function __disparar(ruta, tipo, evento) {
   var destino = ruta.charAt(0) === '#' ? __el(ruta.slice(1)) : document;
