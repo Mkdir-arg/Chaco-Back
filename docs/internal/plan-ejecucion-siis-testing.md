@@ -99,8 +99,12 @@ Después de una restauración desde producción **nunca existe**: hay que cargar
 corre contra MySQL, no desde el pod: la imagen no trae cliente de base.
 
 ```bash
-mariadb -h <host> -u <usuario> -p <base> < scripts/DatosPersonas.sql
+mariadb -h <host> -u <usuario> -p <base> < $DATOS_SIIS_DIR/DatosPersonas.sql
 ```
+
+> El archivo no está en el repositorio ni en la imagen: son datos de RENAPER de
+> 10.321 personas (Cambio 116, RED-01). Está en el volumen que apunta
+> `DATOS_SIIS_DIR` — ver [`scripts/README-datos-siis.md`](../../scripts/README-datos-siis.md).
 
 **Esperado:** 10.321 filas en la tabla de personas.
 

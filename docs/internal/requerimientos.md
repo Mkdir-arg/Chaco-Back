@@ -296,6 +296,8 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 113 | La API REST de usuarios y roles queda apagada salvo `me` | Transversal · API DRF (`/api/users/`) | `#api` `#rbac` `#usuarios` | Auditoría integral oct-2026 — SEC-05, SEC-16 y SEC-17, decisión D-05 (Ola 0, segunda tanda, PR H11) | 03/10/2026 | 🟢 **Hecho** | No requiere |
 | 114 | La API de ciudadanos es de solo lectura, pide capacidad y solo contesta búsquedas | Legajos · API DRF (`/api/legajos/`) | `#api` `#rbac` `#datos` | Auditoría integral oct-2026 — SEC-02 (+ V1-NEW-03) y SEC-01 punto 2 en legajos (Ola 0, segunda tanda, PR H12) | 03/10/2026 | 🟢 **Hecho** | No requiere |
 | 115 | El catálogo geográfico de la API es de solo lectura y las APIs del dashboard piden capacidad | Transversal · API DRF (`/api/core/`, `/api/` del dashboard) · home del backoffice | `#api` `#rbac` `#sesion` `#ui` | Auditoría integral oct-2026 — SEC-13 y SEC-14 (Ola 0, segunda tanda, PR H13) | 03/10/2026 | 🟢 **Hecho** | No requiere |
+| 116 | Los volcados de personas salen del repo y de la imagen | Transversal · alta en SIIS · repositorio, release e imagen | `#datos` `#infra` `#siis` | Auditoría integral oct-2026 — RED-01, decisión D-RED-01 (Ola R, PR R-01) | 04/10/2026 | 🟡 **Parcial** (la purga del historial y el repo privado los hace el PM) | No requiere |
+| 117 | El rollback de producción tiene un procedimiento escrito, y las migraciones que no se pueden revertir avisan antes de romper nada | Transversal · operación y deploy · migraciones | `#infra` `#datos` | Auditoría integral oct-2026 — RED-60 y RED-15 (Ola R «Red de seguridad», PR R-02) | 04/10/2026 | 🟢 **Hecho** | No requiere |
 | 119 | Red de seguridad del contrato de la app de campo: claves del JSON, pausa, período, errores, capacidad, alcance y presupuesto del alta | Becas · API de la app de campo (`/api/becas/`) | `#api` `#rbac` `#performance` `#datos` | Auditoría integral oct-2026 — RED-11, RED-03, RED-10, RED-25 y RED-26 (Ola R, PR R-07) | 04/10/2026 | 🟢 **Hecho** | No requiere |
 | 120 | Los tests recorren el enum de estados entero, no solo el camino feliz | Becas · relevamientos (vencimientos, API de campo) · Portal (link público) | `#relevamientos` `#api` `#mobile` `#cupos` | Auditoría integral oct-2026 — RED-28, RED-29 y RED-66 (Ola R, red de seguridad, PR R-08) | 04/10/2026 | 🟢 **Hecho** | No requiere |
 
@@ -14761,6 +14763,387 @@ Revertir el commit devuelve los `ModelViewSet` de geografía y deja las cinco vi
 - **03/10/2026** — Cambio 109: queda disponible `BackofficeAutenticado`, sin aplicarla a ninguna vista.
 - **03/10/2026 (este cambio)** — SEC-13 y SEC-14 cerrados, y la clase aplicada en `core/api_views` y
   `dashboard/api_views`.
+
+---
+
+# Cambio 116 — Los volcados de personas salen del repo y de la imagen
+
+🟡 **PARCIAL — 04/10/2026** · la parte de código está hecha; el repo privado y la purga del historial
+los ejecuta el PM (ver *Pendientes*).
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · alta masiva en SIIS · repositorio, release de `main` e imagen de producción |
+| **Etiquetas** | `#datos` `#infra` `#siis` |
+| **Solicitante** | Auditoría integral de octubre 2026 — hallazgo **RED-01** y decisión **D-RED-01** (Ola R, hotfix, PR R-01) |
+| **Fecha del pedido** | 04/10/2026 |
+| **Issue / épica** | Sin issue — auditoría oct-2026, `docs/internal/auditoria-2026-10/hallazgos/08-red-de-seguridad.md` |
+| **Partes afectadas** | `.gitignore`, `.gitattributes`, `.dockerignore`, `.github/workflows/pr-datos.yml` (nuevo), `.github/workflows/publish-main.yml`, `scripts/check_datos_personales.py` (nuevo), `scripts/README-datos-siis.md` (nuevo), `config/settings.py`, `programas/management/commands/_insumos_siis.py` (nuevo), `correr_alta_siis.py`, `completar_casos_renaper.py`, `corregir_datos_siis.py`, `core/tests/test_release_sin_datos.py` (nuevo), `programas/tests/test_correr_alta_siis.py`, tres runbooks de `docs/internal/` |
+| **Migración** | No requiere |
+
+## Pedido original
+
+De la ficha **RED-01** (CRÍTICA; el único hallazgo del frente con daño consumado):
+
+> `scripts/DatosPersonas.sql` (2.874.634 bytes; 10.321 filas con DNI, CUIL, nombre, sexo, fecha de
+> nacimiento y domicilio completo devueltos por RENAPER, incluye menores), `scripts/Aprobados.sql`
+> (DNI de aprobados) y `scripts/Localidades.sql` (también indexado por DNI). El repositorio
+> `Mkdir-arg/Chaco-Back` es **público**; los `.sql` no están en `export-ignore`, así que viajan a
+> `main` y de ahí al GitLab de ECOM; el `Dockerfile` hace `COPY . .` y `.dockerignore` no los excluye:
+> están **dentro de la imagen de PRD**. Nada en CI, `.gitignore`, `.gitattributes` ni `.dockerignore`
+> impide subir otro volcado.
+
+## Qué lo motivó
+
+Había una decisión previa del PM —Cambio 79: «`scripts/DatosPersonas.sql` queda en el repo por decisión
+del PM»— que **no contempló** tres cosas: que el repositorio es público, que el archivo sale en el release
+y en la imagen de producción, y la Ley 25.326. No es una decisión que haya que revertir: es una decisión que
+se tomó sin esos datos. Este cambio la repone y deja la parte que le toca al PM escrita y acotada.
+
+El riesgo de que se repita no era teórico: el patrón «chore(becas): lista nueva de aprobados» ya existe en
+el historial (`661c1a43`, `917e583e`), y nada lo detectaba.
+
+## Alcance acordado
+
+**Entra:** sacar los tres volcados de `HEAD`; las cuatro barreras que impiden que vuelvan (`.gitignore`,
+`export-ignore`, `.dockerignore`, gate de CI); el guard del release; la fuente alternativa `DATOS_SIIS_DIR`
+para los comandos que los leían de la imagen; el README versionado sin datos; los tests.
+
+**Queda afuera (lo hace el PM, ver *Pendientes*):** pasar el repositorio a privado, purgar el historial con
+`git filter-repo`, el pedido a GitHub Support, el barrido con `gitleaks`/`trufflehog` y la evaluación legal
+de la Ley 25.326.
+
+## Decisiones tomadas
+
+- **`Localidades.sql` también sale, aunque el nombre diga «catálogo».** Se verificó el archivo: su cabecera
+  declara «una fila por persona: el DNI y la localidad de su domicilio». No es un nomenclador geográfico
+  —ese es `core/fixtures/localidad_municipio_provincia.json`, que se queda—, es un padrón indexado por DNI.
+- **La plantilla sin datos se queda versionada.** `scripts/aprobados_materias_plantilla.sql` tiene el
+  `CREATE TABLE` y tres DNI de ejemplo: es el insumo que el operador necesita leer, y sacarla dejaría al
+  organismo sin molde. Está como excepción explícita en `.gitignore` (`!`), en `.dockerignore` y en
+  `.gitattributes` (`-export-ignore`), y hay un test que verifica que sigue adentro.
+- **Los archivos quedan en disco, no se borran.** `git rm --cached`: el desarrollador que los tenga los
+  conserva, pero git deja de verlos. Borrarlos del disco de nadie no es parte de esto.
+- **Una sola heurística de «esto es un volcado», en Python y no en shell.** La ficha proponía el chequeo
+  inline en el YAML del job y, por separado, una regla distinta en el test (más de 100 filas de tuplas).
+  Dos heurísticas que se separan en el primer ajuste, y la del YAML marca en rojo la plantilla sin datos.
+  Quedó una sola, en `scripts/check_datos_personales.py`, que usan el gate del PR, los dos pases del
+  release y el test.
+- **Tres reglas, no una, porque el nombre de la columna no siempre está** (ronda 2 de revisión). La
+  primera versión solo miraba un `INSERT INTO` con la lista de columnas pegada, y **`mysqldump` por
+  defecto no la emite**: ``INSERT INTO `t` VALUES (…),(…)``. Un volcado sintético de 5.000 personas en ese
+  formato pasaba los tres modos, y es el formato más probable, porque sale de exportar una tabla sin
+  pensarlo. Ahora: (1) `INSERT` con columnas de persona y más de 100 filas; (2) `INSERT` sin lista de
+  columnas, más de 100 filas y, en el contenido, más de 100 documentos o más de 50 CUIL distintos;
+  (3) tabular sin SQL (`.csv`, `.tsv`, `.dump`, `.dat`, `.sql`) con más de 100 líneas y más de 100
+  documentos distintos — un padrón de 5.000 DNI en CSV pesa 60 KB y no lo atrapa ningún techo. Las tres
+  exigen **volumen**: lo que distingue un volcado de una plantilla es la cantidad de personas.
+- **Las tuplas no se cuentan por línea** (ronda 3 de revisión). `mysqldump` corre con `--extended-insert`
+  por defecto y mete todas las tuplas en **una sola línea**: contando líneas daban cero y un volcado de
+  5.000 personas de 184 KB —por debajo del techo— pasaba los tres modos. Se cuenta el máximo entre las
+  líneas que son una tupla y los separadores `),(` del texto, que cubre los dos formatos. Sobre los 1.616
+  archivos versionados no agrega ningún falso positivo.
+- **La regla 1 mira la lista de columnas, no todo el archivo.** Tal como estaba, un apellido que fuera
+  literalmente «Apellido» dentro de los datos la hacía disparar, y el mensaje decía «INSERT con columnas
+  de persona» sobre un `mysqldump` que no tenía ninguna. Acotarla al tramo entre el nombre de la tabla y
+  el `VALUES` no pierde detección: lo que la regla 1 deja pasar lo levantan la 2 y la 3.
+- **El techo de 512 KB corre en los tres modos y las exenciones son rutas exactas** (ronda 2 de revisión).
+  Antes corría solo sobre el diff del PR y exentaba `docs/*` y `core/fixtures/*.json` por glob: un
+  `core/fixtures/padron.json` de 1,7 MB con 40.000 DNI pasaba los tres modos. Un glob convierte a ese
+  directorio en el escondite obvio del próximo volcado. Ahora la lista son las seis rutas exactas que ya
+  estaban versionadas (`core/fixtures/localidad_municipio_provincia.json`, el HTML de `docs/design-kb/`,
+  `docs/internal/requerimientos.md`, `package-lock.json`, `adminlte.min.css` y `vis-network.min.js`), y un
+  test falla si aparece otro archivo versionado sobre el techo que no esté en la lista: se agrega a mano y
+  se revisa en el PR.
+- **`DATOS_SIIS_DIR` por defecto `/datos-siis`, y si no está montado el comando corta.** Antes, un archivo
+  faltante era un WARNING y se salteaba; eso sigue igual para un archivo suelto, pero el **directorio**
+  ausente es ahora `CommandError`. Es el modo de falla que importa —el pod arranca sin el volumen— y
+  saltearlo en silencio terminaba en «la tabla no existe» tres pasos después.
+- **El mensaje de error nombra la variable y el README.** Los tres comandos dicen lo mismo, desde
+  `programas/management/commands/_insumos_siis.py` (el guión bajo lo saca del registro de comandos de
+  Django). `--scripts <dir>` le sigue ganando a la variable, para la corrida puntual.
+- **El guard de `publish-main.yml` revisa el árbol del release, no solo nombres.** El `export-ignore`
+  depende del `.gitattributes` del commit que se publica: si alguien lo afloja, el guard es lo que queda.
+  Los tres nombres también se agregaron a la lista de rutas prohibidas, que es barata y nombra el archivo.
+
+## Implementación
+
+Las cuatro barreras:
+
+| Dónde | Regla | Qué corta |
+|---|---|---|
+| `.gitignore` | `scripts/*.sql` más la excepción de la plantilla | Que entren al repo |
+| `.gitattributes` | `/scripts/*.sql export-ignore`, plantilla con `-export-ignore` | Que salgan en el release de `main` y en el espejo de ECOM |
+| `.dockerignore` | `scripts/*.sql` | Que el `COPY . .` del `Dockerfile` los meta en la imagen |
+| `pr-datos.yml` (PR **y push** a `development`) y los dos pases de `publish-main.yml` | `scripts/check_datos_personales.py` en sus tres modos | Que vuelva a pasar por otro camino |
+
+El verificador, un archivo, tres modos, la misma regla:
+
+```bash
+python scripts/check_datos_personales.py --diff <base-sha>   # lo que agrega un PR (+ techo de 512 KB)
+python scripts/check_datos_personales.py --versionados       # todo `git ls-files`
+python scripts/check_datos_personales.py --arbol <dir>       # el árbol del release, en publish-main
+```
+
+Nunca imprime el contenido del archivo: solo la ruta, el tamaño y la cantidad de filas.
+
+La fuente alternativa, en `config/settings.py`:
+
+```python
+DATOS_SIIS_DIR = os.getenv("DATOS_SIIS_DIR", "/datos-siis")
+```
+
+y en `correr_alta_siis._cargar_insumos`:
+
+```python
+base = Path(directorio or settings.DATOS_SIIS_DIR)
+if not base.is_dir():
+    raise CommandError(FALTA_DIRECTORIO.format(base=base))
+```
+
+`scripts/README-datos-siis.md` (versionado, sin un solo dato) dice qué tres archivos hacen falta, qué tabla
+carga cada uno, quién los genera, cómo se monta el volumen y qué impide que vuelvan.
+
+## Validación
+
+- **Tests nuevos, en rojo antes del cambio.** `core/tests/test_release_sin_datos.py` —el «test permanente»
+  de RED-01— daba 11 fallos y 1 error sobre `HEAD`: los tres volcados versionados, la heurística
+  marcándolos, los ignores ausentes y el workflow inexistente. Son 14 tests: el que nombra la ficha
+  (`test_ningun_sql_versionado_tiene_volcado_de_personas`), uno por barrera, y seis de la heurística
+  —incluidos el volcado sintético de 150 filas con DNI inventados que **sí** detecta y la plantilla real
+  que **no**—.
+- **`programas/tests/test_correr_alta_siis.py`:** clase nueva `InsumosDesdeDatosSiisDirTests` (directorio
+  sin montar da `CommandError` que nombra `DATOS_SIIS_DIR`; directorio montado; `--scripts` ganándole a la
+  variable; la precondición de tabla faltante nombrando la variable). Verificado por mutación: con la línea
+  vieja (`Path(settings.BASE_DIR) / "scripts"`) el primero falla con «CommandError not raised».
+- **El test que leía los `.sql` reales del repo pasó a archivos sintéticos** (`sintetizar_insumos()`): fija
+  la forma que al parser le costaba —punto y coma en el comentario de cabecera, dos guiones dentro de una
+  cadena— con DNI inventados.
+- `manage.py check` sin issues; `makemigrations --check --dry-run` sin cambios.
+- Suite completa en verde con `.venv312` (Python 3.12 y Django 5.2.17, igual al CI), en dos tandas.
+- `ruff check` y `ruff format --check` limpios sobre lo tocado. Sin cambios de UI: no corresponden
+  `design_audit.py` ni `compile_templates.py`.
+- Los dos workflows parsean como YAML y el job expone el nombre exacto `Sin datos personales`, que es el
+  que RED-20 va a marcar como obligatorio. El verificador se corrió en sus tres modos: `--versionados`
+  sobre los 1.616 archivos del repo, `--diff` sobre el propio PR y `--arbol` sobre el árbol real del
+  release (`git archive HEAD`, el mismo paso del workflow), los tres en OK.
+- **Que rechaza de verdad:** se plantaron en el árbol del release los dos casos que levantó la ronda 2
+  —un `mysqldump` sintético de 5.000 personas con DNI y CUIL inventados, y un
+  `core/fixtures/padron.json` de 1,8 MB— y el guard los marcó a los dos con exit 1. Los ocho tests
+  nuevos de la ronda 2 fallan contra la versión anterior del verificador y de los workflows.
+
+## Pendientes / a definir
+
+- **D-RED-01 · DECISIÓN CLIENTE · pendiente.** Si corresponde notificar o evaluar el incidente bajo la
+  **Ley 25.326** (seguridad de los datos, cesión) lo decide **el organismo responsable de la base**, no el
+  equipo. Nuestra parte es informarlo por escrito con los datos de la ficha y dejar esta constancia.
+  **Default aplicado mientras tanto:** la opción recomendada de la ficha, en su parte de código.
+- **Lo operativo lo ejecuta el PM, en este orden:**
+  1. Pasar `Mkdir-arg/Chaco-Back` a **privado**.
+  2. **Avisar a ECOM antes de purgar:** la purga reescribe `main`, y el espejo de ECOM despliega
+     producción desde su `main`.
+  3. `git filter-repo --invert-paths --path scripts/DatosPersonas.sql --path scripts/Aprobados.sql --path scripts/Localidades.sql`,
+     y force push de todas las ramas y tags.
+  4. Pedirle a GitHub Support que elimine las referencias de PR y las vistas cacheadas de los commits
+     viejos (la purga no las toca).
+  5. Barrido con `gitleaks` o `trufflehog` sobre el historial completo antes de dar la purga por suficiente.
+  6. Reconstruir la imagen de PRD sin los archivos.
+- **Antes de la próxima corrida de alta SIIS** hay que montar `DATOS_SIIS_DIR` en icore y en ECOM. Sin eso
+  `correr_alta_siis` corta en el paso 2 —a propósito, con el mensaje que nombra la variable—, pero corta.
+- El gate `Sin datos personales` **todavía no es obligatorio**: eso lo habilita RED-20 (PR R-03), que crea
+  los rulesets de rama. Hasta entonces el job corre y se ve, pero no bloquea el merge por sí solo. Lo que
+  cubre el hueco mientras tanto es el disparador por `push` a `development` —hasta RED-20 un push directo
+  no disparaba ningún check— y el pase sobre los archivos versionados en `publish-main`, que corre
+  **antes** de que `git archive` aplique el `export-ignore`: sin él, un `scripts/*.sql` forzado al índice
+  quedaba fuera del release y aun así visible en el repositorio.
+- Queda fuera del alcance de las tres reglas un volcado en un formato que no reconocemos (JSON, Parquet,
+  un export binario). Lo que lo ataja es el techo de 512 KB, que desde la ronda 2 corre en los tres modos.
+  Un volcado chico en uno de esos formatos sigue siendo el agujero conocido.
+
+## Reversión
+
+Revertir el commit devuelve los ignores y el gate, pero **no vuelve a poner los archivos**: salieron del
+índice, no del disco de quien los tenga. Para volver atrás del todo habría que volver a agregarlos a mano,
+que es exactamente lo que no hay que hacer. Lo único con efecto operativo real es `DATOS_SIIS_DIR`: sin la
+variable y sin el volumen, `correr_alta_siis` no carga insumos. No hay datos ni migraciones de por medio.
+
+## Historial
+
+- **18/09/2026** — se genera `DatosPersonas.sql` con la respuesta de RENAPER para 10.321 personas.
+- **01/10/2026** — Cambio 79: el PM decide que el archivo queda en el repo. La decisión no contempla que el
+  repositorio es público, que el archivo viaja al release y a la imagen, ni la Ley 25.326.
+- **03/10/2026** — la auditoría integral lo levanta como RED-01, severidad CRÍTICA, único hallazgo del
+  frente con daño consumado.
+- **04/10/2026 (este cambio)** — los tres volcados salen de `HEAD`, de la imagen y del release; queda el
+  gate para que no vuelvan y `DATOS_SIIS_DIR` como fuente. La purga del historial y el repo privado quedan
+  para el PM.
+- **04/10/2026 (ronda 2 de revisión)** — cuatro MINOR del revisor independiente sobre el gate, que es la
+  protección central: detección del formato `mysqldump` sin lista de columnas y de un padrón tabular sin
+  SQL; exenciones del techo acotadas a rutas exactas y techo en los tres modos; el gate también en `push`
+  a `development` y `publish-main` revisando el repositorio antes del `export-ignore`; y el volumen de
+  `DATOS_SIIS_DIR` comentado en `docker-compose.prod.yml`, para que montarlo sea descubrible donde se lee
+  el deploy.
+- **04/10/2026 (ronda 3 de revisión)** — dos MAJOR. El bloque de comentarios del volumen se había comido
+  el `expose: - "8001"` del servicio `web` en `docker-compose.prod.yml`: restaurado, y verificado
+  parseando el YAML contra `origin/development` —el compose parsea **idéntico**, lo único que agrega este
+  PR son comentarios—. Y la regla 2 no veía el `mysqldump` real, el de `--extended-insert`.
+
+---
+
+# Cambio 117 — El rollback de producción tiene un procedimiento escrito, y las migraciones que no se pueden revertir avisan antes de romper nada
+
+🟢 **HECHO — 04/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · operación y deploy (icore-srv y ECOM) · migraciones |
+| **Etiquetas** | `#infra` `#datos` |
+| **Solicitante** | Auditoría integral de octubre 2026 — hallazgos **RED-60** y **RED-15** (Ola R «Red de seguridad», PR R-02) |
+| **Fecha del pedido** | 04/10/2026 |
+| **Issue / épica** | Sin issue — auditoría oct-2026, `docs/internal/auditoria-2026-10/hallazgos/08-red-de-seguridad.md` |
+| **Partes afectadas** | `docs/internal/processes.md`; las cinco migraciones UUID (`programas.0047`, `programas.0048`, `programas.0073`, `legajos.0007`, `users.0023`); dos tests nuevos en `core/tests/` |
+| **Migración** | No requiere (ninguna migración nueva: se le agrega una operación sin efecto hacia adelante a cinco ya aplicadas) |
+
+## Pedido original
+
+De la ficha **RED-60** (MEDIA, confirmado por lectura):
+
+> `processes.md` enseña un rollback que destruye datos y autoriza `--fake`. `:256-258`
+> (`docker compose exec django python manage.py migrate <app> <anterior>`: el servicio se llama `web`, el
+> comando ni arranca, y la reversa traba MariaDB), `:282` («usar `--fake` solo si…»), `:280` («siempre hacer
+> backup» sin ningún mecanismo: buscar `mysqldump` o `mariadb-dump` en scripts, compose y workflows da 0).
+> Reemplazar §Rollback y §Gestión de migraciones con el runbook del **Anexo D**.
+
+De la ficha **RED-15** (ALTA, confirmado con test en MariaDB 11.8):
+
+> En MariaDB la reversa falla (errno 150) y deja tabla huérfana y `django_migrations` a mitad. Declarar
+> `legajos.0007`, `programas.0047/0048/0073` y `users.0023` como **barrera de reversa**, listadas en el
+> runbook D.4; en el runbook, «si el `migrate` falló durante una reversa, ir directo a D.4 (restore)».
+
+## Qué lo motivó
+
+El procedimiento escrito y la realidad del motor no coincidían en ningún punto. El comando de rollback de
+migraciones apuntaba a un servicio (`django`) que no existe en `docker-compose.prod.yml` —son `mysql`, `redis`,
+`web`, `websocket` y `nginx`—, así que ni siquiera arrancaba; y si alguien lo adaptaba al nombre correcto, lo
+que lograba era peor que no hacer nada: en MariaDB el plan de reversa se corta a mitad y deja la base en un
+estado que no corresponde a ninguna release. El respaldo, que es lo único que permite volver de verdad, estaba
+escrito como una buena intención («siempre hacer backup») sin un solo comando.
+
+## Alcance acordado
+
+**Entra:** el runbook completo (D.0 a D.5) en `processes.md`, la sección de gestión de migraciones reescrita, la
+barrera de reversa en las cinco migraciones UUID y los dos tests que lo sostienen.
+
+**Queda afuera** (son de otros PRs de la Ola R): la marca `# REVERSA-NOOP:` y la barrera por pérdida de datos en
+`programas.0032`, `0056` y `0069` (RED-57, PR R-12); la normalización a hex en las reversas de `0047`, `0048` y
+`legajos.0007` (RED-18, PR R-12); el job `migration-roundtrip` de CI (RED-17, PR R-13); el chequeo inverso de
+`verificar_esquema_migraciones` (OPS-01, PR R-15); el tag inmutable de release (RED-16, PR R-15); y la
+validación de `## Reversión` en `requerimientos.py --check` (RED-84, PR R-12).
+
+## Decisiones tomadas
+
+- **D-RED-05 = barrera, no arreglo de fondo.** Sacar el `MODIFY` crudo de la reversa de las migraciones UUID es
+  trabajo largo sobre migraciones ya aplicadas en producción, y el riesgo lo cubre el runbook. Por debajo de
+  esas cinco migraciones solo se vuelve con restore.
+- **La barrera falla, no solo avisa.** La ficha pedía una marca en el archivo; un comentario no detiene a nadie
+  a las tres de la mañana. Se implementó como una operación extra al final de cada una de las cinco
+  migraciones: hacia adelante no hace nada, y al desaplicar —Django recorre las operaciones en orden inverso,
+  así que es la **primera** que corre— aborta con `IrreversibleError` y un mensaje que nombra la migración, dice
+  qué se rompería y remite al paso D.4. Aborta **antes** de cualquier DDL: la base queda como estaba.
+- **La barrera solo actúa en MySQL/MariaDB.** En otros motores la ida de esas migraciones ya era un no-op (todas
+  empiezan preguntando si el motor es `mysql` y, si no, vuelven), así que no hay nada que la vuelta pueda
+  romper y bloquearla sería ruido.
+- **Se agrega una operación en vez de tocar `restaurar_*`.** El cuerpo de las funciones de reversa queda intacto
+  para que el PR R-12 (RED-18, normalizar a hex antes de achicar) lo corrija sin pelearse con este cambio, y
+  para que siga siendo el camino correcto si alguna vez se revierte D-RED-05.
+- **`--fake` no se borra del documento: se prohíbe.** La ficha pedía que `processes.md` no lo mencionara, pero un
+  operador buscando `--fake` en el runbook tiene que encontrar el «no», no el silencio. Las dos menciones que
+  quedan son prohibiciones, y hay un test que verifica que ninguna lo autorice.
+- **El rollback de icore-srv opera sobre `main`, no sobre `development`.** El checkout de
+  `/home/icore/chaco` está en la rama de release (`.claude/commands/servidor.md`); `development` no se despliega
+  en ningún servidor. Y no se hace `reset --hard` sobre `main`: el próximo `git pull --ff-only origin main`
+  devolvería el servidor a la release rota sin que nadie se entere, así que el rollback crea una rama
+  `rollback/<timestamp>` —el mismo patrón que RED-59 le pide a `deploy_prod.sh`— que además queda visible en
+  `git status`.
+- **El dump de D.0 es el único camino de vuelta real, así que va con comando y verificación.** En icore se
+  escribe completo (incluido el `ls -lh ~/backups/` que confirma que el archivo existe y no pesa 0); en ECOM,
+  que es quien tiene la base de producción, se pide por escrito y se espera confirmación antes de espejar a
+  `main`.
+
+## Implementación
+
+`docs/internal/processes.md` reemplaza las dos secciones viejas:
+
+- **§Rollback** pasa a ser el runbook: **D.0** dump obligatorio antes de cada deploy con migración (comando de
+  `mysqldump` para icore, pedido escrito para ECOM, y anotar de qué release se viene); **D.1** tabla que dice
+  cuál de los caminos corresponde según lo que traía el deploy; **D.2** rollback de código, con el paso previo
+  **D.2.0** (consulta a `information_schema.COLUMNS` y `SET DEFAULT` sobre las columnas `NOT NULL` nuevas, para
+  que el código viejo pueda seguir dando de alta) y los dos escenarios **D.2.1** ECOM/Kubernetes y **D.2.2**
+  icore; **D.3** qué hacer con un `migrate` cortado hacia adelante; **D.4** el restore, con la lista de las ocho
+  barreras de reversa y los seis pasos; **D.5** el issue con label `incident` y la línea en `## Reversión`.
+- **§Gestión de migraciones en producción** deja de ser tres viñetas sueltas: dump obligatorio, ensayo del
+  `ALTER` grande en el banco de `scripts/perf_mysql/`, `--fake` prohibido, las migraciones no se revierten en
+  producción, avisar en el deploy cuando la migración es barrera, y la regla expand/contract en una línea.
+
+En las cinco migraciones UUID: el bloque de comentario `# BARRERA-DE-REVERSA:` arriba —por qué lo es y adónde
+ir—, y la operación `migrations.RunPython(sin_cambios, bloquear_reversa)` al final de `operations`.
+
+## Archivos
+
+- `docs/internal/processes.md` — runbook D.0–D.5 y la sección de migraciones reescrita.
+- `programas/migrations/0047_ampliar_formulario_client_uuid.py`, `0048_ampliar_validacionsis_id_consulta.py`,
+  `0073_ampliar_relevamiento_token_publico.py`, `legajos/migrations/0007_ampliar_uuid_legajos.py`,
+  `users/migrations/0023_ampliar_solicitud_cambio_email_token.py` — marca y barrera.
+- `core/tests/test_barreras_de_reversa.py` — **test permanente de RED-15**.
+- `core/tests/test_runbook_rollback.py` — **test permanente de RED-60**.
+- `docs/internal/auditoria-2026-10/hallazgos/08-red-de-seguridad.md` — RED-15 y RED-60 en ✅, con su línea
+  **Resolución**.
+
+## Base de datos
+
+Ninguna migración nueva y ningún cambio de esquema. Las cinco migraciones tocadas ya están aplicadas en todos
+los ambientes, así que la operación agregada no vuelve a correr; en una base desde cero corre y no hace nada.
+`makemigrations --check --dry-run` → «No changes detected».
+
+## Validación
+
+- Contenedor efímero **MariaDB 11.8.9** en el puerto 3317 (no se tocaron 3307 ni 3308), con un settings fuera
+  del repo que apunta ahí y sube los timeouts.
+- `migrate` completo hacia adelante: OK, 136 migraciones.
+- `migrate legajos 0006`, `migrate users 0022`, `migrate programas 0072`, `migrate programas 0046` y
+  `migrate legajos zero`: las cinco abortan con `IrreversibleError` y el mensaje de la barrera. El esquema queda
+  intacto (`client_uuid`, `legajos_legajoatencion.id`, `users_solicitudcambioemail.token` y `token_publico`
+  siguen en `char(36)`), sin tablas huérfanas, y el `migrate` hacia adelante posterior reaplica sin problemas:
+  `migrate --check` sale 0.
+- **Comparación contra el código de hoy** (worktree en `d9acc65f`, base limpia en el mismo contenedor):
+  `migrate legajos zero` muere con el error 1005 / errno 150 al recrear `legajos_derivacion`, deja esa tabla
+  huérfana y `django_migrations` repartido en un estado que no es ninguna release (`programas` en 0001, `users`
+  en 0002, `legajos` en 0004). Con la barrera, el mismo comando aborta limpio.
+- `core.tests.test_barreras_de_reversa` y `core.tests.test_runbook_rollback`: 10 tests. Antes del cambio los 10
+  fallaban; después, OK.
+- `manage.py check` sin issues; suite completa en el venv de Python 3.12 + Django 5.2 sin regresiones;
+  `ruff check` limpio sobre lo tocado.
+
+## Puesta en marcha en el servidor
+
+No requiere nada: es documentación y código que solo actúa en el camino de reversa. Lo que sí cambia es la
+operación — a partir de acá, **antes de cada deploy con migración hay que correr el dump de D.0**, y en ECOM
+pedirlo por escrito y esperar la confirmación antes de espejar a `main`.
+
+## Pendientes / a definir
+
+- El pedido escrito a ECOM (H-11) de que hagan y confirmen el dump antes de cada deploy con migración lo tiene
+  que mandar el PM; el runbook ya lo da por obligatorio.
+- Las barreras por pérdida de datos (`programas.0032`, `0056`, `0069`) están listadas en D.4 pero todavía no
+  tienen la marca en el archivo ni abortan: eso llega con RED-57 en el PR R-12.
+- Cuando exista el job `migration-roundtrip` (RED-17, PR R-13), su paso de reversa no puede bajar por debajo de
+  `programas.0073`: la barrera lo va a cortar, que es lo esperado.
+
+## Reversión
+
+Revertir el commit devuelve las dos secciones viejas de `processes.md` —con el comando que no arranca y la
+autorización de `--fake`— y saca la barrera de las cinco migraciones: volver a poder arrancar una reversa que
+en MariaDB termina a mitad de camino. No hay datos ni esquema involucrados.
 
 ---
 

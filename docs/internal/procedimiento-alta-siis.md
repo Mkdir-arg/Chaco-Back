@@ -19,9 +19,15 @@
 Contra la base, **no desde el pod** (la imagen no trae cliente):
 
 ```bash
-mariadb -h <host> -u <usuario> -p --skip-ssl <base> < scripts/Aprobados.sql
-mariadb -h <host> -u <usuario> -p --skip-ssl <base> < scripts/Localidades.sql
+mariadb -h <host> -u <usuario> -p --skip-ssl <base> < $DATOS_SIIS_DIR/Aprobados.sql
+mariadb -h <host> -u <usuario> -p --skip-ssl <base> < $DATOS_SIIS_DIR/Localidades.sql
 ```
+
+> Los `.sql` **no están en el repositorio ni en la imagen**: tienen datos personales
+> reales (Cambio 116, RED-01). Viven en el directorio que apunta `DATOS_SIIS_DIR`
+> —por defecto `/datos-siis`—, montado como volumen de solo lectura. Si no está
+> montado, `correr_alta_siis` corta antes de tocar nada y nombra la variable. De
+> dónde sale cada archivo: [`scripts/README-datos-siis.md`](../../scripts/README-datos-siis.md).
 
 | Tabla | Filas esperadas |
 |---|---|
