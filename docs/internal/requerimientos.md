@@ -15673,15 +15673,20 @@ de las 36 rutas de Legajos con datos reales (RED-06, PR R-19); poner `drf_specta
 - **El número de rutas lo mide el propio test, no un informe.** RS-R1 contó 571/44 y VR1 288/17 con scripts
   distintos: el total depende enteramente de cómo cada uno concreta los `re_path`. Este barrido mide **315
   patrones sobre 311 URLs únicas**, y de esas 311 hay **17 que no rebotan**, todas públicas por diseño.
-- **`404` y `405` no cuentan como rebote, y esa ausencia es el test.** La primera versión los aceptaba, y como
-  las URLs se concretan con valores de juguete sobre una base vacía, el 404 es la respuesta esperable de buena
-  parte del URLconf: aceptarlo tapaba la única pregunta que el barrido hace. El revisor lo demostró sacándole
-  `CapacidadRequeridaMixin` y `LoginRequiredMixin` a `CiudadanoDetailView` —queda un `DetailView` pelado que
-  contesta 404 al `pk` inexistente— y el barrido **seguía verde**. La regla correcta es que **el guard corre
-  antes del lookup del objeto y antes de que Django mire el método**, así que a un anónimo una ruta privada
-  nunca le contesta 404 ni 405. Las POST-only se repiten con POST (el cliente de test no verifica CSRF a
-  propósito: ese 403 llegaría antes que el guard y taparía la pregunta), y un 404 legítimo para el anónimo va a
-  `ALLOWLIST_PUBLICA` con su motivo, igual que un 200.
+- **`404` y `405` no cuentan como rebote, y esa ausencia es el test.** La primera versión los aceptaba. El
+  revisor lo demostró sacándole `CapacidadRequeridaMixin` y `LoginRequiredMixin` a `CiudadanoDetailView` —queda
+  un `DetailView` pelado que contesta 404 al `pk` inexistente— y el barrido **seguía verde**. La regla correcta
+  es que **el guard corre antes del lookup del objeto y antes de que Django mire el método**, así que a un
+  anónimo una ruta privada nunca le contesta 404 ni 405. Las POST-only se repiten con POST (el cliente de test
+  no verifica CSRF a propósito: ese 403 llegaría antes que el guard y taparía la pregunta), y un 404 legítimo
+  para el anónimo va a `ALLOWLIST_PUBLICA` con su motivo, igual que un 200.
+- **El 404 y el 405 masivos son de la pasada con superusuario, no de la anónima.** Vale distinguirlo porque es
+  lo que explica por qué aceptarlos tapaba tanto. Medido sobre las 311 URLs: con **superusuario** hay 95 que dan
+  404 (el objeto de juguete no existe) y 40 que dan 405 (son POST-only), o sea 135 respuestas que el humo da por
+  buenas con razón —ninguna es un 500—. Con el **anónimo**, en cambio, hoy quedan solo 3 y 3: los 404 son las
+  tres del link público de inscripción y los 405 son `/api/becas/auth/token/`, `/logout` y `/logout/`. Las seis
+  están en la allowlist o se resuelven repitiendo con POST. El resto de la superficie rebota antes de tocar la
+  base: 241 redirecciones al login, 37 × 403, 11 × 401 y 4 × 426.
 - **«Rebotar» se compara por path exacto.** Primera versión del test: «el `Location` contiene
   `reverse(settings.LOGIN_URL)`». Como el login vive en la raíz, `reverse("users:login")` es `/` y **toda**
   redirección del sistema contenía esa cadena: el test pasaba sin mirar nada. Quedó como comparación del path
@@ -15774,9 +15779,9 @@ El segundo caso del molde de RED-73 —el que encontró el barrido, no la ficha�
 - `ruff check` y `ruff format --check` limpios sobre los cuatro archivos tocados.
 - **Mutación de control de la ronda 2 (la que propuso el revisor):** sacarle `CapacidadRequeridaMixin` y
   `LoginRequiredMixin` a `CiudadanoDetailView` (`legajos/views/ciudadanos.py`). Con `404` dentro de
-  `ESTADOS_QUE_REBOTAN` el barrido quedaba **verde**; sin él la vista pasa a ser un `DetailView` pelado, el
-  `pk=1` de juguete sobre la base vacía devuelve 404 y `test_ninguna_ruta_responde_al_anonimo` la reporta como
-  abierta. Es el control que sostiene la regla «el guard corre antes del lookup».
+  `ESTADOS_QUE_REBOTAN` el barrido quedaba **verde**; sin él, `test_ninguna_ruta_responde_al_anonimo` falla con
+  `legajos:ciudadano_detalle → /legajos/ciudadanos/1/ (404)`. Revertida. Es el control que sostiene la regla
+  «el guard corre antes del lookup».
 
 ## Puesta en marcha en el servidor
 
@@ -15796,9 +15801,9 @@ un operador con `ciudadano.crear` se comporta igual que antes.
   en `core/middleware.py`—. No se reescribe porque el archivo no se reescribe nunca (regla de oro); esta entrada
   es la corrección, y `core/tests/test_cors_api.py` es lo que ahora sostiene la conclusión.
 - El barrido concreta los patrones con valores de juguete: una ruta cuyo `re_path` no se pueda concretar sin
-  regex queda fuera. Hoy son **32 patrones** —los sufijos de formato de DRF (`\.(?P<format>[a-z0-9]+)/?$`), que
-  repiten una ruta ya cubierta sin el sufijo—. El número se midió sobre el recorrido real; la primera versión
-  de esta entrada decía 4, que era una estimación a ojo.
+  regex queda fuera. Hoy son **33 patrones** —los sufijos de formato de DRF (`\.(?P<format>[a-z0-9]+)/?$`) más
+  el converter `<drf_format_suffix:format>`, que repiten una ruta ya cubierta sin el sufijo—. El número está
+  medido sobre el recorrido real; la primera versión de esta entrada decía 4, que era una estimación a ojo.
 
 ## Reversión
 
