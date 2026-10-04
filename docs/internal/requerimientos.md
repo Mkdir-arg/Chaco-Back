@@ -299,8 +299,10 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 116 | Los volcados de personas salen del repo y de la imagen | Transversal · alta en SIIS · repositorio, release e imagen | `#datos` `#infra` `#siis` | Auditoría integral oct-2026 — RED-01, decisión D-RED-01 (Ola R, PR R-01) | 04/10/2026 | 🟡 **Parcial** (la purga del historial y el repo privado los hace el PM) | No requiere |
 | 117 | El rollback de producción tiene un procedimiento escrito, y las migraciones que no se pueden revertir avisan antes de romper nada | Transversal · operación y deploy · migraciones | `#infra` `#datos` | Auditoría integral oct-2026 — RED-60 y RED-15 (Ola R «Red de seguridad», PR R-02) | 04/10/2026 | 🟢 **Hecho** | No requiere |
 | 118 | `/api/docs/` vuelve a andar y el esquema de la API dice la verdad | Transversal · API DRF · documentación (`/api/schema/`, `/api/docs/`, `/api/redoc/`) | `#api` `#mobile` `#infra` | Auditoría integral oct-2026 — RED-36 y RED-37 (Ola R, red de seguridad, PR R-04) | 04/10/2026 | 🟢 **Hecho** | No requiere |
+| 119 | Red de seguridad del contrato de la app de campo: claves del JSON, pausa, período, errores, capacidad, alcance y presupuesto del alta | Becas · API de la app de campo (`/api/becas/`) | `#api` `#rbac` `#performance` `#datos` | Auditoría integral oct-2026 — RED-11, RED-03, RED-10, RED-25 y RED-26 (Ola R, PR R-07) | 04/10/2026 | 🟢 **Hecho** | No requiere |
 | 120 | Los tests recorren el enum de estados entero, no solo el camino feliz | Becas · relevamientos (vencimientos, API de campo) · Portal (link público) | `#relevamientos` `#api` `#mobile` `#cupos` | Auditoría integral oct-2026 — RED-28, RED-29 y RED-66 (Ola R, red de seguridad, PR R-08) | 04/10/2026 | 🟢 **Hecho** | No requiere |
 | 122 | El URLconf se recorre entero: ninguna ruta queda abierta al anónimo y ninguna pantalla revienta | Transversal · toda la superficie HTTP · Legajos (confirmar alta) · Merenderos (entregas) · CORS de `/api/` | `#rbac` `#api` `#sesion` `#ui` | Auditoría integral oct-2026 — RED-02, RED-30, RED-73 y RED-71 (Ola R «Red de seguridad», PR R-05) | 04/10/2026 | 🟢 **Hecho** | No requiere |
+| 124 | Cupo y lista de espera: la guarda del cupo 0, el contrato de los candados y la posición | Becas · cupo y lista de espera · Portal (link público) · API de campo | `#cupos` `#api` `#mobile` `#datos` | Auditoría integral oct-2026 — RED-27, RED-67 y RED-68 (Ola R, red de seguridad, PR R-09) | 04/10/2026 | 🟢 **Hecho** | No requiere |
 | 125 | El CI ve la forma del SQL que le llega al motor de producción | Transversal · dashboards · link público · Dispositivos (reportes) | `#performance` `#infra` `#datos` `#relevamientos` | Auditoría integral oct-2026 — RED-07, RED-08 y RED-09 (Ola R, red de seguridad, PR R-10) | 04/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
@@ -15311,6 +15313,154 @@ es opcional.
 
 ---
 
+# Cambio 119 — Red de seguridad del contrato de la app de campo
+
+🟢 **HECHO — 04/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · API de la app de campo (`/api/becas/`) |
+| **Etiquetas** | `#api` `#rbac` `#performance` `#datos` |
+| **Solicitante** | Auditoría integral de octubre 2026 — fichas **RED-11**, **RED-03**, **RED-10**, **RED-25** y **RED-26** (Ola R, PR R-07) |
+| **Fecha del pedido** | 04/10/2026 |
+| **Issue / épica** | Sin issue — auditoría oct-2026, `docs/internal/auditoria-2026-10/` |
+| **Partes afectadas** | `programas/tests/test_becas_api.py`, `programas/tests/test_becas_api_contrato.py` (nuevo), `docs/internal/auditoria-2026-10/hallazgos/08-red-de-seguridad.md` |
+| **Migración** | No requiere |
+
+## Pedido original
+
+La Ola R de la auditoría es la **red de seguridad**: antes de que las olas 1 a 7 toquen el código, que haya un
+test que se ponga rojo si se rompe. El PR R-07 es el que cubre el borde con la app de campo, que es **otro repo
+en producción** (`Chaco-mobile`). Las cinco fichas:
+
+- **RED-11** (ALTA) — ningún test fija el conjunto de claves del JSON de `/api/becas/*`. Renombrar
+  `convocatoria_nombre` → `convocatoria` dejaba en verde los 54 tests que `test_becas_api.py` tiene hoy en
+  `development` y el teléfono mostraba los relevamientos sin nombre de convocatoria, sin error. (La ficha dice
+  «76»: es el número del relevamiento original de la auditoría, de otro corte del archivo.)
+- **RED-03** (ALTA) — la pausa estaba probada en 1 de los 6 endpoints de escritura, el período en 3 y las ramas
+  de error en ninguno. Borrar el guard de `finalizar`, `reabrir`, `formularios`, el PATCH o `adjuntos` dejaba el
+  campo cargando sobre un programa pausado y fallaba un solo test.
+- **RED-10** (ALTA) — el alta por la API trabaja bajo `select_for_update` contra el `read_timeout` de 10 s y no
+  tenía ningún número que la defienda.
+- **RED-25** (ALTA, mutación M11) — la capacidad `becas.campo` solo se probaba en el **login** de la app.
+- **RED-26** (ALTA, mutación M14) — `FormularioViewSet.get_queryset` es el único filtro de alcance de los casos
+  y no lo afirmaba ningún test.
+
+## Qué lo motivó
+
+Las cinco comparten la misma forma: **el código está bien hoy y nada avisa cuando deja de estarlo.** La prueba de
+mutación de la auditoría lo midió: M11 (`CampoBecasPermission` sin `puede(user, CAP)`) y M14
+(`Formulario.objects.all()`) sobrevivieron a 1.452 tests. Y el contrato con el móvil es el peor caso: lo que acá se
+renombra, allá no da error —el teléfono muestra el dato vacío— y se descubre en campo, no en el CI.
+
+## Alcance acordado
+
+**Entra:** tests, nada más. No se tocó una línea de `programas/api/`: la app móvil está en producción y el
+contrato de `/api/becas/*` queda exactamente como está.
+
+**Queda afuera:** el gemelo de RED-10 para el paso 2 del link público
+(`portal/tests/test_inscripcion_envio.py::Paso2ConsultasTests`) y los dos destinos del Performance Guard
+(`inscripcion_publica_paso2`, `becas_api_alta`), que la ficha ubica en la Ola 4. La forma de **cada campo** de
+`definicion_formulario` (claves, prefijos `pg-`/`rn-`, enums) es RED-12, PR R-17.
+
+## Decisiones tomadas
+
+- **La pausa se fija como está, con su inconsistencia** (default de **D-RED-10**). Cinco endpoints contestan
+  `409 {"detail", "pausado": true}` y el PATCH contesta `400 {"detail": [...]}`, porque `perform_update` levanta un
+  `ValidationError` de DRF que además envuelve el mensaje en una lista. Escribir un 409 para los seis haría que el
+  próximo implementador «arregle» el test en vez de la inconsistencia. Unificarlo es un release coordinado con
+  `Chaco-mobile`, no un cambio de servidor suelto: la app hoy no mira ni el 409 ni la clave `pausado`.
+- **El conjunto de claves se afirma exacto, no con `assertIn`.** Agregar una clave es seguro; renombrarla o sacarla
+  es el release coordinado. Un `assertIn` no atrapa el renombre, que es justo el cambio peligroso.
+- **El presupuesto del alta es 29 consultas, medido sobre SQLite** (el motor del CI), y cuenta el POST entero, no
+  solo lo que corre adentro del lock. Como cualquier ratchet de la Ola R, **solo puede bajar**: subirlo exige
+  justificarlo (RED-62). Se mide dos veces —con el relevamiento vacío y con 5 casos ya cargados— para que el número
+  fije además que el alta no escala con el tamaño del relevamiento.
+- **Leer los adjuntos ya subidos sigue sin mirar la pausa ni el período**, y queda fijado con test. Es lo que la app
+  consulta para no reenviar una foto: bloquearlo la haría reenviar justo cuando el operativo está pausado.
+- **El PATCH de un caso ajeno espera 404, con la nota de que pasa a 405** si SEC-23 (Ola 2) saca `UpdateModelMixin`.
+- **No hizo falta ningún `expectedFailure`:** ninguno de los tests nuevos descubrió un bug de otra ola.
+- **El estado de origen de `iniciar`, `finalizar` y `reabrir` no se prueba dos veces.** El Cambio 120 (RED-66,
+  PR R-08) entró primero y lo recorre con `subTest` sobre el enum entero; al mergear se podaron los tres casos
+  sueltos que este PR había escrito (`finalizar` fuera de curso, `finalizar` desde `FINALIZANDO`, `reabrir` no
+  finalizado), que quedaban subsumidos. De las ramas de error de RED-03 quedan acá las que RED-66 no toca:
+  `capturado_en` malformado y `dni-existe` sin DNI.
+- **El código de la pausa se afirma exacto por endpoint, también para la pausa propia del relevamiento.** El mapa
+  `PausaEnTodosLosEndpointsTests.CODIGO_DE_PAUSA` es el único lugar donde vive el contrato (cinco 409 y un 400), y
+  los dos tests de la clase pasan por el mismo helper: una regresión que mueva un 409 a 400 —o al revés— falla en
+  los dos, no solo en el de la pausa heredada.
+
+## Implementación
+
+`programas/tests/test_becas_api_contrato.py` (nuevo, RED-11) — `ContratoAppDeCampoTests`, con las constantes
+literales del módulo y el aviso para el que las toque:
+
+| Constante | Qué fija |
+|---|---|
+| `CLAVES_RELEVAMIENTO_LIST` | las 17 claves de `RelevamientoListSerializer` |
+| `CLAVES_RELEVAMIENTO_DETAIL` | las anteriores + `definicion_formulario` |
+| `CLAVES_DEFINICION` | `requiere_gps`, `canal`, `version`, `items`, `globales`, `requisitos` |
+| `CLAVES_FORMULARIO` | las 26 claves del caso (alta y listado) |
+| `CLAVES_ADJUNTO` | `id`, `formulario`, `pregunta_global`, `requisito_nativo`, `archivo`, `creado` |
+| `CLAVES_PAGINACION` | `count`, `next`, `previous`, `results` (la app usa `next` para sincronizar) |
+
+`programas/tests/test_becas_api.py` — la base `_SeisEndpointsTest` arma una jornada de campo real (relevamiento
+`EN_CURSO`, un caso, una pregunta de tipo ARCHIVO) y expone los seis endpoints de escritura como una lista para
+recorrer con `subTest`: `iniciar`, `finalizar`, `reabrir`, `formularios` POST, `formulario` PATCH y `adjuntos` POST.
+De ahí salen `PausaEnTodosLosEndpointsTests` y `PeriodoEnTodosLosEndpointsTests`; las dos afirman, caso por caso,
+el código real del endpoint y que **nada se escribió** (estado y `fecha_finalizado` del relevamiento, `celular` del
+caso, `Formulario.objects.count()`, `AdjuntoFormulario.objects.count()`).
+
+## Validación
+
+- **Tests nuevos: 23** (7 en el archivo de contrato, 16 en `test_becas_api.py`, que queda en 70 métodos: 54 + 16),
+  y cada uno probado contra la mutación que tiene que matar:
+
+  | Ficha | Mutación aplicada a mano | Resultado |
+  |---|---|---|
+  | RED-11 | `convocatoria_nombre` → `convocatoria` en `serializers.py:18` | 3 tests en rojo (antes: 76 en verde) |
+  | RED-03 | `finalizar` sin `_respuesta_pausa` | 2 en rojo |
+  | RED-03 | `adjuntos` sin `_respuesta_pausa` | 2 en rojo |
+  | RED-03 | `reabrir` sin `habilitado_en` | 1 en rojo |
+  | RED-10 | duplicado por DNI resuelto recorriendo los casos en Python (N+1 bajo el lock) | 2 en rojo |
+  | RED-25 | **M11**: `CampoBecasPermission` sin `and puede(user, CAP)` | 3 en rojo |
+  | RED-26 | **M14**: `FormularioViewSet` con `Formulario.objects.all()` | 4 en rojo |
+
+- `manage.py check` sin issues y `makemigrations --check --dry-run` sin cambios.
+- Suite completa en verde con `.venv312` (Python 3.12 + Django 5.2.17, igual al CI), en dos tandas:
+  `programas` → 1.464 tests, y `core users legajos portal conversaciones configuracion dashboard config` → 725 OK.
+- `ruff check` y `ruff format --check` limpios sobre los dos archivos tocados. Sin cambios de UI: no aplican
+  `design_audit.py`, `compile_templates.py` ni `check_design_agent.py`.
+
+## Pendientes / a definir
+
+- **La inconsistencia del 409 vs. 400 de la pausa sigue abierta** (D-RED-10). El test la fija, no la tapa:
+  unificarla necesita un release coordinado con `Chaco-mobile`, que hoy no mira ninguna de las dos cosas.
+- Queda abierto el gemelo de RED-10 para el paso 2 del link público y los dos destinos del Performance Guard
+  (Ola 4), más RED-12 (forma de cada campo de `definicion_formulario`, PR R-17).
+- `CONSULTAS_ALTA = 29` está medido sobre **SQLite**. Cuando TST-01 (PR R-11) ponga MariaDB/MySQL en el CI, el
+  número hay que volver a medirlo sobre el motor real: ahí aparecen el `select_for_update` y los `SAVEPOINT`
+  propios del motor.
+
+## Reversión
+
+Revertir el commit saca los tests: el contrato de la app vuelve a no estar afirmado en ninguna parte. No hay
+cambios de código de producción, datos ni migraciones.
+
+## Historial
+
+- **03/10/2026** — se mergea la auditoría integral oct-2026 (PR #514): RED-03, RED-10, RED-11, RED-25 y RED-26
+  quedan registradas como fichas de la Ola R.
+- **04/10/2026** — se abre el frente «red de seguridad» (PR #544) con el plan de 21 PRs de la Ola R; R-07 es el
+  del contrato de la app de campo.
+- **04/10/2026 (este cambio)** — RED-11, RED-03, RED-25 y RED-26 cerradas; RED-10 parcial (falta el gemelo del
+  link público y los destinos del Performance Guard, Ola 4).
+- **04/10/2026 (ronda 2 de revisión)** — se mergea `development`, que ya trae el Cambio 120 (RED-66): se podan los
+  tres tests de estado que quedaban duplicados, se fija el código exacto de la pausa también en el test de la pausa
+  propia del relevamiento y se corrigen los conteos (23 tests nuevos; 54 métodos previos en `test_becas_api.py`).
+
+---
+
 # Cambio 120 — Los tests recorren el enum de estados entero, no solo el camino feliz
 
 🟢 **HECHO — 04/10/2026**
@@ -15666,6 +15816,151 @@ de revertir es volver a no tener ninguna afirmación ejecutable sobre el conjunt
   venda, encontró un bug real del molde RED-73 en `EntregaMercaderiaCreateView`, que se arregló acá. Además se
   vació `EXCEPCIONES_HUMO` (R-04 ya mergeado), se corrigió el conteo de patrones descartados —32, no 4— y se
   registró el hallazgo del usuario sin rol como pendiente.
+
+---
+
+# Cambio 124 — Cupo y lista de espera: la guarda del cupo 0, el contrato de los candados y la posición
+
+🟢 **HECHO — 04/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · cupo y lista de espera · Portal (link público) · API de campo |
+| **Etiquetas** | `#cupos` `#api` `#mobile` `#datos` |
+| **Solicitante** | Auditoría integral oct-2026 — fichas RED-27, RED-67 y RED-68 (Ola R, red de seguridad, PR R-09) |
+| **Fecha del pedido** | 04/10/2026 |
+| **Issue / épica** | Sin issue (plan de la auditoría: `docs/internal/auditoria-2026-10/`) |
+| **Partes afectadas** | Backoffice (cupo y beneficiarios) · Portal (inscripción pública) · Servidor/API |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> «Cupo y lista de espera: RED-27 (cupo 0), RED-67 (contrato de candados), RED-68 (posición).»
+> (README de la auditoría, Ola R, PR R-09.)
+
+Las tres fichas salen de la prueba de mutación RS-R7, que aplicó 49 cambios chicos al código y
+corrió la suite entera: doce sobrevivieron. Tres de esas doce están en el mismo lugar —el cupo y la
+lista de espera de Becas, el único módulo donde una regresión silenciosa **se informa a SIIS, que
+no tiene baja**— y ninguna la detectaba un test.
+
+## Alcance acordado
+
+- **Solo tests**, más un helper de test compartido (`core/tests/candados.py`). Ni una línea de
+  código de producción.
+- Las cuatro mutaciones de las fichas (M19, M21, M23, M43) quedan muertas, verificadas a mano una
+  por una, más cuatro líneas de candado que las fichas no nombraban.
+- **Afuera:** cambiar conductas. Lo que apareció discutible —qué pasa con la posición que deja el
+  promovido— se fijó como caracterización según D-RED-11, no se tocó. Tampoco entra la unicidad
+  `(segmento, posicion)`: va con BEC-02, en la Ola 1.
+- **Afuera:** la carrera de verdad con dos hilos. Necesita el motor real y entra con TST-01 (PR R-11).
+
+## Decisiones tomadas
+
+- **El cupo 0 se prueba por sus tres caminos.** `cupo_maximo = 1` con un aprobado (el segmento justo
+  lleno), `cupo_maximo = 0` sin nadie, y el segmento **ya excedido** (más aprobados que lugares, un
+  dato heredado posible). El tercero es el que explica la ficha: `get_cupo_stats` devuelve
+  `max(cupo_maximo - ocupado, 0)`, así que `cupo_disponible` nunca es negativo y relajar la guarda
+  de `<= 0` a `< 0` no corre un borde, **borra la guarda entera**. Con esa mutación se promueve
+  siempre, el segmento termina con más aprobados que cupo y cada excedente viaja a SIIS.
+- **El contrato de candados se prueba por presencia, y nombrando al que lo pide.** En SQLite
+  `select_for_update()` es un no-op, así que ningún test de efecto se pone rojo si alguien borra la
+  línea al optimizar (PERF-02 y PERF-12 piden justamente achicar el trabajo bajo el lock). La
+  primera versión del espía era un `assert_called()` sobre el manager y **quedó verde con la
+  mutación M43 aplicada**: `Formulario.save()` también bloquea el relevamiento, para numerar el
+  caso, y tapaba la ausencia del lock del servicio. Por eso `candados_tomados` registra
+  `archivo.py:funcion` y el test afirma *quién* lo pidió.
+- **Dónde vive el helper.** `core/tests/candados.py`, al lado de `core/tests/js_harness.py` (mismo
+  precedente: módulo de utilidades dentro de un paquete de tests, que el discovery no levanta
+  porque no se llama `test_*`). Lo usan `programas` y `portal`, y así ninguno de los dos importa
+  los tests del otro.
+- **Los candados del link público quedan en `portal/tests/`**, no en
+  `programas/tests/test_candados_concurrencia.py` como decía la ficha: el fixture del paso 2 está
+  en portal y moverlo obligaría a que los tests de `programas` importaran los de `portal`.
+- **Se agregó el candado de la convocatoria**, que la ficha no nombraba: el duplicado por DNI se
+  mira por convocatoria completa y tiene su propio `select_for_update`. Sin él, dos envíos
+  simultáneos por relevamientos distintos de la misma convocatoria inscriben dos veces al mismo DNI.
+- **La posición: se fija la conducta de hoy (D-RED-11), y resultó ser dos conductas.** El máximo se
+  calcula sobre los **no promovidos**, así que depende de a quién se promueva:
+  - si sale el **primero**, su lugar no se reutiliza y el que entra sigue contando desde el último
+    activo (lista `[1, 2]`, se promueve el 1, el nuevo recibe 3);
+  - si sale el **último**, el máximo baja y la próxima alta **repite su posición**: quedan dos filas
+    con la misma posición en el segmento, una promovida y una activa.
+
+  Las dos quedan fijadas en tests. La segunda es la que decide cómo puede entrar la unicidad que
+  propone RED-68: `UniqueConstraint(fields=["segmento", "posicion"])` sobre los datos de hoy no
+  cierra —hay duplicados legítimos—, hace falta liberar la posición al promover, con columna
+  nullable (no `condition=`: MariaDB no crea índices parciales). Eso es trabajo de BEC-02, Ola 1.
+
+## Implementación
+
+El sistema se comporta igual que antes: no cambió ninguna regla. Lo que cambió es que ahora hay
+tests que se ponen rojos si alguien las cambia sin querer.
+
+- **Promoción con cupo 0** (`promover_lista_espera`): la única guarda de cupo de la segunda puerta
+  a APROBADO. El único test que promovía subía antes el cupo a 10, así que la guarda no se tocaba.
+- **Candados del cupo** (`aprobar_o_poner_en_espera`, `promover_lista_espera`,
+  `agregar_a_lista_espera`): los tres bloquean el segmento antes de leer el cupo o el
+  `Max("posicion")`.
+- **Candados del alta de casos:** el del relevamiento en el envío del link público y en el POST de
+  la app de campo, y el de la convocatoria en el chequeo de duplicado.
+- **Posición en la lista:** numeración correlativa, qué pasa con el lugar del promovido y el orden
+  con el que la pantalla de Cupo muestra la lista (que es el orden de atención que ve el coordinador).
+
+## Archivos
+
+`core/tests/candados.py` (nuevo) · `programas/tests/test_cupo_espera_reglas.py` ·
+`programas/tests/test_candados_concurrencia.py` · `portal/tests/test_inscripcion_envio.py` ·
+`docs/internal/auditoria-2026-10/hallazgos/08-red-de-seguridad.md` (resolución y «Test permanente»
+de las tres fichas).
+
+## Base de datos
+
+No requiere. Sin migraciones, sin columnas nuevas, sin datos tocados.
+
+## Validación
+
+- **Tests nuevos (15), todos verdes:**
+  - `programas/tests/test_cupo_espera_reglas.py::PromoverRespetaElCupoTests` —
+    `test_promover_sin_cupo_disponible_falla`, `test_promover_con_cupo_maximo_cero_falla`,
+    `test_promover_con_el_cupo_ya_excedido_tampoco_promueve`,
+    `test_promover_con_el_ultimo_lugar_funciona`.
+  - `programas/tests/test_cupo_espera_reglas.py::PosicionEnLaListaTests` —
+    `test_las_altas_consecutivas_llevan_posiciones_correlativas`, `test_la_posicion_tras_promover`,
+    `test_la_posicion_del_ultimo_promovido_se_reutiliza`,
+    `test_el_listado_de_cupo_respeta_el_orden_de_llegada`.
+  - `programas/tests/test_candados_concurrencia.py::ContratoDeCandadosTests` (4) y
+    `::ContratoDeCandadosApiTests` (1).
+  - `portal/tests/test_inscripcion_envio.py::ContratoDeCandadosPublicoTests` (2).
+- **Mutaciones verificadas a mano** (aplicar → correr → revertir): **M19** (`<= 0` → `< 0`) → 3 en
+  rojo; **M21** (sin el lock en `cupo.py:267`) → 2; **M23** (`posicion = max_pos`) → 4; **M43** (sin
+  el lock en `inscripcion_publica.py:89`) → 1. Además, las líneas de candado que las fichas no
+  nombraban: `cupo.py:205` → 1, `cupo.py:316` → 2, `inscripcion_publica.py:134` → 1,
+  `api/views.py:387` → 1.
+- `manage.py check` sin issues y `makemigrations --check --dry-run` sin cambios.
+- Suite completa en verde con `.venv312` (Python 3.12 + Django 5.2.17, igual al CI).
+- `ruff check` y `ruff format --check` limpios sobre los cuatro archivos tocados.
+- Sin UI: no corresponde `design_audit.py` ni `compile_templates.py`.
+
+## Puesta en marcha en el servidor
+
+No requiere. Son tests; no cambia ninguna conducta en ejecución.
+
+## Pendientes / a definir
+
+- **Capa 2 del contrato de candados** (RED-67): la carrera real, con dos hilos sobre el último lugar
+  de un segmento, necesita MariaDB. Va con TST-01 (PR R-11) y el paso `--tag mysql`.
+- **Unicidad `(segmento, posicion)`** (RED-68 / D-RED-11): los tests dejan documentado que hoy hay
+  duplicados legítimos, así que la constraint solo entra liberando la posición al promover, con
+  columna nullable. Es trabajo de BEC-02, Ola 1.
+
+## Reversión
+
+Revertir el commit saca los quince tests y el helper. No hay datos ni conducta que revertir: el
+sistema queda exactamente como está hoy, pero las cuatro mutaciones vuelven a sobrevivir.
+
+## Historial
+
+No aplica: entrada nueva.
 
 ---
 

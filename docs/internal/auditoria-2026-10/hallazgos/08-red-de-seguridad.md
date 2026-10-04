@@ -37,15 +37,15 @@ con lo que existe hoy; la lista solo baja.
 |---|---|---|---|---|---|---|
 | RED-01 | Datos personales reales (10.321 personas) en un repo público, en el release y en la imagen de PRD | CRÍTICA | CONF. lectura (API + git) | R (hotfix) | M | ⬜ |
 | RED-02 | Ningún test recorre el URLconf: una ruta que vuelva a quedar abierta pasa el CI | ALTA | CONF. test (barrido) | R | S | ✅ |
-| RED-03 | App de campo: pausa probada en 1 de 6 endpoints, período en 3, ramas de error en ninguna | ALTA | CONF. test (coverage) | R | S-M | ⬜ |
+| RED-03 | App de campo: pausa probada en 1 de 6 endpoints, período en 3, ramas de error en ninguna | ALTA | CONF. test (coverage) | R | S-M | ✅ |
 | RED-04 | Crear, eliminar y activar un rol no se ejecutan por HTTP en ningún test | ALTA | CONF. test (coverage) | R | S-M | ⬜ |
 | RED-05 | Ningún test sigue un adjunto desde el canal que lo sube hasta la revisión | ALTA | CONF. lectura | R (+3 con DAT-01) | M | ⬜ |
 | RED-06 | Legajos: 23 de 36 rutas sin test; `/legajos/alertas/` ya dio 500 y sigue sin test | ALTA | CONF. test (coverage) | R (+2) | S-M + S | ⬜ |
 | RED-07 | Nada impide volver a poner `Trunc*`/`__date` sobre un `DateTimeField` (CONVERT_TZ, 500 en PRD) | ALTA | CONF. test (SQL compilado) | R | S-M | ✅ |
 | RED-08 | Los tests del 500 del link público cuentan consultas, no la forma del `WHERE` | ALTA | CONF. test (SQL compilado) | R | S | ✅ |
 | RED-09 | Un `UUIDField` nuevo sin `char(36)` pasa el CI; el único test de UUID se saltea siempre | ALTA | CONF. test | R (+3) | S-M (+S) | ✅ (R; falta Ola 3) |
-| RED-10 | Las dos escrituras que dieron 500 bajo el lock no tienen presupuesto de consultas | ALTA | CONF. lectura | R (+4) | S (+S-M) | ⬜ |
-| RED-11 | Ningún test fija la forma del JSON de `/api/becas/*` que lee la app de campo | ALTA | CONF. lectura (dos repos) | R | S | ⬜ |
+| RED-10 | Las dos escrituras que dieron 500 bajo el lock no tienen presupuesto de consultas | ALTA | CONF. lectura | R (+4) | S (+S-M) | 🟡 |
+| RED-11 | Ningún test fija la forma del JSON de `/api/becas/*` que lee la app de campo | ALTA | CONF. lectura (dos repos) | R | S | ✅ |
 | RED-12 | `definicion_formulario` y los prefijos `pg-`/`rn-`: contrato de dos repos sin serializer ni test | ALTA | CONF. lectura (dos repos) | R | M | ⬜ |
 | RED-13 | El shell de todo el backoffice y `legajos.ready()` dependen de `conversaciones` | ALTA | CONF. lectura | R (test) + 7 | S + M | ⬜ |
 | RED-14 | Un rollback de release con una columna `NOT NULL` nueva rompe el alta de casos (error 1364) | ALTA | CONF. test (MariaDB 11.8) | R | M | ⬜ |
@@ -59,9 +59,9 @@ con lo que existe hoy; la lista solo baja.
 | RED-22 | El pipeline de ECOM solo construye la imagen: cero verificación antes del deploy a PRD | ALTA | CONF. lectura | R (propuesta a ECOM) | S | ⬜ |
 | RED-23 | `/pushGitLabecom` empuja `test` y `main` en la misma corrida, sin exigir CI ni testing verificado | ALTA | CONF. lectura | R | M | ⬜ |
 | RED-24 | Sin gates de contratos del repo: `compile_templates`, `collectstatic`, `requerimientos --check`, `design_audit` | ALTA | CONF. test (corrida) | R | M | ⬜ |
-| RED-25 | La capacidad `becas.campo` no se prueba en los endpoints ni en el oráculo de identidad | ALTA | CONF. test (mutación M11) | R | S | ⬜ |
-| RED-26 | `FormularioViewSet` sin test de alcance: un territorial podría leer y editar casos ajenos | ALTA | CONF. test (mutación M14) | R | S | ⬜ |
-| RED-27 | Promover desde la lista de espera con cupo exactamente 0 no está probado | ALTA | CONF. test (mutación M19) | R | S | ⬜ |
+| RED-25 | La capacidad `becas.campo` no se prueba en los endpoints ni en el oráculo de identidad | ALTA | CONF. test (mutación M11) | R | S | ✅ |
+| RED-26 | `FormularioViewSet` sin test de alcance: un territorial podría leer y editar casos ajenos | ALTA | CONF. test (mutación M14) | R | S | ✅ |
+| RED-27 | Promover desde la lista de espera con cupo exactamente 0 no está probado | ALTA | CONF. test (mutación M19) | R | S | ✅ |
 | RED-28 | `FINALIZANDO` está en los estados abiertos de vencimientos y ningún test lo cubre | ALTA | CONF. test (mutación M27) | R | S | ✅ |
 | RED-29 | El envío del link público no prueba que el relevamiento siga `EN_CURSO` | ALTA | CONF. test (mutación M44) | R | S | ✅ |
 | RED-30 | Sin test de humo por pantalla: nada afirma «ninguna ruta da 500» | MEDIA | CONF. test (barrido) | R | S | ✅ |
@@ -101,8 +101,8 @@ con lo que existe hoy; la lista solo baja.
 | RED-64 | `docs/client/` se publica en GitHub Pages público en cada push, sin revisión | MEDIA | CONF. lectura (API) | 7 | S | ⬜ |
 | RED-65 | El guard de `publish-main.yml` exige artefactos muertos y va a bloquear OPS-10/OPS-14 | MEDIA | CONF. lectura | R (+7) | S | ⬜ |
 | RED-66 | `reabrir` de la app de campo no tiene test negativo de la transición | MEDIA | CONF. test (mutación M17) | R | S | ✅ |
-| RED-67 | Ningún test afirma que se tome el `select_for_update` del cupo ni del link | MEDIA | CONF. test (mutaciones M21, M43) | R (+capa 2 en TST-01) | S | ⬜ |
-| RED-68 | La posición en la lista de espera no está probada en ningún lado | MEDIA | CONF. test (mutación M23) | R | S | ⬜ |
+| RED-67 | Ningún test afirma que se tome el `select_for_update` del cupo ni del link | MEDIA | CONF. test (mutaciones M21, M43) | R (+capa 2 en TST-01) | S | ✅ |
+| RED-68 | La posición en la lista de espera no está probada en ningún lado | MEDIA | CONF. test (mutación M23) | R | S | ✅ |
 | RED-69 | Fecha de nacimiento ausente o futura sin test en el payload SIIS | MEDIA | CONF. test (mutación M34) | R | S | ⬜ |
 | RED-70 | `celda_segura`: la limpieza de caracteres de control no está probada | MEDIA | CONF. test (mutación M49) | R | S | ⬜ |
 | RED-71 | `ApiCorsMiddleware` sin tests de contrato (y el Cambio 52 lo da por inexistente) | BAJA | CONF. test (ajustado) | R | S | ✅ |
@@ -195,6 +195,24 @@ S-M = 4, M = 8, L = 20 (README §6).
     `test_reabrir_uno_que_no_esta_finalizado_da_400` (ver también RED-66),
     `test_una_fecha_de_captura_invalida_da_400_en_iniciar_y_en_finalizar` (`subTest`), `test_dni_existe_sin_dni_da_400`.
 - **Verificación:** `& $env:PY manage.py test programas.tests.test_becas_api`.
+
+**Resolución:** ✅ Resuelto en el PR R-07 (Cambio 119), 04-oct-2026 — `programas/tests/test_becas_api.py` suma la base
+`_SeisEndpointsTest` (los seis endpoints de escritura de una jornada de campo: `iniciar`, `finalizar`, `reabrir`,
+`formularios` POST, `formulario` PATCH y `adjuntos` POST) y dos barridos con `subTest` sobre ella:
+`PausaEnTodosLosEndpointsTests` (pausa de la convocatoria y pausa propia del relevamiento) y
+`PeriodoEnTodosLosEndpointsTests` (franja vencida). Cada caso afirma el **código real** del endpoint —409 con
+`{"detail", "pausado": true}` en cinco, **400 solo con `detail`, y envuelto en lista, en el PATCH**, tal cual
+D-RED-10— y que nada se escribió (estado y `fecha_finalizado` del relevamiento, `celular` del caso,
+`Formulario.objects.count()`, `AdjuntoFormulario.objects.count()`). Las ramas de error entran en
+`RelevamientoApiTests` (`capturado_en` inválido en `iniciar` y en `finalizar`, `dni-existe` sin DNI) y el
+`GET …/adjuntos/` en `AdjuntoValidacionTests` (listado vacío, listado con un adjunto, y que leer lo ya subido sigue
+funcionando con el relevamiento pausado). **El estado de origen de las tres transiciones no se repite acá:** lo
+recorre entero RED-66 (Cambio 120, PR R-08), que entró primero; los casos sueltos que este PR había escrito
+(`finalizar` fuera de curso, `finalizar` desde `FINALIZANDO`, `reabrir` no finalizado) se podaron al mergear, porque
+los `subTest` sobre todo el enum los subsumen. Mutaciones de control ejercidas a mano: sacar el `_respuesta_pausa` de
+`finalizar` → rojo; sacarlo de `adjuntos` → rojo; `reabrir` sin `habilitado_en` → rojo.
+**Test permanente:** `programas/tests/test_becas_api.py::PausaEnTodosLosEndpointsTests.test_la_pausa_bloquea_y_no_escribe`
+y `::PeriodoEnTodosLosEndpointsTests.test_fuera_del_periodo_se_rechaza_y_no_escribe`.
 
 ### RED-04 · Crear, eliminar y activar un rol no se ejecutan por HTTP en ningún test
 **Severidad:** ALTA · **Estado:** CONFIRMADO con test (coverage: `users/views/roles.py` 54 %) · **Origen:** RS-R1-03 (VR1: CONFIRMADO) · **Ola:** R · **Esfuerzo:** S-M (4 h)
@@ -532,6 +550,17 @@ y `core/tests/test_uuid_mariadb.py::BusquedasUUIDTests.test_las_busquedas_por_uu
   (Token de territorial, `201`, `max_duplicate_queries: 1`) en `build_targets` + filas en `perf_budgets.json` con
   justificación en `adjustments` (y RED-62 para que no se suban en silencio).
 
+**Resolución:** 🟡 Parcial en el PR R-07 (Cambio 119), 04-oct-2026 — hecha la mitad del alta por la app:
+`programas/tests/test_becas_api.py::AltaBajoElLockTests` con `CONSULTAS_ALTA = 29`, el número **medido** sobre SQLite
+(el motor del CI) para el POST completo de un caso nuevo, y el mismo presupuesto repetido con el relevamiento ya
+poblado (5 casos con ciudadano) para que el número fije además que el alta **no escala** con el tamaño del
+relevamiento. Mutación de control: resolver el duplicado por DNI recorriendo los casos en Python en vez de las dos
+lecturas por índice → los dos tests en rojo (el segundo, por el N+1 por ciudadano). **Falta:** (1) el gemelo
+`portal/tests/test_inscripcion_envio.py::Paso2ConsultasTests.test_el_envio_no_crece_en_consultas`, que queda para el PR
+que toque el link público; (2) los dos destinos del Performance Guard (`inscripcion_publica_paso2`, `becas_api_alta`),
+que siguen en la Ola 4 como dice la ficha.
+**Test permanente:** `programas/tests/test_becas_api.py::AltaBajoElLockTests.test_el_alta_no_crece_en_consultas`.
+
 ### RED-34 · Nada obliga a que una ficha cerrada deje un test permanente
 **Severidad:** MEDIA (era ALTA: las PoC nunca se pensaron para correr; el hueco es de proceso) · **Estado:** CONFIRMADO con test (`unittest.defaultTestLoader.discover('docs')` → 0 tests) · **Origen:** RS-R2-04 (VR1: CONFIRMADO-AJUSTADO) · **Ola:** R · **Esfuerzo:** S (2 h)
 - **Ubicación:** `docs/internal/auditoria-2026-10/poc/` (7 módulos, sin `__init__.py`); README §0.1 y §6 definen el cierre
@@ -593,6 +622,20 @@ la UI («pieza canónica → mismo diff actualiza el agente») falta para la API
   `test_tipos_del_contrato` (`formularios_count` int; `cupo_completo` y `pausado` bool; `definicion_formulario` dict con
   `items`, `globales`, `requisitos`, `requiere_gps`, `canal`, `version`) · `test_formulario_creado_devuelve_id`
   (`relevamientoService.js:846`). Conjunto **exacto**, no `assertIn`.
+
+**Resolución:** ✅ Resuelto en el PR R-07 (Cambio 119), 04-oct-2026 — `programas/tests/test_becas_api_contrato.py::
+ContratoAppDeCampoTests`, con las constantes literales del módulo (`CLAVES_RELEVAMIENTO_LIST`,
+`CLAVES_RELEVAMIENTO_DETAIL`, `CLAVES_DEFINICION`, `CLAVES_FORMULARIO`, `CLAVES_ADJUNTO`, `CLAVES_PAGINACION`) y el
+aviso de que agregar una clave es seguro pero renombrarla o sacarla es un release coordinado de `Chaco-mobile`. Se
+fijan con `assertEqual(sorted(...), ...)` —conjunto exacto— el listado y el detalle de relevamientos, el sobre de
+paginación de DRF, el caso creado y el listado de casos, y el adjunto subido y listado; más `test_tipos_del_contrato`
+(int/bool/str de cada clave, `definicion_formulario` dict con sus seis claves) y
+`test_el_contador_de_personas_cargadas_sale_anotado_y_cuenta` (`formularios_count`, `cupo_maximo`, `cupo_disponible`,
+`cupo_completo`, que no afirmaba ningún test). Mutación de control: renombrar `convocatoria_nombre` →
+`convocatoria` en `serializers.py:18` —que dejaba en verde los 54 tests que hoy tiene `test_becas_api.py`; el «76»
+de arriba es el número del relevamiento original, de otro corte del archivo— pone en rojo tres de estos tests. La
+forma de **cada campo** de `definicion_formulario` sigue siendo RED-12 (PR R-17).
+**Test permanente:** `programas/tests/test_becas_api_contrato.py::ContratoAppDeCampoTests.test_lista_de_relevamientos_tiene_exactamente_estas_claves`.
 
 ### RED-12 · `definicion_formulario` y los prefijos `pg-`/`rn-`: contrato de dos repos sin serializer ni test
 **Severidad:** ALTA · **Estado:** CONFIRMADO (lectura de los dos repos; 8 sitios Python con el prefijo literal) · **Origen:** RS-R3-04 (VR1: CONFIRMADO) · **Ola:** R · **Esfuerzo:** M (8 h)
@@ -1661,6 +1704,13 @@ justificación empírica del paso `--tag mysql` de TST-01.
   `test_sesion_de_backoffice_sin_becas_campo_no_consulta_persona` (403 y `mock_consultar.assert_not_called()`) ·
   `test_token_sin_capacidad_revocada_no_opera` (Token emitido con la capacidad, después se quita el rol → 403).
 
+**Resolución:** ✅ Resuelto en el PR R-07 (Cambio 119), 04-oct-2026 — los tres tests propuestos, tal cual, en
+`programas/tests/test_becas_api.py::TokenAuthTests`. **Mata la mutación M11:** con
+`CampoBecasPermission.has_permission` sin `and puede(user, CAP)` los tres quedan en rojo (antes sobrevivía a 1.452
+tests). El tercero cubre además que la capacidad se mira **en cada request**: el Token no caduca al sacarle el rol al
+usuario.
+**Test permanente:** `programas/tests/test_becas_api.py::TokenAuthTests.test_sesion_de_backoffice_sin_becas_campo_no_consulta_persona`.
+
 ### RED-26 · `FormularioViewSet` sin test de alcance: un territorial podría leer y editar casos ajenos
 **Severidad:** ALTA · **Estado:** CONFIRMADO con test (mutación M14 sobrevive; la equivalente de `RelevamientoViewSet`, M13, muere) · **Origen:** RS-R7-02 · **Ola:** R (o en el PR de SEC-23, Ola 2, si va antes) · **Esfuerzo:** S (2 h)
 - **Ubicación:** `programas/api/views.py:447-450` (`get_queryset`, único filtro de alcance de `/api/becas/formularios/<id>/`:
@@ -1672,6 +1722,13 @@ justificación empírica del paso `--tag mysql` de TST-01.
   `test_no_accede_a_formulario_ajeno` (404) · `test_no_actualiza_formulario_ajeno` (`PATCH` → 404 y la base sin cambios; si
   SEC-23 saca `UpdateModelMixin`, pasa a esperar 405) · `test_no_sube_adjunto_a_formulario_ajeno` (404).
 
+**Resolución:** ✅ Resuelto en el PR R-07 (Cambio 119), 04-oct-2026 — los tres tests propuestos en
+`programas/tests/test_becas_api.py::FormularioSyncTests`, más
+`test_no_lista_los_adjuntos_de_un_formulario_ajeno` (el `GET …/adjuntos/`, que es el cuarto verbo que pasa por el
+mismo `get_queryset`). **Mata la mutación M14:** con `Formulario.objects.all()` los cuatro quedan en rojo. El PATCH
+deja anotado en el test que, si SEC-23 (Ola 2) saca `UpdateModelMixin`, el esperado pasa a 405.
+**Test permanente:** `programas/tests/test_becas_api.py::FormularioSyncTests.test_no_actualiza_formulario_ajeno`.
+
 ### RED-27 · Promover desde la lista de espera con cupo exactamente 0 no está probado
 **Severidad:** ALTA · **Estado:** CONFIRMADO con test (mutación M19 sobrevive; la simétrica de aprobar, M20, muere con 3 tests) · **Origen:** RS-R7-04 · **Ola:** R · **Esfuerzo:** S (2 h)
 - **Ubicación:** `programas/services/cupo.py:224-226` (`promover_lista_espera`, única guarda de cupo de la promoción). El único
@@ -1681,6 +1738,13 @@ justificación empírica del paso `--tag mysql` de TST-01.
 - **Propuesta:** `programas/tests/test_cupo_espera_reglas.py::PromoverRespetaElCupoTests(_BaseEsperaTest)`:
   `test_promover_sin_cupo_disponible_falla` (`cupo_maximo = 1` con un APROBADO; `assertRaises(ValidationError)` con «No hay
   cupo disponible»; el caso sigue ENVIADO y `promovido` en `False`) y `test_promover_con_el_ultimo_lugar_funciona`.
+
+**Resolución:** ✅ Resuelto en el PR R-09 (Cambio 124), 04-oct-2026 — los dos tests propuestos más dos bordes que
+aparecieron al leer el código: `cupo_maximo = 0` sin nadie aprobado y el segmento **ya excedido** (más aprobados que
+lugares, dato heredado). El tercero importa porque `get_cupo_stats` devuelve `max(cupo_maximo - ocupado, 0)`: el
+`cupo_disponible` nunca es negativo, así que la mutación `< 0` no es un borde mal puesto, es **la guarda borrada**.
+Verificado a mano: M19 → 3 tests en rojo.
+**Test permanente:** `programas/tests/test_cupo_espera_reglas.py::PromoverRespetaElCupoTests.test_promover_sin_cupo_disponible_falla`
 
 ### RED-28 · `FINALIZANDO` está en los estados abiertos de vencimientos y ningún test lo cubre
 **Severidad:** ALTA · **Estado:** CONFIRMADO con test (mutación M27 sobrevive) · **Origen:** RS-R7-07 · **Ola:** R (PR de particiones, con RED-29 y RED-66; releer al implementar G1-04) · **Esfuerzo:** S (2 h)
@@ -1759,6 +1823,20 @@ a `finalizar` → 1 en rojo.
   `TransactionTestCase` `@tag("mysql")` con dos hilos sobre un segmento con un lugar → exactamente un APROBADO y una
   `ListaEspera`.
 
+**Resolución:** ✅ Capa 1 resuelta en el PR R-09 (Cambio 124), 04-oct-2026. La capa 2 (`TransactionTestCase` con dos
+hilos, `@tag("mysql")`) sigue abierta dentro de TST-01 (PR R-11), que es la que trae el motor real al CI.
+El espía no es `assert_called()` a secas: `core/tests/candados.py::candados_tomados` registra **desde qué función** se
+pidió el candado, porque sobre el mismo manager hay más de un lock en juego —`Formulario.save()` bloquea el
+relevamiento para numerar el caso— y un `assert_called()` quedaba verde con M43 aplicada (comprobado). Cubre los tres
+caminos del segmento (`aprobar_o_poner_en_espera`, `promover_lista_espera`, `agregar_a_lista_espera`), el
+`Relevamiento` del link público y el del POST de la app de campo, más el `Convocatoria` del duplicado, que la ficha no
+nombraba y es el otro lock del mismo envío. Los del link viven en `portal/tests/` —no en
+`test_candados_concurrencia.py` como decía la ficha— porque el fixture del paso 2 está ahí y moverlos obligaría a que
+los tests de `programas` importen los de `portal`. Verificado a mano, borrando una línea por vez: `cupo.py:205` → 1 en
+rojo, **M21** (`cupo.py:267`) → 2, `cupo.py:316` → 2, **M43** (`inscripcion_publica.py:89`) → 1,
+`inscripcion_publica.py:134` → 1, `api/views.py:387` → 1.
+**Test permanente:** `programas/tests/test_candados_concurrencia.py::ContratoDeCandadosTests.test_aprobar_toma_el_candado_del_segmento`
+
 ### RED-68 · La posición en la lista de espera no está probada en ningún lado
 **Severidad:** MEDIA · **Estado:** CONFIRMADO con test (mutación M23 sobrevive; ningún `assert` sobre `posicion`) · **Origen:** RS-R7-06 · **Ola:** R (tests; la constraint, con BEC-02 en la Ola 1) · **Esfuerzo:** S (2 h) · **Decisión:** D-RED-11
 - **Ubicación:** `programas/services/cupo.py:318-325` (`max_pos + 1`); `programas/models/__init__.py:2977,2984` (`posicion`,
@@ -1771,6 +1849,16 @@ a `finalizar` → 1 en rojo.
   conducta elegida en D-RED-11; hoy el máximo se calcula sobre no promovidos y el nuevo recibe 3) ·
   `test_el_listado_de_cupo_respeta_el_orden_de_llegada`. Con BEC-02, si D-RED-11 lo pide, `UniqueConstraint(fields=["segmento",
   "posicion"])` con columna nullable (no `condition=`: MariaDB no crea índices parciales, README §0.2).
+
+**Resolución:** ✅ Resuelto en el PR R-09 (Cambio 124), 04-oct-2026 — los tres tests propuestos, con el default de
+**D-RED-11** (se fija la conducta de hoy, no se cambia). Se agregó un cuarto, `test_la_posicion_del_ultimo_promovido_se_reutiliza`,
+porque al escribir `test_la_posicion_tras_promover` apareció que la conducta no es una sola: el máximo se calcula sobre
+los **no promovidos**, así que sacar al primero de la lista deja su lugar sin reutilizar (el nuevo recibe 3, como decía
+la ficha), pero sacar al **último** baja el máximo y la próxima alta **repite su posición** —quedan dos filas con la
+misma posición en el segmento, una promovida y una activa—. Eso es lo que define cómo puede entrar la unicidad de
+BEC-02: `UniqueConstraint(fields=["segmento", "posicion"])` sobre lo que hay hoy no cierra; hace falta liberar la
+posición al promover (columna nullable). Verificado a mano: M23 (`posicion = max_pos`) → los 4 tests en rojo.
+**Test permanente:** `programas/tests/test_cupo_espera_reglas.py::PosicionEnLaListaTests.test_las_altas_consecutivas_llevan_posiciones_correlativas`
 
 ### RED-69 · Fecha de nacimiento ausente o futura sin test en el payload SIIS
 **Severidad:** MEDIA · **Estado:** CONFIRMADO con test (mutación M34 sobrevive; la rama `else` no la ejecuta ningún test) · **Origen:** RS-R7-09 · **Ola:** R (o Ola 1, que abre `siis_envio.py`) · **Esfuerzo:** S (2 h)
