@@ -14835,6 +14835,11 @@ de la Ley 25.326.
   (3) tabular sin SQL (`.csv`, `.tsv`, `.dump`, `.dat`, `.sql`) con más de 100 líneas y más de 100
   documentos distintos — un padrón de 5.000 DNI en CSV pesa 60 KB y no lo atrapa ningún techo. Las tres
   exigen **volumen**: lo que distingue un volcado de una plantilla es la cantidad de personas.
+- **Las tuplas no se cuentan por línea** (ronda 3 de revisión). `mysqldump` corre con `--extended-insert`
+  por defecto y mete todas las tuplas en **una sola línea**: contando líneas daban cero y un volcado de
+  5.000 personas de 184 KB —por debajo del techo— pasaba los tres modos. Se cuenta el máximo entre las
+  líneas que son una tupla y los separadores `),(` del texto, que cubre los dos formatos. Sobre los 1.616
+  archivos versionados no agrega ningún falso positivo.
 - **La regla 1 mira la lista de columnas, no todo el archivo.** Tal como estaba, un apellido que fuera
   literalmente «Apellido» dentro de los datos la hacía disparar, y el mensaje decía «INSERT con columnas
   de persona» sobre un `mysqldump` que no tenía ninguna. Acotarla al tramo entre el nombre de la tabla y
@@ -14975,3 +14980,7 @@ variable y sin el volumen, `correr_alta_siis` no carga insumos. No hay datos ni 
   a `development` y `publish-main` revisando el repositorio antes del `export-ignore`; y el volumen de
   `DATOS_SIIS_DIR` comentado en `docker-compose.prod.yml`, para que montarlo sea descubrible donde se lee
   el deploy.
+- **04/10/2026 (ronda 3 de revisión)** — dos MAJOR. El bloque de comentarios del volumen se había comido
+  el `expose: - "8001"` del servicio `web` en `docker-compose.prod.yml`: restaurado, y verificado
+  parseando el YAML contra `origin/development` —el compose parsea **idéntico**, lo único que agrega este
+  PR son comentarios—. Y la regla 2 no veía el `mysqldump` real, el de `--extended-insert`.

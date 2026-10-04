@@ -169,6 +169,29 @@ class HeuristicaDeVolcadoTests(SimpleTestCase):
         self.assertIsNotNone(motivo)
         self.assertIn("mysqldump", motivo)
 
+    def test_un_mysqldump_con_extended_insert_en_una_sola_linea_lo_detecta(self):
+        """`--extended-insert` es el default: las 5.000 tuplas van en UNA línea.
+
+        Contando líneas que *son* una tupla daba 0 y el archivo pasaba entero. Y pesa
+        184 KB, bien por debajo del techo de 512 KB, así que tampoco lo salvaba el
+        tamaño: es el formato exacto que sale de `mysqldump` sin opciones.
+        """
+        filas = ",".join(f"('{30000000 + i}','20{30000000 + i}4','Gomez{i}','Calle {i} 100')" for i in range(5000))
+        archivo = self._escribir("dump_extended.sql", f"INSERT INTO `t` VALUES {filas};\n")
+
+        motivo = parece_volcado(archivo)
+
+        self.assertLess(archivo.stat().st_size, check_datos_personales.TECHO_BYTES)
+        self.assertIsNotNone(motivo)
+        self.assertIn("mysqldump", motivo)
+
+    def test_un_insert_en_una_linea_sin_documentos_no_es_un_volcado(self):
+        """Contar separadores `),(` no puede volverse un detector de paréntesis."""
+        filas = ",".join(f"({i}, 'etiqueta {i}')" for i in range(500))
+        archivo = self._escribir("catalogo_una_linea.sql", f"INSERT INTO `catalogo` VALUES {filas};\n")
+
+        self.assertIsNone(parece_volcado(archivo))
+
     def test_un_padron_en_csv_sin_sql_lo_detecta(self):
         """5.000 DNI en CSV pesan 60 KB: no hay techo de tamaño que los atrape."""
         filas = "\n".join(f"{30000000 + i},Apellido{i},Calle {i} 100" for i in range(5000))

@@ -48,6 +48,8 @@ services:
       # deploy). Sin esto `manage.py correr_alta_siis` corta en el paso 2 y dice por
       # que. Que archivo es cada uno: scripts/README-datos-siis.md.
       # - /srv/datos-siis:/datos-siis:ro
+    expose:
+      - "8001"
     env_file:
       - .env.production
     environment:

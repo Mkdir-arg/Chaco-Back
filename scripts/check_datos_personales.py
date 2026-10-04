@@ -19,15 +19,21 @@ es la cantidad de personas. `scripts/aprobados_materias_plantilla.sql` tiene un
 `INSERT INTO … (dni)` con tres filas de ejemplo y tiene que seguir versionado.
 
 1. **`INSERT` con la lista de columnas** y alguna de persona (`dni`, `cuil`, `cuit`,
-   `apellido`, `fecha_nac`, `domicilio`), más de 100 filas de tuplas. Es el formato en
-   el que el organismo exportó los suyos.
+   `apellido`, `fecha_nac`, `domicilio`), más de 100 tuplas. Es el formato en el que el
+   organismo exportó los suyos.
 2. **`INSERT` sin lista de columnas**, que es lo que emite `mysqldump` por defecto
    (``INSERT INTO `t` VALUES (…),(…)``): ahí no hay nombre de columna que mirar, así que
    se mira el contenido — más de 100 documentos distintos (7 u 8 dígitos) o más de 50
-   CUIL/CUIT distintos, con más de 100 filas de tuplas.
+   CUIL/CUIT distintos, con más de 100 tuplas.
 3. **Tabular sin SQL** (`.csv`, `.tsv`, `.dump`, `.dat`, `.sql`): más de 100 documentos
    distintos en más de 100 líneas. Un padrón de 5.000 DNI en CSV pesa 60 KB y no lo
    atrapa ningún techo de tamaño.
+
+Las tuplas **no se cuentan por línea**. `mysqldump` corre con `--extended-insert` por
+defecto y mete todas en una sola (``INSERT INTO `t` VALUES (…),(…),…``): contando líneas
+daban cero y un volcado de 5.000 personas de 184 KB —por debajo del techo— pasaba
+entero. Se cuenta el máximo entre las líneas que son una tupla y los separadores `),(`
+del texto, que cubre los dos formatos.
 
 La regla 2 puede dar un falso positivo sobre un seed legítimo de más de 100 filas cuyos
 ids caigan en el rango de 7-8 dígitos. Es un gate de seguridad: el falso positivo se
@@ -73,6 +79,9 @@ COLUMNAS_PERSONALES = re.compile(
 )
 INSERT = re.compile(r"insert\s+into", re.IGNORECASE)
 FILA_DE_TUPLA = re.compile(r"^\s*\(.*\)\s*[,;]?\s*$")
+# `mysqldump --extended-insert` (el default) pone todas las tuplas en una sola línea.
+# Contar `),(` cubre ese formato sin perder el de una tupla por línea.
+SEPARADOR_DE_TUPLA = re.compile(r"\)\s*,\s*\(")
 # Un DNI argentino: 7 u 8 dígitos sueltos. El `\b` evita contar los 8 primeros dígitos
 # de un CUIL, que no tiene borde adentro.
 DOCUMENTO = re.compile(r"\b\d{7,8}\b")
@@ -127,12 +136,18 @@ def parece_volcado(ruta: Path) -> str | None:
         return None
 
     lineas = texto.splitlines()
-    filas = sum(1 for linea in lineas if FILA_DE_TUPLA.match(linea))
-    con_volumen = filas > FILAS_VOLCADO
+    # Una tupla por línea, o todas en una sola (`--extended-insert`, el default de
+    # mysqldump). Contando solo líneas, lo segundo daba cero y pasaba entero.
+    separadores = len(SEPARADOR_DE_TUPLA.findall(texto))
+    tuplas = max(
+        sum(1 for linea in lineas if FILA_DE_TUPLA.match(linea)),
+        separadores + 1 if separadores else 0,
+    )
+    con_volumen = tuplas > FILAS_VOLCADO
 
     # 1 · El formato en el que el organismo exportó los suyos.
     if con_volumen and COLUMNAS_PERSONALES.search(texto):
-        return f"parece un volcado con datos personales ({filas} filas de un INSERT con columnas de persona)"
+        return f"parece un volcado con datos personales ({tuplas} tuplas de un INSERT con columnas de persona)"
 
     # 2 y 3 miran el contenido: contar es caro, así que recién acá.
     if not (con_volumen or (ruta.suffix.lower() in EXTENSIONES_TABULARES and len(lineas) > FILAS_VOLCADO)):
@@ -144,7 +159,7 @@ def parece_volcado(ruta: Path) -> str | None:
     if con_volumen and INSERT.search(texto) and (documentos > DOCUMENTOS_VOLCADO or cuiles > CUILES_VOLCADO):
         return (
             f"parece un volcado con datos personales en formato mysqldump "
-            f"({filas} filas, {documentos} documentos y {cuiles} CUIL distintos)"
+            f"({tuplas} tuplas, {documentos} documentos y {cuiles} CUIL distintos)"
         )
 
     # 3 · Tabular sin SQL: un padrón en CSV pesa poco y no lo atrapa el techo.
