@@ -297,6 +297,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 114 | La API de ciudadanos es de solo lectura, pide capacidad y solo contesta búsquedas | Legajos · API DRF (`/api/legajos/`) | `#api` `#rbac` `#datos` | Auditoría integral oct-2026 — SEC-02 (+ V1-NEW-03) y SEC-01 punto 2 en legajos (Ola 0, segunda tanda, PR H12) | 03/10/2026 | 🟢 **Hecho** | No requiere |
 | 115 | El catálogo geográfico de la API es de solo lectura y las APIs del dashboard piden capacidad | Transversal · API DRF (`/api/core/`, `/api/` del dashboard) · home del backoffice | `#api` `#rbac` `#sesion` `#ui` | Auditoría integral oct-2026 — SEC-13 y SEC-14 (Ola 0, segunda tanda, PR H13) | 03/10/2026 | 🟢 **Hecho** | No requiere |
 | 118 | `/api/docs/` vuelve a andar y el esquema de la API dice la verdad | Transversal · API DRF · documentación (`/api/schema/`, `/api/docs/`, `/api/redoc/`) | `#api` `#mobile` `#infra` | Auditoría integral oct-2026 — RED-36 y RED-37 (Ola R, red de seguridad, PR R-04) | 04/10/2026 | 🟢 **Hecho** | No requiere |
+| 120 | Los tests recorren el enum de estados entero, no solo el camino feliz | Becas · relevamientos (vencimientos, API de campo) · Portal (link público) | `#relevamientos` `#api` `#mobile` `#cupos` | Auditoría integral oct-2026 — RED-28, RED-29 y RED-66 (Ola R, red de seguridad, PR R-08) | 04/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -14892,3 +14893,147 @@ las dos direcciones.
 
 - **04/10/2026 (este cambio)** — RED-36 y RED-37 (puntos 1 y 2) cerrados; queda anotado que el punto 3 va en
   la Ola 7 y que el gate de CI es el PR R-18.
+
+---
+
+# Cambio 120 — Los tests recorren el enum de estados entero, no solo el camino feliz
+
+🟢 **HECHO — 04/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · relevamientos (vencimientos, API de campo) · Portal (link público) |
+| **Etiquetas** | `#relevamientos` `#api` `#mobile` `#cupos` |
+| **Solicitante** | Auditoría integral oct-2026 — fichas RED-28, RED-29 y RED-66 (Ola R, red de seguridad, PR R-08) |
+| **Fecha del pedido** | 04/10/2026 |
+| **Issue / épica** | Sin issue (plan de la auditoría: `docs/internal/auditoria-2026-10/`) |
+| **Partes afectadas** | Servidor/API · Backoffice (indirecto: el cron de vencimientos) |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> «Particiones de estados (mutación): RED-28, RED-29, RED-66 con `subTest` sobre todo el enum.»
+> (README de la auditoría, Ola R, PR R-08.)
+
+Las tres fichas salen de la misma medición: la prueba de mutación RS-R7 aplicó 49 cambios chicos y
+plausibles al código y corrió la suite. Doce sobrevivieron —la suite siguió en verde con el código
+roto—. Tres de esas doce son el mismo agujero: **la suite prueba el camino feliz y el negativo
+grueso, pero nunca la partición completa de un enum de estados.**
+
+## Alcance acordado
+
+- **Solo tests**, más una constante inerte que la ficha RED-28 pide para poder afirmar la partición.
+- Las tres mutaciones supervivientes quedan muertas, verificado a mano una por una.
+- **Afuera:** arreglar conductas. Nada de lo que recorrieron los tests resultó ser un bug, así que
+  no hay ningún `expectedFailure` ni cambio de comportamiento. Lo que apareció como asimetría —la
+  segunda rama de la regla de vencimiento— se fijó como caracterización, no se tocó.
+
+## Decisiones tomadas
+
+- **Los `subTest` recorren listas literales, no las constantes del servicio.** Es el punto entero
+  del ejercicio: si `test_todos_los_estados_abiertos_pasan_a_revision` iterara sobre
+  `ESTADOS_RELEVAMIENTO_ABIERTOS`, sacarle `FINALIZANDO` a la constante achicaría también el
+  recorrido del test y la mutación seguiría viva. La lista está escrita a mano en el test, y
+  `test_la_particion_de_estados_cubre_el_enum` es el que enfrenta las dos.
+- **La partición se declara en el código, no solo en el test.** `vencimientos.py` suma
+  `ESTADOS_RELEVAMIENTO_CERRADOS` (`EN_REVISION`, `TERMINADO`), que la regla no usa. Sirve para que
+  un estado nuevo del modelo tenga que clasificarse de un lado o del otro: si no, el test de
+  partición se pone rojo en vez de dejarlo afuera del cron en silencio. La ficha la llamaba
+  `ESTADOS_CERRADOS`; se le puso el nombre largo por simetría con la de al lado.
+- **Las tres transiciones de la app de campo se prueban sobre el enum completo**, afirmando en la
+  misma pasada el camino feliz y el negativo. Es lo que fija el contrato con la APK: `reabrir`
+  acepta **solo** `FINALIZADO` (Cambio 54), `iniciar` sale de `ASIGNADO` y es idempotente sobre
+  `EN_CURSO` (la app reintenta tras un corte de red), y `finalizar` cierra desde `EN_CURSO` y desde
+  `FINALIZANDO` (la ventana de sincronización tardía).
+- **Por qué importa `reabrir`:** con la guarda neutralizada, un territorial puede devolver a campo
+  un relevamiento que el cron de las 03:10 ya mandó a `EN_REVISION` —contra la decisión del Cambio
+  54, «a `EN_REVISION` se llega solo por fecha»— y el cron se lo vuelve a cerrar al otro día. O uno
+  `TERMINADO`, con los reportes ya emitidos.
+- **El link público se prueba con la fecha vigente a propósito.** El re-chequeo bajo el lock es
+  `estado != EN_CURSO or not habilitado_en(now)`: si el test dejara vencer la fecha, pasaría igual
+  con el chequeo de estado borrado. El test arranca afirmando `habilitado_en(now)` para que lo único
+  que pueda rechazar sea el estado. El caso real que cubre: alguien abre el paso 1 a las 03:09, el
+  cron de las 03:10 cierra el relevamiento y el paso 2 crearía el caso igual, colgado de un
+  relevamiento que el revisor ya cerró.
+- **Se agregó la guarda de la vista al mismo recorrido** (`relevamiento_disponible`): es el otro
+  lado del mismo contrato —el paso 1 y el GET del paso 2— y comparte la partición.
+- **La asimetría de la regla de vencimiento se documenta, no se arregla.** La regla tiene dos ramas:
+  por convocatoria vencida cierra los cuatro estados abiertos; por `fecha_hasta` vencida, solo
+  `ASIGNADO` y `EN_CURSO`. O sea: un `FINALIZANDO` cuya ventana de campo pasó, con la convocatoria
+  todavía abierta, no se cierra solo —lo cierra recién el día que vence la convocatoria—.
+  `test_por_fecha_hasta_solo_vencen_asignado_y_en_curso` fija esa conducta recorriendo el enum
+  entero. Si la gracia de sincronización de G1-04 la cambia, el test lo marca.
+
+## Implementación
+
+El sistema se comporta igual que antes: no cambió ninguna regla. Lo que cambió es que ahora hay
+tests que se ponen rojos si alguien las cambia sin querer.
+
+- **Cierre automático por vencimiento** (`procesar_vencimientos`, cron de las 03:10): los cuatro
+  estados abiertos —`ASIGNADO`, `EN_CURSO`, `FINALIZANDO`, `FINALIZADO`— pasan a `EN_REVISION` al
+  vencer la convocatoria, y los dos cerrados no se tocan. `FINALIZANDO` no lo cubría ningún test.
+- **API de campo:** las tres transiciones (`iniciar`, `finalizar`, `reabrir`) tienen su recorrido
+  completo de estados, con el mensaje de error exacto y la afirmación de que el estado quedó intacto.
+- **Link público:** el envío del paso 2 rechaza cualquier estado que no sea `EN_CURSO`, con la fecha
+  vigente, y no crea el caso.
+
+## Archivos
+
+`programas/services/vencimientos.py` (solo la constante `ESTADOS_RELEVAMIENTO_CERRADOS`) ·
+`programas/tests/test_becas_vencimientos.py` · `programas/tests/test_becas_api.py` ·
+`portal/tests/test_inscripcion_envio.py` ·
+`docs/internal/auditoria-2026-10/hallazgos/08-red-de-seguridad.md` (resolución y «Test permanente»
+de las tres fichas).
+
+## Base de datos
+
+No requiere. Sin migraciones, sin columnas nuevas, sin datos tocados.
+
+## Validación
+
+- **Tests nuevos (10), todos verdes:**
+  - `programas/tests/test_becas_vencimientos.py::CascadaRelevamientoTests` —
+    `test_todos_los_estados_abiertos_pasan_a_revision`, `test_los_estados_cerrados_no_se_tocan`,
+    `test_la_particion_de_estados_cubre_el_enum`,
+    `test_por_fecha_hasta_solo_vencen_asignado_y_en_curso`.
+  - `programas/tests/test_becas_api.py::RelevamientoApiTests` —
+    `test_no_reabre_un_relevamiento_que_no_este_finalizado`,
+    `test_iniciar_solo_sale_de_asignado_y_es_idempotente_en_curso`,
+    `test_finalizar_solo_sale_de_en_curso_o_finalizando`.
+  - `portal/tests/test_inscripcion_envio.py::IngestaPublicaTests` —
+    `test_cerrado_entre_pasos_al_enviar_no_crea`, `test_en_curso_y_en_fecha_sigue_creando`,
+    `test_solo_en_curso_habilita_el_link`.
+- **Mutaciones verificadas a mano** (aplicar → correr → revertir), que es lo que el PR tiene que
+  demostrar: **M27** (sin `FINALIZANDO` en los abiertos) → 2 tests en rojo; `TERMINADO` de más en
+  los abiertos → 3 en rojo; **M17** (`if False:` en la guarda de `reabrir`) → 5 `subTest` en rojo;
+  la misma en `iniciar` → 5 en rojo; sin `FINALIZANDO` en `finalizar` → 1 en rojo; **M44**
+  (re-chequeo sin el estado) → `test_cerrado_entre_pasos_al_enviar_no_crea` en rojo; sin el estado
+  en `relevamiento_disponible` → 5 `subTest` en rojo.
+- `manage.py check` sin issues y `makemigrations --check --dry-run` sin cambios.
+- Suite completa en verde con `.venv312` (Python 3.12 + Django 5.2.17, igual al CI), en tres tandas:
+  `programas` → 1.445 OK (1 skip, el de MySQL), `core users legajos portal conversaciones
+  configuracion dashboard` → 728 OK, `healthcheck tramites scripts` → 6 OK.
+- `ruff check` y `ruff format --check` limpios sobre los cuatro archivos de código tocados.
+- Sin UI: no corresponde `design_audit.py` ni `compile_templates.py`.
+
+## Puesta en marcha en el servidor
+
+No requiere. Son tests y una constante; no cambia ninguna conducta en ejecución.
+
+## Pendientes / a definir
+
+- La asimetría de la segunda rama de `relevamientos_de_convocatoria_vencida` queda fijada como
+  caracterización, no resuelta: un `FINALIZANDO`/`FINALIZADO` con `fecha_hasta` pasada y la
+  convocatoria vigente no se cierra solo. Es la decisión que toca cuando se implemente la gracia de
+  sincronización (G1-04), y ahí hay que releer RED-28 y RED-29.
+- Las mutaciones que solo se manifiestan en MariaDB (los `select_for_update`) no las puede matar
+  esta suite en SQLite: van por RED-67 (PR R-09) y el paso `--tag mysql` de TST-01 (PR R-11).
+
+## Reversión
+
+Revertir el commit saca los diez tests y la constante. No hay datos ni conducta que revertir: el
+sistema queda exactamente como está hoy, pero las tres mutaciones vuelven a sobrevivir.
+
+## Historial
+
+No aplica: entrada nueva.
