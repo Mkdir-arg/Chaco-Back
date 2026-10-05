@@ -16872,6 +16872,17 @@ de construir.
   pero un `workflow_dispatch` se lanza sobre cualquier rama y el job publica `main` con el árbol que
   haya checkouteado: una rama de trabajo cualquiera, sin pasar por el gate, llegaría a ECOM y a la
   imagen de PRD.
+- **El ruleset que se le exige a un PR es el de su propio head** (ronda 3). Leerlo del árbol
+  checkouteado —`development` al momento del merge— tiene un modo de falla de transición feo: el
+  día que entra un check obligatorio nuevo, todo PR abierto de antes —que corrió 9 checks porque
+  el décimo no existía— deja de publicar aunque esté entero en verde, y como `publish-main` falla
+  **después** del merge, `main` se queda quieta sin que nada lo avise en el PR. Medido contra la
+  historia real: el head de #556 declara 9 contextos y su `pr-quality.yml` ni siquiera tenía el job
+  «Contratos del repo». Un head anterior al Cambio 121 no tiene el archivo: ahí no hay lista que
+  exigir y queda el piso de «al menos un check y ninguno rojo» (borrar el ruleset para caer en esa
+  rama no es atajo: pone en rojo `Tests & Coverage`, que es uno de los checks que sí se miran).
+  El `release-gate` lo leía del commit de `development` que originó el release, que es **el merge**:
+  mismo problema, mismo arreglo.
 - **Cero check-runs no es verde** (ronda 2). Mirar solo los checks que fallaron dejaba el agujero más
   grande del gate: un PR cuyos workflows nunca arrancaron —borrados, deshabilitados, o un push del
   head que no los disparó— no tiene **ni un check malo** y habría pasado igual. Ahora se exige que la

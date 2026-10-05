@@ -32,6 +32,12 @@ from django.test import SimpleTestCase
 RAIZ = Path(settings.BASE_DIR)
 FLUJO = RAIZ / ".github" / "workflows" / "publish-main.yml"
 RULESETS = RAIZ / "docs" / "internal" / "rulesets"
+RULESET_REL = "docs/internal/rulesets/ruleset-development.json"
+
+# El merge del PR #556 (R-19), el último que entró antes de que existiera el check
+# «Contratos del repo». Su head corrió 9 checks porque el décimo no existía: es el caso
+# de transición exacto que mide `ContratoDeTransicionTests`.
+MERGE_ANTERIOR_AL_CHECK_NUEVO = "88a19c1e"
 
 # `RUNTIME="a b c"` y `DOCS_DE_RUNTIME="README.md"` dentro del script del guard. Las dos
 # listas viven en variables, y no inline en el `for`, justamente para que este módulo
@@ -227,6 +233,18 @@ class CIVerdeAntesDelReleaseTests(SimpleTestCase):
         self.assertRegex(script, r'if \[ ! -s "\$RUNNER_TEMP/checks\.tsv" \]')
         self.assertIn("no tiene ni un check-run", script)
 
+    def test_la_lista_vacia_de_obligatorios_frena_el_gate(self):
+        """Si el `jq` deja de encontrar la ruta, el `while` itera sobre nada.
+
+        O sea: la comprobación se apaga sola, en silencio, sin exigir un solo check. Un
+        cambio de formato del ruleset tiene que salir por `::error::`, no por la puerta
+        de atrás.
+        """
+        script = _paso(self.PASO)["run"]
+
+        self.assertRegex(script, r'if \[ ! -s "\$RUNNER_TEMP/obligatorios\.txt" \]')
+        self.assertIn("no declara ningún check obligatorio", script)
+
     def test_el_gate_exige_los_contextos_que_el_ruleset_declara_obligatorios(self):
         """Así un check que no corrió se distingue de uno que no existe.
 
@@ -294,6 +312,34 @@ class CIVerdeAntesDelReleaseTests(SimpleTestCase):
 
         self.assertIn("github.event_name == 'push'", paso.get("if", ""))
 
+    def test_el_ruleset_se_lee_del_head_del_pr_y_no_del_arbol_de_hoy(self):
+        """El contrato de un PR es el que estaba vigente en **su** head.
+
+        Leerlo del árbol checkouteado —`development` al momento del merge— le exige a un
+        PR checks que no existían cuando corrió el suyo. El día que entre un check nuevo,
+        todo PR abierto de antes deja de publicar aunque esté entero en verde, y `main`
+        se queda quieta sin que nadie se entere. Es el modo de falla de transición.
+        """
+        script = _paso(self.PASO)["run"]
+
+        self.assertIn(f'git show "$head:{RULESET_REL}"', script)
+        self.assertEqual(
+            script.count(RULESET_REL),
+            1,
+            "el ruleset se lee en un solo lugar, y es el del head del PR",
+        )
+
+    def test_un_head_sin_ruleset_versionado_no_frena_el_release(self):
+        """Antes del Cambio 121 el archivo no existía: ahí no hay lista que exigir.
+
+        No es un atajo: borrar el ruleset para caer en esta rama pone en rojo
+        `Tests & Coverage`, que es uno de los checks que el gate sí mira.
+        """
+        script = _paso(self.PASO)["run"]
+
+        self.assertIn("no tiene ruleset versionado", script)
+        self.assertIn("::warning::", script)
+
     def test_la_publicacion_a_mano_exige_un_motivo_escrito(self):
         """`workflow_dispatch` es la única puerta que saltea el gate: deja rastro.
 
@@ -306,3 +352,60 @@ class CIVerdeAntesDelReleaseTests(SimpleTestCase):
 
         self.assertIn("motivo", entradas)
         self.assertTrue(entradas["motivo"]["required"])
+
+
+def _contextos(texto):
+    """Los `context` del ruleset, con la misma ruta que el `jq` del workflow."""
+    ruleset = json.loads(texto)
+    return [
+        c["context"]
+        for regla in ruleset["rules"]
+        if regla["type"] == "required_status_checks"
+        for c in regla["parameters"]["required_status_checks"]
+    ]
+
+
+def _faltantes(obligatorios, corridos):
+    """El `while` del gate, en Python: qué contexto exigido no aparece entre los checks."""
+    return [contexto for contexto in obligatorios if contexto not in set(corridos)]
+
+
+class ContratoDeTransicionTests(SimpleTestCase):
+    """Agregar un check obligatorio no puede frenar los PRs que ya estaban abiertos.
+
+    El modo de falla es el peor de los dos: `publish-main` falla **después** del merge,
+    así que `main` deja de avanzar sin que nada lo avise en el PR. Y no es hipotético —es
+    exactamente lo que pasa cuando entre este mismo cambio—, por eso el contrato que se le
+    exige a un PR es el ruleset de **su** head.
+    """
+
+    def test_el_pr_anterior_al_check_nuevo_cumple_el_ruleset_de_su_propio_head(self):
+        """Caso real: el head de #556 declara 9 contextos y corrió esos 9.
+
+        Con el ruleset de su head publica; con el de hoy —que suma «Contratos del repo»,
+        un job que en ese head ni siquiera existía— no publicaría nunca.
+        """
+        vigentes = _contextos((RULESETS / "ruleset-development.json").read_text(encoding="utf-8"))
+        de_entonces = [c for c in vigentes if c != "Contratos del repo"]
+        corridos = de_entonces
+
+        self.assertEqual(_faltantes(de_entonces, corridos), [], "con su propio ruleset, publica")
+        self.assertEqual(_faltantes(vigentes, corridos), ["Contratos del repo"], "con el de hoy, se traba")
+
+    @unittest.skipUnless(shutil.which("git") and (RAIZ / ".git").exists(), "hace falta el repositorio de git")
+    def test_el_head_de_556_declaraba_nueve_contextos_y_no_tenia_el_job_nuevo(self):
+        """Lo de arriba, contra la historia de verdad y no contra una lista armada.
+
+        En el CI este test se saltea: `pr-backend.yml` clona con `fetch-depth: 1` y el
+        commit de #556 no está. Corre en cualquier checkout completo.
+        """
+        if _git("cat-file", "-e", f"{MERGE_ANTERIOR_AL_CHECK_NUEVO}^{{commit}}").returncode != 0:
+            self.skipTest("clon superficial: no está el merge de #556")
+        head = _git("rev-parse", f"{MERGE_ANTERIOR_AL_CHECK_NUEVO}^2").stdout.strip()
+
+        ruleset = _git("show", f"{head}:{RULESET_REL}").stdout
+        quality = _git("show", f"{head}:.github/workflows/pr-quality.yml").stdout
+
+        self.assertEqual(len(_contextos(ruleset)), 9)
+        self.assertNotIn("Contratos del repo", _contextos(ruleset))
+        self.assertNotIn("Contratos del repo", quality, "el job no existía: ese PR no pudo haberlo corrido")

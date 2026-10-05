@@ -103,18 +103,31 @@ jobs:
             esac
           done < "$RUNNER_TEMP/checks.tsv"
 
-          # El ruleset se lee del commit de `development` que originó el release: en el
-          # árbol de `main` que estamos parados no está, porque `docs/` es `export-ignore`.
-          git show "$ORIGEN:docs/internal/rulesets/ruleset-development.json" \
-            | jq -r '.rules[] | select(.type == "required_status_checks")
-                     | .parameters.required_status_checks[].context' > "$RUNNER_TEMP/obligatorios.txt"
-          while IFS= read -r contexto; do
-            [ -n "$contexto" ] || continue
-            if ! cut -f1 "$RUNNER_TEMP/checks.tsv" | grep -Fxq "$contexto"; then
-              echo "::error::el PR ($head) no corrió el check obligatorio «$contexto»"
-              fail=1
+          # El ruleset se lee del **head del PR**, igual que en `publish-main.yml` y por el
+          # mismo motivo: es el contrato que estaba vigente cuando ese PR corrió su CI.
+          # Tampoco sirve el árbol donde estamos parados —el de `main`—, porque ahí el
+          # archivo directamente no está: `docs/` es `export-ignore`.
+          if ! git cat-file -e "$head^{commit}" 2>/dev/null; then
+            git fetch --no-tags --depth=1 origin "$head" 2>/dev/null || true
+          fi
+          if git show "$head:docs/internal/rulesets/ruleset-development.json" > "$RUNNER_TEMP/ruleset.json" 2>/dev/null; then
+            jq -r '.rules[] | select(.type == "required_status_checks")
+                   | .parameters.required_status_checks[].context' \
+               "$RUNNER_TEMP/ruleset.json" > "$RUNNER_TEMP/obligatorios.txt"
+            if [ ! -s "$RUNNER_TEMP/obligatorios.txt" ]; then
+              echo "::error::el ruleset de $head no declara ningún check obligatorio: ¿cambió su formato?"
+              exit 1
             fi
-          done < "$RUNNER_TEMP/obligatorios.txt"
+            while IFS= read -r contexto; do
+              [ -n "$contexto" ] || continue
+              if ! cut -f1 "$RUNNER_TEMP/checks.tsv" | grep -Fxq "$contexto"; then
+                echo "::error::el PR ($head) no corrió el check obligatorio «$contexto»"
+                fail=1
+              fi
+            done < "$RUNNER_TEMP/obligatorios.txt"
+          else
+            echo "::warning::el head del PR ($head) no tiene ruleset versionado: solo se exige que no haya checks rojos"
+          fi
 
           [ "$fail" = "0" ] || exit 1
           echo "PR verde en $head ($(wc -l < "$RUNNER_TEMP/checks.tsv") checks)"

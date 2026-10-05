@@ -538,6 +538,22 @@ class ReleaseGateTests(SimpleTestCase):
         self.assertIn("ruleset-development.json", self.texto)
         self.assertIn("no tiene ni un check-run", self.texto)
 
+    def test_el_ruleset_sale_del_head_del_pr_y_no_del_commit_de_release(self):
+        """Mismo contrato de transición que `publish-main`, y por el mismo motivo.
+
+        Acá hay además un segundo motivo: el árbol donde el job está parado es el de
+        `main`, donde `docs/` ni siquiera está (`export-ignore`). Antes se leía del commit
+        de `development` que originó el release, que es **el merge**: su árbol ya tiene el
+        ruleset nuevo, así que el PR que lo originó quedaba exigido con checks que no
+        existían cuando corrió.
+        """
+        self.assertIn('git show "$head:docs/internal/rulesets/ruleset-development.json"', self.texto)
+        self.assertNotIn('git show "$ORIGEN:docs', self.texto)
+
+    def test_la_lista_vacia_de_obligatorios_tambien_frena_el_release_gate(self):
+        self.assertRegex(self.texto, r'if \[ ! -s "\$RUNNER_TEMP/obligatorios\.txt" \]')
+        self.assertIn("no declara ningún check obligatorio", self.texto)
+
     def test_no_corre_en_pull_request(self):
         """Un check que corre en PRs y filtra por rutas queda «expected» para siempre.
 

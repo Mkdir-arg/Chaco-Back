@@ -90,16 +90,43 @@ jobs:
           # que no corrió se distingue de uno que no existe. La lista sale del JSON
           # versionado, que es la misma fuente que aplica el dueño del repo (RED-20), y
           # `core/tests/test_gates_ci.py` la enfrenta contra una lista literal.
-          jq -r '.rules[] | select(.type == "required_status_checks")
-                 | .parameters.required_status_checks[].context' \
-             docs/internal/rulesets/ruleset-development.json > "$RUNNER_TEMP/obligatorios.txt"
-          while IFS= read -r contexto; do
-            [ -n "$contexto" ] || continue
-            if ! cut -f1 "$RUNNER_TEMP/checks.tsv" | grep -Fxq "$contexto"; then
-              echo "::error::el PR ($head) no corrió el check obligatorio «$contexto»"
-              fail=1
+          #
+          # **Del head del PR, no del árbol de acá.** Leerlo del árbol actual le exige a
+          # un PR checks que no existían cuando corrió el suyo: el día que este mismo
+          # cambio entre, cualquier PR abierto de antes —que corrió 9 checks porque
+          # «Contratos del repo» todavía no existía— dejaría de publicar aunque esté
+          # entero en verde, y `main` se quedaría quieta sin que nadie se entere. El
+          # contrato de un PR es el que estaba vigente en su head.
+          if ! git cat-file -e "$head^{commit}" 2>/dev/null; then
+            # Con merge commit el head es el segundo padre y ya está; un squash merge no
+            # lo deja en la historia, así que se lo pide al remoto.
+            git fetch --no-tags --depth=1 origin "$head" 2>/dev/null || true
+          fi
+          if git show "$head:docs/internal/rulesets/ruleset-development.json" > "$RUNNER_TEMP/ruleset.json" 2>/dev/null; then
+            jq -r '.rules[] | select(.type == "required_status_checks")
+                   | .parameters.required_status_checks[].context' \
+               "$RUNNER_TEMP/ruleset.json" > "$RUNNER_TEMP/obligatorios.txt"
+            # Una lista vacía no puede pasar muda: significaría que el `jq` dejó de
+            # encontrar la ruta —el formato del ruleset cambió— y que esta comprobación
+            # se apagó sola, sin exigir un solo check.
+            if [ ! -s "$RUNNER_TEMP/obligatorios.txt" ]; then
+              echo "::error::el ruleset de $head no declara ningún check obligatorio: ¿cambió su formato?"
+              exit 1
             fi
-          done < "$RUNNER_TEMP/obligatorios.txt"
+            while IFS= read -r contexto; do
+              [ -n "$contexto" ] || continue
+              if ! cut -f1 "$RUNNER_TEMP/checks.tsv" | grep -Fxq "$contexto"; then
+                echo "::error::el PR ($head) no corrió el check obligatorio «$contexto»"
+                fail=1
+              fi
+            done < "$RUNNER_TEMP/obligatorios.txt"
+          else
+            # Un head anterior al Cambio 121 no tiene el archivo. Ahí no hay lista de
+            # obligatorios que exigir y queda lo de arriba: al menos un check y ninguno
+            # en rojo. Borrar el ruleset para caer acá no sirve de atajo: hacerlo pone en
+            # rojo `Tests & Coverage`, que es uno de los checks que sí se miran.
+            echo "::warning::el head del PR ($head) no tiene ruleset versionado: solo se exige que no haya checks rojos"
+          fi
 
           [ "$fail" = "0" ] || exit 1
           echo "PR verde en $head ($(wc -l < "$RUNNER_TEMP/checks.tsv") checks)"
