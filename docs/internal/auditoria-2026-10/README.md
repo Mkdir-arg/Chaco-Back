@@ -4,7 +4,7 @@
 
 | PR | Cambio | Fichas | Estado | Qué quedó abierto |
 |---|---|---|---|---|
-| #NNN Ola 6 paso 3 | 131 | V5A-NEW-07 (a) | 🟡 | Las 4 goldens en **0 hallazgos P1 y marcadores de arquetipo completos**: `personas_list` (filtros con `aria-label`, `<th>` de acciones nombrado), `cupo/segmento_detail` (sin `<style>` local, avatares según D5), el modal de `config/programa_list` (labels canónicos, ayuda que no parece error, `data-error="__all__"`, nota con `_alerta`, backdrop por clase) y `config/segmento_form` (ya estaba limpia). El step `Design audit goldens` deja de ser `continue-on-error`. **La parte (b) de V5A-NEW-07 sigue abierta** (Ola 5, PR 7: labels de `convocatoria_list` y deuda de `_dashboard_panel`). Pendientes del paso 4 en adelante: reescribir el núcleo y sus fichas, consumidores, ejercicio de control y registro |
+| #577 Ola 6 paso 3 | 131 | V5A-NEW-07 (a) | 🟡 | Las 4 goldens en **0 hallazgos P1 y marcadores de arquetipo completos**: `personas_list` (filtros con `aria-label`, `<th>` de acciones nombrado), `cupo/segmento_detail` (sin `<style>` local, avatares según D5), el modal de `config/programa_list` (labels canónicos, ayuda que no parece error, `data-error="__all__"`, nota con `_alerta`, backdrop por clase) y `config/segmento_form` (ya estaba limpia). El step `Design audit goldens` deja de ser `continue-on-error`. **La parte (b) de V5A-NEW-07 sigue abierta** (Ola 5, PR 7: labels de `convocatoria_list` y deuda de `_dashboard_panel`). Pendientes del paso 4 en adelante: reescribir el núcleo y sus fichas, consumidores, ejercicio de control y registro |
 
 **Las goldens se defienden desde este PR, no desde el paso 4.** `--goldens` leía la tabla `## Arquetipos` del núcleo, que
 escribe el paso 4: sin esa tabla el step salía verde sin verificar nada, así que sacarle el `continue-on-error` no habría
@@ -1216,7 +1216,7 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
 ### Ola 6 — Agente de diseño
 - **Objetivo:** que una pantalla nueva salga igual a su golden al primer intento, con la deuda vieja contenida por un
   ratchet. **Fecha límite: antes de la primera task de pantalla de la v2 de Dispositivos y Merenderos.**
-- **Avance:** **pasos 0, 1 y 2 cerrados** en #574 (Cambio 129, 05-oct-2026) y **paso 3 cerrado** en #NNN (Cambio 131,
+- **Avance:** **pasos 0, 1 y 2 cerrados** en #574 (Cambio 129, 05-oct-2026) y **paso 3 cerrado** en #577 (Cambio 131,
   05-oct-2026): **22 h de las 42**, quedan **20 h** (pasos 4 a 7). Cierra FE-13, V5A-NEW-01, V5A-NEW-08 y la parte (a) de
   V5A-NEW-07. La línea base «antes» del paso 6 vive en
   [`linea-base-agente-diseno/`](linea-base-agente-diseno/README.md): las tres pantallas fallan hoy, ninguna usó la

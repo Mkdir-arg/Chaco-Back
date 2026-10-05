@@ -175,7 +175,7 @@ FE-18, FE-19); las migraciones de estilo de esos dos módulos las hereda la v2.
 
 ### V5A-NEW-07 · Deuda de accesibilidad y consistencia en las pantallas candidatas a referencia
 **Severidad:** MEDIA · **Estado:** CONFIRMADO · **Origen:** V5A-NEW-07 · **Ola:** (a) 6, paso 3 · (b) 5, PR 7 · **Esfuerzo:** (a) incluido en el paso 3 · (b) S + S (4 h)
-**Resolución:** 🟡 Parte **(a) cerrada** en #NNN (Cambio 131), 05-oct-2026 — las cuatro goldens quedan en **0 hallazgos
+**Resolución:** 🟡 Parte **(a) cerrada** en #577 (Cambio 131), 05-oct-2026 — las cuatro goldens quedan en **0 hallazgos
 P1 y marcadores de arquetipo completos**. Sobre lo que pedía la ficha se hizo, además de `programa_list` y
 `personas_list`, el saneamiento que la tabla de goldens del anexo §3 manda para `cupo/segmento_detail` (quitar el
 `<style>[x-cloak]` —la regla ya es global en `override.css`— y los 3 avatares con `style="background:var(--gradient-brand)"`
