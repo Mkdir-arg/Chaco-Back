@@ -1,0 +1,23 @@
+_linea_base\02-dispositivos-cama\cama_detail.html:7: [P1][STYLEBLOCK] <style> en una pantalla — el CSS vive en static/custom/css y [x-cloak] ya es global
+    <style>
+_linea_base\02-dispositivos-cama\cama_detail.html:15: [P1][PAGEHEADER] <h1> a mano — el encabezado es {% page_header %}
+    <h1 a mano
+_linea_base\02-dispositivos-cama\cama_detail.html:21: [P1][ICONARIA] ícono Font Awesome sin aria-hidden="true"
+    ícono sin aria-hidden
+_linea_base\02-dispositivos-cama\cama_detail.html:28: [P1][INLINESTYLE] style= con declaraciones — usar utilidades o una custom property
+    style="padding:10px 12px; border-radius:10px; background:var(--bg-info-soft); bo
+_linea_base\02-dispositivos-cama\cama_detail.html:29: [P1][INLINESTYLE] style= con declaraciones — usar utilidades o una custom property
+    style="color:var(--text-fg-info)"
+_linea_base\02-dispositivos-cama\cama_detail.html:30: [P1][INLINESTYLE] style= con declaraciones — usar utilidades o una custom property
+    style="font-size:12.5px; color:var(--text-body)"
+_linea_base\02-dispositivos-cama\cama_detail.html:40: [P1][ICONARIA] ícono Font Awesome sin aria-hidden="true"
+    ícono sin aria-hidden
+_linea_base\02-dispositivos-cama\cama_detail.html:45: [P1][ICONARIA] ícono Font Awesome sin aria-hidden="true"
+    ícono sin aria-hidden
+_linea_base\02-dispositivos-cama\cama_detail.html:51: [P1][ICONARIA] ícono Font Awesome sin aria-hidden="true"
+    ícono sin aria-hidden
+_linea_base\02-dispositivos-cama\cama_detail.html:139: [P1][ICONARIA] ícono Font Awesome sin aria-hidden="true"
+    ícono sin aria-hidden
+
+== design_audit: 0 error(es), 10 P1 (deuda), 0 warning(s) ==
+Los P1 son la deuda estructural del repo: no cortan acá, cortan si SUBEN (--ratchet).

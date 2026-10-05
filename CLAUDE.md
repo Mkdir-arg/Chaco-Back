@@ -267,7 +267,9 @@ repo**; hasta entonces, no mergear en rojo es una regla del proceso, no un mecan
 - **Security** — `pip-audit` (`Pip Audit`), con las excepciones de
   `security/excepciones.toml`, que vencen.
 - **Datos** — `Sin datos personales`: ningún volcado de personas entra al repo.
-- **Code Quality** — `Ruff errores` (`ruff check . --select F`).
+- **Code Quality** — `Ruff errores` (`ruff check . --select F`) y `Contratos del repo`: las condiciones de cierre de
+  este archivo, corridas en el CI (sintaxis de todos los templates, `requerimientos.py --check`, `collectstatic` con el
+  almacenamiento con manifest y el ratchet de `design_audit` contra `.design-audit-ratchet`).
 - **Design Agent Contract** — `Validate inventory and authority`.
 
 Los dos últimos corren en **todos** los PRs: el filtro por rutas está adentro del job,
@@ -280,6 +282,13 @@ al cambio.
 
 `Backend CI`, `Performance Guard` y `Datos` corren además en `push` a `development`,
 para que un push directo deje un check rojo visible mientras no haya ruleset.
+
+`Release gate` (`release-gate.yml`) no corre en los PRs: se dispara a mano con el SHA de
+`main` que se va a espejar y verifica **ese release** —CI verde del PR que lo originó,
+suite completa, migraciones sobre MariaDB, la imagen construida con su manifest de
+estáticos y un smoke HTTP—. Es lo que `/pushGitLabecomTEST` corre antes de espejar y lo
+que `/pushGitLabecomPRD` exige en verde. Y `publish-main.yml` no publica un release de un
+commit que no venga de un PR con el CI en verde.
 
 ## Gotchas
 
@@ -355,5 +364,10 @@ falta un archivo de runtime. El detalle operativo vive en
 [`docs/internal/branching.md`](docs/internal/branching.md).
 
 `main` se espeja después al GitLab de ECOM, que tiene CI/CD propio (`test` → testing,
-`main` → **producción**, deploy automático). Ese espejo se hace con `/pushGitLabecom`;
-la app móvil va aparte con `/pushGitLabecomMOBILE`.
+`main` → **producción**, deploy automático). Ese espejo va en **dos pasos separados, con
+una verificación humana en el medio**: `/pushGitLabecomTEST` (corre el `release-gate` y
+espeja `test`) y, después de que alguien pruebe testing, `/pushGitLabecomPRD` (exige el
+mismo árbol en `ecom/test`, el gate en verde y una segunda confirmación escribiendo
+`PRODUCCION`). El procedimiento normativo está en
+[`docs/internal/espejo-ecom.md`](docs/internal/espejo-ecom.md). La app móvil va aparte
+con `/pushGitLabecomMOBILE`.

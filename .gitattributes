@@ -14,6 +14,10 @@
 /.mcp.json export-ignore
 /AGENTS.md export-ignore
 /CLAUDE.md export-ignore
+# Glosario de la automatización diaria de trabajo: documentación interna del equipo.
+# Viajaba al release, al GitLab de ECOM y a la imagen de PRD solo porque no estaba en
+# ninguna de las dos listas del guard (RED-21).
+/CONTEXT.md export-ignore
 /ESTADOS.md export-ignore
 /PM.md export-ignore
 /QA.md export-ignore

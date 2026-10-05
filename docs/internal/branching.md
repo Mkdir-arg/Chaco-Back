@@ -42,7 +42,10 @@ rompería el pull del servidor.
 
 ## Espejo al GitLab de ECOM y su CI/CD
 
-`main` se espeja al GitLab de ECOM (remoto `ecom`, comando `/pushGitLabecom`).
+`main` se espeja al GitLab de ECOM (remoto `ecom`) en **dos pasos separados**,
+`/pushGitLabecomTEST` y `/pushGitLabecomPRD`: el procedimiento normativo, con lo
+que cada uno exige antes de pushear, está en
+[`espejo-ecom.md`](espejo-ecom.md) (RED-23, Cambio 128). Acá queda el mecanismo.
 Del otro lado **no** es un repo pasivo: tiene CI/CD propio.
 
 - El pipeline vive en **`.gitlab-ci.yml`**, lo mantiene ECOM y nosotros llevamos

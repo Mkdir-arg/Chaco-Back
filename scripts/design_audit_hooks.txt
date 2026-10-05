@@ -1,0 +1,36 @@
+# Allowlist de la regla CLASSDEF de scripts/design_audit.py (Ola 6, FE-13).
+#
+# Clases que se usan como *hook* (selector de JS, marcador de estado, gancho de
+# una librería) y por eso no tienen —ni tienen que tener— una regla en el CSS.
+# No son bugs visuales: sin esta lista CLASSDEF las reportaría como WARN y el
+# ruido tapa los hallazgos reales.
+#
+# Un patrón por línea, con comodines de fnmatch (`*`, `?`). Las líneas vacías y
+# las que empiezan con `#` se ignoran. Agregar una entrada acá es una decisión:
+# el nombre del hook debería llevar prefijo `js-` (convención del repo) y lo que
+# está en esta lista por motivos históricos se migra cuando se toca la pantalla.
+
+# Convención del repo para ganchos de JS.
+js-*
+
+# Ganchos de librerías de terceros o del framework.
+dj-message
+g-recaptcha
+was-validated
+sortable-placeholder
+*-grip
+
+# Constructor de formularios y ABM de roles (ganchos sin prefijo, previos a la convención).
+cap-*
+contador-modulo
+tab-content
+tab-select-all-btn
+roles-panel
+cons-grupo
+
+# Marcadores de estado que el JS agrega y quita.
+revealed
+fade
+show
+selected
+disabled

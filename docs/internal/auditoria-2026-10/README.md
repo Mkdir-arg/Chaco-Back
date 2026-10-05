@@ -34,6 +34,32 @@ liberarlos mandaría una tercera alta. Todos quedan listados y con una traza en 
    en `TracaFormulario` (`campo = 'envio_siis'`). Esa lista va a ECOM para que las saque de SIIS; de
    este lado no hay que tocar nada —los dos casos quedan tomados a propósito—.
 
+---
+
+## Estado al 05-oct-2026 (Ola 6, pasos 0-2: herramientas del agente de diseño)
+
+**La Ola 6 arrancó, en paralelo con las Olas 1 y 2** (es independiente del backend y tiene fecha límite propia: antes de
+la primera task de pantalla de la v2 de Dispositivos y Merenderos).
+
+| PR | Cambio | Fichas | Estado | Qué quedó abierto |
+|---|---|---|---|---|
+| #574 Ola 6 pasos 0-2 | 129 | FE-13, V5A-NEW-01, V5A-NEW-08 | ✅ ✅ ✅ | Línea base «antes» medida y guardada; D1-D5 con el default aplicado (D4 = frenar); `design_audit.py` con `--ratchet`, las 7 reglas P1 + CLASSDEF, `--arquetipo`, `--goldens`, el decodificador CSS y el hook en modo ratchet; `check_design_agent.py` con los 8 puntos del anexo §7; `compile_templates.py` sin `site-packages`; gate de build de Tailwind en CI. **Faltan los pasos 3 a 7** (sanear goldens, reescribir el núcleo, consumidores, ejercicio de control y registro final): hasta el paso 4, `--goldens` corre con `continue-on-error` y los límites del núcleo viven detrás de `check_design_agent.py --limites` |
+
+**Lo que mide la línea base (paso 0).** Con los agentes actuales, las tres pantallas del ejercicio de control fallan:
+ninguna escribió un Plan de pantalla como artefacto, **ninguna usó la golden de su arquetipo**, y la de detalle clonó
+**la pantalla hermana del módulo** heredando su deuda entera (10 hallazgos P1, 8 marcadores de arquetipo). Dos de las
+tres dan 0 hallazgos mecánicos y aun así están fuera de molde: es la confirmación de que el gate de token no alcanza.
+Detalle y método reproducible en [`linea-base-agente-diseno/`](linea-base-agente-diseno/README.md).
+
+**Deuda que el ratchet congela desde hoy:** 42 ERROR y **3.627 hallazgos P1** (INLINESTYLE 1.942, RAWPALETTE 949,
+ICONARIA 398, TABLECANON 156, CLASSDEF 70, PAGEHEADER 56, STYLEBLOCK 39, SHELLLEGACY 17). No bloquean; lo que bloquea es
+**subir** el conteo de una regla en un archivo. Los números del anexo §7 se confirmaron salvo lo que bajó con la Ola R.
+
+**Pendiente operativo que deja este PR (PM):** ninguno de deploy. Para el paso 4 hay que decidir si el núcleo nuevo se
+escribe desde una sesión con permiso de escritura sobre `.claude/` (ver el PR).
+
+---
+
 ## Estado al 04-oct-2026 (Ola R mínima: PRs R-01 a R-10)
 
 Contrastado contra `origin/development @ cdd9c71`. **La Ola R mínima —los diez PRs que el plan pide antes de la Ola 1—
@@ -52,6 +78,7 @@ columna «Avance» de la tabla índice de `hallazgos/08-red-de-seguridad.md` coi
 | #545 R-08 | 120 | RED-28, RED-29, RED-66 | ✅ ✅ ✅ | Particiones de estados con `subTest` sobre todo el enum |
 | #552 R-09 | 124 | RED-27, RED-67, RED-68 | ✅ ✅ ✅ | Cupo exacto 0, contrato de candados y posición en la lista de espera (default de **D-RED-11**) |
 | #550 R-10 | 125 | RED-07, RED-08, RED-09 | ✅ ✅ ✅ (R) | Motor y forma del SQL. De RED-09 falta la parte de la Ola 3 |
+| #575 R-14 | 128 | RED-24, RED-21, RED-65, RED-23, RED-22 | ✅ ✅ ✅ (R) 🟡 🟡 | **05-oct.** `Contratos del repo` obligatorio (templates, `requerimientos --check`, `collectstatic` con manifest, ratchet de diseño en 42), `publish-main` con denylist derivado de `.gitattributes` y CI verde del PR exigido, `release-gate.yml` y el espejo partido en TEST/PRD. Falta: enviar la propuesta a ECOM (H-12) y copiar los dos comandos a `.claude/` |
 | #556 R-19 | 126 | RED-89, SEC-10, SEC-18 (+R0b-06), SEC-11, RED-04, RED-06 | ✅ ✅ ✅ 🟡 ✅ ✅ | Barrido con usuario **sin rol** (`ALLOWLIST_SIN_ROL`, 31 entradas) y las 17 rutas de Legajos cerradas con capacidad: adjuntos acotados al dueño con el blob borrado en `on_commit`, alertas con alcance real y `self.get_object()`. **SEC-11 queda 🟡** hasta que D-11 suba 3 vistas a `ciudadano.sensible` (Ola 2). Operativo: decidir si el rol «Configuración» lleva `ciudadano.ver` (la rama `config.administrar` del alcance de alertas quedó muerta sin ella) |
 
 **Avance del frente 08 (89 fichas, con RED-89 nueva).**
@@ -59,15 +86,15 @@ columna «Avance» de la tabla índice de `hallazgos/08-red-de-seguridad.md` coi
 | Severidad | RED | ✅ Resueltas | 🟡 Parciales | ⬜ Pendientes |
 |---|---:|---:|---:|---:|
 | CRÍTICA | 2 | 0 | 1 | 1 |
-| ALTA | 28 | 12 | 2 | 14 |
-| MEDIA | 41 | 14 | 0 | 27 |
+| ALTA | 28 | 14 | 4 | 10 |
+| MEDIA | 41 | 15 | 0 | 26 |
 | BAJA | 18 | 4 | 0 | 14 |
-| **Total** | **89** | **30** | **3** | **56** |
+| **Total** | **89** | **33** | **5** | **51** |
 
 La columna ✅ incluye las fichas cuya **parte de la Ola R** quedó cerrada y tienen una segunda parte planificada en otra
-ola, anotadas `✅ (R; falta Ola N)`: RED-09 (Ola 3), RED-32 (Ola 1), RED-37, RED-54 y RED-85 (Ola 7). El 🟡 se reserva
-para una ficha cuya propia parte de la Ola R quedó incompleta: RED-01 y RED-20 (falta el paso del dueño del repo) y
-RED-10 (falta un test).
+ola, anotadas `✅ (R; falta Ola N)`: RED-09 (Ola 3), RED-32 (Ola 1), RED-37, RED-54, RED-65 y RED-85 (Ola 7). El 🟡 se reserva
+para una ficha cuya propia parte de la Ola R quedó incompleta: RED-01 y RED-20 (falta el paso del dueño del repo),
+RED-10 (falta un test), RED-22 (falta enviar la propuesta a ECOM) y RED-23 (faltan los dos comandos en `.claude/`).
 
 **Ficha nueva · RED-89 (CRÍTICA, CONFIRMADA con test).** La levantó el revisor del PR R-05 y se midió acá: un usuario de
 backoffice autenticado y **sin un solo grupo ni permiso** recibe 200 en **31 rutas** de backoffice (de 315 barridas; 44
@@ -119,7 +146,15 @@ destinos de Performance Guard de RED-10 en la Ola 4, y su gemelo del link públi
 4. **`DATANACH_ES_PRODUCCION=1` solo en PRD** (sin la variable, el check de producción nunca dispara).
 5. **`DATOS_SIIS_DIR` montado** en icore y en ECOM antes de la próxima corrida de alta SIIS.
 6. **`DJANGO_CORS_ALLOWED_ORIGINS` vacía en ECOM** (el test de RED-71 solo cubre los `.env.*.example` del repo).
-7. El pedido escrito a ECOM del dump previo a cada deploy (H-11) y la propuesta de la etapa `verify` (H-12, RED-22).
+7. El pedido escrito a ECOM del dump previo a cada deploy (H-11) y la propuesta de la etapa `verify` (H-12, RED-22):
+   **redactada y lista para enviar** en [`docs/internal/propuesta-ecom-verify.md`](../propuesta-ecom-verify.md)
+   (Cambio 128); la manda el PM.
+8. **Copiar a `.claude/commands/` los tres comandos del espejo partido** (`pushGitLabecomTEST.md`,
+   `pushGitLabecomPRD.md` y el reemplazo de `pushGitLabecom.md`, RED-23): quedan como archivos completos en
+   `docs/internal/espejo-ecom-comandos/` del worktree del PR —sin trackear, se borran al copiarlos— y también en el
+   cuerpo del PR del Cambio 128, porque la sesión que lo implementó no tiene permiso de escritura sobre `.claude/`. El procedimiento normativo ya está versionado en
+   [`docs/internal/espejo-ecom.md`](../espejo-ecom.md).
+9. **Correr `release-gate.yml` antes del próximo `/pushGitLabecom`** y, si da rojo, no espejar.
 
 ---
 
@@ -505,13 +540,18 @@ indica qué ítems no conviene cerrar sin la respuesta.
 
 ### 2.3 Decisiones del agente de diseño (antes del paso 3 de la Ola 6)
 
-| ID | Decisión | Recomendación |
-|---|---|---|
-| D1 | Tamaño de las acciones del header | `btn-base` en listados y formularios, `btn-sm` en detalles (lo que hace el código) |
-| D2 | Confirmación con motivo en pantallas nuevas | Arquetipo Modal con form POST; Swal queda legacy condicionado (Dispositivos y Legajos actuales) |
-| D3 | Íconos | Font Awesome en el contenido; Heroicons solo en sidebar y navbar |
-| D4 | Wizard de backoffice | Frenar y preguntar; no se define ahora |
-| D5 | Avatar con gradiente en filas de la golden de detalle | Iniciales en `bg-brand-soft text-fg-brand` |
+**Estado al 05-oct-2026:** el paso 1 de la Ola 6 aplicó el **default recomendado** en D1, D2, D3 y D5, y dejó D4 como el
+anexo pide (frenar). Las cinco quedan registradas en *Decisiones tomadas* del **Cambio 129** y marcadas
+`DECISIÓN CLIENTE` en el PR: son defaults aplicados, no decisiones del PM, y se pueden revertir antes del paso 4
+(reescritura del núcleo) sin tocar código, porque todavía no hay ficha que las escriba.
+
+| ID | Decisión | Recomendación | Estado |
+|---|---|---|---|
+| D1 | Tamaño de las acciones del header | `btn-base` en listados y formularios, `btn-sm` en detalles (lo que hace el código) | ✅ default aplicado (05-oct) |
+| D2 | Confirmación con motivo en pantallas nuevas | Arquetipo Modal con form POST; Swal queda legacy condicionado (Dispositivos y Legajos actuales) | ✅ default aplicado (05-oct) |
+| D3 | Íconos | Font Awesome en el contenido; Heroicons solo en sidebar y navbar | ✅ default aplicado (05-oct) |
+| D4 | Wizard de backoffice | Frenar y preguntar; no se define ahora | 🟡 **no se define** (es la decisión) |
+| D5 | Avatar con gradiente en filas de la golden de detalle | Iniciales en `bg-brand-soft text-fg-brand` | ✅ default aplicado (05-oct); lo ejecuta el paso 3 |
 
 ### 2.4 Decisiones del frente Red de seguridad (04-oct-2026)
 
@@ -893,7 +933,7 @@ funcional ni coordinación con ECOM). Las horas de cada ola suman los esfuerzos 
 | 3 | Datos, operación, CI, app de campo y reglas de Becas | 55 | 158 | 59 (+ R0-03, R0-04, R0-06, R0-07) | 166 | 54 (− 7 a la Ola R; + RED-48, RED-58; + partes de RED-09, 35, 40, 50) | 152 |
 | 4 | Performance | 19 | 52 | 19 | 52 | 20 (+ RED-62; + partes de RED-10, 49, 51, 83) | 64 |
 | 5 | Bugs de front y parches v1 de Legajos/Dispositivos | 31 (+ V5A-NEW-07 b) | 114 | 31 (+ V5A-NEW-07 b) | 114 | 33 (+ RED-33, RED-75; + partes de RED-42, 53) (+ V5A-NEW-07 b) | 128 |
-| 6 | Agente de diseño | 4 (+8 pasos) | 42 | 4 (+8 pasos) | 42 | 4 (+8 pasos) | 42 |
+| 6 | Agente de diseño | 4 (+8 pasos) | 42 | 4 (+8 pasos) | 42 | 4 (+8 pasos) | 42 · **18 cerradas el 05-oct (pasos 0-2) → 24 restantes** |
 | 7 | Deuda | 9 (+ fase 2 de G1-01) | 46 | 10 (+ fase 2 de G1-01; + R0-02) | 48 | 13 (+ RED-64, 76, 86; + partes de RED-13, 37, 39, 54, 78, 85) | 88 |
 | v2 | Criterios de aceptación de la v2 (§7), no se implementan en v1 | 13 | — | 13 | — | 13 | — |
 | **Total** | | **206** | **636** | **208** | **628** | **297** | **972** · **133 cerradas → 839 restantes** |
@@ -995,7 +1035,7 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
   por lo suyo, que ningún test recorría el URLconf con un usuario sin rol. Las dos cerradas, más SEC-18 y SEC-11
   (adelantadas por D-RED-14), RED-04 y RED-06. **SEC-11 queda 🟡** hasta que D-11 suba tres vistas a
   `ciudadano.sensible` en la Ola 2.
-- **Quedan 178 h:** R-11 a R-21 menos R-19. El orden vuelve a ser el de dependencias: **R-11 a R-16 antes de la
+- **Quedan 156 h:** R-11 a R-21 menos R-19 y R-14. El orden vuelve a ser el de dependencias: **R-11 a R-16 antes de la
   Ola 3**, R-21 antes de la Ola 2.
 - **Objetivo:** poder cambiar código sin romper nada sin enterarse. Que todo lo que las Olas 1 a 7 van a tocar tenga antes
   un test que se ponga rojo si se rompe, que el CI pruebe el motor de producción (MariaDB) y las migraciones en las dos
@@ -1021,7 +1061,7 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
 | R-11 | **Motor real en CI:** TST-01 (matriz `mariadb:10.11`/`mariadb:11`/`mysql:8.0` + `test --tag mysql`; ampliado) | 8 | R-13, Ola 3 |
 | R-12 | **Contrato de migraciones:** RED-14 (`scripts/check_migraciones.py`, columnas que toleran código viejo), RED-57 (reversas declaradas), RED-18 (reversa UUID), RED-84 (`Reversión` en `--check`), RED-83 (índices redundantes, ratchet) | 18 | toda migración nueva |
 | R-13 | **Job `migration-roundtrip`** (Anexo B): RED-17, RED-19 (un solo migrador, expand/contract) | 14 | Ola 3 (G1-04, G1-05, DAT-01) |
-| R-14 | **Gates del release:** RED-24 (`Contratos del repo`), RED-21 (`publish-main` exige CI verde), RED-65, RED-23 (`release-gate.yml` + `/pushGitLabecom` en dos), RED-22 (propuesta a ECOM) | 22 | el próximo espejo a ECOM |
+| ✅ R-14 | **Gates del release:** RED-24 (`Contratos del repo`), RED-21 (`publish-main` exige CI verde), RED-65, RED-23 (`release-gate.yml` + `/pushGitLabecom` en dos), RED-22 (propuesta a ECOM) — **#575, Cambio 128** (RED-22 y RED-23 🟡: falta el envío a ECOM y copiar los dos comandos a `.claude/`) | 22 | el próximo espejo a ECOM |
 | R-15 | **Operación y deploy** (desde la Ola 3): OPS-03, OPS-04, OPS-01 (ampliados), RED-59 (`deploy_prod.sh`), RED-16 (tag de release), RED-55 | 18 | el próximo deploy en icore |
 | R-16 | **Becas: adjuntos, borrados, atomicidad, padrón:** RED-05, RED-31, RED-35, RED-77, RED-49, RED-50, RED-81, RED-70 | 22 | Ola 3 (DAT-01, BEC-*), SEC-20 |
 | R-17 | **Definición y condiciones (dos repos):** RED-12, RED-38 | 16 | cualquier cambio del constructor |
@@ -1033,7 +1073,8 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
 
 - **Mínimo antes de la Ola 1: ✅ hecho el 04-oct-2026.** R-01 a R-10 (86 h) están mergeados en `development` (detalle,
   estado por ficha y lo que quedó operativo en «Estado al 04-oct-2026», arriba). **R-19 también está cerrado**
-  (#556, Cambio 126, 21 h): era el urgente de la ola. **Quedan 178 h de la Ola R:** R-11 a R-16 antes de la Ola 3;
+  (#556, Cambio 126, 21 h): era el urgente de la ola, y **R-14 también** (#575, Cambio 128, 22 h: los gates del
+  release, antes del próximo espejo a ECOM). **Quedan 156 h de la Ola R:** R-11 a R-16 antes de la Ola 3;
   R-21 antes de la Ola 2. El resto puede ir en paralelo con otro implementador.
 - **Hecho cuando (verificable):**
   1. `gh api repos/Mkdir-arg/Chaco-Back/rulesets` lista los rulesets de `development` y `main`; un push directo a
@@ -1194,13 +1235,19 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
 ### Ola 6 — Agente de diseño
 - **Objetivo:** que una pantalla nueva salga igual a su golden al primer intento, con la deuda vieja contenida por un
   ratchet. **Fecha límite: antes de la primera task de pantalla de la v2 de Dispositivos y Merenderos.**
+- **Avance:** **pasos 0, 1 y 2 cerrados** en #574 (Cambio 129, 05-oct-2026): **18 h de las 42**, quedan **24 h**
+  (pasos 3 a 7). Cierra FE-13, V5A-NEW-01 y V5A-NEW-08. La línea base «antes» del paso 6 vive en
+  [`linea-base-agente-diseno/`](linea-base-agente-diseno/README.md): las tres pantallas fallan hoy, ninguna usó la
+  golden de su arquetipo y la de detalle clonó la hermana del módulo con su deuda entera.
 - **Pasos (detalle en `anexo-agente-diseno.md` §9):** 0 línea base «antes» (2 h) → 1 decisiones D1-D5 (2 h) → 2
   herramientas: `--ratchet`, 7 reglas P1 + CLASSDEF, `--arquetipo`, `--goldens`, decodificador (FE-13), gate de build
   (V5A-NEW-01), `compile_templates` sin `site-packages` (V5A-NEW-08), `check_design_agent.py` (14 h) → 3 sanear goldens
   (V5A-NEW-07) (4 h) → 4 reescribir el agente (núcleo + fichas) (8 h) → 5 consumidores (CLAUDE.md, AGENTS.md, agentes) (2 h)
   → 6 ejercicio de control «después» (8 h) → 7 registro (2 h).
 - **Hecho cuando:** los criterios verificables de cada paso del anexo: PR de prueba con `text-gray-900` en un template
-  existente **falla** en «Design Agent Contract» y uno nuevo canónico **pasa**; `check_design_agent.py` reporta 36 filas;
+  existente **falla** en «Design Agent Contract» y uno nuevo canónico **pasa**; `check_design_agent.py` reporta **37
+  filas** —el anexo decía 36 porque es lo que tenía la tabla en `917e583`, la base de la auditoría; desde entonces le
+  agregaron una fila, y sobre ese commit el parser nuevo sigue dando exactamente 36 contra las 33 del viejo—;
   `--goldens` = 0; núcleo ≤ 30.000 bytes y sin historia; las 3 pantallas del ejercicio cumplen al primer intento.
 - **Riesgo de deploy:** casi nulo en runtime (`.claude/` y los scripts de auditoría no viajan en el release); el paso 3
   toca templates de Becas (cambios visuales mínimos, capturas antes/después). Cambia el CI (`design-agent-contract.yml`).

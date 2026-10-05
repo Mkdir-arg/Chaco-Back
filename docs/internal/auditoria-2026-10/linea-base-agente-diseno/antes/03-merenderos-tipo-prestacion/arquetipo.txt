@@ -1,0 +1,2 @@
+_linea_base/03-merenderos-tipo-prestacion/tipo_prestacion_form.html: [ARQUETIPO] falta el marcador — campos con el include _field.html
+_linea_base/03-merenderos-tipo-prestacion/tipo_prestacion_form.html: arquetipo «formulario» — 1 desvío(s)

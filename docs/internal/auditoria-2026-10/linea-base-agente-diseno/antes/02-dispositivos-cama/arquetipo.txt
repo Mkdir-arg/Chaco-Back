@@ -1,0 +1,9 @@
+_linea_base/02-dispositivos-cama/cama_detail.html: [ARQUETIPO] falta el marcador — {% page_header %}
+_linea_base/02-dispositivos-cama/cama_detail.html: [ARQUETIPO] falta el marcador — {% endpage_header %}
+_linea_base/02-dispositivos-cama/cama_detail.html: [ARQUETIPO] falta el marcador — solapa que apunta a su panel
+_linea_base/02-dispositivos-cama/cama_detail.html: [ARQUETIPO] falta el marcador — panel con role="tabpanel"
+_linea_base/02-dispositivos-cama/cama_detail.html: [ARQUETIPO] falta el marcador — panel que nombra a su solapa
+_linea_base/02-dispositivos-cama/cama_detail.html:15: [ARQUETIPO] prohibido — encabezado a mano: el título es {% page_header %}
+_linea_base/02-dispositivos-cama/cama_detail.html:7: [ARQUETIPO] prohibido — <style> local
+_linea_base/02-dispositivos-cama/cama_detail.html:11: [ARQUETIPO] prohibido — «← Volver» de texto: va en page_header volver_url
+_linea_base/02-dispositivos-cama/cama_detail.html: arquetipo «detalle» — 8 desvío(s)

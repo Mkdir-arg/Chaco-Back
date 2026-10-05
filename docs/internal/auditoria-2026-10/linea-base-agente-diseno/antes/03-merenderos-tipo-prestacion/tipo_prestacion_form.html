@@ -1,0 +1,40 @@
+{% extends "includes/base.html" %}
+{% load nodo_ui %}
+{% block title %}Merenderos · {% if form.instance.pk %}Editar{% else %}Nuevo{% endif %} tipo de prestación{% endblock %}
+
+{% block main-content %}
+<div class="space-y-5">
+  {% url 'merenderos:tipos_prestacion' as url_tipos_prestacion %}
+  {% with titulo_pagina=form.instance.pk|yesno:"Editar tipo de prestación,Nuevo tipo de prestación" %}
+  {% page_header titulo=titulo_pagina volver_url=url_tipos_prestacion volver_label="tipos de prestación" %}
+    {% bajada %}Definí el servicio que los merenderos pueden informar al cargar la prestación alimentaria mensual (por ejemplo, desayuno o merienda).{% endbajada %}
+  {% endpage_header %}
+  {% endwith %}
+
+  <form method="post" class="bg-white rounded-xl border border-base shadow-sm p-6">
+    {% csrf_token %}
+    {% if form.non_field_errors %}
+      <div class="mb-4 rounded-lg bg-danger-soft border border-danger-subtle p-4 text-sm" role="alert">
+        <strong class="text-heading">Revisá el formulario</strong>
+        <div class="text-body mt-1">{{ form.non_field_errors }}</div>
+      </div>
+    {% endif %}
+
+    {% for field in form %}
+      <div class="mb-4">
+        <label class="block text-sm font-medium text-heading mb-1" for="{{ field.id_for_label }}">
+          {{ field.label }}{% if field.field.required %} <span class="text-fg-danger">*</span>{% endif %}
+        </label>
+        {{ field }}
+        {% if field.help_text %}<p class="mt-1 text-xs text-body-subtle">{{ field.help_text }}</p>{% endif %}
+        {% for error in field.errors %}<p class="mt-1 text-xs text-fg-danger">{{ error }}</p>{% endfor %}
+      </div>
+    {% endfor %}
+
+    <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-light">
+      <a href="{{ url_tipos_prestacion }}" class="btn-nodo btn-tertiary btn-base">Cancelar</a>
+      <button type="submit" class="btn-nodo btn-brand btn-base"><i class="fas fa-check" aria-hidden="true"></i> Guardar tipo de prestación</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

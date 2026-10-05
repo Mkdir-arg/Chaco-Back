@@ -308,6 +308,8 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 125 | El CI ve la forma del SQL que le llega al motor de producción | Transversal · dashboards · link público · Dispositivos (reportes) | `#performance` `#infra` `#datos` `#relevamientos` | Auditoría integral oct-2026 — RED-07, RED-08 y RED-09 (Ola R, red de seguridad, PR R-10) | 04/10/2026 | 🟢 **Hecho** | No requiere |
 | 126 | Un usuario sin rol dejaba de ser inofensivo: borraba documentos del ciudadano y silenciaba alertas | Legajos (adjuntos, alertas, APIs del detalle) · Transversal (barrido del URLconf) · Usuarios (ABM de Roles) | `#rbac` `#api` `#ui` `#datos` | Auditoría integral oct-2026 — RED-89, SEC-10, SEC-18, SEC-11, RED-04 y RED-06 (Ola R, red de seguridad, PR R-19) | 04/10/2026 | 🟢 **Hecho** | No requiere |
 | 127 | Un alta por caso en SIIS: resultado incierto que no se reintenta y conciliación con ECOM | Becas · alta de beneficiarios en SIIS (pantalla, masivo, comandos y tabla intermedia) | `#siis` `#datos` `#relevamientos` `#ui` | Auditoría integral oct-2026 — SIIS-01, SIIS-02, SIIS-04, SIIS-05, BEC-14 y RED-53 (Ola 1 «Integridad SIIS», PR 2) | 05/10/2026 | 🟢 **Hecho** | `programas.0075_enviosiis_vigente` |
+| 128 | Nada sale a producción sin que algo lo haya verificado: contratos del repo en el CI, release con CI verde y espejo a ECOM en dos pasos | Transversal · CI de GitHub Actions · release y espejo a ECOM | `#infra` `#metodo` `#gestion` | Auditoría integral oct-2026 — RED-24, RED-21, RED-65, RED-23 y RED-22 (Ola R, red de seguridad, PR R-14) | 05/10/2026 | 🟡 **Parcial** (falta enviar la propuesta a ECOM y copiar los dos comandos a `.claude/`) | No requiere |
+| 129 | Que una pantalla nueva no pueda nacer sucia: ratchet, marcadores de arquetipo y gate de build | Transversal · herramientas de diseño · CI de GitHub Actions · CSS compilado | `#ui` `#metodo` `#infra` | Auditoría integral oct-2026 — FE-13, V5A-NEW-01 y V5A-NEW-08 (Ola 6 «Agente de diseño», pasos 0-2) | 05/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -10570,6 +10572,9 @@ No requiere: es un cambio de templates.
 - **`TWBUILD` preexistente en `legajos/ciudadano_detail.html:143`** (`xl:grid-cols-[minmax(0,1fr)_auto]`): lo
   reporta `design_audit.py --changed` porque el archivo se tocó; la línea no cambió, el error ya está en
   `development` y un `build:tailwind` no lo resuelve (el CSS rearmado es idéntico al committeado).
+  **Corrección (Cambio 129):** nunca fue un error del CSS sino un **falso positivo** del extractor de
+  clases de `design_audit.py`, que se cortaba en el espacio del escape `\2c ` de la coma. La clase
+  siempre estuvo en el build. Lo arregló el Cambio 95 y lo fija con test el Cambio 129.
 
 ## Reversión
 
@@ -17074,3 +17079,486 @@ beneficiario, de forma irreversible.
   cruzados vigentes y sin clave). La primera versión de la migración de datos tardaba **93 s**
   porque escribía la clave fila por fila; se pasó a calcularla en el motor con `CONCAT`, por rangos
   de pk, salteando a los repetidos.
+---
+
+# Cambio 128 — Nada sale a producción sin que algo lo haya verificado: contratos del repo en el CI, release con CI verde y espejo a ECOM en dos pasos
+
+🟡 **PARCIAL — 05/10/2026** (el repositorio quedó listo; falta que el PM envíe la propuesta a
+ECOM y que el juez copie los dos comandos del espejo a `.claude/`)
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · CI de GitHub Actions · release y espejo a ECOM |
+| **Etiquetas** | `#infra` `#metodo` `#gestion` |
+| **Solicitante** | Auditoría integral oct-2026 — fichas RED-24, RED-21, RED-65, RED-23 y RED-22 (Ola R, red de seguridad, PR R-14) |
+| **Fecha del pedido** | 05/10/2026 |
+| **Issue / épica** | Sin issue · PR #575 (plan de la auditoría: `docs/internal/auditoria-2026-10/`) |
+| **Partes afectadas** | Infra (CI, release y espejo a ECOM). Cero código de producción |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> «Gates del release: RED-24 (`Contratos del repo`), RED-21 (`publish-main` exige CI verde),
+> RED-65, RED-23 (`release-gate.yml` + `/pushGitLabecom` en dos), RED-22 (propuesta a ECOM).»
+> (README de la auditoría, Ola R, PR R-14, «antes de: el próximo espejo a ECOM».)
+
+El punto de partida medido: las condiciones de cierre de `CLAUDE.md` —sintaxis de los templates,
+`requerimientos.py --check`, adherencia al sistema de diseño— corrían **solo en la máquina de quien
+desarrolla**, y las dos de diseño además como hook de Claude Code: un cambio hecho desde un IDE o
+desde la web de GitHub no pasaba por ninguna. `collectstatic` no corrió nunca en el CI, y es el que
+produce el 500 más caro del sistema. `publish-main.yml` publicaba el release sin mirar si el commit
+venía de un PR ni si ese PR estaba verde. Y `/pushGitLabecom` empujaba `test` y `main` en la misma
+corrida con una sola confirmación: como el build de ECOM tarda 5 a 7 minutos, cuando el comando
+llegaba al paso de `main` —que **despliega producción automáticamente**— testing ni había terminado
+de construir.
+
+## Alcance acordado
+
+- **Entra:** el job obligatorio `Contratos del repo`; el ratchet `.design-audit-ratchet`; el guard
+  de `publish-main.yml` con el denylist derivado de `.gitattributes` y el gate de CI verde del PR;
+  `CONTEXT.md` marcado `export-ignore`; el workflow `release-gate.yml`; el procedimiento del espejo
+  partido en dos, versionado en `docs/internal/espejo-ecom.md`; la propuesta escrita a ECOM en
+  `docs/internal/propuesta-ecom-verify.md`; `Contratos del repo` sumado al ruleset de `development`;
+  y dos módulos de tests.
+- **Queda afuera, a propósito:** tocar `.gitlab-ci.yml` (es de ECOM; nuestra copia tiene que quedar
+  byte a byte igual a la suya o el próximo espejo les revierte el archivo); aplicar los rulesets (es
+  del dueño del repo, Cambio 121); sacar `docker/django/Dockerfile` y `scripts/startup.sh` de la
+  lista de runtime, que es la segunda parte de RED-65 y viaja con el PR de OPS-10/OPS-14 en la
+  Ola 7; y arreglar los 42 errores heredados de `design_audit`, que es la Ola 6.
+- **Cero código de producción.** El PR toca workflows, `.gitattributes`, documentación interna y
+  tests.
+
+## Decisiones tomadas
+
+- **El denylist del release es `.gitattributes`, leído sobre el árbol publicado.** Había dos listas
+  —la del guard y la de `export-ignore`— que decían casi lo mismo y nada las sincronizaba: lo que no
+  estaba en ninguna viajaba al release, al GitLab de ECOM y a la imagen de PRD. Le pasó a
+  `CONTEXT.md`, 17 KB de glosario interno, que ahora quedó marcado.
+- **Se pregunta por cada ruta del release, no por cada archivo versionado.** Es un desvío respecto
+  de la ficha y es el detalle que la hacía incompleta: en `.gitattributes`, un patrón de directorio
+  (`/docs`, `/.claude`) marca **el directorio y no su contenido**, así que
+  `git check-attr export-ignore docs/internal/x.md` contesta «unspecified» aunque `git archive` se
+  saltee el subárbol entero. Derivarlo de `git ls-files` cubría 12 de los 17 patrones. Recorriendo
+  el árbol del release con `find -printf` del nombre relativo, el directorio aparece como ruta
+  propia y la pregunta da «set». Verificado contra un `git archive` real con un `docs/internal/x.md`
+  inyectado.
+- **Todo `.md` de la raíz tiene que estar declarado.** O marcado `export-ignore`, o en
+  `DOCS_DE_RUNTIME` del guard (hoy solo `README.md`). Es la regla que faltaba: un `NOTAS.md` nuevo
+  en la raíz no estaba en ninguna lista y viajaba solo.
+- **El CI verde se mira en el head del PR, nunca en el commit de merge.** El commit que
+  `publish-main` publica es un merge en `development`, y **los merge commits no tienen check-runs**:
+  los PRs los corren sobre su head. Consultarlos sobre `github.sha` devolvía lista vacía y el gate
+  habría pasado siempre. Se busca el PR con `commits/<sha>/pulls` (solo `merged_at != null`) y se
+  miran los checks de su head. Un `conclusion` en `null` —todavía corriendo— también frena: no se
+  publica un release mientras el CI del PR sigue en vuelo.
+- **El gate va con `if … then … fi`, no con la forma `[ cond ] && { …; exit 1; }`.** La que traía la
+  ficha es el footgun clásico de `set -e`, que Actions activa en todo `shell: bash`: cuando la
+  condición es **falsa** —el camino feliz— la lista devuelve 1 y el paso aborta igual, con el release
+  sin publicar y un error que no explica nada. Hay un test que lo fija.
+- **`workflow_dispatch` saltea el gate, pero exige un motivo escrito.** Dispararlo a mano requiere
+  permiso de escritura sobre el repo, o sea una persona decidiendo; lo que no puede es pasar sin que
+  quede por qué en el log de la corrida.
+- **Y solo se dispara sobre `development`** (ronda 2 de la revisión). El `push` ya venía filtrado,
+  pero un `workflow_dispatch` se lanza sobre cualquier rama y el job publica `main` con el árbol que
+  haya checkouteado: una rama de trabajo cualquiera, sin pasar por el gate, llegaría a ECOM y a la
+  imagen de PRD.
+- **El ruleset que se le exige a un PR es el de su propio head** (ronda 3). Leerlo del árbol
+  checkouteado —`development` al momento del merge— tiene un modo de falla de transición feo: el
+  día que entra un check obligatorio nuevo, todo PR abierto de antes —que corrió 9 checks porque
+  el décimo no existía— deja de publicar aunque esté entero en verde, y como `publish-main` falla
+  **después** del merge, `main` se queda quieta sin que nada lo avise en el PR. Medido contra la
+  historia real: el head de #556 declara 9 contextos y su `pr-quality.yml` ni siquiera tenía el job
+  «Contratos del repo». Un head anterior al Cambio 121 no tiene el archivo: ahí no hay lista que
+  exigir y queda el piso de «al menos un check y ninguno rojo» (borrar el ruleset para caer en esa
+  rama no es atajo: pone en rojo `Tests & Coverage`, que es uno de los checks que sí se miran).
+  El `release-gate` lo leía del commit de `development` que originó el release, que es **el merge**:
+  mismo problema, mismo arreglo.
+- **Cero check-runs no es verde** (ronda 2). Mirar solo los checks que fallaron dejaba el agujero más
+  grande del gate: un PR cuyos workflows nunca arrancaron —borrados, deshabilitados, o un push del
+  head que no los disparó— no tiene **ni un check malo** y habría pasado igual. Ahora se exige que la
+  lista no esté vacía y que estén presentes **todos** los contextos que declara
+  `docs/internal/rulesets/ruleset-development.json`, que es la misma fuente que aplica el dueño del
+  repo. El `release-gate` lo lee del commit de `development` que originó el release, porque en el
+  árbol de `main` ese archivo no está (`docs/` es `export-ignore`).
+- **La corrida del `release-gate` lleva el SHA en el título** (`run-name`, ronda 2): la API no expone
+  los `inputs` en `gh run list`, así que sin eso el operador no puede distinguir qué release verificó
+  cada corrida — y de eso depende el paso a producción, que exige el gate verde **de ese SHA**.
+- **No se autobloquea con el ruleset de `main`.** Ese ruleset (Cambio 121) prohíbe `deletion`,
+  `non_fast_forward` y `update` con bypass para la app de GitHub Actions, y **no exige status
+  checks**: si los exigiera, el workflow que publica `main` quedaría esperándose a sí mismo. Ya había
+  un test que lo custodia.
+- **El ratchet de diseño arranca en 42, no en 44.** La ficha traía la medición de la consolidación
+  sobre `ee0aafe`; la corrida completa de hoy sobre esta rama da 42 errores y 28 warnings. El techo
+  solo puede bajar: si sube, el job falla; si baja, avisa con `::notice::` para que se baje el
+  archivo en el mismo PR. Cuando la Ola 6 entregue el modo ratchet del script, ese paso lo reemplaza.
+- **`Contratos del repo` no filtra por rutas.** Casi cualquier archivo mueve alguna de las cuatro
+  comprobaciones (un `.py` mueve `collectstatic`, un `.md` de `docs/internal` mueve `--check`), y el
+  check es obligatorio en el ruleset: un check que no termina deja el PR esperando para siempre.
+- **`collectstatic` corre con `ENVIRONMENT=prd`,** que es lo que enciende el almacenamiento con
+  manifest. Con el de dev, `collectstatic` copia y no resuelve nada: un `static` apuntando a un
+  archivo que no está commiteado pasaría igual, y en PRD es «Missing staticfiles manifest entry» en
+  el primer render. Verificado a mano que no se conecta a la base ni a Redis y que deja el manifest.
+- **El `release-gate` corre la suite sobre el commit de `development`, no sobre el snapshot.** El
+  snapshot excluye `docs/`, `.github/` y tres `scripts/*.py` por `export-ignore`, y **seis módulos de
+  test** afirman cosas sobre exactamente esos archivos (los gates del CI, el runbook de rollback, las
+  barreras de reversa): correr la suite sobre el árbol publicado daría rojo por construcción. El
+  código de producción es byte a byte el mismo en los dos árboles, y lo que sí se verifica sobre el
+  snapshot es lo que de verdad cambia entre uno y otro: las migraciones, la imagen y el smoke.
+- **El smoke pega a rutas que existen.** La ficha nombraba `/accounts/login/` y `/becas/`: medido
+  contra el URLconf, `/accounts/login/` no existe —el login vive en la raíz (`users:login`), con
+  alias en `/login/`— y `/becas/` a secas **no resuelve**, porque no hay vista en el prefijo. Un
+  smoke contra esas URLs habría medido un 404 creyendo que medía la pantalla. Quedaron `/health/`,
+  `/login/`, `/inicio/` y `/becas/relevamientos/`, y hay un test que resuelve cada una contra el
+  URLconf real. Un 404 cuenta como fallo, no solo el 500.
+- **El motor del gate es MariaDB (`mariadb:10.11`), no MySQL.** PRD y testing de ECOM son MariaDB; la
+  versión queda fija hasta que H-01 diga cuál corre ECOM.
+- **El espejo se parte en dos sesiones distintas, con una verificación humana en el medio.** No se
+  encadenan: `/pushGitLabecomTEST` termina informando el SHA espejado, y `/pushGitLabecomPRD` lo
+  recibe como insumo y exige, antes de tocar nada, que el árbol de `ecom/test` sea idéntico, que el
+  `release-gate` de ese SHA esté verde, que alguien diga qué probó en testing, y una segunda
+  confirmación escribiendo `PRODUCCION` —no «sí», no «dale»—.
+- **La etapa `verify` se le propone a ECOM por escrito y no se aplica.** El `.gitlab-ci.yml` es de
+  ellos; nuestra copia existe para que viaje en el release, porque sin ese archivo GitLab no crea
+  pipeline y la rama se actualiza sin construir imagen. Editarla de nuestro lado les revertiría el
+  archivo en el próximo espejo. Hay un test que afirma que nuestra copia sigue intacta.
+- **Los dos comandos del espejo quedan en el cuerpo del PR.** La sesión que implementó esto no tiene
+  permiso de escritura sobre `.claude/`. Para que el procedimiento no viva solo en un archivo que no
+  se versiona de verdad, lo normativo quedó en `docs/internal/espejo-ecom.md`, que es lo que los
+  tests custodian; los comandos son su cara operativa.
+
+## Implementación
+
+**`Contratos del repo`** (job `contratos-repo` de `pr-quality.yml`, sin `continue-on-error`):
+`scripts/compile_templates.py`, `scripts/requerimientos.py --check`, `collectstatic --noinput` con
+`DJANGO_DEBUG=False` y `ENVIRONMENT=prd` fallando si no queda el manifest, y el ratchet de
+`design_audit` contra `.design-audit-ratchet`. Suma un aviso no bloqueante cuando un PR con
+`feat`/`fix` en el título no toca `docs/internal/requerimientos.md`. El check se agregó a
+`docs/internal/rulesets/ruleset-development.json`, que pasa a exigir diez contextos.
+
+**`publish-main.yml`** gana dos barreras antes de construir el árbol: el gate de CI verde del PR de
+origen y un guard que deriva lo prohibido de `.gitattributes` recorriendo el release, exige que todo
+`.md` de la raíz esté declarado y mantiene la lista de archivos de runtime en una variable
+(`RUNTIME`) para que el test de RED-65 pueda leerla.
+
+**`release-gate.yml`** (nuevo, `workflow_dispatch` con input `sha` obligatorio) verifica un commit de
+`main` en cuatro jobs: CI verde del PR de origen —derivando el commit de `development` del asunto
+del commit de release—, suite completa en SQLite, migraciones sobre MariaDB (`migrate --noinput`,
+`migrate --check`, `makemigrations --check --dry-run`) e imagen (`docker build`, `collectstatic`
+adentro exigiendo el manifest, la imagen levantada contra MariaDB y un smoke HTTP).
+
+**El espejo** quedó descrito en `docs/internal/espejo-ecom.md` y referenciado desde `CLAUDE.md` y
+`branching.md`. **La propuesta a ECOM** está en `docs/internal/propuesta-ecom-verify.md`, con la
+etapa `verify` completa, el tag inmutable por commit de RED-16 y el pedido del dump previo al deploy
+(H-11).
+
+## Archivos
+
+- `.github/workflows/pr-quality.yml` — job `Contratos del repo`.
+- `.github/workflows/publish-main.yml` — gate de CI verde, guard derivado, `workflow_dispatch` con motivo.
+- `.github/workflows/release-gate.yml` — **nuevo**.
+- `.design-audit-ratchet` — **nuevo** (techo 42).
+- `.gitattributes` — `CONTEXT.md` marcado `export-ignore`.
+- `docs/internal/espejo-ecom.md`, `docs/internal/propuesta-ecom-verify.md` — **nuevos**.
+- `docs/internal/rulesets/ruleset-development.json`, `docs/internal/rulesets.md`,
+  `docs/internal/branching.md`, `CLAUDE.md`.
+- `core/tests/test_publish_guard.py` — **nuevo** (17 tests).
+- `core/tests/test_gates_ci.py` — `ContratosDelRepoTests`, `ReleaseGateTests`, `EspejoEnDosPasosTests`,
+  `PropuestaAEcomTests`.
+- `docs/internal/auditoria-2026-10/` — fichas y README de la auditoría.
+
+## Base de datos
+
+No requiere. Sin migraciones y sin tocar esquema.
+
+## Validación
+
+Python 3.12 + Django 5.2.17 (`.venv312`, igual al CI): `manage.py check`, `check --deploy`,
+`makemigrations --check --dry-run`, la suite completa en un solo proceso y `test --tag performance`.
+Ruff (`check .` y `format --check` sobre lo tocado) en verde. Los 66 bloques de script de todos los
+workflows pasan `bash -n` (actionlint por Docker no estaba disponible en la máquina). El guard nuevo
+se corrió a mano contra un `git archive HEAD` real, con un `docs/internal/x.md` y un `NOTAS.md`
+inyectados: los marca a los dos. `collectstatic` con `ENVIRONMENT=prd` se corrió a mano y dejó el
+manifest. No tocó UI: no corresponde `design_audit --changed` ni `compile_templates`.
+
+## Puesta en marcha en el servidor
+
+Nada. No hay deploy: todo lo de este cambio vive en el CI y en documentación, y `.gitattributes` solo
+afecta qué viaja al próximo release (sale `CONTEXT.md`).
+
+## Pendientes / a definir
+
+- **PM:** enviar a ECOM la propuesta de `docs/internal/propuesta-ecom-verify.md` y traer la respuesta
+  (H-12). Mientras no la acepten, lo único que verifica un release antes del espejo es el
+  `release-gate` de nuestro lado.
+- **Juez:** copiar `pushGitLabecomTEST.md`, `pushGitLabecomPRD.md` y el reemplazo de
+  `pushGitLabecom.md` a `.claude/commands/`. Quedan completos en
+  `docs/internal/espejo-ecom-comandos/` del worktree del PR —sin trackear, con su `LEEME.md`— y
+  también en el cuerpo del PR.
+- **Dueño del repo:** aplicar los dos rulesets (Cambio 121). Sin eso, `Contratos del repo` sale rojo
+  pero no frena el merge.
+- **Ola 7:** sacar `docker/django/Dockerfile` y `scripts/startup.sh` de la lista de runtime del
+  guard, en el mismo PR de OPS-10/OPS-14 (segunda parte de RED-65).
+- **Ola 6:** bajar el techo de `.design-audit-ratchet` a medida que se arreglen los 42 errores
+  heredados, y reemplazar el paso por el modo ratchet del script cuando exista.
+- **H-01:** confirmar la versión de MariaDB de ECOM para ajustar la del `release-gate`.
+
+## Reversión
+
+Revertir el commit saca los dos gates y el `release-gate`, y devuelve el denylist escrito a mano.
+No hay datos que migrar ni que perder; `CONTEXT.md` volvería a viajar al release. El único efecto
+inmediato es que el CI deja de exigir las condiciones de cierre: si el ruleset ya estuviera aplicado,
+hay que sacar también el contexto `Contratos del repo` de
+`docs/internal/rulesets/ruleset-development.json` y re-aplicarlo, o todo PR queda esperando un check
+que ya no existe.
+
+## Historial
+
+No aplica: entrada nueva.
+
+---
+
+# Cambio 129 — Que una pantalla nueva no pueda nacer sucia: ratchet, marcadores de arquetipo y gate de build
+
+🟢 **HECHO — 05/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · herramientas de diseño (`scripts/`) · CI de GitHub Actions · CSS compilado |
+| **Etiquetas** | `#ui` `#metodo` `#infra` |
+| **Solicitante** | Auditoría integral oct-2026 — FE-13, V5A-NEW-01 y V5A-NEW-08 (Ola 6 «Agente de diseño», pasos 0, 1 y 2) |
+| **Fecha del pedido** | 05/10/2026 |
+| **Issue / épica** | sin issue (plan de la auditoría, `docs/internal/auditoria-2026-10/README.md` §6 y `anexo-agente-diseno.md` §9) |
+| **Partes afectadas** | Nadie en runtime: herramientas, CI y el CSS compilado. El backoffice se ve igual salvo dos utilidades que faltaban en el build |
+| **Migración** | No requiere |
+
+## Pedido original
+
+El sistema de agentes de diseño gobierna un **inventario**, pero no le enseña al agente a **reproducir pantallas**. La
+consecuencia está medida: en el Cambio 36 `design_audit` daba 0/0 en Dispositivos y el módulo «era todo lo contrario», y
+en el Cambio 69 un diseño hecho con el canon en prosa lo rechazó el PM («misma paleta, distinto diseño») y se rehízo
+mirando pantallas reales. La v2 de Dispositivos y Merenderos trae 45 tasks y ~434 h, casi todas pantallas nuevas en
+módulos con 0 piezas canónicas: si el sistema no cambia **antes de la primera task de pantalla**, esas pantallas van a
+clonar a sus hermanas legacy.
+
+Este cambio hace los **pasos 0, 1 y 2** de los siete que define el anexo: medir el estado actual, fijar las decisiones
+de diseño con su default, y construir las herramientas. Los pasos 3 a 7 (sanear las goldens, reescribir el núcleo del
+agente, actualizar los consumidores, repetir el ejercicio de control y registrar el cierre) van en PRs siguientes.
+
+## Alcance acordado
+
+**Entra:**
+
+1. **Paso 0 — línea base «antes».** Las tres pantallas del ejercicio de control pedidas a los agentes **actuales**, con
+   prompts de dominio y sin ninguna pista de diseño, guardadas con su medición en
+   `docs/internal/auditoria-2026-10/linea-base-agente-diseno/`.
+2. **Paso 1 — decisiones D1 a D5**, con el default recomendado del README §2.3 aplicado (D4 queda sin definir, que es
+   su decisión).
+3. **Paso 2 — herramientas.** `design_audit.py`: `--ratchet`, las 7 reglas P1 + CLASSDEF, `--arquetipo`, `--goldens`,
+   el decodificador de clases CSS y el hook en modo ratchet. `check_design_agent.py`: los 8 puntos del anexo §7.
+   `compile_templates.py` sin `site-packages`. Gate de build de Tailwind y ratchet en el CI.
+
+**Queda explícitamente afuera:**
+
+- **Los pasos 3 a 7.** En particular, **el núcleo del agente no se tocó**: sigue en 66.965 bytes, con historia y sin la
+  tabla `## Arquetipos`. Por eso `--goldens` es tolerante (sin esa tabla no tiene qué verificar) y los límites del
+  núcleo viven detrás de `check_design_agent.py --limites`, apagado. El PR del paso 4 enciende los dos.
+- **Migrar pantallas.** Ni una línea de template de producto cambió. La deuda de hoy queda **congelada**, no corregida:
+  eso es la Ola 5.
+- **Las reglas de fase 2** (`LABELCANON`, `TWARBITRARY`, `ICONSVG`, `CONFIRMHAND`…). El anexo las condiciona al
+  resultado del ejercicio de control del paso 6.
+
+## Decisiones tomadas
+
+**D1 a D5 — DECISIÓN CLIENTE: se aplicó el default recomendado del README §2.3.** No las decidió el PM; son los
+defaults del plan, y se pueden revertir antes del paso 4 sin tocar código, porque todavía no hay ficha que las escriba.
+
+- **D1 · Tamaño de las acciones del encabezado → `btn-base` en listados y formularios, `btn-sm` en detalles.** Es lo que
+  hace el código hoy (10 usos de `btn-base` en listados y formularios, 6 de `btn-secondary btn-sm` en detalles) y
+  contradice lo que el agente tiene escrito («`btn-sm`» para todo, N3 de la verificación V5b). Manda el código.
+- **D2 · Confirmación con motivo en pantallas nuevas → arquetipo Modal con `<form method="post">` y un textarea
+  `nodo-field` requerido.** Cero código nuevo: ya existe el arquetipo. El Swal condicionado del Cambio 48 queda como
+  legacy de las pantallas actuales de Dispositivos y Legajos, sin extenderse a pantallas nuevas.
+- **D3 · Íconos → Font Awesome en el contenido, Heroicons solo en el shell** (sidebar y navbar). Es la línea que ya
+  separa las dos familias; lo que falta es decirla.
+- **D4 · Wizard de backoffice → NO SE DEFINE.** Es la decisión, no una omisión: no hay ninguna pantalla de wizard que
+  sirva de molde (el de Configuración extiende el shell legacy `includes/main.html`), así que inventar un stepper
+  canónico sin evidencia es justamente lo que el Cambio 69 demostró que no funciona. El arquetipo queda marcado como
+  **pendiente**: cuando una task pida un wizard, el agente **frena y devuelve la tarea al llamador**. Lo mismo para
+  «revisión de caso compleja» y «dashboard completo».
+- **D5 · Avatar con gradiente en las filas de la golden de detalle → iniciales en `bg-brand-soft text-fg-brand`.**
+  Respeta «un solo acento por bloque» y saca 3 `style=` de la golden. **Lo ejecuta el paso 3**, que es el que toca
+  templates; acá solo queda registrada.
+
+**Las 8 reglas P1 no cortan en una corrida plana; cortan cuando suben.** El repo arrastra 3.627 hallazgos. Si las
+reglas nuevas fueran ERROR a secas, `design_audit.py --changed` —que hoy usan otras ramas en paralelo— pasaría de 0 a
+cientos de errores en cualquier archivo legacy que se toque, y la respuesta sería desactivar el gate. Por eso tienen una
+severidad propia, `P1`: en una corrida plana se informan como deuda y no afectan el código de salida; en `--ratchet`
+(hook y CI) **un solo hallazgo nuevo corta**. Es literalmente lo que pide el anexo («ERROR cuando el conteo sube») y
+mantiene el comportamiento viejo de `--changed` intacto mientras el paso 5 no reescriba CLAUDE.md.
+
+**El hook pasa a comparar contra `HEAD` y se borra el «si son preexistentes… seguí».** Antes auditaba el archivo entero
+y, para que la deuda vieja no bloqueara, el propio mensaje le decía al agente que podía ignorar los hallazgos: en los
+hechos, entrenaba a ignorar la auditoría. Ahora reporta **solo lo que agregó esa edición**, así que todo lo que reporta
+es responsabilidad del cambio y no hay escape que ofrecer.
+
+**El CSS de Tailwind se regeneró, contra la decisión registrada en los Cambios 95 y 126, y para eso hubo que arreglar
+antes el `content` de `tailwind.config.js`.** Las dos entradas decidieron no correr `build:tailwind` porque «borra 12
+clases que hoy están en el build». La razón de fondo no era que el build borrara de más: era que **el `content` miraba
+de menos**. Los campos del backoffice traen buena parte de sus clases desde el widget del form y no desde el template
+(`programas/forms.py`, el wizard de `configuracion`, el input de archivo del legajo), y `content` solo escaneaba
+`.html` y `.js`. Para el navegador eso es markup; para el escáner, no existe. Con el `content` arreglado el build fresco
+saca **31** clases y agrega **18**, y se verificó una por una —con `ast` sobre todos los `.py` de las apps, no por
+conteo— que ninguna de las 31 se usa en ningún archivo del repo: el `tailwind.css` committeado venía de otro estado del
+árbol y arrastraba restos. De las 18 que entran, 12 son del input de archivo del legajo (`file:*`, `focus:border-*`) y
+2 (`mt-px`, `w-40`) las usa **la golden del arquetipo Detalle** desde el 30-sep: esas pantallas se estaban viendo mal en
+producción. Además el gate de build no puede encenderse con el CSS desactualizado: fallaría en el primer PR.
+
+**`content` se enumera app por app en vez de usar comodines.** Un `./**/templates/**/*.html` alcanza los templates de
+Django admin adentro de un virtualenv del checkout y `node_modules/<pkg>/templates/`: el CSS sale distinto según qué
+tenga instalado el que corre el build, y entonces el gate obligatorio rechaza al que lo corrió en su máquina. Está
+medido: con un `venv/` no-dot presente el CSS cambiaba; con `.venv` no, porque fast-glob no entra a directorios que
+empiezan con punto — o sea que el agujero existía y no se notaba. Las negaciones (`!./node_modules/**`) tapan el caso
+conocido pero se pueden out-globear; enumerar las apps lo cierra por construcción. Por el mismo motivo los `.py` entran
+por `{forms,models,templatetags}` y no con `./**/*.py`: el extractor de Tailwind es una regex sobre el texto crudo, así
+que un slice (`connection.queries[desde:hasta]`) le parece una utilidad de valor arbitrario y termina como regla basura
+en el CSS — y, peor, un PR que no toca UI mueve `tailwind.css` y hace fallar el gate.
+
+**El gate de build quedó en `design-agent-contract.yml` y no en `pr-quality.yml`.** La ampliación RS-R6-07 proponía
+`pr-quality.yml`; el anexo §7 dice `design-agent-contract.yml`. Pesa más el anexo por una razón operativa: el ruleset de
+`development` ya exige el check `Validate inventory and authority`, así que ahí el gate nace bloqueante; en
+`pr-quality.yml` habría que agregar otro contexto al JSON del ruleset, que todavía **no aplicó el dueño del repo**
+(pendiente del Cambio 121).
+
+## Implementación
+
+**`scripts/design_audit.py`.**
+
+- **Decodificador de clases CSS (FE-13).** La expresión regular se reemplazó por un parser de identificadores:
+  `\` + 1 a 6 dígitos hex es ese carácter y **consume un espacio terminador opcional**, `\` + cualquier otra cosa es
+  literal, y solo se leen los *preludes* de regla (lo que está antes de `{`), nunca las declaraciones ni los `url()`.
+  Base: `poc/herramientas/cssclasses.py`.
+- **Las 7 reglas P1** (`RAWPALETTE`, `INLINESTYLE`, `STYLEBLOCK`, `SHELLLEGACY`, `PAGEHEADER`, `TABLECANON`,
+  `ICONARIA`) con las heurísticas y los alcances del anexo §7, y el pragma `design-audit: allow` por línea.
+- **`CLASSDEF`:** cada clase usada se busca en el universo declarado (el build, todos los `static/custom/css/*.css`,
+  Font Awesome, SweetAlert2, el `<style>` del propio template y los CSS que enlaza con `{% static %}`). **P1** si tiene
+  forma de utilidad de Tailwind —un bug visual— y **WARN** si no (markup de Bootstrap/AdminLTE heredado o un hook sin
+  prefijo `js-`), con la allowlist de hooks en `scripts/design_audit_hooks.txt`.
+- **`--ratchet [--base REF]`:** por cada archivo de UI cambiado cuenta hallazgos por regla en `git show REF:<archivo>`
+  y en el actual, corta si alguna regla subió y reporta **solo las líneas que no estaban**.
+- **`--arquetipo {listado,detalle,formulario,modal} ARCHIVO`:** marcadores ordenados (los opcionales se saltean) más
+  una lista de prohibidos. Reemplaza al diff estructural con *similarity* que el anexo descartó por frágil.
+- **`--goldens`:** lee la tabla `## Arquetipos` del núcleo y exige 0 P1 y marcadores completos en cada golden.
+- **`--hook`:** ratchet contra `HEAD`.
+
+**`scripts/check_design_agent.py`.** Los 8 puntos del anexo §7: celdas partidas sin descartar filas, tabla
+`## Arquetipos`, fichas de `.claude/design/` (existencia, evidencia y sin huérfanas), `EVIDENCE_PREFIXES` con `core/`,
+`legajos/`, `configuracion/`, `dashboard/` y `conversaciones/`, regla del mismo diff satisfecha por el núcleo **o** la
+ficha y sin dispararse por `tailwind.css`, tests ni vistas, límites del núcleo detrás de `--limites`, y el hook también
+sobre `.claude/design/**`.
+
+**`scripts/compile_templates.py`.** El filtro descarta las rutas con `site-packages` (V5A-NEW-08).
+
+**`tailwind.config.js`.** `content` pasa a enumerar las apps en una constante `APPS` y a incluir los `.py` de
+`{forms,models,templatetags}` de cada una. `design_audit.clases_en_python()` lee esas cadenas con `ast` para que la
+suite pueda verificar lo que el build genera, y `core.tests.test_design_audit_estructura` suma dos clases nuevas:
+`ContentDeTailwindTests` (ningún patrón positivo usa comodín de primer nivel; `APPS` cubre toda app del disco con
+`templates/` o `forms`) y `CssCompiladoAlDiaTests` (toda clase usada en cualquier app está en el CSS compilado o en una
+deuda congelada de 32 entradas que solo puede bajar). Reemplaza al test viejo, que miraba solo `programas/templates`.
+
+**`.github/workflows/design-agent-contract.yml`.** Suma el ratchet contra la base del PR, `--goldens`
+(`continue-on-error` hasta el paso 3), los tests de `design_audit` y el gate de build de Tailwind; y agrega
+`scripts/design_audit.py`, `scripts/design_audit_hooks.txt`, `scripts/test_design_audit.py` y `.claude/design/**` al
+filtro de rutas.
+
+## Archivos
+
+`scripts/design_audit.py`, `scripts/design_audit_hooks.txt` (nuevo), `scripts/check_design_agent.py`,
+`scripts/compile_templates.py`, `scripts/test_design_audit.py`, `scripts/test_check_design_agent.py`,
+`core/tests/test_design_audit_estructura.py` (nuevo), `.github/workflows/design-agent-contract.yml`,
+`tailwind.config.js`, `static/custom/css/tailwind.css` (regenerado),
+`docs/internal/auditoria-2026-10/linea-base-agente-diseno/` (nueva),
+`docs/internal/auditoria-2026-10/README.md` y `hallazgos/07-front.md`.
+
+## Base de datos
+
+No requiere migración. No toca modelos, vistas, URLs ni permisos.
+
+## Validación
+
+Con Python 3.12 + Django 5.2.17 (`.venv312`, igual al CI):
+
+- `manage.py check` → sin issues. `makemigrations --check --dry-run` → «No changes detected».
+- `manage.py check --deploy` con el entorno del CI (`DJANGO_DEBUG=False`, `DJANGO_ALLOWED_HOSTS=localhost`,
+  `SIIS_API_URL`) → 5 warnings preexistentes, **exit 0**.
+- `manage.py test` (la suite entera, en un solo proceso, como el CI) → **2509 tests, OK** (1 skip y 1
+  `expected failure` preexistentes), 634 s. `manage.py test --tag performance` → 4 tests, OK.
+- Tests nuevos: `core.tests.test_design_audit_estructura` (46, en la suite) + `scripts/test_design_audit.py` (11) +
+  `scripts/test_check_design_agent.py` (19, de los que 3 ya existían).
+- **Los tres guardias nuevos se probaron en rojo antes de darlos por buenos:** sacando los `.py` de `content` y
+  rebuildeando, `CssCompiladoAlDiaTests` falla nombrando `focus:ring-1`, `cursor-not-allowed` y `file:bg-blue-600`;
+  volviendo el patrón a `./**/templates/**/*.html`, falla
+  `ContentDeTailwindTests.test_ningun_patron_positivo_usa_comodin_de_primer_nivel`; sacando `legajos` de `APPS`, falla
+  `test_apps_lista_todas_las_apps_del_repo`.
+- **El build es reproducible y no depende del entorno:** `npm run build:tailwind` dos veces seguidas da el mismo
+  archivo, y con un `venv/` no-dot (templates de Django admin + `.py`), un `.venv312/` y un `node_modules/<pkg>/templates/`
+  presentes en el checkout, el CSS sale **idéntico**. Con el `content` viejo, el `venv/` no-dot lo cambiaba.
+- `ruff check .` → All checks passed; `ruff format --check` sobre lo tocado → formateado.
+- `scripts/compile_templates.py` → **199 compilados, 0 errores**, tanto en el worktree como corriéndolo desde el
+  checkout principal (donde viven los venv). Antes daba 349 ahí: es V5A-NEW-08.
+- `scripts/check_design_agent.py` → OK, y ahora parsea **37 filas del inventario en vez de 32**. Sobre el commit base de
+  la auditoría (`917e583`): **36 en vez de 33**, y las tres recuperadas son exactamente las que nombra N1 — Tabs
+  backoffice, Estado vacío y Drag & drop.
+- `scripts/design_audit.py` completo → **42 errores** (los mismos que antes: ninguna regla ERROR cambió), 3.624 P1 y
+  110 WARN.
+- **Las pruebas de que el gate funciona**, hechas a mano y descritas en el PR: agregar `text-gray-900` a un template
+  existente hace fallar `--ratchet` señalando la línea; tocar un archivo legacy con 71 hallazgos viejos **sin sumar**
+  no lo hace fallar; un template nuevo clonado de la golden pasa el ratchet y `--arquetipo listado`.
+- **Los marcadores se validaron contra las goldens reales:** `personas_list.html` y `segmento_form.html` dan OK, y
+  `cupo/segmento_detail.html` y `config/programa_list.html` reportan **exactamente** los desvíos que el anexo manda
+  sanear en el paso 3 (`<style>[x-cloak]` y el `backdrop-filter` en `style=`).
+
+## Puesta en marcha en el servidor
+
+Nada. Ningún archivo de este cambio viaja al release salvo `static/custom/css/tailwind.css`: las herramientas de
+auditoría y `.claude/` están excluidas por `export-ignore`. El CSS regenerado entra con el próximo deploy y el único
+efecto visible es que **18 utilidades que estaban en uso y no se generaban pasan a aplicar**: el adjunto del legajo
+recupera su botón de archivo (`file:*`) y su foco (`focus:border-blue-500`, `focus:ring-blue-500/20`), el campo
+deshabilitado su cursor (`cursor-not-allowed`), los 5 campos del wizard de programas su anillo de foco (`focus:ring-1`)
+y `becas/cupo/segmento_detail.html` su `mt-px` y su `w-40`. Son correcciones visuales, ninguna regresión.
+
+## Pendientes / a definir
+
+- **Los pasos 3 a 7 de la Ola 6** (24 h de las 42): sanear las goldens, reescribir el núcleo y sus fichas, actualizar
+  CLAUDE.md, AGENTS.md y los dos agentes, repetir el ejercicio de control y registrar el cierre.
+- **Dos interruptores esperan al paso 4:** sacar el `continue-on-error` del step `Design audit goldens` y agregar
+  `--limites` a la invocación de `check_design_agent.py` en el CI. Hoy, con `--limites`, el checker reporta 58
+  problemas del núcleo actual (66.965 B contra el techo de 30.000, 17 celdas de más de 450 caracteres y 39 referencias
+  de historia): es exactamente el trabajo del paso 4, ya medido.
+- **CLAUDE.md y el inventario del agente no se tocaron**, por dos motivos que se suman: son el paso 5 del plan, y esta
+  sesión no tiene permiso de escritura sobre `.claude/`. Mientras tanto, CLAUDE.md sigue diciendo «0 errores es
+  condición de cierre», que ya no es el criterio (ahora es «0 nuevos»). Lo corrige el paso 5.
+- **Las reglas de fase 2 quedan sin activar**, como manda el anexo: se evalúan después del ejercicio de control del
+  paso 6, y solo si aparece un desvío que las P1 no atrapan.
+- **La línea base del paso 0 deja tres cosas para el paso 6:** que ningún agente escribió un Plan de pantalla como
+  artefacto, que ninguno usó la golden de su arquetipo, y que la pantalla de detalle clonó la hermana del módulo con su
+  deuda entera. Son las tres que el ejercicio «después» tiene que dar vuelta.
+
+## Reversión
+
+Revertir el commit. Las herramientas vuelven a su versión anterior y el CI deja de correr el ratchet y el gate de
+build. Lo único con efecto visible es `static/custom/css/tailwind.css`: al volver atrás, las 18 utilidades vuelven a
+faltar (el adjunto del legajo pierde su botón de archivo, el wizard de programas su anillo de foco y
+`becas/cupo/segmento_detail.html` su `mt-px` y su `w-40`). No hay datos, migraciones ni configuración que revertir.
+
+## Historial
+
+- **05/10/2026 — ronda 2 de revisión del PR #574.** La primera versión regeneró `tailwind.css` sin tocar el `content`
+  de `tailwind.config.js`, y el rebuild **borró `focus:ring-1` y `cursor-not-allowed`**, las dos en uso desde widgets de
+  Python: los 5 campos del wizard de programas se quedaban sin indicador de foco (WCAG 2.4.7) y el campo deshabilitado
+  del legajo sin su cursor. La entrada afirmaba que «ninguna de las 33 se usa como token de clase en ningún archivo
+  escaneado»; era falso, porque la verificación miraba el mismo conjunto de archivos que el escáner —o sea que repetía
+  su punto ciego—. Se arregló el `content` (apps enumeradas en `APPS`, más los `.py` de `{forms,models,templatetags}`),
+  se rebuildeó —ahora saca 31 y agrega 18— y se agregó `CssCompiladoAlDiaTests`, que verifica con `ast` sobre **todos**
+  los `.py` de las apps y por eso no comparte el punto ciego. En la misma ronda se cerró el agujero de los comodines de
+  primer nivel en `content` (el CSS dependía de si había un virtualenv en el checkout) y se corrigió el conteo de filas
+  del inventario en el README de la auditoría (37, no 36).
