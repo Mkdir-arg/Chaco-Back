@@ -68,6 +68,7 @@ Reglas WARN:
 
 from __future__ import annotations
 
+import ast
 import fnmatch
 import re
 import subprocess
@@ -617,6 +618,34 @@ def tokens_de_clase_dinamicos(text: str) -> list[tuple[int, str]]:
             out += [(linea, t) for t in arg.split()]
     for m in CLASSNAME_RE.finditer(text):
         out += [(linea_de(m.start()), t) for t in m.group(1).split()]
+    return out
+
+
+def clases_en_python(text: str) -> list[tuple[int, str]]:
+    """``(línea, token)`` de cada cadena de un `.py` que puede ser una clase CSS.
+
+    Buena parte de los campos del backoffice traen sus clases desde el widget del
+    form, no desde el template: `programas/forms.py` (`INPUT_CLASS`), los widgets
+    del wizard de programas, el input de archivo del legajo. Para el navegador es
+    markup; para cualquier herramienta que solo mire `.html`, no existe.
+
+    Se leen **todas** las cadenas literales con `ast`, no solo las que están bajo
+    una clave ``"class"``: el patrón más común del repo es una constante de módulo
+    (``_DISABLED = "text-sm … cursor-not-allowed"``) que después se referencia. Un
+    nombre que no tenga forma de utilidad lo descarta quien llama.
+
+    Con `ast` y no con una regex a propósito: el extractor de Tailwind sí es una
+    regex sobre el texto crudo, y por eso un slice (`xs[desde:hasta]`) le parece
+    una utilidad de valor arbitrario. Acá se ven cadenas literales y nada más.
+    """
+    try:
+        arbol = ast.parse(text)
+    except SyntaxError:
+        return []
+    out: list[tuple[int, str]] = []
+    for nodo in ast.walk(arbol):
+        if isinstance(nodo, ast.Constant) and isinstance(nodo.value, str):
+            out += [(getattr(nodo, "lineno", 0), token) for token in nodo.value.split()]
     return out
 
 

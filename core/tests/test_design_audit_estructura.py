@@ -8,6 +8,7 @@ red adentro de la suite.
 import contextlib
 import importlib.util
 import io
+import re
 import tempfile
 from pathlib import Path
 
@@ -265,18 +266,235 @@ class GateDeCiTests(SimpleTestCase):
         for ruta in ("scripts/design_audit.py", "scripts/design_audit_hooks.txt", ".claude/design/**"):
             self.assertIn(f"'{ruta}'", gate)
 
-    def test_el_css_de_tailwind_esta_al_dia(self):
-        """Barata y local: las clases que el markup usa con variante tienen que estar en el build.
 
-        Si falla, correr `npm run build:tailwind` y commitear el CSS; es el mismo
-        hallazgo que levanta el gate del CI, pero sin esperar al runner.
+def _config_tailwind() -> str:
+    return Path(design_audit.REPO, "tailwind.config.js").read_text(encoding="utf-8")
+
+
+def _apps_del_content() -> list[str]:
+    """Las apps que `tailwind.config.js` enumera en su constante `APPS`."""
+    m = re.search(r"^const APPS = '\{([^}]+)\}'", _config_tailwind(), re.M)
+    assert m, "tailwind.config.js tiene que declarar `const APPS = '{app,app,...}'`"
+    return m.group(1).split(",")
+
+
+def _patrones_del_content() -> list[str]:
+    """Los patrones del array `content`, con `${APPS}` ya resuelto."""
+    bloque = re.search(r"content: \[(.*?)^  \],", _config_tailwind(), re.S | re.M)
+    assert bloque, "no se encontró el array `content` en tailwind.config.js"
+    apps = "{" + ",".join(_apps_del_content()) + "}"
+    crudos = re.findall(r"^\s*[`'\"](.+?)[`'\"],\s*$", bloque.group(1), re.M)
+    return [p.replace("${APPS}", apps) for p in crudos]
+
+
+class ContentDeTailwindTests(SimpleTestCase):
+    """`tailwind.config.js` tiene que escanear todo lo que nombra una clase, y nada más.
+
+    Lo que el escáner no ve, no se genera: la pantalla sale mal y no falla nada. Y
+    lo que ve de más —los templates de Django admin adentro de un virtualenv del
+    checkout, `node_modules`— hace que el CSS dependa de la máquina donde se corrió
+    el build, con lo cual el gate obligatorio rechaza al que lo corrió en la suya.
+
+    El seguro contra lo primero es `CssCompiladoAlDiaTests`, que mide el resultado.
+    El seguro contra lo segundo es estructural y se verifica acá: ningún patrón
+    positivo puede empezar con un comodín de primer nivel.
+    """
+
+    #: Dirs de primer nivel que no son apps y no aportan markup. Lo que no esté acá
+    #: ni en `APPS` hace fallar `test_apps_lista_todas_las_apps_del_repo`.
+    NO_SON_APPS = {"config", "docs", "documentos", "scripts", "static", "media", "certs", "docker", "templates"}
+
+    def test_ningun_patron_positivo_usa_comodin_de_primer_nivel(self):
+        """`./**/templates/…` y `./*/templates/…` alcanzan un venv dentro del checkout.
+
+        Es el modo de falla que rompe el gate obligatorio: el CSS sale distinto
+        según qué tenga instalado el que buildea. Las negaciones no alcanzan —se
+        pueden out-globear—; lo que lo cierra es que no haya comodín que escape.
         """
-        faltantes = sorted(
-            {
-                f"{f.relative_to(design_audit.REPO).as_posix()}: {clase}"
-                for f in design_audit.iter_files([design_audit.REPO / "programas" / "templates"])
-                if f.suffix == ".html"
-                for _, clase in design_audit.clases_sin_build(f.read_text(encoding="utf-8", errors="replace"))
-            }
+        culpables = [p for p in _patrones_del_content() if not p.startswith("!") and re.match(r"^\./(\*\*|\*)/", p)]
+
+        self.assertEqual(
+            culpables,
+            [],
+            "estos patrones alcanzan .venv/, venv/ o node_modules dentro del checkout: anclalos a la constante APPS",
         )
-        self.assertEqual(faltantes, [], "correr `npm run build:tailwind` y commitear static/custom/css/tailwind.css")
+
+    def test_apps_lista_todas_las_apps_del_repo(self):
+        """Si alguien agrega una app, su markup tiene que entrar al build con ella."""
+        repo = design_audit.REPO
+        con_markup = {
+            d.name
+            for d in repo.iterdir()
+            if d.is_dir()
+            and not d.name.startswith((".", "_", "node_modules"))
+            and d.name not in self.NO_SON_APPS
+            and ((d / "templates").is_dir() or (d / "forms.py").is_file() or (d / "forms").is_dir())
+        }
+
+        self.assertEqual(
+            sorted(con_markup - set(_apps_del_content())),
+            [],
+            "apps con templates o forms que `APPS` de tailwind.config.js no cubre: sus clases no se van a generar",
+        )
+
+    def test_escanea_los_py_que_arman_clases(self):
+        """Los widgets de los forms traen sus clases desde Python, no desde el template."""
+        patrones = _patrones_del_content()
+
+        for sufijo in ("/forms.py", "/{forms,models,templatetags}/**/*.py"):
+            self.assertTrue(
+                any(p.endswith(sufijo) for p in patrones),
+                f"falta el patrón terminado en `{sufijo}`: las clases de los widgets no se generan",
+            )
+
+    def test_excluye_los_tests(self):
+        """Los casos negativos de CLASSDEF usan clases mal escritas a propósito."""
+        patrones = _patrones_del_content()
+        for negacion in ("!./**/tests/**", "!./**/test_*.py"):
+            self.assertIn(negacion, patrones)
+
+
+class CssCompiladoAlDiaTests(SimpleTestCase):
+    """Toda clase usada tiene que existir en el CSS compilado, o estar en la deuda.
+
+    Barato y local: es el mismo hallazgo que levanta el gate del CI, pero sin
+    esperar al runner, y además cubre lo que el gate no puede ver (si una clase
+    desaparece porque el `content` dejó de cubrir su archivo, acá se nota).
+
+    Mira **todas** las apps: los templates, el JS propio y *todo* `.py` de la app,
+    no solo los que `content` escanea. La asimetría es a propósito: `content` se
+    mantiene corto para no generar basura, y este test es el que avisa cuando quedó
+    corto de más. Por eso lee los `.py` con `ast` y no con una regex — ve las
+    cadenas literales y nada más, así que un slice (`xs[desde:hasta]`) no le parece
+    una clase.
+    """
+
+    #: Clases usadas que el build **no** genera. Es deuda congelada: puede bajar,
+    #: nunca subir. Casi todas son markup heredado que se va con FE-06, FE-12 y
+    #: FE-20; ninguna es una utilidad válida que falte por un build viejo (eso es
+    #: justo lo que este test impide que vuelva a pasar).
+    DEUDA = {
+        # Paleta cruda de Tailwind: la escala `gray` está pisada a propósito en
+        # `tailwind.config.js` (no se agrega al build; se migra a color semántico).
+        # Las gobierna la regla P1 RAWPALETTE y su ratchet. FE-06.
+        "bg-gray-50",
+        "bg-gray-100",
+        "bg-gray-200",
+        "bg-gray-300",
+        "bg-gray-400",
+        "bg-gray-500",
+        "bg-gray-600",
+        "bg-gray-900",
+        "bg-gray-900/80",
+        "hover:bg-gray-50",
+        "hover:bg-gray-100",
+        "hover:bg-gray-200",
+        "hover:bg-gray-300",
+        "hover:bg-gray-400",
+        "hover:bg-gray-600",
+        "hover:bg-gray-700",
+        # `bg-white/NN` no se genera porque `white` es `var(--bg-white)` sin
+        # `<alpha-value>`: hoy computan transparente. V5A-NEW-04.
+        "bg-white/78",
+        "bg-white/90",
+        # Nombre inventado: `fg-brand` es color de texto, el borde es `border-brand`. FE-12.
+        "border-fg-brand",
+        # `divide-border` no existe; va `divide-y` + borde. Hoy cae al borde del preflight. FE-12.
+        "divide-border",
+        # Bootstrap/AdminLTE heredado, con la forma justa para parecer utilidad.
+        # Se van con FE-20 (403/404/500 y el shell legacy) y FE-14.
+        "bg-info",
+        "content-header",
+        "text-danger",
+        "text-info",
+        "text-success",
+        "text-warning",
+        # Definidas a mano en el `<style>` de un shell o en CSS propio, no por Tailwind.
+        "animate-fadeInUp",
+        "font-lora",
+        "touch-target",
+        # `ring-brand` no es un color del tema (el foco de marca es la custom
+        # property `--ring-brand`, un box-shadow). O sea que el checkbox canónico
+        # de `programas/forms.py` CHECKBOX_CLASS **no tiene indicador de foco**:
+        # hallazgo nuevo, WCAG 2.4.7, anotado para la Ola 5 (no se arregla acá
+        # porque cambia el render de todos los checkboxes del backoffice).
+        "focus:ring-brand",
+    }
+
+    def usadas_fuera_del_build(self):
+        build = design_audit._clases_del_build()
+        self.assertTrue(build, "falta static/custom/css/tailwind.css")
+        fuera = {}
+        for ruta in self.fuentes():
+            texto = ruta.read_text(encoding="utf-8", errors="replace")
+            if ruta.suffix == ".html":
+                pares = design_audit.tokens_de_clase(texto) + design_audit.tokens_de_clase_dinamicos(texto)
+            elif ruta.suffix == ".js":
+                pares = design_audit.tokens_de_clase_dinamicos(texto)
+            else:
+                pares = design_audit.clases_en_python(texto)
+            for _, token in pares:
+                if (
+                    design_audit._TOKEN_VALIDO_RE.match(token)
+                    and design_audit._es_utilidad_tailwind(token)
+                    and token not in build
+                ):
+                    fuera.setdefault(token, ruta.relative_to(design_audit.REPO).as_posix())
+        return fuera
+
+    @staticmethod
+    def fuentes():
+        """Templates y JS propio del repo, y **todo** `.py` de las apps de `APPS`.
+
+        Se recorren las apps y no el repo entero para no entrar a un virtualenv o a
+        `node_modules` del checkout, que son decenas de miles de archivos y además
+        no son superficie nuestra.
+        """
+        repo = design_audit.REPO
+        excluidos = {"tests", "migrations", "__pycache__"}
+        patrones = [(repo, "templates/**/*.html"), (repo, "static/custom/js/*.js")]
+        patrones += [(repo / app, p) for app in _apps_del_content() for p in ("templates/**/*.html", "**/*.py")]
+        vistos = set()
+        for base, patron in patrones:
+            for f in sorted(base.glob(patron)):
+                if f in vistos or set(f.relative_to(repo).parts) & excluidos or f.name.startswith("test_"):
+                    continue
+                vistos.add(f)
+                yield f
+
+    def test_ninguna_clase_usada_quedo_fuera_del_build(self):
+        nuevas = {t: f for t, f in self.usadas_fuera_del_build().items() if t not in self.DEUDA}
+
+        self.assertEqual(
+            nuevas,
+            {},
+            "Clases usadas que el CSS compilado no tiene. Si son válidas, correr "
+            "`npm run build:tailwind` y commitear static/custom/css/tailwind.css; si vienen de un "
+            "archivo nuevo, revisar que `content` de tailwind.config.js lo cubra.",
+        )
+
+    def test_la_deuda_no_tiene_entradas_resueltas(self):
+        """El ratchet solo baja: una clase que ya está en el build sale de DEUDA."""
+        resueltas = self.DEUDA - set(self.usadas_fuera_del_build())
+
+        self.assertEqual(resueltas, set(), "ya no faltan en el build: borralas de DEUDA")
+
+    def test_las_clases_que_vienen_de_un_widget_estan_en_el_build(self):
+        """Regresión del blocker: `content` no escaneaba Python y el build las borraba.
+
+        `focus:ring-1` lo usan los 5 campos del wizard de programas
+        (`configuracion/forms/programas.py`) y `cursor-not-allowed` el campo
+        deshabilitado del legajo (`legajos/forms/ciudadanos.py`). Sin ellas, los
+        campos quedan sin indicador de foco (WCAG 2.4.7).
+        """
+        build = design_audit._clases_del_build()
+        esperadas = ("focus:ring-1", "cursor-not-allowed", "focus:ring-indigo-500", "file:bg-blue-600")
+
+        # `assertTrue` y no `assertIn`: el set del build tiene ~1.400 clases y
+        # unittest lo volcaría entero en el mensaje de error.
+        faltan = sorted(c for c in esperadas if c not in build)
+        self.assertTrue(
+            not faltan,
+            f"se usan desde un .py y el build no las tiene: {faltan}. "
+            "Revisar que `content` de tailwind.config.js cubra los .py y rebuildear.",
+        )

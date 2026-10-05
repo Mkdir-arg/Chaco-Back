@@ -16876,13 +16876,27 @@ y, para que la deuda vieja no bloqueara, el propio mensaje le decía al agente q
 hechos, entrenaba a ignorar la auditoría. Ahora reporta **solo lo que agregó esa edición**, así que todo lo que reporta
 es responsabilidad del cambio y no hay escape que ofrecer.
 
-**El CSS de Tailwind se regeneró, contra la decisión registrada en los Cambios 95 y 126.** Las dos entradas decidieron
-no correr `build:tailwind` porque «borra 12 clases que hoy están en el build». Se midió de nuevo: hoy el build fresco
-borra **33** clases y agrega 4, y **ninguna de las 33 se usa como token de clase en ningún archivo escaneado** (se
-verificó una por una, no por conteo). O sea que el riesgo que motivó la decisión no existe: el `tailwind.css`
-committeado venía de otro estado del árbol y arrastraba restos. Las 4 que agrega sí están en uso, y dos de ellas
-(`mt-px` y `w-40`) las usa **la golden del arquetipo Detalle** desde el 30-sep, o sea que esa pantalla se está viendo
-mal en producción. Además el gate de build no puede encenderse con el CSS desactualizado: fallaría en el primer PR.
+**El CSS de Tailwind se regeneró, contra la decisión registrada en los Cambios 95 y 126, y para eso hubo que arreglar
+antes el `content` de `tailwind.config.js`.** Las dos entradas decidieron no correr `build:tailwind` porque «borra 12
+clases que hoy están en el build». La razón de fondo no era que el build borrara de más: era que **el `content` miraba
+de menos**. Los campos del backoffice traen buena parte de sus clases desde el widget del form y no desde el template
+(`programas/forms.py`, el wizard de `configuracion`, el input de archivo del legajo), y `content` solo escaneaba
+`.html` y `.js`. Para el navegador eso es markup; para el escáner, no existe. Con el `content` arreglado el build fresco
+saca **31** clases y agrega **18**, y se verificó una por una —con `ast` sobre todos los `.py` de las apps, no por
+conteo— que ninguna de las 31 se usa en ningún archivo del repo: el `tailwind.css` committeado venía de otro estado del
+árbol y arrastraba restos. De las 18 que entran, 12 son del input de archivo del legajo (`file:*`, `focus:border-*`) y
+2 (`mt-px`, `w-40`) las usa **la golden del arquetipo Detalle** desde el 30-sep: esas pantallas se estaban viendo mal en
+producción. Además el gate de build no puede encenderse con el CSS desactualizado: fallaría en el primer PR.
+
+**`content` se enumera app por app en vez de usar comodines.** Un `./**/templates/**/*.html` alcanza los templates de
+Django admin adentro de un virtualenv del checkout y `node_modules/<pkg>/templates/`: el CSS sale distinto según qué
+tenga instalado el que corre el build, y entonces el gate obligatorio rechaza al que lo corrió en su máquina. Está
+medido: con un `venv/` no-dot presente el CSS cambiaba; con `.venv` no, porque fast-glob no entra a directorios que
+empiezan con punto — o sea que el agujero existía y no se notaba. Las negaciones (`!./node_modules/**`) tapan el caso
+conocido pero se pueden out-globear; enumerar las apps lo cierra por construcción. Por el mismo motivo los `.py` entran
+por `{forms,models,templatetags}` y no con `./**/*.py`: el extractor de Tailwind es una regex sobre el texto crudo, así
+que un slice (`connection.queries[desde:hasta]`) le parece una utilidad de valor arbitrario y termina como regla basura
+en el CSS — y, peor, un PR que no toca UI mueve `tailwind.css` y hace fallar el gate.
 
 **El gate de build quedó en `design-agent-contract.yml` y no en `pr-quality.yml`.** La ampliación RS-R6-07 proponía
 `pr-quality.yml`; el anexo §7 dice `design-agent-contract.yml`. Pesa más el anexo por una razón operativa: el ruleset de
@@ -16919,6 +16933,13 @@ sobre `.claude/design/**`.
 
 **`scripts/compile_templates.py`.** El filtro descarta las rutas con `site-packages` (V5A-NEW-08).
 
+**`tailwind.config.js`.** `content` pasa a enumerar las apps en una constante `APPS` y a incluir los `.py` de
+`{forms,models,templatetags}` de cada una. `design_audit.clases_en_python()` lee esas cadenas con `ast` para que la
+suite pueda verificar lo que el build genera, y `core.tests.test_design_audit_estructura` suma dos clases nuevas:
+`ContentDeTailwindTests` (ningún patrón positivo usa comodín de primer nivel; `APPS` cubre toda app del disco con
+`templates/` o `forms`) y `CssCompiladoAlDiaTests` (toda clase usada en cualquier app está en el CSS compilado o en una
+deuda congelada de 32 entradas que solo puede bajar). Reemplaza al test viejo, que miraba solo `programas/templates`.
+
 **`.github/workflows/design-agent-contract.yml`.** Suma el ratchet contra la base del PR, `--goldens`
 (`continue-on-error` hasta el paso 3), los tests de `design_audit` y el gate de build de Tailwind; y agrega
 `scripts/design_audit.py`, `scripts/design_audit_hooks.txt`, `scripts/test_design_audit.py` y `.claude/design/**` al
@@ -16929,7 +16950,7 @@ filtro de rutas.
 `scripts/design_audit.py`, `scripts/design_audit_hooks.txt` (nuevo), `scripts/check_design_agent.py`,
 `scripts/compile_templates.py`, `scripts/test_design_audit.py`, `scripts/test_check_design_agent.py`,
 `core/tests/test_design_audit_estructura.py` (nuevo), `.github/workflows/design-agent-contract.yml`,
-`static/custom/css/tailwind.css` (regenerado),
+`tailwind.config.js`, `static/custom/css/tailwind.css` (regenerado),
 `docs/internal/auditoria-2026-10/linea-base-agente-diseno/` (nueva),
 `docs/internal/auditoria-2026-10/README.md` y `hallazgos/07-front.md`.
 
@@ -16944,10 +16965,18 @@ Con Python 3.12 + Django 5.2.17 (`.venv312`, igual al CI):
 - `manage.py check` → sin issues. `makemigrations --check --dry-run` → «No changes detected».
 - `manage.py check --deploy` con el entorno del CI (`DJANGO_DEBUG=False`, `DJANGO_ALLOWED_HOSTS=localhost`,
   `SIIS_API_URL`) → 5 warnings preexistentes, **exit 0**.
-- `manage.py test` (la suite entera, en un solo proceso, como el CI) → **2503 tests, OK** (1 skip y 1
-  `expected failure` preexistentes), 563 s. `manage.py test --tag performance` → 4 tests, OK.
-- Tests nuevos: `core.tests.test_design_audit_estructura` (41, en la suite) + `scripts/test_design_audit.py` (11) +
+- `manage.py test` (la suite entera, en un solo proceso, como el CI) → **2509 tests, OK** (1 skip y 1
+  `expected failure` preexistentes), 634 s. `manage.py test --tag performance` → 4 tests, OK.
+- Tests nuevos: `core.tests.test_design_audit_estructura` (46, en la suite) + `scripts/test_design_audit.py` (11) +
   `scripts/test_check_design_agent.py` (19, de los que 3 ya existían).
+- **Los tres guardias nuevos se probaron en rojo antes de darlos por buenos:** sacando los `.py` de `content` y
+  rebuildeando, `CssCompiladoAlDiaTests` falla nombrando `focus:ring-1`, `cursor-not-allowed` y `file:bg-blue-600`;
+  volviendo el patrón a `./**/templates/**/*.html`, falla
+  `ContentDeTailwindTests.test_ningun_patron_positivo_usa_comodin_de_primer_nivel`; sacando `legajos` de `APPS`, falla
+  `test_apps_lista_todas_las_apps_del_repo`.
+- **El build es reproducible y no depende del entorno:** `npm run build:tailwind` dos veces seguidas da el mismo
+  archivo, y con un `venv/` no-dot (templates de Django admin + `.py`), un `.venv312/` y un `node_modules/<pkg>/templates/`
+  presentes en el checkout, el CSS sale **idéntico**. Con el `content` viejo, el `venv/` no-dot lo cambiaba.
 - `ruff check .` → All checks passed; `ruff format --check` sobre lo tocado → formateado.
 - `scripts/compile_templates.py` → **199 compilados, 0 errores**, tanto en el worktree como corriéndolo desde el
   checkout principal (donde viven los venv). Antes daba 349 ahí: es V5A-NEW-08.
@@ -16967,7 +16996,10 @@ Con Python 3.12 + Django 5.2.17 (`.venv312`, igual al CI):
 
 Nada. Ningún archivo de este cambio viaja al release salvo `static/custom/css/tailwind.css`: las herramientas de
 auditoría y `.claude/` están excluidas por `export-ignore`. El CSS regenerado entra con el próximo deploy y el único
-efecto visible es que `becas/cupo/segmento_detail.html` recupera las dos utilidades (`mt-px`, `w-40`) que le faltaban.
+efecto visible es que **18 utilidades que estaban en uso y no se generaban pasan a aplicar**: el adjunto del legajo
+recupera su botón de archivo (`file:*`) y su foco (`focus:border-blue-500`, `focus:ring-blue-500/20`), el campo
+deshabilitado su cursor (`cursor-not-allowed`), los 5 campos del wizard de programas su anillo de foco (`focus:ring-1`)
+y `becas/cupo/segmento_detail.html` su `mt-px` y su `w-40`. Son correcciones visuales, ninguna regresión.
 
 ## Pendientes / a definir
 
@@ -16989,9 +17021,19 @@ efecto visible es que `becas/cupo/segmento_detail.html` recupera las dos utilida
 ## Reversión
 
 Revertir el commit. Las herramientas vuelven a su versión anterior y el CI deja de correr el ratchet y el gate de
-build. Lo único con efecto visible es `static/custom/css/tailwind.css`: al volver atrás, `becas/cupo/segmento_detail.html`
-pierde otra vez `mt-px` y `w-40`. No hay datos, migraciones ni configuración que revertir.
+build. Lo único con efecto visible es `static/custom/css/tailwind.css`: al volver atrás, las 18 utilidades vuelven a
+faltar (el adjunto del legajo pierde su botón de archivo, el wizard de programas su anillo de foco y
+`becas/cupo/segmento_detail.html` su `mt-px` y su `w-40`). No hay datos, migraciones ni configuración que revertir.
 
 ## Historial
 
-No aplica: entrada nueva.
+- **05/10/2026 — ronda 2 de revisión del PR #574.** La primera versión regeneró `tailwind.css` sin tocar el `content`
+  de `tailwind.config.js`, y el rebuild **borró `focus:ring-1` y `cursor-not-allowed`**, las dos en uso desde widgets de
+  Python: los 5 campos del wizard de programas se quedaban sin indicador de foco (WCAG 2.4.7) y el campo deshabilitado
+  del legajo sin su cursor. La entrada afirmaba que «ninguna de las 33 se usa como token de clase en ningún archivo
+  escaneado»; era falso, porque la verificación miraba el mismo conjunto de archivos que el escáner —o sea que repetía
+  su punto ciego—. Se arregló el `content` (apps enumeradas en `APPS`, más los `.py` de `{forms,models,templatetags}`),
+  se rebuildeó —ahora saca 31 y agrega 18— y se agregó `CssCompiladoAlDiaTests`, que verifica con `ast` sobre **todos**
+  los `.py` de las apps y por eso no comparte el punto ciego. En la misma ronda se cerró el agujero de los comodines de
+  primer nivel en `content` (el CSS dependía de si había un virtualenv en el checkout) y se corrigió el conteo de filas
+  del inventario en el README de la auditoría (37, no 36).
