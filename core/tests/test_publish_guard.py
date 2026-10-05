@@ -18,6 +18,7 @@ Hasta el 05/10/2026 tenía dos agujeros medidos por la auditoría:
 No toca la red: todo sale de los archivos del repo y de `git check-attr`.
 """
 
+import json
 import re
 import shutil
 import subprocess
@@ -30,6 +31,7 @@ from django.test import SimpleTestCase
 
 RAIZ = Path(settings.BASE_DIR)
 FLUJO = RAIZ / ".github" / "workflows" / "publish-main.yml"
+RULESETS = RAIZ / "docs" / "internal" / "rulesets"
 
 # `RUNTIME="a b c"` y `DOCS_DE_RUNTIME="README.md"` dentro del script del guard. Las dos
 # listas viven en variables, y no inline en el `for`, justamente para que este módulo
@@ -212,6 +214,56 @@ class CIVerdeAntesDelReleaseTests(SimpleTestCase):
         self.assertIn("/pulls", script, "hay que buscar el PR del commit publicado")
         self.assertIn("merged_at", script, "solo cuenta el PR efectivamente mergeado")
         self.assertRegex(script, r"commits/\$head/check-runs", "los checks se miran sobre el head del PR")
+
+    def test_cero_check_runs_no_pasa_el_gate(self):
+        """Mirar solo los checks que fallaron deja el agujero más grande del gate.
+
+        Un PR en el que los workflows nunca arrancaron —borrados, deshabilitados, o el
+        push del head no los disparó— no tiene **ni un check malo**: la lista de fallidos
+        sale vacía y el release se publicaría igual, sin que nada lo haya verificado.
+        """
+        script = _paso(self.PASO)["run"]
+
+        self.assertRegex(script, r'if \[ ! -s "\$RUNNER_TEMP/checks\.tsv" \]')
+        self.assertIn("no tiene ni un check-run", script)
+
+    def test_el_gate_exige_los_contextos_que_el_ruleset_declara_obligatorios(self):
+        """Así un check que no corrió se distingue de uno que no existe.
+
+        La lista sale del JSON versionado, que es el mismo que aplica el dueño del repo
+        (RED-20), y `core/tests/test_gates_ci.py` lo enfrenta contra una lista literal.
+        """
+        script = _paso(self.PASO)["run"]
+
+        self.assertIn("docs/internal/rulesets/ruleset-development.json", script)
+        self.assertIn("required_status_checks", script)
+        self.assertIn("no corrió el check obligatorio", script)
+
+    def test_los_contextos_del_ruleset_se_pueden_leer_con_el_jq_del_paso(self):
+        """El `jq` del YAML tiene que devolver algo sobre el JSON de verdad.
+
+        Si la forma del ruleset cambia, el `while` del gate itera sobre una lista vacía y
+        la comprobación se apaga en silencio: queda verde sin exigir nada.
+        """
+        ruleset = json.loads((RULESETS / "ruleset-development.json").read_text(encoding="utf-8"))
+
+        contextos = [
+            c["context"]
+            for regla in ruleset["rules"]
+            if regla["type"] == "required_status_checks"
+            for c in regla["parameters"]["required_status_checks"]
+        ]
+
+        self.assertGreaterEqual(len(contextos), 6, "el gate iteraría sobre una lista vacía")
+
+    def test_el_release_solo_sale_de_development(self):
+        """`workflow_dispatch` se dispara sobre cualquier rama, y el job publica lo que
+        haya checkouteado: una rama de trabajo llegaría a `main`, a ECOM y a la imagen de
+        PRD, saltéandose además el gate de CI verde.
+        """
+        job = _flujo()["jobs"]["publish"]
+
+        self.assertEqual(job.get("if"), "github.ref == 'refs/heads/development'")
 
     def test_el_gate_rechaza_un_commit_sin_pr(self):
         script = _paso(self.PASO)["run"]

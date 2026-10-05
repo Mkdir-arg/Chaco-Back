@@ -89,9 +89,10 @@ destinos de Performance Guard de RED-10 en la Ola 4, y su gemelo del link públi
 7. El pedido escrito a ECOM del dump previo a cada deploy (H-11) y la propuesta de la etapa `verify` (H-12, RED-22):
    **redactada y lista para enviar** en [`docs/internal/propuesta-ecom-verify.md`](../propuesta-ecom-verify.md)
    (Cambio 128); la manda el PM.
-8. **Copiar a `.claude/commands/` los dos comandos del espejo partido** (`pushGitLabecomTEST.md` y
-   `pushGitLabecomPRD.md`, RED-23): van completos en el cuerpo del PR del Cambio 128, porque la sesión que lo
-   implementó no tiene permiso de escritura sobre `.claude/`. El procedimiento normativo ya está versionado en
+8. **Copiar a `.claude/commands/` los tres comandos del espejo partido** (`pushGitLabecomTEST.md`,
+   `pushGitLabecomPRD.md` y el reemplazo de `pushGitLabecom.md`, RED-23): quedan como archivos completos en
+   `docs/internal/espejo-ecom-comandos/` del worktree del PR —sin trackear, se borran al copiarlos— y también en el
+   cuerpo del PR del Cambio 128, porque la sesión que lo implementó no tiene permiso de escritura sobre `.claude/`. El procedimiento normativo ya está versionado en
    [`docs/internal/espejo-ecom.md`](../espejo-ecom.md).
 9. **Correr `release-gate.yml` antes del próximo `/pushGitLabecom`** y, si da rojo, no espejar.
 

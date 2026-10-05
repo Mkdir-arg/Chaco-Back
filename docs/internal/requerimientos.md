@@ -16868,6 +16868,20 @@ de construir.
 - **`workflow_dispatch` saltea el gate, pero exige un motivo escrito.** Dispararlo a mano requiere
   permiso de escritura sobre el repo, o sea una persona decidiendo; lo que no puede es pasar sin que
   quede por qué en el log de la corrida.
+- **Y solo se dispara sobre `development`** (ronda 2 de la revisión). El `push` ya venía filtrado,
+  pero un `workflow_dispatch` se lanza sobre cualquier rama y el job publica `main` con el árbol que
+  haya checkouteado: una rama de trabajo cualquiera, sin pasar por el gate, llegaría a ECOM y a la
+  imagen de PRD.
+- **Cero check-runs no es verde** (ronda 2). Mirar solo los checks que fallaron dejaba el agujero más
+  grande del gate: un PR cuyos workflows nunca arrancaron —borrados, deshabilitados, o un push del
+  head que no los disparó— no tiene **ni un check malo** y habría pasado igual. Ahora se exige que la
+  lista no esté vacía y que estén presentes **todos** los contextos que declara
+  `docs/internal/rulesets/ruleset-development.json`, que es la misma fuente que aplica el dueño del
+  repo. El `release-gate` lo lee del commit de `development` que originó el release, porque en el
+  árbol de `main` ese archivo no está (`docs/` es `export-ignore`).
+- **La corrida del `release-gate` lleva el SHA en el título** (`run-name`, ronda 2): la API no expone
+  los `inputs` en `gh run list`, así que sin eso el operador no puede distinguir qué release verificó
+  cada corrida — y de eso depende el paso a producción, que exige el gate verde **de ese SHA**.
 - **No se autobloquea con el ruleset de `main`.** Ese ruleset (Cambio 121) prohíbe `deletion`,
   `non_fast_forward` y `update` con bypass para la app de GitHub Actions, y **no exige status
   checks**: si los exigiera, el workflow que publica `main` quedaría esperándose a sí mismo. Ya había
@@ -16975,9 +16989,10 @@ afecta qué viaja al próximo release (sale `CONTEXT.md`).
 - **PM:** enviar a ECOM la propuesta de `docs/internal/propuesta-ecom-verify.md` y traer la respuesta
   (H-12). Mientras no la acepten, lo único que verifica un release antes del espejo es el
   `release-gate` de nuestro lado.
-- **Juez:** copiar `pushGitLabecomTEST.md` y `pushGitLabecomPRD.md` a `.claude/commands/` (van
-  completos en el cuerpo del PR) y decidir qué hacer con el `pushGitLabecom.md` viejo, que hoy sigue
-  empujando las dos ramas en una sola corrida.
+- **Juez:** copiar `pushGitLabecomTEST.md`, `pushGitLabecomPRD.md` y el reemplazo de
+  `pushGitLabecom.md` a `.claude/commands/`. Quedan completos en
+  `docs/internal/espejo-ecom-comandos/` del worktree del PR —sin trackear, con su `LEEME.md`— y
+  también en el cuerpo del PR.
 - **Dueño del repo:** aplicar los dos rulesets (Cambio 121). Sin eso, `Contratos del repo` sale rojo
   pero no frena el merge.
 - **Ola 7:** sacar `docker/django/Dockerfile` y `scripts/startup.sh` de la lista de runtime del

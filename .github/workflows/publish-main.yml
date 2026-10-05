@@ -27,6 +27,11 @@ concurrency:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    # El `push` ya viene filtrado a `development`, pero `workflow_dispatch` se puede
+    # disparar sobre **cualquier** rama, y el job publica `main` con el árbol de la rama
+    # que haya checkouteado: una rama de trabajo cualquiera, saltéandose el gate de CI
+    # verde, llegaría a ECOM y a la imagen de PRD. El release solo sale de `development`.
+    if: github.ref == 'refs/heads/development'
 
     steps:
       # RED-85: pineada por SHA. Un tag es mutable, y este workflow tiene
@@ -59,17 +64,45 @@ jobs:
             echo "::error::$SHA no viene de un PR mergeado: no se publica release"
             exit 1
           fi
-          # `null` (todavía corriendo) también cuenta como no exitoso: no se publica un
-          # release mientras el CI del PR sigue en vuelo.
-          malos=$(gh api "repos/$REPO/commits/$head/check-runs?per_page=100" \
-                  --jq '[.check_runs[] | select(.conclusion != "success" and .conclusion != "neutral" and .conclusion != "skipped")] | .[].name' )
-          if [ -n "$malos" ]; then
-            echo "$malos" | while IFS= read -r check; do
-              echo "::error::check no exitoso en el PR ($head): $check"
-            done
+          gh api "repos/$REPO/commits/$head/check-runs?per_page=100" \
+             --jq '.check_runs[] | [.name, (.conclusion // "sin terminar")] | @tsv' > "$RUNNER_TEMP/checks.tsv"
+
+          # **Cero check-runs no es verde.** Mirar solo los que fallaron deja el agujero
+          # más grande del gate: un PR en el que los workflows nunca arrancaron —porque
+          # alguien los borró, los deshabilitó, o el push del head no los disparó— no
+          # tiene ni un check malo, así que pasaría igual y el release saldría ciego.
+          if [ ! -s "$RUNNER_TEMP/checks.tsv" ]; then
+            echo "::error::el PR ($head) no tiene ni un check-run: no se publica release"
             exit 1
           fi
-          echo "PR verde en $head"
+
+          # `null` (todavía corriendo) también cuenta como no exitoso: no se publica un
+          # release mientras el CI del PR sigue en vuelo.
+          fail=0
+          while IFS=$'\t' read -r nombre conclusion; do
+            case "$conclusion" in
+              success|neutral|skipped) ;;
+              *) echo "::error::check no exitoso en el PR ($head): $nombre ($conclusion)"; fail=1 ;;
+            esac
+          done < "$RUNNER_TEMP/checks.tsv"
+
+          # Y que estén **todos** los que el ruleset declara obligatorios: así un check
+          # que no corrió se distingue de uno que no existe. La lista sale del JSON
+          # versionado, que es la misma fuente que aplica el dueño del repo (RED-20), y
+          # `core/tests/test_gates_ci.py` la enfrenta contra una lista literal.
+          jq -r '.rules[] | select(.type == "required_status_checks")
+                 | .parameters.required_status_checks[].context' \
+             docs/internal/rulesets/ruleset-development.json > "$RUNNER_TEMP/obligatorios.txt"
+          while IFS= read -r contexto; do
+            [ -n "$contexto" ] || continue
+            if ! cut -f1 "$RUNNER_TEMP/checks.tsv" | grep -Fxq "$contexto"; then
+              echo "::error::el PR ($head) no corrió el check obligatorio «$contexto»"
+              fail=1
+            fi
+          done < "$RUNNER_TEMP/obligatorios.txt"
+
+          [ "$fail" = "0" ] || exit 1
+          echo "PR verde en $head ($(wc -l < "$RUNNER_TEMP/checks.tsv") checks)"
 
       - name: Publicación a mano
         if: github.event_name == 'workflow_dispatch'
@@ -130,11 +163,13 @@ jobs:
           # Un `.md` nuevo en la raíz no está en ninguna lista y viaja solo. O se marca
           # `export-ignore` en `.gitattributes`, o se declara acá como documentación que
           # el release tiene que llevar. No hay tercera opción silenciosa.
-          for path in $(cd "$RUNNER_TEMP/release" && ls -1 ./*.md 2>/dev/null | sed 's|^\./||' || true); do
+          find "$RUNNER_TEMP/release" -maxdepth 1 -name '*.md' -printf '%P\n' > "$RUNNER_TEMP/md-de-la-raiz.txt"
+          while IFS= read -r path; do
+            [ -n "$path" ] || continue
             case " $DOCS_DE_RUNTIME " in *" $path "*) continue;; esac
             echo "::error::$path viaja al release sin estar declarado: marcalo export-ignore o sumalo a DOCS_DE_RUNTIME"
             fail=1
-          done
+          done < "$RUNNER_TEMP/md-de-la-raiz.txt"
 
           for path in $RUNTIME; do
             if [ ! -e "$RUNNER_TEMP/release/$path" ]; then

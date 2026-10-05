@@ -526,6 +526,18 @@ class ReleaseGateTests(SimpleTestCase):
         self.assertIn("sha", disparadores["workflow_dispatch"]["inputs"])
         self.assertTrue(disparadores["workflow_dispatch"]["inputs"]["sha"]["required"])
 
+    def test_la_corrida_lleva_el_sha_en_el_titulo(self):
+        """`gh run list` no muestra los `inputs`: sin esto, dos corridas son indistinguibles.
+
+        Y de eso depende el paso a producción, que exige el gate verde **de ese SHA**.
+        """
+        self.assertIn("sha", self.flujo.get("run-name", ""))
+
+    def test_el_gate_del_release_tambien_exige_los_contextos_obligatorios(self):
+        """Mismo agujero que en `publish-main`: cero check-runs no puede ser verde."""
+        self.assertIn("ruleset-development.json", self.texto)
+        self.assertIn("no tiene ni un check-run", self.texto)
+
     def test_no_corre_en_pull_request(self):
         """Un check que corre en PRs y filtra por rutas queda «expected» para siempre.
 

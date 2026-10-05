@@ -1,5 +1,10 @@
 name: Release gate
 
+# El SHA en el título de la corrida: la API no expone los `inputs` en `gh run list`, así
+# que sin esto el operador no puede distinguir qué release verificó cada corrida —y de eso
+# depende el paso a producción, que exige el gate verde **de ese SHA**—.
+run-name: Release gate ${{ github.event.inputs.sha }}
+
 # RED-23: lo que verifica un release ANTES de que exista el espejo a ECOM.
 #
 # Del otro lado, `main` dispara un pipeline que solo construye la imagen y ArgoCD la
@@ -80,15 +85,39 @@ jobs:
             echo "::error::$ORIGEN no viene de un PR mergeado: el release no está verificado"
             exit 1
           fi
-          malos=$(gh api "repos/$REPO/commits/$head/check-runs?per_page=100" \
-                  --jq '[.check_runs[] | select(.conclusion != "success" and .conclusion != "neutral" and .conclusion != "skipped")] | .[].name')
-          if [ -n "$malos" ]; then
-            echo "$malos" | while IFS= read -r check; do
-              echo "::error::check no exitoso en el PR ($head): $check"
-            done
+          gh api "repos/$REPO/commits/$head/check-runs?per_page=100" \
+             --jq '.check_runs[] | [.name, (.conclusion // "sin terminar")] | @tsv' > "$RUNNER_TEMP/checks.tsv"
+
+          # Mismo agujero que en `publish-main.yml`: un PR cuyos workflows nunca
+          # arrancaron no tiene ni un check malo, así que pasaría igual.
+          if [ ! -s "$RUNNER_TEMP/checks.tsv" ]; then
+            echo "::error::el PR ($head) no tiene ni un check-run: el release no está verificado"
             exit 1
           fi
-          echo "PR verde en $head"
+
+          fail=0
+          while IFS=$'\t' read -r nombre conclusion; do
+            case "$conclusion" in
+              success|neutral|skipped) ;;
+              *) echo "::error::check no exitoso en el PR ($head): $nombre ($conclusion)"; fail=1 ;;
+            esac
+          done < "$RUNNER_TEMP/checks.tsv"
+
+          # El ruleset se lee del commit de `development` que originó el release: en el
+          # árbol de `main` que estamos parados no está, porque `docs/` es `export-ignore`.
+          git show "$ORIGEN:docs/internal/rulesets/ruleset-development.json" \
+            | jq -r '.rules[] | select(.type == "required_status_checks")
+                     | .parameters.required_status_checks[].context' > "$RUNNER_TEMP/obligatorios.txt"
+          while IFS= read -r contexto; do
+            [ -n "$contexto" ] || continue
+            if ! cut -f1 "$RUNNER_TEMP/checks.tsv" | grep -Fxq "$contexto"; then
+              echo "::error::el PR ($head) no corrió el check obligatorio «$contexto»"
+              fail=1
+            fi
+          done < "$RUNNER_TEMP/obligatorios.txt"
+
+          [ "$fail" = "0" ] || exit 1
+          echo "PR verde en $head ($(wc -l < "$RUNNER_TEMP/checks.tsv") checks)"
 
   # (b) La suite corre sobre el commit de `development`, no sobre el snapshot. El
   # snapshot excluye `docs/`, `.github/` y tres `scripts/*.py` por `export-ignore`, y

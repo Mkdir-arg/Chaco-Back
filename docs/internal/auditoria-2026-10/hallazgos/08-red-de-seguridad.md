@@ -1755,8 +1755,8 @@ acepten, el equivalente de nuestro lado es el `release-gate.yml` de RED-23.
   3. Actualizar `.claude/commands/pushGitLabecom.md` con los dos pasos y el runbook de RED-60.
 
 **Resolución:** 🟡 Parcial en #575 (Cambio 128, PR R-14), 05-oct-2026 — **los puntos 1 y 2 completos; del 3 falta que el
-juez copie los dos archivos a `.claude/`** (la sesión que implementó esto no tiene permiso de escritura ahí; el contenido
-completo de los dos comandos va en el cuerpo del PR). Punto 2: `.github/workflows/release-gate.yml`, `workflow_dispatch`
+juez copie los tres archivos a `.claude/`** (la sesión que implementó esto no tiene permiso de escritura ahí; quedan
+completos en `docs/internal/espejo-ecom-comandos/` del worktree, sin trackear, y en el cuerpo del PR). Punto 2: `.github/workflows/release-gate.yml`, `workflow_dispatch`
 con input `sha` obligatorio y cuatro jobs — (a) `CI verde del PR de origen`, que deriva el commit de `development` del
 asunto `release: … (development@<sha>)`, busca su PR y mira los checks **del head**; (b) `Suite completa (SQLite)`;
 (c) `Migraciones sobre MariaDB` (`mariadb:10.11` hasta H-01) con `migrate --noinput`, `migrate --check` y
