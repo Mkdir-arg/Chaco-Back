@@ -310,6 +310,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 128 | Nada sale a producción sin que algo lo haya verificado: contratos del repo en el CI, release con CI verde y espejo a ECOM en dos pasos | Transversal · CI de GitHub Actions · release y espejo a ECOM | `#infra` `#metodo` `#gestion` | Auditoría integral oct-2026 — RED-24, RED-21, RED-65, RED-23 y RED-22 (Ola R, red de seguridad, PR R-14) | 05/10/2026 | 🟡 **Parcial** (falta enviar la propuesta a ECOM y copiar los dos comandos a `.claude/`) | No requiere |
 | 129 | Que una pantalla nueva no pueda nacer sucia: ratchet, marcadores de arquetipo y gate de build | Transversal · herramientas de diseño · CI de GitHub Actions · CSS compilado | `#ui` `#metodo` `#infra` | Auditoría integral oct-2026 — FE-13, V5A-NEW-01 y V5A-NEW-08 (Ola 6 «Agente de diseño», pasos 0-2) | 05/10/2026 | 🟢 **Hecho** | No requiere |
 | 131 | Las goldens dejan de ser un molde con deuda: 0 P1, marcadores completos y el gate encendido | Becas (revisión, cupo, configuración de programas) · herramientas de diseño · CI de GitHub Actions | `#ui` `#metodo` | Auditoría integral oct-2026 — V5A-NEW-07 parte (a) (Ola 6 «Agente de diseño», paso 3) | 05/10/2026 | 🟢 **Hecho** | No requiere |
+| 133 | Mapear el mockup de la v2 de Dispositivos pantalla por pantalla: qué pieza ya existe, qué dato falta y dónde choca | Dispositivos y Merenderos · análisis de diseño y de datos (sin tocar código de producción) | `#ui` `#gestion` `#datos` `#rbac` | PM — pedido directo en sesión de trabajo, sobre el link publicado del mockup | 05/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -17433,3 +17434,120 @@ Nada. No hay migración ni configuración. Al próximo deploy, Becas muestra las
 
 Revertir el commit: las tres pantallas vuelven a su markup anterior, el step del CI vuelve a ser tolerante y `--goldens`
 vuelve a no tener qué verificar. No hay datos, migraciones ni configuración que revertir.
+
+---
+
+# Cambio 133 — Mapear el mockup de la v2 de Dispositivos pantalla por pantalla: qué pieza ya existe, qué dato falta y dónde choca
+
+🟢 **HECHO — 05/10/2026** · Documento en `docs/internal/dispositivos-v2/mapeo-mockup.md` · 34 capturas en `capturas/`
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos y Merenderos · análisis de diseño y de datos (no toca código de producción) |
+| **Etiquetas** | `#ui` `#gestion` `#datos` `#rbac` |
+| **Solicitante** | PM — pedido directo en sesión de trabajo, sobre el link publicado del mockup |
+| **Fecha del pedido** | 05/10/2026 |
+| **Issue / épica** | Épica #127 · continúa los Cambios 72 y 85 |
+| **Partes afectadas** | Backoffice (análisis previo a implementar); ninguna pantalla cambia con este cambio |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> «Quiero que lances un agente el cual mapee y analice el diseño que Claude propuso en la v2 de dispositivos, quiero que
+> sea **tal cual** el link de diseño, son los html que hizo para
+> https://mkdir-arg.github.io/Chaco-Back/mockups/dispositivos-v2.html#p2»
+
+## Alcance acordado
+
+**Entra:** un documento que sirva para que otro agente implemente la v2 idéntica al mockup. Por cada pantalla: qué es y
+en qué flujo cae, inventario visual literal, mapeo al sistema de diseño (qué pieza existe tal cual, cuál difiere y en
+qué, cuál hay que crear), mapeo a datos y backend verificado contra el código, y los conflictos listados sin resolver.
+Más la tabla resumen, la lista de piezas canónicas nuevas, el orden de implementación y las preguntas abiertas.
+
+**Queda afuera:** implementar pantallas, tocar código de producción y **resolver los conflictos**. El pedido fue
+fidelidad total al mockup, así que cada choque se lista con sus opciones y su costo, marcado `DECISIÓN CLIENTE`.
+
+## Decisiones tomadas
+
+**El mockup son 22 pantallas, no 20.** El pedido hablaba de 20. El archivo publicado tiene `#p1`…`#p22` más diez flujos
+`#f1`…`#f10`: 32 tableros `.board`. Se mapearon las 22.
+
+**El hallazgo que cambia el encuadre: el mockup *es* el sistema de diseño.** No propone un lenguaje visual nuevo; fue
+construido copiando valor por valor el CSS productivo. Los doce tokens de su `:root` coinciden hex por hex con
+`chaco-tokens.css`; sus siete variantes de badge son carácter por carácter las de `nodo-badges.css`; su `.nf` es
+`nodo-field` (42 px, radio 8, `0 14px`); su `.fcard .row` declara la misma grilla
+`minmax(180px,1.15fr) minmax(150px,.9fr) minmax(200px,1.35fr) 42px` que `dynamic-list-filters.css`; su `.hero`, su
+`.stat` y su `.acceso` son `.ini-hero`, `.stat-card` y `.acceso-btn` de `templates/inicio.html`. Por eso «tal cual el
+mockup» es, en la mayoría de las pantallas, **reutilizar lo que ya existe**, no construir un front paralelo.
+
+**El esfuerzo real está en tres frentes, no en el visual.** (a) **16 piezas nuevas** que el mockup inventa y el sistema
+no tiene —switch, chips, stepper de backoffice, mapa de plazas, línea de tiempo, sección de ficha con bloqueo, tarjeta de
+turno, entrada de bitácora, menú de fila, tarjeta de servicio, galería histórica, mapa, grilla mensual, grupo de
+capacidades, filtro en píldora y el eyebrow del encabezado—. (b) Los **datos que el backend no modela**: `Sector`,
+`Cama.PRESTADA`, estado de tránsito, permiso de salida, entradas de bitácora, sensibilidad por sección, `Edificio`,
+consumos y relevamiento edilicio. (c) **14 conflictos** con el sistema de diseño o con decisiones ya registradas.
+
+**Los conflictos no se resolvieron, por pedido explícito.** Los cinco que más pesan: el mockup clona la franja de
+métricas de Inicio, que la pieza canónica `_stat_card.html` está retirando (CMP-23); abre el tablero con un hero de
+gradiente que el agente prohíbe para backoffice operativo; dibuja alertas con ícono y link de acción que
+`components/_alerta.html` no tiene; confirma con modales mientras el Cambio 48 había defendido SweetAlert2 para
+Dispositivos; y cuatro pantallas (P1, P6, P7 y P22) caen en arquetipos que el anexo manda **frenar y devolver** por falta
+de golden. El documento da opciones y costo de cada uno.
+
+**La Ola 6 sigue siendo precondición.** §7 de la auditoría lo declara: *«la Ola 6 terminada antes de la primera task de
+pantalla»*. Hoy va por el paso 3 de 7. El orden de implementación propuesto arranca por ahí y, mientras tanto, por las
+18 pantallas que **sí** tienen golden.
+
+**Se registró lo que el mockup contradice de lo ya comunicado al cliente.** P18 promete que el contenido sensible «no se
+puede copiar ni exportar», y el Cambio 72 dejó por escrito al Ministerio que inhabilitar capturas o copias **no es
+técnicamente posible** en ningún sistema web. Queda como conflicto C-13, no como requisito.
+
+**Dos inconsistencias del propio mockup quedaron asentadas.** La intro anuncia «F8 a F11» y P22 dice «Implementa F11»,
+pero **no existe** un tablero `#f11`: los flujos terminan en F10 (coincide con el pendiente del Cambio 85). Y el
+pendiente del Cambio 85 *«Las tres pantallas nuevas no están en el mockup»* quedó obsoleto: el archivo se actualizó el
+20/09 (`c75a6b61`) y ya trae P19, P20, P21 y P22, sin que ninguna entrada registrara esa actualización.
+
+**Las capturas se generaron, no se describieron de memoria.** 34 imágenes con Chromium headless sobre el HTML local a
+1760 px (22 pantallas + 2 frames secundarios + 10 flujos), en JPEG de calidad 60 para que la carpeta pese 2,7 MB y no 9.
+`docs/` no viaja en el release (`export-ignore`).
+
+## Implementación
+
+No hay implementación de producto: el entregable es documentación. El documento tiene diez secciones —hallazgo central,
+chrome compartido, diccionario de clases mockup → pieza real, las 22 fichas, tabla resumen, piezas canónicas nuevas,
+conflictos, orden de implementación, preguntas abiertas y qué se verificó— con cada afirmación del mockup citada por
+selector o línea del HTML y cada afirmación del backend citada con `archivo:línea`.
+
+## Archivos
+
+- `docs/internal/dispositivos-v2/mapeo-mockup.md` (nuevo)
+- `docs/internal/dispositivos-v2/capturas/*.jpg` (nuevos, 34 archivos)
+- `docs/internal/requerimientos.md` — esta entrada y su fila del índice
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+- Los 120 enlaces relativos del documento (84 destinos distintos) resuelven a un archivo existente: 0 rotos.
+- Las 52 tablas del documento tienen columnas parejas.
+- `scripts/requerimientos.py --check` → OK.
+- No se tocó ningún template, CSS ni JavaScript, así que `design_audit.py` y `compile_templates.py` no aplican.
+
+## Puesta en marcha en el servidor
+
+No requiere.
+
+## Pendientes / a definir
+
+- **Los 14 conflictos `DECISIÓN CLIENTE`** de §7 están abiertos. Los seis de sistema (C-1 a C-6) convienen resueltos
+  antes de la primera pantalla: el de las alertas toca 13 de las 22 y el eyebrow del encabezado, 16.
+- **Las nueve preguntas abiertas** de §9, en particular Q4 (el relevamiento edilicio no puede llamarse `Relevamiento`,
+  ese nombre ya es de Becas) y Q1 (qué es F11).
+- **No se crearon issues.** El documento queda como insumo del analista funcional y del PM; las tasks de la v2 cuelgan
+  de la épica #127 y las mueve el PM.
+
+## Reversión
+
+Revertir el commit: desaparecen el documento y las capturas. No hay código, datos ni configuración involucrados.
