@@ -16,7 +16,7 @@ jobs:
   contract:
     name: Validate inventory and authority
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
 
     steps:
       - uses: actions/checkout@v5
@@ -29,12 +29,16 @@ jobs:
           filters: |
             diseno:
               - '.claude/agents/**'
+              - '.claude/design/**'
               - '.claude/settings.json'
               - 'AGENTS.md'
               - 'CLAUDE.md'
               - 'docs/design-kb/**'
               - 'scripts/check_design_agent.py'
               - 'scripts/test_check_design_agent.py'
+              - 'scripts/design_audit.py'
+              - 'scripts/design_audit_hooks.txt'
+              - 'scripts/test_design_audit.py'
               - '.github/workflows/design-agent-contract.yml'
               - '**/templates/**/*.html'
               - 'static/custom/css/**/*.css'
@@ -55,3 +59,43 @@ jobs:
       - name: Test design-agent checker
         if: steps.filtro.outputs.diseno == 'true'
         run: python scripts/test_check_design_agent.py
+
+      - name: Test design audit
+        if: steps.filtro.outputs.diseno == 'true'
+        run: python scripts/test_design_audit.py
+
+      # Ratchet: la deuda de diseño preexistente no bloquea, pero el PR no puede
+      # sumar ni un hallazgo nuevo de las 8 reglas P1. Compara cada archivo de UI
+      # tocado contra su versión en la base del PR.
+      - name: Design audit ratchet
+        if: steps.filtro.outputs.diseno == 'true'
+        run: python scripts/design_audit.py --ratchet --base "${{ github.event.pull_request.base.sha }}"
+
+      # Las goldens (la pantalla que se clona por arquetipo) tienen que estar en 0.
+      # Tolerante hasta que el paso 3 de la Ola 6 las sanee y el paso 4 escriba la
+      # tabla `## Arquetipos` del núcleo: ese PR saca el `continue-on-error`.
+      - name: Design audit goldens
+        if: steps.filtro.outputs.diseno == 'true'
+        continue-on-error: true
+        run: python scripts/design_audit.py --goldens
+
+      # Gate de build (V5A-NEW-01): `static/custom/css/tailwind.css` está
+      # committeado y ningún workflow lo regeneraba, así que una utilidad nueva
+      # entraba al markup sin existir en el CSS y la pantalla se veía mal sin que
+      # fallara nada. Es lo único que distingue «utilidad válida sin build» de
+      # «utilidad inválida»: CLASSDEF no puede.
+      - uses: actions/setup-node@v4
+        if: steps.filtro.outputs.diseno == 'true'
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Tailwind build is committed
+        if: steps.filtro.outputs.diseno == 'true'
+        run: |
+          npm ci
+          npm run build:tailwind
+          if ! git diff --exit-code -- static/custom/css/tailwind.css; then
+            echo "::error file=static/custom/css/tailwind.css::El CSS de Tailwind quedó desactualizado: correr 'npm run build:tailwind' y commitear static/custom/css/tailwind.css"
+            exit 1
+          fi

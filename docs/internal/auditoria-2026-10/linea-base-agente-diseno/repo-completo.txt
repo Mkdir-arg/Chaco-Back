@@ -1,0 +1,98 @@
+# Línea base del repo — design_audit.py (Ola 6, paso 0)
+
+## 1. Resumen de la corrida completa: scripts/design_audit.py (sin argumentos)
+
+== design_audit: 42 error(es), 3627 P1 (deuda), 110 warning(s) ==
+       1942 [P1][INLINESTYLE]
+        949 [P1][RAWPALETTE]
+        398 [P1][ICONARIA]
+        156 [P1][TABLECANON]
+         82 [WARN][CLASSDEF]
+         70 [P1][CLASSDEF]
+         56 [P1][PAGEHEADER]
+         39 [P1][STYLEBLOCK]
+         28 [WARN][OUTLINE]
+         26 [ERROR][TWBUILD]
+         17 [P1][SHELLLEGACY]
+         10 [ERROR][HEX]
+          3 [ERROR][CONFIRM]
+          1 [ERROR][ZINDEX]
+          1 [ERROR][GRADLEG]
+          1 [ERROR][FONT]
+
+## 2. Los 42 ERROR, uno por línea
+
+templates\legajos\alertas_dashboard.html:151: [ERROR][TWBUILD] «hover:bg-gray-700» no está en el CSS compilado — correr `npm run build:tailwind` y commitear
+templates\legajos\alertas_dashboard.html:239: [ERROR][TWBUILD] «hover:bg-gray-50» no está en el CSS compilado — correr `npm run build:tailwind` y commitear
+static\custom\js\chaco-tailwind.config.js:22: [ERROR][FONT] Tipografía legacy — Manrope es la única (via --font-sans/--font-display)
+static\custom\js\conversaciones_lista_ws.js:37: [ERROR][HEX] Hex hardcodeado — usar token semántico var(--...)
+static\custom\js\conversaciones_lista_ws.js:82: [ERROR][CONFIRM] confirm()/alert()/prompt() nativo prohibido — SweetAlert2 (backoffice) / DS Modal
+static\custom\js\conversaciones_tiempo_real.js:44: [ERROR][HEX] Hex hardcodeado — usar token semántico var(--...)
+static\custom\js\dashboard.js:9: [ERROR][HEX] Hex hardcodeado — usar token semántico var(--...)
+static\custom\js\dashboard.js:16: [ERROR][HEX] Hex hardcodeado — usar token semántico var(--...)
+static\custom\js\mobile-enhancements.js:341: [ERROR][GRADLEG] Gradiente/color legacy NODO — usar --gradient-brand / tokens
+static\custom\js\mobile-enhancements.js:341: [ERROR][HEX] Hex hardcodeado — usar token semántico var(--...)
+static\custom\js\mobile-enhancements.js:345: [ERROR][ZINDEX] z-index 9999 — escala del kit: topbar 20 · modal 50 · toast 80
+static\custom\js\registros_erroneos.js:147: [ERROR][HEX] Hex hardcodeado — usar token semántico var(--...)
+static\custom\js\registros_erroneos.js:149: [ERROR][HEX] Hex hardcodeado — usar token semántico var(--...)
+static\custom\js\registros_erroneos.js:248: [ERROR][HEX] Hex hardcodeado — usar token semántico var(--...)
+static\custom\js\registros_erroneos.js:249: [ERROR][HEX] Hex hardcodeado — usar token semántico var(--...)
+static\custom\js\registros_erroneos.js:258: [ERROR][HEX] Hex hardcodeado — usar token semántico var(--...)
+legajos\templates\legajos\ciudadano_edit_form.html:340: [ERROR][TWBUILD] «hover:bg-gray-100» no está en el CSS compilado — correr `npm run build:tailwind` y commitear
+legajos\templates\legajos\ciudadano_manual_form.html:157: [ERROR][TWBUILD] «hover:bg-gray-50» no está en el CSS compilado — correr `npm run build:tailwind` y commitear
+legajos\templates\legajos\dashboard_contactos_simple.html:16: [ERROR][TWBUILD] «hover:bg-gray-600» no está en el CSS compilado — correr `npm run build:tailwind` y commitear
+legajos\templates\legajos\derivar_programa.html:94: [ERROR][TWBUILD] «hover:bg-gray-50» no está en el CSS compilado — correr `npm run build:tailwind` y commitear
+legajos\templates\legajos\historial_contactos_simple.html:20: [ERROR][TWBUILD] «hover:bg-gray-600» no está en el CSS compilado — correr `npm run build:tailwind` y commitear
+legajos\templates\legajos\historial_contactos_simple.html:55: [ERROR][TWBUILD] «hover:bg-gray-200» no está en el CSS compilado — correr `npm run build:tailwind` y commitear
+legajos\templates\legajos\red_contactos_simple.html:16: [ERROR][TWBUILD] «hover:bg-gray-600» no está en el CSS compilado — correr `npm run build:tailwind` y commitear
+users\templates\rol\rol_form.html:144: [ERROR][TWBUILD] «hover:bg-gray-400» no está en el CSS compilado — correr `npm run build:tailwind` y commitear
+configuracion\templates\configuracion\localidad_confirm_delete.html:21: [ERROR][TWBUILD] «hover:bg-gray-400» no está en el CSS compilado — correr `npm run build:tailwind` y commitear
+configuracion\templates\configuracion\localidad_form.html:34: [ERROR][TWBUILD] «hover:bg-gray-400» no está en el CSS compilado — correr `npm run build:tailwind` y commitear
+configuracion\templates\configuracion\municipio_confirm_delete.html:21: [ERROR][TWBUILD] «hover:bg-gray-400» no está en el CSS compilado — correr `npm run build:tailwind` y commitear
+configuracion\templates\configuracion\municipio_form.html:34: [ERROR][TWBUILD] «hover:bg-gray-400» no está en el CSS compilado — correr `npm run build:tailwind` y commitear
+configuracion\templates\configuracion\programa_wizard_paso1.html:83: [ERROR][TWBUILD] «hover:bg-gray-300» no está en el CSS compilado — correr `npm run build:tailwind` y commitear
+configuracion\templates\configuracion\programa_wizard_paso2.html:62: [ERROR][TWBUILD] «hover:bg-gray-300» no está en el CSS compilado — correr `npm run build:tailwind` y commitear
+configuracion\templates\configuracion\programa_wizard_paso3.html:64: [ERROR][TWBUILD] «hover:bg-gray-300» no está en el CSS compilado — correr `npm run build:tailwind` y commitear
+configuracion\templates\configuracion\programa_wizard_paso4.html:81: [ERROR][TWBUILD] «hover:bg-gray-300» no está en el CSS compilado — correr `npm run build:tailwind` y commitear
+configuracion\templates\configuracion\provincia_confirm_delete.html:21: [ERROR][TWBUILD] «hover:bg-gray-400» no está en el CSS compilado — correr `npm run build:tailwind` y commitear
+configuracion\templates\configuracion\provincia_form.html:24: [ERROR][TWBUILD] «hover:bg-gray-400» no está en el CSS compilado — correr `npm run build:tailwind` y commitear
+configuracion\templates\configuracion\secretaria_confirm_delete.html:23: [ERROR][TWBUILD] «hover:bg-gray-300» no está en el CSS compilado — correr `npm run build:tailwind` y commitear
+configuracion\templates\configuracion\secretaria_form.html:46: [ERROR][TWBUILD] «hover:bg-gray-300» no está en el CSS compilado — correr `npm run build:tailwind` y commitear
+configuracion\templates\configuracion\subsecretaria_confirm_delete.html:24: [ERROR][TWBUILD] «hover:bg-gray-300» no está en el CSS compilado — correr `npm run build:tailwind` y commitear
+configuracion\templates\configuracion\subsecretaria_form.html:56: [ERROR][TWBUILD] «hover:bg-gray-300» no está en el CSS compilado — correr `npm run build:tailwind` y commitear
+conversaciones\templates\conversaciones\configurar_cola.html:72: [ERROR][TWBUILD] «hover:bg-gray-50» no está en el CSS compilado — correr `npm run build:tailwind` y commitear
+conversaciones\templates\conversaciones\detalle.html:183: [ERROR][CONFIRM] confirm()/alert()/prompt() nativo prohibido — SweetAlert2 (backoffice) / DS Modal
+conversaciones\templates\conversaciones\detalle.html:187: [ERROR][CONFIRM] confirm()/alert()/prompt() nativo prohibido — SweetAlert2 (backoffice) / DS Modal
+conversaciones\templates\conversaciones\lista.html:180: [ERROR][TWBUILD] «hover:bg-gray-50» no está en el CSS compilado — correr `npm run build:tailwind` y commitear
+
+## 3. poc/herramientas/design_baseline.py (conteo independiente, por módulo)
+
+BTNBOOT      usos=    3 archivos=2
+CONFIRMHAND  usos=   27 archivos=18
+EMPTYHAND    usos=    8 archivos=8
+ICONARIA     usos=  398 archivos=60
+ICONSVG      usos=  228 archivos=37
+INLINESTYLE  usos= 1958 archivos=107
+LABELCANON   usos=  192 archivos=57
+PAGEHAND     usos=    6 archivos=3
+PAGEHEADER   usos=   56 archivos=56
+RAWPALETTE   usos=  949 archivos=36
+SHELL        usos=   17 archivos=17
+STYLEBLOCK   usos=   39 archivos=39
+TABLECANON   usos=  164 archivos=25
+TWARBITRARY  usos=  192 archivos=23
+XCLOAK       usos=   16 archivos=16
+
+mod                    RAWPALET INLINEST STYLEBLO PAGEHEAD TABLECAN ICONARIA LABELCAN
+configuracion               183      420        0        6       24        7       22
+conversaciones              167       10        2        4       14       32       10
+dashboard                     0       63        0        0        0       17        0
+legajos                     441      423        4       14       45       78       75
+portal                       15      490        4        0        8       91       22
+programas/admisiones          0       10        0        5        4        0        9
+programas/becas               0      180       16        4       13      108       23
+programas/dispositivos        0       22        1        9       20        5        9
+programas/merenderos          0        4        0        6       17        0        3
+templates                    82      188        9        3        6       49        0
+users                        61      148        3        5       13       11       19
+

@@ -1,0 +1,172 @@
+{% extends "includes/base.html" %}
+{% load dispositivos %}
+{% block title %}Dispositivos · {{ dispositivo.nombre }} · Cama {{ cama.codigo }}{% endblock %}
+
+{% block main-content %}
+{% puede_operar_dispositivo request.user dispositivo "dispositivo.editar" as puede_editar %}
+<style>[x-cloak]{display:none!important}</style>
+<div class="space-y-5" x-data="{ tab: 'datos' }">
+
+  <div>
+    <a href="{% url 'dispositivos:detalle' dispositivo.pk %}" class="text-sm text-body-subtle hover:text-fg-brand">← Volver a {{ dispositivo.nombre }}</a>
+    <div class="flex items-start justify-between gap-4 flex-wrap mt-3">
+      <div class="min-w-0">
+        <div class="flex items-center gap-2 flex-wrap">
+          <h1 class="text-3xl font-extrabold text-heading tracking-tight">Cama {{ cama.codigo }}</h1>
+          {% include "programas/dispositivos/_cama_estado_badge.html" %}
+        </div>
+        <p class="mt-1 text-sm text-body-subtle">{{ dispositivo.nombre }} <span class="font-mono">· {{ dispositivo.codigo }}</span></p>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        {% if puede_editar %}<a href="{% url 'dispositivos:cama_editar' cama.pk %}" class="btn-nodo btn-secondary btn-base"><i class="fas fa-pen"></i> Editar</a>{% endif %}
+      </div>
+    </div>
+  </div>
+
+  {% if ocupante_actual %}
+  {# Nota informativa (tono info de components/_alerta.html): texto compuesto con fecha, se arma en línea #}
+  <div class="flex items-center gap-2" style="padding:10px 12px; border-radius:10px; background:var(--bg-info-soft); border:1px solid var(--color-brand-200)" role="status">
+    <i class="fas fa-circle-info flex-shrink-0" style="color:var(--text-fg-info)" aria-hidden="true"></i>
+    <span style="font-size:12.5px; color:var(--text-body)"><strong class="text-heading">Ocupada</strong> {{ ocupante_actual.ciudadano.nombre_completo }} está alojado/a desde el {{ ocupante_actual.fecha_ingreso|date:'d/m/Y' }}.</span>
+  </div>
+  {% endif %}
+
+  <div class="rounded-xl border border-base shadow-sm bg-white overflow-hidden">
+    {# Solapas #}
+    <div class="border-b border-base flex gap-1 px-2 flex-wrap" role="tablist" aria-label="Secciones de la cama">
+      <button @click="tab='datos'" type="button" role="tab" :aria-selected="tab==='datos'"
+              class="px-4 py-3 text-sm border-b-2 -mb-px transition flex items-center gap-1.5"
+              :class="tab==='datos' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
+        <i class="fas fa-bed"></i> Datos
+      </button>
+      <button @click="tab='movimientos'" type="button" role="tab" :aria-selected="tab==='movimientos'"
+              class="px-4 py-3 text-sm border-b-2 -mb-px transition flex items-center gap-1.5"
+              :class="tab==='movimientos' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
+        <i class="fas fa-right-left"></i> Movimientos
+        <span class="badge ml-0.5" :class="tab==='movimientos' ? 'bg-brand-soft text-fg-brand' : 'badge-gray'">{{ movimientos|length }}</span>
+      </button>
+      <button @click="tab='partes'" type="button" role="tab" :aria-selected="tab==='partes'"
+              class="px-4 py-3 text-sm border-b-2 -mb-px transition flex items-center gap-1.5"
+              :class="tab==='partes' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
+        <i class="fas fa-clipboard-list"></i> Partes
+      </button>
+    </div>
+
+    {# ===== SOLAPA: Datos ===== #}
+    <div x-show="tab==='datos'" class="p-6">
+      <dl class="grid gap-5 sm:grid-cols-2">
+        <div>
+          <dt class="text-xs font-semibold uppercase text-body-subtle">Dispositivo</dt>
+          <dd class="mt-1 text-body"><a href="{% url 'dispositivos:detalle' dispositivo.pk %}" class="text-fg-brand hover:underline">{{ dispositivo.nombre }}</a></dd>
+        </div>
+        <div>
+          <dt class="text-xs font-semibold uppercase text-body-subtle">Código</dt>
+          <dd class="mt-1 text-body">{{ cama.codigo }}</dd>
+        </div>
+        <div>
+          <dt class="text-xs font-semibold uppercase text-body-subtle">Estado</dt>
+          <dd class="mt-1">{% include "programas/dispositivos/_cama_estado_badge.html" %}</dd>
+        </div>
+        <div>
+          <dt class="text-xs font-semibold uppercase text-body-subtle">Persona alojada</dt>
+          <dd class="mt-1 text-body">{% if ocupante_actual %}{{ ocupante_actual.ciudadano.nombre_completo }}{% else %}—{% endif %}</dd>
+        </div>
+        <div>
+          <dt class="text-xs font-semibold uppercase text-body-subtle">Alta</dt>
+          <dd class="mt-1 text-body">{{ cama.creado|date:'d/m/Y' }}</dd>
+        </div>
+        <div>
+          <dt class="text-xs font-semibold uppercase text-body-subtle">Última actualización</dt>
+          <dd class="mt-1 text-body">{{ cama.modificado|date:'d/m/Y H:i' }}</dd>
+        </div>
+      </dl>
+      <p class="mt-5 text-sm text-body-subtle">El estado «Ocupada» se deriva de la estadía alojada; no admite carga manual.</p>
+    </div>
+
+    {# ===== SOLAPA: Movimientos ===== #}
+    <div x-show="tab==='movimientos'" x-cloak class="p-6">
+      <div>
+        <h2 class="text-lg font-bold text-heading">Movimientos</h2>
+        <p class="mt-1 text-sm text-body-subtle">Admisiones, egresos y traslados que ocuparon esta cama.</p>
+      </div>
+      {% if movimientos %}
+      <div class="mt-5 overflow-x-auto">
+        <table class="w-full border-collapse">
+          <thead>
+            <tr class="nodo-thead-row">
+              <th class="nodo-th">Persona</th>
+              <th class="nodo-th">Ingreso</th>
+              <th class="nodo-th">Egreso</th>
+              <th class="nodo-th">Estado</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for admision in movimientos %}
+            <tr class="hover:bg-secondary">
+              <td class="nodo-td text-heading font-medium">
+                {{ admision.ciudadano.nombre_completo }}
+                {% if admision.es_reingreso %}<span class="badge badge-gray ml-2">Reingreso</span>{% endif %}
+                {% if admision.origen_traslado_id %}<span class="badge badge-gray ml-2">Traslado</span>{% endif %}
+              </td>
+              <td class="nodo-td text-body">{{ admision.fecha_ingreso|date:'d/m/Y H:i' }}</td>
+              <td class="nodo-td text-body">{{ admision.fecha_egreso|date:'d/m/Y H:i'|default:'—' }}</td>
+              <td class="nodo-td">
+                <span class="badge badge-dot
+                  {% if admision.estado == 'ALOJADO' %}badge-success
+                  {% elif admision.estado == 'EGRESADO' %}badge-gray
+                  {% elif admision.estado == 'TRASLADADO' %}badge-info
+                  {% elif admision.estado == 'RECHAZADO' %}badge-danger
+                  {% elif admision.estado == 'LISTA_ESPERA' %}badge-warning
+                  {% else %}badge-gray{% endif %}">{{ admision.get_estado_display }}</span>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      {% include "components/_estado_vacio.html" with icono="fa-right-left" titulo="Sin movimientos" texto="Esta cama todavía no tuvo ninguna admisión registrada." %}
+      {% endif %}
+    </div>
+
+    {# ===== SOLAPA: Partes ===== #}
+    <div x-show="tab==='partes'" x-cloak class="p-6">
+      <div class="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h2 class="text-lg font-bold text-heading">Partes diarios</h2>
+          <p class="mt-1 text-sm text-body-subtle">El parte F-01 se registra por dispositivo, no por cama individual; se muestran como contexto de ocupación.</p>
+        </div>
+        {% if puede_editar %}<a href="{% url 'dispositivos:parte_diario' dispositivo.pk %}" class="btn-nodo btn-secondary btn-base"><i class="fas fa-clipboard-list"></i> Parte diario del dispositivo</a>{% endif %}
+      </div>
+      {% if partes_diarios %}
+      <div class="mt-5 overflow-x-auto">
+        <table class="w-full border-collapse">
+          <thead>
+            <tr class="nodo-thead-row">
+              <th class="nodo-th">Fecha</th>
+              <th class="nodo-th">Turno</th>
+              <th class="nodo-th text-right">Ocupación nocturna</th>
+              <th class="nodo-th text-right">Camas disponibles</th>
+              <th class="nodo-th">Firmado por</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for parte in partes_diarios %}
+            <tr class="hover:bg-secondary">
+              <td class="nodo-td text-heading font-medium">{{ parte.fecha|date:'d/m/Y' }}</td>
+              <td class="nodo-td text-body">{{ parte.get_turno_display }}</td>
+              <td class="nodo-td text-right text-body">{{ parte.ocupacion_nocturna }}</td>
+              <td class="nodo-td text-right text-body">{{ parte.camas_disponibles }}</td>
+              <td class="nodo-td text-body">{{ parte.firmado_por.get_full_name|default:parte.firmado_por.username }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      {% include "components/_estado_vacio.html" with icono="fa-clipboard-list" titulo="Sin partes registrados" texto="Todavía no se cargó ningún parte diario para este dispositivo." %}
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,1 @@
+_linea_base/01-merenderos-entregas/entrega_list.html: arquetipo «listado» — OK

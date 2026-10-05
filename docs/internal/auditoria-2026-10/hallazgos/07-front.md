@@ -28,13 +28,13 @@ FE-18, FE-19); las migraciones de estilo de esos dos módulos las hereda la v2.
 | FE-10 | Prestación mensual ilegible en celular | MEDIA | CONF. navegador | 5 | S | ⬜ |
 | FE-11 | Componentes canónicos solo en Becas | MEDIA | CONF. | 5 | L | ⬜ |
 | FE-12 | Tablas con estilos en línea e iconografía mezclada | MEDIA | CONF. | 5 | M | ⬜ |
-| FE-13 | `design_audit`: decodificador roto y sin regla «clase sin definición» | MEDIA | CONF. ajustado | 6 | S | ⬜ |
+| FE-13 | `design_audit`: decodificador roto y sin regla «clase sin definición» | MEDIA | CONF. ajustado | 6 | S | ✅ |
 | FE-17 | Paginaciones falsas o copiadas | MEDIA | CONF. | 5 | M | ⬜ |
 | FE-18 | Badges de estado incoherentes | MEDIA | CONF. | 5 | S | ⬜ |
 | FE-19 | Confirmaciones con colores invertidos y handler copiado | MEDIA | CONF. ajustado | 5 | S | ⬜ |
 | FE-20 | Wrapper legacy `includes/main.html`: contenido desplazado; 403/404/500 sin estilo | MEDIA | CONF. navegador | 5 | M | ⬜ |
 | FE-21 | Modales de Legajos sin Escape ni foco | MEDIA | CONF. | 5 | S | ⬜ |
-| V5A-NEW-01 | `tailwind.css` committeado desactualizado y sin gate | MEDIA | CONF. | 6 | S | ⬜ |
+| V5A-NEW-01 | `tailwind.css` committeado desactualizado y sin gate | MEDIA | CONF. | 6 | S | ✅ |
 | V5A-NEW-07 | Deuda de accesibilidad en las pantallas candidatas a referencia | MEDIA | CONF. | 6 (a) / 5 (b) | (a) en paso 3 · (b) 2 × S | ⬜ |
 | FE-14 | 29 JS y 1 CSS huérfanos | BAJA (A6: MEDIA) | CONF. ajustado | 7 | S | ⬜ |
 | FE-16 | «Gestión de Programas» de Legajos con KPIs sin valor | BAJA | CONF. | 5 | S | ⬜ |
@@ -44,7 +44,7 @@ FE-18, FE-19); las migraciones de estilo de esos dos módulos las hereda la v2.
 | FE-25 | Avisos paralelos en `alertas_websocket.js` | BAJA | CONF. código | 5 | S | ⬜ |
 | FE-26 | Doble envío en formularios clásicos | BAJA | PLAUSIBLE | 5 | S | ⬜ |
 | V5A-NEW-04 | Edición del ciudadano: hero fuera de canon y texto técnico visible | BAJA | CONF. navegador | 5 | S | ⬜ |
-| V5A-NEW-08 | `compile_templates.py` compila templates de terceros | BAJA | CONF. | 6 | S | ⬜ |
+| V5A-NEW-08 | `compile_templates.py` compila templates de terceros | BAJA | CONF. | 6 | S | ✅ |
 
 ---
 
@@ -131,6 +131,7 @@ FE-18, FE-19); las migraciones de estilo de esos dos módulos las hereda la v2.
 
 ### FE-13 · `design_audit`: decodificador que trunca clases y sin regla «clase sin definición»
 **Severidad:** MEDIA · **Estado:** CONFIRMADO-AJUSTADO · **Origen:** A6-14, V5A-NEW-10; regla CLASSDEF construida sobre A6-06 y gate de build de V5A-NEW-01 · **Ola:** 6 (paso 2, herramientas; primer PR) · **Esfuerzo:** S
+**Resolución:** ✅ Cerrada en #NNN (Cambio 129), 05-oct-2026 — el decodificador de clases pasó a ser un parser de identificadores CSS (`clases_css()`, portado de `poc/herramientas/cssclasses.py`: el escape hexadecimal consume **un** espacio terminador, el literal no, y solo se leen los preludes de regla, no las declaraciones) y se agregó la regla **CLASSDEF** sobre el universo declarado, con la allowlist de hooks en `scripts/design_audit_hooks.txt`. Sobre `88a19c1e` da **70 P1 + 82 WARN**, y los P1 son exactamente la lista A del `anexo-front-clases-inexistentes.md` (`bg-gray-*`, `hover:bg-gray-*`, `bg-white/78`, `bg-white/90`, `bg-gray-900/80`, `border-fg-brand`, `divide-border`, `mt-px`, `w-40`, `text-opacity-90`). **Dos desvíos respecto de la ficha, los dos code-first:** (a) el punto (1) —la reordenación de la alternancia— ya lo había hecho el **Cambio 95**, así que los 2 TWBUILD falsos (`prestacion_mensual.html:31` y `ciudadano_detail.html:143`) **ya no existían** al empezar: el parser nuevo los cubre con un test de regresión y además arregla lo que la regex no podía (puntos dentro de declaraciones y de `url()`); (b) el universo suma el CSS de los **shells que el template extiende**, que la ficha no contemplaba: sin eso, `.animate-fadeInUp` —definida en el `<style>` de `portal/base.html`— daba 17 falsos positivos. La nota del Cambio 95 sobre el falso positivo queda corregida en la entrada del Cambio 129 (V5A-NEW-10). **Test permanente:** `scripts/test_design_audit.py::DecodificadorTests.test_twbuild_reconoce_valores_arbitrarios_con_coma` y `core.tests.test_design_audit_estructura.DecodificadorCssTests` + `ReglasP1Tests.test_classdef_*`.
 
 **Ampliado por RS-R6-08 (04-oct-2026, duplicado):** los dos `TWBUILD` falsos (`h-[clamp(12rem,calc(100dvh-31rem),28rem)]` en `prestacion_mensual.html:31` y `xl:grid-cols-[minmax(0,1fr)_auto]` en `ciudadano_detail.html:143`) dan error bloqueante en el hook `PostToolUse` y enseñan a ignorar TWBUILD justo cuando el verdadero (V5A-NEW-01) aparece. Test pedido: `scripts/test_design_audit.py::test_twbuild_reconoce_valores_arbitrarios_con_coma` (CSS mínimo con `.h-\[clamp\(1rem\2c 2rem\)\]{}` y un template con `h-[clamp(1rem,2rem)]` → `clases_sin_build` vacío).
 
@@ -165,6 +166,7 @@ FE-18, FE-19); las migraciones de estilo de esos dos módulos las hereda la v2.
 
 ### V5A-NEW-01 · El CSS de Tailwind committeado está desactualizado y no hay gate
 **Severidad:** MEDIA · **Estado:** CONFIRMADO (build fresco con `tailwindcss 3.4.19` del repo: faltan `mt-px` y `w-40`, que usa `becas/cupo/segmento_detail.html` desde `aac430c` del 30-sep; sobran 12 clases; último build `7b22954` del 22-sep; ningún workflow corre `build:tailwind`) · **Origen:** V5A-NEW-01 · **Ola:** 6 (paso 2) · **Esfuerzo:** S
+**Resolución:** ✅ Cerrada en #NNN (Cambio 129), 05-oct-2026 — `static/custom/css/tailwind.css` regenerado y committeado, y gate `Tailwind build is committed` en `design-agent-contract.yml` (`setup-node@v4` node 22 con cache npm → `npm ci` → `npm run build:tailwind` → `git diff --exit-code` con `::error::`). Al 05-oct el build fresco **agrega 4** utilidades en uso (`mt-px` y `w-40` de la golden de detalle, `text-opacity-90` de `portal/home.html` y `bg-info-soft`) y **borra 33** (no 12: el committeado venía de otro estado del árbol): se verificó una por una que **ninguna de las 33 se usa como token de clase en ningún archivo escaneado** antes de commitear, así que el rebuild solo arregla. CLASSDEF baja de 70 a 67 P1 con el build nuevo. **Desvío de la ficha:** el gate quedó en `design-agent-contract.yml` y no en `pr-quality.yml` (RS-R6-07), porque el ruleset de `development` ya exige el check `Validate inventory and authority` y moverlo obligaría a reeditar el JSON del ruleset, que todavía no aplicó el dueño del repo. **Test permanente:** el propio job del CI, más `core.tests.test_gates_ci` (contrato de workflows) y `scripts/test_design_audit.py::DecodificadorTests.test_los_dos_falsos_positivos_historicos_ya_no_aparecen`.
 
 **Ampliado por RS-R6-07 (04-oct-2026, duplicado, frente Red de seguridad):** un rebuild limpio con `tailwindcss 3.4.19` da hoy **cuatro** utilidades faltantes en el CSS committeado (`w-40`, `mt-px`, `text-opacity-90`, `bg-info-soft`) y 13 sobrantes; `TWBUILD` de `design_audit.py` no puede verlo (solo mira clases con variante o valor arbitrario, `:173-176`). YAML del job, en `pr-quality.yml` y obligatorio en el ruleset (RED-20): `actions/setup-node@v4` (node 22, cache npm) → `npm ci` → `npm run build:tailwind` → `git diff --exit-code -- static/custom/css/tailwind.css` con `::error::` que diga «correr `npm run build:tailwind` y commitear»; sin filtro `paths` en el trigger (el filtro va dentro del job, RED-20) e incluyendo `tailwind.config.js` y `package*.json`. Sigue en la Ola 6; antes de encender el gate, commitear el CSS regenerado.
 
@@ -231,4 +233,5 @@ FE-18, FE-19); las migraciones de estilo de esos dos módulos las hereda la v2.
 
 ### V5A-NEW-08 · `compile_templates.py` compila templates de terceros en el checkout principal
 **Severidad:** BAJA · **Estado:** CONFIRMADO (349 templates en el checkout contra 199 en un árbol limpio: el filtro de `scripts/compile_templates.py:41-42` compara prefijo de ruta y `.venv312` vive dentro del repo) · **Origen:** V5A-NEW-08 · **Ola:** 6 (paso 2) · **Esfuerzo:** S
+**Resolución:** ✅ Cerrada en #NNN (Cambio 129), 05-oct-2026 — el filtro de directorios descarta además cualquier ruta que contenga `site-packages`. Verificado: **199 compilados y 0 errores** tanto en el worktree como corriendo el script desde el checkout principal, donde viven `.venv` y `.venv312`. **Test permanente:** `scripts/test_design_audit.py::CompileTemplatesTests.test_compile_templates_excluye_site_packages`.
 - **Propuesta:** excluir las rutas que contengan `site-packages`. Verificación: 199 en los dos lugares.

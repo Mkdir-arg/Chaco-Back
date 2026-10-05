@@ -38,8 +38,18 @@ def main() -> int:
 
     dirs = [Path(d) for d in settings.TEMPLATES[0]["DIRS"]]
     dirs += [Path(d) for d in get_app_template_dirs("templates")]
-    # Solo templates del repo (no site-packages)
-    dirs = [d for d in dirs if str(Path(d).resolve()).lower().startswith(str(REPO).lower())]
+    # Solo templates del repo. El filtro por prefijo no alcanza: los venv del
+    # proyecto (`.venv`, `.venv312`) viven **adentro** del checkout, así que sus
+    # `site-packages` pasaban el prefijo y el script compilaba los templates de
+    # Django, DRF y django-silk — 349 en esta máquina contra 199 en un árbol
+    # limpio. Un error de terceros no es nuestro y el número deja de ser
+    # comparable entre máquinas y el CI (V5A-NEW-08).
+    dirs = [
+        d
+        for d in dirs
+        if str(Path(d).resolve()).lower().startswith(str(REPO).lower())
+        and "site-packages" not in Path(d).resolve().as_posix()
+    ]
 
     seen, errors, ok = set(), [], 0
     for base in dirs:
