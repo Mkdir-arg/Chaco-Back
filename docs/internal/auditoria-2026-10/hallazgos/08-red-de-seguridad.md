@@ -60,10 +60,10 @@ con lo que existe hoy; la lista solo baja.
 | RED-18 | La reversa de `0047`, `0048` y `legajos.0007` falla con «Data truncated» | ALTA | CONF. test (MariaDB 11.8) | R | S | ⬜ |
 | RED-19 | Rolling en k8s: cada pod corre `migrate` (choque) y no hay regla expand/contract | ALTA | CONF. test (MariaDB 11.8) | R (+3 en OPS-07) | S-M | ⬜ |
 | RED-20 | `development` y `main` sin protección de rama: ningún check es obligatorio | ALTA | CONF. lectura (API) | R | S-M | 🟡 (falta el PM) |
-| RED-21 | `publish-main.yml` genera el release sin exigir CI verde y con un denylist escrito a mano | ALTA | CONF. lectura | R | S | ⬜ |
-| RED-22 | El pipeline de ECOM solo construye la imagen: cero verificación antes del deploy a PRD | ALTA | CONF. lectura | R (propuesta a ECOM) | S | ⬜ |
-| RED-23 | `/pushGitLabecom` empuja `test` y `main` en la misma corrida, sin exigir CI ni testing verificado | ALTA | CONF. lectura | R | M | ⬜ |
-| RED-24 | Sin gates de contratos del repo: `compile_templates`, `collectstatic`, `requerimientos --check`, `design_audit` | ALTA | CONF. test (corrida) | R | M | ⬜ |
+| RED-21 | `publish-main.yml` genera el release sin exigir CI verde y con un denylist escrito a mano | ALTA | CONF. lectura | R | S | ✅ |
+| RED-22 | El pipeline de ECOM solo construye la imagen: cero verificación antes del deploy a PRD | ALTA | CONF. lectura | R (propuesta a ECOM) | S | 🟡 |
+| RED-23 | `/pushGitLabecom` empuja `test` y `main` en la misma corrida, sin exigir CI ni testing verificado | ALTA | CONF. lectura | R | M | 🟡 |
+| RED-24 | Sin gates de contratos del repo: `compile_templates`, `collectstatic`, `requerimientos --check`, `design_audit` | ALTA | CONF. test (corrida) | R | M | ✅ |
 | RED-25 | La capacidad `becas.campo` no se prueba en los endpoints ni en el oráculo de identidad | ALTA | CONF. test (mutación M11) | R | S | ✅ |
 | RED-26 | `FormularioViewSet` sin test de alcance: un territorial podría leer y editar casos ajenos | ALTA | CONF. test (mutación M14) | R | S | ✅ |
 | RED-27 | Promover desde la lista de espera con cupo exactamente 0 no está probado | ALTA | CONF. test (mutación M19) | R | S | ✅ |
@@ -104,7 +104,7 @@ con lo que existe hoy; la lista solo baja.
 | RED-62 | Los presupuestos de performance son autodeclarados: subirlos en el mismo PR pasa | MEDIA | CONF. lectura | 4 | S | ⬜ |
 | RED-63 | Ruff y Bandit en `continue-on-error`; excepción de `pip-audit` sin vencimiento | MEDIA | CONF. lectura | R | S | ✅ |
 | RED-64 | `docs/client/` se publica en GitHub Pages público en cada push, sin revisión | MEDIA | CONF. lectura (API) | 7 | S | ⬜ |
-| RED-65 | El guard de `publish-main.yml` exige artefactos muertos y va a bloquear OPS-10/OPS-14 | MEDIA | CONF. lectura | R (+7) | S | ⬜ |
+| RED-65 | El guard de `publish-main.yml` exige artefactos muertos y va a bloquear OPS-10/OPS-14 | MEDIA | CONF. lectura | R (+7) | S | ✅ (R; falta Ola 7) |
 | RED-66 | `reabrir` de la app de campo no tiene test negativo de la transición | MEDIA | CONF. test (mutación M17) | R | S | ✅ |
 | RED-67 | Ningún test afirma que se tome el `select_for_update` del cupo ni del link | MEDIA | CONF. test (mutaciones M21, M43) | R (+capa 2 en TST-01) | S | ✅ |
 | RED-68 | La posición en la lista de espera no está probada en ningún lado | MEDIA | CONF. test (mutación M23) | R | S | ✅ |
@@ -1690,6 +1690,25 @@ desde base vacía), `pr-security.yml` (`pip-audit`), `pr-quality.yml` (ruff, ruf
   Con RED-20 activo esto es defensa en profundidad (un push directo ya no entra); sin RED-20 es lo único que frena un
   release ciego.
 
+**Resolución:** ✅ Resuelto en #NNN (Cambio 128, PR R-14), 05-oct-2026, con los dos puntos. **(1)** El denylist salió del
+YAML: el guard recorre **el árbol del release** con `find -printf '%P\n'` y le pregunta a `git check-attr --stdin
+export-ignore`, que es exactamente lo que aplicó el `git archive` de arriba. **Desvío medido respecto de la propuesta:**
+la ficha decía derivarlo de `git ls-files`, y eso deja afuera los patrones de directorio —en `.gitattributes`, `/docs`
+marca el directorio y **no** sus archivos: `check-attr docs/internal/x.md` contesta «unspecified»—, o sea 5 de los 17
+patrones (`.claude`, `.amazonq`, `.github`, `docs`, `scripts/perf_mysql`). Recorriendo el release, el directorio aparece
+como ruta propia y la pregunta da «set». Verificado contra un `git archive` real con un `docs/internal/x.md` y un
+`NOTAS.md` inyectados a mano: los dos salen marcados. Además, todo `.md` de la raíz que viaje al release tiene que estar
+en `DOCS_DE_RUNTIME` (hoy solo `README.md`) o marcado: `CONTEXT.md` —17 KB de documentación interna que viajaban a ECOM y
+a la imagen de PRD— quedó con `export-ignore`. **(2)** El paso «Exigir que el commit venga de un PR con CI verde» busca
+el PR del commit publicado (`commits/<sha>/pulls`, solo `merged_at != null`) y mira los check-runs **del head de ese
+PR**, con `pull-requests: read` y `checks: read`; un `conclusion` en `null` (corriendo) también frena. **Segundo desvío:**
+el snippet de la ficha usaba `[ cond ] && { …; exit 1; }`, que con el `set -e` de Actions aborta el paso cuando la
+condición es **falsa** —el camino feliz—; va con `if … then … fi`, y hay un test que lo fija. `workflow_dispatch` saltea
+el gate (es una persona con permiso de escritura decidiendo) pero ahora exige un `motivo` obligatorio que queda en el
+log. No se autobloquea con el ruleset de `main`: ese ruleset no exige status checks, y `test_el_ruleset_de_main_no_exige_status_checks` lo custodia.
+**Test permanente:** `core/tests/test_publish_guard.py::CIVerdeAntesDelReleaseTests.test_el_gate_mira_el_head_del_pr_y_no_el_commit_de_merge`
+y `::DenylistDerivadoTests.test_ningun_md_de_la_raiz_viaja_al_release_sin_decidirlo`.
+
 ### RED-22 · El pipeline de ECOM solo construye la imagen: cero verificación antes del deploy a PRD
 **Severidad:** ALTA · **Estado:** CONFIRMADO (lectura de `.gitlab-ci.yml` entero: una etapa `build`) · **Origen:** RS-R6-04 (VR2: CONFIRMADO) · **Ola:** R (es una **propuesta a ECOM**: el archivo es de ellos y nuestra copia debe quedar igual) · **Esfuerzo:** S (2 h) · **Pregunta:** H-12
 - **Ubicación:** `.gitlab-ci.yml` (`docker build` + `docker push :latest`, regla `test` o `main`); `main` → ArgoCD →
@@ -1702,6 +1721,18 @@ desde base vacía), `pr-security.yml` (`pip-audit`), `pr-quality.yml` (ruff, ruf
   `python manage.py check --deploy`, `makemigrations --check --dry-run`, `test --verbosity=1`; misma regla `test || main`) y
   el tag inmutable de RED-16. Si ECOM no lo acepta, el equivalente de nuestro lado es `release-gate.yml` (RED-23), que
   verifica **antes** de que exista el espejo.
+
+**Resolución:** 🟡 Parcial en #NNN (Cambio 128, PR R-14), 05-oct-2026 — **lo nuestro está hecho y falta el paso del PM**.
+La propuesta está escrita y lista para enviar en [`docs/internal/propuesta-ecom-verify.md`](../../propuesta-ecom-verify.md):
+la etapa `verify` completa (imagen `python:3.12-slim`, las tres dependencias de sistema, `pip install -r
+requirements.txt`, `check --deploy` + `makemigrations --check --dry-run` + `test`, misma regla `test || main`), por qué no
+necesita base —`PYTEST_RUNNING=1` y `DJANGO_SYNCDB_PROJECT_APPS=True`—, el aviso de que `SIIS_API_URL` tiene que estar
+definida aunque sea ficticia (Cambio 123, si no `check --deploy` falla), el tag inmutable `:${CI_COMMIT_SHORT_SHA}` de
+RED-16 y el pedido del dump previo (H-11). **No se tocó `.gitlab-ci.yml`**: es de ECOM, nuestra copia tiene que quedar
+byte a byte igual y editarla les revertiría el archivo en el próximo espejo; hay un test que lo fija. Mientras no lo
+acepten, el equivalente de nuestro lado es el `release-gate.yml` de RED-23.
+**Queda operativo (PM):** enviarla y traer la respuesta de H-12.
+**Test permanente:** `core/tests/test_gates_ci.py::PropuestaAEcomTests.test_nuestra_copia_del_pipeline_sigue_intacta`
 
 ### RED-23 · `/pushGitLabecom` empuja `test` y `main` en la misma corrida, sin exigir CI ni testing verificado
 **Severidad:** ALTA · **Estado:** CONFIRMADO (lectura) · **Origen:** RS-R6-05 (VR2: CONFIRMADO; escribir junto con el runbook de RED-60 para que no se contradigan) · **Ola:** R · **Esfuerzo:** M (8 h)
@@ -1723,6 +1754,28 @@ desde base vacía), `pr-security.yml` (`pip-audit`), `pr-quality.yml` (ruff, ruf
      `/health/` responde, `GET /becas/` da 302 o 200 (nunca 500) y `GET /accounts/login/` da 200.
   3. Actualizar `.claude/commands/pushGitLabecom.md` con los dos pasos y el runbook de RED-60.
 
+**Resolución:** 🟡 Parcial en #NNN (Cambio 128, PR R-14), 05-oct-2026 — **los puntos 1 y 2 completos; del 3 falta que el
+juez copie los dos archivos a `.claude/`** (la sesión que implementó esto no tiene permiso de escritura ahí; el contenido
+completo de los dos comandos va en el cuerpo del PR). Punto 2: `.github/workflows/release-gate.yml`, `workflow_dispatch`
+con input `sha` obligatorio y cuatro jobs — (a) `CI verde del PR de origen`, que deriva el commit de `development` del
+asunto `release: … (development@<sha>)`, busca su PR y mira los checks **del head**; (b) `Suite completa (SQLite)`;
+(c) `Migraciones sobre MariaDB` (`mariadb:10.11` hasta H-01) con `migrate --noinput`, `migrate --check` y
+`makemigrations --check --dry-run`; (d)+(e) `Imagen y smoke HTTP`, con `docker build`, `collectstatic` adentro de la
+imagen exigiendo `staticfiles/staticfiles.json`, y la imagen levantada contra MariaDB. **Tres desvíos declarados:**
+(i) el smoke pega a `/health/`, `/login/`, `/inicio/` y `/becas/relevamientos/`, no a `/accounts/login/` y `/becas/` como
+decía la ficha: medido contra el URLconf, `/accounts/login/` no existe (el login vive en la raíz, `users:login`, con
+alias en `/login/`) y `/becas/` a secas **no resuelve**, así que ese smoke habría medido un 404 creyendo que medía la
+pantalla; hay un test que resuelve cada ruta del workflow contra el URLconf. (ii) un 404 cuenta como fallo, no solo el
+500. (iii) la suite (b) corre sobre el commit de `development`, no sobre el snapshot: el snapshot excluye `docs/`,
+`.github/` y tres `scripts/*.py` por `export-ignore`, y **seis módulos de test** afirman cosas sobre exactamente esos
+archivos, así que correrla sobre el árbol publicado daría rojo por construcción; el código de producción es el mismo en
+los dos árboles. Punto 1 y 3: el procedimiento normativo quedó versionado en
+[`docs/internal/espejo-ecom.md`](../../espejo-ecom.md) —partido en `/pushGitLabecomTEST` y `/pushGitLabecomPRD`, con el
+árbol de `ecom/test` comparado por `^{tree}`, el `release-gate` verde exigido para ese SHA y la segunda confirmación
+escribiendo `PRODUCCION`— y es lo que los dos comandos ejecutan.
+**Test permanente:** `core/tests/test_gates_ci.py::ReleaseGateTests.test_el_smoke_pega_a_rutas_que_existen_de_verdad` y
+`::EspejoEnDosPasosTests.test_el_paso_a_produccion_exige_lo_verificado_en_testing`
+
 ### RED-24 · Sin gates de contratos del repo: `compile_templates`, `collectstatic`, `requerimientos --check`, `design_audit`
 **Severidad:** ALTA · **Estado:** CONFIRMADO con test (corridas de RS-R6 y VR2 sobre `ee0aafe`: `compile_templates` 0 errores sobre 198; `requerimientos.py --check` OK con 153 entradas; `design_audit` completo **44 errores y 28 warnings**) · **Origen:** RS-R6-09 (VR2: CONFIRMADO) · **Ola:** R · **Esfuerzo:** M (8 h)
 - **Qué es frágil:** las tres condiciones de cierre de `CLAUDE.md` corren solo en la máquina de quien desarrolla, y
@@ -1742,6 +1795,22 @@ desde base vacía), `pr-security.yml` (`pip-audit`), `pr-quality.yml` (ruff, ruf
     avisa (`::notice::`) si baja. Cuando la Ola 6 entregue `--ratchet`, este paso lo reemplaza.
   - Opcional (`::warning::`, no bloqueante): un PR con `feat`/`fix` en el título que no toca `docs/internal/requerimientos.md`.
   `docker build` entra por el `release-gate` (RED-23), no en cada PR. Type checking: ver RED-63 y RED-76.
+
+**Resolución:** ✅ Resuelto en #NNN (Cambio 128, PR R-14), 05-oct-2026, con los cinco puntos. Job `contratos-repo` en
+`pr-quality.yml`, nombre `Contratos del repo`, sin `continue-on-error`, `fetch-depth: 0`, Python 3.12 y
+`pip install -r requirements.txt`: `compile_templates.py`, `requerimientos.py --check` (con `PYTHONIOENCODING=utf-8`),
+`collectstatic --noinput` con `DJANGO_DEBUG=False` y `ENVIRONMENT=prd` —que es lo que enciende
+`CompressedManifestStaticFilesStorage`, el que caza el «Missing staticfiles manifest entry»; verificado a mano que corre
+sin base ni Redis y deja el manifest— fallando si no queda `staticfiles/staticfiles.json`, y el ratchet de `design_audit`
+contra `.design-audit-ratchet` con el `|| true` que la ficha advierte. El aviso no bloqueante del título del PR quedó,
+con `dorny/paths-filter` pineada. **Dos desvíos declarados:** (a) **el techo inicial del ratchet es 42, no 44**: medido
+hoy sobre `fix/olaR-gates-release` con la corrida completa (`42 error(es), 28 warning(s)`); la ficha traía la medición de
+RS-R6/VR2 sobre `ee0aafe`. (b) El job **no filtra por rutas**: casi cualquier archivo mueve alguna de las cuatro
+comprobaciones y el check es obligatorio, así que tiene que terminar siempre. `Contratos del repo` se sumó a
+`docs/internal/rulesets/ruleset-development.json` —diez contextos— como anticipaba RED-20.
+**Test permanente:** `core/tests/test_gates_ci.py::ContratosDelRepoTests` (8 tests; uno corre `design_audit.py` de verdad
+y afirma que la medición no supera el techo, y otro fija el formato de la línea de resumen, que es el contrato entre el
+script y el job).
 
 ### RED-61 · `SIIS_API_URL` cae al SIIS de desarrollo y nada lo valida al arrancar
 **Severidad:** MEDIA · **Estado:** CONFIRMADO (lectura: `config/settings.py:494`, default `https://siisapi.ecomdev.ar`); el valor real en PRD es PLAUSIBLE · **Origen:** RS-R6-10 (VR2: CONFIRMADO) · **Ola:** R · **Esfuerzo:** S (2 h)
@@ -1827,6 +1896,15 @@ entrypoint: queda para R-15.
 - **Propuesta:** **R:** `core/tests/test_publish_guard.py::PublishGuardTests.test_los_requeridos_existen_en_el_arbol` (lee la
   lista del YAML y afirma que cada ruta existe: el fallo aparece en el PR). **Ola 7:** sacar las dos rutas de la lista en el
   mismo PR de OPS-10/OPS-14.
+
+**Resolución:** ✅ **La parte de la Ola R está hecha** en #NNN (Cambio 128, PR R-14), 05-oct-2026; **la Ola 7 sigue
+abierta** (sacar `docker/django/Dockerfile` y `scripts/startup.sh` de la lista, en el PR de OPS-10/OPS-14). El test está,
+con el nombre exacto de la ficha: lee la variable `RUNTIME` del guard —que por eso pasó a ser una variable de shell en vez
+de ir inline en el `for`— y afirma que cada ruta existe en el árbol. Lo acompañan tres más: que la lista no esté vacía
+(vaciarla apagaría el guard dejando el módulo en verde), que ningún requerido esté marcado `export-ignore` (sería una
+contradicción que rompe el release **siempre**, después del merge) y uno que prueba el centinela contra una lista con una
+ruta inventada, para que no quede en verde por no mirar nada.
+**Test permanente:** `core/tests/test_publish_guard.py::PublishGuardTests.test_los_requeridos_existen_en_el_arbol`
 
 ### RED-85 · Herramientas del CI sin pinear y actions por tag en workflows con `contents: write`
 **Severidad:** BAJA (era MEDIA) · **Estado:** CONFIRMADO (lectura: 7 `pip install` sin versión) · **Origen:** RS-R6-13 (VR2: CONFIRMADO) · **Ola:** R (pinear las actions con `contents: write`) + 7 (el resto) · **Esfuerzo:** S (2 h) + S (2 h)

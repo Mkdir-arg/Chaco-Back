@@ -91,6 +91,112 @@ jobs:
         if: steps.filtro.outputs.python == 'true'
         run: ruff format --check . --diff
 
+  # RED-24: las tres condiciones de cierre que `CLAUDE.md` exige al tocar UI
+  # (`compile_templates`, `design_audit`, `check_design_agent`) y la cuarta que exige al
+  # terminar un requerimiento (`requerimientos.py --check`) corrían **solo** en la máquina
+  # de quien desarrolla, y las dos de diseño además como hook de Claude Code: un cambio
+  # hecho desde un IDE o desde la web de GitHub no pasaba por ninguna. `collectstatic`
+  # nunca corrió en el CI, y es el que produce el 500 más caro del sistema.
+  #
+  # Sin filtro por rutas, a propósito: casi cualquier archivo mueve alguna de las cuatro
+  # (un `.py` mueve `collectstatic`, un `.md` de `docs/internal` mueve `--check`), y el
+  # job es obligatorio en el ruleset, así que tiene que terminar siempre.
+  contratos-repo:
+    name: Contratos del repo
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install system dependencies
+        run: sudo apt-get install -y default-libmysqlclient-dev
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      # Caza tags rotos que `manage.py check` no ve: un `{% endfor %}` de más vive en el
+      # repo hasta que alguien entra a esa pantalla.
+      - name: Sintaxis de todos los templates
+        env:
+          DJANGO_SECRET_KEY: ci-test-key-not-a-real-secret
+          PYTEST_RUNNING: "1"
+        run: python scripts/compile_templates.py
+
+      - name: Coherencia del archivo de requerimientos
+        env:
+          PYTHONIOENCODING: utf-8
+        run: python scripts/requerimientos.py --check
+
+      # `ENVIRONMENT=prd` no es decorativo: es lo que enciende
+      # `CompressedManifestStaticFilesStorage`. Con el storage de dev, `collectstatic`
+      # copia y no resuelve nada, así que un `{% static 'custom/js/nuevo.js' %}` sin el
+      # archivo commiteado pasa igual —y en PRD es «Missing staticfiles manifest entry»
+      # en el primer render—. No se conecta a la base ni a Redis: solo lee y escribe.
+      - name: Estáticos con manifest
+        env:
+          DJANGO_SECRET_KEY: ci-test-key-not-a-real-secret
+          DJANGO_DEBUG: "False"
+          ENVIRONMENT: prd
+          DJANGO_ALLOWED_HOSTS: localhost
+          SIIS_API_URL: https://siis.invalido.local
+        run: |
+          python manage.py collectstatic --noinput
+          if [ ! -f staticfiles/staticfiles.json ]; then
+            echo "::error::collectstatic no dejó el manifest staticfiles/staticfiles.json"
+            exit 1
+          fi
+
+      # Ratchet, no umbral cero: hoy el repo mide 42 errores heredados y arreglarlos es la
+      # Ola 6. Lo que este paso impide es que **suban**. El `|| true` es necesario: el
+      # script sale con 1 cuando hay errores y el paso corre con `-e -o pipefail`, así que
+      # sin él aborta antes de comparar y el gate queda rojo siempre, o sea mudo.
+      # Cuando la Ola 6 entregue `design_audit.py --ratchet`, este paso lo reemplaza.
+      - name: Adherencia al sistema de diseño (ratchet)
+        shell: bash
+        run: |
+          techo=$(tr -d '[:space:]' < .design-audit-ratchet)
+          actual=$( { python scripts/design_audit.py || true; } | sed -nE 's/.*: ([0-9]+) error.*/\1/p')
+          if [ -z "$actual" ]; then
+            echo "::error::no se pudo leer el total de design_audit.py (¿cambió la línea de resumen?)"
+            exit 1
+          fi
+          echo "design_audit: $actual error(es) · techo $techo"
+          if [ "$actual" -gt "$techo" ]; then
+            echo "::error::los errores del sistema de diseño subieron de $techo a $actual"
+            exit 1
+          fi
+          if [ "$actual" -lt "$techo" ]; then
+            echo "::notice::bajaron a $actual: bajá el techo de .design-audit-ratchet en este mismo PR"
+          fi
+
+      # No bloquea: es un recordatorio de la regla de oro de `CLAUDE.md` (el requerimiento
+      # se registra al terminarlo), no una condición de cierre automatizable.
+      - uses: dorny/paths-filter@0e4a8c6effa4802afeda77dc8d303f8176d7dfad # v3.0.4
+        if: github.event_name == 'pull_request'
+        id: filtro
+        with:
+          filters: |
+            requerimientos:
+              - 'docs/internal/requerimientos.md'
+
+      - name: Recordar el registro del requerimiento
+        if: github.event_name == 'pull_request' && steps.filtro.outputs.requerimientos != 'true'
+        env:
+          TITULO: ${{ github.event.pull_request.title }}
+        run: |
+          case "$TITULO" in
+            feat*|fix*) echo "::warning::«$TITULO» no toca docs/internal/requerimientos.md (CLAUDE.md, regla de oro)" ;;
+          esac
+
   bandit:
     name: Bandit Security Scan
     runs-on: ubuntu-latest

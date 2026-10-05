@@ -4,10 +4,21 @@ on:
   push:
     branches:
       - development
+  # La publicación a mano saltea el gate de CI verde (RED-21): dispararla exige permiso
+  # de escritura sobre el repo, o sea una persona decidiendo. Lo que no puede es pasar
+  # sin dejar por qué, así que el motivo es obligatorio y queda en el log de la corrida.
   workflow_dispatch:
+    inputs:
+      motivo:
+        description: "Por qué se publica a mano, sin exigir el CI verde del PR"
+        required: true
+        type: string
 
 permissions:
   contents: write
+  # RED-21: para buscar el PR del commit publicado y leer los checks de su head.
+  pull-requests: read
+  checks: read
 
 concurrency:
   group: publish-main
@@ -25,6 +36,45 @@ jobs:
         with:
           fetch-depth: 0
 
+      # RED-21: `main` es lo que se espeja a ECOM y lo que se hornea en la imagen de PRD.
+      # Hasta hoy se publicaba sin mirar si el commit había pasado por algún PR ni si ese
+      # PR estaba en verde: 23 commits de código entraron a `development` en 90 días sin
+      # PR (RED-20) y todos generaron release. Con los rulesets aplicados esto es defensa
+      # en profundidad; sin ellos es lo único que frena un release ciego.
+      #
+      # El merge commit **no tiene check-runs** —los PRs los corren sobre su head—, así
+      # que consultarlos sobre `github.sha` devolvería una lista vacía y el paso pasaría
+      # siempre. Hay que buscar el PR del commit y mirar los checks de su head.
+      - name: Exigir que el commit venga de un PR con CI verde
+        if: github.event_name == 'push'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+        run: |
+          head=$(gh api "repos/$REPO/commits/$SHA/pulls" \
+                 --jq '[.[] | select(.merged_at != null)][0].head.sha // empty')
+          if [ -z "$head" ]; then
+            echo "::error::$SHA no viene de un PR mergeado: no se publica release"
+            exit 1
+          fi
+          # `null` (todavía corriendo) también cuenta como no exitoso: no se publica un
+          # release mientras el CI del PR sigue en vuelo.
+          malos=$(gh api "repos/$REPO/commits/$head/check-runs?per_page=100" \
+                  --jq '[.check_runs[] | select(.conclusion != "success" and .conclusion != "neutral" and .conclusion != "skipped")] | .[].name' )
+          if [ -n "$malos" ]; then
+            echo "$malos" | while IFS= read -r check; do
+              echo "::error::check no exitoso en el PR ($head): $check"
+            done
+            exit 1
+          fi
+          echo "PR verde en $head"
+
+      - name: Publicación a mano
+        if: github.event_name == 'workflow_dispatch'
+        run: echo "::warning::release publicado a mano, sin el gate de CI verde. Motivo - ${{ github.event.inputs.motivo }}"
+
       # RED-01, primero el repositorio: `git archive` ya aplicó `export-ignore`, así que
       # un `scripts/*.sql` forzado al índice no aparecería en el árbol del release
       # aunque siga versionado y visible en `development`. Esto mira lo que hay de
@@ -40,22 +90,59 @@ jobs:
       - name: Sin datos personales en el release
         run: python3 scripts/check_datos_personales.py --arbol "$RUNNER_TEMP/release"
 
+      # RED-21: lo prohibido ya no se escribe a mano. Había dos listas —esta y la de
+      # `export-ignore` en `.gitattributes`— que decían casi lo mismo y nada las
+      # sincronizaba: lo que no estaba en ninguna viajaba al release sin que nadie se
+      # enterara (`CONTEXT.md`, 17 KB de documentación interna, lo hizo durante meses).
+      # Ahora el denylist **es** `.gitattributes`, leído con `git check-attr`, que es
+      # exactamente lo que aplica el `git archive` de arriba: si las dos cosas dejan de
+      # coincidir, es que algo forzó un archivo al árbol después del `archive`.
+      #
+      # `RUNTIME` y `DOCS_DE_RUNTIME` quedan en variables, y no inline en el `for`, para
+      # que `core/tests/test_publish_guard.py` pueda leerlas sin interpretar shell
+      # (RED-65: ese test afirma que cada ruta exigida existe de verdad en el árbol).
       - name: Guard
         shell: bash
         run: |
+          RUNTIME="manage.py requirements.txt docker-compose.prod.yml docker/django/Dockerfile scripts/startup.sh scripts/deploy_prod.sh nginx.conf docker-entrypoint.sh Dockerfile .gitlab-ci.yml"
+          DOCS_DE_RUNTIME="README.md"
           fail=0
-          for path in .claude .amazonq .github .mcp.json AGENTS.md CLAUDE.md ESTADOS.md PM.md QA.md docs mkdocs.yml scripts/design_audit.py scripts/compile_templates.py scripts/requerimientos.py scripts/check_datos_personales.py scripts/perf_mysql scripts/DatosPersonas.sql scripts/Aprobados.sql scripts/Localidades.sql; do
-            if [ -e "$RUNNER_TEMP/release/$path" ]; then
-              echo "::error::El archivo prohibido $path aparece en el release"
-              fail=1
-            fi
+
+          # Se pregunta por **cada ruta del release**, directorios incluidos, y no por
+          # cada archivo versionado. No es un detalle: en `.gitattributes` un patrón de
+          # directorio (`/docs`, `/.claude`) marca el directorio, no lo de adentro —
+          # `git check-attr export-ignore docs/internal/x.md` contesta «unspecified»
+          # aunque `git archive` se saltee el subárbol entero—. Recorriendo el release
+          # el directorio aparece como ruta propia y la pregunta da «set».
+          #
+          # Todas las rutas versionadas son ASCII sin espacios (verificado); si alguna vez
+          # dejan de serlo, el `sed` deja de matchear: el efecto sería un falso negativo,
+          # no un falso positivo.
+          find "$RUNNER_TEMP/release" -mindepth 1 -printf '%P\n' \
+            | git check-attr --stdin export-ignore \
+            | sed -n 's/: export-ignore: set$//p' > "$RUNNER_TEMP/colados.txt"
+          while IFS= read -r path; do
+            [ -n "$path" ] || continue
+            echo "::error::$path está marcado export-ignore y aparece igual en el release"
+            fail=1
+          done < "$RUNNER_TEMP/colados.txt"
+
+          # Un `.md` nuevo en la raíz no está en ninguna lista y viaja solo. O se marca
+          # `export-ignore` en `.gitattributes`, o se declara acá como documentación que
+          # el release tiene que llevar. No hay tercera opción silenciosa.
+          for path in $(cd "$RUNNER_TEMP/release" && ls -1 ./*.md 2>/dev/null | sed 's|^\./||' || true); do
+            case " $DOCS_DE_RUNTIME " in *" $path "*) continue;; esac
+            echo "::error::$path viaja al release sin estar declarado: marcalo export-ignore o sumalo a DOCS_DE_RUNTIME"
+            fail=1
           done
-          for path in manage.py requirements.txt docker-compose.prod.yml docker/django/Dockerfile scripts/startup.sh scripts/deploy_prod.sh nginx.conf docker-entrypoint.sh Dockerfile .gitlab-ci.yml; do
+
+          for path in $RUNTIME; do
             if [ ! -e "$RUNNER_TEMP/release/$path" ]; then
               echo "::error::Falta el archivo de runtime requerido $path en el release"
               fail=1
             fi
           done
+
           exit "$fail"
 
       - name: Publicar snapshot en main

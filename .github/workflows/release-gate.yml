@@ -1,0 +1,277 @@
+name: Release gate
+
+# RED-23: lo que verifica un release ANTES de que exista el espejo a ECOM.
+#
+# Del otro lado, `main` dispara un pipeline que solo construye la imagen y ArgoCD la
+# despliega en **producción, automáticamente y sin aprobación** (RED-22). O sea que el
+# último lugar donde se puede frenar una regresión que no sea un error de sintaxis es
+# acá. Mientras ECOM no acepte la etapa `verify` que se le propone en
+# `docs/internal/propuesta-ecom-verify.md`, este workflow es ese lugar.
+#
+# A pedido (`workflow_dispatch`) y nunca en `pull_request`: verifica un commit de `main`,
+# que no recibe PRs. Por eso tampoco entra en la lista de checks obligatorios del ruleset
+# de `development` (un check que no reporta en el PR lo dejaría esperando para siempre).
+#
+# Lo corre `/pushGitLabecomTEST` antes de espejar, y `/pushGitLabecomPRD` exige verlo en
+# verde para ese mismo SHA. Procedimiento completo en `docs/internal/espejo-ecom.md`.
+on:
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: "Commit de `main` (el release) que se va a espejar a ECOM"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  pull-requests: read
+  checks: read
+
+concurrency:
+  group: release-gate-${{ github.event.inputs.sha }}
+  cancel-in-progress: false
+
+jobs:
+  # (a) El release lo escribe el bot: su commit no tiene PR ni check-runs. Lo que sí
+  # tiene CI es el commit de `development` que lo originó, que viaja en el asunto
+  # (`release: … (development@<sha>)`), y —mismo ajuste que RED-21— los checks están en
+  # el **head del PR**, no en el commit de merge.
+  ci-de-origen:
+    name: CI verde del PR de origen
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      development: ${{ steps.origen.outputs.development }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.sha }}
+          fetch-depth: 0
+
+      - name: Derivar el commit de development
+        id: origen
+        shell: bash
+        env:
+          SHA: ${{ github.event.inputs.sha }}
+        run: |
+          asunto=$(git log -1 --pretty=%s "$SHA")
+          echo "release: $asunto"
+          corto=$(printf '%s' "$asunto" | sed -nE 's/.*\(development@([0-9a-f]+)\).*/\1/p')
+          if [ -z "$corto" ]; then
+            echo "::error::«$asunto» no parece un commit de release: falta (development@<sha>)"
+            exit 1
+          fi
+          git fetch --no-tags origin development
+          largo=$(git rev-parse "$corto^{commit}")
+          echo "development=$largo" >> "$GITHUB_OUTPUT"
+          echo "origen: $largo"
+
+      - name: Exigir CI verde en el PR de ese commit
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          ORIGEN: ${{ steps.origen.outputs.development }}
+        run: |
+          head=$(gh api "repos/$REPO/commits/$ORIGEN/pulls" \
+                 --jq '[.[] | select(.merged_at != null)][0].head.sha // empty')
+          if [ -z "$head" ]; then
+            echo "::error::$ORIGEN no viene de un PR mergeado: el release no está verificado"
+            exit 1
+          fi
+          malos=$(gh api "repos/$REPO/commits/$head/check-runs?per_page=100" \
+                  --jq '[.check_runs[] | select(.conclusion != "success" and .conclusion != "neutral" and .conclusion != "skipped")] | .[].name')
+          if [ -n "$malos" ]; then
+            echo "$malos" | while IFS= read -r check; do
+              echo "::error::check no exitoso en el PR ($head): $check"
+            done
+            exit 1
+          fi
+          echo "PR verde en $head"
+
+  # (b) La suite corre sobre el commit de `development`, no sobre el snapshot. El
+  # snapshot excluye `docs/`, `.github/` y tres `scripts/*.py` por `export-ignore`, y
+  # seis módulos de test afirman cosas sobre exactamente esos archivos (los gates, el
+  # runbook, las barreras de reversa): correrla sobre el árbol publicado daría rojo por
+  # construcción. El código de producción es byte a byte el mismo en los dos árboles.
+  suite:
+    name: Suite completa (SQLite)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: ci-de-origen
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.ci-de-origen.outputs.development }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install system dependencies
+        run: sudo apt-get install -y default-libmysqlclient-dev
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Correr la suite
+        env:
+          DJANGO_SECRET_KEY: ci-test-key-not-a-real-secret
+          PYTEST_RUNNING: "1"
+          DJANGO_SYNCDB_PROJECT_APPS: "True"
+        run: python manage.py test --verbosity=1
+
+  # (c) Las migraciones, contra el motor de producción. PRD y testing de ECOM son
+  # **MariaDB**, no MySQL (README §0 de la auditoría; el UUID con guiones del Cambio 99
+  # salió justo de esa diferencia). La versión queda en 10.11 hasta que H-01 diga cuál
+  # corre ECOM de verdad.
+  migraciones:
+    name: Migraciones sobre MariaDB
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: ci-de-origen
+
+    services:
+      mariadb:
+        image: mariadb:10.11
+        env:
+          MARIADB_DATABASE: datanach_gate
+          MARIADB_USER: datanach
+          MARIADB_PASSWORD: datanach
+          MARIADB_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s --health-timeout=5s --health-retries=30
+
+    env:
+      DJANGO_SECRET_KEY: ci-test-key-not-a-real-secret
+      DJANGO_DEBUG: "False"
+      DJANGO_ALLOWED_HOSTS: localhost,testserver
+      SIIS_API_URL: https://siis.invalido.local
+      DATABASE_NAME: datanach_gate
+      DATABASE_USER: datanach
+      DATABASE_PASSWORD: datanach
+      DATABASE_HOST: 127.0.0.1
+      DATABASE_PORT: "3306"
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.sha }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install system dependencies
+        run: sudo apt-get install -y default-libmysqlclient-dev
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Aplicar las migraciones desde cero
+        run: python manage.py migrate --noinput
+
+      - name: Ninguna migración quedó sin aplicar
+        run: python manage.py migrate --check
+
+      - name: Ningún modelo quedó sin migración
+        env:
+          DJANGO_SYNCDB_PROJECT_APPS: "False"
+        run: python manage.py makemigrations --check --dry-run
+
+  # (d) y (e) La imagen que ECOM va a construir y lo que pasa cuando se la levanta.
+  # `collectstatic` adentro de la imagen es el que caza el «Missing staticfiles manifest
+  # entry», el 500 más caro del sistema; el smoke es el que caza que la pantalla
+  # principal no abra.
+  imagen:
+    name: Imagen y smoke HTTP
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: ci-de-origen
+
+    services:
+      mariadb:
+        image: mariadb:10.11
+        env:
+          MARIADB_DATABASE: datanach_gate
+          MARIADB_USER: datanach
+          MARIADB_PASSWORD: datanach
+          MARIADB_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s --health-timeout=5s --health-retries=30
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.sha }}
+
+      - name: Construir la imagen del release
+        run: docker build -t datanach:gate .
+
+      # El entrypoint ya corre `collectstatic` en qa/prd, pero acá se corre aparte para
+      # que el fallo diga qué pasó en vez de morir dentro del arranque.
+      - name: Estáticos con manifest adentro de la imagen
+        run: |
+          docker run --rm -e DJANGO_SECRET_KEY=gate -e ENVIRONMENT=prd -e DJANGO_DEBUG=False \
+            -e SIIS_API_URL=https://siis.invalido.local \
+            datanach:gate sh -c 'python manage.py collectstatic --noinput >/dev/null && test -f staticfiles/staticfiles.json'
+
+      # `--network host`: el contenedor tiene que ver el MariaDB de servicio, que está
+      # publicado en 127.0.0.1:3306 del runner. `ENVIRONMENT=qa` usa el mismo
+      # almacenamiento con manifest que prd sin necesitar Redis para las sesiones.
+      - name: Levantar el release contra MariaDB
+        run: |
+          docker run -d --name datanach-gate --network host \
+            -e DJANGO_SECRET_KEY=gate -e ENVIRONMENT=qa -e DJANGO_DEBUG=False \
+            -e DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1 \
+            -e SIIS_API_URL=https://siis.invalido.local \
+            -e DATABASE_NAME=datanach_gate -e DATABASE_USER=datanach \
+            -e DATABASE_PASSWORD=datanach -e DATABASE_HOST=127.0.0.1 -e DATABASE_PORT=3306 \
+            -e APP_RUNTIME=gunicorn -e APP_PORT=8000 \
+            datanach:gate
+          for _ in $(seq 1 60); do
+            if curl -fsS -o /dev/null http://127.0.0.1:8000/health/; then break; fi
+            sleep 5
+          done
+
+      # Las rutas salen del URLconf real y no de la ficha, que nombraba
+      # `/accounts/login/`: acá el login vive en la raíz (`users:login`) con alias en
+      # `/login/`, y `/becas/` a secas no resuelve —no hay vista en el prefijo—, así que
+      # un smoke contra esa URL habría medido un 404 creyendo que medía la pantalla.
+      # `core/tests/test_gates_ci.py::ReleaseGateTests` las resuelve contra el URLconf.
+      #
+      # Un 404 cuenta como fallo: es la forma en que se vería una ruta que desapareció.
+      - name: Smoke HTTP
+        env:
+          SMOKE_RUTAS: "/health/ /login/ /inicio/ /becas/relevamientos/"
+        run: |
+          fail=0
+          for ruta in $SMOKE_RUTAS; do
+            codigo=$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:8000$ruta")
+            echo "$ruta -> $codigo"
+            case "$ruta:$codigo" in
+              # El health tiene que contestar que sí, no redirigir a ningún lado.
+              /health/:200) ;;
+              # El resto: con sesión o sin ella, 200 o redirección al login. Nunca un
+              # 500 («Missing staticfiles manifest entry» aparece así) ni un 404.
+              *:200|*:302) ;;
+              *) echo "::error::$ruta respondió $codigo"; fail=1 ;;
+            esac
+          done
+          exit "$fail"
+
+      - name: Log del contenedor
+        if: always()
+        run: docker logs datanach-gate || true

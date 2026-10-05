@@ -1,4 +1,4 @@
-"""Los gates del CI son obligatorios de verdad (RED-20, RED-63, RED-85).
+"""Los gates del CI son obligatorios de verdad (RED-20, RED-63, RED-85, RED-24, RED-23, RED-22).
 
 El 04/10/2026 `CLAUDE.md` §«Gates de CI» describía una política que no existía:
 `gh api repos/Mkdir-arg/Chaco-Back/rulesets` devolvía `[]` y
@@ -18,6 +18,16 @@ Este módulo es el «test permanente» (RED-34) de las tres fichas del PR R-03:
 - **RED-85** — las actions de los workflows con `contents: write` y `dorny/paths-filter`
   están pineadas por SHA.
 
+El PR R-14 (Cambio 128) suma las tres fichas de los gates del release:
+
+- **RED-24** — las condiciones de cierre de `CLAUDE.md` (`compile_templates`,
+  `requerimientos --check`, `collectstatic`, `design_audit`) corrían solo en la máquina de
+  quien desarrolla; ahora son el job obligatorio `Contratos del repo`.
+- **RED-23** — `release-gate.yml` verifica el release **antes** del espejo, y el
+  procedimiento del espejo está partido en TEST y PRD.
+- **RED-22** — la etapa `verify` se le propone a ECOM por escrito, sin tocar el
+  `.gitlab-ci.yml` que es de ellos.
+
 No toca la red: todo sale de los archivos del repo.
 """
 
@@ -27,6 +37,7 @@ import json
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -34,12 +45,15 @@ from pathlib import Path
 import yaml
 from django.conf import settings
 from django.test import SimpleTestCase
+from django.urls import resolve
 
 RAIZ = Path(settings.BASE_DIR)
 WORKFLOWS = RAIZ / ".github" / "workflows"
 RULESETS = RAIZ / "docs" / "internal" / "rulesets"
 EXCEPCIONES = RAIZ / "security" / "excepciones.toml"
 VERIFICADOR = RAIZ / "scripts" / "check_excepciones_seguridad.py"
+AUDITORIA = RAIZ / "scripts" / "design_audit.py"
+RATCHET = RAIZ / ".design-audit-ratchet"
 
 # `uses: owner/repo@referencia  # comentario`
 USES = re.compile(r"^\s*-?\s*uses:\s*(?P<accion>[^@\s]+)@(?P<ref>\S+)\s*(?:#\s*(?P<comentario>.*))?$", re.MULTILINE)
@@ -78,6 +92,9 @@ CHECKS_OBLIGATORIOS = {
     "Sin datos personales",
     "Ruff errores",
     "Validate inventory and authority",
+    # RED-24, Cambio 128: la ficha de RED-20 ya lo anticipaba («los checks nuevos se
+    # suman a la lista cuando existan»).
+    "Contratos del repo",
 }
 
 
@@ -145,7 +162,7 @@ class RulesetsPropuestosTests(SimpleTestCase):
             [{"actor_id": 15368, "actor_type": "Integration", "bypass_mode": "always"}],
         )
 
-    def test_el_ruleset_de_development_exige_exactamente_estos_nueve_checks(self):
+    def test_el_ruleset_de_development_exige_exactamente_estos_diez_checks(self):
         """Sacar un `context` del JSON no puede pasar en silencio.
 
         Todos los demás tests leen la lista del propio archivo, así que borrar
@@ -399,3 +416,224 @@ class ActionsPineadasTests(SimpleTestCase):
         self.assertTrue(usos, "RED-20 mueve los filtros `paths` adentro del job con dorny/paths-filter")
         for uso in usos:
             self.assertRegex(uso.group("ref"), SHA)
+
+
+class ContratosDelRepoTests(SimpleTestCase):
+    """RED-24: las condiciones de cierre de `CLAUDE.md` dejan de correr solo en una máquina.
+
+    `compile_templates`, `requerimientos.py --check` y `design_audit` vivían en el hook de
+    Claude Code y en la cabeza de quien desarrolla: un cambio hecho desde un IDE o desde la
+    web de GitHub no pasaba por ninguno. `collectstatic` no corría nunca en el CI, y es el
+    que produce el 500 más caro del sistema («Missing staticfiles manifest entry»).
+    """
+
+    JOB = "Contratos del repo"
+
+    def setUp(self):
+        self.flujo = _cargar("pr-quality.yml")
+        clave = _nombres_de_jobs(self.flujo).get(self.JOB)
+        self.assertIsNotNone(clave, f"no existe el job «{self.JOB}»")
+        self.job = self.flujo["jobs"][clave]
+        self.comandos = "\n".join(paso.get("run", "") for paso in self.job["steps"])
+
+    def test_el_job_bloquea(self):
+        self.assertNotIn("continue-on-error", self.job)
+
+    def test_corre_las_cuatro_condiciones_de_cierre(self):
+        for comando in (
+            "scripts/compile_templates.py",
+            "scripts/requerimientos.py --check",
+            "manage.py collectstatic",
+            "scripts/design_audit.py",
+        ):
+            with self.subTest(comando=comando):
+                self.assertIn(comando, self.comandos)
+
+    def test_el_collectstatic_usa_el_almacenamiento_con_manifest(self):
+        """Con `ENVIRONMENT` en dev el storage no genera manifest y el paso no prueba nada.
+
+        El 500 de producción sale justo de ahí: `{% static 'custom/js/nuevo.js' %}` sin el
+        archivo commiteado pasa `check`, `compile_templates` y la suite entera, y revienta
+        en el primer render de PRD.
+        """
+        paso = next(p for p in self.job["steps"] if "collectstatic" in p.get("run", ""))
+
+        self.assertEqual(paso["env"]["ENVIRONMENT"], "prd")
+        self.assertEqual(paso["env"]["DJANGO_DEBUG"], "False")
+        self.assertIn("staticfiles.json", paso["run"], "hay que fallar si no quedó el manifest")
+
+    def test_el_ratchet_de_design_audit_no_aborta_el_paso_antes_de_comparar(self):
+        """`design_audit.py` sale con 1 cuando hay errores y Actions corre con `-e`.
+
+        Sin el `|| true` el paso muere antes de leer el número y el ratchet nunca compara:
+        el gate quedaría rojo siempre, o sea mudo.
+        """
+        paso = next(p for p in self.job["steps"] if "design_audit.py" in p.get("run", ""))
+
+        self.assertIn("|| true", paso["run"])
+
+    def test_el_ratchet_tiene_techo_versionado(self):
+        self.assertTrue(RATCHET.exists(), "falta .design-audit-ratchet")
+        self.assertRegex(RATCHET.read_text(encoding="utf-8").strip(), r"^\d+$")
+
+    def test_el_job_compara_contra_el_archivo_de_ratchet(self):
+        self.assertIn(".design-audit-ratchet", self.comandos)
+
+    @unittest.skipUnless(AUDITORIA.exists(), "hace falta scripts/design_audit.py")
+    def test_la_medicion_de_hoy_no_supera_el_techo(self):
+        """El mismo número que mide el CI, medido acá: el ratchet solo puede bajar.
+
+        Corre el script entero (menos de un segundo) y lee la línea de resumen, que es el
+        contrato entre el script y el job. Si la Ola 6 cambia ese formato, lo que se pone
+        rojo es este test y no el gate del release.
+        """
+        corrida = subprocess.run(
+            [sys.executable, str(AUDITORIA)],
+            cwd=RAIZ,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+        )
+
+        medidos = re.search(r"design_audit: (\d+) error", corrida.stdout)
+
+        self.assertIsNotNone(medidos, f"la línea de resumen cambió de formato: {corrida.stdout[-300:]}")
+        self.assertLessEqual(
+            int(medidos.group(1)),
+            int(RATCHET.read_text(encoding="utf-8").strip()),
+            "subieron los errores del sistema de diseño: arreglalos o justificá el techo nuevo",
+        )
+
+
+class ReleaseGateTests(SimpleTestCase):
+    """RED-23: alguien verifica el release antes de que exista el espejo.
+
+    El build de ECOM tarda 5-7 minutos y `main` despliega **producción automáticamente**:
+    cuando `/pushGitLabecom` llegaba al paso de `main`, testing ni había terminado de
+    construir. «`test` primero, se verifica ahí, recién después `main`» era prosa que el
+    procedimiento no implementaba.
+    """
+
+    def setUp(self):
+        self.flujo = _cargar("release-gate.yml")
+        self.texto = (WORKFLOWS / "release-gate.yml").read_text(encoding="utf-8")
+
+    def test_se_dispara_a_mano_con_el_sha_del_release(self):
+        disparadores = self.flujo.get("on", self.flujo.get(True, {}))
+
+        self.assertIn("workflow_dispatch", disparadores)
+        self.assertIn("sha", disparadores["workflow_dispatch"]["inputs"])
+        self.assertTrue(disparadores["workflow_dispatch"]["inputs"]["sha"]["required"])
+
+    def test_no_corre_en_pull_request(self):
+        """Un check que corre en PRs y filtra por rutas queda «expected» para siempre.
+
+        Este no entra en la lista de obligatorios de RED-20 justamente porque es a pedido:
+        verifica un commit de `main`, que no recibe PRs.
+        """
+        disparadores = self.flujo.get("on", self.flujo.get(True, {}))
+
+        self.assertNotIn("pull_request", disparadores)
+        for nombre in _nombres_de_jobs(self.flujo):
+            with self.subTest(job=nombre):
+                self.assertNotIn(nombre, CHECKS_OBLIGATORIOS)
+
+    def test_verifica_el_ci_del_pr_de_origen_y_no_el_commit_de_release(self):
+        """El commit de `main` lo escribe el bot: no tiene checks ni PR.
+
+        Hay que derivarlo del mensaje `release: … (development@<sha>)`, buscar el PR de ese
+        commit de `development` y mirar los checks de **su head** (mismo ajuste que RED-21).
+        """
+        self.assertIn("development@", self.texto)
+        self.assertIn("/pulls", self.texto)
+        self.assertRegex(self.texto, r"commits/\$head/check-runs")
+
+    def test_corre_la_suite_completa(self):
+        self.assertIn("manage.py test", self.texto)
+
+    def test_prueba_las_migraciones_contra_el_motor_de_produccion(self):
+        """PRD y testing de ECOM son MariaDB, no MySQL (README §0, Cambio 99)."""
+        servicios = [
+            servicio.get("image", "")
+            for job in self.flujo["jobs"].values()
+            for servicio in (job.get("services") or {}).values()
+        ]
+
+        self.assertTrue([i for i in servicios if i.startswith("mariadb:")], f"servicios: {servicios}")
+        for comando in ("migrate --noinput", "migrate --check", "makemigrations --check --dry-run"):
+            with self.subTest(comando=comando):
+                self.assertIn(comando, self.texto)
+
+    def test_construye_la_imagen_y_exige_el_manifest_de_estaticos(self):
+        self.assertIn("docker build", self.texto)
+        self.assertIn("staticfiles.json", self.texto)
+
+    def test_el_smoke_pega_a_rutas_que_existen_de_verdad(self):
+        """Un smoke contra una URL inventada da 404 y el gate lo leería como «no es 500».
+
+        La ficha nombraba `/accounts/login/`, que en este proyecto no existe: el login vive
+        en la raíz (`users:login`) y hay un alias en `/login/`. Se verifica contra el
+        URLconf real, no contra la ficha.
+        """
+        rutas = [
+            paso["env"]["SMOKE_RUTAS"]
+            for job in self.flujo["jobs"].values()
+            for paso in job["steps"]
+            if "SMOKE_RUTAS" in (paso.get("env") or {})
+        ]
+
+        self.assertTrue(rutas, "el workflow tiene que declarar SMOKE_RUTAS")
+        for ruta in " ".join(rutas).split():
+            with self.subTest(ruta=ruta):
+                self.assertIsNotNone(resolve(ruta), f"{ruta} no existe en el URLconf")
+
+
+class EspejoEnDosPasosTests(SimpleTestCase):
+    """RED-23 (3): el espejo a ECOM deja de ser una sola corrida con una sola confirmación."""
+
+    def setUp(self):
+        self.guia = (RAIZ / "docs" / "internal" / "espejo-ecom.md").read_text(encoding="utf-8")
+
+    def test_el_procedimiento_esta_partido_en_test_y_prd(self):
+        self.assertIn("/pushGitLabecomTEST", self.guia)
+        self.assertIn("/pushGitLabecomPRD", self.guia)
+
+    def test_el_paso_a_produccion_exige_lo_verificado_en_testing(self):
+        for exigencia in ("release-gate", "^{tree}", "ls-remote ecom test"):
+            with self.subTest(exigencia=exigencia):
+                self.assertIn(exigencia, self.guia)
+
+    def test_el_paso_a_produccion_pide_una_segunda_confirmacion_escrita(self):
+        self.assertIn("PRODUCCION", self.guia)
+
+    def test_la_guia_recuerda_que_main_despliega_produccion_sin_aprobacion(self):
+        self.assertIn("producción", self.guia.lower())
+        self.assertIn("ArgoCD", self.guia)
+
+
+class PropuestaAEcomTests(SimpleTestCase):
+    """RED-22: el pipeline de ECOM es de ellos; lo nuestro es la propuesta escrita."""
+
+    def setUp(self):
+        self.propuesta = (RAIZ / "docs" / "internal" / "propuesta-ecom-verify.md").read_text(encoding="utf-8")
+
+    def test_la_propuesta_trae_la_etapa_verify_completa(self):
+        for pieza in ("verify", "check --deploy", "makemigrations --check --dry-run", "manage.py test"):
+            with self.subTest(pieza=pieza):
+                self.assertIn(pieza, self.propuesta)
+
+    def test_la_propuesta_incluye_el_tag_inmutable(self):
+        """Sin tag por commit no hay artefacto al que volver: ECOM publica solo `:latest` (RED-16)."""
+        self.assertIn("CI_COMMIT_SHORT_SHA", self.propuesta)
+
+    def test_nuestra_copia_del_pipeline_sigue_intacta(self):
+        """`.gitlab-ci.yml` viaja en el release y tiene que quedar byte a byte igual al suyo.
+
+        Si lo editamos de nuestro lado, el próximo espejo les revierte el archivo: por eso
+        la etapa `verify` vive en un documento de propuesta y no en el YAML.
+        """
+        pipeline = (RAIZ / ".gitlab-ci.yml").read_text(encoding="utf-8")
+
+        self.assertNotIn("verify", pipeline)
+        self.assertIn("stages:", pipeline)
