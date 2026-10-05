@@ -16802,7 +16802,7 @@ ECOM y que el juez copie los dos comandos del espejo a `.claude/`)
 | **Etiquetas** | `#infra` `#metodo` `#gestion` |
 | **Solicitante** | Auditoría integral oct-2026 — fichas RED-24, RED-21, RED-65, RED-23 y RED-22 (Ola R, red de seguridad, PR R-14) |
 | **Fecha del pedido** | 05/10/2026 |
-| **Issue / épica** | Sin issue · PR #NNN (plan de la auditoría: `docs/internal/auditoria-2026-10/`) |
+| **Issue / épica** | Sin issue · PR #575 (plan de la auditoría: `docs/internal/auditoria-2026-10/`) |
 | **Partes afectadas** | Infra (CI, release y espejo a ECOM). Cero código de producción |
 | **Migración** | No requiere |
 

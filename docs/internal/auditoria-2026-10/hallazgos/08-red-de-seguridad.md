@@ -1690,7 +1690,7 @@ desde base vacía), `pr-security.yml` (`pip-audit`), `pr-quality.yml` (ruff, ruf
   Con RED-20 activo esto es defensa en profundidad (un push directo ya no entra); sin RED-20 es lo único que frena un
   release ciego.
 
-**Resolución:** ✅ Resuelto en #NNN (Cambio 128, PR R-14), 05-oct-2026, con los dos puntos. **(1)** El denylist salió del
+**Resolución:** ✅ Resuelto en #575 (Cambio 128, PR R-14), 05-oct-2026, con los dos puntos. **(1)** El denylist salió del
 YAML: el guard recorre **el árbol del release** con `find -printf '%P\n'` y le pregunta a `git check-attr --stdin
 export-ignore`, que es exactamente lo que aplicó el `git archive` de arriba. **Desvío medido respecto de la propuesta:**
 la ficha decía derivarlo de `git ls-files`, y eso deja afuera los patrones de directorio —en `.gitattributes`, `/docs`
@@ -1722,7 +1722,7 @@ y `::DenylistDerivadoTests.test_ningun_md_de_la_raiz_viaja_al_release_sin_decidi
   el tag inmutable de RED-16. Si ECOM no lo acepta, el equivalente de nuestro lado es `release-gate.yml` (RED-23), que
   verifica **antes** de que exista el espejo.
 
-**Resolución:** 🟡 Parcial en #NNN (Cambio 128, PR R-14), 05-oct-2026 — **lo nuestro está hecho y falta el paso del PM**.
+**Resolución:** 🟡 Parcial en #575 (Cambio 128, PR R-14), 05-oct-2026 — **lo nuestro está hecho y falta el paso del PM**.
 La propuesta está escrita y lista para enviar en [`docs/internal/propuesta-ecom-verify.md`](../../propuesta-ecom-verify.md):
 la etapa `verify` completa (imagen `python:3.12-slim`, las tres dependencias de sistema, `pip install -r
 requirements.txt`, `check --deploy` + `makemigrations --check --dry-run` + `test`, misma regla `test || main`), por qué no
@@ -1754,7 +1754,7 @@ acepten, el equivalente de nuestro lado es el `release-gate.yml` de RED-23.
      `/health/` responde, `GET /becas/` da 302 o 200 (nunca 500) y `GET /accounts/login/` da 200.
   3. Actualizar `.claude/commands/pushGitLabecom.md` con los dos pasos y el runbook de RED-60.
 
-**Resolución:** 🟡 Parcial en #NNN (Cambio 128, PR R-14), 05-oct-2026 — **los puntos 1 y 2 completos; del 3 falta que el
+**Resolución:** 🟡 Parcial en #575 (Cambio 128, PR R-14), 05-oct-2026 — **los puntos 1 y 2 completos; del 3 falta que el
 juez copie los dos archivos a `.claude/`** (la sesión que implementó esto no tiene permiso de escritura ahí; el contenido
 completo de los dos comandos va en el cuerpo del PR). Punto 2: `.github/workflows/release-gate.yml`, `workflow_dispatch`
 con input `sha` obligatorio y cuatro jobs — (a) `CI verde del PR de origen`, que deriva el commit de `development` del
@@ -1796,7 +1796,7 @@ escribiendo `PRODUCCION`— y es lo que los dos comandos ejecutan.
   - Opcional (`::warning::`, no bloqueante): un PR con `feat`/`fix` en el título que no toca `docs/internal/requerimientos.md`.
   `docker build` entra por el `release-gate` (RED-23), no en cada PR. Type checking: ver RED-63 y RED-76.
 
-**Resolución:** ✅ Resuelto en #NNN (Cambio 128, PR R-14), 05-oct-2026, con los cinco puntos. Job `contratos-repo` en
+**Resolución:** ✅ Resuelto en #575 (Cambio 128, PR R-14), 05-oct-2026, con los cinco puntos. Job `contratos-repo` en
 `pr-quality.yml`, nombre `Contratos del repo`, sin `continue-on-error`, `fetch-depth: 0`, Python 3.12 y
 `pip install -r requirements.txt`: `compile_templates.py`, `requerimientos.py --check` (con `PYTHONIOENCODING=utf-8`),
 `collectstatic --noinput` con `DJANGO_DEBUG=False` y `ENVIRONMENT=prd` —que es lo que enciende
@@ -1897,7 +1897,7 @@ entrypoint: queda para R-15.
   lista del YAML y afirma que cada ruta existe: el fallo aparece en el PR). **Ola 7:** sacar las dos rutas de la lista en el
   mismo PR de OPS-10/OPS-14.
 
-**Resolución:** ✅ **La parte de la Ola R está hecha** en #NNN (Cambio 128, PR R-14), 05-oct-2026; **la Ola 7 sigue
+**Resolución:** ✅ **La parte de la Ola R está hecha** en #575 (Cambio 128, PR R-14), 05-oct-2026; **la Ola 7 sigue
 abierta** (sacar `docker/django/Dockerfile` y `scripts/startup.sh` de la lista, en el PR de OPS-10/OPS-14). El test está,
 con el nombre exacto de la ficha: lee la variable `RUNTIME` del guard —que por eso pasó a ser una variable de shell en vez
 de ir inline en el `for`— y afirma que cada ruta existe en el árbol. Lo acompañan tres más: que la lista no esté vacía

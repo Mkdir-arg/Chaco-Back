@@ -18,7 +18,7 @@ columna «Avance» de la tabla índice de `hallazgos/08-red-de-seguridad.md` coi
 | #545 R-08 | 120 | RED-28, RED-29, RED-66 | ✅ ✅ ✅ | Particiones de estados con `subTest` sobre todo el enum |
 | #552 R-09 | 124 | RED-27, RED-67, RED-68 | ✅ ✅ ✅ | Cupo exacto 0, contrato de candados y posición en la lista de espera (default de **D-RED-11**) |
 | #550 R-10 | 125 | RED-07, RED-08, RED-09 | ✅ ✅ ✅ (R) | Motor y forma del SQL. De RED-09 falta la parte de la Ola 3 |
-| #NNN R-14 | 128 | RED-24, RED-21, RED-65, RED-23, RED-22 | ✅ ✅ ✅ (R) 🟡 🟡 | **05-oct.** `Contratos del repo` obligatorio (templates, `requerimientos --check`, `collectstatic` con manifest, ratchet de diseño en 42), `publish-main` con denylist derivado de `.gitattributes` y CI verde del PR exigido, `release-gate.yml` y el espejo partido en TEST/PRD. Falta: enviar la propuesta a ECOM (H-12) y copiar los dos comandos a `.claude/` |
+| #575 R-14 | 128 | RED-24, RED-21, RED-65, RED-23, RED-22 | ✅ ✅ ✅ (R) 🟡 🟡 | **05-oct.** `Contratos del repo` obligatorio (templates, `requerimientos --check`, `collectstatic` con manifest, ratchet de diseño en 42), `publish-main` con denylist derivado de `.gitattributes` y CI verde del PR exigido, `release-gate.yml` y el espejo partido en TEST/PRD. Falta: enviar la propuesta a ECOM (H-12) y copiar los dos comandos a `.claude/` |
 | #556 R-19 | 126 | RED-89, SEC-10, SEC-18 (+R0b-06), SEC-11, RED-04, RED-06 | ✅ ✅ ✅ 🟡 ✅ ✅ | Barrido con usuario **sin rol** (`ALLOWLIST_SIN_ROL`, 31 entradas) y las 17 rutas de Legajos cerradas con capacidad: adjuntos acotados al dueño con el blob borrado en `on_commit`, alertas con alcance real y `self.get_object()`. **SEC-11 queda 🟡** hasta que D-11 suba 3 vistas a `ciudadano.sensible` (Ola 2). Operativo: decidir si el rol «Configuración» lleva `ciudadano.ver` (la rama `config.administrar` del alcance de alertas quedó muerta sin ella) |
 
 **Avance del frente 08 (89 fichas, con RED-89 nueva).**
@@ -995,7 +995,7 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
 | R-11 | **Motor real en CI:** TST-01 (matriz `mariadb:10.11`/`mariadb:11`/`mysql:8.0` + `test --tag mysql`; ampliado) | 8 | R-13, Ola 3 |
 | R-12 | **Contrato de migraciones:** RED-14 (`scripts/check_migraciones.py`, columnas que toleran código viejo), RED-57 (reversas declaradas), RED-18 (reversa UUID), RED-84 (`Reversión` en `--check`), RED-83 (índices redundantes, ratchet) | 18 | toda migración nueva |
 | R-13 | **Job `migration-roundtrip`** (Anexo B): RED-17, RED-19 (un solo migrador, expand/contract) | 14 | Ola 3 (G1-04, G1-05, DAT-01) |
-| ✅ R-14 | **Gates del release:** RED-24 (`Contratos del repo`), RED-21 (`publish-main` exige CI verde), RED-65, RED-23 (`release-gate.yml` + `/pushGitLabecom` en dos), RED-22 (propuesta a ECOM) — **#NNN, Cambio 128** (RED-22 y RED-23 🟡: falta el envío a ECOM y copiar los dos comandos a `.claude/`) | 22 | el próximo espejo a ECOM |
+| ✅ R-14 | **Gates del release:** RED-24 (`Contratos del repo`), RED-21 (`publish-main` exige CI verde), RED-65, RED-23 (`release-gate.yml` + `/pushGitLabecom` en dos), RED-22 (propuesta a ECOM) — **#575, Cambio 128** (RED-22 y RED-23 🟡: falta el envío a ECOM y copiar los dos comandos a `.claude/`) | 22 | el próximo espejo a ECOM |
 | R-15 | **Operación y deploy** (desde la Ola 3): OPS-03, OPS-04, OPS-01 (ampliados), RED-59 (`deploy_prod.sh`), RED-16 (tag de release), RED-55 | 18 | el próximo deploy en icore |
 | R-16 | **Becas: adjuntos, borrados, atomicidad, padrón:** RED-05, RED-31, RED-35, RED-77, RED-49, RED-50, RED-81, RED-70 | 22 | Ola 3 (DAT-01, BEC-*), SEC-20 |
 | R-17 | **Definición y condiciones (dos repos):** RED-12, RED-38 | 16 | cualquier cambio del constructor |
@@ -1007,7 +1007,7 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
 
 - **Mínimo antes de la Ola 1: ✅ hecho el 04-oct-2026.** R-01 a R-10 (86 h) están mergeados en `development` (detalle,
   estado por ficha y lo que quedó operativo en «Estado al 04-oct-2026», arriba). **R-19 también está cerrado**
-  (#556, Cambio 126, 21 h): era el urgente de la ola, y **R-14 también** (#NNN, Cambio 128, 22 h: los gates del
+  (#556, Cambio 126, 21 h): era el urgente de la ola, y **R-14 también** (#575, Cambio 128, 22 h: los gates del
   release, antes del próximo espejo a ECOM). **Quedan 156 h de la Ola R:** R-11 a R-16 antes de la Ola 3;
   R-21 antes de la Ola 2. El resto puede ir en paralelo con otro implementador.
 - **Hecho cuando (verificable):**
