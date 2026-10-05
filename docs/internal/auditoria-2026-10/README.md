@@ -1,5 +1,23 @@
 # Auditoría integral de DATAÑACH (Chaco) — octubre 2026
 
+## Estado al 05-oct-2026 (Ola 6, paso 3: goldens saneadas)
+
+| PR | Cambio | Fichas | Estado | Qué quedó abierto |
+|---|---|---|---|---|
+| #577 Ola 6 paso 3 | 131 | V5A-NEW-07 (a) | 🟡 | Las 4 goldens en **0 hallazgos P1 y marcadores de arquetipo completos**: `personas_list` (filtros con `aria-label`, `<th>` de acciones nombrado), `cupo/segmento_detail` (sin `<style>` local, avatares según D5), el modal de `config/programa_list` (labels canónicos, ayuda que no parece error, `data-error="__all__"`, nota con `_alerta`, backdrop por clase) y `config/segmento_form` (ya estaba limpia). El step `Design audit goldens` deja de ser `continue-on-error`. **La parte (b) de V5A-NEW-07 sigue abierta** (Ola 5, PR 7: labels de `convocatoria_list` y deuda de `_dashboard_panel`). Pendientes del paso 4 en adelante: reescribir el núcleo y sus fichas, consumidores, ejercicio de control y registro |
+
+**Las goldens se defienden desde este PR, no desde el paso 4.** `--goldens` leía la tabla `## Arquetipos` del núcleo, que
+escribe el paso 4: sin esa tabla el step salía verde sin verificar nada, así que sacarle el `continue-on-error` no habría
+agregado un gate. `design_audit.GOLDENS` declara las cuatro mientras tanto y el núcleo pasa a mandar en cuanto exista la
+tabla (si las dos fuentes se contradicen, el script lo reporta).
+
+**Cambios a la vista, medidos con un diff de píxeles a 1440 y 390 px:** `personas_list` **0 px** (el form de filtros lo
+reconstruye `dynamic_list_filters.js`); `segmento_detail` 0,08 % / 0,47 %, acotado a la columna de 32 px de los avatares
+(**D5**, el único cambio visible previsto); el modal de `programa_list`, el cuerpo del diálogo (ayuda en gris, labels
+canónicos, ícono de la nota en Font Awesome).
+
+---
+
 ## Estado al 05-oct-2026 (Ola 6, pasos 0-2: herramientas del agente de diseño)
 
 **La Ola 6 arrancó, en paralelo con las Olas 1 y 2** (es independiente del backend y tiene fecha límite propia: antes de
@@ -897,7 +915,7 @@ funcional ni coordinación con ECOM). Las horas de cada ola suman los esfuerzos 
 | 3 | Datos, operación, CI, app de campo y reglas de Becas | 55 | 158 | 59 (+ R0-03, R0-04, R0-06, R0-07) | 166 | 54 (− 7 a la Ola R; + RED-48, RED-58; + partes de RED-09, 35, 40, 50) | 152 |
 | 4 | Performance | 19 | 52 | 19 | 52 | 20 (+ RED-62; + partes de RED-10, 49, 51, 83) | 64 |
 | 5 | Bugs de front y parches v1 de Legajos/Dispositivos | 31 (+ V5A-NEW-07 b) | 114 | 31 (+ V5A-NEW-07 b) | 114 | 33 (+ RED-33, RED-75; + partes de RED-42, 53) (+ V5A-NEW-07 b) | 128 |
-| 6 | Agente de diseño | 4 (+8 pasos) | 42 | 4 (+8 pasos) | 42 | 4 (+8 pasos) | 42 · **18 cerradas el 05-oct (pasos 0-2) → 24 restantes** |
+| 6 | Agente de diseño | 4 (+8 pasos) | 42 | 4 (+8 pasos) | 42 | 4 (+8 pasos) | 42 · **22 cerradas el 05-oct (pasos 0-3) → 20 restantes** |
 | 7 | Deuda | 9 (+ fase 2 de G1-01) | 46 | 10 (+ fase 2 de G1-01; + R0-02) | 48 | 13 (+ RED-64, 76, 86; + partes de RED-13, 37, 39, 54, 78, 85) | 88 |
 | v2 | Criterios de aceptación de la v2 (§7), no se implementan en v1 | 13 | — | 13 | — | 13 | — |
 | **Total** | | **206** | **636** | **208** | **628** | **297** | **972** · **107 cerradas → 865 restantes** |
@@ -1198,8 +1216,9 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
 ### Ola 6 — Agente de diseño
 - **Objetivo:** que una pantalla nueva salga igual a su golden al primer intento, con la deuda vieja contenida por un
   ratchet. **Fecha límite: antes de la primera task de pantalla de la v2 de Dispositivos y Merenderos.**
-- **Avance:** **pasos 0, 1 y 2 cerrados** en #574 (Cambio 129, 05-oct-2026): **18 h de las 42**, quedan **24 h**
-  (pasos 3 a 7). Cierra FE-13, V5A-NEW-01 y V5A-NEW-08. La línea base «antes» del paso 6 vive en
+- **Avance:** **pasos 0, 1 y 2 cerrados** en #574 (Cambio 129, 05-oct-2026) y **paso 3 cerrado** en #577 (Cambio 131,
+  05-oct-2026): **22 h de las 42**, quedan **20 h** (pasos 4 a 7). Cierra FE-13, V5A-NEW-01, V5A-NEW-08 y la parte (a) de
+  V5A-NEW-07. La línea base «antes» del paso 6 vive en
   [`linea-base-agente-diseno/`](linea-base-agente-diseno/README.md): las tres pantallas fallan hoy, ninguna usó la
   golden de su arquetipo y la de detalle clonó la hermana del módulo con su deuda entera.
 - **Pasos (detalle en `anexo-agente-diseno.md` §9):** 0 línea base «antes» (2 h) → 1 decisiones D1-D5 (2 h) → 2
