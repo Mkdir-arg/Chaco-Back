@@ -1235,7 +1235,11 @@ hablan con SIIS caso por caso. **Desvíos de la ficha:** (1) el cuarto comando e
 entró: el repo no tiene pylint instalado y agregarlo es una dependencia nueva del CI, que es trabajo
 de la Ola 7 (RED-85 pinea herramientas). Efecto lateral: `reenviar_siis_pendientes` pasa a correr en
 seco por defecto, como los otros tres. Falta la parte de la Ola 5 (`_subir_padron`).
-**Test permanente:** `programas/tests/test_siis_un_solo_envio.py::ParidadComandosSiisTests.test_los_cuatro_comandos_aceptan_los_mismos_flags`.
+**Test permanente:** `programas/tests/test_siis_un_solo_envio.py::FrenoConSiisCaidoTests.test_los_comandos_honran_el_freno_con_siis_ambiguo` (y `ParidadComandosSiisTests.test_los_cuatro_comandos_aceptan_los_mismos_flags`).
+**Ronda 3 de la revisión:** el test de paridad miraba que el flag **existiera**, no que el comando
+lo **usara**, y así dejó pasar justo el caso que la ficha describe: `reenviar_siis_pendientes`
+heredaba `--max-errores` y `--max-inciertos` de la base y los ignoraba. Desde entonces los tres
+comandos se ejercitan con SIIS contestando mal y se exige que corten de verdad.
 
 ### RED-54 · `revision.py`: ningún test fija el contexto del detalle
 **Severidad:** MEDIA · **Estado:** CONFIRMADO con test (`radon`: 1.331 líneas, MI 5.84; `formulario_detalle` CC 26; fan-out 16) · **Origen:** RS-R4-17 (VR2: CONFIRMADO) · **Ola:** R (antes de la Ola 1) + 7 (refactor) · **Esfuerzo:** S-M (4 h) + M (8 h)

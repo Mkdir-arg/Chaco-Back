@@ -29,12 +29,12 @@ si se corta, lo hecho queda y volver a correrlo continúa por donde iba, porque
 los ``ENVIADO`` no se vuelven a mandar.
 
 **Freno de seguridad.** Se detiene tras ``--max-errores`` errores técnicos
-**seguidos** (10 por defecto) o ``--max-inciertos`` resultados de resultado
-desconocido seguidos (3 por defecto). El segundo tope es más bajo a propósito: un
-error técnico deja el caso libre y se reintenta solo, mientras que un resultado
-incierto lo deja **tomado** hasta que alguien le pregunte a ECOM si el alta
-llegó. Las dos rachas se cuentan en paralelo: una falla de un tipo no borra la
-del otro.
+**seguidos** (10 por defecto) o ``--max-inciertos`` envíos seguidos **sin saber
+si el alta llegó** (3 por defecto). El segundo tope es más bajo a propósito: un
+error técnico deja el caso libre y se reintenta solo, mientras que uno de
+resultado desconocido lo deja **tomado** hasta que alguien le pregunte a ECOM si
+el alta llegó. Las dos rachas se cuentan en paralelo: una falla de un tipo no
+borra la del otro.
 
 Corre en seco por defecto: sin ``--aplicar`` solo cuenta e informa.
 
@@ -70,19 +70,6 @@ ESTADOS_ENVIO = (
 # Estados de DATAÑACH que no son una aprobación: informarlos a SIIS registra como
 # beneficiario a alguien que nadie revisó, o que la provincia resolvió que no.
 ESTADOS_SENSIBLES = (Formulario.Estado.ENVIADO, Formulario.Estado.RECHAZADO, Formulario.Estado.BAJA)
-
-
-def _desenlace(envio):
-    """Lo que el envío le dice al freno sobre el estado de SIIS.
-
-    Un ``INCIERTO`` que acaba de intentarse es una falla —y de las caras—; uno
-    que ya estaba, no: ahí no se llamó a SIIS.
-    """
-    if envio.estado == EnvioSIIS.Estado.ERROR:
-        return proceso_masivo.FALLA_TECNICA
-    if envio.estado == EnvioSIIS.Estado.INCIERTO and envio.recien_intentado:
-        return proceso_masivo.FALLA_INCIERTA
-    return None
 
 
 class Command(ComandoSiisBase):
@@ -267,7 +254,7 @@ class Command(ComandoSiisBase):
                     continue
                 cuenta[envio.estado] += 1
                 parcial[envio.estado] += 1
-                if freno.registrar(_desenlace(envio)):
+                if freno.registrar(proceso_masivo.desenlace_de(envio)):
                     detenido = True
                     break
             self._log(
@@ -287,7 +274,7 @@ class Command(ComandoSiisBase):
                 ("les falta un dato (INCOMPLETO)", cuenta[EnvioSIIS.Estado.INCOMPLETO]),
                 ("rechazados por SIIS (RECHAZADO)", cuenta[EnvioSIIS.Estado.RECHAZADO]),
                 ("errores técnicos (ERROR)", cuenta[EnvioSIIS.Estado.ERROR]),
-                ("de resultado desconocido (INCIERTO)", cuenta[EnvioSIIS.Estado.INCIERTO]),
+                ("sin saber si el alta llegó (INCIERTO)", cuenta[EnvioSIIS.Estado.INCIERTO]),
                 ("ya los tenía otro camino", cuenta[EnvioSIIS.Estado.EN_PROCESO]),
                 ("cambiaron de estado y no se informaron", cambiados),
             )

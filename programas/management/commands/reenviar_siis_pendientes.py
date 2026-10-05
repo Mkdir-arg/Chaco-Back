@@ -10,6 +10,10 @@ Pensado para un cron o para correr a mano después de una caída del legacy de S
 ``--aplicar`` lista lo que haría y no llama a nadie. ``--dry-run`` se mantiene
 como alias del ensayo para los procedimientos que ya lo usaban.
 
+**Freno de seguridad**, el mismo que las otras tres vías: corta tras
+``--max-errores`` errores técnicos seguidos (10) o ``--max-inciertos`` envíos
+seguidos sin saber si el alta llegó (3).
+
     python manage.py reenviar_siis_pendientes              # qué reintentaría
     python manage.py reenviar_siis_pendientes --aplicar
 """
@@ -75,6 +79,13 @@ class Command(ComandoSiisBase):
             return
         catalogos = Catalogos()
         resumen = {}
+        hechos = 0
+        arranque = self._reloj()
+        # El mismo freno que las otras tres vías. Sin él, este comando aceptaba
+        # --max-errores y --max-inciertos y los ignoraba: con SIIS contestando
+        # ambiguo se comía los 200 casos del --limite y dejaba 200 conciliaciones
+        # a mano.
+        freno = self._crear_freno(options)
         for caso in casos:
             try:
                 envio = enviar_beneficiario_a_siis(caso, None, catalogos=catalogos)
@@ -84,6 +95,16 @@ class Command(ComandoSiisBase):
                 self._log(f"caso #{caso.pk}: cambió de estado, no se informa")
                 continue
             resumen[envio.estado] = resumen.get(envio.estado, 0) + 1
+            hechos += 1
             self._log(f"caso #{caso.pk}: {envio.get_estado_display()}")
+            if freno.registrar(proceso_masivo.desenlace_de(envio)):
+                detalle = ", ".join(f"{n} {estado.lower()}" for estado, n in sorted(resumen.items()))
+                self._log(f"{hechos} reintentado(s) antes de cortar: {detalle}.")
+                self._cortado_por_fallas(
+                    freno,
+                    self._reloj() - arranque,
+                    "Los que quedaron en ERROR se retoman solos; los de resultado desconocido, no: "
+                    "se concilian con `manage.py conciliar_envios_siis`.",
+                )
         detalle = ", ".join(f"{n} {estado.lower()}" for estado, n in sorted(resumen.items()))
         self._log(self.style.SUCCESS(f"{len(casos)} reintentado(s): {detalle}."))

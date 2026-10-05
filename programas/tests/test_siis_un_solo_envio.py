@@ -582,8 +582,14 @@ class FrenoConSiisCaidoTests(_BaseProcesoTest):
     Desde que 500, 502, 504 y ``ReadTimeout`` son ``INCIERTO``, un INCIERTO que
     no contara para el freno —y que además reseteara la racha de errores— dejaba
     la corrida golpeando un servicio caído **para siempre**, y cada vuelta dejaba
-    un caso más tomado. Son los tres caminos: el hilo del masivo y los dos
-    comandos.
+    un caso más tomado. Son cuatro caminos: el hilo del masivo y los tres
+    comandos que heredan de ``ComandoSiisBase``.
+
+    Los tres comandos se ejercitan **de verdad**, con SIIS contestando mal, y no
+    solo mirando que acepten el flag: `reenviar_siis_pendientes` heredaba
+    `--max-errores` y `--max-inciertos` de la base y los ignoraba, así que la
+    paridad de flags estaba verde y el comando se comía los 200 casos de su
+    `--limite` igual (RED-53).
     """
 
     def _casos(self, cuantos):
@@ -609,6 +615,41 @@ class FrenoConSiisCaidoTests(_BaseProcesoTest):
                 cur.execute(f"INSERT INTO {proceso_masivo.TABLA_APROBADOS_MATERIAS} (dni) VALUES (%s)", [dni])
         return casos
 
+    #: Los tres comandos que heredan de ``ComandoSiisBase``, con los argumentos
+    #: que hacen falta para que cada uno llegue a llamar a SIIS.
+    COMANDOS_CON_ALTA = (
+        ("enviar_casos_siis", ()),
+        ("procesar_casos_siis", ("--solo-enviar",)),
+        ("reenviar_siis_pendientes", ()),
+    )
+
+    def test_los_comandos_honran_el_freno_con_siis_ambiguo(self, _armar):
+        """RED-53: no alcanza con aceptar `--max-inciertos`; hay que cortar.
+
+        El que no lo honraba era `reenviar_siis_pendientes`, y el test de paridad
+        de flags no lo veía porque el flag estaba: lo que faltaba era usarlo.
+        """
+        casos = self._casos(10)
+        for nombre, extra in self.COMANDOS_CON_ALTA:
+            with self.subTest(comando=nombre):
+                # Cada vuelta arranca limpia: los inciertos de la anterior
+                # dejarían los casos tomados y no habría a quién llamar.
+                EnvioSIIS.objects.all().delete()
+                for caso in casos:
+                    # `reenviar_siis_pendientes` solo toma los que vienen de un
+                    # ERROR técnico; a los otros dos no les molesta.
+                    EnvioSIIS.objects.create(
+                        formulario=caso, estado=EnvioSIIS.Estado.ERROR, documento=caso.ciudadano.dni
+                    )
+                salida = StringIO()
+                with patch("programas.services.siis_envio.cargar_beneficiario", return_value=INCIERTO) as cargar:
+                    with self.assertRaises(SystemExit):
+                        call_command(nombre, "--aplicar", "--max-inciertos", "3", *extra, stdout=salida)
+
+                self.assertEqual(cargar.call_count, 3, f"{nombre} no cortó: siguió llamando a SIIS")
+                self.assertIn("DETENIDO", salida.getvalue())
+                self.assertIn("sin saber si el alta llegó", salida.getvalue())
+
     def test_el_masivo_corta_a_los_tres_inciertos(self, _armar):
         self._casos(10)
         corrida = CorridaSiis.objects.create(programa=self.programa, total_pedido=10, solicitada_por=self.user)
@@ -626,7 +667,7 @@ class FrenoConSiisCaidoTests(_BaseProcesoTest):
         corrida.refresh_from_db()
         self.assertEqual(cargar.call_count, proceso_masivo.MAX_INCIERTOS)
         self.assertEqual(corrida.estado, CorridaSiis.Estado.DETENIDA)
-        self.assertIn("resultado desconocido", corrida.mensaje)
+        self.assertIn("sin saber si el alta llegó", corrida.mensaje)
         self.assertIn("conciliar_envios_siis", corrida.mensaje)
 
     def test_enviar_casos_corta_a_los_tres_inciertos(self, _armar):
@@ -638,7 +679,7 @@ class FrenoConSiisCaidoTests(_BaseProcesoTest):
 
         self.assertEqual(cargar.call_count, proceso_masivo.MAX_INCIERTOS)
         self.assertIn("DETENIDO", salida.getvalue())
-        self.assertIn("resultado desconocido", salida.getvalue())
+        self.assertIn("sin saber si el alta llegó", salida.getvalue())
 
     def test_procesar_casos_corta_a_los_tres_inciertos(self, _armar):
         self._casos(10)

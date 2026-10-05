@@ -28,7 +28,7 @@ MAX_INCIERTOS_POR_DEFECTO = proceso_masivo.MAX_INCIERTOS
 AYUDA_APLICAR = "Ejecuta de verdad. Sin esto solo cuenta e informa, sin llamar a SIIS."
 AYUDA_MAX_ERRORES = "Errores técnicos seguidos que detienen la corrida. Por defecto {}."
 AYUDA_MAX_INCIERTOS = (
-    "Resultados de resultado desconocido seguidos que detienen la corrida. Por defecto {}: el tope es "
+    "Envíos seguidos sin saber si el alta llegó que detienen la corrida. Por defecto {}: el tope es "
     "más bajo que el de errores porque cada uno deja un caso tomado hasta conciliarlo con ECOM."
 )
 AYUDA_USUARIO = "Nombre de usuario que queda como responsable en los registros y en la traza."
@@ -87,9 +87,13 @@ class ComandoSiisBase(BaseCommand):
     def _crear_freno(self, options):
         """El freno de la corrida, con los topes que pidió el operador.
 
-        Uno solo para las tres vías (las dos de acá y el hilo del masivo): si el
-        criterio de corte vive en tres lados, el día que cambie va a cambiar en
-        dos — que es exactamente lo que RED-53 mide.
+        Uno solo para las cuatro vías —los tres comandos que heredan de acá y el
+        hilo del masivo—: si el criterio de corte vive en cuatro lados, el día
+        que cambie va a cambiar en tres. **Tenerlo no alcanza: hay que usarlo.**
+        `reenviar_siis_pendientes` aceptaba los dos flags y los ignoraba, así que
+        con SIIS contestando ambiguo se comía los 200 casos de su `--limite`; por
+        eso `FrenoConSiisCaidoTests` ejercita las cuatro con SIIS caído y no solo
+        mira que el flag exista (RED-53).
         """
         return proceso_masivo.Freno(
             max_errores=max(1, options["max_errores"]), max_inciertos=max(1, options["max_inciertos"])

@@ -152,6 +152,21 @@ FALLA_TECNICA = "tecnico"
 FALLA_INCIERTA = "incierto"
 
 
+def desenlace_de(envio):
+    """Lo que un ``EnvioSIIS`` le dice al freno sobre el estado del servicio.
+
+    Vive acá y no en cada comando porque la pregunta es una sola y la respuesta
+    tiene que ser la misma en las cuatro vías (RED-53): un ``INCIERTO`` que
+    acaba de intentarse es una falla —y de las caras—; uno que ya estaba, no,
+    porque ahí no se llamó a SIIS.
+    """
+    if envio.estado == EnvioSIIS.Estado.ERROR:
+        return FALLA_TECNICA
+    if envio.estado == EnvioSIIS.Estado.INCIERTO and envio.recien_intentado:
+        return FALLA_INCIERTA
+    return None
+
+
 @dataclass
 class Freno:
     """Corta la corrida cuando SIIS deja de servir. Único para las tres vías.
@@ -193,12 +208,16 @@ class Freno:
 
     @property
     def motivo(self):
-        """Qué contar en el mensaje de corte, en el orden en que importa."""
+        """Qué contar en el mensaje de corte, en el orden en que importa.
+
+        Lo lee el coordinador en la pantalla del proceso masivo y el operador en
+        la consola, así que dice qué pasó y qué hacer, no el nombre del estado.
+        """
         if self.inciertos >= self.max_inciertos:
             return (
-                f"{self.inciertos} resultados de resultado desconocido seguidos. SIIS contesta mal o no "
-                "contesta, y cada uno deja un caso tomado: hay que preguntarle a ECOM si esas altas "
-                "llegaron (`manage.py conciliar_envios_siis --listar`) antes de volver a correr"
+                f"{self.inciertos} envíos seguidos sin saber si el alta llegó. SIIS contesta mal o no "
+                "contesta, y cada uno de esos casos queda tomado: hay que preguntarle a ECOM si esas "
+                "altas llegaron (`manage.py conciliar_envios_siis --listar`) antes de volver a correr"
             )
         return f"{self.tecnicos} errores técnicos seguidos. SIIS no está respondiendo o las credenciales no sirven"
 
@@ -455,7 +474,7 @@ def procesar_caso(caso, responsable, catalogos, cuenta, *, avisar=False, solo_en
         cuenta.altas += 1
     elif envio.estado == EnvioSIIS.Estado.INCOMPLETO:
         cuenta.incompletos += 1
-    elif envio.estado == EnvioSIIS.Estado.INCIERTO and envio.recien_intentado:
+    elif desenlace_de(envio) == FALLA_INCIERTA:
         # Lo intentamos y no sabemos si llegó: es una falla de SIIS, y de las
         # caras. Que no cuente para el freno era dejar la corrida sin salida con
         # el servicio caído, porque 500, 502, 504 y ReadTimeout son INCIERTO.

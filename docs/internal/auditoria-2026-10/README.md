@@ -13,7 +13,7 @@
 | **SIIS-04** ✅ | El estado se relee bajo lock en las tres puertas (masivo, `enviar_casos_siis` con `estados_permitidos`, tabla intermedia) |
 | **SIIS-05** ✅ | Columna derivada `clave_persona_plan` dentro de un índice único: la regla la decide el motor, no un check-then-act (con dos procesos a la vez pasaban los dos). El `IntegrityError` se traduce a `DUPLICADO_LOCAL` |
 | **BEC-14** ✅ | Guard `data-un-solo-envio`, botón deshabilitado en el `onConfirm` y relectura del estado antes de consultar SIIS |
-| **RED-53** ✅ (1; falta Ola 5) | `ComandoSiisBase`: los cuatro comandos que hablan con SIIS comparten flags, lotes, resumen y frenos |
+| **RED-53** ✅ (1; falta Ola 5) | `ComandoSiisBase`: los cuatro comandos que hablan con SIIS comparten flags, lotes, resumen y freno. El test los corre **con SIIS caído** y exige que corten: mirar solo que acepten el flag dejó pasar un comando que lo ignoraba |
 
 **Migración `programas.0075_enviosiis_vigente`** (`programas_enviosiis`): expand-only, se puede
 desplegar antes que el código. **Medida ida y vuelta contra MariaDB 10.11 real con 40.100 envíos:

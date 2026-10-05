@@ -17028,7 +17028,9 @@ interno. Los tres de `ComandoReenvioTests` pasan a usar `--aplicar`.
   balanceador contesta el 503 antes de llegar a la aplicación el cuerpo viene vacío— y un **500 con
   JSON roto**. Hoy los dos se tratan como inciertos, que es la decisión conservadora y la correcta
   mientras no haya contrato; el costo es una conciliación a mano por cada uno. Si ECOM confirma que
-  su 503 siempre significa «no se escribió nada», el sin-cuerpo puede pasar a reintentable.
+  su 503 siempre significa «no se escribió nada», el sin-cuerpo puede pasar a reintentable. La tabla
+  completa de desenlaces, con estas dos filas marcadas como decisión nuestra y no contrato, quedó en
+  [`docs/internal/temas/siis-api.md`](temas/siis-api.md).
 - **`correr_alta_siis` no hereda de `ComandoSiisBase`** (no habla con SIIS: encadena a los otros).
   Cuando SIIS-03 agregue el candado de corrida viva habrá que decidir si también lo toma.
 
@@ -17041,6 +17043,22 @@ tocarlos. Lo que vuelve es el agujero: siete caminos que pueden dar de alta dos 
 beneficiario, de forma irreversible.
 
 ## Historial
+
+- **05/10/2026 · ronda 3 de la revisión del PR #576.** El revisor verificó en MariaDB y MySQL reales
+  que los dos problemas de la ronda 2 están cerrados (SIIS-05 pasó de 19 de 25 carreras perdidas a
+  0 de 25; el freno corta a los 3 inciertos en el masivo y en los dos comandos grandes), y encontró
+  uno más: **`reenviar_siis_pendientes` heredaba los dos flags del freno y los ignoraba**. Era el
+  mismo agujero que RED-53 viene a cerrar, con el agravante de que el test de paridad lo daba por
+  bueno: miraba que el flag **existiera**, no que el comando lo **usara**. Con SIIS contestando
+  ambiguo se comía los 200 casos de su `--limite` y dejaba 200 conciliaciones a mano. Arreglado, y
+  el test pasa a ejercitar los tres comandos **con SIIS caído de verdad**
+  (`FrenoConSiisCaidoTests.test_los_comandos_honran_el_freno_con_siis_ambiguo`); el helper
+  `desenlace_de`, que vivía en `enviar_casos_siis`, se mudó a `proceso_masivo` para que las cuatro
+  vías lean la misma respuesta. Además: la tabla de desenlaces de la API quedó documentada en
+  `docs/internal/temas/siis-api.md` con las dos filas que son decisión nuestra y no contrato; el
+  procedimiento advierte que borrar a mano el `EnvioSIIS` **que tiene la clave** de un grupo cruzado
+  libera el DNI y habilita un alta más; y el mensaje del freno pasó de «3 resultados de resultado
+  desconocido» a «3 envíos seguidos sin saber si el alta llegó», que es lo que lee el coordinador.
 
 - **05/10/2026 · ronda 2 de la revisión del PR #576.** El revisor verificó el núcleo contra motor
   real y encontró dos problemas mayores:

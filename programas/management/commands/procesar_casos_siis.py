@@ -31,12 +31,12 @@ mano. El descarte no toca el caso y el ensayo informa por qué campo se cayó ca
 uno.
 
 **Freno de seguridad.** Se detiene tras ``--max-errores`` errores técnicos
-**seguidos** (10 por defecto) o ``--max-inciertos`` resultados de resultado
-desconocido seguidos (3 por defecto). El segundo tope es más bajo a propósito: un
-error técnico deja el caso libre y se reintenta solo, mientras que un resultado
-incierto lo deja **tomado** hasta que alguien le pregunte a ECOM si el alta
-llegó. Las dos rachas se cuentan en paralelo: una falla de un tipo no borra la
-del otro.
+**seguidos** (10 por defecto) o ``--max-inciertos`` envíos seguidos **sin saber
+si el alta llegó** (3 por defecto). El segundo tope es más bajo a propósito: un
+error técnico deja el caso libre y se reintenta solo, mientras que uno de
+resultado desconocido lo deja **tomado** hasta que alguien le pregunte a ECOM si
+el alta llegó. Las dos rachas se cuentan en paralelo: una falla de un tipo no
+borra la del otro.
 
 Corre en seco por defecto: sin ``--aplicar`` no valida, no aprueba y no envía.
 
@@ -293,7 +293,7 @@ class Command(ComandoSiisBase):
             ("altas con datos incompletos", cuenta.incompletos),
             ("altas rechazadas por SIIS", cuenta.rechazados),
             ("altas con error técnico", cuenta.errores),
-            ("altas de resultado desconocido", cuenta.inciertos),
+            ("altas sin saber si llegaron", cuenta.inciertos),
             ("ya informados en otro caso (duplicado)", cuenta.duplicados),
             ("ya los tenía otro camino", cuenta.ocupados),
         ]

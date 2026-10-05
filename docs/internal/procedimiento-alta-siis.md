@@ -268,6 +268,27 @@ DELETE FROM programas_enviosiis WHERE estado = 'ENVIADO';
 > **Solo después de que ECOM borre esos registros de la tabla intermedia de SIIS.**
 > La API no deduplica y desde acá no se da de baja: sin ese paso previo, se duplican.
 
+> **Y nunca borrar un `EnvioSIIS` suelto sin mirar antes su `clave_persona_plan`.**
+> Desde el Cambio 127 esa columna es la que impide que la misma persona tenga dos
+> altas vigentes en el mismo plan, aunque vengan de casos distintos. Si hay un
+> grupo cruzado —dos casos del mismo DNI y plan, los dos tomados— **la clave la
+> tiene uno solo**, y borrar justo a ese libera la clave: el otro caso sigue
+> tomado, pero el DNI queda libre y la próxima corrida puede mandar **un alta
+> más** de alguien que ya está en SIIS dos veces. Antes de borrar uno suelto:
+>
+> ```sql
+> -- ¿Qué clave tiene el que voy a borrar, y hay otros vigentes de la misma persona y plan?
+> SELECT id, formulario_id, estado, vigente, clave_persona_plan
+> FROM programas_enviosiis
+> WHERE vigente = 1
+>   AND (documento, id_programa) = (SELECT documento, id_programa FROM programas_enviosiis WHERE id = <pk>);
+> ```
+>
+> Si vuelve **más de una fila**, es un grupo cruzado: se borran **todas** o
+> ninguna, y solo después de que ECOM las haya sacado de SIIS. La lista de los
+> grupos que había al migrar está en la traza de cada caso:
+> `SELECT formulario_id, valor_nuevo FROM programas_tracaformulario WHERE campo = 'envio_siis';`
+
 Después, rehacer los pasos 6, 7 y 8.
 
 ---
