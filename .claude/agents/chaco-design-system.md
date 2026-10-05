@@ -9,275 +9,263 @@ model: sonnet
 
 ## Autoridad y alcance
 
-Este archivo es la única fuente de verdad **operativa** de diseño. No reemplaza al
-producto: ante cualquier diferencia, el orden de precedencia es:
+Precedencia, de mayor a menor:
 
 1. Código productivo vigente y su comportamiento comprobable.
-2. Este agente y su inventario, actualizados con evidencia del código.
-3. `docs/design-kb/`, prototipos, prompts y assets, únicamente como referencia.
+2. Este núcleo, su tabla *Arquetipos*, su inventario y las fichas de `.claude/design/`.
+3. `docs/design-kb/`, prototipos, prompts y assets: antecedentes, nunca autoridad.
 
-Aplica al backoffice y al portal ciudadano. La documentación no autoriza a cambiar
-el producto para hacerla coincidir; si discrepa, se corrige esta clasificación con
-evidencia. No migres ni rediseñes pantallas fuera del alcance de la tarea.
+Aplica al backoffice y al portal ciudadano. La documentación no autoriza a cambiar el
+producto para hacerla coincidir. No migres ni rediseñes pantallas fuera del alcance de
+la tarea. La historia de cada decisión vive en `docs/internal/requerimientos.md`.
 
-## Procedimiento obligatorio antes de editar UI
+## Cómo usar este archivo
 
-1. Leé `AGENTS.md` y este archivo.
-2. Ubicá la ruta, el template final, su `{% extends %}` y los includes compartidos.
-3. Identificá CSS y JavaScript que el shell realmente carga, además de los usos de
-   las clases o APIs involucradas.
-4. Consultá el inventario. La UI nueva reutiliza exclusivamente piezas clasificadas
-   como **Canónico reutilizable**.
-5. Si no existe una pieza canónica, demostralo con rutas y búsqueda, creá el patrón
-   reutilizable más pequeño necesario dentro del alcance y agregalo al inventario
-   en el mismo PR.
+Clasificá la tarea y leé solo lo que te toca:
 
-### Reconciliación obligatoria
+- **(A) Ajuste en una pantalla que existe** → §*Reglas duras* + la ficha del componente
+  del bloque que tocás. No migres el resto de la pantalla.
+- **(B) Pantalla nueva** → §*Arquetipos*, la ficha del arquetipo y las fichas de los
+  componentes que esa ficha cita. El molde es la golden; la hermana del módulo no.
+- **(C) Pieza nueva, o cambio de una pieza canónica o de una golden** → §*Protocolo*
+  paso 7 y §*Sincronización y validación*.
 
-Si el inventario, otro agente o un material histórico contradice el código:
+Para trabajar UI no hace falta leer `AGENTS.md`.
+
+## Protocolo de construcción
+
+**Antes de escribir**
+
+1. **Clasificá la tarea.** (A) ajuste · (B) pantalla nueva · (C) pieza nueva o cambio de
+   una pieza canónica o golden.
+2. **(A) Ajuste:** tocá solo el bloque pedido. Si ese bloque tiene una pieza canónica
+   equivalente, usala en ese bloque y en ningún otro. Saltá al paso 9.
+3. **(B) Elegí el arquetipo** de la tabla *Arquetipos*. Si no encaja o figura como
+   pendiente (wizard, revisión compleja, dashboard): **no escribas**, devolvé la tarea al
+   llamador con el motivo.
+4. **Abrí la golden completa** y su ficha, y las fichas de los componentes que cita.
+5. **Mirá la hermana del módulo** con Grep o Glob (nunca `grep -r`, que entra a
+   `.claude/worktrees/`). Tomá de ella **solo dominio**: textos, nombres de URL,
+   capacidades, variables de contexto y el parcial de badges del módulo. Nunca
+   estructura, clases ni JS.
+6. **Escribí el Plan de pantalla** en tu respuesta, antes del primer Write o Edit:
+
+   ```
+   Tipo: B · Arquetipo: Listado · Golden: …/becas/revision/personas_list.html
+   Hermana (solo dominio): …/merenderos/list.html
+   Bloques: header=page_header(+Nuevo) · filtros=q,estado · tabla=5 col, fila→Ver · vacío x2 · paginación entidad=entrega
+   Vista: paginate_by=25, puede_crear, estados, select_related(merendero)
+   Novedades: ninguna
+   ```
+
+   **Novedad** = clase CSS nueva, archivo CSS o JS nuevo, include o tag nuevo, parámetro
+   nuevo de un componente, valor arbitrario fuera de la lista blanca, `<style>`/`style=`
+   no exento, ícono fuera de Font Awesome, o un arquetipo sin ficha. Si «Novedades» no
+   dice «ninguna»: **no escribas**. Devolvé el plan al llamador con la evidencia de que no
+   hay equivalente (búsquedas y rutas). Textos, columnas, URLs y permisos no son novedad.
+7. **(C) Pieza nueva, solo con OK:** va en `templates/components/` (o en el CSS o JS
+   `nodo-*` que corresponda), con el contrato en el comentario de cabecera, su test en
+   `core/tests/test_nodo_ui_piezas.py`, su ficha y su fila en el inventario, todo en el
+   mismo PR.
+
+**Mientras escribís**
+
+8. Copiá el esqueleto de la ficha **literal**. Cambiá solo textos, columnas, URLs,
+   capacidades y variables. No «mejores» la golden ni la hermana. Datos, permisos,
+   contadores y paginación se preparan en la vista o el selector, nunca en el template.
+   Si el hook reporta un hallazgo, es tuyo (el ratchet solo informa lo nuevo): corregilo.
+
+**Después**
+
+9. Validá:
+
+   ```powershell
+   & .\.venv\Scripts\python.exe scripts\design_audit.py --ratchet                 # 0 nuevos
+   & .\.venv\Scripts\python.exe scripts\design_audit.py --arquetipo <a> <archivo> # (B) OK
+   & .\.venv312\Scripts\python.exe scripts\compile_templates.py                   # 0
+   & .\.venv\Scripts\python.exe scripts\check_design_agent.py --changed
+   ```
+
+   Más los tests del módulo.
+10. **Informe:** el Plan de pantalla (en B y C), la salida de las validaciones,
+    «inventario y fichas: sin cambios» o qué fila o ficha se tocó, y cualquier
+    reconciliación.
+
+## Reglas duras
+
+- Extender `templates/includes/base.html`; nunca `templates/includes/main.html` `[R:SHELLLEGACY]`.
+- Encabezado de página solo con `{% page_header %}`; nada de `<h1>` propio `[R:PAGEHEADER]`.
+- Tabla solo con `nodo-thead-row`/`nodo-th`/`nodo-td`, dentro de la card de la lista `[R:TABLECANON]`.
+- Acción de fila solo con `.nodo-icon-btn` y un `aria-label` que nombre el registro [revisión].
+- Estado vacío, paginación, alerta y métrica solo con su include [revisión + marcadores].
+- Botones `btn-nodo` + variante + tamaño; en el encabezado, `btn-base` en listados y
+  formularios y `btn-sm` en detalles [revisión].
+- Labels canónicos o `programas/templates/programas/becas/_field.html`; los controles
+  reciben `nodo-field` desde el widget del form (`INPUT_CLASS` de `programas/forms.py`),
+  no desde el template [revisión].
+- Íconos Font Awesome en el contenido, con `aria-hidden="true"` `[R:ICONARIA]`; Heroicons
+  solo en el shell (sidebar y navbar).
+- Sin `<style>` `[R:STYLEBLOCK]`; sin `style=` salvo custom properties, valores `{{ }}` y
+  `display:none` `[R:INLINESTYLE]`; sin paleta cruda de Tailwind `[R:RAWPALETTE]`; sin SVG
+  inline en el contenido [revisión].
+- Toda clase usada tiene que existir en el CSS cargable `[R:CLASSDEF]`; si agregás una
+  utilidad, corré `npm run build:tailwind` y commiteá `static/custom/css/tailwind.css`.
+- Filtros de listado solo con `<form method="get" data-dynamic-list-filters>` sin `class`
+  y con `aria-label` por control [revisión + marcadores].
+- Modal solo con la estructura del arquetipo Modal [marcadores].
+- Confirmación sí/no solo con `data-confirm-url` → `ModernModal`; nunca `data-confirm` a
+  secas ni un `Swal.fire` nuevo. Confirmación **con motivo** = arquetipo Modal con
+  `<form method="post">` y textarea `nodo-field` requerida [revisión].
+- Avisos con `window.toast(tipo, mensaje)`; los templates hijos no repiten el bloque de
+  `messages` [existente].
+- Datos, permisos y contadores preparados en la vista; listados con `paginate_by` [revisión].
+- La hermana del módulo nunca es molde [revisión].
+- Novedad → Plan con Novedades → no escribir y devolver al llamador [revisión].
+
+## Superficies y shells
+
+| Superficie | Qué extender | Bloque de contenido | Bloque JS | Notas |
+|---|---|---|---|---|
+| Backoffice | `templates/includes/base.html` | `main-content` | `customJS` | Sidebar, navbar, toasts, `ModernModal` y filtros dinámicos ya vienen del shell |
+| Auth pública | `users/templates/user/base_public_auth.html` | `content` | — | Credenciales fuera de sesión; clases `public-auth__*` |
+| Portal ciudadano | `portal/templates/portal/base.html` | `content` | `extra_js` | Superficie separada; light-only |
+| Inscripción pública | `portal/templates/portal/inscripcion/base_inscripcion.html` | `content` | `extra_js` | Panel de marca, stepper propio, sin Alpine ni Font Awesome |
+| Legacy | `templates/includes/main.html` | — | — | **No se extiende**: wrapper heredado, contenido desplazado |
+
+Detalle de cada shell: ficha `.claude/design/shells.md`.
+
+## Arquetipos
+
+Una sola pantalla de referencia por arquetipo. Se clona esa; una pantalla hermana del
+mismo módulo **nunca** es molde (de la hermana se toma solo dominio).
+
+| Arquetipo | Clasificación | Golden y cuándo usarlo |
+|---|---|---|
+| Arquetipo · Listado | Canónico reutilizable | Golden `programas/templates/programas/becas/revision/personas_list.html` — colección de registros del mismo tipo que se compara, filtra y abre. Ficha: `.claude/design/arquetipos/listado.md` |
+| Arquetipo · Detalle | Canónico reutilizable | Golden `programas/templates/programas/becas/cupo/segmento_detail.html` — un registro con métricas y 2 o más áreas equivalentes en solapas. Ficha: `.claude/design/arquetipos/detalle.md` |
+| Arquetipo · Formulario | Canónico reutilizable | Golden `programas/templates/programas/becas/config/segmento_form.html` — alta o edición en página propia, con los campos del form de Django. Ficha: `.claude/design/arquetipos/formulario.md` |
+| Arquetipo · Modal | Canónico reutilizable | Golden `programas/templates/programas/becas/config/programa_list.html` (modal «Nuevo programa») — alta o edición corta sin salir de la pantalla, y confirmación con motivo. Ficha: `.claude/design/arquetipos/modal.md` |
+| Arquetipo · Confirmación | Canónico reutilizable | Golden `programas/templates/programas/becas/_confirm_js.html` + botón `data-confirm-url` → `ModernModal` — sí/no sin pedir datos. Ficha: `.claude/design/arquetipos/confirmacion.md` |
+| Pendiente · wizard, revisión compleja y dashboard | Duplicado o conflictivo | **No hay golden: frenar y devolver al llamador.** Para la semántica del stepper, `portal/templates/portal/inscripcion/_stepper.html`; el dashboard de Becas no es molde. Ficha: `.claude/design/arquetipos/pendientes.md` |
+
+## Inventario operativo inicial
+
+- **Canónico reutilizable:** evidencia de carga y contrato reutilizable. La UI nueva lo usa.
+- **Legacy solo mantenimiento:** vivo por una pantalla o compatibilidad; no se propaga.
+- **Duplicado o conflictivo:** compite con otro contrato o tiene cascada global; se indica
+  el reemplazo y no se reutiliza.
+
+| Pieza | Clasificación | Evidencia y contrato de uso |
+|---|---|---|
+| Tokens semánticos y tipografía | Canónico reutilizable | `static/custom/css/chaco-tokens.css`; usar `--bg-*`, `--text-*`, `--border-*`, `--font-*` y `--radius-*`, no valores visuales ad hoc. Dark mode declarado pero sin activación comprobada en el shell: usar tokens para no bloquearlo, sin prometer soporte. |
+| Shell backoffice | Canónico reutilizable | `templates/includes/base.html` + `templates/includes/navbar.html` + `templates/includes/sidebar/base.html`; heredar, no recrear sidebar ni offsets. Carga Tailwind compilado, toasts, `ModernModal`, filtros dinámicos y la precarga de la fuente de íconos. Ficha: `.claude/design/shells.md` |
+| Shell de autenticación pública | Canónico reutilizable | `users/templates/user/base_public_auth.html`; pantallas de credenciales fuera de sesión (recuperar, establecer y cambio obligatorio). Clases `public-auth__*`; marca `static/custom/chaco/login-logo.png`. No reutiliza el shell del backoffice. Ficha: `.claude/design/shells.md` |
+| Shell portal ciudadano | Canónico reutilizable | `portal/templates/portal/base.html` y `portal/templates/portal/ciudadano/base_ciudadano.html`; superficie separada, light-only, marca DATAÑACH con una sola casilla de contacto. Las pantallas de `portal/templates/portal/ciudadano/` quedaron sin ruta: no son referencia. Ficha: `.claude/design/shells.md` |
+| Shell de inscripción pública | Canónico reutilizable | `portal/templates/portal/inscripcion/base_inscripcion.html`; panel de marca fijo + columna de contenido, bloques `panel_titulo`/`stepper`/`content`/`extra_js`, refresco de CSRF propio y analítica por entorno. No carga Alpine, Font Awesome ni los efectos del portal. Ficha: `.claude/design/shells.md` |
+| Header de página backoffice | Canónico reutilizable | Tag de bloque `{% page_header %}` de `core/templatetags/nodo_ui.py` sobre `templates/components/_page_header.html`; nunca el include a mano. Título, bajada, volver circular, migas de 3+ niveles y cuerpo con badges y acciones. Ficha: `.claude/design/componentes/page_header.md` |
+| Filtros de listado | Canónico reutilizable | `static/custom/js/dynamic_list_filters.js` + `templates/components/list_filters.html` (el shell lo inyecta como `template`); el `<form method="get" data-dynamic-list-filters>` va sin `class` y cada control con `aria-label`, porque el JS vacía el form al montar. Ficha: `.claude/design/componentes/filtros.md` |
+| Tabla densa backoffice | Canónico reutilizable | `static/custom/css/nodo-tables.css`: `.nodo-thead-row`, `.nodo-th`, `.nodo-td` dentro de `overflow-x-auto` + `table.w-full.border-collapse`; acción de fila con `.nodo-icon-btn` y `aria-label` con el registro. La columna de acciones se nombra con `sr-only`. Ficha: `.claude/design/componentes/tabla.md` |
+| Estado vacío backoffice | Canónico reutilizable | Pieza única `templates/components/_estado_vacio.html`, dentro de la card de la lista; variante con filtros («Limpiar filtros») decidida con el filtro `hay_filtros` de `core/templatetags/nodo_ui.py`. Ficha: `.claude/design/componentes/estado_vacio.md` |
+| Paginación | Canónico reutilizable | Pieza única `templates/components/_paginacion.html` (`page_obj`, `entidad`, `entidad_plural`, `filtros_qs`); solo se muestra con más de una página y va dentro de la card de la tabla. Ficha: `.claude/design/componentes/paginacion.md` |
+| Alertas inline backoffice | Canónico reutilizable | Pieza única `templates/components/_alerta.html` (`tono`, `titulo`, `texto`, `role`); bloqueo y advertencia se distinguen por el encabezado y por si la acción sigue disponible, no por el color. Ficha: `.claude/design/componentes/alerta.md` |
+| Stat cards / métricas | Canónico reutilizable | Pieza única `templates/components/_stat_card.html` (`etiqueta`, `valor`, `icono` sin `fas`, `tono`); la grilla la arma el consumidor. Sin gradiente ni cajas de 52 px. Ficha: `.claude/design/componentes/stat_card.md` |
+| Campos NODO y `_field.html` | Canónico reutilizable | `static/custom/css/nodo-forms.css` (`nodo-field`, `.nodo-checks`) y el include `programas/templates/programas/becas/_field.html`; la clase del control la pone el widget del form (`programas/forms.py`), no el template. Ficha: `.claude/design/componentes/field.md` |
+| Botones y badges NODO | Canónico reutilizable | `static/custom/css/nodo-buttons.css` (`btn-nodo` + variante + tamaño, `.nodo-icon-btn`, `.nodo-icon-btn--danger`) y `static/custom/css/nodo-badges.css` (`badge` + variante, siempre con texto además del color). Ficha: `.claude/design/componentes/botones_badges.md` |
+| Tabs backoffice | Canónico reutilizable | Solapas dentro de una surface, con `role="tablist"`/`role="tab"`/`aria-controls`/`role="tabpanel"` y estado en `x-data` + querystring `tab`. Lo que abre otra pantalla es acción del encabezado, no una solapa. Ficha: `.claude/design/componentes/tabs.md` |
+| Modal Becas accesible (partes) | Canónico reutilizable | `static/custom/js/becas-modal.js` + `programas/templates/programas/becas/_modal_header.html` + `programas/templates/programas/becas/_modal_footer.html`; **transversales**: se incluyen desde esa ruta cargando `becas-modal.js` en `customJS`, también fuera de Becas. Ficha: `.claude/design/componentes/modal_partes.md` |
+| Modal global `ModernModal` y toasts | Canónico reutilizable | Markup y script en `templates/includes/base.html` (`#modal-overlay`) + `static/custom/js/nodo-toast.js` y `static/custom/css/nodo-toast.css`; motor de las confirmaciones sí/no y único sistema de avisos (`window.toast`). Ficha: `.claude/design/componentes/modern_modal_toast.md` |
+| Guardado AJAX y confirmaciones de Becas | Canónico reutilizable | `programas/templates/programas/becas/_ajax_js.html` (forms `data-ajax`) y `programas/templates/programas/becas/_confirm_js.html` (`data-confirm-url`); **transversales**. Contrato JSON `{ok,target,html,message}` / `{ok:false,errors}` / `confirm_required`. Ficha: `.claude/design/arquetipos/confirmacion.md` |
+| Surface/card backoffice | Canónico reutilizable | Secciones y paneles con `bg-white rounded-xl border border-base shadow-sm overflow-hidden`; padding `p-5`/`p-6`, header interno `px-5 py-4 border-b border-light`, título interno `h2 text-heading font-bold`. Evidencia: `programas/templates/programas/becas/cupo/segmento_detail.html`. Sin cards anidadas salvo métricas o repetidos. |
+| Mapa de estados por módulo | Canónico reutilizable | El mapeo estado→badge vive en un parcial por módulo y las pantallas lo incluyen: `programas/templates/programas/becas/_formulario_estado_badge.html`, `programas/templates/programas/becas/_pausable_estado_badge.html`, `programas/templates/programas/dispositivos/_estado_badge.html`. Tests: `programas/tests/test_estado_badges.py`. Ficha: `.claude/design/dominio/becas.md` |
+| Drag & drop SortableJS | Canónico reutilizable, condicionado | `static/vendor/sortablejs/Sortable.min.js` + `static/custom/css/nodo-constructor.css`; se arrastra solo desde la manija, con alternativa de teclado y anuncio en `aria-live`, y se omite sin permiso de edición. Ficha: `.claude/design/dominio/becas.md` |
+| Home del backoffice | Canónico reutilizable | `templates/inicio.html` (`core.views.public.inicio_view`): cada panel que pide datos a una API con capacidad se esconde con el mismo `puede` que exige esa API; un panel no se deja fallar en consola ni se muestra vacío como si no hubiera trabajo. |
+| Dominio Becas (constructor, SIIS, identificadores, dashboard) | Canónico reutilizable | Contratos propios del dominio: constructor de formularios, panel e identificadores de SIIS, dashboard del programa. Se componen con piezas de este inventario y **no son molde** para otros módulos. Ficha: `.claude/design/dominio/becas.md` |
+| Formulario público por diseño (paso 2) | Canónico reutilizable | `portal/templates/portal/inscripcion/paso2.html` + `static/custom/js/nodo-formulario.js` sobre `static/custom/js/nodo-condiciones.js`; sin JS el formulario se muestra completo y el servidor vuelve a evaluar las condiciones. Ficha: `.claude/design/dominio/inscripcion.md` |
+| Confirmación SweetAlert2 | Canónico reutilizable, condicionado | `static/custom/css/nodo-swal.css` y `static/custom/js/nodo-swal-theme.js`; **legacy condicionado**: solo las pantallas de Dispositivos, Merenderos y Legajos que ya la usan, y antes de `Swal.fire` hay que verificar que la pantalla cargue SweetAlert2. Pantalla nueva: `ModernModal`. |
+| Shell legacy `includes/main.html` y sus parciales | Legacy solo mantenimiento | `templates/includes/main.html`, `templates/components/alertas_eventos.html` y `templates/components/widget_contactos.html`: wrapper heredado (lo extienden Configuración y las páginas de error) que desplaza el contenido. No se extiende ni se incluyen esos parciales en pantallas nuevas; reemplazo: shell del backoffice y piezas canónicas. |
+| Bootstrap/AdminLTE y estilos de pantalla heredados | Legacy solo mantenimiento | `static/custom/css/main.css`, `static/custom/css/custom.css`, `static/custom/css/override.css`; mantener solo en la superficie que los consume. `override.css` define `[x-cloak]` global, así que ningún template necesita su propio `<style>` para eso. |
+| Puente `paleta-unificada.css` | Legacy solo mantenimiento | Alias de compatibilidad cargados desde `templates/includes/base.html`; no usar sus utilidades en UI nueva. Reemplazo: tokens semánticos y el componente canónico aplicable. |
+| `nodo-brand.css` | Duplicado o conflictivo | Selectores globales de links, submits y foco en `static/custom/css/nodo-brand.css`; el shell los neutraliza parcialmente. Reemplazo: tokens, botones, badges y campos canónicos. |
+| CSS responsive/mobile global y `mobile-enhancements.js` | Duplicado o conflictivo | `static/custom/css/responsive.css`, `static/custom/css/mobile-forms.css`, `static/custom/css/mobile-modals.css`, `static/custom/css/mobile-tables.css` y `static/custom/js/mobile-enhancements.js`: reglas y reescrituras globales que compiten con los contratos específicos. `responsive.css` tiene que preservar `.modal-responsive.hidden`: se carga después de Tailwind. Reemplazo: el responsive del shell y del componente. |
+| `_field.html` de Dispositivos y handler inline de `data-confirm` | Duplicado o conflictivo | `programas/templates/programas/dispositivos/config/_field.html` duplica el campo canónico, y el handler inline que escucha `data-confirm` con SweetAlert compite con `data-confirm-url`. No se copian a pantallas nuevas; reemplazo: el campo canónico y `ModernModal`. |
+| SVG inline de Heroicons en el contenido | Duplicado o conflictivo | Íconos pegados a mano en templates, en vez de Font Awesome: compiten con `[R:ICONARIA]` y con el tamaño por token. Heroicons queda solo en el shell (sidebar y navbar). Evidencia: `templates/components/list_filters.html`. |
+| Kits, JSX, tokens y documentos previos | Duplicado o conflictivo como autoridad | `docs/design-kb/`; pueden aportar assets o antecedentes, nunca decidir contra el runtime. Reemplazo: este inventario contrastado con código. |
+
+## Vocabulario visual permitido
+
+Lista blanca. Lo que no está acá es una **novedad** (protocolo, paso 6).
+
+- **Color semántico:** `bg-white`, `bg-secondary`, `bg-tertiary`, `bg-{brand|success|warning|danger|info}-soft`,
+  `border-base`, `border-light`, `border-brand`, `border-{tono}-subtle`, `text-heading`,
+  `text-body`, `text-body-subtle`, `text-fg-{brand|danger|success|warning|info}`.
+- **Tipografía por rol:** título de página vía `{% page_header %}`; título de surface
+  `h2 text-heading font-bold`; subtítulo `h3 text-sm font-bold text-heading`; texto
+  `text-sm`; metadato `text-xs text-body-subtle`; números de métrica `text-2xl font-bold`.
+- **Espaciado:** página `space-y-6` (listado) o `space-y-5` (detalle y formulario);
+  surface `p-5`/`p-6`; header de surface `px-5 py-4 border-b border-light`; grillas
+  `gap-3`/`gap-4`.
+- **Arbitrarios permitidos:** `text-[17px]`, `max-w-[560px]`, `max-h-[90vh]`, `min-h-[100dvh]`.
+- **Íconos:** Font Awesome en el contenido, siempre con `aria-hidden="true"`; Heroicons
+  solo en el shell.
+- **Gradiente:** `var(--gradient-brand)` queda para el shell y el panel de marca de
+  inscripción. En el contenido no: las iniciales de una persona van
+  `w-8 h-8 rounded-full bg-brand-soft text-fg-brand` y las métricas sin gradiente
+  (un solo acento por bloque).
+
+## Perfiles de dominio
+
+El lenguaje visual es el mismo en todos los módulos; el vocabulario de dominio, no.
+
+- **Becas** es el programa más maduro y la fuente de las goldens, pero su dominio no se
+  traslada: convocatoria, segmento, subsegmento, cupo, lista de espera, beneficiario,
+  formulario enviado, relevamiento, padrón y SIIS **solo existen en Becas**.
+- **Dispositivos** es operación institucional continua: legajo del dispositivo, estado
+  operativo, camas, admisiones, egresos, traslados, partes diarios y auditoría de
+  movimientos. Lectura rápida de ocupación y disponibilidad; historial que no se borra.
+- **Merenderos** habla de solicitudes, validación institucional, entregas de mercadería,
+  prestación mensual y documentación respaldatoria.
+- **Transversal** (shell, usuarios, roles, legajos, portal, configuración): verificar
+  consumidores en todos los módulos afectados; Becas no es el único consumidor.
+- No se arman landing pages, heros, cards decorativas ni grillas de tarjetas para
+  backoffice operativo: la primera pantalla es la herramienta usable.
+
+## Estados transversales
+
+- **Accesibilidad:** toasts con roles y live regions; modales con `role="dialog"`,
+  `aria-modal`, `aria-labelledby`, foco atrapado, Escape y devolución de foco; solapas con
+  `tablist`/`tab`/`aria-controls`/`tabpanel`; botones de ícono con `aria-label` que nombra
+  el registro. Todo cambio conserva o mejora ese soporte; el color nunca es el único
+  indicador.
+- **Responsividad:** el shell provee el sidebar móvil/colapsable; las piezas con reglas
+  responsive propias se verifican en el CSS que carga esa superficie.
+- **Dark mode:** `static/custom/css/chaco-tokens.css` define variables para
+  `[data-theme="dark"]` y `.dark`, sin activación comprobada en el shell. Usar tokens; no
+  declarar soporte funcional.
+- **Portal:** light-only mientras no haya evidencia productiva distinta.
+
+## Reconciliación obligatoria
+
+Si el inventario, una ficha, otro agente o un material histórico contradice el código:
 
 - detené el cambio visual;
 - citá las rutas que prueban el comportamiento cargado o usado;
-- actualizá aquí la clasificación, contrato y reemplazo recomendado;
+- actualizá acá (o en la ficha) la clasificación, el contrato y el reemplazo recomendado;
 - retomá solamente la tarea afectada.
 
 Esa reconciliación no habilita migraciones laterales, limpieza masiva ni cambios de
 pantallas ajenas.
 
-## Clasificación
-
-- **Canónico reutilizable:** tiene evidencia de carga y contrato reutilizable en el
-  producto. La UI nueva puede usarlo.
-- **Legacy solo mantenimiento:** sigue vivo por una pantalla o compatibilidad. Solo
-  se conserva o corrige al mantener esa superficie; no se propaga.
-- **Duplicado o conflictivo:** compite con otro contrato, tiene cascada global o es
-  documentación/prototipo no verificado. No se reutiliza; se indica el reemplazo.
-
-## Inventario operativo inicial
-
-| Pieza | Clasificación | Evidencia y contrato de uso |
-|---|---|---|
-| Tokens semánticos y tipografía | Canónico reutilizable | `static/custom/css/chaco-tokens.css`; usar `--bg-*`, `--text-*`, `--border-*` y `--font-*`, no valores visuales ad hoc. |
-| Shell backoffice | Canónico reutilizable | `templates/includes/base.html`, `templates/includes/navbar.html`, `templates/includes/sidebar/base.html`; heredar/incluir, no recrear sidebar ni offsets. El sidebar es un único panel responsivo: overlay en móvil y fijo/colapsable en escritorio, con una sola inclusión de `includes/sidebar/opciones.html`. Su control de cierre móvil queda fuera del panel y debe usar `x-show="sidebarOpen"` con `display: none` inicial para no interceptar el botón Abrir cuando está fuera de pantalla. Tailwind se sirve desde `static/custom/css/tailwind.css`, generado por `npm run build:tailwind` con `tailwind.config.js`; no usar Play CDN. El WebSocket `conversaciones_lista_ws.js` se carga únicamente en `conversaciones:lista`; en esa ruta, `conversaciones_tiempo_real_global.js` usa HTTP solo como fallback mientras el socket no esté abierto y suspende/cancela el polling en pestañas ocultas. El cierre de sesión del menú de usuario es un `<form method="post">` con `{% csrf_token %}`, no un enlace: `LogoutView` no acepta GET desde Django 5.0. La fuente de iconos se precarga con `<link rel="preload" as="font" type="font/woff2" crossorigin>` sobre `fa-solid-900.woff2` justo antes de la hoja de Font Awesome: sin eso el navegador la descubre recién al parsear `all.min.css` y, con `font-display:block`, los iconos tardan un round-trip extra en aparecer. El `crossorigin` es obligatorio aunque sea del mismo origen, si no la precarga no se reutiliza y la fuente se baja dos veces. Los grupos del usuario llegan al JS como `{{ user_groups_list|json_script:"user-groups-data" }}` y `window.userGroups = JSON.parse(...)` (Cambio 103, SEC-08): los nombres de rol son texto libre, nunca se interpolan con `|safe` dentro de un `<script>`. El shell carga el modal global de confirmaciones (`ModernModal`, `#modal-overlay`); su contrato está en su fila. |
-| Shell de autenticación pública | Canónico reutilizable | `users/templates/user/base_public_auth.html`; lo extienden `establecer_contrasena.html`, `recuperar_contrasena.html`, `recuperar_contrasena_enviada.html` y `cambiar_contrasena_obligatorio.html`. Contrato: clases `public-auth__title`, `__help`, `__field`, `__error`, `__button` y `__link`, con `button.public-auth__link` para la misma apariencia cuando la acción tiene que ir por formulario; la marca web usa `static/custom/chaco/login-logo.png` —330×120, el logo del Gobierno del Chaco— y el CSS compilado `tailwind.css`. `static/custom/icore/nodo-logo.svg` es la marca de ICore y no se usa en superficies del organismo. Es el shell de las pantallas de credenciales fuera de sesión; no reutiliza el shell del backoffice. |
-| Shell portal ciudadano | Canónico reutilizable | `portal/templates/portal/base.html`, `portal/templates/portal/ciudadano/base_ciudadano.html`; superficie separada del backoffice y consumidora de `static/custom/css/tailwind.css` compilado. Contrato de marca (Cambio 42): título del navegador «DATAÑACH — Portal Ciudadano», header «DATAÑACH» + «Portal Ciudadano · Gobierno del Chaco», footer con la misma marca, copyright con año dinámico (`{% now "Y" %}`) y **un solo dato de contacto: la casilla `datanach@chaco.gob.ar`** en header y footer. El teléfono +54 362 430-0002 era ficticio y se sacó de todas las superficies (shell, home, pantallas y correos de inscripción pública, correo de resolución de becas): no volver a introducir un teléfono sin dato real confirmado por el PM. No usa la sub-marca «Ñandé» ni «Portal Nande». La home (`portal/templates/portal/home.html`) toma su contexto de `portal.selectors.public.get_portal_home_context`, cacheado 5 min (`portal:home_ctx`). **La home no ofrece login ni registro de ciudadano (SEC-29, Cambio 102):** el portal ciudadano está apagado y `portal/urls.py` ya no publica ninguna ruta `mi-perfil/*`, así que ningún template puede escribir `{% url 'portal:ciudadano_…' %}` —revienta con `NoReverseMatch`—. La página se ordena alrededor del único camino vivo: la inscripción llega por el link que envía el programa, sin cuenta ni contraseña (hero + bloque «Se ingresa por link», franja de números, listado de programas activos sin link por tarjeta, aviso «¿Recibiste un link de inscripción?» y cierre «Cómo inscribirte» junto a la tarjeta de Ayuda). El contexto expone `programas` y `stats`; `ciudadano_items` / `consulta_items` se dieron de baja con las tarjetas de perfil y consultas. `base_ciudadano.html` y las pantallas bajo `portal/templates/portal/ciudadano/` quedan en el repo **sin ruta**: no son referencia para pantallas nuevas y volver a publicarlas exige arreglar antes el registro. No lo extienden las pantallas de inscripción pública: usan el shell propio de abajo para no cargar `portal-effects.js`. Precarga `fa-solid-900.woff2` con el mismo `<link rel="preload">` que el shell del backoffice. |
-| Shell de inscripción pública | Canónico reutilizable | `portal/templates/portal/inscripcion/base_inscripcion.html`; layout Opción B «Panel de marca» — grid `var(--di-panel-w) minmax(0,1fr)` desde 1024px (el ancho del panel se declara una sola vez en `.di-shell`: 520px) con panel `var(--gradient-brand)` a la izquierda y columna de contenido blanca a la derecha. **En escritorio el panel es fijo**: `.di-panel-head` va `position: fixed; top: 0; height: 100vh` y `.di-panel-foot` `position: fixed; bottom: 0`, las dos con `width: var(--di-panel-w)`; por largo que sea el formulario solo scrollea la columna de contenido, y la primera columna del grid queda vacía porque sus dos piezas salen del flujo (la mantiene el track explícito). La cabecera lleva `overflow-y: auto` y `padding-bottom: 136px` —alto del pie (112px) más aire— para que en ventanas muy bajas su contenido siga alcanzable en lugar de quedar tapado por el pie. En celular el panel vuelve al flujo como cabecera compacta y el pie con ayuda/copyright se recoloca debajo del contenido (mismo HTML, solo `grid-template-areas` por media query). El pie del panel en escritorio va sobre `var(--bg-navy)` sólido (no sobre el gradiente) para el contraste del texto blanco; el cuerpo del panel conserva el gradiente. Bloques: `title`, `panel_titulo` (etiqueta + `<h1>` + bajada, con fallback si no hay `convocatoria` en contexto), `stepper` (vacío por defecto — cada página lo completa con `{% include "portal/inscripcion/_stepper.html" with paso_activo=1 %}`, 1/2/3 según el paso; las pantallas de resultado lo dejan vacío), `content` y `extra_js`. El include `_stepper.html` no distingue el paso activo solo por color (WCAG 1.4.1): el `<li>` correspondiente lleva `aria-current="step"` (con `data-step` conservado solo para el CSS del círculo, vía `[aria-current="step"] .di-step__circle`) y un `<span class="sr-only">Paso actual: </span>` antes del nombre del paso; `sr-only` es de `static/custom/css/tailwind.css`. No carga `static/custom/js/portal-effects.js`, Alpine, Font Awesome, `nodo-toast` ni el modal de `portal/templates/portal/base.html`; sin `animate-fadeInUp` ni `@keyframes`. **Único JS propio del shell** (inline, sin dependencias): refresca el `csrfmiddlewaretoken` de los formularios contra `{% url "portal:csrf_token" %}` cuando la pestaña vuelve al frente (`visibilitychange`, `focus`, `pageshow` persistido), con throttle de 30 s y salida temprana si la página no tiene formulario; el backoffice y el portal comparten dominio y `login()` rota la cookie CSRF de todo el navegador. **Analítica (Cambio 68):** con `GTM_CONTAINER_ID` configurado el shell incluye `_gtm_head.html` (dataLayer inicial con `pantalla`, `programa`, `convocatoria` y `convocatoria_id`, más el contenedor de Google Tag Manager, primero en `<head>`) y `_gtm_body.html` (el `<noscript>` apenas abre `<body>`); `confirmacion.html` emite `inscripcion_enviada` en `extra_js` una sola vez por envío. Sin la variable no se renderiza nada: es el único tercero además de reCAPTCHA y se activa por entorno, nunca por template. Si el pedido falla se manda el token original y el 403 cae en `portal/templates/portal/sesion_vencida.html` (pantalla recuperable del `CSRF_FAILURE_VIEW`, `config.views.csrf_failure`, que extiende este mismo shell con el `panel_titulo` propio y sin stepper). Tokens consumidos: `--gradient-brand`, `--bg-navy`, `--bg-white`, `--text-white`, `--bg-secondary`, `--bg-brand-soft`/`--bg-brand-softer`, `--bg-brand-tint`, `--border-brand-subtle`, `--bg-danger-soft`, `--border-danger-subtle`, `--text-fg-danger`, `--text-fg-brand`, `--text-heading`, `--text-body`, `--text-body-subtle`, `--border-base`, `--font-size-*`, `--font-weight-*`, `--radius-*`; light-only. Lo extienden `portal/templates/portal/inscripcion/paso1.html`, `paso2.html`, `confirmacion.html`, `ya_inscripto.html`, `no_disponible.html`, `demasiados_intentos.html` y `portal/templates/portal/sesion_vencida.html`. |
-| Shell público de autenticación | Canónico reutilizable | `users/templates/user/base_public_auth.html`; superficie sin sesión, menú ni alertas internas para recuperación y establecimiento de contraseña. Consumido por `users/templates/user/recuperar_contrasena.html`, `users/templates/user/recuperar_contrasena_enviada.html` y `users/templates/user/establecer_contrasena.html`. |
-| Botones NODO | Canónico reutilizable | `static/custom/css/nodo-buttons.css`; reutilizar `btn-nodo` con las variantes y tamaños existentes. **Acción de fila (botón de ícono):** `.nodo-icon-btn` (al final del mismo archivo) para ver/editar/desactivar desde una tabla o tarjeta: `inline-flex`, padding 6px, `rounded-lg`, gris `--text-body-subtle` en reposo, al pasar fondo `--bg-secondary` y color `--text-fg-brand`; `.nodo-icon-btn--danger` pasa a `--text-fg-danger` para lo destructivo. Foco de teclado con el anillo de marca (`outline 2px var(--border-brand)`, offset 2px), no el del navegador. Solo ícono FA con `aria-hidden="true"`; **`aria-label` obligatorio y con el registro** («Ver caso de Ana Pérez», no «Ver»), que `static/custom/js/nodo-tooltips.js` muestra al pasar el mouse o con el foco. Deshabilitado (`disabled` en `<button>`, `aria-disabled="true"` en `<a>`): ícono `--text-fg-disabled` sin caja, con selector que le gana al `button:disabled` de `nodo-brand.css`. Ver = `fa-eye`. Sirve en `<a>` y `<button type="button">`: el color resuelve por variable y gana al `a:not(.btn)…` de `nodo-brand.css`. Consumidores: `programas/templates/programas/becas/revision/personas_list.html` y `programas/templates/programas/becas/_resumen_ciudadano.html` (resumen de Becas del ciudadano, reusado por la solapa del legajo). Estado `aria-disabled="true"` en `.btn-nodo` / `.btn-tertiary` (30-sep-2026): mismo aspecto que `:disabled` pero sigue alcanzable por teclado para anunciar su `aria-describedby`; el bloqueo del click va en el handler (alta rápida de usuario). |
-| Badges NODO | Canónico reutilizable | `static/custom/css/nodo-badges.css`; reutilizar `badge` y sus variantes, siempre con texto además del color. No escribir `*/` dentro de comentarios CSS; hasta este cambio `.badge-gray` estaba anulada por un comentario roto. |
-| Campos NODO | Canónico reutilizable | `static/custom/css/nodo-forms.css`; usar `nodo-field` en controles que correspondan. El selector múltiple **apilado** lleva `.nodo-checks` en el contenedor del campo: el widget de Django queda como grilla de filas clickeables, caja de 18px con `accent-color` de marca y `:focus-visible` con anillo (cierra la deuda del Cambio 56); lo consumen el paso 2 del portal y la vista previa del constructor (`.pv-checks` lo espeja). |
-| Canon visual backoffice derivado de Becas | Canónico reutilizable | Referencia de estructura, densidad y color para nuevas pantallas de backoffice, abstraída del dominio Becas; se arma con las piezas del inventario, no copiando utilidades de una pantalla: tabla densa con `static/custom/css/nodo-tables.css` (`.nodo-thead-row`, `.nodo-th`, `.nodo-td`), acción de fila con `.nodo-icon-btn` de `static/custom/css/nodo-buttons.css`, botones `btn-nodo`, estados con `static/custom/css/nodo-badges.css`, campos y filtros con `nodo-field` de `static/custom/css/nodo-forms.css`. El `<form method="get" data-dynamic-list-filters>` va **sin `class`** y cada control con su `aria-label`, no con un `<label>` suelto: `static/custom/js/dynamic_list_filters.js` hace `form.innerHTML = ''` y `form.className = 'dynamic-list-filters'` al montar, así que el label y la clase no sobreviven y el nombre accesible solo llega si viaja en el control. Pantallas de referencia: `programas/templates/programas/becas/config/programa_detail.html`, `programas/templates/programas/becas/relevamientos/convocatoria_detail.html`, `programas/templates/programas/becas/revision/formulario_detalle.html` y `programas/templates/programas/becas/revision/personas_list.html` (primer consumidor de las clases de tabla y del botón de ícono; con `formulario_list.html` y `renaper_pendientes.html` ya usan además `page_header`, `_paginacion`, `_estado_vacio` con `hay_filtros`, links al caso con `?next=` y el badge «Lista de espera» vía `en_espera_activa` que arma `programas/views/revision.py`); `programas/templates/programas/becas/reportes/reporte.html` y `programas/templates/programas/becas/config/_segmentos_table.html` tienen desvíos relevados (acciones de fila e íconos mezclados) y no se copian tal cual. Ver sección "Canon visual backoffice". |
-| Header de página backoffice | Canónico reutilizable | Pieza única `templates/components/_page_header.html`, renderizada por el tag de bloque `{% page_header titulo=… bajada=… volver_url=… volver_label=… migas=… %}…{% endpage_header %}` de `core/templatetags/nodo_ui.py` (`{% load nodo_ui %}`; no se incluye el parcial a mano): contenedor superior sin card, `flex items-start justify-between gap-4 flex-wrap`; izquierda `flex items-start gap-3 min-w-0` con volver `btn-tertiary btn-back-circle` y `aria-label="Volver a {volver_label}"`, `h1 text-3xl font-extrabold text-heading tracking-tight` y bajada `text-sm text-body-subtle mt-1`; derecha `flex items-center gap-2 flex-wrap` con el cuerpo del bloque (badges y acciones `btn-sm`). `titulo` y `bajada=` se escapan; HTML en la bajada solo con `{% bajada %}…{% endbajada %}` (fragmento de la plantilla, variables escapadas) o marcado explícitamente desde la plantilla con el filtro `safe`. Migas de pan solo con tres niveles o más: `nav aria-label="Migas"` + `ol flex items-center gap-1.5 flex-wrap text-xs text-body-subtle`, enlaces `text-fg-brand hover:underline`, último `aria-current="page" font-semibold text-body`, separador `/` con `aria-hidden`. En Becas la ruta la arma `{% becas_migas objeto [actual=…] as migas %}` (biblioteca `becas_extras`) (Programas → programa → segmento → subsegmento → convocatoria → relevamiento, con los nombres reales y enlace solo si el usuario tiene la capacidad de la vista de destino). Primer consumidor: el detalle de convocatoria de Becas (`relevamientos/convocatoria_detail.html`). **Volver al origen (TIT-9/DE-3):** una pantalla a la que se llega desde varias recibe el origen en `?next=` y la vista lo valida antes de usarlo —`url_has_allowed_host_and_scheme` **más** el prefijo de la sección, p. ej. `/becas/`—; sin origen válido cae en su destino de siempre. El `volver_label` nombra la pantalla de origen y el `next` viaja en los `action` y en los redirect de los POST para no perderlo al guardar. Evidencia: `programas/views/revision.py` (`_next_valido`, `_origen_del_caso`) y `programas/templates/programas/becas/revision/formulario_detalle.html`. |
-| Surface/card backoffice | Canónico reutilizable | Evidencia en `programas/templates/programas/becas/config/programa_detail.html` y `programas/templates/programas/becas/revision/formulario_detalle.html`: secciones y paneles con `bg-white rounded-xl border border-base shadow-sm overflow-hidden`; padding interno usual `p-5`/`p-6`, headers internos `px-5 py-4 border-b border-light`, títulos internos `text-heading font-bold` ~16px. No usar cards anidadas salvo métricas o elementos repetidos dentro de un panel funcional. |
-| Tabs backoffice | Canónico reutilizable | Evidencia en `programas/templates/programas/becas/config/programa_detail.html`, `programas/templates/programas/becas/relevamientos/convocatoria_detail.html`, `programas/templates/programas/becas/cupo/segmento_detail.html`: tabs dentro de una surface, barra `border-b border-base flex gap-1 px-2 flex-wrap`; item `px-4 py-3 text-sm border-b-2 -mb-px transition flex items-center gap-1.5`; activo `text-fg-brand border-brand font-bold`; inactivo `text-body-subtle border-transparent hover:text-body font-medium`; contadores como `badge` con variante declarada de `nodo-badges.css` (`badge-info` en la solapa activa, `badge-gray` en las demás: `convocatoria_detail.html`), nunca utilidades de color sueltas. Una barra de solapas solo contiene solapas: lo que abre **otra pantalla** va como acción del encabezado (`btn-nodo btn-secondary btn-sm`), no como una solapa con `ml-auto` (TIT-16, «Configurar formulario» de `convocatoria_detail.html`). Deep link por querystring: `tab: new URLSearchParams(window.location.search).get('tab') \|\| '<default>'` en el `x-data` (`convocatoria_detail.html`, `programa_detail.html`). Una solapa cuyo contenido se carga en diferido avisa con `$dispatch('<evento>')` en su `@click` y el JS de la solapa escucha ese evento en `window` (`programa_detail.html` → `becas-dashboard-abrir`). Una solapa condicionada por permiso se envuelve entera —botón y panel— en el mismo `{% if %}`. El resultado de la última carga de padrón se muestra fijo con `_alerta.html` dentro de la card «Padrón» de `convocatoria_detail.html` y del bloque de padrón de `relevamiento_detail.html` (no solo en toast). |
-| Dashboard del programa Becas (solapa) | Canónico reutilizable | `programas/templates/programas/becas/config/_dashboard_panel.html` + `_dashboard_card.html` + `static/custom/js/becas-dashboard.js` (Cambio 64, análisis 366). Compone solo piezas de este inventario: intro + acción principal a la derecha, fila única de filtros con `nodo-field`, stat cards del patrón de `convocatoria_detail.html`, tarjetas `bg-white rounded-xl border border-base shadow-sm` con header `px-5 py-4 border-b border-light`, tabla densa, estado vacío y badges. Contrato de una tarjeta de gráfico: `data-dash-card`, header con título y subtítulo (`data-dash-sub`) que completa el JS, alternador gráfico/tabla (`data-dash-toggle`, `aria-pressed`), descarga CSV (`data-dash-exportar` + `data-bloque`), cuerpo con `data-dash-grafico` (canvas), `data-dash-tabla` y `data-dash-vacio`. **Gráficos:** Chart.js 4.4.6 vendorizado con carga diferida (patrón de `templates/inicio.html`); **el JS no trae colores**: los lee de los tokens en runtime (`getComputedStyle(...).getPropertyValue('--color-brand-500')` etc.) y usa nombres CSS como fallback. Un color por serie de magnitud (barras horizontales, `barThickness` 18, `borderRadius` 4 solo en el extremo, valor al final de la barra); colores semánticos solo para estados; sin doble eje; leyenda o etiqueta siempre y tabla equivalente. Las tablas se arman con `textContent`, nunca con `innerHTML` de datos. La tarjeta «Estado de los formularios» no usa canvas: barra apilada de `div` con `background: var(--color-*)` y separadores de 2 px en `var(--bg-primary)`, una fila por estado (punto de color, nombre, cantidad `tabular-nums`, %) y el corte por canal con medidores. El alcance vigente se muestra como chips `badge badge-white`. El indicador de formularios lleva un minigráfico SVG de doce semanas con `stroke="currentColor"` sobre `text-body-subtle` y el último punto en `text-fg-brand`. Las tarjetas de barras fijan su alto en función de la cantidad de filas y la grilla usa `items-start` para que no se estiren. **Estado de carga visible:** mientras se calcula, la leyenda de fecha dice «Calculando…» y las tarjetas bajan a `opacity-60`; la petición se cancela a los 60 s y toda falla (HTTP no OK, respuesta que no es el tablero, red, excepción al pintar) se muestra en la alerta inline `rounded-lg bg-danger-soft border border-danger-subtle` con el detalle y un `console.error`, nunca se deja el tablero vacío en silencio. Si falla solo un bloque (la pregunta elegida), el servidor devuelve el resto con `avisos` y la pantalla lo muestra en una caja `role="status"` `bg-warning-soft border border-warning-subtle` (`data-dash="aviso"`), distinta de la de error. **Pop up «Exportar respuestas por persona»** (Cambio 65): mismo patrón de modal Alpine de `programa_detail.html` (`fixed inset-0 z-50 … backdrop-blur-sm` con `rgba(0,0,0,.5)`, panel `bg-white rounded-2xl shadow-xl max-w-lg`, header con caja de ícono `bg-brand-soft`/`text-fg-brand`, `role="dialog" aria-modal="true"`, cierre con Escape vía `@keydown.escape.window` y clic afuera), abierto desde el botón `btn-nodo btn-secondary btn-sm` de la tarjeta de respuestas y desde el menú Exportar; el `<form>` lleva un `nodo-field` de convocatoria obligatorio, la nota informativa `bg-info-soft`/`--color-brand-200` de los modales de Becas y el pie `bg-secondary` con Cancelar (`btn-tertiary`) y acción (`btn-brand`). El JS escucha `dash-respuestas-abierto` para heredar la convocatoria del filtro y, al enviar, navega a la URL de descarga (`data-url-respuestas`, con `/0/` como marcador del id). Medidores de progreso: pista `h-2 rounded-full bg-brand-soft overflow-hidden` y relleno con `background: var(--text-fg-brand)` (`--text-fg-warning-subtle` / `--text-fg-danger` por severidad). Ocultar en impresión con la clase `dash-no-print` (regla `@media print` local del panel). |
-| Home del backoffice (Inicio) | Canónico reutilizable | `templates/inicio.html` (ruta `/inicio/`, armada por `core.views.public.inicio_view`). Alpine `dashboardInicio()`: saludo, buscador de ciudadanos con typeahead (`AbortController` + número de secuencia para descartar respuestas tardías), stat cards, sección «Mi trabajo de hoy» con dos feeds, accesos rápidos y la grilla «Cobertura por programa» (barras de progreso + tarjeta de tendencias con Chart.js vendorizado y carga diferida por `IntersectionObserver`). **Cada pieza que pide datos a una API con capacidad se esconde con el mismo `|puede` que exige esa API** (Cambio 115 / SEC-14): tarjeta de búsqueda rápida y feed de derivaciones con `ciudadano.ver` (el typeahead pega a `dashboard:api_buscar_ciudadanos`; la tarjeta sobrevive con solo `ciudadano.crear`, pero sin el input), feed de conversaciones sin asignar con `conversacion.operar`, tarjeta de tendencias con `dashboard.ver` —si falta el canvas, el JS no llama a `dashboard:api_tendencias`—. Un panel no se deja pedir y fallar en consola, ni se muestra vacío como si no hubiera trabajo pendiente: el hero solo dice «Todo al día» a quien tiene alguna de las dos capacidades de los contadores; sin ellas, saludo neutro. |
-| Tabla densa backoffice | Canónico reutilizable | `static/custom/css/nodo-tables.css` (cargado en `templates/includes/base.html`): fila de encabezado `<tr class="nodo-thead-row">` (`--bg-secondary` + borde inferior `--border-base`), `<th class="nodo-th">` (11px, bold, uppercase, tracking .05em, `--text-body-subtle`, padding 11px 16px, alineado a la izquierda) y `<td class="nodo-td">` (`--font-size-sm`, padding 13px 16px, borde superior `--border-light`). Padding, tamaño, color y alineación de th y td están en `:where()` (especificidad cero): una utilidad en el mismo elemento los reemplaza (`text-center`/`text-right`, `px-3`, `text-body`, `text-heading font-medium`); peso, mayúsculas, tracking y bordes quedan en la clase. Wrapper `overflow-x-auto`, tabla `w-full border-collapse`, filas `hover:bg-secondary`, links de entidad `text-fg-brand hover:underline`, acción de fila `.nodo-icon-btn` con `aria-label` (fila «Botones NODO»). La columna de acciones **no lleva el `<th>` vacío**: `<th class="nodo-th text-right"><span class="sr-only">Acciones</span></th>`, porque una columna sin nombre no se anuncia (WCAG 1.3.1). Las iniciales de una persona en la fila van `w-8 h-8 rounded-full bg-brand-soft text-fg-brand` con `aria-hidden="true"`, nunca con `var(--gradient-brand)`: un solo acento por bloque. Reemplaza el th con `style="font-size:11px"` y la lista de utilidades por celda: pantalla nueva o tocada usa las clases. Consumidor: `programas/templates/programas/becas/revision/personas_list.html`; `programas/templates/programas/becas/reportes/reporte.html` ya usa las clases; `programas/templates/programas/becas/config/_segmentos_table.html` sigue con las utilidades en línea (mismo resultado visual, migrar al tocarla). |
-| Stat cards / métricas backoffice | Canónico reutilizable | Pieza única `templates/components/_stat_card.html` (`{% include … with etiqueta=… valor=… icono=… tono=… %}`; `icono` es el nombre Font Awesome sin `fas`, `tono` brand por defecto, success, warning o danger según significado). Card `bg-white rounded-xl border border-base p-4` (sin sombra); fila superior `flex items-center justify-between gap-2` con etiqueta `text-xs font-semibold text-body-subtle` e ícono en caja `w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-{tono}-soft text-fg-{tono}` (ícono `text-sm`, `aria-hidden`); valor `text-2xl font-bold text-heading mt-2`. Ya no se usan cajas de 52px, `var(--gradient-brand)` ni valores `text-3xl`/`extrabold` en tarjetas nuevas (CMP-23). La grilla la arma el consumidor (`grid grid-cols-2 gap-3`, `grid-cols-1 sm:grid-cols-3 gap-4`…). Primer consumidor: el detalle de convocatoria de Becas (`relevamientos/convocatoria_detail.html`), donde el rótulo de la tarjeta y de la solapa que cuentan todos los casos es «Casos» (no «Beneficiarios»). Tests: `core/tests/test_nodo_ui_piezas.py`. |
-| Estado vacío backoffice | Canónico reutilizable | Pieza única `templates/components/_estado_vacio.html` (`titulo`, `texto`, `icono` sin `fas`, `accion_url`, `accion_texto`, `accion_icono`, `con_filtros`), dentro de la card de la lista: bloque `py-14 px-6 text-center flex flex-col items-center gap-3`, ícono `text-5xl` en `text-fg-brand` con `aria-hidden`, título `text-[17px] font-bold text-heading`, descripción `text-sm text-body max-w-xs`, acción opcional `btn-nodo btn-brand btn-base mt-2`. Variante **con filtros** (CMP-22): cuando la lista está vacía por los filtros se dice eso («Ningún … coincide con los filtros»), el ícono por defecto es `fa-magnifying-glass` y la acción es `btn-tertiary` «Limpiar filtros» hacia la URL sin parámetros, nunca la de alta. La vista o la plantilla decide la variante con el filtro `request.GET\|hay_filtros:"page,tab"` de `core/templatetags/nodo_ui.py` (`True` si algún parámetro no excluido trae valor; por defecto excluye `page`). Primer consumidor: `programas/templates/programas/becas/reportes/reporte.html`. Tests: `core/tests/test_nodo_ui_piezas.py`. |
-| Alertas inline backoffice | Canónico reutilizable | Pieza única `templates/components/_alerta.html` (`tono` warning por defecto, danger, success o info; `titulo`, `texto`, `role`), variante única (ALR-14/15/11): `rounded-lg bg-{tono}-soft border border-{tono}-subtle p-4 text-sm`, título `strong text-heading` y texto `p text-body mt-1`. `role="alert"` por defecto en danger y warning (bloqueo, error, advertencia) y `role="status"` en info y success. El tono info no tiene par de tokens `bg`/`border` compilado y reusa la nota informativa canónica (`flex items-center gap-2` con estilos en línea sobre `--bg-info-soft`, `--color-brand-200` y `--text-fg-info`, ícono `fa-circle-info`; deuda ALR-10, sin tokens nuevos). Evidencia previa en `programas/templates/programas/becas/config/programa_detail.html` y `programas/templates/programas/becas/revision/formulario_detalle.html`. **Cambio 81:** cuando el aviso no impide seguir se usa el mismo bloque tonal (warning) con encabezado «Atención», y el botón de la acción queda **habilitado**: bloqueo y advertencia se distinguen por el encabezado y por si la acción está disponible, no por el color. Tests: `core/tests/test_nodo_ui_piezas.py`. |
-| Identificadores de integración (programa y segmento) | Canónico reutilizable | Evidencia en `programas/templates/programas/becas/config/_siis_programa_modal.html` (bloque «Alta de beneficiarios en SIIS» del pop up «Detalle SIIS», que `programa_detail.html` incluye con `identificadores_programa=programa`) y `programas/templates/programas/becas/config/segmento_list.html` (modal «Editar segmento», bloque «Identificadores para SIIS»), que `_segmentos_table.html` alimenta vía `openEditar`. Contrato: los identificadores que viajan a un sistema externo se editan como `input type="number"` con `nodo-field`, agrupados en una grilla (`sm:grid-cols-3` en el programa, `sm:grid-cols-2` en el segmento, que no repite los que son únicos por programa) y, **siempre dentro del pop up del registro al que pertenecen**, separados del resto con `pt-4 border-t border-light` y un título. El pop up que los suma ensancha su panel a `max-w-2xl` (sin el bloque sigue en `max-w-[560px]`) y no repite arriba, como dato de solo lectura, ningún identificador que abajo sea editable: el valor que informó la integración va bajo su propio campo, en la línea del nombre técnico (`jurid · el catálogo informó #28`). El `<form>` vive en el cuerpo scrolleable con `id`, y su submit en el pie fijo del modal apuntándole con el atributo `form=`, al lado de «Cerrar» (`btn-tertiary` + `btn-brand`). Cada campo lleva la etiqueta en lenguaje del usuario y debajo, en `text-xs text-body-subtle`, el nombre técnico que espera el servicio, porque quien los completa los copia de una comunicación del organismo. El `placeholder` dice de dónde sale el valor por defecto si se deja vacío. **Cambio 82:** cuando un valor editado difiere del que trajo la integración, la pantalla lo dice en la alerta inline tonal de arriba del formulario —`rounded-lg bg-warning-soft border border-warning-subtle`, `role="alert"`, un `<li>` por identificador contrastando «se manda #X» contra «el catálogo informó #Y»— y el formulario se sigue pudiendo guardar: es una advertencia, no un bloqueo. Ola 3 (30-sep-2026): segmento_detail, segmento_list y _segmentos_table usan page_header, x-becas-modal con _modal_header/_modal_footer, .nodo-th/.nodo-td y .nodo-icon-btn; «Activar segmento» ya no es rojo y la tabla no muestra paginación falsa. Detalle del programa (30-sep-2026): `programa_detail.html` usa `page_header`, `x-becas-modal` con `_modal_header`/`_modal_footer`, los parciales de estado, `.nodo-th`/`.nodo-td` y `.nodo-icon-btn`; el modal nuevo de requisito ofrece `destino_siis` como el de edición, el alta rápida de coordinador se apila sobre «Nuevo segmento» (Tab y Escape solo para el anidado) y el pop-up SIIS del programa (`_siis_programa_modal.html`) se registra en `x-becas-modal` para atrapar el foco y cerrar con Escape. |
-| Panel de integración con SIIS en el caso | Canónico reutilizable | Evidencia en `programas/templates/programas/becas/revision/formulario_detalle.html` (secciones «Resultado SIIS» y «Envío a SIIS») y `programas/templates/programas/becas/config/_siis_programa_modal.html` (bloque «Alta de beneficiarios en SIIS» del pop up del programa, cuyos identificadores se describen en la fila anterior). Patrón para informar el estado de un intento contra un sistema externo: surface backoffice estándar con header `px-5 py-4 border-b border-light` e ícono `text-fg-brand`; dentro, el último intento como `badge` con texto (`badge-success` enviado, `badge-warning` incompleto o error técnico, `badge-danger` rechazado) más fecha y usuario a la derecha en `text-xs text-body-subtle`, y el identificador externo en un `dl`. El detalle por campo va en la alerta inline tonal (`rounded-lg bg-warning-soft border border-warning-subtle`, `role="status"`) como lista `campo — mensaje`: **la plantilla nunca decide la forma del dato**, la vista normaliza a `[(campo, mensaje)]` porque el sistema externo devuelve listas y las validaciones locales frases sueltas. Las acciones (`btn-secondary` para corregir, `btn-brand` para enviar/reenviar) se ocultan cuando el intento ya fue exitoso o falta la capacidad, y el historial de intentos repite el plegado del historial de validaciones (`btn-tertiary btn-sm` con `aria-expanded`/`aria-controls` y `classList.toggle('hidden')`). El pop up de corrección reusa el modal del caso (`modal-datos-siis-overlay`, overlay `fixed inset-0 z-[1001] hidden … bg-black/50` con `backdrop-filter`), hoy con el markup canónico de los modales de Becas (POP-10): panel `bg-white rounded-2xl shadow-xl max-h-[90vh] flex flex-col` con `role="dialog" aria-modal="true" aria-labelledby`, `_modal_header.html` (ícono `fa-pen`, tono brand) y `_modal_footer.html`, cuerpo `overflow-y-auto min-h-0` con los campos en `grid-cols-1 sm:grid-cols-2` vía `programas/templates/programas/becas/_field.html`. El foco, el Tab atrapado, Escape y el bloqueo del scroll de fondo los pone `window.becasModal.bind(overlay, {onClose})` de `static/custom/js/becas-modal.js`, que la pantalla carga en su bloque de JS; el clic en el fondo lo cierra la propia pantalla. Los otros dos modales propios del caso —«Rechazar caso» (`modal-rechazo-overlay`, tono danger, pie que envía el form oculto `#form-rechazar` con `form=`) y «Validar identidad manualmente» (`modal-forzar-overlay`, tono warning)— siguen el mismo patrón; sus labels usan el canon `block text-sm font-medium text-heading mb-1`. Los selects dependientes se llenan por `fetch` contra un endpoint JSON propio y avisan los fallos con `window.toast('error', mensaje)`, nunca en silencio; hay dos pares vivos, los dos dentro del modal de corrección del caso —localidad por provincia y funcion por programa— y los dos siguen la misma forma: el valor ya guardado viaja en `data-actual` del `<select>`, el listado se repuebla en cada `change` del campo del que depende, y la primera opcion es siempre «Sin cambios». **Estado del caso (W1-C3):** el badge de estado del encabezado de `formulario_detalle.html` sale del parcial único `programas/templates/programas/becas/_formulario_estado_badge.html` (`dot=True`, `color_enviado="warning"`), nunca de un mapeo a mano en la pantalla; la lista de espera no es un estado sino un `badge badge-warning` adicional «Lista de espera · posición N», y mientras dura el caso no ofrece «Aprobar»: lo explica una alerta inline tonal `role="status"` con link a Cupo y beneficiarios. |
-| Modal de requisito nativo (alta / edición) | Canónico reutilizable | Evidencia en `programas/templates/programas/becas/config/requisitos_segmento.html` (modales crear/editar), `programas/templates/programas/becas/config/segmento_detail.html`, `programas/templates/programas/becas/config/subsegmento_detail.html` y `programas/templates/programas/becas/config/programa_detail.html` (modal editar), alimentados por `_requisitos_page_table.html`, `_requisitos_panel.html`, `_requisitos_programa_panel.html` y `_requisitos_propios_panel.html` vía `openEdit`/`openReqEdit`. Contrato: todo control con `nodo-field`; cada campo del modelo que el formulario acepte tiene su control en **todos** los modales, porque el POST reemplaza el registro completo y un campo ausente se guarda vacío (Cambio 80: el selector «Este dato alimenta a SIIS como» se sumó a los cinco a la vez, con `badge badge-info` «SIIS: …» en las filas). Las mismas etiquetas y ayudas que el modal de preguntas generales. `requisitos_segmento.html` y `subsegmento_detail.html` migraron el marcado a `x-becas-modal` + `_modal_header.html`/`_modal_footer.html` (panel `role="dialog"`); `segmento_detail.html` y `programa_detail.html` siguen con el marcado propio hasta su propia migración. |
-| Toasts NODO | Canónico reutilizable | `templates/includes/base.html`, `static/custom/css/nodo-toast.css`, `static/custom/js/nodo-toast.js`; preservar roles, live regions y cierre accesible. success/info/warning duran 7 s con barra y pausa en hover/foco. Errores: persisten (sin barra) hasta cerrarlos con el botón o Escape (no si hay un modal abierto), salvo `duration` explícita; máx. 3 visibles en escritorio y 1 en ≤640 px sin modal. Con un modal abierto en ≤640 px la pila se apoya bajo el encabezado y sobre el pie del modal solo si hay ≥120 px entre ambos; si no se pueden detectar o no hay espacio, los errores se comportan como un toast común mientras el modal esté abierto (7 s con barra, máx. 1, el más reciente) y al cerrarse el modal vuelve la regla persistente. Mientras haya un error persistente visible y ningún modal abierto (escritorio y ≤640 px), `nodo-toast.js` reserva en `padding-bottom` del `<body>` el alto de la pila más el offset del breakpoint, para que el error no tape el pie de la página; al desaparecer el error se restaura el valor previo. |
-| Confirmación SweetAlert2 | Canónico reutilizable, condicionado | `static/custom/css/nodo-swal.css` y `static/custom/js/nodo-swal-theme.js`; antes de `Swal.fire`, verificar que la pantalla cargue SweetAlert2. |
-| Drag & drop SortableJS | Canónico reutilizable, condicionado | `static/vendor/sortablejs/Sortable.min.js` (1.15.6, MIT, sin CDN por la CSP) + `static/custom/css/nodo-constructor.css` (manija `.grip`, estados `.sortable-ghost`/`.sortable-chosen`, `.is-saving`). Evidencia: catálogo agrupado de requisitos generales (`programas/templates/programas/becas/config/_preguntas_grupos.html` + `static/custom/js/nodo-catalogo-grupos.js`, Cambio 58 #337) y constructor de formularios de la convocatoria. Contrato: se arrastra **solo desde la manija** (`handle`), nunca desde toda la fila; la manija es `<span class="grip" role="button" tabindex="0" aria-label="Reordenar X: flechas arriba y abajo"><i class="fas fa-grip-vertical" aria-hidden="true"></i></span>` — focusable, con **alternativa de teclado** (las flechas arriba/abajo mueven el grupo o la pregunta, y una pregunta cruza al grupo vecino en los bordes; cada movimiento se anuncia en una region `aria-live` creada por el JS, el guardado va con demora de 700 ms para no disparar un POST por pulsacion, el foco vuelve a la manija tras el re-render y `.grip:focus-visible` marca el foco con anillo por token, mismo criterio que `.pv-canal-btn`) — y se omite cuando el usuario no puede editar (`data-puede-ordenar="0"` ⇒ no se inicializa); cada soltada guarda **en vivo** contra un endpoint JSON que devuelve `{ok, target, html}` (el mismo contrato de `ajax_ok`) y el JS reemplaza el contenedor y se vuelve a enlazar; los huecos vacíos llevan una fila `.sortable-placeholder` (filtrada del arrastre) para que se pueda soltar adentro; sin `confirm()` ni recarga de página. Cargar el vendor en `{% block customJS %}` antes del JS propio. **Gotcha del CSRF**: la cookie se lee con `document.cookie.match('(^|;)\s*' + name + …)` con **doble barra** (o `new RegExp`); con una sola, `\s` es la letra «s» y el token solo se encuentra si `csrftoken` es la primera cookie: el POST del reordenamiento vuelve 403. Hay un test que fija el patrón (`JsCatalogoTests`). |
-| Constructor de formularios (diseño + vista previa) | Canónico reutilizable | `programas/templates/programas/becas/formulario/convocatoria_formulario.html` + `_constructor_items.html`, `static/custom/js/nodo-constructor.js`, `static/custom/js/nodo-condiciones.js` (espejo del motor del servidor) y `static/custom/css/nodo-constructor.css` (Cambio 58, tasks 342-344; Ola 3 W3-L-E). Patrón: encabezado por `{% page_header %}` (`core/templatetags/nodo_ui.py`) con `{% becas_migas convocatoria actual="Configurar formulario" %}`, badge de versión y estado «Guardando…/Guardado en vivo» (`aria-live`) como acciones; grid `grid-cols-1 xl:grid-cols-2` con dos surfaces —izquierda el diseño (toolbar `btn-secondary`/`btn-brand` en `btn-sm` + contenedor `#constructor-items` sobre `bg-tertiary`), derecha la vista previa `xl:sticky` con toggle de canal (`aria-pressed`)—. Ítems del diseño: `section.cons-grupo` con header `bg-secondary` (manija `.grupo-grip`, badges, acciones icon-button con `aria-label`) y `ul.cons-hijos` de `li.cons-item` (manija `.item-grip`, `.cons-icono` por tipo, badges de alcance/origen/canal/condición). La vista previa se renderiza en JS con clases `.pv-*` y controles `nodo-field`; imita la densidad del paso 2 del portal sin cargar su shell. Modales: los 5 (grupo, texto, campo propio, etiqueta y condición) siguen el patrón «Modal Becas accesible» de abajo (`x-becas-modal` + `_modal_header`/`_modal_footer`); como el estado Alpine es un único `modal` de tipo string (no un booleano por modal), `constructorPagina()` expone un par `get`/`set` por modal (`mGrupo`, `mTexto`, `mPropio`, `mEtiqueta`, `mCondicion`) que lee `modal === '…'` y, al ponerse en `false`, llama a `cerrar()`; el título dinámico Nuevo/Editar usa `titulo_x_text` de `_modal_header.html`. El modal de condición no usa `_modal_footer.html`: tiene un tercer botón condicional («Quitar condición») en `justify-between`, así que repite manualmente las clases canon del pie. Guardado en vivo: cada mutación responde `{ok, target, html, datos}`; en error el JS restaura el HTML anterior y avisa con `toast('error', …)` — **sin toast de éxito** (DA-2): el indicador `aria-live` del encabezado ya informa el guardado. Las confirmaciones destructivas (eliminar, restablecer) van por `ModernModal.show`; si `ModernModal` no está cargado, `confirmar()` falla cerrado (POP-19: avisa por toast y no ejecuta la acción, nunca `onConfirm()` a ciegas). La vista previa no promete lo que el paso 2 no hace: DNI y sexo del titular van de solo lectura (vienen del paso 1), el sexo del apoderado se elige con nombre (Femenino/Masculino, valor F/M) y los selectores múltiples se apilan con el mismo estilo del paso 2 (`.pv-checks` espeja a `.nodo-checks`). Las manijas (`.grupo-grip`/`.item-grip`) tienen la misma **alternativa de teclado** que el catálogo: focusables (`role=button` + `tabindex`), flechas arriba/abajo mueven (un ítem cruza al grupo vecino en los bordes), anuncio en `aria-live`, y el `mover` viaja una sola vez con la posición final cuando la ráfaga termina (700 ms); el foco vuelve a la manija tras cada re-render (`aplicarRespuesta` y el restore por snapshot). |
-| Formulario público por diseño (paso 2) | Canónico reutilizable | `portal/templates/portal/inscripcion/paso2.html` + `static/custom/js/nodo-formulario.js` sobre `nodo-condiciones.js` (Cambio 58, task 345). El paso 2 ya no tiene bloques fijos en el template: recorre `form.grupos()` y por cada ítem rinde un `<section data-item="<clave>">` (grupo, con `h2` uppercase 12px y subtítulo `text-xs`), un `<p data-item>` para los párrafos, un par etiqueta+valor cuando el dato ya vino del paso 1, o `label` + control `nodo-field` para lo que se pide. Contrato del JS: cada ítem lleva `data-item` con su clave y los ítems planos viajan en `#formulario-items` (`json_script`); al ocultar, el JS pone `hidden` en el contenedor y `disabled` en sus controles para que no viajen en el POST. **Sin JS el formulario se muestra completo y se envía igual**: el servidor vuelve a evaluar las condiciones y es la autoridad. Mantiene el shell de inscripción, `nodo-buscador` para los selectores con píldoras y los tokens del portal (light-only). |
-| Modal global `ModernModal` | Canónico reutilizable | Motor de las confirmaciones del backoffice (Cambio 48 + DP-1): markup y script en `templates/includes/base.html` (`#modal-overlay`), consumido por el include `_confirm_js.html` de Becas (`data-confirm-url`), el constructor de formularios y las confirmaciones de cupo, caso y proceso masivo. Contrato de `ModernModal.show(options)`: `type` (`confirm` muestra «Cancelar»; `success`/`error`/`warning`/`info` son avisos de un botón), `title`, `message` (siempre con `textContent`), `confirmText`, `cancelText`, `onConfirm`, `onCancel`; `danger: true` (o `confirmVariant: 'danger'`) = acción destructiva: botón `btn-danger`, ícono en tono danger y **foco inicial en Cancelar** (Enter-Enter no confirma); `icon` (`'warning'`, `'danger'`, `'question'` o `'info'`, solo con `type:'confirm'`) fija el tono del ícono y manda sobre el default (sin `icon`: `danger` si es destructiva, «?» gris si no), así una advertencia puede ir con `icon:'warning'` y botón de marca. Pie con botones del sistema: «Cancelar» `btn-tertiary btn-base`, confirmar `btn-brand`/`btn-danger` `btn-base`; en celular es hoja inferior con los botones a ancho completo. Tras el primer confirmar/cancelar/cerrar el modal ignora clics repetidos durante la animación de cierre (300 ms): `onConfirm` corre una sola vez; y si un `onConfirm` abre otro `ModernModal` (p. ej. un aviso de error), el cierre diferido del primero no oculta al segundo. Escape, la X y el clic afuera cierran sin llamar a `onCancel`. Tests: `core/tests/test_modern_modal_contrato.py`. Para pedir un dato (motivo, fecha) no alcanza: usar un modal propio. Convive con la «Confirmación SweetAlert2» (canónica condicionada), que siguen usando Dispositivos y Legajos por el Cambio 48: esas pantallas no se migran sin una decisión aparte. La copia del shell del portal es aparte y no sigue este contrato. |
-| Bootstrap/AdminLTE y estilos de pantalla heredados | Legacy solo mantenimiento | `static/custom/css/main.css`, `custom.css`, `override.css`; mantener solamente en la superficie que los consume. Reemplazo para UI nueva: piezas canónicas inventariadas. |
-| Puente `paleta-unificada.css` | Legacy solo mantenimiento | Alias de compatibilidad cargados desde `templates/includes/base.html`; no usar sus utilidades en UI nueva. Reemplazo: tokens semánticos y componente canónico aplicable. |
-| `nodo-brand.css` | Duplicado o conflictivo | Selectores globales de links, submits y focus en `static/custom/css/nodo-brand.css`; el base los neutraliza parcialmente. Reemplazo: tokens, botones, badges y campos canónicos. |
-| CSS responsive/mobile global | Duplicado o conflictivo | `static/custom/css/responsive.css`, `mobile-forms.css`, `mobile-modals.css`, `mobile-tables.css`; sus reglas generales compiten con contratos específicos. En particular, `responsive.css` debe preservar `.modal-responsive.hidden` porque se carga después de Tailwind. Reemplazo: responsive del shell y del componente canónico afectado. |
-| Kits, JSX, tokens y documentos previos | Duplicado o conflictivo como autoridad | `docs/design-kb/`; pueden aportar assets o antecedentes, nunca decidir contra el runtime. Reemplazo: este inventario contrastado con código. |
-| Modal Becas accesible | Canónico reutilizable | `static/custom/js/becas-modal.js` + `programas/templates/programas/becas/_modal_header.html` + `programas/templates/programas/becas/_modal_footer.html`; primer consumidor `programas/templates/programas/becas/config/programa_list.html` (modal «Nuevo programa»), prueba en `programas/tests/test_becas_modal.py` (POP-7/8/9, POP-M1..M3, decisión DP-3: helper propio, sin `@alpinejs/focus`). Estructura: overlay `fixed inset-0 z-50 flex items-center justify-center p-4` con `x-show` y `x-becas-modal="<expr>"`, fondo `absolute inset-0 bg-black/50 backdrop-blur-sm` y clic afuera; panel `relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden` con `role="dialog" aria-modal="true" aria-labelledby` apuntando al id del título. Si un `<form>` envuelve cuerpo y pie lleva `flex flex-col flex-1 min-h-0` (sus atributos, campos y `data-ajax` no cambian); el cuerpo lleva `overflow-y-auto min-h-0` y header y pie `flex-shrink-0`, así el pie queda siempre a la vista en pantallas bajas. Encabezado (`_modal_header.html`: `titulo`, `titulo_id`, `icono` Font Awesome, `tono` brand/danger/warning/success, `cerrar` expresión Alpine, y dos opcionales aditivos del constructor de formularios — `titulo_x_text` expresión Alpine que reemplaza el texto en vivo del `<h3>` sin parpadeo porque el modal ya arranca con `x-cloak`, p. ej. para alternar Nuevo/Editar; `subtitulo` línea chica debajo del título): `flex items-center gap-3 px-6 py-5 border-b border-light`, caja `w-10 h-10 rounded-lg bg-brand-soft text-fg-brand` (o el par tonal), `h3 text-lg font-bold text-heading` (envuelto junto al `subtitulo` en `flex-1 min-w-0`) y X `p-1.5 rounded-lg text-body-subtle hover:text-heading hover:bg-secondary` con `aria-label="Cerrar"`. Pie (`_modal_footer.html`: `cancelar`, `cancelar_texto`, `accion_texto`, `accion_icono`, `accion_tono` brand/danger, `form_id` para apuntar con `form=` a un form de afuera): `flex justify-end gap-3 px-6 py-4 border-t border-light bg-secondary`, Cancelar `btn-nodo btn-tertiary btn-base` y acción `btn-nodo btn-brand btn-base` (o `btn-danger`). Comportamiento de `x-becas-modal` (se registra en `alpine:init`; el script va como `<script>` clásico en `customJS`, que corre antes que Alpine con `defer`): al abrir guarda el foco, lo mueve a `[autofocus]`, si no al primer campo, si no al primer control; atrapa Tab y Shift+Tab en el panel; bloquea el scroll del fondo en `<html>` y `<body>`; Escape hace `<expr> = false`; al cerrar devuelve el foco. Si el foco está en otro diálogo encima (SweetAlert2, ModernModal), no intercepta el teclado. Modales sin Alpine: `window.becasModal.bind(overlay, {onClose})` observa la clase `hidden`/`style.display` del overlay, y Escape o cualquier `[data-becas-modal-cerrar]` llaman a `onClose` (sin él, agregan `hidden`). Reemplazo recomendado para los modales de Becas que se migren. Esa pantalla además usa `{% page_header %}`, `.nodo-thead-row/.nodo-th/.nodo-td`, `_pausable_estado_badge.html solo_manual=True` y `.nodo-icon-btn` en la acción de fila (W3-P-A1). |
-| Mapa de estados de Becas | Canónico reutilizable | Un color por estado en todas las pantallas (DC-1..DC-4): el mapeo estado→badge vive solo en estos parciales y las pantallas los incluyen, no repiten el `if`. Caso: `programas/templates/programas/becas/_formulario_estado_badge.html` (`estado`; Enviado `badge-warning`, Aprobado `badge-success`, Rechazado `badge-danger`, Baja `badge-gray` «Dado de baja»; con `en_espera_activa` **suma** un `badge badge-warning` «Lista de espera» sin dot: la lista de espera no es un estado; `color_enviado` y `dot` quedan por compatibilidad, el dot va siempre). Relevamiento: `programas/templates/programas/becas/relevamientos/_estado_badge.html` (`rel`; «Vencido» suma `badge-warning`, igual que la convocatoria vencida). Convocatoria: `programas/templates/programas/becas/_convocatoria_estado_badge.html` (`convocatoria`; precedencia `pausa_efectiva` «Pausada» warning > activa y `esta_vencida` «Vencida» warning > `activo` «Activa» success > «Cerrada» gray). Programa, segmento y subsegmento: `programas/templates/programas/becas/_pausable_estado_badge.html` (`objeto`; «Pausado» warning > `activo` False «Inactivo» gray > «Activo» success; usa `pausa_efectiva`, y `solo_manual=True` mira solo `pausado` para las pantallas de programa, que muestran el bloqueo SIIS como badge aparte). Todos con `badge badge-<tono> badge-dot`; pausado nunca es danger y apagado es gris, no rojo. Tests: `programas/tests/test_estado_badges.py`. |
-| Guardado AJAX y confirmaciones de Becas | Canónico reutilizable | `programas/templates/programas/becas/_ajax_js.html` (forms `data-ajax` de los modales), `programas/templates/programas/becas/_confirm_js.html` (`data-confirm-url`), `programas/templates/programas/becas/relevamientos/_cascada_localidad.html` y `programas/templates/programas/becas/relevamientos/_copiar_link_js.html`; test `programas/tests/test_becas_feedback_js.py` (W2-C7). **Un solo sistema de avisos:** todo aviso sale por `window.toast(tipo, mensaje)` de los Toasts NODO (tipo primero); no hay toast local de Becas ni `becasToast`. Contrato JSON intacto: 2xx `{ok,target,html,message}` reemplaza el target, re-inicializa Alpine, dispara `becas-saved` y avisa `success`; 2xx `{ok,redirect,message}` navega (el mensaje lo muestra la página destino) y deja el botón ocupado hasta cambiar de página; 400 `{ok:false,errors}` pone cada error en su `<p data-error="campo">` (el general en `data-error="__all__"` si el form lo tiene) y emite **un** aviso `error` «Revisá los datos del formulario.», al que se suma solo lo que no tiene lugar inline; 409 `confirm_required` abre `ModernModal` `type:'confirm'`, `icon:'warning'`, título «¿Asignar igual?», botón «Sí, asignar igual» (marca, no destructivo) y reenvía una sola vez con `confirmar_solapamiento=1` vía `requestSubmit()` (el campo se agrega para ese envío y se quita después); 403, error de servidor y red avisan `error`. CSRF por cookie `csrftoken`. Mientras el pedido está en curso el form lleva `aria-busy`, todos sus submit (también los de afuera con `form="id"`) quedan deshabilitados y el que envió muestra «Guardando…» con spinner y `aria-busy`; al terminar se restauran los nodos originales (no `innerHTML`, para no romper bindings de Alpine) y el `disabled` previo; un segundo submit durante el envío se ignora; el error anterior se cierra al reintentar. `_confirm_js`: `data-confirm-danger="true"` o `"false"` decide el botón rojo de forma explícita; sin el atributo rige la regla vieja (ícono `warning`, el default, es destructiva); `data-confirm-ok` es el texto del botón («Sí, verbo»), `data-confirm-icon` viaja a `ModernModal` solo si está puesto; un solo POST por confirmación. Copiar link: éxito avisa `success`; sin permiso o sin API de portapapeles, nunca la ventana nativa: se selecciona el campo de solo lectura del mismo bloque si ya muestra el link, o se abre un popover (`role="dialog"`, cierre con botón, Escape o clic afuera) con el link en un `nodo-field` de solo lectura seleccionado, más un aviso `warning` «Copialo manualmente: el link quedó seleccionado.». La cascada de localidad avisa su error de red con `window.toast('error', …)`. |
-| Paginación | Canónico reutilizable | Pieza única `templates/components/_paginacion.html` (`page_obj`, `entidad` en singular, `entidad_plural` si no alcanza con agregar «s», `filtros_qs` opcional ya codificado sin `page`). Solo se muestra con **más de una página** (CMP-11: nada de «1 de 1» con botones deshabilitados). Pie `flex items-center justify-between gap-3 flex-wrap px-4 py-3 border-t border-light bg-secondary` dentro de la card de la tabla; contador «Página X de Y · N entidad» `text-xs text-body-subtle`; Anterior/Siguiente `btn-nodo btn-tertiary btn-sm` con `fa-chevron-left`/`fa-chevron-right` (`aria-hidden`) y `aria-label` «Página anterior»/«Página siguiente», solo cuando existen. Los enlaces son `?page=N` seguidos de los demás parámetros de `request.GET` (o de `filtros_qs`), codificados y con `&amp;`. Primer consumidor: `programas/templates/programas/becas/revision/renaper_pendientes.html`. Tests: `core/tests/test_nodo_ui_piezas.py` y `programas/tests/test_renaper_pendientes_paginacion.py`. |
-
-No hay todavía un componente/include único para estos patrones de página. La
-canonicidad actual es de **contrato visual productivo**, no de helper técnico: si
-una tarea necesita reutilizar mucho una pieza, extraé el include mínimo desde el
-patrón de Becas y registralo acá en el mismo cambio. Para modales nuevos sigue sin
-haber reemplazo canónico probado: si una tarea exige uno, creá el patrón mínimo y
-registralo.
-
-## Canon visual backoffice
-
-Becas es la referencia visual productiva del backoffice. Cuando diseñes una página
-nueva de backoffice, copiá su **lógica de composición**, no sus reglas de dominio.
-La pantalla nueva tiene que sentirse parte del mismo sistema aunque el programa sea
-Dispositivos, Merenderos, Usuarios, Legajos u otro módulo.
-
-### Estructura de página
-
-Usá este esqueleto salvo que la superficie existente tenga un contrato distinto:
-
-1. Contenedor principal con separación vertical moderada: `space-y-5` o `space-y-6`.
-2. Header sin card: botón volver circular si es detalle, título grande, bajada corta
-   y acciones/badges a la derecha.
-3. Alertas inline debajo del header si hay bloqueo, advertencia o estado crítico.
-4. Contenido en una surface blanca con tabs si hay 2 o más áreas equivalentes; si no,
-   secciones apiladas con cards/surfaces.
-5. Dentro de cada tab/sección: introducción breve a la izquierda y acción principal
-   a la derecha, luego tabla/formulario/métricas.
-6. Cierre con paginación, acciones secundarias o estado vacío según corresponda.
-
-La densidad es de herramienta operativa: mucha información escaneable, poco texto
-explicativo, acciones cerca del dato, y jerarquía visual clara.
-
-### Color y tono
-
-- Fondo de superficies: blanco (`bg-white` o `var(--bg-primary)`).
-- Bordes: `border-base` para contenedores, `border-light` para divisiones internas.
-- Texto: `text-heading` para títulos y datos principales, `text-body` para contenido,
-  `text-body-subtle` para ayudas, metadatos y valores secundarios.
-- Marca: `text-fg-brand`, `border-brand`, `bg-brand-soft` y `var(--gradient-brand)`.
-  Usá el gradiente con moderación: acción primaria, avatar/ícono destacado o un solo
-  acento por bloque.
-- Estados: success, warning y danger solo por significado funcional. No usar color
-  como único indicador: siempre acompañar con texto o icono con label.
-- Evitá paletas nuevas por módulo. El programa puede tener dominio distinto, pero el
-  lenguaje visual debe seguir siendo Chaco/NODO.
-
-### Componentes y patrones
-
-- **Botones:** siempre `btn-nodo` + variante (`btn-brand`, `btn-secondary`,
-  `btn-tertiary`, `btn-danger`) + tamaño (`btn-sm`, `btn-base`, etc.). El botón
-  principal de un bloque suele ser `btn-brand`; exportes, filtros, volver o acciones
-  auxiliares usan `btn-secondary`/`btn-tertiary`; destrucción o rechazo usa
-  `btn-danger`.
-- **Iconos:** usar icono + texto en acciones visibles; para acciones compactas en
-  tablas usar icon button con `aria-label`, hover `hover:bg-secondary` y color de
-  marca o peligro según acción.
-- **Badges:** usar `badge` con variante semántica y texto. Para estados principales,
-  preferir `badge-dot`.
-- **Forms:** labels `text-sm font-medium text-heading mb-1`, requerido con
-  `text-fg-danger`, campos `nodo-field` o clases equivalentes con `border-base`,
-  `focus:border-brand`, `focus:ring-brand`; errores cerca del campo en
-  `text-fg-danger`.
-  Cuando el alta tiene `fieldset` condicionados por tipo (`x-show`/`:disabled` con
-  Alpine), adentro va **solo** lo que aplica a ese tipo: un control común a todos los
-  tipos se ubica fuera del `fieldset`, o queda deshabilitado y sin enviarse para el
-  resto. Evidencia en el alta de relevamiento —`convocatoria_detail.html`,
-  `relevamiento_list.html` y `relevamiento_form.html`—: el toggle de avisos por correo
-  vale para territoriales y públicos y por eso quedó fuera del `fieldset` de tipo
-  público, que conserva cupo y padrón.
-- **Tables:** preferir tabla densa antes que cards repetidas cuando el usuario compara
-  filas. Mantener encabezados uppercase de 11px, celdas de 13-14px y acciones en la
-  última columna alineadas a la derecha.
-- **Tabs:** usarlas para separar áreas del mismo objeto. Preservar estado vía Alpine
-  o querystring si hay paginación/exportes dentro del tab.
-- **Métricas:** usar stat cards solo para números o estados de alto valor operativo,
-  no como decoración.
-- **Empty states:** siempre explicar qué falta y, si corresponde, ofrecer la acción
-  primaria para resolverlo.
-
-### Reglas de abstracción
-
-- Si el dominio no es Becas, mantené el layout, densidad, tokens y componentes, pero
-  reemplazá la semántica por la del módulo.
-- Dispositivos debe verse como Chaco/NODO, pero hablar de operación institucional:
-  camas, ocupación, admisiones, egresos, traslados, partes y validaciones.
-- Merenderos debe verse como Chaco/NODO, pero hablar de solicitudes, entregas,
-  prestación mensual y documentación.
-- No crear landing pages para backoffice operativo. La primera pantalla debe ser la
-  herramienta usable: listado, detalle, formulario o tablero operacional.
-- No introducir un framework visual paralelo, gradientes nuevos, cards decorativas,
-  hero sections ni layouts de marketing.
-
-## Estados transversales comprobados
-
-- **Accesibilidad:** los toasts tienen roles/live regions y foco visible; el modal
-  global del backoffice tiene `role=dialog`, focus trap, Escape y devolución de
-  foco. Todo cambio debe conservar o mejorar ese soporte.
-- **Responsividad:** el shell provee sidebar móvil/colapsable; las piezas con reglas
-  responsive propias deben verificarse en el CSS que se carga para esa superficie.
-- **Dark mode:** `chaco-tokens.css` define variables para `[data-theme="dark"]` y
-  `.dark`, pero no hay evidencia actual de activación compartida en el shell. Usá
-  tokens semánticos para no bloquearlo, sin declarar soporte funcional hasta que se
-  compruebe la activación en código.
-- **Portal:** no hay activación dark comprobada; tratarlo como light-only mientras
-  no exista evidencia productiva distinta.
-
-## Perfiles de producto por programa
-
-Estos perfiles orientan decisiones de interfaz y revisión. No reemplazan el
-inventario operativo ni autorizan a copiar pantallas entre programas sin verificar
-el código cargado.
-
-### Becas
-
-Becas es el programa con mayor madurez productiva y sirve como **modelo de calidad**
-para otros frentes: trazabilidad de estados, permisos finos, formularios largos,
-revisión caso por caso, cupo/lista de espera, validaciones externas, exportes,
-paginación y controles de performance.
-
-Usalo como referencia para:
-
-- disciplina de permisos y acciones visibles según rol;
-- patrones de revisión y estados con badges textuales;
-- paginación de listados grandes y exportes separados de la vista;
-- cuidado de N+1, conteos repetidos y querysets sin límite;
-- formularios extensos agrupados por bloques verificables;
-- cierre técnico con pruebas focalizadas.
-
-No lo uses como molde automático para otros programas: su lógica es de
-postulación/relevamiento/cupo. No traslades por defecto conceptos como
-convocatoria, segmento, formulario enviado, beneficiario, lista de espera o SIIS a
-programas que no los tengan.
-
-### Dispositivos
-
-Dispositivos es una experiencia de **operación institucional continua**. El centro
-no es una postulación sino el legajo del dispositivo, su estado operativo, camas,
-admisiones, egresos, traslados, partes diarios y auditoría de movimientos.
-
-La UI debe priorizar:
-
-- lectura rápida de ocupación, disponibilidad y estado;
-- acciones operativas claras: admitir, egresar, trasladar, parte diario, validar,
-  observar, inactivar o cerrar;
-- historial permanente, sin borrar registros;
-- formularios configurables por tipo de dispositivo;
-- tablas y métricas compactas para uso repetido;
-- evitar lenguaje o estructura de Becas cuando hable de cupos, convocatorias o
-  postulaciones.
-
-### Merenderos
-
-Merenderos es un programa propio, hermano de Dispositivos, enfocado en solicitud,
-validación institucional, entregas de mercadería y prestación alimentaria periódica.
-
-La UI debe priorizar:
-
-- legajo institucional y documentación respaldatoria;
-- solicitudes y estados de validación;
-- registro de entregas;
-- prestación mensual con grilla por día/servicio;
-- acciones de suspensión/cierre que preserven historial.
-
-### Transversal
-
-Incluye shell, usuarios, roles, legajos, portal, documentación, infraestructura y
-soporte. Para cambios transversales, verificá consumidores en todos los programas
-afectados y no tomes Becas como único consumidor.
-
 ## Sincronización y validación
 
-Cada PR que cree, altere o reclasifique una pieza reutilizable actualiza esta tabla
-en el mismo PR, con ruta, contrato, estados y clasificación. En la descripción del
-PR, informar el delta de inventario y cualquier reconciliación.
-
-Si se modifican templates, CSS o JavaScript de UI, ejecutar:
-
-```powershell
-& .\.venv\Scripts\python.exe scripts\check_design_agent.py --changed
-& .\.venv\Scripts\python.exe scripts\design_audit.py <rutas-tocadas>
-& .\.venv\Scripts\python.exe scripts\compile_templates.py  # si hubo templates
-```
-
-`check_design_agent.py` valida rutas de evidencia, consumidores, autoridad residual y
-que una pieza canónica modificada actualice este inventario. La auditoría mecánica es
-un control parcial; ninguna de las dos sustituye la verificación de carga,
-accesibilidad, responsividad y comportamiento de la superficie afectada.
+- Si cambiás una pieza clasificada como **Canónico reutilizable** o una golden, el **mismo
+  PR** tiene que actualizar su fila acá **o** su ficha en `.claude/design/`; si no,
+  `scripts/check_design_agent.py` falla en el hook y en el CI. No la disparan el
+  `tailwind.css` generado, los tests ni las vistas.
+- La historia de los cambios va a `docs/internal/requerimientos.md`, **nunca** acá: este
+  archivo describe el contrato vigente, no cómo se llegó a él.
+- Límites verificados por el checker (`--limites`): núcleo ≤ 30.000 bytes, celdas del
+  inventario ≤ 450 caracteres y cero referencias de historia.
+- `scripts/design_audit.py --goldens` mantiene en 0 las goldens de la tabla *Arquetipos*;
+  si una golden se mueve, se cambia acá y en `GOLDENS` de ese script.
+- La auditoría mecánica es un control parcial: no sustituye verificar carga,
+  accesibilidad, responsive y comportamiento de la superficie afectada.
