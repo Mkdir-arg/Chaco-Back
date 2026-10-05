@@ -13,9 +13,11 @@
     {% endif %}
   {% endpage_header %}
 
-  <form method="get" data-dynamic-list-filters class="flex items-center gap-3 flex-wrap">
-    <label class="text-sm text-body-subtle font-medium" for="filtro-estado">Estado:</label>
-    <select name="estado" id="filtro-estado"
+  {% comment %}Filtros: el <form> va sin class y cada control con aria-label. Al montar,
+  dynamic_list_filters.js vacía el form y le pisa la clase, así que un label suelto
+  desaparece y la clase no llega nunca: el nombre accesible viaja en el control.{% endcomment %}
+  <form method="get" data-dynamic-list-filters>
+    <select name="estado" id="filtro-estado" aria-label="Estado"
             class="nodo-field max-w-xs">
       <option value="">Todos</option>
       {% for value, label in estados %}
@@ -36,7 +38,7 @@
             <th class="nodo-th">Fecha</th>
             <th class="nodo-th text-center">Identidad</th>
             <th class="nodo-th">Estado</th>
-            <th class="nodo-th text-right"></th>
+            <th class="nodo-th text-right"><span class="sr-only">Acciones</span></th>
           </tr>
         </thead>
         <tbody>

@@ -309,6 +309,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 126 | Un usuario sin rol dejaba de ser inofensivo: borraba documentos del ciudadano y silenciaba alertas | Legajos (adjuntos, alertas, APIs del detalle) · Transversal (barrido del URLconf) · Usuarios (ABM de Roles) | `#rbac` `#api` `#ui` `#datos` | Auditoría integral oct-2026 — RED-89, SEC-10, SEC-18, SEC-11, RED-04 y RED-06 (Ola R, red de seguridad, PR R-19) | 04/10/2026 | 🟢 **Hecho** | No requiere |
 | 128 | Nada sale a producción sin que algo lo haya verificado: contratos del repo en el CI, release con CI verde y espejo a ECOM en dos pasos | Transversal · CI de GitHub Actions · release y espejo a ECOM | `#infra` `#metodo` `#gestion` | Auditoría integral oct-2026 — RED-24, RED-21, RED-65, RED-23 y RED-22 (Ola R, red de seguridad, PR R-14) | 05/10/2026 | 🟡 **Parcial** (falta enviar la propuesta a ECOM y copiar los dos comandos a `.claude/`) | No requiere |
 | 129 | Que una pantalla nueva no pueda nacer sucia: ratchet, marcadores de arquetipo y gate de build | Transversal · herramientas de diseño · CI de GitHub Actions · CSS compilado | `#ui` `#metodo` `#infra` | Auditoría integral oct-2026 — FE-13, V5A-NEW-01 y V5A-NEW-08 (Ola 6 «Agente de diseño», pasos 0-2) | 05/10/2026 | 🟢 **Hecho** | No requiere |
+| 131 | Las goldens dejan de ser un molde con deuda: 0 P1, marcadores completos y el gate encendido | Becas (revisión, cupo, configuración de programas) · herramientas de diseño · CI de GitHub Actions | `#ui` `#metodo` | Auditoría integral oct-2026 — V5A-NEW-07 parte (a) (Ola 6 «Agente de diseño», paso 3) | 05/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -17276,3 +17277,159 @@ faltar (el adjunto del legajo pierde su botón de archivo, el wizard de programa
   los `.py` de las apps y por eso no comparte el punto ciego. En la misma ronda se cerró el agujero de los comodines de
   primer nivel en `content` (el CSS dependía de si había un virtualenv en el checkout) y se corrigió el conteo de filas
   del inventario en el README de la auditoría (37, no 36).
+
+---
+
+# Cambio 131 — Las goldens dejan de ser un molde con deuda: 0 P1, marcadores completos y el gate encendido
+
+🟢 **HECHO — 05/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas (revisión de casos, cupo y beneficiarios, configuración de programas) · herramientas de diseño (`scripts/`) · CI de GitHub Actions |
+| **Etiquetas** | `#ui` `#metodo` |
+| **Solicitante** | Auditoría integral oct-2026 — V5A-NEW-07 parte (a) (Ola 6 «Agente de diseño», paso 3) |
+| **Fecha del pedido** | 05/10/2026 |
+| **Issue / épica** | sin issue (plan de la auditoría, `docs/internal/auditoria-2026-10/README.md` §6 y `anexo-agente-diseno.md` §9) |
+| **Partes afectadas** | Quien usa Becas ve tres pantallas con cambios chicos; de ahí en más, toda pantalla nueva del backoffice, porque se clonan de estas |
+| **Migración** | No requiere |
+
+## Pedido original
+
+El Cambio 129 construyó las herramientas para que una pantalla nueva no nazca sucia, pero el molde que el agente va a
+clonar —la **golden** de cada arquetipo— todavía tenía deuda encima. Clonar una golden con `<style>` local, `style=` en
+línea, un `<th>` sin nombre accesible y un help text en rojo es reproducir esa deuda en cada pantalla de la v2 de
+Dispositivos y Merenderos. El paso 3 de la Ola 6 las deja en cero y enciende el gate que las mantiene así.
+
+## Alcance acordado
+
+**Entra:**
+
+1. **Las cuatro goldens del anexo §3 en 0 hallazgos P1 y con los marcadores de su arquetipo completos:**
+   `becas/revision/personas_list.html` (listado), `becas/cupo/segmento_detail.html` (detalle),
+   `becas/config/segmento_form.html` (formulario, ya estaba limpia) y el modal «Nuevo programa» de
+   `becas/config/programa_list.html` (modal).
+2. **El gate deja de ser tolerante:** se saca el `continue-on-error` del step `Design audit goldens`, y `--goldens` pasa
+   a tener de dónde leer las goldens antes del paso 4.
+3. **Los tests permanentes** que lo sostienen, adentro de la suite (Backend CI).
+
+**Queda explícitamente afuera:**
+
+- **La parte (b) de V5A-NEW-07** (los 6 `<label>` sin `for` de `relevamientos/convocatoria_list.html` y la deuda de
+  `config/_dashboard_panel.html`): no son goldens, van en la Ola 5.
+- **Los pasos 4 a 7** de la Ola 6. El núcleo del agente **no se tocó**.
+- **Migrar las pantallas hermanas** a las goldens: eso es la Ola 5 (FE-11, FE-12, FE-17, FE-20, FE-23, FE-24), después
+  del paso 4.
+- **El wizard (D4).** Sigue sin golden y sin ficha: el agente frena y devuelve la tarea.
+
+## Decisiones tomadas
+
+**Se aplicó D5 tal como la registró el Cambio 129** (*avatar con gradiente en las filas de la golden de detalle →
+iniciales en `bg-brand-soft text-fg-brand`*). Era la única de D1-D5 con trabajo de template, y este es el PR que toca
+templates. Las otras cuatro no cambian código: las escribe el paso 4 en las fichas.
+
+**El `continue-on-error` se saca acá, pero antes hubo que darle a `--goldens` de dónde leer.** `goldens_declaradas()`
+parsea la tabla `## Arquetipos` del núcleo, **que escribe el paso 4**: sin esa tabla el modo imprimía «el núcleo todavía
+no la declara» y devolvía 0. Sacarle el `continue-on-error` en ese estado habría dejado un step que no verifica nada y
+que pasa igual aunque alguien ensucie una golden —justo lo que el paso 3 viene a evitar—. Por eso el script declara las
+cuatro en `design_audit.GOLDENS`: **el núcleo manda en cuanto exista la tabla**, y mientras tanto el gate muerde. Si las
+dos fuentes se contradicen, `--goldens` lo reporta como hallazgo en vez de elegir en silencio. Es además la red del
+checkout sin `.claude/`, que el release excluye por `export-ignore`.
+
+**El `<p data-error="__all__">` no puede ir como hijo directo del cuerpo del modal.** La ficha pide agregarlo y no dice
+dónde; puesto arriba de todo, el modal creció 20 px con el error **oculto**. La causa: `space-y-5` compila a
+`.space-y-5>:not([hidden])~:not([hidden])`, que mira el **atributo** `[hidden]`, no la clase `hidden` que usa
+`_ajax_js.html` para mostrar y esconder. El elemento cuenta como hermano y le pone `margin-top` al bloque siguiente. Va
+adentro del primer bloque de campo, donde no hay `space-y-*`. Lo vio el diff de píxeles de las capturas, no el gate.
+
+**La nota informativa va con `components/_alerta.html tono="info"` aunque ese parcial tenga `style=` adentro.** El
+`style=` de `_alerta.html` es deuda declarada (ALR-10: *info* no tiene par de tokens `bg`/`border` compilado). Moverla
+ahí saca 3 `style=` y un SVG Heroicons **de la golden**, que es lo que se clona, y deja la deuda en un solo archivo
+canónico en vez de repetida en cada pantalla nueva. Corregir `_alerta.html` es otro trabajo: toca una pieza canónica y
+arrastra la actualización del inventario en `.claude/`, que esta sesión no puede escribir.
+
+**El form de filtros pierde el `<label>` suelto y gana `aria-label` en el control.** No es preferencia: el molde tiene
+que mostrar lo que sobrevive. `dynamic_list_filters.js` hace `form.innerHTML = ''` y `form.className =
+'dynamic-list-filters'` al montar (`:38-39`), así que el label desaparece y la clase del `<form>` no llega nunca; el
+nombre accesible solo sobrevive si viaja en el control, y `labelFor()` lo busca primero ahí. Sin JS el control sigue
+teniendo nombre accesible, que es lo que pide WCAG 1.3.1.
+
+## Implementación
+
+**`programas/templates/programas/becas/revision/personas_list.html`** (golden de listado): el `<th class="nodo-th
+text-right">` vacío pasa a llevar `<span class="sr-only">Acciones</span>`; el `<form data-dynamic-list-filters>` pierde
+su `class` y su `<label>`, y el `<select>` gana `aria-label="Estado"`.
+
+**`programas/templates/programas/becas/cupo/segmento_detail.html`** (golden de detalle): sale el `<style>[x-cloak]`
+local —la misma regla ya es global en `static/custom/css/override.css:100`, cargada en el `<head>` del shell— y los 3
+avatares pasan de `style="background:var(--gradient-brand)"` + `text-white` a `bg-brand-soft text-fg-brand` (D5).
+
+**`programas/templates/programas/becas/config/programa_list.html`** (golden de modal): sale el `<style>[x-cloak]`;
+`style="backdrop-filter:blur(4px)"` → la clase `backdrop-blur-sm` (misma declaración, ya compilada); los 3 labels
+`block text-[13px] font-semibold text-heading mb-1.5` → `block text-sm font-medium text-heading mb-1`, los del
+`_field.html` canónico; el help text del campo SIIS deja de salir en `text-fg-danger` (parecía un error de validación) y
+pasa a `text-body-subtle`; se agrega `<p class="mb-2 text-xs text-fg-danger hidden" data-error="__all__" role="alert">`,
+que `_ajax_js.html` documenta y el modal no tenía (el error general solo aparecía en el toast); y la nota informativa
+—un `div` con 3 `style=` y un SVG Heroicons— pasa a `{% include "components/_alerta.html" with tono="info" %}`.
+
+**`scripts/design_audit.py`:** constante `GOLDENS` con las cuatro; `goldens_mode()` la usa mientras el núcleo no declare
+`## Arquetipos` y reporta la contradicción si las dos fuentes difieren.
+
+**`.github/workflows/design-agent-contract.yml`:** el step `Design audit goldens` pierde el `continue-on-error`.
+
+**`core/tests/test_design_audit_estructura.py`:** `GoldensSaneadasTests` (9 tests); `MarcadoresDeArquetipoTests.GOLDENS`
+pasa a leerse de `design_audit.GOLDENS` (antes listaba solo las dos que ya estaban limpias) y `GateDeCiTests` suma el
+step sin `continue-on-error`.
+
+## Archivos
+
+`programas/templates/programas/becas/revision/personas_list.html`,
+`programas/templates/programas/becas/cupo/segmento_detail.html`,
+`programas/templates/programas/becas/config/programa_list.html`, `scripts/design_audit.py`,
+`core/tests/test_design_audit_estructura.py`, `.github/workflows/design-agent-contract.yml`,
+`docs/internal/auditoria-2026-10/README.md` y `docs/internal/auditoria-2026-10/hallazgos/07-front.md`.
+
+## Base de datos
+
+No requiere migración. No toca modelos, vistas, URLs ni permisos.
+
+## Validación
+
+Con Python 3.12 + Django 5.2.17 (`.venv312`, igual al CI):
+
+- `manage.py check` → sin issues. `makemigrations --check --dry-run` → «No changes detected».
+- `manage.py check --deploy` con el entorno del CI → los warnings preexistentes, exit 0.
+- `manage.py test` (la suite entera, en un solo proceso, como el CI) y `manage.py test --tag performance`.
+- **Los tests se vieron en rojo antes del cambio:** con las herramientas y los tests nuevos copiados sobre un worktree
+  de `HEAD` y los templates sin tocar, los tres grupos dan **13 fallas** (9 de `GoldensSaneadasTests`, 2 subTests de
+  marcadores —detalle y modal— y la del step del CI). Con el cambio, verdes.
+- `scripts/design_audit.py --goldens` → **0 hallazgos en 4 goldens**; las 4 con `--arquetipo` en OK; las 4 juntas en una
+  corrida plana → **0 errores, 0 P1, 0 warnings** (antes 9 P1: `<style>` ×2 y `style=` ×7).
+- `scripts/compile_templates.py` (199 compilados, 0 errores), `scripts/check_design_agent.py --changed`, `ruff check .` y
+  `ruff format --check` sobre lo tocado.
+- **Capturas antes/después a 1440 y 390 px**, con las pantallas renderizadas de verdad (SQLite de scratch, datos
+  sembrados, estáticos locales) y comparadas con un diff de píxeles: `personas_list` **0 px distintos** en los dos
+  anchos; `segmento_detail` 0,08 % y 0,47 %, con la caja de diferencia acotada a la columna de 32 px de los avatares
+  (D5); el modal de `programa_list`, el cuerpo del diálogo (help text en gris, labels canónicos, ícono de la nota en
+  Font Awesome), sin mover la geometría del panel. 0 errores de consola.
+
+## Puesta en marcha en el servidor
+
+Nada. No hay migración ni configuración. Al próximo deploy, Becas muestra las tres pantallas con los cambios de arriba.
+`scripts/` y `.github/` no viajan en el release (`export-ignore`).
+
+## Pendientes / a definir
+
+- **La parte (b) de V5A-NEW-07** (Ola 5, PR 7): los 6 `<label>` sin `for` de `becas/relevamientos/convocatoria_list.html`
+  y la deuda de `becas/config/_dashboard_panel.html` (KPIs a `_stat_card`, `h3 style="font-size:16px"`,
+  `modalRespuestas` sin `x-becas-modal`). Ninguna de las dos es golden.
+- **Los pasos 4 a 7 de la Ola 6** (20 h de las 42). El paso 4 necesita permiso de escritura sobre `.claude/`.
+- **`components/_alerta.html` sigue con `style=` en la variante *info*** (ALR-10). Sacarlo pide tokens `bg-info-soft` y
+  `border-info-subtle` compilados y tocar una pieza canónica, con su fila del inventario en el mismo diff.
+- **`design_audit.GOLDENS` es temporal por diseño:** cuando el paso 4 escriba `## Arquetipos` en el núcleo, esa tabla
+  manda. La constante queda como red y como chequeo de coherencia entre las dos.
+
+## Reversión
+
+Revertir el commit: las tres pantallas vuelven a su markup anterior, el step del CI vuelve a ser tolerante y `--goldens`
+vuelve a no tener qué verificar. No hay datos, migraciones ni configuración que revertir.
