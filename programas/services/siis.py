@@ -24,9 +24,24 @@ CATALOGO_CACHE_KEY = "siis_api:catalogo:{}"
 CATALOGO_CACHE_LARGO = 24 * 60 * 60
 CATALOGOS_MAESTROS = ("provincias", "localidades", "estados-civiles", "tipos-documento", "jurisdicciones")
 TAB_INTERMEDIA_PATH = "/api/v1/auth/tab-intermedia"
-# Códigos de la matriz de respuestas (sección 6) que se resuelven reintentando;
-# DATOS_INVALIDOS pide corregir datos. ERROR_TECNICO es nuestro: red o JSON roto.
-CODIGOS_REINTENTABLES = {"UNAUTHORIZED", "ERROR_BD_LEGACY", "ERROR_INTERNO", "ERROR_TECNICO"}
+# SIIS-02 · Qué pasó con el POST, visto desde la única pregunta que importa:
+# «¿puede haber quedado un alta del otro lado?». El alta no tiene baja, así que
+# un resultado ambiguo **no se reintenta**: se concilia con ECOM (D-S02).
+#
+#   OK          200/201: el alta está hecha.
+#   NO_ENVIADO  el POST no salió o SIIS lo rechazó antes de procesarlo. Reintentable.
+#   RECHAZADO   SIIS lo miró y dijo que no. Pide corregir datos, no reintentar.
+#   INCIERTO    el POST pudo haber llegado y no sabemos qué pasó después.
+RESULTADO_OK = "OK"
+RESULTADO_NO_ENVIADO = "NO_ENVIADO"
+RESULTADO_RECHAZADO = "RECHAZADO"
+RESULTADO_INCIERTO = "INCIERTO"
+CODIGO_INCIERTO = "RESULTADO_INCIERTO"
+# El manual contesta 503 con este error cuando su base legacy está ocupada: el
+# alta no se llegó a escribir, así que es el único 5xx que se reintenta (D-S02).
+ERROR_BD_LEGACY = "ERROR_BD_LEGACY"
+# Estados HTTP que no dicen nada sobre si el alta se procesó.
+ESTADOS_AMBIGUOS = (408, 429)
 
 # Campos informativos del programa que conservamos del contrato de ECOM. Se
 # congelan en el segmento al vincularlo y son los que muestra el detalle.
@@ -52,6 +67,47 @@ MOTIVOS_RECHAZO = {
     "BENEFICIO_ACTIVO_EXISTENTE": "Ya registra una beca o programa activo incompatible.",
     "SUSPENDIDO_TEMPORAL": "Registra una suspensión vigente en otro beneficio.",
 }
+
+
+MENSAJE_INCIERTO = (
+    "SIIS no contestó y el alta pudo haber quedado registrada de su lado: no se reenvía hasta verificarlo."
+)
+
+# Errores de urllib3 que significan «la conexión no se abrió»: el POST no salió.
+# Se miran por nombre y no por clase para no atarse a la versión de urllib3 que
+# traiga requests.
+ERRORES_SIN_CONEXION = {"NewConnectionError", "NameResolutionError", "ConnectTimeoutError"}
+
+
+def _fallo(resultado, codigo, mensaje):
+    """La forma que tiene un fallo sin respuesta HTTP."""
+    return {
+        "success": False,
+        "resultado": resultado,
+        "codigo": codigo,
+        "reintentable": resultado == RESULTADO_NO_ENVIADO,
+        "error": mensaje,
+        "detalles": {},
+        "data": {},
+    }
+
+
+def _no_llego_a_conectar(exc, visitados=None):
+    """¿La conexión ni siquiera se abrió?
+
+    ``requests`` envuelve el error de urllib3 (``ConnectionError(MaxRetryError(…,
+    reason=NewConnectionError(…)))``), así que hay que recorrer la cadena: los
+    argumentos, la causa, el contexto y el ``reason`` de urllib3.
+    """
+    visitados = visitados if visitados is not None else set()
+    if exc is None or id(exc) in visitados:
+        return False
+    visitados.add(id(exc))
+    if type(exc).__name__ in ERRORES_SIN_CONEXION:
+        return True
+    candidatos = [getattr(exc, "reason", None), getattr(exc, "__cause__", None), getattr(exc, "__context__", None)]
+    candidatos.extend(arg for arg in getattr(exc, "args", ()) if isinstance(arg, BaseException))
+    return any(_no_llego_a_conectar(candidato, visitados) for candidato in candidatos)
 
 
 class SiisCatalogError(Exception):
@@ -326,31 +382,67 @@ class SiisAPIClient:
     def cargar_beneficiario(self, payload):
         """Alta individual en la tabla intermedia (Modalidad A del manual).
 
-        Nunca lanza: el resultado dice si hay que **corregir datos** (400,
-        ``reintentable=False``, con ``detalles`` por campo) o **reintentar**
-        (401/5xx/red, ``reintentable=True``).
+        Nunca lanza. El resultado trae ``resultado`` (SIIS-02), que es lo que
+        decide qué se puede volver a intentar:
+
+        * ``OK`` — 200/201.
+        * ``NO_ENVIADO`` — el POST no salió (DNS, conexión rechazada, timeout de
+          conexión, token), o SIIS lo rechazó sin procesarlo (401, 503
+          ``ERROR_BD_LEGACY``). Se reintenta solo.
+        * ``RECHAZADO`` — SIIS lo miró y dijo que no (400 y el resto de los 4xx).
+          Pide corregir datos.
+        * ``INCIERTO`` — el POST pudo haber llegado (``ReadTimeout``, conexión
+          cortada a mitad, 408/429, 500/502/504). **No se reintenta**: el alta no
+          tiene baja. Se concilia con ECOM (``conciliar_envios_siis``).
         """
+        resultado = self._intentar_alta(payload)
+        if resultado.get("codigo") == "UNAUTHORIZED":
+            # El token pudo haber vencido antes de lo que dijo ``expires_in``. El
+            # 401 garantiza que el alta no se procesó, así que reintentar una vez
+            # con un token nuevo no puede duplicar nada.
+            cache.delete(TOKEN_CACHE_KEY)
+            resultado = self._intentar_alta(payload)
+        return resultado
+
+    def _intentar_alta(self, payload):
+        try:
+            token = self._token()
+        except (requests.RequestException, TypeError, ValueError, _SiisConfigurationError) as exc:
+            # Sin ``logger.exception``: el traceback de requests arrastra el payload
+            # con datos personales. El tipo de error alcanza para diagnosticar.
+            logger.error("No se pudo obtener el token para el alta en SIIS (%s)", type(exc).__name__)
+            return _fallo(RESULTADO_NO_ENVIADO, "ERROR_TECNICO", "No se pudo autenticar contra SIIS.")
         try:
             response = instrument_external_call(
                 "siis",
                 requests.post,
                 f"{self.base_url}{TAB_INTERMEDIA_PATH}",
                 json=payload,
-                headers={"Authorization": f"Bearer {self._token()}"},
+                headers={"Authorization": f"Bearer {token}"},
                 timeout=self.timeout,
             )
-        except (requests.RequestException, TypeError, ValueError, _SiisConfigurationError) as exc:
-            # Sin ``logger.exception``: el traceback de requests arrastra el payload
-            # con datos personales. El tipo de error alcanza para diagnosticar.
+        except (TypeError, ValueError) as exc:
+            # El payload no se pudo serializar: no salió nada a la red.
             logger.error("Error técnico al cargar un beneficiario en SIIS (%s)", type(exc).__name__)
-            return {
-                "success": False,
-                "codigo": "ERROR_TECNICO",
-                "reintentable": True,
-                "error": "No se pudo conectar con SIIS.",
-                "detalles": {},
-                "data": {},
-            }
+            return _fallo(RESULTADO_NO_ENVIADO, "ERROR_TECNICO", "No se pudo armar la llamada a SIIS.")
+        except requests.ConnectTimeout as exc:
+            # Hereda de ConnectionError: su ``except`` va primero. La conexión no
+            # llegó a abrirse, así que el alta no salió.
+            logger.error("No se pudo conectar con SIIS (%s)", type(exc).__name__)
+            return _fallo(RESULTADO_NO_ENVIADO, "ERROR_TECNICO", "No se pudo conectar con SIIS.")
+        except requests.ConnectionError as exc:
+            if _no_llego_a_conectar(exc):
+                logger.error("No se pudo conectar con SIIS (%s)", type(exc).__name__)
+                return _fallo(RESULTADO_NO_ENVIADO, "ERROR_TECNICO", "No se pudo conectar con SIIS.")
+            # La conexión se abrió y se cortó: el POST pudo haber llegado.
+            logger.error("Conexión con SIIS cortada durante el alta (%s)", type(exc).__name__)
+            return _fallo(RESULTADO_INCIERTO, CODIGO_INCIERTO, MENSAJE_INCIERTO)
+        except requests.RequestException as exc:
+            # ReadTimeout, ChunkedEncodingError y cualquier otra: el servidor ya
+            # tenía el pedido.
+            logger.error("SIIS no completó la respuesta del alta (%s)", type(exc).__name__)
+            return _fallo(RESULTADO_INCIERTO, CODIGO_INCIERTO, MENSAJE_INCIERTO)
+
         try:
             body = response.json()
         except ValueError:
@@ -362,6 +454,7 @@ class SiisAPIClient:
         if response.status_code in (200, 201):
             return {
                 "success": True,
+                "resultado": RESULTADO_OK,
                 "siis_id": self._siis_id_de(body),
                 "codigo": "",
                 "reintentable": False,
@@ -369,19 +462,39 @@ class SiisAPIClient:
                 "data": body,
             }
         codigo = str(body.get("error") or "").strip().upper()
+        resultado = self._resultado_http(response.status_code, codigo)
         if not codigo:
-            codigo = {400: "DATOS_INVALIDOS", 401: "UNAUTHORIZED", 503: "ERROR_BD_LEGACY"}.get(
-                response.status_code, "ERROR_INTERNO"
-            )
+            codigo = {400: "DATOS_INVALIDOS", 401: "UNAUTHORIZED"}.get(response.status_code, "")
+        if resultado == RESULTADO_INCIERTO:
+            # El código que mandó SIIS queda en ``data``; el de la fila dice que
+            # no sabemos qué pasó, que es lo que decide si se puede reintentar.
+            codigo = CODIGO_INCIERTO
+        elif not codigo:
+            # 4xx sin código: no es un dato del beneficiario, es cómo está
+            # configurada la integración (ruta, permisos, versión del contrato).
+            codigo = "CONFIGURACION" if response.status_code < 500 else "ERROR_INTERNO"
         detalles = body.get("detalles") if isinstance(body.get("detalles"), dict) else {}
         return {
             "success": False,
+            "resultado": resultado,
             "codigo": codigo,
-            "reintentable": codigo in CODIGOS_REINTENTABLES or response.status_code >= 500,
+            "reintentable": resultado == RESULTADO_NO_ENVIADO,
             "error": body.get("mensaje") or body.get("detail") or f"SIIS respondió HTTP {response.status_code}.",
             "detalles": detalles,
             "data": body,
         }
+
+    @staticmethod
+    def _resultado_http(status, codigo):
+        if status == 401:
+            return RESULTADO_NO_ENVIADO
+        if status in ESTADOS_AMBIGUOS:
+            return RESULTADO_INCIERTO
+        if status >= 500:
+            # D-S02: el 503 del legacy ocupado es el único 5xx que garantiza que
+            # el alta no se escribió.
+            return RESULTADO_NO_ENVIADO if codigo == ERROR_BD_LEGACY else RESULTADO_INCIERTO
+        return RESULTADO_RECHAZADO
 
 
 def validar_compatibilidad(dni, id_programa, fecha_nacimiento=None):

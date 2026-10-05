@@ -11,12 +11,21 @@ import re
 import unicodedata
 from datetime import date
 
+from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from programas.models import EnvioSIIS, Formulario, PreguntaGlobal
 from programas.services.dashboard_becas import respuesta_de
 from programas.services.padron import normalizar_dni
-from programas.services.siis import SiisCatalogError, cargar_beneficiario, catalogo
+from programas.services.siis import (
+    RESULTADO_INCIERTO,
+    RESULTADO_NO_ENVIADO,
+    RESULTADO_OK,
+    RESULTADO_RECHAZADO,
+    SiisCatalogError,
+    cargar_beneficiario,
+    catalogo,
+)
 
 TDOC_DNI = 1
 BARRIO_MINIMO = 4
@@ -624,24 +633,188 @@ def _base_envio(formulario, solicitado_por):
     }
 
 
-def enviar_beneficiario_a_siis(formulario, solicitado_por, catalogos=None, exigir_aprobado=True):
+class CasoYaInformado(Exception):
+    """El caso ya tiene un envío vigente: no hay nada que mandar.
+
+    Lleva el ``EnvioSIIS`` que lo ocupa, para que quien llama lo muestre.
+    """
+
+    def __init__(self, envio):
+        self.envio = envio
+        super().__init__(f"El caso #{envio.formulario_id} ya tiene un envío vigente ({envio.estado}).")
+
+
+# SIIS-02 · Cómo se cierra un intento según lo que contestó SIIS.
+# ``vigente`` queda en True cuando el caso sigue ocupado: o hay alta, o no
+# sabemos si la hay. ``None`` libera el caso para un reintento.
+CIERRE_POR_RESULTADO = {
+    RESULTADO_OK: (EnvioSIIS.Estado.ENVIADO, True),
+    RESULTADO_NO_ENVIADO: (EnvioSIIS.Estado.ERROR, None),
+    RESULTADO_RECHAZADO: (EnvioSIIS.Estado.RECHAZADO, None),
+    RESULTADO_INCIERTO: (EnvioSIIS.Estado.INCIERTO, True),
+}
+
+
+def _estado_final(resultado):
+    """``(estado, vigente)`` del cierre de un intento."""
+    if resultado.get("success"):
+        return CIERRE_POR_RESULTADO[RESULTADO_OK]
+    clave = resultado.get("resultado")
+    if clave in CIERRE_POR_RESULTADO:
+        return CIERRE_POR_RESULTADO[clave]
+    # Un cliente viejo (o un mock de test) sin ``resultado``: se cae al criterio
+    # anterior, que es el conservador salvo para los reintentables declarados.
+    return CIERRE_POR_RESULTADO[RESULTADO_NO_ENVIADO if resultado.get("reintentable") else RESULTADO_RECHAZADO]
+
+
+def _estados_validos(exigir_aprobado, estados_permitidos):
+    if estados_permitidos:
+        return set(estados_permitidos)
+    if exigir_aprobado:
+        return {Formulario.Estado.APROBADO}
+    return None
+
+
+def _reservar(formulario, base, payload, faltantes, *, exigir_aprobado=True, estados_permitidos=None):
+    """Toma el caso para este intento y devuelve el ``EnvioSIIS`` ``EN_PROCESO``.
+
+    Es el corazón de SIIS-01. Dura milisegundos y **no hay ningún HTTP adentro**:
+    con el ``read_timeout`` de 10 s de la base de ECOM, mantener el lock de una
+    fila mientras se espera a SIIS (hasta 40 s) mata al segundo request.
+
+    Tres capas, porque ninguna alcanza sola:
+
+    1. ``select_for_update`` sobre la fila del **caso**: serializa a los dos
+       candidatos y, de paso, relee el estado (SIIS-04: un caso que pasó a BAJA
+       entre que se hidrató y su turno no se informa).
+    2. la relectura de ``vigente`` ya con el lock tomado: en READ COMMITTED el
+       segundo en entrar ve lo que el primero commiteó.
+    3. el índice único, para lo que el lock no cubre (dos pods, un caso que
+       cambió de fila, una corrida vieja).
+
+    Lanza :class:`CasoYaInformado` si el caso está ocupado y ``ValueError`` si su
+    estado no habilita el envío. Devuelve un ``EnvioSIIS`` ya cerrado
+    (``INCOMPLETO`` / ``RECHAZADO`` por duplicado local) cuando no hay nada que
+    mandar, o uno ``EN_PROCESO`` cuando sí.
+    """
+    validos = _estados_validos(exigir_aprobado, estados_permitidos)
+    with transaction.atomic():
+        estado = (
+            Formulario.objects.select_for_update().filter(pk=formulario.pk).values_list("estado", flat=True).first()
+        )
+        if estado is None:
+            raise ValueError("El caso ya no existe.")
+        if validos is not None and estado not in validos:
+            raise ValueError("Solo se informan a SIIS los casos aprobados.")
+        vigente = EnvioSIIS.objects.filter(formulario_id=formulario.pk, vigente=True).first()
+        if vigente is not None:
+            raise CasoYaInformado(vigente)
+        if faltantes:
+            return EnvioSIIS.objects.create(
+                estado=EnvioSIIS.Estado.INCOMPLETO,
+                codigo_error="DATOS_INCOMPLETOS",
+                detalles=faltantes,
+                payload=payload,
+                resuelto_en=timezone.now(),
+                **base,
+            )
+        duplicado = _duplicado_local(formulario, base)
+        if duplicado is not None:
+            return duplicado
+        try:
+            # Savepoint propio: un IntegrityError envenena la transacción, y acá
+            # adentro puede haber una externa (la vista que aprueba, por ejemplo).
+            with transaction.atomic():
+                return EnvioSIIS.objects.create(
+                    estado=EnvioSIIS.Estado.EN_PROCESO, vigente=True, payload=payload, **base
+                )
+        except IntegrityError:
+            otro = EnvioSIIS.objects.filter(formulario_id=formulario.pk, vigente=True).first()
+            if otro is None:
+                raise
+            raise CasoYaInformado(otro) from None
+
+
+def _duplicado_local(formulario, base):
+    """SIIS-05: la misma persona y el mismo plan, informados desde otro caso.
+
+    RN-P5 deduplica por convocatoria y la idempotencia del envío es por caso, así
+    que dos casos distintos del mismo DNI en el mismo plan daban dos altas. Es un
+    rechazo **local**: no se llama a SIIS (default D-S05, «una sola alta por
+    persona y plan»).
+    """
+    documento, plan = base["documento"], base["id_programa"]
+    if not documento or plan is None:
+        return None
+    otro = (
+        EnvioSIIS.objects.filter(documento=documento, id_programa=plan, vigente=True)
+        .exclude(formulario_id=formulario.pk)
+        .values_list("formulario_id", flat=True)
+        .first()
+    )
+    if otro is None:
+        return None
+    return EnvioSIIS.objects.create(
+        estado=EnvioSIIS.Estado.RECHAZADO,
+        codigo_error="DUPLICADO_LOCAL",
+        detalles={"_": [f"Ya informado a SIIS en el caso #{otro} con el mismo documento y plan."]},
+        resuelto_en=timezone.now(),
+        **base,
+    )
+
+
+def _cerrar(envio, resultado):
+    """Deja el intento en su estado final. Se cierra **una sola vez**.
+
+    El ``UPDATE`` filtra por ``estado=EN_PROCESO``: si mientras el POST estaba en
+    vuelo una conciliación tocó la fila (``conciliar_envios_siis``), no se pisa
+    lo que decidió una persona con la respuesta de ECOM en la mano.
+    """
+    estado, vigente = _estado_final(resultado)
+    detalles = resultado.get("detalles") or {}
+    if not detalles and resultado.get("error"):
+        detalles = {"_": [str(resultado["error"])]}
+    EnvioSIIS.objects.filter(pk=envio.pk, estado=EnvioSIIS.Estado.EN_PROCESO).update(
+        estado=estado,
+        vigente=vigente,
+        siis_id=resultado.get("siis_id"),
+        codigo_error=str(resultado.get("codigo") or "")[:40],
+        detalles=detalles,
+        respuesta=resultado.get("data") or {},
+        resuelto_en=timezone.now(),
+    )
+    envio.refresh_from_db()
+    return envio
+
+
+def enviar_beneficiario_a_siis(
+    formulario, solicitado_por, catalogos=None, exigir_aprobado=True, estados_permitidos=None
+):
     """Da de alta al beneficiario en SIIS y **siempre** deja un ``EnvioSIIS``.
 
-    Idempotente: un caso ya ``ENVIADO`` no se vuelve a mandar (la API no
-    deduplica). Nunca lanza por fallas de red ni de SIIS: eso queda registrado
-    como ``ERROR`` reintentable. Sí lanza ``ValueError`` si el caso no está
-    aprobado, porque eso es un error de programación del que llama.
+    Idempotente de verdad (SIIS-01): mientras el caso tenga un envío vigente
+    —``ENVIADO``, ``EN_PROCESO`` o ``INCIERTO``— no se vuelve a llamar a la API,
+    que no deduplica ni permite dar de baja. Devuelve ese envío vigente.
+
+    Nunca lanza por fallas de red ni de SIIS: eso queda registrado como ``ERROR``
+    (reintentable) o ``INCIERTO`` (no reintentable, se concilia). Sí lanza
+    ``ValueError`` si el caso no está en un estado que habilite el envío, porque
+    eso es un error de programación del que llama.
 
     ``exigir_aprobado=False`` levanta esa guarda y **solo lo usa el comando de
-    alta masiva** (``enviar_casos_siis``), que pide los estados por nombre. No
-    es un atajo: informar un caso que nadie revisó, o que la provincia rechazó,
-    lo registra como beneficiario en SIIS; la API no deduplica y desde acá no
-    hay forma de darlo de baja. La revisión desde la pantalla siempre lo exige.
+    alta masiva** (``enviar_casos_siis``), que pide los estados por nombre; con
+    ``estados_permitidos`` la relectura bajo lock exige que el estado siga dentro
+    de los pedidos (SIIS-04). No es un atajo: informar un caso que nadie revisó,
+    o que la provincia rechazó, lo registra como beneficiario en SIIS. La
+    revisión desde la pantalla siempre exige APROBADO.
+
+    **No llamarla dentro de una transacción**: el ``EN_PROCESO`` tiene que estar
+    commiteado antes del POST para que el segundo candidato lo vea.
     """
-    if exigir_aprobado and formulario.estado != Formulario.Estado.APROBADO:
-        raise ValueError("Solo se informan a SIIS los casos aprobados.")
-    vigente = formulario.envios_sis.filter(estado=EnvioSIIS.Estado.ENVIADO).order_by("-creado", "-pk").first()
-    if vigente:
+    vigente = formulario.envios_sis.filter(vigente=True).first()
+    if vigente is not None:
+        # Atajo barato: evita armar el payload (6-8 consultas) de un caso que ya
+        # está ocupado. La respuesta firme la da ``_reservar`` bajo el lock.
         return vigente
 
     base = _base_envio(formulario, solicitado_por)
@@ -649,52 +822,50 @@ def enviar_beneficiario_a_siis(formulario, solicitado_por, catalogos=None, exigi
         payload, faltantes = armar_payload(formulario, catalogos=catalogos)
     except CatalogoNoDisponible as exc:
         return EnvioSIIS.objects.create(
-            estado=EnvioSIIS.Estado.ERROR, codigo_error="ERROR_TECNICO", detalles={"catalogo": [str(exc)]}, **base
+            estado=EnvioSIIS.Estado.ERROR,
+            codigo_error="ERROR_TECNICO",
+            detalles={"catalogo": [str(exc)]},
+            resuelto_en=timezone.now(),
+            **base,
         )
     # El registro audita lo que se mandó de verdad: los ids pueden venir del
     # segmento o de la corrección del caso, no solo del programa (Cambio 82).
     base["id_programa"] = payload.get("id_plan_soc", base["id_programa"])
     base["id_funcion"] = payload.get("id_fun_x_plan", base["id_funcion"])
-    if faltantes:
-        return EnvioSIIS.objects.create(
-            estado=EnvioSIIS.Estado.INCOMPLETO,
-            codigo_error="DATOS_INCOMPLETOS",
-            detalles=faltantes,
-            payload=payload,
-            **base,
-        )
-
-    return _mandar_a_siis(payload, base)
+    return _mandar_a_siis(
+        formulario,
+        payload,
+        faltantes,
+        base,
+        exigir_aprobado=exigir_aprobado,
+        estados_permitidos=estados_permitidos,
+    )
 
 
-def _mandar_a_siis(payload, base):
-    """Llama a la API y deja el ``EnvioSIIS`` con lo que haya contestado.
+def _mandar_a_siis(formulario, payload, faltantes, base, *, exigir_aprobado=True, estados_permitidos=None):
+    """Reserva el caso, llama a la API y cierra el intento.
 
     Aparte porque la sincronización de la tabla intermedia manda un payload que
-    ya estaba guardado, en vez de armarlo del caso, y el registro del intento
-    tiene que ser idéntico en los dos caminos.
+    ya estaba guardado, en vez de armarlo del caso, y la reserva y el registro
+    del intento tienen que ser idénticos en los dos caminos (SIIS-01 y SIIS-04
+    cubren también esa séptima vía).
     """
-    resultado = cargar_beneficiario(payload)
-    if resultado.get("success"):
-        return EnvioSIIS.objects.create(
-            estado=EnvioSIIS.Estado.ENVIADO,
-            siis_id=resultado.get("siis_id"),
-            payload=payload,
-            respuesta=resultado.get("data") or {},
-            **base,
+    try:
+        envio = _reservar(
+            formulario,
+            base,
+            payload,
+            faltantes,
+            exigir_aprobado=exigir_aprobado,
+            estados_permitidos=estados_permitidos,
         )
-    estado = EnvioSIIS.Estado.ERROR if resultado.get("reintentable") else EnvioSIIS.Estado.RECHAZADO
-    detalles = resultado.get("detalles") or {}
-    if not detalles and resultado.get("error"):
-        detalles = {"_": [str(resultado["error"])]}
-    return EnvioSIIS.objects.create(
-        estado=estado,
-        codigo_error=str(resultado.get("codigo") or "")[:40],
-        detalles=detalles,
-        payload=payload,
-        respuesta=resultado.get("data") or {},
-        **base,
-    )
+    except CasoYaInformado as ocupado:
+        return ocupado.envio
+    if envio.estado != EnvioSIIS.Estado.EN_PROCESO:
+        return envio
+    # El HTTP va fuera de toda transacción: el ``EN_PROCESO`` ya está commiteado,
+    # así que cualquier otro camino que entre mientras tanto lo ve y se retira.
+    return _cerrar(envio, cargar_beneficiario(payload))
 
 
 def guardar_en_tabla_intermedia(formulario, solicitado_por, catalogos=None, exigir_aprobado=True):
@@ -711,7 +882,7 @@ def guardar_en_tabla_intermedia(formulario, solicitado_por, catalogos=None, exig
 
     if exigir_aprobado and formulario.estado != Formulario.Estado.APROBADO:
         raise ValueError("Solo se informan a SIIS los casos aprobados.")
-    if formulario.envios_sis.filter(estado=EnvioSIIS.Estado.ENVIADO).exists():
+    if formulario.envios_sis.filter(vigente=True).exists():
         return None, None
 
     base = _base_envio(formulario, solicitado_por)
@@ -719,7 +890,11 @@ def guardar_en_tabla_intermedia(formulario, solicitado_por, catalogos=None, exig
         payload, faltantes = armar_payload(formulario, catalogos=catalogos)
     except CatalogoNoDisponible as exc:
         return None, EnvioSIIS.objects.create(
-            estado=EnvioSIIS.Estado.ERROR, codigo_error="ERROR_TECNICO", detalles={"catalogo": [str(exc)]}, **base
+            estado=EnvioSIIS.Estado.ERROR,
+            codigo_error="ERROR_TECNICO",
+            detalles={"catalogo": [str(exc)]},
+            resuelto_en=timezone.now(),
+            **base,
         )
     base["id_programa"] = payload.get("id_plan_soc", base["id_programa"])
     base["id_funcion"] = payload.get("id_fun_x_plan", base["id_funcion"])
@@ -729,6 +904,7 @@ def guardar_en_tabla_intermedia(formulario, solicitado_por, catalogos=None, exig
             codigo_error="DATOS_INCOMPLETOS",
             detalles=faltantes,
             payload=payload,
+            resuelto_en=timezone.now(),
             **base,
         )
 
@@ -769,12 +945,17 @@ def sincronizar_tabla_intermedia(solicitado_por, limite=None, al_terminar=None):
     revisó. Si entre medio se corrigieron datos, hay que volver a guardarlo con
     ``--destino tabla`` para regenerarlo.
 
-    Devuelve ``{"altas": n, "rechazadas": n, "errores": n}``. ``al_terminar`` se
-    llama con cada ``(alta, envio)`` para informar el avance.
+    Devuelve ``{"altas": n, "rechazadas": n, "errores": n, "no_aprobables": n}``.
+    ``al_terminar`` se llama con cada ``(alta, envio)`` para informar el avance.
+
+    El estado del caso se **relee bajo lock** antes de mandar (SIIS-04): una fila
+    guardada hace días puede corresponder a un caso que desde entonces pasó a
+    BAJA, y el payload guardado no lo sabe. Esos casos se cuentan aparte y la
+    fila queda pendiente: que una persona decida si se regenera o se descarta.
     """
     from programas.models import AltaIntermediaSIIS
 
-    cuenta = {"altas": 0, "rechazadas": 0, "errores": 0}
+    cuenta = {"altas": 0, "rechazadas": 0, "errores": 0, "no_aprobables": 0}
     pendientes = (
         AltaIntermediaSIIS.objects.filter(sincronizado=False)
         .select_related("formulario__ciudadano", "formulario__relevamiento__convocatoria__segmento__programa")
@@ -784,13 +965,17 @@ def sincronizar_tabla_intermedia(solicitado_por, limite=None, al_terminar=None):
         pendientes = pendientes[:limite]
     for alta in list(pendientes):
         formulario = alta.formulario
-        if formulario.envios_sis.filter(estado=EnvioSIIS.Estado.ENVIADO).exists():
+        if formulario.envios_sis.filter(vigente=True).exists():
             # Alguien lo mandó por otro camino: la fila ya no tiene nada que hacer.
             alta.sincronizado = True
             alta.sincronizado_en = timezone.now()
             alta.save(update_fields=["sincronizado", "sincronizado_en", "modificado"])
             continue
-        envio = _mandar_a_siis(payload_de(alta), _base_envio(formulario, solicitado_por))
+        try:
+            envio = _mandar_a_siis(formulario, payload_de(alta), {}, _base_envio(formulario, solicitado_por))
+        except ValueError:
+            cuenta["no_aprobables"] += 1
+            continue
         if envio.estado == EnvioSIIS.Estado.ENVIADO:
             alta.sincronizado = True
             alta.sincronizado_en = timezone.now()
@@ -811,6 +996,19 @@ def mensaje_envio(envio):
     if envio.estado == EnvioSIIS.Estado.ENVIADO:
         sufijo = f" (ID {envio.siis_id})" if envio.siis_id else ""
         return "success", f"Informado a SIIS{sufijo}."
+    if envio.estado == EnvioSIIS.Estado.EN_PROCESO and not envio.incierto:
+        desde = timezone.localtime(envio.creado).strftime("%H:%M") if envio.creado else "recién"
+        return "info", f"El alta ya se está informando a SIIS (desde {desde}). Recargá en un minuto."
+    if envio.estado == EnvioSIIS.Estado.INCIERTO or envio.estado == EnvioSIIS.Estado.EN_PROCESO:
+        return (
+            "warning",
+            "No sabemos si SIIS registró el alta: no se reenvía hasta verificarlo con SIIS.",
+        )
+    if envio.estado == EnvioSIIS.Estado.RECHAZADO and envio.codigo_error == "DUPLICADO_LOCAL":
+        return (
+            "warning",
+            "Esta persona ya fue informada a SIIS en otro caso del mismo plan: no se vuelve a dar de alta.",
+        )
     if envio.estado == EnvioSIIS.Estado.INCOMPLETO:
         cantidad = len(envio.detalles or {})
         return "warning", f"El envío a SIIS quedó pendiente: faltan {cantidad} dato(s). Completalos desde el caso."

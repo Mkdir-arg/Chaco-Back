@@ -2685,8 +2685,22 @@ class Formulario(TimeStamped):
 
     @property
     def envio_siis_vigente(self):
-        """Último intento de alta en SIIS (o ``None``)."""
+        """Último intento de alta en SIIS (o ``None``).
+
+        Es el **último**, no el que bloquea: para «¿se puede mandar este caso?»
+        la pregunta es :attr:`envio_siis_activo`, que mira ``vigente``.
+        """
         return self.envios_sis.order_by("-creado", "-pk").first()
+
+    @property
+    def envio_siis_activo(self):
+        """El envío que ocupa el caso (``ENVIADO``, ``EN_PROCESO`` o ``INCIERTO``).
+
+        Mientras exista, ningún camino vuelve a llamar a SIIS por este caso: o ya
+        está dado de alta, o hay un POST en vuelo, o no sabemos si llegó. Es uno
+        solo por caso, y lo garantiza el índice único de ``EnvioSIIS``.
+        """
+        return self.envios_sis.filter(vigente=True).first()
 
     @property
     def informado_a_siis(self):
@@ -2822,17 +2836,38 @@ class ValidacionSIS(models.Model):
 
 
 class EnvioSIIS(models.Model):
-    """Intento inmutable de alta de un beneficiario en la tabla intermedia de SIIS.
+    """Un intento de alta de un beneficiario en la tabla intermedia de SIIS.
 
-    Hermano de :class:`ValidacionSIS`: un registro por intento, nunca se edita.
-    Un caso con un envío ``ENVIADO`` no se vuelve a mandar (la API no deduplica).
+    Hermano de :class:`ValidacionSIS`: un registro por intento. Un intento se
+    cierra **una sola vez**, en su estado final: nace ``EN_PROCESO`` antes del
+    POST y pasa a ``ENVIADO``, ``RECHAZADO``, ``ERROR`` o ``INCIERTO`` cuando
+    SIIS contesta (o cuando no se sabe si contestó). Los demás estados nacen
+    cerrados y no se vuelven a tocar.
+
+    ``vigente`` es la pieza que impide el alta doble, que es irreversible porque
+    SIIS no tiene baja. Vale ``True`` mientras el caso esté **ocupado** —hay un
+    alta hecha (``ENVIADO``), una en vuelo (``EN_PROCESO``) o una de resultado
+    desconocido (``INCIERTO``)— y ``NULL`` en el resto. Con el índice único
+    ``(formulario, vigente)`` el motor admite todos los ``NULL`` que quiera pero
+    un solo ``True`` por caso: es la unicidad condicional que MariaDB no da con
+    ``UniqueConstraint(condition=…)`` (``supports_partial_indexes = False``).
     """
 
     class Estado(models.TextChoices):
+        EN_PROCESO = "EN_PROCESO", "En proceso"
         ENVIADO = "ENVIADO", "Enviado"
         INCOMPLETO = "INCOMPLETO", "Datos incompletos"
         RECHAZADO = "RECHAZADO", "Rechazado por SIIS"
         ERROR = "ERROR", "Error técnico"
+        INCIERTO = "INCIERTO", "Resultado incierto"
+
+    #: Estados que ocupan el caso: mientras haya uno, no se vuelve a llamar a SIIS.
+    ESTADOS_VIGENTES = (Estado.EN_PROCESO, Estado.ENVIADO, Estado.INCIERTO)
+
+    #: Pasado este tiempo, un ``EN_PROCESO`` dejó de ser «en vuelo» y es un
+    #: proceso muerto entre el POST y el registro: se trata como incierto. Dos
+    #: llamadas completas (connect 10 s + read 30 s) más margen.
+    EN_PROCESO_VENCE = timedelta(minutes=5)
 
     formulario = models.ForeignKey(
         Formulario, on_delete=models.CASCADE, related_name="envios_sis", verbose_name="Formulario"
@@ -2852,6 +2887,12 @@ class EnvioSIIS(models.Model):
     solicitado_por = models.ForeignKey(
         User, on_delete=models.SET_NULL, null=True, related_name="envios_sis_solicitados"
     )
+    # ``True`` mientras el caso esté ocupado; ``NULL`` si no. Nunca ``False``:
+    # el índice único cuenta los ``False`` como iguales entre sí y bloquearía el
+    # segundo intento fallido del mismo caso.
+    vigente = models.BooleanField(null=True, default=None, editable=False)
+    # Cuándo se cerró el intento (cuándo contestó SIIS, o cuándo se concilió).
+    resuelto_en = models.DateTimeField(null=True, blank=True)
     creado = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -2859,14 +2900,60 @@ class EnvioSIIS(models.Model):
         ordering = ["-creado", "-pk"]
         verbose_name = "Envío a SIIS"
         verbose_name_plural = "Envíos a SIIS"
+        constraints = [
+            # Sin ``condition``: MariaDB no crea índices parciales
+            # (``supports_partial_indexes = False``). Varios NULL en un índice
+            # único son legales en MariaDB, MySQL y SQLite, así que la columna
+            # nullable emula el índice parcial sin depender de esa capacidad.
+            models.UniqueConstraint(fields=["formulario", "vigente"], name="uniq_enviosiis_vigente_caso"),
+        ]
+        indexes = [
+            # SIIS-05: «¿esta persona ya está informada en este plan?», desde
+            # cualquier caso. Sin el índice es un scan de la tabla por alta.
+            models.Index(fields=["documento", "id_programa"], name="idx_enviosiis_doc_plan"),
+        ]
 
     def __str__(self):
         return f"Formulario #{self.formulario_id} · {self.estado}"
 
+    def save(self, *args, **kwargs):
+        """``vigente`` se deriva del estado: es una invariante, no un dato aparte.
+
+        Así ningún camino puede crear un ``ENVIADO`` que no ocupe el caso —que
+        sería una puerta abierta al alta doble— ni un ``RECHAZADO`` que lo
+        bloquee para siempre. Los cierres por ``update()`` escriben los dos
+        campos juntos, por la misma razón.
+        """
+        self.vigente = True if self.estado in self.ESTADOS_VIGENTES else None
+        if "update_fields" in kwargs and kwargs["update_fields"] is not None:
+            kwargs["update_fields"] = {*kwargs["update_fields"], "vigente"}
+        return super().save(*args, **kwargs)
+
     @property
     def reintentable(self):
-        """Solo los errores técnicos se reintentan solos; el resto pide corrección."""
+        """Solo los errores técnicos se reintentan solos; el resto pide corrección.
+
+        Un ``INCIERTO`` **no** es reintentable a propósito: el POST pudo haber
+        llegado. Se libera a mano con ``conciliar_envios_siis`` después de
+        preguntarle a ECOM si el beneficiario quedó registrado.
+        """
         return self.estado == self.Estado.ERROR
+
+    @property
+    def incierto(self):
+        """No se sabe si SIIS registró el alta: ``INCIERTO`` o un ``EN_PROCESO`` viejo.
+
+        Un ``EN_PROCESO`` que pasó :attr:`EN_PROCESO_VENCE` no es un POST en
+        vuelo: es un proceso que murió entre el POST y el registro (gunicorn
+        recicla el worker, el pod se reinicia, Ctrl+C a mitad de una corrida).
+        """
+        if self.estado == self.Estado.INCIERTO:
+            return True
+        return (
+            self.estado == self.Estado.EN_PROCESO
+            and self.creado is not None
+            and timezone.now() - self.creado > self.EN_PROCESO_VENCE
+        )
 
 
 class AltaIntermediaSIIS(TimeStamped):

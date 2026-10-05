@@ -213,8 +213,31 @@ Volver a correrlo al terminar. Si dice `No hay casos que procesar`, no quedó ni
 |---|---|
 | `Lost connection to server during query` | La base está saturada (restore en curso). Esperar y reintentar. |
 | `DETENIDO tras 10 errores técnicos seguidos` | SIIS no responde. Esperar y volver a correr: lo hecho queda. |
-| Ctrl+C a mitad | Seguro. Los comandos son reentrantes y no duplican. |
+| Ctrl+C a mitad | No duplica. El caso que estaba en vuelo queda `EN_PROCESO` y, pasados 5 minutos, se ve como **incierto**: no se sabe si SIIS lo registró. Volver a lanzar el comando retoma el resto y **no lo toca**; ese se resuelve con `conciliar_envios_siis` (abajo). |
+| Un caso quedó `INCIERTO` | No se reenvía por ninguna vía. Se concilia con ECOM: ver «Envíos de resultado desconocido». |
 | Se corrió el paso 6 sin hacer el 3 | Los barrios reales quedaron pisados. Ver abajo. |
+
+### Envíos de resultado desconocido (`INCIERTO`)
+
+Un `ReadTimeout`, un 500 o un pod reiniciado entre el POST y el registro dejan el
+intento sin saber si SIIS registró al beneficiario. La API no deduplica ni permite
+dar de baja, así que **reintentar a ciegas es el peor desenlace posible**: esos
+casos quedan tomados y ningún camino los vuelve a mandar. La salida es preguntarle
+a ECOM:
+
+```bash
+# 1. El listado que se le manda a ECOM: «¿estas personas están en SIIS?»
+python manage.py conciliar_envios_siis --listar > inciertos.csv
+
+# 2a. ECOM confirma que SÍ está: queda informado, no se reenvía nunca
+python manage.py conciliar_envios_siis --confirmar <pk> --siis-id <id> --usuario coord
+
+# 2b. ECOM confirma que NO está: vuelve a ser candidato en todas las vías
+python manage.py conciliar_envios_siis --liberar <pk> --motivo "ECOM confirmó que no llegó" --usuario coord
+```
+
+Las dos decisiones quedan en la traza del caso, con quién las tomó. **Nunca se
+libera sin la confirmación de ECOM**: liberar un alta que sí llegó es duplicarla.
 
 ### Deshacer un envío (solo si SIIS ya lo borró de su lado)
 

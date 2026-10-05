@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 
 from django.core.exceptions import ValidationError
 from django.db import connection, transaction
-from django.db.models import Exists, OuterRef, Q, Subquery
+from django.db.models import Count, Exists, OuterRef, Q, Subquery
 from django.utils import timezone
 
 from programas.models import (
@@ -105,6 +105,33 @@ def dnis_aprobados_materias():
 # Contadores que viajan de ``Cuenta`` a ``CorridaSiis`` con el mismo nombre.
 CONTADORES = ("mirados", "elegidos", "aprobados", "lista_espera", "altas", "incompletos", "rechazados", "errores")
 
+# Errores técnicos acumulados a partir de los cuales un caso deja de ser
+# candidato automático (A2-15, punto 6 de SIIS-02). No es un castigo: un caso que
+# falló cinco veces tiene un problema que ninguna corrida va a resolver sola, y
+# cada reintento es una llamada a SIIS que le saca lugar a otro.
+MAX_REINTENTOS = 5
+# Tope del listado que se trae a memoria para excluirlos. Si hubiera más, es que
+# SIIS está caído y el problema no son los casos.
+TOPE_AGOTADOS = 5000
+
+
+def casos_con_errores_agotados(tope=TOPE_AGOTADOS):
+    """Ids de los casos con ``MAX_REINTENTOS`` o más envíos en ``ERROR``.
+
+    Una sola consulta agrupada sobre ``programas_enviosiis`` (una tabla chica al
+    lado de ``programas_formulario``) y la lista vuelve a memoria: un ``IN`` con
+    una subconsulta correlacionada acá adentro es justo lo que no entra en el
+    ``read_timeout`` de 10 s de la base de ECOM.
+    """
+    return list(
+        EnvioSIIS.objects.filter(estado=EnvioSIIS.Estado.ERROR)
+        .values("formulario_id")
+        .annotate(intentos=Count("id"))
+        .filter(intentos__gte=MAX_REINTENTOS)
+        .order_by("formulario_id")
+        .values_list("formulario_id", flat=True)[:tope]
+    )
+
 
 @dataclass
 class Cuenta:
@@ -115,6 +142,11 @@ class Cuenta:
     aprobados: int = 0
     lista_espera: int = 0
     no_aprobable: int = 0
+    # Ya los tiene otro camino (un envío EN_PROCESO o INCIERTO) o ya se informó
+    # a la misma persona en el mismo plan desde otro caso (DUPLICADO_LOCAL).
+    # Ninguno de los dos es un error: no cuentan para el freno por errores.
+    ocupados: int = 0
+    duplicados: int = 0
     # Entró a la lista de espera entre la selección y su turno (el selector ya
     # los deja afuera). No viaja a ``CorridaSiis``: no hay columna para él.
     ya_en_espera: int = 0
@@ -156,17 +188,34 @@ def candidatos(
     tabla intermedia sin sincronizar: guardarlos no deja ``EnvioSIIS``, así que
     sin esto volverían a salir como candidatos en cada vuelta y una corrida por
     tandas no terminaría nunca.
+
+    Tampoco entran los casos con un envío **vigente** (SIIS-01): uno ya informado,
+    uno con el POST en vuelo o uno de resultado incierto. Ni los que acumularon
+    ``MAX_REINTENTOS`` errores técnicos: insistir con ellos gasta la corrida y
+    tapa los que sí pueden salir (A2-15).
     """
     ultimo = EnvioSIIS.objects.filter(formulario=OuterRef("pk")).order_by("-creado", "-id").values("estado")[:1]
+    vigente = EnvioSIIS.objects.filter(formulario=OuterRef("pk"), vigente=True)
     casos = (
         Formulario.objects.select_related(*SELECT_RELATED_CASOS)
         .annotate(ultimo_envio=Subquery(ultimo))
         # «Todavía no informado» incluye a los que no tienen ningún envío, y eso
         # es NULL: un ``exclude`` los descartaría a todos, porque
         # ``NOT (NULL = 'ENVIADO')`` no es verdadero.
+        #
+        # El filtro por ``ultimo_envio`` se queda junto al de ``vigente`` a
+        # propósito: durante el deploy puede haber filas ``ENVIADO`` escritas por
+        # el código viejo, que nacen con ``vigente = NULL`` (expand/contract).
         .filter(Q(ultimo_envio__isnull=True) | ~Q(ultimo_envio=EnvioSIIS.Estado.ENVIADO))
+        # NOT EXISTS contra el índice único ``(formulario, vigente)``: una
+        # búsqueda exacta por caso, no el scan por fila de un ``Exists`` sobre
+        # una FK casi siempre nula.
+        .filter(~Exists(vigente))
         .order_by("pk")
     )
+    agotados = casos_con_errores_agotados()
+    if agotados:
+        casos = casos.exclude(pk__in=agotados)
     estados = [Formulario.Estado.APROBADO]
     if not solo_enviar:
         estados.append(Formulario.Estado.ENVIADO)
@@ -310,24 +359,38 @@ def procesar_caso(caso, responsable, catalogos, cuenta, *, avisar=False, solo_en
             if avisar:
                 enviar_aviso_resolucion(caso, resultado)
 
-    if destino == DESTINO_TABLA:
-        # El alta se guarda de este lado y no se llama a la API. El caso sigue
-        # siendo candidato hasta que llegue a SIIS de verdad: la fila guardada
-        # es una copia para revisar, no un alta hecha.
-        alta, envio = guardar_en_tabla_intermedia(caso, responsable, catalogos=catalogos)
-        if alta is not None:
-            cuenta.guardadas += 1
-            return None
-        if envio is None:
-            return None
-    else:
-        envio = enviar_beneficiario_a_siis(caso, responsable, catalogos=catalogos)
+    try:
+        if destino == DESTINO_TABLA:
+            # El alta se guarda de este lado y no se llama a la API. El caso sigue
+            # siendo candidato hasta que llegue a SIIS de verdad: la fila guardada
+            # es una copia para revisar, no un alta hecha.
+            alta, envio = guardar_en_tabla_intermedia(caso, responsable, catalogos=catalogos)
+            if alta is not None:
+                cuenta.guardadas += 1
+                return None
+            if envio is None:
+                return None
+        else:
+            envio = enviar_beneficiario_a_siis(caso, responsable, catalogos=catalogos)
+    except ValueError:
+        # SIIS-04: el estado releído bajo lock ya no habilita el envío. El caso
+        # cambió entre que se hidrató y su turno (una baja, un rechazo): no se
+        # informa, y eso no es un error técnico.
+        cuenta.no_aprobable += 1
+        return None
     if envio.estado == EnvioSIIS.Estado.ENVIADO:
         cuenta.altas += 1
     elif envio.estado == EnvioSIIS.Estado.INCOMPLETO:
         cuenta.incompletos += 1
+    elif envio.estado in (EnvioSIIS.Estado.EN_PROCESO, EnvioSIIS.Estado.INCIERTO):
+        # Otro camino lo tiene tomado, o quedó de resultado desconocido: no se
+        # vuelve a llamar a SIIS y tampoco cuenta como falla del servicio.
+        cuenta.ocupados += 1
     elif envio.estado == EnvioSIIS.Estado.RECHAZADO:
-        cuenta.rechazados += 1
+        if envio.codigo_error == "DUPLICADO_LOCAL":
+            cuenta.duplicados += 1
+        else:
+            cuenta.rechazados += 1
     else:
         cuenta.errores += 1
         return "tecnico"

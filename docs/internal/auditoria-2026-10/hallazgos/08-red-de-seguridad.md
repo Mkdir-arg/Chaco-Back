@@ -92,7 +92,7 @@ con lo que existe hoy; la lista solo baja.
 | RED-50 | La edad (RN-22) está cuatro veces y tres usan `date.today()` (UTC en los contenedores) | MEDIA | CONF. lectura | R (+3) | S (+S-M) | ⬜ |
 | RED-51 | Dos `invalidate_dashboard_cache`; `stats_legajos` colgado del modelo equivocado | MEDIA | CONF. lectura | R (+4) | S (+S) | ⬜ |
 | RED-52 | Contrato implícito por `user._state.fields_cache["profile"]` | MEDIA | CONF. lectura | R (+2) | S (+S) | ⬜ |
-| RED-53 | Clones literales entre los comandos SIIS y entre las vistas de padrón | MEDIA | CONF. test (pylint + AST) | 1 (+5) | S-M (+S) | ⬜ |
+| RED-53 | Clones literales entre los comandos SIIS y entre las vistas de padrón | MEDIA | CONF. test (pylint + AST) | 1 (+5) | S-M (+S) | ✅ (1; falta Ola 5) |
 | RED-54 | `revision.py` (1.331 líneas): ningún test fija el contexto del detalle | MEDIA | CONF. test (radon) | R (+7) | S-M (+M) | ✅ (R; falta Ola 7) |
 | RED-55 | Los context processors corren en cada render y tragan toda excepción sin log | MEDIA | CONF. lectura | R | S | ⬜ |
 | RED-56 | Los guards de alcance de Becas fallan abiertos si el Programa BECAS no está sembrado | MEDIA | CONF. test | R | S | ✅ |
@@ -1223,6 +1223,19 @@ un `Decimal`, y unificarla es parte de RED-48, que además tiene que resolver la
   paso no bloqueante en CI `pylint --disable=all --enable=duplicate-code --min-similarity-lines=8` con el conteo de hoy
   (4 grupos) como techo. **Ola 5:** `_subir_padron(request, duenio, destino, prefijo="")` en `relevamientos.py`. La
   duplicación de `_sin_formularios_publicos_si_no_puede` y `_assert_scope` se resuelve con RED-79.
+
+**Resolución:** ✅ Resuelta **la parte de la Ola 1** en el PR 2 (Cambio 127), 05-oct-2026 —
+`programas/management/commands/_base_siis.py::ComandoSiisBase` con los flags comunes (`--aplicar`,
+`--lote`, `--pausa`, `--max-errores`, `--usuario`), `_log`, `_solicitante`, `_lotes`, `_resumen`,
+`_avisar_ensayo`, `_exigir_credenciales` y `_cortado_por_errores`; heredan los cuatro comandos que
+hablan con SIIS caso por caso. **Desvíos de la ficha:** (1) el cuarto comando es
+`reenviar_siis_pendientes` y no `correr_alta_siis`, que no llama a la API —encadena a los otros—;
+(2) la paridad se mide sobre los cinco flags que tienen sentido en los cuatro, no sobre todos
+(`--limite`/`--total` y los filtros siguen siendo de cada comando); (3) el paso de `pylint` en CI no
+entró: el repo no tiene pylint instalado y agregarlo es una dependencia nueva del CI, que es trabajo
+de la Ola 7 (RED-85 pinea herramientas). Efecto lateral: `reenviar_siis_pendientes` pasa a correr en
+seco por defecto, como los otros tres. Falta la parte de la Ola 5 (`_subir_padron`).
+**Test permanente:** `programas/tests/test_siis_un_solo_envio.py::ParidadComandosSiisTests.test_los_cuatro_comandos_aceptan_los_mismos_flags`.
 
 ### RED-54 · `revision.py`: ningún test fija el contexto del detalle
 **Severidad:** MEDIA · **Estado:** CONFIRMADO con test (`radon`: 1.331 líneas, MI 5.84; `formulario_detalle` CC 26; fan-out 16) · **Origen:** RS-R4-17 (VR2: CONFIRMADO) · **Ola:** R (antes de la Ola 1) + 7 (refactor) · **Esfuerzo:** S-M (4 h) + M (8 h)

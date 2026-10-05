@@ -307,6 +307,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 124 | Cupo y lista de espera: la guarda del cupo 0, el contrato de los candados y la posición | Becas · cupo y lista de espera · Portal (link público) · API de campo | `#cupos` `#api` `#mobile` `#datos` | Auditoría integral oct-2026 — RED-27, RED-67 y RED-68 (Ola R, red de seguridad, PR R-09) | 04/10/2026 | 🟢 **Hecho** | No requiere |
 | 125 | El CI ve la forma del SQL que le llega al motor de producción | Transversal · dashboards · link público · Dispositivos (reportes) | `#performance` `#infra` `#datos` `#relevamientos` | Auditoría integral oct-2026 — RED-07, RED-08 y RED-09 (Ola R, red de seguridad, PR R-10) | 04/10/2026 | 🟢 **Hecho** | No requiere |
 | 126 | Un usuario sin rol dejaba de ser inofensivo: borraba documentos del ciudadano y silenciaba alertas | Legajos (adjuntos, alertas, APIs del detalle) · Transversal (barrido del URLconf) · Usuarios (ABM de Roles) | `#rbac` `#api` `#ui` `#datos` | Auditoría integral oct-2026 — RED-89, SEC-10, SEC-18, SEC-11, RED-04 y RED-06 (Ola R, red de seguridad, PR R-19) | 04/10/2026 | 🟢 **Hecho** | No requiere |
+| 127 | Un alta por caso en SIIS: resultado incierto que no se reintenta y conciliación con ECOM | Becas · alta de beneficiarios en SIIS (pantalla, masivo, comandos y tabla intermedia) | `#siis` `#datos` `#relevamientos` `#ui` | Auditoría integral oct-2026 — SIIS-01, SIIS-02, SIIS-04, SIIS-05, BEC-14 y RED-53 (Ola 1 «Integridad SIIS», PR 2) | 05/10/2026 | 🟢 **Hecho** | `programas.0075_enviosiis_vigente` |
 
 **Notas del índice**
 
@@ -16783,6 +16784,248 @@ Lo que dejó a la vista la revisión del PR (anotado, **no arreglado acá**):
 Revertir el commit devuelve las capacidades, la ruta `archivos/<id>/eliminar/` y el fallback de las
 CRÍTICAS globales. No hay datos que migrar ni que perder. Lo que vuelve es el agujero: cualquier
 cuenta de backoffice borrando documentos del ciudadano sin dejar rastro.
+
+## Historial
+
+No aplica: entrada nueva.
+
+---
+
+# Cambio 127 — Un alta por caso en SIIS: resultado incierto que no se reintenta y conciliación con ECOM
+
+🟢 **HECHO — 05/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · alta de beneficiarios en SIIS (pantalla, masivo, comandos y tabla intermedia) |
+| **Etiquetas** | `#siis` `#datos` `#relevamientos` `#ui` |
+| **Solicitante** | Auditoría integral oct-2026 — SIIS-01, SIIS-02, SIIS-04, SIIS-05, BEC-14 y RED-53 (Ola 1 «Integridad SIIS», PR 2) |
+| **Fecha del pedido** | 05/10/2026 |
+| **Issue / épica** | sin issue (plan de la auditoría, `docs/internal/auditoria-2026-10/README.md` §6) |
+| **Partes afectadas** | Backoffice (revisión del caso, cupo, proceso masivo) · comandos de SIIS |
+| **Migración** | `programas.0075_enviosiis_vigente` |
+
+## Pedido original
+
+**El alta en SIIS no tiene baja.** Su API no deduplica, no expone un endpoint para preguntar si un
+beneficiario ya existe y no permite borrar lo que se mandó: lo único que se puede hacer con un alta
+duplicada es pedirle a ECOM que la saque a mano del otro lado. Con eso en la mano, la auditoría
+encontró que **siete caminos distintos** podían informar el mismo caso dos veces:
+
+```python
+# programas/services/siis_envio.py, antes
+if formulario.envios_sis.filter(estado=ENVIADO).exists():   # lee
+    return
+payload = armar_payload(formulario)                          # 6-8 consultas, segundos
+resultado = cargar_beneficiario(payload)                     # HTTP de hasta 40 s
+EnvioSIIS.objects.create(estado=ENVIADO, ...)                # recién acá escribe
+```
+
+Entre la lectura y la escritura pasan decenas de segundos y no hay nada —ni lock, ni fila «en
+curso», ni constraint— que impida que otro camino entre en el medio: el botón «Informar», aprobar,
+promover desde Cupo, el hilo del proceso masivo, `reenviar_siis_pendientes`, `enviar_casos_siis`,
+`procesar_casos_siis` y la séptima que sumó el Cambio 108, `sincronizar_tabla_intermedia`. Un doble
+clic alcanzaba (`SiisAltaSinExclusionTests`: 2 POST, 2 `ENVIADO`).
+
+El agravante es SIIS-02: un `ReadTimeout` —el POST ya entregado, la respuesta que no llega— se
+registraba como `ERROR_TECNICO, reintentable=True`, o sea **«volvé a mandarlo»**, que es lo peor que
+se puede decidir cuando el alta pudo haber llegado. La próxima corrida del masivo lo tomaba sola.
+
+## Alcance acordado
+
+**Entra:**
+
+1. **SIIS-01** (CRÍTICA): un solo envío vigente por caso, en las siete vías, con reserva bajo lock
+   más índice único.
+2. **SIIS-02**: `ReadTimeout` / 500 / conexión cortada → estado `INCIERTO`, **no reintentable**, que
+   se resuelve con el comando nuevo `conciliar_envios_siis`.
+3. **SIIS-04**: el estado del caso se relee **bajo lock** antes de informar; un caso que pasó a BAJA
+   entre que se hidrató y su turno no se manda. Incluye el camino de la tabla intermedia.
+4. **SIIS-05**: misma persona y mismo plan desde otro caso → `RECHAZADO` local con
+   `DUPLICADO_LOCAL`, sin llamar a SIIS (default **D-S05**).
+5. **BEC-14**: el doble clic en «Aprobar» deja de consultar SIIS dos veces.
+6. **RED-53**: `ComandoSiisBase`, para que una guarda que se agrega en un comando quede en los cuatro.
+
+**Queda explícitamente afuera:**
+
+- **SIIS-03** (latido del masivo, freno, candado de corrida viva) va en el PR 3 de la ola. Este PR
+  deja la base compartida de los comandos lista para que ese candado entre en un solo lugar.
+- **La clave de idempotencia (`id_externo`) que pide D-S02.** Es la solución de fondo y depende de
+  ECOM: se pide por escrito. Mientras tanto, la exclusión es de este lado.
+- **Timeouts de SIIS-09** (PR 5) y lo que viaja en el payload (SIIS-08, G1-08, G1-09, G1-10; PR 6).
+
+## Decisiones tomadas
+
+- **Unicidad con columna nullable, no con `UniqueConstraint(condition=…)`.** MariaDB tiene
+  `supports_partial_indexes = False`: un índice parcial **no se crea**, y nadie se entera hasta que
+  en producción aparece la segunda fila. `vigente = BooleanField(null=True)` dentro de un índice
+  único `(formulario, vigente)` emula lo mismo en los tres motores, porque los `NULL` cuentan como
+  distintos entre sí. Nunca se escribe `False`: dos `False` del mismo caso chocarían.
+- **`vigente` se deriva del estado en `save()`.** Es una invariante, no un dato aparte: `ENVIADO`,
+  `EN_PROCESO` e `INCIERTO` ocupan el caso; el resto no. Así ningún camino —ni un test, ni un
+  comando futuro— puede crear un `ENVIADO` que no bloquee, que sería otra puerta al alta doble.
+- **El lock es sobre la fila del `Formulario`, no sobre el envío, y dura milisegundos.** La «opción
+  mínima» de mantener un `select_for_update` durante el HTTP es inviable: el `read_timeout` de 10 s
+  de la base de ECOM mata al segundo request antes de que SIIS conteste (hasta 40 s). La reserva
+  escribe un `EN_PROCESO` y **commitea**; el POST va afuera. Con READ COMMITTED, el segundo en
+  entrar espera el lock unos milisegundos y después ve el `EN_PROCESO` ya commiteado.
+- **Tres capas, porque ninguna alcanza sola.** El lock serializa a dos candidatos del mismo proceso;
+  la relectura de `vigente` bajo el lock cierra el check-then-act; el índice único cubre lo que el
+  lock no ve (dos pods, una corrida vieja, un restore). El `IntegrityError` se captura en su propio
+  savepoint para no envenenar la transacción de quien llamó.
+- **`INCIERTO` no es reintentable y eso es a propósito (D-S02).** Un 503 `ERROR_BD_LEGACY` sí se
+  reintenta —SIIS dice que su base legacy estaba ocupada y el alta no se escribió—; un 500, un 502,
+  un 504, un `ReadTimeout` o una conexión cortada a mitad, no. La asimetría es deliberada:
+  equivocarse hacia «reintentable» es irreversible, equivocarse hacia «incierto» cuesta una
+  conciliación.
+- **Un 401 se reintenta una sola vez adentro del cliente.** El 401 garantiza que el alta no se
+  procesó, así que un token vencido antes de tiempo no tiene por qué dejar el caso tomado.
+- **La reversa de la migración deja lo incierto como `ENVIADO`.** El código anterior no conoce
+  `EN_PROCESO` ni `INCIERTO`: los leería como «último envío distinto de ENVIADO», o sea candidatos a
+  reenviar. Se los marca `ENVIADO` con `codigo_error="INCIERTO_AL_REVERTIR"` —el único estado que
+  ningún camino reenvía— y se imprimen sus pk. Es la dirección conservadora: un rollback no puede
+  terminar duplicando altas.
+- **El tope de reintentos es 5 y se calcula con una sola consulta agrupada** (A2-15). Un `Count`
+  correlacionado por caso sobre 20.000 candidatos es justo lo que no entra en el `read_timeout`: se
+  trae la lista de ids a memoria y se excluye por valor.
+- **`reenviar_siis_pendientes` pasa a correr en seco por defecto**, como los otros tres comandos de
+  SIIS. Era el único que mandaba sin pedir permiso. `--dry-run` sigue funcionando como alias del
+  ensayo. Ningún cron lo corre (lo verificó la auditoría), así que no hay nada que se apague solo.
+- **Los cuatro comandos de la base son los que hablan con SIIS caso por caso**:
+  `validar_casos_siis`, `enviar_casos_siis`, `procesar_casos_siis` y `reenviar_siis_pendientes`.
+  `correr_alta_siis` no hereda porque no llama a la API: encadena a estos. El riesgo que mide
+  `ParidadComandosSiisTests` es el de RED-53: una guarda que entra en tres y deja al cuarto abierto.
+
+## Implementación
+
+**Modelo (`programas/models/__init__.py`).** `EnvioSIIS.Estado` suma `EN_PROCESO` e `INCIERTO` (los
+dos entran en `max_length=15`); campos `vigente` (nullable, derivado en `save()`) y `resuelto_en`;
+`UniqueConstraint(formulario, vigente)`; índice `(documento, id_programa)` para SIIS-05;
+`EN_PROCESO_VENCE = 5 min` y la propiedad `incierto` (`INCIERTO`, o `EN_PROCESO` más viejo que eso:
+un proceso que murió entre el POST y el registro). `Formulario.envio_siis_activo` es el envío que
+**ocupa** el caso, que no siempre es el último (`envio_siis_vigente`).
+
+**Servicio (`programas/services/siis_envio.py`).** El envío queda partido en tres piezas y los dos
+caminos —armar el payload del caso y mandar el guardado de la tabla intermedia— pasan por las
+mismas: `_reservar` (transacción corta, relectura del estado, `DUPLICADO_LOCAL`, `EN_PROCESO`),
+el HTTP afuera de toda transacción, y `_cerrar`, que es un `UPDATE … WHERE estado = EN_PROCESO`:
+si entre medio una conciliación tocó la fila, **no se pisa lo que decidió una persona**.
+
+**Cliente (`programas/services/siis.py`).** El token se pide **antes** del `try` del POST y en su
+propio `try`; cada desenlace devuelve `resultado` con la tabla de D-S02. `ConnectTimeout` va antes
+que `ConnectionError` (hereda de ella) y para distinguir «no se abrió la conexión» de «se cortó a
+mitad» se recorre la cadena de excepciones buscando los errores de urllib3 (`NewConnectionError`,
+`NameResolutionError`), que `requests` envuelve en un `MaxRetryError`.
+
+**Selección.** `candidatos()`, `reenviar_siis_pendientes._casos` y `enviar_casos_siis._casos`
+excluyen con `~Exists(envíos vigentes)` —una búsqueda exacta contra el índice único nuevo— y los
+casos con 5 o más errores técnicos. El filtro viejo por `ultimo_envio` se deja al lado a propósito:
+durante el deploy puede haber filas escritas por el código anterior, que nacen con `vigente = NULL`.
+
+**Comando nuevo `conciliar_envios_siis`.** `--listar` (CSV para ECOM), `--confirmar <pk>
+[--siis-id N]` y `--liberar <pk> --motivo "…"`. Las dos decisiones dejan traza en el caso con
+quién las tomó. Documentado en `docs/internal/procedimiento-alta-siis.md`, donde además se corrigió
+la fila «Ctrl+C a mitad: Seguro», que era falsa.
+
+**Pantalla.** El panel «Envío a SIIS» muestra los dos estados nuevos y, cuando hay un envío
+vigente, **no ofrece reenviar**: en su lugar explica por qué (en vuelo o incierto). Los forms de
+acción irreversible llevan `data-un-solo-envio` y un guard de JS que los manda una sola vez; el
+botón «Aprobar» se deshabilita en el `onConfirm` del modal (BEC-14) y la vista relee el estado antes
+de consultar a SIIS.
+
+## Archivos
+
+`programas/models/__init__.py`, `programas/migrations/0075_enviosiis_vigente.py` (nuevo),
+`programas/services/siis.py`, `programas/services/siis_envio.py`,
+`programas/services/proceso_masivo.py`, `programas/views/revision.py`, `programas/views/cupo.py`,
+`programas/templates/programas/becas/revision/formulario_detalle.html`,
+`programas/management/commands/_base_siis.py` (nuevo),
+`programas/management/commands/conciliar_envios_siis.py` (nuevo),
+`programas/management/commands/validar_casos_siis.py`,
+`programas/management/commands/enviar_casos_siis.py`,
+`programas/management/commands/procesar_casos_siis.py`,
+`programas/management/commands/reenviar_siis_pendientes.py`,
+`programas/management/commands/correr_alta_siis.py`,
+`programas/tests/test_siis_un_solo_envio.py` (nuevo), `programas/tests/test_siis_service.py`,
+`programas/tests/test_siis_envio.py`, `programas/tests/test_becas_revision.py`,
+`docs/internal/procedimiento-alta-siis.md`, `.claude/agents/chaco-design-system.md` y las fichas de
+la auditoría.
+
+## Base de datos
+
+**Migración `programas.0075_enviosiis_vigente`** sobre `programas_enviosiis` (decenas de miles de
+filas): `AlterField` de `estado` (solo choices, sin DDL), dos `AddField` nullables, la migración de
+datos y después los dos índices.
+
+- **Expand/contract: se puede desplegar antes que el código.** Las columnas nacen `NULL`, así que el
+  código viejo sigue insertando filas que no chocan con el índice único.
+- **Tiempo esperado: segundos, no minutos.** Los `ADD COLUMN` nullables al final de la tabla son
+  `ALGORITHM=INSTANT` en MariaDB 10.3+ y MySQL 8; los índices son online DDL (`INPLACE`, con DML
+  concurrente permitido); la migración de datos recorre por rangos de pk de a 2.000 y escribe de a
+  1.000, el patrón de la `0072`.
+- **La migración de datos marca `vigente` en el `ENVIADO` más viejo de cada caso** y **no falla** si
+  un caso ya tiene dos: los lista por pantalla para que vayan a ECOM (V2-NEW-03 los mide antes con
+  P-01). El orden importa: va **antes** del índice único, porque dos `vigente=True` del mismo caso
+  harían fallar el `ALTER TABLE` y dejarían el esquema a medias (el DDL de MySQL no es transaccional).
+- **Reversa declarada** (RED-57): deja los `EN_PROCESO` e `INCIERTO` como `ENVIADO` con
+  `codigo_error="INCIERTO_AL_REVERTIR"` y los lista. No es una barrera: las tres operaciones de
+  esquema son reversibles.
+
+## Validación
+
+Con Python 3.12 + Django 5.2.17 (`.venv312`, igual al CI):
+
+- `manage.py check` y `check --deploy` → sin issues. `makemigrations --check --dry-run` → «No
+  changes detected».
+- `manage.py test` (la suite entera, **en un solo proceso**, como el CI) → OK.
+- `manage.py test --tag performance` → OK.
+- `ruff check .` → All checks passed; `ruff format --check` sobre lo tocado → OK.
+- `scripts/design_audit.py --changed` → 0 errores, 0 warnings. `scripts/compile_templates.py` → 199
+  compilados, 0 errores. `scripts/check_design_agent.py --changed` → OK.
+- **Los tests fallan antes del cambio.** Verificado en un árbol aparte sobre `development`:
+  `programas.tests.test_siis_un_solo_envio` → 30 de 32 en rojo;
+  `test_siis_service.ResultadoDelAltaTests` → 12 de 12 en rojo;
+  `test_becas_revision.PantallaEnvioSiisTests` → 6 de 6 en rojo.
+
+**Tests de caracterización que cambiaron, y por qué.** `ContextoDetalleTests` (RED-54) suma
+`envio_siis_activo` a las claves del contexto: es exactamente lo que el test está para avisar.
+`test_cargar_beneficiario_timeout_es_error_tecnico` se parte en dos —`ConnectTimeout` sigue siendo
+reintentable, `ReadTimeout` pasa a `INCIERTO`— porque esa distinción **es** SIIS-02.
+`test_cargar_beneficiario_401_invalida_el_token` ahora afirma además las dos llamadas del reintento
+interno. Los tres de `ComandoReenvioTests` pasan a usar `--aplicar`.
+
+## Puesta en marcha en el servidor
+
+1. **Correr P-01 en PRD antes del deploy** (V2-NEW-03): mide si ya hay casos con dos altas. Si los
+   hay, el listado va a ECOM; la migración no falla por ellos pero los imprime.
+2. **No desplegar con una corrida masiva en curso.** Frenarla desde la pantalla y esperar a que
+   termine: la migración toca la tabla que la corrida está escribiendo.
+3. **Acordar con ECOM el procedimiento de conciliación de INCIERTOS** (D-S02) antes de la próxima
+   corrida grande: a quién se le manda el CSV de `conciliar_envios_siis --listar` y en cuánto
+   contesta. Sin eso, un INCIERTO queda tomado sin salida.
+4. **Pedirle a ECOM la clave de idempotencia `id_externo`** (D-S02): es la solución de fondo.
+5. Avisar a quien opera los comandos que `reenviar_siis_pendientes` ahora necesita `--aplicar`.
+
+## Pendientes / a definir
+
+- **La clave de idempotencia de SIIS (`id_externo`) sigue sin pedirse formalmente.** Es de ECOM.
+- **SIIS-03** (latido, freno y candado de corrida viva en los comandos) queda para el PR 3 de la
+  ola; la base `ComandoSiisBase` ya está para que entre en un solo lugar.
+- **La migración no se probó contra un motor real: solo contra SQLite.** El banco
+  `scripts/perf_mysql/` necesita Docker, que no estaba levantado en esta sesión. Lo que se apoya en
+  documentación y no en una corrida: que MariaDB y MySQL admiten varios `NULL` en un índice único
+  (está en el manual de los dos y es la base de la propuesta de la ficha SIIS-01) y que los
+  `ADD COLUMN` nullables al final de la tabla son instantáneos. **Antes del deploy conviene correr
+  la `0075` contra el banco** (`scripts/perf_mysql/`, base `chaco_perf_ci` en el contenedor 3308) o
+  contra una copia de testing de ECOM, y medir el tiempo real sobre `programas_enviosiis`. El patrón
+  de migración por lotes ya está probado en producción (la `0072` y la `0073`).
+
+## Reversión
+
+`git revert` del commit más la reversa de la `0075` (declarada). La reversa deja los envíos de
+resultado desconocido como `ENVIADO` para que ningún camino los reenvíe, e imprime sus pk: esos son
+los que hay que conciliar con ECOM antes de volver a tocarlos. Lo que vuelve es el agujero: siete
+caminos que pueden dar de alta dos veces al mismo beneficiario, de forma irreversible.
 
 ## Historial
 

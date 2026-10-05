@@ -237,8 +237,12 @@ class SiisClientTests(SimpleTestCase):
         self.assertFalse(r["reintentable"])
         self.assertEqual(r["detalles"], {"barrio_actual": ["mínimo 4 caracteres"]})
 
+    @patch.object(SiisAPIClient, "_token", return_value="abc")
     @patch("programas.services.siis.requests.post")
-    def test_cargar_beneficiario_401_invalida_el_token(self, post):
+    def test_cargar_beneficiario_401_invalida_el_token_y_reintenta_una_vez(self, post, _token):
+        """SIIS-02: el 401 garantiza que el alta no se procesó, así que se reintenta
+        **adentro**, una sola vez, con un token nuevo. Si vuelve a fallar, queda
+        NO_ENVIADO (reintentable), no incierto."""
         cache.set(TOKEN_CACHE_KEY, "abc", 60)
         respuesta = Mock(status_code=401)
         respuesta.json.return_value = {"error": "UNAUTHORIZED"}
@@ -246,7 +250,9 @@ class SiisClientTests(SimpleTestCase):
 
         r = SiisAPIClient().cargar_beneficiario({})
 
+        self.assertEqual(post.call_count, 2)
         self.assertEqual(r["codigo"], "UNAUTHORIZED")
+        self.assertEqual(r["resultado"], "NO_ENVIADO")
         self.assertTrue(r["reintentable"])
         self.assertIsNone(cache.get(TOKEN_CACHE_KEY))
 
@@ -262,13 +268,15 @@ class SiisClientTests(SimpleTestCase):
         self.assertEqual(r["codigo"], "ERROR_BD_LEGACY")
         self.assertTrue(r["reintentable"])
 
-    @patch("programas.services.siis.requests.post", side_effect=requests.Timeout())
-    def test_cargar_beneficiario_timeout_es_error_tecnico(self, _post):
+    @patch("programas.services.siis.requests.post", side_effect=requests.ConnectTimeout())
+    def test_cargar_beneficiario_connect_timeout_no_salio_y_se_reintenta(self, _post):
+        """La conexión no se abrió: el alta no salió (SIIS-02)."""
         cache.set(TOKEN_CACHE_KEY, "abc", 60)
 
         r = SiisAPIClient().cargar_beneficiario({})
 
         self.assertFalse(r["success"])
+        self.assertEqual(r["resultado"], "NO_ENVIADO")
         self.assertEqual(r["codigo"], "ERROR_TECNICO")
         self.assertTrue(r["reintentable"])
 
@@ -303,3 +311,113 @@ class SiisClientTests(SimpleTestCase):
     def test_catalogo_nombre_desconocido(self):
         with self.assertRaises(ValueError):
             SiisAPIClient().catalogo("otra-cosa")
+
+
+@override_settings(
+    SIIS_API_URL="https://siis.example",
+    SIIS_API_CLIENT_ID="client",
+    SIIS_API_CLIENT_SECRET="secret",
+    SIIS_API_CONNECT_TIMEOUT=1,
+    SIIS_API_TIMEOUT=2,
+)
+class ResultadoDelAltaTests(SimpleTestCase):
+    """SIIS-02 · La tabla de D-S02, entera: qué resultado deja cada desenlace.
+
+    La pregunta que contesta ``resultado`` es una sola: **¿puede haber quedado un
+    alta del otro lado?** De eso depende si el caso se libera para reintentar
+    (``NO_ENVIADO``) o queda tomado hasta conciliarlo (``INCIERTO``). Un alta en
+    SIIS no se puede dar de baja desde acá, así que equivocarse hacia
+    «reintentable» es irreversible.
+    """
+
+    def setUp(self):
+        cache.clear()
+
+    def _resultado(self, **kwargs):
+        with patch.object(SiisAPIClient, "_token", return_value="abc"):
+            with patch("programas.services.siis.requests.post", **kwargs):
+                return SiisAPIClient().cargar_beneficiario({"dni": 1})
+
+    def _respuesta(self, status, body=None):
+        respuesta = Mock(status_code=status)
+        respuesta.json.return_value = body if body is not None else {}
+        return self._resultado(return_value=respuesta)
+
+    def test_201_es_ok(self):
+        r = self._respuesta(201, {"ids_generados": [26]})
+        self.assertEqual(r["resultado"], "OK")
+        self.assertEqual(r["siis_id"], 26)
+
+    def test_connect_timeout_no_salio(self):
+        r = self._resultado(side_effect=requests.ConnectTimeout())
+        self.assertEqual(r["resultado"], "NO_ENVIADO")
+        self.assertTrue(r["reintentable"])
+
+    def test_dns_que_no_resuelve_no_salio(self):
+        """``ConnectionError`` envuelve el error de urllib3: hay que mirar la cadena."""
+        from urllib3.exceptions import MaxRetryError, NewConnectionError
+
+        fallo = requests.ConnectionError(
+            MaxRetryError(pool=None, url="/", reason=NewConnectionError(None, "no resuelve"))
+        )
+        r = self._resultado(side_effect=fallo)
+        self.assertEqual(r["resultado"], "NO_ENVIADO")
+        self.assertTrue(r["reintentable"])
+
+    def test_read_timeout_es_incierto(self):
+        """El POST ya está entregado: SIIS pudo haberlo procesado."""
+        r = self._resultado(side_effect=requests.ReadTimeout("read"))
+        self.assertEqual(r["resultado"], "INCIERTO")
+        self.assertEqual(r["codigo"], "RESULTADO_INCIERTO")
+        self.assertFalse(r["reintentable"])
+
+    def test_conexion_cortada_a_mitad_es_incierta(self):
+        r = self._resultado(side_effect=requests.ConnectionError("cortada"))
+        self.assertEqual(r["resultado"], "INCIERTO")
+        self.assertFalse(r["reintentable"])
+
+    def test_respuesta_truncada_es_incierta(self):
+        r = self._resultado(side_effect=requests.exceptions.ChunkedEncodingError("truncada"))
+        self.assertEqual(r["resultado"], "INCIERTO")
+
+    def test_400_datos_invalidos_es_rechazo(self):
+        r = self._respuesta(400, {"error": "DATOS_INVALIDOS", "detalles": {"barrio_actual": ["mínimo 4"]}})
+        self.assertEqual(r["resultado"], "RECHAZADO")
+        self.assertEqual(r["codigo"], "DATOS_INVALIDOS")
+        self.assertFalse(r["reintentable"])
+
+    def test_4xx_sin_codigo_es_rechazo_de_configuracion(self):
+        """Un 404 o un 422 sin cuerpo no es un dato del beneficiario: es la integración."""
+        for status in (404, 422):
+            with self.subTest(status=status):
+                r = self._respuesta(status)
+                self.assertEqual(r["resultado"], "RECHAZADO")
+                self.assertEqual(r["codigo"], "CONFIGURACION")
+                self.assertFalse(r["reintentable"])
+
+    def test_408_y_429_son_inciertos(self):
+        for status in (408, 429):
+            with self.subTest(status=status):
+                self.assertEqual(self._respuesta(status)["resultado"], "INCIERTO")
+
+    def test_503_del_legacy_ocupado_se_reintenta(self):
+        """D-S02: el único 5xx que garantiza que el alta no se escribió."""
+        r = self._respuesta(503, {"error": "ERROR_BD_LEGACY"})
+        self.assertEqual(r["resultado"], "NO_ENVIADO")
+        self.assertEqual(r["codigo"], "ERROR_BD_LEGACY")
+        self.assertTrue(r["reintentable"])
+
+    def test_500_502_504_y_503_sin_codigo_son_inciertos(self):
+        for status in (500, 502, 504, 503):
+            with self.subTest(status=status):
+                r = self._respuesta(status)
+                self.assertEqual(r["resultado"], "INCIERTO")
+                self.assertFalse(r["reintentable"])
+
+    def test_un_token_que_no_se_puede_obtener_no_salio(self):
+        with patch.object(SiisAPIClient, "_token", side_effect=requests.ConnectionError("sin red")):
+            with patch("programas.services.siis.requests.post") as post:
+                r = SiisAPIClient().cargar_beneficiario({"dni": 1})
+        post.assert_not_called()
+        self.assertEqual(r["resultado"], "NO_ENVIADO")
+        self.assertEqual(r["codigo"], "ERROR_TECNICO")

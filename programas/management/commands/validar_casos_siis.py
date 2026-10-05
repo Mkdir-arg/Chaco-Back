@@ -36,35 +36,20 @@ ambiente contra el que se corre.
 
 import time
 
-from django.conf import settings
-from django.contrib.auth import get_user_model
-from django.core.management.base import BaseCommand, CommandError
 from django.db.models import OuterRef, Q, Subquery
 
+from programas.management.commands._base_siis import ComandoSiisBase
 from programas.models import Formulario, ValidacionSIS
 from programas.services.validacion_siis import validar_formulario_en_siis
 
 ESTADOS = (ValidacionSIS.Estado.OK, ValidacionSIS.Estado.RECHAZADO, ValidacionSIS.Estado.ERROR)
 
 
-def _lotes(lista, tamano):
-    for inicio in range(0, len(lista), tamano):
-        yield inicio // tamano + 1, lista[inicio : inicio + tamano]
-
-
-class Command(BaseCommand):
+class Command(ComandoSiisBase):
     help = "Valida contra SIIS, por lotes, los casos de Becas que aún no tienen validación de compatibilidad."
 
     def add_arguments(self, parser):
-        parser.add_argument("--aplicar", action="store_true", help="Llama a SIIS. Sin esto solo cuenta e informa.")
-        parser.add_argument("--lote", type=int, default=50, help="Casos por lote. Por defecto 50.")
-        parser.add_argument("--pausa", type=float, default=0.0, help="Segundos de espera entre lotes. Por defecto 0.")
-        parser.add_argument(
-            "--max-errores",
-            type=int,
-            default=10,
-            help="Errores técnicos seguidos que detienen la corrida. Por defecto 10.",
-        )
+        super().add_arguments(parser)
         parser.add_argument(
             "--reintentar-errores",
             action="store_true",
@@ -78,15 +63,6 @@ class Command(BaseCommand):
         )
         parser.add_argument("--limite", type=int, default=0, help="Procesa como mucho N casos. 0 = todos.")
         parser.add_argument("--convocatoria", type=int, default=None, help="Acota a una convocatoria por id.")
-        parser.add_argument(
-            "--usuario",
-            default=None,
-            help="Nombre de usuario que queda como solicitante. Por defecto ninguno (validación automática).",
-        )
-
-    def _log(self, texto="", estilo=None):
-        self.stdout.write(estilo(texto) if estilo else texto)
-        self.stdout.flush()
 
     # ── Selección ───────────────────────────────────────────────────────────
 
@@ -111,27 +87,17 @@ class Command(BaseCommand):
             casos = casos[: options["limite"]]
         return list(casos)
 
-    def _solicitante(self, nombre):
-        if not nombre:
-            return None
-        usuario = get_user_model().objects.filter(username=nombre).first()
-        if usuario is None:
-            raise CommandError(f"No existe el usuario «{nombre}».")
-        return usuario
-
     # ── Orquestación ────────────────────────────────────────────────────────
 
     def handle(self, *args, **options):
         aplicar = options["aplicar"]
         tamano = max(1, options["lote"])
         max_errores = max(1, options["max_errores"])
-        arranque = time.monotonic()
+        arranque = self._reloj()
 
-        if not aplicar:
-            self._log("ENSAYO: no se llama a SIIS. Agregá --aplicar para validar de verdad.\n", self.style.WARNING)
-        self._log(f"SIIS: {settings.SIIS_API_URL}")
-        if aplicar and not (settings.SIIS_API_CLIENT_ID and settings.SIIS_API_CLIENT_SECRET):
-            raise CommandError("Faltan SIIS_API_CLIENT_ID / SIIS_API_CLIENT_SECRET en el entorno.")
+        self._avisar_ensayo(aplicar, "no se llama a SIIS. Agregá --aplicar para validar de verdad.")
+        if aplicar:
+            self._exigir_credenciales()
 
         solicitante = self._solicitante(options["usuario"])
         casos = self._casos(options)
@@ -166,7 +132,7 @@ class Command(BaseCommand):
         detenido = False
 
         self._log("")
-        for numero, lote in _lotes(casos, tamano):
+        for numero, lote in self._lotes(casos, tamano):
             parcial = {estado: 0 for estado in ESTADOS}
             for caso in lote:
                 try:
@@ -187,26 +153,27 @@ class Command(BaseCommand):
             self._log(
                 f"   lote {numero:>4}/{total_lotes} · casos {lote[0].pk}-{lote[-1].pk} · "
                 f"OK {parcial['OK']:>3} · rechazados {parcial['RECHAZADO']:>3} · errores {parcial['ERROR']:>3} · "
-                f"acumulado {sum(cuenta[e] for e in ESTADOS):>5} · {time.monotonic() - arranque:6.1f} s"
+                f"acumulado {sum(cuenta[e] for e in ESTADOS):>5} · {self._reloj() - arranque:6.1f} s"
             )
             if detenido:
                 break
             if options["pausa"] and numero < total_lotes:
                 time.sleep(options["pausa"])
 
-        self._log("")
-        self._log("Resumen", self.style.MIGRATE_HEADING)
-        self._log(f"   {'compatibles (OK)':40} {cuenta['OK']:6}")
-        self._log(f"   {'incompatibles (RECHAZADO)':40} {cuenta['RECHAZADO']:6}")
-        self._log(f"   {'errores técnicos (ERROR)':40} {cuenta['ERROR']:6}")
-        self._log(f"   {'salteados sin programa o sin DNI':40} {cuenta['salteados']:6}")
-        segundos = time.monotonic() - arranque
-        if detenido:
-            self._log(
-                f"\nDETENIDO tras {max_errores} errores técnicos seguidos en {segundos:.0f} s: "
-                "SIIS no está respondiendo o las credenciales no sirven. Revisá el servicio y volvé a correr; "
-                "los casos que quedaron en ERROR se retoman con --reintentar-errores.",
-                self.style.ERROR,
+        self._resumen(
+            (
+                ("compatibles (OK)", cuenta["OK"]),
+                ("incompatibles (RECHAZADO)", cuenta["RECHAZADO"]),
+                ("errores técnicos (ERROR)", cuenta["ERROR"]),
+                ("salteados sin programa o sin DNI", cuenta["salteados"]),
             )
-            raise SystemExit(1)
+        )
+        segundos = self._reloj() - arranque
+        if detenido:
+            self._cortado_por_errores(
+                max_errores,
+                segundos,
+                "Revisá el servicio y volvé a correr; los casos que quedaron en ERROR se retoman "
+                "con --reintentar-errores.",
+            )
         self._log(f"\nListo en {segundos:.0f} s.", self.style.SUCCESS)
