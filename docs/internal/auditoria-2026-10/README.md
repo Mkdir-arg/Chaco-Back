@@ -9,23 +9,30 @@
 | Ficha | Qué quedó |
 |---|---|
 | **SIIS-01** ✅ | `EnvioSIIS.vigente` nullable dentro del índice único `(formulario, vigente)` —la unicidad condicional que MariaDB no da con `condition=`— más una reserva de milisegundos: lock de la fila del `Formulario`, relectura, `EN_PROCESO` commiteado y recién después el POST, **fuera de toda transacción**. Las siete vías pasan por ahí, incluida `sincronizar_tabla_intermedia` |
-| **SIIS-02** ✅ | Estado `INCIERTO`, **no reintentable** (D-S02 aplicado: 503 `ERROR_BD_LEGACY` se reintenta, 500/502/504/`ReadTimeout`/conexión cortada no). `EN_PROCESO` vencido a los 5 min se ve incierto. Comando `conciliar_envios_siis` (`--listar`/`--confirmar`/`--liberar`) con traza |
+| **SIIS-02** ✅ | Estado `INCIERTO`, **no reintentable** (D-S02 aplicado: 503 `ERROR_BD_LEGACY` se reintenta, 500/502/504/`ReadTimeout`/conexión cortada no). `EN_PROCESO` vencido a los 5 min se ve incierto. Comando `conciliar_envios_siis` (`--listar`/`--confirmar`/`--liberar`, en lote y desde el CSV que vuelve de ECOM) con traza. El freno de las corridas cuenta los inciertos aparte (`--max-inciertos`, default 3): si no, con SIIS caído la corrida no cortaba nunca |
 | **SIIS-04** ✅ | El estado se relee bajo lock en las tres puertas (masivo, `enviar_casos_siis` con `estados_permitidos`, tabla intermedia) |
-| **SIIS-05** ✅ | `DUPLICADO_LOCAL` por `(documento, id_programa)` vigente, con su índice |
+| **SIIS-05** ✅ | Columna derivada `clave_persona_plan` dentro de un índice único: la regla la decide el motor, no un check-then-act (con dos procesos a la vez pasaban los dos). El `IntegrityError` se traduce a `DUPLICADO_LOCAL` |
 | **BEC-14** ✅ | Guard `data-un-solo-envio`, botón deshabilitado en el `onConfirm` y relectura del estado antes de consultar SIIS |
 | **RED-53** ✅ (1; falta Ola 5) | `ComandoSiisBase`: los cuatro comandos que hablan con SIIS comparten flags, lotes, resumen y frenos |
 
-**Migración `programas.0075_enviosiis_vigente`** (`programas_enviosiis`, decenas de miles de filas):
-expand-only, se puede desplegar antes que el código; `ADD COLUMN` instantáneos, índices online,
-migración de datos por rangos de pk. Marca `vigente` en el `ENVIADO` **más viejo** de cada caso y
-**no falla** con los duplicados ya existentes: los lista.
+**Migración `programas.0075_enviosiis_vigente`** (`programas_enviosiis`): expand-only, se puede
+desplegar antes que el código. **Medida ida y vuelta contra MariaDB 10.11 real con 40.100 envíos:
+6,9 s y 4,0 s.** Resuelve los duplicados que ya existen sin fallar ni borrar: dentro del mismo caso
+queda vigente el más viejo; **entre casos distintos** —la misma persona con dos altas reales en el
+mismo plan— el más viejo se queda con la clave y **los demás siguen vigentes sin clave**, porque
+liberarlos mandaría una tercera alta. Todos quedan listados y con una traza en su caso
+(`TracaFormulario.campo = "envio_siis"`), que es lo que va a ECOM.
 
 **Pendientes operativos que deja (PM / ECOM):**
 1. **Correr P-01 en PRD antes del deploy** (V2-NEW-03): cuántos casos ya tienen dos altas.
 2. **No desplegar con una corrida masiva en curso.**
 3. **Acordar con ECOM el procedimiento de conciliación de INCIERTOS** (D-S02) y **pedirle la clave
    de idempotencia `id_externo`**, que es la solución de fondo.
-4. Avisar que `reenviar_siis_pendientes` ahora corre en seco por defecto: necesita `--aplicar`.
+4. Avisar que `reenviar_siis_pendientes` y `conciliar_envios_siis` corren en seco por defecto:
+   necesitan `--aplicar`.
+5. **Lo que deja la migración:** si P-01 encuentra personas con dos altas, después del deploy quedan
+   en `TracaFormulario` (`campo = 'envio_siis'`). Esa lista va a ECOM para que las saque de SIIS; de
+   este lado no hay que tocar nada —los dos casos quedan tomados a propósito—.
 
 ## Estado al 04-oct-2026 (Ola R mínima: PRs R-01 a R-10)
 

@@ -725,14 +725,17 @@ def _reservar(formulario, base, payload, faltantes, *, exigir_aprobado=True, est
             # Savepoint propio: un IntegrityError envenena la transacción, y acá
             # adentro puede haber una externa (la vista que aprueba, por ejemplo).
             with transaction.atomic():
-                return EnvioSIIS.objects.create(
-                    estado=EnvioSIIS.Estado.EN_PROCESO, vigente=True, payload=payload, **base
-                )
+                return EnvioSIIS.objects.create(estado=EnvioSIIS.Estado.EN_PROCESO, payload=payload, **base)
         except IntegrityError:
+            # Perdió una de las dos carreras. Cuál lo dice la base, no el error:
+            # el texto del `IntegrityError` depende del motor.
             otro = EnvioSIIS.objects.filter(formulario_id=formulario.pk, vigente=True).first()
-            if otro is None:
-                raise
-            raise CasoYaInformado(otro) from None
+            if otro is not None:
+                raise CasoYaInformado(otro) from None
+            duplicado = _duplicado_local(formulario, base)
+            if duplicado is not None:
+                return duplicado
+            raise
 
 
 def _duplicado_local(formulario, base):
@@ -742,12 +745,18 @@ def _duplicado_local(formulario, base):
     que dos casos distintos del mismo DNI en el mismo plan daban dos altas. Es un
     rechazo **local**: no se llama a SIIS (default D-S05, «una sola alta por
     persona y plan»).
+
+    Esta consulta es la que da el mensaje útil —«ya informado en el caso #N»—,
+    pero **no** es la que garantiza la regla: entre leerla y escribir hay una
+    ventana, y con dos procesos a la vez los dos pasaban. Lo que la garantiza es
+    el índice único de ``clave_persona_plan``; acá se vuelve a mirar después del
+    ``IntegrityError`` para poder decir con qué caso chocó.
     """
-    documento, plan = base["documento"], base["id_programa"]
-    if not documento or plan is None:
+    clave = EnvioSIIS.clave_de(base["documento"], base["id_programa"])
+    if clave is None:
         return None
     otro = (
-        EnvioSIIS.objects.filter(documento=documento, id_programa=plan, vigente=True)
+        EnvioSIIS.objects.filter(clave_persona_plan=clave)
         .exclude(formulario_id=formulario.pk)
         .values_list("formulario_id", flat=True)
         .first()
@@ -777,6 +786,8 @@ def _cerrar(envio, resultado):
     EnvioSIIS.objects.filter(pk=envio.pk, estado=EnvioSIIS.Estado.EN_PROCESO).update(
         estado=estado,
         vigente=vigente,
+        # Al liberar el caso se libera también el lugar de la persona en el plan.
+        clave_persona_plan=envio.clave_persona_plan if vigente else None,
         siis_id=resultado.get("siis_id"),
         codigo_error=str(resultado.get("codigo") or "")[:40],
         detalles=detalles,
@@ -784,6 +795,9 @@ def _cerrar(envio, resultado):
         resuelto_en=timezone.now(),
     )
     envio.refresh_from_db()
+    # Lo intentó esta llamada: el freno lo cuenta, a diferencia de un envío que
+    # ya estaba y se devuelve tal cual.
+    envio.recien_intentado = True
     return envio
 
 

@@ -227,17 +227,31 @@ a ECOM:
 
 ```bash
 # 1. El listado que se le manda a ECOM: «¿estas personas están en SIIS?»
+#    El CSV trae dos columnas vacías, `decision` y `motivo`, para que las complete.
 python manage.py conciliar_envios_siis --listar > inciertos.csv
 
-# 2a. ECOM confirma que SÍ está: queda informado, no se reenvía nunca
-python manage.py conciliar_envios_siis --confirmar <pk> --siis-id <id> --usuario coord
+# 2. Vuelve el archivo con `decision` en «confirmar» o «liberar». Primero el ensayo:
+python manage.py conciliar_envios_siis --desde-csv inciertos.csv
+python manage.py conciliar_envios_siis --desde-csv inciertos.csv --aplicar --usuario coord
 
-# 2b. ECOM confirma que NO está: vuelve a ser candidato en todas las vías
-python manage.py conciliar_envios_siis --liberar <pk> --motivo "ECOM confirmó que no llegó" --usuario coord
+# Para pocos casos, sin pasar por el archivo (también en seco por defecto):
+python manage.py conciliar_envios_siis --confirmar 1234 --siis-id 55678 --aplicar --usuario coord
+python manage.py conciliar_envios_siis --liberar 1234,1235 --motivo "ECOM: no llegaron" --aplicar
 ```
 
-Las dos decisiones quedan en la traza del caso, con quién las tomó. **Nunca se
-libera sin la confirmación de ECOM**: liberar un alta que sí llegó es duplicarla.
+Las decisiones quedan en la traza del caso, con quién las tomó. **Nunca se libera
+sin la confirmación de ECOM**: liberar un alta que sí llegó es duplicarla. Si un
+pk del lote está mal, no se escribe ninguno: se valida todo antes de empezar.
+
+### Cuando la corrida se detiene sola
+
+`DETENIDO tras N resultados de resultado desconocido seguidos` no es lo mismo que
+`DETENIDO tras N errores técnicos seguidos`. El segundo es SIIS caído y los casos
+quedaron libres: se vuelve a correr y listo. El primero es SIIS contestando mal, y
+cada uno de esos N casos quedó **tomado**: hay que conciliarlos antes de seguir, o
+la próxima corrida los saltea y el número crece. Los topes son `--max-errores`
+(10) y `--max-inciertos` (3), y son distintos a propósito: un error no cuesta
+nada y un incierto cuesta una conciliación.
 
 ### Deshacer un envío (solo si SIIS ya lo borró de su lado)
 

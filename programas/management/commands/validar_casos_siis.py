@@ -22,7 +22,9 @@ a correrlo continúa por donde iba, porque los ya validados no se vuelven a toca
 **Freno de seguridad.** Si SIIS no responde, cada consulta deja una fila
 ``ERROR`` inútil. Tras ``--max-errores`` errores técnicos **seguidos** (10 por
 defecto) el comando se detiene y lo dice: es señal de que el servicio está caído
-o las credenciales no sirven, no de que los casos tengan un problema.
+o las credenciales no sirven, no de que los casos tengan un problema. (Acá
+``--max-inciertos`` no se usa: una consulta de compatibilidad no deja nada del
+otro lado, así que no hay resultado ambiguo que conciliar.)
 
 Corre en seco por defecto: sin ``--aplicar`` solo cuenta e informa, no llama a SIIS.
 
@@ -40,6 +42,7 @@ from django.db.models import OuterRef, Q, Subquery
 
 from programas.management.commands._base_siis import ComandoSiisBase
 from programas.models import Formulario, ValidacionSIS
+from programas.services import proceso_masivo
 from programas.services.validacion_siis import validar_formulario_en_siis
 
 ESTADOS = (ValidacionSIS.Estado.OK, ValidacionSIS.Estado.RECHAZADO, ValidacionSIS.Estado.ERROR)
@@ -92,7 +95,6 @@ class Command(ComandoSiisBase):
     def handle(self, *args, **options):
         aplicar = options["aplicar"]
         tamano = max(1, options["lote"])
-        max_errores = max(1, options["max_errores"])
         arranque = self._reloj()
 
         self._avisar_ensayo(aplicar, "no se llama a SIIS. Agregá --aplicar para validar de verdad.")
@@ -128,7 +130,9 @@ class Command(ComandoSiisBase):
 
         cuenta = {estado: 0 for estado in ESTADOS}
         cuenta.update(salteados=0)
-        seguidos = 0
+        # Una consulta de compatibilidad no deja nada del otro lado: acá la
+        # única racha posible es la de errores técnicos.
+        freno = self._crear_freno(options)
         detenido = False
 
         self._log("")
@@ -143,13 +147,10 @@ class Command(ComandoSiisBase):
                     continue
                 cuenta[validacion.estado] += 1
                 parcial[validacion.estado] += 1
-                if validacion.estado == ValidacionSIS.Estado.ERROR:
-                    seguidos += 1
-                    if seguidos >= max_errores:
-                        detenido = True
-                        break
-                else:
-                    seguidos = 0
+                falla = proceso_masivo.FALLA_TECNICA if validacion.estado == ValidacionSIS.Estado.ERROR else None
+                if freno.registrar(falla):
+                    detenido = True
+                    break
             self._log(
                 f"   lote {numero:>4}/{total_lotes} · casos {lote[0].pk}-{lote[-1].pk} · "
                 f"OK {parcial['OK']:>3} · rechazados {parcial['RECHAZADO']:>3} · errores {parcial['ERROR']:>3} · "
@@ -170,8 +171,8 @@ class Command(ComandoSiisBase):
         )
         segundos = self._reloj() - arranque
         if detenido:
-            self._cortado_por_errores(
-                max_errores,
+            self._cortado_por_fallas(
+                freno,
                 segundos,
                 "Revisá el servicio y volvé a correr; los casos que quedaron en ERROR se retoman "
                 "con --reintentar-errores.",

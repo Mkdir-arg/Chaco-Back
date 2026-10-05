@@ -30,9 +30,13 @@ no llega a SIIS, pero igual queda aprobado y con una fila de error para revisar 
 mano. El descarte no toca el caso y el ensayo informa por qué campo se cayó cada
 uno.
 
-**Freno de seguridad.** Tras ``--max-errores``  errores técnicos **seguidos** (10
-por defecto) se detiene: es señal de que SIIS está caído, no de que los casos
-tengan un problema.
+**Freno de seguridad.** Se detiene tras ``--max-errores`` errores técnicos
+**seguidos** (10 por defecto) o ``--max-inciertos`` resultados de resultado
+desconocido seguidos (3 por defecto). El segundo tope es más bajo a propósito: un
+error técnico deja el caso libre y se reintenta solo, mientras que un resultado
+incierto lo deja **tomado** hasta que alguien le pregunte a ECOM si el alta
+llegó. Las dos rachas se cuentan en paralelo: una falla de un tipo no borra la
+del otro.
 
 Corre en seco por defecto: sin ``--aplicar`` no valida, no aprueba y no envía.
 
@@ -146,7 +150,6 @@ class Command(ComandoSiisBase):
     def handle(self, *args, **options):
         aplicar = options["aplicar"]
         tamano = max(1, options["lote"])
-        max_errores = max(1, options["max_errores"])
         arranque = self._reloj()
 
         self._avisar_ensayo(aplicar, "no valida, no aprueba y no envía. Agregá --aplicar.")
@@ -248,7 +251,7 @@ class Command(ComandoSiisBase):
             self._log("\nEnsayo terminado, no se tocó nada.", self.style.WARNING)
             return
 
-        seguidos = 0
+        freno = self._crear_freno(options)
         detenido = False
 
         self._log("")
@@ -264,13 +267,9 @@ class Command(ComandoSiisBase):
                     solo_enviar=options["solo_enviar"],
                     destino=destino,
                 )
-                if resultado == "tecnico":
-                    seguidos += 1
-                    if seguidos >= max_errores:
-                        detenido = True
-                        break
-                else:
-                    seguidos = 0
+                if freno.registrar(resultado):
+                    detenido = True
+                    break
             self._log(
                 f"   lote {numero:>3}/{total_lotes} · casos {lote[0].pk}-{lote[-1].pk} · "
                 f"aprobados {cuenta.aprobados - antes.aprobados:>3} · "
@@ -294,6 +293,7 @@ class Command(ComandoSiisBase):
             ("altas con datos incompletos", cuenta.incompletos),
             ("altas rechazadas por SIIS", cuenta.rechazados),
             ("altas con error técnico", cuenta.errores),
+            ("altas de resultado desconocido", cuenta.inciertos),
             ("ya informados en otro caso (duplicado)", cuenta.duplicados),
             ("ya los tenía otro camino", cuenta.ocupados),
         ]
@@ -302,8 +302,8 @@ class Command(ComandoSiisBase):
         self._resumen(filas, ancho=38)
         segundos = self._reloj() - arranque
         if detenido:
-            self._cortado_por_errores(
-                max_errores,
+            self._cortado_por_fallas(
+                freno,
                 segundos,
                 "Volvé a correrlo cuando se recupere; lo hecho queda y los pendientes se retoman solos.",
             )

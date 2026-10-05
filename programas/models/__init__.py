@@ -2851,6 +2851,13 @@ class EnvioSIIS(models.Model):
     ``(formulario, vigente)`` el motor admite todos los ``NULL`` que quiera pero
     un solo ``True`` por caso: es la unicidad condicional que MariaDB no da con
     ``UniqueConstraint(condition=…)`` (``supports_partial_indexes = False``).
+
+    ``clave_persona_plan`` hace lo mismo una fila más arriba, pero entre **casos
+    distintos** (SIIS-05): vale ``"<documento>:<id_programa>"`` mientras el envío
+    esté vigente y ``NULL`` si no. Dos formularios del mismo DNI en el mismo plan
+    no pueden tener los dos un envío vigente, y eso lo decide el motor: la
+    comprobación en Python es un check-then-act y con dos procesos a la vez
+    dejaba pasar las dos altas.
     """
 
     class Estado(models.TextChoices):
@@ -2868,6 +2875,17 @@ class EnvioSIIS(models.Model):
     #: proceso muerto entre el POST y el registro: se trata como incierto. Dos
     #: llamadas completas (connect 10 s + read 30 s) más margen.
     EN_PROCESO_VENCE = timedelta(minutes=5)
+
+    #: Código con el que ``conciliar_envios_siis --liberar`` deja un envío que
+    #: ECOM confirmó que no llegó. No es un intento fallido: no suma al tope de
+    #: reintentos (:func:`~programas.services.proceso_masivo.casos_con_errores_agotados`).
+    LIBERADO = "INCIERTO_LIBERADO"
+
+    #: **No es una columna.** Lo marca el servicio en el objeto que devuelve:
+    #: ``True`` si este intento lo hizo esta llamada, ``False`` si lo que volvió
+    #: es un envío que ya estaba. Lo usa el freno para no contar como falla de
+    #: SIIS un caso que simplemente ya estaba tomado.
+    recien_intentado = False
 
     formulario = models.ForeignKey(
         Formulario, on_delete=models.CASCADE, related_name="envios_sis", verbose_name="Formulario"
@@ -2891,6 +2909,9 @@ class EnvioSIIS(models.Model):
     # el índice único cuenta los ``False`` como iguales entre sí y bloquearía el
     # segundo intento fallido del mismo caso.
     vigente = models.BooleanField(null=True, default=None, editable=False)
+    # ``"<documento>:<id_programa>"`` mientras el envío esté vigente, NULL si no
+    # (o si falta alguno de los dos: sin DNI o sin plan no hay alta que duplicar).
+    clave_persona_plan = models.CharField(max_length=40, null=True, blank=True, editable=False)
     # Cuándo se cerró el intento (cuándo contestó SIIS, o cuándo se concilió).
     resuelto_en = models.DateTimeField(null=True, blank=True)
     creado = models.DateTimeField(auto_now_add=True)
@@ -2906,27 +2927,44 @@ class EnvioSIIS(models.Model):
             # único son legales en MariaDB, MySQL y SQLite, así que la columna
             # nullable emula el índice parcial sin depender de esa capacidad.
             models.UniqueConstraint(fields=["formulario", "vigente"], name="uniq_enviosiis_vigente_caso"),
+            # SIIS-05 entre casos distintos. Misma técnica: la columna vale algo
+            # solo mientras el envío esté vigente, así que los NULL no estorban.
+            models.UniqueConstraint(fields=["clave_persona_plan"], name="uniq_enviosiis_persona_plan"),
         ]
         indexes = [
-            # SIIS-05: «¿esta persona ya está informada en este plan?», desde
-            # cualquier caso. Sin el índice es un scan de la tabla por alta.
+            # «¿esta persona ya está informada en este plan?», desde cualquier
+            # caso y sin pasar por la clave. Sin el índice es un scan por alta.
             models.Index(fields=["documento", "id_programa"], name="idx_enviosiis_doc_plan"),
         ]
 
     def __str__(self):
         return f"Formulario #{self.formulario_id} · {self.estado}"
 
-    def save(self, *args, **kwargs):
-        """``vigente`` se deriva del estado: es una invariante, no un dato aparte.
+    @staticmethod
+    def clave_de(documento, id_programa):
+        """``"<documento>:<id_programa>"``, o ``None`` si falta alguno.
 
-        Así ningún camino puede crear un ``ENVIADO`` que no ocupe el caso —que
-        sería una puerta abierta al alta doble— ni un ``RECHAZADO`` que lo
-        bloquee para siempre. Los cierres por ``update()`` escriben los dos
-        campos juntos, por la misma razón.
+        Sin DNI o sin plan no hay alta que duplicar —el payload saldría
+        incompleto y no llega a SIIS—, así que esas filas quedan fuera del
+        índice único en vez de chocar entre ellas.
+        """
+        documento = str(documento or "").strip()
+        if not documento or id_programa is None:
+            return None
+        return f"{documento}:{id_programa}"[:40]
+
+    def save(self, *args, **kwargs):
+        """``vigente`` y ``clave_persona_plan`` se derivan del estado.
+
+        Son invariantes, no datos aparte. Así ningún camino puede crear un
+        ``ENVIADO`` que no ocupe el caso —que sería una puerta abierta al alta
+        doble— ni un ``RECHAZADO`` que lo bloquee para siempre. Los cierres por
+        ``update()`` escriben los tres campos juntos, por la misma razón.
         """
         self.vigente = True if self.estado in self.ESTADOS_VIGENTES else None
+        self.clave_persona_plan = self.clave_de(self.documento, self.id_programa) if self.vigente else None
         if "update_fields" in kwargs and kwargs["update_fields"] is not None:
-            kwargs["update_fields"] = {*kwargs["update_fields"], "vigente"}
+            kwargs["update_fields"] = {*kwargs["update_fields"], "vigente", "clave_persona_plan"}
         return super().save(*args, **kwargs)
 
     @property

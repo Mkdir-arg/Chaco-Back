@@ -38,6 +38,13 @@ from programas.services.validacion_siis import validar_formulario_en_siis
 
 LOTE = 40
 MAX_ERRORES = 10
+# Resultados **ambiguos** seguidos que detienen la corrida. El tope es más bajo
+# que el de errores a propósito: un ERROR técnico no cuesta nada —el caso queda
+# libre y se reintenta solo—, mientras que cada INCIERTO deja un caso **tomado**
+# que solo se destraba preguntándole a ECOM si el alta llegó. Diez errores
+# seguidos son diez reintentos; tres inciertos seguidos ya son tres
+# conciliaciones a mano, y señal de que SIIS está contestando mal.
+MAX_INCIERTOS = 3
 # Casos que se traen de la base por vez al hidratar una lista de ids (abajo).
 LOTE_LECTURA = 200
 # Ids que se piden por consulta al recorrer la tabla por rangos de pk.
@@ -122,15 +129,78 @@ def casos_con_errores_agotados(tope=TOPE_AGOTADOS):
     lado de ``programas_formulario``) y la lista vuelve a memoria: un ``IN`` con
     una subconsulta correlacionada acá adentro es justo lo que no entra en el
     ``read_timeout`` de 10 s de la base de ECOM.
+
+    Los que liberó ``conciliar_envios_siis`` **no cuentan**: son ``ERROR`` por
+    cómo se guarda la decisión, no por un intento que falló. Si contaran, un caso
+    con cuatro errores previos quedaría fuera para siempre justo después de que
+    una persona confirmara con ECOM que hay que reenviarlo.
     """
     return list(
         EnvioSIIS.objects.filter(estado=EnvioSIIS.Estado.ERROR)
+        .exclude(codigo_error=EnvioSIIS.LIBERADO)
         .values("formulario_id")
         .annotate(intentos=Count("id"))
         .filter(intentos__gte=MAX_REINTENTOS)
         .order_by("formulario_id")
         .values_list("formulario_id", flat=True)[:tope]
     )
+
+
+# Desenlaces de un caso que cuentan como «SIIS no está sirviendo». Los devuelve
+# ``procesar_caso`` y los interpreta :class:`Freno`.
+FALLA_TECNICA = "tecnico"
+FALLA_INCIERTA = "incierto"
+
+
+@dataclass
+class Freno:
+    """Corta la corrida cuando SIIS deja de servir. Único para las tres vías.
+
+    Lleva **dos rachas en paralelo**, no una:
+
+    * ``tecnicos`` — el caso quedó libre y se reintenta solo. Diez seguidos
+      significan «SIIS está caído»: no hay nada que ganar insistiendo.
+    * ``inciertos`` — el POST pudo haber llegado y el caso queda **tomado**
+      hasta que alguien le pregunte a ECOM. Son caros: el tope es más bajo.
+
+    Una falla **no** resetea la racha de la otra: con SIIS devolviendo 500 y
+    timeouts alternados, un solo contador que se pisa entre sí no llega nunca al
+    tope y la corrida sigue golpeando un servicio caído (que es lo que pasaba
+    cuando el INCIERTO contaba como «no es un error» y reseteaba el contador).
+    Solo un desenlace sano —un alta hecha, un rechazo de datos, un caso que ya
+    estaba tomado— vuelve las dos a cero.
+    """
+
+    max_errores: int = MAX_ERRORES
+    max_inciertos: int = MAX_INCIERTOS
+    tecnicos: int = 0
+    inciertos: int = 0
+
+    def registrar(self, desenlace):
+        """Suma el desenlace y devuelve ``True`` si hay que cortar."""
+        if desenlace == FALLA_TECNICA:
+            self.tecnicos += 1
+        elif desenlace == FALLA_INCIERTA:
+            self.inciertos += 1
+        else:
+            self.tecnicos = 0
+            self.inciertos = 0
+        return self.corta
+
+    @property
+    def corta(self):
+        return self.tecnicos >= self.max_errores or self.inciertos >= self.max_inciertos
+
+    @property
+    def motivo(self):
+        """Qué contar en el mensaje de corte, en el orden en que importa."""
+        if self.inciertos >= self.max_inciertos:
+            return (
+                f"{self.inciertos} resultados de resultado desconocido seguidos. SIIS contesta mal o no "
+                "contesta, y cada uno deja un caso tomado: hay que preguntarle a ECOM si esas altas "
+                "llegaron (`manage.py conciliar_envios_siis --listar`) antes de volver a correr"
+            )
+        return f"{self.tecnicos} errores técnicos seguidos. SIIS no está respondiendo o las credenciales no sirven"
 
 
 @dataclass
@@ -142,11 +212,14 @@ class Cuenta:
     aprobados: int = 0
     lista_espera: int = 0
     no_aprobable: int = 0
-    # Ya los tiene otro camino (un envío EN_PROCESO o INCIERTO) o ya se informó
-    # a la misma persona en el mismo plan desde otro caso (DUPLICADO_LOCAL).
-    # Ninguno de los dos es un error: no cuentan para el freno por errores.
+    # Ya los tiene otro camino (un envío EN_PROCESO o INCIERTO de antes) o ya se
+    # informó a la misma persona en el mismo plan desde otro caso
+    # (DUPLICADO_LOCAL). Ninguno de los dos es una falla de SIIS.
     ocupados: int = 0
     duplicados: int = 0
+    # Intentos de **esta** corrida que quedaron sin saber si el alta llegó. Sí
+    # son una falla de SIIS, y la más cara: cada uno pide una conciliación.
+    inciertos: int = 0
     # Entró a la lista de espera entre la selección y su turno (el selector ya
     # los deja afuera). No viaja a ``CorridaSiis``: no hay columna para él.
     ya_en_espera: int = 0
@@ -382,9 +455,15 @@ def procesar_caso(caso, responsable, catalogos, cuenta, *, avisar=False, solo_en
         cuenta.altas += 1
     elif envio.estado == EnvioSIIS.Estado.INCOMPLETO:
         cuenta.incompletos += 1
+    elif envio.estado == EnvioSIIS.Estado.INCIERTO and envio.recien_intentado:
+        # Lo intentamos y no sabemos si llegó: es una falla de SIIS, y de las
+        # caras. Que no cuente para el freno era dejar la corrida sin salida con
+        # el servicio caído, porque 500, 502, 504 y ReadTimeout son INCIERTO.
+        cuenta.inciertos += 1
+        return FALLA_INCIERTA
     elif envio.estado in (EnvioSIIS.Estado.EN_PROCESO, EnvioSIIS.Estado.INCIERTO):
-        # Otro camino lo tiene tomado, o quedó de resultado desconocido: no se
-        # vuelve a llamar a SIIS y tampoco cuenta como falla del servicio.
+        # Lo tenía tomado otro camino desde antes: no se llamó a SIIS, así que no
+        # dice nada sobre el estado del servicio.
         cuenta.ocupados += 1
     elif envio.estado == EnvioSIIS.Estado.RECHAZADO:
         if envio.codigo_error == "DUPLICADO_LOCAL":
@@ -393,7 +472,7 @@ def procesar_caso(caso, responsable, catalogos, cuenta, *, avisar=False, solo_en
             cuenta.rechazados += 1
     else:
         cuenta.errores += 1
-        return "tecnico"
+        return FALLA_TECNICA
     return None
 
 
@@ -455,7 +534,9 @@ def _guardar(corrida, cuenta, **extra):
     corrida.save(update_fields=[*CONTADORES, "latido", *extra.keys(), "modificado"])
 
 
-def correr(corrida, *, responsable=None, catalogos=None, lote=LOTE, max_errores=MAX_ERRORES):
+def correr(
+    corrida, *, responsable=None, catalogos=None, lote=LOTE, max_errores=MAX_ERRORES, max_inciertos=MAX_INCIERTOS
+):
     """Ejecuta la corrida y va escribiendo su avance. **Nunca lanza.**
 
     Todo desenlace —incluida una excepción que no previmos— queda escrito en la
@@ -474,24 +555,23 @@ def correr(corrida, *, responsable=None, catalogos=None, lote=LOTE, max_errores=
         casos, _ = elegir_completos(pendientes, catalogos, corrida.total_pedido, cuenta)
         _guardar(corrida, cuenta)
 
-        seguidos = 0
+        freno = Freno(max_errores=max_errores, max_inciertos=max_inciertos)
         for grupo in _lotes(casos, max(1, lote)):
             for caso in grupo:
-                if procesar_caso(caso, responsable, catalogos, cuenta) == "tecnico":
-                    seguidos += 1
-                else:
-                    seguidos = 0
+                # El freno se mira por caso y no al final del lote: con SIIS
+                # caído, esperar a los 40 del lote son 40 llamadas de más (y, si
+                # son inciertas, 40 casos tomados). El latido por caso es de
+                # SIIS-03.
+                if freno.registrar(procesar_caso(caso, responsable, catalogos, cuenta)):
+                    break
             _guardar(corrida, cuenta)
-            if seguidos >= max_errores:
+            if freno.corta:
                 _guardar(
                     corrida,
                     cuenta,
                     estado=CorridaSiis.Estado.DETENIDA,
                     finalizada=timezone.now(),
-                    mensaje=(
-                        f"Se detuvo tras {max_errores} errores técnicos seguidos: SIIS no está respondiendo "
-                        "o las credenciales no sirven. Lo hecho quedó; volvé a lanzarla cuando se recupere."
-                    ),
+                    mensaje=f"Se detuvo tras {freno.motivo}. Lo hecho quedó; volvé a lanzarla cuando se recupere.",
                 )
                 return corrida
             # El freno se relee de la base: lo marca otro request.

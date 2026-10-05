@@ -16959,14 +16959,21 @@ datos y después los dos índices.
 
 - **Expand/contract: se puede desplegar antes que el código.** Las columnas nacen `NULL`, así que el
   código viejo sigue insertando filas que no chocan con el índice único.
-- **Tiempo esperado: segundos, no minutos.** Los `ADD COLUMN` nullables al final de la tabla son
+- **Tiempo medido: 6,9 s de ida y 4,0 s de vuelta** con 40.100 envíos sobre 40.000 casos, contra
+  **MariaDB 10.11 real** (contenedor efímero). Los `ADD COLUMN` nullables al final de la tabla son
   `ALGORITHM=INSTANT` en MariaDB 10.3+ y MySQL 8; los índices son online DDL (`INPLACE`, con DML
-  concurrente permitido); la migración de datos recorre por rangos de pk de a 2.000 y escribe de a
-  1.000, el patrón de la `0072`.
-- **La migración de datos marca `vigente` en el `ENVIADO` más viejo de cada caso** y **no falla** si
-  un caso ya tiene dos: los lista por pantalla para que vayan a ECOM (V2-NEW-03 los mide antes con
-  P-01). El orden importa: va **antes** del índice único, porque dos `vigente=True` del mismo caso
-  harían fallar el `ALTER TABLE` y dejarían el esquema a medias (el DDL de MySQL no es transaccional).
+  concurrente permitido); la migración de datos recorre por rangos de pk de a 2.000 y calcula la
+  clave **en el motor** (`CONCAT`), que es lo que la baja de 93 s a menos de 7.
+- **La migración de datos resuelve los duplicados que ya existen, y nunca falla ni borra.** Dentro
+  del mismo caso: queda vigente el `ENVIADO` más viejo. **Entre casos distintos** (la misma persona
+  con dos altas reales en el mismo plan, que es lo que cuenta P-01): el más viejo se queda con la
+  `clave_persona_plan` y **los demás siguen vigentes, sin clave**. Eso último es deliberado:
+  sacarles `vigente` los devolvería a la lista de candidatos y la próxima corrida mandaría una
+  **tercera** alta de la misma persona. Todos se listan (hasta 100 por pantalla) y dejan una traza
+  en su caso —`TracaFormulario.campo = "envio_siis"`—, que es el listado consultable que va a ECOM
+  para depurarlos del lado de SIIS, el único lado donde se pueden sacar. El orden importa: va
+  **antes** de los índices únicos, porque un duplicado haría fallar el `ALTER TABLE` y dejaría el
+  esquema a medias (el DDL de MySQL no es transaccional).
 - **Reversa declarada** (RED-57): deja los `EN_PROCESO` e `INCIERTO` como `ENVIADO` con
   `codigo_error="INCIERTO_AL_REVERTIR"` y los lista. No es una barrera: las tres operaciones de
   esquema son reversibles.
@@ -17011,22 +17018,59 @@ interno. Los tres de `ComandoReenvioTests` pasan a usar `--aplicar`.
 - **La clave de idempotencia de SIIS (`id_externo`) sigue sin pedirse formalmente.** Es de ECOM.
 - **SIIS-03** (latido, freno y candado de corrida viva en los comandos) queda para el PR 3 de la
   ola; la base `ComandoSiisBase` ya está para que entre en un solo lugar.
-- **La migración no se probó contra un motor real: solo contra SQLite.** El banco
-  `scripts/perf_mysql/` necesita Docker, que no estaba levantado en esta sesión. Lo que se apoya en
-  documentación y no en una corrida: que MariaDB y MySQL admiten varios `NULL` en un índice único
-  (está en el manual de los dos y es la base de la propuesta de la ficha SIIS-01) y que los
-  `ADD COLUMN` nullables al final de la tabla son instantáneos. **Antes del deploy conviene correr
-  la `0075` contra el banco** (`scripts/perf_mysql/`, base `chaco_perf_ci` en el contenedor 3308) o
-  contra una copia de testing de ECOM, y medir el tiempo real sobre `programas_enviosiis`. El patrón
-  de migración por lotes ya está probado en producción (la `0072` y la `0073`).
+- **Dos desenlaces de SIIS quedan como INCIERTO por falta de contrato, y conviene cerrarlos con
+  ECOM** (suma a **D-S02**): un **503 sin cuerpo** —el manual promete `ERROR_BD_LEGACY`, pero si el
+  balanceador contesta el 503 antes de llegar a la aplicación el cuerpo viene vacío— y un **500 con
+  JSON roto**. Hoy los dos se tratan como inciertos, que es la decisión conservadora y la correcta
+  mientras no haya contrato; el costo es una conciliación a mano por cada uno. Si ECOM confirma que
+  su 503 siempre significa «no se escribió nada», el sin-cuerpo puede pasar a reintentable.
+- **`correr_alta_siis` no hereda de `ComandoSiisBase`** (no habla con SIIS: encadena a los otros).
+  Cuando SIIS-03 agregue el candado de corrida viva habrá que decidir si también lo toma.
 
 ## Reversión
 
-`git revert` del commit más la reversa de la `0075` (declarada). La reversa deja los envíos de
-resultado desconocido como `ENVIADO` para que ningún camino los reenvíe, e imprime sus pk: esos son
-los que hay que conciliar con ECOM antes de volver a tocarlos. Lo que vuelve es el agujero: siete
-caminos que pueden dar de alta dos veces al mismo beneficiario, de forma irreversible.
+`git revert` del commit más la reversa de la `0075` (declarada y medida: 4 s con 40.000 filas en
+MariaDB 10.11). La reversa deja los envíos de resultado desconocido como `ENVIADO` para que ningún
+camino los reenvíe, e imprime sus pk: esos son los que hay que conciliar con ECOM antes de volver a
+tocarlos. Lo que vuelve es el agujero: siete caminos que pueden dar de alta dos veces al mismo
+beneficiario, de forma irreversible.
 
 ## Historial
 
-No aplica: entrada nueva.
+- **05/10/2026 · ronda 2 de la revisión del PR #576.** El revisor verificó el núcleo contra motor
+  real y encontró dos problemas mayores:
+  1. **El freno dejaba de disparar con SIIS caído.** Como 500, 502, 504 y `ReadTimeout` pasaron a ser
+     `INCIERTO`, y un `INCIERTO` no contaba como error —y además reseteaba la racha—, una corrida
+     contra un SIIS caído no cortaba nunca (15 llamadas, 15 inciertos, 15 casos tomados; antes
+     cortaba a los 3). Se agregó `proceso_masivo.Freno`, **una sola pieza para las cuatro vías**,
+     con dos rachas en paralelo que no se pisan entre sí y un tope propio, `--max-inciertos`, con
+     default **3**: un error técnico deja el caso libre y se reintenta solo, mientras que cada
+     incierto deja un caso tomado hasta conciliarlo con ECOM, así que es diez veces más caro. El
+     freno pasa además a mirarse **por caso** y no al final del lote (con lote 40 y SIIS caído eran
+     40 llamadas de más).
+  2. **SIIS-05 tenía una carrera.** `_duplicado_local` era un check-then-act y con dos procesos
+     sobre el mismo DNI y plan los dos pasaban (19 de 25 veces en MariaDB real). Se cerró con una
+     columna derivada `clave_persona_plan` (`"<documento>:<id_programa>"` mientras el envío esté
+     vigente, `NULL` si no) dentro de un índice único, la misma técnica que `vigente`; la reserva
+     traduce el `IntegrityError` a `DUPLICADO_LOCAL`. **La migración de datos resuelve también los
+     duplicados cruzados que ya existen en PRD** (la misma persona con dos altas desde casos
+     distintos): el más viejo se queda con la clave y **los demás siguen vigentes sin clave**, que
+     es lo contrario de lo intuitivo y es a propósito —sacarles `vigente` los devolvería a la lista
+     de candidatos y la próxima corrida mandaría una **tercera** alta—. Todos quedan listados y con
+     una traza en su caso (`TracaFormulario.campo = "envio_siis"`), que es el listado consultable
+     que va a ECOM.
+
+  Y tres menores: `conciliar_envios_siis` pasa a trabajar **en lote** (`--confirmar`/`--liberar` por
+  lista de pk y `--desde-csv`, con el CSV de `--listar` que vuelve de ECOM con una columna
+  `decision`) y en **seco por defecto**; liberar un envío **deja de consumir un intento** del tope de
+  reintentos (un caso con 4 errores previos quedaba fuera para siempre justo después de que una
+  persona confirmara que había que reenviarlo); y la capa 2 de la reserva —la relectura de `vigente`
+  bajo el lock— tiene test propio, porque el índice único la tapaba y se podía borrar sin que nada
+  se pusiera rojo.
+
+  **Medido en MariaDB 10.11 real** (contenedor efímero, 40.100 envíos sobre 40.000 casos, con 100
+  duplicados en el mismo caso y 50 cruzados sembrados): ida **6,9 s**, reversa **4,0 s**, segunda
+  ida **7,1 s** con el mismo resultado (40.000 vigentes, 39.950 con clave, los 50 perdedores
+  cruzados vigentes y sin clave). La primera versión de la migración de datos tardaba **93 s**
+  porque escribía la clave fila por fila; se pasó a calcularla en el motor con `CONCAT`, por rangos
+  de pk, salteando a los repetidos.

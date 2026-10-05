@@ -28,9 +28,13 @@ lote y una pausa opcional (``--pausa``). Cada envío queda confirmado al instant
 si se corta, lo hecho queda y volver a correrlo continúa por donde iba, porque
 los ``ENVIADO`` no se vuelven a mandar.
 
-**Freno de seguridad.** Tras ``--max-errores`` errores técnicos **seguidos** (10
-por defecto) se detiene: es señal de que SIIS está caído o las credenciales no
-sirven, no de que los casos tengan un problema.
+**Freno de seguridad.** Se detiene tras ``--max-errores`` errores técnicos
+**seguidos** (10 por defecto) o ``--max-inciertos`` resultados de resultado
+desconocido seguidos (3 por defecto). El segundo tope es más bajo a propósito: un
+error técnico deja el caso libre y se reintenta solo, mientras que un resultado
+incierto lo deja **tomado** hasta que alguien le pregunte a ECOM si el alta
+llegó. Las dos rachas se cuentan en paralelo: una falla de un tipo no borra la
+del otro.
 
 Corre en seco por defecto: sin ``--aplicar`` solo cuenta e informa.
 
@@ -66,6 +70,19 @@ ESTADOS_ENVIO = (
 # Estados de DATAÑACH que no son una aprobación: informarlos a SIIS registra como
 # beneficiario a alguien que nadie revisó, o que la provincia resolvió que no.
 ESTADOS_SENSIBLES = (Formulario.Estado.ENVIADO, Formulario.Estado.RECHAZADO, Formulario.Estado.BAJA)
+
+
+def _desenlace(envio):
+    """Lo que el envío le dice al freno sobre el estado de SIIS.
+
+    Un ``INCIERTO`` que acaba de intentarse es una falla —y de las caras—; uno
+    que ya estaba, no: ahí no se llamó a SIIS.
+    """
+    if envio.estado == EnvioSIIS.Estado.ERROR:
+        return proceso_masivo.FALLA_TECNICA
+    if envio.estado == EnvioSIIS.Estado.INCIERTO and envio.recien_intentado:
+        return proceso_masivo.FALLA_INCIERTA
+    return None
 
 
 class Command(ComandoSiisBase):
@@ -174,8 +191,7 @@ class Command(ComandoSiisBase):
     def handle(self, *args, **options):
         aplicar = options["aplicar"]
         tamano = max(1, options["lote"])
-        max_errores = max(1, options["max_errores"])
-        arranque = time.monotonic()
+        arranque = self._reloj()
 
         estados, sensibles = self._estados_pedidos(options)
 
@@ -224,7 +240,7 @@ class Command(ComandoSiisBase):
         cuenta = {estado: 0 for estado in ESTADOS_ENVIO}
         # Casos que cambiaron de estado entre el listado y su lote (SIIS-04).
         cambiados = 0
-        seguidos = 0
+        freno = self._crear_freno(options)
         detenido = False
         catalogos = Catalogos()
 
@@ -251,13 +267,9 @@ class Command(ComandoSiisBase):
                     continue
                 cuenta[envio.estado] += 1
                 parcial[envio.estado] += 1
-                if envio.estado == EnvioSIIS.Estado.ERROR:
-                    seguidos += 1
-                    if seguidos >= max_errores:
-                        detenido = True
-                        break
-                else:
-                    seguidos = 0
+                if freno.registrar(_desenlace(envio)):
+                    detenido = True
+                    break
             self._log(
                 f"   lote {numero:>4}/{total_lotes} · casos {lote[0][0]}-{lote[-1][0]} · "
                 f"enviados {parcial['ENVIADO']:>3} · incompletos {parcial['INCOMPLETO']:>3} · "
@@ -275,14 +287,15 @@ class Command(ComandoSiisBase):
                 ("les falta un dato (INCOMPLETO)", cuenta[EnvioSIIS.Estado.INCOMPLETO]),
                 ("rechazados por SIIS (RECHAZADO)", cuenta[EnvioSIIS.Estado.RECHAZADO]),
                 ("errores técnicos (ERROR)", cuenta[EnvioSIIS.Estado.ERROR]),
-                ("ya los tenía otro camino", cuenta[EnvioSIIS.Estado.EN_PROCESO] + cuenta[EnvioSIIS.Estado.INCIERTO]),
+                ("de resultado desconocido (INCIERTO)", cuenta[EnvioSIIS.Estado.INCIERTO]),
+                ("ya los tenía otro camino", cuenta[EnvioSIIS.Estado.EN_PROCESO]),
                 ("cambiaron de estado y no se informaron", cambiados),
             )
         )
         segundos = self._reloj() - arranque
         if detenido:
-            self._cortado_por_errores(
-                max_errores,
+            self._cortado_por_fallas(
+                freno,
                 segundos,
                 "Revisá el servicio y volvé a correr; los que quedaron en ERROR se retoman solos porque "
                 "siguen contando como pendientes.",

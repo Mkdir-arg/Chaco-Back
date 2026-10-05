@@ -17,13 +17,20 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand, CommandError
 
+from programas.services import proceso_masivo
+
 # Lo que comparten los cuatro. Si un flag nuevo tiene sentido para más de uno,
 # va acá: así nadie se entera tarde de que en un comando no existe.
 LOTE_POR_DEFECTO = 50
-MAX_ERRORES_POR_DEFECTO = 10
+MAX_ERRORES_POR_DEFECTO = proceso_masivo.MAX_ERRORES
+MAX_INCIERTOS_POR_DEFECTO = proceso_masivo.MAX_INCIERTOS
 
 AYUDA_APLICAR = "Ejecuta de verdad. Sin esto solo cuenta e informa, sin llamar a SIIS."
 AYUDA_MAX_ERRORES = "Errores técnicos seguidos que detienen la corrida. Por defecto {}."
+AYUDA_MAX_INCIERTOS = (
+    "Resultados de resultado desconocido seguidos que detienen la corrida. Por defecto {}: el tope es "
+    "más bajo que el de errores porque cada uno deja un caso tomado hasta conciliarlo con ECOM."
+)
 AYUDA_USUARIO = "Nombre de usuario que queda como responsable en los registros y en la traza."
 
 
@@ -51,6 +58,12 @@ class ComandoSiisBase(BaseCommand):
             default=MAX_ERRORES_POR_DEFECTO,
             help=AYUDA_MAX_ERRORES.format(MAX_ERRORES_POR_DEFECTO),
         )
+        parser.add_argument(
+            "--max-inciertos",
+            type=int,
+            default=MAX_INCIERTOS_POR_DEFECTO,
+            help=AYUDA_MAX_INCIERTOS.format(MAX_INCIERTOS_POR_DEFECTO),
+        )
         parser.add_argument("--usuario", default=None, help=AYUDA_USUARIO)
 
     # ── Salida ──────────────────────────────────────────────────────────────
@@ -71,13 +84,20 @@ class ComandoSiisBase(BaseCommand):
             self._log(f"ENSAYO: {texto}\n", self.style.WARNING)
         self._log(f"SIIS: {settings.SIIS_API_URL}")
 
-    def _cortado_por_errores(self, max_errores, segundos, cola):
-        """El mensaje del freno por errores seguidos, igual en los cuatro."""
-        self._log(
-            f"\nDETENIDO tras {max_errores} errores técnicos seguidos en {segundos:.0f} s: "
-            f"SIIS no está respondiendo o las credenciales no sirven. {cola}",
-            self.style.ERROR,
+    def _crear_freno(self, options):
+        """El freno de la corrida, con los topes que pidió el operador.
+
+        Uno solo para las tres vías (las dos de acá y el hilo del masivo): si el
+        criterio de corte vive en tres lados, el día que cambie va a cambiar en
+        dos — que es exactamente lo que RED-53 mide.
+        """
+        return proceso_masivo.Freno(
+            max_errores=max(1, options["max_errores"]), max_inciertos=max(1, options["max_inciertos"])
         )
+
+    def _cortado_por_fallas(self, freno, segundos, cola):
+        """El mensaje del freno, igual en los cuatro. Nunca vuelve: corta con 1."""
+        self._log(f"\nDETENIDO en {segundos:.0f} s tras {freno.motivo}. {cola}", self.style.ERROR)
         raise SystemExit(1)
 
     # ── Insumos ─────────────────────────────────────────────────────────────
