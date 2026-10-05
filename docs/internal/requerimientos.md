@@ -307,6 +307,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 124 | Cupo y lista de espera: la guarda del cupo 0, el contrato de los candados y la posición | Becas · cupo y lista de espera · Portal (link público) · API de campo | `#cupos` `#api` `#mobile` `#datos` | Auditoría integral oct-2026 — RED-27, RED-67 y RED-68 (Ola R, red de seguridad, PR R-09) | 04/10/2026 | 🟢 **Hecho** | No requiere |
 | 125 | El CI ve la forma del SQL que le llega al motor de producción | Transversal · dashboards · link público · Dispositivos (reportes) | `#performance` `#infra` `#datos` `#relevamientos` | Auditoría integral oct-2026 — RED-07, RED-08 y RED-09 (Ola R, red de seguridad, PR R-10) | 04/10/2026 | 🟢 **Hecho** | No requiere |
 | 126 | Un usuario sin rol dejaba de ser inofensivo: borraba documentos del ciudadano y silenciaba alertas | Legajos (adjuntos, alertas, APIs del detalle) · Transversal (barrido del URLconf) · Usuarios (ABM de Roles) | `#rbac` `#api` `#ui` `#datos` | Auditoría integral oct-2026 — RED-89, SEC-10, SEC-18, SEC-11, RED-04 y RED-06 (Ola R, red de seguridad, PR R-19) | 04/10/2026 | 🟢 **Hecho** | No requiere |
+| 128 | Nada sale a producción sin que algo lo haya verificado: contratos del repo en el CI, release con CI verde y espejo a ECOM en dos pasos | Transversal · CI de GitHub Actions · release y espejo a ECOM | `#infra` `#metodo` `#gestion` | Auditoría integral oct-2026 — RED-24, RED-21, RED-65, RED-23 y RED-22 (Ola R, red de seguridad, PR R-14) | 05/10/2026 | 🟡 **Parcial** (falta enviar la propuesta a ECOM y copiar los dos comandos a `.claude/`) | No requiere |
 | 129 | Que una pantalla nueva no pueda nacer sucia: ratchet, marcadores de arquetipo y gate de build | Transversal · herramientas de diseño · CI de GitHub Actions · CSS compilado | `#ui` `#metodo` `#infra` | Auditoría integral oct-2026 — FE-13, V5A-NEW-01 y V5A-NEW-08 (Ola 6 «Agente de diseño», pasos 0-2) | 05/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
@@ -16791,6 +16792,244 @@ cuenta de backoffice borrando documentos del ciudadano sin dejar rastro.
 ## Historial
 
 No aplica: entrada nueva.
+
+---
+
+# Cambio 128 — Nada sale a producción sin que algo lo haya verificado: contratos del repo en el CI, release con CI verde y espejo a ECOM en dos pasos
+
+🟡 **PARCIAL — 05/10/2026** (el repositorio quedó listo; falta que el PM envíe la propuesta a
+ECOM y que el juez copie los dos comandos del espejo a `.claude/`)
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · CI de GitHub Actions · release y espejo a ECOM |
+| **Etiquetas** | `#infra` `#metodo` `#gestion` |
+| **Solicitante** | Auditoría integral oct-2026 — fichas RED-24, RED-21, RED-65, RED-23 y RED-22 (Ola R, red de seguridad, PR R-14) |
+| **Fecha del pedido** | 05/10/2026 |
+| **Issue / épica** | Sin issue · PR #575 (plan de la auditoría: `docs/internal/auditoria-2026-10/`) |
+| **Partes afectadas** | Infra (CI, release y espejo a ECOM). Cero código de producción |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> «Gates del release: RED-24 (`Contratos del repo`), RED-21 (`publish-main` exige CI verde),
+> RED-65, RED-23 (`release-gate.yml` + `/pushGitLabecom` en dos), RED-22 (propuesta a ECOM).»
+> (README de la auditoría, Ola R, PR R-14, «antes de: el próximo espejo a ECOM».)
+
+El punto de partida medido: las condiciones de cierre de `CLAUDE.md` —sintaxis de los templates,
+`requerimientos.py --check`, adherencia al sistema de diseño— corrían **solo en la máquina de quien
+desarrolla**, y las dos de diseño además como hook de Claude Code: un cambio hecho desde un IDE o
+desde la web de GitHub no pasaba por ninguna. `collectstatic` no corrió nunca en el CI, y es el que
+produce el 500 más caro del sistema. `publish-main.yml` publicaba el release sin mirar si el commit
+venía de un PR ni si ese PR estaba verde. Y `/pushGitLabecom` empujaba `test` y `main` en la misma
+corrida con una sola confirmación: como el build de ECOM tarda 5 a 7 minutos, cuando el comando
+llegaba al paso de `main` —que **despliega producción automáticamente**— testing ni había terminado
+de construir.
+
+## Alcance acordado
+
+- **Entra:** el job obligatorio `Contratos del repo`; el ratchet `.design-audit-ratchet`; el guard
+  de `publish-main.yml` con el denylist derivado de `.gitattributes` y el gate de CI verde del PR;
+  `CONTEXT.md` marcado `export-ignore`; el workflow `release-gate.yml`; el procedimiento del espejo
+  partido en dos, versionado en `docs/internal/espejo-ecom.md`; la propuesta escrita a ECOM en
+  `docs/internal/propuesta-ecom-verify.md`; `Contratos del repo` sumado al ruleset de `development`;
+  y dos módulos de tests.
+- **Queda afuera, a propósito:** tocar `.gitlab-ci.yml` (es de ECOM; nuestra copia tiene que quedar
+  byte a byte igual a la suya o el próximo espejo les revierte el archivo); aplicar los rulesets (es
+  del dueño del repo, Cambio 121); sacar `docker/django/Dockerfile` y `scripts/startup.sh` de la
+  lista de runtime, que es la segunda parte de RED-65 y viaja con el PR de OPS-10/OPS-14 en la
+  Ola 7; y arreglar los 42 errores heredados de `design_audit`, que es la Ola 6.
+- **Cero código de producción.** El PR toca workflows, `.gitattributes`, documentación interna y
+  tests.
+
+## Decisiones tomadas
+
+- **El denylist del release es `.gitattributes`, leído sobre el árbol publicado.** Había dos listas
+  —la del guard y la de `export-ignore`— que decían casi lo mismo y nada las sincronizaba: lo que no
+  estaba en ninguna viajaba al release, al GitLab de ECOM y a la imagen de PRD. Le pasó a
+  `CONTEXT.md`, 17 KB de glosario interno, que ahora quedó marcado.
+- **Se pregunta por cada ruta del release, no por cada archivo versionado.** Es un desvío respecto
+  de la ficha y es el detalle que la hacía incompleta: en `.gitattributes`, un patrón de directorio
+  (`/docs`, `/.claude`) marca **el directorio y no su contenido**, así que
+  `git check-attr export-ignore docs/internal/x.md` contesta «unspecified» aunque `git archive` se
+  saltee el subárbol entero. Derivarlo de `git ls-files` cubría 12 de los 17 patrones. Recorriendo
+  el árbol del release con `find -printf` del nombre relativo, el directorio aparece como ruta
+  propia y la pregunta da «set». Verificado contra un `git archive` real con un `docs/internal/x.md`
+  inyectado.
+- **Todo `.md` de la raíz tiene que estar declarado.** O marcado `export-ignore`, o en
+  `DOCS_DE_RUNTIME` del guard (hoy solo `README.md`). Es la regla que faltaba: un `NOTAS.md` nuevo
+  en la raíz no estaba en ninguna lista y viajaba solo.
+- **El CI verde se mira en el head del PR, nunca en el commit de merge.** El commit que
+  `publish-main` publica es un merge en `development`, y **los merge commits no tienen check-runs**:
+  los PRs los corren sobre su head. Consultarlos sobre `github.sha` devolvía lista vacía y el gate
+  habría pasado siempre. Se busca el PR con `commits/<sha>/pulls` (solo `merged_at != null`) y se
+  miran los checks de su head. Un `conclusion` en `null` —todavía corriendo— también frena: no se
+  publica un release mientras el CI del PR sigue en vuelo.
+- **El gate va con `if … then … fi`, no con la forma `[ cond ] && { …; exit 1; }`.** La que traía la
+  ficha es el footgun clásico de `set -e`, que Actions activa en todo `shell: bash`: cuando la
+  condición es **falsa** —el camino feliz— la lista devuelve 1 y el paso aborta igual, con el release
+  sin publicar y un error que no explica nada. Hay un test que lo fija.
+- **`workflow_dispatch` saltea el gate, pero exige un motivo escrito.** Dispararlo a mano requiere
+  permiso de escritura sobre el repo, o sea una persona decidiendo; lo que no puede es pasar sin que
+  quede por qué en el log de la corrida.
+- **Y solo se dispara sobre `development`** (ronda 2 de la revisión). El `push` ya venía filtrado,
+  pero un `workflow_dispatch` se lanza sobre cualquier rama y el job publica `main` con el árbol que
+  haya checkouteado: una rama de trabajo cualquiera, sin pasar por el gate, llegaría a ECOM y a la
+  imagen de PRD.
+- **El ruleset que se le exige a un PR es el de su propio head** (ronda 3). Leerlo del árbol
+  checkouteado —`development` al momento del merge— tiene un modo de falla de transición feo: el
+  día que entra un check obligatorio nuevo, todo PR abierto de antes —que corrió 9 checks porque
+  el décimo no existía— deja de publicar aunque esté entero en verde, y como `publish-main` falla
+  **después** del merge, `main` se queda quieta sin que nada lo avise en el PR. Medido contra la
+  historia real: el head de #556 declara 9 contextos y su `pr-quality.yml` ni siquiera tenía el job
+  «Contratos del repo». Un head anterior al Cambio 121 no tiene el archivo: ahí no hay lista que
+  exigir y queda el piso de «al menos un check y ninguno rojo» (borrar el ruleset para caer en esa
+  rama no es atajo: pone en rojo `Tests & Coverage`, que es uno de los checks que sí se miran).
+  El `release-gate` lo leía del commit de `development` que originó el release, que es **el merge**:
+  mismo problema, mismo arreglo.
+- **Cero check-runs no es verde** (ronda 2). Mirar solo los checks que fallaron dejaba el agujero más
+  grande del gate: un PR cuyos workflows nunca arrancaron —borrados, deshabilitados, o un push del
+  head que no los disparó— no tiene **ni un check malo** y habría pasado igual. Ahora se exige que la
+  lista no esté vacía y que estén presentes **todos** los contextos que declara
+  `docs/internal/rulesets/ruleset-development.json`, que es la misma fuente que aplica el dueño del
+  repo. El `release-gate` lo lee del commit de `development` que originó el release, porque en el
+  árbol de `main` ese archivo no está (`docs/` es `export-ignore`).
+- **La corrida del `release-gate` lleva el SHA en el título** (`run-name`, ronda 2): la API no expone
+  los `inputs` en `gh run list`, así que sin eso el operador no puede distinguir qué release verificó
+  cada corrida — y de eso depende el paso a producción, que exige el gate verde **de ese SHA**.
+- **No se autobloquea con el ruleset de `main`.** Ese ruleset (Cambio 121) prohíbe `deletion`,
+  `non_fast_forward` y `update` con bypass para la app de GitHub Actions, y **no exige status
+  checks**: si los exigiera, el workflow que publica `main` quedaría esperándose a sí mismo. Ya había
+  un test que lo custodia.
+- **El ratchet de diseño arranca en 42, no en 44.** La ficha traía la medición de la consolidación
+  sobre `ee0aafe`; la corrida completa de hoy sobre esta rama da 42 errores y 28 warnings. El techo
+  solo puede bajar: si sube, el job falla; si baja, avisa con `::notice::` para que se baje el
+  archivo en el mismo PR. Cuando la Ola 6 entregue el modo ratchet del script, ese paso lo reemplaza.
+- **`Contratos del repo` no filtra por rutas.** Casi cualquier archivo mueve alguna de las cuatro
+  comprobaciones (un `.py` mueve `collectstatic`, un `.md` de `docs/internal` mueve `--check`), y el
+  check es obligatorio en el ruleset: un check que no termina deja el PR esperando para siempre.
+- **`collectstatic` corre con `ENVIRONMENT=prd`,** que es lo que enciende el almacenamiento con
+  manifest. Con el de dev, `collectstatic` copia y no resuelve nada: un `static` apuntando a un
+  archivo que no está commiteado pasaría igual, y en PRD es «Missing staticfiles manifest entry» en
+  el primer render. Verificado a mano que no se conecta a la base ni a Redis y que deja el manifest.
+- **El `release-gate` corre la suite sobre el commit de `development`, no sobre el snapshot.** El
+  snapshot excluye `docs/`, `.github/` y tres `scripts/*.py` por `export-ignore`, y **seis módulos de
+  test** afirman cosas sobre exactamente esos archivos (los gates del CI, el runbook de rollback, las
+  barreras de reversa): correr la suite sobre el árbol publicado daría rojo por construcción. El
+  código de producción es byte a byte el mismo en los dos árboles, y lo que sí se verifica sobre el
+  snapshot es lo que de verdad cambia entre uno y otro: las migraciones, la imagen y el smoke.
+- **El smoke pega a rutas que existen.** La ficha nombraba `/accounts/login/` y `/becas/`: medido
+  contra el URLconf, `/accounts/login/` no existe —el login vive en la raíz (`users:login`), con
+  alias en `/login/`— y `/becas/` a secas **no resuelve**, porque no hay vista en el prefijo. Un
+  smoke contra esas URLs habría medido un 404 creyendo que medía la pantalla. Quedaron `/health/`,
+  `/login/`, `/inicio/` y `/becas/relevamientos/`, y hay un test que resuelve cada una contra el
+  URLconf real. Un 404 cuenta como fallo, no solo el 500.
+- **El motor del gate es MariaDB (`mariadb:10.11`), no MySQL.** PRD y testing de ECOM son MariaDB; la
+  versión queda fija hasta que H-01 diga cuál corre ECOM.
+- **El espejo se parte en dos sesiones distintas, con una verificación humana en el medio.** No se
+  encadenan: `/pushGitLabecomTEST` termina informando el SHA espejado, y `/pushGitLabecomPRD` lo
+  recibe como insumo y exige, antes de tocar nada, que el árbol de `ecom/test` sea idéntico, que el
+  `release-gate` de ese SHA esté verde, que alguien diga qué probó en testing, y una segunda
+  confirmación escribiendo `PRODUCCION` —no «sí», no «dale»—.
+- **La etapa `verify` se le propone a ECOM por escrito y no se aplica.** El `.gitlab-ci.yml` es de
+  ellos; nuestra copia existe para que viaje en el release, porque sin ese archivo GitLab no crea
+  pipeline y la rama se actualiza sin construir imagen. Editarla de nuestro lado les revertiría el
+  archivo en el próximo espejo. Hay un test que afirma que nuestra copia sigue intacta.
+- **Los dos comandos del espejo quedan en el cuerpo del PR.** La sesión que implementó esto no tiene
+  permiso de escritura sobre `.claude/`. Para que el procedimiento no viva solo en un archivo que no
+  se versiona de verdad, lo normativo quedó en `docs/internal/espejo-ecom.md`, que es lo que los
+  tests custodian; los comandos son su cara operativa.
+
+## Implementación
+
+**`Contratos del repo`** (job `contratos-repo` de `pr-quality.yml`, sin `continue-on-error`):
+`scripts/compile_templates.py`, `scripts/requerimientos.py --check`, `collectstatic --noinput` con
+`DJANGO_DEBUG=False` y `ENVIRONMENT=prd` fallando si no queda el manifest, y el ratchet de
+`design_audit` contra `.design-audit-ratchet`. Suma un aviso no bloqueante cuando un PR con
+`feat`/`fix` en el título no toca `docs/internal/requerimientos.md`. El check se agregó a
+`docs/internal/rulesets/ruleset-development.json`, que pasa a exigir diez contextos.
+
+**`publish-main.yml`** gana dos barreras antes de construir el árbol: el gate de CI verde del PR de
+origen y un guard que deriva lo prohibido de `.gitattributes` recorriendo el release, exige que todo
+`.md` de la raíz esté declarado y mantiene la lista de archivos de runtime en una variable
+(`RUNTIME`) para que el test de RED-65 pueda leerla.
+
+**`release-gate.yml`** (nuevo, `workflow_dispatch` con input `sha` obligatorio) verifica un commit de
+`main` en cuatro jobs: CI verde del PR de origen —derivando el commit de `development` del asunto
+del commit de release—, suite completa en SQLite, migraciones sobre MariaDB (`migrate --noinput`,
+`migrate --check`, `makemigrations --check --dry-run`) e imagen (`docker build`, `collectstatic`
+adentro exigiendo el manifest, la imagen levantada contra MariaDB y un smoke HTTP).
+
+**El espejo** quedó descrito en `docs/internal/espejo-ecom.md` y referenciado desde `CLAUDE.md` y
+`branching.md`. **La propuesta a ECOM** está en `docs/internal/propuesta-ecom-verify.md`, con la
+etapa `verify` completa, el tag inmutable por commit de RED-16 y el pedido del dump previo al deploy
+(H-11).
+
+## Archivos
+
+- `.github/workflows/pr-quality.yml` — job `Contratos del repo`.
+- `.github/workflows/publish-main.yml` — gate de CI verde, guard derivado, `workflow_dispatch` con motivo.
+- `.github/workflows/release-gate.yml` — **nuevo**.
+- `.design-audit-ratchet` — **nuevo** (techo 42).
+- `.gitattributes` — `CONTEXT.md` marcado `export-ignore`.
+- `docs/internal/espejo-ecom.md`, `docs/internal/propuesta-ecom-verify.md` — **nuevos**.
+- `docs/internal/rulesets/ruleset-development.json`, `docs/internal/rulesets.md`,
+  `docs/internal/branching.md`, `CLAUDE.md`.
+- `core/tests/test_publish_guard.py` — **nuevo** (17 tests).
+- `core/tests/test_gates_ci.py` — `ContratosDelRepoTests`, `ReleaseGateTests`, `EspejoEnDosPasosTests`,
+  `PropuestaAEcomTests`.
+- `docs/internal/auditoria-2026-10/` — fichas y README de la auditoría.
+
+## Base de datos
+
+No requiere. Sin migraciones y sin tocar esquema.
+
+## Validación
+
+Python 3.12 + Django 5.2.17 (`.venv312`, igual al CI): `manage.py check`, `check --deploy`,
+`makemigrations --check --dry-run`, la suite completa en un solo proceso y `test --tag performance`.
+Ruff (`check .` y `format --check` sobre lo tocado) en verde. Los 66 bloques de script de todos los
+workflows pasan `bash -n` (actionlint por Docker no estaba disponible en la máquina). El guard nuevo
+se corrió a mano contra un `git archive HEAD` real, con un `docs/internal/x.md` y un `NOTAS.md`
+inyectados: los marca a los dos. `collectstatic` con `ENVIRONMENT=prd` se corrió a mano y dejó el
+manifest. No tocó UI: no corresponde `design_audit --changed` ni `compile_templates`.
+
+## Puesta en marcha en el servidor
+
+Nada. No hay deploy: todo lo de este cambio vive en el CI y en documentación, y `.gitattributes` solo
+afecta qué viaja al próximo release (sale `CONTEXT.md`).
+
+## Pendientes / a definir
+
+- **PM:** enviar a ECOM la propuesta de `docs/internal/propuesta-ecom-verify.md` y traer la respuesta
+  (H-12). Mientras no la acepten, lo único que verifica un release antes del espejo es el
+  `release-gate` de nuestro lado.
+- **Juez:** copiar `pushGitLabecomTEST.md`, `pushGitLabecomPRD.md` y el reemplazo de
+  `pushGitLabecom.md` a `.claude/commands/`. Quedan completos en
+  `docs/internal/espejo-ecom-comandos/` del worktree del PR —sin trackear, con su `LEEME.md`— y
+  también en el cuerpo del PR.
+- **Dueño del repo:** aplicar los dos rulesets (Cambio 121). Sin eso, `Contratos del repo` sale rojo
+  pero no frena el merge.
+- **Ola 7:** sacar `docker/django/Dockerfile` y `scripts/startup.sh` de la lista de runtime del
+  guard, en el mismo PR de OPS-10/OPS-14 (segunda parte de RED-65).
+- **Ola 6:** bajar el techo de `.design-audit-ratchet` a medida que se arreglen los 42 errores
+  heredados, y reemplazar el paso por el modo ratchet del script cuando exista.
+- **H-01:** confirmar la versión de MariaDB de ECOM para ajustar la del `release-gate`.
+
+## Reversión
+
+Revertir el commit saca los dos gates y el `release-gate`, y devuelve el denylist escrito a mano.
+No hay datos que migrar ni que perder; `CONTEXT.md` volvería a viajar al release. El único efecto
+inmediato es que el CI deja de exigir las condiciones de cierre: si el ruleset ya estuviera aplicado,
+hay que sacar también el contexto `Contratos del repo` de
+`docs/internal/rulesets/ruleset-development.json` y re-aplicarlo, o todo PR queda esperando un check
+que ya no existe.
+
+## Historial
+
+No aplica: entrada nueva.
+
+---
 
 # Cambio 129 — Que una pantalla nueva no pueda nacer sucia: ratchet, marcadores de arquetipo y gate de build
 
