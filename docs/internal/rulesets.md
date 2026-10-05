@@ -72,7 +72,7 @@ gh api repos/Mkdir-arg/Chaco-Back/rulesets/$ID -X PUT -f enforcement=active
 |---|---|---|
 | `deletion`, `non_fast_forward` | No se borra ni se reescribe la historia | `development` es la rama de trabajo y la base de todo PR |
 | `pull_request` con `required_approving_review_count: 0` | Todo cambio entra por PR | **A propósito en 0:** todo el equipo y los agentes publican con la misma cuenta y GitHub no deja aprobar el propio PR; exigir 1 aprobación bloquearía todos los merges. La revisión independiente sigue siendo el «Aprobado @ SHA» del proceso, no el botón |
-| `required_status_checks` con `strict` | Los nueve checks de abajo tienen que estar verdes y la rama al día | Sin `strict`, un PR verde contra una base vieja mergea igual |
+| `required_status_checks` con `strict` | Los diez checks de abajo tienen que estar verdes y la rama al día | Sin `strict`, un PR verde contra una base vieja mergea igual |
 | `bypass_actors: []` | Nadie pasa por arriba | Si hiciera falta, se hace explícito y se revisa |
 
 Checks obligatorios y de dónde salen:
@@ -83,8 +83,14 @@ Checks obligatorios y de dónde salen:
 | `Query Budgets & Smoke Time`, `Ephemeral MySQL Redis Contract` | `pr-performance.yml` |
 | `Pip Audit` | `pr-security.yml` |
 | `Sin datos personales` | `pr-datos.yml` |
-| `Ruff errores` | `pr-quality.yml` |
+| `Ruff errores`, `Contratos del repo` | `pr-quality.yml` |
 | `Validate inventory and authority` | `design-agent-contract.yml` |
+
+`Contratos del repo` (RED-24, Cambio 128) corre las condiciones de cierre de `CLAUDE.md`:
+sintaxis de todos los templates, `requerimientos.py --check`, `collectstatic` con el
+almacenamiento con manifest —el que atrapa el «Missing staticfiles manifest entry» de
+PRD— y el ratchet de `design_audit` contra `.design-audit-ratchet`. No filtra por rutas:
+casi cualquier archivo mueve alguna de las cuatro.
 
 No están `Ruff estilo`, `Bandit Security Scan` ni `Dependency Review`: los tres son
 `continue-on-error` y un check no bloqueante en la lista de obligatorios siempre
