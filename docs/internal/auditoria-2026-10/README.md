@@ -7,7 +7,7 @@ la primera task de pantalla de la v2 de Dispositivos y Merenderos).
 
 | PR | Cambio | Fichas | Estado | Qué quedó abierto |
 |---|---|---|---|---|
-| #NNN Ola 6 pasos 0-2 | 129 | FE-13, V5A-NEW-01, V5A-NEW-08 | ✅ ✅ ✅ | Línea base «antes» medida y guardada; D1-D5 con el default aplicado (D4 = frenar); `design_audit.py` con `--ratchet`, las 7 reglas P1 + CLASSDEF, `--arquetipo`, `--goldens`, el decodificador CSS y el hook en modo ratchet; `check_design_agent.py` con los 8 puntos del anexo §7; `compile_templates.py` sin `site-packages`; gate de build de Tailwind en CI. **Faltan los pasos 3 a 7** (sanear goldens, reescribir el núcleo, consumidores, ejercicio de control y registro final): hasta el paso 4, `--goldens` corre con `continue-on-error` y los límites del núcleo viven detrás de `check_design_agent.py --limites` |
+| #574 Ola 6 pasos 0-2 | 129 | FE-13, V5A-NEW-01, V5A-NEW-08 | ✅ ✅ ✅ | Línea base «antes» medida y guardada; D1-D5 con el default aplicado (D4 = frenar); `design_audit.py` con `--ratchet`, las 7 reglas P1 + CLASSDEF, `--arquetipo`, `--goldens`, el decodificador CSS y el hook en modo ratchet; `check_design_agent.py` con los 8 puntos del anexo §7; `compile_templates.py` sin `site-packages`; gate de build de Tailwind en CI. **Faltan los pasos 3 a 7** (sanear goldens, reescribir el núcleo, consumidores, ejercicio de control y registro final): hasta el paso 4, `--goldens` corre con `continue-on-error` y los límites del núcleo viven detrás de `check_design_agent.py --limites` |
 
 **Lo que mide la línea base (paso 0).** Con los agentes actuales, las tres pantallas del ejercicio de control fallan:
 ninguna escribió un Plan de pantalla como artefacto, **ninguna usó la golden de su arquetipo**, y la de detalle clonó
@@ -1188,7 +1188,7 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
 ### Ola 6 — Agente de diseño
 - **Objetivo:** que una pantalla nueva salga igual a su golden al primer intento, con la deuda vieja contenida por un
   ratchet. **Fecha límite: antes de la primera task de pantalla de la v2 de Dispositivos y Merenderos.**
-- **Avance:** **pasos 0, 1 y 2 cerrados** en #NNN (Cambio 129, 05-oct-2026): **18 h de las 42**, quedan **24 h**
+- **Avance:** **pasos 0, 1 y 2 cerrados** en #574 (Cambio 129, 05-oct-2026): **18 h de las 42**, quedan **24 h**
   (pasos 3 a 7). Cierra FE-13, V5A-NEW-01 y V5A-NEW-08. La línea base «antes» del paso 6 vive en
   [`linea-base-agente-diseno/`](linea-base-agente-diseno/README.md): las tres pantallas fallan hoy, ninguna usó la
   golden de su arquetipo y la de detalle clonó la hermana del módulo con su deuda entera.
