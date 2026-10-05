@@ -16944,8 +16944,9 @@ Con Python 3.12 + Django 5.2.17 (`.venv312`, igual al CI):
 - `manage.py check` → sin issues. `makemigrations --check --dry-run` → «No changes detected».
 - `manage.py check --deploy` con el entorno del CI (`DJANGO_DEBUG=False`, `DJANGO_ALLOWED_HOSTS=localhost`,
   `SIIS_API_URL`) → 5 warnings preexistentes, **exit 0**.
-- `manage.py test` (la suite entera, en un solo proceso, como el CI) → ver el PR; `--tag performance` → 4 tests, OK.
-- Tests nuevos: `core.tests.test_design_audit_estructura` (41) + `scripts/test_design_audit.py` (11) +
+- `manage.py test` (la suite entera, en un solo proceso, como el CI) → **2503 tests, OK** (1 skip y 1
+  `expected failure` preexistentes), 563 s. `manage.py test --tag performance` → 4 tests, OK.
+- Tests nuevos: `core.tests.test_design_audit_estructura` (41, en la suite) + `scripts/test_design_audit.py` (11) +
   `scripts/test_check_design_agent.py` (19, de los que 3 ya existían).
 - `ruff check .` → All checks passed; `ruff format --check` sobre lo tocado → formateado.
 - `scripts/compile_templates.py` → **199 compilados, 0 errores**, tanto en el worktree como corriéndolo desde el
