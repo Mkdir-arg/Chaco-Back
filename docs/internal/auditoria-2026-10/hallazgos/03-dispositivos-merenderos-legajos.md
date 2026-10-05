@@ -65,6 +65,13 @@ aceptación de la v2** (README §7), con el test nombrado para que la task lo he
 - **Tests a agregar:** `test_parte_diario_sql_sin_convert_tz` y `test_filtro_periodo_sql_sin_convert_tz` (compilan con el wrapper mysql sin conexión, como la PoC), `test_ingreso_2330_art_cuenta_en_fecha_local`, `test_export_movimientos_con_periodo_no_vacio`. Opcional: contra el banco `scripts/perf_mysql/` con MariaDB.
 - **Verificación:** V-STD. Sin migración (los partes guardados no se recalculan; no hay datos en PRD).
 - **Dependencias:** DIS-08 en el mismo PR (mismo helper).
+- **⚠ Ya hay dos tests esperando (05-oct-2026, PRs R-10 y R-11).** El del SQL compilado
+  (`core/tests/test_sql_motor_real.py::SinConvertTZTests.test_ninguna_consulta_de_reporte_usa_convert_tz`, Cambio 125) y
+  ahora el **ejecutado contra el motor real**: `core/tests/test_motor_real.py::ParteDiarioEnElMotorRealTests.test_el_parte_diario_cuenta_el_ingreso_de_hoy`
+  (Cambio 130) crea un ingreso de hoy y pide el parte contra MariaDB sin tablas de zona horaria → **0 ingresos**. Los dos
+  están marcados `@unittest.expectedFailure` con el ID de esta ficha: el PR de la Ola 5 que la arregle **saca los dos
+  decoradores** y ahí quedan como regresión. El segundo se saltea contra `mysql:8.0`, que sí trae las tablas cargadas (como
+  icore): el bug es de ECOM.
 
 ### DIS-02 · Doble estadía ALOJADA de la misma persona en el mismo dispositivo
 **Severidad:** ALTA · **Estado:** CONFIRMADO con matiz (`A306DobleAlojamiento`) · **Origen:** A3-06; incluye el gate faltante de `models.W036` · **Tratamiento:** criterio de aceptación v2 (M3, «unicidad residencial en la red»); puntos 1-3 en v1 solo si D-V1 = sí · **Ola:** v2 · **Esfuerzo:** S (1-3) / M (4, dentro de la v2)
@@ -72,6 +79,12 @@ aceptación de la v2** (README §7), con el test nombrado para que la task lo he
 - **Escenario (reproducido):** en MariaDB, 2 ALOJADO y 2 camas OCUPADAS; el F-01 la cuenta doble y el egreso libera una sola cama. En SQLite (tests y dev), `PromoverEsperaView` solo captura `ValidationError` → **500**.
 - **Propuesta:** (1) en `promover_espera`, antes del `save()`, `admision.full_clean(exclude=["respuestas_f00"])` o `Admision.objects.select_for_update().filter(ciudadano, dispositivo, estado=ALOJADO).exists()` → `ValidationError`; (2) `poner_en_espera` rechaza si hay un ALOJADO del ciudadano en ese dispositivo; `admitir_ciudadano` rechaza si hay espera pendiente («tiene una espera pendiente: promovela»); (3) `PromoverEsperaView.post` captura también `IntegrityError`; (4) en la v2, campo real `clave_alojamiento = CharField(null=True, unique=True)` = `f"{ciudadano_id}"` al alojar y NULL al egresar/trasladar (UNIQUE con NULL funciona igual en SQLite, MySQL y MariaDB). **No** usar una columna generada con `RunSQL` por vendor (frágil con `DJANGO_SYNCDB_PROJECT_APPS`). Gate: como el CI corre en SQLite, el warning `models.W036` nunca aparece: test que, para cada `UniqueConstraint` con `condition`, exija el chequeo explícito en el servicio, o prohibir `condition=` nuevas por lint (los tres condicionales del repo están en `models/__init__.py:778, 783, 867`).
 - **Tests a agregar:** `test_no_se_puede_poner_en_espera_a_un_alojado`, `test_promover_rechaza_si_ya_esta_alojado`, `test_admitir_con_espera_pendiente_rechaza`, `test_promover_integrityerror_no_da_500`; v2: `test_clave_alojamiento_unica_en_la_red`.
+- **⚠ La ilusión ya está caracterizada en el CI (05-oct-2026, PR R-11, Cambio 130).**
+  `core/tests/test_motor_real.py::ConstraintCondicionalTests.test_una_uniqueconstraint_con_condicion_no_existe_en_el_motor`
+  mete dos admisiones ALOJADO en la **misma cama** contra el motor real y las dos entran: lo que en SQLite parece una
+  restricción de base, en MySQL y MariaDB no existe. No reemplaza el gate que pide esta ficha (el chequeo explícito en
+  `promover_espera`, o el lint sobre `condition=` nuevas): lo que hace es que el agujero deje de ser invisible mientras la
+  v2 llega. El PR de la v2 que lo cierre va a cambiar este test por el de la unicidad real (`clave_alojamiento`).
 
 ### DIS-03 · Espera de traslado huérfana y un traslado pendiente que no se puede cancelar
 **Severidad:** ALTA · **Estado:** CONFIRMADO con test (`A307EsperaHuerfana`); se refuta un sub-punto · **Origen:** A3-07 · **Tratamiento:** criterio v2 (M3, task #410: «tránsito con recepción, rechazo, vencimiento»); si D-V1 = sí, es el **primer** parche · **Ola:** v2 · **Esfuerzo:** M

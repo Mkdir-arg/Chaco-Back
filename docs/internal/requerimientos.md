@@ -309,6 +309,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 126 | Un usuario sin rol dejaba de ser inofensivo: borraba documentos del ciudadano y silenciaba alertas | Legajos (adjuntos, alertas, APIs del detalle) · Transversal (barrido del URLconf) · Usuarios (ABM de Roles) | `#rbac` `#api` `#ui` `#datos` | Auditoría integral oct-2026 — RED-89, SEC-10, SEC-18, SEC-11, RED-04 y RED-06 (Ola R, red de seguridad, PR R-19) | 04/10/2026 | 🟢 **Hecho** | No requiere |
 | 128 | Nada sale a producción sin que algo lo haya verificado: contratos del repo en el CI, release con CI verde y espejo a ECOM en dos pasos | Transversal · CI de GitHub Actions · release y espejo a ECOM | `#infra` `#metodo` `#gestion` | Auditoría integral oct-2026 — RED-24, RED-21, RED-65, RED-23 y RED-22 (Ola R, red de seguridad, PR R-14) | 05/10/2026 | 🟡 **Parcial** (falta enviar la propuesta a ECOM y copiar los dos comandos a `.claude/`) | No requiere |
 | 129 | Que una pantalla nueva no pueda nacer sucia: ratchet, marcadores de arquetipo y gate de build | Transversal · herramientas de diseño · CI de GitHub Actions · CSS compilado | `#ui` `#metodo` `#infra` | Auditoría integral oct-2026 — FE-13, V5A-NEW-01 y V5A-NEW-08 (Ola 6 «Agente de diseño», pasos 0-2) | 05/10/2026 | 🟢 **Hecho** | No requiere |
+| 130 | El CI prueba contra MariaDB y MySQL de verdad, no solo contra SQLite | Transversal · CI de GitHub Actions · Becas (cupo, link público, dashboard) · Dispositivos (parte F-01) | `#infra` `#datos` `#cupos` `#performance` | Auditoría integral oct-2026 — TST-01 y la capa 2 de RED-67 (Ola R, red de seguridad, PR R-11) | 05/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -17276,3 +17277,182 @@ faltar (el adjunto del legajo pierde su botón de archivo, el wizard de programa
   los `.py` de las apps y por eso no comparte el punto ciego. En la misma ronda se cerró el agujero de los comodines de
   primer nivel en `content` (el CSS dependía de si había un virtualenv en el checkout) y se corrigió el conteo de filas
   del inventario en el README de la auditoría (37, no 36).
+
+---
+
+# Cambio 130 — El CI prueba contra MariaDB y MySQL de verdad, no solo contra SQLite
+
+🟢 **HECHO — 05/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · CI de GitHub Actions · Becas (cupo y lista de espera, link público, dashboard) · Dispositivos (parte F-01) |
+| **Etiquetas** | `#infra` `#datos` `#cupos` `#performance` |
+| **Solicitante** | Auditoría integral oct-2026 — ficha TST-01 y la capa 2 de RED-67 (Ola R, red de seguridad, PR R-11) |
+| **Fecha del pedido** | 05/10/2026 |
+| **Issue / épica** | Sin issue (plan de la auditoría: `docs/internal/auditoria-2026-10/`) |
+| **Partes afectadas** | CI (workflows) · settings · tests. Ninguna pantalla, ninguna API |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> «Motor real en CI: TST-01 (matriz `mariadb:10.11`/`mariadb:11`/`mysql:8.0` + `test --tag mysql`;
+> ampliado).» (README de la auditoría, Ola R, PR R-11.)
+
+La suite entera corre sobre **SQLite en memoria** (`PYTEST_RUNNING=1`), y hay una familia de bugs que
+ahí da verde y en producción rompe. No es teórica: es la lista de los incidentes más caros del año.
+
+- **29/09/2026**: en MariaDB 10.7+ Django manda el `UUIDField` **con guiones**; una columna `char(32)`
+  da «Data too long» y un lookup contra el hex no encuentra las filas (Cambio 99). El único test que
+  mira esas columnas —`UUIDExternosMySQLTests`— daba `OK (skipped=1)` **en todos los jobs**.
+- **Cambios 64 y 66**: `Trunc*`/`__date` sobre un `DateTimeField` se traducen a `CONVERT_TZ`, que
+  devuelve NULL en una base sin tablas de zona horaria. DIS-01 sigue viva con ese patrón.
+- **M21 y M43 de la prueba de mutación** (RS-R7): borrar un `select_for_update` no pone rojo ni un
+  test, porque en SQLite el candado es un no-op. El PR R-09 cerró la capa 1 (que el candado **se
+  pida**); la capa de efecto —dos requests de verdad peleando por el último lugar— quedó
+  explícitamente «dentro de TST-01».
+
+La tesis original de la ficha («la CI no prueba MariaDB») ya estaba ajustada: el job
+`Ephemeral MySQL Redis Contract` corre un `migrate` real sobre `mysql:8.0` en cada PR. Lo que faltaba
+era **MariaDB**, que es el motor de ECOM, y que **algún test** se ejecutara contra el motor.
+
+## Alcance acordado
+
+- **Solo CI, settings y tests.** No cambia ninguna conducta, ninguna consulta, ningún modelo.
+- Job nuevo con matriz de tres motores que corre `manage.py test --tag mysql` con migraciones reales.
+- **Afuera:** arreglar DIS-01 (Ola 5) y DIS-02 (v2) —se caracterizan, no se tocan—; el roundtrip de
+  migraciones con datos (RED-17, PR R-13, que comparte estos servicios); el `UniqueConstraint` con
+  NULL de SIIS-01, que todavía no existe (Ola 1); y volver obligatorio el job nuevo.
+
+## Decisiones tomadas
+
+- **Una sola variable declara el motor: `DJANGO_TEST_MOTOR`.** Lleva la imagen esperada
+  (`mariadb:10.11`, `mariadb:11`, `mysql:8.0`) y hace dos cosas a la vez: le gana al SQLite de
+  `PYTEST_RUNNING` —el modo por defecto no cambia en nada— y **declara qué servidor tiene que haber
+  del otro lado**. `MotorDeclaradoTests` enfrenta esa declaración contra el servidor que contestó
+  (sabor y versión): si el `image:` de la matriz quedara mal interpolado y las tres patas fueran al
+  mismo motor, el paso se pone rojo en vez de probar tres veces lo mismo. Y si alguien deja
+  `PYTEST_RUNNING` mandando, los tests marcados **fallan** en vez de saltearse en silencio, que es
+  justo como el test de UUID estuvo tres meses sin correr.
+- **El job no exporta `PYTEST_RUNNING` ni `DJANGO_SYNCDB_PROJECT_APPS`**: la base de test se crea
+  aplicando **las migraciones de verdad** sobre el motor de verdad. Era el otro punto de la ficha
+  («el migrate arranca de base vacía» sigue siendo cierto, pero al menos ahora también en MariaDB) y
+  es lo que R-13 extiende a la ida y vuelta con datos.
+- **Las `OPTIONS` de la conexión son las de producción, incluido el `read_timeout` de 10 s.** Es el
+  límite acordado con ECOM (Cambio 91); relajarlo «para que no corte» dejaría de medir lo que pasa en
+  producción justo en el escenario que importa. Lo fija un test.
+- **La matriz queda asimétrica a propósito, y eso contradice lo que suponía el plan.** Medido acá:
+  **las dos** imágenes oficiales traen cargadas las tablas de zona horaria —MariaDB las carga en el
+  init salvo `MARIADB_INITDB_SKIP_TZINFO`, y `mysql:8.0` las trae de fábrica—. Con ellas `CONVERT_TZ`
+  funciona, y toda la familia de bugs que motiva esta matriz **deja de manifestarse**: una matriz
+  armada sin cuidado habría dado tres verdes vacíos. Como la base de ECOM **no** las tiene y la de
+  icore sí (misma imagen oficial), la matriz reproduce los dos destinos: **MariaDB = ECOM**, sin
+  tablas; **MySQL = icore**, con ellas. `test_mariadb_corre_sin_las_tablas_de_zona_horaria_como_ecom`
+  lo deja fijado, y los tests que dependen de eso se saltean contra MySQL en vez de mentir.
+- **Job nuevo, no una matriz sobre `ephemeral-stack-contract`.** La ficha proponía convertir ese job
+  en matriz; no se puede: «Ephemeral MySQL Redis Contract» es un **check obligatorio** del ruleset
+  (RED-20), y una matriz lo partiría en tres contextos con otro nombre, dejando el gate esperando un
+  check que ya no existe. El job nuevo se llama `Motor real (<motor>)` y vive en el mismo workflow,
+  junto al otro `migrate` real del repo, como pide la ficha.
+- **El job todavía no es obligatorio.** Nace hoy: antes de meterlo en el ruleset conviene que acumule
+  corridas (el riesgo real es el servicio que no levanta, no el test). Cuando se sume hay que tocar
+  `docs/internal/rulesets/ruleset-development.json` **y** `CHECKS_OBLIGATORIOS` de
+  `core/tests/test_gates_ci.py` en el mismo PR: la lista está escrita a mano justamente para que
+  agregar o sacar un gate no pueda pasar desapercibido.
+- **DIS-01 entra como `expectedFailure`, igual que en el Cambio 125, pero ahora ejecutado.** El parte
+  diario tiene un ingreso de hoy y el motor cuenta **cero**. Lo acompaña
+  `test_la_ocupacion_nocturna_del_parte_si_cuenta`, que **tiene** que pasar, para que el
+  `expectedFailure` no pueda quedar «verde» por un fixture roto.
+- **`UniqueConstraint(condition=…)` se caracteriza acá** (DIS-02): dos admisiones ALOJADO en la misma
+  cama entran sin chistar en MySQL y en MariaDB, porque la restricción condicional no se crea. En
+  SQLite la base la hace cumplir, así que la suite «prueba» una unicidad que en ECOM no existe. No es
+  el arreglo (es la v2); es que el agujero deje de ser invisible.
+- **La carrera del cupo se corre de verdad, con dos hilos y una barrera.** `TransactionTestCase` con
+  `@tag("mysql")`: dos aprobaciones simultáneas sobre un segmento con **un** lugar dan un APROBADO y
+  una `ListaEspera`, y dos altas a la lista reciben posiciones 1 y 2. Es la capa 2 que RED-67 dejó
+  abierta.
+
+## Implementación
+
+- **`config/settings.py`**: `TEST_MOTOR` (de `DJANGO_TEST_MOTOR`); el override a SQLite pasa a ser
+  `if PYTEST_RUNNING and not TEST_MOTOR`; `"TEST": {"CHARSET": "utf8mb4"}` en la base de MySQL, para
+  que la base que crea el runner nazca con el juego de caracteres de producción y no con el default
+  de la imagen.
+- **`.github/workflows/pr-performance.yml`**: job `motor-real`, `name: Motor real (${{ matrix.motor }})`,
+  `fail-fast: false`, tres patas. La sonda de salud va **por motor** (`healthcheck.sh` en MariaDB,
+  `mysqladmin ping` en MySQL): `mysqladmin` ya no existe en las imágenes de MariaDB 11 y
+  `healthcheck.sh` no existe en las de MySQL. Usuario `root` porque el runner de tests crea y borra
+  `test_datanach_motor`, y el usuario de la imagen solo tiene privilegios sobre la base que ya existe.
+- **`core/tests/test_motor_real.py`** (nuevo, 15 casos): el mixin que saltea o falla,
+  `MotorDeclaradoTests`, `UuidEnElMotorRealTests`, `DashboardEnElMotorRealTests`,
+  `ParteDiarioEnElMotorRealTests`, `ConstraintCondicionalTests` y `CarreraDeCupoTests`.
+- **`programas/tests/test_becas_models.py`**: `@tag("mysql")` en
+  `test_columnas_uuid_externas_admiten_36_caracteres`, el test que nunca corrió.
+
+## Archivos
+
+`config/settings.py` · `.github/workflows/pr-performance.yml` · `core/tests/test_motor_real.py` (nuevo) ·
+`programas/tests/test_becas_models.py` · `docs/internal/auditoria-2026-10/README.md` ·
+`docs/internal/auditoria-2026-10/hallazgos/05-datos-operacion-tests.md` (resolución de TST-01) ·
+`docs/internal/auditoria-2026-10/hallazgos/08-red-de-seguridad.md` (capa 2 de RED-67) ·
+`docs/internal/auditoria-2026-10/hallazgos/03-dispositivos-merenderos-legajos.md` (DIS-01 y DIS-02: qué test los espera).
+
+## Base de datos
+
+No requiere. Sin migraciones, sin columnas nuevas, sin datos tocados. La única base que se crea es la
+de test, adentro de un contenedor efímero del CI.
+
+## Validación
+
+- **Las tres patas de la matriz, a mano, contra contenedores efímeros** (`mariadb:10.11`,
+  `mariadb:11` y `mysql:8.0`, con `MARIADB_INITDB_SKIP_TZINFO=1` en las dos de MariaDB):
+  16 tests verdes, con 1 `expectedFailure` declarado (DIS-01) en MariaDB y 3 skips en MySQL (los que
+  dependen de no tener tablas de zona horaria). **1 min 45 s** por pata en MariaDB y **3 min 10 s** en
+  MySQL de punta a punta, casi todo migraciones.
+- **Las dos sondas de salud del job**, verificadas con `docker inspect` sobre contenedores levantados
+  con exactamente las `options` y el `env` del workflow: las dos llegan a `healthy`.
+- **Las regresiones reintroducidas a mano** (aplicar → correr contra `mariadb:10.11` → revertir), que
+  es lo que este PR tiene que demostrar:
+  - `q_uuid_en_texto` reducido a `Q(**{campo: valor})` → 2 en rojo (el link restaurado y la clave
+    idempotente de la app).
+  - `_serie_semanal` reescrito con `TruncWeek` → el test de la serie en rojo (`CONVERT_TZ` → NULL).
+  - `_expresion_respuesta` con `KeyTransform` (`F("data__globales__13")`) → la distribución en rojo:
+    el motor lee la clave numérica como índice de arreglo.
+  - `select_for_update` borrado de `aprobar_o_poner_en_espera` (**M21**) → `['aprobado', 'aprobado']`:
+    cupo excedido y dos altas a SIIS.
+  - `select_for_update` borrado de `agregar_a_lista_espera` → posiciones `[1, 1]`.
+- **El test de la carrera, cinco corridas seguidas**: cinco verdes, sin falsos rojos.
+- `actionlint` (Docker `rhysd/actionlint`) sobre los 9 workflows: 0 errores.
+- `manage.py check`, `check --deploy` y `makemigrations --check --dry-run` sin novedades; suite
+  completa y `--tag performance` en verde con `.venv312` (Python 3.12 + Django 5.2.17, igual al CI).
+- `ruff check .` y `ruff format --check` limpios.
+- Sin UI: no corresponde `design_audit.py` ni `compile_templates.py`.
+
+## Puesta en marcha en el servidor
+
+No requiere. El cambio vive en el CI y en los tests; `DJANGO_TEST_MOTOR` no existe en ningún ambiente
+desplegado y, vacía, no cambia nada.
+
+## Pendientes / a definir
+
+- **Volver obligatorio el job** (PM): cuando acumule corridas en verde, agregarlo al ruleset de
+  `development` y a `CHECKS_OBLIGATORIOS` en el mismo PR. Costo: 2-3 min de CI por PR.
+- **H-01 sigue abierta**: la versión de MariaDB de ECOM. Mientras tanto la matriz cubre 10.11 y 11.
+- **Migraciones hacia atrás y sobre datos**: es RED-17 (PR R-13), que comparte estos servicios.
+- **DIS-01** (Ola 5) y **DIS-02** (v2) siguen vivas; los tests que las esperan ya están escritos y
+  marcados con el ID de su ficha.
+- **SIIS-01**: su `UniqueConstraint` con NULL se agrega en la Ola 1; ese PR suma su propio
+  `@tag("mysql")`, que es el patrón que deja instalado este.
+- **Lo que el paso `--tag mysql` todavía no cubre**: la reserva de envíos a SIIS (hoy `siis_envio.py`
+  no toma ningún candado: el que lo agregue trae su test marcado) y las columnas `char(36)` de
+  `legajos` tras un restore en hex (V2-NEW-05, Ola 3).
+
+## Reversión
+
+Revertir el commit saca el job y los 15 tests. No hay datos, esquema ni conducta que revertir: el
+sistema queda exactamente como está hoy, pero el CI vuelve a no ejecutar una sola línea contra el
+motor de producción.
+
+## Historial
+
+No aplica: entrada nueva.

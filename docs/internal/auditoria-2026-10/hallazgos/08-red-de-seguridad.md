@@ -2194,7 +2194,15 @@ nombraba y es el otro lock del mismo envío. Los del link viven en `portal/tests
 los tests de `programas` importen los de `portal`. Verificado a mano, borrando una línea por vez: `cupo.py:205` → 1 en
 rojo, **M21** (`cupo.py:267`) → 2, `cupo.py:316` → 2, **M43** (`inscripcion_publica.py:89`) → 1,
 `inscripcion_publica.py:134` → 1, `api/views.py:387` → 1.
+**Capa 2 ✅ en el PR R-11 (Cambio 130), 05-oct-2026** — `core/tests/test_motor_real.py::CarreraDeCupoTests`
+(`TransactionTestCase` con `@tag("mysql")`): dos hilos que arrancan juntos en una `threading.Barrier` sobre un segmento con
+**un** lugar libre dan exactamente un APROBADO y una `ListaEspera`, y dos altas simultáneas a la lista reciben posiciones
+1 y 2. Verificado borrando una línea por vez contra `mariadb:10.11`: **M21** (`cupo.py:267`, el `select_for_update` de
+`aprobar_o_poner_en_espera`) → `['aprobado', 'aprobado']`, cupo excedido; `cupo.py:316` (el de `agregar_a_lista_espera`) →
+`[1, 1]`, dos personas en la misma posición. O sea que M21 ahora muere por las dos capas: la de forma en SQLite y la de
+efecto en MariaDB. Cinco corridas seguidas sin un solo falso rojo.
 **Test permanente:** `programas/tests/test_candados_concurrencia.py::ContratoDeCandadosTests.test_aprobar_toma_el_candado_del_segmento`
+· capa 2: `core/tests/test_motor_real.py::CarreraDeCupoTests.test_dos_aprobaciones_simultaneas_consumen_un_solo_lugar`
 
 ### RED-68 · La posición en la lista de espera no está probada en ningún lado
 **Severidad:** MEDIA · **Estado:** CONFIRMADO con test (mutación M23 sobrevive; ningún `assert` sobre `posicion`) · **Origen:** RS-R7-06 · **Ola:** R (tests; la constraint, con BEC-02 en la Ola 1) · **Esfuerzo:** S (2 h) · **Decisión:** D-RED-11

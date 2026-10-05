@@ -1,5 +1,22 @@
 # Auditoría integral de DATAÑACH (Chaco) — octubre 2026
 
+## Estado al 05-oct-2026 (Ola R: R-11, motor real en el CI)
+
+| PR | Cambio | Fichas | Estado | Qué quedó abierto |
+|---|---|---|---|---|
+| R-11 motor real en CI | 130 | TST-01, RED-67 (capa 2) | ✅ ✅ | Job `Motor real (<motor>)` con la matriz `mariadb:10.11` / `mariadb:11` / `mysql:8.0` corriendo `manage.py test --tag mysql` con migraciones reales; `core/tests/test_motor_real.py` (15 casos) y el test de UUID que nunca corría. **No es obligatorio todavía**: entra al ruleset cuando acumule corridas (hay que tocar el JSON y `CHECKS_OBLIGATORIOS` en el mismo PR). Desbloquea **R-13**, que comparte estos servicios |
+
+**Lo que se midió y contradice al §0.** Las **dos** imágenes oficiales traen cargadas las tablas de zona horaria: MariaDB
+las carga en el init (salvo `MARIADB_INITDB_SKIP_TZINFO`) y `mysql:8.0` las trae de fábrica. Con ellas `CONVERT_TZ`
+funciona y los bugs que motivan la matriz **no se manifiestan**, así que una matriz armada sin cuidado habría dado tres
+verdes vacíos. La matriz quedó asimétrica a propósito, porque así son los dos destinos: **MariaDB = ECOM** (sin tablas) y
+**MySQL = icore** (con ellas). Un test lo fija, y DIS-01 reproduce solo en las patas de MariaDB.
+
+**Pendiente operativo que deja este PR (PM):** ninguno de deploy. Cuando el job acumule corridas en verde, decidir si se
+suma a los rulesets de `docs/internal/rulesets/` (+1 check obligatorio, 2-3 min de CI).
+
+---
+
 ## Estado al 05-oct-2026 (Ola 6, pasos 0-2: herramientas del agente de diseño)
 
 **La Ola 6 arrancó, en paralelo con las Olas 1 y 2** (es independiente del backend y tiene fecha límite propia: antes de
@@ -999,8 +1016,10 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
   por lo suyo, que ningún test recorría el URLconf con un usuario sin rol. Las dos cerradas, más SEC-18 y SEC-11
   (adelantadas por D-RED-14), RED-04 y RED-06. **SEC-11 queda 🟡** hasta que D-11 suba tres vistas a
   `ciudadano.sensible` en la Ola 2.
-- **Quedan 156 h:** R-11 a R-21 menos R-19 y R-14. El orden vuelve a ser el de dependencias: **R-11 a R-16 antes de la
-  Ola 3**, R-21 antes de la Ola 2.
+- **✅ R-11 cerrado el 05-oct-2026 (Cambio 130), 8 h.** El CI corre los tests marcados `@tag("mysql")` contra
+  `mariadb:10.11`, `mariadb:11` y `mysql:8.0`, con migraciones reales. Desbloquea R-13 (comparte los servicios) y la Ola 3.
+- **Quedan 148 h:** R-12, R-13, R-15 a R-18, R-20 y R-21. El orden sigue siendo el de dependencias: **R-12, R-13, R-15 y
+  R-16 antes de la Ola 3**, R-21 antes de la Ola 2.
 - **Objetivo:** poder cambiar código sin romper nada sin enterarse. Que todo lo que las Olas 1 a 7 van a tocar tenga antes
   un test que se ponga rojo si se rompe, que el CI pruebe el motor de producción (MariaDB) y las migraciones en las dos
   direcciones, que ningún gate dependa de la buena voluntad (protección de rama, release que exige CI verde, verificación
@@ -1022,7 +1041,7 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
 | ✅ R-08 | **Particiones de estados (mutación):** RED-28, RED-29, RED-66 con `subTest` sobre todo el enum — **#545, Cambio 120** | 6 | Ola 1, G1-04 |
 | ✅ R-09 | **Cupo y lista de espera:** RED-27 (cupo 0), RED-67 (contrato de candados), RED-68 (posición) — **#552, Cambio 124** | 6 | Ola 1 (BEC-01/02), Ola 4 (PERF-02) |
 | ✅ R-10 | **Motor y forma del SQL:** RED-07 (`core/tests/test_sql_motor_real.py` + `_sql_mysql` corregido), RED-08, RED-09 — **#550, Cambio 125** | 10 | Olas 1, 3 y 5 (DIS-01) |
-| R-11 | **Motor real en CI:** TST-01 (matriz `mariadb:10.11`/`mariadb:11`/`mysql:8.0` + `test --tag mysql`; ampliado) | 8 | R-13, Ola 3 |
+| ✅ R-11 | **Motor real en CI:** TST-01 (matriz `mariadb:10.11`/`mariadb:11`/`mysql:8.0` + `test --tag mysql`; ampliado) — **Cambio 130** (cierra también la capa 2 de RED-67) | 8 | R-13, Ola 3 |
 | R-12 | **Contrato de migraciones:** RED-14 (`scripts/check_migraciones.py`, columnas que toleran código viejo), RED-57 (reversas declaradas), RED-18 (reversa UUID), RED-84 (`Reversión` en `--check`), RED-83 (índices redundantes, ratchet) | 18 | toda migración nueva |
 | R-13 | **Job `migration-roundtrip`** (Anexo B): RED-17, RED-19 (un solo migrador, expand/contract) | 14 | Ola 3 (G1-04, G1-05, DAT-01) |
 | ✅ R-14 | **Gates del release:** RED-24 (`Contratos del repo`), RED-21 (`publish-main` exige CI verde), RED-65, RED-23 (`release-gate.yml` + `/pushGitLabecom` en dos), RED-22 (propuesta a ECOM) — **#575, Cambio 128** (RED-22 y RED-23 🟡: falta el envío a ECOM y copiar los dos comandos a `.claude/`) | 22 | el próximo espejo a ECOM |
@@ -1038,8 +1057,9 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
 - **Mínimo antes de la Ola 1: ✅ hecho el 04-oct-2026.** R-01 a R-10 (86 h) están mergeados en `development` (detalle,
   estado por ficha y lo que quedó operativo en «Estado al 04-oct-2026», arriba). **R-19 también está cerrado**
   (#556, Cambio 126, 21 h): era el urgente de la ola, y **R-14 también** (#575, Cambio 128, 22 h: los gates del
-  release, antes del próximo espejo a ECOM). **Quedan 156 h de la Ola R:** R-11 a R-16 antes de la Ola 3;
-  R-21 antes de la Ola 2. El resto puede ir en paralelo con otro implementador.
+  release, antes del próximo espejo a ECOM) y **R-11** (Cambio 130, 8 h: el motor real en el CI, que desbloquea R-13).
+  **Quedan 148 h de la Ola R:** R-12, R-13, R-15 y R-16 antes de la Ola 3; R-21 antes de la Ola 2. El resto puede ir en
+  paralelo con otro implementador.
 - **Hecho cuando (verificable):**
   1. `gh api repos/Mkdir-arg/Chaco-Back/rulesets` lista los rulesets de `development` y `main`; un push directo a
      `development` es rechazado y un PR con un test roto no se puede mergear.

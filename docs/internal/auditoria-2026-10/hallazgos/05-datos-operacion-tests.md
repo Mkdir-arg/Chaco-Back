@@ -13,7 +13,7 @@ Fichas completas del dominio. Convenciones, `V-STD` y `V-UI`: README §0. PoC: `
 | OPS-04 | `/health/` siempre 200 y tapa `health_check.urls` | MEDIA | CONF. test | **R** (antes 3) | S | ⬜ |
 | OPS-05 | `read_timeout=10 s` también corta `migrate` | MEDIA | PLAUSIBLE | 3 | S | ⬜ |
 | OPS-07 | Bootstrap frágil (`set -eu`, opcionales fatales, réplicas) | MEDIA | CONF. ajustado | 3 | S | ⬜ |
-| TST-01 | La CI no prueba MariaDB | MEDIA | CONF. ajustado (tesis central refutada) | **R** (antes 3) | M | ⬜ |
+| TST-01 | La CI no prueba MariaDB | MEDIA | CONF. ajustado (tesis central refutada) | **R** (antes 3) | M | ✅ |
 | TST-02 | Configuración sin tests de comportamiento; tests que no prueban nada | MEDIA | CONF. | **R** (antes 3) | M (+S-M) | ⬜ |
 | G1c-12 | `debug_ciudadanos` hace `FLUSHDB` del Redis compartido | MEDIA | CONF. código | 3 | S | ⬜ |
 | DAT-02 | El admin de Django borra casos y relevamientos con su auditoría | BAJA | CONF. ajustado | 3 | S | ⬜ |
@@ -154,6 +154,26 @@ Fichas completas del dominio. Convenciones, `V-STD` y `V-UI`: README §0. PoC: `
 - **Lo que sí falta:** (1) la rama `features.has_native_uuid_field` (solo MariaDB 10.7+, `legajos/0007:57-58`: el bug de septiembre); (2) ningún test de la suite corre sobre MySQL/MariaDB (solo probes de performance): `KeyTransform`, `Trunc*`/`CONVERT_TZ` y UUID con guiones sin red; (3) migraciones sobre datos (el migrate arranca de base vacía).
 - **Propuesta:** matriz en `ephemeral-stack-contract`: `mysql:8.0` y `mariadb:<versión de ECOM; 10.11 por default hasta confirmar con P-11>`, más un paso `python manage.py test --tag mysql` (sin `PYTEST_RUNNING`, usa la base del servicio) con 3-4 tests marcados: guardar y buscar por `token_publico`/`client_uuid`, `q_uuid_en_texto`, un `JSON_EXTRACT` con clave numérica y dashboard sin `Trunc*`; sumar los de DIS-01 (`__date`) y SIIS-01 (`UniqueConstraint` con NULL).
 - **Verificación:** el job falla con un `__date` sobre DateTimeField introducido a propósito en una rama de prueba. Costo: 2-4 min más de CI.
+
+**Resolución:** ✅ Resuelto en el PR R-11 (Cambio 130), 05-oct-2026 — job **`Motor real (<motor>)`** en `pr-performance.yml`
+con la matriz `mariadb:10.11` / `mariadb:11` / `mysql:8.0` corriendo `manage.py test --tag mysql` **sin `PYTEST_RUNNING` y
+sin `DJANGO_SYNCDB_PROJECT_APPS`** (o sea: migraciones reales sobre el motor real, que era el otro punto de la ficha), y
+`core/tests/test_motor_real.py` nuevo con 15 casos marcados, más el `@tag("mysql")` en el test que nunca corría
+(`UUIDExternosMySQLTests.test_columnas_uuid_externas_admiten_36_caracteres`). Cierra los cuatro «Ampliado por»: el test
+saltado entra (1), las migraciones se aplican de verdad —el roundtrip con datos sigue siendo RED-17/R-13, que comparte
+estos servicios (2)—, la **capa 2 de RED-67** corre la carrera real del cupo con dos hilos (3) y los casos de RED-07/08/09
+se ejecutan contra el motor además de compilarse (4). **Tres desvíos, todos medidos:**
+(a) **la imagen oficial de MariaDB carga las tablas de zona horaria** y la de `mysql:8.0` las trae de fábrica, al revés de
+lo que suponía el README §0: con ellas `CONVERT_TZ` funciona y la familia de bugs que motiva la matriz **no se manifiesta**,
+así que el servicio lleva `MARIADB_INITDB_SKIP_TZINFO` y la matriz queda asimétrica a propósito (MariaDB = ECOM sin tablas;
+MySQL = icore con ellas), fijado por `test_mariadb_corre_sin_las_tablas_de_zona_horaria_como_ecom`;
+(b) el job es **nuevo** y no una matriz sobre `ephemeral-stack-contract`, porque ese nombre es un check obligatorio del
+ruleset y una matriz lo partiría en tres contextos distintos, rompiendo el gate de RED-20;
+(c) `UniqueConstraint(condition=…)` quedó caracterizada acá (DIS-02) porque es exactamente lo que SQLite esconde.
+`SIIS-01` no entró: su `UniqueConstraint` con NULL todavía no existe (Ola 1). **El job todavía no es obligatorio**: entra al
+ruleset cuando tenga corridas suficientes (la lista exacta vive en `core/tests/test_gates_ci.py::CHECKS_OBLIGATORIOS`).
+Medido: 1 min 45 s por pata en MariaDB y 3 min 10 s en MySQL de punta a punta, casi todo migraciones.
+**Test permanente:** `core/tests/test_motor_real.py::UuidEnElMotorRealTests.test_el_link_publico_encuentra_una_fila_restaurada_con_la_otra_forma`
 
 ### TST-02 · Configuración sin tests de comportamiento; tests que no prueban nada
 **Severidad:** MEDIA · **Estado:** CONFIRMADO · **Origen:** A8-14 · **Ola:** 3 · **Esfuerzo:** M
