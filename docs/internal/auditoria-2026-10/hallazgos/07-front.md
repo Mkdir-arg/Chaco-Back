@@ -35,7 +35,7 @@ FE-18, FE-19); las migraciones de estilo de esos dos módulos las hereda la v2.
 | FE-20 | Wrapper legacy `includes/main.html`: contenido desplazado; 403/404/500 sin estilo | MEDIA | CONF. navegador | 5 | M | ⬜ |
 | FE-21 | Modales de Legajos sin Escape ni foco | MEDIA | CONF. | 5 | S | ⬜ |
 | V5A-NEW-01 | `tailwind.css` committeado desactualizado y sin gate | MEDIA | CONF. | 6 | S | ✅ |
-| V5A-NEW-07 | Deuda de accesibilidad en las pantallas candidatas a referencia | MEDIA | CONF. | 6 (a) / 5 (b) | (a) en paso 3 · (b) 2 × S | ⬜ |
+| V5A-NEW-07 | Deuda de accesibilidad en las pantallas candidatas a referencia | MEDIA | CONF. | 6 (a) / 5 (b) | (a) en paso 3 · (b) 2 × S | 🟡 (a) ✅ |
 | FE-14 | 29 JS y 1 CSS huérfanos | BAJA (A6: MEDIA) | CONF. ajustado | 7 | S | ⬜ |
 | FE-16 | «Gestión de Programas» de Legajos con KPIs sin valor | BAJA | CONF. | 5 | S | ⬜ |
 | FE-22 | Dashboards fuera de canon | BAJA | CONF. | 5 | M | ⬜ |
@@ -175,6 +175,25 @@ FE-18, FE-19); las migraciones de estilo de esos dos módulos las hereda la v2.
 
 ### V5A-NEW-07 · Deuda de accesibilidad y consistencia en las pantallas candidatas a referencia
 **Severidad:** MEDIA · **Estado:** CONFIRMADO · **Origen:** V5A-NEW-07 · **Ola:** (a) 6, paso 3 · (b) 5, PR 7 · **Esfuerzo:** (a) incluido en el paso 3 · (b) S + S (4 h)
+**Resolución:** 🟡 Parte **(a) cerrada** en #577 (Cambio 131), 05-oct-2026 — las cuatro goldens quedan en **0 hallazgos
+P1 y marcadores de arquetipo completos**. Sobre lo que pedía la ficha se hizo, además de `programa_list` y
+`personas_list`, el saneamiento que la tabla de goldens del anexo §3 manda para `cupo/segmento_detail` (quitar el
+`<style>[x-cloak]` —la regla ya es global en `override.css`— y los 3 avatares con `style="background:var(--gradient-brand)"`
+→ iniciales en `bg-brand-soft text-fg-brand`, **D5**). En `personas_list`: `<th class="nodo-th text-right"><span
+class="sr-only">Acciones</span></th>` y el form de filtros **sin `class`**, con `aria-label` en el control en vez del
+`<label>` suelto (`dynamic_list_filters.js:38-39` hace `form.innerHTML = ''` y `form.className = …`: el label y la clase
+no sobreviven al montaje). En el modal de `programa_list`: labels `block text-sm font-medium text-heading mb-1` (los de
+`_field.html`), help text de `text-fg-danger` → `text-body-subtle`, `data-error="__all__"`, nota → `_alerta.html
+tono="info"` (sale además el SVG Heroicons del contenido, D3) y `style="backdrop-filter:blur(4px)"` → `backdrop-blur-sm`.
+**Tres desvíos, los tres code-first:** (a) el `<p data-error="__all__">` **no** puede ir como hijo directo del cuerpo:
+`space-y-5` compila a `>:not([hidden])~:not([hidden])` y mira el **atributo** `[hidden]`, no la clase `hidden`, así que
+sumaba 20 px de hueco con el error oculto — va adentro del primer bloque de campo; (b) el `continue-on-error` del step
+`Design audit goldens` se saca acá, pero antes hubo que darle a `--goldens` una fuente de goldens (`design_audit.GOLDENS`):
+leía la tabla `## Arquetipos` del núcleo, que escribe el paso 4, y sin ella el gate salía verde sin verificar nada; (c) el
+`<style>[x-cloak]` de `programa_list` que la ficha no nombraba también sale, porque `--goldens` audita el archivo entero.
+**Parte (b) sigue abierta** (Ola 5, PR 7). **Test permanente:** `core.tests.test_design_audit_estructura.GoldensSaneadasTests`
+(9 tests) + `MarcadoresDeArquetipoTests.test_las_goldens_limpias_cumplen_sus_marcadores` sobre los 4 arquetipos +
+`GateDeCiTests.test_el_step_de_goldens_corre_y_bloquea`.
 - **Evidencia:** `becas/config/programa_list.html:50` (help text del campo SIIS en `text-fg-danger`: parece un error); `becas/relevamientos/convocatoria_list.html:43,49,55,70,75,81` (6 `<label>` sin `for`, WCAG 1.3.1); `becas/revision/personas_list.html:39` (`<th>` de acciones vacío); `_dashboard_panel.html` (KPIs sin `_stat_card`, `modalRespuestas` sin `x-becas-modal`).
 - **Propuesta:**
   - **(a) Goldens → Ola 6 paso 3:** `programa_list.html` (help text → `text-body-subtle`, labels, `data-error="__all__"`,
