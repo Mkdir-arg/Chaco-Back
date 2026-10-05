@@ -1,5 +1,29 @@
 # Auditoría integral de DATAÑACH (Chaco) — octubre 2026
 
+## Estado al 05-oct-2026 (Ola 6, pasos 0-2: herramientas del agente de diseño)
+
+**La Ola 6 arrancó, en paralelo con las Olas 1 y 2** (es independiente del backend y tiene fecha límite propia: antes de
+la primera task de pantalla de la v2 de Dispositivos y Merenderos).
+
+| PR | Cambio | Fichas | Estado | Qué quedó abierto |
+|---|---|---|---|---|
+| #574 Ola 6 pasos 0-2 | 129 | FE-13, V5A-NEW-01, V5A-NEW-08 | ✅ ✅ ✅ | Línea base «antes» medida y guardada; D1-D5 con el default aplicado (D4 = frenar); `design_audit.py` con `--ratchet`, las 7 reglas P1 + CLASSDEF, `--arquetipo`, `--goldens`, el decodificador CSS y el hook en modo ratchet; `check_design_agent.py` con los 8 puntos del anexo §7; `compile_templates.py` sin `site-packages`; gate de build de Tailwind en CI. **Faltan los pasos 3 a 7** (sanear goldens, reescribir el núcleo, consumidores, ejercicio de control y registro final): hasta el paso 4, `--goldens` corre con `continue-on-error` y los límites del núcleo viven detrás de `check_design_agent.py --limites` |
+
+**Lo que mide la línea base (paso 0).** Con los agentes actuales, las tres pantallas del ejercicio de control fallan:
+ninguna escribió un Plan de pantalla como artefacto, **ninguna usó la golden de su arquetipo**, y la de detalle clonó
+**la pantalla hermana del módulo** heredando su deuda entera (10 hallazgos P1, 8 marcadores de arquetipo). Dos de las
+tres dan 0 hallazgos mecánicos y aun así están fuera de molde: es la confirmación de que el gate de token no alcanza.
+Detalle y método reproducible en [`linea-base-agente-diseno/`](linea-base-agente-diseno/README.md).
+
+**Deuda que el ratchet congela desde hoy:** 42 ERROR y **3.627 hallazgos P1** (INLINESTYLE 1.942, RAWPALETTE 949,
+ICONARIA 398, TABLECANON 156, CLASSDEF 70, PAGEHEADER 56, STYLEBLOCK 39, SHELLLEGACY 17). No bloquean; lo que bloquea es
+**subir** el conteo de una regla en un archivo. Los números del anexo §7 se confirmaron salvo lo que bajó con la Ola R.
+
+**Pendiente operativo que deja este PR (PM):** ninguno de deploy. Para el paso 4 hay que decidir si el núcleo nuevo se
+escribe desde una sesión con permiso de escritura sobre `.claude/` (ver el PR).
+
+---
+
 ## Estado al 04-oct-2026 (Ola R mínima: PRs R-01 a R-10)
 
 Contrastado contra `origin/development @ cdd9c71`. **La Ola R mínima —los diez PRs que el plan pide antes de la Ola 1—
@@ -480,13 +504,18 @@ indica qué ítems no conviene cerrar sin la respuesta.
 
 ### 2.3 Decisiones del agente de diseño (antes del paso 3 de la Ola 6)
 
-| ID | Decisión | Recomendación |
-|---|---|---|
-| D1 | Tamaño de las acciones del header | `btn-base` en listados y formularios, `btn-sm` en detalles (lo que hace el código) |
-| D2 | Confirmación con motivo en pantallas nuevas | Arquetipo Modal con form POST; Swal queda legacy condicionado (Dispositivos y Legajos actuales) |
-| D3 | Íconos | Font Awesome en el contenido; Heroicons solo en sidebar y navbar |
-| D4 | Wizard de backoffice | Frenar y preguntar; no se define ahora |
-| D5 | Avatar con gradiente en filas de la golden de detalle | Iniciales en `bg-brand-soft text-fg-brand` |
+**Estado al 05-oct-2026:** el paso 1 de la Ola 6 aplicó el **default recomendado** en D1, D2, D3 y D5, y dejó D4 como el
+anexo pide (frenar). Las cinco quedan registradas en *Decisiones tomadas* del **Cambio 129** y marcadas
+`DECISIÓN CLIENTE` en el PR: son defaults aplicados, no decisiones del PM, y se pueden revertir antes del paso 4
+(reescritura del núcleo) sin tocar código, porque todavía no hay ficha que las escriba.
+
+| ID | Decisión | Recomendación | Estado |
+|---|---|---|---|
+| D1 | Tamaño de las acciones del header | `btn-base` en listados y formularios, `btn-sm` en detalles (lo que hace el código) | ✅ default aplicado (05-oct) |
+| D2 | Confirmación con motivo en pantallas nuevas | Arquetipo Modal con form POST; Swal queda legacy condicionado (Dispositivos y Legajos actuales) | ✅ default aplicado (05-oct) |
+| D3 | Íconos | Font Awesome en el contenido; Heroicons solo en sidebar y navbar | ✅ default aplicado (05-oct) |
+| D4 | Wizard de backoffice | Frenar y preguntar; no se define ahora | 🟡 **no se define** (es la decisión) |
+| D5 | Avatar con gradiente en filas de la golden de detalle | Iniciales en `bg-brand-soft text-fg-brand` | ✅ default aplicado (05-oct); lo ejecuta el paso 3 |
 
 ### 2.4 Decisiones del frente Red de seguridad (04-oct-2026)
 
@@ -868,7 +897,7 @@ funcional ni coordinación con ECOM). Las horas de cada ola suman los esfuerzos 
 | 3 | Datos, operación, CI, app de campo y reglas de Becas | 55 | 158 | 59 (+ R0-03, R0-04, R0-06, R0-07) | 166 | 54 (− 7 a la Ola R; + RED-48, RED-58; + partes de RED-09, 35, 40, 50) | 152 |
 | 4 | Performance | 19 | 52 | 19 | 52 | 20 (+ RED-62; + partes de RED-10, 49, 51, 83) | 64 |
 | 5 | Bugs de front y parches v1 de Legajos/Dispositivos | 31 (+ V5A-NEW-07 b) | 114 | 31 (+ V5A-NEW-07 b) | 114 | 33 (+ RED-33, RED-75; + partes de RED-42, 53) (+ V5A-NEW-07 b) | 128 |
-| 6 | Agente de diseño | 4 (+8 pasos) | 42 | 4 (+8 pasos) | 42 | 4 (+8 pasos) | 42 |
+| 6 | Agente de diseño | 4 (+8 pasos) | 42 | 4 (+8 pasos) | 42 | 4 (+8 pasos) | 42 · **18 cerradas el 05-oct (pasos 0-2) → 24 restantes** |
 | 7 | Deuda | 9 (+ fase 2 de G1-01) | 46 | 10 (+ fase 2 de G1-01; + R0-02) | 48 | 13 (+ RED-64, 76, 86; + partes de RED-13, 37, 39, 54, 78, 85) | 88 |
 | v2 | Criterios de aceptación de la v2 (§7), no se implementan en v1 | 13 | — | 13 | — | 13 | — |
 | **Total** | | **206** | **636** | **208** | **628** | **297** | **972** · **107 cerradas → 865 restantes** |
@@ -1169,13 +1198,19 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
 ### Ola 6 — Agente de diseño
 - **Objetivo:** que una pantalla nueva salga igual a su golden al primer intento, con la deuda vieja contenida por un
   ratchet. **Fecha límite: antes de la primera task de pantalla de la v2 de Dispositivos y Merenderos.**
+- **Avance:** **pasos 0, 1 y 2 cerrados** en #574 (Cambio 129, 05-oct-2026): **18 h de las 42**, quedan **24 h**
+  (pasos 3 a 7). Cierra FE-13, V5A-NEW-01 y V5A-NEW-08. La línea base «antes» del paso 6 vive en
+  [`linea-base-agente-diseno/`](linea-base-agente-diseno/README.md): las tres pantallas fallan hoy, ninguna usó la
+  golden de su arquetipo y la de detalle clonó la hermana del módulo con su deuda entera.
 - **Pasos (detalle en `anexo-agente-diseno.md` §9):** 0 línea base «antes» (2 h) → 1 decisiones D1-D5 (2 h) → 2
   herramientas: `--ratchet`, 7 reglas P1 + CLASSDEF, `--arquetipo`, `--goldens`, decodificador (FE-13), gate de build
   (V5A-NEW-01), `compile_templates` sin `site-packages` (V5A-NEW-08), `check_design_agent.py` (14 h) → 3 sanear goldens
   (V5A-NEW-07) (4 h) → 4 reescribir el agente (núcleo + fichas) (8 h) → 5 consumidores (CLAUDE.md, AGENTS.md, agentes) (2 h)
   → 6 ejercicio de control «después» (8 h) → 7 registro (2 h).
 - **Hecho cuando:** los criterios verificables de cada paso del anexo: PR de prueba con `text-gray-900` en un template
-  existente **falla** en «Design Agent Contract» y uno nuevo canónico **pasa**; `check_design_agent.py` reporta 36 filas;
+  existente **falla** en «Design Agent Contract» y uno nuevo canónico **pasa**; `check_design_agent.py` reporta **37
+  filas** —el anexo decía 36 porque es lo que tenía la tabla en `917e583`, la base de la auditoría; desde entonces le
+  agregaron una fila, y sobre ese commit el parser nuevo sigue dando exactamente 36 contra las 33 del viejo—;
   `--goldens` = 0; núcleo ≤ 30.000 bytes y sin historia; las 3 pantallas del ejercicio cumplen al primer intento.
 - **Riesgo de deploy:** casi nulo en runtime (`.claude/` y los scripts de auditoría no viajan en el release); el paso 3
   toca templates de Becas (cambios visuales mínimos, capturas antes/después). Cambia el CI (`design-agent-contract.yml`).

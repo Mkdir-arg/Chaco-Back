@@ -1,0 +1,85 @@
+{% extends "includes/base.html" %}
+{% load nodo_ui %}
+{% block title %}Entregas de mercadería · Merenderos{% endblock %}
+
+{% block main-content %}
+<div class="space-y-6">
+  {% url 'merenderos:lista' as url_merenderos %}
+  {% page_header titulo="Entregas de mercadería" volver_url=url_merenderos volver_label="Merenderos" %}
+    {% bajada %}Historial de entregas de kits registradas en los merenderos del programa.{% endbajada %}
+  {% endpage_header %}
+
+  <form method="get" class="flex items-end gap-3 flex-wrap rounded-xl border border-base bg-white p-4">
+    <div>
+      <label class="block text-sm font-medium text-heading mb-1" for="filtro-estado">Estado</label>
+      <select name="estado" id="filtro-estado" class="nodo-field max-w-xs">
+        <option value="">Todos</option>
+        {% for value, label in estados %}
+          <option value="{{ value }}" {% if value == estado_actual %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label class="block text-sm font-medium text-heading mb-1" for="filtro-desde">Fecha desde</label>
+      <input type="date" name="desde" id="filtro-desde" class="nodo-field" value="{{ request.GET.desde }}">
+    </div>
+    <div>
+      <label class="block text-sm font-medium text-heading mb-1" for="filtro-hasta">Fecha hasta</label>
+      <input type="date" name="hasta" id="filtro-hasta" class="nodo-field" value="{{ request.GET.hasta }}">
+    </div>
+    <button class="btn-nodo btn-secondary btn-base">Filtrar</button>
+  </form>
+
+  <div class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
+    {% if entregas %}
+    <div class="overflow-x-auto">
+      <table class="w-full border-collapse">
+        <thead>
+          <tr class="nodo-thead-row">
+            <th class="nodo-th">Fecha</th>
+            <th class="nodo-th">Merendero</th>
+            <th class="nodo-th text-center">Kits</th>
+            <th class="nodo-th">Servicio</th>
+            <th class="nodo-th">Recibe</th>
+            <th class="nodo-th">Estado</th>
+            <th class="nodo-th text-right"><span class="sr-only">Acciones</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for entrega in entregas %}
+          <tr class="hover:bg-secondary">
+            <td class="nodo-td text-heading font-medium">{{ entrega.fecha|date:'d/m/Y' }}</td>
+            <td class="nodo-td text-body">
+              {{ entrega.merendero.nombre }}
+              <span class="text-body-subtle font-mono text-xs block">{{ entrega.merendero.codigo }}</span>
+            </td>
+            <td class="nodo-td text-center text-heading font-semibold">{{ entrega.cantidad_kits }}</td>
+            <td class="nodo-td text-body">{{ entrega.servicio|default:'—' }}</td>
+            <td class="nodo-td text-body">{{ entrega.responsable_receptor|default:'—' }}</td>
+            <td class="nodo-td">
+              {% if entrega.anulada %}
+                <span class="badge badge-danger">Anulada</span>
+              {% else %}
+                <span class="badge badge-success">Vigente</span>
+              {% endif %}
+            </td>
+            <td class="nodo-td text-right">
+              <a href="{% url 'merenderos:detalle' entrega.merendero.pk %}" class="nodo-icon-btn"
+                 aria-label="Ver merendero {{ entrega.merendero.nombre }}">
+                <i class="fas fa-eye" aria-hidden="true"></i>
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% include "components/_paginacion.html" with page_obj=page_obj entidad="entrega" entidad_plural="entregas" %}
+    {% elif request.GET|hay_filtros %}
+      {% include "components/_estado_vacio.html" with con_filtros=True titulo="Ninguna entrega coincide con los filtros" texto="Probá con otro estado o con otro rango de fechas." accion_url=url_merenderos accion_texto="Limpiar filtros" %}
+    {% else %}
+      {% include "components/_estado_vacio.html" with icono="fa-box-open" titulo="Sin entregas registradas" texto="Todavía no se cargaron entregas de mercadería para los merenderos del programa." %}
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

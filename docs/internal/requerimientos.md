@@ -308,6 +308,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 125 | El CI ve la forma del SQL que le llega al motor de producción | Transversal · dashboards · link público · Dispositivos (reportes) | `#performance` `#infra` `#datos` `#relevamientos` | Auditoría integral oct-2026 — RED-07, RED-08 y RED-09 (Ola R, red de seguridad, PR R-10) | 04/10/2026 | 🟢 **Hecho** | No requiere |
 | 126 | Un usuario sin rol dejaba de ser inofensivo: borraba documentos del ciudadano y silenciaba alertas | Legajos (adjuntos, alertas, APIs del detalle) · Transversal (barrido del URLconf) · Usuarios (ABM de Roles) | `#rbac` `#api` `#ui` `#datos` | Auditoría integral oct-2026 — RED-89, SEC-10, SEC-18, SEC-11, RED-04 y RED-06 (Ola R, red de seguridad, PR R-19) | 04/10/2026 | 🟢 **Hecho** | No requiere |
 | 128 | Nada sale a producción sin que algo lo haya verificado: contratos del repo en el CI, release con CI verde y espejo a ECOM en dos pasos | Transversal · CI de GitHub Actions · release y espejo a ECOM | `#infra` `#metodo` `#gestion` | Auditoría integral oct-2026 — RED-24, RED-21, RED-65, RED-23 y RED-22 (Ola R, red de seguridad, PR R-14) | 05/10/2026 | 🟡 **Parcial** (falta enviar la propuesta a ECOM y copiar los dos comandos a `.claude/`) | No requiere |
+| 129 | Que una pantalla nueva no pueda nacer sucia: ratchet, marcadores de arquetipo y gate de build | Transversal · herramientas de diseño · CI de GitHub Actions · CSS compilado | `#ui` `#metodo` `#infra` | Auditoría integral oct-2026 — FE-13, V5A-NEW-01 y V5A-NEW-08 (Ola 6 «Agente de diseño», pasos 0-2) | 05/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -10570,6 +10571,9 @@ No requiere: es un cambio de templates.
 - **`TWBUILD` preexistente en `legajos/ciudadano_detail.html:143`** (`xl:grid-cols-[minmax(0,1fr)_auto]`): lo
   reporta `design_audit.py --changed` porque el archivo se tocó; la línea no cambió, el error ya está en
   `development` y un `build:tailwind` no lo resuelve (el CSS rearmado es idéntico al committeado).
+  **Corrección (Cambio 129):** nunca fue un error del CSS sino un **falso positivo** del extractor de
+  clases de `design_audit.py`, que se cortaba en el espacio del escape `\2c ` de la coma. La clase
+  siempre estuvo en el build. Lo arregló el Cambio 95 y lo fija con test el Cambio 129.
 
 ## Reversión
 
@@ -17024,3 +17028,251 @@ que ya no existe.
 ## Historial
 
 No aplica: entrada nueva.
+
+---
+
+# Cambio 129 — Que una pantalla nueva no pueda nacer sucia: ratchet, marcadores de arquetipo y gate de build
+
+🟢 **HECHO — 05/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · herramientas de diseño (`scripts/`) · CI de GitHub Actions · CSS compilado |
+| **Etiquetas** | `#ui` `#metodo` `#infra` |
+| **Solicitante** | Auditoría integral oct-2026 — FE-13, V5A-NEW-01 y V5A-NEW-08 (Ola 6 «Agente de diseño», pasos 0, 1 y 2) |
+| **Fecha del pedido** | 05/10/2026 |
+| **Issue / épica** | sin issue (plan de la auditoría, `docs/internal/auditoria-2026-10/README.md` §6 y `anexo-agente-diseno.md` §9) |
+| **Partes afectadas** | Nadie en runtime: herramientas, CI y el CSS compilado. El backoffice se ve igual salvo dos utilidades que faltaban en el build |
+| **Migración** | No requiere |
+
+## Pedido original
+
+El sistema de agentes de diseño gobierna un **inventario**, pero no le enseña al agente a **reproducir pantallas**. La
+consecuencia está medida: en el Cambio 36 `design_audit` daba 0/0 en Dispositivos y el módulo «era todo lo contrario», y
+en el Cambio 69 un diseño hecho con el canon en prosa lo rechazó el PM («misma paleta, distinto diseño») y se rehízo
+mirando pantallas reales. La v2 de Dispositivos y Merenderos trae 45 tasks y ~434 h, casi todas pantallas nuevas en
+módulos con 0 piezas canónicas: si el sistema no cambia **antes de la primera task de pantalla**, esas pantallas van a
+clonar a sus hermanas legacy.
+
+Este cambio hace los **pasos 0, 1 y 2** de los siete que define el anexo: medir el estado actual, fijar las decisiones
+de diseño con su default, y construir las herramientas. Los pasos 3 a 7 (sanear las goldens, reescribir el núcleo del
+agente, actualizar los consumidores, repetir el ejercicio de control y registrar el cierre) van en PRs siguientes.
+
+## Alcance acordado
+
+**Entra:**
+
+1. **Paso 0 — línea base «antes».** Las tres pantallas del ejercicio de control pedidas a los agentes **actuales**, con
+   prompts de dominio y sin ninguna pista de diseño, guardadas con su medición en
+   `docs/internal/auditoria-2026-10/linea-base-agente-diseno/`.
+2. **Paso 1 — decisiones D1 a D5**, con el default recomendado del README §2.3 aplicado (D4 queda sin definir, que es
+   su decisión).
+3. **Paso 2 — herramientas.** `design_audit.py`: `--ratchet`, las 7 reglas P1 + CLASSDEF, `--arquetipo`, `--goldens`,
+   el decodificador de clases CSS y el hook en modo ratchet. `check_design_agent.py`: los 8 puntos del anexo §7.
+   `compile_templates.py` sin `site-packages`. Gate de build de Tailwind y ratchet en el CI.
+
+**Queda explícitamente afuera:**
+
+- **Los pasos 3 a 7.** En particular, **el núcleo del agente no se tocó**: sigue en 66.965 bytes, con historia y sin la
+  tabla `## Arquetipos`. Por eso `--goldens` es tolerante (sin esa tabla no tiene qué verificar) y los límites del
+  núcleo viven detrás de `check_design_agent.py --limites`, apagado. El PR del paso 4 enciende los dos.
+- **Migrar pantallas.** Ni una línea de template de producto cambió. La deuda de hoy queda **congelada**, no corregida:
+  eso es la Ola 5.
+- **Las reglas de fase 2** (`LABELCANON`, `TWARBITRARY`, `ICONSVG`, `CONFIRMHAND`…). El anexo las condiciona al
+  resultado del ejercicio de control del paso 6.
+
+## Decisiones tomadas
+
+**D1 a D5 — DECISIÓN CLIENTE: se aplicó el default recomendado del README §2.3.** No las decidió el PM; son los
+defaults del plan, y se pueden revertir antes del paso 4 sin tocar código, porque todavía no hay ficha que las escriba.
+
+- **D1 · Tamaño de las acciones del encabezado → `btn-base` en listados y formularios, `btn-sm` en detalles.** Es lo que
+  hace el código hoy (10 usos de `btn-base` en listados y formularios, 6 de `btn-secondary btn-sm` en detalles) y
+  contradice lo que el agente tiene escrito («`btn-sm`» para todo, N3 de la verificación V5b). Manda el código.
+- **D2 · Confirmación con motivo en pantallas nuevas → arquetipo Modal con `<form method="post">` y un textarea
+  `nodo-field` requerido.** Cero código nuevo: ya existe el arquetipo. El Swal condicionado del Cambio 48 queda como
+  legacy de las pantallas actuales de Dispositivos y Legajos, sin extenderse a pantallas nuevas.
+- **D3 · Íconos → Font Awesome en el contenido, Heroicons solo en el shell** (sidebar y navbar). Es la línea que ya
+  separa las dos familias; lo que falta es decirla.
+- **D4 · Wizard de backoffice → NO SE DEFINE.** Es la decisión, no una omisión: no hay ninguna pantalla de wizard que
+  sirva de molde (el de Configuración extiende el shell legacy `includes/main.html`), así que inventar un stepper
+  canónico sin evidencia es justamente lo que el Cambio 69 demostró que no funciona. El arquetipo queda marcado como
+  **pendiente**: cuando una task pida un wizard, el agente **frena y devuelve la tarea al llamador**. Lo mismo para
+  «revisión de caso compleja» y «dashboard completo».
+- **D5 · Avatar con gradiente en las filas de la golden de detalle → iniciales en `bg-brand-soft text-fg-brand`.**
+  Respeta «un solo acento por bloque» y saca 3 `style=` de la golden. **Lo ejecuta el paso 3**, que es el que toca
+  templates; acá solo queda registrada.
+
+**Las 8 reglas P1 no cortan en una corrida plana; cortan cuando suben.** El repo arrastra 3.627 hallazgos. Si las
+reglas nuevas fueran ERROR a secas, `design_audit.py --changed` —que hoy usan otras ramas en paralelo— pasaría de 0 a
+cientos de errores en cualquier archivo legacy que se toque, y la respuesta sería desactivar el gate. Por eso tienen una
+severidad propia, `P1`: en una corrida plana se informan como deuda y no afectan el código de salida; en `--ratchet`
+(hook y CI) **un solo hallazgo nuevo corta**. Es literalmente lo que pide el anexo («ERROR cuando el conteo sube») y
+mantiene el comportamiento viejo de `--changed` intacto mientras el paso 5 no reescriba CLAUDE.md.
+
+**El hook pasa a comparar contra `HEAD` y se borra el «si son preexistentes… seguí».** Antes auditaba el archivo entero
+y, para que la deuda vieja no bloqueara, el propio mensaje le decía al agente que podía ignorar los hallazgos: en los
+hechos, entrenaba a ignorar la auditoría. Ahora reporta **solo lo que agregó esa edición**, así que todo lo que reporta
+es responsabilidad del cambio y no hay escape que ofrecer.
+
+**El CSS de Tailwind se regeneró, contra la decisión registrada en los Cambios 95 y 126, y para eso hubo que arreglar
+antes el `content` de `tailwind.config.js`.** Las dos entradas decidieron no correr `build:tailwind` porque «borra 12
+clases que hoy están en el build». La razón de fondo no era que el build borrara de más: era que **el `content` miraba
+de menos**. Los campos del backoffice traen buena parte de sus clases desde el widget del form y no desde el template
+(`programas/forms.py`, el wizard de `configuracion`, el input de archivo del legajo), y `content` solo escaneaba
+`.html` y `.js`. Para el navegador eso es markup; para el escáner, no existe. Con el `content` arreglado el build fresco
+saca **31** clases y agrega **18**, y se verificó una por una —con `ast` sobre todos los `.py` de las apps, no por
+conteo— que ninguna de las 31 se usa en ningún archivo del repo: el `tailwind.css` committeado venía de otro estado del
+árbol y arrastraba restos. De las 18 que entran, 12 son del input de archivo del legajo (`file:*`, `focus:border-*`) y
+2 (`mt-px`, `w-40`) las usa **la golden del arquetipo Detalle** desde el 30-sep: esas pantallas se estaban viendo mal en
+producción. Además el gate de build no puede encenderse con el CSS desactualizado: fallaría en el primer PR.
+
+**`content` se enumera app por app en vez de usar comodines.** Un `./**/templates/**/*.html` alcanza los templates de
+Django admin adentro de un virtualenv del checkout y `node_modules/<pkg>/templates/`: el CSS sale distinto según qué
+tenga instalado el que corre el build, y entonces el gate obligatorio rechaza al que lo corrió en su máquina. Está
+medido: con un `venv/` no-dot presente el CSS cambiaba; con `.venv` no, porque fast-glob no entra a directorios que
+empiezan con punto — o sea que el agujero existía y no se notaba. Las negaciones (`!./node_modules/**`) tapan el caso
+conocido pero se pueden out-globear; enumerar las apps lo cierra por construcción. Por el mismo motivo los `.py` entran
+por `{forms,models,templatetags}` y no con `./**/*.py`: el extractor de Tailwind es una regex sobre el texto crudo, así
+que un slice (`connection.queries[desde:hasta]`) le parece una utilidad de valor arbitrario y termina como regla basura
+en el CSS — y, peor, un PR que no toca UI mueve `tailwind.css` y hace fallar el gate.
+
+**El gate de build quedó en `design-agent-contract.yml` y no en `pr-quality.yml`.** La ampliación RS-R6-07 proponía
+`pr-quality.yml`; el anexo §7 dice `design-agent-contract.yml`. Pesa más el anexo por una razón operativa: el ruleset de
+`development` ya exige el check `Validate inventory and authority`, así que ahí el gate nace bloqueante; en
+`pr-quality.yml` habría que agregar otro contexto al JSON del ruleset, que todavía **no aplicó el dueño del repo**
+(pendiente del Cambio 121).
+
+## Implementación
+
+**`scripts/design_audit.py`.**
+
+- **Decodificador de clases CSS (FE-13).** La expresión regular se reemplazó por un parser de identificadores:
+  `\` + 1 a 6 dígitos hex es ese carácter y **consume un espacio terminador opcional**, `\` + cualquier otra cosa es
+  literal, y solo se leen los *preludes* de regla (lo que está antes de `{`), nunca las declaraciones ni los `url()`.
+  Base: `poc/herramientas/cssclasses.py`.
+- **Las 7 reglas P1** (`RAWPALETTE`, `INLINESTYLE`, `STYLEBLOCK`, `SHELLLEGACY`, `PAGEHEADER`, `TABLECANON`,
+  `ICONARIA`) con las heurísticas y los alcances del anexo §7, y el pragma `design-audit: allow` por línea.
+- **`CLASSDEF`:** cada clase usada se busca en el universo declarado (el build, todos los `static/custom/css/*.css`,
+  Font Awesome, SweetAlert2, el `<style>` del propio template y los CSS que enlaza con `{% static %}`). **P1** si tiene
+  forma de utilidad de Tailwind —un bug visual— y **WARN** si no (markup de Bootstrap/AdminLTE heredado o un hook sin
+  prefijo `js-`), con la allowlist de hooks en `scripts/design_audit_hooks.txt`.
+- **`--ratchet [--base REF]`:** por cada archivo de UI cambiado cuenta hallazgos por regla en `git show REF:<archivo>`
+  y en el actual, corta si alguna regla subió y reporta **solo las líneas que no estaban**.
+- **`--arquetipo {listado,detalle,formulario,modal} ARCHIVO`:** marcadores ordenados (los opcionales se saltean) más
+  una lista de prohibidos. Reemplaza al diff estructural con *similarity* que el anexo descartó por frágil.
+- **`--goldens`:** lee la tabla `## Arquetipos` del núcleo y exige 0 P1 y marcadores completos en cada golden.
+- **`--hook`:** ratchet contra `HEAD`.
+
+**`scripts/check_design_agent.py`.** Los 8 puntos del anexo §7: celdas partidas sin descartar filas, tabla
+`## Arquetipos`, fichas de `.claude/design/` (existencia, evidencia y sin huérfanas), `EVIDENCE_PREFIXES` con `core/`,
+`legajos/`, `configuracion/`, `dashboard/` y `conversaciones/`, regla del mismo diff satisfecha por el núcleo **o** la
+ficha y sin dispararse por `tailwind.css`, tests ni vistas, límites del núcleo detrás de `--limites`, y el hook también
+sobre `.claude/design/**`.
+
+**`scripts/compile_templates.py`.** El filtro descarta las rutas con `site-packages` (V5A-NEW-08).
+
+**`tailwind.config.js`.** `content` pasa a enumerar las apps en una constante `APPS` y a incluir los `.py` de
+`{forms,models,templatetags}` de cada una. `design_audit.clases_en_python()` lee esas cadenas con `ast` para que la
+suite pueda verificar lo que el build genera, y `core.tests.test_design_audit_estructura` suma dos clases nuevas:
+`ContentDeTailwindTests` (ningún patrón positivo usa comodín de primer nivel; `APPS` cubre toda app del disco con
+`templates/` o `forms`) y `CssCompiladoAlDiaTests` (toda clase usada en cualquier app está en el CSS compilado o en una
+deuda congelada de 32 entradas que solo puede bajar). Reemplaza al test viejo, que miraba solo `programas/templates`.
+
+**`.github/workflows/design-agent-contract.yml`.** Suma el ratchet contra la base del PR, `--goldens`
+(`continue-on-error` hasta el paso 3), los tests de `design_audit` y el gate de build de Tailwind; y agrega
+`scripts/design_audit.py`, `scripts/design_audit_hooks.txt`, `scripts/test_design_audit.py` y `.claude/design/**` al
+filtro de rutas.
+
+## Archivos
+
+`scripts/design_audit.py`, `scripts/design_audit_hooks.txt` (nuevo), `scripts/check_design_agent.py`,
+`scripts/compile_templates.py`, `scripts/test_design_audit.py`, `scripts/test_check_design_agent.py`,
+`core/tests/test_design_audit_estructura.py` (nuevo), `.github/workflows/design-agent-contract.yml`,
+`tailwind.config.js`, `static/custom/css/tailwind.css` (regenerado),
+`docs/internal/auditoria-2026-10/linea-base-agente-diseno/` (nueva),
+`docs/internal/auditoria-2026-10/README.md` y `hallazgos/07-front.md`.
+
+## Base de datos
+
+No requiere migración. No toca modelos, vistas, URLs ni permisos.
+
+## Validación
+
+Con Python 3.12 + Django 5.2.17 (`.venv312`, igual al CI):
+
+- `manage.py check` → sin issues. `makemigrations --check --dry-run` → «No changes detected».
+- `manage.py check --deploy` con el entorno del CI (`DJANGO_DEBUG=False`, `DJANGO_ALLOWED_HOSTS=localhost`,
+  `SIIS_API_URL`) → 5 warnings preexistentes, **exit 0**.
+- `manage.py test` (la suite entera, en un solo proceso, como el CI) → **2509 tests, OK** (1 skip y 1
+  `expected failure` preexistentes), 634 s. `manage.py test --tag performance` → 4 tests, OK.
+- Tests nuevos: `core.tests.test_design_audit_estructura` (46, en la suite) + `scripts/test_design_audit.py` (11) +
+  `scripts/test_check_design_agent.py` (19, de los que 3 ya existían).
+- **Los tres guardias nuevos se probaron en rojo antes de darlos por buenos:** sacando los `.py` de `content` y
+  rebuildeando, `CssCompiladoAlDiaTests` falla nombrando `focus:ring-1`, `cursor-not-allowed` y `file:bg-blue-600`;
+  volviendo el patrón a `./**/templates/**/*.html`, falla
+  `ContentDeTailwindTests.test_ningun_patron_positivo_usa_comodin_de_primer_nivel`; sacando `legajos` de `APPS`, falla
+  `test_apps_lista_todas_las_apps_del_repo`.
+- **El build es reproducible y no depende del entorno:** `npm run build:tailwind` dos veces seguidas da el mismo
+  archivo, y con un `venv/` no-dot (templates de Django admin + `.py`), un `.venv312/` y un `node_modules/<pkg>/templates/`
+  presentes en el checkout, el CSS sale **idéntico**. Con el `content` viejo, el `venv/` no-dot lo cambiaba.
+- `ruff check .` → All checks passed; `ruff format --check` sobre lo tocado → formateado.
+- `scripts/compile_templates.py` → **199 compilados, 0 errores**, tanto en el worktree como corriéndolo desde el
+  checkout principal (donde viven los venv). Antes daba 349 ahí: es V5A-NEW-08.
+- `scripts/check_design_agent.py` → OK, y ahora parsea **37 filas del inventario en vez de 32**. Sobre el commit base de
+  la auditoría (`917e583`): **36 en vez de 33**, y las tres recuperadas son exactamente las que nombra N1 — Tabs
+  backoffice, Estado vacío y Drag & drop.
+- `scripts/design_audit.py` completo → **42 errores** (los mismos que antes: ninguna regla ERROR cambió), 3.624 P1 y
+  110 WARN.
+- **Las pruebas de que el gate funciona**, hechas a mano y descritas en el PR: agregar `text-gray-900` a un template
+  existente hace fallar `--ratchet` señalando la línea; tocar un archivo legacy con 71 hallazgos viejos **sin sumar**
+  no lo hace fallar; un template nuevo clonado de la golden pasa el ratchet y `--arquetipo listado`.
+- **Los marcadores se validaron contra las goldens reales:** `personas_list.html` y `segmento_form.html` dan OK, y
+  `cupo/segmento_detail.html` y `config/programa_list.html` reportan **exactamente** los desvíos que el anexo manda
+  sanear en el paso 3 (`<style>[x-cloak]` y el `backdrop-filter` en `style=`).
+
+## Puesta en marcha en el servidor
+
+Nada. Ningún archivo de este cambio viaja al release salvo `static/custom/css/tailwind.css`: las herramientas de
+auditoría y `.claude/` están excluidas por `export-ignore`. El CSS regenerado entra con el próximo deploy y el único
+efecto visible es que **18 utilidades que estaban en uso y no se generaban pasan a aplicar**: el adjunto del legajo
+recupera su botón de archivo (`file:*`) y su foco (`focus:border-blue-500`, `focus:ring-blue-500/20`), el campo
+deshabilitado su cursor (`cursor-not-allowed`), los 5 campos del wizard de programas su anillo de foco (`focus:ring-1`)
+y `becas/cupo/segmento_detail.html` su `mt-px` y su `w-40`. Son correcciones visuales, ninguna regresión.
+
+## Pendientes / a definir
+
+- **Los pasos 3 a 7 de la Ola 6** (24 h de las 42): sanear las goldens, reescribir el núcleo y sus fichas, actualizar
+  CLAUDE.md, AGENTS.md y los dos agentes, repetir el ejercicio de control y registrar el cierre.
+- **Dos interruptores esperan al paso 4:** sacar el `continue-on-error` del step `Design audit goldens` y agregar
+  `--limites` a la invocación de `check_design_agent.py` en el CI. Hoy, con `--limites`, el checker reporta 58
+  problemas del núcleo actual (66.965 B contra el techo de 30.000, 17 celdas de más de 450 caracteres y 39 referencias
+  de historia): es exactamente el trabajo del paso 4, ya medido.
+- **CLAUDE.md y el inventario del agente no se tocaron**, por dos motivos que se suman: son el paso 5 del plan, y esta
+  sesión no tiene permiso de escritura sobre `.claude/`. Mientras tanto, CLAUDE.md sigue diciendo «0 errores es
+  condición de cierre», que ya no es el criterio (ahora es «0 nuevos»). Lo corrige el paso 5.
+- **Las reglas de fase 2 quedan sin activar**, como manda el anexo: se evalúan después del ejercicio de control del
+  paso 6, y solo si aparece un desvío que las P1 no atrapan.
+- **La línea base del paso 0 deja tres cosas para el paso 6:** que ningún agente escribió un Plan de pantalla como
+  artefacto, que ninguno usó la golden de su arquetipo, y que la pantalla de detalle clonó la hermana del módulo con su
+  deuda entera. Son las tres que el ejercicio «después» tiene que dar vuelta.
+
+## Reversión
+
+Revertir el commit. Las herramientas vuelven a su versión anterior y el CI deja de correr el ratchet y el gate de
+build. Lo único con efecto visible es `static/custom/css/tailwind.css`: al volver atrás, las 18 utilidades vuelven a
+faltar (el adjunto del legajo pierde su botón de archivo, el wizard de programas su anillo de foco y
+`becas/cupo/segmento_detail.html` su `mt-px` y su `w-40`). No hay datos, migraciones ni configuración que revertir.
+
+## Historial
+
+- **05/10/2026 — ronda 2 de revisión del PR #574.** La primera versión regeneró `tailwind.css` sin tocar el `content`
+  de `tailwind.config.js`, y el rebuild **borró `focus:ring-1` y `cursor-not-allowed`**, las dos en uso desde widgets de
+  Python: los 5 campos del wizard de programas se quedaban sin indicador de foco (WCAG 2.4.7) y el campo deshabilitado
+  del legajo sin su cursor. La entrada afirmaba que «ninguna de las 33 se usa como token de clase en ningún archivo
+  escaneado»; era falso, porque la verificación miraba el mismo conjunto de archivos que el escáner —o sea que repetía
+  su punto ciego—. Se arregló el `content` (apps enumeradas en `APPS`, más los `.py` de `{forms,models,templatetags}`),
+  se rebuildeó —ahora saca 31 y agrega 18— y se agregó `CssCompiladoAlDiaTests`, que verifica con `ast` sobre **todos**
+  los `.py` de las apps y por eso no comparte el punto ciego. En la misma ronda se cerró el agujero de los comodines de
+  primer nivel en `content` (el CSS dependía de si había un virtualenv en el checkout) y se corrigió el conteo de filas
+  del inventario en el README de la auditoría (37, no 36).
