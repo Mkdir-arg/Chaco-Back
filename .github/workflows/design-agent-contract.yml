@@ -71,12 +71,11 @@ jobs:
         if: steps.filtro.outputs.diseno == 'true'
         run: python scripts/design_audit.py --ratchet --base "${{ github.event.pull_request.base.sha }}"
 
-      # Las goldens (la pantalla que se clona por arquetipo) tienen que estar en 0.
-      # Tolerante hasta que el paso 3 de la Ola 6 las sanee y el paso 4 escriba la
-      # tabla `## Arquetipos` del núcleo: ese PR saca el `continue-on-error`.
+      # Las goldens (la pantalla que se clona por arquetipo) tienen que estar en 0:
+      # 0 hallazgos P1 y los marcadores de su arquetipo completos. El paso 3 de la
+      # Ola 6 las saneó y acá se saca el `continue-on-error` con el que nacieron.
       - name: Design audit goldens
         if: steps.filtro.outputs.diseno == 'true'
-        continue-on-error: true
         run: python scripts/design_audit.py --goldens
 
       # Gate de build (V5A-NEW-01): `static/custom/css/tailwind.css` está
