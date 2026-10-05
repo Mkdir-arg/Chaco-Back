@@ -183,10 +183,7 @@ class RatchetTests(SimpleTestCase):
 class MarcadoresDeArquetipoTests(SimpleTestCase):
     """Un caso por arquetipo, medido sobre la golden real que el anexo nombra."""
 
-    GOLDENS = {
-        "listado": "programas/templates/programas/becas/revision/personas_list.html",
-        "formulario": "programas/templates/programas/becas/config/segmento_form.html",
-    }
+    GOLDENS = dict(design_audit.GOLDENS)
 
     def marcadores(self, arquetipo, rutas):
         """Código de salida de `--arquetipo`, sin ensuciar la salida de la suite."""
@@ -265,6 +262,99 @@ class GateDeCiTests(SimpleTestCase):
         gate = self.workflow
         for ruta in ("scripts/design_audit.py", "scripts/design_audit_hooks.txt", ".claude/design/**"):
             self.assertIn(f"'{ruta}'", gate)
+
+    def test_el_step_de_goldens_corre_y_bloquea(self):
+        """Ola 6 paso 3: con las goldens saneadas el step deja de ser tolerante."""
+        gate = self.workflow
+        self.assertIn("design_audit.py --goldens", gate)
+        bloque = gate.split("- name: Design audit goldens", 1)[1].split("design_audit.py --goldens", 1)[0]
+
+        self.assertNotIn("continue-on-error", bloque)
+
+
+class GoldensSaneadasTests(SimpleTestCase):
+    """Las goldens del anexo §3, en 0 (Ola 6 paso 3, V5A-NEW-07 parte (a)).
+
+    Son las cuatro pantallas que `chaco-frontend` clona: lo que tengan encima se
+    reproduce en cada pantalla nueva. Por eso el contrato es más duro que el del
+    resto del repo (ratchet): acá el piso es cero, no «no empeorar».
+    """
+
+    def contenido(self, ruta):
+        return Path(design_audit.REPO, ruta).read_text(encoding="utf-8")
+
+    def test_goldens_mode_sale_en_cero(self):
+        with contextlib.redirect_stdout(io.StringIO()) as salida:
+            codigo = design_audit.goldens_mode()
+
+        self.assertEqual(codigo, 0, salida.getvalue())
+
+    def test_hay_una_golden_por_arquetipo(self):
+        self.assertEqual(sorted(dict(design_audit.GOLDENS)), sorted(design_audit.ARQUETIPOS))
+
+    def test_ninguna_golden_tiene_hallazgos_p1(self):
+        for arquetipo, ruta in design_audit.GOLDENS:
+            with self.subTest(arquetipo=arquetipo):
+                hallazgos = [
+                    f"{f[1]}: [{f[2]}] {f[3]}"
+                    for f in design_audit.audit_file(Path(design_audit.REPO, ruta))
+                    if f[0] in design_audit.SEVERIDADES_BLOQUEANTES
+                ]
+
+                self.assertEqual(hallazgos, [], f"{ruta} no puede ser molde con deuda encima")
+
+    def test_el_listado_nombra_la_columna_de_acciones(self):
+        """WCAG 1.3.1: el `<th>` de acciones estaba vacío y la columna no tenía nombre."""
+        listado = self.contenido(dict(design_audit.GOLDENS)["listado"])
+        th = '<th class="nodo-th text-right"><span class="sr-only">Acciones</span></th>'
+
+        self.assertEqual(listado.count(th), 1, "el <th> de acciones tiene que nombrar la columna")
+
+    def test_los_filtros_del_listado_nombran_sus_controles_con_aria_label(self):
+        """`dynamic_list_filters.js` vacía el form y le pisa la clase al montar.
+
+        Con un `<label>` suelto el control se queda sin nombre accesible apenas
+        corre el JS, y la `class` del `<form>` no llega nunca.
+        """
+        listado = self.contenido(dict(design_audit.GOLDENS)["listado"])
+        form = listado.split("data-dynamic-list-filters", 1)[1].split("</form>", 1)[0]
+
+        self.assertEqual(form.count('aria-label="Estado"'), 1, "el control va con aria-label")
+        self.assertEqual(form.count("<label"), 0, "sin <label> suelto: el JS lo borra al montar")
+        self.assertEqual(listado.count('<form method="get" data-dynamic-list-filters>'), 1, "el form va sin class")
+
+    def test_el_detalle_no_pinta_las_iniciales_con_el_gradiente(self):
+        """D5: un solo acento por bloque, y saca los 3 `style=` de la golden."""
+        detalle = self.contenido(dict(design_audit.GOLDENS)["detalle"])
+
+        self.assertEqual(detalle.count("--gradient-brand"), 0, "las iniciales no llevan el gradiente (D5)")
+        self.assertEqual(detalle.count("rounded-full bg-brand-soft text-fg-brand"), 3)
+
+    def test_el_modal_usa_las_piezas_canonicas(self):
+        """Labels canónicos, ayuda que no parece error, backdrop por clase y nota con `_alerta`."""
+        modal = self.contenido(dict(design_audit.GOLDENS)["modal"])
+
+        self.assertEqual(modal.count("text-[13px]"), 0, "labels con valor arbitrario")
+        self.assertEqual(modal.count('class="block text-sm font-medium text-heading mb-1"'), 3)
+        self.assertEqual(modal.count("bg-black/50 backdrop-blur-sm"), 1, "backdrop por clase, no por style=")
+        self.assertEqual(modal.count('components/_alerta.html" with tono="info"'), 1, "la nota es _alerta")
+        self.assertEqual(modal.count("<svg"), 0, "D3: Font Awesome en el contenido, no SVG inline")
+
+    def test_el_modal_tiene_donde_mostrar_el_error_general(self):
+        """`_ajax_js.html` escribe los errores en `[data-error="<campo>"]`.
+
+        Sin caja para `__all__`, un error de formulario que no es de campo solo
+        aparecía en el toast y el modal no decía nada.
+        """
+        modal = self.contenido(dict(design_audit.GOLDENS)["modal"])
+
+        self.assertEqual(modal.count('data-error="__all__"'), 1, "falta la caja del error general")
+
+    def test_ninguna_golden_declara_x_cloak_local(self):
+        """`[x-cloak]` ya es global en `static/custom/css/override.css`."""
+        for arquetipo, ruta in design_audit.GOLDENS:
+            with self.subTest(arquetipo=arquetipo):
+                self.assertEqual(self.contenido(ruta).count("[x-cloak]{display:none"), 0)
 
 
 def _config_tailwind() -> str:
