@@ -310,7 +310,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 128 | Nada sale a producción sin que algo lo haya verificado: contratos del repo en el CI, release con CI verde y espejo a ECOM en dos pasos | Transversal · CI de GitHub Actions · release y espejo a ECOM | `#infra` `#metodo` `#gestion` | Auditoría integral oct-2026 — RED-24, RED-21, RED-65, RED-23 y RED-22 (Ola R, red de seguridad, PR R-14) | 05/10/2026 | 🟡 **Parcial** (falta enviar la propuesta a ECOM y copiar los dos comandos a `.claude/`) | No requiere |
 | 129 | Que una pantalla nueva no pueda nacer sucia: ratchet, marcadores de arquetipo y gate de build | Transversal · herramientas de diseño · CI de GitHub Actions · CSS compilado | `#ui` `#metodo` `#infra` | Auditoría integral oct-2026 — FE-13, V5A-NEW-01 y V5A-NEW-08 (Ola 6 «Agente de diseño», pasos 0-2) | 05/10/2026 | 🟢 **Hecho** | No requiere |
 | 131 | Las goldens dejan de ser un molde con deuda: 0 P1, marcadores completos y el gate encendido | Becas (revisión, cupo, configuración de programas) · herramientas de diseño · CI de GitHub Actions | `#ui` `#metodo` | Auditoría integral oct-2026 — V5A-NEW-07 parte (a) (Ola 6 «Agente de diseño», paso 3) | 05/10/2026 | 🟢 **Hecho** | No requiere |
-| 132 | El agente de diseño deja de ser un changelog de 67 KB: núcleo corto, fichas por arquetipo y consumidores al día | Transversal · agente canónico de diseño y sus fichas · herramientas de diseño · CI de GitHub Actions | `#ui` `#metodo` | Auditoría integral oct-2026 — Ola 6 «Agente de diseño», pasos 4 y 5 | 05/10/2026 | 🟡 **Parcial** (el contenido de `.claude/` viaja en una carpeta transitoria: lo mueve el juez) | No requiere |
+| 132 | El agente de diseño deja de ser un changelog de 67 KB: núcleo corto, fichas por arquetipo y consumidores al día | Transversal · agente canónico de diseño y sus fichas · herramientas de diseño · CI de GitHub Actions | `#ui` `#metodo` | Auditoría integral oct-2026 — Ola 6 «Agente de diseño», pasos 4 y 5 | 05/10/2026 | 🟡 **Parcial** (faltan los pasos 6 y 7 de la Ola 6) | No requiere |
 
 **Notas del índice**
 
@@ -17439,7 +17439,7 @@ vuelve a no tener qué verificar. No hay datos, migraciones ni configuración qu
 
 # Cambio 132 — El agente de diseño deja de ser un changelog de 67 KB: núcleo corto, fichas por arquetipo y consumidores al día
 
-🟡 **PARCIAL — 05/10/2026** (el contenido de `.claude/` viaja en una carpeta transitoria; lo mueve el juez)
+🟡 **PARCIAL — 05/10/2026** (faltan los pasos 6 y 7 de la Ola 6)
 
 | | |
 |---|---|
@@ -17518,14 +17518,14 @@ nuevo más las fichas: los 34 que no aparecen literales son variantes de formato
 y sin comillas, tres clases juntas contra las tres por separado, firmas de tag con puntos suspensivos) más los dos de la
 contradicción (e), que se sacaron a propósito.
 
-**El contenido de `.claude/` no se pudo escribir desde la sesión.** El permiso de escritura sobre `.claude/` estaba
-denegado, y el contenido —90 KB entre el núcleo, 21 fichas y 4 agentes— no entra en el cuerpo de un PR. Se entrega en
-`docs/internal/auditoria-2026-10/agente-diseno-paso4/`, revisable en el diff, con el comando que lo mueve. Es la única
-parte del Cambio que queda pendiente, y es mecánica.
+**El contenido de `.claude/` no se pudo escribir desde la sesión implementadora.** El permiso de escritura sobre
+`.claude/` estaba denegado, y el contenido —90 KB entre el núcleo, 21 fichas y 4 agentes— no entra en el cuerpo de un
+PR. Se entregó en una carpeta de tránsito dentro de `docs/internal/auditoria-2026-10/`, revisable en el diff, y el
+movimiento a `.claude/` lo aplicó el juez en un commit aparte del mismo PR, que borró esa carpeta.
 
 ## Implementación
 
-**Núcleo** (entregado en la carpeta transitoria): 25.548 bytes con las 12 secciones del anexo §4. La tabla
+**Núcleo** (`.claude/agents/chaco-design-system.md`): 25.548 bytes con las 12 secciones del anexo §4. La tabla
 `## Arquetipos` declara 5 goldens con el formato que parsea el checker, más la fila de pendientes. El inventario tiene
 30 filas, cada una con una línea de contrato y el link a su ficha.
 
@@ -17557,8 +17557,10 @@ condición de cierre» por «0 hallazgos nuevos»; el gate del CI dice qué corr
 
 ## Archivos
 
-`docs/internal/auditoria-2026-10/agente-diseno-paso4/` (núcleo, 21 fichas y 4 agentes, en tránsito hacia `.claude/`),
-`scripts/design_audit.py`, `scripts/test_design_audit.py`, `.github/workflows/design-agent-contract.yml`, `CLAUDE.md`,
+`.claude/agents/chaco-design-system.md`, `.claude/design/**` (21 fichas), `.claude/agents/chaco-frontend.md`,
+`.claude/agents/chaco-design-reviewer.md`, `.claude/agents/chaco-dev-reviewer.md`, `scripts/design_audit.py`,
+`scripts/test_design_audit.py`, `scripts/check_design_agent.py`, `scripts/test_check_design_agent.py`,
+`.github/workflows/design-agent-contract.yml`, `CLAUDE.md`,
 `AGENTS.md`, `docs/internal/auditoria-2026-10/README.md` y `docs/internal/requerimientos.md`.
 
 ## Base de datos
@@ -17567,15 +17569,19 @@ No requiere migración. No toca modelos, vistas, URLs, permisos ni templates.
 
 ## Validación
 
-Con Python 3.12 + Django 5.2.17 (`.venv312`, igual al CI), y con el movimiento a `.claude/` aplicado sobre un árbol
-espejo del repo:
+Con Python 3.12 + Django 5.2.17 (`.venv312`, igual al CI):
 
 - `check_design_agent.py --limites` → **OK** (antes del cambio: 58 errores — 1 de tamaño, 28 de celdas largas y 29 de
   historia).
 - `design_audit.py --goldens` → **0 hallazgos en 5 goldens**, leídas de la tabla `## Arquetipos` del núcleo.
 - `scripts/test_design_audit.py` → 14 tests, sin skips. **Los dos tests nuevos se vieron en rojo antes del cambio**
   (`goldens_declaradas()` devolvía `None` y `goldens_mode()` salía 0 sin verificar nada).
-- `scripts/test_check_design_agent.py` → OK; ese script no se tocó.
+- `scripts/test_check_design_agent.py` → 21 tests OK. La revisión encontró que ese archivo quedaba rojo: tenía el test
+  temporal que exigía que `--limites` **fallara** hasta el paso 4, y la rama de tamaño de `limites_del_nucleo()` no se
+  ejercitaba porque la función releía el archivo del disco e ignoraba el texto que recibía. Ahora mide el texto que se
+  le pasa —ya normalizado a `
+`, así el límite no se mueve entre el checkout de Windows (CRLF) y el del CI (LF)— y el
+  test temporal pasa a exigir lo contrario: **el núcleo real cumple `--limites`**.
 - `manage.py check`, `check --deploy`, `makemigrations --check --dry-run`, `manage.py test` (suite entera en un solo
   proceso) y `manage.py test --tag performance`.
 - `ruff check .` y `ruff format --check` sobre lo tocado.
@@ -17584,11 +17590,8 @@ espejo del repo:
 
 ## Pendientes
 
-1. **Mover el contenido a `.claude/`** (lo hace el juez, con el comando del README de la carpeta transitoria). Hasta
-   entonces el check «Design Agent Contract» del PR sale rojo a propósito: el PR enciende los dos interruptores contra
-   el núcleo viejo.
-2. **Paso 6 de la Ola 6:** ejercicio de control «después» con las 3 pantallas y el revisor independiente.
-3. **Paso 7:** registro del resultado del control y actualización de la memoria «Migración Design System».
+1. **Paso 6 de la Ola 6:** ejercicio de control «después» con las 3 pantallas y el revisor independiente.
+2. **Paso 7:** registro del resultado del control y actualización de la memoria «Migración Design System».
 
 ## Puesta en marcha en el servidor
 

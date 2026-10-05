@@ -126,45 +126,60 @@ class FichasTests(unittest.TestCase):
 
 
 class LimitesDelNucleoTests(unittest.TestCase):
-    """Los enciende el paso 4 de la Ola 6; la lógica ya tiene que estar probada."""
+    """Los encendió el paso 4 de la Ola 6; el núcleo real tiene que cumplirlos."""
 
     def test_nucleo_demasiado_grande(self) -> None:
-        errores = check_design_agent.limites_del_nucleo(REPO, "texto corto", [])
+        enorme = "x" * (check_design_agent.NUCLEO_MAX_BYTES + 1)
+
+        errores = check_design_agent.limites_del_nucleo(enorme, [])
 
         self.assertTrue(any("core agent is too large" in e for e in errores), errores)
+
+    def test_nucleo_en_el_limite_pasa(self) -> None:
+        justo = "x" * check_design_agent.NUCLEO_MAX_BYTES
+
+        errores = check_design_agent.limites_del_nucleo(justo, [])
+
+        self.assertFalse([e for e in errores if "core agent is too large" in e], errores)
+
+    def test_el_tamanio_no_depende_del_fin_de_linea(self) -> None:
+        """CRLF en el checkout de Windows, LF en el del CI: el límite no puede moverse."""
+        linea = "x" * 99 + "\n"
+        texto = linea * (check_design_agent.NUCLEO_MAX_BYTES // 100)
+
+        self.assertFalse(check_design_agent.limites_del_nucleo(texto, []))
+        self.assertTrue(check_design_agent.limites_del_nucleo(texto.replace("\n", "\r\n"), []))
 
     def test_celda_demasiado_larga(self) -> None:
         fila = ("Pieza", "Canónico reutilizable", "x" * (check_design_agent.CELDA_MAX_CARACTERES + 1))
 
-        errores = check_design_agent.limites_del_nucleo(REPO, "texto corto", [fila])
+        errores = check_design_agent.limites_del_nucleo("texto corto", [fila])
 
         self.assertTrue(any("contract cell too long" in e for e in errores), errores)
 
     def test_celda_en_el_limite_pasa(self) -> None:
         fila = ("Pieza", "Canónico reutilizable", "x" * check_design_agent.CELDA_MAX_CARACTERES)
 
-        errores = check_design_agent.limites_del_nucleo(REPO, "texto corto", [fila])
+        errores = check_design_agent.limites_del_nucleo("texto corto", [fila])
 
         self.assertFalse([e for e in errores if "contract cell too long" in e], errores)
 
     def test_historia_prohibida_en_el_nucleo(self) -> None:
         texto = "La fila la fijó el Cambio 69 en la Ola 5, el 30-sep-2026 (CMP-12)."
 
-        errores = check_design_agent.limites_del_nucleo(REPO, texto, [])
+        errores = check_design_agent.limites_del_nucleo(texto, [])
         historia = sorted(e.split(": ", 1)[1].split(" (va en")[0] for e in errores if e.startswith("history reference"))
 
         self.assertEqual(historia, ["30-sep-2026", "CMP-12", "Cambio 69", "Ola 5"])
 
     def test_texto_sin_historia_no_reporta(self) -> None:
-        errores = check_design_agent.limites_del_nucleo(REPO, "Contrato de la tabla densa del backoffice.", [])
+        errores = check_design_agent.limites_del_nucleo("Contrato de la tabla densa del backoffice.", [])
 
         self.assertFalse([e for e in errores if e.startswith("history reference")], errores)
 
-    def test_la_bandera_limites_todavia_no_la_cumple_el_nucleo(self) -> None:
-        """Mientras el núcleo no se reescriba (paso 4), `--limites` tiene que fallar."""
-        errores = check_design_agent.validate(REPO, limites=True)
-
-        self.assertTrue(any("core agent is too large" in e for e in errores), errores)
+    def test_el_nucleo_real_cumple_la_bandera_limites(self) -> None:
+        """Lo que el CI corre: `--limites` sobre el núcleo del repo, sin errores."""
+        self.assertEqual(check_design_agent.validate(REPO, limites=True), [])
 
 
 if __name__ == "__main__":
