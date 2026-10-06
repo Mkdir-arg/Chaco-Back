@@ -318,6 +318,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 135 | Una migración nueva no puede romper el rollback sin que nadie se entere | Transversal · migraciones · CI de GitHub Actions · archivo de requerimientos | `#infra` `#datos` `#metodo` `#performance` | Auditoría integral de octubre 2026 — RED-14, RED-57, RED-18, RED-84 y RED-83 (Ola R, PR R-12) | 06/10/2026 | 🟢 **Hecho** (RED-83 parcial: la migración que saca los índices es de la Ola 4) | No requiere |
 | 137 | Las mismas tres pantallas, pedidas de nuevo: el ejercicio de control que cierra la Ola 6 | Transversal · agente canónico de diseño y sus fichas · evidencia de la auditoría (sin tocar código de producción) | `#ui` `#metodo` | Auditoría integral oct-2026 — Ola 6 «Agente de diseño», pasos 6 y 7 | 06/10/2026 | 🟢 **Hecho** (queda para el PM la captura del criterio (e)) | No requiere |
 | 138 | Una lista de exclusión frena a quien no hay que mandar a SIIS, y el envío pide confirmación | Becas · alta de beneficiarios en SIIS | `#siis` `#datos` | PM — en sesión: «todas las personas que están en la tabla SiisEnviar NO SE ENVIAN» | 06/10/2026 | 🟢 **Hecho** | No requiere |
+| 139 | Las migraciones se prueban en las dos direcciones y sobre datos, contra el motor de producción | Transversal · migraciones · CI de GitHub Actions · plantillas de Kubernetes | `#infra` `#datos` `#metodo` | Auditoría integral oct-2026 — RED-17 y RED-19 (Ola R, PR R-13) | 06/10/2026 | 🟢 **Hecho** (el job todavía no es obligatorio en el ruleset, igual que «Motor real») | No requiere |
 
 **Notas del índice**
 
@@ -18869,5 +18870,206 @@ Revertir el commit saca el filtro y la pregunta. La tabla queda en la base, sin 
 
 - **06/10/2026** — el PM crea `SiisEnviar` en la base de testing con 3.729 DNI y pide que el envío la respete.
 - **06/10/2026 (este cambio)** — la lista frena los tres caminos hacia SIIS y el envío pide confirmación.
+
+---
+# Cambio 139 — Las migraciones se prueban en las dos direcciones y sobre datos, contra el motor de producción
+
+🟢 **HECHO — 06/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · migraciones de las siete apps · CI de GitHub Actions · plantillas de Kubernetes |
+| **Etiquetas** | `#infra` `#datos` `#metodo` |
+| **Solicitante** | Auditoría integral de octubre 2026 — hallazgos **RED-17** y **RED-19** (Ola R «Red de seguridad», PR R-13) |
+| **Fecha del pedido** | 06/10/2026 |
+| **Issue / épica** | Sin issue — auditoría oct-2026, `docs/internal/auditoria-2026-10/hallazgos/08-red-de-seguridad.md` (Anexo B) |
+| **Partes afectadas** | CI (`pr-performance.yml`), scripts, un comando de `manage.py`, plantillas de `docker/k8s/`, documentación. Nada de UI, nada de API, ningún modelo |
+| **Migración** | No requiere (ninguna migración nueva ni editada) |
+
+## Pedido original
+
+De la ficha **RED-17** (ALTA, confirmado con test):
+
+> Un error dentro de una migración solo lo ve el job efímero, solo hacia adelante y sobre tablas vacías: 28 `RunPython`
+> en 27 archivos nunca corren sobre filas, y el CI arma el esquema desde los modelos
+> (`DJANGO_SYNCDB_PROJECT_APPS=True`), así que una migración puede entrar sin que nada la ejecute. Hace falta el job
+> `migration-roundtrip` del Anexo B, y que los tests de migración usen el registro histórico y no los modelos de hoy.
+
+De **RED-19** (ALTA): «rolling en k8s: cada pod corre `migrate` (choque) y no hay regla expand/contract».
+
+Y los **dos agujeros** que el Cambio 135 dejó anotados para este PR, porque son de ejecución y no de lectura del
+archivo: (a) un `AlterField` que pasa una columna de `null=True` a `null=False` —o que le saca el `DEFAULT`— no lo ve el
+gate estático y rompe el alta igual que un `AddField`; (b) **editar** una migración ya aplicada no tiene guard.
+
+## Qué lo motivó
+
+El camino de vuelta de una migración es lo que se recorre a las tres de la mañana con producción caída, y era lo único
+del sistema que nunca había corrido en ningún lado. El de ida tampoco se ejercitaba de verdad: el CI arma las tablas
+desde los modelos, así que una migración de datos podía entrar sin iterar una sola fila. El repo ya pagó ese modo de
+falla —`0a785d75` arregló una `0052` que murió en el deploy con `padron_archivo` NULL— y el Cambio 58 anotó que un test
+de migración pasaba justamente porque el CI no ejecuta migraciones.
+
+Del lado de Kubernetes, la guía del repo **recomendaba** la forma insegura: «sin `command`/`args` en el pod, el
+entrypoint hace todo». Django no toma candado para `migrate` en MySQL/MariaDB: con más de una réplica son N procesos
+migrando a la vez y, si se cruzan dentro de una migración de varias operaciones, el esquema queda a medias **sin** fila
+en `django_migrations`.
+
+## Alcance acordado
+
+**Entra:** el job `Migrate ida y vuelta (<motor>)` y su orquestador; el comando que compara columnas obligatorias contra
+el esquema real; el gate del SQL de ida de las migraciones editadas; el registro histórico en los dos tests de migración
+de `users` y el chequeo —sin base— de que ninguna migración nombre un modelo que todavía no existía; el único migrador
+en las plantillas de Kubernetes y la regla expand/contract en `CLAUDE.md`.
+
+**Queda afuera:** el candado `GET_LOCK('datanach_migrate', 900)` (OPS-07, Ola 3); `verificar_esquema_migraciones` como
+último paso del job (OPS-01, PR R-15: el comando todavía no existe); `DB_READ_TIMEOUT` como variable de entorno (OPS-05,
+PR R-15); el tag de release que daría «la release anterior» (RED-16, PR R-15); y sumar el job al ruleset, que espera a
+que acumule corridas.
+
+## Decisiones tomadas
+
+- **«La release anterior» es la base del PR, no un tag.** RED-16 no existe todavía y el Anexo B proponía un `HEAD~50` de
+  emergencia. La base del PR es mejor que las dos: es la misma referencia que usa `scripts/check_migraciones.py`, así que
+  el gate estático y el de ejecución miden exactamente el mismo conjunto de cambios.
+- **Dos motores, no tres.** `mariadb:10.11` (ECOM) y `mysql:8.0` (icore). `mariadb:11` no corre en ningún ambiente y el
+  job `Motor real` ya lo cubre hacia adelante; este es el job más caro del repo y duplicar la pata de MariaDB no agrega
+  información.
+- **Sin `continue-on-error`, y sin entrar al ruleset todavía.** Las dos razones por las que el Anexo B lo pedía en
+  amarillo —RED-18 y las barreras de RED-15/57 sin declarar— las cerró el Cambio 135, y su propia nota lo dice. Como el
+  job no es obligatorio, un rojo suyo informa sin trabar el merge; cuando acumule corridas se lo suma a
+  `ruleset-development.json` y a `CHECKS_OBLIGATORIOS`, igual que a `Motor real`.
+- **El aborto de las ocho barreras de reversa es el comportamiento correcto.** El orquestador lo reconoce por el texto
+  del `IrreversibleError` y sigue. Un job que lo tomara por rojo se apagaría el primer día que el plan de vuelta cruce
+  una.
+- **La base del job se llama `chaco_perf_ci`.** No es decorativo: `seed_perf` se niega a correr fuera de esa base con
+  `ENVIRONMENT=ci` y `PERFORMANCE_CI=1`, y esa guarda hay que satisfacerla con el código **de la base del PR**, que es el
+  que siembra. De ahí también el Redis del job.
+- **El settings que sube el `read_timeout` vive fuera de `config/`.** El job corre `manage.py` en dos árboles y el de la
+  base no tiene el archivo: entra por `PYTHONPATH`. Si viviera en `config/`, el `config` del árbol de la base lo taparía
+  y media secuencia correría con el timeout de producción.
+- **El registro histórico entra en dos de los cuatro tests de migración, no en los cuatro.** En los de `programas` no se
+  puede: la suite arma el esquema desde los modelos de hoy, así que un `Programa` de la época de la `0012` escribe un
+  `INSERT` sin `umbral_disponibilidad_verde`, que hoy es `NOT NULL`. Ese `IntegrityError` es RED-14 visto desde adentro;
+  queda el motivo escrito en los dos archivos y, para todas las migraciones, el chequeo sin base de los modelos.
+- **Un initContainer no es equivalente a un Job.** La ficha los ofrecía como alternativas: el initContainer corre en
+  **cada** pod, así que con `replicas > 1` sigue habiendo N migradores. Por eso la plantilla nueva es un `Job`.
+
+## Implementación
+
+**El job.** `Migrate ida y vuelta (<motor>)` en `.github/workflows/pr-performance.yml`, junto a `Motor real`, con el
+filtro por rutas **adentro** del job (RED-20) y `fetch-depth: 0` para armar el árbol de la base. Siete pasos, que
+orquesta `scripts/roundtrip_migraciones.py`:
+
+| Paso | Qué corre | Con qué código |
+|---|---|---|
+| 1 | `migrate` hasta la base del PR | el de la base |
+| 2 | `seed_perf --scale 200` | el de la base |
+| 3 | foto de `information_schema.COLUMNS` | el del PR (el comando nace acá) |
+| 4 | `migrate` del PR, **sobre las filas sembradas** | el del PR |
+| 5 | comparación de columnas obligatorias contra la foto | el del PR |
+| 6 | vuelta app por app hasta la base (barreras toleradas) | el del PR |
+| 7 | `migrate` de nuevo y `migrate --check` | el del PR |
+
+**El agujero (a).** `manage.py verificar_columnas_obligatorias --guardar|--comparar` marca toda columna que quede
+`NOT NULL`, sin `DEFAULT` en la base y sin llenarla el motor, **y que antes no estuviera así**: nueva, o antes nullable,
+o con un default que el PR le saca. Venga de un `AddField` o de un `AlterField` da lo mismo, porque mira el esquema y no
+el archivo. La salida de emergencia es la misma marca del gate estático: `# ROLLBACK-OK:` nombrando la columna. Un
+detalle de motor que importa: MariaDB devuelve la **cadena** `NULL` cuando la columna no tiene default y MySQL devuelve
+`NULL` de verdad; sin normalizarlo, el mismo PR daría distinto según el motor.
+
+**El agujero (b).** `scripts/check_sqlmigrate.py` compara `manage.py sqlmigrate` de cada migración que el PR **edita**,
+entre el árbol del PR y el de la base. Editar una migración aplicada se puede —el Cambio 135 editó diecinueve— pero su
+SQL de ida no puede cambiar: una fila de `django_migrations` dice «esto ya corrió». Borrar una migración existente
+también es un hallazgo. Límite escrito en el propio guion: `sqlmigrate` imprime los `RunPython` como un comentario, así
+que cambiarle el cuerpo a una migración de datos ya aplicada no se ve ahí.
+
+**Un solo migrador.** `docker/k8s/bootstrap-initcontainer.yaml` le pone `RUN_MIGRATIONS=false` al contenedor `web`;
+`docker/k8s/bootstrap-job.yaml` es nuevo y es la única forma válida con `replicas > 1` (aplicar el Job con la imagen
+nueva, esperar `condition=complete`, recién entonces el rollout); y `docker/k8s/README.md` reemplaza la recomendación
+vieja por una tabla que dice cuándo vale cada forma, más la regla expand/contract.
+
+## Archivos
+
+- `.github/workflows/pr-performance.yml` — job `Migrate ida y vuelta (<motor>)`.
+- `.github/ci/settings_roundtrip.py` — **nuevo**, el settings de CI que sube `read_timeout`/`write_timeout`.
+- `scripts/roundtrip_migraciones.py`, `scripts/check_sqlmigrate.py` — **nuevos**.
+- `core/management/commands/verificar_columnas_obligatorias.py` — **nuevo**.
+- `core/tests/historico.py` — **nuevo**, el registro de modelos de la época de una migración.
+- `core/tests/test_roundtrip_migraciones.py`, `test_columnas_obligatorias.py`, `test_check_sqlmigrate.py`,
+  `test_un_solo_migrador.py`, `test_migraciones_estado_historico.py` — **nuevos**.
+- `users/tests/test_migracion_becas.py`, `users/tests/test_migracion_administrador_publico.py` — con el registro
+  histórico; `programas/tests/test_migracion_catalogo.py` y `test_dispositivos_migrations.py`, con el motivo escrito de
+  por qué siguen con el registro vivo.
+- `docker/k8s/bootstrap-job.yaml` — **nuevo**; `bootstrap-initcontainer.yaml` y `README.md`, al día.
+- `CLAUDE.md` — expand/contract, la receta local del roundtrip y los dos jobs del motor real en §Gates de CI.
+- `docs/internal/auditoria-2026-10/` — RED-17 y RED-19 en ✅, el Anexo B marcado como implementado y el estado de la Ola R.
+
+## Base de datos
+
+No requiere. Ninguna migración nueva ni editada: `makemigrations --check --dry-run` dice «No changes detected». El job
+crea y destruye su propia base en un contenedor efímero del runner, y el comando nuevo **solo lee**
+`information_schema`: no escribe en ninguna base de ningún ambiente.
+
+## Validación
+
+- Contenedores efímeros **MariaDB 10.11.19** (puerto 3331, con `MARIADB_INITDB_SKIP_TZINFO=1`), **MySQL 8.0.46** (3332)
+  y Redis 7 (6382), borrados al terminar; no se tocó ninguno de los puertos del banco de performance ni de las otras
+  sesiones.
+- Secuencia completa en verde en los dos motores, con un worktree de `origin/development` como árbol de la base.
+  Duración: MariaDB desde cero **2 min 30 s**, MySQL desde cero **10 min** (Windows + Docker Desktop penaliza cada ida y
+  vuelta al contenedor; el runner de Actions es Linux con el servicio en localhost), ~1 min con la base ya migrada.
+- **Los dos agujeros, demostrados contra el motor**, con una rama de prueba descartable: un
+  `ALTER TABLE programas_formulario MODIFY datos_identificacion longtext NOT NULL` sobre las 200 filas sembradas sale
+  como hallazgo del comando nuevo y `scripts/check_migraciones.py` no dice una palabra; subirle de 40 a 50 el
+  `max_length` de `clave_persona_plan` en `programas.0075` —ya aplicada— sale como diff de `varchar(40)` a `varchar(50)`,
+  y agregarle solo un comentario a la misma línea sale en 0.
+- Vuelta real sobre datos: `Unapplying programas.0076…` y `Applying programas.0076…` con 200 formularios en la tabla.
+- Barrera verificada: `migrate programas 0072` (cruza `programas.0073`) aborta con su mensaje, y ese mensaje es el que
+  el orquestador reconoce como esperado.
+- `manage.py check`, `check --deploy`, `makemigrations --check --dry-run`, suite completa y `--tag performance` con
+  `.venv312` (Python 3.12 + Django 5.2.17, igual al CI). `ruff check .` y `ruff format --check` sobre lo tocado.
+- `actionlint` (imagen `rhysd/actionlint`) sobre los workflows: 0. `scripts/requerimientos.py --check` en OK.
+- Tests nuevos, en rojo antes del cambio: los módulos no existían, y el chequeo de modelos históricos no tenía con qué
+  construir el estado porque `DJANGO_SYNCDB_PROJECT_APPS` anula las migraciones del proyecto.
+
+## Puesta en marcha en el servidor
+
+No requiere. No hay migración, variable de entorno ni comando manual en icore. **En ECOM sí hay un pedido**, que es de
+RED-19 y no de este código: el manifiesto del Deployment tiene que llevar `RUN_MIGRATIONS=false` y el `migrate` tiene que
+correr en un Job único antes del rollout (`docker/k8s/bootstrap-job.yaml` es la plantilla). Mientras no esté, con más de
+una réplica cada pod sigue migrando.
+
+## Pendientes / a definir
+
+- **Sumar el job al ruleset** cuando acumule corridas, junto con `Motor real` (R-11): se tocan
+  `docs/internal/rulesets/ruleset-development.json` y `CHECKS_OBLIGATORIOS` de `core/tests/test_gates_ci.py` en el mismo
+  PR. Hoy ninguno de los dos es obligatorio.
+- `.claude/agents/chaco-dev-reviewer.md` no se pudo escribir desde la sesión del implementador: el bloque de
+  expand/contract para el revisor va en el cuerpo del PR y lo aplica el juez.
+- Cuando exista `DB_READ_TIMEOUT` (OPS-05, R-15), borrar `.github/ci/settings_roundtrip.py` y declarar los dos timeouts
+  por `env:`. Cuando exista `verificar_esquema_migraciones` (OPS-01, R-15), agregarlo como último paso del orquestador.
+  Cuando exista el tag de release (RED-16, R-15), se puede sumar una corrida nocturna contra la release anterior de
+  verdad, además de la base del PR.
+- El límite del gate (b): cambiarle el cuerpo a un `RunPython` de una migración ya aplicada no se ve, porque
+  `sqlmigrate` lo imprime como comentario.
+- Los dos tests de migración de `programas` seguirán con el registro vivo mientras la suite arme el esquema desde los
+  modelos. Si alguna vez corre con migraciones reales (lo que ya hace `Motor real`), se pueden convertir.
+
+## Reversión
+
+1. Revertir el commit. Desaparecen el job y los dos gates nuevos; el gate estático `check_migraciones.py` del Cambio 135
+   sigue en pie, así que las migraciones nuevas no quedan sin ninguna verificación: quedan sin la de ejecución.
+2. No hay datos involucrados ni esquema que deshacer: nada de esto escribe en ninguna base de ningún ambiente.
+3. Lo que **no** vuelve solo: si entre medio se mergeó una migración apoyada en el chequeo de columnas obligatorias —una
+   que pasa una columna a `NOT NULL` y quedó declarada con `# ROLLBACK-OK:`—, nadie vuelve a verificarla. Y las
+   plantillas de Kubernetes vuelven a recomendar que cada pod migre: si ECOM ya aplicó `RUN_MIGRATIONS=false` y el Job,
+   el manifiesto queda más al día que el repo.
+
+## Historial
+
+- **06/10/2026** — la auditoría registra RED-17 (nada se prueba hacia atrás ni sobre datos) y RED-19 (cada pod migra).
+- **06/10/2026** — el Cambio 135 deja anotados los dos agujeros que el gate estático no puede tapar.
+- **06/10/2026 (este cambio)** — el job corre la ida y la vuelta sobre datos contra los dos motores de producción, y los
+  dos agujeros quedan tapados.
 
 ---

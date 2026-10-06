@@ -73,6 +73,33 @@ liberarlos mandaría una tercera alta. Todos quedan listados y con una traza en 
 
 ---
 
+## Estado al 06-oct-2026 (Ola R: R-13, migraciones ida y vuelta contra el motor real)
+
+| PR | Cambio | Fichas | Estado | Qué quedó abierto |
+|---|---|---|---|---|
+| R-13 migraciones ida y vuelta (#NNN) | 139 | RED-17, RED-19 | ✅ ✅ | Job **`Migrate ida y vuelta (<motor>)`** en `pr-performance.yml`: ida hasta la base del PR con el código de la base, `seed_perf --scale 200`, ida del PR **sobre filas**, vuelta app por app, ida de nuevo y `migrate --check`, contra `mariadb:10.11` (sin tablas de zona horaria) y `mysql:8.0`. Tapa los **dos agujeros** que el Cambio 135 le dejó anotados: el `AlterField` que vuelve obligatoria una columna (`manage.py verificar_columnas_obligatorias`, foto de `information_schema` antes y después) y la edición de una migración ya aplicada (`scripts/check_sqlmigrate.py`). Un solo migrador en Kubernetes (`RUN_MIGRATIONS=false` en el web, `bootstrap-job.yaml`) y la regla expand/contract en `CLAUDE.md`. **No entra al ruleset todavía**, igual que `Motor real` |
+
+**Por qué no es obligatorio todavía.** Es el job más caro del repo —`migrate` desde cero más la semilla, por motor— y
+nunca corrió en el CI: el precedente de R-11 es el bueno, entra al ruleset cuando acumule corridas y entonces se tocan
+`ruleset-development.json` y `CHECKS_OBLIGATORIOS` en el mismo PR. Lo que sí cambia respecto del Anexo B es que **no**
+nace con `continue-on-error`: un rojo suyo es información desde el primer día, y como no es obligatorio no traba el
+merge. Medición local (Windows + Docker Desktop, que penaliza cada ida y vuelta al contenedor): MariaDB 10.11 desde cero
+**2 min 30 s**, MySQL 8.0 desde cero **10 min**, y ~1 min con la base ya migrada. `timeout-minutes: 25`.
+
+**Lo que se midió y corrige a las fichas.** «La release anterior» es la **base del PR**, no un tag: RED-16 no existe y,
+además, la base es la referencia que ya usa `check_migraciones.py`, así que los dos gates miden el mismo conjunto. Son
+**dos** motores y no tres. Y el punto (2) de RED-17 —los tests de migración con el registro histórico— entra solo en los
+dos archivos de `users`: en los de `programas` el registro de entonces escribe un `INSERT` sin
+`umbral_disponibilidad_verde`, que hoy es `NOT NULL`, porque la suite arma el esquema desde los modelos de hoy. Ese
+`IntegrityError` es RED-14 visto desde adentro y queda escrito en los dos archivos.
+
+**Pendiente operativo que deja este PR (PM):** ninguno de deploy (no hay migraciones ni cambios de runtime). Dos cosas
+para el juez/PM: aplicar el bloque de expand/contract en `.claude/agents/chaco-dev-reviewer.md` (va en el cuerpo del PR;
+la sesión del implementador no tiene permiso de escritura ahí) y, cuando el job acumule corridas, sumarlo al ruleset
+junto con `Motor real`. El manifiesto de Kubernetes con `RUN_MIGRATIONS=false` y el Job hay que pedírselo a ECOM (H-05).
+
+---
+
 ## Estado al 06-oct-2026 (Ola R: R-12, contrato de migraciones)
 
 | PR | Cambio | Fichas | Estado | Qué quedó abierto |
@@ -1118,7 +1145,10 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
 - **✅ R-12 cerrado el 06-oct-2026 (#591, Cambio 135), 18 h.** El contrato de migraciones: gate `check_migraciones.py` en
   `Migration Check`, reversas declaradas (y tres barreras nuevas), reversa UUID normalizada, «Reversión» exigida en
   `requerimientos.py --check` y ratchet de índices redundantes. Habilita **R-13** y protege toda migración nueva.
-- **Quedan 130 h:** R-13, R-15 a R-18, R-20 y R-21. El orden sigue siendo el de dependencias: **R-13, R-15 y
+- **✅ R-13 cerrado el 06-oct-2026 (Cambio 139), 14 h.** El job `Migrate ida y vuelta` corre las migraciones del PR
+  contra `mariadb:10.11` (sin tablas de zona horaria) y `mysql:8.0` sobre datos sembrados, las desaplica y las vuelve a
+  aplicar; y tapa los dos agujeros del gate estático. Desbloquea la **Ola 3** (G1-04, G1-05, DAT-01).
+- **Quedan 116 h:** R-15 a R-18, R-20 y R-21. El orden sigue siendo el de dependencias: **R-15 y
   R-16 antes de la Ola 3**, R-21 antes de la Ola 2.
 - **Objetivo:** poder cambiar código sin romper nada sin enterarse. Que todo lo que las Olas 1 a 7 van a tocar tenga antes
   un test que se ponga rojo si se rompe, que el CI pruebe el motor de producción (MariaDB) y las migraciones en las dos
@@ -1143,7 +1173,7 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
 | ✅ R-10 | **Motor y forma del SQL:** RED-07 (`core/tests/test_sql_motor_real.py` + `_sql_mysql` corregido), RED-08, RED-09 — **#550, Cambio 125** | 10 | Olas 1, 3 y 5 (DIS-01) |
 | ✅ R-11 | **Motor real en CI:** TST-01 (matriz `mariadb:10.11`/`mariadb:11`/`mysql:8.0` + `test --tag mysql`; ampliado) — **Cambio 130** (cierra también la capa 2 de RED-67) | 8 | R-13, Ola 3 |
 | ✅ R-12 | **Contrato de migraciones:** RED-14 (`scripts/check_migraciones.py`, columnas que toleran código viejo), RED-57 (reversas declaradas), RED-18 (reversa UUID), RED-84 (`Reversión` en `--check`), RED-83 (índices redundantes, ratchet) — **#591, Cambio 135** (RED-83 🟡: la migración es de la Ola 4) | 18 | toda migración nueva |
-| R-13 | **Job `migration-roundtrip`** (Anexo B): RED-17, RED-19 (un solo migrador, expand/contract) | 14 | Ola 3 (G1-04, G1-05, DAT-01) |
+| ✅ R-13 | **Job `migration-roundtrip`** (Anexo B): RED-17, RED-19 (un solo migrador, expand/contract) — **#NNN, Cambio 139**; cierra además los dos agujeros que el Cambio 135 le dejó anotados (el `AlterField` que vuelve obligatoria una columna y la edición de una migración ya aplicada). **No es obligatorio todavía**, igual que `Motor real` | 14 | Ola 3 (G1-04, G1-05, DAT-01) |
 | ✅ R-14 | **Gates del release:** RED-24 (`Contratos del repo`), RED-21 (`publish-main` exige CI verde), RED-65, RED-23 (`release-gate.yml` + `/pushGitLabecom` en dos), RED-22 (propuesta a ECOM) — **#575, Cambio 128** (RED-22 y RED-23 🟡: falta el envío a ECOM y copiar los dos comandos a `.claude/`) | 22 | el próximo espejo a ECOM |
 | R-15 | **Operación y deploy** (desde la Ola 3): OPS-03, OPS-04, OPS-01 (ampliados), RED-59 (`deploy_prod.sh`), RED-16 (tag de release), RED-55 | 18 | el próximo deploy en icore |
 | R-16 | **Becas: adjuntos, borrados, atomicidad, padrón:** RED-05, RED-31, RED-35, RED-77, RED-49, RED-50, RED-81, RED-70 | 22 | Ola 3 (DAT-01, BEC-*), SEC-20 |
@@ -1158,8 +1188,9 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
   estado por ficha y lo que quedó operativo en «Estado al 04-oct-2026», arriba). **R-19 también está cerrado**
   (#556, Cambio 126, 21 h): era el urgente de la ola, y **R-14 también** (#575, Cambio 128, 22 h: los gates del
   release, antes del próximo espejo a ECOM), **R-11** (Cambio 130, 8 h: el motor real en el CI, que desbloquea R-13)
-  y **R-12** (Cambio 135, 18 h: el contrato de migraciones, que habilita R-13 y protege toda migración nueva).
-  **Quedan 130 h de la Ola R:** R-13, R-15 y R-16 antes de la Ola 3; R-21 antes de la Ola 2. El resto puede ir en
+  y **R-12** (Cambio 135, 18 h: el contrato de migraciones, que habilita R-13 y protege toda migración nueva) y
+  **R-13** (Cambio 139, 14 h: la ida y vuelta contra el motor real, que desbloquea la Ola 3).
+  **Quedan 116 h de la Ola R:** R-15 y R-16 antes de la Ola 3; R-21 antes de la Ola 2. El resto puede ir en
   paralelo con otro implementador.
 - **Hecho cuando (verificable):**
   1. `gh api repos/Mkdir-arg/Chaco-Back/rulesets` lista los rulesets de `development` y `main`; un push directo a
@@ -1170,7 +1201,12 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
      sesión de backoffice.
   4. V-STD con la suite completa en verde, con los tests nuevos de cada ficha (los `expectedFailure` nombran su ficha).
   5. Los jobs `Contratos del repo`, `Contratos de API`, `Ruff errores` y `Sin datos personales` existen y son obligatorios; el
-     job `migration-roundtrip` corre en los tres motores (con `continue-on-error` hasta D-RED-03).
+     job `Migrate ida y vuelta` corre las migraciones hacia adelante y hacia atrás sobre datos contra los motores de
+     producción. **Ajustado por el PR R-13 (Cambio 139):** son **dos** motores y no tres (`mariadb:10.11` y `mysql:8.0`;
+     `mariadb:11` no corre en ningún ambiente y `Motor real` ya lo cubre hacia adelante) y **sin** `continue-on-error`
+     —D-RED-03 se decidió con el job midiendo de verdad, porque las dos razones que pedían el amarillo (RED-18 y las
+     barreras sin declarar) las cerró el Cambio 135—. Lo que sí queda pendiente es sumarlo al ruleset cuando acumule
+     corridas, igual que `Motor real`.
   6. **Re-correr la prueba de mutación** (catálogo de RS-R7, 49 mutaciones): las 12 supervivientes (M11, M14, M17, M19, M21,
      M23, M27, M33, M34, M43, M44, M49) ahora las detecta al menos un test; M21 y M43 por el contrato de candados (RED-67).
   7. `processes.md` tiene el runbook del Anexo D y no menciona `--fake`; `publish-main.yml` falla ante un commit que no viene
