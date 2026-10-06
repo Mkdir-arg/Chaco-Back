@@ -3,7 +3,7 @@
 **Golden (la única que se clona):** `programas/templates/programas/becas/config/segmento_form.html`
 (29 líneas) + el include de campo `programas/templates/programas/becas/_field.html`.
 **Marcadores:** `scripts/design_audit.py --arquetipo formulario <archivo>`.
-**Componentes:** page_header · field · alerta · botones_badges.
+**Componentes:** page_header · field · form_errores · alerta · botones_badges.
 
 No hay golden secundaria. La variante con `fieldset` por tipo es una regla de esta ficha.
 
@@ -30,12 +30,7 @@ Modal. Si el usuario carga muchas filas de lo mismo, no es este arquetipo: fren�
   {% endwith %}
   <form method="post" class="bg-white rounded-xl border border-base shadow-sm p-6">
     {% csrf_token %}
-    {% if form.non_field_errors %}
-      <div class="mb-4 rounded-lg bg-danger-soft border border-danger-subtle p-4 text-sm" role="alert">
-        <strong class="text-heading">Revisá el formulario</strong>
-        <div class="text-body mt-1">{{ form.non_field_errors }}</div>
-      </div>
-    {% endif %}
+    {% include "components/_form_errores.html" %}
     {% for field in form %}{% include "programas/becas/_field.html" %}{% endfor %}
     <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-light">
       <a href="{% url '<app>:<lista>' %}" class="btn-nodo btn-tertiary btn-base">Cancelar</a>
@@ -77,13 +72,13 @@ desde `INPUT_CLASS` de `programas/forms.py`: el template no agrega clases a los 
   `block text-sm font-medium text-heading mb-1` y lo rinde el include de campo.
 - `<style>`, `style=`, paleta cruda, SVG inline.
 - Resolver reglas de negocio o permisos en el template.
+- `{{ form.non_field_errors }}` escrito a mano: la pieza es `components/_form_errores.html`.
 
 ## Deuda conocida de la golden
 
-`{{ form.non_field_errors }}` está escrito a mano y el include de campo todavía no emite
-`aria-describedby` / `aria-invalid`. Está previsto moverlo a una pieza
-`components/_form_errores.html`; hasta que exista, **se copia tal cual** y no se inventa otra
-forma. `user/_alta_rapida_modal.html` que la golden incluye es **de dominio**: no se copia.
+El include de campo todavía no emite `aria-describedby` / `aria-invalid` (FE-08 cerró la
+otra mitad: los errores generales ya salen de `components/_form_errores.html`).
+`user/_alta_rapida_modal.html` que la golden incluye es **de dominio**: no se copia.
 
 ## Checklist (la usa el revisor)
 

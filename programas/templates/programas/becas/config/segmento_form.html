@@ -12,12 +12,7 @@
   {% endwith %}
   <form method="post" class="bg-white rounded-xl border border-base shadow-sm p-6">
     {% csrf_token %}
-    {% if form.non_field_errors %}
-      <div class="mb-4 rounded-lg bg-danger-soft border border-danger-subtle p-4 text-sm" role="alert">
-        <strong class="text-heading">Revisá el formulario</strong>
-        <div class="text-body mt-1">{{ form.non_field_errors }}</div>
-      </div>
-    {% endif %}
+    {% include "components/_form_errores.html" %}
     {% for field in form %}{% include "programas/becas/_field.html" %}{% if field.name == "coordinador" and request.user|puede:"becas.programa.administrar" %}<button type="button" data-quick-user="coordinador" data-user-select="#{{ field.id_for_label }}" class="btn-nodo btn-tertiary btn-sm mb-3"><i class="fas fa-user-plus" aria-hidden="true"></i> Crear coordinador</button>{% endif %}{% endfor %}
     <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-light">
       <a href="{% url 'becas:segmentos' %}" class="btn-nodo btn-tertiary btn-base">Cancelar</a>

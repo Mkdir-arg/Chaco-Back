@@ -124,12 +124,14 @@ jobs:
         run: pip install -r requirements.txt
 
       # Caza tags rotos que `manage.py check` no ve: un `{% endfor %}` de más vive en el
-      # repo hasta que alguien entra a esa pantalla.
+      # repo hasta que alguien entra a esa pantalla. `--bloques` suma FE-05: un
+      # `{% block %}` que ningún ancestro declara compila igual y Django lo descarta en
+      # silencio, así que su JS no llega nunca al navegador.
       - name: Sintaxis de todos los templates
         env:
           DJANGO_SECRET_KEY: ci-test-key-not-a-real-secret
           PYTEST_RUNNING: "1"
-        run: python scripts/compile_templates.py
+        run: python scripts/compile_templates.py --bloques
 
       - name: Coherencia del archivo de requerimientos
         env:

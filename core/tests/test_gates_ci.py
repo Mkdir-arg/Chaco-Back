@@ -441,7 +441,7 @@ class ContratosDelRepoTests(SimpleTestCase):
 
     def test_corre_las_cuatro_condiciones_de_cierre(self):
         for comando in (
-            "scripts/compile_templates.py",
+            "scripts/compile_templates.py --bloques",
             "scripts/requerimientos.py --check",
             "manage.py collectstatic",
             "scripts/design_audit.py",
