@@ -19307,8 +19307,9 @@ crea y destruye su propia base en un contenedor efímero del runner, y el comand
   y Redis 7 (6382), borrados al terminar; no se tocó ninguno de los puertos del banco de performance ni de las otras
   sesiones.
 - Secuencia completa en verde en los dos motores, con un worktree de `origin/development` como árbol de la base.
-  Duración: MariaDB desde cero **2 min 30 s**, MySQL desde cero **10 min** (Windows + Docker Desktop penaliza cada ida y
-  vuelta al contenedor; el runner de Actions es Linux con el servicio en localhost), ~1 min con la base ya migrada.
+  Duración local: MariaDB desde cero **2 min 30 s**, MySQL desde cero **10 min** (Windows + Docker Desktop penaliza cada
+  ida y vuelta al contenedor), ~1 min con la base ya migrada. **En el CI del PR #596 los dos dieron en verde: 1 m 36 s
+  (MariaDB 10.11) y 1 m 51 s (MySQL 8.0)**, con el `migrate` desde cero en ~20 s y la semilla en ~17 s.
 - **Los dos agujeros, demostrados contra el motor**, con una rama de prueba descartable: un
   `ALTER TABLE programas_formulario MODIFY datos_identificacion longtext NOT NULL` sobre las 200 filas sembradas sale
   como hallazgo del comando nuevo y `scripts/check_migraciones.py` no dice una palabra; subirle de 40 a 50 el

@@ -115,8 +115,9 @@ liberarlos mandaría una tercera alta. Todos quedan listados y con una traza en 
 nunca corrió en el CI: el precedente de R-11 es el bueno, entra al ruleset cuando acumule corridas y entonces se tocan
 `ruleset-development.json` y `CHECKS_OBLIGATORIOS` en el mismo PR. Lo que sí cambia respecto del Anexo B es que **no**
 nace con `continue-on-error`: un rojo suyo es información desde el primer día, y como no es obligatorio no traba el
-merge. Medición local (Windows + Docker Desktop, que penaliza cada ida y vuelta al contenedor): MariaDB 10.11 desde cero
-**2 min 30 s**, MySQL 8.0 desde cero **10 min**, y ~1 min con la base ya migrada. `timeout-minutes: 25`.
+merge. **Medido en el CI de este PR, con los dos en verde: 1 m 36 s (MariaDB 10.11) y 1 m 51 s (MySQL 8.0)**, con el
+`migrate` desde cero en ~20 s y `seed_perf --scale 200` en ~17 s. En la máquina del implementador (Windows + Docker
+Desktop, que penaliza cada ida y vuelta al contenedor) eran 2 min 30 s y 10 min. `timeout-minutes: 25`.
 
 **Lo que se midió y corrige a las fichas.** «La release anterior» es la **base del PR**, no un tag: RED-16 no existe y,
 además, la base es la referencia que ya usa `check_migraciones.py`, así que los dos gates miden el mismo conjunto. Son
