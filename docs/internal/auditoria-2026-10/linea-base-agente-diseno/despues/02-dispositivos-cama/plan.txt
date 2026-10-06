@@ -1,0 +1,24 @@
+Plan de pantalla declarado por chaco-frontend ANTES del primer Write (literal):
+
+Tipo: B · Arquetipo: Detalle · Golden: programas/templates/programas/becas/cupo/segmento_detail.html
+Hermana (solo dominio): programas/templates/programas/dispositivos/legajo/detail.html
+  (+ parciales de badge del modulo: _cama_estado_badge.html, modelo Cama/Admision/RegistroDiario)
+Bloques: header (page_header, volver al dispositivo, migas 3 niveles, badge estado de la cama,
+  accion Editar btn-sm) · metricas (3 stat cards) · tabs=Datos,Movimientos,Partes ·
+  tabla Movimientos (paginada) · tabla Partes (acotada, sin paginacion) · vacio x2 · paginacion x1
+Vista (descripta, no escrita): cama con select_related(dispositivo, dispositivo__tipo); stats
+  (total_movimientos, noches_30d, total_partes) calculados en la vista; movimientos =
+  Admision.objects.filter(cama=cama).select_related("ciudadano").order_by("-fecha_ingreso"),
+  paginate_by; partes = RegistroDiario.objects.filter(dispositivo=cama.dispositivo)
+  .select_related("firmado_por").order_by("-fecha","turno")[:15]; ocupante_actual =
+  Admision alojada vigente en esa cama; puede_editar = puede_operar_dispositivo(user,
+  dispositivo, "dispositivo.editar"); migas armadas en la vista (Dispositivos -> nombre ->
+  "Cama <codigo>")
+Novedades: ninguna
+
+Golden declarada = golden de la tabla `## Arquetipos` del nucleo: SI.
+
+Nota del implementador: la ficha `.claude/design/arquetipos/detalle.md` advierte que
+`components/_paginacion.html` sirve para UNA sola lista paginada por pantalla y que una segunda
+es novedad. Por eso solo la solapa Movimientos pagina; Partes se acota en la vista con slicing.
+La ficha evito que el agente inventara una segunda paginacion.

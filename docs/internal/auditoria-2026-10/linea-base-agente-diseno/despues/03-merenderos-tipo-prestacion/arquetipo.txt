@@ -1,0 +1,1 @@
+despues/03-merenderos-tipo-prestacion/tipo_prestacion_form.html: arquetipo «formulario» — OK

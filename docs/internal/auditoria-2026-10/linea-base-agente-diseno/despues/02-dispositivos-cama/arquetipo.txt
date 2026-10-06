@@ -1,0 +1,1 @@
+despues/02-dispositivos-cama/cama_detail.html: arquetipo «detalle» — OK

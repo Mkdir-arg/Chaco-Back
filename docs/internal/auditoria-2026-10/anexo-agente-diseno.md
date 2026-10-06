@@ -668,3 +668,50 @@ borrar. L97-110 → pasos 9-10 de §6.
 ICONARIA, más el arreglo del `\|`) → 3 (listado y formulario) → 4 (núcleo, protocolo y fichas de listado, formulario y
 page_header) → 6 (solo pantallas 1 y 3). **Tiene que estar hecho antes de la primera task de pantalla de la v2 de
 Dispositivos y Merenderos.**
+
+---
+
+## 10. Resultado de la implementación (cierre de la Ola 6)
+
+Esta sección cierra el anexo: lo de arriba es la especificación tal como se escribió, lo de acá es lo que pasó al
+ejecutarla. Los ocho pasos se implementaron completos, en cuatro PRs:
+
+| Paso | PR | Cambio | Estado |
+|---|---|---|---|
+| 0 línea base · 1 decisiones D1-D5 · 2 herramientas | #574 | 129 | ✅ |
+| 3 sanear las goldens | #577 | 131 | ✅ |
+| 4 reescribir el agente · 5 consumidores | #579 | 132 | ✅ |
+| 6 ejercicio de control «después» · 7 registro | este PR | 137 | ✅ (con un pendiente del PM) |
+
+**Nada de §2.2 se implementó**, que era el punto: los recortes se sostuvieron. Y **ninguna regla de fase 2 se activó**
+(§7), porque el ejercicio de control no mostró ningún desvío de diseño que las P1 no atraparan.
+
+### El ejercicio de control dio el resultado que el anexo pedía
+
+Evidencia completa en [`linea-base-agente-diseno/`](linea-base-agente-diseno/README.md), que ahora guarda las dos
+mitades. Las tres pantallas cumplen **al primer intento**: Plan de pantalla como artefacto antes del primer `Write`,
+la golden correcta en las tres, 0 P1, `--arquetipo` OK, `--ratchet` 0 nuevos y el revisor independiente aprobando las
+tres. Antes fallaban las tres, cada una por un motivo distinto, y ninguna usaba la golden de su arquetipo.
+
+Las tres piezas que cerraron las tres fallas no son la misma, y conviene no confundirlas:
+
+- La **tabla `## Arquetipos` + el Plan de pantalla** sacó el azar del molde (pantalla 1: antes acertaba porque le tocó
+  mirar una hermana limpia).
+- La **regla «la hermana nunca es molde» + el esqueleto literal de la ficha** cerró el caso que motivó la ola
+  (pantalla 2: antes clonaba `dispositivos/legajo/detail.html` con su deuda entera; ahora 0 P1 y ARIA completo).
+- Una **fila del inventario** —declarar transversal el include de campo— cerró la pantalla 3, que daba **0 P1 en los
+  dos casos**. Es la confirmación directa de la premisa del anexo: el gate de token no alcanza.
+
+### Lo único que la fase 2 no habría atrapado
+
+El revisor encontró un solo desvío en las tres pantallas: un `|length` sobre un queryset en un texto informativo
+(pantalla 2), con el contador ya resuelto en la vista. No es de diseño —no hay clase, token ni estructura de por
+medio— y **ninguna regla de la fase 2 lo cubriría**: es una regla de desarrollo front, y vive donde tiene que vivir,
+en el método del revisor, que lo cazó. Por eso no se activó ninguna regla de `design_audit`.
+
+### Pendiente, y es del PM
+
+El criterio (e) del paso 6 —captura lado a lado con la golden a 1440 y 390 px que el PM acepte como «mismo sistema»—
+**no se tomó**: necesita el harness Playwright, que es local y no está commiteado, y necesita al PM. Los otros cuatro
+criterios del paso 6 se cumplen los cuatro. Las pantallas del ejercicio quedan como evidencia en `despues/`, no se
+mergean como producto y no tienen vista, URL ni modelo escritos.
