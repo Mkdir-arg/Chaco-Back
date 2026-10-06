@@ -466,17 +466,29 @@ class CssCompiladoAlDiaTests(SimpleTestCase):
     DEUDA = {
         # Paleta cruda de Tailwind: la escala `gray` está pisada a propósito en
         # `tailwind.config.js` (no se agrega al build; se migra a color semántico).
-        # Las gobierna la regla P1 RAWPALETTE y su ratchet. FE-06 las sacó de todas
-        # las pantallas vivas en alcance; las que quedan son de las dos superficies
-        # que el anexo deja afuera (lista D): Conversaciones, que se va entera con
-        # G1-01 fase 2, y el portal (`portal-effects.js`).
+        # Las gobierna la regla P1 RAWPALETTE y su ratchet. FE-06 las sacó de **todos
+        # los templates del backoffice**; estos cinco usos son los que quedan, cada uno
+        # con su dueño:
+        #
+        #   bg-gray-50, bg-gray-600  Conversaciones (`configurar_cola.html`, `lista.html`),
+        #                            que se apaga entera con G1-01 fase 2.
+        #   bg-gray-200, bg-gray-900 `static/custom/js/portal-effects.js` (portal ciudadano;
+        #                            el tooltip queda texto blanco sobre transparente).
+        #   hover:bg-gray-50         JS de Conversaciones y de alertas: FE-25
+        #                            (`alertas_websocket.js`) y FE-14 (`alertas_conversaciones_simple.js`).
+        #   bg-gray-100              `legajos/forms/ciudadanos.py` y `legajos/models/base.py`.
+        #                            **No** se tocaron en FE-06 a propósito: el primero es el
+        #                            bloque `_FLOWBITE_*_CSS` entero del formulario del
+        #                            ciudadano (su reemplazo es `nodo-field`, FE-11/FE-12) y el
+        #                            segundo es un mapa estado→clase dentro del modelo, que por
+        #                            el inventario va en el parcial de badges del módulo (FE-12).
+        #                            Cambiarles la clase sola los deja igual de fuera de canon.
         "bg-gray-50",
         "bg-gray-100",
         "bg-gray-200",
         "bg-gray-600",
         "bg-gray-900",
         "hover:bg-gray-50",
-        "hover:bg-gray-100",
         # Bootstrap/AdminLTE heredado, con la forma justa para parecer utilidad.
         # Se van con FE-20 (403/404/500 y el shell legacy) y FE-14.
         "bg-info",

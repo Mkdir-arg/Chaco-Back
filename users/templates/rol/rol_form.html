@@ -32,7 +32,7 @@
                     <label class="block text-sm font-medium text-gray-700 mb-2">Programa</label>
                     {% if form.programa_fijo %}
                         <input type="hidden" name="programa" value="{{ form.programa_fijo.pk }}">
-                        <div class="px-3 py-2 bg-gray-100 rounded-md text-gray-700"><i class="fas fa-folder mr-1"></i>{{ form.programa_fijo.nombre }}</div>
+                        <div class="px-3 py-2 bg-tertiary rounded-md text-body"><i class="fas fa-folder mr-1"></i>{{ form.programa_fijo.nombre }}</div>
                     {% else %}
                         {{ form.programa }}
                     {% endif %}
@@ -324,7 +324,7 @@ document.addEventListener('DOMContentLoaded', function () {
             searchEmpty.classList.toggle('hidden', matches.length > 0);
             matches.forEach(function (item) {
                 var clone = item.labelEl.cloneNode(true);
-                clone.classList.add('p-1', 'rounded', 'hover:bg-gray-50');
+                clone.classList.add('p-1', 'rounded', 'hover:bg-secondary');
                 // Sincronizar el checkbox clonado con el original
                 var cloneChk = clone.querySelector('input[type=checkbox]');
                 if (cloneChk) {

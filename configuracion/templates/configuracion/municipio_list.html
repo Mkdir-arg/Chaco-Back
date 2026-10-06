@@ -74,7 +74,7 @@
                 </tr>
 
                 {# Modal Editar por fila — arquetipo Modal (FE-07) #}
-                {% with titulo_id="titulo-editar-muni-"|add:municipio.pk|stringformat:"s" %}
+                {% with pk_texto=municipio.pk|stringformat:"s" %}{% with titulo_id="titulo-editar-muni-"|add:pk_texto %}
                 <template x-if="modalEditarPk === {{ municipio.pk }}">
                     <div x-becas-modal="modalEditarPk" class="fixed inset-0 z-50 flex items-center justify-center p-4">
                         <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="cerrarEditar()"></div>
@@ -118,7 +118,7 @@
                         </div>
                     </div>
                 </template>
-                {% endwith %}
+                {% endwith %}{% endwith %}
                 {% endfor %}
             </tbody>
         </table>

@@ -19,10 +19,15 @@ cinco pantallas para que el gate viva también adentro de la suite.
 """
 
 import importlib.util
+import re
 from pathlib import Path
 
 from django.conf import settings
-from django.test import SimpleTestCase
+from django.test import SimpleTestCase, TestCase
+from django.urls import reverse
+
+from configuracion.tests.test_configuracion_ola5 import usuario_con
+from core.models import Localidad, Municipio, Provincia, Secretaria, Subsecretaria
 
 _SPEC = importlib.util.spec_from_file_location(
     "design_audit", Path(__file__).resolve().parents[2] / "scripts" / "design_audit.py"
@@ -114,6 +119,80 @@ class ModalesDeConfiguracionTests(SimpleTestCase):
                 self.assertEqual(texto.count('role="dialog"'), 2)
                 self.assertEqual(texto.count('aria-modal="true"'), 2)
                 self.assertEqual(texto.count('aria-labelledby="'), 2)
+
+
+class ModalesRenderizadosTests(TestCase):
+    """Lo que llega al navegador, no lo que dice el template.
+
+    El `aria-labelledby` del modal de edición se armaba con
+    `"titulo-editar-x-"|add:objeto.pk|stringformat:"s"`, y `add` con un `int` del
+    lado derecho **devuelve cadena vacía**: Django intenta `int("titulo-editar-x-")`,
+    falla, prueba la concatenación, falla de nuevo y se traga el error. El diálogo
+    quedaba con `aria-labelledby=""` y su título con `id=""`: para un lector de
+    pantalla, un diálogo sin nombre. En el HTML del template no se ve.
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.provincia = Provincia.objects.create(nombre="Chaco")
+        cls.municipio = Municipio.objects.create(nombre="Resistencia", provincia=cls.provincia)
+        Localidad.objects.create(nombre="Barranqueras", municipio=cls.municipio)
+        cls.secretaria = Secretaria.objects.create(nombre="Secretaría de Desarrollo Social")
+        Subsecretaria.objects.create(nombre="Subsecretaría de Niñez", secretaria=cls.secretaria)
+
+    def setUp(self):
+        self.client.force_login(usuario_con("config.administrar", username="cfg-modales"))
+
+    @staticmethod
+    def _ids_y_referencias(html):
+        return (
+            {m for m in re.findall(r'\bid="([^"]*)"', html)},
+            re.findall(r'\baria-labelledby="([^"]*)"', html),
+        )
+
+    def test_cada_dialogo_tiene_un_nombre_accesible_que_existe(self):
+        """Dos diálogos propios por pantalla (alta y edición), con su título real.
+
+        El tercer `aria-labelledby` de la página es el `ModernModal` del shell
+        (`modal-title`), que también entra en la verificación de que la referencia
+        existe y no está vacía.
+        """
+        for ruta in (
+            "configuracion:provincias",
+            "configuracion:municipios",
+            "configuracion:localidades",
+            "configuracion:secretarias",
+            "configuracion:subsecretarias",
+        ):
+            with self.subTest(ruta=ruta):
+                html = self.client.get(reverse(ruta)).content.decode()
+                ids, referencias = self._ids_y_referencias(html)
+                propias = [r for r in referencias if r.startswith("titulo-")]
+
+                self.assertEqual(len(propias), 2, f"alta y edición; referencias={referencias}")
+                self.assertNotIn("", referencias, "aria-labelledby vacío: diálogo sin nombre")
+                self.assertEqual(len(set(referencias)), len(referencias), "dos diálogos comparten el nombre")
+                for referencia in referencias:
+                    self.assertIn(referencia, ids, f"{referencia} no existe como id en la página")
+
+    def test_el_titulo_del_modal_de_edicion_no_queda_sin_id(self):
+        """Regresión directa del `|add:` con `int`: `<h3 id="">`."""
+        html = self.client.get(reverse("configuracion:localidades")).content.decode()
+
+        self.assertNotIn('id=""', html)
+        self.assertNotIn('aria-labelledby=""', html)
+
+    def test_el_id_del_modal_de_edicion_lleva_la_pk_de_la_fila(self):
+        """Con varias filas, cada modal tiene que nombrarse distinto."""
+        for i in range(3):
+            Localidad.objects.create(nombre=f"Localidad {i}", municipio=self.municipio)
+
+        html = self.client.get(reverse("configuracion:localidades")).content.decode()
+        _, referencias = self._ids_y_referencias(html)
+        de_edicion = [r for r in referencias if r.startswith("titulo-editar-")]
+
+        self.assertEqual(len(de_edicion), 4)
+        self.assertEqual(len(set(de_edicion)), 4, "los modales de edición comparten el id")
 
 
 class SubitemsDelSidebarTests(SimpleTestCase):

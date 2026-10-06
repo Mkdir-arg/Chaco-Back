@@ -238,7 +238,7 @@
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
                         {% for alerta in alertas_conversaciones %}
-                        <tr class="hover:bg-gray-50 {% if not alerta.vista %}bg-blue-50{% endif %}">
+                        <tr class="hover:bg-secondary {% if not alerta.vista %}bg-blue-50{% endif %}">
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <div class="flex items-center">
                                     <i class="fas fa-comment-dots text-blue-500 mr-2"></i>

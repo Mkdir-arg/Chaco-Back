@@ -20152,8 +20152,10 @@ El `<html>` pierde su `bg-gray-50` (el canvas lo da `--fondo-principal`); el bac
 `bg-red-600`) a `btn-nodo btn-brand btn-base` y `btn-nodo btn-danger btn-base`; los «Volver» de las tres
 pantallas `*_contactos_simple` a `btn-nodo btn-secondary btn-sm` con `fa-arrow-left`; los fondos `bg-gray-50`
 de los formularios de Legajos a `bg-secondary`; los rieles de progreso a `bg-tertiary`; `border-fg-brand` a
-`border-brand`, `divide-border` a `divide-light` y `badge-nodo` a `badge`. La deuda de
-`CssCompiladoAlDiaTests` baja de 22 clases a 7.
+`border-brand`, `divide-border` a `divide-light` y `badge-nodo` a `badge`. **Ningún template del backoffice
+nombra ya una clase que el build no genere**; la deuda de `CssCompiladoAlDiaTests` baja de 22 clases a 6 y
+cada una queda anotada con su dueño en el comentario del test (Conversaciones, el portal, FE-25 y FE-14, y
+los dos usos de Python de Legajos que son FE-11/FE-12).
 
 **FE-07 — los diez modales clonan la golden.** Overlay
 `x-show + x-cloak + x-becas-modal class="fixed inset-0 z-50 flex items-center justify-center p-4"` sin
@@ -20163,8 +20165,13 @@ de los formularios de Legajos a `bg-secondary`; los rieles de progreso a `bg-ter
 el tamaño de los botones— y `becas-modal.js` en `customJS`, que da foco inicial, Tab atrapado, Escape y
 devolución del foco. En el modal de edición, que vive dentro de un `<template x-if>` por fila, la directiva
 toma `modalEditarPk` (truthy mientras hay fila abierta), porque la expresión tiene que ser asignable: con
-`modalEditarPk === 7` el Escape generaría `modalEditarPk === 7 = false`. Los cinco contenedores de subítems
-del sidebar y su `<nav>` dejan el `style=` por clases.
+`modalEditarPk === 7` el Escape generaría `modalEditarPk === 7 = false`. El `aria-labelledby` del diálogo
+pasa la **pk a texto antes** de concatenar (`{% with pk_texto=obj.pk|stringformat:"s" %}` y recién después
+`|add:pk_texto`): el filtro `add` con un `int` del lado derecho **devuelve cadena vacía** —Django prueba
+`int("titulo-editar-loc-")`, falla, prueba la concatenación, falla y se traga el error—, así que la primera
+versión dejaba `aria-labelledby=""` y `<h3 id="">`, o sea un diálogo sin nombre para el lector de pantalla.
+No se veía en el template: solo en la respuesta renderizada. Los cinco contenedores de subítems del sidebar
+y su `<nav>` dejan el `style=` por clases.
 
 **FE-01 — el script se borró y el área táctil bajó al CSS.** `templates/includes/base.html` ya no lo carga y
 `static/custom/js/mobile-enhancements.js` no existe más: no tenía un solo consumidor de su API
@@ -20219,11 +20226,20 @@ sidebar.
    barra de filtros de Secretarías y Subsecretarías, con `btn-nodo btn-secondary`/`btn-tertiary` y un
    `style="height:38px"` que los sostenía a mano. Es exactamente el mismo defecto que FE-07 describe para
    el pie del modal y estaba en las mismas pantallas.
+5. **`legajos/forms/ciudadanos.py` y `legajos/models/base.py` conservan su `bg-gray-100`.** Son los dos
+   únicos usos vivos de Legajos que quedan fuera del build, y los dos son bloques enteros fuera de canon
+   —el `_FLOWBITE_*_CSS` del formulario del ciudadano y un mapa estado→clase dentro del modelo—, cuyo
+   reemplazo es FE-11/FE-12. Cambiarles la clase suelta los dejaría igual de fuera de canon y escondería
+   el trabajo real. Quedan anotados con nombre y motivo en el comentario de `DEUDA`.
 
 ## Verificación
 
 - `manage.py check` sin issues; `manage.py check --deploy` con los 6 avisos preexistentes de entorno;
   `makemigrations --check --dry-run`: «No changes detected» (el PR no toca modelos).
+- **Ronda 2 de revisión:** los tests de los modales dejaron de mirar el texto del template y pasaron a
+  afirmar sobre la **respuesta renderizada** (`ModalesRenderizadosTests`): cada `aria-labelledby` de la
+  página no está vacío, es único y apunta a un `id` que existe. Era el único lugar donde el bug del `add`
+  se podía ver.
 - Suite completa en un solo proceso (Python 3.12 + Django 5.2.17, igual al CI): **2.965 tests, OK**
   (25 skips). `--tag performance`: 4 tests, OK. `ruff check .` y `ruff format` sobre lo tocado: limpio.
 - `design_audit.py --ratchet`: **0 hallazgos nuevos** en 41 archivos. `--goldens`: 0 en las 5 goldens.
@@ -20277,6 +20293,9 @@ sidebar.
    globales no las toca ninguna ficha abierta.
 4. **Conversaciones y el portal conservan sus `bg-gray-*` invisibles.** Están anotados en la lista D del
    anexo y en la deuda de `CssCompiladoAlDiaTests`; se van con G1-01 fase 2 y con el trabajo del portal.
+5. **El texto de los botones no se tocó.** El «← Volver al Dashboard» de `dashboard_contactos_simple.html`
+   conserva su copy: solo cambió la flecha de texto por el ícono Font Awesome que pide la ficha. Renombrar
+   botones es decisión de producto, no de este PR.
 
 ## Reversión
 

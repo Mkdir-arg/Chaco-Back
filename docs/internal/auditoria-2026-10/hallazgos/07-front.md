@@ -128,14 +128,23 @@ de `rol_form` a `btn-nodo btn-tertiary btn-base` (y sus acciones principales cru
 `btn-base`), los «Volver» de las tres `*_contactos_simple` a `btn-nodo btn-secondary btn-sm` con
 `fa-arrow-left`, los fondos de los formularios de Legajos a `bg-secondary`, los rieles de progreso a
 `bg-tertiary`, `bg-white/78`/`/90` a `bg-white`, `border-fg-brand` a `border-brand`, `divide-border` a
-`divide-light` y `badge-nodo` a `badge`. **Tres desvíos, los tres code-first:** (a) el indicador de WebSocket
-de `alertas_dashboard` quedó en `bg-disabled` y no en `badge badge-gray` —es un punto de 12 px sin texto, y
-un `badge` le pondría padding de píldora; es el mismo token que usa el indicador gemelo del navbar—; (b) el
-`bg-gray-500` de `legajos/reportes.html` no era un «Volver» sino el punto de color del estado «otros», así
-que quedó en `bg-gray`, token declarado en `tailwind.config.js`; (c) `divide-y divide-light` en vez de
-`divide-y [&>*]:border-light`, que evita un valor arbitrario nuevo con el mismo resultado. **Conversaciones y
-el portal quedan afuera** (lista D del anexo) y su deuda sigue congelada en `CssCompiladoAlDiaTests`, que
-baja de 22 clases a 7.
+`divide-light` y `badge-nodo` a `badge`. **Ningún template del backoffice nombra ya una clase que el build
+no genere.** **Tres desvíos, los tres code-first:** (a) el indicador de WebSocket de `alertas_dashboard`
+quedó en `bg-disabled` y no en `badge badge-gray` —es un punto de 12 px sin texto, y un `badge` le pondría
+padding de píldora; es el mismo token que usa el indicador gemelo del navbar—; (b) el `bg-gray-500` de
+`legajos/reportes.html` no era un «Volver» sino el punto de color del estado «otros», así que quedó en
+`bg-gray`, token declarado en `tailwind.config.js`; (c) `divide-y divide-light` en vez de
+`divide-y [&>*]:border-light`, que evita un valor arbitrario nuevo con el mismo resultado.
+
+**Qué queda y por qué** (deuda de `CssCompiladoAlDiaTests`, que baja de 22 clases a 6, cada una con su
+dueño): `bg-gray-50` y `bg-gray-600` en **Conversaciones** (`configurar_cola.html`, `lista.html`), que se
+apaga entera con G1-01 fase 2; `bg-gray-200` y `bg-gray-900` en **`static/custom/js/portal-effects.js`**
+(portal ciudadano); `hover:bg-gray-50` en el JS de alertas, que borra **FE-25** (`alertas_websocket.js`) y
+**FE-14** (`alertas_conversaciones_simple.js`); y `bg-gray-100` en **`legajos/forms/ciudadanos.py`** y
+**`legajos/models/base.py`**, que **no se tocaron a propósito**: el primero es el bloque `_FLOWBITE_*_CSS`
+entero del formulario del ciudadano —su reemplazo es `nodo-field`, FE-11/FE-12— y el segundo es un mapa
+estado→clase dentro del modelo, que por el inventario va en el parcial de badges del módulo (FE-12).
+Cambiarles la clase sola los deja igual de fuera de canon.
 **Test permanente:** `core.tests.test_front_ola5.ClasesQueElBuildNoGeneraTests.test_las_pantallas_de_la_ficha_no_usan_clases_fuera_del_build`
 (+ `test_el_backdrop_del_sidebar_tiene_fondo_real`, `test_el_html_no_pinta_un_fondo_que_no_existe`,
 `test_los_cancelar_de_configuracion_son_botones_del_sistema` y
@@ -189,7 +198,12 @@ de las cinco pantallas) clonan la golden del arquetipo Modal: overlay
 `aria-labelledby`, `_modal_header.html` / `_modal_footer.html` —que son los que traen el tamaño de los
 botones— y `becas-modal.js` en `customJS`. En el modal de edición, que vive dentro de un `<template x-if>`
 por fila, la directiva toma **`modalEditarPk`** y no la booleana derivada `modalEditarPk === pk`: la
-directiva cierra con `evaluate(expresión + ' = false')`, así que la expresión tiene que ser asignable.
+directiva cierra con `evaluate(expresión + ' = false')`, así que la expresión tiene que ser asignable. El
+`aria-labelledby` del diálogo pasa la **pk a texto antes** de concatenar
+(`{% with pk_texto=obj.pk|stringformat:"s" %}` y recién después `|add:pk_texto`): `add` con un `int` del lado
+derecho **devuelve cadena vacía**, y la primera versión del PR dejaba `aria-labelledby=""` con `<h3 id="">`
+—un diálogo sin nombre accesible— sin que se notara en el texto del template. Lo encontró la ronda 2 de
+revisión; de ahí que los tests de esta ficha afirmen sobre la **respuesta renderizada** y no sobre el markup.
 Los cinco contenedores de subítems del sidebar y su `<nav>` dejan el `style=` por clases.
 **Desvío (code-first): la confirmación de borrado deja SweetAlert2** y pasa a `data-confirm-url` →
 `ModernModal` con `programas/becas/_confirm_js.html`. Fue necesario —el arquetipo Modal prohíbe un
@@ -200,7 +214,9 @@ Subsecretarías, con el mismo defecto de botón sin tamaño que la ficha describ
 **Test permanente:** `configuracion.tests.test_configuracion_modales.ModalesDeConfiguracionTests.test_cumplen_el_arquetipo_modal`
 (+ `test_el_overlay_se_centra_por_clase_y_no_por_style`, `test_los_modales_atrapan_el_foco_y_cierran_con_escape`,
 `test_el_pie_del_modal_usa_la_pieza_canonica`, `test_ningun_boton_del_sistema_queda_sin_tamano`,
-`test_la_confirmacion_de_borrado_es_la_canonica`, `test_el_titulo_del_dialogo_lo_nombra` y
+`test_la_confirmacion_de_borrado_es_la_canonica`, `test_el_titulo_del_dialogo_lo_nombra`,
+`ModalesRenderizadosTests.test_cada_dialogo_tiene_un_nombre_accesible_que_existe` —sobre la respuesta
+renderizada, que es donde se ve el `aria-labelledby` vacío— y
 `SubitemsDelSidebarTests.test_los_contenedores_de_subitems_van_por_clase`).
 **Playwright:** panel centrado con desvío de **0,00 px**, Tab atrapado dentro del panel y Escape cierra.
 
