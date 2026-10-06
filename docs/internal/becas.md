@@ -150,6 +150,13 @@ referencia contra la que se compara después.
 - **Runner**: `python manage.py sincronizar_programas_siis` (idempotente, con
   `--dry-run`). Actualiza `siis_programa_estado` y `siis_verificado_en`; **no**
   pisa el snapshot.
+- **No escribe a ciegas** (SIIS-06, Cambio 151): un catálogo **vacío** falla con
+  `CommandError` sin tocar nada, y si los que pasarían a `DESCONOCIDO` son todos
+  los programas vinculados o más del 50 %, también —ahí está `--forzar`, para una
+  baja masiva ya confirmada con ECOM—. La guarda no se aplica con un solo programa
+  vinculado: con uno, «todos» es siempre cierto y una baja real no se detectaría
+  nunca. El rojo del CronJob **es** la notificación: una ausencia masiva se parece
+  más a SIIS caído que a una baja, y a las 04:00 no hay nadie mirando.
 - **Cuándo corre**: solo por cron del host — snippet versionado en
   [`docker/cron/sincronizar_programas_siis.cron`](../../docker/cron/sincronizar_programas_siis.cron).
   A diferencia de `procesar_vencimientos`, **no** va en el bootstrap del

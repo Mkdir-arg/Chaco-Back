@@ -364,7 +364,7 @@ def _solo_los_aprobables(casos):
 
 
 def _sin_pausa_vigente(casos):
-    """Saca los casos cuyo relevamiento, convocatoria, segmento o programa está pausado.
+    """Saca los casos cuya cadena está pausada o cuyo programa está bloqueado en SIIS.
 
     Pausar frena la carga en campo y la operación de la pantalla, pero el masivo
     no la miraba: una convocatoria pausada seguía aprobando e informando altas en
@@ -372,10 +372,14 @@ def _sin_pausa_vigente(casos):
 
     Se comparan las columnas ``pausado`` de la cadena, que ya viene unida por los
     ``select_related``, y no ``pausa_efectiva``, que es una propiedad de Python.
-    Queda afuera a propósito el bloqueo derivado del estado del programa en SIIS:
-    hoy un catálogo vacío deja todos los programas en ``DESCONOCIDO`` (SIIS-06,
-    abierto), y colgarle esto encima frenaría el masivo entero por un error de
-    SIIS en vez de por una decisión de alguien.
+    El estado del programa en SIIS se mira igual —es la otra mitad de
+    ``ProgramaSiis.pausa_efectiva``— y por la misma razón: ``INACTIVO`` o
+    ``DESCONOCIDO`` bloquean el programa en toda la pantalla, y el masivo era el
+    único camino que seguía aprobando. No se podía cerrar antes de SIIS-06: un
+    catálogo vacío dejaba **todos** los programas en ``DESCONOCIDO``, y esta
+    exclusión habría frenado el masivo entero por un error de SIIS. Un programa
+    recién vinculado tiene el estado en ``""``, que no bloquea: nadie preguntó
+    todavía.
     """
     return casos.exclude(
         Q(relevamiento__pausado=True)
@@ -383,6 +387,11 @@ def _sin_pausa_vigente(casos):
         | Q(relevamiento__convocatoria__segmento__pausado=True)
         | Q(relevamiento__convocatoria__subsegmento__pausado=True)
         | Q(relevamiento__convocatoria__segmento__programa__pausado=True)
+        | Q(
+            relevamiento__convocatoria__segmento__programa__siis_programa_estado__in=(
+                ProgramaSiis.ESTADOS_SIIS_BLOQUEANTES
+            )
+        )
     )
 
 
