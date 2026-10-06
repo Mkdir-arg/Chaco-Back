@@ -6,14 +6,22 @@ comentarios JSX `{{/* */}}`, filtros inexistentes) que `manage.py check`
 NO ve porque no renderiza. No necesita DB ni contexto: solo get_template(),
 que parsea y compila cada archivo.
 
+Con ``--bloques`` suma el chequeo de FE-05: un ``{% block %}`` de primer nivel que un
+hijo define y **ningún ancestro declara** no es un error de sintaxis —Django lo descarta
+en silencio— pero su contenido nunca llega al navegador. Así se perdía la cascada
+Secretaría → Subsecretaría del wizard de programas, que vivía en un ``extra_js`` que el
+shell del backoffice no tiene.
+
 Uso:
     & .\.venv\Scripts\python.exe scripts\compile_templates.py
+    & .\.venv\Scripts\python.exe scripts\compile_templates.py --bloques
 
 Exit 0 = todos compilan · Exit 1 = hay templates rotos (los lista).
 Complementa a scripts/design_audit.py: ese valida DISEÑO, este valida SINTAXIS.
 """
 
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -30,6 +38,78 @@ from django.conf import settings
 from django.template import TemplateSyntaxError
 from django.template.loader import get_template
 from django.template.utils import get_app_template_dirs
+
+BLOCK_RE = re.compile(r"{%\s*block\s+([\w-]+)")
+EXTENDS_RE = re.compile(r'{%\s*extends\s+["\']([^"\']+)["\']')
+
+# FE-05: bloques sin destino que ya estaban cuando se encendió el flag. Cada uno tiene
+# dueño y muere con su ficha; la lista no crece. `(nombre del template, bloque)`.
+BLOQUES_SIN_DESTINO_CONOCIDOS = {
+    # FE-20 — las páginas de error extienden el wrapper legacy, que no declara el bloque.
+    ("403.html", "menu-adicional"),
+    ("404.html", "menu-adicional"),
+    ("500.html", "menu-adicional"),
+    # LEG-06 — las dos pantallas muertas de Legajos se borran con el código muerto.
+    ("legajos/dashboard_simple.html", "content"),
+    ("legajos/historial_contactos.html", "extra_css"),
+    ("legajos/historial_contactos.html", "extra_js"),
+}
+
+
+def _mapa_de_templates(dirs: list[Path]) -> dict[str, Path]:
+    """Nombre tal como lo pide ``get_template`` → archivo (gana la primera coincidencia)."""
+    mapa: dict[str, Path] = {}
+    for base in dirs:
+        if not base.is_dir():
+            continue
+        for archivo in base.rglob("*.html"):
+            mapa.setdefault(archivo.relative_to(base).as_posix(), archivo)
+    return mapa
+
+
+def _bloques_de_los_ancestros(nombre: str, mapa: dict[str, Path], vistos=None) -> tuple[set[str], bool]:
+    """Bloques declarados por el template y su cadena de herencia.
+
+    El segundo valor es ``False`` cuando la cadena no se pudo resolver entera (un
+    ancestro que no existe o un ``{% extends %}`` con variable): ahí no se concluye nada.
+    """
+    vistos = vistos or set()
+    archivo = mapa.get(nombre)
+    if archivo is None or nombre in vistos:
+        return set(), False
+    vistos.add(nombre)
+    texto = archivo.read_text(encoding="utf-8", errors="replace")
+    bloques = set(BLOCK_RE.findall(texto))
+    padre = EXTENDS_RE.search(texto)
+    if padre:
+        heredados, completa = _bloques_de_los_ancestros(padre.group(1), mapa, vistos)
+        if not completa:
+            return bloques, False
+        bloques |= heredados
+    return bloques, True
+
+
+def bloques_sin_destino(dirs: list[Path]) -> list[tuple[str, str, str]]:
+    """``(template, bloque, padre)`` por cada bloque de primer nivel que nadie declara."""
+    mapa = _mapa_de_templates(dirs)
+    huerfanos: list[tuple[str, str, str]] = []
+    for nombre, archivo in sorted(mapa.items()):
+        texto = archivo.read_text(encoding="utf-8", errors="replace")
+        padre = EXTENDS_RE.search(texto)
+        if not padre:
+            continue
+        declarados, completa = _bloques_de_los_ancestros(padre.group(1), mapa)
+        if not completa:
+            continue
+        for bloque in BLOCK_RE.findall(texto):
+            if bloque in declarados:
+                continue
+            # Un bloque anidado dentro de otro que el padre sí declara se renderiza igual.
+            posicion = re.search(r"{%\s*block\s+" + re.escape(bloque) + r"\b", texto).start()
+            antes = texto[:posicion]
+            if len(BLOCK_RE.findall(antes)) - len(re.findall(r"{%\s*endblock", antes)) == 0:
+                huerfanos.append((nombre, bloque, padre.group(1)))
+    return huerfanos
 
 
 def main() -> int:
@@ -72,6 +152,17 @@ def main() -> int:
     print(f"ERRORES: {len(errors)}")
     for rel, msg in errors:
         print(f"  {rel}\n    {msg[:200]}")
+
+    if "--bloques" in sys.argv:
+        huerfanos = [h for h in bloques_sin_destino(dirs) if (h[0], h[1]) not in BLOQUES_SIN_DESTINO_CONOCIDOS]
+        print(f"BLOQUES SIN DESTINO: {len(huerfanos)}")
+        for nombre, bloque, padre in huerfanos:
+            print(
+                f"  {nombre}\n    {{% block {bloque} %}} no existe en {padre} ni en sus ancestros: Django lo descarta"
+            )
+        if huerfanos:
+            return 1
+
     return 1 if errors else 0
 
 

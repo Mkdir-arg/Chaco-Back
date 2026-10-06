@@ -206,10 +206,11 @@ def rel_posix(path: Path) -> str:
 
 
 def changed_files() -> list[Path]:
-    out = subprocess.run(["git", "diff", "--name-only", "HEAD"], cwd=REPO, capture_output=True, text=True).stdout
-    out += subprocess.run(
-        ["git", "ls-files", "--others", "--exclude-standard"], cwd=REPO, capture_output=True, text=True
-    ).stdout
+    # Mismo motivo que en `_git`: sin `encoding` explícito, un nombre de archivo con
+    # tilde rompe la lectura de `stdout` en Windows.
+    comunes = {"cwd": REPO, "capture_output": True, "text": True, "encoding": "utf-8", "errors": "replace"}
+    out = subprocess.run(["git", "diff", "--name-only", "HEAD"], **comunes).stdout
+    out += subprocess.run(["git", "ls-files", "--others", "--exclude-standard"], **comunes).stdout
     return [REPO / line for line in out.splitlines() if line.strip()]
 
 
@@ -857,7 +858,14 @@ def audit_file(path: Path) -> list[tuple[str, int, str, str, str]]:
 
 
 def _git(args: list[str]) -> tuple[int, str]:
-    r = subprocess.run(["git", *args], cwd=REPO, capture_output=True, text=True, check=False)
+    # `text=True` a secas decodifica con la codificación del sistema: en Windows es
+    # cp1252 y cualquier template con una tilde reventaba el hilo lector de
+    # `subprocess` con `UnicodeDecodeError`. `stdout` volvía vacío, la base del
+    # ratchet quedaba sin contenido y TODA la deuda vieja de ese archivo se
+    # reportaba como nueva (el CI, en UTF-8, no lo veía).
+    r = subprocess.run(
+        ["git", *args], cwd=REPO, capture_output=True, text=True, encoding="utf-8", errors="replace", check=False
+    )
     return r.returncode, r.stdout
 
 
@@ -1034,7 +1042,7 @@ ARQUETIPOS: dict[str, dict[str, list]] = {
                 "surface del formulario",
             ),
             (r"\{%\s*csrf_token\s*%\}", False, "{% csrf_token %}"),
-            (r"non_field_errors", True, "bloque de errores generales"),
+            (r"components/_form_errores\.html", False, "errores no de campo con components/_form_errores.html"),
             (r"_field\.html", False, "campos con el include _field.html"),
             (r"btn-nodo btn-tertiary btn-base", False, "acción secundaria del pie"),
             (r"btn-nodo btn-brand btn-base", False, "acción primaria del pie"),
@@ -1047,6 +1055,7 @@ ARQUETIPOS: dict[str, dict[str, list]] = {
                 "label con valor arbitrario: block text-sm font-medium text-heading mb-1",
             ),
             (r"←\s*Volver", "«← Volver» de texto: va en page_header volver_url"),
+            (r"non_field_errors", "errores generales a mano: usar components/_form_errores.html"),
         ],
     },
     "modal": {

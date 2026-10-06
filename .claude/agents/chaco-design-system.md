@@ -103,6 +103,8 @@ Para trabajar UI no hace falta leer `AGENTS.md`.
 - Labels canónicos o `programas/templates/programas/becas/_field.html`; los controles
   reciben `nodo-field` desde el widget del form (`INPUT_CLASS` de `programas/forms.py`),
   no desde el template [revisión].
+- Errores no de campo solo con `components/_form_errores.html`, justo después de
+  `{% csrf_token %}`; nunca `{{ form.non_field_errors }}` a mano `[marcadores]`.
 - Íconos Font Awesome en el contenido, con `aria-hidden="true"` `[R:ICONARIA]`; Heroicons
   solo en el shell (sidebar y navbar).
 - Sin `<style>` `[R:STYLEBLOCK]`; sin `style=` salvo custom properties, valores `{{ }}` y
@@ -168,6 +170,7 @@ mismo módulo **nunca** es molde (de la hermana se toma solo dominio).
 | Estado vacío backoffice | Canónico reutilizable | Pieza única `templates/components/_estado_vacio.html`, dentro de la card de la lista; variante con filtros («Limpiar filtros») decidida con el filtro `hay_filtros` de `core/templatetags/nodo_ui.py`. Ficha: `.claude/design/componentes/estado_vacio.md` |
 | Paginación | Canónico reutilizable | Pieza única `templates/components/_paginacion.html` (`page_obj`, `entidad`, `entidad_plural`, `filtros_qs`); solo se muestra con más de una página y va dentro de la card de la tabla. Ficha: `.claude/design/componentes/paginacion.md` |
 | Alertas inline backoffice | Canónico reutilizable | Pieza única `templates/components/_alerta.html` (`tono`, `titulo`, `texto`, `role`); bloqueo y advertencia se distinguen por el encabezado y por si la acción sigue disponible, no por el color. Ficha: `.claude/design/componentes/alerta.md` |
+| Errores no de campo | Canónico reutilizable | Pieza única `templates/components/_form_errores.html` (`form`, `titulo`); va justo después de `{% csrf_token %}` y solo aparece si el form trae errores del conjunto (`unique_together`, `clean()` de form), que ningún campo muestra. En un modal que se repite por fila, acotada a la fila que falló. Ficha: `.claude/design/componentes/form_errores.md` |
 | Stat cards / métricas | Canónico reutilizable | Pieza única `templates/components/_stat_card.html` (`etiqueta`, `valor`, `icono` sin `fas`, `tono`); la grilla la arma el consumidor. Sin gradiente ni cajas de 52 px. Ficha: `.claude/design/componentes/stat_card.md` |
 | Campos NODO y `_field.html` | Canónico reutilizable | `static/custom/css/nodo-forms.css` (`nodo-field`, `.nodo-checks`) y el include `programas/templates/programas/becas/_field.html`; la clase del control la pone el widget del form (`programas/forms.py`), no el template. Ficha: `.claude/design/componentes/field.md` |
 | Botones y badges NODO | Canónico reutilizable | `static/custom/css/nodo-buttons.css` (`btn-nodo` + variante + tamaño, `.nodo-icon-btn`, `.nodo-icon-btn--danger`) y `static/custom/css/nodo-badges.css` (`badge` + variante, siempre con texto además del color). Ficha: `.claude/design/componentes/botones_badges.md` |

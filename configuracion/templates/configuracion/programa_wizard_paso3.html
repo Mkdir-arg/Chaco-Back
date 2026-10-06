@@ -25,9 +25,7 @@
         <form method="post" x-data="{ tieneCupo: {{ form.cupo_maximo.value|default:'false' }} !== '' && {{ form.cupo_maximo.value|default:'false' }} !== false }">
             {% csrf_token %}
 
-            {% if form.non_field_errors %}
-            <div class="mb-4 text-red-600 text-sm">{{ form.non_field_errors }}</div>
-            {% endif %}
+            {% include "components/_form_errores.html" %}
 
             <div class="space-y-5">
                 <!-- Cupo máximo -->

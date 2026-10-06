@@ -1,8 +1,10 @@
 """Piezas reutilizables del backoffice: paginación, tarjeta de número, estado vacío,
-alerta inline y el filtro ``hay_filtros`` (W2-C9b, CMP-11/22/23, ALR-14/15)."""
+alerta inline, errores no de campo y el filtro ``hay_filtros``
+(W2-C9b, CMP-11/22/23, ALR-14/15, FE-08)."""
 
 from io import StringIO
 
+from django import forms
 from django.contrib.auth.models import AnonymousUser, User
 from django.core.management import call_command
 from django.core.paginator import Paginator
@@ -18,6 +20,7 @@ PAGINACION = "components/_paginacion.html"
 STAT = "components/_stat_card.html"
 VACIO = "components/_estado_vacio.html"
 ALERTA = "components/_alerta.html"
+FORM_ERRORES = "components/_form_errores.html"
 
 
 def _pagina(total, numero=1, por_pagina=10):
@@ -213,6 +216,72 @@ class AlertaTest(SimpleTestCase):
 
         self.assertNotIn("<script>", html)
         self.assertNotIn("<img", html)
+
+
+class FormErroresTest(SimpleTestCase):
+    """FE-08: los errores no de campo dejan de ser invisibles.
+
+    `unique_together` y los `clean()` de form rechazan el conjunto, no un control:
+    sin esta pieza la pantalla vuelve igual, con todos los `field.errors` vacíos.
+    """
+
+    class _Duplicado(forms.Form):
+        nombre = forms.CharField()
+
+        def clean(self):
+            raise forms.ValidationError("Ya existe una localidad con ese nombre en ese municipio.")
+
+    def _render(self, form, **contexto):
+        return render_to_string(FORM_ERRORES, {"form": form, **contexto})
+
+    def test_sin_errores_no_se_muestra(self):
+        self.assertEqual(self._render(self._Duplicado()).strip(), "")
+
+    def test_sin_form_no_se_muestra(self):
+        self.assertEqual(self._render(None).strip(), "")
+
+    def test_solo_errores_de_campo_no_se_muestra(self):
+        form = forms.Form({}, initial={})
+        form.fields["nombre"] = forms.CharField()
+        form.is_valid()
+
+        self.assertEqual(self._render(form).strip(), "")
+
+    def test_muestra_cada_error_con_role_alert(self):
+        form = self._Duplicado({"nombre": "Barranqueras"})
+        form.is_valid()
+
+        html = self._render(form)
+
+        self.assertIn(
+            'class="mb-4 rounded-lg bg-danger-soft border border-danger-subtle p-4 text-sm" role="alert"', html
+        )
+        self.assertIn('<strong class="text-heading">Revisá el formulario</strong>', html)
+        self.assertIn(
+            '<p class="text-body mt-1">Ya existe una localidad con ese nombre en ese municipio.</p>',
+            html,
+        )
+        # El `<ul class="errorlist">` de Django no tiene estilo en el backoffice.
+        self.assertNotIn("errorlist", html)
+
+    def test_titulo_propio(self):
+        form = self._Duplicado({"nombre": "x"})
+        form.is_valid()
+
+        self.assertIn("Revisá el domicilio", self._render(form, titulo="Revisá el domicilio"))
+
+    def test_escapa(self):
+        class Inyectado(forms.Form):
+            def clean(self):
+                raise forms.ValidationError("<img src=x onerror=alert(1)>")
+
+        form = Inyectado({})
+        form.is_valid()
+
+        html = self._render(form)
+
+        self.assertNotIn("<img", html)
+        self.assertIn("&lt;img", html)
 
 
 class HayFiltrosTest(SimpleTestCase):

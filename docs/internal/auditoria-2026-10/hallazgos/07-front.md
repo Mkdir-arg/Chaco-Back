@@ -18,12 +18,12 @@ FE-18, FE-19); las migraciones de estilo de esos dos módulos las hereda la v2.
 | ID | Título | Sev. | Estado | Ola | Esf. | Avance 03-oct |
 |---|---|---|---|---|---|---|
 | FE-02 | `toastr` no cargado en el legajo: «Subir archivos» no envía nada | ALTA | CONF. navegador | 5 | S | ✅ |
-| FE-04 | Geografía pagina de a 20 sin controles de paginación | ALTA | CONF. navegador | 5 | S | ⬜ |
-| FE-05 | Wizard «Nuevo programa»: el JS está en un bloque sin destino | ALTA | CONF. navegador | 5 | S | ⬜ |
+| FE-04 | Geografía pagina de a 20 sin controles de paginación | ALTA | CONF. navegador | 5 | S | ✅ |
+| FE-05 | Wizard «Nuevo programa»: el JS está en un bloque sin destino | ALTA | CONF. navegador | 5 | S | ✅ |
 | FE-06 | Clases que el build no genera: botones invisibles, backdrop transparente | ALTA | CONF. ajustado (navegador) | 5 | S | ⬜ |
 | FE-01 | `mobile-enhancements.js` global altera controles, modales y swipe | MEDIA (A6: ALTA) | CONF. ajustado | 5 | S | ⬜ |
 | FE-07 | Modales de Configuración en la esquina y con botones sin tamaño | MEDIA | CONF. navegador | 5 | M | ⬜ |
-| FE-08 | Errores no de campo invisibles | MEDIA | CONF. | 5 | S | ⬜ |
+| FE-08 | Errores no de campo invisibles | MEDIA | CONF. | 5 | S | ✅ |
 | FE-09 | Links a `/legajos/<id>/`, ruta inexistente | MEDIA | CONF. ajustado | 5 | S | ✅ |
 | FE-10 | Prestación mensual ilegible en celular | MEDIA | CONF. navegador | 5 | S | ⬜ |
 | FE-11 | Componentes canónicos solo en Becas | MEDIA | CONF. | 5 | L | ⬜ |
@@ -73,11 +73,35 @@ corrigieron: desaparecieron** con el default B de LEG-03, como pedía la ficha.
 - **Propuesta:** en `configuracion/templates/configuracion/{provincia,municipio,localidad}_list.html`, al pie de la card de la tabla, `{% include "components/_paginacion.html" with page_obj=page_obj entidad="localidad" entidad_plural="localidades" %}` (entidad según pantalla); en `configuracion/views/geografia.py`, cada `form_invalid` (46, 69, 118…) arma el contexto con el mismo queryset paginado (helper `_contexto_lista(request, form, **extra)` con `Paginator(qs, 20).get_page(request.GET.get("page"))`).
 - **Tests:** con 21 localidades, la página 1 tiene `?page=2`; un POST inválido devuelve `page_obj`.
 
+**Resolución:** ✅ Resuelto en el PR #600 (Cambio 152), 06-10-2026 — `{% include "components/_paginacion.html" %}`
+al pie de la card de las tres pantallas, en la misma posición que la golden de listado, y
+`configuracion/views/geografia.py` con un `_queryset(modelo)` único para el `ListView` y para los seis
+`form_invalid`, más un `_contexto_lista(...)` que arma el contexto paginado. **Desvío de la propuesta:**
+paginar el `form_invalid` a secas metía un bug nuevo —el error de edición de la fila 21 volvía a una página 1
+donde esa fila no está y el modal no se renderizaba nunca—, así que el helper devuelve la **página que
+contiene el registro destacado**. De paso, el listado de provincias deja de salir por `id` mientras el
+reintento tras un error salía por `nombre`.
+**Test permanente:** `configuracion.tests.test_configuracion_ola5.GeografiaPaginacionTests.test_la_pagina_1_ofrece_la_2`
+(+ `test_la_ultima_fila_es_alcanzable`, `test_el_post_invalido_devuelve_la_lista_paginada` y
+`test_el_error_de_edicion_abre_el_modal_de_la_fila_aunque_no_esté_en_la_página_1`).
+
 ### FE-05 · Wizard «Nuevo programa»: la cascada Secretaría → Subsecretaría nunca se ejecuta
 **Severidad:** ALTA · **Estado:** CONFIRMADO en navegador (el HTML de `/configuracion/programas/nuevo/paso1/` no contiene `ajax_load_subsecretarias`; el select de subsecretaría tiene solo la opción vacía) · **Origen:** A6-05 · **Ola:** 5 · **Esfuerzo:** S
 - **Causa:** `configuracion/templates/configuracion/programa_wizard_paso1.html:96` usa `{% block extra_js %}`, que ningún ancestro declara (el bloque de JS del shell es `customJS`). Otros bloques sin destino con efecto: `legajos/dashboard_simple.html:content` y `legajos/historial_contactos.html:extra_css/extra_js` (se van con LEG-06).
 - **Propuesta:** `{% block extra_js %}` → `{% block customJS %}`; en el `fetch`, `if (!r.ok) throw new Error()` y `.catch(() => window.toast('error', 'No se pudieron cargar las subsecretarías'))`; convertir `poc/herramientas/bloques_sin_destino.py` en un flag `--bloques` de `scripts/compile_templates.py` que falle si un hijo define un bloque de primer nivel que ningún ancestro declara.
 - **Tests:** render del paso 1 contiene `ajax/load-subsecretarias`; Playwright: elegir una secretaría → al menos 1 opción de subsecretaría.
+
+**Resolución:** ✅ Resuelto en el PR #600 (Cambio 152), 06-10-2026 — `{% block extra_js %}` pasa a
+`{% block customJS %}`, el `fetch` corta con `if (!r.ok) throw` y el `catch` avisa con
+`window.toast('error', 'No se pudieron cargar las subsecretarías')` además de dejar el texto en el select.
+La PoC `poc/herramientas/bloques_sin_destino.py` se convirtió en el flag **`--bloques` de
+`scripts/compile_templates.py`**, que corre en el job «Contratos del repo» y falla con cualquier bloque de
+primer nivel que ningún ancestro declare. La allowlist nace con **seis** entradas, cada una con la ficha que
+la mata (`menu-adicional` de `403/404/500.html` → FE-20; `content` y `extra_css`/`extra_js` de
+`legajos/dashboard_simple.html` e `historial_contactos.html` → LEG-06), y un test exige que no queden
+entradas muertas. **El wizard no se rediseñó:** D4 (Cambio 129) dice que ese arquetipo no está definido.
+**Test permanente:** `configuracion.tests.test_configuracion_ola5.WizardCascadaTests.test_el_paso_1_incluye_el_script_de_la_cascada`
+(+ `core.tests.test_compile_templates_bloques.BloquesSinDestinoTests.test_el_repo_no_tiene_bloques_sin_destino_nuevos`).
 
 ### FE-06 · Clases que el build no genera: controles invisibles
 **Severidad:** ALTA · **Estado:** CONFIRMADO-AJUSTADO en navegador · **Origen:** A6-06, A6-11, V5A-NEW-09 · **Ola:** 5 · **Esfuerzo:** S
@@ -119,6 +143,23 @@ corrigieron: desaparecieron** con el default B de LEG-03, como pedía la ficha.
 **Severidad:** MEDIA · **Estado:** CONFIRMADO (`non_field_errors` en 0 templates de Configuración salvo `programa_wizard_paso2/3`, y en 0 de los forms de Legajos y Dispositivos; el `unique_together` está en `core/models/base.py:67,87`) · **Origen:** A6-08 · **Ola:** 5 · **Esfuerzo:** S
 - **Propuesta:** `templates/components/_form_errores.html`: si hay `form.non_field_errors`, `<div class="mb-4 rounded-lg bg-danger-soft border border-danger-subtle p-4 text-sm" role="alert"><strong class="text-heading">Revisá el formulario</strong>` + cada error `<p class="text-body mt-1">{{ e }}</p>` (sin el `<ul class="errorlist">`). Incluirlo en los 5 modales de Geografía y Secretarías, `programa_wizard_paso1.html` y `paso4.html`, `legajos/ciudadano_{edit,manual,confirmar}_form.html`, `derivar_programa.html` y `programas/dispositivos/legajo/form.html`; migrar `segmento_form.html:15-20` (golden de formulario: actualizar su ficha en el mismo PR, ver anexo del agente). Es pieza nueva: registrar en el inventario canónico (`check_design_agent.py`).
 - **Test:** POST de una localidad duplicada → el texto del error aparece.
+
+**Resolución:** ✅ Resuelto en el PR #600 (Cambio 152), 06-10-2026 — `templates/components/_form_errores.html`
+es pieza canónica nueva, con contrato en la cabecera, test propio, ficha y fila de inventario (paso 7 del
+protocolo del agente). La incluyen los **diez** modales de Geografía y Secretarías —en el de edición,
+acotada a la fila que falló, porque el `form` del contexto es uno solo—, los **cuatro** pasos del wizard
+(los pasos 2 y 3 migran su markup propio con paleta cruda), `legajos/derivar_programa.html`,
+`dispositivos/legajo/form.html` y la **golden del arquetipo Formulario** (`segmento_form.html`), con su
+ficha actualizada en el mismo PR. En `design_audit.py` el marcador del arquetipo Formulario pasa a ser el
+include y **obligatorio**, y `non_field_errors` a mano queda prohibido.
+**Desvío de la propuesta (code-first):** `legajos/ciudadano_{edit,manual,confirmar}_form.html` **no** se
+tocaron. No usan `non_field_errors`, pero vuelcan `form.errors.items`, que incluye la clave `__all__`: el
+error no de campo ahí ya se ve. Agregar la pieza encima lo duplicaría y reemplazar el resumen borraría los
+errores de campo, que en esas tres pantallas no se rinden junto a su control; su migración es FE-11/FE-12.
+**Test permanente:** `configuracion.tests.test_configuracion_ola5.ErroresNoDeCampoTests.test_localidad_duplicada_muestra_el_motivo`
+(+ `test_municipio_duplicado_muestra_el_motivo`, `test_subsecretaria_duplicada_muestra_el_motivo`,
+`test_el_wizard_muestra_el_error_de_la_lista_de_espera_sin_cupo`, `test_las_pantallas_de_configuracion_usan_la_pieza_unica`
+y el contrato de la pieza en `core.tests.test_nodo_ui_piezas.FormErroresTest`).
 
 ### FE-09 · Links a `/legajos/<id>/`, una ruta que no existe
 **Severidad:** MEDIA · **Estado:** CONFIRMADO-AJUSTADO (`resolve('/legajos/<uuid>/')` → 404; no existe ninguna ruta de detalle de `LegajoAtencion`) · **Origen:** A6-09 · **Ola:** 5 · **Esfuerzo:** S
