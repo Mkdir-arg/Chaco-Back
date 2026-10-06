@@ -18432,7 +18432,7 @@ existentes. No hay código, datos ni configuración involucrados.
 | **Etiquetas** | `#infra` `#datos` `#metodo` `#performance` |
 | **Solicitante** | Auditoría integral de octubre 2026 — hallazgos **RED-14**, **RED-57**, **RED-18**, **RED-84** y **RED-83** (Ola R «Red de seguridad», PR R-12) |
 | **Fecha del pedido** | 06/10/2026 |
-| **Issue / épica** | Sin issue — auditoría oct-2026, `docs/internal/auditoria-2026-10/hallazgos/08-red-de-seguridad.md` |
+| **Issue / épica** | Sin issue — auditoría oct-2026, `docs/internal/auditoria-2026-10/hallazgos/08-red-de-seguridad.md` · PR #591 |
 | **Partes afectadas** | Servidor (migraciones y scripts) · CI · documentación. Nada de UI, nada de API |
 | **Migración** | No requiere (ninguna migración nueva: se les agrega una marca —y a tres, una operación sin efecto hacia adelante— a migraciones ya aplicadas) |
 
