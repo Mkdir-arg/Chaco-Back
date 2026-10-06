@@ -133,6 +133,27 @@ class Migration(migrations.Migration):
 """
         self.assertEqual(self._reglas(codigo), [])
 
+    def test_una_columna_not_null_con_db_default_pasa(self):
+        """``db_default`` es la misma receta en una línea: Django 5 la escribe en el esquema.
+
+        Sin esto, la única forma de declarar un `DEFAULT` que el checker viera era
+        el `RunSQL`, y una migración que ya hacía lo correcto quedaba obligada a
+        usar la marca de excepción, que dice lo contrario de lo que pasa.
+        """
+        codigo = """
+from django.db import migrations, models
+
+class Migration(migrations.Migration):
+    operations = [
+        migrations.AddField(
+            model_name="corridasiis",
+            name="incompatibles",
+            field=models.PositiveIntegerField(db_default=0, default=0),
+        ),
+    ]
+"""
+        self.assertEqual(self._reglas(codigo), [])
+
     def test_el_default_de_base_de_otra_columna_no_sirve(self):
         """Si el ``SET DEFAULT`` no nombra la columna nueva, no la cubre."""
         codigo = """
