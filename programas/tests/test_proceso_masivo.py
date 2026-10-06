@@ -47,9 +47,16 @@ class CorridaSiisTests(TestCase):
         self.assertFalse(corrida.interrumpida)
 
     def test_el_latido_viejo_la_marca_interrumpida(self):
-        """Nadie escribe «me morí»: la interrupción se deduce del latido."""
-        corrida = self._corrida(latido=timezone.now() - timedelta(minutes=5))
+        """Nadie escribe «me morí»: la interrupción se deduce del latido.
+
+        El desfasaje se mide contra ``LATIDO_VENCIDO`` y no contra un número
+        escrito acá: con el umbral en 5 minutos, un ``now() - 5 minutos`` queda
+        justo en el borde y el test pasa o no según los microsegundos que tarde
+        la línea siguiente.
+        """
+        corrida = self._corrida(latido=timezone.now() - CorridaSiis.LATIDO_VENCIDO * 2)
         self.assertTrue(corrida.interrumpida)
+        self.assertFalse(self._corrida(latido=timezone.now() - CorridaSiis.LATIDO_VENCIDO / 2).interrumpida)
 
     def test_una_corrida_terminada_nunca_esta_interrumpida(self):
         corrida = self._corrida(estado=CorridaSiis.Estado.TERMINADA, latido=timezone.now() - timedelta(hours=3))
@@ -593,6 +600,98 @@ class IncompatiblesTests(_BaseCorrerTest):
         self.assertEqual(cuenta.error_validacion, 1)
 
 
+class IncompatiblesNoVuelvenACandidatosTests(_BaseCorrerTest):
+    """BEC-11, segunda mitad: un incompatible deja de ser candidato.
+
+    No alcanza con no aprobarlo: si sigue en la lista, la corrida siguiente lo
+    vuelve a consultar, y la que viene también. Con los incompatibles adelante
+    por pk, una corrida de N se gasta las N llamadas en ellos y no da una sola
+    alta.
+    """
+
+    def _incompatible(self, cuantos=1, documento="20301234", id_programa=79):
+        casos = []
+        for _ in range(cuantos):
+            caso = self._caso()
+            ValidacionSIS.objects.create(
+                formulario=caso,
+                estado=ValidacionSIS.Estado.RECHAZADO,
+                documento=documento,
+                id_programa=id_programa,
+                motivo="Ya percibe otro beneficio",
+            )
+            casos.append(caso)
+        return casos
+
+    def test_un_incompatible_deja_de_ser_candidato(self):
+        incompatible = self._incompatible()[0]
+        sano = self._caso()
+
+        pks = list(proceso_masivo.candidatos(programa=self.programa).values_list("pk", flat=True))
+
+        self.assertEqual(pks, [sano.pk])
+        self.assertNotIn(incompatible.pk, pks)
+
+    def test_siguen_contados_para_que_alguien_los_resuelva(self):
+        incompatibles = self._incompatible(3)
+
+        listados = list(
+            proceso_masivo.candidatos(programa=self.programa, solo_incompatibles=True).values_list("pk", flat=True)
+        )
+
+        self.assertEqual(listados, sorted(c.pk for c in incompatibles))
+
+    def test_un_veredicto_viejo_de_otro_dni_no_lo_saca(self):
+        """La validación es del DNI de antes: no dice nada de la persona de ahora."""
+        caso = self._incompatible(documento="99999999")[0]
+
+        pks = list(proceso_masivo.candidatos(programa=self.programa).values_list("pk", flat=True))
+
+        self.assertIn(caso.pk, pks)
+
+    def test_un_veredicto_de_otro_plan_no_lo_saca(self):
+        caso = self._incompatible(id_programa=12345)[0]
+
+        pks = list(proceso_masivo.candidatos(programa=self.programa).values_list("pk", flat=True))
+
+        self.assertIn(caso.pk, pks)
+
+    def test_revalidar_con_ok_lo_devuelve_a_la_corrida(self):
+        caso = self._incompatible()[0]
+        ValidacionSIS.objects.create(
+            formulario=caso, estado=ValidacionSIS.Estado.OK, documento="20301234", id_programa=79
+        )
+
+        pks = list(proceso_masivo.candidatos(programa=self.programa).values_list("pk", flat=True))
+
+        self.assertIn(caso.pk, pks)
+
+    def test_la_subconsulta_del_veredicto_aparece_una_sola_vez(self):
+        """MySQL evalúa cada subconsulta correlacionada **por fila**.
+
+        Con ``annotate`` y una comparación que admite NULL, la misma subconsulta
+        termina tres veces en el SQL —una en el SELECT y dos en el WHERE—, que es
+        lo que le pasa al ``ultimo_envio`` de al lado. ``alias`` + ``Coalesce``
+        la dejan en una sola, y eso se rompe sin que nada más se ponga rojo.
+        """
+        sql = str(proceso_masivo.candidatos(programa=self.programa).query)
+
+        self.assertEqual(sql.count("programas_validacionsis"), 1)
+
+    def test_doscientos_incompatibles_no_se_comen_la_corrida(self):
+        """El escenario del hallazgo: los incompatibles están primeros por pk."""
+        self._incompatible(200)
+        sanos = [self._caso() for _ in range(2)]
+
+        corrida = proceso_masivo.correr(self._corrida(total=10), lote=40)
+
+        self.assertEqual(corrida.estado, CorridaSiis.Estado.TERMINADA)
+        self.assertEqual(corrida.altas, 2)
+        self.assertEqual(self.parches["validar_formulario_en_siis"].call_count, 2)
+        informados = [c.args[0].pk for c in self.parches["enviar_beneficiario_a_siis"].call_args_list]
+        self.assertEqual(sorted(informados), sorted(c.pk for c in sanos))
+
+
 class LanzarTests(_BaseProcesoTest):
     def test_el_ejecutor_se_inyecta(self):
         """En los tests corre sincronico; sin eso serian una carrera."""
@@ -623,6 +722,20 @@ class PantallaProcesoMasivoTests(_BaseProcesoTest):
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, "Proceso masivo")
         self.assertEqual(resp.context["pendientes"], 1)
+
+    def test_la_pantalla_cuenta_los_incompatibles_aparte(self):
+        """BEC-11: salen de la corrida, no de la pantalla: alguien los tiene que resolver."""
+        incompatible = self._caso()
+        ValidacionSIS.objects.create(
+            formulario=incompatible, estado=ValidacionSIS.Estado.RECHAZADO, documento="20301234", id_programa=79
+        )
+        self._caso()
+
+        resp = self.client.get(self._url())
+
+        self.assertEqual(resp.context["pendientes"], 1)
+        self.assertEqual(resp.context["incompatibles"], 1)
+        self.assertContains(resp, "Incompatibles según SIIS")
 
     def test_sin_la_capacidad_no_entra(self):
         """Un usuario sin la capacidad no llega, aunque sepa la URL."""

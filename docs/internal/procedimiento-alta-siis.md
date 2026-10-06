@@ -197,6 +197,13 @@ que no corresponden al programa. En lote no se aprueban —en la pantalla eso lo
 decide el revisor, y acá no hay revisor— y quedan como estaban, para que alguien
 los mire desde la revisión. No son un error ni se pierden.
 
+Una vez que SIIS los declaró incompatibles **salen de la lista de candidatos**:
+si siguieran, cada corrida los volvería a consultar y se gastaría en ellos. La
+pantalla del proceso masivo los cuenta aparte («Incompatibles según SIIS») para
+que no desaparezcan. Vuelven solos si alguien los revalida y SIIS cambia de
+opinión, o si cambia el DNI o el plan del caso: ahí el veredicto viejo ya no
+corresponde.
+
 ⏱ 65 min
 
 ---
@@ -216,7 +223,7 @@ los mire desde la revisión. No son un error ni se pierden.
 
 | Situación | Qué hacer |
 |---|---|
-| `Hay una corrida masiva en curso (#N, …)` | Alguien lanzó el proceso desde la pantalla. Los dos caminos toman los mismos casos y cada uno lleva su propio freno, así que el comando no arranca. Esperar a que termine o frenarla desde la pantalla; `--ignorar-corrida` solo si de verdad no hay alternativa. |
+| `Hay una corrida masiva en curso (#N, …)` | Alguien lanzó el proceso desde la pantalla. Los dos caminos toman los mismos casos y cada uno lleva su propio freno, así que el comando no arranca. Esperar a que termine o frenarla desde la pantalla. Si de verdad no hay alternativa: `--ignorar-corrida --motivo "…"`, que exige el motivo y lo deja escrito en el log y en la corrida que pisa. **La guarda es de una sola dirección**: frena a un comando que arranca con la pantalla corriendo, pero no al revés —si el comando ya está corriendo, alguien puede lanzar la corrida desde la pantalla—. Lo irreversible sigue cubierto igual (un caso no se puede informar dos veces, SIIS-01); lo que se cruza son las cuentas y los frenos. |
 | `Lost connection to server during query` | La base está saturada (restore en curso). Esperar y reintentar. |
 | `DETENIDO tras 10 errores técnicos seguidos` | SIIS no responde. Esperar y volver a correr: lo hecho queda. |
 | Ctrl+C a mitad | No duplica. El caso que estaba en vuelo queda `EN_PROCESO` y, pasados 5 minutos, se ve como **incierto**: no se sabe si SIIS lo registró. Volver a lanzar el comando retoma el resto y **no lo toca**; ese se resuelve con `conciliar_envios_siis` (abajo). |

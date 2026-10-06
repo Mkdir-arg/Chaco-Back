@@ -3339,7 +3339,13 @@ class CorridaSiis(TimeStamped):
     # Casos que SIIS declaró incompatibles con el programa. En la pantalla del
     # caso eso es una advertencia y decide el revisor (Cambio 81); en una corrida
     # no hay revisor, así que quedan contados y sin tocar (BEC-11).
-    incompatibles = models.PositiveIntegerField(default=0, verbose_name="Incompatibles según SIIS")
+    #
+    # ``db_default`` además de ``default``: el default de Python lo pone Django al
+    # armar el INSERT, y entre la migración y el rollout el pod viejo —que no
+    # conoce la columna— manda un INSERT sin ella. Con MariaDB y MySQL en
+    # STRICT_TRANS_TABLES eso es un ERROR 1364 contra una columna NOT NULL sin
+    # default de base; con el DEFAULT 0 escrito en el esquema, entra.
+    incompatibles = models.PositiveIntegerField(default=0, db_default=0, verbose_name="Incompatibles según SIIS")
     altas = models.PositiveIntegerField(default=0)
     incompletos = models.PositiveIntegerField(default=0)
     rechazados = models.PositiveIntegerField(default=0)

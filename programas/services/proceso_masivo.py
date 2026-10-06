@@ -6,13 +6,15 @@ Vive acá —y no dentro del comando— porque lo usan dos disparadores: el coma
 implementación se habría desincronizado con la primera regla que cambiara.
 """
 
+import logging
 import re
 import threading
 from dataclasses import dataclass, field
 
 from django.core.exceptions import ValidationError
 from django.db import connection, transaction
-from django.db.models import Count, Exists, OuterRef, Q, Subquery
+from django.db.models import Count, Exists, OuterRef, Q, Subquery, Value
+from django.db.models.functions import Coalesce, Concat
 from django.utils import timezone
 
 from programas.models import (
@@ -35,6 +37,8 @@ from programas.services.siis_envio import (
     guardar_en_tabla_intermedia,
 )
 from programas.services.validacion_siis import validar_formulario_en_siis
+
+logger = logging.getLogger(__name__)
 
 LOTE = 40
 # Candidatos mirados entre latido y latido durante la selección. Armar el payload
@@ -311,6 +315,52 @@ def _sin_pausa_vigente(casos):
     )
 
 
+def _por_incompatibilidad(casos, *, solo_incompatibles):
+    """Parte los casos por el veredicto **vigente** de SIIS (BEC-11).
+
+    Un incompatible no se aprueba en lote, pero si además sigue siendo candidato
+    la corrida lo vuelve a consultar en cada vuelta: con 200 incompatibles
+    adelante por pk, una corrida de 100 gasta sus 100 llamadas a SIIS, no da una
+    sola alta y la siguiente repite exactamente lo mismo. Son los mismos tres
+    pasos que evita :func:`_solo_los_aprobables`, con la diferencia de que acá el
+    que decide ya contestó.
+
+    **Vigente** es la última validación que corresponde al DNI y al plan de hoy,
+    que son las dos cosas que ``motivo_bloqueo_aprobacion`` exige que coincidan.
+    Si cambió cualquiera de las dos no hay veredicto aplicable, el caso vuelve a
+    la corrida y se revalida; si alguien revalida y SIIS dice que sí, la nueva es
+    la última y el caso vuelve solo.
+
+    **Una sola aparición de la subconsulta en el SQL**, y eso no es casualidad:
+    MySQL evalúa cada subconsulta correlacionada por fila, así que repetirla sale
+    caro sobre 20.000 candidatos (el ``ultimo_envio`` de arriba, con su ``OR``,
+    aparece tres veces: una en el SELECT y dos en el WHERE). Acá se usa
+    ``alias()`` —que define la expresión para filtrar sin sumarla al SELECT— y un
+    ``Coalesce`` a cadena vacía, que saca el NULL del medio: sin él, Django tiene
+    que envolver la comparación con un ``IS NOT NULL`` y la subconsulta se
+    duplica. La búsqueda de adentro es por el índice de ``formulario_id``.
+    """
+    vigente = (
+        ValidacionSIS.objects.filter(
+            formulario=OuterRef("pk"),
+            documento=OuterRef("ciudadano__dni"),
+            id_programa=Coalesce(
+                OuterRef("relevamiento__convocatoria__segmento__programa__siis_id_plan_soc"),
+                OuterRef("relevamiento__convocatoria__segmento__programa__siis_programa_id"),
+            ),
+        )
+        .order_by("-creado", "-id")
+        .values("estado")[:1]
+    )
+    # Sin el ``Coalesce``, un caso sin validación da NULL y ``NOT (NULL = 'RECHAZADO')``
+    # no es verdadero: un ``exclude`` a secas se llevaría puestos a todos los que
+    # nunca se validaron, que son la mayoría.
+    casos = casos.alias(validacion_vigente=Coalesce(Subquery(vigente), Value("")))
+    if solo_incompatibles:
+        return casos.filter(validacion_vigente=ValidacionSIS.Estado.RECHAZADO)
+    return casos.exclude(validacion_vigente=ValidacionSIS.Estado.RECHAZADO)
+
+
 def candidatos(
     *,
     programa=None,
@@ -320,6 +370,7 @@ def candidatos(
     solo_enviar=False,
     filtrar_materias=True,
     destino=DESTINO_SIIS,
+    solo_incompatibles=False,
 ):
     """Casos que todavía no se informaron a SIIS.
 
@@ -345,7 +396,9 @@ def candidatos(
     tapa los que sí pueden salir (A2-15).
 
     Ni los que no se van a poder aprobar ni los que están pausados (BEC-21): ver
-    :func:`_solo_los_aprobables` y :func:`_sin_pausa_vigente`.
+    :func:`_solo_los_aprobables` y :func:`_sin_pausa_vigente`. Ni los que SIIS ya
+    declaró incompatibles (BEC-11): ver :func:`_por_incompatibilidad`, que con
+    ``solo_incompatibles=True`` devuelve justamente esos, para contarlos.
     """
     ultimo = EnvioSIIS.objects.filter(formulario=OuterRef("pk")).order_by("-creado", "-id").values("estado")[:1]
     vigente = EnvioSIIS.objects.filter(formulario=OuterRef("pk"), vigente=True)
@@ -384,7 +437,9 @@ def candidatos(
     casos = casos.exclude(Q(conflicto_duplicado=True) & Q(conflicto_resuelto=False)).exclude(
         cargas_en_conflicto__conflicto_resuelto=False
     )
-    casos = _sin_pausa_vigente(_solo_los_aprobables(casos))
+    casos = _por_incompatibilidad(
+        _sin_pausa_vigente(_solo_los_aprobables(casos)), solo_incompatibles=solo_incompatibles
+    )
     # Solo el ENVIADO: un APROBADO con una fila de espera colgando (datos previos
     # a la regla) igual tiene que informarse a SIIS.
     casos = casos.exclude(estado=Formulario.Estado.ENVIADO, lista_espera__promovido=False)
@@ -614,12 +669,56 @@ def exigir_sin_corrida_viva():
     si no, un comando lanzado en el mismo segundo que la pantalla lee la tabla
     antes de que la corrida se commitee —la base corre en READ COMMITTED—, no ve
     nada y arranca igual.
+
+    **Cubre una sola dirección, y conviene saber cuál.** Sirve contra «la pantalla
+    ya está corriendo y alguien lanza un comando»: ahí el comando espera el
+    candado, ve la corrida y corta. No cubre la inversa —un comando que pasó el
+    chequeo y sigue trabajando cuando alguien aprieta Procesar un segundo
+    después—, porque el candado se suelta en el commit y **no se puede sostener
+    durante la corrida**: el ``read_timeout`` de 10 s de ECOM mata a cualquiera
+    que espere ese lock, y una corrida dura una hora. Una exclusión simétrica
+    pide una fila de «comando en curso» con su propio latido, o sea el mismo
+    mecanismo que ``CorridaSiis``; no se hizo acá porque el camino de la pantalla
+    está detrás de una capacidad y lo usa una persona por vez, mientras que los
+    comandos los corre quien ya tiene shell en el pod. Lo que queda cubierto,
+    igual, es lo irreversible: aunque los dos caminos se crucen, un caso no puede
+    informarse dos veces (SIIS-01, la reserva y el índice único).
     """
     with transaction.atomic():
         _tomar_candado()
         corrida = CorridaSiis.en_curso()
         if corrida is not None:
             raise CorridaEnCurso(corrida)
+
+
+def registrar_corrida_ignorada(comando, motivo, *, usuario=None):
+    """Deja rastro de un ``--ignorar-corrida``: en el log y en la corrida que pisa.
+
+    Es la única guarda del circuito que se puede saltear a mano, así que no puede
+    saltearse en silencio: el log queda en el pod y la nota queda **en la corrida
+    que se estaba pisando**, que es lo que después mira el coordinador en la
+    pantalla para entender por qué sus números no cierran.
+
+    Se escribe con ``Concat`` sobre la columna, no leyendo y volviendo a escribir:
+    el hilo de la corrida está tocando esa misma fila.
+    """
+    corrida = CorridaSiis.en_curso()
+    quien = usuario or "sin --usuario"
+    logger.warning(
+        "ignorar-corrida: %s corrió en paralelo con la corrida %s (usuario: %s, motivo: %s)",
+        comando,
+        f"#{corrida.pk}" if corrida else "ninguna",
+        quien,
+        motivo,
+    )
+    if corrida is None:
+        return None
+    nota = (
+        f"\n{timezone.localtime():%d/%m %H:%M} · «{comando}» corrió en paralelo con --ignorar-corrida "
+        f"({quien}): {motivo}"
+    )
+    CorridaSiis.objects.filter(pk=corrida.pk).update(mensaje=Concat("mensaje", Value(nota)))
+    return corrida
 
 
 def _retirar_las_interrumpidas(nueva):

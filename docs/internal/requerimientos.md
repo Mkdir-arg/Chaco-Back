@@ -18565,7 +18565,9 @@ pantalla de un programa y la consulta era global.
 
 - `programas/models/__init__.py` — `CorridaSiis.LATIDO_VENCIDO` a 5 minutos (con el porqué derivado
   de los dos settings de SIIS) y campo `incompatibles`.
-- `programas/services/proceso_masivo.py` — `LATIDO_CADA_MIRADOS`, `_latir()`,
+- `programas/services/proceso_masivo.py` — `_por_incompatibilidad()` (el veredicto vigente, con
+  `alias()` + `Coalesce` para que la subconsulta quede **una sola vez** en el SQL),
+  `registrar_corrida_ignorada()`, `LATIDO_CADA_MIRADOS`, `_latir()`,
   `elegir_completos(..., al_mirar=)`, latido y relectura por caso en `correr()`, `CorridaEnCurso`,
   `exigir_sin_corrida_viva()`, `_retirar_las_interrumpidas()`, `_solo_los_aprobables()`,
   `_sin_pausa_vigente()`, `Cuenta.incompatibles` y el corte por veredicto `RECHAZADO` en
@@ -18585,14 +18587,21 @@ pantalla de un programa y la consulta era global.
 ## Base de datos
 
 **Migración `programas.0076_corridasiis_incompatibles`** sobre `programas_corridasiis`: una columna
-`PositiveIntegerField(default=0)`.
+`PositiveIntegerField(default=0, db_default=0)`.
 
-- **Expand/contract: se puede desplegar antes que el código.** La columna tiene default y el código
-  viejo no la escribe.
+- **Expand/contract: se puede desplegar antes que el código, y el `db_default` es lo que lo hace
+  cierto.** El `default` de Django vive en Python: lo pone el ORM al armar el INSERT. Entre la
+  migración y el final del rollout, el pod viejo sigue insertando `CorridaSiis` **sin** nombrar la
+  columna, y en MariaDB y MySQL con `STRICT_TRANS_TABLES` —el modo de ECOM— una columna `NOT NULL`
+  sin default de base contesta **ERROR 1364** y lanzar el proceso masivo daría 500 toda la ventana.
+  Con `db_default=0` el `ADD COLUMN` lleva su `DEFAULT 0` y el INSERT viejo entra.
 - `ADD COLUMN` con default constante al final de una tabla con una fila por corrida lanzada:
   instantáneo (`ALGORITHM=INSTANT` en MariaDB 10.3+ y MySQL 8).
 - **Reversa**: la de Django (`RemoveField`). Lo único que se pierde es el contador de las corridas
   ya hechas.
+- **Probado contra MariaDB 10.11 real** (contenedor efímero, `sql_mode = STRICT_TRANS_TABLES`): ida,
+  `COLUMN_DEFAULT = '0'`, un `INSERT` que **omite la columna** (el del código viejo) entra con 0,
+  reversa, y segunda ida con la fila ya escrita.
 
 ## Validación
 
@@ -18605,8 +18614,11 @@ Con Python 3.12 + Django 5.2.17 (`.venv312`, igual al CI):
 - `scripts/design_audit.py --changed` → 0 errores (3 P1 preexistentes del archivo);
   `--ratchet` → 0 hallazgos nuevos; `scripts/compile_templates.py` → 199, 0 errores;
   `scripts/check_design_agent.py --changed` → OK.
-- **Motor real**: `manage.py test --tag mysql` contra **MariaDB 10.11 sin tablas de zona horaria**
-  (contenedor efímero, como ECOM), para las dos carreras del candado de la corrida.
+- **Motor real** (contenedor efímero `mariadb:10.11` con `MARIADB_INITDB_SKIP_TZINFO=1`, como ECOM):
+  `manage.py test --tag mysql` para las dos carreras del candado; la migración ida, INSERT viejo,
+  reversa y segunda ida (ver *Base de datos*); y la consulta de candidatos **ejecutada**, no solo
+  compilada, con el filtro nuevo de BEC-11 (dos `OuterRef` sobre relaciones adentro de una
+  subconsulta: que SQLite la acepte no dice nada de MariaDB).
 - **Los tests fallan antes del cambio**: las 17 aserciones nuevas de `test_proceso_masivo`,
   `test_siis_un_solo_envio` y `test_correr_alta_siis` se corrieron contra el código anterior y
   dieron rojo (13 `FAIL` + 4 `ERROR`), incluidas las dos PoC invertidas de
@@ -18625,11 +18637,14 @@ candidatos y los tests del circuito no probarían el circuito sino la exclusión
    recicla el pod y el hilo muere con él. Con este cambio la corrida interrumpida queda visible y se
    relanza desde la pantalla, que la retira sola.
 2. **Avisar a quien opera los comandos** que ahora cortan si la pantalla tiene una corrida en curso,
-   y que la salida de emergencia es `--ignorar-corrida` (con el costo que tiene: los dos caminos
-   toman los mismos casos).
+   y que la salida de emergencia es `--ignorar-corrida --motivo "..."`, que exige el motivo y lo deja
+   escrito en el log y en la corrida que pisa (con el costo que tiene: los dos caminos toman los
+   mismos casos).
 3. **Mirar el contador de incompatibles** después de la primera corrida: son casos que antes se
    aprobaban solos y ahora esperan a una persona. Si el número es alto, conviene revisarlos en
-   tanda desde la revisión antes de volver a lanzar.
+   tanda desde la revisión antes de volver a lanzar. Después del deploy **salen de «Pendientes de
+   informar» y pasan a su propio contador**: si los pendientes bajan de golpe, es eso y no un caso
+   perdido.
 4. Nada que correr a mano: la migración es aditiva y el resto es código.
 
 ## Pendientes / a definir
@@ -18644,6 +18659,30 @@ candidatos y los tests del circuito no probarían el circuito sino la exclusión
 - **Una corrida por programa** sigue sin existir: es una sola en todo el sistema (Cambio 88). Hoy
   hay un solo programa con casos; si mañana hay dos, la pantalla del segundo va a decir «hay una
   corrida en curso» y no podrá lanzar la suya.
+- **La exclusión entre la pantalla y los comandos es de una sola dirección.** Un comando que arranca
+  con la pantalla corriendo corta; un comando que ya está corriendo no impide que alguien lance la
+  corrida desde la pantalla. Hacerla simétrica pide una fila de «comando en curso» con su propio
+  latido —el mismo mecanismo que `CorridaSiis`—; no se hizo porque la pantalla está detrás de una
+  capacidad y la usa una persona por vez. Lo irreversible sigue cubierto por la reserva de SIIS-01:
+  crucen o no, un caso no puede informarse dos veces. Queda escrito en el docstring de
+  `exigir_sin_corrida_viva` y en `docs/internal/procedimiento-alta-siis.md`.
+
+## Historial
+
+- **06/10/2026 · ronda 2 de la revisión del PR #590.** El revisor verificó las dos mutaciones del
+  candado y la migración contra MariaDB y MySQL reales, y encontró un **MAJOR**: BEC-11 no aprobaba
+  al incompatible pero **lo dejaba de candidato para siempre**. Como la corrida recorre por pk, con
+  200 incompatibles adelante una corrida de 100 gastaba sus 100 llamadas a SIIS, daba cero altas y
+  la siguiente repetía exactamente lo mismo: el arreglo de BEC-11 convertía un caso mal aprobado en
+  una corrida inútil. `candidatos()` ahora los deja afuera por su **veredicto vigente** —la última
+  validación que corresponde al DNI y al plan de hoy— y la pantalla los cuenta aparte, porque sacarlos
+  de la corrida no puede ser sacarlos de la vista. Y cinco menores: el `db_default` de la 0076 (ver
+  *Base de datos*: sin él, el pod viejo que inserta una corrida entre la migración y el rollout
+  recibe ERROR 1364); la guarda de `correr_alta_siis` pasa a correr solo con `--aplicar`, como manda
+  la base; `--ignorar-corrida` exige `--motivo` y deja rastro en el log y en la corrida que pisa;
+  la asimetría de la exclusión queda documentada en vez de insinuada; y el helper `_en_paralelo` de
+  los tests de motor real juntaba las excepciones de los hilos con los resultados, así que un hilo
+  que explotaba dejaba el test en verde.
 
 ## Reversión
 

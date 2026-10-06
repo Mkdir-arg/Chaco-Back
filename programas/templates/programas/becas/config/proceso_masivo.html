@@ -108,7 +108,18 @@
   {# Sin corrida: el formulario #}
   <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
     {% include "components/_stat_card.html" with etiqueta="Pendientes de informar" valor=pendientes icono="fa-hourglass-half" tono="warning" %}
+    {% comment %}BEC-11: estos ya no entran a la corrida —si no, se los vuelve a consultar
+    en cada vuelta y la corrida se gasta en ellos—, pero están esperando que alguien
+    decida: sin este número desaparecerían de la pantalla.{% endcomment %}
+    {% if incompatibles %}
+    {% include "components/_stat_card.html" with etiqueta="Incompatibles según SIIS" valor=incompatibles icono="fa-user-xmark" tono="danger" %}
+    {% endif %}
   </div>
+  {% if incompatibles %}
+  <p class="text-xs text-body-subtle">
+    Los incompatibles no entran a la corrida: SIIS ya contestó que no corresponden al programa y la decisión es de una persona, desde la revisión del caso.
+  </p>
+  {% endif %}
   <div class="bg-white rounded-xl border border-base shadow-sm p-5">
     {% if pendientes %}
     <form method="post" action="{% url 'becas:proceso_masivo_lanzar' programa.pk %}"

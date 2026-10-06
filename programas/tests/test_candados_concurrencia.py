@@ -148,8 +148,10 @@ class CarreraDeCorridaMasivaTests(MotorRealMixin, TransactionTestCase):
             try:
                 barrera.wait()
                 resultados.append(operacion())
-            except Exception as exc:  # el hilo no propaga: se reporta al final
-                resultados.append(exc)
+            except Exception as exc:
+                # A ``errores``, no a ``resultados``: una excepción guardada entre
+                # los resultados deja el test en verde mientras el hilo se murió.
+                errores.append(exc)
             finally:
                 connections.close_all()
 

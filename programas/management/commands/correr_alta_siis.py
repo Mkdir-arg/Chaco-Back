@@ -47,6 +47,7 @@ from django.core.management import call_command
 from django.core.management.base import BaseCommand, CommandError
 from django.db import connection
 
+from programas.management.commands._base_siis import AYUDA_MOTIVO, FALTA_MOTIVO
 from programas.management.commands._insumos_siis import FALTA_DIRECTORIO, INSUMOS
 from programas.models import EnvioSIIS, LocalidadSiis, ProgramaSiis, ProvinciaSiis, RequisitoNativo
 from programas.services import proceso_masivo
@@ -187,9 +188,11 @@ class Command(BaseCommand):
             action="store_true",
             help=(
                 "Arranca aunque la pantalla del proceso masivo tenga una corrida en curso. Solo para "
-                "emergencias: los dos caminos procesan los mismos casos y el alta en SIIS no tiene baja."
+                "emergencias: los dos caminos procesan los mismos casos y el alta en SIIS no tiene baja. "
+                "Exige --motivo."
             ),
         )
+        parser.add_argument("--motivo", default="", help=AYUDA_MOTIVO)
 
     # ── Salida ──────────────────────────────────────────────────────────────
 
@@ -215,19 +218,26 @@ class Command(BaseCommand):
     def _tiene_identificadores(programa):
         return bool(programa.siis_id_plan_soc_efectivo and programa.siis_jurid_efectivo and programa.siis_funcion_id)
 
-    def _precondiciones(self, aplicar, con_insumos, ignorar_corrida=False):
+    def _precondiciones(self, aplicar, con_insumos, ignorar_corrida=False, motivo="", usuario=None):
         """Lo que ningún comando puede resolver solo. Corta con la lista entera."""
         faltan = []
 
         # SIIS-03: no hereda de ``ComandoSiisBase`` —no llama a SIIS, encadena a
         # los que sí—, así que la guarda la pide él. Va acá y no adentro de los
         # hijos para cortar en el paso 1, antes de cargar insumos y correr el
-        # catálogo, y no a la mitad del circuito.
-        if not ignorar_corrida:
-            try:
-                proceso_masivo.exigir_sin_corrida_viva()
-            except proceso_masivo.CorridaEnCurso as exc:
-                raise CommandError(str(exc)) from exc
+        # catálogo, y no a la mitad del circuito. Solo con ``--aplicar``, igual
+        # que en la base: un ensayo no toca nada, y durante una corrida es justo
+        # cuando alguien quiere mirar qué haría.
+        if aplicar:
+            if ignorar_corrida:
+                if not motivo:
+                    raise CommandError(FALTA_MOTIVO)
+                proceso_masivo.registrar_corrida_ignorada("correr_alta_siis", motivo, usuario=usuario)
+            else:
+                try:
+                    proceso_masivo.exigir_sin_corrida_viva()
+                except proceso_masivo.CorridaEnCurso as exc:
+                    raise CommandError(str(exc)) from exc
 
         if aplicar and not (settings.SIIS_API_CLIENT_ID and settings.SIIS_API_CLIENT_SECRET):
             faltan.append("Faltan SIIS_API_CLIENT_ID / SIIS_API_CLIENT_SECRET en el entorno.")
@@ -423,7 +433,13 @@ class Command(BaseCommand):
             self._log("ENSAYO: no se escribe ni se manda nada. Agregá --aplicar.\n", self.style.WARNING)
 
         self._paso(1, "Precondiciones")
-        self._precondiciones(aplicar, con_insumos, ignorar_corrida=options["ignorar_corrida"])
+        self._precondiciones(
+            aplicar,
+            con_insumos,
+            ignorar_corrida=options["ignorar_corrida"],
+            motivo=(options["motivo"] or "").strip(),
+            usuario=options["usuario"],
+        )
         if options["solo_precondiciones"]:
             self._log("\nEstá todo lo que hace falta para arrancar.", self.style.SUCCESS)
             return

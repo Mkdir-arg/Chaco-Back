@@ -51,9 +51,20 @@ class ProcesoMasivoView(CapacidadRequeridaMixin, LoginRequiredMixin, DetailView)
         # lanzar nada. Se muestra el motivo en vez de un 500.
         try:
             ctx["pendientes"] = servicio.candidatos(programa=self.object).count()
+            # BEC-11: los que SIIS declaró incompatibles ya no son candidatos —si
+            # no, la corrida los vuelve a consultar en cada vuelta—, pero tienen
+            # que verse: son casos esperando que alguien decida, no casos
+            # resueltos. Solo se cuentan cuando no hay corrida: mientras corre,
+            # la pantalla se relee sola cada 5 s y ese bloque no se muestra.
+            ctx["incompatibles"] = (
+                None
+                if en_curso is not None
+                else servicio.candidatos(programa=self.object, solo_incompatibles=True).count()
+            )
             ctx["tabla_materias_faltante"] = False
         except servicio.TablaAprobadosMateriasFaltante as exc:
             ctx["pendientes"] = None
+            ctx["incompatibles"] = None
             ctx["tabla_materias_faltante"] = True
             ctx["motivo_bloqueo"] = str(exc)
         return ctx

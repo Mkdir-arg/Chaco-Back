@@ -35,7 +35,14 @@ AYUDA_MAX_INCIERTOS = (
 AYUDA_USUARIO = "Nombre de usuario que queda como responsable en los registros y en la traza."
 AYUDA_IGNORAR_CORRIDA = (
     "Corre aunque la pantalla del proceso masivo tenga una corrida en curso. Solo para emergencias: "
-    "los dos caminos procesan los mismos casos y el alta en SIIS no tiene baja."
+    "los dos caminos procesan los mismos casos y el alta en SIIS no tiene baja. Exige --motivo."
+)
+AYUDA_MOTIVO = (
+    "Por qué se ignora la corrida en curso. Obligatorio con --ignorar-corrida; queda en el log y en la corrida."
+)
+FALTA_MOTIVO = (
+    "--ignorar-corrida necesita --motivo: es la única guarda del circuito que se puede saltear a mano, "
+    "así que tiene que quedar escrito quién lo hizo y por qué."
 )
 
 
@@ -71,6 +78,7 @@ class ComandoSiisBase(BaseCommand):
         )
         parser.add_argument("--usuario", default=None, help=AYUDA_USUARIO)
         parser.add_argument("--ignorar-corrida", action="store_true", help=AYUDA_IGNORAR_CORRIDA)
+        parser.add_argument("--motivo", default="", help=AYUDA_MOTIVO)
 
     # ── Guardas ─────────────────────────────────────────────────────────────
 
@@ -85,14 +93,25 @@ class ComandoSiisBase(BaseCommand):
 
         Solo con ``--aplicar``: mirar qué haría no toca nada, y durante una
         corrida es justo cuando alguien quiere mirar.
+
+        ``--ignorar-corrida`` es la salida de emergencia y **no es gratis**: pide
+        ``--motivo`` y deja rastro en el log y en la corrida que pisa
+        (``proceso_masivo.registrar_corrida_ignorada``). Una guarda que se puede
+        saltear en silencio no es una guarda.
         """
+        if not options.get("aplicar"):
+            return
         if options.get("ignorar_corrida"):
+            motivo = (options.get("motivo") or "").strip()
+            if not motivo:
+                raise CommandError(FALTA_MOTIVO)
             self._log(
                 "--ignorar-corrida: se corre aunque haya una corrida en curso. Los dos caminos toman los mismos casos.",
                 self.style.WARNING,
             )
-            return
-        if not options.get("aplicar"):
+            proceso_masivo.registrar_corrida_ignorada(
+                self.__module__.rsplit(".", 1)[-1], motivo, usuario=options.get("usuario")
+            )
             return
         try:
             proceso_masivo.exigir_sin_corrida_viva()

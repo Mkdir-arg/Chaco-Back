@@ -18,7 +18,7 @@ las 52 que le quedaban a la ola.
 | Ficha | Qué quedó |
 |---|---|
 | **SIIS-03 + A5-33** ✅ | Latido antes de la selección, cada 100 candidatos mirados y **por caso**; `LATIDO_VENCIDO` de 2 a **5 min** (un caso son hasta tres llamadas de 40 s: dos minutos justos). El freno de la persona y el de errores se miran **por caso**, no al cerrar el lote de 40. `crear_corrida` cierra como `DETENIDA` la corrida sin señal en vez de dejar dos «en curso», y el hilo reemplazado se retira **sin pisar el estado**. Frenar marca **por programa** (A5-33) y **sin** filtrar por latido (V2-NEW-01): la que parece interrumpida es justo la que hay que poder frenar. Los cinco comandos abortan con una corrida viva —la guarda vive en `ComandoSiisBase`, se pregunta **con el candado tomado** y tiene `--ignorar-corrida`—. **El punto 7 (CronJob) no se hace:** default de D-S03 |
-| **BEC-11** ✅ | Default de **D-B11**: un caso que SIIS declaró incompatible no se aprueba en lote; queda contado en `CorridaSiis.incompatibles` (pantalla y resumen del comando) y lo resuelve una persona. No cuenta para el freno: SIIS contestó, y bien |
+| **BEC-11** ✅ | Default de **D-B11**: un caso que SIIS declaró incompatible no se aprueba en lote; queda contado en `CorridaSiis.incompatibles` (pantalla y resumen del comando) y lo resuelve una persona. No cuenta para el freno: SIIS contestó, y bien. **Y sale de los candidatos**: si siguiera, la corrida lo volvería a consultar en cada vuelta y con 200 adelante por pk una corrida de 100 daba cero altas (ronda 2 de la revisión). Vuelve solo si lo revalidan con OK o si cambia el DNI o el plan |
 | **BEC-21** 🟡 | Fuera de los candidatos los `ENVIADO` que la aprobación iba a rechazar igual (sin identidad validada o sin ciudadano con DNI) y los pausados en los cinco niveles. **Falta el bloqueo por estado del programa en SIIS**, atado a SIIS-06 (PR 4): hoy un catálogo vacío deja todos los programas en `DESCONOCIDO` y esa exclusión frenaría el masivo entero por un error de SIIS |
 
 **Migración `programas.0076_corridasiis_incompatibles`**: una columna con default en una tabla de una
@@ -28,7 +28,8 @@ fila por corrida. Expand-only, instantánea, reversa de Django.
 1. **No desplegar con una corrida masiva en curso** (sigue del PR 2; ahora, si queda interrumpida, se
    ve y la relanza la pantalla, que la retira sola).
 2. **Avisar a quien opera los comandos** que cortan si la pantalla tiene una corrida en curso, y que
-   la salida de emergencia es `--ignorar-corrida` (los dos caminos toman los mismos casos).
+   la salida de emergencia es `--ignorar-corrida --motivo "..."`, que deja rastro (los dos caminos
+   toman los mismos casos). La exclusión cubre una sola dirección y está documentada.
 3. **Mirar el contador de incompatibles** de la primera corrida: son casos que antes se aprobaban
    solos y ahora esperan a una persona.
 

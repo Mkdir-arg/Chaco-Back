@@ -161,10 +161,34 @@ class PrecondicionesTests(_BaseAltaTest):
         CorridaSiis.objects.create(programa=self.programa, total_pedido=10, latido=timezone.now())
 
         with self.assertRaises(CommandError) as ctx:
-            self.correr("--solo-precondiciones")
+            self.correr("--solo-precondiciones", "--aplicar")
 
         self.assertIn("corrida", str(ctx.exception).lower())
         self.assertIn("--ignorar-corrida", str(ctx.exception))
+
+    def test_el_ensayo_corre_igual_con_una_corrida_viva(self):
+        """Mirar qué haría no toca nada, y es justo lo que alguien quiere mirar."""
+        from programas.models import CorridaSiis
+
+        CorridaSiis.objects.create(programa=self.programa, total_pedido=10, latido=timezone.now())
+
+        salida = self.correr("--solo-precondiciones")
+
+        self.assertIn("los 7", salida)
+
+    def test_ignorar_corrida_exige_motivo_y_deja_rastro(self):
+        from programas.models import CorridaSiis
+
+        corrida = CorridaSiis.objects.create(programa=self.programa, total_pedido=10, latido=timezone.now())
+
+        with self.assertRaises(CommandError) as ctx:
+            self.correr("--solo-precondiciones", "--aplicar", "--ignorar-corrida")
+        self.assertIn("--motivo", str(ctx.exception))
+
+        self.correr("--solo-precondiciones", "--aplicar", "--ignorar-corrida", "--motivo", "corte de ECOM")
+
+        corrida.refresh_from_db()
+        self.assertIn("corte de ECOM", corrida.mensaje)
 
     def test_una_corrida_interrumpida_no_lo_frena(self):
         from programas.models import CorridaSiis
@@ -173,7 +197,7 @@ class PrecondicionesTests(_BaseAltaTest):
             programa=self.programa, total_pedido=10, latido=timezone.now() - CorridaSiis.LATIDO_VENCIDO * 2
         )
 
-        salida = self.correr("--solo-precondiciones")
+        salida = self.correr("--solo-precondiciones", "--aplicar")
 
         self.assertIn("los 7", salida)
 

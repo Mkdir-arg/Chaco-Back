@@ -929,7 +929,7 @@ class ParidadComandosSiisTests(TestCase):
     """
 
     COMANDOS = ("validar_casos_siis", "enviar_casos_siis", "procesar_casos_siis", "reenviar_siis_pendientes")
-    FLAGS_COMUNES = {"--aplicar", "--lote", "--pausa", "--max-errores", "--usuario", "--ignorar-corrida"}
+    FLAGS_COMUNES = {"--aplicar", "--lote", "--pausa", "--max-errores", "--usuario", "--ignorar-corrida", "--motivo"}
 
     def setUp(self):
         # Cambio 90: sin la tabla, dos de los cuatro cortan antes de empezar.
@@ -987,14 +987,36 @@ class ParidadComandosSiisTests(TestCase):
             with self.subTest(comando=nombre):
                 call_command(nombre, stdout=StringIO(), stderr=StringIO())
 
-    def test_ignorar_corrida_es_la_salida_de_emergencia(self):
+    def test_ignorar_corrida_es_la_salida_de_emergencia_y_deja_rastro(self):
+        """Saltear la guarda se puede; saltearla en silencio, no."""
         programa = ProgramaSiis.objects.create(nombre="Ñachec emergencia", siis_programa_id=783)
-        CorridaSiis.objects.create(programa=programa, total_pedido=10, latido=timezone.now())
+        corrida = CorridaSiis.objects.create(programa=programa, total_pedido=10, latido=timezone.now())
         salida = StringIO()
 
-        call_command("reenviar_siis_pendientes", "--aplicar", "--ignorar-corrida", stdout=salida, stderr=salida)
+        call_command(
+            "reenviar_siis_pendientes",
+            "--aplicar",
+            "--ignorar-corrida",
+            "--motivo",
+            "ECOM pidió reintentar 3 casos hoy",
+            stdout=salida,
+            stderr=salida,
+        )
 
         self.assertIn("corrida en curso", salida.getvalue())
+        corrida.refresh_from_db()
+        self.assertIn("--ignorar-corrida", corrida.mensaje)
+        self.assertIn("ECOM pidió reintentar 3 casos hoy", corrida.mensaje)
+
+    def test_ignorar_corrida_sin_motivo_no_corre(self):
+        programa = ProgramaSiis.objects.create(nombre="Ñachec sin motivo", siis_programa_id=785)
+        CorridaSiis.objects.create(programa=programa, total_pedido=10, latido=timezone.now())
+
+        for nombre in self.COMANDOS:
+            with self.subTest(comando=nombre):
+                with self.assertRaises(CommandError) as ctx:
+                    call_command(nombre, "--aplicar", "--ignorar-corrida", stdout=StringIO(), stderr=StringIO())
+                self.assertIn("--motivo", str(ctx.exception))
 
     def test_una_corrida_interrumpida_no_frena_a_los_comandos(self):
         """Un pod muerto hace una hora no puede dejar la operación trabada."""
