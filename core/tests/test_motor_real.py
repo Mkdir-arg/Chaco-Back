@@ -46,6 +46,7 @@ from io import StringIO
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.cache import cache
+from django.core.exceptions import ValidationError
 from django.core.management import call_command
 from django.db import connection, connections
 from django.test import TestCase, TransactionTestCase, tag
@@ -65,11 +66,12 @@ from programas.models import (
     Segmento,
     TipoCampo,
     TipoDispositivo,
+    TracaFormulario,
     ValidacionSIS,
 )
 from programas.services import dashboard_becas as dashboard
 from programas.services.becas import formulario_por_client_uuid, relevamiento_publico_por_token
-from programas.services.cupo import agregar_a_lista_espera, aprobar_o_poner_en_espera
+from programas.services.cupo import agregar_a_lista_espera, aprobar_o_poner_en_espera, dar_baja_beneficiario
 from programas.services.registro_diario import calcular_cantidades
 
 #: El servidor que contestó, no el que se pidió.
@@ -472,3 +474,123 @@ class CarreraDeCupoTests(MotorRealMixin, TransactionTestCase):
         posiciones = sorted(ListaEspera.objects.values_list("posicion", flat=True))
 
         self.assertEqual(posiciones, [1, 2])
+
+
+@tag("mysql")
+class CarreraDelMismoCasoTests(MotorRealMixin, TransactionTestCase):
+    """BEC-01 y BEC-02 · capa 2: dos requests sobre **el mismo** caso.
+
+    ``CarreraDeCupoTests`` corre dos casos distintos contra el último lugar: lo
+    que protege ahí es el candado del *segmento*. Acá los dos hilos pelean por la
+    misma fila de ``programas_formulario`` —doble clic, dos pestañas, la pantalla
+    y el masivo—, que es lo que el candado del segmento no cubre y lo que hasta
+    ahora no tomaba nadie del lado de aprobar.
+
+    Sin el candado de la fila, con READ COMMITTED los dos leen el mismo estado,
+    los dos escriben y el caso se resuelve dos veces: dos trazas, dos correos y
+    dos altas en SIIS —que no tiene baja—.
+
+    Medido contra este mismo MariaDB 10.11, con `cupo.py` en `development`: los
+    dos de abajo fallan (dos filas activas en la lista; las dos bajas pasan) y el
+    de las dos aprobaciones **pasa**, porque esas dos ya las serializaba el
+    candado del segmento. Ese queda igual como guarda de regresión: lo que hoy lo
+    sostiene es un candado que no es el suyo, y la baja y el alta a la lista
+    muestran que con eso no alcanza.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.programa = ProgramaSiis.objects.create(nombre="Programa mismo caso", siis_programa_id=944)
+        self.conv = _convocatoria(nombre="Conv mismo caso", cupo=10, programa=self.programa)
+        self.segmento = self.conv.segmento
+        self.rel = Relevamiento.objects.create(
+            convocatoria=self.conv,
+            fecha_asignada=timezone.now(),
+            tipo=Relevamiento.Tipo.PUBLICO,
+        )
+        self.admin = User.objects.create_superuser("admin-mismo-caso", "m@c.com", "x")
+        ciudadano = Ciudadano.objects.create(
+            dni="30222111", nombre="Persona", apellido="Unica", fecha_nacimiento=date(1990, 5, 3)
+        )
+        self.formulario = Formulario.objects.create(
+            relevamiento=self.rel, celular="3624302221", ciudadano=ciudadano, validado_renaper=True
+        )
+        ValidacionSIS.objects.create(
+            formulario=self.formulario,
+            estado=ValidacionSIS.Estado.OK,
+            id_programa=self.programa.siis_id_plan_soc_efectivo,
+            documento=ciudadano.dni,
+            respuesta={"resultado": "OK", "apto": True},
+            solicitado_por=self.admin,
+        )
+
+    def _dos_veces(self, operacion):
+        """La misma operación sobre el mismo caso, en dos hilos que arrancan juntos."""
+        barrera = threading.Barrier(2, timeout=30)
+        resultados, errores = [], []
+
+        def correr():
+            try:
+                formulario = Formulario.objects.get(pk=self.formulario.pk)
+                barrera.wait()
+                resultados.append(operacion(formulario))
+            except Exception as exc:  # el perdedor de la carrera avisa: se cuenta
+                errores.append(exc)
+            finally:
+                connections.close_all()
+
+        hilos = [threading.Thread(target=correr) for _ in range(2)]
+        for hilo in hilos:
+            hilo.start()
+        for hilo in hilos:
+            hilo.join(timeout=60)
+        return resultados, errores
+
+    def test_dos_aprobaciones_del_mismo_caso_dejan_una_sola(self):
+        resultados, errores = self._dos_veces(lambda f: aprobar_o_poner_en_espera(f, self.admin))
+
+        self.assertEqual(resultados, ["aprobado"], "los dos hilos aprobaron el mismo caso")
+        self.assertEqual(len(errores), 1)
+        self.assertIsInstance(errores[0], ValidationError)
+        self.formulario.refresh_from_db()
+        self.assertEqual(self.formulario.estado, Formulario.Estado.APROBADO)
+        self.assertEqual(
+            TracaFormulario.objects.filter(formulario=self.formulario, campo="estado").count(),
+            1,
+            "la aprobación se registró dos veces: la fila del caso no se serializó",
+        )
+
+    def test_dos_altas_del_mismo_caso_a_la_lista_dejan_una_sola_fila(self):
+        _, errores = self._dos_veces(lambda f: agregar_a_lista_espera(f, self.segmento, self.admin))
+
+        self.assertEqual(ListaEspera.objects.filter(formulario=self.formulario, promovido=False).count(), 1)
+        self.assertEqual(len(errores), 1)
+        self.assertIsInstance(errores[0], ValidationError)
+
+    def test_una_baja_y_una_aprobacion_a_la_vez_no_se_pisan(self):
+        """La aprobación y la baja se serializan: el caso queda en una sola de las dos."""
+        self.formulario.estado = Formulario.Estado.APROBADO
+        self.formulario.save(update_fields=["estado"])
+        barrera = threading.Barrier(2, timeout=30)
+        errores = []
+
+        def bajar():
+            try:
+                formulario = Formulario.objects.get(pk=self.formulario.pk)
+                barrera.wait()
+                dar_baja_beneficiario(formulario, self.admin)
+            except Exception as exc:
+                errores.append(exc)
+            finally:
+                connections.close_all()
+
+        hilos = [threading.Thread(target=bajar) for _ in range(2)]
+        for hilo in hilos:
+            hilo.start()
+        for hilo in hilos:
+            hilo.join(timeout=60)
+
+        self.assertEqual(len(errores), 1, "las dos bajas pasaron: la fila no se serializó")
+        self.formulario.refresh_from_db()
+        self.assertEqual(self.formulario.estado, Formulario.Estado.BAJA)
+        self.assertEqual(TracaFormulario.objects.filter(formulario=self.formulario, campo="estado").count(), 1)

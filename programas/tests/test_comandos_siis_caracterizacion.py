@@ -29,7 +29,7 @@ from django.test import TestCase, override_settings
 from django.test.utils import CaptureQueriesContext
 
 from programas.models import Formulario, ProgramaSiis, RequisitoNativo, ValidacionSIS
-from programas.services.siis import ESTADO_DESCONOCIDO, SiisCatalogError
+from programas.services.siis import SiisCatalogError
 from programas.tests.test_siis_envio import _BaseEnvioTest
 
 TABLA_RENAPER = "ciudadanos_renaper"
@@ -377,24 +377,27 @@ class SincronizarProgramasSiisTests(TestCase):
         self.programa.refresh_from_db()
         self.assertEqual(self.programa.siis_programa_estado, ProgramaSiis.EstadoSiis.ACTIVO)
 
-    def test_catalogo_vacio_marca_todo_desconocido(self):
-        """Caracterización, **no** aprobación (ficha RED-32).
+    def test_catalogo_vacio_no_escribe_nada(self):
+        """La Ola 1 decidió al revés que la caracterización (SIIS-06).
 
-        La ficha proponía ``test_catalogo_vacio_no_pisa_nada``; el código hace lo
-        contrario y a propósito: ``listar_programas_todos`` pide ``estado=TODOS``
-        justamente porque una baja se ve como una ausencia, así que un programa
-        que no está en la respuesta pasa a ``DESCONOCIDO`` y queda bloqueado. El
-        costo es que un catálogo vacío por un error del servicio bloquea todo:
-        eso es lo que este test deja fijado para que la Ola 1 lo decida a la vista.
+        Hasta el 06/10/2026 este test se llamaba
+        ``test_catalogo_vacio_marca_todo_desconocido`` y dejaba fijado lo
+        contrario: el catálogo vacío marcaba **todo** ``DESCONOCIDO`` y Becas
+        quedaba bloqueada entera. Era caracterización explícita, no aprobación
+        (RED-32), puesta ahí «para que la Ola 1 lo decida a la vista»: la regla de
+        fondo sigue igual —``estado=TODOS`` se pide justamente porque una baja se
+        ve como una ausencia—, pero una respuesta vacía ya no es una ausencia, es
+        SIIS roto, y el cron de las 04:00 corre sin nadie mirando.
+
+        La ausencia *parcial* se sigue escribiendo sola: eso lo fija
+        ``programas.tests.test_siis_catalogo_y_payload.SincronizacionDefensivaTests``.
         """
-        salida = self.correr([])
+        with self.assertRaisesMessage(CommandError, "catálogo vacío"):
+            self.correr([])
 
         self.programa.refresh_from_db()
-        self.assertEqual(self.programa.siis_programa_estado, ESTADO_DESCONOCIDO)
-        self.assertIsNotNone(self.programa.siis_verificado_en)
-        self.assertIn("ACTIVO → DESCONOCIDO", salida)
-        self.assertIn("quedan bloqueados", salida)
-        self.assertIn("1 programa(s) actualizado(s)", salida)
+        self.assertEqual(self.programa.siis_programa_estado, ProgramaSiis.EstadoSiis.ACTIVO)
+        self.assertIsNone(self.programa.siis_verificado_en)
 
     def test_dry_run_informa_el_cambio_sin_escribirlo(self):
         salida = self.correr([{"id": 79, "nombre": "Ñachec", "estado": "INACTIVO"}], "--dry-run")

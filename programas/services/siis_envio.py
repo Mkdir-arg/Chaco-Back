@@ -358,7 +358,7 @@ def respuestas_por_destino(formulario):
     return resultado
 
 
-def _apoderado(formulario, faltantes, correcciones=None):
+def _apoderado(formulario, faltantes, correcciones=None, hoy=None, dni_titular=None):
     """Los 7 campos condicionales del manual (sección 4): solo para menores de 18.
 
     ``correcciones`` es el ``datos_siis`` del caso, igual que en el resto del
@@ -366,8 +366,18 @@ def _apoderado(formulario, faltantes, correcciones=None):
     legajo. Hasta el 30/09/2026 el apoderado era el único bloque que no las
     miraba, así que una fecha mal cargada no se podía corregir para SIIS sin
     tocar el legajo de la persona.
+
+    Las tres reglas que prevalida (SIIS-12) son las tres que SIIS ya nos venía
+    rechazando: el Cambio 98 midió 265 rechazos por apoderado menor de 18 o con
+    fecha futura y 448 casos con el propio alumno cargado como apoderado. Se
+    corrigieron esos datos, no el payload, así que el caso siguiente volvía a
+    gastar un alta —que SIIS no tiene cómo dar de baja— para enterarse de algo
+    que se ve con la fecha en la mano. Se valida **después** de aplicar las
+    correcciones: lo que viaja es lo corregido, y es lo que tiene que pasar el
+    control.
     """
     correcciones = correcciones or {}
+    hoy = hoy or date.today()
     if formulario.apoderado_ciudadano_id:
         a = formulario.apoderado_ciudadano
         dni, nombre, apellido, sexo, nacimiento = a.dni, a.nombre, a.apellido, a.genero, a.fecha_nacimiento
@@ -385,6 +395,8 @@ def _apoderado(formulario, faltantes, correcciones=None):
         faltantes["dni_apoderado"] = "La persona es menor de 18 años y el caso no tiene apoderado con DNI."
         return datos
     datos["dni_apoderado"] = int(dni)
+    if dni_titular and dni == _digitos(dni_titular):
+        faltantes["dni_apoderado"] = "El apoderado no puede ser el propio titular."
     if apellido:
         datos["apellido_apoderado"] = _texto_mayus(apellido)
     else:
@@ -399,10 +411,14 @@ def _apoderado(formulario, faltantes, correcciones=None):
         datos["cuil_pref_apoderado"], datos["cuil_dig_apoderado"] = calcular_cuil(dni, sexo)
     else:
         faltantes["sexo_apoderado"] = "El sexo del apoderado debe ser F o M."
-    if nacimiento:
-        datos["fecha_nacim_apoderado"] = nacimiento.isoformat()
-    else:
+    if not nacimiento:
         faltantes["fecha_nacim_apoderado"] = "Falta la fecha de nacimiento del apoderado."
+    elif nacimiento > hoy:
+        faltantes["fecha_nacim_apoderado"] = "La fecha de nacimiento del apoderado es futura."
+    elif _edad(nacimiento, hoy) < MAYORIA_DE_EDAD:
+        faltantes["fecha_nacim_apoderado"] = "El apoderado debe ser mayor de 18 años."
+    else:
+        datos["fecha_nacim_apoderado"] = nacimiento.isoformat()
     return datos
 
 
@@ -593,7 +609,7 @@ def armar_payload(formulario, catalogos=None, hoy=None):
 
     # --- Apoderado (condicional: menor de 18 a la fecha del envío) ---
     if nacimiento and _edad(nacimiento, hoy) < MAYORIA_DE_EDAD:
-        payload.update(_apoderado(formulario, faltantes, correcciones))
+        payload.update(_apoderado(formulario, faltantes, correcciones, hoy, ciudadano.dni if ciudadano else None))
 
     return payload, faltantes
 

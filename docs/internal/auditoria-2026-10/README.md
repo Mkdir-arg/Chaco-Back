@@ -6,6 +6,34 @@
 |---|---|---|---|---|
 | Ola 5 PR 2 | 150 | FE-02 ✅ · LEG-02 ✅ · LEG-03 ✅ · LEG-04 ✅ · LEG-05 ✅ · FE-09 ✅ · FE-21 ✅ | ✅ | **Las 7 fichas cerradas, sin migración: 14 h.** «Subir archivos» vuelve a funcionar (`toastr` nunca se cargó y cortaba el handler en su primera línea); reinscribir a alguien con una inscripción CERRADA/DADA DE BAJA/SUSPENDIDA deja de dar 500, con **una sola puerta** (`programas/services/inscripciones.py::activar_inscripcion`) que usan las tres vías de alta y `_membresia_activa` de Dispositivos; la solapa «Red Familiar» se retira con el **default D-L03 = B** —se van el 404 por carga del legajo, el ViewSet que listaba los vínculos de todos y 673 KB de `vis-network`—; un adjunto con el blob perdido ya no vacía la lista (se lista marcado `faltante`) y la consulta deja de ser N+1; la subida múltiple es atómica y limpia los blobs si falla; los links a `/legajos/<id>/` —ruta que no existe— pasan a texto, salvo el del dashboard de alertas, que apunta al ciudadano; y el modal de archivos se ata a `becas-modal.js` (Escape, foco atrapado, foco devuelto). **Tres desvíos, los tres code-first:** (a) la mitad de LEG-04 del «except que traga» **ya la había cerrado R-19** (#556, Cambio 126) —acá queda su test permanente—; (b) la allowlist de RED-42 que LEG-03 manda limpiar **no existe todavía** (`core/tests/test_urls_del_front.py` es del PR R-18, abierto); (c) `VinculoFamiliarViewSet` se borró además del router, porque dejarlo escrito es dejar la trampa armada. **Abierto, de otra ficha:** los tres JS huérfanos que todavía usan `toastr` (`static/custom/js/ciudadanos*.js`, ningún template los carga) los borra FE-14 en la Ola 7; `ciudadano_detail.html` sigue con 8 desvíos de arquetipo (eran 9), que son del PR 6 |
 
+## Estado al 06-oct-2026 (Ola 1, PR 4: catálogo y reglas independientes)
+
+**Cinco fichas que no dependían de ninguna otra, y la línea que BEC-21 estaba esperando.** El PR 4 de
+la Ola 1 (Cambio 151) cierra **SIIS-06**, **SIIS-11**, **SIIS-12**, **BEC-01**, **BEC-02** y completa
+**BEC-21**: 10 h de las 46 que le quedaban a la ola. **Sin migraciones.**
+
+| Ficha | Qué quedó |
+|---|---|
+| **SIIS-06** ✅ | El cron de las 04:00 deja de poder bloquear Becas entera por un error de SIIS. Catálogo vacío → no escribe nada; ausencia que alcanza a **todos** los vinculados o a **más del 50 %** → tampoco, sin `--forzar` (default de **D-S06**). La guarda no se aplica con un solo programa vinculado, donde «todos» es siempre cierto y una baja real no se podría detectar nunca. La ausencia parcial —lo normal— se sigue escribiendo sola. `listar_programas` y `listar_programas_todos` dejan de cachear la lista vacía. El `CommandError` deja el CronJob en rojo: es la forma de que alguien se entere |
+| **SIIS-11** ✅ | El cuerpo se normaliza antes del primer `.get` en los tres caminos que faltaban (compatibilidad, token, registro de la validación; el alta ya estaba, Cambio 127). Y los dos campos estructurados que se guardan de esa respuesta dejan de reventar al escribirse: `id_consulta` por `uuid.UUID`, `fecha_hora` por un `parse_datetime` envuelto. El intento igual se registra: es la constancia de que SIIS contestó cualquier cosa |
+| **SIIS-12** ✅ | El payload prevalida al apoderado —fecha futura, menor de 18, el propio titular—, que son los tres rechazos que el Cambio 98 midió en PRD (265 + 448 casos) y corrigió **en los datos, no en el payload**. Se valida después de aplicar las correcciones de `datos_siis`: el coordinador tiene salida sin tocar el legajo |
+| **BEC-01** ✅ | Las cuatro operaciones de `cupo.py` releen el estado con el candado de la fila del caso (orden segmento → caso, sin ciclo con rechazar) **y escriben condicionadas**: `UPDATE … WHERE estado = <el que leímos>`. El candado serializa en MariaDB; el compare-and-set es lo que hace que la decisión se pueda afirmar también en SQLite, donde `select_for_update()` es un no-op |
+| **BEC-02** ✅ | En `agregar_a_lista_espera` el candado del segmento pasa al principio y los dos chequeos se hacen adentro. Contra **MariaDB 10.11 real sin tzinfo**: con el código de `development` los dos hilos dejan **2 filas activas** y las **2 bajas pasan**; con el arreglo, una y un `ValidationError` |
+| **BEC-21** ✅ | La línea que esperaba a SIIS-06: `_sin_pausa_vigente` excluye los casos cuyo programa está `INACTIVO` o `DESCONOCIDO` en SIIS. Ya no hay riesgo de frenar el masivo entero, porque un catálogo vacío no escribe. Un programa recién vinculado (`""`) sigue siendo candidato |
+
+**Dos tests cambian a propósito**, los dos marcados en su docstring: `test_catalogo_vacio_marca_todo_desconocido`
+(R-06 lo dejó caracterizando lo de hoy «para que la Ola 1 lo decida a la vista»: hoy es
+`test_catalogo_vacio_no_escribe_nada`) y la primera mitad de
+`test_la_correccion_del_caso_pisa_la_fecha_del_apoderado` (Cambio 98), que afirmaba `faltantes == {}`
+para un apoderado de 17 años que era además el titular.
+
+**Pendiente operativo (PM):** avisar a quien mira el CronJob de las 04:00 que ahora puede terminar en
+rojo con «SIIS devolvió un catálogo vacío» o «no informó N de M programas vinculados». **Eso es la
+señal, no la falla**: antes de usar `--forzar` hay que confirmar la baja con ECOM, porque forzar marca
+los programas `DESCONOCIDO` y eso bloquea sus segmentos.
+
+---
+
 ## Estado al 06-oct-2026 (Ola 5, PR 1: fechas locales de Dispositivos)
 
 | PR | Cambio | Fichas | Estado | Qué quedó abierto |
@@ -31,7 +59,7 @@ las 52 que le quedaban a la ola.
 |---|---|
 | **SIIS-03 + A5-33** ✅ | Latido antes de la selección, cada 100 candidatos mirados y **por caso**; `LATIDO_VENCIDO` de 2 a **5 min** (un caso son hasta tres llamadas de 40 s: dos minutos justos). El freno de la persona y el de errores se miran **por caso**, no al cerrar el lote de 40. `crear_corrida` cierra como `DETENIDA` la corrida sin señal en vez de dejar dos «en curso», y el hilo reemplazado se retira **sin pisar el estado**. Frenar marca **por programa** (A5-33) y **sin** filtrar por latido (V2-NEW-01): la que parece interrumpida es justo la que hay que poder frenar. Los cinco comandos abortan con una corrida viva —la guarda vive en `ComandoSiisBase`, se pregunta **con el candado tomado** y tiene `--ignorar-corrida`—. **El punto 7 (CronJob) no se hace:** default de D-S03 |
 | **BEC-11** ✅ | Default de **D-B11**: un caso que SIIS declaró incompatible no se aprueba en lote; queda contado en `CorridaSiis.incompatibles` (pantalla y resumen del comando) y lo resuelve una persona. No cuenta para el freno: SIIS contestó, y bien. **Y sale de los candidatos**: si siguiera, la corrida lo volvería a consultar en cada vuelta y con 200 adelante por pk una corrida de 100 daba cero altas (ronda 2 de la revisión). Vuelve solo si lo revalidan con OK o si cambia el DNI o el plan |
-| **BEC-21** 🟡 | Fuera de los candidatos los `ENVIADO` que la aprobación iba a rechazar igual (sin identidad validada o sin ciudadano con DNI) y los pausados en los cinco niveles. **Falta el bloqueo por estado del programa en SIIS**, atado a SIIS-06 (PR 4): hoy un catálogo vacío deja todos los programas en `DESCONOCIDO` y esa exclusión frenaría el masivo entero por un error de SIIS |
+| **BEC-21** 🟡 → ✅ | Fuera de los candidatos los `ENVIADO` que la aprobación iba a rechazar igual (sin identidad validada o sin ciudadano con DNI) y los pausados en los cinco niveles. Faltaba el bloqueo por estado del programa en SIIS, atado a SIIS-06; **lo cerró el PR 4 (Cambio 151)** |
 
 **Migración `programas.0076_corridasiis_incompatibles`**: una columna con default en una tabla de una
 fila por corrida. Expand-only, instantánea, reversa de Django.
@@ -1281,7 +1309,16 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
      y fuera de los candidatos (migración `programas.0076_corridasiis_incompatibles`) y candidatos sin los no
      aprobables ni los pausados. El punto 7 (CronJob) no se hace: default de D-S03. BEC-21 queda 🟡: el bloqueo por
      estado del programa en SIIS espera a SIIS-06 (PR 4). 6 h.
-  4. SIIS-06, SIIS-11, SIIS-12, BEC-01, BEC-02 (independientes, S). 10 h.
+  4. ✅ **Hecho el 06-oct-2026 (Cambio 151):** SIIS-06 + SIIS-11 + SIIS-12 + BEC-01 + BEC-02, y de yapa el
+     resto de BEC-21. `sincronizar_estado_programas` no escribe con el catálogo vacío ni con una ausencia
+     masiva sin `--forzar` (default de D-S06) y deja de cachear la lista vacía; el cuerpo de SIIS se
+     normaliza antes del primer `.get` en los tres caminos que faltaban y `id_consulta`/`fecha_hora` se
+     validan antes de guardarse; el payload prevalida al apoderado (futuro, menor de 18, el propio
+     titular) después de aplicar las correcciones; las cuatro operaciones de `cupo.py` releen bajo el
+     candado de la fila del caso y escriben condicionadas al estado. **Sin migraciones.** Cambia a
+     propósito dos tests: la caracterización de R-06 (`test_catalogo_vacio_marca_todo_desconocido`,
+     puesta «para que la Ola 1 lo decida») y la primera mitad de la del Cambio 98 sobre el apoderado.
+     10 h.
   5. SIIS-09 (+PERF-09) **después** del PR 2. 4 h.
   6. SIIS-08 + G1-08 + G1-09 + G1-10 (qué viaja a SIIS). 20 h.
   7. SIIS-19, SIIS-17, G3-06 (herramientas y correcciones manuales). 6 h.
