@@ -98,13 +98,13 @@ Recibe el **SHA verificado en testing** y, antes de tocar nada, comprueba:
    y que sea el del SHA, no el de otra corrida.
 3. **Que alguien haya verificado testing**, con qué se probó y cuándo. Si la respuesta es
    «no lo miró nadie», el procedimiento termina acá.
-3bis. **Que el esquema de PRD se haya mirado** (paso 0): la salida de
+4. **Que el esquema de PRD se haya mirado** (paso 0): la salida de
    `verificar_esquema_migraciones --solo-reporte` que mandó ECOM, sin «Migraciones
    registradas con otro número» ni «Tablas que ya existen». Si el release no trae
    migraciones nuevas esto es informativo; si las trae, es condición.
-4. **Segunda confirmación escrita:** el operador tiene que escribir `PRODUCCION` —no
+5. **Segunda confirmación escrita:** el operador tiene que escribir `PRODUCCION` —no
    «sí», no «dale»—. Recién con eso se pushea `main`.
-5. Después del push, verificar `git ls-remote ecom main` y avisar que ArgoCD despliega
+6. Después del push, verificar `git ls-remote ecom main` y avisar que ArgoCD despliega
    solo, en 5 a 7 minutos, y que hay que mirar **Pipelines** del lado de ECOM.
 
 Si el release trae migraciones, antes del paso 2 corresponde el runbook de rollback

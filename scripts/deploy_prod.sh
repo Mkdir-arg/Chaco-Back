@@ -52,9 +52,33 @@ require_cmd() {
   fi
 }
 
+# Un entero y nada mas. `case` y NO `grep -qE '^[0-9]+$'`: grep trabaja por LINEA, asi
+# que una salida multilinea como "warning\n1400" le matchea --alcanza con que una sola
+# linea sea un numero-- y despues `[ "$x" -lt N ]` sale con status 2, que adentro de un
+# `if` se lee como «falso» y deja pasar el chequeo. Justo cuando el valor no se pudo
+# leer bien, que es cuando hay que frenar.
+es_numero() {
+  case "$1" in
+    '' | *[!0-9]*) return 1 ;;
+    *) return 0 ;;
+  esac
+}
+
 require_cmd docker
 require_cmd git
 require_cmd curl
+
+# Los limites numericos vienen del entorno: si alguno no es un entero, toda comparacion
+# que los use despues sale con status 2 y se lee como «esta bien». Se validan aca, antes
+# de tocar nada.
+for _par in "HEALTH_RETRIES=$HEALTH_RETRIES" "HEALTH_DELAY_SECONDS=$HEALTH_DELAY_SECONDS" \
+            "MANIFEST_MINIMO=$MANIFEST_MINIMO"; do
+  if ! es_numero "${_par#*=}"; then
+    err "${_par%%=*} tiene que ser un entero y vale '${_par#*=}'."
+    exit 1
+  fi
+done
+unset _par
 
 if ! docker compose version >/dev/null 2>&1; then
   err "Docker Compose plugin is required (docker compose ...)"
@@ -133,11 +157,12 @@ post_deploy_checks() {
   manifest="$(en_la_app python -c \
     "import json;d=json.load(open('/app/staticfiles/staticfiles.json'));print(len(d.get('paths',d)))" \
     2>/dev/null || true)"
-  # El `2>/dev/null` de antes tapaba el error de `[ -lt ]` ante un valor no numerico
+  # El `2>/dev/null` original tapaba el error de `[ -lt ]` ante un valor no numerico
   # --un traceback de Python, por ejemplo-- y la comparacion quedaba en falso: el
   # chequeo pasaba justo cuando el manifest no se habia podido leer. Primero se valida
-  # que sea un numero.
-  if ! printf '%s' "$manifest" | grep -qE '^[0-9]+$'; then
+  # que sea un numero, y con `es_numero` y no con grep, que mira linea por linea y deja
+  # pasar un "warning\n1400".
+  if ! es_numero "$manifest"; then
     err "No se pudo contar las entradas de staticfiles.json (salida: '${manifest:-vacia}')."
     return 1
   fi
@@ -166,11 +191,15 @@ post_deploy_checks() {
 # justamente lo que pasa con `web` en crash-loop, el escenario del rollback--. Leido como
 # 0, el rollback procedia creyendo que el deploy no habia migrado nada.
 migraciones_aplicadas() {
-  local salida
+  local salida cuenta
   if ! salida="$(en_la_app python manage.py showmigrations --plan 2>/dev/null)"; then
     return 1
   fi
-  printf '%s\n' "$salida" | grep -c '^\[X\]' || true
+  cuenta="$(printf '%s\n' "$salida" | grep -c '^\[X\]' || true)"
+  # El contrato de la funcion es «un entero o nada»: asi el `-gt` de rollback() no puede
+  # salir con status 2 y hacerse pasar por «el deploy no migro».
+  es_numero "$cuenta" || return 1
+  printf '%s\n' "$cuenta"
 }
 
 rollback() {

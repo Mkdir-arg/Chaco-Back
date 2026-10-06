@@ -21,7 +21,8 @@ migraciones y las tablas de verdad se separan:
    Así que frena **solo** la renumeración: una fila cuyo nombre, sin el número, también
    existe en disco con **otro** número y **sin aplicar**. Eso es exactamente «la misma
    migración registrada con otro nombre», o sea la que `migrate` va a volver a correr.
-   El resto sale por aviso, con su motivo.
+   El resto sale por aviso, con su motivo. Tiene un falso negativo conocido —una
+   migración renumerada **y** renombrada— explicado en `clasificar_filas_sin_archivo`.
 2. **Tablas que una migración sin aplicar va a crear y ya existen.** El síntoma: `1050 Table already
    exists` en medio del deploy, con el esquema a medias porque en MySQL y MariaDB el DDL
    no es transaccional. El otro camino a lo mismo es restaurar un dump de producción
@@ -136,6 +137,17 @@ def clasificar_filas_sin_archivo(fantasmas, loader) -> tuple[list, list]:
     sin paquete de migraciones) y migraciones borradas sin reemplazo. Ahí `migrate` no
     tiene nada que correr por esa fila, así que se avisa y se sigue: abortar dejaría el
     ambiente sin arrancar **nunca más**, que es peor que el problema original.
+
+    **Límite conocido (falso negativo), a propósito.** La renumeración se reconoce por el
+    nombre sin el número, así que una migración renumerada **y renombrada** —cambió
+    también la parte descriptiva— cae en «inerte» y la guarda deja arrancar. Si además es
+    hoja y trae un `AddField`/`AddIndex`, el `migrate` se va a morir a mitad de camino con
+    `1060 Duplicate column` o `1061 Duplicate key`, que es lo que esta guarda querría
+    anticipar. No se cubre y es deliberado: adivinar que dos migraciones con nombres
+    distintos son «la misma» pide comparar operaciones, y una heurística floja acá se
+    paga en el arranque de producción, que es donde no se puede equivocar. El caso real
+    del repo —icore— conserva el nombre; y la segunda barrera, la colisión de tablas,
+    sigue cubriendo el `CreateModel` aunque el nombre cambie entero.
 
     Devuelve `(frenan, inertes)`: `frenan` como `((app, nombre), nombre_en_disco)`,
     `inertes` como `((app, nombre), motivo)`.

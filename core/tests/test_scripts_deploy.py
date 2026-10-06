@@ -51,6 +51,14 @@ def _ordenes(texto):
     return "\n".join(linea for linea in texto.splitlines() if not linea.lstrip().startswith("#"))
 
 
+def _funcion_del_script(texto, nombre):
+    """El cuerpo de una función del script, para poder ejercitarla en un bash aparte."""
+    hallazgo = re.search(rf"^{nombre}\(\) \{{.*?^\}}", texto, re.DOTALL | re.MULTILINE)
+    if not hallazgo:
+        raise AssertionError(f"el script ya no define la función «{nombre}»")
+    return hallazgo.group(0)
+
+
 class DeployProdTests(SimpleTestCase):
     def setUp(self):
         self.script = SCRIPT.read_text(encoding="utf-8")
@@ -156,8 +164,40 @@ class DeployProdTests(SimpleTestCase):
         Justo cuando el manifest no se pudo leer, que es cuando hay que frenar.
         """
         self.assertNotIn('[ "$manifest" -lt "$MANIFEST_MINIMO" ] 2>/dev/null', self.ordenes)
-        self.assertRegex(self.ordenes, r"grep -qE '\^\[0-9\]\+\$'")
+        self.assertIn('es_numero "$manifest"', self.ordenes)
         self.assertIn("No se pudo contar las entradas de staticfiles.json", self.ordenes)
+
+    @unittest.skipUnless(_hay_bash(), "hace falta un bash que corra")
+    def test_la_validacion_numerica_no_se_escapa_con_salida_multilinea(self):
+        """`grep -qE '^[0-9]+$'` mira **línea por línea**: `"warning\\n1400"` le matchea.
+
+        Y después `[ "$manifest" -lt N ]` sale con status 2 —«integer expression
+        expected»—, que adentro de un `if` se lee como falso: el chequeo pasaba y el
+        deploy se declaraba exitoso justo cuando el manifest no se había podido leer.
+        Por eso la validación es un `case`, que mira la cadena entera.
+
+        El test corre la función **del script** contra los casos, así que se pone rojo si
+        alguien vuelve a la versión con `grep`.
+        """
+        casos = {"1400": 0, "": 1, "abc": 1, "warning\n1400": 1, "12 34": 1, "14.0": 1}
+
+        for valor, esperado in casos.items():
+            with self.subTest(valor=valor):
+                corrida = subprocess.run(
+                    ["bash", "-c", f'{_funcion_del_script(self.script, "es_numero")}\nes_numero "$1"', "_", valor],
+                    capture_output=True,
+                )
+                self.assertEqual(corrida.returncode, esperado)
+
+    def test_los_limites_numericos_del_entorno_se_validan_al_arrancar(self):
+        """`MANIFEST_MINIMO=diez` haría que toda comparación saliera con status 2."""
+        self.assertIn("MANIFEST_MINIMO=$MANIFEST_MINIMO", self.ordenes)
+        self.assertIn("HEALTH_RETRIES=$HEALTH_RETRIES", self.ordenes)
+        self.assertIn("tiene que ser un entero", self.ordenes)
+
+    def test_la_cuenta_de_migraciones_solo_devuelve_un_entero_o_nada(self):
+        """Así el `-gt` de `rollback()` no puede salir con status 2 y pasar por «no migró»."""
+        self.assertIn('es_numero "$cuenta" || return 1', self.ordenes)
 
     # --- contrato del script ------------------------------------------------ #
 

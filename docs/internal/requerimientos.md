@@ -20129,9 +20129,10 @@ Las seis fichas son las piezas de ese mismo recorrido, y por eso van juntas.
 ## Alcance acordado
 
 **Entra:** el `LOGGING` por función y gateado por `LOG_TO_FILES`; `logger.exception` en los dos context processors;
-`/health/ready/` y el retiro de `django-health-check`; los *post-deploy checks*, la rama de rollback y el aborto por
-migraciones en `deploy_prod.sh`; el comando `verificar_esquema_migraciones` con sus tres chequeos, en el entrypoint y en
-el roundtrip; el SQL de renombre para icore; y el tag de release en `publish-main.yml`.
+`/health/ready/` y el retiro del include de URLs de `django-health-check`; los *post-deploy checks*, la rama de rollback
+y el aborto por migraciones en `deploy_prod.sh`; el comando `verificar_esquema_migraciones` —que mira tres cosas y
+**frena por dos**: la renumeración y la colisión de tablas—, en el entrypoint y en el roundtrip, con su modo
+`--solo-reporte`; el SQL de renombre para icore; y el tag de release en `publish-main.yml`.
 
 **Queda afuera:** `DB_READ_TIMEOUT` (OPS-05, Ola 3) y el candado `GET_LOCK` del bootstrap (OPS-07, Ola 3); el resto de
 OPS-13 (`openai`, `django_extensions`, `debugpy`…), incluido `django-health-check`, que esta ficha pedía retirar y
@@ -20195,8 +20196,10 @@ motivo del cambio —que `logs/` crezca sin techo en icore— se resolvió con l
 `conversaciones.context_processors.user_groups`, con el motivo al lado. El contexto sigue degradando igual.
 
 **OPS-04 — `/health/ready/`.** `healthcheck/views/ready.py`: `ensure_connection()` + `SELECT 1` y, con
-`ENVIRONMENT=="prd"`, `caches["sessions"].get("health")`. Devuelve `{"db": …}` con 200, o 503 con el tipo de error
-(acotado a 200 caracteres: no filtra credenciales ni datos). Se retiraron `health_check`, `health_check.db` y
+`ENVIRONMENT=="prd"`, `caches["sessions"].get("health")`. Devuelve `{"db": …}` con 200, o 503 con el **nombre de la
+clase** de la excepción y nada más (`"OperationalError"`): la vista es pública y sin sesión, y el mensaje del motor trae
+el host interno de la base y, en un 1045, el usuario con el que Django se conecta. El detalle entero va a
+`logger.exception`. Se retiraron `health_check`, `health_check.db` y
 `health_check.cache` de `INSTALLED_APPS`, el `path("health/", include("health_check.urls"))` que el include de
 `healthcheck.urls` tapaba —dos apps peleando la misma ruta, una de ellas tocando la base en lo que es una liveness— y
 **El paquete sigue instalado.** Sacarlo se probó y lo frenó la guarda de OPS-01 en el CI de este mismo PR:
@@ -20212,9 +20215,9 @@ testing y en PRD. Retirarlo es OPS-13 y tiene que venir con esa limpieza; quedó
 que no existe —el login está en `/` y `/login/`, `users/urls.py:24-25`—, y el estado de las migraciones se compara por
 cantidad de `[X]` antes y después, que es lo que se puede medir desde el host.
 
-**OPS-01 — la guarda de esquema.** `manage.py verificar_esquema_migraciones`, de solo lectura, con tres chequeos:
-filas sin archivo, `CreateModel` sin aplicar cuya `db_table` ya existe (el `1050` del deploy, y también lo que deja un
-restore encima) y el inverso de RED-15. El estado final se calcula con la **unión** de los modelos vivos y los del
+**OPS-01 — la guarda de esquema.** `manage.py verificar_esquema_migraciones`, de solo lectura. Mira tres cosas —filas
+sin archivo, `CreateModel` sin aplicar cuya `db_table` ya existe (el `1050` del deploy, y también lo que deja un restore
+encima) y el inverso de RED-15— y **frena por dos**: la renumeración y la colisión de tablas. El estado final se calcula con la **unión** de los modelos vivos y los del
 `project_state()` de las migraciones: solo con los vivos, una tabla del grafo cuyo modelo ya no está en el código daría
 un falso positivo. Corre en `docker-entrypoint.sh` antes del `migrate` (salteable con `SKIP_SCHEMA_GUARD=true`) y como
 paso 8/8 de `scripts/roundtrip_migraciones.py` con `--estricto`, que es lo que el Anexo B pedía y el Cambio 139 dejó
@@ -20229,6 +20232,14 @@ de encima. Frena **solo la renumeración**: la misma migración en disco con **o
 literalmente lo que `migrate` va a volver a correr sobre un esquema que ya la tiene. El resto sale por
 `logger.warning` + stderr con su motivo. El daño de icore lo cubren las dos barreras juntas —renumeración y colisión de
 tablas—, y las dos se midieron contra `mariadb:10.11` (sin tzinfo) y `mysql:8.0` efímeros.
+
+**Límite conocido, y es a propósito.** La renumeración se reconoce por el nombre sin el número, así que una migración
+renumerada **y renombrada** —cambió también la parte descriptiva— cae en «inerte» y la guarda deja arrancar. Si además
+es hoja y trae un `AddField`/`AddIndex`, el `migrate` muere a mitad de camino con `1060 Duplicate column` o `1061
+Duplicate key`. No se cubre: adivinar que dos migraciones con nombres distintos son «la misma» pide comparar
+operaciones, y una heurística floja en el arranque de producción se paga caro. El caso real del repo —icore— conserva
+el nombre, y la colisión de tablas sigue cubriendo el `CreateModel` aunque el nombre cambie entero. Queda escrito en el
+docstring de `clasificar_filas_sin_archivo`.
 
 **Y hay un modo de inspección, `--solo-reporte`:** imprime los hallazgos y **termina siempre en 0**, así que se puede
 correr contra un ambiente ajeno —testing o PRD de ECOM— sin que el código de salida corte el script de quien lo mire.
