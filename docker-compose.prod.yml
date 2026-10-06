@@ -59,6 +59,11 @@ services:
       - RUN_MIGRATIONS=true
       - RUN_CREAR_PROGRAMAS=true
       - RUN_COLLECTSTATIC=true
+      # OPS-03: en icore `./logs` esta montado desde el host, asi que los archivos
+      # diarios siguen existiendo. El traceback de cada 500 va ademas a stdout
+      # (`docker compose logs web`), que antes no pasaba. LOG_RETENTION_DAYS=14 por
+      # defecto: las carpetas mas viejas se borran al arrancar.
+      - LOG_TO_FILES=True
       # SEC-09: nginx dejo de servir /media/ con `alias`. Los adjuntos los entrega
       # Django detras de login_required; sin este flag no hay ruta que los sirva.
       - SERVE_MEDIA=True
@@ -113,6 +118,7 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - REDIS_SSL=False
+      - LOG_TO_FILES=True
       - APP_BIND=0.0.0.0
       - APP_PORT=8001
     command: daphne -b 0.0.0.0 -p 8001 config.asgi:application

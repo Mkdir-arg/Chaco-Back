@@ -361,13 +361,12 @@ jobs:
         if: steps.filtro.outputs.migraciones == 'true'
         run: sudo apt-get install -y default-libmysqlclient-dev
 
-      - name: Install Python dependencies
-        if: steps.filtro.outputs.migraciones == 'true'
-        run: pip install -r requirements.txt
-
       # El árbol de la base del PR es «la release anterior» de verdad para este PR, y no
       # hace falta esperar al tag de RED-16: es la misma referencia que usa el gate
       # estático de R-12, así que los dos miden exactamente el mismo conjunto de cambios.
+      #
+      # Va **antes** de instalar: las dependencias que hacen falta son las de los dos
+      # árboles, y para leer las de la base hay que tenerla.
       - name: Árbol de la base del PR
         if: steps.filtro.outputs.migraciones == 'true'
         run: |
@@ -376,6 +375,20 @@ jobs:
           echo "BASE=$base" >> "$GITHUB_ENV"
           git worktree add ../base "$base"
           echo "base: $base"
+
+      # Este job corre `manage.py` en **dos** árboles. Si el PR retira una dependencia
+      # —el Cambio 153 retiró `django-health-check`—, el árbol de la base la sigue
+      # nombrando en `INSTALLED_APPS` y su `migrate` muere con `ModuleNotFoundError`
+      # antes de tocar la base: el job se pondría rojo por el motivo equivocado, y el
+      # único arreglo aparente sería no retirar nunca una dependencia.
+      #
+      # Se instalan las dos listas, la de la **base primero** para que los pines del PR
+      # ganen en todo lo compartido: lo que se mide es el código del PR.
+      - name: Install Python dependencies
+        if: steps.filtro.outputs.migraciones == 'true'
+        run: |
+          pip install -r ../base/requirements.txt
+          pip install -r requirements.txt
 
       - name: Migraciones ida y vuelta, sobre datos
         if: steps.filtro.outputs.migraciones == 'true'

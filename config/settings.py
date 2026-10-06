@@ -1,10 +1,11 @@
-import logging
 import os
 import sys
 from pathlib import Path
 
 from django.contrib.messages import constants as messages
 from dotenv import load_dotenv
+
+from core.logging_config import construir_logging, purgar_logs_viejos
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -107,6 +108,13 @@ INSTALLED_APPS = [
     "drf_spectacular_sidecar",
     "channels",
     "django_redis",
+    # OPS-04: sus URLs ya **no** se montan (`config/urls.py`), porque el include de
+    # `healthcheck.urls` las tapaba y eran inalcanzables. Las apps siguen acá a
+    # propósito: tienen una migración aplicada (`db.0001_initial` y
+    # `health_check_db.0001_initial`) y la tabla `health_check_db_testmodel` en los
+    # ambientes. Sacarlas de INSTALLED_APPS deja esas dos filas sin archivo y esa tabla
+    # sin modelo, que es justo lo que `verificar_esquema_migraciones` frena. Retirar el
+    # paquete es OPS-13, y tiene que venir con esa limpieza.
     "health_check",
     "health_check.db",
     "health_check.cache",
@@ -537,75 +545,18 @@ DATOS_SIIS_DIR = os.getenv("DATOS_SIIS_DIR", "/datos-siis")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 LOG_DIR = BASE_DIR / "logs"
-os.makedirs(LOG_DIR, exist_ok=True)
+# OPS-03: stdout es el destino de verdad —es lo que recogen `docker compose logs` y
+# `kubectl logs`—. Los archivos de `logs/` son un extra de icore, donde el directorio
+# está montado desde el host: se encienden con LOG_TO_FILES=True (docker-compose.prod.yml)
+# y se purgan solos pasados LOG_RETENTION_DAYS días. Apagados, no se crea ni el
+# directorio, que en un filesystem de solo lectura era un arranque fallido.
+LOG_TO_FILES = os.environ.get("LOG_TO_FILES", "False") == "True"
+LOG_RETENTION_DAYS = int(os.environ.get("LOG_RETENTION_DAYS", "14"))
+if LOG_TO_FILES:
+    os.makedirs(LOG_DIR, exist_ok=True)
+    purgar_logs_viejos(LOG_DIR, LOG_RETENTION_DAYS)
 
-LOGGING = {
-    "version": 1,
-    "disable_existing_loggers": False,
-    "filters": {
-        "info_only": {"()": "django.utils.log.CallbackFilter", "callback": lambda r: r.levelno == logging.INFO},
-        "error_only": {"()": "django.utils.log.CallbackFilter", "callback": lambda r: r.levelno == logging.ERROR},
-        "warning_only": {"()": "django.utils.log.CallbackFilter", "callback": lambda r: r.levelno == logging.WARNING},
-        "critical_only": {"()": "django.utils.log.CallbackFilter", "callback": lambda r: r.levelno == logging.CRITICAL},
-        "data_only": {"()": "django.utils.log.CallbackFilter", "callback": lambda r: hasattr(r, "data")},
-    },
-    "formatters": {
-        "verbose": {"format": "[{asctime}] {module} {levelname} {name}: {message}", "style": "{"},
-        "simple": {"format": "[{asctime}] {levelname} {message}", "style": "{"},
-        "json_data": {"()": "core.utils.JSONDataFormatter"},
-    },
-    "handlers": {
-        "console": {
-            "level": "DEBUG" if DEBUG else "INFO",
-            "class": "logging.StreamHandler",
-            "formatter": "verbose",
-        },
-        "info_file": {
-            "level": "INFO",
-            "filters": ["info_only"],
-            "class": "core.utils.DailyFileHandler",
-            "filename": str(LOG_DIR / "info.log"),
-            "formatter": "verbose",
-        },
-        "error_file": {
-            "level": "ERROR",
-            "filters": ["error_only"],
-            "class": "core.utils.DailyFileHandler",
-            "filename": str(LOG_DIR / "error.log"),
-            "formatter": "verbose",
-        },
-        "warning_file": {
-            "level": "WARNING",
-            "filters": ["warning_only"],
-            "class": "core.utils.DailyFileHandler",
-            "filename": str(LOG_DIR / "warning.log"),
-            "formatter": "verbose",
-        },
-        "critical_file": {
-            "level": "CRITICAL",
-            "filters": ["critical_only"],
-            "class": "core.utils.DailyFileHandler",
-            "filename": str(LOG_DIR / "critical.log"),
-            "formatter": "verbose",
-        },
-        "data_file": {
-            "level": "INFO",
-            "filters": ["data_only"],
-            "class": "core.utils.DailyFileHandler",
-            "filename": str(LOG_DIR / "data.log"),
-            "formatter": "json_data",
-        },
-    },
-    "root": {
-        "handlers": ["console", "info_file", "error_file", "warning_file", "critical_file", "data_file"],
-        "level": "DEBUG" if DEBUG else "INFO",
-    },
-    "loggers": {
-        "django": {"handlers": [], "level": "DEBUG" if DEBUG else "INFO", "propagate": True},
-        "django.request": {"handlers": ["error_file", "warning_file"], "level": "WARNING", "propagate": False},
-        "core.requests": {"handlers": [], "level": "INFO", "propagate": True},
-    },
-}
+LOGGING = construir_logging(log_dir=LOG_DIR, debug=DEBUG, log_to_files=LOG_TO_FILES)
 
 # Argon2 primero: verificar una contraseña con el PBKDF2 por defecto de Django 5.2
 # (1.000.000 de iteraciones) cuesta ~1 s de CPU por login, con el GIL tomado;

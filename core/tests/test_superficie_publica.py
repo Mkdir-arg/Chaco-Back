@@ -148,6 +148,13 @@ ALLOWLIST_PUBLICA = {
     "/portal/": "Portal ciudadano: a dónde manda el middleware a un ciudadano (Cambio 102).",
     "/portal/csrf/": "Semilla de CSRF del formulario público de inscripción (Cambio 52).",
     "/health/": "Sonda de salud del contenedor; la consulta el orquestador, sin sesión.",
+    "/health/ready/": (
+        "Readiness (OPS-04): la consultan el deploy y el monitoreo, sin sesión. El cuerpo "
+        "lleva «ok» o el **nombre de la clase** de la excepción (`OperationalError`) y "
+        "nada más: el mensaje del motor —que trae el host de la base y, en un 1045, el "
+        "usuario— queda solo en el log. Lo fija "
+        "`healthcheck.tests.test_ready.HealthReadyTests.test_el_cuerpo_no_filtra_el_mensaje_del_motor`."
+    ),
     "/favicon.ico": "Redirección permanente al PNG estático.",
     "/api/becas/auth/token/": "Login de la app de campo: cambia usuario y clave por token (400 sin credenciales).",
     # Las tres del link público de inscripción (Cambio 41). Contestan 404 porque
@@ -240,7 +247,7 @@ class SuperficieAnonimaTests(TestCase):
         cubriendo de más. En los dos casos el arreglo es el mismo: revisar la
         lista y actualizar este número en el mismo commit.
         """
-        self.assertEqual(len(ALLOWLIST_PUBLICA), 17)
+        self.assertEqual(len(ALLOWLIST_PUBLICA), 18)  # +1: /health/ready/ (OPS-04, Cambio 153)
 
     def test_la_allowlist_publica_no_tiene_entradas_muertas(self):
         """Una URL que ya no existe en el URLconf deja de justificar nada."""
@@ -435,12 +442,13 @@ class SuperficieSinRolTests(TestCase):
     def test_la_allowlist_sin_rol_mide_lo_que_se_midio(self):
         """Ratchet en las dos direcciones, igual que el de `ALLOWLIST_PUBLICA`.
 
-        14 entradas propias + las 17 públicas. El barrido del 04-oct-2026 midió
+        14 entradas propias + las 18 públicas. El barrido del 04-oct-2026 midió
         31 rutas abiertas a este usuario: estas 14 y las 17 de Legajos, que no
-        están acá porque este PR les puso capacidad (SEC-10, SEC-11, SEC-18).
+        están acá porque este PR les puso capacidad (SEC-10, SEC-11, SEC-18). La
+        32.ª es `/health/ready/`, que agregó el Cambio 153 (OPS-04).
         """
         self.assertEqual(len(EXTRAS_SIN_ROL), 14)
-        self.assertEqual(len(ALLOWLIST_SIN_ROL), 31)
+        self.assertEqual(len(ALLOWLIST_SIN_ROL), 32)
 
     def test_la_allowlist_sin_rol_no_tiene_entradas_muertas(self):
         urls = {url for _, url in self.rutas}

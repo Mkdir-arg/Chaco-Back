@@ -1,9 +1,13 @@
+import logging
+
 from django.conf import settings
 from django.contrib.auth.models import Group
 from django.db.models import Prefetch, prefetch_related_objects
 from django.utils.asyncio import async_unsafe
 
 from core import rbac
+
+logger = logging.getLogger(__name__)
 
 
 @async_unsafe
@@ -18,6 +22,11 @@ def user_groups(request):
                 )
             groups = list(rbac.nombres_de_grupos(request.user))
         except Exception:
+            # RED-55: el usuario sigue viendo el backoffice sin su rol en el sidebar
+            # —degradar es deliberado, corre en cada render autenticado—, pero el
+            # motivo queda escrito. Sin esto, un `OperationalError` de MariaDB se
+            # confundía con «este usuario no tiene grupos».
+            logger.exception("user_groups: no se pudieron leer los grupos del usuario")
             groups = []
         return {
             "user_groups_list": groups,

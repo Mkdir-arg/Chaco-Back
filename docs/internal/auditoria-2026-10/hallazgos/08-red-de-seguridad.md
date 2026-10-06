@@ -55,7 +55,7 @@ con lo que existe hoy; la lista solo baja.
 | RED-13 | El shell de todo el backoffice y `legajos.ready()` dependen de `conversaciones` | ALTA | CONF. lectura | R (test) + 7 | S + M | ⬜ |
 | RED-14 | Un rollback de release con una columna `NOT NULL` nueva rompe el alta de casos (error 1364) | ALTA | CONF. test (MariaDB 11.8) | R | M | ✅ |
 | RED-15 | En MariaDB la reversa falla (errno 150) y deja tabla huérfana y `django_migrations` a mitad | ALTA | CONF. test (MariaDB 11.8) | R | S | ✅ |
-| RED-16 | No hay artefacto al que volver: ECOM publica solo `:latest` y `main` no se tagea | ALTA | CONF. lectura (rollout PLAUSIBLE) | R | S | ⬜ |
+| RED-16 | No hay artefacto al que volver: ECOM publica solo `:latest` y `main` no se tagea | ALTA | CONF. lectura (rollout PLAUSIBLE) | R | S | 🟡 |
 | RED-17 | Ninguna migración se prueba hacia atrás ni sobre datos; los tests de migración usan los modelos de hoy | ALTA | CONF. test | R | M + S | ✅ |
 | RED-18 | La reversa de `0047`, `0048` y `legajos.0007` falla con «Data truncated» | ALTA | CONF. test (MariaDB 11.8) | R | S | ✅ |
 | RED-19 | Rolling en k8s: cada pod corre `migrate` (choque) y no hay regla expand/contract | ALTA | CONF. test (MariaDB 11.8) | R (+3 en OPS-07) | S-M | ✅ |
@@ -94,11 +94,11 @@ con lo que existe hoy; la lista solo baja.
 | RED-52 | Contrato implícito por `user._state.fields_cache["profile"]` | MEDIA | CONF. lectura | R (+2) | S (+S) | ⬜ |
 | RED-53 | Clones literales entre los comandos SIIS y entre las vistas de padrón | MEDIA | CONF. test (pylint + AST) | 1 (+5) | S-M (+S) | ✅ (1; falta Ola 5) |
 | RED-54 | `revision.py` (1.331 líneas): ningún test fija el contexto del detalle | MEDIA | CONF. test (radon) | R (+7) | S-M (+M) | ✅ (R; falta Ola 7) |
-| RED-55 | Los context processors corren en cada render y tragan toda excepción sin log | MEDIA | CONF. lectura | R | S | ⬜ |
+| RED-55 | Los context processors corren en cada render y tragan toda excepción sin log | MEDIA | CONF. lectura | R | S | ✅ |
 | RED-56 | Los guards de alcance de Becas fallan abiertos si el Programa BECAS no está sembrado | MEDIA | CONF. test | R | S | ✅ |
 | RED-57 | 14 reversas `RunPython.noop` (más `users/0007`) pierden datos e informan `OK` | MEDIA | CONF. test (SQLite con datos) | R | S-M | ✅ |
 | RED-58 | `legajos.0007` no es re-entrante: un corte deja legajos sin FK y el reintento muere con 1091 | MEDIA | CONF. test (SQL) | 3 | S | ⬜ |
-| RED-59 | `deploy_prod.sh`: rollback sin base, detached HEAD y un health que siempre da 200 | MEDIA | CONF. lectura | R | S | ⬜ |
+| RED-59 | `deploy_prod.sh`: rollback sin base, detached HEAD y un health que siempre da 200 | MEDIA | CONF. lectura | R | S | ✅ |
 | RED-60 | `processes.md` enseña un rollback que destruye datos y autoriza `--fake` | MEDIA | CONF. lectura | R (prioridad 1) | S | ✅ |
 | RED-61 | `SIIS_API_URL` cae al SIIS de desarrollo y nada lo valida al arrancar | MEDIA | CONF. lectura (PRD PLAUSIBLE) | R | S | ✅ |
 | RED-62 | Los presupuestos de performance son autodeclarados: subirlos en el mismo PR pasa | MEDIA | CONF. lectura | 4 | S | ⬜ |
@@ -1278,6 +1278,17 @@ Verificado a mano: sacar `"mapa": mapa` del contexto → 2 tests en rojo.
   `core/tests/test_context_processors.py::DegradacionTests.test_el_fallo_se_loguea` (`patch(..., side_effect=OperationalError)`,
   `assertLogs`, el render sigue en 200).
 
+**Resolución:** ✅ Resuelto en el PR R-15 (Cambio 153), 06-oct-2026 — `logger.exception` en los dos `except`, con el
+motivo escrito al lado. **Un desvío deliberado:** los `except` siguen siendo `except Exception` y **no** se acotaron a
+`DatabaseError`/`ImportError`. Acotarlos cambia lo que ve el usuario en el 100 % del tráfico autenticado: cualquier otra
+excepción —un `TypeError` en `nombres_de_grupos`, un selector que cambia de forma— pasaría de «sidebar degradado» a
+**500 en toda pantalla del backoffice**, que es un riesgo mayor que el que la ficha cierra. El hallazgo era «traga sin
+log», no «traga»; el log es lo que se agregó. Los tests fijan las dos mitades: que el fallo se registre con su traceback
+y que el contexto siga degradando igual (`badge 0`, `user_groups_list` vacío) con la pantalla en 200. Va de la mano con
+OPS-03: sin aquello, estos `logger.exception` tampoco llegarían a `kubectl logs` en ECOM. **Test permanente:**
+`core.tests.test_context_processors` (`SidebarBadgesDegradacionTests.test_el_fallo_se_loguea`,
+`UserGroupsDegradacionTests.test_el_fallo_se_loguea`, `RenderDegradadoTests`).
+
 ### RED-56 · Los guards de alcance de Becas fallan abiertos si el Programa BECAS no está sembrado
 **Severidad:** MEDIA · **Estado:** CONFIRMADO con test (VR2: con el programa renombrado, un usuario cuyo único rol es de otro programa atraviesa los tres guards) · **Origen:** RS-VR2-NEW-01 (surgió al refutar RS-R4-01) · **Ola:** R · **Esfuerzo:** S (2 h)
 - **Ubicación:** `programas/services/autorizacion.py:82, 88, 96, 106, 144, 185` (`programa = programa or
@@ -1448,6 +1459,18 @@ en los **Anexos A-D** de este archivo.
   además de `:latest`: el rollback pasa a `kubectl set image deploy/<web> web=…:<sha anterior>` (segundos). El runbook
   (Anexo D) documenta los dos casos.
 
+**Resolución:** 🟡 La mitad nuestra, resuelta en el PR R-15 (Cambio 153), 06-oct-2026 — `publish-main.yml` etiqueta cada
+release con `release-AAAA.MM.DD-<short>` (tag **anotado**, `$short` el de `development`, que es el commit que alguien
+reconoce) sobre el commit de `main`, **después** del push y solo cuando hubo release nueva: el paso ya corta con
+`exit 0` cuando «main al día». Se empuja `refs/tags/$tag` y no `--tags`, que arrastraría cualquier otro tag del runner,
+y un tag repetido sale por `::warning::` en vez de dejar la publicación en rojo. **No hace falta permiso nuevo:**
+`contents: write` ya estaba por el push de `main`. El runbook D.2.2 pasa a buscar «la release anterior» con
+`git tag --list 'release-*' --sort=-creatordate` y la checklist pre-deploy pide anotarla. **Queda pendiente, y es de
+ellos (D-RED-02, H-12):** el tag inmutable de **imagen** en el `.gitlab-ci.yml` de ECOM, redactado en
+`docs/internal/propuesta-ecom-verify.md` §2, que es lo que convierte el rollback de PRD en segundos. Sin eso, el tag
+nuestro da el SHA exacto para reconstruir, no la imagen para volver. **Test permanente:**
+`core.tests.test_publish_guard.TagDeReleaseTests` (7 casos).
+
 ### RED-17 · Ninguna migración se prueba hacia atrás ni sobre datos; los tests de migración usan los modelos de hoy
 **Severidad:** ALTA · **Estado:** CONFIRMADO con test (ida y vuelta ejercida a mano: OK en SQLite, rota en MariaDB) · **Origen:** RS-R5-04 (VR2: CONFIRMADO), RS-R2-07 parte «modelos históricos» (VR1; el punto 1 amplía TST-01), RS-R5-11 (VR2: CONFIRMADO) · **Ola:** R · **Esfuerzo:** M (8 h) + S (2 h) · **Decisión:** D-RED-03
 
@@ -1542,6 +1565,20 @@ Del punto (2) de la propuesta —los tests de migración con el registro histór
   `git switch --force-create "rollback/$TIMESTAMP" "$PREV_COMMIT"`; si `showmigrations --plan` detecta migraciones nuevas
   aplicadas, **abortar** el rollback automático e imprimir el runbook (decisión humana). Test
   `core/tests/test_scripts_deploy.py::DeployProdTests.test_no_usa_checkout_force_ni_health_desnudo` (lee el script).
+
+**Resolución:** ✅ Resuelto en el PR R-15 (Cambio 153), 06-oct-2026 — los tres puntos. (1) `HEALTH_URL` por defecto pasa
+a `http://localhost/health/ready/` (OPS-04), así que el criterio de éxito y el del rollback distinguen «vivo» de
+«sirve»; (2) `post_deploy_checks()` corre después del health y antes de declarar éxito: `migrate --check`, el manifest
+de `staticfiles.json` con más de `MANIFEST_MINIMO` (50) entradas —el archivo vacío existe igual y deja cada
+`{% static %}` en 500— y `GET /login/` = 200; (3) `git checkout --force` pasa a
+`git switch --force-create "rollback/$TIMESTAMP"`. Y el cuarto, que es el que más importa: el script toma la cuenta de
+migraciones aplicadas **antes** de recrear los servicios, con el contenedor viejo todavía arriba, y si el deploy aplicó
+alguna **aborta el rollback automático** nombrando el runbook y el commit anterior, porque volver solo el código deja el
+esquema adelantado (RED-14). Si **no puede averiguarlo** —el contenedor no responde, que es justo lo que pasa con `web` en crash-loop— el rollback automático **tampoco procede**: lo pidió la revisión del PR, y con razón, porque la versión anterior leía el `0` que imprime `grep -c … || true` cuando el `exec` falla y lo tomaba por «el deploy no migró nada». Ahora `migraciones_aplicadas()` separa el exit del `exec` de la cuenta, y el caso sin lectura exige `ROLLBACK_SIN_COMPARAR=1`, que es una persona diciendo que ya verificó que no hubo migraciones. **Dos desvíos code-first:** la ficha
+dice `GET /accounts/login/`, pero esa ruta no existe —el login del backoffice está en `/` y `/login/`
+(`users/urls.py:24-25`)—, y `showmigrations --plan` se compara por cantidad de `[X]` antes y después, que es lo que se
+puede medir desde el host sin parsear el plan entero. **Test permanente:** `core.tests.test_scripts_deploy.DeployProdTests`
+(11 casos, incluidos `test_no_usa_checkout_force_ni_health_desnudo` y `test_deploy_prod_usa_ready`).
 
 ### RED-60 · `processes.md` enseña un rollback que destruye datos y autoriza `--fake`
 **Severidad:** MEDIA · **Estado:** CONFIRMADO (lectura) · **Origen:** RS-R5-10 (VR2: CONFIRMADO; prioridad 1 dentro de las migraciones) · **Ola:** R (es media hora y evita que el próximo incidente lo empeore) · **Esfuerzo:** S (2 h)
