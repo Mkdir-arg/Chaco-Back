@@ -192,6 +192,11 @@ Esperado: **~7.350 altas** de 7.496 candidatos.
 
 Volver a correrlo al terminar. Si dice `No hay casos que procesar`, no quedó ninguno.
 
+El resumen cuenta aparte los **incompatibles según SIIS**: casos que SIIS contestó
+que no corresponden al programa. En lote no se aprueban —en la pantalla eso lo
+decide el revisor, y acá no hay revisor— y quedan como estaban, para que alguien
+los mire desde la revisión. No son un error ni se pierden.
+
 ⏱ 65 min
 
 ---
@@ -211,6 +216,7 @@ Volver a correrlo al terminar. Si dice `No hay casos que procesar`, no quedó ni
 
 | Situación | Qué hacer |
 |---|---|
+| `Hay una corrida masiva en curso (#N, …)` | Alguien lanzó el proceso desde la pantalla. Los dos caminos toman los mismos casos y cada uno lleva su propio freno, así que el comando no arranca. Esperar a que termine o frenarla desde la pantalla; `--ignorar-corrida` solo si de verdad no hay alternativa. |
 | `Lost connection to server during query` | La base está saturada (restore en curso). Esperar y reintentar. |
 | `DETENIDO tras 10 errores técnicos seguidos` | SIIS no responde. Esperar y volver a correr: lo hecho queda. |
 | Ctrl+C a mitad | No duplica. El caso que estaba en vuelo queda `EN_PROCESO` y, pasados 5 minutos, se ve como **incierto**: no se sabe si SIIS lo registró. Volver a lanzar el comando retoma el resto y **no lo toca**; ese se resuelve con `conciliar_envios_siis` (abajo). |

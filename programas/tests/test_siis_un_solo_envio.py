@@ -28,7 +28,15 @@ from django.test import TestCase, override_settings
 from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 
-from programas.models import AltaIntermediaSIIS, CorridaSiis, EnvioSIIS, Formulario, TracaFormulario, ValidacionSIS
+from programas.models import (
+    AltaIntermediaSIIS,
+    CorridaSiis,
+    EnvioSIIS,
+    Formulario,
+    ProgramaSiis,
+    TracaFormulario,
+    ValidacionSIS,
+)
 from programas.services import proceso_masivo, siis_envio
 from programas.services.siis_envio import enviar_beneficiario_a_siis, guardar_en_tabla_intermedia, mensaje_envio
 from programas.tests.test_proceso_masivo import _BaseProcesoTest, crear_tabla_aprobados_materias
@@ -921,7 +929,7 @@ class ParidadComandosSiisTests(TestCase):
     """
 
     COMANDOS = ("validar_casos_siis", "enviar_casos_siis", "procesar_casos_siis", "reenviar_siis_pendientes")
-    FLAGS_COMUNES = {"--aplicar", "--lote", "--pausa", "--max-errores", "--usuario"}
+    FLAGS_COMUNES = {"--aplicar", "--lote", "--pausa", "--max-errores", "--usuario", "--ignorar-corrida"}
 
     def setUp(self):
         # Cambio 90: sin la tabla, dos de los cuatro cortan antes de empezar.
@@ -950,6 +958,52 @@ class ParidadComandosSiisTests(TestCase):
             with self.subTest(comando=nombre):
                 comando, _ = self._parser(nombre)
                 self.assertIsInstance(comando, ComandoSiisBase)
+
+    def test_los_cuatro_abortan_con_una_corrida_viva(self):
+        """SIIS-03: un comando a mano mientras la pantalla está corriendo.
+
+        Es el de la PoC invertido (``test_comando_reenviar_ignora_corrida_viva``).
+        Los dos caminos procesan los mismos casos y comparten el freno por
+        errores seguidos: con SIIS lento, ninguno de los dos corta a tiempo.
+        """
+        programa = ProgramaSiis.objects.create(nombre="Ñachec corrida viva", siis_programa_id=781)
+        CorridaSiis.objects.create(programa=programa, total_pedido=10, latido=timezone.now())
+
+        for nombre in self.COMANDOS:
+            with self.subTest(comando=nombre):
+                with patch("programas.services.siis.requests.post") as post:
+                    with self.assertRaises(CommandError) as ctx:
+                        call_command(nombre, "--aplicar", stdout=StringIO(), stderr=StringIO())
+                self.assertIn("corrida", str(ctx.exception).lower())
+                self.assertIn("--ignorar-corrida", str(ctx.exception))
+                post.assert_not_called()
+
+    def test_el_ensayo_corre_igual_con_una_corrida_viva(self):
+        """Mirar qué haría no toca nada: la guarda es sobre ``--aplicar``."""
+        programa = ProgramaSiis.objects.create(nombre="Ñachec ensayo", siis_programa_id=782)
+        CorridaSiis.objects.create(programa=programa, total_pedido=10, latido=timezone.now())
+
+        for nombre in self.COMANDOS:
+            with self.subTest(comando=nombre):
+                call_command(nombre, stdout=StringIO(), stderr=StringIO())
+
+    def test_ignorar_corrida_es_la_salida_de_emergencia(self):
+        programa = ProgramaSiis.objects.create(nombre="Ñachec emergencia", siis_programa_id=783)
+        CorridaSiis.objects.create(programa=programa, total_pedido=10, latido=timezone.now())
+        salida = StringIO()
+
+        call_command("reenviar_siis_pendientes", "--aplicar", "--ignorar-corrida", stdout=salida, stderr=salida)
+
+        self.assertIn("corrida en curso", salida.getvalue())
+
+    def test_una_corrida_interrumpida_no_frena_a_los_comandos(self):
+        """Un pod muerto hace una hora no puede dejar la operación trabada."""
+        programa = ProgramaSiis.objects.create(nombre="Ñachec muerta", siis_programa_id=784)
+        CorridaSiis.objects.create(
+            programa=programa, total_pedido=10, latido=timezone.now() - CorridaSiis.LATIDO_VENCIDO * 2
+        )
+
+        call_command("reenviar_siis_pendientes", "--aplicar", stdout=StringIO(), stderr=StringIO())
 
     def test_ninguno_llama_a_siis_sin_aplicar(self):
         """El ensayo es el default en los cuatro: ninguno manda nada por omisión."""

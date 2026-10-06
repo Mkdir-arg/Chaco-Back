@@ -20,7 +20,7 @@ indicación.
 |---|---|---|---|---|---|---|
 | SIIS-01 | El alta en SIIS no tiene exclusión mutua | CRÍTICA | CONF. test | 1 | M | ✅ |
 | SIIS-02 | Resultado ambiguo registrado como ERROR reintentable; proceso muerto sin rastro | ALTA | CONF. test | 1 | M | ✅ |
-| SIIS-03 | Masivo: se da por muerto vivo, no se puede frenar, zombis, comandos sin candado | ALTA (MEDIA tras SIIS-01) | CONF. test | 1 | S | ⬜ |
+| SIIS-03 | Masivo: se da por muerto vivo, no se puede frenar, zombis, comandos sin candado | ALTA (MEDIA tras SIIS-01) | CONF. test | 1 | S | ✅ |
 | SIIS-04 | El masivo informa casos que cambiaron de estado después de hidratarlos | ALTA | CONF. test | 1 | S | ✅ |
 | SIIS-06 | Catálogo vacío de SIIS bloquea todos los programas | ALTA | CONF. test | 1 | S | ⬜ |
 | SIIS-07 | `token_publico` en `char(32)`: el arreglo está en una rama sin mergear | ALTA | CONF. (merge simulado) | 1 | S | ✅ |
@@ -41,7 +41,7 @@ indicación.
 | BEC-07 | El cupo del segmento se puede bajar por debajo de los aprobados | MEDIA | CONF. lectura | 3 | S | ⬜ |
 | BEC-09 | No se puede rechazar un caso sin ciudadano con DNI o sin programa SIIS | MEDIA | CONF. lectura | 3 | S | ⬜ |
 | BEC-10 | Un relevamiento con casos en espera no se puede terminar | MEDIA | CONF. (decisión) | 3 | S | ⬜ |
-| BEC-11 | El masivo aprueba a quien SIIS declaró incompatible | MEDIA | CONF. (decisión) | 1 | S | ⬜ |
+| BEC-11 | El masivo aprueba a quien SIIS declaró incompatible | MEDIA | CONF. (decisión) | 1 | S | ✅ |
 | G1-03 | La app lee solo la primera página (10) de casos y relevamientos | MEDIA | CONF. lectura | 3 | S | ⬜ |
 | G1-04 | Captura offline que sincroniza después del corte de las 03:10 → 409 permanente | MEDIA | CONF. lectura (pendiente Cambio 54) | 3 | M | ⬜ |
 | G1-05 | El servidor no valida lo que carga la app | MEDIA | CONF. lectura | 3 | M | ⬜ |
@@ -63,7 +63,7 @@ indicación.
 | BEC-18 | Fechas UTC en Python fuera de Dispositivos | BAJA | CONF. lectura | 3 | S | ⬜ |
 | BEC-19 | Redirect a `POST['next']` sin validar | BAJA | CONF. lectura | 2 | S | ⬜ |
 | BEC-20 | Convocatoria acepta fin anterior al inicio | BAJA | CONF. lectura | 3 | S | ⬜ |
-| BEC-21 | El masivo selecciona casos no aprobables y no mira pausas | BAJA | CONF. lectura | 1 | S | ⬜ |
+| BEC-21 | El masivo selecciona casos no aprobables y no mira pausas | BAJA | CONF. lectura | 1 | S | 🟡 |
 | BEC-23 | La solapa Becas del legajo muestra casos fuera de alcance | BAJA | CONF. ajustado (decisión) | 2 | S | ⬜ |
 | BEC-24 | Edición de contacto/apoderado en revisión no atómica | BAJA | CONF. lectura | 3 | S | ⬜ |
 | BEC-25 | `siguiente_nombre` calculado sin convocatoria y sin uso | BAJA | CONF. lectura | 7 | S | ⬜ |
@@ -175,6 +175,8 @@ indicación.
 
 ### SIIS-03 · Proceso masivo: se da por muerto estando vivo, no se puede frenar, un zombi convive con la corrida nueva y los comandos ignoran el candado
 **Severidad:** ALTA (MEDIA con SIIS-01 resuelto) · **Estado:** CONFIRMADO con test (`LatidoTests`, `test_comando_reenviar_ignora_corrida_viva`) · **Origen:** A1-02, A4-01, A8-S2, A8-S1 (comandos), V2-NEW-01, V2-NEW-02, A5-33 · **Ola:** 1 · **Esfuerzo:** S (puntos 1-6) / M (punto 7) · **Decisión:** D-S03 (CronJob)
+
+**Resolución:** ✅ Resuelto en #PENDIENTE (Cambio 136), 06-oct-2026 — puntos 1 a 6. `_latir()` (un `UPDATE` de una columna) antes de `ids_de`, cada 100 candidatos mirados en `elegir_completos(..., al_mirar=)` y **por caso** en `correr()`; `LATIDO_VENCIDO` de 2 a 5 min, atado por test a `SIIS_API_CONNECT_TIMEOUT + SIIS_API_TIMEOUT` × 3; por caso se relee `cancelacion_pedida` y `estado` —cancelar corta en el caso, no al cerrar el lote, y un hilo cuya corrida ya fue reemplazada se retira **sin escribir**—; `crear_corrida` cierra como `DETENIDA` la que quedó sin señal («sin señal desde las HH:MM; la reemplaza la corrida #N»); `proceso_masivo_frenar` marca por **programa** (A5-33) y **sin** filtrar por latido (V2-NEW-01), y la pantalla no ofrece el botón cuando la corrida viva es de otro programa. El candado de corrida viva quedó en `ComandoSiisBase.exigir_sin_corrida_viva` —lo piden los cuatro comandos, con `--ignorar-corrida`— y `correr_alta_siis` lo pide en su paso 1; se pregunta con el candado tomado (`proceso_masivo.exigir_sin_corrida_viva`), no leyendo la tabla. **Punto 7 (CronJob) no se hace:** default de D-S03. Migración `programas.0076_corridasiis_incompatibles` (es de BEC-11). **Test permanente:** `programas/tests/test_proceso_masivo.py::LatidoTests.test_una_corrida_lenta_nunca_se_ve_interrumpida` (y `LatidoTests.test_hay_latido_antes_de_empezar_a_elegir`, `CorridaReemplazadaTests` ×2, `PantallaProcesoMasivoTests.test_frenar_alcanza_a_una_corrida_sin_latido` y `.test_frenar_solo_afecta_a_la_corrida_de_este_programa`, `CorrerTests.test_frenar_corta_en_el_caso_y_no_al_cerrar_el_lote`, `test_siis_un_solo_envio.py::ParidadComandosSiisTests.test_los_cuatro_abortan_con_una_corrida_viva`, `test_correr_alta_siis.py::PrecondicionesTests.test_con_una_corrida_viva_no_arranca` y, contra motor real, `test_candados_concurrencia.py::CarreraDeCorridaMasivaTests`).
 
 **⚠ Actualizar (03-oct-2026):** `correr()` hoy en `proceso_masivo.py:395` (`ids_de` + `hidratar_por_lotes` en `:410`). #513 sumó `correr_alta_siis`, que encadena `procesar_casos_siis` por tandas de 500 (`_por_tandas`) sin `_tomar_candado()` ni `en_curso()`: es otro comando que ignora la corrida viva (punto 6).
 - **Ubicación:** `programas/services/proceso_masivo.py:356-358` (primer latido recién después de `ids_de + hidratar_por_lotes + elegir_completos` sobre todos los candidatos), `:360-389` (latido, `MAX_ERRORES` y freno evaluados por lote de 40), `:367`; `programas/models/__init__.py:3103` (`LATIDO_VENCIDO = 2 min`); `programas/views/proceso_masivo.py:97` (`proceso_masivo_frenar` usa `en_curso()`), `:101-106`.
@@ -348,6 +350,8 @@ indicación.
 ### BEC-11 · El proceso masivo aprueba e informa a personas que SIIS declaró incompatibles
 **Severidad:** MEDIA · **Estado:** CONFIRMADO (decisión) · **Origen:** A1-15 · **Ola:** 1 · **Esfuerzo:** S · **Decisión:** D-B11
 
+**Resolución:** ✅ Resuelto en #PENDIENTE (Cambio 136), 06-oct-2026 — aplicado el default de **D-B11**: en `procesar_caso`, un `ValidacionSIS.Estado.RECHAZADO` suma `cuenta.incompatibles` y devuelve sin aprobar ni informar; el caso queda como estaba, para que lo mire una persona desde la revisión. **No cuenta para el freno**: SIIS contestó, y bien. El contador tiene columna propia (`CorridaSiis.incompatibles`, migración `programas.0076_corridasiis_incompatibles`) porque la pantalla es donde el coordinador lo ve; también sale en el resumen de `procesar_casos_siis` y en el procedimiento. Extiende el Cambio 81, que sacó el bloqueo **en la pantalla**, donde sí hay revisor. **Test permanente:** `programas/tests/test_proceso_masivo.py::IncompatiblesTests.test_un_rechazado_por_siis_no_se_aprueba_en_lote` (y `.test_la_corrida_los_cuenta_y_sigue_con_los_demas`, `.test_un_error_tecnico_de_la_validacion_sigue_siendo_otra_cosa`).
+
 **⚠ Actualizar (03-oct-2026):** `procesar_caso` hoy en `proceso_masivo.py:276` (#517 le sumó el parámetro `destino`).
 - **Ubicación:** `programas/services/proceso_masivo.py:238-268` (`RECHAZADO` no corta; solo `ERROR`). El Cambio 81 quitó el bloqueo porque «la aprobación es una decisión técnica del revisor»; en la corrida no hay revisor.
 - **Propuesta (default D-B11 = no aprobar en lote):** en `procesar_caso`, si `validacion.estado == RECHAZADO`, `cuenta.incompatibles += 1` y dejar el caso para revisión manual (contador en `mensaje` o columna nueva en `CorridaSiis` con migración). Registrar la decisión (extiende el Cambio 81).
@@ -502,6 +506,8 @@ indicación.
 
 ### BEC-21 · Proceso masivo: selecciona casos que no se pueden aprobar y no mira pausas ni el bloqueo SIIS
 **Severidad:** BAJA · **Origen:** A1-26 · **Ola:** 1 · **Esfuerzo:** S
+
+**Resolución:** 🟡 Parcial en #PENDIENTE (Cambio 136), 06-oct-2026 — `candidatos()` pasa por dos helpers nuevos: `_solo_los_aprobables` (un `ENVIADO` sin `validado_renaper` o sin ciudadano con DNI no entra: la aprobación lo iba a rechazar igual, después de gastarle una consulta de compatibilidad a SIIS) y `_sin_pausa_vigente` (`pausado=True` en relevamiento, convocatoria, segmento, subsegmento o programa). Solo sobre los `ENVIADO`: un `APROBADO` ya pasó ese gate y lo que le falta es el alta. **Queda afuera el bloqueo por estado del programa en SIIS** (`siis_bloqueado`), a propósito: mientras SIIS-06 esté abierto, un catálogo vacío deja todos los programas en `DESCONOCIDO` y esa exclusión frenaría el masivo entero por un error de SIIS. Cuando SIIS-06 cierre (PR 4), es una línea en `_sin_pausa_vigente`. **Test permanente:** `programas/tests/test_proceso_masivo.py::CandidatosTests.test_excluye_enviados_sin_identidad_validada` (y `.test_un_aprobado_sin_validar_sigue_siendo_candidato`, `.test_excluye_al_enviado_sin_ciudadano_con_dni`, `.test_no_toma_casos_de_una_pausa_vigente`).
 
 **⚠ Actualizar (03-oct-2026):** `candidatos` hoy en `proceso_masivo.py:132-203` (#517 le sumó `destino`) y `elegir_completos` en `:252-273`.
 - **Ubicación:** `programas/services/proceso_masivo.py:118-177` (`candidatos`), `:209-230`.

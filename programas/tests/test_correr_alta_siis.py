@@ -17,6 +17,7 @@ from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.db import connection
 from django.test import SimpleTestCase, override_settings
+from django.utils import timezone
 
 from programas.management.commands._insumos_siis import INSUMOS
 from programas.management.commands.correr_alta_siis import _sentencias
@@ -144,6 +145,34 @@ class PrecondicionesTests(_BaseAltaTest):
         self.assertIn("identificadores", str(ctx.exception))
 
     def test_con_todo_puesto_dice_que_se_puede_arrancar(self):
+        salida = self.correr("--solo-precondiciones")
+
+        self.assertIn("los 7", salida)
+
+    def test_con_una_corrida_viva_no_arranca(self):
+        """SIIS-03: el orquestador tampoco se mete en medio de la pantalla.
+
+        No hereda de ``ComandoSiisBase`` —no llama a SIIS, encadena a los que
+        sí—, así que la guarda la tiene que pedir él. Sin esto, los dos caminos
+        procesan los mismos casos y comparten el freno por errores seguidos.
+        """
+        from programas.models import CorridaSiis
+
+        CorridaSiis.objects.create(programa=self.programa, total_pedido=10, latido=timezone.now())
+
+        with self.assertRaises(CommandError) as ctx:
+            self.correr("--solo-precondiciones")
+
+        self.assertIn("corrida", str(ctx.exception).lower())
+        self.assertIn("--ignorar-corrida", str(ctx.exception))
+
+    def test_una_corrida_interrumpida_no_lo_frena(self):
+        from programas.models import CorridaSiis
+
+        CorridaSiis.objects.create(
+            programa=self.programa, total_pedido=10, latido=timezone.now() - CorridaSiis.LATIDO_VENCIDO * 2
+        )
+
         salida = self.correr("--solo-precondiciones")
 
         self.assertIn("los 7", salida)

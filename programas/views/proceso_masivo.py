@@ -37,7 +37,12 @@ class ProcesoMasivoView(CapacidadRequeridaMixin, LoginRequiredMixin, DetailView)
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx["corrida"] = CorridaSiis.objects.filter(programa=self.object).order_by("-creado").first()
-        ctx["en_curso"] = CorridaSiis.en_curso()
+        en_curso = CorridaSiis.en_curso()
+        ctx["en_curso"] = en_curso
+        # A5-33: la corrida es una sola en todo el sistema (Cambio 88), pero puede
+        # ser de otro programa. Esa no se frena desde acá, así que tampoco se
+        # ofrece el botón: frenarla era el bug.
+        ctx["en_curso_de_otro_programa"] = en_curso is not None and en_curso.programa_id != self.object.pk
         ctx["total_maximo"] = TOTAL_MAXIMO
         # RED-61: el alta en SIIS no tiene baja, así que el destino se ve antes
         # de lanzar. El host sale de SIIS_API_URL, que ya no tiene default.
@@ -100,18 +105,31 @@ def proceso_masivo_lanzar(request, pk):
 def proceso_masivo_frenar(request, pk):
     """Pide el freno. **No** cambia el estado: eso lo hace el proceso.
 
-    El estado final lo escribe quien está corriendo, al cerrar el lote en curso.
-    Si lo marcara este request, la pantalla diría «cancelada» mientras el hilo
-    sigue procesando los casos que le quedan del lote.
+    El estado final lo escribe quien está corriendo, al terminar el caso que
+    tiene entre manos. Si lo marcara este request, la pantalla diría «cancelada»
+    mientras el hilo todavía está mandando un alta.
+
+    Dos cosas que no son obvias y que costaron dos hallazgos (SIIS-03):
+
+    * se marca **por programa**, no la corrida viva que haya. El botón está en la
+      pantalla de un programa, y con el filtro global frenaba la corrida de otro
+      (A5-33);
+    * no se filtra por latido. ``en_curso()`` descarta las que no dan señales, y
+      una corrida lenta —o un pod que tarda en escribir— aparecía «interrumpida»
+      y entonces el botón decía «no hay ninguna corrida» mientras el hilo seguía
+      informando altas (V2-NEW-01). Si de verdad está muerta, marcarla no hace
+      nada; si no lo está, es justo la que hay que frenar.
     """
     programa = get_object_or_404(ProgramaSiis, pk=pk)
-    corrida = CorridaSiis.en_curso()
-    if corrida is None:
-        messages.info(request, "No hay ninguna corrida en curso.")
+    frenadas = CorridaSiis.objects.filter(estado=CorridaSiis.Estado.EN_CURSO, programa=programa).update(
+        cancelacion_pedida=True
+    )
+    if not frenadas:
+        messages.info(request, "No hay ninguna corrida en curso de este programa.")
     else:
-        CorridaSiis.objects.filter(pk=corrida.pk).update(cancelacion_pedida=True)
         messages.success(
             request,
-            "Se pidió frenar. El proceso corta al terminar el lote en curso: puede tardar hasta 40 casos.",
+            "Se pidió frenar. El proceso corta al terminar el caso que está procesando: "
+            "puede tardar un par de minutos si SIIS está lento.",
         )
     return redirect("becas:proceso_masivo", pk=programa.pk)

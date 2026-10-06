@@ -37,6 +37,10 @@ from programas.services.siis_envio import (
 from programas.services.validacion_siis import validar_formulario_en_siis
 
 LOTE = 40
+# Candidatos mirados entre latido y latido durante la selección. Armar el payload
+# de uno son 6-8 consultas: con 7.496 candidatos la selección tarda entre 40 y
+# 65 s, y antes no escribía una sola señal de vida en todo ese rato (SIIS-03).
+LATIDO_CADA_MIRADOS = 100
 MAX_ERRORES = 10
 # Resultados **ambiguos** seguidos que detienen la corrida. El tope es más bajo
 # que el de errores a propósito: un ERROR técnico no cuesta nada —el caso queda
@@ -110,7 +114,17 @@ def dnis_aprobados_materias():
 
 
 # Contadores que viajan de ``Cuenta`` a ``CorridaSiis`` con el mismo nombre.
-CONTADORES = ("mirados", "elegidos", "aprobados", "lista_espera", "altas", "incompletos", "rechazados", "errores")
+CONTADORES = (
+    "mirados",
+    "elegidos",
+    "aprobados",
+    "lista_espera",
+    "incompatibles",
+    "altas",
+    "incompletos",
+    "rechazados",
+    "errores",
+)
 
 # Errores técnicos acumulados a partir de los cuales un caso deja de ser
 # candidato automático (A2-15, punto 6 de SIIS-02). No es un castigo: un caso que
@@ -230,6 +244,9 @@ class Cuenta:
     elegidos: int = 0
     aprobados: int = 0
     lista_espera: int = 0
+    # SIIS contestó que la persona no es compatible con el programa. No se
+    # aprueban ni se informan: los mira una persona (BEC-11).
+    incompatibles: int = 0
     no_aprobable: int = 0
     # Ya los tiene otro camino (un envío EN_PROCESO o INCIERTO de antes) o ya se
     # informó a la misma persona en el mismo plan desde otro caso
@@ -251,6 +268,47 @@ class Cuenta:
     # Altas que quedaron en la tabla intermedia de este lado, sin ir a SIIS.
     guardadas: int = 0
     descartados: dict = field(default_factory=dict)
+
+
+def _solo_los_aprobables(casos):
+    """Saca los ``ENVIADO`` que la aprobación va a rechazar igual (BEC-21).
+
+    ``motivo_bloqueo_aprobacion`` exige identidad validada y un ciudadano con DNI.
+    Un caso sin eso entraba igual a la corrida: se le consultaba la
+    compatibilidad a SIIS —hasta 40 s—, se intentaba aprobarlo, saltaba el
+    ``ValidationError`` y se contaba como «no se pudo aprobar». Tres pasos para
+    llegar a lo que se sabía desde la consulta.
+
+    Solo aplica a los ``ENVIADO``: un ``APROBADO`` ya pasó por ese gate y lo que
+    le falta es el alta, que no vuelve a mirar la identidad.
+    """
+    return casos.exclude(
+        Q(estado=Formulario.Estado.ENVIADO)
+        & (Q(validado_renaper=False) | Q(ciudadano__isnull=True) | Q(ciudadano__dni=""))
+    )
+
+
+def _sin_pausa_vigente(casos):
+    """Saca los casos cuyo relevamiento, convocatoria, segmento o programa está pausado.
+
+    Pausar frena la carga en campo y la operación de la pantalla, pero el masivo
+    no la miraba: una convocatoria pausada seguía aprobando e informando altas en
+    lote, que es lo contrario de lo que pausar quiere decir.
+
+    Se comparan las columnas ``pausado`` de la cadena, que ya viene unida por los
+    ``select_related``, y no ``pausa_efectiva``, que es una propiedad de Python.
+    Queda afuera a propósito el bloqueo derivado del estado del programa en SIIS:
+    hoy un catálogo vacío deja todos los programas en ``DESCONOCIDO`` (SIIS-06,
+    abierto), y colgarle esto encima frenaría el masivo entero por un error de
+    SIIS en vez de por una decisión de alguien.
+    """
+    return casos.exclude(
+        Q(relevamiento__pausado=True)
+        | Q(relevamiento__convocatoria__pausado=True)
+        | Q(relevamiento__convocatoria__segmento__pausado=True)
+        | Q(relevamiento__convocatoria__subsegmento__pausado=True)
+        | Q(relevamiento__convocatoria__segmento__programa__pausado=True)
+    )
 
 
 def candidatos(
@@ -285,6 +343,9 @@ def candidatos(
     uno con el POST en vuelo o uno de resultado incierto. Ni los que acumularon
     ``MAX_REINTENTOS`` errores técnicos: insistir con ellos gasta la corrida y
     tapa los que sí pueden salir (A2-15).
+
+    Ni los que no se van a poder aprobar ni los que están pausados (BEC-21): ver
+    :func:`_solo_los_aprobables` y :func:`_sin_pausa_vigente`.
     """
     ultimo = EnvioSIIS.objects.filter(formulario=OuterRef("pk")).order_by("-creado", "-id").values("estado")[:1]
     vigente = EnvioSIIS.objects.filter(formulario=OuterRef("pk"), vigente=True)
@@ -323,6 +384,7 @@ def candidatos(
     casos = casos.exclude(Q(conflicto_duplicado=True) & Q(conflicto_resuelto=False)).exclude(
         cargas_en_conflicto__conflicto_resuelto=False
     )
+    casos = _sin_pausa_vigente(_solo_los_aprobables(casos))
     # Solo el ENVIADO: un APROBADO con una fila de espera colgando (datos previos
     # a la regla) igual tiene que informarse a SIIS.
     casos = casos.exclude(estado=Formulario.Estado.ENVIADO, lista_espera__promovido=False)
@@ -390,19 +452,25 @@ def hidratar_por_lotes(ids, tamano=LOTE_LECTURA):
         yield from hidratar(ids[inicio : inicio + tamano])
 
 
-def elegir_completos(casos, catalogos, total, cuenta):
+def elegir_completos(casos, catalogos, total, cuenta, *, al_mirar=None):
     """``(elegidos, descartados_por_campo)``: los que hoy saldrían sin faltantes.
 
     El total cuenta casos que se **mandan**, no casos que se miran: se recorre
     hasta juntarlos, salteando sin tocar a los que les falta un dato. Mandar uno
     incompleto no lo informa a SIIS pero igual lo deja aprobado y con una fila de
     error para revisar a mano.
+
+    ``al_mirar`` se llama cada ``LATIDO_CADA_MIRADOS`` candidatos. Lo usa la
+    corrida para latir: esto puede tardar más de un minuto y mientras tanto nadie
+    sabía si seguía viva (SIIS-03).
     """
     elegidos, descartados = [], {}
     for caso in casos:
         if len(elegidos) >= total:
             break
         cuenta.mirados += 1
+        if al_mirar is not None and cuenta.mirados % LATIDO_CADA_MIRADOS == 0:
+            al_mirar()
         _, faltantes = armar_payload(caso, catalogos=catalogos)
         if faltantes:
             for campo in faltantes:
@@ -429,6 +497,14 @@ def procesar_caso(caso, responsable, catalogos, cuenta, *, avisar=False, solo_en
         if validacion.estado == ValidacionSIS.Estado.ERROR:
             cuenta.error_validacion += 1
             return "tecnico"
+        if validacion.estado == ValidacionSIS.Estado.RECHAZADO:
+            # BEC-11 (D-B11): SIIS dice que la persona no es compatible con el
+            # programa. En la pantalla del caso eso es una advertencia y la
+            # decisión la toma el revisor (Cambio 81); acá no hay revisor, así
+            # que el caso queda como está y lo mira alguien. No es una falla de
+            # SIIS: el servicio contestó, y bien.
+            cuenta.incompatibles += 1
+            return None
 
         if caso.estado == Formulario.Estado.ENVIADO:
             try:
@@ -511,6 +587,58 @@ def _tomar_candado():
     return ProgramaSiis.objects.select_for_update().order_by("pk").values_list("pk", flat=True).first()
 
 
+class CorridaEnCurso(Exception):
+    """Hay una corrida viva y lo que se iba a hacer la pisaría.
+
+    La levantan los comandos que hablan con SIIS caso por caso: el hilo del
+    masivo y un comando a mano procesan los mismos casos, comparten el freno por
+    errores seguidos —si SIIS se pone lento, ninguno de los dos corta a tiempo— y
+    el alta no tiene baja.
+    """
+
+    def __init__(self, corrida):
+        self.corrida = corrida
+        desde = timezone.localtime(corrida.creado).strftime("%H:%M")
+        super().__init__(
+            f"Hay una corrida masiva en curso (#{corrida.pk}, {corrida.programa.nombre}, desde las {desde}). "
+            "Correr esto en paralelo procesa los mismos casos y comparte el freno por errores seguidos. "
+            "Esperá a que termine o frenala desde la pantalla del proceso masivo; "
+            "si de verdad hace falta ahora, agregá --ignorar-corrida."
+        )
+
+
+def exigir_sin_corrida_viva():
+    """Lanza :class:`CorridaEnCurso` si la pantalla está corriendo una (SIIS-03).
+
+    Se pregunta **con el candado tomado**, el mismo que toma ``crear_corrida``:
+    si no, un comando lanzado en el mismo segundo que la pantalla lee la tabla
+    antes de que la corrida se commitee —la base corre en READ COMMITTED—, no ve
+    nada y arranca igual.
+    """
+    with transaction.atomic():
+        _tomar_candado()
+        corrida = CorridaSiis.en_curso()
+        if corrida is not None:
+            raise CorridaEnCurso(corrida)
+
+
+def _retirar_las_interrumpidas(nueva):
+    """Cierra las ``EN_CURSO`` que ya no late nadie, en vez de dejarlas colgadas.
+
+    Se llama con el candado tomado y después de comprobar que no hay ninguna
+    viva: cualquier otra ``EN_CURSO`` que quede es, por definición, una que se
+    quedó sin señal. Dejarlas abiertas era lo que mostraba dos corridas «en
+    curso» a la vez y hacía imposible saber cuál era la de verdad.
+    """
+    for vieja in CorridaSiis.objects.filter(estado=CorridaSiis.Estado.EN_CURSO).exclude(pk=nueva.pk):
+        desde = timezone.localtime(vieja.latido or vieja.creado).strftime("%H:%M")
+        CorridaSiis.objects.filter(pk=vieja.pk).update(
+            estado=CorridaSiis.Estado.DETENIDA,
+            finalizada=timezone.now(),
+            mensaje=f"Interrumpida: sin señal desde las {desde}; la reemplaza la corrida #{nueva.pk}.",
+        )
+
+
 def crear_corrida(*, programa, solicitada_por, total_pedido):
     """La corrida nueva, o ``None`` si ya había una viva.
 
@@ -529,12 +657,25 @@ def crear_corrida(*, programa, solicitada_por, total_pedido):
         _tomar_candado()
         if CorridaSiis.en_curso() is not None:
             return None
-        return CorridaSiis.objects.create(programa=programa, solicitada_por=solicitada_por, total_pedido=total_pedido)
+        nueva = CorridaSiis.objects.create(programa=programa, solicitada_por=solicitada_por, total_pedido=total_pedido)
+        _retirar_las_interrumpidas(nueva)
+        return nueva
 
 
 def _lotes(lista, tamano):
     for inicio in range(0, len(lista), tamano):
         yield lista[inicio : inicio + tamano]
+
+
+def _latir(corrida):
+    """Deja la señal de vida, y nada más.
+
+    Un ``UPDATE`` de una columna: es lo más barato que se puede hacer por caso, y
+    tiene que ser barato porque se hace por caso. No usa ``save()`` a propósito,
+    igual que :func:`_guardar`: escribir el objeto en memoria pisaría
+    ``cancelacion_pedida``, que lo marca otro request.
+    """
+    CorridaSiis.objects.filter(pk=corrida.pk).update(latido=timezone.now())
 
 
 def _guardar(corrida, cuenta, **extra):
@@ -570,8 +711,13 @@ def correr(
     cuenta = Cuenta()
     responsable = responsable or corrida.solicitada_por
     try:
+        # Antes de la primera consulta: la selección sola puede tardar más de un
+        # minuto y hasta acá la corrida no había dado ninguna señal (SIIS-03).
+        _latir(corrida)
         pendientes = hidratar_por_lotes(ids_de(candidatos(programa=corrida.programa)))
-        casos, _ = elegir_completos(pendientes, catalogos, corrida.total_pedido, cuenta)
+        casos, _ = elegir_completos(
+            pendientes, catalogos, corrida.total_pedido, cuenta, al_mirar=lambda: _latir(corrida)
+        )
         _guardar(corrida, cuenta)
 
         freno = Freno(max_errores=max_errores, max_inciertos=max_inciertos)
@@ -579,10 +725,28 @@ def correr(
             for caso in grupo:
                 # El freno se mira por caso y no al final del lote: con SIIS
                 # caído, esperar a los 40 del lote son 40 llamadas de más (y, si
-                # son inciertas, 40 casos tomados). El latido por caso es de
-                # SIIS-03.
+                # son inciertas, 40 casos tomados).
                 if freno.registrar(procesar_caso(caso, responsable, catalogos, cuenta)):
                     break
+                # Lo mismo vale para el freno de la persona y para el latido: un
+                # caso son hasta tres llamadas a SIIS, así que al final del lote
+                # pueden haber pasado 26 minutos (SIIS-03).
+                _latir(corrida)
+                corrida.refresh_from_db(fields=["cancelacion_pedida", "estado"])
+                if corrida.estado != CorridaSiis.Estado.EN_CURSO:
+                    # Otra corrida nos dio por interrumpidos y nos reemplazó. El
+                    # hilo se retira sin escribir: pisar el estado con el nuestro
+                    # haría aparecer «terminada» a una corrida que ya no es.
+                    return corrida
+                if corrida.cancelacion_pedida:
+                    _guardar(
+                        corrida,
+                        cuenta,
+                        estado=CorridaSiis.Estado.CANCELADA,
+                        finalizada=timezone.now(),
+                        mensaje="La frenaron desde la pantalla. Lo procesado quedó firme.",
+                    )
+                    return corrida
             _guardar(corrida, cuenta)
             if freno.corta:
                 _guardar(
@@ -591,17 +755,6 @@ def correr(
                     estado=CorridaSiis.Estado.DETENIDA,
                     finalizada=timezone.now(),
                     mensaje=f"Se detuvo tras {freno.motivo}. Lo hecho quedó; volvé a lanzarla cuando se recupere.",
-                )
-                return corrida
-            # El freno se relee de la base: lo marca otro request.
-            corrida.refresh_from_db(fields=["cancelacion_pedida"])
-            if corrida.cancelacion_pedida:
-                _guardar(
-                    corrida,
-                    cuenta,
-                    estado=CorridaSiis.Estado.CANCELADA,
-                    finalizada=timezone.now(),
-                    mensaje="La frenaron desde la pantalla. Lo procesado quedó firme.",
                 )
                 return corrida
 

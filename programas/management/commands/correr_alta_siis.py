@@ -182,6 +182,14 @@ class Command(BaseCommand):
         parser.add_argument(
             "--solo-precondiciones", action="store_true", help="Revisa que esté todo y sale, sin tocar nada."
         )
+        parser.add_argument(
+            "--ignorar-corrida",
+            action="store_true",
+            help=(
+                "Arranca aunque la pantalla del proceso masivo tenga una corrida en curso. Solo para "
+                "emergencias: los dos caminos procesan los mismos casos y el alta en SIIS no tiene baja."
+            ),
+        )
 
     # ── Salida ──────────────────────────────────────────────────────────────
 
@@ -207,9 +215,19 @@ class Command(BaseCommand):
     def _tiene_identificadores(programa):
         return bool(programa.siis_id_plan_soc_efectivo and programa.siis_jurid_efectivo and programa.siis_funcion_id)
 
-    def _precondiciones(self, aplicar, con_insumos):
+    def _precondiciones(self, aplicar, con_insumos, ignorar_corrida=False):
         """Lo que ningún comando puede resolver solo. Corta con la lista entera."""
         faltan = []
+
+        # SIIS-03: no hereda de ``ComandoSiisBase`` —no llama a SIIS, encadena a
+        # los que sí—, así que la guarda la pide él. Va acá y no adentro de los
+        # hijos para cortar en el paso 1, antes de cargar insumos y correr el
+        # catálogo, y no a la mitad del circuito.
+        if not ignorar_corrida:
+            try:
+                proceso_masivo.exigir_sin_corrida_viva()
+            except proceso_masivo.CorridaEnCurso as exc:
+                raise CommandError(str(exc)) from exc
 
         if aplicar and not (settings.SIIS_API_CLIENT_ID and settings.SIIS_API_CLIENT_SECRET):
             faltan.append("Faltan SIIS_API_CLIENT_ID / SIIS_API_CLIENT_SECRET en el entorno.")
@@ -405,7 +423,7 @@ class Command(BaseCommand):
             self._log("ENSAYO: no se escribe ni se manda nada. Agregá --aplicar.\n", self.style.WARNING)
 
         self._paso(1, "Precondiciones")
-        self._precondiciones(aplicar, con_insumos)
+        self._precondiciones(aplicar, con_insumos, ignorar_corrida=options["ignorar_corrida"])
         if options["solo_precondiciones"]:
             self._log("\nEstá todo lo que hace falta para arrancar.", self.style.SUCCESS)
             return
