@@ -128,12 +128,81 @@ class SincronizacionDefensivaTests(TestCase):
         programas = [_programa_siis(79), _programa_siis(80)]
 
         with patch("programas.services.siis_sync.listar_programas_todos", return_value=_del_catalogo(99)):
-            cambios = sincronizar_estado_programas(forzar=True)
+            cambios = sincronizar_estado_programas(forzar=True, motivo="baja confirmada con ECOM")
 
         self.assertEqual(len(cambios), 2)
         for programa in programas:
             programa.refresh_from_db()
             self.assertEqual(programa.siis_programa_estado, ESTADO_DESCONOCIDO)
+
+    def test_el_goteo_no_saltea_la_guarda(self):
+        """MINOR del PR 4: lo que se confirma es el estado **resultante**.
+
+        Contando solo los ``DESCONOCIDO`` nuevos de cada corrida, tres catálogos
+        parciales seguidos —4 ausentes de 10, después 5, después 1— dejaban los
+        diez programas bloqueados sin que la guarda saltara nunca: ninguna de las
+        tres corridas pasaba el umbral por sí sola. La ficha SIIS-06 pide
+        confirmar «si pasarían a DESCONOCIDO todos los vinculados o más del
+        50 %», y eso solo se sabe mirando cómo queda el conjunto.
+        """
+        programas = [_programa_siis(70 + indice) for indice in range(10)]
+
+        def correr(presentes):
+            with patch("programas.services.siis_sync.listar_programas_todos", return_value=_del_catalogo(*presentes)):
+                sincronizar_estado_programas()
+
+        def bloqueados():
+            return ProgramaSiis.objects.filter(siis_programa_estado=ESTADO_DESCONOCIDO).count()
+
+        correr(range(74, 80))  # 4 ausentes de 10: 40 %, pasa
+        self.assertEqual(bloqueados(), 4)
+
+        with self.assertRaisesMessage(SiisCatalogError, "9 de 10"):
+            correr([79])  # 5 nuevos, pero quedarían 9 de 10 bloqueados
+
+        self.assertEqual(bloqueados(), 4, "la segunda corrida escribió igual")
+        for programa in programas[4:]:
+            programa.refresh_from_db()
+            self.assertEqual(programa.siis_programa_estado, ProgramaSiis.EstadoSiis.ACTIVO)
+
+    def test_un_programa_que_ya_estaba_bloqueado_sigue_contando(self):
+        """El mismo bug visto de cerca: sin novedades, la guarda no se aplicaba."""
+        _programa_siis(79, estado=ProgramaSiis.EstadoSiis.DESCONOCIDO)
+        _programa_siis(80, estado=ProgramaSiis.EstadoSiis.DESCONOCIDO)
+        presente = _programa_siis(81)
+
+        with patch("programas.services.siis_sync.listar_programas_todos", return_value=_del_catalogo(81)):
+            with self.assertRaisesMessage(SiisCatalogError, "2 de 3"):
+                sincronizar_estado_programas()
+
+        presente.refresh_from_db()
+        self.assertIsNone(presente.siis_verificado_en)
+
+    def test_el_forzado_queda_en_el_log(self):
+        """Saltear la guarda no puede ser silencioso: quién, cuándo y por qué."""
+        _programa_siis(79)
+        _programa_siis(80)
+
+        with patch("programas.services.siis_sync.listar_programas_todos", return_value=_del_catalogo(99)):
+            with self.assertLogs("programas.services.siis_sync", level="WARNING") as registrado:
+                sincronizar_estado_programas(forzar=True, motivo="ECOM dio de baja el plan", usuario="jperez")
+
+        linea = registrado.output[0]
+        self.assertIn("2 de 2", linea)
+        self.assertIn("jperez", linea)
+        self.assertIn("ECOM dio de baja el plan", linea)
+
+    def test_un_forzar_que_no_hacia_falta_no_ensucia_el_log(self):
+        """``--forzar`` por costumbre sobre una baja normal no es una emergencia."""
+        _programa_siis(79)
+        _programa_siis(80)
+        _programa_siis(81)
+
+        with patch("programas.services.siis_sync.listar_programas_todos", return_value=_del_catalogo(80, 81)):
+            with patch("programas.services.siis_sync.logger") as log:
+                sincronizar_estado_programas(forzar=True, motivo="por las dudas")
+
+        log.warning.assert_not_called()
 
     def test_con_un_solo_programa_vinculado_la_guarda_no_se_aplica(self):
         """Con uno solo, «todos» y «más del 50 %» son siempre ciertos: la guarda
@@ -162,7 +231,7 @@ class SincronizacionDefensivaTests(TestCase):
         respuesta.raise_for_status.return_value = None
         cache.set(TOKEN_CACHE_KEY, "abc", 60)
 
-        with patch("programas.services.siis.requests.get", return_value=respuesta):
+        with patch("programas.services.siis.sesion.get", return_value=respuesta):
             self.assertEqual(siis_mod.listar_programas_todos(), [])
 
         self.assertIsNone(cache.get(PROGRAMAS_TODOS_CACHE_KEY))
@@ -186,13 +255,50 @@ class SincronizacionDefensivaTests(TestCase):
         _programa_siis(79)
         _programa_siis(80)
 
-        salida = self._correr(_del_catalogo(99), "--forzar")
+        salida = self._correr(_del_catalogo(99), "--forzar", "--motivo", "baja confirmada con ECOM")
 
         self.assertIn("2 programa(s) actualizado(s)", salida)
         self.assertEqual(
             ProgramaSiis.objects.filter(siis_programa_estado=ESTADO_DESCONOCIDO).count(),
             2,
         )
+
+    def test_el_forzar_del_comando_exige_motivo(self):
+        """MINOR del PR 4: era un flag pelado, como ``--ignorar-corrida`` antes
+        del PR 3. Deja bloqueada media Becas o más: tiene que quedar escrito."""
+        _programa_siis(79)
+        _programa_siis(80)
+
+        with self.assertRaisesMessage(CommandError, "--forzar necesita --motivo"):
+            self._correr(_del_catalogo(99), "--forzar")
+
+        self.assertEqual(ProgramaSiis.objects.filter(siis_programa_estado=ESTADO_DESCONOCIDO).count(), 0)
+
+    def test_el_motivo_en_blanco_no_cuenta(self):
+        _programa_siis(79)
+        _programa_siis(80)
+
+        with self.assertRaises(CommandError):
+            self._correr(_del_catalogo(99), "--forzar", "--motivo", "   ")
+
+    def test_el_usuario_del_comando_llega_al_log(self):
+        _programa_siis(79)
+        _programa_siis(80)
+
+        with self.assertLogs("programas.services.siis_sync", level="WARNING") as registrado:
+            self._correr(_del_catalogo(99), "--forzar", "--motivo", "baja real", "--usuario", "jperez")
+
+        self.assertIn("jperez", registrado.output[0])
+
+    def test_el_cronjob_corre_sin_motivo_porque_no_fuerza(self):
+        """``docker/k8s/cronjobs.yaml`` lo invoca pelado: no tiene que cambiar."""
+        _programa_siis(79)
+        _programa_siis(80)
+        _programa_siis(81)
+
+        salida = self._correr(_del_catalogo(80, 81))
+
+        self.assertIn("1 programa(s) actualizado(s)", salida)
 
 
 @override_settings(
@@ -222,23 +328,25 @@ class RespuestaQueNoEsObjetoTests(TestCase):
     def test_una_compatibilidad_que_contesta_una_lista_no_revienta(self):
         cache.set(TOKEN_CACHE_KEY, "abc", 60)
 
-        with patch("programas.services.siis.requests.post", return_value=self._respuesta(["OK"])):
+        with patch("programas.services.siis.sesion.post", return_value=self._respuesta(["OK"])):
             resultado = siis_mod.validar_compatibilidad("20301234", 79)
 
         self.assertFalse(resultado["success"])
-        self.assertEqual(resultado["data"], {})
+        # Lo que contestó no se tira: sin esto, «no contestó» y «contestó una
+        # lista» quedaban iguales en la fila registrada (MINOR del PR 4).
+        self.assertEqual(resultado["data"], {"_crudo": "['OK']"})
 
     def test_una_compatibilidad_que_contesta_un_texto_no_revienta(self):
         cache.set(TOKEN_CACHE_KEY, "abc", 60)
 
-        with patch("programas.services.siis.requests.post", return_value=self._respuesta("OK", status=503)):
+        with patch("programas.services.siis.sesion.post", return_value=self._respuesta("OK", status=503)):
             resultado = siis_mod.validar_compatibilidad("20301234", 79)
 
         self.assertFalse(resultado["success"])
 
     def test_un_token_que_contesta_una_lista_no_revienta(self):
         """Sin cuerpo de objeto no hay ``access_token``: es configuración rota."""
-        with patch("programas.services.siis.requests.post", return_value=self._respuesta([])):
+        with patch("programas.services.siis.sesion.post", return_value=self._respuesta([])):
             resultado = siis_mod.validar_compatibilidad("20301234", 79)
 
         self.assertFalse(resultado["success"])
@@ -246,7 +354,7 @@ class RespuestaQueNoEsObjetoTests(TestCase):
     def test_un_catalogo_que_contesta_una_lista_de_strings_no_revienta(self):
         cache.set(TOKEN_CACHE_KEY, "abc", 60)
 
-        with patch("programas.services.siis.requests.get", return_value=self._respuesta(["uno", "dos"])):
+        with patch("programas.services.siis.sesion.get", return_value=self._respuesta(["uno", "dos"])):
             self.assertEqual(siis_mod.listar_programas_todos(), [])
 
 
@@ -288,7 +396,37 @@ class ValidacionConDatosIlegiblesTests(_ConPayloadCompleto):
         registro = self._validar(["OK"])
 
         self.assertIsNone(registro.id_consulta)
-        self.assertEqual(registro.respuesta, {})
+        self.assertEqual(registro.respuesta, {"_crudo": "['OK']"})
+
+    def test_lo_que_contesto_siis_queda_guardado_aunque_no_sea_un_objeto(self):
+        """MINOR del PR 4: ``respuesta = {}`` perdía la única pista que había.
+
+        Quien después abre la validación para entender por qué el caso no avanzó
+        no tiene otra cosa que esta fila: «SIIS no contestó» y «SIIS contestó el
+        HTML de error de un proxy» son dos problemas distintos y se veían igual.
+        """
+        registro = self._validar("<html>502 Bad Gateway</html>")
+
+        self.assertEqual(registro.respuesta, {"_crudo": "<html>502 Bad Gateway</html>"})
+        self.assertEqual(registro.estado, ValidacionSIS.Estado.OK)
+
+    def test_una_respuesta_enorme_se_recorta(self):
+        """Un 502 de nginx son varios KB de HTML: no entran enteros en la fila."""
+        registro = self._validar("x" * 5000)
+
+        self.assertEqual(len(registro.respuesta["_crudo"]), siis_mod.LARGO_CRUDO)
+
+    def test_el_detalle_de_la_pantalla_sobrevive_al_crudo(self):
+        """El único lector estructurado de ``respuesta`` no se entera del cambio."""
+        from programas.views.revision import _detalle_validacion_siis
+
+        registro = self._validar(["OK"])
+
+        detalle = _detalle_validacion_siis(registro)
+
+        self.assertEqual(detalle["controles"], [])
+        self.assertEqual(detalle["situacion"], "No informado")
+        self.assertEqual(detalle["programa_nombre"], "")
 
 
 class ApoderadoPrevalidadoTests(_ConPayloadCompleto):

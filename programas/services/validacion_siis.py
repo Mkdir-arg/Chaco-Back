@@ -5,7 +5,7 @@ import uuid
 from django.utils.dateparse import parse_datetime
 
 from programas.models import ValidacionSIS
-from programas.services.siis import motivos_de_rechazo, validar_compatibilidad
+from programas.services.siis import crudo, motivos_de_rechazo, validar_compatibilidad
 
 
 def _uuid_o_none(valor):
@@ -42,8 +42,12 @@ def validar_formulario_en_siis(formulario, solicitado_por):
     if not isinstance(data, dict):
         # SIIS contestó algo que no es un objeto: el intento igual se registra
         # —es la constancia de que contestó cualquier cosa—, con los campos
-        # estructurados vacíos en vez de un 500 al guardar (SIIS-11).
-        data = {}
+        # estructurados vacíos en vez de un 500 al guardar (SIIS-11). Lo que
+        # contestó **no se tira**: va a ``respuesta["_crudo"]``, recortado. Sin
+        # eso, «SIIS no contestó» y «SIIS contestó el HTML de error de un proxy»
+        # quedaban indistinguibles en la fila, que es lo único que mira después
+        # quien tiene que entender por qué el caso no avanzó.
+        data = crudo(data)
     estado = ValidacionSIS.Estado.ERROR
     if resultado.get("success"):
         estado = ValidacionSIS.Estado.OK if resultado.get("compatible") else ValidacionSIS.Estado.RECHAZADO

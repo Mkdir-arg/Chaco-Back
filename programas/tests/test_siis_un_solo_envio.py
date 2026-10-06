@@ -971,7 +971,7 @@ class ParidadComandosSiisTests(TestCase):
 
         for nombre in self.COMANDOS:
             with self.subTest(comando=nombre):
-                with patch("programas.services.siis.requests.post") as post:
+                with patch("programas.services.siis.sesion.post") as post:
                     with self.assertRaises(CommandError) as ctx:
                         call_command(nombre, "--aplicar", stdout=StringIO(), stderr=StringIO())
                 self.assertIn("corrida", str(ctx.exception).lower())
@@ -1030,8 +1030,8 @@ class ParidadComandosSiisTests(TestCase):
     def test_ninguno_llama_a_siis_sin_aplicar(self):
         """El ensayo es el default en los cuatro: ninguno manda nada por omisión."""
         with (
-            patch("programas.services.siis.requests.post") as post,
-            patch("programas.services.siis.requests.get") as get,
+            patch("programas.services.siis.sesion.post") as post,
+            patch("programas.services.siis.sesion.get") as get,
         ):
             for nombre in self.COMANDOS:
                 with self.subTest(comando=nombre):

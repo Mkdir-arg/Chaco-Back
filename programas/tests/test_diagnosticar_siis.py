@@ -46,8 +46,8 @@ class DiagnosticarSiisTests(SimpleTestCase):
     def setUp(self):
         cache.clear()
 
-    @patch("programas.services.siis.requests.get")
-    @patch("programas.services.siis.requests.post")
+    @patch("programas.services.siis.sesion.get")
+    @patch("programas.services.siis.sesion.post")
     def test_catalogo_con_programas_cierra_sin_fallas(self, post, get):
         post.return_value = _respuesta({"access_token": "abc", "expires_in": 3600})
         get.return_value = _respuesta({"programas": [{"id": 34, "nombre": "Chaco Joven", "estado": "ACTIVO"}]})
@@ -58,8 +58,8 @@ class DiagnosticarSiisTests(SimpleTestCase):
         self.assertIn("#34 Chaco Joven", salida)
         self.assertIn("Diagnóstico sin fallas", salida)
 
-    @patch("programas.services.siis.requests.get")
-    @patch("programas.services.siis.requests.post")
+    @patch("programas.services.siis.sesion.get")
+    @patch("programas.services.siis.sesion.post")
     def test_catalogo_vacio_avisa_pero_no_es_falla_de_integracion(self, post, get):
         """El entorno de test de ECOM puede no publicar programas: eso no es un error nuestro."""
         post.return_value = _respuesta({"access_token": "abc", "expires_in": 3600})
@@ -75,8 +75,8 @@ class DiagnosticarSiisTests(SimpleTestCase):
         self.assertIn('"programas": []', salida)
         self.assertIn("claves de primer nivel: ['programas', 'total']", salida)
 
-    @patch("programas.services.siis.requests.get")
-    @patch("programas.services.siis.requests.post")
+    @patch("programas.services.siis.sesion.get")
+    @patch("programas.services.siis.sesion.post")
     def test_lista_bajo_una_clave_desconocida_queda_visible_en_el_cuerpo(self, post, get):
         """Si ECOM renombra el contenedor, el conteo da 0 igual que un catálogo vacío."""
         post.return_value = _respuesta({"access_token": "abc", "expires_in": 3600})
@@ -91,8 +91,8 @@ class DiagnosticarSiisTests(SimpleTestCase):
         self.assertIn("claves de primer nivel: ['items']", salida)
         self.assertIn("claves que la app busca", salida)
 
-    @patch("programas.services.siis.requests.get")
-    @patch("programas.services.siis.requests.post")
+    @patch("programas.services.siis.sesion.get")
+    @patch("programas.services.siis.sesion.post")
     def test_cuerpo_largo_se_recorta(self, post, get):
         post.return_value = _respuesta({"access_token": "abc", "expires_in": 3600})
         get.return_value = _respuesta({"items": [{"relleno": "x" * 900}]})
@@ -102,8 +102,8 @@ class DiagnosticarSiisTests(SimpleTestCase):
         self.assertIn("caracteres)", salida)
         self.assertNotIn("x" * 500, salida)
 
-    @patch("programas.services.siis.requests.get")
-    @patch("programas.services.siis.requests.post")
+    @patch("programas.services.siis.sesion.get")
+    @patch("programas.services.siis.sesion.post")
     def test_cambio_de_contrato_se_denuncia_como_falla_con_las_claves_recibidas(self, post, get):
         """Si ECOM renombra los campos, el select queda vacío sin ningún error visible."""
         post.return_value = _respuesta({"access_token": "abc", "expires_in": 3600})
@@ -118,8 +118,8 @@ class DiagnosticarSiisTests(SimpleTestCase):
         self.assertIn("codigo", salida)
         self.assertIn("denominacion_programa", salida)
 
-    @patch("programas.services.siis.requests.get")
-    @patch("programas.services.siis.requests.post")
+    @patch("programas.services.siis.sesion.get")
+    @patch("programas.services.siis.sesion.post")
     def test_programa_inactivo_no_llega_al_select(self, post, get):
         post.return_value = _respuesta({"access_token": "abc", "expires_in": 3600})
         get.return_value = _respuesta({"programas": [{"id": 15, "nombre": "Chaco Olímpico", "estado": "INACTIVO"}]})
@@ -133,7 +133,7 @@ class DiagnosticarSiisTests(SimpleTestCase):
         self.assertNotIn("FALLA", salida)
         self.assertIn("#15 Chaco Olímpico [INACTIVO]", salida)
 
-    @patch("programas.services.siis.requests.post")
+    @patch("programas.services.siis.sesion.post")
     def test_token_rechazado_corta_antes_del_catalogo(self, post):
         import requests
 
@@ -155,7 +155,7 @@ class DiagnosticarSiisSinConfiguracionTests(SimpleTestCase):
         cache.clear()
 
     def test_sin_credenciales_falla_en_el_primer_paso_y_no_sale_a_la_red(self):
-        with patch("programas.services.siis.requests.post") as post:
+        with patch("programas.services.siis.sesion.post") as post:
             salida, codigo = _correr()
 
         self.assertEqual(codigo, 1)

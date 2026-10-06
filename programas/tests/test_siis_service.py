@@ -18,7 +18,7 @@ class SiisClientTests(SimpleTestCase):
     def setUp(self):
         cache.clear()
 
-    @patch("programas.services.siis.requests.post")
+    @patch("programas.services.siis.sesion.post")
     def test_compatible_obtiene_token_y_envia_el_contrato_vigente(self, post):
         token = Mock(status_code=200)
         token.json.return_value = {"access_token": "abc", "expires_in": 3600}
@@ -40,7 +40,7 @@ class SiisClientTests(SimpleTestCase):
             {"dni": "21884116", "id_programa": 59, "fecha_nacimiento": "2005-08-15"},
         )
 
-    @patch("programas.services.siis.requests.post")
+    @patch("programas.services.siis.sesion.post")
     def test_sin_fecha_de_nacimiento_no_manda_el_campo(self, post):
         cache.set(TOKEN_CACHE_KEY, "abc", 60)
         respuesta = Mock(status_code=200)
@@ -51,7 +51,7 @@ class SiisClientTests(SimpleTestCase):
 
         self.assertEqual(post.call_args.kwargs["json"], {"dni": "21884116", "id_programa": 59})
 
-    @patch("programas.services.siis.requests.post")
+    @patch("programas.services.siis.sesion.post")
     def test_rechazo_llega_en_http_200_y_no_es_error_tecnico(self, post):
         """SIIS resuelve el veredicto siempre con 200: el rechazo viaja en ``apto``."""
         cache.set(TOKEN_CACHE_KEY, "abc", 60)
@@ -72,7 +72,7 @@ class SiisClientTests(SimpleTestCase):
         self.assertTrue(resultado["success"])
         self.assertFalse(resultado["compatible"])
 
-    @patch("programas.services.siis.requests.post")
+    @patch("programas.services.siis.sesion.post")
     def test_error_de_contrato_se_informa_como_tecnico(self, post):
         cache.set(TOKEN_CACHE_KEY, "abc", 60)
         respuesta = Mock(status_code=400)
@@ -84,7 +84,7 @@ class SiisClientTests(SimpleTestCase):
         self.assertFalse(resultado["success"])
         self.assertEqual(resultado["error"], "VALIDACION_ENTRADA")
 
-    @patch("programas.services.siis.requests.get")
+    @patch("programas.services.siis.sesion.get")
     def test_lista_programas_conserva_el_detalle_informativo_del_contrato(self, get):
         cache.set(TOKEN_CACHE_KEY, "abc", 60)
         respuesta = Mock(status_code=200)
@@ -115,7 +115,7 @@ class SiisClientTests(SimpleTestCase):
         self.assertTrue(programas[0]["controla_empleo_publico"])
         self.assertIn("estado=ACTIVO", get.call_args.args[0])
 
-    @patch("programas.services.siis.requests.get")
+    @patch("programas.services.siis.sesion.get")
     def test_lista_programas_descarta_inactivos_que_llegan_igual(self, get):
         """El filtro se le pide a SIIS y se reaplica: un inactivo no llega al select."""
         cache.set(TOKEN_CACHE_KEY, "abc", 60)
@@ -131,7 +131,7 @@ class SiisClientTests(SimpleTestCase):
 
         self.assertEqual([p["id"] for p in SiisAPIClient().listar_programas()], [38])
 
-    @patch("programas.services.siis.requests.get")
+    @patch("programas.services.siis.sesion.get")
     def test_programa_sin_estado_se_asume_activo(self, get):
         """Si ECOM dejara de informar ``estado``, mejor catálogo completo que vacío."""
         cache.set(TOKEN_CACHE_KEY, "abc", 60)
@@ -145,7 +145,7 @@ class SiisClientTests(SimpleTestCase):
         self.assertEqual([p["id"] for p in programas], [38])
         self.assertEqual(programas[0]["estado"], "ACTIVO")
 
-    @patch("programas.services.siis.requests.get")
+    @patch("programas.services.siis.sesion.get")
     def test_catalogo_completo_pide_todos_y_conserva_los_inactivos(self, get):
         """Detectar una baja necesita ``estado=TODOS``: con ACTIVO el programa desaparece."""
         cache.set(TOKEN_CACHE_KEY, "abc", 60)
@@ -181,7 +181,7 @@ class SiisClientTests(SimpleTestCase):
     def test_motivos_de_rechazo_tolera_una_respuesta_sin_validaciones(self):
         self.assertEqual(motivos_de_rechazo(None), [])
 
-    @patch("programas.services.siis.requests.get", side_effect=requests.Timeout)
+    @patch("programas.services.siis.sesion.get", side_effect=requests.Timeout)
     def test_timeout_del_catalogo_muestra_un_mensaje_util(self, _get):
         cache.set(TOKEN_CACHE_KEY, "abc", 60)
 
@@ -191,7 +191,7 @@ class SiisClientTests(SimpleTestCase):
     # ------------------------------------------------------------------
     # Alta de beneficiarios (tabla intermedia) y catálogos maestros
     # ------------------------------------------------------------------
-    @patch("programas.services.siis.requests.post")
+    @patch("programas.services.siis.sesion.post")
     def test_cargar_beneficiario_201_devuelve_el_id(self, post):
         cache.set(TOKEN_CACHE_KEY, "abc", 60)
         respuesta = Mock(status_code=201)
@@ -210,7 +210,7 @@ class SiisClientTests(SimpleTestCase):
         self.assertTrue(post.call_args.args[0].endswith("/api/v1/auth/tab-intermedia"))
         self.assertEqual(post.call_args.kwargs["json"], {"dni": 1, "tdoc": 1})
 
-    @patch("programas.services.siis.requests.post")
+    @patch("programas.services.siis.sesion.post")
     def test_cargar_beneficiario_201_sin_ids_generados_lee_registros(self, post):
         cache.set(TOKEN_CACHE_KEY, "abc", 60)
         respuesta = Mock(status_code=201)
@@ -219,7 +219,7 @@ class SiisClientTests(SimpleTestCase):
 
         self.assertEqual(SiisAPIClient().cargar_beneficiario({})["siis_id"], 31)
 
-    @patch("programas.services.siis.requests.post")
+    @patch("programas.services.siis.sesion.post")
     def test_cargar_beneficiario_400_trae_detalles_por_campo(self, post):
         cache.set(TOKEN_CACHE_KEY, "abc", 60)
         respuesta = Mock(status_code=400)
@@ -238,7 +238,7 @@ class SiisClientTests(SimpleTestCase):
         self.assertEqual(r["detalles"], {"barrio_actual": ["mínimo 4 caracteres"]})
 
     @patch.object(SiisAPIClient, "_token", return_value="abc")
-    @patch("programas.services.siis.requests.post")
+    @patch("programas.services.siis.sesion.post")
     def test_cargar_beneficiario_401_invalida_el_token_y_reintenta_una_vez(self, post, _token):
         """SIIS-02: el 401 garantiza que el alta no se procesó, así que se reintenta
         **adentro**, una sola vez, con un token nuevo. Si vuelve a fallar, queda
@@ -256,7 +256,7 @@ class SiisClientTests(SimpleTestCase):
         self.assertTrue(r["reintentable"])
         self.assertIsNone(cache.get(TOKEN_CACHE_KEY))
 
-    @patch("programas.services.siis.requests.post")
+    @patch("programas.services.siis.sesion.post")
     def test_cargar_beneficiario_503_es_reintentable(self, post):
         cache.set(TOKEN_CACHE_KEY, "abc", 60)
         respuesta = Mock(status_code=503)
@@ -268,7 +268,7 @@ class SiisClientTests(SimpleTestCase):
         self.assertEqual(r["codigo"], "ERROR_BD_LEGACY")
         self.assertTrue(r["reintentable"])
 
-    @patch("programas.services.siis.requests.post", side_effect=requests.ConnectTimeout())
+    @patch("programas.services.siis.sesion.post", side_effect=requests.ConnectTimeout())
     def test_cargar_beneficiario_connect_timeout_no_salio_y_se_reintenta(self, _post):
         """La conexión no se abrió: el alta no salió (SIIS-02)."""
         cache.set(TOKEN_CACHE_KEY, "abc", 60)
@@ -280,7 +280,7 @@ class SiisClientTests(SimpleTestCase):
         self.assertEqual(r["codigo"], "ERROR_TECNICO")
         self.assertTrue(r["reintentable"])
 
-    @patch("programas.services.siis.requests.get")
+    @patch("programas.services.siis.sesion.get")
     def test_catalogo_normaliza_y_cachea(self, get):
         cache.set(TOKEN_CACHE_KEY, "abc", 60)
         respuesta = Mock(status_code=200)
@@ -295,7 +295,7 @@ class SiisClientTests(SimpleTestCase):
         self.assertEqual(get.call_count, 1)
         self.assertTrue(get.call_args.args[0].endswith("/api/v1/auth/catalogos/provincias"))
 
-    @patch("programas.services.siis.requests.get")
+    @patch("programas.services.siis.sesion.get")
     def test_funciones_programa_pide_por_id_programa(self, get):
         cache.set(TOKEN_CACHE_KEY, "abc", 60)
         respuesta = Mock(status_code=200)
@@ -335,7 +335,7 @@ class ResultadoDelAltaTests(SimpleTestCase):
 
     def _resultado(self, **kwargs):
         with patch.object(SiisAPIClient, "_token", return_value="abc"):
-            with patch("programas.services.siis.requests.post", **kwargs):
+            with patch("programas.services.siis.sesion.post", **kwargs):
                 return SiisAPIClient().cargar_beneficiario({"dni": 1})
 
     def _respuesta(self, status, body=None):
@@ -416,7 +416,7 @@ class ResultadoDelAltaTests(SimpleTestCase):
 
     def test_un_token_que_no_se_puede_obtener_no_salio(self):
         with patch.object(SiisAPIClient, "_token", side_effect=requests.ConnectionError("sin red")):
-            with patch("programas.services.siis.requests.post") as post:
+            with patch("programas.services.siis.sesion.post") as post:
                 r = SiisAPIClient().cargar_beneficiario({"dni": 1})
         post.assert_not_called()
         self.assertEqual(r["resultado"], "NO_ENVIADO")
