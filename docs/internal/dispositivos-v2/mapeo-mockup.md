@@ -30,10 +30,10 @@ La primera conclusión cambia la forma de leer todo lo demás: **el mockup no pr
 lenguaje visual nuevo**. Fue construido copiando valor por valor el CSS productivo de
 DATAÑACH. La comparación es literal:
 
-| Mockup (`:root`, L3-L12) | Código productivo | ¿Coincide? |
+| Mockup (`:root`, L23-L32) | Código productivo | ¿Coincide? |
 |---|---|---|
 | `--brand:#5059bc` | `--color-brand-700` ([`chaco-tokens.css:19`](../../../static/custom/css/chaco-tokens.css)) | idéntico |
-| `--brand-050:#f5f3ff` · `--brand-200:#ddd6fe` · `--brand-900:#3730a3` | `--color-brand-050/200/900` (L12, L14, L20) | idéntico |
+| `--brand-050:#f5f3ff` · `--brand-200:#ddd6fe` · `--brand-900:#3730a3` | `--color-brand-050/200/900` (L12, L14, L21) | idéntico |
 | `--brand-soft:#fee9ff` | `--color-pink-100` → `--bg-brand-soft` (L26, L153) | idéntico |
 | `--brand-tint:#dee1ff` | `--bg-brand-tint` (L181) | idéntico |
 | `--pink:#f98dff` | `--color-pink-600` (L31) | idéntico |
@@ -46,31 +46,31 @@ DATAÑACH. La comparación es literal:
 | `--font:Manrope,…` | `--font-family-base:'Manrope'` (L246) | idéntico |
 
 Lo mismo pasa a nivel de componente. `.badge.bg-brand{background:#FFEAF6;border-color:#FFB9DC;color:#A11F60}`
-(mockup L102) es carácter por carácter
-[`nodo-badges.css:35`](../../../static/custom/css/nodo-badges.css). `.nf` (mockup L147) es
+(mockup L122) es carácter por carácter
+[`nodo-badges.css:35`](../../../static/custom/css/nodo-badges.css). `.nf` (mockup L167) es
 `.nodo-field`: 42 px de alto, radio 8, padding `0 14px`, textarea `min-height:80px`
 ([`nodo-forms.css:31-43`](../../../static/custom/css/nodo-forms.css)). `.fcard .row`
-(mockup L144) declara `grid-template-columns:minmax(180px,1.15fr) minmax(150px,.9fr) minmax(200px,1.35fr) 42px`,
+(mockup L164) declara `grid-template-columns:minmax(180px,1.15fr) minmax(150px,.9fr) minmax(200px,1.35fr) 42px`,
 que es exactamente
 [`dynamic-list-filters.css:36`](../../../static/custom/css/dynamic-list-filters.css).
 
 **Consecuencia práctica:** «tal cual el mockup» es, en la mayoría de las pantallas,
 **reutilizar lo que ya existe**, no construir un front paralelo. El esfuerzo real está en
-(a) las ~15 piezas que el mockup inventa y el sistema no tiene, (b) los datos que el
-backend no modela todavía, y (c) **tres choques puntuales** donde el mockup clonó piezas
-productivas que el sistema de diseño está retirando (§7).
+(a) las 16 piezas que el mockup inventa y el sistema no tiene, (b) los datos que el
+backend no modela todavía, y (c) **15 choques** con el sistema de diseño o con decisiones ya
+registradas, que §7 lista con sus opciones.
 
 ---
 
 ## 1. Chrome compartido por las 22 pantallas
 
-Las 22 pantallas se dibujan dentro de `.app` (mockup L47), que el script del final
+Las 22 pantallas se dibujan dentro de `.app` (mockup L67), que el script del final
 (L1486-L1512) completa con un sidebar y una barra superior generados por JS. No se repite
 en cada ficha; se describe una sola vez acá.
 
 ### 1.1 Sidebar
 
-Mockup: `.sb` (L48-L70), armado por `sidebar(active,user,hide)` desde el array `NAV`
+Mockup: `.sb` (L68-L90), armado por `sidebar(active,user,hide)` desde el array `NAV`
 (L1469-L1481). Ancho 288 px, fondo blanco, borde derecho `--border`.
 
 - **Marca:** caja de 44 px con el SVG del escudo, `DATAÑACH` en 15 px/800 y
@@ -105,7 +105,7 @@ la URL»* (L405).
 
 ### 1.2 Barra superior
 
-Mockup: `.topbar` (L72-L79) + `topbar(user)` (L1502-L1505). Alto 64 px, fondo blanco,
+Mockup: `.topbar` (L92-L99) + `topbar(user)` (L1502-L1505). Alto 64 px, fondo blanco,
 `box-shadow:var(--shadow-sm)`; buscador de 320×40 px con radio completo sobre `--g050` y
 el texto «Buscar ciudadanos...»; a la derecha campana de 22 px, un punto de 6 px y el
 bloque de usuario con avatar de 36 px con gradiente.
@@ -119,7 +119,7 @@ gris del mockup es el indicador de WebSocket (`#websocket-status`, L141).
 
 ### 1.3 Responsive
 
-El mockup trae un único breakpoint (L279): bajo 1100 px el sidebar `.sb` **se oculta**
+El mockup trae un único breakpoint (L299): bajo 1100 px el sidebar `.sb` **se oculta**
 (`display:none`) y `.split`, `.split3`, `.form`, `.roles`, `.dl` y `.svc` pasan a una
 columna. No muestra ninguna pantalla en celular ni el sidebar móvil.
 
@@ -137,48 +137,48 @@ Tabla maestra. Las fichas por pantalla referencian esta tabla en vez de repetirl
 
 | Clase del mockup (línea) | Pieza real | Veredicto |
 |---|---|---|
-| `:root` tokens (L3-L12) | [`chaco-tokens.css`](../../../static/custom/css/chaco-tokens.css) | **IGUAL** en valores; distinto en nombres (ver §7 C-1) |
-| `.app` `.sb` `.topbar` (L47-L79) | `includes/base.html` + `sidebar/` + `navbar.html` | **IGUAL** (árbol del menú aparte, §1.1) |
-| `.page` (L80) | contenedor `space-y-5` del arquetipo detalle | IGUAL (20 px de gap = `space-y-5`) |
-| `.ph` `.ph h1` `.eyebrow` (L81-L87) | `{% page_header %}` ([`core/templatetags/nodo_ui.py`](../../../core/templatetags/nodo_ui.py)) | **IGUAL**; el `eyebrow` no es parámetro del tag → **ampliar la pieza** |
-| `.back` (L83) | `.btn-tertiary.btn-back-circle` ([`nodo-buttons.css:182`](../../../static/custom/css/nodo-buttons.css)) | **IGUAL** (40 px, pill, borde de marca) |
-| `.btn.b/.s/.t/.d` (L91-L94) | `btn-nodo` + `btn-brand/btn-secondary/btn-tertiary/btn-danger` | IGUAL de color; **difiere el ancho**: el real tiene `min-width` 128/143/151 px (L37-L56), el mockup no |
-| `.btn.sm` / `.btn.xs` / `.btn.dis` (L95-L97) | `btn-sm` (36 px) / `btn-xs` (32 px) / `:disabled` | **IGUAL** |
-| `.badge` + `.bg-gray/-w/-brand/-succ/-dang/-warn/-info` + `.dotb` (L98-L106) | [`nodo-badges.css`](../../../static/custom/css/nodo-badges.css) `badge-gray/-white/-brand/-success/-danger/-warning/-info` + `badge-dot` | **IGUAL exacto**, hex por hex |
-| `.surface` + `.hd` + `.bd` (L107-L111) | «Surface/card backoffice» (`bg-white rounded-xl border border-base shadow-sm overflow-hidden`, header `px-5 py-4 border-b border-light`) | **IGUAL** |
-| `.tabs` (L134-L139) | «Tabs backoffice» | IGUAL en geometría; **difiere el contador**: `.cnt` propio vs contrato `badge badge-info`/`badge-gray` |
-| `table.dense` (L154-L162) | [`nodo-tables.css`](../../../static/custom/css/nodo-tables.css) `.nodo-thead-row/.nodo-th/.nodo-td` | **IGUAL exacto** (11 px upper .05em / 11×16; 14 px / 13×16) |
-| `.pager` (L164-L165) | [`components/_paginacion.html`](../../../templates/components/_paginacion.html) | **IGUAL** |
-| `.empty` (L233-L235) | [`components/_estado_vacio.html`](../../../templates/components/_estado_vacio.html) | **IGUAL exacto** (`py-14 px-6`, ícono 48 px brand, título 17 px) |
-| `.fcard` + `.row` + `.foot` + `.rm` (L140-L146) | [`components/list_filters.html`](../../../templates/components/list_filters.html) + [`dynamic-list-filters.css`](../../../static/custom/css/dynamic-list-filters.css) + [`dynamic_list_filters.js`](../../../static/custom/js/dynamic_list_filters.js) | **IGUAL exacto**, incluida la grilla de la fila y el pie «Todos / Limpiar filtros / Aplicar» |
-| `.nf` + `.err` + `.ro` + `.ta` (L147-L152) | `.nodo-field` + estados | **IGUAL exacto** |
-| `.nf.pill` (L153) | — | **NUEVA** (filtro rápido en píldora de 36 px) |
-| `.f label` / `.help` / `.e` (L168-L171) | canon de formulario (`block text-sm font-medium text-heading mb-1`, ayuda `text-body-subtle`, error `text-fg-danger`) | **IGUAL** |
-| `.form` / `.full` (L166-L167) | grilla de 2 columnas de `becas/_field.html` | IGUAL |
-| `.modal` + `.mh` + `.mb` + `.mf` (L220-L229) | «Modal Becas accesible» (`_modal_header.html` + `_modal_footer.html` + `becas-modal.js`) | **IGUAL exacto** (560 px, radio 16, caja de ícono 40 px `bg-brand-soft`, pie `bg-secondary`) |
-| `.alert` + `.w/.d/.i` + `.a` (L127-L133) | [`components/_alerta.html`](../../../templates/components/_alerta.html) | **DIFIERE**: radio 12 vs 8 (`rounded-lg`), padding `12px 16px` vs `p-4`, el mockup **lleva ícono** y un **link de acción a la derecha** que la pieza no tiene |
-| `.bar` + `.bar i` (L207-L209) | medidor del dashboard de Becas (`h-2 rounded-full bg-brand-soft` + relleno `--text-fg-brand`) | **IGUAL** |
-| `.stat` + `.ico` (L112-L121) | `.stat-card` de [`templates/inicio.html:84-137`](../../../templates/inicio.html) | **IGUAL a Inicio**, pero Inicio **no es la pieza canónica** → conflicto C-2 |
-| `.hero` (L122-L126) | `.ini-hero` de [`inicio.html:11-65`](../../../templates/inicio.html) | **IGUAL a Inicio** (radio 16, 28×32, gradiente, `shadow-brand`, h1 30/800, botón 44 px) → conflicto C-3 |
-| `.acceso` (L253-L256) | `.acceso-btn` de [`inicio.html:139-176`](../../../templates/inicio.html) | **IGUAL a Inicio** (18 px, radio 12, caja 44 px radio 10, label 14/700) |
-| `.kv` (L182-L184) | patrón `dl` de los detalles de Becas | IGUAL de hecho; **sin pieza única** |
-| `.dl` (L185-L187) | patrón `dl` de `legajo/detail.html:86-94` | IGUAL de hecho; **sin pieza única** |
-| `.chips` + `.chip` + `.chip.on` (L230-L232) | — (lo más cercano son las píldoras de `nodo-buscador`) | **NUEVA** |
-| `.toggle` (L246-L249) | — (no hay switch en `nodo-forms.css`) | **NUEVA** |
-| `.stepper` (L172-L179) | semántica de [`portal/inscripcion/_stepper.html`](../../../portal/templates/portal/inscripcion/_stepper.html) | **NUEVA en backoffice** |
-| `.plazas` + `.plz` + `.oc/.ok/.rs/.fs/.pr` (L188-L196) | — | **NUEVA** |
-| `.tl` + `.ev` (L197-L203) | — (lo más cercano es la `<ol>` del historial de `legajo/detail.html:131`) | **NUEVA** |
-| `.sec` + `.sh` + `.sb2` + `.locked` (L204-L212) | — | **NUEVA** |
-| `.turno` + `.on/.off` (L213-L216) | — | **NUEVA** |
-| `.entry` (L217-L219) | — | **NUEVA** |
-| `.grilla` (L236-L241) | tabla de [`merenderos/prestacion_mensual.html:34-60`](../../../programas/templates/programas/merenderos/prestacion_mensual.html) | **DIFIERE** (ver P13) |
-| `.roles` + `.role` (L242-L244) | — | **NUEVA** |
-| `.legendmini` + `.sq` (L250-L252) | — | **NUEVA** |
-| `.svc` (L272-L278) | — | **NUEVA** |
-| `.mapa` (L270-L271) | — (no hay librería de mapas en el repo) | **NUEVA** |
-| `.fotos` + `.foto` (L267-L269) | — | **NUEVA** |
-| `.kebab` (L163) | — (hoy las acciones de fila son `.nodo-icon-btn` sueltos) | **NUEVA** |
-| `.split` / `.split3` (L180-L181) | utilidades de grilla | IGUAL (se resuelve con Tailwind) |
+| `:root` tokens (L23-L32) | [`chaco-tokens.css`](../../../static/custom/css/chaco-tokens.css) | **IGUAL** en valores; distinto en nombres (ver §7 C-1) |
+| `.app` `.sb` `.topbar` (L67-L99) | `includes/base.html` + `sidebar/` + `navbar.html` | **IGUAL** (árbol del menú aparte, §1.1) |
+| `.page` (L100) | contenedor `space-y-5` del arquetipo detalle | IGUAL (20 px de gap = `space-y-5`) |
+| `.ph` `.ph h1` `.eyebrow` (L101-L107) | `{% page_header %}` ([`core/templatetags/nodo_ui.py`](../../../core/templatetags/nodo_ui.py)) | **IGUAL**; el `eyebrow` no es parámetro del tag → **ampliar la pieza** |
+| `.back` (L103) | `.btn-tertiary.btn-back-circle` ([`nodo-buttons.css:182`](../../../static/custom/css/nodo-buttons.css)) | **IGUAL** (40 px, pill, borde de marca) |
+| `.btn.b/.s/.t/.d` (L111-L114) | `btn-nodo` + `btn-brand/btn-secondary/btn-tertiary/btn-danger` | IGUAL de color; **difiere el ancho**: el real tiene `min-width` 128/143/151 px ([`nodo-buttons.css:37-56`](../../../static/custom/css/nodo-buttons.css)), el mockup no → C-15 |
+| `.btn.sm` / `.btn.xs` / `.btn.dis` (L115-L117) | `btn-sm` (36 px) / `btn-xs` (32 px) / `:disabled` | **IGUAL** |
+| `.badge` + `.bg-gray/-w/-brand/-succ/-dang/-warn/-info` + `.dotb` (L118-L126) | [`nodo-badges.css`](../../../static/custom/css/nodo-badges.css) `badge-gray/-white/-brand/-success/-danger/-warning/-info` + `badge-dot` | **IGUAL exacto**, hex por hex |
+| `.surface` + `.hd` + `.bd` (L127-L131) | «Surface/card backoffice» (`bg-white rounded-xl border border-base shadow-sm overflow-hidden`, header `px-5 py-4 border-b border-light`) | **IGUAL** |
+| `.tabs` (L154-L159) | «Tabs backoffice» | IGUAL en geometría; **difiere el contador**: `.cnt` propio vs contrato `badge badge-info`/`badge-gray` |
+| `table.dense` (L174-L182) | [`nodo-tables.css`](../../../static/custom/css/nodo-tables.css) `.nodo-thead-row/.nodo-th/.nodo-td` | **IGUAL exacto** (11 px upper .05em / 11×16; 14 px / 13×16) |
+| `.pager` (L184-L185) | [`components/_paginacion.html`](../../../templates/components/_paginacion.html) | **IGUAL** |
+| `.empty` (L253-L255) | [`components/_estado_vacio.html`](../../../templates/components/_estado_vacio.html) | **IGUAL exacto** (`py-14 px-6`, ícono 48 px brand, título 17 px) |
+| `.fcard` + `.row` + `.foot` + `.rm` (L160-L166) | [`components/list_filters.html`](../../../templates/components/list_filters.html) + [`dynamic-list-filters.css`](../../../static/custom/css/dynamic-list-filters.css) + [`dynamic_list_filters.js`](../../../static/custom/js/dynamic_list_filters.js) | **IGUAL exacto**, incluida la grilla de la fila y el pie «Todos / Limpiar filtros / Aplicar» |
+| `.nf` + `.err` + `.ro` + `.ta` (L167-L172) | `.nodo-field` + estados | **IGUAL exacto** |
+| `.nf.pill` (L173) | — | **NUEVA** (filtro rápido en píldora de 36 px) |
+| `.f label` / `.help` / `.e` (L188-L191) | canon de formulario (`block text-sm font-medium text-heading mb-1`, ayuda `text-body-subtle`, error `text-fg-danger`) | **IGUAL** |
+| `.form` / `.full` (L186-L187) | grilla de 2 columnas de `becas/_field.html` | IGUAL |
+| `.modal` + `.mh` + `.mb` + `.mf` (L240-L249) | «Modal Becas accesible» (`_modal_header.html` + `_modal_footer.html` + `becas-modal.js`) | **IGUAL exacto** (560 px, radio 16, caja de ícono 40 px `bg-brand-soft`, pie `bg-secondary`) |
+| `.alert` + `.w/.d/.i` + `.a` (L147-L153) | [`components/_alerta.html`](../../../templates/components/_alerta.html) | **DIFIERE**: radio 12 vs 8 (`rounded-lg`), padding `12px 16px` vs `p-4`, el mockup **lleva ícono** y un **link de acción a la derecha** que la pieza no tiene |
+| `.bar` + `.bar i` (L227-L229) | medidor del dashboard de Becas (`h-2 rounded-full bg-brand-soft` + relleno `--text-fg-brand`) | **IGUAL** |
+| `.stat` + `.ico` (L132-L141) | `.stat-card` de [`templates/inicio.html:84-137`](../../../templates/inicio.html) | **IGUAL a Inicio**, pero Inicio **no es la pieza canónica** → conflicto C-2 |
+| `.hero` (L142-L146) | `.ini-hero` de [`inicio.html:11-65`](../../../templates/inicio.html) | **IGUAL a Inicio** (radio 16, 28×32, gradiente, `shadow-brand`, h1 30/800, botón 44 px) → conflicto C-3 |
+| `.acceso` (L273-L276) | `.acceso-btn` de [`inicio.html:139-176`](../../../templates/inicio.html) | **IGUAL a Inicio** (18 px, radio 12, caja 44 px radio 10, label 14/700) |
+| `.kv` (L202-L204) | patrón `dl` de los detalles de Becas | IGUAL de hecho; **sin pieza única** |
+| `.dl` (L205-L207) | patrón `dl` de `legajo/detail.html:86-94` | IGUAL de hecho; **sin pieza única** |
+| `.chips` + `.chip` + `.chip.on` (L250-L252) | — (lo más cercano son las píldoras de `nodo-buscador`) | **NUEVA** |
+| `.toggle` (L266-L269) | — (no hay switch en `nodo-forms.css`) | **NUEVA** |
+| `.stepper` (L192-L199) | semántica de [`portal/inscripcion/_stepper.html`](../../../portal/templates/portal/inscripcion/_stepper.html) | **NUEVA en backoffice** |
+| `.plazas` + `.plz` + `.oc/.ok/.rs/.fs/.pr` (L208-L216) | — | **NUEVA** |
+| `.tl` + `.ev` (L217-L223) | — (lo más cercano es la `<ol>` del historial de `legajo/detail.html:131`) | **NUEVA** |
+| `.sec` + `.sh` + `.sb2` + `.locked` (L224-L232) | — | **NUEVA** |
+| `.turno` + `.on/.off` (L233-L236) | — | **NUEVA** |
+| `.entry` (L237-L239) | — | **NUEVA** |
+| `.grilla` (L256-L261) | tabla de [`merenderos/prestacion_mensual.html:34-60`](../../../programas/templates/programas/merenderos/prestacion_mensual.html) | **DIFIERE** (ver P13) |
+| `.roles` + `.role` (L262-L264) | — | **NUEVA** |
+| `.legendmini` + `.sq` (L270-L272) | — | **NUEVA** |
+| `.svc` (L292-L298) | — | **NUEVA** |
+| `.mapa` (L290-L291) | — (no hay librería de mapas en el repo) | **NUEVA** |
+| `.fotos` + `.foto` (L287-L289) | — | **NUEVA** |
+| `.kebab` (L183) | — (hoy las acciones de fila son `.nodo-icon-btn` sueltos) | **NUEVA** |
+| `.split` / `.split3` (L200-L201) | utilidades de grilla | IGUAL (se resuelve con Tailwind) |
 | Íconos (`[data-ico]`, L1440-L1466) | **Heroicons outline inline** | **MIXTO**: la regla `ICONARIA` de `design_audit` asume Font Awesome, pero `list_filters.html` y el sidebar **ya usan Heroicons inline** → §7 C-4 |
 
 ---
@@ -269,9 +269,10 @@ Supervisora de área · Abordaje Psicosocial». La bajada del mockup lo declara 
 | `.alert` con ícono + link | `_alerta.html` | **DIFIERE** → C-5 |
 | `.acceso` | `.acceso-btn` de `inicio.html` | productivo, no canónico |
 
-**Arquetipo.** Ninguno. El anexo §3 es explícito: *«Wizard; revisión de caso compleja;
-**dashboard completo** → **No hay golden → frenar y devolver**»*
-([`anexo-agente-diseno.md:149`](../auditoria-2026-10/anexo-agente-diseno.md)). P1 es un
+**Arquetipo.** Ninguno. El núcleo lo clasifica «Duplicado o conflictivo»: *«Pendiente ·
+wizard, revisión compleja y dashboard … **No hay golden: frenar y devolver al llamador**»*
+([`chaco-design-system.md:149`](../../../.claude/agents/chaco-design-system.md), ficha
+[`arquetipos/pendientes.md`](../../../.claude/design/arquetipos/pendientes.md)). P1 es un
 dashboard completo. → C-7.
 
 **Mapeo a datos y backend.**
@@ -337,17 +338,17 @@ estados de F2). Es la pantalla que el link del pedido abre (`#p2`). Menú `disp-
 del `.ph` **no es parámetro** de `{% page_header %}` hoy → ampliar la pieza (N-1).
 
 **Arquetipo.** **Listado** — golden
-[`programas/templates/programas/becas/revision/personas_list.html`](../../../programas/templates/programas/becas/revision/personas_list.html)
-(`design_audit.GOLDENS`, [`scripts/design_audit.py:1124`](../../../scripts/design_audit.py)).
-Es la pantalla del mockup que **mejor encaja** con el sistema tal como está.
+[`programas/templates/programas/becas/revision/personas_list.html`](../../../programas/templates/programas/becas/revision/personas_list.html),
+ficha [`arquetipos/listado.md`](../../../.claude/design/arquetipos/listado.md). Es la pantalla
+del mockup que **mejor encaja** con el sistema tal como está.
 
 **Mapeo a datos y backend.**
 
 | Dato | Origen hoy | Falta |
 |---|---|---|
 | Nombre, código, localidad, tipo, estado | `Dispositivo` (`models:477-516`) | — |
-| Filtros tipo/estado/localidad | `DispositivoListView` ([`views/dispositivos_legajo.py`](../../../programas/views/dispositivos_legajo.py)) y el form de `legajo/list.html:25-32` | el operador («es») del mockup: hoy los filtros son igualdad implícita |
-| Estados «Inauguración pendiente» | `Dispositivo.Estado` tiene BORRADOR, PENDIENTE_VALIDACION, ACTIVO, OBSERVADO, RECHAZADO, INACTIVO, CERRADO (`models:480-487`) | **`INAUGURACION_PENDIENTE` y `SUSPENDIDO`** (F2 los pide; hoy «Suspendido» solo existe en `Merendero.Estado`) |
+| Filtros tipo/estado/localidad | `DispositivoListView` ([`views/dispositivos_legajo.py`](../../../programas/views/dispositivos_legajo.py)) y el form de `legajo/list.html:25-32` | solo el texto del operador: [`dynamic_list_filters.js:97`](../../../static/custom/js/dynamic_list_filters.js) ya pinta uno decorativo de una sola opción («Igual a» / «Contiene»), el mockup dice «es» |
+| Estados «Inauguración pendiente» | `Dispositivo.Estado` tiene BORRADOR, PENDIENTE_VALIDACION, ACTIVO, OBSERVADO, RECHAZADO, INACTIVO, CERRADO (`models:480-487`) | **`INAUGURACION_PENDIENTE` y `SUSPENDIDO`** (F2 los pide; «Suspendido» existe en `Merendero.Estado` (`models:896`), `Programa` (`models:116`) e `InscripcionPrograma` (`models:219`), pero no en `Dispositivo.Estado`) |
 | **Área del Ministerio** | — | **campo nuevo**; `configuracion` tiene secretarías/subsecretarías, falta la FK |
 | **Categoría** (Público/Religioso/ONG) | — | **campo nuevo** |
 | Plazas «37 / 42» | `camas_totales` (`models:509`) + `resumen_ocupacion()` | el denominador del mockup es **operativas**, no totales |
@@ -628,7 +629,8 @@ El mockup muestra el **paso 2 de 4**.
 `aria-current="step"` + `sr-only "Paso actual:"`), y el selector de plaza con celdas
 punteadas.
 
-**Arquetipo.** **Wizard → el anexo §3 dice «No hay golden → frenar y devolver»**. → C-7.
+**Arquetipo.** **Wizard → sin golden: «frenar y devolver al llamador»**
+([`arquetipos/pendientes.md`](../../../.claude/design/arquetipos/pendientes.md)). → C-7.
 
 **Mapeo a datos y backend.**
 
@@ -701,8 +703,8 @@ institución. Usuario: «Teresa Gauna · Trabajadora social · equipo técnico»
 `.dl`. **NUEVAS:** `.sec` (sección de ficha con progreso y estado bloqueado) y `.tl`
 (línea de tiempo). El 🔒 y los 📎 son **emoji**, no íconos del sistema → C-10.
 
-**Arquetipo.** «Revisión de caso compleja → **no hay golden → frenar y devolver**»
-(anexo §3). → C-7.
+**Arquetipo.** «Revisión compleja → **sin golden: frenar y devolver**»
+([`arquetipos/pendientes.md`](../../../.claude/design/arquetipos/pendientes.md)). → C-7.
 
 **Mapeo a datos y backend.**
 
@@ -813,10 +815,13 @@ modal coincide con la «nota informativa» del canon de Becas.
 al canon. **NUEVO:** `.toggle` (switch), que no existe en
 [`nodo-forms.css`](../../../static/custom/css/nodo-forms.css).
 
-**Arquetipo.** **Confirmación con motivo** — el anexo §3 la define como *«Arquetipo Modal
-con `<form method="post">` + textarea `nodo-field` requerida (D2)»* para **pantallas
-nuevas**, y aclara que *«Las legacy de Dispositivos/Merenderos/Legajos siguen con Swal
-condicionado (Cambio 48)»*. El mockup coincide con D2. → relevante para C-6.
+**Arquetipo.** **Modal** — el núcleo lo dice en la misma fila: la golden del modal cubre
+*«alta o edición corta sin salir de la pantalla, **y confirmación con motivo**»*
+([`chaco-design-system.md:147`](../../../.claude/agents/chaco-design-system.md), ficha
+[`arquetipos/modal.md`](../../../.claude/design/arquetipos/modal.md)). El anexo §3 lo había
+fijado como decisión **D2** para **pantallas nuevas**, aclarando que *«Las legacy de
+Dispositivos/Merenderos/Legajos siguen con Swal condicionado (Cambio 48)»*. El mockup
+coincide con D2. → relevante para C-6.
 
 **Mapeo a datos y backend.**
 
@@ -990,8 +995,8 @@ de F1, estado «Merendero activo» de F7. Usuario: «Javier Paredes · Área de 
   Remito · Acciones. 3 filas; la tercera con `opacity:.55` y `badge bg-gray` «Anulada ·
   duplicada». Remitos como «📎 R-00881».
 
-**Mapeo al sistema de diseño.** Canónicos salvo stat cards (C-2), `.alert` (C-5) y los 📎
-(C-10).
+**Mapeo al sistema de diseño.** Canónicos salvo stat cards (C-2), `.alert` (C-5), los 📎
+(C-10) y el `.kebab` de las dos filas vigentes (L1026-L1027), que es pieza nueva (N-11).
 
 **Arquetipo.** **Detalle con solapas**.
 
@@ -1594,7 +1599,8 @@ mockup, ver Q1). También trae **dos frames**: la configuración y la vista del 
   «Restablecer», `.btn.b` «Guardar cambios».
 - `.split`. Izquierda, surface «Widgets del tablero» / *«Se alimentan de M8; el alcance del
   rol recorta los datos, no hace falta configurarlo dos veces»* + `.btn.t.sm` «+ Agregar
-  widget», con `.roles` de 2 columnas y cuatro grupos de `.toggle` (16 widgets, 9 activos):
+  widget», con `.roles` de 2 columnas y cuatro grupos de `.toggle` (16 widgets; **10 en `on`**,
+  aunque el `kv` de la derecha diga «9 de 16» — contradicción del propio mockup, ver Q10):
 
   | Grupo | Widgets (on en negrita) |
   |---|---|
@@ -1635,7 +1641,8 @@ cada URL y cada POST se verifica igual que en P15»*.
 **Mapeo al sistema de diseño.** Canónicos: `page_header`, surface, `table.dense`, `.kv`,
 `.bar`, badges, `.alert` (C-5). **NUEVAS:** `.toggle`, `.chips`, `.kebab`.
 
-**Arquetipo.** «Dashboard completo → **no hay golden → frenar y devolver**» (anexo §3) para
+**Arquetipo.** «Dashboard → **sin golden: frenar y devolver**»
+([`arquetipos/pendientes.md`](../../../.claude/design/arquetipos/pendientes.md)) para
 el tablero resultante; la pantalla de **configuración** en sí es un detalle/formulario y sí
 tiene molde. → C-7.
 
@@ -1674,7 +1681,7 @@ tiene molde. → C-7.
 | P9 | Egreso | Confirmación con motivo (Modal) | `.toggle` | catálogo de motivos y destinos; pertenencias; fecha futura (DIS-06) | C-6 | S |
 | P10 | Bitácora y pase de guardia | Detalle (degradado) | `.turno`, `.entry`, `.chips`, `.nf.pill` | **entradas de bitácora** con versión; apertura/cierre; pase; regularización | C-10 | L |
 | P11 | Espera y derivaciones | Detalle con solapas | `.nf.pill` | prioridad y origen en `EsperaAdmision`; bandeja de derivaciones (LEG-06); vista de red | C-5 | M |
-| P12 | Merendero: detalle | Detalle con solapas | — | capacidad declarada; catálogo de kits; equivalencia; remito; `motivo_anulacion` (MER-02); documentación con vigencia | C-2 C-5 C-6 C-10 | M |
+| P12 | Merendero: detalle | Detalle con solapas | `.kebab` | capacidad declarada; catálogo de kits; equivalencia; remito; `motivo_anulacion` (MER-02); documentación con vigencia | C-2 C-5 C-6 C-10 | M |
 | P13 | Prestación mensual | Formulario + `.grilla` | `.grilla` (o evolución de la actual) | estado del mes y cierre por otro rol; días estructurados | C-11 | M |
 | P14 | Configuración del tipo | Detalle con solapas | `.chips`, `.toggle` | 9 campos de configuración; sección como entidad; sensibilidad | — | L |
 | P15 | Roles, alcance y sensibilidad | Detalle / formulario | `.toggle`, `.chips`, `.role` | ~11 capacidades nuevas en `CATALOGO`; alcance por subsecretaría; separación de funciones | C-12 | L |
@@ -1686,7 +1693,7 @@ tiene molde. → C-7.
 | P21 | Relevamientos | Listado + Modal | `.kebab`, `.chips` deshabilitados | **modelo de relevamiento edilicio** (con otro nombre, Q4); territorial de Dispositivos | C-2 | L |
 | P22 | Dashboard configurable | **sin golden** (dashboard) | `.toggle`, `.chips`, `.kebab` | catálogo de widgets por rol; **recordatorios personalizados** | C-5 C-7 | L |
 
-**Reparto:** 4 S/M · 8 M · 10 L. Cuatro pantallas (P1, P6, P7, P22) caen en arquetipos que
+**Reparto:** 2 S · 7 M · 2 M/L · 11 L. Cuatro pantallas (P1, P6, P7, P22) caen en arquetipos que
 el agente de diseño hoy manda **frenar y devolver**.
 
 ---
@@ -1699,7 +1706,7 @@ Cada una exige su fila en
 
 | # | Pieza | Qué es | Dónde aparece |
 |---|---|---|---|
-| N-1 | `eyebrow` en `{% page_header %}` | línea 12,5 px uppercase en `--text-fg-brand` sobre el `<h1>` | P2 P3 P5 P6 P7 P10 P11 P12 P13 P14 P17 P18 P19 P20 P21 P22 (16 de 22) |
+| N-1 | `eyebrow` en `{% page_header %}` | línea 12,5 px uppercase en `--text-fg-brand` sobre el `<h1>` | todas menos P1, P4 y P16 (**19 de 22**) |
 | N-2 | Filtro rápido en píldora (`.nf.pill`) | `nodo-field` de 36 px, radio completo, «Campo: valor ⌄»; filtra sin abrir la tarjeta | P1 P4 P10 P11 P13 P20 P21 |
 | N-3 | Chips de selección múltiple (`.chip`) | píldora 4×12 px, borde base; activa `#FFEAF6`/`#FFB9DC`/`#A11F60` (los tonos de `badge-brand`) | P3 P10 P14 P15 P17 P21 P22 |
 | N-4 | Switch (`.toggle`) | pista 34×18 px, perilla 14 px; `on` = `--bg-brand`. **No existe** en `nodo-forms.css` | P9 P14 P15 P22 |
@@ -1716,14 +1723,18 @@ Cada una exige su fila en
 | N-15 | Grupo de capacidades (`.role`) | card con `<h5>` y lista de switches | P15 P22 |
 | N-16 | Grilla mensual (`.grilla`) | tabla día × servicio con totales, días inhabilitados y celda en edición | P13 |
 
-Además, **dos piezas existentes a ampliar**: `_alerta.html` (ícono + acción, C-5) y
-`_stat_card.html` o `.stat-card` (C-2).
+Además, **piezas existentes a ampliar**: `_alerta.html` (ícono + acción, C-5),
+`_stat_card.html` o `.stat-card` (C-2) y —si C-15 se resuelve por la opción B—
+`nodo-buttons.css` con una variante de botón sin ancho mínimo para headers densos y celdas
+de tabla.
 
 ---
 
 ## 7. Conflictos · `DECISIÓN CLIENTE`
 
-Ninguno se resuelve acá. Cada uno trae sus opciones y su costo.
+Quince. Ninguno se resuelve acá: cada uno trae sus opciones y su costo. Los seis primeros
+(C-1 a C-6) y C-15 son decisiones **de sistema**, no de pantalla: conviene cerrarlos antes de
+la primera.
 
 ### C-1 · Tokens con nombre propio vs tokens semánticos `DECISIÓN CLIENTE`
 
@@ -1743,13 +1754,17 @@ variable.*
 
 ### C-2 · Stat cards: el mockup clona la métrica que el sistema está retirando `DECISIÓN CLIENTE`
 
-**Choque.** El `.stat` del mockup (L112-L121) es idéntico a `.stat-card` de
+**Choque.** El `.stat` del mockup (L132-L141) es idéntico a `.stat-card` de
 [`inicio.html:84-137`](../../../templates/inicio.html): caja de ícono de **52 px**, valor
-**32 px / 800**, ícono con `var(--gradient-brand)`. La pieza canónica
-[`components/_stat_card.html`](../../../templates/components/_stat_card.html) dice lo
-contrario, con nombre de hallazgo: *«Ya no se usan cajas de 52px, `var(--gradient-brand)` ni
-valores `text-3xl`/`extrabold` en tarjetas nuevas (**CMP-23**)»*; y el anexo §3 pone a
-`inicio.html` entre las *«pantallas a alinear»* con la golden de la franja de métricas.
+**32 px / 800**, ícono con `var(--gradient-brand)`. La pieza canónica es
+[`components/_stat_card.html`](../../../templates/components/_stat_card.html), y el canon dice
+lo contrario: *«Sin gradiente ni cajas de 52 px»*
+([`chaco-design-system.md:171`](../../../.claude/agents/chaco-design-system.md)), con la
+prohibición detallada en su ficha —*«Cajas de ícono de 52 px, `var(--gradient-brand)`, valores
+`text-3xl` o `font-extrabold`: quedaron fuera del canon»*
+([`.claude/design/componentes/stat_card.md:45-46`](../../../.claude/design/componentes/stat_card.md),
+hallazgo **CMP-23**)—. El anexo §3 pone además a `inicio.html` entre las *«pantallas a
+alinear»* con la golden de la franja de métricas.
 Aparece en P1, P4, P12, P19, P21.
 
 | Opción | Costo |
@@ -1790,11 +1805,11 @@ shell **precarga `fa-solid-900.woff2`** y los componentes (`_stat_card`, `_estad
 
 ### C-5 · Alertas inline: el mockup lleva ícono y acción; la pieza no `DECISIÓN CLIENTE`
 
-**Choque.** `.alert` del mockup (L127-L133): radio 12, padding `12px 16px`, **ícono de
+**Choque.** `.alert` del mockup (L147-L153): radio 12, padding `12px 16px`, **ícono de
 18 px** a la izquierda y un **link de acción subrayado a la derecha** («Resolver», «Ver
 legajo», «Completar ahora»). [`components/_alerta.html`](../../../templates/components/_alerta.html)
 es `rounded-lg … p-4 text-sm` con `strong` + `p`, **sin ícono y sin acción** (salvo la nota
-informativa). Aparece en 13 de 22 pantallas.
+informativa). Aparece en **15 de 22** pantallas (todas menos P2, P5, P10, P13, P14, P15 y P17).
 
 | Opción | Costo |
 |---|---|
@@ -1822,11 +1837,13 @@ existente. Técnicamente A no lo contradice.*
 
 ### C-7 · Cuatro pantallas sin golden: el agente manda frenar `DECISIÓN CLIENTE`
 
-**Choque.** El anexo §3 es taxativo:
-*«Wizard; revisión de caso compleja; dashboard completo → **No hay golden → frenar y
-devolver**»*. P1 y P22 son dashboards, P6 es un wizard, P7 es revisión de caso compleja.
-Y §7 de la auditoría declara **precondición transversal**: *«la Ola 6 terminada antes de la
-primera task de pantalla»* — hoy la Ola 6 va por el paso 3 de 7.
+**Choque.** El núcleo del agente es taxativo: *«Pendiente · wizard, revisión compleja y
+dashboard … **No hay golden: frenar y devolver al llamador**»*
+([`chaco-design-system.md:149`](../../../.claude/agents/chaco-design-system.md) +
+[`arquetipos/pendientes.md`](../../../.claude/design/arquetipos/pendientes.md)). P1 y P22 son
+dashboards, P6 es un wizard, P7 es revisión compleja. Y §7 de la auditoría declara
+**precondición transversal**: *«la Ola 6 terminada antes de la primera task de pantalla»* —
+con el Cambio 132 (PR #579) la Ola 6 va por el **paso 5 de 7**.
 
 | Opción | Costo |
 |---|---|
@@ -1923,6 +1940,29 @@ eso SortableJS está vendorizado, *«sin CDN por la CSP»*).
 | **B.** Sin mapa: coordenadas, un enlace «ver en el mapa» que abre fuera y el plano como adjunto | ~2 horas; cumple el uso declarado (presentaciones) con el PDF del plano |
 | **C.** Imagen estática del mapa generada al guardar el punto | ~1 día + dependencia de un servicio externo con clave |
 
+### C-15 · Los botones del mockup no tienen el `min-width` del sistema `DECISIÓN CLIENTE`
+
+**Choque.** El `.btn` del mockup (L109) es `height:40px;padding:0 16px` y **sin ancho mínimo**:
+cada botón mide lo que mide su texto. Los botones reales llevan `min-width` por tamaño —
+`btn-xs` 128 px, `btn-sm` 143 px, `btn-base` 151 px, `btn-lg` 170 px, `btn-xl` 186 px
+([`nodo-buttons.css:37-70`](../../../static/custom/css/nodo-buttons.css)). Implementado con la
+pieza real, **toda fila de acciones queda bastante más ancha que en el mockup**, y el efecto se
+acumula donde hay varias: P4 tiene 4 botones en el header, P12 tiene 4, P2 tiene 3 más el
+«Ver detalle» de cada fila, y P8 mete dos botones dentro de la celda de acciones.
+
+Es el único punto donde «tal cual el mockup» y «usar la pieza canónica» dan **layouts
+distintos sin que ninguna de las dos partes esté mal**: el mockup no inventó nada, simplemente
+no copió esa declaración.
+
+| Opción | Costo |
+|---|---|
+| **A.** Usar `btn-nodo` tal cual | las barras de acciones y las celdas de la última columna crecen respecto del mockup; en P4 y P12 es muy visible |
+| **B.** Habilitar una variante **sin ancho mínimo** para acciones compactas (p. ej. `btn-fit`) y usarla en headers densos y celdas de tabla | ~medio día; toca una pieza canónica, así que el mismo diff actualiza el inventario y su ficha |
+| **C.** Sacar el `min-width` del sistema | afecta a Becas, Legajos, Usuarios y Portal; fuera del alcance de la v2 |
+
+*Conviene decidirlo antes de la primera pantalla: con A, el resultado no se va a parecer al
+link que el cliente aprobó, y la diferencia no se arregla pantalla por pantalla.*
+
 ---
 
 ## 8. Orden sugerido de implementación
@@ -1930,10 +1970,11 @@ eso SortableJS está vendorizado, *«sin CDN por la CSP»*).
 Ordenado por **dependencias de datos y de piezas**, no por valor para el cliente.
 
 **Ola 0 — precondiciones (bloquean la primera pantalla).**
-1. Cerrar la **Ola 6** (pasos 4 a 7 del anexo): núcleo reescrito, fichas de arquetipo y
-   componentes, consumidores. Es precondición explícita de §7.
+1. Cerrar la **Ola 6**: con el Cambio 132 ya están el núcleo, las fichas de arquetipo y
+   componentes y los consumidores; faltan los **pasos 6 y 7** (ejercicio de control y registro
+   final). Es precondición explícita de §7.
 2. Resolver **C-1, C-2, C-3, C-4, C-5, C-6** (decisiones de sistema) y crear
-   **N-1** (eyebrow) y la ampliación de `_alerta.html`: las usan 16 y 13 pantallas.
+   **N-1** (eyebrow) y la ampliación de `_alerta.html`: las usan 19 y 15 de las 22 pantallas.
 3. Decidir **C-7**: goldens de wizard, caso complejo y dashboard, o la excepción escrita.
 
 **Ola 1 — el legajo institucional (sin dependencias nuevas).**
@@ -2025,6 +2066,11 @@ previsto?
 **Q9 · Merenderos y el edificio.** El mockup los deja fuera de M14 y M15 *«en esta etapa»*
 (L347, L409, L1292). ¿Queda confirmado, o entran más adelante con el mismo modelo de predio?
 
+**Q10 · ¿Cuántos widgets quedan activos en P22?** El mockup se contradice: el panel de widgets
+deja **10** `.toggle` en `on` (L1394-L1397) y el `kv` de la derecha dice «Widgets activos ·
+**9 de 16**» (L1404). Son datos de ejemplo, pero hay que saber cuál refleja la intención antes
+de armar el catálogo.
+
 ---
 
 ## 10. Qué se verificó
@@ -2037,10 +2083,11 @@ previsto?
   `merenderos/`, `templates/includes/{base,navbar}.html`, `sidebar/opciones.html`,
   `templates/inicio.html`, `templates/components/{list_filters,_paginacion,_estado_vacio,_alerta,_stat_card}.html`
   y `static/custom/css/{chaco-tokens,nodo-badges,nodo-buttons,nodo-forms,nodo-tables,dynamic-list-filters}.css`.
-- Documentación consultada: `CLAUDE.md`, `.claude/agents/chaco-design-system.md`,
-  `docs/internal/auditoria-2026-10/README.md` §6 y §7, `anexo-agente-diseno.md` §3,
-  `scripts/design_audit.py` (`ARQUETIPOS`, `GOLDENS`, reglas P1).
-- Requerimientos: Cambios **36**, **48**, **58**, **72** y **85** (`scripts/requerimientos.py --ver`).
+- Documentación consultada: `CLAUDE.md`, el núcleo `.claude/agents/chaco-design-system.md` y
+  las fichas de `.claude/design/` (arquetipos y componentes) tal como quedaron tras el
+  Cambio 132, `docs/internal/auditoria-2026-10/README.md` §6 y §7, `anexo-agente-diseno.md` §3
+  y `scripts/design_audit.py` (`ARQUETIPOS`, `GOLDENS`, reglas P1).
+- Requerimientos: Cambios **36**, **48**, **58**, **72**, **85** y **132** (`scripts/requerimientos.py --ver`).
 - Capturas: 34 imágenes generadas con Chromium headless a 1760 px desde el HTML local.
 
 

@@ -17947,7 +17947,8 @@ fidelidad total al mockup, así que cada choque se lista con sus opciones y su c
 
 **El hallazgo que cambia el encuadre: el mockup *es* el sistema de diseño.** No propone un lenguaje visual nuevo; fue
 construido copiando valor por valor el CSS productivo. Los doce tokens de su `:root` coinciden hex por hex con
-`chaco-tokens.css`; sus siete variantes de badge son carácter por carácter las de `nodo-badges.css`; su `.nf` es
+`chaco-tokens.css`; sus siete variantes de badge coinciden con las de `nodo-badges.css` —`.bg-brand` carácter por
+carácter (`#FFEAF6`/`#FFB9DC`/`#A11F60`), las otras seis en valor, con otro nombre de variable—; su `.nf` es
 `nodo-field` (42 px, radio 8, `0 14px`); su `.fcard .row` declara la misma grilla
 `minmax(180px,1.15fr) minmax(150px,.9fr) minmax(200px,1.35fr) 42px` que `dynamic-list-filters.css`; su `.hero`, su
 `.stat` y su `.acceso` son `.ini-hero`, `.stat-card` y `.acceso-btn` de `templates/inicio.html`. Por eso «tal cual el
@@ -17958,7 +17959,7 @@ no tiene —switch, chips, stepper de backoffice, mapa de plazas, línea de tiem
 turno, entrada de bitácora, menú de fila, tarjeta de servicio, galería histórica, mapa, grilla mensual, grupo de
 capacidades, filtro en píldora y el eyebrow del encabezado—. (b) Los **datos que el backend no modela**: `Sector`,
 `Cama.PRESTADA`, estado de tránsito, permiso de salida, entradas de bitácora, sensibilidad por sección, `Edificio`,
-consumos y relevamiento edilicio. (c) **14 conflictos** con el sistema de diseño o con decisiones ya registradas.
+consumos y relevamiento edilicio. (c) **15 conflictos** con el sistema de diseño o con decisiones ya registradas.
 
 **Los conflictos no se resolvieron, por pedido explícito.** Los cinco que más pesan: el mockup clona la franja de
 métricas de Inicio, que la pieza canónica `_stat_card.html` está retirando (CMP-23); abre el tablero con un hero de
@@ -17968,7 +17969,7 @@ Dispositivos; y cuatro pantallas (P1, P6, P7 y P22) caen en arquetipos que el an
 de golden. El documento da opciones y costo de cada uno.
 
 **La Ola 6 sigue siendo precondición.** §7 de la auditoría lo declara: *«la Ola 6 terminada antes de la primera task de
-pantalla»*. Hoy va por el paso 3 de 7. El orden de implementación propuesto arranca por ahí y, mientras tanto, por las
+pantalla»*. Con el Cambio 132 va por el paso 5 de 7. El orden propuesto arranca por ahí y, mientras tanto, por las
 18 pantallas que **sí** tienen golden.
 
 **Se registró lo que el mockup contradice de lo ya comunicado al cliente.** P18 promete que el contenido sensible «no se
@@ -18003,8 +18004,10 @@ No requiere.
 
 ## Validación
 
-- Los 120 enlaces relativos del documento (84 destinos distintos) resuelven a un archivo existente: 0 rotos.
-- Las 52 tablas del documento tienen columnas parejas.
+- Los 133 enlaces relativos del documento (87 destinos distintos) resuelven a un archivo existente: 0 rotos.
+- Las 53 tablas del documento tienen columnas parejas.
+- Las 84 citas de línea del mockup se verificaron una por una contra el selector que declaran (ronda 2: el bloque
+  `<style>` estaba citado con un corrimiento de +20 por el offset del archivo temporal con el que se lo leyó).
 - `scripts/requerimientos.py --check` → OK.
 - No se tocó ningún template, CSS ni JavaScript, así que `design_audit.py` y `compile_templates.py` no aplican.
 
@@ -18014,8 +18017,9 @@ No requiere.
 
 ## Pendientes / a definir
 
-- **Los 14 conflictos `DECISIÓN CLIENTE`** de §7 están abiertos. Los seis de sistema (C-1 a C-6) convienen resueltos
-  antes de la primera pantalla: el de las alertas toca 13 de las 22 y el eyebrow del encabezado, 16.
+- **Los 15 conflictos `DECISIÓN CLIENTE`** de §7 están abiertos. Los siete de sistema (C-1 a C-6 y C-15) convienen
+  resueltos antes de la primera pantalla: el de las alertas toca 15 de las 22 pantallas y el eyebrow del encabezado, 19;
+  y C-15 —los botones del mockup no llevan el `min-width` del sistema— cambia el ancho de toda barra de acciones.
 - **Las nueve preguntas abiertas** de §9, en particular Q4 (el relevamiento edilicio no puede llamarse `Relevamiento`,
   ese nombre ya es de Becas) y Q1 (qué es F11).
 - **No se crearon issues.** El documento queda como insumo del analista funcional y del PM; las tasks de la v2 cuelgan
