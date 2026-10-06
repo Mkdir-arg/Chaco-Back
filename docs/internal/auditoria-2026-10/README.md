@@ -5,12 +5,45 @@
 | PR | Cambio | Fichas | Estado | Qué quedó abierto |
 |---|---|---|---|---|
 | R-15 | 153 | OPS-03 ✅ · RED-55 ✅ · OPS-04 ✅ · RED-59 ✅ · OPS-01 ✅ · RED-16 🟡 | ✅ | **Las 6 fichas, 18 h, sin migraciones.** Lo que habilita: el próximo deploy en icore deja de ser a ciegas. (1) El traceback de cada 500 llega a **stdout** —`django.request` propaga a la raíz— y los archivos de `logs/` pasan a depender de `LOG_TO_FILES`, con retención de 14 días (OPS-03); los dos context processors que tragaban toda excepción ahora loguean, **sin cambiar lo que ve el usuario** (RED-55). (2) `/health/ready/` toca la base y, en prd, el cache de sesiones, y devuelve 503; `/health/` no cambia, así que ninguna sonda de ECOM se toca (OPS-04) — se retiró el include de `health_check.urls`, que estaba montado en la misma ruta y era inalcanzable; el paquete **sigue instalado**, porque sacarlo deja dos filas de `django_migrations` sin archivo y una tabla sin modelo, y eso frena el arranque (lo midió la guarda de OPS-01 en el CI de este mismo PR: queda anotado en OPS-13). (3) `deploy_prod.sh` verifica con `/health/ready/` + `migrate --check` + manifest + `GET /login/`, crea `rollback/<ts>` en vez de quedar en detached HEAD y **aborta el rollback automático si el deploy aplicó migraciones** (RED-59). (4) `verificar_esquema_migraciones` corre en el entrypoint y en el paso 8/8 del roundtrip, con el chequeo inverso de RED-15, y el renombre de icore quedó versionado en `core/sql/2026-10-06_renombrar_migraciones_icore.sql` (OPS-01). (5) Cada release deja un tag `release-AAAA.MM.DD-<short>` (RED-16). **Abierto:** la otra mitad de RED-16 —el tag de **imagen** por commit— es D-RED-02 y la aplica ECOM; está en `propuesta-ecom-verify.md` §2, junto con los avisos nuevos §4 (volumen en stdout) y §5 (`/health/ready/`), todo pendiente de que lo mande el PM. El renombre de `django_migrations` en icore lo corre una persona antes del próximo deploy |
+## Estado al 06-oct-2026 (Ola 5, PR 3: parches v1 de Configuración)
+
+| PR | Cambio | Fichas | Estado | Qué quedó abierto |
+|---|---|---|---|---|
+| Ola 5 PR 3 | 152 | FE-04 ✅ · FE-05 ✅ · FE-08 ✅ | ✅ | **Las 3 fichas cerradas, sin migración: 6 h.** Las tres pantallas de Geografía dibujan su pie de paginación —la fila 21 dejó de ser inalcanzable— y los seis `form_invalid` devuelven la lista paginada con el **mismo** queryset del listado (el de provincias salía por `id` y el reintento por `nombre`). El `<script>` del paso 1 del wizard vuelve a llegar al navegador (`extra_js` → `customJS`) y la cascada Secretaría → Subsecretaría funciona, con aviso por `window.toast` si la API falla. Los errores no de campo salen de una **pieza canónica nueva** (`templates/components/_form_errores.html`, con contrato, test, ficha y fila de inventario) que usan los diez modales de Geografía y Secretarías, los cuatro pasos del wizard, dos formularios de Legajos y Dispositivos y la **golden del arquetipo Formulario**. FE-05 además queda convertida en gate: `compile_templates.py --bloques`, en «Contratos del repo», falla con cualquier bloque que ningún ancestro declare (allowlist de 6, cada una con su ficha dueña). **Tres desvíos, los tres code-first:** (a) el `form_invalid` de edición devuelve la **página que contiene la fila**, no la 1 —paginarlo a secas, como salía de la ficha, escondía el error de la fila 21—; (b) `legajos/ciudadano_{edit,manual,confirmar}_form.html` **no** se tocaron: vuelcan `form.errors.items`, que incluye `__all__`, así que el error ya se ve y la pieza lo duplicaría (su migración es FE-11/FE-12); (c) se arregló de paso un bug del propio `design_audit --ratchet`, que leía la base en cp1252 y daba por nueva toda la deuda vieja de cualquier template con tildes (34 hallazgos falsos; en el CI, UTF-8, no se veía). **Pendiente del juez:** las tres fichas de `.claude/` (la nueva `componentes/form_errores.md`, los retoques de `arquetipos/formulario.md` y la fila de inventario) van en el cuerpo del PR porque la sesión no tiene permiso de escritura ahí; hasta aplicarlas, «Design Agent Contract» queda rojo |
 
 ## Estado al 06-oct-2026 (Ola 5, PR 2: parches v1 de Legajos)
 
 | PR | Cambio | Fichas | Estado | Qué quedó abierto |
 |---|---|---|---|---|
 | Ola 5 PR 2 | 150 | FE-02 ✅ · LEG-02 ✅ · LEG-03 ✅ · LEG-04 ✅ · LEG-05 ✅ · FE-09 ✅ · FE-21 ✅ | ✅ | **Las 7 fichas cerradas, sin migración: 14 h.** «Subir archivos» vuelve a funcionar (`toastr` nunca se cargó y cortaba el handler en su primera línea); reinscribir a alguien con una inscripción CERRADA/DADA DE BAJA/SUSPENDIDA deja de dar 500, con **una sola puerta** (`programas/services/inscripciones.py::activar_inscripcion`) que usan las tres vías de alta y `_membresia_activa` de Dispositivos; la solapa «Red Familiar» se retira con el **default D-L03 = B** —se van el 404 por carga del legajo, el ViewSet que listaba los vínculos de todos y 673 KB de `vis-network`—; un adjunto con el blob perdido ya no vacía la lista (se lista marcado `faltante`) y la consulta deja de ser N+1; la subida múltiple es atómica y limpia los blobs si falla; los links a `/legajos/<id>/` —ruta que no existe— pasan a texto, salvo el del dashboard de alertas, que apunta al ciudadano; y el modal de archivos se ata a `becas-modal.js` (Escape, foco atrapado, foco devuelto). **Tres desvíos, los tres code-first:** (a) la mitad de LEG-04 del «except que traga» **ya la había cerrado R-19** (#556, Cambio 126) —acá queda su test permanente—; (b) la allowlist de RED-42 que LEG-03 manda limpiar **no existe todavía** (`core/tests/test_urls_del_front.py` es del PR R-18, abierto); (c) `VinculoFamiliarViewSet` se borró además del router, porque dejarlo escrito es dejar la trampa armada. **Abierto, de otra ficha:** los tres JS huérfanos que todavía usan `toastr` (`static/custom/js/ciudadanos*.js`, ningún template los carga) los borra FE-14 en la Ola 7; `ciudadano_detail.html` sigue con 8 desvíos de arquetipo (eran 9), que son del PR 6 |
+
+## Estado al 06-oct-2026 (Ola 1, PR 4: catálogo y reglas independientes)
+
+**Cinco fichas que no dependían de ninguna otra, y la línea que BEC-21 estaba esperando.** El PR 4 de
+la Ola 1 (Cambio 151) cierra **SIIS-06**, **SIIS-11**, **SIIS-12**, **BEC-01**, **BEC-02** y completa
+**BEC-21**: 10 h de las 46 que le quedaban a la ola. **Sin migraciones.**
+
+| Ficha | Qué quedó |
+|---|---|
+| **SIIS-06** ✅ | El cron de las 04:00 deja de poder bloquear Becas entera por un error de SIIS. Catálogo vacío → no escribe nada; ausencia que alcanza a **todos** los vinculados o a **más del 50 %** → tampoco, sin `--forzar` (default de **D-S06**). La guarda no se aplica con un solo programa vinculado, donde «todos» es siempre cierto y una baja real no se podría detectar nunca. La ausencia parcial —lo normal— se sigue escribiendo sola. `listar_programas` y `listar_programas_todos` dejan de cachear la lista vacía. El `CommandError` deja el CronJob en rojo: es la forma de que alguien se entere |
+| **SIIS-11** ✅ | El cuerpo se normaliza antes del primer `.get` en los tres caminos que faltaban (compatibilidad, token, registro de la validación; el alta ya estaba, Cambio 127). Y los dos campos estructurados que se guardan de esa respuesta dejan de reventar al escribirse: `id_consulta` por `uuid.UUID`, `fecha_hora` por un `parse_datetime` envuelto. El intento igual se registra: es la constancia de que SIIS contestó cualquier cosa |
+| **SIIS-12** ✅ | El payload prevalida al apoderado —fecha futura, menor de 18, el propio titular—, que son los tres rechazos que el Cambio 98 midió en PRD (265 + 448 casos) y corrigió **en los datos, no en el payload**. Se valida después de aplicar las correcciones de `datos_siis`: el coordinador tiene salida sin tocar el legajo |
+| **BEC-01** ✅ | Las cuatro operaciones de `cupo.py` releen el estado con el candado de la fila del caso (orden segmento → caso, sin ciclo con rechazar) **y escriben condicionadas**: `UPDATE … WHERE estado = <el que leímos>`. El candado serializa en MariaDB; el compare-and-set es lo que hace que la decisión se pueda afirmar también en SQLite, donde `select_for_update()` es un no-op |
+| **BEC-02** ✅ | En `agregar_a_lista_espera` el candado del segmento pasa al principio y los dos chequeos se hacen adentro. Contra **MariaDB 10.11 real sin tzinfo**: con el código de `development` los dos hilos dejan **2 filas activas** y las **2 bajas pasan**; con el arreglo, una y un `ValidationError` |
+| **BEC-21** ✅ | La línea que esperaba a SIIS-06: `_sin_pausa_vigente` excluye los casos cuyo programa está `INACTIVO` o `DESCONOCIDO` en SIIS. Ya no hay riesgo de frenar el masivo entero, porque un catálogo vacío no escribe. Un programa recién vinculado (`""`) sigue siendo candidato |
+
+**Dos tests cambian a propósito**, los dos marcados en su docstring: `test_catalogo_vacio_marca_todo_desconocido`
+(R-06 lo dejó caracterizando lo de hoy «para que la Ola 1 lo decida a la vista»: hoy es
+`test_catalogo_vacio_no_escribe_nada`) y la primera mitad de
+`test_la_correccion_del_caso_pisa_la_fecha_del_apoderado` (Cambio 98), que afirmaba `faltantes == {}`
+para un apoderado de 17 años que era además el titular.
+
+**Pendiente operativo (PM):** avisar a quien mira el CronJob de las 04:00 que ahora puede terminar en
+rojo con «SIIS devolvió un catálogo vacío» o «no informó N de M programas vinculados». **Eso es la
+señal, no la falla**: antes de usar `--forzar` hay que confirmar la baja con ECOM, porque forzar marca
+los programas `DESCONOCIDO` y eso bloquea sus segmentos.
+
+---
 
 ## Estado al 06-oct-2026 (Ola 5, PR 1: fechas locales de Dispositivos)
 
@@ -37,7 +70,7 @@ las 52 que le quedaban a la ola.
 |---|---|
 | **SIIS-03 + A5-33** ✅ | Latido antes de la selección, cada 100 candidatos mirados y **por caso**; `LATIDO_VENCIDO` de 2 a **5 min** (un caso son hasta tres llamadas de 40 s: dos minutos justos). El freno de la persona y el de errores se miran **por caso**, no al cerrar el lote de 40. `crear_corrida` cierra como `DETENIDA` la corrida sin señal en vez de dejar dos «en curso», y el hilo reemplazado se retira **sin pisar el estado**. Frenar marca **por programa** (A5-33) y **sin** filtrar por latido (V2-NEW-01): la que parece interrumpida es justo la que hay que poder frenar. Los cinco comandos abortan con una corrida viva —la guarda vive en `ComandoSiisBase`, se pregunta **con el candado tomado** y tiene `--ignorar-corrida`—. **El punto 7 (CronJob) no se hace:** default de D-S03 |
 | **BEC-11** ✅ | Default de **D-B11**: un caso que SIIS declaró incompatible no se aprueba en lote; queda contado en `CorridaSiis.incompatibles` (pantalla y resumen del comando) y lo resuelve una persona. No cuenta para el freno: SIIS contestó, y bien. **Y sale de los candidatos**: si siguiera, la corrida lo volvería a consultar en cada vuelta y con 200 adelante por pk una corrida de 100 daba cero altas (ronda 2 de la revisión). Vuelve solo si lo revalidan con OK o si cambia el DNI o el plan |
-| **BEC-21** 🟡 | Fuera de los candidatos los `ENVIADO` que la aprobación iba a rechazar igual (sin identidad validada o sin ciudadano con DNI) y los pausados en los cinco niveles. **Falta el bloqueo por estado del programa en SIIS**, atado a SIIS-06 (PR 4): hoy un catálogo vacío deja todos los programas en `DESCONOCIDO` y esa exclusión frenaría el masivo entero por un error de SIIS |
+| **BEC-21** 🟡 → ✅ | Fuera de los candidatos los `ENVIADO` que la aprobación iba a rechazar igual (sin identidad validada o sin ciudadano con DNI) y los pausados en los cinco niveles. Faltaba el bloqueo por estado del programa en SIIS, atado a SIIS-06; **lo cerró el PR 4 (Cambio 151)** |
 
 **Migración `programas.0076_corridasiis_incompatibles`**: una columna con default en una tabla de una
 fila por corrida. Expand-only, instantánea, reversa de Django.
@@ -998,10 +1031,11 @@ Avance: 11 ⬜ (+ R0b-01, 02, 03, 10 ⬜; R0b-12 operativo). SEC-03 (con G1b-01)
 - **Operativo (PM):** R0b-12 correr P-04 ampliado en PRD.
 
 ### 4.7 Front del backoffice → `hallazgos/07-front.md` (28)
-Avance: 6 ✅ · 1 🟡 · 21 ⬜ (FE-13, V5A-NEW-01, V5A-NEW-08 y la parte (a) de V5A-NEW-07 en la Ola 6; FE-02, FE-09 y
-FE-21 en el PR 2 de la Ola 5).
-- **ALTA:** ✅ FE-02 `toastr` (Ola 5, PR 2) · FE-04 paginación de Geografía · FE-05 wizard · FE-06 clases inexistentes.
-- **MEDIA:** FE-01, 07, 08, ✅ 09, 10, 11, 12, ✅ 13, 17, 18, 19, 20, ✅ 21 · ✅ V5A-NEW-01 · 🟡 V5A-NEW-07.
+Avance: 9 ✅ · 1 🟡 · 18 ⬜ (FE-13, V5A-NEW-01, V5A-NEW-08 y la parte (a) de V5A-NEW-07 en la Ola 6; FE-02, FE-09 y
+FE-21 en el PR 2 de la Ola 5; FE-04, FE-05 y FE-08 en el PR 3).
+- **ALTA:** ✅ FE-02 `toastr` (Ola 5, PR 2) · ✅ FE-04 paginación de Geografía · ✅ FE-05 wizard (Ola 5, PR 3) ·
+  FE-06 clases inexistentes.
+- **MEDIA:** FE-01, 07, ✅ 08, ✅ 09, 10, 11, 12, ✅ 13, 17, 18, 19, 20, ✅ 21 · ✅ V5A-NEW-01 · 🟡 V5A-NEW-07.
 - **BAJA:** FE-14, 16, 22, 23, 24, 25, 26 · V5A-NEW-04 · V5A-NEW-08.
 
 ### 4.8 Red de seguridad → `hallazgos/08-red-de-seguridad.md` (89, frente del 04-oct-2026)
@@ -1293,7 +1327,16 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
      y fuera de los candidatos (migración `programas.0076_corridasiis_incompatibles`) y candidatos sin los no
      aprobables ni los pausados. El punto 7 (CronJob) no se hace: default de D-S03. BEC-21 queda 🟡: el bloqueo por
      estado del programa en SIIS espera a SIIS-06 (PR 4). 6 h.
-  4. SIIS-06, SIIS-11, SIIS-12, BEC-01, BEC-02 (independientes, S). 10 h.
+  4. ✅ **Hecho el 06-oct-2026 (Cambio 151):** SIIS-06 + SIIS-11 + SIIS-12 + BEC-01 + BEC-02, y de yapa el
+     resto de BEC-21. `sincronizar_estado_programas` no escribe con el catálogo vacío ni con una ausencia
+     masiva sin `--forzar` (default de D-S06) y deja de cachear la lista vacía; el cuerpo de SIIS se
+     normaliza antes del primer `.get` en los tres caminos que faltaban y `id_consulta`/`fecha_hora` se
+     validan antes de guardarse; el payload prevalida al apoderado (futuro, menor de 18, el propio
+     titular) después de aplicar las correcciones; las cuatro operaciones de `cupo.py` releen bajo el
+     candado de la fila del caso y escriben condicionadas al estado. **Sin migraciones.** Cambia a
+     propósito dos tests: la caracterización de R-06 (`test_catalogo_vacio_marca_todo_desconocido`,
+     puesta «para que la Ola 1 lo decida») y la primera mitad de la del Cambio 98 sobre el apoderado.
+     10 h.
   5. SIIS-09 (+PERF-09) **después** del PR 2. 4 h.
   6. SIIS-08 + G1-08 + G1-09 + G1-10 (qué viaja a SIIS). 20 h.
   7. SIIS-19, SIIS-17, G3-06 (herramientas y correcciones manuales). 6 h.
@@ -1400,12 +1443,14 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
 ### Ola 5 — Bugs de front y parches v1 de Legajos y Dispositivos
 - **Objetivo:** que las pantallas funcionen (subir archivos, paginar, cascadas, botones visibles) y migrar las pantallas
   fuera de Becas a las piezas canónicas clonando las goldens.
-- **Avance: 18 h de 128, 110 restantes.** PR 1 (DIS-01 + DIS-08) en el Cambio 140, 06-oct-2026: helper de fechas locales,
+- **Avance: 24 h de 128, 104 restantes.** PR 1 (DIS-01 + DIS-08) en el Cambio 140, 06-oct-2026: helper de fechas locales,
   los dos usos de Dispositivos más los tres latentes y cuatro de Conversaciones, y la guardia `test_sql_portable.py`
   (recorre el código con `ast`, allowlist vacía). **PR 2 (FE-02, LEG-02, LEG-03, LEG-04, LEG-05, FE-09, FE-21) en el
-  Cambio 150, 06-oct-2026**: las 7 fichas cerradas, sin migración. Quedan abiertos los PRs 3 a 8.
+  Cambio 150, 06-oct-2026**: las 7 fichas cerradas, sin migración. **PR 3 (FE-04, FE-05, FE-08) en el Cambio 152,
+  06-oct-2026**: las 3 fichas cerradas, con una pieza canónica nueva (`components/_form_errores.html`) y FE-05
+  convertida en gate (`compile_templates.py --bloques`). Quedan abiertos los PRs 4 a 8.
 - **PRs y orden:** (1) DIS-01 + DIS-08 (helper de fechas locales + guardia de `__date`) 4 h · (2) Legajos: FE-02, LEG-04,
-  LEG-05, LEG-02, LEG-03, FE-09, FE-21 14 h · (3) Configuración: FE-04, FE-05, FE-08 6 h · (4) FE-06 ya; FE-07, FE-01 y FE-10
+  LEG-05, LEG-02, LEG-03, FE-09, FE-21 14 h · (3) ✅ Configuración: FE-04, FE-05, FE-08 6 h (Cambio 152) · (4) FE-06 ya; FE-07, FE-01 y FE-10
   **después de la Ola 6 paso 3** (en ese orden: FE-07 antes o con FE-01; FE-01 antes que FE-10) 14 h · (5) FE-18, FE-19, FE-25, FE-26 8 h · (6) **después de la
   Ola 6 paso 4:** FE-11, FE-12, FE-17, FE-20, FE-23, FE-24 48 h · (7) FE-22, FE-16, V5A-NEW-04, G2-04, G2-06, V5A-NEW-07 parte (b) (labels de `convocatoria_list` y deuda de
   `_dashboard_panel`) 20 h · (8) *Red de seguridad (04-oct):* RED-33 (tests HTTP de las vistas de Dispositivos y

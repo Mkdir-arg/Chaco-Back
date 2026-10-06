@@ -322,6 +322,8 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 139 | Las migraciones se prueban en las dos direcciones y sobre datos, contra el motor de producción | Transversal · migraciones · CI de GitHub Actions · plantillas de Kubernetes | `#infra` `#datos` `#metodo` | Auditoría integral oct-2026 — RED-17 y RED-19 (Ola R, PR R-13) | 06/10/2026 | 🟢 **Hecho** (el job todavía no es obligatorio en el ruleset, igual que «Motor real») | No requiere |
 | 140 | El parte diario y los reportes de Dispositivos cuentan el día argentino, no el del motor | Dispositivos (parte F-01, listado, exports, indicadores) · Legajos · Conversaciones · Transversal (helper de fechas + guardia) | `#datos` `#infra` `#performance` | Auditoría integral oct-2026 — fichas DIS-01 y DIS-08 (Ola 5, PR 1) | 06/10/2026 | 🟢 **Hecho** | No requiere |
 | 150 | Legajos deja de romperse solo: subir archivos, reinscribir y la solapa que nunca funcionó | Legajos (detalle del ciudadano, adjuntos, derivaciones, dashboard de alertas) · Transversal (inscripciones a programas) | `#ui` `#datos` `#api` | Auditoría integral oct-2026 — fichas FE-02, LEG-02..05, FE-09 y FE-21 (Ola 5, PR 2) | 06/10/2026 | 🟢 **Hecho** | No requiere |
+| 151 | El catálogo vacío de SIIS deja de bloquear Becas, y cuatro reglas que se decidían con datos viejos | Becas · catálogo SIIS · alta de beneficiarios (payload) · cupo y lista de espera · proceso masivo | `#siis` `#cupos` `#datos` `#relevamientos` | Auditoría integral oct-2026 — SIIS-06, SIIS-11, SIIS-12, BEC-01, BEC-02 y el resto de BEC-21 (Ola 1 «Integridad SIIS», PR 4) | 06/10/2026 | 🟢 **Hecho** | No requiere |
+| 152 | Configuración: la fila 21 deja de ser inalcanzable, el wizard vuelve a filtrar subsecretarías y los errores no de campo se ven | Configuración (geografía, secretarías, wizard de programas) · Transversal (pieza de errores no de campo, gate de bloques sin destino) · Legajos y Dispositivos (un formulario cada uno) | `#ui` `#metodo` | Auditoría integral oct-2026 — fichas FE-04, FE-05 y FE-08 (Ola 5, PR 3) | 06/10/2026 | 🟢 **Hecho** | No requiere |
 | 153 | El deploy deja de ser a ciegas: traceback en stdout, un health que sabe, guarda de esquema y una release con nombre | Transversal (logging, sonda de salud, entrypoint, script de deploy, CI de GitHub Actions) | `#infra` `#datos` `#metodo` | Auditoría integral oct-2026 — fichas OPS-03, RED-55, OPS-04, RED-59, OPS-01 y RED-16 (Ola R, PR R-15) | 06/10/2026 | 🟢 **Hecho** (RED-16 parcial: el tag de imagen lo aplica ECOM) | **Sí:** correr `core/sql/2026-10-06_renombrar_migraciones_icore.sql` en icore antes del próximo deploy |
 
 **Notas del índice**
@@ -19754,6 +19756,333 @@ van con el mismo commit (no queda ninguno en rojo). No hay nada que deshacer en 
 ninguna fila nueva ni se borró ninguna; `activar_inscripcion` solo reactiva filas que ya existían, y esas
 reactivaciones quedan como están (son altas legítimas).
 
+---
+
+# Cambio 151 — El catálogo vacío de SIIS deja de bloquear Becas, y cuatro reglas que se decidían con datos viejos
+
+🟢 **HECHO — 06/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · sincronización del catálogo SIIS · alta de beneficiarios (payload) · cupo y lista de espera · proceso masivo |
+| **Etiquetas** | `#siis` `#cupos` `#datos` `#relevamientos` |
+| **Solicitante** | Auditoría integral oct-2026 — fichas SIIS-06, SIIS-11, SIIS-12, BEC-01, BEC-02 y el resto de BEC-21 (Ola 1 «Integridad SIIS», PR 4) |
+| **Fecha del pedido** | 06/10/2026 |
+| **Issue / épica** | Sin issue (plan de la auditoría: `docs/internal/auditoria-2026-10/`) |
+| **Partes afectadas** | `sincronizar_programas_siis` (CronJob de las 04:00) · cliente de SIIS (compatibilidad, token, catálogos) · registro de la validación · `armar_payload` (apoderado) · servicios de cupo (aprobar, promover, dar de baja, lista de espera) · candidatos del proceso masivo. Ninguna pantalla nueva |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Las cinco fichas que la Ola 1 había dejado juntas en el PR 4 porque no dependen de ninguna otra, más la
+línea que el PR 3 (Cambio 136) dejó explícitamente esperando: «cuando SIIS-06 cierre es una línea en
+`_sin_pausa_vigente`».
+
+## Qué lo motivó
+
+Las cinco comparten una forma: **el sistema le cree a SIIS sin mirar qué le llegó**, y decide con eso.
+
+- **SIIS-06.** `sincronizar_programas_siis` corre a las 04:00 sin nadie mirando y marca `DESCONOCIDO` todo
+  programa que no aparezca en el catálogo. Está bien que lo haga: una baja en SIIS **se ve exactamente así**,
+  como una ausencia, y por eso se pide `estado=TODOS`. El problema es que un catálogo vacío por un error del
+  servicio no se distingue de «los dieron de baja a todos», y `DESCONOCIDO` bloquea el programa y en cascada
+  sus segmentos: **Becas entera parada hasta que alguien se diera cuenta a la mañana siguiente**.
+- **SIIS-11.** Un cuerpo JSON que no es un objeto (`[]`, `"OK"`) reventaba con `AttributeError` en el primer
+  `.get`. En el proceso masivo caía en el `except Exception` de `correr` y **dejaba la corrida DETENIDA**; al
+  rechazar un caso, donde solo se captura `ValueError`, era un **500**.
+- **SIIS-12.** El payload no miraba al apoderado. El Cambio 98 midió en producción **265 rechazos de SIIS** por
+  apoderado menor de 18 o con fecha futura y **448 casos con el propio alumno cargado como apoderado**, y
+  corrigió los datos —no el payload—, así que el caso siguiente volvía a gastar un alta (que SIIS no tiene cómo
+  dar de baja) para enterarse de algo que se ve con la fecha en la mano.
+- **BEC-01 y BEC-02.** Rechazar ya releía el estado bajo el candado de la fila del caso (Cambio 96.34); aprobar,
+  promover, dar de baja y mandar a la lista de espera, no. Las operaciones no se serializaban entre sí y la
+  decisión se tomaba con datos de antes de la ventana: una aprobación escribía `APROBADO` **encima de un
+  rechazo** que había commiteado mientras se contaba el cupo —cupo consumido, correo de «no fue aprobado» ya
+  mandado y, con cupo libre, un alta en SIIS—, y un doble clic en «Agregar a lista de espera» dejaba **dos filas
+  activas** para la misma persona, con dos posiciones y dos correos.
+
+## Decisiones tomadas
+
+- **Un catálogo vacío nunca se escribe, ni con `--forzar`.** SIIS no tiene cero programas: una lista vacía es
+  siempre una anomalía. Si alguna vez hiciera falta, los estados se ponen a mano.
+- **Umbral de la ausencia masiva: todos o más del 50 %** (default de **D-S06**, decisión del cliente pendiente).
+  Por debajo —lo normal, un programa dado de baja— se escribe solo, como siempre. La mitad justa pasa: el
+  umbral es *más* del 50 %.
+- **La guarda no se aplica con un solo programa vinculado.** Con uno solo, «todos» y «más de la mitad» son
+  siempre ciertos y una baja real no se podría detectar **nunca**.
+- **Se cuentan las transiciones *nuevas* a `DESCONOCIDO`, no los ausentes.** Lo que se evita es un bloqueo nuevo;
+  un programa que ya estaba `DESCONOCIDO` no cambia nada y no tiene por qué trabar la corrida siguiente.
+- **El `dry-run` también se frena.** El mensaje dice cuántos de cuántos, que es lo que el operador necesita
+  saber; `--dry-run --forzar` muestra la lista completa. Una conducta distinta entre el ensayo y la corrida real
+  sería peor.
+- **Falla con `CommandError`, no con un warning.** Es un CronJob de Kubernetes: el rojo del job **es** la
+  notificación. Un warning a las 04:00 no lo lee nadie.
+- **El vacío tampoco se cachea** (ni en `listar_programas` ni en `listar_programas_todos`): guardarlo multiplica
+  el error por los cinco minutos del TTL, y en el select del programa se ve como «no hay ninguno».
+- **SIIS-11 se arregla normalizando el cuerpo, no ampliando los `except`.** La ficha proponía agregar
+  `AttributeError` a los `except`; con `body = {}` antes del primer `.get` no hay `AttributeError` que capturar,
+  y un `except` de más taparía uno de verdad. En `_token` la normalización es un `_SiisConfigurationError`
+  —un cuerpo que no es objeto no puede tener `access_token`— que todos sus llamadores ya capturan.
+- **El intento de validación se registra igual aunque SIIS conteste cualquier cosa.** Es la constancia de que
+  contestó cualquier cosa. Lo que se vacía son los campos estructurados: `id_consulta` pasa por `uuid.UUID`
+  (es un `UUIDField`: un `"abc"` es un 500 al guardar) y `fecha_hora` por un `parse_datetime` envuelto, que con
+  una fecha bien formada pero imposible (`2026-13-45`) lanza `ValueError`.
+- **El apoderado se prevalida después de aplicar las correcciones de `datos_siis`** (Cambio 98). Lo que viaja es
+  lo corregido, así que es lo corregido lo que tiene que pasar el control: si no, el coordinador no tendría
+  salida sin tocar el legajo de la persona.
+- **La edad del apoderado usa el mismo `_edad`/`MAYORIA_DE_EDAD` que el titular**, así que el borde «cumple 18
+  hoy» pasa, igual que en el bloque de arriba. Una fecha inválida no entra al payload —no hay valor válido que
+  mandar—; el DNI del titular sí, porque con `faltantes` el payload no sale y el operador necesita ver el cuadro
+  completo.
+- **El candado de la fila del caso va acompañado de una escritura condicional.** `select_for_update()` serializa
+  en MariaDB, pero en SQLite —donde corre la suite— es un no-op: sin el `UPDATE … WHERE estado = <el que
+  leímos>` ningún test podría afirmar la decisión, y borrar el candado al optimizar no rompería nada.
+- **Orden de candados: segmento → caso.** Rechazar, el descarte por duplicado y la reserva del alta en SIIS
+  (Cambio 127) toman **solo** el caso, así que no hay ciclo y no hay deadlock posible.
+- **El `select_for_update` va escrito a mano en cada operación, no detrás de un helper.** Lo que el contrato de
+  RED-67 afirma es que lo pide *la función que tiene que pedirlo*, y `candados_tomados` registra el marco
+  llamador: con un helper en el medio, las cuatro dirían el nombre del helper.
+- **El estado se lee en su propia consulta, separado de la lista de espera.** Un `select_for_update` con el
+  `Exists` correlacionado llevaba el candado a las filas de `ListaEspera`, que no es lo que hay que bloquear.
+  Cuesta una consulta más en aprobar, que no tiene presupuesto de performance.
+- **BEC-21 se completa ahora y no antes.** La exclusión por `siis_programa_estado` bloqueante es correcta
+  **porque** SIIS-06 está cerrado: antes, un catálogo vacío dejaba todos los programas en `DESCONOCIDO` y esta
+  línea habría frenado el masivo entero por un error de SIIS. Un programa recién vinculado tiene el estado en
+  `""`, que no bloquea: nadie preguntó todavía.
+
+## Dos tests que cambian a propósito
+
+- **`test_catalogo_vacio_marca_todo_desconocido` → `test_catalogo_vacio_no_escribe_nada`.** Lo dejó el Cambio 123
+  (R-06) **caracterizando la conducta de entonces, no aprobándola**, con esta frase en su docstring: «eso es lo
+  que este test deja fijado para que la Ola 1 lo decida a la vista». La Ola 1 lo decidió al revés.
+- **`test_siis_envio.ArmarPayloadTests.test_la_correccion_del_caso_pisa_la_fecha_del_apoderado`** (Cambio 98): su
+  primera mitad afirmaba `faltantes == {}` para un apoderado de 17 años que era **además el propio titular** —los
+  dos casos que ese mismo cambio midió en producción—. Hoy afirma los dos faltantes. Su segunda mitad, que es su
+  razón de ser (la corrección manda), sigue igual.
+
+## Base de datos
+
+No requiere migración. Ninguna columna nueva, ningún índice: todo es lógica de servicio.
+
+## Validación
+
+- **Suite completa** (`manage.py test`, Python 3.12 + Django 5.2.17, igual al CI): 2.831 tests, **OK**. Antes del
+  arreglo fallaban exactamente los dos tests de arriba —los que cambian a propósito— y ninguno más.
+- **Tests nuevos: 44.** 29 en `programas/tests/test_siis_catalogo_y_payload.py` (SIIS-06, SIIS-11, SIIS-12),
+  10 en `test_candados_concurrencia.py` (BEC-01, BEC-02), 2 en `test_proceso_masivo.py` (BEC-21) y 3 contra el
+  motor real en `core/tests/test_motor_real.py`. Todos se escribieron antes del arreglo y **fallaron** por el
+  motivo esperado: `AttributeError: 'list' object has no attribute 'get'`, `KeyError: 'dni_apoderado'`,
+  `ValidationError not raised` y `TypeError: … unexpected keyword argument 'forzar'`.
+- **Contra MariaDB 10.11 real, sin tablas de zona horaria** (`docker run -e MARIADB_INITDB_SKIP_TZINFO=1`,
+  `manage.py test --tag mysql`): **22 tests OK**. Con `cupo.py` como está en `development`, los dos hilos sobre el
+  mismo caso dejan **2 filas activas** en la lista de espera y las **2 bajas pasan**; con el arreglo, una fila y
+  un `ValidationError`. La carrera de las dos aprobaciones pasa en los dos lados —ya la serializaba el candado
+  del segmento— y queda como guarda de regresión, anotada como tal.
+- `manage.py check`, `check --deploy`, `makemigrations --check --dry-run`, `--tag performance` y `ruff` en verde.
+
+## Pendientes / a definir
+
+- **El CronJob de las 04:00 ahora puede terminar en rojo.** Es la señal, no la falla. Antes de usar `--forzar`
+  hay que confirmar la baja con ECOM: forzar marca los programas `DESCONOCIDO` y eso bloquea sus segmentos.
+- La prevalidación del apoderado **no revalida los casos ya informados**: aplica desde el próximo envío. Los 448
+  que el Cambio 98 corrigió a mano siguen corregidos.
+- `ListaEspera` sigue **sin constraint de unicidad** en la base para «una fila activa por caso y segmento»: lo que
+  lo sostiene es el candado más la relectura. Un `UniqueConstraint` con condición no se crea en MariaDB, así que
+  haría falta la técnica de la columna nullable dentro del índice único (la de `EnvioSIIS.vigente`, Cambio 127).
+  No entró acá: la ficha no lo pide y es una migración sobre una tabla con datos.
+
+## Reversión
+
+Revertir el commit. Vuelven las cuatro conductas: el catálogo vacío vuelve a marcar todo `DESCONOCIDO`, un JSON
+raro de SIIS vuelve a ser un 500, el apoderado deja de prevalidarse y las operaciones de cupo vuelven a decidir
+sin candado. No hay datos que migrar ni estructura que deshacer. Los dos tests que cambiaron vuelven con el
+mismo commit, así que no queda ninguno en rojo.
+
+## Historial
+
+- **30/09/2026** (Cambio 98) — se miden y corrigen a mano los 265 + 448 casos de apoderado; el payload queda igual.
+- **01/10/2026** (Cambio 123, R-06) — se caracteriza la conducta del catálogo vacío *sin aprobarla*, para que la
+  Ola 1 la decida a la vista.
+- **06/10/2026** (Cambio 136, PR 3) — BEC-21 queda parcial: el bloqueo por estado del programa espera a SIIS-06.
+- **06/10/2026 (este cambio)** — las cinco fichas y la línea que faltaba.
+
+---
+
+# Cambio 152 — Configuración: la fila 21 deja de ser inalcanzable, el wizard vuelve a filtrar subsecretarías y los errores no de campo se ven
+
+🟢 **HECHO — 06/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Configuración (geografía, secretarías, wizard de programas) · Transversal (pieza de errores no de campo, gate de bloques sin destino) · Legajos y Dispositivos (un formulario cada uno) |
+| **Etiquetas** | `#ui` `#metodo` |
+| **Solicitante** | Auditoría integral oct-2026 — fichas FE-04, FE-05 y FE-08 (Ola 5, PR 3) |
+| **Fecha del pedido** | 06/10/2026 |
+| **Issue / épica** | Sin issue (plan de la auditoría: `docs/internal/auditoria-2026-10/`) |
+| **Partes afectadas** | Backoffice: listados de Provincias, Municipios y Localidades; modales de alta y edición de las cinco pantallas de Geografía y Secretarías; los cuatro pasos del wizard de programas; la derivación a programa de Legajos; el alta de legajo de dispositivo. Pieza nueva en `templates/components/`. Ninguna pantalla nueva |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> «(3) Configuración: FE-04, FE-05, FE-08 — 6 h» (README de la auditoría, §6, Ola 5, PR 3.)
+
+Tres defectos del mismo módulo, los tres medidos en navegador:
+
+1. **FE-04 — la fila 21 era inalcanzable.** Las tres pantallas de Geografía declaran `paginate_by = 20` y
+   ninguna dibuja un solo control: `/configuracion/localidades/` mostraba 20 filas y 0 enlaces `?page=`.
+   Escribiendo `?page=2` a mano aparecían las otras 11, así que el dato estaba y la pantalla no lo ofrecía.
+2. **FE-05 — la cascada Secretaría → Subsecretaría nunca se ejecutó.** El `<script>` del paso 1 del wizard
+   vivía en `{% block extra_js %}`, un bloque que **ningún ancestro declara** (el shell del backoffice tiene
+   `customJS`). Django descarta ese bloque en silencio: el HTML servido no contenía
+   `ajax_load_subsecretarias` y el select de subsecretaría se quedaba con la opción vacía, que es el único
+   campo obligatorio que el usuario no puede completar.
+3. **FE-08 — los errores no de campo eran invisibles.** `Localidad`, `Municipio` y `Subsecretaria` tienen
+   `unique_together`: un duplicado vuelve con el error en `form.non_field_errors`, que **ningún template de
+   Configuración renderizaba** salvo los pasos 2 y 3 del wizard. El modal volvía a abrirse exactamente
+   igual, sin una sola explicación, y el usuario reenviaba lo mismo.
+
+## Alcance acordado
+
+- **Entra:** las tres fichas completas; la pieza canónica nueva `components/_form_errores.html` con su
+  contrato, su test y su ficha; el flag `--bloques` de `compile_templates.py` que convierte FE-05 en un gate
+  del CI; y la migración de la golden del arquetipo Formulario a la pieza nueva, que la propia ficha de ese
+  arquetipo tenía anotada como deuda.
+- **Afuera:** la migración de estas pantallas a las piezas canónicas (encabezado, tabla densa, modal
+  accesible, estado vacío): son FE-07, FE-11, FE-12 y FE-17, PRs 4 a 7 de la Ola 5, y FE-07 va **después**
+  de la Ola 6 paso 3. **El wizard no se rediseña**: la decisión D4 del Cambio 129 dice que el arquetipo
+  wizard no está definido y que el agente frena; acá solo se corrigen bugs dentro del markup que ya existe.
+  La v2 de Dispositivos y Merenderos tampoco entra.
+
+## Decisiones tomadas
+
+- **La pieza de errores no de campo es nueva y canónica, y por eso trae todo junto:** contrato en el
+  comentario de cabecera, test en `core/tests/test_nodo_ui_piezas.py`, ficha propia y fila de inventario.
+  Es el paso 7 («pieza nueva, solo con OK») del protocolo del agente de diseño; el OK es la ficha FE-08.
+- **El include es marcador *obligatorio* del arquetipo Formulario,** no opcional como era
+  `non_field_errors`, y `{{ form.non_field_errors }}` a mano pasa a estar **prohibido** en ese arquetipo. Una
+  pantalla de formulario sin la pieza esconde la mitad de la validación: no es una variante, es el bug.
+- **En un modal que se repite por fila el include va acotado a la fila que falló**
+  (`{% if abrir_modal_pk == objeto.pk %}`). El `form` del contexto es uno solo: sin esa guarda, abrir el
+  modal de otra fila mostraba el error de la fila anterior.
+- **`form_invalid` devuelve la misma página que contiene la fila editada, no la 1.** Paginar el
+  `form_invalid` a secas —como salía de la ficha— introducía un bug nuevo: el modal de edición de la fila 21
+  volvía a una página 1 donde esa fila no está y el error no se mostraba nunca. El helper `_contexto_lista`
+  calcula la página del registro destacado; cuesta una consulta de pks y solo corre cuando la validación
+  falló.
+- **Un solo queryset por entidad para el listado y para el error.** El listado de provincias salía ordenado
+  por `id` (el `Meta.ordering` del modelo) y el reintento tras un error por `nombre`: dos órdenes distintos
+  en la misma pantalla. Ahora los tres listados y los seis `form_invalid` piden el mismo `_queryset(modelo)`,
+  ordenado por `nombre`.
+- **FE-05 se convierte en un gate, no en un arreglo puntual.** `compile_templates.py --bloques` recorre todos
+  los templates y falla si un hijo define un bloque de primer nivel que ningún ancestro declara. La
+  allowlist arranca con **seis** entradas vivas, cada una con la ficha que la mata (`menu-adicional` de las
+  tres páginas de error, que resuelve FE-20; `content` y `extra_css`/`extra_js` de las dos pantallas muertas
+  de Legajos, que se van con LEG-06) y un test que falla si una entrada queda sin dueño. El gate corre en
+  el job «Contratos del repo».
+- **Los pasos 2 y 3 del wizard también migran a la pieza.** Mostraban el error con markup propio y paleta
+  cruda (`text-red-600`); dejar dos formas distintas de mostrar lo mismo en el mismo wizard no tiene defensa.
+- **Los tres formularios de ciudadano de Legajos se dejan como están.** La ficha los lista porque no usan
+  `non_field_errors`, pero vuelcan `form.errors.items`, que **incluye la clave `__all__`**: el error no de
+  campo ahí **sí se ve** hoy. Agregarle la pieza encima lo mostraría dos veces, y reemplazar el resumen
+  borraría los errores de campo, que en esas tres pantallas no se renderizan junto a su control. La
+  migración de esas pantallas al arquetipo Formulario es FE-11/FE-12.
+- **`design_audit --ratchet` leía la base del ratchet en cp1252.** `_git` corría `git show` con `text=True`
+  sin `encoding`: en Windows el hilo lector de `subprocess` moría con `UnicodeDecodeError` en cuanto el
+  template tenía una tilde, `stdout` volvía vacío y el ratchet daba por **nueva toda la deuda vieja** de ese
+  archivo (34 hallazgos falsos en este mismo PR). En el CI, que corre en UTF-8, nunca se vio. Se arregló
+  junto con `changed_files`, que tenía el mismo descuido.
+
+## Implementación
+
+- `templates/components/_form_errores.html` **(nuevo)**: `form` (por contexto) y `titulo` opcional; caja
+  `bg-danger-soft` / `border-danger-subtle` con `role="alert"` y un `<p>` por error, sin el
+  `<ul class="errorlist">` de Django.
+- `configuracion/views/geografia.py`: `POR_PAGINA`, `_queryset(modelo)` y
+  `_contexto_lista(request, modelo, clave, form, *, destacado=None, **extra)`. Los seis `form_invalid` pasan
+  por el helper; los tres `ListView` usan el mismo queryset.
+- Los tres `*_list.html` de Geografía: `{% include "components/_paginacion.html" %}` al pie de la card,
+  igual que la golden de listado (después del `</div>` del `overflow-x-auto`).
+- Las cinco listas de Geografía y Secretarías: el include de errores en el modal de alta y, acotado a la
+  fila, en el de edición.
+- `programa_wizard_paso1.html`: `{% block extra_js %}` pasa a `{% block customJS %}`; el `fetch` corta con
+  `if (!r.ok) throw` y el `catch` avisa con `window.toast('error', …)` además de dejar el texto en el select.
+- Los cuatro pasos del wizard usan la pieza (los pasos 2 y 3 la reemplazan, los pasos 1 y 4 la estrenan).
+- `legajos/.../derivar_programa.html` y `programas/.../dispositivos/legajo/form.html`: la pieza, que ahí
+  eran los dos únicos formularios que solo rendían errores por campo.
+- `programas/.../becas/config/segmento_form.html` (**golden del arquetipo Formulario**): el bloque a mano se
+  reemplaza por el include.
+- `scripts/design_audit.py`: `_git` y `changed_files` leen en UTF-8; el marcador `non_field_errors` del
+  arquetipo Formulario pasa a ser `components/_form_errores.html` **obligatorio**, y `non_field_errors` a
+  mano queda en la lista de prohibidos.
+- `scripts/compile_templates.py`: `bloques_sin_destino(dirs)`, `BLOQUES_SIN_DESTINO_CONOCIDOS` y el flag
+  `--bloques`. `.github/workflows/pr-quality.yml` lo corre en «Contratos del repo».
+
+## Archivos
+
+| Archivo | Qué cambió |
+|---|---|
+| `templates/components/_form_errores.html` | **Nuevo.** Pieza única de errores no de campo |
+| `configuracion/views/geografia.py` | Queryset único y contexto paginado para los seis `form_invalid` |
+| `configuracion/templates/configuracion/provincia_list.html` | Pie de paginación + errores no de campo en los dos modales |
+| `configuracion/templates/configuracion/municipio_list.html` | Pie de paginación + errores no de campo en los dos modales |
+| `configuracion/templates/configuracion/localidad_list.html` | Pie de paginación + errores no de campo en los dos modales |
+| `configuracion/templates/configuracion/secretaria_list.html` | Errores no de campo en los dos modales |
+| `configuracion/templates/configuracion/subsecretaria_list.html` | Errores no de campo en los dos modales |
+| `configuracion/templates/configuracion/programa_wizard_paso1.html` | `customJS` en vez de `extra_js`; `fetch` que falla fuerte y avisa; pieza de errores |
+| `configuracion/templates/configuracion/programa_wizard_paso2.html` | Los errores generales pasan a la pieza |
+| `configuracion/templates/configuracion/programa_wizard_paso3.html` | Los errores generales pasan a la pieza |
+| `configuracion/templates/configuracion/programa_wizard_paso4.html` | Estrena la pieza de errores |
+| `legajos/templates/legajos/derivar_programa.html` | Pieza de errores |
+| `programas/templates/programas/dispositivos/legajo/form.html` | Pieza de errores |
+| `programas/templates/programas/becas/config/segmento_form.html` | La golden usa la pieza |
+| `scripts/design_audit.py` | Lectura UTF-8 del ratchet; marcadores del arquetipo Formulario |
+| `scripts/compile_templates.py` | Flag `--bloques` con su allowlist con dueño |
+| `.github/workflows/pr-quality.yml` | «Contratos del repo» corre `compile_templates.py --bloques` |
+
+## Base de datos
+
+No requiere migración. No cambió ningún modelo: la paginación es de presentación y el helper solo lee.
+
+## Validación
+
+- `manage.py check` y `check --deploy`: sin hallazgos nuevos. `makemigrations --check --dry-run`:
+  «No changes detected».
+- Suite completa en un solo proceso (`manage.py test`, sin argumentos) y `--tag performance`: el resultado
+  está en el cuerpo del PR.
+- Tests nuevos, **los tres módulos rojos antes del arreglo**:
+  `configuracion.tests.test_configuracion_ola5` (17 tests; los 17 fallaban),
+  `core.tests.test_compile_templates_bloques` (6) y `core.tests.test_nodo_ui_piezas.FormErroresTest` (6).
+- `ruff check .` y `ruff format --check`: limpio.
+- UI: `design_audit.py --ratchet` da **0 hallazgos nuevos**; `--arquetipo formulario` sobre la golden, OK;
+  `--goldens`, 0; `compile_templates.py --bloques`, 0 y 0; `npm run build:tailwind` **sin diff** (no se
+  agregó ninguna utilidad; las clases de la pieza ya estaban en el build).
+
+## Puesta en marcha en el servidor
+
+Deploy normal: sin migración, sin orden entre pasos y sin nada que no se pueda hacer durante el deploy. No
+se agregó ningún archivo estático nuevo, así que `collectstatic` no cambia nada (el entrypoint lo corre
+igual).
+
+## Pendientes / a definir
+
+1. **Las tres fichas de `.claude/` no viajan en este commit:** la sesión no tiene permiso de escritura en
+   esa carpeta. El contenido completo —la ficha nueva `componentes/form_errores.md`, los retoques a
+   `arquetipos/formulario.md` y la fila de inventario del núcleo— está en el cuerpo del PR y lo aplica el
+   juez. Hasta entonces el check «Design Agent Contract» queda en rojo por la regla del mismo diff.
+2. **No hay capturas de Playwright:** el harness es local y no está en el worktree. Lo visible es un pie de
+   paginación nuevo y una caja de error roja: conviene una pasada de QA visual sobre Geografía y el wizard.
+3. **Las seis entradas de la allowlist de `--bloques`** mueren con FE-20 (páginas de error) y LEG-06
+   (pantallas muertas de Legajos). El test `test_la_allowlist_no_tiene_entradas_muertas` obliga a sacarlas
+   cuando esas fichas cierren.
+4. **Secretarías y Subsecretarías siguen sin paginar.** La ficha FE-04 nombra solo las tres pantallas de
+   Geografía y esas dos vistas no declaran `paginate_by`: agregarlo es un cambio de comportamiento que no
+   pidió nadie. Queda anotado para FE-17 (paginaciones falsas o copiadas).
+
+## Reversión
+
+Revertir el commit. Vuelven los tres defectos —la fila 21 inalcanzable, el wizard sin cascada y los
+duplicados sin explicación— y los tests nuevos se van con el mismo commit, así que no queda ninguno en rojo.
+No hay nada que deshacer en la base: no se escribió ni se borró ninguna fila.
 ---
 
 # Cambio 153 — El deploy deja de ser a ciegas: traceback en stdout, un health que sabe, guarda de esquema y una release con nombre

@@ -140,6 +140,10 @@ class SiisAPIClient:
         )
         response.raise_for_status()
         body = response.json()
+        if not isinstance(body, dict):
+            # Un cuerpo que no es objeto (``[]``, ``"OK"``) no tiene token ni
+            # puede tenerlo: es configuración rota, no un error de red (SIIS-11).
+            raise _SiisConfigurationError("SIIS devolvió una respuesta de token que no es un objeto.")
         token = body.get("access_token")
         if not token:
             raise _SiisConfigurationError("SIIS no devolvió access_token.")
@@ -251,7 +255,11 @@ class SiisAPIClient:
         if cached is not None:
             return cached
         programas = [p for p in self._catalogo_programas(ESTADO_ACTIVO) if p["estado"] == ESTADO_ACTIVO]
-        cache.set(PROGRAMAS_CACHE_KEY, programas, CATALOGO_CACHE_SECONDS)
+        # Una lista vacía no se cachea (SIIS-06): es siempre una anomalía —SIIS no
+        # tiene cero programas— y guardarla multiplica por los cinco minutos de la
+        # caché el rato que el select queda vacío o que todo se ve dado de baja.
+        if programas:
+            cache.set(PROGRAMAS_CACHE_KEY, programas, CATALOGO_CACHE_SECONDS)
         return programas
 
     def listar_programas_todos(self):
@@ -265,7 +273,8 @@ class SiisAPIClient:
         if cached is not None:
             return cached
         programas = self._catalogo_programas("TODOS")
-        cache.set(PROGRAMAS_TODOS_CACHE_KEY, programas, CATALOGO_CACHE_SECONDS)
+        if programas:  # ver ``listar_programas``: el vacío no se cachea (SIIS-06)
+            cache.set(PROGRAMAS_TODOS_CACHE_KEY, programas, CATALOGO_CACHE_SECONDS)
         return programas
 
     def validar_compatibilidad(self, dni, id_programa, fecha_nacimiento=None):
@@ -290,6 +299,11 @@ class SiisAPIClient:
             try:
                 body = response.json()
             except ValueError:
+                body = {}
+            if not isinstance(body, dict):
+                # El cuerpo puede ser una lista o un string: sin esto, el primer
+                # ``body.get`` era un ``AttributeError`` sin capturar, que en el
+                # masivo cortaba la corrida y al rechazar un caso daba 500 (SIIS-11).
                 body = {}
             if response.status_code == 401:
                 cache.delete(TOKEN_CACHE_KEY)

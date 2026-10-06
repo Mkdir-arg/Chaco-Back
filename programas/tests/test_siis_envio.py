@@ -519,6 +519,14 @@ class ArmarPayloadTests(_ConPayloadCompleto):
         SIIS rechaza la fecha (el apoderado no llega a 18) y hasta el 30/09/2026
         no había forma de corregirla para el alta sin tocar el legajo, porque el
         bloque del apoderado era el único que ignoraba ``datos_siis``.
+
+        **Cambiado el 06/10/2026 (SIIS-12).** Antes la primera mitad afirmaba
+        ``faltantes == {}``: el payload salía con un apoderado de 17 años que era
+        además el propio titular, y el rechazo lo ponía SIIS. Ahora lo pone el
+        payload —son los dos casos que el Cambio 98 midió en PRD: 265 rechazos
+        por edad y 448 con el alumno como apoderado—. Lo que este test sigue
+        afirmando, que es su razón de ser, es que **la corrección manda**: con los
+        dos campos corregidos el caso vuelve a salir limpio.
         """
         self.ciudadano.fecha_nacimiento = date(2009, 3, 10)
         self.ciudadano.save(update_fields=["fecha_nacimiento"])
@@ -529,15 +537,16 @@ class ArmarPayloadTests(_ConPayloadCompleto):
         self.formulario.apoderado_fecha_nacimiento = date(2009, 3, 10)
         self.formulario.save()
 
-        payload, faltantes = armar_payload(self.formulario, catalogos=self.cat, hoy=date(2026, 9, 14))
-        self.assertEqual(faltantes, {})
-        self.assertEqual(payload["fecha_nacim_apoderado"], "2009-03-10")
+        _, faltantes = armar_payload(self.formulario, catalogos=self.cat, hoy=date(2026, 9, 14))
+        self.assertEqual(faltantes["fecha_nacim_apoderado"], "El apoderado debe ser mayor de 18 años.")
+        self.assertEqual(faltantes["dni_apoderado"], "El apoderado no puede ser el propio titular.")
 
-        self.formulario.datos_siis = {"fecha_nacim_apoderado": "1990-01-01"}
+        self.formulario.datos_siis = {"fecha_nacim_apoderado": "1990-01-01", "dni_apoderado": "25999888"}
         self.formulario.save(update_fields=["datos_siis"])
         payload, faltantes = armar_payload(self.formulario, catalogos=self.cat, hoy=date(2026, 9, 14))
         self.assertEqual(faltantes, {})
         self.assertEqual(payload["fecha_nacim_apoderado"], "1990-01-01")
+        self.assertEqual(payload["dni_apoderado"], 25999888)
 
     def test_una_correccion_de_fecha_ilegible_no_pisa_el_dato_del_legajo(self):
         """Una corrección rota tiene que notarse, no cambiar la fecha en silencio."""

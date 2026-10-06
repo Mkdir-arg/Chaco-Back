@@ -1,0 +1,20 @@
+{% comment %}
+Errores **no de campo** de un Django Form (`form.non_field_errors`): lo que la validación
+rechaza del conjunto y no de un control —un duplicado de `unique_together`, una regla que
+cruza dos campos—. Sin esta pieza el formulario vuelve sin explicación: los `{{ field.errors }}`
+están vacíos y el usuario reenvía lo mismo.
+  {% include "components/_form_errores.html" %}
+  {% include "components/_form_errores.html" with form=form_domicilio titulo="Revisá el domicilio" %}
+Contexto:
+  form    Django Form; por defecto toma el `form` del contexto. Solo se muestra si tiene
+          errores no de campo.
+  titulo  encabezado del bloque (por defecto «Revisá el formulario»).
+Cada error va en su propio `<p>`: el `<ul class="errorlist">` que arma Django no tiene
+estilo en el backoffice y se ve como viñetas sueltas.
+{% endcomment %}
+{% if form.non_field_errors %}
+<div class="mb-4 rounded-lg bg-danger-soft border border-danger-subtle p-4 text-sm" role="alert">
+  <strong class="text-heading">{{ titulo|default:"Revisá el formulario" }}</strong>
+  {% for error in form.non_field_errors %}<p class="text-body mt-1">{{ error }}</p>{% endfor %}
+</div>
+{% endif %}
