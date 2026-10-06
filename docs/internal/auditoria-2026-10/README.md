@@ -28,6 +28,40 @@ reconstruye `dynamic_list_filters.js`); `segmento_detail` 0,08 % / 0,47 %, acota
 (**D5**, el único cambio visible previsto); el modal de `programa_list`, el cuerpo del diálogo (ayuda en gris, labels
 canónicos, ícono de la nota en Font Awesome).
 
+## Estado al 05-oct-2026 (Ola 1, PR 2: integridad del alta en SIIS)
+
+**El alta en SIIS ya no se puede duplicar.** El PR 2 de la Ola 1 (Cambio 127) cierra **SIIS-01**
+(CRÍTICA), **SIIS-02**, **SIIS-04**, **SIIS-05**, **BEC-14** y la parte de la Ola 1 de **RED-53**:
+26 h de las 78 de la ola.
+
+| Ficha | Qué quedó |
+|---|---|
+| **SIIS-01** ✅ | `EnvioSIIS.vigente` nullable dentro del índice único `(formulario, vigente)` —la unicidad condicional que MariaDB no da con `condition=`— más una reserva de milisegundos: lock de la fila del `Formulario`, relectura, `EN_PROCESO` commiteado y recién después el POST, **fuera de toda transacción**. Las siete vías pasan por ahí, incluida `sincronizar_tabla_intermedia` |
+| **SIIS-02** ✅ | Estado `INCIERTO`, **no reintentable** (D-S02 aplicado: 503 `ERROR_BD_LEGACY` se reintenta, 500/502/504/`ReadTimeout`/conexión cortada no). `EN_PROCESO` vencido a los 5 min se ve incierto. Comando `conciliar_envios_siis` (`--listar`/`--confirmar`/`--liberar`, en lote y desde el CSV que vuelve de ECOM) con traza. El freno de las corridas cuenta los inciertos aparte (`--max-inciertos`, default 3): si no, con SIIS caído la corrida no cortaba nunca |
+| **SIIS-04** ✅ | El estado se relee bajo lock en las tres puertas (masivo, `enviar_casos_siis` con `estados_permitidos`, tabla intermedia) |
+| **SIIS-05** ✅ | Columna derivada `clave_persona_plan` dentro de un índice único: la regla la decide el motor, no un check-then-act (con dos procesos a la vez pasaban los dos). El `IntegrityError` se traduce a `DUPLICADO_LOCAL` |
+| **BEC-14** ✅ | Guard `data-un-solo-envio`, botón deshabilitado en el `onConfirm` y relectura del estado antes de consultar SIIS |
+| **RED-53** ✅ (1; falta Ola 5) | `ComandoSiisBase`: los cuatro comandos que hablan con SIIS comparten flags, lotes, resumen y freno. El test los corre **con SIIS caído** y exige que corten: mirar solo que acepten el flag dejó pasar un comando que lo ignoraba |
+
+**Migración `programas.0075_enviosiis_vigente`** (`programas_enviosiis`): expand-only, se puede
+desplegar antes que el código. **Medida ida y vuelta contra MariaDB 10.11 real con 40.100 envíos:
+6,9 s y 4,0 s.** Resuelve los duplicados que ya existen sin fallar ni borrar: dentro del mismo caso
+queda vigente el más viejo; **entre casos distintos** —la misma persona con dos altas reales en el
+mismo plan— el más viejo se queda con la clave y **los demás siguen vigentes sin clave**, porque
+liberarlos mandaría una tercera alta. Todos quedan listados y con una traza en su caso
+(`TracaFormulario.campo = "envio_siis"`), que es lo que va a ECOM.
+
+**Pendientes operativos que deja (PM / ECOM):**
+1. **Correr P-01 en PRD antes del deploy** (V2-NEW-03): cuántos casos ya tienen dos altas.
+2. **No desplegar con una corrida masiva en curso.**
+3. **Acordar con ECOM el procedimiento de conciliación de INCIERTOS** (D-S02) y **pedirle la clave
+   de idempotencia `id_externo`**, que es la solución de fondo.
+4. Avisar que `reenviar_siis_pendientes` y `conciliar_envios_siis` corren en seco por defecto:
+   necesitan `--aplicar`.
+5. **Lo que deja la migración:** si P-01 encuentra personas con dos altas, después del deploy quedan
+   en `TracaFormulario` (`campo = 'envio_siis'`). Esa lista va a ECOM para que las saque de SIIS; de
+   este lado no hay que tocar nada —los dos casos quedan tomados a propósito—.
+
 ---
 
 ## Estado al 05-oct-2026 (Ola 6, pasos 0-2: herramientas del agente de diseño)
@@ -922,7 +956,7 @@ funcional ni coordinación con ECOM). Las horas de cada ola suman los esfuerzos 
 |---|---|---:|---:|---:|---:|---:|---:|
 | 0 | Hotfix de seguridad y seeds | 16 | 36 | 0 (completa en código; lo operativo, en «Estado») | 0 | 0 | 0 |
 | **R** | **Red de seguridad: poder cambiar código sin romper nada sin enterarse** | — | — | — | — | **86** (79 RED con parte en R —78 del relevamiento + RED-89— + OPS-01, OPS-03, OPS-04, TST-01, TST-02, TST-03, R0-03; SEC-10, SEC-11 y SEC-18 se ejecutan en R-19 pero **siguen contadas como ítems de la Ola 2**, solo se mueven sus horas) | **285** · **107 cerradas el 04-oct (R-01..R-10 y R-19) → 178 restantes** |
-| 1 | Integridad SIIS | 23 | 72 | 22 (− SIIS-07) | 70 | 23 (+ RED-53; + parte de RED-32) | 78 |
+| 1 | Integridad SIIS | 23 | 72 | 22 (− SIIS-07) | 70 | 23 (+ RED-53; + parte de RED-32) | 78 · **26 cerradas el 05-oct (PR 2) → 52 restantes** |
 | 2 | Autorización (RBAC, legajos, alcance de Becas, usuarios) | 36 | 116 | 50 (+ fase 2 de OPS-06, R0-05, resto de SEC-01, etapa 2 de SEC-09, R0b-01..10) | 136 | 51 (+ RED-80; + partes de RED-52, RED-79) | 135 (−7: SEC-10, SEC-18 y media SEC-11 se hacen en R-19, D-RED-14) |
 | 3 | Datos, operación, CI, app de campo y reglas de Becas | 55 | 158 | 59 (+ R0-03, R0-04, R0-06, R0-07) | 166 | 54 (− 7 a la Ola R; + RED-48, RED-58; + partes de RED-09, 35, 40, 50) | 152 |
 | 4 | Performance | 19 | 52 | 19 | 52 | 20 (+ RED-62; + partes de RED-10, 49, 51, 83) | 64 |
@@ -930,7 +964,7 @@ funcional ni coordinación con ECOM). Las horas de cada ola suman los esfuerzos 
 | 6 | Agente de diseño | 4 (+8 pasos) | 42 | 4 (+8 pasos) | 42 | 4 (+8 pasos) | 42 · **22 cerradas el 05-oct (pasos 0-3) → 20 restantes** |
 | 7 | Deuda | 9 (+ fase 2 de G1-01) | 46 | 10 (+ fase 2 de G1-01; + R0-02) | 48 | 13 (+ RED-64, 76, 86; + partes de RED-13, 37, 39, 54, 78, 85) | 88 |
 | v2 | Criterios de aceptación de la v2 (§7), no se implementan en v1 | 13 | — | 13 | — | 13 | — |
-| **Total** | | **206** | **636** | **208** | **628** | **297** | **972** · **107 cerradas → 865 restantes** |
+| **Total** | | **206** | **636** | **208** | **628** | **297** | **972** · **133 cerradas → 839 restantes** |
 
 Cada ficha RED cuenta como ítem una sola vez, en la primera ola donde tiene trabajo (por eso la columna suma 297 = 208 +
 89); si tiene una segunda parte en otra ola, esas horas se suman en esa ola («+ partes de …»).
@@ -1102,16 +1136,17 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
 - **PRs y orden:**
   0. V2-NEW-03: correr P-01 en PRD (sin código). 2 h.
   1. ✅ SIIS-07: mergeado en #515 (Cambio 99), 01-oct. Queda operativo: P-11/P-12 y prueba en testing de ECOM.
-  2. SIIS-01 + SIIS-02 + SIIS-04 + SIIS-05 + BEC-14 (migración de `EnvioSIIS` —la siguiente libre: la 0074 es
-     `altaintermediasiis`, #517—, comando `conciliar_envios_siis`, guard de UI). **Incluye la séptima vía
-     `sincronizar_tabla_intermedia` y `correr_alta_siis` (⚠ en SIIS-01, 03 y 04).** 22 h.
+  2. ✅ **Hecho el 05-oct-2026 (Cambio 127):** SIIS-01 + SIIS-02 + SIIS-04 + SIIS-05 + BEC-14 (migración
+     `programas.0075_enviosiis_vigente`, comando `conciliar_envios_siis`, guard de UI). Incluyó la séptima vía
+     `sincronizar_tabla_intermedia`; `correr_alta_siis` queda cubierto porque encadena a `procesar_casos_siis`. 22 h.
   3. SIIS-03 (+A5-33) + BEC-11 + BEC-21 (masivo). 6 h.
   4. SIIS-06, SIIS-11, SIIS-12, BEC-01, BEC-02 (independientes, S). 10 h.
   5. SIIS-09 (+PERF-09) **después** del PR 2. 4 h.
   6. SIIS-08 + G1-08 + G1-09 + G1-10 (qué viaja a SIIS). 20 h.
   7. SIIS-19, SIIS-17, G3-06 (herramientas y correcciones manuales). 6 h.
-  8. *Red de seguridad (04-oct):* RED-53 (`ComandoSiisBase`, dentro del PR 2 o 3: un candado que se agrega en un comando se
-     agrega en los cuatro) y la segunda parte de RED-32 (suite de comportamiento de `validar_casos_siis`, con el PR 7). 8 h.
+  8. *Red de seguridad (04-oct):* ✅ RED-53 (`ComandoSiisBase`) entró con el **PR 2** (Cambio 127): un candado que se
+     agrega en un comando se agrega en los cuatro. Queda la segunda parte de RED-32 (suite de comportamiento de
+     `validar_casos_siis`, con el PR 7). 8 h (4 cerradas).
   **Prerrequisito:** PRs R-01 a R-10 de la Ola R (caracterización de comandos y del detalle de revisión, contrato de la
   app, particiones de estados, cupo y forma del SQL).
 - **Hecho cuando:** V-STD; PoC invertidas de `poc/test_repro_siis_becas.py` pasan (SIIS-01: 1 sola llamada y un solo

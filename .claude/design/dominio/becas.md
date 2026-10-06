@@ -68,9 +68,14 @@ El detalle por campo va en la alerta inline tonal (`role="status"`) como lista `
 el sistema externo devuelve listas y las validaciones locales frases sueltas.
 
 Las acciones (`btn-secondary` para corregir, `btn-brand` para enviar o reenviar) se ocultan cuando
-el intento ya fue exitoso o falta la capacidad; el historial de intentos repite el plegado del
-historial de validaciones (`btn-tertiary btn-sm` con `aria-expanded`/`aria-controls` y
-`classList.toggle('hidden')`).
+el caso tiene un **intento vigente** —uno que ocupa el caso, no simplemente el último— o falta la
+capacidad: la pantalla no ofrece lo que el servicio no haría. Dos estados más del intento (Cambio 127):
+`badge-info` «En proceso» mientras la llamada está en vuelo y `badge-warning` «Resultado incierto»
+cuando no se sabe si el otro lado la procesó; en los dos, en lugar del botón va una alerta inline
+tonal warning (`role="status"`) que dice por qué no se puede reintentar. Todo form que dispara una
+acción irreversible lleva `data-un-solo-envio` y el guard de JS de la pantalla, que lo manda una
+sola vez y deshabilita el botón. El historial de intentos repite el plegado del historial de
+validaciones (`btn-tertiary btn-sm` con `aria-expanded`/`aria-controls` y `classList.toggle('hidden')`).
 
 El pop up de corrección (`modal-datos-siis-overlay`, overlay
 `fixed inset-0 z-[1001] hidden … bg-black/50`) y los otros dos modales propios del caso
