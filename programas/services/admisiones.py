@@ -1,11 +1,12 @@
 """Operaciones atómicas del circuito de admisiones de Dispositivos."""
 
 from django.core.exceptions import ValidationError
-from django.db import IntegrityError, transaction
+from django.db import transaction
 from django.db.models import Max
 from django.utils import timezone
 
 from programas.models import Admision, ArchivoAdmision, Cama, Dispositivo, EsperaAdmision, InscripcionPrograma, Programa
+from programas.services.inscripciones import activar_inscripcion, tomar_inscripcion
 
 
 def _programa_dispositivos():
@@ -13,25 +14,29 @@ def _programa_dispositivos():
 
 
 def _obtener_membresia(ciudadano, usuario):
-    programa = _programa_dispositivos()
-    try:
-        with transaction.atomic():
-            membresia, _ = InscripcionPrograma.objects.select_for_update().get_or_create(
-                ciudadano=ciudadano, programa=programa, defaults={"responsable": usuario}
-            )
-    except IntegrityError:
-        membresia = InscripcionPrograma.objects.select_for_update().get(ciudadano=ciudadano, programa=programa)
+    """La inscripción al programa Dispositivos **sin activarla**.
+
+    La lista de espera no es una estadía: la membresía se crea (PENDIENTE) pero no
+    se pone en curso. El candado y la tolerancia a la carrera los pone
+    ``tomar_inscripcion`` (LEG-02).
+    """
+    membresia, _ = tomar_inscripcion(ciudadano, _programa_dispositivos(), defaults={"responsable": usuario})
     return membresia
 
 
 def _membresia_activa(ciudadano, usuario):
-    membresia = _obtener_membresia(ciudadano, usuario)
-    if membresia.estado != InscripcionPrograma.Estado.ACTIVO:
-        membresia.estado = InscripcionPrograma.Estado.ACTIVO
-        membresia.fecha_inicio = timezone.localdate()
-        membresia.fecha_cierre = None
-        membresia.save(update_fields=["estado", "fecha_inicio", "fecha_cierre", "modificado"])
-    return membresia
+    """La inscripción del ciudadano al programa Dispositivos, vigente.
+
+    Delega en ``activar_inscripcion`` (LEG-02): la toma bajo candado, la crea si no
+    está y revive la que quedó CERRADA, SUSPENDIDA o DADA DE BAJA. Antes esto vivía
+    acá duplicado, sin escribir la vía de ingreso.
+    """
+    return activar_inscripcion(
+        ciudadano,
+        _programa_dispositivos(),
+        via=InscripcionPrograma.ViaIngreso.DIRECTO,
+        usuario=usuario,
+    )
 
 
 def _guardar_f00(admision, respuestas_f00=None, archivos_f00=None):

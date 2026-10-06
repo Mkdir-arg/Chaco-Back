@@ -442,19 +442,6 @@
                 <div class="rounded-xl border p-6 transition-all duration-300" style="border-color: var(--border-base); background: var(--bg-primary); box-shadow: var(--shadow-sm);">
                     <div class="flex items-center justify-between">
                         <div>
-                            <p class="mb-1 text-sm font-semibold" style="color: var(--text-body-subtle);">Vínculos familiares</p>
-                            <p class="text-3xl font-bold" id="total-vinculos" style="color: var(--text-heading);">—</p>
-                        </div>
-                        <div class="rounded-xl p-3" style="background: var(--bg-success-soft); color: var(--text-fg-success);">
-                            <i class="fas fa-users text-xl" aria-hidden="true"></i>
-                        </div>
-                    </div>
-                    <p class="mt-4 text-xs" style="color: var(--text-body-subtle);">Red familiar registrada</p>
-                </div>
-
-                <div class="rounded-xl border p-6 transition-all duration-300" style="border-color: var(--border-base); background: var(--bg-primary); box-shadow: var(--shadow-sm);">
-                    <div class="flex items-center justify-between">
-                        <div>
                             <p class="mb-1 text-sm font-semibold" style="color: var(--text-body-subtle);">Archivos adjuntos</p>
                             <p class="text-3xl font-bold" id="total-archivos-dash" style="color: var(--text-heading);">—</p>
                         </div>
@@ -899,57 +886,6 @@
         </div>
     </div>
 
-    <!-- Tab: Red Familiar -->
-    <div id="tab-red_familiar" class="tab-content hidden" role="tabpanel" aria-labelledby="tab-btn-red_familiar">
-        <div class="rounded-xl border p-6 lg:p-8" style="border-color: var(--border-base); background: var(--bg-primary); box-shadow: var(--shadow-sm);">
-            <div class="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                <h3 class="flex items-center gap-3 text-lg font-bold" style="color: var(--text-heading);">
-                    <span class="inline-flex h-10 w-10 items-center justify-center rounded-xl" style="background: var(--bg-success-soft); color: var(--text-fg-success);">
-                        <i class="fas fa-users" aria-hidden="true"></i>
-                    </span>
-                    Red familiar
-                </h3>
-                <button onclick="abrirModalVinculo()" class="btn-nodo btn-tertiary btn-sm w-fit">
-                    <i class="fas fa-user-plus" aria-hidden="true"></i>Agregar familiar
-                </button>
-            </div>
-
-            <!-- Grafo navegable de la red familiar -->
-            <div id="grafo-red-wrapper" class="mb-8 hidden">
-                <div class="mb-3 flex items-center justify-between">
-                    <h4 class="flex items-center gap-2 text-sm font-bold uppercase" style="color: var(--text-body); letter-spacing: .05em;">
-                        <i class="fas fa-circle-nodes" aria-hidden="true" style="color: var(--text-body-subtle);"></i>
-                        Grafo de la red
-                    </h4>
-                    <span class="text-xs" style="color: var(--text-body-subtle);">
-                        <i class="fas fa-hand-pointer mr-1" aria-hidden="true"></i>Clic en un familiar para abrir su legajo · arrastrá para reorganizar
-                    </span>
-                </div>
-                <div id="grafo-red-familiar" class="h-96 w-full rounded-xl border" style="border-color: var(--border-base); background: var(--bg-secondary);"></div>
-            </div>
-
-            <div class="overflow-x-auto">
-                <table class="w-full">
-                    <thead class="border-b" style="border-color: var(--border-base); background: var(--bg-secondary);">
-                        <tr>
-                            <th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-widest" style="color: var(--text-body-subtle); letter-spacing: .05em;">Ciudadano</th>
-                            <th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-widest" style="color: var(--text-body-subtle); letter-spacing: .05em;">Relación</th>
-                            <th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-widest" style="color: var(--text-body-subtle); letter-spacing: .05em;">DNI</th>
-                            <th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-widest" style="color: var(--text-body-subtle); letter-spacing: .05em;">Teléfono</th>
-                            <th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-widest" style="color: var(--text-body-subtle); letter-spacing: .05em;">Estado</th>
-                            <th class="w-28 px-4 py-3 text-center text-xs font-bold uppercase tracking-widest" style="color: var(--text-body-subtle); letter-spacing: .05em;">Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tabla-vinculos" class="divide-y" style="border-color: var(--border-light);"></tbody>
-                </table>
-            </div>
-            <div id="mensaje-sin-vinculos" class="hidden py-12 text-center">
-                <i class="fas fa-users mb-3 text-4xl" aria-hidden="true" style="color: var(--border-base-strong);"></i>
-                <p class="text-sm" style="color: var(--text-body-subtle);">No hay vínculos registrados</p>
-            </div>
-        </div>
-    </div>
-
     <!-- Tab: Archivos -->
     <div id="tab-archivos" class="tab-content hidden" role="tabpanel" aria-labelledby="tab-btn-archivos">
         <div class="overflow-hidden rounded-xl border" style="border-color: var(--border-base); background: var(--bg-primary); box-shadow: var(--shadow-sm);">
@@ -1012,68 +948,6 @@
     </div>
 </div>
 
-<!-- Modal Nuevo Vínculo -->
-<div id="modalVinculo" class="fixed inset-0 z-50 hidden" style="background: rgba(0,0,0,0.5); backdrop-filter: blur(4px);">
-    <div class="flex min-h-screen items-center justify-center p-4">
-        <div class="w-full max-w-md overflow-hidden" style="background: var(--bg-white); border-radius: var(--radius-2xl); box-shadow: var(--shadow-xl);" role="dialog" aria-modal="true" aria-labelledby="modal-vinculo-title">
-            <div class="flex items-center justify-between border-b px-6 py-5" style="border-color: var(--border-light);">
-                <div class="flex items-center gap-3">
-                    <span class="inline-flex h-10 w-10 items-center justify-center rounded-xl" style="background: var(--bg-brand-soft); color: var(--text-fg-brand);">
-                        <i class="fas fa-user-plus text-sm" aria-hidden="true"></i>
-                    </span>
-                    <h3 id="modal-vinculo-title" class="text-lg font-bold" style="color: var(--text-heading);">Agregar vínculo familiar</h3>
-                </div>
-                <button onclick="cerrarModal('modalVinculo')" class="rounded-lg p-1 transition" style="color: var(--text-body-subtle);" aria-label="Cerrar">
-                    <i class="fas fa-times" aria-hidden="true"></i>
-                </button>
-            </div>
-            <form id="formVinculo">
-                {% csrf_token %}
-            <div class="p-6">
-                <div class="flex flex-col gap-5">
-                    <div class="flex flex-col gap-1.5">
-                        <label class="text-xs font-semibold" style="color: var(--text-heading);">Buscar ciudadano</label>
-                        <input type="text" id="buscarCiudadano" placeholder="Nombre, apellido o DNI..." class="nodo-field w-full" required>
-                        <input type="hidden" name="ciudadano_id" id="ciudadanoSeleccionado">
-                        <div id="resultadosBusqueda" class="mt-2 max-h-40 overflow-y-auto rounded-lg border" style="border-color: var(--border-base);"></div>
-                    </div>
-                    <div class="flex flex-col gap-1.5">
-                        <label class="text-xs font-semibold" style="color: var(--text-heading);">Relación</label>
-                        <select name="relacion" class="nodo-field w-full" required>
-                            <option value="">Seleccioná...</option>
-                            <option value="PADRE">Padre</option>
-                            <option value="MADRE">Madre</option>
-                            <option value="HIJO">Hijo/a</option>
-                            <option value="HERMANO">Hermano/a</option>
-                            <option value="PAREJA">Pareja</option>
-                            <option value="ABUELO">Abuelo/a</option>
-                            <option value="TIO">Tío/a</option>
-                            <option value="OTRO">Otro</option>
-                        </select>
-                    </div>
-                    <div class="flex flex-col gap-1.5">
-                        <label class="text-xs font-semibold" style="color: var(--text-heading);">Teléfono</label>
-                        <input type="text" name="telefono" class="nodo-field w-full">
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <input type="checkbox" name="convive" class="mr-1">
-                        <label class="text-sm" style="color: var(--text-body);">Convive con el ciudadano</label>
-                    </div>
-                </div>
-            </div>
-            <div class="flex justify-end gap-3 border-t px-6 py-4" style="border-color: var(--border-light); background: var(--bg-secondary);">
-                    <button type="button" onclick="cerrarModal('modalVinculo')" class="btn-nodo btn-tertiary btn-sm">
-                        Cancelar
-                    </button>
-                    <button type="submit" class="btn-nodo btn-brand btn-sm">
-                        Guardar
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
 <!-- Modal Subir Archivos -->
 {% if request.user|puede:"ciudadano.editar" %}
 <div id="modalArchivos" class="fixed inset-0 z-50 hidden" style="background: rgba(0,0,0,0.5); backdrop-filter: blur(4px);">
@@ -1086,7 +960,7 @@
                     </span>
                     <h3 id="modal-archivos-title" class="text-lg font-bold" style="color: var(--text-heading);">Subir archivos</h3>
                 </div>
-                <button onclick="cerrarModal('modalArchivos')" class="rounded-lg p-1 transition" style="color: var(--text-body-subtle);" aria-label="Cerrar">
+                <button type="button" data-becas-modal-cerrar class="rounded-lg p-1 transition" style="color: var(--text-body-subtle);" aria-label="Cerrar">
                     <i class="fas fa-times" aria-hidden="true"></i>
                 </button>
             </div>
@@ -1106,7 +980,7 @@
                 </div>
             </div>
             <div class="flex justify-end gap-3 border-t px-6 py-4" style="border-color: var(--border-light); background: var(--bg-secondary);">
-                    <button type="button" onclick="cerrarModal('modalArchivos')" class="btn-nodo btn-tertiary btn-sm">
+                    <button type="button" data-becas-modal-cerrar class="btn-nodo btn-tertiary btn-sm">
                         Cancelar
                     </button>
                     <button type="submit" class="btn-nodo btn-brand btn-sm">
@@ -1119,10 +993,6 @@
 </div>
 {% endif %}
 
-<!-- defer: son 673 KB en medio del body que frenaban el parseo del resto de la
-     página. Los diferidos corren antes de DOMContentLoaded, así que ``vis`` ya
-     está definido cuando el grafo se dibuja. -->
-<script defer src="{% static 'vendor/vis-network/vis-network.min.js' %}"></script>
 <script>
 // Todo dato que llega de la API (nombres, DNI, etiquetas, descripciones) se escapa antes de
 // concatenarlo en un innerHTML: el ciudadano carga su nombre en la inscripción pública.
@@ -1156,10 +1026,6 @@ function cambiarTab(tabName) {
     // Deep-link: la solapa activa queda en la URL (sobrevive un F5)
     history.replaceState(null, '', `#${tabName}`);
 
-    // El grafo se crea con la solapa oculta (tamaño 0): reajustar al mostrarla
-    if (tabName === 'red_familiar' && redFamiliarNetwork) {
-        setTimeout(() => { redFamiliarNetwork.redraw(); redFamiliarNetwork.fit(); }, 50);
-    }
 }
 
 // Navegación por teclado en la barra de solapas
@@ -1183,11 +1049,9 @@ window.addEventListener('scroll', () => {
 // Copiar DNI al portapapeles
 function copiarDni(dni) {
     navigator.clipboard.writeText(dni).then(() => {
-        toastr.options = { positionClass: 'toast-bottom-right' };
-        toastr.success(`DNI ${dni} copiado`);
+        window.toast('success', `DNI ${dni} copiado`);
     }).catch(() => {
-        toastr.options = { positionClass: 'toast-bottom-right' };
-        toastr.error('No se pudo copiar el DNI');
+        window.toast('error', 'No se pudo copiar el DNI');
     });
 }
 // El DNI viaja en data-copiar-dni (autoescapado), no interpolado en un onclick.
@@ -1201,7 +1065,6 @@ document.addEventListener('click', (e) => {
 // y los indicadores; el resto se renderiza del lado servidor)
 // ============================================================
 document.addEventListener('DOMContentLoaded', function() {
-    cargarVinculos();
     cargarActividades();
     cargarArchivos();
     cargarPrediccionRiesgo();
@@ -1214,304 +1077,20 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // ============================================================
-// Red familiar
+// Modales
 // ============================================================
-function abrirModalVinculo() {
-    document.getElementById('modalVinculo').classList.remove('hidden');
-    document.getElementById('buscarCiudadano').focus();
-}
-
-let timeoutBusqueda;
-document.getElementById('buscarCiudadano').addEventListener('input', function() {
-    clearTimeout(timeoutBusqueda);
-    const query = this.value.trim();
-
-    // La API contesta desde 3 caracteres (SEC-02): con menos no se consulta.
-    if (query.length < 3) {
-        document.getElementById('resultadosBusqueda').innerHTML = '';
-        return;
-    }
-
-    timeoutBusqueda = setTimeout(() => {
-        fetch(`/api/legajos/ciudadanos/?search=${encodeURIComponent(query)}`)
-            .then(response => response.json())
-            .then(data => {
-                const resultados = document.getElementById('resultadosBusqueda');
-                if (data.results && data.results.length > 0) {
-                    resultados.innerHTML = data.results.map(c => `
-                        <div class="cd-result" data-ciudadano-id="${escaparHtml(c.id)}"
-                             data-ciudadano-nombre="${escaparHtml(`${c.nombre} ${c.apellido}`)}"
-                             data-ciudadano-dni="${escaparHtml(c.dni)}">
-                            <div class="cd-result-name">${escaparHtml(c.apellido)}, ${escaparHtml(c.nombre)}</div>
-                            <div class="cd-result-dni">DNI: ${escaparHtml(c.dni)}</div>
-                        </div>
-                    `).join('');
-                } else {
-                    resultados.innerHTML = '<div class="p-2 cd-muted">No se encontraron ciudadanos</div>';
-                }
-            })
-            .catch(() => {
-                document.getElementById('resultadosBusqueda').innerHTML = '<div class="p-2 cd-err">Error en la búsqueda</div>';
-            });
-    }, 300);
-});
-
-function seleccionarCiudadano(id, nombre, dni) {
-    document.getElementById('ciudadanoSeleccionado').value = id;
-    document.getElementById('buscarCiudadano').value = `${nombre} (DNI: ${dni})`;
-    document.getElementById('resultadosBusqueda').innerHTML = '';
-}
-// Los datos del resultado viajan en data-* (no en un onclick armado con el nombre).
-document.getElementById('resultadosBusqueda').addEventListener('click', (e) => {
-    const item = e.target.closest('[data-ciudadano-id]');
-    if (item) {
-        seleccionarCiudadano(item.dataset.ciudadanoId, item.dataset.ciudadanoNombre, item.dataset.ciudadanoDni);
-    }
-});
-
 function cerrarModal(modalId) {
     document.getElementById(modalId).classList.add('hidden');
 }
 
-function cargarVinculos() {
-    fetch(`/api/legajos/contactos/vinculos-familiares/?ciudadano_principal={{ ciudadano.id }}`)
-        .then(response => response.json())
-        .then(data => {
-            const tbody = document.getElementById('tabla-vinculos');
-            const mensajeSin = document.getElementById('mensaje-sin-vinculos');
-            const resultados = (data.results && data.results.length) ? data.results : [];
-
-            document.getElementById('total-vinculos').textContent = resultados.length;
-            renderizarGrafoRed(resultados);
-
-            if (resultados.length > 0) {
-                tbody.innerHTML = resultados.map(vinculo => {
-                    const ciudadano = vinculo.ciudadano_vinculado_detail || vinculo.ciudadano_vinculado;
-                    const nombre = ciudadano.nombre || 'N/A';
-                    const apellido = ciudadano.apellido || '';
-                    const dni = ciudadano.dni || 'N/A';
-                    const telefono = ciudadano.telefono || vinculo.telefono_alternativo || '-';
-                    const tipoVinculo = vinculo.tipo_vinculo_display || vinculo.tipo_vinculo;
-
-                    const badges = [];
-                    if (vinculo.convive) badges.push('<span class="badge badge-success">Convive</span>');
-                    if (vinculo.es_contacto_emergencia) badges.push('<span class="badge badge-danger">Emergencia</span>');
-                    if (vinculo.es_referente_tratamiento) badges.push('<span class="badge badge-info">Referente</span>');
-
-                    return `
-                        <tr class="cd-row">
-                            <td class="whitespace-nowrap px-6 py-4">
-                                <div class="flex items-center">
-                                    <div class="cd-avatar mr-3 flex h-10 w-10 items-center justify-center rounded-full">
-                                        <span class="text-sm font-semibold text-white">${escaparHtml(nombre.charAt(0))}${escaparHtml(apellido.charAt(0))}</span>
-                                    </div>
-                                    <div class="cd-cell font-medium">${escaparHtml(nombre)} ${escaparHtml(apellido)}</div>
-                                </div>
-                            </td>
-                            <td class="whitespace-nowrap px-6 py-4">
-                                <span class="cd-badge-type">${escaparHtml(tipoVinculo)}</span>
-                            </td>
-                            <td class="whitespace-nowrap px-6 py-4 cd-cell">${escaparHtml(dni)}</td>
-                            <td class="whitespace-nowrap px-6 py-4 cd-cell">${escaparHtml(telefono)}</td>
-                            <td class="whitespace-nowrap px-6 py-4">
-                                <div class="flex flex-wrap gap-1">${badges.join('')}</div>
-                            </td>
-                            <td class="whitespace-nowrap px-6 py-4 text-center text-sm font-medium">
-                                <button onclick="eliminarVinculo(${Number(vinculo.id)})" class="cd-btn-del" title="Eliminar vínculo">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                            </td>
-                        </tr>
-                    `;
-                }).join('');
-                mensajeSin.classList.add('hidden');
-            } else {
-                tbody.innerHTML = '';
-                mensajeSin.classList.remove('hidden');
-            }
-        })
-        .catch(() => {
-            document.getElementById('tabla-vinculos').innerHTML = '<tr><td colspan="6" class="py-4 text-center cd-err">Error al cargar vínculos</td></tr>';
-        });
-}
-
-// Grafo navegable de la red familiar (vis-network).
-// Nodo central = este ciudadano; clic en un familiar abre su legajo.
-let redFamiliarNetwork = null;
-function renderizarGrafoRed(vinculos) {
-    const wrapper = document.getElementById('grafo-red-wrapper');
-    const container = document.getElementById('grafo-red-familiar');
-
-    if (redFamiliarNetwork) {
-        redFamiliarNetwork.destroy();
-        redFamiliarNetwork = null;
+// FE-21: Escape, foco atrapado dentro del panel y foco devuelto al disparador, con el
+// helper canónico `becas-modal.js` (API vanilla). Observa la clase `hidden` del overlay,
+// así `abrirModalArchivos()`/`cerrarModal()` siguen siendo los que mandan.
+document.addEventListener('DOMContentLoaded', function () {
+    const overlayArchivos = document.getElementById('modalArchivos');
+    if (overlayArchivos && window.becasModal) {
+        window.becasModal.bind(overlayArchivos, { onClose: () => cerrarModal('modalArchivos') });
     }
-
-    if (!vinculos.length || typeof vis === 'undefined') {
-        wrapper.classList.add('hidden');
-        return;
-    }
-    wrapper.classList.remove('hidden');
-
-    // Leer tokens del DS en runtime para que el grafo respete marca y dark-mode
-    const _cs = getComputedStyle(document.documentElement);
-    const _clr = (v) => _cs.getPropertyValue(v).trim();
-    const visColors = {
-        centralBg:     _clr('--color-navy-700'),
-        centralBorder: _clr('--border-brand'),
-        centralFont:   _clr('--text-white'),
-        dangerBg:      _clr('--bg-danger-soft'),
-        dangerBorder:  _clr('--border-danger'),
-        successBg:     _clr('--bg-success-soft'),
-        successBorder: _clr('--border-success'),
-        hlBg:          _clr('--bg-brand-softer'),
-        hlBorder:      _clr('--border-brand'),
-        nodeFont:      _clr('--text-heading'),
-        edgeColor:     _clr('--border-base-strong'),
-        edgeFont:      _clr('--text-body-subtle'),
-        edgeFontStroke:_clr('--bg-primary'),
-        edgeHighlight: _clr('--border-brand'),
-    };
-
-    const nodes = [{
-        id: 'central',
-        label: '{{ ciudadano.apellido|escapejs }}, {{ ciudadano.nombre|escapejs }}',
-        title: 'DNI {{ ciudadano.dni }} (este legajo)',
-        shape: 'box',
-        margin: 10,
-        color: { background: visColors.centralBg, border: visColors.centralBorder },
-        font: { color: visColors.centralFont, size: 14, face: 'Manrope, sans-serif' },
-        fixed: false
-    }];
-    const edges = [];
-
-    vinculos.forEach(vinculo => {
-        const det = vinculo.ciudadano_vinculado_detail || {};
-        const nodeId = `c-${det.id || vinculo.id}`;
-        const esEmergencia = vinculo.es_contacto_emergencia;
-
-        nodes.push({
-            id: nodeId,
-            label: `${det.nombre || ''} ${det.apellido || ''}`.trim() || 'Sin nombre',
-            title: `DNI ${det.dni || 's/d'} · ${vinculo.tipo_vinculo_display || vinculo.tipo_vinculo}${vinculo.convive ? ' · Convive' : ''}${esEmergencia ? ' · Contacto de emergencia' : ''}\nClic para abrir su legajo`,
-            shape: 'box',
-            margin: 8,
-            color: {
-                background: esEmergencia ? visColors.dangerBg  : visColors.successBg,
-                border:     esEmergencia ? visColors.dangerBorder : visColors.successBorder,
-                highlight:  { background: visColors.hlBg, border: visColors.hlBorder }
-            },
-            font: { color: visColors.nodeFont, size: 13, face: 'Manrope, sans-serif' },
-            ciudadanoId: det.id || null
-        });
-
-        edges.push({
-            from: 'central',
-            to: nodeId,
-            label: vinculo.tipo_vinculo_display || vinculo.tipo_vinculo,
-            font: { size: 11, color: visColors.edgeFont, strokeWidth: 4, strokeColor: visColors.edgeFontStroke },
-            color: { color: visColors.edgeColor, highlight: visColors.edgeHighlight },
-            dashes: !vinculo.convive,
-            width: vinculo.convive ? 2 : 1
-        });
-    });
-
-    redFamiliarNetwork = new vis.Network(container, {
-        nodes: new vis.DataSet(nodes),
-        edges: new vis.DataSet(edges)
-    }, {
-        physics: {
-            solver: 'forceAtlas2Based',
-            forceAtlas2Based: { gravitationalConstant: -60, springLength: 140 },
-            stabilization: { iterations: 120 }
-        },
-        interaction: { hover: true, zoomView: true, dragView: true },
-        edges: { smooth: { type: 'continuous' } }
-    });
-
-    redFamiliarNetwork.on('hoverNode', () => { container.style.cursor = 'pointer'; });
-    redFamiliarNetwork.on('blurNode', () => { container.style.cursor = 'default'; });
-    redFamiliarNetwork.on('click', params => {
-        if (!params.nodes.length || params.nodes[0] === 'central') return;
-        const node = redFamiliarNetwork.body.data.nodes.get(params.nodes[0]);
-        if (node && node.ciudadanoId) {
-            window.location.href = `/legajos/ciudadanos/${node.ciudadanoId}/#red_familiar`;
-        }
-    });
-}
-
-function eliminarVinculo(vinculoId) {
-    Swal.fire({
-        title: '¿Eliminar vínculo?',
-        text: 'Esta acción no se puede deshacer.',
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonText: 'Sí, eliminar',
-        cancelButtonText: 'Cancelar',
-        customClass: { confirmButton: 'btn-nodo btn-danger', cancelButton: 'btn-nodo btn-tertiary' },
-        buttonsStyling: false
-    }).then((result) => {
-        if (!result.isConfirmed) return;
-        fetch(`/api/legajos/contactos/vinculos-familiares/${vinculoId}/`, {
-            method: 'DELETE',
-            headers: {
-                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || ''
-            }
-        })
-        .then(response => {
-            if (response.ok) {
-                cargarVinculos();
-            } else {
-                Swal.fire('Error', 'No se pudo eliminar el vínculo.', 'error');
-            }
-        })
-        .catch(() => Swal.fire('Error', 'No se pudo eliminar el vínculo.', 'error'));
-    });
-}
-
-document.getElementById('formVinculo').addEventListener('submit', function(e) {
-    e.preventDefault();
-
-    const formData = new FormData(this);
-    const ciudadanoId = document.getElementById('ciudadanoSeleccionado').value;
-
-    toastr.options = { positionClass: 'toast-bottom-right' };
-
-    if (!ciudadanoId) {
-        toastr.warning('Debe seleccionar un ciudadano');
-        return;
-    }
-
-    const vinculoData = {
-        ciudadano_principal: {{ ciudadano.id }},
-        ciudadano_vinculado: parseInt(ciudadanoId),
-        tipo_vinculo: formData.get('relacion'),
-        convive: formData.get('convive') ? true : false,
-        telefono_alternativo: formData.get('telefono') || '',
-        observaciones: ''
-    };
-
-    fetch('/api/legajos/contactos/vinculos-familiares/', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || ''
-        },
-        body: JSON.stringify(vinculoData)
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.id) {
-            toastr.success('Vínculo agregado exitosamente');
-            cerrarModal('modalVinculo');
-            this.reset();
-            document.getElementById('resultadosBusqueda').innerHTML = '';
-            cargarVinculos();
-        } else {
-            toastr.error('Error al crear el vínculo');
-        }
-    })
-    .catch(() => toastr.error('Error al crear el vínculo'));
 });
 
 // ============================================================
@@ -1555,7 +1134,7 @@ function cargarArchivos() {
                                     <i class="${icono} mr-3 text-2xl"></i>
                                     <div>
                                         <div class="cd-cell font-medium">${escaparHtml(archivo.nombre)}</div>
-                                        <div class="cd-muted">${formatearTamano(archivo.tamano)}</div>
+                                        <div class="cd-muted">${archivo.faltante ? 'Archivo no disponible' : formatearTamano(archivo.tamano)}</div>
                                     </div>
                                 </div>
                             </td>
@@ -1563,7 +1142,9 @@ function cargarArchivos() {
                             <td class="whitespace-nowrap px-6 py-4 text-sm">
                                 ${archivo.tipo_origen === 'ciudadano' ?
                                     '<span class="cd-muted">Ciudadano</span>' :
-                                    `<a href="/legajos/${escaparHtml(archivo.legajo_id)}/" class="cd-link font-medium">Acompañamiento</a>`
+                                    // FE-09: `/legajos/<id>/` no resuelve (no hay vista de detalle de
+                                    // LegajoAtencion). Hasta que exista, el origen es texto, no un link roto.
+                                    '<span class="cd-muted">Acompañamiento</span>'
                                 }
                             </td>
                             <td class="whitespace-nowrap px-6 py-4 cd-cell">${fecha}</td>
@@ -1639,10 +1220,10 @@ function eliminarArchivo(urlEliminar) {
             if (data.success) {
                 cargarArchivos();
             } else {
-                Swal.fire('Error', 'No se pudo eliminar el archivo.', 'error');
+                window.toast('error', 'No se pudo eliminar el archivo.');
             }
         })
-        .catch(() => Swal.fire('Error', 'No se pudo eliminar el archivo.', 'error'));
+        .catch(() => window.toast('error', 'No se pudo eliminar el archivo.'));
     });
 }
 
@@ -1652,7 +1233,6 @@ document.getElementById('formArchivos')?.addEventListener('submit', function(e) 
     e.preventDefault();
 
     const formData = new FormData(this);
-    toastr.options = { positionClass: 'toast-bottom-right' };
 
     fetch(`/legajos/ciudadanos/{{ ciudadano.id }}/subir-archivos/`, {
         method: 'POST',
@@ -1668,12 +1248,12 @@ document.getElementById('formArchivos')?.addEventListener('submit', function(e) 
             cerrarModal('modalArchivos');
             this.reset();
             cargarArchivos();
-            toastr.success(data.mensaje || 'Archivos subidos exitosamente');
+            window.toast('success', data.mensaje || 'Archivos subidos exitosamente');
         } else {
-            Swal.fire('Error', data.error || 'Error al subir archivos', 'error');
+            window.toast('error', data.error || 'Error al subir archivos');
         }
     })
-    .catch(() => Swal.fire('Error', 'Error al subir archivos', 'error'));
+    .catch(() => window.toast('error', 'Error al subir archivos'));
 });
 
 // ============================================================
@@ -1705,9 +1285,7 @@ function cargarActividades() {
                             <td class="px-4 py-4 cd-cell">${escaparHtml(actividad.descripcion)}</td>
                             <td class="whitespace-nowrap px-4 py-4 cd-cell">${escaparHtml(actividad.usuario_nombre || 'Sistema')}</td>
                             <td class="whitespace-nowrap px-4 py-4 text-sm">
-                                <a href="/legajos/${escaparHtml(actividad.legajo_id)}/" class="cd-link font-medium">
-                                    ${escaparHtml(actividad.legajo_codigo || actividad.legajo_id)}
-                                </a>
+                                <span class="cd-muted">${escaparHtml(actividad.legajo_codigo || actividad.legajo_id)}</span>
                             </td>
                         </tr>
                     `;
@@ -1903,4 +1481,6 @@ function getPrioridadText(prioridad) {
 
 {% block customJS %}
 <script src="{% static 'vendor/sweetalert2/sweetalert2.all.min.js' %}"></script>
+{# FE-21: comportamiento accesible común de los modales (Escape, foco, scroll del fondo). #}
+<script src="{% static 'custom/js/becas-modal.js' %}"></script>
 {% endblock %}

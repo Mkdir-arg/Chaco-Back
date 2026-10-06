@@ -147,10 +147,8 @@ class ApiLegajosBackofficeAutenticadoTests(TestCase):
                 self.assertEqual(cliente.get(url).status_code, 200)
 
     def test_viewsets_de_contactos_declaran_el_permiso(self):
-        """`legajos/urls/api_contactos.py` hoy no está incluido en `config/urls.py`,
-        así que estos ViewSets no tienen URL: se verifica la declaración, no el HTTP."""
-        from legajos.api_views.contactos import HistorialContactoViewSet, VinculoFamiliarViewSet
+        """`HistorialContactoViewSet` no tiene URL —su router se borró con LEG-03—:
+        se verifica la declaración, no el HTTP. `VinculoFamiliarViewSet` ya no existe."""
+        from legajos.api_views.contactos import HistorialContactoViewSet
 
-        for vista in (HistorialContactoViewSet, VinculoFamiliarViewSet):
-            with self.subTest(vista=vista.__name__):
-                self.assertIs(vista.permission_classes[0], BackofficeAutenticado)
+        self.assertIs(HistorialContactoViewSet.permission_classes[0], BackofficeAutenticado)
