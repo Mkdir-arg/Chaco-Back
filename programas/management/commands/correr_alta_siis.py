@@ -31,7 +31,11 @@ del organismo. Si falta, el comando corta en el paso 1 y dice cuál.
     python manage.py correr_alta_siis --aplicar --usuario coord --continuar
 
 Cada paso de a uno es reentrante: si el comando se corta, volver a lanzarlo
-retoma donde iba y no duplica nada.
+retoma donde iba y **no duplica**. Lo que sí deja un corte a mitad es un caso
+cuyo POST estaba en vuelo: queda ``EN_PROCESO`` y, pasados cinco minutos, se ve
+como **incierto** —no se sabe si SIIS lo registró—. Relanzar el comando lo
+saltea; ese caso se resuelve a mano con ``conciliar_envios_siis`` después de
+preguntarle a ECOM (``docs/internal/procedimiento-alta-siis.md``).
 """
 
 import time
@@ -260,13 +264,20 @@ class Command(BaseCommand):
         # casos tienen que volver a salir, hay que borrarlos primero —y solo
         # después de que SIIS los haya borrado de su lado, porque su API no
         # deduplica—. Decirlo acá evita confundir «no se tocaron» con «entraron».
-        informados = (
-            EnvioSIIS.objects.filter(estado=EnvioSIIS.Estado.ENVIADO).values("formulario_id").distinct().count()
-        )
+        # Cambio 127: «tomado» ya no es solo ENVIADO. Un caso con el POST en vuelo
+        # o con un resultado incierto también está fuera de alcance.
+        informados = EnvioSIIS.objects.filter(vigente=True).values("formulario_id").distinct().count()
         if informados:
             self._log(
-                f"   {informados} caso(s) ya informados a SIIS: NO se vuelven a mandar. Si tienen que salir de "
-                "nuevo, hay que borrar sus EnvioSIIS, y solo después de que SIIS los haya purgado.",
+                f"   {informados} caso(s) ya tomados por un envío vigente: NO se vuelven a mandar. Si tienen que "
+                "salir de nuevo, hay que borrar sus EnvioSIIS, y solo después de que SIIS los haya purgado.",
+                self.style.WARNING,
+            )
+        inciertos = EnvioSIIS.objects.filter(vigente=True, estado=EnvioSIIS.Estado.INCIERTO).count()
+        if inciertos:
+            self._log(
+                f"   {inciertos} envío(s) de resultado desconocido esperan conciliación con ECOM: "
+                "`manage.py conciliar_envios_siis --listar`.",
                 self.style.WARNING,
             )
 
@@ -469,6 +480,8 @@ class Command(BaseCommand):
             (EnvioSIIS.Estado.INCOMPLETO, "les falta un dato"),
             (EnvioSIIS.Estado.RECHAZADO, "rechazadas por SIIS"),
             (EnvioSIIS.Estado.ERROR, "error técnico"),
+            (EnvioSIIS.Estado.INCIERTO, "resultado desconocido"),
+            (EnvioSIIS.Estado.EN_PROCESO, "todavía en vuelo"),
         ):
             total = EnvioSIIS.objects.filter(estado=estado).values("formulario_id").distinct().count()
             if total:

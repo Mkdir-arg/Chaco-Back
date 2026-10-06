@@ -43,6 +43,10 @@ def _informar_a_siis(request, formulario):
     Nunca deshace la promoción: un fallo se registra y se reintenta desde el caso."""
     try:
         envio = enviar_beneficiario_a_siis(formulario, request.user)
+    except ValueError as error:
+        # SIIS-04: el estado releído bajo lock ya no habilita el envío.
+        messages.warning(request, str(error))
+        return None
     except Exception:  # noqa: BLE001 — la promoción ya está confirmada
         logger.exception("Fallo inesperado al informar el beneficiario %s a SIIS", formulario.pk)
         messages.error(request, "No se pudo informar el beneficiario a SIIS; reintentá desde el caso.")

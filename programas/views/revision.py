@@ -37,7 +37,6 @@ from programas.forms import (
     ForzarIdentidadForm,
 )
 from programas.models import (
-    EnvioSIIS,
     Formulario,
     ListaEspera,
     PreguntaGlobal,
@@ -263,6 +262,10 @@ def _informar_a_siis(formulario, user):
     """
     try:
         envio = enviar_beneficiario_a_siis(formulario, user)
+    except ValueError as error:
+        # SIIS-04: el estado releído bajo lock ya no habilita el envío (otro
+        # revisor lo rechazó o lo dio de baja entre la carga y el POST).
+        return None, "warning", str(error)
     except Exception:  # noqa: BLE001 — la aprobación ya está confirmada
         logger.exception("Fallo inesperado al informar el beneficiario %s a SIIS", formulario.pk)
         return None, "error", "No se pudo informar el beneficiario a SIIS; reintentá desde el caso."
@@ -704,11 +707,15 @@ def formulario_detalle(request, pk):
     envios_sis = []
     envio_siis = None
     datos_siis_form = None
+    # SIIS-01: mientras haya un envío vigente la pantalla no ofrece reenviar.
+    # «Vigente» no es «el último»: puede haber un INCOMPLETO más nuevo que el
+    # EN_PROCESO que de verdad ocupa el caso. Se busca sobre la lista ya traída.
+    envio_siis_activo = None
     if formulario.estado == Formulario.Estado.APROBADO:
         envios_sis = list(formulario.envios_sis.select_related("solicitado_por"))
         envio_siis = envios_sis[0] if envios_sis else None
-        ya_enviado = envio_siis is not None and envio_siis.estado == EnvioSIIS.Estado.ENVIADO
-        if puede_enviar_siis and not ya_enviado:
+        envio_siis_activo = next((envio for envio in envios_sis if envio.vigente), None)
+        if puede_enviar_siis and envio_siis_activo is None:
             datos_siis_form = DatosSiisForm(initial=formulario.datos_siis or {})
     detalles_envio_siis = _detalles_envio_siis(envio_siis)
     volver_url, volver_label, migas_origen = _origen_del_caso(request, formulario)
@@ -756,6 +763,7 @@ def formulario_detalle(request, pk):
             "conflicto_pendiente": conflicto_pendiente,
             "formulario_comparacion": formulario_comparacion,
             "envio_siis": envio_siis,
+            "envio_siis_activo": envio_siis_activo,
             "historial_envios_sis": envios_sis,
             "datos_siis_form": datos_siis_form,
             "puede_enviar_siis": puede_enviar_siis,
@@ -941,6 +949,14 @@ def formulario_aprobar(request, pk):
         # mirar ``aprobar_o_poner_en_espera`` bajo el lock del segmento.
         if _espera_activa(formulario).exists():
             messages.error(request, MENSAJE_CASO_EN_ESPERA)
+            return redirect(_url_caso(request, formulario))
+        # BEC-14: un doble clic en «Aprobar» llegaba dos veces acá y cada request
+        # consultaba a SIIS antes de darse cuenta de que el caso ya no estaba
+        # ENVIADO. La relectura es una consulta y evita la segunda consulta
+        # externa; la regla firme sigue siendo el lock de ``aprobar_o_poner_en_espera``.
+        estado_actual = Formulario.objects.filter(pk=formulario.pk).values_list("estado", flat=True).first()
+        if estado_actual != Formulario.Estado.ENVIADO:
+            messages.error(request, "El caso ya fue resuelto por otra operación: recargá la pantalla.")
             return redirect(_url_caso(request, formulario))
         try:
             validacion = validar_formulario_en_siis(formulario, request.user)

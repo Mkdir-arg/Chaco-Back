@@ -207,10 +207,16 @@ def dispara_mismo_diff(evidence: Path) -> bool:
     return not any(parte in f"/{ruta}" for parte in SIN_MISMO_DIFF_PARTES)
 
 
-def limites_del_nucleo(repo: Path, agent_text: str, rows: list[tuple[str, str, str]]) -> list[str]:
-    """Núcleo corto, celdas cortas y sin historia (Ola 6, paso 4)."""
+def limites_del_nucleo(agent_text: str, rows: list[tuple[str, str, str]]) -> list[str]:
+    """Núcleo corto, celdas cortas y sin historia (Ola 6, paso 4).
+
+    El tamaño se mide sobre el **texto que se recibe**, ya normalizado a ``\\n``
+    por la lectura: el checkout de Windows guarda CRLF y el del CI LF, y leer el
+    archivo en binario hacía que el mismo núcleo midiera distinto según dónde
+    corriera. Además deja la regla ejercitable desde los tests sin tocar el disco.
+    """
     errores: list[str] = []
-    tamanio = len((repo / AGENT_RELATIVE).read_bytes())
+    tamanio = len(agent_text.encode("utf-8"))
     if tamanio > NUCLEO_MAX_BYTES:
         errores.append(f"core agent is too large: {tamanio} bytes (max {NUCLEO_MAX_BYTES})")
     for name, _classification, contract in rows:
@@ -310,7 +316,7 @@ def validate(repo: Path, changed: list[Path] | None = None, *, limites: bool = F
                 errors.append(f"obsolete authority claim in {relative.as_posix()}: {banned}")
 
     if limites:
-        errors.extend(limites_del_nucleo(repo, agent_text, rows))
+        errors.extend(limites_del_nucleo(agent_text, rows))
 
     if changed is not None:
         changed_set = set(changed)
