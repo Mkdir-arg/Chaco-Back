@@ -17,7 +17,11 @@ Este script corre la secuencia completa contra un motor de verdad:
    Acá se ve venga de un `AddField` o de un `AlterField`, que es el agujero que el gate
    estático de `check_migraciones.py` no podía tapar;
 6. **vuelta** hasta la base, app por app;
-7. **ida de nuevo** y `migrate --check`.
+7. **ida de nuevo** y `migrate --check`;
+8. **coherencia esquema ↔ `django_migrations`** (`verificar_esquema_migraciones
+   --estricto`, OPS-01): `migrate --check` solo mira si queda algo por aplicar, así que
+   una tabla que la vuelta no pudo borrar —en MariaDB el DDL no es transaccional,
+   RED-15— lo pasaría sin decir nada.
 
 **Las barreras de reversa no son un rojo.** Ocho migraciones abortan a propósito con
 `IrreversibleError` cuando se las desaplica (paso D.4 del runbook, Cambios 117 y 135):
@@ -177,8 +181,18 @@ def main(argv: list[str] | None = None) -> int:
             else:
                 print("\n=== 6/7 · vuelta: el PR no agrega migraciones, no hay nada que desaplicar ===")
 
-            _correr(["migrate", "--noinput"], cwd=RAIZ, titulo="7/7 · ida de nuevo")
-            _correr(["migrate", "--check"], cwd=RAIZ, titulo="7/7 · coherencia: migrate --check")
+            _correr(["migrate", "--noinput"], cwd=RAIZ, titulo="7/8 · ida de nuevo")
+            _correr(["migrate", "--check"], cwd=RAIZ, titulo="7/8 · coherencia: migrate --check")
+            # `migrate --check` solo mira si queda algo por aplicar: con el esquema roto
+            # y `django_migrations` al día contesta que todo bien. El paso que falta —y
+            # que el Anexo B pedía— es el inverso: que no haya quedado una tabla que
+            # ningún modelo nombra, que es lo que deja una reversa cortada en MariaDB
+            # (RED-15). `--estricto` porque acá la base es efímera: no hay nada ajeno.
+            _correr(
+                ["verificar_esquema_migraciones", "--estricto"],
+                cwd=RAIZ,
+                titulo="8/8 · coherencia esquema <-> django_migrations (OPS-01, con el inverso de RED-15)",
+            )
         except Rojo as error:
             print(f"\nroundtrip: ROJO — {error}", file=sys.stderr)
             return 1
