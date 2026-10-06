@@ -43,7 +43,10 @@ VOCABULARIO_INICIO = "### Etiquetas"
 # que se escribió con el check puesto. Las entradas anteriores quedan como están.
 PRIMER_CAMBIO_CON_REVERSION = 135
 SIN_MIGRACION_RE = re.compile(r"no\s+(requiere|aplica)|^no$|sin\s+migraci", re.IGNORECASE)
-MIGRACION_RE = re.compile(r"\b([a-z_]+)\.(\d{4})\b")
+# Las migraciones se nombran `app.NNNN` o `app.NNNN_con_el_nombre_completo`. El `\b` del
+# final no sirve: después de los cuatro dígitos viene un `_`, que es carácter de palabra,
+# así que `programas.0075_enviosiis_vigente` no coincidía y la regla no corría nunca.
+MIGRACION_RE = re.compile(r"\b([a-z][a-z_]*)\.(\d{4})(?:_\w+)?")
 CAMPO_MIGRACION_RE = re.compile(r"^\|\s*\*\*Migración\*\*\s*\|(?P<valor>.*)\|\s*$")
 
 
@@ -275,16 +278,26 @@ def problemas_de_reversion(lineas: list[str], entradas: list[Entrada]) -> list[s
         if declarada is None:
             problemas.append(f"El Cambio {entrada.numero} no tiene la fila «**Migración**» de la plantilla.")
             continue
-        if SIN_MIGRACION_RE.search(_limpiar(declarada)):
+
+        # Primero se mira si la celda **nombra** una migración: «`programas.0076_x` (el
+        # backfill no aplica a Dispositivos)» tiene migración y además dice «no aplica»,
+        # y un `search` suelto del «no aplica» eximía la entrada entera.
+        migraciones = [f"{app}.{numero}" for app, numero in MIGRACION_RE.findall(declarada)]
+        if not migraciones:
+            if SIN_MIGRACION_RE.search(_limpiar(declarada)):
+                continue
+            problemas.append(
+                f"El Cambio {entrada.numero}: la fila «**Migración**» no nombra ninguna migración "
+                "(`app.NNNN`) ni dice «No requiere»."
+            )
             continue
 
-        migraciones = [f"{app}.{numero}" for app, numero in MIGRACION_RE.findall(declarada)]
         secciones = _secciones(lineas, entrada)
 
         base = secciones.get("Base de datos")
         if base is None:
             problemas.append(f"El Cambio {entrada.numero} declara migración y no tiene la sección «## Base de datos».")
-        elif migraciones and not any(m in " ".join(base) for m in migraciones):
+        elif not any(m in " ".join(base) for m in migraciones):
             problemas.append(
                 f"El Cambio {entrada.numero}: «## Base de datos» no nombra la migración ({', '.join(migraciones)})."
             )

@@ -88,10 +88,13 @@ class ReversionEnElCheckTests(SimpleTestCase):
         return codigo, salida.getvalue()
 
     def _entrada(self, **cambios):
+        # El nombre va completo, como se escriben de verdad (`programas.0075_enviosiis_vigente`):
+        # con el sufijo detrás de los cuatro dígitos. Un `programas.0999` pelado tapaba el
+        # agujero de la regex, que no reconocía ningún nombre real.
         base = {
             "numero": str(requerimientos.PRIMER_CAMBIO_CON_REVERSION),
-            "migracion": "`programas.0999`",
-            "base_de_datos": "Migración `programas.0999`: agrega `columna_nueva` nullable.",
+            "migracion": "`programas.0999_columna_nueva`",
+            "base_de_datos": "Migración `programas.0999_columna_nueva`: agrega `columna_nueva` nullable.",
             "reversion": ("1. `migrate programas 0998`.\n2. Se pierde lo cargado en `columna_nueva` desde el deploy."),
         }
         base.update(cambios)
@@ -123,6 +126,56 @@ class ReversionEnElCheckTests(SimpleTestCase):
         self.assertEqual(codigo, 1)
         self.assertIn("Base de datos", salida)
 
+    def test_el_nombre_completo_de_la_migracion_se_reconoce(self):
+        """Mutación: con la regex vieja (`\\b` después de los dígitos) esto pasaba en verde."""
+        codigo, salida = self._documento(
+            [
+                self._entrada(
+                    migracion="`programas.0076_backfill_dispositivos`",
+                    base_de_datos="Agrega una columna nueva; el detalle está en el PR.",
+                )
+            ]
+        )
+
+        self.assertEqual(codigo, 1)
+        self.assertIn("programas.0076", salida)
+
+    def test_un_no_aplica_al_lado_de_la_migracion_no_exime_la_entrada(self):
+        """La celda nombra una migración **y** dice «no aplica»: manda la migración."""
+        codigo, salida = self._documento(
+            [
+                self._entrada(
+                    migracion="`programas.0076_backfill` (el backfill no aplica a dispositivos)",
+                    base_de_datos="Agrega una columna nueva, sin nombrar la migración.",
+                    reversion="No aplica.",
+                )
+            ]
+        )
+
+        self.assertEqual(codigo, 1)
+        self.assertIn("Base de datos", salida)
+        self.assertIn("Reversión", salida)
+
+    def test_la_base_de_datos_puede_nombrar_la_migracion_sin_el_sufijo(self):
+        """`programas.0076` alcanza para la entrada de `programas.0076_backfill`."""
+        codigo, salida = self._documento(
+            [
+                self._entrada(
+                    migracion="`programas.0076_backfill`",
+                    base_de_datos="Migración `programas.0076`: agrega `columna_nueva` nullable.",
+                )
+            ]
+        )
+
+        self.assertEqual(codigo, 0, salida)
+
+    def test_una_celda_que_no_dice_ni_una_cosa_ni_la_otra_cae(self):
+        """«Pendiente» no es ni una migración ni un «No requiere»: hay que decidirlo."""
+        codigo, salida = self._documento([self._entrada(migracion="Pendiente de definir")])
+
+        self.assertEqual(codigo, 1)
+        self.assertIn("Migración", salida)
+
     def test_una_entrada_sin_migracion_no_necesita_reversion(self):
         codigo, salida = self._documento(
             [
@@ -149,9 +202,9 @@ class ReversionEnElCheckTests(SimpleTestCase):
         archivo = carpeta / "requerimientos.md"
         numero = requerimientos.PRIMER_CAMBIO_CON_REVERSION
         archivo.write_text(
-            CABECERA.format(filas=FILA.format(numero=numero, migracion="`programas.0999`"))
+            CABECERA.format(filas=FILA.format(numero=numero, migracion="`programas.0999_columna_nueva`"))
             + f"# Cambio {numero} — Prueba\n\n🟢 **HECHO — 06/10/2026**\n\n"
-            + "| | |\n|---|---|\n| **Migración** | `programas.0999` |\n\n"
+            + "| | |\n|---|---|\n| **Migración** | `programas.0999_columna_nueva` |\n\n"
             + "## Implementación\nCualquier cosa.\n",
             encoding="utf-8",
         )

@@ -18579,6 +18579,12 @@ No requiere. No hay migración, variable de entorno ni comando manual.
   filas de `REDUNDANTES_CONOCIDOS`.
 - El job `migration-roundtrip` (RED-17/RED-19, PR **R-13**) es el que ejecuta las migraciones hacia atrás sobre datos.
   La nota del Anexo B de la auditoría ya le deja escrito que las ocho barreras abortan a propósito.
+- **Los dos agujeros del gate que tiene que tapar R-13**, porque son de ejecución y no de lectura del archivo:
+  (a) un `AlterField` que pasa una columna de `null=True` a `null=False` **no lo ve** el gate —sin el estado anterior no
+  se distingue de un `AlterField` que solo cambia `choices` sobre una columna que ya era `NOT NULL`—, y rompe el alta
+  igual que un `AddField`; (b) el gate mira solo las migraciones **agregadas** (`--diff-filter=A`), así que **editar una
+  migración ya aplicada no tiene guard automático**: el forward de las existentes tiene que compararse contra la base
+  (`sqlmigrate` o el roundtrip del Anexo B), que es justo lo que R-13 corre.
 - Los 119 hallazgos históricos de `--todas` quedan como deuda conocida: no se reescriben migraciones aplicadas.
 - `programas.0045` es candidata a barrera si alguna vez se levantan las de UUID.
 
