@@ -238,6 +238,37 @@ class CandidatosTests(_BaseProcesoTest):
             list(proceso_masivo.candidatos(programa=self.programa).values_list("pk", flat=True)), [caso.pk]
         )
 
+    def test_no_toma_casos_de_un_programa_bloqueado_en_siis(self):
+        """BEC-21, la parte que esperaba a SIIS-06.
+
+        ``INACTIVO`` y ``DESCONOCIDO`` bloquean el programa en toda la pantalla
+        (``ProgramaSiis.pausa_efectiva``) y el masivo era el único camino que
+        seguía aprobando e informando. No se podía cerrar antes porque un
+        catálogo vacío dejaba **todos** los programas en ``DESCONOCIDO`` y esta
+        exclusión habría frenado el masivo entero por un error de SIIS; con
+        SIIS-06 cerrado, un ``DESCONOCIDO`` vuelve a significar lo que dice.
+        """
+        caso = self._caso()
+        for estado in ProgramaSiis.ESTADOS_SIIS_BLOQUEANTES:
+            with self.subTest(estado=estado):
+                ProgramaSiis.objects.filter(pk=self.programa.pk).update(siis_programa_estado=estado)
+                pks = list(proceso_masivo.candidatos(programa=self.programa).values_list("pk", flat=True))
+                self.assertEqual(pks, [], f"un programa {estado} en SIIS no frenó el masivo")
+
+        ProgramaSiis.objects.filter(pk=self.programa.pk).update(siis_programa_estado=ProgramaSiis.EstadoSiis.ACTIVO)
+        self.assertEqual(
+            list(proceso_masivo.candidatos(programa=self.programa).values_list("pk", flat=True)), [caso.pk]
+        )
+
+    def test_un_programa_sin_sincronizar_todavia_sigue_siendo_candidato(self):
+        """El estado nace en ``""``, no en ``DESCONOCIDO``: nadie preguntó aún."""
+        caso = self._caso()
+        ProgramaSiis.objects.filter(pk=self.programa.pk).update(siis_programa_estado="")
+
+        pks = list(proceso_masivo.candidatos(programa=self.programa).values_list("pk", flat=True))
+
+        self.assertEqual(pks, [caso.pk])
+
     def test_hidratar_por_lotes_recorre_todos_en_orden_de_pk(self):
         casos = [self._caso() for _ in range(5)]
         consulta = proceso_masivo.candidatos(programa=self.programa)
