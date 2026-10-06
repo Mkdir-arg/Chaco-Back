@@ -26,6 +26,9 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        # REVERSA-NOOP: no queda nada inconsistente. Esta operación no escribe: solo
+        # verifica que no haya camas con dos estadías alojadas antes de crear la
+        # restricción, así que al revertir no hay nada que deshacer.
         migrations.RunPython(validar_admisiones_alojadas_duplicadas, migrations.RunPython.noop),
         migrations.AddConstraint(
             model_name="admision",

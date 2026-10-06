@@ -94,5 +94,7 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        # REVERSA-NOOP: al revertir, los roles quedan con las capacidades nuevas y sin la
+        # vieja, que esta migración borró: no hay forma de saber qué Group la tenía.
         migrations.RunPython(remapear_permisos_becas, noop_reverse),
     ]

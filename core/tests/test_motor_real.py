@@ -39,7 +39,6 @@ Para correrlo a mano (contenedor efímero, puerto libre)::
 """
 
 import threading
-import unittest
 import uuid
 from datetime import date, timedelta
 from io import StringIO
@@ -339,15 +338,16 @@ class ParteDiarioEnElMotorRealTests(_BaseDispositivoTest):
         if not convert_tz_devuelve_null():
             self.skipTest("El servidor tiene tablas de zona horaria: DIS-01 no se manifiesta acá.")
 
-    @unittest.expectedFailure
     def test_el_parte_diario_cuenta_el_ingreso_de_hoy(self):
-        """**DIS-01** (Ola 5), reproducido contra el motor real.
+        """**DIS-01** (Ola 5, Cambio 140), contra el motor real.
 
-        `calcular_cantidades` filtra con `fecha_ingreso__date=fecha`
-        (`registro_diario.py:35-36`), que en MySQL y MariaDB se traduce a
-        `DATE(CONVERT_TZ(...))`; sin tablas de zona horaria devuelve NULL y el parte
-        F-01 informa **cero ingresos** en producción. En SQLite da bien, por eso el
-        bug sigue vivo. Entra marcado: lo arregla la Ola 5, no esta ola.
+        `calcular_cantidades` filtraba con `fecha_ingreso__date=fecha`, que en MySQL
+        y MariaDB se traduce a `DATE(CONVERT_TZ(...))`; sin tablas de zona horaria
+        devuelve NULL y el parte F-01 informaba **cero ingresos** en producción. En
+        SQLite daba bien, y por eso el bug vivió hasta la Ola 5. Ahora el día se
+        acota con un rango `[inicio, fin)` calculado en Python
+        (`core.utils_fechas.rango_dia_local`), que no depende del servidor: este
+        test queda como la regresión que lo cuida en el motor donde rompía.
         """
         cantidades = calcular_cantidades(dispositivo=self.dispositivo, fecha=self.hoy)
 

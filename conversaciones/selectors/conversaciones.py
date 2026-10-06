@@ -5,6 +5,8 @@ from django.db.models import Avg, Count, IntegerField, OuterRef, Q, Subquery
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 
+from core.utils_fechas import q_rango_local
+
 from ..models import ColaAsignacion, Conversacion, Mensaje, MetricasOperador
 from ..permisos import es_operador_restringido, puede_operar
 
@@ -47,11 +49,13 @@ def get_conversaciones_queryset_para_lista(user, filtros):
         else:
             queryset = queryset.filter(operador_asignado_id=filtros["operador"])
 
+    # Rango local y no ``fecha_inicio__date__gte``: ese lookup se traduce a
+    # ``CONVERT_TZ`` y en ECOM —sin tablas de zona horaria— devuelve NULL (DIS-01).
     if filtros.get("fecha_desde"):
-        queryset = queryset.filter(fecha_inicio__date__gte=filtros["fecha_desde"])
+        queryset = queryset.filter(q_rango_local("fecha_inicio", desde=filtros["fecha_desde"]))
 
     if filtros.get("fecha_hasta"):
-        queryset = queryset.filter(fecha_inicio__date__lte=filtros["fecha_hasta"])
+        queryset = queryset.filter(q_rango_local("fecha_inicio", hasta=filtros["fecha_hasta"]))
 
     if filtros.get("busqueda"):
         termino = filtros["busqueda"].strip()

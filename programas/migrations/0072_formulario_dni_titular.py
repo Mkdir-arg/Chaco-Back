@@ -46,5 +46,8 @@ class Migration(migrations.Migration):
             name="dni_titular",
             field=models.CharField(blank=True, db_index=True, max_length=20, verbose_name="DNI del titular"),
         ),
+        # REVERSA-NOOP: no queda nada inconsistente. Lo único que escribe es
+        # ``dni_titular``, la columna que esta misma migración agrega copiando el dato del
+        # JSON de respuestas, y la reversa la borra.
         migrations.RunPython(poblar_dni_titular, migrations.RunPython.noop),
     ]
