@@ -56,6 +56,7 @@
         <h2 class="text-sm font-semibold text-gray-700 mb-4">Apariencia en solapas</h2>
         <form method="post">
             {% csrf_token %}
+            {% include "components/_form_errores.html" %}
             <div class="grid grid-cols-2 gap-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Ícono</label>

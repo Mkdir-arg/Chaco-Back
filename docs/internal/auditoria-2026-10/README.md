@@ -1,5 +1,11 @@
 # Auditoría integral de DATAÑACH (Chaco) — octubre 2026
 
+## Estado al 06-oct-2026 (Ola 5, PR 3: parches v1 de Configuración)
+
+| PR | Cambio | Fichas | Estado | Qué quedó abierto |
+|---|---|---|---|---|
+| Ola 5 PR 3 | 152 | FE-04 ✅ · FE-05 ✅ · FE-08 ✅ | ✅ | **Las 3 fichas cerradas, sin migración: 6 h.** Las tres pantallas de Geografía dibujan su pie de paginación —la fila 21 dejó de ser inalcanzable— y los seis `form_invalid` devuelven la lista paginada con el **mismo** queryset del listado (el de provincias salía por `id` y el reintento por `nombre`). El `<script>` del paso 1 del wizard vuelve a llegar al navegador (`extra_js` → `customJS`) y la cascada Secretaría → Subsecretaría funciona, con aviso por `window.toast` si la API falla. Los errores no de campo salen de una **pieza canónica nueva** (`templates/components/_form_errores.html`, con contrato, test, ficha y fila de inventario) que usan los diez modales de Geografía y Secretarías, los cuatro pasos del wizard, dos formularios de Legajos y Dispositivos y la **golden del arquetipo Formulario**. FE-05 además queda convertida en gate: `compile_templates.py --bloques`, en «Contratos del repo», falla con cualquier bloque que ningún ancestro declare (allowlist de 6, cada una con su ficha dueña). **Tres desvíos, los tres code-first:** (a) el `form_invalid` de edición devuelve la **página que contiene la fila**, no la 1 —paginarlo a secas, como salía de la ficha, escondía el error de la fila 21—; (b) `legajos/ciudadano_{edit,manual,confirmar}_form.html` **no** se tocaron: vuelcan `form.errors.items`, que incluye `__all__`, así que el error ya se ve y la pieza lo duplicaría (su migración es FE-11/FE-12); (c) se arregló de paso un bug del propio `design_audit --ratchet`, que leía la base en cp1252 y daba por nueva toda la deuda vieja de cualquier template con tildes (34 hallazgos falsos; en el CI, UTF-8, no se veía). **Pendiente del juez:** las tres fichas de `.claude/` (la nueva `componentes/form_errores.md`, los retoques de `arquetipos/formulario.md` y la fila de inventario) van en el cuerpo del PR porque la sesión no tiene permiso de escritura ahí; hasta aplicarlas, «Design Agent Contract» queda rojo |
+
 ## Estado al 06-oct-2026 (Ola 5, PR 2: parches v1 de Legajos)
 
 | PR | Cambio | Fichas | Estado | Qué quedó abierto |
@@ -964,10 +970,11 @@ Avance: 11 ⬜ (+ R0b-01, 02, 03, 10 ⬜; R0b-12 operativo). SEC-03 (con G1b-01)
 - **Operativo (PM):** R0b-12 correr P-04 ampliado en PRD.
 
 ### 4.7 Front del backoffice → `hallazgos/07-front.md` (28)
-Avance: 6 ✅ · 1 🟡 · 21 ⬜ (FE-13, V5A-NEW-01, V5A-NEW-08 y la parte (a) de V5A-NEW-07 en la Ola 6; FE-02, FE-09 y
-FE-21 en el PR 2 de la Ola 5).
-- **ALTA:** ✅ FE-02 `toastr` (Ola 5, PR 2) · FE-04 paginación de Geografía · FE-05 wizard · FE-06 clases inexistentes.
-- **MEDIA:** FE-01, 07, 08, ✅ 09, 10, 11, 12, ✅ 13, 17, 18, 19, 20, ✅ 21 · ✅ V5A-NEW-01 · 🟡 V5A-NEW-07.
+Avance: 9 ✅ · 1 🟡 · 18 ⬜ (FE-13, V5A-NEW-01, V5A-NEW-08 y la parte (a) de V5A-NEW-07 en la Ola 6; FE-02, FE-09 y
+FE-21 en el PR 2 de la Ola 5; FE-04, FE-05 y FE-08 en el PR 3).
+- **ALTA:** ✅ FE-02 `toastr` (Ola 5, PR 2) · ✅ FE-04 paginación de Geografía · ✅ FE-05 wizard (Ola 5, PR 3) ·
+  FE-06 clases inexistentes.
+- **MEDIA:** FE-01, 07, ✅ 08, ✅ 09, 10, 11, 12, ✅ 13, 17, 18, 19, 20, ✅ 21 · ✅ V5A-NEW-01 · 🟡 V5A-NEW-07.
 - **BAJA:** FE-14, 16, 22, 23, 24, 25, 26 · V5A-NEW-04 · V5A-NEW-08.
 
 ### 4.8 Red de seguridad → `hallazgos/08-red-de-seguridad.md` (89, frente del 04-oct-2026)
@@ -1351,12 +1358,14 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
 ### Ola 5 — Bugs de front y parches v1 de Legajos y Dispositivos
 - **Objetivo:** que las pantallas funcionen (subir archivos, paginar, cascadas, botones visibles) y migrar las pantallas
   fuera de Becas a las piezas canónicas clonando las goldens.
-- **Avance: 18 h de 128, 110 restantes.** PR 1 (DIS-01 + DIS-08) en el Cambio 140, 06-oct-2026: helper de fechas locales,
+- **Avance: 24 h de 128, 104 restantes.** PR 1 (DIS-01 + DIS-08) en el Cambio 140, 06-oct-2026: helper de fechas locales,
   los dos usos de Dispositivos más los tres latentes y cuatro de Conversaciones, y la guardia `test_sql_portable.py`
   (recorre el código con `ast`, allowlist vacía). **PR 2 (FE-02, LEG-02, LEG-03, LEG-04, LEG-05, FE-09, FE-21) en el
-  Cambio 150, 06-oct-2026**: las 7 fichas cerradas, sin migración. Quedan abiertos los PRs 3 a 8.
+  Cambio 150, 06-oct-2026**: las 7 fichas cerradas, sin migración. **PR 3 (FE-04, FE-05, FE-08) en el Cambio 152,
+  06-oct-2026**: las 3 fichas cerradas, con una pieza canónica nueva (`components/_form_errores.html`) y FE-05
+  convertida en gate (`compile_templates.py --bloques`). Quedan abiertos los PRs 4 a 8.
 - **PRs y orden:** (1) DIS-01 + DIS-08 (helper de fechas locales + guardia de `__date`) 4 h · (2) Legajos: FE-02, LEG-04,
-  LEG-05, LEG-02, LEG-03, FE-09, FE-21 14 h · (3) Configuración: FE-04, FE-05, FE-08 6 h · (4) FE-06 ya; FE-07, FE-01 y FE-10
+  LEG-05, LEG-02, LEG-03, FE-09, FE-21 14 h · (3) ✅ Configuración: FE-04, FE-05, FE-08 6 h (Cambio 152) · (4) FE-06 ya; FE-07, FE-01 y FE-10
   **después de la Ola 6 paso 3** (en ese orden: FE-07 antes o con FE-01; FE-01 antes que FE-10) 14 h · (5) FE-18, FE-19, FE-25, FE-26 8 h · (6) **después de la
   Ola 6 paso 4:** FE-11, FE-12, FE-17, FE-20, FE-23, FE-24 48 h · (7) FE-22, FE-16, V5A-NEW-04, G2-04, G2-06, V5A-NEW-07 parte (b) (labels de `convocatoria_list` y deuda de
   `_dashboard_panel`) 20 h · (8) *Red de seguridad (04-oct):* RED-33 (tests HTTP de las vistas de Dispositivos y

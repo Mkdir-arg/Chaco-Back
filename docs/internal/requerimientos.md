@@ -321,6 +321,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 138 | Una lista de exclusión frena a quien no hay que mandar a SIIS, y el envío pide confirmación | Becas · alta de beneficiarios en SIIS | `#siis` `#datos` | PM — en sesión: «todas las personas que están en la tabla SiisEnviar NO SE ENVIAN» | 06/10/2026 | 🟢 **Hecho** | No requiere |
 | 140 | El parte diario y los reportes de Dispositivos cuentan el día argentino, no el del motor | Dispositivos (parte F-01, listado, exports, indicadores) · Legajos · Conversaciones · Transversal (helper de fechas + guardia) | `#datos` `#infra` `#performance` | Auditoría integral oct-2026 — fichas DIS-01 y DIS-08 (Ola 5, PR 1) | 06/10/2026 | 🟢 **Hecho** | No requiere |
 | 150 | Legajos deja de romperse solo: subir archivos, reinscribir y la solapa que nunca funcionó | Legajos (detalle del ciudadano, adjuntos, derivaciones, dashboard de alertas) · Transversal (inscripciones a programas) | `#ui` `#datos` `#api` | Auditoría integral oct-2026 — fichas FE-02, LEG-02..05, FE-09 y FE-21 (Ola 5, PR 2) | 06/10/2026 | 🟢 **Hecho** | No requiere |
+| 152 | Configuración: la fila 21 deja de ser inalcanzable, el wizard vuelve a filtrar subsecretarías y los errores no de campo se ven | Configuración (geografía, secretarías, wizard de programas) · Transversal (pieza de errores no de campo, gate de bloques sin destino) · Legajos y Dispositivos (un formulario cada uno) | `#ui` `#metodo` | Auditoría integral oct-2026 — fichas FE-04, FE-05 y FE-08 (Ola 5, PR 3) | 06/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -19534,3 +19535,182 @@ Revertir el commit. Vuelven los siete defectos, incluido el 404 por carga del le
 van con el mismo commit (no queda ninguno en rojo). No hay nada que deshacer en la base: no se escribió
 ninguna fila nueva ni se borró ninguna; `activar_inscripcion` solo reactiva filas que ya existían, y esas
 reactivaciones quedan como están (son altas legítimas).
+
+---
+
+# Cambio 152 — Configuración: la fila 21 deja de ser inalcanzable, el wizard vuelve a filtrar subsecretarías y los errores no de campo se ven
+
+🟢 **HECHO — 06/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Configuración (geografía, secretarías, wizard de programas) · Transversal (pieza de errores no de campo, gate de bloques sin destino) · Legajos y Dispositivos (un formulario cada uno) |
+| **Etiquetas** | `#ui` `#metodo` |
+| **Solicitante** | Auditoría integral oct-2026 — fichas FE-04, FE-05 y FE-08 (Ola 5, PR 3) |
+| **Fecha del pedido** | 06/10/2026 |
+| **Issue / épica** | Sin issue (plan de la auditoría: `docs/internal/auditoria-2026-10/`) |
+| **Partes afectadas** | Backoffice: listados de Provincias, Municipios y Localidades; modales de alta y edición de las cinco pantallas de Geografía y Secretarías; los cuatro pasos del wizard de programas; la derivación a programa de Legajos; el alta de legajo de dispositivo. Pieza nueva en `templates/components/`. Ninguna pantalla nueva |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> «(3) Configuración: FE-04, FE-05, FE-08 — 6 h» (README de la auditoría, §6, Ola 5, PR 3.)
+
+Tres defectos del mismo módulo, los tres medidos en navegador:
+
+1. **FE-04 — la fila 21 era inalcanzable.** Las tres pantallas de Geografía declaran `paginate_by = 20` y
+   ninguna dibuja un solo control: `/configuracion/localidades/` mostraba 20 filas y 0 enlaces `?page=`.
+   Escribiendo `?page=2` a mano aparecían las otras 11, así que el dato estaba y la pantalla no lo ofrecía.
+2. **FE-05 — la cascada Secretaría → Subsecretaría nunca se ejecutó.** El `<script>` del paso 1 del wizard
+   vivía en `{% block extra_js %}`, un bloque que **ningún ancestro declara** (el shell del backoffice tiene
+   `customJS`). Django descarta ese bloque en silencio: el HTML servido no contenía
+   `ajax_load_subsecretarias` y el select de subsecretaría se quedaba con la opción vacía, que es el único
+   campo obligatorio que el usuario no puede completar.
+3. **FE-08 — los errores no de campo eran invisibles.** `Localidad`, `Municipio` y `Subsecretaria` tienen
+   `unique_together`: un duplicado vuelve con el error en `form.non_field_errors`, que **ningún template de
+   Configuración renderizaba** salvo los pasos 2 y 3 del wizard. El modal volvía a abrirse exactamente
+   igual, sin una sola explicación, y el usuario reenviaba lo mismo.
+
+## Alcance acordado
+
+- **Entra:** las tres fichas completas; la pieza canónica nueva `components/_form_errores.html` con su
+  contrato, su test y su ficha; el flag `--bloques` de `compile_templates.py` que convierte FE-05 en un gate
+  del CI; y la migración de la golden del arquetipo Formulario a la pieza nueva, que la propia ficha de ese
+  arquetipo tenía anotada como deuda.
+- **Afuera:** la migración de estas pantallas a las piezas canónicas (encabezado, tabla densa, modal
+  accesible, estado vacío): son FE-07, FE-11, FE-12 y FE-17, PRs 4 a 7 de la Ola 5, y FE-07 va **después**
+  de la Ola 6 paso 3. **El wizard no se rediseña**: la decisión D4 del Cambio 129 dice que el arquetipo
+  wizard no está definido y que el agente frena; acá solo se corrigen bugs dentro del markup que ya existe.
+  La v2 de Dispositivos y Merenderos tampoco entra.
+
+## Decisiones tomadas
+
+- **La pieza de errores no de campo es nueva y canónica, y por eso trae todo junto:** contrato en el
+  comentario de cabecera, test en `core/tests/test_nodo_ui_piezas.py`, ficha propia y fila de inventario.
+  Es el paso 7 («pieza nueva, solo con OK») del protocolo del agente de diseño; el OK es la ficha FE-08.
+- **El include es marcador *obligatorio* del arquetipo Formulario,** no opcional como era
+  `non_field_errors`, y `{{ form.non_field_errors }}` a mano pasa a estar **prohibido** en ese arquetipo. Una
+  pantalla de formulario sin la pieza esconde la mitad de la validación: no es una variante, es el bug.
+- **En un modal que se repite por fila el include va acotado a la fila que falló**
+  (`{% if abrir_modal_pk == objeto.pk %}`). El `form` del contexto es uno solo: sin esa guarda, abrir el
+  modal de otra fila mostraba el error de la fila anterior.
+- **`form_invalid` devuelve la misma página que contiene la fila editada, no la 1.** Paginar el
+  `form_invalid` a secas —como salía de la ficha— introducía un bug nuevo: el modal de edición de la fila 21
+  volvía a una página 1 donde esa fila no está y el error no se mostraba nunca. El helper `_contexto_lista`
+  calcula la página del registro destacado; cuesta una consulta de pks y solo corre cuando la validación
+  falló.
+- **Un solo queryset por entidad para el listado y para el error.** El listado de provincias salía ordenado
+  por `id` (el `Meta.ordering` del modelo) y el reintento tras un error por `nombre`: dos órdenes distintos
+  en la misma pantalla. Ahora los tres listados y los seis `form_invalid` piden el mismo `_queryset(modelo)`,
+  ordenado por `nombre`.
+- **FE-05 se convierte en un gate, no en un arreglo puntual.** `compile_templates.py --bloques` recorre todos
+  los templates y falla si un hijo define un bloque de primer nivel que ningún ancestro declara. La
+  allowlist arranca con **seis** entradas vivas, cada una con la ficha que la mata (`menu-adicional` de las
+  tres páginas de error, que resuelve FE-20; `content` y `extra_css`/`extra_js` de las dos pantallas muertas
+  de Legajos, que se van con LEG-06) y un test que falla si una entrada queda sin dueño. El gate corre en
+  el job «Contratos del repo».
+- **Los pasos 2 y 3 del wizard también migran a la pieza.** Mostraban el error con markup propio y paleta
+  cruda (`text-red-600`); dejar dos formas distintas de mostrar lo mismo en el mismo wizard no tiene defensa.
+- **Los tres formularios de ciudadano de Legajos se dejan como están.** La ficha los lista porque no usan
+  `non_field_errors`, pero vuelcan `form.errors.items`, que **incluye la clave `__all__`**: el error no de
+  campo ahí **sí se ve** hoy. Agregarle la pieza encima lo mostraría dos veces, y reemplazar el resumen
+  borraría los errores de campo, que en esas tres pantallas no se renderizan junto a su control. La
+  migración de esas pantallas al arquetipo Formulario es FE-11/FE-12. Queda un test de caracterización que
+  fija el comportamiento actual, para que nadie lo rompa sin enterarse.
+- **`design_audit --ratchet` leía la base del ratchet en cp1252.** `_git` corría `git show` con `text=True`
+  sin `encoding`: en Windows el hilo lector de `subprocess` moría con `UnicodeDecodeError` en cuanto el
+  template tenía una tilde, `stdout` volvía vacío y el ratchet daba por **nueva toda la deuda vieja** de ese
+  archivo (34 hallazgos falsos en este mismo PR). En el CI, que corre en UTF-8, nunca se vio. Se arregló
+  junto con `changed_files`, que tenía el mismo descuido.
+
+## Implementación
+
+- `templates/components/_form_errores.html` **(nuevo)**: `form` (por contexto) y `titulo` opcional; caja
+  `bg-danger-soft` / `border-danger-subtle` con `role="alert"` y un `<p>` por error, sin el
+  `<ul class="errorlist">` de Django.
+- `configuracion/views/geografia.py`: `POR_PAGINA`, `_queryset(modelo)` y
+  `_contexto_lista(request, modelo, clave, form, *, destacado=None, **extra)`. Los seis `form_invalid` pasan
+  por el helper; los tres `ListView` usan el mismo queryset.
+- Los tres `*_list.html` de Geografía: `{% include "components/_paginacion.html" %}` al pie de la card,
+  igual que la golden de listado (después del `</div>` del `overflow-x-auto`).
+- Las cinco listas de Geografía y Secretarías: el include de errores en el modal de alta y, acotado a la
+  fila, en el de edición.
+- `programa_wizard_paso1.html`: `{% block extra_js %}` pasa a `{% block customJS %}`; el `fetch` corta con
+  `if (!r.ok) throw` y el `catch` avisa con `window.toast('error', …)` además de dejar el texto en el select.
+- Los cuatro pasos del wizard usan la pieza (los pasos 2 y 3 la reemplazan, los pasos 1 y 4 la estrenan).
+- `legajos/.../derivar_programa.html` y `programas/.../dispositivos/legajo/form.html`: la pieza, que ahí
+  eran los dos únicos formularios que solo rendían errores por campo.
+- `programas/.../becas/config/segmento_form.html` (**golden del arquetipo Formulario**): el bloque a mano se
+  reemplaza por el include.
+- `scripts/design_audit.py`: `_git` y `changed_files` leen en UTF-8; el marcador `non_field_errors` del
+  arquetipo Formulario pasa a ser `components/_form_errores.html` **obligatorio**, y `non_field_errors` a
+  mano queda en la lista de prohibidos.
+- `scripts/compile_templates.py`: `bloques_sin_destino(dirs)`, `BLOQUES_SIN_DESTINO_CONOCIDOS` y el flag
+  `--bloques`. `.github/workflows/pr-quality.yml` lo corre en «Contratos del repo».
+
+## Archivos
+
+| Archivo | Qué cambió |
+|---|---|
+| `templates/components/_form_errores.html` | **Nuevo.** Pieza única de errores no de campo |
+| `configuracion/views/geografia.py` | Queryset único y contexto paginado para los seis `form_invalid` |
+| `configuracion/templates/configuracion/provincia_list.html` | Pie de paginación + errores no de campo en los dos modales |
+| `configuracion/templates/configuracion/municipio_list.html` | Pie de paginación + errores no de campo en los dos modales |
+| `configuracion/templates/configuracion/localidad_list.html` | Pie de paginación + errores no de campo en los dos modales |
+| `configuracion/templates/configuracion/secretaria_list.html` | Errores no de campo en los dos modales |
+| `configuracion/templates/configuracion/subsecretaria_list.html` | Errores no de campo en los dos modales |
+| `configuracion/templates/configuracion/programa_wizard_paso1.html` | `customJS` en vez de `extra_js`; `fetch` que falla fuerte y avisa; pieza de errores |
+| `configuracion/templates/configuracion/programa_wizard_paso2.html` | Los errores generales pasan a la pieza |
+| `configuracion/templates/configuracion/programa_wizard_paso3.html` | Los errores generales pasan a la pieza |
+| `configuracion/templates/configuracion/programa_wizard_paso4.html` | Estrena la pieza de errores |
+| `legajos/templates/legajos/derivar_programa.html` | Pieza de errores |
+| `programas/templates/programas/dispositivos/legajo/form.html` | Pieza de errores |
+| `programas/templates/programas/becas/config/segmento_form.html` | La golden usa la pieza |
+| `scripts/design_audit.py` | Lectura UTF-8 del ratchet; marcadores del arquetipo Formulario |
+| `scripts/compile_templates.py` | Flag `--bloques` con su allowlist con dueño |
+| `.github/workflows/pr-quality.yml` | «Contratos del repo» corre `compile_templates.py --bloques` |
+
+## Base de datos
+
+No requiere migración. No cambió ningún modelo: la paginación es de presentación y el helper solo lee.
+
+## Validación
+
+- `manage.py check` y `check --deploy`: sin hallazgos nuevos. `makemigrations --check --dry-run`:
+  «No changes detected».
+- Suite completa en un solo proceso (`manage.py test`, sin argumentos) y `--tag performance`: el resultado
+  está en el cuerpo del PR.
+- Tests nuevos, **los tres módulos rojos antes del arreglo**:
+  `configuracion.tests.test_configuracion_ola5` (17 tests; los 17 fallaban),
+  `core.tests.test_compile_templates_bloques` (6) y `core.tests.test_nodo_ui_piezas.FormErroresTest` (6).
+- `ruff check .` y `ruff format --check`: limpio.
+- UI: `design_audit.py --ratchet` da **0 hallazgos nuevos**; `--arquetipo formulario` sobre la golden, OK;
+  `--goldens`, 0; `compile_templates.py --bloques`, 0 y 0; `npm run build:tailwind` **sin diff** (no se
+  agregó ninguna utilidad; las clases de la pieza ya estaban en el build).
+
+## Puesta en marcha en el servidor
+
+Deploy normal: sin migración, sin orden entre pasos y sin nada que no se pueda hacer durante el deploy. No
+se agregó ningún archivo estático nuevo, así que `collectstatic` no cambia nada (el entrypoint lo corre
+igual).
+
+## Pendientes / a definir
+
+1. **Las tres fichas de `.claude/` no viajan en este commit:** la sesión no tiene permiso de escritura en
+   esa carpeta. El contenido completo —la ficha nueva `componentes/form_errores.md`, los retoques a
+   `arquetipos/formulario.md` y la fila de inventario del núcleo— está en el cuerpo del PR y lo aplica el
+   juez. Hasta entonces el check «Design Agent Contract» queda en rojo por la regla del mismo diff.
+2. **No hay capturas de Playwright:** el harness es local y no está en el worktree. Lo visible es un pie de
+   paginación nuevo y una caja de error roja: conviene una pasada de QA visual sobre Geografía y el wizard.
+3. **Las seis entradas de la allowlist de `--bloques`** mueren con FE-20 (páginas de error) y LEG-06
+   (pantallas muertas de Legajos). El test `test_la_allowlist_no_tiene_entradas_muertas` obliga a sacarlas
+   cuando esas fichas cierren.
+4. **Secretarías y Subsecretarías siguen sin paginar.** La ficha FE-04 nombra solo las tres pantallas de
+   Geografía y esas dos vistas no declaran `paginate_by`: agregarlo es un cambio de comportamiento que no
+   pidió nadie. Queda anotado para FE-17 (paginaciones falsas o copiadas).
+
+## Reversión
+
+Revertir el commit. Vuelven los tres defectos —la fila 21 inalcanzable, el wizard sin cascada y los
+duplicados sin explicación— y los tests nuevos se van con el mismo commit, así que no queda ninguno en rojo.
+No hay nada que deshacer en la base: no se escribió ni se borró ninguna fila.

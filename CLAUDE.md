@@ -80,7 +80,7 @@ npm run build:tailwind                  # el CSS compilado está COMMITTEADO: no
 ```powershell
 & $env:PY_VENV scripts\design_audit.py --ratchet      # adherencia al sistema de diseño → 0 hallazgos NUEVOS
 & $env:PY_VENV scripts\design_audit.py --arquetipo <listado|detalle|formulario|modal> <archivo>  # pantalla nueva
-& .\.venv312\Scripts\python.exe scripts\compile_templates.py  # sintaxis de TODOS los templates → 0 (con .venv da 1 falso por {% querystring %})
+& .\.venv312\Scripts\python.exe scripts\compile_templates.py --bloques  # sintaxis de TODOS los templates → 0, + ningún {% block %} sin destino (con .venv da 1 falso por {% querystring %})
 & $env:PY_VENV scripts\check_design_agent.py --changed
 ```
 

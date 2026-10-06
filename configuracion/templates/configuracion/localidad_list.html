@@ -87,6 +87,7 @@
                             <form method="post" action="{% url 'configuracion:localidad_editar' localidad.pk %}">
                                 {% csrf_token %}
                                 <div style="padding:24px; display:flex; flex-direction:column; gap:20px;">
+                                    {% if abrir_modal_pk == localidad.pk %}{% include "components/_form_errores.html" %}{% endif %}
                                     {% if abrir_modal_pk == localidad.pk %}
                                     <div style="display:flex; flex-direction:column; gap:6px;">
                                         <label for="{{ form.municipio.id_for_label }}" style="font-size:13px; font-weight:600; color:var(--text-heading);">
@@ -135,6 +136,7 @@
             </tbody>
         </table>
     </div>
+    {% include "components/_paginacion.html" with page_obj=page_obj entidad="localidad" entidad_plural="localidades" %}
     {% else %}
     <div style="padding:56px 24px; text-align:center; display:flex; flex-direction:column; align-items:center; gap:10px;">
         <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--text-fg-brand);" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z"/></svg>
@@ -166,6 +168,7 @@
         <form method="post" action="{% url 'configuracion:localidad_crear' %}">
             {% csrf_token %}
             <div style="padding:24px; display:flex; flex-direction:column; gap:20px;">
+                {% include "components/_form_errores.html" %}
                 {% if abrir_modal_crear %}
                 <div style="display:flex; flex-direction:column; gap:6px;">
                     <label for="{{ form.municipio.id_for_label }}" style="font-size:13px; font-weight:600; color:var(--text-heading);">

@@ -77,6 +77,28 @@ class RatchetTests(unittest.TestCase):
         self.assertEqual([f[2] for f in hallazgos], ["RAWPALETTE"])
         self.assertEqual(hallazgos[0][1], 2)
 
+    def test_la_base_se_lee_en_utf8(self) -> None:
+        """Sin `encoding` explícito, en Windows `git show` se decodifica en cp1252.
+
+        El hilo lector de `subprocess` moría con `UnicodeDecodeError` en cuanto el
+        template tenía una tilde, `stdout` volvía vacío y el ratchet daba por nueva
+        **toda** la deuda vieja de ese archivo. En el CI (UTF-8) no se veía.
+        """
+        codigo, salida = design_audit._git(["log", "-1", "--format=%s"])
+
+        self.assertEqual(codigo, 0)
+        self.assertNotEqual(salida.strip(), "")
+
+    def test_la_base_de_un_template_con_tildes_no_vuelve_vacia(self) -> None:
+        rel = "configuracion/templates/configuracion/localidad_list.html"
+        if not (design_audit.REPO / rel).exists():
+            self.skipTest("falta el template de referencia")
+
+        base = design_audit.contenido_en("HEAD", rel)
+
+        self.assertIsNotNone(base)
+        self.assertIn("Localidades", base)
+
 
 class GoldensTests(unittest.TestCase):
     """La tabla `## Arquetipos` del núcleo es la fuente del gate.
