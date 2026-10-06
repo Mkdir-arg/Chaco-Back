@@ -17762,7 +17762,28 @@ motor de producción.
 
 ## Historial
 
-No aplica: entrada nueva.
+- **06/10/2026 — ronda 2.** Con `development` mergeado, el `Tests & Coverage` del PR se puso rojo con
+  una sola falla, en un módulo que este PR no toca:
+  `test_becas_convocatorias_diseno.ConvocatoriaListadoEstadoTests.test_la_pausa_heredada_tampoco_consulta_por_fila`
+  (`7 != 6`). No era el motor real: era un test que **medía consultas sin controlar la caché**, y los
+  tests nuevos de `core` le cambiaron el orden. Medido con un diagnóstico temporal que compila el
+  listado cuatro veces: el request cuesta 7 consultas con todo caliente, **8 si falta
+  `sidebar:conversaciones_pendientes`** (`get_or_set`, **TTL de 30 s**, lo pide el badge del sidebar en
+  todo el backoffice) y **8 si falta `programas:becas`** (TTL 300 s). El test calentaba una sola vez,
+  al principio; si la clave de 30 s vencía **entre** el calentamiento y la medición, la segunda
+  medición pagaba un `COUNT` de más. Arreglado en el test, sin tocar código de producción: el
+  `cache.clear()` pasa a estar dentro de `_consultas_del_listado`, así cada medición arranca igual y el
+  GET de calentamiento repone las dos claves con TTL nuevo.
+  Y la otra mitad: el módulo **no sembraba el Programa Becas**, así que corrido solo daba `403` en 17
+  tests (desde RED-56 los guards fallan cerrados incluso para un superusuario) y solo pasaba porque
+  otro módulo dejaba el Programa cacheado. Ahora lo siembra en su propio `setUp`
+  (`cache.clear()` + `crear_programas`). Verificado: verde **solo**, en la **suite completa** (2.656
+  tests) y con `--shuffle` en las semillas **1234** y **777**.
+  **Hallazgo que deja para el PR R-20** (anotado en TST-02): otros **cinco** módulos de
+  `programas/tests/` tienen la misma dependencia y fallan corridos solos —`test_becas_handlers_inline`
+  (12), `test_pausa_form` (6), `test_becas_cupo_diseno` (4), `test_becas_convocatoria_subsegmentos` (3)
+  y `test_pausas` (1)—, por lo que hoy `--shuffle` no sirve como gate (21 y 26 fallas con esas dos
+  semillas, todas ahí). No se arreglan acá: no son de esta ficha.
 
 ---
 
