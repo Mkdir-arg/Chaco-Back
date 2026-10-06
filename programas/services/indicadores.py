@@ -2,6 +2,7 @@
 
 from django.utils import timezone
 
+from core.utils_fechas import fecha_local
 from programas.models import Admision, CampoTipoDispositivo, Programa, RegistroDiario
 from programas.services.camas import resumen_ocupacion
 
@@ -53,7 +54,9 @@ def indicadores_dispositivo(dispositivo, hoy=None):
     if ultimo_registro is None:
         actualizacion = {"dias": None, "semaforo": "SIN_DATOS"}
     else:
-        dias = max((hoy - ultimo_registro.modificado.date()).days, 0)
+        # En hora local: un parte tocado a las 22:30 ART quedó guardado con la fecha
+        # UTC del día siguiente, y el semáforo lo daba por actualizado hoy (DIS-08).
+        dias = max((hoy - fecha_local(ultimo_registro.modificado)).days, 0)
         actualizacion = {
             "dias": dias,
             "semaforo": _semaforo_actualizacion(

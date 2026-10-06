@@ -315,14 +315,20 @@ class LegajoAtencion(LegajoBase):
 
     def puede_cerrar(self):
         """Verifica si el legajo puede cerrarse"""
-        from datetime import datetime, timedelta
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        from core.utils_fechas import inicio_del_dia_local
 
         if self.estado == "CERRADO":
             return False, "El legajo ya está cerrado"
 
-        # Verificar seguimiento reciente (últimos 30 días)
-        fecha_limite = datetime.now().date() - timedelta(days=30)
-        tiene_seguimiento_reciente = self.historial_contactos.filter(creado__date__gte=fecha_limite).exists()
+        # Verificar seguimiento reciente (últimos 30 días), por rango local:
+        # ``creado__date__gte`` se traduce a ``CONVERT_TZ`` y en ECOM —MariaDB sin
+        # tablas de zona horaria— devuelve NULL (DIS-01).
+        fecha_limite = inicio_del_dia_local(timezone.localdate() - timedelta(days=30))
+        tiene_seguimiento_reciente = self.historial_contactos.filter(creado__gte=fecha_limite).exists()
 
         if self.plan_vigente and not tiene_seguimiento_reciente:
             return False, "Requiere seguimiento reciente o justificación para cerrar"

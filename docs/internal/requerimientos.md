@@ -319,6 +319,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 136 | El proceso masivo deja de darse por muerto estando vivo: latido por caso, freno real y un solo camino a la vez | Becas · proceso masivo de alta en SIIS (pantalla, servicio y comandos) | `#siis` `#relevamientos` `#ui` | Auditoría integral oct-2026 — SIIS-03 (+A5-33), BEC-11 y BEC-21 (Ola 1 «Integridad SIIS», PR 3) | 06/10/2026 | 🟢 **Hecho** | `programas.0076_corridasiis_incompatibles` |
 | 137 | Las mismas tres pantallas, pedidas de nuevo: el ejercicio de control que cierra la Ola 6 | Transversal · agente canónico de diseño y sus fichas · evidencia de la auditoría (sin tocar código de producción) | `#ui` `#metodo` | Auditoría integral oct-2026 — Ola 6 «Agente de diseño», pasos 6 y 7 | 06/10/2026 | 🟢 **Hecho** (queda para el PM la captura del criterio (e)) | No requiere |
 | 138 | Una lista de exclusión frena a quien no hay que mandar a SIIS, y el envío pide confirmación | Becas · alta de beneficiarios en SIIS | `#siis` `#datos` | PM — en sesión: «todas las personas que están en la tabla SiisEnviar NO SE ENVIAN» | 06/10/2026 | 🟢 **Hecho** | No requiere |
+| 140 | El parte diario y los reportes de Dispositivos cuentan el día argentino, no el del motor | Dispositivos (parte F-01, listado, exports, indicadores) · Legajos · Conversaciones · Transversal (helper de fechas + guardia) | `#datos` `#infra` `#performance` | Auditoría integral oct-2026 — fichas DIS-01 y DIS-08 (Ola 5, PR 1) | 06/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -19160,3 +19161,151 @@ Revertir el commit saca el filtro y la pregunta. La tabla queda en la base, sin 
 - **06/10/2026 (este cambio)** — la lista frena los tres caminos hacia SIIS y el envío pide confirmación.
 
 ---
+
+# Cambio 140 — El parte diario y los reportes de Dispositivos cuentan el día argentino, no el del motor
+
+🟢 **HECHO — 06/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos (parte F-01, listado, exports, indicadores) · Legajos · Conversaciones · Transversal (helper de fechas + guardia) |
+| **Etiquetas** | `#datos` `#infra` `#performance` |
+| **Solicitante** | Auditoría integral oct-2026 — fichas DIS-01 y DIS-08 (Ola 5, PR 1) |
+| **Fecha del pedido** | 06/10/2026 |
+| **Issue / épica** | Sin issue (plan de la auditoría: `docs/internal/auditoria-2026-10/`) |
+| **Partes afectadas** | Backoffice (Dispositivos: parte diario, listado y exports; indicadores) · filtros por fecha de Legajos y Conversaciones · tests. Ninguna pantalla nueva, ninguna API nueva |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> «DIS-01 + DIS-08 (helper de fechas locales + guardia de `__date`)» (README de la auditoría, Ola 5, PR 1.)
+
+El parte diario F-01 contaba los ingresos y egresos del día con `fecha_ingreso__date=fecha`, y el listado
+y los tres exports de Dispositivos filtraban el período con `__date__gte`/`__date__lte`. `fecha_ingreso` y
+`fecha_egreso` son `DateTimeField` y la base guarda en UTC, así que Django le pide al motor que convierta:
+en MySQL y MariaDB eso es `DATE(CONVERT_TZ(columna,'UTC','America/Argentina/Buenos_Aires'))`.
+
+**La base de ECOM no tiene cargadas las tablas de zona horaria.** Sin ellas `CONVERT_TZ` devuelve NULL: el
+filtro no matchea nada, el parte se guarda con `ingresos=0` y `egresos=0` —campos `editable=False`, nadie
+los puede corregir a mano— y el listado y los exports con período salen vacíos. En SQLite, donde corre la
+suite, el mismo lookup convierte bien y **ningún test lo veía**. Es el tercer episodio del mismo gotcha
+(Cambio 64: 500 del dashboard en producción; Cambio 66: `/api/tendencias/` en cero).
+
+La otra mitad (DIS-08) es el mismo problema resuelto en Python con el día equivocado: `valor.date()` sobre
+un `datetime` guardado en UTC devuelve la fecha **UTC**, que después de las 21:00 argentinas ya es la del
+día siguiente. Un movimiento de las 22:30 se exportaba con la fecha de mañana —y, si el período pedido era
+el de hoy, directamente no se exportaba— y un parte firmado a esa hora figuraba como actualizado hoy.
+
+## Alcance acordado
+
+- **Entra:** el helper único de fechas locales, los dos usos de Dispositivos que la ficha nombra, los tres
+  usos «latentes» que nombra (Legajos ×2, mantenimiento de `core/performance`), los de Conversaciones que
+  aparecieron al barrer el repo, la parte de DIS-08 (indicador y export) y la guardia que impide que el
+  patrón vuelva a entrar.
+- **Afuera:** la v2 de Dispositivos y Merenderos (solo está definida: Cambios 133 y 134); `TruncMonth`
+  sobre un `DateField` (`legajos/views/dashboard_simple.py`), que es seguro; y los `timezone.now().date()`
+  sueltos de Becas y de las alertas de Legajos, que son otra ficha (BEC-18) y no pasan por el motor.
+
+## Decisiones tomadas
+
+- **Rango semiabierto en hora local, calculado en Python, en vez de pedirle la fecha al motor.** El día es
+  `[00:00 local, 00:00 local del día siguiente)` y se compara con `__gte`/`__lt`. El motor recibe dos
+  parámetros y una columna pelada: no depende de ninguna tabla del servidor y la condición pasa a ser
+  **sargable** —`DATE(CONVERT_TZ(columna,…))` no lo es, así que ningún índice sobre esa columna se podía
+  usar—. Que sea sargable no es lo mismo que decir que hoy usa un índice: `Admision` **no** tiene uno por
+  `fecha_ingreso`/`fecha_egreso` (sus índices son por `estado`), y crearlo es trabajo de la Ola 4. Donde el
+  índice ya existe —`Conversacion.fecha_inicio`— el cambio sí lo habilita. Es la misma salida que ya habían tomado a mano
+  `dashboard_becas._serie_semanal` (Cambio 64) y `tendencias_datos` (Cambio 66); la diferencia es que ahora
+  hay un solo lugar donde está escrita.
+- **El helper vive en `core/utils_fechas.py`,** la primera de las dos ubicaciones que proponía la ficha. Es
+  transversal (lo usan `programas`, `legajos`, `conversaciones` y `core`) y no tiene lógica de negocio, así
+  que no corresponde a `services/` de ninguna app.
+- **`hasta` es inclusivo como fecha y exclusivo como instante.** Quien completa «hasta el 30/09» espera que
+  entre todo el 30; el helper lo traduce a «antes de las 00:00 del 1/10». Que la conversión esté en un solo
+  lugar es justamente lo que evita el error de un día en cada llamador.
+- **La guardia es un test que recorre el código, no una lista de consultas conocidas.** `test_sql_motor_real.py`
+  (Cambio 125) fija la forma del SQL de las consultas que ya se conocían, una por una; eso no cubre la
+  consulta que alguien escriba mañana. `core/tests/test_sql_portable.py` parsea con `ast` **todo** el
+  código productivo de las apps del repo —incluidos los lookups armados con un f-string, que es como estaba
+  escrito el de los reportes— y resuelve el tipo del campo contra los modelos: si en algún modelo ese nombre
+  es `DateTimeField`, lo reporta. Sobre un `DateField` no dice nada, porque ahí el truncado compila a
+  `DATE_FORMAT` y es seguro. Hay una válvula (`# sql-portable: ok` en la línea) y **hoy no la usa nadie**.
+- **El barrido obligó a tocar Conversaciones.** El módulo está fuera de uso, pero su código corre y tenía
+  cuatro lookups del mismo patrón más un `timezone.now().date()` (fecha UTC) en las métricas. Arreglarlos
+  cuesta lo mismo que excepcionarlos y deja la guardia sin allowlist, que es como la pedía la ficha.
+- **El indicador «última actualización» sigue mirando `modificado`, no `fecha`.** La ficha sugería cambiarlo
+  por la fecha del parte; son dos cosas distintas —cuándo se tocó el parte vs. de qué día es— y el semáforo
+  mide lo primero. Alcanza con leer `modificado` en hora local.
+- **Se sacan los dos `expectedFailure` que esperaban esta ola.** El del SQL compilado (Cambio 125) y el
+  ejecutado contra MariaDB sin tablas de zona horaria (Cambio 130) ahora pasan de verdad y quedan como
+  regresión. Al primero se le reemplazó la caracterización que lo acompañaba —afirmaba que el código **sí**
+  compilaba `CONVERT_TZ`, y dejó de ser cierta— por un pin invertido equivalente: un `__date` escrito en el
+  test, para que el día que Django cambie de estrategia el verde no quede vacío.
+
+## Implementación
+
+- El parte diario F-01 cuenta los ingresos y egresos del **día argentino**, también los de la franja
+  21:00-24:00 que antes el motor de ECOM dejaba afuera; la ocupación nocturna se corta en la medianoche
+  local con el mismo rango.
+- El listado de Dispositivos con `?desde/hasta` y los tres exports (padrón, ocupación, movimientos) traen
+  las estadías cuyo ingreso o egreso cae en el período, en hora local.
+- El export de movimientos muestra la fecha local de cada movimiento y ya no descarta el movimiento
+  nocturno que caía fuera del período por la fecha UTC.
+- El indicador de «última actualización» del dispositivo cuenta los días contra la fecha local del parte.
+- Los filtros por fecha de Conversaciones y del historial de contactos de Legajos, el chequeo de
+  «seguimiento reciente» del legajo y la consulta de mantenimiento de registros recientes usan el mismo
+  rango local.
+
+## Archivos
+
+- **Nuevo:** `core/utils_fechas.py` (helper), `core/tests/test_sql_portable.py` (guardia),
+  `core/tests/test_utils_fechas.py`, `programas/tests/test_fechas_locales_dispositivos.py`.
+- **Modificados:** `programas/services/registro_diario.py`, `programas/services/reportes.py`,
+  `programas/services/indicadores.py`, `conversaciones/selectors/conversaciones.py`,
+  `conversaciones/services/core.py`, `legajos/api_views/contactos.py`, `legajos/models/base.py`,
+  `core/performance/database_partitioning.py`, `core/tests/test_sql_motor_real.py`,
+  `core/tests/test_motor_real.py`.
+
+## Base de datos
+
+No requiere migración. Tampoco se recalculan los partes ya guardados: los que se hayan firmado en ECOM con
+ceros siguen con ceros (hoy no hay datos productivos de Dispositivos, Cambio 69). Si aparecieran, se
+corrigen volviendo a firmar el parte del día.
+
+## Validación
+
+- `manage.py check` → sin problemas. `check --deploy` → las 6 advertencias de siempre del entorno local
+  (HSTS, SSL redirect, cookies), ninguna nueva. `makemigrations --check --dry-run` → «No changes detected».
+- `manage.py test` (suite entera, un solo proceso) y `manage.py test --tag performance` con el venv de
+  Python 3.12 + Django 5.2.17.
+- `ruff check .` → «All checks passed»; `ruff format --check` sobre los 14 archivos tocados → formateados.
+- **Tests que fallaban antes del cambio y ahora pasan:** la guardia nueva encontraba **16** lookups vivos;
+  `test_ninguna_consulta_de_reporte_usa_convert_tz` estaba marcado `expectedFailure` desde el Cambio 125;
+  `test_el_parte_diario_cuenta_el_ingreso_de_hoy` (contra MariaDB sin tablas de zona horaria) lo estaba
+  desde el Cambio 130; y los tres de DIS-08 fallaban en SQLite (el movimiento de las 22:30 no se exportaba,
+  salía con la fecha del día siguiente y el parte nocturno daba 0 días).
+- Contra el motor real: `mariadb:10.11` con `MARIADB_INITDB_SKIP_TZINFO=1` y `DJANGO_TEST_MOTOR`, como el
+  job «Motor real» del CI.
+
+## Puesta en marcha en el servidor
+
+Nada. Sin migración, sin variables nuevas, sin comandos. Deploy normal.
+
+## Pendientes / a definir
+
+1. **Los `timezone.now().date()` de Becas y de las alertas de Legajos** (`solapas.py`, `legajos/services/alertas.py`,
+   `legajos/services/programas.py`) siguen calculando la fecha en UTC. No pasan por el motor —no hay
+   `CONVERT_TZ`— pero la fecha que guardan después de las 21:00 es la de mañana: es la ficha BEC-18, que no
+   entra en este PR. La guardia nueva no los ve, porque solo mira lookups de la ORM.
+2. **La ficha DIS-08 apuntaba a `indicadores.py:201`**, una línea que ya no existe (el archivo tiene 93): el
+   único uso es el del indicador de actualización, y es el que se corrigió.
+3. **Falta el índice por fecha en `Admision`.** El filtro quedó sargable, pero `Admision` solo tiene índices
+   por `estado` (`ciudadano+estado`, `dispositivo+estado`, `cama+estado`): el listado y los exports por
+   período siguen resolviéndose con un scan. Crear el índice es trabajo de la **Ola 4** (performance), con
+   su medición y su `EXPLAIN`; acá no se agregó para no meter una migración en un PR que no la necesita.
+
+## Reversión
+
+Revertir el commit. Vuelven los `__date` y con ellos el bug en ECOM; la guardia se va con el mismo commit,
+así que no queda un test en rojo. Si solo se quisiera revertir la guardia, basta con borrar
+`core/tests/test_sql_portable.py`: ningún código de producción depende de ella.

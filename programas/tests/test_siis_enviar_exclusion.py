@@ -149,7 +149,8 @@ class ConfirmacionTests(_BaseExclusionTest):
         with patch("programas.services.siis_envio.cargar_beneficiario", _alta_ok):
             salida = self.correr("--aplicar", "--usuario", self.user.username, responde="y")
 
-        self.assertIn("Se enviarán 1 caso(s) a SIIS", salida)
+        self.assertIn("Esta corrida puede mandar a SIIS", salida)
+        self.assertIn("caso(s) nuevos como máximo", salida)
         self.assertTrue(EnvioSIIS.objects.filter(estado=EnvioSIIS.Estado.ENVIADO).exists())
 
     def test_si_contesta_que_no_no_manda_nada(self):
@@ -234,3 +235,69 @@ class NombreDeLaTablaTests(_BaseExclusionTest):
 
         self.assertEqual(proceso_masivo.dnis_crudos_a_no_enviar(), set())
         self.assertIn(self.formulario.pk, self.candidatos())
+
+
+@override_settings(SIIS_API_CLIENT_ID="id-de-prueba", SIIS_API_CLIENT_SECRET="secreto-de-prueba")
+class ConfirmarAntesDeDrenarTests(_BaseExclusionTest):
+    """La pregunta tiene que ir ANTES de vaciar la tabla intermedia.
+
+    El drenaje manda a SIIS y mandar no se deshace. Con la pregunta al final
+    --como salió la primera versión-- contestar «no» cancelaba los casos nuevos
+    pero las altas guardadas ya habían salido: en testing eran 1.295 contra la
+    API de producción. Se detectó el 06/10/2026 antes de correrlo.
+    """
+
+    def correr(self, responde):
+        salida = StringIO()
+        guardar_en_tabla_intermedia(self.formulario, self.user, catalogos=self.cat)
+        with patch("programas.management.commands.procesar_casos_siis.sys.stdin") as entrada:
+            entrada.isatty.return_value = True
+            with patch("builtins.input", return_value=responde):
+                call_command(
+                    "procesar_casos_siis",
+                    "--sin-filtro-materias",
+                    "--solo-enviar",
+                    "--destino",
+                    "siis",
+                    "--aplicar",
+                    "--usuario",
+                    self.user.username,
+                    stdout=salida,
+                    stderr=salida,
+                )
+        return salida.getvalue()
+
+    def test_contestar_que_no_tampoco_drena_la_tabla(self):
+        with patch("programas.services.siis_envio.cargar_beneficiario") as api:
+            salida = self.correr("n")
+
+        api.assert_not_called()
+        self.assertIn("Cancelado", salida)
+        self.assertFalse(AltaIntermediaSIIS.objects.get().sincronizado)
+        self.assertFalse(EnvioSIIS.objects.exists())
+
+    def test_la_pregunta_dice_cuantas_guardadas_van_primero(self):
+        """El número de la tabla intermedia es exacto y es el que más importa."""
+        with patch("programas.services.siis_envio.cargar_beneficiario") as api:
+            salida = self.correr("n")
+
+        api.assert_not_called()
+        self.assertIn("1 alta(s) guardada(s) en la tabla intermedia (salen primero)", salida)
+
+    def test_contestar_que_si_drena(self):
+        with patch("programas.services.siis_envio.cargar_beneficiario", _alta_ok):
+            self.correr("y")
+
+        self.assertTrue(AltaIntermediaSIIS.objects.get().sincronizado)
+
+    def test_las_excluidas_no_se_cuentan_en_la_pregunta(self):
+        """Si la lista las frena, no son altas que vayan a salir."""
+        with connection.cursor() as cur:
+            cur.execute(f"CREATE TABLE {TABLA} (dni VARCHAR(20))")
+            cur.execute(f"INSERT INTO {TABLA} (dni) VALUES (%s)", [str(self.ciudadano.dni)])
+
+        with patch("programas.services.siis_envio.cargar_beneficiario") as api:
+            salida = self.correr("n")
+
+        api.assert_not_called()
+        self.assertIn("0 alta(s) guardada(s) en la tabla intermedia", salida)

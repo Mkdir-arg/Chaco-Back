@@ -1,21 +1,23 @@
 """Cálculo y persistencia transaccional del parte diario F-01."""
 
-from datetime import datetime, time
-
 from django.db import IntegrityError, transaction
 from django.db.models import Q
-from django.utils import timezone
 
+from core.utils_fechas import rango_dia_local
 from programas.models import Admision, Cama, Dispositivo, RegistroDiario
 
 
-def _fin_del_dia(fecha):
-    return timezone.make_aware(datetime.combine(fecha, time.max), timezone.get_current_timezone())
-
-
 def calcular_cantidades(*, dispositivo, fecha, bloquear=False):
-    """Devuelve el snapshot A-E a partir de movimientos y camas reales."""
-    fin_del_dia = _fin_del_dia(fecha)
+    """Devuelve el snapshot A-E a partir de movimientos y camas reales.
+
+    El día se acota con el rango local ``[00:00, 00:00 del día siguiente)`` y no con
+    ``fecha_ingreso__date=fecha``: ese lookup se traduce a ``CONVERT_TZ`` y en ECOM
+    —MariaDB sin tablas de zona horaria— devuelve NULL, así que el parte se guardaba
+    con ingresos y egresos en cero (DIS-01).
+    """
+    inicio_del_dia, fin_del_dia = rango_dia_local(fecha)
+    ingresos_del_dia = Q(fecha_ingreso__gte=inicio_del_dia, fecha_ingreso__lt=fin_del_dia)
+    egresos_del_dia = Q(fecha_egreso__gte=inicio_del_dia, fecha_egreso__lt=fin_del_dia)
     admisiones = Admision.objects.filter(dispositivo=dispositivo)
     camas = dispositivo.camas.all()
     if bloquear:
@@ -26,14 +28,14 @@ def calcular_cantidades(*, dispositivo, fecha, bloquear=False):
     fuera_servicio = camas.filter(estado=Cama.Estado.FUERA_SERVICIO).count()
     admisiones_con_cama = admisiones.filter(cama__isnull=False)
     ocupacion_nocturna = (
-        admisiones_con_cama.filter(fecha_ingreso__lte=fin_del_dia)
-        .filter(Q(fecha_egreso__isnull=True) | Q(fecha_egreso__gt=fin_del_dia))
+        admisiones_con_cama.filter(fecha_ingreso__lt=fin_del_dia)
+        .filter(Q(fecha_egreso__isnull=True) | Q(fecha_egreso__gte=fin_del_dia))
         .count()
     )
     return {
         "camas_totales": camas_totales,
-        "ingresos": admisiones_con_cama.filter(fecha_ingreso__date=fecha).count(),
-        "egresos": admisiones.filter(fecha_egreso__date=fecha).count(),
+        "ingresos": admisiones_con_cama.filter(ingresos_del_dia).count(),
+        "egresos": admisiones.filter(egresos_del_dia).count(),
         "ocupacion_nocturna": ocupacion_nocturna,
         "camas_disponibles": max(camas_totales - ocupacion_nocturna - fuera_servicio, 0),
     }
