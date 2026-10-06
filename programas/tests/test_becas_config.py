@@ -1,9 +1,12 @@
 """Tests del backoffice de Configuración de Becas (#74)."""
 
+from datetime import date
 from io import StringIO
 from unittest.mock import patch
 
+from django.conf import settings
 from django.contrib.auth.models import Group, User
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
 from django.db.models import Max
 from django.test import TestCase
@@ -17,9 +20,15 @@ from programas.forms import (
 )
 from programas.management.commands.seed_becas import ROL_ADMIN, ROL_COORDINADOR
 from programas.models import (
+    AdjuntoFormulario,
     AsignacionCoordinador,
+    Convocatoria,
+    DisenoFormulario,
+    Formulario,
+    ItemDiseno,
     PreguntaGlobal,
     ProgramaSiis,
+    Relevamiento,
     RequisitoNativo,
     Segmento,
     Subsegmento,
@@ -858,3 +867,172 @@ class IdentificadoresSiisProgramaTests(TestCase):
         self.assertContains(resp, "Alta de beneficiarios en SIIS")
         self.assertContains(resp, "Nivel Operativo")
         self.assertContains(resp, reverse(self.URL, args=[self.programa.pk]))
+
+
+class EliminarRequisitoYSubsegmentoTests(_BaseConfigTest):
+    """RED-31: las dos vistas de borrado de Configuración, hasta acá sin ejecutar.
+
+    `requisito_eliminar` y `subsegmento_eliminar` tenían el cuerpo entero sin
+    ejecutar en la suite (coverage). Son las dos caras del mismo problema:
+    `subsegmento_eliminar` atrapa `ProtectedError` y avisa, y `requisito_eliminar`
+    borra en cascada —y se lleva puestos los `AdjuntoFormulario` de casos ya
+    cargados, que es el bug de **DAT-01**—.
+
+    Esta clase fija lo que hay **antes** de tocar DAT-01: los tres primeros
+    tests y el de permisos describen lo que el arreglo tiene que conservar, y
+    `test_requisito_con_adjunto_en_un_caso` documenta el daño de hoy y lo
+    invierte el PR de DAT-01.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.segmento = Segmento.objects.create(nombre="Seg borrados", cupo_maximo=100)
+        self.client.force_login(self.admin)
+
+    def _subsegmento(self, nombre="Sub"):
+        return Subsegmento.objects.create(segmento=self.segmento, nombre=nombre, cupo_maximo=10)
+
+    def _requisito(self, **extra):
+        datos = {"texto": "Constancia", "tipo": TipoCampo.ARCHIVO, "segmento": self.segmento}
+        datos.update(extra)
+        return RequisitoNativo.objects.create(**datos)
+
+    def _convocatoria(self, nombre, **extra):
+        return Convocatoria.objects.create(
+            nombre=nombre,
+            segmento=self.segmento,
+            fecha_inicio=date(2026, 1, 1),
+            fecha_fin=date(2026, 12, 31),
+            **extra,
+        )
+
+    # -- Subsegmento ---------------------------------------------------------
+
+    def test_subsegmento_en_uso_por_una_convocatoria_no_se_borra_y_avisa(self):
+        """`Convocatoria.subsegmento` es PROTECT: la vista tiene que convertir
+        el `ProtectedError` en un aviso, no en un 500."""
+        sub = self._subsegmento()
+        self._convocatoria("Conv con sub", subsegmento=sub)
+
+        resp = self.client.post(reverse("becas:subsegmento_eliminar", args=[sub.pk]), follow=True)
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(Subsegmento.objects.filter(pk=sub.pk).exists())
+        self.assertIn(
+            "No se puede eliminar el subsegmento porque está utilizado por una convocatoria.",
+            [str(m) for m in resp.context["messages"]],
+        )
+
+    def test_subsegmento_libre_se_borra_y_redirige_al_segmento(self):
+        sub = self._subsegmento()
+
+        resp = self.client.post(reverse("becas:subsegmento_eliminar", args=[sub.pk]))
+
+        self.assertRedirects(
+            resp,
+            reverse("becas:segmento_detalle", args=[self.segmento.pk]),
+            fetch_redirect_response=False,
+        )
+        self.assertFalse(Subsegmento.objects.filter(pk=sub.pk).exists())
+
+    # -- Requisito -----------------------------------------------------------
+
+    def test_requisito_sin_adjuntos_se_borra_con_su_item_de_diseno(self):
+        """Cambio 58: el ítem del diseño que referencia al requisito se va con
+        él (el catálogo es dueño del campo). Lo que DAT-01 no puede hacer es
+        «arreglar» la cascada dejando el ítem huérfano."""
+        requisito = self._requisito()
+        diseno = DisenoFormulario.objects.create(convocatoria=self._convocatoria("Conv diseno"))
+        item = ItemDiseno.objects.create(
+            diseno=diseno,
+            tipo=ItemDiseno.Tipo.CAMPO,
+            clave=f"rn-{requisito.pk}",
+            requisito=requisito,
+        )
+
+        resp = self.client.post(reverse("becas:requisito_eliminar", args=[requisito.pk]))
+
+        self.assertRedirects(
+            resp,
+            reverse("becas:segmento_detalle", args=[self.segmento.pk]),
+            fetch_redirect_response=False,
+        )
+        self.assertFalse(RequisitoNativo.objects.filter(pk=requisito.pk).exists())
+        self.assertFalse(ItemDiseno.objects.filter(pk=item.pk).exists())
+
+    def test_requisito_con_adjunto_en_un_caso(self):
+        """**Caracterización de DAT-01: el comportamiento de HOY, no el deseado.**
+
+        `AdjuntoFormulario.requisito_nativo` es CASCADE: borrar el requisito
+        borra la fila del adjunto de un caso ya cargado y deja el archivo
+        huérfano en `media/`. El revisor abre el caso y la foto no está, sin
+        error ni log.
+
+        El PR de DAT-01 invierte este test: el adjunto del caso tiene que
+        sobrevivir al borrado del requisito.
+        """
+        requisito = self._requisito()
+        relevamiento = Relevamiento.objects.create(
+            convocatoria=self._convocatoria("Conv con caso"),
+            territorial=self.admin,
+            fecha_asignada=date(2026, 6, 1),
+            zona="A",
+        )
+        formulario = Formulario.objects.create(relevamiento=relevamiento, celular="3624000000")
+        adjunto = AdjuntoFormulario.objects.create(
+            formulario=formulario,
+            requisito_nativo=requisito,
+            archivo=SimpleUploadedFile("constancia.pdf", b"%PDF-1.4", content_type="application/pdf"),
+        )
+        nombre, storage = adjunto.archivo.name, adjunto.archivo.storage
+        self.addCleanup(storage.delete, nombre)
+
+        resp = self.client.post(reverse("becas:requisito_eliminar", args=[requisito.pk]))
+
+        self.assertEqual(resp.status_code, 302)
+        self.assertFalse(
+            AdjuntoFormulario.objects.filter(pk=adjunto.pk).exists(),
+            "DAT-01 ya está arreglado: invertí este test (el adjunto del caso tiene que sobrevivir).",
+        )
+        self.assertTrue(
+            storage.exists(nombre),
+            "El archivo también se borró del storage: cambió el daño que describe DAT-01, revisá la ficha.",
+        )
+        self.assertTrue(Formulario.objects.filter(pk=formulario.pk).exists())
+
+    # -- Método y capacidad --------------------------------------------------
+
+    def test_las_dos_vistas_exigen_post_y_capacidad(self):
+        """GET no borra nunca; anónimo va al login; sin la capacidad tampoco borra.
+
+        Los objetos se crean una sola vez a propósito: si alguno de los tres
+        caminos borrara, los siguientes `subTest` se quedarían sin objeto y el
+        fallo se vería igual.
+        """
+        sin_rol = User.objects.create_user("sin_rol_borrados", password="x")
+        for nombre, objeto in (
+            ("becas:subsegmento_eliminar", self._subsegmento()),
+            ("becas:requisito_eliminar", self._requisito()),
+        ):
+            url = reverse(nombre, args=[objeto.pk])
+            modelo = type(objeto)
+
+            with self.subTest(vista=nombre, caso="GET no borra"):
+                self.client.force_login(self.admin)
+                resp = self.client.get(url)
+                self.assertEqual(resp.status_code, 302)
+                self.assertTrue(modelo.objects.filter(pk=objeto.pk).exists())
+
+            with self.subTest(vista=nombre, caso="anonimo va al login"):
+                self.client.logout()
+                resp = self.client.post(url)
+                self.assertEqual(resp.status_code, 302)
+                # El login del backoffice vive en la raíz, no en `/login/`.
+                self.assertEqual(resp["Location"], f"{reverse(settings.LOGIN_URL)}?next={url}")
+                self.assertTrue(modelo.objects.filter(pk=objeto.pk).exists())
+
+            with self.subTest(vista=nombre, caso="sin la capacidad no borra"):
+                self.client.force_login(sin_rol)
+                resp = self.client.post(url)
+                self.assertIn(resp.status_code, (302, 403))
+                self.assertTrue(modelo.objects.filter(pk=objeto.pk).exists())

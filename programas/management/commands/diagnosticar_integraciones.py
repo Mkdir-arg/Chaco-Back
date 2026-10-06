@@ -317,7 +317,7 @@ class Command(BaseCommand):
         # El padrón es de la convocatoria (Cambio 57).
         padron_qs = rel.convocatoria.padron.all()
         padron = padron_qs.count()
-        con_identidad = padron_qs.exclude(nombre="").exclude(apellido="").count()
+        con_identidad = padron_qs.con_identidad().count()
         self.stdout.write(
             f"       padrón       : {f'{padron} habilitados, {con_identidad} con identidad' if padron else 'sin padrón (link abierto)'}"
         )

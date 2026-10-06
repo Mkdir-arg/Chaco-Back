@@ -4,15 +4,20 @@ Cubre: corte de fecha (con `localdate()`), idempotencia, cascada a EN_REVISION,
 flags `--dry-run` / `--solo`, y la reactivación con "fecha manda".
 """
 
+import sys
 from datetime import timedelta
 from io import StringIO
+from unittest.mock import patch
 
+from django.apps import apps
 from django.contrib.auth.models import Group, User
 from django.core.management import call_command
+from django.core.management.base import CommandError
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
+from core.services import vencimientos as vencimientos_core
 from programas.forms import ConvocatoriaForm
 from programas.management.commands.seed_becas import ROL_ADMIN
 from programas.models import Convocatoria, Relevamiento, Segmento
@@ -329,3 +334,70 @@ class FormFechaMandaTests(_Base):
         self.assertTrue(obj.activo)
         self.assertFalse(obj.cerrada_automaticamente)
         self.assertIsNone(obj.cerrada_el)
+
+
+class RegistroTests(TestCase):
+    """RED-81: el registro de reglas no puede quedar vacío en silencio.
+
+    `REGLAS` es una lista global que se puebla al importar
+    `programas/services/vencimientos.py`, y ese import lo hace
+    `ProgramasConfig.ready()` con un `# noqa: F401` —o sea, parece un import sin
+    uso—. Si una «limpieza» se lo lleva, `procesar_vencimientos` (cron 03:10 y
+    arranque del contenedor) deja de procesar y **sale con éxito**: las
+    convocatorias vencidas no se cierran más y nadie se entera.
+
+    Los demás tests de vencimientos importan el módulo y de paso lo vuelven a
+    registrar, así que no sirven como red: acá se simula el arranque con el
+    registro vacío.
+    """
+
+    def test_las_reglas_estan_registradas_al_arrancar(self):
+        self.assertEqual(
+            {regla.slug for regla in vencimientos_core.REGLAS},
+            {"becas.convocatoria", "becas.relevamiento"},
+        )
+
+    def test_el_ready_de_la_app_es_el_que_las_registra(self):
+        """La mutación concreta: borrar el import de `ProgramasConfig.ready()`.
+
+        Se vacía el registro y se vuelve a correr `ready()` con el módulo de
+        reglas fuera de `sys.modules` **y** fuera del paquete que lo contiene
+        (`from X import Y` encuentra el submódulo como atributo del paquete y no
+        lo vuelve a ejecutar), que es lo que pasa en un proceso recién
+        arrancado. Sin el import en `ready()`, el registro queda vacío.
+        """
+        import programas.services as paquete
+
+        originales = vencimientos_core.REGLAS
+        modulo_original = sys.modules.get("programas.services.vencimientos")
+        vencimientos_core.REGLAS = []
+        sys.modules.pop("programas.services.vencimientos", None)
+        if hasattr(paquete, "vencimientos"):
+            delattr(paquete, "vencimientos")
+        try:
+            apps.get_app_config("programas").ready()
+            slugs = {regla.slug for regla in vencimientos_core.REGLAS}
+        finally:
+            vencimientos_core.REGLAS = originales
+            if modulo_original is not None:
+                sys.modules["programas.services.vencimientos"] = modulo_original
+                paquete.vencimientos = modulo_original
+
+        self.assertEqual(
+            slugs,
+            {"becas.convocatoria", "becas.relevamiento"},
+            "`ProgramasConfig.ready()` dejó de importar `programas.services.vencimientos`: "
+            "el cron de las 03:10 no procesa nada.",
+        )
+
+    def test_el_comando_corta_si_no_hay_ninguna_regla(self):
+        """Antes escribía «No hay reglas de vencimiento registradas.» y salía 0:
+        «nada que hacer» y «se rompió el registro» eran indistinguibles."""
+        with patch.object(vencimientos_core, "REGLAS", []):
+            with self.assertRaisesMessage(CommandError, "No hay reglas de vencimiento registradas"):
+                call_command("procesar_vencimientos", stdout=StringIO())
+
+    def test_el_comando_sigue_avisando_cuando_el_slug_de_solo_no_existe(self):
+        """Control: el otro camino de error no cambió."""
+        with self.assertRaisesMessage(CommandError, "No existe la regla 'becas.inexistente'"):
+            call_command("procesar_vencimientos", solo="becas.inexistente", stdout=StringIO())
