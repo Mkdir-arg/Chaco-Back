@@ -6,6 +6,9 @@ import logging
 from datetime import datetime, timedelta
 
 from django.db import connection
+from django.utils import timezone
+
+from core.utils_fechas import inicio_del_dia_local
 
 logger = logging.getLogger(__name__)
 
@@ -86,9 +89,15 @@ class QueryOptimizer:
 
     @staticmethod
     def get_recent_records(model_class, days=30):
-        """Obtiene registros recientes optimizado para particiones"""
-        cutoff_date = datetime.now().date() - timedelta(days=days)
-        return model_class.objects.filter(creado__date__gte=cutoff_date).select_related().order_by("-creado")
+        """Obtiene registros recientes optimizado para particiones.
+
+        Por rango local y no por ``creado__date__gte``: ese lookup se traduce a
+        ``CONVERT_TZ`` y en ECOM —MariaDB sin tablas de zona horaria— devuelve NULL
+        (DIS-01), además de impedir el uso del índice de ``creado``.
+        """
+        cutoff_date = timezone.localdate() - timedelta(days=days)
+        desde = inicio_del_dia_local(cutoff_date)
+        return model_class.objects.filter(creado__gte=desde).select_related().order_by("-creado")
 
     @staticmethod
     def bulk_create_optimized(model_class, objects, batch_size=1000):

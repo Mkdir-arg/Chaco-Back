@@ -23,7 +23,6 @@ La ejecución real de estos casos contra MariaDB es otra ficha (TST-01, ``--tag 
 """
 
 import socket
-import unittest
 import uuid
 from contextlib import contextmanager
 from datetime import date
@@ -232,23 +231,24 @@ class SinConvertTZTests(TestCase):
         )
         self.assertIn("CONVERT_TZ", sql_mysql(agrupado))
 
-    def test_hoy_los_reportes_de_dispositivos_si_compilan_convert_tz(self):
-        """Caracterización de DIS-01: así está hoy el código que arregla la Ola 5.
+    def test_un_date_sobre_un_datetimefield_si_compila_convert_tz(self):
+        """Pin invertido del test de abajo, con la forma que tenía el código hasta la Ola 5.
 
-        Acompaña al ``expectedFailure`` de abajo: mientras este test pase, el que
-        falla lo hace por el bug y no porque la captura dejó de funcionar.
+        ``_movimientos_en_periodo`` y el parte F-01 filtraban así. Mientras este test
+        pase, el de abajo afirma algo: si Django dejara de emitir ``CONVERT_TZ`` para
+        un ``__date``, el verde de allá no significaría nada.
         """
-        periodo = reportes._movimientos_en_periodo(date(2026, 1, 1), date(2026, 1, 31))
-        self.assertIn("CONVERT_TZ", sql_mysql(Admision.objects.filter(periodo)))
+        por_dia = Admision.objects.filter(fecha_ingreso__date__gte=date(2026, 1, 1))
+        self.assertIn("CONVERT_TZ", sql_mysql(por_dia))
 
-    @unittest.expectedFailure
     def test_ninguna_consulta_de_reporte_usa_convert_tz(self):
-        """DIS-01 (Ola 5): el parte F-01 y los reportes de Dispositivos filtran con ``__date``.
+        """DIS-01 (Ola 5, Cambio 138): el parte F-01 y los reportes van por rango local.
 
-        ``fecha_ingreso``/``fecha_egreso`` son ``DateTimeField``, así que
-        ``__date`` se traduce a ``DATE(CONVERT_TZ(...))``: en ECOM los conteos
-        del parte diario salen en cero y el reporte por período no trae nada.
-        Cuando la Ola 5 lo arregle, se saca el decorador.
+        ``fecha_ingreso``/``fecha_egreso`` son ``DateTimeField``: con ``__date`` el
+        SQL salía como ``DATE(CONVERT_TZ(...))`` y en ECOM —MariaDB sin tablas de
+        zona horaria— los conteos del parte diario daban cero y el reporte por
+        período no traía nada. Ahora se comparan contra ``[inicio, fin)`` en hora
+        local, calculado en Python (``core.utils_fechas``).
         """
         sentencias = []
         dispositivo = Dispositivo(pk=1)

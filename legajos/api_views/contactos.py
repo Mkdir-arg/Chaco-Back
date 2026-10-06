@@ -8,6 +8,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from core.api_permissions import BackofficeAutenticado
+from core.utils_fechas import q_rango_local
 
 from ..models import Ciudadano
 from ..models.contactos import (
@@ -45,10 +46,12 @@ class HistorialContactoViewSet(viewsets.ModelViewSet):
         fecha_desde = self.request.query_params.get("fecha_desde", None)
         fecha_hasta = self.request.query_params.get("fecha_hasta", None)
 
+        # Rango local: ``fecha_contacto__date`` se traduce a ``CONVERT_TZ``, que en
+        # ECOM —MariaDB sin tablas de zona horaria— devuelve NULL (DIS-01).
         if fecha_desde:
-            queryset = queryset.filter(fecha_contacto__date__gte=fecha_desde)
+            queryset = queryset.filter(q_rango_local("fecha_contacto", desde=fecha_desde))
         if fecha_hasta:
-            queryset = queryset.filter(fecha_contacto__date__lte=fecha_hasta)
+            queryset = queryset.filter(q_rango_local("fecha_contacto", hasta=fecha_hasta))
 
         return queryset
 
