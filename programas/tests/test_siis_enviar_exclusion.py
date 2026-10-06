@@ -9,6 +9,7 @@ Y la confirmación: un alta en SIIS no se deshace desde acá, así que el total 
 mandar tiene que pasar por los ojos de alguien antes de salir.
 """
 
+from datetime import date
 from io import StringIO
 from unittest.mock import patch
 
@@ -301,3 +302,63 @@ class ConfirmarAntesDeDrenarTests(_BaseExclusionTest):
 
         api.assert_not_called()
         self.assertIn("0 alta(s) guardada(s) en la tabla intermedia", salida)
+
+
+@override_settings(SIIS_API_CLIENT_ID="id-de-prueba", SIIS_API_CLIENT_SECRET="secreto-de-prueba")
+class DrenajePorPaginasTests(_BaseExclusionTest):
+    """El drenaje pide las filas de a páginas, no todas de una.
+
+    Pedir las 4.826 pendientes con su formulario al lado --27 KB de foto cada
+    una, sobre una tabla de 283 MB-- no entra en el ``read_timeout`` de 10 s de
+    ECOM: murió con «Lost connection to server during query» el 06/10/2026,
+    antes de mandar nada. Mismo remedio que ``proceso_masivo.ids_de``.
+    """
+
+    def _altas(self, cuantas):
+        """``cuantas`` filas pendientes, cada una con su propio caso."""
+        from legajos.models import Ciudadano
+        from programas.models import Formulario
+
+        for i in range(cuantas):
+            ciudadano = Ciudadano.objects.create(
+                dni=f"4000000{i}", nombre=f"N{i}", apellido=f"A{i}", fecha_nacimiento=date(2000, 1, 1), genero="M"
+            )
+            formulario = Formulario.objects.create(
+                relevamiento=self.relevamiento, ciudadano=ciudadano, estado=Formulario.Estado.APROBADO
+            )
+            AltaIntermediaSIIS.objects.create(formulario=formulario, tdoc=1, dni=int(ciudadano.dni))
+
+    @patch("programas.services.siis_envio.PAGINA_DRENAJE", 2)
+    def test_drena_mas_filas_que_una_pagina(self):
+        self._altas(5)
+
+        with patch("programas.services.siis_envio.cargar_beneficiario", _alta_ok):
+            cuenta = sincronizar_tabla_intermedia(self.user)
+
+        self.assertEqual(cuenta["altas"], 5)
+        self.assertEqual(AltaIntermediaSIIS.objects.filter(sincronizado=False).count(), 0)
+
+    @patch("programas.services.siis_envio.PAGINA_DRENAJE", 2)
+    def test_las_que_quedan_pendientes_no_frenan_el_avance(self):
+        """Una excluida sigue en `sincronizado=False`: sin el pk__gt, bucle infinito."""
+        self._altas(5)
+        with connection.cursor() as cur:
+            cur.execute(f"CREATE TABLE {TABLA} (dni VARCHAR(20))")
+            cur.execute(f"INSERT INTO {TABLA} (dni) VALUES ('40000000'), ('40000002')")
+
+        with patch("programas.services.siis_envio.cargar_beneficiario", _alta_ok):
+            cuenta = sincronizar_tabla_intermedia(self.user)
+
+        self.assertEqual(cuenta["excluidas"], 2)
+        self.assertEqual(cuenta["altas"], 3)
+        self.assertEqual(AltaIntermediaSIIS.objects.filter(sincronizado=False).count(), 2)
+
+    @patch("programas.services.siis_envio.PAGINA_DRENAJE", 2)
+    def test_el_limite_se_respeta_entre_paginas(self):
+        self._altas(5)
+
+        with patch("programas.services.siis_envio.cargar_beneficiario", _alta_ok):
+            cuenta = sincronizar_tabla_intermedia(self.user, limite=3)
+
+        self.assertEqual(cuenta["altas"], 3)
+        self.assertEqual(AltaIntermediaSIIS.objects.filter(sincronizado=False).count(), 2)
