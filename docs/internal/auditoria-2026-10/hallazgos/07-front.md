@@ -20,12 +20,12 @@ FE-18, FE-19); las migraciones de estilo de esos dos módulos las hereda la v2.
 | FE-02 | `toastr` no cargado en el legajo: «Subir archivos» no envía nada | ALTA | CONF. navegador | 5 | S | ✅ |
 | FE-04 | Geografía pagina de a 20 sin controles de paginación | ALTA | CONF. navegador | 5 | S | ✅ |
 | FE-05 | Wizard «Nuevo programa»: el JS está en un bloque sin destino | ALTA | CONF. navegador | 5 | S | ✅ |
-| FE-06 | Clases que el build no genera: botones invisibles, backdrop transparente | ALTA | CONF. ajustado (navegador) | 5 | S | ⬜ |
-| FE-01 | `mobile-enhancements.js` global altera controles, modales y swipe | MEDIA (A6: ALTA) | CONF. ajustado | 5 | S | ⬜ |
-| FE-07 | Modales de Configuración en la esquina y con botones sin tamaño | MEDIA | CONF. navegador | 5 | M | ⬜ |
+| FE-06 | Clases que el build no genera: botones invisibles, backdrop transparente | ALTA | CONF. ajustado (navegador) | 5 | S | ✅ |
+| FE-01 | `mobile-enhancements.js` global altera controles, modales y swipe | MEDIA (A6: ALTA) | CONF. ajustado | 5 | S | ✅ |
+| FE-07 | Modales de Configuración en la esquina y con botones sin tamaño | MEDIA | CONF. navegador | 5 | M | ✅ |
 | FE-08 | Errores no de campo invisibles | MEDIA | CONF. | 5 | S | ✅ |
 | FE-09 | Links a `/legajos/<id>/`, ruta inexistente | MEDIA | CONF. ajustado | 5 | S | ✅ |
-| FE-10 | Prestación mensual ilegible en celular | MEDIA | CONF. navegador | 5 | S | ⬜ |
+| FE-10 | Prestación mensual ilegible en celular | MEDIA | CONF. navegador | 5 | S | ✅ |
 | FE-11 | Componentes canónicos solo en Becas | MEDIA | CONF. | 5 | L | ⬜ |
 | FE-12 | Tablas con estilos en línea e iconografía mezclada | MEDIA | CONF. | 5 | M | ⬜ |
 | FE-13 | `design_audit`: decodificador roto y sin regla «clase sin definición» | MEDIA | CONF. ajustado | 6 | S | ✅ |
@@ -121,6 +121,28 @@ entradas muertas. **El wizard no se rediseñó:** D4 (Cambio 129) dice que ese a
   - **No** agregar la escala `gray` al build (va contra los tokens).
 - **Verificación:** regla CLASSDEF (FE-13) en 0 para estos archivos; a 390 px, `getComputedStyle(backdrop).backgroundColor !== "rgba(0, 0, 0, 0)"`; capturas de las 4 pantallas.
 
+**Resolución:** ✅ Resuelto en el PR #PRNUM (Cambio 155), 06-10-2026 — cada clase inexistente se reemplazó
+por el token o la pieza canónica, **sin** agregar la escala `gray` al build. El `<html>` pierde su
+`bg-gray-50`, el backdrop del sidebar pasa a `bg-black/50`, los diecisiete «Cancelar» de Configuración y el
+de `rol_form` a `btn-nodo btn-tertiary btn-base` (y sus acciones principales crudas a `btn-brand`/`btn-danger`
+`btn-base`), los «Volver» de las tres `*_contactos_simple` a `btn-nodo btn-secondary btn-sm` con
+`fa-arrow-left`, los fondos de los formularios de Legajos a `bg-secondary`, los rieles de progreso a
+`bg-tertiary`, `bg-white/78`/`/90` a `bg-white`, `border-fg-brand` a `border-brand`, `divide-border` a
+`divide-light` y `badge-nodo` a `badge`. **Tres desvíos, los tres code-first:** (a) el indicador de WebSocket
+de `alertas_dashboard` quedó en `bg-disabled` y no en `badge badge-gray` —es un punto de 12 px sin texto, y
+un `badge` le pondría padding de píldora; es el mismo token que usa el indicador gemelo del navbar—; (b) el
+`bg-gray-500` de `legajos/reportes.html` no era un «Volver» sino el punto de color del estado «otros», así
+que quedó en `bg-gray`, token declarado en `tailwind.config.js`; (c) `divide-y divide-light` en vez de
+`divide-y [&>*]:border-light`, que evita un valor arbitrario nuevo con el mismo resultado. **Conversaciones y
+el portal quedan afuera** (lista D del anexo) y su deuda sigue congelada en `CssCompiladoAlDiaTests`, que
+baja de 22 clases a 7.
+**Test permanente:** `core.tests.test_front_ola5.ClasesQueElBuildNoGeneraTests.test_las_pantallas_de_la_ficha_no_usan_clases_fuera_del_build`
+(+ `test_el_backdrop_del_sidebar_tiene_fondo_real`, `test_el_html_no_pinta_un_fondo_que_no_existe`,
+`test_los_cancelar_de_configuracion_son_botones_del_sistema` y
+`core.tests.test_design_audit_estructura.CssCompiladoAlDiaTests.test_la_deuda_no_tiene_entradas_resueltas`).
+**Playwright (1440 y 390 px):** «Cancelar» con fondo `rgb(255,255,255)` y `padding-left: 16px`; «Volver» con
+fondo; backdrop en `rgba(0, 0, 0, 0.5)`.
+
 ## MEDIA
 
 ### FE-01 · `mobile-enhancements.js` (cargado en todo el backoffice) altera controles, modales y gestos
@@ -134,10 +156,53 @@ entradas muertas. **El wizard no se rediseñó:** D4 (Cambio 129) dice que ese a
   5. Hacer FE-07 antes o en el mismo PR.
 - **Verificación:** `core/tests/test_modern_modal_contrato.py`: `base.html` no contiene `mobile-enhancements.js`; Playwright: `ModernModal.show({type:'success'})` deja `#modal-cancel` con `display:none`; a 390 px con `has_touch`, `.nodo-icon-btn` ≥ 44 px; a 1440 px, ítems del sidebar de 40 px; `design_audit` baja 3 errores (HEX, GRADLEG, ZINDEX de este archivo).
 
+**Resolución:** ✅ Resuelto en el PR #PRNUM (Cambio 155), 06-10-2026 — el `<script>` salió de
+`templates/includes/base.html` y `static/custom/js/mobile-enhancements.js` **se borró**: no tenía un solo
+consumidor de su API. El área táctil de 44 px la dan ahora `static/custom/css/nodo-buttons.css` y el
+`<style>` de `templates/includes/sidebar/base.html`, los dos detrás de `@media (pointer: coarse)`, así que
+con mouse cada control conserva el alto de su token. El `display:none !important` de `navbar.html` se fue
+con sus dos clases hook (`lg:hidden` alcanza: el shell sirve Tailwind compilado, no el CDN). **D-F01 = No:**
+no se reimplementó el swipe. **Desvío (code-first): un bug que la ficha no vio.** Su propio criterio de
+verificación —`ModernModal.show({type:'success'})` deja `#modal-cancel` en `display:none`— **seguía
+fallando con el script ya borrado**: `.btn-nodo { display: inline-flex }` tiene la misma especificidad que
+`.hidden` (0,1,0) y `nodo-buttons.css` se carga **después** de `tailwind.css`, así que ganaba por orden y el
+«Cancelar» se veía en cualquier modal de aviso. Se agregó `.btn-nodo.hidden, .nodo-icon-btn.hidden
+{ display: none }`, el mismo recaudo que `responsive.css` ya toma con `.modal-responsive.hidden`.
+**Test permanente:** `core.tests.test_front_ola5.MobileEnhancementsRetiradoTests.test_el_shell_del_backoffice_no_carga_el_script`
+(+ `test_el_script_no_existe_en_el_repo`, `test_ningun_template_ni_js_lo_referencia`,
+`test_el_area_tactil_de_44px_la_da_el_css_y_solo_en_tactil`, `test_el_sidebar_da_area_tactil_en_tactil`,
+`test_el_navbar_no_esconde_el_boton_mobile_con_important` y
+`test_un_boton_del_sistema_con_hidden_queda_oculto`).
+**Playwright:** a 1440 px el ítem del sidebar mide 40 px y hay **0** controles con estilo en línea; a 390 px
+con `has_touch`, `btn-nodo` mide 44 px; `ModernModal` `success` deja `#modal-cancel` en `display: none`.
+
 ### FE-07 · Modales de Configuración: se abren en la esquina y con botones sin tamaño
 **Severidad:** MEDIA · **Estado:** CONFIRMADO en navegador (con `x-show` + `display:flex` en línea, al abrir Alpine borra el `display` y el overlay queda `block` con el panel en (16,16); los botones del pie con `btn-nodo btn-tertiary` sin tamaño: `padding-left: 0px`) · **Origen:** A6-07 · **Ola:** 5, después de la Ola 6 paso 3 (clona el modal golden saneado; arrastra a FE-01 y FE-10) · **Esfuerzo:** M
 - **Propuesta (cada modal de alta y edición de `configuracion/templates/configuracion/{localidad,municipio,provincia,secretaria,subsecretaria}_list.html`):** overlay `<div x-show="modalCrear" x-cloak x-becas-modal="modalCrear" class="fixed inset-0 z-50 flex items-center justify-center p-4">` sin `style=`; fondo `<div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="modalCrear=false"></div>`; panel `relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden` con `role="dialog" aria-modal="true" aria-labelledby`; encabezado `{% include "programas/becas/_modal_header.html" with titulo=… titulo_id=… icono="fa-plus" cerrar="modalCrear=false" %}`; pie `{% include "programas/becas/_modal_footer.html" with cancelar="modalCrear=false" accion_texto="Guardar" %}`; `becas-modal.js` en `{% block customJS %}`; en edición con `<template x-if>`, la directiva va igual sobre el overlay con una booleana derivada (`modalEditarPk === pk`). Sidebar (`templates/includes/sidebar/opciones.html:118,330,440,614,695`): `style="display:flex;flex-direction:column;gap:2px"` → `class="flex flex-col gap-0.5"`.
 - **Verificación:** molde `programas/tests/test_becas_modal.py`; Playwright: panel centrado (`|x − (vw − w)/2| < 2`), Escape cierra, Tab no sale del panel.
+
+**Resolución:** ✅ Resuelto en el PR #PRNUM (Cambio 155), 06-10-2026 — los **diez** modales (alta y edición
+de las cinco pantallas) clonan la golden del arquetipo Modal: overlay
+`x-show + x-cloak + x-becas-modal class="fixed inset-0 z-50 flex items-center justify-center p-4"` sin
+`style=`, backdrop `absolute inset-0 bg-black/50 backdrop-blur-sm`, panel
+`max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden` con `role="dialog"`, `aria-modal="true"` y
+`aria-labelledby`, `_modal_header.html` / `_modal_footer.html` —que son los que traen el tamaño de los
+botones— y `becas-modal.js` en `customJS`. En el modal de edición, que vive dentro de un `<template x-if>`
+por fila, la directiva toma **`modalEditarPk`** y no la booleana derivada `modalEditarPk === pk`: la
+directiva cierra con `evaluate(expresión + ' = false')`, así que la expresión tiene que ser asignable.
+Los cinco contenedores de subítems del sidebar y su `<nav>` dejan el `style=` por clases.
+**Desvío (code-first): la confirmación de borrado deja SweetAlert2** y pasa a `data-confirm-url` →
+`ModernModal` con `programas/becas/_confirm_js.html`. Fue necesario —el arquetipo Modal prohíbe un
+`Swal.fire` nuevo en la pantalla y el inventario clasifica SweetAlert2 como legacy condicionado solo para
+Dispositivos, Merenderos y Legajos— y de paso las cinco pantallas dejan de bajar la biblioteca y el `<form>`
+oculto que la disparaba. Se arreglaron además «Filtrar» y «Limpiar» de la barra de filtros de Secretarías y
+Subsecretarías, con el mismo defecto de botón sin tamaño que la ficha describe para el pie.
+**Test permanente:** `configuracion.tests.test_configuracion_modales.ModalesDeConfiguracionTests.test_cumplen_el_arquetipo_modal`
+(+ `test_el_overlay_se_centra_por_clase_y_no_por_style`, `test_los_modales_atrapan_el_foco_y_cierran_con_escape`,
+`test_el_pie_del_modal_usa_la_pieza_canonica`, `test_ningun_boton_del_sistema_queda_sin_tamano`,
+`test_la_confirmacion_de_borrado_es_la_canonica`, `test_el_titulo_del_dialogo_lo_nombra` y
+`SubitemsDelSidebarTests.test_los_contenedores_de_subitems_van_por_clase`).
+**Playwright:** panel centrado con desvío de **0,00 px**, Tab atrapado dentro del panel y Escape cierra.
 
 ### FE-08 · Errores no de campo invisibles (p. ej. duplicado nombre + municipio)
 **Severidad:** MEDIA · **Estado:** CONFIRMADO (`non_field_errors` en 0 templates de Configuración salvo `programa_wizard_paso2/3`, y en 0 de los forms de Legajos y Dispositivos; el `unique_together` está en `core/models/base.py:67,87`) · **Origen:** A6-08 · **Ola:** 5 · **Esfuerzo:** S
@@ -179,6 +244,17 @@ de producto. El `href` armado hacia `/legajos/<id>/archivos/<n>/eliminar/` **se 
 **Severidad:** MEDIA · **Estado:** CONFIRMADO en navegador (`th` de 25 a 50 px a 390 px) · **Origen:** A6-10 · **Ola:** 5, después de FE-01 (Ola 6 paso 3) · **Esfuerzo:** S
 - **Propuesta:** en `programas/templates/programas/merenderos/prestacion_mensual.html:31-38`, contenedor `overflow-x-hidden` → `overflow-auto` y `<table>` con `min-w-[720px]` (clase arbitraria nueva: `npm run build:tailwind` y commitear el CSS; con la Ola 6, es «novedad»: pedir OK). **Precondición: FE-01** (con el swipe global, arrastrar la tabla abre el sidebar).
 - **Verificación:** captura a 390 px sin encabezados partidos; CLASSDEF ve `min-w-[720px]` en el build.
+
+**Resolución:** ✅ Resuelto en el PR #PRNUM (Cambio 155), 06-10-2026 — el contenedor pasa de
+`overflow-x-hidden overflow-y-auto` a `overflow-auto` y la tabla lleva `min-w-[720px]`, con
+`npm run build:tailwind` corrido y `static/custom/css/tailwind.css` committeado. La novedad (clase
+arbitraria) la autoriza esta misma ficha. Va **después de FE-01**, como pedía la precondición: con el swipe
+global, arrastrar la tabla abría el sidebar.
+**Test permanente:** `programas.tests.test_merenderos.PrestacionMensualEnCelularTests.test_el_contenedor_de_la_grilla_scrollea_en_horizontal`
+(+ `test_la_tabla_tiene_ancho_minimo` y `test_el_ancho_minimo_existe_en_el_build`, que exige la clase en el
+CSS committeado: sin ella la tabla se vuelve a comprimir sin que falle nada).
+**Playwright (390 px):** la tabla mide 720 px, el contenedor scrollea en horizontal y el `<th>` de servicio
+pasa de 50 a **101 px**, sin encabezados partidos.
 
 ### FE-11 · Los componentes canónicos solo los usa Becas
 **Severidad:** MEDIA · **Estado:** CONFIRMADO (`page_header`, `_paginacion`, `_estado_vacio`, `_stat_card` y `_alerta` con 0 consumidores fuera de `programas/templates/programas/becas/**` y `templates/components/`) · **Origen:** A6-12 (= A7-02, diagnóstico del agente) · **Ola:** 5 (después de Ola 6 paso 4) · **Esfuerzo:** L

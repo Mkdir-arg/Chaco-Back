@@ -1,5 +1,11 @@
 # Auditoría integral de DATAÑACH (Chaco) — octubre 2026
 
+## Estado al 06-oct-2026 (Ola 5, PR 4: bugs de front)
+
+| PR | Cambio | Fichas | Estado | Qué quedó abierto |
+|---|---|---|---|---|
+| Ola 5 PR 4 | 155 | FE-06 ✅ · FE-07 ✅ · FE-01 ✅ · FE-10 ✅ | ✅ | **Las 4 fichas cerradas, sin migración: 14 h.** Los controles que el navegador no dibujaba vuelven a verse: ninguna pantalla en alcance nombra una clase que el build no genera (CLASSDEF P1 en 0 para las 31 de la ficha), el backdrop del sidebar oscurece de verdad (`bg-black/50`) y los «Cancelar» y «Volver» son botones del sistema con su tamaño. Los **diez** modales de Configuración clonan la golden del arquetipo Modal —overlay por clase, `x-becas-modal`, `_modal_header`/`_modal_footer`— y se abren centrados con **0,00 px** de desvío medido. `static/custom/js/mobile-enhancements.js` **se borró**: reescribía estilos en línea sobre cada control de cada página, también en escritorio, y abría el sidebar con cualquier swipe horizontal; el área táctil de 44 px pasó a `nodo-buttons.css` y al `<style>` del sidebar, detrás de `@media (pointer: coarse)` (D-F01 = No: sin swipe). La grilla de la prestación mensual scrollea (`overflow-auto` + `min-w-[720px]`) y a 390 px sus `<th>` pasan de 50 a 101 px. **Playwright a 1440 y 390 px: 11 de 11 mediciones OK.** **Cuatro desvíos, los cuatro code-first:** (a) **un bug que ninguna ficha vio** —el criterio de FE-01 seguía fallando con el script ya borrado porque `nodo-buttons.css` se carga después de Tailwind y `.btn-nodo` le ganaba a `.hidden` por orden: el «Cancelar» de un `ModernModal` de aviso se veía igual—; (b) la confirmación de borrado de Configuración deja SweetAlert2 y pasa a `data-confirm-url` → `ModernModal`, porque el arquetipo Modal prohíbe un `Swal.fire` nuevo y el inventario no habilita SweetAlert2 en ese módulo; (c) el indicador de WebSocket quedó en `bg-disabled` y no en `badge badge-gray` (es un punto de 12 px, no una píldora); (d) `divide-y divide-light` en vez de `divide-y [&>*]:border-light`, que evita un arbitrario nuevo. **Pendiente del juez:** los tres parches de `.claude/` (fila «CSS responsive/mobile global» del núcleo, bloque nuevo de `design/shells.md` y retoque de `design/componentes/botones_badges.md`) van en el cuerpo del PR porque la sesión no tiene permiso de escritura ahí; hasta aplicarlos, «Design Agent Contract» queda rojo —la fila cita el script que este PR borra— |
+
 ## Estado al 06-oct-2026 (Ola 5, PR 3: parches v1 de Configuración)
 
 | PR | Cambio | Fichas | Estado | Qué quedó abierto |
@@ -1026,11 +1032,11 @@ Avance: 11 ⬜ (+ R0b-01, 02, 03, 10 ⬜; R0b-12 operativo). SEC-03 (con G1b-01)
 - **Operativo (PM):** R0b-12 correr P-04 ampliado en PRD.
 
 ### 4.7 Front del backoffice → `hallazgos/07-front.md` (28)
-Avance: 9 ✅ · 1 🟡 · 18 ⬜ (FE-13, V5A-NEW-01, V5A-NEW-08 y la parte (a) de V5A-NEW-07 en la Ola 6; FE-02, FE-09 y
-FE-21 en el PR 2 de la Ola 5; FE-04, FE-05 y FE-08 en el PR 3).
+Avance: 13 ✅ · 1 🟡 · 14 ⬜ (FE-13, V5A-NEW-01, V5A-NEW-08 y la parte (a) de V5A-NEW-07 en la Ola 6; FE-02, FE-09 y
+FE-21 en el PR 2 de la Ola 5; FE-04, FE-05 y FE-08 en el PR 3; FE-06, FE-07, FE-01 y FE-10 en el PR 4).
 - **ALTA:** ✅ FE-02 `toastr` (Ola 5, PR 2) · ✅ FE-04 paginación de Geografía · ✅ FE-05 wizard (Ola 5, PR 3) ·
-  FE-06 clases inexistentes.
-- **MEDIA:** FE-01, 07, ✅ 08, ✅ 09, 10, 11, 12, ✅ 13, 17, 18, 19, 20, ✅ 21 · ✅ V5A-NEW-01 · 🟡 V5A-NEW-07.
+  ✅ FE-06 clases inexistentes (Ola 5, PR 4).
+- **MEDIA:** ✅ 01, ✅ 07, ✅ 08, ✅ 09, ✅ 10, 11, 12, ✅ 13, 17, 18, 19, 20, ✅ 21 · ✅ V5A-NEW-01 · 🟡 V5A-NEW-07.
 - **BAJA:** FE-14, 16, 22, 23, 24, 25, 26 · V5A-NEW-04 · V5A-NEW-08.
 
 ### 4.8 Red de seguridad → `hallazgos/08-red-de-seguridad.md` (89, frente del 04-oct-2026)
@@ -1432,15 +1438,18 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
 ### Ola 5 — Bugs de front y parches v1 de Legajos y Dispositivos
 - **Objetivo:** que las pantallas funcionen (subir archivos, paginar, cascadas, botones visibles) y migrar las pantallas
   fuera de Becas a las piezas canónicas clonando las goldens.
-- **Avance: 24 h de 128, 104 restantes.** PR 1 (DIS-01 + DIS-08) en el Cambio 140, 06-oct-2026: helper de fechas locales,
+- **Avance: 38 h de 128, 90 restantes.** PR 1 (DIS-01 + DIS-08) en el Cambio 140, 06-oct-2026: helper de fechas locales,
   los dos usos de Dispositivos más los tres latentes y cuatro de Conversaciones, y la guardia `test_sql_portable.py`
   (recorre el código con `ast`, allowlist vacía). **PR 2 (FE-02, LEG-02, LEG-03, LEG-04, LEG-05, FE-09, FE-21) en el
   Cambio 150, 06-oct-2026**: las 7 fichas cerradas, sin migración. **PR 3 (FE-04, FE-05, FE-08) en el Cambio 152,
   06-oct-2026**: las 3 fichas cerradas, con una pieza canónica nueva (`components/_form_errores.html`) y FE-05
-  convertida en gate (`compile_templates.py --bloques`). Quedan abiertos los PRs 4 a 8.
+  convertida en gate (`compile_templates.py --bloques`). **PR 4 (FE-06, FE-07, FE-01, FE-10) en el Cambio 155,
+  06-oct-2026**: las 4 fichas cerradas, sin migración; los diez modales de Configuración clonan la golden del
+  arquetipo Modal, `mobile-enhancements.js` se borra y el área táctil baja al CSS con `@media (pointer: coarse)`.
+  Quedan abiertos los PRs 5 a 8.
 - **PRs y orden:** (1) DIS-01 + DIS-08 (helper de fechas locales + guardia de `__date`) 4 h · (2) Legajos: FE-02, LEG-04,
-  LEG-05, LEG-02, LEG-03, FE-09, FE-21 14 h · (3) ✅ Configuración: FE-04, FE-05, FE-08 6 h (Cambio 152) · (4) FE-06 ya; FE-07, FE-01 y FE-10
-  **después de la Ola 6 paso 3** (en ese orden: FE-07 antes o con FE-01; FE-01 antes que FE-10) 14 h · (5) FE-18, FE-19, FE-25, FE-26 8 h · (6) **después de la
+  LEG-05, LEG-02, LEG-03, FE-09, FE-21 14 h · (3) ✅ Configuración: FE-04, FE-05, FE-08 6 h (Cambio 152) · (4) ✅ FE-06,
+  FE-07, FE-01 y FE-10 14 h (Cambio 155) · (5) FE-18, FE-19, FE-25, FE-26 8 h · (6) **después de la
   Ola 6 paso 4:** FE-11, FE-12, FE-17, FE-20, FE-23, FE-24 48 h · (7) FE-22, FE-16, V5A-NEW-04, G2-04, G2-06, V5A-NEW-07 parte (b) (labels de `convocatoria_list` y deuda de
   `_dashboard_panel`) 20 h · (8) *Red de seguridad (04-oct):* RED-33 (tests HTTP de las vistas de Dispositivos y
   Merenderos, con el PR 1), RED-75 (`/set_dark_mode/`, D-RED-07) y segundas partes de RED-42 (URLs literales →

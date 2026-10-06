@@ -17,7 +17,7 @@
                         {{ object.nombre.0 }}{{ object.apellido.0 }}
                     </div>
                     {% endif %}
-                    <div class="rounded-2xl border border-white/80 bg-white/78 px-5 py-4 shadow-sm backdrop-blur">
+                    <div class="rounded-2xl border border-white/80 bg-white px-5 py-4 shadow-sm backdrop-blur">
                         <div class="mb-2 inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-xs font-medium text-blue-700 shadow-sm ring-1 ring-blue-100">
                             <span class="h-2 w-2 rounded-full bg-blue-600"></span>
                             Edición de legajo ciudadano
@@ -28,15 +28,15 @@
                 </div>
 
                 <div class="grid gap-3 sm:grid-cols-3">
-                    <div class="rounded-2xl border border-white/80 bg-white/90 px-4 py-3 shadow-sm backdrop-blur">
+                    <div class="rounded-2xl border border-white/80 bg-white px-4 py-3 shadow-sm backdrop-blur">
                         <p class="text-xs font-medium uppercase tracking-wide text-gray-500">DNI</p>
                         <p class="mt-1 text-sm font-semibold text-gray-900">{{ object.dni }}</p>
                     </div>
-                    <div class="rounded-2xl border border-white/80 bg-white/90 px-4 py-3 shadow-sm backdrop-blur">
+                    <div class="rounded-2xl border border-white/80 bg-white px-4 py-3 shadow-sm backdrop-blur">
                         <p class="text-xs font-medium uppercase tracking-wide text-gray-500">Estado</p>
                         <p class="mt-1 text-sm font-semibold text-emerald-700">Activo</p>
                     </div>
-                    <div class="rounded-2xl border border-white/80 bg-white/90 px-4 py-3 shadow-sm backdrop-blur">
+                    <div class="rounded-2xl border border-white/80 bg-white px-4 py-3 shadow-sm backdrop-blur">
                         <p class="text-xs font-medium uppercase tracking-wide text-gray-500">Perfil</p>
                         <p class="mt-1 text-sm font-semibold text-gray-900">Backoffice</p>
                     </div>
@@ -310,7 +310,7 @@
                                     <p class="mt-2 text-xs text-gray-500">Formatos permitidos: JPG, PNG o GIF. Tamaño máximo 5 MB.</p>
                                 </div>
 
-                                <dl class="space-y-3 rounded-2xl border border-gray-100 bg-gray-50 p-4 text-sm">
+                                <dl class="space-y-3 rounded-2xl border border-gray-100 bg-secondary p-4 text-sm">
                                     <div class="flex items-center justify-between gap-4">
                                         <dt class="text-gray-500">Nombre completo</dt>
                                         <dd class="font-medium text-gray-900">{{ object.nombre }} {{ object.apellido }}</dd>
