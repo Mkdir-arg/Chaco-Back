@@ -2034,6 +2034,23 @@ class Relevamiento(PausableMixin, TimeStamped):
         )
 
 
+#: Nombre o apellido que no aportan identidad: vacío o solo espacios. RED-77: la
+#: RN-2 del Cambio 57 estaba escrita dos veces —la property ``tiene_identidad``,
+#: con ``strip()``, y un ``.exclude(nombre="").exclude(apellido="")`` repetido en
+#: los cruces masivos, sin ``strip()``—, y las dos no coincidían: una fila con
+#: ``nombre="  "`` (cargada por admin, fixture o migración) la validaba el cruce
+#: automático y la rechazaba el botón manual de la revisión.
+SIN_TEXTO_REGEX = r"^\s*$"
+
+
+class PadronHabilitadoQuerySet(models.QuerySet):
+    def con_identidad(self):
+        """Las filas que cumplen RN-2: nombre **y** apellido con algo más que
+        espacios. Es la misma regla que :attr:`PadronHabilitado.tiene_identidad`
+        —y el único lugar donde se escribe para un queryset (RED-77)."""
+        return self.exclude(nombre__regex=SIN_TEXTO_REGEX).exclude(apellido__regex=SIN_TEXTO_REGEX)
+
+
 class PadronHabilitado(TimeStamped):
     """Entrada del padrón de habilitados de una convocatoria (RN-P14, Cambio 57).
 
@@ -2085,6 +2102,8 @@ class PadronHabilitado(TimeStamped):
     # Lo que decía el Excel, reconocida o no contra el catálogo.
     localidad_texto = models.CharField(max_length=120, blank=True, verbose_name="Localidad (texto del Excel)")
 
+    objects = PadronHabilitadoQuerySet.as_manager()
+
     class Meta:
         verbose_name = "Habilitado del padrón"
         verbose_name_plural = "Habilitados del padrón"
@@ -2104,7 +2123,12 @@ class PadronHabilitado(TimeStamped):
 
     @property
     def tiene_identidad(self):
-        """RN-2 del Cambio 57: valida solo con nombre **y** apellido."""
+        """RN-2 del Cambio 57: valida solo con nombre **y** apellido.
+
+        El equivalente para un queryset es
+        :meth:`PadronHabilitadoQuerySet.con_identidad`; los dos tienen que decir
+        lo mismo fila por fila (RED-77).
+        """
         return bool(self.nombre.strip() and self.apellido.strip())
 
 

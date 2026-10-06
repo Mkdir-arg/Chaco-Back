@@ -20,10 +20,17 @@ from django.test import SimpleTestCase, TestCase
 from django.urls import reverse
 
 from core.models import Localidad, Municipio, Provincia
+from legajos.models import Ciudadano
 from programas.forms import RelevamientoForm
 from programas.management.commands import completar_casos_renaper, corregir_datos_siis
 from programas.management.commands.seed_becas import ROL_ADMIN
-from programas.models import Convocatoria, Relevamiento, Segmento
+from programas.models import (
+    Convocatoria,
+    Formulario,
+    PadronHabilitado,
+    Relevamiento,
+    Segmento,
+)
 from programas.services.padron import (
     cargar_padron,
     clave_localidad,
@@ -31,8 +38,10 @@ from programas.services.padron import (
     fila_padron,
     normalizar_dni,
     normalizar_fecha,
+    objetivo_con_identidad,
     parsear_padron,
     plantilla_padron,
+    validar_casos_pendientes,
 )
 from programas.services.siis_envio import _digitos as siis_envio_digitos
 
@@ -632,3 +641,76 @@ class ResumenFijoPadronTests(_BasePadronTest):
         # el resumen de la convocatoria no se filtra al relevamiento de otra carga
         resp = self.client.get(self.detalle)
         self.assertNotContains(resp, "Última carga del padrón")
+
+
+class IdentidadDelPadronTests(_BasePadronTest):
+    """RED-77: RN-2 escrita una sola vez para la fila y para el queryset.
+
+    La property `PadronHabilitado.tiene_identidad` usa `strip()`; los cruces
+    masivos de `services/padron.py` filtraban con
+    `.exclude(nombre="").exclude(apellido="")`, **sin** `strip()`. Una fila con
+    `nombre="  "` —que puede entrar por el admin, un fixture o una migración; el
+    parser del Excel no la deja pasar— la validaba el cruce automático y la
+    rechazaba el botón manual de la revisión. Las dos mitades ahora salen del
+    mismo lugar: `PadronHabilitadoQuerySet.con_identidad()`.
+    """
+
+    #: Las seis combinaciones de identidad que puede tener una fila.
+    CASOS = [
+        ("40000001", "Ana", "Paz", True),
+        ("40000002", "", "Paz", False),
+        ("40000003", "Ana", "", False),
+        ("40000004", "", "", False),
+        ("40000005", "   ", "Paz", False),
+        ("40000006", "Ana", "   ", False),
+    ]
+
+    def setUp(self):
+        super().setUp()
+        for dni, nombre, apellido, _ in self.CASOS:
+            PadronHabilitado.objects.create(
+                convocatoria=self.convocatoria,
+                dni=dni,
+                sexo="F",
+                nombre=nombre,
+                apellido=apellido,
+            )
+
+    def test_property_y_queryset_coinciden(self):
+        con_identidad = set(
+            PadronHabilitado.objects.con_identidad().values_list("dni", flat=True),
+        )
+        for dni, nombre, apellido, esperado in self.CASOS:
+            with self.subTest(dni=dni, nombre=repr(nombre), apellido=repr(apellido)):
+                fila = PadronHabilitado.objects.get(dni=dni)
+                self.assertEqual(fila.tiene_identidad, esperado)
+                self.assertEqual(
+                    dni in con_identidad,
+                    esperado,
+                    "La property y `con_identidad()` dicen cosas distintas de la misma fila.",
+                )
+
+    def test_el_cruce_automatico_no_valida_un_caso_con_identidad_en_blanco(self):
+        """El efecto que se veía: el cruce masivo validaba a quien el botón
+        manual rechazaba. `validar_casos_pendientes` recorre el mismo criterio."""
+        ciudadano = Ciudadano.objects.create(dni="40000005", nombre="", apellido="")
+        formulario = Formulario.objects.create(
+            relevamiento=self.relevamiento,
+            ciudadano=ciudadano,
+            celular="3624000000",
+        )
+
+        validados = validar_casos_pendientes(self.convocatoria)
+
+        formulario.refresh_from_db()
+        self.assertEqual(validados, 0)
+        self.assertFalse(formulario.validado_renaper)
+
+    def test_objetivo_con_identidad_ignora_la_fila_en_blanco(self):
+        """La otra mitad de `services/padron.py`: el relevamiento que la app de
+        campo elige para precargar la identidad."""
+        self.assertIsNone(objetivo_con_identidad([self.relevamiento], "40000005", "F"))
+        self.assertEqual(
+            objetivo_con_identidad([self.relevamiento], "40000001", "F"),
+            self.relevamiento,
+        )

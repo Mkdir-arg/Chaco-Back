@@ -385,7 +385,7 @@ def objetivo_con_identidad(relevamientos, dni, sexo):
     con_propio = set(
         PadronHabilitado.objects.filter(relevamiento__in=relevamientos).values_list("relevamiento_id", flat=True)
     )
-    filas = PadronHabilitado.objects.filter(dni=dni, sexo=sexo).exclude(nombre="").exclude(apellido="")
+    filas = PadronHabilitado.objects.filter(dni=dni, sexo=sexo).con_identidad()
     propios = set(filas.filter(relevamiento__in=relevamientos).values_list("relevamiento_id", flat=True))
     heredables = set(
         filas.filter(
@@ -435,10 +435,7 @@ def validar_casos_pendientes(objetivo, usuario=None):
     # El padrón entero en memoria (está acotado a 2 MB, cientos de filas): el
     # día que por fin llega un padrón con datos puede haber cientos de casos
     # pendientes acumulados, y una consulta por caso no escala.
-    filas = {
-        (fila.dni, fila.sexo): fila
-        for fila in padron_de(objetivo).exclude(nombre="").exclude(apellido="").select_related("localidad")
-    }
+    filas = {(fila.dni, fila.sexo): fila for fila in padron_de(objetivo).con_identidad().select_related("localidad")}
     if not filas:
         return 0
     # Sin las columnas JSON que el cruce no lee (``data``, ``respuestas``,

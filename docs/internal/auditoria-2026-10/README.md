@@ -1,5 +1,11 @@
 # Auditoría integral de DATAÑACH (Chaco) — octubre 2026
 
+## Estado al 07-oct-2026 (Ola R: R-16, la red de Becas)
+
+| PR | Cambio | Fichas | Estado | Qué quedó abierto |
+|---|---|---|---|---|
+| R-16 | 156 | RED-05 ✅ · RED-31 ✅ · RED-35 ✅ · RED-77 ✅ · RED-49 ✅ · RED-50 🟡 · RED-81 ✅ · RED-70 ✅ | ✅ | **Las 8 fichas, 22 h, sin migraciones.** Es el último prerrequisito de la **Ola 3**: lo que DAT-01, BEC-\* y SEC-20 van a tocar ahora tiene antes un test que se pone rojo. (1) **RED-05:** el adjunto se sigue por HTTP de punta a punta desde los **dos** canales —paso 1 + paso 2 del link público y el alta + `POST …/adjuntos/` de la app— hasta el bloque que renderiza `formulario_detalle`; cambiar el prefijo `pg-` en `_adjuntos_por_clave` deja los dos tests en rojo (antes, la foto del DNI desaparecía de la pantalla del revisor sin error ni log). (2) **RED-31:** los cuerpos de `requisito_eliminar` y `subsegmento_eliminar`, que no se ejecutaban ni una vez en 3.000 tests, quedan cubiertos con sus bordes de método y capacidad; el daño de **DAT-01** queda *caracterizado* con el mensaje de qué invertir. (3) **RED-35:** prueba **conductual** de la atomicidad (se hace fallar el paso siguiente al alta del legajo y nada queda escrito), con gemelo `@tag("mysql")` en `TransactionTestCase`, donde el rollback es de InnoDB y no un savepoint de SQLite. (4) **RED-77 (código):** `PadronHabilitado.objects.con_identidad()` unifica la RN-2 del padrón que estaba escrita **tres** veces (no dos) con dos semánticas distintas; se escribe con `__regex` y no con `Trim`, porque el `TRIM()` del motor saca solo espacios y `strip()` saca también tabulaciones. (5) **RED-49:** las tres acepciones de `cupo_disponible` quedan fijadas con sus tres números distintos, más la aserción de que **siguen difiriendo** (PERF-02 tiene que renombrar, no unificar). (6) **RED-81 (código):** `procesar_vencimientos` con el registro vacío pasa de salir con éxito a `CommandError`, y lee el registro por el módulo —`registrar()` rebindea la lista global—. (7) **RED-70:** M49 muerta: borrar `ILLEGAL_CHARACTERS_RE.sub` deja los cinco tests nuevos en rojo, tres con el `IllegalCharacterError` que es el 500 de la descarga. **Abierto:** **RED-50 queda 🟡** —el `expectedFailure` describe el bug de la edad en UTC y el arreglo (una sola `edad_en_anios` con `timezone.localdate()` + `DTZ011`) es de la **Ola 3**, con H-13 definiendo su severidad—; DAT-01 y el tercer test de RED-05 también son de la Ola 3; el renombre de RED-49 es de la Ola 4; y `exportacion_reportes.py` sigue con terminadores CR (**RED-82**, PR R-21), que conviene cerrar antes de la revisión de SEC-20 |
+
 ## Estado al 06-oct-2026 (Ola R: R-15, operación y deploy)
 
 | PR | Cambio | Fichas | Estado | Qué quedó abierto |
@@ -1230,13 +1236,19 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
 - **✅ R-13 cerrado el 06-oct-2026 (Cambio 139), 14 h.** El job `Migrate ida y vuelta` corre las migraciones del PR
   contra `mariadb:10.11` (sin tablas de zona horaria) y `mysql:8.0` sobre datos sembrados, las desaplica y las vuelve a
   aplicar; y tapa los dos agujeros del gate estático. Desbloquea la **Ola 3** (G1-04, G1-05, DAT-01).
+- **✅ R-16 cerrado el 07-oct-2026 (Cambio 156), 22 h.** La red de Becas antes de la Ola 3: el adjunto seguido de
+  punta a punta por los dos canales (RED-05), los dos borrados de Configuración que no se ejecutaban (RED-31, con
+  DAT-01 caracterizada), la atomicidad probada por conducta (RED-35), la RN-2 del padrón escrita una sola vez (RED-77,
+  **código**), las tres acepciones de `cupo_disponible` fijadas (RED-49), la edad en UTC descrita con `expectedFailure`
+  (RED-50 🟡, el arreglo es de la Ola 3), el registro de vencimientos que ya no queda vacío en silencio (RED-81,
+  **código**) y la mutación M49 de `celda_segura` muerta (RED-70). **Desbloquea la Ola 3** (DAT-01, BEC-\*) y SEC-20.
 - **✅ R-15 cerrado el 06-oct-2026 (Cambio 153), 18 h.** Operación y deploy: el traceback de cada 500 llega a stdout
   (OPS-03) y los context processors dejan rastro (RED-55); `/health/ready/` distingue «vivo» de «sirve» (OPS-04) y
   `deploy_prod.sh` lo usa, verifica después del deploy y no vuelve el código a ciegas si hubo migraciones (RED-59);
   `verificar_esquema_migraciones` frena el arranque antes del `1050 Table already exists` (OPS-01); y cada release deja
   un tag al que volver (RED-16, 🟡: el tag de **imagen** es de ECOM). Habilita **el próximo deploy en icore**.
-- **Quedan 98 h:** R-16 a R-18, R-20 y R-21. El orden sigue siendo el de dependencias: **R-16 antes de la Ola 3**,
-  R-21 antes de la Ola 2.
+- **Quedan 76 h:** R-17, R-18, R-20 y R-21. **R-16 ya está cerrado (Cambio 156), así que la Ola 3 queda
+  desbloqueada**; de lo que falta, R-21 va antes de la Ola 2 y el resto puede ir en cualquier orden.
 - **Objetivo:** poder cambiar código sin romper nada sin enterarse. Que todo lo que las Olas 1 a 7 van a tocar tenga antes
   un test que se ponga rojo si se rompe, que el CI pruebe el motor de producción (MariaDB) y las migraciones en las dos
   direcciones, que ningún gate dependa de la buena voluntad (protección de rama, release que exige CI verde, verificación
@@ -1263,7 +1275,7 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
 | ✅ R-13 | **Job `migration-roundtrip`** (Anexo B): RED-17, RED-19 (un solo migrador, expand/contract) — **#596, Cambio 139**; cierra además los dos agujeros que el Cambio 135 le dejó anotados (el `AlterField` que vuelve obligatoria una columna y la edición de una migración ya aplicada). **No es obligatorio todavía**, igual que `Motor real` | 14 | Ola 3 (G1-04, G1-05, DAT-01) |
 | ✅ R-14 | **Gates del release:** RED-24 (`Contratos del repo`), RED-21 (`publish-main` exige CI verde), RED-65, RED-23 (`release-gate.yml` + `/pushGitLabecom` en dos), RED-22 (propuesta a ECOM) — **#575, Cambio 128** (RED-22 y RED-23 🟡: falta el envío a ECOM y copiar los dos comandos a `.claude/`) | 22 | el próximo espejo a ECOM |
 | ✅ R-15 | **Operación y deploy** (desde la Ola 3): OPS-03, OPS-04, OPS-01 (ampliados), RED-59 (`deploy_prod.sh`), RED-16 (tag de release), RED-55 — **Cambio 153** (RED-16 🟡: el tag de imagen lo tiene que aplicar ECOM, D-RED-02) | 18 | el próximo deploy en icore |
-| R-16 | **Becas: adjuntos, borrados, atomicidad, padrón:** RED-05, RED-31, RED-35, RED-77, RED-49, RED-50, RED-81, RED-70 | 22 | Ola 3 (DAT-01, BEC-*), SEC-20 |
+| ✅ R-16 | **Becas: adjuntos, borrados, atomicidad, padrón:** RED-05, RED-31, RED-35, RED-77, RED-49, RED-50, RED-81, RED-70 — **Cambio 156** (RED-50 🟡: el arreglo de la edad es de la Ola 3) | 22 | Ola 3 (DAT-01, BEC-*), SEC-20 |
 | R-17 | **Definición y condiciones (dos repos):** RED-12, RED-38 | 16 | cualquier cambio del constructor |
 | R-18 | **Contratos del backoffice y job `Contratos de API`:** RED-42, RED-39, RED-40, RED-41 (D-RED-04), RED-43, RED-44 | 18 | Ola 2 (capacidades), Ola 5 |
 | ✅ R-19 | **Legajos y Roles por HTTP:** **RED-89** (CRÍTICA: barrido con usuario sin rol + `ALLOWLIST_SIN_ROL` medida + ratchet, 4 h) y, adelantadas de la Ola 2 por **D-RED-14**, **SEC-10 completa** (CRÍTICA, 4 h: el hard delete de adjuntos), **SEC-18 completa** (+ R0b-06, 2 h: alertas y el `self.get_object()` que mata el 500) y **SEC-11 con `ciudadano.ver` de piso en sus 5 rutas** (1 h: así salen los 17 `expectedFailure` y ninguna queda abierta; la Ola 2 sube 3 a `ciudadano.sensible` con D-11); más RED-06 (humo de 37 rutas + alertas) y RED-04 (escrituras del ABM de roles) — **#556, Cambio 126** | 21 | Ola 2 |
@@ -1278,7 +1290,9 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
   y **R-12** (Cambio 135, 18 h: el contrato de migraciones, que habilita R-13 y protege toda migración nueva) y
   **R-13** (Cambio 139, 14 h: la ida y vuelta contra el motor real, que desbloquea la Ola 3).
   **R-15** (Cambio 153, 18 h: operación y deploy, que habilita el próximo deploy en icore).
-  **Quedan 98 h de la Ola R:** R-16 antes de la Ola 3; R-21 antes de la Ola 2. El resto puede ir en
+  **R-16** (Cambio 156, 22 h: la red de Becas —adjuntos, borrados, atomicidad, padrón, cupo, edad, vencimientos y
+  exportaciones—, que desbloquea la Ola 3).
+  **Quedan 76 h de la Ola R:** R-21 antes de la Ola 2. El resto puede ir en
   paralelo con otro implementador.
 - **Hecho cuando (verificable):**
   1. `gh api repos/Mkdir-arg/Chaco-Back/rulesets` lista los rulesets de `development` y `main`; un push directo a
@@ -1305,7 +1319,11 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
   que PRD define la variable y pedir `DATANACH_ES_PRODUCCION=1`; sin la variable el check de PRD nunca dispara, y sin
   `SIIS_API_URL` lo que queda rojo es `check --deploy` en el CI, no el deploy); logging a stdout
   (OPS-03: avisar a ECOM del volumen); `/health/ready/` (OPS-04); `verificar_esquema_migraciones` en el entrypoint (OPS-01,
-  con `SKIP_SCHEMA_GUARD`); `logger.exception` en los context processors; LF en `exportacion_reportes.py`; las reversas de
+  con `SKIP_SCHEMA_GUARD`); `logger.exception` en los context processors; `PadronHabilitado.objects.con_identidad()` y sus tres llamadores
+  (RED-77: una fila del padrón con nombre o apellido **solo con espacios** deja de validar en el cruce automático, que
+  es lo que ya hacía el botón manual); `procesar_vencimientos` con el registro vacío pasa a **fallar** en vez de salir
+  con éxito (RED-81: corre en el bootstrap opcional bajo `set -eu`, así que si alguna vez se diera, el contenedor no
+  arranca — es lo buscado, y que los opcionales no sean fatales es OPS-07); LF en `exportacion_reportes.py`; las reversas de
   `0047`, `0048` y `legajos.0007` (solo el camino de vuelta); `DATOS_SIIS_DIR` para `correr_alta_siis` (requiere montar el
   directorio en icore y en ECOM antes de la próxima corrida); el guard de gevent en el entrypoint. Sin migraciones de
   esquema. Operativos: la purga del historial reescribe `main` y el espejo de ECOM (coordinar antes); los rulesets cambian
@@ -1411,8 +1429,12 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
      re-entrante, con OPS-05) y segundas partes de RED-09 (`q_uuid_en_texto` a `core/db.py`, con el PR 7), RED-35
      (atomicidad del resto de las escrituras), RED-40 (`validators` en los `JSONField`, con G1-05) y RED-50 (una sola
      `edad_en_anios` con `timezone.localdate()` + regla `DTZ011`). 18 h.
-  **Prerrequisito:** PRs R-11 a R-16 de la Ola R (motor real en CI, contrato de migraciones, job de ida y vuelta, gates del
-  release, operación, y los tests de Becas que DAT-01 y las reglas van a invertir).
+  **Prerrequisito: ✅ cumplido el 07-oct-2026.** PRs R-11 a R-16 de la Ola R (motor real en CI, contrato de migraciones,
+  job de ida y vuelta, gates del release, operación, y los tests de Becas que DAT-01 y las reglas van a invertir). Los
+  dos tests que esta ola tiene que **invertir** están nombrados en sus fichas:
+  `test_becas_config.EliminarRequisitoYSubsegmentoTests.test_requisito_con_adjunto_en_un_caso` (DAT-01) y
+  `test_becas_reglas.EdadHorarioTests.test_el_corte_es_la_fecha_local_no_la_del_sistema` (RED-50, sacarle el
+  `expectedFailure`).
 - **Hecho cuando:** V-STD (+ V-UI donde aplique); PoC invertidas de `poc/test_repro_datos_operacion.py` (DAT-01; OPS-03 y
   OPS-04 se invierten en la Ola R), `test_repro_admin_cron_renaper.py` (G1c-08, RENAPER 401/503) y `test_repro_dashboard_campos_propios.py`
   (G2-01); el job de CI con `mariadb:<versión de P-11>` corre `migrate` y `test --tag mysql` en verde; `seed_datos_base`
