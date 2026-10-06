@@ -127,7 +127,7 @@ contra `mariadb:10.11` con `MARIADB_INITDB_SKIP_TZINFO=1`: `--tag mysql` en verd
 - **Verificación:** V-STD + V-UI; Playwright sin 404 en `/legajos/ciudadanos/<id>/`.
 - **Dependencias:** SEC-01/SEC-02 (helpers DRF) para la opción A; FE-02 (mismo template).
 
-**Resolución:** ✅ Resuelto en el PR #PRNUM (Cambio 150), 06-10-2026 — **se aplicó el default D-L03 = B (retirar)**.
+**Resolución:** ✅ Resuelto en el PR #598 (Cambio 150), 06-10-2026 — **se aplicó el default D-L03 = B (retirar)**.
 Se fueron la entrada `red_familiar` de `SOLAPAS_ESTATICAS`, el bloque `tab-red_familiar`, el modal `modalVinculo`, el
 buscador de ciudadanos, el contador `total-vinculos`, `cargarVinculos()`, `renderizarGrafoRed()` y el `<script>` de
 `vis-network` (673 KB que la página ya no descarga). Se borraron `legajos/urls/api_contactos.py` **y**
@@ -174,7 +174,7 @@ existe todavía** —RED-42 es del PR R-18, abierto—, así que no hubo entrada
 - **Propuesta:** capturar solo `ContactosFilesError` y `Http404`; `logger.exception` + 500 genérico para el resto (coordinar con SEC-10, que toca las mismas vistas); en `_serialize_adjunto`, `try/except OSError` → `tamano=None, faltante=True`; `select_related("content_type")` en los querysets de adjuntos.
 - **Tests:** `test_archivos_ciudadano_con_blob_faltante_lista_el_resto`, `test_error_inesperado_no_expone_detalle`, `test_archivos_ciudadano_sin_n_mas_1`.
 
-**Resolución:** ✅ Resuelto en el PR #PRNUM (Cambio 150), 06-10-2026 — `_serialize_adjunto` lee el peso con
+**Resolución:** ✅ Resuelto en el PR #598 (Cambio 150), 06-10-2026 — `_serialize_adjunto` lee el peso con
 `try/except OSError` y devuelve `tamano: None, faltante: True`: el adjunto con el blob perdido se **sigue listando**,
 marcado «Archivo no disponible», en vez de llevarse puesta la lista entera. El queryset de adjuntos suma
 `select_related("content_type")`, así que el costo ya no crece con la cantidad de archivos. **Desvío de la ficha,
@@ -252,7 +252,7 @@ leerlo en hora local.
 - **Tests:** `test_aceptar_derivacion_con_inscripcion_cerrada_la_reactiva`, `test_inscripcion_directa_con_baja_reactiva`.
 - **Dependencias:** SEC-12 (permisos).
 
-**Resolución:** ✅ Resuelto en el PR #PRNUM (Cambio 150), 06-10-2026 — `programas/services/inscripciones.py` con
+**Resolución:** ✅ Resuelto en el PR #598 (Cambio 150), 06-10-2026 — `programas/services/inscripciones.py` con
 `activar_inscripcion(ciudadano, programa, *, via, usuario, notas)`: toma la fila bajo
 `select_for_update().get_or_create`, tolera la carrera (quien pierde recibe el `IntegrityError` del índice único y
 relee ya con el candado) y revive la inscripción CERRADA, SUSPENDIDA, DADA DE BAJA o PENDIENTE con
@@ -270,7 +270,7 @@ como si fuera una validación de negocio.
 - **Propuesta:** primer loop solo de `_validate_archivo`; segundo loop de creación dentro de `transaction.atomic()`; en el `except`, borrar del storage los archivos ya escritos y re-lanzar.
 - **Test:** `test_subida_con_un_archivo_invalido_no_guarda_ninguno`.
 
-**Resolución:** ✅ Resuelto en el PR #PRNUM (Cambio 150), 06-10-2026 — `subir_archivos_para_objeto` valida la tanda
+**Resolución:** ✅ Resuelto en el PR #598 (Cambio 150), 06-10-2026 — `subir_archivos_para_objeto` valida la tanda
 **completa** antes de tocar la base y crea dentro de `transaction.atomic()`; si algo revienta, además borra del
 storage los blobs ya escritos (el storage no participa de la transacción) y re-lanza. Con `dni.pdf` + `foto.heic` ya
 no queda un adjunto a medias con el mensaje «Formato no permitido».

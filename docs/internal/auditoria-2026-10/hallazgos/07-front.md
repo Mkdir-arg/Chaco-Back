@@ -57,7 +57,7 @@ FE-18, FE-19); las migraciones de estilo de esos dos módulos las hereda la v2.
 - **Verificación:** test JS con el harness sin el stub; Playwright: subir un archivo → POST 200 y toast; cerrar el pendiente del Cambio 95/96 en `requerimientos.md`.
 - **Dependencias:** SEC-10 y LEG-04 tocan el mismo flujo. **LEG-03 / D-L03:** las líneas del flujo de vínculos (1443-1502) desaparecen con el default B (retirar la solapa); con la opción A, «Agregar vínculo» sigue en 404 hasta montar la API. Hacer FE-02 en el mismo PR que LEG-03 y no corregir esas líneas si se retiran.
 
-**Resolución:** ✅ Resuelto en el PR #PRNUM (Cambio 150), 06-10-2026 — fuera las cuatro líneas `toastr.options = …` y
+**Resolución:** ✅ Resuelto en el PR #598 (Cambio 150), 06-10-2026 — fuera las cuatro líneas `toastr.options = …` y
 todos los `toastr.success|warning|error`, reemplazados por `window.toast(tipo, mensaje)`, el único sistema de avisos
 del repo. Los `Swal.fire('Error', …)` que eran **avisos** (no confirmaciones) también pasaron a `window.toast`; las
 dos confirmaciones destructivas siguen en SweetAlert2, que la pantalla carga de verdad. En
@@ -125,7 +125,7 @@ corrigieron: desaparecieron** con el default B de LEG-03, como pedía la ficha.
 - **Propuesta:** `templates/legajos/alertas_dashboard.html:147` → `{% url 'legajos:ciudadano_detalle' alerta.ciudadano_id %}` (`AlertaCiudadano.ciudadano` existe, `legajos/models/base.py:423`); en el JS de `ciudadano_detail.html:1545` y `:1680`, reemplazar el link por texto (`<span class="cd-muted">Acompañamiento</span>` o el código del legajo) hasta que exista una vista de legajo.
 - **Verificación:** test que renderiza el dashboard de alertas con una alerta y el `href` resuelve; `git grep -n '"/legajos/\${' legajos/templates` vacío.
 
-**Resolución:** ✅ Resuelto en el PR #PRNUM (Cambio 150), 06-10-2026 — en `templates/legajos/alertas_dashboard.html`
+**Resolución:** ✅ Resuelto en el PR #598 (Cambio 150), 06-10-2026 — en `templates/legajos/alertas_dashboard.html`
 el botón pasa a `{% url 'legajos:ciudadano_detalle' alerta.ciudadano_id %}` («Ver ciudadano») y **deja de depender de
 `{% if alerta.legajo %}`**: el ciudadano siempre está, el legajo no, y el destino que existía era el del ciudadano.
 En `ciudadano_detail.html`, el origen «Acompañamiento» de la tabla de archivos y el código de legajo de la tabla de
@@ -184,7 +184,7 @@ de producto. El `href` armado hacia `/legajos/<id>/archivos/<n>/eliminar/` **se 
 - **Propuesta:** en `ciudadano_detail.html`, `{% block customJS %}` con `becas-modal.js`; `window.becasModal.bind(document.getElementById('modalArchivos'), {onClose: () => cerrarModal('modalArchivos')})` (ídem `modalVinculo`, si LEG-03 lo conserva); botones de cierre con `data-becas-modal-cerrar`. El modal crítico de `alertas_websocket.js` va en FE-25.
 - **Verificación:** Playwright: abrir, Tab no sale del panel, Escape cierra y el foco vuelve al disparador.
 
-**Resolución:** ✅ Resuelto en el PR #PRNUM (Cambio 150), 06-10-2026 — `ciudadano_detail.html` carga
+**Resolución:** ✅ Resuelto en el PR #598 (Cambio 150), 06-10-2026 — `ciudadano_detail.html` carga
 `static/custom/js/becas-modal.js` en `{% block customJS %}` y ata el modal de archivos con
 `window.becasModal.bind(overlay, {onClose: () => cerrarModal('modalArchivos')})`; los botones de cierre (la X y
 «Cancelar») llevan `data-becas-modal-cerrar`. El helper observa la clase `hidden` del overlay, así que
