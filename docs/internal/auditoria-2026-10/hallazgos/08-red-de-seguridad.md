@@ -282,7 +282,7 @@ las capacidades a los módulos de alcance, así que el POST vuelve al form con e
   `test_una_pregunta_recreada_con_otro_pk_no_deja_el_adjunto_huerfano`, es el test invertido de DAT-01 y va en su PR.
 - **Verificación:** `& $env:PY manage.py test programas.tests.test_adjunto_punta_a_punta`.
 
-**Resolución:** ✅ Resuelto en #NNN (Cambio 156, PR R-16), 07-oct-2026 — `AdjuntoLlegaALaRevisionTests` recorre los dos
+**Resolución:** ✅ Resuelto en #604 (Cambio 156, PR R-16), 07-oct-2026 — `AdjuntoLlegaALaRevisionTests` recorre los dos
 canales **por HTTP de punta a punta** y los dos terminan en la misma aserción compartida
 (`_assert_el_adjunto_se_ve_en_la_revision`): paso 1 + paso 2 del link público con el padrón como fuente de identidad, y
 el alta por `POST /api/becas/relevamientos/<pk>/formularios/` + `POST /api/becas/formularios/<pk>/adjuntos/` con Token.
@@ -367,7 +367,7 @@ y `legajos.tests.test_alertas_dashboard.AlertasDashboardTests`.
   `test_las_dos_vistas_exigen_post_y_capacidad`. El cuarto, `test_requisito_con_adjunto_en_un_caso`, documenta el
   comportamiento de hoy (el adjunto desaparece) y lo invierte el PR de DAT-01.
 
-**Resolución:** ✅ Resuelto en #NNN (Cambio 156, PR R-16), 07-oct-2026 — `EliminarRequisitoYSubsegmentoTests` ejecuta
+**Resolución:** ✅ Resuelto en #604 (Cambio 156, PR R-16), 07-oct-2026 — `EliminarRequisitoYSubsegmentoTests` ejecuta
 los dos cuerpos completos: el subsegmento usado por una convocatoria no se borra y el `ProtectedError` sale como
 mensaje (sacar ese `except` lo convierte en 500); el libre se borra y redirige al segmento; el requisito sin adjuntos se
 borra **con su `ItemDiseno`**, que es lo que el Cambio 58 quiere conservar; y `test_las_dos_vistas_exigen_post_y_capacidad`
@@ -821,7 +821,7 @@ que siguen en la Ola 4 como dice la ficha.
   el mismo patrón para `cupo.aprobar_formulario`, `inscripcion_publica.crear_formulario_publico`,
   `padron.quitar_padron_propio` y `admisiones.trasladar_admision`.
 
-**Resolución:** ✅ Resuelto (parte R) en #NNN (Cambio 156, PR R-16), 07-oct-2026 —
+**Resolución:** ✅ Resuelto (parte R) en #604 (Cambio 156, PR R-16), 07-oct-2026 —
 `EscriturasAtomicasTests.test_resolver_ciudadano_offline_no_deja_nada_a_medias` hace fallar `_completar_contacto` —que
 corre **después** del `get_or_create` del `Ciudadano` y antes de guardar el formulario— y afirma que no quedó nada
 escrito: ni el legajo, ni el `ciudadano_id` del caso, ni el `datos_identificacion` limpiado. Un test de control afirma
@@ -1202,7 +1202,7 @@ un `Decimal`, y unificarla es parte de RED-48, que además tiene que resolver la
   `get_cupo_stats(...)["cupo_disponible"] == 4`). **Ola 4:** renombrar, no unificar (`cupo_sin_distribuir`,
   `cupos_libres_del_relevamiento`; `cupo_disponible` queda solo para `get_cupo_stats`) y actualizar el test.
 
-**Resolución:** ✅ Resuelto (parte R) en #NNN (Cambio 156, PR R-16), 07-oct-2026 —
+**Resolución:** ✅ Resuelto (parte R) en #604 (Cambio 156, PR R-16), 07-oct-2026 —
 `TresCuposTests.test_las_tres_acepciones_son_distintas` fija los tres números con un segmento de 10, subsegmentos de 3 y
 4 y 6 casos APROBADO: `Segmento.cupo_disponible == 3`, `get_cupo_stats(...)["cupo_disponible"] == 4` y
 `Relevamiento.cupo_disponible == 2` (la tercera acepción, que la ficha nombra y no numeraba). Hay además una aserción
@@ -1229,7 +1229,7 @@ primero. El renombre sigue en la Ola 4.
   `legajos`; regla `DTZ011` (flake8-datetimez) en `pyproject.toml` para `programas/`, `legajos/`, `portal/` con `# noqa`
   donde sea deliberado.
 
-**Resolución:** 🟡 Caracterizada en #NNN (Cambio 156, PR R-16), 07-oct-2026 — **el arreglo sigue siendo de la Ola 3.**
+**Resolución:** 🟡 Caracterizada en #604 (Cambio 156, PR R-16), 07-oct-2026 — **el arreglo sigue siendo de la Ola 3.**
 `EdadHorarioTests` pone al proceso en las 23:00 del 30/06 local (02:00 UTC del 01/07) parcheando `timezone.now` y el
 `date` que importaron los cuatro módulos que resuelven «hoy» (`becas`, `condiciones`, `siis_envio`,
 `legajos.selectors.ciudadanos`). `test_el_corte_es_la_fecha_local_no_la_del_sistema` afirma que quien cumple 18 el 01/07
@@ -1396,7 +1396,7 @@ escenario de producción.
   los dos sitios de `padron.py`. Test `programas/tests/test_padron.py::IdentidadDelPadronTests.test_property_y_queryset_coinciden`
   (6 filas con las combinaciones vacío/espacios; hoy falla en las dos con espacios).
 
-**Resolución:** ✅ Resuelto en #NNN (Cambio 156, PR R-16), 07-oct-2026 — `PadronHabilitadoQuerySet.con_identidad()` es
+**Resolución:** ✅ Resuelto en #604 (Cambio 156, PR R-16), 07-oct-2026 — `PadronHabilitadoQuerySet.con_identidad()` es
 el único lugar donde la RN-2 se escribe para un queryset, y los docstrings de la property y del método se nombran
 mutuamente. `IdentidadDelPadronTests` recorre las seis combinaciones con `subTest` y enfrenta las dos mitades fila por
 fila; dos tests más miran el efecto que se veía desde afuera (el cruce automático que validaba a quien el botón manual
@@ -1462,7 +1462,7 @@ y `mysql:8.0`.
   (sin importar el módulo: `{r.slug for r in REGLAS} == {"becas.convocatoria", "becas.relevamiento"}`) y, en el comando,
   `if not REGLAS: raise CommandError("No hay reglas de vencimiento registradas")`.
 
-**Resolución:** ✅ Resuelto en #NNN (Cambio 156, PR R-16), 07-oct-2026 — `procesar_vencimientos` levanta `CommandError`
+**Resolución:** ✅ Resuelto en #604 (Cambio 156, PR R-16), 07-oct-2026 — `procesar_vencimientos` levanta `CommandError`
 con el registro vacío (antes escribía un aviso y salía con éxito), y el chequeo va **antes** del filtro `--solo`, para
 que el mensaje sea el que corresponde. El test que vale es
 `RegistroTests.test_el_ready_de_la_app_es_el_que_las_registra`: vacía el registro, saca el módulo de reglas de
@@ -2421,7 +2421,7 @@ Mutación M34 verificada a mano (aplicar, correr, revertir): `if nacimiento:` �
   `test_celda_segura_limpia_y_prefija_a_la_vez` (`celda_segura("\x0b=1+1") == "'=1+1"`: si se invierte el orden, el `\x0b`
   impide detectar la fórmula, un bypass real de SEC-20) · el mismo par para `respuesta_libro`.
 
-**Resolución:** ✅ Resuelto en #NNN (Cambio 156, PR R-16), 07-oct-2026 — `CeldaSeguraTests` (cinco tests) cubre las dos
+**Resolución:** ✅ Resuelto en #604 (Cambio 156, PR R-16), 07-oct-2026 — `CeldaSeguraTests` (cinco tests) cubre las dos
 cosas que hace la línea: que `respuesta_reporte(…, "xlsx")` y `respuesta_libro` devuelvan 200 con la celda limpia en vez
 de morir con `IllegalCharacterError`, y que el **orden** importe —invertirlo deja que el carácter de control esconda la
 fórmula del chequeo, porque el `lstrip()` de Python se lo come—. Se agregaron además el CSV y el alcance del libro, que
