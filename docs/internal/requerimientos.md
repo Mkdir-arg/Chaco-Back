@@ -325,6 +325,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 151 | El catálogo vacío de SIIS deja de bloquear Becas, y cuatro reglas que se decidían con datos viejos | Becas · catálogo SIIS · alta de beneficiarios (payload) · cupo y lista de espera · proceso masivo | `#siis` `#cupos` `#datos` `#relevamientos` | Auditoría integral oct-2026 — SIIS-06, SIIS-11, SIIS-12, BEC-01, BEC-02 y el resto de BEC-21 (Ola 1 «Integridad SIIS», PR 4) | 06/10/2026 | 🟢 **Hecho** | No requiere |
 | 152 | Configuración: la fila 21 deja de ser inalcanzable, el wizard vuelve a filtrar subsecretarías y los errores no de campo se ven | Configuración (geografía, secretarías, wizard de programas) · Transversal (pieza de errores no de campo, gate de bloques sin destino) · Legajos y Dispositivos (un formulario cada uno) | `#ui` `#metodo` | Auditoría integral oct-2026 — fichas FE-04, FE-05 y FE-08 (Ola 5, PR 3) | 06/10/2026 | 🟢 **Hecho** | No requiere |
 | 153 | El deploy deja de ser a ciegas: traceback en stdout, un health que sabe, guarda de esquema y una release con nombre | Transversal (logging, sonda de salud, entrypoint, script de deploy, CI de GitHub Actions) | `#infra` `#datos` `#metodo` | Auditoría integral oct-2026 — fichas OPS-03, RED-55, OPS-04, RED-59, OPS-01 y RED-16 (Ola R, PR R-15) | 06/10/2026 | 🟢 **Hecho** (RED-16 parcial: el tag de imagen lo aplica ECOM) | **Sí:** correr `verificar_esquema_migraciones --solo-reporte` en cada ambiente antes de desplegar o espejar, y en icore además el renombre de `core/sql/2026-10-06_renombrar_migraciones_icore.sql` |
+| 154 | «Aprobar» deja de poder pasarse de los 60 s de nginx: un timeout por llamada, cortacircuito y presupuesto verificado | Transversal · clientes de SIIS, Base de Personas y RENAPER · correo saliente · sincronización del catálogo SIIS | `#siis` `#performance` `#infra` `#datos` | Auditoría integral oct-2026 — SIIS-09 (= PERF-09) y los tres MINOR de la revisión del PR 4 (Ola 1 «Integridad SIIS», PR 5) | 06/10/2026 | 🟢 **Hecho** | No requiere |
 | 155 | Controles que el navegador no dibujaba: botones sin caja, backdrop transparente, modales en la esquina y la grilla del mes ilegible en celular | Transversal (shell del backoffice, sidebar, navbar, CSS de botones) · Configuración (10 modales, formularios y wizard) · Legajos · Usuarios y roles · Dispositivos · Merenderos (prestación mensual) | `#ui` `#mobile` | Auditoría integral oct-2026 — fichas FE-06, FE-07, FE-01 y FE-10 (Ola 5, PR 4) | 06/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
@@ -19906,6 +19907,10 @@ mismo commit, así que no queda ninguno en rojo.
   Ola 1 la decida a la vista.
 - **06/10/2026** (Cambio 136, PR 3) — BEC-21 queda parcial: el bloqueo por estado del programa espera a SIIS-06.
 - **06/10/2026 (este cambio)** — las cinco fichas y la línea que faltaba.
+- **06/10/2026** (Cambio 154, PR 5) — se corrige la decisión «se cuentan las transiciones *nuevas* a
+  `DESCONOCIDO`»: con ese criterio la guarda se saltea por goteo (tres catálogos parciales seguidos dejan todo
+  bloqueado sin que salte nunca). Pasa a contar el estado **resultante**, que es lo que la ficha SIIS-06 pide
+  confirmar.
 
 ---
 
@@ -20345,6 +20350,226 @@ escritos** en `docs/internal/propuesta-ecom-verify.md` para que los mande el PM:
   borrada) y dejaba ambientes sin arrancar: pasa a frenar solo la renumeración, con `--solo-reporte` para inspeccionar
   un ambiente ajeno. Además `/health/ready/` deja de filtrar el mensaje del motor y `deploy_prod.sh` deja de leer un
   `exec` fallido como «cero migraciones».
+
+---
+
+# Cambio 154 — «Aprobar» deja de poder pasarse de los 60 s de nginx: un timeout por llamada, cortacircuito y presupuesto verificado
+
+🟢 **HECHO — 06/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · clientes de SIIS, Base de Personas y RENAPER · correo saliente · sincronización del catálogo SIIS |
+| **Etiquetas** | `#siis` `#performance` `#infra` `#datos` |
+| **Solicitante** | Auditoría integral oct-2026 — ficha SIIS-09 (= PERF-09) y los tres MINOR que dejó la revisión del PR 4 (Ola 1 «Integridad SIIS», PR 5) |
+| **Fecha del pedido** | 06/10/2026 |
+| **Issue / épica** | Sin issue (plan de la auditoría: `docs/internal/auditoria-2026-10/`) |
+| **Partes afectadas** | `config/settings.py` (timeouts) · `core/integraciones.py` (nuevo) · `core/checks.py` · clientes de SIIS y de Base de Personas · cliente de RENAPER (solo los defaults) · `validacion_siis.py` · `siis_sync.py` y `sincronizar_programas_siis` · `.env.*.example`, `docker-compose.yml`. Ninguna pantalla nueva |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Cerrar **SIIS-09** (= PERF-09, misma cadena de llamadas externas), el quinto PR de la Ola 1, y los **tres MINOR**
+que la revisión del PR 4 (Cambio 151) dejó anotados sin bloquear el merge.
+
+## Qué lo motivó
+
+**nginx corta el request a los 60 s** (`nginx.conf:97` y `:172`, `proxy_read_timeout 60s`) y el backoffice
+encadena varias llamadas externas dentro de un mismo clic. «Aprobar» hace **token de SIIS → compatibilidad →
+alta en la tabla intermedia → correo de resolución**, y las tres llamadas a SIIS compartían un único par de
+timeouts de `(10, 30)`: en el peor caso la cadena pasaba los **120 s**. Lo que el operador veía era un 504, y
+detrás del 504 el alta podía estar hecha del otro lado —SIIS no tiene baja— con el 504 empujando al reintento
+manual, que es justo lo que SIIS-01 y SIIS-02 tratan de evitar. Lo mismo del lado del portal: con la Gran Base
+caída, cada paso 1 del link público retenía un hilo de daphne hasta agotar el timeout para terminar, igual, con
+la identidad en `manual`.
+
+Los tres MINOR son del PR anterior:
+
+- **`_exigir_confirmacion` contaba las novedades, no el resultado.** El revisor lo reprodujo: diez programas
+  vinculados y tres catálogos parciales seguidos (4 ausentes de 10, después 5, después 1) dejan **los diez
+  bloqueados** sin que la guarda salte nunca, porque ninguna corrida pasa el umbral por sí sola.
+- **`--forzar` era un flag pelado**, igual que `--ignorar-corrida` antes del PR 3, y deja bloqueada media Becas
+  o más.
+- **`respuesta = {}`** tiraba lo que SIIS había contestado cuando no era un objeto: en la fila registrada, «SIIS
+  no contestó» y «SIIS contestó el HTML de error de un proxy» quedaban indistinguibles.
+
+## Decisiones tomadas
+
+- **Un timeout por tipo de llamada** (default de **D-S09**): conexión 5 s para las tres integraciones;
+  lectura 10 s para las consultas (compatibilidad y catálogos de SIIS, Base de Personas, RENAPER), **20 s solo
+  para el alta** en la tabla intermedia, y `EMAIL_TIMEOUT` 5. El alta se queda **adentro** del request de
+  `formulario_aprobar`, con el timeout corto: si SIIS no contesta, el `INCIERTO` de SIIS-02 se concilia con
+  ECOM, que es mejor que un 504 sin registro.
+- **Un timeout propio para el token (`SIIS_API_TIMEOUT_TOKEN`, 5 s), que D-S09 no nombra.** Es el **único
+  desvío** de la decisión, y es lo que hace que la cuenta cierre: D-S09 habla de «consultas» pensando en las de
+  negocio, pero el token está en todas las cadenas y con `(5, 10)` la de «Aprobar» daba 60 s, o sea por encima
+  del presupuesto. Un endpoint de autenticación que tarda más de 5 s en devolver un JWT está roto.
+- **El presupuesto se declara y se verifica, no se calcula a mano una vez.** `core/integraciones.py` declara qué
+  llamadas externas encadena cada request (`CADENAS`) y cuánto puede tardar cada tipo (`COSTOS`);
+  `core.checks.presupuesto_de_llamadas_externas` suma los timeouts **configurados** y falla con `core.E003` si
+  alguna cadena pasa los **55 s** (los 60 de nginx menos 5 para lo que no es red). Corre en `check --deploy`, o
+  sea en el CI y antes del deploy. Es lo que impide que «subile el timeout, que SIIS anda lento» vuelva a poner
+  «Aprobar» por encima del corte sin que nadie lo note hasta el 504.
+- **«Aprobar un caso» queda justo en 55 s y eso es a propósito.** Nada más se puede encadenar ahí sin una
+  decisión: la siguiente llamada que alguien agregue deja el check en rojo. Que el margen sea cero es el punto.
+- **Cortacircuito en caché: tres fallas de red seguidas, un minuto sin consultar.** Se aplica a Base de Personas
+  (el tope del paso 1 del link público, punto 4 de la ficha: el resultado ya era `manual`, lo que se ahorra es
+  la espera) y a la consulta de compatibilidad de SIIS. **No se aplica al alta**: es lo irreversible y se decide
+  caso por caso, y para SIIS caído ya está el `INCIERTO`.
+- **Lo que abre el cortacircuito es no poder hablarle al servicio, no que conteste mal.** Un 404, un 401 o un
+  500 son respuestas: el servicio está en pie y el contador se resetea. Solo acumulan el timeout, la conexión
+  rechazada y la respuesta ilegible.
+- **El conteo del cortacircuito no toma candado.** Dos pedidos a la vez pueden pisarse un incremento y el costo
+  de eso es abrir un pedido más tarde. Un candado por cada llamada externa costaría más que lo que ahorra.
+- **Una `requests.Session` por módulo** (`siis.py`, `personas.py`) con `HTTPAdapter(pool_maxsize=10)`: sin
+  sesión, cada llamada abre una conexión TLS nueva contra el mismo host. Se comparte entre hilos —daphne corre
+  las vistas sync en un pool— y por eso no se usa *cookie jar*: las tres integraciones autentican por header.
+- **`LATIDO_VENCIDO` sigue en 5 minutos, pero su derivación cambia.** El techo de un caso del masivo ya no es
+  `(connect + timeout) × 3` sino la suma declarada de token + consulta + alta, que es la misma cuenta del
+  presupuesto. El test que lo ata lo lee de `core.integraciones`, no de un número escrito a mano.
+- **MINOR 1 — la guarda mira el estado resultante.** `_exigir_confirmacion` cuenta cuántos programas
+  **quedarían** en `DESCONOCIDO` al aplicar, no cuántos cambiarían. Contradice una línea escrita en el Cambio
+  151 («se cuentan las transiciones nuevas»), y está dicho ahí y acá: con ese criterio la guarda se saltea por
+  goteo. Efecto lateral buscado: mientras SIIS siga devolviendo catálogos parciales, el CronJob de las 04:00
+  queda en rojo todas las noches. Eso **es** la alarma.
+- **MINOR 2 — `--forzar` exige `--motivo`**, como `--ignorar-corrida` en `ComandoSiisBase`, y acepta `--usuario`.
+  El rastro es el mismo mecanismo (`logger.warning` con quién, cuándo y por qué) con una diferencia que se
+  explica en el código: `--ignorar-corrida` anota además en la `CorridaSiis` que pisa, y acá no hay ninguna fila
+  que sea «la sincronización» donde dejar la nota. Solo se registra cuando el forzado **hizo falta de verdad**:
+  un `--forzar` por costumbre sobre una baja normal no ensucia el log. **El CronJob de `cronjobs.yaml` corre sin
+  el flag y no cambia**, y hay un test que lo fija.
+- **MINOR 3 — lo que contestó SIIS se guarda en `respuesta["_crudo"]`**, recortado a 500 caracteres (un 502 de
+  nginx son varios KB de HTML). El guion bajo adelante es para que no se confunda con un campo del contrato. Se
+  revisaron los lectores de `ValidacionSIS.respuesta`: el único estructurado es `_detalle_validacion_siis`
+  (detalle de la revisión), que ya lee con `isinstance` + `.get` y sigue mostrando lo mismo; hay un test que lo
+  fija. **No se loguea**: no entran datos personales nuevos al log.
+
+## Decisiones de la ronda 2 de la revisión
+
+- **La suite no sale a internet, y eso es un runner y no un test.** Cambiar los clientes a una `Session` de
+  módulo movió el punto de parcheo, y un test de seguridad del portal se quedó parcheando
+  `programas.services.personas.requests.get`: el mock quedaba en **cero llamadas**, el cliente salía a resolver
+  `personas.example` de verdad y la regresión que cuidaba —que el DNI no viaje en el log— pasaba **por
+  accidente**, porque el error de conexión real tampoco traía el DNI. El parche se corrigió y el test ahora
+  afirma que el mock se llamó; pero lo que impide que vuelva a pasar es `core/tests/runner.py`
+  (`TEST_RUNNER`), que corta `HTTPAdapter.send` durante toda la corrida. Se corta ahí y no a nivel de socket:
+  la base, Redis y el servidor de pruebas siguen funcionando.
+- **El corte se instala asignando el método, no con `mock.patch(...).start()`.** Trece tests de la suite usan
+  `self.addCleanup(patch.stopall)`, que apaga todos los parches activos del proceso: con `start()` la guarda se
+  caía en el primero de ellos y de ahí en adelante la suite volvía a salir a la red sin avisar. Eso se midió:
+  con `start()`, los dos tests de la guarda pasaban solos y fallaban en la suite completa.
+- **El reCAPTCHA entra en la cadena del paso 1 del link público.** Faltaba declararlo y es la llamada **más
+  lenta** de las tres: la cadena decía 30 s cuando el peor caso real eran 45. Además su timeout era un escalar
+  —`requests` lo aplica a conectar **y** a leer, o sea el doble de lo que dice la variable— y estaba congelado
+  en el import, así que `override_settings` no lo movía. Pasa a ser el par `(RECAPTCHA_CONNECT_TIMEOUT,
+  RECAPTCHA_TIMEOUT)` = `(5, 10)`, leído de `settings` en cada llamada (`timeout_recaptcha()`), y hay un test
+  que ata la suma de lo que se pide a lo que declara `COSTOS["recaptcha"]`.
+- **Se revisó el resto de las cadenas contra el código** y se agregaron las tres que faltaban: promover desde la
+  lista de espera (token + alta + correo), agregar a la lista de espera (correo) y el alta de usuario con clave
+  provisoria (correo). RENAPER y el correo ya estaban declarados donde correspondía.
+- **La `Session` de módulo no guarda cookies.** El docstring afirmaba que no había *cookie jar* y era falso: una
+  `requests.Session` guarda lo que le manden y lo reenvía. Como la sesión vive lo que vive el proceso y la
+  comparten todos los requests que pasen por él, una cookie de sesión del servicio externo se guardaría una vez
+  y viajaría en las llamadas que ese proceso haga **por otras personas**. Se le pone una política que rechaza
+  todo (`SinCookies`); las tres integraciones autentican con token en el header y ninguna la necesita. El test
+  compara contra una `Session` pelada, que sí se la guarda.
+- **Una variable de entorno que falta no es «SIIS caído».** `_SiisConfigurationError` —`SIIS_API_URL` vacía,
+  credenciales vacías, un token que no es un objeto— sale del `except` del cortacircuito: no hay espera que
+  ahorrar (el cliente corta antes de abrir la conexión) y contarlo hacía que el log dijera «siis.consulta falló
+  3 veces seguidas», que manda a mirar a ECOM cuando lo que falta es una variable. El log ahora dice
+  «Configuración SIIS incompleta».
+- **La PoC se actualizó** (`poc/test_repro_siis_becas.py`): parcheaba `programas.services.siis.requests.post` y
+  habría dejado de reproducir.
+
+## Lo que la ficha pedía y no se hizo
+
+- **Cortacircuito para RENAPER.** La ficha nombra a RENAPER solo en el punto de los timeouts, y ahí sí entró. El
+  cortacircuito se dejó para las dos integraciones de alto volumen; RENAPER se consulta desde el backoffice,
+  detrás de login y de a una persona por vez.
+- **Sesión por módulo en RENAPER.** Ya tenía la suya (`APIClient.__init__`), aunque es por instancia y no por
+  módulo. No se tocó: su `Retry` cuelga de ese adaptador.
+
+## Un test que cambia a propósito
+
+`test_proceso_masivo.LatidoTests.test_el_latido_vencido_cubre_tres_llamadas_a_siis_con_margen` (Cambio 136)
+derivaba el techo de un caso de `SIIS_API_CONNECT_TIMEOUT + SIIS_API_TIMEOUT`, que ahora es **solo el del alta**.
+Pasa a leer los tres costos de `core.integraciones`, que es la misma declaración que mide el presupuesto. El
+umbral de 5 minutos no cambia.
+
+Y dos aserciones de `test_siis_catalogo_y_payload` que afirmaban `data == {}` / `respuesta == {}` ahora afirman
+el `_crudo`: es exactamente lo que el MINOR 3 vino a corregir.
+
+## Base de datos
+
+No requiere migración. `ValidacionSIS.respuesta` ya es un `JSONField`: `{"_crudo": "…"}` es un valor más.
+
+## Validación
+
+- **Suite completa** (`manage.py test` sin argumentos, Python 3.12 + Django 5.2.17 del `.venv312`, igual al CI):
+  **2.985 tests, OK** (25 skips) después de la ronda 2; 2.942 en la ronda 1.
+- **Tests nuevos: 45.** 32 en `programas/tests/test_llamadas_externas.py` (presupuesto, timeouts que salen de
+  verdad a la red, cortacircuito, Gran Base caída, SIIS caído, SIIS mal configurado, sesión compartida), 13 en
+  `programas/tests/test_siis_catalogo_y_payload.py` (los tres MINOR) y 4 en `core/tests/test_sin_red.py` (la
+  guarda de red). Fallaban antes por el motivo esperado: la cuarta consulta con la Gran Base caída **sí** salía
+  a la red; el goteo de catálogos parciales dejaba los diez programas bloqueados sin excepción; `--forzar` sin
+  `--motivo` corría; `respuesta` quedaba en `{}`; la cadena del paso 1 no contaba el captcha; y la `Session` se
+  guardaba las cookies.
+- **La guarda de red probada en las dos direcciones.** Con la versión que usaba `patch(...).start()`, los dos
+  tests de `core/tests/test_sin_red.py` pasaban **solos** y fallaban **en la suite completa** (el primer
+  `patch.stopall` de otro módulo la apagaba, y la llamada llegaba hasta `socket.getaddrinfo`); con la asignación
+  directa, la suite entera queda en verde con la guarda armada de punta a punta.
+- `manage.py check`, `check --deploy`, `makemigrations --check --dry-run` (sin cambios), `--tag performance`
+  (4 tests OK) y `ruff check . && ruff format --check` en verde. `requerimientos.py --check` OK.
+- **`core.E003` verificado contra el entorno**, en los dos hallazgos que lo mueven: con
+  `SIIS_API_TIMEOUT=30 EMAIL_TIMEOUT=10` dice «becas · aprobar un caso … 70 s», y con `RECAPTCHA_TIMEOUT=60`
+  dice «link público · paso 1 (identificar) … 95 s».
+- **No se corrió nada contra SIIS, ECOM, icore ni PRD.** Todo el tráfico de los tests está mockeado —y desde la
+  ronda 2 eso lo garantiza el runner, no la buena memoria de quien escribe el test—.
+
+## Reversión
+
+Revertir el commit. Vuelven los timeouts largos, se va el cortacircuito y la guarda del catálogo vuelve a contar
+novedades. No hay datos que migrar. Si hiciera falta solo aflojar los timeouts sin revertir el código, alcanza
+con las variables de entorno —pero el `check --deploy` va a marcarlo, que es lo que se quiere.
+
+## Pendientes / a definir
+
+- **Las variables de entorno de ECOM mandan sobre los defaults.** Si en testing o PRD están seteadas
+  `SIIS_API_TIMEOUT=30`, `PERSONAS_API_TIMEOUT=20`, `RENAPER_TIMEOUT=20` o `EMAIL_TIMEOUT=10` (los valores de
+  `.env.qa.example` hasta este cambio), el código nuevo las respeta y el presupuesto **no** se cumple. Hay que
+  bajarlas o borrarlas del entorno para que valgan los defaults. `manage.py check --deploy` lo dice con
+  `core.E003`; el entrypoint del contenedor no corre ese check, así que no frena el arranque.
+- **`SIIS_API_TIMEOUT_TOKEN` y `SIIS_API_TIMEOUT_CONSULTA` son variables nuevas.** Sin setearlas valen 5 y 10,
+  que es lo que se quiere: no hay que agregarlas al entorno de ECOM.
+- **El CronJob de las 04:00 ahora puede quedar en rojo varias noches seguidas** si SIIS devuelve catálogos
+  parciales: eso es lo que la corrección del MINOR 1 destapa. Antes de usar `--forzar --motivo` hay que
+  confirmar la baja con ECOM.
+- **El cortacircuito no tiene pantalla.** Mientras está abierto, el único rastro es el `WARNING` del log del pod
+  (`cortacircuito abierto: personas falló 3 veces seguidas`). Si hiciera falta verlo desde el backoffice, es un
+  requerimiento aparte.
+- **El correo sigue dentro del request** de «Aprobar». Bajarlo a 5 s lo acota; sacarlo del request (marca en el
+  caso + cron) es lo que el Cambio 91 dejó anotado y sigue abierto.
+- **`RECAPTCHA_CONNECT_TIMEOUT` es una variable nueva** (default 5). Sin setearla vale lo que se quiere; no hay
+  que agregarla al entorno de ECOM. `RECAPTCHA_TIMEOUT` ya existía y sigue en 10.
+- **El presupuesto solo cubre lo declarado.** `CADENAS` se escribió leyendo el código, pero nada ata
+  automáticamente una llamada externa nueva a su cadena: si alguien agrega un `requests.post` en una vista, el
+  check no se entera hasta que alguien lo declare. Atarlo de verdad pide un barrido estático como el de
+  `core/tests/test_sql_portable.py` (DIS-01); no entró acá.
+
+## Historial
+
+- **25/09/2026** (Cambio 91) — el incidente de 500 del portal deja anotados, como «para después», los timeouts
+  largos del paso 1, el correo sincrónico y las llamadas a SIIS/RENAPER «de hasta 40 s por clic, sin lock».
+- **03/10/2026** — la auditoría los junta en SIIS-09 y les pone decisión (D-S09).
+- **06/10/2026 (este cambio)** — SIIS-09 cerrada, con el presupuesto verificado por `check --deploy`, y los tres
+  MINOR del PR 4.
+- **07/10/2026 (ronda 2 de la revisión)** — dos MAJOR y tres MINOR. El cambio a `Session` había dejado un test
+  de seguridad del portal parcheando el lugar equivocado —mock en cero llamadas y salida a la red real—, así
+  que además de arreglarlo y de arreglar la PoC, la suite entera pasa a correr con la red cortada
+  (`core/tests/runner.py` por `TEST_RUNNER`). El reCAPTCHA entra en la cadena del paso 1 del link público, que
+  no lo declaraba y es su llamada más lenta, con el timeout pasado a par `(5, 10)` leído en cada llamada; se
+  declaran además tres cadenas que faltaban. La `Session` de módulo deja de guardar cookies. Y una
+  configuración incompleta de SIIS deja de contar como falla del cortacircuito.
 
 ---
 

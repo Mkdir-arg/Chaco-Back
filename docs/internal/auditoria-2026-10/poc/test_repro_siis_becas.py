@@ -102,7 +102,7 @@ class ResultadoAmbiguoTests(_BaseProcesoTest):
     def test_read_timeout_es_error_reintentable_y_vuelve_a_candidatos(self):
         with (
             patch.object(siis_mod.SiisAPIClient, "_token", return_value="t"),
-            patch("programas.services.siis.requests.post", side_effect=requests.ReadTimeout("read")),
+            patch.object(siis_mod.sesion, "post", side_effect=requests.ReadTimeout("read")),
         ):
             r = siis_mod.cargar_beneficiario({"x": 1})
         self.assertTrue(r["reintentable"])
@@ -215,7 +215,7 @@ class CompatibilidadBodyListaTests(_BaseProcesoTest):
         resp.json.return_value = ["OK"]
         with (
             patch.object(siis_mod.SiisAPIClient, "_token", return_value="t"),
-            patch("programas.services.siis.requests.post", return_value=resp),
+            patch.object(siis_mod.sesion, "post", return_value=resp),
         ):
             with self.assertRaises(AttributeError):
                 siis_mod.validar_compatibilidad("1", 79)

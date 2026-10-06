@@ -109,7 +109,7 @@ class SinCredencialesTests(BaseDiagnosticoTests):
 
 @override_settings(**CON_PERSONAS)
 class ConfiguracionTests(BaseDiagnosticoTests):
-    @patch("programas.services.personas.requests.post")
+    @patch("programas.services.personas.sesion.post")
     def test_no_imprime_el_secreto(self, post):
         post.return_value = _respuesta({"data": {"token": "t" * 30}})
 
@@ -119,7 +119,7 @@ class ConfiguracionTests(BaseDiagnosticoTests):
         self.assertIn("PERSONAS_API_CLIENT_SECRET", salida)
         self.assertIn(f"presente ({len(SECRETO)} caracteres)", salida)
 
-    @patch("programas.services.personas.requests.post")
+    @patch("programas.services.personas.sesion.post")
     def test_sin_dni_avisa_que_no_ejercito_la_consulta(self, post):
         post.return_value = _respuesta({"data": {"token": "t" * 30}})
 
@@ -129,7 +129,7 @@ class ConfiguracionTests(BaseDiagnosticoTests):
         self.assertIn("token obtenido", salida)
         self.assertIn("sin --dni no se probó una consulta real", salida)
 
-    @patch("programas.services.personas.requests.post")
+    @patch("programas.services.personas.sesion.post")
     def test_token_rechazado_es_falla(self, post):
         post.side_effect = ValueError("credenciales invalidas")
 
@@ -143,9 +143,9 @@ class ConfiguracionTests(BaseDiagnosticoTests):
 class ConsultaTests(BaseDiagnosticoTests):
     def setUp(self):
         super().setUp()
-        self.post = patch("programas.services.personas.requests.post").start()
+        self.post = patch("programas.services.personas.sesion.post").start()
         self.post.return_value = _respuesta({"data": {"token": "t" * 30}})
-        self.get = patch("programas.services.personas.requests.get").start()
+        self.get = patch("programas.services.personas.sesion.get").start()
         self.addCleanup(patch.stopall)
 
     def test_consulta_con_datos_confirma_que_el_publico_precarga(self):
@@ -197,9 +197,9 @@ class LinkPublicoTests(BaseDiagnosticoTests):
 
     def setUp(self):
         super().setUp()
-        self.post = patch("programas.services.personas.requests.post").start()
+        self.post = patch("programas.services.personas.sesion.post").start()
         self.post.return_value = _respuesta({"data": {"token": "t" * 30}})
-        self.get = patch("programas.services.personas.requests.get").start()
+        self.get = patch("programas.services.personas.sesion.get").start()
         self.get.return_value = _respuesta(PERSONA_OK)
         self.addCleanup(patch.stopall)
 

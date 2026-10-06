@@ -145,8 +145,14 @@ código ya consume la versión vigente:
   mismas credenciales: no agrega variables de entorno.
 - Configuración por env: `SIIS_API_URL` (**sin default desde el Cambio 123**: si
   falta, no se manda nada en vez de mandarlo al SIIS de desarrollo),
-  `SIIS_API_CLIENT_ID`, `SIIS_API_CLIENT_SECRET`, `SIIS_API_CONNECT_TIMEOUT`,
-  `SIIS_API_TIMEOUT`. En PRD, además, `DATANACH_ES_PRODUCCION=1`, que es lo que
+  `SIIS_API_CLIENT_ID`, `SIIS_API_CLIENT_SECRET`, `SIIS_API_CONNECT_TIMEOUT` (5)
+  y un timeout de lectura por tipo de llamada desde SIIS-09:
+  `SIIS_API_TIMEOUT_TOKEN` (5), `SIIS_API_TIMEOUT_CONSULTA` (10, compatibilidad
+  y catálogos) y `SIIS_API_TIMEOUT` (20, solo el alta en la tabla intermedia).
+  La suma de las llamadas externas de un request tiene que entrar en los 55 s
+  que declara `core.integraciones.CADENAS` —nginx corta a los 60—, y eso lo
+  verifica `manage.py check --deploy`: subir un timeout en el entorno deja el
+  check en rojo. En PRD, además, `DATANACH_ES_PRODUCCION=1`, que es lo que
   hace que `manage.py check --deploy` rechace apuntar al ambiente de test.
 
 ## Acotaciones del correo (27/07/2026)
