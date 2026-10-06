@@ -949,6 +949,41 @@ def payload_de(alta):
     return payload
 
 
+# Filas por página al drenar. El join con ``programas_formulario`` arrastra la
+# foto del caso --27 KB cada una-- y pedir las 4.826 pendientes de una no entra
+# en el ``read_timeout`` de 10 s de ECOM: muere con «Lost connection to server
+# during query» antes de mandar nada. Mismo remedio que ``proceso_masivo.ids_de``
+# (Cambio 106).
+PAGINA_DRENAJE = 200
+
+
+def _pendientes_por_paginas(modelo, limite=None, pagina=PAGINA_DRENAJE):
+    """Las altas sin sincronizar, de a páginas por rango de pk.
+
+    Se relee en cada vuelta en vez de materializar todo: las filas que el bucle
+    ya marcó salen solas del filtro, y las que quedaron pendientes --excluidas,
+    rechazadas-- se saltean por el ``pk__gt``. Así ninguna consulta pide más de
+    ``pagina`` filas con su formulario al lado.
+    """
+    entregadas = 0
+    ultimo = 0
+    while True:
+        if limite and entregadas >= limite:
+            return
+        cuantas = min(pagina, limite - entregadas) if limite else pagina
+        tramo = list(
+            modelo.objects.filter(sincronizado=False, pk__gt=ultimo)
+            .select_related("formulario__ciudadano", "formulario__relevamiento__convocatoria__segmento__programa")
+            .order_by("pk")[:cuantas]
+        )
+        if not tramo:
+            return
+        for alta in tramo:
+            entregadas += 1
+            yield alta
+        ultimo = tramo[-1].pk
+
+
 def sincronizar_tabla_intermedia(solicitado_por, limite=None, al_terminar=None):
     """Manda a SIIS lo que quedó pendiente en la tabla intermedia local.
 
@@ -978,14 +1013,7 @@ def sincronizar_tabla_intermedia(solicitado_por, limite=None, al_terminar=None):
 
     cuenta = {"altas": 0, "rechazadas": 0, "errores": 0, "no_aprobables": 0, "excluidas": 0}
     no_enviar = dnis_a_no_enviar()
-    pendientes = (
-        AltaIntermediaSIIS.objects.filter(sincronizado=False)
-        .select_related("formulario__ciudadano", "formulario__relevamiento__convocatoria__segmento__programa")
-        .order_by("pk")
-    )
-    if limite:
-        pendientes = pendientes[:limite]
-    for alta in list(pendientes):
+    for alta in _pendientes_por_paginas(AltaIntermediaSIIS, limite):
         formulario = alta.formulario
         if no_enviar and _digitos(alta.dni) in no_enviar:
             cuenta["excluidas"] += 1
