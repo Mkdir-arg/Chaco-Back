@@ -64,8 +64,10 @@ def restaurar_id_consulta_mysql(apps, schema_editor):
     if schema_editor.connection.vendor != "mysql":
         return
     for tabla, columna, nulabilidad in reversed(COLUMNAS_UUID):
-        if schema_editor.connection.features.has_native_uuid_field:
-            _normalizar_uuid(schema_editor, tabla, columna, con_guiones=False)
+        # RED-18: se normaliza siempre, no solo con UUID nativo. Una base restaurada desde
+        # otro motor trae los guiones puestos igual, y achicar sin sacarlos trunca
+        # (ERROR 1265). Mismo patrón que la 0073.
+        _normalizar_uuid(schema_editor, tabla, columna, con_guiones=False)
         schema_editor.execute(f"ALTER TABLE {tabla} MODIFY {columna} char(32) {nulabilidad}")
 
 

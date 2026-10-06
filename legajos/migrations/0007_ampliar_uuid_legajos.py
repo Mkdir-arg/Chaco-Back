@@ -96,8 +96,10 @@ def restaurar_uuid_legajos_mysql(apps, schema_editor):
         ("legajos_legajoatencion", "id", "NOT NULL"),
     )
     for tabla, columna, nulabilidad in columnas:
-        if schema_editor.connection.features.has_native_uuid_field:
-            _normalizar_uuid(schema_editor, tabla, columna, con_guiones=False)
+        # RED-18: se normaliza siempre, no solo con UUID nativo. Una base restaurada desde
+        # otro motor trae los guiones puestos igual, y achicar sin sacarlos trunca
+        # (ERROR 1265). Mismo patrón que programas.0073.
+        _normalizar_uuid(schema_editor, tabla, columna, con_guiones=False)
         schema_editor.execute(f"ALTER TABLE {tabla} MODIFY {columna} char(32) {nulabilidad}")
     _crear_foreign_keys(schema_editor)
 

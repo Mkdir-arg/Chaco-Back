@@ -34,5 +34,8 @@ class Migration(migrations.Migration):
             name='fecha_hasta',
             field=models.DateTimeField(verbose_name='Fecha y hora hasta'),
         ),
+        # REVERSA-NOOP: al revertir, los dos ``AlterField`` vuelven las columnas a
+        # ``DateField`` y se pierde la hora que esta operación escribió (00:00 y 23:59:59
+        # eran reconstruibles; la franja que haya cargado después una persona, no).
         migrations.RunPython(conservar_dias_como_franja_completa, migrations.RunPython.noop),
     ]

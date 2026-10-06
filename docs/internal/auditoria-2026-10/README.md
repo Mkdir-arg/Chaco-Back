@@ -64,6 +64,30 @@ liberarlos mandaría una tercera alta. Todos quedan listados y con una traza en 
 
 ---
 
+## Estado al 06-oct-2026 (Ola R: R-12, contrato de migraciones)
+
+| PR | Cambio | Fichas | Estado | Qué quedó abierto |
+|---|---|---|---|---|
+| R-12 contrato de migraciones | 135 | RED-14, RED-57, RED-18, RED-84, RED-83 | ✅ ✅ ✅ ✅ 🟡 | `scripts/check_migraciones.py` como paso del job **`Migration Check`** (ya obligatorio: no se agregó un check nuevo, ver abajo); las 16 reversas noop declaran qué pierden y `programas.0032`, `0056` y `0069` suman la barrera que faltaba —las ocho del runbook D.4 ahora abortan solas—; las reversas UUID normalizan a hex siempre (cuatro migraciones, una más que la ficha); `requerimientos.py --check` exige «Reversión» desde el Cambio 135; ratchet de índices redundantes en 26 pares. **RED-83 queda 🟡**: la migración que los saca es de la Ola 4. Habilita **R-13** |
+
+**Por qué el gate no es un check nuevo.** El paso vive adentro de `Migration Check`, que ya está en `CHECKS_OBLIGATORIOS`
+y en `ruleset-development.json`. Un `context` nuevo hay que agregarlo a mano al ruleset del repo —que **todavía no está
+aplicado** (RED-20, pendiente del dueño)—, así que un job aparte sería hoy un check que nadie exige; y el paso es
+determinista, no toca la red ni la base y tarda menos de un segundo. Por eso ni `ruleset-development.json` ni
+`CHECKS_OBLIGATORIOS` cambian en este PR, y hay un test que deja escrito el razonamiento.
+
+**Lo que se midió y corrige a las fichas.** Las reversas noop son **16 archivos / 17 operaciones**, no 15
+(`programas.0063` tiene el patrón de función vacía de `users/0007`). `users.0023` tiene el mismo bug de normalización que
+las tres de RED-18. Los índices redundantes son **26** pares y no 5: la auditoría midió solo `programas_formulario` y
+`legajos_ciudadano`. Y el modo `--todas` del gate deja a la vista la deuda histórica que **no** se reescribe: 119
+hallazgos en las 113 migraciones existentes (73 columnas `NOT NULL` sin default, 46 *contract* sin declarar).
+
+**Pendiente operativo que deja este PR (PM):** ninguno de deploy (sin migraciones nuevas; las ocho barreras y las cuatro
+reversas UUID solo cambian el camino de vuelta, que en producción no se usa). Cuando la Ola 4 saque los cinco índices
+medidos, bajar las filas correspondientes de `REDUNDANTES_CONOCIDOS`.
+
+---
+
 ## Estado al 05-oct-2026 (Ola R: R-11, motor real en el CI)
 
 | PR | Cambio | Fichas | Estado | Qué quedó abierto |
@@ -1082,7 +1106,10 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
   `ciudadano.sensible` en la Ola 2.
 - **✅ R-11 cerrado el 05-oct-2026 (Cambio 130), 8 h.** El CI corre los tests marcados `@tag("mysql")` contra
   `mariadb:10.11`, `mariadb:11` y `mysql:8.0`, con migraciones reales. Desbloquea R-13 (comparte los servicios) y la Ola 3.
-- **Quedan 148 h:** R-12, R-13, R-15 a R-18, R-20 y R-21. El orden sigue siendo el de dependencias: **R-12, R-13, R-15 y
+- **✅ R-12 cerrado el 06-oct-2026 (Cambio 135), 18 h.** El contrato de migraciones: gate `check_migraciones.py` en
+  `Migration Check`, reversas declaradas (y tres barreras nuevas), reversa UUID normalizada, «Reversión» exigida en
+  `requerimientos.py --check` y ratchet de índices redundantes. Habilita **R-13** y protege toda migración nueva.
+- **Quedan 130 h:** R-13, R-15 a R-18, R-20 y R-21. El orden sigue siendo el de dependencias: **R-13, R-15 y
   R-16 antes de la Ola 3**, R-21 antes de la Ola 2.
 - **Objetivo:** poder cambiar código sin romper nada sin enterarse. Que todo lo que las Olas 1 a 7 van a tocar tenga antes
   un test que se ponga rojo si se rompe, que el CI pruebe el motor de producción (MariaDB) y las migraciones en las dos
@@ -1106,7 +1133,7 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
 | ✅ R-09 | **Cupo y lista de espera:** RED-27 (cupo 0), RED-67 (contrato de candados), RED-68 (posición) — **#552, Cambio 124** | 6 | Ola 1 (BEC-01/02), Ola 4 (PERF-02) |
 | ✅ R-10 | **Motor y forma del SQL:** RED-07 (`core/tests/test_sql_motor_real.py` + `_sql_mysql` corregido), RED-08, RED-09 — **#550, Cambio 125** | 10 | Olas 1, 3 y 5 (DIS-01) |
 | ✅ R-11 | **Motor real en CI:** TST-01 (matriz `mariadb:10.11`/`mariadb:11`/`mysql:8.0` + `test --tag mysql`; ampliado) — **Cambio 130** (cierra también la capa 2 de RED-67) | 8 | R-13, Ola 3 |
-| R-12 | **Contrato de migraciones:** RED-14 (`scripts/check_migraciones.py`, columnas que toleran código viejo), RED-57 (reversas declaradas), RED-18 (reversa UUID), RED-84 (`Reversión` en `--check`), RED-83 (índices redundantes, ratchet) | 18 | toda migración nueva |
+| ✅ R-12 | **Contrato de migraciones:** RED-14 (`scripts/check_migraciones.py`, columnas que toleran código viejo), RED-57 (reversas declaradas), RED-18 (reversa UUID), RED-84 (`Reversión` en `--check`), RED-83 (índices redundantes, ratchet) — **Cambio 135** (RED-83 🟡: la migración es de la Ola 4) | 18 | toda migración nueva |
 | R-13 | **Job `migration-roundtrip`** (Anexo B): RED-17, RED-19 (un solo migrador, expand/contract) | 14 | Ola 3 (G1-04, G1-05, DAT-01) |
 | ✅ R-14 | **Gates del release:** RED-24 (`Contratos del repo`), RED-21 (`publish-main` exige CI verde), RED-65, RED-23 (`release-gate.yml` + `/pushGitLabecom` en dos), RED-22 (propuesta a ECOM) — **#575, Cambio 128** (RED-22 y RED-23 🟡: falta el envío a ECOM y copiar los dos comandos a `.claude/`) | 22 | el próximo espejo a ECOM |
 | R-15 | **Operación y deploy** (desde la Ola 3): OPS-03, OPS-04, OPS-01 (ampliados), RED-59 (`deploy_prod.sh`), RED-16 (tag de release), RED-55 | 18 | el próximo deploy en icore |
@@ -1121,8 +1148,9 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
 - **Mínimo antes de la Ola 1: ✅ hecho el 04-oct-2026.** R-01 a R-10 (86 h) están mergeados en `development` (detalle,
   estado por ficha y lo que quedó operativo en «Estado al 04-oct-2026», arriba). **R-19 también está cerrado**
   (#556, Cambio 126, 21 h): era el urgente de la ola, y **R-14 también** (#575, Cambio 128, 22 h: los gates del
-  release, antes del próximo espejo a ECOM) y **R-11** (Cambio 130, 8 h: el motor real en el CI, que desbloquea R-13).
-  **Quedan 148 h de la Ola R:** R-12, R-13, R-15 y R-16 antes de la Ola 3; R-21 antes de la Ola 2. El resto puede ir en
+  release, antes del próximo espejo a ECOM), **R-11** (Cambio 130, 8 h: el motor real en el CI, que desbloquea R-13)
+  y **R-12** (Cambio 135, 18 h: el contrato de migraciones, que habilita R-13 y protege toda migración nueva).
+  **Quedan 130 h de la Ola R:** R-13, R-15 y R-16 antes de la Ola 3; R-21 antes de la Ola 2. El resto puede ir en
   paralelo con otro implementador.
 - **Hecho cuando (verificable):**
   1. `gh api repos/Mkdir-arg/Chaco-Back/rulesets` lista los rulesets de `development` y `main`; un push directo a

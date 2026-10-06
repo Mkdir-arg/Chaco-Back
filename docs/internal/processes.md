@@ -338,8 +338,10 @@ una operación, o hay dudas: D.4.
 **D.4 · Restore.** Es el camino obligatorio para *contract*, datos borrados y barreras de
 reversa. Son barreras de reversa, por pérdida de datos, `programas.0032`,
 `programas.0056` y `programas.0069`; y por los UUID de MariaDB, `programas.0047`,
-`programas.0048`, `programas.0073`, `legajos.0007` y `users.0023`. Las cinco de UUID
-abortan solas con un mensaje que apunta acá si alguien intenta revertirlas.
+`programas.0048`, `programas.0073`, `legajos.0007` y `users.0023`. Las ocho abortan solas
+con un mensaje que apunta acá si alguien intenta revertirlas: las cinco de UUID solo en
+MySQL/MariaDB (fuera de ahí su ida ya era un no-op) y las tres de datos en cualquier
+motor.
 
 1. Bajar la app (`kubectl scale --replicas=0`, o `docker compose -f docker-compose.prod.yml stop web websocket`).
 2. `DROP DATABASE` + `CREATE DATABASE` + restore del dump de D.0. **Nunca restaurar
@@ -386,12 +388,15 @@ correspondiente con lo que pasó de verdad al revertir.
   esquema y `django_migrations` discrepando, y el próximo deploy falla en otro lado. Si
   el `migrate` quedó cortado, el camino es D.3; si fue durante una reversa, D.4.
 - **Las migraciones no se revierten en producción.** El camino de vuelta es el restore de
-  D.4, y ahí está la lista completa de las que directamente no tienen reversa segura. De
-  esas ocho, **solo las cinco de UUID** llevan hoy la marca `# BARRERA-DE-REVERSA:` en su
-  archivo y abortan con un mensaje explícito antes de tocar la base si alguien lo
-  intenta; las tres de pérdida de datos (`programas.0032`, `0056` y `0069`) por ahora se
-  revierten en silencio y la única defensa es esta lista, hasta que RED-57 (PR R-12) les
-  ponga la marca.
+  D.4, y ahí está la lista completa de las que directamente no tienen reversa segura. Las
+  ocho llevan la marca `# BARRERA-DE-REVERSA:` en su archivo y abortan con un mensaje
+  explícito **antes** de tocar la base si alguien lo intenta.
+- **Toda migración de datos declara qué se pierde al revertirla.** Si su reversa no
+  deshace nada, arriba va `# REVERSA-NOOP: <qué dato queda inconsistente>`; un
+  `RemoveField`/`DeleteModel`/`RenameField`/`RenameModel` lleva `# CONTRACT: <dejó de
+  leerse en la release X>`, y una columna nueva `NOT NULL` nace con `DEFAULT` en la base o
+  con `# ROLLBACK-OK: <motivo>`. Lo verifica `scripts/check_migraciones.py`, que corre en
+  el job `Migration Check` del CI sobre las migraciones nuevas del PR.
 - Si la migración que se va a desplegar es barrera de reversa, **se dice en el aviso de
   deploy**: a partir de ahí solo se vuelve con restore.
 - El esquema se mueve siempre primero y nunca hacia atrás dentro de la misma release

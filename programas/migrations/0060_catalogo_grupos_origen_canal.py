@@ -122,5 +122,8 @@ class Migration(migrations.Migration):
             name="email_contacto",
             field=models.EmailField(blank=True, max_length=254, verbose_name="Correo electrónico"),
         ),
+        # REVERSA-NOOP: no queda nada inconsistente. Lo que escribe —el grupo
+        # «cuestionario» y el ``grupo`` de cada pregunta— vive en la tabla y la columna que
+        # esta misma migración crea, y la reversa las borra.
         migrations.RunPython(preguntas_al_cuestionario, migrations.RunPython.noop),
     ]

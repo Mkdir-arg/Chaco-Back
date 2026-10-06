@@ -53,11 +53,11 @@ con lo que existe hoy; la lista solo baja.
 | RED-11 | Ningún test fija la forma del JSON de `/api/becas/*` que lee la app de campo | ALTA | CONF. lectura (dos repos) | R | S | ✅ |
 | RED-12 | `definicion_formulario` y los prefijos `pg-`/`rn-`: contrato de dos repos sin serializer ni test | ALTA | CONF. lectura (dos repos) | R | M | ⬜ |
 | RED-13 | El shell de todo el backoffice y `legajos.ready()` dependen de `conversaciones` | ALTA | CONF. lectura | R (test) + 7 | S + M | ⬜ |
-| RED-14 | Un rollback de release con una columna `NOT NULL` nueva rompe el alta de casos (error 1364) | ALTA | CONF. test (MariaDB 11.8) | R | M | ⬜ |
+| RED-14 | Un rollback de release con una columna `NOT NULL` nueva rompe el alta de casos (error 1364) | ALTA | CONF. test (MariaDB 11.8) | R | M | ✅ |
 | RED-15 | En MariaDB la reversa falla (errno 150) y deja tabla huérfana y `django_migrations` a mitad | ALTA | CONF. test (MariaDB 11.8) | R | S | ✅ |
 | RED-16 | No hay artefacto al que volver: ECOM publica solo `:latest` y `main` no se tagea | ALTA | CONF. lectura (rollout PLAUSIBLE) | R | S | ⬜ |
 | RED-17 | Ninguna migración se prueba hacia atrás ni sobre datos; los tests de migración usan los modelos de hoy | ALTA | CONF. test | R | M + S | ⬜ |
-| RED-18 | La reversa de `0047`, `0048` y `legajos.0007` falla con «Data truncated» | ALTA | CONF. test (MariaDB 11.8) | R | S | ⬜ |
+| RED-18 | La reversa de `0047`, `0048` y `legajos.0007` falla con «Data truncated» | ALTA | CONF. test (MariaDB 11.8) | R | S | ✅ |
 | RED-19 | Rolling en k8s: cada pod corre `migrate` (choque) y no hay regla expand/contract | ALTA | CONF. test (MariaDB 11.8) | R (+3 en OPS-07) | S-M | ⬜ |
 | RED-20 | `development` y `main` sin protección de rama: ningún check es obligatorio | ALTA | CONF. lectura (API) | R | S-M | 🟡 (falta el PM) |
 | RED-21 | `publish-main.yml` genera el release sin exigir CI verde y con un denylist escrito a mano | ALTA | CONF. lectura | R | S | ✅ |
@@ -96,7 +96,7 @@ con lo que existe hoy; la lista solo baja.
 | RED-54 | `revision.py` (1.331 líneas): ningún test fija el contexto del detalle | MEDIA | CONF. test (radon) | R (+7) | S-M (+M) | ✅ (R; falta Ola 7) |
 | RED-55 | Los context processors corren en cada render y tragan toda excepción sin log | MEDIA | CONF. lectura | R | S | ⬜ |
 | RED-56 | Los guards de alcance de Becas fallan abiertos si el Programa BECAS no está sembrado | MEDIA | CONF. test | R | S | ✅ |
-| RED-57 | 14 reversas `RunPython.noop` (más `users/0007`) pierden datos e informan `OK` | MEDIA | CONF. test (SQLite con datos) | R | S-M | ⬜ |
+| RED-57 | 14 reversas `RunPython.noop` (más `users/0007`) pierden datos e informan `OK` | MEDIA | CONF. test (SQLite con datos) | R | S-M | ✅ |
 | RED-58 | `legajos.0007` no es re-entrante: un corte deja legajos sin FK y el reintento muere con 1091 | MEDIA | CONF. test (SQL) | 3 | S | ⬜ |
 | RED-59 | `deploy_prod.sh`: rollback sin base, detached HEAD y un health que siempre da 200 | MEDIA | CONF. lectura | R | S | ⬜ |
 | RED-60 | `processes.md` enseña un rollback que destruye datos y autoriza `--fake` | MEDIA | CONF. lectura | R (prioridad 1) | S | ✅ |
@@ -122,8 +122,8 @@ con lo que existe hoy; la lista solo baja.
 | RED-80 | `programa_becas` y `programa_dispositivos`: mismo cache, distinta guarda e invalidación | BAJA | CONF. lectura | 2 | S | ⬜ |
 | RED-81 | El registro de reglas de vencimiento puede quedar vacío y el comando sale OK | BAJA | CONF. lectura | R | S | ⬜ |
 | RED-82 | `exportacion_reportes.py` con terminadores CR: git lo trata como binario y pylint lo saltea | BAJA | CONF. test | R | S | ⬜ |
-| RED-83 | Índices duplicados en `programas_formulario` y `legajos_ciudadano` | BAJA | CONF. test (`information_schema`) | R (+4) | S (+S) | ⬜ |
-| RED-84 | `requerimientos.py --check` no verifica la sección «Reversión» | BAJA | CONF. lectura | R | S | ⬜ |
+| RED-83 | Índices duplicados en `programas_formulario` y `legajos_ciudadano` | BAJA | CONF. test (`information_schema`) | R (+4) | S (+S) | ✅ (R; falta Ola 4) |
+| RED-84 | `requerimientos.py --check` no verifica la sección «Reversión» | BAJA | CONF. lectura | R | S | ✅ |
 | RED-85 | Herramientas del CI sin pinear y actions por tag en workflows con `contents: write` | BAJA | CONF. lectura | R (+7) | S (+S) | ✅ (R; falta Ola 7) |
 | RED-86 | Job de tests con timeout de 15 min, sin `--parallel` ni alarma de crecimiento | BAJA | CONF. test (`gh run list`) | 7 | S | ⬜ |
 | RED-87 | El largo mínimo del barrio del payload SIIS no se prueba en su borde | BAJA | CONF. test (mutación M33) | R | S | ✅ |
@@ -1396,6 +1396,8 @@ en los **Anexos A-D** de este archivo.
 
 ### RED-14 · Un rollback de release con una columna `NOT NULL` nueva rompe el alta de casos
 **Severidad:** ALTA (era CRÍTICA: el daño aparece al ejecutar un rollback, no hoy) · **Estado:** CONFIRMADO con test (`ERROR 1364 … Field 'dni_titular' doesn't have a default value` en MariaDB 11.8; VR2 contó 392 columnas `NOT NULL` sin default solo en `programas_*`) · **Origen:** RS-R5-01 (VR2: CONFIRMADO) · **Ola:** R · **Esfuerzo:** M (8 h)
+
+**Resolución:** ✅ Resuelto en #NNN (Cambio 135, PR R-12), 06-oct-2026 — `scripts/check_migraciones.py` recorre con `ast` las migraciones **agregadas** respecto de la base del PR (`git diff --diff-filter=A`) y falla ante las tres cosas que dejan la base en un estado que no corresponde a ninguna release: una columna nueva `NOT NULL` sin `DEFAULT` real en la base (regla `EXPAND`, con la salida `# ROLLBACK-OK:` o un `RunSQL … SET DEFAULT` que nombre la columna), un `RemoveField`/`DeleteModel`/`RenameField`/`RenameModel` sin `# CONTRACT:` (regla `CONTRACT`, RED-19) y un `RunPython`/`RunSQL` sin reversa declarada o con reversa noop sin `# REVERSA-NOOP:` (regla `REVERSA`, RED-57). Corre como paso del job **`Migration Check`** de `pr-backend.yml`, que ya es obligatorio en el ruleset: **no se agregó un check nuevo**, y el motivo está escrito en el test —un `context` nuevo hay que sumarlo a mano al ruleset, que todavía no está aplicado (RED-20), así que sería un check que nadie exige; el paso es determinista y tarda menos de un segundo—. Tres desvíos de la propuesta, los tres code-first: (1) la regla `EXPAND` **no** mira `AlterField`, porque sin comparar contra el estado anterior no se puede distinguir «esta columna pasa a `NOT NULL` ahora» de un `AlterField` que solo cambia `choices` sobre una columna que ya era `NOT NULL` —la 0075 es exactamente ese caso— y el gate quedaría gritando siempre; (2) el piso del test de contrato es **por app** (`DESDE`) y apunta a `programas.0074` para que la 0075 de la Ola 1 entre en el conjunto medido; (3) el modo `--todas` existe solo como diagnóstico: hoy da 119 hallazgos históricos (73 `EXPAND` + 46 `CONTRACT`), que son migraciones ya aplicadas en producción y no se reescriben. **Test permanente:** `programas.tests.test_contrato_migraciones.MigracionesDelRepoTests.test_columnas_nuevas_toleran_codigo_viejo` (y `MotorDeReglasTests`, 17 casos sintéticos, más `GateDeLineaDeComandosTests`; `core.tests.test_gates_ci.ContratoDeMigracionesTests` fija que el paso corra en un job obligatorio). El paso D.2.0 del runbook ya estaba, de RED-60 (Cambio 117).
 - **Ubicación:** `programas/migrations/0072_formulario_dni_titular.py:44-48` (y 20 `AddField` con `null=False` en los
   últimos 3 meses, 6 sobre `programas_formulario`); `config/settings.py:287` (`STRICT_TRANS_TABLES`);
   `docs/internal/processes.md:245-254` (el rollback documentado vuelve la imagen sin tocar la base).
@@ -1470,6 +1472,8 @@ en los **Anexos A-D** de este archivo.
 
 ### RED-18 · La reversa de `0047`, `0048` y `legajos.0007` falla con «Data truncated»
 **Severidad:** ALTA · **Estado:** CONFIRMADO con test (MariaDB 11.8: `ALTER TABLE … MODIFY client_uuid char(32)` con un valor de 36 → `ERROR 1265`) · **Origen:** RS-R5-06 (VR2: CONFIRMADO) · **Ola:** R · **Esfuerzo:** S (2 h)
+
+**Resolución:** ✅ Resuelto en #NNN (Cambio 135, PR R-12), 06-oct-2026 — las reversas de `programas.0047`, `programas.0048` y `legajos.0007` normalizan a hex **siempre**, con el patrón y el comentario de la 0073. **Desvío (ampliación):** la ficha nombra tres, pero `users.0023` —escrita después, con el mismo `if has_native_uuid_field` en la reversa y sobre una columna `NOT NULL` y única— tiene el defecto idéntico, así que entró en el mismo arreglo: son cuatro. Verificado contra el motor de verdad: con `mysql:8.0.46` (donde `has_native_uuid_field` es falso, que es el caso que la ficha describe: base restaurada desde MariaDB) la reversa vieja muere con `(1265, "Data truncated for column 'token' at row 1")` y la nueva pasa; en `mariadb:10.11.19` el `migrate` completo hacia adelante sigue en verde. **Test permanente:** `programas.tests.test_migraciones_uuid.ReversaUuidTests.test_reversa_uuid_normaliza_antes_de_achicar` (orden del SQL de las cinco, con y sin UUID nativo, sin abrir conexión) y `users.tests.test_migracion_uuid_motor_real.ReversaUuidMotorRealTests.test_la_reversa_achica_sin_truncar_el_token` (`@tag("mysql")`, lo corre el job «Motor real» de R-11 contra los tres motores).
 - **Ubicación:** `programas/migrations/0047_ampliar_formulario_client_uuid.py:12-17` (achica sin normalizar),
   `0048_…:38-44` y `legajos/migrations/0007_…:72-75` (normalizan **solo** `if has_native_uuid_field`); el patrón correcto
   está en `0073_ampliar_relevamiento_token_publico.py:35-41` (normaliza siempre, y su comentario explica por qué: una base
@@ -1495,6 +1499,8 @@ en los **Anexos A-D** de este archivo.
 
 ### RED-57 · 14 reversas `RunPython.noop` (más `users/0007`) pierden datos e informan `OK`
 **Severidad:** MEDIA (era ALTA) · **Estado:** CONFIRMADO con test (SQLite con datos: revertir `programas.0032` deja todos los segmentos sin `siis_segmento_id`; `migrate` dice OK) · **Origen:** RS-R5-05 (VR2: CONFIRMADO-AJUSTADO: 14 archivos con `RunPython.noop`; `users/0007` es otro patrón, `noop_reverse` vacía) · **Ola:** R · **Esfuerzo:** S-M (4 h)
+
+**Resolución:** ✅ Resuelto en #NNN (Cambio 135, PR R-12), 06-oct-2026 — cada reversa que no deshace nada declara arriba `# REVERSA-NOOP: <qué dato queda inconsistente al revertir>`, y `programas.0032`, `0056` y `0069` suman la barrera que faltaba: el bloque `# BARRERA-DE-REVERSA:` y la operación `RunPython(sin_cambios, bloquear_reversa)` al final de `operations`, igual que las cinco de UUID del Cambio 117. **Desvío (medición):** son **16 archivos y 17 operaciones**, no 15: el barrido encontró además `programas.0063`, cuya reversa es una función con solo docstring (el mismo patrón de `users/0007`, que VR2 sí había visto). Por eso el gate reconoce como noop tanto `RunPython.noop` como una función del archivo cuyo cuerpo es solo docstring o `pass`. **Segundo desvío (alcance de la barrera):** las tres barreras de datos abortan en **todos los motores**, no solo en MySQL/MariaDB como las de UUID —lo que se pierde son filas y columnas, y eso no depende del motor—; y `programas.0045` quedó **sin** barrera, con su pérdida nombrada en la marca: la ficha lo clasificó como «noop sin pérdida de esquema» pero sus `RemoveField` borran la foto congelada de SIIS del segmento, así que es la misma familia. No se le puso barrera porque está por debajo de `programas.0047`, que ya aborta antes en el plan de reversa, y porque la lista de ocho del runbook es la que decidió el PM (D-RED-05). Verificado contra `mariadb:10.11.19`: `migrate programas 0031` (desde 0032), `0055` (desde 0056) y `0068` (desde 0069) abortan con el mensaje de su barrera **sin tocar el esquema** ni `django_migrations`. **Test permanente:** `programas.tests.test_contrato_migraciones.MigracionesDelRepoTests.test_todas_las_migraciones_son_reversibles_o_lo_declaran` (repo entero, sin piso) y `core.tests.test_barreras_de_reversa.BarrerasDeReversaTests` (ahora 8 barreras, con `test_las_barreras_por_perdida_de_datos_bloquean_en_cualquier_motor`).
 - **Ubicación:** destructivas: `programas/0032:22-23` (copia y borra el origen), `0056:110,120-127` (además borra filas en la
   ida), `0069:25-28` (`RemoveField` sin copia); noop sin pérdida de esquema: `programas/0012, 0020, 0024, 0035, 0036,
   0045:88, 0046, 0060:125, 0072:49`, `legajos/0006:21-23`, `users/0013:29`, `0016:20`; `users/0007:85-97`.
@@ -1543,6 +1549,8 @@ en los **Anexos A-D** de este archivo.
 
 ### RED-83 · Índices duplicados en `programas_formulario` y `legajos_ciudadano`
 **Severidad:** BAJA · **Estado:** CONFIRMADO con test (`information_schema.STATISTICS` en MariaDB 11.8: los 5 pares) · **Origen:** RS-R5-12 (VR2: CONFIRMADO) · **Ola:** R (guard) + 4 (migración) · **Esfuerzo:** S (2 h) + S (2 h)
+
+**Resolución:** ✅ Parte R resuelta en #NNN (Cambio 135, PR R-12), 06-oct-2026; la migración sigue siendo de la Ola 4. `core/tests/test_indices_redundantes.py` recorre los modelos de las **siete apps del proyecto** (no solo `programas` y `legajos`) y marca todo índice declarado que sea prefijo exacto de otro del mismo modelo, mirando `db_index=True`, `unique=True`, `Meta.indexes`, `Meta.constraints` y `Meta.unique_together`. Los índices que Django crea solo por ser FK quedan afuera a propósito: son parte de la foreign key, no una decisión del modelo. **Desvío (medición):** el ratchet nace con **26** pares, no con 5. Los 5 de la ficha son los que la auditoría midió contra `information_schema`, pero miró solo `programas_formulario` y `legajos_ciudadano`; los otros 21 son el mismo defecto en tablas chicas (`conversaciones_conversacion` sola tiene 6). Están marcados en la lista: los cinco medidos llevan `# RED-83`. La lista **solo baja**, y hay un test que falla si queda una fila muerta, para que sacar un par obligue a sacarlo también de acá. **Test permanente:** `core.tests.test_indices_redundantes.IndicesRedundantesTests.test_no_hay_indices_prefijo_de_otro` (más `test_la_regla_detecta_un_prefijo_plantado`, que es el que impide que el ratchet se quede verde por un detector roto).
 - **Ubicación:** `programas/models/__init__.py:2484-2490` (`estado` con `db_index=True`) vs `:2631`
   (`Index(fields=["estado"])`); `legajos/models/base.py:23` vs `:194` (`dni`, ya `unique`), `:29` vs `:202` (`email`),
   `:25` vs `:195` (`apellido`, cubierto por `apellido,nombre`), `:43` vs `:201` (`activo`, cubierto por
@@ -1554,6 +1562,8 @@ en los **Anexos A-D** de este archivo.
 
 ### RED-84 · `requerimientos.py --check` no verifica la sección «Reversión»
 **Severidad:** BAJA · **Estado:** CONFIRMADO (lectura) · **Origen:** RS-R5-13 (VR2: CONFIRMADO) · **Ola:** R · **Esfuerzo:** S (2 h)
+
+**Resolución:** ✅ Resuelto en #NNN (Cambio 135, PR R-12), 06-oct-2026 — `comando_check` suma `problemas_de_reversion`: para toda entrada desde el **Cambio 135** (`PRIMER_CAMBIO_CON_REVERSION`, el piso que deja el histórico como está) cuya fila `**Migración**` no diga «no requiere»/«no aplica», exige que `## Base de datos` nombre la migración declarada y que `## Reversión` tenga más de una línea con contenido. Una entrada desde el piso sin la fila `**Migración**` de la plantilla también cae. El `--check` es gate del CI desde RED-24 (job «Contratos del repo»), así que esto se vuelve bloqueante sin tocar ningún workflow. **Test permanente:** `core.tests.test_requerimientos_check.ReversionEnElCheckTests` (7 casos sobre documentos sintéticos: con reversión completa, vacía, de una sola línea, sin la migración en «Base de datos», sin migración, por debajo del piso y sin las secciones) y `ArchivoRealTests`, que corre el `--check` sobre el archivo del repo.
 - **Ubicación:** la plantilla obligatoria de `docs/internal/requerimientos.md:87-140` ya tiene `**Migración**`,
   `## Base de datos` y `## Reversión`; `scripts/requerimientos.py:226-263` (`comando_check`) no las mira.
 - **Propuesta:** en `comando_check`, para cada entrada **nueva** (número mayor al último Cambio al momento del merge, para no
@@ -2409,6 +2419,14 @@ En `.github/workflows/pr-performance.yml`, junto al único `migrate` real que ya
 Para correrlo a mano: contenedor `mariadb:11` en un puerto libre y un settings fuera del repo que importe `config.settings`,
 apunte `DATABASES` al contenedor, suba `read_timeout`/`write_timeout` y deje `MIGRATION_MODULES = {}`; `migrate`,
 `migrate programas <anterior>`, `migrate`.
+
+**Nota de R-12 (Cambio 135), para quien escriba este job.** El paso «backward» ahora tiene **ocho** migraciones que
+abortan a propósito con `IrreversibleError` (paso D.4 del runbook): `programas.0032`, `0047`, `0048`, `0056`, `0069`,
+`0073`, `legajos.0007` y `users.0023`. Mientras «la release anterior» esté por encima de todas —hoy lo está: la última
+barrera es de septiembre— el plan de reversa no las toca. Si alguna vez las cruza, el job tiene que **esperar** el
+aborto, no tomarlo como rojo: ese es el comportamiento correcto. Y las dos razones por las que el Anexo pedía
+`continue-on-error` ya no están: RED-18 (la reversa UUID truncaba) está cerrada y las barreras de RED-15/RED-57 están
+declaradas, así que D-RED-03 se puede decidir con el job midiendo de verdad desde el primer día.
 
 ## Anexo C · Regla expand/contract
 

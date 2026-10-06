@@ -50,11 +50,13 @@ def ampliar_token_mysql(apps, schema_editor):
 def restaurar_token_mysql(apps, schema_editor):
     if schema_editor.connection.vendor != "mysql":
         return
-    if schema_editor.connection.features.has_native_uuid_field:
-        schema_editor.execute(
-            "UPDATE users_solicitudcambioemail SET token = REPLACE(token, '-', '') "
-            "WHERE CHAR_LENGTH(token) = 36"
-        )
+    # RED-18: se normaliza siempre, no solo con UUID nativo. Una base restaurada desde otro
+    # motor trae los guiones puestos igual, y achicar sin sacarlos trunca el token
+    # (ERROR 1265), que además es único y NOT NULL. Mismo patrón que programas.0073.
+    schema_editor.execute(
+        "UPDATE users_solicitudcambioemail SET token = REPLACE(token, '-', '') "
+        "WHERE CHAR_LENGTH(token) = 36"
+    )
     schema_editor.execute(
         "ALTER TABLE users_solicitudcambioemail MODIFY token char(32) NOT NULL"
     )

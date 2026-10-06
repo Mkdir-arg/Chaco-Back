@@ -315,6 +315,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 132 | El agente de diseño deja de ser un changelog de 67 KB: núcleo corto, fichas por arquetipo y consumidores al día | Transversal · agente canónico de diseño y sus fichas · herramientas de diseño · CI de GitHub Actions | `#ui` `#metodo` | Auditoría integral oct-2026 — Ola 6 «Agente de diseño», pasos 4 y 5 | 05/10/2026 | 🟡 **Parcial** (faltan los pasos 6 y 7 de la Ola 6) | No requiere |
 | 133 | Mapear el mockup de la v2 de Dispositivos pantalla por pantalla: qué pieza ya existe, qué dato falta y dónde choca | Dispositivos y Merenderos · análisis de diseño y de datos (sin tocar código de producción) | `#ui` `#gestion` `#datos` `#rbac` | PM — pedido directo en sesión de trabajo, sobre el link publicado del mockup | 05/10/2026 | 🟢 **Hecho** | No requiere |
 | 134 | Las quince decisiones que destraban la v2 de Dispositivos: qué se implementa del mockup y qué no | Dispositivos y Merenderos · sistema de diseño · decisiones previas a implementar (sin tocar código de producción) | `#ui` `#textos` `#rbac` `#gestion` | PM — decisión en sesión de trabajo sobre los 15 conflictos del Cambio 133 | 06/10/2026 | 🟢 **Hecho** (las decisiones; las seis piezas de sistema quedan planificadas en M0) | No requiere |
+| 135 | Una migración nueva no puede romper el rollback sin que nadie se entere | Transversal · migraciones · CI de GitHub Actions · archivo de requerimientos | `#infra` `#datos` `#metodo` `#performance` | Auditoría integral de octubre 2026 — RED-14, RED-57, RED-18, RED-84 y RED-83 (Ola R, PR R-12) | 06/10/2026 | 🟢 **Hecho** (RED-83 parcial: la migración que saca los índices es de la Ola 4) | No requiere |
 
 **Notas del índice**
 
@@ -18420,3 +18421,171 @@ Revertir el commit: el mapeo vuelve a tener los quince conflictos abiertos y des
 entrada. Los issues creados en GitHub **no se revierten con el commit**: hay que cerrarlos a
 mano (el análisis M0 y sus seis tasks) y borrar los comentarios dejados en los issues
 existentes. No hay código, datos ni configuración involucrados.
+
+# Cambio 135 — Una migración nueva no puede romper el rollback sin que nadie se entere
+
+🟢 **HECHO — 06/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · migraciones de las siete apps · CI de GitHub Actions · archivo de requerimientos |
+| **Etiquetas** | `#infra` `#datos` `#metodo` `#performance` |
+| **Solicitante** | Auditoría integral de octubre 2026 — hallazgos **RED-14**, **RED-57**, **RED-18**, **RED-84** y **RED-83** (Ola R «Red de seguridad», PR R-12) |
+| **Fecha del pedido** | 06/10/2026 |
+| **Issue / épica** | Sin issue — auditoría oct-2026, `docs/internal/auditoria-2026-10/hallazgos/08-red-de-seguridad.md` |
+| **Partes afectadas** | Servidor (migraciones y scripts) · CI · documentación. Nada de UI, nada de API |
+| **Migración** | No requiere (ninguna migración nueva: se les agrega una marca —y a tres, una operación sin efecto hacia adelante— a migraciones ya aplicadas) |
+
+## Pedido original
+
+De la ficha **RED-14** (ALTA, confirmado con test en MariaDB 11.8):
+
+> Django nunca deja un `DEFAULT` en la base para un `AddField`: lo aplica durante el `ALTER` y lo quita. Con el esquema
+> adelantado y el código viejo —el estado exacto después de un rollback de release—, todo `INSERT` del ORM viejo omite la
+> columna y MariaDB la rechaza. Hacen falta la regla *expand* y un `scripts/check_migraciones.py` que la verifique en el CI.
+
+De **RED-57** (MEDIA): «14 reversas `RunPython.noop` (más `users/0007`) pierden datos e informan `OK`». De **RED-18**
+(ALTA): «la reversa de `0047`, `0048` y `legajos.0007` falla con *Data truncated*». De **RED-84** (BAJA):
+«`requerimientos.py --check` no verifica la sección Reversión». De **RED-83** (BAJA): «índices duplicados en
+`programas_formulario` y `legajos_ciudadano`», con un guard que fije lo de hoy.
+
+## Qué lo motivó
+
+Las migraciones son lo único del sistema que no se puede deshacer apretando un botón, y eran justo lo que nadie
+verificaba. El CI arma el esquema desde los modelos (`DJANGO_SYNCDB_PROJECT_APPS=True`), así que una migración podía
+entrar sin que nada la ejecutara; y el camino de vuelta —el que se recorre a las tres de la mañana con producción
+caída— tenía tres trampas servidas: una columna nueva `NOT NULL` que hace fallar **toda alta** apenas se baja la
+release, catorce migraciones de datos que al revertirse informan `OK` y dejan la base incompleta, y cuatro reversas de
+UUID que truncan el valor en lugar de normalizarlo.
+
+## Alcance acordado
+
+**Entra:** el gate `scripts/check_migraciones.py` y su paso en el CI; las marcas `# REVERSA-NOOP:` en las 17 operaciones
+que las necesitan; las tres barreras de reversa que faltaban; la normalización de las cuatro reversas UUID; la
+validación de «Reversión» en `requerimientos.py --check`; el ratchet de índices redundantes; y el checklist corto en
+`CLAUDE.md`.
+
+**Queda afuera:** el job `migration-roundtrip` que migra ida y vuelta sobre datos (RED-17/RED-19, PR R-13, que este PR
+habilita); la migración que **saca** los índices redundantes (RED-83, Ola 4); el chequeo inverso de
+`verificar_esquema_migraciones` (OPS-01, PR R-15); y la idempotencia de las `atomic = False` (RED-58, Ola 3).
+
+## Decisiones tomadas
+
+- **El gate va adentro de `Migration Check`, no como check nuevo.** Un `context` nuevo hay que agregarlo a mano al
+  ruleset del repo, que todavía no está aplicado (RED-20, lo hace el dueño): sería un check que nadie exige. El paso es
+  determinista, no toca la red ni la base y tarda menos de un segundo, así que vive en el job que ya es obligatorio.
+  Por eso `ruleset-development.json` y `CHECKS_OBLIGATORIOS` **no cambian** en este PR, y queda un test que lo explica.
+- **El gate mira solo las migraciones agregadas** (`git diff --diff-filter=A`). Las que ya corrieron en producción no se
+  reescriben: el modo `--todas` existe como diagnóstico y hoy devuelve 119 hallazgos históricos.
+- **La regla de columna nueva no mira `AlterField`.** Sin comparar contra el estado anterior no se puede distinguir un
+  `AlterField` que recién ahora pone `NOT NULL` de uno que solo cambia `choices` sobre una columna que ya lo era —la
+  0075 es ese caso—, así que el gate gritaría siempre y terminaría apagado. Queda anotado como límite conocido.
+- **Las barreras de pérdida de datos abortan en todos los motores.** Las cinco de UUID (Cambio 117) solo actúan en
+  MySQL/MariaDB porque fuera de ahí su ida era un no-op; en `programas.0032`, `0056` y `0069` lo que se pierde son filas
+  y columnas, y eso pasa igual en SQLite.
+- **`programas.0045` no se declaró barrera, pero su marca dice qué pierde.** Tiene la misma forma que las tres
+  (copia datos y después borra el origen), pero está por debajo de `programas.0047`, que ya aborta antes en cualquier
+  plan de reversa, y la lista de ocho del runbook es la que el PM decidió en D-RED-05. Si alguna vez se levantan las
+  barreras de UUID, esta es la primera candidata.
+- **La reversa UUID se arregló en cuatro migraciones, no en tres.** `users.0023` se escribió después de la ficha con el
+  mismo `if has_native_uuid_field` en la reversa, sobre una columna `NOT NULL` y única. Dejarla habría sido conservar el
+  bug en el peor de los cuatro casos.
+- **El piso de «Reversión» es el Cambio 135.** El histórico no se reescribe; la regla rige desde esta misma entrada, que
+  es la primera que se escribió con el check puesto.
+- **El ratchet de índices cubre las siete apps, no las dos tablas medidas.** La auditoría miró
+  `programas_formulario` y `legajos_ciudadano` (5 pares); recorrer los modelos encontró 26. Los 21 nuevos son tablas
+  chicas, así que no se arreglan ahora: se fijan para que no crezcan.
+
+## Implementación
+
+**El gate.** `scripts/check_migraciones.py` lee con `ast` cada migración nueva y aplica tres reglas:
+
+| Regla | Qué rechaza | Cómo se declara la excepción |
+|---|---|---|
+| `EXPAND` | Columna nueva `NOT NULL` sin `DEFAULT` en la base | `null=True`, un `RunSQL(… SET DEFAULT …, state_operations=[])` que nombre la columna, o `# ROLLBACK-OK: <motivo>` |
+| `CONTRACT` | `RemoveField`, `DeleteModel`, `RenameField`, `RenameModel` | `# CONTRACT: dejó de leerse en la release <X>` |
+| `REVERSA` | `RunPython`/`RunSQL` sin reversa, o con reversa que no hace nada | reversa real, `None` explícito, o `# REVERSA-NOOP: <qué queda inconsistente>` |
+
+Las marcas valen en el bloque de comentarios inmediatamente anterior a la operación o adentro de ella. Como reversa
+«que no hace nada» cuenta `RunPython.noop` y también una función del archivo cuyo cuerpo es solo docstring o `pass`
+—el patrón de `users/0007` y de `programas/0063`—.
+
+**Las marcas y las barreras.** Las 17 operaciones con reversa noop declaran qué queda inconsistente al revertir.
+`programas.0032` (copia el id de segmento SIIS al subsegmento y borra el origen), `programas.0056` (borra filas del
+padrón duplicadas por convocatoria) y `programas.0069` (borra `siis_id_plan_soc` sin copiarlo) suman el bloque
+`# BARRERA-DE-REVERSA:` y la operación `RunPython(sin_cambios, bloquear_reversa)`: hacia adelante no hacen nada y, al
+desaplicar, abortan con `IrreversibleError` antes de cualquier DDL. Con eso, las **ocho** barreras del paso D.4 del
+runbook avisan solas.
+
+**Las reversas UUID.** `programas.0047`, `programas.0048`, `legajos.0007` y `users.0023` normalizan a hex **siempre**
+antes de achicar a `char(32)`, como ya hacía `programas.0073`. La condición vieja (`has_native_uuid_field`) era la
+equivocada: una base restaurada desde MariaDB trae los guiones puestos aunque el motor que la recibe sea MySQL.
+
+**El archivo de requerimientos.** `comando_check` exige, desde el Cambio 135, que una entrada con migración nombre esa
+migración en `## Base de datos` y escriba `## Reversión` con más de una línea.
+
+**Los índices.** `core/tests/test_indices_redundantes.py` recorre los modelos de las siete apps y marca todo índice
+declarado que sea prefijo exacto de otro del mismo modelo. Nace con 26 pares conocidos y solo puede bajar; si un par se
+arregla y no se saca de la lista, el test también falla.
+
+## Archivos
+
+- `scripts/check_migraciones.py` — **nuevo**, el gate.
+- `scripts/requerimientos.py` — `problemas_de_reversion`, `PRIMER_CAMBIO_CON_REVERSION` y `leer_documento(ruta)`.
+- `.github/workflows/pr-backend.yml` — paso «Contrato de las migraciones nuevas» en `Migration Check`, con
+  `fetch-depth: 0`.
+- Migraciones con marca: `programas.0012`, `0020`, `0024`, `0032`, `0035`, `0036`, `0045`, `0046`, `0056`, `0060`,
+  `0063`, `0072`; `legajos.0006`; `users.0007`, `0013`, `0016`.
+- Migraciones con barrera nueva: `programas.0032`, `0056`, `0069`.
+- Migraciones con la reversa UUID corregida: `programas.0047`, `programas.0048`, `legajos.0007`, `users.0023`.
+- `programas/tests/test_contrato_migraciones.py`, `programas/tests/test_migraciones_uuid.py`,
+  `users/tests/test_migracion_uuid_motor_real.py`, `core/tests/test_indices_redundantes.py`,
+  `core/tests/test_requerimientos_check.py` — **nuevos**.
+- `core/tests/test_barreras_de_reversa.py` — ocho barreras, partidas en UUID y datos.
+- `core/tests/test_gates_ci.py` — `ContratoDeMigracionesTests`.
+- `CLAUDE.md` y `docs/internal/processes.md` — el contrato en una viñeta y el runbook al día.
+- `docs/internal/auditoria-2026-10/` — las cinco fichas en ✅ y el estado de la Ola R.
+
+## Base de datos
+
+Ninguna migración nueva y ningún cambio de esquema: `makemigrations --check --dry-run` dice «No changes detected». Las
+diecinueve migraciones tocadas ya están aplicadas en todos los ambientes, así que nada de esto vuelve a ejecutarse ahí;
+en una base desde cero, las tres operaciones de barrera corren y no hacen nada. Lo único que cambia de comportamiento
+es el **camino de vuelta**, que en producción no se usa (`processes.md`: las migraciones no se revierten en producción).
+
+## Validación
+
+- Contenedores efímeros **MariaDB 10.11.19** (puerto 3321) y **MySQL 8.0.46** (3322), borrados al terminar; no se tocó
+  ninguno de los puertos del banco de performance.
+- `migrate` completo hacia adelante en los dos motores: OK. Suite `--tag mysql` (17 tests, el job «Motor real» de
+  R-11): OK en los dos.
+- RED-18 demostrado contra el motor: con la reversa vieja, `mysql:8.0.46` devuelve
+  `(1265, "Data truncated for column 'token' at row 1")`; con la nueva, pasa.
+- Barreras verificadas en MariaDB: `migrate programas 0031` (desde 0032), `0055` (desde 0056), `0068` (desde 0069) y
+  `0072` (desde 0073) abortan con su mensaje **sin tocar el esquema** ni `django_migrations`.
+- `manage.py check`, `check --deploy`, `makemigrations --check --dry-run`, suite completa y `--tag performance` con
+  `.venv312` (Python 3.12 + Django 5.2.17, igual al CI). `ruff check` y `ruff format --check` sobre lo tocado.
+- `scripts/requerimientos.py --check` en OK. `actionlint` sobre los workflows: 0.
+- Tests nuevos, en rojo antes del cambio: los 17 hallazgos de reversa noop del repo, los 5 de la reversa UUID y el
+  `AttributeError` del `--check` sin la validación nueva.
+
+## Puesta en marcha en el servidor
+
+No requiere. No hay migración, variable de entorno ni comando manual.
+
+## Pendientes / a definir
+
+- La migración que saca los cinco índices redundantes medidos es de la **Ola 4** (RED-83); al hacerla hay que bajar sus
+  filas de `REDUNDANTES_CONOCIDOS`.
+- El job `migration-roundtrip` (RED-17/RED-19, PR **R-13**) es el que ejecuta las migraciones hacia atrás sobre datos.
+  La nota del Anexo B de la auditoría ya le deja escrito que las ocho barreras abortan a propósito.
+- Los 119 hallazgos históricos de `--todas` quedan como deuda conocida: no se reescriben migraciones aplicadas.
+- `programas.0045` es candidata a barrera si alguna vez se levantan las de UUID.
+
+## Reversión
+
+1. Revertir el commit. El gate deja de correr, las marcas y las tres barreras desaparecen y las cuatro reversas UUID
+   vuelven a truncar.
+2. No hay datos involucrados: ninguna migración se agregó ni se cambió el esquema, así que no hay nada que restaurar.
+3. Lo único que **no** vuelve solo: si entre medio se mergeó una migración nueva apoyada en las marcas, queda sin gate
+   que la verifique.

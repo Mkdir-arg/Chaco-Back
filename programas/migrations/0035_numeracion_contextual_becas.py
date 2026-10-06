@@ -30,6 +30,10 @@ class Migration(migrations.Migration):
             name="numero",
             field=models.PositiveIntegerField(editable=False, null=True, verbose_name="Número dentro del relevamiento"),
         ),
+        # REVERSA-NOOP: no queda nada inconsistente en la base —las dos columnas
+        # ``numero`` se borran al revertir—, pero el nombre que esta operación le escribió
+        # a cada relevamiento («Relevamiento 001») sí queda, y no se distingue del que
+        # haya puesto una persona.
         migrations.RunPython(numerar_existentes, migrations.RunPython.noop),
         migrations.AlterField(
             model_name="relevamiento",
