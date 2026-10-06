@@ -19805,8 +19805,8 @@ migraciones en `deploy_prod.sh`; el comando `verificar_esquema_migraciones` con 
 el roundtrip; el SQL de renombre para icore; y el tag de release en `publish-main.yml`.
 
 **Queda afuera:** `DB_READ_TIMEOUT` (OPS-05, Ola 3) y el candado `GET_LOCK` del bootstrap (OPS-07, Ola 3); el resto de
-OPS-13 (`openai`, `django_extensions`, `debugpy`…), del que acá solo se retira `django-health-check` porque es la misma
-ficha de OPS-04; y todo lo que depende de ECOM: el tag de **imagen** por commit (D-RED-02) y los dos avisos, que quedan
+OPS-13 (`openai`, `django_extensions`, `debugpy`…), incluido `django-health-check`, que esta ficha pedía retirar y
+**no se retiró**: ver las decisiones; y todo lo que depende de ECOM: el tag de **imagen** por commit (D-RED-02) y los dos avisos, que quedan
 escritos como propuesta para que los mande el PM.
 
 ## Decisiones tomadas
@@ -19831,6 +19831,11 @@ escritos como propuesta para que los mande el PM.
 - **Los archivos de log quedan apagados por defecto.** `LOG_TO_FILES=True` solo en `docker-compose.prod.yml` (icore,
   donde `./logs` está montado desde el host). En k8s no se escribe nada en el filesystem —antes sí, y nadie lo leía— y
   con la variable apagada no se crea ni el directorio, que en un filesystem de solo lectura era un arranque fallido.
+- **`django-health-check` no se retira, aunque OPS-04 lo pedía.** Se intentó y lo frenó la guarda nueva de OPS-01 en
+  el CI de este mismo PR, que es la mejor prueba de que la guarda sirve: el paquete tiene dos migraciones aplicadas y
+  una tabla en los ambientes, así que sacarlo de `INSTALLED_APPS` dejaría el arranque abortado en icore, en testing y
+  en PRD. Lo que sí se retira es su **include de URLs**, que es el hallazgo de la ficha. El resto es OPS-13, con la
+  limpieza que ahora está escrita ahí.
 - **El tag del release va sobre el commit de `main`, con el short SHA de `development`.** Es el commit que alguien
   reconoce y el mismo que ya va en el asunto del commit de release. La fecha sola no alcanza: puede haber más de un
   release por día.
@@ -19854,7 +19859,11 @@ motivo del cambio —que `logs/` crezca sin techo en icore— se resolvió con l
 (acotado a 200 caracteres: no filtra credenciales ni datos). Se retiraron `health_check`, `health_check.db` y
 `health_check.cache` de `INSTALLED_APPS`, el `path("health/", include("health_check.urls"))` que el include de
 `healthcheck.urls` tapaba —dos apps peleando la misma ruta, una de ellas tocando la base en lo que es una liveness— y
-`django-health-check` de `requirements.txt`.
+**El paquete sigue instalado.** Sacarlo se probó y lo frenó la guarda de OPS-01 en el CI de este mismo PR:
+`django-health-check` tiene dos migraciones aplicadas (`db.0001_initial` y `health_check_db.0001_initial`: el
+`app_label` cambió entre versiones) y la tabla `health_check_db_testmodel` en todos los ambientes donde ya corrió. Sin
+el paquete, esas dos filas quedan sin archivo y esa tabla sin modelo, o sea el entrypoint abortando en icore, en
+testing y en PRD. Retirarlo es OPS-13 y tiene que venir con esa limpieza; quedó escrito en esa ficha.
 
 **RED-59 — `deploy_prod.sh`.** `HEALTH_URL` por defecto pasa a `/health/ready/`; `post_deploy_checks()` corre
 `migrate --check`, cuenta las entradas de `staticfiles.json` (mínimo 50: el archivo vacío existe igual y deja cada
@@ -19914,7 +19923,9 @@ pedidos escritos** en `docs/internal/propuesta-ecom-verify.md` para que los mand
 - **El tag de imagen de ECOM (D-RED-02).** Sin eso, RED-16 queda a medias: el tag nuestro da el SHA para reconstruir, no
   la imagen para volver en segundos.
 - **El renombre en icore** lo corre una persona; mientras no se corra, el deploy se frena en la guarda.
-- **OPS-13**: quedan `openai`, `django_extensions` en prod, `debugpy`, `structlog`, `gevent` y compañía.
+- **OPS-13**: quedan `openai`, `django_extensions` en prod, `debugpy`, `structlog`, `gevent` y compañía, más
+  `django-health-check`, que ahora no monta ninguna URL pero sigue instalado. Esa ficha quedó ampliada con lo que este
+  PR midió: sacar una app con migraciones aplicadas exige borrar su tabla y sus filas de `django_migrations`.
 - **OPS-05** (`DB_READ_TIMEOUT`) y **OPS-07** (candado del bootstrap) siguen en la Ola 3.
 - El `data_file` (JSON de `record.data`) ahora sale por `console` con el formatter `verbose` cuando `LOG_TO_FILES` está
   apagado. Nadie lo consume hoy; si alguna vez hace falta ese JSON en stdout, hay que agregarle su propio handler.

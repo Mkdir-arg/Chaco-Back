@@ -13,9 +13,12 @@ cryptography==50.0.0
 django-redis==5.4.0
 redis==5.0.1
 
-# Health checks: la app `healthcheck` del repo. `django-health-check` se retiro con el
-# Cambio 153 (OPS-04): estaba en INSTALLED_APPS y montado en `/health/`, pero el include
-# de `healthcheck.urls` ganaba por orden y sus vistas eran inalcanzables.
+# Health checks: las sondas del sistema son la app `healthcheck` del repo (`/health/` y
+# `/health/ready/`). `django-health-check` ya no monta ninguna URL desde el Cambio 153
+# (OPS-04), pero sigue instalado: tiene una migracion aplicada y una tabla en los
+# ambientes. Retirarlo es OPS-13 y requiere limpiar `health_check_db_testmodel` y sus
+# dos filas de `django_migrations`, o el deploy se frena en la guarda de OPS-01.
+django-health-check==3.17.0
 
 # Estaticos servidos por la propia app (clave en Kubernetes, donde no hay nginx
 # adelante; en la VM nginx los intercepta antes y el middleware queda inerte)

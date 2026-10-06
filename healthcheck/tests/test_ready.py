@@ -38,17 +38,32 @@ class HealthLivenessTests(SimpleTestCase):
 
         self.assertEqual(respuesta.status_code, 200)
 
-    def test_el_paquete_django_health_check_ya_no_tapa_la_ruta(self):
+    def test_el_paquete_django_health_check_ya_no_monta_urls(self):
         """`health_check.urls` estaba montado en `/health/` y era inalcanzable.
 
         Dos apps compitiendo por la misma ruta es una trampa: el día que alguien
         reordenara `config/urls.py`, `/health/` pasaría a ser la pantalla del paquete
         —que sí toca la base— y las sondas de liveness empezarían a matar pods por una
         base lenta.
-        """
-        from django.conf import settings
 
-        self.assertNotIn("health_check", settings.INSTALLED_APPS)
+        El paquete **sigue en `INSTALLED_APPS`** a propósito: tiene una migración
+        aplicada y la tabla `health_check_db_testmodel` en los ambientes. Sacarlo deja
+        dos filas de `django_migrations` sin archivo y una tabla sin modelo, que es
+        exactamente lo que `verificar_esquema_migraciones` frena —medido en el CI de
+        este mismo PR—. Retirarlo es OPS-13, con esa limpieza.
+        """
+        from config import urls as config_urls
+
+        incluidos = {
+            getattr(getattr(patron, "urlconf_module", None), "__name__", "") for patron in config_urls.urlpatterns
+        }
+
+        self.assertNotIn("health_check.urls", incluidos)
+
+    def test_health_ready_no_es_del_paquete(self):
+        coincidencia = resolve("/health/ready/")
+
+        self.assertEqual(coincidencia.func.__module__, "healthcheck.views.ready")
 
 
 class HealthReadyTests(TestCase):

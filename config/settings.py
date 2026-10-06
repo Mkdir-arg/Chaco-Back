@@ -108,6 +108,16 @@ INSTALLED_APPS = [
     "drf_spectacular_sidecar",
     "channels",
     "django_redis",
+    # OPS-04: sus URLs ya **no** se montan (`config/urls.py`), porque el include de
+    # `healthcheck.urls` las tapaba y eran inalcanzables. Las apps siguen acá a
+    # propósito: tienen una migración aplicada (`db.0001_initial` y
+    # `health_check_db.0001_initial`) y la tabla `health_check_db_testmodel` en los
+    # ambientes. Sacarlas de INSTALLED_APPS deja esas dos filas sin archivo y esa tabla
+    # sin modelo, que es justo lo que `verificar_esquema_migraciones` frena. Retirar el
+    # paquete es OPS-13, y tiene que venir con esa limpieza.
+    "health_check",
+    "health_check.db",
+    "health_check.cache",
     "users",
     "core",
     "dashboard",

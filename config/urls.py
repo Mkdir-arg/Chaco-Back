@@ -41,7 +41,8 @@ urlpatterns = [
     # convivía con `path("health/", include("health_check.urls"))` del paquete
     # `django-health-check`, que quedaba tapado por este include y nunca se alcanzaba:
     # dos apps compitiendo por la misma ruta, una de ellas tocando la base en lo que es
-    # una sonda de liveness.
+    # una sonda de liveness. Ese include se retiró; el paquete sigue en `INSTALLED_APPS`
+    # porque tiene una migración aplicada y una tabla en los ambientes (OPS-13).
     path("", include(("healthcheck.urls", "healthcheck"), namespace="healthcheck")),
     # Flujos — editor visual HTML
     # API Routes
