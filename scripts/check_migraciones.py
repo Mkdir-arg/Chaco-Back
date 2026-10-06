@@ -4,12 +4,13 @@
 Tres reglas, las tres sobre el estado exacto en el que queda producción cuando algo
 sale mal (auditoría oct-2026, `docs/internal/auditoria-2026-10/`):
 
-* **EXPAND** (RED-14) — una columna nueva `NOT NULL` sin `DEFAULT` **en la base**.
-  Django aplica el default durante el `ALTER` y lo quita: con el esquema adelantado y
-  el código viejo —lo que deja un rollback de release— todo `INSERT` del ORM viejo
-  omite la columna y MariaDB con `STRICT_TRANS_TABLES` rechaza el alta entera.
-  Se arregla con `null=True`, con un `RunSQL(… SET DEFAULT …, state_operations=[])`
-  o, si de verdad no hace falta, con la marca `# ROLLBACK-OK: <motivo>`.
+* **EXPAND** (RED-14) — una columna nueva `NOT NULL` sin `DEFAULT` **en la base**. Un `default=`
+  solo no cuenta: Django lo aplica durante el `ALTER` y después lo quita, así que vive en Python y
+  lo pone el ORM al armar el `INSERT`. Con el esquema adelantado y el código viejo —lo que deja un
+  rollback de release— ese ORM omite la columna y MariaDB con `STRICT_TRANS_TABLES` rechaza el alta
+  entera. Se arregla con `null=True`, con `db_default=…` (el DEFAULT nativo de Django 5, que sí
+  queda escrito en el esquema), con un `RunSQL(… SET DEFAULT …, state_operations=[])` o, si de
+  verdad no hace falta, con la marca `# ROLLBACK-OK: <motivo>`.
 * **CONTRACT** (RED-19) — `RemoveField`, `DeleteModel`, `RenameField` o `RenameModel`
   sin la marca `# CONTRACT: <la columna dejó de leerse en la release X>`. Durante un
   rolling los pods viejos siguen atendiendo: borrar lo que todavía se lee da 500
@@ -142,6 +143,18 @@ def _columna_es_not_null(llamada: ast.Call) -> bool:
     return not (isinstance(nulo, ast.Constant) and nulo.value is True)
 
 
+def _campo_trae_db_default(llamada: ast.Call) -> bool:
+    """¿El `AddField` lleva `db_default=`, el DEFAULT nativo de Django 5?
+
+    Es la forma corta de lo que esta regla pide: el `ADD COLUMN` sale con su
+    `DEFAULT` escrito en el esquema, así que el INSERT del código viejo —el que
+    no nombra la columna— entra igual. `default=` solo **no** alcanza: ese vive
+    en Python y lo pone el ORM al armar el INSERT.
+    """
+    campo = _kw(llamada, "field") or _argumento(llamada, 2, "field")
+    return isinstance(campo, ast.Call) and _kw(campo, "db_default") is not None
+
+
 def _tiene_default_en_la_base(arbol: ast.Module, columna: str) -> bool:
     """Un `RunSQL` del mismo archivo que le pone `DEFAULT` a esa columna en la base."""
     for nodo in ast.walk(arbol):
@@ -170,7 +183,12 @@ def revisar_texto(texto: str, archivo: str) -> list[Hallazgo]:
         if operacion == "AddField" and _columna_es_not_null(nodo):
             nombre = _kw(nodo, "name") or _argumento(nodo, 1, "name")
             columna = nombre.value if isinstance(nombre, ast.Constant) else ""
-            if not _tiene_default_en_la_base(arbol, columna) and not _declarado(lineas, nodo, "EXPAND"):
+            cubierta = (
+                _campo_trae_db_default(nodo)
+                or _tiene_default_en_la_base(arbol, columna)
+                or _declarado(lineas, nodo, "EXPAND")
+            )
+            if not cubierta:
                 hallazgos.append(
                     Hallazgo(
                         archivo,
@@ -178,7 +196,7 @@ def revisar_texto(texto: str, archivo: str) -> list[Hallazgo]:
                         "EXPAND",
                         f"la columna «{columna}» nace NOT NULL sin DEFAULT en la base: el código viejo "
                         "no la manda y toda alta falla después de un rollback (RED-14). Poné `null=True`, "
-                        "agregá un `RunSQL(… SET DEFAULT …, state_operations=[])` o justificá con "
+                        "`db_default=…`, agregá un `RunSQL(… SET DEFAULT …, state_operations=[])` o justificá con "
                         f"«{MARCAS['EXPAND']} <motivo>».",
                     )
                 )

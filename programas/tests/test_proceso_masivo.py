@@ -47,9 +47,16 @@ class CorridaSiisTests(TestCase):
         self.assertFalse(corrida.interrumpida)
 
     def test_el_latido_viejo_la_marca_interrumpida(self):
-        """Nadie escribe «me morí»: la interrupción se deduce del latido."""
-        corrida = self._corrida(latido=timezone.now() - timedelta(minutes=5))
+        """Nadie escribe «me morí»: la interrupción se deduce del latido.
+
+        El desfasaje se mide contra ``LATIDO_VENCIDO`` y no contra un número
+        escrito acá: con el umbral en 5 minutos, un ``now() - 5 minutos`` queda
+        justo en el borde y el test pasa o no según los microsegundos que tarde
+        la línea siguiente.
+        """
+        corrida = self._corrida(latido=timezone.now() - CorridaSiis.LATIDO_VENCIDO * 2)
         self.assertTrue(corrida.interrumpida)
+        self.assertFalse(self._corrida(latido=timezone.now() - CorridaSiis.LATIDO_VENCIDO / 2).interrumpida)
 
     def test_una_corrida_terminada_nunca_esta_interrumpida(self):
         corrida = self._corrida(estado=CorridaSiis.Estado.TERMINADA, latido=timezone.now() - timedelta(hours=3))
@@ -121,8 +128,19 @@ class _BaseProcesoTest(TestCase):
             dni="20301234", nombre="Juan", apellido="Perez", fecha_nacimiento=date(1995, 6, 15), genero="M"
         )
 
-    def _caso(self, estado=Formulario.Estado.ENVIADO):
-        return Formulario.objects.create(relevamiento=self.relevamiento, ciudadano=self.ciudadano, estado=estado)
+    def _caso(self, estado=Formulario.Estado.ENVIADO, validado_renaper=True):
+        """Un caso que el masivo puede tomar.
+
+        Nace con la identidad validada porque es lo que hace falta para
+        aprobarlo: desde BEC-21 un ENVIADO sin validar ya no es candidato, así que
+        un caso sin eso no probaría el circuito sino la exclusión.
+        """
+        return Formulario.objects.create(
+            relevamiento=self.relevamiento,
+            ciudadano=self.ciudadano,
+            estado=estado,
+            validado_renaper=validado_renaper,
+        )
 
 
 class CandidatosTests(_BaseProcesoTest):
@@ -168,6 +186,57 @@ class CandidatosTests(_BaseProcesoTest):
         pks = list(consulta.values_list("pk", flat=True))
         self.assertEqual(len(pks), len(set(pks)))
         self.assertIn(caso.pk, pks)
+
+    def test_excluye_enviados_sin_identidad_validada(self):
+        """BEC-21: aprobar exige identidad validada, así que consultarlos es tirar llamadas.
+
+        Un ENVIADO sin validar no se puede aprobar (``motivo_bloqueo_aprobacion``),
+        pero igual se le consultaba la compatibilidad a SIIS —hasta 40 s— para
+        después contarlo como «no se pudo aprobar».
+        """
+        sin_validar = self._caso()
+        Formulario.objects.filter(pk=sin_validar.pk).update(validado_renaper=False)
+        validado = self._caso()
+
+        pks = list(proceso_masivo.candidatos(programa=self.programa).values_list("pk", flat=True))
+
+        self.assertEqual(pks, [validado.pk])
+
+    def test_un_aprobado_sin_validar_sigue_siendo_candidato(self):
+        """Ya está aprobado: lo que falta es informarlo, y eso no vuelve a mirar la identidad."""
+        aprobado = self._caso(Formulario.Estado.APROBADO)
+        Formulario.objects.filter(pk=aprobado.pk).update(validado_renaper=False)
+
+        pks = list(proceso_masivo.candidatos(programa=self.programa).values_list("pk", flat=True))
+
+        self.assertEqual(pks, [aprobado.pk])
+
+    def test_excluye_al_enviado_sin_ciudadano_con_dni(self):
+        caso = self._caso()
+        Formulario.objects.filter(pk=caso.pk).update(ciudadano=None)
+
+        pks = list(proceso_masivo.candidatos(programa=self.programa, filtrar_materias=False).values_list("pk"))
+
+        self.assertEqual(pks, [])
+
+    def test_no_toma_casos_de_una_pausa_vigente(self):
+        """BEC-21: pausar frena la carga en campo; aprobar en lote la ignoraba."""
+        caso = self._caso()
+        niveles = (
+            (self.relevamiento, "relevamiento"),
+            (self.convocatoria, "convocatoria"),
+            (self.segmento, "segmento"),
+            (self.programa, "programa"),
+        )
+        for objeto, nombre in niveles:
+            with self.subTest(nivel=nombre):
+                type(objeto).objects.filter(pk=objeto.pk).update(pausado=True)
+                pks = list(proceso_masivo.candidatos(programa=self.programa).values_list("pk", flat=True))
+                self.assertEqual(pks, [], f"una pausa en {nombre} no frenó el masivo")
+                type(objeto).objects.filter(pk=objeto.pk).update(pausado=False)
+        self.assertEqual(
+            list(proceso_masivo.candidatos(programa=self.programa).values_list("pk", flat=True)), [caso.pk]
+        )
 
     def test_hidratar_por_lotes_recorre_todos_en_orden_de_pk(self):
         casos = [self._caso() for _ in range(5)]
@@ -250,7 +319,9 @@ class ElegirCompletosTests(_BaseProcesoTest):
         self.assertEqual(len(elegidos), 1)
 
 
-class CorrerTests(_BaseProcesoTest):
+class _BaseCorrerTest(_BaseProcesoTest):
+    """Mocks del circuito completo: lo que se prueba acá es el bucle, no los pasos."""
+
     def setUp(self):
         super().setUp()
         self.parches = {
@@ -276,6 +347,8 @@ class CorrerTests(_BaseProcesoTest):
     def _corrida(self, total=10):
         return CorridaSiis.objects.create(programa=self.programa, total_pedido=total)
 
+
+class CorrerTests(_BaseCorrerTest):
     def test_termina_y_cuenta_las_altas(self):
         for _ in range(3):
             self._caso()
@@ -292,21 +365,27 @@ class CorrerTests(_BaseProcesoTest):
         self.assertIsNotNone(corrida.latido)
         self.assertFalse(corrida.interrumpida)
 
-    def test_frenar_corta_al_cerrar_el_lote(self):
+    def test_frenar_corta_en_el_caso_y_no_al_cerrar_el_lote(self):
+        """SIIS-03: esperar al lote eran hasta 40 llamadas de más después del freno.
+
+        Con un caso tardando hasta 40 s, cerrar el lote de 40 son 26 minutos entre
+        que alguien aprieta Frenar y que el proceso deje de mandar altas a SIIS,
+        que no tienen baja.
+        """
         for _ in range(4):
             self._caso()
         corrida = self._corrida()
 
         def marcar(f, u, **kw):
-            # Alguien aprieta Frenar mientras corre el primer lote.
+            # Alguien aprieta Frenar mientras corre el primer caso.
             CorridaSiis.objects.filter(pk=corrida.pk).update(cancelacion_pedida=True)
             return EnvioSIIS.objects.create(formulario=f, estado=EnvioSIIS.Estado.ENVIADO, documento="1")
 
         self.parches["enviar_beneficiario_a_siis"].side_effect = marcar
-        resultado = proceso_masivo.correr(corrida, lote=2)
+        resultado = proceso_masivo.correr(corrida, lote=40)
         self.assertEqual(resultado.estado, CorridaSiis.Estado.CANCELADA)
-        # Corta al cerrar el lote, no a mitad: procesó los 2 del primero.
-        self.assertEqual(resultado.altas, 2)
+        self.assertEqual(resultado.altas, 1)
+        self.assertEqual(EnvioSIIS.objects.count(), 1)
 
     def test_se_detiene_tras_errores_tecnicos_seguidos(self):
         for _ in range(4):
@@ -345,6 +424,317 @@ class CorrerTests(_BaseProcesoTest):
         self.parches["enviar_aviso_resolucion"].assert_not_called()
 
 
+class LatidoTests(_BaseCorrerTest):
+    """SIIS-03: la corrida da señales de vida mientras trabaja, no cada 40 casos.
+
+    El latido es lo único que distingue «sigue trabajando» de «el pod se murió»:
+    ``CorridaSiis.en_curso()`` y la pantalla se deciden con él. Mientras no se
+    escribía —toda la selección y cada lote de 40 casos— una corrida viva se veía
+    interrumpida, y entonces ``crear_corrida`` dejaba lanzar otra **con el hilo
+    viejo todavía mandando altas a SIIS**.
+    """
+
+    def test_hay_latido_antes_de_empezar_a_elegir(self):
+        """El de la PoC invertido: la selección entera corría sin un solo latido.
+
+        Con 7.496 candidatos, armar el payload de cada uno para ver si sale
+        completo tarda entre 40 y 65 s y se acerca a los 2 minutos del latido
+        vencido viejo: la corrida se daba por muerta antes de mandar nada.
+        """
+        corrida = self._corrida()
+        visto = {}
+
+        def elegir(casos, catalogos, total, cuenta, **kw):
+            visto["latido"] = CorridaSiis.objects.get(pk=corrida.pk).latido
+            return [], {}
+
+        with patch("programas.services.proceso_masivo.elegir_completos", side_effect=elegir):
+            proceso_masivo.correr(corrida)
+
+        self.assertIsNotNone(visto["latido"], "la selección empieza sin que la corrida haya dado señales")
+
+    def test_la_seleccion_late_cada_cien_candidatos_mirados(self):
+        casos = [self._caso() for _ in range(3)] * 84  # 252 miradas, sin tocar la base de más
+        self.parches["armar_payload"].return_value = ({}, {"loc_actual": "falta"})
+        latidos = []
+
+        elegidos, _ = proceso_masivo.elegir_completos(
+            casos, None, 10, proceso_masivo.Cuenta(), al_mirar=lambda: latidos.append(1)
+        )
+
+        self.assertEqual(elegidos, [])
+        self.assertEqual(len(latidos), 252 // proceso_masivo.LATIDO_CADA_MIRADOS)
+
+    def test_una_corrida_lenta_nunca_se_ve_interrumpida(self):
+        """Veinte casos a 10 s cada uno: con el latido por lote se veía muerta.
+
+        El reloj avanza dentro del envío, que es donde se van los segundos de
+        verdad (token, validación y alta, hasta 40 s cada llamada).
+        """
+        for _ in range(20):
+            self._caso()
+        corrida = self._corrida(total=20)
+        reloj = {"ahora": timezone.now()}
+        interrumpida_en_el_caso = []
+
+        def enviar(formulario, usuario, **kw):
+            reloj["ahora"] += timedelta(seconds=10)
+            interrumpida_en_el_caso.append(CorridaSiis.objects.get(pk=corrida.pk).interrumpida)
+            return EnvioSIIS.objects.create(formulario=formulario, estado=EnvioSIIS.Estado.ENVIADO, documento="1")
+
+        self.parches["enviar_beneficiario_a_siis"].side_effect = enviar
+        with patch("django.utils.timezone.now", side_effect=lambda: reloj["ahora"]):
+            proceso_masivo.correr(corrida, lote=40)
+
+        self.assertEqual(len(interrumpida_en_el_caso), 20)
+        self.assertNotIn(True, interrumpida_en_el_caso, "una corrida que está trabajando apareció como muerta")
+
+    def test_el_latido_vencido_cubre_tres_llamadas_a_siis_con_margen(self):
+        """Dos minutos no alcanzaban: un caso son hasta tres llamadas de 40 s.
+
+        El umbral tiene que estar **por encima** del peor caso de un solo caso, o
+        un caso lento alcanza para que la corrida se declare muerta a sí misma.
+        """
+        from django.conf import settings
+
+        techo = (settings.SIIS_API_CONNECT_TIMEOUT + settings.SIIS_API_TIMEOUT) * 3
+        self.assertGreater(CorridaSiis.LATIDO_VENCIDO.total_seconds(), techo)
+
+
+class CorridaReemplazadaTests(_BaseCorrerTest):
+    """SIIS-03: dos corridas EN_CURSO a la vez, y el hilo viejo mandando altas."""
+
+    def test_crear_corrida_retira_la_que_quedo_sin_senal(self):
+        """El de la PoC invertido: antes quedaban dos EN_CURSO conviviendo."""
+        vieja = self._corrida(total=5)
+        CorridaSiis.objects.filter(pk=vieja.pk).update(
+            creado=timezone.now() - CorridaSiis.LATIDO_VENCIDO * 2,
+            latido=timezone.now() - CorridaSiis.LATIDO_VENCIDO * 2,
+        )
+
+        nueva = proceso_masivo.crear_corrida(programa=self.programa, solicitada_por=self.user, total_pedido=5)
+
+        self.assertIsNotNone(nueva)
+        self.assertEqual(CorridaSiis.objects.filter(estado=CorridaSiis.Estado.EN_CURSO).count(), 1)
+        vieja.refresh_from_db()
+        self.assertEqual(vieja.estado, CorridaSiis.Estado.DETENIDA)
+        self.assertIsNotNone(vieja.finalizada)
+        self.assertIn("sin señal", vieja.mensaje)
+        self.assertIn(f"#{nueva.pk}", vieja.mensaje)
+
+    def test_el_hilo_reemplazado_se_retira_sin_pisar_el_estado(self):
+        """Si el pod viejo seguía vivo, al menos no vuelve a escribir la corrida."""
+        for _ in range(4):
+            self._caso()
+        corrida = self._corrida()
+
+        def reemplazar(formulario, usuario, **kw):
+            CorridaSiis.objects.filter(pk=corrida.pk).update(
+                estado=CorridaSiis.Estado.DETENIDA, mensaje="Interrumpida: reemplazada por la corrida #99"
+            )
+            return EnvioSIIS.objects.create(formulario=formulario, estado=EnvioSIIS.Estado.ENVIADO, documento="1")
+
+        self.parches["enviar_beneficiario_a_siis"].side_effect = reemplazar
+        proceso_masivo.correr(corrida, lote=40)
+
+        corrida.refresh_from_db()
+        self.assertEqual(corrida.estado, CorridaSiis.Estado.DETENIDA)
+        self.assertEqual(corrida.mensaje, "Interrumpida: reemplazada por la corrida #99")
+        # Se retiró en el primer caso: no siguió mandando altas a SIIS.
+        self.assertEqual(EnvioSIIS.objects.count(), 1)
+
+
+class IncompatiblesTests(_BaseCorrerTest):
+    """BEC-11 (D-B11): en la corrida no hay revisor que decida sobre un rechazo.
+
+    El Cambio 81 sacó el bloqueo porque «la aprobación es una decisión técnica del
+    revisor»; en el proceso masivo esa persona no existe, así que un incompatible
+    quedaría aprobado e informado a SIIS sin que nadie lo haya mirado.
+    """
+
+    def _rechazado_por_siis(self):
+        self.parches["validar_formulario_en_siis"].side_effect = lambda f, u: ValidacionSIS.objects.create(
+            formulario=f,
+            estado=ValidacionSIS.Estado.RECHAZADO,
+            documento="1",
+            id_programa=79,
+            motivo="Ya percibe otro beneficio",
+        )
+
+    def test_un_rechazado_por_siis_no_se_aprueba_en_lote(self):
+        caso = self._caso()
+        self._rechazado_por_siis()
+        cuenta = proceso_masivo.Cuenta()
+
+        desenlace = proceso_masivo.procesar_caso(caso, self.user, None, cuenta)
+
+        self.assertIsNone(desenlace, "un incompatible no es una falla de SIIS: no cuenta para el freno")
+        self.assertEqual(cuenta.incompatibles, 1)
+        self.parches["aprobar_o_poner_en_espera"].assert_not_called()
+        self.parches["enviar_beneficiario_a_siis"].assert_not_called()
+        caso.refresh_from_db()
+        self.assertEqual(caso.estado, Formulario.Estado.ENVIADO)
+
+    def test_la_corrida_los_cuenta_y_sigue_con_los_demas(self):
+        self._caso()
+        self._rechazado_por_siis()
+
+        corrida = proceso_masivo.correr(self._corrida())
+
+        self.assertEqual(corrida.estado, CorridaSiis.Estado.TERMINADA)
+        self.assertEqual(corrida.incompatibles, 1)
+        self.assertEqual(corrida.altas, 0)
+
+    def test_un_error_tecnico_de_la_validacion_sigue_siendo_otra_cosa(self):
+        """Incompatible es un veredicto; un error técnico no dice nada de la persona."""
+        caso = self._caso()
+        self.parches["validar_formulario_en_siis"].side_effect = lambda f, u: ValidacionSIS.objects.create(
+            formulario=f, estado=ValidacionSIS.Estado.ERROR, documento="1", id_programa=79
+        )
+        cuenta = proceso_masivo.Cuenta()
+
+        desenlace = proceso_masivo.procesar_caso(caso, self.user, None, cuenta)
+
+        self.assertEqual(desenlace, proceso_masivo.FALLA_TECNICA)
+        self.assertEqual(cuenta.incompatibles, 0)
+        self.assertEqual(cuenta.error_validacion, 1)
+
+
+class IncompatiblesNoVuelvenACandidatosTests(_BaseCorrerTest):
+    """BEC-11, segunda mitad: un incompatible deja de ser candidato.
+
+    No alcanza con no aprobarlo: si sigue en la lista, la corrida siguiente lo
+    vuelve a consultar, y la que viene también. Con los incompatibles adelante
+    por pk, una corrida de N se gasta las N llamadas en ellos y no da una sola
+    alta.
+    """
+
+    def _otro_relevamiento(self):
+        """Otro relevamiento del mismo programa, para pausar uno sin pausar al resto."""
+        return Relevamiento.objects.create(
+            convocatoria=self.convocatoria,
+            territorial=self.user,
+            fecha_asignada=date(2026, 6, 2),
+            zona="B",
+        )
+
+    def _otro_ciudadano(self, dni):
+        return Ciudadano.objects.create(
+            dni=dni, nombre="Otra", apellido="Persona", fecha_nacimiento=date(1990, 1, 1), genero="F"
+        )
+
+    def _incompatible(self, cuantos=1, documento="20301234", id_programa=79):
+        casos = []
+        for _ in range(cuantos):
+            caso = self._caso()
+            ValidacionSIS.objects.create(
+                formulario=caso,
+                estado=ValidacionSIS.Estado.RECHAZADO,
+                documento=documento,
+                id_programa=id_programa,
+                motivo="Ya percibe otro beneficio",
+            )
+            casos.append(caso)
+        return casos
+
+    def test_un_incompatible_deja_de_ser_candidato(self):
+        incompatible = self._incompatible()[0]
+        sano = self._caso()
+
+        pks = list(proceso_masivo.candidatos(programa=self.programa).values_list("pk", flat=True))
+
+        self.assertEqual(pks, [sano.pk])
+        self.assertNotIn(incompatible.pk, pks)
+
+    def test_siguen_contados_para_que_alguien_los_resuelva(self):
+        incompatibles = self._incompatible(3)
+
+        listados = list(
+            proceso_masivo.candidatos(programa=self.programa, solo_incompatibles=True).values_list("pk", flat=True)
+        )
+
+        self.assertEqual(listados, sorted(c.pk for c in incompatibles))
+
+    def test_un_veredicto_viejo_de_otro_dni_no_lo_saca(self):
+        """La validación es del DNI de antes: no dice nada de la persona de ahora."""
+        caso = self._incompatible(documento="99999999")[0]
+
+        pks = list(proceso_masivo.candidatos(programa=self.programa).values_list("pk", flat=True))
+
+        self.assertIn(caso.pk, pks)
+
+    def test_un_veredicto_de_otro_plan_no_lo_saca(self):
+        caso = self._incompatible(id_programa=12345)[0]
+
+        pks = list(proceso_masivo.candidatos(programa=self.programa).values_list("pk", flat=True))
+
+        self.assertIn(caso.pk, pks)
+
+    def test_revalidar_con_ok_lo_devuelve_a_la_corrida(self):
+        caso = self._incompatible()[0]
+        ValidacionSIS.objects.create(
+            formulario=caso, estado=ValidacionSIS.Estado.OK, documento="20301234", id_programa=79
+        )
+
+        pks = list(proceso_masivo.candidatos(programa=self.programa).values_list("pk", flat=True))
+
+        self.assertIn(caso.pk, pks)
+
+    def test_las_tres_exclusiones_conviven(self):
+        """Pausa (BEC-21), veredicto vigente (BEC-11) y lista del PM (Cambio 138).
+
+        Son tres preguntas distintas y ninguna sustituye a otra: el caso que
+        queda es el único al que no le aplica ninguna. Sin este test, el día que
+        dos de ellas se pisen en el mismo `filter` nadie se entera.
+        """
+        from programas.tests.test_siis_enviar_exclusion import crear_tabla_siis_enviar
+
+        incompatible = self._incompatible()[0]
+        pausado = self._caso()
+        Relevamiento.objects.filter(pk=pausado.relevamiento_id).update(pausado=True)
+        # El pausado y el sano comparten relevamiento, así que el sano necesita el suyo.
+        sano = self._caso()
+        Formulario.objects.filter(pk=sano.pk).update(relevamiento=self._otro_relevamiento())
+        excluido = self._caso()
+        Formulario.objects.filter(pk=excluido.pk).update(
+            relevamiento=self._otro_relevamiento(), ciudadano=self._otro_ciudadano("30111222")
+        )
+        crear_tabla_siis_enviar("30111222")
+
+        pks = list(
+            proceso_masivo.candidatos(programa=self.programa, filtrar_materias=False).values_list("pk", flat=True)
+        )
+
+        self.assertEqual(pks, [sano.pk])
+        for descartado in (incompatible, pausado, excluido):
+            self.assertNotIn(descartado.pk, pks)
+
+    def test_la_subconsulta_del_veredicto_aparece_una_sola_vez(self):
+        """MySQL evalúa cada subconsulta correlacionada **por fila**.
+
+        Con ``annotate`` y una comparación que admite NULL, la misma subconsulta
+        termina tres veces en el SQL —una en el SELECT y dos en el WHERE—, que es
+        lo que le pasa al ``ultimo_envio`` de al lado. ``alias`` + ``Coalesce``
+        la dejan en una sola, y eso se rompe sin que nada más se ponga rojo.
+        """
+        sql = str(proceso_masivo.candidatos(programa=self.programa).query)
+
+        self.assertEqual(sql.count("programas_validacionsis"), 1)
+
+    def test_doscientos_incompatibles_no_se_comen_la_corrida(self):
+        """El escenario del hallazgo: los incompatibles están primeros por pk."""
+        self._incompatible(200)
+        sanos = [self._caso() for _ in range(2)]
+
+        corrida = proceso_masivo.correr(self._corrida(total=10), lote=40)
+
+        self.assertEqual(corrida.estado, CorridaSiis.Estado.TERMINADA)
+        self.assertEqual(corrida.altas, 2)
+        self.assertEqual(self.parches["validar_formulario_en_siis"].call_count, 2)
+        informados = [c.args[0].pk for c in self.parches["enviar_beneficiario_a_siis"].call_args_list]
+        self.assertEqual(sorted(informados), sorted(c.pk for c in sanos))
+
+
 class LanzarTests(_BaseProcesoTest):
     def test_el_ejecutor_se_inyecta(self):
         """En los tests corre sincronico; sin eso serian una carrera."""
@@ -375,6 +765,20 @@ class PantallaProcesoMasivoTests(_BaseProcesoTest):
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, "Proceso masivo")
         self.assertEqual(resp.context["pendientes"], 1)
+
+    def test_la_pantalla_cuenta_los_incompatibles_aparte(self):
+        """BEC-11: salen de la corrida, no de la pantalla: alguien los tiene que resolver."""
+        incompatible = self._caso()
+        ValidacionSIS.objects.create(
+            formulario=incompatible, estado=ValidacionSIS.Estado.RECHAZADO, documento="20301234", id_programa=79
+        )
+        self._caso()
+
+        resp = self.client.get(self._url())
+
+        self.assertEqual(resp.context["pendientes"], 1)
+        self.assertEqual(resp.context["incompatibles"], 1)
+        self.assertContains(resp, "Incompatibles según SIIS")
 
     def test_sin_la_capacidad_no_entra(self):
         """Un usuario sin la capacidad no llega, aunque sepa la URL."""
@@ -435,6 +839,33 @@ class PantallaProcesoMasivoTests(_BaseProcesoTest):
 
     def test_frenar_sin_corrida_no_rompe(self):
         resp = self.client.post(self._url("proceso_masivo_frenar"))
+        self.assertEqual(resp.status_code, 302)
+
+    def test_frenar_alcanza_a_una_corrida_sin_latido(self):
+        """V2-NEW-01: la que parece interrumpida es justo la que hay que poder frenar.
+
+        «Sin señal» no es «muerta»: una corrida lenta —o un pod que tarda en
+        escribir— se veía interrumpida, y entonces el botón Frenar decía «no hay
+        ninguna corrida en curso» mientras el hilo seguía mandando altas a SIIS.
+        """
+        corrida = CorridaSiis.objects.create(
+            programa=self.programa, total_pedido=10, latido=timezone.now() - timedelta(hours=1)
+        )
+
+        self.client.post(self._url("proceso_masivo_frenar"))
+
+        corrida.refresh_from_db()
+        self.assertTrue(corrida.cancelacion_pedida)
+
+    def test_frenar_solo_afecta_a_la_corrida_de_este_programa(self):
+        """A5-33: el botón está en la pantalla de un programa y frenaba la de cualquiera."""
+        otro = ProgramaSiis.objects.create(nombre="Otro programa", siis_programa_id=80)
+        ajena = CorridaSiis.objects.create(programa=otro, total_pedido=10, latido=timezone.now())
+
+        resp = self.client.post(self._url("proceso_masivo_frenar"))
+
+        ajena.refresh_from_db()
+        self.assertFalse(ajena.cancelacion_pedida, "se frenó la corrida de otro programa")
         self.assertEqual(resp.status_code, 302)
 
 
@@ -675,7 +1106,10 @@ class FiltroAprobadosMateriasTests(_BaseProcesoTest):
 
     def _caso_de(self, ciudadano):
         return Formulario.objects.create(
-            relevamiento=self.relevamiento, ciudadano=ciudadano, estado=Formulario.Estado.ENVIADO
+            relevamiento=self.relevamiento,
+            ciudadano=ciudadano,
+            estado=Formulario.Estado.ENVIADO,
+            validado_renaper=True,
         )
 
     def test_deja_afuera_al_dni_que_no_esta_en_la_tabla(self):

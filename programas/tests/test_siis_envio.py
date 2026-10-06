@@ -895,8 +895,13 @@ class ComandoCircuitoCompletoTests(_BaseEnvioTest):
             formulario=f, estado=EnvioSIIS.Estado.ENVIADO, documento="1", siis_id=1
         )
         # El caso de la base nace APROBADO; agrego uno pendiente de resolución.
+        # Con la identidad validada, que es lo que la aprobación exige: desde
+        # BEC-21 un ENVIADO sin eso ya no es candidato del masivo.
         self.pendiente = Formulario.objects.create(
-            relevamiento=self.relevamiento, ciudadano=self.ciudadano, estado=Formulario.Estado.ENVIADO
+            relevamiento=self.relevamiento,
+            ciudadano=self.ciudadano,
+            estado=Formulario.Estado.ENVIADO,
+            validado_renaper=True,
         )
 
     def _correr(self, *args):

@@ -36,10 +36,17 @@
         lanzada por {{ en_curso.solicitada_por.get_full_name|default:en_curso.solicitada_por.username }}
         · hace {{ en_curso.creado|timesince }}
       </p>
+      {% comment %}A5-33: la corrida es una sola en todo el sistema (Cambio 88), pero
+      puede ser de otro programa, y este botón solo frena la de este. Ofrecerlo igual
+      era frenar la corrida ajena.{% endcomment %}
+      {% if en_curso_de_otro_programa %}
+      <p class="text-sm text-body-subtle">Es del programa <strong class="text-heading">{{ en_curso.programa.nombre }}</strong>: se frena desde su pantalla.</p>
+      {% else %}
       <form method="post" action="{% url 'becas:proceso_masivo_frenar' programa.pk %}" data-confirmar-frenar>
         {% csrf_token %}
         <button type="submit" class="btn-nodo btn-danger btn-sm">Frenar</button>
       </form>
+      {% endif %}
     </div>
 
     <div class="w-full rounded-full h-3 mb-2" style="background: var(--bg-secondary)">
@@ -65,6 +72,11 @@
         <dd class="text-heading font-bold text-xl">{{ en_curso.rechazados }}</dd>
       </div>
       <div>
+        {# BEC-11: SIIS los declaró incompatibles. No se aprueban en lote: los mira una persona. #}
+        <dt class="text-body-subtle">Incompatibles según SIIS</dt>
+        <dd class="text-heading font-bold text-xl">{{ en_curso.incompatibles }}</dd>
+      </div>
+      <div>
         <dt class="text-body-subtle">Errores técnicos</dt>
         <dd class="text-heading font-bold text-xl">{{ en_curso.errores }}</dd>
       </div>
@@ -74,7 +86,7 @@
       </div>
     </dl>
     <p class="text-xs text-body-subtle mt-4">
-      Frenar corta al terminar el lote en curso, no a mitad de un caso: puede tardar hasta 40 casos.
+      Frenar corta al terminar el caso que está procesando, no a mitad: puede tardar un par de minutos si SIIS está lento.
     </p>
   </div>
 
@@ -96,7 +108,18 @@
   {# Sin corrida: el formulario #}
   <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
     {% include "components/_stat_card.html" with etiqueta="Pendientes de informar" valor=pendientes icono="fa-hourglass-half" tono="warning" %}
+    {% comment %}BEC-11: estos ya no entran a la corrida —si no, se los vuelve a consultar
+    en cada vuelta y la corrida se gasta en ellos—, pero están esperando que alguien
+    decida: sin este número desaparecerían de la pantalla.{% endcomment %}
+    {% if incompatibles %}
+    {% include "components/_stat_card.html" with etiqueta="Incompatibles según SIIS" valor=incompatibles icono="fa-user-xmark" tono="danger" %}
+    {% endif %}
   </div>
+  {% if incompatibles %}
+  <p class="text-xs text-body-subtle">
+    Los incompatibles no entran a la corrida: SIIS ya contestó que no corresponden al programa y la decisión es de una persona, desde la revisión del caso.
+  </p>
+  {% endif %}
   <div class="bg-white rounded-xl border border-base shadow-sm p-5">
     {% if pendientes %}
     <form method="post" action="{% url 'becas:proceso_masivo_lanzar' programa.pk %}"
@@ -134,6 +157,12 @@
       {{ corrida.total_pedido }} pedidos → {{ corrida.altas }} altas ·
       {{ corrida.rechazados }} rechazados por SIIS · {{ corrida.salteados }} salteados
     </p>
+    {% if corrida.incompatibles %}
+    {# BEC-11: quedaron sin aprobar a propósito, y hay que decirlo: si no, se leen como «se perdieron». #}
+    <p class="text-sm text-body mt-1">
+      {{ corrida.incompatibles }} caso(s) que SIIS declaró incompatibles quedaron sin aprobar: los resuelve una persona desde la revisión.
+    </p>
+    {% endif %}
     {% if corrida.mensaje %}<p class="text-sm text-fg-danger mt-1">{{ corrida.mensaje }}</p>{% endif %}
   </div>
   {% endif %}
@@ -218,7 +247,7 @@
       interceptar(frenar, function () {
         return {
           title: '¿Frenar la corrida?',
-          message: 'Corta al terminar el lote en curso, no a mitad de un caso: puede tardar hasta 40 casos. '
+          message: 'Corta al terminar el caso que está procesando, no a mitad: puede tardar un par de minutos si SIIS está lento. '
             + 'Lo que ya se dio de alta en SIIS queda como está; lo que falte se puede lanzar en una corrida nueva.',
           confirmText: 'Sí, frenar'
         };

@@ -20,15 +20,20 @@ puede probar por su efecto, así que se prueba por su presencia, con
 ``core.tests.candados.candados_tomados``.
 """
 
+import threading
+import time
 from unittest.mock import patch
 
 from django.contrib.auth.models import User
 from django.contrib.messages import get_messages
+from django.db import connections, transaction
+from django.test import TransactionTestCase, tag
 from django.urls import reverse
 from django.utils import timezone
 
 from core.tests.candados import candados_tomados
-from programas.models import CorridaSiis, Formulario, Relevamiento, Segmento, TracaFormulario
+from core.tests.test_motor_real import MotorRealMixin
+from programas.models import CorridaSiis, Formulario, ProgramaSiis, Relevamiento, Segmento, TracaFormulario
 from programas.services import proceso_masivo
 from programas.services.cupo import agregar_a_lista_espera, aprobar_o_poner_en_espera, promover_lista_espera
 from programas.tests.test_becas_api import _BaseApiTest
@@ -111,6 +116,97 @@ class CandadoCorridaMasivaTests(_BaseProcesoTest):
 
         self.assertIsNotNone(creada)
         self.assertEqual(CorridaSiis.objects.count(), 2)
+
+
+@tag("mysql")
+class CarreraDeCorridaMasivaTests(MotorRealMixin, TransactionTestCase):
+    """SIIS-03 · capa 2: el candado de la corrida, con el motor de verdad.
+
+    Las clases de arriba simulan la carrera porque en SQLite
+    ``select_for_update()`` es un no-op: lo que afirman es que la decisión se toma
+    con lo que hay adentro del candado. Acá se corre de verdad, con dos hilos y
+    dos conexiones, que es lo único que puede mostrar que el candado serializa.
+
+    Las dos carreras que importan son distintas:
+
+    * dos lanzamientos a la vez (dos pestañas) → **una** corrida;
+    * un comando a mano justo cuando alguien lanza desde la pantalla → el comando
+      espera el candado y después ve la corrida commiteada, en vez de colarse
+      entre el ``en_curso()`` y el ``create()`` y procesar los mismos casos.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.programa = ProgramaSiis.objects.create(nombre="Programa corrida", siis_programa_id=943)
+        self.user = User.objects.create_superuser("admin-corrida", "c@d.com", "x")
+
+    def _en_paralelo(self, *operaciones):
+        barrera = threading.Barrier(len(operaciones), timeout=30)
+        resultados, errores = [], []
+
+        def correr(operacion):
+            try:
+                barrera.wait()
+                resultados.append(operacion())
+            except Exception as exc:
+                # A ``errores``, no a ``resultados``: una excepción guardada entre
+                # los resultados deja el test en verde mientras el hilo se murió.
+                errores.append(exc)
+            finally:
+                connections.close_all()
+
+        hilos = [threading.Thread(target=correr, args=(operacion,)) for operacion in operaciones]
+        for hilo in hilos:
+            hilo.start()
+        for hilo in hilos:
+            hilo.join(timeout=60)
+        self.assertEqual([repr(e) for e in errores], [])
+        return resultados
+
+    def _crear(self):
+        return proceso_masivo.crear_corrida(programa=self.programa, solicitada_por=self.user, total_pedido=5)
+
+    def test_dos_lanzamientos_simultaneos_crean_una_sola_corrida(self):
+        resultados = self._en_paralelo(self._crear, self._crear)
+
+        creadas = [r for r in resultados if isinstance(r, CorridaSiis)]
+        self.assertEqual(len(creadas), 1, f"se crearon {len(creadas)} corridas: el candado no serializó")
+        self.assertEqual(CorridaSiis.objects.filter(estado=CorridaSiis.Estado.EN_CURSO).count(), 1)
+
+    def test_un_comando_no_se_cuela_entre_el_candado_y_la_corrida(self):
+        """El comando espera el candado; no lee la tabla antes del commit del otro.
+
+        Sin el candado, con READ COMMITTED el comando no ve la corrida que la
+        pantalla todavía no commiteó, arranca igual y los dos procesan los mismos
+        casos. Acá el lanzamiento retiene el candado un segundo y el comando
+        **tiene** que tardar eso y después encontrarla.
+        """
+        creada, veredicto = threading.Event(), {}
+
+        def lanzar_despacio():
+            with transaction.atomic():
+                proceso_masivo._tomar_candado()
+                CorridaSiis.objects.create(
+                    programa=self.programa, solicitada_por=self.user, total_pedido=5, latido=timezone.now()
+                )
+                creada.set()
+                time.sleep(1)
+
+        def comando():
+            creada.wait(timeout=10)
+            arranque = time.monotonic()
+            try:
+                proceso_masivo.exigir_sin_corrida_viva()
+                veredicto["resultado"] = "arrancó"
+            except proceso_masivo.CorridaEnCurso:
+                veredicto["resultado"] = "abortó"
+            veredicto["espera"] = time.monotonic() - arranque
+
+        self._en_paralelo(lanzar_despacio, comando)
+
+        self.assertEqual(veredicto["resultado"], "abortó")
+        self.assertGreater(veredicto["espera"], 0.5, "el comando no esperó el candado: leyó antes del commit")
+        self.assertEqual(CorridaSiis.objects.count(), 1)
 
 
 class ContratoDeCandadosTests(_BaseEsperaTest):

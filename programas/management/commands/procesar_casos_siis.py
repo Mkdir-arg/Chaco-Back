@@ -5,7 +5,8 @@ Es la versión automática de los dos botones de la pantalla de revisión:
 
 1. **Validar con SIIS** — ``validar_formulario_en_siis``. Deja siempre una fila
    auditable en ``ValidacionSIS``. Desde el Cambio 81 el veredicto no frena la
-   aprobación, pero haberla hecho sigue siendo obligatorio.
+   aprobación **en la pantalla**, porque ahí decide el revisor; en lote no hay
+   revisor, así que un incompatible queda contado y sin aprobar (BEC-11).
 2. **Aprobar** — ``aprobar_o_poner_en_espera``. Solo toma casos ``ENVIADO``. Si
    el segmento no tiene cupo, el caso cae en **lista de espera** y ahí termina:
    no se informa a SIIS.
@@ -209,6 +210,7 @@ class Command(ComandoSiisBase):
         tamano = max(1, options["lote"])
         arranque = self._reloj()
 
+        self.exigir_sin_corrida_viva(options)
         self._avisar_ensayo(aplicar, "no valida, no aprueba y no envía. Agregá --aplicar.")
         # --solo-completos lee los catálogos de SIIS aunque sea un ensayo.
         if aplicar or options["solo_completos"]:
@@ -372,6 +374,7 @@ class Command(ComandoSiisBase):
         filas = [
             ("aprobados", cuenta.aprobados),
             ("sin cupo → lista de espera", cuenta.lista_espera),
+            ("incompatibles según SIIS (sin aprobar)", cuenta.incompatibles),
             ("no se pudieron aprobar", cuenta.no_aprobable),
             ("sin programa SIIS o sin DNI", cuenta.sin_datos),
             ("validación con error técnico", cuenta.error_validacion),
