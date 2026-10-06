@@ -27,10 +27,23 @@ ESTADOS_VIGENTES = (
 def tomar_inscripcion(ciudadano, programa, *, defaults):
     """``get_or_create`` bajo ``select_for_update``, tolerante a la carrera.
 
-    Dos procesos que dan de alta a la misma persona en el mismo programa a la vez:
-    el que pierde recibe el ``IntegrityError`` del índice único y relee la fila del
-    otro, ya con el candado puesto. Mismo patrón que ``_obtener_membresia`` de
-    Dispositivos, que ahora pasa por acá.
+    Dos procesos que dan de alta a la misma persona en el mismo programa a la vez: el
+    que pierde recibe el ``IntegrityError`` del índice único y relee la fila del otro.
+    (El ``get_or_create`` de Django ya intenta esa relectura por su cuenta; la rama de
+    rescate de acá es para cuando tampoco él la ve, que es lo que pasa bajo
+    REPEATABLE READ si la otra transacción todavía no commiteó.)
+
+    **Las dos ramas abren su propia transacción, y hace falta que sea así.** La rama
+    feliz se envuelve sola, pero la de rescate corre *después* de que ese ``atomic``
+    se cerró: sin uno nuevo, el ``select_for_update`` quedaba pedido en autocommit y
+    MySQL y MariaDB contestan ``TransactionManagementError`` —500— en cuanto el
+    llamador no venga envuelto en su propio ``atomic``. En SQLite no se ve, porque
+    ahí ``select_for_update`` es un no-op (``has_select_for_update = False``).
+
+    **El candado no sobrevive a la llamada por sí solo:** si el llamador no tiene su
+    propio ``atomic``, la transacción de acá commitea al salir y lo libera. Eso es
+    correcto para los dos usos actuales: ``activar_inscripcion`` **sí** es atómico y
+    muta la fila bajo su candado, y ``_obtener_membresia`` solo la lee.
     """
     try:
         with transaction.atomic():
@@ -38,7 +51,8 @@ def tomar_inscripcion(ciudadano, programa, *, defaults):
                 ciudadano=ciudadano, programa=programa, defaults=defaults
             )
     except IntegrityError:
-        fila = InscripcionPrograma.objects.select_for_update().get(ciudadano=ciudadano, programa=programa)
+        with transaction.atomic():
+            fila = InscripcionPrograma.objects.select_for_update().get(ciudadano=ciudadano, programa=programa)
         return fila, False
 
 

@@ -14,8 +14,11 @@ transacción que, si falla, además borra del storage lo que alcanzó a escribir
 
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from unittest.mock import patch
 
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.db import DatabaseError
+from django.db.models.sql.compiler import SQLInsertCompiler
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
@@ -60,8 +63,6 @@ class AdjuntoBlobFaltanteTests(TestCase):
         """Un fallo imprevisto da 500 genérico, sin rutas ni mensajes internos."""
         ruta = "legajos.views.contactos_api.build_ciudadano_archivos_payload"
         with self.settings(DEBUG=False):
-            from unittest.mock import patch
-
             with patch(ruta, side_effect=OSError("/srv/datanach/media/secreto.pdf")):
                 respuesta = self.client.get(reverse("legajos:archivos_ciudadano", args=[self.ciudadano.pk]))
 
@@ -121,27 +122,41 @@ class SubidaMultipleAtomicaTests(TestCase):
             self.assertEqual(Adjunto.objects.count(), 2)
             self.assertEqual({a.etiqueta for a in Adjunto.objects.all()}, {"Documentación"})
 
-    def test_fallo_al_escribir_el_segundo_no_deja_el_primero_ni_su_blob(self):
-        """Si revienta la creación —no la validación— tampoco queda media huérfana."""
-        from unittest.mock import patch
+    def test_fallo_del_insert_no_deja_la_fila_ni_el_blob_que_ya_se_escribio(self):
+        """El INSERT que falla **después** de que el blob se escribió.
 
-        creados = []
-        real = Adjunto.objects.create
+        `FileField.pre_save` manda el archivo al storage adentro del `save()`, antes
+        del INSERT: con la validación en verde y la base rechazando la fila, el blob
+        queda en `media/` sin nada que lo referencie. Se falsea el INSERT —no la
+        validación, que corta antes de tocar el disco— del **segundo** adjunto, así
+        el test también exige que el blob del primero se limpie.
+        """
+        inserts = []
+        real_as_sql = SQLInsertCompiler.as_sql
 
-        def create_y_explotar(**kwargs):
-            if creados:
-                raise OSError("disco lleno")
-            adjunto = real(**kwargs)
-            creados.append(adjunto)
-            return adjunto
+        def armar_el_sql_y_reventar(self):
+            # `as_sql()` es donde el compilador llama a `pre_save` de cada campo, y es
+            # ahí donde el `FileField` manda el blob al storage. Dejarlo correr y
+            # fallar **después** es exactamente la ventana del bug: el archivo ya
+            # está escrito y la fila todavía no existe. Parchear `_do_insert` entero
+            # no sirve: `pre_save` corre adentro, así que el blob nunca se escribiría.
+            sql = real_as_sql(self)
+            if self.query.model is Adjunto:
+                inserts.append(self.query.objs[0].archivo.name)
+                if len(inserts) > 1:
+                    raise DatabaseError("el INSERT del segundo adjunto falló")
+            return sql
 
         with TemporaryDirectory() as media, override_settings(MEDIA_ROOT=media):
-            with patch.object(Adjunto.objects, "create", side_effect=create_y_explotar):
-                with self.assertRaises(OSError):
+            with patch.object(SQLInsertCompiler, "as_sql", armar_el_sql_y_reventar):
+                with self.assertRaises(DatabaseError):
                     subir_archivos_para_objeto(
                         self.ciudadano,
                         [SimpleUploadedFile("uno.pdf", b"uno"), SimpleUploadedFile("dos.pdf", b"dos")],
                     )
 
+            # Los dos blobs llegaron al storage antes de que el INSERT se ejecutara:
+            # el `FieldFile` ya no se llama como el archivo subido, sino `adjuntos/…`.
+            self.assertEqual([Path(nombre).parent.name for nombre in inserts], ["adjuntos", "adjuntos"])
             self.assertEqual(Adjunto.objects.count(), 0)
             self.assertEqual(list(Path(media).rglob("*.pdf")), [])

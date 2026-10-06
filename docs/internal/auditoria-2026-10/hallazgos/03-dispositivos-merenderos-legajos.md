@@ -261,8 +261,16 @@ devuelve intacto. Pasan por ahí las tres vías de alta (`DerivarProgramaForm.sa
 `SolapasService.crear_inscripcion_directa`) **y** `_membresia_activa` de Dispositivos, que tenía la misma lógica
 duplicada. Fuera el `except Exception` de `legajos/views/derivacion_programa.py`, que mostraba el `IntegrityError`
 como si fuera una validación de negocio.
+**Ronda 2 (revisión):** la rama de rescate pedía su `select_for_update` **en autocommit** —`transaction.atomic()`
+nuevo— porque el `atomic` de la rama feliz ya se había cerrado; contra `mariadb:10.11` eso es
+`TransactionManagementError` (500) para cualquier llamador que no venga envuelto en su propio `atomic`. Los dos
+llamadores de hoy sí lo están, así que no había un 500 vivo: lo que se arregló es el contrato de la función.
+Se sumaron las dos capas de RED-67: `candados_tomados` (presencia del candado, en SQLite es un no-op) y la
+carrera de dos hilos contra el motor real.
 **Test permanente:** `programas.tests.test_inscripciones_reactivacion.ReactivarInscripcionTests.test_aceptar_derivacion_con_inscripcion_cerrada_la_reactiva`
-(+ `test_inscripcion_directa_con_baja_reactiva` y `test_crear_inscripcion_directa_de_solapas_reactiva_la_suspendida`).
+(+ `test_inscripcion_directa_con_baja_reactiva`, `test_crear_inscripcion_directa_de_solapas_reactiva_la_suspendida`,
+`TomarInscripcionFueraDeAtomicTests.test_la_rama_de_rescate_pide_el_candado_dentro_de_una_transaccion`,
+`ContratoDeCandadoTests` y, con `@tag("mysql")`, `TomarInscripcionMotorRealTests` y `CarreraDeReactivacionTests`).
 
 ### LEG-05 · Subida múltiple de adjuntos no atómica
 **Severidad:** BAJA (baja desde MEDIA: el daño es un adjunto duplicado y un mensaje engañoso) · **Estado:** CONFIRMADO con test (`dni.pdf` + `foto.heic` → excepción y 1 Adjunto persistido) · **Origen:** A3-18 · **Tratamiento:** parchear v1 · **Ola:** 5 · **Esfuerzo:** S
@@ -274,8 +282,11 @@ como si fuera una validación de negocio.
 **completa** antes de tocar la base y crea dentro de `transaction.atomic()`; si algo revienta, además borra del
 storage los blobs ya escritos (el storage no participa de la transacción) y re-lanza. Con `dni.pdf` + `foto.heic` ya
 no queda un adjunto a medias con el mensaje «Formato no permitido».
+**Ronda 2 (revisión):** `FileField.pre_save` escribe el blob **adentro** del `save()`, antes del INSERT; si el
+INSERT falla, el archivo queda en `media/` sin fila y el registro para la limpieza —que corría recién con el
+objeto ya creado— se lo perdía. El nombre se anota en un `finally` alrededor del `save()`.
 **Test permanente:** `legajos.tests.test_adjuntos_robustez.SubidaMultipleAtomicaTests.test_subida_con_un_archivo_invalido_no_guarda_ninguno`
-(+ `test_fallo_al_escribir_el_segundo_no_deja_el_primero_ni_su_blob`).
+(+ `test_fallo_del_insert_no_deja_la_fila_ni_el_blob_que_ya_se_escribio`).
 
 ### LEG-06 · Código muerto de legajos y derivaciones que no tienen dónde procesarse
 **Severidad:** BAJA · **Estado:** CONFIRMADO (lectura) · **Origen:** A3-25, A5-44, A6-16 (parte templates) · **Tratamiento:** parchear v1 (limpieza); las derivaciones son criterio v2 (M6, #390) · **Ola:** 7 · **Esfuerzo:** S · **Decisión:** D-L06

@@ -19450,10 +19450,13 @@ No requiere migración. Ningún modelo cambió: `activar_inscripcion` escribe co
 ## Validación
 
 - `manage.py check` y `check --deploy`: sin hallazgos. `makemigrations --check --dry-run`: «No changes detected».
-- **Suite completa en un solo proceso (`manage.py test`, sin argumentos): 2767 tests, OK** (17 skipped).
+- **Suite completa en un solo proceso (`manage.py test`, sin argumentos): 2816 tests, OK** (22 skipped; el conteo
+  es el de la ronda 2, ya con `development` mergeado).
+- **`manage.py test --tag mysql` contra `mariadb:10.11` con `MARIADB_INITDB_SKIP_TZINFO=1`** (contenedor efímero,
+  0 filas en `mysql.time_zone`, como ECOM): **22 tests, OK**.
 - `manage.py test --tag performance`: en verde.
 - Tests nuevos, los tres módulos **rojos antes del arreglo**:
-  `programas.tests.test_inscripciones_reactivacion` (6), `legajos.tests.test_adjuntos_robustez` (6),
+  `programas.tests.test_inscripciones_reactivacion` (12), `legajos.tests.test_adjuntos_robustez` (6),
   `legajos.tests.test_ciudadano_detail_ola5` (11).
 - `ruff check .` y `ruff format --check`: limpio.
 - UI: `design_audit.py --ratchet` → **0 hallazgos nuevos**; `--arquetipo detalle` sobre
@@ -19484,6 +19487,46 @@ cachea, un refresh forzado del detalle del ciudadano.
 5. **No se tomaron capturas de Playwright:** el harness es local y no está en el worktree. Lo visible es el
    retiro de una solapa y de una tarjeta de indicador, y un botón que cambia de texto: conviene una pasada
    de QA visual sobre el detalle del ciudadano y el dashboard de alertas.
+
+
+## Revisión: los tres arreglos de la ronda 2
+
+El revisor aprobó el PR (los 7 ítems verificados en navegador real y la reactivación contra MariaDB) y dejó
+tres MINOR. Los tres entraron en un commit encima, porque el primero es un 500 real.
+
+1. **`tomar_inscripcion` pedía el candado en autocommit** (`inscripciones.py`). La rama feliz se envuelve en su
+   propio `atomic`, pero la **rama de rescate** corre *después* de que ese `atomic` se cerró: sin uno nuevo, el
+   `select_for_update` de la relectura quedaba en autocommit y MySQL y MariaDB contestan
+   `TransactionManagementError` —500— en cuanto el llamador no venga envuelto en su propio `atomic`. En SQLite
+   no se ve, porque ahí `select_for_update` es un no-op (`has_select_for_update = False`). **Reproducido contra
+   `mariadb:10.11`**: `TransactionManagementError: select_for_update cannot be used outside of a transaction.`
+   Se envolvió la relectura en `transaction.atomic()` y el docstring dice ahora la verdad: el candado **no
+   sobrevive a la llamada** si el llamador no tiene su propio `atomic`. Eso es correcto para los dos usos de
+   hoy —`activar_inscripcion` sí es atómico y muta la fila bajo su candado, y `_obtener_membresia` solo lee—,
+   pero la función es pública y la rama feliz se arregla sola, así que la asimetría era una trampa.
+   **Aclaración honesta:** los dos llamadores actuales llegan dentro de un `atomic` (`poner_en_espera` lo es),
+   así que hoy no había un 500 vivo en producción por esta vía; lo que se arregló es el contrato de la función,
+   que el próximo llamador iba a cobrar.
+2. **El blob que `pre_save` escribe adentro del INSERT** (`legajos/services/contactos.py`). `FileField.pre_save`
+   manda el archivo al storage *dentro* del `save()`, antes del INSERT: si el INSERT falla, el blob ya está en
+   `media/` y la fila no existe nunca. Registrarlo recién con el objeto ya creado dejaba justo a ese huérfano
+   —el único que después nadie puede encontrar— fuera de la limpieza. Ahora el `Adjunto` se construye primero y
+   el registro va en un `finally` alrededor del `save()`; se distingue «se escribió» de «ni llegó a escribirse»
+   comparando el nombre subido (`dni.pdf`) con el que devolvió el storage (`adjuntos/dni.pdf`).
+3. **Los candados, con la convención del repo.** `ContratoDeCandadoTests` usa `core/tests/candados.py`
+   (RED-67 capa 1: el candado se afirma por su presencia, porque en SQLite es un no-op) sobre las dos puertas,
+   `activar_inscripcion` y la lista de espera de Dispositivos. Y `CarreraDeReactivacionTests` es la capa 2:
+   dos hilos reactivando la misma inscripción contra el motor real, con y sin fila previa, exigiendo **una sola
+   fila ACTIVA y ninguna excepción**.
+
+**Cómo se probó que los tests ven el bug.** Los dos de código se corrieron contra el árbol sin el arreglo:
+`test_la_rama_de_rescate_pide_el_candado_dentro_de_una_transaccion` falla en SQLite (el candado se pide en
+autocommit) y `TomarInscripcionMotorRealTests` revienta con `TransactionManagementError` contra MariaDB real;
+`test_fallo_del_insert_no_deja_la_fila_ni_el_blob_que_ya_se_escribio` deja `adjuntos/dos.pdf` en `media/`.
+
+**Un detalle que costó un intento:** falsear el INSERT parcheando `Model._do_insert` **no reproduce nada**,
+porque `pre_save` corre adentro de esa misma llamada y el blob nunca se escribe. Hay que dejar correr
+`SQLInsertCompiler.as_sql()` —que es donde el compilador llama a `pre_save` de cada campo— y fallar después.
 
 ## Reversión
 
