@@ -8,6 +8,7 @@ Backend CI.
 
 from __future__ import annotations
 
+import shutil
 import tempfile
 import unittest
 from pathlib import Path
@@ -78,10 +79,49 @@ class RatchetTests(unittest.TestCase):
 
 
 class GoldensTests(unittest.TestCase):
-    def test_sin_tabla_de_arquetipos_el_modo_es_tolerante(self) -> None:
-        """Hasta el paso 4 de la Ola 6 el núcleo no declara `## Arquetipos`."""
-        if design_audit.goldens_declaradas() is not None:
-            self.skipTest("el núcleo ya declara la tabla `## Arquetipos`")
+    """La tabla `## Arquetipos` del núcleo es la fuente del gate.
+
+    Hasta el paso 4 de la Ola 6 el modo era tolerante: sin tabla, `--goldens`
+    salía verde sin verificar nada. Desde que el núcleo la declara, dejar de
+    declararla (o declarar menos goldens que `design_audit.GOLDENS`) es un error.
+    """
+
+    def _nucleo(self, texto: str) -> Path:
+        d = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, d, True)
+        p = Path(d) / "chaco-design-system.md"
+        p.write_text(texto, encoding="utf-8")
+        original = design_audit.AGENTE
+        design_audit.AGENTE = p
+        self.addCleanup(setattr, design_audit, "AGENTE", original)
+        return p
+
+    def test_nucleo_sin_tabla_de_arquetipos_falla(self) -> None:
+        self._nucleo("# Agente\n\n## Inventario operativo inicial\n\n| a | b | c |\n")
+
+        self.assertEqual(design_audit.goldens_declaradas(), [])
+        self.assertEqual(design_audit.goldens_mode(), 1)
+
+    def test_sin_nucleo_en_el_checkout_manda_la_lista_del_script(self) -> None:
+        """El release excluye `.claude/`: ahí el gate se apoya en GOLDENS."""
+        self._nucleo("x").unlink()
+
+        self.assertIsNone(design_audit.goldens_declaradas())
+        self.assertEqual(design_audit.goldens_mode(), 0)
+
+    def test_golden_que_el_nucleo_dejo_de_declarar_falla(self) -> None:
+        listado = dict(design_audit.GOLDENS)["listado"]
+        self._nucleo(
+            "## Arquetipos\n\n| Arquetipo | Clasificación | Golden |\n|---|---|---|\n"
+            f"| Arquetipo · Listado | Canónico reutilizable | Golden `{listado}` |\n"
+        )
+
+        self.assertEqual(design_audit.goldens_declaradas(), [("listado", listado)])
+        self.assertEqual(design_audit.goldens_mode(), 1)
+
+    def test_las_goldens_declaradas_por_el_nucleo_estan_en_cero(self) -> None:
+        if not design_audit.goldens_declaradas():
+            self.skipTest("el núcleo todavía no declara la tabla `## Arquetipos`")
 
         self.assertEqual(design_audit.goldens_mode(), 0)
 

@@ -1685,6 +1685,10 @@ class ContextoDetalleTests(_BaseRevisionTest):
             "detalle_siis",
             "detalles_envio_siis",
             "envio_siis",
+            # Cambio 127 (SIIS-01): el envío que **ocupa** el caso, que no siempre
+            # es el último (``envio_siis``). Es el que decide si la pantalla ofrece
+            # reenviar: con uno vigente el servicio no llamaría a SIIS igual.
+            "envio_siis_activo",
             "form",
             "formulario",
             "formulario_comparacion",
@@ -1880,3 +1884,75 @@ class ConsultasDetalleTests(_BaseRevisionTest):
             ValidacionSIS.objects.create(formulario=self.form_a, estado=ValidacionSIS.Estado.ERROR)
         with self.assertNumQueries(self.CONSULTAS):
             self.assertEqual(self.client.get(url).status_code, 200)
+
+
+class PantallaEnvioSiisTests(_BaseRevisionTest):
+    """SIIS-01 y BEC-14 en la pantalla: no se ofrece lo que el servicio no haría."""
+
+    def setUp(self):
+        super().setUp()
+        self.form_a.estado = Formulario.Estado.APROBADO
+        self.form_a.save(update_fields=["estado"])
+        self.client.force_login(self.admin)
+        self.url = reverse("becas:formulario_detalle", args=[self.form_a.pk])
+
+    def _detalle(self):
+        respuesta = self.client.get(self.url)
+        self.assertEqual(respuesta.status_code, 200)
+        return respuesta
+
+    def test_sin_envio_se_ofrece_informar(self):
+        respuesta = self._detalle()
+        self.assertIsNone(respuesta.context["envio_siis_activo"])
+        self.assertContains(respuesta, "Informar a SIIS")
+        # El guard de un solo envío viaja en el form, no en el botón.
+        self.assertContains(respuesta, "data-un-solo-envio")
+
+    def test_con_un_envio_en_vuelo_no_se_ofrece_reenviar(self):
+        EnvioSIIS.objects.create(formulario=self.form_a, estado=EnvioSIIS.Estado.EN_PROCESO, documento="1")
+        respuesta = self._detalle()
+        self.assertIsNotNone(respuesta.context["envio_siis_activo"])
+        self.assertNotContains(respuesta, "Reenviar a SIIS")
+        self.assertContains(respuesta, "El alta se está informando a SIIS")
+
+    def test_con_un_resultado_incierto_se_explica_por_que_no_se_reenvia(self):
+        envio = EnvioSIIS.objects.create(formulario=self.form_a, estado=EnvioSIIS.Estado.INCIERTO, documento="1")
+        respuesta = self._detalle()
+        self.assertEqual(respuesta.context["envio_siis_activo"], envio)
+        self.assertNotContains(respuesta, "Reenviar a SIIS")
+        self.assertContains(respuesta, "No sabemos si SIIS registró el alta")
+
+    def test_con_un_error_tecnico_si_se_ofrece_reenviar(self):
+        """El contraste: cuando consta que no llegó, la pantalla deja reintentar."""
+        EnvioSIIS.objects.create(formulario=self.form_a, estado=EnvioSIIS.Estado.ERROR, documento="1")
+        respuesta = self._detalle()
+        self.assertIsNone(respuesta.context["envio_siis_activo"])
+        self.assertContains(respuesta, "Reenviar a SIIS")
+
+    def test_un_envio_incompleto_mas_nuevo_no_tapa_al_vigente(self):
+        """``envio_siis`` es el último; el que ocupa el caso puede ser otro."""
+        vigente = EnvioSIIS.objects.create(formulario=self.form_a, estado=EnvioSIIS.Estado.ENVIADO, documento="1")
+        ultimo = EnvioSIIS.objects.create(formulario=self.form_a, estado=EnvioSIIS.Estado.INCOMPLETO, documento="1")
+        respuesta = self._detalle()
+        self.assertEqual(respuesta.context["envio_siis"], ultimo)
+        self.assertEqual(respuesta.context["envio_siis_activo"], vigente)
+        self.assertNotContains(respuesta, "Reenviar a SIIS")
+
+    def test_el_segundo_post_de_aprobar_no_consulta_a_siis(self):
+        """BEC-14: el doble clic llegaba dos veces y las dos consultaban SIIS."""
+        self.form_a.estado = Formulario.Estado.ENVIADO
+        self.form_a.save(update_fields=["estado"])
+        url = reverse("becas:formulario_aprobar", args=[self.form_a.pk])
+        with (
+            patch("programas.views.revision.validar_formulario_en_siis") as validar,
+            patch("programas.views.revision.aprobar_o_poner_en_espera", return_value="aprobado"),
+            patch("programas.views.revision.enviar_beneficiario_a_siis"),
+            patch("programas.views.revision.enviar_aviso_resolucion"),
+        ):
+            validar.return_value = ValidacionSIS(estado=ValidacionSIS.Estado.OK)
+            self.client.post(url)
+            self.assertEqual(validar.call_count, 1)
+            # El segundo clic llega con el caso ya aprobado por el primero.
+            Formulario.objects.filter(pk=self.form_a.pk).update(estado=Formulario.Estado.APROBADO)
+            self.client.post(url)
+            self.assertEqual(validar.call_count, 1)

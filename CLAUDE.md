@@ -77,14 +77,15 @@ npm run build:tailwind                  # el CSS compilado está COMMITTEADO: no
 ### Auditorías obligatorias al tocar UI
 
 ```powershell
-& $env:PY_VENV scripts\design_audit.py --changed      # adherencia al sistema de diseño → 0 errores
-& $env:PY_VENV scripts\compile_templates.py           # sintaxis de TODOS los templates → 0
+& $env:PY_VENV scripts\design_audit.py --ratchet      # adherencia al sistema de diseño → 0 hallazgos NUEVOS
+& $env:PY_VENV scripts\design_audit.py --arquetipo <listado|detalle|formulario|modal> <archivo>  # pantalla nueva
+& .\.venv312\Scripts\python.exe scripts\compile_templates.py  # sintaxis de TODOS los templates → 0 (con .venv da 1 falso por {% querystring %})
 & $env:PY_VENV scripts\check_design_agent.py --changed
 ```
 
 `design_audit.py` y `check_design_agent.py` también corren como hook `PostToolUse`
-sobre `Edit|Write` (ver `.claude/settings.json`), así que un edit de UI que viole
-una regla se avisa en el momento.
+sobre `Edit|Write` (ver `.claude/settings.json`). El hook compara contra `HEAD` y avisa
+solo lo que agregó la edición; la deuda previa del archivo no se reporta.
 
 ### Requerimientos
 
@@ -229,11 +230,12 @@ El frontend productivo es la evidencia que prevalece para toda decisión de UI.
 el producto para calcarlo. Los tokens y componentes cargados se relevan desde el
 código y se inventarían en el agente canónico.
 
-Para cualquier trabajo de UI, leé `AGENTS.md` y usá los agentes de
-`.claude/agents/`:
+Para cualquier trabajo de UI usá los agentes de `.claude/agents/` (de `AGENTS.md`
+no hace falta leer nada para UI):
 
 - **`.claude/agents/chaco-design-system.md`** — fuente operativa única de diseño e
-  inventario. Se contrasta contra el código antes de cada cambio.
+  inventario (núcleo corto; fichas de arquetipos y componentes en `.claude/design/`).
+  Se contrasta contra el código antes de cada cambio.
 - **`chaco-frontend`** — **desarrollo y migración** (con `Write`): construir una pantalla
   nueva o ajustar una existente, preservando contratos Django.
 - **`chaco-design-reviewer`** — revisión de UI contra el código y el agente canónico.
@@ -241,15 +243,25 @@ Para cualquier trabajo de UI, leé `AGENTS.md` y usá los agentes de
 Al tocar UI, no repitas reglas visuales ni adoptes valores desde materiales históricos:
 seguí el inventario y la reconciliación de `.claude/agents/chaco-design-system.md`.
 
+**Pantalla nueva = clonar la golden de su arquetipo.** La tabla *Arquetipos* del agente
+canónico nombra una sola pantalla de referencia por arquetipo; se copia su esqueleto (ficha
+en `.claude/design/arquetipos/`) y se cambia solo el dominio. Una pantalla hermana del
+mismo módulo **nunca** es molde. Antes de escribir se declara el *Plan de pantalla*; si
+trae novedades (clase, include, variante o valor nuevo) no se escribe y se devuelve al
+llamador.
+
 **Auditoría mecánica compartida:** `scripts/design_audit.py` es la fuente única de los
-chequeos de adherencia (hex, fuentes legacy, `confirm()`, gradientes legacy, etc.).
-Tras tocar UI: **0 errores es condición de cierre** (los WARN se evalúan con criterio),
+chequeos de adherencia (hex, fuentes legacy, `confirm()`, paleta cruda, `style=`,
+`<style>`, encabezado, tabla, íconos, clases inexistentes…). Funciona como *ratchet*: la
+corrida completa tiene deuda preexistente, pero **0 hallazgos nuevos respecto de la base es
+condición de cierre** (hook local y CI). Las goldens se mantienen en 0 (`--goldens`, en CI),
 y `scripts/compile_templates.py` también en 0 (caza tags rotos que `manage.py check`
 no ve). Los comandos están arriba, en *Comandos → Auditorías*.
 
-Si cambiás una pieza de UI clasificada como **canónica** en el inventario, el mismo
-diff tiene que actualizar `.claude/agents/chaco-design-system.md`, o
-`check_design_agent.py` falla (en el hook y en el CI).
+Si cambiás una pieza de UI clasificada como **canónica** o una golden, el mismo diff
+tiene que actualizar su fila en `.claude/agents/chaco-design-system.md` o su ficha en
+`.claude/design/`, o `check_design_agent.py` falla (hook y CI). La historia de los
+cambios va a `docs/internal/requerimientos.md`, nunca al agente.
 
 ## Gates de CI
 
@@ -270,7 +282,9 @@ repo**; hasta entonces, no mergear en rojo es una regla del proceso, no un mecan
 - **Code Quality** — `Ruff errores` (`ruff check . --select F`) y `Contratos del repo`: las condiciones de cierre de
   este archivo, corridas en el CI (sintaxis de todos los templates, `requerimientos.py --check`, `collectstatic` con el
   almacenamiento con manifest y el ratchet de `design_audit` contra `.design-audit-ratchet`).
-- **Design Agent Contract** — `Validate inventory and authority`.
+- **Design Agent Contract** — `Validate inventory and authority`: contrato y límites del
+  agente (`check_design_agent.py --limites`), `design_audit.py --ratchet` (0 hallazgos
+  nuevos), `--goldens` (las pantallas de referencia en 0) y build de Tailwind sin diff.
 
 Los dos últimos corren en **todos** los PRs: el filtro por rutas está adentro del job,
 así que cuando el PR no toca Python o UI el check termina en verde sin hacer nada. Un

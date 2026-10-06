@@ -616,6 +616,10 @@
           <p class="text-xs uppercase tracking-wide font-semibold text-body-subtle mb-2">Último intento</p>
           {% if envio_siis.estado == 'ENVIADO' %}
             <span class="badge badge-success">Enviado</span>
+          {% elif envio_siis.estado == 'EN_PROCESO' %}
+            <span class="badge badge-info">En proceso</span>
+          {% elif envio_siis.estado == 'INCIERTO' %}
+            <span class="badge badge-warning">Resultado incierto</span>
           {% elif envio_siis.estado == 'INCOMPLETO' %}
             <span class="badge badge-warning">Datos incompletos</span>
           {% elif envio_siis.estado == 'RECHAZADO' %}
@@ -647,14 +651,31 @@
       <p class="text-sm text-body-subtle">El beneficiario todavía no fue informado a SIIS.</p>
       {% endif %}
 
-      {% if puede_enviar_siis and envio_siis.estado != 'ENVIADO' %}
+      {% comment %}SIIS-01: mientras haya un envío vigente —ENVIADO, EN_PROCESO o INCIERTO— no se
+      ofrece reenviar, porque el servicio no lo haría: el alta en SIIS no tiene baja. Un INCIERTO
+      se libera con `manage.py conciliar_envios_siis --liberar`, después de preguntarle a ECOM.{% endcomment %}
+      {% if envio_siis_activo and envio_siis_activo.estado != 'ENVIADO' %}
+      <div class="mt-4 rounded-lg bg-warning-soft border border-warning-subtle p-4 text-sm" role="status">
+        {% if envio_siis_activo.incierto %}
+        <p class="text-body"><span class="text-heading font-medium">No sabemos si SIIS registró el alta.</span>
+          No se reenvía hasta verificarlo con SIIS: pedilo a quien opera la integración.</p>
+        {% else %}
+        <p class="text-body"><span class="text-heading font-medium">El alta se está informando a SIIS.</span>
+          Recargá la pantalla en un minuto para ver el resultado.</p>
+        {% endif %}
+      </div>
+      {% endif %}
+
+      {% if puede_enviar_siis and not envio_siis_activo %}
       <div class="mt-5 flex items-center gap-3 flex-wrap">
         {% if datos_siis_form %}
         <button type="button" id="btn-datos-siis" class="btn-nodo btn-secondary btn-base">
           <i class="fas fa-pen" aria-hidden="true"></i> Completar datos para SIIS
         </button>
         {% endif %}
-        <form method="post" action="{% url 'becas:formulario_enviar_siis' formulario.pk %}{{ next_qs }}">
+        {% comment %}`data-un-solo-envio`: el guard de abajo deshabilita el botón al primer submit.
+        Sin él, un doble clic mandaba dos POST y los dos llamaban a SIIS (SIIS-01, BEC-14).{% endcomment %}
+        <form method="post" action="{% url 'becas:formulario_enviar_siis' formulario.pk %}{{ next_qs }}" data-un-solo-envio>
           {% csrf_token %}
           <button type="submit" class="btn-nodo btn-brand btn-base">{% if envio_siis %}Reenviar a SIIS{% else %}Informar a SIIS{% endif %}</button>
         </form>
@@ -995,16 +1016,42 @@ document.addEventListener('DOMContentLoaded', function () {
     if (event.target === imageOverlay) closeImagePreview();
   });
 
+  // SIIS-01 / BEC-14: un form marcado con data-un-solo-envio se manda una sola vez.
+  // El alta en SIIS no tiene baja, así que un doble clic que llega dos veces al
+  // servidor es irreversible; el servidor igual lo rechaza (envío vigente), pero
+  // el segundo POST ya gastó una consulta a SIIS.
+  function tomarEnvio(form) {
+    if (!form || form.dataset.enviando) return false;
+    form.dataset.enviando = '1';
+    const boton = form.querySelector('button[type="submit"], button:not([type])');
+    if (boton) boton.disabled = true;
+    return true;
+  }
+
+  document.addEventListener('submit', function (e) {
+    const form = e.target && e.target.closest ? e.target.closest('form[data-un-solo-envio]') : null;
+    if (!form) return;
+    if (!tomarEnvio(form)) e.preventDefault();
+  });
+
   const btnAprobar = document.getElementById('btn-aprobar');
   if (btnAprobar) {
     btnAprobar.addEventListener('click', function () {
+      if (btnAprobar.disabled) return;
       ModernModal.show({
         type: 'confirm',
         title: '¿Aprobar caso?',
         message: 'Si hay cupo disponible en el segmento, el caso pasará a estado aprobado. Si no, se agregará a la lista de espera. ¿Confirmás?',
         confirmText: 'Sí, aprobar',
         cancelText: 'Cancelar',
-        onConfirm: function () { document.getElementById('form-aprobar').submit(); }
+        // ModernModal deja vivo el onclick de «Sí, …» durante los 300 ms del cierre:
+        // sin el guard, un doble clic ahí manda el form dos veces (BEC-14).
+        onConfirm: function () {
+          const form = document.getElementById('form-aprobar');
+          if (!tomarEnvio(form)) return;
+          btnAprobar.disabled = true;
+          form.submit();
+        }
       });
     });
   }

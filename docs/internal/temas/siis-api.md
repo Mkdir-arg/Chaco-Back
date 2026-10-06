@@ -31,11 +31,47 @@ texto plano, ante sospecha de exposición pedir a ECOM la regeneración.
 | 2 | `GET /api/v1/programas?estado=ACTIVO\|INACTIVO\|TODOS` | Catálogo maestro de programas sociales |
 | 3 | `GET /api/v1/programas/{id}/segmentos` | Segmentos (funciones) de un programa |
 | 4 | `POST /api/v1/validaciones/compatibilidad` | Elegibilidad e incompatibilidades de una persona |
-| 5 | `POST /api/v1/auth/tab-intermedia` — objeto o arreglo de 30 campos | Alta de beneficiarios en la tabla intermedia (manual v4.2, sep-2026). 201 con `ids_generados` o `registros`; 400 `DATOS_INVALIDOS` con `detalles` por campo; 401 `UNAUTHORIZED`; 503 `ERROR_BD_LEGACY` reintentable; 500 `ERROR_INTERNO` |
+| 5 | `POST /api/v1/auth/tab-intermedia` — objeto o arreglo de 30 campos | Alta de beneficiarios en la tabla intermedia (manual v4.2, sep-2026). 201 con `ids_generados` o `registros`; 400 `DATOS_INVALIDOS` con `detalles` por campo; 401 `UNAUTHORIZED`; 503 `ERROR_BD_LEGACY` reintentable; 500 `ERROR_INTERNO`. **Lo que el manual no cubre y de este lado se trata como incierto: ver abajo** |
 | 6 | `GET /api/v1/auth/catalogos/{provincias\|localidades\|estados-civiles\|tipos-documento\|jurisdicciones}` | Catálogos maestros para normalizar los ids del alta |
 | 7 | `GET /api/v1/auth/catalogos/funciones?id_programa=` | Funciones por programa; el `id` va en `id_fun_x_plan` |
 
 Todos los llamados 2-7 con `Authorization: Bearer <token>`.
+
+### Qué pasa cuando la respuesta no es ninguna de esas (D-S02)
+
+**El alta no tiene baja.** La API no deduplica, no deja preguntar si un
+beneficiario ya existe y no permite borrar lo que se mandó, así que reintentar un
+POST que **pudo haber llegado** es la peor decisión posible: deja dos altas
+irreversibles de la misma persona. Por eso el cliente clasifica cada desenlace por
+una sola pregunta —*¿puede haber quedado un alta del otro lado?*— y no por el
+código HTTP (Cambio 127):
+
+| Qué contestó SIIS | De este lado | Se reintenta solo |
+|---|---|---|
+| 200 / 201 | `ENVIADO` | — |
+| 401 | se pide token nuevo y se reintenta **una vez adentro**; si vuelve a fallar, `ERROR` | sí |
+| 400 `DATOS_INVALIDOS`, y el resto de los 4xx salvo 401/408/429 | `RECHAZADO` (los que no traen código, con `CONFIGURACION`) | no: pide corregir datos |
+| 503 **con `ERROR_BD_LEGACY` en el cuerpo** | `ERROR` | sí |
+| `ConnectTimeout`, DNS que no resuelve, conexión rechazada | `ERROR` | sí |
+| `ReadTimeout`, conexión cortada a mitad, respuesta truncada, 408, 429, 500, 502, 504 | **`INCIERTO`** | **no** |
+| **503 SIN `ERROR_BD_LEGACY` en el cuerpo** (el que devuelve el balanceador antes de llegar a la aplicación) | **`INCIERTO`** | **no** |
+| **500 con el cuerpo que no es JSON válido** | **`INCIERTO`** | **no** |
+
+Las dos últimas filas son **decisión nuestra, no contrato**: el manual promete
+`ERROR_BD_LEGACY` en el cuerpo del 503, pero un 503 del balanceador llega sin
+cuerpo y un 500 puede llegar con el HTML de una página de error. Mientras no haya
+contrato se tratan como inciertos, que es el lado conservador. **Lo que cuesta:**
+un `INCIERTO` deja el caso **tomado** y ningún camino lo reenvía; sale a mano con
+`manage.py conciliar_envios_siis`, después de preguntarle a ECOM si esa alta
+quedó registrada.
+
+**Pedidos abiertos a ECOM (D-S02):**
+
+1. **Una clave de idempotencia** (`id_externo` = pk del formulario) en el alta.
+   Es la solución de fondo: con ella el reintento deja de ser peligroso y las dos
+   filas de arriba pueden volver a ser reintentables.
+2. **Confirmar qué significa su 503 sin cuerpo.** Si siempre quiere decir «no se
+   escribió nada», pasa a reintentable y nos ahorra una conciliación por cada uno.
 
 ## Alta de beneficiarios (manual M2M v4.2, septiembre 2026)
 

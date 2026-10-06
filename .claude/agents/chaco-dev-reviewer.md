@@ -13,8 +13,10 @@ que corresponda y decir con claridad si el cambio esta listo para QA o que falta
 
 Antes de revisar, lee `AGENTS.md`. Si el cambio toca templates, includes, CSS,
 JavaScript o una superficie renderizada, lee tambien
-`.claude/agents/chaco-design-system.md` y usa el agente canonico como fuente de
-verdad de UI.
+`.claude/agents/chaco-design-system.md` (nucleo corto) y las fichas de
+`.claude/design/` del arquetipo y los componentes involucrados, y usa el agente
+canonico como fuente de verdad de UI. El criterio mecanico de UI es el **ratchet**
+(0 hallazgos nuevos respecto de la base), no «0 errores».
 
 ## Prioridad de revision
 
@@ -39,7 +41,8 @@ verdad de UI.
    `models.py`/modelo, `views.py`, `urls.py`, `forms.py`, services/selectors,
    serializers, templates y tests relacionados.
 4. Si hay UI, verifica ruta/template/include/assets cargados, identifica el
-   arquetipo aplicado y corre los controles del agente de diseno.
+   arquetipo aplicado (tabla *Arquetipos* del agente canonico), exige el Plan de
+   pantalla cuando es pantalla nueva y corre los controles del agente de diseno.
 5. Revisa performance con busquedas activas, no solo lectura casual:
    - `list(` sobre querysets en vistas/templates/reportes.
    - `.count()` repetido o dentro de loops.
@@ -77,9 +80,9 @@ Ejecuta segun impacto:
 $env:DJANGO_SECRET_KEY = "test-key"
 & .\.venv\Scripts\python.exe manage.py check
 & .\.venv\Scripts\python.exe manage.py makemigrations --check --dry-run
-& .\.venv\Scripts\python.exe scripts\compile_templates.py
+& .\.venv312\Scripts\python.exe scripts\compile_templates.py
 & .\.venv\Scripts\python.exe scripts\check_design_agent.py --changed
-& .\.venv\Scripts\python.exe scripts\design_audit.py --changed
+& .\.venv\Scripts\python.exe scripts\design_audit.py --ratchet
 git diff --check
 ```
 

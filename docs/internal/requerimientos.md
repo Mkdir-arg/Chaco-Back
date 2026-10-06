@@ -307,9 +307,11 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 124 | Cupo y lista de espera: la guarda del cupo 0, el contrato de los candados y la posición | Becas · cupo y lista de espera · Portal (link público) · API de campo | `#cupos` `#api` `#mobile` `#datos` | Auditoría integral oct-2026 — RED-27, RED-67 y RED-68 (Ola R, red de seguridad, PR R-09) | 04/10/2026 | 🟢 **Hecho** | No requiere |
 | 125 | El CI ve la forma del SQL que le llega al motor de producción | Transversal · dashboards · link público · Dispositivos (reportes) | `#performance` `#infra` `#datos` `#relevamientos` | Auditoría integral oct-2026 — RED-07, RED-08 y RED-09 (Ola R, red de seguridad, PR R-10) | 04/10/2026 | 🟢 **Hecho** | No requiere |
 | 126 | Un usuario sin rol dejaba de ser inofensivo: borraba documentos del ciudadano y silenciaba alertas | Legajos (adjuntos, alertas, APIs del detalle) · Transversal (barrido del URLconf) · Usuarios (ABM de Roles) | `#rbac` `#api` `#ui` `#datos` | Auditoría integral oct-2026 — RED-89, SEC-10, SEC-18, SEC-11, RED-04 y RED-06 (Ola R, red de seguridad, PR R-19) | 04/10/2026 | 🟢 **Hecho** | No requiere |
+| 127 | Un alta por caso en SIIS: resultado incierto que no se reintenta y conciliación con ECOM | Becas · alta de beneficiarios en SIIS (pantalla, masivo, comandos y tabla intermedia) | `#siis` `#datos` `#relevamientos` `#ui` | Auditoría integral oct-2026 — SIIS-01, SIIS-02, SIIS-04, SIIS-05, BEC-14 y RED-53 (Ola 1 «Integridad SIIS», PR 2) | 05/10/2026 | 🟢 **Hecho** | `programas.0075_enviosiis_vigente` |
 | 128 | Nada sale a producción sin que algo lo haya verificado: contratos del repo en el CI, release con CI verde y espejo a ECOM en dos pasos | Transversal · CI de GitHub Actions · release y espejo a ECOM | `#infra` `#metodo` `#gestion` | Auditoría integral oct-2026 — RED-24, RED-21, RED-65, RED-23 y RED-22 (Ola R, red de seguridad, PR R-14) | 05/10/2026 | 🟡 **Parcial** (falta enviar la propuesta a ECOM y copiar los dos comandos a `.claude/`) | No requiere |
 | 129 | Que una pantalla nueva no pueda nacer sucia: ratchet, marcadores de arquetipo y gate de build | Transversal · herramientas de diseño · CI de GitHub Actions · CSS compilado | `#ui` `#metodo` `#infra` | Auditoría integral oct-2026 — FE-13, V5A-NEW-01 y V5A-NEW-08 (Ola 6 «Agente de diseño», pasos 0-2) | 05/10/2026 | 🟢 **Hecho** | No requiere |
 | 131 | Las goldens dejan de ser un molde con deuda: 0 P1, marcadores completos y el gate encendido | Becas (revisión, cupo, configuración de programas) · herramientas de diseño · CI de GitHub Actions | `#ui` `#metodo` | Auditoría integral oct-2026 — V5A-NEW-07 parte (a) (Ola 6 «Agente de diseño», paso 3) | 05/10/2026 | 🟢 **Hecho** | No requiere |
+| 132 | El agente de diseño deja de ser un changelog de 67 KB: núcleo corto, fichas por arquetipo y consumidores al día | Transversal · agente canónico de diseño y sus fichas · herramientas de diseño · CI de GitHub Actions | `#ui` `#metodo` | Auditoría integral oct-2026 — Ola 6 «Agente de diseño», pasos 4 y 5 | 05/10/2026 | 🟡 **Parcial** (faltan los pasos 6 y 7 de la Ola 6) | No requiere |
 | 133 | Mapear el mockup de la v2 de Dispositivos pantalla por pantalla: qué pieza ya existe, qué dato falta y dónde choca | Dispositivos y Merenderos · análisis de diseño y de datos (sin tocar código de producción) | `#ui` `#gestion` `#datos` `#rbac` | PM — pedido directo en sesión de trabajo, sobre el link publicado del mockup | 05/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
@@ -16797,6 +16799,309 @@ No aplica: entrada nueva.
 
 ---
 
+# Cambio 127 — Un alta por caso en SIIS: resultado incierto que no se reintenta y conciliación con ECOM
+
+🟢 **HECHO — 05/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · alta de beneficiarios en SIIS (pantalla, masivo, comandos y tabla intermedia) |
+| **Etiquetas** | `#siis` `#datos` `#relevamientos` `#ui` |
+| **Solicitante** | Auditoría integral oct-2026 — SIIS-01, SIIS-02, SIIS-04, SIIS-05, BEC-14 y RED-53 (Ola 1 «Integridad SIIS», PR 2) |
+| **Fecha del pedido** | 05/10/2026 |
+| **Issue / épica** | sin issue (plan de la auditoría, `docs/internal/auditoria-2026-10/README.md` §6) |
+| **Partes afectadas** | Backoffice (revisión del caso, cupo, proceso masivo) · comandos de SIIS |
+| **Migración** | `programas.0075_enviosiis_vigente` |
+
+## Pedido original
+
+**El alta en SIIS no tiene baja.** Su API no deduplica, no expone un endpoint para preguntar si un
+beneficiario ya existe y no permite borrar lo que se mandó: lo único que se puede hacer con un alta
+duplicada es pedirle a ECOM que la saque a mano del otro lado. Con eso en la mano, la auditoría
+encontró que **siete caminos distintos** podían informar el mismo caso dos veces:
+
+```python
+# programas/services/siis_envio.py, antes
+if formulario.envios_sis.filter(estado=ENVIADO).exists():   # lee
+    return
+payload = armar_payload(formulario)                          # 6-8 consultas, segundos
+resultado = cargar_beneficiario(payload)                     # HTTP de hasta 40 s
+EnvioSIIS.objects.create(estado=ENVIADO, ...)                # recién acá escribe
+```
+
+Entre la lectura y la escritura pasan decenas de segundos y no hay nada —ni lock, ni fila «en
+curso», ni constraint— que impida que otro camino entre en el medio: el botón «Informar», aprobar,
+promover desde Cupo, el hilo del proceso masivo, `reenviar_siis_pendientes`, `enviar_casos_siis`,
+`procesar_casos_siis` y la séptima que sumó el Cambio 108, `sincronizar_tabla_intermedia`. Un doble
+clic alcanzaba (`SiisAltaSinExclusionTests`: 2 POST, 2 `ENVIADO`).
+
+El agravante es SIIS-02: un `ReadTimeout` —el POST ya entregado, la respuesta que no llega— se
+registraba como `ERROR_TECNICO, reintentable=True`, o sea **«volvé a mandarlo»**, que es lo peor que
+se puede decidir cuando el alta pudo haber llegado. La próxima corrida del masivo lo tomaba sola.
+
+## Alcance acordado
+
+**Entra:**
+
+1. **SIIS-01** (CRÍTICA): un solo envío vigente por caso, en las siete vías, con reserva bajo lock
+   más índice único.
+2. **SIIS-02**: `ReadTimeout` / 500 / conexión cortada → estado `INCIERTO`, **no reintentable**, que
+   se resuelve con el comando nuevo `conciliar_envios_siis`.
+3. **SIIS-04**: el estado del caso se relee **bajo lock** antes de informar; un caso que pasó a BAJA
+   entre que se hidrató y su turno no se manda. Incluye el camino de la tabla intermedia.
+4. **SIIS-05**: misma persona y mismo plan desde otro caso → `RECHAZADO` local con
+   `DUPLICADO_LOCAL`, sin llamar a SIIS (default **D-S05**).
+5. **BEC-14**: el doble clic en «Aprobar» deja de consultar SIIS dos veces.
+6. **RED-53**: `ComandoSiisBase`, para que una guarda que se agrega en un comando quede en los cuatro.
+
+**Queda explícitamente afuera:**
+
+- **SIIS-03** (latido del masivo, freno, candado de corrida viva) va en el PR 3 de la ola. Este PR
+  deja la base compartida de los comandos lista para que ese candado entre en un solo lugar.
+- **La clave de idempotencia (`id_externo`) que pide D-S02.** Es la solución de fondo y depende de
+  ECOM: se pide por escrito. Mientras tanto, la exclusión es de este lado.
+- **Timeouts de SIIS-09** (PR 5) y lo que viaja en el payload (SIIS-08, G1-08, G1-09, G1-10; PR 6).
+
+## Decisiones tomadas
+
+- **Unicidad con columna nullable, no con `UniqueConstraint(condition=…)`.** MariaDB tiene
+  `supports_partial_indexes = False`: un índice parcial **no se crea**, y nadie se entera hasta que
+  en producción aparece la segunda fila. `vigente = BooleanField(null=True)` dentro de un índice
+  único `(formulario, vigente)` emula lo mismo en los tres motores, porque los `NULL` cuentan como
+  distintos entre sí. Nunca se escribe `False`: dos `False` del mismo caso chocarían.
+- **`vigente` se deriva del estado en `save()`.** Es una invariante, no un dato aparte: `ENVIADO`,
+  `EN_PROCESO` e `INCIERTO` ocupan el caso; el resto no. Así ningún camino —ni un test, ni un
+  comando futuro— puede crear un `ENVIADO` que no bloquee, que sería otra puerta al alta doble.
+- **El lock es sobre la fila del `Formulario`, no sobre el envío, y dura milisegundos.** La «opción
+  mínima» de mantener un `select_for_update` durante el HTTP es inviable: el `read_timeout` de 10 s
+  de la base de ECOM mata al segundo request antes de que SIIS conteste (hasta 40 s). La reserva
+  escribe un `EN_PROCESO` y **commitea**; el POST va afuera. Con READ COMMITTED, el segundo en
+  entrar espera el lock unos milisegundos y después ve el `EN_PROCESO` ya commiteado.
+- **Tres capas, porque ninguna alcanza sola.** El lock serializa a dos candidatos del mismo proceso;
+  la relectura de `vigente` bajo el lock cierra el check-then-act; el índice único cubre lo que el
+  lock no ve (dos pods, una corrida vieja, un restore). El `IntegrityError` se captura en su propio
+  savepoint para no envenenar la transacción de quien llamó.
+- **`INCIERTO` no es reintentable y eso es a propósito (D-S02).** Un 503 `ERROR_BD_LEGACY` sí se
+  reintenta —SIIS dice que su base legacy estaba ocupada y el alta no se escribió—; un 500, un 502,
+  un 504, un `ReadTimeout` o una conexión cortada a mitad, no. La asimetría es deliberada:
+  equivocarse hacia «reintentable» es irreversible, equivocarse hacia «incierto» cuesta una
+  conciliación.
+- **Un 401 se reintenta una sola vez adentro del cliente.** El 401 garantiza que el alta no se
+  procesó, así que un token vencido antes de tiempo no tiene por qué dejar el caso tomado.
+- **La reversa de la migración deja lo incierto como `ENVIADO`.** El código anterior no conoce
+  `EN_PROCESO` ni `INCIERTO`: los leería como «último envío distinto de ENVIADO», o sea candidatos a
+  reenviar. Se los marca `ENVIADO` con `codigo_error="INCIERTO_AL_REVERTIR"` —el único estado que
+  ningún camino reenvía— y se imprimen sus pk. Es la dirección conservadora: un rollback no puede
+  terminar duplicando altas.
+- **El tope de reintentos es 5 y se calcula con una sola consulta agrupada** (A2-15). Un `Count`
+  correlacionado por caso sobre 20.000 candidatos es justo lo que no entra en el `read_timeout`: se
+  trae la lista de ids a memoria y se excluye por valor.
+- **`reenviar_siis_pendientes` pasa a correr en seco por defecto**, como los otros tres comandos de
+  SIIS. Era el único que mandaba sin pedir permiso. `--dry-run` sigue funcionando como alias del
+  ensayo. Ningún cron lo corre (lo verificó la auditoría), así que no hay nada que se apague solo.
+- **Los cuatro comandos de la base son los que hablan con SIIS caso por caso**:
+  `validar_casos_siis`, `enviar_casos_siis`, `procesar_casos_siis` y `reenviar_siis_pendientes`.
+  `correr_alta_siis` no hereda porque no llama a la API: encadena a estos. El riesgo que mide
+  `ParidadComandosSiisTests` es el de RED-53: una guarda que entra en tres y deja al cuarto abierto.
+
+## Implementación
+
+**Modelo (`programas/models/__init__.py`).** `EnvioSIIS.Estado` suma `EN_PROCESO` e `INCIERTO` (los
+dos entran en `max_length=15`); campos `vigente` (nullable, derivado en `save()`) y `resuelto_en`;
+`UniqueConstraint(formulario, vigente)`; índice `(documento, id_programa)` para SIIS-05;
+`EN_PROCESO_VENCE = 5 min` y la propiedad `incierto` (`INCIERTO`, o `EN_PROCESO` más viejo que eso:
+un proceso que murió entre el POST y el registro). `Formulario.envio_siis_activo` es el envío que
+**ocupa** el caso, que no siempre es el último (`envio_siis_vigente`).
+
+**Servicio (`programas/services/siis_envio.py`).** El envío queda partido en tres piezas y los dos
+caminos —armar el payload del caso y mandar el guardado de la tabla intermedia— pasan por las
+mismas: `_reservar` (transacción corta, relectura del estado, `DUPLICADO_LOCAL`, `EN_PROCESO`),
+el HTTP afuera de toda transacción, y `_cerrar`, que es un `UPDATE … WHERE estado = EN_PROCESO`:
+si entre medio una conciliación tocó la fila, **no se pisa lo que decidió una persona**.
+
+**Cliente (`programas/services/siis.py`).** El token se pide **antes** del `try` del POST y en su
+propio `try`; cada desenlace devuelve `resultado` con la tabla de D-S02. `ConnectTimeout` va antes
+que `ConnectionError` (hereda de ella) y para distinguir «no se abrió la conexión» de «se cortó a
+mitad» se recorre la cadena de excepciones buscando los errores de urllib3 (`NewConnectionError`,
+`NameResolutionError`), que `requests` envuelve en un `MaxRetryError`.
+
+**Selección.** `candidatos()`, `reenviar_siis_pendientes._casos` y `enviar_casos_siis._casos`
+excluyen con `~Exists(envíos vigentes)` —una búsqueda exacta contra el índice único nuevo— y los
+casos con 5 o más errores técnicos. El filtro viejo por `ultimo_envio` se deja al lado a propósito:
+durante el deploy puede haber filas escritas por el código anterior, que nacen con `vigente = NULL`.
+
+**Comando nuevo `conciliar_envios_siis`.** `--listar` (CSV para ECOM), `--confirmar <pk>
+[--siis-id N]` y `--liberar <pk> --motivo "…"`. Las dos decisiones dejan traza en el caso con
+quién las tomó. Documentado en `docs/internal/procedimiento-alta-siis.md`, donde además se corrigió
+la fila «Ctrl+C a mitad: Seguro», que era falsa.
+
+**Pantalla.** El panel «Envío a SIIS» muestra los dos estados nuevos y, cuando hay un envío
+vigente, **no ofrece reenviar**: en su lugar explica por qué (en vuelo o incierto). Los forms de
+acción irreversible llevan `data-un-solo-envio` y un guard de JS que los manda una sola vez; el
+botón «Aprobar» se deshabilita en el `onConfirm` del modal (BEC-14) y la vista relee el estado antes
+de consultar a SIIS.
+
+## Archivos
+
+`programas/models/__init__.py`, `programas/migrations/0075_enviosiis_vigente.py` (nuevo),
+`programas/services/siis.py`, `programas/services/siis_envio.py`,
+`programas/services/proceso_masivo.py`, `programas/views/revision.py`, `programas/views/cupo.py`,
+`programas/templates/programas/becas/revision/formulario_detalle.html`,
+`programas/management/commands/_base_siis.py` (nuevo),
+`programas/management/commands/conciliar_envios_siis.py` (nuevo),
+`programas/management/commands/validar_casos_siis.py`,
+`programas/management/commands/enviar_casos_siis.py`,
+`programas/management/commands/procesar_casos_siis.py`,
+`programas/management/commands/reenviar_siis_pendientes.py`,
+`programas/management/commands/correr_alta_siis.py`,
+`programas/tests/test_siis_un_solo_envio.py` (nuevo), `programas/tests/test_siis_service.py`,
+`programas/tests/test_siis_envio.py`, `programas/tests/test_becas_revision.py`,
+`docs/internal/procedimiento-alta-siis.md`, `.claude/agents/chaco-design-system.md` y las fichas de
+la auditoría.
+
+## Base de datos
+
+**Migración `programas.0075_enviosiis_vigente`** sobre `programas_enviosiis` (decenas de miles de
+filas): `AlterField` de `estado` (solo choices, sin DDL), dos `AddField` nullables, la migración de
+datos y después los dos índices.
+
+- **Expand/contract: se puede desplegar antes que el código.** Las columnas nacen `NULL`, así que el
+  código viejo sigue insertando filas que no chocan con el índice único.
+- **Tiempo medido: 6,9 s de ida y 4,0 s de vuelta** con 40.100 envíos sobre 40.000 casos, contra
+  **MariaDB 10.11 real** (contenedor efímero). Los `ADD COLUMN` nullables al final de la tabla son
+  `ALGORITHM=INSTANT` en MariaDB 10.3+ y MySQL 8; los índices son online DDL (`INPLACE`, con DML
+  concurrente permitido); la migración de datos recorre por rangos de pk de a 2.000 y calcula la
+  clave **en el motor** (`CONCAT`), que es lo que la baja de 93 s a menos de 7.
+- **La migración de datos resuelve los duplicados que ya existen, y nunca falla ni borra.** Dentro
+  del mismo caso: queda vigente el `ENVIADO` más viejo. **Entre casos distintos** (la misma persona
+  con dos altas reales en el mismo plan, que es lo que cuenta P-01): el más viejo se queda con la
+  `clave_persona_plan` y **los demás siguen vigentes, sin clave**. Eso último es deliberado:
+  sacarles `vigente` los devolvería a la lista de candidatos y la próxima corrida mandaría una
+  **tercera** alta de la misma persona. Todos se listan (hasta 100 por pantalla) y dejan una traza
+  en su caso —`TracaFormulario.campo = "envio_siis"`—, que es el listado consultable que va a ECOM
+  para depurarlos del lado de SIIS, el único lado donde se pueden sacar. El orden importa: va
+  **antes** de los índices únicos, porque un duplicado haría fallar el `ALTER TABLE` y dejaría el
+  esquema a medias (el DDL de MySQL no es transaccional).
+- **Reversa declarada** (RED-57): deja los `EN_PROCESO` e `INCIERTO` como `ENVIADO` con
+  `codigo_error="INCIERTO_AL_REVERTIR"` y los lista. No es una barrera: las tres operaciones de
+  esquema son reversibles.
+
+## Validación
+
+Con Python 3.12 + Django 5.2.17 (`.venv312`, igual al CI):
+
+- `manage.py check` y `check --deploy` → sin issues. `makemigrations --check --dry-run` → «No
+  changes detected».
+- `manage.py test` (la suite entera, **en un solo proceso**, como el CI) → OK.
+- `manage.py test --tag performance` → OK.
+- `ruff check .` → All checks passed; `ruff format --check` sobre lo tocado → OK.
+- `scripts/design_audit.py --changed` → 0 errores, 0 warnings. `scripts/compile_templates.py` → 199
+  compilados, 0 errores. `scripts/check_design_agent.py --changed` → OK.
+- **Los tests fallan antes del cambio.** Verificado en un árbol aparte sobre `development`:
+  `programas.tests.test_siis_un_solo_envio` → 30 de 32 en rojo;
+  `test_siis_service.ResultadoDelAltaTests` → 12 de 12 en rojo;
+  `test_becas_revision.PantallaEnvioSiisTests` → 6 de 6 en rojo.
+
+**Tests de caracterización que cambiaron, y por qué.** `ContextoDetalleTests` (RED-54) suma
+`envio_siis_activo` a las claves del contexto: es exactamente lo que el test está para avisar.
+`test_cargar_beneficiario_timeout_es_error_tecnico` se parte en dos —`ConnectTimeout` sigue siendo
+reintentable, `ReadTimeout` pasa a `INCIERTO`— porque esa distinción **es** SIIS-02.
+`test_cargar_beneficiario_401_invalida_el_token` ahora afirma además las dos llamadas del reintento
+interno. Los tres de `ComandoReenvioTests` pasan a usar `--aplicar`.
+
+## Puesta en marcha en el servidor
+
+1. **Correr P-01 en PRD antes del deploy** (V2-NEW-03): mide si ya hay casos con dos altas. Si los
+   hay, el listado va a ECOM; la migración no falla por ellos pero los imprime.
+2. **No desplegar con una corrida masiva en curso.** Frenarla desde la pantalla y esperar a que
+   termine: la migración toca la tabla que la corrida está escribiendo.
+3. **Acordar con ECOM el procedimiento de conciliación de INCIERTOS** (D-S02) antes de la próxima
+   corrida grande: a quién se le manda el CSV de `conciliar_envios_siis --listar` y en cuánto
+   contesta. Sin eso, un INCIERTO queda tomado sin salida.
+4. **Pedirle a ECOM la clave de idempotencia `id_externo`** (D-S02): es la solución de fondo.
+5. Avisar a quien opera los comandos que `reenviar_siis_pendientes` ahora necesita `--aplicar`.
+
+## Pendientes / a definir
+
+- **La clave de idempotencia de SIIS (`id_externo`) sigue sin pedirse formalmente.** Es de ECOM.
+- **SIIS-03** (latido, freno y candado de corrida viva en los comandos) queda para el PR 3 de la
+  ola; la base `ComandoSiisBase` ya está para que entre en un solo lugar.
+- **Dos desenlaces de SIIS quedan como INCIERTO por falta de contrato, y conviene cerrarlos con
+  ECOM** (suma a **D-S02**): un **503 sin cuerpo** —el manual promete `ERROR_BD_LEGACY`, pero si el
+  balanceador contesta el 503 antes de llegar a la aplicación el cuerpo viene vacío— y un **500 con
+  JSON roto**. Hoy los dos se tratan como inciertos, que es la decisión conservadora y la correcta
+  mientras no haya contrato; el costo es una conciliación a mano por cada uno. Si ECOM confirma que
+  su 503 siempre significa «no se escribió nada», el sin-cuerpo puede pasar a reintentable. La tabla
+  completa de desenlaces, con estas dos filas marcadas como decisión nuestra y no contrato, quedó en
+  [`docs/internal/temas/siis-api.md`](temas/siis-api.md).
+- **`correr_alta_siis` no hereda de `ComandoSiisBase`** (no habla con SIIS: encadena a los otros).
+  Cuando SIIS-03 agregue el candado de corrida viva habrá que decidir si también lo toma.
+
+## Reversión
+
+`git revert` del commit más la reversa de la `0075` (declarada y medida: 4 s con 40.000 filas en
+MariaDB 10.11). La reversa deja los envíos de resultado desconocido como `ENVIADO` para que ningún
+camino los reenvíe, e imprime sus pk: esos son los que hay que conciliar con ECOM antes de volver a
+tocarlos. Lo que vuelve es el agujero: siete caminos que pueden dar de alta dos veces al mismo
+beneficiario, de forma irreversible.
+
+## Historial
+
+- **05/10/2026 · ronda 3 de la revisión del PR #576.** El revisor verificó en MariaDB y MySQL reales
+  que los dos problemas de la ronda 2 están cerrados (SIIS-05 pasó de 19 de 25 carreras perdidas a
+  0 de 25; el freno corta a los 3 inciertos en el masivo y en los dos comandos grandes), y encontró
+  uno más: **`reenviar_siis_pendientes` heredaba los dos flags del freno y los ignoraba**. Era el
+  mismo agujero que RED-53 viene a cerrar, con el agravante de que el test de paridad lo daba por
+  bueno: miraba que el flag **existiera**, no que el comando lo **usara**. Con SIIS contestando
+  ambiguo se comía los 200 casos de su `--limite` y dejaba 200 conciliaciones a mano. Arreglado, y
+  el test pasa a ejercitar los tres comandos **con SIIS caído de verdad**
+  (`FrenoConSiisCaidoTests.test_los_comandos_honran_el_freno_con_siis_ambiguo`); el helper
+  `desenlace_de`, que vivía en `enviar_casos_siis`, se mudó a `proceso_masivo` para que las cuatro
+  vías lean la misma respuesta. Además: la tabla de desenlaces de la API quedó documentada en
+  `docs/internal/temas/siis-api.md` con las dos filas que son decisión nuestra y no contrato; el
+  procedimiento advierte que borrar a mano el `EnvioSIIS` **que tiene la clave** de un grupo cruzado
+  libera el DNI y habilita un alta más; y el mensaje del freno pasó de «3 resultados de resultado
+  desconocido» a «3 envíos seguidos sin saber si el alta llegó», que es lo que lee el coordinador.
+
+- **05/10/2026 · ronda 2 de la revisión del PR #576.** El revisor verificó el núcleo contra motor
+  real y encontró dos problemas mayores:
+  1. **El freno dejaba de disparar con SIIS caído.** Como 500, 502, 504 y `ReadTimeout` pasaron a ser
+     `INCIERTO`, y un `INCIERTO` no contaba como error —y además reseteaba la racha—, una corrida
+     contra un SIIS caído no cortaba nunca (15 llamadas, 15 inciertos, 15 casos tomados; antes
+     cortaba a los 3). Se agregó `proceso_masivo.Freno`, **una sola pieza para las cuatro vías**,
+     con dos rachas en paralelo que no se pisan entre sí y un tope propio, `--max-inciertos`, con
+     default **3**: un error técnico deja el caso libre y se reintenta solo, mientras que cada
+     incierto deja un caso tomado hasta conciliarlo con ECOM, así que es diez veces más caro. El
+     freno pasa además a mirarse **por caso** y no al final del lote (con lote 40 y SIIS caído eran
+     40 llamadas de más).
+  2. **SIIS-05 tenía una carrera.** `_duplicado_local` era un check-then-act y con dos procesos
+     sobre el mismo DNI y plan los dos pasaban (19 de 25 veces en MariaDB real). Se cerró con una
+     columna derivada `clave_persona_plan` (`"<documento>:<id_programa>"` mientras el envío esté
+     vigente, `NULL` si no) dentro de un índice único, la misma técnica que `vigente`; la reserva
+     traduce el `IntegrityError` a `DUPLICADO_LOCAL`. **La migración de datos resuelve también los
+     duplicados cruzados que ya existen en PRD** (la misma persona con dos altas desde casos
+     distintos): el más viejo se queda con la clave y **los demás siguen vigentes sin clave**, que
+     es lo contrario de lo intuitivo y es a propósito —sacarles `vigente` los devolvería a la lista
+     de candidatos y la próxima corrida mandaría una **tercera** alta—. Todos quedan listados y con
+     una traza en su caso (`TracaFormulario.campo = "envio_siis"`), que es el listado consultable
+     que va a ECOM.
+
+  Y tres menores: `conciliar_envios_siis` pasa a trabajar **en lote** (`--confirmar`/`--liberar` por
+  lista de pk y `--desde-csv`, con el CSV de `--listar` que vuelve de ECOM con una columna
+  `decision`) y en **seco por defecto**; liberar un envío **deja de consumir un intento** del tope de
+  reintentos (un caso con 4 errores previos quedaba fuera para siempre justo después de que una
+  persona confirmara que había que reenviarlo); y la capa 2 de la reserva —la relectura de `vigente`
+  bajo el lock— tiene test propio, porque el índice único la tapaba y se podía borrar sin que nada
+  se pusiera rojo.
+
+  **Medido en MariaDB 10.11 real** (contenedor efímero, 40.100 envíos sobre 40.000 casos, con 100
+  duplicados en el mismo caso y 50 cruzados sembrados): ida **6,9 s**, reversa **4,0 s**, segunda
+  ida **7,1 s** con el mismo resultado (40.000 vigentes, 39.950 con clave, los 50 perdedores
+  cruzados vigentes y sin clave). La primera versión de la migración de datos tardaba **93 s**
+  porque escribía la clave fila por fila; se pasó a calcularla en el motor con `CONCAT`, por rangos
+  de pk, salteando a los repetidos.
+---
+
 # Cambio 128 — Nada sale a producción sin que algo lo haya verificado: contratos del repo en el CI, release con CI verde y espejo a ECOM en dos pasos
 
 🟡 **PARCIAL — 05/10/2026** (el repositorio quedó listo; falta que el PM envíe la propuesta a
@@ -17434,6 +17739,174 @@ Nada. No hay migración ni configuración. Al próximo deploy, Becas muestra las
 
 Revertir el commit: las tres pantallas vuelven a su markup anterior, el step del CI vuelve a ser tolerante y `--goldens`
 vuelve a no tener qué verificar. No hay datos, migraciones ni configuración que revertir.
+
+---
+
+# Cambio 132 — El agente de diseño deja de ser un changelog de 67 KB: núcleo corto, fichas por arquetipo y consumidores al día
+
+🟡 **PARCIAL — 05/10/2026** (faltan los pasos 6 y 7 de la Ola 6)
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · agente canónico de diseño y sus fichas (`.claude/`) · herramientas de diseño (`scripts/`) · CI de GitHub Actions |
+| **Etiquetas** | `#ui` `#metodo` |
+| **Solicitante** | Auditoría integral oct-2026 — Ola 6 «Agente de diseño», pasos 4 y 5 |
+| **Fecha del pedido** | 05/10/2026 |
+| **Issue / épica** | sin issue (plan de la auditoría, `docs/internal/auditoria-2026-10/README.md` §6 y `anexo-agente-diseno.md` §4, §5, §6, §8 y §9) |
+| **Partes afectadas** | Nadie en runtime: `.claude/` y `scripts/` no viajan en el release. Cambia cómo se construye toda pantalla nueva del backoffice, empezando por la v2 de Dispositivos y Merenderos |
+| **Migración** | No requiere |
+
+## Pedido original
+
+El agente canónico pesaba **67.681 bytes** (~18k tokens por invocación), con 28 celdas de más de 450 caracteres —la más
+larga de 3.890— y 31 referencias de historia adentro. Gobernaba un **inventario**, pero no le enseñaba a nadie a
+**reproducir una pantalla**: no había molde por arquetipo, ni esqueleto literal, ni manera de frenar cuando lo pedido no
+encaja. La línea base del paso 0 lo midió: con los agentes de entonces, las tres pantallas del ejercicio de control
+fallaron, ninguna usó la golden de su arquetipo y la de detalle clonó **la pantalla hermana del módulo** con su deuda
+entera.
+
+Los pasos 2 y 3 dejaron las herramientas y las goldens listas, y dos interruptores apagados esperando este paso: los
+límites del núcleo (`check_design_agent.py --limites`) y la exigencia de que `--goldens` lea la tabla `## Arquetipos`
+del núcleo.
+
+## Alcance acordado
+
+**Entra:**
+
+1. **Núcleo reescrito** según el anexo §4: autoridad, cómo usarlo, protocolo de construcción, reglas duras, superficies,
+   la tabla `## Arquetipos`, el inventario con celdas cortas, vocabulario visual permitido, perfiles de dominio, estados
+   transversales, reconciliación y sincronización. **25.548 bytes** (de 67.681), celdas ≤ 450 caracteres, **cero**
+   referencias de historia.
+2. **21 fichas** en `.claude/design/`: 5 de arquetipo (listado, detalle, formulario, modal, confirmación) + 1 de
+   arquetipos pendientes, 12 de componente, el archivo de shells y 2 de dominio (Becas e inscripción). Los contratos
+   largos de las filas viejas se **movieron literales**, no se resumieron.
+3. **Los dos interruptores encendidos:** `--limites` en el step `Validate design-agent contract` del CI, y `--goldens`
+   sin tolerancia (si el núcleo no declara `## Arquetipos`, o declara menos goldens que `design_audit.GOLDENS`, el gate
+   falla en vez de salir verde sin verificar nada).
+4. **Consumidores (paso 5):** `CLAUDE.md`, `AGENTS.md`, `chaco-frontend`, `chaco-design-reviewer` y `chaco-dev-reviewer`.
+
+**Queda explícitamente afuera:**
+
+- **Los pasos 6 y 7** de la Ola 6: el ejercicio de control «después» (las 3 pantallas con los agentes nuevos) y el
+  registro final con su resultado.
+- **Migrar las pantallas hermanas** a las goldens (Ola 5: FE-11, FE-12, FE-17, FE-20, FE-23, FE-24).
+- **Las reglas de fase 2** del anexo §7: solo se activan si el ejercicio de control muestra un desvío que las P1 no
+  atrapan.
+- **Mover el include de campo, las partes de modal y el de confirmación a `templates/components/`**: el agente los
+  **declara transversales** y se siguen incluyendo desde su ruta actual. Moverlos rompe consumidores y es otro trabajo.
+
+## Decisiones tomadas
+
+**D1 a D5 quedan como las registró el Cambio 129 y ahora están escritas en las fichas.** D1 (acciones del encabezado:
+`btn-base` en listados y formularios, `btn-sm` en detalles) en la ficha de encabezado de página y en las reglas duras;
+D2 (confirmación con motivo = arquetipo Modal con form POST; SweetAlert legacy condicionado) en las fichas de modal y
+confirmación; D3 (Font Awesome en el contenido, Heroicons solo en el shell) en el vocabulario visual; D5 (iniciales en
+`bg-brand-soft text-fg-brand`, sin gradiente en el contenido) en el vocabulario y en las fichas de tabla y detalle. **D4
+sigue sin definirse, que es la decisión**: el wizard tiene su propia ficha de arquetipos pendientes y la instrucción es
+frenar y devolver la tarea.
+
+**Las cinco contradicciones del anexo se resolvieron así:** (a) el párrafo que invitaba a crear modales nuevos se
+borró —el arquetipo Modal tiene golden—; (b) el gradiente queda para el shell y el panel de inscripción, nunca en el
+contenido; (d) el botón de ícono es la clase de botón de ícono y nada más —la prosa paralela se fue—; (e) «campo o
+clases equivalentes» pasa a «la clase del campo la pone el widget del form»: **no hay clases equivalentes**, y por eso
+`focus:border-brand` y `focus:ring-brand` desaparecieron del agente (eran la invitación a escribir el control a mano);
+(g) «0 errores» pasa a ratchet + goldens en `CLAUDE.md`. La (c) **no era una contradicción** y no se tocó: el título de
+surface y el subtítulo son dos niveles distintos.
+
+**Las filas nuevas que el anexo pedía están todas:** filtros dinámicos (la pieza transversal más usada y la única sin
+documentar), campo e include de campo, el shell legacy con sus dos parciales, el JS de mejoras móviles, el include de
+campo duplicado de Dispositivos junto al handler inline de confirmación con SweetAlert, y el SVG de Heroicons en el
+contenido.
+
+**Nada se perdió por resumir.** Un script comparó los 709 términos entre backticks del agente viejo contra el núcleo
+nuevo más las fichas: los 34 que no aparecen literales son variantes de formato de contenido que sí está (atributos con
+y sin comillas, tres clases juntas contra las tres por separado, firmas de tag con puntos suspensivos) más los dos de la
+contradicción (e), que se sacaron a propósito.
+
+**El contenido de `.claude/` no se pudo escribir desde la sesión implementadora.** El permiso de escritura sobre
+`.claude/` estaba denegado, y el contenido —90 KB entre el núcleo, 21 fichas y 4 agentes— no entra en el cuerpo de un
+PR. Se entregó en una carpeta de tránsito dentro de `docs/internal/auditoria-2026-10/`, revisable en el diff, y el
+movimiento a `.claude/` lo aplicó el juez en un commit aparte del mismo PR, que borró esa carpeta.
+
+## Implementación
+
+**Núcleo** (`.claude/agents/chaco-design-system.md`): 25.548 bytes con las 12 secciones del anexo §4. La tabla
+`## Arquetipos` declara 5 goldens con el formato que parsea el checker, más la fila de pendientes. El inventario tiene
+30 filas, cada una con una línea de contrato y el link a su ficha.
+
+**Fichas** (21): cada arquetipo trae su esqueleto literal para copiar, las variantes permitidas, lo prohibido —con el
+motivo— y el checklist que usa el revisor; cada componente, su contrato leído del código, sus parámetros y su deuda
+conocida declarada.
+
+**Agente de front:** el protocolo del anexo §6 reemplaza «Flujo de implementación» y «Arquetipos de implementación»; ya
+no quedan reglas visuales ahí.
+**Revisor de diseño:** método de 10 pasos, sin `Edit` en el frontmatter, informe con tres secciones nuevas (molde y
+marcadores, novedades, capturas).
+**Revisor de desarrollo:** apunta al núcleo y a las fichas, exige el Plan de pantalla en pantalla nueva y cambia
+`--changed` por `--ratchet`.
+
+**`scripts/design_audit.py`:** `goldens_declaradas()` devuelve `None` **solo** cuando no hay núcleo que leer (checkout
+sin `.claude/`, que el release excluye); si el núcleo existe pero no declara la tabla, devuelve lista vacía y
+`goldens_mode()` lo trata como error. Además reporta cuando `design_audit.GOLDENS` declara una golden que el núcleo ya
+no declara.
+
+**`.github/workflows/design-agent-contract.yml`:** `check_design_agent.py` corre con `--limites`.
+
+**`scripts/test_design_audit.py`:** la batería de goldens pasa de un test tolerante a cuatro: núcleo sin tabla → error,
+sin núcleo → manda la lista del script, golden que el núcleo dejó de declarar → error, y las goldens declaradas en 0.
+
+**`CLAUDE.md`:** las auditorías obligatorias pasan a `--ratchet` y `--arquetipo`, `compile_templates.py` con `.venv312`,
+el hook se describe como ratchet, la sección de diseño suma «pantalla nueva = clonar la golden» y cambia «0 errores es
+condición de cierre» por «0 hallazgos nuevos»; el gate del CI dice qué corre.
+**`AGENTS.md`:** la UI nueva se construye clonando la golden y se frena ante una novedad.
+
+## Archivos
+
+`.claude/agents/chaco-design-system.md`, `.claude/design/**` (21 fichas), `.claude/agents/chaco-frontend.md`,
+`.claude/agents/chaco-design-reviewer.md`, `.claude/agents/chaco-dev-reviewer.md`, `scripts/design_audit.py`,
+`scripts/test_design_audit.py`, `scripts/check_design_agent.py`, `scripts/test_check_design_agent.py`,
+`.github/workflows/design-agent-contract.yml`, `CLAUDE.md`,
+`AGENTS.md`, `docs/internal/auditoria-2026-10/README.md` y `docs/internal/requerimientos.md`.
+
+## Base de datos
+
+No requiere migración. No toca modelos, vistas, URLs, permisos ni templates.
+
+## Validación
+
+Con Python 3.12 + Django 5.2.17 (`.venv312`, igual al CI):
+
+- `check_design_agent.py --limites` → **OK** (antes del cambio: 58 errores — 1 de tamaño, 28 de celdas largas y 29 de
+  historia).
+- `design_audit.py --goldens` → **0 hallazgos en 5 goldens**, leídas de la tabla `## Arquetipos` del núcleo.
+- `scripts/test_design_audit.py` → 14 tests, sin skips. **Los dos tests nuevos se vieron en rojo antes del cambio**
+  (`goldens_declaradas()` devolvía `None` y `goldens_mode()` salía 0 sin verificar nada).
+- `scripts/test_check_design_agent.py` → 21 tests OK. La revisión encontró que ese archivo quedaba rojo: tenía el test
+  temporal que exigía que `--limites` **fallara** hasta el paso 4, y la rama de tamaño de `limites_del_nucleo()` no se
+  ejercitaba porque la función releía el archivo del disco e ignoraba el texto que recibía. Ahora mide el texto que se
+  le pasa —ya normalizado a `
+`, así el límite no se mueve entre el checkout de Windows (CRLF) y el del CI (LF)— y el
+  test temporal pasa a exigir lo contrario: **el núcleo real cumple `--limites`**.
+- `manage.py check`, `check --deploy`, `makemigrations --check --dry-run`, `manage.py test` (suite entera en un solo
+  proceso) y `manage.py test --tag performance`.
+- `ruff check .` y `ruff format --check` sobre lo tocado.
+- Verificación de que no se perdió contrato: 709 términos entre backticks del agente viejo contra el núcleo nuevo + las
+  fichas; 34 no literales, todos clasificados arriba.
+
+## Pendientes
+
+1. **Paso 6 de la Ola 6:** ejercicio de control «después» con las 3 pantallas y el revisor independiente.
+2. **Paso 7:** registro del resultado del control y actualización de la memoria «Migración Design System».
+
+## Puesta en marcha en el servidor
+
+Nada. `.claude/`, `scripts/` y `.github/` no viajan en el release (`export-ignore`). No hay migración, configuración ni
+cambio de runtime.
+
+## Reversión
+
+Revertir el commit: vuelve el agente de 67 KB, el CI deja de exigir los límites y `--goldens` vuelve a apoyarse en
+`design_audit.GOLDENS`. No hay datos, migraciones ni configuración que revertir.
 
 ---
 

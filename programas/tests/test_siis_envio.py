@@ -749,18 +749,28 @@ class ComandoReenvioTests(_BaseEnvioTest):
         )
         EnvioSIIS.objects.create(formulario=otro, estado=EnvioSIIS.Estado.INCOMPLETO, documento="1")
         salida = StringIO()
-        call_command("reenviar_siis_pendientes", stdout=salida)
+        call_command("reenviar_siis_pendientes", "--aplicar", stdout=salida)
         self.assertEqual(self.enviar.call_count, 1)
         self.assertEqual(self.enviar.call_args.args[0].pk, self.formulario.pk)
         self.assertIn("1 reintentado", salida.getvalue())
 
-    def test_dry_run_no_envia(self):
+    def test_sin_aplicar_es_un_ensayo(self):
+        """Cambio 127 (RED-53): el ensayo pasa a ser el default, como en los otros tres."""
         EnvioSIIS.objects.create(formulario=self.formulario, estado=EnvioSIIS.Estado.ERROR, documento="1")
-        call_command("reenviar_siis_pendientes", "--dry-run", stdout=StringIO())
+        salida = StringIO()
+        call_command("reenviar_siis_pendientes", stdout=salida)
+        self.enviar.assert_not_called()
+        self.assertIn("[ensayo]", salida.getvalue())
+        self.assertIn("Agregá --aplicar", salida.getvalue())
+
+    def test_dry_run_sigue_siendo_un_ensayo(self):
+        """El alias histórico no manda nada, ni siquiera combinado con --aplicar."""
+        EnvioSIIS.objects.create(formulario=self.formulario, estado=EnvioSIIS.Estado.ERROR, documento="1")
+        call_command("reenviar_siis_pendientes", "--dry-run", "--aplicar", stdout=StringIO())
         self.enviar.assert_not_called()
 
     def test_sin_envios_no_hace_nada(self):
-        call_command("reenviar_siis_pendientes", stdout=StringIO())
+        call_command("reenviar_siis_pendientes", "--aplicar", stdout=StringIO())
         self.enviar.assert_not_called()
 
 

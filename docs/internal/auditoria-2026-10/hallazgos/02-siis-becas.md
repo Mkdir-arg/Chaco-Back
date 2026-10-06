@@ -18,15 +18,15 @@ indicación.
 
 | ID | Título | Sev. | Estado | Ola | Esf. | Avance 03-oct |
 |---|---|---|---|---|---|---|
-| SIIS-01 | El alta en SIIS no tiene exclusión mutua | CRÍTICA | CONF. test | 1 | M | ⬜ |
-| SIIS-02 | Resultado ambiguo registrado como ERROR reintentable; proceso muerto sin rastro | ALTA | CONF. test | 1 | M | ⬜ |
+| SIIS-01 | El alta en SIIS no tiene exclusión mutua | CRÍTICA | CONF. test | 1 | M | ✅ |
+| SIIS-02 | Resultado ambiguo registrado como ERROR reintentable; proceso muerto sin rastro | ALTA | CONF. test | 1 | M | ✅ |
 | SIIS-03 | Masivo: se da por muerto vivo, no se puede frenar, zombis, comandos sin candado | ALTA (MEDIA tras SIIS-01) | CONF. test | 1 | S | ⬜ |
-| SIIS-04 | El masivo informa casos que cambiaron de estado después de hidratarlos | ALTA | CONF. test | 1 | S | ⬜ |
+| SIIS-04 | El masivo informa casos que cambiaron de estado después de hidratarlos | ALTA | CONF. test | 1 | S | ✅ |
 | SIIS-06 | Catálogo vacío de SIIS bloquea todos los programas | ALTA | CONF. test | 1 | S | ⬜ |
 | SIIS-07 | `token_publico` en `char(32)`: el arreglo está en una rama sin mergear | ALTA | CONF. (merge simulado) | 1 | S | ✅ |
 | SIIS-08 | Identidad validada no corrige un legajo autodeclarado; a SIIS viajan datos sin validar | ALTA | CONF. lectura | 1 | M | ⬜ |
 | V2-NEW-03 | Medir altas duplicadas ya existentes en PRD antes de migrar | ALTA (operativo) | — | 1 (paso 0) | S | ⬜ |
-| SIIS-05 | Mismo DNI y plan informados desde casos distintos | MEDIA | CONF. test | 1 | S | ⬜ |
+| SIIS-05 | Mismo DNI y plan informados desde casos distintos | MEDIA | CONF. test | 1 | S | ✅ |
 | SIIS-09 | Llamadas externas encadenadas que superan los 60 s de nginx | MEDIA | CONF. lectura | 1 | S-M | ⬜ |
 | SIIS-10 | `normalizar_persona` toma claves de objetos anidados | MEDIA | CONF. test | 3 | S | ⬜ |
 | SIIS-11 | JSON de SIIS que no es objeto → `AttributeError` | MEDIA | CONF. test | 1 | S | ⬜ |
@@ -56,7 +56,7 @@ indicación.
 | SIIS-19 | `diagnosticar_siis --alta` sin guarda de PRD y DNI por defecto | BAJA | CONF. lectura | 1 | S | ⬜ |
 | SIIS-20 | `RENAPER_TEST_MODE` sin guarda en PRD | BAJA | CONF. lectura | 3 | S | ⬜ |
 | SIIS-21 | Captcha aritmético deja agotar la cuota por DNI de un tercero | BAJA | CONF. ajustado | 3 | S | ⬜ |
-| BEC-14 | Doble clic en «Aprobar» | BAJA | CONF. lectura | 1 | S | ⬜ |
+| BEC-14 | Doble clic en «Aprobar» | BAJA | CONF. lectura | 1 | S | ✅ |
 | BEC-15 | Carga de padrón concurrente | BAJA | CONF. lectura | 3 | S | ⬜ |
 | BEC-16 | Constructor: mutaciones sin candado y `reconciliar` en cada request | BAJA | CONF. lectura | 3 | S | ⬜ |
 | BEC-17 | Pausar/reanudar con doble envío duplica eventos | BAJA | CONF. lectura | 3 | S | ⬜ |
@@ -88,6 +88,8 @@ indicación.
 
 ### SIIS-01 · El alta en SIIS no tiene exclusión mutua
 **Severidad:** CRÍTICA · **Estado:** CONFIRMADO con test (`SiisAltaSinExclusionTests.test_reentrada_con_primero_en_vuelo_duplica_alta`: 2 POST y 2 `ENVIADO`) · **Origen:** A1-01, A2-02, A8-S1 (comandos), A4-01 (punto 3), V2-NEW-04 · **Ola:** 1 · **Esfuerzo:** M · **Decisión:** — (SIIS-05 tiene la suya)
+
+**Resolución:** ✅ Resuelto en #PENDIENTE (Cambio 127), 05-oct-2026 — `EnvioSIIS.vigente` (nullable) dentro del índice único `(formulario, vigente)` más la reserva de `_reservar()`: lock corto de la fila del `Formulario`, relectura de `vigente` y `EN_PROCESO` commiteado **antes** del POST, que queda fuera de toda transacción. Las siete vías pasan por la misma reserva, incluida `sincronizar_tabla_intermedia`, y las tres listas de candidatos excluyen con `~Exists(vigente)`. La pantalla deja de ofrecer reenviar lo que el servicio no mandaría, con guard de un solo envío en el form. Migración `programas.0075_enviosiis_vigente`, probada ida y vuelta contra **MariaDB 10.11 real** con 40.100 envíos (6,9 s / 4,0 s) y duplicados sembrados de los dos tipos. **Test permanente:** `programas/tests/test_siis_un_solo_envio.py::UnSoloEnvioVigenteTests.test_segundo_envio_con_primero_en_vuelo_no_llama_a_siis` (y `test_indice_unico_rechaza_un_segundo_vigente`, `test_la_tabla_intermedia_no_manda_un_caso_ya_tomado`).
 
 **⚠ Actualizar (03-oct-2026):** #517/#518 (01-oct) sumaron una **séptima vía** de alta sin exclusión: `sincronizar_tabla_intermedia` (`siis_envio.py:759`), que `procesar_casos_siis --destino siis` y `correr_alta_siis` corren antes de los candidatos, con el mismo check-then-act (`envios_sis.filter(ENVIADO).exists()` → `_mandar_a_siis`). El POST quedó en `_mandar_a_siis` (`:667`) y `enviar_beneficiario_a_siis` está en `:624`. La migración de SIIS-01 ya no puede ser la `0074` (la ocupa `0074_altaintermediasiis`): es la siguiente libre. La reserva tiene que cubrir también la sincronización de la tabla intermedia.
 - **Ubicación:** `programas/services/siis_envio.py:592-631` (`enviar_beneficiario_a_siis`: lee `envios_sis.filter(estado=ENVIADO)` sin lock → `armar_payload` → `cargar_beneficiario` (HTTP de hasta 40 s) → recién después `EnvioSIIS.objects.create(ENVIADO)`); modelo `programas/models/__init__.py:2824` (`EnvioSIIS`).
@@ -144,6 +146,8 @@ indicación.
 ### SIIS-02 · Un resultado ambiguo se registra como ERROR reintentable, y un proceso muerto entre el POST y el registro no deja rastro
 **Severidad:** ALTA · **Estado:** CONFIRMADO-AJUSTADO con test (`ResultadoAmbiguoTests`) · **Origen:** A2-03, A1-03, A8-S1 (ReadTimeout), A2-15 · **Ola:** 1 · **Esfuerzo:** M · **Decisión:** D-S02 (contrato 5xx con ECOM)
 
+**Resolución:** ✅ Resuelto en #PENDIENTE (Cambio 127), 05-oct-2026 — `cargar_beneficiario` devuelve `resultado` con la tabla de D-S02 completa (token fuera del `try` del POST; `ConnectTimeout` antes que `ConnectionError`; la cadena de urllib3 distingue «no conectó» de «se cortó a mitad»; 401 con un reintento interno). `INCIERTO` queda `vigente` y **no reintentable**; `EN_PROCESO` vencido a los 5 min se ve incierto. Comando nuevo `conciliar_envios_siis` (`--listar` / `--confirmar` / `--liberar --motivo`, en lote y desde el CSV que vuelve de ECOM, en seco por defecto) con traza, tope de 5 errores por caso y el procedimiento corregido en `docs/internal/procedimiento-alta-siis.md`. **Ronda 2:** el freno de las corridas pasa a contar los inciertos —`proceso_masivo.Freno`, una sola pieza para las cuatro vías, con `--max-inciertos` (default 3) y las dos rachas en paralelo—, porque si no, con SIIS caído la corrida no cortaba nunca y cada vuelta dejaba un caso más tomado. **Ronda 3:** `reenviar_siis_pendientes` también lo honra —heredaba los flags y los ignoraba— y el test ejercita las tres vías con SIIS contestando mal, no solo que acepten el flag. La tabla de desenlaces, con el 503 sin cuerpo y el 500 con JSON roto marcados como decisión nuestra y no contrato, quedó en `docs/internal/temas/siis-api.md`. **Test permanente:** `programas/tests/test_siis_un_solo_envio.py::ResultadoInciertoTests.test_un_resultado_incierto_no_se_reintenta_por_ninguna_via` (y `programas/tests/test_siis_service.py::ResultadoDelAltaTests`, la tabla entera).
+
 **⚠ Actualizar (03-oct-2026):** la fila «Ctrl+C a mitad: Seguro» del punto 5 está hoy en `docs/internal/procedimiento-alta-siis.md:210` (el archivo entró a `development` con #513), y el docstring de `correr_alta_siis` repite «volver a lanzarlo… no duplica nada»: corregir los dos.
 - **Ubicación:** `programas/services/siis.py:326-381` (`cargar_beneficiario` mete en `ERROR_TECNICO, reintentable=True` toda `RequestException`, cualquier 5xx y cualquier HTTP sin código; 404/409/422/429 → `ERROR_INTERNO`, en `CODIGOS_REINTENTABLES`; `_token()` dentro del mismo `try`).
 - **Ajuste:** no hay cron nocturno que reintente (A2-03 lo afirmaba). El reintento automático existe igual: `candidatos()` toma todo APROBADO cuyo último envío ≠ ENVIADO, así que **la próxima corrida del masivo** reenvía los ERROR; también el botón «Reenviar» y los comandos a mano. A1-03 se confirma por el mecanismo: gunicorn `--max-requests 1000 --max-requests-jitter 100 --graceful-timeout 30` (`docker-entrypoint.sh:115-122`) recicla el worker y mata el hilo daemon; igual cada deploy o reinicio.
@@ -190,6 +194,8 @@ indicación.
 ### SIIS-04 · El masivo informa casos que cambiaron de estado después de hidratarlos
 **Severidad:** ALTA · **Estado:** CONFIRMADO con test (`EstadoViejoEnMasivoTests`) · **Origen:** A1-04, V2-NEW-06 · **Ola:** 1 · **Esfuerzo:** S (dentro de SIIS-01)
 
+**Resolución:** ✅ Resuelto en #PENDIENTE (Cambio 127), 05-oct-2026 — la reserva de SIIS-01 relee el estado con `select_for_update` y lanza `ValueError`; `procesar_caso` lo captura y cuenta `no_aprobable`, `enviar_casos_siis` lo cuenta aparte (con `estados_permitidos` cuando se levanta la guarda, V2-NEW-06) y `sincronizar_tabla_intermedia` deja la fila pendiente contándola como `no_aprobables`. **Test permanente:** `programas/tests/test_siis_un_solo_envio.py::EstadoRelidoBajoLockTests.test_un_caso_dado_de_baja_despues_de_hidratar_no_se_informa`.
+
 **⚠ Actualizar (03-oct-2026):** #517 sumó dos caminos: `guardar_en_tabla_intermedia` chequea el estado sobre el objeto hidratado y `sincronizar_tabla_intermedia` manda el payload guardado **sin releer el estado**, así que un caso que pasó a BAJA después de guardarse en la tabla se informa igual. La relectura bajo lock de SIIS-01 tiene que cubrir ese camino.
 - **Escenario (reproducido):** se hidrata un APROBADO, pasa a BAJA por `update()` y `procesar_caso` lo manda igual a SIIS. Igual en `enviar_casos_siis` (ventana menor). V2-NEW-06: con `--estados ENVIADO,RECHAZADO --si-entiendo` (`exigir_aprobado=False`) un caso que pasó a BAJA entre el listado y su lote se informa igual.
 - **Propuesta:** la reserva de SIIS-01 relee `estado` con `select_for_update` y lanza `ValueError` si no es APROBADO; en `procesar_caso` (`proceso_masivo.py:270`) capturarlo → `cuenta.no_aprobable += 1; return None`. Con `exigir_aprobado=False`, la función recibe `estados_permitidos` y exige que el estado releído siga dentro.
@@ -235,6 +241,8 @@ indicación.
 
 ### SIIS-05 · Mismo DNI y mismo plan informados desde casos distintos
 **Severidad:** MEDIA · **Estado:** CONFIRMADO con test (`test_mismo_dni_en_otro_caso_se_informa_otra_vez`: 2 POST) · **Origen:** A2-07 · **Ola:** 1 · **Esfuerzo:** S · **Decisión:** D-S05
+
+**Resolución:** ✅ Resuelto en #PENDIENTE (Cambio 127), 05-oct-2026 — columna derivada `clave_persona_plan` (`"<documento>:<id_programa>"` mientras el envío esté vigente, `NULL` si no) dentro de un índice único: la misma técnica que `vigente`, una fila más arriba. La consulta en Python se queda solo para el mensaje («ya informado en el caso #N»); la regla la garantiza el motor, y la reserva traduce el `IntegrityError` a `DUPLICADO_LOCAL`. **Ronda 2 de la revisión:** sin el índice, `_duplicado_local` era un check-then-act y dos procesos sobre el mismo DNI y plan pasaban los dos (19 de 25 en MariaDB real). La migración resuelve además los duplicados cruzados que ya existen en PRD sin liberar ninguno (ver la entrada del Cambio 127). Aplicado el default de **D-S05**. **Test permanente:** `programas/tests/test_siis_un_solo_envio.py::DuplicadoLocalTests.test_con_dos_procesos_a_la_vez_igual_sale_una_sola_alta` (y `test_el_mismo_dni_y_plan_en_otro_caso_no_se_informa_otra_vez`).
 - **Causa:** RN-P5 deduplica por convocatoria, no por programa; la idempotencia es por formulario.
 - **Propuesta:** en la reserva de SIIS-01, `EnvioSIIS.objects.filter(documento=doc, id_programa=plan, vigente=True).exclude(formulario=f).exists()` → `RECHAZADO` local con `codigo_error="DUPLICADO_LOCAL"` y `detalles={"_": ["Ya informado en el caso #N"]}`, sin llamar a SIIS; índice `(documento, id_programa)` en la misma migración; el masivo cuenta los `DUPLICADO_LOCAL` aparte. Solo si D-S05 = «nunca»: columna `clave_persona_plan = CharField(max_length=40, null=True, unique=True)` = `f"{documento}:{id_programa}"` cuando está vigente (NULL si no). Si D-S05 = «sí, con otra función», la clave pasa a `(documento, id_programa, id_funcion)`.
 - **Tests a agregar:** el de la PoC invertido; `test_duplicado_local_no_bloquea_si_el_otro_no_es_vigente`.
@@ -449,6 +457,8 @@ indicación.
 
 ### BEC-14 · Doble clic en «Aprobar»: segunda consulta a SIIS y aviso de error junto al de éxito
 **Severidad:** BAJA · **Origen:** A1-19 · **Ola:** 1 · **Esfuerzo:** S
+
+**Resolución:** ✅ Resuelto en #PENDIENTE (Cambio 127), 05-oct-2026 — guard `data-un-solo-envio` en los forms de acción irreversible del detalle, botón deshabilitado en el `onConfirm` del modal (que ModernModal deja vivo 300 ms) y relectura del estado en `formulario_aprobar` antes de consultar a SIIS. **Desvío de la ficha:** el test no es E2E con Playwright (que no corre en el CI) sino el POST repetido contra la vista, que es donde está el costo (la segunda consulta a SIIS). **Test permanente:** `programas/tests/test_becas_revision.py::PantallaEnvioSiisTests.test_el_segundo_post_de_aprobar_no_consulta_a_siis`.
 - **Ubicación:** `revision/formulario_detalle.html:998-1009` (`onConfirm` sin guard; ModernModal deja vivo el botón 300 ms); `programas/views/revision.py:946-947`.
 - **Propuesta:** el guard `enviando` del form de duplicados (mismo PR que SIIS-01, punto 6); en la vista, releer el estado antes de consultar SIIS.
 - **Test:** E2E Playwright `test_aprobar_doble_clic_un_solo_post`.
