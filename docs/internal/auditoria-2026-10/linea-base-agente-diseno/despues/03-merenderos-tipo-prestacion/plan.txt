@@ -1,0 +1,16 @@
+Plan de pantalla declarado por chaco-frontend ANTES del primer Write (literal):
+
+Tipo: B · Arquetipo: Formulario · Golden: programas/templates/programas/becas/config/segmento_form.html
+Hermana (solo dominio): programas/templates/programas/merenderos/entrega_form.html, solicitud_form.html
+  (confirmado: no hay ningun template ni modelo "tipo de prestacion" existente en el repo --
+  busqueda `tipo.*prestacion|TipoPrestacion` sobre programas/ sin resultados)
+Bloques: header (page_header + bajada alta/edicion) · form (csrf, errores generales,
+  loop de campos con _field.html) · pie (Cancelar / Guardar)
+Vista: CreateView/UpdateView con Form/ModelForm, misma forma que segmento_form
+Novedades: ninguna
+
+Golden declarada = golden de la tabla `## Arquetipos` del nucleo: SI.
+
+Nota del implementador: no agrego el boton auxiliar "Crear coordinador" de la golden porque es
+dominio propio de Becas, ni fieldsets por tipo porque no hay campos condicionados. Las dos
+exclusiones estan escritas en la ficha del arquetipo.

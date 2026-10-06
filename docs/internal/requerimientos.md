@@ -312,10 +312,11 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 129 | Que una pantalla nueva no pueda nacer sucia: ratchet, marcadores de arquetipo y gate de build | Transversal · herramientas de diseño · CI de GitHub Actions · CSS compilado | `#ui` `#metodo` `#infra` | Auditoría integral oct-2026 — FE-13, V5A-NEW-01 y V5A-NEW-08 (Ola 6 «Agente de diseño», pasos 0-2) | 05/10/2026 | 🟢 **Hecho** | No requiere |
 | 130 | El CI prueba contra MariaDB y MySQL de verdad, no solo contra SQLite | Transversal · CI de GitHub Actions · Becas (cupo, link público, dashboard) · Dispositivos (parte F-01) | `#infra` `#datos` `#cupos` `#performance` | Auditoría integral oct-2026 — TST-01 y la capa 2 de RED-67 (Ola R, red de seguridad, PR R-11) | 05/10/2026 | 🟢 **Hecho** | No requiere |
 | 131 | Las goldens dejan de ser un molde con deuda: 0 P1, marcadores completos y el gate encendido | Becas (revisión, cupo, configuración de programas) · herramientas de diseño · CI de GitHub Actions | `#ui` `#metodo` | Auditoría integral oct-2026 — V5A-NEW-07 parte (a) (Ola 6 «Agente de diseño», paso 3) | 05/10/2026 | 🟢 **Hecho** | No requiere |
-| 132 | El agente de diseño deja de ser un changelog de 67 KB: núcleo corto, fichas por arquetipo y consumidores al día | Transversal · agente canónico de diseño y sus fichas · herramientas de diseño · CI de GitHub Actions | `#ui` `#metodo` | Auditoría integral oct-2026 — Ola 6 «Agente de diseño», pasos 4 y 5 | 05/10/2026 | 🟡 **Parcial** (faltan los pasos 6 y 7 de la Ola 6) | No requiere |
+| 132 | El agente de diseño deja de ser un changelog de 67 KB: núcleo corto, fichas por arquetipo y consumidores al día | Transversal · agente canónico de diseño y sus fichas · herramientas de diseño · CI de GitHub Actions | `#ui` `#metodo` | Auditoría integral oct-2026 — Ola 6 «Agente de diseño», pasos 4 y 5 | 05/10/2026 | 🟢 **Hecho** (los pasos 6 y 7 que faltaban los cerró el Cambio 137) | No requiere |
 | 133 | Mapear el mockup de la v2 de Dispositivos pantalla por pantalla: qué pieza ya existe, qué dato falta y dónde choca | Dispositivos y Merenderos · análisis de diseño y de datos (sin tocar código de producción) | `#ui` `#gestion` `#datos` `#rbac` | PM — pedido directo en sesión de trabajo, sobre el link publicado del mockup | 05/10/2026 | 🟢 **Hecho** | No requiere |
 | 134 | Las quince decisiones que destraban la v2 de Dispositivos: qué se implementa del mockup y qué no | Dispositivos y Merenderos · sistema de diseño · decisiones previas a implementar (sin tocar código de producción) | `#ui` `#textos` `#rbac` `#gestion` | PM — decisión en sesión de trabajo sobre los 15 conflictos del Cambio 133 | 06/10/2026 | 🟢 **Hecho** (las decisiones; las seis piezas de sistema quedan planificadas en M0) | No requiere |
 | 136 | El proceso masivo deja de darse por muerto estando vivo: latido por caso, freno real y un solo camino a la vez | Becas · proceso masivo de alta en SIIS (pantalla, servicio y comandos) | `#siis` `#relevamientos` `#ui` | Auditoría integral oct-2026 — SIIS-03 (+A5-33), BEC-11 y BEC-21 (Ola 1 «Integridad SIIS», PR 3) | 06/10/2026 | 🟢 **Hecho** | `programas.0076_corridasiis_incompatibles` |
+| 137 | Las mismas tres pantallas, pedidas de nuevo: el ejercicio de control que cierra la Ola 6 | Transversal · agente canónico de diseño y sus fichas · evidencia de la auditoría (sin tocar código de producción) | `#ui` `#metodo` | Auditoría integral oct-2026 — Ola 6 «Agente de diseño», pasos 6 y 7 | 06/10/2026 | 🟢 **Hecho** (queda para el PM la captura del criterio (e)) | No requiere |
 
 **Notas del índice**
 
@@ -17947,7 +17948,7 @@ vuelve a no tener qué verificar. No hay datos, migraciones ni configuración qu
 
 # Cambio 132 — El agente de diseño deja de ser un changelog de 67 KB: núcleo corto, fichas por arquetipo y consumidores al día
 
-🟡 **PARCIAL — 05/10/2026** (faltan los pasos 6 y 7 de la Ola 6)
+🟢 **HECHO — 05/10/2026** (los pasos 6 y 7 que faltaban los cerró el **Cambio 137**, 06/10/2026)
 
 | | |
 |---|---|
@@ -18098,8 +18099,12 @@ Con Python 3.12 + Django 5.2.17 (`.venv312`, igual al CI):
 
 ## Pendientes
 
-1. **Paso 6 de la Ola 6:** ejercicio de control «después» con las 3 pantallas y el revisor independiente.
-2. **Paso 7:** registro del resultado del control y actualización de la memoria «Migración Design System».
+**Ninguno: los dos los cerró el Cambio 137 (06/10/2026).**
+
+1. ~~**Paso 6 de la Ola 6:** ejercicio de control «después» con las 3 pantallas y el revisor independiente.~~ Hecho:
+   las tres cumplieron al primer intento y la comparación antes/después está en
+   `docs/internal/auditoria-2026-10/linea-base-agente-diseno/`.
+2. ~~**Paso 7:** registro del resultado del control y actualización de la memoria «Migración Design System».~~ Hecho.
 
 ## Puesta en marcha en el servidor
 
@@ -18647,3 +18652,165 @@ el circuito anterior: una corrida que se da por muerta mientras trabaja, la posi
 una segunda con la primera viva, un Frenar que no alcanza a la que parece interrumpida y frena la de
 otro programa, comandos que se meten en medio de la corrida de la pantalla, y el lote aprobando e
 informando a SIIS a quien SIIS declaró incompatible.
+
+---
+
+# Cambio 137 — Las mismas tres pantallas, pedidas de nuevo: el ejercicio de control que cierra la Ola 6
+
+🟢 **HECHO — 06/10/2026** (queda para el PM la captura del criterio (e))
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · agente canónico de diseño y sus fichas (`.claude/`) · evidencia de la auditoría (`docs/internal/auditoria-2026-10/`). **No toca código de producción** |
+| **Etiquetas** | `#ui` `#metodo` |
+| **Solicitante** | Auditoría integral oct-2026 — Ola 6 «Agente de diseño», pasos 6 y 7 |
+| **Fecha del pedido** | 06/10/2026 |
+| **Issue / épica** | sin issue (plan de la auditoría, `docs/internal/auditoria-2026-10/README.md` §6 y `anexo-agente-diseno.md` §9) |
+| **Partes afectadas** | Nadie en runtime. Es la medición que dice si la Ola 6 sirvió, y la precondición que el Cambio 134 puso para arrancar la v2 de Dispositivos y Merenderos |
+| **Migración** | No requiere |
+
+## Pedido original
+
+El Cambio 129 midió una **línea base**: con los agentes de entonces se le pidieron tres pantallas a `chaco-frontend`,
+con prompts de dominio y sin ninguna pista de diseño, y **las tres fallaron**. Ninguna usó la golden de su arquetipo,
+ninguna escribió un Plan de pantalla como artefacto revisable, y la de detalle clonó **la pantalla hermana del
+módulo** con su deuda entera. Los Cambios 129, 131 y 132 reescribieron las herramientas, las goldens y el agente.
+
+Falta la otra mitad: **repetir el mismo ejercicio con los agentes nuevos y comparar**. Es el único criterio objetivo
+del anexo —«Ejercicio de control antes/después · Única forma de saber si sirvió»— y el *Hecho cuando* de la ola es
+que las tres pantallas cumplan **al primer intento**.
+
+## Alcance acordado
+
+**Entra:**
+
+1. **Repetir el ejercicio**, con el método que documenta la línea base: los tres prompts literales, de dominio y sin
+   pistas de diseño, uno por subagente `chaco-frontend`, en paralelo, con la única restricción de escribir en un
+   archivo nuevo fuera del árbol de la app. Después, `chaco-design-reviewer` en **sesiones independientes**.
+2. **Medir con las mismas herramientas** y publicar la comparación antes/después.
+3. **Registro:** el resultado en el README de la auditoría, el anexo y esta entrada.
+
+**Queda explícitamente afuera:**
+
+- **Mergear las tres pantallas como producto.** Son evidencia: quedan en
+  `docs/internal/auditoria-2026-10/linea-base-agente-diseno/despues/`, fuera de todo árbol de templates, sin vista,
+  URL ni modelo escritos. `design_audit.py` excluye `docs/` entero, así que no suman deuda al repo.
+- **Forzar el resultado.** Si una pantalla fallaba, el anexo manda corregir **la ficha o la regla**, nunca la
+  pantalla. No hizo falta.
+
+## Decisiones tomadas
+
+**No se activó ninguna regla de fase 2 del anexo §7**, y es una decisión, no un olvido. El anexo las dejaba armadas
+por si el ejercicio mostraba un desvío que las P1 no atraparan. Apareció **uno** —un `|length` sobre un queryset en
+un texto informativo de la pantalla de detalle, con el contador ya resuelto en la vista— y **ninguna regla de fase 2
+lo cubriría**: no es un desvío de diseño (no hay clase, token ni estructura de por medio), es una regla de desarrollo
+front. Vive en el método del revisor, y el revisor lo cazó. Moverlo a `design_audit` sería meterle un chequeo que no
+es suyo.
+
+**No se tocó ninguna ficha ni el núcleo.** Las tres pantallas cumplieron al primer intento, así que el disparador que
+el anexo preveía («si una falla, se corrige la ficha o la regla y se repite») nunca se activó.
+
+**D1 a D5 quedan como las fijó el Cambio 129 y las escribió el 132.** El ejercicio no dio motivo para revisarlas: D5
+(iniciales en `bg-brand-soft text-fg-brand`, sin gradiente) se vio aplicada sola en la pantalla de detalle, y D3
+(Font Awesome en el contenido) en las tres.
+
+## Implementación
+
+No hay implementación de código: es una medición. Lo que se hizo:
+
+1. **Tres sesiones `chaco-frontend` en paralelo**, una por pantalla, con los prompts literales del anexo §9 paso 6:
+   «Merenderos: listado de entregas de mercadería con filtro por estado y fecha», «Dispositivos: detalle de una cama
+   con solapas Datos, Movimientos y Partes» y «Merenderos: alta de tipo de prestación».
+2. **Tres sesiones `chaco-design-reviewer` independientes**, una por pantalla, que no vieron la sesión que escribió
+   el template y recibieron su Plan de pantalla para auditarlo.
+3. **Las mediciones se volvieron a correr desde la sesión que coordina**, no se tomaron de los informes de los
+   agentes: `design_audit.py <archivo>`, `--arquetipo <a> <archivo>`, `--ratchet`, `check_design_agent.py --changed`
+   y la compilación de los tres templates con el motor de Django 5.2.
+4. **La evidencia entró al repo** en `linea-base-agente-diseno/despues/`: los tres templates literales, el Plan de
+   pantalla que declaró cada agente, las salidas de las dos mediciones, el dictamen de cada revisor y la corrida del
+   ratchet. El README de esa carpeta pasó de ser «la línea base» a guardar **las dos mitades** del ejercicio, con la
+   tabla comparativa.
+
+## Resultado
+
+| Criterio del paso 6 | Antes (05-oct) | Después (06-oct) |
+|---|---|---|
+| Plan de pantalla como artefacto, antes del primer `Write` | 0 de 3 | **3 de 3** |
+| Molde = la golden de su arquetipo | **0 de 3** | **3 de 3** |
+| P1 (`design_audit`) | 0 · **10** · 0 | **0 · 0 · 0** |
+| Marcadores de arquetipo | OK · **8 desvíos** · **1 desvío** | **OK · OK · OK** |
+| `--ratchet` | — (no existía al medir) | **0 nuevos en 3 archivos** |
+| Revisor independiente | no se corrió (2 de 3 ya fallaban el gate mecánico) | **3 de 3 aprobadas** |
+| Molde fue la hermana del módulo | **sí, en la de detalle** | **no, en ninguna** |
+| Componente canónico reimplementado a mano | **sí, en la de formulario** | **no, en ninguna** |
+
+**Las tres fallas tenían causa distinta y las cerró una pieza distinta cada una**, que es lo que vuelve útil la
+comparación:
+
+- La **tabla `## Arquetipos` + el Plan de pantalla** le sacaron el azar al molde. La pantalla de listado ya daba 0 P1
+  antes, pero porque le tocó mirar una hermana limpia de Becas; ahora el molde está nombrado y declarado por escrito.
+- La **regla «la hermana nunca es molde» + el esqueleto literal de la ficha** cerraron el caso que motivó la ola. El
+  revisor verificó uno por uno que ninguno de los defectos de `dispositivos/legajo/detail.html` —`<h1>` a mano,
+  `<style>[x-cloak]`, «← Volver» de texto, 3 `style=`, 5 íconos sin `aria-hidden`, solapas sin ARIA— aparece en la
+  pantalla nueva, que además trae `role="tablist"`/`tab`/`tabpanel` con `aria-controls` y `aria-labelledby` completos.
+- Una **fila del inventario** —declarar transversal el include de campo— cerró la de formulario, que daba **0 P1 en
+  los dos casos**: antes el agente copiaba ese markup a mano «para no acoplar Merenderos a una ruta de Becas», ahora
+  lo incluye. Es la confirmación directa de la premisa del anexo: **el gate de token no alcanza**, hacen falta
+  marcadores de arquetipo y un inventario que diga qué se puede reusar.
+
+El costo por invocación también bajó, aunque sea una medida indirecta: el núcleo pasó de 66.965 a **25.819 bytes** en
+el checkout (25.548 normalizado a LF), y el agente ya no lo lee entero más las fichas que cita su arquetipo, en vez de
+las «páginas 1-104» del inventario viejo.
+
+## Archivos
+
+`docs/internal/auditoria-2026-10/linea-base-agente-diseno/README.md` y `despues/**` (3 templates, 3 planes, 3
+dictámenes, 7 salidas de medición), `docs/internal/auditoria-2026-10/anexo-agente-diseno.md` (§10 nueva, de cierre),
+`docs/internal/auditoria-2026-10/README.md` y `docs/internal/requerimientos.md`.
+
+**Ningún archivo de `.claude/`, `scripts/`, `programas/` ni `.github/` se tocó.** El ejercicio mide el sistema tal
+como quedó; cambiarlo durante la medición la invalidaría.
+
+## Base de datos
+
+No requiere migración. No toca modelos, vistas, URLs, permisos ni templates de la app.
+
+## Validación
+
+Con Python 3.12 + Django 5.2.17 (`.venv312`, igual al CI), desde el worktree:
+
+- `design_audit.py --arquetipo listado|detalle|formulario <archivo>` → **OK** en las tres.
+- `design_audit.py <archivo>` → **0 errores, 0 P1, 0 warnings** en las tres.
+- `design_audit.py --ratchet` → **0 hallazgos nuevos en 3 archivos**.
+- `check_design_agent.py --changed` → OK.
+- `compile_templates.py` → 199 compilados, **0 errores** (los tres del ejercicio viven fuera de los `TEMPLATES/DIRS`
+  por diseño, así que se compilaron aparte con `engines["django"].from_string()`: los tres **OK**).
+- `manage.py check`, `check --deploy`, `makemigrations --check --dry-run`, `manage.py test` (suite entera en un solo
+  proceso) y `manage.py test --tag performance`.
+- `requerimientos.py --check` → OK.
+
+**No hay tests nuevos.** Este cambio no corrige ningún bug: es la medición de la ola. Los tests permanentes de la Ola
+6 se agregaron en los Cambios 129, 131 y 132 (`scripts/test_design_audit.py`, `scripts/test_check_design_agent.py`).
+
+## Pendientes
+
+1. **La captura del criterio (e), y es del PM.** El paso 6 pide una captura lado a lado con la golden a 1440 y 390 px
+   que el PM acepte como «mismo sistema». No se tomó: necesita el harness Playwright, que es local y no está
+   commiteado, y necesita al PM. Los otros cuatro criterios se cumplen los cuatro, y el gate mecánico y el revisor ya
+   cubren estructura y accesibilidad; la captura cubre lo que ninguno de los dos ve.
+2. **Las tres pantallas no son producto.** Si alguna se quiere de verdad, falta todo el backend: el parcial de badge
+   de Merenderos, la URL `merenderos:entregas` con su `estado` derivado de `anulada`, la ruta
+   `dispositivos:cama_detalle`, y el modelo `TipoPrestacion` con su capacidad en el catálogo de `core/rbac.py` (hoy
+   Merenderos solo tiene `merendero.ver/crear/editar/validar/entregar`). Nada de eso se escribió.
+3. **El `|length` de la pantalla de detalle** quedó sin corregir a propósito: corregir la evidencia después de
+   medirla la falsea. Está anotado en su `revision.md`.
+
+## Puesta en marcha en el servidor
+
+Nada. Solo toca `docs/`, que no viaja en el release (`export-ignore`). No hay migración, configuración ni cambio de
+runtime.
+
+## Reversión
+
+Revertir el commit: desaparece la evidencia del «después» y la Ola 6 vuelve a figurar con los pasos 6 y 7 abiertos.
+No hay código, datos ni configuración involucrados.

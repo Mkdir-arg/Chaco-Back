@@ -1,0 +1,182 @@
+{% extends "includes/base.html" %}
+{% load nodo_ui %}
+{% block title %}Dispositivos · Cama · {{ cama.codigo }}{% endblock %}
+
+{% block main-content %}
+<div class="space-y-5"
+     x-data="{ tab: new URLSearchParams(window.location.search).get('tab') || 'datos' }">
+
+  {% url 'dispositivos:detalle' dispositivo.pk as url_volver %}
+  {% with titulo_cama="Cama "|add:cama.codigo %}
+  {% page_header titulo=titulo_cama volver_url=url_volver volver_label=dispositivo.nombre migas=migas %}
+    {% bajada %}<a href="{{ url_volver }}" class="text-fg-brand hover:underline">{{ dispositivo.nombre }}</a> · {{ dispositivo.tipo.nombre }}.{% endbajada %}
+    {% include "programas/dispositivos/_cama_estado_badge.html" %}
+    {% if puede_editar %}
+    <a href="{% url 'dispositivos:cama_editar' cama.pk %}" class="btn-nodo btn-secondary btn-sm">
+      <i class="fas fa-pen" aria-hidden="true"></i> Editar
+    </a>
+    {% endif %}
+  {% endpage_header %}
+  {% endwith %}
+
+  <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+    {% include "components/_stat_card.html" with etiqueta="Movimientos registrados" valor=stats.total_movimientos icono="fa-right-left" tono="brand" %}
+    {% if stats.noches_30d > 0 %}
+    {% include "components/_stat_card.html" with etiqueta="Noches ocupada (30 días)" valor=stats.noches_30d icono="fa-moon" tono="success" %}
+    {% else %}
+    {% include "components/_stat_card.html" with etiqueta="Noches ocupada (30 días)" valor=stats.noches_30d icono="fa-moon" tono="warning" %}
+    {% endif %}
+    {% include "components/_stat_card.html" with etiqueta="Partes del dispositivo" valor=stats.total_partes icono="fa-clipboard-list" tono="brand" %}
+  </div>
+
+  <div class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
+
+    <div class="border-b border-base flex gap-1 px-2 flex-wrap" role="tablist" aria-label="Secciones de la cama">
+      <button @click="tab='datos'" type="button" role="tab" id="tab-datos" aria-controls="panel-datos"
+              :aria-selected="tab==='datos'"
+              class="px-4 py-3 text-sm border-b-2 -mb-px transition flex items-center gap-1.5 whitespace-nowrap"
+              :class="tab==='datos' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
+        <i class="fas fa-id-card" aria-hidden="true"></i> Datos
+      </button>
+      <button @click="tab='movimientos'" type="button" role="tab" id="tab-movimientos" aria-controls="panel-movimientos"
+              :aria-selected="tab==='movimientos'"
+              class="px-4 py-3 text-sm border-b-2 -mb-px transition flex items-center gap-1.5 whitespace-nowrap"
+              :class="tab==='movimientos' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
+        <i class="fas fa-right-left" aria-hidden="true"></i> Movimientos
+        <span class="badge" :class="tab==='movimientos' ? 'badge-info' : 'badge-gray'">{{ n_movimientos }}</span>
+      </button>
+      <button @click="tab='partes'" type="button" role="tab" id="tab-partes" aria-controls="panel-partes"
+              :aria-selected="tab==='partes'"
+              class="px-4 py-3 text-sm border-b-2 -mb-px transition flex items-center gap-1.5 whitespace-nowrap"
+              :class="tab==='partes' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
+        <i class="fas fa-clipboard-list" aria-hidden="true"></i> Partes
+        <span class="badge" :class="tab==='partes' ? 'badge-info' : 'badge-gray'">{{ n_partes }}</span>
+      </button>
+    </div>
+
+    {# ===== TAB: Datos ===== #}
+    <div x-show="tab==='datos'" x-cloak role="tabpanel" id="panel-datos" aria-labelledby="tab-datos" class="p-6">
+      <dl class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+        <div>
+          <dt class="text-xs text-body-subtle">Dispositivo</dt>
+          <dd class="text-sm text-body mt-1"><a href="{{ url_volver }}" class="text-fg-brand hover:underline">{{ dispositivo.nombre }}</a></dd>
+        </div>
+        <div>
+          <dt class="text-xs text-body-subtle">Tipo de dispositivo</dt>
+          <dd class="text-sm text-body mt-1">{{ dispositivo.tipo.nombre }}</dd>
+        </div>
+        <div>
+          <dt class="text-xs text-body-subtle">Código de cama</dt>
+          <dd class="text-sm text-body mt-1">{{ cama.codigo }}</dd>
+        </div>
+        <div>
+          <dt class="text-xs text-body-subtle">Estado</dt>
+          <dd class="text-sm text-body mt-1">{% include "programas/dispositivos/_cama_estado_badge.html" %}</dd>
+        </div>
+        <div>
+          <dt class="text-xs text-body-subtle">Admisión alojada actualmente</dt>
+          <dd class="text-sm text-body mt-1">
+            {% if ocupante_actual %}
+            <a href="{% url 'legajos:ciudadano_detalle' ocupante_actual.ciudadano.pk %}" class="text-fg-brand hover:underline">{{ ocupante_actual.ciudadano.nombre_completo }}</a>
+            <span class="text-xs text-body-subtle block mt-px">Desde {{ ocupante_actual.fecha_ingreso|date:"d/m/Y" }}</span>
+            {% else %}
+            Libre
+            {% endif %}
+          </dd>
+        </div>
+        <div>
+          <dt class="text-xs text-body-subtle">Fecha de alta</dt>
+          <dd class="text-sm text-body mt-1">{{ cama.creado|date:"d/m/Y" }}</dd>
+        </div>
+      </dl>
+    </div>
+
+    {# ===== TAB: Movimientos ===== #}
+    <div x-show="tab==='movimientos'" x-cloak role="tabpanel" id="panel-movimientos" aria-labelledby="tab-movimientos">
+      <div class="overflow-x-auto">
+        <table class="w-full border-collapse">
+          <thead>
+            <tr class="nodo-thead-row">
+              <th class="nodo-th">Ciudadano</th>
+              <th class="nodo-th">Estado</th>
+              <th class="nodo-th">Ingreso</th>
+              <th class="nodo-th">Egreso</th>
+              <th class="nodo-th text-right w-28"><span class="sr-only">Acciones</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for movimiento in movimientos %}
+            <tr class="hover:bg-secondary transition">
+              <td class="nodo-td">
+                <div class="flex items-center gap-2.5">
+                  <div class="w-8 h-8 rounded-full bg-brand-soft text-fg-brand flex items-center justify-center text-xs font-bold flex-shrink-0" aria-hidden="true">{{ movimiento.ciudadano.nombre|slice:":1"|upper }}{{ movimiento.ciudadano.apellido|slice:":1"|upper }}</div>
+                  <span class="font-medium text-heading">{{ movimiento.ciudadano.apellido }}, {{ movimiento.ciudadano.nombre }}</span>
+                  {% if movimiento.es_reingreso %}<span class="badge badge-gray">Reingreso</span>{% endif %}
+                </div>
+              </td>
+              <td class="nodo-td"><span class="badge badge-gray">{{ movimiento.get_estado_display }}</span></td>
+              <td class="nodo-td">{{ movimiento.fecha_ingreso|date:"d/m/Y H:i" }}</td>
+              <td class="nodo-td">{{ movimiento.fecha_egreso|date:"d/m/Y H:i"|default:"—" }}</td>
+              <td class="nodo-td text-right whitespace-nowrap">
+                <a href="{% url 'legajos:ciudadano_detalle' movimiento.ciudadano.pk %}"
+                   class="nodo-icon-btn" aria-label="Ver legajo de {{ movimiento.ciudadano.nombre }} {{ movimiento.ciudadano.apellido }}">
+                  <i class="fas fa-eye" aria-hidden="true"></i>
+                </a>
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="5" class="p-0">
+                {% include "components/_estado_vacio.html" with icono="fa-right-left" titulo="Todavía no hay movimientos" texto="Los ingresos, egresos y traslados registrados en esta cama van a aparecer acá." %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% include "components/_paginacion.html" with page_obj=movimientos entidad="movimiento" %}
+    </div>
+
+    {# ===== TAB: Partes ===== #}
+    <div x-show="tab==='partes'" x-cloak role="tabpanel" id="panel-partes" aria-labelledby="tab-partes">
+      <p class="text-xs text-body-subtle px-5 pt-4">Los partes diarios se registran por dispositivo, no por cama: se muestran los últimos {{ partes|length }} de «{{ dispositivo.nombre }}».</p>
+      <div class="overflow-x-auto mt-2">
+        <table class="w-full border-collapse">
+          <thead>
+            <tr class="nodo-thead-row">
+              <th class="nodo-th">Fecha</th>
+              <th class="nodo-th">Turno</th>
+              <th class="nodo-th">Camas totales</th>
+              <th class="nodo-th">Ocupación nocturna</th>
+              <th class="nodo-th text-right w-28"><span class="sr-only">Acciones</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for parte in partes %}
+            <tr class="hover:bg-secondary transition">
+              <td class="nodo-td">{{ parte.fecha|date:"d/m/Y" }}</td>
+              <td class="nodo-td">{{ parte.get_turno_display }}</td>
+              <td class="nodo-td">{{ parte.camas_totales }}</td>
+              <td class="nodo-td">{{ parte.ocupacion_nocturna }}</td>
+              <td class="nodo-td text-right whitespace-nowrap">
+                <a href="{% url 'dispositivos:parte_detalle' parte.pk %}"
+                   class="nodo-icon-btn" aria-label="Ver parte del {{ parte.fecha|date:'d/m/Y' }} turno {{ parte.get_turno_display }}">
+                  <i class="fas fa-eye" aria-hidden="true"></i>
+                </a>
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="5" class="p-0">
+                {% include "components/_estado_vacio.html" with icono="fa-clipboard-list" titulo="No hay partes informados" texto="Los partes diarios F-01 del dispositivo van a aparecer acá." %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

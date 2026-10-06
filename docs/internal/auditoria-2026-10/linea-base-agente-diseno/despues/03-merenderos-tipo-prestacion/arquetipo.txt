@@ -1,0 +1,10 @@
+# Generado el 06-oct-2026 sobre docs/ola6-ejercicio-control, con .venv312.
+# NOTA: --arquetipo SI lee el archivo este donde este (no pasa por EXCLUDE_PARTS);
+#       se midio igual desde _ejercicio_control/ para que las rutas coincidan con el resto.
+#
+# COMANDO: .venv312/Scripts/python.exe scripts/design_audit.py --arquetipo formulario _ejercicio_control/03-merenderos-tipo-prestacion/tipo_prestacion_form.html
+# ARCHIVO MEDIDO: _ejercicio_control/03-merenderos-tipo-prestacion/tipo_prestacion_form.html  (= despues/03-merenderos-tipo-prestacion/tipo_prestacion_form.html)
+
+_ejercicio_control/03-merenderos-tipo-prestacion/tipo_prestacion_form.html: arquetipo «formulario» — OK
+
+# exit code: 0

@@ -1,5 +1,14 @@
 # Auditoría integral de DATAÑACH (Chaco) — octubre 2026
 
+## Estado al 06-oct-2026 (Ola 6 CERRADA: ejercicio de control «después» y registro)
+
+| PR | Cambio | Fichas | Estado | Qué quedó abierto |
+|---|---|---|---|---|
+| Ola 6 pasos 6 y 7 | 137 | — (ninguna nueva: las de la ola se cerraron en #574 y #577) | ✅ | **Las 3 pantallas del ejercicio cumplen al primer intento**: Plan de pantalla como artefacto antes del primer `Write`, la golden correcta en las tres, **0 P1**, `--arquetipo` OK, `--ratchet` 0 nuevos y `chaco-design-reviewer` —en tres sesiones independientes— aprobando las tres. Antes fallaban las tres. Evidencia y comparación en [`linea-base-agente-diseno/`](linea-base-agente-diseno/README.md), que ahora guarda las dos mitades (`antes/` y `despues/`). **No se activó ninguna regla de fase 2** y no hubo que corregir ninguna ficha. **Pendiente del PM, no del desarrollo:** el criterio (e) del paso 6 —captura lado a lado con la golden a 1440 y 390 px que el PM acepte como «mismo sistema»— no se tomó, porque necesita el harness Playwright (local, no commiteado) y al PM |
+
+**Las pantallas del ejercicio no son producto.** Viven en `linea-base-agente-diseno/despues/`, fuera de todo árbol de
+templates, sin vista, URL ni modelo escritos. `design_audit.py` excluye `docs/` entero, así que no suman deuda.
+
 ## Estado al 06-oct-2026 (Ola 1, PR 3: el masivo robusto)
 
 **Una corrida que trabaja ya no aparece muerta, y nadie se mete en el medio.** El PR 3 de la Ola 1
@@ -1187,10 +1196,10 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
   3. ✅ **Hecho el 06-oct-2026 (Cambio 136):** SIIS-03 (+A5-33) + BEC-11 + BEC-21 (masivo). Latido por caso,
      `LATIDO_VENCIDO` de 5 min, freno y cancelación por caso, la corrida sin señal se retira al crear la nueva,
      Frenar por programa y sin filtro de latido, candado de corrida viva en los cinco comandos
-     (`ComandoSiisBase.exigir_sin_corrida_viva` + `--ignorar-corrida`), incompatibles sin aprobar en lote
-     (migración `programas.0076_corridasiis_incompatibles`) y candidatos sin los no aprobables ni los pausados.
-     El punto 7 (CronJob) no se hace: default de D-S03. BEC-21 queda 🟡: el bloqueo por estado del programa en
-     SIIS espera a SIIS-06 (PR 4). 6 h.
+     (`ComandoSiisBase.exigir_sin_corrida_viva` + `--ignorar-corrida --motivo`), incompatibles sin aprobar en lote
+     y fuera de los candidatos (migración `programas.0076_corridasiis_incompatibles`) y candidatos sin los no
+     aprobables ni los pausados. El punto 7 (CronJob) no se hace: default de D-S03. BEC-21 queda 🟡: el bloqueo por
+     estado del programa en SIIS espera a SIIS-06 (PR 4). 6 h.
   4. SIIS-06, SIIS-11, SIIS-12, BEC-01, BEC-02 (independientes, S). 10 h.
   5. SIIS-09 (+PERF-09) **después** del PR 2. 4 h.
   6. SIIS-08 + G1-08 + G1-09 + G1-10 (qué viaja a SIIS). 20 h.
@@ -1314,12 +1323,15 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
 ### Ola 6 — Agente de diseño
 - **Objetivo:** que una pantalla nueva salga igual a su golden al primer intento, con la deuda vieja contenida por un
   ratchet. **Fecha límite: antes de la primera task de pantalla de la v2 de Dispositivos y Merenderos.**
-- **Avance:** **pasos 0, 1 y 2 cerrados** en #574 (Cambio 129, 05-oct-2026), **paso 3 cerrado** en #577 (Cambio 131,
-  05-oct-2026) y **pasos 4 y 5 cerrados** en el PR del Cambio 132 (05-oct-2026): **32 h de las 42**, quedan **10 h**
-  (pasos 6 y 7). Cierra FE-13, V5A-NEW-01, V5A-NEW-08 y la parte (a) de
-  V5A-NEW-07. La línea base «antes» del paso 6 vive en
-  [`linea-base-agente-diseno/`](linea-base-agente-diseno/README.md): las tres pantallas fallan hoy, ninguna usó la
-  golden de su arquetipo y la de detalle clonó la hermana del módulo con su deuda entera.
+- **Avance: ✅ CERRADA.** Pasos 0, 1 y 2 en #574 (Cambio 129, 05-oct-2026); paso 3 en #577 (Cambio 131, 05-oct-2026);
+  pasos 4 y 5 en #579 (Cambio 132, 05-oct-2026); **pasos 6 y 7 en el PR del Cambio 137 (06-oct-2026)**: **42 h de 42,
+  0 restantes**. Cierra FE-13, V5A-NEW-01, V5A-NEW-08 y la parte (a) de V5A-NEW-07.
+  [`linea-base-agente-diseno/`](linea-base-agente-diseno/README.md) guarda las dos mitades del ejercicio de control:
+  **antes** fallaban las tres pantallas —ninguna usó la golden de su arquetipo y la de detalle clonó la hermana del
+  módulo con su deuda entera—; **después** las tres cumplen al primer intento, con Plan de pantalla, la golden
+  correcta, 0 P1, marcadores OK, 0 nuevos en el ratchet y el revisor independiente aprobando. No se activó ninguna
+  regla de fase 2. **Único pendiente, del PM:** la captura lado a lado a 1440 y 390 px (criterio (e) del paso 6), que
+  necesita el harness Playwright local y al PM.
 - **Pasos (detalle en `anexo-agente-diseno.md` §9):** 0 línea base «antes» (2 h) → 1 decisiones D1-D5 (2 h) → 2
   herramientas: `--ratchet`, 7 reglas P1 + CLASSDEF, `--arquetipo`, `--goldens`, decodificador (FE-13), gate de build
   (V5A-NEW-01), `compile_templates` sin `site-packages` (V5A-NEW-08), `check_design_agent.py` (14 h) → 3 sanear goldens
@@ -1330,6 +1342,8 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
   filas** —el anexo decía 36 porque es lo que tenía la tabla en `917e583`, la base de la auditoría; desde entonces le
   agregaron una fila, y sobre ese commit el parser nuevo sigue dando exactamente 36 contra las 33 del viejo—;
   `--goldens` = 0; núcleo ≤ 30.000 bytes y sin historia; las 3 pantallas del ejercicio cumplen al primer intento.
+  **Todos verificados.** El último —las 3 pantallas al primer intento— con la salvedad de la captura del criterio (e),
+  que queda para el PM.
 - **Riesgo de deploy:** casi nulo en runtime (`.claude/` y los scripts de auditoría no viajan en el release); el paso 3
   toca templates de Becas (cambios visuales mínimos, capturas antes/después). Cambia el CI (`design-agent-contract.yml`).
 
