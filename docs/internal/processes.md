@@ -224,6 +224,12 @@ upstream al arrancar y, si no, aparecen 500 por *«Missing staticfiles manifest 
 - [ ] Tests pasando en CI
 - [ ] Migraciones revisadas (sin operaciones destructivas sin respaldo)
 - [ ] **Dump de la base** si el deploy trae migraciones (paso D.0 del runbook)
+- [ ] **Esquema del ambiente mirado** con `verificar_esquema_migraciones --solo-reporte`
+      (solo lee, termina siempre en 0). En icore:
+      `docker compose -f docker-compose.prod.yml exec -T web python manage.py verificar_esquema_migraciones --solo-reporte`.
+      Para ECOM —testing y PRD— el procedimiento está en el **paso 0** de
+      [`espejo-ecom.md`](espejo-ecom.md). Si dice «Migraciones registradas con otro
+      número» o «Tablas que ya existen», el deploy no sale hasta arreglarlo
 - [ ] Variables de entorno de producción actualizadas si hubo cambios
 - [ ] Anotado de qué release se viene: el **tag `release-AAAA.MM.DD-<short>`** de `main`
       que corresponde a lo que está corriendo hoy (`git describe --tags --abbrev=0
@@ -234,15 +240,33 @@ upstream al arrancar y, si no, aparecen 500 por *«Missing staticfiles manifest 
 
 El entrypoint corre `manage.py verificar_esquema_migraciones` antes del `migrate`
 (OPS-01). Si aborta, **no** se saltea con `SKIP_SCHEMA_GUARD=true` y **nunca** se usa
-`--fake`: el mensaje dice cuál de los tres casos es.
+`--fake`: el mensaje dice cuál de los dos casos es.
 
-- *Filas sin archivo*: el registro tiene migraciones que el código desplegado no tiene.
-  Pasa cuando una rama renumeró migraciones. Es el estado conocido de icore-srv, y su
-  reparación está escrita en [`core/sql/2026-10-06_renombrar_migraciones_icore.sql`](../../core/sql/2026-10-06_renombrar_migraciones_icore.sql).
-- *Tablas que ya existen*: viene de un restore encima de una base que tenía más tablas.
+**Frena** solo lo que de verdad rompe el `migrate`:
+
+- *Migraciones registradas con otro número*: la misma migración está en disco con otro
+  número y sin aplicar, así que el `migrate` la va a volver a correr sobre un esquema que
+  ya la tiene. Es el estado conocido de icore-srv, y su reparación está escrita en
+  [`core/sql/2026-10-06_renombrar_migraciones_icore.sql`](../../core/sql/2026-10-06_renombrar_migraciones_icore.sql).
+- *Tablas que ya existen*: una migración sin aplicar va a crear una tabla que está. Viene
+  de un restore encima de una base que tenía más tablas, o de la renumeración de arriba.
   Se borran esas tablas antes de desplegar (nunca `--fake`).
-- *Tablas huérfanas* (solo aviso): restos de una reversa que se cortó. No frena el
-  arranque; se limpian con el runbook en la mano.
+
+**Solo avisa**, porque no predice ninguna rotura y ninguna base se lo va a sacar de
+encima:
+
+- *Filas sin archivo que no frenan el deploy*: `silk.0001`-`0008` —`silk` entra a
+  `INSTALLED_APPS` solo con `DEBUG`, así que toda base migrada en desarrollo las tiene—,
+  las de `turnos` (app borrada), las de `tramites` (ya no tiene paquete de migraciones) y
+  `programas.0046_formulario_fecha_aprobacion_formulario_fecha_rechazo`, borrada el 18/08
+  con su número reusado. El `migrate` no tiene nada que correr por esas filas.
+- *Tablas que ningún modelo del estado final nombra*: `silk_*` tras sacar la app, restos
+  de un restore, o de una reversa cortada (RED-15). Se limpian con el runbook en la mano,
+  no en medio de un deploy.
+
+Y hay un **modo de inspección**, `--solo-reporte`, que imprime lo mismo y **termina
+siempre en 0**: es el que se corre contra un ambiente antes de desplegar o espejar (ver
+la checklist de arriba y el paso 0 de [`espejo-ecom.md`](espejo-ecom.md)).
 
 ## Cron del host (icore-srv)
 

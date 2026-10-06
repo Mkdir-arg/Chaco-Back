@@ -8,7 +8,10 @@ medias o con el `collectstatic` fallido, `/health/` devolvía 200 y el rollback 
 no se disparaba nunca.
 
 Esta vista es el otro lado: toca la base (y, en `prd`, el cache donde viven las sesiones)
-y devuelve **503** con el detalle de qué falló. **D-O04: no se usa como readinessProbe.**
+y devuelve **503** diciendo **qué** falló, nunca por qué: es pública y sin sesión, así que
+el cuerpo lleva el tipo de excepción y nada más. El mensaje entero —que en un
+`OperationalError` trae el host de la base y a veces el usuario— va al log.
+**D-O04: no se usa como readinessProbe.**
 Con una sola base para todos los pods, una base lenta los sacaría a todos a la vez; su
 lugar es el monitoreo externo y el deploy.
 """
@@ -42,8 +45,12 @@ def _resultado(nombre, prueba):
     try:
         prueba()
     except Exception as error:  # noqa: BLE001 — la sonda reporta cualquier fallo, no elige
+        # **Solo el tipo de excepción.** Esta vista es pública y sin sesión: el texto de
+        # un `OperationalError` de MySQL/MariaDB trae el host interno de la base y, en un
+        # 1045, el usuario con el que Django se conecta. El detalle completo va al log,
+        # que es donde lo necesita quien diagnostica y donde no lo ve un anónimo.
         logger.exception("health/ready: %s no responde", nombre)
-        return f"{type(error).__name__}: {error}"[:200]
+        return type(error).__name__
     return "ok"
 
 

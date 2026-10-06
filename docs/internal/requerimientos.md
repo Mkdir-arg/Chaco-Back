@@ -324,7 +324,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 150 | Legajos deja de romperse solo: subir archivos, reinscribir y la solapa que nunca funcionó | Legajos (detalle del ciudadano, adjuntos, derivaciones, dashboard de alertas) · Transversal (inscripciones a programas) | `#ui` `#datos` `#api` | Auditoría integral oct-2026 — fichas FE-02, LEG-02..05, FE-09 y FE-21 (Ola 5, PR 2) | 06/10/2026 | 🟢 **Hecho** | No requiere |
 | 151 | El catálogo vacío de SIIS deja de bloquear Becas, y cuatro reglas que se decidían con datos viejos | Becas · catálogo SIIS · alta de beneficiarios (payload) · cupo y lista de espera · proceso masivo | `#siis` `#cupos` `#datos` `#relevamientos` | Auditoría integral oct-2026 — SIIS-06, SIIS-11, SIIS-12, BEC-01, BEC-02 y el resto de BEC-21 (Ola 1 «Integridad SIIS», PR 4) | 06/10/2026 | 🟢 **Hecho** | No requiere |
 | 152 | Configuración: la fila 21 deja de ser inalcanzable, el wizard vuelve a filtrar subsecretarías y los errores no de campo se ven | Configuración (geografía, secretarías, wizard de programas) · Transversal (pieza de errores no de campo, gate de bloques sin destino) · Legajos y Dispositivos (un formulario cada uno) | `#ui` `#metodo` | Auditoría integral oct-2026 — fichas FE-04, FE-05 y FE-08 (Ola 5, PR 3) | 06/10/2026 | 🟢 **Hecho** | No requiere |
-| 153 | El deploy deja de ser a ciegas: traceback en stdout, un health que sabe, guarda de esquema y una release con nombre | Transversal (logging, sonda de salud, entrypoint, script de deploy, CI de GitHub Actions) | `#infra` `#datos` `#metodo` | Auditoría integral oct-2026 — fichas OPS-03, RED-55, OPS-04, RED-59, OPS-01 y RED-16 (Ola R, PR R-15) | 06/10/2026 | 🟢 **Hecho** (RED-16 parcial: el tag de imagen lo aplica ECOM) | **Sí:** correr `core/sql/2026-10-06_renombrar_migraciones_icore.sql` en icore antes del próximo deploy |
+| 153 | El deploy deja de ser a ciegas: traceback en stdout, un health que sabe, guarda de esquema y una release con nombre | Transversal (logging, sonda de salud, entrypoint, script de deploy, CI de GitHub Actions) | `#infra` `#datos` `#metodo` | Auditoría integral oct-2026 — fichas OPS-03, RED-55, OPS-04, RED-59, OPS-01 y RED-16 (Ola R, PR R-15) | 06/10/2026 | 🟢 **Hecho** (RED-16 parcial: el tag de imagen lo aplica ECOM) | **Sí:** correr `verificar_esquema_migraciones --solo-reporte` en cada ambiente antes de desplegar o espejar, y en icore además el renombre de `core/sql/2026-10-06_renombrar_migraciones_icore.sql` |
 
 **Notas del índice**
 
@@ -20154,6 +20154,17 @@ escritos como propuesta para que los mande el PM.
   esquema adelantado y las filas a medias (RED-14). Esa decisión necesita el dump de D.0 y una persona: el script sale
   con error nombrando el runbook en vez de improvisar. Si **no puede averiguarlo** —el contenedor no responde— avisa y
   sigue con el comportamiento de siempre: no se cambia un camino conocido por uno nuevo en el caso ambiguo.
+- **Las filas sin archivo avisan; frena solo la renumeración.** Es la corrección de la ronda 2 de revisión, y el
+  motivo es concreto: con la regla anterior, una base migrada con `DJANGO_DEBUG=True` y arrancada con `False` abortaba
+  por `silk.0001`-`0008` y **no volvía a arrancar nunca**. El objetivo de la guarda es frenar lo que de verdad rompe el
+  `migrate`, no todo lo que se le parece.
+- **Si `deploy_prod.sh` no puede leer el estado de las migraciones, el rollback automático no procede.** También de la
+  ronda 2. La versión anterior leía el `0` que imprime `grep -c … || true` cuando el `exec` falla —o sea, con `web` en
+  crash-loop, que es el escenario del rollback— y lo tomaba por «el deploy no migró nada». Ahora hace falta
+  `ROLLBACK_SIN_COMPARAR=1`, que es una persona afirmando que ya lo verificó.
+- **`/health/ready/` no dice por qué falló, solo qué falló.** Es pública y sin sesión: el mensaje de un
+  `OperationalError` trae el host interno de la base y, en un 1045, el usuario de Django. Afuera va el nombre de la
+  clase; el detalle, al log.
 - **Las tablas huérfanas avisan, no frenan.** Hay bases con tablas ajenas por motivos legítimos y la guarda corre en el
   arranque de producción: un falso positivo ahí es un ambiente que no levanta. Con `--estricto` sí frenan, y así la corre
   el paso 8/8 del roundtrip, donde la base es efímera.
@@ -20202,12 +20213,26 @@ que no existe —el login está en `/` y `/login/`, `users/urls.py:24-25`—, y 
 cantidad de `[X]` antes y después, que es lo que se puede medir desde el host.
 
 **OPS-01 — la guarda de esquema.** `manage.py verificar_esquema_migraciones`, de solo lectura, con tres chequeos:
-`applied - disk` (las filas sin archivo, que es el estado de icore), las `CreateModel` del plan pendiente cuya `db_table`
-ya existe (el `1050` del deploy, y también lo que deja un restore encima) y el inverso de RED-15. El estado final se
-calcula con la **unión** de los modelos vivos y los del `project_state()` de las migraciones: solo con los vivos, una
-tabla del grafo cuyo modelo ya no está en el código daría un falso positivo. Corre en `docker-entrypoint.sh` antes del
-`migrate` (salteable con `SKIP_SCHEMA_GUARD=true`) y como paso 8/8 de `scripts/roundtrip_migraciones.py` con
-`--estricto`, que es lo que el Anexo B pedía y el Cambio 139 dejó anotado.
+filas sin archivo, `CreateModel` sin aplicar cuya `db_table` ya existe (el `1050` del deploy, y también lo que deja un
+restore encima) y el inverso de RED-15. El estado final se calcula con la **unión** de los modelos vivos y los del
+`project_state()` de las migraciones: solo con los vivos, una tabla del grafo cuyo modelo ya no está en el código daría
+un falso positivo. Corre en `docker-entrypoint.sh` antes del `migrate` (salteable con `SKIP_SCHEMA_GUARD=true`) y como
+paso 8/8 de `scripts/roundtrip_migraciones.py` con `--estricto`, que es lo que el Anexo B pedía y el Cambio 139 dejó
+anotado.
+
+**De los tres, solo dos frenan, y esa fue la corrección más importante de la revisión.** Abortar por *cualquier* fila
+sin archivo deja ambientes que **no vuelven a arrancar nunca**: `silk.0001`-`0008` están en toda base migrada con
+`DJANGO_DEBUG=True` y arrancada con `False` —`silk` entra a `INSTALLED_APPS` solo con `DEBUG`—, `turnos` está borrada,
+`tramites` ya no tiene paquete de migraciones y `programas.0046_formulario_fecha_aprobacion_formulario_fecha_rechazo`
+se borró el 18/08/2026 con su número reusado. Ninguna de esas filas predice una rotura y ninguna base se las va a sacar
+de encima. Frena **solo la renumeración**: la misma migración en disco con **otro** número y **sin aplicar**, que es
+literalmente lo que `migrate` va a volver a correr sobre un esquema que ya la tiene. El resto sale por
+`logger.warning` + stderr con su motivo. El daño de icore lo cubren las dos barreras juntas —renumeración y colisión de
+tablas—, y las dos se midieron contra `mariadb:10.11` (sin tzinfo) y `mysql:8.0` efímeros.
+
+**Y hay un modo de inspección, `--solo-reporte`:** imprime los hallazgos y **termina siempre en 0**, así que se puede
+correr contra un ambiente ajeno —testing o PRD de ECOM— sin que el código de salida corte el script de quien lo mire.
+Es el **paso 0** nuevo de `espejo-ecom.md` y una línea nueva de la checklist pre-deploy de `processes.md`.
 
 **Dos cosas las encontró la propia guarda corriendo, y ninguna estaba en la ficha.** (1) `MigrationExecutor.migration_plan`
 devuelve una lista **vacía** cuando el nodo hoja ya figura aplicado, aunque en el medio del grafo haya migraciones sin
@@ -20241,17 +20266,31 @@ rojo («no logs of level ERROR»). `core.tests.test_logging_stdout`: 3 en rojo +
 
 ## Puesta en marcha en el servidor
 
+**El paso que vale para los tres ambientes, y es nuevo:** correr
+`manage.py verificar_esquema_migraciones --solo-reporte` **antes** de desplegar o espejar. Solo lee y termina siempre
+en 0, así que se puede correr contra una base que no es nuestra sin riesgo. Si dice «Migraciones registradas con otro
+número» o «Tablas que ya existen», el deploy no sale hasta arreglarlo; los avisos de filas inertes y de tablas
+huérfanas no frenan nada. El procedimiento por ambiente está en el paso 0 de `espejo-ecom.md` y en la checklist
+pre-deploy de `processes.md`.
+
 **icore-srv, antes del próximo deploy y en este orden:**
 
 1. Dump de la base (paso D.0 del runbook).
-2. Correr `core/sql/2026-10-06_renombrar_migraciones_icore.sql` **una sola vez**, con el `SELECT` de verificación previo. Sin esto,
-   el arranque se frena en la guarda nueva (que es el comportamiento correcto: antes moría más adelante y peor).
-3. Deploy normal. `LOG_TO_FILES=True` ya viene en `docker-compose.prod.yml`, así que los archivos de `logs/` siguen
+2. `docker compose -f docker-compose.prod.yml exec -T web python manage.py verificar_esquema_migraciones --solo-reporte`.
+   Se espera que reporte la renumeración del constructor: eso es lo que arregla el paso 3.
+3. Correr `core/sql/2026-10-06_renombrar_migraciones_icore.sql` **una sola vez**. El archivo **no trae `COMMIT`** a
+   propósito: se pega en una sesión interactiva, se mira el `SELECT` de verificación y recién entonces se escribe
+   `COMMIT;` a mano. Con `mariadb < archivo` no se aplica nada (la transacción se deshace al cerrar). Sin este paso, el
+   arranque se frena en la guarda nueva, que es el comportamiento correcto: antes moría más adelante y peor.
+4. Repetir el paso 2: tiene que decir «Esquema coherente».
+5. Deploy normal. `LOG_TO_FILES=True` ya viene en `docker-compose.prod.yml`, así que los archivos de `logs/` siguen
    apareciendo; lo nuevo es que el traceback también sale por `docker compose logs web`.
-4. Verificar: `curl -s localhost/health/ready/` devuelve `{"db": "ok", "cache": "ok"}`.
+6. Verificar: `curl -s localhost/health/ready/` devuelve `{"db": "ok", "cache": "ok"}`.
 
-**ECOM:** nada que aplicar de este cambio; las sondas siguen apuntando a `/health/` y responden igual. Hay **tres
-pedidos escritos** en `docs/internal/propuesta-ecom-verify.md` para que los mande el PM: §2 el tag de imagen por commit
+**ECOM:** nada que aplicar de este cambio —las sondas siguen apuntando a `/health/` y responden igual—, pero sí **un
+paso previo al espejo**: correr `verificar_esquema_migraciones --solo-reporte` en el pod de **testing** después del
+paso 1 y, para **PRD**, pedirle a su equipo esa salida junto con el dump (H-11) antes del paso 2. Y hay **tres pedidos
+escritos** en `docs/internal/propuesta-ecom-verify.md` para que los mande el PM: §2 el tag de imagen por commit
 (D-RED-02, lo que vuelve el rollback de PRD un `kubectl set image`), §4 el aviso del volumen nuevo en stdout y §5 que
 `/health/ready/` existe y no conviene usarla como liveness.
 
@@ -20260,6 +20299,9 @@ pedidos escritos** en `docs/internal/propuesta-ecom-verify.md` para que los mand
 - **El tag de imagen de ECOM (D-RED-02).** Sin eso, RED-16 queda a medias: el tag nuestro da el SHA para reconstruir, no
   la imagen para volver en segundos.
 - **El renombre en icore** lo corre una persona; mientras no se corra, el deploy se frena en la guarda.
+- **`ROLLBACK_SIN_COMPARAR=1`**: la única puerta que deja al rollback automático de `deploy_prod.sh` proceder cuando no
+  pudo leer el estado de las migraciones. Si alguna vez hace falta usarla, conviene anotar por qué: significa que el
+  contenedor no respondía y que una persona verificó a mano que el deploy no había migrado.
 - **OPS-13**: quedan `openai`, `django_extensions` en prod, `debugpy`, `structlog`, `gevent` y compañía, más
   `django-health-check`, que ahora no monta ninguna URL pero sigue instalado. Esa ficha quedó ampliada con lo que este
   PR midió: sacar una app con migraciones aplicadas exige borrar su tabla y sus filas de `django_migrations`.
@@ -20287,3 +20329,7 @@ pedidos escritos** en `docs/internal/propuesta-ecom-verify.md` para que los mand
   sin tracebacks no se diagnostica nada de lo que las otras olas van a tocar.
 - **06/10/2026** — el Cambio 139 (R-13) deja anotado que `verificar_esquema_migraciones` es de este PR.
 - **06/10/2026 (este cambio)** — las seis cerradas; RED-16 queda 🟡 por la mitad que es de ECOM.
+- **06/10/2026 (ronda 2 de revisión)** — la guarda abortaba por filas inertes (`silk`, `turnos`, `tramites`, la `0046`
+  borrada) y dejaba ambientes sin arrancar: pasa a frenar solo la renumeración, con `--solo-reporte` para inspeccionar
+  un ambiente ajeno. Además `/health/ready/` deja de filtrar el mensaje del motor y `deploy_prod.sh` deja de leer un
+  `exec` fallido como «cero migraciones».

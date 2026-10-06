@@ -31,6 +31,18 @@
 --
 -- NO es un sustituto de `--fake`, que está prohibido: acá no se marca nada como aplicado,
 -- se corrige el nombre con el que se registró lo que SÍ se aplicó.
+--
+-- CÓMO SE CORRE. **Pegado en una sesión interactiva**, no con `mariadb < archivo`:
+--
+--   docker compose -f docker-compose.prod.yml exec mysql \
+--     sh -c 'mariadb -uroot -p"$MYSQL_ROOT_PASSWORD" "$DATABASE_NAME"'
+--
+-- Se pegan las seis UPDATE, se mira el SELECT de verificación del final y **recién
+-- entonces se escribe `COMMIT;` a mano**. Por eso el archivo **no trae `COMMIT`**: con
+-- `mariadb < archivo` el cliente ejecuta todo de corrido, así que un COMMIT escrito acá
+-- confirmaría aunque el SELECT mostrara otra cosa —el «verificar y recién entonces
+-- confirmar» sería mentira—. Sin COMMIT, redirigir el archivo no aplica nada: la
+-- transacción se deshace al cerrar la conexión. Es el comportamiento buscado.
 
 START TRANSACTION;
 
@@ -52,11 +64,27 @@ UPDATE django_migrations SET name='0064_orden_validacion_sis'
 UPDATE django_migrations SET name='0065_padron_relevamiento_herencia'
  WHERE app='programas' AND name='0062_padron_relevamiento_herencia';
 
--- Verificar que hayan sido seis y recién entonces confirmar.
+-- Verificación antes de confirmar. Tienen que aparecer EXACTAMENTE estas seis:
+--   0060_catalogo_grupos_origen_canal        0063_sembrar_catalogo_protegido
+--   0061_diseno_formulario                   0064_orden_validacion_sis
+--   0062_formulario_respuestas_definicion    0065_padron_relevamiento_herencia
+-- y `renombradas` tiene que decir 6.
+SELECT COUNT(*) AS renombradas FROM django_migrations
+ WHERE app='programas' AND name IN (
+   '0060_catalogo_grupos_origen_canal', '0061_diseno_formulario',
+   '0062_formulario_respuestas_definicion', '0063_sembrar_catalogo_protegido',
+   '0064_orden_validacion_sis', '0065_padron_relevamiento_herencia');
+
 SELECT app, name, applied FROM django_migrations
  WHERE app='programas' AND name BETWEEN '0057' AND '0066' ORDER BY name;
 
-COMMIT;
+-- Si el resultado es el esperado, escribir a mano:
+--
+--   COMMIT;
+--
+-- Si no lo es:
+--
+--   ROLLBACK;
 
 -- DESPUÉS. `python manage.py verificar_esquema_migraciones` tiene que terminar en
 -- «Esquema coherente» y `showmigrations programas` mostrar 0060-0065 con [X] y las tres

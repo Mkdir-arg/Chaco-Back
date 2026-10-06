@@ -149,8 +149,11 @@ ALLOWLIST_PUBLICA = {
     "/portal/csrf/": "Semilla de CSRF del formulario público de inscripción (Cambio 52).",
     "/health/": "Sonda de salud del contenedor; la consulta el orquestador, sin sesión.",
     "/health/ready/": (
-        "Readiness (OPS-04): la consultan el deploy y el monitoreo, sin sesión. Devuelve "
-        "«ok» o el tipo de error de la base/cache, nunca credenciales ni datos."
+        "Readiness (OPS-04): la consultan el deploy y el monitoreo, sin sesión. El cuerpo "
+        "lleva «ok» o el **nombre de la clase** de la excepción (`OperationalError`) y "
+        "nada más: el mensaje del motor —que trae el host de la base y, en un 1045, el "
+        "usuario— queda solo en el log. Lo fija "
+        "`healthcheck.tests.test_ready.HealthReadyTests.test_el_cuerpo_no_filtra_el_mensaje_del_motor`."
     ),
     "/favicon.ico": "Redirección permanente al PNG estático.",
     "/api/becas/auth/token/": "Login de la app de campo: cambia usuario y clave por token (400 sin credenciales).",

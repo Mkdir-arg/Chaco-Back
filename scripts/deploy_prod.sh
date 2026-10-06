@@ -30,6 +30,9 @@ LOGIN_URL="${LOGIN_URL:-http://localhost/login/}"
 HEALTH_RETRIES="${HEALTH_RETRIES:-30}"
 HEALTH_DELAY_SECONDS="${HEALTH_DELAY_SECONDS:-5}"
 ROLLBACK_ON_FAIL="${ROLLBACK_ON_FAIL:-1}"
+# Solo para el caso en que no se pueda leer el estado de las migraciones y una persona
+# YA haya verificado que el deploy no migro nada. No es un atajo para apurar el rollback.
+ROLLBACK_SIN_COMPARAR="${ROLLBACK_SIN_COMPARAR:-0}"
 PULL_BEFORE_DEPLOY="${PULL_BEFORE_DEPLOY:-0}"
 APP_SERVICE="${APP_SERVICE:-web}"
 # Hoy el manifest tiene ~1.400 entradas. 50 es el piso que separa «collectstatic
@@ -130,8 +133,16 @@ post_deploy_checks() {
   manifest="$(en_la_app python -c \
     "import json;d=json.load(open('/app/staticfiles/staticfiles.json'));print(len(d.get('paths',d)))" \
     2>/dev/null || true)"
-  if [ -z "$manifest" ] || [ "$manifest" -lt "$MANIFEST_MINIMO" ] 2>/dev/null; then
-    err "staticfiles.json con ${manifest:-0} entradas (minimo $MANIFEST_MINIMO): cada {% static %} va a dar 500."
+  # El `2>/dev/null` de antes tapaba el error de `[ -lt ]` ante un valor no numerico
+  # --un traceback de Python, por ejemplo-- y la comparacion quedaba en falso: el
+  # chequeo pasaba justo cuando el manifest no se habia podido leer. Primero se valida
+  # que sea un numero.
+  if ! printf '%s' "$manifest" | grep -qE '^[0-9]+$'; then
+    err "No se pudo contar las entradas de staticfiles.json (salida: '${manifest:-vacia}')."
+    return 1
+  fi
+  if [ "$manifest" -lt "$MANIFEST_MINIMO" ]; then
+    err "staticfiles.json con $manifest entradas (minimo $MANIFEST_MINIMO): cada {% static %} va a dar 500."
     return 1
   fi
   log "Post-deploy: manifest OK ($manifest entradas)."
@@ -147,10 +158,19 @@ post_deploy_checks() {
   return 0
 }
 
-# Cuantas migraciones figuran aplicadas ahora mismo. Vacio = no se pudo averiguar
-# (el contenedor no esta levantado todavia, o ya no responde).
+# Cuantas migraciones figuran aplicadas ahora mismo. Imprime el numero y devuelve 0; si
+# NO se pudo averiguar devuelve 1 sin imprimir nada.
+#
+# La distincion importa y antes no existia: `exec ... | grep -c` con `|| true` imprime
+# «0» tanto cuando no hay ninguna aplicada como cuando el `exec` fallo --que es
+# justamente lo que pasa con `web` en crash-loop, el escenario del rollback--. Leido como
+# 0, el rollback procedia creyendo que el deploy no habia migrado nada.
 migraciones_aplicadas() {
-  en_la_app python manage.py showmigrations --plan 2>/dev/null | grep -c '^\[X\]' || true
+  local salida
+  if ! salida="$(en_la_app python manage.py showmigrations --plan 2>/dev/null)"; then
+    return 1
+  fi
+  printf '%s\n' "$salida" | grep -c '^\[X\]' || true
 }
 
 rollback() {
@@ -164,16 +184,30 @@ rollback() {
   # alcanzo a aplicar migraciones, el contenedor viejo arranca contra un esquema
   # adelantado: columnas NOT NULL que su codigo no escribe, filas a medias. Volver de
   # ahi necesita el dump de D.0 y una persona decidiendo que se pierde.
-  ahora="$(migraciones_aplicadas)"
-  if [ -n "$MIGRACIONES_ANTES" ] && [ -n "$ahora" ] && [ "$ahora" -gt "$MIGRACIONES_ANTES" ]; then
-    err "ABORTADO: el deploy aplico $((ahora - MIGRACIONES_ANTES)) migracion(es)."
-    err "Volver solo el codigo dejaria el esquema adelantado (RED-14)."
-    err "Seguir el runbook de rollback: docs/internal/processes.md, Anexo D (empieza por el dump)."
-    err "Commit anterior: $PREV_COMMIT"
-    return 1
+  if ! ahora="$(migraciones_aplicadas)"; then
+    ahora=""
   fi
-  if [ -z "$ahora" ] || [ -z "$MIGRACIONES_ANTES" ]; then
-    err "AVISO: no se pudo comparar el estado de las migraciones; revisar el runbook (processes.md, Anexo D)."
+
+  if [ -n "$MIGRACIONES_ANTES" ] && [ -n "$ahora" ]; then
+    if [ "$ahora" -gt "$MIGRACIONES_ANTES" ]; then
+      err "ABORTADO: el deploy aplico $((ahora - MIGRACIONES_ANTES)) migracion(es)."
+      err "Volver solo el codigo dejaria el esquema adelantado (RED-14)."
+      err "Seguir el runbook de rollback: docs/internal/processes.md, Anexo D (empieza por el dump)."
+      err "Commit anterior: $PREV_COMMIT"
+      return 1
+    fi
+  elif [ "$ROLLBACK_SIN_COMPARAR" != "1" ]; then
+    # No se pudo saber si el deploy migro. Pasa justo cuando `web` esta en crash-loop,
+    # que es el caso mas probable de rollback: si ademas habia migraciones, volver el
+    # codigo deja el esquema adelantado (RED-14). Entre «quiza rompo mas» y «que decida
+    # una persona», decide una persona.
+    err "ABORTADO: no se pudo leer el estado de las migraciones (antes='${MIGRACIONES_ANTES:-?}', ahora='${ahora:-?}')."
+    err "No se sabe si el deploy migro, asi que el rollback automatico no procede."
+    err "Seguir el runbook: docs/internal/processes.md, Anexo D. Volver a $PREV_COMMIT."
+    err "Si ya se verifico que NO hubo migraciones: volver a correr con ROLLBACK_SIN_COMPARAR=1."
+    return 1
+  else
+    err "AVISO: no se pudo comparar el estado de las migraciones, y ROLLBACK_SIN_COMPARAR=1 lo autoriza igual."
   fi
 
   err "Starting rollback to commit $PREV_COMMIT ..."
@@ -196,8 +230,14 @@ docker compose -f "$COMPOSE_FILE" config >/dev/null
 
 # Antes de tocar nada, con el contenedor viejo todavia arriba: es la unica foto
 # confiable de que migraciones estaban aplicadas antes de esta release (ver rollback()).
-MIGRACIONES_ANTES="$(migraciones_aplicadas)"
-log "Migraciones aplicadas antes del deploy: ${MIGRACIONES_ANTES:-desconocido}"
+# Si el `exec` falla queda vacio --y no «0»--, que es lo que hace que el rollback sepa
+# que no puede comparar.
+if MIGRACIONES_ANTES="$(migraciones_aplicadas)"; then
+  log "Migraciones aplicadas antes del deploy: $MIGRACIONES_ANTES"
+else
+  MIGRACIONES_ANTES=""
+  log "AVISO: no se pudo leer el estado de migraciones antes del deploy (el servicio $APP_SERVICE no responde)."
+fi
 
 log "Deploying services..."
 docker compose -f "$COMPOSE_FILE" up -d --build --force-recreate

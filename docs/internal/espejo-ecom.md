@@ -23,6 +23,40 @@ despliega `main` en producción de forma automática, sin pase ni aprobación**
 Los dos pasos son **dos sesiones distintas**, con una verificación humana en el medio.
 No se encadenan.
 
+## Paso 0 — Mirar el esquema del ambiente antes de espejar (OPS-01)
+
+**Vale para los dos pasos y se hace antes de cada uno.** Un release se espeja contra una
+base que ya existe y que puede no corresponderse con las migraciones que el release trae:
+un restore encima, una renumeración, una reversa que se cortó. Eso no se ve desde acá y
+el síntoma, cuando aparece, es el initContainer en CrashLoop con `1050 Table already
+exists` y el esquema a medias —en MySQL y MariaDB el DDL no es transaccional—.
+
+`manage.py verificar_esquema_migraciones --solo-reporte` **solo lee** (`SELECT` sobre
+`django_migrations` e `information_schema`) y **termina siempre en 0**, así que se puede
+correr contra un ambiente ajeno sin riesgo y sin cortar ningún script.
+
+- **Testing de ECOM:** desde el pod `web-*`, con el código del release ya desplegado —o
+  sea, después del paso 1 y antes del paso 2—:
+
+  ```bash
+  kubectl exec -it deploy/<web> -- python manage.py verificar_esquema_migraciones --solo-reporte
+  ```
+
+- **PRD de ECOM:** no tenemos acceso. Se le **pide a su equipo** que corra esa misma
+  línea y mande la salida, junto con el dump previo (H-11). Es parte del paso 2.
+- **icore-srv:** `docker compose -f docker-compose.prod.yml exec -T web python manage.py
+  verificar_esquema_migraciones --solo-reporte`, antes del deploy.
+
+Qué mirar en la salida:
+
+| Lo que dice | Qué significa |
+|---|---|
+| `Esquema coherente: …` | Se puede seguir |
+| `Migraciones registradas con otro número` | **Frena**: el `migrate` las va a volver a correr. Hay que renombrar esas filas antes (nunca `--fake`) |
+| `Tablas que ya existen` | **Frena**: el `migrate` va a morir con `1050`. Viene de un restore o de una renumeración |
+| `fila sin archivo que no frena el deploy` | Aviso. Son filas inertes (`silk`, `turnos`, `tramites`, migraciones borradas) que ninguna base se saca de encima |
+| `Tablas que existen y que ningún modelo … nombra` | Aviso. Restos de una app retirada o de una reversa cortada; no rompe el deploy |
+
 ## Paso 1 — `/pushGitLabecomTEST`
 
 Espeja el release a `ecom/test`, que despliega `https://datanach.ecomdev.ar/` (testing).
@@ -64,6 +98,10 @@ Recibe el **SHA verificado en testing** y, antes de tocar nada, comprueba:
    y que sea el del SHA, no el de otra corrida.
 3. **Que alguien haya verificado testing**, con qué se probó y cuándo. Si la respuesta es
    «no lo miró nadie», el procedimiento termina acá.
+3bis. **Que el esquema de PRD se haya mirado** (paso 0): la salida de
+   `verificar_esquema_migraciones --solo-reporte` que mandó ECOM, sin «Migraciones
+   registradas con otro número» ni «Tablas que ya existen». Si el release no trae
+   migraciones nuevas esto es informativo; si las trae, es condición.
 4. **Segunda confirmación escrita:** el operador tiene que escribir `PRODUCCION` —no
    «sí», no «dale»—. Recién con eso se pushea `main`.
 5. Después del push, verificar `git ls-remote ecom main` y avisar que ArgoCD despliega

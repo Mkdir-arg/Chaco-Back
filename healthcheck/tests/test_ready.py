@@ -88,6 +88,23 @@ class HealthReadyTests(TestCase):
         self.assertEqual(respuesta.status_code, 503)
         self.assertNotEqual(respuesta.json()["db"], "ok")
 
+    def test_el_cuerpo_no_filtra_el_mensaje_del_motor(self):
+        """La vista es pública y sin sesión: el texto de un `OperationalError` de
+        MySQL/MariaDB trae el host interno de la base y, en un 1045, el usuario con el
+        que Django se conecta. Afuera va el **tipo** de excepción y nada más.
+        """
+        secreto = "(1045, \"Access denied for user 'datanach'@'10.5.6.209'\")"
+        with patch.object(connection, "ensure_connection", side_effect=OperationalError(secreto)):
+            with self.assertLogs("healthcheck.views.ready", "ERROR") as registro:
+                respuesta = self.client.get(self.URL)
+
+        cuerpo = respuesta.content.decode()
+        self.assertEqual(respuesta.json()["db"], "OperationalError")
+        for filtrado in ("datanach", "10.5.6.209", "Access denied", "1045"):
+            with self.subTest(filtrado=filtrado):
+                self.assertNotIn(filtrado, cuerpo)
+        self.assertIn("10.5.6.209", "\n".join(registro.output), "el detalle sí tiene que quedar en el log")
+
     def test_responde_503_si_el_select_falla(self):
         """`ensure_connection` puede pasar con una conexión que ya no sirve."""
         with patch.object(connection, "cursor", side_effect=OperationalError("gone away")):

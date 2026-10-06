@@ -117,6 +117,48 @@ class DeployProdTests(SimpleTestCase):
     def test_el_rollback_sigue_siendo_desactivable(self):
         self.assertEqual(_valor_por_defecto(self.script, "ROLLBACK_ON_FAIL"), "1")
 
+    # --- RED-59: «no se pudo comparar» tiene que existir de verdad -------- #
+
+    def test_la_cuenta_de_migraciones_distingue_cero_de_no_pude_leer(self):
+        """`exec ... | grep -c` con `|| true` imprime «0» también cuando el exec falla.
+
+        O sea exactamente cuando `web` está en crash-loop, que es el escenario del
+        rollback: la rama «no se pudo comparar» era código muerto y un contenedor que no
+        responde se leía como «el deploy no migró nada» → el rollback procedía contra un
+        esquema adelantado (RED-14).
+        """
+        self.assertRegex(
+            self.ordenes,
+            r'if ! salida="\$\(en_la_app python manage\.py showmigrations',
+            "el exit del exec tiene que separarse de la cuenta",
+        )
+        self.assertRegex(self.ordenes, r"return 1", "sin lectura, la función tiene que fallar y no imprimir 0")
+
+    def test_sin_poder_comparar_el_rollback_no_procede(self):
+        self.assertIn("no se pudo leer el estado de las migraciones", self.ordenes)
+        self.assertIn("el rollback automatico no procede", self.ordenes)
+
+    def test_hay_una_puerta_explicita_para_el_caso_verificado_a_mano(self):
+        """Negarse siempre dejaría al operador sin salida; la salida es explícita."""
+        self.assertEqual(_valor_por_defecto(self.script, "ROLLBACK_SIN_COMPARAR"), "0")
+        self.assertIn("ROLLBACK_SIN_COMPARAR=1", self.ordenes)
+
+    def test_la_foto_previa_tambien_distingue_el_fallo(self):
+        """`MIGRACIONES_ANTES` vacío (no «0») es lo que después deja comparar o no."""
+        self.assertRegex(self.ordenes, r'if MIGRACIONES_ANTES="\$\(migraciones_aplicadas\)"; then')
+        self.assertIn('MIGRACIONES_ANTES=""', self.ordenes)
+
+    # --- RED-59: el manifest se valida como número ------------------------ #
+
+    def test_el_manifest_se_valida_como_numero_antes_de_compararlo(self):
+        """`[ "$x" -lt N ] 2>/dev/null` con un traceback adentro daba falso y **pasaba**.
+
+        Justo cuando el manifest no se pudo leer, que es cuando hay que frenar.
+        """
+        self.assertNotIn('[ "$manifest" -lt "$MANIFEST_MINIMO" ] 2>/dev/null', self.ordenes)
+        self.assertRegex(self.ordenes, r"grep -qE '\^\[0-9\]\+\$'")
+        self.assertIn("No se pudo contar las entradas de staticfiles.json", self.ordenes)
+
     # --- contrato del script ------------------------------------------------ #
 
     @unittest.skipUnless(_hay_bash(), "hace falta un bash que corra (en Windows, `bash.exe` suele ser el stub de WSL)")

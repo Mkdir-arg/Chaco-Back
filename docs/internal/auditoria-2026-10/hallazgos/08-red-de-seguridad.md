@@ -1574,8 +1574,7 @@ de `staticfiles.json` con más de `MANIFEST_MINIMO` (50) entradas —el archivo 
 `git switch --force-create "rollback/$TIMESTAMP"`. Y el cuarto, que es el que más importa: el script toma la cuenta de
 migraciones aplicadas **antes** de recrear los servicios, con el contenedor viejo todavía arriba, y si el deploy aplicó
 alguna **aborta el rollback automático** nombrando el runbook y el commit anterior, porque volver solo el código deja el
-esquema adelantado (RED-14). Si no puede averiguarlo —el contenedor no responde— avisa y sigue, que es el comportamiento
-que ya existía: no se cambia un camino conocido por uno nuevo en el caso ambiguo. **Dos desvíos code-first:** la ficha
+esquema adelantado (RED-14). Si **no puede averiguarlo** —el contenedor no responde, que es justo lo que pasa con `web` en crash-loop— el rollback automático **tampoco procede**: lo pidió la revisión del PR, y con razón, porque la versión anterior leía el `0` que imprime `grep -c … || true` cuando el `exec` falla y lo tomaba por «el deploy no migró nada». Ahora `migraciones_aplicadas()` separa el exit del `exec` de la cuenta, y el caso sin lectura exige `ROLLBACK_SIN_COMPARAR=1`, que es una persona diciendo que ya verificó que no hubo migraciones. **Dos desvíos code-first:** la ficha
 dice `GET /accounts/login/`, pero esa ruta no existe —el login del backoffice está en `/` y `/login/`
 (`users/urls.py:24-25`)—, y `showmigrations --plan` se compara por cantidad de `[X]` antes y después, que es lo que se
 puede medir desde el host sin parsear el plan entero. **Test permanente:** `core.tests.test_scripts_deploy.DeployProdTests`

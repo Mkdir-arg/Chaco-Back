@@ -8,6 +8,20 @@ migraciones y las tablas de verdad se separan:
    `a9fc4ee`, donde las migraciones del constructor se llamaban `0057`-`0062`, y
    `development` las renumeró a `0060`-`0065`. Para Django son migraciones distintas: las
    nuevas no están aplicadas, así que las va a correr, y las tablas ya están.
+
+   **Pero una fila sin archivo casi nunca es eso.** Una base cualquiera de este proyecto
+   tiene varias que son inertes y que no se van a limpiar nunca: `silk.0001`-`0008` si la
+   base se migró con `DJANGO_DEBUG=True` y se arranca con `False` (`silk` entra a
+   `INSTALLED_APPS` solo con `DEBUG`), las de `turnos` —app borrada—, las de `tramites`
+   —que ya no tiene paquete de migraciones— y
+   `programas.0046_formulario_fecha_aprobacion_formulario_fecha_rechazo`, borrada el
+   18/08 con su número reusado. Abortar por cualquiera de ellas es dejar un ambiente que
+   **no vuelve a arrancar nunca**, que es peor que el problema que la guarda busca.
+
+   Así que frena **solo** la renumeración: una fila cuyo nombre, sin el número, también
+   existe en disco con **otro** número y **sin aplicar**. Eso es exactamente «la misma
+   migración registrada con otro nombre», o sea la que `migrate` va a volver a correr.
+   El resto sale por aviso, con su motivo.
 2. **Tablas que una migración sin aplicar va a crear y ya existen.** El síntoma: `1050 Table already
    exists` en medio del deploy, con el esquema a medias porque en MySQL y MariaDB el DDL
    no es transaccional. El otro camino a lo mismo es restaurar un dump de producción
@@ -27,6 +41,7 @@ La salida **nunca** es «corré `--fake`». `--fake` deja la tabla sin las colum
 from __future__ import annotations
 
 import logging
+import re
 
 from django.apps import apps as apps_vivas
 from django.core.management.base import BaseCommand, CommandError
@@ -39,10 +54,15 @@ logger = logging.getLogger(__name__)
 # Tablas que no son de ningún modelo y tienen que estar igual.
 TABLAS_DEL_FRAMEWORK = {"django_migrations"}
 
-AYUDA_FANTASMAS = (
-    "Hay filas en django_migrations sin archivo en el código desplegado. Suele ser un "
-    "checkout en la rama equivocada o una renumeración de migraciones. Se arregla "
-    "renombrando esas filas (UPDATE django_migrations SET name=... — ver "
+# `0060_catalogo_grupos_origen_canal` → número y nombre. Lo que identifica a una
+# migración renumerada es la segunda mitad.
+NUMERADA = re.compile(r"^(\d+)_(.+)$")
+
+AYUDA_RENUMERADAS = (
+    "Hay migraciones registradas con un número y presentes en disco con otro, sin aplicar: "
+    "el migrate las va a volver a correr sobre un esquema que ya las tiene y va a morir a "
+    "mitad de camino. Suele ser un checkout en la rama equivocada. Se arregla renombrando "
+    "esas filas (UPDATE django_migrations SET name=... — ver "
     "core/sql/2026-10-06_renombrar_migraciones_icore.sql), NUNCA con --fake ni borrando filas a ciegas."
 )
 
@@ -79,8 +99,8 @@ def claves_conocidas(loader) -> set:
     return set(loader.disk_migrations) | reemplazadas
 
 
-def migraciones_pendientes(loader) -> list:
-    """Todas las migraciones del grafo que no figuran aplicadas, ordenadas.
+def claves_sin_aplicar(loader) -> list[tuple[str, str]]:
+    """Las claves del grafo que no figuran aplicadas, ordenadas.
 
     **No** se usa `MigrationExecutor.migration_plan`. Medido contra MariaDB 10.11: si
     el nodo hoja ya está aplicado, `migration_plan` entra en su rama de *backwards* y
@@ -89,7 +109,55 @@ def migraciones_pendientes(loader) -> list:
     simple: cualquier migración sin aplicar cuya `CreateModel` ya tenga su tabla es un
     problema, esté donde esté en el grafo.
     """
-    return [loader.graph.nodes[clave] for clave in sorted(loader.graph.nodes) if clave not in loader.applied_migrations]
+    return [clave for clave in sorted(loader.graph.nodes) if clave not in loader.applied_migrations]
+
+
+def migraciones_pendientes(loader) -> list:
+    """Las migraciones sin aplicar, en objetos."""
+    return [loader.graph.nodes[clave] for clave in claves_sin_aplicar(loader)]
+
+
+def _sufijo(nombre: str) -> str | None:
+    """`0060_catalogo_grupos_origen_canal` → `catalogo_grupos_origen_canal`."""
+    coincidencia = NUMERADA.match(nombre)
+    return coincidencia.group(2) if coincidencia else None
+
+
+def clasificar_filas_sin_archivo(fantasmas, loader) -> tuple[list, list]:
+    """Parte las filas sin archivo en las que frenan el deploy y las que solo se avisan.
+
+    Frena **una sola** situación: la fila registra una migración que en disco existe con
+    otro número y **sin aplicar**. Ahí `migrate` la va a volver a correr sobre un esquema
+    que ya la tiene. Es el estado de icore y es el único caso en que la fila, por sí
+    sola, predice una rotura.
+
+    Todo lo demás es ruido que ninguna base se va a sacar de encima: apps que este código
+    no tiene (`turnos` borrada, `silk` fuera de `INSTALLED_APPS` sin `DEBUG`, `tramites`
+    sin paquete de migraciones) y migraciones borradas sin reemplazo. Ahí `migrate` no
+    tiene nada que correr por esa fila, así que se avisa y se sigue: abortar dejaría el
+    ambiente sin arrancar **nunca más**, que es peor que el problema original.
+
+    Devuelve `(frenan, inertes)`: `frenan` como `((app, nombre), nombre_en_disco)`,
+    `inertes` como `((app, nombre), motivo)`.
+    """
+    sin_aplicar_por_sufijo: dict[tuple[str, str], list[str]] = {}
+    for app, nombre in claves_sin_aplicar(loader):
+        sufijo = _sufijo(nombre)
+        if sufijo:
+            sin_aplicar_por_sufijo.setdefault((app, sufijo), []).append(nombre)
+
+    frenan, inertes = [], []
+    for app, nombre in fantasmas:
+        if app not in loader.migrated_apps:
+            inertes.append(((app, nombre), "este código no tiene migraciones para esa app"))
+            continue
+        sufijo = _sufijo(nombre)
+        renumeradas = [n for n in sin_aplicar_por_sufijo.get((app, sufijo), []) if n != nombre] if sufijo else []
+        if renumeradas:
+            frenan.append(((app, nombre), renumeradas[0]))
+        else:
+            inertes.append(((app, nombre), "ninguna migración sin aplicar lleva ese mismo nombre"))
+    return frenan, inertes
 
 
 def _db_table(app_label: str, operacion) -> str:
@@ -146,6 +214,15 @@ class Command(BaseCommand):
             action="store_true",
             help="las tablas huérfanas también frenan (lo usa el job «Migrate ida y vuelta»)",
         )
+        parser.add_argument(
+            "--solo-reporte",
+            action="store_true",
+            help=(
+                "imprime todo lo que encuentra y termina en 0 aunque haya hallazgos. "
+                "Es el modo para mirar un ambiente ajeno —testing o PRD de ECOM— antes de "
+                "espejar o desplegar, sin que un código de salida distinto de 0 corte nada."
+            ),
+        )
 
     def handle(self, *args, **opciones):
         conexion = connections[opciones["database"]]
@@ -154,9 +231,20 @@ class Command(BaseCommand):
         problemas = []
 
         fantasmas = filas_sin_archivo(loader.applied_migrations, claves_conocidas(loader))
-        if fantasmas:
-            detalle = "\n".join(f"  - {app}.{nombre}" for app, nombre in fantasmas)
-            problemas.append(f"{AYUDA_FANTASMAS}\nFilas sin archivo:\n{detalle}")
+        renumeradas, inertes = clasificar_filas_sin_archivo(fantasmas, loader)
+        if renumeradas:
+            detalle = "\n".join(
+                f"  - {app}.{nombre} (en disco, sin aplicar: {app}.{en_disco})"
+                for (app, nombre), en_disco in renumeradas
+            )
+            problemas.append(f"{AYUDA_RENUMERADAS}\nMigraciones registradas con otro número:\n{detalle}")
+        for (app, nombre), motivo in inertes:
+            # Aviso y no error: son filas que ninguna base se va a sacar de encima y que
+            # no predicen ninguna rotura. Al log además del stderr, porque en el arranque
+            # del contenedor el stderr se pierde entre el resto del bootstrap.
+            aviso = f"fila sin archivo que no frena el deploy: {app}.{nombre} ({motivo})"
+            logger.warning(aviso)
+            self.stderr.write(self.style.WARNING(aviso))
 
         tablas = set(conexion.introspection.table_names())
 
@@ -169,20 +257,31 @@ class Command(BaseCommand):
         huerfanas = tablas_huerfanas(tablas, tablas_esperadas(loader))
         if huerfanas:
             aviso = (
-                "Tablas que existen y que ningún modelo del estado final nombra "
-                "(restos de un rollback cortado, RED-15): " + ", ".join(huerfanas)
+                "Tablas que existen y que ningún modelo del estado final nombra. Puede ser "
+                "una app que se retiró sin limpiar (p. ej. `silk_*`), un restore sobre una "
+                "base que tenía más tablas, o una reversa que se cortó a mitad de camino "
+                "(RED-15). No frena el deploy por sí sola: " + ", ".join(huerfanas)
             )
             if opciones["estricto"]:
                 problemas.append(aviso)
             else:
                 self.stderr.write(self.style.WARNING(aviso))
 
+        resumen = (
+            f"{len(loader.applied_migrations)} migraciones aplicadas, "
+            f"{len(pendientes)} sin aplicar, {len(tablas)} tablas, "
+            f"{len(inertes)} fila(s) sin archivo que no frenan."
+        )
+
+        if problemas and opciones["solo_reporte"]:
+            # Modo de inspección: el hallazgo se imprime entero, pero el comando termina
+            # en 0. Es lo que permite correrlo contra testing o PRD de ECOM —bases que no
+            # son nuestras— sin que el código de salida corte el script de quien lo mire.
+            self.stdout.write(self.style.ERROR("\n\n".join(problemas)))
+            self.stdout.write(self.style.WARNING(f"Solo-reporte: hallazgos arriba, sin cortar. {resumen}"))
+            return
+
         if problemas:
             raise CommandError("\n\n".join(problemas))
 
-        self.stdout.write(
-            self.style.SUCCESS(
-                f"Esquema coherente: {len(loader.applied_migrations)} migraciones aplicadas, "
-                f"{len(pendientes)} sin aplicar, {len(tablas)} tablas."
-            )
-        )
+        self.stdout.write(self.style.SUCCESS(f"Esquema coherente: {resumen}"))
