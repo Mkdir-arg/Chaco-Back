@@ -387,31 +387,21 @@ class DerivacionPrograma(TimeStamped):
         from django.db import transaction
         from django.utils import timezone
 
+        from ..services.inscripciones import activar_inscripcion
+
         with transaction.atomic():
             self.refresh_from_db()
             if self.estado != "PENDIENTE":
                 raise ValueError("Esta derivación ya fue procesada")
 
-            inscripcion_existente = InscripcionPrograma.objects.filter(
-                ciudadano=self.ciudadano,
-                programa=self.programa_destino,
-                estado__in=["ACTIVO", "EN_SEGUIMIENTO"],
-            ).first()
-
-            if inscripcion_existente:
-                self.estado = "ACEPTADA"
-                self.fecha_respuesta = timezone.now()
-                self.respondido_por = usuario
-                self.inscripcion_creada = inscripcion_existente
-                self.save()
-                return inscripcion_existente
-
-            inscripcion = InscripcionPrograma.objects.create(
-                ciudadano=self.ciudadano,
-                programa=self.programa_destino,
-                via_ingreso="DERIVACION_INTERNA" if self.programa_origen else "DERIVACION_EXTERNA",
-                estado="ACTIVO",
-                responsable=responsable or usuario,
+            # Una inscripción CERRADA, DADA DE BAJA o SUSPENDIDA ocupa la fila del
+            # `unique_together`: `create` reventaba contra el índice (LEG-02). La
+            # reactivación y el alta pasan por el mismo servicio.
+            inscripcion = activar_inscripcion(
+                self.ciudadano,
+                self.programa_destino,
+                via="DERIVACION_INTERNA" if self.programa_origen else "DERIVACION_EXTERNA",
+                usuario=responsable or usuario,
                 notas=(
                     f"Derivado desde: {self.programa_origen.nombre if self.programa_origen else 'Espontáneo'}"
                     f"\nMotivo: {self.motivo}"

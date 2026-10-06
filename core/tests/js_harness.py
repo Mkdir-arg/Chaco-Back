@@ -135,7 +135,9 @@ var document = __stub('document');
 document.getElementById = __el;
 var window = __stub('window');
 var history = __stub('history');
-var toastr = __stub('toastr');
+// `toastr` NO se stubea a propósito (FE-02): la biblioteca no está cargada en ninguna
+// página del backoffice, así que un script que la use tiene que reventar acá y no en
+// producción. El sistema de avisos es `window.toast`, que viene del shell.
 var Swal = __stub('Swal');
 var getComputedStyle = function () { return __stub('estilo'); };
 setTimeout = function (fn) { fn(); return 0; };
