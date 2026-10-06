@@ -1225,7 +1225,9 @@ class FiltroMateriasEnComandosTests(_BaseEnvioTest):
         self.enviar.assert_not_called()
 
     def test_procesar_con_el_flag_manda_igual(self):
-        call_command("procesar_casos_siis", "--si", "--aplicar", "--solo-enviar", "--sin-filtro-materias", stdout=StringIO())
+        call_command(
+            "procesar_casos_siis", "--si", "--aplicar", "--solo-enviar", "--sin-filtro-materias", stdout=StringIO()
+        )
         self.assertEqual(self.enviar.call_count, 1)
 
     def test_procesar_informa_que_el_filtro_esta_puesto(self):
