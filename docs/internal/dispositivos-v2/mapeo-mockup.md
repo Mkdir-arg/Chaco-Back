@@ -9,9 +9,11 @@ mockup** sin volver a leerlo entero: por cada pantalla queda el inventario visua
 qué pieza del sistema de diseño la cubre tal cual, qué pieza difiere y en qué, qué pieza
 hay que crear, qué dato del backend la alimenta y qué falta en el modelo.
 
-**Qué NO hace.** No resuelve los conflictos. Donde «tal cual el mockup» choca con el
-sistema de diseño productivo, con §7 de la auditoría o con una decisión registrada, el
-conflicto queda listado con sus opciones y marcado `DECISIÓN CLIENTE`.
+**Dónde «tal cual el mockup» choca** con el sistema de diseño productivo, con §7 de la
+auditoría o con una decisión registrada, el conflicto queda listado en §7 con sus opciones y
+su costo. **Los quince los decidió el PM el 06/10/2026** y cada uno lleva su línea
+`Decisión tomada` debajo de las opciones; el registro formal es el **Cambio 134** de
+[`requerimientos.md`](../requerimientos.md).
 
 **Método.** Todo lo que se afirma del mockup está citado por selector CSS o por número de
 línea del HTML. Todo lo que se afirma del backend está citado con `archivo:línea` del
@@ -441,6 +443,17 @@ feedback; eso **no está en la golden** (29 líneas, una sola columna). → vari
 código duplicado **nombra una institución fuera del alcance del usuario** («CIS N.º 3
 (CIS-003), Activo, misma área»), lo que filtra existencia y estado de un registro que el
 usuario no puede ver → C-8.
+
+**Textos que cambian por decisión del PM (06/10/2026, C-8 → B).** El HTML del mockup no se
+edita; se implementa con estos textos:
+
+| Dónde | Dice el mockup | Se implementa |
+|---|---|---|
+| `.e` bajo «Código institucional» | *«El código ya está en uso por una institución **fuera de tu alcance**. Pedí el traspaso al administrador central o usá otro código.»* | **«El código ya está en uso. Pedí el traspaso al administrador central.»** |
+| `.alert.w` del panel «Posibles duplicados» | *«**Nombre y localidad coinciden** con CIS N.º 3 (CIS-003), Activo, misma área…»* | Si la institución coincidente está **fuera del alcance**, no se la nombra: ni nombre, ni código, ni estado, ni área. Solo se avisa que hay una coincidencia y se ofrece el traspaso. Si está **dentro** del alcance, el texto del mockup se mantiene tal cual. |
+
+El badge «2» de posibles duplicados cuenta solo las coincidencias **visibles** para el
+usuario; las de fuera del alcance bloquean sin sumar al contador.
 
 **Esfuerzo.** **M**.
 
@@ -1077,6 +1090,12 @@ nueva o como evolución de la tabla existente.
 contenido** que la pantalla productiva ya tiene para 31 días × N servicios. Implementarlo
 «tal cual» es una regresión de usabilidad → C-11.
 
+**Decisión del PM (06/10/2026, C-11 → A): el aspecto del mockup sobre lo que ya funciona.**
+Se adoptan los días «no funciona» y los totales en `td.tot`, y se conservan el `thead`
+sticky, el scroll contenido con `h-[clamp(…)]`, el `nodo-field` numérico por celda y el
+`<output aria-live="polite">` de los totales. Nada de lo ganado en
+`merenderos/prestacion_mensual.html` se pierde.
+
 **Esfuerzo.** **M**.
 
 ---
@@ -1198,6 +1217,12 @@ variante de surface.
 **Conflictos.** Uno de encuadre: el mockup presenta las capacidades **agrupadas y con
 toggles**, mientras el ABM real las muestra como árbol del `CATALOGO`. No es un choque de
 reglas, pero sí un rediseño de una pantalla **transversal** que no es de Dispositivos → C-12.
+
+**Decisión del PM (06/10/2026, C-12 → A): esta pantalla no se construye en la v2.** Entran
+al `CATALOGO` de `core/rbac.py` las ~11 capacidades nuevas de Dispositivos y los niveles de
+sensibilidad, y el ABM de Roles sigue mostrándolas como lo hace hoy. El rediseño del ABM
+—grupos con switches y nivel de alcance por subsecretaría— es **proyecto aparte**, porque
+toca Becas, Legajos, Usuarios y Merenderos a la vez.
 
 **Esfuerzo.** **L** (toca `core/rbac.py`, que es la pieza única de autorización).
 
@@ -1374,6 +1399,18 @@ inline por tratarse de una demostración.
 
 **Conflictos.** C-10, C-13.
 
+**Textos que cambian por decisión del PM (06/10/2026, C-13 → A).** El HTML del mockup no se
+edita; se implementa con estos textos:
+
+| Dónde | Dice el mockup | Se implementa |
+|---|---|---|
+| Pie de la compuerta de confirmación | *«El aviso aparece **cada vez** que se abre la sección. Dentro, el contenido no se puede copiar ni exportar sin el nivel, y lleva una marca de agua con el usuario y la hora.»* | **«El aviso aparece cada vez que se abre la sección. Dentro, el contenido lleva una marca de agua con tu nombre y la hora, y la exportación queda bloqueada sin el nivel. Impedir una captura de pantalla no es técnicamente posible en ningún sistema web.»** |
+
+Las cuatro medidas que sí se implementan —compuerta de confirmación por apertura, registro
+de lectura, marca de agua visual y bloqueo de exportación **del lado del servidor**— son las
+que el Cambio 72 ya comunicó por escrito al Ministerio. El 🔒 de la sección bloqueada se
+reemplaza por un ícono Font Awesome con `aria-hidden="true"` (C-10 → A).
+
 **Esfuerzo.** **M** (la UI), **L** con el motor de sensibilidad y la auditoría de lectura.
 
 ---
@@ -1454,7 +1491,14 @@ Usuario: «Matías Fariña · Administrador superior».
 
 **Conflictos.** C-2, C-5, C-10, **C-14** (mapa).
 
-**Esfuerzo.** **L** (es la pantalla más cara: entidad nueva + 4 piezas nuevas + mapa).
+**Decisión del PM (06/10/2026, C-14 → B): sin mapa embebido.** El `.mapa` del mockup se
+implementa como coordenadas legibles + enlace «ver en el mapa» que abre fuera
+(`target="_blank" rel="noopener"`) + el plano del edificio como adjunto, que es lo que el
+Cambio 85 ya había previsto para el plano. No se vendoriza Leaflet ni se toca la CSP; el mapa
+interactivo queda como ampliación posterior si el Ministerio lo pide.
+
+**Esfuerzo.** **L** (es la pantalla más cara: entidad nueva + 3 piezas nuevas); el mapa deja
+de pesar: la ubicación sin mapa son ~2 h y se construye en la Ola 0.
 
 ---
 
@@ -1668,7 +1712,11 @@ tiene molde. → C-7.
 
 ## 5. Tabla resumen
 
-| # | Pantalla | Arquetipo | Piezas nuevas | Modelos / campos nuevos | Conflictos | Esf. |
+La columna **Conflictos** remite a §7, donde los quince están **decididos** (06/10/2026). Las
+pantallas marcadas *sin golden* ya no quedan frenadas sin salida: por C-7 van al final del
+plan, después de que se construyan las goldens que les faltan.
+
+| # | Pantalla | Arquetipo | Piezas nuevas | Modelos / campos nuevos | Conflictos (§7, decididos) | Esf. |
 |---|---|---|---|---|---|---|
 | P1 | Tablero de la red | **sin golden** (dashboard) | `.nf.pill` | agregación de red; **modelo de alerta operativa** | C-2 C-3 C-5 C-7 | L |
 | P2 | Instituciones (listado) | Listado | eyebrow en `page_header` | `Dispositivo`: categoría, área, nivel de confianza; estados INAUGURACION_PENDIENTE y SUSPENDIDO; paginación | — | M |
@@ -1688,13 +1736,16 @@ tiene molde. → C-7.
 | P16 | Solapa del Legajo Ciudadano | Detalle con solapas | — | solapa embebida y con historial completo | C-5 | S |
 | P17 | Formularios del tipo | Detalle con solapas | `.chips` (+ Sortable existente) | entidad `Formulario`/`Sección`; campos protegidos; baja lógica (DIS-10) | — | L |
 | P18 | Sección sensible | Detalle + confirmación | surface punteada «sin acceso» | 4 niveles de sensibilidad; **auditoría de lectura** | C-10 C-13 | M/L |
-| P19 | Solapa Infraestructura | Detalle con solapas | `.mapa`, `.svc`, `.fotos`, `.tl` | **`Edificio`/`Predio` N:M**; tenencia, servicios, estado físico, fotos; regla de vigencia | C-2 C-5 C-10 **C-14** | L |
+| P19 | Solapa Infraestructura | Detalle con solapas | `.svc`, `.fotos`, `.tl` + bloque de ubicación sin mapa (C-14 → B) | **`Edificio`/`Predio` N:M**; tenencia, servicios, estado físico, fotos; regla de vigencia | C-2 C-5 C-10 **C-14** | L |
 | P20 | Solapa Consumos y contratos | Detalle con solapas | `.nf.pill`, `.kebab`, `.tl` | `ItemConsumo` + `PagoConsumo`; regla de vencimiento; escalamiento | C-5 C-10 | M |
 | P21 | Relevamientos | Listado + Modal | `.kebab`, `.chips` deshabilitados | **modelo de relevamiento edilicio** (con otro nombre, Q4); territorial de Dispositivos | C-2 | L |
 | P22 | Dashboard configurable | **sin golden** (dashboard) | `.toggle`, `.chips`, `.kebab` | catálogo de widgets por rol; **recordatorios personalizados** | C-5 C-7 | L |
 
 **Reparto:** 2 S · 7 M · 2 M/L · 11 L. Cuatro pantallas (P1, P6, P7, P22) caen en arquetipos que
-el agente de diseño hoy manda **frenar y devolver**.
+el agente de diseño hoy manda **frenar y devolver**. Por la decisión de C-7 **van al final**:
+se arranca por las 18 que sí tienen golden mientras, en paralelo, se cierra la Ola 6 y se
+construyen las goldens de dashboard, wizard y caso complejo. Ninguna de las cuatro se
+implementa con una excepción escrita al freno.
 
 ---
 
@@ -1719,24 +1770,62 @@ Cada una exige su fila en
 | N-11 | Menú de fila (`.kebab`) | botón ⋮ de 28 px con menú; hoy las acciones de fila son `.nodo-icon-btn` sueltos | P4 P12 P20 P21 P22 |
 | N-12 | Tarjeta de servicio (`.svc`) | ícono en caja tonal + nombre + detalle + badge de disponibilidad | P19 |
 | N-13 | Galería fotográfica histórica (`.fotos`) | grilla `auto-fill minmax(88px,1fr)` de celdas 4:3, anidada en la línea de tiempo | P19 |
-| N-14 | Mapa geolocalizado (`.mapa`) | contenedor con relación de aspecto; en el mockup es un SVG dibujado | P19 (y P3 «Geolocalizado») |
+| N-14 | ~~Mapa geolocalizado (`.mapa`)~~ → **bloque de ubicación sin mapa** | coordenadas legibles + enlace «ver en el mapa» que abre fuera + plano adjunto | P19 (y P3 «Geolocalizado») |
 | N-15 | Grupo de capacidades (`.role`) | card con `<h5>` y lista de switches | P15 P22 |
 | N-16 | Grilla mensual (`.grilla`) | tabla día × servicio con totales, días inhabilitados y celda en edición | P13 |
 
-Además, **piezas existentes a ampliar**: `_alerta.html` (ícono + acción, C-5),
-`_stat_card.html` o `.stat-card` (C-2) y —si C-15 se resuelve por la opción B—
-`nodo-buttons.css` con una variante de botón sin ancho mínimo para headers densos y celdas
-de tabla.
+### Qué quedó aprobado el 06/10/2026
+
+Las decisiones de §7 **aprueban seis piezas de sistema** y las ponen primeras en el orden de
+§8. Son las que habilitan la v2: se construyen **antes** de la primera pantalla y cada una
+actualiza, en su propio diff, la fila del inventario o la ficha de `.claude/design/` que
+toca. Están creadas como tasks del análisis **M0** en GitHub.
+
+| Pieza | Decisión | Estado |
+|---|---|---|
+| Variante **«tablero»** de `_stat_card.html` (grande) + la chica para listados; se revisa CMP-23 | C-2 → C | **Aprobada** · ~1 día |
+| **Hero** de pantalla de inicio de programa (Inicio + tableros de programa, y nada más) | C-3 → C | **Aprobada** · ~½ día |
+| Ampliación de **`_alerta.html`** con `icono` y `accion_url`/`accion_texto` | C-5 → B | **Aprobada** · ~½ día |
+| **N-11 · menú de fila** accesible (`.kebab`) | C-9 → A | **Aprobada** · ~1 día |
+| Variante **`btn-fit`** sin ancho mínimo, para headers densos y celdas | C-15 → B | **Aprobada** · ~½ día |
+| **N-14 reconvertida**: ubicación sin mapa (coordenadas + link externo + plano adjunto) | C-14 → B | **Aprobada** · ~2 h — el mapa embebido con Leaflet queda **descartado** en la v2 |
+
+Las demás piezas de la tabla (N-1 a N-10, N-12, N-13, N-15, N-16) **no tienen decisión
+todavía**: se proponen como novedad al construir la primera pantalla que las usa, siguiendo
+el protocolo del agente canónico (si traen novedad, se frena y se devuelve al llamador).
+**N-15** además depende de C-12: como el ABM de Roles no se rediseña en la v2, su único
+consumidor vivo pasa a ser P22, que va al final del plan.
 
 ---
 
-## 7. Conflictos · `DECISIÓN CLIENTE`
+## 7. Conflictos · **los 15 decididos el 06-oct-2026**
 
-Quince. Ninguno se resuelve acá: cada uno trae sus opciones y su costo. Los seis primeros
-(C-1 a C-6) y C-15 son decisiones **de sistema**, no de pantalla: conviene cerrarlos antes de
-la primera.
+Quince. **Los quince quedaron decididos por el PM el 06/10/2026** y cada uno lleva su línea
+`Decisión tomada` debajo de sus opciones; el análisis original se conserva entero, porque es
+lo que explica el costo de la opción elegida. Los seis primeros (C-1 a C-6) y C-15 son
+decisiones **de sistema**, no de pantalla, y por eso encabezan el orden de implementación
+de §8. El registro formal es el **Cambio 134** de
+[`requerimientos.md`](../requerimientos.md).
 
-### C-1 · Tokens con nombre propio vs tokens semánticos `DECISIÓN CLIENTE`
+| Conflicto | Decisión | En una línea |
+|---|---|---|
+| C-1 Tokens | **A** | Traducir cada token del mockup a su semántico. |
+| C-2 Stat cards | **C** | Variante canónica «tablero» (grande) + la chica para listados; se revisa CMP-23. |
+| C-3 Hero | **C** | Pieza canónica solo para Inicio y tableros de programa. |
+| C-4 Íconos | **A** | Font Awesome en el contenido, como fija D3. |
+| C-5 Alertas | **B** | Ampliar `_alerta.html` con `icono` y `accion_url`/`accion_texto`. |
+| C-6 Confirmaciones | **A** | v2 con modal D2; legacy con SweetAlert2 hasta que se reemplacen. |
+| C-7 Pantallas sin golden | **C + A** | Arrancar por las 18 con golden; construir las goldens que faltan en paralelo. |
+| C-8 Duplicado fuera de alcance | **B** | Bloquear sin nombrar la institución ajena. |
+| C-9 Menú ⋮ | **A** | Crear la pieza «menú de fila» accesible (N-11). |
+| C-10 Emoji | **A** | Íconos del set con `aria-hidden`. |
+| C-11 Prestación mensual | **A** | Aspecto del mockup, conservando sticky, scroll, inputs y `aria-live`. |
+| C-12 ABM de Roles | **A** | Capacidades al `CATALOGO`; el rediseño del ABM es proyecto aparte. |
+| C-13 «No se puede copiar» | **A** | Las cuatro medidas reales y se corrige el texto del mockup. |
+| C-14 Mapa | **B** | Coordenadas + link externo + plano adjunto; sin librería de mapas. |
+| C-15 `min-width` | **B** | Variante `btn-fit` sin ancho mínimo para headers densos y celdas. |
+
+### C-1 · Tokens con nombre propio vs tokens semánticos `DECIDIDO 06/10/2026`
 
 **Choque.** El mockup declara `--brand`, `--g050`, `--succ`, `--dang`, `--warn`, `--navy`,
 `--gradient`. El sistema usa `--bg-*`, `--text-*`, `--border-*`, `--color-*`
@@ -1752,7 +1841,11 @@ Los **valores** coinciden (§0), los nombres no.
 *Recomendación del análisis: A. «Tal cual» es el resultado visual, no el nombre de la
 variable.*
 
-### C-2 · Stat cards: el mockup clona la métrica que el sistema está retirando `DECISIÓN CLIENTE`
+**Decisión tomada (06-oct-2026, PM):** A — cada token del mockup se traduce a su semántico
+(`--bg-*`, `--text-*`, `--border-*`, `--font-*`) al implementar; el píxel es el mismo y el
+dark mode se mantiene.
+
+### C-2 · Stat cards: el mockup clona la métrica que el sistema está retirando `DECIDIDO 06/10/2026`
 
 **Choque.** El `.stat` del mockup (L132-L141) es idéntico a `.stat-card` de
 [`inicio.html:84-137`](../../../templates/inicio.html): caja de ícono de **52 px**, valor
@@ -1773,7 +1866,11 @@ Aparece en P1, P4, P12, P19, P21.
 | **B.** Implementar tal cual el mockup | 5 pantallas nuevas nacen fuera del canon y con la deuda CMP-23; el ratchet de `design_audit` no lo frena (no es regla P1) pero el revisor sí |
 | **C.** Revisar CMP-23: que la franja «grande» sea una **variante** canónica del tablero y la chica quede para listados | ~1 día de trabajo de sistema + actualizar el inventario; deja las dos convivencias explicadas |
 
-### C-3 · Hero con gradiente en una pantalla operativa `DECISIÓN CLIENTE`
+**Decisión tomada (06-oct-2026, PM):** C — la franja grande pasa a ser una **variante
+canónica «tablero»** de `_stat_card.html` (la chica queda para listados) y CMP-23 se revisa
+en el mismo diff que la crea.
+
+### C-3 · Hero con gradiente en una pantalla operativa `DECIDIDO 06/10/2026`
 
 **Choque.** P1 abre con `.hero` (gradiente de marca, h1 de 30 px, botón blanco), copiado de
 `.ini-hero`. El agente de diseño dice, para backoffice: *«No crear landing pages para
@@ -1787,7 +1884,11 @@ layouts de marketing»*. El hero existe en producción, pero solo en **Inicio**.
 | **B.** Reemplazar el hero por `{% page_header %}` con la misma bajada | se pierde la franja que el cliente vio; sin costo de desarrollo |
 | **C.** Declarar el hero pieza canónica **de pantalla de inicio de programa** (Inicio + tableros de programa) y nada más | ~medio día; legitima lo que ya existe y acota el uso |
 
-### C-4 · Familia de íconos: Heroicons del mockup vs Font Awesome del canon `DECISIÓN CLIENTE`
+**Decisión tomada (06-oct-2026, PM):** C — el hero se declara pieza canónica **solo** para
+Inicio y tableros de programa; fuera de esas dos superficies la regla «sin hero en
+backoffice operativo» sigue intacta.
+
+### C-4 · Familia de íconos: Heroicons del mockup vs Font Awesome del canon `DECIDIDO 06/10/2026`
 
 **Choque.** El mockup usa **Heroicons outline inline** (`I = {home, grid, users, …}`,
 L1440-L1466). El sistema usa Font Awesome: la regla P1 `ICONARIA` de
@@ -1803,7 +1904,11 @@ shell **precarga `fa-solid-900.woff2`** y los componentes (`_stat_card`, `_estad
 | **B.** Usar Heroicons inline como el mockup | 22 pantallas con SVG inline; hay que extender `ICONARIA` para que los exija con `aria-hidden`; convive con FA en el mismo shell |
 | **C.** Introducir Heroicons como **set del programa** con un sprite y un tag | ~2 días de sistema; el resultado es el del mockup y queda auditable |
 
-### C-5 · Alertas inline: el mockup lleva ícono y acción; la pieza no `DECISIÓN CLIENTE`
+**Decisión tomada (06-oct-2026, PM):** A — cada ícono del mockup se traduce a su equivalente
+Font Awesome en el contenido, que es exactamente lo que fija D3 (Cambios 129 y 132);
+Heroicons queda solo en el shell.
+
+### C-5 · Alertas inline: el mockup lleva ícono y acción; la pieza no `DECIDIDO 06/10/2026`
 
 **Choque.** `.alert` del mockup (L147-L153): radio 12, padding `12px 16px`, **ícono de
 18 px** a la izquierda y un **link de acción subrayado a la derecha** («Resolver», «Ver
@@ -1817,7 +1922,11 @@ informativa). Aparece en **15 de 22** pantallas (todas menos P2, P5, P10, P13, P
 | **B.** **Ampliar `_alerta.html`** con `icono` y `accion_url`/`accion_texto` opcionales | ~medio día; es una pieza canónica → el mismo diff actualiza el inventario; **es la opción que más barato cierra el mockup** |
 | **C.** Pieza nueva paralela | duplica contrato; el agente lo clasifica «Duplicado o conflictivo» |
 
-### C-6 · Confirmaciones: SweetAlert2 (Cambio 48) vs modal con motivo (D2) `DECISIÓN CLIENTE`
+**Decisión tomada (06-oct-2026, PM):** B — se amplía `components/_alerta.html` con `icono` y
+`accion_url`/`accion_texto` opcionales, sin romper los consumidores actuales (los tres
+parámetros son opcionales y el render sin ellos no cambia).
+
+### C-6 · Confirmaciones: SweetAlert2 (Cambio 48) vs modal con motivo (D2) `DECIDIDO 06/10/2026`
 
 **Choque.** Dispositivos y Merenderos hoy confirman con **SweetAlert2**
 (`legajo/detail.html:138-172`, `merenderos/detail.html:63-82`), y eso **es una decisión
@@ -1835,7 +1944,11 @@ motivo» del anexo §3 (decisión **D2**) — el cual aclara que las **legacy** 
 *Nota: el Cambio 48 no fijó el mecanismo para pantallas **nuevas**, solo defendió lo
 existente. Técnicamente A no lo contradice.*
 
-### C-7 · Cuatro pantallas sin golden: el agente manda frenar `DECISIÓN CLIENTE`
+**Decisión tomada (06-oct-2026, PM):** A — las pantallas de la v2 confirman con el modal del
+arquetipo D2; las legacy siguen con SweetAlert2 hasta que la v2 las reemplace, sin frente de
+migración propio.
+
+### C-7 · Cuatro pantallas sin golden: el agente manda frenar `DECIDIDO 06/10/2026`
 
 **Choque.** El núcleo del agente es taxativo: *«Pendiente · wizard, revisión compleja y
 dashboard … **No hay golden: frenar y devolver al llamador**»*
@@ -1851,7 +1964,12 @@ con el Cambio 132 (PR #579) la Ola 6 va por el **paso 5 de 7**.
 | **B.** Implementar las 4 con permiso explícito de saltar el freno, documentando la excepción | riesgo de que cada una invente su molde (es exactamente lo que midió la línea base de la Ola 6) |
 | **C.** Empezar por las 18 que sí tienen golden (P2, P3, P4, P5, P8…) mientras se cierra la Ola 6 | **sin costo**: reordena, no recorta |
 
-### C-8 · El error de duplicado filtra datos fuera del alcance `DECISIÓN CLIENTE`
+**Decisión tomada (06-oct-2026, PM):** C + A en paralelo — se arranca por las 18 pantallas
+con golden mientras se cierra la Ola 6 y se construyen las goldens de dashboard, wizard y
+caso complejo; P1, P6, P7 y P22 van al final, ya con molde. Queda descartada la opción B: no
+hay excepción para saltar el freno del agente.
+
+### C-8 · El error de duplicado filtra datos fuera del alcance `DECIDIDO 06/10/2026`
 
 **Choque.** P3 muestra: *«El código ya está en uso por una institución **fuera de tu
 alcance**»* y el panel lateral nombra la institución, su código, su estado y su área. F2 lo
@@ -1866,7 +1984,12 @@ que el propio mockup enuncia en P15.
 | **B.** Bloquear sin nombrar: *«El código ya está en uso. Pedí el traspaso al administrador central.»* | pierde el atajo operativo que el mockup buscaba; sin costo |
 | **C.** Nombrar solo con una capacidad nueva («ver duplicados fuera del alcance») | ~medio día |
 
-### C-9 · El menú ⋮ de fila no existe como pieza `DECISIÓN CLIENTE`
+**Decisión tomada (06-oct-2026, PM):** B — bloquear sin nombrar. **Texto que reemplaza al del
+mockup en P3:** *«El código ya está en uso. Pedí el traspaso al administrador central.»* El
+panel lateral de «Posibles duplicados» no muestra nombre, código, estado ni área de
+instituciones fuera del alcance del usuario.
+
+### C-9 · El menú ⋮ de fila no existe como pieza `DECIDIDO 06/10/2026`
 
 **Choque.** `.kebab` aparece en P4, P12, P20, P21 y P22 con acciones **deshabilitadas con
 motivo**. El canon de tabla densa pide acciones como `.nodo-icon-btn` con `aria-label` *«con
@@ -1878,7 +2001,11 @@ el registro»*, no un menú. Un menú desplegable necesita foco atrapado, Escape
 | **A.** Crear la pieza «menú de fila» accesible (N-11) | ~1 día; la reusan 5 pantallas |
 | **B.** Acciones visibles en la fila como hoy | filas muy anchas: P4 tiene 4 acciones por fila |
 
-### C-10 · Emoji en lugar de íconos `DECISIÓN CLIENTE`
+**Decisión tomada (06-oct-2026, PM):** A — se crea la pieza «menú de fila» accesible (N-11),
+con foco atrapado, cierre con Escape, `aria-expanded`/`aria-controls` y acciones
+deshabilitadas con motivo legible.
+
+### C-10 · Emoji en lugar de íconos `DECIDIDO 06/10/2026`
 
 **Choque.** El mockup usa 🔒 (P7 L889-890, P18 L1185), 📎 (P7 L904, P10 L974, P12 L1026,
 P19 L1251, P20 L1307) y 📝 (P13 L1044) como íconos. Los emoji no tienen color controlable,
@@ -1889,7 +2016,10 @@ varían por sistema operativo y los lectores de pantalla los leen con su nombre 
 | **A.** Reemplazar por íconos del set con `aria-hidden` | nulo; cambio visual mínimo |
 | **B.** Tal cual | inconsistencia tipográfica y de accesibilidad |
 
-### C-11 · P13 pierde el `thead` sticky que la pantalla productiva ya tiene `DECISIÓN CLIENTE`
+**Decisión tomada (06-oct-2026, PM):** A — 🔒, 📎 y 📝 se reemplazan por íconos del set
+(Font Awesome, por C-4) con `aria-hidden="true"`; ningún emoji queda como ícono en la v2.
+
+### C-11 · P13 pierde el `thead` sticky que la pantalla productiva ya tiene `DECIDIDO 06/10/2026`
 
 **Choque.** [`merenderos/prestacion_mensual.html:34-60`](../../../programas/templates/programas/merenderos/prestacion_mensual.html)
 tiene encabezado pegajoso, scroll contenido con `h-[clamp(…)]`, un `nodo-field` numérico por
@@ -1901,7 +2031,11 @@ plano, sin sticky ni scroll. Implementar «tal cual» es una **regresión**.
 | **A.** Conservar sticky, scroll, inputs y `aria-live`, adoptando del mockup solo el aspecto (días «no funciona», totales en `td.tot`) | sin costo; mantiene lo ganado |
 | **B.** Tal cual el mockup | regresión de usabilidad en una grilla de 31 días |
 
-### C-12 · P15 rediseña una pantalla transversal `DECISIÓN CLIENTE`
+**Decisión tomada (06-oct-2026, PM):** A — se adopta el **aspecto** del mockup (días «no
+funciona», totales en `td.tot`) conservando lo que la pantalla productiva ya tiene: `thead`
+sticky, scroll contenido, `nodo-field` numérico por celda y `<output aria-live="polite">`.
+
+### C-12 · P15 rediseña una pantalla transversal `DECIDIDO 06/10/2026`
 
 **Choque.** El ABM de Roles es **transversal** (`users`), no de Dispositivos, y
 [`core/rbac.py`](../../../core/rbac.py) es *«la pieza única de autorización del backoffice»*.
@@ -1914,7 +2048,13 @@ P15 le cambia la presentación (grupos con switches) y le suma un nivel de alcan
 | **B.** Rediseñar el ABM como el mockup | toca Becas, Legajos, Usuarios y Merenderos a la vez; hay que verificar consumidores en todos los programas |
 | **C.** Pantalla de rol **específica de Dispositivos**, conviviendo con el ABM general | duplica la autorización en dos lugares — contraindicado por CLAUDE.md |
 
-### C-13 · «No se puede copiar ni exportar» ya fue respondido al cliente `DECISIÓN CLIENTE`
+**Decisión tomada (06-oct-2026, PM):** A — las capacidades de Dispositivos se agregan al
+`CATALOGO` de `core/rbac.py` **sin tocar la pantalla** del ABM de Roles. El rediseño del ABM
+(grupos con switches, nivel de alcance por subsecretaría) sale del alcance de la v2 y va como
+**proyecto aparte**, porque es transversal a Becas, Legajos, Usuarios y Merenderos. P15 queda
+sin cumplir visualmente en esta versión.
+
+### C-13 · «No se puede copiar ni exportar» ya fue respondido al cliente `DECIDIDO 06/10/2026`
 
 **Choque.** P18 promete: *«Dentro, el contenido no se puede copiar ni exportar sin el nivel,
 y lleva una marca de agua con el usuario y la hora.»* El **Cambio 72** registra lo contrario,
@@ -1927,7 +2067,15 @@ ningún sistema web, y enumera las cinco medidas que sí se implementan en su lu
 | **A.** Implementar solo lo que sí se puede (compuerta de confirmación, auditoría de lectura, marca de agua visual, bloqueo de exportación del servidor) y **ajustar el texto del mockup** | sin costo; es coherente con lo ya comunicado |
 | **B.** Intentar bloquear la copia en el navegador | falsa promesa; se vulnera con la consola |
 
-### C-14 · El mapa de P19 no tiene librería y la CSP bloquea los CDN `DECISIÓN CLIENTE`
+**Decisión tomada (06-oct-2026, PM):** A — se implementan las cuatro medidas reales
+(compuerta de confirmación antes de abrir, auditoría de lectura, marca de agua visual con
+usuario y hora, y bloqueo de exportación **en el servidor**) y se corrige el texto del
+mockup. **Texto que reemplaza al de P18:** *«Dentro, el contenido lleva una marca de agua con
+tu nombre y la hora, y la exportación queda bloqueada sin el nivel. Impedir una captura de
+pantalla no es técnicamente posible en ningún sistema web.»* Es lo mismo que el Cambio 72 ya
+comunicó por escrito al Ministerio.
+
+### C-14 · El mapa de P19 no tiene librería y la CSP bloquea los CDN `DECIDIDO 06/10/2026`
 
 **Choque.** P19 pide ubicación geolocalizada con mapa («se usa en presentaciones ante
 programas nacionales»). El mockup dibuja un **SVG a mano**. En el repo **no hay librería de
@@ -1940,7 +2088,12 @@ eso SortableJS está vendorizado, *«sin CDN por la CSP»*).
 | **B.** Sin mapa: coordenadas, un enlace «ver en el mapa» que abre fuera y el plano como adjunto | ~2 horas; cumple el uso declarado (presentaciones) con el PDF del plano |
 | **C.** Imagen estática del mapa generada al guardar el punto | ~1 día + dependencia de un servicio externo con clave |
 
-### C-15 · Los botones del mockup no tienen el `min-width` del sistema `DECISIÓN CLIENTE`
+**Decisión tomada (06-oct-2026, PM):** B — sin librería de mapas: coordenadas visibles, un
+enlace «ver en el mapa» que abre fuera (`target="_blank" rel="noopener"`) y el plano del
+edificio como adjunto. No se toca la CSP. Leaflet queda como ampliación posterior, solo si el
+Ministerio lo pide.
+
+### C-15 · Los botones del mockup no tienen el `min-width` del sistema `DECIDIDO 06/10/2026`
 
 **Choque.** El `.btn` del mockup (L109) es `height:40px;padding:0 16px` y **sin ancho mínimo**:
 cada botón mide lo que mide su texto. Los botones reales llevan `min-width` por tamaño —
@@ -1963,62 +2116,96 @@ no copió esa declaración.
 *Conviene decidirlo antes de la primera pantalla: con A, el resultado no se va a parecer al
 link que el cliente aprobó, y la diferencia no se arregla pantalla por pantalla.*
 
+**Decisión tomada (06-oct-2026, PM):** B — se agrega a `nodo-buttons.css` una variante
+`btn-fit` **sin ancho mínimo**, de uso acotado a headers densos y celdas de tabla. El
+`min-width` del sistema no se toca: sigue vigente para Becas, Legajos, Usuarios y Portal.
+
 ---
 
-## 8. Orden sugerido de implementación
+## 8. Orden de implementación · **fijado el 06-oct-2026**
 
-Ordenado por **dependencias de datos y de piezas**, no por valor para el cliente.
+Ordenado por **dependencias de datos y de piezas**, no por valor para el cliente. Con los 15
+conflictos decididos, el orden queda en tres tramos: **primero las tareas de sistema**,
+después **las 18 pantallas que tienen golden**, y **al final P1, P6, P7 y P22** —las cuatro
+sin golden— ya con su molde construido (C-7 → C + A en paralelo).
 
-**Ola 0 — precondiciones (bloquean la primera pantalla).**
-1. Cerrar la **Ola 6**: con el Cambio 132 ya están el núcleo, las fichas de arquetipo y
-   componentes y los consumidores; faltan los **pasos 6 y 7** (ejercicio de control y registro
-   final). Es precondición explícita de §7.
-2. Resolver **C-1, C-2, C-3, C-4, C-5, C-6** (decisiones de sistema) y crear
-   **N-1** (eyebrow) y la ampliación de `_alerta.html`: las usan 19 y 15 de las 22 pantallas.
-3. Decidir **C-7**: goldens de wizard, caso complejo y dashboard, o la excepción escrita.
+**Ola 0 — tareas de sistema (bloquean la primera pantalla).** Es el análisis **M0** en
+GitHub. C-1, C-4, C-6, C-10, C-11, C-12 y C-13 no generan tarea propia: son reglas que cada
+pantalla aplica al implementarse.
 
-**Ola 1 — el legajo institucional (sin dependencias nuevas).**
-4. **P2** Instituciones — arquetipo listado, golden lista, paginación (PERF-17).
-5. **P3** Alta con anti-duplicado — el servicio de duplicados ya existe.
-6. **P14** Configuración del tipo — habilita casi todo lo demás (reglas, umbrales,
-   catálogos, secciones mínimas).
-7. **P17** Formularios del tipo — depende de P14 (entidad Sección) y de la baja lógica
-   (DIS-10 / task #313).
+1. Cerrar la **Ola 6** del agente de diseño: con el Cambio 132 ya están el núcleo, las fichas
+   de arquetipo y componentes y los consumidores; faltan los **pasos 6 y 7** (ejercicio de
+   control y registro final). Es precondición explícita de §7 de la auditoría.
+2. **Variante «tablero» de stat card** (C-2 → C), con la revisión de CMP-23 en el mismo diff
+   — la usan P1, P4, P12, P19 y P21. *~1 día.*
+3. **Ampliación de `_alerta.html`** con `icono` y `accion_url`/`accion_texto` (C-5 → B) — la
+   usan **15 de 22** pantallas. *~½ día.*
+4. **Variante `btn-fit`** sin ancho mínimo (C-15 → B) — sin ella ninguna barra de acciones
+   se parece al mockup, y la diferencia no se arregla pantalla por pantalla. *~½ día.*
+5. **Menú de fila accesible** N-11 (C-9 → A) — lo reusan P4, P12, P20, P21 y P22. *~1 día.*
+6. **Hero de inicio de programa** (C-3 → C), acotado a Inicio y tableros de programa. *~½ día.*
+7. **Bloque de ubicación sin mapa** (C-14 → B): coordenadas, enlace externo y plano adjunto.
+   *~2 h.*
+8. **N-1 (eyebrow) en `{% page_header %}`**: lo usan **19 de 22** pantallas. Sin decisión de
+   §7 — se propone como novedad al abrir la primera pantalla que lo necesita (P2).
+9. **Goldens que faltan** —dashboard, wizard y caso complejo— en paralelo con las Olas 1 a 5.
+   No bloquean las 18 pantallas con golden; sí bloquean el tramo final.
+
+**Ola 1 — el legajo institucional (sin dependencias nuevas).** Las 18 pantallas con golden
+empiezan acá.
+10. **P2** Instituciones — arquetipo listado, golden lista, paginación (PERF-17).
+11. **P3** Alta con anti-duplicado — el servicio de duplicados ya existe; el mensaje va con
+    el texto de C-8 (bloquea sin nombrar).
+12. **P14** Configuración del tipo — habilita casi todo lo demás (reglas, umbrales,
+    catálogos, secciones mínimas).
+13. **P17** Formularios del tipo — depende de P14 (entidad Sección) y de la baja lógica
+    (DIS-10 / task #313).
 
 **Ola 2 — capacidad y estadías (núcleo operativo).**
-8. **Modelo `Sector`** + `Cama.PRESTADA` + motivo de fuera de servicio → **P5**.
-9. **`clave_alojamiento`** (DIS-02) + reingreso de red → **P6**.
-10. **Estado `EN_TRANSITO`** con reserva, vencimiento, recepción y rechazo (DIS-03) → **P8**.
-11. Catálogos de egreso + fecha futura (DIS-06) + enganche con `DerivacionPrograma` → **P9**.
-12. **P4** detalle del dispositivo — consume 8-11; conviene **después**, no antes.
+14. **Modelo `Sector`** + `Cama.PRESTADA` + motivo de fuera de servicio → **P5**.
+15. **`clave_alojamiento`** (DIS-02) + reingreso de red. *El modelo va acá; la pantalla
+    **P6** es un wizard y espera su golden (tramo final).*
+16. **Estado `EN_TRANSITO`** con reserva, vencimiento, recepción y rechazo (DIS-03) → **P8**.
+17. Catálogos de egreso + fecha futura (DIS-06) + enganche con `DerivacionPrograma` → **P9**.
+18. **P4** detalle del dispositivo — consume 14-17; conviene **después**, no antes.
 
 **Ola 3 — ficha, sensibilidad y bitácora.**
-13. Sensibilidad por sección + capacidades en `CATALOGO` + auditoría de lectura →
-    **P15**, **P18**.
-14. Traza por estadía + completitud por sección + versionado → **P7**.
-15. Entradas de bitácora, apertura/cierre, pase de guardia, regularización → **P10**
+19. Sensibilidad por sección + capacidades en `CATALOGO` + auditoría de lectura → **P18**.
+    Por C-12, **P15 no se implementa en la v2**: las capacidades entran al `CATALOGO` y el
+    ABM de Roles queda como está.
+20. Traza por estadía + completitud por sección + versionado. *El motor va acá; la pantalla
+    **P7** es revisión compleja y espera su golden (tramo final).*
+21. Entradas de bitácora, apertura/cierre, pase de guardia, regularización → **P10**
     (respetando DIS-01/DIS-08: sin `Trunc*` sobre `DateTimeField`).
-16. Prioridad y origen en la espera + bandeja de derivaciones (LEG-06) → **P11**.
-17. **P16** solapa del legajo — barata una vez que P7 existe.
+22. Prioridad y origen en la espera + bandeja de derivaciones (LEG-06) → **P11**.
+23. **P16** solapa del legajo — barata una vez que el motor de la ficha (20) existe.
 
 **Ola 4 — Merenderos.**
-18. Documentación con vigencia + catálogo de kits + equivalencia + anulación (MER-02) →
+24. Documentación con vigencia + catálogo de kits + equivalencia + anulación (MER-02) →
     **P12**.
-19. Días estructurados + cierre del mes por otro rol (MER-01) → **P13**.
+25. Días estructurados + cierre del mes por otro rol (MER-01) → **P13**, con el aspecto del
+    mockup **sobre** el sticky, el scroll, los inputs y el `aria-live` que ya existen (C-11).
 
 **Ola 5 — el edificio (bloque que el Ministerio puede postergar entero).**
-20. Entidad **`Edificio`/`Predio`** N:M + tenencia, servicios, estado físico, fotos.
-21. Regla de vigencia sobre `core/services/vencimientos.py` → **P19** (y resolver C-14).
-22. Modelo de relevamiento edilicio (con el nombre que salga de Q4) → **P21**.
-23. `ItemConsumo` + `PagoConsumo` + regla de 7 días + escalamiento → **P20**.
+26. Entidad **`Edificio`/`Predio`** N:M + tenencia, servicios, estado físico, fotos.
+27. Regla de vigencia sobre `core/services/vencimientos.py` → **P19**, con la ubicación sin
+    mapa de C-14 (la pieza ya está construida en la Ola 0).
+28. Modelo de relevamiento edilicio (con el nombre que salga de Q4) → **P21**.
+29. `ItemConsumo` + `PagoConsumo` + regla de 7 días + escalamiento → **P20**.
 
-**Ola 6 — tableros.**
-24. Agregación de red + modelo de alerta operativa → **P1**.
-25. Catálogo de widgets por rol + recordatorios → **P22**.
+**Ola 6 — las cuatro pantallas sin golden, al final.** Precondición: la golden de su
+arquetipo construida (punto 9) y la Ola 6 del agente cerrada. Hasta entonces el agente de
+diseño frena y devuelve, y eso no se saltea.
+30. **P6** asistente de ingreso — *wizard*; consume el modelo del punto 15.
+31. **P7** estadía y ficha viva — *revisión compleja*; consume el motor del punto 20.
+32. Agregación de red + modelo de alerta operativa → **P1** — *dashboard*.
+33. Catálogo de widgets por rol + recordatorios → **P22** — *dashboard*.
 
 El Cambio 85 ya había separado el bloque del edificio como **etapa 5 completa**, con este
 argumento: *«las cuatro primeras hablan de las personas… y la quinta habla del edificio…
-así el Ministerio puede aprobar o postergar una sin tocar la otra»*. Este orden lo respeta.
+así el Ministerio puede aprobar o postergar una sin tocar la otra»*. Este orden lo respeta:
+mover P6 y P7 al tramo final mueve **la pantalla**, no el modelo ni el motor, que siguen en
+su ola original y siguen alimentando al resto.
 
 ---
 

@@ -314,6 +314,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 131 | Las goldens dejan de ser un molde con deuda: 0 P1, marcadores completos y el gate encendido | Becas (revisión, cupo, configuración de programas) · herramientas de diseño · CI de GitHub Actions | `#ui` `#metodo` | Auditoría integral oct-2026 — V5A-NEW-07 parte (a) (Ola 6 «Agente de diseño», paso 3) | 05/10/2026 | 🟢 **Hecho** | No requiere |
 | 132 | El agente de diseño deja de ser un changelog de 67 KB: núcleo corto, fichas por arquetipo y consumidores al día | Transversal · agente canónico de diseño y sus fichas · herramientas de diseño · CI de GitHub Actions | `#ui` `#metodo` | Auditoría integral oct-2026 — Ola 6 «Agente de diseño», pasos 4 y 5 | 05/10/2026 | 🟡 **Parcial** (faltan los pasos 6 y 7 de la Ola 6) | No requiere |
 | 133 | Mapear el mockup de la v2 de Dispositivos pantalla por pantalla: qué pieza ya existe, qué dato falta y dónde choca | Dispositivos y Merenderos · análisis de diseño y de datos (sin tocar código de producción) | `#ui` `#gestion` `#datos` `#rbac` | PM — pedido directo en sesión de trabajo, sobre el link publicado del mockup | 05/10/2026 | 🟢 **Hecho** | No requiere |
+| 134 | Las quince decisiones que destraban la v2 de Dispositivos: qué se implementa del mockup y qué no | Dispositivos y Merenderos · sistema de diseño · decisiones previas a implementar (sin tocar código de producción) | `#ui` `#textos` `#rbac` `#gestion` | PM — decisión en sesión de trabajo sobre los 15 conflictos del Cambio 133 | 06/10/2026 | 🟢 **Hecho** (las decisiones; las seis piezas de sistema quedan planificadas en M0) | No requiere |
 
 **Notas del índice**
 
@@ -18229,3 +18230,193 @@ No requiere.
 ## Reversión
 
 Revertir el commit: desaparecen el documento y las capturas. No hay código, datos ni configuración involucrados.
+
+## Historial
+
+**06/10/2026 — los quince conflictos dejaron de estar abiertos.** El primer punto de *Pendientes* decía que los 15
+conflictos `DECISIÓN CLIENTE` de §7 estaban abiertos y que los siete de sistema convenían resueltos antes de la primera
+pantalla. El PM los decidió todos el 06/10/2026: el detalle, con el motivo de cada uno, está en el **Cambio 134**. El
+documento también cambió: §7 abre con la tabla de las quince decisiones, §5, §6 y §8 se actualizaron en consecuencia y
+los encabezados de los conflictos pasaron de `DECISIÓN CLIENTE` a `DECIDIDO 06/10/2026`. Lo que **sigue abierto** del
+resto de *Pendientes*: las preguntas de §9 y, en particular, Q4 y Q1. El tercer punto —«no se crearon issues»— dejó de
+valer: el Cambio 134 creó el análisis M0 y sus seis tasks.
+
+---
+
+# Cambio 134 — Las quince decisiones que destraban la v2 de Dispositivos: qué se implementa del mockup y qué no
+
+🟢 **HECHO — 06/10/2026** (las decisiones y su registro; las seis piezas de sistema que habilitan quedan planificadas en el análisis M0, no construidas)
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos y Merenderos · sistema de diseño · decisiones previas a implementar (no toca código de producción) |
+| **Etiquetas** | `#ui` `#textos` `#rbac` `#gestion` |
+| **Solicitante** | PM — decisión en sesión de trabajo sobre los 15 conflictos que dejó abiertos el Cambio 133 |
+| **Fecha del pedido** | 06/10/2026 |
+| **Issue / épica** | Épica #127 · análisis M0 nuevo + tasks · continúa el Cambio 133 |
+| **Partes afectadas** | Backoffice (todas las pantallas de la v2, cuando se construyan); ninguna pantalla cambia con este cambio |
+| **Migración** | No requiere |
+
+## Pedido original
+
+El Cambio 133 cerró el mapeo del mockup y dejó **quince conflictos marcados `DECISIÓN
+CLIENTE`**, cada uno con sus opciones y su costo, más la advertencia de que los siete de
+sistema (C-1 a C-6 y C-15) convenía resolverlos **antes de la primera pantalla**. El PM los
+revisó uno por uno y respondió **«sí a todas»** a las recomendaciones del análisis.
+
+## Alcance acordado
+
+**Entra:** las quince decisiones, escritas en el mapeo debajo de las opciones de cada
+conflicto; la actualización de §5, §6 y §8 del mapeo con el orden que sale de ellas; los
+textos nuevos de P3 y P18, que son los dos lugares donde la decisión **cambia lo que el
+mockup promete**; y el backlog de las seis piezas de sistema que habilitan la v2 (análisis
+M0 y sus tasks en GitHub).
+
+**Queda explícitamente afuera:** construir las piezas. Este cambio decide y planifica; cada
+pieza se implementa en su propia task, con su propio diff y su propia actualización del
+inventario de `.claude/agents/chaco-design-system.md` o de la ficha de `.claude/design/` que
+toque. Tampoco se editó el HTML del mockup publicado (`docs/client/mockups/dispositivos-v2.html`):
+los textos que cambian quedan anotados en el mapeo, en la pantalla que corresponde.
+
+## Decisiones tomadas
+
+Las quince, en el orden del mapeo. Las siete de sistema (C-1 a C-6 y C-15) valen para
+**todas** las pantallas de la v2; el resto es por pantalla.
+
+| | Conflicto | Decisión | Por qué |
+|---|---|---|---|
+| **C-1** | Tokens con nombre propio vs tokens semánticos | **A** · traducir cada token del mockup (`--brand`, `--g050`, `--succ`…) a su semántico (`--bg-*`, `--text-*`, `--border-*`, `--font-*`) al implementar | Los valores ya coinciden: lo único que cambia es el nombre de la variable. Publicar los alias del mockup duplicaría el vocabulario y rompería el dark mode, que se define sobre los semánticos (`chaco-tokens.css:342+`). «Tal cual» es el resultado visual, no el nombre de la variable. |
+| **C-2** | Stat cards grandes vs la pieza canónica chica | **C** · la franja grande pasa a ser una **variante canónica «tablero»** de `_stat_card.html`; la chica queda para listados; **CMP-23 se revisa** en el mismo diff | Es el único camino que no obliga a elegir entre «se ve más chico que el link que el cliente aprobó» (A) y «cinco pantallas nuevas nacen fuera del canon» (B). Cuesta ~1 día de trabajo de sistema y deja las dos convivencias explicadas en el inventario. Aparece en P1, P4, P12, P19 y P21. |
+| **C-3** | Hero con gradiente en una pantalla operativa | **C** · el hero se declara pieza canónica **solo** de pantalla de inicio de programa (Inicio + tableros de programa) | Legitima lo que ya existe en producción —el hero vive hoy en Inicio— y acota el uso con una regla escrita, en vez de dejar la contradicción abierta. Fuera de esas dos superficies sigue valiendo «no crear landing pages para backoffice operativo». |
+| **C-4** | Heroicons del mockup vs Font Awesome del canon | **A** · traducir cada ícono del mockup a su equivalente Font Awesome **en el contenido** | Es exactamente lo que fija **D3** (Cambios 129 y 132): Font Awesome en el contenido, Heroicons solo en el shell. El shell ya precarga `fa-solid-900.woff2` y los componentes reciben el nombre FA. Los glifos no son idénticos (FA es más lleno que Heroicons outline) y se acepta esa diferencia. |
+| **C-5** | Alertas inline con ícono y acción | **B** · ampliar `components/_alerta.html` con `icono` y `accion_url`/`accion_texto` **opcionales** | Es la opción que más barato cierra el mockup: la alerta aparece en **15 de las 22** pantallas y el link contextual es el camino principal en varias. Los tres parámetros son opcionales, así que ningún consumidor actual cambia de render. Al ser pieza canónica, el mismo diff actualiza su ficha. |
+| **C-6** | Confirmaciones: SweetAlert2 (Cambio 48) vs modal con motivo (D2) | **A** · las pantallas de la v2 confirman con el **modal del arquetipo D2**; las legacy siguen con SweetAlert2 hasta que la v2 las reemplace | El Cambio 48 defendió lo existente, **no fijó el mecanismo para pantallas nuevas**, así que A no lo contradice; y **D2** (Cambios 129 y 132) ya dice literalmente que el Swal condicionado queda como legacy sin extenderse a pantallas nuevas. Migrar las legacy en el mismo frente (opción C) sería gastar en pantallas que la v2 reemplaza igual. |
+| **C-7** | Cuatro pantallas sin golden: el agente manda frenar | **C + A en paralelo** · arrancar por las **18 pantallas con golden** mientras se cierra la Ola 6 y se construyen las goldens de dashboard, wizard y caso complejo; **P1, P6, P7 y P22 al final** | Reordena sin recortar y sin demorar el arranque. **Se descarta la opción B**: no hay excepción escrita para saltar el freno del agente, porque es exactamente lo que midió la línea base de la Ola 6 (tres pantallas, ninguna usó la golden de su arquetipo). Mover P6 y P7 al final mueve **la pantalla**, no el modelo ni el motor, que siguen en su ola original. |
+| **C-8** | El error de duplicado filtra datos fuera del alcance | **B** · bloquear **sin nombrar** la institución ajena | Revelar existencia, nombre, estado y área de un registro que el usuario no puede ver choca con la disciplina de alcance de `core/rbac.py` y con el criterio «ocultar no es bloquear» que el propio mockup enuncia en P15. Se pierde el atajo operativo y no cuesta nada. El análisis #385 y la task #399 ya decían «sin revelar la institución ajena»: la decisión los confirma y les pone el texto exacto. |
+| **C-9** | El menú ⋮ de fila no existe como pieza | **A** · crear la pieza «menú de fila» accesible (**N-11**) | La reusan cinco pantallas (P4, P12, P20, P21, P22) y P4 tiene cuatro acciones por fila: dejarlas visibles ensancha la tabla hasta romperla. ~1 día, con foco atrapado, cierre con Escape, `aria-expanded`/`aria-controls` y acciones deshabilitadas con motivo legible. |
+| **C-10** | Emoji en lugar de íconos | **A** · 🔒, 📎 y 📝 se reemplazan por íconos del set con `aria-hidden="true"` | Los emoji no tienen color controlable, varían por sistema operativo y los lectores de pantalla los leen con su nombre Unicode. El cambio visual es mínimo y el costo, nulo. |
+| **C-11** | P13 pierde el `thead` sticky que la pantalla productiva ya tiene | **A** · adoptar del mockup **solo el aspecto** (días «no funciona», totales en `td.tot`) y conservar `thead` sticky, scroll contenido, `nodo-field` numérico por celda y `<output aria-live="polite">` | Implementar «tal cual» sería una **regresión** en una grilla de 31 días × N servicios. `merenderos/prestacion_mensual.html:34-60` ya tiene todo eso andando; no hay motivo para perderlo y no cuesta nada conservarlo. |
+| **C-12** | P15 rediseña una pantalla transversal | **A** · agregar las capacidades de Dispositivos al `CATALOGO` de `core/rbac.py` **sin tocar la pantalla**; el rediseño del ABM de Roles es **proyecto aparte** | El ABM de Roles es transversal (`users`) y `core/rbac.py` es «la pieza única de autorización del backoffice». Rediseñarlo como el mockup toca Becas, Legajos, Usuarios y Merenderos a la vez, y hacer una pantalla de rol propia de Dispositivos (opción C) duplicaría la autorización en dos lugares, contraindicado por `CLAUDE.md`. **Consecuencia aceptada: P15 queda sin cumplir visualmente en la v2.** |
+| **C-13** | «No se puede copiar ni exportar» ya fue respondido al cliente | **A** · implementar las cuatro medidas reales —compuerta de confirmación por apertura, auditoría de lectura, marca de agua visual con usuario y hora, y bloqueo de exportación **del lado del servidor**— y **corregir el texto del mockup** | El **Cambio 72** ya dejó por escrito al Ministerio que «inhabilitar capturas o copias» **no es técnicamente posible** en ningún sistema web. Dejar la promesa del mockup sería contradecir una comunicación formal ya enviada, e intentar bloquear la copia en el navegador (opción B) es una falsa promesa que se vulnera con la consola. |
+| **C-14** | El mapa de P19 no tiene librería y la CSP bloquea los CDN | **B** · sin mapa embebido: coordenadas legibles + enlace «ver en el mapa» que abre fuera (`target="_blank" rel="noopener"`) + el **plano como adjunto** | Cumple el uso declarado —presentaciones ante programas nacionales— por ~2 h, contra ~2 días de vendorizar Leaflet, elegir proveedor de tiles, resolver su licencia y abrir `img-src`/`connect-src` en la CSP. Además el **Cambio 85** ya había previsto el plano como adjunto. Leaflet queda como ampliación posterior solo si el Ministerio lo pide. |
+| **C-15** | Los botones del mockup no tienen el `min-width` del sistema | **B** · agregar a `nodo-buttons.css` una variante **`btn-fit` sin ancho mínimo**, de uso acotado a headers densos y celdas de tabla | Es el único punto donde «tal cual el mockup» y «usar la pieza canónica» dan **layouts distintos sin que ninguna de las dos partes esté mal**. Con la opción A toda barra de acciones queda bastante más ancha que en el link que el cliente aprobó (P4 tiene 4 botones en el header, P12 otros 4, P8 dos dentro de una celda), y la diferencia no se arregla pantalla por pantalla. Sacar el `min-width` del sistema (opción C) afectaría a Becas, Legajos, Usuarios y Portal. |
+
+**Seis piezas de sistema quedan aprobadas y van primeras.** Son las que habilitan la v2 y se
+construyen **antes** de la primera pantalla: variante «tablero» de stat card (C-2, ~1 día),
+hero de inicio de programa (C-3, ~½ día), ampliación de `_alerta.html` (C-5, ~½ día), menú de
+fila accesible N-11 (C-9, ~1 día), variante `btn-fit` (C-15, ~½ día) y bloque de ubicación
+sin mapa (C-14, ~2 h). Cada una actualiza, en su propio diff, la fila del inventario o la
+ficha de `.claude/design/` que toca, o `check_design_agent.py` falla (hook y CI).
+
+**C-1, C-4, C-6, C-10, C-11, C-12 y C-13 no generan tarea de sistema**: son reglas que cada
+pantalla aplica al implementarse, y por eso viven en el cuerpo del análisis M0 y no en una
+task propia.
+
+**Dos textos del mockup cambian, y el HTML publicado no se edita.** El mockup
+(`docs/client/mockups/dispositivos-v2.html`) es el link que el Ministerio recibió: se deja
+como está y los textos nuevos quedan anotados en el mapeo, en la pantalla que corresponde.
+
+| Pantalla | Dice el mockup | Se implementa |
+|---|---|---|
+| **P3** (C-8) | *«El código ya está en uso por una institución **fuera de tu alcance**. Pedí el traspaso al administrador central o usá otro código.»* | **«El código ya está en uso. Pedí el traspaso al administrador central.»** Y el panel de «Posibles duplicados» no nombra ni cuenta las coincidencias fuera del alcance. |
+| **P18** (C-13) | *«Dentro, el contenido no se puede copiar ni exportar sin el nivel, y lleva una marca de agua con el usuario y la hora.»* | **«Dentro, el contenido lleva una marca de agua con tu nombre y la hora, y la exportación queda bloqueada sin el nivel. Impedir una captura de pantalla no es técnicamente posible en ningún sistema web.»** |
+
+**Tres decisiones tocan algo ya escrito, y se registra acá para que no se discuta de nuevo:**
+
+- **C-2 reabre CMP-23.** El hallazgo de la auditoría oct-2026 y la ficha
+  `.claude/design/componentes/stat_card.md:45-46` dejaron fuera del canon las cajas de ícono
+  de 52 px, `var(--gradient-brand)` y los valores `text-3xl`/`font-extrabold`. La decisión no
+  los reinstala a secas: los encierra en una **variante «tablero»** declarada, con la chica
+  como opción por defecto para listados. El diff que cree la variante revisa el hallazgo.
+- **C-3 acota una regla dura del agente.** El núcleo dice «no crear landing pages para
+  backoffice operativo» y prohíbe las hero sections. La decisión no la borra: la convierte en
+  «salvo en pantalla de inicio de programa», que es donde el hero ya vive hoy.
+- **C-7 encamina D4.** El Cambio 129 registró D4 como *«wizard de backoffice → NO SE DEFINE,
+  y esa es la decisión: frenar y devolver»*, con lo mismo para revisión compleja y dashboard.
+  C-7 no lo contradice —el freno sigue en pie— pero le pone fecha: las tres goldens se
+  construyen en paralelo con las Olas 1 a 5, y recién entonces se abren P1, P6, P7 y P22.
+
+**Los Cambios 48, 58, 72 y 85 se revisaron antes de decidir y ninguno queda contradicho.**
+El 48 defendió SweetAlert2 para lo existente y no fijó nada para pantallas nuevas (C-6); el
+72 dijo por escrito al Ministerio que impedir capturas no es posible, que es justo lo que
+C-13 implementa; el 85 ya preveía el plano como adjunto, que es lo que hace C-14; y el 58
+—«el F-00 de Dispositivos queda afuera» del constructor de Becas— no toca ninguno de los
+quince: sigue abierto como Q5 de §9.
+
+## Implementación
+
+Lo que existe ahora y antes no:
+
+- **Las quince decisiones escritas en el mapeo**, cada una como línea
+  `**Decisión tomada (06-oct-2026, PM):**` debajo de las opciones de su conflicto. El
+  análisis original **se conserva entero**, porque es lo que explica el costo de la opción
+  elegida. Los encabezados pasaron de `` `DECISIÓN CLIENTE` `` a `` `DECIDIDO 06/10/2026` ``
+  y §7 abre con una tabla de las quince en una línea.
+- **§5** aclara que la columna de conflictos remite a §7 ya decidido, y el reparto de
+  esfuerzo explica que las cuatro pantallas sin golden van al final en vez de quedar
+  frenadas. La fila de P19 pierde el `.mapa`.
+- **§6** suma la tabla *«Qué quedó aprobado el 06/10/2026»* con las seis piezas, y marca que
+  las otras catorce (N-1 a N-10, N-12, N-13, N-15, N-16) **no tienen decisión todavía**: se
+  proponen como novedad al abrir la primera pantalla que las usa. N-14 queda reconvertida en
+  el bloque de ubicación sin mapa.
+- **§8** pasa de «orden sugerido» a orden fijado, en tres tramos: Ola 0 con las tareas de
+  sistema, Olas 1 a 5 con las 18 pantallas que tienen golden, y una Ola 6 final con P6, P7,
+  P1 y P22.
+- **P3, P13, P15, P18 y P19** llevan la decisión que las afecta en su propio bloque, con los
+  textos nuevos donde los hay.
+- En **GitHub**: el análisis **M0** y sus **seis tasks**, colgando de la épica #127, y un
+  comentario con la decisión y el link al mapeo en cada análisis y task ya existente que
+  cambia de contenido por C-8, C-11, C-12, C-13 o C-14.
+
+## Archivos
+
+- `docs/internal/dispositivos-v2/mapeo-mockup.md` — §0 (encabezado), §4 (P3, P13, P15, P18,
+  P19), §5, §6, §7 completo y §8 completo.
+- `docs/internal/requerimientos.md` — esta entrada, su fila del índice y el historial del
+  Cambio 133.
+- **Ningún archivo de código productivo, template, CSS ni JavaScript fue modificado.**
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+- `scripts/requerimientos.py --check` → OK.
+- No se tocó ningún template, CSS ni JavaScript, así que `design_audit.py` y
+  `compile_templates.py` no aplican.
+- Los análisis y tasks creados quedaron verificados por GraphQL en **Status = Backlog** e
+  **Iteration 7**, sin assignee, como manda `AGENTS.md`.
+
+## Puesta en marcha en el servidor
+
+No requiere.
+
+## Pendientes / a definir
+
+- **Construir las seis piezas de sistema** (análisis M0 y sus tasks). Hasta que estén, la
+  primera pantalla de la v2 no arranca.
+- **Cerrar los pasos 6 y 7 de la Ola 6** del agente de diseño (Cambio 132): es precondición
+  explícita de §7 de la auditoría.
+- **Construir las goldens de dashboard, wizard y caso complejo**, que es lo que habilita el
+  tramo final (P1, P6, P7, P22) y lo que convierte D4 de «no se define» en definido.
+- **El rediseño del ABM de Roles** (grupos con switches y alcance por subsecretaría) queda
+  como proyecto aparte, sin issue todavía. Decidirlo con el PM antes de que alguna task de
+  Dispositivos lo asuma por su cuenta.
+- **Las catorce piezas sin decisión** (N-1 a N-10, N-12, N-13, N-15, N-16): se proponen al
+  abrir la pantalla que las usa. N-1, el *eyebrow* del encabezado, lo usan 19 de las 22, así
+  que conviene cerrarlo en la primera (P2).
+- **Las diez preguntas abiertas de §9 siguen abiertas**, en particular Q4 (el relevamiento
+  edilicio no puede llamarse `Relevamiento`), Q5 (¿un constructor de formularios o dos?) y
+  Q1 (qué es F11).
+- **Las pantallas de los módulos M14 a M17** (P19 Infraestructura, P20 Consumos, P21
+  Relevamientos, P22 Tableros) **no tienen análisis ni tasks en GitHub**: la cadena llega
+  hasta M12. El comentario de C-14 se dejó en M1, que es donde vive hoy la geolocalización
+  del legajo.
+
+## Reversión
+
+Revertir el commit: el mapeo vuelve a tener los quince conflictos abiertos y desaparece esta
+entrada. Los issues creados en GitHub **no se revierten con el commit**: hay que cerrarlos a
+mano (el análisis M0 y sus seis tasks) y borrar los comentarios dejados en los issues
+existentes. No hay código, datos ni configuración involucrados.
