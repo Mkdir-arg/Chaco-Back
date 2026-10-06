@@ -13,8 +13,9 @@ cryptography==50.0.0
 django-redis==5.4.0
 redis==5.0.1
 
-# Health checks
-django-health-check==3.17.0
+# Health checks: la app `healthcheck` del repo. `django-health-check` se retiro con el
+# Cambio 153 (OPS-04): estaba en INSTALLED_APPS y montado en `/health/`, pero el include
+# de `healthcheck.urls` ganaba por orden y sus vistas eran inalcanzables.
 
 # Estaticos servidos por la propia app (clave en Kubernetes, donde no hay nginx
 # adelante; en la VM nginx los intercepta antes y el middleware queda inerte)

@@ -37,6 +37,11 @@ urlpatterns = [
     path("", include("django.contrib.auth.urls")),
     path("", include(("core.urls", "core"), namespace="core")),
     path("", include("dashboard.urls")),
+    # `/health/` (liveness) y `/health/ready/` (readiness, OPS-04). Hasta el Cambio 153
+    # convivía con `path("health/", include("health_check.urls"))` del paquete
+    # `django-health-check`, que quedaba tapado por este include y nunca se alcanzaba:
+    # dos apps compitiendo por la misma ruta, una de ellas tocando la base en lo que es
+    # una sonda de liveness.
     path("", include(("healthcheck.urls", "healthcheck"), namespace="healthcheck")),
     # Flujos — editor visual HTML
     # API Routes
@@ -61,8 +66,6 @@ urlpatterns = [
         login_required(SpectacularRedocView.as_view(url_name="schema", template_name="api/redoc.html")),
         name="redoc",
     ),
-    # Health Check
-    path("health/", include("health_check.urls")),
 ]
 
 # Performance Profiling (Silk): solo en desarrollo/staging, nunca en producción.

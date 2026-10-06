@@ -354,6 +354,53 @@ class CIVerdeAntesDelReleaseTests(SimpleTestCase):
         self.assertTrue(entradas["motivo"]["required"])
 
 
+class TagDeReleaseTests(SimpleTestCase):
+    """RED-16: cada release deja un artefacto al que volver.
+
+    Hasta el Cambio 153 no había ninguno. `main` se pisa a sí misma en cada publicación
+    y del lado de ECOM la imagen es siempre `:latest`, así que «volver a la release
+    anterior» significaba revertir en GitLab y esperar otro build de 5 a 7 minutos, con
+    producción caída y la base ya migrada. El tag es la mitad que depende de nosotros; la
+    otra —`-t ${IMAGE_BASE}:${CI_COMMIT_SHORT_SHA}` en su pipeline— es D-RED-02 y está
+    escrita en `docs/internal/propuesta-ecom-verify.md` para que la mande el PM.
+    """
+
+    PASO = "Publicar snapshot en main"
+
+    def setUp(self):
+        self.script = _paso(self.PASO)["run"]
+
+    def test_el_release_queda_etiquetado(self):
+        self.assertRegex(self.script, r"git tag -a ", "un tag liviano no guarda ni quién ni cuándo")
+
+    def test_el_nombre_del_tag_lleva_fecha_y_commit(self):
+        """Dos releases el mismo día no pueden pelearse el mismo nombre."""
+        self.assertIn('tag="release-$(date -u +%Y.%m.%d)-$short"', self.script)
+
+    def test_se_empuja_solo_ese_tag(self):
+        """`git push origin --tags` empujaría cualquier otro tag que el runner tenga."""
+        self.assertIn('git push origin "refs/tags/$tag"', self.script)
+        self.assertNotIn("push origin --tags", self.script)
+
+    def test_el_tag_se_crea_despues_de_publicar_main(self):
+        """Etiquetar antes del push dejaría un tag apuntando a una release que no salió."""
+        self.assertLess(self.script.index("git push origin main"), self.script.index("git tag -a "))
+
+    def test_no_se_etiqueta_cuando_main_ya_estaba_al_dia(self):
+        """El paso corta antes con `exit 0`: un push a `development` que no cambia el
+        árbol del release (tocó solo `docs/`, por ejemplo) no es una release nueva."""
+        self.assertLess(self.script.index("main al día"), self.script.index("git tag -a "))
+
+    def test_un_tag_repetido_no_rompe_la_publicacion(self):
+        """Re-disparar el workflow sobre el mismo commit no puede dejar el job en rojo."""
+        self.assertIn("git ls-remote --exit-code --tags origin", self.script)
+        self.assertIn("::warning::", self.script)
+
+    def test_el_workflow_puede_escribir_el_tag(self):
+        """`contents: write` ya estaba por el push de `main`: el tag no agrega permisos."""
+        self.assertEqual(_flujo()["permissions"]["contents"], "write")
+
+
 def _contextos(texto):
     """Los `context` del ruleset, con la misma ruta que el `jq` del workflow."""
     ruleset = json.loads(texto)

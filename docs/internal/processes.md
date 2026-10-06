@@ -180,8 +180,11 @@ Para SIIS y correo existen además `diagnosticar_siis` y `diagnosticar_correo`.
 
 ## Deploy a producción
 
+Esto es **icore-srv**, que se despliega a mano. Los entornos de ECOM (testing y
+producción) se despliegan solos desde su GitLab: ver [`espejo-ecom.md`](espejo-ecom.md).
+
 ```bash
-# 1. Asegurarse de estar en main actualizado
+# 1. Asegurarse de estar en main actualizado (icore trabaja sobre `main`)
 git checkout main
 git pull origin main
 
@@ -189,17 +192,57 @@ git pull origin main
 ./scripts/deploy_prod.sh
 ```
 
-El script `deploy_prod.sh` realiza:
-1. Build de la imagen Docker
-2. Push al registry
-3. Restart del servicio en el servidor
+El script `deploy_prod.sh` **no** construye ni publica imágenes en ningún registry: hace
+el build local de compose y recrea los servicios en la misma máquina. Lo que hace, en
+orden:
+
+1. Verifica que el árbol esté limpio y guarda un respaldo en `deploy_backups/<ts>/`
+   (compose resuelto, `.env.production`, `nginx.conf`, settings y el commit anterior).
+2. Anota cuántas migraciones figuran aplicadas **antes** de tocar nada, con el contenedor
+   viejo todavía arriba.
+3. `docker compose up -d --build --force-recreate`.
+4. Espera a que `GET /health/ready/` conteste (readiness: toca la base y, en `prd`, el
+   cache de sesiones). **No** es `/health/`, que devuelve 200 con la base caída.
+5. Corre los *post-deploy checks*: `migrate --check`, el manifest de estáticos con más de
+   50 entradas y `GET /login/` = 200.
+6. Si algo de 4 o 5 falla, imprime los logs y **vuelve el código** al commit anterior,
+   creando la rama `rollback/<ts>` (nunca detached HEAD).
+
+**El rollback automático se aborta solo** si el deploy alcanzó a aplicar migraciones:
+volver el código deja el esquema adelantado y las filas a medias, y de ahí se sale con el
+runbook de abajo, que empieza por el dump. El script lo dice y sale con error en vez de
+improvisar.
+
+Variables útiles: `ROLLBACK_ON_FAIL=0` (no vuelve solo), `PULL_BEFORE_DEPLOY=1`,
+`HEALTH_URL`, `LOGIN_URL`, `APP_SERVICE`, `MANIFEST_MINIMO`.
+
+Después de recrear `web` o `websocket` hay que **reiniciar nginx**: cachea la IP del
+upstream al arrancar y, si no, aparecen 500 por *«Missing staticfiles manifest entry»*.
 
 ### Checklist pre-deploy
 
 - [ ] Tests pasando en CI
 - [ ] Migraciones revisadas (sin operaciones destructivas sin respaldo)
+- [ ] **Dump de la base** si el deploy trae migraciones (paso D.0 del runbook)
 - [ ] Variables de entorno de producción actualizadas si hubo cambios
+- [ ] Anotado de qué release se viene: el **tag `release-AAAA.MM.DD-<short>`** de `main`
+      que corresponde a lo que está corriendo hoy (`git describe --tags --abbrev=0
+      --match 'release-*'`). Es a lo que se vuelve si hay que volver
 - [ ] Notificar al equipo en el canal correspondiente
+
+### Si el arranque se frena con «django_migrations y el esquema no se corresponden»
+
+El entrypoint corre `manage.py verificar_esquema_migraciones` antes del `migrate`
+(OPS-01). Si aborta, **no** se saltea con `SKIP_SCHEMA_GUARD=true` y **nunca** se usa
+`--fake`: el mensaje dice cuál de los tres casos es.
+
+- *Filas sin archivo*: el registro tiene migraciones que el código desplegado no tiene.
+  Pasa cuando una rama renumeró migraciones. Es el estado conocido de icore-srv, y su
+  reparación está escrita en [`core/sql/2026-10-06_renombrar_migraciones_icore.sql`](../../core/sql/2026-10-06_renombrar_migraciones_icore.sql).
+- *Tablas que ya existen*: viene de un restore encima de una base que tenía más tablas.
+  Se borran esas tablas antes de desplegar (nunca `--fake`).
+- *Tablas huérfanas* (solo aviso): restos de una reversa que se cortó. No frena el
+  arranque; se limpian con el runbook en la mano.
 
 ## Cron del host (icore-srv)
 
@@ -307,7 +350,13 @@ es instantáneo y se revierte con `DROP DEFAULT`.
 pipeline publica siempre `:latest`— hay que hacer `git revert` del commit de alineación
 en `ecom/main`, esperar el build (5-7 min) y `kubectl rollout restart`.
 **`kubectl rollout undo` no sirve:** las dos revisiones apuntan a la misma `:latest`.
-Se verifica con un alta de caso de prueba, no con `/health/`.
+Se verifica con un alta de caso de prueba, no con `/health/` —que da 200 con la base
+caída— sino con `/health/ready/` y una pantalla real.
+
+El tag de imagen por commit es **D-RED-02**, lo tiene que aplicar ECOM en su
+`.gitlab-ci.yml` y está redactado en
+[`propuesta-ecom-verify.md`](propuesta-ecom-verify.md) §2, pendiente de que lo mande el
+PM. Mientras tanto, el SHA a pedirles es el del tag `release-*` de nuestro `main`.
 
 **D.2.2 · icore-srv.** El checkout de `/home/icore/chaco` está en **`main`** —la rama de
 release— y se adelanta con `git pull --ff-only origin main`; `development` no se
@@ -315,14 +364,20 @@ despliega en ningún servidor. Se trabaja como usuario `icore`, nunca con `sudo 
 
 ```bash
 cd /home/icore/chaco
-git fetch origin main
+git fetch origin main --tags
+# «La release anterior» tiene nombre desde el Cambio 153 (RED-16): cada publicación
+# deja un tag `release-AAAA.MM.DD-<short>` sobre el commit de `main`.
+git tag --list 'release-*' --sort=-creatordate | head -5
 # NO: git reset --hard sobre main. El próximo `git pull --ff-only origin main` lo
 # devuelve a la release rota sin que nadie se entere. Una rama propia deja el
 # rollback visible en `git status` y no pisa main.
-git switch --force-create "rollback/$(date +%Y%m%d_%H%M%S)" <SHA_ANTERIOR>
+git switch --force-create "rollback/$(date +%Y%m%d_%H%M%S)" <TAG_O_SHA_ANTERIOR>
 docker compose -f docker-compose.prod.yml up -d --build --force-recreate web
 docker compose -f docker-compose.prod.yml restart nginx   # cachea la IP del upstream
 ```
+
+Es lo mismo que hace el rollback automático de `deploy_prod.sh`, que además **se aborta
+solo** si el deploy ya había aplicado migraciones: en ese caso el camino es D.4, no este.
 
 Para volver al flujo normal una vez publicada la release corregida:
 `git switch main && git pull --ff-only origin main` y el deploy de siempre.

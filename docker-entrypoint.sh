@@ -35,6 +35,17 @@ run_bootstrap() {
   # exists». Se arregla borrando esas tablas antes de desplegar, NUNCA con
   # --fake: eso deja las tablas sin las columnas de los AddField posteriores y
   # rompe en runtime en vez de en el deploy.
+  #
+  # OPS-01: eso dejo de ser un comentario. La guarda lo detecta ANTES del migrate y
+  # aborta el arranque nombrando las tablas o las filas que no se corresponden, en vez
+  # de un CrashLoop con «1050 Table already exists» y el esquema a medias. Se saltea con
+  # SKIP_SCHEMA_GUARD=true, que es para el ambiente donde la guarda se equivoque, no
+  # para el deploy que la guarda frena.
+  if [ "${RUN_MIGRATIONS:-true}" = "true" ] && [ "${SKIP_SCHEMA_GUARD:-false}" != "true" ]; then
+    echo "Verificando coherencia entre django_migrations y el esquema..."
+    python manage.py verificar_esquema_migraciones
+  fi
+
   if [ "${RUN_MIGRATIONS:-true}" = "true" ]; then
     echo "Aplicando migraciones..."
     python manage.py migrate --run-syncdb --noinput

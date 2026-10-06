@@ -322,6 +322,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 139 | Las migraciones se prueban en las dos direcciones y sobre datos, contra el motor de producción | Transversal · migraciones · CI de GitHub Actions · plantillas de Kubernetes | `#infra` `#datos` `#metodo` | Auditoría integral oct-2026 — RED-17 y RED-19 (Ola R, PR R-13) | 06/10/2026 | 🟢 **Hecho** (el job todavía no es obligatorio en el ruleset, igual que «Motor real») | No requiere |
 | 140 | El parte diario y los reportes de Dispositivos cuentan el día argentino, no el del motor | Dispositivos (parte F-01, listado, exports, indicadores) · Legajos · Conversaciones · Transversal (helper de fechas + guardia) | `#datos` `#infra` `#performance` | Auditoría integral oct-2026 — fichas DIS-01 y DIS-08 (Ola 5, PR 1) | 06/10/2026 | 🟢 **Hecho** | No requiere |
 | 150 | Legajos deja de romperse solo: subir archivos, reinscribir y la solapa que nunca funcionó | Legajos (detalle del ciudadano, adjuntos, derivaciones, dashboard de alertas) · Transversal (inscripciones a programas) | `#ui` `#datos` `#api` | Auditoría integral oct-2026 — fichas FE-02, LEG-02..05, FE-09 y FE-21 (Ola 5, PR 2) | 06/10/2026 | 🟢 **Hecho** | No requiere |
+| 153 | El deploy deja de ser a ciegas: traceback en stdout, un health que sabe, guarda de esquema y una release con nombre | Transversal (logging, sonda de salud, entrypoint, script de deploy, CI de GitHub Actions) | `#infra` `#datos` `#metodo` | Auditoría integral oct-2026 — fichas OPS-03, RED-55, OPS-04, RED-59, OPS-01 y RED-16 (Ola R, PR R-15) | 06/10/2026 | 🟢 **Hecho** (RED-16 parcial: el tag de imagen lo aplica ECOM) | **Sí:** correr `core/sql/2026-10-06_renombrar_migraciones_icore.sql` en icore antes del próximo deploy |
 
 **Notas del índice**
 
@@ -19752,3 +19753,189 @@ Revertir el commit. Vuelven los siete defectos, incluido el 404 por carga del le
 van con el mismo commit (no queda ninguno en rojo). No hay nada que deshacer en la base: no se escribió
 ninguna fila nueva ni se borró ninguna; `activar_inscripcion` solo reactiva filas que ya existían, y esas
 reactivaciones quedan como están (son altas legítimas).
+
+---
+
+# Cambio 153 — El deploy deja de ser a ciegas: traceback en stdout, un health que sabe, guarda de esquema y una release con nombre
+
+🟢 **HECHO — 06/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · logging · sonda de salud · entrypoint y script de deploy · CI de GitHub Actions |
+| **Etiquetas** | `#infra` `#datos` `#metodo` |
+| **Solicitante** | Auditoría integral de octubre 2026 — hallazgos **OPS-03**, **RED-55**, **OPS-04**, **RED-59**, **OPS-01** y **RED-16** (Ola R «Red de seguridad», PR R-15) |
+| **Fecha del pedido** | 06/10/2026 |
+| **Issue / épica** | Sin issue — auditoría oct-2026, `docs/internal/auditoria-2026-10/hallazgos/05-datos-operacion-tests.md` y `08-red-de-seguridad.md` |
+| **Partes afectadas** | Operación: lo que se ve en `docker compose logs` y `kubectl logs`, la sonda del deploy, el arranque del contenedor y la publicación del release. En la aplicación, dos context processors y una vista nueva pública. Nada de UI, ningún modelo |
+| **Migración** | No requiere (ninguna migración nueva ni editada) |
+
+## Pedido original
+
+Seis fichas que comparten una sola consecuencia: **el próximo deploy en icore no se puede diagnosticar.**
+
+- **OPS-03** (ALTA): «`django.request` tiene `propagate: False` y handlers solo a archivo: el traceback de cada 500 va a
+  `logs/<fecha>/error.log` y a ningún lado más. En k8s ese directorio es efímero y `kubectl logs` solo muestra la línea
+  `core.requests … status=500`.»
+- **RED-55** (MEDIA, va con OPS-03): los dos `except Exception` de los context processors corren en el 100 % del tráfico
+  autenticado y convierten un `OperationalError` en «badge 0» y «usuario sin grupos», sin rastro.
+- **OPS-04** (MEDIA): «`/health/` siempre 200 y tapa `health_check.urls`», ampliada: `/health/` es además el criterio de
+  éxito **y el del rollback** de `scripts/deploy_prod.sh`.
+- **RED-59** (MEDIA): «`deploy_prod.sh`: rollback sin base, detached HEAD y un health que siempre da 200».
+- **OPS-01** (MEDIA): «sin guarda de coherencia `django_migrations` ↔ esquema antes de `migrate`», ampliada con el
+  chequeo **inverso** de RED-15 (tablas que existen y ningún modelo nombra).
+- **RED-16** (ALTA): «no hay artefacto al que volver: ECOM publica solo `:latest` y `main` no se tagea».
+
+## Qué lo motivó
+
+icore-srv está desplegado desde una rama vieja (`a9fc4ee`) y el próximo deploy **va a fallar**: las seis migraciones del
+constructor se registraron ahí como `0057`-`0062` y `development` las renumeró a `0060`-`0065`, así que Django las ve
+como no aplicadas, las va a correr y va a morir con `1050 Table already exists` dejando el esquema a medias. Cuando eso
+pase, lo que el operador iba a tener en la mano era: un CrashLoop, un `/health/` que responde 200, un rollback
+automático que no se dispara y, si se disparara, que vuelve el código y nunca la base. Y ningún traceback: el del 500
+estaba escrito en un directorio efímero dentro del contenedor.
+
+Las seis fichas son las piezas de ese mismo recorrido, y por eso van juntas.
+
+## Alcance acordado
+
+**Entra:** el `LOGGING` por función y gateado por `LOG_TO_FILES`; `logger.exception` en los dos context processors;
+`/health/ready/` y el retiro de `django-health-check`; los *post-deploy checks*, la rama de rollback y el aborto por
+migraciones en `deploy_prod.sh`; el comando `verificar_esquema_migraciones` con sus tres chequeos, en el entrypoint y en
+el roundtrip; el SQL de renombre para icore; y el tag de release en `publish-main.yml`.
+
+**Queda afuera:** `DB_READ_TIMEOUT` (OPS-05, Ola 3) y el candado `GET_LOCK` del bootstrap (OPS-07, Ola 3); el resto de
+OPS-13 (`openai`, `django_extensions`, `debugpy`…), del que acá solo se retira `django-health-check` porque es la misma
+ficha de OPS-04; y todo lo que depende de ECOM: el tag de **imagen** por commit (D-RED-02) y los dos avisos, que quedan
+escritos como propuesta para que los mande el PM.
+
+## Decisiones tomadas
+
+- **Los `except Exception` de los context processors siguen siendo anchos.** La ficha proponía acotarlos a
+  `DatabaseError`/`ImportError`. No se hizo: eso corre en el 100 % del tráfico autenticado y cualquier otra excepción
+  pasaría de «sidebar degradado» a **500 en toda pantalla del backoffice**. El hallazgo era «traga *sin log*», no
+  «traga»; lo que faltaba era el log.
+- **`/health/` no se toca.** Es liveness y lo miran las sondas de compose, las de `docker/k8s/` y las de ECOM. Cambiarla
+  por una que consulte la base haría que una base lenta reinicie todos los pods a la vez. Lo nuevo es `/health/ready/`.
+- **D-O04 aplicada: `/health/ready/` no se declara como readinessProbe** en ningún manifiesto, ni se publica en nginx
+  (cae en el `location /` general). Su lugar es el monitoreo externo y el deploy.
+- **El cache solo se chequea en `prd`.** Fuera de ahí el backend es LocMem y el resultado no diría nada del ambiente; en
+  `prd` las sesiones viven en Redis, así que sin cache nadie puede loguearse aunque la base conteste.
+- **El rollback automático de `deploy_prod.sh` se aborta si el deploy aplicó migraciones.** Volver solo el código deja el
+  esquema adelantado y las filas a medias (RED-14). Esa decisión necesita el dump de D.0 y una persona: el script sale
+  con error nombrando el runbook en vez de improvisar. Si **no puede averiguarlo** —el contenedor no responde— avisa y
+  sigue con el comportamiento de siempre: no se cambia un camino conocido por uno nuevo en el caso ambiguo.
+- **Las tablas huérfanas avisan, no frenan.** Hay bases con tablas ajenas por motivos legítimos y la guarda corre en el
+  arranque de producción: un falso positivo ahí es un ambiente que no levanta. Con `--estricto` sí frenan, y así la corre
+  el paso 8/8 del roundtrip, donde la base es efímera.
+- **Los archivos de log quedan apagados por defecto.** `LOG_TO_FILES=True` solo en `docker-compose.prod.yml` (icore,
+  donde `./logs` está montado desde el host). En k8s no se escribe nada en el filesystem —antes sí, y nadie lo leía— y
+  con la variable apagada no se crea ni el directorio, que en un filesystem de solo lectura era un arranque fallido.
+- **El tag del release va sobre el commit de `main`, con el short SHA de `development`.** Es el commit que alguien
+  reconoce y el mismo que ya va en el asunto del commit de release. La fecha sola no alcanza: puede haber más de un
+  release por día.
+
+## Implementación
+
+**OPS-03 — el traceback llega a stdout.** `core/logging_config.py` es nuevo y arma el `LOGGING` con una función, que es
+lo que lo vuelve probable. `django.request` queda **sin handlers propios y propagando**, así que el traceback llega a
+`console` por la raíz. Los cinco handlers de archivo existen solo con `LOG_TO_FILES=True`, y `purgar_logs_viejos` borra
+las carpetas diarias con más de `LOG_RETENTION_DAYS` (14) al arrancar el proceso.
+
+**Un desvío:** la ficha proponía reemplazar `DailyFileHandler` por `TimedRotatingFileHandler`. No se hizo: eso cambia el
+layout a `logs/info.log` y rompe `core/management/commands/perf_report_requests.py`, que lee `logs/<fecha>/info.log`. El
+motivo del cambio —que `logs/` crezca sin techo en icore— se resolvió con la purga, sin tocar el layout.
+
+**RED-55 — los context processors dejan rastro.** `logger.exception` en `core.context_processors.sidebar_badges` y en
+`conversaciones.context_processors.user_groups`, con el motivo al lado. El contexto sigue degradando igual.
+
+**OPS-04 — `/health/ready/`.** `healthcheck/views/ready.py`: `ensure_connection()` + `SELECT 1` y, con
+`ENVIRONMENT=="prd"`, `caches["sessions"].get("health")`. Devuelve `{"db": …}` con 200, o 503 con el tipo de error
+(acotado a 200 caracteres: no filtra credenciales ni datos). Se retiraron `health_check`, `health_check.db` y
+`health_check.cache` de `INSTALLED_APPS`, el `path("health/", include("health_check.urls"))` que el include de
+`healthcheck.urls` tapaba —dos apps peleando la misma ruta, una de ellas tocando la base en lo que es una liveness— y
+`django-health-check` de `requirements.txt`.
+
+**RED-59 — `deploy_prod.sh`.** `HEALTH_URL` por defecto pasa a `/health/ready/`; `post_deploy_checks()` corre
+`migrate --check`, cuenta las entradas de `staticfiles.json` (mínimo 50: el archivo vacío existe igual y deja cada
+`{% static %}` en 500) y pide `GET /login/` = 200; `git checkout --force` pasa a
+`git switch --force-create "rollback/$TIMESTAMP"`. **Dos desvíos code-first:** la ficha dice `/accounts/login/`, ruta
+que no existe —el login está en `/` y `/login/`, `users/urls.py:24-25`—, y el estado de las migraciones se compara por
+cantidad de `[X]` antes y después, que es lo que se puede medir desde el host.
+
+**OPS-01 — la guarda de esquema.** `manage.py verificar_esquema_migraciones`, de solo lectura, con tres chequeos:
+`applied - disk` (las filas sin archivo, que es el estado de icore), las `CreateModel` del plan pendiente cuya `db_table`
+ya existe (el `1050` del deploy, y también lo que deja un restore encima) y el inverso de RED-15. El estado final se
+calcula con la **unión** de los modelos vivos y los del `project_state()` de las migraciones: solo con los vivos, una
+tabla del grafo cuyo modelo ya no está en el código daría un falso positivo. Corre en `docker-entrypoint.sh` antes del
+`migrate` (salteable con `SKIP_SCHEMA_GUARD=true`) y como paso 8/8 de `scripts/roundtrip_migraciones.py` con
+`--estricto`, que es lo que el Anexo B pedía y el Cambio 139 dejó anotado. El renombre de icore quedó versionado en
+`core/sql/2026-10-06_renombrar_migraciones_icore.sql`, con las seis filas verificadas contra el árbol de `a9fc4ee`.
+
+**RED-16 — el release tiene nombre.** `publish-main.yml` etiqueta con `release-AAAA.MM.DD-<short>` (tag anotado) después
+del push de `main` y solo cuando hubo release nueva. Se empuja `refs/tags/$tag` y no `--tags`, que arrastraría cualquier
+otro tag del runner; un tag repetido sale por `::warning::` en vez de dejar la publicación en rojo. **No hace falta
+permiso nuevo:** `contents: write` ya estaba por el push de `main`.
+
+## Cómo se probó
+
+Validación completa con Python 3.12 + Django 5.2.17 (`.venv312`, el mismo del CI):
+
+- `manage.py check` → sin issues; `makemigrations --check --dry-run` → «No changes detected».
+- **`manage.py test` sin argumentos: 2931 tests, OK (skipped=23)**, 699 s.
+- `manage.py test --tag performance` → 4 tests, OK.
+- `ruff check .` → All checks passed; `ruff format --check` sobre los 17 archivos tocados → ya formateados.
+- `actionlint` (Docker `rhysd/actionlint`) sobre **todos** los workflows → exit 0.
+- `bash -n scripts/deploy_prod.sh docker-entrypoint.sh` → OK.
+
+**Los tests nuevos se corrieron contra el árbol sin el arreglo y fallan.** `core.tests.test_context_processors`: 3 en
+rojo («no logs of level ERROR»). `core.tests.test_logging_stdout`: 3 en rojo + 1 error (`django.request` con
+`propagate: False` y `['error_file', 'warning_file']`). `healthcheck.tests.test_ready`: 3 fallas + 6 errores.
+`core.tests.test_scripts_deploy`: 8 fallas. `core.tests.test_verificar_esquema_migraciones`: el comando no existía.
+
+## Puesta en marcha en el servidor
+
+**icore-srv, antes del próximo deploy y en este orden:**
+
+1. Dump de la base (paso D.0 del runbook).
+2. Correr `core/sql/2026-10-06_renombrar_migraciones_icore.sql` **una sola vez**, con el `SELECT` de verificación previo. Sin esto,
+   el arranque se frena en la guarda nueva (que es el comportamiento correcto: antes moría más adelante y peor).
+3. Deploy normal. `LOG_TO_FILES=True` ya viene en `docker-compose.prod.yml`, así que los archivos de `logs/` siguen
+   apareciendo; lo nuevo es que el traceback también sale por `docker compose logs web`.
+4. Verificar: `curl -s localhost/health/ready/` devuelve `{"db": "ok", "cache": "ok"}`.
+
+**ECOM:** nada que aplicar de este cambio; las sondas siguen apuntando a `/health/` y responden igual. Hay **tres
+pedidos escritos** en `docs/internal/propuesta-ecom-verify.md` para que los mande el PM: §2 el tag de imagen por commit
+(D-RED-02, lo que vuelve el rollback de PRD un `kubectl set image`), §4 el aviso del volumen nuevo en stdout y §5 que
+`/health/ready/` existe y no conviene usarla como liveness.
+
+## Pendientes / a definir
+
+- **El tag de imagen de ECOM (D-RED-02).** Sin eso, RED-16 queda a medias: el tag nuestro da el SHA para reconstruir, no
+  la imagen para volver en segundos.
+- **El renombre en icore** lo corre una persona; mientras no se corra, el deploy se frena en la guarda.
+- **OPS-13**: quedan `openai`, `django_extensions` en prod, `debugpy`, `structlog`, `gevent` y compañía.
+- **OPS-05** (`DB_READ_TIMEOUT`) y **OPS-07** (candado del bootstrap) siguen en la Ola 3.
+- El `data_file` (JSON de `record.data`) ahora sale por `console` con el formatter `verbose` cuando `LOG_TO_FILES` está
+  apagado. Nadie lo consume hoy; si alguna vez hace falta ese JSON en stdout, hay que agregarle su propio handler.
+
+## Reversión
+
+1. Revertir el commit. Vuelven los seis defectos: el traceback deja de salir por stdout, `/health/ready/` desaparece
+   (las sondas de `/health/` siguen igual: nunca cambiaron), `deploy_prod.sh` vuelve a dar OK con la base caída y a
+   dejar detached HEAD, la guarda de esquema deja de correr y los releases dejan de etiquetarse.
+2. **No hay nada que deshacer en ninguna base.** Ninguna pieza de este cambio escribe una fila: la guarda es de solo
+   lectura y la sonda hace `SELECT 1`.
+3. Lo que **no** vuelve solo: los tags `release-*` ya publicados quedan en el remoto (son inmutables a propósito; no
+   molestan). Si icore ya corrió ese SQL, ese renombre **tiene que quedar**: es la corrección
+   del registro, no parte de este código, y revertirlo volvería a romper el deploy.
+4. Si se revierte después de haber desplegado, conviene dejar `LOG_TO_FILES` fuera del compose: con el código viejo la
+   variable no existe y no hace nada, pero deja una línea que no explica nada.
+
+## Historial
+
+- **03/10/2026** — la auditoría registra OPS-01, OPS-03 y OPS-04 en la Ola 3.
+- **04/10/2026** — el frente Red de seguridad las amplía y las pasa a la Ola R, junto con RED-55, RED-59 y RED-16:
+  sin tracebacks no se diagnostica nada de lo que las otras olas van a tocar.
+- **06/10/2026** — el Cambio 139 (R-13) deja anotado que `verificar_esquema_migraciones` es de este PR.
+- **06/10/2026 (este cambio)** — las seis cerradas; RED-16 queda 🟡 por la mitad que es de ECOM.
