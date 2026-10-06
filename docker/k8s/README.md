@@ -13,7 +13,8 @@ en la documentación del proyecto, sección *Si el despliegue es en Kubernetes*.
   (por defecto en `ENVIRONMENT=prd|qa`) y siembra roles/programas/catálogos, y
   recién después levanta el server (daphne con `APP_RUNTIME=daphne`: HTTP y
   websockets en el mismo proceso; ver *HTTP en varios procesos* para la
-  alternativa con gunicorn).
+  alternativa con gunicorn). Con más de una réplica eso hay que apagarlo
+  (`RUN_MIGRATIONS=false`): ver *Quién corre `migrate`*.
 - **Estáticos**: los sirve la propia app (whitenoise). No hace falta sidecar.
 - **Archivos subidos**: con `SERVE_MEDIA=True` la app también sirve `/media/`.
   `MEDIA_ROOT` (`/app/media`) **tiene que ser un volumen persistente**: ahí viven
@@ -32,13 +33,42 @@ en la documentación del proyecto, sección *Si el despliegue es en Kubernetes*.
 - **PVC para `/app/media`** y el ingress con `X-Forwarded-Proto: https` y
   `Upgrade`/`Connection` en `/ws/`.
 
-## Las dos formas de correr el bootstrap
+## Quién corre `migrate`: uno solo
 
-1. **Sin `command`/`args` en el pod** (recomendado): el entrypoint hace todo.
-2. **Con comando propio**: el entrypoint ejecuta ese comando y **se saltea
-   migraciones y sembrado**. En ese caso el bootstrap va aparte, como
-   initContainer o Job con `args: ["bootstrap"]` (modo one-shot: corre todo y
-   termina). Ver `bootstrap-initcontainer.yaml`.
+Django **no** toma ningún candado para `migrate` en MySQL/MariaDB. Dos procesos
+migrando a la vez se pisan y, si se cruzan dentro de una migración de varias
+operaciones, el esquema queda a medias y **sin** fila en `django_migrations`:
+medido contra MariaDB 11.8, uno de los dos muere con 1050 desde base vacía y con
+1060 desde base al día. Eso no se arregla reintentando el deploy.
+
+| Forma | Cuándo es válida |
+|---|---|
+| Sin `command`/`args` en el pod: el entrypoint migra en cada arranque | Solo con **`replicas: 1`** y sin rolling. Con más réplicas son N migradores |
+| initContainer `args: ["bootstrap"]` (`bootstrap-initcontainer.yaml`) | Solo con **`replicas: 1`**: el initContainer corre en **cada** pod |
+| Job `args: ["bootstrap"]` (`bootstrap-job.yaml`), y `RUN_MIGRATIONS=false` + `LOCAL_BOOTSTRAP_COMMANDS=false` en todos los Deployments | **Siempre**. Es la única forma con `replicas > 1` |
+
+Con el Job, el orden del deploy es: aplicar el Job con la imagen nueva, esperar a
+que termine (`kubectl wait --for=condition=complete`) y recién entonces
+`kubectl set image` del Deployment. Si el Job falla, el rollout **no** se hace: el
+runbook es el Anexo D de `docs/internal/processes.md`.
+
+El Job **no monta `/app/media`**, a propósito: corre mientras los pods viejos siguen
+atendiendo y tienen el PVC tomado, así que con un PVC `ReadWriteOnce` —lo normal—
+quedaría en `Pending` hasta el timeout y el deploy se frenaría sin un error claro. El
+bootstrap no escribe ahí (`migrate`, `collectstatic` a `/app/staticfiles` y los seeds no
+tocan adjuntos). Si alguna vez hiciera falta montarlo, el PVC tiene que ser
+`ReadWriteMany`. Por el mismo motivo, los Deployments llevan además
+`LOCAL_BOOTSTRAP_COMMANDS=false`: el `migrate` no es lo único que repetiría cada pod.
+
+**Expand/contract.** Durante el rolling conviven la release vieja y la nueva contra
+el mismo esquema (~60 s), así que una release nunca borra ni renombra una columna
+que la anterior todavía lee: eso se hace dos releases después. El gate
+`# CONTRACT:` de `scripts/check_migraciones.py` lo exige en cada migración nueva, y
+el job `Migrate ida y vuelta` prueba la ida y la vuelta sobre datos.
+
+Cuando el contenedor principal define su propio `command`, el entrypoint ejecuta ese
+comando y **se saltea migraciones, estáticos y sembrado**: ahí el initContainer o el
+Job no son opcionales.
 
 ## Variables
 
@@ -63,8 +93,9 @@ haciendo los demás usuarios en ese momento. Dos formas de repartir la carga:
    150–200 MB por worker, ajustar `resources.limits.memory`). Gunicorn **no sirve
    websockets**: hace falta un **segundo Deployment** con `APP_RUNTIME=daphne` y
    el ingress enrutando `/ws/` hacia su Service, más `WEBSOCKETS_ENABLED=True` en
-   el Deployment web (con gunicorn no se deduce). El bootstrap corre igual en ambos;
-   para que no lo repitan, usar el initContainer de `bootstrap-initcontainer.yaml`.
+   el Deployment web (con gunicorn no se deduce). Los dos Deployments llevan
+   `RUN_MIGRATIONS=false` y el `migrate` va en el Job de `bootstrap-job.yaml`: dos
+   Deployments arrancando a la vez son dos migradores (*Quién corre `migrate`*).
 
 Un límite de CPU bajo en el pod (`resources.limits.cpu`) también alarga el login:
 la verificación de la contraseña es CPU puro y se estrangula.

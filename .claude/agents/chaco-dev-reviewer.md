@@ -53,7 +53,36 @@ canonico como fuente de verdad de UI. El criterio mecanico de UI es el **ratchet
    - endpoints/listados sin `paginate_by`, `Paginator` o limite explicito.
    - datos, permisos o contadores calculados en templates en vez de views/selectors.
    - tabs con listados grandes precargados aunque el usuario no los vea.
-6. Selecciona tests focalizados por modulo y riesgo. Usa siempre el venv del repo:
+6. Si el PR toca `*/migrations/*.py`, revisa expand/contract antes que nada (RED-19):
+   - *Expand* (agregar columna nullable, columna `NOT NULL` con `DEFAULT` real en la
+     base —`db_default=` o `RunSQL … SET DEFAULT`—, `CreateModel`, `AddIndex`) convive
+     con el codigo viejo: va sola en la release N.
+   - *Contract* (`RemoveField`, `DeleteModel`, `RenameField`, `RenameModel`, `RemoveIndex`
+     de un indice en uso, y todo `AlterField` que ponga `NOT NULL` o le saque el `DEFAULT`
+     a una columna) **no** convive: va en N+2, cuando ninguna release viva la lee. Durante
+     el rolling los pods viejos siguen atendiendo.
+   - Renombrar una columna esta prohibido: agregar, copiar, escribir en las dos, cambiar
+     el lector y borrar en N+2.
+   - Una migracion **ya aplicada** se puede editar (marcas, comentarios, reversa) pero su
+     SQL de ida no puede cambiar.
+   - Que verifica cada herramienta, y que **no** verifica ninguna:
+
+     | Caso | Lo ve |
+     |---|---|
+     | Columna nueva `NOT NULL` sin `DEFAULT` en la base | `scripts/check_migraciones.py` (regla `EXPAND`) |
+     | `RemoveField`/`DeleteModel`/`RenameField`/`RenameModel` sin `# CONTRACT:` | `scripts/check_migraciones.py` (regla `CONTRACT`) |
+     | `RunPython`/`RunSQL` sin reversa o con reversa noop sin marca | `scripts/check_migraciones.py` (regla `REVERSA`) |
+     | `AlterField` que pone `NOT NULL` o saca el `DEFAULT` | job `Migrate ida y vuelta` (`verificar_columnas_obligatorias`) |
+     | Editar una migracion ya aplicada cambiandole el SQL de ida | job `Migrate ida y vuelta` (`scripts/check_sqlmigrate.py`) |
+     | **`RemoveIndex` de un indice que la release vieja todavia usa** | **nada: lo mira el revisor** |
+     | **Tabla grande (`programas_formulario` ~283 MB): medir el `ALTER` en `scripts/perf_mysql/`** | **nada: lo mira el revisor** |
+     | **Migracion de datos por lotes de pk, nunca un queryset entero ni un `save()` por fila** | **nada: lo mira el revisor** |
+     | **`atomic = False` con cada paso idempotente** (RED-58) | **nada: lo mira el revisor** |
+     | **Cambiarle el cuerpo a un `RunPython` ya aplicado** (`sqlmigrate` lo imprime como comentario) | **nada: lo mira el revisor** |
+
+     El checklist completo esta en el Anexo A de
+     `docs/internal/auditoria-2026-10/hallazgos/08-red-de-seguridad.md`.
+7. Selecciona tests focalizados por modulo y riesgo. Usa siempre el venv del repo:
 
 ```powershell
 $env:PY_VENV = "$PWD\.venv\Scripts\python.exe"
@@ -67,7 +96,7 @@ Para tests con base, usa tambien:
 $env:PYTEST_RUNNING = "1"
 ```
 
-7. Si un test falla por la deuda conocida de Python 3.14 + Django 4.2 al copiar
+8. Si un test falla por la deuda conocida de Python 3.14 + Django 4.2 al copiar
    contextos (`AttributeError: 'super' object has no attribute 'dicts'`), no lo
    ocultes: separalo de fallas reales y, si es posible, corre pruebas de servicios o
    casos directos que no dependan del render instrumentado.

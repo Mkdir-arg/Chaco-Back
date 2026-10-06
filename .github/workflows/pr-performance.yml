@@ -234,3 +234,153 @@ jobs:
 
       - name: Correr los tests marcados contra el motor real
         run: python manage.py test --tag mysql --verbosity=2
+
+  # RED-17 / RED-19 (PR R-13): hasta hoy una migración entraba sin que nada la ejecutara
+  # —el CI arma el esquema desde los modelos— y el camino de **vuelta** no lo probaba
+  # nadie. Este job corre la secuencia entera contra el motor de producción y sobre datos
+  # sembrados: ida hasta la base del PR con el código de la base, `seed_perf`, ida del PR
+  # sobre esas filas, vuelta hasta la base y de nuevo hacia adelante.
+  #
+  # Dos cosas que el gate estático `scripts/check_migraciones.py` (R-12) no puede ver,
+  # porque son de ejecución y no de lectura del archivo, las tapa este job:
+  #   (a) una columna que pasa a NOT NULL por `AlterField` (o que pierde su DEFAULT):
+  #       `verificar_columnas_obligatorias` compara el esquema real antes y después;
+  #   (b) **editar** una migración ya aplicada: `check_sqlmigrate.py` compara el SQL de
+  #       ida de cada migración que el PR toca contra el árbol de la base.
+  #
+  # Las ocho barreras de reversa (runbook D.4) abortan **a propósito**: el script las
+  # registra como esperadas y sigue. Eso no es un rojo.
+  #
+  # Sin `continue-on-error`, al revés de lo que proponía el Anexo B: las dos razones por
+  # las que lo pedía —RED-18, la reversa UUID que truncaba, y las barreras de RED-15/57
+  # sin declarar— las cerró el Cambio 135. Y **todavía no es obligatorio en el ruleset**,
+  # por el mismo motivo que `Motor real`: entra cuando acumule corridas (y entonces se
+  # suma a `docs/internal/rulesets/ruleset-development.json` y a `CHECKS_OBLIGATORIOS` de
+  # `core/tests/test_gates_ci.py`, en el mismo PR).
+  migration-roundtrip:
+    name: Migrate ida y vuelta (${{ matrix.motor }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Los dos motores de producción: MariaDB 10.11 es ECOM (testing y PRD) y
+          # MySQL 8 es icore. `mariadb:11` no entra acá —lo cubre `Motor real` hacia
+          # adelante— porque este job es el más caro de los dos y nadie corre esa versión.
+          - motor: "mariadb:10.11"
+            salud: "healthcheck.sh --connect --innodb_initialized"
+          - motor: "mysql:8.0"
+            salud: "mysqladmin ping -h 127.0.0.1 -uroot -proot --silent"
+
+    services:
+      db:
+        image: ${{ matrix.motor }}
+        env:
+          MARIADB_ROOT_PASSWORD: root
+          MYSQL_ROOT_PASSWORD: root
+          # El nombre no es decorativo: `seed_perf` se niega a correr fuera de
+          # `chaco_perf_ci` con `ENVIRONMENT=ci` y `PERFORMANCE_CI=1`, y esa guarda hay
+          # que satisfacerla con el código **de la base del PR**, que es el que siembra.
+          MARIADB_DATABASE: chaco_perf_ci
+          MYSQL_DATABASE: chaco_perf_ci
+          # La base de ECOM no tiene tablas de zona horaria (`CLAUDE.md` §Gotchas) y la
+          # imagen oficial de MariaDB sí las carga: sin esta variable, una migración de
+          # datos con `CONVERT_TZ` daría verde acá y `NULL` en producción.
+          MARIADB_INITDB_SKIP_TZINFO: "1"
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="${{ matrix.salud }}"
+          --health-interval=5s --health-timeout=5s --health-retries=30
+      # `PERFORMANCE_CI=1` manda sesiones y caché a Redis (`config/settings.py`), y lo
+      # pide la guarda de `seed_perf`.
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+
+    env:
+      DJANGO_SECRET_KEY: ci-test-key-not-a-real-secret
+      DJANGO_DEBUG: "False"
+      DJANGO_ALLOWED_HOSTS: localhost,testserver
+      ENVIRONMENT: ci
+      PERFORMANCE_CI: "1"
+      PERFORMANCE_METRICS_NAMESPACE: roundtrip-${{ github.run_id }}-${{ github.run_attempt }}
+      DATABASE_NAME: chaco_perf_ci
+      # root: el `migrate` crea y borra tablas, y el usuario de la imagen solo tiene
+      # privilegios sobre la base que ya existe. Contenedor efímero que dura el job.
+      DATABASE_USER: root
+      DATABASE_PASSWORD: root
+      DATABASE_HOST: 127.0.0.1
+      DATABASE_PORT: "3306"
+      REDIS_HOST: 127.0.0.1
+      REDIS_PORT: "6379"
+      REDIS_DB: "13"
+      # El `read_timeout` de 10 s de producción cortaría un ALTER sobre datos sembrados
+      # con el DDL a medias, que es otro hallazgo (OPS-05) y no lo que este job mide.
+      # Vive fuera de `config/` para que el árbol de la base —que no tiene el archivo—
+      # también lo encuentre.
+      DJANGO_SETTINGS_MODULE: settings_roundtrip
+      PYTHONPATH: ${{ github.workspace }}/.github/ci
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # El filtro va adentro del job y no en el trigger (RED-20): un check filtrado por
+      # `paths:` nunca reporta, y uno que nunca reporta no puede volverse obligatorio.
+      - uses: dorny/paths-filter@0e4a8c6effa4802afeda77dc8d303f8176d7dfad # v3.0.4
+        id: filtro
+        with:
+          filters: |
+            migraciones:
+              - '**/migrations/*.py'
+              - 'scripts/roundtrip_migraciones.py'
+              - 'scripts/check_sqlmigrate.py'
+              - 'core/management/commands/verificar_columnas_obligatorias.py'
+              - 'core/management/commands/seed_perf.py'
+              - 'config/settings.py'
+              - 'requirements.txt'
+              - '.github/ci/settings_roundtrip.py'
+              - '.github/workflows/pr-performance.yml'
+
+      - uses: actions/setup-python@v5
+        if: steps.filtro.outputs.migraciones == 'true'
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install system dependencies
+        if: steps.filtro.outputs.migraciones == 'true'
+        run: sudo apt-get install -y default-libmysqlclient-dev
+
+      - name: Install Python dependencies
+        if: steps.filtro.outputs.migraciones == 'true'
+        run: pip install -r requirements.txt
+
+      # El árbol de la base del PR es «la release anterior» de verdad para este PR, y no
+      # hace falta esperar al tag de RED-16: es la misma referencia que usa el gate
+      # estático de R-12, así que los dos miden exactamente el mismo conjunto de cambios.
+      - name: Árbol de la base del PR
+        if: steps.filtro.outputs.migraciones == 'true'
+        run: |
+          base="${{ github.event.pull_request.base.sha }}"
+          [ -n "$base" ] || base="$(git rev-parse HEAD^)"
+          echo "BASE=$base" >> "$GITHUB_ENV"
+          git worktree add ../base "$base"
+          echo "base: $base"
+
+      - name: Migraciones ida y vuelta, sobre datos
+        if: steps.filtro.outputs.migraciones == 'true'
+        run: python scripts/roundtrip_migraciones.py --base "$BASE" --arbol-base ../base
+
+      - name: El SQL de ida de una migración aplicada no cambió
+        if: steps.filtro.outputs.migraciones == 'true'
+        run: python scripts/check_sqlmigrate.py --base "$BASE" --arbol-base ../base
