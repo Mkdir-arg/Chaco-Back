@@ -55,7 +55,11 @@ jobs:
     timeout-minutes: 10
 
     steps:
+      # `fetch-depth: 0` lo necesita `check_migraciones.py`: compara contra la base del PR
+      # para revisar solo las migraciones **nuevas**.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-python@v5
         with:
@@ -75,6 +79,22 @@ jobs:
           PYTEST_RUNNING: "1"
           DJANGO_SYNCDB_PROJECT_APPS: "False"
         run: python manage.py makemigrations --check --dry-run
+
+      # RED-14, RED-19 y RED-57. Va acá, adentro del job que ya es obligatorio en el
+      # ruleset, y no como check nuevo: es el mismo tema (que las migraciones del PR estén
+      # bien), tarda menos de un segundo, no necesita base ni dependencias, y un `context`
+      # nuevo hay que agregarlo a mano al ruleset del repo —que todavía no está aplicado—.
+      # Revisa solo los archivos **agregados** respecto de la base: las migraciones ya
+      # aplicadas en producción no se reescriben.
+      - name: Contrato de las migraciones nuevas
+        shell: bash
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          base="$BASE"
+          # En un push de rama nueva `before` es todo ceros; ahí la referencia es la rama.
+          case "$base" in "" | 0000000000000000000000000000000000000000) base="origin/development" ;; esac
+          python scripts/check_migraciones.py --base "$base"
 
   tests-and-coverage:
     name: Tests & Coverage

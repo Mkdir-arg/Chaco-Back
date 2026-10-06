@@ -17,6 +17,9 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        # REVERSA-NOOP: el rol «Becas — Coordinador regional» y su permiso
+        # ``becas_coordinador_regional`` no vuelven, y con ellos se fue la lista de qué
+        # usuarios lo tenían (la tabla intermedia se borró por CASCADE).
         migrations.RunPython(eliminar_rol_y_permiso_regional, migrations.RunPython.noop),
         migrations.AlterModelOptions(
             name='capacidad',

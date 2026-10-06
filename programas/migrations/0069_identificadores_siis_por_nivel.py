@@ -14,6 +14,31 @@
 #   otro.
 
 from django.db import migrations, models
+from django.db.migrations.exceptions import IrreversibleError
+
+# BARRERA-DE-REVERSA: por debajo de programas.0069 solo se vuelve con restore (RED-57).
+# El ``RemoveField`` de ``segmento.siis_id_plan_soc`` borra el dato sin copiarlo a ningún
+# lado: al revertir, el ``AddField`` automático recrea la columna vacía y los ids de plan
+# social cargados a mano desaparecen sin aviso.
+# Runbook D.4 de docs/internal/processes.md.
+MENSAJE_BARRERA = (
+    "programas.0069 es una barrera de reversa (RED-57): la ida borró "
+    "segmento.siis_id_plan_soc sin copiarlo, así que la vuelta deja la columna vacía y "
+    "los identificadores cargados a mano se pierden. Volver atrás se hace con restore "
+    "del dump previo al deploy: runbook D.4 de docs/internal/processes.md. "
+    "No reintentar ni usar --fake."
+)
+
+
+def sin_cambios(apps, schema_editor):
+    """La barrera no toca nada hacia adelante: solo existe para el camino de vuelta."""
+
+
+def bloquear_reversa(apps, schema_editor):
+    # Es la última operación de la migración, así que Django la corre **primera** al
+    # desaplicar: aborta antes de cualquier DDL. Vale en todos los motores: lo que se
+    # pierde es una columna de datos, y eso no depende del motor.
+    raise IrreversibleError(MENSAJE_BARRERA)
 
 
 class Migration(migrations.Migration):
@@ -46,4 +71,5 @@ class Migration(migrations.Migration):
                 verbose_name="Id. de jurisdicción en SIIS",
             ),
         ),
+        migrations.RunPython(sin_cambios, bloquear_reversa),
     ]

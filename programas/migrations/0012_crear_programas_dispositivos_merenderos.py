@@ -66,5 +66,7 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        # REVERSA-NOOP: los programas DISPOSITIVOS y MERENDEROS quedan creados. Es a
+        # propósito: borrarlos arrastraría por CASCADE todo lo que se cargó debajo.
         migrations.RunPython(crear_programas, reverse_code=migrations.RunPython.noop),
     ]

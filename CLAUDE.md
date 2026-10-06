@@ -64,6 +64,7 @@ $env:PYTEST_RUNNING = "1"; $env:DJANGO_SYNCDB_PROJECT_APPS = "True"
 & $env:PY_VENV manage.py test --tag performance                 # presupuestos de queries
 
 & $env:PY_VENV manage.py makemigrations --check --dry-run       # gate: no faltan migraciones
+& $env:PY_VENV scripts\check_migraciones.py                     # gate: contrato de las migraciones nuevas
 ```
 
 ### Lint y frontend
@@ -197,6 +198,15 @@ como cache/sessions en `prd` o en el CI de performance; en dev es LocMem.
 - Si falta contexto funcional, derivarlo del código, rutas, templates y nombres del dominio.
 - Usar Django Forms/ModelForms para formularios del backoffice.
 - Crear migraciones inmediatamente después de cambiar modelos (el CI falla si faltan).
+- **Contrato de las migraciones nuevas** (`scripts/check_migraciones.py`, gate del job
+  `Migration Check`): una columna nueva nace `null=True`, o `NOT NULL` con `DEFAULT` real
+  en la base (`RunSQL(… SET DEFAULT …, state_operations=[])`), o lleva
+  `# ROLLBACK-OK: <motivo>` —si no, el código viejo deja de poder dar de alta apenas se
+  baja la release—; un `RemoveField`/`DeleteModel`/`RenameField`/`RenameModel` lleva
+  `# CONTRACT: <dejó de leerse en la release X>` y va dos releases después de que nadie
+  lo lea; y todo `RunPython`/`RunSQL` declara su reversa, con `# REVERSA-NOOP: <qué dato
+  queda inconsistente>` si no deshace nada. Las ocho migraciones por las que no se vuelve
+  están en el paso D.4 de [`processes.md`](docs/internal/processes.md).
 - Modelos nuevos: heredar de `core.models.TimeStamped` como hace el resto.
 - Templates del backoffice: extender `includes/base.html`.
 - Templates del portal: extender `portal/base.html`.
@@ -272,7 +282,8 @@ protección de rama. Los dos rulesets que la encienden están versionados en
 repo**; hasta entonces, no mergear en rojo es una regla del proceso, no un mecanismo.
 
 - **Backend CI** — `manage.py check --deploy` (`Django System Check`),
-  `makemigrations --check --dry-run` (`Migration Check`) y `coverage run manage.py test`
+  `makemigrations --check --dry-run` + `scripts/check_migraciones.py` sobre las
+  migraciones nuevas del PR (`Migration Check`) y `coverage run manage.py test`
   (`Tests & Coverage`, `fail_under = 48` en `pyproject.toml`).
 - **Performance Guard** — tests `--tag performance` (presupuestos de queries en
   `scripts/perf_budgets.json`), comparación de duración y contrato MySQL/Redis efímero.

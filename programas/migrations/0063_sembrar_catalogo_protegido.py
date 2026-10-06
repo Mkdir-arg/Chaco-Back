@@ -137,4 +137,9 @@ def revertir(apps, schema_editor):
 class Migration(migrations.Migration):
     dependencies = [("programas", "0062_formulario_respuestas_definicion")]
 
-    operations = [migrations.RunPython(sembrar, revertir)]
+    operations = [
+        # REVERSA-NOOP: ``revertir`` no borra nada a propósito (los campos sembrados pueden
+        # tener respuestas asociadas), así que al revertir el catálogo protegido queda
+        # entero. Volver a aplicar la migración es idempotente.
+        migrations.RunPython(sembrar, revertir)
+    ]
