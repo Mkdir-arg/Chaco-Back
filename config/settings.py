@@ -197,6 +197,11 @@ if PYTEST_RUNNING:
     ZEAL_RAISE = True
     ZEAL_ALLOWLIST = []
 
+# El runner de Django, con la salida a la red cortada (SIIS-09): un test que
+# parchea el lugar equivocado tiene que fallar, no salir a internet y afirmar
+# algo que nunca se ejercitó. Ver ``core/tests/runner.py``.
+TEST_RUNNER = "core.tests.runner.RunnerSinRed"
+
 ROOT_URLCONF = "config.urls"
 WSGI_APPLICATION = "config.wsgi.application"
 ASGI_APPLICATION = "config.asgi.application"
@@ -499,6 +504,11 @@ CSP_REPORT_ONLY = os.environ.get("CSP_REPORT_ONLY", "False") == "True"
 RECAPTCHA_SITE_KEY = os.environ.get("RECAPTCHA_SITE_KEY", "").strip()
 RECAPTCHA_SECRET_KEY = os.environ.get("RECAPTCHA_SECRET_KEY", "").strip()
 RECAPTCHA_VERIFY_URL = os.environ.get("RECAPTCHA_VERIFY_URL", "https://www.google.com/recaptcha/api/siteverify")
+# SIIS-09: el paso 1 del link público verifica el token contra Google **antes**
+# de consultar identidad, así que entra en el presupuesto de red del request. Es
+# un par (conectar, leer) y no un escalar: con un escalar ``requests`` lo aplica
+# a las dos fases y el peor caso es el doble del número que dice la variable.
+RECAPTCHA_CONNECT_TIMEOUT = int(os.environ.get("RECAPTCHA_CONNECT_TIMEOUT", "5"))
 RECAPTCHA_TIMEOUT = int(os.environ.get("RECAPTCHA_TIMEOUT", "10"))
 
 # Google Tag Manager en las pantallas públicas de inscripción (Cambio 68). Sin

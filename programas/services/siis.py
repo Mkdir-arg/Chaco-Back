@@ -355,7 +355,16 @@ class SiisAPIClient:
                     "data": body,
                 }
             return {"success": False, "error": "SIIS devolvió una respuesta no reconocida.", "data": body}
-        except (requests.RequestException, TypeError, ValueError, _SiisConfigurationError):
+        except _SiisConfigurationError:
+            # La integración está mal configurada (URL o credenciales vacías, o
+            # un token que no es un objeto): no salió nada a la red. Contarlo
+            # como falla haría que el log dijera «SIIS falló 3 veces seguidas»
+            # —que manda a mirar a ECOM— cuando lo que falta es una variable de
+            # entorno, y el cortacircuito no ahorraría ninguna espera: el
+            # cliente ya corta antes de abrir la conexión.
+            logger.exception("Configuración SIIS incompleta al validar compatibilidad")
+            return {"success": False, "error": "No se pudo conectar con SIIS.", "data": {}}
+        except (requests.RequestException, TypeError, ValueError):
             logger.exception("Error técnico al validar compatibilidad en SIIS")
             cortacircuito_consultas.registrar_falla()
             return {"success": False, "error": "No se pudo conectar con SIIS.", "data": {}}

@@ -20181,6 +20181,43 @@ Los tres MINOR son del PR anterior:
   (detalle de la revisión), que ya lee con `isinstance` + `.get` y sigue mostrando lo mismo; hay un test que lo
   fija. **No se loguea**: no entran datos personales nuevos al log.
 
+## Decisiones de la ronda 2 de la revisión
+
+- **La suite no sale a internet, y eso es un runner y no un test.** Cambiar los clientes a una `Session` de
+  módulo movió el punto de parcheo, y un test de seguridad del portal se quedó parcheando
+  `programas.services.personas.requests.get`: el mock quedaba en **cero llamadas**, el cliente salía a resolver
+  `personas.example` de verdad y la regresión que cuidaba —que el DNI no viaje en el log— pasaba **por
+  accidente**, porque el error de conexión real tampoco traía el DNI. El parche se corrigió y el test ahora
+  afirma que el mock se llamó; pero lo que impide que vuelva a pasar es `core/tests/runner.py`
+  (`TEST_RUNNER`), que corta `HTTPAdapter.send` durante toda la corrida. Se corta ahí y no a nivel de socket:
+  la base, Redis y el servidor de pruebas siguen funcionando.
+- **El corte se instala asignando el método, no con `mock.patch(...).start()`.** Trece tests de la suite usan
+  `self.addCleanup(patch.stopall)`, que apaga todos los parches activos del proceso: con `start()` la guarda se
+  caía en el primero de ellos y de ahí en adelante la suite volvía a salir a la red sin avisar. Eso se midió:
+  con `start()`, los dos tests de la guarda pasaban solos y fallaban en la suite completa.
+- **El reCAPTCHA entra en la cadena del paso 1 del link público.** Faltaba declararlo y es la llamada **más
+  lenta** de las tres: la cadena decía 30 s cuando el peor caso real eran 45. Además su timeout era un escalar
+  —`requests` lo aplica a conectar **y** a leer, o sea el doble de lo que dice la variable— y estaba congelado
+  en el import, así que `override_settings` no lo movía. Pasa a ser el par `(RECAPTCHA_CONNECT_TIMEOUT,
+  RECAPTCHA_TIMEOUT)` = `(5, 10)`, leído de `settings` en cada llamada (`timeout_recaptcha()`), y hay un test
+  que ata la suma de lo que se pide a lo que declara `COSTOS["recaptcha"]`.
+- **Se revisó el resto de las cadenas contra el código** y se agregaron las tres que faltaban: promover desde la
+  lista de espera (token + alta + correo), agregar a la lista de espera (correo) y el alta de usuario con clave
+  provisoria (correo). RENAPER y el correo ya estaban declarados donde correspondía.
+- **La `Session` de módulo no guarda cookies.** El docstring afirmaba que no había *cookie jar* y era falso: una
+  `requests.Session` guarda lo que le manden y lo reenvía. Como la sesión vive lo que vive el proceso y la
+  comparten todos los requests que pasen por él, una cookie de sesión del servicio externo se guardaría una vez
+  y viajaría en las llamadas que ese proceso haga **por otras personas**. Se le pone una política que rechaza
+  todo (`SinCookies`); las tres integraciones autentican con token en el header y ninguna la necesita. El test
+  compara contra una `Session` pelada, que sí se la guarda.
+- **Una variable de entorno que falta no es «SIIS caído».** `_SiisConfigurationError` —`SIIS_API_URL` vacía,
+  credenciales vacías, un token que no es un objeto— sale del `except` del cortacircuito: no hay espera que
+  ahorrar (el cliente corta antes de abrir la conexión) y contarlo hacía que el log dijera «siis.consulta falló
+  3 veces seguidas», que manda a mirar a ECOM cuando lo que falta es una variable. El log ahora dice
+  «Configuración SIIS incompleta».
+- **La PoC se actualizó** (`poc/test_repro_siis_becas.py`): parcheaba `programas.services.siis.requests.post` y
+  habría dejado de reproducir.
+
 ## Lo que la ficha pedía y no se hizo
 
 - **Cortacircuito para RENAPER.** La ficha nombra a RENAPER solo en el punto de los timeouts, y ahí sí entró. El
@@ -20206,15 +20243,25 @@ No requiere migración. `ValidacionSIS.respuesta` ya es un `JSONField`: `{"_crud
 ## Validación
 
 - **Suite completa** (`manage.py test` sin argumentos, Python 3.12 + Django 5.2.17 del `.venv312`, igual al CI):
-  **2.942 tests, OK** (25 skips).
-- **Tests nuevos: 31.** 18 en `programas/tests/test_llamadas_externas.py` (presupuesto, timeouts que salen de
-  verdad a la red, cortacircuito, Gran Base caída, SIIS caído) y 13 en
-  `programas/tests/test_siis_catalogo_y_payload.py` (los tres MINOR). Fallaban antes por el motivo esperado: la
-  cuarta consulta con la Gran Base caída **sí** salía a la red; el goteo de catálogos parciales dejaba los diez
-  programas bloqueados sin excepción; `--forzar` sin `--motivo` corría; y `respuesta` quedaba en `{}`.
+  **2.985 tests, OK** (25 skips) después de la ronda 2; 2.942 en la ronda 1.
+- **Tests nuevos: 45.** 32 en `programas/tests/test_llamadas_externas.py` (presupuesto, timeouts que salen de
+  verdad a la red, cortacircuito, Gran Base caída, SIIS caído, SIIS mal configurado, sesión compartida), 13 en
+  `programas/tests/test_siis_catalogo_y_payload.py` (los tres MINOR) y 4 en `core/tests/test_sin_red.py` (la
+  guarda de red). Fallaban antes por el motivo esperado: la cuarta consulta con la Gran Base caída **sí** salía
+  a la red; el goteo de catálogos parciales dejaba los diez programas bloqueados sin excepción; `--forzar` sin
+  `--motivo` corría; `respuesta` quedaba en `{}`; la cadena del paso 1 no contaba el captcha; y la `Session` se
+  guardaba las cookies.
+- **La guarda de red probada en las dos direcciones.** Con la versión que usaba `patch(...).start()`, los dos
+  tests de `core/tests/test_sin_red.py` pasaban **solos** y fallaban **en la suite completa** (el primer
+  `patch.stopall` de otro módulo la apagaba, y la llamada llegaba hasta `socket.getaddrinfo`); con la asignación
+  directa, la suite entera queda en verde con la guarda armada de punta a punta.
 - `manage.py check`, `check --deploy`, `makemigrations --check --dry-run` (sin cambios), `--tag performance`
-  (4 tests OK) y `ruff check . && ruff format --check` en verde.
-- **No se corrió nada contra SIIS, ECOM, icore ni PRD.** Todo el tráfico de los tests está mockeado.
+  (4 tests OK) y `ruff check . && ruff format --check` en verde. `requerimientos.py --check` OK.
+- **`core.E003` verificado contra el entorno**, en los dos hallazgos que lo mueven: con
+  `SIIS_API_TIMEOUT=30 EMAIL_TIMEOUT=10` dice «becas · aprobar un caso … 70 s», y con `RECAPTCHA_TIMEOUT=60`
+  dice «link público · paso 1 (identificar) … 95 s».
+- **No se corrió nada contra SIIS, ECOM, icore ni PRD.** Todo el tráfico de los tests está mockeado —y desde la
+  ronda 2 eso lo garantiza el runner, no la buena memoria de quien escribe el test—.
 
 ## Reversión
 
@@ -20239,6 +20286,12 @@ con las variables de entorno —pero el `check --deploy` va a marcarlo, que es l
   requerimiento aparte.
 - **El correo sigue dentro del request** de «Aprobar». Bajarlo a 5 s lo acota; sacarlo del request (marca en el
   caso + cron) es lo que el Cambio 91 dejó anotado y sigue abierto.
+- **`RECAPTCHA_CONNECT_TIMEOUT` es una variable nueva** (default 5). Sin setearla vale lo que se quiere; no hay
+  que agregarla al entorno de ECOM. `RECAPTCHA_TIMEOUT` ya existía y sigue en 10.
+- **El presupuesto solo cubre lo declarado.** `CADENAS` se escribió leyendo el código, pero nada ata
+  automáticamente una llamada externa nueva a su cadena: si alguien agrega un `requests.post` en una vista, el
+  check no se entera hasta que alguien lo declare. Atarlo de verdad pide un barrido estático como el de
+  `core/tests/test_sql_portable.py` (DIS-01); no entró acá.
 
 ## Historial
 
@@ -20247,3 +20300,10 @@ con las variables de entorno —pero el `check --deploy` va a marcarlo, que es l
 - **03/10/2026** — la auditoría los junta en SIIS-09 y les pone decisión (D-S09).
 - **06/10/2026 (este cambio)** — SIIS-09 cerrada, con el presupuesto verificado por `check --deploy`, y los tres
   MINOR del PR 4.
+- **07/10/2026 (ronda 2 de la revisión)** — dos MAJOR y tres MINOR. El cambio a `Session` había dejado un test
+  de seguridad del portal parcheando el lugar equivocado —mock en cero llamadas y salida a la red real—, así
+  que además de arreglarlo y de arreglar la PoC, la suite entera pasa a correr con la red cortada
+  (`core/tests/runner.py` por `TEST_RUNNER`). El reCAPTCHA entra en la cadena del paso 1 del link público, que
+  no lo declaraba y es su llamada más lenta, con el timeout pasado a par `(5, 10)` leído en cada llamada; se
+  declaran además tres cadenas que faltaban. La `Session` de módulo deja de guardar cookies. Y una
+  configuración incompleta de SIIS deja de contar como falla del cortacircuito.

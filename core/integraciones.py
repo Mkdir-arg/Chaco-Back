@@ -28,6 +28,7 @@ alta ``(5, 20)``, ``EMAIL_TIMEOUT`` 5.
 """
 
 import logging
+from http.cookiejar import CookiePolicy
 
 import requests
 from django.conf import settings
@@ -50,6 +51,9 @@ COSTOS = {
     "personas.consulta": lambda: settings.PERSONAS_API_CONNECT_TIMEOUT + settings.PERSONAS_API_TIMEOUT,
     "renaper.login": lambda: settings.RENAPER_CONNECT_TIMEOUT + settings.RENAPER_TIMEOUT,
     "renaper.consulta": lambda: settings.RENAPER_CONNECT_TIMEOUT + settings.RENAPER_TIMEOUT,
+    # El paso 1 del link público verifica el token contra Google **antes** de
+    # consultar identidad: es parte de la cadena, no algo aparte.
+    "recaptcha": lambda: settings.RECAPTCHA_CONNECT_TIMEOUT + settings.RECAPTCHA_TIMEOUT,
     # ``EMAIL_TIMEOUT`` es por operación de socket, no por envío. Se cuenta una
     # vez: el envío de un correo son varias operaciones, pero la que puede
     # colgarse contra un SMTP que no responde es la que abre la conexión.
@@ -64,11 +68,16 @@ COSTOS = {
 CADENAS = {
     "becas · aprobar un caso": ("siis.token", "siis.consulta", "siis.alta", "smtp"),
     "becas · rechazar un caso": ("siis.token", "siis.consulta", "smtp"),
+    "becas · promover desde la lista de espera": ("siis.token", "siis.alta", "smtp"),
+    "becas · agregar a la lista de espera": ("smtp",),
     "becas · revalidar la identidad": ("personas.token", "personas.consulta"),
-    "link público · paso 1 (identificar)": ("personas.token", "personas.consulta"),
+    # El captcha va primero y después la identidad: las tres llamadas son del
+    # mismo POST. El captcha no estaba declarado y es la más lenta de las tres.
+    "link público · paso 1 (identificar)": ("recaptcha", "personas.token", "personas.consulta"),
     "link público · paso 2 (enviar la inscripción)": ("smtp",),
     "app de campo · identificar": ("personas.token", "personas.consulta"),
     "legajos · consultar RENAPER": ("renaper.login", "renaper.consulta"),
+    "usuarios · alta con clave provisoria": ("smtp",),
 }
 
 
@@ -158,17 +167,47 @@ class Cortacircuito:
 # ── Sesión HTTP ─────────────────────────────────────────────────────────────
 
 
+class SinCookies(CookiePolicy):
+    """Rechaza toda cookie, en las dos direcciones.
+
+    Una ``Session`` de módulo vive lo que vive el proceso y la comparten todos
+    los requests que pasen por él. Su *cookie jar* es estado global: una cookie
+    de sesión que devuelva el servicio externo se guardaría una vez y se
+    reenviaría en las llamadas que ese proceso haga **por otras personas**. Las
+    tres integraciones autentican con token en el header y ninguna necesita
+    cookies, así que lo barato y seguro es no tener jar.
+    """
+
+    netscape = True
+    rfc2965 = False
+    hide_cookie2 = True
+
+    def set_ok(self, cookie, request):
+        return False
+
+    def return_ok(self, cookie, request):
+        return False
+
+    def domain_return_ok(self, domain, request):
+        return False
+
+    def path_return_ok(self, path, request):
+        return False
+
+
 def sesion_http(pool_maxsize=10):
-    """``requests.Session`` con pool acotado, para tener una por módulo.
+    """``requests.Session`` con pool acotado y sin cookies, una por módulo.
 
     Sin sesión, cada llamada abre una conexión TLS nueva contra el mismo host.
     El tope del pool es lo que impide que un servicio lento acumule sockets.
 
     Se comparte entre hilos (daphne corre las vistas sync en un pool de hilos):
-    ``urllib3`` es seguro para eso. Lo que no lo es es el *cookie jar*, y por eso
-    no se usa ninguno — las tres integraciones autentican con token en el header.
+    ``urllib3`` es seguro para eso. El *cookie jar* no lo es —es estado
+    compartido entre usuarios—, así que se le pone una política que rechaza
+    todo (:class:`SinCookies`).
     """
     sesion = requests.Session()
+    sesion.cookies.set_policy(SinCookies())
     adaptador = HTTPAdapter(pool_maxsize=pool_maxsize, pool_connections=pool_maxsize)
     sesion.mount("https://", adaptador)
     sesion.mount("http://", adaptador)

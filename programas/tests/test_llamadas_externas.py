@@ -20,6 +20,7 @@ Dos frentes acá:
   ``manual``.
 """
 
+from email.message import Message as HTTPMessage
 from unittest.mock import Mock, patch
 
 from django.core.cache import cache
@@ -30,9 +31,11 @@ from core.integraciones import (
     CADENAS,
     PRESUPUESTO_SEGUNDOS,
     Cortacircuito,
+    SinCookies,
     cadenas_fuera_de_presupuesto,
     costo,
     costo_de_cadena,
+    sesion_http,
 )
 from programas.services import personas as personas_mod
 from programas.services import siis as siis_mod
@@ -97,6 +100,24 @@ class PresupuestoDeclaradoTests(SimpleTestCase):
 
         self.assertIn("becas · aprobar un caso", nombres)
         self.assertNotIn("link público · paso 1 (identificar)", nombres)
+
+    def test_el_paso_1_del_link_cuenta_el_captcha(self):
+        """El captcha va **antes** de consultar identidad, en el mismo POST.
+
+        No estaba declarado y es la llamada más lenta de las tres: la cadena
+        decía 30 s cuando el peor caso real eran 45.
+        """
+        cadena = CADENAS["link público · paso 1 (identificar)"]
+
+        self.assertEqual(cadena[0], "recaptcha")
+        self.assertEqual(costo_de_cadena("link público · paso 1 (identificar)"), 45)
+
+    @override_settings(RECAPTCHA_TIMEOUT=60)
+    def test_subir_el_timeout_del_captcha_deja_el_check_en_rojo(self):
+        errores = presupuesto_de_llamadas_externas(None)
+
+        self.assertEqual({error.id for error in errores}, {"core.E003"})
+        self.assertIn("link público · paso 1 (identificar)", " ".join(error.msg for error in errores))
 
 
 @override_settings(**CREDENCIALES)
@@ -171,6 +192,21 @@ class TimeoutsQueSalenALaRedTests(TestCase):
         for nombre in CADENAS:
             self.assertGreater(costo_de_cadena(nombre), 0, nombre)
 
+    def test_el_captcha_pide_el_par_que_declara_el_presupuesto(self):
+        """El timeout del captcha era un escalar congelado en el import.
+
+        Con un escalar ``requests`` lo aplica a conectar **y** a leer, así que el
+        peor caso era el doble de lo que decía la variable; y congelado en el
+        import, ``override_settings`` no lo movía.
+        """
+        from portal.services.inscripcion import timeout_recaptcha
+
+        self.assertEqual(sum(timeout_recaptcha()), costo("recaptcha"))
+
+        with override_settings(RECAPTCHA_CONNECT_TIMEOUT=1, RECAPTCHA_TIMEOUT=2):
+            self.assertEqual(timeout_recaptcha(), (1, 2))
+            self.assertEqual(costo("recaptcha"), 3)
+
 
 class CortacircuitoTests(SimpleTestCase):
     """La pieza sola: tres fallas seguidas abren, una respuesta cierra."""
@@ -214,6 +250,46 @@ class CortacircuitoTests(SimpleTestCase):
 
         self.assertTrue(uno.abierto())
         self.assertFalse(otro.abierto())
+
+
+class SesionCompartidaTests(SimpleTestCase):
+    """La sesión de módulo vive lo que vive el proceso: no puede guardar estado.
+
+    El riesgo no es teórico: una cookie de sesión que devuelva el servicio
+    externo se guardaría una vez y se reenviaría en las llamadas que ese proceso
+    haga **por otras personas**.
+    """
+
+    def test_la_sesion_no_se_queda_con_las_cookies_que_le_mandan(self):
+        import requests
+        from requests.cookies import MockRequest, MockResponse
+
+        sesion = sesion_http()
+        pedido = requests.Request("GET", "https://personas.example/personas/consulta/").prepare()
+        cabeceras = HTTPMessage()
+        cabeceras["Set-Cookie"] = "sessionid=de-otra-persona; Path=/"
+
+        sesion.cookies.extract_cookies(MockResponse(cabeceras), MockRequest(pedido))
+
+        self.assertEqual(len(sesion.cookies), 0)
+
+    def test_una_sesion_sin_la_politica_si_se_las_guarda(self):
+        """El contraste: así se comporta un ``requests.Session`` pelado."""
+        import requests
+        from requests.cookies import MockRequest, MockResponse
+
+        pelada = requests.Session()
+        pedido = requests.Request("GET", "https://personas.example/personas/consulta/").prepare()
+        cabeceras = HTTPMessage()
+        cabeceras["Set-Cookie"] = "sessionid=de-otra-persona; Path=/"
+
+        pelada.cookies.extract_cookies(MockResponse(cabeceras), MockRequest(pedido))
+
+        self.assertEqual(len(pelada.cookies), 1)
+
+    def test_las_sesiones_de_los_modulos_tienen_la_politica_puesta(self):
+        for modulo in (siis_mod, personas_mod):
+            self.assertIsInstance(modulo.sesion.cookies.get_policy(), SinCookies, modulo.__name__)
 
 
 @override_settings(**CREDENCIALES)
@@ -301,3 +377,39 @@ class SiisCaidoTests(TestCase):
 
         alta.assert_called_once()
         self.assertTrue(resultado["success"])
+
+
+class SiisMalConfiguradoTests(TestCase):
+    """Una variable de entorno que falta no es «SIIS caído».
+
+    El cortacircuito está para dejar de esperar a un servicio que no contesta.
+    Si la URL o las credenciales están vacías el cliente corta **antes** de abrir
+    la conexión: no hay espera que ahorrar, y contarlo como falla hacía que el
+    log dijera «siis.consulta falló 3 veces seguidas», que manda a mirar a ECOM
+    cuando lo que falta es una variable.
+    """
+
+    def setUp(self):
+        cache.clear()
+
+    @override_settings(SIIS_API_URL="", SIIS_API_CLIENT_ID="", SIIS_API_CLIENT_SECRET="")
+    def test_la_configuracion_incompleta_no_abre_el_cortacircuito(self):
+        with self.assertLogs("programas.services.siis", level="ERROR") as registro:
+            for _ in range(5):
+                resultado = siis_mod.validar_compatibilidad("30111222", 7)
+
+        self.assertFalse(resultado["success"])
+        self.assertNotIn("cortado", resultado)
+        self.assertFalse(siis_mod.cortacircuito_consultas.abierto())
+        texto = "\n".join(registro.output)
+        self.assertIn("Configuración SIIS incompleta", texto)
+        self.assertNotIn("veces seguidas", texto)
+
+    @override_settings(**CREDENCIALES)
+    def test_un_token_que_no_es_un_objeto_tampoco_lo_abre(self):
+        """El otro camino que levanta ``_SiisConfigurationError``."""
+        with patch.object(siis_mod.sesion, "post", return_value=_respuesta(["???"])):
+            for _ in range(5):
+                siis_mod.validar_compatibilidad("30111222", 7)
+
+        self.assertFalse(siis_mod.cortacircuito_consultas.abierto())

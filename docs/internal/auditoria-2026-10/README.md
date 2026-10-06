@@ -15,10 +15,22 @@
 **Un desvío de la ficha:** el token de SIIS lleva su propio `SIIS_API_TIMEOUT_TOKEN` de 5 s, que D-S09 no
 nombra. Con los `(5, 10)` de «consulta» la cadena de «Aprobar» daba 60 s y no entraba en el presupuesto.
 
+**Ronda 2 de la revisión (07-oct):** el cambio a `requests.Session` había movido el punto de parcheo de los
+tests y uno de seguridad del portal se quedó parcheando `requests.get`: mock en **cero llamadas** y salida a la
+red real, con la regresión del DNI en el log pasando por accidente. Se arregló el parche y la PoC, y la suite
+entera pasa a correr **con la red cortada** (`core/tests/runner.py` por `TEST_RUNNER`, sustituyendo
+`HTTPAdapter.send` por asignación y no con `patch().start()`, que trece tests apagaban con `patch.stopall`).
+Además: el **reCAPTCHA** entra en la cadena del paso 1 del link —era su llamada más lenta y no estaba
+declarada; su timeout pasa de escalar congelado a par `(5, 10)` leído en cada llamada—, se declaran tres
+cadenas que faltaban, la `Session` de módulo deja de guardar cookies (las habría reenviado entre personas
+distintas del mismo proceso) y una configuración incompleta de SIIS deja de contar como falla del
+cortacircuito.
+
 **Pendiente operativo (PM):** **las variables del entorno de ECOM mandan sobre los defaults.** Si en testing o
 PRD siguen `SIIS_API_TIMEOUT=30`, `PERSONAS_API_TIMEOUT=20`, `RENAPER_TIMEOUT=20` o `EMAIL_TIMEOUT=10`, el
-presupuesto no se cumple: hay que bajarlas o sacarlas del entorno. `SIIS_API_TIMEOUT_TOKEN` y
-`SIIS_API_TIMEOUT_CONSULTA` son nuevas y no hace falta agregarlas (sin setear valen 5 y 10).
+presupuesto no se cumple: hay que bajarlas o sacarlas del entorno. `SIIS_API_TIMEOUT_TOKEN`,
+`SIIS_API_TIMEOUT_CONSULTA` y `RECAPTCHA_CONNECT_TIMEOUT` son nuevas y no hace falta agregarlas (sin setear
+valen 5, 10 y 5).
 
 ---
 
