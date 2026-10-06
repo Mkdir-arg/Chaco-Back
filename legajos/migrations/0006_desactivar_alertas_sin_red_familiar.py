@@ -18,6 +18,9 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        # REVERSA-NOOP: las alertas SIN_RED_FAMILIAR que esta migración cerró quedan
+        # cerradas, con la fecha de cierre del deploy, y no se distinguen de las que
+        # cerró una persona. No se pueden reabrir porque el tipo ya no se genera.
         migrations.RunPython(
             desactivar_alertas_sin_red_familiar,
             migrations.RunPython.noop,

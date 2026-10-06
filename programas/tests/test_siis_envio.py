@@ -905,8 +905,14 @@ class ComandoCircuitoCompletoTests(_BaseEnvioTest):
         )
 
     def _correr(self, *args):
+        """Corre el comando. Va ``--si`` porque acá no se prueba la confirmación.
+
+        Desde la lista de exclusión, ``--destino siis --aplicar`` pregunta antes
+        de mandar. Estos casos miran el circuito --validar, aprobar, enviar--,
+        no la pregunta; la pregunta tiene sus propios tests.
+        """
         salida = StringIO()
-        call_command("procesar_casos_siis", *args, stdout=salida)
+        call_command("procesar_casos_siis", "--si", *args, stdout=salida)
         return salida.getvalue()
 
     def test_sin_aplicar_no_toca_nada(self):
@@ -1224,7 +1230,9 @@ class FiltroMateriasEnComandosTests(_BaseEnvioTest):
         self.enviar.assert_not_called()
 
     def test_procesar_con_el_flag_manda_igual(self):
-        call_command("procesar_casos_siis", "--aplicar", "--solo-enviar", "--sin-filtro-materias", stdout=StringIO())
+        call_command(
+            "procesar_casos_siis", "--si", "--aplicar", "--solo-enviar", "--sin-filtro-materias", stdout=StringIO()
+        )
         self.assertEqual(self.enviar.call_count, 1)
 
     def test_procesar_informa_que_el_filtro_esta_puesto(self):

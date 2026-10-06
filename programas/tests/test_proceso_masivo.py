@@ -609,6 +609,20 @@ class IncompatiblesNoVuelvenACandidatosTests(_BaseCorrerTest):
     alta.
     """
 
+    def _otro_relevamiento(self):
+        """Otro relevamiento del mismo programa, para pausar uno sin pausar al resto."""
+        return Relevamiento.objects.create(
+            convocatoria=self.convocatoria,
+            territorial=self.user,
+            fecha_asignada=date(2026, 6, 2),
+            zona="B",
+        )
+
+    def _otro_ciudadano(self, dni):
+        return Ciudadano.objects.create(
+            dni=dni, nombre="Otra", apellido="Persona", fecha_nacimiento=date(1990, 1, 1), genero="F"
+        )
+
     def _incompatible(self, cuantos=1, documento="20301234", id_programa=79):
         casos = []
         for _ in range(cuantos):
@@ -665,6 +679,35 @@ class IncompatiblesNoVuelvenACandidatosTests(_BaseCorrerTest):
         pks = list(proceso_masivo.candidatos(programa=self.programa).values_list("pk", flat=True))
 
         self.assertIn(caso.pk, pks)
+
+    def test_las_tres_exclusiones_conviven(self):
+        """Pausa (BEC-21), veredicto vigente (BEC-11) y lista del PM (Cambio 138).
+
+        Son tres preguntas distintas y ninguna sustituye a otra: el caso que
+        queda es el único al que no le aplica ninguna. Sin este test, el día que
+        dos de ellas se pisen en el mismo `filter` nadie se entera.
+        """
+        from programas.tests.test_siis_enviar_exclusion import crear_tabla_siis_enviar
+
+        incompatible = self._incompatible()[0]
+        pausado = self._caso()
+        Relevamiento.objects.filter(pk=pausado.relevamiento_id).update(pausado=True)
+        # El pausado y el sano comparten relevamiento, así que el sano necesita el suyo.
+        sano = self._caso()
+        Formulario.objects.filter(pk=sano.pk).update(relevamiento=self._otro_relevamiento())
+        excluido = self._caso()
+        Formulario.objects.filter(pk=excluido.pk).update(
+            relevamiento=self._otro_relevamiento(), ciudadano=self._otro_ciudadano("30111222")
+        )
+        crear_tabla_siis_enviar("30111222")
+
+        pks = list(
+            proceso_masivo.candidatos(programa=self.programa, filtrar_materias=False).values_list("pk", flat=True)
+        )
+
+        self.assertEqual(pks, [sano.pk])
+        for descartado in (incompatible, pausado, excluido):
+            self.assertNotIn(descartado.pk, pks)
 
     def test_la_subconsulta_del_veredicto_aparece_una_sola_vez(self):
         """MySQL evalúa cada subconsulta correlacionada **por fila**.

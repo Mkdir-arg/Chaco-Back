@@ -50,6 +50,7 @@ Necesita ``SIIS_API_URL``, ``SIIS_API_CLIENT_ID`` y ``SIIS_API_CLIENT_SECRET``
 del ambiente contra el que se corre.
 """
 
+import sys
 import time
 from dataclasses import replace
 
@@ -105,6 +106,14 @@ class Command(ComandoSiisBase):
             help="Salta validación y aprobación: solo informa el alta de los ya aprobados.",
         )
         parser.add_argument(
+            "--si",
+            action="store_true",
+            help=(
+                "No pregunta antes de mandar a SIIS. Para corridas encadenadas y para el "
+                "orquestador, que ya tiene su propio freno."
+            ),
+        )
+        parser.add_argument(
             "--destino",
             choices=list(DESTINOS),
             default=DESTINO_SIIS,
@@ -147,6 +156,31 @@ class Command(ComandoSiisBase):
                 self.style.WARNING,
             )
         self._log("")
+
+    def _confirmar(self, cuantos, sin_preguntar):
+        """Pide confirmación escrita antes de mandar a SIIS. ``True`` si se sigue.
+
+        Un alta en SIIS no se deshace desde acá --su API no tiene baja-- así que
+        el número que se va a mandar tiene que pasar por los ojos de alguien.
+        Solo pregunta para el destino SIIS: guardar en la tabla de este lado es
+        reversible y no merece una pregunta.
+
+        Sin terminal --un cron, un pipe-- no se puede contestar, así que exige
+        ``--si`` explícito en vez de seguir sola: lo contrario sería que la
+        pregunta desaparezca justo donde nadie la está mirando.
+        """
+        self._log("")
+        self._log(f"Se validó la lista de exclusión. Se enviarán {cuantos} caso(s) a SIIS.")
+        if sin_preguntar:
+            self._log("   --si está puesto: no se pregunta.")
+            return True
+        if not sys.stdin or not sys.stdin.isatty():
+            raise CommandError(
+                "No hay terminal para confirmar y un alta en SIIS no se deshace desde acá. "
+                "Volvé a correrlo con --si si de verdad querés mandarlos."
+            )
+        self._log("   Un alta en SIIS no se puede dar de baja desde acá.", self.style.WARNING)
+        return input("¿Querés enviar? [y/N]: ").strip().lower() in ("y", "s", "si", "sí", "yes")
 
     def handle(self, *args, **options):
         aplicar = options["aplicar"]
@@ -205,6 +239,20 @@ class Command(ComandoSiisBase):
                 )
             else:
                 self._log("SIN filtro por aprobados_materias: se consideran todos los casos.", self.style.WARNING)
+            # La lista de exclusión: se informa siempre, incluso vacía, para que
+            # «no se excluyó a nadie» sea una afirmación y no un silencio.
+            excluidos = proceso_masivo.dnis_a_no_enviar()
+            if excluidos:
+                self._log(
+                    f"Lista de exclusión {proceso_masivo.TABLA_SIIS_ENVIAR}: "
+                    f"{len(proceso_masivo.dnis_crudos_a_no_enviar())} DNI que NO se mandan a SIIS."
+                )
+            else:
+                self._log(
+                    f"Lista de exclusión {proceso_masivo.TABLA_SIIS_ENVIAR}: vacía o inexistente, "
+                    "no se excluye a nadie.",
+                    self.style.WARNING,
+                )
         except proceso_masivo.TablaAprobadosMateriasFaltante as exc:
             raise CommandError(str(exc)) from exc
         total = max(1, options["total"])
@@ -251,6 +299,10 @@ class Command(ComandoSiisBase):
             )
         if not aplicar:
             self._log("\nEnsayo terminado, no se tocó nada.", self.style.WARNING)
+            return
+
+        if destino == DESTINO_SIIS and not self._confirmar(len(casos), options["si"]):
+            self._log("Cancelado: no se mandó ninguno.", self.style.WARNING)
             return
 
         freno = self._crear_freno(options)

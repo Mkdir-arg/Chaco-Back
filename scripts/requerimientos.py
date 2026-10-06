@@ -38,6 +38,17 @@ FILA_RE = re.compile(r"^\|\s*([\d.]+)\s*\|")
 ETIQUETA_RE = re.compile(r"`(#[a-z-]+)`")
 VOCABULARIO_INICIO = "### Etiquetas"
 
+# RED-84 · Una entrada con migración tiene que decir cómo se vuelve.
+# El piso evita reescribir el histórico: la regla rige desde el Cambio 135, el primero
+# que se escribió con el check puesto. Las entradas anteriores quedan como están.
+PRIMER_CAMBIO_CON_REVERSION = 135
+SIN_MIGRACION_RE = re.compile(r"no\s+(requiere|aplica)|^no$|sin\s+migraci", re.IGNORECASE)
+# Las migraciones se nombran `app.NNNN` o `app.NNNN_con_el_nombre_completo`. El `\b` del
+# final no sirve: después de los cuatro dígitos viene un `_`, que es carácter de palabra,
+# así que `programas.0075_enviosiis_vigente` no coincidía y la regla no corría nunca.
+MIGRACION_RE = re.compile(r"\b([a-z][a-z_]*)\.(\d{4})(?:_\w+)?")
+CAMPO_MIGRACION_RE = re.compile(r"^\|\s*\*\*Migración\*\*\s*\|(?P<valor>.*)\|\s*$")
+
 
 @dataclass
 class Entrada:
@@ -79,11 +90,12 @@ def _clave_orden(numero: str) -> tuple[int, int]:
     return int(mayor), int(menor or 0)
 
 
-def leer_documento() -> tuple[list[str], list[Fila], list[Entrada], set[str]]:
-    if not DOC.exists():
-        sys.exit(f"No se encontró {DOC}")
+def leer_documento(ruta: Path | None = None) -> tuple[list[str], list[Fila], list[Entrada], set[str]]:
+    ruta = ruta or DOC
+    if not ruta.exists():
+        sys.exit(f"No se encontró {ruta}")
 
-    lineas = DOC.read_text(encoding="utf-8").splitlines()
+    lineas = ruta.read_text(encoding="utf-8").splitlines()
 
     # El vocabulario de etiquetas es la tabla que sigue a "### Etiquetas".
     vocabulario: set[str] = set()
@@ -223,7 +235,89 @@ def comando_buscar(texto: str, lineas: list[str], entradas: list[Entrada]) -> in
     return 0
 
 
-def comando_check(filas: list[Fila], entradas: list[Entrada], vocabulario: set[str]) -> int:
+def _secciones(lineas: list[str], entrada: Entrada) -> dict[str, list[str]]:
+    """Las secciones `## Título` de una entrada, con sus líneas con contenido."""
+    secciones: dict[str, list[str]] = {}
+    actual: str | None = None
+    en_bloque = False
+    for linea in lineas[entrada.linea_desde - 1 : entrada.linea_hasta]:
+        if linea.startswith("```"):
+            en_bloque = not en_bloque
+        if not en_bloque and linea.startswith("## "):
+            actual = linea[3:].strip()
+            secciones[actual] = []
+            continue
+        if actual and linea.strip():
+            secciones[actual].append(linea.strip())
+    return secciones
+
+
+def _migracion_declarada(lineas: list[str], entrada: Entrada) -> str | None:
+    """El valor de la fila `| **Migración** | … |` de la ficha de la entrada."""
+    for linea in lineas[entrada.linea_desde - 1 : entrada.linea_hasta]:
+        coincidencia = CAMPO_MIGRACION_RE.match(linea)
+        if coincidencia:
+            return coincidencia.group("valor").strip()
+    return None
+
+
+def problemas_de_reversion(lineas: list[str], entradas: list[Entrada]) -> list[str]:
+    """RED-84: una entrada con migración dice qué migración y cómo se vuelve.
+
+    Solo para las entradas desde `PRIMER_CAMBIO_CON_REVERSION`: el histórico se deja
+    como está. Una `## Reversión` de una sola línea («No aplica») no cuenta: es
+    justamente lo que el operador no puede leer la noche del rollback.
+    """
+    problemas: list[str] = []
+
+    for entrada in entradas:
+        if _clave_orden(entrada.numero)[0] < PRIMER_CAMBIO_CON_REVERSION:
+            continue
+
+        declarada = _migracion_declarada(lineas, entrada)
+        if declarada is None:
+            problemas.append(f"El Cambio {entrada.numero} no tiene la fila «**Migración**» de la plantilla.")
+            continue
+
+        # Primero se mira si la celda **nombra** una migración: «`programas.0076_x` (el
+        # backfill no aplica a Dispositivos)» tiene migración y además dice «no aplica»,
+        # y un `search` suelto del «no aplica» eximía la entrada entera.
+        migraciones = [f"{app}.{numero}" for app, numero in MIGRACION_RE.findall(declarada)]
+        if not migraciones:
+            if SIN_MIGRACION_RE.search(_limpiar(declarada)):
+                continue
+            problemas.append(
+                f"El Cambio {entrada.numero}: la fila «**Migración**» no nombra ninguna migración "
+                "(`app.NNNN`) ni dice «No requiere»."
+            )
+            continue
+
+        secciones = _secciones(lineas, entrada)
+
+        base = secciones.get("Base de datos")
+        if base is None:
+            problemas.append(f"El Cambio {entrada.numero} declara migración y no tiene la sección «## Base de datos».")
+        elif not any(m in " ".join(base) for m in migraciones):
+            problemas.append(
+                f"El Cambio {entrada.numero}: «## Base de datos» no nombra la migración ({', '.join(migraciones)})."
+            )
+
+        reversion = secciones.get("Reversión")
+        if reversion is None:
+            problemas.append(f"El Cambio {entrada.numero} declara migración y no tiene la sección «## Reversión».")
+        elif len(reversion) < 2:
+            problemas.append(
+                f"El Cambio {entrada.numero}: «## Reversión» tiene {len(reversion)} línea(s). "
+                "Con migración de por medio hay que escribir los pasos en orden y qué datos se pierden "
+                "(runbook D.4 de processes.md)."
+            )
+
+    return problemas
+
+
+def comando_check(
+    filas: list[Fila], entradas: list[Entrada], vocabulario: set[str], lineas: list[str] | None = None
+) -> int:
     problemas: list[str] = []
 
     numeros_indice = {f.numero for f in filas}
@@ -246,6 +340,9 @@ def comando_check(filas: list[Fila], entradas: list[Entrada], vocabulario: set[s
         for campo, valor in (("solicitante", fila.solicitante), ("fecha de pedido", fila.pedido)):
             if not valor:
                 problemas.append(f"El Cambio {fila.numero} tiene el {campo} vacío.")
+
+    if lineas is not None:
+        problemas.extend(problemas_de_reversion(lineas, entradas))
 
     if problemas:
         print(f"{len(problemas)} problema(s):")
@@ -275,7 +372,7 @@ def main() -> int:
     lineas, filas, entradas, vocabulario = leer_documento()
 
     if args.check:
-        return comando_check(filas, entradas, vocabulario)
+        return comando_check(filas, entradas, vocabulario, lineas)
     if args.ver:
         return comando_ver(args.ver.strip(), lineas, entradas)
     if args.buscar:

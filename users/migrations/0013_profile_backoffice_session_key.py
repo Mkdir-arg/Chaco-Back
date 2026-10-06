@@ -26,5 +26,8 @@ class Migration(migrations.Migration):
                 verbose_name="Sesión activa de Backoffice",
             ),
         ),
+        # REVERSA-NOOP: los ``Profile`` que esta operación creó para los usuarios que no
+        # tenían quedan (vacíos, con los defaults). No molestan: el sistema asume que todo
+        # usuario tiene perfil.
         migrations.RunPython(crear_perfiles_faltantes, migrations.RunPython.noop),
     ]

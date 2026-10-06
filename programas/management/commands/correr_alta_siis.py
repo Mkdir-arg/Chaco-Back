@@ -352,6 +352,10 @@ class Command(BaseCommand):
             "--lote",
             "1",
             "--aplicar",
+            # El orquestador ya tiene su propio freno --el caso de prueba y el
+            # --continuar--, asi que preguntar de nuevo seria preguntar dos veces
+            # por lo mismo.
+            "--si",
             *(("--usuario", usuario) if usuario else ()),
         )
         envio = EnvioSIIS.objects.exclude(pk__in=antes).order_by("-pk").first()
@@ -413,6 +417,9 @@ class Command(BaseCommand):
                 str(options["pausa"]),
                 "--destino",
                 destino,
+                # Ver el comentario del paso 6: el freno de este comando es el
+                # caso de prueba, no una pregunta por tanda.
+                "--si",
                 *(("--aplicar",) if aplicar else ()),
                 *(("--usuario", options["usuario"]) if options["usuario"] else ()),
             )

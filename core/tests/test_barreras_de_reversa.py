@@ -1,10 +1,19 @@
-"""RED-15 · Barreras de reversa de las migraciones UUID.
+"""RED-15 y RED-57 · Barreras de reversa.
 
-En MariaDB 10.7+ la reversa de las migraciones que achican un ``char(36)`` a
-``char(32)`` falla a mitad de camino (errno 150 / «Data truncated») y deja tablas
-huérfanas y ``django_migrations`` a medias: un estado que no corresponde a ninguna
-release. Decisión D-RED-05: **barrera** — por debajo de esas migraciones solo se
-vuelve con restore (runbook D.4 de ``docs/internal/processes.md``).
+Ocho migraciones por las que no se vuelve, por dos motivos distintos:
+
+- **RED-15 (UUID).** En MariaDB 10.7+ la reversa de las migraciones que achican un
+  ``char(36)`` a ``char(32)`` falla a mitad de camino (errno 150 / «Data truncated») y
+  deja tablas huérfanas y ``django_migrations`` a medias: un estado que no corresponde a
+  ninguna release. Fuera de MySQL/MariaDB la ida ya era un no-op, así que la vuelta no
+  tiene nada que romper y no se bloquea.
+- **RED-57 (pérdida de datos).** ``programas.0032``, ``0056`` y ``0069`` copian o borran
+  datos y vuelven con ``RunPython.noop`` o con el ``AddField`` automático: ``migrate``
+  informa ``OK`` y la base queda incompleta. Eso no depende del motor, así que estas tres
+  bloquean en **todos**.
+
+Decisión D-RED-05: **barrera** — por debajo de esas migraciones solo se vuelve con
+restore (runbook D.4 de ``docs/internal/processes.md``).
 
 Estos tests fijan las dos mitades de la barrera: la marca legible en el archivo y
 que la reversa aborte **antes** de tocar la base.
@@ -22,7 +31,7 @@ RAIZ = Path(__file__).resolve().parents[2]
 MARCA = "# BARRERA-DE-REVERSA:"
 
 # (módulo importable, ruta del archivo, etiqueta tal como aparece en el runbook D.4)
-BARRERAS = (
+BARRERAS_UUID = (
     (
         "programas.migrations.0047_ampliar_formulario_client_uuid",
         "programas/migrations/0047_ampliar_formulario_client_uuid.py",
@@ -50,6 +59,28 @@ BARRERAS = (
     ),
 )
 
+# Las tres de RED-57: lo que se pierde al revertirlas son datos, no esquema.
+BARRERAS_DATOS = (
+    (
+        "programas.migrations.0032_siis_segmento_en_subsegmento",
+        "programas/migrations/0032_siis_segmento_en_subsegmento.py",
+        "programas.0032",
+    ),
+    (
+        "programas.migrations.0056_padron_convocatoria_identidad",
+        "programas/migrations/0056_padron_convocatoria_identidad.py",
+        "programas.0056",
+    ),
+    (
+        "programas.migrations.0069_identificadores_siis_por_nivel",
+        "programas/migrations/0069_identificadores_siis_por_nivel.py",
+        "programas.0069",
+    ),
+)
+
+# La lista completa del paso D.4 del runbook.
+BARRERAS = BARRERAS_UUID + BARRERAS_DATOS
+
 
 class _ConexionEspia:
     def __init__(self, vendor):
@@ -73,7 +104,7 @@ class BarrerasDeReversaTests(SimpleTestCase):
         operaciones = importlib.import_module(modulo).Migration.operations
         return operaciones[-1]
 
-    def test_cada_migracion_uuid_declara_la_marca(self):
+    def test_cada_barrera_declara_la_marca(self):
         """La marca es lo que lee una persona (y el gate de RED-14) al abrir el archivo."""
         for _, ruta, etiqueta in BARRERAS:
             with self.subTest(migracion=etiqueta):
@@ -106,10 +137,19 @@ class BarrerasDeReversaTests(SimpleTestCase):
                 self._barrera(modulo).code(None, espia)
                 self.assertEqual(espia.ejecutado, [])
 
-    def test_fuera_de_mysql_la_reversa_no_se_bloquea(self):
+    def test_fuera_de_mysql_las_barreras_de_uuid_no_se_bloquean(self):
         """En SQLite la ida fue un no-op: no hay nada que la reversa pueda romper."""
-        for modulo, _, etiqueta in BARRERAS:
+        for modulo, _, etiqueta in BARRERAS_UUID:
             with self.subTest(migracion=etiqueta):
                 espia = _SchemaEditorEspia(vendor="sqlite")
                 self._barrera(modulo).reverse_code(None, espia)
+                self.assertEqual(espia.ejecutado, [])
+
+    def test_las_barreras_por_perdida_de_datos_bloquean_en_cualquier_motor(self):
+        """RED-57: lo que se pierde son filas y columnas, y eso pasa igual en SQLite."""
+        for modulo, _, etiqueta in BARRERAS_DATOS:
+            with self.subTest(migracion=etiqueta):
+                espia = _SchemaEditorEspia(vendor="sqlite")
+                with self.assertRaises(IrreversibleError):
+                    self._barrera(modulo).reverse_code(None, espia)
                 self.assertEqual(espia.ejecutado, [])
