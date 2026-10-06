@@ -1,2 +1,12 @@
+# Generado el 06-oct-2026 sobre docs/ola6-ejercicio-control, con .venv312 (Python 3.12 + Django 5.2.17).
+# Los templates se copiaron a _ejercicio_control/ en la raiz del worktree ANTES de medir:
+#   design_audit.py excluye docs/ (EXCLUDE_PARTS), y apuntado a la carpeta de evidencia
+#   auditaria CERO archivos imprimiendo igual '0 P1' con exit 0 (verde falso).
+#
+# COMANDO: .venv312/Scripts/python.exe scripts/design_audit.py _ejercicio_control/03-merenderos-tipo-prestacion/tipo_prestacion_form.html
+# ARCHIVO MEDIDO: _ejercicio_control/03-merenderos-tipo-prestacion/tipo_prestacion_form.html  (= despues/03-merenderos-tipo-prestacion/tipo_prestacion_form.html)
+
 
 == design_audit: 0 error(es), 0 P1 (deuda), 0 warning(s) ==
+
+# exit code: 0

@@ -693,6 +693,13 @@ mitades. Las tres pantallas cumplen **al primer intento**: Plan de pantalla como
 la golden correcta en las tres, 0 P1, `--arquetipo` OK, `--ratchet` 0 nuevos y el revisor independiente aprobando las
 tres. Antes fallaban las tres, cada una por un motivo distinto, y ninguna usaba la golden de su arquetipo.
 
+> ⚠️ **Al reproducir la medición, los templates tienen que estar fuera de `docs/`.** `EXCLUDE_PARTS` de
+> `design_audit.py` incluye `"docs"`, así que el modo por rutas y `--ratchet` apuntados a la carpeta de evidencia
+> auditan **cero archivos** e imprimen igual `0 error(es), 0 P1, 0 warning(s)` con exit 0 — un verde falso que, si se
+> toma por bueno, invalida el ejercicio entero. Se copian a una carpeta de trabajo en la raíz del repo y se mide ahí;
+> la receta exacta está en el README de la carpeta, *Cómo repetir esto*, paso 3. `--arquetipo` es la única excepción:
+> lee el archivo donde esté.
+
 Las tres piezas que cerraron las tres fallas no son la misma, y conviene no confundirlas:
 
 - La **tabla `## Arquetipos` + el Plan de pantalla** sacó el azar del molde (pantalla 1: antes acertaba porque le tocó

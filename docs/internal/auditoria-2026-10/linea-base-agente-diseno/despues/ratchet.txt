@@ -1,2 +1,24 @@
+# Generado el 06-oct-2026 sobre docs/ola6-ejercicio-control, con .venv312 (Python 3.12 + Django 5.2.17).
+#
+# COMANDO: .venv312/Scripts/python.exe scripts/design_audit.py --ratchet
+#
+# Los 3 templates se copiaron a _ejercicio_control/ en la raiz del worktree ANTES de medir y
+# quedaron sin trackear, que es como el ratchet los toma (git ls-files --others): base vacia,
+# asi que todo hallazgo contaria como NUEVO. Medidos donde estan commiteados, bajo docs/, el
+# ratchet no los habria mirado siquiera: EXCLUDE_PARTS incluye 'docs' (verde falso).
+#
+# LOS 3 ARCHIVOS DE UI QUE ENTRARON AL RATCHET (el script cuenta 3, no los nombra):
+#   _ejercicio_control/01-merenderos-entregas/entrega_list.html          (= despues/01-.../entrega_list.html)
+#   _ejercicio_control/02-dispositivos-cama/cama_detail.html             (= despues/02-.../cama_detail.html)
+#   _ejercicio_control/03-merenderos-tipo-prestacion/tipo_prestacion_form.html (= despues/03-.../tipo_prestacion_form.html)
+#
+# Verificado en el momento de medir con:
+#   git ls-files --others --exclude-standard | grep _ejercicio_control
+#   -> _ejercicio_control/01-merenderos-entregas/entrega_list.html
+#   -> _ejercicio_control/02-dispositivos-cama/cama_detail.html
+#   -> _ejercicio_control/03-merenderos-tipo-prestacion/tipo_prestacion_form.html
+
 
 == design_audit --ratchet (base HEAD): 0 hallazgo(s) NUEVO(s) en 3 archivo(s) ==
+
+# exit code: 0

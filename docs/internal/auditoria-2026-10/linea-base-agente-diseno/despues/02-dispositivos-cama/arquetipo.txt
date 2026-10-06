@@ -1,1 +1,10 @@
-despues/02-dispositivos-cama/cama_detail.html: arquetipo «detalle» — OK
+# Generado el 06-oct-2026 sobre docs/ola6-ejercicio-control, con .venv312.
+# NOTA: --arquetipo SI lee el archivo este donde este (no pasa por EXCLUDE_PARTS);
+#       se midio igual desde _ejercicio_control/ para que las rutas coincidan con el resto.
+#
+# COMANDO: .venv312/Scripts/python.exe scripts/design_audit.py --arquetipo detalle _ejercicio_control/02-dispositivos-cama/cama_detail.html
+# ARCHIVO MEDIDO: _ejercicio_control/02-dispositivos-cama/cama_detail.html  (= despues/02-dispositivos-cama/cama_detail.html)
+
+_ejercicio_control/02-dispositivos-cama/cama_detail.html: arquetipo «detalle» — OK
+
+# exit code: 0

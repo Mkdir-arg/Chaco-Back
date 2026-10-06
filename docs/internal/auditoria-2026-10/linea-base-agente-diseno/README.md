@@ -25,7 +25,7 @@ después a los agentes reescritos (`despues/`, paso 6). El método está en `ane
 | Ruta | Qué es |
 |---|---|
 | `antes/<n>-<pantalla>/<template>.html` | El template tal como lo entregó el agente **de antes**, literal |
-| `antes/<n>-<pantalla>/design_audit.txt` | `scripts/design_audit.py <template>` — hallazgos P1 |
+| `antes/<n>-<pantalla>/design_audit.txt` | `scripts/design_audit.py <template>` — hallazgos P1. **Medido con el template fuera de `docs/`** (ver el aviso de abajo) |
 | `antes/<n>-<pantalla>/arquetipo.txt` | `scripts/design_audit.py --arquetipo <a> <template>` — marcadores |
 | `despues/<n>-<pantalla>/<template>.html` | El template tal como lo entregó el agente **reescrito**, literal |
 | `despues/<n>-<pantalla>/plan.txt` | El *Plan de pantalla* que declaró el agente antes del primer `Write` |
@@ -35,7 +35,14 @@ después a los agentes reescritos (`despues/`, paso 6). El método está en `ane
 | `repo-completo.txt` | La corrida completa del repo: la deuda que el ratchet congela |
 
 Los `.html` de acá **no son templates de la app**: no están en ningún directorio de templates, no los ve
-`compile_templates.py` y `design_audit.py` excluye `docs/` entero, así que no cuentan como deuda del repo. Las
+`compile_templates.py` y `design_audit.py` excluye `docs/` entero, así que no cuentan como deuda del repo.
+
+> ⚠️ **Esa misma exclusión vuelve inservible medirlos donde están.** `design_audit.py <archivo>` y `--ratchet`
+> apuntados a una ruta de `docs/` auditan **cero archivos** y aun así imprimen `0 error(es), 0 P1, 0 warning(s)` con
+> exit 0: un verde falso. Para medir hay que copiarlos fuera de `docs/` primero — receta exacta en
+> *[Cómo repetir esto](#cómo-repetir-esto)*, paso 3. `--arquetipo` es la excepción: lee el archivo donde esté.
+
+Las
 pantallas del ejercicio **no se mergean como producto**: son evidencia, no features. Sus vistas, URLs y modelos nunca
 se escribieron (los agentes solo los describieron en el informe), y en los tres casos falta backend real para que
 anden: el parcial de badge de Merenderos, la URL `merenderos:entregas`, la ruta `dispositivos:cama_detalle` y el
@@ -183,8 +190,28 @@ regla de fase 2**: hacerlo sería mover a `design_audit` un chequeo que no es su
 1. Worktree descartable sobre `origin/development`.
 2. Los mismos tres prompts, literales, uno por subagente `chaco-frontend`, en paralelo y sin pistas de diseño, con la
    única restricción de escribir en un archivo nuevo fuera del árbol de la app.
-3. Por cada pantalla: `design_audit.py <archivo>`, `--arquetipo <a> <archivo>`, `--ratchet` y
-   `check_design_agent.py --changed`.
+3. **Medir con los archivos FUERA de `docs/`.** ⚠️ `design_audit.py <archivo>` y `--ratchet` filtran por
+   `EXCLUDE_PARTS`, que incluye `"docs"`: apuntados a una ruta de esta carpeta **auditan cero archivos e imprimen
+   igual `0 error(es), 0 P1, 0 warning(s)` con exit 0**. Es un verde falso, no una medición. (`--arquetipo` **sí** lee
+   el archivo donde esté: el modo de arquetipo no pasa por ese filtro. Control negativo:
+   `--arquetipo listado despues/02-dispositivos-cama/cama_detail.html` reporta 1 desvío.)
+
+   La forma correcta es copiar los templates a una carpeta de trabajo en la raíz del repo y medir ahí:
+
+   ```powershell
+   # desde la raíz del worktree
+   $PY = "C:\Users\mkdir\Proyectos\Chaco\.venv312\Scripts\python.exe"
+   New-Item -ItemType Directory -Force _ejercicio_control | Out-Null
+   Copy-Item -Recurse docs\internal\auditoria-2026-10\linea-base-agente-diseno\despues\* _ejercicio_control\
+   & $PY scripts\design_audit.py _ejercicio_control\01-merenderos-entregas\entrega_list.html
+   & $PY scripts\design_audit.py --arquetipo listado _ejercicio_control\01-merenderos-entregas\entrega_list.html
+   & $PY scripts\design_audit.py --ratchet          # ve los 3 como archivos sin trackear
+   & $PY scripts\check_design_agent.py --changed
+   Remove-Item -Recurse -Force _ejercicio_control   # scratch: no se commitea
+   ```
+
+   Es lo que se hizo para generar los `.txt` de esta carpeta; cada uno lleva en su cabecera el comando exacto. Las
+   rutas que se ven adentro son las de `_ejercicio_control/`, que es donde vivían los archivos al medirlos.
 4. Después, `chaco-design-reviewer` independiente sobre cada una, pasándole el Plan de pantalla que declaró el
    implementador.
 5. Llenar la tabla de *Antes y después*. **Criterio:** las tres al primer intento con Plan de pantalla, la golden

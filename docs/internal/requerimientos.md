@@ -312,7 +312,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 129 | Que una pantalla nueva no pueda nacer sucia: ratchet, marcadores de arquetipo y gate de build | Transversal · herramientas de diseño · CI de GitHub Actions · CSS compilado | `#ui` `#metodo` `#infra` | Auditoría integral oct-2026 — FE-13, V5A-NEW-01 y V5A-NEW-08 (Ola 6 «Agente de diseño», pasos 0-2) | 05/10/2026 | 🟢 **Hecho** | No requiere |
 | 130 | El CI prueba contra MariaDB y MySQL de verdad, no solo contra SQLite | Transversal · CI de GitHub Actions · Becas (cupo, link público, dashboard) · Dispositivos (parte F-01) | `#infra` `#datos` `#cupos` `#performance` | Auditoría integral oct-2026 — TST-01 y la capa 2 de RED-67 (Ola R, red de seguridad, PR R-11) | 05/10/2026 | 🟢 **Hecho** | No requiere |
 | 131 | Las goldens dejan de ser un molde con deuda: 0 P1, marcadores completos y el gate encendido | Becas (revisión, cupo, configuración de programas) · herramientas de diseño · CI de GitHub Actions | `#ui` `#metodo` | Auditoría integral oct-2026 — V5A-NEW-07 parte (a) (Ola 6 «Agente de diseño», paso 3) | 05/10/2026 | 🟢 **Hecho** | No requiere |
-| 132 | El agente de diseño deja de ser un changelog de 67 KB: núcleo corto, fichas por arquetipo y consumidores al día | Transversal · agente canónico de diseño y sus fichas · herramientas de diseño · CI de GitHub Actions | `#ui` `#metodo` | Auditoría integral oct-2026 — Ola 6 «Agente de diseño», pasos 4 y 5 | 05/10/2026 | 🟡 **Parcial** (faltan los pasos 6 y 7 de la Ola 6) | No requiere |
+| 132 | El agente de diseño deja de ser un changelog de 67 KB: núcleo corto, fichas por arquetipo y consumidores al día | Transversal · agente canónico de diseño y sus fichas · herramientas de diseño · CI de GitHub Actions | `#ui` `#metodo` | Auditoría integral oct-2026 — Ola 6 «Agente de diseño», pasos 4 y 5 | 05/10/2026 | 🟢 **Hecho** (los pasos 6 y 7 que faltaban los cerró el Cambio 137) | No requiere |
 | 133 | Mapear el mockup de la v2 de Dispositivos pantalla por pantalla: qué pieza ya existe, qué dato falta y dónde choca | Dispositivos y Merenderos · análisis de diseño y de datos (sin tocar código de producción) | `#ui` `#gestion` `#datos` `#rbac` | PM — pedido directo en sesión de trabajo, sobre el link publicado del mockup | 05/10/2026 | 🟢 **Hecho** | No requiere |
 | 134 | Las quince decisiones que destraban la v2 de Dispositivos: qué se implementa del mockup y qué no | Dispositivos y Merenderos · sistema de diseño · decisiones previas a implementar (sin tocar código de producción) | `#ui` `#textos` `#rbac` `#gestion` | PM — decisión en sesión de trabajo sobre los 15 conflictos del Cambio 133 | 06/10/2026 | 🟢 **Hecho** (las decisiones; las seis piezas de sistema quedan planificadas en M0) | No requiere |
 | 137 | Las mismas tres pantallas, pedidas de nuevo: el ejercicio de control que cierra la Ola 6 | Transversal · agente canónico de diseño y sus fichas · evidencia de la auditoría (sin tocar código de producción) | `#ui` `#metodo` | Auditoría integral oct-2026 — Ola 6 «Agente de diseño», pasos 6 y 7 | 06/10/2026 | 🟢 **Hecho** (queda para el PM la captura del criterio (e)) | No requiere |
@@ -17947,7 +17947,7 @@ vuelve a no tener qué verificar. No hay datos, migraciones ni configuración qu
 
 # Cambio 132 — El agente de diseño deja de ser un changelog de 67 KB: núcleo corto, fichas por arquetipo y consumidores al día
 
-🟡 **PARCIAL — 05/10/2026** (faltan los pasos 6 y 7 de la Ola 6)
+🟢 **HECHO — 05/10/2026** (los pasos 6 y 7 que faltaban los cerró el **Cambio 137**, 06/10/2026)
 
 | | |
 |---|---|
@@ -18098,8 +18098,12 @@ Con Python 3.12 + Django 5.2.17 (`.venv312`, igual al CI):
 
 ## Pendientes
 
-1. **Paso 6 de la Ola 6:** ejercicio de control «después» con las 3 pantallas y el revisor independiente.
-2. **Paso 7:** registro del resultado del control y actualización de la memoria «Migración Design System».
+**Ninguno: los dos los cerró el Cambio 137 (06/10/2026).**
+
+1. ~~**Paso 6 de la Ola 6:** ejercicio de control «después» con las 3 pantallas y el revisor independiente.~~ Hecho:
+   las tres cumplieron al primer intento y la comparación antes/después está en
+   `docs/internal/auditoria-2026-10/linea-base-agente-diseno/`.
+2. ~~**Paso 7:** registro del resultado del control y actualización de la memoria «Migración Design System».~~ Hecho.
 
 ## Puesta en marcha en el servidor
 
