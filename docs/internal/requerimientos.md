@@ -316,6 +316,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 133 | Mapear el mockup de la v2 de Dispositivos pantalla por pantalla: qué pieza ya existe, qué dato falta y dónde choca | Dispositivos y Merenderos · análisis de diseño y de datos (sin tocar código de producción) | `#ui` `#gestion` `#datos` `#rbac` | PM — pedido directo en sesión de trabajo, sobre el link publicado del mockup | 05/10/2026 | 🟢 **Hecho** | No requiere |
 | 134 | Las quince decisiones que destraban la v2 de Dispositivos: qué se implementa del mockup y qué no | Dispositivos y Merenderos · sistema de diseño · decisiones previas a implementar (sin tocar código de producción) | `#ui` `#textos` `#rbac` `#gestion` | PM — decisión en sesión de trabajo sobre los 15 conflictos del Cambio 133 | 06/10/2026 | 🟢 **Hecho** (las decisiones; las seis piezas de sistema quedan planificadas en M0) | No requiere |
 | 137 | Las mismas tres pantallas, pedidas de nuevo: el ejercicio de control que cierra la Ola 6 | Transversal · agente canónico de diseño y sus fichas · evidencia de la auditoría (sin tocar código de producción) | `#ui` `#metodo` | Auditoría integral oct-2026 — Ola 6 «Agente de diseño», pasos 6 y 7 | 06/10/2026 | 🟢 **Hecho** (queda para el PM la captura del criterio (e)) | No requiere |
+| 138 | Una lista de exclusión frena a quien no hay que mandar a SIIS, y el envío pide confirmación | Becas · alta de beneficiarios en SIIS | `#siis` `#datos` | PM — en sesión: «todas las personas que están en la tabla SiisEnviar NO SE ENVIAN» | 06/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -18587,3 +18588,112 @@ runtime.
 
 Revertir el commit: desaparece la evidencia del «después» y la Ola 6 vuelve a figurar con los pasos 6 y 7 abiertos.
 No hay código, datos ni configuración involucrados.
+
+# Cambio 138 — La lista de exclusión que frena un alta, y la pregunta antes de mandar
+
+🟢 **HECHO — 06/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · alta de beneficiarios en SIIS |
+| **Etiquetas** | `#siis` `#datos` |
+| **Solicitante** | PM — pedido en sesión |
+| **Fecha del pedido** | 06/10/2026 |
+| **Issue / épica** | Sin issue (pedido en sesión) |
+| **Partes afectadas** | `proceso_masivo` (tabla y filtro), `siis_envio` (drenaje), `procesar_casos_siis` (opción y confirmación), `correr_alta_siis` |
+| **Migración** | No requiere — la tabla la carga el PM fuera del código |
+
+## Pedido original
+
+> «Voy a crear una tabla que sea SiisEnviar. La idea es que al ejecutar el comando donde envía la información
+> a SIIS, antes valide esta tabla y todas las personas que están en la tabla SiisEnviar **NO SE ENVIAN**. En mi
+> tabla voy a tener una sola columna con todos los DNI que no hay que enviar a SIIS. Estaría bueno que
+> ejecutemos el proceso para enviar a SIIS, por consola me diga «se validó y se enviarán un total de…, ¿querés
+> enviar?» y si pongo Y se envía.»
+
+## Qué lo motivó
+
+Un alta en SIIS **no se puede dar de baja desde acá**: su API no tiene esa operación. Hasta ahora la única
+forma de frenar a alguien era que no fuera candidato, y eso se decide con criterios generales. Faltaba una
+palanca directa: «a esta persona no la mandes», sin tocar nada más.
+
+El caso concreto que la motivó son los 3.729 que ya habían entrado a SIIS en la corrida del 23/09 y que no
+hay que repetir.
+
+## Decisiones tomadas
+
+- **La tabla vive fuera del código, como los demás insumos.** Son DNI, o sea datos personales: el Cambio 116
+  los sacó del repositorio porque es público y los `.sql` viajaban dentro de la imagen de producción. No hay
+  migración ni modelo: la carga el PM, igual que `aprobados_materias`.
+- **Se aceptan dos escrituras del nombre**, `SiisEnviar` y `siis_enviar`, sin distinguir mayúsculas. La tabla
+  de testing se creó como `SiisEnviar` y el código buscaba `siis_enviar`: no coincidía --no por la
+  capitalización, por el guion bajo-- y la lista salía **vacía sin un solo error**. Para algo cuyo trabajo es
+  frenar envíos, ese silencio es la peor forma posible de fallar.
+- **Si la tabla no existe, no corta: no excluye a nadie.** Al revés que `aprobados_materias`, que sí corta.
+  Acá faltar deja todo como estaba antes de que la lista existiera; allá, faltar abriría la puerta a mandar
+  gente de más.
+- **Se aplica a los dos destinos.** La tabla intermedia de este lado (Cambio 108) es la antesala de SIIS, así
+  que alguien a quien no hay que mandar tampoco queda esperando ahí.
+- **El drenaje la vuelve a mirar.** Una persona puede entrar a la lista *después* de quedar guardada; esas
+  filas se cuentan como `excluidas` y quedan pendientes, sin tocar.
+- **La confirmación solo para el destino SIIS.** Guardar de este lado es reversible y no merece una pregunta.
+- **Enter vacío es que no.** El default tiene que ser no mandar.
+- **Sin terminal y sin `--si`, corta.** Un cron no puede contestar, y lo peor sería que la pregunta desaparezca
+  justo donde nadie la está mirando.
+- **El orquestador pasa `--si`**: su freno ya es el caso de prueba más el `--continuar`, y preguntar de nuevo
+  sería preguntar dos veces por lo mismo.
+
+## Implementación
+
+```
+CREATE TABLE SiisEnviar (DNI INT);   -- una sola columna, la carga el PM
+
+python manage.py procesar_casos_siis --destino siis --aplicar --usuario <user>
+  Lista de exclusión SiisEnviar: 3729 DNI que NO se mandan a SIIS.
+  ...
+  Se validó la lista de exclusión. Se enviarán 1295 caso(s) a SIIS.
+     Un alta en SIIS no se puede dar de baja desde acá.
+  ¿Querés enviar? [y/N]:
+```
+
+El conteo de personas sale de `dnis_crudos_a_no_enviar()`, aparte de `dnis_a_no_enviar()`: esta última
+devuelve hasta tres formas del mismo documento --con ceros a la izquierda, sin ellos y rellenado a ocho--
+para que el `IN` cruce, y contarlas diría el triple de personas de las que hay.
+
+## Base de datos
+
+No requiere migración. La tabla es un insumo externo.
+
+## Validación
+
+- 19 tests nuevos en `test_siis_enviar_exclusion.py`: la lectura con y sin ceros, las dos escrituras del
+  nombre, que una tabla con otro nombre **no** cuente, los tres caminos por los que alguien podría llegar a
+  SIIS, y los seis casos de la confirmación.
+- 13 tests que ya existían pasaban por el comando con `--aplicar` y chocaban con la pregunta: se les agregó
+  `--si`, porque prueban el circuito y no la confirmación.
+- Contra la base de testing con la lista real cargada (3.729 DNI): de las 4.826 filas de la tabla intermedia
+  quedarían **3.531 excluidas** y saldrían **1.295**.
+- Suite completa de `programas`: 1.641 tests sin fallas. Las dos de `ConsultasDetalleTests` que aparecían eran
+  un artefacto del `.env` local (`DJANGO_DEBUG=True` hace que Django loguee cada `VariableDoesNotExist`, y
+  formatear ese log hace `repr()` del queryset de trazas, que agrega una consulta); con `DJANGO_DEBUG=False`
+  dan OK, y el CI corre sin esa variable.
+
+## Pendientes / a definir
+
+- **El nombre dice lo contrario de lo que hace**: quien está en `SiisEnviar` **no** se envía. Lo eligió el PM
+  y se respetó; queda anotado porque dentro de seis meses alguien va a leerlo al revés. Renombrarla a
+  `SiisNoEnviar` es cambiar una constante y agregar el nombre viejo a los aceptados.
+- La columna de testing es `int(11)`, así que no admite un documento no numérico. En `aprobados_materias` hay
+  uno (`B 03746926`) y por eso esa columna es texto. Si alguna vez hay que excluir a alguien así, la columna
+  tiene que pasar a `VARCHAR`.
+
+## Reversión
+
+Revertir el commit saca el filtro y la pregunta. La tabla queda en la base, sin efecto.
+
+## Historial
+
+- **06/10/2026** — el PM crea `SiisEnviar` en la base de testing con 3.729 DNI y pide que el envío la respete.
+- **06/10/2026 (este cambio)** — la lista frena los tres caminos hacia SIIS y el envío pide confirmación.
+
+---

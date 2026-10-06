@@ -204,7 +204,7 @@ class ComandoTests(_BaseTablaTest):
     def correr(self, *args):
         salida = StringIO()
         with patch("programas.management.commands.procesar_casos_siis.Catalogos", _catalogos_falsos):
-            call_command("procesar_casos_siis", "--sin-filtro-materias", *args, stdout=salida, stderr=salida)
+            call_command("procesar_casos_siis", "--sin-filtro-materias", "--si", *args, stdout=salida, stderr=salida)
         return salida.getvalue()
 
     def test_avisa_que_no_llama_a_siis(self):

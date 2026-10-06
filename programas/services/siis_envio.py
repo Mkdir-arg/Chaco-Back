@@ -959,7 +959,13 @@ def sincronizar_tabla_intermedia(solicitado_por, limite=None, al_terminar=None):
     revisó. Si entre medio se corrigieron datos, hay que volver a guardarlo con
     ``--destino tabla`` para regenerarlo.
 
-    Devuelve ``{"altas": n, "rechazadas": n, "errores": n, "no_aprobables": n}``.
+    Antes de mandar cada fila se vuelve a mirar la lista de exclusión
+    ``siis_enviar``: alguien pudo entrar a la lista **después** de quedar
+    guardado acá, y el punto de la lista es que esa persona no llegue a SIIS.
+    Esas filas se cuentan como ``excluidas`` y quedan pendientes, sin tocar.
+
+    Devuelve ``{"altas": n, "rechazadas": n, "errores": n, "no_aprobables": n,
+    "excluidas": n}``.
     ``al_terminar`` se llama con cada ``(alta, envio)`` para informar el avance.
 
     El estado del caso se **relee bajo lock** antes de mandar (SIIS-04): una fila
@@ -968,8 +974,10 @@ def sincronizar_tabla_intermedia(solicitado_por, limite=None, al_terminar=None):
     fila queda pendiente: que una persona decida si se regenera o se descarta.
     """
     from programas.models import AltaIntermediaSIIS
+    from programas.services.proceso_masivo import dnis_a_no_enviar
 
-    cuenta = {"altas": 0, "rechazadas": 0, "errores": 0, "no_aprobables": 0}
+    cuenta = {"altas": 0, "rechazadas": 0, "errores": 0, "no_aprobables": 0, "excluidas": 0}
+    no_enviar = dnis_a_no_enviar()
     pendientes = (
         AltaIntermediaSIIS.objects.filter(sincronizado=False)
         .select_related("formulario__ciudadano", "formulario__relevamiento__convocatoria__segmento__programa")
@@ -979,6 +987,9 @@ def sincronizar_tabla_intermedia(solicitado_por, limite=None, al_terminar=None):
         pendientes = pendientes[:limite]
     for alta in list(pendientes):
         formulario = alta.formulario
+        if no_enviar and _digitos(alta.dni) in no_enviar:
+            cuenta["excluidas"] += 1
+            continue
         if formulario.envios_sis.filter(vigente=True).exists():
             # Alguien lo mandó por otro camino: la fila ya no tiene nada que hacer.
             alta.sincronizado = True
