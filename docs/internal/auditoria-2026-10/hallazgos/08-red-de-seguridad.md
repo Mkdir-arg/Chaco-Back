@@ -1396,19 +1396,29 @@ escenario de producción.
   los dos sitios de `padron.py`. Test `programas/tests/test_padron.py::IdentidadDelPadronTests.test_property_y_queryset_coinciden`
   (6 filas con las combinaciones vacío/espacios; hoy falla en las dos con espacios).
 
-**Resolución:** ✅ Resuelto en #604 (Cambio 156, PR R-16), 07-oct-2026 — `PadronHabilitadoQuerySet.con_identidad()` es
-el único lugar donde la RN-2 se escribe para un queryset, y los docstrings de la property y del método se nombran
-mutuamente. `IdentidadDelPadronTests` recorre las seis combinaciones con `subTest` y enfrenta las dos mitades fila por
-fila; dos tests más miran el efecto que se veía desde afuera (el cruce automático que validaba a quien el botón manual
-rechazaba, y `objetivo_con_identidad`). Corridos contra la regla vieja (`.exclude(nombre="")`) dan 3 rojos.
-**Dos desvíos de la propuesta, los dos code-first:** (1) el modelo se llama **`PadronHabilitado`**, no `FilaPadron`;
-(2) los sitios con la regla duplicada eran **tres**, no dos — `programas/management/commands/diagnosticar_integraciones.py:320`
-cuenta «cuántas filas tienen identidad» con el mismo filtro, y también se cambió. La regla se escribe con
-`exclude(nombre__regex=...)` sobre `^\s*$` y **no** con `Trim`: el `TRIM()` de MySQL y de MariaDB saca solo espacios,
-mientras que `str.strip()` saca también tabulaciones y saltos de línea, así que con `Trim` la property y el queryset
-seguirían discrepando. Que las tres implementaciones de `REGEXP` (PCRE en MariaDB, ICU en MySQL 8, `re` en SQLite)
-coincidan con `strip()` lo fija `IdentidadDelPadronMotorRealTests`, `@tag("mysql")`, verificado contra `mariadb:10.11`
-y `mysql:8.0`.
+**Resolución:** ✅ Resuelto en #604 (Cambio 156, PR R-16), 07-oct-2026 — `q_con_identidad()` es el único lugar donde la
+RN-2 se escribe para la base, y `PadronHabilitadoQuerySet.con_identidad()` es su envoltorio para un queryset; los
+docstrings de la property y del método se nombran mutuamente. Se expone como **`Q`** y no solo como método porque el
+contador del detalle de la convocatoria es un `Count(filter=…)` anotado, no un queryset: sin el `Q` no había forma de
+que usara la misma definición. `IdentidadDelPadronTests` recorre las once combinaciones con `subTest` y enfrenta las
+dos mitades fila por fila; cuatro tests más miran la clase de caracteres contra `str.isspace()`, el cruce automático
+(con su control, que sí valida la fila completa), `objetivo_con_identidad` y el contador de la pantalla. Corridos
+contra la regla vieja (`.exclude(nombre="")`) dan 4 rojos.
+**Tres desvíos de la propuesta, los tres code-first:** (1) el modelo se llama **`PadronHabilitado`**, no `FilaPadron`;
+(2) los sitios con la regla duplicada eran **cuatro**, no dos — además de los dos de `padron.py`,
+`programas/management/commands/diagnosticar_integraciones.py:320` y `programas/views/relevamientos.py:301` (el
+«N con identidad» del detalle de la convocatoria, encontrado en la ronda 2 de revisión), los dos cambiados; (3) la
+regla **no** usa `Trim` —el `TRIM()` de MySQL y de MariaDB saca solo espacios y `str.strip()` saca también
+tabulaciones, saltos y los espacios Unicode— **ni `\s`, ni `[[:space:]]`**: Django compila el lookup `regex` como
+`%s REGEXP BINARY %s` en MariaDB (PCRE, donde las dos clases son **ASCII**) y como `REGEXP_LIKE(…, 'c')` en MySQL 8
+(ICU, Unicode). Medido contra `mariadb:10.11`: con `\s`, un nombre de un solo NBSP (`\xa0`), EM SPACE, IDEOGRAPHIC
+SPACE o NEL quedaba **dentro** de `con_identidad()` mientras `tiene_identidad` decía `False`, y **en SQLite la suite
+seguía verde**. La regla es ahora la clase literal `CARACTERES_SIN_TEXTO`, los 29 caracteres que `str.strip()` saca
+—ninguno especial dentro de una clase de regex—, y `test_la_clase_cubre_exactamente_lo_que_saca_strip` impide que la
+lista se desfase de `str.isspace()`. Que los tres motores coincidan con `strip()` lo fija
+`IdentidadDelPadronMotorRealTests`, `@tag("mysql")`, con 17 casos —incluidos tres controles de falso positivo que
+`REGEXP BINARY` haría sospechar: `à`, que se codifica con el mismo byte `A0` del NBSP; un NBSP **interno**; y el ZWSP,
+que para Python no es whitespace—, verificado contra `mariadb:10.11` (sin tzinfo) y `mysql:8.0`.
 **Test permanente:** `programas.tests.test_padron.IdentidadDelPadronTests.test_property_y_queryset_coinciden`.
 
 ### RED-78 · `DashboardView`: copia del inicio sin el blindaje de SEC-14, muerta solo por el orden de URLs

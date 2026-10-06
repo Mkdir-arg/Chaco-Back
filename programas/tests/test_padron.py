@@ -13,6 +13,7 @@ from io import BytesIO, StringIO
 from django.contrib.auth.models import Group, User
 from django.contrib.messages import constants as message_levels
 from django.contrib.messages import get_messages
+from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
@@ -25,6 +26,7 @@ from programas.forms import RelevamientoForm
 from programas.management.commands import completar_casos_renaper, corregir_datos_siis
 from programas.management.commands.seed_becas import ROL_ADMIN
 from programas.models import (
+    CARACTERES_SIN_TEXTO,
     Convocatoria,
     Formulario,
     PadronHabilitado,
@@ -655,7 +657,9 @@ class IdentidadDelPadronTests(_BasePadronTest):
     mismo lugar: `PadronHabilitadoQuerySet.con_identidad()`.
     """
 
-    #: Las seis combinaciones de identidad que puede tener una fila.
+    #: Las combinaciones de identidad que puede tener una fila. Las últimas son
+    #: los espacios que **no** son ASCII: `\xa0` es el que deja un copy&paste de
+    #: una página web o de un PDF, y es el que `\s` de MariaDB no reconoce.
     CASOS = [
         ("40000001", "Ana", "Paz", True),
         ("40000002", "", "Paz", False),
@@ -663,10 +667,17 @@ class IdentidadDelPadronTests(_BasePadronTest):
         ("40000004", "", "", False),
         ("40000005", "   ", "Paz", False),
         ("40000006", "Ana", "   ", False),
+        ("40000007", "\t", "Paz", False),
+        ("40000008", "\xa0", "Paz", False),
+        ("40000009", "　", "Paz", False),
+        ("40000010", "Ana\xa0Paz", "Paz", True),
+        ("40000011", "Añá", "Óé", True),
     ]
 
     def setUp(self):
         super().setUp()
+        cache.clear()
+        call_command("seed_becas", stdout=StringIO())
         for dni, nombre, apellido, _ in self.CASOS:
             PadronHabilitado.objects.create(
                 convocatoria=self.convocatoria,
@@ -690,21 +701,58 @@ class IdentidadDelPadronTests(_BasePadronTest):
                     "La property y `con_identidad()` dicen cosas distintas de la misma fila.",
                 )
 
-    def test_el_cruce_automatico_no_valida_un_caso_con_identidad_en_blanco(self):
-        """El efecto que se veía: el cruce masivo validaba a quien el botón
-        manual rechazaba. `validar_casos_pendientes` recorre el mismo criterio."""
-        ciudadano = Ciudadano.objects.create(dni="40000005", nombre="", apellido="")
-        formulario = Formulario.objects.create(
+    def test_la_clase_cubre_exactamente_lo_que_saca_strip(self):
+        """La lista literal de `CARACTERES_SIN_TEXTO` no se puede desfasar de
+        `str.strip()`: si Unicode suma un espacio y Python lo adopta, acá se ve.
+
+        Es lo que sostiene la equivalencia con la property: el motor recibe la
+        misma lista de caracteres que `strip()` saca, ni uno más ni uno menos.
+        """
+        self.assertEqual(
+            set(CARACTERES_SIN_TEXTO),
+            {caracter for caracter in map(chr, range(0x110000)) if caracter.isspace()},
+        )
+        # Ninguno es especial dentro de una clase de regex: la clase se arma por
+        # interpolación, sin escapar nada.
+        self.assertFalse(set(CARACTERES_SIN_TEXTO) & set("]^-\\"))
+
+    def _caso_pendiente(self, dni, genero="F"):
+        """Un caso sin validar, con el género que el cruce necesita para ubicar
+        su fila del padrón (`_identidad_del_caso` devuelve `(dni, genero)`)."""
+        ciudadano = Ciudadano.objects.create(dni=dni, genero=genero, nombre="", apellido="")
+        return Formulario.objects.create(
             relevamiento=self.relevamiento,
             ciudadano=ciudadano,
             celular="3624000000",
         )
+
+    def test_el_cruce_automatico_no_valida_un_caso_con_identidad_en_blanco(self):
+        """El efecto que se veía: el cruce masivo validaba a quien el botón
+        manual rechazaba. `validar_casos_pendientes` recorre el mismo criterio.
+
+        El caso lleva `genero` a propósito: sin él, `_identidad_del_caso` devuelve
+        `(dni, "")`, el cruce no encuentra ninguna fila y el test pasaría por el
+        motivo equivocado —pasaba hasta con la regla vieja—.
+        """
+        formulario = self._caso_pendiente("40000005")
 
         validados = validar_casos_pendientes(self.convocatoria)
 
         formulario.refresh_from_db()
         self.assertEqual(validados, 0)
         self.assertFalse(formulario.validado_renaper)
+
+    def test_el_cruce_automatico_si_valida_un_caso_con_identidad_completa(self):
+        """Control del anterior: con la misma receta y una fila que sí tiene
+        identidad, el cruce valida. Sin este par, `validados == 0` no significa
+        nada."""
+        formulario = self._caso_pendiente("40000001")
+
+        validados = validar_casos_pendientes(self.convocatoria)
+
+        formulario.refresh_from_db()
+        self.assertEqual(validados, 1)
+        self.assertTrue(formulario.validado_renaper)
 
     def test_objetivo_con_identidad_ignora_la_fila_en_blanco(self):
         """La otra mitad de `services/padron.py`: el relevamiento que la app de
@@ -713,4 +761,27 @@ class IdentidadDelPadronTests(_BasePadronTest):
         self.assertEqual(
             objetivo_con_identidad([self.relevamiento], "40000001", "F"),
             self.relevamiento,
+        )
+
+    def test_el_contador_de_la_convocatoria_usa_la_misma_regla(self):
+        """RED-77, cuarta copia: el «N con identidad» del detalle de la
+        convocatoria tenía su propio `Count(filter=~Q(nombre="") & …)`, así que
+        contaba las filas de solo espacios que el cruce ya no valida."""
+        admin = User.objects.create_user("admin_padron_contador", password="x")
+        admin.groups.add(Group.objects.get(name=ROL_ADMIN))
+        self.client.force_login(admin)
+
+        resp = self.client.get(reverse("becas:convocatoria_detalle", args=[self.convocatoria.pk]))
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.context["n_padron"], len(self.CASOS))
+        esperados = sum(1 for *_, con_identidad in self.CASOS if con_identidad)
+        self.assertEqual(
+            resp.context["n_padron_identidad"],
+            esperados,
+            "El contador de la pantalla y `con_identidad()` cuentan distinto.",
+        )
+        self.assertEqual(
+            resp.context["n_padron_identidad"],
+            PadronHabilitado.objects.con_identidad().count(),
         )

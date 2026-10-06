@@ -2034,13 +2034,42 @@ class Relevamiento(PausableMixin, TimeStamped):
         )
 
 
+#: Los 29 caracteres que ``str.strip()`` saca, escritos a mano para poder
+#: mandárselos al motor. **No se usa ``\s`` ni ``[[:space:]]``**: MariaDB compila
+#: el lookup ``regex`` como ``REGEXP BINARY`` con PCRE, donde las dos clases son
+#: **ASCII**, así que un nombre de un solo NBSP (``\xa0``) o de un espacio ideográfico
+#: quedaba *dentro* de :meth:`PadronHabilitadoQuerySet.con_identidad` mientras
+#: ``tiene_identidad`` decía ``False`` —medido contra ``mariadb:10.11``—. Con la clase
+#: literal los tres motores (PCRE en MariaDB, ICU en MySQL 8, ``re`` en SQLite)
+#: contestan lo mismo que ``strip()``, y sin falsos positivos: lo fija
+#: ``IdentidadDelPadronMotorRealTests``, y que la lista no se desfase de ``str.isspace()``
+#: lo fija ``test_la_clase_cubre_exactamente_lo_que_saca_strip``.
+#: Ninguno de los 29 es especial dentro de una clase de regex (``]``, ``^``, ``-``, ``\``).
+CARACTERES_SIN_TEXTO = (
+    "\t\n\v\f\r\x1c\x1d\x1e\x1f\x20"  # tab, LF, VT, FF, CR, los cuatro separadores ASCII y el espacio
+    "\x85\xa0\u1680"  # NEL, NBSP, OGHAM SPACE MARK
+    "\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a"  # EN QUAD … HAIR SPACE
+    "\u2028\u2029\u202f\u205f\u3000"  # separadores de línea y párrafo, NNBSP, MMSP, IDEOGRAPHIC SPACE
+)
+
 #: Nombre o apellido que no aportan identidad: vacío o solo espacios. RED-77: la
-#: RN-2 del Cambio 57 estaba escrita dos veces —la property ``tiene_identidad``,
-#: con ``strip()``, y un ``.exclude(nombre="").exclude(apellido="")`` repetido en
-#: los cruces masivos, sin ``strip()``—, y las dos no coincidían: una fila con
-#: ``nombre="  "`` (cargada por admin, fixture o migración) la validaba el cruce
-#: automático y la rechazaba el botón manual de la revisión.
-SIN_TEXTO_REGEX = r"^\s*$"
+#: RN-2 del Cambio 57 estaba escrita **cuatro** veces —la property ``tiene_identidad``,
+#: con ``strip()``, y un ``.exclude(nombre="").exclude(apellido="")`` repetido en los
+#: dos cruces masivos, en el diagnóstico y en el contador de la convocatoria, sin
+#: ``strip()``—, y no coincidían: una fila con ``nombre="  "`` (cargada por admin,
+#: fixture o migración) la validaba el cruce automático y la rechazaba el botón manual
+#: de la revisión.
+SIN_TEXTO_REGEX = f"^[{CARACTERES_SIN_TEXTO}]*$"
+
+
+def q_con_identidad():
+    """El ``Q`` de la RN-2, para reusar la **misma** regla en un ``filter``, en un
+    ``Count(filter=…)`` o en cualquier otra expresión (RED-77).
+
+    Es el equivalente de :attr:`PadronHabilitado.tiene_identidad` para la base:
+    los dos tienen que decir lo mismo fila por fila.
+    """
+    return ~models.Q(nombre__regex=SIN_TEXTO_REGEX) & ~models.Q(apellido__regex=SIN_TEXTO_REGEX)
 
 
 class PadronHabilitadoQuerySet(models.QuerySet):
@@ -2048,7 +2077,7 @@ class PadronHabilitadoQuerySet(models.QuerySet):
         """Las filas que cumplen RN-2: nombre **y** apellido con algo más que
         espacios. Es la misma regla que :attr:`PadronHabilitado.tiene_identidad`
         —y el único lugar donde se escribe para un queryset (RED-77)."""
-        return self.exclude(nombre__regex=SIN_TEXTO_REGEX).exclude(apellido__regex=SIN_TEXTO_REGEX)
+        return self.filter(q_con_identidad())
 
 
 class PadronHabilitado(TimeStamped):

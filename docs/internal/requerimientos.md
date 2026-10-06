@@ -20629,14 +20629,29 @@ RED-70 se escribieron sin tocar ese archivo.
 
 ## Decisiones tomadas
 
-- **La regla RN-2 del padrón se unifica con un `__regex`, no con `Trim`.** `Trim` de MySQL y de MariaDB saca **solo
-  espacios**; `str.strip()` de Python saca también tabulaciones y saltos de línea. Con `Trim` la property y el queryset
-  seguirían discrepando para una fila con `nombre="\t"`, que es justo la clase de divergencia que la ficha viene a
-  cerrar. `exclude(nombre__regex=r"^\s*$")` se resuelve con PCRE en MariaDB, con ICU en MySQL 8 y con `re` en SQLite:
-  los tres coinciden con `strip()` en las ocho combinaciones probadas, y eso está fijado en un test `@tag("mysql")`.
-- **El manager se aplica a los tres llamadores, no a los dos que nombra la ficha.** `.exclude(nombre="").exclude(apellido="")`
-  aparece también en `diagnosticar_integraciones.py:320`, que cuenta «cuántas filas del padrón tienen identidad» para el
-  operador. Dejarlo afuera habría dejado la tercera copia de la regla viva.
+- **La regla RN-2 del padrón se unifica con un `__regex`, no con `Trim`.** `TRIM()` de MySQL y de MariaDB saca **solo
+  espacios**; `str.strip()` de Python saca también tabulaciones, saltos de línea y los espacios Unicode. Con `Trim` la
+  property y el queryset seguirían discrepando para una fila con `nombre="\t"`, que es justo la clase de divergencia
+  que la ficha viene a cerrar.
+- **Y el patrón es una clase literal de 29 caracteres, no `\s` ni `[[:space:]]`** (corrección de la **ronda 2**). La
+  primera versión usaba `r"^\s*$"`, y eso **sigue discrepando en MariaDB**: Django compila el lookup `regex` como
+  `%s REGEXP BINARY %s` —PCRE, donde `\s` y `[[:space:]]` son **ASCII**—, mientras que MySQL 8 lo compila como
+  `REGEXP_LIKE(…, 'c')` —ICU, Unicode— y SQLite lo resuelve con `re` de Python. Medido contra `mariadb:10.11`: un
+  nombre de un solo NBSP (`\xa0`), EM SPACE, IDEOGRAPHIC SPACE o NEL quedaba **dentro** de `con_identidad()` mientras
+  `tiene_identidad` decía `False`. `CARACTERES_SIN_TEXTO` es ahora la lista explícita de los 29 caracteres que
+  `str.strip()` saca —ninguno es especial dentro de una clase de regex—, y los tres motores contestan lo mismo que
+  `strip()` en las 17 combinaciones del test, incluidos los tres controles de falso positivo que `REGEXP BINARY`
+  haría sospechar (`à`, que se codifica con el mismo byte `A0` del NBSP; un NBSP **interno**; y el ZWSP, que para
+  Python **no** es whitespace). Que la lista no se desfase de `str.isspace()` lo fija
+  `test_la_clase_cubre_exactamente_lo_que_saca_strip`.
+- **La regla se expone como `Q`, no solo como método del queryset.** `q_con_identidad()` se puede meter en un `filter`,
+  en un `Count(filter=…)` o en cualquier otra expresión: era la única forma de que el contador de la convocatoria
+  —que es un `Count` anotado, no un queryset— usara la **misma** definición.
+- **El manager se aplica a los cuatro llamadores, no a los dos que nombra la ficha.** `.exclude(nombre="").exclude(apellido="")`
+  aparecía también en `diagnosticar_integraciones.py:320`, que cuenta «cuántas filas del padrón tienen identidad» para
+  el operador, y —esto lo encontró la **ronda 2**— en `views/relevamientos.py:301`, el «N con identidad» del detalle de
+  la convocatoria. Dejarlos afuera habría dejado dos copias de la regla vivas, y la de la pantalla es la que el
+  operador lee para decidir si el padrón sirve.
 - **El registro de vencimientos vacío ahora es un error, no un aviso.** El comando lo corre un cron (03:10) y el
   arranque del contenedor: «nada que hacer» y «el import de `ready()` se perdió» eran indistinguibles desde afuera.
 - **Y el comando lee el registro por el módulo, no por `from … import REGLAS`.** `registrar()` **rebindea** la lista
@@ -20672,11 +20687,13 @@ aserción introspectiva que proponía la pasada original (`getattr(fn, "_atomic"
 inyectada la escritura sí ocurre entera. **Mutación de control:** sacar `@transaction.atomic` de
 `resolver_ciudadano_offline` deja el test en rojo.
 
-**RED-77 — el manager.** `PadronHabilitadoQuerySet.con_identidad()` en `programas/models/__init__.py`, usado por
-`padron.objetivo_con_identidad`, `padron.validar_casos_pendientes` y `diagnosticar_integraciones`. El docstring de la
-property y el del queryset se nombran mutuamente. Tres tests en `programas/tests/test_padron.py`: las seis
-combinaciones vacío/espacios con `subTest`, el cruce automático que ya no valida una fila en blanco y
-`objetivo_con_identidad`, que tampoco la elige.
+**RED-77 — el manager.** `PadronHabilitadoQuerySet.con_identidad()` en `programas/models/__init__.py`, sobre el `Q`
+reusable `q_con_identidad()`, usado por `padron.objetivo_con_identidad`, `padron.validar_casos_pendientes`,
+`diagnosticar_integraciones` y el `Count` del detalle de la convocatoria (`views/relevamientos.py`). El docstring de la
+property y el del queryset se nombran mutuamente. Seis tests en `programas/tests/test_padron.py`: las once
+combinaciones vacío/espacios/Unicode con `subTest`, la clase de caracteres enfrentada contra `str.isspace()`, el cruce
+automático que ya no valida una fila en blanco (con su control, que sí valida la completa), `objetivo_con_identidad` y
+el contador de la pantalla.
 
 **RED-49 — `programas/tests/test_cupo.py`.** Un segmento de 10 con subsegmentos de 3 y 4 y 6 casos aprobados deja los
 tres números distintos: `Segmento.cupo_disponible == 3` (sin distribuir), `get_cupo_stats(...)["cupo_disponible"] == 4`
@@ -20726,7 +20743,15 @@ Validación completa con Python 3.12 + Django 5.2.17 (`.venv312`, el mismo del C
 **Las cuatro mutaciones de control** se aplicaron, se corrió y se revirtió: el prefijo de `_adjuntos_por_clave`
 (RED-05, 2 rojos), `@transaction.atomic` de `resolver_ciudadano_offline` (RED-35, 1 rojo), el import de
 `ProgramasConfig.ready()` (RED-81, 1 rojo) y la línea `ILLEGAL_CHARACTERS_RE.sub` (RED-70, M49, 5 rojos). Los tests de
-RED-77 se corrieron además contra la regla vieja (`.exclude(nombre="")`) y dieron 3 rojos.
+RED-77 se corrieron además contra la regla vieja (`.exclude(nombre="")`) y dieron 4 rojos.
+
+**Ronda 2 de revisión**, las tres mutaciones propias, todas aplicadas y revertidas:
+
+| Mutación | Resultado |
+|---|---|
+| devolverle al `Count` de `relevamientos.py` su regla escrita a mano | `test_el_contador_de_la_convocatoria_usa_la_misma_regla`: rojo (8 ≠ 3) |
+| `SIN_TEXTO_REGEX` de vuelta a `r"^\s*$"` | `IdentidadDelPadronMotorRealTests` contra `mariadb:10.11`: **5 rojos** (NBSP, EM SPACE, IDEOGRAPHIC SPACE, NEL y la mezcla). En **SQLite la suite sigue verde**, que es exactamente el motivo por el que esto necesitaba un test `@tag("mysql")` |
+| `q_con_identidad()` de vuelta a `~Q(nombre="")` (el estado de `development`) | 4 rojos, uno de ellos `test_el_cruce_automatico_no_valida_un_caso_con_identidad_en_blanco` (1 ≠ 0), que **antes de la ronda 2 pasaba igual**: el `Ciudadano` no llevaba `genero`, así que el cruce no llegaba a mirar ninguna fila |
 
 ## Puesta en marcha en el servidor
 
@@ -20774,4 +20799,10 @@ Que los opcionales no sean fatales es **OPS-07**, de la Ola 3.
   criterio explícito: donde el arreglo sea de otra ola, acá va el test que **fija lo que hay hoy**.
 - **07/10/2026 (este cambio)** — las ocho cerradas. RED-05, RED-31, RED-35, RED-49, RED-70, RED-77 y RED-81 completas en
   su parte de la Ola R; RED-50 caracterizada con `expectedFailure` hasta que la Ola 3 unifique la edad.
+- **07/10/2026 (ronda 2 de revisión)** — tres correcciones sobre RED-77 y su test. Había una **cuarta** copia de la
+  RN-2 (el `Count` del detalle de la convocatoria, que contaba como «con identidad» filas que el cruce ya no valida);
+  la regla con `\s` **seguía discrepando en MariaDB**, donde el lookup se compila como `REGEXP BINARY` con PCRE y `\s`
+  es ASCII, así que pasó a ser la clase literal de los 29 caracteres de `str.strip()`; y el test del cruce automático
+  era vacuo —el caso no llevaba `genero`, con lo que nunca llegaba a mirar la identidad y pasaba también con la regla
+  vieja—.
 

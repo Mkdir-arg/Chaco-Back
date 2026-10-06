@@ -651,11 +651,18 @@ class EscriturasAtomicasMotorRealTests(MotorRealMixin, TransactionTestCase):
 class IdentidadDelPadronMotorRealTests(MotorRealMixin, TestCase):
     """RED-77: la regla RN-2 del queryset se evalúa en el servidor, no en Python.
 
-    `con_identidad()` excluye con `__regex`, que Django traduce a `REGEXP` del
-    motor: MariaDB usa PCRE y MySQL 8 usa ICU, y el `\\s` del patrón lo resuelve
-    cada uno por su cuenta. En SQLite lo resuelve `re` de Python, así que la
-    suite normal **no** prueba lo que corre en ECOM. Acá se enfrenta fila por
-    fila contra la property, que sí es Python en los tres casos.
+    `con_identidad()` filtra con `__regex`, y los dos motores de producción ni
+    siquiera usan el mismo mecanismo: Django compila el lookup como
+    `%s REGEXP BINARY %s` en **MariaDB** (PCRE) y como `REGEXP_LIKE(%s, %s, 'c')`
+    en **MySQL 8** (ICU). En SQLite lo resuelve `re` de Python, así que la suite
+    normal **no** prueba lo que corre en ECOM.
+
+    Medido en la ronda 2 del PR: con `\\s` —o con `[[:space:]]`— la pata de
+    MariaDB discrepa de `strip()` en los espacios que no son ASCII (NBSP, EM
+    SPACE, IDEOGRAPHIC SPACE, NEL), porque ahí las dos clases son ASCII. Por eso
+    la regla usa la **clase literal** de `CARACTERES_SIN_TEXTO`, que los tres
+    motores resuelven igual. Los casos de abajo son exactamente esa diferencia,
+    más los dos controles de falso positivo (acentos y espacio interno).
     """
 
     CASOS = [
@@ -667,6 +674,19 @@ class IdentidadDelPadronMotorRealTests(MotorRealMixin, TestCase):
         ("40000006", "Ana", "   ", False),
         ("40000007", "\tAna", "Paz", True),
         ("40000008", "\t", "Paz", False),
+        # Lo que `\s` de MariaDB no reconoce (el NBSP es el que deja un
+        # copy&paste de una web o un PDF).
+        ("40000009", "\xa0", "Paz", False),
+        ("40000010", " ", "Paz", False),
+        ("40000011", "　", "Paz", False),
+        ("40000012", "\x85", "Paz", False),
+        ("40000013", "\xa0  \t", "Paz", False),
+        # Controles de falso positivo: `REGEXP BINARY` podría mirar bytes, y la
+        # «à» se codifica con el mismo `A0` que el NBSP.
+        ("40000014", "Añá", "Óé", True),
+        ("40000015", "à", "Paz", True),
+        ("40000016", "Ana\xa0Paz", "Paz", True),
+        ("40000017", "​", "Paz", True),  # ZWSP no es whitespace para Python
     ]
 
     def test_con_identidad_dice_lo_mismo_que_la_property_en_el_motor_real(self):
