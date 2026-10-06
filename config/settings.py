@@ -266,8 +266,10 @@ EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
 # STARTTLS en el 587 es exactamente EMAIL_USE_TLS (EMAIL_USE_SSL es el 465 implícito).
 EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "True").lower() == "true"
 # El envío es sincrónico (no hay cola): sin timeout un SMTP lento cuelga el
-# request del alta de usuario hasta que corte el gateway.
-EMAIL_TIMEOUT = int(os.getenv("EMAIL_TIMEOUT", "10"))
+# request del alta de usuario hasta que corte el gateway. En 5 s desde SIIS-09:
+# el correo es el último eslabón de «Aprobar», después de dos llamadas a SIIS,
+# y es el que menos puede costar — si no sale, el caso igual quedó resuelto.
+EMAIL_TIMEOUT = int(os.getenv("EMAIL_TIMEOUT", "5"))
 # El backend lo decide la presencia de EMAIL_HOST, no el ENVIRONMENT: qa usa el
 # mismo SMTP que prd, y el dev local sigue en consola sin configurar nada.
 EMAIL_BACKEND = (
@@ -463,8 +465,10 @@ RENAPER_AUTH_MODE = os.getenv("RENAPER_AUTH_MODE", "auto").strip().lower()  # au
 RENAPER_HTTP_METHOD = os.getenv("RENAPER_HTTP_METHOD", "auto").strip().lower()  # auto|get|post
 RENAPER_TEST_MODE = os.getenv("RENAPER_TEST_MODE", "False") == "True"
 RENAPER_TEST_LATENCY_SECONDS = max(0, float(os.getenv("RENAPER_TEST_LATENCY_SECONDS", "0")))
-RENAPER_CONNECT_TIMEOUT = int(os.getenv("RENAPER_CONNECT_TIMEOUT", "10"))
-RENAPER_TIMEOUT = int(os.getenv("RENAPER_TIMEOUT", "20"))
+# SIIS-09: consulta, o sea (5, 10) (D-S09). Entra en el presupuesto de red por
+# request que verifica ``core.checks.presupuesto_de_llamadas_externas``.
+RENAPER_CONNECT_TIMEOUT = int(os.getenv("RENAPER_CONNECT_TIMEOUT", "5"))
+RENAPER_TIMEOUT = int(os.getenv("RENAPER_TIMEOUT", "10"))
 RENAPER_RETRIES = int(os.getenv("RENAPER_RETRIES", "0"))
 # ─── Seguridad de la superficie pública ───────────────────────────────────────
 # Redes desde las que se aceptan las cabeceras de proxy (X-Real-IP / X-Forwarded-For)
@@ -512,8 +516,11 @@ PERSONAS_API_CLIENT_ID = os.getenv("PERSONAS_API_CLIENT_ID", "")
 PERSONAS_API_CLIENT_SECRET = os.getenv("PERSONAS_API_CLIENT_SECRET", "")
 PERSONAS_API_ENTIDAD_UUID = os.getenv("PERSONAS_API_ENTIDAD_UUID", "")
 PERSONAS_API_FUENTE_ID = int(os.getenv("PERSONAS_API_FUENTE_ID", "13"))
-PERSONAS_API_CONNECT_TIMEOUT = int(os.getenv("PERSONAS_API_CONNECT_TIMEOUT", "10"))
-PERSONAS_API_TIMEOUT = int(os.getenv("PERSONAS_API_TIMEOUT", "20"))
+# SIIS-09: consulta, o sea (5, 10) (D-S09). Con la Gran Base caída, cada paso 1
+# del link público retenía un hilo hasta 30 s; además del timeout más corto, el
+# cortacircuito de ``core.integraciones`` deja de consultarla tras tres fallas.
+PERSONAS_API_CONNECT_TIMEOUT = int(os.getenv("PERSONAS_API_CONNECT_TIMEOUT", "5"))
+PERSONAS_API_TIMEOUT = int(os.getenv("PERSONAS_API_TIMEOUT", "10"))
 # Cambio 57: en False no se consulta Base de Personas en ningún lugar (link,
 # app de campo, «Revalidar», diagnóstico). La identidad se resuelve con el
 # padrón de la convocatoria. No cambia el resultado de quien está en el padrón:
@@ -526,8 +533,22 @@ PERSONAS_API_ACTIVA = os.getenv("PERSONAS_API_ACTIVA", "True").strip().lower() i
 SIIS_API_URL = os.getenv("SIIS_API_URL", "").strip().rstrip("/")
 SIIS_API_CLIENT_ID = os.getenv("SIIS_API_CLIENT_ID", "")
 SIIS_API_CLIENT_SECRET = os.getenv("SIIS_API_CLIENT_SECRET", "")
-SIIS_API_CONNECT_TIMEOUT = int(os.getenv("SIIS_API_CONNECT_TIMEOUT", "10"))
-SIIS_API_TIMEOUT = int(os.getenv("SIIS_API_TIMEOUT", "30"))
+# SIIS-09 · Un timeout por tipo de llamada, no uno solo para todas. «Aprobar»
+# encadena token → compatibilidad → alta → correo dentro del mismo clic: con
+# (10, 30) para las tres llamadas a SIIS la cadena pasaba los 120 s y nginx la
+# cortaba a los 60 (``nginx.conf:97``), dejando al operador con un 504 y el alta
+# posiblemente hecha del otro lado. Los valores son el default de D-S09; que la
+# suma entre en el presupuesto lo verifica
+# ``core.checks.presupuesto_de_llamadas_externas`` (``check --deploy``).
+SIIS_API_CONNECT_TIMEOUT = int(os.getenv("SIIS_API_CONNECT_TIMEOUT", "5"))
+# El token es autenticación contra el mismo host: o contesta rápido o está roto.
+SIIS_API_TIMEOUT_TOKEN = int(os.getenv("SIIS_API_TIMEOUT_TOKEN", "5"))
+# Compatibilidad y catálogos: lecturas.
+SIIS_API_TIMEOUT_CONSULTA = int(os.getenv("SIIS_API_TIMEOUT_CONSULTA", "10"))
+# Solo el alta en la tabla intermedia, que del otro lado escribe. Más largo que
+# una consulta y aun así corto: lo que no contesta queda INCIERTO y se concilia
+# con ECOM (SIIS-02), que es mejor que un 504 sin registro.
+SIIS_API_TIMEOUT = int(os.getenv("SIIS_API_TIMEOUT", "20"))
 # Dónde están los .sql con los datos del organismo (RENAPER, aprobados, localidades)
 # que carga `manage.py correr_alta_siis`. Antes se leían de `scripts/` dentro de la
 # imagen, con los datos personales de 10.321 personas adentro (RED-01). Ahora es un

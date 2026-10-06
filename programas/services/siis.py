@@ -6,9 +6,26 @@ import requests
 from django.conf import settings
 from django.core.cache import cache
 
+from core.integraciones import Cortacircuito, sesion_http
 from core.performance.query_observability import instrument_external_call
 
 logger = logging.getLogger(__name__)
+
+#: Una sesión por módulo, con su pool (SIIS-09). Las llamadas se hacen contra
+#: ``sesion`` y no contra ``requests`` para reutilizar la conexión TLS; es
+#: también lo que los tests sustituyen.
+sesion = sesion_http()
+
+#: SIIS-09 · Con SIIS caído, cada clic en «Aprobar» o «Rechazar» se comía el
+#: timeout de la consulta de compatibilidad antes de hacer nada. Tres fallas de
+#: red seguidas la dejan sin consultar por un minuto: el veredicto queda en
+#: ERROR —que no frena la aprobación desde el Cambio 81— sin retener el hilo.
+#: **El alta no pasa por acá**: lo irreversible se decide caso por caso.
+cortacircuito_consultas = Cortacircuito("siis.consulta")
+
+#: Cuánto de una respuesta ilegible se guarda como constancia de lo que SIIS
+#: contestó. Un error de un proxy puede ser una página HTML entera.
+LARGO_CRUDO = 500
 TOKEN_CACHE_KEY = "siis_api:access_token"  # nosec B105
 PROGRAMAS_CACHE_KEY = "siis_api:programas:activos"
 PROGRAMAS_TODOS_CACHE_KEY = "siis_api:programas:todos"
@@ -79,6 +96,18 @@ MENSAJE_INCIERTO = (
 ERRORES_SIN_CONEXION = {"NewConnectionError", "NameResolutionError", "ConnectTimeoutError"}
 
 
+def crudo(valor, limite=LARGO_CRUDO):
+    """Envuelve una respuesta que no es un objeto JSON, sin perderla.
+
+    Antes se reemplazaba por ``{}`` y lo que SIIS había contestado desaparecía:
+    quien después miraba la validación registrada no tenía forma de distinguir
+    «SIIS no contestó» de «SIIS contestó una página de error del proxy». Queda
+    bajo ``_crudo``, con el guion bajo adelante para que no se confunda con un
+    campo del contrato, y recortado: un 502 de nginx son varios KB de HTML.
+    """
+    return {"_crudo": str(valor)[:limite]}
+
+
 def _fallo(resultado, codigo, mensaje):
     """La forma que tiene un fallo sin respuesta HTTP."""
     return {
@@ -123,7 +152,11 @@ class SiisAPIClient:
         self.base_url = str(settings.SIIS_API_URL or "").strip().rstrip("/")
         self.client_id = str(settings.SIIS_API_CLIENT_ID or "").strip()
         self.client_secret = str(settings.SIIS_API_CLIENT_SECRET or "").strip()
+        # SIIS-09 · Tres timeouts, no uno. ``timeout`` sigue siendo el del alta
+        # porque es el que miran ``diagnosticar_siis`` y el cálculo del latido.
         self.timeout = (settings.SIIS_API_CONNECT_TIMEOUT, settings.SIIS_API_TIMEOUT)
+        self.timeout_token = (settings.SIIS_API_CONNECT_TIMEOUT, settings.SIIS_API_TIMEOUT_TOKEN)
+        self.timeout_consulta = (settings.SIIS_API_CONNECT_TIMEOUT, settings.SIIS_API_TIMEOUT_CONSULTA)
 
     def _token(self):
         token = cache.get(TOKEN_CACHE_KEY)
@@ -133,10 +166,10 @@ class SiisAPIClient:
             raise _SiisConfigurationError("Configuración SIIS incompleta.")
         response = instrument_external_call(
             "siis",
-            requests.post,
+            sesion.post,
             f"{self.base_url}/api/v1/auth/token",
             json={"client_id": self.client_id, "client_secret": self.client_secret},
-            timeout=self.timeout,
+            timeout=self.timeout_token,
         )
         response.raise_for_status()
         body = response.json()
@@ -154,10 +187,10 @@ class SiisAPIClient:
     def _get(self, path):
         response = instrument_external_call(
             "siis",
-            requests.get,
+            sesion.get,
             f"{self.base_url}{path}",
             headers={"Authorization": f"Bearer {self._token()}"},
-            timeout=self.timeout,
+            timeout=self.timeout_consulta,
         )
         if response.status_code == 401:
             cache.delete(TOKEN_CACHE_KEY)
@@ -287,14 +320,18 @@ class SiisAPIClient:
         payload = {"dni": str(dni), "id_programa": int(id_programa)}
         if fecha_nacimiento:
             payload["fecha_nacimiento"] = str(fecha_nacimiento)
+        if cortacircuito_consultas.abierto():
+            # SIIS-09: ya falló tres veces seguidas. Esperar el timeout otra vez
+            # no cambia el resultado y sí retiene el hilo del request.
+            return {"success": False, "error": "No se pudo conectar con SIIS.", "data": {}, "cortado": True}
         try:
             response = instrument_external_call(
                 "siis",
-                requests.post,
+                sesion.post,
                 f"{self.base_url}/api/v1/validaciones/compatibilidad",
                 json=payload,
                 headers={"Authorization": f"Bearer {self._token()}"},
-                timeout=self.timeout,
+                timeout=self.timeout_consulta,
             )
             try:
                 body = response.json()
@@ -304,7 +341,9 @@ class SiisAPIClient:
                 # El cuerpo puede ser una lista o un string: sin esto, el primer
                 # ``body.get`` era un ``AttributeError`` sin capturar, que en el
                 # masivo cortaba la corrida y al rechazar un caso daba 500 (SIIS-11).
-                body = {}
+                # Lo que vino queda en ``_crudo``: es la constancia de qué contestó.
+                body = crudo(body)
+            cortacircuito_consultas.registrar_exito()
             if response.status_code == 401:
                 cache.delete(TOKEN_CACHE_KEY)
             if response.status_code == 200 and body.get("resultado") in ("OK", "RECHAZADO"):
@@ -318,6 +357,7 @@ class SiisAPIClient:
             return {"success": False, "error": "SIIS devolvió una respuesta no reconocida.", "data": body}
         except (requests.RequestException, TypeError, ValueError, _SiisConfigurationError):
             logger.exception("Error técnico al validar compatibilidad en SIIS")
+            cortacircuito_consultas.registrar_falla()
             return {"success": False, "error": "No se pudo conectar con SIIS.", "data": {}}
 
     # ------------------------------------------------------------------
@@ -429,7 +469,7 @@ class SiisAPIClient:
         try:
             response = instrument_external_call(
                 "siis",
-                requests.post,
+                sesion.post,
                 f"{self.base_url}{TAB_INTERMEDIA_PATH}",
                 json=payload,
                 headers={"Authorization": f"Bearer {token}"},

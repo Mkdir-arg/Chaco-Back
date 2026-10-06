@@ -1,5 +1,27 @@
 # Auditoría integral de DATAÑACH (Chaco) — octubre 2026
 
+## Estado al 06-oct-2026 (Ola 1, PR 5: la cadena de llamadas externas entra en los 60 s)
+
+**SIIS-09 (= PERF-09) cerrada, más los tres MINOR que dejó la revisión del PR 4.** El PR 5 de la Ola 1
+(Cambio 154) son 4 h, **sin migraciones**. Con esto la Ola 1 va por 46 h cerradas de 78.
+
+| Ficha | Qué quedó |
+|---|---|
+| **SIIS-09 / PERF-09** ✅ | «Aprobar» encadena token → compatibilidad → alta → correo, y las tres llamadas a SIIS compartían `(10, 30)`: la cadena podía pasar los 120 s contra los 60 de nginx, y el 504 llega con el alta posiblemente hecha del otro lado. Ahora hay **un timeout por tipo de llamada** (D-S09: conexión 5 s, consultas 10 s, alta 20 s, `EMAIL_TIMEOUT` 5) y, sobre todo, un **presupuesto declarado y verificado**: `core/integraciones.py::CADENAS` dice qué encadena cada request y `check --deploy` falla con `core.E003` si alguna pasa los 55 s. «Aprobar un caso» queda **justo en 55**: la próxima llamada que alguien encadene ahí deja el check en rojo. Cortacircuito de 3 fallas de red / 60 s sobre Base de Personas (el tope de `identificar` del punto 4) y sobre la compatibilidad de SIIS; **no** sobre el alta. `requests.Session` por módulo con `pool_maxsize=10` |
+| **MINOR 1** ✅ | La guarda de SIIS-06 contaba los `DESCONOCIDO` **nuevos**: diez programas vinculados y tres catálogos parciales seguidos (4 → 5 → 1) los dejaban **a los diez bloqueados** sin que saltara nunca. Pasa a contar el estado **resultante**, que es lo que la ficha pide confirmar. Contradice una línea escrita en el Cambio 151 y está dicho en los dos lados |
+| **MINOR 2** ✅ | `--forzar` exige `--motivo` y acepta `--usuario`, como `--ignorar-corrida` desde el PR 3, y deja rastro en el log —solo cuando el forzado hizo falta de verdad—. El CronJob de `cronjobs.yaml` corre sin el flag y **no cambia**: hay un test que lo fija |
+| **MINOR 3** ✅ | Lo que SIIS contesta fuera de contrato deja de perderse: va a `respuesta["_crudo"]`, recortado a 500 caracteres. El único lector estructurado (`_detalle_validacion_siis`) sigue mostrando lo mismo, con test. No se loguea |
+
+**Un desvío de la ficha:** el token de SIIS lleva su propio `SIIS_API_TIMEOUT_TOKEN` de 5 s, que D-S09 no
+nombra. Con los `(5, 10)` de «consulta» la cadena de «Aprobar» daba 60 s y no entraba en el presupuesto.
+
+**Pendiente operativo (PM):** **las variables del entorno de ECOM mandan sobre los defaults.** Si en testing o
+PRD siguen `SIIS_API_TIMEOUT=30`, `PERSONAS_API_TIMEOUT=20`, `RENAPER_TIMEOUT=20` o `EMAIL_TIMEOUT=10`, el
+presupuesto no se cumple: hay que bajarlas o sacarlas del entorno. `SIIS_API_TIMEOUT_TOKEN` y
+`SIIS_API_TIMEOUT_CONSULTA` son nuevas y no hace falta agregarlas (sin setear valen 5 y 10).
+
+---
+
 ## Estado al 06-oct-2026 (Ola 5, PR 2: parches v1 de Legajos)
 
 | PR | Cambio | Fichas | Estado | Qué quedó abierto |
@@ -1101,7 +1123,7 @@ funcional ni coordinación con ECOM). Las horas de cada ola suman los esfuerzos 
 |---|---|---:|---:|---:|---:|---:|---:|
 | 0 | Hotfix de seguridad y seeds | 16 | 36 | 0 (completa en código; lo operativo, en «Estado») | 0 | 0 | 0 |
 | **R** | **Red de seguridad: poder cambiar código sin romper nada sin enterarse** | — | — | — | — | **86** (79 RED con parte en R —78 del relevamiento + RED-89— + OPS-01, OPS-03, OPS-04, TST-01, TST-02, TST-03, R0-03; SEC-10, SEC-11 y SEC-18 se ejecutan en R-19 pero **siguen contadas como ítems de la Ola 2**, solo se mueven sus horas) | **285** · **107 cerradas el 04-oct (R-01..R-10 y R-19) → 178 restantes** |
-| 1 | Integridad SIIS | 23 | 72 | 22 (− SIIS-07) | 70 | 23 (+ RED-53; + parte de RED-32) | 78 · **32 cerradas (26 el 05-oct, PR 2; 6 el 06-oct, PR 3) → 46 restantes** |
+| 1 | Integridad SIIS | 23 | 72 | 22 (− SIIS-07) | 70 | 23 (+ RED-53; + parte de RED-32) | 78 · **46 cerradas (26 el 05-oct, PR 2; 6 el 06-oct, PR 3; 10 el 06-oct, PR 4; 4 el 06-oct, PR 5) → 32 restantes** |
 | 2 | Autorización (RBAC, legajos, alcance de Becas, usuarios) | 36 | 116 | 50 (+ fase 2 de OPS-06, R0-05, resto de SEC-01, etapa 2 de SEC-09, R0b-01..10) | 136 | 51 (+ RED-80; + partes de RED-52, RED-79) | 135 (−7: SEC-10, SEC-18 y media SEC-11 se hacen en R-19, D-RED-14) |
 | 3 | Datos, operación, CI, app de campo y reglas de Becas | 55 | 158 | 59 (+ R0-03, R0-04, R0-06, R0-07) | 166 | 54 (− 7 a la Ola R; + RED-48, RED-58; + partes de RED-09, 35, 40, 50) | 152 |
 | 4 | Performance | 19 | 52 | 19 | 52 | 20 (+ RED-62; + partes de RED-10, 49, 51, 83) | 64 |
@@ -1319,7 +1341,13 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
      propósito dos tests: la caracterización de R-06 (`test_catalogo_vacio_marca_todo_desconocido`,
      puesta «para que la Ola 1 lo decida») y la primera mitad de la del Cambio 98 sobre el apoderado.
      10 h.
-  5. SIIS-09 (+PERF-09) **después** del PR 2. 4 h.
+  5. ✅ **Hecho el 06-oct-2026 (Cambio 154):** SIIS-09 (+PERF-09), más los tres MINOR que dejó la revisión del
+     PR 4. Un timeout por tipo de llamada (D-S09) y el presupuesto de red por request **verificado en
+     `check --deploy`** (`core/integraciones.py` + `core.E003`): «Aprobar un caso» queda justo en 55 s de los 60
+     de nginx. Cortacircuito de 3 fallas / 60 s sobre Base de Personas y sobre la compatibilidad de SIIS —no
+     sobre el alta—, y `requests.Session` por módulo. Los MINOR: la guarda de SIIS-06 cuenta el estado
+     **resultante** (el goteo de catálogos parciales la salteaba), `--forzar` exige `--motivo` y deja rastro, y
+     lo que SIIS contesta fuera de contrato se guarda en `respuesta["_crudo"]`. **Sin migraciones.** 4 h.
   6. SIIS-08 + G1-08 + G1-09 + G1-10 (qué viaja a SIIS). 20 h.
   7. SIIS-19, SIIS-17, G3-06 (herramientas y correcciones manuales). 6 h.
   8. *Red de seguridad (04-oct):* ✅ RED-53 (`ComandoSiisBase`) entró con el **PR 2** (Cambio 127): un candado que se
@@ -1886,7 +1914,7 @@ Estado: CONF. test / CONF. lectura / PLAUSIBLE / REFUTADO / absorbido (= su cont
 | BEC-12 | PERF-04 | mismo cruce de padrón |
 | BEC-13 | LEG-02 | mismo `unique_together`; su vista no tiene ruta (LEG-06) |
 | PERF-05 | DIS-01 | mismo `__date` |
-| PERF-09 | SIIS-09 | misma cadena de llamadas externas |
+| PERF-09 | SIIS-09 | misma cadena de llamadas externas — ✅ cerrada con SIIS-09 en #PENDIENTE (Cambio 154), 06-oct |
 | PERF-14 | — | REFUTADO (A4-15) |
 | LEG-07 | SEC-18 | lo cierra V1 |
 | LEG-08 | SEC-19 | lo cierra V1 |
