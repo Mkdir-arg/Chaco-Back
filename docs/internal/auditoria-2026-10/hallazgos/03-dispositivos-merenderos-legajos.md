@@ -27,7 +27,7 @@ aceptación de la v2** (README §7), con el test nombrado para que la task lo he
 
 | ID | Título | Sev. | Estado | Tratamiento | Ola | Esf. | Avance 03-oct |
 |---|---|---|---|---|---|---|---|
-| DIS-01 | `__date` sobre DateTimeField en parte F-01, listado y exports (CONVERT_TZ → NULL) | ALTA (latente) | CONF. test (SQL compilado) | Parchear v1 + criterio v2 | 5 | S | ⬜ |
+| DIS-01 | `__date` sobre DateTimeField en parte F-01, listado y exports (CONVERT_TZ → NULL) | ALTA (latente) | CONF. test (SQL compilado) | Parchear v1 + criterio v2 | 5 | S | ✅ |
 | DIS-02 | Doble estadía ALOJADA de la misma persona en el mismo dispositivo | ALTA | CONF. test (matiz) | Criterio v2 (v1 si D-V1 = sí) | v2 | S / M | ⬜ |
 | DIS-03 | Espera de traslado huérfana; traslado pendiente imposible de cancelar | ALTA | CONF. test | Criterio v2 (1er parche si D-V1 = sí) | v2 | M | ⬜ |
 | LEG-03 | Solapa «Red Familiar» rota; API de vínculos abierta y sin filtro | ALTA (V5a) / MEDIA (V3) | CONF. test | Parchear v1 | 5 | S / M | ⬜ |
@@ -38,7 +38,7 @@ aceptación de la v2** (README §7), con el test nombrado para que la task lo he
 | LEG-04 | Endpoints AJAX de legajos tragan excepciones; un blob faltante vacía la lista | MEDIA | CONF. test | Parchear v1 | 5 | S | ⬜ |
 | G1c-08 | Alta/edición de ciudadano: DNI sin normalizar, confirmación RENAPER alterable | MEDIA | CONF. test | Parchear v1 | 3 | M | ⬜ |
 | DIS-07 | Camas RESERVADAS cuentan como libres | BAJA | CONF. test | Criterio v2 | v2 | S | ⬜ |
-| DIS-08 | Fechas UTC en indicador y export de movimientos | BAJA | CONF. test | Parchear v1 + criterio v2 | 5 | S | ⬜ |
+| DIS-08 | Fechas UTC en indicador y export de movimientos | BAJA | CONF. test | Parchear v1 + criterio v2 | 5 | S | ✅ |
 | DIS-09 | El egreso cierra la membresía aunque haya espera en otro dispositivo | BAJA | CONF. test | Criterio v2 | v2 | S | ⬜ |
 | DIS-10 | Edición del dispositivo: cambio de tipo con estadías | BAJA | PARCIAL | Criterio v2 | v2 | S | ⬜ |
 | V6-NEW-02 | Borrar un campo de tipo con archivos da 500 (Cambio 48 B4) | BAJA | CONF. lectura | Criterio v2 | v2 | S | ⬜ |
@@ -72,6 +72,27 @@ aceptación de la v2** (README §7), con el test nombrado para que la task lo he
   están marcados `@unittest.expectedFailure` con el ID de esta ficha: el PR de la Ola 5 que la arregle **saca los dos
   decoradores** y ahí quedan como regresión. El segundo se saltea contra `mysql:8.0`, que sí trae las tablas cargadas (como
   icore): el bug es de ECOM.
+
+**Resolución:** ✅ Resuelto en el PR #592 (Cambio 138), 06-oct-2026 — helper único `core/utils_fechas.py`
+(`rango_dia_local`, `rango_periodo_local`, `q_rango_local`, `fecha_local`, `inicio_del_dia_local`) y los dos usos de la
+ficha —`registro_diario.calcular_cantidades` y `reportes._movimientos_en_periodo`, que alimenta el listado y los tres
+exports— pasados al rango local `[00:00, 00:00 del día siguiente)`. Se arreglaron **también** los tres «latentes» que
+nombra la ficha (`legajos/models/base.py:325`, `legajos/api_views/contactos.py`, `core/performance/database_partitioning.py`)
+y **cuatro de Conversaciones** que la ficha no listaba y aparecieron al barrer el repo
+(`selectors/conversaciones.py` ×2, `services/core.py` ×2, más un `timezone.now().date()` en las métricas): arreglarlos
+costaba lo mismo que excepcionarlos y deja la guardia **sin allowlist**, como la pedía el punto 4. Esa guardia es un test
+y no un grep: `core/tests/test_sql_portable.py` parsea con `ast` todo el código productivo de las apps del repo —incluidos
+los lookups armados con un f-string, que es como estaba escrito el de los reportes—, resuelve el tipo del campo contra los
+modelos y solo reporta los `DateTimeField`; `TruncMonth` sobre un `DateField` (`legajos/views/dashboard_simple.py`) no se
+reporta, como pedía la ficha. Hay pragma de escape (`# sql-portable: ok`) y hoy no lo usa nadie. Antes del fix la guardia
+encontraba **16** lookups vivos. Se sacaron los dos `@unittest.expectedFailure` (Cambios 125 y 130) y el
+`test_hoy_los_reportes_de_dispositivos_si_compilan_convert_tz` —que afirmaba lo contrario y dejó de ser cierto— se
+reemplazó por un pin invertido equivalente (`test_un_date_sobre_un_datetimefield_si_compila_convert_tz`). Verificado
+contra `mariadb:10.11` con `MARIADB_INITDB_SKIP_TZINFO=1`: `--tag mysql` en verde, 16/16.
+**Test permanente:** `core.tests.test_sql_portable.SqlPortableTests.test_ningun_lookup_por_dia_sobre_un_datetimefield`
+(+ `core.tests.test_motor_real.ParteDiarioEnElMotorRealTests.test_el_parte_diario_cuenta_el_ingreso_de_hoy` y
+`core.tests.test_sql_motor_real.SinConvertTZTests.test_ninguna_consulta_de_reporte_usa_convert_tz`, los dos ya sin
+`expectedFailure`, y `programas.tests.test_fechas_locales_dispositivos.ParteDiarioFechaLocalTests.test_ingreso_2330_art_cuenta_en_fecha_local`).
 
 ### DIS-02 · Doble estadía ALOJADA de la misma persona en el mismo dispositivo
 **Severidad:** ALTA · **Estado:** CONFIRMADO con matiz (`A306DobleAlojamiento`) · **Origen:** A3-06; incluye el gate faltante de `models.W036` · **Tratamiento:** criterio de aceptación v2 (M3, «unicidad residencial en la red»); puntos 1-3 en v1 solo si D-V1 = sí · **Ola:** v2 · **Esfuerzo:** S (1-3) / M (4, dentro de la v2)
@@ -163,6 +184,17 @@ aceptación de la v2** (README §7), con el test nombrado para que la task lo he
 - **Ubicación:** `indicadores.py:56`, `:201`; `reportes.py:124-125`, `:141-142` (filtro del período), `:130`, `:146` (`strftime("%d/%m/%Y")` en UTC).
 - **Propuesta:** `timezone.localtime(x).date()` y `localtime(x).strftime(...)`; en el indicador, mejor `ultimo_registro.fecha` (la fecha del parte).
 - **Tests:** `test_actualizacion_parte_nocturno_cuenta_en_fecha_local`, `test_movimiento_2230_art_se_exporta_con_fecha_local`.
+
+**Resolución:** ✅ Resuelto en el PR #592 (Cambio 138), 06-oct-2026, en el mismo PR que DIS-01 — `movimientos_dispositivos`
+filtra el período con la fecha **local** del movimiento (`core.utils_fechas.fecha_local`) y la columna «Fecha» sale con
+`timezone.localtime(...).strftime(...)`: el movimiento de las 22:30 ART ya no queda fuera del período pedido ni se exporta
+con el día siguiente. El indicador de «última actualización» mide contra la fecha local de `modificado`.
+**Dos desvíos de la ficha, los dos code-first:** (a) `indicadores.py:201` no existe —el archivo tiene 93 líneas—; el único
+uso es `:56` y es el que se corrigió; (b) **no** se cambió `modificado` por `ultimo_registro.fecha`: miden cosas distintas
+(cuándo se tocó el parte vs. de qué día es el parte) y el semáforo de actualización mide la primera, así que alcanzaba con
+leerlo en hora local.
+**Test permanente:** `programas.tests.test_fechas_locales_dispositivos.ExportMovimientosFechaLocalTests.test_movimiento_2230_art_se_exporta_con_fecha_local`
+(+ `IndicadorActualizacionFechaLocalTests.test_actualizacion_parte_nocturno_cuenta_en_fecha_local`).
 
 ### DIS-09 · El egreso cierra la membresía aunque haya una espera en otro dispositivo
 **Severidad:** BAJA · **Estado:** CONFIRMADO con test · **Origen:** A3-21 · **Tratamiento:** criterio v2 (M3 y trayectoria en la solapa del legajo, §4.10) · **Ola:** v2 · **Esfuerzo:** S
