@@ -316,6 +316,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 133 | Mapear el mockup de la v2 de Dispositivos pantalla por pantalla: qué pieza ya existe, qué dato falta y dónde choca | Dispositivos y Merenderos · análisis de diseño y de datos (sin tocar código de producción) | `#ui` `#gestion` `#datos` `#rbac` | PM — pedido directo en sesión de trabajo, sobre el link publicado del mockup | 05/10/2026 | 🟢 **Hecho** | No requiere |
 | 134 | Las quince decisiones que destraban la v2 de Dispositivos: qué se implementa del mockup y qué no | Dispositivos y Merenderos · sistema de diseño · decisiones previas a implementar (sin tocar código de producción) | `#ui` `#textos` `#rbac` `#gestion` | PM — decisión en sesión de trabajo sobre los 15 conflictos del Cambio 133 | 06/10/2026 | 🟢 **Hecho** (las decisiones; las seis piezas de sistema quedan planificadas en M0) | No requiere |
 | 135 | Una migración nueva no puede romper el rollback sin que nadie se entere | Transversal · migraciones · CI de GitHub Actions · archivo de requerimientos | `#infra` `#datos` `#metodo` `#performance` | Auditoría integral de octubre 2026 — RED-14, RED-57, RED-18, RED-84 y RED-83 (Ola R, PR R-12) | 06/10/2026 | 🟢 **Hecho** (RED-83 parcial: la migración que saca los índices es de la Ola 4) | No requiere |
+| 136 | El proceso masivo deja de darse por muerto estando vivo: latido por caso, freno real y un solo camino a la vez | Becas · proceso masivo de alta en SIIS (pantalla, servicio y comandos) | `#siis` `#relevamientos` `#ui` | Auditoría integral oct-2026 — SIIS-03 (+A5-33), BEC-11 y BEC-21 (Ola 1 «Integridad SIIS», PR 3) | 06/10/2026 | 🟢 **Hecho** | `programas.0076_corridasiis_incompatibles` |
 | 137 | Las mismas tres pantallas, pedidas de nuevo: el ejercicio de control que cierra la Ola 6 | Transversal · agente canónico de diseño y sus fichas · evidencia de la auditoría (sin tocar código de producción) | `#ui` `#metodo` | Auditoría integral oct-2026 — Ola 6 «Agente de diseño», pasos 6 y 7 | 06/10/2026 | 🟢 **Hecho** (queda para el PM la captura del criterio (e)) | No requiere |
 | 138 | Una lista de exclusión frena a quien no hay que mandar a SIIS, y el envío pide confirmación | Becas · alta de beneficiarios en SIIS | `#siis` `#datos` | PM — en sesión: «todas las personas que están en la tabla SiisEnviar NO SE ENVIAN» | 06/10/2026 | 🟢 **Hecho** | No requiere |
 | 140 | El parte diario y los reportes de Dispositivos cuentan el día argentino, no el del motor | Dispositivos (parte F-01, listado, exports, indicadores) · Legajos · Conversaciones · Transversal (helper de fechas + guardia) | `#datos` `#infra` `#performance` | Auditoría integral oct-2026 — fichas DIS-01 y DIS-08 (Ola 5, PR 1) | 06/10/2026 | 🟢 **Hecho** | No requiere |
@@ -18603,6 +18604,294 @@ No requiere. No hay migración, variable de entorno ni comando manual.
 2. No hay datos involucrados: ninguna migración se agregó ni se cambió el esquema, así que no hay nada que restaurar.
 3. Lo único que **no** vuelve solo: si entre medio se mergeó una migración nueva apoyada en las marcas, queda sin gate
    que la verifique.
+---
+
+# Cambio 136 — El proceso masivo deja de darse por muerto estando vivo: latido por caso, freno real y un solo camino a la vez
+
+🟢 **HECHO — 06/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · proceso masivo de alta en SIIS (pantalla, servicio y comandos) |
+| **Etiquetas** | `#siis` `#relevamientos` `#ui` |
+| **Solicitante** | Auditoría integral oct-2026 — SIIS-03 (+A5-33), BEC-11 y BEC-21 (Ola 1 «Integridad SIIS», PR 3) |
+| **Fecha del pedido** | 06/10/2026 |
+| **Issue / épica** | sin issue (plan de la auditoría, `docs/internal/auditoria-2026-10/README.md` §6) |
+| **Partes afectadas** | Backoffice (pantalla del proceso masivo) · servicio del circuito masivo · los cinco comandos de SIIS |
+| **Migración** | `programas.0076_corridasiis_incompatibles` |
+
+## Pedido original
+
+El Cambio 88 eligió correr el proceso masivo **en un hilo del pod** y deducir «se murió» de un
+**latido** viejo, porque cuando el pod se recicla no queda nadie para escribir que murió. La idea es
+correcta; el problema era dónde se escribía ese latido:
+
+```python
+# programas/services/proceso_masivo.py, antes
+pendientes = hidratar_por_lotes(ids_de(candidatos(...)))   # sin latido
+casos, _ = elegir_completos(pendientes, ...)               # 40-65 s, sin latido
+_guardar(corrida, cuenta)                                  # primer latido
+for grupo in _lotes(casos, 40):
+    for caso in grupo:  ...                                # hasta 40 s por caso, sin latido
+    _guardar(corrida, cuenta)                              # latido recién acá
+```
+
+Con el umbral en **2 minutos**, una corrida que estaba trabajando aparecía como «interrumpida»
+mientras elegía candidatos (con 7.496, la selección tarda entre 40 y 65 s) y, con seguridad, dentro
+de cualquier lote con dos casos lentos. De ahí salían tres cosas, todas reproducidas:
+
+1. `CorridaSiis.en_curso()` devolvía `None` y la pantalla **dejaba lanzar otra corrida con el hilo
+   viejo todavía mandando altas a SIIS**: dos hilos sobre los mismos casos (`LatidoTests`).
+2. El botón **Frenar** usaba `en_curso()`, así que sobre una corrida «sin señal» contestaba «no hay
+   ninguna corrida en curso»: era imposible frenar justo la que había que frenar (V2-NEW-01).
+3. El freno de la persona se leía **al cerrar el lote**: entre el clic y el corte podían pasar 40
+   casos, que con SIIS lento son 26 minutos de altas irreversibles.
+
+Y dos agujeros más del mismo circuito: los comandos (`reenviar_siis_pendientes`,
+`enviar_casos_siis`, `procesar_casos_siis`, `validar_casos_siis` y el orquestador `correr_alta_siis`)
+no miraban si la pantalla estaba corriendo —los dos caminos toman los mismos casos y cada uno lleva
+**su propio** freno por errores seguidos, así que con SIIS lento ninguno corta a tiempo—; y «Frenar»
+frenaba la corrida viva **aunque fuera de otro `ProgramaSiis`** (A5-33), porque el botón está en la
+pantalla de un programa y la consulta era global.
+
+## Alcance acordado
+
+**Entra:**
+
+1. **SIIS-03 + A5-33**: latido antes de la selección, cada 100 candidatos mirados y **por caso**;
+   `LATIDO_VENCIDO` de 5 minutos; freno y cancelación evaluados por caso; `crear_corrida` retira la
+   corrida sin señal en vez de dejarla conviviendo; el hilo reemplazado se retira sin pisar el
+   estado; Frenar acotado al programa y sin filtrar por latido; candado de corrida viva en los
+   cinco comandos, con `--ignorar-corrida` para emergencias.
+2. **BEC-11** (default **D-B11**): un caso que SIIS declaró **incompatible** no se aprueba en lote.
+   Queda como estaba y se cuenta aparte, en la pantalla y en el resumen del comando.
+3. **BEC-21** (parcial): a la corrida no entran los `ENVIADO` que la aprobación va a rechazar igual
+   —sin identidad validada o sin ciudadano con DNI— ni los casos cuyo relevamiento, convocatoria,
+   segmento, subsegmento o programa está **pausado**.
+
+**Queda explícitamente afuera:**
+
+- **El punto 7 de SIIS-03** (mover el masivo a un CronJob con `PENDIENTE` y `SKIP LOCKED`): el
+  default de **D-S03** es no, y el Cambio 88 ya lo había evaluado y descartado. Nada de este PR lo
+  impide después: el cron llamaría al mismo servicio.
+- **El bloqueo derivado del estado del programa en SIIS** como motivo de exclusión de candidatos
+  (la otra mitad de BEC-21): ver *Pendientes*.
+- SIIS-06, SIIS-11, SIIS-12, BEC-01 y BEC-02, que son el PR 4 de la ola.
+
+## Decisiones tomadas
+
+- **El latido se escribe por caso, no por lote, y es un `UPDATE` de una sola columna.** Por caso
+  porque es la unidad de trabajo real: un caso son hasta tres llamadas a SIIS (token, compatibilidad
+  y alta) y cada una puede tardar `SIIS_API_CONNECT_TIMEOUT + SIIS_API_TIMEOUT`. De una columna
+  porque se hace por caso: `_latir()` no usa `save()`, igual que `_guardar()`, porque escribir el
+  objeto en memoria pisaría `cancelacion_pedida`, que lo marca otro request (el mismo bug que el
+  Cambio 88 encontró con un test y no en producción).
+- **`LATIDO_VENCIDO` pasa de 2 a 5 minutos, y el número no es redondo.** Un solo caso son hasta tres
+  llamadas de 40 s: dos minutos **justos**. Con el umbral en dos minutos, un caso lento alcanzaba
+  para que la corrida se declarara muerta a sí misma. Cinco deja margen y sigue siendo mucho menos
+  que lo que tarda alguien en darse cuenta a mano. Hay un test que lo ata a los dos settings
+  (`test_el_latido_vencido_cubre_tres_llamadas_a_siis_con_margen`): si mañana suben los timeouts, se
+  pone rojo.
+- **«Interrumpida» se sigue deduciendo, pero ya no se deja colgada.** Cuando se crea una corrida
+  nueva —con el candado tomado y después de comprobar que no hay ninguna viva—, cualquier otra
+  `EN_CURSO` que quede es, por definición, una que se quedó sin señal: se cierra como `DETENIDA`
+  con «sin señal desde las HH:MM; la reemplaza la corrida #N». Dos corridas «en curso» conviviendo
+  eran, además del riesgo, la pantalla mintiendo.
+- **El hilo reemplazado se retira sin escribir.** Si el pod viejo seguía vivo, al leer que su
+  corrida ya no está `EN_CURSO` corta y **no** la vuelve a guardar: pisar el estado haría aparecer
+  «terminada» a una corrida que otra ya reemplazó. Es la contracara del punto anterior: no se puede
+  retirar una corrida si el que la ejecuta no se entera.
+- **Frenar no filtra por latido, y sí filtra por programa.** Las dos cosas van juntas y las dos
+  salen de un hallazgo. No filtrar por latido porque «sin señal» no es «muerta», y la corrida que
+  parece interrumpida es justo la que hay que poder frenar; si de verdad está muerta, marcarla no
+  hace nada. Filtrar por programa porque el botón está en la pantalla de un programa (A5-33). Como
+  la corrida sigue siendo **una sola en todo el sistema** (Cambio 88), cuando la viva es de otro
+  programa la pantalla lo dice y no ofrece el botón, en vez de ofrecer uno que frenaría lo ajeno.
+- **El freno y la cancelación se miran por caso.** El texto de la pantalla cambia en consecuencia:
+  ya no promete «corta al terminar el lote en curso: puede tardar hasta 40 casos», sino «corta al
+  terminar el caso que está procesando». Prometer 40 casos era prometer media hora.
+- **El candado de corrida viva vive en `ComandoSiisBase`, que para eso se creó (RED-53).** Los
+  cuatro comandos que hablan con SIIS caso por caso lo piden con una línea al principio de su
+  `handle()`, y un test recorre los cuatro y comprueba que los cuatro abortan. `correr_alta_siis`
+  **no** hereda —no llama a SIIS, encadena a los otros— pero pide la misma guarda en su paso 1: así
+  corta antes de cargar insumos y correr el catálogo, y no a mitad del circuito. Esto cierra el
+  pendiente que el Cambio 127 dejó anotado.
+- **La guarda se pregunta con el candado tomado, no leyendo la tabla.** Es el mismo
+  `select_for_update` que toma `crear_corrida`. Sin él, un comando lanzado en el mismo segundo que
+  la pantalla lee antes del commit de la corrida —la base corre en READ COMMITTED—, no ve nada y
+  arranca igual. Hay un test contra motor real que lo mide: el comando tiene que **esperar** el
+  candado.
+- **La guarda es solo con `--aplicar`.** Mirar qué haría no toca nada, y durante una corrida es
+  justo cuando alguien quiere mirar. `--ignorar-corrida` existe para emergencias y avisa en pantalla.
+- **Un incompatible no cuenta para el freno (BEC-11).** SIIS contestó, y bien: lo que dijo es que la
+  persona no corresponde al programa. Tratarlo como falla cortaría la corrida por un dato correcto.
+- **El contador de incompatibles necesita columna propia.** Un número que solo viva en el log del
+  pod no lo ve nadie: la corrida es lo que la pantalla lee. Por eso la migración, que agrega una
+  columna con default a una tabla de una fila por corrida.
+- **BEC-21 excluye las pausas manuales, no el bloqueo por SIIS.** Pausar frena la carga en campo y
+  la operación de la pantalla; que el masivo siguiera aprobando en lote era lo contrario de lo que
+  pausar quiere decir. El bloqueo derivado del estado del programa en SIIS queda afuera **a
+  propósito**: hoy un catálogo vacío deja todos los programas en `DESCONOCIDO` (SIIS-06, abierto
+  hasta el PR 4), y colgarle esto encima frenaría el masivo entero por un error de SIIS en vez de
+  por una decisión de una persona.
+- **Las exclusiones de `candidatos()` se acumulan, no se reemplazan.** Al integrar con el Cambio 138
+  (lista `siis_enviar`) quedaron cuatro preguntas distintas sobre el mismo caso: «no lo mandes» (la
+  lista del PM), «no se puede aprobar» y «está pausado» (BEC-21) y «SIIS ya dijo que no» (BEC-11).
+  Ninguna implica a otra y el orden no cambia el resultado. `solo_incompatibles=True` tampoco levanta
+  las demás: alguien que está en la lista de exclusión **no** es un incompatible pendiente de
+  resolver, es alguien a quien no hay que mandar, y contarlo en la pantalla como «esperando una
+  decisión» sería invitar a que alguien lo resuelva.
+- **La exclusión de los `ENVIADO` sin identidad validada es sobre los `ENVIADO` y nada más.** Un
+  `APROBADO` ya pasó por ese gate y lo que le falta es el alta, que no vuelve a mirar la identidad;
+  excluirlo también habría dejado casos aprobados sin informar para siempre.
+
+## Implementación
+
+- `programas/models/__init__.py` — `CorridaSiis.LATIDO_VENCIDO` a 5 minutos (con el porqué derivado
+  de los dos settings de SIIS) y campo `incompatibles`.
+- `programas/services/proceso_masivo.py` — `_por_incompatibilidad()` (el veredicto vigente, con
+  `alias()` + `Coalesce` para que la subconsulta quede **una sola vez** en el SQL),
+  `registrar_corrida_ignorada()`, `LATIDO_CADA_MIRADOS`, `_latir()`,
+  `elegir_completos(..., al_mirar=)`, latido y relectura por caso en `correr()`, `CorridaEnCurso`,
+  `exigir_sin_corrida_viva()`, `_retirar_las_interrumpidas()`, `_solo_los_aprobables()`,
+  `_sin_pausa_vigente()`, `Cuenta.incompatibles` y el corte por veredicto `RECHAZADO` en
+  `procesar_caso()`.
+- `programas/views/proceso_masivo.py` — `proceso_masivo_frenar` por programa y sin filtro de latido;
+  `en_curso_de_otro_programa` en el contexto.
+- `programas/templates/programas/becas/config/proceso_masivo.html` — contador de incompatibles (en
+  curso y en la última corrida), botón Frenar solo para la corrida propia y los dos textos del
+  freno.
+- `programas/management/commands/_base_siis.py` — `--ignorar-corrida` y
+  `exigir_sin_corrida_viva(options)`; los cuatro comandos la llaman; `correr_alta_siis` la pide en
+  sus precondiciones.
+- `programas/management/commands/procesar_casos_siis.py` — fila de incompatibles en el resumen.
+- `scripts/check_migraciones.py` y `programas/tests/test_contrato_migraciones.py` — la regla `EXPAND`
+  del Cambio 135 pasa a reconocer `db_default=` como lo que es: un `DEFAULT` escrito en el esquema.
+  Sin eso, la migración que hace **exactamente** lo que la regla pide daba hallazgo y la única salida
+  era la marca `# ROLLBACK-OK:`, que dice lo contrario de lo que pasa.
+- `docs/internal/procedimiento-alta-siis.md` — qué hacer cuando el comando corta por corrida viva y
+  qué significan los incompatibles del resumen.
+
+## Base de datos
+
+**Migración `programas.0076_corridasiis_incompatibles`** sobre `programas_corridasiis`: una columna
+`PositiveIntegerField(default=0, db_default=0)`.
+
+- **Expand/contract: se puede desplegar antes que el código, y el `db_default` es lo que lo hace
+  cierto.** El `default` de Django vive en Python: lo pone el ORM al armar el INSERT. Entre la
+  migración y el final del rollout, el pod viejo sigue insertando `CorridaSiis` **sin** nombrar la
+  columna, y en MariaDB y MySQL con `STRICT_TRANS_TABLES` —el modo de ECOM— una columna `NOT NULL`
+  sin default de base contesta **ERROR 1364** y lanzar el proceso masivo daría 500 toda la ventana.
+  Con `db_default=0` el `ADD COLUMN` lleva su `DEFAULT 0` y el INSERT viejo entra.
+- `ADD COLUMN` con default constante al final de una tabla con una fila por corrida lanzada:
+  instantáneo (`ALGORITHM=INSTANT` en MariaDB 10.3+ y MySQL 8).
+- **Reversa**: la de Django (`RemoveField`). Lo único que se pierde es el contador de las corridas
+  ya hechas.
+- **Probado contra MariaDB 10.11 real** (contenedor efímero, `sql_mode = STRICT_TRANS_TABLES`): ida,
+  `COLUMN_DEFAULT = '0'`, un `INSERT` que **omite la columna** (el del código viejo) entra con 0,
+  reversa, y segunda ida con la fila ya escrita.
+
+## Validación
+
+Con Python 3.12 + Django 5.2.17 (`.venv312`, igual al CI):
+
+- `manage.py check` → sin issues; `makemigrations --check --dry-run` → «No changes detected».
+- `manage.py test` (la suite entera, en un solo proceso, como el CI) → OK.
+- `manage.py test --tag performance` → OK.
+- `ruff check .` → All checks passed; `ruff format --check` sobre lo tocado → OK.
+- `scripts/design_audit.py --changed` → 0 errores (3 P1 preexistentes del archivo);
+  `--ratchet` → 0 hallazgos nuevos; `scripts/compile_templates.py` → 199, 0 errores;
+  `scripts/check_design_agent.py --changed` → OK.
+- `python scripts/check_migraciones.py --base origin/development` (el contrato del Cambio 135, que
+  corre dentro de `Migration Check`) → 1 migración revisada, 0 problemas.
+- **Motor real** (contenedor efímero `mariadb:10.11` con `MARIADB_INITDB_SKIP_TZINFO=1`, como ECOM):
+  `manage.py test --tag mysql` para las dos carreras del candado; la migración ida, INSERT viejo,
+  reversa y segunda ida (ver *Base de datos*); y la consulta de candidatos **ejecutada**, no solo
+  compilada, con el filtro nuevo de BEC-11 (dos `OuterRef` sobre relaciones adentro de una
+  subconsulta: que SQLite la acepte no dice nada de MariaDB).
+- **Los tests fallan antes del cambio**: las 17 aserciones nuevas de `test_proceso_masivo`,
+  `test_siis_un_solo_envio` y `test_correr_alta_siis` se corrieron contra el código anterior y
+  dieron rojo (13 `FAIL` + 4 `ERROR`), incluidas las dos PoC invertidas de
+  `docs/internal/auditoria-2026-10/poc/test_repro_siis_becas.py` (`LatidoTests` y
+  `test_comando_reenviar_ignora_corrida_viva`).
+
+**Tests de caracterización que cambiaron, y por qué.** `test_frenar_corta_al_cerrar_el_lote` pasa a
+ser `test_frenar_corta_en_el_caso_y_no_al_cerrar_el_lote` y afirma 1 alta en vez de 2: ese cambio de
+comportamiento **es** el arreglo. `_BaseProcesoTest._caso()` crea los casos con
+`validado_renaper=True`, que es lo que hace falta para aprobarlos: sin eso, desde BEC-21 ya no serían
+candidatos y los tests del circuito no probarían el circuito sino la exclusión.
+
+## Puesta en marcha en el servidor
+
+1. **No desplegar con una corrida masiva en curso.** Frenarla desde la pantalla y esperar: el deploy
+   recicla el pod y el hilo muere con él. Con este cambio la corrida interrumpida queda visible y se
+   relanza desde la pantalla, que la retira sola.
+2. **Avisar a quien opera los comandos** que ahora cortan si la pantalla tiene una corrida en curso,
+   y que la salida de emergencia es `--ignorar-corrida --motivo "..."`, que exige el motivo y lo deja
+   escrito en el log y en la corrida que pisa (con el costo que tiene: los dos caminos toman los
+   mismos casos).
+3. **Mirar el contador de incompatibles** después de la primera corrida: son casos que antes se
+   aprobaban solos y ahora esperan a una persona. Si el número es alto, conviene revisarlos en
+   tanda desde la revisión antes de volver a lanzar. Después del deploy **salen de «Pendientes de
+   informar» y pasan a su propio contador**: si los pendientes bajan de golpe, es eso y no un caso
+   perdido.
+4. Nada que correr a mano: la migración es aditiva y el resto es código.
+
+## Pendientes / a definir
+
+- **La otra mitad de BEC-21**: excluir también los casos de un programa **bloqueado por SIIS**
+  (`siis_programa_estado` en `INACTIVO`/`DESCONOCIDO`). Queda atado a **SIIS-06** (PR 4 de la ola):
+  mientras un catálogo vacío pueda dejar todos los programas en `DESCONOCIDO`, esa exclusión
+  frenaría el masivo entero por un error de SIIS. Cuando SIIS-06 cierre, agregarla es una línea en
+  `_sin_pausa_vigente`.
+- **El punto 7 de SIIS-03 (CronJob)** sigue sin hacerse, por decisión (**D-S03**: no). Si alguna vez
+  ECOM agrega el cron, el servicio ya está preparado: el cron llamaría a `correr()`.
+- **Una corrida por programa** sigue sin existir: es una sola en todo el sistema (Cambio 88). Hoy
+  hay un solo programa con casos; si mañana hay dos, la pantalla del segundo va a decir «hay una
+  corrida en curso» y no podrá lanzar la suya.
+- **La exclusión entre la pantalla y los comandos es de una sola dirección.** Un comando que arranca
+  con la pantalla corriendo corta; un comando que ya está corriendo no impide que alguien lance la
+  corrida desde la pantalla. Hacerla simétrica pide una fila de «comando en curso» con su propio
+  latido —el mismo mecanismo que `CorridaSiis`—; no se hizo porque la pantalla está detrás de una
+  capacidad y la usa una persona por vez. Lo irreversible sigue cubierto por la reserva de SIIS-01:
+  crucen o no, un caso no puede informarse dos veces. Queda escrito en el docstring de
+  `exigir_sin_corrida_viva` y en `docs/internal/procedimiento-alta-siis.md`.
+
+## Historial
+
+- **06/10/2026 · integración con el Cambio 138.** Mientras este PR estaba en revisión entró la lista
+  de exclusión `siis_enviar`, que toca los mismos archivos. Las dos cosas se acumulan en
+  `candidatos()` sin pisarse —la lista es un filtro por DNI, el veredicto vigente una subconsulta— y
+  la confirmación escrita del Cambio 138 convive con la guarda de corrida viva: la guarda corre al
+  principio del `handle()` y la pregunta justo antes de mandar, así que un comando lanzado con la
+  pantalla corriendo corta antes de preguntar nada. Hay un test que fija que las tres exclusiones
+  convivan (`IncompatiblesNoVuelvenACandidatosTests.test_las_tres_exclusiones_conviven`). También
+  entró el contrato de migraciones del Cambio 135: la `0076` lo pasa, y la regla `EXPAND` aprendió a
+  reconocer `db_default`.
+
+- **06/10/2026 · ronda 2 de la revisión del PR #590.** El revisor verificó las dos mutaciones del
+  candado y la migración contra MariaDB y MySQL reales, y encontró un **MAJOR**: BEC-11 no aprobaba
+  al incompatible pero **lo dejaba de candidato para siempre**. Como la corrida recorre por pk, con
+  200 incompatibles adelante una corrida de 100 gastaba sus 100 llamadas a SIIS, daba cero altas y
+  la siguiente repetía exactamente lo mismo: el arreglo de BEC-11 convertía un caso mal aprobado en
+  una corrida inútil. `candidatos()` ahora los deja afuera por su **veredicto vigente** —la última
+  validación que corresponde al DNI y al plan de hoy— y la pantalla los cuenta aparte, porque sacarlos
+  de la corrida no puede ser sacarlos de la vista. Y cinco menores: el `db_default` de la 0076 (ver
+  *Base de datos*: sin él, el pod viejo que inserta una corrida entre la migración y el rollout
+  recibe ERROR 1364); la guarda de `correr_alta_siis` pasa a correr solo con `--aplicar`, como manda
+  la base; `--ignorar-corrida` exige `--motivo` y deja rastro en el log y en la corrida que pisa;
+  la asimetría de la exclusión queda documentada en vez de insinuada; y el helper `_en_paralelo` de
+  los tests de motor real juntaba las excepciones de los hilos con los resultados, así que un hilo
+  que explotaba dejaba el test en verde.
+
+## Reversión
+
+`git revert` del commit más la reversa de la `0076` (`RemoveField`, instantánea). Lo que vuelve es
+el circuito anterior: una corrida que se da por muerta mientras trabaja, la posibilidad de lanzar
+una segunda con la primera viva, un Frenar que no alcanza a la que parece interrumpida y frena la de
+otro programa, comandos que se meten en medio de la corrida de la pantalla, y el lote aprobando e
+informando a SIIS a quien SIIS declaró incompatible.
+
 ---
 
 # Cambio 137 — Las mismas tres pantallas, pedidas de nuevo: el ejercicio de control que cierra la Ola 6

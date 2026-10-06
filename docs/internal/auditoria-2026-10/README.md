@@ -21,6 +21,32 @@
 **Las pantallas del ejercicio no son producto.** Viven en `linea-base-agente-diseno/despues/`, fuera de todo árbol de
 templates, sin vista, URL ni modelo escritos. `design_audit.py` excluye `docs/` entero, así que no suman deuda.
 
+## Estado al 06-oct-2026 (Ola 1, PR 3: el masivo robusto)
+
+**Una corrida que trabaja ya no aparece muerta, y nadie se mete en el medio.** El PR 3 de la Ola 1
+(Cambio 136) cierra **SIIS-03** (con **A5-33**) y **BEC-11**, y deja **BEC-21** en parcial: 6 h de
+las 52 que le quedaban a la ola.
+
+| Ficha | Qué quedó |
+|---|---|
+| **SIIS-03 + A5-33** ✅ | Latido antes de la selección, cada 100 candidatos mirados y **por caso**; `LATIDO_VENCIDO` de 2 a **5 min** (un caso son hasta tres llamadas de 40 s: dos minutos justos). El freno de la persona y el de errores se miran **por caso**, no al cerrar el lote de 40. `crear_corrida` cierra como `DETENIDA` la corrida sin señal en vez de dejar dos «en curso», y el hilo reemplazado se retira **sin pisar el estado**. Frenar marca **por programa** (A5-33) y **sin** filtrar por latido (V2-NEW-01): la que parece interrumpida es justo la que hay que poder frenar. Los cinco comandos abortan con una corrida viva —la guarda vive en `ComandoSiisBase`, se pregunta **con el candado tomado** y tiene `--ignorar-corrida`—. **El punto 7 (CronJob) no se hace:** default de D-S03 |
+| **BEC-11** ✅ | Default de **D-B11**: un caso que SIIS declaró incompatible no se aprueba en lote; queda contado en `CorridaSiis.incompatibles` (pantalla y resumen del comando) y lo resuelve una persona. No cuenta para el freno: SIIS contestó, y bien. **Y sale de los candidatos**: si siguiera, la corrida lo volvería a consultar en cada vuelta y con 200 adelante por pk una corrida de 100 daba cero altas (ronda 2 de la revisión). Vuelve solo si lo revalidan con OK o si cambia el DNI o el plan |
+| **BEC-21** 🟡 | Fuera de los candidatos los `ENVIADO` que la aprobación iba a rechazar igual (sin identidad validada o sin ciudadano con DNI) y los pausados en los cinco niveles. **Falta el bloqueo por estado del programa en SIIS**, atado a SIIS-06 (PR 4): hoy un catálogo vacío deja todos los programas en `DESCONOCIDO` y esa exclusión frenaría el masivo entero por un error de SIIS |
+
+**Migración `programas.0076_corridasiis_incompatibles`**: una columna con default en una tabla de una
+fila por corrida. Expand-only, instantánea, reversa de Django.
+
+**Pendientes operativos que deja (PM):**
+1. **No desplegar con una corrida masiva en curso** (sigue del PR 2; ahora, si queda interrumpida, se
+   ve y la relanza la pantalla, que la retira sola).
+2. **Avisar a quien opera los comandos** que cortan si la pantalla tiene una corrida en curso, y que
+   la salida de emergencia es `--ignorar-corrida --motivo "..."`, que deja rastro (los dos caminos
+   toman los mismos casos). La exclusión cubre una sola dirección y está documentada.
+3. **Mirar el contador de incompatibles** de la primera corrida: son casos que antes se aprobaban
+   solos y ahora esperan a una persona.
+
+---
+
 ## Estado al 05-oct-2026 (Ola 6, pasos 4 y 5: agente reescrito y consumidores)
 
 | PR | Cambio | Fichas | Estado | Qué quedó abierto |
@@ -1019,7 +1045,7 @@ funcional ni coordinación con ECOM). Las horas de cada ola suman los esfuerzos 
 |---|---|---:|---:|---:|---:|---:|---:|
 | 0 | Hotfix de seguridad y seeds | 16 | 36 | 0 (completa en código; lo operativo, en «Estado») | 0 | 0 | 0 |
 | **R** | **Red de seguridad: poder cambiar código sin romper nada sin enterarse** | — | — | — | — | **86** (79 RED con parte en R —78 del relevamiento + RED-89— + OPS-01, OPS-03, OPS-04, TST-01, TST-02, TST-03, R0-03; SEC-10, SEC-11 y SEC-18 se ejecutan en R-19 pero **siguen contadas como ítems de la Ola 2**, solo se mueven sus horas) | **285** · **107 cerradas el 04-oct (R-01..R-10 y R-19) → 178 restantes** |
-| 1 | Integridad SIIS | 23 | 72 | 22 (− SIIS-07) | 70 | 23 (+ RED-53; + parte de RED-32) | 78 · **26 cerradas el 05-oct (PR 2) → 52 restantes** |
+| 1 | Integridad SIIS | 23 | 72 | 22 (− SIIS-07) | 70 | 23 (+ RED-53; + parte de RED-32) | 78 · **32 cerradas (26 el 05-oct, PR 2; 6 el 06-oct, PR 3) → 46 restantes** |
 | 2 | Autorización (RBAC, legajos, alcance de Becas, usuarios) | 36 | 116 | 50 (+ fase 2 de OPS-06, R0-05, resto de SEC-01, etapa 2 de SEC-09, R0b-01..10) | 136 | 51 (+ RED-80; + partes de RED-52, RED-79) | 135 (−7: SEC-10, SEC-18 y media SEC-11 se hacen en R-19, D-RED-14) |
 | 3 | Datos, operación, CI, app de campo y reglas de Becas | 55 | 158 | 59 (+ R0-03, R0-04, R0-06, R0-07) | 166 | 54 (− 7 a la Ola R; + RED-48, RED-58; + partes de RED-09, 35, 40, 50) | 152 |
 | 4 | Performance | 19 | 52 | 19 | 52 | 20 (+ RED-62; + partes de RED-10, 49, 51, 83) | 64 |
@@ -1028,6 +1054,8 @@ funcional ni coordinación con ECOM). Las horas de cada ola suman los esfuerzos 
 | 7 | Deuda | 9 (+ fase 2 de G1-01) | 46 | 10 (+ fase 2 de G1-01; + R0-02) | 48 | 13 (+ RED-64, 76, 86; + partes de RED-13, 37, 39, 54, 78, 85) | 88 |
 | v2 | Criterios de aceptación de la v2 (§7), no se implementan en v1 | 13 | — | 13 | — | 13 | — |
 | **Total** | | **206** | **636** | **208** | **628** | **297** | **972** · **137 cerradas → 835 restantes** |
+
+| **Total** | | **206** | **636** | **208** | **628** | **297** | **972** · **139 cerradas → 833 restantes** |
 
 Cada ficha RED cuenta como ítem una sola vez, en la primera ola donde tiene trabajo (por eso la columna suma 297 = 208 +
 89); si tiene una segunda parte en otra ola, esas horas se suman en esa ola («+ partes de …»).
@@ -1209,7 +1237,13 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
   2. ✅ **Hecho el 05-oct-2026 (Cambio 127):** SIIS-01 + SIIS-02 + SIIS-04 + SIIS-05 + BEC-14 (migración
      `programas.0075_enviosiis_vigente`, comando `conciliar_envios_siis`, guard de UI). Incluyó la séptima vía
      `sincronizar_tabla_intermedia`; `correr_alta_siis` queda cubierto porque encadena a `procesar_casos_siis`. 22 h.
-  3. SIIS-03 (+A5-33) + BEC-11 + BEC-21 (masivo). 6 h.
+  3. ✅ **Hecho el 06-oct-2026 (Cambio 136):** SIIS-03 (+A5-33) + BEC-11 + BEC-21 (masivo). Latido por caso,
+     `LATIDO_VENCIDO` de 5 min, freno y cancelación por caso, la corrida sin señal se retira al crear la nueva,
+     Frenar por programa y sin filtro de latido, candado de corrida viva en los cinco comandos
+     (`ComandoSiisBase.exigir_sin_corrida_viva` + `--ignorar-corrida --motivo`), incompatibles sin aprobar en lote
+     y fuera de los candidatos (migración `programas.0076_corridasiis_incompatibles`) y candidatos sin los no
+     aprobables ni los pausados. El punto 7 (CronJob) no se hace: default de D-S03. BEC-21 queda 🟡: el bloqueo por
+     estado del programa en SIIS espera a SIIS-06 (PR 4). 6 h.
   4. SIIS-06, SIIS-11, SIIS-12, BEC-01, BEC-02 (independientes, S). 10 h.
   5. SIIS-09 (+PERF-09) **después** del PR 2. 4 h.
   6. SIIS-08 + G1-08 + G1-09 + G1-10 (qué viaja a SIIS). 20 h.

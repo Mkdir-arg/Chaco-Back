@@ -5,7 +5,8 @@ Es la versión automática de los dos botones de la pantalla de revisión:
 
 1. **Validar con SIIS** — ``validar_formulario_en_siis``. Deja siempre una fila
    auditable en ``ValidacionSIS``. Desde el Cambio 81 el veredicto no frena la
-   aprobación, pero haberla hecho sigue siendo obligatorio.
+   aprobación **en la pantalla**, porque ahí decide el revisor; en lote no hay
+   revisor, así que un incompatible queda contado y sin aprobar (BEC-11).
 2. **Aprobar** — ``aprobar_o_poner_en_espera``. Solo toma casos ``ENVIADO``. Si
    el segmento no tiene cupo, el caso cae en **lista de espera** y ahí termina:
    no se informa a SIIS.
@@ -156,6 +157,26 @@ class Command(ComandoSiisBase):
             )
         self._log("")
 
+    def _cuantas_se_mandarian(self, options):
+        """``(guardadas, tope_nuevos)``: lo que puede salir a SIIS en esta corrida.
+
+        Las guardadas son las filas de la tabla intermedia que el drenaje va a
+        mandar: las pendientes menos las que frena la lista de exclusión. Ese
+        número es exacto y es el que más importa, porque el drenaje es lo
+        primero que sale.
+
+        El de los casos nuevos es un **tope**, no una cuenta: cuántos hay de
+        verdad se sabe recién después de armar cada payload, y para entonces el
+        drenaje ya habría salido. Mejor preguntar antes con una cota que después
+        con un número exacto y el daño hecho.
+        """
+        from programas.models import AltaIntermediaSIIS
+
+        no_enviar = proceso_masivo.dnis_a_no_enviar()
+        pendientes = AltaIntermediaSIIS.objects.filter(sincronizado=False).values_list("dni", flat=True)
+        guardadas = sum(1 for dni in pendientes if not no_enviar or str(dni) not in no_enviar)
+        return guardadas, max(1, options["total"])
+
     def _confirmar(self, cuantos, sin_preguntar):
         """Pide confirmación escrita antes de mandar a SIIS. ``True`` si se sigue.
 
@@ -168,8 +189,11 @@ class Command(ComandoSiisBase):
         ``--si`` explícito en vez de seguir sola: lo contrario sería que la
         pregunta desaparezca justo donde nadie la está mirando.
         """
+        guardadas, tope_nuevos = cuantos
         self._log("")
-        self._log(f"Se validó la lista de exclusión. Se enviarán {cuantos} caso(s) a SIIS.")
+        self._log("Se validó la lista de exclusión. Esta corrida puede mandar a SIIS:")
+        self._log(f"   {guardadas:>6} alta(s) guardada(s) en la tabla intermedia (salen primero)")
+        self._log(f"   {tope_nuevos:>6} caso(s) nuevos como máximo (el --total pedido)")
         if sin_preguntar:
             self._log("   --si está puesto: no se pregunta.")
             return True
@@ -186,6 +210,7 @@ class Command(ComandoSiisBase):
         tamano = max(1, options["lote"])
         arranque = self._reloj()
 
+        self.exigir_sin_corrida_viva(options)
         self._avisar_ensayo(aplicar, "no valida, no aprueba y no envía. Agregá --aplicar.")
         # --solo-completos lee los catálogos de SIIS aunque sea un ensayo.
         if aplicar or options["solo_completos"]:
@@ -200,6 +225,14 @@ class Command(ComandoSiisBase):
         catalogos = Catalogos()
         cuenta = proceso_masivo.Cuenta()
         destino = options["destino"]
+        # La precondición se verifica antes de preguntar y antes de drenar: si
+        # falta la tabla que decide quién va a SIIS, el comando no tiene que
+        # llegar a pedir una confirmación ni a mandar un alta para enterarse.
+        if not options["sin_filtro_materias"]:
+            try:
+                proceso_masivo.dnis_aprobados_materias()
+            except proceso_masivo.TablaAprobadosMateriasFaltante as exc:
+                raise CommandError(str(exc)) from exc
         if destino == DESTINO_TABLA:
             self._log(
                 "Destino: la tabla intermedia de este lado. NO se llama a SIIS.\n"
@@ -207,6 +240,13 @@ class Command(ComandoSiisBase):
                 self.style.WARNING,
             )
         else:
+            # La pregunta va ANTES de vaciar la tabla, no después de elegir los
+            # candidatos: el drenaje manda a SIIS, y mandar no se deshace. Con la
+            # pregunta al final, contestar «no» cancelaba los casos nuevos pero
+            # las altas guardadas ya habían salido.
+            if aplicar and not self._confirmar(self._cuantas_se_mandarian(options), options["si"]):
+                self._log("Cancelado: no se mandó ninguno.", self.style.WARNING)
+                return
             self._vaciar_tabla_intermedia(responsable, aplicar)
         filtros = {
             "convocatoria": options["convocatoria"],
@@ -299,10 +339,6 @@ class Command(ComandoSiisBase):
             self._log("\nEnsayo terminado, no se tocó nada.", self.style.WARNING)
             return
 
-        if destino == DESTINO_SIIS and not self._confirmar(len(casos), options["si"]):
-            self._log("Cancelado: no se mandó ninguno.", self.style.WARNING)
-            return
-
         freno = self._crear_freno(options)
         detenido = False
 
@@ -338,6 +374,7 @@ class Command(ComandoSiisBase):
         filas = [
             ("aprobados", cuenta.aprobados),
             ("sin cupo → lista de espera", cuenta.lista_espera),
+            ("incompatibles según SIIS (sin aprobar)", cuenta.incompatibles),
             ("no se pudieron aprobar", cuenta.no_aprobable),
             ("sin programa SIIS o sin DNI", cuenta.sin_datos),
             ("validación con error técnico", cuenta.error_validacion),
