@@ -21,6 +21,7 @@
     <div class="bg-white rounded-xl shadow-lg p-8">
         <form method="post">
             {% csrf_token %}
+            {% include "components/_form_errores.html" %}
             <div class="space-y-6">
                 <!-- Programa Destino (InstitucionPrograma) -->
                 <div>
