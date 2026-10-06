@@ -22,10 +22,11 @@ puede probar por su efecto, así que se prueba por su presencia, con
 
 import threading
 import time
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from django.contrib.auth.models import User
 from django.contrib.messages import get_messages
+from django.core.exceptions import ValidationError
 from django.db import connections, transaction
 from django.test import TransactionTestCase, tag
 from django.urls import reverse
@@ -33,9 +34,22 @@ from django.utils import timezone
 
 from core.tests.candados import candados_tomados
 from core.tests.test_motor_real import MotorRealMixin
-from programas.models import CorridaSiis, Formulario, ProgramaSiis, Relevamiento, Segmento, TracaFormulario
+from programas.models import (
+    CorridaSiis,
+    Formulario,
+    ListaEspera,
+    ProgramaSiis,
+    Relevamiento,
+    Segmento,
+    TracaFormulario,
+)
 from programas.services import proceso_masivo
-from programas.services.cupo import agregar_a_lista_espera, aprobar_o_poner_en_espera, promover_lista_espera
+from programas.services.cupo import (
+    agregar_a_lista_espera,
+    aprobar_o_poner_en_espera,
+    dar_baja_beneficiario,
+    promover_lista_espera,
+)
 from programas.tests.test_becas_api import _BaseApiTest
 from programas.tests.test_becas_revision import _BaseAprobacionTest
 from programas.tests.test_cupo_espera_reglas import _BaseEsperaTest
@@ -292,6 +306,172 @@ class ContratoDeCandadosApiTests(_BaseApiTest):
         # caso: por eso acá se mira quién pidió el candado y no solo que
         # alguien lo haya pedido.
         self.assertIn("views.py:formularios", candados)
+
+
+class CandadoDelCasoAlAprobarTests(_BaseEsperaTest):
+    """BEC-01 · aprobar, promover y dar de baja deciden con el caso bajo candado.
+
+    Rechazar ya tomaba el candado de la fila del caso (``revision.py``) y relee
+    su estado adentro; aprobar no, así que las dos operaciones no se serializaban
+    entre sí: la aprobación leía ENVIADO, se iba a contar el cupo y escribía
+    APROBADO encima de un rechazo que había commiteado mientras tanto —cupo
+    consumido, correo de «no fue aprobado» ya mandado y, con cupo libre, un alta
+    en SIIS que no tiene baja—.
+
+    El candado nuevo serializa la carrera en MariaDB; la escritura condicional
+    —``filter(estado=ENVIADO).update(...)``— es lo que hace que la decisión se
+    pueda afirmar también acá, donde ``select_for_update()`` es un no-op.
+
+    Qué se afirma en cada capa: acá, que la operación **lanza en vez de pisar**.
+    Que el rechazo del otro sobreviva no se puede ver desde este lado: el
+    servicio es atómico y, al lanzar, su transacción se deshace llevándose lo que
+    el rival escribió adentro de la ventana. Eso lo prueba la carrera de verdad,
+    con dos conexiones (``core.tests.test_motor_real.CarreraDelMismoCasoTests``).
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.entrada.delete()
+
+    def _rechazo_al_contar_el_cupo(self, segmento):
+        """``get_cupo_stats`` falso: el otro request resuelve el caso en la ventana."""
+        Formulario.objects.filter(pk=self.form_a.pk).update(estado=Formulario.Estado.RECHAZADO)
+        return {"cupo_maximo": 10, "cupo_ocupado": 0, "cupo_disponible": 10}
+
+    def _sin_traza_de_estado(self):
+        self.assertFalse(
+            TracaFormulario.objects.filter(formulario=self.form_a, campo="estado").exists(),
+            "se registró un cambio de estado: la operación escribió igual",
+        )
+
+    def test_un_rechazo_que_entro_mientras_contabamos_el_cupo_no_se_pisa(self):
+        """La ventana real: entre releer el estado y escribir la aprobación."""
+        with patch("programas.services.cupo.get_cupo_stats", side_effect=self._rechazo_al_contar_el_cupo):
+            with self.assertRaisesMessage(ValidationError, "ya fue resuelto"):
+                aprobar_o_poner_en_espera(self.form_a, self.coord_a)
+
+        self.form_a.refresh_from_db()
+        self.assertNotEqual(self.form_a.estado, Formulario.Estado.APROBADO)
+        self._sin_traza_de_estado()
+
+    def test_aprobar_toma_el_candado_de_la_fila_del_caso(self):
+        with candados_tomados(Formulario.objects) as candados:
+            self.assertEqual(aprobar_o_poner_en_espera(self.form_a, self.coord_a), "aprobado")
+
+        self.assertIn("cupo.py:aprobar_o_poner_en_espera", candados)
+
+    def test_sin_carrera_la_aprobacion_sigue_funcionando(self):
+        self.assertEqual(aprobar_o_poner_en_espera(self.form_a, self.coord_a), "aprobado")
+
+        self.form_a.refresh_from_db()
+        self.assertEqual(self.form_a.estado, Formulario.Estado.APROBADO)
+        self.assertEqual(self.form_a.motivo_rechazo, "")
+        self.assertTrue(TracaFormulario.objects.filter(formulario=self.form_a, campo="estado").exists())
+
+    def test_promover_no_pisa_un_rechazo_que_entro_mientras_contabamos_el_cupo(self):
+        entrada = ListaEspera.objects.create(formulario=self.form_a, segmento=self.seg_a, posicion=1)
+
+        with patch("programas.services.cupo.get_cupo_stats", side_effect=self._rechazo_al_contar_el_cupo):
+            with self.assertRaisesMessage(ValidationError, "ya fue resuelto"):
+                promover_lista_espera(self._entrada_fresca(entrada), self.admin)
+
+        self.form_a.refresh_from_db()
+        self.assertNotEqual(self.form_a.estado, Formulario.Estado.APROBADO)
+        self._sin_traza_de_estado()
+
+    def test_promover_toma_el_candado_de_la_fila_del_caso(self):
+        entrada = ListaEspera.objects.create(formulario=self.form_a, segmento=self.seg_a, posicion=1)
+
+        with candados_tomados(Formulario.objects) as candados:
+            promover_lista_espera(self._entrada_fresca(entrada), self.admin)
+
+        self.assertIn("cupo.py:promover_lista_espera", candados)
+        self.form_a.refresh_from_db()
+        self.assertEqual(self.form_a.estado, Formulario.Estado.APROBADO)
+
+    def test_dar_de_baja_no_pisa_una_baja_que_ya_entro(self):
+        """Dos clics en «Dar de baja»: la segunda tiene que avisar, no repetir."""
+        Formulario.objects.filter(pk=self.form_a.pk).update(estado=Formulario.Estado.APROBADO)
+        self.form_a.refresh_from_db()
+        viejo = Formulario.objects.get(pk=self.form_a.pk)
+        dar_baja_beneficiario(self.form_a, self.admin)
+
+        with self.assertRaises(ValidationError):
+            dar_baja_beneficiario(viejo, self.admin)
+
+        self.assertEqual(
+            TracaFormulario.objects.filter(formulario=self.form_a, campo="estado").count(),
+            1,
+            "la segunda baja dejó una traza: se escribió dos veces",
+        )
+
+    def test_dar_de_baja_toma_el_candado_de_la_fila_del_caso(self):
+        Formulario.objects.filter(pk=self.form_a.pk).update(estado=Formulario.Estado.APROBADO)
+        self.form_a.refresh_from_db()
+
+        with candados_tomados(Formulario.objects) as candados:
+            dar_baja_beneficiario(self.form_a, self.admin)
+
+        self.assertIn("cupo.py:dar_baja_beneficiario", candados)
+        self.form_a.refresh_from_db()
+        self.assertEqual(self.form_a.estado, Formulario.Estado.BAJA)
+
+
+class CandadoListaEsperaTests(_BaseEsperaTest):
+    """BEC-02 · el alta a la lista de espera chequeaba antes de tomar el candado.
+
+    Doble clic en «Agregar a lista de espera» y el caso entra dos veces: dos
+    filas activas, dos posiciones consecutivas para la misma persona y dos
+    correos. El chequeo de «ya está en la lista» miraba la base antes del
+    ``select_for_update`` del segmento, así que las dos pasaban.
+
+    Como en ``CandadoDelCasoAlAprobarTests``, acá se afirma la decisión —lanzar
+    en vez de crear la segunda fila—: el ``raise`` deshace la transacción del
+    servicio y con ella lo que el rival escribió adentro, así que el conteo final
+    no distingue nada. Las dos filas de verdad las cuenta
+    ``core.tests.test_motor_real.CarreraDelMismoCasoTests``.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.entrada.delete()
+
+    def _con_un_rival_al_dar_el_candado(self, rival):
+        """``Segmento`` falso cuyo ``select_for_update().get()`` deja entrar al otro.
+
+        Es la forma de meterse en la ventana sin dos hilos: en SQLite el candado
+        no serializa nada, así que lo que se afirma es *cuándo* se lee, no que el
+        motor espere.
+        """
+        falso = MagicMock()
+        falso.objects.select_for_update.return_value.get.side_effect = lambda pk: rival() or self.seg_a
+        return patch("programas.services.cupo.Segmento", falso)
+
+    def test_un_alta_que_entro_mientras_esperabamos_el_candado_frena_la_nuestra(self):
+        """El rival commitea su fila justo cuando nos dan el candado."""
+
+        def otro_lo_agrega():
+            ListaEspera.objects.create(formulario=self.form_a, segmento=self.seg_a, posicion=1)
+
+        with self._con_un_rival_al_dar_el_candado(otro_lo_agrega):
+            with self.assertRaisesMessage(ValidationError, "ya está en la lista de espera"):
+                agregar_a_lista_espera(self.form_a, self.seg_a, self.admin)
+
+    def test_un_caso_que_cambio_de_estado_bajo_el_candado_no_entra_a_la_lista(self):
+        def otro_lo_aprueba():
+            Formulario.objects.filter(pk=self.form_a.pk).update(estado=Formulario.Estado.APROBADO)
+
+        with self._con_un_rival_al_dar_el_candado(otro_lo_aprueba):
+            with self.assertRaises(ValidationError):
+                agregar_a_lista_espera(self.form_a, self.seg_a, self.admin)
+
+        self.assertFalse(ListaEspera.objects.filter(formulario=self.form_a).exists())
+
+    def test_sin_carrera_el_alta_a_la_lista_sigue_funcionando(self):
+        agregar_a_lista_espera(self.form_a, self.seg_a, self.admin)
+
+        entrada = ListaEspera.objects.get(formulario=self.form_a, promovido=False)
+        self.assertEqual(entrada.posicion, 1)
 
 
 class CandadoRechazoTests(_BaseAprobacionTest):

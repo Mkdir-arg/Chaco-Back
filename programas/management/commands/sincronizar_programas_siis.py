@@ -6,6 +6,13 @@ a diario (cron del host) y también en el arranque del contenedor, igual que
 
     python manage.py sincronizar_programas_siis
     python manage.py sincronizar_programas_siis --dry-run
+    python manage.py sincronizar_programas_siis --forzar   # baja masiva confirmada
+
+Falla —sin escribir nada— si SIIS devuelve un catálogo vacío o si la ausencia
+alcanza a todos los programas vinculados o a más de la mitad (SIIS-06): a las
+04:00 no hay nadie mirando, y marcar todo ``DESCONOCIDO`` por un error del
+servicio deja Becas bloqueada entera. El ``CommandError`` deja el CronJob en
+rojo, que es la forma de que se entere alguien.
 """
 
 from django.core.management.base import BaseCommand, CommandError
@@ -24,11 +31,20 @@ class Command(BaseCommand):
             action="store_true",
             help="No modifica nada; solo informa qué programas cambiarían de estado.",
         )
+        parser.add_argument(
+            "--forzar",
+            action="store_true",
+            help=(
+                "Escribe aunque la ausencia alcance a todos los programas vinculados "
+                "(o a más de la mitad). Es para una baja masiva confirmada con ECOM: "
+                "sin esto, una ausencia así se trata como un error de SIIS y no se escribe."
+            ),
+        )
 
     def handle(self, *args, **options):
         dry = options.get("dry_run")
         try:
-            cambios = sincronizar_estado_programas(dry_run=dry)
+            cambios = sincronizar_estado_programas(dry_run=dry, forzar=options.get("forzar"))
         except SiisCatalogError as exc:
             raise CommandError(str(exc)) from exc
 

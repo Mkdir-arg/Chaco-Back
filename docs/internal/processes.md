@@ -219,6 +219,11 @@ los necesita de nuevo a mano.
 | `limpiar_alertas_conversaciones` | 03:30 | Se acumulan alertas de conversaciones ya resueltas |
 | `sincronizar_programas_siis` | 04:00 | **Una baja de programa en SIIS no se detecta**: el segmento sigue operando como si el programa estuviera vigente |
 
+Desde el Cambio 151, `sincronizar_programas_siis` **termina en error y no escribe** si SIIS devuelve un
+catálogo vacío o si la ausencia alcanza a todos los programas vinculados (o a más de la mitad): una ausencia
+así se parece más a SIIS caído que a una baja, y marcarlos `DESCONOCIDO` bloquea sus segmentos. Ese rojo es
+la notificación, no la falla. La salida, una vez confirmada la baja con ECOM, es `--forzar`.
+
 Instalación:
 
 ```bash

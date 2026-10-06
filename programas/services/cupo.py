@@ -7,10 +7,48 @@ como estructura base pero no se muta aquí.
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
-from django.db.models import Exists, Max, OuterRef
+from django.db.models import Max
+from django.utils import timezone
 
 from programas.models import Formulario, ListaEspera, Segmento, ValidacionSIS
 from programas.services.becas import registrar_traza
+
+#: El mensaje de todas las carreras perdidas: alguien ya resolvió el caso.
+CASO_YA_RESUELTO = "El caso ya fue resuelto por otra operación: recargá la pantalla."
+
+
+# El candado de la fila del caso (BEC-01) se pide con esta consulta, escrita a
+# mano en cada una de las cuatro operaciones y no detrás de un helper: lo que el
+# contrato de RED-67 afirma es que lo pide **la función que tiene que pedirlo**,
+# y con un helper en el medio el registro diría siempre el nombre del helper.
+#
+#     Formulario.objects.select_for_update().filter(pk=…).values_list("estado", flat=True).get()
+#
+# El orden de candados de este módulo es **segmento → caso**, y nadie lo toma al
+# revés: rechazar, el descarte por duplicado y la reserva del alta en SIIS toman
+# solo el caso. Sin ciclo posible, no hay deadlock.
+#
+# En SQLite ``select_for_update()`` es un no-op, así que la relectura sola no
+# alcanza para afirmar nada: por eso cada escritura va además condicionada al
+# estado (:func:`_escribir_estado`), que es un compare-and-set que vale en los
+# tres motores.
+
+
+def _escribir_estado(formulario, nuevo, desde):
+    """``UPDATE … WHERE estado = desde``. ``False`` si otro ya lo movió.
+
+    Un ``save()`` a secas escribe lo que tenga el objeto en memoria sin mirar lo
+    que hay en la base: ahí es donde una aprobación pisaba un rechazo que había
+    commiteado mientras se contaba el cupo.
+    """
+    campos = {"estado": nuevo, "modificado": timezone.now()}
+    if nuevo == Formulario.Estado.APROBADO:
+        campos["motivo_rechazo"] = ""
+    if not Formulario.objects.filter(pk=formulario.pk, estado=desde).update(**campos):
+        return False
+    for campo, valor in campos.items():
+        setattr(formulario, campo, valor)
+    return True
 
 
 def get_cupo_stats(segmento):
@@ -168,14 +206,21 @@ def estado_relevante_becas(estados, en_espera):
 def dar_baja_beneficiario(formulario, user):
     """Da de baja a un beneficiario (RN-05): cambia estado a BAJA.
 
-    Raises ValidationError si el formulario no está en estado APROBADO.
+    Raises ValidationError si el formulario no está en estado APROBADO. El
+    estado se relee bajo el candado de la fila (BEC-01): el objeto que trae la
+    vista puede ser de hace un rato, y dos clics dejaban dos trazas de baja
+    sobre el mismo caso.
     """
     if formulario.estado != Formulario.Estado.APROBADO:
         raise ValidationError("Solo se puede dar de baja a un beneficiario con estado APROBADO.")
 
-    estado_anterior = formulario.estado
-    formulario.estado = Formulario.Estado.BAJA
-    formulario.save(update_fields=["estado", "modificado"])
+    estado_anterior = (
+        Formulario.objects.select_for_update().filter(pk=formulario.pk).values_list("estado", flat=True).get()
+    )
+    if estado_anterior != Formulario.Estado.APROBADO:
+        raise ValidationError(CASO_YA_RESUELTO)
+    if not _escribir_estado(formulario, Formulario.Estado.BAJA, Formulario.Estado.APROBADO):
+        raise ValidationError(CASO_YA_RESUELTO)
     registrar_traza(formulario, user, [("estado", estado_anterior, Formulario.Estado.BAJA)])
     # Un APROBADO ya no debería tener espera activa, pero los datos anteriores
     # a esta regla pueden traerla colgando: la baja no la deja viva.
@@ -204,15 +249,18 @@ def promover_lista_espera(lista_espera, user):
         # cupo_disponible y exceder el cupo_maximo del segmento.
         Segmento.objects.select_for_update().get(pk=segmento.pk)
 
-        # Releídos bajo el lock: la fila y el estado del caso pueden haber
-        # cambiado desde que la vista los cargó (otra promoción, un rechazo).
-        promovido, estado_actual = (
-            ListaEspera.objects.filter(pk=lista_espera.pk).values_list("promovido", "formulario__estado").get()
+        # Releídos bajo los dos candados: la fila y el estado del caso pueden
+        # haber cambiado desde que la vista los cargó (otra promoción, un
+        # rechazo). El del caso es el de BEC-01: sin él, el rechazo que entraba
+        # mientras se contaba el cupo quedaba pisado por la promoción.
+        formulario = lista_espera.formulario
+        estado_actual = (
+            Formulario.objects.select_for_update().filter(pk=formulario.pk).values_list("estado", flat=True).get()
         )
+        promovido = ListaEspera.objects.filter(pk=lista_espera.pk).values_list("promovido", flat=True).get()
         if promovido:
             raise ValidationError("Esta entrada ya fue promovida.")
 
-        formulario = lista_espera.formulario
         if estado_actual != Formulario.Estado.ENVIADO:
             estado = Formulario.Estado(estado_actual).label.lower()
             cerrar_espera_activa(formulario, user, f"el caso ya estaba {estado}")
@@ -226,9 +274,9 @@ def promover_lista_espera(lista_espera, user):
                 raise ValidationError(f"No hay cupo disponible en el segmento '{segmento.nombre}'.")
 
             validar_aprobacion(formulario)
-            estado_anterior = formulario.estado
-            formulario.estado = Formulario.Estado.APROBADO
-            formulario.save(update_fields=["estado", "modificado"])
+            estado_anterior = estado_actual
+            if not _escribir_estado(formulario, Formulario.Estado.APROBADO, Formulario.Estado.ENVIADO):
+                raise ValidationError(CASO_YA_RESUELTO)
 
             lista_espera.promovido = True
             lista_espera.save(update_fields=["promovido", "modificado"])
@@ -266,25 +314,24 @@ def aprobar_o_poner_en_espera(formulario, user):
     segmento = formulario.relevamiento.convocatoria.segmento
     Segmento.objects.select_for_update().get(pk=segmento.pk)
 
-    # Releídos bajo el lock, que es el mismo que toman la promoción y el alta a
-    # la lista: una promoción o un alta concurrentes no se cuelan entre el
-    # chequeo y la aprobación. Estado y espera en una sola consulta.
-    estado_actual, en_espera = (
-        Formulario.objects.filter(pk=formulario.pk)
-        .annotate(en_espera=Exists(ListaEspera.objects.filter(formulario=OuterRef("pk"), promovido=False)))
-        .values_list("estado", "en_espera")
-        .get()
+    # Releídos bajo los dos candados —segmento y caso, en ese orden—: una
+    # promoción o un alta concurrentes no se cuelan entre el chequeo y la
+    # aprobación, y un rechazo tampoco (BEC-01). El estado va en su propia
+    # consulta porque ``select_for_update`` con un ``Exists`` correlacionado
+    # llevaría el candado a las filas de la lista de espera, que no es lo que se
+    # quiere bloquear acá.
+    estado_actual = (
+        Formulario.objects.select_for_update().filter(pk=formulario.pk).values_list("estado", flat=True).get()
     )
     if estado_actual != Formulario.Estado.ENVIADO:
-        raise ValidationError("El caso ya fue resuelto por otra operación: recargá la pantalla.")
-    if en_espera:
+        raise ValidationError(CASO_YA_RESUELTO)
+    if ListaEspera.objects.filter(formulario_id=formulario.pk, promovido=False).exists():
         raise CasoEnListaEspera()
 
     if get_cupo_stats(segmento)["cupo_disponible"] > 0:
-        estado_anterior = formulario.estado
-        formulario.estado = Formulario.Estado.APROBADO
-        formulario.motivo_rechazo = ""
-        formulario.save(update_fields=["estado", "motivo_rechazo", "modificado"])
+        estado_anterior = estado_actual
+        if not _escribir_estado(formulario, Formulario.Estado.APROBADO, Formulario.Estado.ENVIADO):
+            raise ValidationError(CASO_YA_RESUELTO)
         registrar_traza(formulario, user, [("estado", estado_anterior, Formulario.Estado.APROBADO)])
         return "aprobado"
 
@@ -298,22 +345,30 @@ def agregar_a_lista_espera(formulario, segmento, user):
 
     Asigna la siguiente posición disponible. Raises ValidationError si el
     formulario ya tiene una entrada activa en la lista de espera.
+
+    Los dos chequeos van **adentro** del candado (BEC-02). Antes se hacían con
+    lo que había en memoria y con una consulta previa al ``select_for_update``,
+    así que un doble clic dejaba dos filas activas —posiciones consecutivas para
+    la misma persona y dos correos—, y un caso aprobado por otro entre la carga
+    de la pantalla y el POST entraba igual a la espera estando APROBADO.
     """
+    # Guarda temprana: con el objeto en memoria ya resuelto no hace falta
+    # molestar al candado. La que decide es la relectura de abajo.
     if formulario.estado != Formulario.Estado.ENVIADO:
         raise ValidationError("Solo se pueden agregar formularios en estado ENVIADO a la lista de espera.")
-
-    ya_en_espera = ListaEspera.objects.filter(
-        formulario=formulario,
-        segmento=segmento,
-        promovido=False,
-    ).exists()
-    if ya_en_espera:
-        raise ValidationError("Este formulario ya está en la lista de espera de este segmento.")
 
     # Serializa altas concurrentes en el mismo segmento: sin este lock, dos
     # requests simultáneos pueden leer el mismo Max("posicion") y crear
     # entradas con la misma posición.
     Segmento.objects.select_for_update().get(pk=segmento.pk)
+
+    estado_bajo_candado = (
+        Formulario.objects.select_for_update().filter(pk=formulario.pk).values_list("estado", flat=True).get()
+    )
+    if estado_bajo_candado != Formulario.Estado.ENVIADO:
+        raise ValidationError(CASO_YA_RESUELTO)
+    if ListaEspera.objects.filter(formulario=formulario, segmento=segmento, promovido=False).exists():
+        raise ValidationError("Este formulario ya está en la lista de espera de este segmento.")
 
     max_pos = ListaEspera.objects.filter(segmento=segmento, promovido=False).aggregate(m=Max("posicion"))["m"] or 0
     posicion = max_pos + 1
