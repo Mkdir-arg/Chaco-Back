@@ -27,6 +27,12 @@ Siempre **`btn-nodo` + variante + tamaño**.
   del click va en el handler.
 - `btn-tertiary.btn-back-circle` es el botón circular de volver: lo pone `{% page_header %}`, no
   se escribe a mano.
+- **Área táctil:** `@media (pointer: coarse)` lleva `.btn-nodo` y `.nodo-icon-btn` a 44 px de mínimo. Con
+  mouse manda el alto del tamaño (`btn-base` 40 px, `btn-sm` 36 px): no se fuerza desde JS ni desde el
+  template.
+- **`.hidden` gana sobre `btn-nodo`:** la hoja declara `.btn-nodo.hidden, .nodo-icon-btn.hidden
+  { display: none }` porque se carga después de Tailwind y, con la misma especificidad, `display:
+  inline-flex` le ganaba por orden (el «Cancelar» que `ModernModal` esconde se veía igual).
 
 ### Acción de fila (botón de ícono)
 
@@ -50,8 +56,8 @@ marca).
 
 - Para estados principales, `badge-dot` agrega el punto: `badge badge-success badge-dot`.
 - **Pausado nunca es `danger`** y apagado es gris, no rojo.
-- `badge-sm` es solo geometría (lo usan plantillas legacy junto con `badge-nodo`); en pantalla
-  nueva no hace falta.
+- `badge-sm` es solo geometría; en pantalla nueva no hace falta. El alias `badge-nodo` que acompañaba a
+  `badge-sm` en plantillas legacy **ya no existe en ningún template** (FE-06): la clase base es `badge`.
 - El mapeo estado → variante **no se escribe en la pantalla**: vive en el parcial de badges del
   módulo (ficha `dominio/becas.md`, sección «Mapa de estados»).
 

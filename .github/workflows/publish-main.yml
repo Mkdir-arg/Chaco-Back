@@ -224,3 +224,25 @@ jobs:
           short="$(git -C "$GITHUB_WORKSPACE" rev-parse --short HEAD)"
           git commit -m "release: $subj (development@$short)"
           git push origin main
+
+          # RED-16: cada release deja un tag inmutable sobre el commit de `main`.
+          # Sin él, «volver a la release anterior» no tiene a qué apuntar: `main` se
+          # pisa a sí misma en cada publicación y del lado de ECOM la imagen es siempre
+          # `:latest`, así que un rollback significaba revertir en GitLab y esperar otro
+          # build de 5 a 7 minutos **con producción caída y la base ya migrada**. Con el
+          # tag, el runbook (Anexo D de docs/internal/processes.md) tiene un nombre que
+          # escribir: `git switch --force-create rollback/<ts> <tag anterior>` en icore,
+          # y el SHA exacto para pedirle a ECOM la imagen anterior.
+          #
+          # El `$short` es el de `development`, no el de `main`: es el commit que
+          # alguien reconoce, el mismo que ya va en el asunto del commit de release.
+          # Va además de la fecha porque puede haber más de un release por día.
+          tag="release-$(date -u +%Y.%m.%d)-$short"
+          if git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null 2>&1; then
+            echo "::warning::el tag $tag ya existe en origin: la release quedó publicada, no se re-etiqueta"
+            exit 0
+          fi
+          git tag -a "$tag" -m "release $(date -u +%F) (development@$short)"
+          # Solo este ref: `--tags` empujaría cualquier otro tag que el runner tenga.
+          git push origin "refs/tags/$tag"
+          echo "release etiquetado: $tag"

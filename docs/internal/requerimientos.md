@@ -324,7 +324,9 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 150 | Legajos deja de romperse solo: subir archivos, reinscribir y la solapa que nunca funcionó | Legajos (detalle del ciudadano, adjuntos, derivaciones, dashboard de alertas) · Transversal (inscripciones a programas) | `#ui` `#datos` `#api` | Auditoría integral oct-2026 — fichas FE-02, LEG-02..05, FE-09 y FE-21 (Ola 5, PR 2) | 06/10/2026 | 🟢 **Hecho** | No requiere |
 | 151 | El catálogo vacío de SIIS deja de bloquear Becas, y cuatro reglas que se decidían con datos viejos | Becas · catálogo SIIS · alta de beneficiarios (payload) · cupo y lista de espera · proceso masivo | `#siis` `#cupos` `#datos` `#relevamientos` | Auditoría integral oct-2026 — SIIS-06, SIIS-11, SIIS-12, BEC-01, BEC-02 y el resto de BEC-21 (Ola 1 «Integridad SIIS», PR 4) | 06/10/2026 | 🟢 **Hecho** | No requiere |
 | 152 | Configuración: la fila 21 deja de ser inalcanzable, el wizard vuelve a filtrar subsecretarías y los errores no de campo se ven | Configuración (geografía, secretarías, wizard de programas) · Transversal (pieza de errores no de campo, gate de bloques sin destino) · Legajos y Dispositivos (un formulario cada uno) | `#ui` `#metodo` | Auditoría integral oct-2026 — fichas FE-04, FE-05 y FE-08 (Ola 5, PR 3) | 06/10/2026 | 🟢 **Hecho** | No requiere |
+| 153 | El deploy deja de ser a ciegas: traceback en stdout, un health que sabe, guarda de esquema y una release con nombre | Transversal (logging, sonda de salud, entrypoint, script de deploy, CI de GitHub Actions) | `#infra` `#datos` `#metodo` | Auditoría integral oct-2026 — fichas OPS-03, RED-55, OPS-04, RED-59, OPS-01 y RED-16 (Ola R, PR R-15) | 06/10/2026 | 🟢 **Hecho** (RED-16 parcial: el tag de imagen lo aplica ECOM) | **Sí:** correr `verificar_esquema_migraciones --solo-reporte` en cada ambiente antes de desplegar o espejar, y en icore además el renombre de `core/sql/2026-10-06_renombrar_migraciones_icore.sql` |
 | 154 | «Aprobar» deja de poder pasarse de los 60 s de nginx: un timeout por llamada, cortacircuito y presupuesto verificado | Transversal · clientes de SIIS, Base de Personas y RENAPER · correo saliente · sincronización del catálogo SIIS | `#siis` `#performance` `#infra` `#datos` | Auditoría integral oct-2026 — SIIS-09 (= PERF-09) y los tres MINOR de la revisión del PR 4 (Ola 1 «Integridad SIIS», PR 5) | 06/10/2026 | 🟢 **Hecho** | No requiere |
+| 155 | Controles que el navegador no dibujaba: botones sin caja, backdrop transparente, modales en la esquina y la grilla del mes ilegible en celular | Transversal (shell del backoffice, sidebar, navbar, CSS de botones) · Configuración (10 modales, formularios y wizard) · Legajos · Usuarios y roles · Dispositivos · Merenderos (prestación mensual) | `#ui` `#mobile` | Auditoría integral oct-2026 — fichas FE-06, FE-07, FE-01 y FE-10 (Ola 5, PR 4) | 06/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -20087,6 +20089,267 @@ igual).
 Revertir el commit. Vuelven los tres defectos —la fila 21 inalcanzable, el wizard sin cascada y los
 duplicados sin explicación— y los tests nuevos se van con el mismo commit, así que no queda ninguno en rojo.
 No hay nada que deshacer en la base: no se escribió ni se borró ninguna fila.
+---
+
+# Cambio 153 — El deploy deja de ser a ciegas: traceback en stdout, un health que sabe, guarda de esquema y una release con nombre
+
+🟢 **HECHO — 06/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · logging · sonda de salud · entrypoint y script de deploy · CI de GitHub Actions |
+| **Etiquetas** | `#infra` `#datos` `#metodo` |
+| **Solicitante** | Auditoría integral de octubre 2026 — hallazgos **OPS-03**, **RED-55**, **OPS-04**, **RED-59**, **OPS-01** y **RED-16** (Ola R «Red de seguridad», PR R-15) |
+| **Fecha del pedido** | 06/10/2026 |
+| **Issue / épica** | Sin issue — auditoría oct-2026, `docs/internal/auditoria-2026-10/hallazgos/05-datos-operacion-tests.md` y `08-red-de-seguridad.md` |
+| **Partes afectadas** | Operación: lo que se ve en `docker compose logs` y `kubectl logs`, la sonda del deploy, el arranque del contenedor y la publicación del release. En la aplicación, dos context processors y una vista nueva pública. Nada de UI, ningún modelo |
+| **Migración** | No requiere (ninguna migración nueva ni editada) |
+
+## Pedido original
+
+Seis fichas que comparten una sola consecuencia: **el próximo deploy en icore no se puede diagnosticar.**
+
+- **OPS-03** (ALTA): «`django.request` tiene `propagate: False` y handlers solo a archivo: el traceback de cada 500 va a
+  `logs/<fecha>/error.log` y a ningún lado más. En k8s ese directorio es efímero y `kubectl logs` solo muestra la línea
+  `core.requests … status=500`.»
+- **RED-55** (MEDIA, va con OPS-03): los dos `except Exception` de los context processors corren en el 100 % del tráfico
+  autenticado y convierten un `OperationalError` en «badge 0» y «usuario sin grupos», sin rastro.
+- **OPS-04** (MEDIA): «`/health/` siempre 200 y tapa `health_check.urls`», ampliada: `/health/` es además el criterio de
+  éxito **y el del rollback** de `scripts/deploy_prod.sh`.
+- **RED-59** (MEDIA): «`deploy_prod.sh`: rollback sin base, detached HEAD y un health que siempre da 200».
+- **OPS-01** (MEDIA): «sin guarda de coherencia `django_migrations` ↔ esquema antes de `migrate`», ampliada con el
+  chequeo **inverso** de RED-15 (tablas que existen y ningún modelo nombra).
+- **RED-16** (ALTA): «no hay artefacto al que volver: ECOM publica solo `:latest` y `main` no se tagea».
+
+## Qué lo motivó
+
+icore-srv está desplegado desde una rama vieja (`a9fc4ee`) y el próximo deploy **va a fallar**: las seis migraciones del
+constructor se registraron ahí como `0057`-`0062` y `development` las renumeró a `0060`-`0065`, así que Django las ve
+como no aplicadas, las va a correr y va a morir con `1050 Table already exists` dejando el esquema a medias. Cuando eso
+pase, lo que el operador iba a tener en la mano era: un CrashLoop, un `/health/` que responde 200, un rollback
+automático que no se dispara y, si se disparara, que vuelve el código y nunca la base. Y ningún traceback: el del 500
+estaba escrito en un directorio efímero dentro del contenedor.
+
+Las seis fichas son las piezas de ese mismo recorrido, y por eso van juntas.
+
+## Alcance acordado
+
+**Entra:** el `LOGGING` por función y gateado por `LOG_TO_FILES`; `logger.exception` en los dos context processors;
+`/health/ready/` y el retiro del include de URLs de `django-health-check`; los *post-deploy checks*, la rama de rollback
+y el aborto por migraciones en `deploy_prod.sh`; el comando `verificar_esquema_migraciones` —que mira tres cosas y
+**frena por dos**: la renumeración y la colisión de tablas—, en el entrypoint y en el roundtrip, con su modo
+`--solo-reporte`; el SQL de renombre para icore; y el tag de release en `publish-main.yml`.
+
+**Queda afuera:** `DB_READ_TIMEOUT` (OPS-05, Ola 3) y el candado `GET_LOCK` del bootstrap (OPS-07, Ola 3); el resto de
+OPS-13 (`openai`, `django_extensions`, `debugpy`…), incluido `django-health-check`, que esta ficha pedía retirar y
+**no se retiró**: ver las decisiones; y todo lo que depende de ECOM: el tag de **imagen** por commit (D-RED-02) y los dos avisos, que quedan
+escritos como propuesta para que los mande el PM.
+
+## Decisiones tomadas
+
+- **Los `except Exception` de los context processors siguen siendo anchos.** La ficha proponía acotarlos a
+  `DatabaseError`/`ImportError`. No se hizo: eso corre en el 100 % del tráfico autenticado y cualquier otra excepción
+  pasaría de «sidebar degradado» a **500 en toda pantalla del backoffice**. El hallazgo era «traga *sin log*», no
+  «traga»; lo que faltaba era el log.
+- **`/health/` no se toca.** Es liveness y lo miran las sondas de compose, las de `docker/k8s/` y las de ECOM. Cambiarla
+  por una que consulte la base haría que una base lenta reinicie todos los pods a la vez. Lo nuevo es `/health/ready/`.
+- **D-O04 aplicada: `/health/ready/` no se declara como readinessProbe** en ningún manifiesto, ni se publica en nginx
+  (cae en el `location /` general). Su lugar es el monitoreo externo y el deploy.
+- **El cache solo se chequea en `prd`.** Fuera de ahí el backend es LocMem y el resultado no diría nada del ambiente; en
+  `prd` las sesiones viven en Redis, así que sin cache nadie puede loguearse aunque la base conteste.
+- **El rollback automático de `deploy_prod.sh` se aborta si el deploy aplicó migraciones.** Volver solo el código deja el
+  esquema adelantado y las filas a medias (RED-14). Esa decisión necesita el dump de D.0 y una persona: el script sale
+  con error nombrando el runbook en vez de improvisar. Si **no puede averiguarlo** —el contenedor no responde— avisa y
+  sigue con el comportamiento de siempre: no se cambia un camino conocido por uno nuevo en el caso ambiguo.
+- **Las filas sin archivo avisan; frena solo la renumeración.** Es la corrección de la ronda 2 de revisión, y el
+  motivo es concreto: con la regla anterior, una base migrada con `DJANGO_DEBUG=True` y arrancada con `False` abortaba
+  por `silk.0001`-`0008` y **no volvía a arrancar nunca**. El objetivo de la guarda es frenar lo que de verdad rompe el
+  `migrate`, no todo lo que se le parece.
+- **Si `deploy_prod.sh` no puede leer el estado de las migraciones, el rollback automático no procede.** También de la
+  ronda 2. La versión anterior leía el `0` que imprime `grep -c … || true` cuando el `exec` falla —o sea, con `web` en
+  crash-loop, que es el escenario del rollback— y lo tomaba por «el deploy no migró nada». Ahora hace falta
+  `ROLLBACK_SIN_COMPARAR=1`, que es una persona afirmando que ya lo verificó.
+- **`/health/ready/` no dice por qué falló, solo qué falló.** Es pública y sin sesión: el mensaje de un
+  `OperationalError` trae el host interno de la base y, en un 1045, el usuario de Django. Afuera va el nombre de la
+  clase; el detalle, al log.
+- **Las tablas huérfanas avisan, no frenan.** Hay bases con tablas ajenas por motivos legítimos y la guarda corre en el
+  arranque de producción: un falso positivo ahí es un ambiente que no levanta. Con `--estricto` sí frenan, y así la corre
+  el paso 8/8 del roundtrip, donde la base es efímera.
+- **Los archivos de log quedan apagados por defecto.** `LOG_TO_FILES=True` solo en `docker-compose.prod.yml` (icore,
+  donde `./logs` está montado desde el host). En k8s no se escribe nada en el filesystem —antes sí, y nadie lo leía— y
+  con la variable apagada no se crea ni el directorio, que en un filesystem de solo lectura era un arranque fallido.
+- **`django-health-check` no se retira, aunque OPS-04 lo pedía.** Se intentó y lo frenó la guarda nueva de OPS-01 en
+  el CI de este mismo PR, que es la mejor prueba de que la guarda sirve: el paquete tiene dos migraciones aplicadas y
+  una tabla en los ambientes, así que sacarlo de `INSTALLED_APPS` dejaría el arranque abortado en icore, en testing y
+  en PRD. Lo que sí se retira es su **include de URLs**, que es el hallazgo de la ficha. El resto es OPS-13, con la
+  limpieza que ahora está escrita ahí.
+- **El tag del release va sobre el commit de `main`, con el short SHA de `development`.** Es el commit que alguien
+  reconoce y el mismo que ya va en el asunto del commit de release. La fecha sola no alcanza: puede haber más de un
+  release por día.
+
+## Implementación
+
+**OPS-03 — el traceback llega a stdout.** `core/logging_config.py` es nuevo y arma el `LOGGING` con una función, que es
+lo que lo vuelve probable. `django.request` queda **sin handlers propios y propagando**, así que el traceback llega a
+`console` por la raíz. Los cinco handlers de archivo existen solo con `LOG_TO_FILES=True`, y `purgar_logs_viejos` borra
+las carpetas diarias con más de `LOG_RETENTION_DAYS` (14) al arrancar el proceso.
+
+**Un desvío:** la ficha proponía reemplazar `DailyFileHandler` por `TimedRotatingFileHandler`. No se hizo: eso cambia el
+layout a `logs/info.log` y rompe `core/management/commands/perf_report_requests.py`, que lee `logs/<fecha>/info.log`. El
+motivo del cambio —que `logs/` crezca sin techo en icore— se resolvió con la purga, sin tocar el layout.
+
+**RED-55 — los context processors dejan rastro.** `logger.exception` en `core.context_processors.sidebar_badges` y en
+`conversaciones.context_processors.user_groups`, con el motivo al lado. El contexto sigue degradando igual.
+
+**OPS-04 — `/health/ready/`.** `healthcheck/views/ready.py`: `ensure_connection()` + `SELECT 1` y, con
+`ENVIRONMENT=="prd"`, `caches["sessions"].get("health")`. Devuelve `{"db": …}` con 200, o 503 con el **nombre de la
+clase** de la excepción y nada más (`"OperationalError"`): la vista es pública y sin sesión, y el mensaje del motor trae
+el host interno de la base y, en un 1045, el usuario con el que Django se conecta. El detalle entero va a
+`logger.exception`. Se retiraron `health_check`, `health_check.db` y
+`health_check.cache` de `INSTALLED_APPS`, el `path("health/", include("health_check.urls"))` que el include de
+`healthcheck.urls` tapaba —dos apps peleando la misma ruta, una de ellas tocando la base en lo que es una liveness— y
+**El paquete sigue instalado.** Sacarlo se probó y lo frenó la guarda de OPS-01 en el CI de este mismo PR:
+`django-health-check` tiene dos migraciones aplicadas (`db.0001_initial` y `health_check_db.0001_initial`: el
+`app_label` cambió entre versiones) y la tabla `health_check_db_testmodel` en todos los ambientes donde ya corrió. Sin
+el paquete, esas dos filas quedan sin archivo y esa tabla sin modelo, o sea el entrypoint abortando en icore, en
+testing y en PRD. Retirarlo es OPS-13 y tiene que venir con esa limpieza; quedó escrito en esa ficha.
+
+**RED-59 — `deploy_prod.sh`.** `HEALTH_URL` por defecto pasa a `/health/ready/`; `post_deploy_checks()` corre
+`migrate --check`, cuenta las entradas de `staticfiles.json` (mínimo 50: el archivo vacío existe igual y deja cada
+`{% static %}` en 500) y pide `GET /login/` = 200; `git checkout --force` pasa a
+`git switch --force-create "rollback/$TIMESTAMP"`. **Dos desvíos code-first:** la ficha dice `/accounts/login/`, ruta
+que no existe —el login está en `/` y `/login/`, `users/urls.py:24-25`—, y el estado de las migraciones se compara por
+cantidad de `[X]` antes y después, que es lo que se puede medir desde el host.
+
+**OPS-01 — la guarda de esquema.** `manage.py verificar_esquema_migraciones`, de solo lectura. Mira tres cosas —filas
+sin archivo, `CreateModel` sin aplicar cuya `db_table` ya existe (el `1050` del deploy, y también lo que deja un restore
+encima) y el inverso de RED-15— y **frena por dos**: la renumeración y la colisión de tablas. El estado final se calcula con la **unión** de los modelos vivos y los del
+`project_state()` de las migraciones: solo con los vivos, una tabla del grafo cuyo modelo ya no está en el código daría
+un falso positivo. Corre en `docker-entrypoint.sh` antes del `migrate` (salteable con `SKIP_SCHEMA_GUARD=true`) y como
+paso 8/8 de `scripts/roundtrip_migraciones.py` con `--estricto`, que es lo que el Anexo B pedía y el Cambio 139 dejó
+anotado.
+
+**De los tres, solo dos frenan, y esa fue la corrección más importante de la revisión.** Abortar por *cualquier* fila
+sin archivo deja ambientes que **no vuelven a arrancar nunca**: `silk.0001`-`0008` están en toda base migrada con
+`DJANGO_DEBUG=True` y arrancada con `False` —`silk` entra a `INSTALLED_APPS` solo con `DEBUG`—, `turnos` está borrada,
+`tramites` ya no tiene paquete de migraciones y `programas.0046_formulario_fecha_aprobacion_formulario_fecha_rechazo`
+se borró el 18/08/2026 con su número reusado. Ninguna de esas filas predice una rotura y ninguna base se las va a sacar
+de encima. Frena **solo la renumeración**: la misma migración en disco con **otro** número y **sin aplicar**, que es
+literalmente lo que `migrate` va a volver a correr sobre un esquema que ya la tiene. El resto sale por
+`logger.warning` + stderr con su motivo. El daño de icore lo cubren las dos barreras juntas —renumeración y colisión de
+tablas—, y las dos se midieron contra `mariadb:10.11` (sin tzinfo) y `mysql:8.0` efímeros.
+
+**Límite conocido, y es a propósito.** La renumeración se reconoce por el nombre sin el número, así que una migración
+renumerada **y renombrada** —cambió también la parte descriptiva— cae en «inerte» y la guarda deja arrancar. Si además
+es hoja y trae un `AddField`/`AddIndex`, el `migrate` muere a mitad de camino con `1060 Duplicate column` o `1061
+Duplicate key`. No se cubre: adivinar que dos migraciones con nombres distintos son «la misma» pide comparar
+operaciones, y una heurística floja en el arranque de producción se paga caro. El caso real del repo —icore— conserva
+el nombre, y la colisión de tablas sigue cubriendo el `CreateModel` aunque el nombre cambie entero. Queda escrito en el
+docstring de `clasificar_filas_sin_archivo`.
+
+**Y hay un modo de inspección, `--solo-reporte`:** imprime los hallazgos y **termina siempre en 0**, así que se puede
+correr contra un ambiente ajeno —testing o PRD de ECOM— sin que el código de salida corte el script de quien lo mire.
+Es el **paso 0** nuevo de `espejo-ecom.md` y una línea nueva de la checklist pre-deploy de `processes.md`.
+
+**Dos cosas las encontró la propia guarda corriendo, y ninguna estaba en la ficha.** (1) `MigrationExecutor.migration_plan`
+devuelve una lista **vacía** cuando el nodo hoja ya figura aplicado, aunque en el medio del grafo haya migraciones sin
+aplicar: un falso OK. La guarda recorre `loader.graph.nodes` directamente. (2) Una migración **reemplazada** por un
+squash figura aplicada y **no tiene archivo propio**, que es correcto y permanente: `django-health-check` declara
+`replaces = [("health_check_db", "0001_initial")]`, así que `django_migrations` guarda dos filas y en disco hay una.
+Sin contemplarlo, la guarda habría abortado el arranque en icore, en testing y en PRD —y con cualquier squash futuro
+del proyecto—. Las dos están fijadas en tests. El renombre de icore quedó versionado en
+`core/sql/2026-10-06_renombrar_migraciones_icore.sql`, con las seis filas verificadas contra el árbol de `a9fc4ee`.
+
+**RED-16 — el release tiene nombre.** `publish-main.yml` etiqueta con `release-AAAA.MM.DD-<short>` (tag anotado) después
+del push de `main` y solo cuando hubo release nueva. Se empuja `refs/tags/$tag` y no `--tags`, que arrastraría cualquier
+otro tag del runner; un tag repetido sale por `::warning::` en vez de dejar la publicación en rojo. **No hace falta
+permiso nuevo:** `contents: write` ya estaba por el push de `main`.
+
+## Cómo se probó
+
+Validación completa con Python 3.12 + Django 5.2.17 (`.venv312`, el mismo del CI):
+
+- `manage.py check` → sin issues; `makemigrations --check --dry-run` → «No changes detected».
+- **`manage.py test` sin argumentos: 2931 tests, OK (skipped=23)**, 699 s.
+- `manage.py test --tag performance` → 4 tests, OK.
+- `ruff check .` → All checks passed; `ruff format --check` sobre los 17 archivos tocados → ya formateados.
+- `actionlint` (Docker `rhysd/actionlint`) sobre **todos** los workflows → exit 0.
+- `bash -n scripts/deploy_prod.sh docker-entrypoint.sh` → OK.
+
+**Los tests nuevos se corrieron contra el árbol sin el arreglo y fallan.** `core.tests.test_context_processors`: 3 en
+rojo («no logs of level ERROR»). `core.tests.test_logging_stdout`: 3 en rojo + 1 error (`django.request` con
+`propagate: False` y `['error_file', 'warning_file']`). `healthcheck.tests.test_ready`: 3 fallas + 6 errores.
+`core.tests.test_scripts_deploy`: 8 fallas. `core.tests.test_verificar_esquema_migraciones`: el comando no existía.
+
+## Puesta en marcha en el servidor
+
+**El paso que vale para los tres ambientes, y es nuevo:** correr
+`manage.py verificar_esquema_migraciones --solo-reporte` **antes** de desplegar o espejar. Solo lee y termina siempre
+en 0, así que se puede correr contra una base que no es nuestra sin riesgo. Si dice «Migraciones registradas con otro
+número» o «Tablas que ya existen», el deploy no sale hasta arreglarlo; los avisos de filas inertes y de tablas
+huérfanas no frenan nada. El procedimiento por ambiente está en el paso 0 de `espejo-ecom.md` y en la checklist
+pre-deploy de `processes.md`.
+
+**icore-srv, antes del próximo deploy y en este orden:**
+
+1. Dump de la base (paso D.0 del runbook).
+2. `docker compose -f docker-compose.prod.yml exec -T web python manage.py verificar_esquema_migraciones --solo-reporte`.
+   Se espera que reporte la renumeración del constructor: eso es lo que arregla el paso 3.
+3. Correr `core/sql/2026-10-06_renombrar_migraciones_icore.sql` **una sola vez**. El archivo **no trae `COMMIT`** a
+   propósito: se pega en una sesión interactiva, se mira el `SELECT` de verificación y recién entonces se escribe
+   `COMMIT;` a mano. Con `mariadb < archivo` no se aplica nada (la transacción se deshace al cerrar). Sin este paso, el
+   arranque se frena en la guarda nueva, que es el comportamiento correcto: antes moría más adelante y peor.
+4. Repetir el paso 2: tiene que decir «Esquema coherente».
+5. Deploy normal. `LOG_TO_FILES=True` ya viene en `docker-compose.prod.yml`, así que los archivos de `logs/` siguen
+   apareciendo; lo nuevo es que el traceback también sale por `docker compose logs web`.
+6. Verificar: `curl -s localhost/health/ready/` devuelve `{"db": "ok", "cache": "ok"}`.
+
+**ECOM:** nada que aplicar de este cambio —las sondas siguen apuntando a `/health/` y responden igual—, pero sí **un
+paso previo al espejo**: correr `verificar_esquema_migraciones --solo-reporte` en el pod de **testing** después del
+paso 1 y, para **PRD**, pedirle a su equipo esa salida junto con el dump (H-11) antes del paso 2. Y hay **tres pedidos
+escritos** en `docs/internal/propuesta-ecom-verify.md` para que los mande el PM: §2 el tag de imagen por commit
+(D-RED-02, lo que vuelve el rollback de PRD un `kubectl set image`), §4 el aviso del volumen nuevo en stdout y §5 que
+`/health/ready/` existe y no conviene usarla como liveness.
+
+## Pendientes / a definir
+
+- **El tag de imagen de ECOM (D-RED-02).** Sin eso, RED-16 queda a medias: el tag nuestro da el SHA para reconstruir, no
+  la imagen para volver en segundos.
+- **El renombre en icore** lo corre una persona; mientras no se corra, el deploy se frena en la guarda.
+- **`ROLLBACK_SIN_COMPARAR=1`**: la única puerta que deja al rollback automático de `deploy_prod.sh` proceder cuando no
+  pudo leer el estado de las migraciones. Si alguna vez hace falta usarla, conviene anotar por qué: significa que el
+  contenedor no respondía y que una persona verificó a mano que el deploy no había migrado.
+- **OPS-13**: quedan `openai`, `django_extensions` en prod, `debugpy`, `structlog`, `gevent` y compañía, más
+  `django-health-check`, que ahora no monta ninguna URL pero sigue instalado. Esa ficha quedó ampliada con lo que este
+  PR midió: sacar una app con migraciones aplicadas exige borrar su tabla y sus filas de `django_migrations`.
+- **OPS-05** (`DB_READ_TIMEOUT`) y **OPS-07** (candado del bootstrap) siguen en la Ola 3.
+- El `data_file` (JSON de `record.data`) ahora sale por `console` con el formatter `verbose` cuando `LOG_TO_FILES` está
+  apagado. Nadie lo consume hoy; si alguna vez hace falta ese JSON en stdout, hay que agregarle su propio handler.
+
+## Reversión
+
+1. Revertir el commit. Vuelven los seis defectos: el traceback deja de salir por stdout, `/health/ready/` desaparece
+   (las sondas de `/health/` siguen igual: nunca cambiaron), `deploy_prod.sh` vuelve a dar OK con la base caída y a
+   dejar detached HEAD, la guarda de esquema deja de correr y los releases dejan de etiquetarse.
+2. **No hay nada que deshacer en ninguna base.** Ninguna pieza de este cambio escribe una fila: la guarda es de solo
+   lectura y la sonda hace `SELECT 1`.
+3. Lo que **no** vuelve solo: los tags `release-*` ya publicados quedan en el remoto (son inmutables a propósito; no
+   molestan). Si icore ya corrió ese SQL, ese renombre **tiene que quedar**: es la corrección
+   del registro, no parte de este código, y revertirlo volvería a romper el deploy.
+4. Si se revierte después de haber desplegado, conviene dejar `LOG_TO_FILES` fuera del compose: con el código viejo la
+   variable no existe y no hace nada, pero deja una línea que no explica nada.
+
+## Historial
+
+- **03/10/2026** — la auditoría registra OPS-01, OPS-03 y OPS-04 en la Ola 3.
+- **04/10/2026** — el frente Red de seguridad las amplía y las pasa a la Ola R, junto con RED-55, RED-59 y RED-16:
+  sin tracebacks no se diagnostica nada de lo que las otras olas van a tocar.
+- **06/10/2026** — el Cambio 139 (R-13) deja anotado que `verificar_esquema_migraciones` es de este PR.
+- **06/10/2026 (este cambio)** — las seis cerradas; RED-16 queda 🟡 por la mitad que es de ECOM.
+- **06/10/2026 (ronda 2 de revisión)** — la guarda abortaba por filas inertes (`silk`, `turnos`, `tramites`, la `0046`
+  borrada) y dejaba ambientes sin arrancar: pasa a frenar solo la renumeración, con `--solo-reporte` para inspeccionar
+  un ambiente ajeno. Además `/health/ready/` deja de filtrar el mensaje del motor y `deploy_prod.sh` deja de leer un
+  `exec` fallido como «cero migraciones».
 
 ---
 
@@ -20307,3 +20570,223 @@ con las variables de entorno —pero el `check --deploy` va a marcarlo, que es l
   no lo declaraba y es su llamada más lenta, con el timeout pasado a par `(5, 10)` leído en cada llamada; se
   declaran además tres cadenas que faltaban. La `Session` de módulo deja de guardar cookies. Y una
   configuración incompleta de SIIS deja de contar como falla del cortacircuito.
+
+---
+
+# Cambio 155 — Controles que el navegador no dibujaba: botones sin caja, backdrop transparente, modales en la esquina y la grilla del mes ilegible en celular
+
+🟢 **HECHO — 06/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal (shell del backoffice, sidebar, navbar, `nodo-buttons.css`) · Configuración (los diez modales de Geografía y Secretarías, formularios, confirmaciones y wizard) · Legajos · Usuarios y roles · Dispositivos · Merenderos (prestación mensual) |
+| **Etiquetas** | `#ui` `#mobile` |
+| **Solicitante** | Auditoría integral oct-2026 — fichas FE-06, FE-07, FE-01 y FE-10 (Ola 5, PR 4) |
+| **Fecha del pedido** | 06/10/2026 |
+| **Issue / épica** | Sin issue (plan de la auditoría: `docs/internal/auditoria-2026-10/`) · PR #603 |
+| **Partes afectadas** | Backoffice: `templates/includes/base.html`, `navbar.html`, `sidebar/base.html`, `sidebar/opciones.html`; `static/custom/css/nodo-buttons.css`; las cinco pantallas de Geografía y Secretarías con sus diez modales; siete formularios y cuatro confirmaciones de Configuración; `rol_form`; ocho templates de Legajos; cuatro de Dispositivos; la prestación mensual de Merenderos. Se **borra** `static/custom/js/mobile-enhancements.js`. Ninguna pantalla nueva |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> «(4) FE-06 ya; FE-07, FE-01 y FE-10 **después de la Ola 6 paso 3** (en ese orden: FE-07 antes o con FE-01;
+> FE-01 antes que FE-10) — 14 h» (README de la auditoría, §6, Ola 5, PR 4.)
+
+Cuatro defectos distintos con el mismo final: el template dice una cosa y el navegador dibuja otra.
+
+1. **FE-06 — clases que el build no genera.** `tailwind.config.js` declara `extend.backgroundColor.gray`
+   como **string**, y eso pisa la escala `gray` entera para `bg-*` (`text-gray-*` sí existe). Un
+   `bg-gray-300` no produce ninguna regla CSS: el «Cancelar» de `/configuracion/localidades/crear/` salía
+   sin caja, el «← Volver al Dashboard» de `/legajos/dashboard-contactos/` salía con texto blanco sobre
+   fondo transparente —invisible— y el backdrop del sidebar a 390 px (`bg-gray-900/80`) no oscurecía nada.
+   Lo mismo con `bg-white/78` y `/90`, que no se generan porque `white` es `var(--bg-white)` sin
+   `<alpha-value>`: las tarjetas del hero de la edición del ciudadano computaban transparentes. Y tres
+   nombres inventados que ningún CSS define: `border-fg-brand`, `divide-border` y `badge-nodo`.
+2. **FE-07 — los modales de Configuración se abrían en la esquina.** El overlay llevaba `x-show` **y**
+   `display:flex` en el `style=`. Al mostrar, Alpine **borra** la propiedad `display` del estilo en línea,
+   así que el overlay volvía a `display: block` y el panel aparecía en (16, 16) en vez de centrado. Los
+   botones del pie, con `btn-nodo btn-tertiary` **sin tamaño**: `padding-left: 0px` y sin alto.
+3. **FE-01 — `mobile-enhancements.js` corría en todo el backoffice.** `enhanceTouchNavigation()` recorría
+   cada `button`/`a`/`[role=button]` de la página y, al que midiera menos de 44 px, le escribía
+   `min-height`, `min-width` y `display:inline-flex` **en línea**, también en escritorio: entre 11 y 54
+   controles por página, con los ítems del sidebar pasando de 40 a 44 px. `enhanceModals()` observaba
+   cualquier `[class*="modal"]` y en ≤768 px un `touchstart` sobre el overlay lo escondía sin resolver su
+   promesa ni devolver el foco. `addSwipeSupport()` abría o cerraba el sidebar con **cualquier** swipe
+   horizontal de más de 100 px en ≤1024 px, incluido el de una tabla con scroll.
+4. **FE-10 — la prestación mensual era ilegible en celular.** El contenedor de la grilla era
+   `overflow-x-hidden` y la tabla `table-fixed` con anchos en porcentaje: a 390 px los `<th>` caían a 25-50
+   px y los encabezados se partían letra por letra, sin forma de llegar al resto de las columnas.
+
+## Alcance acordado
+
+- **Entra:** las cuatro fichas completas, en el orden obligatorio del README (FE-06 → FE-07 → FE-01 →
+  FE-10); la migración de los diez modales de Configuración al **arquetipo Modal**, clonando la golden
+  (`programas/becas/config/programa_list.html`) saneada por el paso 3 de la Ola 6; y el rescate del área
+  táctil en CSS, acotado a puntero grueso.
+- **Afuera:** la migración de esas pantallas a las piezas canónicas de encabezado, tabla densa, estado
+  vacío y paginación (FE-11, FE-12, FE-17, PRs 6 y 7), el shell legacy de los formularios de Configuración
+  (FE-20) y el hero de la edición del ciudadano (V5A-NEW-04). Acá solo se corrige lo que el navegador no
+  dibuja. **Conversaciones y el portal quedan afuera a propósito:** la lista D del
+  `anexo-front-clases-inexistentes.md` los deja para el apagado de conversaciones (G1-01 fase 2) y para el
+  portal, y sus `bg-gray-*` siguen en la deuda congelada de `CssCompiladoAlDiaTests`.
+
+## Qué se hizo
+
+**FE-06 — cada clase inexistente se reemplazó por la pieza canónica, nunca agregando la escala al build.**
+El `<html>` pierde su `bg-gray-50` (el canvas lo da `--fondo-principal`); el backdrop del sidebar pasa a
+`bg-black/50`; los diecisiete «Cancelar» de Configuración y el de `rol_form` a
+`btn-nodo btn-tertiary btn-base`, y sus acciones principales crudas (`bg-blue-600`, `bg-indigo-600`,
+`bg-red-600`) a `btn-nodo btn-brand btn-base` y `btn-nodo btn-danger btn-base`; los «Volver» de las tres
+pantallas `*_contactos_simple` a `btn-nodo btn-secondary btn-sm` con `fa-arrow-left`; los fondos `bg-gray-50`
+de los formularios de Legajos a `bg-secondary`; los rieles de progreso a `bg-tertiary`; `border-fg-brand` a
+`border-brand`, `divide-border` a `divide-light` y `badge-nodo` a `badge`. **Ningún template del backoffice
+nombra ya una clase que el build no genere**; la deuda de `CssCompiladoAlDiaTests` baja de 22 clases a 6 y
+cada una queda anotada con su dueño en el comentario del test (Conversaciones, el portal, FE-25 y FE-14, y
+los dos usos de Python de Legajos que son FE-11/FE-12).
+
+**FE-07 — los diez modales clonan la golden.** Overlay
+`x-show + x-cloak + x-becas-modal class="fixed inset-0 z-50 flex items-center justify-center p-4"` sin
+`style=`, backdrop `absolute inset-0 bg-black/50 backdrop-blur-sm`, panel
+`max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden` con `role="dialog"`, `aria-modal` y
+`aria-labelledby`, encabezado y pie por `_modal_header.html` / `_modal_footer.html` —que son los que traen
+el tamaño de los botones— y `becas-modal.js` en `customJS`, que da foco inicial, Tab atrapado, Escape y
+devolución del foco. En el modal de edición, que vive dentro de un `<template x-if>` por fila, la directiva
+toma `modalEditarPk` (truthy mientras hay fila abierta), porque la expresión tiene que ser asignable: con
+`modalEditarPk === 7` el Escape generaría `modalEditarPk === 7 = false`. El `aria-labelledby` del diálogo
+pasa la **pk a texto antes** de concatenar (`{% with pk_texto=obj.pk|stringformat:"s" %}` y recién después
+`|add:pk_texto`): el filtro `add` con un `int` del lado derecho **devuelve cadena vacía** —Django prueba
+`int("titulo-editar-loc-")`, falla, prueba la concatenación, falla y se traga el error—, así que la primera
+versión dejaba `aria-labelledby=""` y `<h3 id="">`, o sea un diálogo sin nombre para el lector de pantalla.
+No se veía en el template: solo en la respuesta renderizada. Los cinco contenedores de subítems del sidebar
+y su `<nav>` dejan el `style=` por clases.
+
+**FE-01 — el script se borró y el área táctil bajó al CSS.** `templates/includes/base.html` ya no lo carga y
+`static/custom/js/mobile-enhancements.js` no existe más: no tenía un solo consumidor de su API
+(`window.MobileEnhancements`, `window.showMobileToast`, `window.isMobile`). Los 44 px los dan ahora
+`static/custom/css/nodo-buttons.css` y el `<style>` de `sidebar/base.html`, los dos detrás de
+`@media (pointer: coarse)`, así que con mouse cada control conserva el alto de su token (medido: sidebar a
+1440 px = 40 px; `btn-nodo` a 390 px con `has_touch` = 44 px). El `display:none !important` de
+`navbar.html`, justificado como «race de Tailwind CDN», se fue junto con sus dos clases hook: `lg:hidden`
+alcanza, porque el shell sirve Tailwind compilado y no el CDN.
+
+**FE-10 — la grilla del mes scrollea.** El contenedor pasa a `overflow-auto` y la tabla lleva
+`min-w-[720px]`. A 390 px el ancho de los `<th>` de servicio pasa de 50 a 101 px y la tabla scrollea en
+horizontal, cosa que recién es usable **después** de FE-01: con el swipe global, arrastrarla abría el
+sidebar.
+
+## Decisiones tomadas
+
+- **D-F01 = No (default del README §2): no hay swipe para abrir el sidebar.** El gesto se retira con el
+  script y no se reimplementa. El sidebar móvil se abre con su botón, que es el único camino que no se
+  dispara solo al scrollear una tabla.
+- **La escala `gray` no entra al build.** Es la decisión del anexo y se sostiene: agregarla haría que
+  `bg-gray-300` «funcione» y con eso volvería a entrar paleta cruda por la ventana. Cada uso se reemplaza
+  por el token o la pieza.
+- **`divide-y divide-light` en vez de `divide-y [&>*]:border-light`.** La ficha proponía la segunda forma;
+  `divide-light` sale del mismo `borderColor.light` del tema, no es un valor arbitrario y produce el mismo
+  resultado. Lo otro que la ficha ofrecía —migrar a `nodo-td`— es FE-12.
+- **La confirmación de borrado de Configuración deja SweetAlert2.** Pasa a `data-confirm-url` →
+  `ModernModal` (arquetipo Confirmación) con `programas/becas/_confirm_js.html`. Fue necesario: el
+  arquetipo Modal prohíbe `Swal.fire` nuevo en la pantalla, y el inventario clasifica SweetAlert2 como
+  «legacy condicionado» solo para Dispositivos, Merenderos y Legajos —Configuración no estaba en esa
+  lista—. De paso, las cinco pantallas dejan de bajar la biblioteca y el `<form>` oculto que la disparaba.
+- **`min-w-[720px]` es una novedad autorizada por la ficha FE-10**, que la pide explícitamente y manda
+  correr `npm run build:tailwind`. Queda con un test que exige que la clase esté en el CSS committeado: si
+  no está, la tabla se vuelve a comprimir sin que falle nada.
+
+## Desvíos de las fichas (code-first)
+
+1. **Un bug que ninguna ficha vio: `nodo-buttons.css` pisaba `.hidden` de Tailwind.** El criterio de
+   verificación de FE-01 —`ModernModal.show({type:'success'})` tiene que dejar `#modal-cancel` en
+   `display:none`— **seguía fallando con el script ya borrado**: `.btn-nodo { display: inline-flex }` tiene
+   la misma especificidad que `.hidden` (0,1,0) y esa hoja se carga después de `tailwind.css`, así que
+   ganaba por orden. El «Cancelar» se veía en cualquier modal de aviso. Se arregló con
+   `.btn-nodo.hidden, .nodo-icon-btn.hidden { display: none }`, el mismo recaudo que `responsive.css` ya
+   toma con `.modal-responsive.hidden`.
+2. **El indicador de WebSocket de `alertas_dashboard` no se convirtió en `badge badge-gray`.** Es un punto
+   de 12 px sin texto, dentro de un flex que ya tiene su etiqueta al lado: un `badge` le pondría padding y
+   forma de píldora. Quedó en `bg-disabled`, el mismo token que usa el indicador gemelo del navbar.
+3. **El `bg-gray-500` de `legajos/reportes.html` no era un botón «Volver».** La ficha lo agrupaba con los
+   de las pantallas `*_contactos_simple`; en el código es el punto de color del estado «otros» de un
+   listado. Quedó en `bg-gray`, que sí es un token declarado en `tailwind.config.js`.
+4. **Se arreglaron dos botones del sistema sin tamaño que la ficha no nombra:** «Filtrar» y «Limpiar» de la
+   barra de filtros de Secretarías y Subsecretarías, con `btn-nodo btn-secondary`/`btn-tertiary` y un
+   `style="height:38px"` que los sostenía a mano. Es exactamente el mismo defecto que FE-07 describe para
+   el pie del modal y estaba en las mismas pantallas.
+5. **`legajos/forms/ciudadanos.py` y `legajos/models/base.py` conservan su `bg-gray-100`.** Son los dos
+   únicos usos vivos de Legajos que quedan fuera del build, y los dos son bloques enteros fuera de canon
+   —el `_FLOWBITE_*_CSS` del formulario del ciudadano y un mapa estado→clase dentro del modelo—, cuyo
+   reemplazo es FE-11/FE-12. Cambiarles la clase suelta los dejaría igual de fuera de canon y escondería
+   el trabajo real. Quedan anotados con nombre y motivo en el comentario de `DEUDA`.
+
+## Verificación
+
+- `manage.py check` sin issues; `manage.py check --deploy` con los 6 avisos preexistentes de entorno;
+  `makemigrations --check --dry-run`: «No changes detected» (el PR no toca modelos).
+- **Ronda 2 de revisión:** los tests de los modales dejaron de mirar el texto del template y pasaron a
+  afirmar sobre la **respuesta renderizada** (`ModalesRenderizadosTests`): cada `aria-labelledby` de la
+  página no está vacío, es único y apunta a un `id` que existe. Era el único lugar donde el bug del `add`
+  se podía ver.
+- Suite completa en un solo proceso (Python 3.12 + Django 5.2.17, igual al CI): **2.965 tests, OK**
+  (25 skips). `--tag performance`: 4 tests, OK. `ruff check .` y `ruff format` sobre lo tocado: limpio.
+- `design_audit.py --ratchet`: **0 hallazgos nuevos** en 41 archivos. `--goldens`: 0 en las 5 goldens.
+  `--arquetipo modal` sobre las cinco pantallas de Configuración: **OK** en las cinco.
+  `compile_templates.py --bloques`: 200 compilados, 0 errores, 0 bloques sin destino.
+- `npm run build:tailwind` corrido y `static/custom/css/tailwind.css` committeado;
+  `CssCompiladoAlDiaTests` en verde con la deuda reducida.
+- **Playwright sobre `runserver` + SQLite, a 1440 y 390 px: 11 de 11 mediciones OK.** Sidebar a 1440 px =
+  40 px; 0 controles con estilo en línea; `#modal-cancel` de un `ModernModal` `success` en `display:none`;
+  panel del modal centrado con desvío de 0,00 px; Tab atrapado; Escape cierra; «Cancelar» con fondo
+  `rgb(255,255,255)` y `padding-left: 16px`; «Volver» con fondo; backdrop en `rgba(0,0,0,0.5)`; `btn-nodo`
+  de 44 px con puntero grueso; grilla de 720 px con scroll horizontal y `<th>` de 101 px.
+
+## Impacto
+
+- **Visual, en todo el backoffice.** Botones que no se veían ahora se ven; el sidebar móvil oscurece el
+  fondo; los modales de Configuración se abren centrados y con el pie bien dimensionado. En escritorio, los
+  controles vuelven a su alto de token: el sidebar baja de 44 a 40 px por ítem.
+- **Menos JS global.** Se van 362 líneas que reescribían estilos de cualquier página y un gesto que
+  secuestraba el scroll horizontal de las tablas. Las cinco pantallas de Configuración dejan de cargar
+  SweetAlert2.
+- **Sin cambios de datos ni de permisos.** Ninguna vista, modelo, migración ni capacidad cambió.
+
+## Archivos tocados
+
+- Shell: `templates/includes/base.html`, `navbar.html`, `sidebar/base.html`, `sidebar/opciones.html`.
+- CSS: `static/custom/css/nodo-buttons.css`, `static/custom/css/tailwind.css` (build).
+- Borrado: `static/custom/js/mobile-enhancements.js`.
+- Configuración: los cinco `*_list.html`, los siete `*_form.html`, los cuatro `*_confirm_delete.html` y los
+  cuatro `programa_wizard_paso*.html`.
+- Legajos: `templates/legajos/alertas_dashboard.html`, `ciudadano_{confirmar,edit,manual}_form.html`,
+  `dashboard_contactos_simple.html`, `derivar_programa.html`, `historial_contactos_simple.html`,
+  `red_contactos_simple.html`, `reportes.html`, `programas/programa_detail.html`.
+- Usuarios: `users/templates/rol/rol_form.html`.
+- Dispositivos: `config/_tipo_detail_content.html`, `config/tipo_list.html`, `legajo/list.html`,
+  `legajo/detail.html`. Merenderos: `prestacion_mensual.html`.
+- Tests: `core/tests/test_front_ola5.py` (nuevo), `configuracion/tests/test_configuracion_modales.py`
+  (nuevo), `programas/tests/test_merenderos.py` y `core/tests/test_design_audit_estructura.py`.
+
+## Pendientes / a definir
+
+1. **Los tres parches de `.claude/` no viajan en este commit:** la sesión no tiene permiso de escritura en
+   esa carpeta. El contenido completo —la fila de inventario «CSS responsive/mobile global» del núcleo, el
+   bloque nuevo de `design/shells.md` y el retoque de `design/componentes/botones_badges.md`— está en el
+   cuerpo del PR y lo aplica el juez. Hasta entonces «Design Agent Contract» queda en rojo: la fila del
+   inventario cita `static/custom/js/mobile-enhancements.js`, que este commit borra.
+2. **Las pantallas de Configuración siguen con su encabezado, su tabla y su estado vacío a mano.** Este PR
+   tocó el bloque modal y nada más. La migración es FE-11, FE-12 y FE-17 (PRs 6 y 7 de la Ola 5).
+3. **`static/custom/css/responsive.css`, `mobile-forms.css`, `mobile-modals.css` y `mobile-tables.css`
+   siguen vivos** y siguen clasificados «duplicado o conflictivo». El script se fue; las cuatro hojas
+   globales no las toca ninguna ficha abierta.
+4. **Conversaciones y el portal conservan sus `bg-gray-*` invisibles.** Están anotados en la lista D del
+   anexo y en la deuda de `CssCompiladoAlDiaTests`; se van con G1-01 fase 2 y con el trabajo del portal.
+5. **El texto de los botones no se tocó.** El «← Volver al Dashboard» de `dashboard_contactos_simple.html`
+   conserva su copy: solo cambió la flecha de texto por el ícono Font Awesome que pide la ficha. Renombrar
+   botones es decisión de producto, no de este PR.
+
+## Reversión
+
+Revertir el commit. Vuelven los cuatro defectos y vuelve `mobile-enhancements.js` con su swipe. No hay nada
+que deshacer en la base: el PR no escribe ni borra una sola fila, no trae migraciones y no cambia ninguna
+vista. **Al revertir hay que volver a correr `npm run build:tailwind`**, porque `tailwind.css` es generado:
+el revert lo deja en el estado anterior, que es el correcto para el markup anterior.

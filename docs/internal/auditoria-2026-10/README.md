@@ -1,5 +1,17 @@
 # Auditoría integral de DATAÑACH (Chaco) — octubre 2026
 
+## Estado al 06-oct-2026 (Ola R: R-15, operación y deploy)
+
+| PR | Cambio | Fichas | Estado | Qué quedó abierto |
+|---|---|---|---|---|
+| R-15 | 153 | OPS-03 ✅ · RED-55 ✅ · OPS-04 ✅ · RED-59 ✅ · OPS-01 ✅ · RED-16 🟡 | ✅ | **Las 6 fichas, 18 h, sin migraciones.** Lo que habilita: el próximo deploy en icore deja de ser a ciegas. (1) El traceback de cada 500 llega a **stdout** —`django.request` propaga a la raíz— y los archivos de `logs/` pasan a depender de `LOG_TO_FILES`, con retención de 14 días (OPS-03); los dos context processors que tragaban toda excepción ahora loguean, **sin cambiar lo que ve el usuario** (RED-55). (2) `/health/ready/` toca la base y, en prd, el cache de sesiones, y devuelve 503; `/health/` no cambia, así que ninguna sonda de ECOM se toca (OPS-04) — se retiró el include de `health_check.urls`, que estaba montado en la misma ruta y era inalcanzable; el paquete **sigue instalado**, porque sacarlo deja dos filas de `django_migrations` sin archivo y una tabla sin modelo, y eso frena el arranque (lo midió la guarda de OPS-01 en el CI de este mismo PR: queda anotado en OPS-13). (3) `deploy_prod.sh` verifica con `/health/ready/` + `migrate --check` + manifest + `GET /login/`, crea `rollback/<ts>` en vez de quedar en detached HEAD y **aborta el rollback automático si el deploy aplicó migraciones** (RED-59). (4) `verificar_esquema_migraciones` corre en el entrypoint y en el paso 8/8 del roundtrip, con el chequeo inverso de RED-15, y el renombre de icore quedó versionado en `core/sql/2026-10-06_renombrar_migraciones_icore.sql` (OPS-01). (5) Cada release deja un tag `release-AAAA.MM.DD-<short>` (RED-16). **Abierto:** la otra mitad de RED-16 —el tag de **imagen** por commit— es D-RED-02 y la aplica ECOM; está en `propuesta-ecom-verify.md` §2, junto con los avisos nuevos §4 (volumen en stdout) y §5 (`/health/ready/`), todo pendiente de que lo mande el PM. El renombre de `django_migrations` en icore lo corre una persona antes del próximo deploy |
+
+## Estado al 06-oct-2026 (Ola 5, PR 4: bugs de front)
+
+| PR | Cambio | Fichas | Estado | Qué quedó abierto |
+|---|---|---|---|---|
+| Ola 5 PR 4 (#603) | 155 | FE-06 ✅ · FE-07 ✅ · FE-01 ✅ · FE-10 ✅ | ✅ | **Las 4 fichas cerradas, sin migración: 14 h.** Los controles que el navegador no dibujaba vuelven a verse: ninguna pantalla en alcance nombra una clase que el build no genera (CLASSDEF P1 en 0 para las 31 de la ficha), el backdrop del sidebar oscurece de verdad (`bg-black/50`) y los «Cancelar» y «Volver» son botones del sistema con su tamaño. Los **diez** modales de Configuración clonan la golden del arquetipo Modal —overlay por clase, `x-becas-modal`, `_modal_header`/`_modal_footer`— y se abren centrados con **0,00 px** de desvío medido. `static/custom/js/mobile-enhancements.js` **se borró**: reescribía estilos en línea sobre cada control de cada página, también en escritorio, y abría el sidebar con cualquier swipe horizontal; el área táctil de 44 px pasó a `nodo-buttons.css` y al `<style>` del sidebar, detrás de `@media (pointer: coarse)` (D-F01 = No: sin swipe). La grilla de la prestación mensual scrollea (`overflow-auto` + `min-w-[720px]`) y a 390 px sus `<th>` pasan de 50 a 101 px. **Playwright a 1440 y 390 px: 11 de 11 mediciones OK.** **Cuatro desvíos, los cuatro code-first:** (a) **un bug que ninguna ficha vio** —el criterio de FE-01 seguía fallando con el script ya borrado porque `nodo-buttons.css` se carga después de Tailwind y `.btn-nodo` le ganaba a `.hidden` por orden: el «Cancelar» de un `ModernModal` de aviso se veía igual—; (b) la confirmación de borrado de Configuración deja SweetAlert2 y pasa a `data-confirm-url` → `ModernModal`, porque el arquetipo Modal prohíbe un `Swal.fire` nuevo y el inventario no habilita SweetAlert2 en ese módulo; (c) el indicador de WebSocket quedó en `bg-disabled` y no en `badge badge-gray` (es un punto de 12 px, no una píldora); (d) `divide-y divide-light` en vez de `divide-y [&>*]:border-light`, que evita un arbitrario nuevo. **Pendiente del juez:** los tres parches de `.claude/` (fila «CSS responsive/mobile global» del núcleo, bloque nuevo de `design/shells.md` y retoque de `design/componentes/botones_badges.md`) van en el cuerpo del PR porque la sesión no tiene permiso de escritura ahí; hasta aplicarlos, «Design Agent Contract» queda rojo —la fila cita el script que este PR borra— |
+
 ## Estado al 06-oct-2026 (Ola 1, PR 5: la cadena de llamadas externas entra en los 60 s)
 
 **SIIS-09 (= PERF-09) cerrada, más los tres MINOR que dejó la revisión del PR 4.** El PR 5 de la Ola 1
@@ -1061,11 +1073,11 @@ Avance: 11 ⬜ (+ R0b-01, 02, 03, 10 ⬜; R0b-12 operativo). SEC-03 (con G1b-01)
 - **Operativo (PM):** R0b-12 correr P-04 ampliado en PRD.
 
 ### 4.7 Front del backoffice → `hallazgos/07-front.md` (28)
-Avance: 9 ✅ · 1 🟡 · 18 ⬜ (FE-13, V5A-NEW-01, V5A-NEW-08 y la parte (a) de V5A-NEW-07 en la Ola 6; FE-02, FE-09 y
-FE-21 en el PR 2 de la Ola 5; FE-04, FE-05 y FE-08 en el PR 3).
+Avance: 13 ✅ · 1 🟡 · 14 ⬜ (FE-13, V5A-NEW-01, V5A-NEW-08 y la parte (a) de V5A-NEW-07 en la Ola 6; FE-02, FE-09 y
+FE-21 en el PR 2 de la Ola 5; FE-04, FE-05 y FE-08 en el PR 3; FE-06, FE-07, FE-01 y FE-10 en el PR 4).
 - **ALTA:** ✅ FE-02 `toastr` (Ola 5, PR 2) · ✅ FE-04 paginación de Geografía · ✅ FE-05 wizard (Ola 5, PR 3) ·
-  FE-06 clases inexistentes.
-- **MEDIA:** FE-01, 07, ✅ 08, ✅ 09, 10, 11, 12, ✅ 13, 17, 18, 19, 20, ✅ 21 · ✅ V5A-NEW-01 · 🟡 V5A-NEW-07.
+  ✅ FE-06 clases inexistentes (Ola 5, PR 4).
+- **MEDIA:** ✅ 01, ✅ 07, ✅ 08, ✅ 09, ✅ 10, 11, 12, ✅ 13, 17, 18, 19, 20, ✅ 21 · ✅ V5A-NEW-01 · 🟡 V5A-NEW-07.
 - **BAJA:** FE-14, 16, 22, 23, 24, 25, 26 · V5A-NEW-04 · V5A-NEW-08.
 
 ### 4.8 Red de seguridad → `hallazgos/08-red-de-seguridad.md` (89, frente del 04-oct-2026)
@@ -1260,8 +1272,13 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
 - **✅ R-13 cerrado el 06-oct-2026 (Cambio 139), 14 h.** El job `Migrate ida y vuelta` corre las migraciones del PR
   contra `mariadb:10.11` (sin tablas de zona horaria) y `mysql:8.0` sobre datos sembrados, las desaplica y las vuelve a
   aplicar; y tapa los dos agujeros del gate estático. Desbloquea la **Ola 3** (G1-04, G1-05, DAT-01).
-- **Quedan 116 h:** R-15 a R-18, R-20 y R-21. El orden sigue siendo el de dependencias: **R-15 y
-  R-16 antes de la Ola 3**, R-21 antes de la Ola 2.
+- **✅ R-15 cerrado el 06-oct-2026 (Cambio 153), 18 h.** Operación y deploy: el traceback de cada 500 llega a stdout
+  (OPS-03) y los context processors dejan rastro (RED-55); `/health/ready/` distingue «vivo» de «sirve» (OPS-04) y
+  `deploy_prod.sh` lo usa, verifica después del deploy y no vuelve el código a ciegas si hubo migraciones (RED-59);
+  `verificar_esquema_migraciones` frena el arranque antes del `1050 Table already exists` (OPS-01); y cada release deja
+  un tag al que volver (RED-16, 🟡: el tag de **imagen** es de ECOM). Habilita **el próximo deploy en icore**.
+- **Quedan 98 h:** R-16 a R-18, R-20 y R-21. El orden sigue siendo el de dependencias: **R-16 antes de la Ola 3**,
+  R-21 antes de la Ola 2.
 - **Objetivo:** poder cambiar código sin romper nada sin enterarse. Que todo lo que las Olas 1 a 7 van a tocar tenga antes
   un test que se ponga rojo si se rompe, que el CI pruebe el motor de producción (MariaDB) y las migraciones en las dos
   direcciones, que ningún gate dependa de la buena voluntad (protección de rama, release que exige CI verde, verificación
@@ -1287,7 +1304,7 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
 | ✅ R-12 | **Contrato de migraciones:** RED-14 (`scripts/check_migraciones.py`, columnas que toleran código viejo), RED-57 (reversas declaradas), RED-18 (reversa UUID), RED-84 (`Reversión` en `--check`), RED-83 (índices redundantes, ratchet) — **#591, Cambio 135** (RED-83 🟡: la migración es de la Ola 4) | 18 | toda migración nueva |
 | ✅ R-13 | **Job `migration-roundtrip`** (Anexo B): RED-17, RED-19 (un solo migrador, expand/contract) — **#596, Cambio 139**; cierra además los dos agujeros que el Cambio 135 le dejó anotados (el `AlterField` que vuelve obligatoria una columna y la edición de una migración ya aplicada). **No es obligatorio todavía**, igual que `Motor real` | 14 | Ola 3 (G1-04, G1-05, DAT-01) |
 | ✅ R-14 | **Gates del release:** RED-24 (`Contratos del repo`), RED-21 (`publish-main` exige CI verde), RED-65, RED-23 (`release-gate.yml` + `/pushGitLabecom` en dos), RED-22 (propuesta a ECOM) — **#575, Cambio 128** (RED-22 y RED-23 🟡: falta el envío a ECOM y copiar los dos comandos a `.claude/`) | 22 | el próximo espejo a ECOM |
-| R-15 | **Operación y deploy** (desde la Ola 3): OPS-03, OPS-04, OPS-01 (ampliados), RED-59 (`deploy_prod.sh`), RED-16 (tag de release), RED-55 | 18 | el próximo deploy en icore |
+| ✅ R-15 | **Operación y deploy** (desde la Ola 3): OPS-03, OPS-04, OPS-01 (ampliados), RED-59 (`deploy_prod.sh`), RED-16 (tag de release), RED-55 — **Cambio 153** (RED-16 🟡: el tag de imagen lo tiene que aplicar ECOM, D-RED-02) | 18 | el próximo deploy en icore |
 | R-16 | **Becas: adjuntos, borrados, atomicidad, padrón:** RED-05, RED-31, RED-35, RED-77, RED-49, RED-50, RED-81, RED-70 | 22 | Ola 3 (DAT-01, BEC-*), SEC-20 |
 | R-17 | **Definición y condiciones (dos repos):** RED-12, RED-38 | 16 | cualquier cambio del constructor |
 | R-18 | **Contratos del backoffice y job `Contratos de API`:** RED-42, RED-39, RED-40, RED-41 (D-RED-04), RED-43, RED-44 | 18 | Ola 2 (capacidades), Ola 5 |
@@ -1302,7 +1319,8 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
   release, antes del próximo espejo a ECOM), **R-11** (Cambio 130, 8 h: el motor real en el CI, que desbloquea R-13)
   y **R-12** (Cambio 135, 18 h: el contrato de migraciones, que habilita R-13 y protege toda migración nueva) y
   **R-13** (Cambio 139, 14 h: la ida y vuelta contra el motor real, que desbloquea la Ola 3).
-  **Quedan 116 h de la Ola R:** R-15 y R-16 antes de la Ola 3; R-21 antes de la Ola 2. El resto puede ir en
+  **R-15** (Cambio 153, 18 h: operación y deploy, que habilita el próximo deploy en icore).
+  **Quedan 98 h de la Ola R:** R-16 antes de la Ola 3; R-21 antes de la Ola 2. El resto puede ir en
   paralelo con otro implementador.
 - **Hecho cuando (verificable):**
   1. `gh api repos/Mkdir-arg/Chaco-Back/rulesets` lista los rulesets de `development` y `main`; un push directo a
@@ -1473,15 +1491,18 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
 ### Ola 5 — Bugs de front y parches v1 de Legajos y Dispositivos
 - **Objetivo:** que las pantallas funcionen (subir archivos, paginar, cascadas, botones visibles) y migrar las pantallas
   fuera de Becas a las piezas canónicas clonando las goldens.
-- **Avance: 24 h de 128, 104 restantes.** PR 1 (DIS-01 + DIS-08) en el Cambio 140, 06-oct-2026: helper de fechas locales,
+- **Avance: 38 h de 128, 90 restantes.** PR 1 (DIS-01 + DIS-08) en el Cambio 140, 06-oct-2026: helper de fechas locales,
   los dos usos de Dispositivos más los tres latentes y cuatro de Conversaciones, y la guardia `test_sql_portable.py`
   (recorre el código con `ast`, allowlist vacía). **PR 2 (FE-02, LEG-02, LEG-03, LEG-04, LEG-05, FE-09, FE-21) en el
   Cambio 150, 06-oct-2026**: las 7 fichas cerradas, sin migración. **PR 3 (FE-04, FE-05, FE-08) en el Cambio 152,
   06-oct-2026**: las 3 fichas cerradas, con una pieza canónica nueva (`components/_form_errores.html`) y FE-05
-  convertida en gate (`compile_templates.py --bloques`). Quedan abiertos los PRs 4 a 8.
+  convertida en gate (`compile_templates.py --bloques`). **PR 4 (FE-06, FE-07, FE-01, FE-10) en el Cambio 155,
+  06-oct-2026**: las 4 fichas cerradas, sin migración; los diez modales de Configuración clonan la golden del
+  arquetipo Modal, `mobile-enhancements.js` se borra y el área táctil baja al CSS con `@media (pointer: coarse)`.
+  Quedan abiertos los PRs 5 a 8.
 - **PRs y orden:** (1) DIS-01 + DIS-08 (helper de fechas locales + guardia de `__date`) 4 h · (2) Legajos: FE-02, LEG-04,
-  LEG-05, LEG-02, LEG-03, FE-09, FE-21 14 h · (3) ✅ Configuración: FE-04, FE-05, FE-08 6 h (Cambio 152) · (4) FE-06 ya; FE-07, FE-01 y FE-10
-  **después de la Ola 6 paso 3** (en ese orden: FE-07 antes o con FE-01; FE-01 antes que FE-10) 14 h · (5) FE-18, FE-19, FE-25, FE-26 8 h · (6) **después de la
+  LEG-05, LEG-02, LEG-03, FE-09, FE-21 14 h · (3) ✅ Configuración: FE-04, FE-05, FE-08 6 h (Cambio 152) · (4) ✅ FE-06,
+  FE-07, FE-01 y FE-10 14 h (Cambio 155) · (5) FE-18, FE-19, FE-25, FE-26 8 h · (6) **después de la
   Ola 6 paso 4:** FE-11, FE-12, FE-17, FE-20, FE-23, FE-24 48 h · (7) FE-22, FE-16, V5A-NEW-04, G2-04, G2-06, V5A-NEW-07 parte (b) (labels de `convocatoria_list` y deuda de
   `_dashboard_panel`) 20 h · (8) *Red de seguridad (04-oct):* RED-33 (tests HTTP de las vistas de Dispositivos y
   Merenderos, con el PR 1), RED-75 (`/set_dark_mode/`, D-RED-07) y segundas partes de RED-42 (URLs literales →

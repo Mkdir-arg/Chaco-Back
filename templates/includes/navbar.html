@@ -32,26 +32,18 @@
         -webkit-text-fill-color: var(--text-heading) !important;
     }
 
-    /* Garantizar ocultamiento del menú mobile en desktop: display:none !important es
-       más robusto que lg:hidden de Tailwind CDN JIT (evita race conditions con Alpine) */
-    @media (min-width: 1024px) {
-        .mobile-menu-btn,
-        .mobile-menu-sep {
-            display: none !important;
-        }
-    }
 </style>
 <div class="sticky top-0 z-20 flex h-16 min-w-0 shrink-0 items-center gap-x-3 border-b px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:pr-8 transition-all duration-300"
      :class="sidebarCollapsed ? 'lg:pl-20' : 'lg:pl-72'"
      style="background: var(--bg-primary); border-color: var(--border-base);">
     <!-- Mobile menu button -->
-    <button type="button" class="-m-2.5 p-2.5 lg:hidden mobile-menu-btn" style="color: var(--text-body);" @click="sidebarOpen = true">
+    <button type="button" class="-m-2.5 p-2.5 lg:hidden" style="color: var(--text-body);" @click="sidebarOpen = true">
         <span class="sr-only">Abrir sidebar</span>
         <i class="fas fa-bars h-6 w-6" aria-hidden="true"></i>
     </button>
 
     <!-- Separator -->
-    <div class="h-6 w-px lg:hidden mobile-menu-sep" aria-hidden="true" style="background-color: var(--border-base);"></div>
+    <div class="h-6 w-px lg:hidden" aria-hidden="true" style="background-color: var(--border-base);"></div>
 
     <div class="flex min-w-0 flex-1 gap-x-3 self-stretch sm:gap-x-4 lg:gap-x-6">
         <!-- Search bar -->

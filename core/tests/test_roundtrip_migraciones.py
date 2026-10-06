@@ -172,6 +172,30 @@ class JobDeRoundtripTests(SimpleTestCase):
         self.assertIn("git worktree add ../base", self.comandos)
         self.assertIn("pull_request.base.sha", self.comandos)
 
+    def test_instala_las_dependencias_de_los_dos_arboles(self):
+        """El job corre `manage.py` en el árbol del PR **y** en el de la base.
+
+        Si el PR retira una dependencia, el árbol de la base la sigue nombrando en
+        `INSTALLED_APPS` y su `migrate` muere con `ModuleNotFoundError` antes de tocar
+        la base: rojo por el motivo equivocado. Pasó de verdad el 06/10/2026, cuando el
+        Cambio 153 retiró `django-health-check` (OPS-04).
+        """
+        self.assertIn("pip install -r ../base/requirements.txt", self.comandos)
+        self.assertIn("pip install -r requirements.txt", self.comandos)
+
+    def test_la_base_se_instala_primero_para_que_ganen_los_pines_del_pr(self):
+        """Lo que el job mide es el código del PR: sus versiones tienen que ser las vivas."""
+        self.assertLess(
+            self.comandos.index("pip install -r ../base/requirements.txt"),
+            self.comandos.index("pip install -r requirements.txt"),
+        )
+
+    def test_el_arbol_de_la_base_existe_antes_de_instalar(self):
+        """Leer `../base/requirements.txt` antes del `git worktree add` sería un no-op."""
+        nombres = [paso.get("name") for paso in self.job["steps"]]
+
+        self.assertLess(nombres.index("Árbol de la base del PR"), nombres.index("Install Python dependencies"))
+
     def test_el_filtro_por_rutas_vive_adentro_del_job(self):
         """RED-20: con `paths:` en el trigger el check no reporta y no puede ser obligatorio."""
         flujo = _cargar_workflow("pr-performance.yml")

@@ -1,6 +1,6 @@
 {% load static %}
 <!DOCTYPE html>
-<html lang="es" class="h-full overflow-x-hidden bg-gray-50">
+<html lang="es" class="h-full overflow-x-hidden">
     <head>
         <meta charset="UTF-8" />
         <meta http-equiv="X-UA-Compatible" content="IE=edge" />
@@ -169,9 +169,6 @@
         <!-- CSRF Token para AJAX -->
         {% csrf_token %}
         
-        <!-- Mobile Enhancements Script -->
-        <script src="{% static 'custom/js/mobile-enhancements.js' %}"></script>
-
         <!-- NODO Toast: lee los mensajes de Django y expone window.toast() -->
         <script src="{% static 'custom/js/nodo-toast.js' %}"></script>
         

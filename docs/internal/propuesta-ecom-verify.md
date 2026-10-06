@@ -1,8 +1,9 @@
 # Propuesta a ECOM: etapa `verify` y tag inmutable en el pipeline de DATAÑACH
 
-**Estado:** redactada el 05/10/2026 (PR R-14, Cambio 128). **Falta enviarla**: la lleva
-el PM. Responde a la pregunta abierta **H-12** de la auditoría de octubre 2026 y a las
-fichas **RED-22** y **RED-16**.
+**Estado:** redactada el 05/10/2026 (PR R-14, Cambio 128), ampliada el 06/10/2026 con los
+puntos 4 y 5 (PR R-15, Cambio 153). **Falta enviarla**: la lleva el PM. Responde a la
+pregunta abierta **H-12** de la auditoría de octubre 2026 y a las fichas **RED-22**,
+**RED-16**, **OPS-03** y **OPS-04**.
 
 Este documento es **una propuesta**, no un cambio. `.gitlab-ci.yml` lo mantiene ECOM;
 nuestra copia en el repo existe solo para que viaje en el release —sin ese archivo
@@ -82,11 +83,51 @@ Con eso un rollback es apuntar ArgoCD a `…/datanach/main:${CI_COMMIT_SHORT_SHA
 versión anterior: minutos en vez de un ciclo completo de build. No cambia nada del
 deploy normal, que sigue mirando `:latest`.
 
+**Nuestra mitad ya está hecha** (Cambio 153): desde el 06/10/2026, `publish-main.yml`
+etiqueta cada release con `release-AAAA.MM.DD-<short>` sobre el commit de `main`, así que
+«la release anterior» tiene nombre y SHA. Lo que falta es que la imagen de ellos también
+los tenga: sin eso, el SHA sirve para reconstruir, no para volver en segundos.
+
 ### 3. Dump de la base antes de cada deploy de `main` (H-11)
 
 Independiente de lo anterior y más urgente: hoy no hay respaldo tomado por el pipeline
 antes de un deploy que puede traer migraciones. El runbook de rollback (Anexo D de
 `processes.md`) lo supone.
+
+### 4. Aviso: desde la próxima release, los tracebacks salen por stdout (OPS-03)
+
+No requiere que ellos hagan nada; es un cambio nuestro que **cambia el volumen de los
+logs de los pods** y conviene que lo sepan antes y no por una alerta de su stack.
+
+Hasta ahora, el traceback de cada error 500 iba **solo** a `logs/<fecha>/error.log`
+dentro del contenedor, que en Kubernetes es efímero: `kubectl logs` mostraba únicamente
+la línea `core.requests … status=500`, sin la excepción. Diagnosticar cualquier incidente
+en testing o en producción era imposible sin entrar al pod antes de que se reciclara.
+
+Desde el Cambio 153, `django.request` propaga a la salida estándar. Concretamente:
+
+- se agrega **una traza por cada 500 y por cada 4xx registrado**, no un log por request
+  (el `core.requests … status=…` por request ya existía y no cambia);
+- en un sistema sano eso es un puñado de líneas por día; durante un incidente, tantas
+  como errores haya;
+- los archivos en disco quedan **apagados por defecto** (`LOG_TO_FILES`), así que en sus
+  pods no se escribe nada en el filesystem: antes sí, y nadie lo leía.
+
+Si su stack de logs cobra por volumen o tiene un límite por pod, es el momento de
+decirlo.
+
+### 5. Aviso: `/health/ready/` existe; `/health/` no cambia (OPS-04)
+
+Las sondas actuales apuntan a `/health/`, que sigue respondiendo exactamente igual: 200
+sin tocar la base. **No hay que cambiar ningún manifiesto.**
+
+Lo nuevo es `/health/ready/`, que sí consulta la base y el cache de sesiones y devuelve
+**503** con un JSON `{"db": …, "cache": …}` cuando algo no responde. Sirve para
+monitoreo externo y para verificar un deploy.
+
+**No conviene usarla como `livenessProbe`**: con una sola base para todos los pods, una
+base lenta los reiniciaría a todos a la vez. Como `readinessProbe` es decisión de ellos;
+nuestra recomendación (D-O04) es dejarla solo para monitoreo.
 
 ## Si ECOM no lo acepta
 
