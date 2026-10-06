@@ -93,7 +93,8 @@ class QueryOptimizer:
 
         Por rango local y no por ``creado__date__gte``: ese lookup se traduce a
         ``CONVERT_TZ`` y en ECOM —MariaDB sin tablas de zona horaria— devuelve NULL
-        (DIS-01), además de impedir el uso del índice de ``creado``.
+        (DIS-01), además de dejar la condición no sargable: envuelta en ``CONVERT_TZ``
+        ningún índice por ``creado`` se podría usar.
         """
         cutoff_date = timezone.localdate() - timedelta(days=days)
         desde = inicio_del_dia_local(cutoff_date)

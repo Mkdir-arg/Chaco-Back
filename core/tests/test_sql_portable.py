@@ -32,8 +32,9 @@ LOOKUPS = ("date", "year", "iso_year", "month", "day", "week", "week_day", "iso_
 #: Comparadores que pueden ir colgados del lookup (``fecha__date__gte``).
 COMPARADORES = ("gt", "gte", "lt", "lte", "exact", "in", "range", "isnull")
 
+#: El ``-`` inicial de un ``order_by("-creado__date")`` es parte del lookup, no del campo.
 LOOKUP_RE = re.compile(
-    r"(?:^|__)(?P<campo>[a-z_][a-z0-9_]*)__(?:%s)(?:__(?:%s))?$" % ("|".join(LOOKUPS), "|".join(COMPARADORES))
+    r"(?:^-?|__)(?P<campo>[a-z_][a-z0-9_]*)__(?:%s)(?:__(?:%s))?$" % ("|".join(LOOKUPS), "|".join(COMPARADORES))
 )
 
 #: Funciones de base de datos que truncan o extraen una parte de la fecha.
@@ -191,12 +192,13 @@ class SqlPortableTests(SimpleTestCase):
             "Usá core.utils_fechas (rango [inicio, fin) en hora local):\n" + "\n".join(hallazgos),
         )
 
-    def test_la_guardia_detecta_las_tres_formas(self):
+    def test_la_guardia_detecta_las_cuatro_formas(self):
         """Pin invertido: sin esto, el test de arriba podría estar mirando nada.
 
-        Son las tres formas con las que el bug volvió a entrar históricamente: el
-        lookup directo, el que llega por un ``Q``/``**kwargs`` armado con un f-string
-        y la función de truncado.
+        Son las formas con las que el bug entra: el lookup directo, el que llega por
+        un ``Q``/``**kwargs`` armado con un f-string, la función de truncado y el
+        ``order_by`` descendente, donde el ``-`` va pegado al campo (y por eso la
+        primera versión de la guardia lo dejaba pasar).
         """
         codigo = (
             "from django.db.models.functions import TruncWeek\n"
@@ -204,12 +206,15 @@ class SqlPortableTests(SimpleTestCase):
             "    qs.filter(fecha_ingreso__date=hoy)\n"
             '    qs.filter(**{f"{prefijo}fecha_egreso__date__gte": desde})\n'
             '    qs.annotate(semana=TruncWeek("creado"))\n'
+            '    qs.order_by("-fecha_contacto__date")\n'
         )
         hallazgos = hallazgos_en(codigo)
-        self.assertEqual(len(hallazgos), 3, hallazgos)
+        self.assertEqual(len(hallazgos), 4, hallazgos)
         self.assertIn("fecha_ingreso__date", hallazgos[0])
         self.assertIn("fecha_egreso__date__gte", hallazgos[1])
         self.assertIn("TruncWeek", hallazgos[2])
+        self.assertIn("-fecha_contacto__date", hallazgos[3])
+        self.assertIn("(fecha_contacto es DateTimeField)", hallazgos[3])
 
     def test_la_guardia_no_molesta_sobre_un_datefield_ni_con_el_pragma(self):
         """``TruncMonth`` sobre un ``DateField`` compila a ``DATE_FORMAT``: es seguro.

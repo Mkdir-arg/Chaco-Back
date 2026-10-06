@@ -11,9 +11,11 @@ preguntar «qué pasó el día X en hora argentina» hay dos caminos:
   Ya costó tres incidentes (Cambios 64 y 66, y DIS-01).
 * Un rango semiabierto ``[inicio_del_día_local, inicio_del_día_siguiente_local)``
   calculado **en Python**: el motor solo compara la columna contra dos parámetros,
-  usa el índice y no depende de ninguna tabla del servidor. Es lo que hace este
-  módulo, y es lo que ya hacían ``dashboard_becas._serie_semanal`` y
-  ``dashboard.api_views.tendencias_datos`` a mano.
+  así que no depende de ninguna tabla del servidor y la condición es **sargable**
+  —puede apoyarse en el índice de esa columna, donde lo haya; envuelta en
+  ``CONVERT_TZ`` no, ni existiendo—. Es lo que hace este módulo, y es lo que ya
+  hacían ``dashboard_becas._serie_semanal`` y ``dashboard.api_views.tendencias_datos``
+  a mano.
 
 La guardia que impide volver atrás es ``core/tests/test_sql_portable.py``; la forma
 del SQL compilado la fija ``core/tests/test_sql_motor_real.py`` y la ejecución real

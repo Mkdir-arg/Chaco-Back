@@ -41,7 +41,10 @@ def _movimientos_en_periodo(desde, hasta, *, prefijo=""):
     había acá se traducía a ``CONVERT_TZ`` y en ECOM —MariaDB sin tablas de zona
     horaria— devolvía NULL, así que el listado y los tres exports con período salían
     vacíos (DIS-01). El rango ``[00:00 del desde, 00:00 del día siguiente al hasta)``
-    compara la columna pelada y además usa el índice.
+    compara la columna pelada, así que la consulta pasa a ser sargable: hoy
+    ``Admision`` no tiene índice por ``fecha_ingreso``/``fecha_egreso`` —sus índices
+    son por ``estado``— y crearlo es trabajo de la Ola 4, pero con el ``__date`` el
+    índice no se podría usar ni existiendo.
     """
     ingreso = q_rango_local(f"{prefijo}fecha_ingreso", desde, hasta)
     egreso = q_rango_local(f"{prefijo}fecha_egreso", desde, hasta)
