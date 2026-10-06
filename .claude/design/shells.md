@@ -37,6 +37,13 @@ Se hereda; no se recrean el sidebar ni sus offsets.
 - El shell ya carga: el modal global de confirmaciones (`ModernModal`, `#modal-overlay`), los
   toasts, el `<template>` de los filtros dinámicos (`templates/components/list_filters.html`) y
   `static/custom/js/dynamic_list_filters.js`.
+- **No carga ningún script que reescriba estilos de la página.** El shell no toca el tamaño ni el
+  `display` de los controles: el área táctil de 44 px la dan `static/custom/css/nodo-buttons.css` y el
+  `<style>` de `templates/includes/sidebar/base.html`, los dos detrás de `@media (pointer: coarse)`, así
+  que con mouse cada control conserva el alto de su token (ítem del sidebar: 40 px).
+- El `<html>` no lleva utilidad de fondo: el canvas sale de `--fondo-principal`.
+- El backdrop del sidebar móvil es `bg-black/50`; el botón de menú y su separador se esconden en
+  escritorio con `lg:hidden` y nada más, sin `!important` ni clases hook.
 
 ---
 

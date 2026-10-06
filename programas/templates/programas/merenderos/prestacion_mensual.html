@@ -28,8 +28,11 @@
     {% csrf_token %}
     <input type="hidden" name="anio" value="{{ anio }}">
     <input type="hidden" name="mes" value="{{ mes }}">
-    <div class="h-[clamp(12rem,calc(100dvh-31rem),28rem)] overflow-x-hidden overflow-y-auto" style="contain: paint;">
-      <table class="w-full table-fixed text-center text-sm">
+    {% comment %}FE-10: el contenedor scrollea en los dos ejes y la tabla tiene ancho
+    mínimo. Antes el eje horizontal estaba tapado y, con `table-fixed`, a 390 px los
+    encabezados caían a 25-50 px y se partían letra por letra.{% endcomment %}
+    <div class="h-[clamp(12rem,calc(100dvh-31rem),28rem)] overflow-auto" style="contain: paint;">
+      <table class="w-full min-w-[720px] table-fixed text-center text-sm">
         <colgroup>
           <col class="w-[7%]">
           {% for servicio, etiqueta in servicios %}<col class="w-[14%]">{% endfor %}

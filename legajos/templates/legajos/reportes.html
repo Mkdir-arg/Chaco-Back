@@ -82,7 +82,7 @@
                             {% if estado.codigo == 'ABIERTO' %}bg-green-500
                             {% elif estado.codigo == 'EN_SEGUIMIENTO' %}bg-blue-500
                             {% elif estado.codigo == 'DERIVADO' %}bg-yellow-500
-                            {% else %}bg-gray-500{% endif %}"></div>
+                            {% else %}bg-gray{% endif %}"></div>
                         <span class="text-sm text-gray-700">{{ estado.label }}</span>
                     </div>
                     <span class="text-sm font-semibold text-gray-900">{{ estado.total }}</span>

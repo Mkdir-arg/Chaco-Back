@@ -62,10 +62,17 @@
     /* Colapsado: el contador se reduce a un punto 7px (rojo si inactivo, blanco si activo) */
     .ds-snav .nav-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--bg-danger); }
     .ds-snav [aria-current="page"] .nav-dot { background: #fff; }
+
+    /* Área táctil mínima, solo con puntero grueso (FE-01). Antes la imponía
+       `mobile-enhancements.js` en todos los anchos: con mouse los ítems pasaban
+       de 40 a 44 px. */
+    @media (pointer: coarse) {
+        .ds-snav a, .ds-snav button { min-height: 44px; }
+    }
 </style>
 
 <!-- Backdrop móvil. El panel se renderiza una sola vez y cambia de presentación por breakpoint. -->
-<div class="fixed inset-0 z-40 bg-gray-900/80 lg:hidden"
+<div class="fixed inset-0 z-40 bg-black/50 lg:hidden"
      x-show="sidebarOpen"
      style="display: none;"
      x-transition:enter="transition-opacity ease-linear duration-300"

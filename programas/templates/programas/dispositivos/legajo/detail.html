@@ -128,7 +128,7 @@
     {# ===== SOLAPA: Historial ===== #}
     <div x-show="tab==='historial'" x-cloak class="p-6">
       <h2 class="text-lg font-bold text-heading">Historial de validación</h2>
-      {% if trazas %}<ol class="mt-4 space-y-3">{% for traza in trazas %}<li class="border-l-2 border-fg-brand pl-4"><p class="font-semibold text-heading">{{ traza.accion }}</p><p class="text-sm text-body-subtle">{{ traza.creado_en|date:'d/m/Y H:i' }} · {{ traza.usuario|default:'Sistema' }}</p><p class="text-sm text-body-subtle">{{ traza.estado_anterior_legible }} → {{ traza.estado_nuevo_legible }}</p>{% if traza.detalle_legible %}<p class="mt-1 text-sm text-body">{{ traza.detalle_legible }}</p>{% endif %}</li>{% endfor %}</ol>{% else %}<p class="mt-2 text-sm text-body-subtle">Todavía no hay movimientos registrados.</p>{% endif %}
+      {% if trazas %}<ol class="mt-4 space-y-3">{% for traza in trazas %}<li class="border-l-2 border-brand pl-4"><p class="font-semibold text-heading">{{ traza.accion }}</p><p class="text-sm text-body-subtle">{{ traza.creado_en|date:'d/m/Y H:i' }} · {{ traza.usuario|default:'Sistema' }}</p><p class="text-sm text-body-subtle">{{ traza.estado_anterior_legible }} → {{ traza.estado_nuevo_legible }}</p>{% if traza.detalle_legible %}<p class="mt-1 text-sm text-body">{{ traza.detalle_legible }}</p>{% endif %}</li>{% endfor %}</ol>{% else %}<p class="mt-2 text-sm text-body-subtle">Todavía no hay movimientos registrados.</p>{% endif %}
     </div>
   </div>
 </div>

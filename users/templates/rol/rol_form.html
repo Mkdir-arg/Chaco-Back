@@ -32,7 +32,7 @@
                     <label class="block text-sm font-medium text-gray-700 mb-2">Programa</label>
                     {% if form.programa_fijo %}
                         <input type="hidden" name="programa" value="{{ form.programa_fijo.pk }}">
-                        <div class="px-3 py-2 bg-gray-100 rounded-md text-gray-700"><i class="fas fa-folder mr-1"></i>{{ form.programa_fijo.nombre }}</div>
+                        <div class="px-3 py-2 bg-tertiary rounded-md text-body"><i class="fas fa-folder mr-1"></i>{{ form.programa_fijo.nombre }}</div>
                     {% else %}
                         {{ form.programa }}
                     {% endif %}
@@ -106,7 +106,7 @@
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-3 items-start">
                     {% for modulo in tab.modulos %}
                     <div class="border border-gray-200 rounded-lg" x-data="{ open: true }" data-modulo="{{ modulo.modulo }}">
-                        <div class="flex items-start justify-between gap-2 px-4 py-3 bg-gray-50 rounded-t-lg">
+                        <div class="flex items-start justify-between gap-2 px-4 py-3 bg-secondary rounded-t-lg">
                             <label class="flex items-start gap-2 text-sm font-medium text-gray-800 cursor-pointer min-w-0">
                                 <input type="checkbox" class="select-all rounded border-gray-300 shrink-0 mt-0.5" data-modulo="{{ modulo.modulo }}">
                                 <span class="min-w-0">{{ modulo.label }}
@@ -141,8 +141,8 @@
         </div>
 
         <div class="flex justify-end space-x-3 mt-6">
-            <a href="{% url 'users:roles' %}" class="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-lg">Cancelar</a>
-            <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg">Guardar</button>
+            <a href="{% url 'users:roles' %}" class="btn-nodo btn-tertiary btn-base">Cancelar</a>
+            <button type="submit" class="btn-nodo btn-brand btn-base">Guardar</button>
         </div>
     </form>
 </div>
@@ -324,7 +324,7 @@ document.addEventListener('DOMContentLoaded', function () {
             searchEmpty.classList.toggle('hidden', matches.length > 0);
             matches.forEach(function (item) {
                 var clone = item.labelEl.cloneNode(true);
-                clone.classList.add('p-1', 'rounded', 'hover:bg-gray-50');
+                clone.classList.add('p-1', 'rounded', 'hover:bg-secondary');
                 // Sincronizar el checkbox clonado con el original
                 var cloneChk = clone.querySelector('input[type=checkbox]');
                 if (cloneChk) {

@@ -16,8 +16,8 @@
             <span class="font-medium text-indigo-600">Paso {{ paso_actual }} de {{ total_pasos }}</span>
             — Capacidades y cupo
         </div>
-        <div class="w-full bg-gray-200 rounded-full h-2">
-            <div class="bg-indigo-600 h-2 rounded-full" style="width: {% widthratio paso_actual total_pasos 100 %}%"></div>
+        <div class="w-full bg-tertiary rounded-full h-2">
+            <div class="bg-brand h-2 rounded-full" style="width: {% widthratio paso_actual total_pasos 100 %}%"></div>
         </div>
     </div>
 
@@ -59,11 +59,11 @@
 
             <div class="flex justify-between mt-8">
                 <a href="{% if es_edicion %}{% url 'configuracion:programa_editar_paso2' programa.pk %}{% else %}{% url 'configuracion:programa_wizard_paso2' %}{% endif %}"
-                   class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm">
+                   class="btn-nodo btn-tertiary btn-base">
                     <i class="fas fa-arrow-left mr-1"></i> Anterior
                 </a>
                 <button type="submit"
-                        class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg text-sm font-medium">
+                        class="btn-nodo btn-brand btn-base">
                     Siguiente <i class="fas fa-arrow-right ml-1"></i>
                 </button>
             </div>
