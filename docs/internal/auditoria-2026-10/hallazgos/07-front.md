@@ -73,7 +73,7 @@ corrigieron: desaparecieron** con el default B de LEG-03, como pedía la ficha.
 - **Propuesta:** en `configuracion/templates/configuracion/{provincia,municipio,localidad}_list.html`, al pie de la card de la tabla, `{% include "components/_paginacion.html" with page_obj=page_obj entidad="localidad" entidad_plural="localidades" %}` (entidad según pantalla); en `configuracion/views/geografia.py`, cada `form_invalid` (46, 69, 118…) arma el contexto con el mismo queryset paginado (helper `_contexto_lista(request, form, **extra)` con `Paginator(qs, 20).get_page(request.GET.get("page"))`).
 - **Tests:** con 21 localidades, la página 1 tiene `?page=2`; un POST inválido devuelve `page_obj`.
 
-**Resolución:** ✅ Resuelto en el PR #NNN (Cambio 152), 06-10-2026 — `{% include "components/_paginacion.html" %}`
+**Resolución:** ✅ Resuelto en el PR #600 (Cambio 152), 06-10-2026 — `{% include "components/_paginacion.html" %}`
 al pie de la card de las tres pantallas, en la misma posición que la golden de listado, y
 `configuracion/views/geografia.py` con un `_queryset(modelo)` único para el `ListView` y para los seis
 `form_invalid`, más un `_contexto_lista(...)` que arma el contexto paginado. **Desvío de la propuesta:**
@@ -91,7 +91,7 @@ reintento tras un error salía por `nombre`.
 - **Propuesta:** `{% block extra_js %}` → `{% block customJS %}`; en el `fetch`, `if (!r.ok) throw new Error()` y `.catch(() => window.toast('error', 'No se pudieron cargar las subsecretarías'))`; convertir `poc/herramientas/bloques_sin_destino.py` en un flag `--bloques` de `scripts/compile_templates.py` que falle si un hijo define un bloque de primer nivel que ningún ancestro declara.
 - **Tests:** render del paso 1 contiene `ajax/load-subsecretarias`; Playwright: elegir una secretaría → al menos 1 opción de subsecretaría.
 
-**Resolución:** ✅ Resuelto en el PR #NNN (Cambio 152), 06-10-2026 — `{% block extra_js %}` pasa a
+**Resolución:** ✅ Resuelto en el PR #600 (Cambio 152), 06-10-2026 — `{% block extra_js %}` pasa a
 `{% block customJS %}`, el `fetch` corta con `if (!r.ok) throw` y el `catch` avisa con
 `window.toast('error', 'No se pudieron cargar las subsecretarías')` además de dejar el texto en el select.
 La PoC `poc/herramientas/bloques_sin_destino.py` se convirtió en el flag **`--bloques` de
@@ -144,7 +144,7 @@ entradas muertas. **El wizard no se rediseñó:** D4 (Cambio 129) dice que ese a
 - **Propuesta:** `templates/components/_form_errores.html`: si hay `form.non_field_errors`, `<div class="mb-4 rounded-lg bg-danger-soft border border-danger-subtle p-4 text-sm" role="alert"><strong class="text-heading">Revisá el formulario</strong>` + cada error `<p class="text-body mt-1">{{ e }}</p>` (sin el `<ul class="errorlist">`). Incluirlo en los 5 modales de Geografía y Secretarías, `programa_wizard_paso1.html` y `paso4.html`, `legajos/ciudadano_{edit,manual,confirmar}_form.html`, `derivar_programa.html` y `programas/dispositivos/legajo/form.html`; migrar `segmento_form.html:15-20` (golden de formulario: actualizar su ficha en el mismo PR, ver anexo del agente). Es pieza nueva: registrar en el inventario canónico (`check_design_agent.py`).
 - **Test:** POST de una localidad duplicada → el texto del error aparece.
 
-**Resolución:** ✅ Resuelto en el PR #NNN (Cambio 152), 06-10-2026 — `templates/components/_form_errores.html`
+**Resolución:** ✅ Resuelto en el PR #600 (Cambio 152), 06-10-2026 — `templates/components/_form_errores.html`
 es pieza canónica nueva, con contrato en la cabecera, test propio, ficha y fila de inventario (paso 7 del
 protocolo del agente). La incluyen los **diez** modales de Geografía y Secretarías —en el de edición,
 acotada a la fila que falló, porque el `form` del contexto es uno solo—, los **cuatro** pasos del wizard

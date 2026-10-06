@@ -213,6 +213,37 @@ class ErroresNoDeCampoTests(TestCase):
         self.assertContains(respuesta, "Revisá el formulario")
         self.assertContains(respuesta, respuesta.context["form"].non_field_errors()[0])
 
+    def test_el_error_de_edicion_no_se_filtra_al_modal_de_alta(self):
+        """El `form` del contexto es uno solo: el error tiene que salir una sola vez.
+
+        Sin acotar el include del modal de alta, «Revisá el formulario» quedaba también
+        dentro de «Nueva localidad»: oculto hasta que el usuario cerraba la edición y
+        abría el alta, y ahí aparecía un error que no era de ese formulario.
+        """
+        otra = Localidad.objects.create(nombre="Fontana", municipio=self.municipio)
+
+        respuesta = self.client.post(
+            reverse("configuracion:localidad_editar", args=[otra.pk]),
+            {"nombre": "Barranqueras", "municipio": self.municipio.pk},
+        )
+
+        html = respuesta.content.decode()
+        self.assertEqual(respuesta.context["abrir_modal_pk"], otra.pk)
+        self.assertEqual(html.count("Revisá el formulario"), 1)
+        self.assertEqual(html.count(respuesta.context["form"].non_field_errors()[0]), 1)
+        # El único bloque que lo trae es el modal de edición de esa fila.
+        self.assertLess(html.index("Revisá el formulario"), html.index("titulo-crear-localidad"))
+
+    def test_el_error_del_alta_sale_una_vez_y_en_el_modal_de_alta(self):
+        respuesta = self.client.post(
+            reverse("configuracion:localidad_crear"),
+            {"nombre": "Barranqueras", "municipio": self.municipio.pk},
+        )
+
+        html = respuesta.content.decode()
+        self.assertEqual(html.count("Revisá el formulario"), 1)
+        self.assertGreater(html.index("Revisá el formulario"), html.index("titulo-crear-localidad"))
+
     def test_el_wizard_muestra_el_error_de_la_lista_de_espera_sin_cupo(self):
         """`ProgramaPaso3Form.clean()` es el único error no de campo vivo del wizard."""
         self.client.force_login(usuario_con("programa.configurar", username="cfg-wizard-errores"))

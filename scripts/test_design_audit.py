@@ -77,27 +77,49 @@ class RatchetTests(unittest.TestCase):
         self.assertEqual([f[2] for f in hallazgos], ["RAWPALETTE"])
         self.assertEqual(hallazgos[0][1], 2)
 
-    def test_la_base_se_lee_en_utf8(self) -> None:
+    # Un template real cuyos bytes UTF-8 incluyen 0x90, que en cp1252 **no existe**:
+    # ahí es donde `git show` sin `encoding` explícito revienta. No alcanza con un
+    # archivo "con tildes" (`á` es C3 A1 y cp1252 lo decodifica mal pero no falla).
+    TEMPLATE_NO_CP1252 = "programas/templates/programas/merenderos/detail.html"
+    BYTES_SIN_CP1252 = {0x81, 0x8D, 0x8F, 0x90, 0x9D}
+
+    def _template_de_referencia(self) -> Path:
+        ruta = design_audit.REPO / self.TEMPLATE_NO_CP1252
+        if not ruta.exists():
+            self.skipTest(f"falta {self.TEMPLATE_NO_CP1252}")
+        crudo = ruta.read_bytes()
+        # Si el archivo deja de tener uno de esos bytes, el test deja de probar nada:
+        # mejor que falle acá y se elija otro de la lista que pasar en verde vacío.
+        self.assertTrue(
+            self.BYTES_SIN_CP1252 & set(crudo),
+            f"{self.TEMPLATE_NO_CP1252} ya no tiene bytes indecodificables en cp1252: "
+            "elegir otro template para este test",
+        )
+        return ruta
+
+    def test_git_devuelve_el_contenido_aunque_no_se_pueda_decodificar_en_cp1252(self) -> None:
         """Sin `encoding` explícito, en Windows `git show` se decodifica en cp1252.
 
-        El hilo lector de `subprocess` moría con `UnicodeDecodeError` en cuanto el
-        template tenía una tilde, `stdout` volvía vacío y el ratchet daba por nueva
-        **toda** la deuda vieja de ese archivo. En el CI (UTF-8) no se veía.
+        El hilo lector de `subprocess` moría con `UnicodeDecodeError`, `stdout` volvía
+        **vacío** y el ratchet daba por nueva toda la deuda vieja de ese archivo. En el
+        CI (UTF-8) no se veía.
         """
-        codigo, salida = design_audit._git(["log", "-1", "--format=%s"])
+        ruta = self._template_de_referencia()
+
+        codigo, salida = design_audit._git(["show", f"HEAD:{self.TEMPLATE_NO_CP1252}"])
 
         self.assertEqual(codigo, 0)
-        self.assertNotEqual(salida.strip(), "")
+        self.assertEqual(salida.replace("\r\n", "\n"), ruta.read_bytes().decode("utf-8").replace("\r\n", "\n"))
 
-    def test_la_base_de_un_template_con_tildes_no_vuelve_vacia(self) -> None:
-        rel = "configuracion/templates/configuracion/localidad_list.html"
-        if not (design_audit.REPO / rel).exists():
-            self.skipTest("falta el template de referencia")
+    def test_la_base_de_ese_template_no_vuelve_vacia(self) -> None:
+        self._template_de_referencia()
 
-        base = design_audit.contenido_en("HEAD", rel)
+        base = design_audit.contenido_en("HEAD", self.TEMPLATE_NO_CP1252)
 
         self.assertIsNotNone(base)
-        self.assertIn("Localidades", base)
+        self.assertNotEqual(base.strip(), "")
+        # Y con la base entera, el ratchet no inventa hallazgos nuevos sobre sí misma.
+        self.assertEqual(design_audit.nuevos(base, base, self.TEMPLATE_NO_CP1252), [])
 
 
 class GoldensTests(unittest.TestCase):

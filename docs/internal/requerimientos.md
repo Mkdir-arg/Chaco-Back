@@ -19833,8 +19833,7 @@ Tres defectos del mismo módulo, los tres medidos en navegador:
   `non_field_errors`, pero vuelcan `form.errors.items`, que **incluye la clave `__all__`**: el error no de
   campo ahí **sí se ve** hoy. Agregarle la pieza encima lo mostraría dos veces, y reemplazar el resumen
   borraría los errores de campo, que en esas tres pantallas no se renderizan junto a su control. La
-  migración de esas pantallas al arquetipo Formulario es FE-11/FE-12. Queda un test de caracterización que
-  fija el comportamiento actual, para que nadie lo rompa sin enterarse.
+  migración de esas pantallas al arquetipo Formulario es FE-11/FE-12.
 - **`design_audit --ratchet` leía la base del ratchet en cp1252.** `_git` corría `git show` con `text=True`
   sin `encoding`: en Windows el hilo lector de `subprocess` moría con `UnicodeDecodeError` en cuanto el
   template tenía una tilde, `stdout` volvía vacío y el ratchet daba por **nueva toda la deuda vieja** de ese
