@@ -325,6 +325,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 151 | El catálogo vacío de SIIS deja de bloquear Becas, y cuatro reglas que se decidían con datos viejos | Becas · catálogo SIIS · alta de beneficiarios (payload) · cupo y lista de espera · proceso masivo | `#siis` `#cupos` `#datos` `#relevamientos` | Auditoría integral oct-2026 — SIIS-06, SIIS-11, SIIS-12, BEC-01, BEC-02 y el resto de BEC-21 (Ola 1 «Integridad SIIS», PR 4) | 06/10/2026 | 🟢 **Hecho** | No requiere |
 | 152 | Configuración: la fila 21 deja de ser inalcanzable, el wizard vuelve a filtrar subsecretarías y los errores no de campo se ven | Configuración (geografía, secretarías, wizard de programas) · Transversal (pieza de errores no de campo, gate de bloques sin destino) · Legajos y Dispositivos (un formulario cada uno) | `#ui` `#metodo` | Auditoría integral oct-2026 — fichas FE-04, FE-05 y FE-08 (Ola 5, PR 3) | 06/10/2026 | 🟢 **Hecho** | No requiere |
 | 153 | El deploy deja de ser a ciegas: traceback en stdout, un health que sabe, guarda de esquema y una release con nombre | Transversal (logging, sonda de salud, entrypoint, script de deploy, CI de GitHub Actions) | `#infra` `#datos` `#metodo` | Auditoría integral oct-2026 — fichas OPS-03, RED-55, OPS-04, RED-59, OPS-01 y RED-16 (Ola R, PR R-15) | 06/10/2026 | 🟢 **Hecho** (RED-16 parcial: el tag de imagen lo aplica ECOM) | **Sí:** correr `verificar_esquema_migraciones --solo-reporte` en cada ambiente antes de desplegar o espejar, y en icore además el renombre de `core/sql/2026-10-06_renombrar_migraciones_icore.sql` |
+| 155 | Controles que el navegador no dibujaba: botones sin caja, backdrop transparente, modales en la esquina y la grilla del mes ilegible en celular | Transversal (shell del backoffice, sidebar, navbar, CSS de botones) · Configuración (10 modales, formularios y wizard) · Legajos · Usuarios y roles · Dispositivos · Merenderos (prestación mensual) | `#ui` `#mobile` | Auditoría integral oct-2026 — fichas FE-06, FE-07, FE-01 y FE-10 (Ola 5, PR 4) | 06/10/2026 | 🟢 **Hecho** | No requiere |
 | 156 | La red de Becas: el adjunto que llega hasta la revisión, los dos borrados sin probar, la atomicidad, el padrón y la edad | Becas (adjuntos del caso, Configuración de requisitos y subsegmentos, cupo, padrón, exportaciones) · Transversal (registro de vencimientos, contrato de escrituras atómicas) | `#datos` `#metodo` `#cupos` `#relevamientos` | Auditoría integral oct-2026 — fichas RED-05, RED-31, RED-35, RED-77, RED-49, RED-50, RED-81 y RED-70 (Ola R, PR R-16) | 07/10/2026 | 🟢 **Hecho** (RED-50 queda caracterizada con `expectedFailure`: el arreglo es de la Ola 3) | No requiere |
 
 **Notas del índice**
@@ -20348,6 +20349,226 @@ escritos** en `docs/internal/propuesta-ecom-verify.md` para que los mande el PM:
 
 ---
 
+# Cambio 155 — Controles que el navegador no dibujaba: botones sin caja, backdrop transparente, modales en la esquina y la grilla del mes ilegible en celular
+
+🟢 **HECHO — 06/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal (shell del backoffice, sidebar, navbar, `nodo-buttons.css`) · Configuración (los diez modales de Geografía y Secretarías, formularios, confirmaciones y wizard) · Legajos · Usuarios y roles · Dispositivos · Merenderos (prestación mensual) |
+| **Etiquetas** | `#ui` `#mobile` |
+| **Solicitante** | Auditoría integral oct-2026 — fichas FE-06, FE-07, FE-01 y FE-10 (Ola 5, PR 4) |
+| **Fecha del pedido** | 06/10/2026 |
+| **Issue / épica** | Sin issue (plan de la auditoría: `docs/internal/auditoria-2026-10/`) · PR #603 |
+| **Partes afectadas** | Backoffice: `templates/includes/base.html`, `navbar.html`, `sidebar/base.html`, `sidebar/opciones.html`; `static/custom/css/nodo-buttons.css`; las cinco pantallas de Geografía y Secretarías con sus diez modales; siete formularios y cuatro confirmaciones de Configuración; `rol_form`; ocho templates de Legajos; cuatro de Dispositivos; la prestación mensual de Merenderos. Se **borra** `static/custom/js/mobile-enhancements.js`. Ninguna pantalla nueva |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> «(4) FE-06 ya; FE-07, FE-01 y FE-10 **después de la Ola 6 paso 3** (en ese orden: FE-07 antes o con FE-01;
+> FE-01 antes que FE-10) — 14 h» (README de la auditoría, §6, Ola 5, PR 4.)
+
+Cuatro defectos distintos con el mismo final: el template dice una cosa y el navegador dibuja otra.
+
+1. **FE-06 — clases que el build no genera.** `tailwind.config.js` declara `extend.backgroundColor.gray`
+   como **string**, y eso pisa la escala `gray` entera para `bg-*` (`text-gray-*` sí existe). Un
+   `bg-gray-300` no produce ninguna regla CSS: el «Cancelar» de `/configuracion/localidades/crear/` salía
+   sin caja, el «← Volver al Dashboard» de `/legajos/dashboard-contactos/` salía con texto blanco sobre
+   fondo transparente —invisible— y el backdrop del sidebar a 390 px (`bg-gray-900/80`) no oscurecía nada.
+   Lo mismo con `bg-white/78` y `/90`, que no se generan porque `white` es `var(--bg-white)` sin
+   `<alpha-value>`: las tarjetas del hero de la edición del ciudadano computaban transparentes. Y tres
+   nombres inventados que ningún CSS define: `border-fg-brand`, `divide-border` y `badge-nodo`.
+2. **FE-07 — los modales de Configuración se abrían en la esquina.** El overlay llevaba `x-show` **y**
+   `display:flex` en el `style=`. Al mostrar, Alpine **borra** la propiedad `display` del estilo en línea,
+   así que el overlay volvía a `display: block` y el panel aparecía en (16, 16) en vez de centrado. Los
+   botones del pie, con `btn-nodo btn-tertiary` **sin tamaño**: `padding-left: 0px` y sin alto.
+3. **FE-01 — `mobile-enhancements.js` corría en todo el backoffice.** `enhanceTouchNavigation()` recorría
+   cada `button`/`a`/`[role=button]` de la página y, al que midiera menos de 44 px, le escribía
+   `min-height`, `min-width` y `display:inline-flex` **en línea**, también en escritorio: entre 11 y 54
+   controles por página, con los ítems del sidebar pasando de 40 a 44 px. `enhanceModals()` observaba
+   cualquier `[class*="modal"]` y en ≤768 px un `touchstart` sobre el overlay lo escondía sin resolver su
+   promesa ni devolver el foco. `addSwipeSupport()` abría o cerraba el sidebar con **cualquier** swipe
+   horizontal de más de 100 px en ≤1024 px, incluido el de una tabla con scroll.
+4. **FE-10 — la prestación mensual era ilegible en celular.** El contenedor de la grilla era
+   `overflow-x-hidden` y la tabla `table-fixed` con anchos en porcentaje: a 390 px los `<th>` caían a 25-50
+   px y los encabezados se partían letra por letra, sin forma de llegar al resto de las columnas.
+
+## Alcance acordado
+
+- **Entra:** las cuatro fichas completas, en el orden obligatorio del README (FE-06 → FE-07 → FE-01 →
+  FE-10); la migración de los diez modales de Configuración al **arquetipo Modal**, clonando la golden
+  (`programas/becas/config/programa_list.html`) saneada por el paso 3 de la Ola 6; y el rescate del área
+  táctil en CSS, acotado a puntero grueso.
+- **Afuera:** la migración de esas pantallas a las piezas canónicas de encabezado, tabla densa, estado
+  vacío y paginación (FE-11, FE-12, FE-17, PRs 6 y 7), el shell legacy de los formularios de Configuración
+  (FE-20) y el hero de la edición del ciudadano (V5A-NEW-04). Acá solo se corrige lo que el navegador no
+  dibuja. **Conversaciones y el portal quedan afuera a propósito:** la lista D del
+  `anexo-front-clases-inexistentes.md` los deja para el apagado de conversaciones (G1-01 fase 2) y para el
+  portal, y sus `bg-gray-*` siguen en la deuda congelada de `CssCompiladoAlDiaTests`.
+
+## Qué se hizo
+
+**FE-06 — cada clase inexistente se reemplazó por la pieza canónica, nunca agregando la escala al build.**
+El `<html>` pierde su `bg-gray-50` (el canvas lo da `--fondo-principal`); el backdrop del sidebar pasa a
+`bg-black/50`; los diecisiete «Cancelar» de Configuración y el de `rol_form` a
+`btn-nodo btn-tertiary btn-base`, y sus acciones principales crudas (`bg-blue-600`, `bg-indigo-600`,
+`bg-red-600`) a `btn-nodo btn-brand btn-base` y `btn-nodo btn-danger btn-base`; los «Volver» de las tres
+pantallas `*_contactos_simple` a `btn-nodo btn-secondary btn-sm` con `fa-arrow-left`; los fondos `bg-gray-50`
+de los formularios de Legajos a `bg-secondary`; los rieles de progreso a `bg-tertiary`; `border-fg-brand` a
+`border-brand`, `divide-border` a `divide-light` y `badge-nodo` a `badge`. **Ningún template del backoffice
+nombra ya una clase que el build no genere**; la deuda de `CssCompiladoAlDiaTests` baja de 22 clases a 6 y
+cada una queda anotada con su dueño en el comentario del test (Conversaciones, el portal, FE-25 y FE-14, y
+los dos usos de Python de Legajos que son FE-11/FE-12).
+
+**FE-07 — los diez modales clonan la golden.** Overlay
+`x-show + x-cloak + x-becas-modal class="fixed inset-0 z-50 flex items-center justify-center p-4"` sin
+`style=`, backdrop `absolute inset-0 bg-black/50 backdrop-blur-sm`, panel
+`max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden` con `role="dialog"`, `aria-modal` y
+`aria-labelledby`, encabezado y pie por `_modal_header.html` / `_modal_footer.html` —que son los que traen
+el tamaño de los botones— y `becas-modal.js` en `customJS`, que da foco inicial, Tab atrapado, Escape y
+devolución del foco. En el modal de edición, que vive dentro de un `<template x-if>` por fila, la directiva
+toma `modalEditarPk` (truthy mientras hay fila abierta), porque la expresión tiene que ser asignable: con
+`modalEditarPk === 7` el Escape generaría `modalEditarPk === 7 = false`. El `aria-labelledby` del diálogo
+pasa la **pk a texto antes** de concatenar (`{% with pk_texto=obj.pk|stringformat:"s" %}` y recién después
+`|add:pk_texto`): el filtro `add` con un `int` del lado derecho **devuelve cadena vacía** —Django prueba
+`int("titulo-editar-loc-")`, falla, prueba la concatenación, falla y se traga el error—, así que la primera
+versión dejaba `aria-labelledby=""` y `<h3 id="">`, o sea un diálogo sin nombre para el lector de pantalla.
+No se veía en el template: solo en la respuesta renderizada. Los cinco contenedores de subítems del sidebar
+y su `<nav>` dejan el `style=` por clases.
+
+**FE-01 — el script se borró y el área táctil bajó al CSS.** `templates/includes/base.html` ya no lo carga y
+`static/custom/js/mobile-enhancements.js` no existe más: no tenía un solo consumidor de su API
+(`window.MobileEnhancements`, `window.showMobileToast`, `window.isMobile`). Los 44 px los dan ahora
+`static/custom/css/nodo-buttons.css` y el `<style>` de `sidebar/base.html`, los dos detrás de
+`@media (pointer: coarse)`, así que con mouse cada control conserva el alto de su token (medido: sidebar a
+1440 px = 40 px; `btn-nodo` a 390 px con `has_touch` = 44 px). El `display:none !important` de
+`navbar.html`, justificado como «race de Tailwind CDN», se fue junto con sus dos clases hook: `lg:hidden`
+alcanza, porque el shell sirve Tailwind compilado y no el CDN.
+
+**FE-10 — la grilla del mes scrollea.** El contenedor pasa a `overflow-auto` y la tabla lleva
+`min-w-[720px]`. A 390 px el ancho de los `<th>` de servicio pasa de 50 a 101 px y la tabla scrollea en
+horizontal, cosa que recién es usable **después** de FE-01: con el swipe global, arrastrarla abría el
+sidebar.
+
+## Decisiones tomadas
+
+- **D-F01 = No (default del README §2): no hay swipe para abrir el sidebar.** El gesto se retira con el
+  script y no se reimplementa. El sidebar móvil se abre con su botón, que es el único camino que no se
+  dispara solo al scrollear una tabla.
+- **La escala `gray` no entra al build.** Es la decisión del anexo y se sostiene: agregarla haría que
+  `bg-gray-300` «funcione» y con eso volvería a entrar paleta cruda por la ventana. Cada uso se reemplaza
+  por el token o la pieza.
+- **`divide-y divide-light` en vez de `divide-y [&>*]:border-light`.** La ficha proponía la segunda forma;
+  `divide-light` sale del mismo `borderColor.light` del tema, no es un valor arbitrario y produce el mismo
+  resultado. Lo otro que la ficha ofrecía —migrar a `nodo-td`— es FE-12.
+- **La confirmación de borrado de Configuración deja SweetAlert2.** Pasa a `data-confirm-url` →
+  `ModernModal` (arquetipo Confirmación) con `programas/becas/_confirm_js.html`. Fue necesario: el
+  arquetipo Modal prohíbe `Swal.fire` nuevo en la pantalla, y el inventario clasifica SweetAlert2 como
+  «legacy condicionado» solo para Dispositivos, Merenderos y Legajos —Configuración no estaba en esa
+  lista—. De paso, las cinco pantallas dejan de bajar la biblioteca y el `<form>` oculto que la disparaba.
+- **`min-w-[720px]` es una novedad autorizada por la ficha FE-10**, que la pide explícitamente y manda
+  correr `npm run build:tailwind`. Queda con un test que exige que la clase esté en el CSS committeado: si
+  no está, la tabla se vuelve a comprimir sin que falle nada.
+
+## Desvíos de las fichas (code-first)
+
+1. **Un bug que ninguna ficha vio: `nodo-buttons.css` pisaba `.hidden` de Tailwind.** El criterio de
+   verificación de FE-01 —`ModernModal.show({type:'success'})` tiene que dejar `#modal-cancel` en
+   `display:none`— **seguía fallando con el script ya borrado**: `.btn-nodo { display: inline-flex }` tiene
+   la misma especificidad que `.hidden` (0,1,0) y esa hoja se carga después de `tailwind.css`, así que
+   ganaba por orden. El «Cancelar» se veía en cualquier modal de aviso. Se arregló con
+   `.btn-nodo.hidden, .nodo-icon-btn.hidden { display: none }`, el mismo recaudo que `responsive.css` ya
+   toma con `.modal-responsive.hidden`.
+2. **El indicador de WebSocket de `alertas_dashboard` no se convirtió en `badge badge-gray`.** Es un punto
+   de 12 px sin texto, dentro de un flex que ya tiene su etiqueta al lado: un `badge` le pondría padding y
+   forma de píldora. Quedó en `bg-disabled`, el mismo token que usa el indicador gemelo del navbar.
+3. **El `bg-gray-500` de `legajos/reportes.html` no era un botón «Volver».** La ficha lo agrupaba con los
+   de las pantallas `*_contactos_simple`; en el código es el punto de color del estado «otros» de un
+   listado. Quedó en `bg-gray`, que sí es un token declarado en `tailwind.config.js`.
+4. **Se arreglaron dos botones del sistema sin tamaño que la ficha no nombra:** «Filtrar» y «Limpiar» de la
+   barra de filtros de Secretarías y Subsecretarías, con `btn-nodo btn-secondary`/`btn-tertiary` y un
+   `style="height:38px"` que los sostenía a mano. Es exactamente el mismo defecto que FE-07 describe para
+   el pie del modal y estaba en las mismas pantallas.
+5. **`legajos/forms/ciudadanos.py` y `legajos/models/base.py` conservan su `bg-gray-100`.** Son los dos
+   únicos usos vivos de Legajos que quedan fuera del build, y los dos son bloques enteros fuera de canon
+   —el `_FLOWBITE_*_CSS` del formulario del ciudadano y un mapa estado→clase dentro del modelo—, cuyo
+   reemplazo es FE-11/FE-12. Cambiarles la clase suelta los dejaría igual de fuera de canon y escondería
+   el trabajo real. Quedan anotados con nombre y motivo en el comentario de `DEUDA`.
+
+## Verificación
+
+- `manage.py check` sin issues; `manage.py check --deploy` con los 6 avisos preexistentes de entorno;
+  `makemigrations --check --dry-run`: «No changes detected» (el PR no toca modelos).
+- **Ronda 2 de revisión:** los tests de los modales dejaron de mirar el texto del template y pasaron a
+  afirmar sobre la **respuesta renderizada** (`ModalesRenderizadosTests`): cada `aria-labelledby` de la
+  página no está vacío, es único y apunta a un `id` que existe. Era el único lugar donde el bug del `add`
+  se podía ver.
+- Suite completa en un solo proceso (Python 3.12 + Django 5.2.17, igual al CI): **2.965 tests, OK**
+  (25 skips). `--tag performance`: 4 tests, OK. `ruff check .` y `ruff format` sobre lo tocado: limpio.
+- `design_audit.py --ratchet`: **0 hallazgos nuevos** en 41 archivos. `--goldens`: 0 en las 5 goldens.
+  `--arquetipo modal` sobre las cinco pantallas de Configuración: **OK** en las cinco.
+  `compile_templates.py --bloques`: 200 compilados, 0 errores, 0 bloques sin destino.
+- `npm run build:tailwind` corrido y `static/custom/css/tailwind.css` committeado;
+  `CssCompiladoAlDiaTests` en verde con la deuda reducida.
+- **Playwright sobre `runserver` + SQLite, a 1440 y 390 px: 11 de 11 mediciones OK.** Sidebar a 1440 px =
+  40 px; 0 controles con estilo en línea; `#modal-cancel` de un `ModernModal` `success` en `display:none`;
+  panel del modal centrado con desvío de 0,00 px; Tab atrapado; Escape cierra; «Cancelar» con fondo
+  `rgb(255,255,255)` y `padding-left: 16px`; «Volver» con fondo; backdrop en `rgba(0,0,0,0.5)`; `btn-nodo`
+  de 44 px con puntero grueso; grilla de 720 px con scroll horizontal y `<th>` de 101 px.
+
+## Impacto
+
+- **Visual, en todo el backoffice.** Botones que no se veían ahora se ven; el sidebar móvil oscurece el
+  fondo; los modales de Configuración se abren centrados y con el pie bien dimensionado. En escritorio, los
+  controles vuelven a su alto de token: el sidebar baja de 44 a 40 px por ítem.
+- **Menos JS global.** Se van 362 líneas que reescribían estilos de cualquier página y un gesto que
+  secuestraba el scroll horizontal de las tablas. Las cinco pantallas de Configuración dejan de cargar
+  SweetAlert2.
+- **Sin cambios de datos ni de permisos.** Ninguna vista, modelo, migración ni capacidad cambió.
+
+## Archivos tocados
+
+- Shell: `templates/includes/base.html`, `navbar.html`, `sidebar/base.html`, `sidebar/opciones.html`.
+- CSS: `static/custom/css/nodo-buttons.css`, `static/custom/css/tailwind.css` (build).
+- Borrado: `static/custom/js/mobile-enhancements.js`.
+- Configuración: los cinco `*_list.html`, los siete `*_form.html`, los cuatro `*_confirm_delete.html` y los
+  cuatro `programa_wizard_paso*.html`.
+- Legajos: `templates/legajos/alertas_dashboard.html`, `ciudadano_{confirmar,edit,manual}_form.html`,
+  `dashboard_contactos_simple.html`, `derivar_programa.html`, `historial_contactos_simple.html`,
+  `red_contactos_simple.html`, `reportes.html`, `programas/programa_detail.html`.
+- Usuarios: `users/templates/rol/rol_form.html`.
+- Dispositivos: `config/_tipo_detail_content.html`, `config/tipo_list.html`, `legajo/list.html`,
+  `legajo/detail.html`. Merenderos: `prestacion_mensual.html`.
+- Tests: `core/tests/test_front_ola5.py` (nuevo), `configuracion/tests/test_configuracion_modales.py`
+  (nuevo), `programas/tests/test_merenderos.py` y `core/tests/test_design_audit_estructura.py`.
+
+## Pendientes / a definir
+
+1. **Los tres parches de `.claude/` no viajan en este commit:** la sesión no tiene permiso de escritura en
+   esa carpeta. El contenido completo —la fila de inventario «CSS responsive/mobile global» del núcleo, el
+   bloque nuevo de `design/shells.md` y el retoque de `design/componentes/botones_badges.md`— está en el
+   cuerpo del PR y lo aplica el juez. Hasta entonces «Design Agent Contract» queda en rojo: la fila del
+   inventario cita `static/custom/js/mobile-enhancements.js`, que este commit borra.
+2. **Las pantallas de Configuración siguen con su encabezado, su tabla y su estado vacío a mano.** Este PR
+   tocó el bloque modal y nada más. La migración es FE-11, FE-12 y FE-17 (PRs 6 y 7 de la Ola 5).
+3. **`static/custom/css/responsive.css`, `mobile-forms.css`, `mobile-modals.css` y `mobile-tables.css`
+   siguen vivos** y siguen clasificados «duplicado o conflictivo». El script se fue; las cuatro hojas
+   globales no las toca ninguna ficha abierta.
+4. **Conversaciones y el portal conservan sus `bg-gray-*` invisibles.** Están anotados en la lista D del
+   anexo y en la deuda de `CssCompiladoAlDiaTests`; se van con G1-01 fase 2 y con el trabajo del portal.
+5. **El texto de los botones no se tocó.** El «← Volver al Dashboard» de `dashboard_contactos_simple.html`
+   conserva su copy: solo cambió la flecha de texto por el ícono Font Awesome que pide la ficha. Renombrar
+   botones es decisión de producto, no de este PR.
+
+## Reversión
+
+Revertir el commit. Vuelven los cuatro defectos y vuelve `mobile-enhancements.js` con su swipe. No hay nada
+que deshacer en la base: el PR no escribe ni borra una sola fila, no trae migraciones y no cambia ninguna
+vista. **Al revertir hay que volver a correr `npm run build:tailwind`**, porque `tailwind.css` es generado:
+el revert lo deja en el estado anterior, que es el correcto para el markup anterior.
+
+---
+
 # Cambio 156 — La red de Becas: el adjunto que llega hasta la revisión, los dos borrados sin probar, la atomicidad, el padrón y la edad
 
 🟢 **HECHO — 07/10/2026**
@@ -20553,3 +20774,4 @@ Que los opcionales no sean fatales es **OPS-07**, de la Ola 3.
   criterio explícito: donde el arreglo sea de otra ola, acá va el test que **fija lo que hay hoy**.
 - **07/10/2026 (este cambio)** — las ocho cerradas. RED-05, RED-31, RED-35, RED-49, RED-70, RED-77 y RED-81 completas en
   su parte de la Ola R; RED-50 caracterizada con `expectedFailure` hasta que la Ola 3 unifique la edad.
+

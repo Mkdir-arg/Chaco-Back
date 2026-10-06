@@ -20,6 +20,16 @@
     text-decoration: none;
 }
 
+/* `.hidden` de Tailwind tiene la misma especificidad (0,1,0) y esta hoja se carga
+   DESPUÉS de `tailwind.css`, así que `display: inline-flex` le ganaba por orden: el
+   «Cancelar» que `ModernModal` esconde con `classList.add('hidden')` seguía visible
+   en los modales de aviso (FE-01). Mismo recaudo que toma `responsive.css` con
+   `.modal-responsive.hidden`. */
+.btn-nodo.hidden,
+.nodo-icon-btn.hidden {
+    display: none;
+}
+
 .btn-nodo:disabled,
 .btn-nodo[aria-disabled="true"] {
     cursor: not-allowed;
@@ -266,4 +276,18 @@ button.nodo-icon-btn:disabled,
 a.nodo-icon-btn[aria-disabled="true"] {
     background: transparent !important;
     color: var(--text-fg-disabled) !important;
+}
+
+/* Área táctil mínima (WCAG 2.5.8), solo donde se toca con el dedo.
+   Lo hacía `mobile-enhancements.js` escribiendo estilos en línea sobre cada
+   button/a de la página — también en escritorio, donde agrandaba los ítems del
+   sidebar de 40 a 44 px y le metía `display:inline-flex` a controles ocultos
+   (FE-01). `pointer: coarse` lo acota al puntero grueso, que es de lo que se
+   trataba; el alto de token de cada tamaño queda intacto con mouse. */
+@media (pointer: coarse) {
+    .btn-nodo,
+    .nodo-icon-btn {
+        min-height: 44px;
+        min-width: 44px;
+    }
 }
