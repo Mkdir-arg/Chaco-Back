@@ -23,6 +23,18 @@ DEBUG = os.environ.get("DJANGO_DEBUG", "False") == "True"
 ENVIRONMENT = os.environ.get("ENVIRONMENT", "dev")  # dev|qa|prd
 PYTEST_RUNNING = "pytest" in sys.argv or os.environ.get("PYTEST_RUNNING") == "1"
 
+# Motor real en los tests (TST-01). La suite corre sobre SQLite en memoria
+# (``PYTEST_RUNNING=1``), donde no se ven ni el UUID con guiones de MariaDB, ni
+# ``CONVERT_TZ`` sobre una base sin tablas de zona horaria, ni los
+# ``select_for_update``, que ahí son un no-op. Los tests marcados ``@tag("mysql")``
+# necesitan el motor de producción, y pedirlo es explícito: esta variable lleva
+# **qué** motor se espera (``mariadb:10.11``, ``mariadb:11``, ``mysql:8.0``), con
+# las ``DATABASE_*`` apuntando a ese servidor. Vacía, no cambia nada.
+# ``core/tests/test_motor_real.py`` enfrenta el valor contra el servidor que
+# contestó: un servicio que no levantó la imagen pedida deja el paso en rojo en
+# vez de volver a medir SQLite sin que nadie se entere.
+TEST_MOTOR = os.environ.get("DJANGO_TEST_MOTOR", "")
+
 websockets_enabled_env = os.environ.get("WEBSOCKETS_ENABLED")
 if websockets_enabled_env is None:
     WEBSOCKETS_ENABLED = os.environ.get("APP_RUNTIME", "runserver") == "daphne"
@@ -302,10 +314,18 @@ DATABASES = {
         },
         "CONN_MAX_AGE": 60,
         "CONN_HEALTH_CHECKS": True,
+        # La base que crea el runner de tests (TST-01) nace con el mismo juego de
+        # caracteres que las conexiones de producción. Las tres imágenes de la
+        # matriz hoy arrancan en utf8mb4, pero eso es configuración del servidor,
+        # no contrato: declararlo evita que un servidor distinto (o un `my.cnf` de
+        # ECOM) haga que un test de acentos mida el servidor y no el código.
+        "TEST": {"CHARSET": "utf8mb4"},
     }
 }
 
-if PYTEST_RUNNING:
+# El motor real gana sobre el SQLite de los tests, nunca al revés: con
+# ``DJANGO_TEST_MOTOR`` puesto, ``PYTEST_RUNNING=1`` deja de mandar.
+if PYTEST_RUNNING and not TEST_MOTOR:
     DATABASES = {"default": {"ENGINE": "django.db.backends.sqlite3", "NAME": ":memory:"}}
 
 REDIS_HOST = os.environ.get("REDIS_HOST", "redis")

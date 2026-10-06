@@ -11,7 +11,7 @@ from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.core.management import call_command
 from django.db import connection, models
-from django.test import TestCase
+from django.test import TestCase, tag
 
 from legajos.models import Ciudadano
 from programas.models import (
@@ -129,7 +129,14 @@ class UUIDExternosMySQLTests(TestCase):
                 self.assertIn(tabla, fuente, f"{migracion} no menciona la tabla {tabla}")
                 self.assertIn(columna, fuente, f"{migracion} no menciona la columna {columna}")
 
+    @tag("mysql")
     def test_columnas_uuid_externas_admiten_36_caracteres(self):
+        """La longitud **física** de las 9 columnas, contra el motor de verdad.
+
+        Hasta el PR R-11 este test daba `OK (skipped=1)` en todos los jobs (RED-09):
+        la suite corre en SQLite. Con el tag entra al paso `--tag mysql`, que lo
+        corre contra `mariadb:10.11`, `mariadb:11` y `mysql:8.0` (TST-01).
+        """
         if connection.vendor != "mysql":
             self.skipTest("La longitud física comprobada corresponde a MySQL.")
 

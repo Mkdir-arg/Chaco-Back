@@ -16,8 +16,11 @@ Cubre lo que se ve en la pantalla y que ningún otro test fija:
 """
 
 from datetime import timedelta
+from io import StringIO
 
 from django.contrib.auth.models import User
+from django.core.cache import cache
+from django.core.management import call_command
 from django.db import connection
 from django.test import TestCase
 from django.test.utils import CaptureQueriesContext
@@ -43,10 +46,34 @@ def _badges(html):
         resto = resto[fin + 1 :]
 
 
-class ConvocatoriaListadoEstadoTests(TestCase):
+class _BaseConvocatoriasDiseno(TestCase):
+    """Estado compartido que estas pantallas necesitan, puesto por el propio módulo.
+
+    Dos cosas que vienen de afuera del test y que, sin esto, lo vuelven dependiente
+    del orden en que corra la suite:
+
+    * **El Programa Becas tiene que existir.** Desde RED-56 (Cambio 123) los guards
+      de Becas fallan cerrados: sin la fila ``codigo="BECAS"``, ``_programa_o_denegar``
+      levanta ``PermissionDenied`` **también para un superusuario** y toda la pantalla
+      da 403. Este módulo no la sembraba: pasaba solo porque algún módulo anterior
+      corría ``seed_becas`` y dejaba el Programa cacheado en ``programas:becas``, una
+      clave de proceso que sobrevive al rollback de la base. Corrido solo —o si el
+      orden cambia— daba 403 en 17 tests.
+    * **La caché arranca vacía.** Es de proceso (LocMem) y nadie la limpia entre
+      tests, así que lo que haya quedado de otro módulo decide cuántas consultas hace
+      la pantalla.
+    """
+
+    def setUp(self):
+        cache.clear()
+        call_command("crear_programas", stdout=StringIO())
+
+
+class ConvocatoriaListadoEstadoTests(_BaseConvocatoriasDiseno):
     """CMP-4: el listado usa el mapa único de estados de la convocatoria."""
 
     def setUp(self):
+        super().setUp()
         self.hoy = timezone.localdate()
         self.programa = ProgramaSiis.objects.create(nombre="Becas", siis_programa_id=4001)
         self.segmento = Segmento.objects.create(nombre="Seg Diseño", cupo_maximo=100, programa=self.programa)
@@ -106,8 +133,22 @@ class ConvocatoriaListadoEstadoTests(TestCase):
         self.assertIn('title="Programa en pausa"', fila)
 
     def _consultas_del_listado(self):
+        """Consultas del listado con **todas** las cachés recién calentadas.
+
+        Lo que se mide es si la pantalla consulta por fila, así que no puede
+        depender de cuándo venció una clave de caché. Y dos de las consultas del
+        request son exactamente eso: ``programas:becas`` (300 s) y
+        ``sidebar:conversaciones_pendientes`` (**30 s**, `get_or_set` del badge del
+        sidebar, que corre en todo el backoffice). Con el `cache.clear()` solo en
+        `setUp`, la segunda medición del test podía caer del otro lado de esos 30 s y
+        pagar un `COUNT` de más: es el `7 != 6` que puso roja la suite en el CI, sin
+        que hubiera cambiado una línea de la pantalla. Limpiando acá, cada medición
+        empieza igual: el GET de calentamiento repone las dos claves con TTL nuevo y
+        el GET medido siempre las encuentra calientes.
+        """
         url = reverse("becas:convocatorias")
-        self.client.get(url)  # caches de sesión/permisos ya calientes
+        cache.clear()
+        self.client.get(url)  # caches de sesión, permisos, Programa Becas y badge
         with CaptureQueriesContext(connection) as capturadas:
             respuesta = self.client.get(url)
         self.assertEqual(respuesta.status_code, 200)
@@ -141,10 +182,11 @@ class ConvocatoriaListadoEstadoTests(TestCase):
         self.assertEqual(con_dos, con_una)
 
 
-class ConvocatoriaListadoAccionesTests(TestCase):
+class ConvocatoriaListadoAccionesTests(_BaseConvocatoriasDiseno):
     """POP-13 / POP-12 y las acciones de fila del listado."""
 
     def setUp(self):
+        super().setUp()
         self.hoy = timezone.localdate()
         self.segmento = Segmento.objects.create(nombre="Seg Acciones", cupo_maximo=100)
         self.client.force_login(User.objects.create_superuser("admin-conv-acciones", password="x"))
@@ -224,10 +266,11 @@ class ConvocatoriaListadoAccionesTests(TestCase):
         self.assertIn("Crear convocatoria", html)
 
 
-class ConvocatoriaDetalleDisenoTests(TestCase):
+class ConvocatoriaDetalleDisenoTests(_BaseConvocatoriasDiseno):
     """TIT-15 / TIT-16 y las piezas comunes del detalle."""
 
     def setUp(self):
+        super().setUp()
         self.hoy = timezone.localdate()
         segmento = Segmento.objects.create(nombre="Seg Detalle", cupo_maximo=100)
         self.convocatoria = Convocatoria.objects.create(
