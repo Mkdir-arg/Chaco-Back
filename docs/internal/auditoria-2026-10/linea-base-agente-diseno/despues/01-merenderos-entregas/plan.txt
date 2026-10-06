@@ -1,0 +1,13 @@
+Plan de pantalla declarado por chaco-frontend ANTES del primer Write (literal):
+
+Tipo: B · Arquetipo: Listado · Golden: programas/templates/programas/becas/revision/personas_list.html
+Hermana (solo dominio): programas/templates/programas/merenderos/list.html, detail.html,
+  programas/merenderos_urls.py, programas/models/__init__.py (EntregaMercaderia)
+Bloques: header (sin accion de alta) · filtros=estado,desde,hasta · tabla=6 col
+  (Merendero, Fecha, Kits, Servicio, Estado, Acciones) · vacio x2 · paginacion entidad=entrega
+Vista (descripta, no escrita): paginate_by=25, estados=[("vigente","Vigente"),("anulada","Anulada")],
+  estado_actual, select_related("merendero"), filtro de rango por fecha, orden -fecha
+Novedades: ninguna en el template. Unica dependencia fuera de esta corrida: el parcial de
+  estado por modulo `_estado_badge.html` de Merenderos no existe todavia.
+
+Golden declarada = golden de la tabla `## Arquetipos` del nucleo: SI.
