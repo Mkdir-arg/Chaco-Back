@@ -8,8 +8,32 @@
 
 import django.db.models.deletion
 from django.db import migrations, models
+from django.db.migrations.exceptions import IrreversibleError
 
 import programas.models
+
+# BARRERA-DE-REVERSA: por debajo de programas.0056 solo se vuelve con restore (RED-57).
+# La migración **borra filas** del padrón (los DNI repetidos dentro de una misma
+# convocatoria) y quita la FK al relevamiento: al revertir, esas filas no vuelven y el
+# resto queda sin saber de qué relevamiento salió.
+# Runbook D.4 de docs/internal/processes.md.
+MENSAJE_BARRERA = (
+    "programas.0056 es una barrera de reversa (RED-57): la ida borró filas del padrón "
+    "duplicadas por convocatoria y la vuelta no las recupera, ni reconstruye de qué "
+    "relevamiento venía cada fila. Volver atrás se hace con restore del dump previo al "
+    "deploy: runbook D.4 de docs/internal/processes.md. No reintentar ni usar --fake."
+)
+
+
+def sin_cambios(apps, schema_editor):
+    """La barrera no toca nada hacia adelante: solo existe para el camino de vuelta."""
+
+
+def bloquear_reversa(apps, schema_editor):
+    # Es la última operación de la migración, así que Django la corre **primera** al
+    # desaplicar: aborta antes de cualquier DDL. Vale en todos los motores: lo que se
+    # pierde son filas, y eso no depende del motor.
+    raise IrreversibleError(MENSAJE_BARRERA)
 
 
 def mover_padron_a_convocatoria(apps, schema_editor):
@@ -107,6 +131,9 @@ class Migration(migrations.Migration):
             field=models.CharField(blank=True, max_length=120, verbose_name="Localidad (texto del Excel)"),
         ),
         # ── Datos: cada fila a la convocatoria de su relevamiento ───────────
+        # REVERSA-NOOP: las filas del padrón que esta operación borró por duplicadas
+        # (mismo DNI en dos relevamientos de la convocatoria) no vuelven, y el
+        # ``padron_archivo`` copiado a la convocatoria queda ahí.
         migrations.RunPython(mover_padron_a_convocatoria, migrations.RunPython.noop),
         # ── Índice y unicidad viejos, FK vieja ──────────────────────────────
         migrations.RemoveConstraint(
@@ -161,5 +188,9 @@ class Migration(migrations.Migration):
                 verbose_name="Origen de la validación de identidad",
             ),
         ),
+        # REVERSA-NOOP: no queda nada inconsistente. Lo único que escribe es
+        # ``origen_validacion``, la columna que la operación anterior agrega y que la
+        # reversa borra enseguida.
         migrations.RunPython(origen_validacion_inicial, migrations.RunPython.noop),
+        migrations.RunPython(sin_cambios, bloquear_reversa),
     ]

@@ -136,7 +136,7 @@ class UnSoloEnvioVigenteTests(_BaseProcesoTest):
         EnvioSIIS.objects.create(formulario=caso, estado=EnvioSIIS.Estado.EN_PROCESO, documento="20301234")
 
         with patch("programas.services.siis_envio.cargar_beneficiario") as cargar:
-            call_command("procesar_casos_siis", "--aplicar", "--total", "1", stdout=StringIO())
+            call_command("procesar_casos_siis", "--si", "--aplicar", "--total", "1", stdout=StringIO())
         cargar.assert_not_called()
 
     def test_la_relectura_bajo_el_lock_evita_llegar_al_indice(self, _armar):
@@ -619,7 +619,7 @@ class FrenoConSiisCaidoTests(_BaseProcesoTest):
     #: que hacen falta para que cada uno llegue a llamar a SIIS.
     COMANDOS_CON_ALTA = (
         ("enviar_casos_siis", ()),
-        ("procesar_casos_siis", ("--solo-enviar",)),
+        ("procesar_casos_siis", ("--solo-enviar", "--si")),
         ("reenviar_siis_pendientes", ()),
     )
 
@@ -686,7 +686,7 @@ class FrenoConSiisCaidoTests(_BaseProcesoTest):
         salida = StringIO()
         with patch("programas.services.siis_envio.cargar_beneficiario", return_value=INCIERTO) as cargar:
             with self.assertRaises(SystemExit):
-                call_command("procesar_casos_siis", "--aplicar", "--solo-enviar", stdout=salida)
+                call_command("procesar_casos_siis", "--si", "--aplicar", "--solo-enviar", stdout=salida)
 
         self.assertEqual(cargar.call_count, proceso_masivo.MAX_INCIERTOS)
         self.assertIn("DETENIDO", salida.getvalue())

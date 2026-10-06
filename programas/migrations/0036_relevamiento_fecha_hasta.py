@@ -22,6 +22,9 @@ class Migration(migrations.Migration):
             name="fecha_hasta",
             field=models.DateField(null=True, verbose_name="Fecha hasta"),
         ),
+        # REVERSA-NOOP: no queda nada inconsistente. Lo único que escribe es
+        # ``fecha_hasta``, la columna que la operación anterior agrega y que la reversa
+        # borra enseguida.
         migrations.RunPython(completar_fecha_hasta, migrations.RunPython.noop),
         migrations.AlterField(
             model_name="relevamiento",

@@ -506,6 +506,52 @@ class ContratosDelRepoTests(SimpleTestCase):
         )
 
 
+class ContratoDeMigracionesTests(SimpleTestCase):
+    """RED-14/RED-19/RED-57: el contrato de migraciones corre en el CI y es obligatorio.
+
+    No se agregó un check nuevo a propósito: el paso vive adentro de `Migration Check`,
+    que ya está en `CHECKS_OBLIGATORIOS`. Un `context` nuevo hay que sumarlo a mano al
+    ruleset del repo —que todavía no está aplicado (RED-20, pendiente del dueño)—, así
+    que hasta entonces un job nuevo sería un check que nadie exige. El paso es
+    determinista y tarda menos de un segundo: no hay motivo para separarlo.
+    """
+
+    JOB = "Migration Check"
+
+    def setUp(self):
+        self.flujo = _cargar("pr-backend.yml")
+        clave = _nombres_de_jobs(self.flujo).get(self.JOB)
+        self.assertIsNotNone(clave, f"no existe el job «{self.JOB}»")
+        self.job = self.flujo["jobs"][clave]
+
+    def test_el_job_corre_el_contrato_de_migraciones(self):
+        comandos = "\n".join(paso.get("run", "") for paso in self.job["steps"])
+
+        self.assertIn("scripts/check_migraciones.py", comandos)
+
+    def test_el_paso_va_en_un_job_que_el_ruleset_exige(self):
+        self.assertIn(self.JOB, CHECKS_OBLIGATORIOS)
+
+    def test_el_checkout_trae_el_historial_entero(self):
+        """Sin `fetch-depth: 0` no hay base contra la cual comparar y el gate no ve nada."""
+        checkout = next(paso for paso in self.job["steps"] if str(paso.get("uses", "")).startswith("actions/checkout"))
+
+        self.assertEqual((checkout.get("with") or {}).get("fetch-depth"), 0)
+
+    def test_el_gate_compara_contra_la_base_del_pr(self):
+        paso = next(p for p in self.job["steps"] if "check_migraciones.py" in p.get("run", ""))
+
+        self.assertIn("pull_request.base.sha", (paso.get("env") or {}).get("BASE", ""))
+        self.assertIn("--base", paso["run"])
+
+    def test_el_script_existe_y_es_ejecutable_sin_django(self):
+        """Es un gate de CI: si importara Django, se caería con cualquier settings raro."""
+        script = (RAIZ / "scripts" / "check_migraciones.py").read_text(encoding="utf-8")
+
+        self.assertNotIn("import django", script)
+        self.assertNotIn("manage.py", script)
+
+
 class ReleaseGateTests(SimpleTestCase):
     """RED-23: alguien verifica el release antes de que exista el espejo.
 

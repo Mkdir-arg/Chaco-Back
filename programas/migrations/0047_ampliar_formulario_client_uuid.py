@@ -38,6 +38,15 @@ def ampliar_client_uuid_mysql(apps, schema_editor):
 def restaurar_client_uuid_mysql(apps, schema_editor):
     if schema_editor.connection.vendor != "mysql":
         return
+    # RED-18: se normaliza siempre a hex antes de achicar, no solo cuando el motor tiene
+    # UUID nativo. Una base restaurada desde otro motor trae filas con guiones aunque este
+    # no sea MariaDB, y `char(32)` sobre un valor de 36 trunca (ERROR 1265) o, con
+    # STRICT_TRANS_TABLES apagado, deja un UUID mutilado que ya no apunta a nada.
+    # Mismo patrón que la 0073.
+    schema_editor.execute(
+        "UPDATE programas_formulario SET client_uuid = REPLACE(client_uuid, '-', '') "
+        "WHERE client_uuid IS NOT NULL AND CHAR_LENGTH(client_uuid) = 36"
+    )
     schema_editor.execute(
         "ALTER TABLE programas_formulario MODIFY client_uuid char(32) NULL"
     )

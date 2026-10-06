@@ -339,7 +339,7 @@ class ParteDiarioEnElMotorRealTests(_BaseDispositivoTest):
             self.skipTest("El servidor tiene tablas de zona horaria: DIS-01 no se manifiesta acá.")
 
     def test_el_parte_diario_cuenta_el_ingreso_de_hoy(self):
-        """**DIS-01** (Ola 5, Cambio 138), contra el motor real.
+        """**DIS-01** (Ola 5, Cambio 140), contra el motor real.
 
         `calcular_cantidades` filtraba con `fecha_ingreso__date=fecha`, que en MySQL
         y MariaDB se traduce a `DATE(CONVERT_TZ(...))`; sin tablas de zona horaria

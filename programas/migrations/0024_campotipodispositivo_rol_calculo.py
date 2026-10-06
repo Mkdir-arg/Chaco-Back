@@ -25,5 +25,8 @@ class Migration(migrations.Migration):
                 verbose_name="Rol en totales F-00",
             ),
         ),
+        # REVERSA-NOOP: no queda nada inconsistente. Lo único que escribe es
+        # ``rol_calculo``, la columna que la operación anterior agrega y que la reversa
+        # borra enseguida.
         migrations.RunPython(asignar_roles_existentes, migrations.RunPython.noop),
     ]

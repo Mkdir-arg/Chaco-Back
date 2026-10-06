@@ -109,6 +109,77 @@ def dnis_aprobados_materias():
     return dnis
 
 
+# El PM la crea a mano, asi que el nombre se acepta en las dos formas en que se
+# puede escribir. La de testing se creo como `SiisEnviar`; la otra es la que
+# saldria de seguir la convencion del resto de las tablas de insumo.
+TABLA_SIIS_ENVIAR = "SiisEnviar"
+NOMBRES_SIIS_ENVIAR = ("siisenviar", "siis_enviar")
+
+
+def _tabla_siis_enviar():
+    """El nombre real de la tabla de exclusión, o ``None`` si no está.
+
+    La crea el PM a mano, así que se aceptan las dos escrituras razonables
+    --``SiisEnviar`` y ``siis_enviar``-- sin distinguir mayúsculas. En Linux,
+    MySQL y MariaDB comparan los nombres de tabla con mayúsculas
+    (``lower_case_table_names=0``), de modo que un nombre que no coincide no da
+    error: devuelve «no existe». Para algo cuyo trabajo es frenar envíos, salir
+    con la lista vacía y en silencio es la peor forma posible de fallar.
+    """
+    for nombre in connection.introspection.table_names():
+        if nombre.lower() in NOMBRES_SIIS_ENVIAR:
+            return nombre
+    return None
+
+
+def dnis_a_no_enviar():
+    """DNI que NO hay que informar a SIIS, pase lo que pase.
+
+    La tabla ``siis_enviar`` es una lista de exclusión que carga el PM: una sola
+    columna ``dni``. Existe porque un alta en SIIS no se puede deshacer desde
+    acá, así que la única forma de frenar a alguien es antes de mandarlo.
+
+    **El nombre dice «enviar» y la semántica es la contraria**: quien figura
+    acá queda afuera. Es el nombre que eligió el PM; lo que manda es esta
+    docstring y el mensaje del comando.
+
+    Si la tabla no existe devuelve un conjunto vacío, sin cortar: es una lista
+    opcional, y un ambiente que no la tenga tiene que poder seguir trabajando.
+    A diferencia de ``aprobados_materias``, acá faltar no abre la puerta a
+    mandar gente de más: deja todo como estaba antes de que la lista existiera.
+
+    Mismo tratamiento de ceros a la izquierda que ``dnis_aprobados_materias``,
+    y por el mismo motivo: la planilla sale de Excel y la base puede guardarlos.
+    """
+    dnis = set()
+    for digitos in dnis_crudos_a_no_enviar():
+        dnis.add(digitos)
+        dnis.add(digitos.lstrip("0") or digitos)
+        dnis.add(digitos.zfill(8))
+    return dnis
+
+
+def dnis_crudos_a_no_enviar():
+    """Un DNI por persona de ``siis_enviar``, sin las variantes de ceros.
+
+    Aparte de :func:`dnis_a_no_enviar` porque esa devuelve hasta tres formas del
+    mismo documento para que el ``IN`` cruce, y contarlas diría el triple de
+    personas de las que hay. El comando informa este número.
+    """
+    tabla = _tabla_siis_enviar()
+    if tabla is None:
+        return set()
+    crudos = set()
+    with connection.cursor() as cur:
+        # El nombre sale de la introspección, no de una entrada externa (B608).
+        cur.execute(f"SELECT dni FROM `{tabla}`")  # nosec B608
+        for (dni,) in cur.fetchall():
+            digitos = _solo_digitos(dni)
+            if digitos:
+                crudos.add(digitos.lstrip("0") or digitos)
+    return crudos
+
+
 # Contadores que viajan de ``Cuenta`` a ``CorridaSiis`` con el mismo nombre.
 CONTADORES = ("mirados", "elegidos", "aprobados", "lista_espera", "altas", "incompletos", "rechazados", "errores")
 
@@ -262,6 +333,7 @@ def candidatos(
     solo_enviar=False,
     filtrar_materias=True,
     destino=DESTINO_SIIS,
+    excluir_no_enviar=True,
 ):
     """Casos que todavía no se informaron a SIIS.
 
@@ -275,6 +347,11 @@ def candidatos(
     Con ``filtrar_materias`` (el default) solo entran los DNI de
     ``aprobados_materias`` (Cambio 90). Si la tabla no existe, lanza
     ``TablaAprobadosMateriasFaltante`` en vez de devolver a todos.
+
+    Con ``excluir_no_enviar`` (el default) quedan afuera los DNI de la tabla
+    ``siis_enviar``, la lista de exclusión del PM. Se aplica a los dos destinos:
+    la tabla intermedia es la antesala de SIIS, así que alguien a quien no hay
+    que mandar tampoco tiene que quedar esperando ahí.
 
     Con ``destino="tabla"`` se saltean además los que ya están guardados en la
     tabla intermedia sin sincronizar: guardarlos no deja ``EnvioSIIS``, así que
@@ -328,6 +405,10 @@ def candidatos(
     casos = casos.exclude(estado=Formulario.Estado.ENVIADO, lista_espera__promovido=False)
     if filtrar_materias:
         casos = casos.filter(ciudadano__dni__in=dnis_aprobados_materias())
+    if excluir_no_enviar:
+        no_enviar = dnis_a_no_enviar()
+        if no_enviar:
+            casos = casos.exclude(ciudadano__dni__in=no_enviar)
     if destino == DESTINO_TABLA:
         # Con ``Exists`` sobre la clave foránea, que está indexada: un ``pk__in``
         # con miles de ids contra la base de ECOM no entra en su read_timeout.

@@ -242,7 +242,7 @@ class SinConvertTZTests(TestCase):
         self.assertIn("CONVERT_TZ", sql_mysql(por_dia))
 
     def test_ninguna_consulta_de_reporte_usa_convert_tz(self):
-        """DIS-01 (Ola 5, Cambio 138): el parte F-01 y los reportes van por rango local.
+        """DIS-01 (Ola 5, Cambio 140): el parte F-01 y los reportes van por rango local.
 
         ``fecha_ingreso``/``fecha_egreso`` son ``DateTimeField``: con ``__date`` el
         SQL salía como ``DATE(CONVERT_TZ(...))`` y en ECOM —MariaDB sin tablas de

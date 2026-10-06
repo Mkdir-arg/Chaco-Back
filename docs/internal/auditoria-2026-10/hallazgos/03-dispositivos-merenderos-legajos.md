@@ -73,7 +73,7 @@ aceptación de la v2** (README §7), con el test nombrado para que la task lo he
   decoradores** y ahí quedan como regresión. El segundo se saltea contra `mysql:8.0`, que sí trae las tablas cargadas (como
   icore): el bug es de ECOM.
 
-**Resolución:** ✅ Resuelto en el PR #592 (Cambio 138), 06-oct-2026 — helper único `core/utils_fechas.py`
+**Resolución:** ✅ Resuelto en el PR #592 (Cambio 140), 06-oct-2026 — helper único `core/utils_fechas.py`
 (`rango_dia_local`, `rango_periodo_local`, `q_rango_local`, `fecha_local`, `inicio_del_dia_local`) y los dos usos de la
 ficha —`registro_diario.calcular_cantidades` y `reportes._movimientos_en_periodo`, que alimenta el listado y los tres
 exports— pasados al rango local `[00:00, 00:00 del día siguiente)`. Se arreglaron **también** los tres «latentes» que
@@ -185,7 +185,7 @@ contra `mariadb:10.11` con `MARIADB_INITDB_SKIP_TZINFO=1`: `--tag mysql` en verd
 - **Propuesta:** `timezone.localtime(x).date()` y `localtime(x).strftime(...)`; en el indicador, mejor `ultimo_registro.fecha` (la fecha del parte).
 - **Tests:** `test_actualizacion_parte_nocturno_cuenta_en_fecha_local`, `test_movimiento_2230_art_se_exporta_con_fecha_local`.
 
-**Resolución:** ✅ Resuelto en el PR #592 (Cambio 138), 06-oct-2026, en el mismo PR que DIS-01 — `movimientos_dispositivos`
+**Resolución:** ✅ Resuelto en el PR #592 (Cambio 140), 06-oct-2026, en el mismo PR que DIS-01 — `movimientos_dispositivos`
 filtra el período con la fecha **local** del movimiento (`core.utils_fechas.fecha_local`) y la columna «Fecha» sale con
 `timezone.localtime(...).strftime(...)`: el movimiento de las 22:30 ART ya no queda fuera del período pedido ni se exporta
 con el día siguiente. El indicador de «última actualización» mide contra la fecha local de `modificado`.

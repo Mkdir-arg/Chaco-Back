@@ -85,6 +85,11 @@ class Migration(migrations.Migration):
             field=models.ForeignKey(blank=True, help_text='Si se indica, el requisito es del programa y lo heredan todos sus segmentos.', null=True, on_delete=django.db.models.deletion.CASCADE, related_name='requisitos', to='programas.programasiis', verbose_name='Programa'),
         ),
         # Los datos se copian con los campos viejos todavía presentes.
+        # REVERSA-NOOP: al revertir, los ``ProgramaSiis`` creados quedan y las operaciones
+        # de abajo borran del segmento la foto congelada de SIIS (``siis_programa_datos``,
+        # estado y fechas), que no se reconstruye: respaldar antes, como dice el docstring.
+        # Es la misma familia de pérdida que programas.0032/0056/0069; en producción el
+        # plan de reversa no llega hasta acá porque programas.0047 aborta antes.
         migrations.RunPython(_crear_programas, migrations.RunPython.noop),
         migrations.RemoveConstraint(
             model_name='segmento',
