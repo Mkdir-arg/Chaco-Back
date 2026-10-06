@@ -1116,11 +1116,11 @@ RUTA_BACKTICK_RE = re.compile(r"`([^`]+\.html)`")
 
 # Las goldens saneadas por el paso 3 de la Ola 6 (anexo del agente, §3).
 #
-# La fuente de verdad para el agente va a ser la tabla `## Arquetipos` del núcleo,
-# que escribe el paso 4; mientras no exista, el gate se apoya en esta lista. Si no,
-# `--goldens` queda verde sin verificar nada y el saneamiento del paso 3 no tiene
-# quién lo defienda. También es la red del checkout sin `.claude/`: el release lo
-# excluye por `export-ignore`.
+# La fuente de verdad es la tabla `## Arquetipos` del núcleo (la escribió el paso 4).
+# Esta lista queda como **red del checkout sin `.claude/`** —el release lo excluye por
+# `export-ignore`— y como segunda fuente que tiene que coincidir con el núcleo: si las
+# dos se contradicen, o si el núcleo deja de declarar una golden que está acá, el gate
+# lo reporta en vez de mirar para otro lado.
 GOLDENS: list[tuple[str, str]] = [
     ("listado", "programas/templates/programas/becas/revision/personas_list.html"),
     ("detalle", "programas/templates/programas/becas/cupo/segmento_detail.html"),
@@ -1132,8 +1132,10 @@ GOLDENS: list[tuple[str, str]] = [
 def goldens_declaradas() -> list[tuple[str, str]] | None:
     """``(arquetipo, ruta de la golden)`` leídos de la tabla ``## Arquetipos``.
 
-    ``None`` mientras el núcleo no tenga esa tabla (la escribe el paso 4 de la
-    Ola 6): hasta entonces manda ``GOLDENS``.
+    ``None`` solo cuando **no hay núcleo que leer** (checkout sin ``.claude/``):
+    ahí manda ``GOLDENS``. Si el núcleo existe pero no declara la tabla, devuelve
+    una lista vacía y ``goldens_mode`` lo trata como error: el agente perdió su
+    tabla de arquetipos.
     """
     try:
         texto = AGENTE.read_text(encoding="utf-8")
@@ -1159,22 +1161,33 @@ def goldens_declaradas() -> list[tuple[str, str]] | None:
         ruta = RUTA_BACKTICK_RE.search(contrato)
         if ruta:
             filas.append((nombre, ruta.group(1)))
-    return filas or None
+    return filas
 
 
 def goldens_mode() -> int:
     nucleo = goldens_declaradas()
-    filas = nucleo if nucleo is not None else GOLDENS
     fallas = 0
     if nucleo is None:
-        print("== design_audit --goldens: el núcleo todavía no declara `## Arquetipos` (Ola 6, paso 4): uso GOLDENS ==")
+        # Checkout sin `.claude/` (el release lo excluye): no hay núcleo que leer.
+        print("== design_audit --goldens: no hay núcleo en .claude/agents/: uso design_audit.GOLDENS ==")
+        filas = GOLDENS
+    elif not nucleo:
+        print("[GOLDEN] el núcleo no declara la tabla `## Arquetipos`: sin ella no se sabe qué pantalla se clona")
+        fallas += 1
+        filas = GOLDENS
     else:
+        filas = nucleo
         # Dos fuentes que pueden derivar: si el núcleo cambia una golden, este
         # script tiene que enterarse, porque es el que la deja en 0.
+        declaradas = dict(nucleo)
         for nombre, ruta in nucleo:
             propia = dict(GOLDENS).get(nombre)
             if propia is not None and propia != ruta:
                 print(f"[GOLDEN] el núcleo declara «{nombre}» en {ruta} y design_audit.GOLDENS en {propia}")
+                fallas += 1
+        for nombre, propia in GOLDENS:
+            if nombre not in declaradas:
+                print(f"[GOLDEN] design_audit.GOLDENS declara «{nombre}» en {propia} y el núcleo ya no lo declara")
                 fallas += 1
     for nombre, ruta in filas:
         path = REPO / ruta

@@ -1,0 +1,64 @@
+# Componente · Botones y badges NODO
+
+**Clasificación:** Canónico reutilizable.
+**Evidencia:** `static/custom/css/nodo-buttons.css`, `static/custom/css/nodo-badges.css`
+(las dos cargadas desde `templates/includes/base.html`), `static/custom/js/nodo-tooltips.js`.
+
+## Botones
+
+Siempre **`btn-nodo` + variante + tamaño**.
+
+| Variante | Cuándo |
+|---|---|
+| `btn-brand` | Acción principal del bloque (guardar, crear, enviar) |
+| `btn-secondary` | Acción del encabezado de un detalle, exportes, acciones de apoyo |
+| `btn-tertiary` | Cancelar, volver, limpiar, acciones auxiliares |
+| `btn-danger` | Destrucción o rechazo |
+
+| Tamaño | Dónde |
+|---|---|
+| `btn-base` | Acciones del encabezado en **listados y formularios**, pie de formulario y de modal |
+| `btn-sm` | Acciones del encabezado en **detalles**, acciones dentro de una fila o de una card |
+| `btn-xs`, `btn-lg`, `btn-xl` | Existen; fuera de los dos casos de arriba son novedad |
+
+- Ícono + texto en las acciones visibles; el ícono va `aria-hidden="true"`.
+- Deshabilitado: `disabled` en `<button>`; en un `<a>`, `aria-disabled="true"` (mismo aspecto que
+  `:disabled` pero sigue alcanzable por teclado para anunciar su `aria-describedby`). El bloqueo
+  del click va en el handler.
+- `btn-tertiary.btn-back-circle` es el botón circular de volver: lo pone `{% page_header %}`, no
+  se escribe a mano.
+
+### Acción de fila (botón de ícono)
+
+`.nodo-icon-btn` y `.nodo-icon-btn--danger`: contrato completo en la ficha `tabla.md`
+(`aria-label` obligatorio y con el registro, ícono con `aria-hidden`, foco con el anillo de
+marca).
+
+## Badges
+
+`badge` + variante, **siempre con texto además del color**.
+
+| Variante | Significado habitual |
+|---|---|
+| `badge-success` | Activo, aprobado, validado |
+| `badge-warning` | Pausado, vencido, enviado a la espera de resolución, advertencia |
+| `badge-danger` | Rechazado |
+| `badge-gray` | Inactivo, dado de baja, contador inactivo de una solapa |
+| `badge-info` | Contador de la solapa activa |
+| `badge-white` | Chip de alcance sobre fondo de color |
+| `badge-brand` | Acento de marca |
+
+- Para estados principales, `badge-dot` agrega el punto: `badge badge-success badge-dot`.
+- **Pausado nunca es `danger`** y apagado es gris, no rojo.
+- `badge-sm` es solo geometría (lo usan plantillas legacy junto con `badge-nodo`); en pantalla
+  nueva no hace falta.
+- El mapeo estado → variante **no se escribe en la pantalla**: vive en el parcial de badges del
+  módulo (ficha `dominio/becas.md`, sección «Mapa de estados»).
+
+## Prohibido
+
+- `btn` de Bootstrap (`btn btn-primary`), botones con utilidades sueltas o sin tamaño.
+- Badges con `bg-*`/`text-*` crudos en vez de la variante.
+- Color como único indicador de estado.
+- Comentarios CSS rotos en `static/custom/css/nodo-badges.css`: un `*/` de más llegó a anular
+  `.badge-gray` entera.

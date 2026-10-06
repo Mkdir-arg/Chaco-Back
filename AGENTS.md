@@ -10,15 +10,16 @@
 
 Para cualquier cambio que cree o modifique templates, includes, CSS, JavaScript de
 UI o una superficie renderizada, es obligatorio leer
-`.claude/agents/chaco-design-system.md` antes de editar. Ese agente es la fuente
-operativa única del diseño; el código productivo vigente siempre prevalece sobre su
-inventario, documentación, kits y prompts históricos.
+`.claude/agents/chaco-design-system.md` —y las fichas de `.claude/design/` que ese
+núcleo cite— antes de editar. Ese agente es la fuente operativa única del diseño; el
+código productivo vigente siempre prevalece sobre su inventario, documentación, kits y
+prompts históricos.
 
 Antes de cambiar UI, localizar la ruta/template final, los includes y los assets
 cargados, y clasificar la pieza como `Canónico reutilizable`, `Legacy solo
 mantenimiento` o `Duplicado o conflictivo`. La UI nueva solo puede reutilizar una
-pieza canónica. Si no existe, demostrarlo, crear el patrón reutilizable mínimo y
-actualizar el inventario del agente en el mismo PR.
+pieza canónica y se construye clonando la golden de su arquetipo. Si falta una pieza,
+se propone como novedad y se frena hasta tener OK (protocolo del agente canónico).
 
 Si el agente y el código discrepan, detener el cambio, registrar evidencia de rutas,
 reconciliar la clasificación y retomar solo el alcance original. No migrar pantallas

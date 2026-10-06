@@ -1,5 +1,17 @@
 # Auditoría integral de DATAÑACH (Chaco) — octubre 2026
 
+## Estado al 05-oct-2026 (Ola 6, pasos 4 y 5: agente reescrito y consumidores)
+
+| PR | Cambio | Fichas | Estado | Qué quedó abierto |
+|---|---|---|---|---|
+| #579 Ola 6 pasos 4 y 5 | 132 | — (ninguna nueva: las de la ola se cerraron en #574 y #577) | 🟡 | Núcleo reescrito (**25.548 bytes**, de 67.681; sin una sola referencia de historia; celdas ≤ 450 caracteres) con la tabla `## Arquetipos` que `--goldens` lee como fuente, + **21 fichas** en `.claude/design/` con los contratos largos movidos literales. Consumidores al día: `CLAUDE.md` («0 errores» → ratchet + goldens), `AGENTS.md`, `chaco-frontend`, `chaco-design-reviewer` (sin `Edit`) y `chaco-dev-reviewer`. Los dos interruptores del PR #574 encendidos: `--limites` en el CI y `--goldens` sin tolerancia. **Faltan los pasos 6 y 7** (ejercicio de control «después» y registro final) |
+
+**El contenido de `.claude/` entró en un commit aparte.** La sesión que escribió el paso 4 no tenía
+permiso de escritura sobre `.claude/`, así que el núcleo, las fichas y los agentes consumidores
+viajaron en una carpeta de tránsito y el juez aplicó el movimiento dentro del mismo PR. El resultado
+está en su lugar: `check_design_agent.py --limites` OK y `design_audit.py --goldens` en 0 sobre las
+5 goldens que declara la tabla `## Arquetipos` del núcleo.
+
 ## Estado al 05-oct-2026 (Ola 6, paso 3: goldens saneadas)
 
 | PR | Cambio | Fichas | Estado | Qué quedó abierto |
@@ -1251,8 +1263,9 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
 ### Ola 6 — Agente de diseño
 - **Objetivo:** que una pantalla nueva salga igual a su golden al primer intento, con la deuda vieja contenida por un
   ratchet. **Fecha límite: antes de la primera task de pantalla de la v2 de Dispositivos y Merenderos.**
-- **Avance:** **pasos 0, 1 y 2 cerrados** en #574 (Cambio 129, 05-oct-2026) y **paso 3 cerrado** en #577 (Cambio 131,
-  05-oct-2026): **22 h de las 42**, quedan **20 h** (pasos 4 a 7). Cierra FE-13, V5A-NEW-01, V5A-NEW-08 y la parte (a) de
+- **Avance:** **pasos 0, 1 y 2 cerrados** en #574 (Cambio 129, 05-oct-2026), **paso 3 cerrado** en #577 (Cambio 131,
+  05-oct-2026) y **pasos 4 y 5 cerrados** en el PR del Cambio 132 (05-oct-2026): **32 h de las 42**, quedan **10 h**
+  (pasos 6 y 7). Cierra FE-13, V5A-NEW-01, V5A-NEW-08 y la parte (a) de
   V5A-NEW-07. La línea base «antes» del paso 6 vive en
   [`linea-base-agente-diseno/`](linea-base-agente-diseno/README.md): las tres pantallas fallan hoy, ninguna usó la
   golden de su arquetipo y la de detalle clonó la hermana del módulo con su deuda entera.

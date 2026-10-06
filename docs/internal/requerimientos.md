@@ -311,6 +311,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 128 | Nada sale a producción sin que algo lo haya verificado: contratos del repo en el CI, release con CI verde y espejo a ECOM en dos pasos | Transversal · CI de GitHub Actions · release y espejo a ECOM | `#infra` `#metodo` `#gestion` | Auditoría integral oct-2026 — RED-24, RED-21, RED-65, RED-23 y RED-22 (Ola R, red de seguridad, PR R-14) | 05/10/2026 | 🟡 **Parcial** (falta enviar la propuesta a ECOM y copiar los dos comandos a `.claude/`) | No requiere |
 | 129 | Que una pantalla nueva no pueda nacer sucia: ratchet, marcadores de arquetipo y gate de build | Transversal · herramientas de diseño · CI de GitHub Actions · CSS compilado | `#ui` `#metodo` `#infra` | Auditoría integral oct-2026 — FE-13, V5A-NEW-01 y V5A-NEW-08 (Ola 6 «Agente de diseño», pasos 0-2) | 05/10/2026 | 🟢 **Hecho** | No requiere |
 | 131 | Las goldens dejan de ser un molde con deuda: 0 P1, marcadores completos y el gate encendido | Becas (revisión, cupo, configuración de programas) · herramientas de diseño · CI de GitHub Actions | `#ui` `#metodo` | Auditoría integral oct-2026 — V5A-NEW-07 parte (a) (Ola 6 «Agente de diseño», paso 3) | 05/10/2026 | 🟢 **Hecho** | No requiere |
+| 132 | El agente de diseño deja de ser un changelog de 67 KB: núcleo corto, fichas por arquetipo y consumidores al día | Transversal · agente canónico de diseño y sus fichas · herramientas de diseño · CI de GitHub Actions | `#ui` `#metodo` | Auditoría integral oct-2026 — Ola 6 «Agente de diseño», pasos 4 y 5 | 05/10/2026 | 🟡 **Parcial** (faltan los pasos 6 y 7 de la Ola 6) | No requiere |
 
 **Notas del índice**
 
@@ -17737,3 +17738,171 @@ Nada. No hay migración ni configuración. Al próximo deploy, Becas muestra las
 
 Revertir el commit: las tres pantallas vuelven a su markup anterior, el step del CI vuelve a ser tolerante y `--goldens`
 vuelve a no tener qué verificar. No hay datos, migraciones ni configuración que revertir.
+
+---
+
+# Cambio 132 — El agente de diseño deja de ser un changelog de 67 KB: núcleo corto, fichas por arquetipo y consumidores al día
+
+🟡 **PARCIAL — 05/10/2026** (faltan los pasos 6 y 7 de la Ola 6)
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · agente canónico de diseño y sus fichas (`.claude/`) · herramientas de diseño (`scripts/`) · CI de GitHub Actions |
+| **Etiquetas** | `#ui` `#metodo` |
+| **Solicitante** | Auditoría integral oct-2026 — Ola 6 «Agente de diseño», pasos 4 y 5 |
+| **Fecha del pedido** | 05/10/2026 |
+| **Issue / épica** | sin issue (plan de la auditoría, `docs/internal/auditoria-2026-10/README.md` §6 y `anexo-agente-diseno.md` §4, §5, §6, §8 y §9) |
+| **Partes afectadas** | Nadie en runtime: `.claude/` y `scripts/` no viajan en el release. Cambia cómo se construye toda pantalla nueva del backoffice, empezando por la v2 de Dispositivos y Merenderos |
+| **Migración** | No requiere |
+
+## Pedido original
+
+El agente canónico pesaba **67.681 bytes** (~18k tokens por invocación), con 28 celdas de más de 450 caracteres —la más
+larga de 3.890— y 31 referencias de historia adentro. Gobernaba un **inventario**, pero no le enseñaba a nadie a
+**reproducir una pantalla**: no había molde por arquetipo, ni esqueleto literal, ni manera de frenar cuando lo pedido no
+encaja. La línea base del paso 0 lo midió: con los agentes de entonces, las tres pantallas del ejercicio de control
+fallaron, ninguna usó la golden de su arquetipo y la de detalle clonó **la pantalla hermana del módulo** con su deuda
+entera.
+
+Los pasos 2 y 3 dejaron las herramientas y las goldens listas, y dos interruptores apagados esperando este paso: los
+límites del núcleo (`check_design_agent.py --limites`) y la exigencia de que `--goldens` lea la tabla `## Arquetipos`
+del núcleo.
+
+## Alcance acordado
+
+**Entra:**
+
+1. **Núcleo reescrito** según el anexo §4: autoridad, cómo usarlo, protocolo de construcción, reglas duras, superficies,
+   la tabla `## Arquetipos`, el inventario con celdas cortas, vocabulario visual permitido, perfiles de dominio, estados
+   transversales, reconciliación y sincronización. **25.548 bytes** (de 67.681), celdas ≤ 450 caracteres, **cero**
+   referencias de historia.
+2. **21 fichas** en `.claude/design/`: 5 de arquetipo (listado, detalle, formulario, modal, confirmación) + 1 de
+   arquetipos pendientes, 12 de componente, el archivo de shells y 2 de dominio (Becas e inscripción). Los contratos
+   largos de las filas viejas se **movieron literales**, no se resumieron.
+3. **Los dos interruptores encendidos:** `--limites` en el step `Validate design-agent contract` del CI, y `--goldens`
+   sin tolerancia (si el núcleo no declara `## Arquetipos`, o declara menos goldens que `design_audit.GOLDENS`, el gate
+   falla en vez de salir verde sin verificar nada).
+4. **Consumidores (paso 5):** `CLAUDE.md`, `AGENTS.md`, `chaco-frontend`, `chaco-design-reviewer` y `chaco-dev-reviewer`.
+
+**Queda explícitamente afuera:**
+
+- **Los pasos 6 y 7** de la Ola 6: el ejercicio de control «después» (las 3 pantallas con los agentes nuevos) y el
+  registro final con su resultado.
+- **Migrar las pantallas hermanas** a las goldens (Ola 5: FE-11, FE-12, FE-17, FE-20, FE-23, FE-24).
+- **Las reglas de fase 2** del anexo §7: solo se activan si el ejercicio de control muestra un desvío que las P1 no
+  atrapan.
+- **Mover el include de campo, las partes de modal y el de confirmación a `templates/components/`**: el agente los
+  **declara transversales** y se siguen incluyendo desde su ruta actual. Moverlos rompe consumidores y es otro trabajo.
+
+## Decisiones tomadas
+
+**D1 a D5 quedan como las registró el Cambio 129 y ahora están escritas en las fichas.** D1 (acciones del encabezado:
+`btn-base` en listados y formularios, `btn-sm` en detalles) en la ficha de encabezado de página y en las reglas duras;
+D2 (confirmación con motivo = arquetipo Modal con form POST; SweetAlert legacy condicionado) en las fichas de modal y
+confirmación; D3 (Font Awesome en el contenido, Heroicons solo en el shell) en el vocabulario visual; D5 (iniciales en
+`bg-brand-soft text-fg-brand`, sin gradiente en el contenido) en el vocabulario y en las fichas de tabla y detalle. **D4
+sigue sin definirse, que es la decisión**: el wizard tiene su propia ficha de arquetipos pendientes y la instrucción es
+frenar y devolver la tarea.
+
+**Las cinco contradicciones del anexo se resolvieron así:** (a) el párrafo que invitaba a crear modales nuevos se
+borró —el arquetipo Modal tiene golden—; (b) el gradiente queda para el shell y el panel de inscripción, nunca en el
+contenido; (d) el botón de ícono es la clase de botón de ícono y nada más —la prosa paralela se fue—; (e) «campo o
+clases equivalentes» pasa a «la clase del campo la pone el widget del form»: **no hay clases equivalentes**, y por eso
+`focus:border-brand` y `focus:ring-brand` desaparecieron del agente (eran la invitación a escribir el control a mano);
+(g) «0 errores» pasa a ratchet + goldens en `CLAUDE.md`. La (c) **no era una contradicción** y no se tocó: el título de
+surface y el subtítulo son dos niveles distintos.
+
+**Las filas nuevas que el anexo pedía están todas:** filtros dinámicos (la pieza transversal más usada y la única sin
+documentar), campo e include de campo, el shell legacy con sus dos parciales, el JS de mejoras móviles, el include de
+campo duplicado de Dispositivos junto al handler inline de confirmación con SweetAlert, y el SVG de Heroicons en el
+contenido.
+
+**Nada se perdió por resumir.** Un script comparó los 709 términos entre backticks del agente viejo contra el núcleo
+nuevo más las fichas: los 34 que no aparecen literales son variantes de formato de contenido que sí está (atributos con
+y sin comillas, tres clases juntas contra las tres por separado, firmas de tag con puntos suspensivos) más los dos de la
+contradicción (e), que se sacaron a propósito.
+
+**El contenido de `.claude/` no se pudo escribir desde la sesión implementadora.** El permiso de escritura sobre
+`.claude/` estaba denegado, y el contenido —90 KB entre el núcleo, 21 fichas y 4 agentes— no entra en el cuerpo de un
+PR. Se entregó en una carpeta de tránsito dentro de `docs/internal/auditoria-2026-10/`, revisable en el diff, y el
+movimiento a `.claude/` lo aplicó el juez en un commit aparte del mismo PR, que borró esa carpeta.
+
+## Implementación
+
+**Núcleo** (`.claude/agents/chaco-design-system.md`): 25.548 bytes con las 12 secciones del anexo §4. La tabla
+`## Arquetipos` declara 5 goldens con el formato que parsea el checker, más la fila de pendientes. El inventario tiene
+30 filas, cada una con una línea de contrato y el link a su ficha.
+
+**Fichas** (21): cada arquetipo trae su esqueleto literal para copiar, las variantes permitidas, lo prohibido —con el
+motivo— y el checklist que usa el revisor; cada componente, su contrato leído del código, sus parámetros y su deuda
+conocida declarada.
+
+**Agente de front:** el protocolo del anexo §6 reemplaza «Flujo de implementación» y «Arquetipos de implementación»; ya
+no quedan reglas visuales ahí.
+**Revisor de diseño:** método de 10 pasos, sin `Edit` en el frontmatter, informe con tres secciones nuevas (molde y
+marcadores, novedades, capturas).
+**Revisor de desarrollo:** apunta al núcleo y a las fichas, exige el Plan de pantalla en pantalla nueva y cambia
+`--changed` por `--ratchet`.
+
+**`scripts/design_audit.py`:** `goldens_declaradas()` devuelve `None` **solo** cuando no hay núcleo que leer (checkout
+sin `.claude/`, que el release excluye); si el núcleo existe pero no declara la tabla, devuelve lista vacía y
+`goldens_mode()` lo trata como error. Además reporta cuando `design_audit.GOLDENS` declara una golden que el núcleo ya
+no declara.
+
+**`.github/workflows/design-agent-contract.yml`:** `check_design_agent.py` corre con `--limites`.
+
+**`scripts/test_design_audit.py`:** la batería de goldens pasa de un test tolerante a cuatro: núcleo sin tabla → error,
+sin núcleo → manda la lista del script, golden que el núcleo dejó de declarar → error, y las goldens declaradas en 0.
+
+**`CLAUDE.md`:** las auditorías obligatorias pasan a `--ratchet` y `--arquetipo`, `compile_templates.py` con `.venv312`,
+el hook se describe como ratchet, la sección de diseño suma «pantalla nueva = clonar la golden» y cambia «0 errores es
+condición de cierre» por «0 hallazgos nuevos»; el gate del CI dice qué corre.
+**`AGENTS.md`:** la UI nueva se construye clonando la golden y se frena ante una novedad.
+
+## Archivos
+
+`.claude/agents/chaco-design-system.md`, `.claude/design/**` (21 fichas), `.claude/agents/chaco-frontend.md`,
+`.claude/agents/chaco-design-reviewer.md`, `.claude/agents/chaco-dev-reviewer.md`, `scripts/design_audit.py`,
+`scripts/test_design_audit.py`, `scripts/check_design_agent.py`, `scripts/test_check_design_agent.py`,
+`.github/workflows/design-agent-contract.yml`, `CLAUDE.md`,
+`AGENTS.md`, `docs/internal/auditoria-2026-10/README.md` y `docs/internal/requerimientos.md`.
+
+## Base de datos
+
+No requiere migración. No toca modelos, vistas, URLs, permisos ni templates.
+
+## Validación
+
+Con Python 3.12 + Django 5.2.17 (`.venv312`, igual al CI):
+
+- `check_design_agent.py --limites` → **OK** (antes del cambio: 58 errores — 1 de tamaño, 28 de celdas largas y 29 de
+  historia).
+- `design_audit.py --goldens` → **0 hallazgos en 5 goldens**, leídas de la tabla `## Arquetipos` del núcleo.
+- `scripts/test_design_audit.py` → 14 tests, sin skips. **Los dos tests nuevos se vieron en rojo antes del cambio**
+  (`goldens_declaradas()` devolvía `None` y `goldens_mode()` salía 0 sin verificar nada).
+- `scripts/test_check_design_agent.py` → 21 tests OK. La revisión encontró que ese archivo quedaba rojo: tenía el test
+  temporal que exigía que `--limites` **fallara** hasta el paso 4, y la rama de tamaño de `limites_del_nucleo()` no se
+  ejercitaba porque la función releía el archivo del disco e ignoraba el texto que recibía. Ahora mide el texto que se
+  le pasa —ya normalizado a `
+`, así el límite no se mueve entre el checkout de Windows (CRLF) y el del CI (LF)— y el
+  test temporal pasa a exigir lo contrario: **el núcleo real cumple `--limites`**.
+- `manage.py check`, `check --deploy`, `makemigrations --check --dry-run`, `manage.py test` (suite entera en un solo
+  proceso) y `manage.py test --tag performance`.
+- `ruff check .` y `ruff format --check` sobre lo tocado.
+- Verificación de que no se perdió contrato: 709 términos entre backticks del agente viejo contra el núcleo nuevo + las
+  fichas; 34 no literales, todos clasificados arriba.
+
+## Pendientes
+
+1. **Paso 6 de la Ola 6:** ejercicio de control «después» con las 3 pantallas y el revisor independiente.
+2. **Paso 7:** registro del resultado del control y actualización de la memoria «Migración Design System».
+
+## Puesta en marcha en el servidor
+
+Nada. `.claude/`, `scripts/` y `.github/` no viajan en el release (`export-ignore`). No hay migración, configuración ni
+cambio de runtime.
+
+## Reversión
+
+Revertir el commit: vuelve el agente de 67 KB, el CI deja de exigir los límites y `--goldens` vuelve a apoyarse en
+`design_audit.GOLDENS`. No hay datos, migraciones ni configuración que revertir.

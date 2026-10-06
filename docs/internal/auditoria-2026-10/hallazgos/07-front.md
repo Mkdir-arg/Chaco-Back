@@ -189,7 +189,8 @@ tono="info"` (sale además el SVG Heroicons del contenido, D3) y `style="backdro
 `space-y-5` compila a `>:not([hidden])~:not([hidden])` y mira el **atributo** `[hidden]`, no la clase `hidden`, así que
 sumaba 20 px de hueco con el error oculto — va adentro del primer bloque de campo; (b) el `continue-on-error` del step
 `Design audit goldens` se saca acá, pero antes hubo que darle a `--goldens` una fuente de goldens (`design_audit.GOLDENS`):
-leía la tabla `## Arquetipos` del núcleo, que escribe el paso 4, y sin ella el gate salía verde sin verificar nada; (c) el
+leía la tabla `## Arquetipos` del núcleo, que escribe el paso 4, y sin ella el gate salía verde sin verificar nada —desde
+el **Cambio 132** esa tabla existe y manda, y que el núcleo no la declare es un error del gate—; (c) el
 `<style>[x-cloak]` de `programa_list` que la ficha no nombraba también sale, porque `--goldens` audita el archivo entero.
 **Parte (b) sigue abierta** (Ola 5, PR 7). **Test permanente:** `core.tests.test_design_audit_estructura.GoldensSaneadasTests`
 (9 tests) + `MarcadoresDeArquetipoTests.test_las_goldens_limpias_cumplen_sus_marcadores` sobre los 4 arquetipos +
