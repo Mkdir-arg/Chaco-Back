@@ -18882,7 +18882,7 @@ Revertir el commit saca el filtro y la pregunta. La tabla queda en la base, sin 
 | **Etiquetas** | `#infra` `#datos` `#metodo` |
 | **Solicitante** | Auditoría integral de octubre 2026 — hallazgos **RED-17** y **RED-19** (Ola R «Red de seguridad», PR R-13) |
 | **Fecha del pedido** | 06/10/2026 |
-| **Issue / épica** | Sin issue — auditoría oct-2026, `docs/internal/auditoria-2026-10/hallazgos/08-red-de-seguridad.md` (Anexo B) |
+| **Issue / épica** | Sin issue — auditoría oct-2026, `docs/internal/auditoria-2026-10/hallazgos/08-red-de-seguridad.md` (Anexo B) · PR #596 |
 | **Partes afectadas** | CI (`pr-performance.yml`), scripts, un comando de `manage.py`, plantillas de `docker/k8s/`, documentación. Nada de UI, nada de API, ningún modelo |
 | **Migración** | No requiere (ninguna migración nueva ni editada) |
 
