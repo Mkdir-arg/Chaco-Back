@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 
-from django.db.models import Count, Q
+from django.db.models import Count
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, viewsets
 from rest_framework.decorators import action
@@ -10,16 +10,10 @@ from rest_framework.response import Response
 from core.api_permissions import BackofficeAutenticado
 from core.utils_fechas import q_rango_local
 
-from ..models import Ciudadano
-from ..models.contactos import (
-    HistorialContacto,
-    VinculoFamiliar,
-)
+from ..models.contactos import HistorialContacto
 from ..serializers.contactos import (
-    CiudadanoBasicoSerializer,
     HistorialContactoListSerializer,
     HistorialContactoSerializer,
-    VinculoFamiliarSerializer,
 )
 
 
@@ -71,31 +65,10 @@ class HistorialContactoViewSet(viewsets.ModelViewSet):
         return Response(stats)
 
 
-class VinculoFamiliarViewSet(viewsets.ModelViewSet):
-    queryset = VinculoFamiliar.objects.select_related("ciudadano_principal", "ciudadano_vinculado").all()
-    serializer_class = VinculoFamiliarSerializer
-    permission_classes = [BackofficeAutenticado, IsAuthenticated]
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
-    filterset_fields = ["tipo_vinculo", "es_contacto_emergencia", "es_referente_tratamiento", "activo"]
-    search_fields = ["ciudadano_principal__nombre", "ciudadano_vinculado__nombre"]
-
-    def get_queryset(self):
-        queryset = super().get_queryset()
-        ciudadano_id = self.request.query_params.get("ciudadano", None)
-        if ciudadano_id:
-            queryset = queryset.filter(Q(ciudadano_principal_id=ciudadano_id) | Q(ciudadano_vinculado_id=ciudadano_id))
-        return queryset
-
-    @action(detail=False, methods=["get"])
-    def buscar_ciudadanos(self, request):
-        """Buscar ciudadanos para vincular"""
-        query = request.query_params.get("q", "")
-        if len(query) < 2:
-            return Response([])
-
-        ciudadanos = Ciudadano.objects.filter(
-            Q(nombre__icontains=query) | Q(apellido__icontains=query) | Q(dni__icontains=query)
-        )[:10]
-
-        serializer = CiudadanoBasicoSerializer(ciudadanos, many=True)
-        return Response(serializer.data)
+# `VinculoFamiliarViewSet` y su router (`legajos/urls/api_contactos.py`) se borraron con
+# LEG-03: nunca estuvieron montados —el front recibía un 404 en cada carga del legajo— y
+# montarlos tal cual listaba los vínculos de **todos** los ciudadanos, porque el filtro
+# leía `?ciudadano=` y el JS mandaba `?ciudadano_principal=`, que no estaba en
+# `filterset_fields`: la consulta volvía sin filtro. El default D-L03 es retirar la
+# solapa; si alguna vez se repone, va con `RequiereCapacidad("ciudadano.ver")`, el filtro
+# corregido y `SearchFilter` en el buscador (opción A de la ficha).

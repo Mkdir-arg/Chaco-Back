@@ -22,26 +22,60 @@ def _validate_archivo(archivo):
 
 
 def subir_archivos_para_objeto(instance, archivos, etiqueta=""):
+    """Sube la tanda entera o ninguno de sus archivos (LEG-05).
+
+    Validar y crear en el mismo bucle dejaba a medias las subidas múltiples: con
+    ``dni.pdf`` válido y ``foto.heic`` inválido, el primero quedaba guardado y el
+    usuario solo veía «Formato no permitido». Ahora se valida todo antes de tocar la
+    base, y si la creación falla igual se revierten las filas **y los blobs**: el
+    storage no participa de la transacción, así que hay que borrarlos a mano.
+
+    El registro del blob va en un ``finally`` **alrededor del ``save()``**, no después:
+    ``FileField.pre_save`` escribe el archivo en el storage *adentro* de ese ``save()``,
+    antes del INSERT. Si el INSERT falla, el blob ya está en ``media/`` y la fila no
+    existe nunca; anotarlo recién con el objeto ya creado dejaba justo a ese huérfano
+    —el único que nadie puede encontrar después— fuera de la limpieza.
+    """
     if not archivos:
         raise ContactosFilesError("No se seleccionaron archivos")
 
-    content_type = ContentType.objects.get_for_model(type(instance))
-    archivos_subidos = []
     for archivo in archivos:
         _validate_archivo(archivo)
-        adjunto = Adjunto.objects.create(
-            content_type=content_type,
-            object_id=instance.id,
-            archivo=archivo,
-            etiqueta=etiqueta or archivo.name,
-        )
-        archivos_subidos.append(
-            {
-                "id": adjunto.id,
-                "nombre": archivo.name,
-                "etiqueta": adjunto.etiqueta,
-            }
-        )
+
+    content_type = ContentType.objects.get_for_model(type(instance))
+    archivos_subidos = []
+    escritos = []
+    try:
+        with transaction.atomic():
+            for archivo in archivos:
+                adjunto = Adjunto(
+                    content_type=content_type,
+                    object_id=instance.id,
+                    archivo=archivo,
+                    etiqueta=etiqueta or archivo.name,
+                )
+                subido = archivo.name
+                try:
+                    adjunto.save()
+                finally:
+                    # Antes de `pre_save` el `FieldFile` todavía se llama como el
+                    # archivo subido (`dni.pdf`); después lleva la ruta que devolvió
+                    # el storage (`adjuntos/dni.pdf`). Que sean distintos es la señal
+                    # de que el blob llegó a escribirse.
+                    guardado = adjunto.archivo.name
+                    if guardado and guardado != subido:
+                        escritos.append((adjunto.archivo.storage, guardado))
+                archivos_subidos.append(
+                    {
+                        "id": adjunto.id,
+                        "nombre": archivo.name,
+                        "etiqueta": adjunto.etiqueta,
+                    }
+                )
+    except Exception:
+        for storage, nombre in escritos:
+            storage.delete(nombre)
+        raise
     return archivos_subidos
 
 

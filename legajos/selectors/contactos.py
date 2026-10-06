@@ -30,13 +30,28 @@ def _format_legajo_codigo(legajo):
     return f"{str(legajo.codigo)[:12]}..." if legajo.codigo else str(legajo.id)
 
 
+def _tamano_de(archivo):
+    """El peso del blob, o ``None`` si el archivo ya no está en el storage.
+
+    ``FileField.size`` va al disco: un blob perdido —un restore sin ``media/``, un
+    borrado a mano— tiraba ``OSError`` y se llevaba puesta la lista entera (LEG-04).
+    El adjunto se sigue listando, marcado como faltante.
+    """
+    try:
+        return archivo.archivo.size
+    except OSError:
+        return None
+
+
 def _serialize_adjunto(archivo, *, legajo=None, origen="ciudadano"):
+    tamano = _tamano_de(archivo)
     payload = {
         "id": archivo.id,
         "nombre": archivo.archivo.name.split("/")[-1],
         "etiqueta": archivo.etiqueta,
         "url": archivo.archivo.url,
-        "tamano": archivo.archivo.size,
+        "tamano": tamano,
+        "faltante": tamano is None,
         "fecha_subida": archivo.creado.isoformat(),
         "tipo_origen": origen,
     }
@@ -116,10 +131,16 @@ def build_ciudadano_archivos_payload(ciudadano_id):
     ciudadano_content_type = ContentType.objects.get_for_model(Ciudadano)
     legajo_content_type = ContentType.objects.get_for_model(LegajoAtencion)
 
-    archivos = Adjunto.objects.filter(
-        Q(content_type=ciudadano_content_type, object_id=ciudadano.id)
-        | Q(content_type=legajo_content_type, object_id__in=[legajo.id for legajo in legajos])
-    ).order_by("-creado")
+    # `select_related` porque abajo se lee `archivo.content_type.model`: sin esto era
+    # una consulta por adjunto (LEG-04).
+    archivos = (
+        Adjunto.objects.filter(
+            Q(content_type=ciudadano_content_type, object_id=ciudadano.id)
+            | Q(content_type=legajo_content_type, object_id__in=[legajo.id for legajo in legajos])
+        )
+        .select_related("content_type")
+        .order_by("-creado")
+    )
 
     legajos_por_id = {str(legajo.id): legajo for legajo in legajos}
     archivos_data = []

@@ -1,5 +1,11 @@
 # Auditoría integral de DATAÑACH (Chaco) — octubre 2026
 
+## Estado al 06-oct-2026 (Ola 5, PR 2: parches v1 de Legajos)
+
+| PR | Cambio | Fichas | Estado | Qué quedó abierto |
+|---|---|---|---|---|
+| Ola 5 PR 2 | 150 | FE-02 ✅ · LEG-02 ✅ · LEG-03 ✅ · LEG-04 ✅ · LEG-05 ✅ · FE-09 ✅ · FE-21 ✅ | ✅ | **Las 7 fichas cerradas, sin migración: 14 h.** «Subir archivos» vuelve a funcionar (`toastr` nunca se cargó y cortaba el handler en su primera línea); reinscribir a alguien con una inscripción CERRADA/DADA DE BAJA/SUSPENDIDA deja de dar 500, con **una sola puerta** (`programas/services/inscripciones.py::activar_inscripcion`) que usan las tres vías de alta y `_membresia_activa` de Dispositivos; la solapa «Red Familiar» se retira con el **default D-L03 = B** —se van el 404 por carga del legajo, el ViewSet que listaba los vínculos de todos y 673 KB de `vis-network`—; un adjunto con el blob perdido ya no vacía la lista (se lista marcado `faltante`) y la consulta deja de ser N+1; la subida múltiple es atómica y limpia los blobs si falla; los links a `/legajos/<id>/` —ruta que no existe— pasan a texto, salvo el del dashboard de alertas, que apunta al ciudadano; y el modal de archivos se ata a `becas-modal.js` (Escape, foco atrapado, foco devuelto). **Tres desvíos, los tres code-first:** (a) la mitad de LEG-04 del «except que traga» **ya la había cerrado R-19** (#556, Cambio 126) —acá queda su test permanente—; (b) la allowlist de RED-42 que LEG-03 manda limpiar **no existe todavía** (`core/tests/test_urls_del_front.py` es del PR R-18, abierto); (c) `VinculoFamiliarViewSet` se borró además del router, porque dejarlo escrito es dejar la trampa armada. **Abierto, de otra ficha:** los tres JS huérfanos que todavía usan `toastr` (`static/custom/js/ciudadanos*.js`, ningún template los carga) los borra FE-14 en la Ola 7; `ciudadano_detail.html` sigue con 8 desvíos de arquetipo (eran 9), que son del PR 6 |
+
 ## Estado al 06-oct-2026 (Ola 5, PR 1: fechas locales de Dispositivos)
 
 | PR | Cambio | Fichas | Estado | Qué quedó abierto |
@@ -925,13 +931,13 @@ Avance: 1 ✅ · 0 🟡 · 59 ⬜ (+ R0-04, R0-06, R0-07 ⬜).
   R0-07 `q_uuid_en_texto` sin guarda (3).
 
 ### 4.3 Dispositivos, Merenderos y Legajos → `hallazgos/03-dispositivos-merenderos-legajos.md` (21)
-Avance: 2 ✅ · 19 ⬜ (DIS-01 y DIS-08, Ola 5 PR 1).
+Avance: 6 ✅ · 15 ⬜ (DIS-01 y DIS-08 en el PR 1; LEG-02..05 en el PR 2 de la Ola 5).
 - **ALTA:** ✅ DIS-01 `__date`/CONVERT_TZ (parchear v1, Ola 5) · DIS-02 doble alojamiento (v2) · DIS-03 espera huérfana
-  (v2) · LEG-03 red familiar (Ola 5).
-- **MEDIA:** DIS-04, 05, 06 (v2) · LEG-01 alertas recreadas (Ola 4) · LEG-04 AJAX que traga errores (Ola 5) · G1c-08 alta
-  de ciudadano (Ola 3).
-- **BAJA:** DIS-07, 09, 10, V6-NEW-02, MER-01, MER-02 (v2) · ✅ DIS-08 (Ola 5) · LEG-02, LEG-05 (Ola 5) · LEG-06 (Ola 7) ·
-  G1c-17 (Ola 2).
+  (v2) · ✅ LEG-03 red familiar retirada (Ola 5, PR 2).
+- **MEDIA:** DIS-04, 05, 06 (v2) · LEG-01 alertas recreadas (Ola 4) · ✅ LEG-04 blob faltante y N+1 (Ola 5, PR 2) · G1c-08
+  alta de ciudadano (Ola 3).
+- **BAJA:** DIS-07, 09, 10, V6-NEW-02, MER-01, MER-02 (v2) · ✅ DIS-08 (Ola 5) · ✅ LEG-02, ✅ LEG-05 (Ola 5, PR 2) ·
+  LEG-06 (Ola 7) · G1c-17 (Ola 2).
 
 ### 4.4 Performance → `hallazgos/04-performance.md` (21)
 Avance: 21 ⬜ (PERF-01 con «⚠ Actualizar» por #513).
@@ -958,9 +964,10 @@ Avance: 11 ⬜ (+ R0b-01, 02, 03, 10 ⬜; R0b-12 operativo). SEC-03 (con G1b-01)
 - **Operativo (PM):** R0b-12 correr P-04 ampliado en PRD.
 
 ### 4.7 Front del backoffice → `hallazgos/07-front.md` (28)
-Avance: 28 ⬜.
-- **ALTA:** FE-02 `toastr` · FE-04 paginación de Geografía · FE-05 wizard · FE-06 clases inexistentes.
-- **MEDIA:** FE-01, 07, 08, 09, 10, 11, 12, 13, 17, 18, 19, 20, 21 · V5A-NEW-01 · V5A-NEW-07.
+Avance: 6 ✅ · 1 🟡 · 21 ⬜ (FE-13, V5A-NEW-01, V5A-NEW-08 y la parte (a) de V5A-NEW-07 en la Ola 6; FE-02, FE-09 y
+FE-21 en el PR 2 de la Ola 5).
+- **ALTA:** ✅ FE-02 `toastr` (Ola 5, PR 2) · FE-04 paginación de Geografía · FE-05 wizard · FE-06 clases inexistentes.
+- **MEDIA:** FE-01, 07, 08, ✅ 09, 10, 11, 12, ✅ 13, 17, 18, 19, 20, ✅ 21 · ✅ V5A-NEW-01 · 🟡 V5A-NEW-07.
 - **BAJA:** FE-14, 16, 22, 23, 24, 25, 26 · V5A-NEW-04 · V5A-NEW-08.
 
 ### 4.8 Red de seguridad → `hallazgos/08-red-de-seguridad.md` (89, frente del 04-oct-2026)
@@ -1344,9 +1351,10 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
 ### Ola 5 — Bugs de front y parches v1 de Legajos y Dispositivos
 - **Objetivo:** que las pantallas funcionen (subir archivos, paginar, cascadas, botones visibles) y migrar las pantallas
   fuera de Becas a las piezas canónicas clonando las goldens.
-- **Avance: 4 h de 128, 124 restantes.** PR 1 (DIS-01 + DIS-08) en el Cambio 140, 06-oct-2026: helper de fechas locales,
+- **Avance: 18 h de 128, 110 restantes.** PR 1 (DIS-01 + DIS-08) en el Cambio 140, 06-oct-2026: helper de fechas locales,
   los dos usos de Dispositivos más los tres latentes y cuatro de Conversaciones, y la guardia `test_sql_portable.py`
-  (recorre el código con `ast`, allowlist vacía). Quedan abiertos los PRs 2 a 8.
+  (recorre el código con `ast`, allowlist vacía). **PR 2 (FE-02, LEG-02, LEG-03, LEG-04, LEG-05, FE-09, FE-21) en el
+  Cambio 150, 06-oct-2026**: las 7 fichas cerradas, sin migración. Quedan abiertos los PRs 3 a 8.
 - **PRs y orden:** (1) DIS-01 + DIS-08 (helper de fechas locales + guardia de `__date`) 4 h · (2) Legajos: FE-02, LEG-04,
   LEG-05, LEG-02, LEG-03, FE-09, FE-21 14 h · (3) Configuración: FE-04, FE-05, FE-08 6 h · (4) FE-06 ya; FE-07, FE-01 y FE-10
   **después de la Ola 6 paso 3** (en ese orden: FE-07 antes o con FE-01; FE-01 antes que FE-10) 14 h · (5) FE-18, FE-19, FE-25, FE-26 8 h · (6) **después de la
