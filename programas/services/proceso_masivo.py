@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 
 from django.core.exceptions import ValidationError
 from django.db import connection, transaction
-from django.db.models import Exists, OuterRef, Q, Subquery
+from django.db.models import Count, Exists, OuterRef, Q, Subquery
 from django.utils import timezone
 
 from programas.models import (
@@ -38,6 +38,13 @@ from programas.services.validacion_siis import validar_formulario_en_siis
 
 LOTE = 40
 MAX_ERRORES = 10
+# Resultados **ambiguos** seguidos que detienen la corrida. El tope es más bajo
+# que el de errores a propósito: un ERROR técnico no cuesta nada —el caso queda
+# libre y se reintenta solo—, mientras que cada INCIERTO deja un caso **tomado**
+# que solo se destraba preguntándole a ECOM si el alta llegó. Diez errores
+# seguidos son diez reintentos; tres inciertos seguidos ya son tres
+# conciliaciones a mano, y señal de que SIIS está contestando mal.
+MAX_INCIERTOS = 3
 # Casos que se traen de la base por vez al hidratar una lista de ids (abajo).
 LOTE_LECTURA = 200
 # Ids que se piden por consulta al recorrer la tabla por rangos de pk.
@@ -105,6 +112,115 @@ def dnis_aprobados_materias():
 # Contadores que viajan de ``Cuenta`` a ``CorridaSiis`` con el mismo nombre.
 CONTADORES = ("mirados", "elegidos", "aprobados", "lista_espera", "altas", "incompletos", "rechazados", "errores")
 
+# Errores técnicos acumulados a partir de los cuales un caso deja de ser
+# candidato automático (A2-15, punto 6 de SIIS-02). No es un castigo: un caso que
+# falló cinco veces tiene un problema que ninguna corrida va a resolver sola, y
+# cada reintento es una llamada a SIIS que le saca lugar a otro.
+MAX_REINTENTOS = 5
+# Tope del listado que se trae a memoria para excluirlos. Si hubiera más, es que
+# SIIS está caído y el problema no son los casos.
+TOPE_AGOTADOS = 5000
+
+
+def casos_con_errores_agotados(tope=TOPE_AGOTADOS):
+    """Ids de los casos con ``MAX_REINTENTOS`` o más envíos en ``ERROR``.
+
+    Una sola consulta agrupada sobre ``programas_enviosiis`` (una tabla chica al
+    lado de ``programas_formulario``) y la lista vuelve a memoria: un ``IN`` con
+    una subconsulta correlacionada acá adentro es justo lo que no entra en el
+    ``read_timeout`` de 10 s de la base de ECOM.
+
+    Los que liberó ``conciliar_envios_siis`` **no cuentan**: son ``ERROR`` por
+    cómo se guarda la decisión, no por un intento que falló. Si contaran, un caso
+    con cuatro errores previos quedaría fuera para siempre justo después de que
+    una persona confirmara con ECOM que hay que reenviarlo.
+    """
+    return list(
+        EnvioSIIS.objects.filter(estado=EnvioSIIS.Estado.ERROR)
+        .exclude(codigo_error=EnvioSIIS.LIBERADO)
+        .values("formulario_id")
+        .annotate(intentos=Count("id"))
+        .filter(intentos__gte=MAX_REINTENTOS)
+        .order_by("formulario_id")
+        .values_list("formulario_id", flat=True)[:tope]
+    )
+
+
+# Desenlaces de un caso que cuentan como «SIIS no está sirviendo». Los devuelve
+# ``procesar_caso`` y los interpreta :class:`Freno`.
+FALLA_TECNICA = "tecnico"
+FALLA_INCIERTA = "incierto"
+
+
+def desenlace_de(envio):
+    """Lo que un ``EnvioSIIS`` le dice al freno sobre el estado del servicio.
+
+    Vive acá y no en cada comando porque la pregunta es una sola y la respuesta
+    tiene que ser la misma en las cuatro vías (RED-53): un ``INCIERTO`` que
+    acaba de intentarse es una falla —y de las caras—; uno que ya estaba, no,
+    porque ahí no se llamó a SIIS.
+    """
+    if envio.estado == EnvioSIIS.Estado.ERROR:
+        return FALLA_TECNICA
+    if envio.estado == EnvioSIIS.Estado.INCIERTO and envio.recien_intentado:
+        return FALLA_INCIERTA
+    return None
+
+
+@dataclass
+class Freno:
+    """Corta la corrida cuando SIIS deja de servir. Único para las tres vías.
+
+    Lleva **dos rachas en paralelo**, no una:
+
+    * ``tecnicos`` — el caso quedó libre y se reintenta solo. Diez seguidos
+      significan «SIIS está caído»: no hay nada que ganar insistiendo.
+    * ``inciertos`` — el POST pudo haber llegado y el caso queda **tomado**
+      hasta que alguien le pregunte a ECOM. Son caros: el tope es más bajo.
+
+    Una falla **no** resetea la racha de la otra: con SIIS devolviendo 500 y
+    timeouts alternados, un solo contador que se pisa entre sí no llega nunca al
+    tope y la corrida sigue golpeando un servicio caído (que es lo que pasaba
+    cuando el INCIERTO contaba como «no es un error» y reseteaba el contador).
+    Solo un desenlace sano —un alta hecha, un rechazo de datos, un caso que ya
+    estaba tomado— vuelve las dos a cero.
+    """
+
+    max_errores: int = MAX_ERRORES
+    max_inciertos: int = MAX_INCIERTOS
+    tecnicos: int = 0
+    inciertos: int = 0
+
+    def registrar(self, desenlace):
+        """Suma el desenlace y devuelve ``True`` si hay que cortar."""
+        if desenlace == FALLA_TECNICA:
+            self.tecnicos += 1
+        elif desenlace == FALLA_INCIERTA:
+            self.inciertos += 1
+        else:
+            self.tecnicos = 0
+            self.inciertos = 0
+        return self.corta
+
+    @property
+    def corta(self):
+        return self.tecnicos >= self.max_errores or self.inciertos >= self.max_inciertos
+
+    @property
+    def motivo(self):
+        """Qué contar en el mensaje de corte, en el orden en que importa.
+
+        Lo lee el coordinador en la pantalla del proceso masivo y el operador en
+        la consola, así que dice qué pasó y qué hacer, no el nombre del estado.
+        """
+        if self.inciertos >= self.max_inciertos:
+            return (
+                f"{self.inciertos} envíos seguidos sin saber si el alta llegó. SIIS contesta mal o no "
+                "contesta, y cada uno de esos casos queda tomado: hay que preguntarle a ECOM si esas "
+                "altas llegaron (`manage.py conciliar_envios_siis --listar`) antes de volver a correr"
+            )
+        return f"{self.tecnicos} errores técnicos seguidos. SIIS no está respondiendo o las credenciales no sirven"
+
 
 @dataclass
 class Cuenta:
@@ -115,6 +231,14 @@ class Cuenta:
     aprobados: int = 0
     lista_espera: int = 0
     no_aprobable: int = 0
+    # Ya los tiene otro camino (un envío EN_PROCESO o INCIERTO de antes) o ya se
+    # informó a la misma persona en el mismo plan desde otro caso
+    # (DUPLICADO_LOCAL). Ninguno de los dos es una falla de SIIS.
+    ocupados: int = 0
+    duplicados: int = 0
+    # Intentos de **esta** corrida que quedaron sin saber si el alta llegó. Sí
+    # son una falla de SIIS, y la más cara: cada uno pide una conciliación.
+    inciertos: int = 0
     # Entró a la lista de espera entre la selección y su turno (el selector ya
     # los deja afuera). No viaja a ``CorridaSiis``: no hay columna para él.
     ya_en_espera: int = 0
@@ -156,17 +280,34 @@ def candidatos(
     tabla intermedia sin sincronizar: guardarlos no deja ``EnvioSIIS``, así que
     sin esto volverían a salir como candidatos en cada vuelta y una corrida por
     tandas no terminaría nunca.
+
+    Tampoco entran los casos con un envío **vigente** (SIIS-01): uno ya informado,
+    uno con el POST en vuelo o uno de resultado incierto. Ni los que acumularon
+    ``MAX_REINTENTOS`` errores técnicos: insistir con ellos gasta la corrida y
+    tapa los que sí pueden salir (A2-15).
     """
     ultimo = EnvioSIIS.objects.filter(formulario=OuterRef("pk")).order_by("-creado", "-id").values("estado")[:1]
+    vigente = EnvioSIIS.objects.filter(formulario=OuterRef("pk"), vigente=True)
     casos = (
         Formulario.objects.select_related(*SELECT_RELATED_CASOS)
         .annotate(ultimo_envio=Subquery(ultimo))
         # «Todavía no informado» incluye a los que no tienen ningún envío, y eso
         # es NULL: un ``exclude`` los descartaría a todos, porque
         # ``NOT (NULL = 'ENVIADO')`` no es verdadero.
+        #
+        # El filtro por ``ultimo_envio`` se queda junto al de ``vigente`` a
+        # propósito: durante el deploy puede haber filas ``ENVIADO`` escritas por
+        # el código viejo, que nacen con ``vigente = NULL`` (expand/contract).
         .filter(Q(ultimo_envio__isnull=True) | ~Q(ultimo_envio=EnvioSIIS.Estado.ENVIADO))
+        # NOT EXISTS contra el índice único ``(formulario, vigente)``: una
+        # búsqueda exacta por caso, no el scan por fila de un ``Exists`` sobre
+        # una FK casi siempre nula.
+        .filter(~Exists(vigente))
         .order_by("pk")
     )
+    agotados = casos_con_errores_agotados()
+    if agotados:
+        casos = casos.exclude(pk__in=agotados)
     estados = [Formulario.Estado.APROBADO]
     if not solo_enviar:
         estados.append(Formulario.Estado.ENVIADO)
@@ -310,27 +451,47 @@ def procesar_caso(caso, responsable, catalogos, cuenta, *, avisar=False, solo_en
             if avisar:
                 enviar_aviso_resolucion(caso, resultado)
 
-    if destino == DESTINO_TABLA:
-        # El alta se guarda de este lado y no se llama a la API. El caso sigue
-        # siendo candidato hasta que llegue a SIIS de verdad: la fila guardada
-        # es una copia para revisar, no un alta hecha.
-        alta, envio = guardar_en_tabla_intermedia(caso, responsable, catalogos=catalogos)
-        if alta is not None:
-            cuenta.guardadas += 1
-            return None
-        if envio is None:
-            return None
-    else:
-        envio = enviar_beneficiario_a_siis(caso, responsable, catalogos=catalogos)
+    try:
+        if destino == DESTINO_TABLA:
+            # El alta se guarda de este lado y no se llama a la API. El caso sigue
+            # siendo candidato hasta que llegue a SIIS de verdad: la fila guardada
+            # es una copia para revisar, no un alta hecha.
+            alta, envio = guardar_en_tabla_intermedia(caso, responsable, catalogos=catalogos)
+            if alta is not None:
+                cuenta.guardadas += 1
+                return None
+            if envio is None:
+                return None
+        else:
+            envio = enviar_beneficiario_a_siis(caso, responsable, catalogos=catalogos)
+    except ValueError:
+        # SIIS-04: el estado releído bajo lock ya no habilita el envío. El caso
+        # cambió entre que se hidrató y su turno (una baja, un rechazo): no se
+        # informa, y eso no es un error técnico.
+        cuenta.no_aprobable += 1
+        return None
     if envio.estado == EnvioSIIS.Estado.ENVIADO:
         cuenta.altas += 1
     elif envio.estado == EnvioSIIS.Estado.INCOMPLETO:
         cuenta.incompletos += 1
+    elif desenlace_de(envio) == FALLA_INCIERTA:
+        # Lo intentamos y no sabemos si llegó: es una falla de SIIS, y de las
+        # caras. Que no cuente para el freno era dejar la corrida sin salida con
+        # el servicio caído, porque 500, 502, 504 y ReadTimeout son INCIERTO.
+        cuenta.inciertos += 1
+        return FALLA_INCIERTA
+    elif envio.estado in (EnvioSIIS.Estado.EN_PROCESO, EnvioSIIS.Estado.INCIERTO):
+        # Lo tenía tomado otro camino desde antes: no se llamó a SIIS, así que no
+        # dice nada sobre el estado del servicio.
+        cuenta.ocupados += 1
     elif envio.estado == EnvioSIIS.Estado.RECHAZADO:
-        cuenta.rechazados += 1
+        if envio.codigo_error == "DUPLICADO_LOCAL":
+            cuenta.duplicados += 1
+        else:
+            cuenta.rechazados += 1
     else:
         cuenta.errores += 1
-        return "tecnico"
+        return FALLA_TECNICA
     return None
 
 
@@ -392,7 +553,9 @@ def _guardar(corrida, cuenta, **extra):
     corrida.save(update_fields=[*CONTADORES, "latido", *extra.keys(), "modificado"])
 
 
-def correr(corrida, *, responsable=None, catalogos=None, lote=LOTE, max_errores=MAX_ERRORES):
+def correr(
+    corrida, *, responsable=None, catalogos=None, lote=LOTE, max_errores=MAX_ERRORES, max_inciertos=MAX_INCIERTOS
+):
     """Ejecuta la corrida y va escribiendo su avance. **Nunca lanza.**
 
     Todo desenlace —incluida una excepción que no previmos— queda escrito en la
@@ -411,24 +574,23 @@ def correr(corrida, *, responsable=None, catalogos=None, lote=LOTE, max_errores=
         casos, _ = elegir_completos(pendientes, catalogos, corrida.total_pedido, cuenta)
         _guardar(corrida, cuenta)
 
-        seguidos = 0
+        freno = Freno(max_errores=max_errores, max_inciertos=max_inciertos)
         for grupo in _lotes(casos, max(1, lote)):
             for caso in grupo:
-                if procesar_caso(caso, responsable, catalogos, cuenta) == "tecnico":
-                    seguidos += 1
-                else:
-                    seguidos = 0
+                # El freno se mira por caso y no al final del lote: con SIIS
+                # caído, esperar a los 40 del lote son 40 llamadas de más (y, si
+                # son inciertas, 40 casos tomados). El latido por caso es de
+                # SIIS-03.
+                if freno.registrar(procesar_caso(caso, responsable, catalogos, cuenta)):
+                    break
             _guardar(corrida, cuenta)
-            if seguidos >= max_errores:
+            if freno.corta:
                 _guardar(
                     corrida,
                     cuenta,
                     estado=CorridaSiis.Estado.DETENIDA,
                     finalizada=timezone.now(),
-                    mensaje=(
-                        f"Se detuvo tras {max_errores} errores técnicos seguidos: SIIS no está respondiendo "
-                        "o las credenciales no sirven. Lo hecho quedó; volvé a lanzarla cuando se recupere."
-                    ),
+                    mensaje=f"Se detuvo tras {freno.motivo}. Lo hecho quedó; volvé a lanzarla cuando se recupere.",
                 )
                 return corrida
             # El freno se relee de la base: lo marca otro request.
