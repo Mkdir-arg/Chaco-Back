@@ -4,6 +4,8 @@ from django.contrib.auth.models import User
 from django.db import models
 from django.utils import timezone
 
+from core.utils_fechas import q_rango_local
+
 from ..models import ColaAsignacion, Conversacion, MetricasOperador
 
 logger = logging.getLogger(__name__)
@@ -131,20 +133,22 @@ class MetricasService:
 
         from django.db.models import Avg, Count, Q
 
-        ahora = timezone.now()
-        hoy = ahora.date()
+        # Fechas **locales** y acotadas por rango: ``hoy = timezone.now().date()`` es
+        # la fecha UTC y ``fecha_inicio__date`` se traduce a ``CONVERT_TZ``, que en
+        # ECOM —sin tablas de zona horaria— devuelve NULL y deja todo en cero (DIS-01).
+        hoy = timezone.localdate()
         semana_pasada = hoy - timedelta(days=7)
         mes_pasado = hoy - timedelta(days=30)
 
         # Optimizar con una sola consulta aggregate
         stats = Conversacion.objects.aggregate(
             total_conversaciones=Count("id"),
-            conversaciones_hoy=Count("id", filter=Q(fecha_inicio__date=hoy)),
-            conversaciones_semana=Count("id", filter=Q(fecha_inicio__date__gte=semana_pasada)),
-            conversaciones_mes=Count("id", filter=Q(fecha_inicio__date__gte=mes_pasado)),
+            conversaciones_hoy=Count("id", filter=q_rango_local("fecha_inicio", hoy, hoy)),
+            conversaciones_semana=Count("id", filter=q_rango_local("fecha_inicio", desde=semana_pasada)),
+            conversaciones_mes=Count("id", filter=q_rango_local("fecha_inicio", desde=mes_pasado)),
             pendientes=Count("id", filter=Q(estado="pendiente")),
             activas=Count("id", filter=Q(estado="activa")),
-            cerradas_hoy=Count("id", filter=Q(estado="cerrada", fecha_cierre__date=hoy)),
+            cerradas_hoy=Count("id", filter=Q(estado="cerrada") & q_rango_local("fecha_cierre", hoy, hoy)),
             tiempo_respuesta_promedio=Avg("tiempo_respuesta_segundos"),
             tiempo_espera_promedio=Avg("tiempo_espera_segundos"),
             satisfaccion_promedio=Avg("satisfaccion"),
