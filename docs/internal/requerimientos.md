@@ -319,6 +319,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 137 | Las mismas tres pantallas, pedidas de nuevo: el ejercicio de control que cierra la Ola 6 | Transversal · agente canónico de diseño y sus fichas · evidencia de la auditoría (sin tocar código de producción) | `#ui` `#metodo` | Auditoría integral oct-2026 — Ola 6 «Agente de diseño», pasos 6 y 7 | 06/10/2026 | 🟢 **Hecho** (queda para el PM la captura del criterio (e)) | No requiere |
 | 138 | Una lista de exclusión frena a quien no hay que mandar a SIIS, y el envío pide confirmación | Becas · alta de beneficiarios en SIIS | `#siis` `#datos` | PM — en sesión: «todas las personas que están en la tabla SiisEnviar NO SE ENVIAN» | 06/10/2026 | 🟢 **Hecho** | No requiere |
 | 140 | El parte diario y los reportes de Dispositivos cuentan el día argentino, no el del motor | Dispositivos (parte F-01, listado, exports, indicadores) · Legajos · Conversaciones · Transversal (helper de fechas + guardia) | `#datos` `#infra` `#performance` | Auditoría integral oct-2026 — fichas DIS-01 y DIS-08 (Ola 5, PR 1) | 06/10/2026 | 🟢 **Hecho** | No requiere |
+| 150 | Legajos deja de romperse solo: subir archivos, reinscribir y la solapa que nunca funcionó | Legajos (detalle del ciudadano, adjuntos, derivaciones, dashboard de alertas) · Transversal (inscripciones a programas) | `#ui` `#datos` `#api` | Auditoría integral oct-2026 — fichas FE-02, LEG-02..05, FE-09 y FE-21 (Ola 5, PR 2) | 06/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -19020,3 +19021,184 @@ Nada. Sin migración, sin variables nuevas, sin comandos. Deploy normal.
 Revertir el commit. Vuelven los `__date` y con ellos el bug en ECOM; la guardia se va con el mismo commit,
 así que no queda un test en rojo. Si solo se quisiera revertir la guardia, basta con borrar
 `core/tests/test_sql_portable.py`: ningún código de producción depende de ella.
+
+---
+
+# Cambio 150 — Legajos deja de romperse solo: subir archivos, reinscribir y la solapa que nunca funcionó
+
+🟢 **HECHO — 06/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Legajos (detalle del ciudadano, adjuntos, derivaciones, dashboard de alertas) · Transversal (inscripciones a programas) |
+| **Etiquetas** | `#ui` `#datos` `#api` |
+| **Solicitante** | Auditoría integral oct-2026 — fichas FE-02, LEG-02, LEG-03, LEG-04, LEG-05, FE-09 y FE-21 (Ola 5, PR 2) |
+| **Fecha del pedido** | 06/10/2026 |
+| **Issue / épica** | Sin issue (plan de la auditoría: `docs/internal/auditoria-2026-10/`) |
+| **Partes afectadas** | Backoffice: detalle del ciudadano (solapas, modal de archivos, avisos), dashboard de alertas, derivación e inscripción a programas, admisiones de Dispositivos (membresía). Una API retirada. Ninguna pantalla nueva |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> «(2) Legajos: FE-02, LEG-04, LEG-05, LEG-02, LEG-03, FE-09, FE-21 — 14 h» (README de la auditoría, §6, Ola 5, PR 2.)
+
+Siete defectos del mismo módulo, todos medidos:
+
+1. **FE-02 — «Subir archivos» no mandaba nada.** El script del legajo arranca cada aviso con
+   `toastr.options = …`, y `toastr` **no se carga en ninguna página del backoffice**: la primera línea del
+   handler tiraba `toastr is not defined` y el `submit` moría ahí. Cero POST a `/subir-archivos/`. El mismo
+   corte se llevaba puesto «Copiar DNI» y el alta de vínculo.
+2. **LEG-02 — reinscribir daba 500.** `InscripcionPrograma` tiene `unique_together = [ciudadano, programa]`:
+   una inscripción CERRADA, DADA DE BAJA o SUSPENDIDA ocupa la fila para siempre. Las tres vías de alta
+   hacían `create` igual (el form de derivación, `DerivacionPrograma.aceptar` y `crear_inscripcion_directa`),
+   así que la base contestaba `IntegrityError`. Y la vista lo tapaba con un `except Exception` que lo
+   mostraba como si fuera una validación de negocio.
+3. **LEG-03 — la solapa «Red Familiar» nunca funcionó.** Su API (`legajos/urls/api_contactos.py`) no estaba
+   incluida en ningún URLconf: cada carga del legajo disparaba un `fetch` que volvía 404. Peor, montarla tal
+   cual —como proponía una de las pasadas de la auditoría— habría listado **los vínculos de todos los
+   ciudadanos**: el `get_queryset` filtra por `?ciudadano=` y el JS manda `?ciudadano_principal=`, que no
+   está en `filterset_fields`, así que la consulta vuelve sin filtro y con solo `IsAuthenticated`.
+4. **LEG-04 — un archivo perdido escondía todos los demás.** `_serialize_adjunto` leía
+   `archivo.archivo.size` sin red: un blob que ya no está en el storage tiraba `OSError`, la vista lo
+   tragaba y devolvía **200 con la lista vacía**. Además la consulta no traía el `content_type`: una query
+   por adjunto.
+5. **LEG-05 — la subida múltiple no era atómica.** Con `dni.pdf` válido y `foto.heic` inválido, el primero
+   quedaba guardado y el usuario solo veía «Formato no permitido»: creía que no había subido nada.
+6. **FE-09 — links a una ruta que no existe.** El dashboard de alertas y dos tablas del legajo armaban
+   `href="/legajos/<id>/"`. No hay ninguna vista de detalle de `LegajoAtencion`: 404 garantizado.
+7. **FE-21 — los modales no cerraban con Escape** ni atrapaban el foco: la única escucha de teclado de la
+   pantalla era la de flechas de las solapas.
+
+## Alcance acordado
+
+- **Entra:** las siete fichas completas, más el servicio único de inscripciones que las tres vías de alta
+  necesitaban, el `_membresia_activa` de Dispositivos apoyado en él, y el retiro del stub de `toastr` del
+  harness de JS (sin stub, cualquier script que vuelva a usarlo revienta en los tests y no en producción).
+- **Afuera:** la v2 de Dispositivos y Merenderos (solo está definida: Cambios 133 y 134). La migración de
+  `ciudadano_detail.html` a las piezas canónicas del arquetipo «detalle» (FE-11, FE-12, FE-17, FE-20,
+  FE-23, FE-24), que es el PR 6 de la Ola 5 y va después de la Ola 6 paso 4. Los tres JS huérfanos que
+  todavía usan `toastr` (`static/custom/js/ciudadanos{alertas,archivosform,archivoslist}.js`): **ningún
+  template los carga** y los borra FE-14, en la Ola 7. La subida de `timeline`, `alertas_ciudadano_api` y
+  `prediccion-riesgo` a `ciudadano.sensible` (SEC-11, Ola 2, depende de D-11).
+
+## Decisiones tomadas
+
+- **DECISIÓN CLIENTE · D-L03 = B (retirar), aplicado el default.** La solapa «Red Familiar», su modal, el
+  contador de vínculos, el grafo (`vis-network`, 673 KB que la página ya no descarga) y el router
+  `legajos/urls/api_contactos.py` se van. También se borra `VinculoFamiliarViewSet`, que es la pieza que
+  exponía los vínculos de todos: dejarlo escrito «por si acaso» es dejar la trampa armada. **El modelo
+  `VinculoFamiliar` queda**: alimenta la línea de tiempo y la actividad reciente del legajo, así que no se
+  pierde ningún dato. Si el cliente la pide de vuelta, la opción A de la ficha está escrita en el comentario
+  que quedó en `legajos/api_views/contactos.py`.
+- **Un solo lugar donde se activa una inscripción.** `programas/services/inscripciones.py` con
+  `activar_inscripcion(ciudadano, programa, *, via, usuario, notas)`: toma la fila bajo
+  `select_for_update().get_or_create`, tolera la carrera (el que pierde recibe el `IntegrityError` del
+  índice y relee ya con el candado) y revive la que estaba CERRADA, SUSPENDIDA, DADA DE BAJA o PENDIENTE.
+  Lo usan las tres vías de alta **y** `_membresia_activa` de Dispositivos, que tenía la misma lógica
+  duplicada y sin escribir la vía de ingreso.
+- **Lo que ya está vigente no se pisa.** Si la inscripción está ACTIVO o EN_SEGUIMIENTO, `activar_inscripcion`
+  la devuelve tal cual: no reescribe la vía de ingreso ni las notas de algo en curso. Era la conducta que ya
+  tenía `DerivacionPrograma.aceptar` y se conserva.
+- **El adjunto con el blob perdido se sigue listando, marcado.** El payload trae `tamano: null` y
+  `faltante: true`, y la tabla muestra «Archivo no disponible» en vez del peso. Esconder la fila sería
+  esconder el problema: el operador tiene que ver que el documento está registrado y el archivo no está.
+- **La subida valida todo antes de tocar la base,** y la creación va en una transacción que, si falla, borra
+  además los blobs ya escritos: el storage no participa de la transacción, así que hay que limpiarlo a mano.
+- **Los links a `/legajos/<id>/` pasan a texto, no se inventa una vista.** Crear un detalle de
+  `LegajoAtencion` es trabajo de producto, no de un PR de bugs. En el dashboard de alertas sí había un
+  destino útil y existente: el ciudadano de la alerta (`AlertaCiudadano.ciudadano`), y el botón ya no
+  depende de que la alerta tenga legajo.
+- **Los modales se atan a `becas-modal.js` por su API vanilla,** sin reescribir el markup al arquetipo Modal.
+  El helper observa la clase `hidden` del overlay, así que `abrirModalArchivos()` y `cerrarModal()` siguen
+  mandando; los botones de cierre pasan a `data-becas-modal-cerrar`. La reescritura estructural es FE-11/FE-12.
+- **`toastr` deja de estar stubeado en `core/tests/js_harness.py`.** Si la biblioteca no se carga en ninguna
+  página, el harness no tiene que fingir que sí: con el stub, el test del legajo pasaba con el bug adentro.
+
+## Implementación
+
+- `programas/services/inscripciones.py` **(nuevo)**: `tomar_inscripcion` (candado + carrera) y
+  `activar_inscripcion`. `ESTADOS_VIGENTES` lista los dos estados que no se tocan.
+- `DerivacionPrograma.aceptar`, `DerivarProgramaForm.save`, `SolapasService.crear_inscripcion_directa` y
+  `programas/services/admisiones.py::_membresia_activa` pasan por ese servicio. `_obtener_membresia` queda
+  (la lista de espera crea la membresía **sin** activarla) apoyado en `tomar_inscripcion`.
+- `legajos/views/derivacion_programa.py`: fuera el `except Exception` de `aceptar_derivacion_programa`. El
+  «ya fue procesada» lo levanta `_get_pending_derivacion` como `ValidationError`, que se sigue capturando.
+- `legajos/selectors/contactos.py`: helper `_tamano_de` con `try/except OSError`, campo `faltante` en el
+  payload y `select_related("content_type")` en el queryset de adjuntos.
+- `legajos/services/contactos.py`: `subir_archivos_para_objeto` valida la tanda completa, crea dentro de
+  `transaction.atomic()` y limpia los blobs escritos si algo revienta.
+- `legajos/templates/legajos/ciudadano_detail.html`: se van la solapa, el modal de vínculo, el buscador de
+  ciudadanos, `cargarVinculos`, `renderizarGrafoRed` y el `<script>` de `vis-network`; los avisos pasan a
+  `window.toast`; los dos links a la ruta inexistente pasan a `<span class="cd-muted">`; el modal de
+  archivos se ata a `window.becasModal.bind` y carga `becas-modal.js` en `customJS`.
+- `templates/legajos/alertas_dashboard.html`: el botón apunta al detalle del ciudadano por `{% url %}`.
+- `programas/services/solapas.py`: fuera la entrada `red_familiar` de `SOLAPAS_ESTATICAS`.
+- Borrados: `legajos/urls/api_contactos.py` y `VinculoFamiliarViewSet`.
+
+## Archivos
+
+| Archivo | Qué cambió |
+|---|---|
+| `programas/services/inscripciones.py` | **Nuevo.** Puerta única de alta y reactivación de inscripciones |
+| `programas/services/admisiones.py` | `_membresia_activa` delega; `_obtener_membresia` usa el helper común |
+| `programas/services/solapas.py` | Sin `red_familiar`; `crear_inscripcion_directa` delega |
+| `programas/models/__init__.py` | `DerivacionPrograma.aceptar` delega |
+| `legajos/forms/derivacion.py` | La inscripción directa delega |
+| `legajos/views/derivacion_programa.py` | Sin `except Exception` al aceptar |
+| `legajos/selectors/contactos.py` | `faltante` y `tamano=None` ante `OSError`; `select_related` |
+| `legajos/services/contactos.py` | Subida atómica con limpieza de blobs |
+| `legajos/api_views/contactos.py` | Sin `VinculoFamiliarViewSet` (queda el porqué escrito) |
+| `legajos/urls/api_contactos.py` | **Borrado** |
+| `legajos/templates/legajos/ciudadano_detail.html` | Red familiar fuera; `window.toast`; links a texto; modal accesible |
+| `templates/legajos/alertas_dashboard.html` | «Ver ciudadano» en vez de un link roto |
+| `core/tests/js_harness.py` | Sin stub de `toastr` |
+
+## Base de datos
+
+No requiere migración. Ningún modelo cambió: `activar_inscripcion` escribe columnas que ya existen
+(`estado`, `fecha_inicio`, `fecha_cierre`, `motivo_cierre`, `via_ingreso`, `notas`, `responsable`).
+
+## Validación
+
+- `manage.py check` y `check --deploy`: sin hallazgos. `makemigrations --check --dry-run`: «No changes detected».
+- **Suite completa en un solo proceso (`manage.py test`, sin argumentos): 2767 tests, OK** (17 skipped).
+- `manage.py test --tag performance`: en verde.
+- Tests nuevos, los tres módulos **rojos antes del arreglo**:
+  `programas.tests.test_inscripciones_reactivacion` (6), `legajos.tests.test_adjuntos_robustez` (6),
+  `legajos.tests.test_ciudadano_detail_ola5` (11).
+- `ruff check .` y `ruff format --check`: limpio.
+- UI: `design_audit.py --ratchet` → **0 hallazgos nuevos**; `--arquetipo detalle` sobre
+  `ciudadano_detail.html` pasa de **9 desvíos a 8** (ninguno nuevo; el que se fue es el `thead` de la tabla
+  de vínculos); `compile_templates.py` → 0; `check_design_agent.py --changed` y `--limites` → OK.
+- Los dos `[ERROR][TWBUILD]` que `--changed` reporta en `alertas_dashboard.html` (`hover:bg-gray-700`,
+  `hover:bg-gray-50`) son **preexistentes**: están en `HEAD` en las mismas dos líneas y el ratchet los
+  descuenta. No se regeneró `tailwind.css` porque no se agregó ninguna utilidad.
+
+## Puesta en marcha en el servidor
+
+Deploy normal, sin migración y sin orden entre pasos. Como se borró un `<script src>` de `vis-network` y se
+agregó uno de `becas-modal.js`, hay que correr `collectstatic` (el entrypoint ya lo hace) y, si el ingress
+cachea, un refresh forzado del detalle del ciudadano.
+
+## Pendientes / a definir
+
+1. **La parte LEG-04 del «except que traga»** ya estaba resuelta antes de este PR: la cerró R-19 (#556,
+   Cambio 126), que dejó `logger.exception` más un 500 genérico en las vistas de `contactos_api.py`. Acá se
+   agregó el test permanente que lo fija (`test_error_inesperado_no_expone_detalle`), que pasa desde el día 1.
+2. **RED-42 no tenía allowlist que actualizar.** La ficha LEG-03 dice que cerrarla saca la entrada del
+   `fetch` roto de `core/tests/test_urls_del_front.py`; ese archivo **todavía no existe** (RED-42 es del
+   PR R-18, abierto). Cuando se escriba, nacerá sin esa entrada.
+3. **Tres JS huérfanos siguen usando `toastr`** (`ciudadanos{alertas,archivosform,archivoslist}.js`).
+   Ningún template los carga —se verificó con `grep`—; los borra FE-14 en la Ola 7.
+4. **`ciudadano_detail.html` sigue fuera del arquetipo «detalle»** (8 desvíos: encabezado a mano, `<style>`
+   local, dos `thead` con `style=`). Es la migración del PR 6 de la Ola 5, no de un PR de bugs.
+5. **No se tomaron capturas de Playwright:** el harness es local y no está en el worktree. Lo visible es el
+   retiro de una solapa y de una tarjeta de indicador, y un botón que cambia de texto: conviene una pasada
+   de QA visual sobre el detalle del ciudadano y el dashboard de alertas.
+
+## Reversión
+
+Revertir el commit. Vuelven los siete defectos, incluido el 404 por carga del legajo, y los tests nuevos se
+van con el mismo commit (no queda ninguno en rojo). No hay nada que deshacer en la base: no se escribió
+ninguna fila nueva ni se borró ninguna; `activar_inscripcion` solo reactiva filas que ya existían, y esas
+reactivaciones quedan como están (son altas legítimas).

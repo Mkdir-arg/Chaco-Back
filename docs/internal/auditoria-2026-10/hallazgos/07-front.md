@@ -17,14 +17,14 @@ FE-18, FE-19); las migraciones de estilo de esos dos módulos las hereda la v2.
 
 | ID | Título | Sev. | Estado | Ola | Esf. | Avance 03-oct |
 |---|---|---|---|---|---|---|
-| FE-02 | `toastr` no cargado en el legajo: «Subir archivos» no envía nada | ALTA | CONF. navegador | 5 | S | ⬜ |
+| FE-02 | `toastr` no cargado en el legajo: «Subir archivos» no envía nada | ALTA | CONF. navegador | 5 | S | ✅ |
 | FE-04 | Geografía pagina de a 20 sin controles de paginación | ALTA | CONF. navegador | 5 | S | ⬜ |
 | FE-05 | Wizard «Nuevo programa»: el JS está en un bloque sin destino | ALTA | CONF. navegador | 5 | S | ⬜ |
 | FE-06 | Clases que el build no genera: botones invisibles, backdrop transparente | ALTA | CONF. ajustado (navegador) | 5 | S | ⬜ |
 | FE-01 | `mobile-enhancements.js` global altera controles, modales y swipe | MEDIA (A6: ALTA) | CONF. ajustado | 5 | S | ⬜ |
 | FE-07 | Modales de Configuración en la esquina y con botones sin tamaño | MEDIA | CONF. navegador | 5 | M | ⬜ |
 | FE-08 | Errores no de campo invisibles | MEDIA | CONF. | 5 | S | ⬜ |
-| FE-09 | Links a `/legajos/<id>/`, ruta inexistente | MEDIA | CONF. ajustado | 5 | S | ⬜ |
+| FE-09 | Links a `/legajos/<id>/`, ruta inexistente | MEDIA | CONF. ajustado | 5 | S | ✅ |
 | FE-10 | Prestación mensual ilegible en celular | MEDIA | CONF. navegador | 5 | S | ⬜ |
 | FE-11 | Componentes canónicos solo en Becas | MEDIA | CONF. | 5 | L | ⬜ |
 | FE-12 | Tablas con estilos en línea e iconografía mezclada | MEDIA | CONF. | 5 | M | ⬜ |
@@ -33,7 +33,7 @@ FE-18, FE-19); las migraciones de estilo de esos dos módulos las hereda la v2.
 | FE-18 | Badges de estado incoherentes | MEDIA | CONF. | 5 | S | ⬜ |
 | FE-19 | Confirmaciones con colores invertidos y handler copiado | MEDIA | CONF. ajustado | 5 | S | ⬜ |
 | FE-20 | Wrapper legacy `includes/main.html`: contenido desplazado; 403/404/500 sin estilo | MEDIA | CONF. navegador | 5 | M | ⬜ |
-| FE-21 | Modales de Legajos sin Escape ni foco | MEDIA | CONF. | 5 | S | ⬜ |
+| FE-21 | Modales de Legajos sin Escape ni foco | MEDIA | CONF. | 5 | S | ✅ |
 | V5A-NEW-01 | `tailwind.css` committeado desactualizado y sin gate | MEDIA | CONF. | 6 | S | ✅ |
 | V5A-NEW-07 | Deuda de accesibilidad en las pantallas candidatas a referencia | MEDIA | CONF. | 6 (a) / 5 (b) | (a) en paso 3 · (b) 2 × S | 🟡 (a) ✅ |
 | FE-14 | 29 JS y 1 CSS huérfanos | BAJA (A6: MEDIA) | CONF. ajustado | 7 | S | ⬜ |
@@ -56,6 +56,17 @@ FE-18, FE-19); las migraciones de estilo de esos dos módulos las hereda la v2.
 - **Propuesta:** en `legajos/templates/legajos/ciudadano_detail.html`, sacar las 4 líneas `toastr.options = …` (1175, 1178, 1466, 1628); `toastr.success|warning|error(x)` → `window.toast('success'|'warning'|'error', x)` en 1176, 1179, 1469, 1493, 1499, 1502 y 1643; los `Swal.fire('Error', …)` de 1453, 1456, 1617, 1620, 1645 y 1648 son avisos: → `window.toast('error', …)`; en `core/tests/js_harness.py:138`, quitar `var toastr = __stub('toastr')`.
 - **Verificación:** test JS con el harness sin el stub; Playwright: subir un archivo → POST 200 y toast; cerrar el pendiente del Cambio 95/96 en `requerimientos.md`.
 - **Dependencias:** SEC-10 y LEG-04 tocan el mismo flujo. **LEG-03 / D-L03:** las líneas del flujo de vínculos (1443-1502) desaparecen con el default B (retirar la solapa); con la opción A, «Agregar vínculo» sigue en 404 hasta montar la API. Hacer FE-02 en el mismo PR que LEG-03 y no corregir esas líneas si se retiran.
+
+**Resolución:** ✅ Resuelto en el PR #PRNUM (Cambio 150), 06-10-2026 — fuera las cuatro líneas `toastr.options = …` y
+todos los `toastr.success|warning|error`, reemplazados por `window.toast(tipo, mensaje)`, el único sistema de avisos
+del repo. Los `Swal.fire('Error', …)` que eran **avisos** (no confirmaciones) también pasaron a `window.toast`; las
+dos confirmaciones destructivas siguen en SweetAlert2, que la pantalla carga de verdad. En
+`core/tests/js_harness.py` se retiró `var toastr = __stub('toastr')`: sin el stub, cualquier script que vuelva a
+usar la biblioteca revienta en los tests y no en producción. **Las líneas del flujo de vínculos (1443-1502) no se
+corrigieron: desaparecieron** con el default B de LEG-03, como pedía la ficha.
+**Test permanente:** `legajos.tests.test_ciudadano_detail_ola5.AvisosConToastTests.test_subir_archivos_manda_el_post`
+(corre el script real de la página con `node` y exige el POST a `/subir-archivos/` más el aviso;
++ `test_la_pagina_no_usa_toastr` y `test_los_avisos_usan_window_toast`).
 
 ### FE-04 · Provincias, Municipios y Localidades paginan de a 20 pero no muestran paginación
 **Severidad:** ALTA · **Estado:** CONFIRMADO en navegador (`/configuracion/localidades/`: 20 filas, 0 enlaces `?page=`; `?page=2` tiene 11 filas inalcanzables) · **Origen:** A6-04 · **Ola:** 5 · **Esfuerzo:** S
@@ -114,6 +125,15 @@ FE-18, FE-19); las migraciones de estilo de esos dos módulos las hereda la v2.
 - **Propuesta:** `templates/legajos/alertas_dashboard.html:147` → `{% url 'legajos:ciudadano_detalle' alerta.ciudadano_id %}` (`AlertaCiudadano.ciudadano` existe, `legajos/models/base.py:423`); en el JS de `ciudadano_detail.html:1545` y `:1680`, reemplazar el link por texto (`<span class="cd-muted">Acompañamiento</span>` o el código del legajo) hasta que exista una vista de legajo.
 - **Verificación:** test que renderiza el dashboard de alertas con una alerta y el `href` resuelve; `git grep -n '"/legajos/\${' legajos/templates` vacío.
 
+**Resolución:** ✅ Resuelto en el PR #PRNUM (Cambio 150), 06-10-2026 — en `templates/legajos/alertas_dashboard.html`
+el botón pasa a `{% url 'legajos:ciudadano_detalle' alerta.ciudadano_id %}` («Ver ciudadano») y **deja de depender de
+`{% if alerta.legajo %}`**: el ciudadano siempre está, el legajo no, y el destino que existía era el del ciudadano.
+En `ciudadano_detail.html`, el origen «Acompañamiento» de la tabla de archivos y el código de legajo de la tabla de
+actividades pasan a `<span class="cd-muted">`: no se inventa una vista de detalle de `LegajoAtencion`, que es trabajo
+de producto. El `href` armado hacia `/legajos/<id>/archivos/<n>/eliminar/` **se conserva**: esa ruta sí resuelve.
+**Test permanente:** `legajos.tests.test_ciudadano_detail_ola5.AlertasDashboardLinkTests.test_el_boton_apunta_al_detalle_del_ciudadano`
+(+ `LinksDeLegajoTests.test_el_detalle_no_arma_links_a_la_ruta_inexistente`).
+
 ### FE-10 · Prestación mensual ilegible en celular
 **Severidad:** MEDIA · **Estado:** CONFIRMADO en navegador (`th` de 25 a 50 px a 390 px) · **Origen:** A6-10 · **Ola:** 5, después de FE-01 (Ola 6 paso 3) · **Esfuerzo:** S
 - **Propuesta:** en `programas/templates/programas/merenderos/prestacion_mensual.html:31-38`, contenedor `overflow-x-hidden` → `overflow-auto` y `<table>` con `min-w-[720px]` (clase arbitraria nueva: `npm run build:tailwind` y commitear el CSS; con la Ola 6, es «novedad»: pedir OK). **Precondición: FE-01** (con el swipe global, arrastrar la tabla abre el sidebar).
@@ -163,6 +183,16 @@ FE-18, FE-19); las migraciones de estilo de esos dos módulos las hereda la v2.
 **Severidad:** MEDIA · **Estado:** CONFIRMADO (la única escucha de teclado en `ciudadano_detail.html` es la de flechas del tablist, `:1155`) · **Origen:** A6-21 · **Ola:** 5 · **Esfuerzo:** S
 - **Propuesta:** en `ciudadano_detail.html`, `{% block customJS %}` con `becas-modal.js`; `window.becasModal.bind(document.getElementById('modalArchivos'), {onClose: () => cerrarModal('modalArchivos')})` (ídem `modalVinculo`, si LEG-03 lo conserva); botones de cierre con `data-becas-modal-cerrar`. El modal crítico de `alertas_websocket.js` va en FE-25.
 - **Verificación:** Playwright: abrir, Tab no sale del panel, Escape cierra y el foco vuelve al disparador.
+
+**Resolución:** ✅ Resuelto en el PR #PRNUM (Cambio 150), 06-10-2026 — `ciudadano_detail.html` carga
+`static/custom/js/becas-modal.js` en `{% block customJS %}` y ata el modal de archivos con
+`window.becasModal.bind(overlay, {onClose: () => cerrarModal('modalArchivos')})`; los botones de cierre (la X y
+«Cancelar») llevan `data-becas-modal-cerrar`. El helper observa la clase `hidden` del overlay, así que
+`abrirModalArchivos()` y `cerrarModal()` siguen siendo los que mandan y no hubo que reescribir el markup al
+arquetipo Modal (eso es FE-11/FE-12, PR 6 de la ola). `modalVinculo` **no se ató: se borró** con LEG-03.
+**Test permanente:** `legajos.tests.test_ciudadano_detail_ola5.ModalesAccesiblesTests.test_el_detalle_carga_becas_modal`
+(+ `test_los_botones_de_cierre_del_modal_declaran_el_marcador`); el comportamiento del helper ya lo cubre
+`programas.tests.test_becas_modal`.
 
 ### V5A-NEW-01 · El CSS de Tailwind committeado está desactualizado y no hay gate
 **Severidad:** MEDIA · **Estado:** CONFIRMADO (build fresco con `tailwindcss 3.4.19` del repo: faltan `mt-px` y `w-40`, que usa `becas/cupo/segmento_detail.html` desde `aac430c` del 30-sep; sobran 12 clases; último build `7b22954` del 22-sep; ningún workflow corre `build:tailwind`) · **Origen:** V5A-NEW-01 · **Ola:** 6 (paso 2) · **Esfuerzo:** S

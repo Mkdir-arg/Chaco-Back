@@ -5,6 +5,7 @@ from django.db.models import Exists, OuterRef, Q
 from django.urls import reverse
 
 from ..models import Admision, DerivacionPrograma, InscripcionPrograma, Programa
+from .inscripciones import activar_inscripcion
 
 
 class SolapasService:
@@ -22,7 +23,10 @@ class SolapasService:
             "orden": 950,
             "estatica": True,
         },
-        {"id": "red_familiar", "nombre": "Red Familiar", "icono": "users", "orden": 998, "estatica": True},
+        # «Red Familiar» se retiró con LEG-03 (default D-L03 = B): su API nunca estuvo
+        # montada —404 en cada carga del legajo— y, montada tal cual, listaba los
+        # vínculos de todos los ciudadanos. El modelo `VinculoFamiliar` sigue vivo:
+        # alimenta la línea de tiempo y la actividad reciente.
         {"id": "archivos", "nombre": "Archivos", "icono": "folder-open", "orden": 999, "estatica": True},
     ]
 
@@ -165,14 +169,9 @@ class SolapasService:
         ).exists()
         if existe:
             raise ValueError(f"El ciudadano ya tiene una inscripción activa en {programa.nombre}")
-        return InscripcionPrograma.objects.create(
-            ciudadano=ciudadano,
-            programa=programa,
-            via_ingreso="DIRECTO",
-            estado="ACTIVO",
-            responsable=responsable,
-            notas=notas,
-        )
+        # Con una inscripción previa no activa la fila ya existe (`unique_together`):
+        # se revive en vez de crear otra, que daba `IntegrityError` (LEG-02).
+        return activar_inscripcion(ciudadano, programa, via="DIRECTO", usuario=responsable, notas=notas)
 
     @classmethod
     def obtener_historial_programas(cls, ciudadano):
