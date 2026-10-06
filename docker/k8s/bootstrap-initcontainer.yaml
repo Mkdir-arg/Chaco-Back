@@ -54,6 +54,13 @@ spec:
           env:
             - name: RUN_MIGRATIONS
               value: "false"
+            # Mismo motivo que `RUN_MIGRATIONS`, un paso más abajo: sin esto, cada pod
+            # que arranca corre también `seed_datos_base`, `crear_programas` y
+            # `seed_catalogo_siis`. Son idempotentes, pero N réplicas sembrando a la vez
+            # se pisan en los `update_or_create` y alargan cada arranque; el initContainer
+            # (o el Job) ya los corrió.
+            - name: LOCAL_BOOTSTRAP_COMMANDS
+              value: "false"
           ports:
             - containerPort: 8000
           # Regla de consistencia de puertos: APP_PORT (env) = containerPort =

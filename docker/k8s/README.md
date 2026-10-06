@@ -45,12 +45,20 @@ medido contra MariaDB 11.8, uno de los dos muere con 1050 desde base vacía y co
 |---|---|
 | Sin `command`/`args` en el pod: el entrypoint migra en cada arranque | Solo con **`replicas: 1`** y sin rolling. Con más réplicas son N migradores |
 | initContainer `args: ["bootstrap"]` (`bootstrap-initcontainer.yaml`) | Solo con **`replicas: 1`**: el initContainer corre en **cada** pod |
-| Job `args: ["bootstrap"]` (`bootstrap-job.yaml`), y `RUN_MIGRATIONS=false` en todos los Deployments | **Siempre**. Es la única forma con `replicas > 1` |
+| Job `args: ["bootstrap"]` (`bootstrap-job.yaml`), y `RUN_MIGRATIONS=false` + `LOCAL_BOOTSTRAP_COMMANDS=false` en todos los Deployments | **Siempre**. Es la única forma con `replicas > 1` |
 
 Con el Job, el orden del deploy es: aplicar el Job con la imagen nueva, esperar a
 que termine (`kubectl wait --for=condition=complete`) y recién entonces
 `kubectl set image` del Deployment. Si el Job falla, el rollout **no** se hace: el
 runbook es el Anexo D de `docs/internal/processes.md`.
+
+El Job **no monta `/app/media`**, a propósito: corre mientras los pods viejos siguen
+atendiendo y tienen el PVC tomado, así que con un PVC `ReadWriteOnce` —lo normal—
+quedaría en `Pending` hasta el timeout y el deploy se frenaría sin un error claro. El
+bootstrap no escribe ahí (`migrate`, `collectstatic` a `/app/staticfiles` y los seeds no
+tocan adjuntos). Si alguna vez hiciera falta montarlo, el PVC tiene que ser
+`ReadWriteMany`. Por el mismo motivo, los Deployments llevan además
+`LOCAL_BOOTSTRAP_COMMANDS=false`: el `migrate` no es lo único que repetiría cada pod.
 
 **Expand/contract.** Durante el rolling conviven la release vieja y la nueva contra
 el mismo esquema (~60 s), así que una release nunca borra ni renombra una columna

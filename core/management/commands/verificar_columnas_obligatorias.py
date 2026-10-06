@@ -64,10 +64,25 @@ def leer_esquema(cursor) -> dict[str, dict[str, dict]]:
     return esquema
 
 
+# `EXTRA` tal como lo escribe cada motor, medido en `mysql:8.0.46` y `mariadb:10.11.19`.
+# No alcanza con buscar «generated»: MySQL 8 pone **`DEFAULT_GENERATED`** en toda columna
+# con default de expresión (`db_default=Now()`, `DEFAULT CURRENT_TIMESTAMP`) y MariaDB
+# deja el `EXTRA` vacío en ese mismo caso. Con la búsqueda floja, sacarle el default a esa
+# columna se perdía en MySQL —la columna parecía llenada por el motor— y se reportaba en
+# MariaDB: el mismo PR daba distinto según el motor, que es justo lo que este comando
+# existe para evitar.
+LLENA_EL_MOTOR = ("auto_increment", "stored generated", "virtual generated")
+
+
 def _la_llena_el_motor(columna: dict) -> bool:
-    """`auto_increment`, columnas generadas y `ON UPDATE`: el INSERT no las manda igual."""
+    """`auto_increment` y columnas generadas: el `INSERT` del ORM no las manda nunca.
+
+    Un `DEFAULT` —de expresión o no— **no** entra acá: es exactamente la salida que la
+    regla recomienda, y lo que importa es si el PR se lo saca. Eso se mira por
+    `COLUMN_DEFAULT`, no por `EXTRA`.
+    """
     extra = columna.get("extra", "")
-    return "auto_increment" in extra or "generated" in extra
+    return any(marca in extra for marca in LLENA_EL_MOTOR)
 
 
 def columnas_que_pasan_a_obligatorias(base: dict, actual: dict) -> list[tuple[str, str, str]]:

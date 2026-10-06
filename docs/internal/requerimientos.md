@@ -19279,6 +19279,13 @@ que cambiarle el cuerpo a una migración de datos ya aplicada no se ve ahí.
 nueva, esperar `condition=complete`, recién entonces el rollout); y `docker/k8s/README.md` reemplaza la recomendación
 vieja por una tabla que dice cuándo vale cada forma, más la regla expand/contract.
 
+Tres detalles de las plantillas que no son decorativos: el Job declara `RUN_MIGRATIONS=true` **después** del `envFrom`,
+porque el Secret es el mismo que usan los Deployments y alguien que lo ponga en `false` ahí dejaría a todo el clúster sin
+migrar; el `web` lleva además `LOCAL_BOOTSTRAP_COMMANDS=false`, porque apagar solo el `migrate` deja a cada réplica
+corriendo los tres seeds en cada arranque; y el Job **no monta** `/app/media`, porque corre mientras los pods viejos
+tienen el PVC tomado y con un `ReadWriteOnce` —lo normal— quedaría en `Pending` hasta el timeout. El bootstrap no escribe
+ahí; si alguna vez hiciera falta, el PVC tiene que ser `ReadWriteMany`.
+
 ## Archivos
 
 - `.github/workflows/pr-performance.yml` — job `Migrate ida y vuelta (<motor>)`.
@@ -19321,6 +19328,13 @@ crea y destruye su propia base en un contenedor efímero del runner, y el comand
 - `manage.py check`, `check --deploy`, `makemigrations --check --dry-run`, suite completa y `--tag performance` con
   `.venv312` (Python 3.12 + Django 5.2.17, igual al CI). `ruff check .` y `ruff format --check` sobre lo tocado.
 - `actionlint` (imagen `rhysd/actionlint`) sobre los workflows: 0. `scripts/requerimientos.py --check` en OK.
+- **Ronda 2 de revisión (5 observaciones menores aplicadas).** La que tenía consecuencia medible:
+  `information_schema.COLUMNS.EXTRA` dice **`DEFAULT_GENERATED`** en MySQL 8 para toda columna con default de expresión
+  (`db_default=Now()`, `DEFAULT CURRENT_TIMESTAMP`) y queda **vacío** en MariaDB para la misma columna —medido en
+  `mysql:8.0.46` y `mariadb:10.11.19`—, así que buscar «generated» a secas hacía que sacarle el default se perdiera en un
+  motor y se reportara en el otro. La condición quedó anclada a `auto_increment`, `stored generated` y
+  `virtual generated`, y verificada contra `mysql:8.0` de verdad: `ALTER TABLE p MODIFY a datetime NOT NULL` sobre una
+  columna que tenía `DEFAULT (NOW())` ahora sale como hallazgo.
 - Tests nuevos, en rojo antes del cambio: los módulos no existían, y el chequeo de modelos históricos no tenía con qué
   construir el estado porque `DJANGO_SYNCDB_PROJECT_APPS` anula las migraciones del proyecto.
 

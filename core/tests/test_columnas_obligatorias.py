@@ -104,7 +104,50 @@ class ColumnasQuePasanAObligatoriasTests(SimpleTestCase):
     def test_las_columnas_que_llena_el_motor_no_cuentan(self):
         """`auto_increment` y las generadas no van en el `INSERT` del ORM viejo tampoco."""
         base = {"t": {"id": _columna(nulo=True)}}
-        actual = {"t": {"id": _columna(extra="auto_increment"), "calc": _columna(extra="stored generated")}}
+        actual = {
+            "t": {
+                "id": _columna(extra="auto_increment"),
+                "calc": _columna(extra="stored generated"),
+                "virt": _columna(extra="virtual generated"),
+            }
+        }
+
+        self.assertEqual(columnas_que_pasan_a_obligatorias(base, actual), [])
+
+    def test_sacarle_un_default_de_expresion_se_ve_igual_en_los_dos_motores(self):
+        """MySQL 8 marca `DEFAULT_GENERATED` en toda columna con default de expresión.
+
+        Medido en `mysql:8.0.46`: `a datetime NOT NULL DEFAULT (NOW())` sale con
+        `EXTRA = DEFAULT_GENERATED`, y en `mariadb:10.11.19` la misma columna sale con
+        `EXTRA` vacío. Buscando «generated» a secas, el motor «llenaba» la columna en
+        MySQL y no en MariaDB: sacarle el default —que rompe el alta del código viejo
+        igual que cualquier otro caso— se perdía en un motor y se reportaba en el otro.
+        """
+        base = {"t": {"creado": _columna(default="now()", extra="default_generated")}}
+        actual = {"t": {"creado": _columna(default=None, extra="")}}
+
+        hallazgos = columnas_que_pasan_a_obligatorias(base, actual)
+
+        self.assertEqual(len(hallazgos), 1)
+        self.assertIn("se lo saca", hallazgos[0][2])
+
+    def test_un_on_update_tampoco_tapa_el_hallazgo(self):
+        """MySQL: `DEFAULT_GENERATED on update CURRENT_TIMESTAMP`; MariaDB: `on update …`."""
+        base = {
+            "t": {
+                "modificado": _columna(
+                    default="CURRENT_TIMESTAMP", extra="default_generated on update current_timestamp"
+                )
+            }
+        }
+        actual = {"t": {"modificado": _columna(default=None, extra="")}}
+
+        self.assertEqual(len(columnas_que_pasan_a_obligatorias(base, actual)), 1)
+
+    def test_un_default_de_expresion_vigente_sigue_siendo_salida_valida(self):
+        """Lo que importa es el `DEFAULT`, no el `EXTRA`: si sigue puesto, no hay hallazgo."""
+        base = {"t": {"creado": _columna(nulo=True)}}
+        actual = {"t": {"creado": _columna(default="now()", extra="default_generated")}}
 
         self.assertEqual(columnas_que_pasan_a_obligatorias(base, actual), [])
 

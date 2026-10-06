@@ -62,13 +62,20 @@ class EstadoHistoricoTests(SimpleTestCase):
         """Si el grafo se rompe, se rompe acá y no en el `migrate` de producción.
 
         `makemigrations --check` no lo ve: valida que no falten migraciones, no que las
-        que hay compongan un estado.
+        que hay compongan un estado. Recorre las **siete** apps del proyecto con
+        migraciones, no solo las que tienen un test de migración propio.
         """
         with override_settings(MIGRATION_MODULES={}):
             loader = MigrationLoader(None, ignore_no_migrations=True)
-            nodos = [clave for clave in loader.graph.nodes if clave[0] in {app for app, _, _ in EJERCITADAS}]
+            nodos = [clave for clave in loader.graph.nodes if clave[0] in APPS_DEL_PROYECTO]
 
+        apps_cubiertas = {app for app, _ in nodos}
         self.assertTrue(nodos, "el loader no encontró ninguna migración del proyecto")
+        self.assertEqual(
+            apps_cubiertas,
+            {app for app, _, _ in _migraciones_del_repo()},
+            "hay una app con migraciones en disco que el loader no ve, o al revés",
+        )
         for app, nombre in sorted(nodos):
             with self.subTest(migracion=f"{app}.{nombre}"):
                 self.assertIsNotNone(estado_historico(app, nombre, al_final=True))
