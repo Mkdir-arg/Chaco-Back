@@ -18732,6 +18732,13 @@ pantalla de un programa y la consulta era global.
   propósito**: hoy un catálogo vacío deja todos los programas en `DESCONOCIDO` (SIIS-06, abierto
   hasta el PR 4), y colgarle esto encima frenaría el masivo entero por un error de SIIS en vez de
   por una decisión de una persona.
+- **Las exclusiones de `candidatos()` se acumulan, no se reemplazan.** Al integrar con el Cambio 138
+  (lista `siis_enviar`) quedaron cuatro preguntas distintas sobre el mismo caso: «no lo mandes» (la
+  lista del PM), «no se puede aprobar» y «está pausado» (BEC-21) y «SIIS ya dijo que no» (BEC-11).
+  Ninguna implica a otra y el orden no cambia el resultado. `solo_incompatibles=True` tampoco levanta
+  las demás: alguien que está en la lista de exclusión **no** es un incompatible pendiente de
+  resolver, es alguien a quien no hay que mandar, y contarlo en la pantalla como «esperando una
+  decisión» sería invitar a que alguien lo resuelva.
 - **La exclusión de los `ENVIADO` sin identidad validada es sobre los `ENVIADO` y nada más.** Un
   `APROBADO` ya pasó por ese gate y lo que le falta es el alta, que no vuelve a mirar la identidad;
   excluirlo también habría dejado casos aprobados sin informar para siempre.
@@ -18756,6 +18763,10 @@ pantalla de un programa y la consulta era global.
   `exigir_sin_corrida_viva(options)`; los cuatro comandos la llaman; `correr_alta_siis` la pide en
   sus precondiciones.
 - `programas/management/commands/procesar_casos_siis.py` — fila de incompatibles en el resumen.
+- `scripts/check_migraciones.py` y `programas/tests/test_contrato_migraciones.py` — la regla `EXPAND`
+  del Cambio 135 pasa a reconocer `db_default=` como lo que es: un `DEFAULT` escrito en el esquema.
+  Sin eso, la migración que hace **exactamente** lo que la regla pide daba hallazgo y la única salida
+  era la marca `# ROLLBACK-OK:`, que dice lo contrario de lo que pasa.
 - `docs/internal/procedimiento-alta-siis.md` — qué hacer cuando el comando corta por corrida viva y
   qué significan los incompatibles del resumen.
 
@@ -18789,6 +18800,8 @@ Con Python 3.12 + Django 5.2.17 (`.venv312`, igual al CI):
 - `scripts/design_audit.py --changed` → 0 errores (3 P1 preexistentes del archivo);
   `--ratchet` → 0 hallazgos nuevos; `scripts/compile_templates.py` → 199, 0 errores;
   `scripts/check_design_agent.py --changed` → OK.
+- `python scripts/check_migraciones.py --base origin/development` (el contrato del Cambio 135, que
+  corre dentro de `Migration Check`) → 1 migración revisada, 0 problemas.
 - **Motor real** (contenedor efímero `mariadb:10.11` con `MARIADB_INITDB_SKIP_TZINFO=1`, como ECOM):
   `manage.py test --tag mysql` para las dos carreras del candado; la migración ida, INSERT viejo,
   reversa y segunda ida (ver *Base de datos*); y la consulta de candidatos **ejecutada**, no solo
@@ -18843,6 +18856,16 @@ candidatos y los tests del circuito no probarían el circuito sino la exclusión
   `exigir_sin_corrida_viva` y en `docs/internal/procedimiento-alta-siis.md`.
 
 ## Historial
+
+- **06/10/2026 · integración con el Cambio 138.** Mientras este PR estaba en revisión entró la lista
+  de exclusión `siis_enviar`, que toca los mismos archivos. Las dos cosas se acumulan en
+  `candidatos()` sin pisarse —la lista es un filtro por DNI, el veredicto vigente una subconsulta— y
+  la confirmación escrita del Cambio 138 convive con la guarda de corrida viva: la guarda corre al
+  principio del `handle()` y la pregunta justo antes de mandar, así que un comando lanzado con la
+  pantalla corriendo corta antes de preguntar nada. Hay un test que fija que las tres exclusiones
+  convivan (`IncompatiblesNoVuelvenACandidatosTests.test_las_tres_exclusiones_conviven`). También
+  entró el contrato de migraciones del Cambio 135: la `0076` lo pasa, y la regla `EXPAND` aprendió a
+  reconocer `db_default`.
 
 - **06/10/2026 · ronda 2 de la revisión del PR #590.** El revisor verificó las dos mutaciones del
   candado y la migración contra MariaDB y MySQL reales, y encontró un **MAJOR**: BEC-11 no aprobaba
