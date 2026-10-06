@@ -143,3 +143,94 @@ jobs:
           name: performance-ephemeral-stack-report
           path: ${{ runner.temp }}/performance-*.json
           if-no-files-found: warn
+
+  # TST-01 (PR R-11): la suite corre sobre SQLite y hay una familia de bugs que ahí da
+  # verde y en producción rompe —el UUID con guiones de MariaDB 10.7+, `CONVERT_TZ` sin
+  # tablas de zona horaria, `JSON_EXTRACT` con clave numérica, los `select_for_update`
+  # que en SQLite son un no-op—. Este job corre los tests marcados `@tag("mysql")`
+  # contra los motores de verdad. Vive acá, junto al otro `migrate` real del repo, como
+  # pide la ficha; el job `migration-roundtrip` de RED-17 (PR R-13) comparte estos
+  # servicios.
+  #
+  # El runner **no** exporta `PYTEST_RUNNING`: la base es el servicio, y las migraciones
+  # se aplican de verdad (sin `DJANGO_SYNCDB_PROJECT_APPS`), que es la otra mitad de lo
+  # que TST-01 pedía. `DJANGO_TEST_MOTOR` declara qué motor tiene que haber del otro
+  # lado y `MotorDeclaradoTests` lo enfrenta contra el servidor que contestó: un
+  # servicio que no levantó la imagen pedida deja el paso en rojo en vez de medir otra
+  # cosa en silencio.
+  #
+  # Todavía **no** es un check obligatorio del ruleset: entra cuando tenga corridas
+  # suficientes para saber que es estable (y entonces se suma a
+  # `docs/internal/rulesets/ruleset-development.json` y a `CHECKS_OBLIGATORIOS` de
+  # `core/tests/test_gates_ci.py`, en el mismo PR).
+  motor-real:
+    name: Motor real (${{ matrix.motor }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # 10.11 hasta que H-01 confirme la versión de ECOM; 11 para ver lo que viene.
+          - motor: "mariadb:10.11"
+            salud: "healthcheck.sh --connect --innodb_initialized"
+          - motor: "mariadb:11"
+            salud: "healthcheck.sh --connect --innodb_initialized"
+          # `mysqladmin` ya no existe en las imágenes de MariaDB 11 y `healthcheck.sh` no
+          # existe en las de MySQL: la sonda va por motor, no compartida.
+          - motor: "mysql:8.0"
+            salud: "mysqladmin ping -h 127.0.0.1 -uroot -proot --silent"
+
+    services:
+      db:
+        image: ${{ matrix.motor }}
+        env:
+          # Las dos familias de variables con el mismo valor: cada imagen lee las suyas.
+          MARIADB_ROOT_PASSWORD: root
+          MYSQL_ROOT_PASSWORD: root
+          MARIADB_DATABASE: datanach_motor
+          MYSQL_DATABASE: datanach_motor
+          # Medido en este PR: la imagen oficial de MariaDB **carga** las tablas de zona
+          # horaria al inicializarse, y con ellas `CONVERT_TZ` anda y los bugs que este
+          # job busca no se manifiestan. La base de ECOM no las tiene (`CLAUDE.md`
+          # §Gotchas): sin esta variable la pata de MariaDB daría un verde vacío. La de
+          # MySQL sí las trae, igual que icore, y ahí la ignora.
+          MARIADB_INITDB_SKIP_TZINFO: "1"
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="${{ matrix.salud }}"
+          --health-interval=5s --health-timeout=5s --health-retries=30
+
+    env:
+      DJANGO_SECRET_KEY: ci-test-key-not-a-real-secret
+      DJANGO_DEBUG: "False"
+      DJANGO_ALLOWED_HOSTS: localhost,testserver
+      DJANGO_TEST_MOTOR: ${{ matrix.motor }}
+      DATABASE_NAME: datanach_motor
+      # root: el runner de tests crea y borra `test_datanach_motor`, y el usuario de la
+      # imagen solo tiene privilegios sobre la base que ya existe. Es un contenedor
+      # efímero que vive lo que dura el job.
+      DATABASE_USER: root
+      DATABASE_PASSWORD: root
+      DATABASE_HOST: 127.0.0.1
+      DATABASE_PORT: "3306"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install system dependencies
+        run: sudo apt-get install -y default-libmysqlclient-dev
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Correr los tests marcados contra el motor real
+        run: python manage.py test --tag mysql --verbosity=2

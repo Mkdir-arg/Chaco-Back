@@ -13,7 +13,7 @@ Fichas completas del dominio. Convenciones, `V-STD` y `V-UI`: README §0. PoC: `
 | OPS-04 | `/health/` siempre 200 y tapa `health_check.urls` | MEDIA | CONF. test | **R** (antes 3) | S | ⬜ |
 | OPS-05 | `read_timeout=10 s` también corta `migrate` | MEDIA | PLAUSIBLE | 3 | S | ⬜ |
 | OPS-07 | Bootstrap frágil (`set -eu`, opcionales fatales, réplicas) | MEDIA | CONF. ajustado | 3 | S | ⬜ |
-| TST-01 | La CI no prueba MariaDB | MEDIA | CONF. ajustado (tesis central refutada) | **R** (antes 3) | M | ⬜ |
+| TST-01 | La CI no prueba MariaDB | MEDIA | CONF. ajustado (tesis central refutada) | **R** (antes 3) | M | ✅ |
 | TST-02 | Configuración sin tests de comportamiento; tests que no prueban nada | MEDIA | CONF. | **R** (antes 3) | M (+S-M) | ⬜ |
 | G1c-12 | `debug_ciudadanos` hace `FLUSHDB` del Redis compartido | MEDIA | CONF. código | 3 | S | ⬜ |
 | DAT-02 | El admin de Django borra casos y relevamientos con su auditoría | BAJA | CONF. ajustado | 3 | S | ⬜ |
@@ -155,12 +155,44 @@ Fichas completas del dominio. Convenciones, `V-STD` y `V-UI`: README §0. PoC: `
 - **Propuesta:** matriz en `ephemeral-stack-contract`: `mysql:8.0` y `mariadb:<versión de ECOM; 10.11 por default hasta confirmar con P-11>`, más un paso `python manage.py test --tag mysql` (sin `PYTEST_RUNNING`, usa la base del servicio) con 3-4 tests marcados: guardar y buscar por `token_publico`/`client_uuid`, `q_uuid_en_texto`, un `JSON_EXTRACT` con clave numérica y dashboard sin `Trunc*`; sumar los de DIS-01 (`__date`) y SIIS-01 (`UniqueConstraint` con NULL).
 - **Verificación:** el job falla con un `__date` sobre DateTimeField introducido a propósito en una rama de prueba. Costo: 2-4 min más de CI.
 
+**Resolución:** ✅ Resuelto en el PR R-11 (Cambio 130), 05-oct-2026 — job **`Motor real (<motor>)`** en `pr-performance.yml`
+con la matriz `mariadb:10.11` / `mariadb:11` / `mysql:8.0` corriendo `manage.py test --tag mysql` **sin `PYTEST_RUNNING` y
+sin `DJANGO_SYNCDB_PROJECT_APPS`** (o sea: migraciones reales sobre el motor real, que era el otro punto de la ficha), y
+`core/tests/test_motor_real.py` nuevo con 15 casos marcados, más el `@tag("mysql")` en el test que nunca corría
+(`UUIDExternosMySQLTests.test_columnas_uuid_externas_admiten_36_caracteres`). Cierra los cuatro «Ampliado por»: el test
+saltado entra (1), las migraciones se aplican de verdad —el roundtrip con datos sigue siendo RED-17/R-13, que comparte
+estos servicios (2)—, la **capa 2 de RED-67** corre la carrera real del cupo con dos hilos (3) y los casos de RED-07/08/09
+se ejecutan contra el motor además de compilarse (4). **Tres desvíos, todos medidos:**
+(a) **la imagen oficial de MariaDB carga las tablas de zona horaria** y la de `mysql:8.0` las trae de fábrica, al revés de
+lo que suponía el README §0: con ellas `CONVERT_TZ` funciona y la familia de bugs que motiva la matriz **no se manifiesta**,
+así que el servicio lleva `MARIADB_INITDB_SKIP_TZINFO` y la matriz queda asimétrica a propósito (MariaDB = ECOM sin tablas;
+MySQL = icore con ellas), fijado por `test_mariadb_corre_sin_las_tablas_de_zona_horaria_como_ecom`;
+(b) el job es **nuevo** y no una matriz sobre `ephemeral-stack-contract`, porque ese nombre es un check obligatorio del
+ruleset y una matriz lo partiría en tres contextos distintos, rompiendo el gate de RED-20;
+(c) `UniqueConstraint(condition=…)` quedó caracterizada acá (DIS-02) porque es exactamente lo que SQLite esconde.
+`SIIS-01` no entró: su `UniqueConstraint` con NULL todavía no existe (Ola 1). **El job todavía no es obligatorio**: entra al
+ruleset cuando tenga corridas suficientes (la lista exacta vive en `core/tests/test_gates_ci.py::CHECKS_OBLIGATORIOS`).
+Medido: 1 min 45 s por pata en MariaDB y 3 min 10 s en MySQL de punta a punta, casi todo migraciones.
+**Test permanente:** `core/tests/test_motor_real.py::UuidEnElMotorRealTests.test_el_link_publico_encuentra_una_fila_restaurada_con_la_otra_forma`
+
 ### TST-02 · Configuración sin tests de comportamiento; tests que no prueban nada
 **Severidad:** MEDIA · **Estado:** CONFIRMADO · **Origen:** A8-14 · **Ola:** 3 · **Esfuerzo:** M
 
 **Ampliado por RS-R1-09, RS-R1-13, RS-R2-08 y RS-R7 (04-oct-2026):** pasa a la **Ola R** (PR R-20) y suma S-M (4 h). (1) Ítem 3 del Top-5 con el detalle cerrado (RS-R1-09: `generar_alertas` 0 %, `legajos/services/alertas.py` 35 %): `legajos/tests/test_generar_alertas.py::GenerarAlertasTests` con `test_un_ciudadano_sin_contacto_reciente_genera_su_alerta`, `test_dos_pasadas_seguidas_no_duplican_la_alerta`, `test_la_alerta_que_ya_no_aplica_se_desactiva`, `test_un_ciudadano_sin_legajo_no_rompe_la_pasada` y `test_el_envio_por_websocket_se_llama_una_vez_por_alerta_nueva` (`patch` de `_enviar_notificacion_alerta`); el de `assertNumQueries` va con PERF-20 (Ola 4). (2) Configuración, medido (RS-R1-13): 3 tests para 30 rutas, `configuracion/views/programas.py` 22 %; mínimo en R: `configuracion/tests/test_wizard_programas.py::WizardDeProgramaTests` (`test_los_cuatro_pasos_crean_el_programa_con_todo`, `test_entrar_al_paso_3_sin_haber_hecho_el_1_redirige`, `test_sin_config_administrar_los_ocho_pasos_dan_403`, `test_activar_un_programa_sin_naturaleza_avisa_y_no_activa`) y `configuracion/tests/test_secretarias.py::BorradoDeSecretariaTests`; es el piso que SEC-07 necesita. (3) Los comandos sin test `completar_casos_renaper`, `validar_casos_siis` y `sincronizar_programas_siis` están en RED-32. (4) Los «tests que faltan» que midió la prueba de mutación (bordes y particiones) están en RED-25 a RED-29, RED-66 a RED-70 y RED-87.
 
 **⚠ Actualizar (03-oct-2026):** el ítem (2) del Top-5 (`seed_datos_base` idempotente y respetuoso del ABM) ya existe: `users/tests/test_seed_datos_base.py` (#508). En el mapa de cobertura, `seed_datos_base` y `crear_programas` ya tienen test.
+
+**⚠ Hallazgo nuevo (06-oct-2026, ronda 2 del PR R-11): cinco módulos de `programas/tests/` solo pasan si otro módulo
+corrió antes.** Medido módulo por módulo sobre los 77 de `programas/tests/` (`manage.py test programas.tests.<módulo>`):
+`test_becas_handlers_inline` (12 fallas), `test_pausa_form` (6), `test_becas_cupo_diseno` (4),
+`test_becas_convocatoria_subsegmentos` (3) y `test_pausas` (1) fallan **corridos solos**, casi todas con `403 != 200`.
+Causa única: desde **RED-56** (Cambio 123) los guards de Becas fallan cerrados —sin la fila `Programa` con `codigo="BECAS"`,
+`_programa_o_denegar` levanta `PermissionDenied` **incluso para un superusuario**— y estos módulos no la siembran: pasan
+porque un módulo anterior corre `seed_becas` y deja el Programa en la clave de proceso `programas:becas`, que **sobrevive
+al rollback de la base** (LocMem, nadie la limpia entre tests). Con `manage.py test --shuffle` la suite se pone roja: 21
+fallas con la semilla 1234 y 26 con la 777, todas en esos cinco módulos. El arreglo es el mismo que se aplicó en R-11 a
+`test_becas_convocatorias_diseno` (Cambio 130): `cache.clear()` + `call_command("crear_programas")` en el `setUp`. Entra en
+el **PR R-20** junto con el resto de TST-02; mientras tanto `--shuffle` no sirve como gate.
 - **Ubicación:** `configuracion/views/*.py` (~942 LOC; `models/`, `services/` y `migrations/` vacíos); único test que toca rutas `configuracion:` es `users/tests/test_menu_rbac.py` (solo el menú); `configuracion/tests/test_services_actividades.py:5-6` y `tramites/tests/test_package_exports.py:6` (`assertTrue(True)`); el wizard crea `Programa` (`configuracion/views/programas.py:197`) y el ABM borra secretarías (`secretaria.py:108,218`) sin tests.
 - **Propuesta:** borrar los dos `assertTrue(True)`; tests de RBAC de cada vista (sin `config.administrar` → redirect/403), del wizard de 4 pasos con estado en sesión, de `programa_cambiar_estado` (activar sin naturaleza → error) y del borrado de secretaría con subsecretarías (mensaje y no se borra).
 - **Verificación:** coverage de `configuracion/` de ~0 % de vistas a > 60 %.
