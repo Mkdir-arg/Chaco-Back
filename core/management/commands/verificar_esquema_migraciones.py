@@ -55,9 +55,28 @@ AYUDA_COLISIONES = (
 )
 
 
-def filas_sin_archivo(aplicadas, en_disco) -> list[tuple[str, str]]:
-    """`applied - disk`: migraciones registradas que el código ya no tiene."""
-    return sorted(set(aplicadas) - set(en_disco))
+def filas_sin_archivo(aplicadas, conocidas) -> list[tuple[str, str]]:
+    """`applied - conocidas`: migraciones registradas que el código ya no tiene."""
+    return sorted(set(aplicadas) - set(conocidas))
+
+
+def claves_conocidas(loader) -> set:
+    """Las claves que el código sí tiene: las de disco **más** las que un `replaces` cubre.
+
+    Una migración *reemplazada* —por un squash— figura aplicada y no tiene archivo
+    propio: es correcto y permanente. `django-health-check` es el caso vivo de este
+    repo: su `db.0001_initial` declara `replaces = [("health_check_db", "0001_initial")]`,
+    así que `django_migrations` guarda **dos** filas y en disco hay **un** archivo, bajo
+    un tercer label (`db`, el del AppConfig).
+
+    Sin esta unión, la guarda abortaría el arranque en icore, en testing y en PRD el día
+    que se despliegue —lo midió el CI de este mismo PR—, y lo haría además con cualquier
+    squash que el proyecto haga en el futuro.
+    """
+    reemplazadas = {
+        clave for migracion in (getattr(loader, "replacements", None) or {}).values() for clave in migracion.replaces
+    }
+    return set(loader.disk_migrations) | reemplazadas
 
 
 def migraciones_pendientes(loader) -> list:
@@ -134,7 +153,7 @@ class Command(BaseCommand):
 
         problemas = []
 
-        fantasmas = filas_sin_archivo(loader.applied_migrations, loader.disk_migrations)
+        fantasmas = filas_sin_archivo(loader.applied_migrations, claves_conocidas(loader))
         if fantasmas:
             detalle = "\n".join(f"  - {app}.{nombre}" for app, nombre in fantasmas)
             problemas.append(f"{AYUDA_FANTASMAS}\nFilas sin archivo:\n{detalle}")

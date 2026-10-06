@@ -19878,7 +19878,15 @@ ya existe (el `1050` del deploy, y también lo que deja un restore encima) y el 
 calcula con la **unión** de los modelos vivos y los del `project_state()` de las migraciones: solo con los vivos, una
 tabla del grafo cuyo modelo ya no está en el código daría un falso positivo. Corre en `docker-entrypoint.sh` antes del
 `migrate` (salteable con `SKIP_SCHEMA_GUARD=true`) y como paso 8/8 de `scripts/roundtrip_migraciones.py` con
-`--estricto`, que es lo que el Anexo B pedía y el Cambio 139 dejó anotado. El renombre de icore quedó versionado en
+`--estricto`, que es lo que el Anexo B pedía y el Cambio 139 dejó anotado.
+
+**Dos cosas las encontró la propia guarda corriendo, y ninguna estaba en la ficha.** (1) `MigrationExecutor.migration_plan`
+devuelve una lista **vacía** cuando el nodo hoja ya figura aplicado, aunque en el medio del grafo haya migraciones sin
+aplicar: un falso OK. La guarda recorre `loader.graph.nodes` directamente. (2) Una migración **reemplazada** por un
+squash figura aplicada y **no tiene archivo propio**, que es correcto y permanente: `django-health-check` declara
+`replaces = [("health_check_db", "0001_initial")]`, así que `django_migrations` guarda dos filas y en disco hay una.
+Sin contemplarlo, la guarda habría abortado el arranque en icore, en testing y en PRD —y con cualquier squash futuro
+del proyecto—. Las dos están fijadas en tests. El renombre de icore quedó versionado en
 `core/sql/2026-10-06_renombrar_migraciones_icore.sql`, con las seis filas verificadas contra el árbol de `a9fc4ee`.
 
 **RED-16 — el release tiene nombre.** `publish-main.yml` etiqueta con `release-AAAA.MM.DD-<short>` (tag anotado) después

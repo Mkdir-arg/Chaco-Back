@@ -28,6 +28,7 @@ from django.db.migrations.recorder import MigrationRecorder
 from django.test import SimpleTestCase, TransactionTestCase
 
 from core.management.commands.verificar_esquema_migraciones import (
+    claves_conocidas,
     colisiones_de_tablas,
     filas_sin_archivo,
     migraciones_pendientes,
@@ -90,6 +91,12 @@ class _Loader:
         self.applied_migrations = aplicadas
 
 
+class _LoaderConReemplazos:
+    def __init__(self, disk, replacements=None):
+        self.disk_migrations = {clave: None for clave in disk}
+        self.replacements = replacements or {}
+
+
 class MigracionesPendientesTests(SimpleTestCase):
     """Por qué no se usa `MigrationExecutor.migration_plan`.
 
@@ -129,6 +136,48 @@ class FilasSinArchivoTests(SimpleTestCase):
 
     def test_sin_fantasmas_no_reporta_nada(self):
         self.assertEqual(filas_sin_archivo({("a", "0001")}, {("a", "0001"), ("a", "0002")}), [])
+
+
+class _Reemplazo:
+    def __init__(self, replaces):
+        self.replaces = replaces
+
+
+class ClavesConocidasTests(SimpleTestCase):
+    """Una migración reemplazada por un squash figura aplicada y no tiene archivo propio.
+
+    Es correcto y permanente, no un fantasma. El caso vivo del repo es
+    `django-health-check`: su `db.0001_initial` declara
+    `replaces = [("health_check_db", "0001_initial")]`, así que `django_migrations`
+    guarda **dos** filas y en disco hay **un** archivo, bajo un tercer label. Sin
+    contemplarlo, la guarda abortaría el arranque en icore, en testing y en PRD —lo midió
+    el CI de este mismo PR—, y lo haría además con cualquier squash futuro del proyecto.
+    """
+
+    def test_una_migracion_reemplazada_no_es_un_fantasma(self):
+        loader = _LoaderConReemplazos(
+            disk={("db", "0001_initial")},
+            replacements={("db", "0001_initial"): _Reemplazo([("health_check_db", "0001_initial")])},
+        )
+
+        conocidas = claves_conocidas(loader)
+
+        self.assertEqual(
+            filas_sin_archivo({("db", "0001_initial"), ("health_check_db", "0001_initial")}, conocidas), []
+        )
+
+    def test_una_fila_que_ningun_replaces_cubre_sigue_siendo_un_fantasma(self):
+        loader = _LoaderConReemplazos(
+            disk={("db", "0001_initial")},
+            replacements={("db", "0001_initial"): _Reemplazo([("health_check_db", "0001_initial")])},
+        )
+
+        fantasmas = filas_sin_archivo({("programas", "0099_fantasma")}, claves_conocidas(loader))
+
+        self.assertEqual(fantasmas, [("programas", "0099_fantasma")])
+
+    def test_sin_reemplazos_son_las_de_disco_y_nada_mas(self):
+        self.assertEqual(claves_conocidas(_LoaderConReemplazos(disk={("a", "0001")})), {("a", "0001")})
 
 
 class TablasHuerfanasTests(SimpleTestCase):
