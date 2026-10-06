@@ -3357,11 +3357,13 @@ class CorridaSiis(TimeStamped):
 
     # Sin señal por más de esto, se da por interrumpida. Cinco minutos no es un
     # número redondo: un solo caso son hasta tres llamadas a SIIS —token,
-    # compatibilidad y alta—, y cada una puede tardar
-    # ``SIIS_API_CONNECT_TIMEOUT + SIIS_API_TIMEOUT`` (10 + 30 s), o sea dos
-    # minutos justos. Con el umbral en dos minutos, **un** caso lento alcanzaba
-    # para que la corrida se declarara muerta a sí misma y la pantalla dejara
-    # lanzar otra con el hilo viejo todavía mandando altas (SIIS-03).
+    # compatibilidad y alta—, que desde SIIS-09 tienen un timeout cada una y en
+    # el peor caso suman los 55 s del presupuesto de red
+    # (``core.integraciones.CADENAS["becas · aprobar un caso"]``; antes de
+    # SIIS-09 eran 10 + 30 s cada una, o sea dos minutos justos). Con el umbral
+    # en dos minutos, **un** caso lento alcanzaba para que la corrida se
+    # declarara muerta a sí misma y la pantalla dejara lanzar otra con el hilo
+    # viejo todavía mandando altas (SIIS-03).
     LATIDO_VENCIDO = timedelta(minutes=5)
 
     programa = models.ForeignKey(ProgramaSiis, on_delete=models.CASCADE, related_name="corridas_siis")

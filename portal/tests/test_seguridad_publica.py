@@ -302,13 +302,19 @@ class LogsSinSecretosTests(TestCase):
             PERSONAS_API_ENTIDAD_UUID="uuid",
         ):
             with patch.object(personas.PersonasAPIClient, "_token", return_value="t"):
-                with patch(
-                    "programas.services.personas.requests.get",
+                # Se parchea la **sesión del módulo**, no ``requests.get``: desde
+                # SIIS-09 el cliente sale por ``personas.sesion`` y un parche
+                # sobre ``requests`` no intercepta nada —el test salía a la red
+                # de verdad y la regresión no se estaba ejercitando—.
+                with patch.object(
+                    personas.sesion,
+                    "get",
                     side_effect=requests.RequestException("... for url: https://x/?dni=30123456&sexo=F"),
-                ):
+                ) as consulta:
                     with self.assertLogs("programas.services.personas", level="ERROR") as registro:
                         personas.consultar_persona("30123456", "F")
 
+        consulta.assert_called_once()
         self.assertNotIn("30123456", "\n".join(registro.output))
 
 

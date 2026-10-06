@@ -45,8 +45,8 @@ class PersonasClientTests(SimpleTestCase):
     def setUp(self):
         cache.delete(TOKEN_CACHE_KEY)
 
-    @patch("programas.services.personas.requests.get")
-    @patch("programas.services.personas.requests.post")
+    @patch("programas.services.personas.sesion.get")
+    @patch("programas.services.personas.sesion.post")
     def test_token_y_consulta_usan_contrato_documentado(self, post, get):
         auth = Mock()
         auth.json.return_value = {"data": {"token": "token-prueba"}}
@@ -70,7 +70,7 @@ class PersonasClientTests(SimpleTestCase):
         response.raise_for_status.return_value = None
         return response
 
-    @patch("programas.services.personas.requests.get")
+    @patch("programas.services.personas.sesion.get")
     def test_una_persona_fallecida_no_devuelve_success(self, get):
         """La regla «FALLECIDO corta» del Cambio 41 no se cumplía: el paso 1 del
         formulario público espera la clave ``fallecido`` y el cliente nunca la
@@ -87,7 +87,7 @@ class PersonasClientTests(SimpleTestCase):
         self.assertTrue(result["fallecido"])
         self.assertNotIn("data", result)
 
-    @patch("programas.services.personas.requests.get")
+    @patch("programas.services.personas.sesion.get")
     def test_reconoce_las_variantes_de_fallecido_del_contrato_abierto(self, get):
         cache.set(TOKEN_CACHE_KEY, "token-prueba", 60)
         for data in (
@@ -101,7 +101,7 @@ class PersonasClientTests(SimpleTestCase):
                 result = PersonasAPIClient().consultar("30111222", "F")
                 self.assertTrue(result.get("fallecido"), data)
 
-    @patch("programas.services.personas.requests.get")
+    @patch("programas.services.personas.sesion.get")
     def test_una_persona_viva_no_se_marca_como_fallecida(self, get):
         cache.set(TOKEN_CACHE_KEY, "token-prueba", 60)
         get.return_value = self._respuesta(
@@ -113,7 +113,7 @@ class PersonasClientTests(SimpleTestCase):
         self.assertTrue(result["success"])
         self.assertNotIn("fallecido", result)
 
-    @patch("programas.services.personas.requests.get")
+    @patch("programas.services.personas.sesion.get")
     def test_http_200_con_codigo_12_es_persona_no_encontrada(self, get):
         cache.set(TOKEN_CACHE_KEY, "token-prueba", 60)
         response = Mock(status_code=200)

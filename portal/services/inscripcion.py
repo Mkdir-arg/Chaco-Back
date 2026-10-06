@@ -45,7 +45,17 @@ SESSION_KEY_CAPTCHA = "inscripcion_captcha"
 SESSION_KEY_CAPTCHA_PREGUNTA = "inscripcion_captcha_pregunta"
 
 CAMPO_RECAPTCHA = "g-recaptcha-response"
-RECAPTCHA_TIMEOUT = settings.RECAPTCHA_TIMEOUT
+
+
+def timeout_recaptcha():
+    """``(conectar, leer)``, leído de ``settings`` en cada llamada (SIIS-09).
+
+    Era un escalar congelado en el import: ``requests`` lo aplicaba a las dos
+    fases —peor caso el doble— y ``override_settings`` no lo movía, así que el
+    presupuesto declarado en ``core.integraciones`` podía decir una cosa y el
+    código pedir otra.
+    """
+    return (settings.RECAPTCHA_CONNECT_TIMEOUT, settings.RECAPTCHA_TIMEOUT)
 
 
 def relevamiento_disponible(relevamiento):
@@ -166,7 +176,7 @@ def _recaptcha_valido(request):
             requests.post,
             settings.RECAPTCHA_VERIFY_URL,
             data=datos,
-            timeout=RECAPTCHA_TIMEOUT,
+            timeout=timeout_recaptcha(),
         )
         respuesta.raise_for_status()
         cuerpo = respuesta.json()

@@ -12,11 +12,22 @@ import requests
 from django.conf import settings
 from django.core.cache import cache
 
+from core.integraciones import Cortacircuito, sesion_http
 from core.performance.query_observability import instrument_external_call
 
 logger = logging.getLogger(__name__)
 
 TOKEN_CACHE_KEY = "personas_api:token"  # nosec B105
+
+#: Una sesión por módulo, con su pool (SIIS-09).
+sesion = sesion_http()
+
+#: SIIS-09 · El tope del paso 1 del link público. Con la Gran Base caída, cada
+#: inscripción retenía un hilo de daphne hasta agotar el timeout, una por una y
+#: sin que el resultado cambiara: la identidad igual terminaba en ``manual``.
+#: Tres fallas de red seguidas la dejan sin consultar por un minuto, y en ese
+#: minuto el paso 1 resuelve por padrón o manual sin salir a la red.
+cortacircuito = Cortacircuito("personas")
 
 
 def _texto(value):
@@ -122,7 +133,7 @@ class PersonasAPIClient:
             return token
         response = instrument_external_call(
             "personas",
-            requests.post,
+            sesion.post,
             f"{self.base_url}/aplicaciones/token/",
             json={
                 "grant_type": "client_credentials",
@@ -144,15 +155,23 @@ class PersonasAPIClient:
     def consultar(self, dni, sexo):
         if not self._configurada():
             return {"success": False, "error": "Configuracion de Base de Personas incompleta."}
+        if cortacircuito.abierto():
+            # SIIS-09: tres fallas de red seguidas. Quien pregunta ya sabe qué
+            # hacer con un "no se pudo consultar": seguir por padrón o manual.
+            return {"success": False, "error": "No se pudo consultar Base de Personas.", "cortado": True}
         try:
             response = instrument_external_call(
                 "personas",
-                requests.get,
+                sesion.get,
                 f"{self.base_url}/personas/consulta/",
                 params={"dni": dni, "sexo": sexo, "fuente_id": self.fuente_id},
                 headers={"Authorization": f"Bearer {self._token()}"},
                 timeout=self.timeout,
             )
+            # Contestó: el servicio está en pie. Lo que abre el cortacircuito es
+            # **no poder hablarle**; un 404 o un 500 son respuestas, y cualquiera
+            # de las dos resetea el contador acá (SIIS-09).
+            cortacircuito.registrar_exito()
             if response.status_code == 401:
                 cache.delete(TOKEN_CACHE_KEY)
             if response.status_code == 404:
@@ -181,6 +200,7 @@ class PersonasAPIClient:
             # completa, y ahí viaja el documento consultado (?dni=...). Queda el
             # tipo de error, que es lo que sirve para diagnosticar.
             logger.error("Error al consultar Base de Personas (%s)", type(exc).__name__)
+            cortacircuito.registrar_falla()
             return {"success": False, "error": "No se pudo consultar Base de Personas."}
 
 
