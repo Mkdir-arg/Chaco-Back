@@ -71,9 +71,7 @@ def apps_con_migraciones_nuevas(base: str) -> list[str]:
     """Las apps que el PR **agrega** migraciones (`git diff --diff-filter=A`)."""
     salida = _git("diff", "--name-only", "--diff-filter=A", f"{base}...HEAD", "--", "*/migrations/*.py")
     apps = {
-        linea.split("/")[0]
-        for linea in salida.split()
-        if linea.endswith(".py") and not linea.endswith("__init__.py")
+        linea.split("/")[0] for linea in salida.split() if linea.endswith(".py") and not linea.endswith("__init__.py")
     }
     return [app for app in ORDEN_DE_APPS if app in apps] + sorted(apps - set(ORDEN_DE_APPS))
 

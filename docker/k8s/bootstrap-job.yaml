@@ -1,0 +1,43 @@
+# El único migrador, cuando el Deployment web tiene más de una réplica (RED-19).
+#
+# Django no toma candado para `migrate` en MySQL/MariaDB, y un initContainer corre en
+# **cada** pod: con `replicas > 1` son N procesos migrando a la vez. Este Job corre una
+# sola vez, antes del rollout del Deployment, y es el único lugar del clúster donde se
+# aplican migraciones. El Deployment (web y websocket) lleva `RUN_MIGRATIONS=false`.
+#
+# Orden del deploy, en este orden y sin solaparlos:
+#   1. `kubectl apply -f bootstrap-job.yaml` con la imagen **nueva**;
+#   2. `kubectl wait --for=condition=complete job/datanach-bootstrap --timeout=30m`;
+#   3. recién ahí `kubectl set image` / `rollout restart` del Deployment.
+#
+# Si el paso 2 falla, el paso 3 **no se hace**: el runbook de rollback es el Anexo D de
+# `docs/internal/processes.md` (D.3 si el `migrate` se cortó hacia adelante).
+#
+# Expand/contract (Anexo C): mientras dura el rollout conviven la release vieja y la
+# nueva contra el mismo esquema. Por eso una release nunca borra ni renombra lo que la
+# anterior todavía lee; el gate `# CONTRACT:` de `scripts/check_migraciones.py` lo exige.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: datanach-bootstrap
+spec:
+  # Un reintento: si el pod muere por OOM o por un nodo que se cae, vuelve a correr. El
+  # bootstrap es idempotente. Más reintentos esconderían una migración que falla siempre.
+  backoffLimit: 1
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: bootstrap
+          image: <IMAGEN>
+          args: ["bootstrap"]
+          envFrom:
+            - secretRef:
+                name: <SECRET-ENV>
+          volumeMounts:
+            - name: media
+              mountPath: /app/media
+      volumes:
+        - name: media
+          persistentVolumeClaim:
+            claimName: datanach-media

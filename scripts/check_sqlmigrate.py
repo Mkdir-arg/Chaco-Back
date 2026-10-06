@@ -86,7 +86,9 @@ def comparar(migraciones, obtener_sql) -> list[str]:
         despues = obtener_sql("pr", app, nombre)
         if antes == despues:
             continue
-        diff = "\n".join(difflib.unified_diff(antes, despues, fromfile=f"base/{ruta}", tofile=f"pr/{ruta}", lineterm=""))
+        diff = "\n".join(
+            difflib.unified_diff(antes, despues, fromfile=f"base/{ruta}", tofile=f"pr/{ruta}", lineterm="")
+        )
         diferencias.append(f"{ruta}: el SQL de ida cambió y la migración ya está aplicada en producción.\n{diff}")
     return diferencias
 

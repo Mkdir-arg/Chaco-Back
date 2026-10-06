@@ -1,4 +1,11 @@
-"""Contratos de la migración de datos de Dispositivos y Merenderos (#173)."""
+"""Contratos de la migración de datos de Dispositivos y Merenderos (#173).
+
+Con los modelos de hoy y no con los de la 0012 (RED-17 (2)): la suite arma el esquema
+desde los modelos actuales (`DJANGO_SYNCDB_PROJECT_APPS`), así que un `Programa` de la
+época de esta migración escribiría un `INSERT` sin `umbral_disponibilidad_verde`, que
+hoy es `NOT NULL`. Que la migración nombre modelos que existían en su momento se
+verifica sin base en ``core/tests/test_migraciones_estado_historico.py``.
+"""
 
 from importlib import import_module
 
