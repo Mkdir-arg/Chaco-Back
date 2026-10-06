@@ -213,8 +213,45 @@ Volver a correrlo al terminar. Si dice `No hay casos que procesar`, no quedó ni
 |---|---|
 | `Lost connection to server during query` | La base está saturada (restore en curso). Esperar y reintentar. |
 | `DETENIDO tras 10 errores técnicos seguidos` | SIIS no responde. Esperar y volver a correr: lo hecho queda. |
-| Ctrl+C a mitad | Seguro. Los comandos son reentrantes y no duplican. |
+| Ctrl+C a mitad | No duplica. El caso que estaba en vuelo queda `EN_PROCESO` y, pasados 5 minutos, se ve como **incierto**: no se sabe si SIIS lo registró. Volver a lanzar el comando retoma el resto y **no lo toca**; ese se resuelve con `conciliar_envios_siis` (abajo). |
+| Un caso quedó `INCIERTO` | No se reenvía por ninguna vía. Se concilia con ECOM: ver «Envíos de resultado desconocido». |
 | Se corrió el paso 6 sin hacer el 3 | Los barrios reales quedaron pisados. Ver abajo. |
+
+### Envíos de resultado desconocido (`INCIERTO`)
+
+Un `ReadTimeout`, un 500 o un pod reiniciado entre el POST y el registro dejan el
+intento sin saber si SIIS registró al beneficiario. La API no deduplica ni permite
+dar de baja, así que **reintentar a ciegas es el peor desenlace posible**: esos
+casos quedan tomados y ningún camino los vuelve a mandar. La salida es preguntarle
+a ECOM:
+
+```bash
+# 1. El listado que se le manda a ECOM: «¿estas personas están en SIIS?»
+#    El CSV trae dos columnas vacías, `decision` y `motivo`, para que las complete.
+python manage.py conciliar_envios_siis --listar > inciertos.csv
+
+# 2. Vuelve el archivo con `decision` en «confirmar» o «liberar». Primero el ensayo:
+python manage.py conciliar_envios_siis --desde-csv inciertos.csv
+python manage.py conciliar_envios_siis --desde-csv inciertos.csv --aplicar --usuario coord
+
+# Para pocos casos, sin pasar por el archivo (también en seco por defecto):
+python manage.py conciliar_envios_siis --confirmar 1234 --siis-id 55678 --aplicar --usuario coord
+python manage.py conciliar_envios_siis --liberar 1234,1235 --motivo "ECOM: no llegaron" --aplicar
+```
+
+Las decisiones quedan en la traza del caso, con quién las tomó. **Nunca se libera
+sin la confirmación de ECOM**: liberar un alta que sí llegó es duplicarla. Si un
+pk del lote está mal, no se escribe ninguno: se valida todo antes de empezar.
+
+### Cuando la corrida se detiene sola
+
+`DETENIDO tras N resultados de resultado desconocido seguidos` no es lo mismo que
+`DETENIDO tras N errores técnicos seguidos`. El segundo es SIIS caído y los casos
+quedaron libres: se vuelve a correr y listo. El primero es SIIS contestando mal, y
+cada uno de esos N casos quedó **tomado**: hay que conciliarlos antes de seguir, o
+la próxima corrida los saltea y el número crece. Los topes son `--max-errores`
+(10) y `--max-inciertos` (3), y son distintos a propósito: un error no cuesta
+nada y un incierto cuesta una conciliación.
 
 ### Deshacer un envío (solo si SIIS ya lo borró de su lado)
 
@@ -230,6 +267,27 @@ DELETE FROM programas_enviosiis WHERE estado = 'ENVIADO';
 
 > **Solo después de que ECOM borre esos registros de la tabla intermedia de SIIS.**
 > La API no deduplica y desde acá no se da de baja: sin ese paso previo, se duplican.
+
+> **Y nunca borrar un `EnvioSIIS` suelto sin mirar antes su `clave_persona_plan`.**
+> Desde el Cambio 127 esa columna es la que impide que la misma persona tenga dos
+> altas vigentes en el mismo plan, aunque vengan de casos distintos. Si hay un
+> grupo cruzado —dos casos del mismo DNI y plan, los dos tomados— **la clave la
+> tiene uno solo**, y borrar justo a ese libera la clave: el otro caso sigue
+> tomado, pero el DNI queda libre y la próxima corrida puede mandar **un alta
+> más** de alguien que ya está en SIIS dos veces. Antes de borrar uno suelto:
+>
+> ```sql
+> -- ¿Qué clave tiene el que voy a borrar, y hay otros vigentes de la misma persona y plan?
+> SELECT id, formulario_id, estado, vigente, clave_persona_plan
+> FROM programas_enviosiis
+> WHERE vigente = 1
+>   AND (documento, id_programa) = (SELECT documento, id_programa FROM programas_enviosiis WHERE id = <pk>);
+> ```
+>
+> Si vuelve **más de una fila**, es un grupo cruzado: se borran **todas** o
+> ninguna, y solo después de que ECOM las haya sacado de SIIS. La lista de los
+> grupos que había al migrar está en la traza de cada caso:
+> `SELECT formulario_id, valor_nuevo FROM programas_tracaformulario WHERE campo = 'envio_siis';`
 
 Después, rehacer los pasos 6, 7 y 8.
 

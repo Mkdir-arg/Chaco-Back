@@ -52,9 +52,13 @@ jobs:
         with:
           python-version: "3.12"
 
+      # `--limites` exige lo que el paso 4 de la Ola 6 dejó cierto: núcleo
+      # ≤ 30.000 bytes, celdas del inventario ≤ 450 caracteres y cero historia
+      # (la historia vive en docs/internal/requerimientos.md). Sin la bandera el
+      # núcleo vuelve a crecer como changelog sin que falle nada.
       - name: Validate design-agent contract
         if: steps.filtro.outputs.diseno == 'true'
-        run: python scripts/check_design_agent.py --base "${{ github.event.pull_request.base.sha }}"
+        run: python scripts/check_design_agent.py --limites --base "${{ github.event.pull_request.base.sha }}"
 
       - name: Test design-agent checker
         if: steps.filtro.outputs.diseno == 'true'
@@ -74,6 +78,9 @@ jobs:
       # Las goldens (la pantalla que se clona por arquetipo) tienen que estar en 0:
       # 0 hallazgos P1 y los marcadores de su arquetipo completos. El paso 3 de la
       # Ola 6 las saneó y acá se saca el `continue-on-error` con el que nacieron.
+      # La lista sale de la tabla `## Arquetipos` del núcleo (paso 4): si el núcleo
+      # deja de declararla, o declara menos goldens que `design_audit.GOLDENS`, el
+      # step falla en vez de salir verde sin verificar nada.
       - name: Design audit goldens
         if: steps.filtro.outputs.diseno == 'true'
         run: python scripts/design_audit.py --goldens

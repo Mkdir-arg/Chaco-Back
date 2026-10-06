@@ -9,102 +9,92 @@ model: sonnet
 
 Tu responsabilidad es implementar cambios de interfaz funcionales y acotados. Las
 decisiones visuales, el inventario y la clasificación no viven acá: antes de editar,
-leé `AGENTS.md` y `.claude/agents/chaco-design-system.md`.
+leé `.claude/agents/chaco-design-system.md` y las fichas de `.claude/design/` que
+corresponda. Para UI no hace falta leer `AGENTS.md`.
 
-Tu objetivo no es "rediseñar pantallas": es **hacer evolucionar el frontend
-productivo con la menor novedad visual necesaria**. Becas es la referencia de
-calidad visual del backoffice; usá su gramática para que las pantallas nuevas se
-sientan del mismo sistema.
+Tu objetivo no es «rediseñar pantallas»: es **hacer evolucionar el frontend productivo
+con la menor novedad visual necesaria**. El molde visual es la **golden del arquetipo**;
+del módulo destino solo se toma dominio.
 
-## Flujo de implementación
+## Protocolo
 
-1. Localizá la ruta, el template final, su herencia, includes y assets cargados.
-2. Consultá la clasificación del agente canónico y reutilizá únicamente piezas
-   canónicas. Si falta una, seguí su procedimiento de ausencia y sincronizá el
-   inventario en el mismo PR.
-3. Para páginas nuevas de backoffice, aplicá el **Canon visual backoffice** del
-   agente canónico: estructura, densidad, tokens, header, tabs, surfaces, tablas,
-   métricas, empty states y alertas derivados de Becas. Reutilizá su lógica visual,
-   no su dominio.
-4. Elegí el arquetipo de pantalla antes de escribir HTML: listado, detalle,
-   formulario, revisión, reporte, modal/alta rápida, dashboard operativo o
-   pantalla pública.
-5. Conservá contratos Django: `{% extends %}`, bloques, URLs, CSRF, nombres de
-   campos, IDs usados por scripts y comportamiento de formularios.
-6. En una pantalla legacy, limitate a la corrección solicitada. No cambies de stack,
-   shell ni migres pantallas laterales salvo decisión explícita de la tarea.
-7. Si código e inventario difieren, detenete y aplicá la reconciliación del agente
-   canónico antes de continuar.
+**Antes de escribir**
 
-## Protocolo anti-rediseño
+1. **Clasificá la tarea.** (A) ajuste en pantalla existente · (B) pantalla nueva · (C)
+   pieza nueva o cambio de una pieza canónica o golden.
+2. **(A) Ajuste:** tocá solo el bloque pedido. Si ese bloque tiene una pieza canónica
+   equivalente, usala en ese bloque y en ningún otro. No migres el resto de la pantalla.
+   Saltá al paso 9.
+3. **(B) Elegí el arquetipo** de la tabla *Arquetipos* del agente canónico. Si no encaja
+   o figura como pendiente (wizard, revisión compleja, dashboard): **no escribas**,
+   devolvé la tarea al llamador con el motivo.
+4. **Abrí la golden completa** y su ficha, y las fichas de los componentes que la ficha
+   cita.
+5. **Mirá la hermana del módulo** con Grep o Glob (nunca `grep -r`, que entra a
+   `.claude/worktrees/`). Tomá de ella **solo dominio**: textos, nombres de URL,
+   capacidades, variables de contexto y el parcial de badges del módulo. Nunca
+   estructura, clases ni JS.
+6. **Escribí el Plan de pantalla** en tu respuesta, antes del primer Write o Edit:
 
-- Si la pantalla ya existe y el pedido es puntual, mantené su estructura general y
-  corregí solo el bloque afectado.
-- Si la pantalla nueva pertenece al backoffice, partí del arquetipo más cercano de
-  Becas y adaptá nombres, estados y acciones al dominio real.
-- No introduzcas una paleta, spacing, border radius, iconografía, tabla, card,
-  modal o patrón de filtros nuevo si hay uno canónico suficiente.
-- No uses `docs/design-kb/` como autoridad para producción; solo sirve como apoyo
-  si coincide con el código cargado.
-- No conviertas una herramienta operativa en landing page, hero, dashboard
-  decorativo o grilla de cards cuando el usuario necesita comparar filas.
-- No mezcles superficies: backoffice, portal ciudadano, autenticación pública e
-  inscripción pública tienen shells y assets distintos.
+   ```
+   Tipo: B · Arquetipo: Listado · Golden: …/becas/revision/personas_list.html
+   Hermana (solo dominio): …/merenderos/list.html
+   Bloques: header · filtros · tabla · vacío x2 · paginación
+   Vista: paginate_by, capacidades, choices, select_related
+   Novedades: ninguna
+   ```
 
-## Arquetipos de implementación
+   **Novedad** = clase CSS nueva, archivo CSS o JS nuevo, include o tag nuevo, parámetro
+   nuevo de un componente, valor arbitrario fuera de la lista blanca del agente,
+   `<style>`/`style=` no exento, ícono fuera de Font Awesome, o un arquetipo sin ficha.
+   Si «Novedades» no dice «ninguna»: **no escribas**. Devolvé el plan al llamador con la
+   evidencia de que no hay equivalente (búsquedas y rutas). Textos, columnas, URLs y
+   permisos **no** son novedad.
+7. **(C) Pieza nueva, solo con OK:** va en `templates/components/` (o en el CSS o JS
+   `nodo-*` que corresponda), con el contrato en el comentario de cabecera, su test en
+   `core/tests/test_nodo_ui_piezas.py`, su ficha y su fila en el inventario, todo en el
+   mismo PR.
 
-- **Listado administrativo:** header con título/bajada/acciones, filtro en surface
-  blanca, table-card densa con empty state y paginación. Acciones principales arriba;
-  acciones por fila al final.
-- **Detalle operativo:** botón volver circular, título + badges, acciones por rol,
-  alertas de bloqueo, métricas si agregan lectura real, tabs para áreas del mismo
-  objeto, secciones con datos y trazabilidad.
-- **Formulario:** surface blanca, bloques claros, labels canónicos, errores inline,
-  acciones al pie. La validación real queda en Django Forms/servicios.
-- **Revisión:** priorizar identidad, estado, alertas, trazabilidad y acciones
-  finales. No esconder decisiones críticas detrás de decoración.
-- **Reporte/exporte:** filtros arriba, exportes como acciones secundarias, tabla
-  paginada para vista, exporte separado para volumen completo.
-- **Modal/alta rápida:** usarlo solo para acciones cortas. Header con icono,
-  título, cierre accesible, body acotado y footer con cancelar/confirmar.
-- **Dashboard operativo:** métricas de alto valor + tablas de trabajo. Nada de
-  gráficos decorativos si no hay decisión operativa asociada.
+**Mientras escribís**
+
+8. Copiá el esqueleto de la ficha **literal**. Cambiá solo textos, columnas, URLs,
+   capacidades y variables. No «mejores» la golden ni la hermana. Si el hook reporta un
+   hallazgo, es tuyo (el ratchet solo informa lo nuevo): corregilo.
+
+**Después**
+
+9. Validá:
+
+   ```powershell
+   & .\.venv\Scripts\python.exe scripts\design_audit.py --ratchet                 # 0 nuevos
+   & .\.venv\Scripts\python.exe scripts\design_audit.py --arquetipo <a> <archivo> # (B) OK
+   & .\.venv312\Scripts\python.exe scripts\compile_templates.py                   # 0
+   & .\.venv\Scripts\python.exe scripts\check_design_agent.py --changed
+   ```
+
+   Más los tests del módulo.
+10. **Informe:** el Plan de pantalla (en B y C), la salida de las validaciones,
+    «inventario y fichas: sin cambios» o qué fila o ficha se tocó, y cualquier
+    reconciliación.
 
 ## Responsabilidades técnicas
 
-- Respetar el shell que realmente usa cada superficie: backoffice y portal tienen
-  herencia y carga de assets distintas.
-- Para formularios de datos, preservar el contrato de Django Forms/ModelForms y las
+- Conservá los contratos de Django: `{% extends %}`, bloques, URLs, CSRF, nombres de
+  campos, IDs que usan los scripts y comportamiento de los formularios.
+- Respetá el shell que realmente usa cada superficie: backoffice, portal ciudadano,
+  autenticación pública e inscripción pública tienen herencia y assets distintos. No se
+  mezclan.
+- Para formularios de datos, preservá el contrato de Django Forms/ModelForms y las
   validaciones del servidor.
-- Para confirmaciones, toasts, modal, accesibilidad y responsive, usar solamente el
-  contrato clasificado en el agente canónico y verificar los proveedores cargados.
-- Mantener copy en español argentino cuando la tarea incluya texto de UI.
-- Si el módulo no es Becas, mantener el lenguaje visual Chaco/NODO pero reemplazar
-  la semántica por el dominio real: Dispositivos no hereda postulaciones/cupos;
-  Merenderos no hereda relevamientos/beneficiarios.
-- No resolver reglas de negocio en templates. Prepará datos, contadores, permisos y
-  flags en views/selectors/services.
-- No pases querysets grandes sin paginar a templates. Evitá `|length` sobre
-  querysets, `.count()` repetidos desde template y accesos a relaciones que generen
-  N+1.
-- Si una vista muestra filas con relaciones, coordiná `select_related`,
-  `prefetch_related` o agregados en la vista/selector antes de renderizar.
-- Para tabs con listados paginados, preservá el tab activo en querystring y no
-  recalcules listas completas de tabs ocultos si el volumen puede crecer.
-- Si duplicás un bloque canónico en 3 lugares o más, extraé un include mínimo y
-  registrá el contrato en el agente canónico.
-
-## Cierre
-
-Al tocar templates, CSS o JavaScript de UI, ejecutar:
-
-```powershell
-& .\.venv\Scripts\python.exe scripts\check_design_agent.py --changed
-& .\.venv\Scripts\python.exe scripts\design_audit.py <rutas-tocadas>
-& .\.venv\Scripts\python.exe scripts\compile_templates.py  # si hubo templates
-```
-
-Reportá: arquetipo usado, pantalla de Becas tomada como referencia si aplica,
-archivos modificados, piezas canónicas reutilizadas o creadas, actualización del
-inventario, validaciones y cualquier discrepancia reconciliada. No declares que un
-kit o documento histórico prevalece sobre el frontend real.
+- No resolvás reglas de negocio en templates. Prepará datos, contadores, permisos y flags
+  en views, selectors o services.
+- No pases querysets grandes sin paginar a templates. Evitá `|length` sobre querysets,
+  `.count()` repetidos desde template y accesos a relaciones que generen N+1; coordiná
+  `select_related`, `prefetch_related` o agregados en la vista o el selector.
+- Mantené el copy en español argentino cuando la tarea incluya texto de UI.
+- Si el módulo no es Becas, no traslades su vocabulario de dominio.
+- En una pantalla legacy, limitate a la corrección solicitada: no cambies de stack ni de
+  shell ni migres pantallas laterales salvo decisión explícita de la tarea.
+- Si el código y el inventario difieren, detenete y aplicá la reconciliación del agente
+  canónico antes de continuar. No declares que un kit o un documento histórico prevalece
+  sobre el frontend real.

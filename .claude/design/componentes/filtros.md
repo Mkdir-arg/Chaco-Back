@@ -1,0 +1,76 @@
+# Componente · Filtros de listado (`data-dynamic-list-filters`)
+
+**Clasificación:** Canónico reutilizable. Es la pieza transversal más usada del backoffice
+(listados de 7 módulos) y la que más dialectos de markup acumuló.
+**Evidencia:** `static/custom/js/dynamic_list_filters.js`,
+`templates/components/list_filters.html` (el shell lo inyecta como `<template>` desde
+`templates/includes/base.html`), `static/custom/css/nodo-forms.css`.
+**Consumidor de referencia:** `programas/templates/programas/becas/revision/personas_list.html`.
+
+## Contrato
+
+```django
+<form method="get" data-dynamic-list-filters>
+  <input type="search" name="q" value="{{ request.GET.q }}" class="nodo-field max-w-xs" aria-label="Buscar">
+  <select name="estado" class="nodo-field max-w-xs" aria-label="Estado">
+    <option value="">Todos</option>
+    {% for value, label in estados %}<option value="{{ value }}" {% if value == estado_actual %}selected{% endif %}>{{ label }}</option>{% endfor %}
+  </select>
+</form>
+```
+
+- El `<form>` va **sin `class`** y sin `style`.
+- Cada control lleva `name` y **`aria-label`**.
+- Nada de `<label>` suelto, wrapper de card, grilla ni botones «Filtrar»/«Limpiar» propios.
+
+## Por qué (leído del JS)
+
+Al montar, `dynamic_list_filters.js` hace `form.innerHTML = ''`, le pone
+`form.className = 'dynamic-list-filters'` y le saca el `style`. Después clona el contenido del
+`<template id="nodo-list-filters-template">` que inyecta el shell y reconstruye la barra:
+«Agregar filtro», una fila por filtro elegido, el selector de lógica, «Limpiar filtros» y
+«Aplicar». Todo lo que el template haya escrito alrededor de los controles **desaparece**: el
+label suelto no sobrevive y la clase del form tampoco.
+
+El nombre de cada filtro lo resuelve `labelFor(control)`, en este orden:
+
+1. `aria-label` del control;
+2. `label[for=<id>]` dentro del mismo form (sin el `*`);
+3. `placeholder`;
+4. para un `<select>`, el texto de la primera opción (sin el guion inicial);
+5. el `name` con guiones bajos pasados a espacio y la inicial en mayúscula.
+
+Solo mira `input[name]` y `select[name]`, descartando `hidden`, `submit` y `button`; los
+`input[type=hidden]` se preservan y se vuelven a agregar al form.
+
+Por eso el `aria-label` tiene que leerse bien **como chip**: «Estado», no «Estado:» ni
+«Filtrar por estado».
+
+## Variantes permitidas
+
+- Filtro de texto, select, fecha (`type="date"`) y checkbox, todos dentro del mismo `<form>`.
+- `max-w-xs` en el control para que no ocupe todo el ancho antes de que monte el JS.
+- Filtros avanzados: `{% include "components/list_filters.html" with advanced=True allow_or=True reset_url=reset_url %}`
+  renderiza la barra sin pasar por el `<template>` del shell (lo usa
+  `users/templates/user/user_list.html`).
+- Sin filtros: se omite el `<form>` entero.
+
+## Prohibido
+
+- Clases en el `<form>`, card alrededor, grilla de filtros, `style=`.
+- Botones propios de «Filtrar» o «Limpiar» (el JS los tira y deja el listado sin forma de
+  limpiar).
+- `<label>` suelto como único nombre accesible.
+- Controles sin `name`.
+
+## Estado vacío con filtros
+
+Cuando el listado queda vacío **por los filtros**, el estado vacío cambia: lo decide
+`request.GET|hay_filtros` (filtro de `core/templatetags/nodo_ui.py`) y la acción es «Limpiar
+filtros» hacia la URL sin parámetros, nunca la de alta. Ver la ficha `estado_vacio.md`.
+
+## Deuda conocida
+
+`templates/components/list_filters.html` dibuja sus íconos con SVG inline (Heroicons) y tiene un
+`style="width:120px"` en el selector de lógica. Es la pieza, no el consumidor: una pantalla nueva
+**no copia** ese markup, solo pone el `<form>` con sus controles.
