@@ -182,6 +182,7 @@ class Command(ComandoSiisBase):
 
         estados, sensibles = self._estados_pedidos(options)
 
+        self.exigir_sin_corrida_viva(options)
         self._avisar_ensayo(aplicar, "no se llama a SIIS. Agregá --aplicar para enviar de verdad.")
         if aplicar:
             self._exigir_credenciales()

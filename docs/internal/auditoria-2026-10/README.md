@@ -1,5 +1,11 @@
 # Auditoría integral de DATAÑACH (Chaco) — octubre 2026
 
+## Estado al 06-oct-2026 (Ola 5, PR 1: fechas locales de Dispositivos)
+
+| PR | Cambio | Fichas | Estado | Qué quedó abierto |
+|---|---|---|---|---|
+| Ola 5 PR 1 | 140 | DIS-01 ✅ · DIS-08 ✅ | ✅ | **El bug que estaba vivo en PRD queda cerrado y con guardia.** Helper único `core/utils_fechas.py` (rango `[inicio, fin)` en hora local) en los dos usos de la ficha más los tres «latentes» y **cuatro de Conversaciones** que la ficha no listaba: el barrido los encontró y arreglarlos deja la guardia **sin allowlist**. La guardia (`core/tests/test_sql_portable.py`) recorre con `ast` todo el código productivo y resuelve el tipo del campo contra los modelos, así que también cubre la consulta que se escriba mañana; antes del fix encontraba **16** lookups vivos. Se sacaron los dos `expectedFailure` de DIS-01 (Cambios 125 y 130), que ahora pasan de verdad —el segundo, contra `mariadb:10.11` sin tablas de zona horaria—. **Abierto, de otra ficha:** los `timezone.now().date()` de Becas y de las alertas de Legajos (BEC-18), que calculan la fecha en UTC sin pasar por el motor. **Abierto, del plan:** RED-33 (tests HTTP de las vistas de Dispositivos y Merenderos, 8 h) figura «con el PR 1» en el ítem (8) de la ola; no entró acá, que son las 4 h de DIS-01 + DIS-08 |
+
 ## Estado al 06-oct-2026 (Ola 6 CERRADA: ejercicio de control «después» y registro)
 
 | PR | Cambio | Fichas | Estado | Qué quedó abierto |
@@ -8,6 +14,32 @@
 
 **Las pantallas del ejercicio no son producto.** Viven en `linea-base-agente-diseno/despues/`, fuera de todo árbol de
 templates, sin vista, URL ni modelo escritos. `design_audit.py` excluye `docs/` entero, así que no suman deuda.
+
+## Estado al 06-oct-2026 (Ola 1, PR 3: el masivo robusto)
+
+**Una corrida que trabaja ya no aparece muerta, y nadie se mete en el medio.** El PR 3 de la Ola 1
+(Cambio 136) cierra **SIIS-03** (con **A5-33**) y **BEC-11**, y deja **BEC-21** en parcial: 6 h de
+las 52 que le quedaban a la ola.
+
+| Ficha | Qué quedó |
+|---|---|
+| **SIIS-03 + A5-33** ✅ | Latido antes de la selección, cada 100 candidatos mirados y **por caso**; `LATIDO_VENCIDO` de 2 a **5 min** (un caso son hasta tres llamadas de 40 s: dos minutos justos). El freno de la persona y el de errores se miran **por caso**, no al cerrar el lote de 40. `crear_corrida` cierra como `DETENIDA` la corrida sin señal en vez de dejar dos «en curso», y el hilo reemplazado se retira **sin pisar el estado**. Frenar marca **por programa** (A5-33) y **sin** filtrar por latido (V2-NEW-01): la que parece interrumpida es justo la que hay que poder frenar. Los cinco comandos abortan con una corrida viva —la guarda vive en `ComandoSiisBase`, se pregunta **con el candado tomado** y tiene `--ignorar-corrida`—. **El punto 7 (CronJob) no se hace:** default de D-S03 |
+| **BEC-11** ✅ | Default de **D-B11**: un caso que SIIS declaró incompatible no se aprueba en lote; queda contado en `CorridaSiis.incompatibles` (pantalla y resumen del comando) y lo resuelve una persona. No cuenta para el freno: SIIS contestó, y bien. **Y sale de los candidatos**: si siguiera, la corrida lo volvería a consultar en cada vuelta y con 200 adelante por pk una corrida de 100 daba cero altas (ronda 2 de la revisión). Vuelve solo si lo revalidan con OK o si cambia el DNI o el plan |
+| **BEC-21** 🟡 | Fuera de los candidatos los `ENVIADO` que la aprobación iba a rechazar igual (sin identidad validada o sin ciudadano con DNI) y los pausados en los cinco niveles. **Falta el bloqueo por estado del programa en SIIS**, atado a SIIS-06 (PR 4): hoy un catálogo vacío deja todos los programas en `DESCONOCIDO` y esa exclusión frenaría el masivo entero por un error de SIIS |
+
+**Migración `programas.0076_corridasiis_incompatibles`**: una columna con default en una tabla de una
+fila por corrida. Expand-only, instantánea, reversa de Django.
+
+**Pendientes operativos que deja (PM):**
+1. **No desplegar con una corrida masiva en curso** (sigue del PR 2; ahora, si queda interrumpida, se
+   ve y la relanza la pantalla, que la retira sola).
+2. **Avisar a quien opera los comandos** que cortan si la pantalla tiene una corrida en curso, y que
+   la salida de emergencia es `--ignorar-corrida --motivo "..."`, que deja rastro (los dos caminos
+   toman los mismos casos). La exclusión cubre una sola dirección y está documentada.
+3. **Mirar el contador de incompatibles** de la primera corrida: son casos que antes se aprobaban
+   solos y ahora esperan a una persona.
+
+---
 
 ## Estado al 05-oct-2026 (Ola 6, pasos 4 y 5: agente reescrito y consumidores)
 
@@ -920,12 +952,12 @@ Avance: 1 ✅ · 0 🟡 · 59 ⬜ (+ R0-04, R0-06, R0-07 ⬜).
   R0-07 `q_uuid_en_texto` sin guarda (3).
 
 ### 4.3 Dispositivos, Merenderos y Legajos → `hallazgos/03-dispositivos-merenderos-legajos.md` (21)
-Avance: 21 ⬜.
-- **ALTA:** DIS-01 `__date`/CONVERT_TZ (parchear v1, Ola 5) · DIS-02 doble alojamiento (v2) · DIS-03 espera huérfana
+Avance: 2 ✅ · 19 ⬜ (DIS-01 y DIS-08, Ola 5 PR 1).
+- **ALTA:** ✅ DIS-01 `__date`/CONVERT_TZ (parchear v1, Ola 5) · DIS-02 doble alojamiento (v2) · DIS-03 espera huérfana
   (v2) · LEG-03 red familiar (Ola 5).
 - **MEDIA:** DIS-04, 05, 06 (v2) · LEG-01 alertas recreadas (Ola 4) · LEG-04 AJAX que traga errores (Ola 5) · G1c-08 alta
   de ciudadano (Ola 3).
-- **BAJA:** DIS-07, 09, 10, V6-NEW-02, MER-01, MER-02 (v2) · DIS-08 (Ola 5) · LEG-02, LEG-05 (Ola 5) · LEG-06 (Ola 7) ·
+- **BAJA:** DIS-07, 09, 10, V6-NEW-02, MER-01, MER-02 (v2) · ✅ DIS-08 (Ola 5) · LEG-02, LEG-05 (Ola 5) · LEG-06 (Ola 7) ·
   G1c-17 (Ola 2).
 
 ### 4.4 Performance → `hallazgos/04-performance.md` (21)
@@ -1033,15 +1065,17 @@ funcional ni coordinación con ECOM). Las horas de cada ola suman los esfuerzos 
 |---|---|---:|---:|---:|---:|---:|---:|
 | 0 | Hotfix de seguridad y seeds | 16 | 36 | 0 (completa en código; lo operativo, en «Estado») | 0 | 0 | 0 |
 | **R** | **Red de seguridad: poder cambiar código sin romper nada sin enterarse** | — | — | — | — | **86** (79 RED con parte en R —78 del relevamiento + RED-89— + OPS-01, OPS-03, OPS-04, TST-01, TST-02, TST-03, R0-03; SEC-10, SEC-11 y SEC-18 se ejecutan en R-19 pero **siguen contadas como ítems de la Ola 2**, solo se mueven sus horas) | **285** · **107 cerradas el 04-oct (R-01..R-10 y R-19) → 178 restantes** |
-| 1 | Integridad SIIS | 23 | 72 | 22 (− SIIS-07) | 70 | 23 (+ RED-53; + parte de RED-32) | 78 · **26 cerradas el 05-oct (PR 2) → 52 restantes** |
+| 1 | Integridad SIIS | 23 | 72 | 22 (− SIIS-07) | 70 | 23 (+ RED-53; + parte de RED-32) | 78 · **32 cerradas (26 el 05-oct, PR 2; 6 el 06-oct, PR 3) → 46 restantes** |
 | 2 | Autorización (RBAC, legajos, alcance de Becas, usuarios) | 36 | 116 | 50 (+ fase 2 de OPS-06, R0-05, resto de SEC-01, etapa 2 de SEC-09, R0b-01..10) | 136 | 51 (+ RED-80; + partes de RED-52, RED-79) | 135 (−7: SEC-10, SEC-18 y media SEC-11 se hacen en R-19, D-RED-14) |
 | 3 | Datos, operación, CI, app de campo y reglas de Becas | 55 | 158 | 59 (+ R0-03, R0-04, R0-06, R0-07) | 166 | 54 (− 7 a la Ola R; + RED-48, RED-58; + partes de RED-09, 35, 40, 50) | 152 |
 | 4 | Performance | 19 | 52 | 19 | 52 | 20 (+ RED-62; + partes de RED-10, 49, 51, 83) | 64 |
-| 5 | Bugs de front y parches v1 de Legajos/Dispositivos | 31 (+ V5A-NEW-07 b) | 114 | 31 (+ V5A-NEW-07 b) | 114 | 33 (+ RED-33, RED-75; + partes de RED-42, 53) (+ V5A-NEW-07 b) | 128 |
+| 5 | Bugs de front y parches v1 de Legajos/Dispositivos | 31 (+ V5A-NEW-07 b) | 114 | 31 (+ V5A-NEW-07 b) | 114 | 33 (+ RED-33, RED-75; + partes de RED-42, 53) (+ V5A-NEW-07 b) | 128 · **4 cerradas el 06-oct (PR 1: DIS-01, DIS-08) → 124 restantes** |
 | 6 | Agente de diseño | 4 (+8 pasos) | 42 | 4 (+8 pasos) | 42 | 4 (+8 pasos) | 42 · **22 cerradas el 05-oct (pasos 0-3) → 20 restantes** |
 | 7 | Deuda | 9 (+ fase 2 de G1-01) | 46 | 10 (+ fase 2 de G1-01; + R0-02) | 48 | 13 (+ RED-64, 76, 86; + partes de RED-13, 37, 39, 54, 78, 85) | 88 |
 | v2 | Criterios de aceptación de la v2 (§7), no se implementan en v1 | 13 | — | 13 | — | 13 | — |
-| **Total** | | **206** | **636** | **208** | **628** | **297** | **972** · **133 cerradas → 839 restantes** |
+| **Total** | | **206** | **636** | **208** | **628** | **297** | **972** · **137 cerradas → 835 restantes** |
+
+| **Total** | | **206** | **636** | **208** | **628** | **297** | **972** · **139 cerradas → 833 restantes** |
 
 Cada ficha RED cuenta como ítem una sola vez, en la primera ola donde tiene trabajo (por eso la columna suma 297 = 208 +
 89); si tiene una segunda parte en otra ola, esas horas se suman en esa ola («+ partes de …»).
@@ -1232,7 +1266,13 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
   2. ✅ **Hecho el 05-oct-2026 (Cambio 127):** SIIS-01 + SIIS-02 + SIIS-04 + SIIS-05 + BEC-14 (migración
      `programas.0075_enviosiis_vigente`, comando `conciliar_envios_siis`, guard de UI). Incluyó la séptima vía
      `sincronizar_tabla_intermedia`; `correr_alta_siis` queda cubierto porque encadena a `procesar_casos_siis`. 22 h.
-  3. SIIS-03 (+A5-33) + BEC-11 + BEC-21 (masivo). 6 h.
+  3. ✅ **Hecho el 06-oct-2026 (Cambio 136):** SIIS-03 (+A5-33) + BEC-11 + BEC-21 (masivo). Latido por caso,
+     `LATIDO_VENCIDO` de 5 min, freno y cancelación por caso, la corrida sin señal se retira al crear la nueva,
+     Frenar por programa y sin filtro de latido, candado de corrida viva en los cinco comandos
+     (`ComandoSiisBase.exigir_sin_corrida_viva` + `--ignorar-corrida --motivo`), incompatibles sin aprobar en lote
+     y fuera de los candidatos (migración `programas.0076_corridasiis_incompatibles`) y candidatos sin los no
+     aprobables ni los pausados. El punto 7 (CronJob) no se hace: default de D-S03. BEC-21 queda 🟡: el bloqueo por
+     estado del programa en SIIS espera a SIIS-06 (PR 4). 6 h.
   4. SIIS-06, SIIS-11, SIIS-12, BEC-01, BEC-02 (independientes, S). 10 h.
   5. SIIS-09 (+PERF-09) **después** del PR 2. 4 h.
   6. SIIS-08 + G1-08 + G1-09 + G1-10 (qué viaja a SIIS). 20 h.
@@ -1340,6 +1380,9 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
 ### Ola 5 — Bugs de front y parches v1 de Legajos y Dispositivos
 - **Objetivo:** que las pantallas funcionen (subir archivos, paginar, cascadas, botones visibles) y migrar las pantallas
   fuera de Becas a las piezas canónicas clonando las goldens.
+- **Avance: 4 h de 128, 124 restantes.** PR 1 (DIS-01 + DIS-08) en el Cambio 140, 06-oct-2026: helper de fechas locales,
+  los dos usos de Dispositivos más los tres latentes y cuatro de Conversaciones, y la guardia `test_sql_portable.py`
+  (recorre el código con `ast`, allowlist vacía). Quedan abiertos los PRs 2 a 8.
 - **PRs y orden:** (1) DIS-01 + DIS-08 (helper de fechas locales + guardia de `__date`) 4 h · (2) Legajos: FE-02, LEG-04,
   LEG-05, LEG-02, LEG-03, FE-09, FE-21 14 h · (3) Configuración: FE-04, FE-05, FE-08 6 h · (4) FE-06 ya; FE-07, FE-01 y FE-10
   **después de la Ola 6 paso 3** (en ese orden: FE-07 antes o con FE-01; FE-01 antes que FE-10) 14 h · (5) FE-18, FE-19, FE-25, FE-26 8 h · (6) **después de la

@@ -4,8 +4,10 @@ from dataclasses import dataclass
 from datetime import date
 
 from django.db.models import Count, Prefetch, Q
+from django.utils import timezone
 from django.utils.dateparse import parse_date
 
+from core.utils_fechas import fecha_local, q_rango_local
 from programas.models import Admision, Cama, EntregaMercaderia
 
 
@@ -33,13 +35,19 @@ def _fecha(valor, nombre):
 
 
 def _movimientos_en_periodo(desde, hasta, *, prefijo=""):
-    ingreso, egreso = Q(), Q()
-    if desde:
-        ingreso &= Q(**{f"{prefijo}fecha_ingreso__date__gte": desde})
-        egreso &= Q(**{f"{prefijo}fecha_egreso__date__gte": desde})
-    if hasta:
-        ingreso &= Q(**{f"{prefijo}fecha_ingreso__date__lte": hasta})
-        egreso &= Q(**{f"{prefijo}fecha_egreso__date__lte": hasta})
+    """Estadías con ingreso **o** egreso dentro del período, en hora local.
+
+    ``fecha_ingreso``/``fecha_egreso`` son ``DateTimeField``: el ``__date__gte`` que
+    había acá se traducía a ``CONVERT_TZ`` y en ECOM —MariaDB sin tablas de zona
+    horaria— devolvía NULL, así que el listado y los tres exports con período salían
+    vacíos (DIS-01). El rango ``[00:00 del desde, 00:00 del día siguiente al hasta)``
+    compara la columna pelada, así que la consulta pasa a ser sargable: hoy
+    ``Admision`` no tiene índice por ``fecha_ingreso``/``fecha_egreso`` —sus índices
+    son por ``estado``— y crearlo es trabajo de la Ola 4, pero con el ``__date`` el
+    índice no se podría usar ni existiendo.
+    """
+    ingreso = q_rango_local(f"{prefijo}fecha_ingreso", desde, hasta)
+    egreso = q_rango_local(f"{prefijo}fecha_egreso", desde, hasta)
     return ingreso | egreso
 
 
@@ -121,14 +129,18 @@ def movimientos_dispositivos(dispositivos, *, desde: date | None = None, hasta: 
 
     movimientos = []
     for admision in admisiones:
-        if (desde is None or admision.fecha_ingreso.date() >= desde) and (
-            hasta is None or admision.fecha_ingreso.date() <= hasta
-        ):
+        # En hora local: ``fecha_ingreso.date()`` es la fecha **UTC** y para todo lo
+        # que pasa después de las 21:00 ART cae un día después, así que el movimiento
+        # quedaba fuera del período pedido y se exportaba con la fecha del día
+        # siguiente (DIS-08).
+        fecha_ingreso_local = fecha_local(admision.fecha_ingreso)
+        fecha_egreso_local = fecha_local(admision.fecha_egreso)
+        if (desde is None or fecha_ingreso_local >= desde) and (hasta is None or fecha_ingreso_local <= hasta):
             movimientos.append(
                 (
                     admision.fecha_ingreso,
                     "Ingreso",
-                    admision.fecha_ingreso.strftime("%d/%m/%Y"),
+                    timezone.localtime(admision.fecha_ingreso).strftime("%d/%m/%Y"),
                     admision.dispositivo.codigo,
                     admision.dispositivo.nombre,
                     admision.dispositivo.tipo.nombre,
@@ -138,14 +150,14 @@ def movimientos_dispositivos(dispositivos, *, desde: date | None = None, hasta: 
             )
         if (
             admision.fecha_egreso
-            and (desde is None or admision.fecha_egreso.date() >= desde)
-            and (hasta is None or admision.fecha_egreso.date() <= hasta)
+            and (desde is None or fecha_egreso_local >= desde)
+            and (hasta is None or fecha_egreso_local <= hasta)
         ):
             movimientos.append(
                 (
                     admision.fecha_egreso,
                     "Egreso",
-                    admision.fecha_egreso.strftime("%d/%m/%Y"),
+                    timezone.localtime(admision.fecha_egreso).strftime("%d/%m/%Y"),
                     admision.dispositivo.codigo,
                     admision.dispositivo.nombre,
                     admision.dispositivo.tipo.nombre,

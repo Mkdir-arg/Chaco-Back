@@ -3312,9 +3312,14 @@ class CorridaSiis(TimeStamped):
         CANCELADA = "CANCELADA", "Cancelada"
         DETENIDA = "DETENIDA", "Detenida"
 
-    # Sin señal por más de esto, se da por interrumpida. Dos minutos es holgado:
-    # un lote de 40 casos contra SIIS tarda bastante menos.
-    LATIDO_VENCIDO = timedelta(minutes=2)
+    # Sin señal por más de esto, se da por interrumpida. Cinco minutos no es un
+    # número redondo: un solo caso son hasta tres llamadas a SIIS —token,
+    # compatibilidad y alta—, y cada una puede tardar
+    # ``SIIS_API_CONNECT_TIMEOUT + SIIS_API_TIMEOUT`` (10 + 30 s), o sea dos
+    # minutos justos. Con el umbral en dos minutos, **un** caso lento alcanzaba
+    # para que la corrida se declarara muerta a sí misma y la pantalla dejara
+    # lanzar otra con el hilo viejo todavía mandando altas (SIIS-03).
+    LATIDO_VENCIDO = timedelta(minutes=5)
 
     programa = models.ForeignKey(ProgramaSiis, on_delete=models.CASCADE, related_name="corridas_siis")
     solicitada_por = models.ForeignKey(
@@ -3331,6 +3336,16 @@ class CorridaSiis(TimeStamped):
     elegidos = models.PositiveIntegerField(default=0)
     aprobados = models.PositiveIntegerField(default=0)
     lista_espera = models.PositiveIntegerField(default=0)
+    # Casos que SIIS declaró incompatibles con el programa. En la pantalla del
+    # caso eso es una advertencia y decide el revisor (Cambio 81); en una corrida
+    # no hay revisor, así que quedan contados y sin tocar (BEC-11).
+    #
+    # ``db_default`` además de ``default``: el default de Python lo pone Django al
+    # armar el INSERT, y entre la migración y el rollout el pod viejo —que no
+    # conoce la columna— manda un INSERT sin ella. Con MariaDB y MySQL en
+    # STRICT_TRANS_TABLES eso es un ERROR 1364 contra una columna NOT NULL sin
+    # default de base; con el DEFAULT 0 escrito en el esquema, entra.
+    incompatibles = models.PositiveIntegerField(default=0, db_default=0, verbose_name="Incompatibles según SIIS")
     altas = models.PositiveIntegerField(default=0)
     incompletos = models.PositiveIntegerField(default=0)
     rechazados = models.PositiveIntegerField(default=0)

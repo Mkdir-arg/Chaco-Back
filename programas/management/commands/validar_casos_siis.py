@@ -97,6 +97,9 @@ class Command(ComandoSiisBase):
         tamano = max(1, options["lote"])
         arranque = self._reloj()
 
+        # Valida contra SIIS caso por caso, igual que el masivo y con el mismo
+        # freno: en paralelo se consultan los mismos casos dos veces (SIIS-03).
+        self.exigir_sin_corrida_viva(options)
         self._avisar_ensayo(aplicar, "no se llama a SIIS. Agregá --aplicar para validar de verdad.")
         if aplicar:
             self._exigir_credenciales()
