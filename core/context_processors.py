@@ -6,9 +6,13 @@ gateado por permiso y es tolerante a fallos (si algo no está disponible,
 no rompe el render: simplemente no muestra el badge).
 """
 
+import logging
+
 from django.conf import settings
 
 from core import rbac
+
+logger = logging.getLogger(__name__)
 
 
 def session_idle_config(request):
@@ -39,6 +43,11 @@ def sidebar_badges(request):
             # reutilizado también por la vista de inicio.
             badges["badge_conversaciones"] = get_conversaciones_pendientes_count(user)
         except Exception:
+            # RED-55: sigue degradando a 0 —esto corre en el 100 % del tráfico
+            # autenticado y hacerlo explotar voltearía el backoffice entero—, pero
+            # deja el traceback. Antes, un `OperationalError` de MariaDB por el
+            # `read_timeout` de 10 s se veía como «no hay conversaciones pendientes».
+            logger.exception("sidebar_badges: no se pudo contar las conversaciones pendientes")
             badges["badge_conversaciones"] = 0
 
     return badges
