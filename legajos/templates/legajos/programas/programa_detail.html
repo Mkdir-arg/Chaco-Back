@@ -75,12 +75,12 @@
                 <button onclick="cambiarTab('derivaciones')" data-tab="derivaciones" class="tab-button border-b-2 border-transparent py-4 px-6 font-medium whitespace-nowrap flex items-center" style="color: var(--text-body-subtle)">
                     <i class="fas fa-inbox mr-2"></i>Derivaciones
                     {% if total_derivaciones_pendientes > 0 %}
-                    <span class="ml-2 badge-nodo badge-sm badge-warning">{{ total_derivaciones_pendientes }}</span>
+                    <span class="ml-2 badge badge-sm badge-warning">{{ total_derivaciones_pendientes }}</span>
                     {% endif %}
                 </button>
                 <button onclick="cambiarTab('acompanamientos')" data-tab="acompanamientos" class="tab-button border-b-2 border-transparent py-4 px-6 font-medium whitespace-nowrap flex items-center" style="color: var(--text-body-subtle)">
                     <i class="fas fa-hands-helping mr-2"></i>Acompañamientos
-                    <span class="ml-2 badge-nodo badge-sm badge-success">{{ total_acompanamientos_activos }}</span>
+                    <span class="ml-2 badge badge-sm badge-success">{{ total_acompanamientos_activos }}</span>
                 </button>
                 <button onclick="cambiarTab('instituciones')" data-tab="instituciones" class="tab-button border-b-2 border-transparent py-4 px-6 font-medium whitespace-nowrap flex items-center" style="color: var(--text-body-subtle)">
                     <i class="fas fa-building mr-2"></i>Instituciones
@@ -155,7 +155,7 @@
                                 <span class="text-sm text-[var(--text-body-subtle)]">Pendientes</span>
                                 <span class="text-sm font-semibold text-[var(--text-heading)]">{{ stats_ciudadanos.pendientes }}</span>
                             </div>
-                            <div class="w-full bg-gray-200 rounded-full h-2">
+                            <div class="w-full bg-tertiary rounded-full h-2">
                                 <div class="bg-yellow-500 h-2 rounded-full" style="width: {% widthratio stats_ciudadanos.pendientes total_derivaciones 100 %}%"></div>
                             </div>
                         </div>
@@ -164,7 +164,7 @@
                                 <span class="text-sm text-[var(--text-body-subtle)]">Aceptadas</span>
                                 <span class="text-sm font-semibold text-[var(--text-heading)]">{{ stats_ciudadanos.aceptadas }}</span>
                             </div>
-                            <div class="w-full bg-gray-200 rounded-full h-2">
+                            <div class="w-full bg-tertiary rounded-full h-2">
                                 <div class="bg-green-500 h-2 rounded-full" style="width: {% widthratio stats_ciudadanos.aceptadas total_derivaciones 100 %}%"></div>
                             </div>
                         </div>
@@ -173,7 +173,7 @@
                                 <span class="text-sm text-[var(--text-body-subtle)]">Rechazadas</span>
                                 <span class="text-sm font-semibold text-[var(--text-heading)]">{{ stats_ciudadanos.rechazadas }}</span>
                             </div>
-                            <div class="w-full bg-gray-200 rounded-full h-2">
+                            <div class="w-full bg-tertiary rounded-full h-2">
                                 <div class="bg-red-500 h-2 rounded-full" style="width: {% widthratio stats_ciudadanos.rechazadas total_derivaciones 100 %}%"></div>
                             </div>
                         </div>
@@ -194,7 +194,7 @@
                         <div class="flex items-center justify-between">
                             <div class="flex-1">
                                 <p class="text-sm font-medium text-[var(--text-heading)]">{{ ip.institucion.nombre|truncatewords:4 }}</p>
-                                <div class="w-full bg-gray-200 rounded-full h-2 mt-1">
+                                <div class="w-full bg-tertiary rounded-full h-2 mt-1">
                                     <div class="bg-blue-500 h-2 rounded-full" style="width: {% widthratio ip.casos_activos max_casos_institucion 100 %}%"></div>
                                 </div>
                             </div>
@@ -220,7 +220,7 @@
                                 <p class="text-xs text-[var(--text-body-subtle)]">{{ deriv.creado|timesince }} - {{ deriv.get_estado_display }}</p>
                             </div>
                         </div>
-                        <span class="badge-nodo badge-sm {% if deriv.estado == 'PENDIENTE' %}badge-warning{% elif deriv.estado == 'ACEPTADA' %}badge-success{% else %}badge-danger{% endif %}">
+                        <span class="badge badge-sm {% if deriv.estado == 'PENDIENTE' %}badge-warning{% elif deriv.estado == 'ACEPTADA' %}badge-success{% else %}badge-danger{% endif %}">
                             {{ deriv.get_estado_display }}
                         </span>
                     </div>
@@ -242,9 +242,9 @@
                 <div class="flex justify-between items-center mb-6">
                     <h3 class="text-2xl font-bold text-[var(--text-heading)]">Derivaciones de Ciudadanos</h3>
                     <div class="flex gap-2">
-                        <span class="badge-nodo badge-sm badge-warning">{{ stats_ciudadanos.pendientes }} Pendientes</span>
-                        <span class="badge-nodo badge-sm badge-success">{{ stats_ciudadanos.aceptadas }} Aceptadas</span>
-                        <span class="badge-nodo badge-sm badge-danger">{{ stats_ciudadanos.rechazadas }} Rechazadas</span>
+                        <span class="badge badge-sm badge-warning">{{ stats_ciudadanos.pendientes }} Pendientes</span>
+                        <span class="badge badge-sm badge-success">{{ stats_ciudadanos.aceptadas }} Aceptadas</span>
+                        <span class="badge badge-sm badge-danger">{{ stats_ciudadanos.rechazadas }} Rechazadas</span>
                     </div>
                 </div>
                 
@@ -271,12 +271,12 @@
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-heading)]">{{ derivacion.programa_origen.nombre|default:"Espontáneo" }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap">
-                                    <span class="badge-nodo badge-sm {% if derivacion.estado == 'PENDIENTE' %}badge-warning{% elif derivacion.estado == 'ACEPTADA' %}badge-success{% else %}badge-danger{% endif %}">
+                                    <span class="badge badge-sm {% if derivacion.estado == 'PENDIENTE' %}badge-warning{% elif derivacion.estado == 'ACEPTADA' %}badge-success{% else %}badge-danger{% endif %}">
                                         {{ derivacion.get_estado_display }}
                                     </span>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
-                                    <span class="badge-nodo badge-sm {% if derivacion.urgencia == 'ALTA' %}badge-danger{% elif derivacion.urgencia == 'MEDIA' %}badge-warning{% else %}badge-gray{% endif %}">
+                                    <span class="badge badge-sm {% if derivacion.urgencia == 'ALTA' %}badge-danger{% elif derivacion.urgencia == 'MEDIA' %}badge-warning{% else %}badge-gray{% endif %}">
                                         {{ derivacion.get_urgencia_display }}
                                     </span>
                                 </td>
@@ -328,12 +328,12 @@
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-heading)]">{{ derivacion.ciudadano.nombre_completo }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-heading)]">{{ derivacion.institucion.nombre }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap">
-                                    <span class="badge-nodo badge-sm {% if derivacion.estado == 'PENDIENTE' %}badge-warning{% elif derivacion.estado == 'ACEPTADA' %}badge-success{% else %}badge-danger{% endif %}">
+                                    <span class="badge badge-sm {% if derivacion.estado == 'PENDIENTE' %}badge-warning{% elif derivacion.estado == 'ACEPTADA' %}badge-success{% else %}badge-danger{% endif %}">
                                         {{ derivacion.get_estado_display }}
                                     </span>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
-                                    <span class="badge-nodo badge-sm {% if derivacion.urgencia == 'ALTA' %}badge-danger{% elif derivacion.urgencia == 'MEDIA' %}badge-warning{% else %}badge-gray{% endif %}">
+                                    <span class="badge badge-sm {% if derivacion.urgencia == 'ALTA' %}badge-danger{% elif derivacion.urgencia == 'MEDIA' %}badge-warning{% else %}badge-gray{% endif %}">
                                         {{ derivacion.get_urgencia_display }}
                                     </span>
                                 </td>
@@ -357,10 +357,10 @@
             <div class="flex justify-between items-center mb-6">
                 <h3 class="text-2xl font-bold text-[var(--text-heading)]">Acompañamientos Activos</h3>
                 <div class="flex gap-2">
-                    <span class="badge-nodo badge-sm badge-success">{{ stats_acompanamientos.activos }} Activos</span>
-                    <span class="badge-nodo badge-sm badge-warning">{{ stats_acompanamientos.seguimiento }} En Seguimiento</span>
-                    <span class="badge-nodo badge-sm badge-gray">{{ stats_acompanamientos.cerrados }} Cerrados</span>
-                    {% if stats_acompanamientos.bajas %}<span class="badge-nodo badge-sm badge-danger">{{ stats_acompanamientos.bajas }} Bajas</span>{% endif %}
+                    <span class="badge badge-sm badge-success">{{ stats_acompanamientos.activos }} Activos</span>
+                    <span class="badge badge-sm badge-warning">{{ stats_acompanamientos.seguimiento }} En Seguimiento</span>
+                    <span class="badge badge-sm badge-gray">{{ stats_acompanamientos.cerrados }} Cerrados</span>
+                    {% if stats_acompanamientos.bajas %}<span class="badge badge-sm badge-danger">{{ stats_acompanamientos.bajas }} Bajas</span>{% endif %}
                 </div>
             </div>
             
@@ -389,7 +389,7 @@
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-body-subtle)]">{{ acomp.institucion_nombre|default:"-" }}</td>
                             <td class="px-6 py-4 whitespace-nowrap">
-                                <span class="badge-nodo badge-sm {% if acomp.estado == 'ACTIVO' %}badge-success{% elif acomp.estado == 'EN_SEGUIMIENTO' %}badge-warning{% elif acomp.estado == 'DADO_DE_BAJA' %}badge-danger{% else %}badge-gray{% endif %}">
+                                <span class="badge badge-sm {% if acomp.estado == 'ACTIVO' %}badge-success{% elif acomp.estado == 'EN_SEGUIMIENTO' %}badge-warning{% elif acomp.estado == 'DADO_DE_BAJA' %}badge-danger{% else %}badge-gray{% endif %}">
                                     {{ acomp.get_estado_display }}
                                 </span>
                             </td>
@@ -447,7 +447,7 @@
                     <div class="mt-4 pt-4 border-t border-[var(--border-base)]">
                         <p class="text-xs text-[var(--text-body-subtle)] mb-1">Cupo</p>
                         <div class="flex items-center space-x-2">
-                            <div class="flex-1 bg-gray-200 rounded-full h-2">
+                            <div class="flex-1 bg-tertiary rounded-full h-2">
                                 <div class="bg-blue-500 h-2 rounded-full" style="width: {{ ip.casos_activos|floatformat:0 }}%"></div>
                             </div>
                             <span class="text-xs font-medium">{{ ip.casos_activos }}/{{ ip.cupo_maximo }}</span>
@@ -533,10 +533,10 @@
                             <tr class="hover:bg-[var(--bg-secondary)]">
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-[var(--text-heading)]">{{ ip.institucion.nombre }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-heading)]">
-                                    <span class="badge-nodo badge-sm badge-success">{{ ip.casos_activos }}</span>
+                                    <span class="badge badge-sm badge-success">{{ ip.casos_activos }}</span>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-heading)]">
-                                    <span class="badge-nodo badge-sm badge-warning">{{ ip.derivaciones_pendientes }}</span>
+                                    <span class="badge badge-sm badge-warning">{{ ip.derivaciones_pendientes }}</span>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-body-subtle)]">
                                     {% if ip.cupo_maximo %}
@@ -548,7 +548,7 @@
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     {% if ip.cupo_maximo %}
                                     <div class="flex items-center space-x-2">
-                                        <div class="flex-1 bg-gray-200 rounded-full h-2">
+                                        <div class="flex-1 bg-tertiary rounded-full h-2">
                                             {% widthratio ip.casos_activos ip.cupo_maximo 100 as ocupacion %}
                                             <div class="h-2 rounded-full {% if ocupacion >= 90 %}bg-red-500{% elif ocupacion >= 70 %}bg-yellow-500{% else %}bg-green-500{% endif %}" style="width: {{ ocupacion }}%"></div>
                                         </div>

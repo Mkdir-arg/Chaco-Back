@@ -419,3 +419,42 @@ class EntregaCreateAutorizaAntesDeBuscarTests(TestCase):
 
         self.assertEqual(self.client.get(self.url_inexistente).status_code, 404)
         self.assertEqual(self.client.get(self.url_existente).status_code, 200)
+
+
+class PrestacionMensualEnCelularTests(TestCase):
+    """FE-10: a 390 px la grilla del mes quedaba ilegible.
+
+    El contenedor era `overflow-x-hidden`, así que la tabla se comprimía adentro del
+    ancho del teléfono: con `table-fixed` y los anchos del `<colgroup>` en porcentaje,
+    los `<th>` caían a 25-50 px y los encabezados se partían letra por letra, sin
+    ninguna forma de llegar al resto de las columnas. Ahora el contenedor scrollea en
+    los dos ejes y la tabla tiene un ancho mínimo propio.
+
+    `min-w-[720px]` es una utilidad de valor arbitrario: si no está en el CSS
+    committeado la tabla se vuelve a comprimir sin que falle nada, así que el test
+    también exige que el build la tenga (la novedad la autoriza la ficha FE-10).
+    """
+
+    RUTA = "programas/templates/programas/merenderos/prestacion_mensual.html"
+
+    def setUp(self):
+        self.template = (settings.BASE_DIR / self.RUTA).read_text(encoding="utf-8")
+
+    def test_el_contenedor_de_la_grilla_scrollea_en_horizontal(self):
+        self.assertNotIn("overflow-x-hidden", self.template)
+        self.assertIn("overflow-auto", self.template)
+
+    def test_la_tabla_tiene_ancho_minimo(self):
+        self.assertRegex(self.template, r"<table[^>]*\bmin-w-\[720px\]")
+
+    def test_el_ancho_minimo_existe_en_el_build(self):
+        import importlib.util
+        from pathlib import Path
+
+        spec = importlib.util.spec_from_file_location(
+            "design_audit", Path(settings.BASE_DIR) / "scripts" / "design_audit.py"
+        )
+        design_audit = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(design_audit)
+
+        self.assertIn("min-w-[720px]", design_audit._clases_del_build())
