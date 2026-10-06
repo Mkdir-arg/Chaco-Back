@@ -67,6 +67,27 @@ $env:PYTEST_RUNNING = "1"; $env:DJANGO_SYNCDB_PROJECT_APPS = "True"
 & $env:PY_VENV scripts\check_migraciones.py                     # gate: contrato de las migraciones nuevas
 ```
 
+Las migraciones ida y vuelta contra el motor real (lo que corre el job `Migrate ida y
+vuelta`) necesitan un contenedor y el árbol de la base del PR:
+
+```powershell
+docker run -d --name rt-db -e MARIADB_ROOT_PASSWORD=root -e MARIADB_DATABASE=chaco_perf_ci `
+  -e MARIADB_INITDB_SKIP_TZINFO=1 -p 3331:3306 mariadb:10.11
+docker run -d --name rt-redis -p 6382:6379 redis:7-alpine
+git worktree add ..\base origin/development
+
+$env:ENVIRONMENT = "ci"; $env:PERFORMANCE_CI = "1"          # los exige `seed_perf`
+$env:DATABASE_NAME = "chaco_perf_ci"; $env:DATABASE_USER = "root"; $env:DATABASE_PASSWORD = "root"
+$env:DATABASE_HOST = "127.0.0.1"; $env:DATABASE_PORT = "3331"
+$env:REDIS_HOST = "127.0.0.1"; $env:REDIS_PORT = "6382"
+$env:DJANGO_SETTINGS_MODULE = "settings_roundtrip"; $env:PYTHONPATH = "$PWD\.github\ci"
+& $env:PY_VENV scripts\roundtrip_migraciones.py --arbol-base ..\base
+& $env:PY_VENV scripts\check_sqlmigrate.py --arbol-base ..\base
+```
+
+Borrar los contenedores y el worktree al terminar (`docker rm -f rt-db rt-redis`,
+`git worktree remove ..\base`). Nunca contra una base real.
+
 ### Lint y frontend
 
 ```powershell
@@ -207,6 +228,15 @@ como cache/sessions en `prd` o en el CI de performance; en dev es LocMem.
   lo lea; y todo `RunPython`/`RunSQL` declara su reversa, con `# REVERSA-NOOP: <qué dato
   queda inconsistente>` si no deshace nada. Las ocho migraciones por las que no se vuelve
   están en el paso D.4 de [`processes.md`](docs/internal/processes.md).
+- **Expand/contract** (job `Migrate ida y vuelta`, que ejecuta las migraciones del PR
+  contra MariaDB y MySQL y después las desaplica, sobre datos sembrados): durante el
+  rolling conviven la release vieja y la nueva contra el mismo esquema, así que *expand*
+  (agregar) va sola en la release N y *contract* (borrar, renombrar, **o un `AlterField`
+  que pone `NOT NULL` o le saca el `DEFAULT` a una columna**) va recién en N+2. Eso
+  último no lo ve `check_migraciones.py` —necesita el estado anterior— y lo mide el job
+  comparando el esquema real antes y después. Y una migración **ya aplicada** se puede
+  editar (marcas, comentarios, reversa) pero su **SQL de ida no puede cambiar**: lo
+  compara `scripts/check_sqlmigrate.py` en el mismo job.
 - Modelos nuevos: heredar de `core.models.TimeStamped` como hace el resto.
 - Templates del backoffice: extender `includes/base.html`.
 - Templates del portal: extender `portal/base.html`.
@@ -287,6 +317,12 @@ repo**; hasta entonces, no mergear en rojo es una regla del proceso, no un mecan
   (`Tests & Coverage`, `fail_under = 48` en `pyproject.toml`).
 - **Performance Guard** — tests `--tag performance` (presupuestos de queries en
   `scripts/perf_budgets.json`), comparación de duración y contrato MySQL/Redis efímero.
+  Ahí viven también los dos jobs que corren contra el motor de verdad, **todavía no
+  obligatorios**: `Motor real (<motor>)` (los tests `@tag("mysql")` contra
+  `mariadb:10.11`, `mariadb:11` y `mysql:8.0`) y `Migrate ida y vuelta (<motor>)` (las
+  migraciones del PR aplicadas, desaplicadas y vueltas a aplicar sobre datos sembrados,
+  contra `mariadb:10.11` sin tablas de zona horaria y `mysql:8.0`). Los dos entran al
+  ruleset cuando acumulen corridas.
 - **Security** — `pip-audit` (`Pip Audit`), con las excepciones de
   `security/excepciones.toml`, que vencen.
 - **Datos** — `Sin datos personales`: ningún volcado de personas entra al repo.

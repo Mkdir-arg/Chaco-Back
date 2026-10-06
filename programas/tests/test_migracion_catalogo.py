@@ -4,6 +4,15 @@ formulario del portal sin identidad, contacto ni apoderado.
 
 Se ejercita la función de la migración con los modelos reales: en la última
 migración los históricos y los reales coinciden.
+
+RED-17 (2) pedía pasarle el registro **histórico** (`core.tests.historico`), como ya
+hacen los dos tests de migración de `users`. Acá no se puede y el motivo vale la pena:
+la suite arma el esquema desde los modelos de hoy (`DJANGO_SYNCDB_PROJECT_APPS`), así
+que un modelo de la época de la 0063 escribe `INSERT` sin las columnas que se agregaron
+después, y la tabla de hoy las exige (`NOT NULL constraint failed:
+programas_programa.umbral_disponibilidad_verde`). Lo que sí se verifica sin base es que
+la migración nombre modelos que existían en su momento:
+``core/tests/test_migraciones_estado_historico.py``.
 """
 
 from importlib import import_module
