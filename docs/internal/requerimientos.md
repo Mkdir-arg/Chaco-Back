@@ -20096,7 +20096,7 @@ No hay nada que deshacer en la base: no se escribió ni se borró ninguna fila.
 | **Etiquetas** | `#ui` `#mobile` |
 | **Solicitante** | Auditoría integral oct-2026 — fichas FE-06, FE-07, FE-01 y FE-10 (Ola 5, PR 4) |
 | **Fecha del pedido** | 06/10/2026 |
-| **Issue / épica** | Sin issue (plan de la auditoría: `docs/internal/auditoria-2026-10/`) |
+| **Issue / épica** | Sin issue (plan de la auditoría: `docs/internal/auditoria-2026-10/`) · PR #603 |
 | **Partes afectadas** | Backoffice: `templates/includes/base.html`, `navbar.html`, `sidebar/base.html`, `sidebar/opciones.html`; `static/custom/css/nodo-buttons.css`; las cinco pantallas de Geografía y Secretarías con sus diez modales; siete formularios y cuatro confirmaciones de Configuración; `rol_form`; ocho templates de Legajos; cuatro de Dispositivos; la prestación mensual de Merenderos. Se **borra** `static/custom/js/mobile-enhancements.js`. Ninguna pantalla nueva |
 | **Migración** | No requiere |
 

@@ -121,7 +121,7 @@ entradas muertas. **El wizard no se rediseñó:** D4 (Cambio 129) dice que ese a
   - **No** agregar la escala `gray` al build (va contra los tokens).
 - **Verificación:** regla CLASSDEF (FE-13) en 0 para estos archivos; a 390 px, `getComputedStyle(backdrop).backgroundColor !== "rgba(0, 0, 0, 0)"`; capturas de las 4 pantallas.
 
-**Resolución:** ✅ Resuelto en el PR #PRNUM (Cambio 155), 06-10-2026 — cada clase inexistente se reemplazó
+**Resolución:** ✅ Resuelto en el PR #603 (Cambio 155), 06-10-2026 — cada clase inexistente se reemplazó
 por el token o la pieza canónica, **sin** agregar la escala `gray` al build. El `<html>` pierde su
 `bg-gray-50`, el backdrop del sidebar pasa a `bg-black/50`, los diecisiete «Cancelar» de Configuración y el
 de `rol_form` a `btn-nodo btn-tertiary btn-base` (y sus acciones principales crudas a `btn-brand`/`btn-danger`
@@ -156,7 +156,7 @@ fondo; backdrop en `rgba(0, 0, 0, 0.5)`.
   5. Hacer FE-07 antes o en el mismo PR.
 - **Verificación:** `core/tests/test_modern_modal_contrato.py`: `base.html` no contiene `mobile-enhancements.js`; Playwright: `ModernModal.show({type:'success'})` deja `#modal-cancel` con `display:none`; a 390 px con `has_touch`, `.nodo-icon-btn` ≥ 44 px; a 1440 px, ítems del sidebar de 40 px; `design_audit` baja 3 errores (HEX, GRADLEG, ZINDEX de este archivo).
 
-**Resolución:** ✅ Resuelto en el PR #PRNUM (Cambio 155), 06-10-2026 — el `<script>` salió de
+**Resolución:** ✅ Resuelto en el PR #603 (Cambio 155), 06-10-2026 — el `<script>` salió de
 `templates/includes/base.html` y `static/custom/js/mobile-enhancements.js` **se borró**: no tenía un solo
 consumidor de su API. El área táctil de 44 px la dan ahora `static/custom/css/nodo-buttons.css` y el
 `<style>` de `templates/includes/sidebar/base.html`, los dos detrás de `@media (pointer: coarse)`, así que
@@ -181,7 +181,7 @@ con `has_touch`, `btn-nodo` mide 44 px; `ModernModal` `success` deja `#modal-can
 - **Propuesta (cada modal de alta y edición de `configuracion/templates/configuracion/{localidad,municipio,provincia,secretaria,subsecretaria}_list.html`):** overlay `<div x-show="modalCrear" x-cloak x-becas-modal="modalCrear" class="fixed inset-0 z-50 flex items-center justify-center p-4">` sin `style=`; fondo `<div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="modalCrear=false"></div>`; panel `relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden` con `role="dialog" aria-modal="true" aria-labelledby`; encabezado `{% include "programas/becas/_modal_header.html" with titulo=… titulo_id=… icono="fa-plus" cerrar="modalCrear=false" %}`; pie `{% include "programas/becas/_modal_footer.html" with cancelar="modalCrear=false" accion_texto="Guardar" %}`; `becas-modal.js` en `{% block customJS %}`; en edición con `<template x-if>`, la directiva va igual sobre el overlay con una booleana derivada (`modalEditarPk === pk`). Sidebar (`templates/includes/sidebar/opciones.html:118,330,440,614,695`): `style="display:flex;flex-direction:column;gap:2px"` → `class="flex flex-col gap-0.5"`.
 - **Verificación:** molde `programas/tests/test_becas_modal.py`; Playwright: panel centrado (`|x − (vw − w)/2| < 2`), Escape cierra, Tab no sale del panel.
 
-**Resolución:** ✅ Resuelto en el PR #PRNUM (Cambio 155), 06-10-2026 — los **diez** modales (alta y edición
+**Resolución:** ✅ Resuelto en el PR #603 (Cambio 155), 06-10-2026 — los **diez** modales (alta y edición
 de las cinco pantallas) clonan la golden del arquetipo Modal: overlay
 `x-show + x-cloak + x-becas-modal class="fixed inset-0 z-50 flex items-center justify-center p-4"` sin
 `style=`, backdrop `absolute inset-0 bg-black/50 backdrop-blur-sm`, panel
@@ -245,7 +245,7 @@ de producto. El `href` armado hacia `/legajos/<id>/archivos/<n>/eliminar/` **se 
 - **Propuesta:** en `programas/templates/programas/merenderos/prestacion_mensual.html:31-38`, contenedor `overflow-x-hidden` → `overflow-auto` y `<table>` con `min-w-[720px]` (clase arbitraria nueva: `npm run build:tailwind` y commitear el CSS; con la Ola 6, es «novedad»: pedir OK). **Precondición: FE-01** (con el swipe global, arrastrar la tabla abre el sidebar).
 - **Verificación:** captura a 390 px sin encabezados partidos; CLASSDEF ve `min-w-[720px]` en el build.
 
-**Resolución:** ✅ Resuelto en el PR #PRNUM (Cambio 155), 06-10-2026 — el contenedor pasa de
+**Resolución:** ✅ Resuelto en el PR #603 (Cambio 155), 06-10-2026 — el contenedor pasa de
 `overflow-x-hidden overflow-y-auto` a `overflow-auto` y la tabla lleva `min-w-[720px]`, con
 `npm run build:tailwind` corrido y `static/custom/css/tailwind.css` committeado. La novedad (clase
 arbitraria) la autoriza esta misma ficha. Va **después de FE-01**, como pedía la precondición: con el swipe
