@@ -30,12 +30,12 @@ aceptación de la v2** (README §7), con el test nombrado para que la task lo he
 | DIS-01 | `__date` sobre DateTimeField en parte F-01, listado y exports (CONVERT_TZ → NULL) | ALTA (latente) | CONF. test (SQL compilado) | Parchear v1 + criterio v2 | 5 | S | ✅ |
 | DIS-02 | Doble estadía ALOJADA de la misma persona en el mismo dispositivo | ALTA | CONF. test (matiz) | Criterio v2 (v1 si D-V1 = sí) | v2 | S / M | ⬜ |
 | DIS-03 | Espera de traslado huérfana; traslado pendiente imposible de cancelar | ALTA | CONF. test | Criterio v2 (1er parche si D-V1 = sí) | v2 | M | ⬜ |
-| LEG-03 | Solapa «Red Familiar» rota; API de vínculos abierta y sin filtro | ALTA (V5a) / MEDIA (V3) | CONF. test | Parchear v1 | 5 | S / M | ⬜ |
+| LEG-03 | Solapa «Red Familiar» rota; API de vínculos abierta y sin filtro | ALTA (V5a) / MEDIA (V3) | CONF. test | Parchear v1 | 5 | S / M | ✅ |
 | DIS-04 | Cerrar/inactivar con alojados; promover en dispositivo no activo | MEDIA | CONF. test | Criterio v2 | v2 | S | ⬜ |
 | DIS-05 | «Alojar» con cama tomada se degrada en silencio a espera | MEDIA | CONF. test | Criterio v2 | v2 | S | ⬜ |
 | DIS-06 | El egreso acepta fechas futuras | MEDIA | CONF. test | Criterio v2 | v2 | S | ⬜ |
 | LEG-01 | La pasada horaria de alertas recrea y re-notifica | MEDIA | CONF. test | Parchear v1 | 4 | S-M | ⬜ |
-| LEG-04 | Endpoints AJAX de legajos tragan excepciones; un blob faltante vacía la lista | MEDIA | CONF. test | Parchear v1 | 5 | S | ⬜ |
+| LEG-04 | Endpoints AJAX de legajos tragan excepciones; un blob faltante vacía la lista | MEDIA | CONF. test | Parchear v1 | 5 | S | ✅ |
 | G1c-08 | Alta/edición de ciudadano: DNI sin normalizar, confirmación RENAPER alterable | MEDIA | CONF. test | Parchear v1 | 3 | M | ⬜ |
 | DIS-07 | Camas RESERVADAS cuentan como libres | BAJA | CONF. test | Criterio v2 | v2 | S | ⬜ |
 | DIS-08 | Fechas UTC en indicador y export de movimientos | BAJA | CONF. test | Parchear v1 + criterio v2 | 5 | S | ✅ |
@@ -44,8 +44,8 @@ aceptación de la v2** (README §7), con el test nombrado para que la task lo he
 | V6-NEW-02 | Borrar un campo de tipo con archivos da 500 (Cambio 48 B4) | BAJA | CONF. lectura | Criterio v2 | v2 | S | ⬜ |
 | MER-01 | Merendero SUSPENDIDO sin vuelta y grilla no consultable | BAJA | CONF. (conforme spec v1) | Criterio v2 | v2 | S | ⬜ |
 | MER-02 | Entregas de mercadería sin anulación ni idempotencia | BAJA | CONF. lectura | Criterio v2 | v2 | S | ⬜ |
-| LEG-02 | Reinscribir con una inscripción no activa rompe `unique_together` | BAJA | CONF. test | Parchear v1 | 5 | S | ⬜ |
-| LEG-05 | Subida múltiple de adjuntos no atómica | BAJA | CONF. test | Parchear v1 | 5 | S | ⬜ |
+| LEG-02 | Reinscribir con una inscripción no activa rompe `unique_together` | BAJA | CONF. test | Parchear v1 | 5 | S | ✅ |
+| LEG-05 | Subida múltiple de adjuntos no atómica | BAJA | CONF. test | Parchear v1 | 5 | S | ✅ |
 | LEG-06 | Código muerto de legajos y derivaciones sin dónde procesarse | BAJA | CONF. lectura | Parchear v1 | 7 | S | ⬜ |
 | G1c-17 | Difusión de alertas críticas es código muerto; channel layer InMemory fuera de prd | BAJA | CONF. lectura | Parchear v1 | 2 | S | ⬜ |
 
@@ -127,6 +127,18 @@ contra `mariadb:10.11` con `MARIADB_INITDB_SKIP_TZINFO=1`: `--tag mysql` en verd
 - **Verificación:** V-STD + V-UI; Playwright sin 404 en `/legajos/ciudadanos/<id>/`.
 - **Dependencias:** SEC-01/SEC-02 (helpers DRF) para la opción A; FE-02 (mismo template).
 
+**Resolución:** ✅ Resuelto en el PR #598 (Cambio 150), 06-10-2026 — **se aplicó el default D-L03 = B (retirar)**.
+Se fueron la entrada `red_familiar` de `SOLAPAS_ESTATICAS`, el bloque `tab-red_familiar`, el modal `modalVinculo`, el
+buscador de ciudadanos, el contador `total-vinculos`, `cargarVinculos()`, `renderizarGrafoRed()` y el `<script>` de
+`vis-network` (673 KB que la página ya no descarga). Se borraron `legajos/urls/api_contactos.py` **y**
+`VinculoFamiliarViewSet`: dejar escrito el ViewSet que lista los vínculos de todos es dejar la trampa armada, y la
+receta de la opción A quedó en un comentario de `legajos/api_views/contactos.py` por si el cliente la repone. **El
+modelo `VinculoFamiliar` se conserva**: alimenta la línea de tiempo y la actividad reciente, así que no se pierde
+ningún dato. **Desvío de la ficha, code-first:** la allowlist de RED-42 (`core/tests/test_urls_del_front.py`) **no
+existe todavía** —RED-42 es del PR R-18, abierto—, así que no hubo entrada que sacar; nacerá sin ella.
+**Test permanente:** `legajos.tests.test_ciudadano_detail_ola5.RedFamiliarRetiradaTests.test_solapa_red_familiar_no_se_ofrece`
+(+ `test_el_detalle_no_consulta_la_api_de_vinculos` y `test_el_router_de_vinculos_ya_no_existe`).
+
 ## MEDIA
 
 ### DIS-04 · Cerrar o inactivar con alojados y esperas; promover dentro de un dispositivo no activo
@@ -161,6 +173,16 @@ contra `mariadb:10.11` con `MARIADB_INITDB_SKIP_TZINFO=1`: `--tag mysql` en verd
 - **Ubicación:** `legajos/views/contactos_api.py` (`except Exception → JsonResponse(... str(exc))` con 200 y sin log); `legajos/selectors/contactos.py:39` (`_serialize_adjunto` lee `archivo.archivo.size`). Sin `select_related("content_type")`: N+1, y en tests (zeal) cualquier ciudadano con 2+ adjuntos devuelve la lista vacía.
 - **Propuesta:** capturar solo `ContactosFilesError` y `Http404`; `logger.exception` + 500 genérico para el resto (coordinar con SEC-10, que toca las mismas vistas); en `_serialize_adjunto`, `try/except OSError` → `tamano=None, faltante=True`; `select_related("content_type")` en los querysets de adjuntos.
 - **Tests:** `test_archivos_ciudadano_con_blob_faltante_lista_el_resto`, `test_error_inesperado_no_expone_detalle`, `test_archivos_ciudadano_sin_n_mas_1`.
+
+**Resolución:** ✅ Resuelto en el PR #598 (Cambio 150), 06-10-2026 — `_serialize_adjunto` lee el peso con
+`try/except OSError` y devuelve `tamano: None, faltante: True`: el adjunto con el blob perdido se **sigue listando**,
+marcado «Archivo no disponible», en vez de llevarse puesta la lista entera. El queryset de adjuntos suma
+`select_related("content_type")`, así que el costo ya no crece con la cantidad de archivos. **Desvío de la ficha,
+code-first:** la primera mitad —`except Exception → JsonResponse(str(exc))` con 200 y sin log— **ya estaba resuelta**
+por R-19 (#556, Cambio 126), que dejó `logger.exception` + 500 genérico en las siete vistas de `contactos_api.py`;
+acá se agregó el test permanente que lo fija.
+**Test permanente:** `legajos.tests.test_adjuntos_robustez.AdjuntoBlobFaltanteTests.test_archivos_ciudadano_con_blob_faltante_lista_el_resto`
+(+ `test_error_inesperado_no_expone_detalle` y `test_archivos_ciudadano_sin_n_mas_1`).
 
 ### G1c-08 · Alta y edición de ciudadano: DNI sin normalizar, confirmación RENAPER alterable, sin procedencia
 **Severidad:** MEDIA · **Estado:** CONFIRMADO con test (`poc/test_repro_admin_cron_renaper.py::G1c08AltaRenaperTests`, 4 escenarios) · **Origen:** G1c-08 (verificado en G3) · **Tratamiento:** parchear v1 (Legajos) · **Ola:** 3 · **Esfuerzo:** M · **Decisión:** D-C08 (alta manual tras «fallecido»)
@@ -230,11 +252,41 @@ leerlo en hora local.
 - **Tests:** `test_aceptar_derivacion_con_inscripcion_cerrada_la_reactiva`, `test_inscripcion_directa_con_baja_reactiva`.
 - **Dependencias:** SEC-12 (permisos).
 
+**Resolución:** ✅ Resuelto en el PR #598 (Cambio 150), 06-10-2026 — `programas/services/inscripciones.py` con
+`activar_inscripcion(ciudadano, programa, *, via, usuario, notas)`: toma la fila bajo
+`select_for_update().get_or_create`, tolera la carrera (quien pierde recibe el `IntegrityError` del índice único y
+relee ya con el candado) y revive la inscripción CERRADA, SUSPENDIDA, DADA DE BAJA o PENDIENTE con
+`fecha_inicio=localdate()`, `fecha_cierre=None`, la vía nueva y las notas. Lo que ya está ACTIVO o EN_SEGUIMIENTO se
+devuelve intacto. Pasan por ahí las tres vías de alta (`DerivarProgramaForm.save`, `DerivacionPrograma.aceptar`,
+`SolapasService.crear_inscripcion_directa`) **y** `_membresia_activa` de Dispositivos, que tenía la misma lógica
+duplicada. Fuera el `except Exception` de `legajos/views/derivacion_programa.py`, que mostraba el `IntegrityError`
+como si fuera una validación de negocio.
+**Ronda 2 (revisión):** la rama de rescate pedía su `select_for_update` **en autocommit** —`transaction.atomic()`
+nuevo— porque el `atomic` de la rama feliz ya se había cerrado; contra `mariadb:10.11` eso es
+`TransactionManagementError` (500) para cualquier llamador que no venga envuelto en su propio `atomic`. Los dos
+llamadores de hoy sí lo están, así que no había un 500 vivo: lo que se arregló es el contrato de la función.
+Se sumaron las dos capas de RED-67: `candados_tomados` (presencia del candado, en SQLite es un no-op) y la
+carrera de dos hilos contra el motor real.
+**Test permanente:** `programas.tests.test_inscripciones_reactivacion.ReactivarInscripcionTests.test_aceptar_derivacion_con_inscripcion_cerrada_la_reactiva`
+(+ `test_inscripcion_directa_con_baja_reactiva`, `test_crear_inscripcion_directa_de_solapas_reactiva_la_suspendida`,
+`TomarInscripcionFueraDeAtomicTests.test_la_rama_de_rescate_pide_el_candado_dentro_de_una_transaccion`,
+`ContratoDeCandadoTests` y, con `@tag("mysql")`, `TomarInscripcionMotorRealTests` y `CarreraDeReactivacionTests`).
+
 ### LEG-05 · Subida múltiple de adjuntos no atómica
 **Severidad:** BAJA (baja desde MEDIA: el daño es un adjunto duplicado y un mensaje engañoso) · **Estado:** CONFIRMADO con test (`dni.pdf` + `foto.heic` → excepción y 1 Adjunto persistido) · **Origen:** A3-18 · **Tratamiento:** parchear v1 · **Ola:** 5 · **Esfuerzo:** S
 - **Ubicación:** `legajos/services/contactos.py:23-44`.
 - **Propuesta:** primer loop solo de `_validate_archivo`; segundo loop de creación dentro de `transaction.atomic()`; en el `except`, borrar del storage los archivos ya escritos y re-lanzar.
 - **Test:** `test_subida_con_un_archivo_invalido_no_guarda_ninguno`.
+
+**Resolución:** ✅ Resuelto en el PR #598 (Cambio 150), 06-10-2026 — `subir_archivos_para_objeto` valida la tanda
+**completa** antes de tocar la base y crea dentro de `transaction.atomic()`; si algo revienta, además borra del
+storage los blobs ya escritos (el storage no participa de la transacción) y re-lanza. Con `dni.pdf` + `foto.heic` ya
+no queda un adjunto a medias con el mensaje «Formato no permitido».
+**Ronda 2 (revisión):** `FileField.pre_save` escribe el blob **adentro** del `save()`, antes del INSERT; si el
+INSERT falla, el archivo queda en `media/` sin fila y el registro para la limpieza —que corría recién con el
+objeto ya creado— se lo perdía. El nombre se anota en un `finally` alrededor del `save()`.
+**Test permanente:** `legajos.tests.test_adjuntos_robustez.SubidaMultipleAtomicaTests.test_subida_con_un_archivo_invalido_no_guarda_ninguno`
+(+ `test_fallo_del_insert_no_deja_la_fila_ni_el_blob_que_ya_se_escribio`).
 
 ### LEG-06 · Código muerto de legajos y derivaciones que no tienen dónde procesarse
 **Severidad:** BAJA · **Estado:** CONFIRMADO (lectura) · **Origen:** A3-25, A5-44, A6-16 (parte templates) · **Tratamiento:** parchear v1 (limpieza); las derivaciones son criterio v2 (M6, #390) · **Ola:** 7 · **Esfuerzo:** S · **Decisión:** D-L06

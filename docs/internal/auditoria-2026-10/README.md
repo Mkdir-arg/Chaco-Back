@@ -1,5 +1,11 @@
 # Auditoría integral de DATAÑACH (Chaco) — octubre 2026
 
+## Estado al 06-oct-2026 (Ola 5, PR 2: parches v1 de Legajos)
+
+| PR | Cambio | Fichas | Estado | Qué quedó abierto |
+|---|---|---|---|---|
+| Ola 5 PR 2 | 150 | FE-02 ✅ · LEG-02 ✅ · LEG-03 ✅ · LEG-04 ✅ · LEG-05 ✅ · FE-09 ✅ · FE-21 ✅ | ✅ | **Las 7 fichas cerradas, sin migración: 14 h.** «Subir archivos» vuelve a funcionar (`toastr` nunca se cargó y cortaba el handler en su primera línea); reinscribir a alguien con una inscripción CERRADA/DADA DE BAJA/SUSPENDIDA deja de dar 500, con **una sola puerta** (`programas/services/inscripciones.py::activar_inscripcion`) que usan las tres vías de alta y `_membresia_activa` de Dispositivos; la solapa «Red Familiar» se retira con el **default D-L03 = B** —se van el 404 por carga del legajo, el ViewSet que listaba los vínculos de todos y 673 KB de `vis-network`—; un adjunto con el blob perdido ya no vacía la lista (se lista marcado `faltante`) y la consulta deja de ser N+1; la subida múltiple es atómica y limpia los blobs si falla; los links a `/legajos/<id>/` —ruta que no existe— pasan a texto, salvo el del dashboard de alertas, que apunta al ciudadano; y el modal de archivos se ata a `becas-modal.js` (Escape, foco atrapado, foco devuelto). **Tres desvíos, los tres code-first:** (a) la mitad de LEG-04 del «except que traga» **ya la había cerrado R-19** (#556, Cambio 126) —acá queda su test permanente—; (b) la allowlist de RED-42 que LEG-03 manda limpiar **no existe todavía** (`core/tests/test_urls_del_front.py` es del PR R-18, abierto); (c) `VinculoFamiliarViewSet` se borró además del router, porque dejarlo escrito es dejar la trampa armada. **Abierto, de otra ficha:** los tres JS huérfanos que todavía usan `toastr` (`static/custom/js/ciudadanos*.js`, ningún template los carga) los borra FE-14 en la Ola 7; `ciudadano_detail.html` sigue con 8 desvíos de arquetipo (eran 9), que son del PR 6 |
+
 ## Estado al 06-oct-2026 (Ola 1, PR 4: catálogo y reglas independientes)
 
 **Cinco fichas que no dependían de ninguna otra, y la línea que BEC-21 estaba esperando.** El PR 4 de
@@ -130,6 +136,34 @@ liberarlos mandaría una tercera alta. Todos quedan listados y con una traza en 
 5. **Lo que deja la migración:** si P-01 encuentra personas con dos altas, después del deploy quedan
    en `TracaFormulario` (`campo = 'envio_siis'`). Esa lista va a ECOM para que las saque de SIIS; de
    este lado no hay que tocar nada —los dos casos quedan tomados a propósito—.
+
+---
+
+## Estado al 06-oct-2026 (Ola R: R-13, migraciones ida y vuelta contra el motor real)
+
+| PR | Cambio | Fichas | Estado | Qué quedó abierto |
+|---|---|---|---|---|
+| R-13 migraciones ida y vuelta (#596) | 139 | RED-17, RED-19 | ✅ ✅ | Job **`Migrate ida y vuelta (<motor>)`** en `pr-performance.yml`: ida hasta la base del PR con el código de la base, `seed_perf --scale 200`, ida del PR **sobre filas**, vuelta app por app, ida de nuevo y `migrate --check`, contra `mariadb:10.11` (sin tablas de zona horaria) y `mysql:8.0`. Tapa los **dos agujeros** que el Cambio 135 le dejó anotados: el `AlterField` que vuelve obligatoria una columna (`manage.py verificar_columnas_obligatorias`, foto de `information_schema` antes y después) y la edición de una migración ya aplicada (`scripts/check_sqlmigrate.py`). Un solo migrador en Kubernetes (`RUN_MIGRATIONS=false` en el web, `bootstrap-job.yaml`) y la regla expand/contract en `CLAUDE.md`. **No entra al ruleset todavía**, igual que `Motor real` |
+
+**Por qué no es obligatorio todavía.** Es el job más caro del repo —`migrate` desde cero más la semilla, por motor— y
+nunca corrió en el CI: el precedente de R-11 es el bueno, entra al ruleset cuando acumule corridas y entonces se tocan
+`ruleset-development.json` y `CHECKS_OBLIGATORIOS` en el mismo PR. Lo que sí cambia respecto del Anexo B es que **no**
+nace con `continue-on-error`: un rojo suyo es información desde el primer día, y como no es obligatorio no traba el
+merge. **Medido en el CI de este PR, con los dos en verde: 1 m 36 s (MariaDB 10.11) y 1 m 51 s (MySQL 8.0)**, con el
+`migrate` desde cero en ~20 s y `seed_perf --scale 200` en ~17 s. En la máquina del implementador (Windows + Docker
+Desktop, que penaliza cada ida y vuelta al contenedor) eran 2 min 30 s y 10 min. `timeout-minutes: 25`.
+
+**Lo que se midió y corrige a las fichas.** «La release anterior» es la **base del PR**, no un tag: RED-16 no existe y,
+además, la base es la referencia que ya usa `check_migraciones.py`, así que los dos gates miden el mismo conjunto. Son
+**dos** motores y no tres. Y el punto (2) de RED-17 —los tests de migración con el registro histórico— entra solo en los
+dos archivos de `users`: en los de `programas` el registro de entonces escribe un `INSERT` sin
+`umbral_disponibilidad_verde`, que hoy es `NOT NULL`, porque la suite arma el esquema desde los modelos de hoy. Ese
+`IntegrityError` es RED-14 visto desde adentro y queda escrito en los dos archivos.
+
+**Pendiente operativo que deja este PR (PM):** ninguno de deploy (no hay migraciones ni cambios de runtime). Dos cosas
+para el juez/PM: aplicar el bloque de expand/contract en `.claude/agents/chaco-dev-reviewer.md` (va en el cuerpo del PR;
+la sesión del implementador no tiene permiso de escritura ahí) y, cuando el job acumule corridas, sumarlo al ruleset
+junto con `Motor real`. El manifiesto de Kubernetes con `RUN_MIGRATIONS=false` y el Job hay que pedírselo a ECOM (H-05).
 
 ---
 
@@ -953,13 +987,13 @@ Avance: 1 ✅ · 0 🟡 · 59 ⬜ (+ R0-04, R0-06, R0-07 ⬜).
   R0-07 `q_uuid_en_texto` sin guarda (3).
 
 ### 4.3 Dispositivos, Merenderos y Legajos → `hallazgos/03-dispositivos-merenderos-legajos.md` (21)
-Avance: 2 ✅ · 19 ⬜ (DIS-01 y DIS-08, Ola 5 PR 1).
+Avance: 6 ✅ · 15 ⬜ (DIS-01 y DIS-08 en el PR 1; LEG-02..05 en el PR 2 de la Ola 5).
 - **ALTA:** ✅ DIS-01 `__date`/CONVERT_TZ (parchear v1, Ola 5) · DIS-02 doble alojamiento (v2) · DIS-03 espera huérfana
-  (v2) · LEG-03 red familiar (Ola 5).
-- **MEDIA:** DIS-04, 05, 06 (v2) · LEG-01 alertas recreadas (Ola 4) · LEG-04 AJAX que traga errores (Ola 5) · G1c-08 alta
-  de ciudadano (Ola 3).
-- **BAJA:** DIS-07, 09, 10, V6-NEW-02, MER-01, MER-02 (v2) · ✅ DIS-08 (Ola 5) · LEG-02, LEG-05 (Ola 5) · LEG-06 (Ola 7) ·
-  G1c-17 (Ola 2).
+  (v2) · ✅ LEG-03 red familiar retirada (Ola 5, PR 2).
+- **MEDIA:** DIS-04, 05, 06 (v2) · LEG-01 alertas recreadas (Ola 4) · ✅ LEG-04 blob faltante y N+1 (Ola 5, PR 2) · G1c-08
+  alta de ciudadano (Ola 3).
+- **BAJA:** DIS-07, 09, 10, V6-NEW-02, MER-01, MER-02 (v2) · ✅ DIS-08 (Ola 5) · ✅ LEG-02, ✅ LEG-05 (Ola 5, PR 2) ·
+  LEG-06 (Ola 7) · G1c-17 (Ola 2).
 
 ### 4.4 Performance → `hallazgos/04-performance.md` (21)
 Avance: 21 ⬜ (PERF-01 con «⚠ Actualizar» por #513).
@@ -986,9 +1020,10 @@ Avance: 11 ⬜ (+ R0b-01, 02, 03, 10 ⬜; R0b-12 operativo). SEC-03 (con G1b-01)
 - **Operativo (PM):** R0b-12 correr P-04 ampliado en PRD.
 
 ### 4.7 Front del backoffice → `hallazgos/07-front.md` (28)
-Avance: 28 ⬜.
-- **ALTA:** FE-02 `toastr` · FE-04 paginación de Geografía · FE-05 wizard · FE-06 clases inexistentes.
-- **MEDIA:** FE-01, 07, 08, 09, 10, 11, 12, 13, 17, 18, 19, 20, 21 · V5A-NEW-01 · V5A-NEW-07.
+Avance: 6 ✅ · 1 🟡 · 21 ⬜ (FE-13, V5A-NEW-01, V5A-NEW-08 y la parte (a) de V5A-NEW-07 en la Ola 6; FE-02, FE-09 y
+FE-21 en el PR 2 de la Ola 5).
+- **ALTA:** ✅ FE-02 `toastr` (Ola 5, PR 2) · FE-04 paginación de Geografía · FE-05 wizard · FE-06 clases inexistentes.
+- **MEDIA:** FE-01, 07, 08, ✅ 09, 10, 11, 12, ✅ 13, 17, 18, 19, 20, ✅ 21 · ✅ V5A-NEW-01 · 🟡 V5A-NEW-07.
 - **BAJA:** FE-14, 16, 22, 23, 24, 25, 26 · V5A-NEW-04 · V5A-NEW-08.
 
 ### 4.8 Red de seguridad → `hallazgos/08-red-de-seguridad.md` (89, frente del 04-oct-2026)
@@ -1180,7 +1215,10 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
 - **✅ R-12 cerrado el 06-oct-2026 (#591, Cambio 135), 18 h.** El contrato de migraciones: gate `check_migraciones.py` en
   `Migration Check`, reversas declaradas (y tres barreras nuevas), reversa UUID normalizada, «Reversión» exigida en
   `requerimientos.py --check` y ratchet de índices redundantes. Habilita **R-13** y protege toda migración nueva.
-- **Quedan 130 h:** R-13, R-15 a R-18, R-20 y R-21. El orden sigue siendo el de dependencias: **R-13, R-15 y
+- **✅ R-13 cerrado el 06-oct-2026 (Cambio 139), 14 h.** El job `Migrate ida y vuelta` corre las migraciones del PR
+  contra `mariadb:10.11` (sin tablas de zona horaria) y `mysql:8.0` sobre datos sembrados, las desaplica y las vuelve a
+  aplicar; y tapa los dos agujeros del gate estático. Desbloquea la **Ola 3** (G1-04, G1-05, DAT-01).
+- **Quedan 116 h:** R-15 a R-18, R-20 y R-21. El orden sigue siendo el de dependencias: **R-15 y
   R-16 antes de la Ola 3**, R-21 antes de la Ola 2.
 - **Objetivo:** poder cambiar código sin romper nada sin enterarse. Que todo lo que las Olas 1 a 7 van a tocar tenga antes
   un test que se ponga rojo si se rompe, que el CI pruebe el motor de producción (MariaDB) y las migraciones en las dos
@@ -1205,7 +1243,7 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
 | ✅ R-10 | **Motor y forma del SQL:** RED-07 (`core/tests/test_sql_motor_real.py` + `_sql_mysql` corregido), RED-08, RED-09 — **#550, Cambio 125** | 10 | Olas 1, 3 y 5 (DIS-01) |
 | ✅ R-11 | **Motor real en CI:** TST-01 (matriz `mariadb:10.11`/`mariadb:11`/`mysql:8.0` + `test --tag mysql`; ampliado) — **Cambio 130** (cierra también la capa 2 de RED-67) | 8 | R-13, Ola 3 |
 | ✅ R-12 | **Contrato de migraciones:** RED-14 (`scripts/check_migraciones.py`, columnas que toleran código viejo), RED-57 (reversas declaradas), RED-18 (reversa UUID), RED-84 (`Reversión` en `--check`), RED-83 (índices redundantes, ratchet) — **#591, Cambio 135** (RED-83 🟡: la migración es de la Ola 4) | 18 | toda migración nueva |
-| R-13 | **Job `migration-roundtrip`** (Anexo B): RED-17, RED-19 (un solo migrador, expand/contract) | 14 | Ola 3 (G1-04, G1-05, DAT-01) |
+| ✅ R-13 | **Job `migration-roundtrip`** (Anexo B): RED-17, RED-19 (un solo migrador, expand/contract) — **#596, Cambio 139**; cierra además los dos agujeros que el Cambio 135 le dejó anotados (el `AlterField` que vuelve obligatoria una columna y la edición de una migración ya aplicada). **No es obligatorio todavía**, igual que `Motor real` | 14 | Ola 3 (G1-04, G1-05, DAT-01) |
 | ✅ R-14 | **Gates del release:** RED-24 (`Contratos del repo`), RED-21 (`publish-main` exige CI verde), RED-65, RED-23 (`release-gate.yml` + `/pushGitLabecom` en dos), RED-22 (propuesta a ECOM) — **#575, Cambio 128** (RED-22 y RED-23 🟡: falta el envío a ECOM y copiar los dos comandos a `.claude/`) | 22 | el próximo espejo a ECOM |
 | R-15 | **Operación y deploy** (desde la Ola 3): OPS-03, OPS-04, OPS-01 (ampliados), RED-59 (`deploy_prod.sh`), RED-16 (tag de release), RED-55 | 18 | el próximo deploy en icore |
 | R-16 | **Becas: adjuntos, borrados, atomicidad, padrón:** RED-05, RED-31, RED-35, RED-77, RED-49, RED-50, RED-81, RED-70 | 22 | Ola 3 (DAT-01, BEC-*), SEC-20 |
@@ -1220,8 +1258,9 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
   estado por ficha y lo que quedó operativo en «Estado al 04-oct-2026», arriba). **R-19 también está cerrado**
   (#556, Cambio 126, 21 h): era el urgente de la ola, y **R-14 también** (#575, Cambio 128, 22 h: los gates del
   release, antes del próximo espejo a ECOM), **R-11** (Cambio 130, 8 h: el motor real en el CI, que desbloquea R-13)
-  y **R-12** (Cambio 135, 18 h: el contrato de migraciones, que habilita R-13 y protege toda migración nueva).
-  **Quedan 130 h de la Ola R:** R-13, R-15 y R-16 antes de la Ola 3; R-21 antes de la Ola 2. El resto puede ir en
+  y **R-12** (Cambio 135, 18 h: el contrato de migraciones, que habilita R-13 y protege toda migración nueva) y
+  **R-13** (Cambio 139, 14 h: la ida y vuelta contra el motor real, que desbloquea la Ola 3).
+  **Quedan 116 h de la Ola R:** R-15 y R-16 antes de la Ola 3; R-21 antes de la Ola 2. El resto puede ir en
   paralelo con otro implementador.
 - **Hecho cuando (verificable):**
   1. `gh api repos/Mkdir-arg/Chaco-Back/rulesets` lista los rulesets de `development` y `main`; un push directo a
@@ -1232,7 +1271,12 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
      sesión de backoffice.
   4. V-STD con la suite completa en verde, con los tests nuevos de cada ficha (los `expectedFailure` nombran su ficha).
   5. Los jobs `Contratos del repo`, `Contratos de API`, `Ruff errores` y `Sin datos personales` existen y son obligatorios; el
-     job `migration-roundtrip` corre en los tres motores (con `continue-on-error` hasta D-RED-03).
+     job `Migrate ida y vuelta` corre las migraciones hacia adelante y hacia atrás sobre datos contra los motores de
+     producción. **Ajustado por el PR R-13 (Cambio 139):** son **dos** motores y no tres (`mariadb:10.11` y `mysql:8.0`;
+     `mariadb:11` no corre en ningún ambiente y `Motor real` ya lo cubre hacia adelante) y **sin** `continue-on-error`
+     —D-RED-03 se decidió con el job midiendo de verdad, porque las dos razones que pedían el amarillo (RED-18 y las
+     barreras sin declarar) las cerró el Cambio 135—. Lo que sí queda pendiente es sumarlo al ruleset cuando acumule
+     corridas, igual que `Motor real`.
   6. **Re-correr la prueba de mutación** (catálogo de RS-R7, 49 mutaciones): las 12 supervivientes (M11, M14, M17, M19, M21,
      M23, M27, M33, M34, M43, M44, M49) ahora las detecta al menos un test; M21 y M43 por el contrato de candados (RED-67).
   7. `processes.md` tiene el runbook del Anexo D y no menciona `--fake`; `publish-main.yml` falla ante un commit que no viene
@@ -1381,9 +1425,10 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
 ### Ola 5 — Bugs de front y parches v1 de Legajos y Dispositivos
 - **Objetivo:** que las pantallas funcionen (subir archivos, paginar, cascadas, botones visibles) y migrar las pantallas
   fuera de Becas a las piezas canónicas clonando las goldens.
-- **Avance: 4 h de 128, 124 restantes.** PR 1 (DIS-01 + DIS-08) en el Cambio 140, 06-oct-2026: helper de fechas locales,
+- **Avance: 18 h de 128, 110 restantes.** PR 1 (DIS-01 + DIS-08) en el Cambio 140, 06-oct-2026: helper de fechas locales,
   los dos usos de Dispositivos más los tres latentes y cuatro de Conversaciones, y la guardia `test_sql_portable.py`
-  (recorre el código con `ast`, allowlist vacía). Quedan abiertos los PRs 2 a 8.
+  (recorre el código con `ast`, allowlist vacía). **PR 2 (FE-02, LEG-02, LEG-03, LEG-04, LEG-05, FE-09, FE-21) en el
+  Cambio 150, 06-oct-2026**: las 7 fichas cerradas, sin migración. Quedan abiertos los PRs 3 a 8.
 - **PRs y orden:** (1) DIS-01 + DIS-08 (helper de fechas locales + guardia de `__date`) 4 h · (2) Legajos: FE-02, LEG-04,
   LEG-05, LEG-02, LEG-03, FE-09, FE-21 14 h · (3) Configuración: FE-04, FE-05, FE-08 6 h · (4) FE-06 ya; FE-07, FE-01 y FE-10
   **después de la Ola 6 paso 3** (en ese orden: FE-07 antes o con FE-01; FE-01 antes que FE-10) 14 h · (5) FE-18, FE-19, FE-25, FE-26 8 h · (6) **después de la

@@ -24,8 +24,6 @@ def aceptar_derivacion_programa(request, derivacion_id):
         messages.success(request, result.message)
     except ValidationError as exc:
         messages.error(request, exc.messages[0])
-    except Exception as exc:
-        messages.error(request, f"Error al aceptar derivación: {exc}")
 
     return redirect("legajos:programa_detalle", pk=derivacion.programa_destino.id)
 

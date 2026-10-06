@@ -1,11 +1,23 @@
-# Fragmento de Deployment: cómo correr el bootstrap cuando el contenedor principal
-# define su propio comando (si no define command/args, esto NO hace falta — el
-# entrypoint lo hace solo).
+# Fragmento de Deployment: el bootstrap fuera del contenedor que atiende.
 #
 # El initContainer usa la MISMA imagen con args ["bootstrap"]: el entrypoint corre
 # migraciones + estáticos + sembrado y termina. Así el server puede arrancar con el
 # comando que la plataforma prefiera sin dejar el esquema atrasado ni roles
 # faltantes.
+#
+# UN SOLO MIGRADOR (RED-19). Django **no** toma ningún candado para `migrate` en
+# MySQL/MariaDB. Dos procesos migrando a la vez se pisan y, si se cruzan dentro de una
+# migración de varias operaciones, el esquema queda a medias **sin** fila en
+# `django_migrations`: medido contra MariaDB 11.8, uno de los dos muere con 1050 desde
+# base vacía y con 1060 desde base al día. Por eso:
+#
+#   - el contenedor `web` lleva `RUN_MIGRATIONS=false` siempre: nunca migra;
+#   - un initContainer corre en **cada** pod, así que solo alcanza con `replicas: 1`;
+#   - con `replicas > 1` el `migrate` va en `bootstrap-job.yaml`, que corre una sola
+#     vez antes del rollout, y acá también se pone `RUN_MIGRATIONS=false`.
+#
+# El candado `GET_LOCK('datanach_migrate', 900)` que volvería esto tolerante a fallas
+# está en OPS-07; hasta entonces, la regla es la de arriba.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -32,13 +44,23 @@ spec:
       containers:
         - name: web
           image: <IMAGEN>
-          # Sin command/args el entrypoint repite el bootstrap (es idempotente) y
-          # levanta daphne. Con comando propio, el initContainer de arriba es el
-          # que garantiza migraciones, sembrado y estáticos (vía el volumen
-          # staticfiles compartido).
+          # El initContainer de arriba (o el Job, con replicas > 1) es el que garantiza
+          # migraciones, sembrado y estáticos. Este contenedor **nunca** migra: con
+          # varias réplicas, el `migrate` del entrypoint convierte cada arranque en un
+          # migrador más (RED-19).
           envFrom:
             - secretRef:
                 name: <SECRET-ENV>
+          env:
+            - name: RUN_MIGRATIONS
+              value: "false"
+            # Mismo motivo que `RUN_MIGRATIONS`, un paso más abajo: sin esto, cada pod
+            # que arranca corre también `seed_datos_base`, `crear_programas` y
+            # `seed_catalogo_siis`. Son idempotentes, pero N réplicas sembrando a la vez
+            # se pisan en los `update_or_create` y alargan cada arranque; el initContainer
+            # (o el Job) ya los corrió.
+            - name: LOCAL_BOOTSTRAP_COMMANDS
+              value: "false"
           ports:
             - containerPort: 8000
           # Regla de consistencia de puertos: APP_PORT (env) = containerPort =

@@ -9,15 +9,18 @@ no toque otros roles y que no explote en una base sin roles creados.
 
 import importlib
 
-from django.apps import apps
 from django.contrib.auth.models import Group, Permission
 from django.contrib.contenttypes.models import ContentType
 from django.test import TestCase
 
 from core import rbac
+from core.tests.historico import estado_historico
 from users.models import Capacidad
 
 migracion = importlib.import_module("users.migrations.0025_administrador_relevamiento_publico")
+# RED-17: los modelos **de entonces**, no los de hoy. Con `django.apps.apps` la prueba
+# no habría notado que la función usa un campo agregado después de esta migración.
+APPS_DE_ENTONCES = estado_historico("users", "0025_administrador_relevamiento_publico")
 
 CODIGO = "becas.relevamiento.publico"
 
@@ -38,15 +41,15 @@ class OtorgarPublicoAlAdministradorTests(TestCase):
     def test_otorga_la_capacidad_al_rol_protegido(self):
         grupo = Group.objects.create(name=migracion.ROL)
 
-        migracion.otorgar_al_administrador(apps, None)
+        migracion.otorgar_al_administrador(APPS_DE_ENTONCES, None)
 
         self.assertIn(migracion.CODENAME, self._capacidades(grupo))
 
     def test_es_idempotente(self):
         grupo = Group.objects.create(name=migracion.ROL)
 
-        migracion.otorgar_al_administrador(apps, None)
-        migracion.otorgar_al_administrador(apps, None)
+        migracion.otorgar_al_administrador(APPS_DE_ENTONCES, None)
+        migracion.otorgar_al_administrador(APPS_DE_ENTONCES, None)
 
         self.assertEqual(
             list(grupo.permissions.filter(codename=migracion.CODENAME).values_list("codename", flat=True)),
@@ -58,7 +61,7 @@ class OtorgarPublicoAlAdministradorTests(TestCase):
         Group.objects.create(name=migracion.ROL)
         otro = Group.objects.create(name="Becas — Administrador")
 
-        migracion.otorgar_al_administrador(apps, None)
+        migracion.otorgar_al_administrador(APPS_DE_ENTONCES, None)
 
         self.assertNotIn(migracion.CODENAME, self._capacidades(otro))
 
@@ -66,12 +69,12 @@ class OtorgarPublicoAlAdministradorTests(TestCase):
         # Base nueva: los roles los crea `seed_rbac` después de migrar.
         self.assertFalse(Group.objects.filter(name=migracion.ROL).exists())
 
-        migracion.otorgar_al_administrador(apps, None)  # no debe levantar
+        migracion.otorgar_al_administrador(APPS_DE_ENTONCES, None)  # no debe levantar
 
     def test_revertir_no_quita_la_capacidad(self):
         grupo = Group.objects.create(name=migracion.ROL)
-        migracion.otorgar_al_administrador(apps, None)
+        migracion.otorgar_al_administrador(APPS_DE_ENTONCES, None)
 
-        migracion.revertir(apps, None)
+        migracion.revertir(APPS_DE_ENTONCES, None)
 
         self.assertIn(migracion.CODENAME, self._capacidades(grupo))

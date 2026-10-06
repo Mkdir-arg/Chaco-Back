@@ -2,6 +2,7 @@ from django import forms
 from django.db import transaction
 
 from programas.models import DerivacionPrograma, InscripcionPrograma, Programa
+from programas.services.inscripciones import activar_inscripcion
 
 
 class DerivarProgramaForm(forms.Form):
@@ -117,12 +118,13 @@ class DerivarProgramaForm(forms.Form):
             motivo_completo = f"{motivo}\n\nObservaciones:\n{observaciones}"
 
         if tipo_inicio == "inscripcion_directa":
-            inscripcion = InscripcionPrograma.objects.create(
-                ciudadano=self.ciudadano,
-                programa=programa_destino,
-                estado=InscripcionPrograma.Estado.ACTIVO,
-                via_ingreso=InscripcionPrograma.ViaIngreso.DIRECTO,
-                responsable=usuario,
+            # `create` contra una inscripción previa CERRADA/DADA DE BAJA/SUSPENDIDA
+            # rompía el `unique_together` y devolvía un 500 (LEG-02).
+            inscripcion = activar_inscripcion(
+                self.ciudadano,
+                programa_destino,
+                via=InscripcionPrograma.ViaIngreso.DIRECTO,
+                usuario=usuario,
                 notas=motivo_completo,
             )
             return {"tipo": "inscripcion", "objeto": inscripcion}

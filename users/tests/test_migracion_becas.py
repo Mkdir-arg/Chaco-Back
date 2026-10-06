@@ -11,14 +11,17 @@ para que ningún rol pierda acceso a Becas en silencio.
 
 import importlib
 
-from django.apps import apps
 from django.contrib.auth.models import Group, Permission
 from django.contrib.contenttypes.models import ContentType
 from django.test import TestCase
 
+from core.tests.historico import estado_historico
 from users.models import Capacidad
 
 remapeo = importlib.import_module("users.migrations.0007_remapear_permisos_becas")
+# RED-17: los modelos **de entonces**, no los de hoy. Con `django.apps.apps` la prueba
+# no habría notado que la función usa un campo agregado después de esta migración.
+APPS_DE_ENTONCES = estado_historico("users", "0007_remapear_permisos_becas")
 
 
 class RemapeoPermisosBecasTests(TestCase):
@@ -37,7 +40,7 @@ class RemapeoPermisosBecasTests(TestCase):
         grupo = Group.objects.create(name="Rol custom con becas_configurar")
         grupo.permissions.add(perm_viejo)
 
-        remapeo.remapear_permisos_becas(apps, None)
+        remapeo.remapear_permisos_becas(APPS_DE_ENTONCES, None)
 
         codenames = set(grupo.permissions.values_list("codename", flat=True))
         self.assertIn("becas_programa_administrar", codenames)
@@ -54,7 +57,7 @@ class RemapeoPermisosBecasTests(TestCase):
         grupo = Group.objects.create(name="Rol custom coordinador")
         grupo.permissions.add(perm_relev, perm_revisar)
 
-        remapeo.remapear_permisos_becas(apps, None)
+        remapeo.remapear_permisos_becas(APPS_DE_ENTONCES, None)
 
         codenames = set(grupo.permissions.values_list("codename", flat=True))
         self.assertIn("becas_convocatoria_ver", codenames)
@@ -67,7 +70,7 @@ class RemapeoPermisosBecasTests(TestCase):
 
     def test_permiso_viejo_sin_grupos_se_borra_sin_error(self):
         self._crear_permiso_viejo("becas_configurar")
-        remapeo.remapear_permisos_becas(apps, None)
+        remapeo.remapear_permisos_becas(APPS_DE_ENTONCES, None)
         self.assertFalse(Permission.objects.filter(content_type=self.ct, codename="becas_configurar").exists())
 
     def test_es_idempotente(self):
@@ -75,8 +78,8 @@ class RemapeoPermisosBecasTests(TestCase):
         grupo = Group.objects.create(name="Rol custom")
         grupo.permissions.add(perm_viejo)
 
-        remapeo.remapear_permisos_becas(apps, None)
-        remapeo.remapear_permisos_becas(apps, None)  # segunda pasada: no debe fallar ni duplicar
+        remapeo.remapear_permisos_becas(APPS_DE_ENTONCES, None)
+        remapeo.remapear_permisos_becas(APPS_DE_ENTONCES, None)  # segunda pasada: no debe fallar ni duplicar
 
         codenames = list(grupo.permissions.values_list("codename", flat=True))
         self.assertEqual(len(codenames), len(set(codenames)))
@@ -86,7 +89,7 @@ class RemapeoPermisosBecasTests(TestCase):
         grupo = Group.objects.create(name="Territorial custom")
         grupo.permissions.add(perm_campo)
 
-        remapeo.remapear_permisos_becas(apps, None)
+        remapeo.remapear_permisos_becas(APPS_DE_ENTONCES, None)
 
         self.assertTrue(Permission.objects.filter(content_type=self.ct, codename="becas_campo").exists())
         self.assertIn("becas_campo", grupo.permissions.values_list("codename", flat=True))
