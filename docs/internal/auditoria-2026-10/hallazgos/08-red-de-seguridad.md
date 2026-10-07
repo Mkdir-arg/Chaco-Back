@@ -502,7 +502,7 @@ verdad (contador de errores seguidos, `--max-errores`) y `test_un_caso_que_falla
   JavaScript que decide —drag & drop y condiciones del constructor, condiciones en vivo del paso 2 del link— con
   `pytest-playwright` contra el compose local, **nightly o a mano, nunca como gate** (L, no planificado).
 
-**Resolución:** ✅ Resuelto en #NNN (Cambio 163, PR R-20), 07-oct-2026, con el **default D-RED-06 aplicado = No** —
+**Resolución:** ✅ Resuelto en #612 (Cambio 163, PR R-20), 07-oct-2026, con el **default D-RED-06 aplicado = No** —
 no se reconstruye un e2e por ahora. **Code-first, lo que había es menos de lo que la ficha suponía:** en
 `tests/e2e/` del checkout principal no quedó **ni un `.py`**, solo `__pycache__/`, `pages/__pycache__/` y
 `.pytest_cache/`, todos de julio-2026 y bytecode de Python 3.14 (incompatible con el 3.12 del CI). Nunca estuvo
@@ -847,7 +847,7 @@ que siguen en la Ola 4 como dice la ficha.
   «Resolución: ✅» posteriores al 04-oct-2026 y exige que la ruta y la clase nombradas existan (import + `hasattr`). No
   mover las PoC al código (muchas afirman el bug).
 
-**Resolución:** ✅ Resuelto en #NNN (Cambio 163, PR R-20), 07-oct-2026 — `core/tests/test_contrato_auditoria.py`
+**Resolución:** ✅ Resuelto en #612 (Cambio 163, PR R-20), 07-oct-2026 — `core/tests/test_contrato_auditoria.py`
 (8 tests) lee los ocho `hallazgos/*.md`, parsea las **131** líneas «Test permanente» y exige que módulo, clase y
 método existan. La regla queda cerrada **por las dos puntas**, que es lo que la propuesta no cubría: un segundo test
 exige que toda ficha cerrada **desde el 04-oct-2026 declare la línea**, porque sin eso cerrar una ficha sin dejar test
@@ -904,7 +904,7 @@ Las otras cuatro escrituras siguen en la Ola 3.
   `programas/tests/test_padron.py::ResumenFijoTests.test_tolera_un_request_sin_sesion` (`RequestFactory` sin middleware de
   sesión → `None`, no `AttributeError`).
 
-**Resolución:** ✅ Resuelto en #NNN (Cambio 163, PR R-20), 07-oct-2026 — los dos arreglos que **no tenían ficha
+**Resolución:** ✅ Resuelto en #612 (Cambio 163, PR R-20), 07-oct-2026 — los dos arreglos que **no tenían ficha
 propia** quedan cubiertos; los cuatro primeros de la lista ya los habían cerrado sus fichas (RED-07 ✅, RED-32 ✅,
 RED-17 ✅, RED-09 ✅) y los dos últimos siguen como dice la ficha (`1ada8e41` ya está cubierto por
 `test_becas_models.py`; `7f36ab06` es JS). Para `057cce86`:
@@ -2712,7 +2712,7 @@ Mutación M33 verificada a mano (aplicar, correr, revertir): `>=` → `>` deja e
   bloqueante** `manage.py test core users portal --parallel 2` que avise si vuelve a romperse, hasta que RED-86 pase la suite
   entera a paralelo.
 
-**Resolución:** ✅ Resuelto en #NNN (Cambio 163, PR R-20), 07-oct-2026 — bisecado hasta
+**Resolución:** ✅ Resuelto en #612 (Cambio 163, PR R-20), 07-oct-2026 — bisecado hasta
 `core.tests.test_performance_budgets`, y la causa **no era la que los candidatos de la ficha anticipaban**: no hay
 ninguna excepción guardada como atributo de clase. `PerformanceBudgetTests.setUpTestData` llama a `seed_perf`, cuya
 guarda comparaba el `NAME` de la base contra **dos literales** (`":memory:"` y

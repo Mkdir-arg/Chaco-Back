@@ -203,7 +203,7 @@ el **PR R-20** junto con el resto de TST-02; mientras tanto `--shuffle` no sirve
 - **Propuesta:** borrar los dos `assertTrue(True)`; tests de RBAC de cada vista (sin `config.administrar` → redirect/403), del wizard de 4 pasos con estado en sesión, de `programa_cambiar_estado` (activar sin naturaleza → error) y del borrado de secretaría con subsecretarías (mensaje y no se borra).
 - **Verificación:** coverage de `configuracion/` de ~0 % de vistas a > 60 %.
 - **Top-5 de tests faltantes por valor (V6):** (1) DAT-01; (2) `seed_datos_base` idempotente y respetuoso del ABM (OPS-06); (3) `generar_alertas`/`AlertasService` con `assertNumQueries` y dos pasadas (PERF-20/LEG-01; el servicio no tiene ningún test y corre cada hora); (4) `procesar_vencimientos` con una regla que falla y un `FINALIZANDO` dentro de la gracia (OPS-07, G1-04); (5) contrato de operación: `django.request` llega a un `StreamHandler` y `/health/ready/` → 503 con la DB caída (OPS-03, OPS-04).
-**Resolución:** ✅ Resuelto en #NNN (Cambio 163, PR R-20), 07-oct-2026 — las cuatro patas. (1) **Los cinco
+**Resolución:** ✅ Resuelto en #612 (Cambio 163, PR R-20), 07-oct-2026 — las cuatro patas. (1) **Los cinco
 módulos que solo pasaban si otro corría antes** heredan de `programas/tests/base_becas.BecasPantallaTestCase`, una
 sola definición del `cache.clear()` + `crear_programas` que el Cambio 130 había dejado copiado en
 `test_becas_convocatorias_diseno` (ese módulo pasa a heredarla también). Verificado como pide la ficha: los **77
@@ -305,7 +305,7 @@ operación de *contract* (N+2) y con su reversa declarada. Las que solo son `pip
 **Ampliado por RS-R1-14 (04-oct-2026, duplicado):** pasa a la **Ola R** (PR R-20). Medido sobre las apps del producto el coverage es **76 %** (21.746 stmts), 28 puntos sobre el `fail_under`. El paso por módulo cubre los 9 de los flujos críticos, hoy entre 91 % y 98 %: `coverage report --fail-under=90 --include=programas/services/siis_envio.py,programas/services/proceso_masivo.py,programas/services/cupo.py,programas/services/inscripcion_publica.py,programas/services/padron.py,programas/services/respuestas.py,programas/api/views.py,portal/views/inscripcion.py,core/rbac.py`. Con el `omit`, subir `fail_under` a 74 y activar `branch = true` midiendo de nuevo antes de fijarlo.
 
 - **Ubicación:** `pyproject.toml:24-39` (`source=["."]`, `fail_under = 48`).
-**Resolución:** ✅ Resuelto en #NNN (Cambio 163, PR R-20), 07-oct-2026 — el `omit` suma `core/performance/*`
+**Resolución:** ✅ Resuelto en #612 (Cambio 163, PR R-20), 07-oct-2026 — el `omit` suma `core/performance/*`
 (muerto, OPS-10), `scripts/*`, `awslabs-mcp/*` y `docker/*`, nada de lo cual viaja en la imagen de release. Con ese
 alcance, remedido el 07-oct con la suite completa: **83 %** de sentencias (23.315) y **81 %** contando ramas (6.192),
 no el 76 % del 04-oct —los PRs de las olas R, 1 y 5 lo subieron—. Se activa **`branch = true`**, como pedía la ficha
@@ -381,7 +381,7 @@ las líneas son de `origin/development @ 7393c41`.
 - **Ubicación:** `ConvocatoriaTests.test_crear_convocatoria` manda `fecha_fin = "2026-12-31"` con `activo: "on"`; desde el 01-ene-2027 `ConvocatoriaForm.clean()` la rechaza y el Backend CI de todos los PRs queda rojo (mismo patrón que el Cambio 105).
 - **Propuesta:** fechas relativas (`timezone.localdate()` ± `timedelta`), como el Cambio 105; buscar otras fechas fijas con `grep -rn '"202[6-9]-' */tests/`.
 - **Plazo:** antes del 31-dic-2026.
-**Resolución:** ✅ Resuelto en #NNN (Cambio 163, PR R-20), 07-oct-2026, **56 días antes del plazo** — las fechas del
+**Resolución:** ✅ Resuelto en #612 (Cambio 163, PR R-20), 07-oct-2026, **56 días antes del plazo** — las fechas del
 alta pasan a ser relativas a `timezone.localdate()` (±30 días), como el Cambio 105. El guard es
 `test_crear_convocatoria_sigue_andando_pasado_el_01_ene_2027`, que corre el mismo POST con **el reloj congelado en
 2027**: con la fecha literal puesta de vuelta da `200 != 302` (el form rechaza la convocatoria activa con fecha de fin
