@@ -63,7 +63,7 @@
                         {% if user.is_active %}
                         <span class="badge badge-success badge-dot">Activo</span>
                         {% else %}
-                        <span class="badge badge-danger badge-dot">Inactivo</span>
+                        <span class="badge badge-gray badge-dot">Inactivo</span>
                         {% endif %}
                     </td>
                     <td style="padding:13px 16px; border-top:1px solid var(--border-light);">
@@ -168,8 +168,10 @@ function confirmarToggleUsuario(pk, username, activo) {
         cancelButtonText: 'Cancelar',
         buttonsStyling: false,
         customClass: {
-            confirmButton: 'btn-nodo btn-danger',
-            cancelButton: 'btn-nodo btn-tertiary',
+            // Desactivar es destructivo; activar no. El rojo del sistema significa
+            // peligro: con btn-danger fijo, «Activar usuario» salía en rojo de borrado.
+            confirmButton: activo ? 'btn-nodo btn-danger btn-base' : 'btn-nodo btn-brand btn-base',
+            cancelButton: 'btn-nodo btn-tertiary btn-base',
         },
     }).then(function (result) {
         if (result.isConfirmed) {
