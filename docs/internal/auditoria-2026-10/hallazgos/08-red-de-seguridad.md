@@ -1397,7 +1397,7 @@ aritmética con `hoy` explícito y el `None` sin fecha, que el arreglo tiene que
 **H-13** (la `TZ` real de los contenedores de ECOM).
 **Test permanente:** `programas.tests.test_becas_reglas.EdadHorarioTests.test_el_corte_es_la_fecha_local_no_la_del_sistema`.
 
-**Ampliado por #PENDIENTE (Cambio 172, Ola 3 PR 6), 07-oct-2026 — ✅ cerrada.** La cuenta vive una
+**Ampliado por #621 (Cambio 172, Ola 3 PR 6), 07-oct-2026 — ✅ cerrada.** La cuenta vive una
 sola vez en `core/edad.py` (`edad_en_anios(fecha, hoy=None)`, `es_menor(fecha, hoy=None)` y
 `MAYORIA_DE_EDAD = 18`) y resuelve «hoy» con `timezone.localdate()`, que lee el `TIME_ZONE` del
 proyecto y no el reloj del contenedor. Las **seis** copias medidas —la ficha decía cuatro; el
