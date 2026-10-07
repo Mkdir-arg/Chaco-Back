@@ -371,6 +371,11 @@
                 window.userGroups = JSON.parse(document.getElementById("user-groups-data").textContent);
                 window.isSuperuser = {{ user_is_superuser|yesno:"true,false" }};
                 window.websocketsEnabled = {{ websockets_enabled|yesno:"true,false" }};
+                // Destino de «Ver» en la alerta crítica: lo resuelve Django y no una
+                // ruta literal escrita en el JS. El `0` es el placeholder del id.
+                window.alertasConfig = {
+                    ciudadanoDetalleUrlTemplate: "{% url 'legajos:ciudadano_detalle' 0 %}",
+                };
                 window.conversacionesConfig = {
                     listUrl: "{% url 'conversaciones:lista' %}",
                     statsUrl: "{% url 'conversaciones:api_estadisticas' %}",
@@ -402,6 +407,10 @@
 
         <script src="{% static 'custom/js/nodo-tooltips.js' %}"></script>
         <script src="{% static 'custom/js/dynamic_list_filters.js' %}"></script>
+
+        <!-- Guardia de doble envío de los formularios clásicos (los `data-ajax` de
+             Becas traen la suya en _ajax_js.html). -->
+        <script src="{% static 'custom/js/nodo-submit-guard.js' %}"></script>
 
         <!-- NODO SweetAlert2 theming (fuente única): se ejecuta después de customJS
              a propósito — reasigna window.Swal = Swal.mixin(...) y cada Swal.fire()
