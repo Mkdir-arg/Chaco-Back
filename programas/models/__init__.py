@@ -249,7 +249,12 @@ class InscripcionPrograma(TimeStamped):
         choices=ViaIngreso.choices,
         default=ViaIngreso.DIRECTO,
     )
-    fecha_inscripcion = models.DateField(auto_now_add=True, db_index=True)
+    # BEC-18: `auto_now_add` guarda `datetime.date.today()`, que es la fecha del
+    # **proceso**. Los contenedores no definen `TZ`, así que corren en UTC y entre las
+    # 21:00 y las 24:00 de Chaco escriben el día siguiente: la fila nace con fecha de
+    # mañana y ningún contador que pregunte por «hoy» la encuentra. `default=` se
+    # evalúa con el mismo `TIME_ZONE` del proyecto que usan las consultas.
+    fecha_inscripcion = models.DateField(default=timezone.localdate, editable=False, db_index=True)
     fecha_inicio = models.DateField(null=True, blank=True)
     fecha_cierre = models.DateField(null=True, blank=True, db_index=True)
 
@@ -2544,7 +2549,7 @@ class AsignacionCoordinador(TimeStamped):
         verbose_name="Coordinador",
     )
     activo = models.BooleanField(default=True, db_index=True, verbose_name="Activo")
-    fecha_asignacion = models.DateField(auto_now_add=True, verbose_name="Fecha de asignación")
+    fecha_asignacion = models.DateField(default=timezone.localdate, editable=False, verbose_name="Fecha de asignación")
 
     class Meta:
         verbose_name = "Asignación de coordinador"
@@ -2565,7 +2570,7 @@ class AsignacionReferente(TimeStamped):
     coordinador = models.ForeignKey(
         User, on_delete=models.CASCADE, related_name="referentes_asignados", verbose_name="Coordinador"
     )
-    fecha_asignacion = models.DateField(auto_now_add=True, verbose_name="Fecha de asignación")
+    fecha_asignacion = models.DateField(default=timezone.localdate, editable=False, verbose_name="Fecha de asignación")
 
     class Meta:
         verbose_name = "Asignación de referente"
@@ -2597,7 +2602,7 @@ class AsignacionTerritorial(TimeStamped):
         related_name="asignacion_territorial",
         verbose_name="Territorial",
     )
-    fecha_asignacion = models.DateField(auto_now_add=True, verbose_name="Fecha de asignación")
+    fecha_asignacion = models.DateField(default=timezone.localdate, editable=False, verbose_name="Fecha de asignación")
 
     class Meta:
         verbose_name = "Asignación de territorial"
@@ -3262,7 +3267,7 @@ class ListaEspera(TimeStamped):
     )
     posicion = models.PositiveIntegerField(verbose_name="Posición")
     promovido = models.BooleanField(default=False, verbose_name="Promovido")
-    fecha_ingreso = models.DateField(auto_now_add=True, verbose_name="Fecha de ingreso")
+    fecha_ingreso = models.DateField(default=timezone.localdate, editable=False, verbose_name="Fecha de ingreso")
 
     class Meta:
         verbose_name = "Lista de espera"

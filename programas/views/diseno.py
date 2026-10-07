@@ -238,22 +238,57 @@ CANALES_SERVIDOS = (
 )
 
 
-def _asegurar_coherencia(diseno):
+def _errores_por_canal(items):
+    """``{clave: [errores]}`` de las condiciones imposibles en algún canal (BEC-04).
+
+    Mirado entero el diseño puede estar bien —la fuente existe y está antes— y aun
+    así dejar un ítem imposible en uno de los dos canales, porque ahí su fuente no
+    se pregunta. Se junta todo en un solo mapa para poder **comparar** dos estados
+    del diseño, que es lo que necesita `_mutar`.
+    """
+    errores = {}
+    for canal, etiqueta in CANALES_SERVIDOS:
+        for clave, mensajes in cond.fuentes_fuera_del_canal(items_planos(items, canal), etiqueta).items():
+            errores.setdefault(clave, []).extend(mensajes)
+    return errores
+
+
+def _solo_lo_nuevo(errores, previos):
+    """Los errores que **no** estaban antes de la mutación.
+
+    Un diseño guardado antes de BEC-04 puede traer una condición imposible desde
+    siempre. Rechazar toda mutación por eso dejaría el formulario congelado —no se
+    podría ni renombrar un grupo— hasta que alguien borre la condición ofensora, y
+    el operador no tendría por qué saber cuál es. Mientras tanto la pantalla se
+    sirve bien igual: `serializar` anula esa condición. Así que se bloquea lo que
+    esta edición **agrega**, no lo que encontró.
+    """
+    nuevos = {}
+    for clave, mensajes in errores.items():
+        faltantes = [m for m in mensajes if m not in previos.get(clave, [])]
+        if faltantes:
+            nuevos[clave] = faltantes
+    return nuevos
+
+
+def _asegurar_coherencia(diseno, errores_previos=None):
     """Valida las condiciones sobre el diseño resultante y devuelve los ítems
     ya cargados (se reutilizan en la respuesta: una sola lectura).
 
-    Se valida **dos veces más**, una por canal servido (BEC-04): mirado entero el
-    diseño puede estar bien —la fuente existe y está antes— y aun así dejar un
-    ítem imposible en uno de los dos canales, porque ahí su fuente no se pregunta.
+    ``errores_previos`` es la foto por canal de **antes** de la mutación: con ella,
+    los incumplimientos de BEC-04 que ya venían de antes no bloquean la edición
+    (ver `_solo_lo_nuevo`). Sin ella se exige el diseño entero coherente, que es lo
+    que corresponde cuando no hay un «antes» con el que comparar.
     """
     items = items_ordenados(diseno)
     errores = cond.validar_coherencia(items_planos(items))
     if errores:
         raise DisenoInvalido(errores)
-    for canal, etiqueta in CANALES_SERVIDOS:
-        errores = cond.fuentes_fuera_del_canal(items_planos(items, canal), etiqueta)
-        if errores:
-            raise DisenoInvalido(errores)
+    por_canal = _errores_por_canal(items)
+    if errores_previos is not None:
+        por_canal = _solo_lo_nuevo(por_canal, errores_previos)
+    if por_canal:
+        raise DisenoInvalido(por_canal)
     return items
 
 
@@ -270,8 +305,11 @@ def _mutar(request, diseno, mensaje, operacion):
     try:
         with transaction.atomic():
             bloquear(diseno)
+            # La foto de BEC-04 **antes** de tocar nada, con el candado ya tomado:
+            # lo que esta edición no rompió no es asunto de esta edición.
+            errores_previos = _errores_por_canal(items_ordenados(diseno))
             operacion()
-            items = _asegurar_coherencia(diseno)
+            items = _asegurar_coherencia(diseno, errores_previos)
             diseno.tocar(request.user)
     except DisenoInvalido as exc:
         titulos = {i.clave: i.titulo or i.get_tipo_display() for i in items_ordenados(diseno)}

@@ -647,10 +647,30 @@ def _condicion_en_canal(condicion, claves_del_canal):
     return condicion
 
 
+def claves_servidas(items, canal=None):
+    """Las claves que la persona **va a ver** en ``canal``.
+
+    No alcanza con ``se_pide_en``: un campo de canal «ambos» que cuelga de un grupo
+    que solo se pide en la app no se sirve en el link, porque el grupo no viaja (y
+    ``serializar`` lo saltea con ``actual is None``). Tomarlo como disponible dejaba
+    en pie una condición que nunca se puede cumplir, que es justo lo que BEC-04
+    corrige. Es la misma cascada de padres que aplica :func:`items_planos`.
+    """
+    servidas = set()
+    excluidos = set()
+    for item in items:
+        padre_clave = item.padre.clave if item.padre is not None else None
+        if not item.se_pide_en(canal) or padre_clave in excluidos:
+            excluidos.add(item.clave)
+            continue
+        servidas.add(item.clave)
+    return servidas
+
+
 def serializar(items, canal=None):
     """La estructura anidada de la definición v2: grupos con sus campos y textos,
     filtrada por canal. Un grupo sin hijos visibles no se emite (RN-3)."""
-    claves_del_canal = {i.clave for i in items if i.se_pide_en(canal)}
+    claves_del_canal = claves_servidas(items, canal)
     grupos = []
     actual = None
     for item in items:

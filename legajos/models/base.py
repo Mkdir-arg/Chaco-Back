@@ -292,7 +292,12 @@ class LegajoAtencion(LegajoBase):
     via_ingreso = models.CharField(
         max_length=20, choices=ViaIngreso.choices, default=ViaIngreso.ESPONTANEA, db_index=True
     )
-    fecha_admision = models.DateField(auto_now_add=True, db_index=True)
+    # BEC-18: `auto_now_add` guarda `datetime.date.today()`, que es la fecha del
+    # **proceso**. Los contenedores no definen `TZ`, así que corren en UTC y entre las
+    # 21:00 y las 24:00 de Chaco escriben el día siguiente: la fila nace con fecha de
+    # mañana y ningún contador que pregunte por «hoy» la encuentra. `default=` se
+    # evalúa con el mismo `TIME_ZONE` del proyecto que usan las consultas.
+    fecha_admision = models.DateField(default=timezone.localdate, editable=False, db_index=True)
     plan_vigente = models.BooleanField(default=False, db_index=True)
     nivel_riesgo = models.CharField(max_length=20, default="BAJO", db_index=True)
 

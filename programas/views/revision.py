@@ -1172,7 +1172,11 @@ def formulario_rechazar(request, pk):
         )
         if motivo_sin_consulta:
             messages.warning(request, f"No se pudo consultar SIIS: {motivo_sin_consulta} Quedó en la traza del caso.")
-        elif validacion.estado == ValidacionSIS.Estado.ERROR:
+        # `validacion and`: el `ValueError` puede llegar con el mensaje vacío, y ahí
+        # `motivo_sin_consulta` es falsy pero `validacion` sigue en `None`. Sin la
+        # guarda eso era un `AttributeError` **después** de commitear el rechazo: el
+        # caso quedaba rechazado y el operador veía un 500.
+        elif validacion and validacion.estado == ValidacionSIS.Estado.ERROR:
             messages.warning(request, "SIIS no respondió correctamente; quedó registrado para reintentar.")
         messages.success(request, "Caso rechazado.")
     return redirect(_url_caso(request, formulario))

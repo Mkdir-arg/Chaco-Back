@@ -36,6 +36,7 @@ from django.urls import reverse
 
 from core.tests.candados import candados_tomados
 from core.tests.reloj import reloj_en
+from core.utils_fechas import fecha_local
 from legajos.models import Ciudadano
 from programas.forms import ConvocatoriaForm
 from programas.management.commands.seed_becas import ROL_ADMIN, ROL_TERRITORIAL
@@ -59,7 +60,14 @@ from programas.models import (
 )
 from programas.services import condiciones as cond
 from programas.services.cupo import aprobar_o_poner_en_espera, get_cupo_stats
-from programas.services.diseno import items_ordenados, items_planos, obtener_o_crear_diseno, reconciliar, serializar
+from programas.services.diseno import (
+    claves_servidas,
+    items_ordenados,
+    items_planos,
+    obtener_o_crear_diseno,
+    reconciliar,
+    serializar,
+)
 from programas.services.padron import cargar_padron
 from programas.services.pausas import cambiar_pausa
 from programas.services.respuestas import fecha_de_referencia, respuestas_legibles
@@ -155,9 +163,14 @@ class RespuestasLegiblesFechaDeCargaTests(TestCase):
         self.assertEqual(fecha_de_referencia(self.caso), date(2026, 2, 10))
 
     def test_sin_captura_vale_la_fecha_de_creacion(self):
+        """`fecha_local` y no `.astimezone()`: sin argumento, `astimezone` convierte a la
+        zona del **sistema operativo**, que en los contenedores es UTC. El test habría
+        comparado la fecha local contra la del proceso y se habría puesto verde o rojo
+        según dónde corriera."""
         self.caso.capturado_en = None
         self.caso.save(update_fields=["capturado_en"])
-        self.assertEqual(fecha_de_referencia(self.caso), self.caso.creado.astimezone().date())
+        self.caso.refresh_from_db()
+        self.assertEqual(fecha_de_referencia(self.caso), fecha_local(self.caso.creado))
 
     def test_condicion_de_edad_se_evalua_a_la_fecha_de_carga(self):
         """El grupo del apoderado se pidió (tenía 17) y la revisión lo muestra,
@@ -286,6 +299,50 @@ class CoherenciaPorCanalTests(BecasPantallaTestCase):
         destino = next(i for g in por_app for i in g["items"] if i["clave"] == "cp-ambos")
         self.assertEqual(destino["condicion"], self.destino.condicion)
 
+    def test_una_mutacion_ajena_no_queda_bloqueada_por_una_condicion_vieja(self):
+        """Ronda 2: el diseño ya viola BEC-04 desde antes y aun así se puede editar.
+
+        Rechazar toda mutación por una condición que esta edición no tocó dejaba el
+        formulario congelado —ni renombrar un grupo— hasta que alguien adivinara cuál
+        es la condición ofensora. Mientras tanto la pantalla se sirve bien igual
+        (`serializar` la anula) y `verificar_json_guardado` la lista.
+        """
+        admin = User.objects.create_user("admin-bec04c", password="x")
+        admin.groups.add(Group.objects.get(name=ROL_ADMIN))
+        self.client.force_login(admin)
+        resp = self.client.post(
+            reverse("becas:formulario_item_editar", args=[self.convocatoria.pk, self.grupo.clave]),
+            {"etiqueta": "Grupo con otro nombre", "subtitulo": "", "canal": CanalFormulario.AMBOS},
+        )
+        self.assertEqual(resp.status_code, 200, resp.content)
+        self.grupo.refresh_from_db()
+        self.assertEqual(self.grupo.etiqueta, "Grupo con otro nombre")
+        self.destino.refresh_from_db()
+        self.assertIsNotNone(self.destino.condicion, "La condición vieja se conserva: no se borra sola.")
+
+    def test_empeorar_una_condicion_vieja_sigue_rechazandose(self):
+        """Lo que la edición **agrega** sí se bloquea, aunque el diseño ya viniera roto."""
+        tercero = ItemDiseno.objects.create(
+            diseno=self.diseno,
+            tipo=ItemDiseno.Tipo.CAMPO,
+            clave="cp-tercero",
+            padre=self.grupo,
+            orden=2,
+            canal=CanalFormulario.AMBOS,
+            propio={"texto": "Otro", "tipo": TipoCampo.STRING, "presentacion": "LISTA"},
+        )
+        admin = User.objects.create_user("admin-bec04d", password="x")
+        admin.groups.add(Group.objects.get(name=ROL_ADMIN))
+        self.client.force_login(admin)
+        resp = self.client.post(
+            reverse("becas:formulario_condicion", args=[self.convocatoria.pk, tercero.clave]),
+            data=json.dumps({"condicion": {"modo": "todas", "reglas": [{"fuente": "cp-solo-app", "op": "completo"}]}}),
+            content_type="application/json",
+        )
+        self.assertEqual(resp.status_code, 400, resp.content)
+        self.assertIn("cp-tercero", resp.json()["errores"])
+        self.assertNotIn("cp-ambos", resp.json()["errores"], "El error viejo no se le cobra a esta edición.")
+
     def test_el_comando_de_diagnostico_lo_encuentra_antes_de_desplegar(self):
         from programas.management.commands.verificar_json_guardado import revisar
 
@@ -295,6 +352,89 @@ class CoherenciaPorCanalTests(BecasPantallaTestCase):
 
 
 # ── BEC-05 ───────────────────────────────────────────────────────────────────
+
+
+class FuenteBajoGrupoNoServidoTests(BecasPantallaTestCase):
+    """Ronda 2 de BEC-04: la fuente cuelga de un grupo que no viaja a ese canal.
+
+    Un campo de canal «ambos» dentro de un grupo que solo se pide en la app **no se
+    sirve** en el link: `serializar` lo saltea porque su grupo no está. Tomarlo como
+    disponible dejaba en pie una condición imposible, que es exactamente lo que la
+    ficha corrige: el ítem quedaba oculto para siempre y el servidor no lo exigía.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.segmento = _segmento("Seg BEC-04 grupo")
+        self.convocatoria = _convocatoria(self.segmento, "Conv BEC-04 grupo")
+        self.diseno = DisenoFormulario.objects.create(convocatoria=self.convocatoria)
+        # Grupo que solo se pide en la app, con un campo de **ambos** canales dentro.
+        self.grupo_app = ItemDiseno.objects.create(
+            diseno=self.diseno,
+            tipo=ItemDiseno.Tipo.GRUPO,
+            clave="g-app",
+            orden=0,
+            etiqueta="Solo en la app",
+            canal=CanalFormulario.APP,
+        )
+        self.fuente = ItemDiseno.objects.create(
+            diseno=self.diseno,
+            tipo=ItemDiseno.Tipo.CAMPO,
+            clave="cp-bajo-app",
+            padre=self.grupo_app,
+            orden=0,
+            canal=CanalFormulario.AMBOS,
+            propio={"texto": "Dato de campo", "tipo": TipoCampo.STRING, "presentacion": "LISTA"},
+        )
+        self.grupo_ambos = ItemDiseno.objects.create(
+            diseno=self.diseno, tipo=ItemDiseno.Tipo.GRUPO, clave="g-ambos", orden=1, etiqueta="En los dos"
+        )
+        self.destino = ItemDiseno.objects.create(
+            diseno=self.diseno,
+            tipo=ItemDiseno.Tipo.CAMPO,
+            clave="cp-destino",
+            padre=self.grupo_ambos,
+            orden=0,
+            canal=CanalFormulario.AMBOS,
+            propio={"texto": "Aclaración", "tipo": TipoCampo.STRING, "presentacion": "LISTA"},
+            condicion={"modo": "todas", "reglas": [{"fuente": "cp-bajo-app", "op": "completo"}]},
+        )
+
+    def test_el_campo_se_pide_en_ambos_pero_su_grupo_no(self):
+        """Control del andamio: el campo dice «ambos», y por eso el bug era sutil."""
+        self.assertTrue(self.fuente.se_pide_en(CanalFormulario.LINK))
+        self.assertFalse(self.grupo_app.se_pide_en(CanalFormulario.LINK))
+
+    def test_no_cuenta_como_clave_servida_en_el_link(self):
+        servidas = claves_servidas(items_ordenados(self.diseno), CanalFormulario.LINK)
+        self.assertNotIn("cp-bajo-app", servidas)
+        self.assertNotIn("g-app", servidas)
+        self.assertIn("cp-destino", servidas)
+
+    def test_en_la_app_si_cuenta(self):
+        servidas = claves_servidas(items_ordenados(self.diseno), CanalFormulario.APP)
+        self.assertIn("cp-bajo-app", servidas)
+
+    def test_la_definicion_del_link_anula_la_condicion_imposible(self):
+        por_link = serializar(items_ordenados(self.diseno), CanalFormulario.LINK)
+        destino = next(i for g in por_link for i in g["items"] if i["clave"] == "cp-destino")
+        self.assertIsNone(
+            destino["condicion"],
+            "La fuente no viaja al link (su grupo no se sirve): la condición nunca se cumpliría.",
+        )
+
+    def test_en_la_app_la_condicion_viaja_intacta(self):
+        por_app = serializar(items_ordenados(self.diseno), CanalFormulario.APP)
+        destino = next(i for g in por_app for i in g["items"] if i["clave"] == "cp-destino")
+        self.assertEqual(destino["condicion"], self.destino.condicion)
+
+    def test_la_validacion_por_canal_tambien_lo_ve(self):
+        """`items_planos` ya aplica la misma cascada de padres, así que el chequeo
+        del constructor y el del comando de diagnóstico coinciden con lo servido."""
+        planos = items_planos(items_ordenados(self.diseno), CanalFormulario.LINK)
+        self.assertNotIn("cp-bajo-app", {i["clave"] for i in planos})
+        errores = cond.fuentes_fuera_del_canal(planos, "el link público")
+        self.assertIn("cp-destino", errores)
 
 
 class CupoDelSubsegmentoEsReferenciaTests(TestCase):
@@ -553,6 +693,18 @@ class RechazoSinSiisTests(_BaseRevisionBec):
         self._rechazar()
         self.caso.refresh_from_db()
         self.assertEqual(self.caso.estado, Formulario.Estado.APROBADO)
+
+    def test_un_valueerror_sin_mensaje_no_deja_el_rechazo_a_medias(self):
+        """Ronda 2: `validacion` queda en `None` y `motivo_sin_consulta` vacío.
+
+        El `elif validacion.estado == …` reventaba con `AttributeError` **después**
+        de commitear el rechazo: el caso quedaba rechazado y el operador veía un 500.
+        """
+        with patch("programas.views.revision.validar_formulario_en_siis", side_effect=ValueError("")):
+            resp = self._rechazar()
+        self.assertEqual(resp.status_code, 302)
+        self.caso.refresh_from_db()
+        self.assertEqual(self.caso.estado, Formulario.Estado.RECHAZADO)
 
     def test_el_relevamiento_se_puede_terminar_despues_del_rechazo(self):
         """Era la consecuencia real: el caso quedaba ENVIADO para siempre."""
