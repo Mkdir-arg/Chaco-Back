@@ -327,6 +327,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 153 | El deploy deja de ser a ciegas: traceback en stdout, un health que sabe, guarda de esquema y una release con nombre | Transversal (logging, sonda de salud, entrypoint, script de deploy, CI de GitHub Actions) | `#infra` `#datos` `#metodo` | Auditoría integral oct-2026 — fichas OPS-03, RED-55, OPS-04, RED-59, OPS-01 y RED-16 (Ola R, PR R-15) | 06/10/2026 | 🟢 **Hecho** (RED-16 parcial: el tag de imagen lo aplica ECOM) | **Sí:** correr `verificar_esquema_migraciones --solo-reporte` en cada ambiente antes de desplegar o espejar, y en icore además el renombre de `core/sql/2026-10-06_renombrar_migraciones_icore.sql` |
 | 154 | «Aprobar» deja de poder pasarse de los 60 s de nginx: un timeout por llamada, cortacircuito y presupuesto verificado | Transversal · clientes de SIIS, Base de Personas y RENAPER · correo saliente · sincronización del catálogo SIIS | `#siis` `#performance` `#infra` `#datos` | Auditoría integral oct-2026 — SIIS-09 (= PERF-09) y los tres MINOR de la revisión del PR 4 (Ola 1 «Integridad SIIS», PR 5) | 06/10/2026 | 🟢 **Hecho** | No requiere |
 | 155 | Controles que el navegador no dibujaba: botones sin caja, backdrop transparente, modales en la esquina y la grilla del mes ilegible en celular | Transversal (shell del backoffice, sidebar, navbar, CSS de botones) · Configuración (10 modales, formularios y wizard) · Legajos · Usuarios y roles · Dispositivos · Merenderos (prestación mensual) | `#ui` `#mobile` | Auditoría integral oct-2026 — fichas FE-06, FE-07, FE-01 y FE-10 (Ola 5, PR 4) | 06/10/2026 | 🟢 **Hecho** | No requiere |
+| 156 | La red de Becas: el adjunto que llega hasta la revisión, los dos borrados sin probar, la atomicidad, el padrón y la edad | Becas (adjuntos del caso, Configuración de requisitos y subsegmentos, cupo, padrón, exportaciones) · Transversal (registro de vencimientos, contrato de escrituras atómicas) | `#datos` `#metodo` `#cupos` `#relevamientos` | Auditoría integral oct-2026 — fichas RED-05, RED-31, RED-35, RED-77, RED-49, RED-50, RED-81 y RED-70 (Ola R, PR R-16) | 07/10/2026 | 🟢 **Hecho** (RED-50 queda caracterizada con `expectedFailure`: el arreglo es de la Ola 3) | No requiere |
 
 **Notas del índice**
 
@@ -20790,3 +20791,243 @@ Revertir el commit. Vuelven los cuatro defectos y vuelve `mobile-enhancements.js
 que deshacer en la base: el PR no escribe ni borra una sola fila, no trae migraciones y no cambia ninguna
 vista. **Al revertir hay que volver a correr `npm run build:tailwind`**, porque `tailwind.css` es generado:
 el revert lo deja en el estado anterior, que es el correcto para el markup anterior.
+
+---
+
+# Cambio 156 — La red de Becas: el adjunto que llega hasta la revisión, los dos borrados sin probar, la atomicidad, el padrón y la edad
+
+🟢 **HECHO — 07/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas: adjuntos del caso, Configuración (borrado de requisitos y subsegmentos), cupo, padrón y exportaciones · Transversal: registro de vencimientos y contrato de escrituras atómicas |
+| **Etiquetas** | `#datos` `#metodo` `#cupos` `#relevamientos` |
+| **Solicitante** | Auditoría integral de octubre 2026 — hallazgos **RED-05**, **RED-31**, **RED-35**, **RED-77**, **RED-49**, **RED-50**, **RED-81** y **RED-70** (Ola R «Red de seguridad», PR R-16) |
+| **Fecha del pedido** | 07/10/2026 |
+| **Issue / épica** | Sin issue — auditoría oct-2026, `docs/internal/auditoria-2026-10/hallazgos/08-red-de-seguridad.md` |
+| **Partes afectadas** | Casi todo son tests. Código de producción: el manager `PadronHabilitado.objects.con_identidad()` y sus tres llamadores, y el comando `procesar_vencimientos`, que con el registro vacío pasa a fallar en vez de salir con éxito. Nada de UI, ningún modelo nuevo, ninguna migración |
+| **Migración** | No requiere (el manager no se serializa: `use_in_migrations` queda en `False`) |
+
+## Pedido original
+
+Ocho fichas que comparten una propiedad: **la Ola 3 va a tocar exactamente estas piezas y hoy no hay nada que se ponga
+rojo si se rompen.**
+
+- **RED-05** (ALTA): «ningún test sigue un adjunto desde el canal que lo sube hasta la revisión». El alta se afirma en
+  un test y la revisión en otro, con datos distintos: nadie cruza el puente.
+- **RED-31** (MEDIA): «`requisito_eliminar` y `subsegmento_eliminar` no se ejecutan en ningún test» — los dos cuerpos
+  enteros sin cubrir, y uno de ellos es el bug de DAT-01.
+- **RED-35** (MEDIA): «ningún test afirma que las escrituras críticas sigan siendo atómicas» — 39 `transaction.atomic`
+  en los `services/`, 0 afirmados.
+- **RED-77** (BAJA): «RN-2 del padrón escrita dos veces: property y filtro de queryset», y las dos no coinciden.
+- **RED-49** (MEDIA): «`cupo_disponible` significa tres cosas y dos pantallas lo rotulan igual».
+- **RED-50** (MEDIA): «la edad (RN-22) está cuatro veces y tres usan `date.today()`», que en un contenedor UTC es el día
+  siguiente desde las 21:00 de Chaco.
+- **RED-81** (BAJA): «el registro de reglas de vencimiento puede quedar vacío y el comando sale OK».
+- **RED-70** (MEDIA): «`celda_segura`: la limpieza de caracteres de control no está probada» (mutación M49 sobreviviente).
+
+## Qué lo motivó
+
+El PR R-16 es el último prerrequisito de la **Ola 3**. DAT-01 va a cambiar el borrado de requisitos, las fichas BEC-\*
+van a tocar cupo y reglas, y SEC-20 va a aplicar `celda_segura` a cinco exports más. Todo eso se iba a hacer sobre
+código que nadie estaba mirando: el cuerpo de las dos vistas de borrado no se ejecutaba ni una vez en 3.000 tests, y el
+puente entre el adjunto subido y el adjunto mostrado —dos módulos distintos que se ponen de acuerdo por una convención
+de prefijos de clave (`pg-<pk>`, `rn-<pk>`)— no tenía una sola aserción que lo cruzara. Cambiar el prefijo en
+`diseno.clave_pregunta` sin tocar `respuestas._adjuntos_por_clave` hace que la foto del DNI desaparezca de la pantalla
+del revisor **sin error ni log**: el revisor la lee como «faltante» y rechaza el caso.
+
+Dos de las ocho no son solo tests: la regla del padrón y el registro de vencimientos tenían el defecto adentro y se
+arreglaron acá.
+
+## Alcance acordado
+
+**Entra:** los tests de las ocho fichas; el manager `con_identidad()` que unifica RN-2 (RED-77); el `CommandError` de
+`procesar_vencimientos` con el registro vacío (RED-81); y dos tests `@tag("mysql")` nuevos, porque las dos cosas que
+este PR cambia dependen del motor (el `REGEXP` de la regla del padrón y el `ROLLBACK` real de la atomicidad).
+
+**Queda afuera:** el arreglo de **DAT-01** (el adjunto del caso que se borra con el requisito), que es de la Ola 3 — acá
+queda **caracterizado**: hay un test que afirma el daño de hoy y dice en su mensaje cómo invertirlo. El arreglo de
+**RED-50** (una sola `edad_en_anios` con `timezone.localdate()` y la regla `DTZ011`), también de la Ola 3: acá queda un
+`expectedFailure` que describe el bug. El renombre de las tres acepciones de `cupo_disponible` (RED-49), que es de la
+Ola 4 con PERF-02. Y **RED-82** (los terminadores CR de `exportacion_reportes.py`), que es del PR R-21: los tests de
+RED-70 se escribieron sin tocar ese archivo.
+
+## Decisiones tomadas
+
+- **La regla RN-2 del padrón se unifica con un `__regex`, no con `Trim`.** `TRIM()` de MySQL y de MariaDB saca **solo
+  espacios**; `str.strip()` de Python saca también tabulaciones, saltos de línea y los espacios Unicode. Con `Trim` la
+  property y el queryset seguirían discrepando para una fila con `nombre="\t"`, que es justo la clase de divergencia
+  que la ficha viene a cerrar.
+- **Y el patrón es una clase literal de 29 caracteres, no `\s` ni `[[:space:]]`** (corrección de la **ronda 2**). La
+  primera versión usaba `r"^\s*$"`, y eso **sigue discrepando en MariaDB**: Django compila el lookup `regex` como
+  `%s REGEXP BINARY %s` —PCRE, donde `\s` y `[[:space:]]` son **ASCII**—, mientras que MySQL 8 lo compila como
+  `REGEXP_LIKE(…, 'c')` —ICU, Unicode— y SQLite lo resuelve con `re` de Python. Medido contra `mariadb:10.11`: un
+  nombre de un solo NBSP (`\xa0`), EM SPACE, IDEOGRAPHIC SPACE o NEL quedaba **dentro** de `con_identidad()` mientras
+  `tiene_identidad` decía `False`. `CARACTERES_SIN_TEXTO` es ahora la lista explícita de los 29 caracteres que
+  `str.strip()` saca —ninguno es especial dentro de una clase de regex—, y los tres motores contestan lo mismo que
+  `strip()` en las 17 combinaciones del test, incluidos los tres controles de falso positivo que `REGEXP BINARY`
+  haría sospechar (`à`, que se codifica con el mismo byte `A0` del NBSP; un NBSP **interno**; y el ZWSP, que para
+  Python **no** es whitespace). Que la lista no se desfase de `str.isspace()` lo fija
+  `test_la_clase_cubre_exactamente_lo_que_saca_strip`.
+- **La regla se expone como `Q`, no solo como método del queryset.** `q_con_identidad()` se puede meter en un `filter`,
+  en un `Count(filter=…)` o en cualquier otra expresión: era la única forma de que el contador de la convocatoria
+  —que es un `Count` anotado, no un queryset— usara la **misma** definición.
+- **El manager se aplica a los cuatro llamadores, no a los dos que nombra la ficha.** `.exclude(nombre="").exclude(apellido="")`
+  aparecía también en `diagnosticar_integraciones.py:320`, que cuenta «cuántas filas del padrón tienen identidad» para
+  el operador, y —esto lo encontró la **ronda 2**— en `views/relevamientos.py:301`, el «N con identidad» del detalle de
+  la convocatoria. Dejarlos afuera habría dejado dos copias de la regla vivas, y la de la pantalla es la que el
+  operador lee para decidir si el padrón sirve.
+- **El registro de vencimientos vacío ahora es un error, no un aviso.** El comando lo corre un cron (03:10) y el
+  arranque del contenedor: «nada que hacer» y «el import de `ready()` se perdió» eran indistinguibles desde afuera.
+- **Y el comando lee el registro por el módulo, no por `from … import REGLAS`.** `registrar()` **rebindea** la lista
+  global, así que un nombre importado al cargar el comando se queda con la lista anterior al último registro. Hoy no se
+  manifiesta —el comando se importa después de `django.setup()`—, pero es la misma clase de fragilidad que la ficha
+  describe y cuesta dos líneas sacarla.
+- **DAT-01 se caracteriza, no se arregla.** `test_requisito_con_adjunto_en_un_caso` afirma el comportamiento de hoy
+  (el adjunto del caso desaparece y el archivo queda huérfano en `media/`) y su mensaje de fallo dice textualmente qué
+  invertir cuando llegue el arreglo. Lo mismo con el `expectedFailure` de RED-50.
+- **El test de RED-05 recorre los dos canales por HTTP de punta a punta**, no por servicio: paso 1 y paso 2 del link
+  público con el padrón como fuente de identidad, y el alta + `POST …/adjuntos/` de la API con token. Una aserción
+  compartida mira lo mismo en los dos casos, así que la mitad que se rompa se ve igual venga por donde venga.
+
+## Implementación
+
+**RED-05 — `programas/tests/test_adjunto_punta_a_punta.py`.** Dos tests sobre un helper de aserción común
+(`_assert_el_adjunto_se_ve_en_la_revision`): la fila `AdjuntoFormulario` existe, el bloque del campo llega a
+`formulario_detalle` con `es_archivo=True` y `adjunto` no nulo, el contenido guardado es el subido y el HTML trae la URL
+del archivo. Los adjuntos van a un `MEDIA_ROOT` temporal que se borra al terminar la clase: el almacenamiento no se
+revierte con la transacción del test. **Mutación de control:** cambiar `pg-` por `pgx-` en `_adjuntos_por_clave` deja
+los dos tests en rojo con el mensaje que nombra el puente.
+
+**RED-31 — `EliminarRequisitoYSubsegmentoTests` en `programas/tests/test_becas_config.py`.** Cinco tests: el
+subsegmento usado por una convocatoria no se borra y avisa (es un `ProtectedError` convertido en mensaje, no un 500); el
+libre se borra y redirige al segmento; el requisito sin adjuntos se borra con su `ItemDiseno` (lo que el Cambio 58 sí
+quiere); el requisito con adjunto en un caso queda **caracterizado** (DAT-01); y los dos verbos y las tres identidades
+—GET, anónimo, sin capacidad— no borran nada.
+
+**RED-35 — `core/tests/test_contrato_escrituras.py`.** Prueba **conductual**: se hace fallar `_completar_contacto`, que
+corre después del alta del `Ciudadano` y antes de guardar el formulario, y se afirma que no quedó nada escrito. La
+aserción introspectiva que proponía la pasada original (`getattr(fn, "_atomic", False)`) no sirve —`atomic` usa
+`@wraps`— y está anotada en el docstring para que nadie la reintroduzca. Un test de control afirma que sin la falla
+inyectada la escritura sí ocurre entera. **Mutación de control:** sacar `@transaction.atomic` de
+`resolver_ciudadano_offline` deja el test en rojo.
+
+**RED-77 — el manager.** `PadronHabilitadoQuerySet.con_identidad()` en `programas/models/__init__.py`, sobre el `Q`
+reusable `q_con_identidad()`, usado por `padron.objetivo_con_identidad`, `padron.validar_casos_pendientes`,
+`diagnosticar_integraciones` y el `Count` del detalle de la convocatoria (`views/relevamientos.py`). El docstring de la
+property y el del queryset se nombran mutuamente. Seis tests en `programas/tests/test_padron.py`: las once
+combinaciones vacío/espacios/Unicode con `subTest`, la clase de caracteres enfrentada contra `str.isspace()`, el cruce
+automático que ya no valida una fila en blanco (con su control, que sí valida la completa), `objetivo_con_identidad` y
+el contador de la pantalla.
+
+**RED-49 — `programas/tests/test_cupo.py`.** Un segmento de 10 con subsegmentos de 3 y 4 y 6 casos aprobados deja los
+tres números distintos: `Segmento.cupo_disponible == 3` (sin distribuir), `get_cupo_stats(...)["cupo_disponible"] == 4`
+(lugares libres) y `Relevamiento.cupo_disponible == 2` (contra su propio tope). Hay además una aserción explícita de que
+las dos acepciones del segmento **siguen difiriendo**, que es lo que se rompería si PERF-02 las unificara en vez de
+renombrarlas. Un segundo test fija que `CupoSegmento.cupo_ocupado` es un contador que nadie mueve y que `Segmento.clean()`
+valida contra él.
+
+**RED-50 — `programas/tests/test_becas_reglas.py`.** El reloj se pone en las 23:00 del 30/06 local (02:00 UTC del 01/07)
+parcheando `timezone.now` y el `date` que importaron los cuatro módulos que resuelven «hoy». Quien cumple 18 el 01/07
+sigue siendo menor esa noche: `test_el_corte_es_la_fecha_local_no_la_del_sistema` lo afirma y hoy está **rojo**
+(`expectedFailure`). Hay un test de control del andamio —para que el `expectedFailure` no esté en rojo por un parche que
+no hace lo que dice— y dos que fijan la aritmética y el `None` sin fecha, que tienen que sobrevivir a la Ola 3.
+
+**RED-81 — `RegistroTests` en `programas/tests/test_becas_vencimientos.py` + el comando.**
+`procesar_vencimientos` levanta `CommandError` con el registro vacío, y lee `registro.REGLAS` por el módulo. El test que
+vale es `test_el_ready_de_la_app_es_el_que_las_registra`: vacía el registro, saca el módulo de reglas de `sys.modules`
+**y del paquete que lo contiene** —`from X import Y` lo encuentra como atributo del paquete y no lo volvería a
+ejecutar— y vuelve a correr `ProgramasConfig.ready()`. **Mutación de control:** borrar ese import deja el test en rojo.
+Los otros tests de vencimientos no servían de red porque importan el módulo y de paso lo vuelven a registrar.
+
+**RED-70 — `CeldaSeguraTests` en `programas/tests/test_reportes.py`.** Cinco tests sobre `celda_segura`,
+`respuesta_reporte` (xlsx y csv) y `respuesta_libro`. El que cierra la mutación M49 es
+`test_celda_segura_limpia_y_prefija_a_la_vez`: `celda_segura("\x0b=1+1") == "'=1+1"` falla si se invierte el orden,
+porque `lstrip()` de Python se come el `\x0b` y la fórmula se escapa del prefijo —un bypass real de la inyección que
+SEC-20 va a extender a cinco exports más—. **Mutación de control:** borrar
+`ILLEGAL_CHARACTERS_RE.sub` deja los **cinco** en rojo, tres de ellos con `IllegalCharacterError` (el 500 de la
+descarga). El archivo tiene terminadores CR (RED-82, PR R-21) y no se tocó.
+
+**Los dos `@tag("mysql")`,** en `core/tests/test_motor_real.py`: `EscriturasAtomicasMotorRealTests` repite RED-35 en un
+`TransactionTestCase`, donde lo que deshace el error es un `ROLLBACK` de InnoDB y no un savepoint de SQLite; e
+`IdentidadDelPadronMotorRealTests` enfrenta `con_identidad()` contra la property con ocho filas —incluidas dos con
+tabulación— evaluando el `REGEXP` en el servidor.
+
+## Cómo se probó
+
+Validación completa con Python 3.12 + Django 5.2.17 (`.venv312`, el mismo del CI):
+
+- `manage.py check` → sin issues; `check --deploy` → los 6 avisos preexistentes de ambiente local;
+  `makemigrations --check --dry-run` → «No changes detected» (el manager no pide migración).
+- **`manage.py test` sin argumentos: 3061 tests, OK (skipped=29, expected failures=1)**, 607 s.
+- `manage.py test --tag performance` → 4 tests, OK.
+- `manage.py test --tag mysql` contra **`mariadb:10.11`** (con `MARIADB_INITDB_SKIP_TZINFO=1`, como ECOM) → 27 tests, OK;
+  y contra **`mysql:8.0`** → 27 tests, OK (3 skips propios de MariaDB). Contenedores efímeros, borrados al terminar.
+- `ruff check .` → All checks passed; `ruff format --check` sobre los 13 archivos tocados → ya formateados.
+
+**Las cuatro mutaciones de control** se aplicaron, se corrió y se revirtió: el prefijo de `_adjuntos_por_clave`
+(RED-05, 2 rojos), `@transaction.atomic` de `resolver_ciudadano_offline` (RED-35, 1 rojo), el import de
+`ProgramasConfig.ready()` (RED-81, 1 rojo) y la línea `ILLEGAL_CHARACTERS_RE.sub` (RED-70, M49, 5 rojos). Los tests de
+RED-77 se corrieron además contra la regla vieja (`.exclude(nombre="")`) y dieron 4 rojos.
+
+**Ronda 2 de revisión**, las tres mutaciones propias, todas aplicadas y revertidas:
+
+| Mutación | Resultado |
+|---|---|
+| devolverle al `Count` de `relevamientos.py` su regla escrita a mano | `test_el_contador_de_la_convocatoria_usa_la_misma_regla`: rojo (8 ≠ 3) |
+| `SIN_TEXTO_REGEX` de vuelta a `r"^\s*$"` | `IdentidadDelPadronMotorRealTests` contra `mariadb:10.11`: **5 rojos** (NBSP, EM SPACE, IDEOGRAPHIC SPACE, NEL y la mezcla). En **SQLite la suite sigue verde**, que es exactamente el motivo por el que esto necesitaba un test `@tag("mysql")` |
+| `q_con_identidad()` de vuelta a `~Q(nombre="")` (el estado de `development`) | 4 rojos, uno de ellos `test_el_cruce_automatico_no_valida_un_caso_con_identidad_en_blanco` (1 ≠ 0), que **antes de la ronda 2 pasaba igual**: el `Ciudadano` no llevaba `genero`, así que el cruce no llegaba a mirar ninguna fila |
+
+## Puesta en marcha en el servidor
+
+No requiere: ningún paso manual, ninguna migración, ninguna variable de entorno nueva.
+
+**Lo único a mirar en el primer arranque después del deploy:** `procesar_vencimientos` corre en el bootstrap opcional
+del contenedor (`LOCAL_OPTIONAL_BOOTSTRAP_COMMANDS`) bajo `set -eu`, así que si el registro de reglas quedara vacío el
+contenedor **no arranca**. Es el comportamiento buscado —antes arrancaba y las convocatorias vencidas no se cerraban
+más—, y la condición que lo dispara es un bug de código que el test nuevo pone en rojo en el CI antes de llegar acá.
+Que los opcionales no sean fatales es **OPS-07**, de la Ola 3.
+
+## Pendientes / a definir
+
+- **DAT-01 (Ola 3):** el borrado de un requisito se sigue llevando puestos los `AdjuntoFormulario` de casos ya
+  cargados, y deja el archivo huérfano en `media/`. `test_requisito_con_adjunto_en_un_caso` lo afirma tal cual está y
+  dice en su mensaje qué invertir.
+- **RED-50 (Ola 3):** una sola `edad_en_anios(fecha, hoy=None)` con `hoy = hoy or timezone.localdate()`,
+  `MAYORIA_DE_EDAD` en un solo lugar, `timezone.localdate()` en los dos sitios de `legajos/selectors/ciudadanos.py` y la
+  regla `DTZ011` en `pyproject.toml`. Cuando eso entre,
+  `test_el_corte_es_la_fecha_local_no_la_del_sistema` pasa a *unexpected success* y hay que sacarle el decorador.
+  Sigue abierta la pregunta **H-13** (¿qué `TZ` tienen de verdad los contenedores de ECOM?), que define la severidad.
+- **RED-49 (Ola 4, con PERF-02):** renombrar —`cupo_sin_distribuir`, `cupos_libres_del_relevamiento`— y dejar
+  `cupo_disponible` solo para `get_cupo_stats`. **No unificar:** `test_las_tres_acepciones_son_distintas` lo frena.
+- **RED-35 (Ola 3):** el mismo patrón conductual para `cupo.aprobar_formulario`,
+  `inscripcion_publica.crear_formulario_publico`, `padron.quitar_padron_propio` y `admisiones.trasladar_admision`.
+- **RED-82 (PR R-21):** `programas/services/exportacion_reportes.py` sigue con terminadores CR; los diffs de ese archivo
+  no se leen y `ruff format` no lo normaliza. La revisión de SEC-20, que toca `celda_segura`, lo va a necesitar antes.
+- **RED-05, tercer test (Ola 3, con DAT-01):** `test_una_pregunta_recreada_con_otro_pk_no_deja_el_adjunto_huerfano`.
+
+## Reversión
+
+1. Revertir el commit. Vuelven los ocho defectos de cobertura y los dos de código: la regla del padrón vuelve a estar
+   escrita tres veces con dos semánticas, y `procesar_vencimientos` vuelve a salir con éxito sin procesar nada.
+2. **No hay nada que deshacer en ninguna base.** El cambio no trae migraciones, no escribe filas y no toca el esquema:
+   `con_identidad()` es un filtro de lectura y el `CommandError` es un camino de salida.
+3. Los archivos que los tests escriben en `media/` van a un directorio temporal propio y se borran solos; no queda nada
+   en el `media/` del repo ni del servidor.
+4. Si se revierte **después** de que la Ola 3 haya arreglado DAT-01 o RED-50, los dos tests de caracterización vuelven a
+   quedar al revés de lo que hace el código: conviene revertir también esa parte o actualizarlos en el mismo commit.
+
+## Historial
+
+- **03/10/2026** — la auditoría registra DAT-01 (el borrado en cascada) en la Ola 3.
+- **04/10/2026** — el frente Red de seguridad agrega las ocho fichas de este cambio y las agrupa en el PR R-16, con un
+  criterio explícito: donde el arreglo sea de otra ola, acá va el test que **fija lo que hay hoy**.
+- **07/10/2026 (este cambio)** — las ocho cerradas. RED-05, RED-31, RED-35, RED-49, RED-70, RED-77 y RED-81 completas en
+  su parte de la Ola R; RED-50 caracterizada con `expectedFailure` hasta que la Ola 3 unifique la edad.
+- **07/10/2026 (ronda 2 de revisión)** — tres correcciones sobre RED-77 y su test. Había una **cuarta** copia de la
+  RN-2 (el `Count` del detalle de la convocatoria, que contaba como «con identidad» filas que el cruce ya no valida);
+  la regla con `\s` **seguía discrepando en MariaDB**, donde el lookup se compila como `REGEXP BINARY` con PCRE y `\s`
+  es ASCII, así que pasó a ser la clase literal de los 29 caracteres de `str.strip()`; y el test del cruce automático
+  era vacuo —el caso no llevaba `genero`, con lo que nunca llegaba a mirar la identidad y pasaba también con la regla
+  vieja—.
+

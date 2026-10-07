@@ -42,6 +42,7 @@ import threading
 import uuid
 from datetime import date, timedelta
 from io import StringIO
+from unittest.mock import patch
 
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -60,6 +61,7 @@ from programas.models import (
     Dispositivo,
     Formulario,
     ListaEspera,
+    PadronHabilitado,
     PreguntaGlobal,
     ProgramaSiis,
     Relevamiento,
@@ -70,7 +72,11 @@ from programas.models import (
     ValidacionSIS,
 )
 from programas.services import dashboard_becas as dashboard
-from programas.services.becas import formulario_por_client_uuid, relevamiento_publico_por_token
+from programas.services.becas import (
+    formulario_por_client_uuid,
+    relevamiento_publico_por_token,
+    resolver_ciudadano_offline,
+)
 from programas.services.cupo import agregar_a_lista_espera, aprobar_o_poner_en_espera, dar_baja_beneficiario
 from programas.services.registro_diario import calcular_cantidades
 
@@ -594,3 +600,111 @@ class CarreraDelMismoCasoTests(MotorRealMixin, TransactionTestCase):
         self.formulario.refresh_from_db()
         self.assertEqual(self.formulario.estado, Formulario.Estado.BAJA)
         self.assertEqual(TracaFormulario.objects.filter(formulario=self.formulario, campo="estado").count(), 1)
+
+
+@tag("mysql")
+class EscriturasAtomicasMotorRealTests(MotorRealMixin, TransactionTestCase):
+    """RED-35 contra el motor de verdad: el rollback es un `ROLLBACK`, no un savepoint.
+
+    El gemelo de `core/tests/test_contrato_escrituras.py` corre dentro del
+    `atomic` de `TestCase`, así que lo que deshace el error es un `ROLLBACK TO
+    SAVEPOINT` de SQLite. Acá no hay transacción envolvente: la de
+    `resolver_ciudadano_offline` es la única, y la que tiene que volver atrás es
+    InnoDB. Es también donde se vería un motor que confirmara la escritura antes
+    de tiempo (DDL implícito, `autocommit` perdido).
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.convocatoria = _convocatoria("Conv atomic motor real")
+        self.relevamiento = Relevamiento.objects.create(
+            convocatoria=self.convocatoria,
+            territorial=User.objects.create_user("terri_atomic_mr", password="x"),
+            fecha_asignada=date(2026, 6, 1),
+            zona="A",
+        )
+        self.formulario = Formulario.objects.create(
+            relevamiento=self.relevamiento,
+            celular="3624555666",
+            email_contacto="lucia@correo.com",
+            datos_identificacion={"dni": "41222333", "nombre": "Lucía", "apellido": "Paz", "sexo": "F"},
+        )
+
+    def test_resolver_ciudadano_offline_no_commitea_a_medias(self):
+        with patch(
+            "programas.services.becas._completar_contacto",
+            side_effect=RuntimeError("se cayó el paso siguiente"),
+        ):
+            with self.assertRaises(RuntimeError):
+                resolver_ciudadano_offline(self.formulario)
+
+        self.assertFalse(
+            Ciudadano.objects.filter(dni="41222333").exists(),
+            "El legajo quedó commiteado por una escritura que falló.",
+        )
+        self.formulario.refresh_from_db()
+        self.assertIsNone(self.formulario.ciudadano_id)
+        self.assertIsNotNone(self.formulario.datos_identificacion)
+
+
+@tag("mysql")
+class IdentidadDelPadronMotorRealTests(MotorRealMixin, TestCase):
+    """RED-77: la regla RN-2 del queryset se evalúa en el servidor, no en Python.
+
+    `con_identidad()` filtra con `__regex`, y los dos motores de producción ni
+    siquiera usan el mismo mecanismo: Django compila el lookup como
+    `%s REGEXP BINARY %s` en **MariaDB** (PCRE) y como `REGEXP_LIKE(%s, %s, 'c')`
+    en **MySQL 8** (ICU). En SQLite lo resuelve `re` de Python, así que la suite
+    normal **no** prueba lo que corre en ECOM.
+
+    Medido en la ronda 2 del PR: con `\\s` —o con `[[:space:]]`— la pata de
+    MariaDB discrepa de `strip()` en los espacios que no son ASCII (NBSP, EM
+    SPACE, IDEOGRAPHIC SPACE, NEL), porque ahí las dos clases son ASCII. Por eso
+    la regla usa la **clase literal** de `CARACTERES_SIN_TEXTO`, que los tres
+    motores resuelven igual. Los casos de abajo son exactamente esa diferencia,
+    más los dos controles de falso positivo (acentos y espacio interno).
+    """
+
+    CASOS = [
+        ("40000001", "Ana", "Paz", True),
+        ("40000002", "", "Paz", False),
+        ("40000003", "Ana", "", False),
+        ("40000004", "", "", False),
+        ("40000005", "   ", "Paz", False),
+        ("40000006", "Ana", "   ", False),
+        ("40000007", "\tAna", "Paz", True),
+        ("40000008", "\t", "Paz", False),
+        # Lo que `\s` de MariaDB no reconoce (el NBSP es el que deja un
+        # copy&paste de una web o un PDF).
+        ("40000009", "\xa0", "Paz", False),
+        ("40000010", " ", "Paz", False),
+        ("40000011", "　", "Paz", False),
+        ("40000012", "\x85", "Paz", False),
+        ("40000013", "\xa0  \t", "Paz", False),
+        # Controles de falso positivo: `REGEXP BINARY` podría mirar bytes, y la
+        # «à» se codifica con el mismo `A0` que el NBSP.
+        ("40000014", "Añá", "Óé", True),
+        ("40000015", "à", "Paz", True),
+        ("40000016", "Ana\xa0Paz", "Paz", True),
+        ("40000017", "​", "Paz", True),  # ZWSP no es whitespace para Python
+    ]
+
+    def test_con_identidad_dice_lo_mismo_que_la_property_en_el_motor_real(self):
+        convocatoria = _convocatoria("Conv padron motor real")
+        for dni, nombre, apellido, _ in self.CASOS:
+            PadronHabilitado.objects.create(
+                convocatoria=convocatoria, dni=dni, sexo="F", nombre=nombre, apellido=apellido
+            )
+
+        con_identidad = set(PadronHabilitado.objects.con_identidad().values_list("dni", flat=True))
+
+        for dni, nombre, apellido, esperado in self.CASOS:
+            with self.subTest(dni=dni, nombre=repr(nombre), apellido=repr(apellido)):
+                fila = PadronHabilitado.objects.get(dni=dni)
+                self.assertEqual(fila.tiene_identidad, esperado)
+                self.assertEqual(
+                    dni in con_identidad,
+                    esperado,
+                    f"{connection.vendor} {connection.mysql_version}: el REGEXP del motor no coincide "
+                    "con `tiene_identidad` para esta fila.",
+                )

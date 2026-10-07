@@ -44,7 +44,7 @@ con lo que existe hoy; la lista solo baja.
 | RED-02 | Ningún test recorre el URLconf: una ruta que vuelva a quedar abierta pasa el CI | ALTA | CONF. test (barrido) | R | S | ✅ |
 | RED-03 | App de campo: pausa probada en 1 de 6 endpoints, período en 3, ramas de error en ninguna | ALTA | CONF. test (coverage) | R | S-M | ✅ |
 | RED-04 | Crear, eliminar y activar un rol no se ejecutan por HTTP en ningún test | ALTA | CONF. test (coverage) | R | S-M | ✅ |
-| RED-05 | Ningún test sigue un adjunto desde el canal que lo sube hasta la revisión | ALTA | CONF. lectura | R (+3 con DAT-01) | M | ⬜ |
+| RED-05 | Ningún test sigue un adjunto desde el canal que lo sube hasta la revisión | ALTA | CONF. lectura | R (+3 con DAT-01) | M | ✅ |
 | RED-06 | Legajos: 23 de 36 rutas sin test; `/legajos/alertas/` ya dio 500 y sigue sin test | ALTA | CONF. test (coverage) | R (+2) | S-M + S | ✅ |
 | RED-07 | Nada impide volver a poner `Trunc*`/`__date` sobre un `DateTimeField` (CONVERT_TZ, 500 en PRD) | ALTA | CONF. test (SQL compilado) | R | S-M | ✅ |
 | RED-08 | Los tests del 500 del link público cuentan consultas, no la forma del `WHERE` | ALTA | CONF. test (SQL compilado) | R | S | ✅ |
@@ -70,11 +70,11 @@ con lo que existe hoy; la lista solo baja.
 | RED-28 | `FINALIZANDO` está en los estados abiertos de vencimientos y ningún test lo cubre | ALTA | CONF. test (mutación M27) | R | S | ✅ |
 | RED-29 | El envío del link público no prueba que el relevamiento siga `EN_CURSO` | ALTA | CONF. test (mutación M44) | R | S | ✅ |
 | RED-30 | Sin test de humo por pantalla: nada afirma «ninguna ruta da 500» | MEDIA | CONF. test (barrido) | R | S | ✅ |
-| RED-31 | `requisito_eliminar` y `subsegmento_eliminar` no se ejecutan en ningún test | MEDIA | CONF. test (coverage) | R | S | ⬜ |
+| RED-31 | `requisito_eliminar` y `subsegmento_eliminar` no se ejecutan en ningún test | MEDIA | CONF. test (coverage) | R | S | ✅ |
 | RED-32 | Comandos contra SIIS y RENAPER sin red (`validar_casos_siis`, `completar_casos_renaper`, `sincronizar_programas_siis`) | MEDIA | CONF. test (coverage) | R (+1) | S-M (+S-M) | ✅ (R; falta Ola 1) |
 | RED-33 | Dispositivos y Merenderos: las vistas que operan no tienen test HTTP | MEDIA | CONF. test (coverage) | 5 | M | ⬜ |
 | RED-34 | Nada obliga a que una ficha cerrada deje un test permanente (0 tests bajo `docs/`) | MEDIA | CONF. test | R | S | ⬜ |
-| RED-35 | Ningún test afirma que las escrituras críticas sigan siendo atómicas | MEDIA | CONF. lectura | R (+3) | S (+S-M) | ⬜ |
+| RED-35 | Ningún test afirma que las escrituras críticas sigan siendo atómicas | MEDIA | CONF. lectura | R (+3) | S (+S-M) | ✅ |
 | RED-36 | `drf_spectacular` fuera de `INSTALLED_APPS`: `/api/docs/` y `/api/redoc/` dan 500 | MEDIA | CONF. test | R (primero) | S | ✅ |
 | RED-37 | El esquema OpenAPI publica tipos falsos y pierde 11 vistas | MEDIA | CONF. test | R (+7) | S-M (+S-M) | ✅ (R; falta Ola 7) |
 | RED-38 | Tres motores de condiciones (1 Python + 2 JS, dos repos) sin vectores compartidos | MEDIA | CONF. lectura (dos repos) | R | M | ⬜ |
@@ -88,8 +88,8 @@ con lo que existe hoy; la lista solo baja.
 | RED-46 | `programas/models/__init__.py` (3.252 líneas, 90 importadores) sin tests de contrato | MEDIA | CONF. test (radon) | R | S-M | ⬜ |
 | RED-47 | `normalizar_dni` y sus tres copias agregan un 0 con `float` o `Decimal` | MEDIA | CONF. test | R | S | ✅ |
 | RED-48 | «DNI válido» está implementado 6 veces con 3 reglas de largo | MEDIA | CONF. lectura | 3 | S-M | ⬜ |
-| RED-49 | `cupo_disponible` significa tres cosas y dos pantallas lo rotulan igual | MEDIA | CONF. lectura | R (+4) | S (+S) | ⬜ |
-| RED-50 | La edad (RN-22) está cuatro veces y tres usan `date.today()` (UTC en los contenedores) | MEDIA | CONF. lectura | R (+3) | S (+S-M) | ⬜ |
+| RED-49 | `cupo_disponible` significa tres cosas y dos pantallas lo rotulan igual | MEDIA | CONF. lectura | R (+4) | S (+S) | ✅ |
+| RED-50 | La edad (RN-22) está cuatro veces y tres usan `date.today()` (UTC en los contenedores) | MEDIA | CONF. lectura | R (+3) | S (+S-M) | 🟡 (el arreglo es de la Ola 3) |
 | RED-51 | Dos `invalidate_dashboard_cache`; `stats_legajos` colgado del modelo equivocado | MEDIA | CONF. lectura | R (+4) | S (+S) | ⬜ |
 | RED-52 | Contrato implícito por `user._state.fields_cache["profile"]` | MEDIA | CONF. lectura | R (+2) | S (+S) | ⬜ |
 | RED-53 | Clones literales entre los comandos SIIS y entre las vistas de padrón | MEDIA | CONF. test (pylint + AST) | 1 (+5) | S-M (+S) | ✅ (1; falta Ola 5) |
@@ -109,18 +109,18 @@ con lo que existe hoy; la lista solo baja.
 | RED-67 | Ningún test afirma que se tome el `select_for_update` del cupo ni del link | MEDIA | CONF. test (mutaciones M21, M43) | R (+capa 2 en TST-01) | S | ✅ |
 | RED-68 | La posición en la lista de espera no está probada en ningún lado | MEDIA | CONF. test (mutación M23) | R | S | ✅ |
 | RED-69 | Fecha de nacimiento ausente o futura sin test en el payload SIIS | MEDIA | CONF. test (mutación M34) | R | S | ✅ |
-| RED-70 | `celda_segura`: la limpieza de caracteres de control no está probada | MEDIA | CONF. test (mutación M49) | R | S | ⬜ |
+| RED-70 | `celda_segura`: la limpieza de caracteres de control no está probada | MEDIA | CONF. test (mutación M49) | R | S | ✅ |
 | RED-71 | `ApiCorsMiddleware` sin tests de contrato (y el Cambio 52 lo da por inexistente) | BAJA | CONF. test (ajustado) | R | S | ✅ |
 | RED-72 | El harness e2e de Playwright no existe en el repo: quedan `.pyc` de julio | BAJA | CONF. lectura | R | S | ⬜ |
 | RED-73 | `CiudadanoConfirmarView` decide antes de mirar si hay sesión | BAJA | CONF. test (barrido) | R | S | ✅ |
 | RED-74 | Ocho arreglos mergeados sin ningún test | BAJA | CONF. lectura (git) | R | S | ⬜ |
 | RED-75 | `/set_dark_mode/` no existe: el toggle de tema postea a un 404 | BAJA | CONF. test (`resolve`) | 5 | S | ⬜ |
 | RED-76 | Tipado: 2,7 % de retornos anotados, sin mypy ni pyright | BAJA | CONF. test (AST) | 7 | S-M | ⬜ |
-| RED-77 | RN-2 del padrón escrita dos veces: property y filtro de queryset | BAJA | CONF. lectura | R | S | ⬜ |
+| RED-77 | RN-2 del padrón escrita dos veces: property y filtro de queryset | BAJA | CONF. lectura | R | S | ✅ |
 | RED-78 | `DashboardView`: copia del inicio sin el blindaje de SEC-14, muerta solo por el orden de URLs | BAJA | CONF. test (`resolve`) | R (+7) | S (+S) | ⬜ |
 | RED-79 | Tres ciclos de import y nueve aristas vista→vista sin ratchet | BAJA | CONF. test (AST) | R (+2) | S (+S) | ⬜ |
 | RED-80 | `programa_becas` y `programa_dispositivos`: mismo cache, distinta guarda e invalidación | BAJA | CONF. lectura | 2 | S | ⬜ |
-| RED-81 | El registro de reglas de vencimiento puede quedar vacío y el comando sale OK | BAJA | CONF. lectura | R | S | ⬜ |
+| RED-81 | El registro de reglas de vencimiento puede quedar vacío y el comando sale OK | BAJA | CONF. lectura | R | S | ✅ |
 | RED-82 | `exportacion_reportes.py` con terminadores CR: git lo trata como binario y pylint lo saltea | BAJA | CONF. test | R | S | ⬜ |
 | RED-83 | Índices duplicados en `programas_formulario` y `legajos_ciudadano` | BAJA | CONF. test (`information_schema`) | R (+4) | S (+S) | ✅ (R; falta Ola 4) |
 | RED-84 | `requerimientos.py --check` no verifica la sección «Reversión» | BAJA | CONF. lectura | R | S | ✅ |
@@ -282,6 +282,21 @@ las capacidades a los módulos de alcance, así que el POST vuelve al form con e
   `test_una_pregunta_recreada_con_otro_pk_no_deja_el_adjunto_huerfano`, es el test invertido de DAT-01 y va en su PR.
 - **Verificación:** `& $env:PY manage.py test programas.tests.test_adjunto_punta_a_punta`.
 
+**Resolución:** ✅ Resuelto en #604 (Cambio 156, PR R-16), 07-oct-2026 — `AdjuntoLlegaALaRevisionTests` recorre los dos
+canales **por HTTP de punta a punta** y los dos terminan en la misma aserción compartida
+(`_assert_el_adjunto_se_ve_en_la_revision`): paso 1 + paso 2 del link público con el padrón como fuente de identidad, y
+el alta por `POST /api/becas/relevamientos/<pk>/formularios/` + `POST /api/becas/formularios/<pk>/adjuntos/` con Token.
+La aserción mira la fila `AdjuntoFormulario`, el bloque del campo en el contexto de `becas:formulario_detalle`
+(`es_archivo=True`, `adjunto` no nulo, el mismo pk), el contenido guardado y la URL del archivo en el HTML. **Mutación
+de control:** cambiar `pg-` por `pgx-` en `_adjuntos_por_clave` deja los dos tests en rojo nombrando el puente.
+**Dónde la ficha no coincidía con el código:** (1) `seed_becas` siembra cinco `PreguntaGlobal` ARCHIVO **obligatorias**,
+así que el test desactiva las que no mira para no tener que subir cinco archivos por envío; (2) el rol
+`Becas — Administrador` **no** trae `becas.relevamiento.publico`, y sin esa capacidad RN-P13 le da 403 sobre un caso del
+link: el test se la agrega explícitamente, que es lo que pasa en producción. El tercer test
+(`test_una_pregunta_recreada_con_otro_pk_no_deja_el_adjunto_huerfano`) sigue siendo de DAT-01, en la Ola 3.
+**Test permanente:** `programas.tests.test_adjunto_punta_a_punta.AdjuntoLlegaALaRevisionTests`
+(`test_el_archivo_subido_por_el_link_se_ve_en_la_revision` y `test_el_archivo_subido_por_la_app_se_ve_en_la_revision`).
+
 ### RED-06 · Legajos: 23 de 36 rutas sin test; `/legajos/alertas/` ya dio 500 y sigue sin test
 **Severidad:** ALTA · **Estado:** CONFIRMADO con test (coverage) · **Origen:** RS-R1-05 capa 1 (VR1: CONFIRMADO-AJUSTADO), RS-R2-06 (VR1: CONFIRMADO; mismo PR) · **Ola:** R (capa 2 con SEC-10/11/12/18 en la Ola 2) · **Esfuerzo:** S-M + S (6 h)
 - **Ubicación:** `legajos/views/historial_contactos.py` y `dashboard_contactos.py` en 0 %, `solapas.py` 21 %,
@@ -351,6 +366,17 @@ y `legajos.tests.test_alertas_dashboard.AlertasDashboardTests`.
   `test_requisito_sin_adjuntos_se_borra_con_su_item_de_diseno` (preserva el Cambio 58) ·
   `test_las_dos_vistas_exigen_post_y_capacidad`. El cuarto, `test_requisito_con_adjunto_en_un_caso`, documenta el
   comportamiento de hoy (el adjunto desaparece) y lo invierte el PR de DAT-01.
+
+**Resolución:** ✅ Resuelto en #604 (Cambio 156, PR R-16), 07-oct-2026 — `EliminarRequisitoYSubsegmentoTests` ejecuta
+los dos cuerpos completos: el subsegmento usado por una convocatoria no se borra y el `ProtectedError` sale como
+mensaje (sacar ese `except` lo convierte en 500); el libre se borra y redirige al segmento; el requisito sin adjuntos se
+borra **con su `ItemDiseno`**, que es lo que el Cambio 58 quiere conservar; y `test_las_dos_vistas_exigen_post_y_capacidad`
+recorre GET, anónimo y usuario sin rol en las dos vistas con `subTest`, sin que ninguno borre nada.
+`test_requisito_con_adjunto_en_un_caso` deja **caracterizado** el daño de DAT-01 —la fila del adjunto desaparece y el
+archivo queda huérfano en `media/`— y su mensaje de fallo dice textualmente qué invertir cuando llegue el arreglo.
+**Dónde la ficha no coincidía con el código:** el login del backoffice vive en la raíz (`settings.LOGIN_URL` =
+`users:login` → `/`), no en `/login/`; el test lo arma con `reverse(settings.LOGIN_URL)`.
+**Test permanente:** `programas.tests.test_becas_config.EliminarRequisitoYSubsegmentoTests`.
 
 ### RED-32 · Comandos contra SIIS y RENAPER sin red
 **Severidad:** MEDIA · **Estado:** CONFIRMADO con test (coverage 0 %; VR2 midió `call_command`) · **Origen:** RS-R1-10 (VR1: CONFIRMADO, amplía TST-02), RS-R2-08 (VR1: duplicado de RS-R1-10), RS-R4-15 (VR2: CONFIRMADO-AJUSTADO, «2 tests, no 6») · **Ola:** R (caracterización) + 1 (PR 7 de herramientas: el resto) · **Esfuerzo:** S-M (4 h) + S-M (4 h)
@@ -795,6 +821,19 @@ que siguen en la Ola 4 como dice la ficha.
   el mismo patrón para `cupo.aprobar_formulario`, `inscripcion_publica.crear_formulario_publico`,
   `padron.quitar_padron_propio` y `admisiones.trasladar_admision`.
 
+**Resolución:** ✅ Resuelto (parte R) en #604 (Cambio 156, PR R-16), 07-oct-2026 —
+`EscriturasAtomicasTests.test_resolver_ciudadano_offline_no_deja_nada_a_medias` hace fallar `_completar_contacto` —que
+corre **después** del `get_or_create` del `Ciudadano` y antes de guardar el formulario— y afirma que no quedó nada
+escrito: ni el legajo, ni el `ciudadano_id` del caso, ni el `datos_identificacion` limpiado. Un test de control afirma
+que sin la falla inyectada la escritura ocurre entera, para que el primero no pueda quedar verde porque la función dejó
+de hacer algo. El motivo por el que la aserción introspectiva no sirve (`atomic` usa `@wraps`, `_atomic` no existe)
+quedó escrito en el docstring del módulo para que nadie la reintroduzca. **Mutación de control:** sacar
+`@transaction.atomic` de `resolver_ciudadano_offline` deja el test en rojo con su mensaje.
+Hay además un gemelo `@tag("mysql")` —`EscriturasAtomicasMotorRealTests`, `TransactionTestCase`— que corre contra
+`mariadb:10.11` y `mysql:8.0`, donde lo que deshace el error es un `ROLLBACK` de InnoDB y no un savepoint de SQLite.
+Las otras cuatro escrituras siguen en la Ola 3.
+**Test permanente:** `core.tests.test_contrato_escrituras.EscriturasAtomicasTests.test_resolver_ciudadano_offline_no_deja_nada_a_medias`.
+
 ### RED-74 · Ocho arreglos mergeados sin ningún test
 **Severidad:** BAJA · **Estado:** CONFIRMADO (lectura: `git show --stat` de cada uno) · **Origen:** RS-R2-10 (VR1: CONFIRMADO) · **Ola:** R · **Esfuerzo:** S (2 h)
 - **Ubicación / evidencia:** `f866d052` (serie semanal, → RED-07), `a427bffe` (`completar_casos_renaper`, → RED-32),
@@ -1163,6 +1202,16 @@ un `Decimal`, y unificarla es parte de RED-48, que además tiene que resolver la
   `get_cupo_stats(...)["cupo_disponible"] == 4`). **Ola 4:** renombrar, no unificar (`cupo_sin_distribuir`,
   `cupos_libres_del_relevamiento`; `cupo_disponible` queda solo para `get_cupo_stats`) y actualizar el test.
 
+**Resolución:** ✅ Resuelto (parte R) en #604 (Cambio 156, PR R-16), 07-oct-2026 —
+`TresCuposTests.test_las_tres_acepciones_son_distintas` fija los tres números con un segmento de 10, subsegmentos de 3 y
+4 y 6 casos APROBADO: `Segmento.cupo_disponible == 3`, `get_cupo_stats(...)["cupo_disponible"] == 4` y
+`Relevamiento.cupo_disponible == 2` (la tercera acepción, que la ficha nombra y no numeraba). Hay además una aserción
+explícita de que las dos acepciones del segmento **siguen difiriendo**: es la que se pone roja si PERF-02 las unifica en
+vez de renombrarlas. `test_el_contador_de_cuposegmento_no_lo_mueve_nadie` deja fijado el otro cabo de la ficha:
+`CupoSegmento.cupo_ocupado` queda en 0 mientras `get_cupo_stats` cuenta 6, y `Segmento.clean()` valida contra el
+primero. El renombre sigue en la Ola 4.
+**Test permanente:** `programas.tests.test_cupo.TresCuposTests.test_las_tres_acepciones_son_distintas`.
+
 ### RED-50 · La edad (RN-22) está cuatro veces y tres usan `date.today()`
 **Severidad:** MEDIA · **Estado:** CONFIRMADO (lectura; la TZ real de los contenedores de ECOM es la pregunta H-13) · **Origen:** RS-R4-08 (VR2: CONFIRMADO-AJUSTADO), RS-VR2-NEW-04 · **Ola:** R (test) + 3 (arreglo y regla de ruff) · **Esfuerzo:** S (2 h) + S-M (4 h)
 - **Ubicación:** `programas/services/becas.py:211-219` (`es_menor`), `condiciones.py:115-121` (`edad_en_anios`),
@@ -1179,6 +1228,17 @@ un `Decimal`, y unificarla es parte de RED-48, que además tiene que resolver la
   `hoy = hoy or timezone.localdate()` y `MAYORIA_DE_EDAD = 18` en un lugar; `timezone.localdate()` en los sitios de
   `legajos`; regla `DTZ011` (flake8-datetimez) en `pyproject.toml` para `programas/`, `legajos/`, `portal/` con `# noqa`
   donde sea deliberado.
+
+**Resolución:** 🟡 Caracterizada en #604 (Cambio 156, PR R-16), 07-oct-2026 — **el arreglo sigue siendo de la Ola 3.**
+`EdadHorarioTests` pone al proceso en las 23:00 del 30/06 local (02:00 UTC del 01/07) parcheando `timezone.now` y el
+`date` que importaron los cuatro módulos que resuelven «hoy» (`becas`, `condiciones`, `siis_envio`,
+`legajos.selectors.ciudadanos`). `test_el_corte_es_la_fecha_local_no_la_del_sistema` afirma que quien cumple 18 el 01/07
+sigue siendo menor esa noche y está **rojo**, marcado `@unittest.expectedFailure`: cuando la Ola 3 unifique la edad en
+`timezone.localdate()` pasa a *unexpected success* y hay que sacarle el decorador. Lo acompañan un control del andamio
+—para que el `expectedFailure` no quede rojo por un parche que no hace lo que dice— y dos tests en verde que fijan la
+aritmética con `hoy` explícito y el `None` sin fecha, que el arreglo tiene que conservar. La severidad sigue atada a
+**H-13** (la `TZ` real de los contenedores de ECOM).
+**Test permanente:** `programas.tests.test_becas_reglas.EdadHorarioTests.test_el_corte_es_la_fecha_local_no_la_del_sistema`.
 
 ### RED-51 · Dos `invalidate_dashboard_cache`; `stats_legajos` colgado del modelo equivocado
 **Severidad:** MEDIA · **Estado:** CONFIRMADO (lectura) · **Origen:** RS-R4-11 (VR2: CONFIRMADO) · **Ola:** R (tests) + 4 (arreglo) · **Esfuerzo:** S (2 h) + S (2 h)
@@ -1336,6 +1396,31 @@ escenario de producción.
   los dos sitios de `padron.py`. Test `programas/tests/test_padron.py::IdentidadDelPadronTests.test_property_y_queryset_coinciden`
   (6 filas con las combinaciones vacío/espacios; hoy falla en las dos con espacios).
 
+**Resolución:** ✅ Resuelto en #604 (Cambio 156, PR R-16), 07-oct-2026 — `q_con_identidad()` es el único lugar donde la
+RN-2 se escribe para la base, y `PadronHabilitadoQuerySet.con_identidad()` es su envoltorio para un queryset; los
+docstrings de la property y del método se nombran mutuamente. Se expone como **`Q`** y no solo como método porque el
+contador del detalle de la convocatoria es un `Count(filter=…)` anotado, no un queryset: sin el `Q` no había forma de
+que usara la misma definición. `IdentidadDelPadronTests` recorre las once combinaciones con `subTest` y enfrenta las
+dos mitades fila por fila; cuatro tests más miran la clase de caracteres contra `str.isspace()`, el cruce automático
+(con su control, que sí valida la fila completa), `objetivo_con_identidad` y el contador de la pantalla. Corridos
+contra la regla vieja (`.exclude(nombre="")`) dan 4 rojos.
+**Tres desvíos de la propuesta, los tres code-first:** (1) el modelo se llama **`PadronHabilitado`**, no `FilaPadron`;
+(2) los sitios con la regla duplicada eran **cuatro**, no dos — además de los dos de `padron.py`,
+`programas/management/commands/diagnosticar_integraciones.py:320` y `programas/views/relevamientos.py:301` (el
+«N con identidad» del detalle de la convocatoria, encontrado en la ronda 2 de revisión), los dos cambiados; (3) la
+regla **no** usa `Trim` —el `TRIM()` de MySQL y de MariaDB saca solo espacios y `str.strip()` saca también
+tabulaciones, saltos y los espacios Unicode— **ni `\s`, ni `[[:space:]]`**: Django compila el lookup `regex` como
+`%s REGEXP BINARY %s` en MariaDB (PCRE, donde las dos clases son **ASCII**) y como `REGEXP_LIKE(…, 'c')` en MySQL 8
+(ICU, Unicode). Medido contra `mariadb:10.11`: con `\s`, un nombre de un solo NBSP (`\xa0`), EM SPACE, IDEOGRAPHIC
+SPACE o NEL quedaba **dentro** de `con_identidad()` mientras `tiene_identidad` decía `False`, y **en SQLite la suite
+seguía verde**. La regla es ahora la clase literal `CARACTERES_SIN_TEXTO`, los 29 caracteres que `str.strip()` saca
+—ninguno especial dentro de una clase de regex—, y `test_la_clase_cubre_exactamente_lo_que_saca_strip` impide que la
+lista se desfase de `str.isspace()`. Que los tres motores coincidan con `strip()` lo fija
+`IdentidadDelPadronMotorRealTests`, `@tag("mysql")`, con 17 casos —incluidos tres controles de falso positivo que
+`REGEXP BINARY` haría sospechar: `à`, que se codifica con el mismo byte `A0` del NBSP; un NBSP **interno**; y el ZWSP,
+que para Python no es whitespace—, verificado contra `mariadb:10.11` (sin tzinfo) y `mysql:8.0`.
+**Test permanente:** `programas.tests.test_padron.IdentidadDelPadronTests.test_property_y_queryset_coinciden`.
+
 ### RED-78 · `DashboardView`: copia del inicio sin el blindaje de SEC-14, muerta solo por el orden de URLs
 **Severidad:** BAJA (era MEDIA) · **Estado:** CONFIRMADO con test (`resolve('/').view_name == 'users:login'`; `reverse('dashboard:inicio') == '/'`) · **Origen:** RS-R4-10 (VR2: CONFIRMADO) · **Ola:** R (test de ruteo) + 7 (borrado, con OPS-14) · **Esfuerzo:** S (2 h) + S (2 h)
 - **Ubicación:** `core/views/public.py:52-126` (`inicio_view`) y `dashboard/views/home.py:19-57` (`DashboardView`, en `/`
@@ -1386,6 +1471,22 @@ escenario de producción.
 - **Propuesta:** `programas/tests/test_becas_vencimientos.py::RegistroTests.test_las_reglas_estan_registradas_al_arrancar`
   (sin importar el módulo: `{r.slug for r in REGLAS} == {"becas.convocatoria", "becas.relevamiento"}`) y, en el comando,
   `if not REGLAS: raise CommandError("No hay reglas de vencimiento registradas")`.
+
+**Resolución:** ✅ Resuelto en #604 (Cambio 156, PR R-16), 07-oct-2026 — `procesar_vencimientos` levanta `CommandError`
+con el registro vacío (antes escribía un aviso y salía con éxito), y el chequeo va **antes** del filtro `--solo`, para
+que el mensaje sea el que corresponde. El test que vale es
+`RegistroTests.test_el_ready_de_la_app_es_el_que_las_registra`: vacía el registro, saca el módulo de reglas de
+`sys.modules` **y del paquete que lo contiene** —`from X import Y` lo encuentra como atributo del paquete y no lo
+volvería a ejecutar, así que sin esa segunda parte el test daría verde siempre— y vuelve a correr
+`ProgramasConfig.ready()`. **Mutación de control:** borrar ese import deja el test en rojo.
+**Un hallazgo que la ficha no tenía:** el comando hacía `from core.services.vencimientos import REGLAS`, y `registrar()`
+**rebindea** la lista global; una regla registrada después de cargar el comando no la vería. Hoy no se manifiesta
+—el comando se importa después de `django.setup()`—, pero es la misma fragilidad: ahora lee `registro.REGLAS` por el
+módulo. **Riesgo de deploy anotado:** `procesar_vencimientos` corre en el bootstrap opcional del contenedor bajo
+`set -eu`, así que con el registro vacío el contenedor no arranca. Es lo buscado, y que los opcionales no sean fatales
+es **OPS-07** (Ola 3).
+**Test permanente:** `programas.tests.test_becas_vencimientos.RegistroTests` (`test_las_reglas_estan_registradas_al_arrancar`,
+`test_el_ready_de_la_app_es_el_que_las_registra` y `test_el_comando_corta_si_no_hay_ninguna_regla`).
 
 ### RED-82 · `exportacion_reportes.py` con terminadores CR: git lo trata como binario y pylint lo saltea
 **Severidad:** BAJA · **Estado:** CONFIRMADO con test (122 `\r`, 0 `\n`; único de los 673 `.py`; `pylint` → `E0001` y lo omite sin fallar) · **Origen:** RS-R4-20 (VR2: CONFIRMADO), RS-R7 nota 2 · **Ola:** R (la conversión y el gate; adelanta esa parte de OPS-14) · **Esfuerzo:** S (2 h)
@@ -2329,6 +2430,18 @@ Mutación M34 verificada a mano (aplicar, correr, revertir): `if nacimiento:` �
   `respuesta_reporte(…, "xlsx")` = 200 y la celda leída con `openpyxl` vale `"Martin"`) ·
   `test_celda_segura_limpia_y_prefija_a_la_vez` (`celda_segura("\x0b=1+1") == "'=1+1"`: si se invierte el orden, el `\x0b`
   impide detectar la fórmula, un bypass real de SEC-20) · el mismo par para `respuesta_libro`.
+
+**Resolución:** ✅ Resuelto en #604 (Cambio 156, PR R-16), 07-oct-2026 — `CeldaSeguraTests` (cinco tests) cubre las dos
+cosas que hace la línea: que `respuesta_reporte(…, "xlsx")` y `respuesta_libro` devuelvan 200 con la celda limpia en vez
+de morir con `IllegalCharacterError`, y que el **orden** importe —invertirlo deja que el carácter de control esconda la
+fórmula del chequeo, porque el `lstrip()` de Python se lo come—. Se agregaron además el CSV y el alcance del libro, que
+también pasan por la función.
+**Mutación M49 verificada a mano** (aplicar, correr, revertir): borrar `ILLEGAL_CHARACTERS_RE.sub` deja los **cinco**
+tests en rojo, tres de ellos con el `IllegalCharacterError` que es el 500 de la descarga.
+**Nota:** `programas/services/exportacion_reportes.py` sigue con terminadores CR (RED-82, PR R-21) y **no se tocó**:
+los tests viven en `programas/tests/test_reportes.py`.
+**Test permanente:** `programas.tests.test_reportes.CeldaSeguraTests` (`test_celda_segura_limpia_y_prefija_a_la_vez` y
+`test_un_caracter_de_control_no_rompe_el_xlsx`).
 
 ### RED-87 · El largo mínimo del barrio del payload SIIS no se prueba en su borde
 **Severidad:** BAJA · **Estado:** CONFIRMADO con test (mutación M33 sobrevive) · **Origen:** RS-R7-08 · **Ola:** R (mismo PR que RED-69) · **Esfuerzo:** S (2 h)

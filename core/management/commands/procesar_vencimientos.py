@@ -13,7 +13,10 @@ vencido.
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
-from core.services.vencimientos import REGLAS
+# Por el módulo y no `from … import REGLAS`: `registrar()` **rebindea** la lista
+# global, así que una copia del nombre importada al cargar el comando se queda
+# con la lista de antes del último registro (RED-81).
+from core.services import vencimientos as registro
 
 
 class Command(BaseCommand):
@@ -32,17 +35,24 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        reglas = list(REGLAS)
+        reglas = list(registro.REGLAS)
+        if not reglas:
+            # RED-81: con el registro vacío el comando salía con éxito y no
+            # procesaba nada. Como lo corre un cron (03:10) y el arranque del
+            # contenedor, «nada que hacer» y «el import de `ready()` se perdió»
+            # eran indistinguibles: las convocatorias vencidas dejaban de
+            # cerrarse en silencio. Registro vacío = falla, no éxito.
+            raise CommandError(
+                "No hay reglas de vencimiento registradas: revisá que el `ready()` de cada app "
+                "importe su `services/vencimientos.py` (el import lleva `# noqa: F401` y parece sin uso)."
+            )
+
         solo = options.get("solo")
         if solo:
             reglas = [r for r in reglas if r.slug == solo]
             if not reglas:
-                disponibles = ", ".join(r.slug for r in REGLAS) or "(ninguna)"
+                disponibles = ", ".join(r.slug for r in registro.REGLAS)
                 raise CommandError(f"No existe la regla '{solo}'. Disponibles: {disponibles}")
-
-        if not reglas:
-            self.stdout.write("No hay reglas de vencimiento registradas.")
-            return
 
         dry = options.get("dry_run")
         total = 0
