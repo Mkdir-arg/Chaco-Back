@@ -389,7 +389,7 @@ function updateQueryMetricsStatus(queryMetric, window) {
 
 function updateDashboard() {
     // System metrics
-    fetch('/system-metrics-api/')
+    fetch("{% url 'core:system_metrics_api' %}")
         .then(response => response.json())
         .then(data => {
             if (data.system && !data.system.error) {
@@ -400,7 +400,7 @@ function updateDashboard() {
         .catch(error => console.error('System metrics error:', error));
     
     // Performance data
-    fetch('/performance-api/')
+    fetch("{% url 'core:performance_api' %}")
         .then(response => response.json())
         .then(data => {
             const queryMetric = data.metrics && data.metrics.queries
@@ -429,7 +429,7 @@ function updateDashboard() {
         .catch(error => console.error('Performance API error:', error));
     
     // Query analysis
-    fetch('/query-analysis-api/')
+    fetch("{% url 'core:query_analysis_api' %}")
         .then(response => response.json())
         .then(data => {
             updateQueryPatterns(data);
@@ -437,7 +437,7 @@ function updateDashboard() {
         .catch(error => console.error('Query analysis error:', error));
     
     // Optimization suggestions
-    fetch('/optimization-suggestions-api/')
+    fetch("{% url 'core:optimization_suggestions_api' %}")
         .then(response => response.json())
         .then(data => {
             updateOptimizationSuggestions(data.suggestions);
@@ -530,7 +530,7 @@ function runAutomaticTests() {
     // Obtener CSRF token
     const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
     
-    fetch('/run-phase2-tests-api/', {
+    fetch("{% url 'core:run_phase2_tests_api' %}", {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',

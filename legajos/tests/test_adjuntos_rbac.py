@@ -12,6 +12,7 @@ Ahora: `ciudadano.ver` para listar, `ciudadano.editar` para subir y borrar, y el
 dueño en la URL, así un adjunto de otro ciudadano no existe para la vista.
 """
 
+import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -23,6 +24,7 @@ from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
 from core import rbac
+from core.tests.js_harness import correr_script_pagina, requiere_node, script_con
 from legajos.models import Adjunto, Ciudadano, LegajoAtencion
 from legajos.services import eliminar_archivo_de_objeto
 from users.models import Capacidad, RolMeta
@@ -321,6 +323,52 @@ class AdjuntosUiTests(TestCase):
         self.assertIn("const puedeEditarArchivos = true;", html)
 
 
+@requiere_node
+class UrlDeBorradoDelDetalleTests(TestCase):
+    """La ruta de la papelera la arma `{% url %}`, no una plantilla a mano (RED-42).
+
+    Las dos rutas de borrado estaban escritas como *template literals* dentro del
+    `map` de la tabla de archivos, y el barrido de `core/tests/test_urls_del_front`
+    no las veía: no están dentro de un `fetch(` ni de un `url:`, se asignan a una
+    variable. Ahora salen de `{% url %}` con marcadores, y acá se corre el script
+    **renderizado** con `node` para verificar que el reemplazo da la ruta real.
+
+    El ciudadano se crea con `id = 10` a propósito: con un `.replace('0', …)` suelto
+    —el patrón de `templates/components/alertas_eventos.html`, que ahí es correcto
+    porque la URL tiene un solo segmento variable— el primer cero que se pisa es el
+    del **ciudadano** y la URL sale apuntando a otra persona.
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.ciudadano = Ciudadano.objects.create(id=10, dni="21333778", nombre="Cero", apellido="Colisión")
+        cls.legajo = LegajoAtencion.objects.create(
+            responsable=User.objects.create_user("responsable-url-borrado", password="Clave-Seg-2026x")
+        )
+
+    def _urls(self, archivo):
+        cliente = Client()
+        cliente.force_login(usuario_con("ciudadano.ver", "ciudadano.editar", username="borra-archivos"))
+        html = cliente.get(reverse("legajos:ciudadano_detalle", args=[self.ciudadano.id])).content.decode()
+        script = script_con(html, "function urlEliminarArchivo(")
+
+        log = correr_script_pagina(
+            script,
+            f"__log.valores.url = urlEliminarArchivo({json.dumps(archivo)});\n",
+        )
+        return log["valores"]["url"]
+
+    def test_la_ruta_del_adjunto_del_ciudadano_no_pisa_el_id_del_ciudadano(self):
+        url = self._urls({"tipo_origen": "ciudadano", "id": 77})
+
+        self.assertEqual(url, reverse("legajos:eliminar_archivo_ciudadano", args=[self.ciudadano.id, 77]))
+
+    def test_la_ruta_del_adjunto_del_legajo_lleva_el_uuid_del_legajo(self):
+        url = self._urls({"tipo_origen": "legajo", "legajo_id": str(self.legajo.id), "id": 77})
+
+        self.assertEqual(url, reverse("legajos:eliminar_archivo_legajo", args=[self.legajo.id, 77]))
+
+
 class CampanaDeAlertasEnElNavbarTests(TestCase):
     """La campana del navbar sigue a `ciudadano.ver` (SEC-18).
 
@@ -358,3 +406,29 @@ class CampanaDeAlertasEnElNavbarTests(TestCase):
         html = self._html(User.objects.create_superuser("root-navbar", "root-n@example.test", "x"))
 
         self.assertIn('id="alertas-counter"', html)
+
+    def test_la_campana_publica_las_dos_rutas_que_consulta_el_script(self):
+        """RED-42: `alertas_websocket.js` las lee del `dataset`, no las escribe.
+
+        Sin estos dos atributos el script no consulta nada y el contador queda en
+        cero **en silencio** —no hay 404, no hay error de consola, no falla ningún
+        test de JS—, así que la única forma de que borrarlos duela es afirmar el
+        render acá. Las rutas se comparan contra `reverse()`: un cambio de URLconf
+        que las mueva tiene que mover también el template.
+        """
+        for descripcion, usuario in (
+            ("con ciudadano.ver", usuario_con("ciudadano.ver", username="ve-campana-urls")),
+            ("superusuario", User.objects.create_superuser("root-urls", "root-u@example.test", "x")),
+        ):
+            with self.subTest(usuario=descripcion):
+                html = self._html(usuario)
+
+                self.assertIn('id="alertas-campana"', html)
+                self.assertIn(f'data-url-count="{reverse("legajos:alertas_count_ajax")}"', html)
+                self.assertIn(f'data-url-preview="{reverse("legajos:alertas_preview_ajax")}"', html)
+
+    def test_sin_ciudadano_ver_no_viajan_las_rutas_de_las_alertas(self):
+        html = self._html(usuario_con("becas.relevamiento.ver", username="rol-becas-sin-urls"))
+
+        self.assertNotIn("data-url-count", html)
+        self.assertNotIn("data-url-preview", html)
