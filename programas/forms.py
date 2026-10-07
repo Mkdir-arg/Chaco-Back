@@ -13,6 +13,7 @@ from django.db.models import Q
 from django.utils import timezone
 from django.utils.dateparse import parse_date
 
+from core.edad import es_menor
 from core.models import Localidad, Municipio
 from core.selectors.geografia import localidades_operativas, municipios_operativos
 from programas.models import (
@@ -38,7 +39,6 @@ from programas.models import (
     TipoCampo,
     TipoDispositivo,
 )
-from programas.services.becas import es_menor
 from programas.services.dispositivos import normalizar_codigo_institucional
 from programas.services.siis import SiisCatalogError, catalogo, funciones_programa, listar_programas
 from users.presentation import etiqueta_usuario
@@ -1393,6 +1393,40 @@ class ConvocatoriaForm(forms.ModelForm):
             for field_name in ("fecha_inicio", "fecha_fin"):
                 self.fields[field_name].required = False
                 self.fields[field_name].help_text = "Dejalo sin cambios para mantener la fecha actual."
+        self._congelar_alcance_si_ya_tiene_relevamientos()
+
+    #: Lo que se bloquea una vez que la convocatoria tiene relevamientos (BEC-06).
+    CAMPOS_DE_ALCANCE = ("segmento", "subsegmento")
+
+    def _congelar_alcance_si_ya_tiene_relevamientos(self):
+        """El segmento y el subsegmento dejan de editarse en cuanto hay relevamientos.
+
+        BEC-06: mover una convocatoria con 300 aprobados de S1 a S2 libera 300
+        lugares en S1, se pasa del cupo de S2, cambia los requisitos y el programa
+        SIIS de casos ya informados, y deja la lista de espera apuntando al
+        segmento viejo (`ListaEspera.segmento` no se migra). Ninguna de esas cuatro
+        consecuencias tiene aviso ni vuelta atrás desde la pantalla.
+
+        Mover una convocatoria de verdad es una operación de datos —hay que migrar
+        también la lista de espera—, no una edición de formulario.
+        """
+        self.alcance_congelado = bool(self.instance.pk and self.instance.relevamientos.exists())
+        if not self.alcance_congelado:
+            return
+        for nombre in self.CAMPOS_DE_ALCANCE:
+            campo = self.fields[nombre]
+            campo.disabled = True
+            campo.help_text = "No se puede cambiar: la convocatoria ya tiene relevamientos."
+        if self.is_bound:
+            # Un campo `disabled` toma su valor del `instance` y no del POST, así que
+            # el queryset del subsegmento tiene que salir del segmento **guardado**:
+            # armado desde `self.data`, un POST con otro segmento dejaba al
+            # subsegmento real fuera de las opciones y el form moría con «opción no
+            # válida». Sin `bound` el queryset de arriba ya sale del `instance`, así
+            # que no se rehace (sería una consulta más en cada apertura de la pantalla).
+            self.fields["subsegmento"].queryset = Subsegmento.objects.select_related("segmento").filter(
+                segmento_id=self.instance.segmento_id
+            )
 
     def _exigir_subsegmento_al_regional(self):
         """Para el Coordinador Regional el subsegmento deja de ser opcional.
@@ -1426,8 +1460,14 @@ class ConvocatoriaForm(forms.ModelForm):
                 if not cleaned.get(field_name):
                     cleaned[field_name] = getattr(self.instance, field_name)
         activo = cleaned.get("activo")
+        fecha_inicio = cleaned.get("fecha_inicio")
         fecha_fin = cleaned.get("fecha_fin")
-        if activo and fecha_fin and fecha_fin < timezone.localdate():
+        # BEC-20: una convocatoria que termina antes de empezar nace vencida y
+        # `procesar_vencimientos` la cierra en la corrida siguiente, sin que nadie
+        # entienda por qué desapareció.
+        if fecha_inicio and fecha_fin and fecha_fin < fecha_inicio:
+            self.add_error("fecha_fin", "La fecha de fin no puede ser anterior a la de inicio.")
+        elif activo and fecha_fin and fecha_fin < timezone.localdate():
             self.add_error(
                 "fecha_fin",
                 "Para activar la convocatoria, extendé la fecha de fin a hoy o una posterior.",

@@ -52,6 +52,13 @@ sale del form) sí lo lleva en el markup:
 
 No hay «clases equivalentes»: es `nodo-field` o nada.
 
+**Un campo que el negocio congela se deshabilita, no se saca.** Cuando una regla hace que un
+campo deje de poder cambiarse —el segmento de una convocatoria que ya tiene relevamientos,
+BEC-06—, el form le pone `disabled=True` y un `help_text` que dice el motivo. El control sigue
+renderizado con su valor y con `nodo-field`: esconderlo dejaría la pantalla sin mostrar un dato
+que el operador necesita leer, y `disabled` además hace que Django ignore lo que venga en el
+POST, así que la regla no depende del navegador.
+
 ## Selector múltiple apilado
 
 El contenedor del campo lleva `.nodo-checks`: el widget de Django queda como grilla de filas

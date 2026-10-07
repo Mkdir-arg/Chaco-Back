@@ -49,7 +49,9 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             300,
         )
 
-        hoy = timezone.now().date()
+        # `fecha_inscripcion` es un DateField en hora local: con la fecha UTC, el
+        # 1 de cada mes a la noche el «mes» arrancaba un día tarde (BEC-18).
+        hoy = timezone.localdate()
         inicio_mes = hoy.replace(day=1)
         context["registros_mes"] = cache.get_or_set(
             "home:inscripciones_mes",

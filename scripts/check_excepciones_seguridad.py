@@ -90,7 +90,10 @@ def main(argv=None):
     )
     args = parser.parse_args(argv)
 
-    hoy = datetime.date.fromisoformat(args.hoy) if args.hoy else datetime.date.today()
+    # noqa DTZ011 deliberado: es una herramienta de línea de comandos que no corre
+    # bajo Django (no hay `TIME_ZONE` que consultar) y su default es el día de quien
+    # la ejecuta; `--hoy` existe justamente para fijarlo.
+    hoy = datetime.date.fromisoformat(args.hoy) if args.hoy else datetime.date.today()  # noqa: DTZ011
     entradas = cargar(args.archivo)
     errores = revisar(entradas, hoy)
 

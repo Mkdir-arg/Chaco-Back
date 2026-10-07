@@ -55,6 +55,11 @@ CICLOS_CONOCIDOS = {
     ("users.forms", "users.selectors.usuarios"),
     # El modelo le pide al servicio de inscripciones (diferido en el modelo).
     ("programas.models", "programas.services.inscripciones"),
+    # BEC-07: `Segmento.clean` cuenta los aprobados con `get_cupo_stats` (diferido
+    # en el modelo). La alternativa era copiar el COUNT dentro del modelo, que es
+    # la clase de duplicación que `cupo_ocupado` —la columna estática que nadie
+    # mantiene— ya causó una vez.
+    ("programas.models", "programas.services.cupo"),
     # El proceso masivo importa el envío a SIIS en el encabezado y el envío lo
     # devuelve diferido: el único de los cinco con una pata ya a nivel de módulo.
     ("programas.services.proceso_masivo", "programas.services.siis_envio"),

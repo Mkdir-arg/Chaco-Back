@@ -3,11 +3,20 @@ line-length = 120
 exclude = ["migrations", ".venv", "staticfiles", "docs"]
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I"]
+# DTZ011 (`date.today()`) es de RED-50: los contenedores no definen `TZ`, así que
+# corren en UTC y el día del **sistema** es el de mañana entre las 21:00 y las 24:00
+# de Chaco. La regla de negocio que eso rompía —RN-22, el corte de los 18 años— vive
+# ahora en `core/edad.py` y resuelve «hoy» con `timezone.localdate()`. Donde la fecha
+# del proceso sea realmente lo que se quiere (rotación de logs por día de la máquina,
+# default de una herramienta de línea de comandos) va un `# noqa: DTZ011` con el motivo.
+select = ["E", "F", "W", "I", "DTZ011"]
 ignore = ["E501"]
 
 [tool.ruff.lint.per-file-ignores]
 "**/__init__.py" = ["F401"]
+# En un test, fijar la fecha del proceso es justamente el método: la regla mide el
+# código que se despliega.
+"**/tests/*.py" = ["DTZ011"]
 "config/asgi.py" = ["E402"]
 "config/settings_production.py" = ["F403", "F405"]
 "config/gevent_patch.py" = ["F841"]

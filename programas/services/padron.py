@@ -301,6 +301,16 @@ def cargar_padron(objetivo, archivo, entradas, usuario=None):
     """
     convocatoria = _convocatoria_de(objetivo)
     relevamiento = objetivo if _es_relevamiento(objetivo) else None
+    # BEC-15: el dueño del padrón se bloquea **antes** de borrar y volver a
+    # insertar. La carga es un reemplazo total (DELETE + bulk_create) y sin
+    # candado dos cargas en paralelo se intercalan: la segunda borra lo que la
+    # primera estaba insertando y el padrón queda con filas de las dos tandas, o
+    # con el `unique` de `(convocatoria, relevamiento, dni)` reventando en un 500
+    # —en MySQL y MariaDB ese índice ni siquiera aplica cuando `relevamiento` es
+    # NULL, así que el final normal es duplicados silenciosos—. Es el mismo
+    # objeto sobre el que después se escribe `padron_archivo`.
+    duenio_pk = (relevamiento or convocatoria).pk
+    type(relevamiento or convocatoria).objects.select_for_update().filter(pk=duenio_pk).first()
     filas = [_entrada(item) for item in entradas]
     resumen = ResumenPadron(validas=len(filas))
     localidades = _indice_localidades() if any(f["localidad_texto"] for f in filas) else {}

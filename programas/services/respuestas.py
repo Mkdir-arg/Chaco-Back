@@ -20,8 +20,10 @@ import hashlib
 import json
 
 from django.db import transaction
+from django.utils import timezone
 from django.utils.dateparse import parse_date
 
+from core.utils_fechas import fecha_local
 from programas.models import OrigenRequisito
 from programas.services import condiciones
 
@@ -143,6 +145,23 @@ def aplicar(definicion, respuestas, hoy=None):
     """``(visibles, ocultos, efectivas)`` sobre la foto: qué se muestra y qué se
     guarda dadas las respuestas (RN-6). El servidor es la autoridad."""
     return condiciones.aplicar(planos_de(definicion), respuestas or {}, hoy)
+
+
+def fecha_de_referencia(formulario):
+    """La fecha con la que se vuelven a evaluar las condiciones de un caso (BEC-03).
+
+    No es «hoy»: es **el día en que la persona respondió**, en hora local. El
+    Cambio 58 (D3) guardó la foto de la definición justamente para que un caso
+    viejo no se reinterprete con el diseño de después; la fecha de referencia es
+    la otra mitad de esa misma idea. Sin ella, un grupo condicionado a «edad
+    menor a 18» se evaluaba con la fecha de **hoy**: quien se inscribió con 17 y
+    cumplió 18 al mes siguiente aparecía en la revisión con «No se pidió» y «—»
+    en todo el bloque, escondiendo respuestas que sí había dado.
+
+    ``capturado_en`` es el momento de la captura en campo (la app lo manda al
+    sincronizar); si no está —link público, casos anteriores— vale ``creado``.
+    """
+    return fecha_local(formulario.capturado_en or formulario.creado) or timezone.localdate()
 
 
 def clave_por_vinculo(definicion):
@@ -313,7 +332,8 @@ def respuestas_legibles(formulario, definicion=None, adjuntos=None):
     if not definicion:
         return None
     respuestas = formulario.respuestas or {}
-    _, ocultos, _ = aplicar(definicion, respuestas)
+    # BEC-03: a la fecha de carga, no a la de hoy. Ver `fecha_de_referencia`.
+    _, ocultos, _ = aplicar(definicion, respuestas, hoy=fecha_de_referencia(formulario))
     adjuntos = adjuntos if adjuntos is not None else _adjuntos_por_clave(formulario)
     bloques = []
     for grupo in definicion.get("items") or []:

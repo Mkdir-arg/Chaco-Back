@@ -657,10 +657,16 @@ def formulario_detalle(request, pk):
                 nuevo = form.cleaned_data[campo]
                 if anteriores[campo] != nuevo:
                     cambios.append((FormularioRevisionForm.LABELS[campo], anteriores[campo], nuevo))
-            form.save()
-            sincronizar_desde_legacy(formulario)  # las respuestas por clave siguen a las columnas
-            resolver_ciudadano_offline(formulario)
-            n = registrar_traza(formulario, request.user, cambios)
+            # BEC-24: las cuatro escrituras son una sola edición. Sin la
+            # transacción, un fallo en `resolver_ciudadano_offline` —que crea o
+            # actualiza el legajo— dejaba las columnas del caso guardadas, las
+            # respuestas por clave a medio sincronizar y **sin** traza: el caso
+            # quedaba con datos nuevos y el historial diciendo que no pasó nada.
+            with transaction.atomic():
+                form.save()
+                sincronizar_desde_legacy(formulario)  # las respuestas por clave siguen a las columnas
+                resolver_ciudadano_offline(formulario)
+                n = registrar_traza(formulario, request.user, cambios)
             if n:
                 messages.success(request, f"Caso actualizado ({n} cambio(s) registrado(s)).")
             else:
@@ -1116,11 +1122,18 @@ def formulario_rechazar(request, pk):
         if not motivo:
             messages.error(request, "Debés indicar el motivo del rechazo.")
             return redirect(_url_caso(request, formulario))
+        # BEC-09: un caso que no se puede consultar en SIIS —sin ciudadano con DNI,
+        # o de un segmento sin programa vinculado— igual se puede rechazar. Antes el
+        # `ValueError` cortaba acá: el caso quedaba ENVIADO para siempre y
+        # `relevamiento_terminar` no podía cerrar nunca su relevamiento. Es la misma
+        # línea del Cambio 34: un error de consulta no impide documentar la decisión
+        # local, que es lo único que el rechazo registra.
+        validacion = None
+        motivo_sin_consulta = ""
         try:
             validacion = validar_formulario_en_siis(formulario, request.user)
         except ValueError as error:
-            messages.error(request, str(error))
-            return redirect(_url_caso(request, formulario))
+            motivo_sin_consulta = str(error)
         estado_anterior = formulario.estado
         with transaction.atomic():
             # La guarda de arriba mira un caso leído antes de consultar a SIIS:
@@ -1137,7 +1150,10 @@ def formulario_rechazar(request, pk):
                 formulario.estado = Formulario.Estado.RECHAZADO
                 formulario.motivo_rechazo = motivo
                 formulario.save(update_fields=["estado", "motivo_rechazo", "modificado"])
-                registrar_traza(formulario, request.user, [("estado", estado_anterior, f"RECHAZADO: {motivo}")])
+                cambios = [("estado", estado_anterior, f"RECHAZADO: {motivo}")]
+                if motivo_sin_consulta:
+                    cambios.append(("Consulta SIIS", "No se pudo consultar", motivo_sin_consulta))
+                registrar_traza(formulario, request.user, cambios)
                 # Rechazado sale de la lista de espera: si no, seguía ocupando un
                 # lugar y se lo podía promover a APROBADO desde Cupo.
                 cerrar_espera_activa(formulario, request.user, "caso rechazado")
@@ -1154,7 +1170,9 @@ def formulario_rechazar(request, pk):
             protocol="https" if request.is_secure() else "http",
             domain=request.get_host(),
         )
-        if validacion.estado == ValidacionSIS.Estado.ERROR:
+        if motivo_sin_consulta:
+            messages.warning(request, f"No se pudo consultar SIIS: {motivo_sin_consulta} Quedó en la traza del caso.")
+        elif validacion.estado == ValidacionSIS.Estado.ERROR:
             messages.warning(request, "SIIS no respondió correctamente; quedó registrado para reintentar.")
         messages.success(request, "Caso rechazado.")
     return redirect(_url_caso(request, formulario))
@@ -1355,9 +1373,17 @@ def relevamiento_terminar(request, pk):
         if rel.estado not in ESTADOS_TERMINABLES:
             messages.error(request, "Solo se puede terminar un relevamiento finalizado o en revisión.")
         else:
-            pendientes = rel.formularios.filter(estado=Formulario.Estado.ENVIADO).count()
+            # BEC-10 (decisión D-B10): un caso en lista de espera **ya está
+            # revisado**. Entró, se le miró el cupo y no había: queda esperando
+            # una baja o una ampliación, que no dependen de la revisión. Contado
+            # como pendiente —sigue en ENVIADO— el relevamiento no se podía
+            # terminar nunca, y el cierre por vencimiento tampoco lo destraba.
+            sin_revisar = rel.formularios.filter(estado=Formulario.Estado.ENVIADO)
+            en_espera = sin_revisar.filter(lista_espera__promovido=False).distinct().count()
+            pendientes = sin_revisar.exclude(lista_espera__promovido=False).count()
             if pendientes:
-                messages.error(request, f"Quedan {pendientes} caso(s) sin revisar.")
+                aclaracion = f" ({en_espera} en lista de espera no cuentan)" if en_espera else ""
+                messages.error(request, f"Quedan {pendientes} caso(s) sin revisar{aclaracion}.")
             else:
                 rel.estado = Relevamiento.Estado.TERMINADO
                 rel.save(update_fields=["estado", "modificado"])

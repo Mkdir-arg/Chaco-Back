@@ -6,6 +6,7 @@ from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.utils import timezone
 
 from core.models import LegajoBase, TimeStamped
 
@@ -219,17 +220,14 @@ class Ciudadano(TimeStamped):
 
     @property
     def edad(self):
-        """Edad en años calculada desde fecha_nacimiento (None si no hay fecha)."""
-        if not self.fecha_nacimiento:
-            return None
-        from datetime import date
+        """Edad en años cumplidos hoy, en hora local (``None`` si no hay fecha).
 
-        hoy = date.today()
-        return (
-            hoy.year
-            - self.fecha_nacimiento.year
-            - ((hoy.month, hoy.day) < (self.fecha_nacimiento.month, self.fecha_nacimiento.day))
-        )
+        La cuenta es la de RN-22 y vive en :mod:`core.edad`: el día del sistema es
+        el de UTC en los contenedores y adelantaba el cumpleaños una noche (RED-50).
+        """
+        from core.edad import edad_en_anios
+
+        return edad_en_anios(self.fecha_nacimiento)
 
 
 class LegajoAtencion(LegajoBase):
@@ -317,8 +315,6 @@ class LegajoAtencion(LegajoBase):
         """Verifica si el legajo puede cerrarse"""
         from datetime import timedelta
 
-        from django.utils import timezone
-
         from core.utils_fechas import inicio_del_dia_local
 
         if self.estado == "CERRADO":
@@ -337,14 +333,12 @@ class LegajoAtencion(LegajoBase):
 
     def cerrar(self, motivo_cierre=None, usuario=None):
         """Cierra el legajo"""
-        from datetime import datetime
-
         puede, mensaje = self.puede_cerrar()
         if not puede and not motivo_cierre:
             raise ValidationError(mensaje)
 
         self.estado = "CERRADO"
-        self.fecha_cierre = datetime.now().date()
+        self.fecha_cierre = timezone.localdate()
         if motivo_cierre:
             if not self.notas:
                 self.notas = f"Motivo de cierre: {motivo_cierre}"
@@ -368,10 +362,8 @@ class LegajoAtencion(LegajoBase):
 
     @property
     def dias_desde_admision(self):
-        """Días transcurridos desde la admisión"""
-        from datetime import datetime
-
-        return (datetime.now().date() - self.fecha_admision).days
+        """Días transcurridos desde la admisión, contra el día **local** (BEC-18)."""
+        return (timezone.localdate() - self.fecha_admision).days
 
     # Managers
     objects = models.Manager()  # Manager por defecto
@@ -454,8 +446,6 @@ class AlertaCiudadano(TimeStamped):
 
     def cerrar(self, usuario=None):
         """Cerrar la alerta"""
-        from django.utils import timezone
-
         self.activa = False
         self.fecha_cierre = timezone.now()
         self.cerrada_por = usuario

@@ -1,5 +1,36 @@
 # Auditoría integral de DATAÑACH (Chaco) — octubre 2026
 
+## Estado al 07-oct-2026 (Ola 3, PR 6: reglas de negocio de Becas)
+
+**Trece reglas de Becas y la edad, que estaba escrita seis veces.** El PR 6 de la Ola 3 (Cambio 172) cierra
+BEC-03, BEC-04, BEC-05, BEC-06, BEC-07, BEC-09, BEC-10, BEC-15, BEC-16, BEC-17, BEC-18, BEC-20 y BEC-24, más
+**RED-50** del ítem 9 de la ola: 26 + 4 h, **sin migraciones**.
+
+| Ficha | Qué quedó |
+|---|---|
+| **RED-50** ✅ | Una sola `core/edad.py` (`edad_en_anios`, `es_menor`, `MAYORIA_DE_EDAD`) con `timezone.localdate()`. Eran **seis** copias, no cuatro: el detector encontró además `legajos/selectors/ciudadanos.py` y `Ciudadano.edad`. El `expectedFailure` de `EdadHorarioTests` se fue y el test pasa de verdad. Dos guardarraíles: la regla **`DTZ011`** de ruff (prohíbe `date.today()` en el código productivo, con `# noqa` motivado en los dos usos deliberados) y un ratchet `ast` que nombra el archivo y la línea si la resta de cumpleaños vuelve a escribirse a mano. La severidad deja de depender de **H-13** |
+| **BEC-18** ✅ | Barrido de `timezone.now().date()` a `timezone.localdate()` en los **doce** lugares productivos (ocho de la ficha + cuatro que encontró el barrido), con `core.utils_fechas.fecha_local` donde lo que había que convertir era un `datetime` guardado. Lo peor no estaba en la ficha: la clave de caché de `contar_seguimientos_hoy` llevaba la fecha **de UTC**, así que a las 21:00 ART empezaba una clave nueva y vacía y el contador se reiniciaba a mitad del día. **Ninguna consulta cambia**: nada de `__date` ni `Trunc*` |
+| **BEC-03** ✅ | La revisión evalúa las condiciones con la fecha de **carga** (`capturado_en` o `creado`, en hora local), no con «hoy»: quien se inscribió con 17 y cumplió 18 al mes dejaba de mostrar el bloque del apoderado que **sí había respondido**. Es la otra mitad de D3 del Cambio 58 |
+| **BEC-04** ✅ | En dos mitades: el constructor **rechaza** guardar una condición cuya fuente no se pide en el canal (una validación por canal servido, con el ítem y la fuente nombrados) y `serializar` **anula** esa condición al servir, para los diseños que ya están guardados. `verificar_json_guardado` suma el chequeo para correr antes del deploy, que es el «Riesgo» de la ficha |
+| **BEC-05** ✅ | **D-B05 por default (no es tope duro):** no se valida nada, se deja de prometer lo que no se cumple. «Cupo máximo» → **«Cupo asignado»** en el subsegmento, con la aclaración de que el que decide es el del segmento, y lo mismo en la tarjeta de distribución |
+| **BEC-06** ✅ | `segmento` y `subsegmento` se deshabilitan con relevamientos cargados (un `disabled` de Django además ignora el POST) y el modelo lo valida contra el alcance con el que la fila salió de la base, sin releerla. Mover una convocatoria pasa a ser una operación de datos, que es lo que es: hay que migrar también `ListaEspera.segmento` |
+| **BEC-07** ✅ | `Segmento.clean` cuenta los aprobados en vivo en vez de leer `CupoSegmento.cupo_ocupado`, la columna que **nadie mantiene**: quedaba en 0 y dejaba bajar el cupo por debajo de los beneficiarios reales, con el disponible en negativo y toda aprobación cayendo en espera sin motivo visible |
+| **BEC-09** ✅ | Un caso sin ciudadano con DNI (o de un segmento sin programa SIIS) **se puede rechazar**, con el motivo de la no consulta en la traza. Era lo que dejaba casos ENVIADO para siempre y relevamientos que no se podían terminar nunca |
+| **BEC-10** ✅ | **D-B10 por default:** «en lista de espera» cuenta como revisado, con mensaje diferenciado. Un caso en espera ya se revisó; lo que falta es una baja o una ampliación, no una decisión del revisor |
+| **BEC-15 · BEC-16 · BEC-17 · BEC-24** ✅ | Los cuatro candados y atomicidades: la carga de padrón bloquea la fila del dueño antes de reemplazar sus filas; el constructor bloquea el diseño en `_mutar` y en `reconciliar`, y los ocho POST de mutación dejan de reconciliar; pausar dos veces deja un solo evento en el historial inmutable; y la edición de contacto/apoderado es una sola transacción (antes, un fallo en el medio dejaba datos nuevos **sin traza**) |
+| **BEC-20** ✅ | Fin anterior al inicio se rechaza en el form y en el modelo. Antes nacía vencida y `procesar_vencimientos` la cerraba sola |
+
+**Riesgos de deploy (conducta que cambia para el usuario), en «Riesgos» del PR:** sin migraciones. Lo que se nota:
+el revisor **ve** bloques que antes decían «No se pidió»; el link público **pide** campos que antes escondía (BEC-04);
+el constructor **rechaza** diseños que antes guardaba —`verificar_json_guardado` dice cuántos hay antes de desplegar—;
+el segmento de una convocatoria con relevamientos **deja de editarse**; bajar el cupo de un segmento por debajo de los
+aprobados **deja de poder hacerse**; un relevamiento con casos en espera **ya se puede terminar**; y los contadores
+«de hoy» del inicio **dejan de dar cero** entre las 21:00 y las 24:00. Presupuesto `edicion_convocatoria` 13→14, con
+justificación en `scripts/perf_budgets.json` (RED-62).
+
+**Abierto:** de la Ola 3 quedan los PRs 2 (datos y catálogo), 3 (comandos peligrosos), 5 (app de campo),
+7 (integraciones y link público), 8 (reportes) y el resto del ítem 9 (RED-48, RED-09, RED-35, RED-40).
+
 ## Estado al 07-oct-2026 (Ola 3, PR 1: operación y deploy — **arranca la Ola 3**)
 
 **El arranque del contenedor deja de ser frágil.** El PR 1 de la Ola 3 (Cambio 165) cierra OPS-05, OPS-07,
@@ -184,7 +215,7 @@ link público abierto**, por la huella de la foto.
 
 | PR | Cambio | Fichas | Estado | Qué quedó abierto |
 |---|---|---|---|---|
-| R-16 | 156 | RED-05 ✅ · RED-31 ✅ · RED-35 ✅ · RED-77 ✅ · RED-49 ✅ · RED-50 🟡 · RED-81 ✅ · RED-70 ✅ | ✅ | **Las 8 fichas, 22 h, sin migraciones.** Es el último prerrequisito de la **Ola 3**: lo que DAT-01, BEC-\* y SEC-20 van a tocar ahora tiene antes un test que se pone rojo. (1) **RED-05:** el adjunto se sigue por HTTP de punta a punta desde los **dos** canales —paso 1 + paso 2 del link público y el alta + `POST …/adjuntos/` de la app— hasta el bloque que renderiza `formulario_detalle`; cambiar el prefijo `pg-` en `_adjuntos_por_clave` deja los dos tests en rojo (antes, la foto del DNI desaparecía de la pantalla del revisor sin error ni log). (2) **RED-31:** los cuerpos de `requisito_eliminar` y `subsegmento_eliminar`, que no se ejecutaban ni una vez en 3.000 tests, quedan cubiertos con sus bordes de método y capacidad; el daño de **DAT-01** queda *caracterizado* con el mensaje de qué invertir. (3) **RED-35:** prueba **conductual** de la atomicidad (se hace fallar el paso siguiente al alta del legajo y nada queda escrito), con gemelo `@tag("mysql")` en `TransactionTestCase`, donde el rollback es de InnoDB y no un savepoint de SQLite. (4) **RED-77 (código):** `q_con_identidad()` unifica la RN-2 del padrón que estaba escrita **cuatro** veces (no dos) con dos semánticas distintas; se expone como `Q` para que el `Count` del detalle de la convocatoria use la misma regla, y el patrón es la **clase literal** de los 29 caracteres que saca `str.strip()` —ni `Trim`, ni `\s`, ni `[[:space:]]`: Django compila el lookup como `REGEXP BINARY` en MariaDB, donde esas dos clases son ASCII y un nombre de un solo NBSP quedaba dentro del queryset mientras la property decía que no—. (5) **RED-49:** las tres acepciones de `cupo_disponible` quedan fijadas con sus tres números distintos, más la aserción de que **siguen difiriendo** (PERF-02 tiene que renombrar, no unificar). (6) **RED-81 (código):** `procesar_vencimientos` con el registro vacío pasa de salir con éxito a `CommandError`, y lee el registro por el módulo —`registrar()` rebindea la lista global—. (7) **RED-70:** M49 muerta: borrar `ILLEGAL_CHARACTERS_RE.sub` deja los cinco tests nuevos en rojo, tres con el `IllegalCharacterError` que es el 500 de la descarga. **Abierto:** **RED-50 queda 🟡** —el `expectedFailure` describe el bug de la edad en UTC y el arreglo (una sola `edad_en_anios` con `timezone.localdate()` + `DTZ011`) es de la **Ola 3**, con H-13 definiendo su severidad—; DAT-01 y el tercer test de RED-05 también son de la Ola 3; el renombre de RED-49 es de la Ola 4; y `exportacion_reportes.py` sigue con terminadores CR (**RED-82**, PR R-21), que conviene cerrar antes de la revisión de SEC-20 |
+| R-16 | 156 | RED-05 ✅ · RED-31 ✅ · RED-35 ✅ · RED-77 ✅ · RED-49 ✅ · RED-50 ✅ (Ola 3 PR 6) · RED-81 ✅ · RED-70 ✅ | ✅ | **Las 8 fichas, 22 h, sin migraciones.** Es el último prerrequisito de la **Ola 3**: lo que DAT-01, BEC-\* y SEC-20 van a tocar ahora tiene antes un test que se pone rojo. (1) **RED-05:** el adjunto se sigue por HTTP de punta a punta desde los **dos** canales —paso 1 + paso 2 del link público y el alta + `POST …/adjuntos/` de la app— hasta el bloque que renderiza `formulario_detalle`; cambiar el prefijo `pg-` en `_adjuntos_por_clave` deja los dos tests en rojo (antes, la foto del DNI desaparecía de la pantalla del revisor sin error ni log). (2) **RED-31:** los cuerpos de `requisito_eliminar` y `subsegmento_eliminar`, que no se ejecutaban ni una vez en 3.000 tests, quedan cubiertos con sus bordes de método y capacidad; el daño de **DAT-01** queda *caracterizado* con el mensaje de qué invertir. (3) **RED-35:** prueba **conductual** de la atomicidad (se hace fallar el paso siguiente al alta del legajo y nada queda escrito), con gemelo `@tag("mysql")` en `TransactionTestCase`, donde el rollback es de InnoDB y no un savepoint de SQLite. (4) **RED-77 (código):** `q_con_identidad()` unifica la RN-2 del padrón que estaba escrita **cuatro** veces (no dos) con dos semánticas distintas; se expone como `Q` para que el `Count` del detalle de la convocatoria use la misma regla, y el patrón es la **clase literal** de los 29 caracteres que saca `str.strip()` —ni `Trim`, ni `\s`, ni `[[:space:]]`: Django compila el lookup como `REGEXP BINARY` en MariaDB, donde esas dos clases son ASCII y un nombre de un solo NBSP quedaba dentro del queryset mientras la property decía que no—. (5) **RED-49:** las tres acepciones de `cupo_disponible` quedan fijadas con sus tres números distintos, más la aserción de que **siguen difiriendo** (PERF-02 tiene que renombrar, no unificar). (6) **RED-81 (código):** `procesar_vencimientos` con el registro vacío pasa de salir con éxito a `CommandError`, y lee el registro por el módulo —`registrar()` rebindea la lista global—. (7) **RED-70:** M49 muerta: borrar `ILLEGAL_CHARACTERS_RE.sub` deja los cinco tests nuevos en rojo, tres con el `IllegalCharacterError` que es el 500 de la descarga. **Abierto:** **RED-50 queda 🟡** —el `expectedFailure` describe el bug de la edad en UTC y el arreglo (una sola `edad_en_anios` con `timezone.localdate()` + `DTZ011`) es de la **Ola 3**, con H-13 definiendo su severidad—; DAT-01 y el tercer test de RED-05 también son de la Ola 3; el renombre de RED-49 es de la Ola 4; y `exportacion_reportes.py` sigue con terminadores CR (**RED-82**, PR R-21), que conviene cerrar antes de la revisión de SEC-20 |
 
 ## Estado al 06-oct-2026 (Ola R: R-15, operación y deploy)
 
@@ -1506,7 +1537,7 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
   punta a punta por los dos canales (RED-05), los dos borrados de Configuración que no se ejecutaban (RED-31, con
   DAT-01 caracterizada), la atomicidad probada por conducta (RED-35), la RN-2 del padrón escrita una sola vez (RED-77,
   **código**), las tres acepciones de `cupo_disponible` fijadas (RED-49), la edad en UTC descrita con `expectedFailure`
-  (RED-50 🟡, el arreglo es de la Ola 3), el registro de vencimientos que ya no queda vacío en silencio (RED-81,
+  (RED-50, cuyo arreglo cerró el PR 6 de la Ola 3), el registro de vencimientos que ya no queda vacío en silencio (RED-81,
   **código**) y la mutación M49 de `celda_segura` muerta (RED-70). **Desbloquea la Ola 3** (DAT-01, BEC-\*) y SEC-20.
 - **✅ R-15 cerrado el 06-oct-2026 (Cambio 153), 18 h.** Operación y deploy: el traceback de cada 500 llega a stdout
   (OPS-03) y los context processors dejan rastro (RED-55); `/health/ready/` distingue «vivo» de «sirve» (OPS-04) y
@@ -1565,7 +1596,7 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
 | ✅ R-13 | **Job `migration-roundtrip`** (Anexo B): RED-17, RED-19 (un solo migrador, expand/contract) — **#596, Cambio 139**; cierra además los dos agujeros que el Cambio 135 le dejó anotados (el `AlterField` que vuelve obligatoria una columna y la edición de una migración ya aplicada). **No es obligatorio todavía**, igual que `Motor real` | 14 | Ola 3 (G1-04, G1-05, DAT-01) |
 | ✅ R-14 | **Gates del release:** RED-24 (`Contratos del repo`), RED-21 (`publish-main` exige CI verde), RED-65, RED-23 (`release-gate.yml` + `/pushGitLabecom` en dos), RED-22 (propuesta a ECOM) — **#575, Cambio 128** (RED-22 y RED-23 🟡: falta el envío a ECOM y copiar los dos comandos a `.claude/`) | 22 | el próximo espejo a ECOM |
 | ✅ R-15 | **Operación y deploy** (desde la Ola 3): OPS-03, OPS-04, OPS-01 (ampliados), RED-59 (`deploy_prod.sh`), RED-16 (tag de release), RED-55 — **Cambio 153** (RED-16 🟡: el tag de imagen lo tiene que aplicar ECOM, D-RED-02) | 18 | el próximo deploy en icore |
-| ✅ R-16 | **Becas: adjuntos, borrados, atomicidad, padrón:** RED-05, RED-31, RED-35, RED-77, RED-49, RED-50, RED-81, RED-70 — **Cambio 156** (RED-50 🟡: el arreglo de la edad es de la Ola 3) | 22 | Ola 3 (DAT-01, BEC-*), SEC-20 |
+| ✅ R-16 | **Becas: adjuntos, borrados, atomicidad, padrón:** RED-05, RED-31, RED-35, RED-77, RED-49, RED-50, RED-81, RED-70 — **Cambio 156** (RED-50 quedó 🟡 y la cerró el PR 6 de la Ola 3, Cambio 172) | 22 | Ola 3 (DAT-01, BEC-*), SEC-20 |
 | R-17 | **Definición y condiciones (dos repos):** RED-12, RED-38 | 16 | cualquier cambio del constructor |
 | ✅ R-18 | **Contratos del backoffice y job `Contratos de API`:** RED-42, RED-39, RED-40, RED-41 (D-RED-04), RED-43, RED-44 — **#608, Cambio 160** (RED-39, RED-40 y RED-42 cierran su parte R; el resto es de las Olas 3, 5 y 7) | 18 | Ola 2 (capacidades), Ola 5 |
 | ✅ R-19 | **Legajos y Roles por HTTP:** **RED-89** (CRÍTICA: barrido con usuario sin rol + `ALLOWLIST_SIN_ROL` medida + ratchet, 4 h) y, adelantadas de la Ola 2 por **D-RED-14**, **SEC-10 completa** (CRÍTICA, 4 h: el hard delete de adjuntos), **SEC-18 completa** (+ R0b-06, 2 h: alertas y el `self.get_object()` que mata el 500) y **SEC-11 con `ciudadano.ver` de piso en sus 5 rutas** (1 h: así salen los 17 `expectedFailure` y ninguna queda abierta; la Ola 2 sube 3 a `ciudadano.sensible` con D-11); más RED-06 (humo de 37 rutas + alertas) y RED-04 (escrituras del ABM de roles) — **#556, Cambio 126** | 21 | Ola 2 |
@@ -1759,21 +1790,23 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
   3. *Comandos peligrosos:* OPS-02, G2-05, G1c-12. 6 h.
   4. *CI y tests:* pasó entero a la Ola R (TST-01 → R-11; TST-02, TST-03 y R0-03 → R-20).
   5. *App de campo:* G1-03, G1-04 (+BEC-22), G1-05, G1-06, G1-07, G1-16, R0-04 (raíz `/api/becas/` con Token). 34 h.
-  6. *Reglas de Becas:* BEC-03, BEC-04, BEC-05, BEC-06, BEC-07, BEC-09, BEC-10, BEC-15, BEC-16, BEC-17, BEC-18,
-     BEC-20, BEC-24. 26 h.
+  6. ✅ *Reglas de Becas:* BEC-03, BEC-04, BEC-05, BEC-06, BEC-07, BEC-09, BEC-10, BEC-15, BEC-16, BEC-17, BEC-18,
+     BEC-20, BEC-24 **+ RED-50** (el ítem 9 lo traía aparte). 26 + 4 h. **Cerrado el 07-oct-2026 (Cambio 172),
+     sin migraciones.**
   7. *Integraciones y link público:* SIIS-10, SIIS-13, SIIS-14 (+G3-02), SIIS-15, SIIS-16, SIIS-18, SIIS-20, SIIS-21,
      G1c-15, G1-11, G1-12, G1-13, G1-14, R0-06, R0-07 (link público y `q_uuid_en_texto`). 30 h.
   8. *Reportes:* G2-01. 8 h.
   9. *Red de seguridad (04-oct):* RED-48 (una sola regla de DNI, con G1c-08), ~~RED-58 (plantilla de migración
      re-entrante, con OPS-05)~~ ✅ **cerrada en el PR 1**, y segundas partes de RED-09 (`q_uuid_en_texto` a `core/db.py`, con el PR 7), RED-35
-     (atomicidad del resto de las escrituras), RED-40 (`validators` en los `JSONField`, con G1-05) y RED-50 (una sola
-     `edad_en_anios` con `timezone.localdate()` + regla `DTZ011`). 18 h.
+     (atomicidad del resto de las escrituras), RED-40 (`validators` en los `JSONField`, con G1-05) y
+     ~~RED-50 (una sola `edad_en_anios` con `timezone.localdate()` + regla `DTZ011`)~~ ✅ **cerrada en el PR 6**.
+     18 h, de las que quedan 14.
   **Prerrequisito: ✅ cumplido el 07-oct-2026.** PRs R-11 a R-16 de la Ola R (motor real en CI, contrato de migraciones,
   job de ida y vuelta, gates del release, operación, y los tests de Becas que DAT-01 y las reglas van a invertir). Los
   dos tests que esta ola tiene que **invertir** están nombrados en sus fichas:
   `test_becas_config.EliminarRequisitoYSubsegmentoTests.test_requisito_con_adjunto_en_un_caso` (DAT-01) y
-  `test_becas_reglas.EdadHorarioTests.test_el_corte_es_la_fecha_local_no_la_del_sistema` (RED-50, sacarle el
-  `expectedFailure`).
+  ~~`test_becas_reglas.EdadHorarioTests.test_el_corte_es_la_fecha_local_no_la_del_sistema`~~ ✅ (RED-50: el
+  `expectedFailure` se sacó en el PR 6, Cambio 172).
 - **Hecho cuando:** V-STD (+ V-UI donde aplique); PoC invertidas de `poc/test_repro_datos_operacion.py` (DAT-01; OPS-03 y
   OPS-04 se invierten en la Ola R), `test_repro_admin_cron_renaper.py` (G1c-08, RENAPER 401/503) y `test_repro_dashboard_campos_propios.py`
   (G2-01); el job de CI con `mariadb:<versión de P-11>` corre `migrate` y `test --tag mysql` en verde; `seed_datos_base`

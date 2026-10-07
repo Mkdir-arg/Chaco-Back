@@ -53,6 +53,7 @@ from django.core.management.base import CommandError
 from django.db import connection, transaction
 from django.utils import timezone
 
+from core.edad import MAYORIA_DE_EDAD, edad_en_anios
 from legajos.models import Ciudadano
 from programas.management.commands._base_siis import ComandoSiisBase
 from programas.management.commands._insumos_siis import falta_tabla
@@ -72,7 +73,6 @@ TABLA_LOCALIDADES = "localidades_corregidas"
 CAMPO_TRAZA = "Datos SIIS · corregir_datos_siis"
 #: Centinela para distinguir «la clave no está» de «la clave vale None».
 _SIN_VALOR = object()
-MAYORIA_DE_EDAD = 18
 LOTE = 200
 # SIIS exige al menos 4 caracteres de barrio.
 BARRIO_MINIMO = 4
@@ -84,10 +84,6 @@ BARRIO_SIN_DATO = {"-", "--", "---", ".", "..", "...", "_", "__", "___", "no", "
 # Alias de la función canónica (RED-47): la copia propia agregaba un 0 al final
 # con el Decimal que devuelve el driver para la columna de ``ciudadanos_renaper``.
 _digitos = normalizar_dni
-
-
-def _edad(nacimiento, hoy):
-    return hoy.year - nacimiento.year - ((hoy.month, hoy.day) < (nacimiento.month, nacimiento.day))
 
 
 def _catalogo_que_se_rinde():
@@ -485,7 +481,7 @@ class Command(ComandoSiisBase):
 
     def _corregir_apoderado(self, caso, fecha, hoy, cuenta):
         nacimiento = caso.ciudadano.fecha_nacimiento if caso.ciudadano_id else None
-        if not nacimiento or _edad(nacimiento, hoy) >= MAYORIA_DE_EDAD:
+        if not nacimiento or edad_en_anios(nacimiento, hoy) >= MAYORIA_DE_EDAD:
             # Mayor de edad: el apoderado ni siquiera viaja en el payload.
             return None
         correcciones = caso.datos_siis if isinstance(caso.datos_siis, dict) else {}
@@ -500,7 +496,7 @@ class Command(ComandoSiisBase):
             cuenta["apo_sin_fecha"] += 1
         elif actual > hoy:
             cuenta["apo_fecha_futura"] += 1
-        elif _edad(actual, hoy) < MAYORIA_DE_EDAD:
+        elif edad_en_anios(actual, hoy) < MAYORIA_DE_EDAD:
             mismo = _digitos(caso.apoderado_dni) == _digitos(getattr(caso.ciudadano, "dni", ""))
             cuenta["apo_es_el_propio_alumno" if mismo else "apo_menor_de_18"] += 1
         else:
@@ -614,7 +610,7 @@ class Command(ComandoSiisBase):
                 fecha_apoderado = date.fromisoformat(options["fecha_apoderado"])
             except ValueError as exc:
                 raise CommandError("--fecha-apoderado va como AAAA-MM-DD, por ejemplo 1990-01-01.") from exc
-            if _edad(fecha_apoderado, hoy) < MAYORIA_DE_EDAD:
+            if edad_en_anios(fecha_apoderado, hoy) < MAYORIA_DE_EDAD:
                 raise CommandError(
                     f"Con {fecha_apoderado.isoformat()} el apoderado no llega a 18 años: SIIS lo rechazaría igual."
                 )

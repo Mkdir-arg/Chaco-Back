@@ -29,7 +29,7 @@ def dashboard_contactos_simple(request):
 @requiere("reporte.ver")
 def reportes_view(request):
     """Vista liviana de reportes para mantener operativa la navegación del backoffice."""
-    hace_7_dias = timezone.now().date() - timedelta(days=7)
+    hace_7_dias = timezone.localdate() - timedelta(days=7)
 
     legajos = annotate_legajo_link_data(LegajoAtencion.objects.all())
     stats = {

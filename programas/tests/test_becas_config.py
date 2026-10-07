@@ -287,8 +287,12 @@ class SubsegmentoDetailRenderTests(_BaseConfigTest):
         self.assertContains(resp, 'aria-label="Migas"')
         self.assertContains(resp, "Segmento padre:")
         self.assertContains(resp, reverse("becas:segmento_detalle", args=[self.seg.pk]))
-        self.assertContains(resp, "Cupo máximo:")
+        # BEC-05: «asignado» y no «máximo». El cupo del subsegmento es una
+        # referencia de distribución; el que decide aprobar o mandar a espera es
+        # el del segmento, y la bajada ahora lo dice.
+        self.assertContains(resp, "Cupo asignado:")
         self.assertContains(resp, "120")
+        self.assertContains(resp, "referencia de distribución")
         self.assertContains(resp, "Zona metropolitana")
         self.assertNotIn('class="bg-white rounded-xl border border-base shadow-sm p-5"', contenido)
 

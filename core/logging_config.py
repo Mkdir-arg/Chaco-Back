@@ -42,7 +42,10 @@ def purgar_logs_viejos(log_dir: Path, retencion_dias: int) -> list[Path]:
     if retencion_dias <= 0 or not log_dir.is_dir():
         return []
 
-    corte = date.today() - timedelta(days=retencion_dias)
+    # noqa DTZ011 deliberado: las carpetas diarias las nombra el handler con la
+    # fecha del proceso, así que el corte tiene que usar esa misma fecha y no la
+    # del `TIME_ZONE` de Django, o la rotación borraría un día de más o de menos.
+    corte = date.today() - timedelta(days=retencion_dias)  # noqa: DTZ011
     borradas = []
     for hijo in sorted(log_dir.iterdir()):
         if not hijo.is_dir() or not CARPETA_DIARIA.match(hijo.name):

@@ -33,6 +33,7 @@ from programas.models import CanalFormulario, ItemDiseno, PresentacionCampo, Tip
 from programas.services import condiciones as cond
 from programas.services.autorizacion import convocatorias_visibles, puede_gestionar_segmento
 from programas.services.diseno import (
+    bloquear,
     campo_dict,
     generar_por_defecto,
     items_ordenados,
@@ -65,9 +66,19 @@ def _convocatoria(request, pk):
     return convocatoria
 
 
-def _diseno(request, pk):
+def _diseno(request, pk, reconciliar_con_catalogo=True):
+    """El diseño de la convocatoria, con el control de acceso ya hecho.
+
+    Los POST de mutación pasan ``reconciliar_con_catalogo=False`` (BEC-16):
+    reconciliar **escribe**, y hacerlo en cada request metía una segunda
+    escritura del diseño dentro de cada guardado. La sincronización con el
+    catálogo se hace al abrir la pantalla, que es cuando el operador puede leer
+    el aviso de qué entró y qué salió.
+    """
     convocatoria = _convocatoria(request, pk)
-    diseno, avisos = obtener_o_crear_diseno(convocatoria, request.user)
+    diseno, avisos = obtener_o_crear_diseno(
+        convocatoria, request.user, reconciliar_con_catalogo=reconciliar_con_catalogo
+    )
     return diseno, avisos
 
 
@@ -219,21 +230,46 @@ def _mensaje(errores, titulos=None):
     return " ".join(partes) if partes else "El diseño quedó incoherente."
 
 
+#: Los canales que se sirven de verdad, con el nombre que entiende el operador.
+#: ``AMBOS`` no se valida aparte: es la unión de estos dos.
+CANALES_SERVIDOS = (
+    (CanalFormulario.APP, "la app de campo"),
+    (CanalFormulario.LINK, "el link público"),
+)
+
+
 def _asegurar_coherencia(diseno):
     """Valida las condiciones sobre el diseño resultante y devuelve los ítems
-    ya cargados (se reutilizan en la respuesta: una sola lectura)."""
+    ya cargados (se reutilizan en la respuesta: una sola lectura).
+
+    Se valida **dos veces más**, una por canal servido (BEC-04): mirado entero el
+    diseño puede estar bien —la fuente existe y está antes— y aun así dejar un
+    ítem imposible en uno de los dos canales, porque ahí su fuente no se pregunta.
+    """
     items = items_ordenados(diseno)
     errores = cond.validar_coherencia(items_planos(items))
     if errores:
         raise DisenoInvalido(errores)
+    for canal, etiqueta in CANALES_SERVIDOS:
+        errores = cond.fuentes_fuera_del_canal(items_planos(items, canal), etiqueta)
+        if errores:
+            raise DisenoInvalido(errores)
     return items
 
 
 def _mutar(request, diseno, mensaje, operacion):
     """Corre ``operacion`` dentro de una transacción, valida el diseño
-    resultante y sube la versión; si no cierra, deshace todo y responde 400."""
+    resultante y sube la versión; si no cierra, deshace todo y responde 400.
+
+    **Candado del diseño (BEC-16).** La fila del `DisenoFormulario` se bloquea
+    antes de tocar nada: dos operadores guardando a la vez leían cada uno el
+    diseño anterior y el segundo dejaba, por ejemplo, la fuente de una condición
+    después de su destino —RN-6 rota— sin que ninguna de las dos validaciones se
+    diera cuenta, porque cada una vio un diseño coherente.
+    """
     try:
         with transaction.atomic():
+            bloquear(diseno)
             operacion()
             items = _asegurar_coherencia(diseno)
             diseno.tocar(request.user)
@@ -287,7 +323,7 @@ def formulario_mover(request, pk):
     """Drag & drop: ``{clave, padre, posicion}``. Los grupos se mueven en la
     raíz; campos y textos, dentro de un grupo. Si el movimiento deja una
     condición apuntando a una fuente posterior, se rechaza (RN-6)."""
-    diseno, _ = _diseno(request, pk)
+    diseno, _ = _diseno(request, pk, reconciliar_con_catalogo=False)
     payload = _json(request)
     if payload is None or not payload.get("clave"):
         return JsonResponse({"ok": False, "message": "Payload inválido."}, status=400)
@@ -328,7 +364,7 @@ def formulario_mover(request, pk):
 @requiere(CAP_CONVOCATORIA_EDITAR)
 @require_POST
 def formulario_grupo_crear(request, pk):
-    diseno, _ = _diseno(request, pk)
+    diseno, _ = _diseno(request, pk, reconciliar_con_catalogo=False)
     form = ItemGrupoForm(request.POST)
     if not form.is_valid():
         return ajax_errors(form)
@@ -359,7 +395,7 @@ def _padre_para_nuevo(diseno, request):
 @requiere(CAP_CONVOCATORIA_EDITAR)
 @require_POST
 def formulario_texto_crear(request, pk):
-    diseno, _ = _diseno(request, pk)
+    diseno, _ = _diseno(request, pk, reconciliar_con_catalogo=False)
     form = ItemTextoForm(request.POST)
     padre = _padre_para_nuevo(diseno, request)
     if padre is None:
@@ -385,7 +421,7 @@ def formulario_texto_crear(request, pk):
 @requiere(CAP_CONVOCATORIA_EDITAR)
 @require_POST
 def formulario_propio_crear(request, pk):
-    diseno, _ = _diseno(request, pk)
+    diseno, _ = _diseno(request, pk, reconciliar_con_catalogo=False)
     form = ItemCampoPropioForm(request.POST)
     padre = _padre_para_nuevo(diseno, request)
     if padre is None:
@@ -414,7 +450,7 @@ def formulario_item_editar(request, pk, clave):
     """Edita lo que el diseño es dueño de cada ítem (RN-2): grupo → título,
     subtítulo y canal; texto → texto y canal; campo propio → todo; campo del
     catálogo → solo la etiqueta."""
-    diseno, _ = _diseno(request, pk)
+    diseno, _ = _diseno(request, pk, reconciliar_con_catalogo=False)
     item = _item(diseno, clave)
     if item.es_grupo:
         form = ItemGrupoForm(request.POST)
@@ -451,7 +487,7 @@ def formulario_item_editar(request, pk, clave):
 def formulario_condicion(request, pk, clave):
     """``{condicion: null | {modo, reglas}}``. Se valida contra los ítems
     anteriores (RN-6/RN-7) antes de guardar."""
-    diseno, _ = _diseno(request, pk)
+    diseno, _ = _diseno(request, pk, reconciliar_con_catalogo=False)
     item = _item(diseno, clave)
     payload = _json(request)
     if payload is None or "condicion" not in payload:
@@ -477,7 +513,7 @@ def formulario_item_eliminar(request, pk, clave):
     """Se eliminan textos, campos propios y grupos vacíos. Los requisitos del
     catálogo no se eliminan del diseño (RN-1): se mueven o se desactivan en el
     catálogo."""
-    diseno, _ = _diseno(request, pk)
+    diseno, _ = _diseno(request, pk, reconciliar_con_catalogo=False)
     item = _item(diseno, clave)
     if item.es_campo and not item.es_propio:
         return JsonResponse(
@@ -506,7 +542,7 @@ def formulario_item_eliminar(request, pk, clave):
 def formulario_restablecer(request, pk):
     """Vuelve al plan por defecto (grupos del catálogo + un grupo por nivel de
     requisitos). Borra textos, campos propios, condiciones y etiquetas."""
-    diseno, _ = _diseno(request, pk)
+    diseno, _ = _diseno(request, pk, reconciliar_con_catalogo=False)
 
     def operacion():
         generar_por_defecto(diseno)

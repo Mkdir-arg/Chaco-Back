@@ -89,7 +89,7 @@ con lo que existe hoy; la lista solo baja.
 | RED-47 | `normalizar_dni` y sus tres copias agregan un 0 con `float` o `Decimal` | MEDIA | CONF. test | R | S | ✅ |
 | RED-48 | «DNI válido» está implementado 6 veces con 3 reglas de largo | MEDIA | CONF. lectura | 3 | S-M | ⬜ |
 | RED-49 | `cupo_disponible` significa tres cosas y dos pantallas lo rotulan igual | MEDIA | CONF. lectura | R (+4) | S (+S) | ✅ |
-| RED-50 | La edad (RN-22) está cuatro veces y tres usan `date.today()` (UTC en los contenedores) | MEDIA | CONF. lectura | R (+3) | S (+S-M) | 🟡 (el arreglo es de la Ola 3) |
+| RED-50 | La edad (RN-22) está cuatro veces y tres usan `date.today()` (UTC en los contenedores) | MEDIA | CONF. lectura | R (+3) | S (+S-M) | ✅ |
 | RED-51 | Dos `invalidate_dashboard_cache`; `stats_legajos` colgado del modelo equivocado | MEDIA | CONF. lectura | R (+4) | S (+S) | ✅ (R; falta Ola 4) |
 | RED-52 | Contrato implícito por `user._state.fields_cache["profile"]` | MEDIA | CONF. lectura | R (+2) | S (+S) | ✅ (R; falta Ola 2) |
 | RED-53 | Clones literales entre los comandos SIIS y entre las vistas de padrón | MEDIA | CONF. test (pylint + AST) | 1 (+5) | S-M (+S) | ✅ |
@@ -1396,6 +1396,29 @@ sigue siendo menor esa noche y está **rojo**, marcado `@unittest.expectedFailur
 aritmética con `hoy` explícito y el `None` sin fecha, que el arreglo tiene que conservar. La severidad sigue atada a
 **H-13** (la `TZ` real de los contenedores de ECOM).
 **Test permanente:** `programas.tests.test_becas_reglas.EdadHorarioTests.test_el_corte_es_la_fecha_local_no_la_del_sistema`.
+
+**Ampliado por #PENDIENTE (Cambio 172, Ola 3 PR 6), 07-oct-2026 — ✅ cerrada.** La cuenta vive una
+sola vez en `core/edad.py` (`edad_en_anios(fecha, hoy=None)`, `es_menor(fecha, hoy=None)` y
+`MAYORIA_DE_EDAD = 18`) y resuelve «hoy» con `timezone.localdate()`, que lee el `TIME_ZONE` del
+proyecto y no el reloj del contenedor. Las **seis** copias medidas —la ficha decía cuatro; el
+detector encontró además `legajos/selectors/ciudadanos.py` y `Ciudadano.edad`— quedaron en cero:
+`becas.es_menor` y `condiciones.edad_en_anios` se borraron y sus dos llamadores
+(`programas/api/serializers.py`, `programas/forms.py`) importan de `core.edad`; `siis_envio._edad` y
+`corregir_datos_siis._edad` también, con un solo `MAYORIA_DE_EDAD`. De paso se unificó el lector
+permisivo de fechas (`core.edad.fecha_o_none`), que estaba duplicado entre `condiciones` y la
+conversión de la edad.
+
+`test_el_corte_es_la_fecha_local_no_la_del_sistema` perdió su `@unittest.expectedFailure` y pasa de
+verdad; el andamio se simplificó —ya no hace falta parchear el `date` de cuatro módulos, porque
+ninguno lo usa: alcanza con `core.tests.reloj.reloj_en`—. **Dos guardarraíles nuevos**, porque un
+arreglo de duplicación sin ratchet se vuelve a duplicar: (1) la regla **`DTZ011`** de ruff en
+`pyproject.toml`, que prohíbe `date.today()` en todo el código productivo (los tests quedan
+exentos y los dos usos deliberados —rotación de logs por día de la máquina y el default de
+`check_excepciones_seguridad.py`— llevan `# noqa: DTZ011` con el motivo); (2)
+`SinCalculoDeEdadPropioTests`, que recorre con `ast` los seis módulos de la ficha buscando la forma
+de la resta de cumpleaños y los nombra con archivo y línea si vuelve a aparecer, con su control de
+andamio. La severidad ya no depende de **H-13**: el arreglo no asume ninguna `TZ` de contenedor.
+**Test permanente:** `programas/tests/test_becas_reglas.py::EdadHorarioTests.test_el_corte_es_la_fecha_local_no_la_del_sistema` (y `.test_la_mayoria_de_edad_se_lee_de_un_solo_lugar`, `SinCalculoDeEdadPropioTests` ×2, más las doce de `legajos/tests/test_fechas_locales_bec18.py`, que cubren la edad del buscador rápido y de `Ciudadano.edad`).
 
 ### RED-51 · Dos `invalidate_dashboard_cache`; `stats_legajos` colgado del modelo equivocado
 **Severidad:** MEDIA · **Estado:** CONFIRMADO (lectura) · **Origen:** RS-R4-11 (VR2: CONFIRMADO) · **Ola:** R (tests) + 4 (arreglo) · **Esfuerzo:** S (2 h) + S (2 h)

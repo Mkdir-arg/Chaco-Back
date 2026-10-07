@@ -341,6 +341,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 167 | Legajos, Configuración y las páginas de error dejan el diseño paralelo: la pieza de paginación aprende a convivir y el shell legacy se borra | Legajos (listado de ciudadanos) · Configuración (formularios, borrados y wizard de programas) · Becas (cupo, convocatorias y relevamientos: paginación de solapas) · Transversal (pieza de paginación, páginas 403/404/500, shell legacy) | `#ui` `#metodo` | Auditoría integral oct-2026 — fichas FE-11, FE-12, FE-17 y FE-20 (Ola 5, PR 6b — segundo lote; con esto el PR 6 cierra) | 07/10/2026 | 🟢 **Hecho** (las cuatro fichas cierran; FE-23 y FE-24 pasan a un PR 6c) | No requiere |
 | 169 | La API navegable de Legajos no da 500 y `/becas/` tiene índice | Legajos (APIs de ciudadanos y alertas) · Becas (raíz del módulo) · Transversal (APIs de geografía) | `#api` `#rbac` `#metodo` | QA (matias-abate) — pruebas sobre testing de ECOM, issue #521 (caso TC-OLA0-02) | 07/10/2026 | 🟢 **Hecho** | No requiere |
 | 170 | Las solapas se manejan con el teclado, las tarjetas de número dejan de escribirse a mano y hay un solo campo de formulario | Transversal (shell: teclado de solapas; piezas de tarjeta de número, campo de formulario y paginación) · Inicio del backoffice · Becas (tablero del programa, solapas de programa, convocatoria y relevamiento, modal de convocatorias) · Usuarios y roles (ABM de roles) · Dispositivos, Admisiones y Merenderos (campos de sus formularios) · Configuración (wizard: campo de color) | `#ui` `#metodo` | Auditoría integral oct-2026 — fichas FE-23, FE-24, lo que faltaba de FE-22 y de V5A-NEW-07 (b), más los tres MINOR de la revisión del PR 6b (Ola 5, PR 6c — **cierra la ola**) | 07/10/2026 | 🟢 **Hecho** | No requiere |
+| 172 | Trece reglas de negocio de Becas, y la edad que estaba escrita seis veces | Becas (revisión de casos, constructor de formularios, convocatorias, segmentos y subsegmentos, carga de padrón, pausas) · Legajos e Inicio (contadores «de hoy», edad del ciudadano, alertas) · Transversal (`core/edad.py`, regla `DTZ011`) | `#relevamientos` `#cupos` `#datos` `#ui` `#requisitos` | Auditoría integral oct-2026 — fichas BEC-03, BEC-04, BEC-05, BEC-06, BEC-07, BEC-09, BEC-10, BEC-15, BEC-16, BEC-17, BEC-18, BEC-20 y BEC-24, más RED-50 (Ola 3, PR 6) | 07/10/2026 | 🟢 **Hecho** (D-B05 y D-B10 aplicadas por default) | No requiere |
 
 **Notas del índice**
 
@@ -23899,6 +23900,201 @@ siguen andando con el mouse, que es el punto de la mejora progresiva).
 ## Reversión
 Revertir el commit. Vuelven los dos `_field.html`, las tarjetas escritas a mano y las
 solapas sin ARIA. No se pierde ningún dato: no hay migraciones ni cambios de modelo.
+
+## Historial
+No aplica (entrada nueva).
+
+# Cambio 172 — Trece reglas de negocio de Becas, y la edad que estaba escrita seis veces
+
+🟢 **HECHO — 07/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas (revisión, constructor, convocatorias, segmentos y subsegmentos, padrón, pausas) · Legajos e Inicio (contadores «de hoy», edad, alertas) · Transversal (`core/edad.py`, `DTZ011`) |
+| **Etiquetas** | `#relevamientos` `#cupos` `#datos` `#ui` `#requisitos` |
+| **Solicitante** | Auditoría integral oct-2026 (Ola 3, PR 6) |
+| **Fecha del pedido** | 03/10/2026 |
+| **Issue / épica** | Fichas BEC-03, BEC-04, BEC-05, BEC-06, BEC-07, BEC-09, BEC-10, BEC-15, BEC-16, BEC-17, BEC-18, BEC-20 y BEC-24 de `docs/internal/auditoria-2026-10/hallazgos/02-siis-becas.md`, y RED-50 de `08-red-de-seguridad.md` |
+| **Partes afectadas** | Backoffice · Link público de inscripción (definición servida) · App de campo (definición servida) |
+| **Migración** | No requiere |
+
+## Pedido original
+Trece reglas de negocio de Becas que la auditoría encontró mal implementadas o sin
+implementar, más la parte de la Ola 3 de RED-50 (la edad). Las que más duelen:
+
+- **La revisión escondía respuestas que la persona sí había dado.** Un grupo
+  condicionado a «edad menor a 18» se reevaluaba con la fecha de **hoy**: quien se
+  inscribió con 17 y cumplió 18 al mes siguiente aparecía con «No se pidió» y «—» en
+  todo el bloque.
+- **La edad estaba escrita seis veces** y cinco resolvían «hoy» con `date.today()`, que
+  en los contenedores —que no definen `TZ`— es el día de UTC: entre las 21:00 y las
+  24:00 de Chaco un menor se evaluaba mayor y el formulario dejaba de pedir apoderado.
+- **El cupo de un segmento se podía bajar por debajo de los beneficiarios reales**,
+  porque se comparaba contra una columna que nadie mantiene.
+- **Un caso sin ciudadano con DNI no se podía rechazar**, así que quedaba ENVIADO para
+  siempre y su relevamiento no se podía terminar nunca. Lo mismo con los casos en lista
+  de espera.
+
+## Alcance acordado
+Entran las trece fichas BEC y RED-50. Queda afuera todo lo demás de la Ola 3 (datos y
+catálogo, comandos peligrosos, app de campo, integraciones, reportes) y el resto del
+ítem 9 de la ola (RED-48, RED-09, RED-35, RED-40).
+
+## Decisiones tomadas
+
+**La edad vive en un solo lugar y «hoy» es siempre el día local (RED-50).**
+`core/edad.py` tiene `edad_en_anios(fecha, hoy=None)`, `es_menor(fecha, hoy=None)` y
+`MAYORIA_DE_EDAD = 18`, y resuelve el default con `timezone.localdate()`, que lee el
+`TIME_ZONE` del proyecto y **no** el reloj del contenedor. Las seis copias se borraron;
+los llamadores importan de `core.edad`. Quien necesita evaluar la edad a otra fecha —la
+revisión, que mira un caso de hace un mes— pasa `hoy` explícito. El guardarraíl es la
+regla **`DTZ011`** de ruff en `pyproject.toml`: `date.today()` queda prohibido en el
+código productivo, con `# noqa: DTZ011` y el motivo en los dos usos deliberados
+(rotación de logs por día de la máquina y el default de `check_excepciones_seguridad.py`).
+Los tests quedan exentos: ahí fijar la fecha del proceso es el método.
+
+**Un caso se relee con la fecha en que se respondió, no con la de hoy (BEC-03).**
+`respuestas_legibles` pasa `fecha_de_referencia(formulario)` —`capturado_en`, o `creado`
+si no hay captura, en hora local— al motor de condiciones. Es la otra mitad de la
+decisión D3 del Cambio 58: la foto de la definición existe para que un caso viejo no se
+reinterprete con el diseño de después; la fecha de referencia, para que no se
+reinterprete con el calendario de después. **El paso 2 del link público no se toca**:
+ahí la persona está respondiendo ahora, y «hoy» es la fecha correcta.
+
+**Una condición que no se puede cumplir en un canal se rechaza al editar y se anula al
+servir (BEC-04).** Son dos cosas distintas y hacían falta las dos: validar al editar no
+arregla los diseños que ya están guardados. Al editar, `_asegurar_coherencia` valida una
+vez por canal servido y nombra el ítem y la fuente. Al servir, `serializar` devuelve la
+condición en `None` —el mismo criterio que `items_vigentes` ya aplicaba cuando la fuente
+desaparecía del diseño—: **sin condición evaluable, el ítem se pide**. Pedir de más es
+recuperable; no pedir nunca un requisito obligatorio, no.
+
+**El cupo del subsegmento es una referencia, no un tope** (`DECISIÓN CLIENTE`: default de
+**D-B05**, BEC-05). No se agrega ninguna validación: lo que se arregla es que la pantalla
+dejara creer lo contrario. «Cupo máximo» pasa a **«Cupo asignado»** con la aclaración de
+que el número que decide aprobar o mandar a espera es el del segmento. Si alguna vez pasa
+a ser tope duro, el cambio **no** es una validación en el alta: hay que contar los
+APROBADO del subsegmento y devolver `min(disponible_segmento, disponible_subsegmento)`
+bajo el **mismo** lock del segmento, o dos aprobaciones en paralelo se lo saltean igual.
+
+**«En lista de espera» cuenta como revisado** (`DECISIÓN CLIENTE`: default de **D-B10**,
+BEC-10), con mensaje diferenciado. Un caso en espera ya se revisó: entró, se le miró el
+cupo y no había. Lo que falta es una baja o una ampliación, que no dependen del revisor.
+
+**El alcance de una convocatoria se congela cuando ya tiene relevamientos (BEC-06).**
+`ConvocatoriaForm` deshabilita `segmento` y `subsegmento`; un campo `disabled` de Django
+además **ignora el POST**, así que la regla no depende del navegador. El modelo lo valida
+también, comparando contra el alcance con el que la fila salió de la base (`from_db`),
+sin releerla: el `exists()` de relevamientos solo se paga cuando el alcance cambió de
+verdad. Mover una convocatoria sigue siendo posible como operación de datos —hay que
+migrar también `ListaEspera.segmento`—, no como edición de formulario.
+
+**Un error de consulta a SIIS no impide documentar la decisión local (BEC-09).** Es la
+misma línea del Cambio 34. `formulario_rechazar` captura el `ValueError`, rechaza igual y
+deja el motivo en la traza. La guarda contra el rechazo concurrente sigue intacta.
+
+**Los candados van después de leer, no antes (BEC-15, BEC-16, BEC-17).** La carga de
+padrón bloquea la fila del dueño antes de borrar y reinsertar; el constructor bloquea el
+diseño en `_mutar` y en `reconciliar`, y los ocho POST de mutación dejan de reconciliar
+—reconciliar **escribe**, y hacerlo en cada request metía una segunda escritura del
+diseño dentro de cada guardado—; `cambiar_pausa` sale sin escribir si el objeto ya está
+en ese estado, **después** del `select_for_update` (la comparación que hacía la vista es
+un check-then-act y con doble clic la pasan los dos POST).
+
+**El cupo ocupado se cuenta, no se lee de una columna (BEC-07).** `CupoSegmento.cupo_ocupado`
+es una columna que nadie mantiene —el cupo se cuenta en vivo desde #72 justamente por
+eso— y quedaba en 0. El ciclo `programas.models ↔ programas.services.cupo` que abre el
+import local queda registrado en `test_arquitectura.CICLOS_CONOCIDOS` con su motivo: la
+alternativa era copiar el COUNT dentro del modelo, que es la duplicación que esta misma
+ficha vino a arreglar.
+
+**Una convocatoria no puede terminar antes de empezar (BEC-20).** Nacía vencida y
+`procesar_vencimientos` la cerraba en la corrida siguiente, sin que nadie entendiera por
+qué desapareció.
+
+**La edición de contacto/apoderado es una sola transacción (BEC-24).** Un fallo en el
+medio dejaba las columnas guardadas, las respuestas a medio sincronizar y **sin traza**:
+datos nuevos con un historial que decía que no había pasado nada.
+
+**«Hoy» es el día local en los doce lugares, no en los ocho de la ficha (BEC-18).** El
+barrido encontró cuatro más. Lo peor no estaba en la ficha: la clave de caché de
+`contar_seguimientos_hoy` llevaba la fecha **de UTC**, así que a las 21:00 ART empezaba
+una clave nueva y vacía y el contador se reiniciaba a mitad del día de trabajo. **No se
+tocó ninguna consulta**: nada de `__date` ni `Trunc*` sobre un `DateTimeField`, que en
+ECOM —MariaDB sin tablas de zona horaria— devuelve NULL.
+
+## Archivos tocados
+- `core/edad.py` — **nuevo**: la única `edad_en_anios` / `es_menor` / `MAYORIA_DE_EDAD`.
+- `programas/services/becas.py`, `condiciones.py`, `siis_envio.py`,
+  `programas/management/commands/corregir_datos_siis.py`, `programas/api/serializers.py`,
+  `programas/forms.py`, `legajos/selectors/ciudadanos.py`, `legajos/models/base.py` —
+  las seis copias de la edad, borradas.
+- `pyproject.toml` — `DTZ011`; `core/logging_config.py` y
+  `scripts/check_excepciones_seguridad.py` — los dos `# noqa` motivados.
+- `programas/services/respuestas.py` — `fecha_de_referencia` (BEC-03).
+- `programas/services/condiciones.py` — `fuentes_fuera_del_canal`; `programas/views/diseno.py`
+  — `CANALES_SERVIDOS` y la validación por canal; `programas/services/diseno.py` —
+  `_condicion_en_canal`, `bloquear`, `reconciliar` atómico y `obtener_o_crear_diseno`
+  con `reconciliar_con_catalogo` (BEC-04, BEC-16).
+- `programas/management/commands/verificar_json_guardado.py` — chequeo nuevo
+  `condicion_con_fuente_fuera_del_canal` (el barrido previo al deploy de BEC-04).
+- `programas/models/__init__.py` — `Segmento.clean` (BEC-07), `Convocatoria.clean` +
+  `from_db` (BEC-06, BEC-20), docstring de `Subsegmento` (BEC-05).
+- `programas/forms.py` — `ConvocatoriaForm` (BEC-06, BEC-20).
+- `programas/views/revision.py` — rechazo sin SIIS (BEC-09), terminar con espera
+  (BEC-10), edición atómica (BEC-24).
+- `programas/services/padron.py` (BEC-15), `programas/services/pausas.py` (BEC-17),
+  `programas/services/cupo.py` (docstring de BEC-05).
+- BEC-18: `dashboard/api_views/__init__.py`, `dashboard/utils.py`, `dashboard/views/home.py`,
+  `legajos/services/alertas.py`, `legajos/services/programas.py`,
+  `legajos/views/dashboard_simple.py`, `programas/services/solapas.py`,
+  `programas/views/merenderos.py`.
+- Templates: `becas/config/subsegmento_detail.html` y `becas/config/segmento_detail.html`
+  (BEC-05); fichas de diseño `.claude/design/dominio/becas.md` y
+  `.claude/design/componentes/field.md`.
+- `scripts/perf_budgets.json` — `edicion_convocatoria` 13→14 con justificación.
+- Tests: `programas/tests/test_becas_reglas_negocio.py` y
+  `legajos/tests/test_fechas_locales_bec18.py` (nuevos),
+  `programas/tests/test_becas_reglas.py` (sin `expectedFailure`, con el ratchet `ast`),
+  más ajustes en `test_becas_models.py`, `test_becas_config.py` y `test_arquitectura.py`.
+
+## Base de datos
+No requiere. Ninguna migración: no cambia ningún campo ni índice.
+
+## Validación
+- `manage.py check` y `manage.py check --deploy`.
+- `manage.py makemigrations --check --dry-run` → «No changes detected».
+- Suite completa en un solo proceso con Python 3.12 + Django 5.2.17: **3883 tests, OK**
+  (39 skipped, 7 expected failures — uno menos que antes: el de RED-50 ya no lo es).
+- `manage.py test --tag performance` → OK (con `edicion_convocatoria` en 14).
+- `ruff check .` y `ruff format --check` sobre lo tocado.
+- `design_audit.py --changed` 0 errores y `--ratchet` 0 hallazgos nuevos,
+  `compile_templates.py --bloques` 0 y 0 bloques sin destino,
+  `check_design_agent.py --changed` OK.
+- Los tests nuevos corridos contra `HEAD` en un worktree aparte: 20 de 37 en rojo, más
+  los 10 de BEC-18 y los 2 de BEC-03/BEC-04. Los que pasan en los dos lados son los
+  casos guarda (el camino que **no** tiene que cambiar).
+
+## Puesta en marcha en el servidor
+Nada más que el deploy. Conviene correr **antes**, contra un dump restaurado,
+`manage.py verificar_json_guardado --json` y mirar el conteo de
+`condicion_con_fuente_fuera_del_canal`: es la lista exacta de diseños a los que les va a
+cambiar el comportamiento en el link o en la app (el ítem pasa a pedirse).
+
+## Pendientes / a definir
+- **D-B05** y **D-B10** se aplicaron por su default. Si el PM decide otra cosa, los dos
+  tests que las fijan se dan vuelta y recién ahí hay trabajo.
+- **BEC-15, lo que no se hizo:** la columna real `alcance` con
+  `UniqueConstraint(convocatoria, alcance, dni)` que proponía A8-S6. Es una migración
+  sobre la tabla del padrón para cubrir un caso que el candado ya cierra.
+- **G2-01** (Excel de respuestas y dashboard) tiene el mismo patrón de fecha de
+  referencia que BEC-03; se arregla en el PR 8 de la ola.
+
+## Reversión
+Revertir el commit. Vuelven las seis copias de la edad y las trece reglas como estaban.
+No se pierde ningún dato: no hay migraciones ni cambios de modelo. Lo único que queda
+«a favor» después de revertir son los diseños que alguien haya corregido mientras tanto
+en el constructor, que siguen siendo válidos.
 
 ## Historial
 No aplica (entrada nueva).
