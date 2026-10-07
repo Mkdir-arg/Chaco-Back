@@ -46,7 +46,9 @@ Se hereda; no se recrean el sidebar ni sus offsets.
   `<form method="post">` que no sea `data-ajax` queda cancelado, sus botones de envío pasan a
   `disabled` en el turno siguiente —deshabilitarlos durante el evento les borraría el `name`/`value`
   del POST— y el form queda `aria-busy="true"` hasta que se recargue o se vuelva con «atrás».
-  Ninguna pantalla repite esa guardia. El shell publica además `window.alertasConfig`
+  Si el envío terminó **cancelado** —incluso por un listener delegado en `document` que la pantalla
+  registre en `customJS`, que corre *después* de la guardia— la marca se suelta y no se deshabilita
+  nada. Ninguna pantalla repite esa guardia. El shell publica además `window.alertasConfig`
   (`ciudadanoDetalleUrlTemplate`), que es de donde sale el destino de «Ver» en la alerta crítica:
   el JS no escribe rutas literales.
 - El backdrop del sidebar móvil es `bg-black/50`; el botón de menú y su separador se esconden en
