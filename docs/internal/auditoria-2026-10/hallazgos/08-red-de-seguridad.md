@@ -1124,7 +1124,7 @@ que un cambio funcional.**
     IndependenciaTests.test_legajos_no_importa_conversaciones` (AST: ningún `import conversaciones` a nivel de módulo en
     `legajos/**`). G1-01 fase 2 queda en 2 h + estas 8 h.
 
-**Resolución:** ✅ (parte R) Resuelto en #PENDIENTE (Cambio 159, PR R-21), 07-oct-2026 — **el refactor sigue siendo de
+**Resolución:** ✅ (parte R) Resuelto en #607 (Cambio 159, PR R-21), 07-oct-2026 — **el refactor sigue siendo de
 la Ola 7.** `core/tests/test_shell_backoffice.py` deja los **dos** criterios de «hecho» de G1-01 fase 2 escritos y
 rojos, con `expectedFailure`: (1) `ShellSinConversacionesTests.test_inicio_renderiza_sin_urls_de_conversaciones`, con
 `ROOT_URLCONF` apuntando a `core/tests/urls_sin_conversaciones.py`; (2)
@@ -1156,7 +1156,7 @@ que la ficha describe como «peor que un 500».
   las líneas 12-17 de `wsgi.py` junto con `gevent`/`greenlet` (OPS-13), y sumar al test
   `assertFalse(Path("config/gevent_patch.py").exists())`.
 
-**Resolución:** ✅ (parte R) Resuelto en #PENDIENTE (Cambio 159, PR R-21), 07-oct-2026 — **el borrado del parche sigue
+**Resolución:** ✅ (parte R) Resuelto en #607 (Cambio 159, PR R-21), 07-oct-2026 — **el borrado del parche sigue
 siendo OPS-13 (Ola 7), D-RED-08.** Dos mitades. (1) `config/tests/test_wsgi_runtime.py::GeventTests.
 test_nadie_piso_validate_thread_sharing` afirma que `BaseDatabaseWrapper.validate_thread_sharing` sigue siendo el de
 Django; pasa hoy y se pone rojo el día que el parche se aplique, por la variable de entorno o por un import suelto. Lo
@@ -1186,7 +1186,7 @@ de saltearse cuando OPS-13 borre el archivo.
   `Formulario._dni_titular_actual` con y sin ciudadano). El corte en sí (L) queda como deuda opcional: con estos tests es
   seguro hacerlo cuando se decida, nunca en un PR con cambios funcionales.
 
-**Resolución:** ✅ Resuelto en #PENDIENTE (Cambio 159, PR R-21), 07-oct-2026 — `programas/tests/test_models_contrato.py`,
+**Resolución:** ✅ Resuelto en #607 (Cambio 159, PR R-21), 07-oct-2026 — `programas/tests/test_models_contrato.py`,
 19 tests. `ExportsTests` fija los **65** nombres públicos de `dir(programas.models)` (la ficha estimaba «~60») y falla
 en **las dos direcciones**: uno que desaparezca es el re-export que el `__init__.py` de compatibilidad se olvidó —error
 de runtime, no de import—, y uno nuevo es el recordatorio de que el contrato se escribe a mano. `AppLabelTests` fija el
@@ -1309,7 +1309,7 @@ aritmética con `hoy` explícito y el `None` sin fecha, que el arreglo tiene que
   claves como constantes y el mapa `{modelo: [claves]}`; receiver de `stats_legajos` con `sender=InscripcionPrograma`;
   `test_no_quedan_dos_funciones_llamadas_invalidate_dashboard_cache`.
 
-**Resolución:** ✅ (parte R) Resuelto en #PENDIENTE (Cambio 159, PR R-21), 07-oct-2026 — **el arreglo sigue siendo de la
+**Resolución:** ✅ (parte R) Resuelto en #607 (Cambio 159, PR R-21), 07-oct-2026 — **el arreglo sigue siendo de la
 Ola 4.** `dashboard/tests/test_cache_invalidacion.py`, 11 tests, con los **dos** bugs en `expectedFailure`:
 `test_inscripcion_nueva_invalida_stats_legajos` (la clave la escribe `contar_legajos()` sobre `InscripcionPrograma` y el
 único receiver que la borra está colgado de `LegajoAtencion`) y `test_alerta_nueva_invalida_alertas_activas` (nadie
@@ -1340,7 +1340,7 @@ que la función de `dashboard/utils.py` se ejecuta en producción y borrarla no 
   `ProfileEnCacheTests.test_user_save_no_pisa_la_clave_de_sesion_de_otro_login` (hoy falla: `expectedFailure`). **Ola 2:**
   reemplazar `save_user_profile` por guardados explícitos o acotarlo con `update_fields`.
 
-**Resolución:** ✅ (parte R) Resuelto en #PENDIENTE (Cambio 159, PR R-21), 07-oct-2026 — **el arreglo sigue siendo de la
+**Resolución:** ✅ (parte R) Resuelto en #607 (Cambio 159, PR R-21), 07-oct-2026 — **el arreglo sigue siendo de la
 Ola 2 (PR 2).** `users/tests/test_middleware_profile.py`, 11 tests. `OrdenMiddlewareTests` fija el orden del que
 depende todo —`BackofficeSingleSessionMiddleware` antes que `CambioContrasenaObligatorioMiddleware`, y los dos después
 de `AuthenticationMiddleware`, porque antes de ese `request.user` no existe y la sesión única dejaría de aplicarse en
@@ -1523,7 +1523,7 @@ que para Python no es whitespace—, verificado contra `mariadb:10.11` (sin tzin
   `dashboard/views/home.py`, `dashboard/templates/dashboard.html` y su `path` (las 5 APIs de `dashboard/api_views` se
   conservan) y llevar los contadores a `dashboard/selectors.py::metricas_home()`.
 
-**Resolución:** ✅ (parte R) Resuelto en #PENDIENTE (Cambio 159, PR R-21), 07-oct-2026 — **el borrado de `DashboardView`
+**Resolución:** ✅ (parte R) Resuelto en #607 (Cambio 159, PR R-21), 07-oct-2026 — **el borrado de `DashboardView`
 sigue siendo de la Ola 7 (con OPS-14).** `core/tests/test_dashboard_redirect.py::RuteoRaizTests`, 3 tests:
 `test_la_raiz_es_el_login` (`resolve('/').view_name == 'users:login'`), `test_dashboard_inicio_sigue_apuntando_a_la_raiz`
 (`reverse('dashboard:inicio') == '/'`, o sea la vista está **tapada**, no montada en otra ruta) y
@@ -1554,7 +1554,7 @@ pone rojo y la ficha baja de riesgo. **Mutación de control:** mover `path("", i
   unificar los guards en `assert_alcance_relevamiento`/`assert_alcance_formulario` y renombrar
   `configuracion.py:_assert_scope` a `_assert_scope_segmento`; sacar las aristas resueltas de la lista.
 
-**Resolución:** ✅ (parte R) Resuelto en #PENDIENTE (Cambio 159, PR R-21), 07-oct-2026 — **los movimientos siguen siendo
+**Resolución:** ✅ (parte R) Resuelto en #607 (Cambio 159, PR R-21), 07-oct-2026 — **los movimientos siguen siendo
 de la Ola 2 (PR 5, con SEC-21).** `programas/tests/test_arquitectura.py`, 11 tests, con un detector AST propio del grafo
 de imports de las diez apps (sin migraciones ni tests), que además distingue el import **a nivel de módulo** del
 **diferido**. `CapasTests.test_no_crecen_las_dependencias_entre_vistas` fija las 9 aristas vista→vista con
@@ -1623,7 +1623,7 @@ es **OPS-07** (Ola 3).
   `core/tests/test_higiene_fuentes.py::EOLTests.test_ningun_py_con_cr_solitario` (recorre `git ls-files "*.py"` y afirma
   `b.count(b"\r") == b.count(b"\r\n")` por archivo).
 
-**Resolución:** ✅ Resuelto en #PENDIENTE (Cambio 159, PR R-21), 07-oct-2026 — **prerrequisito de SEC-20, cerrado antes
+**Resolución:** ✅ Resuelto en #607 (Cambio 159, PR R-21), 07-oct-2026 — **prerrequisito de SEC-20, cerrado antes
 de su revisión.** `programas/services/exportacion_reportes.py` pasa de 122 CR y cero LF a 122 líneas LF, **sin un solo
 cambio de contenido**: verificado normalizando el blob de `HEAD` (`git show HEAD:<archivo> | tr` de CR a LF), que da
 idéntico al archivo nuevo. `git ls-files --eol` lo marcaba `i/-text` y ahora `i/lf`, así que el diff del PR de SEC-20
