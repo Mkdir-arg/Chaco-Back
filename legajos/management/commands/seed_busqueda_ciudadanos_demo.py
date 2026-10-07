@@ -1,5 +1,6 @@
 from django.core.management.base import BaseCommand
 
+from core.management.guardas import exigir_entorno_demo
 from legajos.models import Ciudadano
 
 PERSONAS = [
@@ -35,6 +36,7 @@ class Command(BaseCommand):
     help = "Crea ciudadanos locales para probar el límite del desplegable de búsqueda."
 
     def handle(self, *args, **options):
+        exigir_entorno_demo("seed_busqueda_ciudadanos_demo")
         for numero, (nombre, apellido) in enumerate(PERSONAS, start=1):
             Ciudadano.objects.update_or_create(
                 dni=f"31530{numero:03d}",
