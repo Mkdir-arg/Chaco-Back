@@ -9,12 +9,12 @@ from django.views.decorators.http import require_GET
 from dashboard.utils import (
     contar_alertas_activas,
     contar_ciudadanos,
-    contar_legajos,
+    contar_legajos_atencion,
     contar_seguimientos_hoy,
     contar_usuarios,
 )
 
-from ..rbac import puede
+from ..rbac import GRUPO_CIUDADANO_PORTAL, puede
 from ..selectors import get_localidades_values, get_municipios_values
 
 
@@ -61,14 +61,24 @@ def inicio_view(request):
     ahora = timezone.now()
     hace_24h = ahora - timedelta(hours=24)
     inicio_mes = ahora.date().replace(day=1)
-    legajo_stats = contar_legajos()
+    # G2-04: la tarjeta dice «Legajos activos», así que cuenta `LegajoAtencion`.
+    # `contar_legajos()` agrega `InscripcionPrograma` pese al nombre, y era lo que
+    # hacía que el inicio y `/legajos/reportes/` se contradijeran en la misma sesión.
+    legajo_stats = contar_legajos_atencion()
     seguimientos_hoy = contar_seguimientos_hoy()
 
     context = {
+        # El título del encabezado canónico se arma acá: `{% page_header %}` toma
+        # `titulo` como argumento con nombre y lo escapa (FE-22, el hero salió).
+        "titulo_inicio": f"Hola, {request.user.get_short_name() or request.user.get_username()}",
         "total_ciudadanos": contar_ciudadanos(),
-        "usuarios_activos": cache.get_or_set(
-            "home:usuarios_activos_24h",
-            lambda: User.objects.filter(last_login__gte=hace_24h).count(),
+        # G2-04: es el último ingreso de las últimas 24 h, no «usuarios activos».
+        # Los ciudadanos del portal quedan afuera: el grupo `Ciudadanos` es un
+        # marcador de identidad del portal, no un rol del backoffice, y contarlos
+        # infla un número que la home presenta como operación interna.
+        "ingresos_24h": cache.get_or_set(
+            "home:ingresos_backoffice_24h",
+            lambda: User.objects.filter(last_login__gte=hace_24h).exclude(groups__name=GRUPO_CIUDADANO_PORTAL).count(),
             300,
         ),
         "registros_mes": cache.get_or_set(
@@ -76,7 +86,6 @@ def inicio_view(request):
             lambda: InscripcionPrograma.objects.filter(fecha_inscripcion__gte=inicio_mes).count(),
             300,
         ),
-        "actividad_hoy": seguimientos_hoy,
         "total_usuarios": contar_usuarios(),
         "total_legajos": legajo_stats["total"],
         "legajos_activos": legajo_stats["activos"],

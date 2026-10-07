@@ -31,21 +31,9 @@
                     </div>
                 </div>
 
-                <!-- Métricas -->
-                <div class="grid grid-cols-3 gap-4 mt-4 pt-4 border-t border-[var(--border-base)]">
-                    <div class="text-center">
-                        <p class="text-2xl font-bold text-[var(--text-heading)]">{{ programa.total_instituciones }}</p>
-                        <p class="text-xs text-[var(--text-body-subtle)]">Instituciones</p>
-                    </div>
-                    <div class="text-center">
-                        <p class="text-2xl font-bold text-[var(--text-fg-warning-subtle)]">{{ programa.total_derivaciones_pendientes }}</p>
-                        <p class="text-xs text-[var(--text-body-subtle)]">Pendientes</p>
-                    </div>
-                    <div class="text-center">
-                        <p class="text-2xl font-bold text-[var(--text-fg-success)]">{{ programa.total_casos_activos }}</p>
-                        <p class="text-xs text-[var(--text-body-subtle)]">Casos Activos</p>
-                    </div>
-                </div>
+                {% comment %}FE-16: acá iban «Instituciones», «Pendientes» y «Casos Activos», que
+                leían anotaciones que `ProgramaListView.get_queryset` dejó de calcular al retirarse
+                `models_institucional`: las tres salían en blanco debajo de su rótulo.{% endcomment %}
 
                 <!-- Botón -->
                 <div class="mt-4">
