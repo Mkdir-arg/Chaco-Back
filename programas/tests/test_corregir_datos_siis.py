@@ -334,6 +334,153 @@ class NoTocaLosYaInformadosTests(_BaseCorreccionTest):
         self.assertIn("No hay casos pendientes", salida)
 
 
+class CorreccionManualEnElMedioTests(_BaseCorreccionTest):
+    """G3-06: el comando leía el lote, calculaba, y escribía el JSON **entero**.
+
+    Entre esas dos cosas pasan segundos: lo que el coordinador guarde desde la
+    ficha en esa ventana —o lo que escriba el masivo— se perdía sin dejar rastro.
+    Desde #513 no es una ventana manual: el paso 5 de `correr_alta_siis` corre
+    `corregir_datos_siis --aplicar` en cada corrida.
+
+    El patch de `_corregir_localidad` es la forma de ponerse **dentro** de esa
+    ventana: corre después de la lectura del lote y antes del `bulk_update`.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.responder("prov_actual", "Chaco", texto="Provincia")
+        self.responder("loc_actual", "Machagay del sur", texto="Localidad")
+        crear_tabla_localidades((self.ciudadano.dni, "Machagai"))
+
+    def guardar_desde_la_ficha(self, datos):
+        """Simula el POST del modal «Completar datos para SIIS» en el medio."""
+        from programas.management.commands.corregir_datos_siis import Command
+        from programas.models import Formulario
+
+        original = Command._corregir_localidad
+
+        def en_el_medio(comando, caso, *args, **kwargs):
+            resultado = original(comando, caso, *args, **kwargs)
+            Formulario.objects.filter(pk=self.formulario.pk).update(
+                datos_siis={**(Formulario.objects.get(pk=self.formulario.pk).datos_siis or {}), **datos}
+            )
+            return resultado
+
+        return patch.object(Command, "_corregir_localidad", en_el_medio)
+
+    def test_la_correccion_manual_de_otro_campo_sobrevive(self):
+        with self.guardar_desde_la_ficha({"barrio_actual": "Barrio Sur"}):
+            self.correr("--aplicar")
+
+        correcciones = self.correcciones()
+        self.assertEqual(correcciones["barrio_actual"], "Barrio Sur")
+        self.assertEqual(correcciones["loc_actual"], 44)
+
+    def test_la_correccion_manual_del_mismo_campo_gana(self):
+        """Quien miró el caso sabe más que la planilla, y además lo hizo después."""
+        with self.guardar_desde_la_ficha({"loc_actual": 1}):
+            salida = self.correr("--aplicar")
+
+        self.assertEqual(self.correcciones()["loc_actual"], 1)
+        self.assertIn("corrección más nueva", salida)
+
+    def reservar_al_tomar_el_candado(self):
+        """Crea el ``EnvioSIIS`` en el instante en que el comando pide el candado.
+
+        Es la ventana exacta que abría leer los envíos vigentes **antes** del
+        ``select_for_update``: ``siis_envio._reservar`` bloquea la fila del
+        ``Formulario`` y recién después crea el ``EnvioSIIS``, así que una reserva
+        que arranca ahí no estaba en la lectura previa.
+
+        En SQLite el candado es un no-op, así que lo que este test fija no es el
+        bloqueo —eso lo da el motor— sino el **orden de las dos consultas**, que
+        es lo único que el código puede garantizar y lo que cierra la ventana en
+        MariaDB. Se proxea el manager de ``Formulario`` y no el método del
+        `Manager` base para no tocar el de todos los modelos.
+        """
+        from programas.models import EnvioSIIS, Formulario
+
+        prueba = self
+
+        class ManagerQueReserva:
+            disparado = False
+
+            def __init__(self, real):
+                self._real = real
+
+            def __getattr__(self, nombre):
+                return getattr(self._real, nombre)
+
+            def select_for_update(self, *args, **kwargs):
+                if not ManagerQueReserva.disparado:
+                    ManagerQueReserva.disparado = True
+                    EnvioSIIS.objects.create(
+                        formulario=prueba.formulario,
+                        estado=EnvioSIIS.Estado.EN_PROCESO,
+                        documento=prueba.ciudadano.dni,
+                    )
+                return self._real.select_for_update(*args, **kwargs)
+
+        return patch.object(Formulario, "objects", ManagerQueReserva(Formulario.objects))
+
+    def test_una_reserva_que_entra_con_el_candado_tambien_frena_la_escritura(self):
+        """Los envíos vigentes se leen **después** de tomar el candado.
+
+        Al revés, el comando le reescribe el `datos_siis` a un caso cuyo payload
+        ya salió para SIIS, y SIIS no tiene baja.
+        """
+        with self.reservar_al_tomar_el_candado():
+            salida = self.correr("--aplicar")
+
+        self.assertEqual(self.correcciones(), {})
+        self.assertEqual(self.formulario.trazas.count(), 0)
+        self.assertIn("envío a SIIS vigente", salida)
+
+    def test_un_caso_tomado_por_un_envio_en_vuelo_no_se_toca(self):
+        """Mientras hay un alta en vuelo, el payload ya se armó: cambiarle los
+        datos ahora solo logra que la base y SIIS digan cosas distintas."""
+        from programas.models import EnvioSIIS
+
+        EnvioSIIS.objects.create(
+            formulario=self.formulario, estado=EnvioSIIS.Estado.EN_PROCESO, documento=self.ciudadano.dni
+        )
+
+        salida = self.correr("--aplicar")
+
+        self.assertEqual(self.correcciones(), {})
+        self.assertIn("envío a SIIS vigente", salida)
+
+    def test_deja_una_traza_por_caso_con_el_usuario_que_lo_corrio(self):
+        from django.contrib.auth.models import User
+
+        usuario = User.objects.create_user("operador_siis", password="x")
+
+        self.correr("--aplicar", "--usuario", "operador_siis")
+
+        trazas = list(self.formulario.trazas.all())
+        self.assertEqual(len(trazas), 1)
+        self.assertEqual(trazas[0].editado_por, usuario)
+        self.assertIn("corregir_datos_siis", trazas[0].campo)
+        self.assertIn("loc_actual", trazas[0].valor_nuevo)
+
+    def test_sin_usuario_la_traza_queda_sin_autor_pero_queda(self):
+        self.correr("--aplicar")
+
+        self.assertEqual(self.formulario.trazas.count(), 1)
+        self.assertIsNone(self.formulario.trazas.first().editado_por)
+
+    def test_el_ensayo_no_deja_traza(self):
+        self.correr()
+
+        self.assertEqual(self.formulario.trazas.count(), 0)
+
+    def test_un_usuario_inexistente_corta_antes_de_escribir(self):
+        with self.assertRaisesMessage(CommandError, "No existe el usuario «fulano»"):
+            self.correr("--aplicar", "--usuario", "fulano")
+
+        self.assertEqual(self.correcciones(), {})
+
+
 class AliasDeLocalidadTests(_BaseCorreccionTest):
     def test_la_equivalencia_cargada_resuelve_el_texto(self):
         AliasLocalidadSiis.objects.create(

@@ -1,24 +1,38 @@
-"""Base común de los comandos que hablan con SIIS caso por caso (RED-53).
+"""Base común de los comandos de gestión de SIIS (RED-53).
 
-Los cuatro —``validar_casos_siis``, ``enviar_casos_siis``, ``procesar_casos_siis``
-y ``reenviar_siis_pendientes``— hacían lo mismo copiado: los mismos flags, el
-mismo `_solicitante`, el mismo troceado en lotes, el mismo freno por errores
-seguidos y el mismo resumen. El riesgo no es la duplicación en sí: es que una
-guarda nueva se agregue en dos de ellos y el tercero quede como una puerta
-abierta, que es exactamente cómo apareció la séptima vía de alta de SIIS-01. El
-candado de corrida viva de SIIS-03 —que era el ejemplo— ya vive acá:
+Los cuatro que hablan con SIIS caso por caso —``validar_casos_siis``,
+``enviar_casos_siis``, ``procesar_casos_siis`` y ``reenviar_siis_pendientes``—
+hacían lo mismo copiado: los mismos flags, el mismo `_solicitante`, el mismo
+troceado en lotes, el mismo freno por errores seguidos y el mismo resumen. El
+riesgo no es la duplicación en sí: es que una guarda nueva se agregue en dos de
+ellos y el tercero quede como una puerta abierta, que es exactamente cómo
+apareció la séptima vía de alta de SIIS-01. El candado de corrida viva de
+SIIS-03 —que era el ejemplo— vive acá:
 :meth:`ComandoSiisBase.exigir_sin_corrida_viva`.
 
-``correr_alta_siis`` no hereda: no habla con SIIS, encadena a estos.
+Desde SIIS-19 y G3-06 heredan también dos comandos que **no** llaman a SIIS caso
+por caso pero sí son herramientas de la misma integración: ``diagnosticar_siis``
+—que en su paso 6 escribe un beneficiario de prueba en un servicio que no tiene
+baja— y ``corregir_datos_siis``. Ninguno de los dos usa los flags del lote, así
+que no llaman a :meth:`agregar_flags_comunes`: toman las piezas sueltas
+(:meth:`agregar_flag_usuario`, :meth:`agregar_flags_de_escritura_de_prueba`). Lo
+que importa del parentesco es lo otro: **una guarda nueva se agrega en esta
+clase**, y así nadie se entera tarde de que en un comando no existía.
+
+``correr_alta_siis`` sigue sin heredar: no habla con SIIS, encadena a estos.
 """
 
+import logging
 import time
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand, CommandError
 
+from core.checks import DOMINIO_SIIS_DESARROLLO, es_host_de_desarrollo
 from programas.services import proceso_masivo
+
+logger = logging.getLogger(__name__)
 
 # Lo que comparten los cuatro. Si un flag nuevo tiene sentido para más de uno,
 # va acá: así nadie se entera tarde de que en un comando no existe.
@@ -43,6 +57,25 @@ AYUDA_MOTIVO = (
 FALTA_MOTIVO = (
     "--ignorar-corrida necesita --motivo: es la única guarda del circuito que se puede saltear a mano, "
     "así que tiene que quedar escrito quién lo hizo y por qué."
+)
+
+# ── Escrituras de prueba contra SIIS (SIIS-19) ──────────────────────────────
+AYUDA_SI_ENTIENDO_PRD = (
+    "Permite la escritura de prueba contra un SIIS que no es el de desarrollo de ECOM. "
+    "El servicio no expone baja: lo que se da de alta queda del otro lado para siempre. Exige --motivo."
+)
+SIN_URL_PARA_DECIDIR = (
+    "SIIS_API_URL está vacía: no se puede saber a qué ambiente iría el alta de prueba, así que no se manda. "
+    "Definila (ver .env.local.example) y volvé a correr."
+)
+FALTA_BANDERA_PRD = (
+    "{que_escribe} escribe en SIIS y SIIS no tiene baja. SIIS_API_URL apunta a {url}, que no es el "
+    "ambiente de desarrollo de ECOM ({dominio}): lo que se dé de alta queda ahí para siempre, mezclado "
+    "con beneficiarios reales. Si de verdad corresponde, agregá --si-entiendo-prd --motivo «...»."
+)
+FALTA_MOTIVO_PRD = (
+    "--si-entiendo-prd necesita --motivo: es la guarda que separa una prueba de un alta irreversible en "
+    "el ambiente equivocado, así que tiene que quedar escrito quién lo hizo y por qué."
 )
 
 
@@ -76,11 +109,67 @@ class ComandoSiisBase(BaseCommand):
             default=MAX_INCIERTOS_POR_DEFECTO,
             help=AYUDA_MAX_INCIERTOS.format(MAX_INCIERTOS_POR_DEFECTO),
         )
-        parser.add_argument("--usuario", default=None, help=AYUDA_USUARIO)
+        self.agregar_flag_usuario(parser)
         parser.add_argument("--ignorar-corrida", action="store_true", help=AYUDA_IGNORAR_CORRIDA)
+        self.agregar_flag_motivo(parser)
+
+    # Las dos piezas sueltas, para los comandos que quieren una sin el resto
+    # (``corregir_datos_siis`` el usuario, ``diagnosticar_siis`` el motivo).
+    @staticmethod
+    def agregar_flag_usuario(parser):
+        parser.add_argument("--usuario", default=None, help=AYUDA_USUARIO)
+
+    @staticmethod
+    def agregar_flag_motivo(parser):
         parser.add_argument("--motivo", default="", help=AYUDA_MOTIVO)
 
+    def agregar_flags_de_escritura_de_prueba(self, parser):
+        """Los dos flags de una escritura **de prueba** contra SIIS (SIIS-19)."""
+        parser.add_argument("--si-entiendo-prd", action="store_true", help=AYUDA_SI_ENTIENDO_PRD)
+        self.agregar_flag_motivo(parser)
+
     # ── Guardas ─────────────────────────────────────────────────────────────
+
+    def exigir_ambiente_de_pruebas(self, options, que_escribe):
+        """Corta si una escritura **de prueba** iría a un SIIS que no es el de desarrollo (SIIS-19).
+
+        Va acá y no en el comando porque es el mismo razonamiento del candado de
+        corrida viva: el día que haya una segunda herramienta que escriba datos
+        inventados en SIIS, la guarda tiene que existir ya.
+
+        El disparador es la **URL**, no ``settings.ENVIRONMENT`` (que vale
+        ``prd`` también en QA y en icore) ni ``DATANACH_ES_PRODUCCION`` (que solo
+        está puesta en PRD, así que su ausencia no prueba nada): se permite solo
+        contra el host de desarrollo de ECOM, el único donde un beneficiario
+        inventado no molesta a nadie. Falla cerrado: sin URL no se manda.
+
+        ``--si-entiendo-prd`` es la salida y no es gratis: pide ``--motivo`` y
+        deja rastro en el log, igual que ``--ignorar-corrida``.
+        """
+        url = str(getattr(settings, "SIIS_API_URL", "") or "").strip()
+        if not url:
+            raise CommandError(SIN_URL_PARA_DECIDIR)
+        if es_host_de_desarrollo(url):
+            return
+        if not options.get("si_entiendo_prd"):
+            raise CommandError(
+                FALTA_BANDERA_PRD.format(que_escribe=que_escribe, url=url, dominio=DOMINIO_SIIS_DESARROLLO)
+            )
+        motivo = (options.get("motivo") or "").strip()
+        if not motivo:
+            raise CommandError(FALTA_MOTIVO_PRD)
+        self._log(
+            f"--si-entiendo-prd: {que_escribe} va a escribir en {url}, que no es el ambiente de desarrollo. "
+            f"Motivo: {motivo}",
+            self.style.WARNING,
+        )
+        logger.warning(
+            "si-entiendo-prd: %s escribe en %s (usuario: %s, motivo: %s)",
+            que_escribe,
+            url,
+            options.get("usuario") or "sin --usuario",
+            motivo,
+        )
 
     def exigir_sin_corrida_viva(self, options):
         """Corta si la pantalla del proceso masivo está corriendo (SIIS-03).

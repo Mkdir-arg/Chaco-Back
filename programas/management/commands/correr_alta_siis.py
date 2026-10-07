@@ -482,6 +482,9 @@ class Command(BaseCommand):
             options["estado_civil_sin_equivalente"],
             "--limite",
             "999999",
+            # G3-06: la traza por caso que deja el paso 5 tiene que decir quién
+            # corrió el circuito, no quedar sin autor.
+            *(("--usuario", options["usuario"]) if options["usuario"] else ()),
             *(("--aplicar",) if aplicar else ()),
         )
 

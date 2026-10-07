@@ -718,7 +718,8 @@ def formulario_detalle(request, pk):
         envio_siis = envios_sis[0] if envios_sis else None
         envio_siis_activo = next((envio for envio in envios_sis if envio.vigente), None)
         if puede_enviar_siis and envio_siis_activo is None:
-            datos_siis_form = DatosSiisForm(initial=formulario.datos_siis or {})
+            correcciones = formulario.datos_siis or {}
+            datos_siis_form = DatosSiisForm(initial=correcciones, actuales=correcciones)
     detalles_envio_siis = _detalles_envio_siis(envio_siis)
     volver_url, volver_label, migas_origen = _origen_del_caso(request, formulario)
     return render(
@@ -827,7 +828,7 @@ def formulario_datos_siis(request, pk):
     el coordinador revisa el resultado y después reenvía."""
     formulario = get_object_or_404(Formulario, pk=pk)
     _assert_scope_formulario(request, formulario)
-    form = DatosSiisForm(request.POST)
+    form = DatosSiisForm(request.POST, actuales=formulario.datos_siis)
     if not form.is_valid():
         # ALR-8: era un aviso flotante por cada campo con error, encimados. Va uno
         # solo que los enumera; el modal no es AJAX, así que no hay dónde ponerlos
@@ -838,17 +839,32 @@ def formulario_datos_siis(request, pk):
         )
         messages.error(request, f"No se guardaron los datos para SIIS. Revisá: {detalle}")
         return redirect(_url_caso(request, formulario))
-    anteriores = formulario.datos_siis if isinstance(formulario.datos_siis, dict) else {}
     nuevos = form.como_datos_siis()
-    cambios = [
-        (f"Datos SIIS · {form.fields[campo].label}", str(anteriores.get(campo, "")), str(valor))
-        for campo, valor in nuevos.items()
-        if anteriores.get(campo) != valor
-    ]
+    quitar = form.campos_a_quitar()
+    # SIIS-17: el merge va adentro de la transacción y sobre la fila releída bajo
+    # candado. Leyendo `datos_siis` de la instancia del principio del request, de
+    # dos guardados simultáneos el segundo borraba lo del primero sin dejar
+    # rastro. Nada de red acá adentro: los catálogos ya se consultaron al validar.
     with transaction.atomic():
-        formulario.datos_siis = {**anteriores, **nuevos}
-        formulario.save(update_fields=["datos_siis", "modificado"])
-        registrar_traza(formulario, request.user, cambios)
+        caso = Formulario.objects.select_for_update().get(pk=formulario.pk)
+        anteriores = caso.datos_siis if isinstance(caso.datos_siis, dict) else {}
+        cambios = [
+            (f"Datos SIIS · {form.fields[campo].label}", str(anteriores.get(campo, "")), str(valor))
+            for campo, valor in nuevos.items()
+            if anteriores.get(campo) != valor
+        ]
+        cambios += [
+            (f"Datos SIIS · {form.fields[campo].label}", str(anteriores[campo]), "(sin corrección)")
+            for campo in sorted(quitar)
+            if campo in anteriores
+        ]
+        datos = {**anteriores, **nuevos}
+        for campo in quitar:
+            datos.pop(campo, None)
+        caso.datos_siis = datos
+        caso.save(update_fields=["datos_siis", "modificado"])
+        registrar_traza(caso, request.user, cambios)
+    formulario.datos_siis = caso.datos_siis
     if cambios:
         messages.success(request, "Datos para SIIS guardados. Reenviá el caso para informarlo.")
     else:
