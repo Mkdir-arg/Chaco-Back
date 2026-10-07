@@ -328,6 +328,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 154 | «Aprobar» deja de poder pasarse de los 60 s de nginx: un timeout por llamada, cortacircuito y presupuesto verificado | Transversal · clientes de SIIS, Base de Personas y RENAPER · correo saliente · sincronización del catálogo SIIS | `#siis` `#performance` `#infra` `#datos` | Auditoría integral oct-2026 — SIIS-09 (= PERF-09) y los tres MINOR de la revisión del PR 4 (Ola 1 «Integridad SIIS», PR 5) | 06/10/2026 | 🟢 **Hecho** | No requiere |
 | 155 | Controles que el navegador no dibujaba: botones sin caja, backdrop transparente, modales en la esquina y la grilla del mes ilegible en celular | Transversal (shell del backoffice, sidebar, navbar, CSS de botones) · Configuración (10 modales, formularios y wizard) · Legajos · Usuarios y roles · Dispositivos · Merenderos (prestación mensual) | `#ui` `#mobile` | Auditoría integral oct-2026 — fichas FE-06, FE-07, FE-01 y FE-10 (Ola 5, PR 4) | 06/10/2026 | 🟢 **Hecho** | No requiere |
 | 156 | La red de Becas: el adjunto que llega hasta la revisión, los dos borrados sin probar, la atomicidad, el padrón y la edad | Becas (adjuntos del caso, Configuración de requisitos y subsegmentos, cupo, padrón, exportaciones) · Transversal (registro de vencimientos, contrato de escrituras atómicas) | `#datos` `#metodo` `#cupos` `#relevamientos` | Auditoría integral oct-2026 — fichas RED-05, RED-31, RED-35, RED-77, RED-49, RED-50, RED-81 y RED-70 (Ola R, PR R-16) | 07/10/2026 | 🟢 **Hecho** (RED-50 queda caracterizada con `expectedFailure`: el arreglo es de la Ola 3) | No requiere |
+| 158 | Lo que viaja a SIIS deja de depender del catálogo de hoy: la foto del caso manda, gana el dato más específico y una identidad validada frena el envío | Becas · alta de beneficiarios en SIIS (payload, foto de la definición, catálogo de preguntas) · Transversal (copia local de los catálogos de SIIS, runner de tests) | `#siis` `#datos` `#relevamientos` `#metodo` | Auditoría integral oct-2026 — SIIS-08, G1-08, G1-09 y G1-10, más los cuatro MINOR de la revisión del PR 5 (Ola 1 «Integridad SIIS», PR 6) | 07/10/2026 | 🟢 **Hecho** | **Sí:** `programas.0077_catalogo_siis_local` (tabla nueva y vacía) |
 
 **Notas del índice**
 
@@ -21031,3 +21032,186 @@ Que los opcionales no sean fatales es **OPS-07**, de la Ola 3.
   era vacuo —el caso no llevaba `genero`, con lo que nunca llegaba a mirar la identidad y pasaba también con la regla
   vieja—.
 
+---
+
+# Cambio 158 — Lo que viaja a SIIS deja de depender del catálogo de hoy
+
+🟢 **HECHO — 07/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · alta de beneficiarios en SIIS (payload, foto de la definición, catálogo de preguntas) · Transversal (copia local de los catálogos de SIIS, runner de tests) |
+| **Etiquetas** | `#siis` `#datos` `#relevamientos` `#metodo` |
+| **Solicitante** | Auditoría integral oct-2026 — fichas SIIS-08, G1-08, G1-09 y G1-10, más los cuatro MINOR que dejó la revisión del PR 5 (Ola 1 «Integridad SIIS», PR 6) |
+| **Fecha del pedido** | 07/10/2026 |
+| **Issue / épica** | Sin issue (plan de la auditoría: `docs/internal/auditoria-2026-10/`) |
+| **Partes afectadas** | `programas/services/siis_envio.py` (`respuestas_por_destino`, `armar_payload`, `Catalogos`) · `programas/services/becas.py` (`_campo_dict`, `resolver_ciudadano_offline`) · `programas/services/identidad.py` · `programas/services/respuestas.py` (`foto_definicion`) · `programas/services/siis.py` (copia local de catálogos) · `programas/views/configuracion.py` (toggle de pregunta) · `programas/views/revision.py` y `cupo.py` (catálogos sin red) · `sincronizar_programas_siis` · `core/integraciones.py` · `core/tests/runner.py`. Ninguna pantalla nueva |
+| **Migración** | **Sí:** `programas.0077_catalogo_siis_local` (tabla nueva y vacía) |
+
+## Pedido original
+
+Cerrar el sexto PR de la Ola 1: **SIIS-08**, **G1-08**, **G1-09** y **G1-10** —las cuatro fichas de «qué viaja a
+SIIS»— y los **cuatro MINOR** que la revisión del PR 5 (Cambio 154) dejó anotados sin bloquear el merge.
+
+## Qué lo motivó
+
+El alta en SIIS **no tiene baja**. Todo lo de abajo son formas distintas de mandar un dato que nadie decidió
+mandar, y de enterarse después:
+
+- **G1-08.** El mapeo «esta pregunta alimenta este campo de SIIS» se leía del catálogo **de hoy**, aunque el
+  caso se hubiera respondido con otro. El Cambio 58 (D3) ya guarda la **foto** de la definición para que un
+  caso viejo no se reinterprete; el destino SIIS quedó afuera de esa foto. El escenario concreto: el admin
+  desactiva «Calle y altura» para reemplazarla por otra pregunta, y **todos los casos aprobados que todavía no
+  se informaron** salen a SIIS como «Planta urbana sin número» con altura 1 (la convención del Cambio 89), sin
+  un solo error ni faltante. Con «Barrio» o «Estado civil» pasa lo contrario: todos pasan a INCOMPLETO de
+  golpe. El mismo agujero por el otro lado: `PreguntaGlobalUpdateView` deja **cambiar** `destino_siis`.
+- **G1-09.** «Una sola pregunta activa por destino SIIS» estaba escrita solo en `PreguntaGlobalForm.clean`, y
+  el botón de activar/desactivar del listado **no pasa por el form**. Con dos activas apuntando a `est_civil`,
+  lo que viajaba dependía del orden en que el motor devolviera las filas.
+- **G1-10.** Entre dos campos marcados con el mismo destino, el que pisaba era el de mayor `orden`. Un
+  requisito del programa con orden 9 le ganaba al del subsegmento con orden 1: viajaba el dato general
+  habiendo uno particular para ese subsegmento, que es exactamente al revés de lo que el Cambio 80 quiso.
+- **SIIS-08.** Un legajo creado antes con datos autodeclarados —o falsos, G1-01— recibe un caso validado por
+  padrón o por Base de Personas. `resolver_ciudadano_offline` completa `genero` y `localidad` si faltaban y
+  **descarta el resto**: el caso queda marcado como validado y el alta sale con el nombre del legajo, que es
+  justamente el que nadie verificó.
+
+Los cuatro MINOR son del PR anterior:
+
+- **Los catálogos maestros no estaban declarados en ninguna cadena.** `armar_payload` resuelve estado civil,
+  provincia y localidad contra ellos y, con la caché fría, los pedía por HTTP **dentro del request de
+  «Aprobar»** — que ya gastaba 55 de los 55 s de presupuesto que deja nginx.
+- Con `--parallel` y *spawn* (el default en Windows) la guarda sin red **no se instalaba en los workers**.
+- La docstring del runner prometía «ningún test abre HTTP» y era cierto solo para `requests`.
+- «Configuración SIIS incompleta» se logueaba igual para una variable de entorno vacía que para un token que
+  SIIS devolvió mal.
+
+## Decisiones tomadas
+
+- **La foto del caso declara sus destinos SIIS.** `foto_definicion` guarda `destinos_siis`: una entrada por
+  campo marcado, con `clave`, `id`, `destino`, `alcance` y `orden`. `respuestas_por_destino` la usa cuando
+  existe; si no existe —casos anteriores a este cambio— sigue leyendo el catálogo de hoy, que para ellos es la
+  única fuente que hay, y eso quedó caracterizado en un test para que no se confunda con un bug.
+- **La foto guarda los hechos, no la precedencia ya resuelta.** Se guarda de qué nivel es cada campo y en qué
+  orden está, no «este gana». Así una corrección de la regla —G1-10 fue una— alcanza también a los casos ya
+  guardados, que es lo que no pasaría si la foto guardara el resultado.
+- **`destino_siis` va solo en los campos marcados.** La foto son ~27 KB por caso y `programas_formulario` pesa
+  283 MB en producción (Cambio 106): una clave vacía por campo se paga en cada caso. Lo que distingue una foto
+  nueva de una vieja es la clave `destinos_siis` del nivel de arriba, que existe siempre, aunque esté vacía.
+- **Gana el más específico:** subsegmento → segmento → programa → pregunta general, y `orden` desempata dentro
+  del nivel. La regla del Cambio 80 (un requisito le gana a una general) no cambia: es el piso de esa escala.
+- **El botón de activar/desactivar chequea la regla del form, pero solo al activar.** Desactivar nunca se
+  bloquea: dos preguntas activas con el mismo destino es un estado que ya puede existir en la base y la salida
+  tiene que seguir abierta.
+- **La mitigación «mientras tanto» de G1-08 no se hace.** La ficha pedía una confirmación explícita al
+  desactivar una pregunta con destino *porque* el catálogo vivo reinterpretaba los casos. Con la foto, no los
+  reinterpreta: la confirmación quedaría pidiendo permiso para algo que ya no pasa.
+- **SIIS-08: default de D-S08, la opción mínima.** El legajo **no** se corrige solo —quién manda sobre él
+  cuando llega una identidad validada es la decisión del cliente que sigue abierta—: se deja constancia y se
+  frena el envío hasta que un coordinador resuelva.
+- **Se guarda la identidad acreditada, no una marca «hay conflicto».** Es el único desvío de la ficha, y es a
+  favor: con la marca, el caso quedaba bloqueado para siempre salvo que alguien se acordara de borrarla a mano
+  después de corregir el legajo. Guardando la identidad en `datos_siis["_identidad_acreditada"]`,
+  `armar_payload` rehace la comparación contra el legajo **de ahora** y el caso se destraba solo.
+- **Solo se comparan los campos donde los dos lados tienen valor.** Que al legajo le falte la fecha de
+  nacimiento no es un conflicto de identidad: el payload ya lo reclama por su cuenta, y marcarlo mandaría a
+  revisar la identidad de alguien por un dato que simplemente no está. Lo autodeclarado (`origen` = `manual`)
+  nunca marca nada: lo que la persona dijo de sí misma no acredita.
+- **Los catálogos maestros salen del request.** Declararlos en la cadena de «Aprobar» era imposible: la cadena
+  ya estaba **justo en 55 de 55** y tres GET con la caché fría la llevan a 100, con cualquier timeout. Así que
+  el backoffice lee una **copia local** en la base (`CatalogoSiisLocal`) por `siis.catalogo_local`, y las dos
+  vistas que dan de alta usan `Catalogos.sin_red()`.
+- **La copia va a la base y no a la caché.** La caché es Redis **solo** en `prd`; en el resto de los ambientes
+  es LocMem por proceso y se vacía con cada reciclado de worker de gunicorn (`--max-requests 1000`), así que un
+  «precalentar por cron» no habría llegado nunca a los workers de QA. Una tabla la comparten todos los
+  procesos y sobrevive a los reinicios. La caché se conserva encima, con su TTL de un día, para no ir a la base
+  en cada caso del masivo.
+- **La copia la mantiene cualquier lectura exitosa del catálogo**, más el CronJob de
+  `sincronizar_programas_siis`, que suma ese paso. Es un paso **secundario**: si un catálogo no se puede bajar,
+  informa y el comando sigue, porque la copia que ya había sirve igual y el estado de los programas es el
+  trabajo principal. Un catálogo **vacío no pisa** la copia buena: mismo criterio que SIIS-06, donde una lista
+  vacía resultó ser un error del servicio y no una baja real.
+- **La guarda sin red se instala también en los workers de `--parallel`** (`SuiteParalelaSinRed`), y corta
+  además `http.client.HTTPConnection.connect`, que es por donde salían `urllib.request` y `http.client`. Se
+  corta ahí y no a nivel de socket: la base, Redis y el SMTP de prueba siguen funcionando.
+- **`_SiisConfigurationError` distingue sus dos causas** con `falta_configuracion`. Lo que **no** cambia es el
+  cortacircuito: ninguna de las dos cuenta como falla —una corta antes de abrir la conexión y la otra contesta
+  rápido, así que no hay espera que ahorrar—, y eso ya tenía test desde el PR 5.
+
+## Base de datos
+
+`programas.0077_catalogo_siis_local`: `CreateModel` de `CatalogoSiisLocal` (`nombre` único, `items` JSON, más
+los timestamps de `TimeStamped`). Tabla nueva y vacía, *expand* puro: el código de la release anterior no la
+conoce ni la necesita —sigue pidiéndole los catálogos a la API—, así que las dos versiones conviven durante el
+rolling. La reversa borra la tabla y lo único que se pierde es la copia, que se vuelve a bajar sola.
+
+Ninguna de las cuatro fichas necesita migración: `Formulario.definicion` y `Formulario.datos_siis` ya son
+`JSONField` y `destinos_siis` / `_identidad_acreditada` son claves más.
+
+## Validación
+
+- **Suite completa** (`manage.py test` sin argumentos, Python 3.12 + Django 5.2.17 del `.venv312`, igual al
+  CI): **3.134 tests, OK** (27 skips).
+- **Tests nuevos: 37.** 28 en `programas/tests/test_siis_que_viaja.py` (foto del destino, especificidad, toggle,
+  identidad acreditada, catálogos fuera del request), 5 en `core/tests/test_sin_red.py` (clientes que no son
+  `requests`, guarda en los workers paralelos) y 4 en `programas/tests/test_llamadas_externas.py` (los dos
+  mensajes de `_SiisConfigurationError`, en compatibilidad y en catálogo).
+- **Fallaban antes del cambio, por el motivo esperado** (verificado volviendo `siis_envio.py` y
+  `configuracion.py` al estado de `HEAD`): 6 fallos y 3 errores. Los dos tests de `urllib`/`http.client`
+  fallaban con un `socket.gaierror: getaddrinfo failed`, o sea **saliendo a la red de verdad**, que es
+  exactamente lo que el MINOR describía.
+- **Contrato del payload:** `test_el_payload_es_el_mismo_por_los_dos_caminos` fija los 23 campos del payload
+  completo y comprueba que leer el mapeo de la foto o del catálogo da **el mismo dict**. Ningún campo se
+  agrega, se quita ni se renombra en este cambio; lo que cambia es de dónde sale el valor de un campo cuando
+  hay dos candidatos, y el faltante nuevo `identidad`, que **no es un campo del payload** sino un motivo para
+  no mandarlo.
+- `manage.py check`, `check --deploy` (con `SIIS_API_URL` seteada: 0 errores; sin ella queda el `core.E001`
+  preexistente del entorno local), `makemigrations --check --dry-run` (sin cambios),
+  `scripts/check_migraciones.py` (1 migración revisada, 0 problemas), `--tag performance` (4 tests OK) y
+  `ruff check . && ruff format --check` en verde. `requerimientos.py --check` OK.
+- **Dos tests de otros módulos cambian a propósito:** `SiisClientTests` declara `databases = {"default"}`
+  —`catalogo()` dejó de ser puro: ahora escribe la copia— y `test_catalogo_normaliza_y_cachea` sigue
+  verificando lo mismo.
+- **No se corrió nada contra SIIS, ECOM, icore ni PRD.** Todo el tráfico de los tests está mockeado, y desde el
+  PR 5 lo garantiza el runner.
+
+## Reversión
+
+Revertir el commit y desaplicar `0077`. Vuelve el mapeo por catálogo vivo (y con él G1-08), vuelve el orden por
+`orden` (G1-10), el botón deja de chequear la regla (G1-09) y el payload deja de mirar la identidad acreditada
+(SIIS-08). El `destinos_siis` que las fotos nuevas ya hayan guardado queda ahí sin molestar: el código viejo lo
+ignora. Lo que **no** conviene revertir a medias es la copia local sin revertir `Catalogos.sin_red()`: sin la
+tabla, el backoffice no puede armar el payload.
+
+## Pendientes / a definir
+
+- **Paso operativo del deploy: correr `sincronizar_programas_siis` una vez.** La tabla nace vacía y el
+  backoffice ya no va a buscar los catálogos a SIIS dentro del request; hasta que la copia exista, el alta desde
+  la pantalla del caso queda como ERROR **reintentable**, con un mensaje que dice cómo destrabarla. El masivo y
+  los comandos no dependen de eso: van a la red y, de paso, llenan la copia.
+- **La pantalla «Completar datos para SIIS» pide cinco catálogos en un GET** (`programas/forms.py:283-308`) y
+  tampoco está declarada en ninguna cadena: es el mismo agujero del MINOR 1 en una pantalla que no hace nada
+  irreversible. Queda anotado como seguimiento; no entró en este PR.
+- **D-S08 sigue abierta.** La opción de fondo —`Ciudadano.identidad_origen` (`manual`/`padron`/`personas`/
+  `renaper`) y que una identidad validada actualice un legajo `manual`— necesita la decisión del cliente sobre
+  quién manda. Mientras tanto, el caso se frena y lo corrige un coordinador.
+- **No hay pantalla para el conflicto de identidad.** Se ve como un faltante más en el detalle del caso, con el
+  texto que nombra los campos y las dos versiones. Si hiciera falta un listado de «casos con identidad en
+  conflicto», es un requerimiento aparte.
+- **Los casos anteriores a este cambio siguen leyendo el catálogo de hoy.** No hay forma de reconstruirles la
+  foto: la definición con la que se respondieron no se guardó. Un backfill solo podría escribir el mapeo de hoy,
+  que es justamente lo que esta ficha dice que no hay que hacer.
+- **La copia local no se contrasta con el catálogo propio.** `seed_catalogo_siis --verificar-api` sigue siendo
+  la única forma de detectar que la API devuelve otros ids (el incidente del 01/10 con Fontana).
+
+## Historial
+
+- **01/10/2026** (Cambio 107) — se verifica que los ids de estado civil de la API sí son los de SIIS; queda
+  escrito que ese catálogo no tiene respaldo propio, a diferencia de provincias y localidades (Cambio 85).
+- **03/10/2026** — la auditoría abre SIIS-08 (con D-S08), G1-08, G1-09 y G1-10, y las agrupa en el PR 6 de la
+  Ola 1 bajo el título «qué viaja a SIIS».
+- **06/10/2026** (Cambio 154) — el presupuesto de llamadas externas por request empieza a verificarse en
+  `check --deploy`; «Aprobar un caso» queda justo en 55 s de 55.
+- **07/10/2026 (este cambio)** — las cuatro fichas, más los cuatro MINOR del PR 5. El del presupuesto destapó
+  que la cadena de «Aprobar» ya estaba por encima del techo con la caché fría, y la única salida era sacar los
+  catálogos del request.

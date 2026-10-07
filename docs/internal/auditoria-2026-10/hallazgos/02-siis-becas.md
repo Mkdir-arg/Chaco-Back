@@ -24,7 +24,7 @@ indicación.
 | SIIS-04 | El masivo informa casos que cambiaron de estado después de hidratarlos | ALTA | CONF. test | 1 | S | ✅ |
 | SIIS-06 | Catálogo vacío de SIIS bloquea todos los programas | ALTA | CONF. test | 1 | S | ✅ |
 | SIIS-07 | `token_publico` en `char(32)`: el arreglo está en una rama sin mergear | ALTA | CONF. (merge simulado) | 1 | S | ✅ |
-| SIIS-08 | Identidad validada no corrige un legajo autodeclarado; a SIIS viajan datos sin validar | ALTA | CONF. lectura | 1 | M | ⬜ |
+| SIIS-08 | Identidad validada no corrige un legajo autodeclarado; a SIIS viajan datos sin validar | ALTA | CONF. lectura | 1 | M | ✅ |
 | V2-NEW-03 | Medir altas duplicadas ya existentes en PRD antes de migrar | ALTA (operativo) | — | 1 (paso 0) | S | ⬜ |
 | SIIS-05 | Mismo DNI y plan informados desde casos distintos | MEDIA | CONF. test | 1 | S | ✅ |
 | SIIS-09 | Llamadas externas encadenadas que superan los 60 s de nginx | MEDIA | CONF. lectura | 1 | S-M | ✅ |
@@ -45,8 +45,8 @@ indicación.
 | G1-03 | La app lee solo la primera página (10) de casos y relevamientos | MEDIA | CONF. lectura | 3 | S | ⬜ |
 | G1-04 | Captura offline que sincroniza después del corte de las 03:10 → 409 permanente | MEDIA | CONF. lectura (pendiente Cambio 54) | 3 | M | ⬜ |
 | G1-05 | El servidor no valida lo que carga la app | MEDIA | CONF. lectura | 3 | M | ⬜ |
-| G1-08 | El mapeo a SIIS lee el catálogo de hoy, no la foto del caso | MEDIA | CONF. lectura | 1 | M | ⬜ |
-| G1-09 | `pregunta_toggle_activo` saltea «una sola activa por destino SIIS» | MEDIA | CONF. lectura | 1 | S | ⬜ |
+| G1-08 | El mapeo a SIIS lee el catálogo de hoy, no la foto del caso | MEDIA | CONF. lectura | 1 | M | ✅ |
+| G1-09 | `pregunta_toggle_activo` saltea «una sola activa por destino SIIS» | MEDIA | CONF. lectura | 1 | S | ✅ |
 | G2-01 | Excel de respuestas y dashboard leen `data`: faltan los campos propios del constructor | MEDIA | CONF. test | 3 | M | ⬜ |
 | SIIS-14 | RENAPER: DNI en logs y token que no se invalida con 401 | BAJA | CONF. test (401) | 3 | S | ⬜ |
 | SIIS-15 | Comprobante renderizado fuera del `try` | BAJA | CONF. lectura | 3 | S | ⬜ |
@@ -69,7 +69,7 @@ indicación.
 | BEC-25 | `siguiente_nombre` calculado sin convocatoria y sin uso | BAJA | CONF. lectura | 7 | S | ⬜ |
 | G1-06 | Fecha de nacimiento ilegible de la app → caso sin legajo y bucle de 500 | BAJA | CONF. lectura | 3 | S | ⬜ |
 | G1-07 | Adjuntos de la app sin idempotencia ni control de pertenencia | BAJA | CONF. lectura | 3 | S | ⬜ |
-| G1-10 | Entre requisitos con el mismo destino gana el de mayor `orden` | BAJA | CONF. lectura | 1 | S | ⬜ |
+| G1-10 | Entre requisitos con el mismo destino gana el de mayor `orden` | BAJA | CONF. lectura | 1 | S | ✅ |
 | G1-11 | CUIL calculado aunque el caso tenga el real | BAJA | PLAUSIBLE | 3 | S | ⬜ |
 | G1-12 | El padrón acepta fechas futuras o absurdas | BAJA | CONF. lectura | 3 | S | ⬜ |
 | G1-13 | Personas: un 404 se informa como 502 | BAJA | CONF. lectura | 3 | S | ⬜ |
@@ -232,6 +232,8 @@ indicación.
 ### SIIS-08 · Una identidad validada no corrige un legajo autodeclarado, y a SIIS viajan los datos sin validar
 **Severidad:** ALTA · **Estado:** CONFIRMADO (lectura) · **Origen:** A2-06 · **Ola:** 1 · **Esfuerzo:** M · **Decisión:** D-S08
 
+**Resolución:** ✅ Resuelto en #PENDIENTE (Cambio 158), 07-oct-2026 — **default de D-S08** (opción mínima, sin migración): `resolver_ciudadano_offline` compara el legajo que ya existía contra la identidad que acreditó el padrón o Base de Personas y, si difieren, deja la **identidad acreditada** en `datos_siis["_identidad_acreditada"]` y una traza por campo; `armar_payload` la vuelve a comparar y, mientras no coincida, deja `faltantes["identidad"]`, así que el caso queda INCOMPLETO y no llega a `cargar_beneficiario`. **Un desvío de la ficha, a favor:** se guarda la identidad acreditada y no una marca «hay conflicto». Con la marca, un caso quedaba bloqueado para siempre salvo que alguien se acordara de borrarla a mano después de corregir el legajo; guardando la identidad, la comparación se rehace contra el legajo **de ahora** y el caso se destraba solo. Solo se comparan los campos donde los dos lados tienen valor: que al legajo le falte la fecha de nacimiento no es un conflicto de identidad —el payload ya lo reclama por su cuenta— y marcarlo mandaría a revisar la identidad de alguien por un dato que no está. Lo autodeclarado (`origen` = `manual`) nunca marca nada. **La opción de fondo (`Ciudadano.identidad_origen` con migración) no se hizo:** quién manda sobre el legajo es la decisión abierta de D-S08 y la opción mínima es su default registrado. **Test permanente:** `programas/tests/test_siis_que_viaja.py::IdentidadAcreditadaTests.test_un_legajo_en_conflicto_no_llega_a_llamar_a_siis` (y `.test_la_identidad_acreditada_queda_registrada_y_frena_el_envio`, `.test_corregir_el_legajo_destraba_el_caso_sin_tocar_la_marca`, `.test_un_legajo_que_coincide_no_deja_marca_ni_traza`, `.test_una_identidad_autodeclarada_nunca_marca_conflicto`, `.test_un_campo_vacio_en_el_legajo_no_es_un_conflicto_de_identidad`, `.test_un_legajo_nuevo_se_crea_con_la_identidad_acreditada`).
+
 **⚠ Actualizar (03-oct-2026):** `resolver_ciudadano_offline` hoy en `programas/services/becas.py:262` (#515 sumó `q_uuid_en_texto` más arriba).
 - **Ubicación:** `programas/services/becas.py:241-279` (`resolver_ciudadano_offline`: si el ciudadano existe, solo completa `genero`/`localidad` y descarta `datos_identificacion` de origen padrón o personas); `armar_payload` usa `formulario.ciudadano`.
 - **Escenario:** un legajo creado antes con datos autodeclarados (o falsos, G1-01) recibe un caso validado por padrón o Gran Base; el caso queda validado pero el alta a SIIS sale con el nombre del legajo.
@@ -257,6 +259,38 @@ indicación.
 **Severidad:** MEDIA · **Estado:** CONFIRMADO (configuración) · **Origen:** A2-08, A4-10, A4-17 (= PERF-09) · **Ola:** 1 · **Esfuerzo:** S-M · **Decisión:** D-S09 (timeouts, pendiente del Cambio 91)
 
 **Resolución:** ✅ Resuelto en #PENDIENTE (Cambio 154), 06-oct-2026 — **PERF-09 se cierra con esta misma ficha**. Un timeout por tipo de llamada (default de D-S09): conexión 5 s en las tres integraciones, lectura 10 s para las consultas (compatibilidad y catálogos de SIIS, Base de Personas, RENAPER), 20 s **solo** para el alta en la tabla intermedia, y `EMAIL_TIMEOUT` 5. El alta se queda dentro del request de `formulario_aprobar` con el timeout corto, como pide el punto 2: lo que no contesta queda INCIERTO y se concilia (SIIS-02). El presupuesto **se declara y se verifica**: `core/integraciones.py::CADENAS` dice qué llamadas encadena cada request y `core.checks.presupuesto_de_llamadas_externas` (`check --deploy`, o sea el CI) falla con `core.E003` si alguna pasa los 55 s —los 60 de nginx menos 5 para lo que no es red—; «Aprobar un caso» queda **justo en 55**, así que la próxima llamada que alguien encadene ahí deja el check en rojo. Cortacircuito en caché (3 fallas de red seguidas → 60 s sin consultar) sobre Base de Personas —el *tope en `identificar`* del punto 4: el resultado ya era `manual`, lo que se ahorra es el hilo retenido— y sobre la consulta de compatibilidad; **no** sobre el alta, que es lo irreversible. `requests.Session` por módulo con `HTTPAdapter(pool_maxsize=10)` en `siis.py` y `personas.py`. **Desvío de la ficha (uno):** el token lleva su propio `SIIS_API_TIMEOUT_TOKEN` de 5 s, que D-S09 no nombra; con `(5, 10)` la cadena de «Aprobar» daba 60 s y no entraba. **No se hizo:** cortacircuito para RENAPER (la ficha solo le pide timeouts; se consulta detrás de login y de a uno) y sesión por módulo en RENAPER (ya tiene la suya, por instancia, con su `Retry` colgando del adaptador). Las líneas de nginx son `:97` y `:172`, no `:92`/`:164`. **Paso operativo:** las variables del entorno de ECOM mandan sobre los defaults; si quedan en 30/20/20/10 el presupuesto no se cumple y `check --deploy` lo marca. **Test permanente:** `programas/tests/test_llamadas_externas.py::PresupuestoDeclaradoTests.test_con_los_timeouts_de_antes_el_check_corta` (y `GranBaseCaidaTests.test_la_cuarta_consulta_no_toca_la_red`, `.test_identificar_cae_a_manual_con_el_cortacircuito_abierto`, `SiisCaidoTests.test_la_cuarta_validacion_de_compatibilidad_no_toca_la_red`, `.test_el_alta_sale_igual_con_el_cortacircuito_de_consultas_abierto`, `TimeoutsQueSalenALaRedTests` ×4, `CortacircuitoTests` ×4 y el resto de `PresupuestoDeclaradoTests`).
+
+**Ampliado por #PENDIENTE (Cambio 158), 07-oct-2026 — los cuatro MINOR que dejó la revisión del PR 5.**
+(a) **Los catálogos maestros no estaban en ninguna cadena y «Aprobar» los pedía con la caché fría**
+(`armar_payload` → `Catalogos` → `siis.catalogo`, TTL un día): tres GET de 15 s sobre una cadena que ya
+estaba **justo en 55**, o sea 100 s de los 60 que aguanta nginx, sin que `core.E003` lo viera. Declararlos no
+era opción —no hay un solo segundo libre en esa cadena, con ningún timeout—, así que la llamada **salió del
+request**: el backoffice lee una **copia local** (`programas.models.CatalogoSiisLocal`, migración
+`programas.0077_catalogo_siis_local`, tabla nueva y vacía) por `siis.catalogo_local`, y las dos vistas que dan
+de alta usan `Catalogos.sin_red()`. La copia **no podía ser solo la caché**: es Redis únicamente en `prd` y en
+el resto de los ambientes es LocMem por proceso, que se vacía en cada reciclado de worker de gunicorn
+(`--max-requests 1000`), así que un «precalentar» por cron no habría llegado nunca a los workers de QA. La
+mantienen al día cualquier lectura exitosa del catálogo —masivo y comandos, que no están detrás de nginx— y el
+CronJob de `sincronizar_programas_siis`, que suma ese paso (secundario: si un catálogo no se baja, informa y
+sigue; un catálogo vacío no pisa la copia buena, mismo criterio que SIIS-06). Con la copia vacía el alta queda
+ERROR **reintentable** y el mensaje dice cómo destrabarla. **Queda abierto, de la misma familia:** la pantalla
+«Completar datos para SIIS» (`forms.py:283-308`) pide **cinco** catálogos en un GET y tampoco está declarada —
+es el mismo agujero en una pantalla que no es irreversible—; se anota como seguimiento, no entró en este PR.
+(b) Con `--parallel` y *spawn* (el default en Windows) la guarda sin red **no se instalaba en los workers**:
+Django llama ahí al `setup_test_environment` del módulo, no al método del runner, así que la suite paralela
+corría con la red abierta. `SuiteParalelaSinRed` la instala en cada worker después del `_init_worker` de
+Django. (c) La docstring prometía «ningún test abre HTTP» y era cierto solo para `requests`: `urllib.request` y
+`http.client` salían de verdad —los dos tests nuevos lo muestran fallando con un `getaddrinfo` real—; se corta
+también `http.client.HTTPConnection.connect`, que cubre los dos esquemas y deja intactas base, Redis y SMTP.
+(d) `_SiisConfigurationError` lleva `falta_configuracion`: «Configuración SIIS incompleta» queda para la
+variable de entorno vacía y un token que SIIS devolvió mal se loguea como tal, en `validar_compatibilidad` y en
+`_cargar_catalogo`. **El cortacircuito no cambia:** ninguno de los dos cuenta como falla, y eso ya tenía test.
+**Test permanente de la ronda:** `programas/tests/test_siis_que_viaja.py::CatalogosFueraDelRequestTests.test_las_vistas_que_dan_de_alta_usan_los_catalogos_sin_red`
+(y `.test_sin_copia_local_el_catalogo_falla_sin_tocar_la_red`, `.test_la_copia_local_se_lee_sin_cache_y_sin_red`,
+`.test_cada_lectura_del_catalogo_deja_la_copia_al_dia`, `.test_un_catalogo_vacio_no_pisa_la_copia_buena`,
+`.test_los_catalogos_sin_red_resuelven_el_payload`; `core/tests/test_sin_red.py::ClientesQueNoSonRequestsTests` ×2
+y `GuardaEnLosWorkersParalelosTests` ×3; `programas/tests/test_llamadas_externas.py::SiisMalConfiguradoTests.test_un_token_que_no_sirve_no_se_loguea_como_configuracion_incompleta`
+y `.test_el_catalogo_distingue_los_dos_motivos`).
 
 **Ronda 2 de la revisión (07-oct-2026).** Cinco hallazgos, dos de ellos del propio arreglo. (a) Mover los clientes a una `Session` de módulo movió el punto de parcheo de los tests, y uno de seguridad del portal se quedó parcheando `programas.services.personas.requests.get`: el mock quedaba en **cero llamadas**, el cliente salía a resolver `personas.example` de verdad y la regresión que cuidaba —que el DNI no viaje en el log— pasaba **por accidente**. Se corrigió el parche, se corrigió la PoC (`poc/test_repro_siis_becas.py`) y, sobre todo, la suite entera pasa a correr **con la red cortada**: `core/tests/runner.py` (`TEST_RUNNER`) sustituye `HTTPAdapter.send`. La sustitución es una asignación y no un `patch(...).start()` porque trece tests usan `addCleanup(patch.stopall)`, que apagaba la guarda a mitad de la corrida. (b) La cadena del paso 1 del link público **no declaraba el reCAPTCHA**, que es su llamada más lenta: decía 30 s cuando el peor caso eran 45. Su timeout era además un escalar —`requests` lo aplica a conectar y a leer— congelado en el import; pasa a ser el par `(RECAPTCHA_CONNECT_TIMEOUT, RECAPTCHA_TIMEOUT)` = `(5, 10)` leído en cada llamada. Se declararon además tres cadenas que faltaban (promover desde la lista de espera, agregar a la lista, alta de usuario). (c) La `Session` de módulo guardaba cookies y las habría reenviado entre personas distintas del mismo proceso: política `SinCookies`. (d) `_SiisConfigurationError` (una variable de entorno que falta) deja de contar como falla del cortacircuito y de loguear «falló 3 veces seguidas». **Test permanente de la ronda:** `core/tests/test_sin_red.py::SinRedEnLosTestsTests.test_la_guarda_sobrevive_a_un_patch_stopall` (y `.test_una_llamada_sin_mock_falla_en_vez_de_salir_a_internet`, `.test_una_sesion_propia_tampoco_sale`; `test_llamadas_externas.py::PresupuestoDeclaradoTests.test_el_paso_1_del_link_cuenta_el_captcha`, `.test_subir_el_timeout_del_captcha_deja_el_check_en_rojo`, `SesionCompartidaTests` ×3, `SiisMalConfiguradoTests` ×2; `portal/tests/test_seguridad_publica.py::LogsSinSecretosTests.test_el_documento_no_viaja_en_el_error_de_gran_base`).
 - **Ubicación:** `config/settings.py:428-429`, `:477-478`, `:487-488` frente a `nginx.conf:92,164` (`proxy_read_timeout 60s`); «Aprobar» encadena validar SIIS → aprobar → alta SIIS → SMTP: SIIS 2 × (10+30) s + token + SMTP 10 s > 120 s. `programas/services/personas.py:107-176` (`requests` sueltos, 10 + 20 s, sin `Session` ni cortacircuito; con Gran Base caída cada paso 1 retiene un hilo hasta 30-60 s).
@@ -400,6 +434,8 @@ indicación.
 ### G1-08 · El mapeo a SIIS lee el catálogo de hoy, no la foto del caso
 **Severidad:** MEDIA · **Estado:** CONFIRMADO (lectura) · **Origen:** G1-08 · **Ola:** 1 · **Esfuerzo:** M
 
+**Resolución:** ✅ Resuelto en #PENDIENTE (Cambio 158), 07-oct-2026 — la foto del caso declara sus destinos. `_campo_dict` agrega `destino_siis` **solo a los campos marcados** (la foto son ~27 KB por caso y `programas_formulario` pesa 283 MB en PRD: una clave vacía por campo se paga en cada caso), `foto_definicion` arma con eso la lista `destinos_siis` de la foto —`{clave, id, destino, alcance, orden}`— y `respuestas_por_destino` la usa cuando existe. Se guardan los **hechos** (nivel y orden del campo), no la precedencia ya resuelta: así una corrección de la regla —G1-10 fue una— alcanza también a los casos ya guardados. La presencia de la clave `destinos_siis` es lo que distingue una foto nueva de una vieja; los casos anteriores siguen leyendo el catálogo de hoy, que para ellos es la única fuente que hay, y eso queda **caracterizado** en un test. **La mitigación «mientras tanto» no se hizo** y queda sin sentido: la ficha pedía una confirmación explícita en `pregunta_toggle_activo` porque el catálogo vivo reinterpretaba los casos; con la foto, desactivar o remarcar una pregunta ya no toca ningún caso guardado. **Test permanente:** `programas/tests/test_siis_que_viaja.py::FotoDelDestinoTests.test_desactivar_la_pregunta_no_cambia_lo_que_ya_se_respondio` (y `.test_cambiarle_el_destino_a_la_pregunta_no_reinterpreta_el_caso`, `.test_la_foto_declara_los_destinos_de_los_campos_marcados`, `.test_desactivar_la_pregunta_si_alcanza_a_un_caso_sin_foto`, `.test_una_foto_vieja_sin_destinos_cae_al_catalogo`, `.test_el_payload_es_el_mismo_por_los_dos_caminos` —contrato: el payload completo de los 23 campos, idéntico por los dos caminos—).
+
 **⚠ Actualizar (03-oct-2026):** líneas de `siis_envio.py` corridas +16 (#513): `respuestas_por_destino` en `:323`, el `CALLE_SIN_NUMERO` en `:507-516`. Ojo con #517: la tabla intermedia guarda el payload ya mapeado y la sincronización lo manda tal cual, sin recalcularlo.
 - **Ubicación:** `programas/services/siis_envio.py:307` (`PreguntaGlobal.objects.filter(activo=True).exclude(destino_siis="")`), `:491-500` (sin `calle_altura` → `CALLE_SIN_NUMERO` + altura 1); `programas/views/configuracion.py:1008-1041` (`pregunta_toggle_activo`, `PreguntaGlobalUpdateView` deja cambiar `destino_siis`). El Cambio 58 (D3) guarda la foto para que «un caso viejo nunca se reinterprete».
 - **Escenario:** el admin desactiva «Calle y altura» para reemplazarla: todos los casos aún no informados salen a SIIS como «Planta urbana sin número», altura 1, sin error ni faltante (Cambio 89); con barrio o estado civil pasan a INCOMPLETO de golpe. Irreversible en SIIS.
@@ -409,6 +445,8 @@ indicación.
 
 ### G1-09 · `pregunta_toggle_activo` saltea la regla «una sola pregunta activa por destino SIIS»
 **Severidad:** MEDIA · **Estado:** CONFIRMADO (lectura) · **Origen:** G1-09 · **Ola:** 1 · **Esfuerzo:** S
+
+**Resolución:** ✅ Resuelto en #PENDIENTE (Cambio 158), 07-oct-2026 — `pregunta_toggle_activo` chequea la misma regla del form **solo al activar**: si ya hay otra activa con ese destino, no activa y lo dice con el texto del form más qué hacer. Desactivar nunca se bloquea por esta regla, porque dos activas con el mismo destino es un estado que ya puede existir en la base y la salida tiene que seguir abierta. **Code-first, un punto de la ficha quedó desactualizado:** el `values_list` de `respuestas_por_destino` no estaba «sin `order_by`» —`PreguntaGlobal.Meta.ordering` es `["orden", "id"]` y el ORM lo aplica igual—, así que el orden ya era determinista; lo que sí cambió, por G1-10, es el criterio con el que se ordena. **Test permanente:** `programas/tests/test_siis_que_viaja.py::ToggleDeDestinoOcupadoTests.test_reactivar_con_el_destino_ocupado_no_activa_y_lo_dice` (y `.test_desactivar_la_vigente_libera_el_destino`, `.test_una_pregunta_sin_destino_se_activa_sin_mirar_a_nadie`, `.test_desactivar_nunca_se_bloquea_por_esta_regla`).
 
 **⚠ Actualizar (03-oct-2026):** `respuestas_por_destino` hoy en `siis_envio.py:323-327` (+16, #513).
 - **Ubicación:** `programas/forms.py:1161-1175` (regla solo en `PreguntaGlobalForm.clean`); `programas/views/configuracion.py:1028-1041`; `programas/services/siis_envio.py:307-311` (`values_list` sin `order_by`).
@@ -568,6 +606,8 @@ indicación.
 
 ### G1-10 · Entre requisitos de distinto nivel con el mismo destino SIIS gana el de mayor `orden`
 **Severidad:** BAJA · **Origen:** G1-10 · **Ola:** 1 · **Esfuerzo:** S
+
+**Resolución:** ✅ Resuelto en #PENDIENTE (Cambio 158), 07-oct-2026 — `respuestas_por_destino` ordena por especificidad (`NIVEL_DESTINO`: pregunta general → programa → segmento → subsegmento) y recién después por `orden` e id, y aplica del más general al más específico, así que el que pisa es el más específico. Vale igual por los dos caminos: leyendo la foto (el `alcance` de cada campo viene en ella) y leyendo el catálogo. La regla del Cambio 80 —un requisito le gana a una pregunta general— no cambia: es el piso de la escala. **Test permanente:** `programas/tests/test_siis_que_viaja.py::EspecificidadDelDestinoTests.test_el_requisito_del_subsegmento_le_gana_al_del_programa` (y `.test_el_del_segmento_le_gana_al_del_programa_y_pierde_con_el_subsegmento`, `.test_dentro_del_mismo_nivel_sigue_desempatando_el_orden`, `.test_el_requisito_le_sigue_ganando_a_la_pregunta_general`, `.test_la_especificidad_tambien_vale_leyendo_la_foto`).
 
 **⚠ Actualizar (03-oct-2026):** el orden de requisitos hoy en `siis_envio.py:329-346` (+16, #513).
 - **Ubicación:** `programas/services/siis_envio.py:313-330`; `programas/forms.py:1234-1245`.
