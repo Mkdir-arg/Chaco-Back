@@ -29,25 +29,25 @@
 
   <div class="bg-white rounded-xl border border-base shadow-sm">
     {# Tabs #}
-    <div class="border-b border-base flex gap-1 px-2 flex-wrap">
-      <button @click="tab='info'" type="button"
+    <div class="border-b border-base flex gap-1 px-2 flex-wrap" role="tablist" aria-label="Secciones de la convocatoria">
+      <button @click="tab='info'" type="button" role="tab" id="tab-info" aria-controls="panel-info" :aria-selected="tab==='info'"
               class="px-4 py-3 text-sm border-b-2 -mb-px transition flex items-center gap-1.5"
               :class="tab==='info' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
         <i class="fas fa-id-card"></i> Información general
       </button>
-      <button @click="tab='rel'" type="button"
+      <button @click="tab='rel'" type="button" role="tab" id="tab-rel" aria-controls="panel-rel" :aria-selected="tab==='rel'"
               class="px-4 py-3 text-sm border-b-2 -mb-px transition flex items-center gap-1.5"
               :class="tab==='rel' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
         <i class="fas fa-folder-open"></i> Relevamientos
         <span class="badge ml-0.5" :class="tab==='rel' ? 'badge-info' : 'badge-gray'">{{ n_relevamientos }}</span>
       </button>
-      <button @click="tab='ben'" type="button"
+      <button @click="tab='ben'" type="button" role="tab" id="tab-ben" aria-controls="panel-ben" :aria-selected="tab==='ben'"
               class="px-4 py-3 text-sm border-b-2 -mb-px transition flex items-center gap-1.5"
               :class="tab==='ben' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
         <i class="fas fa-users"></i> Casos
         <span class="badge ml-0.5" :class="tab==='ben' ? 'badge-info' : 'badge-gray'">{{ n_beneficiarios }}</span>
       </button>
-      {% if puede_reportes %}<button @click="tab='rep'" type="button"
+      {% if puede_reportes %}<button @click="tab='rep'" type="button" role="tab" id="tab-rep" aria-controls="panel-rep" :aria-selected="tab==='rep'"
               class="px-4 py-3 text-sm border-b-2 -mb-px transition flex items-center gap-1.5"
               :class="tab==='rep' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
         <i class="fas fa-chart-simple"></i> Reportes
@@ -55,7 +55,7 @@
     </div>
 
     {# ===== TAB: Información general ===== #}
-    <div x-show="tab==='info'" class="p-6">
+    <div x-show="tab==='info'" role="tabpanel" id="panel-info" aria-labelledby="tab-info" class="p-6">
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div class="lg:col-span-2">
           {% if request.user|puede:"becas.convocatoria.editar" %}
@@ -172,7 +172,7 @@
     </div>
 
     {# ===== TAB: Relevamientos ===== #}
-    <div x-show="tab==='rel'" x-cloak class="p-6 space-y-4">
+    <div x-show="tab==='rel'" x-cloak role="tabpanel" id="panel-rel" aria-labelledby="tab-rel" class="p-6 space-y-4">
       <div class="flex items-center justify-between gap-4 flex-wrap">
         <p class="text-sm text-body-subtle">Relevamientos asignados a esta convocatoria.</p>
         {% if request.user|puede:"becas.relevamiento.crear" %}
@@ -185,7 +185,7 @@
     </div>
 
     {# ===== TAB: Beneficiarios ===== #}
-    <div x-show="tab==='ben'" x-cloak class="p-6 space-y-4">
+    <div x-show="tab==='ben'" x-cloak role="tabpanel" id="panel-ben" aria-labelledby="tab-ben" class="p-6 space-y-4">
       <div class="flex items-center justify-between gap-4 flex-wrap">
         <p class="text-sm text-body-subtle">Personas relevadas en esta convocatoria (casos cargados).</p>
         <a href="{% url 'becas:convocatoria_export_beneficiarios' convocatoria.pk %}" class="btn-nodo btn-tertiary btn-sm" style="min-width:0;"><i class="fas fa-download"></i> Exportar beneficiarios (CSV)</a>
@@ -230,7 +230,7 @@
     </div>
 
     {# ===== TAB: Reportes ===== #}
-    {% if puede_reportes %}<div x-show="tab==='rep'" x-cloak class="p-6 space-y-3">
+    {% if puede_reportes %}<div x-show="tab==='rep'" x-cloak role="tabpanel" id="panel-rep" aria-labelledby="tab-rep" class="p-6 space-y-3">
       <p class="text-sm text-body-subtle mb-2">Exportaciones de esta convocatoria.</p>
       <div class="bg-white rounded-xl border border-base shadow-sm p-4 flex items-center justify-between gap-4 flex-wrap">
         <div class="flex items-center gap-3">

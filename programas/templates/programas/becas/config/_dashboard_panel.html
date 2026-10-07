@@ -127,58 +127,34 @@ densa, estado vacío, badges, botones y campos NODO. Sin CSS nuevo.
     <p class="text-body mt-1" data-dash="error-texto"></p>
   </div>
 
-  {# Indicadores: stat cards canónicas (convocatoria_detail.html) #}
+  {% comment %}Indicadores: la pieza canónica `components/_stat_card.html`, con los
+     opcionales `kpi_id`/`sufijo`/`sufijo_id`/`nota_id` que `becas-dashboard.js` refresca.
+     Las dos que llevan minigráfico o barra de progreso siguen escritas acá —la pieza no
+     tiene ranura de cuerpo y el arquetipo Dashboard todavía no está definido—, pero con
+     el mismo esqueleto que la pieza, para que la franja se lea como una sola.{% endcomment %}
   <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3" data-dash="kpis" aria-busy="true">
-    <div class="bg-white rounded-xl p-4 border border-base shadow-sm">
-      <div class="flex items-center justify-between mb-2">
-        <p class="text-xs text-body-subtle font-medium">Convocatorias activas</p>
-        <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-brand-soft text-fg-brand"><i class="fas fa-bullhorn text-xs" aria-hidden="true"></i></div>
+    {% include "components/_stat_card.html" with etiqueta="Convocatorias activas" valor="—" icono="fa-bullhorn" tono="brand" kpi_id="convocatorias_activas" sufijo=" / " sufijo_id="convocatorias_total" nota_id="convocatorias_nota" %}
+    {% include "components/_stat_card.html" with etiqueta="Relevamientos en curso" valor="—" icono="fa-map-marker-alt" tono="brand" kpi_id="relevamientos_en_curso" nota_id="relevamientos_nota" %}
+    <div class="bg-white rounded-xl border border-base p-4">
+      <div class="flex items-center justify-between gap-2">
+        <p class="text-xs font-semibold text-body-subtle">Formularios recibidos</p>
+        <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-brand-soft text-fg-brand"><i class="fas fa-inbox text-sm" aria-hidden="true"></i></div>
       </div>
-      <p class="text-2xl font-bold text-heading"><span data-kpi="convocatorias_activas">—</span><span class="text-sm text-body-subtle font-semibold"> / <span data-kpi="convocatorias_total">—</span></span></p>
-      <p class="text-xs text-body-subtle mt-1" data-kpi="convocatorias_nota"></p>
-    </div>
-    <div class="bg-white rounded-xl p-4 border border-base shadow-sm">
-      <div class="flex items-center justify-between mb-2">
-        <p class="text-xs text-body-subtle font-medium">Relevamientos en curso</p>
-        <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-brand-soft text-fg-brand"><i class="fas fa-map-marker-alt text-xs" aria-hidden="true"></i></div>
-      </div>
-      <p class="text-2xl font-bold text-heading" data-kpi="relevamientos_en_curso">—</p>
-      <p class="text-xs text-body-subtle mt-1" data-kpi="relevamientos_nota"></p>
-    </div>
-    <div class="bg-white rounded-xl p-4 border border-base shadow-sm">
-      <div class="flex items-center justify-between mb-2">
-        <p class="text-xs text-body-subtle font-medium">Formularios recibidos</p>
-        <div class="w-8 h-8 rounded-lg flex items-center justify-center text-white" style="background: var(--gradient-brand)"><i class="fas fa-inbox text-xs" aria-hidden="true"></i></div>
-      </div>
-      <p class="text-2xl font-bold text-heading flex items-baseline gap-2"><span data-kpi="formularios_recibidos">—</span><span class="text-xs font-bold" data-kpi="variacion"></span></p>
+      <p class="text-2xl font-bold text-heading mt-2 flex items-baseline gap-2"><span data-kpi="formularios_recibidos">—</span><span class="text-xs font-bold" data-kpi="variacion"></span></p>
       <p class="text-xs text-body-subtle mt-1" data-kpi="formularios_nota"></p>
       <div class="mt-2 h-7" data-kpi="sparkline" aria-hidden="true"></div>
     </div>
-    <div class="bg-white rounded-xl p-4 border border-base shadow-sm">
-      <div class="flex items-center justify-between mb-2">
-        <p class="text-xs text-body-subtle font-medium">Aprobados</p>
-        <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-success-soft text-fg-success"><i class="fas fa-check-circle text-xs" aria-hidden="true"></i></div>
+    {% include "components/_stat_card.html" with etiqueta="Aprobados" valor="—" icono="fa-check-circle" tono="success" kpi_id="aprobados" nota_id="aprobados_nota" %}
+    <div class="bg-white rounded-xl border border-base p-4">
+      <div class="flex items-center justify-between gap-2">
+        <p class="text-xs font-semibold text-body-subtle">Cupo ocupado</p>
+        <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-brand-soft text-fg-brand"><i class="fas fa-th-large text-sm" aria-hidden="true"></i></div>
       </div>
-      <p class="text-2xl font-bold text-heading" data-kpi="aprobados">—</p>
-      <p class="text-xs text-body-subtle mt-1" data-kpi="aprobados_nota"></p>
-    </div>
-    <div class="bg-white rounded-xl p-4 border border-base shadow-sm">
-      <div class="flex items-center justify-between mb-2">
-        <p class="text-xs text-body-subtle font-medium">Cupo ocupado</p>
-        <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-brand-soft text-fg-brand"><i class="fas fa-th-large text-xs" aria-hidden="true"></i></div>
-      </div>
-      <p class="text-2xl font-bold text-heading"><span data-kpi="cupo_pct">—</span><span class="text-sm text-body-subtle font-semibold"> %</span></p>
+      <p class="text-2xl font-bold text-heading mt-2"><span data-kpi="cupo_pct">—</span><span class="text-sm text-body-subtle font-semibold"> %</span></p>
       <p class="text-xs text-body-subtle mt-1" data-kpi="cupo_nota"></p>
-      <div class="mt-2 h-2 rounded-full bg-brand-soft overflow-hidden" role="img" aria-label="Ocupación del cupo"><div class="h-full rounded-full" data-kpi="cupo_barra" style="width:0%; background: var(--text-fg-brand)"></div></div>
+      <div class="mt-2 h-2 rounded-full bg-brand-soft overflow-hidden" role="img" aria-label="Ocupación del cupo"><div class="h-full rounded-full" data-kpi="cupo_barra" style="width:0%"></div></div>
     </div>
-    <div class="bg-white rounded-xl p-4 border border-base shadow-sm">
-      <div class="flex items-center justify-between mb-2">
-        <p class="text-xs text-body-subtle font-medium">Lista de espera</p>
-        <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-warning-soft text-fg-warning"><i class="fas fa-hourglass-half text-xs" aria-hidden="true"></i></div>
-      </div>
-      <p class="text-2xl font-bold text-heading" data-kpi="lista_espera">—</p>
-      <p class="text-xs text-body-subtle mt-1" data-kpi="espera_nota"></p>
-    </div>
+    {% include "components/_stat_card.html" with etiqueta="Lista de espera" valor="—" icono="fa-hourglass-half" tono="warning" kpi_id="lista_espera" nota_id="espera_nota" %}
   </div>
 
   {# Bloques #}

@@ -37,6 +37,9 @@
             class="flex flex-col flex-1 min-h-0">
         {% csrf_token %}
         <input type="hidden" name="activo" value="on">
+        {% comment %}El re-render AJAX tiene que devolver la página que se estaba mirando:
+           el POST va a `convocatoria_crear` sin querystring, así que viaja acá.{% endcomment %}
+        <input type="hidden" name="page" value="{{ page_obj.number|default:1 }}">
         <div class="p-6 space-y-4 overflow-y-auto min-h-0">
           <div>
             <label for="{{ form_convocatoria.nombre.id_for_label }}" class="block text-sm font-medium text-heading mb-1">Nombre <span class="text-fg-danger">*</span></label>

@@ -88,21 +88,21 @@
 
   {# Pestañas #}
   <div class="bg-white rounded-xl border border-base shadow-sm">
-    <div class="border-b border-base flex gap-1 px-2 flex-wrap">
-      <button @click="tab='segs'" type="button"
+    <div class="border-b border-base flex gap-1 px-2 flex-wrap" role="tablist" aria-label="Secciones del programa">
+      <button @click="tab='segs'" type="button" role="tab" id="tab-segs" aria-controls="panel-segs" :aria-selected="tab==='segs'"
               class="px-4 py-3 text-sm border-b-2 -mb-px transition flex items-center gap-1.5"
               :class="tab==='segs' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
         <i class="fas fa-list"></i> Segmentos
         <span class="badge ml-0.5" :class="tab==='segs' ? 'bg-brand-soft text-fg-brand' : 'badge-gray'">{{ segmentos|length }}</span>
       </button>
-      <button @click="tab='reqs'" type="button"
+      <button @click="tab='reqs'" type="button" role="tab" id="tab-reqs" aria-controls="panel-reqs" :aria-selected="tab==='reqs'"
               class="px-4 py-3 text-sm border-b-2 -mb-px transition flex items-center gap-1.5"
               :class="tab==='reqs' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
         <i class="fas fa-clipboard-list"></i> Requisitos del programa
         <span class="badge ml-0.5" :class="tab==='reqs' ? 'bg-brand-soft text-fg-brand' : 'badge-gray'">{{ requisitos|length }}</span>
       </button>
       {% if puede_dashboard %}
-      <button id="tab-dashboard" @click="tab='dash'; $dispatch('becas-dashboard-abrir')" type="button"
+      <button id="tab-dashboard" @click="tab='dash'; $dispatch('becas-dashboard-abrir')" type="button" role="tab" aria-controls="panel-dash" :aria-selected="tab==='dash'"
               class="px-4 py-3 text-sm border-b-2 -mb-px transition flex items-center gap-1.5"
               :class="tab==='dash' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
         <i class="fas fa-chart-bar"></i> Dashboard
@@ -111,7 +111,7 @@
     </div>
 
     {# ============ TAB: Segmentos ============ #}
-    <div x-show="tab==='segs'" class="p-6 space-y-4">
+    <div x-show="tab==='segs'" role="tabpanel" id="panel-segs" aria-labelledby="tab-segs" class="p-6 space-y-4">
       <div class="flex items-start justify-between gap-4 flex-wrap">
         <p class="text-sm text-body-subtle max-w-xl">Segmentos del programa: el nombre lo definís acá, con su cupo, coordinadores y requisitos propios.</p>
         {% if request.user|puede:"becas.segmento.crear" %}
@@ -172,7 +172,7 @@
     </div>
 
     {# ============ TAB: Requisitos del programa ============ #}
-    <div x-show="tab==='reqs'" x-cloak class="p-6 space-y-4">
+    <div x-show="tab==='reqs'" x-cloak role="tabpanel" id="panel-reqs" aria-labelledby="tab-reqs" class="p-6 space-y-4">
       <div class="flex items-start justify-between gap-4 flex-wrap">
         <p class="text-sm text-body-subtle max-w-xl">Requisitos del programa. Se heredan en los formularios de todos sus segmentos y subsegmentos.</p>
         {% if request.user|puede:"becas.requisito.crear" %}
@@ -189,7 +189,7 @@
 
     {# ============ TAB: Dashboard (análisis 366) ============ #}
     {% if puede_dashboard %}
-    <div x-show="tab==='dash'" x-cloak class="p-6">
+    <div x-show="tab==='dash'" x-cloak role="tabpanel" id="panel-dash" aria-labelledby="tab-dashboard" class="p-6">
       {% include "programas/becas/config/_dashboard_panel.html" %}
     </div>
     {% endif %}

@@ -21,13 +21,13 @@
 
   {# Pestañas #}
   <div class="bg-white rounded-xl border border-base shadow-sm">
-    <div class="border-b border-base flex gap-1 px-2 flex-wrap">
-      <button @click="tab='info'" type="button"
+    <div class="border-b border-base flex gap-1 px-2 flex-wrap" role="tablist" aria-label="Secciones del relevamiento">
+      <button @click="tab='info'" type="button" role="tab" id="tab-info" aria-controls="panel-info" :aria-selected="tab==='info'"
               class="px-4 py-3 text-sm border-b-2 -mb-px transition flex items-center gap-1.5"
               :class="tab==='info' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
         <i class="fas fa-id-card"></i> Información
       </button>
-      <button @click="tab='formularios'" type="button"
+      <button @click="tab='formularios'" type="button" role="tab" id="tab-formularios" aria-controls="panel-formularios" :aria-selected="tab==='formularios'"
               class="px-4 py-3 text-sm border-b-2 -mb-px transition flex items-center gap-1.5"
               :class="tab==='formularios' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
         <i class="fas fa-users"></i> Personas relevadas
@@ -36,7 +36,7 @@
     </div>
 
     {# ============ TAB: Información ============ #}
-    <div x-show="tab==='info'" class="p-6">
+    <div x-show="tab==='info'" role="tabpanel" id="panel-info" aria-labelledby="tab-info" class="p-6">
       {% if relevamiento.es_publico %}
       <div class="rounded-xl bg-brand-soft p-4 mb-4 flex flex-col gap-3" style="border:1px solid var(--color-brand-200)">
         <div class="flex items-center gap-2 text-sm font-bold text-fg-brand">
@@ -174,7 +174,7 @@
               El período ya venció: indicá hasta cuándo queda abierto, o el cierre automático por fecha lo devolvería a En revisión.
             </p>
             {% endif %}
-            {% with field=form_volver_a_campo.fecha_hasta %}{% include "programas/becas/_field.html" %}{% endwith %}
+            {% with field=form_volver_a_campo.fecha_hasta %}{% include "components/_field.html" %}{% endwith %}
             <button type="submit" class="btn-nodo btn-tertiary btn-sm mt-3 w-full">Volver a campo</button>
           </form>
           {% endif %}
@@ -186,7 +186,7 @@
             <h3 class="text-sm font-bold text-heading mb-3">
               <i class="fas fa-user-pen mr-1 text-fg-brand"></i> Reasignar territorial
             </h3>
-            {% with field=form_reasignar.territorial %}{% include "programas/becas/_field.html" %}{% endwith %}
+            {% with field=form_reasignar.territorial %}{% include "components/_field.html" %}{% endwith %}
             {% if request.user|puede:"becas.usuario.territorial" %}<button type="button" data-quick-user="territorial" data-user-select="#{{ form_reasignar.territorial.id_for_label }}" data-segment-id="{{ relevamiento.convocatoria.segmento_id }}" class="btn-nodo btn-tertiary btn-sm mt-2"><i class="fas fa-user-plus"></i> Crear territorial</button>{% endif %}
             <button type="submit" class="btn-nodo btn-tertiary btn-sm mt-3 w-full">Reasignar</button>
           </form>
@@ -198,8 +198,8 @@
             <h3 class="text-sm font-bold text-heading mb-3">
               <i class="fas fa-calendar-day mr-1 text-fg-brand"></i> Reprogramar fecha
             </h3>
-            {% with field=form_reprogramar.fecha_asignada %}{% include "programas/becas/_field.html" %}{% endwith %}
-            {% with field=form_reprogramar.fecha_hasta %}{% include "programas/becas/_field.html" %}{% endwith %}
+            {% with field=form_reprogramar.fecha_asignada %}{% include "components/_field.html" %}{% endwith %}
+            {% with field=form_reprogramar.fecha_hasta %}{% include "components/_field.html" %}{% endwith %}
             <button type="submit" class="btn-nodo btn-tertiary btn-sm mt-3 w-full">Reprogramar</button>
           </form>
 
@@ -211,7 +211,7 @@
               <i class="fas fa-users-gear mr-1 text-fg-brand"></i> Modificar cupo
             </h3>
             <p class="text-xs text-body-subtle mb-3">Puede aumentarse, pero nunca reducirse por debajo de las personas ya relevadas.</p>
-            {% with field=form_cupo.cupo_maximo %}{% include "programas/becas/_field.html" %}{% endwith %}
+            {% with field=form_cupo.cupo_maximo %}{% include "components/_field.html" %}{% endwith %}
             <button type="submit" class="btn-nodo btn-tertiary btn-sm mt-3 w-full">Actualizar cupo</button>
           </form>
           {% endif %}
@@ -221,7 +221,7 @@
     </div>
 
     {# ============ TAB: Personas relevadas ============ #}
-    <div x-show="tab==='formularios'" x-cloak class="p-6 space-y-4">
+    <div x-show="tab==='formularios'" x-cloak role="tabpanel" id="panel-formularios" aria-labelledby="tab-formularios" class="p-6 space-y-4">
       {% if puede_revisar and relevamiento.estado in estados_revisables %}
       <div class="flex justify-end">
         <a href="{% url 'becas:revision_formularios' relevamiento.pk %}" class="btn-nodo btn-brand btn-base">

@@ -50,7 +50,7 @@ surface.{% endcomment %}
     {% include "components/_form_errores.html" %}
     <h2 class="text-heading font-bold mb-4">Apariencia en solapas</h2>
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-      {% for field in form %}{% include "programas/becas/_field.html" %}{% endfor %}
+      {% for field in form %}{% include "components/_field.html" %}{% endfor %}
     </div>
     <div class="flex justify-between gap-3 mt-6 pt-4 border-t border-light">
       <a href="{% if es_edicion %}{% url 'configuracion:programa_editar_paso3' programa.pk %}{% else %}{% url 'configuracion:programa_wizard_paso3' %}{% endif %}"

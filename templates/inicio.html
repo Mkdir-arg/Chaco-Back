@@ -30,51 +30,10 @@
     font-family: var(--font-sans);
 }
 
-/* StatCard */
-.stat-card {
-    background: var(--bg-primary);
-    border: 1px solid var(--border-base);
-    border-radius: var(--rounded-xl);
-    box-shadow: var(--shadow-sm);
-    padding: 20px;
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-}
-.stat-card-top {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-}
-.stat-card-label {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--text-body-subtle);
-    font-family: var(--font-sans);
-}
-.stat-card-icon {
-    width: 52px;
-    height: 52px;
-    border-radius: 16px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-}
-.stat-card-value {
-    font-size: 32px;
-    font-weight: 800;
-    color: var(--text-heading);
-    line-height: 1;
-    font-family: var(--font-sans);
-}
-.stat-card-footnote {
-    font-size: 12px;
-    color: var(--text-body-subtle);
-    font-family: var(--font-sans);
-}
-/* `.stat-card-valrow` y `.stat-card-delta` salieron con el chip «↑N» del total de
-   ciudadanos (G2-04): era el único consumidor de las dos reglas. */
+/* Las siete reglas `.stat-card*` salieron con FE-22: las cuatro tarjetas de arriba usan
+   `components/_stat_card.html`, que es la pieza única. Con ellas se fueron la caja de
+   ícono de 52 px, el valor de 32 px / peso 800 y el gradiente, los tres fuera del canon.
+   (`.stat-card-valrow` y `.stat-card-delta` ya habían salido con el chip «↑N», G2-04.) */
 
 /* Accesos rápidos */
 .acceso-btn {
@@ -391,67 +350,13 @@
     {# ── Stat cards (4 col) ── #}
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-7">
 
-        {# Total ciudadanos #}
-        <div class="stat-card">
-            <div class="stat-card-top">
-                <span class="stat-card-label">Total ciudadanos</span>
-                <div class="stat-card-icon" style="background: var(--gradient-brand); color: #fff;">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z"/>
-                    </svg>
-                </div>
-            </div>
-            {% comment %}G2-04: el chip verde «↑N» pegado al total de ciudadanos se leía como
-            «+N ciudadanos», pero N son las inscripciones del mes. El número vive solo en el pie,
-            que sí dice qué mide.{% endcomment %}
-            <div class="stat-card-value">{{ total_ciudadanos|default:"0" }}</div>
-            <div class="stat-card-footnote">{{ registros_mes|default:"0" }} inscripci{{ registros_mes|pluralize:"ón,ones" }} este mes</div>
-        </div>
-
-        {# Legajos activos #}
-        <div class="stat-card">
-            <div class="stat-card-top">
-                <span class="stat-card-label">Legajos activos</span>
-                <div class="stat-card-icon" style="background: var(--bg-brand-soft); color: var(--text-fg-brand);">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 9.776c.112-.017.227-.026.344-.026h15.812c.117 0 .232.009.344.026m-16.5 0a2.25 2.25 0 00-1.883 2.542l.857 6a2.25 2.25 0 002.227 1.932H19.05a2.25 2.25 0 002.227-1.932l.857-6a2.25 2.25 0 00-1.883-2.542m-16.5 0V6A2.25 2.25 0 016 3.75h3.879a1.5 1.5 0 011.06.44l2.122 2.12a1.5 1.5 0 001.06.44H18A2.25 2.25 0 0120.25 9v.776"/>
-                    </svg>
-                </div>
-            </div>
-            <div class="stat-card-value">{{ legajos_activos|default:"0" }}</div>
-            <div class="stat-card-footnote">de {{ total_legajos|default:"0" }} legajos en total</div>
-        </div>
-
-        {# Seguimientos hoy #}
-        <div class="stat-card">
-            <div class="stat-card-top">
-                <span class="stat-card-label">Seguimientos hoy</span>
-                <div class="stat-card-icon" style="background: var(--bg-warning-soft); color: var(--text-fg-warning);">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5m-9-6h.008v.008H12v-.008zM12 15h.008v.008H12V15zm0 2.25h.008v.008H12v-.008zM9.75 15h.008v.008H9.75V15zm0 2.25h.008v.008H9.75v-.008zM7.5 15h.008v.008H7.5V15zm0 2.25h.008v.008H7.5v-.008zm6.75-4.5h.008v.008h-.008v-.008zm0 2.25h.008v.008h-.008V15zm0 2.25h.008v.008h-.008v-.008zm2.25-4.5h.008v.008H16.5v-.008zm0 2.25h.008v.008H16.5V15z"/>
-                    </svg>
-                </div>
-            </div>
-            <div class="stat-card-value">{{ seguimientos_hoy|default:"0" }}</div>
-            <div class="stat-card-footnote">inscripciones con fecha de hoy</div>
-        </div>
-
-        {# Alertas activas #}
-        <div class="stat-card" style="position: relative;">
-            <div class="stat-card-top">
-                <span class="stat-card-label">Alertas activas</span>
-                <div class="stat-card-icon" style="background: var(--bg-danger-soft); color: var(--text-fg-danger); position: relative;">
-                    {% if alertas_activas %}
-                    <span style="position: absolute; top: -3px; right: -3px; width: 10px; height: 10px; border-radius: 50%; background: var(--bg-danger); border: 2px solid var(--bg-primary);"></span>
-                    {% endif %}
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/>
-                    </svg>
-                </div>
-            </div>
-            <div class="stat-card-value">{{ alertas_activas|default:"0" }}</div>
-            <div class="stat-card-footnote">{{ ingresos_24h|default:"0" }} ingreso{{ ingresos_24h|pluralize }} al backoffice en las últimas 24 h</div>
-        </div>
+        {% comment %}G2-04: el chip verde «↑N» pegado al total de ciudadanos se leía como
+        «+N ciudadanos», pero N son las inscripciones del mes. El número vive solo en el pie,
+        que sí dice qué mide. FE-22: las cuatro son la pieza única, con su pie en `nota`.{% endcomment %}
+        {% include "components/_stat_card.html" with etiqueta="Total ciudadanos" valor=total_ciudadanos|default:"0" icono="fa-users" tono="brand" nota=pie_ciudadanos %}
+        {% include "components/_stat_card.html" with etiqueta="Legajos activos" valor=legajos_activos|default:"0" icono="fa-folder-open" tono="brand" nota=pie_legajos %}
+        {% include "components/_stat_card.html" with etiqueta="Seguimientos hoy" valor=seguimientos_hoy|default:"0" icono="fa-calendar-day" tono="warning" nota="inscripciones con fecha de hoy" %}
+        {% include "components/_stat_card.html" with etiqueta="Alertas activas" valor=alertas_activas|default:"0" icono="fa-triangle-exclamation" tono="danger" nota=pie_alertas %}
     </div>
 
     {# ── Búsqueda rápida ── #}

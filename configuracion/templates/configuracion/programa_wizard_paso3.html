@@ -22,7 +22,7 @@ de esta pantalla: se fue con el resto del markup muerto.{% endcomment %}
   <form method="post" class="bg-white rounded-xl border border-base shadow-sm p-6">
     {% csrf_token %}
     {% include "components/_form_errores.html" %}
-    {% for field in form %}{% include "programas/becas/_field.html" %}{% endfor %}
+    {% for field in form %}{% include "components/_field.html" %}{% endfor %}
     <div class="flex justify-between gap-3 mt-6 pt-4 border-t border-light">
       <a href="{% if es_edicion %}{% url 'configuracion:programa_editar_paso2' programa.pk %}{% else %}{% url 'configuracion:programa_wizard_paso2' %}{% endif %}"
          class="btn-nodo btn-tertiary btn-base"><i class="fas fa-arrow-left" aria-hidden="true"></i> Anterior</a>

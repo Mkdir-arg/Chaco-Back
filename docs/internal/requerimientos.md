@@ -339,6 +339,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 166 | Los listados de afuera de Becas dejan de ser cada uno su propio diseño: encabezado, tabla, estado vacío y paginación canónicos | Usuarios y roles (listado de usuarios, listado y detalle de roles) · Configuración (provincias, municipios, localidades, secretarías, subsecretarías y programas) | `#ui` `#usuarios` `#metodo` | Auditoría integral oct-2026 — fichas FE-11, FE-12 y FE-17 (Ola 5, PR 6a — primer lote del PR más grande de la ola) | 07/10/2026 | 🟡 **Parcial** (las tres fichas cierran Usuarios, Roles y Configuración; `legajos/ciudadano_list` y el resto van en el PR 6b) | No requiere |
 | 167 | Legajos, Configuración y las páginas de error dejan el diseño paralelo: la pieza de paginación aprende a convivir y el shell legacy se borra | Legajos (listado de ciudadanos) · Configuración (formularios, borrados y wizard de programas) · Becas (cupo, convocatorias y relevamientos: paginación de solapas) · Transversal (pieza de paginación, páginas 403/404/500, shell legacy) | `#ui` `#metodo` | Auditoría integral oct-2026 — fichas FE-11, FE-12, FE-17 y FE-20 (Ola 5, PR 6b — segundo lote; con esto el PR 6 cierra) | 07/10/2026 | 🟢 **Hecho** (las cuatro fichas cierran; FE-23 y FE-24 pasan a un PR 6c) | No requiere |
 | 169 | La API navegable de Legajos no da 500 y `/becas/` tiene índice | Legajos (APIs de ciudadanos y alertas) · Becas (raíz del módulo) · Transversal (APIs de geografía) | `#api` `#rbac` `#metodo` | QA (matias-abate) — pruebas sobre testing de ECOM, issue #521 (caso TC-OLA0-02) | 07/10/2026 | 🟢 **Hecho** | No requiere |
+| 170 | Las solapas se manejan con el teclado, las tarjetas de número dejan de escribirse a mano y hay un solo campo de formulario | Transversal (shell: teclado de solapas; piezas de tarjeta de número, campo de formulario y paginación) · Inicio del backoffice · Becas (tablero del programa, solapas de programa, convocatoria y relevamiento, modal de convocatorias) · Usuarios y roles (ABM de roles) · Dispositivos, Admisiones y Merenderos (campos de sus formularios) · Configuración (wizard: campo de color) | `#ui` `#metodo` | Auditoría integral oct-2026 — fichas FE-23, FE-24, lo que faltaba de FE-22 y de V5A-NEW-07 (b), más los tres MINOR de la revisión del PR 6b (Ola 5, PR 6c — **cierra la ola**) | 07/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -23413,6 +23414,146 @@ Nada más que el deploy. No hay variables nuevas ni comandos manuales.
 Sacar `"django_filters"` de `INSTALLED_APPS` y la ruta `""` de `programas/urls.py`
 (con sus tests). Vuelve el 500 de la página navegable y el 404 de `/becas/`. No se
 pierde ningún dato.
+
+## Historial
+No aplica (entrada nueva).
+
+# Cambio 170 — Las solapas se manejan con el teclado, las tarjetas de número dejan de escribirse a mano y hay un solo campo de formulario
+
+🟢 **HECHO — 07/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · Inicio · Becas · Usuarios y roles · Dispositivos · Admisiones · Merenderos · Configuración |
+| **Etiquetas** | `#ui` `#metodo` |
+| **Solicitante** | Auditoría integral oct-2026 (Ola 5, PR 6c — cierra la ola) |
+| **Fecha del pedido** | 03/10/2026 |
+| **Issue / épica** | Fichas FE-23, FE-24, FE-22 y V5A-NEW-07 (b) de `docs/internal/auditoria-2026-10/hallazgos/07-front.md` |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+## Pedido original
+Cuatro deudas de front que la ola venía arrastrando:
+
+1. **FE-24.** Las solapas de `programa_detail`, `convocatoria_detail`,
+   `relevamiento_detail` y el ABM de roles no declaraban **nada** de ARIA, y la
+   navegación por flechas existía en una sola pantalla (el detalle del ciudadano),
+   escrita a mano dentro de su `<script>`.
+2. **FE-23.** Había **dos** `_field.html` —uno en Becas y otro en Dispositivos, con
+   otro dialecto de label— y ocho pantallas más que se escribían el campo a mano.
+3. **FE-22 y V5A-NEW-07 (b), lo que faltaba.** Las 4 tarjetas del inicio y los 6 KPIs
+   del tablero de Becas seguían armados a mano porque `components/_stat_card.html`
+   solo aceptaba `etiqueta`, `valor`, `icono` y `tono`.
+4. Los tres MINOR de la revisión del PR 6b (#615).
+
+## Alcance acordado
+Entra: la pieza de tarjeta de número con sus parámetros nuevos y los diez KPIs; el
+campo de formulario único con su ARIA; el teclado de solapas global y el ARIA de las
+cuatro pantallas de la ficha; los tres MINOR. Queda afuera: `dispositivos/legajo/detail`
+(D-V1 = No, lo reemplaza la v2), definir el **arquetipo Dashboard** —que es lo que
+destraba las dos tarjetas que llevan minigráfico y barra de progreso—, y la migración
+de arquetipo de las pantallas de Dispositivos, Admisiones y Merenderos, que es FE-11 /
+FE-12 y acá solo cambian de include de campo.
+
+## Decisiones tomadas
+- **La tarjeta de número suma cinco parámetros opcionales, y sin ellos el render es
+  byte a byte el de antes** (`core.tests.test_nodo_ui_piezas.StatCardTest`). `kpi_id`
+  marca el valor con `data-kpi` para que `becas-dashboard.js` lo refresque; `nota` /
+  `nota_id` son el pie; `sufijo` / `sufijo_id` el « %» o el « / M» de un valor
+  compuesto. **No se agregó ranura de cuerpo**: las dos tarjetas que necesitan
+  minigráfico o barra de progreso siguen escritas a mano hasta que se defina el
+  arquetipo Dashboard, que no tiene golden.
+- **Con sufijo, `data-kpi` va en un `<span>` y no en el `<p>`.** El JS asigna
+  `textContent`; sobre el `<p>` entero borraría el sufijo. Es la única razón por la
+  que la pieza tiene dos ramas.
+- **Ocho de los diez KPIs migran, no siete.** El pedido contaba un «delta» en el
+  inicio que **ya no existe**: lo borró G2-04 (Cambio 161). Los dos que quedan son
+  los de minigráfico y barra. Para que la franja de seis se lea como una sola cosa,
+  esos dos adoptan el esqueleto exacto de la pieza (sin `shadow-sm`, sin el gradiente
+  del ícono de «Formularios recibidos»).
+- **Los pies del inicio se arman en la vista**, como ya se armaba `titulo_inicio`:
+  dos de los cuatro concuerdan en número («1 inscripción» / «3 inscripciones») y el
+  template no sabe concatenar sin volverse ilegible.
+- **El punto rojo de «Alertas activas» se va.** Era una decoración sobre la caja del
+  ícono; el número que está abajo dice lo mismo y la pieza canónica no lo contempla.
+- **El campo de formulario se muda a `templates/components/_field.html`**, con
+  `data-error="<campo>"` siempre presente (es donde el guardado AJAX escribe el error
+  inline), `aria-describedby` hacia la ayuda y el error, y `aria-invalid` con errores.
+  El ARIA lo pone un tag `campo_control` porque una plantilla no puede llamar a
+  `BoundField.as_widget(attrs=…)`; la clase `nodo-field` sigue viniendo del widget.
+- **`wrapper_class` necesita un tag y no un `|default`.** Hay que distinguir «no lo
+  pasaron» (→ `mb-4`) de `wrapper_class=""` (lo que pasan los formularios cuya grilla
+  ya separa con `space-y`/`gap`), y en Django una variable que no existe se resuelve
+  como `""`.
+- **`nodo-tabs.js` es mejora progresiva y se carga una sola vez en el shell.** No toca
+  nada visual ni el estado de Alpine: para activar una solapa dispara su `click()`,
+  que es lo que ya hacía el mouse. Sin el archivo, las solapas siguen funcionando.
+  **Reemplaza** el handler inline del detalle del ciudadano, que era la única
+  implementación del repo.
+- **`dispositivos/legajo/detail` no entra** (D-V1 = No). Sí entra el ABM de roles, que
+  no usa Alpine: ahí el `aria-selected` lo escribe su propio `activarTab`.
+- **El `extra_qs` de la paginación tolera `&amp;`** en vez de exigir que se pase
+  crudo: la pieza escribe sus propios enlaces con `&amp;`, así que un consumidor que
+  lo copia está siendo coherente con lo que ve.
+
+## Implementación
+- Las solapas se recorren con ← → Home End en todo el backoffice, con `tabindex`
+  itinerante (Tab entra y sale de la barra en un paso), y los lectores de pantalla
+  anuncian la solapa y su panel en las cuatro pantallas que no decían nada.
+- El inicio y el tablero de Becas se ven igual, pero sus tarjetas son la pieza única:
+  se fueron la caja de ícono de 52 px, el valor de 32 px / peso 800, el gradiente y
+  los cuatro SVG Heroicons del contenido.
+- Guardar una convocatoria desde la página 2 del listado ya no devuelve la página 1.
+- El selector de color del paso 4 del wizard deja de ser una barra de borde a borde:
+  es una muestra del alto de los demás campos.
+
+## Archivos
+- `templates/components/_stat_card.html` — `kpi_id`, `sufijo`, `sufijo_id`, `nota`, `nota_id`.
+- `templates/components/_field.html` (nuevo, reemplaza a `programas/becas/_field.html` y
+  `programas/dispositivos/config/_field.html`, los dos borrados) y sus 19 consumidores.
+- `templates/inicio.html` y `core/views/public.py` — las 4 tarjetas y sus pies.
+- `programas/templates/programas/becas/config/_dashboard_panel.html` — los 6 KPIs.
+- `static/custom/js/nodo-tabs.js` (nuevo) y `templates/includes/base.html`.
+- `legajos/templates/legajos/ciudadano_detail.html` — sale el handler inline.
+- `programas/.../becas/config/programa_detail.html`, `.../relevamientos/convocatoria_detail.html`,
+  `.../relevamientos/relevamiento_detail.html`, `users/templates/rol/rol_form.html` — ARIA.
+- `programas/views/relevamientos.py` y `.../relevamientos/convocatoria_list.html` — la página del re-render.
+- `core/templatetags/nodo_ui.py` — `campo_control`, `campo_wrapper_class`, `querystring_crudo`
+  y la tolerancia de `&amp;` en `sin_parametros`; `templates/components/_paginacion.html`.
+- `static/custom/css/nodo-forms.css` — `input[type="color"].nodo-field`.
+- Tests: `core/tests/test_front_ola5_pr6c.py` y `core/tests/test_nodo_tabs.py` (nuevos),
+  más casos en `core/tests/test_nodo_ui_piezas.py` y
+  `programas/tests/test_paginacion_solapas_ola5_pr6b.py`.
+
+## Base de datos
+No requiere.
+
+## Validación
+- `manage.py check` y `manage.py check --deploy` (con `SIIS_API_URL`, como el CI).
+- `manage.py makemigrations --check --dry-run` → «No changes detected».
+- Suite completa y `--tag performance` con Python 3.12 + Django 5.2.17.
+- `design_audit.py --ratchet` 0 hallazgos nuevos, `--goldens` 0,
+  `compile_templates.py --bloques` 0, `check_design_agent.py --changed`.
+- `npm run build:tailwind` sin diff.
+- Revisión visual con Chromium headless (no hay harness de Playwright, D-RED-06 = No):
+  la franja de 10 tarjetas y el selector de color, antes y después.
+- `ruff check .` y `ruff format --check` sobre lo tocado.
+
+## Puesta en marcha en el servidor
+Nada más que el deploy. `collectstatic` levanta `nodo-tabs.js`: si el manifest queda
+viejo, el shell pide un archivo que no está y la consola muestra un 404 (las solapas
+siguen andando con el mouse, que es el punto de la mejora progresiva).
+
+## Pendientes / a definir
+- **Arquetipo Dashboard.** Es lo que falta para que las dos tarjetas con minigráfico y
+  barra de progreso dejen de estar escritas a mano. Hasta entonces no se les inventa
+  una ranura a la pieza canónica.
+- `_field.html` no emite `aria-errormessage`; el error se enlaza con `aria-describedby`,
+  que es lo que soportan todos los lectores.
+
+## Reversión
+Revertir el commit. Vuelven los dos `_field.html`, las tarjetas escritas a mano y las
+solapas sin ARIA. No se pierde ningún dato: no hay migraciones ni cambios de modelo.
 
 ## Historial
 No aplica (entrada nueva).

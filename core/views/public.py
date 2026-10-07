@@ -92,6 +92,17 @@ def inicio_view(request):
         "seguimientos_hoy": seguimientos_hoy,
         "alertas_activas": contar_alertas_activas(),
     }
+    # FE-22: las cuatro tarjetas pasan a `components/_stat_card.html`, que recibe el pie
+    # como un texto ya armado. Los dos que concuerdan en número se arman acá —igual que
+    # `titulo_inicio`—, porque el template no sabe concatenar sin volverse ilegible.
+    context["pie_ciudadanos"] = (
+        f"{context['registros_mes']} inscripci{'ón' if context['registros_mes'] == 1 else 'ones'} este mes"
+    )
+    context["pie_legajos"] = f"de {context['total_legajos']} legajos en total"
+    context["pie_alertas"] = (
+        f"{context['ingresos_24h']} ingreso{'' if context['ingresos_24h'] == 1 else 's'} "
+        "al backoffice en las últimas 24 h"
+    )
 
     # --- Mi trabajo de hoy ---
     # Los dos paneles nombran ciudadanos y DNIs: van detrás de la capacidad que
