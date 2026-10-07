@@ -9,9 +9,26 @@ en cero llamadas y la regresión que cuidaba —que el DNI no viaje en el log—
 pasaba por accidente, porque el error de conexión real tampoco traía el DNI.
 
 La guarda es una sola línea de verdad: **ningún test puede abrir una conexión
-HTTP**. Se corta en ``HTTPAdapter.send``, que es por donde pasan tanto
-``requests.get`` como cualquier ``Session``, y no a nivel de socket: la base, el
-servidor de pruebas y Redis siguen funcionando.
+HTTP**. Se corta en dos lugares, los dos por encima del socket, para que la
+base, el servidor de pruebas, Redis y el SMTP de prueba sigan funcionando:
+
+* ``HTTPAdapter.send`` — por donde pasan ``requests.get`` y cualquier
+  ``Session``. Da el mensaje útil, porque sabe qué hay que parchear.
+* ``http.client.HTTPConnection.connect`` — el backstop. ``urllib.request``,
+  ``http.client`` y cualquier cliente que no sea ``requests`` llegan a la red
+  por acá (``HTTPSConnection.connect`` llama al ``connect`` de su base, así que
+  con parchear la base alcanza para los dos esquemas). Antes quedaban abiertos:
+  la docstring prometía «ningún test abre HTTP» y solo era cierto para
+  ``requests``.
+
+**Con ``--parallel``.** Los subprocesos del pool no heredan el parche cuando el
+método de arranque es *spawn* —el default en Windows y en macOS—: ahí Django
+vuelve a llamar a ``setup_test_environment`` del módulo, no al método del
+runner, así que el worker arrancaba con la red abierta y la guarda valía solo
+para el proceso padre. :class:`SuiteParalelaSinRed` la instala también en cada
+worker, después del ``_init_worker`` de Django (que es el que hace el
+``django.setup()`` del spawn). Con *fork* el worker ya la hereda y volver a
+asignarla no cambia nada.
 
 **Qué toca del CI.** Entra por ``TEST_RUNNER`` y solo lo carga ``manage.py
 test``: ``check``, ``migrate`` y ``collectstatic`` no se enteran. Los cuatro
@@ -26,9 +43,10 @@ no hace falta ahí. Este archivo **sí** viaja al release (``core/tests/`` no es
 en ``export-ignore``), igual que el resto de los tests.
 """
 
+import http.client
 from urllib.parse import urlsplit
 
-from django.test.runner import DiscoverRunner
+from django.test.runner import DiscoverRunner, ParallelTestSuite, _init_worker
 from requests.adapters import HTTPAdapter
 
 
@@ -36,16 +54,49 @@ class RedProhibidaEnTests(AssertionError):
     """Un test intentó salir a la red de verdad."""
 
 
+_AYUDA = (
+    "Parcheá el cliente que corresponde: los módulos de SIIS y Base de Personas "
+    "salen por su ``sesion`` (``patch.object(modulo.sesion, 'get'|'post', …)``), "
+    "no por ``requests``."
+)
+
+
 def _bloquear(self, request, *args, **kwargs):
     partes = urlsplit(getattr(request, "url", "") or "")
     # Solo esquema y host: la URL completa puede llevar el documento consultado
     # (``?dni=…``), y este mensaje termina en la salida del CI.
     destino = f"{partes.scheme}://{partes.netloc}" if partes.netloc else "un destino desconocido"
+    raise RedProhibidaEnTests(f"Un test intentó salir a la red ({destino}). {_AYUDA}")
+
+
+def _bloquear_conexion(self, *args, **kwargs):
+    # Mismo criterio que arriba: host y puerto, nunca la ruta ni la query.
+    destino = f"{getattr(self, 'host', '?')}:{getattr(self, 'port', '?')}"
     raise RedProhibidaEnTests(
-        f"Un test intentó salir a la red ({destino}). Parcheá el cliente que corresponde: "
-        "los módulos de SIIS y Base de Personas salen por su ``sesion`` "
-        "(``patch.object(modulo.sesion, 'get'|'post', …)``), no por ``requests``."
+        f"Un test intentó abrir una conexión HTTP ({destino}) con un cliente que no es ``requests``. {_AYUDA}"
     )
+
+
+def instalar_guarda():
+    """Corta las dos vías de salida. Devuelve lo que había, para restaurarlo."""
+    originales = (HTTPAdapter.send, http.client.HTTPConnection.connect)
+    HTTPAdapter.send = _bloquear
+    http.client.HTTPConnection.connect = _bloquear_conexion
+    return originales
+
+
+def _init_worker_sin_red(*args, **kwargs):
+    """El ``_init_worker`` de Django más la guarda, para el pool de ``--parallel``.
+
+    Vive a nivel de módulo porque ``multiprocessing`` tiene que poder picklearlo
+    por nombre cuando el arranque es *spawn*.
+    """
+    _init_worker(*args, **kwargs)
+    instalar_guarda()
+
+
+class SuiteParalelaSinRed(ParallelTestSuite):
+    init_worker = _init_worker_sin_red
 
 
 class RunnerSinRed(DiscoverRunner):
@@ -58,13 +109,14 @@ class RunnerSinRed(DiscoverRunner):
     en adelante la suite volvía a salir a la red sin avisar.
     """
 
+    parallel_test_suite = SuiteParalelaSinRed
+
     def setup_test_environment(self, **kwargs):
         super().setup_test_environment(**kwargs)
-        self._send_original = HTTPAdapter.send
-        HTTPAdapter.send = _bloquear
+        self._originales_red = instalar_guarda()
 
     def teardown_test_environment(self, **kwargs):
-        original = getattr(self, "_send_original", None)
-        if original is not None:
-            HTTPAdapter.send = original
+        originales = getattr(self, "_originales_red", None)
+        if originales is not None:
+            HTTPAdapter.send, http.client.HTTPConnection.connect = originales
         super().teardown_test_environment(**kwargs)

@@ -328,6 +328,8 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 154 | «Aprobar» deja de poder pasarse de los 60 s de nginx: un timeout por llamada, cortacircuito y presupuesto verificado | Transversal · clientes de SIIS, Base de Personas y RENAPER · correo saliente · sincronización del catálogo SIIS | `#siis` `#performance` `#infra` `#datos` | Auditoría integral oct-2026 — SIIS-09 (= PERF-09) y los tres MINOR de la revisión del PR 4 (Ola 1 «Integridad SIIS», PR 5) | 06/10/2026 | 🟢 **Hecho** | No requiere |
 | 155 | Controles que el navegador no dibujaba: botones sin caja, backdrop transparente, modales en la esquina y la grilla del mes ilegible en celular | Transversal (shell del backoffice, sidebar, navbar, CSS de botones) · Configuración (10 modales, formularios y wizard) · Legajos · Usuarios y roles · Dispositivos · Merenderos (prestación mensual) | `#ui` `#mobile` | Auditoría integral oct-2026 — fichas FE-06, FE-07, FE-01 y FE-10 (Ola 5, PR 4) | 06/10/2026 | 🟢 **Hecho** | No requiere |
 | 156 | La red de Becas: el adjunto que llega hasta la revisión, los dos borrados sin probar, la atomicidad, el padrón y la edad | Becas (adjuntos del caso, Configuración de requisitos y subsegmentos, cupo, padrón, exportaciones) · Transversal (registro de vencimientos, contrato de escrituras atómicas) | `#datos` `#metodo` `#cupos` `#relevamientos` | Auditoría integral oct-2026 — fichas RED-05, RED-31, RED-35, RED-77, RED-49, RED-50, RED-81 y RED-70 (Ola R, PR R-16) | 07/10/2026 | 🟢 **Hecho** (RED-50 queda caracterizada con `expectedFailure`: el arreglo es de la Ola 3) | No requiere |
+| 157 | El rojo deja de significar dos cosas: badges de estado, confirmaciones, avisos duplicados y el doble clic que mandaba dos POST | Merenderos (listado, detalle y solicitudes) · Dispositivos (detalle del legajo) · Usuarios y roles · Transversal (shell: guardia de doble envío y avisos de alertas) | `#ui` `#metodo` | Auditoría integral oct-2026 — fichas FE-18, FE-19, FE-25 y FE-26 (Ola 5, PR 5) | 07/10/2026 | 🟢 **Hecho** | No requiere |
+| 158 | Lo que viaja a SIIS deja de depender del catálogo de hoy: la foto del caso manda, gana el dato más específico y una identidad validada frena el envío | Becas · alta de beneficiarios en SIIS (payload, foto de la definición, catálogo de preguntas) · Transversal (copia local de los catálogos de SIIS, runner de tests) | `#siis` `#datos` `#relevamientos` `#metodo` | Auditoría integral oct-2026 — SIIS-08, G1-08, G1-09 y G1-10, más los cuatro MINOR de la revisión del PR 5 (Ola 1 «Integridad SIIS», PR 6) | 07/10/2026 | 🟢 **Hecho** | **Sí:** `programas.0077_catalogo_siis_local` (tabla nueva y vacía) |
 | 159 | Ratchets de arquitectura: el contrato de los modelos, el grafo de imports y las tres dependencias ocultas del shell | Transversal (contrato de `programas.models`, grafo de imports, shell del backoffice, arranque del contenedor, middlewares de usuarios, cache de la home, ruteo de la raíz) | `#metodo` `#infra` `#datos` | Auditoría integral oct-2026 — fichas RED-46, RED-79, RED-13, RED-45, RED-52, RED-51, RED-78 y RED-82 (Ola R, PR R-21) | 07/10/2026 | 🟢 **Hecho** (seis fichas cierran su parte R; el resto queda en las Olas 2, 4 y 7 con su test rojo o su ratchet puesto) | No requiere |
 | 160 | Contratos del backoffice: las URLs que el front escribe a mano, las claves que lee, los parsers externos y el gate que los corre | Transversal (barrido de URLs del front, sobre de error JSON, catálogo de capacidades, CI de GitHub Actions) · Inicio (APIs del dashboard y contador de alertas) · Becas (JSON guardados, fixtures de RENAPER/Personas/SIIS) | `#api` `#metodo` `#rbac` `#siis` | Auditoría integral oct-2026 — fichas RED-42, RED-39, RED-40, RED-41, RED-43 y RED-44 (Ola R, PR R-18) | 07/10/2026 | 🟢 **Hecho** (RED-39, RED-40 y RED-42 cierran su parte R; el resto queda en las Olas 3, 5 y 7 con su test o su ratchet puesto) | No requiere |
 
@@ -21032,6 +21034,485 @@ Que los opcionales no sean fatales es **OPS-07**, de la Ola 3.
   es ASCII, así que pasó a ser la clase literal de los 29 caracteres de `str.strip()`; y el test del cruce automático
   era vacuo —el caso no llevaba `genero`, con lo que nunca llegaba a mirar la identidad y pasaba también con la regla
   vieja—.
+
+---
+
+# Cambio 157 — El rojo deja de significar dos cosas: badges de estado, confirmaciones, avisos duplicados y el doble clic que mandaba dos POST
+
+🟢 **HECHO — 07/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Merenderos (listado, detalle y solicitudes) · Dispositivos (detalle del legajo) · Usuarios y roles · Transversal (shell del backoffice: guardia de doble envío y avisos de alertas en tiempo real) |
+| **Etiquetas** | `#ui` `#metodo` |
+| **Solicitante** | Auditoría integral oct-2026 — fichas FE-18, FE-19, FE-25 y FE-26 (Ola 5, PR 5) |
+| **Fecha del pedido** | 07/10/2026 |
+| **Issue / épica** | Sin issue (plan de la auditoría: `docs/internal/auditoria-2026-10/`) · PR #605 |
+| **Partes afectadas** | Backoffice: dos parciales de badges nuevos de Merenderos, el handler único de confirmación `programas/_swal_confirm_js.html`, `static/custom/js/nodo-submit-guard.js` (nuevo) cargado desde `templates/includes/base.html`, y `static/custom/js/alertas_websocket.js`. Ninguna pantalla nueva |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> «(5) FE-18, FE-19, FE-25, FE-26 — 8 h» (README de la auditoría, §6, Ola 5, PR 5.)
+
+Cuatro defectos de lectura de la interfaz:
+
+1. **FE-18 — badges de estado incoherentes.** Merenderos no tenía ningún badge: sus tres pantallas volcaban
+   `{{ objeto.get_estado_display }}` como texto suelto, así que un merendero cerrado y uno activo se leían
+   igual. En Usuarios y Roles, «Inactivo» salía en `badge-danger`: el rojo del sistema significa *peligro*, y
+   una cuenta apagada no es un error. Y en el detalle del dispositivo, «Sin datos» —ausencia de información—
+   caía en el `{% else %}` de la cadena del semáforo y se pintaba en rojo de alarma.
+2. **FE-19 — confirmaciones con colores invertidos y handler copiado tres veces.** El mismo `[data-confirm]`
+   estaba implementado en tres pantallas y las tres distintas: una sin `data-confirm-ok` ni motivo, otra sin
+   `buttonsStyling:false` y la tercera con el botón de confirmar en `btn-tertiary … text-fg-danger` **siempre**.
+   Efecto: «Rechazar» confirmaba en el color de marca y «Suspender» —reversible— confirmaba en rojo. En
+   Usuarios y Roles el mismo error al revés: «Activar usuario» salía con el botón rojo de borrado.
+3. **FE-25 — avisos paralelos en `alertas_websocket.js`.** El archivo se carga en todo el backoffice cuando
+   `WEBSOCKETS_ENABLED` está encendido y traía su propio sistema de avisos: una pila de toasts con markup e
+   `innerHTML` propios, sin rol ARIA ni live region, en la misma esquina que los toasts del shell; y un modal
+   de alerta crítica armado a mano, sin foco atrapado ni Escape, con clases que el build no genera y un enlace
+   a `/legajos/<id>/`, ruta que no existe (FE-09).
+4. **FE-26 — doble envío en los formularios clásicos.** Fuera de Becas todo el backoffice manda formularios
+   con un POST normal y nada impedía que un doble clic sobre «Confirmar egreso» o «Registrar entrega» mandara
+   dos POST: dos egresos, dos entregas, dos altas.
+
+## Alcance acordado
+
+**Entra:** lo que nombran las cuatro fichas y nada más.
+
+- Dos parciales de badges nuevos para Merenderos y su inclusión en las tres pantallas.
+- El badge «Inactivo» de `user_list`, `rol_list` y `rol_detail`, y la rama «Sin datos» del semáforo del
+  dispositivo.
+- Un include único de confirmación legacy para Dispositivos y Merenderos, con el tono declarado por la
+  pantalla, y el tono de los dos diálogos de activar/desactivar de Usuarios y Roles.
+- Los avisos de `alertas_websocket.js` por las piezas del shell.
+- Una guardia de doble envío global, cargada una sola vez desde el shell.
+
+**Queda afuera, explícitamente:**
+
+- **La migración de estas pantallas a las piezas canónicas.** Merenderos, Dispositivos, `user_list` y
+  `rol_list` siguen con su encabezado, su tabla, su paginación y su estado vacío a mano. Eso es FE-11, FE-12 y
+  FE-17, PRs 6 y 7 de la ola, después del paso 4 de la Ola 6. Acá se tocó solo el bloque que nombra cada ficha.
+- **La v2 de Dispositivos y Merenderos.** Estos son parches de la v1, con D-V1 = No: la v1 no se opera en PRD
+  antes de aprobar la v2, y por eso de esos dos módulos solo entran los fixes de bug.
+- **La migración de SweetAlert2 a `ModernModal` en esas tres pantallas.** El inventario clasifica SweetAlert2
+  como *legacy condicionado* justamente para ellas, y la decisión de extraer un include propio del módulo —en
+  vez de copiar el de Becas— ya está tomada en el Cambio 48.
+
+## Decisiones tomadas
+
+- **Un parcial de badges por módulo, con el contrato del de Dispositivos.** Es lo que manda el inventario: el
+  mapa estado→badge vive en un solo lugar y las pantallas lo incluyen. Merenderos recibe dos,
+  `_estado_badge.html` (legajo) y `_solicitud_estado_badge.html` (solicitud), porque son dos entidades con dos
+  juegos de estados. El mapa de la solicitud sigue al de Dispositivos, que recorre el mismo circuito de
+  validación: borrador en `badge-white`, en revisión en `badge-info`, observada en `badge-warning`, aprobada en
+  `badge-success`, rechazada en `badge-danger`.
+
+- **Suspendido es `warning`, no `danger`.** La suspensión de un merendero es reversible (D-M01), así que es una
+  advertencia. Y cerrado va en `badge-gray`, el mismo criterio que ya fija `_pausable_estado_badge.html` para
+  los segmentos de Becas: apagado no es un error.
+
+- **«Sin datos» va en `text-body-subtle`.** Ausencia de información no es un problema operativo. La rama entra
+  **antes** del `{% else %}`, que es lo que la atrapaba.
+
+- **El tono del botón de confirmar lo declara la pantalla, con `data-confirm-danger`.** El handler no puede
+  adivinar si la acción destruye algo. Sin el atributo, el botón va en `btn-brand`. Lo llevan «Rechazar» y
+  «Cerrar» (de dispositivo, de merendero y de solicitud); no lo llevan «Enviar a validación», «Validar»,
+  «Aprobar», «Observar», «Suspender» ni «Inactivar». Es el mismo contrato que ya tiene el confirm canónico de
+  Becas, que también lee `data-confirm-danger`.
+
+- **El handler único escucha `[data-confirm]` a secas, distinto del `[data-confirm-url]` de Becas.** Son dos
+  contratos que pueden convivir en la misma pantalla sin pisarse; hay un test que lo fija.
+
+- **El envío confirmado pasa por `requestSubmit()`, no por `submit()`.** `form.submit()` **no** dispara el
+  evento `submit`, así que se saltearía la guardia de doble envío del shell. Con `requestSubmit()` la
+  confirmación legacy y la guardia nueva trabajan juntas. Hay fallback a `submit()` para navegadores que no lo
+  tengan.
+
+- **La guardia de doble envío deshabilita los botones en el turno siguiente, no durante el evento.** El
+  navegador arma la lista de entradas del POST *después* de despachar el `submit`, y un control deshabilitado
+  queda fuera: deshabilitar en el acto le borraría el `name`/`value` al botón que disparó el envío, y hay
+  formularios que distinguen la acción por ahí. La protección real es síncrona y es otra: el segundo `submit`
+  se **cancela** porque el formulario ya está marcado `aria-busy`.
+
+- **La guardia respeta `event.defaultPrevented` y el bfcache.** El listener va en `document`, en burbuja, así
+  que corre después de los del propio formulario: si una validación o una confirmación canceló el envío, no se
+  bloquea nada. Y al volver con «atrás» (`pageshow` con `persisted`) se libera todo, o el formulario quedaría
+  inutilizable.
+
+- **Los formularios `data-ajax` quedan afuera.** Becas ya deshabilita su botón en `_ajax_js.html`; dos guardias
+  sobre el mismo formulario es una de más.
+
+- **El destino de «Ver» en la alerta crítica es el detalle del ciudadano, y lo arma Django.** `/legajos/<id>/`
+  no existe como ruta (FE-09) y el payload de la alerta trae `ciudadano_id`. La plantilla de URL se publica
+  desde el shell con `{% url %}` en `window.alertasConfig`, siguiendo el patrón que ya usa
+  `window.conversacionesConfig`: en el JS no se escriben rutas literales. Si falta la plantilla o el ciudadano,
+  el modal se muestra sin acción en vez de ofrecer un enlace roto.
+
+## Implementación
+
+Qué hace el sistema ahora y antes no:
+
+- **Merenderos muestra el estado como badge** en el listado, en el detalle (al lado del nombre, como el detalle
+  del dispositivo) y en la tabla de solicitudes. Ninguna de las tres pantallas vuelca ya
+  `get_estado_display` como texto suelto.
+- **«Inactivo» es gris** en el listado de usuarios, en el de roles y en el detalle del rol.
+- **«Sin datos» es gris** en los indicadores de actualización y completitud del detalle del dispositivo.
+- **Hay un solo handler de confirmación legacy**, `programas/templates/programas/_swal_confirm_js.html`, que
+  carga SweetAlert2 y lee `data-confirm-title`, `-text`, `-ok`, `-danger` y `data-requires-motivo`. Las tres
+  pantallas que tenían su copia la perdieron. El diálogo confirma en rojo solo cuando la acción destruye algo,
+  y los dos botones salen con variante **y tamaño** (`btn-base`), que es lo que les faltaba para no quedar sin
+  caja.
+- **«Activar usuario» y «Activar rol» ya no confirman en rojo**; «Desactivar» y «Eliminar rol» sí.
+- **Las alertas en tiempo real avisan por `window.toast`** —el único sistema de avisos del backoffice— y la
+  alerta crítica abre el `ModernModal` del shell, con foco atrapado, Escape y devolución de foco. El archivo
+  dejó de escribir `innerHTML` para avisar y dejó de nombrar clases que el build no genera.
+- **Un segundo envío de un formulario POST no sale.** El primero marca el formulario `aria-busy="true"` y
+  deshabilita sus botones de envío —también los externos, los que apuntan al formulario con `form="<id>"`—; el
+  segundo queda cancelado. Al volver con «atrás» todo se libera.
+
+## Archivos
+
+Nuevos:
+
+- `programas/templates/programas/merenderos/_estado_badge.html`
+- `programas/templates/programas/merenderos/_solicitud_estado_badge.html`
+- `programas/templates/programas/_swal_confirm_js.html`
+- `static/custom/js/nodo-submit-guard.js`
+- `programas/tests/test_estado_badges_merenderos.py`, `programas/tests/test_confirmaciones_legacy.py`,
+  `users/tests/test_badges_confirmaciones_ola5.py`, `legajos/tests/test_alertas_avisos_ola5.py`,
+  `core/tests/test_submit_guard.py`
+
+Modificados:
+
+- `programas/templates/programas/merenderos/{list,detail,solicitudes}.html`
+- `programas/templates/programas/dispositivos/legajo/detail.html`
+- `users/templates/user/user_list.html`, `users/templates/rol/{rol_list,rol_detail}.html`
+- `templates/includes/base.html` (carga la guardia y publica `window.alertasConfig`)
+- `static/custom/js/alertas_websocket.js`
+- `static/custom/css/tailwind.css` (regenerado: pierde `-mx-1.5` y `-my-1.5`, que vivían en el markup borrado)
+- `core/tests/test_design_audit_estructura.py` y `legajos/tests/test_alertas_websocket_escape.py` (dueños de la
+  deuda y expectativas que cambiaron)
+- `docs/internal/auditoria-2026-10/hallazgos/07-front.md` y `README.md`
+
+## Base de datos
+
+No requiere. El PR no trae migraciones, no escribe ni borra una sola fila y no toca ninguna vista.
+
+## Validación
+
+Con `.venv312` (Python 3.12 + Django 5.2.17, igual al CI):
+
+- `manage.py check` — sin issues.
+- `manage.py check --deploy` — 6 issues, las mismas de `HEAD` (W004, W008, W009, W012, W016: todas de settings
+  de cookies y HSTS del entorno de desarrollo). No se tocó ningún settings.
+- `manage.py makemigrations --check --dry-run` — «No changes detected».
+- `manage.py test` (suite completa, un solo proceso) — **3121 tests, OK (27 skipped)**.
+- `manage.py test --tag performance` — 4 tests, OK.
+- `ruff check .` — All checks passed. `ruff format --check` sobre lo tocado — limpio.
+- `design_audit.py --ratchet` — **0 hallazgos nuevos** en 13 archivos de UI cambiados. `--goldens` — 0 en 5
+  goldens. `compile_templates.py --bloques` — 203 compilados, 0 errores, 0 bloques sin destino.
+- `npm run build:tailwind` corrido y `static/custom/css/tailwind.css` committeado; el build **no agrega**
+  ninguna clase y saca dos (`-mx-1.5`, `-my-1.5`).
+
+Verificación en navegador (Chromium vía Playwright, `runserver` con SQLite en archivo, a **1440 y 390 px**,
+**0 errores de consola**):
+
+| Qué | 1440 px | 390 px |
+|---|---|---|
+| Badges del listado de merenderos | Activo `rgb(236,253,245)` · Suspendido `rgb(255,248,241)` · Cerrado `rgb(229,231,235)` | igual |
+| Badges de solicitudes | los cinco estados, cada uno con su tono | igual |
+| «Inactivo» en el listado de usuarios | `rgb(229,231,235)` (gris), «Activo» en verde | igual |
+| Swal de «Cerrar merendero» | `swal2-confirm btn-nodo btn-danger btn-base`, fondo `rgb(199,0,54)`, `padding-left: 16px` | igual |
+| Swal de «Suspender» | `btn-nodo btn-brand btn-base`, sin rojo | igual |
+| Guardia de doble envío | cargada una vez; primer `submit` pasa, segundo cancelado, `aria-busy="true"` | igual |
+
+FE-25 no se ejercita en el navegador porque el mensaje `alerta_critica` **nunca se emite** hoy (el servicio
+manda `nueva_alerta_critica` y el consumer solo declara `alerta_critica`: es G1c-17) y el archivo solo se carga
+con `WEBSOCKETS_ENABLED`. Se cubre corriendo el archivo real con `node` sobre un DOM simulado.
+
+## Puesta en marcha en el servidor
+
+Nada más que el deploy. Hay **un** archivo estático nuevo
+(`static/custom/js/nodo-submit-guard.js`): el `collectstatic` del entrypoint lo toma, y conviene reiniciar
+`nginx` después de recrear `web` por el gotcha de la IP cacheada del upstream. Sin ese estático la pantalla
+sigue funcionando: se pierde la guardia, no el formulario.
+
+## Pendientes / a definir
+
+1. ~~**El contrato del agente de diseño lo cierra el juez.**~~ **Cerrado:** la sesión implementadora no tiene
+   permiso de escritura sobre `.claude/`, así que el bloque del núcleo (tres filas del inventario) y el de
+   `design/shells.md` fueron en el cuerpo del PR y **los aplicó el juez**. «Design Agent Contract» quedó en
+   verde. El contenido se había verificado antes contra los límites del checker (núcleo en 26.292 bytes de
+   30.000, celdas en 438 y 374 de 450, sin referencias de historia) y contra `validate(..., limites=True)`.
+2. **Las pantallas tocadas siguen fuera de los arquetipos.** No se les corrió `--arquetipo` porque ninguna está
+   migrada: su encabezado, su tabla y su paginación siguen a mano. Es FE-11, FE-12 y FE-17.
+3. **Las tres acciones del listado de solicitudes siguen siendo texto subrayado**, no botones del sistema. La
+   ficha FE-19 pedía `btn-nodo btn-danger btn-base` para «Rechazar»; acá recibió `data-confirm-danger` —que es
+   lo que arregla el color del diálogo— pero no la clase de botón: convertir tres acciones dentro de una celda
+   en botones completos es rediseñar la tabla, que es FE-12.
+4. **`hover:bg-gray-50` sigue en la deuda congelada de `CssCompiladoAlDiaTests`**, ahora con un solo dueño:
+   `alertas_conversaciones_simple.js` (FE-14). De `alertas_websocket.js` se fue.
+5. **La vista previa de la campana sigue con markup propio y paleta cruda** (`bg-red-100`, `text-gray-600`…).
+   Esta ficha solo le sacó las dos clases que el build no genera; su migración es FE-11/FE-12.
+6. **`showCriticalModal` sigue sin dispararse.** El modal quedó bien construido, pero el bug que lo deja
+   inalcanzable es G1c-17 (el servicio emite `nueva_alerta_critica` y el consumer declara `alerta_critica`) y
+   no es de esta ficha.
+
+## Reversión
+
+Revertir el commit. Vuelven los cuatro defectos: Merenderos sin badges, «Inactivo» y «Sin datos» en rojo, los
+tres handlers de confirmación copiados, los avisos paralelos del WebSocket y el doble envío. No hay nada que
+deshacer en la base. **Al revertir hay que volver a correr `npm run build:tailwind`**, porque `tailwind.css` es
+generado: el revert lo deja en el estado anterior, que es el correcto para el markup anterior.
+
+## Historial
+
+- **07/10/2026 (ronda 2 de revisión)** — la guardia de doble envío leía `event.defaultPrevented` **una sola
+  vez, al entrar**, y el comentario daba por hecho que alcanzaba «porque el listener va en `document`, en
+  burbuja». No alcanza: la guardia se registra al cargar el shell y los scripts de `{% block customJS %}` se
+  registran dentro de `DOMContentLoaded`, o sea **después**, así que un listener delegado en `document` que
+  cancele el envío corre **detrás** de la guardia. Reproducido en Chromium: el envío quedaba cancelado y el
+  formulario con `aria-busy="true"` y los botones `disabled` para siempre. Hoy ninguna pantalla delega así,
+  pero el script es global. Ahora `defaultPrevented` se reevalúa en el mismo turno diferido en que se fija el
+  `disabled`, y si el envío terminó cancelado se suelta la marca y no se deshabilita nada. El comentario del
+  archivo quedó corregido.
+
+---
+
+# Cambio 158 — Lo que viaja a SIIS deja de depender del catálogo de hoy
+
+🟢 **HECHO — 07/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · alta de beneficiarios en SIIS (payload, foto de la definición, catálogo de preguntas) · Transversal (copia local de los catálogos de SIIS, runner de tests) |
+| **Etiquetas** | `#siis` `#datos` `#relevamientos` `#metodo` |
+| **Solicitante** | Auditoría integral oct-2026 — fichas SIIS-08, G1-08, G1-09 y G1-10, más los cuatro MINOR que dejó la revisión del PR 5 (Ola 1 «Integridad SIIS», PR 6) |
+| **Fecha del pedido** | 07/10/2026 |
+| **Issue / épica** | Sin issue (plan de la auditoría: `docs/internal/auditoria-2026-10/`) |
+| **Partes afectadas** | `programas/services/siis_envio.py` (`respuestas_por_destino`, `armar_payload`, `Catalogos`) · `programas/services/becas.py` (`_campo_dict`, `resolver_ciudadano_offline`) · `programas/services/identidad.py` · `programas/services/respuestas.py` (`foto_definicion`) · `programas/services/siis.py` (copia local de catálogos) · `programas/views/configuracion.py` (toggle de pregunta) · `programas/views/revision.py` y `cupo.py` (catálogos sin red) · `sincronizar_programas_siis` · `core/integraciones.py` · `core/tests/runner.py`. Ninguna pantalla nueva |
+| **Migración** | **Sí:** `programas.0077_catalogo_siis_local` (tabla nueva y vacía) |
+
+## Pedido original
+
+Cerrar el sexto PR de la Ola 1: **SIIS-08**, **G1-08**, **G1-09** y **G1-10** —las cuatro fichas de «qué viaja a
+SIIS»— y los **cuatro MINOR** que la revisión del PR 5 (Cambio 154) dejó anotados sin bloquear el merge.
+
+## Qué lo motivó
+
+El alta en SIIS **no tiene baja**. Todo lo de abajo son formas distintas de mandar un dato que nadie decidió
+mandar, y de enterarse después:
+
+- **G1-08.** El mapeo «esta pregunta alimenta este campo de SIIS» se leía del catálogo **de hoy**, aunque el
+  caso se hubiera respondido con otro. El Cambio 58 (D3) ya guarda la **foto** de la definición para que un
+  caso viejo no se reinterprete; el destino SIIS quedó afuera de esa foto. El escenario concreto: el admin
+  desactiva «Calle y altura» para reemplazarla por otra pregunta, y **todos los casos aprobados que todavía no
+  se informaron** salen a SIIS como «Planta urbana sin número» con altura 1 (la convención del Cambio 89), sin
+  un solo error ni faltante. Con «Barrio» o «Estado civil» pasa lo contrario: todos pasan a INCOMPLETO de
+  golpe. El mismo agujero por el otro lado: `PreguntaGlobalUpdateView` deja **cambiar** `destino_siis`.
+- **G1-09.** «Una sola pregunta activa por destino SIIS» estaba escrita solo en `PreguntaGlobalForm.clean`, y
+  el botón de activar/desactivar del listado **no pasa por el form**. Con dos activas apuntando a `est_civil`,
+  lo que viajaba dependía del orden en que el motor devolviera las filas.
+- **G1-10.** Entre dos campos marcados con el mismo destino, el que pisaba era el de mayor `orden`. Un
+  requisito del programa con orden 9 le ganaba al del subsegmento con orden 1: viajaba el dato general
+  habiendo uno particular para ese subsegmento, que es exactamente al revés de lo que el Cambio 80 quiso.
+- **SIIS-08.** Un legajo creado antes con datos autodeclarados —o falsos, G1-01— recibe un caso validado por
+  padrón o por Base de Personas. `resolver_ciudadano_offline` completa `genero` y `localidad` si faltaban y
+  **descarta el resto**: el caso queda marcado como validado y el alta sale con el nombre del legajo, que es
+  justamente el que nadie verificó.
+
+Los cuatro MINOR son del PR anterior:
+
+- **Los catálogos maestros no estaban declarados en ninguna cadena.** `armar_payload` resuelve estado civil,
+  provincia y localidad contra ellos y, con la caché fría, los pedía por HTTP **dentro del request de
+  «Aprobar»** — que ya gastaba 55 de los 55 s de presupuesto que deja nginx.
+- Con `--parallel` y *spawn* (el default en Windows) la guarda sin red **no se instalaba en los workers**.
+- La docstring del runner prometía «ningún test abre HTTP» y era cierto solo para `requests`.
+- «Configuración SIIS incompleta» se logueaba igual para una variable de entorno vacía que para un token que
+  SIIS devolvió mal.
+
+## Decisiones tomadas
+
+- **La foto del caso declara sus destinos SIIS.** `foto_definicion` guarda `destinos_siis`: una entrada por
+  campo marcado, con `clave`, `id`, `destino`, `alcance` y `orden`. `respuestas_por_destino` la usa cuando
+  existe; si no existe —casos anteriores a este cambio— sigue leyendo el catálogo de hoy, que para ellos es la
+  única fuente que hay, y eso quedó caracterizado en un test para que no se confunda con un bug.
+- **La foto guarda los hechos, no la precedencia ya resuelta.** Se guarda de qué nivel es cada campo y en qué
+  orden está, no «este gana». Así una corrección de la regla —G1-10 fue una— alcanza también a los casos ya
+  guardados, que es lo que no pasaría si la foto guardara el resultado.
+- **`destino_siis` va solo en los campos marcados.** La foto son ~27 KB por caso y `programas_formulario` pesa
+  283 MB en producción (Cambio 106): una clave vacía por campo se paga en cada caso. Lo que distingue una foto
+  nueva de una vieja es la clave `destinos_siis` del nivel de arriba, que existe siempre, aunque esté vacía.
+- **Gana el más específico:** subsegmento → segmento → programa → pregunta general, y `orden` desempata dentro
+  del nivel. La regla del Cambio 80 (un requisito le gana a una general) no cambia: es el piso de esa escala.
+- **El botón de activar/desactivar chequea la regla del form, pero solo al activar.** Desactivar nunca se
+  bloquea: dos preguntas activas con el mismo destino es un estado que ya puede existir en la base y la salida
+  tiene que seguir abierta.
+- **La mitigación «mientras tanto» de G1-08 no se hace.** La ficha pedía una confirmación explícita al
+  desactivar una pregunta con destino *porque* el catálogo vivo reinterpretaba los casos. Con la foto, no los
+  reinterpreta: la confirmación quedaría pidiendo permiso para algo que ya no pasa.
+- **SIIS-08: default de D-S08, la opción mínima.** El legajo **no** se corrige solo —quién manda sobre él
+  cuando llega una identidad validada es la decisión del cliente que sigue abierta—: se deja constancia y se
+  frena el envío hasta que un coordinador resuelva.
+- **Se guarda la identidad acreditada, no una marca «hay conflicto».** Es el único desvío de la ficha, y es a
+  favor: con la marca, el caso quedaba bloqueado para siempre salvo que alguien se acordara de borrarla a mano
+  después de corregir el legajo. Guardando la identidad en `datos_siis["_identidad_acreditada"]`,
+  `armar_payload` rehace la comparación contra el legajo **de ahora** y el caso se destraba solo.
+- **Solo se comparan los campos donde los dos lados tienen valor.** Que al legajo le falte la fecha de
+  nacimiento no es un conflicto de identidad: el payload ya lo reclama por su cuenta, y marcarlo mandaría a
+  revisar la identidad de alguien por un dato que simplemente no está. Lo autodeclarado (`origen` = `manual`)
+  nunca marca nada: lo que la persona dijo de sí misma no acredita.
+- **SIIS-08 es hacia adelante, y eso es parte de la decisión.** La comparación vive en
+  `resolver_ciudadano_offline`, que solo hace algo **mientras el caso todavía tiene `datos_identificacion`**: en
+  el momento en que resuelve su legajo. Los casos que ya lo tenían resuelto antes del deploy no quedan marcados
+  y **se siguen informando con el nombre del legajo**; para ellos la identidad acreditada ya se descartó y no
+  hay de dónde recuperarla, salvo del padrón de su convocatoria, que sí sigue en la base. La alternativa era un
+  backfill que decidiera por su cuenta qué nombre vale, que es justamente lo que D-S08 no decidió todavía.
+  **Cuántos son se mide con `P-18`** (README §3 de la auditoría), que devuelve solo números.
+- **Los catálogos maestros salen del request.** Declararlos en la cadena de «Aprobar» era imposible: la cadena
+  ya estaba **justo en 55 de 55** y tres GET con la caché fría la llevan a 100, con cualquier timeout. Así que
+  el backoffice lee una **copia local** en la base (`CatalogoSiisLocal`) por `siis.catalogo_local`, y las dos
+  vistas que dan de alta usan `Catalogos.sin_red()`.
+- **La copia va a la base y no a la caché.** La caché es Redis **solo** en `prd`; en el resto de los ambientes
+  es LocMem por proceso y se vacía con cada reciclado de worker de gunicorn (`--max-requests 1000`), así que un
+  «precalentar por cron» no habría llegado nunca a los workers de QA. Una tabla la comparten todos los
+  procesos y sobrevive a los reinicios. La caché se conserva encima, con su TTL de un día, para no ir a la base
+  en cada caso del masivo.
+- **La copia la mantiene cualquier lectura exitosa del catálogo**, más el CronJob de
+  `sincronizar_programas_siis`, que suma ese paso. Es un paso **secundario**: si un catálogo no se puede bajar,
+  informa y el comando sigue, porque la copia que ya había sirve igual y el estado de los programas es el
+  trabajo principal. Un catálogo **vacío no pisa** la copia buena: mismo criterio que SIIS-06, donde una lista
+  vacía resultó ser un error del servicio y no una baja real.
+- **La guarda sin red se instala también en los workers de `--parallel`** (`SuiteParalelaSinRed`), y corta
+  además `http.client.HTTPConnection.connect`, que es por donde salían `urllib.request` y `http.client`. Se
+  corta ahí y no a nivel de socket: la base, Redis y el SMTP de prueba siguen funcionando.
+- **`_SiisConfigurationError` distingue sus dos causas** con `falta_configuracion`. Lo que **no** cambia es el
+  cortacircuito: ninguna de las dos cuenta como falla —una corta antes de abrir la conexión y la otra contesta
+  rápido, así que no hay espera que ahorrar—, y eso ya tenía test desde el PR 5.
+
+## Base de datos
+
+`programas.0077_catalogo_siis_local`: `CreateModel` de `CatalogoSiisLocal` (`nombre` único, `items` JSON, más
+los timestamps de `TimeStamped`). Tabla nueva y vacía, *expand* puro: el código de la release anterior no la
+conoce ni la necesita —sigue pidiéndole los catálogos a la API—, así que las dos versiones conviven durante el
+rolling. La reversa borra la tabla y lo único que se pierde es la copia, que se vuelve a bajar sola.
+
+Ninguna de las cuatro fichas necesita migración: `Formulario.definicion` y `Formulario.datos_siis` ya son
+`JSONField` y `destinos_siis` / `_identidad_acreditada` son claves más.
+
+## Puesta en marcha en el servidor
+
+**Correr `python manage.py sincronizar_programas_siis` una vez, después de migrar.** La tabla
+`programas_catalogosiislocal` nace vacía y el backoffice ya no va a buscar los catálogos a SIIS dentro del
+request. El CronJob de las 04:00 lo hace solo, pero conviene no esperar hasta la madrugada.
+
+**El camino que falla el día 1 es «Promover» desde Cupo.** Las dos vistas que dan de alta leen la copia, pero no
+llegan igual de vacías: para aprobar desde el detalle del caso, el coordinador suele haber pasado antes por
+«Completar datos para SIIS», y ese formulario **sí** va a la red y deja la copia escrita. Promover desde Cupo no
+pasa por ninguna pantalla que cargue catálogos, así que es el que se lleva el `EnvioSIIS` en ERROR si nadie
+corrió el comando. Es **reintentable** y el toast dice exactamente qué hacer («Faltan los catálogos de SIIS en
+la base: corré `sincronizar_programas_siis` o esperá al proceso de las 04:00, y reintentá. No se informó nada a
+SIIS»): no se pierde ni se manda nada mal.
+
+**Una inscripción pública con el paso 2 abierto durante el rolling se va a tener que reenviar.** La foto suma la
+clave `destinos_siis` y `huella_definicion` hashea la foto entera, así que la huella que el paso 1 guardó en la
+sesión con la release vieja no coincide con la que calcula el paso 2 con la nueva: la persona recibe «el
+formulario cambió» y tiene que volver a enviarlo. Es **recuperable** —nada se pierde, el formulario se vuelve a
+completar— y es el comportamiento previsto para cuando el diseño cambia en el medio, pero le cae a alguien que
+no hizo nada mal. **Recomendación: desplegar fuera del horario de una convocatoria con el link abierto.** La
+ventana es corta (lo que una persona tarda entre el paso 1 y el paso 2) y afecta solo a quien esté justo ahí.
+
+**Durante el rolling conviven las dos releases sin problema:** la vieja ignora `destinos_siis` y no conoce la
+tabla nueva; la nueva lee la copia o deja el ERROR reintentable. Sigue valiendo lo del PR 2: no desplegar con
+una corrida masiva en curso.
+
+## Validación
+
+- **Suite completa** (`manage.py test` sin argumentos, Python 3.12 + Django 5.2.17 del `.venv312`, igual al
+  CI): **3.134 tests, OK** (27 skips).
+- **Tests nuevos: 37.** 28 en `programas/tests/test_siis_que_viaja.py` (foto del destino, especificidad, toggle,
+  identidad acreditada, catálogos fuera del request), 5 en `core/tests/test_sin_red.py` (clientes que no son
+  `requests`, guarda en los workers paralelos) y 4 en `programas/tests/test_llamadas_externas.py` (los dos
+  mensajes de `_SiisConfigurationError`, en compatibilidad y en catálogo).
+- **Fallaban antes del cambio, por el motivo esperado** (verificado volviendo `siis_envio.py` y
+  `configuracion.py` al estado de `HEAD`): 6 fallos y 3 errores. Los dos tests de `urllib`/`http.client`
+  fallaban con un `socket.gaierror: getaddrinfo failed`, o sea **saliendo a la red de verdad**, que es
+  exactamente lo que el MINOR describía.
+- **Contrato del payload:** `test_el_payload_es_el_mismo_por_los_dos_caminos` fija los 23 campos del payload
+  completo y comprueba que leer el mapeo de la foto o del catálogo da **el mismo dict**. Ningún campo se
+  agrega, se quita ni se renombra en este cambio; lo que cambia es de dónde sale el valor de un campo cuando
+  hay dos candidatos, y el faltante nuevo `identidad`, que **no es un campo del payload** sino un motivo para
+  no mandarlo.
+- `manage.py check`, `check --deploy` (con `SIIS_API_URL` seteada: 0 errores; sin ella queda el `core.E001`
+  preexistente del entorno local), `makemigrations --check --dry-run` (sin cambios),
+  `scripts/check_migraciones.py` (1 migración revisada, 0 problemas), `--tag performance` (4 tests OK) y
+  `ruff check . && ruff format --check` en verde. `requerimientos.py --check` OK.
+- **Dos tests de otros módulos cambian a propósito:** `SiisClientTests` declara `databases = {"default"}`
+  —`catalogo()` dejó de ser puro: ahora escribe la copia— y `test_catalogo_normaliza_y_cachea` sigue
+  verificando lo mismo.
+- **No se corrió nada contra SIIS, ECOM, icore ni PRD.** Todo el tráfico de los tests está mockeado, y desde el
+  PR 5 lo garantiza el runner.
+
+## Reversión
+
+Revertir el commit y desaplicar `0077`. Vuelve el mapeo por catálogo vivo (y con él G1-08), vuelve el orden por
+`orden` (G1-10), el botón deja de chequear la regla (G1-09) y el payload deja de mirar la identidad acreditada
+(SIIS-08). El `destinos_siis` que las fotos nuevas ya hayan guardado queda ahí sin molestar: el código viejo lo
+ignora. Lo que **no** conviene revertir a medias es la copia local sin revertir `Catalogos.sin_red()`: sin la
+tabla, el backoffice no puede armar el payload.
+
+## Pendientes / a definir
+
+- **Paso operativo del deploy: correr `sincronizar_programas_siis` una vez.** La tabla nace vacía y el
+  backoffice ya no va a buscar los catálogos a SIIS dentro del request; hasta que la copia exista, el alta desde
+  la pantalla del caso queda como ERROR **reintentable**, con un mensaje que dice cómo destrabarla. El masivo y
+  los comandos no dependen de eso: van a la red y, de paso, llenan la copia.
+- **La pantalla «Completar datos para SIIS» pide cinco catálogos en un GET** (`programas/forms.py:283-308`) y
+  tampoco está declarada en ninguna cadena: es el mismo agujero del MINOR 1 en una pantalla que no hace nada
+  irreversible. Queda anotado como seguimiento; no entró en este PR.
+- **D-S08 sigue abierta.** La opción de fondo —`Ciudadano.identidad_origen` (`manual`/`padron`/`personas`/
+  `renaper`) y que una identidad validada actualice un legajo `manual`— necesita la decisión del cliente sobre
+  quién manda. Mientras tanto, el caso se frena y lo corrige un coordinador.
+- **Los casos que ya tenían el legajo resuelto antes del deploy no quedan marcados** y se siguen informando con
+  el nombre del legajo (SIIS-08 es hacia adelante, ver Decisiones). **Correr `P-18`** del README §3 de la
+  auditoría para saber cuántos son: devuelve solo números —ningún nombre ni documento— y separa los que ya se
+  informaron a SIIS, que son los irreversibles. Da un **techo**, porque compara con `UPPER`/`TRIM` y no
+  normaliza acentos como el código. Si el número es chico se revisa a mano; si es grande hace falta un comando
+  de corrección, **que no está escrito**. Los validados por Base de Personas no se pueden contrastar de este
+  lado: lo que contestó la Gran Base no se guarda.
+- **No hay pantalla para el conflicto de identidad.** Se ve como un faltante más en el detalle del caso, con el
+  texto que nombra los campos y las dos versiones. Si hiciera falta un listado de «casos con identidad en
+  conflicto», es un requerimiento aparte.
+- **Los casos anteriores a este cambio siguen leyendo el catálogo de hoy.** No hay forma de reconstruirles la
+  foto: la definición con la que se respondieron no se guardó. Un backfill solo podría escribir el mapeo de hoy,
+  que es justamente lo que esta ficha dice que no hay que hacer.
+- **La copia local no se contrasta con el catálogo propio.** `seed_catalogo_siis --verificar-api` sigue siendo
+  la única forma de detectar que la API devuelve otros ids (el incidente del 01/10 con Fontana).
+
+## Historial
+
+- **01/10/2026** (Cambio 107) — se verifica que los ids de estado civil de la API sí son los de SIIS; queda
+  escrito que ese catálogo no tiene respaldo propio, a diferencia de provincias y localidades (Cambio 85).
+- **03/10/2026** — la auditoría abre SIIS-08 (con D-S08), G1-08, G1-09 y G1-10, y las agrupa en el PR 6 de la
+  Ola 1 bajo el título «qué viaja a SIIS».
+- **06/10/2026** (Cambio 154) — el presupuesto de llamadas externas por request empieza a verificarse en
+  `check --deploy`; «Aprobar un caso» queda justo en 55 s de 55.
+- **07/10/2026 (este cambio)** — las cuatro fichas, más los cuatro MINOR del PR 5. El del presupuesto destapó
+  que la cadena de «Aprobar» ya estaba por encima del techo con la caché fría, y la única salida era sacar los
+  catálogos del request.
+- **07/10/2026 (ronda 2 de la revisión)** — cuatro MINOR, dos de código y dos de documentación. El botón de
+  activar una pregunta daba **500** con un `destino_siis` fuera del enum (la columna es un `CharField` con
+  `choices`: la base acepta cualquier texto); el toast del envío sin copia de catálogos decía «SIIS no respondió
+  correctamente», que es lo contrario de lo que pasó, y pasa a tener su propio `codigo_error`
+  (`CATALOGO_SIN_COPIA`) y su propio mensaje. Y quedó escrito que SIIS-08 es hacia adelante —con la consulta
+  `P-18` para medir los casos viejos—, que la huella de la foto cambia durante el rolling y que «Promover» desde
+  Cupo es el camino que se lleva el ERROR el día 1.
+- **07/10/2026 (ronda 3)** — el PR R-21 (#607, Cambio 159) entró a `development` con el ratchet
+  `programas/tests/test_models_contrato.py`, que fija los modelos de la app uno por uno. `CatalogoSiisLocal`
+  quedó registrado ahí (`programas_catalogosiislocal`): es el contrato que vuelve seguro partir
+  `programas/models/__init__.py`, así que un modelo nuevo se anota a mano a propósito. Ningún otro ratchet de
+  R-21 lo pidió.
 
 ---
 

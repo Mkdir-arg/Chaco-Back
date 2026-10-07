@@ -19,12 +19,21 @@ rojo, que es la forma de que se entere alguien.
 el log, igual que ``--ignorar-corrida`` en los comandos que hablan con SIIS caso
 por caso. El CronJob de ``docker/k8s/cronjobs.yaml`` corre sin el flag y no
 cambia.
+
+De paso refresca la **copia local de los catálogos maestros** (provincias,
+localidades, estados civiles, jurisdicciones y tipos de documento). Es el otro
+trabajo que hay que hacer de noche: el backoffice ya no puede pedirle un
+catálogo a SIIS dentro de un request —no entra en los 60 s de nginx, SIIS-09—,
+así que lee la copia y alguien la tiene que mantener al día. Es un paso
+**secundario**: si un catálogo no se puede bajar se informa y el comando sigue,
+porque la copia que ya había sirve igual y el estado de los programas es el
+trabajo principal. Con ``--dry-run`` no se toca.
 """
 
 from django.core.management.base import BaseCommand, CommandError
 
 from programas.models import ProgramaSiis
-from programas.services.siis import SiisCatalogError
+from programas.services.siis import SiisCatalogError, refrescar_catalogos_locales
 from programas.services.siis_sync import sincronizar_estado_programas
 
 AYUDA_FORZAR = (
@@ -69,6 +78,9 @@ class Command(BaseCommand):
         except SiisCatalogError as exc:
             raise CommandError(str(exc)) from exc
 
+        if not dry:
+            self._refrescar_catalogos()
+
         if not cambios:
             self.stdout.write("Sin cambios: todos los programas SIIS vinculados siguen igual.")
             return
@@ -85,3 +97,16 @@ class Command(BaseCommand):
 
         verbo = "a actualizar" if dry else "actualizado(s)"
         self.stdout.write(self.style.SUCCESS(f"Listo. {len(cambios)} programa(s) {verbo}."))
+
+    def _refrescar_catalogos(self):
+        """Baja los catálogos maestros y actualiza la copia que lee el backoffice.
+
+        No levanta: un catálogo que hoy no se pudo bajar deja en pie la copia
+        anterior, y el estado de los programas —el trabajo principal del
+        comando— ya se escribió.
+        """
+        actualizados, fallados = refrescar_catalogos_locales()
+        for nombre, cantidad in actualizados:
+            self.stdout.write(f"Catálogo {nombre}: copia local actualizada ({cantidad} ítems).")
+        for nombre, error in fallados:
+            self.stdout.write(self.style.WARNING(f"Catálogo {nombre}: no se pudo actualizar la copia local ({error})."))

@@ -76,7 +76,7 @@ def _se_pide_en(obj, canal):
 
 def _campo_dict(obj, alcance):
     grupo = getattr(obj, "grupo", None)
-    return {
+    datos = {
         "id": obj.pk,
         "texto": obj.texto,
         "tipo": obj.tipo,
@@ -94,6 +94,15 @@ def _campo_dict(obj, alcance):
         "vinculo": getattr(obj, "vinculo", ""),
         "grupo": {"clave": grupo.clave, "nombre": grupo.nombre} if grupo is not None else None,
     }
+    # G1-08: a qué campo del alta en SIIS alimenta este dato. Va **solo cuando
+    # hay destino**: la foto del caso son ~27 KB y ``programas_formulario`` pesa
+    # 283 MB en producción (Cambio 106), así que una clave vacía por campo se
+    # paga por cada caso. Lo que marca que la foto es de las nuevas es la clave
+    # ``destinos_siis`` del nivel de arriba, no esta.
+    destino = getattr(obj, "destino_siis", "") or ""
+    if destino:
+        datos["destino_siis"] = destino
+    return datos
 
 
 def definicion_formulario(relevamiento):
@@ -258,6 +267,60 @@ def _completar_contacto(ciudadano, formulario):
     return completar
 
 
+_ETIQUETA_IDENTIDAD = {"nombre": "nombre", "apellido": "apellido", "fecha_nacimiento": "fecha de nacimiento"}
+
+
+def _anotar_identidad_acreditada(formulario, ciudadano, datos):
+    """SIIS-08: deja constancia cuando el legajo que ya existía no coincide con
+    la identidad que acreditó el padrón o Base de Personas.
+
+    Un legajo creado antes con datos autodeclarados —o falsos, G1-01— recibe un
+    caso validado y se queda como estaba: se completan ``genero`` y ``localidad``
+    si faltaban, y nada más. El caso figura como validado, pero el alta en SIIS
+    sale con el nombre del legajo, que es el que nadie verificó, y el alta en
+    SIIS no tiene baja.
+
+    **D-S08, opción mínima (default registrado):** no se corrige el legajo acá
+    —quién manda sobre el legajo es una decisión del cliente— sino que se guarda
+    la identidad acreditada y se frena el envío hasta que un coordinador resuelva
+    cuál de las dos vale. Se guarda la identidad, no «hay conflicto»: así
+    ``armar_payload`` vuelve a comparar contra el legajo de ese momento y el
+    caso se destraba solo cuando alguien corrige el legajo, sin necesitar que
+    nadie se acuerde de borrar una marca.
+
+    Devuelve True si tocó ``formulario.datos_siis``.
+    """
+    from programas.services.identidad import (
+        CLAVE_IDENTIDAD_ACREDITADA,
+        ORIGENES_ACREDITADOS,
+        diferencias_con_el_legajo,
+    )
+
+    origen = str(datos.get("origen") or "").strip().lower()
+    if origen not in ORIGENES_ACREDITADOS:
+        return False
+    acreditada = {
+        "nombre": datos.get("nombre") or "",
+        "apellido": datos.get("apellido") or "",
+        "fecha_nacimiento": str(datos.get("fecha_nacimiento") or ""),
+        "origen": origen,
+    }
+    diferencias = diferencias_con_el_legajo(ciudadano, acreditada)
+    if not diferencias:
+        return False
+    corrientes = formulario.datos_siis if isinstance(formulario.datos_siis, dict) else {}
+    formulario.datos_siis = {**corrientes, CLAVE_IDENTIDAD_ACREDITADA: acreditada}
+    registrar_traza(
+        formulario,
+        None,
+        [
+            (f"Identidad acreditada ({origen}) · {_ETIQUETA_IDENTIDAD[campo]}", del_legajo, acreditado)
+            for campo, (del_legajo, acreditado) in diferencias.items()
+        ],
+    )
+    return True
+
+
 @transaction.atomic
 def resolver_ciudadano_offline(formulario):
     """Resuelve el ciudadano de un formulario que llegó por sync offline.
@@ -297,6 +360,8 @@ def resolver_ciudadano_offline(formulario):
                     completar.append("localidad")
                 if completar:
                     ciudadano.save(update_fields=[*completar, "modificado"])
+                if _anotar_identidad_acreditada(formulario, ciudadano, datos):
+                    campos_actualizados.append("datos_siis")
             _completar_contacto(ciudadano, formulario)
             formulario.ciudadano = ciudadano
             formulario.datos_identificacion = None

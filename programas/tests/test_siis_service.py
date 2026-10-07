@@ -15,6 +15,12 @@ from programas.services.siis import TOKEN_CACHE_KEY, SiisAPIClient, SiisCatalogE
     SIIS_API_TIMEOUT=2,
 )
 class SiisClientTests(SimpleTestCase):
+    # ``catalogo()`` deja la copia del catálogo en la base desde SIIS-09 (ronda
+    # 2): es lo que después lee el backoffice, que ya no puede pedirle un
+    # catálogo a SIIS dentro de un request. El cliente dejó de ser puro, así que
+    # el test lo declara en vez de taparlo.
+    databases = {"default"}
+
     def setUp(self):
         cache.clear()
 

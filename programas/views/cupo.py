@@ -27,7 +27,7 @@ from programas.services.cupo import (
     get_cupo_stats,
     promover_lista_espera,
 )
-from programas.services.siis_envio import enviar_beneficiario_a_siis, mensaje_envio
+from programas.services.siis_envio import Catalogos, enviar_beneficiario_a_siis, mensaje_envio
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +42,9 @@ def _informar_a_siis(request, formulario):
     ``views/revision.py``: son diez líneas y evita un import cruzado entre vistas).
     Nunca deshace la promoción: un fallo se registra y se reintenta desde el caso."""
     try:
-        envio = enviar_beneficiario_a_siis(formulario, request.user)
+        # SIIS-09: dentro de un request los catálogos salen de la copia local,
+        # nunca de la red. Ver ``Catalogos.sin_red``.
+        envio = enviar_beneficiario_a_siis(formulario, request.user, catalogos=Catalogos.sin_red())
     except ValueError as error:
         # SIIS-04: el estado releído bajo lock ya no habilita el envío.
         messages.warning(request, str(error))

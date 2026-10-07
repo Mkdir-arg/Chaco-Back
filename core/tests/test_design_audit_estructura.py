@@ -474,8 +474,9 @@ class CssCompiladoAlDiaTests(SimpleTestCase):
         #                            que se apaga entera con G1-01 fase 2.
         #   bg-gray-200, bg-gray-900 `static/custom/js/portal-effects.js` (portal ciudadano;
         #                            el tooltip queda texto blanco sobre transparente).
-        #   hover:bg-gray-50         JS de Conversaciones y de alertas: FE-25
-        #                            (`alertas_websocket.js`) y FE-14 (`alertas_conversaciones_simple.js`).
+        #   hover:bg-gray-50         JS de Conversaciones: FE-14
+        #                            (`alertas_conversaciones_simple.js`). FE-25 ya la sacó de
+        #                            `alertas_websocket.js`.
         #   bg-gray-100              `legajos/forms/ciudadanos.py` y `legajos/models/base.py`.
         #                            **No** se tocaron en FE-06 a propósito: el primero es el
         #                            bloque `_FLOWBITE_*_CSS` entero del formulario del

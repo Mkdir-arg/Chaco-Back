@@ -266,7 +266,7 @@
                         {% if not item.meta or item.meta.activo %}
                         <span class="badge badge-success badge-dot">Activo</span>
                         {% else %}
-                        <span class="badge badge-danger badge-dot">Inactivo</span>
+                        <span class="badge badge-gray badge-dot">Inactivo</span>
                         {% endif %}
                     </td>
                     <td style="padding:13px 12px; text-align:center; border-top:1px solid var(--border-light);">
@@ -427,8 +427,8 @@ function confirmarEliminarRol(pk, nombre, nUsuarios) {
         cancelButtonText: 'Cancelar',
         buttonsStyling: false,
         customClass: {
-            confirmButton: 'btn-nodo btn-danger',
-            cancelButton: 'btn-nodo btn-tertiary',
+            confirmButton: 'btn-nodo btn-danger btn-base',
+            cancelButton: 'btn-nodo btn-tertiary btn-base',
         },
     }).then(function (result) {
         if (result.isConfirmed) {
@@ -449,8 +449,9 @@ function confirmarToggleRol(pk, nombre, activo) {
         cancelButtonText: 'Cancelar',
         buttonsStyling: false,
         customClass: {
-            confirmButton: 'btn-nodo btn-danger',
-            cancelButton: 'btn-nodo btn-tertiary',
+            // Desactivar es destructivo; activar no (ver confirmarToggleUsuario).
+            confirmButton: activo ? 'btn-nodo btn-danger btn-base' : 'btn-nodo btn-brand btn-base',
+            cancelButton: 'btn-nodo btn-tertiary btn-base',
         },
     }).then(function (result) {
         if (result.isConfirmed) {

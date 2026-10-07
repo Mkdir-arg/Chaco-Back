@@ -1,0 +1,81 @@
+{% load static %}
+{% comment %}
+Confirmación con SweetAlert2 de las pantallas **legacy condicionadas** (Dispositivos y
+Merenderos). Fuente única del handler que antes estaba copiado, con tres variantes
+distintas, en `dispositivos/legajo/detail.html`, `merenderos/detail.html` y
+`merenderos/solicitudes.html`.
+
+**No se usa en pantallas nuevas.** Ahí rige la confirmación canónica: `data-confirm-url`
+→ `ModernModal` (`programas/becas/_confirm_js.html`) para el sí/no, y el arquetipo Modal
+con `<form method="post">` y textarea requerida cuando hay que pedir un motivo.
+
+Contrato del botón que dispara el diálogo (tiene que vivir dentro de su `<form>`):
+
+  data-confirm              marcador obligatorio
+  data-confirm-title="…"    título del diálogo (default «¿Confirmás la acción?»)
+  data-confirm-text="…"     explicación de la consecuencia
+  data-confirm-ok="…"       texto del botón de confirmar (default «Confirmar»)
+  data-confirm-danger       la acción es destructiva → confirmar en `btn-danger`.
+                            Sin este atributo el botón va en `btn-brand`: el rojo del
+                            sistema significa peligro y no se gasta en un «Activar».
+  data-requires-motivo      pide un motivo obligatorio y lo manda como `name="motivo"`
+
+El selector es `[data-confirm]` a secas, distinto del `[data-confirm-url]` que escucha
+el confirm canónico de Becas: una pantalla puede cargar los dos sin que se pisen.
+
+Uso: {% include "programas/_swal_confirm_js.html" %} dentro de {% block customJS %}.
+{% endcomment %}
+<script src="{% static 'vendor/sweetalert2/sweetalert2.all.min.js' %}"></script>
+<script>
+(function () {
+  document.addEventListener('click', function (event) {
+    if (!event.target || !event.target.closest) return;
+    var boton = event.target.closest('[data-confirm]');
+    if (!boton) return;
+    event.preventDefault();
+    var form = boton.closest('form');
+    if (!form) return;
+    var pideMotivo = boton.dataset.requiresMotivo !== undefined;
+    var destructiva = boton.dataset.confirmDanger !== undefined;
+    var opciones = {
+      title: boton.dataset.confirmTitle || '¿Confirmás la acción?',
+      text: boton.dataset.confirmText || '',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: boton.dataset.confirmOk || 'Confirmar',
+      cancelButtonText: 'Cancelar',
+      buttonsStyling: false,
+      // El layout del pie lo pone nodo-swal.css; acá solo van variante y tamaño.
+      customClass: {
+        confirmButton: destructiva ? 'btn-nodo btn-danger btn-base' : 'btn-nodo btn-brand btn-base',
+        cancelButton: 'btn-nodo btn-tertiary btn-base'
+      }
+    };
+    if (pideMotivo) {
+      opciones.input = 'textarea';
+      opciones.inputPlaceholder = 'Motivo u observaciones';
+      opciones.inputValidator = function (valor) {
+        return valor && valor.trim() ? undefined : 'El motivo es obligatorio.';
+      };
+    }
+    Swal.fire(opciones).then(function (resultado) {
+      if (!resultado.isConfirmed) return;
+      if (pideMotivo) {
+        var motivo = document.createElement('input');
+        motivo.type = 'hidden';
+        motivo.name = 'motivo';
+        motivo.value = String(resultado.value).trim();
+        form.appendChild(motivo);
+      }
+      // `requestSubmit` dispara el evento `submit`, así que la guardia de doble envío
+      // del shell (nodo-submit-guard.js) llega a bloquear el segundo POST; `submit()`
+      // a secas se lo saltea. El fallback es para navegadores sin `requestSubmit`.
+      if (form.requestSubmit) {
+        form.requestSubmit(form.contains(boton) ? boton : undefined);
+      } else {
+        form.submit();
+      }
+    });
+  });
+})();
+</script>
