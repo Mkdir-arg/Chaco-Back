@@ -143,8 +143,37 @@ class SiisCatalogError(Exception):
     """Error seguro para mostrar al usuario al cargar catálogos de SIIS."""
 
 
+class CatalogoSinCopiaLocal(SiisCatalogError):
+    """No hay copia local del catálogo todavía: nadie la bajó.
+
+    Es lo contrario de «SIIS no respondió»: no se tocó la red. Tiene su propia
+    clase porque el arreglo también es otro —correr el comando o esperar al
+    CronJob— y el mensaje que ve el coordinador no puede decirle que falló un
+    servicio externo que nadie consultó.
+    """
+
+
 class _SiisConfigurationError(Exception):
-    pass
+    """No se pudo conseguir el token, y no fue por la red.
+
+    Son dos cosas distintas que terminaban logueadas con el mismo texto —
+    «Configuración SIIS incompleta»— y mandan a mirar lugares opuestos:
+
+    * ``falta_configuracion=True``: la URL o las credenciales están vacías. Lo
+      arregla una variable de entorno y el cliente corta **antes** de abrir la
+      conexión.
+    * ``falta_configuracion=False``: SIIS contestó, pero lo que contestó no
+      sirve como token (un cuerpo que no es objeto, o sin ``access_token``).
+      Las variables están bien; lo que falla es del otro lado.
+
+    Lo que **no** cambia según el caso es el cortacircuito: tampoco cuenta como
+    falla cuando SIIS contesta basura, porque contestar basura es contestar
+    rápido y no hay espera que ahorrar (:class:`SiisMalConfiguradoTests`).
+    """
+
+    def __init__(self, mensaje, falta_configuracion=True):
+        super().__init__(mensaje)
+        self.falta_configuracion = falta_configuracion
 
 
 class SiisAPIClient:
@@ -176,10 +205,12 @@ class SiisAPIClient:
         if not isinstance(body, dict):
             # Un cuerpo que no es objeto (``[]``, ``"OK"``) no tiene token ni
             # puede tenerlo: es configuración rota, no un error de red (SIIS-11).
-            raise _SiisConfigurationError("SIIS devolvió una respuesta de token que no es un objeto.")
+            raise _SiisConfigurationError(
+                "SIIS devolvió una respuesta de token que no es un objeto.", falta_configuracion=False
+            )
         token = body.get("access_token")
         if not token:
-            raise _SiisConfigurationError("SIIS no devolvió access_token.")
+            raise _SiisConfigurationError("SIIS no devolvió access_token.", falta_configuracion=False)
         ttl = max(int(body.get("expires_in") or 3600) - 60, 60)
         cache.set(TOKEN_CACHE_KEY, token, ttl)
         return token
@@ -201,8 +232,15 @@ class SiisAPIClient:
         try:
             return self._get(path)
         except _SiisConfigurationError as exc:
-            logger.exception("Configuración incompleta al consultar un catálogo de SIIS")
-            raise SiisCatalogError("La integración con SIIS no está configurada. Contactá a Infraestructura.") from exc
+            # Mismo corte que en ``validar_compatibilidad``: una variable vacía y
+            # un token que SIIS devolvió mal llevan a lugares distintos.
+            if exc.falta_configuracion:
+                logger.exception("Configuración incompleta al consultar un catálogo de SIIS")
+                mensaje = "La integración con SIIS no está configurada. Contactá a Infraestructura."
+            else:
+                logger.exception("SIIS no devolvió un token usable al consultar un catálogo: %s", exc)
+                mensaje = "SIIS no devolvió un token válido. Contactá a Infraestructura."
+            raise SiisCatalogError(mensaje) from exc
         except requests.Timeout as exc:
             logger.exception("Timeout al consultar un catálogo de SIIS")
             raise SiisCatalogError("SIIS tardó demasiado en responder. Intentá nuevamente en unos minutos.") from exc
@@ -355,14 +393,18 @@ class SiisAPIClient:
                     "data": body,
                 }
             return {"success": False, "error": "SIIS devolvió una respuesta no reconocida.", "data": body}
-        except _SiisConfigurationError:
-            # La integración está mal configurada (URL o credenciales vacías, o
-            # un token que no es un objeto): no salió nada a la red. Contarlo
-            # como falla haría que el log dijera «SIIS falló 3 veces seguidas»
-            # —que manda a mirar a ECOM— cuando lo que falta es una variable de
-            # entorno, y el cortacircuito no ahorraría ninguna espera: el
-            # cliente ya corta antes de abrir la conexión.
-            logger.exception("Configuración SIIS incompleta al validar compatibilidad")
+        except _SiisConfigurationError as exc:
+            # No se consiguió token y no fue por la red. Ninguno de los dos casos
+            # cuenta como falla del cortacircuito: uno corta antes de abrir la
+            # conexión y el otro contesta rápido, así que no hay espera que
+            # ahorrar, y contarlos haría que el log dijera «SIIS falló 3 veces
+            # seguidas» —que manda a mirar a ECOM—. Lo que sí cambia es a quién
+            # manda a mirar el mensaje: una variable de entorno vacía la arregla
+            # Infraestructura; un token que no sirve, SIIS.
+            if exc.falta_configuracion:
+                logger.exception("Configuración SIIS incompleta al validar compatibilidad")
+            else:
+                logger.exception("SIIS no devolvió un token usable al validar compatibilidad: %s", exc)
             return {"success": False, "error": "No se pudo conectar con SIIS.", "data": {}}
         except (requests.RequestException, TypeError, ValueError):
             logger.exception("Error técnico al validar compatibilidad en SIIS")
@@ -394,7 +436,12 @@ class SiisAPIClient:
         return resultado
 
     def catalogo(self, nombre):
-        """Catálogo maestro (sección 2 del manual), cacheado un día."""
+        """Catálogo maestro (sección 2 del manual), cacheado un día.
+
+        **Sale a la red**: no se llama desde un request de backoffice (ver
+        :func:`catalogo_local`). Cada lectura exitosa deja además la copia en la
+        base, que es de donde lee el request.
+        """
         if nombre not in CATALOGOS_MAESTROS:
             raise ValueError(f"Catálogo SIIS desconocido: {nombre}")
         clave = CATALOGO_CACHE_KEY.format(nombre)
@@ -407,6 +454,7 @@ class SiisAPIClient:
         )
         items = self._normalizar_items(self._items(body, nombre, "items", "results"))
         cache.set(clave, items, CATALOGO_CACHE_LARGO)
+        guardar_catalogo_local(nombre, items)
         return items
 
     def funciones_programa(self, id_programa):
@@ -582,6 +630,80 @@ def catalogo(nombre):
 
 def funciones_programa(id_programa):
     return SiisAPIClient().funciones_programa(id_programa)
+
+
+# ---------------------------------------------------------------------------
+# Copia local de los catálogos maestros (SIIS-09, ronda 2)
+# ---------------------------------------------------------------------------
+def guardar_catalogo_local(nombre, items):
+    """Deja en la base lo último que SIIS devolvió para ``nombre``.
+
+    Un catálogo vacío **no se guarda**: es el mismo criterio de SIIS-06, donde
+    una lista vacía resultó ser un error del servicio y no una baja real, y
+    pisar la copia buena con ella dejaría a todos los casos sin poder resolver
+    su localidad hasta la noche siguiente.
+    """
+    from programas.models import CatalogoSiisLocal
+
+    if not items:
+        return False
+    CatalogoSiisLocal.objects.update_or_create(nombre=nombre, defaults={"items": list(items)})
+    return True
+
+
+def catalogo_local(nombre):
+    """El catálogo maestro **sin salir a la red**: caché, y si no, la copia local.
+
+    Es lo que usa el backoffice dentro de un request. La cadena de «Aprobar» ya
+    ocupa los 55 s de presupuesto que deja nginx (``core.integraciones``), así
+    que un GET de catálogo ahí no entra en ninguna cuenta: tiene que estar
+    resuelto de antes. Lo deja resuelto cualquier corrida del masivo o de los
+    comandos, y el CronJob de ``sincronizar_programas_siis`` todas las noches.
+
+    Si no hay copia, lanza :class:`SiisCatalogError` diciendo cómo conseguirla.
+    El alta queda como ERROR reintentable (nunca como un dato que falta): no es
+    un problema del caso.
+    """
+    from programas.models import CatalogoSiisLocal
+
+    if nombre not in CATALOGOS_MAESTROS:
+        raise ValueError(f"Catálogo SIIS desconocido: {nombre}")
+    cached = cache.get(CATALOGO_CACHE_KEY.format(nombre))
+    if cached:
+        return cached
+    items = CatalogoSiisLocal.objects.filter(nombre=nombre).values_list("items", flat=True).first()
+    if not items:
+        raise CatalogoSinCopiaLocal(
+            f"Todavía no hay una copia local del catálogo de {nombre.replace('-', ' ')} de SIIS. "
+            "Se baja sola con la próxima corrida del proceso masivo o del CronJob nocturno "
+            "(`sincronizar_programas_siis`); si corre, reintentá el envío después."
+        )
+    cache.set(CATALOGO_CACHE_KEY.format(nombre), items, CATALOGO_CACHE_LARGO)
+    return items
+
+
+def refrescar_catalogos_locales():
+    """Vuelve a bajar los catálogos maestros y actualiza la copia local.
+
+    La corre el CronJob nocturno. Devuelve ``(actualizados, fallados)``: no
+    levanta nada, porque es un paso secundario de un comando que tiene otro
+    trabajo principal y un catálogo que hoy no se pudo bajar no invalida la copia
+    que ya había.
+    """
+    cliente = SiisAPIClient()
+    actualizados, fallados = [], []
+    for nombre in CATALOGOS_MAESTROS:
+        cache.delete(CATALOGO_CACHE_KEY.format(nombre))
+        try:
+            items = cliente.catalogo(nombre)
+        except SiisCatalogError as exc:
+            fallados.append((nombre, str(exc)))
+            continue
+        if items:
+            actualizados.append((nombre, len(items)))
+        else:
+            fallados.append((nombre, "SIIS devolvió un catálogo vacío."))
+    return actualizados, fallados
 
 
 def motivos_de_rechazo(validaciones):

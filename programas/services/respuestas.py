@@ -49,15 +49,47 @@ IDENTIDAD = {
 
 
 def foto_definicion(relevamiento, definicion=None):
-    """La foto que guarda el caso: versión, canal e ítems anidados."""
+    """La foto que guarda el caso: versión, canal, ítems anidados y destinos SIIS."""
     from programas.services.becas import definicion_formulario
 
     definicion = definicion or definicion_formulario(relevamiento)
+    items = definicion.get("items") or []
     return {
         "version": definicion.get("version", 1),
         "canal": definicion.get("canal"),
-        "items": definicion.get("items") or [],
+        "items": items,
+        "destinos_siis": destinos_siis_de({"items": items}),
     }
+
+
+def destinos_siis_de(definicion):
+    """Qué campo de la foto alimenta cada destino del alta en SIIS (G1-08).
+
+    Una lista de ``{clave, id, destino, alcance, orden}``, una entrada por campo
+    marcado. **La clave existe aunque la lista esté vacía**: su presencia es lo
+    que distingue una foto nueva —que dice por sí sola cómo se mapea el caso— de
+    una vieja, que hay que interpretar con el catálogo de hoy.
+
+    Se guardan los hechos (de qué nivel es el campo y en qué orden está), no la
+    precedencia ya resuelta: así una corrección de la regla —G1-10 fue una—
+    alcanza también a los casos viejos, que es lo que no pasaría si la foto
+    guardara el resultado.
+    """
+    destinos = []
+    for campo in campos_de(definicion):
+        destino = campo.get("destino_siis") or ""
+        if not destino:
+            continue
+        destinos.append(
+            {
+                "clave": campo.get("clave"),
+                "id": campo.get("id"),
+                "destino": destino,
+                "alcance": campo.get("alcance") or "",
+                "orden": campo.get("orden") or 0,
+            }
+        )
+    return destinos
 
 
 def huella_definicion(foto):

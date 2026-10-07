@@ -1,0 +1,12 @@
+{
+  "resultado": "OK",
+  "mensaje": "Registro cargado en la tabla intermedia.",
+  "ids_generados": [987654],
+  "registros": [
+    {
+      "id": 987654,
+      "dni": 11111111,
+      "estado": "PENDIENTE"
+    }
+  ]
+}
