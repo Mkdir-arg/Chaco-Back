@@ -51,6 +51,11 @@ Se hereda; no se recrean el sidebar ni sus offsets.
   nada. Ninguna pantalla repite esa guardia. El shell publica además `window.alertasConfig`
   (`ciudadanoDetalleUrlTemplate`), que es de donde sale el destino de «Ver» en la alerta crítica:
   el JS no escribe rutas literales.
+- El shell carga `static/custom/js/nodo-tabs.js`: flechas ← →, Home/End y `tabindex`
+  itinerante sobre toda `[role="tablist"]` con `[role="tab"]`, en cualquier pantalla. Es
+  **mejora progresiva** —activa la solapa disparando su propio `click()`, así que no toca el
+  estado de Alpine ni nada visual, y sin el archivo las solapas siguen funcionando con el
+  mouse—. Ninguna pantalla repite ese manejo de teclado.
 - **Las rutas que consulta el JS del shell salen del template, no del `.js`.** La campana de
   alertas (`#alertas-campana`, en `templates/includes/navbar.html`) lleva `data-url-count` y
   `data-url-preview` resueltos con `{% url %}`, y `static/custom/js/alertas_websocket.js` las lee

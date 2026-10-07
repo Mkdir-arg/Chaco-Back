@@ -19,18 +19,18 @@
       <div class="mb-4 rounded-lg bg-danger-soft border border-danger-subtle p-4 text-sm text-fg-danger" role="alert">{{ form.non_field_errors }}</div>
     {% endif %}
     {% if form.tipo %}
-      {% with field=form.tipo %}{% include "programas/becas/_field.html" %}{% endwith %}
+      {% with field=form.tipo %}{% include "components/_field.html" %}{% endwith %}
     {% endif %}
-    {% with field=form.convocatoria %}{% include "programas/becas/_field.html" %}{% endwith %}
+    {% with field=form.convocatoria %}{% include "components/_field.html" %}{% endwith %}
     <fieldset x-show="tipoRel==='TERRITORIAL'" :disabled="tipoRel!=='TERRITORIAL'" class="border-0 p-0 m-0">
-      {% with field=form.territorial %}{% include "programas/becas/_field.html" %}{% endwith %}
+      {% with field=form.territorial %}{% include "components/_field.html" %}{% endwith %}
       {% if request.user|puede:"becas.usuario.territorial" %}<button type="button" data-quick-user="territorial" data-user-select="#{{ form.territorial.id_for_label }}" class="btn-nodo btn-tertiary btn-sm mb-3"><i class="fas fa-user-plus"></i> Crear territorial</button>{% endif %}
-      {% with field=form.municipio %}{% include "programas/becas/_field.html" %}{% endwith %}
-      {% with field=form.zona %}{% include "programas/becas/_field.html" %}{% endwith %}
+      {% with field=form.municipio %}{% include "components/_field.html" %}{% endwith %}
+      {% with field=form.zona %}{% include "components/_field.html" %}{% endwith %}
     </fieldset>
-    {% with field=form.fecha_asignada %}{% include "programas/becas/_field.html" %}{% endwith %}
-    {% with field=form.fecha_hasta %}{% include "programas/becas/_field.html" %}{% endwith %}
-    {% with field=form.cupo_maximo %}{% include "programas/becas/_field.html" %}{% endwith %}
+    {% with field=form.fecha_asignada %}{% include "components/_field.html" %}{% endwith %}
+    {% with field=form.fecha_hasta %}{% include "components/_field.html" %}{% endwith %}
+    {% with field=form.cupo_maximo %}{% include "components/_field.html" %}{% endwith %}
     {% if form.tipo %}
     <fieldset x-show="tipoRel==='PUBLICO'" x-cloak :disabled="tipoRel!=='PUBLICO'" class="border-0 p-0 m-0">
       {% comment %}El padrón vive en la convocatoria desde el Cambio 57 (sirve al
@@ -53,7 +53,7 @@
       <p class="text-xs text-body-subtle mt-1">{{ form.confirmar_por_email.help_text }}</p>
       {% if form.confirmar_por_email.errors %}<p class="mt-1 text-xs text-fg-danger">{{ form.confirmar_por_email.errors|join:", " }}</p>{% endif %}
     </div>
-    {% with field=form.observaciones %}{% include "programas/becas/_field.html" %}{% endwith %}
+    {% with field=form.observaciones %}{% include "components/_field.html" %}{% endwith %}
     <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-light">
       <a href="{% url 'becas:relevamientos' %}" class="btn-nodo btn-tertiary btn-base">← Cancelar</a>
       <button type="submit" class="btn-nodo btn-brand btn-base">

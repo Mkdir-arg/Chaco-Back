@@ -10,13 +10,7 @@
   <form method="post" class="mt-6 rounded-xl border border-base p-6">
     {% csrf_token %}
     {% if form.non_field_errors %}<div class="mb-4 rounded-lg bg-danger-soft p-3 text-sm text-fg-danger">{{ form.non_field_errors }}</div>{% endif %}
-    {% for field in form %}
-      <div class="mb-4">
-        <label class="mb-1 block text-sm font-semibold text-heading" for="{{ field.id_for_label }}">{{ field.label }}</label>
-        {{ field }}
-        {% for error in field.errors %}<p class="mt-1 text-sm text-fg-danger">{{ error }}</p>{% endfor %}
-      </div>
-    {% endfor %}
+    {% for field in form %}{% include "components/_field.html" %}{% endfor %}
     <button class="btn-nodo btn-brand btn-base">Guardar entrega</button>
   </form>
 </div>

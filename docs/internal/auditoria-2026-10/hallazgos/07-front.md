@@ -35,12 +35,12 @@ FE-18, FE-19); las migraciones de estilo de esos dos módulos las hereda la v2.
 | FE-20 | Wrapper legacy `includes/main.html`: contenido desplazado; 403/404/500 sin estilo | MEDIA | CONF. navegador | 5 | M | ✅ (los 17 consumidores migrados y el shell borrado) |
 | FE-21 | Modales de Legajos sin Escape ni foco | MEDIA | CONF. | 5 | S | ✅ |
 | V5A-NEW-01 | `tailwind.css` committeado desactualizado y sin gate | MEDIA | CONF. | 6 | S | ✅ |
-| V5A-NEW-07 | Deuda de accesibilidad en las pantallas candidatas a referencia | MEDIA | CONF. | 6 (a) / 5 (b) | (a) en paso 3 · (b) 2 × S | 🟡 (a) ✅ · (b) parcial |
+| V5A-NEW-07 | Deuda de accesibilidad en las pantallas candidatas a referencia | MEDIA | CONF. | 6 (a) / 5 (b) | (a) en paso 3 · (b) 2 × S | ✅ ((a) y (b); los 2 KPIs con minigráfico y barra esperan el arquetipo Dashboard) |
 | FE-14 | 29 JS y 1 CSS huérfanos | BAJA (A6: MEDIA) | CONF. ajustado | 7 | S | ⬜ |
 | FE-16 | «Gestión de Programas» de Legajos con KPIs sin valor | BAJA | CONF. | 5 | S | ✅ |
-| FE-22 | Dashboards fuera de canon | BAJA | CONF. | 5 | M | 🟡 |
-| FE-23 | `_field.html` duplicado | BAJA | CONF. ajustado | 5 | S | ⬜ |
-| FE-24 | Solapas sin ARIA ni teclado | BAJA | CONF. | 5 | S | ⬜ |
+| FE-22 | Dashboards fuera de canon | BAJA | CONF. | 5 | M | ✅ |
+| FE-23 | `_field.html` duplicado | BAJA | CONF. ajustado | 5 | S | ✅ |
+| FE-24 | Solapas sin ARIA ni teclado | BAJA | CONF. | 5 | S | ✅ (`dispositivos/legajo/detail` queda afuera: D-V1 = No) |
 | FE-25 | Avisos paralelos en `alertas_websocket.js` | BAJA | CONF. código | 5 | S | ✅ |
 | FE-26 | Doble envío en formularios clásicos | BAJA | PLAUSIBLE | 5 | S | ✅ |
 | V5A-NEW-04 | Edición del ciudadano: hero fuera de canon y texto técnico visible | BAJA | CONF. navegador | 5 | S | ✅ |
@@ -631,6 +631,23 @@ ficha, la regla local de impresión del panel y el gradiente del ícono de «For
 (+ `test_los_titulos_de_bloque_no_fijan_el_tamano_en_linea`, `test_el_modal_de_respuestas_usa_el_header_y_el_pie_canonicos`,
 `test_el_modal_no_dibuja_su_propia_x_con_svg`).
 
+**Cierre de (b): ✅ en el PR 6c (Cambio 170), 07-10-2026.** Con los parámetros nuevos de
+`_stat_card.html` (ver FE-22), **cuatro de los seis** KPIs del tablero pasan a la pieza:
+«Convocatorias activas» —valor compuesto `N / M`, con `sufijo=" / "` y `sufijo_id`—,
+«Relevamientos en curso», «Aprobados» y «Lista de espera». **Los dos que quedan escritos a
+mano son «Formularios recibidos» (minigráfico de 12 semanas + variación) y «Cupo ocupado»
+(barra de progreso):** darle a la pieza una ranura de cuerpo es diseñar el **arquetipo
+Dashboard**, que no tiene golden, y el protocolo del agente manda frenar. Para que la franja
+de seis no se lea como dos sistemas, esos dos adoptan el **esqueleto exacto** de la pieza:
+sin `shadow-sm`, etiqueta `text-xs font-semibold text-body-subtle`, ícono `text-sm` y la caja
+de ícono en `bg-brand-soft text-fg-brand` —ahí cae también **el gradiente del ícono de
+«Formularios recibidos»**, que el PR 7 había dejado explícitamente afuera—.
+**Un desvío, code-first:** con sufijo, `kpi_id` marca un `<span>` y no el `<p>`, porque
+`becas-dashboard.js` asigna `textContent` y sobre el `<p>` entero borraría el « / M».
+**Test permanente del cierre:** `core.tests.test_front_ola5_pr6c.KpisDelTableroDeBecasTests`
+(5 tests; uno de ellos es un **contrato con el JS**: cada `data-kpi` que `becas-dashboard.js`
+escribe tiene que existir en el panel renderizado).
+
 ## BAJA
 
 ### FE-14 · Estáticos huérfanos
@@ -691,15 +708,99 @@ LEG-06 y dos de ellos ni siquiera tienen ruta. **Test permanente:**
 `core.tests.test_front_ola5_pr7.ReportesDeLegajosTests` (6 tests) + `EstadoWebsocketTests.test_el_semaforo_vive_detras_de_websockets_enabled`
 + `EmojisComoIconosTests` (2) + `InicioSinHeroTests` (3).
 
+**Cierre: ✅ en el PR 6c (Cambio 170), 07-10-2026 — las 4 stat cards del inicio son la pieza única.**
+`components/_stat_card.html` aprendió cinco parámetros **opcionales** (`kpi_id`, `sufijo`,
+`sufijo_id`, `nota`, `nota_id`) y, sin ninguno, su render es **carácter por carácter** el de
+antes: lo fija `core.tests.test_nodo_ui_piezas.StatCardTest.test_sin_los_parametros_opcionales_el_render_es_el_de_siempre`,
+y un barrido de las 20 invocaciones del repo verifica que ninguna de las que ya existían estrena
+`data-kpi` ni pie. Con eso se fueron del inicio las siete reglas `.stat-card*` del `<style>`
+local —la caja de ícono de **52 px**, el valor de **32 px / peso 800** y el **gradiente**, los
+tres prohibidos por la ficha del componente—, los cuatro **SVG Heroicons** del contenido (D3:
+Font Awesome) y el `style="position: relative"` de la tarjeta de alertas.
+**Dos desvíos, los dos code-first:** (a) la ficha hablaba de «una tarjeta con un delta»: ese
+chip **ya no existe**, lo borró G2-04 en el Cambio 161, así que las cuatro entran sin necesitar
+una ranura nueva; (b) **se va el punto rojo** que la tarjeta de «Alertas activas» dibujaba sobre
+la caja del ícono cuando había alertas —decoración posicionada a mano, y el número que está
+abajo dice lo mismo—. Los **pies** se arman en la vista (`core/views/public.py`), como ya se
+armaba `titulo_inicio`: dos de los cuatro concuerdan en número y el template no sabe concatenar
+sin volverse ilegible. **Test permanente del cierre:**
+`core.tests.test_front_ola5_pr6c.StatCardsDelInicioTests` (5) y
+`core.tests.test_nodo_ui_piezas.StatCardTest` (11, 7 de ellos nuevos).
+
 ### FE-23 · `_field.html` duplicado
 **Severidad:** BAJA · **Estado:** CONFIRMADO-AJUSTADO (el de Becas lleva wrapper `mb-4`; el de Dispositivos ninguno) · **Origen:** A6-24 · **Ola:** 5 · **Esfuerzo:** S
 - **Propuesta:** mover a `templates/components/_field.html` con `data-error="{{ field.name }}"` (lo usa `_ajax_js.html:96`), parámetro `wrapper_class` (default `mb-4`; Dispositivos pasa `""`), `aria-describedby` hacia ayuda y error y `aria-invalid="true"` con errores; apuntar los 10 consumidores y reemplazar los `{% for field in form %}` inline de `admisiones/*`, `dispositivos/legajo/{form,cama_form}` y `merenderos/*_form`. Golden de formulario: actualizar su ficha en el mismo PR.
 - **Verificación:** `compile_templates`; `programas/tests/test_becas_feedback_js.py`.
 
+**Resolución:** ✅ Cerrada en el PR 6c (Cambio 170), 07-10-2026 — el include vive en
+`templates/components/_field.html` y los **dos** `_field.html` viejos se borraron
+(`programas/becas/` y `programas/dispositivos/config/`). La pieza suma lo que pedía la ficha:
+`data-error="{{ field.name }}"` **siempre presente** —oculto mientras no haya texto, que es
+donde `programas/becas/_ajax_js.html:96` escribe el error del campo sin recargar—,
+`wrapper_class` (por defecto `mb-4`; los formularios cuya grilla ya separa con `space-y`/`gap`
+pasan `""`), `aria-describedby` hacia la ayuda y el error y `aria-invalid="true"` con errores.
+Apunta a los **19** consumidores y reemplaza los bloques escritos a mano de `admisiones/*`
+(los cuatro: la búsqueda y el alta de ciudadano de `admitir`, el egreso, el `promover` y las
+dos partes de `traslado`, más los campos F-00 de las dos pantallas que los dibujan),
+`dispositivos/legajo/{form,cama_form}` y `merenderos/{entrega,solicitud}_form`.
+**Tres desvíos, los tres code-first:** (a) el ARIA **no se puede escribir en la plantilla**
+—hay que pasar por `BoundField.as_widget(attrs=…)`, que un template no sabe llamar con
+argumentos—, así que el control sale de un tag nuevo, `nodo_ui.campo_control`; la clase
+`nodo-field` la sigue poniendo el widget del form, porque `build_attrs` la conserva.
+(b) `wrapper_class` **tampoco se resuelve con `|default:"mb-4"`**: en Django una variable que
+no existe se resuelve como `""`, así que no hay forma de distinguir «no lo pasaron» de
+«lo pasaron vacío»; lo decide `nodo_ui.campo_wrapper_class`, que lee el contexto.
+(c) El `<p>` del error **solo se anuncia cuando tiene texto** (`aria-describedby` lo nombra
+recién con errores): existiendo siempre, enlazarlo siempre haría que cada campo se leyera con
+una descripción vacía. Queda **afuera**, y dicho acá: `_field.html` no emite
+`aria-errormessage` (soporte desparejo), y las pantallas de Dispositivos, Admisiones y
+Merenderos siguen sin arquetipo —eso es FE-11/FE-12 y **D-V1 = No**—: acá solo cambian de
+include de campo. **Test permanente:**
+`core.tests.test_front_ola5_pr6c.UnSoloFieldTests` (10 tests: los dos includes viejos no
+existen, nadie los incluye, las ocho pantallas de la ficha dejaron de escribir el campo a
+mano, el hueco del error, el ARIA de ayuda y de error, el contenedor sin margen y la clase
+del widget intacta).
+
 ### FE-24 · Solapas: ARIA desparejo y sin teclado
 **Severidad:** BAJA · **Estado:** CONFIRMADO (0 ARIA en `programa_detail`, `convocatoria_detail`, `relevamiento_detail` y `rol_form`; `dispositivos/legajo/detail` con `role="tab"` sin `aria-controls` ni `tabpanel`; solo `ciudadano_detail.html:1155` implementa flechas) · **Origen:** A6-25 (= A7-12) · **Ola:** 5 · **Esfuerzo:** S
 - **Propuesta:** las solapas se clonan de la golden de detalle (`cupo/segmento_detail.html`) con su ARIA completo; `static/custom/js/nodo-tabs.js` con la navegación por flechas de `ciudadano_detail.html:1155-1164` (más Home/End y `tabindex` itinerante), cargado global en `base.html` (archivo JS nuevo: novedad del agente, con OK); migrar `programa_detail`, `convocatoria_detail`, `relevamiento_detail`, `dispositivos/legajo/detail` (si D-V1 = sí) y `rol_form`; la fila «Tabs backoffice» del inventario pasa a **exigir** ARIA y teclado. (El parcial `_tab.html` que proponían A6/A7 queda fuera: V5b lo recortó.)
 - **Verificación:** `check_design_agent.py --changed`; Playwright: flecha derecha cambia la solapa y el foco.
+
+**Resolución:** ✅ Cerrada en el PR 6c (Cambio 170), 07-10-2026 — `static/custom/js/nodo-tabs.js`
+(archivo nuevo, cargado una sola vez desde `templates/includes/base.html`) da flechas ← →,
+Home/End y `tabindex` itinerante sobre **cualquier** `[role="tablist"]` con `[role="tab"]`, y
+**reemplaza** el handler inline de `legajos/ciudadano_detail.html`, que era la única
+implementación del repo. Es mejora progresiva: no cambia nada visual ni el estado de Alpine
+—para activar una solapa dispara su propio `click()`, que es lo que ya hacía el mouse— y sin
+el archivo las solapas siguen funcionando. El `tabindex` se reparte leyendo `aria-selected` y
+un `MutationObserver` lo recalcula cuando ese atributo cambia, que es como lo escriben tanto
+el `:aria-selected` de Alpine como el `cambiarTab()` del detalle del ciudadano (incluido el
+deep-link por hash al cargar). El ARIA completo de la golden —`role=tablist` con `aria-label`,
+`role=tab` + `id` + `aria-controls` + `aria-selected`, `role=tabpanel` + `id` +
+`aria-labelledby`— entra en `becas/config/programa_detail`, `becas/relevamientos/convocatoria_detail`,
+`becas/relevamientos/relevamiento_detail` y `users/rol/rol_form`.
+**Tres desvíos, los tres code-first:** (a) **`dispositivos/legajo/detail` no entra**, porque
+**D-V1 = No** y lo reemplaza la v2 (la ficha lo condicionaba a esa decisión); (b) la solapa
+«Dashboard» de `programa_detail` conserva su `id="tab-dashboard"` en vez de pasar a
+`tab-dash`: tres tests de `programas.tests.test_dashboard_becas` lo usan como marcador de que
+la solapa está, y su panel la nombra por ese id; (c) el ABM de roles **no usa Alpine** —sus
+solapas las mueve un `activarTab()` propio—, así que ahí el `aria-selected` lo escribe ese JS,
+y su botón de búsqueda, que es solo un ícono, estrena `aria-label`.
+**Se fue también, en las tres de Becas, el `<style>[x-cloak]` local** —`override.css` ya lo
+declara global, misma limpieza que los Cambios 131 y 161 en sus pantallas hermanas—: con eso
+`config/programa_detail.html` pasa **entero** los marcadores de `--arquetipo detalle` (6 desvíos
+→ 0) y `relevamiento_detail` baja de 8 a 1 (le queda `space-y-6` en el contenedor de página).
+`convocatoria_detail` queda en 5: su franja de métricas vive **adentro** de la solapa
+«Información general», así que los marcadores de solapa salen «fuera de orden»; moverla es
+rediseñar la pantalla y eso es FE-11/FE-12, no esta ficha.
+**Verificación sin Playwright (D-RED-06 = No):** el archivo real se ejecuta con `node` sobre un
+DOM mínimo, como el resto de los scripts del shell. **Test permanente:**
+`core.tests.test_nodo_tabs.TecladoDeSolapasTests` (11 tests: flechas con vuelta circular,
+Home/End, teclas que no hacen nada, modificadores, foco fuera de la barra, el `tabindex`
+itinerante y su sincronía con `aria-selected`, y las solapas deshabilitadas u ocultas) y
+`CargaEnElShellTests` (2), más
+`core.tests.test_front_ola5_pr6c.SolapasConAriaTests` (6: cada solapa apunta a su panel y el
+panel a su solapa, en las cuatro pantallas, y Dispositivos sigue afuera).
 
 ### FE-25 · Avisos paralelos en `alertas_websocket.js`
 **Severidad:** BAJA (solo con `WEBSOCKETS_ENABLED`) · **Estado:** CONFIRMADO (código, `alertas_websocket.js:96-146`) · **Origen:** A6-27 (parte websocket) · **Ola:** 5 (o con G1c-04, Ola 2) · **Esfuerzo:** S

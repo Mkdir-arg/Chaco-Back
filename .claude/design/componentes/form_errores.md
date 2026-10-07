@@ -14,7 +14,7 @@ ModelForm) viven en `form.non_field_errors` y **ningún campo los muestra**: sin
 pieza el formulario vuelve idéntico, con todos los `field.errors` vacíos, y el usuario
 reenvía lo mismo.
 
-No reemplaza los errores de campo: esos los rinde `programas/templates/programas/becas/_field.html` debajo de
+No reemplaza los errores de campo: esos los rinde `templates/components/_field.html` debajo de
 su control.
 
 ## Contrato
