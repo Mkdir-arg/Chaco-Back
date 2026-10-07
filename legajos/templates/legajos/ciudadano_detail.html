@@ -1028,17 +1028,10 @@ function cambiarTab(tabName) {
 
 }
 
-// Navegación por teclado en la barra de solapas
-document.querySelector('[role="tablist"]').addEventListener('keydown', function (e) {
-    if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
-    const tabs = Array.from(this.querySelectorAll('[role="tab"]'));
-    const index = tabs.indexOf(document.activeElement);
-    if (index === -1) return;
-    e.preventDefault();
-    const next = e.key === 'ArrowRight' ? (index + 1) % tabs.length : (index - 1 + tabs.length) % tabs.length;
-    tabs[next].focus();
-    tabs[next].click();
-});
+// La navegación por teclado de la barra de solapas vive en
+// `static/custom/js/nodo-tabs.js`, que el shell carga para todo el backoffice (FE-24):
+// flechas, Home/End y `tabindex` itinerante sobre cualquier [role="tablist"]. Era la
+// única implementación del repo y valía solo para esta pantalla.
 
 // Header compacto al scrollear
 const stickyHeader = document.getElementById('sticky-header');
