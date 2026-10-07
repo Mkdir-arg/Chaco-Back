@@ -21686,6 +21686,18 @@ Seis fichas con un hilo común: **la pantalla afirma algo que el código no sost
   `contexto["actividad_hoy"] == 7`; esa clave ya no existe. Lo que el test cuida —que `contar_seguimientos_hoy`
   se llame **una sola vez** por request— sigue igual, y ahora además exige que la clave duplicada no vuelva.
 
+- **El CI encontró un desfase de fechas que la suite local no ve, y es BEC-18.** El primer test de la serie
+  afirmaba «una inscripción de hoy entra en el último bucket»: **verde en Windows, rojo en el CI**.
+  `InscripcionPrograma.fecha_inscripcion` es `DateField(auto_now_add=True)` y el `pre_save` de Django
+  **descarta el valor que se le pase** para escribir `datetime.date.today()`, fecha naíf del proceso. En Linux
+  `Settings.__init__` hace `os.environ["TZ"] = TIME_ZONE; time.tzset()` (`django/conf/__init__.py:195-205`), así
+  que esa fecha es la de **Argentina**, mientras que la ventana de la serie se arma con `timezone.now().date()`,
+  que es la de **UTC**: entre las 21 y las 24 de Argentina difieren en un día. En Windows `time.tzset` no existe,
+  Django saltea el bloque y el desfase no aparece. Es **BEC-18** («el hoy UTC», Ola 3), no esta ficha: el test lo
+  esquiva forzando la fecha con `update()` —que sí saltea `auto_now_add`— en lugar de taparlo, y se agregó
+  `test_antes_el_ultimo_dia_quedaba_fuera_de_la_ventana` para fijar el borde opuesto (que la serie no se corra
+  un día para atrás al arreglarla).
+
 ## Lo que quedó frenado, y por qué
 
 **La migración de los 10 KPIs a `_stat_card.html` no se escribió.** Es lo que manda el protocolo del agente:
@@ -21713,7 +21725,9 @@ PM decida.
 - `manage.py check` — 0 issues. `manage.py check --deploy` — 6 warnings, todas de entorno local (sin SSL,
   `SECRET_KEY` de prueba): las mismas que en `development`.
 - `manage.py makemigrations --check --dry-run` — «No changes detected».
-- `manage.py test` (suite entera, un solo proceso) — **3314 tests, OK** (30 skipped, 7 expected failures).
+- `manage.py test` (suite entera, un solo proceso) — **3315 tests, OK** (30 skipped, 7 expected failures).
+  En el CI (Linux, 3357 tests) también en verde: la primera corrida encontró el desfase de fechas de BEC-18 que
+  Windows no muestra, y está arriba en *Desvíos code-first*.
 - `manage.py test --tag performance` — 4 tests, OK. `core:inicio` sigue bajo su presupuesto de 20 consultas:
   el filtro nuevo va dentro del mismo `cache.get_or_set` y no agrega consultas.
 - `ruff check .` — All checks passed. `ruff format` sobre lo tocado — limpio.
@@ -21763,6 +21777,10 @@ La entrada de caché `home:usuarios_activos_24h` queda huérfana y expira sola a
 7. **`metricas_dashboard` (`dashboard/api_views/__init__.py`) sigue contando ciudadanos del portal** en
    `usuarios_conectados`, con el mismo criterio viejo. No lo consume ningún template ni JS del repo, así que no
    se tocó.
+8. **El «hoy» de la serie sigue siendo UTC y el de `fecha_inscripcion`, de Argentina.** G2-04 arregló el largo
+   de la ventana, no el huso: entre las 21 y las 24 de Argentina una inscripción recién creada todavía cae un
+   bucket antes del que el gráfico rotula como hoy. Es **BEC-18** (Ola 3), con la evidencia concreta anotada en
+   la resolución de G2-04.
 
 ## Reversión
 

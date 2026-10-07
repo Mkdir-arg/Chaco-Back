@@ -136,16 +136,51 @@ class TendenciasIncluyenHoyTests(TestCase):
         self.assertEqual(len(datos["labels"]), 7)
         self.assertEqual(len(datos["datos"]), 7)
 
-    def test_una_inscripcion_de_hoy_entra_en_la_serie(self):
+    def test_una_inscripcion_del_ultimo_dia_entra_en_la_serie(self):
+        """La fecha se fuerza con `update()`, no en el `create()`.
+
+        `InscripcionPrograma.fecha_inscripcion` es `DateField(auto_now_add=True)`, y
+        el `pre_save` de Django **ignora el valor que se le pase** y escribe
+        `datetime.date.today()`: fecha naíf del proceso. En Linux, `Settings.__init__`
+        hace `os.environ["TZ"] = TIME_ZONE; time.tzset()`, así que esa fecha es la de
+        **Argentina**, mientras que la ventana de la serie se arma con
+        `timezone.now().date()`, que es la de **UTC**. Entre las 21 y las 24 de
+        Argentina las dos difieren en un día y el `create()` cae un bucket antes. Ese
+        desfase es real y es **BEC-18** (el «hoy» UTC), no de esta ficha: el test lo
+        esquiva en vez de taparlo, para medir lo que G2-04 arregla —que el último
+        bucket de la serie sea el de hoy— sin arrastrar el otro bug.
+        """
         from legajos.models import Ciudadano
         from programas.models import InscripcionPrograma, Programa
 
         programa = Programa.objects.create(nombre="Serie", estado=Programa.Estado.ACTIVO)
         ciudadano = Ciudadano.objects.create(dni="40111222", nombre="Ana", apellido="Serie")
-        InscripcionPrograma.objects.create(
-            ciudadano=ciudadano, programa=programa, fecha_inscripcion=timezone.now().date()
-        )
+        inscripcion = InscripcionPrograma.objects.create(ciudadano=ciudadano, programa=programa)
+        InscripcionPrograma.objects.filter(pk=inscripcion.pk).update(fecha_inscripcion=timezone.now().date())
 
         datos = self._labels()
 
         self.assertEqual(datos["datos"][-1], 1)
+
+    def test_antes_el_ultimo_dia_quedaba_fuera_de_la_ventana(self):
+        """La regresión concreta de G2-04, en el borde opuesto.
+
+        Con `fecha_inicio = hoy - dias` y `range(dias)` la serie terminaba **ayer**:
+        un registro del día de hoy no aparecía en ningún bucket. Acá se verifica que
+        el registro de hoy sí está y que la serie no se corrió un día: el primer
+        bucket es `hoy - (dias - 1)`.
+        """
+        from legajos.models import Ciudadano
+        from programas.models import InscripcionPrograma, Programa
+
+        hoy = timezone.now().date()
+        programa = Programa.objects.create(nombre="Borde", estado=Programa.Estado.ACTIVO)
+        ciudadano = Ciudadano.objects.create(dni="40111333", nombre="Eva", apellido="Borde")
+        inscripcion = InscripcionPrograma.objects.create(ciudadano=ciudadano, programa=programa)
+        InscripcionPrograma.objects.filter(pk=inscripcion.pk).update(fecha_inscripcion=hoy - timedelta(days=6))
+
+        datos = self._labels()
+
+        self.assertEqual(datos["labels"][0], (hoy - timedelta(days=6)).strftime("%d/%m"))
+        self.assertEqual(datos["datos"][0], 1)
+        self.assertEqual(datos["datos"][-1], 0)
