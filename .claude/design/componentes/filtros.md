@@ -51,9 +51,14 @@ Por eso el `aria-label` tiene que leerse bien **como chip**: «Estado», no «Es
 - Filtro de texto, select, fecha (`type="date"`) y checkbox, todos dentro del mismo `<form>`.
 - `max-w-xs` en el control para que no ocupe todo el ancho antes de que monte el JS.
 - Filtros avanzados: `{% include "components/list_filters.html" with advanced=True allow_or=True reset_url=reset_url %}`
-  renderiza la barra sin pasar por el `<template>` del shell (lo usa
-  `users/templates/user/user_list.html`).
-- Sin filtros: se omite el `<form>` entero.
+  renderiza la barra sin pasar por el `<template>` del shell. Único consumidor:
+  `users/templates/user/user_list.html`, que arma el form desde `filters_config` (`json_script`) y por eso
+  **sí** lleva `id`, `action` y `class="dynamic-list-filters"`: es la excepción, no el contrato.
+- Sin filtros: se omite el `<form>` entero (las tres listas de geografía).
+- Consumidores del contrato simple fuera de Becas: `users/templates/rol/rol_list.html`,
+  `configuracion/templates/configuracion/secretaria_list.html`,
+  `configuracion/templates/configuracion/subsecretaria_list.html` y
+  `configuracion/templates/configuracion/programa_list.html`.
 
 ## Prohibido
 
