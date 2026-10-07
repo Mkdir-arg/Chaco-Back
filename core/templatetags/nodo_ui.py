@@ -173,6 +173,30 @@ def hay_filtros(parametros, excluidos=EXCLUIDOS_HAY_FILTROS):
 SEPARADOR_CLAVES = re.compile(r"[,&]")
 
 
+def _sin_escapar(texto):
+    """``&amp;`` → ``&``: el separador de un querystring, no la entidad HTML.
+
+    La pieza de paginación escribe sus enlaces con ``&amp;`` —es lo correcto dentro
+    de un atributo— y su comentario dice «querystring ya codificado», así que un
+    consumidor que pasa ``extra_qs="tab=ben&amp;modo=lista"`` está siendo coherente
+    con lo que ve. Sin esta normalización, el separador partía en ``amp;modo``, la
+    clave no se sacaba y el enlace salía con el parámetro repetido.
+    """
+    return str(texto).replace("&amp;", "&")
+
+
+@register.filter
+def querystring_crudo(valor):
+    """Un querystring con el ``&`` sin escapar, listo para que lo escape la plantilla.
+
+    Lo usa ``components/_paginacion.html`` sobre ``extra_qs``: si el consumidor lo
+    escribió como lo ve en el HTML del enlace (``tab=ben&amp;modo=lista``), imprimirlo
+    tal cual lo escapaba una segunda vez (``&amp;amp;``) y el navegador mandaba un
+    parámetro llamado ``amp;modo``.
+    """
+    return _sin_escapar(valor or "")
+
+
 @register.filter
 def sin_parametros(parametros, excluidos=""):
     """Querystring de ``parametros`` sin las claves de ``excluidos``.
@@ -181,7 +205,7 @@ def sin_parametros(parametros, excluidos=""):
     codificado —así el filtro se encadena consigo mismo—. ``excluidos`` es una
     lista de claves separadas por comas o por ``&``; de un par ``clave=valor``
     se usa solo la clave, para poder pasarle el mismo ``extra_qs`` que viaja en
-    el enlace.
+    el enlace. Los dos toleran ``&amp;`` como separador (ver ``_sin_escapar``).
 
     Devuelve el querystring **sin** ``?`` y **sin** escapar: lo escapa la
     plantilla (o el ``{% firstof %}`` que lo recibe).
@@ -189,10 +213,10 @@ def sin_parametros(parametros, excluidos=""):
     if not parametros:
         return ""
     if not hasattr(parametros, "getlist"):
-        parametros = QueryDict(str(parametros))
+        parametros = QueryDict(_sin_escapar(parametros))
     fuera = {
         trozo.split("=", 1)[0].strip()
-        for trozo in SEPARADOR_CLAVES.split(str(excluidos or ""))
+        for trozo in SEPARADOR_CLAVES.split(_sin_escapar(excluidos or ""))
         if trozo.split("=", 1)[0].strip()
     }
     if not fuera:
@@ -201,3 +225,44 @@ def sin_parametros(parametros, excluidos=""):
     for clave in fuera:
         restantes.pop(clave, None)
     return restantes.urlencode()
+
+
+@register.simple_tag
+def campo_control(field):
+    """El control del campo con el ARIA que el include no puede escribir a mano.
+
+    ``{{ field }}`` rinde el widget tal cual; para colgarle ``aria-describedby``
+    hacia su ayuda y su error —y ``aria-invalid`` cuando el campo volvió con
+    error— hay que pasar por ``BoundField.as_widget(attrs=…)``, que una plantilla
+    no sabe llamar con argumentos. Las clases del widget (``nodo-field``) no se
+    tocan: ``build_attrs`` las conserva.
+    """
+    if field is None or not hasattr(field, "as_widget"):
+        return ""
+    base = field.auto_id
+    atributos = {}
+    descripciones = []
+    if base and field.help_text:
+        descripciones.append(f"{base}-ayuda")
+    if field.errors:
+        # El `<p>` del error existe siempre (lo completa el guardado AJAX), pero
+        # solo se anuncia cuando tiene texto: si no, cada campo se leería con una
+        # descripción vacía.
+        if base:
+            descripciones.append(f"{base}-error")
+        atributos["aria-invalid"] = "true"
+    if descripciones:
+        atributos["aria-describedby"] = " ".join(descripciones)
+    return field.as_widget(attrs=atributos) if atributos else field.as_widget()
+
+
+@register.simple_tag(takes_context=True)
+def campo_wrapper_class(context):
+    """Clases del contenedor de ``components/_field.html``.
+
+    No se resuelve con ``|default:"mb-4"`` porque hay que distinguir «no lo
+    pasaron» de ``wrapper_class=""`` (lo que pasa un formulario cuya grilla ya
+    separa con ``gap``), y una variable que no existe se resuelve como ``""``.
+    """
+    valor = context.get("wrapper_class", "mb-4")
+    return "" if valor is None else valor

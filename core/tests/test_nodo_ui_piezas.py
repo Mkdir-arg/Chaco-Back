@@ -2,7 +2,9 @@
 alerta inline, errores no de campo y el filtro ``hay_filtros``
 (W2-C9b, CMP-11/22/23, ALR-14/15, FE-08)."""
 
+import re
 from io import StringIO
+from pathlib import Path
 
 from django import forms
 from django.contrib.auth.models import AnonymousUser, User
@@ -25,6 +27,24 @@ FORM_ERRORES = "components/_form_errores.html"
 
 def _pagina(total, numero=1, por_pagina=10):
     return Paginator(list(range(total)), por_pagina).get_page(numero)
+
+
+RAIZ = Path(__file__).resolve().parents[2]
+_INCLUDE_STAT = re.compile(r"\{%\s*include\s+\"components/_stat_card\.html\".*?%\}")
+
+
+def _includes_de_stat_card():
+    """Cada llamada real a la pieza en el repo (sin la del propio comentario ni docs/)."""
+    invocaciones = []
+    for ruta in sorted(RAIZ.glob("**/templates/**/*.html")):
+        partes = ruta.parts
+        if "node_modules" in partes or "docs" in partes or ruta.name == "_stat_card.html":
+            continue
+        invocaciones.extend(_INCLUDE_STAT.findall(ruta.read_text(encoding="utf-8")))
+    return invocaciones
+
+
+_INCLUDES_DE_STAT_CARD = _includes_de_stat_card()
 
 
 class PaginacionTest(SimpleTestCase):
@@ -136,6 +156,19 @@ class PaginacionPorSolapaTest(SimpleTestCase):
         self.assertEqual(html.count("beneficiarios_page="), 2)
         self.assertEqual(html.count("tab=beneficiarios"), 2)
 
+    def test_un_extra_qs_escapado_tampoco_duplica_sus_claves(self):
+        """Con dos claves en `extra_qs`, lo natural es escribirlas con `&amp;`."""
+        html = self._render(
+            "tab=ben&modo=lista&dni=30",
+            page_obj=_pagina(40, 2),
+            entidad="caso",
+            param="casos_page",
+            extra_qs="tab=ben&amp;modo=lista",
+        )
+
+        self.assertIn('href="?casos_page=1&amp;tab=ben&amp;modo=lista&amp;dni=30"', html)
+        self.assertEqual(html.count("modo=lista"), 2, "una vez por enlace, no dos")
+
     def test_dos_listas_en_la_misma_pantalla_no_se_pisan(self):
         contexto = {"page_obj": _pagina(40, 1)}
         beneficiarios = self._render(
@@ -194,6 +227,17 @@ class SinParametrosFiltroTest(SimpleTestCase):
 
         self.assertEqual(sin_parametros(qs, "page"), "estado=A&estado=B")
 
+    def test_tolera_un_extra_qs_ya_escapado(self):
+        """La pieza escribe sus enlaces con ``&amp;``, así que un consumidor que pasa
+        ``extra_qs`` escapado está siendo coherente con lo que ve. Partiendo en ``&`` a
+        secas, la segunda clave quedaba como ``amp;modo`` y no se sacaba nunca."""
+        qs = QueryDict("tab=ben&modo=lista&dni=30")
+
+        self.assertEqual(sin_parametros(qs, "tab=ben&amp;modo=lista"), "dni=30")
+
+    def test_tolera_un_querystring_de_entrada_ya_escapado(self):
+        self.assertEqual(sin_parametros("a=1&amp;b=2", "a"), "b=2")
+
 
 class StatCardTest(SimpleTestCase):
     def test_estructura_canonica(self):
@@ -225,6 +269,98 @@ class StatCardTest(SimpleTestCase):
         self.assertNotIn("<b>", html)
         self.assertIn("&lt;b&gt;x&lt;/b&gt;", html)
         self.assertIn("&lt;i&gt;1&lt;/i&gt;", html)
+
+    def test_sin_los_parametros_opcionales_el_render_es_el_de_siempre(self):
+        """FE-22 / V5A-NEW-07 (b): los opcionales no pueden mover a los 20 consumidores.
+
+        El HTML de abajo es, carácter por carácter, el que la pieza daba antes de
+        aprender `kpi_id`, `sufijo`, `sufijo_id`, `nota` y `nota_id`.
+        """
+        html = render_to_string(
+            STAT, {"etiqueta": "Aprobados", "valor": 12, "icono": "fa-circle-check", "tono": "success"}
+        )
+
+        self.assertEqual(
+            html,
+            "\n"
+            '<div class="bg-white rounded-xl border border-base p-4">\n'
+            '  <div class="flex items-center justify-between gap-2">\n'
+            '    <p class="text-xs font-semibold text-body-subtle">Aprobados</p>\n'
+            '    <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 '
+            'bg-success-soft text-fg-success"><i class="fas fa-circle-check text-sm" aria-hidden="true">'
+            "</i></div>\n"
+            "  </div>\n"
+            '  <p class="text-2xl font-bold text-heading mt-2">12</p>\n'
+            "</div>\n",
+        )
+
+    def test_los_consumidores_que_no_los_piden_no_estrenan_data_kpi_ni_pie(self):
+        """Ninguna de las llamadas que ya existían pasa un opcional: el render no se mueve."""
+        for invocacion in _INCLUDES_DE_STAT_CARD:
+            if any(f"{nombre}=" in invocacion for nombre in ("kpi_id", "sufijo", "nota")):
+                continue
+            with self.subTest(invocacion=invocacion):
+                html = Template("{% load nodo_ui %}" + invocacion).render(Context({}))
+                self.assertNotIn("data-kpi", html)
+                self.assertNotIn("text-xs text-body-subtle mt-1", html)
+                self.assertNotIn("text-sm text-body-subtle font-semibold", html)
+
+    def test_kpi_id_marca_el_valor_para_que_el_js_lo_refresque(self):
+        html = render_to_string(STAT, {"etiqueta": "Aprobados", "valor": "—", "kpi_id": "aprobados"})
+
+        self.assertIn('<p class="text-2xl font-bold text-heading mt-2" data-kpi="aprobados">—</p>', html)
+
+    def test_nota_es_el_pie_de_la_tarjeta(self):
+        html = render_to_string(STAT, {"etiqueta": "X", "valor": 3, "nota": "2 cerradas por vencimiento"})
+
+        self.assertIn('<p class="text-xs text-body-subtle mt-1">2 cerradas por vencimiento</p>', html)
+
+    def test_nota_id_deja_el_pie_vacio_para_el_js(self):
+        html = render_to_string(STAT, {"etiqueta": "X", "valor": "—", "nota_id": "aprobados_nota"})
+
+        self.assertIn('<p class="text-xs text-body-subtle mt-1" data-kpi="aprobados_nota"></p>', html)
+
+    def test_sufijo_va_pegado_al_valor_en_tamano_secundario(self):
+        html = render_to_string(STAT, {"etiqueta": "Cupo", "valor": 80, "sufijo": " %"})
+
+        self.assertIn(
+            '<p class="text-2xl font-bold text-heading mt-2">80'
+            '<span class="text-sm text-body-subtle font-semibold"> %</span></p>',
+            html,
+        )
+
+    def test_valor_compuesto_marca_los_dos_numeros_y_el_sufijo_sobrevive_al_js(self):
+        """El JS asigna `textContent`: con `data-kpi` en el `<p>` borraría el « / M»."""
+        html = render_to_string(
+            STAT,
+            {
+                "etiqueta": "Convocatorias activas",
+                "valor": "—",
+                "kpi_id": "convocatorias_activas",
+                "sufijo": " / ",
+                "sufijo_id": "convocatorias_total",
+            },
+        )
+
+        self.assertIn(
+            '<p class="text-2xl font-bold text-heading mt-2">'
+            '<span data-kpi="convocatorias_activas">—</span>'
+            '<span class="text-sm text-body-subtle font-semibold"> / '
+            '<span data-kpi="convocatorias_total">—</span></span></p>',
+            html,
+        )
+        self.assertNotIn('mt-2" data-kpi', html)
+
+    def test_escapa_los_opcionales(self):
+        html = render_to_string(
+            STAT,
+            {"etiqueta": "X", "valor": 1, "nota": "<b>n</b>", "sufijo": "<i>s</i>", "kpi_id": '"><script>'},
+        )
+
+        self.assertNotIn("<b>", html)
+        self.assertNotIn("<i>s", html)
+        self.assertNotIn("<script>", html)
+        self.assertIn("&lt;b&gt;n&lt;/b&gt;", html)
 
 
 class EstadoVacioTest(SimpleTestCase):

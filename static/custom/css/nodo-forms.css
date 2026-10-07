@@ -37,6 +37,19 @@ select.nodo-field {
 
 select.nodo-field { padding-right: 36px; } /* espacio para el chevron nativo */
 
+/* Selector de color: el control nativo no muestra texto sino una muestra que ocupa
+   toda su caja. Con el ancho completo y el padding de los campos de texto quedaba
+   como una barra de color de borde a borde —el color del programa, en el paso 4 del
+   wizard—. Se le da el ancho de una muestra, el padding mínimo que el navegador
+   necesita para dibujar el marco y el cursor de un control clickeable; conserva el
+   alto, el borde, el radio y el foco de marca del resto de los campos, y como el
+   contenedor del campo sigue ocupando su columna, la grilla no se mueve. */
+input[type="color"].nodo-field {
+    width: 64px;
+    padding: 4px;
+    cursor: pointer;
+}
+
 textarea.nodo-field {
     min-height: 80px;
     padding: 12px 14px;

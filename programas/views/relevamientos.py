@@ -137,6 +137,17 @@ def _convocatorias_qs(request):
     )
 
 
+def _pagina_de_convocatorias(request):
+    """Qué página estaba mirando quien disparó el pedido.
+
+    El modal «Nueva convocatoria» postea a ``convocatoria_crear`` **sin** querystring,
+    así que en el re-render AJAX ``request.GET`` viene vacío y mirar solo ahí devolvía
+    siempre la página 1 aunque la URL del navegador dijera 2. El formulario manda la
+    página en un campo oculto; el GET sigue mandando cuando el contexto lo arma la vista.
+    """
+    return request.POST.get("page") or request.GET.get("page")
+
+
 def _contexto_convocatorias(request):
     """Página del listado de convocatorias, igual para la vista y para el re-render AJAX.
 
@@ -144,7 +155,7 @@ def _contexto_convocatorias(request):
     solo en la vista, guardar una convocatoria reemplazaba la página por las N filas
     visibles, que es el bug de la pantalla sin paginar con otro disfraz.
     """
-    pagina = Paginator(_convocatorias_qs(request), CONVOCATORIAS_PAGE_SIZE).get_page(request.GET.get("page"))
+    pagina = Paginator(_convocatorias_qs(request), CONVOCATORIAS_PAGE_SIZE).get_page(_pagina_de_convocatorias(request))
     return {
         "convocatorias": pagina.object_list,
         "page_obj": pagina,

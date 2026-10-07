@@ -412,6 +412,11 @@
              Becas traen la suya en _ajax_js.html). -->
         <script src="{% static 'custom/js/nodo-submit-guard.js' %}"></script>
 
+        <!-- Teclado de las solapas (FE-24): flechas, Home/End y tabindex itinerante
+             sobre toda [role="tablist"]. Mejora progresiva: no cambia nada visual ni
+             el estado de Alpine; activa la solapa disparando su propio click. -->
+        <script src="{% static 'custom/js/nodo-tabs.js' %}"></script>
+
         <!-- NODO SweetAlert2 theming (fuente única): se ejecuta después de customJS
              a propósito — reasigna window.Swal = Swal.mixin(...) y cada Swal.fire()
              existente lee esa variable global recién al momento del click. -->

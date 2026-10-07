@@ -19,7 +19,7 @@
     {% if form.non_field_errors %}
       <div class="mb-4 rounded-lg bg-danger-soft p-3 text-sm text-fg-danger">{{ form.non_field_errors }}</div>
     {% endif %}
-    {% for field in form %}{% include "programas/becas/_field.html" %}{% endfor %}
+    {% for field in form %}{% include "components/_field.html" %}{% endfor %}
     <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-light">
       <a href="{{ url_catalogo }}" class="btn-nodo btn-tertiary btn-base">Cancelar</a>
       <button type="submit" class="btn-nodo btn-brand btn-base">Guardar</button>

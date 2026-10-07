@@ -6,8 +6,8 @@
     <p class="text-xs text-fg-danger{% if not field.errors %} hidden{% endif %}"
        data-error="{{ field.name }}">{{ field.errors|join:" " }}</p>
   {% elif field.name == "opciones_texto" %}
-    <div data-opciones>{% include "programas/dispositivos/config/_field.html" %}</div>
+    <div data-opciones>{% include "components/_field.html" with wrapper_class="" %}</div>
   {% else %}
-    {% include "programas/dispositivos/config/_field.html" %}
+    {% include "components/_field.html" with wrapper_class="" %}
   {% endif %}
 {% endfor %}
