@@ -19,12 +19,13 @@ Más los helpers nuevos, que son el destino de la migración.
 import json
 from datetime import date
 from io import StringIO
+from tempfile import TemporaryDirectory
 
 from django.contrib.auth.models import Group, Permission, User
 from django.contrib.contenttypes.models import ContentType
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
-from django.test import SimpleTestCase, TestCase
+from django.test import SimpleTestCase, TestCase, override_settings
 from django.urls import reverse
 
 from core import rbac
@@ -63,6 +64,15 @@ class SobreUnicoTests(SimpleTestCase):
 
 class SobreDeErrorTests(TestCase):
     """RED-39: cada consumidor sigue recibiendo el motivo en SU clave."""
+
+    def setUp(self):
+        # La subida feliz escribe un archivo de verdad: sin esto va al `MEDIA_ROOT`
+        # real del repo y queda ahí (mismo patrón que `legajos/tests/test_adjuntos_rbac`).
+        self.media = TemporaryDirectory()
+        self.addCleanup(self.media.cleanup)
+        contexto = override_settings(MEDIA_ROOT=self.media.name)
+        contexto.enable()
+        self.addCleanup(contexto.disable)
 
     def test_el_constructor_devuelve_el_motivo_en_message(self):
         call_command("seed_becas", stdout=StringIO())

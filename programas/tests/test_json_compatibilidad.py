@@ -148,7 +148,9 @@ class DatosViejosTests(_Base):
         caso.refresh_from_db()
         self.assertEqual(respuestas[clave_pregunta(self.pregunta)], "Alquilada")
         # Y al traducirlo se le guarda la foto de hoy, con la forma nueva.
-        self.assertEqual(set(caso.definicion), {"version", "canal", "items"})
+        # `destinos_siis` entró con el Cambio 158 (G1-08): su **presencia** es lo
+        # que distingue una foto nueva de una vieja, así que va en el contrato.
+        self.assertEqual(set(caso.definicion), {"version", "canal", "items", "destinos_siis"})
 
     def test_la_definicion_para_la_app_conserva_las_listas_planas(self):
         """`globales` y `requisitos` siguen saliendo planos para la app vieja,

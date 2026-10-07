@@ -18,6 +18,7 @@ también falla (si no, la lista crece y deja de medir nada).
 tiene que ver el URLconf real, con `/conversaciones/` incluido.
 """
 
+import itertools
 import re
 import uuid
 from pathlib import Path
@@ -49,6 +50,11 @@ HAY_INTERPOLACION = re.compile(r"\$\{|\{\{|\{%")
 # conversores que usa el repo (`<int:...>`, `<uuid:...>`); `<str:...>` y
 # `<slug:...>` los matchea cualquiera de los dos.
 SONDAS = ("1", str(uuid.uuid4()))
+
+# Tope de segmentos variables por URL para probar **todas** las combinaciones de
+# sonda (2^N). Hoy el máximo real es 1; con 4 son 16 `resolve`, que no se nota.
+# Por encima del tope se prueba una sonda por URL, que es lo que se hacía antes.
+TOPE_COMBINACIONES = 4
 
 # Literales conocidos-rotos al 07/10/2026, cada uno con la ficha que lo saca.
 # NO se agregan entradas nuevas: una URL nueva que no resuelve es un bug nuevo.
@@ -89,14 +95,30 @@ def _normalizar(url):
 
 
 def _candidatas(partes):
-    """Las rutas concretas a probar: cada segmento variable con cada sonda.
+    """Las rutas concretas a probar: **una sonda por segmento**, todas las combinaciones.
 
-    Alcanza con que **una** resuelva: una ruta con `<uuid:pk>` solo acepta la
-    sonda UUID, y una con `<int:pk>` solo la numérica.
+    Alcanza con que una resuelva: una ruta con `<uuid:pk>` solo acepta la sonda
+    UUID y una con `<int:pk>` solo la numérica. Usar la **misma** sonda para
+    todos los segmentos daba un falso roto en cuanto una URL mezclara los dos
+    conversores (`/legajos/<uuid:legajo_id>/contactos/<int:pk>/`): ninguna de las
+    dos corridas uniformes resuelve, aunque la ruta exista.
     """
-    if None not in partes:
+    variables = partes.count(None)
+    if not variables:
         return ["/".join(partes)]
-    return ["/".join(sonda if p is None else p for p in partes) for sonda in SONDAS]
+    if variables > TOPE_COMBINACIONES:
+        # Degradación segura: sin combinatoria, una sonda para toda la URL. Un
+        # literal así no existe hoy; si aparece, lo peor que pasa es un falso
+        # roto que se resuelve poniéndolo en la allowlist o subiendo el tope.
+        combinaciones = [(sonda,) * variables for sonda in SONDAS]
+    else:
+        combinaciones = itertools.product(SONDAS, repeat=variables)
+
+    candidatas = []
+    for sondas in combinaciones:
+        restantes = iter(sondas)
+        candidatas.append("/".join(next(restantes) if p is None else p for p in partes))
+    return candidatas
 
 
 def _resuelve(partes):
@@ -137,6 +159,23 @@ class UrlsDelFrontTests(SimpleTestCase):
     def test_el_barrido_encuentra_literales(self):
         """Si el patrón deja de matchear, el test pasaría vacío sin medir nada."""
         self.assertGreater(len(self.literales), 5, "el barrido no encontró literales: el patrón se rompió")
+
+    def test_una_url_que_mezcla_conversores_no_da_falso_roto(self):
+        """`/legajos/<uuid:legajo_id>/archivos/<int:archivo_id>/eliminar/` existe.
+
+        Con una sonda única para toda la URL ninguna de las dos corridas resolvía
+        —la numérica falla en el UUID, la UUID falla en el entero— y la ruta,
+        que es real, se reportaba como rota.
+        """
+        partes = _normalizar("/legajos/${legajoId}/archivos/${archivoId}/eliminar/")
+
+        self.assertEqual(partes.count(None), 2)
+        self.assertTrue(_resuelve(partes))
+        # Y la contracara: con una sonda uniforme, esa misma URL daba falso roto.
+        uniformes = ["/".join(sonda if p is None else p for p in partes) for sonda in SONDAS]
+        for candidata in uniformes:
+            with self.subTest(candidata=candidata), self.assertRaises(Resolver404):
+                resolve(candidata)
 
     def test_todo_fetch_literal_resuelve(self):
         rotos = {

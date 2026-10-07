@@ -21873,8 +21873,14 @@ job `Contratos de API` con su entrada en el ruleset.
   filtro por rutas va **adentro** del job (RED-20): un check con `paths:` en el trigger no reporta cuando el PR no toca
   esas rutas, y un check que no reporta no puede ser obligatorio.
 - **Las capacidades sin uso se declaran, no se borran.** Sacarlas del `CATALOGO` es un cambio de producto —el ABM de
-  Roles las ofrece hoy y alguien puede tenerlas tildadas—, no una limpieza de tests. Quedan en `CAPACIDADES_SIN_USO`
-  con su motivo y la decisión es de la Ola 7 (OPS-14).
+  Roles las ofrece hoy y alguien puede tenerlas tildadas—, no una limpieza de tests. Quedan declaradas con su motivo y
+  la decisión es de la Ola 7 (OPS-14).
+- **`CAPS_GESTION` no cuenta como uso** (ronda 2). Se calcula *del propio catálogo* en tiempo de import —todo `becas.*`
+  menos dos—, así que contarla volvía **circular** la vuelta: cualquier capacidad de Becas quedaba «usada» por el solo
+  hecho de estar en el catálogo. La vuelta exige un uso como literal, y lo que de verdad se evalúa en bloque se nombra
+  a mano en `USOS_EN_BLOQUE`, con un test que verifica que esa lista siga siendo exactamente `CAPS_ADMIN_PROGRAMA`.
+- **Un gate que no puede decidir no dice «verde»** (ronda 2). Los dos jobs con `dorny/paths-filter` fallan si la salida
+  del filtro no es `true` ni `false`, en vez de saltearse todos los pasos y terminar en éxito.
 
 ## Qué se hizo
 
@@ -21912,7 +21918,9 @@ mano obliga a actualizar el test de contrato en el mismo diff.
 **RED-44 — el catálogo de capacidades.** `users/tests/test_rbac_contrato.py` cruza las dos direcciones por AST,
 resolviendo las constantes `CAP_*`/`CAPS_*` de todo el repo en dos pasadas (una se arma con otra) y tomando solo los
 argumentos **posicionales** (así `redirect_to="configuracion:programas"` no se confunde con una capacidad). El mensaje
-de error trae `archivo:línea` y `difflib.get_close_matches`.
+de error trae `archivo:línea` y `difflib.get_close_matches`. La vuelta exige un uso **como literal**: lo demás se
+declara en una de tres listas —`CAPACIDADES_SIN_USO`, `CAPACIDADES_SOLO_COLECTIVAS` o `USOS_EN_BLOQUE`—, cada
+entrada con su motivo.
 
 ## Cuatro hallazgos que las fichas no tenían
 
@@ -21921,11 +21929,13 @@ de error trae `archivo:línea` y `difflib.get_close_matches`.
    Cambio 58, junto con `foto_definicion`, que siempre escribe `{version, canal, items}`. Lo viejo de verdad es
    `definicion = NULL` con `data` en el contrato plano de la app, y eso es lo que se prueba: `respuestas_legibles`
    devuelve `None` y el lector cae al camino por pk, en vez de mostrar el caso **vacío**.
-2. **RED-44 encontró cinco capacidades sin uso, no una.** La ficha esperaba solo `ciudadano.eliminar`. Medido de verdad
-   también están `config.ver` (todo `/configuracion/` exige `config.administrar`), `relevamiento.ver` (el módulo
-   genérico quedó sin consumidores: Becas usa `becas.relevamiento.ver`) e `institucion.ver` /
+2. **RED-44 encontró seis capacidades sin uso propio, no una.** La ficha esperaba solo `ciudadano.eliminar`. Medido de
+   verdad también están `config.ver` (todo `/configuracion/` exige `config.administrar`), `relevamiento.ver` (el módulo
+   genérico quedó sin consumidores: Becas usa `becas.relevamiento.ver`), `institucion.ver` /
    `institucion.administrar` —**no existe el módulo de Instituciones**: no hay vista ni URL que las evalúe, solo el tab
-   del ABM de Roles—. Las cuatro están verificadas una por una y declaradas con su motivo.
+   del ABM de Roles— y, desde la ronda 2, `becas.coordinador.ver`, que es de otra categoría: **sí** se evalúa, pero
+   solo dentro de `CAPS_GESTION`; ninguna pantalla pregunta por ella, mientras `crear` y `editar` sí tienen su
+   `{% if … %}`. Todas verificadas una por una y declaradas con su motivo.
 3. **El extractor de capacidades tenía que cubrir dos entradas más de las que la ficha nombraba:** el mixin de
    Dispositivos usa `capacidad_requerida` en **singular**, y sus tres tags de template (`puede_en_programa_dispositivos`,
    `puede_operar_dispositivo`) reciben la capacidad como literal. Sin eso, 14 capacidades aparecían como «sin uso»
@@ -21991,5 +22001,24 @@ El comando nuevo es **opcional y de solo lectura**: cuando convenga, correr
   nacerá sin su entrada. Queda reconciliado acá.
 - **07/10/2026 (este cambio)** — las seis cerradas en su parte de la Ola R. RED-41, RED-43 y RED-44 **completas**;
   RED-39, RED-40 y RED-42 con su parte R cerrada y el resto en las Olas 7, 3 y 5. **D-RED-04 aplicada por default
-  (sintético).** Cuatro hallazgos nuevos: la `definicion` plana no puede existir, las capacidades sin uso son cinco, el
-  extractor necesitaba dos entradas más, y la allowlist nace en 3.
+  (sintético).** Cuatro hallazgos nuevos: la `definicion` plana no puede existir, las capacidades sin uso propio son
+  seis, el extractor necesitaba dos entradas más, y la allowlist nace en 3.
+- **07/10/2026 (ronda 2 de revisión)** — aprobado, con cuatro MINOR corregidos encima.
+  (1) **Los dos jobs con `dorny/paths-filter` podían mentir.** `pr-backend.yml` declaraba solo
+  `permissions: contents: read`; el filtro en `pull_request` necesita además `pull-requests: read`. Con el repo público
+  el token lee igual, pero con **D-RED-01** (privado) el filtro podía dejar de resolver, todos los pasos saltearse y un
+  check **obligatorio** terminar en verde sin correr nada. Se agregó el permiso en `pr-backend.yml` y en
+  `pr-performance.yml` —que arrastraba la misma omisión en `Migrate ida y vuelta`— y, en los dos, un paso que **falla**
+  si la salida del filtro no es `true` ni `false`.
+  (2) El test del camino feliz de la subida escribía un PDF en el `MEDIA_ROOT` **real** del repo (dejó siete huérfanos
+  en `media/adjuntos/`, borrados): ahora va a un `TemporaryDirectory` con `override_settings` y limpieza, como
+  `legajos/tests/test_adjuntos_rbac.py`.
+  (3) **La vuelta de RED-44 era ciega a la mitad del catálogo.** Contaba `CAPS_GESTION` como uso, y `CAPS_GESTION`
+  **es** el catálogo de Becas: las 33 capacidades finas quedaban «usadas» por existir. Sacarla descubrió
+  `becas.coordinador.ver`. Quedan dos listas nuevas —`CAPACIDADES_SOLO_COLECTIVAS` y `USOS_EN_BLOQUE`— y dos tests que
+  impiden volver atrás. Verificado por mutación: un `becas.inventada.ver` agregado al `CATALOGO` ahora sale rojo.
+  (4) `_candidatas` del barrido de URLs usaba **la misma** sonda para todos los segmentos variables, así que un literal
+  que mezclara `<uuid:>` con `<int:>` daba falso roto; ahora prueba una sonda por segmento, en todas las combinaciones
+  (tope de 4 segmentos; hoy el máximo real es 1), con su test sobre una ruta mixta que existe.
+  **Además, al mergear `development`:** la foto del caso sumó `destinos_siis` con el Cambio 158 (G1-08), así que el
+  contrato exacto que afirma `test_un_caso_legacy_se_traduce_a_respuestas_por_clave` pasó a cuatro claves.

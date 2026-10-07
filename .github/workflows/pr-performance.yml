@@ -11,8 +11,13 @@ on:
     branches:
       - development
 
+# `pull-requests: read` lo necesita `dorny/paths-filter` del job `Migrate ida y vuelta`:
+# en `pull_request` pide los archivos del PR por la API. Con el repo público el token lee
+# igual, pero cuando D-RED-01 lo pase a privado el filtro dejaría de resolver y el job
+# terminaría en verde sin aplicar una sola migración (mismo bloque que `pr-quality.yml`).
 permissions:
   contents: read
+  pull-requests: read
 
 jobs:
   performance-budgets:
@@ -349,6 +354,20 @@ jobs:
               - 'requirements.txt'
               - '.github/ci/settings_roundtrip.py'
               - '.github/workflows/pr-performance.yml'
+
+      # Un filtro que no resuelve deja `outputs.migraciones` vacío, todos los pasos de
+      # abajo se saltean y el job termina en verde sin haber aplicado una sola migración.
+      # Acá falla en vez de mentir. Sin condición de evento: en los dos —`pull_request` y
+      # `push`— la salida es lo único que decide si el job hace algo.
+      - name: El filtro por rutas resolvió
+        shell: bash
+        env:
+          MIGRACIONES: ${{ steps.filtro.outputs.migraciones }}
+        run: |
+          case "$MIGRACIONES" in
+            true|false) echo "filtro por rutas: migraciones=$MIGRACIONES" ;;
+            *) echo "::error::el filtro por rutas no resolvió (migraciones='$MIGRACIONES'): el job no puede decidir si hay migraciones que probar"; exit 1 ;;
+          esac
 
       - uses: actions/setup-python@v5
         if: steps.filtro.outputs.migraciones == 'true'

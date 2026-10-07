@@ -13,8 +13,14 @@ on:
     branches:
       - development
 
+# `pull-requests: read` lo necesita `dorny/paths-filter` del job `Contratos de API`: en
+# `pull_request` pide los archivos del PR por la API. Hoy el repo es público y el token
+# lee igual, pero en cuanto D-RED-01 lo pase a privado el filtro dejaría de resolver y un
+# check **obligatorio** terminaría en verde sin correr nada (mismo bloque que
+# `pr-quality.yml` y `design-agent-contract.yml`).
 permissions:
   contents: read
+  pull-requests: read
 
 jobs:
   django-check:
@@ -160,6 +166,22 @@ jobs:
               - 'programas/fixtures/contratos/**'
               - 'requirements.txt'
               - '.github/workflows/pr-backend.yml'
+
+      # Un filtro que no resuelve deja `outputs.contrato` vacío, **todos** los pasos de
+      # abajo se saltean y el check obligatorio termina en verde sin haber corrido nada:
+      # el peor modo de falla de un gate. Acá el job falla en vez de mentir. Solo en
+      # `pull_request`, que es donde la salida decide algo: en `push` los pasos corren
+      # igual.
+      - name: El filtro por rutas resolvió
+        if: github.event_name == 'pull_request'
+        shell: bash
+        env:
+          CONTRATO: ${{ steps.filtro.outputs.contrato }}
+        run: |
+          case "$CONTRATO" in
+            true|false) echo "filtro por rutas: contrato=$CONTRATO" ;;
+            *) echo "::error::el filtro por rutas no resolvió (contrato='$CONTRATO'): el job no puede decidir si hay contratos que verificar"; exit 1 ;;
+          esac
 
       - uses: actions/setup-python@v5
         if: steps.filtro.outputs.contrato == 'true' || github.event_name == 'push'

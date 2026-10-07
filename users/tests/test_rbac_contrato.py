@@ -14,12 +14,20 @@ El test cruza las dos direcciones:
    `RequiereCapacidad(...)` y lo asignado a `capacidades_requeridas`, resolviendo
    las constantes `CAP_*`/`CAPS_*` del repo; más los tags de template
    (`|puede:"..."`, `{% puede_en user "..." %}`).
-2. **Toda capacidad del catálogo se usa**, o está declarada en
-   `CAPACIDADES_SIN_USO` con su motivo. Una capacidad que se tilda en el ABM de
-   Roles y que nadie evalúa es una promesa que la pantalla no cumple.
+2. **Toda capacidad del catálogo se usa como literal**, o está declarada —con su
+   motivo— en `CAPACIDADES_SIN_USO` (nadie la evalúa),
+   `CAPACIDADES_SOLO_COLECTIVAS` (solo cuenta dentro de un conjunto: ninguna
+   pantalla pregunta por ella) o `USOS_EN_BLOQUE` (se evalúa por una constante
+   escrita a mano que el extractor no puede ver). Una capacidad que se tilda en
+   el ABM de Roles y que nadie evalúa es una promesa que la pantalla no cumple.
 
-Al 07/10/2026 los dos pasan: el test es gratis y lo único que hace es volverse
-rojo el día que alguien se equivoque al tipear.
+**`CAPS_GESTION` no cuenta como uso.** Se calcula *del propio catálogo* en
+tiempo de import (`programas/services/autorizacion.py::_caps_gestion`: todo
+`becas.*` menos dos), así que contarla volvía **circular** la vuelta: las 33
+capacidades finas de Becas quedaban «usadas» por el solo hecho de estar en el
+catálogo —la mitad del catálogo sin medir—, que es justo lo que este test tiene
+que detectar. Sin ella, la vuelta las ve: la primera que apareció fue
+`becas.coordinador.ver`.
 """
 
 import ast
@@ -80,6 +88,26 @@ CAPACIDADES_SIN_USO = {
     "relevamiento.ver": "Becas usa `becas.relevamiento.ver`; el módulo genérico quedó sin consumidores (OPS-14)",
     "institucion.ver": "no existe el módulo de Instituciones: no hay vista ni URL que la evalúe (OPS-14)",
     "institucion.administrar": "ídem `institucion.ver` (OPS-14)",
+}
+
+# Capacidades que **sí** se evalúan, pero nunca por su nombre: solo cuentan dentro
+# de un conjunto. Tildarlas hace algo (suman al bloque), pero ninguna pantalla
+# pregunta por ellas, así que renombrarlas no rompe nada visible.
+CAPACIDADES_SOLO_COLECTIVAS = {
+    # `becas.coordinador.crear` y `.editar` tienen su `{% if … %}` en
+    # `segmento_detail.html`; el «ver» no: la lista de coordinadores se muestra
+    # sin preguntar. Solo suma dentro de `CAPS_GESTION`.
+    "becas.coordinador.ver": "solo suma dentro de CAPS_GESTION; ninguna pantalla pregunta por ella (OPS-14)",
+}
+
+# Capacidades evaluadas **en bloque** por una constante escrita a mano —no derivada
+# del catálogo—, en una comprensión que el extractor no puede ver como llamada.
+# Son usos reales; hay que nombrarlos acá. El test de abajo verifica que la lista
+# siga siendo exactamente `CAPS_ADMIN_PROGRAMA`, que es una de las cuatro cosas
+# que se mueven juntas (CLAUDE.md, «alcance de admin de programa»).
+USOS_EN_BLOQUE = {
+    "programa.usuario.administrar": "core/rbac.py::usuarios_que_administran_programa, vía CAPS_ADMIN_PROGRAMA",
+    "programa.rol.administrar": "ídem `programa.usuario.administrar`",
 }
 
 
@@ -214,24 +242,47 @@ class CapacidadesEvaluadasTests(SimpleTestCase):
         )
 
     def test_toda_capacidad_del_catalogo_se_usa_o_esta_declarada_sin_uso(self):
-        # `CAPS_GESTION` se calcula del propio catálogo en tiempo de import
-        # (`programas/services/autorizacion.py`): las capacidades finas de Becas
-        # se evalúan por ahí, no como literal.
-        usadas = set(self.usos) | set(CAPS_GESTION) | set(rbac.CAPS_ADMIN_PROGRAMA)
+        """`CAPS_GESTION` NO cuenta: se deriva del catálogo y volvería circular la vuelta."""
+        declaradas = set(CAPACIDADES_SIN_USO) | set(CAPACIDADES_SOLO_COLECTIVAS) | set(USOS_EN_BLOQUE)
 
-        sin_uso = sorted(self.catalogo - usadas - set(CAPACIDADES_SIN_USO))
+        sin_uso = sorted(self.catalogo - set(self.usos) - declaradas)
 
         self.assertEqual(
             sin_uso,
             [],
-            "capacidades del CATALOGO que nadie evalúa: el ABM de Roles las ofrece y "
-            f"tildarlas no habilita nada. Declaralas en CAPACIDADES_SIN_USO con su motivo: {sin_uso}",
+            "capacidades del CATALOGO que ninguna pantalla evalúa por su nombre. Declaralas "
+            "con su motivo en CAPACIDADES_SIN_USO (nadie las evalúa), CAPACIDADES_SOLO_COLECTIVAS "
+            f"(solo cuentan dentro de un conjunto) o USOS_EN_BLOQUE (constante escrita a mano): {sin_uso}",
         )
+
+    def test_la_vuelta_no_es_ciega_a_las_capacidades_de_becas(self):
+        """Lo que la hacía ciega: `CAPS_GESTION` **es** el catálogo de Becas.
+
+        Si alguna vez se la vuelve a sumar al conjunto de «usadas», las 33
+        capacidades finas de Becas pasan a estar usadas por el solo hecho de
+        existir y la vuelta deja de medir la mitad del catálogo.
+        """
+        de_becas = {c for c in self.catalogo if c.startswith("becas.")}
+
+        self.assertTrue(set(CAPS_GESTION) < de_becas, "CAPS_GESTION dejó de derivarse del catálogo")
+        # La prueba de que la vuelta las ve: hay al menos una sin literal que,
+        # contando `CAPS_GESTION`, pasaba desapercibida.
+        self.assertTrue(set(CAPACIDADES_SOLO_COLECTIVAS) <= set(CAPS_GESTION))
+        self.assertTrue(set(CAPACIDADES_SOLO_COLECTIVAS).isdisjoint(self.usos))
+
+    def test_los_usos_en_bloque_declarados_son_los_que_hay(self):
+        """`CAPS_ADMIN_PROGRAMA` es una de las cuatro cosas que se mueven juntas."""
+        self.assertEqual(set(USOS_EN_BLOQUE), set(rbac.CAPS_ADMIN_PROGRAMA))
 
     def test_lo_declarado_sin_uso_sigue_sin_usarse(self):
         """Ratchet: cuando la pantalla llega, la entrada sale de la lista."""
-        usadas = set(self.usos) | set(CAPS_GESTION) | set(rbac.CAPS_ADMIN_PROGRAMA)
+        declaradas = {**CAPACIDADES_SIN_USO, **CAPACIDADES_SOLO_COLECTIVAS}
 
-        sobrantes = sorted(c for c in CAPACIDADES_SIN_USO if c in usadas or c not in self.catalogo)
+        sobrantes = sorted(c for c in declaradas if c in self.usos or c not in self.catalogo)
 
-        self.assertEqual(sobrantes, [], f"entradas de CAPACIDADES_SIN_USO que hay que borrar: {sobrantes}")
+        self.assertEqual(
+            sobrantes,
+            [],
+            "entradas de CAPACIDADES_SIN_USO / CAPACIDADES_SOLO_COLECTIVAS que hay que borrar "
+            f"(ya tienen literal, o ya no están en el catálogo): {sobrantes}",
+        )
