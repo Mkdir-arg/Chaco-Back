@@ -23477,6 +23477,37 @@ se revierte, hay que volver las cuatro líneas del `crontab` a su forma anterior
   tests la importan y venía solo como dependencia transitiva de `drf-spectacular`); y se
   escribió qué **no** cubre el candado (los opcionales y `collectstatic` corren afuera, a
   propósito) en el entrypoint, en `docker/k8s/README.md` y en `docker-compose.prod.yml`.
+- **07/10/2026 (ronda 3 de la revisión)** — la conexión dedicada que resolvió la ronda 2
+  tiene una contracara: es la que **no habla**, así que queda ociosa todo el bootstrap
+  (141-218 s medidos). Si el servidor la cierra en el medio —un `wait_timeout` global
+  apretado, un `KILL`, un firewall que corta ociosos— el `SELECT IS_USED_LOCK` del
+  `finally` levantaba un 2013 y el comando salía con **exit 1 sobre un esquema correcto**:
+  el Job quedaba en `Failed` y el initContainer en CrashLoop por un bootstrap que había
+  salido bien, y encima el AVISO escrito justo para ese caso no llegaba a imprimirse.
+
+  Se arregló por las dos puntas. **Que no se caiga:** la sesión del candado pide
+  `wait_timeout = 28800`, que es el default de fábrica de MySQL y de MariaDB —no se pide
+  nada extraordinario, se evita que un global apretado por el DBA la mate mientras
+  espera—, y si el usuario no tiene permiso para tocar la variable avisa y sigue, porque
+  es una defensa y no un requisito. **Que caerse no haga fallar nada:** `_soltar_candado`
+  atrapa `OperationalError`/`InterfaceError`, emite el AVISO de que el servidor liberó el
+  candado solo al cerrar la conexión y **no toca el exit code**; el `close()` final también,
+  porque cerrar una conexión que el servidor ya cerró puede levantar. Lo que sigue mandando
+  es el error del comando: si el `migrate` falló, el que sale es ese, y hay test que lo fija.
+
+  Medido contra `mariadb:10.11` con el mecanismo aislado (`wait_timeout` global en 2 s y
+  5 s de bootstrap): sin el arreglo, `OperationalError (2013)`; con él, el candado
+  sobrevive y se suelta bien.
+
+  Y dos MINOR del runbook de `espejo-ecom.md`, los dos verificados contra el código: el
+  comando del gate de Redis daba **verde falso** si `ENVIRONMENT` no estaba declarada
+  —el backend es `LocMemCache`, que escribe y lee en memoria del proceso—, así que ahora
+  imprime también el ambiente y el backend, con una tabla de qué valor esperar; y la fila
+  «ya arrancado, sirviendo» decía que fallaban «algunas pantallas» cuando en realidad
+  **no se puede entrar**: `django.contrib.auth.login()` emite `user_logged_in` y el
+  receptor de `conversaciones` registra la presencia en el caché
+  (`conversaciones/presencia.py:30`) sin atrapar nada, así que el POST de login responde
+  500 y el ambiente queda inaccesible.
 
 ---
 

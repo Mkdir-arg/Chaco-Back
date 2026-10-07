@@ -200,8 +200,22 @@ sobre una base vacía ahora serializan —uno aplica las 138 migraciones y el ot
 la regla de RED-19 (`RUN_MIGRATIONS=false` + Job único), y `docker/k8s/README.md` lo dice. Verificado en contenedores
 efímeros: el entrypoint con un `python` de mentira (seis casos: default, `RUN_MIGRATIONS=false`, `SKIP_SCHEMA_GUARD`,
 opcional que falla, `ENVIRONMENT=prd`, guarda de gevent) y un `migrate` completo desde base vacía contra
-`mariadb:10.11` a través del candado. **Test permanente:** `core.tests.test_bootstrap_lock.BootstrapLockTests`,
-`core.tests.test_motor_real.CandadoDeBootstrapTests` y `CandadoSobreviveAlLoaddataTests` (`@tag("mysql")`, dos conexiones),
+`mariadb:10.11` a través del candado. **Ronda 3 de la revisión:** la conexión dedicada tiene una contracara —queda **ociosa** todo el bootstrap, 141-218 s
+medidos—, y si el servidor la cierra en el medio (un `wait_timeout` global apretado, un `KILL`, un firewall que corta
+ociosos) el `SELECT IS_USED_LOCK` del `finally` levantaba un 2013: el comando salía con **exit 1 sobre un esquema
+correcto** —Job en `Failed`, initContainer en CrashLoop— y encima el aviso escrito justo para ese caso no llegaba a
+imprimirse. Reproducido por el revisor con `SET GLOBAL wait_timeout=30` (139 migraciones OK, exit 1) y acá con el
+mecanismo aislado contra `mariadb:10.11`: con `wait_timeout` global en 2 s y 5 s de bootstrap, sin el arreglo da
+`OperationalError (2013)` y con él el candado sobrevive y se suelta bien. Dos mitades: **que no se caiga** —la sesión del
+candado pide `wait_timeout = 28800`, que es el default de fábrica de los dos motores, así que no se pide nada
+extraordinario, solo que un global apretado por el DBA no la mate; si el usuario no puede tocar la variable, avisa y
+sigue— y **que caerse no haga fallar nada** —`_soltar_candado` atrapa `OperationalError`/`InterfaceError`, emite el AVISO
+de que el servidor liberó el candado solo y **no toca el exit code**; el `close()` final también, porque cerrar una
+conexión ya cerrada puede levantar—. Lo que sí sigue mandando es el error del comando: si el `migrate` falló, el que sale
+es ese. **Test permanente:** `core.tests.test_bootstrap_lock.BootstrapLockTests`,
+`core.tests.test_motor_real.CandadoDeBootstrapTests`, `CandadoSobreviveAlLoaddataTests` y
+`CandadoConLaConexionMuertaTests` (`@tag("mysql")`; esta última mata la conexión del candado con un `KILL` de verdad y
+verifica que el bootstrap sale en 0, y aprieta el `wait_timeout` global para fijar que la sesión sobrevive),
 `core.tests.test_procesar_vencimientos_aislado.ReglasAisladasTests` y
 `core.tests.test_entrypoint_bootstrap.EntrypointBootstrapTests`.
 

@@ -116,22 +116,35 @@ ocurre durante el propio arranque.
 | Momento | Qué pasa |
 |---|---|
 | Arranque del contenedor | `seed_becas` invalida la clave `programas:becas` al asegurar el programa. Con Redis inalcanzable eso era un `ConnectionError` sin atrapar → **el bootstrap terminaba en exit 1**, el pod en CrashLoopBackOff y el Job de migración de R-13 en `Failed`. **Corregido en el Cambio 165:** esa invalidación es *best-effort*, deja un `WARNING` en el log y el arranque sigue |
-| Ya arrancado, sirviendo | Cada lectura de caché levanta la excepción: las pantallas de Becas responden 500, el límite de intentos del login deja de contar y las sesiones de `prd` no se resuelven. Eso **no** se tapa a propósito: un ambiente servido con el caché caído es una caída y tiene que verse |
+| Ya arrancado, sirviendo | **No se puede entrar: el login responde 500.** `django.contrib.auth.login()` emite `user_logged_in`, y el receptor de `conversaciones` registra la presencia del usuario en el caché (`conversaciones/presencia.py:30`, `cache.get`) sin atrapar nada: la excepción sube y el POST de login revienta. O sea que no es «algunas pantallas andan mal» — es que el ambiente queda inaccesible. Después del login, además, cada lectura de caché levanta igual (pantallas de Becas en 500, el límite de intentos deja de contar) y en `prd` las sesiones viven en Redis, así que tampoco habría dónde guardarlas. Eso **no** se tapa a propósito: un ambiente servido con el caché caído es una caída y tiene que verse |
 | Websockets | El channel layer también es Redis desde este release: sin él, el chat y los avisos no cruzan entre pods |
 
-Por eso el gate es **antes** de espejar y no «lo vemos cuando falle»: hoy el pod levanta,
-así que la falta de Redis no se nota en el rollout —se nota recién cuando alguien abre una
-pantalla—.
+Por eso el gate es **antes** de espejar y no «lo vemos cuando falle»: el pod levanta y el
+rollout se da por bueno, así que la falta de Redis recién aparece cuando alguien intenta
+entrar —y ahí ya está desplegado—.
 
 Si testing **no** llega a un Redis, el release no se espeja hasta resolverlo. Es un cambio
 de infraestructura del lado de ECOM, así que lo pide el PM, no el espejo.
 
-La verificación, una vez que ECOM diga que está, se hace desde el pod:
+La verificación, una vez que ECOM diga que está, se hace desde el pod. **No alcanza con
+que el `cache.set/get` devuelva el valor:** con `ENVIRONMENT` sin declarar el backend es
+`LocMemCache`, que escribe y lee en memoria del proceso y da verde sin que haya Redis en
+ninguna parte. Por eso el comando imprime también qué ambiente y qué backend está usando:
 
 ```bash
 kubectl exec -it deploy/<web> -- python manage.py shell -c \
-  "from django.core.cache import cache; cache.set('ping', 1, 5); print('redis ok:', cache.get('ping'))"
+  "from django.conf import settings; from django.core.cache import cache; \
+   cache.set('ping', 1, 5); \
+   print('ENVIRONMENT =', settings.ENVIRONMENT); \
+   print('backend     =', settings.CACHES['default']['BACKEND']); \
+   print('ping        =', cache.get('ping'))"
 ```
+
+| Salida | Qué significa |
+|---|---|
+| `ENVIRONMENT = qa` (o `prd`), `backend = django_redis.cache.RedisCache`, `ping = 1` | **Es lo que se espera.** El pod llega a Redis |
+| `backend = …locmem.LocMemCache` | **Verde falso.** `ENVIRONMENT` no está declarada (o vale algo que no es `qa`/`prd`): el caché es local al proceso y esto no probó nada sobre Redis. Es la pregunta H-09; `manage.py check --deploy` lo marca con `core.W002` |
+| Una excepción de conexión | El pod **no** llega a Redis. No se espeja |
 
 ## Paso 1 — `/pushGitLabecomTEST`
 

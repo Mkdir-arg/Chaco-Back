@@ -34,6 +34,15 @@ con un solo contenedor. El candado pasó a una **conexión dedicada** y el aviso
 «no lo tiene nadie». Medido: dos bootstrap en paralelo sobre base vacía ahora serializan (uno aplica las 138
 migraciones, el otro no encuentra nada), los dos con exit 0 y sin avisos.
 
+**Ronda 3 de la revisión.** La conexión dedicada que resolvió la ronda 2 queda **ociosa** todo el bootstrap
+(141-218 s), y si el servidor la cierra en el medio el `IS_USED_LOCK` del `finally` levantaba un 2013: exit 1
+sobre un esquema correcto, con el Job en `Failed` y el AVISO escrito para ese caso sin imprimirse. Arreglado por
+las dos puntas —la sesión del candado pide `wait_timeout = 28800`, que es el default de fábrica de los dos
+motores, y soltar el candado ya no puede cambiar el exit code—, medido contra `mariadb:10.11`. Y dos MINOR del
+runbook: el comando del gate de Redis daba verde falso sin `ENVIRONMENT` declarada (LocMem), y la fila «ya
+arrancado» decía «algunas pantallas» cuando en realidad **el login da 500** y nadie puede entrar
+(`conversaciones/presencia.py:30` desde el signal `user_logged_in`).
+
 **Pasos operativos para el PM.** Antes de espejar este release hay que preguntarle a ECOM dos cosas (quedaron
 escritas en `espejo-ecom.md`, ahora como gate y no como sugerencia): si el pod de `web` de testing llega a un
 Redis, y cuánto valen `ENVIRONMENT` y `DJANGO_SETTINGS_MODULE` ahí y en PRD, que es la pregunta abierta

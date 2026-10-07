@@ -39,6 +39,7 @@ Para correrlo a mano (contenedor efímero, puerto libre)::
 """
 
 import threading
+import time
 import uuid
 from datetime import date, timedelta
 from io import StringIO
@@ -888,3 +889,94 @@ class CandadoSobreviveAlLoaddataTests(MotorRealMixin, TransactionTestCase):
             cursor.execute("SELECT GET_LOCK(%s, 0)", [self.NOMBRE])
             self.assertEqual(cursor.fetchone()[0], 1)
             cursor.execute("SELECT RELEASE_LOCK(%s)", [self.NOMBRE])
+
+
+@tag("mysql")
+class CandadoConLaConexionMuertaTests(MotorRealMixin, TransactionTestCase):
+    """OPS-07 · Que se caiga la conexión del candado no puede hacer fallar el bootstrap.
+
+    La conexión dedicada es la que **no habla**: toma el candado y se queda ociosa hasta
+    que terminan el `migrate` y los seeds (141-218 s medidos). Si el servidor la cierra en
+    el medio —`wait_timeout` apretado, un `KILL`, un firewall que corta ociosos— el
+    `SELECT IS_USED_LOCK` del `finally` levantaba un 2013 y el comando salía con **exit 1**
+    sobre un esquema correcto: Job en `Failed`, initContainer en CrashLoop, y el AVISO
+    escrito justo para ese caso no llegaba a imprimirse nunca.
+
+    Acá se mata la conexión de verdad, con un `KILL` desde otra, en el momento exacto en
+    que el comando está corriendo sus comandos con el candado tomado.
+    """
+
+    NOMBRE = "datanach_test_muerta"
+
+    def _conexion_testigo(self):
+        testigo = connections.create_connection("default")
+        self.addCleanup(testigo.close)
+        return testigo
+
+    @staticmethod
+    def _id_del_candado(salida):
+        """El comando imprime «Candado «x» tomado (conexión N).» antes de correr nada."""
+        for linea in salida.getvalue().splitlines():
+            if "tomado (conexión" in linea:
+                return int(linea.rsplit("conexión", 1)[1].strip(" ).\n"))
+        raise AssertionError(f"el comando no informó qué conexión tomó el candado:\n{salida.getvalue()}")
+
+    def test_un_kill_de_la_conexion_del_candado_no_cambia_el_exit_code(self):
+        testigo = self._conexion_testigo()
+        salida = StringIO()
+        visto = {}
+
+        def comando_que_corre_mientras_matan_la_conexion(*args, **kwargs):
+            visto["id"] = self._id_del_candado(salida)
+            with testigo.cursor() as cursor:
+                cursor.execute(f"KILL {visto['id']}")
+
+        with patch(
+            "core.management.commands.bootstrap_lock.call_command",
+            comando_que_corre_mientras_matan_la_conexion,
+        ):
+            # Lo que importa es que NO levante: antes salía con un 2013 desde el `finally`.
+            call_command(
+                "bootstrap_lock", "--nombre", self.NOMBRE, "--espera", "3", "--comando", "check", stdout=salida
+            )
+
+        self.assertIn("AVISO", salida.getvalue())
+        self.assertIn("se cayó durante el bootstrap", salida.getvalue())
+        self.assertNotIn("liberado", salida.getvalue())
+
+        # Y el candado quedó libre: el servidor lo soltó al cerrar la conexión.
+        with testigo.cursor() as cursor:
+            cursor.execute("SELECT GET_LOCK(%s, 0)", [self.NOMBRE])
+            self.assertEqual(cursor.fetchone()[0], 1)
+            cursor.execute("SELECT RELEASE_LOCK(%s)", [self.NOMBRE])
+
+    def test_la_conexion_del_candado_sobrevive_a_un_wait_timeout_global_apretado(self):
+        """El `SET SESSION wait_timeout` es la otra mitad: que no se caiga, no solo que no
+        falle cuando se cae."""
+        testigo = self._conexion_testigo()
+        with testigo.cursor() as cursor:
+            cursor.execute("SELECT @@GLOBAL.wait_timeout")
+            global_original = cursor.fetchone()[0]
+            cursor.execute("SET GLOBAL wait_timeout = 2")
+        self.addCleanup(self._restaurar_wait_timeout, testigo, global_original)
+
+        salida = StringIO()
+
+        def comando_que_tarda_mas_que_el_wait_timeout(*args, **kwargs):
+            time.sleep(5)
+
+        with patch(
+            "core.management.commands.bootstrap_lock.call_command",
+            comando_que_tarda_mas_que_el_wait_timeout,
+        ):
+            call_command(
+                "bootstrap_lock", "--nombre", self.NOMBRE, "--espera", "3", "--comando", "check", stdout=salida
+            )
+
+        self.assertIn("liberado", salida.getvalue(), f"el candado no sobrevivió:\n{salida.getvalue()}")
+        self.assertNotIn("AVISO", salida.getvalue())
+
+    @staticmethod
+    def _restaurar_wait_timeout(testigo, valor):
+        with testigo.cursor() as cursor:
+            cursor.execute("SET GLOBAL wait_timeout = %s", [valor])

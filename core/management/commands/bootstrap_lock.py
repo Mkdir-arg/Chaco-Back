@@ -40,7 +40,7 @@ import shlex
 
 from django.core.management import call_command
 from django.core.management.base import BaseCommand, CommandError
-from django.db import connections
+from django.db import InterfaceError, OperationalError, connections
 
 NOMBRE_POR_DEFECTO = "datanach_bootstrap"
 ESPERA_POR_DEFECTO = 900
@@ -48,6 +48,17 @@ ESPERA_POR_DEFECTO = 900
 # número fino: alcanza con que la consulta que espera tenga margen para volver con un 0
 # en vez de que el cliente corte la conexión.
 MARGEN_SEGUNDOS = 5
+
+#: `wait_timeout` que se le pide a la sesión del candado. Es el default de fábrica de
+#: MySQL y MariaDB (8 h): no se pide nada extraordinario, se evita que un global apretado
+#: por el DBA mate la conexión mientras espera, **ociosa**, a que terminen el `migrate` y
+#: los seeds. Medido: el bootstrap deja esa conexión sin hablar entre 141 y 218 s, y un
+#: `wait_timeout` de 30 alcanza para perder el candado a mitad.
+WAIT_TIMEOUT_SEGUNDOS = 28800
+
+#: Lo que levanta la conexión cuando el servidor la cerró por su cuenta (`wait_timeout`,
+#: un `KILL`, un firewall que corta ociosos): error 2013/2006 desde `MySQLdb`.
+CONEXION_CAIDA = (OperationalError, InterfaceError)
 
 
 class Command(BaseCommand):
@@ -99,7 +110,12 @@ class Command(BaseCommand):
             finally:
                 self._soltar_candado(candado, nombre, id_conexion)
         finally:
-            candado.close()
+            # Cerrar una conexión que el servidor ya cerró también puede levantar: no es
+            # motivo para que un bootstrap que salió bien termine en error.
+            try:
+                candado.close()
+            except CONEXION_CAIDA:
+                pass
 
     def _correr(self, comandos):
         for partes in comandos:
@@ -110,6 +126,7 @@ class Command(BaseCommand):
 
     def _tomar_candado(self, candado, nombre, espera):
         """Devuelve el `CONNECTION_ID` de la conexión dedicada que tomó el candado."""
+        self._alargar_wait_timeout(candado)
         with candado.cursor() as cursor:
             cursor.execute("SELECT CONNECTION_ID()")
             id_conexion = (cursor.fetchone() or [None])[0]
@@ -126,21 +143,56 @@ class Command(BaseCommand):
         self.stdout.write(f"Candado «{nombre}» tomado (conexión {id_conexion}).")
         return id_conexion
 
+    def _alargar_wait_timeout(self, candado):
+        """Que el servidor no mate la conexión del candado por estar ociosa.
+
+        Es la conexión que **no** habla: toma el candado y se queda esperando a que
+        terminen el `migrate` y los seeds, entre 141 y 218 s medidos. Con un `wait_timeout`
+        global apretado, el servidor la cierra en el medio y el candado se suelta sin que
+        nadie se entere —la otra mitad de esto es que soltarlo ya no hace fallar el
+        bootstrap, abajo—. Si el usuario no puede tocar la variable, se sigue igual: es una
+        defensa, no un requisito.
+        """
+        try:
+            with candado.cursor() as cursor:
+                cursor.execute("SET SESSION wait_timeout = %s", [WAIT_TIMEOUT_SEGUNDOS])
+        except Exception as excepcion:  # noqa: BLE001 — ver el docstring
+            self.stdout.write(
+                f"AVISO: no se pudo alargar el wait_timeout de la conexión del candado "
+                f"({type(excepcion).__name__}); si el servidor la corta por ociosa, el candado se suelta."
+            )
+
     def _soltar_candado(self, candado, nombre, id_conexion):
         """Suelta el candado y, si dejó de ser nuestro, dice **qué** pasó exactamente.
 
-        Los dos casos anómalos no son el mismo y el aviso distingue: que lo tenga **otro**
-        `CONNECTION_ID` significa que un segundo bootstrap entró mientras este corría; que
-        no lo tenga nadie significa que la conexión dedicada se cayó y la exclusión mutua
-        dejó de estar garantizada, sin evidencia de que alguien se haya metido.
+        Tres casos anómalos, y ninguno hace fallar el bootstrap: lo que corrió, corrió, y
+        un `migrate` que terminó bien no puede dejar el Job en `Failed` ni el initContainer
+        en CrashLoop por lo que pase al devolver el candado.
+
+        * **La conexión del candado está muerta** (`wait_timeout`, un `KILL`, un firewall
+          que corta ociosos): el servidor liberó el candado al cerrarla. Hasta la ronda 3
+          esto levantaba un 2013 desde el `finally` y el comando salía con exit 1 sobre un
+          esquema correcto, además de tragarse el aviso escrito para ese caso.
+        * **Lo tiene otro `CONNECTION_ID`:** un segundo bootstrap entró mientras este
+          corría. No se suelta un candado ajeno.
+        * **No lo tiene nadie:** se perdió en algún momento, sin señal de que entrara otro.
         """
-        with candado.cursor() as cursor:
-            cursor.execute("SELECT IS_USED_LOCK(%s)", [nombre])
-            duenio = (cursor.fetchone() or [None])[0]
-            if duenio == id_conexion:
-                cursor.execute("SELECT RELEASE_LOCK(%s)", [nombre])
-                self.stdout.write(f"Candado «{nombre}» liberado.")
-                return
+        try:
+            with candado.cursor() as cursor:
+                cursor.execute("SELECT IS_USED_LOCK(%s)", [nombre])
+                duenio = (cursor.fetchone() or [None])[0]
+                if duenio == id_conexion:
+                    cursor.execute("SELECT RELEASE_LOCK(%s)", [nombre])
+                    self.stdout.write(f"Candado «{nombre}» liberado.")
+                    return
+        except CONEXION_CAIDA as excepcion:
+            self.stdout.write(
+                f"AVISO: la conexión que sostenía el candado «{nombre}» se cayó durante el bootstrap "
+                f"({type(excepcion).__name__}): el servidor lo liberó solo al cerrarla, así que desde ese "
+                "momento la exclusión mutua dejó de estar garantizada. Lo que corrió, corrió: el bootstrap "
+                "no falla por esto. Si se repite, mirar el `wait_timeout` del servidor."
+            )
+            return
 
         if duenio is None:
             self.stdout.write(

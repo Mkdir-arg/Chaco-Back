@@ -22,6 +22,7 @@ from unittest import mock
 
 from django.core.management import call_command
 from django.core.management.base import CommandError
+from django.db import InterfaceError, OperationalError
 from django.test import SimpleTestCase
 
 MODULO = "core.management.commands.bootstrap_lock"
@@ -39,6 +40,8 @@ class _Cursor:
 
     def execute(self, sql, params=None):
         self.conexion.ejecutado.append((" ".join(sql.split()), list(params or [])))
+        if any(fragmento in sql for fragmento in self.conexion.muere_en):
+            raise self.conexion.excepcion_de_caida("Lost connection to MySQL server during query")
         if "GET_LOCK" in sql:
             self.conexion.ultima_fila = (self.conexion.respuesta_get_lock,)
         elif "RELEASE_LOCK" in sql:
@@ -65,6 +68,10 @@ class _Conexion:
         self.ejecutado = []
         self.ultima_fila = None
         self.settings_dict = {"OPTIONS": {"read_timeout": read_timeout} if read_timeout else {}}
+        #: Fragmentos de SQL ante los cuales la conexión se comporta como muerta: es lo
+        #: que hace el servidor tras un `wait_timeout` vencido o un `KILL`.
+        self.muere_en = ()
+        self.excepcion_de_caida = OperationalError
 
     def cursor(self):
         return _Cursor(self)
@@ -222,6 +229,60 @@ class BootstrapLockTests(SimpleTestCase):
         self.assertIn("AVISO", self.salida.getvalue())
         self.assertIn("otro bootstrap entró", self.salida.getvalue())
         self.assertEqual(_sql_con(self.conexion, "RELEASE_LOCK"), [], "no se suelta un candado ajeno")
+
+    def test_la_conexion_del_candado_pide_un_wait_timeout_largo(self):
+        """Es la conexión que no habla en todo el bootstrap: un `wait_timeout` global
+        apretado la mata mientras espera y el candado se suelta a mitad."""
+        self._correr("--comando", "migrate --noinput")
+
+        sets = [params for sql, params in self.conexion.ejecutado if "wait_timeout" in sql]
+        self.assertEqual(sets, [[28800]])
+        self.assertLess(
+            self.conexion.sql.index(_sql_con(self.conexion, "wait_timeout")[0]),
+            self.conexion.sql.index(_sql_con(self.conexion, "GET_LOCK")[0]),
+            "de nada sirve alargarlo después de haber esperado ocioso",
+        )
+
+    def test_si_no_se_puede_alargar_el_wait_timeout_sigue_igual(self):
+        """Un usuario sin permiso para tocar la variable no puede frenar el arranque."""
+        self.conexion.muere_en = ("wait_timeout",)
+
+        self._correr("--comando", "migrate --noinput")
+
+        self.assertIn("no se pudo alargar el wait_timeout", self.salida.getvalue())
+        self.assertEqual(self.corridos, [("migrate", "--noinput")])
+
+    def test_una_conexion_muerta_al_soltar_no_hace_fallar_el_bootstrap(self):
+        """El caso de la ronda 3: `wait_timeout`, un `KILL` o un firewall cortan la
+        conexión ociosa, y el `IS_USED_LOCK` del `finally` levantaba un 2013 que dejaba el
+        Job en `Failed` sobre un esquema correcto."""
+        self.conexion.muere_en = ("IS_USED_LOCK",)
+
+        self._correr("--comando", "migrate --noinput")  # no levanta
+
+        self.assertEqual(self.corridos, [("migrate", "--noinput")])
+        self.assertIn("AVISO", self.salida.getvalue())
+        self.assertIn("se cayó durante el bootstrap", self.salida.getvalue())
+        self.assertIn("no falla por esto", self.salida.getvalue())
+
+    def test_lo_mismo_con_interface_error(self):
+        """`MySQLdb` levanta una u otra según dónde la encuentre."""
+        self.conexion.muere_en = ("IS_USED_LOCK",)
+        self.conexion.excepcion_de_caida = InterfaceError
+
+        self._correr("--comando", "migrate --noinput")
+
+        self.assertIn("InterfaceError", self.salida.getvalue())
+
+    def test_una_conexion_muerta_no_tapa_el_error_del_comando(self):
+        """Si el `migrate` falló, el que manda es ese error, no el del candado."""
+        self.conexion.muere_en = ("IS_USED_LOCK",)
+
+        with mock.patch(f"{MODULO}.call_command", side_effect=CommandError("migrate explotó")):
+            with self.assertRaises(CommandError) as cm:
+                self._correr("--comando", "migrate --noinput")
+
+        self.assertIn("migrate explotó", str(cm.exception))
 
     def test_avisa_distinto_si_el_candado_quedo_libre(self):
         """Nadie lo tiene: se cayó la conexión dedicada. No hay señal de que entrara otro."""
