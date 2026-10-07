@@ -6,6 +6,7 @@ from programas.views import configuracion as cfg
 from programas.views import cupo as cpo
 from programas.views import dashboard_becas as dsh
 from programas.views import diseno as dis
+from programas.views import inicio_becas as ini
 from programas.views import pausas as pau
 from programas.views import proceso_masivo as masivo
 from programas.views import relevamientos as rel
@@ -16,6 +17,9 @@ from programas.views import solapas_becas as sb
 app_name = "becas"
 
 urlpatterns = [
+    # `/becas/` daba 404 a todo usuario de backoffice: faltaba la raíz del módulo
+    # (#521). Redirige al primer listado que el usuario puede ver.
+    path("", ini.inicio, name="inicio"),
     path("reportes/", rpt.ReportesHubView.as_view(), name="reportes"),
     path("reportes/<str:reporte>/", rpt.ReporteBecasView.as_view(), name="reporte_detalle"),
     path("reportes/<str:reporte>/export/<str:formato>/", rpt.ReporteBecasExportView.as_view(), name="reporte_exportar"),
