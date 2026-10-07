@@ -3,7 +3,7 @@
 {% block title %}Configuración · {% if es_edicion %}Editar{% else %}Nuevo{% endif %} programa — Paso 2{% endblock %}
 
 {% comment %}El wizard no tiene golden (D4). El único control de este paso es un grupo de
-radios con una descripción por opción: no pasa por `programas/becas/_field.html` (que rinde
+radios con una descripción por opción: no pasa por `components/_field.html` (que rinde
 `{{ field }}` crudo) y por eso esta pantalla no cumple los marcadores del arquetipo
 Formulario. El shell, la surface, los errores y el pie sí son los canónicos.{% endcomment %}
 

@@ -1,7 +1,7 @@
 # Arquetipo · Formulario de página
 
 **Golden (la única que se clona):** `programas/templates/programas/becas/config/segmento_form.html`
-(29 líneas) + el include de campo `programas/templates/programas/becas/_field.html`.
+(29 líneas) + el include de campo `templates/components/_field.html`.
 **Marcadores:** `scripts/design_audit.py --arquetipo formulario <archivo>`.
 **Componentes:** page_header · field · form_errores · alerta · botones_badges.
 
@@ -31,7 +31,7 @@ Modal. Si el usuario carga muchas filas de lo mismo, no es este arquetipo: fren�
   <form method="post" class="bg-white rounded-xl border border-base shadow-sm p-6">
     {% csrf_token %}
     {% include "components/_form_errores.html" %}
-    {% for field in form %}{% include "programas/becas/_field.html" %}{% endfor %}
+    {% for field in form %}{% include "components/_field.html" %}{% endfor %}
     <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-light">
       <a href="{% url '<app>:<lista>' %}" class="btn-nodo btn-tertiary btn-base">Cancelar</a>
       <button type="submit" class="btn-nodo btn-brand btn-base"><i class="fas fa-check" aria-hidden="true"></i> Guardar <entidad></button>

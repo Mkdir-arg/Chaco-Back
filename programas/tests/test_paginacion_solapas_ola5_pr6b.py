@@ -206,3 +206,53 @@ class ConvocatoriasPaginanTests(TestCase):
 
         self.assertEqual(len(contexto["convocatorias"]), 2)
         self.assertEqual(contexto["page_obj"].paginator.count, 3)
+
+    def test_el_formulario_del_modal_lleva_la_pagina_que_se_esta_mirando(self):
+        html = self._html("?page=2").content.decode()
+
+        self.assertIn('<input type="hidden" name="page" value="2">', html)
+
+    def test_al_guardar_desde_la_pagina_2_el_re_render_vuelve_a_la_2(self):
+        """El POST va a `convocatoria_crear` sin querystring: mirando solo `request.GET`
+        el modal devolvía siempre la página 1 aunque la URL dijera 2."""
+        from programas.views import relevamientos as vistas
+
+        self.client.force_login(self.admin)
+        with mock.patch.object(vistas, "CONVOCATORIAS_PAGE_SIZE", 2):
+            respuesta = self.client.post(
+                reverse("becas:convocatoria_crear"),
+                {
+                    "nombre": "Conv nueva",
+                    "segmento": Segmento.objects.get(nombre="Seg Conv").pk,
+                    "fecha_inicio": "2026-02-01",
+                    "fecha_fin": "2026-11-30",
+                    "activo": "on",
+                    "page": "2",
+                },
+                headers={"x-requested-with": "XMLHttpRequest"},
+            )
+
+        self.assertEqual(respuesta.status_code, 200)
+        cuerpo = respuesta.json()
+        self.assertTrue(cuerpo["ok"], cuerpo)
+        self.assertIn("Página 2 de 2", cuerpo["html"])
+
+    def test_sin_el_campo_oculto_el_re_render_sigue_dando_la_primera(self):
+        """La conducta de siempre para quien no manda la página (el GET de la vista)."""
+        from programas.views import relevamientos as vistas
+
+        self.client.force_login(self.admin)
+        with mock.patch.object(vistas, "CONVOCATORIAS_PAGE_SIZE", 2):
+            respuesta = self.client.post(
+                reverse("becas:convocatoria_crear"),
+                {
+                    "nombre": "Conv sin página",
+                    "segmento": Segmento.objects.get(nombre="Seg Conv").pk,
+                    "fecha_inicio": "2026-02-01",
+                    "fecha_fin": "2026-11-30",
+                    "activo": "on",
+                },
+                headers={"x-requested-with": "XMLHttpRequest"},
+            )
+
+        self.assertIn("Página 1 de 2", respuesta.json()["html"])

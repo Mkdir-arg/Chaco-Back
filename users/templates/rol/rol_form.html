@@ -66,14 +66,16 @@
 
             {# Tab bar #}
             <div class="border-b border-gray-200 mb-4">
-                <nav class="flex gap-1 overflow-x-auto" id="cap-tabs">
+                <nav class="flex gap-1 overflow-x-auto" id="cap-tabs" role="tablist" aria-label="Categorías de capacidades">
                     <button type="button" data-tab="__buscar__"
+                        role="tab" id="cap-tab-__buscar__" aria-controls="panel-__buscar__" aria-selected="false"
                         class="cap-tab-btn flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-t-md border-b-2 border-transparent text-gray-500 hover:text-gray-700 whitespace-nowrap"
-                        title="Buscar en todas las categorías">
+                        aria-label="Buscar en todas las categorías" title="Buscar en todas las categorías">
                         <i class="fas fa-magnifying-glass text-xs"></i>
                     </button>
                     {% for tab in form.arbol_por_tabs %}
                     <button type="button" data-tab="{{ tab.id }}"
+                        role="tab" id="cap-tab-{{ tab.id }}" aria-controls="panel-{{ tab.id }}" aria-selected="false"
                         class="cap-tab-btn flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-t-md border-b-2 border-transparent text-gray-500 hover:text-gray-700 whitespace-nowrap">
                         <i class="fas {{ tab.icon }} text-xs"></i>
                         {{ tab.label }}
@@ -84,7 +86,7 @@
             </div>
 
             {# Search panel #}
-            <div id="panel-__buscar__" class="cap-tab-panel hidden">
+            <div id="panel-__buscar__" class="cap-tab-panel hidden" role="tabpanel" aria-labelledby="cap-tab-__buscar__">
                 <div class="mb-3">
                     <div class="relative">
                         <i class="fas fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
@@ -98,7 +100,7 @@
 
             {# Tab panels #}
             {% for tab in form.arbol_por_tabs %}
-            <div id="panel-{{ tab.id }}" class="cap-tab-panel hidden">
+            <div id="panel-{{ tab.id }}" class="cap-tab-panel hidden" role="tabpanel" aria-labelledby="cap-tab-{{ tab.id }}">
                 {% if tab.modulos %}
                 <div class="flex justify-end mb-3">
                     <button type="button" class="tab-select-all-btn text-sm font-medium text-blue-600 hover:text-blue-700" data-tab="{{ tab.id }}">Seleccionar todo</button>
@@ -184,6 +186,9 @@ document.addEventListener('DOMContentLoaded', function () {
             btn.classList.toggle('text-blue-600', activo);
             btn.classList.toggle('border-transparent', !activo);
             btn.classList.toggle('text-gray-500', !activo);
+            // FE-24: el lector de pantalla y `nodo-tabs.js` (tabindex itinerante)
+            // leen `aria-selected`, no las clases.
+            btn.setAttribute('aria-selected', activo ? 'true' : 'false');
         });
         tabPanels.forEach(function (panel) {
             panel.classList.toggle('hidden', panel.id !== 'panel-' + id);

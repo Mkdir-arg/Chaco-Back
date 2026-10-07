@@ -116,8 +116,9 @@ solapa, las capacidades resueltas con `puede()` y las relaciones con `select_rel
 - `<h1>` propio, «← Volver» como link de texto, header dentro de una card.
 - `<style>` local (incluido `[x-cloak]`: ya está global en `static/custom/css/override.css`),
   `style=`, paleta cruda, SVG inline.
-- Solapas sin `role="tablist"`/`role="tab"`/`aria-controls`/`role="tabpanel"`/`aria-labelledby`
-  (el desvío de `relevamientos/convocatoria_detail.html`).
+- Solapas sin `role="tablist"`/`role="tab"`/`aria-controls`/`role="tabpanel"`/`aria-labelledby`.
+- Un manejo de teclado propio para las solapas: lo da `static/custom/js/nodo-tabs.js` desde
+  el shell (ficha `componentes/tabs.md`).
 - Una solapa que abre **otra pantalla**: eso es una acción del encabezado
   (`btn-nodo btn-secondary btn-sm`), no una solapa con `ml-auto`.
 - Avatares con `var(--gradient-brand)`: las iniciales van `bg-brand-soft text-fg-brand`.
