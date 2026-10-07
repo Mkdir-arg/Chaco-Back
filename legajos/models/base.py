@@ -235,7 +235,9 @@ class Ciudadano(TimeStamped):
         if normalizado and normalizado != self.dni:
             self.dni = normalizado
             campos = kwargs.get("update_fields")
-            if campos is not None and "dni" not in campos:
+            # `update_fields=[]` es un no-op documentado de Django: no se lo convierte
+            # en una escritura por normalizar.
+            if campos and "dni" not in campos:
                 kwargs["update_fields"] = [*campos, "dni"]
         super().save(*args, **kwargs)
 

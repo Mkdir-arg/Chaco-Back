@@ -83,6 +83,14 @@ class CiudadanosService:
         el chequeo de duplicado tiene que mirar las dos formas. El `__contains`
         sobre los dígitos no alcanza —`1234567` está adentro de `12345678`—: se
         comparan los dígitos de los candidatos en Python, que son pocos.
+
+        **Costo.** La segunda consulta lleva una función sobre la columna
+        (`REGEXP` en MariaDB), así que recorre el índice entero y no lo aprovecha.
+        Va igual porque corre **solo si el DNI exacto no estaba** y en una pantalla
+        de alta manual, que es de a una persona por vez: no es una ruta caliente ni
+        toma ningún lock. El volumen que mira es el de `legajos_ciudadano`, y lo que
+        devuelve son las fichas sin normalizar, que `listar_dni_no_normalizados`
+        enumera para que el área las vaya cerrando (P-17).
         """
         dni = normalizar_dni(dni)
         if not dni:
