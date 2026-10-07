@@ -1,71 +1,51 @@
-{% extends "includes/main.html" %}
+{% extends "includes/base.html" %}
+{% load nodo_ui %}
+{% block title %}Configuración · {% if es_edicion %}Editar{% else %}Nuevo{% endif %} programa — Paso 2{% endblock %}
 
-{% block title %}{% if es_edicion %}Editar{% else %}Nuevo{% endif %} Programa — Paso 2{% endblock %}
+{% comment %}El wizard no tiene golden (D4). El único control de este paso es un grupo de
+radios con una descripción por opción: no pasa por `programas/becas/_field.html` (que rinde
+`{{ field }}` crudo) y por eso esta pantalla no cumple los marcadores del arquetipo
+Formulario. El shell, la surface, los errores y el pie sí son los canónicos.{% endcomment %}
 
-{% block content %}
-<div class="p-6">
-    <div class="mb-6">
-        <h1 class="text-2xl font-bold text-gray-900">
-            {% if es_edicion %}Editar programa{% else %}Nuevo programa{% endif %}
-        </h1>
+{% block main-content %}
+<div class="space-y-5">
+  {% url 'configuracion:programas' as url_programas %}
+  {% with titulo_pagina=es_edicion|yesno:"Editar programa,Nuevo programa" %}
+  {% page_header titulo=titulo_pagina volver_url=url_programas volver_label="programas" %}
+    {% bajada %}Paso {{ paso_actual }} de {{ total_pasos }} · La naturaleza define cómo el ciudadano interactúa con el programa a lo largo del tiempo.{% endbajada %}
+  {% endpage_header %}
+  {% endwith %}
+
+  <div class="w-full bg-tertiary rounded-full h-2" role="presentation">
+    <div class="bg-brand h-2 rounded-full w-1/2"></div>
+  </div>
+
+  <form method="post" class="bg-white rounded-xl border border-base shadow-sm p-6">
+    {% csrf_token %}
+    {% include "components/_form_errores.html" %}
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {% for radio in form.naturaleza %}
+      <label class="flex cursor-pointer rounded-lg border p-5 {% if radio.data.selected %}border-brand bg-brand-soft{% else %}border-base bg-white{% endif %} hover:border-brand transition">
+        {{ radio.tag }}
+        <span class="ml-3">
+          <span class="block text-sm font-bold text-heading">{{ radio.choice_label }}</span>
+          {% if radio.choice_value == 'UN_SOLO_ACTO' %}
+          <span class="block text-xs text-body-subtle mt-1">El ciudadano accede una vez y el proceso se cierra. Ej: entrega de subsidio, asistencia puntual.</span>
+          {% else %}
+          <span class="block text-xs text-body-subtle mt-1">El ciudadano tiene seguimiento continuo. Ej: acompañamiento social, tratamiento.</span>
+          {% endif %}
+        </span>
+      </label>
+      {% endfor %}
     </div>
+    {% for error in form.naturaleza.errors %}<p class="mt-1 text-xs text-fg-danger">{{ error }}</p>{% endfor %}
 
-    <!-- Barra de progreso -->
-    <div class="mb-8">
-        <div class="flex items-center gap-2 text-sm text-gray-500 mb-2">
-            <span class="font-medium text-indigo-600">Paso {{ paso_actual }} de {{ total_pasos }}</span>
-            — Naturaleza del programa
-        </div>
-        <div class="w-full bg-tertiary rounded-full h-2">
-            <div class="bg-brand h-2 rounded-full" style="width: {% widthratio paso_actual total_pasos 100 %}%"></div>
-        </div>
+    <div class="flex justify-between gap-3 mt-6 pt-4 border-t border-light">
+      <a href="{% if es_edicion %}{% url 'configuracion:programa_editar_paso1' programa.pk %}{% else %}{% url 'configuracion:programa_wizard_paso1' %}{% endif %}"
+         class="btn-nodo btn-tertiary btn-base"><i class="fas fa-arrow-left" aria-hidden="true"></i> Anterior</a>
+      <button type="submit" class="btn-nodo btn-brand btn-base">Siguiente <i class="fas fa-arrow-right" aria-hidden="true"></i></button>
     </div>
-
-    <div class="bg-white rounded-lg shadow p-6">
-        <p class="text-sm text-gray-600 mb-6">
-            La naturaleza define cómo el ciudadano interactúa con el programa a lo largo del tiempo.
-        </p>
-
-        <form method="post">
-            {% csrf_token %}
-
-            {% include "components/_form_errores.html" %}
-
-            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                {% for radio in form.naturaleza %}
-                <label class="relative flex cursor-pointer rounded-lg border p-5 shadow-sm {% if radio.data.selected %}border-indigo-500 bg-indigo-50{% else %}border-gray-300 bg-white{% endif %} hover:border-indigo-400 transition-colors">
-                    {{ radio.tag }}
-                    <span class="ml-3">
-                        <span class="block text-sm font-semibold text-gray-900">{{ radio.choice_label }}</span>
-                        {% if radio.choice_value == 'UN_SOLO_ACTO' %}
-                        <span class="block text-xs text-gray-500 mt-1">
-                            El ciudadano accede una vez y el proceso se cierra. Ej: entrega de subsidio, asistencia puntual.
-                        </span>
-                        {% else %}
-                        <span class="block text-xs text-gray-500 mt-1">
-                            El ciudadano tiene seguimiento continuo. Ej: acompañamiento social, tratamiento.
-                        </span>
-                        {% endif %}
-                    </span>
-                </label>
-                {% endfor %}
-            </div>
-
-            {% if form.naturaleza.errors %}
-            <p class="text-red-600 text-sm mt-2">{{ form.naturaleza.errors.0 }}</p>
-            {% endif %}
-
-            <div class="flex justify-between mt-8">
-                <a href="{% if es_edicion %}{% url 'configuracion:programa_editar_paso1' programa.pk %}{% else %}{% url 'configuracion:programa_wizard_paso1' %}{% endif %}"
-                   class="btn-nodo btn-tertiary btn-base">
-                    <i class="fas fa-arrow-left mr-1"></i> Anterior
-                </a>
-                <button type="submit"
-                        class="btn-nodo btn-brand btn-base">
-                    Siguiente <i class="fas fa-arrow-right ml-1"></i>
-                </button>
-            </div>
-        </form>
-    </div>
+  </form>
 </div>
 {% endblock %}

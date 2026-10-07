@@ -93,7 +93,8 @@ Para trabajar UI no hace falta leer `AGENTS.md`.
 
 ## Reglas duras
 
-- Extender `templates/includes/base.html`; nunca `templates/includes/main.html` `[R:SHELLLEGACY]`.
+- Extender `templates/includes/base.html`. El wrapper heredado `includes/main.html` ya no existe
+  (FE-20): la regla `[R:SHELLLEGACY]` queda como guarda, para que nadie lo reescriba.
 - Encabezado de página solo con `{% page_header %}`; nada de `<h1>` propio `[R:PAGEHEADER]`.
 - Tabla solo con `nodo-thead-row`/`nodo-th`/`nodo-td`, dentro de la card de la lista `[R:TABLECANON]`.
 - Acción de fila solo con `.nodo-icon-btn` y un `aria-label` que nombre el registro [revisión].
@@ -132,7 +133,6 @@ Para trabajar UI no hace falta leer `AGENTS.md`.
 | Auth pública | `users/templates/user/base_public_auth.html` | `content` | — | Credenciales fuera de sesión; clases `public-auth__*` |
 | Portal ciudadano | `portal/templates/portal/base.html` | `content` | `extra_js` | Superficie separada; light-only |
 | Inscripción pública | `portal/templates/portal/inscripcion/base_inscripcion.html` | `content` | `extra_js` | Panel de marca, stepper propio, sin Alpine ni Font Awesome |
-| Legacy | `templates/includes/main.html` | — | — | **No se extiende**: wrapper heredado, contenido desplazado |
 
 Detalle de cada shell: ficha `.claude/design/shells.md`.
 
@@ -168,7 +168,7 @@ mismo módulo **nunca** es molde (de la hermana se toma solo dominio).
 | Filtros de listado | Canónico reutilizable | `static/custom/js/dynamic_list_filters.js` + `templates/components/list_filters.html` (el shell lo inyecta como `template`); el `<form method="get" data-dynamic-list-filters>` va sin `class` y cada control con `aria-label`, porque el JS vacía el form al montar. Ficha: `.claude/design/componentes/filtros.md` |
 | Tabla densa backoffice | Canónico reutilizable | `static/custom/css/nodo-tables.css`: `.nodo-thead-row`, `.nodo-th`, `.nodo-td` dentro de `overflow-x-auto` + `table.w-full.border-collapse`; acción de fila con `.nodo-icon-btn` y `aria-label` con el registro. La columna de acciones se nombra con `sr-only`. Ficha: `.claude/design/componentes/tabla.md` |
 | Estado vacío backoffice | Canónico reutilizable | Pieza única `templates/components/_estado_vacio.html`, dentro de la card de la lista; variante con filtros («Limpiar filtros») decidida con el filtro `hay_filtros` de `core/templatetags/nodo_ui.py`. Ficha: `.claude/design/componentes/estado_vacio.md` |
-| Paginación | Canónico reutilizable | Pieza única `templates/components/_paginacion.html` (`page_obj`, `entidad`, `entidad_plural`, `filtros_qs`); solo se muestra con más de una página y va dentro de la card de la tabla. Ficha: `.claude/design/componentes/paginacion.md` |
+| Paginación | Canónico reutilizable | Pieza única `templates/components/_paginacion.html` (`page_obj`, `entidad`, `entidad_plural`, `filtros_qs`, `param`, `extra_qs`); con `param` propio por lista, una pantalla pagina más de una (una por solapa). Solo se muestra con más de una página y va dentro de la card. Ficha: `.claude/design/componentes/paginacion.md` |
 | Alertas inline backoffice | Canónico reutilizable | Pieza única `templates/components/_alerta.html` (`tono`, `titulo`, `texto`, `role`); bloqueo y advertencia se distinguen por el encabezado y por si la acción sigue disponible, no por el color. Ficha: `.claude/design/componentes/alerta.md` |
 | Errores no de campo | Canónico reutilizable | Pieza única `templates/components/_form_errores.html` (`form`, `titulo`); va justo después de `{% csrf_token %}` y solo aparece si el form trae errores del conjunto (`unique_together`, `clean()` de form), que ningún campo muestra. En un modal que se repite por fila, acotada a la fila que falló. Ficha: `.claude/design/componentes/form_errores.md` |
 | Stat cards / métricas | Canónico reutilizable | Pieza única `templates/components/_stat_card.html` (`etiqueta`, `valor`, `icono` sin `fas`, `tono`); la grilla la arma el consumidor. Sin gradiente ni cajas de 52 px. Ficha: `.claude/design/componentes/stat_card.md` |
@@ -185,7 +185,7 @@ mismo módulo **nunca** es molde (de la hermana se toma solo dominio).
 | Dominio Becas (constructor, SIIS, identificadores, dashboard) | Canónico reutilizable | Contratos propios del dominio: constructor de formularios, panel e identificadores de SIIS, dashboard del programa. Se componen con piezas de este inventario y **no son molde** para otros módulos. Ficha: `.claude/design/dominio/becas.md` |
 | Formulario público por diseño (paso 2) | Canónico reutilizable | `portal/templates/portal/inscripcion/paso2.html` + `static/custom/js/nodo-formulario.js` sobre `static/custom/js/nodo-condiciones.js`; sin JS el formulario se muestra completo y el servidor vuelve a evaluar las condiciones. Ficha: `.claude/design/dominio/inscripcion.md` |
 | Confirmación SweetAlert2 | Canónico reutilizable, condicionado | `static/custom/css/nodo-swal.css`, `static/custom/js/nodo-swal-theme.js` y el handler único `programas/templates/programas/_swal_confirm_js.html` (`data-confirm` + `-title`/`-text`/`-ok`/`-danger`/`data-requires-motivo`); **legacy condicionado**: solo las pantallas de Dispositivos, Merenderos y Legajos que ya la usan, sin `Swal.fire` propio. Pantalla nueva: `ModernModal`. |
-| Shell legacy `includes/main.html` y sus parciales | Legacy solo mantenimiento | `templates/includes/main.html`, `templates/components/alertas_eventos.html` y `templates/components/widget_contactos.html`: wrapper heredado (lo extienden Configuración y las páginas de error) que desplaza el contenido. No se extiende ni se incluyen esos parciales en pantallas nuevas; reemplazo: shell del backoffice y piezas canónicas. |
+| Parciales del shell legacy | Legacy solo mantenimiento | `templates/components/alertas_eventos.html` y `templates/components/widget_contactos.html`: lo que sobrevivió al wrapper heredado, que ya no existe. No se incluyen en pantallas nuevas; el segundo lo retira LEG-06. Reemplazo: shell del backoffice y piezas canónicas. |
 | Bootstrap/AdminLTE y estilos de pantalla heredados | Legacy solo mantenimiento | `static/custom/css/main.css`, `static/custom/css/custom.css`, `static/custom/css/override.css`; mantener solo en la superficie que los consume. `override.css` define `[x-cloak]` global, así que ningún template necesita su propio `<style>` para eso. |
 | Puente `paleta-unificada.css` | Legacy solo mantenimiento | Alias de compatibilidad cargados desde `templates/includes/base.html`; no usar sus utilidades en UI nueva. Reemplazo: tokens semánticos y el componente canónico aplicable. |
 | `nodo-brand.css` | Duplicado o conflictivo | Selectores globales de links, submits y foco en `static/custom/css/nodo-brand.css`; el shell los neutraliza parcialmente. Reemplazo: tokens, botones, badges y campos canónicos. |

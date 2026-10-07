@@ -57,10 +57,11 @@ Por eso el `aria-label` tiene que leerse bien **como chip**: «Estado», no «Es
 - Sin filtros: se omite el `<form>` entero (las tres listas de geografía).
 - Consumidores del contrato simple fuera de Becas: `users/templates/rol/rol_list.html`,
   `configuracion/templates/configuracion/secretaria_list.html`,
-  `configuracion/templates/configuracion/subsecretaria_list.html` y
-  `configuracion/templates/configuracion/programa_list.html`. También montan la barra (con clase
-  propia, sin migrar todavía): `legajos/templates/legajos/ciudadano_list.html` (PR 6b) y
-  `conversaciones/templates/conversaciones/lista.html` (fuera de alcance).
+  `configuracion/templates/configuracion/subsecretaria_list.html`,
+  `configuracion/templates/configuracion/programa_list.html` y
+  `legajos/templates/legajos/ciudadano_list.html` (un `input[type=search]` con `aria-label`).
+  También monta la barra, con clase propia y sin migrar: `conversaciones/templates/conversaciones/lista.html`
+  (fuera de alcance; se apaga con G1-01 fase 2).
 
 ## Prohibido
 

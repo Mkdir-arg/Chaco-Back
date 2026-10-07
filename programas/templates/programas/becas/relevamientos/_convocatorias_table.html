@@ -80,6 +80,7 @@
     </tbody>
   </table>
 </div>
+{% include "components/_paginacion.html" with page_obj=page_obj entidad="convocatoria" %}
 {% else %}
 <div class="py-14 px-6 text-center flex flex-col items-center gap-3">
   <div class="text-fg-brand"><i class="fas fa-bullhorn text-5xl" aria-hidden="true"></i></div>

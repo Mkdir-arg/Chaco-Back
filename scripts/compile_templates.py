@@ -45,10 +45,8 @@ EXTENDS_RE = re.compile(r'{%\s*extends\s+["\']([^"\']+)["\']')
 # FE-05: bloques sin destino que ya estaban cuando se encendió el flag. Cada uno tiene
 # dueño y muere con su ficha; la lista no crece. `(nombre del template, bloque)`.
 BLOQUES_SIN_DESTINO_CONOCIDOS = {
-    # FE-20 — las páginas de error extienden el wrapper legacy, que no declara el bloque.
-    ("403.html", "menu-adicional"),
-    ("404.html", "menu-adicional"),
-    ("500.html", "menu-adicional"),
+    # FE-20 cerrada (Cambio 167): las tres páginas de error ya no extienden el wrapper
+    # legacy —que se borró— y dejaron de declarar `menu-adicional`.
     # LEG-06 — las dos pantallas muertas de Legajos se borran con el código muerto.
     ("legajos/dashboard_simple.html", "content"),
     ("legajos/historial_contactos.html", "extra_css"),
