@@ -1,0 +1,25 @@
+{% comment %}
+Badge de estado de una solicitud de merendero. Espera `solicitud` en el contexto.
+Única fuente del mapa estado→badge de la entidad, con el contrato de
+`programas/dispositivos/_estado_badge.html`.
+
+El mapa sigue al de Dispositivos, que recorre el mismo circuito de validación:
+
+  BORRADOR     white    todavía no se envió
+  EN_REVISION  info     esperando resolución (= PENDIENTE_VALIDACION)
+  OBSERVADA    warning  vuelve al solicitante para corregir
+  APROBADA     success
+  RECHAZADA    danger
+
+Uso: {% include "programas/merenderos/_solicitud_estado_badge.html" %}
+     {% include "programas/merenderos/_solicitud_estado_badge.html" with solicitud=fila %}
+{% endcomment %}
+{% with e=solicitud.estado %}
+<span class="badge badge-dot
+  {% if e == 'BORRADOR' %}badge-white
+  {% elif e == 'EN_REVISION' %}badge-info
+  {% elif e == 'OBSERVADA' %}badge-warning
+  {% elif e == 'APROBADA' %}badge-success
+  {% elif e == 'RECHAZADA' %}badge-danger
+  {% else %}badge-gray{% endif %}">{{ solicitud.get_estado_display }}</span>
+{% endwith %}

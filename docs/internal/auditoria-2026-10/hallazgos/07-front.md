@@ -30,8 +30,8 @@ FE-18, FE-19); las migraciones de estilo de esos dos módulos las hereda la v2.
 | FE-12 | Tablas con estilos en línea e iconografía mezclada | MEDIA | CONF. | 5 | M | ⬜ |
 | FE-13 | `design_audit`: decodificador roto y sin regla «clase sin definición» | MEDIA | CONF. ajustado | 6 | S | ✅ |
 | FE-17 | Paginaciones falsas o copiadas | MEDIA | CONF. | 5 | M | ⬜ |
-| FE-18 | Badges de estado incoherentes | MEDIA | CONF. | 5 | S | ⬜ |
-| FE-19 | Confirmaciones con colores invertidos y handler copiado | MEDIA | CONF. ajustado | 5 | S | ⬜ |
+| FE-18 | Badges de estado incoherentes | MEDIA | CONF. | 5 | S | ✅ |
+| FE-19 | Confirmaciones con colores invertidos y handler copiado | MEDIA | CONF. ajustado | 5 | S | ✅ |
 | FE-20 | Wrapper legacy `includes/main.html`: contenido desplazado; 403/404/500 sin estilo | MEDIA | CONF. navegador | 5 | M | ⬜ |
 | FE-21 | Modales de Legajos sin Escape ni foco | MEDIA | CONF. | 5 | S | ✅ |
 | V5A-NEW-01 | `tailwind.css` committeado desactualizado y sin gate | MEDIA | CONF. | 6 | S | ✅ |
@@ -41,8 +41,8 @@ FE-18, FE-19); las migraciones de estilo de esos dos módulos las hereda la v2.
 | FE-22 | Dashboards fuera de canon | BAJA | CONF. | 5 | M | ⬜ |
 | FE-23 | `_field.html` duplicado | BAJA | CONF. ajustado | 5 | S | ⬜ |
 | FE-24 | Solapas sin ARIA ni teclado | BAJA | CONF. | 5 | S | ⬜ |
-| FE-25 | Avisos paralelos en `alertas_websocket.js` | BAJA | CONF. código | 5 | S | ⬜ |
-| FE-26 | Doble envío en formularios clásicos | BAJA | PLAUSIBLE | 5 | S | ⬜ |
+| FE-25 | Avisos paralelos en `alertas_websocket.js` | BAJA | CONF. código | 5 | S | ✅ |
+| FE-26 | Doble envío en formularios clásicos | BAJA | PLAUSIBLE | 5 | S | ✅ |
 | V5A-NEW-04 | Edición del ciudadano: hero fuera de canon y texto técnico visible | BAJA | CONF. navegador | 5 | S | ⬜ |
 | V5A-NEW-08 | `compile_templates.py` compila templates de terceros | BAJA | CONF. | 6 | S | ✅ |
 
@@ -302,10 +302,57 @@ pasa de 50 a **101 px**, sin encabezados partidos.
 - **Propuesta:** `programas/templates/programas/merenderos/_estado_badge.html` y `_solicitud_estado_badge.html` con el contrato de `dispositivos/_estado_badge.html`, incluidos en `merenderos/list.html:10`, `detail.html:11`, `solicitudes.html:23`; «Inactivo» → `badge badge-gray badge-dot` en `user_list.html:66`, `rol_list.html:269`, `rol_detail.html:18`; en `dispositivos/legajo/detail.html:50-53`, rama `{% elif …semaforo == 'SIN_DATOS' %}text-body-subtle` antes del `else`. Registrar los parciales nuevos en el inventario.
 - **Verificación:** test al estilo de `programas/tests/test_estado_badges.py`; `check_design_agent.py --changed`.
 
+**Resolución:** ✅ Resuelto en el PR #NNN (Cambio 157), 07-10-2026 — Merenderos estrena sus dos parciales,
+`merenderos/_estado_badge.html` (ACTIVO success · SUSPENDIDO warning · CERRADO gray) y
+`merenderos/_solicitud_estado_badge.html` (BORRADOR white · EN_REVISION info · OBSERVADA warning · APROBADA
+success · RECHAZADA danger), los dos con el contrato de `dispositivos/_estado_badge.html`, y los incluyen el
+listado, el detalle —al lado del nombre, como el detalle del dispositivo— y la tabla de solicitudes. **Ninguna
+de las tres pantallas vuelca ya `get_estado_display` como texto suelto**, que es lo que había. «Inactivo» pasa
+a `badge badge-gray badge-dot` en `user_list.html`, `rol_list.html` y `rol_detail.html`.
+**Desvío (code-first):** la rama `SIN_DATOS` se agregó a **dos** de los cuatro indicadores del detalle del
+dispositivo, no a los cuatro que nombra la ficha: `programas/services/indicadores.py` solo devuelve
+`semaforo == "SIN_DATOS"` en `actualizacion` y `completitud`; ocupación y disponibilidad siempre salen VERDE,
+AMARILLO o ROJO (`services/camas.py` y `_semaforo_disponibilidad`), así que ponerles la rama sería código
+muerto. Los dos parciales nuevos se registran en el inventario del agente (fila «Mapa de estados por módulo»).
+**Test permanente:** `programas.tests.test_estado_badges_merenderos.MerenderoEstadoBadgeTests.test_mapa_estado_a_tono`
+(+ `SolicitudMerenderoEstadoBadgeTests.test_mapa_estado_a_tono`,
+`PantallasDeMerenderosUsanElParcialTests.test_ninguna_pantalla_vuelca_el_estado_como_texto_suelto`,
+`SemaforoSinDatosTests.test_la_rama_sin_datos_va_antes_del_else_que_pinta_de_rojo` y
+`users.tests.test_badges_confirmaciones_ola5.InactivoEnGrisTests.test_el_badge_de_inactivo_es_gris`).
+**Playwright (1440 y 390 px):** Activo `rgb(236,253,245)`, Suspendido `rgb(255,248,241)`, Cerrado
+`rgb(229,231,235)`; «Inactivo» del listado de usuarios en `rgb(229,231,235)`.
+
 ### FE-19 · Confirmaciones: «Activar» en rojo, «Rechazar/Cerrar» en color de marca y handler copiado 3 veces
 **Severidad:** MEDIA · **Estado:** CONFIRMADO-AJUSTADO (los 3 handlers `data-confirm` no son idénticos: `merenderos/detail.html:77` usa `btn-tertiary … text-fg-danger`; `solicitudes.html` y `dispositivos/legajo/detail.html` el botón de marca; «Activar» sale con `btn-danger` en `user_list.html:171` y `rol_list.html:452`) · **Origen:** A6-19 · **Ola:** 5 · **Esfuerzo:** S
 - **Propuesta (pantallas legacy existentes, coherente con el Cambio 48):** `programas/templates/programas/_swal_confirm_js.html` que lea `data-confirm-title`, `-text`, `-ok`, `data-confirm-danger` (→ `customClass.confirmButton: 'btn-nodo btn-danger btn-base'`; si no, `btn-brand btn-base`) y `data-requires-motivo`; incluirlo en `dispositivos/legajo/detail.html`, `merenderos/detail.html`, `merenderos/solicitudes.html` y borrar los tres `<script>` locales; «Rechazar»/«Cerrar» → `btn-nodo btn-danger btn-base` con `data-confirm-danger`; en `user_list.html:171` y `rol_list.html:452`, `confirmButton: activo ? 'btn-nodo btn-danger' : 'btn-nodo btn-brand'`. **Para pantallas nuevas** (v2 incluida) rige la decisión D2 del agente de diseño: confirmación sí/no con `data-confirm-url` → `ModernModal`; con motivo, arquetipo Modal con form POST. Ojo con la colisión de selectores: Becas escucha `[data-confirm-url]` y este handler `[data-confirm]`.
 - **Verificación:** test estático del include; Playwright: el Swal de «Rechazar» tiene `.btn-danger` y el de «Activar» no.
+
+**Resolución:** ✅ Resuelto en el PR #NNN (Cambio 157), 07-10-2026 — `programas/templates/programas/_swal_confirm_js.html`
+es el handler único: carga SweetAlert2 y lee `data-confirm-title`, `-text`, `-ok`, `data-confirm-danger` (→
+`confirmButton: 'btn-nodo btn-danger btn-base'`; si no, `btn-brand btn-base`) y `data-requires-motivo`. Lo
+incluyen `dispositivos/legajo/detail.html`, `merenderos/detail.html` y `merenderos/solicitudes.html`, y los
+tres `<script>` locales —con sus tres variantes— **se borraron**. «Rechazar» y «Cerrar» llevan
+`data-confirm-danger`; «Enviar a validación», «Validar», «Observar», «Aprobar», «Suspender» e «Inactivar» no.
+En `user_list.html` y `rol_list.html` el `confirmButton` pasa a `activo ? 'btn-nodo btn-danger btn-base' :
+'btn-nodo btn-brand btn-base'`. El selector `[data-confirm]` no colisiona con el `[data-confirm-url]` de Becas
+y hay un test que lo fija.
+**Tres desvíos, los tres code-first:** (a) los botones del diálogo llevan **`btn-base`**, que la propuesta no
+nombraba: `customClass` reemplaza entero el del mixin de `nodo-swal-theme.js`, así que sin la clase de tamaño
+el botón quedaba con `padding-left: 0` —el mismo defecto de FE-06/FE-07—; (b) se descartó el
+`customClass.actions: 'flex gap-2'` que tenía una sola de las tres copias, porque `nodo-swal.css` ya arma el
+pie del popup y la clase no hacía nada; (c) el envío confirmado va por **`form.requestSubmit()`** y no por
+`form.submit()`, que **no** dispara el evento `submit` y se saltearía la guardia de doble envío de FE-26.
+**Lo que no se hizo:** las tres acciones del listado de solicitudes siguen siendo texto subrayado dentro de la
+celda, no `btn-nodo`. Recibieron el `data-confirm-danger` —que es lo que arregla el color del diálogo—; pasar
+tres acciones de una celda a botones completos es rediseñar la tabla, y eso es FE-12.
+**Test permanente:** `programas.tests.test_confirmaciones_legacy.HandlerUnicoTests.test_una_accion_destructiva_confirma_en_rojo`
+(+ `test_una_accion_no_destructiva_confirma_en_color_de_marca`, `test_el_motivo_obligatorio_viaja_en_el_post`,
+`test_el_envio_dispara_el_evento_submit`, `test_no_intercepta_el_confirm_canonico_de_becas`,
+`PantallasSinHandlerPropioTests.test_ninguna_pantalla_conserva_su_copia_del_handler` y
+`users.tests.test_badges_confirmaciones_ola5.ConfirmacionSegunLaAccionTests.test_activar_usuario_no_confirma_en_rojo`).
+**Playwright (1440 y 390 px):** el Swal de «Cerrar merendero» sale con
+`swal2-confirm btn-nodo btn-danger btn-base`, fondo `rgb(199,0,54)` y `padding-left: 16px`; el de «Suspender»,
+con `btn-nodo btn-brand btn-base` y sin rojo.
 
 ### FE-20 · Formularios de Configuración sobre el wrapper legacy `includes/main.html`; páginas de error sin estilo
 **Severidad:** MEDIA · **Estado:** CONFIRMADO en navegador (H1 en x=644, y=224 en `/configuracion/localidades/crear/` y en el paso 1 del wizard, contra x=320, y=104 en la lista; la 404 real con `DEBUG=False` sale como texto plano de 16 px en x=620) · **Origen:** A6-20, V5A-NEW-03 · **Ola:** 5 (después de Ola 6 paso 4) · **Esfuerzo:** M
@@ -403,11 +450,59 @@ el **Cambio 132** esa tabla existe y manda, y que el núcleo no la declare es un
 - **Propuesta:** `showToast(alerta)` → `window.toast(alerta.prioridad === 'CRITICA' ? 'error' : 'warning', texto)`; `showCriticalModal` → `ModernModal.show({type:'warning', title, message, confirmText:'Ver'})` (hoy nunca se dispara: G1c-17); elimina además `bg-gray-200/hover:bg-gray-300` de `:146` y `hover:bg-gray-50` de `:245`.
 - **Verificación:** test estático sin `alert-toast`.
 
+**Resolución:** ✅ Resuelto en el PR #NNN (Cambio 157), 07-10-2026 — `showToast` pasa a
+`window.toast(alerta.prioridad === 'CRITICA' ? 'error' : 'warning', …)` y `showCriticalModal` a
+`ModernModal.show({type:'warning', title, message, confirmText:'Ver'})`. Se fueron con ellos la pila de avisos
+propia, el overlay armado a mano, `getAlertIcon` —sus cuatro SVG con `text-red-600`/`orange`/`yellow`/`blue`
+solo los usaba el toast viejo— y las clases `bg-gray-200`/`hover:bg-gray-300` del pie del modal; el
+`hover:bg-gray-50` y el `border-gray-100` de la vista previa de la campana pasaron a `hover:bg-secondary` y
+`border-light`. Las dos piezas del shell escriben con `textContent`, así que el nombre del ciudadano ya no
+necesita escaparse a mano en ese camino (`escaparHtmlAlerta` sigue, porque la vista previa todavía usa
+`innerHTML`: eso es FE-11/FE-12).
+**Desvío (code-first): el «Ver» no podía quedar como estaba.** La ficha pedía `confirmText:'Ver'` pero el
+único destino del modal viejo era `/legajos/<id>/`, que **no existe** (FE-09). El payload de la alerta trae
+`ciudadano_id` (`legajos/services/alertas.py`), así que «Ver» lleva al detalle del ciudadano, con la plantilla
+de URL publicada por el shell en `window.alertasConfig` con `{% url %}` —mismo patrón que
+`window.conversacionesConfig`, para no escribir rutas literales en el JS (RED-42)—. Sin plantilla o sin
+ciudadano, el modal se muestra **sin** acción en vez de ofrecer un enlace roto.
+**Lo que queda:** `showCriticalModal` sigue sin dispararse, pero por G1c-17 (el servicio emite
+`nueva_alerta_critica` y el consumer declara `alerta_critica`), que no es de esta ficha. Y `hover:bg-gray-50`
+sigue en la deuda de `CssCompiladoAlDiaTests` con un solo dueño, `alertas_conversaciones_simple.js` (FE-14).
+**Test permanente:** `legajos.tests.test_alertas_avisos_ola5.AvisosPorElSistemaDelShellTests.test_el_toast_lo_dibuja_window_toast`
+(+ `test_el_modal_critico_es_el_del_shell`, `test_ver_lleva_al_detalle_del_ciudadano`,
+`test_sin_ciudadano_el_modal_no_ofrece_ver`, `SinPiezasParalelasTests.test_no_queda_la_ruta_de_legajo_que_no_existe`,
+`test_no_quedan_clases_que_el_build_no_genera` y
+`PlantillaDeUrlEnElShellTests.test_la_plantilla_llega_renderizada_y_resuelve`). El test de escape del Cambio 95
+(`legajos.tests.test_alertas_websocket_escape`) se actualizó: ahora exige que el script **no escriba ningún
+`innerHTML`** en esos dos caminos.
+
 ### FE-26 · Doble envío posible en formularios clásicos fuera de Becas
 **Severidad:** BAJA · **Estado:** PLAUSIBLE (no reproducido) · **Origen:** A6-29 · **Ola:** 5 · **Esfuerzo:** S
 - **Ubicación:** `programas/templates/programas/admisiones/{admitir,egreso,traslado,promover}.html`, `dispositivos/legajo/{form,parte_diario,camas_form}.html`, `merenderos/{solicitud_form,entrega_form,prestacion_mensual}.html`, formularios de Configuración y Legajos. Referencia: `programas/templates/programas/becas/_ajax_js.html`.
 - **Propuesta:** script global chico en `base.html`: en `submit` de `form[method=post]:not([data-ajax])`, deshabilitar sus `[type=submit]` (incluidos los externos con `form=`), marcar `aria-busy` y restaurar en `pageshow` con `persisted`.
 - **Verificación:** Playwright con doble clic en «Confirmar egreso» → un solo POST.
+
+**Resolución:** ✅ Resuelto en el PR #NNN (Cambio 157), 07-10-2026 — `static/custom/js/nodo-submit-guard.js`,
+cargado una sola vez desde `templates/includes/base.html`, cubre todo el backoffice sin tocar una sola
+pantalla. En el `submit` de un `form[method=post]` que no sea `data-ajax`: si ya está `aria-busy`, **cancela**
+el envío; si no, lo marca `aria-busy="true"` y deshabilita sus botones de envío, incluidos los externos con
+`form="<id>"`. `pageshow` con `persisted` devuelve todo a su estado.
+**Dos desvíos, los dos code-first:** (a) el `disabled` se aplica en el **turno siguiente**
+(`setTimeout(…, 0)`), no durante el despacho del evento: el navegador arma la lista de entradas del POST
+después de despachar `submit` y un control deshabilitado queda fuera, así que hacerlo en el acto le borraría
+el `name`/`value` al botón que disparó el envío. La protección real es síncrona y es otra —el segundo
+`submit` se cancela—, así que no se pierde nada; (b) el listener respeta `event.defaultPrevented`: va en
+`document`, en burbuja, detrás de los del propio formulario, y si una validación o una confirmación canceló el
+envío no bloquea nada. El selector de los botones externos compara el atributo `form` en vez de armar un
+selector con el id, que con un id raro se rompería.
+**Test permanente:** `core.tests.test_submit_guard.DobleEnvioBloqueadoTests.test_el_primer_envio_pasa_y_el_segundo_se_cancela`
+(+ `test_el_boton_no_se_deshabilita_durante_el_despacho`, `test_alcanza_a_los_botones_externos_con_atributo_form`,
+`LoQueElGuardNoToca.test_un_formulario_data_ajax_queda_libre`,
+`test_un_envio_ya_cancelado_no_bloquea_el_formulario`,
+`VolverConAtrasTests.test_el_bfcache_devuelve_el_formulario_a_su_estado` y
+`ElShellCargaLaGuardiaTests.test_el_shell_lo_carga_una_sola_vez`).
+**Playwright (1440 y 390 px):** el script está una sola vez en la página; el primer `submit` pasa, el segundo
+queda cancelado y el formulario con `aria-busy="true"`.
 
 ### V5A-NEW-04 · Edición del ciudadano: hero fuera de canon, tarjetas transparentes y texto técnico visible
 **Severidad:** BAJA · **Estado:** CONFIRMADO en navegador · **Origen:** V5A-NEW-04 · **Ola:** 5 · **Esfuerzo:** S
