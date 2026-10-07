@@ -58,7 +58,9 @@ Por eso el `aria-label` tiene que leerse bien **como chip**: «Estado», no «Es
 - Consumidores del contrato simple fuera de Becas: `users/templates/rol/rol_list.html`,
   `configuracion/templates/configuracion/secretaria_list.html`,
   `configuracion/templates/configuracion/subsecretaria_list.html` y
-  `configuracion/templates/configuracion/programa_list.html`.
+  `configuracion/templates/configuracion/programa_list.html`. También montan la barra (con clase
+  propia, sin migrar todavía): `legajos/templates/legajos/ciudadano_list.html` (PR 6b) y
+  `conversaciones/templates/conversaciones/lista.html` (fuera de alcance).
 
 ## Prohibido
 
