@@ -52,6 +52,20 @@ que termine (`kubectl wait --for=condition=complete`) y recién entonces
 `kubectl set image` del Deployment. Si el Job falla, el rollout **no** se hace: el
 runbook es el Anexo D de `docs/internal/processes.md`.
 
+**La red debajo de la regla.** El entrypoint corre las migraciones y el sembrado con un
+candado de base tomado (`manage.py bootstrap_lock`, un `GET_LOCK('datanach_bootstrap',
+900)`), así que si la regla no se aplica —un ambiente con `replicas > 1` que todavía
+arranca con el entrypoint— los pods se **esperan** en vez de pisarse. No reemplaza al Job:
+el candado serializa, pero N pods migrando de a uno siguen siendo N arranques lentos, y el
+Job es además lo que frena el rollout si la migración falla. `GET_LOCK` es de la conexión,
+así que un pod matado a mitad del bootstrap lo suelta solo.
+
+Ese mismo bloque corre con el `read_timeout` levantado a 1200 s
+(`MIGRATE_DB_READ_TIMEOUT`), sin exportarlo al proceso del server: con los 10 s del
+tráfico, un `ALTER` que espera el metadata lock de una tabla en uso devuelve un 2013 al
+cliente y **se aplica igual** en el servidor, dejando el esquema adelantado y la migración
+sin fila en `django_migrations` (OPS-05).
+
 El Job **no monta `/app/media`**, a propósito: corre mientras los pods viejos siguen
 atendiendo y tienen el PVC tomado, así que con un PVC `ReadWriteOnce` —lo normal—
 quedaría en `Pending` hasta el timeout y el deploy se frenaría sin un error claro. El
@@ -105,3 +119,10 @@ la verificación de la contraseña es CPU puro y se estrangula.
 Un CronJob por comando (ver `cronjobs.yaml`). `sincronizar_programas_siis` **nunca
 va en el arranque del pod**: depende de un servicio externo y una caída de ese
 servicio dejaría el pod sin levantar.
+
+Los cuatro declaran `timeZone: America/Argentina/Buenos_Aires` (sin ella el `schedule`
+corre en UTC y las 03:10 caen a las 00:10 ART), `activeDeadlineSeconds` y `backoffLimit:
+1`. El deadline no es cosmético: con `concurrencyPolicy: Forbid` y sin él, **una corrida
+colgada bloquea en silencio todas las siguientes** y el síntoma aparece una semana
+después. Si el cluster es anterior a Kubernetes 1.27 no entiende `timeZone`: sacarla y
+correr los horarios tres horas.

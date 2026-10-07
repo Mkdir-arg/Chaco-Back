@@ -111,7 +111,9 @@ arranque. Ninguna de estas fallas se ve en pantalla ni deja traza en el log.
 | `RUN_MIGRATIONS` | `true` | aplica `migrate` en cada arranque |
 | `RUN_COLLECTSTATIC` | `true` | recolecta estáticos en cada arranque |
 | `LOCAL_BOOTSTRAP_COMMANDS` | `seed_datos_base crear_programas` | sembrado obligatorio (ver la advertencia de abajo) |
-| `LOCAL_OPTIONAL_BOOTSTRAP_COMMANDS` | vacío | comandos extra que pueden fallar sin abortar el arranque |
+| `LOCAL_OPTIONAL_BOOTSTRAP_COMMANDS` | vacío | comandos extra que **sí** pueden fallar sin abortar el arranque: cada uno corre aparte y el que falla deja un `AVISO` en el log (OPS-07) |
+| `MIGRATE_DB_READ_TIMEOUT` · `MIGRATE_DB_WRITE_TIMEOUT` | `1200` | `read_timeout`/`write_timeout` **solo** para el bloque de migraciones y sembrado. Los 10 s del tráfico cortan un `ALTER` que espera el metadata lock y lo dejan aplicado sin registrar (OPS-05) |
+| `BOOTSTRAP_LOCK_ESPERA` · `BOOTSTRAP_LOCK_NOMBRE` | `900` / `datanach_bootstrap` | el candado `GET_LOCK` que serializa migraciones y sembrado entre réplicas (OPS-07). La espera tiene que entrar en `MIGRATE_DB_READ_TIMEOUT`, y el comando aborta con el motivo si no |
 | `DJANGO_ENV_FILE` | p. ej. `.env.local` | archivo de entorno a cargar. Se carga **sin sobreescribir** lo que ya viene en el entorno |
 | `SERVE_MEDIA` | `True` siempre (desde SEC-09 nginx ya no sirve `/media/`) | archivos adjuntos accesibles, detrás de login |
 | `WEBSOCKETS_ENABLED` | se deduce de `APP_RUNTIME` (`True` solo con `daphne`) | con `gunicorn` hay que ponerla en `True` si otro contenedor daphne atiende `/ws/` |
@@ -125,7 +127,10 @@ arranque. Ninguna de estas fallas se ve en pantalla ni deja traza en el log.
 `CSRF_COOKIE_SECURE` · `SECURE_HSTS_SECONDS` · `SECURE_HSTS_INCLUDE_SUBDOMAINS` ·
 `SECURE_HSTS_PRELOAD` (todas seguras por defecto en `settings_production`) ·
 `SLOW_REQUEST_MS` (3000) · `PERFORMANCE_QUERY_MONITORING_ENABLED` y el resto de
-`PERFORMANCE_*` (instrumentación de consultas).
+`PERFORMANCE_*` (instrumentación de consultas) · `DB_READ_TIMEOUT` y `DB_WRITE_TIMEOUT`
+(10 s, el límite acordado con ECOM para el tráfico: **no se tocan en el entorno del
+server**, el entrypoint los levanta solo para migrar) · `USE_REDIS_CACHE` (reproducir en
+un dev el cache compartido de los ambientes servidos).
 
 !!! warning "Tres variables que no hacen nada"
     Aparecieron en configuraciones reales y conviene saber que son inertes:
@@ -283,17 +288,36 @@ Hay trabajo periódico que **no** corre dentro de la app: lo dispara el cron del
 usuario `icore` en el host, siempre con el mismo patrón —
 `docker exec chaco-web-1 python manage.py <comando>` y log en `~/cron-chaco.log`.
 
-Los snippets están versionados en [`docker/cron/`](../../docker/cron/), con la
+Los **cuatro** snippets están versionados en [`docker/cron/`](../../docker/cron/), con la
 explicación de cada uno en su cabecera. Se instalan **una sola vez** por servidor:
 no viajan con el deploy, así que un servidor nuevo (o un `crontab` que se pierda)
-los necesita de nuevo a mano.
+los necesita de nuevo a mano. Hasta G3-05 solo estaban dos: los otros dos corrían en el
+host desde antes y no figuraban en ninguna parte, así que un servidor nuevo se quedaba
+sin ellos y el síntoma —«las alertas dejaron de aparecer»— no llevaba a ningún archivo.
 
-| Comando | Horario | Qué pasa si no corre |
-|---|---|---|
-| `generar_alertas` | horario | No se generan las alertas de legajos |
-| `procesar_vencimientos` | 03:10 | Convocatorias vencidas quedan abiertas y sus relevamientos no pasan a revisión |
-| `limpiar_alertas_conversaciones` | 03:30 | Se acumulan alertas de conversaciones ya resueltas |
-| `sincronizar_programas_siis` | 04:00 | **Una baja de programa en SIIS no se detecta**: el segmento sigue operando como si el programa estuviera vigente |
+| Comando | Horario | Límite | Qué pasa si no corre |
+|---|---|---|---|
+| `generar_alertas` | horario | 25 min | No se generan las alertas de legajos |
+| `procesar_vencimientos` | 03:10 | 15 min | Convocatorias vencidas quedan abiertas y sus relevamientos no pasan a revisión |
+| `limpiar_alertas_conversaciones` | 03:30 | 15 min | Se acumulan alertas de conversaciones ya resueltas |
+| `sincronizar_programas_siis` | 04:00 | 30 min | **Una baja de programa en SIIS no se detecta**: el segmento sigue operando como si el programa estuviera vigente |
+
+Los cuatro pasan por el mismo envoltorio,
+[`docker/cron/chaco-cron.sh`](../../docker/cron/chaco-cron.sh), que resuelve lo que antes
+no tenía ninguno (G3-05):
+
+- **`flock`**, para que dos corridas del mismo comando no se solapen. Importa en
+  `generar_alertas`, que es horario: si una corrida pasara de una hora, la siguiente
+  duplicaría el trabajo y los avisos por WebSocket. La salteada queda escrita en el log.
+- **`timeout`**, para que una corrida colgada no quede corriendo para siempre. Sin él, un
+  `docker exec` que no vuelve bloquea su candado y **todas las corridas siguientes** se
+  saltean en silencio, que es el mismo modo de falla que en Kubernetes arregla
+  `activeDeadlineSeconds` (G3-04).
+- **fecha de inicio y de fin, y el motivo de la salida** (`OK`, `SALTEADA`, `CORTADA por
+  timeout`, `FALLÓ con código N`) en cada línea del log.
+- **rotación** del log con
+  [`docker/cron/logrotate-cron-chaco.conf`](../../docker/cron/logrotate-cron-chaco.conf):
+  `~/cron-chaco.log` crecía sin límite y es el único registro que hay.
 
 Desde el Cambio 151, `sincronizar_programas_siis` **termina en error y no escribe** si SIIS devuelve un
 catálogo vacío o si la ausencia alcanza a todos los programas vinculados (o a más de la mitad): una ausencia
@@ -304,24 +328,29 @@ Instalación:
 
 ```bash
 # En el host, como usuario icore (NUNCA con sudo su: la sesión de docker/git es de icore)
+cp docker/cron/chaco-cron.sh ~/chaco-cron.sh && chmod +x ~/chaco-cron.sh
 crontab -e
 # pegar las líneas de los .cron de docker/cron/, y verificar:
 crontab -l
+# y, como root, la rotación del log:
+sudo cp docker/cron/logrotate-cron-chaco.conf /etc/logrotate.d/chaco-cron
 ```
 
 ### Al agregar un comando periódico nuevo
 
-1. Versionar el snippet en `docker/cron/<comando>.cron` con su cabecera explicativa.
-2. Sumarlo a la tabla de arriba.
+1. Versionar el snippet en `docker/cron/<comando>.cron` con su cabecera explicativa,
+   invocando `$HOME/chaco-cron.sh <comando> <límite>`.
+2. Sumarlo a la tabla de arriba y al `cronjobs.yaml` de Kubernetes, con su
+   `activeDeadlineSeconds`.
 3. Instalarlo en el host (paso manual, no lo hace el deploy).
 
-**No** lo agregues a `LOCAL_OPTIONAL_BOOTSTRAP_COMMANDS` de `docker-compose.prod.yml`
-salvo que el comando no pueda fallar. El `docker-entrypoint.sh` corre con `set -eu`
-y sin tolerancia a fallos, así que un comando de bootstrap que termine con error
-**deja el contenedor sin arrancar**. Ese es el motivo por el que
-`procesar_vencimientos` (puro trabajo local sobre la base) sí está en el bootstrap
-y `sincronizar_programas_siis` (depende de un servicio externo) no: una caída de
-ECOM tiraría abajo el arranque de `web`.
+Agregarlo a `LOCAL_OPTIONAL_BOOTSTRAP_COMMANDS` de `docker-compose.prod.yml` **sí** es
+seguro desde OPS-07: esos comandos corren uno por uno y el que falla solo deja un `AVISO`
+en el log. Lo que **no** es seguro es ponerlo en `LOCAL_BOOTSTRAP_COMMANDS`, que son los
+obligatorios y siguen siendo fatales a propósito: sin roles ni capacidades el sistema
+arranca pero no sirve. Ese sigue siendo el motivo por el que `sincronizar_programas_siis`
+no está en el arranque: depende de un servicio externo y su `CommandError` es información
+real, no un ruido que convenga tragarse.
 
 ## Rollback
 

@@ -1,0 +1,184 @@
+"""OPS-07 (ampliado por RS-R5-07) · El bootstrap corre con un candado de base tomado.
+
+Django **no** toma ningún candado para `migrate` en MySQL/MariaDB. Con más de una
+réplica arrancando a la vez —el rolling de Kubernetes es exactamente eso— dos procesos
+migran en paralelo y, si se cruzan dentro de una migración de varias operaciones, el
+esquema queda a medias y **sin** fila en `django_migrations`: medido contra MariaDB 11.8,
+uno de los dos muere con 1050 desde base vacía y con 1060 desde base al día (RED-19).
+
+`RUN_MIGRATIONS=false` + el Job único (#596, PR R-13) es la regla; esto es la red debajo
+de la regla, para el ambiente que todavía no la aplicó y para el cruce entre el `migrate`
+y el sembrado. El candado es `GET_LOCK`, que es de la **conexión**: se suelta solo si el
+proceso muere, que es justo lo que hace falta.
+
+Los casos corren contra una conexión falsa porque lo que se fija acá es el protocolo
+—qué SQL se manda, en qué orden y qué pasa cuando el candado no se consigue—, no el
+motor. El candado contra el motor de verdad, con dos conexiones, está en
+`core/tests/test_motor_real.py::CandadoDeBootstrapTests` (`@tag("mysql")`).
+"""
+
+import io
+from unittest import mock
+
+from django.core.management import call_command
+from django.core.management.base import CommandError
+from django.test import SimpleTestCase
+
+MODULO = "core.management.commands.bootstrap_lock"
+
+
+class _Cursor:
+    def __init__(self, conexion):
+        self.conexion = conexion
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *excepcion):
+        return False
+
+    def execute(self, sql, params=None):
+        self.conexion.ejecutado.append((" ".join(sql.split()), list(params or [])))
+        if "GET_LOCK" in sql:
+            self.conexion.ultima_fila = (self.conexion.respuesta_get_lock,)
+        elif "RELEASE_LOCK" in sql:
+            self.conexion.ultima_fila = (1,)
+        elif "IS_USED_LOCK" in sql:
+            self.conexion.ultima_fila = (self.conexion.duenio_del_candado,)
+        elif "CONNECTION_ID" in sql:
+            self.conexion.ultima_fila = (self.conexion.id_conexion,)
+        else:
+            self.conexion.ultima_fila = (None,)
+
+    def fetchone(self):
+        return self.conexion.ultima_fila
+
+
+class _Conexion:
+    """Lo mínimo que usa el comando: `vendor`, `settings_dict` y un cursor."""
+
+    def __init__(self, vendor="mysql", respuesta_get_lock=1, read_timeout=1200):
+        self.vendor = vendor
+        self.respuesta_get_lock = respuesta_get_lock
+        self.id_conexion = 42
+        self.duenio_del_candado = 42
+        self.ejecutado = []
+        self.ultima_fila = None
+        self.settings_dict = {"OPTIONS": {"read_timeout": read_timeout} if read_timeout else {}}
+
+    def cursor(self):
+        return _Cursor(self)
+
+    @property
+    def sql(self):
+        return [sql for sql, _ in self.ejecutado]
+
+
+def _sql_con(conexion, fragmento):
+    return [sql for sql in conexion.sql if fragmento in sql]
+
+
+class BootstrapLockTests(SimpleTestCase):
+    def setUp(self):
+        self.conexion = _Conexion()
+        self.salida = io.StringIO()
+        parche = mock.patch(f"{MODULO}.connection", self.conexion)
+        parche.start()
+        self.addCleanup(parche.stop)
+        self.corridos = []
+        parche_call = mock.patch(f"{MODULO}.call_command", side_effect=lambda *a, **kw: self.corridos.append(a))
+        parche_call.start()
+        self.addCleanup(parche_call.stop)
+
+    def _correr(self, *argumentos):
+        call_command("bootstrap_lock", *argumentos, stdout=self.salida, stderr=self.salida)
+
+    def test_toma_el_candado_antes_de_correr_y_lo_suelta_al_final(self):
+        self._correr("--nombre", "datanach_bootstrap", "--comando", "migrate --noinput")
+
+        self.assertEqual(len(_sql_con(self.conexion, "GET_LOCK")), 1)
+        self.assertEqual(len(_sql_con(self.conexion, "RELEASE_LOCK")), 1)
+        parametros = next(params for sql, params in self.conexion.ejecutado if "GET_LOCK" in sql)
+        self.assertEqual(parametros, ["datanach_bootstrap", 900])
+        self.assertLess(
+            self.conexion.sql.index(_sql_con(self.conexion, "GET_LOCK")[0]),
+            self.conexion.sql.index(_sql_con(self.conexion, "RELEASE_LOCK")[0]),
+        )
+        self.assertEqual(self.corridos, [("migrate", "--noinput")])
+
+    def test_los_comandos_corren_en_el_orden_pedido(self):
+        self._correr(
+            "--comando",
+            "verificar_esquema_migraciones",
+            "--comando",
+            "migrate --noinput",
+            "--comando",
+            "seed_datos_base",
+        )
+
+        self.assertEqual(
+            self.corridos,
+            [("verificar_esquema_migraciones",), ("migrate", "--noinput"), ("seed_datos_base",)],
+        )
+
+    def test_si_otro_proceso_tiene_el_candado_aborta_sin_correr_nada(self):
+        """`GET_LOCK` devuelve 0 al vencer la espera: hay otro migrador vivo."""
+        self.conexion.respuesta_get_lock = 0
+
+        with self.assertRaises(CommandError) as cm:
+            self._correr("--comando", "migrate --noinput")
+
+        self.assertIn("datanach_bootstrap", str(cm.exception))
+        self.assertEqual(self.corridos, [])
+        self.assertEqual(_sql_con(self.conexion, "RELEASE_LOCK"), [])
+
+    def test_suelta_el_candado_aunque_el_comando_falle(self):
+        """Sin esto, un `migrate` que falla deja el candado tomado hasta que muera el pod."""
+        with mock.patch(f"{MODULO}.call_command", side_effect=CommandError("migrate explotó")):
+            with self.assertRaises(CommandError):
+                self._correr("--comando", "migrate --noinput")
+
+        self.assertEqual(len(_sql_con(self.conexion, "RELEASE_LOCK")), 1)
+
+    def test_una_espera_mayor_que_el_read_timeout_aborta_con_el_motivo(self):
+        """`SELECT GET_LOCK(x, 900)` con `read_timeout=10` muere a los 10 s con un 2013."""
+        self.conexion.settings_dict["OPTIONS"]["read_timeout"] = 10
+
+        with self.assertRaises(CommandError) as cm:
+            self._correr("--espera", "900", "--comando", "migrate --noinput")
+
+        self.assertIn("read_timeout", str(cm.exception))
+        self.assertIn("MIGRATE_DB_READ_TIMEOUT", str(cm.exception))
+        self.assertEqual(self.corridos, [])
+
+    def test_una_espera_corta_entra_en_el_read_timeout_de_siempre(self):
+        """El margen no puede volver inusable el comando con los 10 s de producción."""
+        self.conexion.settings_dict["OPTIONS"]["read_timeout"] = 10
+
+        self._correr("--espera", "3", "--comando", "migrate --noinput")
+
+        self.assertEqual(self.corridos, [("migrate", "--noinput")])
+
+    def test_sin_comandos_no_toma_el_candado(self):
+        self._correr()
+
+        self.assertEqual(self.conexion.sql, [])
+
+    def test_en_un_motor_sin_get_lock_avisa_y_corre_igual(self):
+        """SQLite (tests) no tiene `GET_LOCK`: el bootstrap no se cae por eso."""
+        self.conexion.vendor = "sqlite"
+
+        self._correr("--comando", "migrate --noinput")
+
+        self.assertEqual(self.conexion.sql, [])
+        self.assertEqual(self.corridos, [("migrate", "--noinput")])
+        self.assertIn("sqlite", self.salida.getvalue())
+
+    def test_avisa_si_perdio_el_candado_a_mitad_del_bootstrap(self):
+        """Si la conexión se reconectó, `IS_USED_LOCK` ya no devuelve nuestro `CONNECTION_ID`."""
+        self.conexion.duenio_del_candado = 99
+
+        self._correr("--comando", "migrate --noinput")
+
+        self.assertIn("AVISO", self.salida.getvalue())
+        self.assertIn("candado", self.salida.getvalue().lower())

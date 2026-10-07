@@ -334,6 +334,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 160 | Contratos del backoffice: las URLs que el front escribe a mano, las claves que lee, los parsers externos y el gate que los corre | Transversal (barrido de URLs del front, sobre de error JSON, catálogo de capacidades, CI de GitHub Actions) · Inicio (APIs del dashboard y contador de alertas) · Becas (JSON guardados, fixtures de RENAPER/Personas/SIIS) | `#api` `#metodo` `#rbac` `#siis` | Auditoría integral oct-2026 — fichas RED-42, RED-39, RED-40, RED-41, RED-43 y RED-44 (Ola R, PR R-18) | 07/10/2026 | 🟢 **Hecho** (RED-39, RED-40 y RED-42 cierran su parte R; el resto queda en las Olas 3, 5 y 7 con su test o su ratchet puesto) | No requiere |
 | 161 | Números que no miden lo que su rótulo dice, y pantallas que prometen lo que no hacen | Transversal (home del backoffice, login) · Legajos (reportes, edición del ciudadano, gestión de programas, dashboards) · Becas (modal de convocatorias y solapa Dashboard del programa) | `#ui` `#textos` `#datos` | Auditoría integral oct-2026 — fichas FE-22, FE-16, V5A-NEW-04, G2-04, G2-06 y V5A-NEW-07 (b) (Ola 5, PR 7) | 07/10/2026 | 🟢 **Hecho** (la migración de los 10 KPIs a `_stat_card.html` queda frenada: necesita parámetros nuevos del componente, que es novedad del agente) | No requiere |
 | 162 | Las herramientas de SIIS dejan de pisar lo que otro corrigió, y el alta de prueba no sale del ambiente de pruebas | Becas · revisión de casos (modal «Completar datos para SIIS») · comandos de gestión de SIIS (`diagnosticar_siis`, `corregir_datos_siis`, `correr_alta_siis`, `completar_casos_renaper`) | `#siis` `#datos` `#relevamientos` `#ui` `#metodo` | Auditoría integral oct-2026 — fichas SIIS-19, SIIS-17 y G3-06, más la segunda parte de RED-32 (Ola 1 «Integridad SIIS», PR 7 — cierra la ola) | 07/10/2026 | 🟢 **Hecho** | No requiere |
+| 165 | El arranque del contenedor deja de ser frágil: candado, timeouts de migración y tareas programadas con vigilancia | Transversal (arranque del contenedor, settings de entorno, tareas programadas de k8s e icore, plantilla de migraciones) | `#infra` `#datos` `#metodo` | Auditoría integral oct-2026 — fichas OPS-05, OPS-07, OPS-11, OPS-12, G3-04, G3-05 y RED-58 (Ola 3, PR 1) | 07/10/2026 | 🟢 **Hecho** | No requiere (se edita `legajos.0007`, ya aplicada, sin cambiar su SQL de ida) |
 
 **Notas del índice**
 
@@ -22535,3 +22536,278 @@ el modal no puede quitar, y `diagnosticar_siis --alta` sale contra cualquier URL
   corrección» era **inalcanzable** —con el form inválido la vista redirige con un solo aviso (ALR-8)— y se
   reemplaza por la comprobación de que ese aviso **llega** con la etiqueta del campo; y ningún test afirmaba que
   el paso 5 de `correr_alta_siis` reenvía `--usuario` a `corregir_datos_siis`, que es lo que firma la traza.
+
+---
+
+# Cambio 165 — El arranque del contenedor deja de ser frágil: candado, timeouts de migración y tareas programadas con vigilancia
+
+🟢 **HECHO — 07/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal (arranque del contenedor, settings de entorno, tareas programadas, plantilla de migraciones) |
+| **Etiquetas** | `#infra` `#datos` `#metodo` |
+| **Solicitante** | Auditoría integral oct-2026 — fichas OPS-05, OPS-07, OPS-11, OPS-12, G3-04, G3-05 y RED-58 (Ola 3, PR 1) |
+| **Fecha del pedido** | 03/10/2026 (RED-58 y la ampliación de OPS-07: 04/10/2026) |
+| **Issue / épica** | Auditoría `docs/internal/auditoria-2026-10/` |
+| **Partes afectadas** | Infra/ECOM · Servidor |
+| **Migración** | No requiere. Se **edita** `legajos.0007` (ya aplicada en los tres ambientes) sin cambiar su SQL de ida |
+
+## Pedido original
+
+Siete fichas de la auditoría sobre lo mismo: lo que pasa entre que el contenedor arranca y
+que empieza a atender.
+
+- **OPS-05** — el `read_timeout` de 10 s de la conexión también corta el `migrate`.
+- **OPS-07** — el bootstrap es frágil: corre con `set -eu` y sin tolerancia, los comandos
+  «opcionales» son fatales, y con más de una réplica dos procesos migran a la vez
+  (ampliación de RS-R5-07: el candado tiene que envolver también el `migrate`).
+- **OPS-11** — `migrate --run-syncdb` en el entrypoint.
+- **OPS-12** — QA no reproduce el caché de PRD y declara `ENVIRONMENT=prd`.
+- **G3-04** — los CronJobs de referencia no tienen deadlines, `backoffLimit` ni `timeZone`.
+- **G3-05** — el cron de icore no está versionado ni vigilado.
+- **RED-58** — `legajos.0007` no es re-entrante: un corte deja los legajos sin FK y el
+  reintento muere con un 1091.
+
+## Alcance acordado
+
+**Entra:** `config/settings.py` y `config/settings_production.py`, `docker-entrypoint.sh`,
+el comando nuevo `bootstrap_lock`, `procesar_vencimientos`, `docker/k8s/cronjobs.yaml`,
+los cuatro snippets de `docker/cron/` con su envoltorio y su logrotate,
+`core/migraciones.py` y el camino de ida de `legajos.0007`, más la documentación de
+operación (`processes.md`, `espejo-ecom.md`, `docker/k8s/README.md`, `.env.qa.example`,
+`CLAUDE.md`).
+
+**Queda afuera:** todo lo que es del lado de ECOM. Que QA dependa de Redis es una
+consecuencia de OPS-12 y se escribió como **preguntas para el PM** en `espejo-ecom.md`; no
+se supuso nada de su infraestructura. Tampoco entran OPS-01, OPS-03 y OPS-04, que se
+hicieron en la Ola R (PR R-15), ni el retiro de `.github/ci/settings_roundtrip.py`, que
+depende de que este cambio esté en `development` (ver *Pendientes*).
+
+## Decisiones tomadas
+
+**1. El `read_timeout` sigue siendo 10 s para el tráfico; solo el `migrate` lo levanta.**
+Es D-O05, y choca a propósito con el Cambio 91 («no se sube el `read_timeout`, es el
+límite acordado con ECOM»): el Cambio 91 hablaba de **requests**, donde subirlo solo corre
+el corte hacia adelante sin arreglar la consulta lenta. En un `migrate` el razonamiento se
+invierte, porque MySQL y MariaDB **no tienen DDL transaccional**: un `ALTER` que espera el
+metadata lock de una tabla en uso más de 10 s devuelve un 2013 al cliente y **se aplica
+igual** en el servidor. El resultado es el peor de los dos mundos —esquema adelantado,
+migración sin fila en `django_migrations`— y de ahí no se sale reintentando el deploy. Las
+dos variables (`DB_READ_TIMEOUT`, `DB_WRITE_TIMEOUT`) viajan **solo en la invocación** del
+bloque de migraciones, no exportadas: el proceso del server las ve vacías.
+
+**2. 1200 s, no 600.** La ficha proponía 600 y a la vez un `GET_LOCK(…, 900)`, y los dos
+números no conviven: `SELECT GET_LOCK` es una consulta que **bloquea**, así que con
+`read_timeout=600` el cliente se cae con un 2013 a los 600 s esperando un candado de 900.
+Se eligió respetar el 900 del candado —es el número que la ampliación de OPS-07 fija— y
+subir el timeout a 1200. Y, para que esto no haya que recordarlo, `bootstrap_lock`
+**verifica el margen y aborta con el motivo** si la espera no entra en el `read_timeout`
+de la conexión, en vez de morir con un 2013 que no explica nada.
+
+**3. Un solo candado, no dos.** Las fichas pedían `datanach_bootstrap` para los seeds y
+`datanach_migrate` para el `migrate`. Dos candados distintos **no sirven**: una réplica
+sembraría contra el esquema que otra está migrando, y la guarda de esquema de OPS-01
+abortaría el arranque por una foto a medias que no es un problema real. Va uno solo
+(`datanach_bootstrap`, 900 s) envolviendo guarda + `migrate` + sembrado. `collectstatic`
+queda afuera: no toca la base, y no tiene sentido hacer esperar a las demás réplicas
+mientras se comprime CSS.
+
+**4. `GET_LOCK` y no una fila de control.** Es un candado **de la conexión**: si el
+proceso muere, el servidor lo suelta solo. Un pod matado a mitad del bootstrap no puede
+dejar bloqueado el deploy siguiente, y eso es exactamente lo que una fila en una tabla sí
+haría. El costo es que si la conexión se reconecta a mitad el candado se pierde en
+silencio: el comando lo detecta comparando `IS_USED_LOCK` con su `CONNECTION_ID` y lo
+avisa, porque es lo primero que hay que mirar si el esquema quedó raro.
+
+**5. El candado no reemplaza a la regla de RED-19.** `RUN_MIGRATIONS=false` en los
+Deployments y un Job único que migra sigue siendo la forma correcta (#596, PR R-13). El
+candado es la red **debajo** de la regla: para el ambiente que todavía no la aplicó, y
+para el cruce entre el `migrate` de un pod y el sembrado de otro, que el Job por sí solo
+no cubre. Queda escrito en `docker/k8s/README.md`.
+
+**6. Los opcionales son opcionales; los obligatorios siguen siendo fatales.**
+`docs/internal/processes.md` prometía desde siempre que
+`LOCAL_OPTIONAL_BOOTSTRAP_COMMANDS` son «comandos que pueden fallar sin abortar el
+arranque», y era falso. Ahora es cierto: cada uno corre aparte y el que falla deja un
+`AVISO` en el log. `LOCAL_BOOTSTRAP_COMMANDS` —roles, capacidades, programas, catálogo
+geográfico— **no** cambia: sin eso el sistema arranca pero no sirve, y un arranque
+silencioso a medias es peor que uno que no arranca.
+
+**7. `procesar_vencimientos` igual termina en error.** Las reglas se aíslan y el traceback
+va al log, pero el comando termina en `CommandError` nombrando las que fallaron: el cron
+es la única notificación que hay y tiene que ponerse rojo. Lo que cambió es que ahora se
+pone rojo **después** de correr todo lo que podía, en vez de decidir por las demás reglas.
+
+**8. OPS-12: un system check, no un `ImproperlyConfigured`.** La ficha ofrecía las dos.
+Con la pregunta **H-09** abierta —nadie confirmó todavía qué valen `ENVIRONMENT` y
+`DJANGO_SETTINGS_MODULE` en testing y en PRD de ECOM— un `raise` convierte un olvido de
+configuración en un pod que no arranca, y eso es peor que el problema que resuelve. Va
+`core.W002`, que corre con `manage.py check --deploy` (el CI, y la etapa `verify` de ECOM
+cuando exista).
+
+**9. El channel layer sigue atado al ambiente, no a `USE_REDIS`.** El caché se enciende
+también con `PERFORMANCE_CI` y con la escotilla `USE_REDIS_CACHE`; los websockets no,
+porque en esos dos casos no hay websockets que cruzar y un `RedisChannelLayer` en el
+Performance Guard sería una dependencia nueva por nada.
+
+**10. Las sesiones de QA no se mueven a Redis.** `SESSION_ENGINE` sigue en la base para
+`qa`. Moverlas desloguea a todo el mundo en el deploy, no es lo que la ficha pide, y el
+`CACHES["sessions"]` de Redis queda configurado y sin uso ahí, igual que hoy.
+
+**11. La reversa de `legajos.0007` se deja como está.** Solo el camino de **ida** se hace
+re-entrante. La reversa está bloqueada por la barrera de RED-15 —el camino de vuelta es un
+restore, no un reintento— y `programas/tests/test_migraciones_uuid.py` fija el orden del
+SQL que emite. Editar una migración ya aplicada es legítimo acá porque
+`scripts/check_sqlmigrate.py` compara el SQL de ida y un `RunPython` sale como comentario:
+lo que cambia es el camino desde base vacía, y ese termina en el mismo estado.
+
+**12. Si no hay columnas pendientes, la migración no baja las FK.** Es más que «no
+explota el reintento»: bajarlas y recrearlas por las dudas es trabajo caro sobre tablas en
+uso y deja la integridad referencial abierta un rato por nada. Una segunda corrida completa
+manda **cero** `ALTER`. La normalización de los UUID sí corre siempre, porque un corte
+entre el `ALTER` y el `UPDATE` deja filas a medias y es justo lo que hay que terminar.
+
+**13. Un envoltorio para los cuatro crons, no cuatro líneas inline.** La ficha proponía la
+línea inline con `flock`, `timeout` y `ts`. Con un envoltorio los snippets quedan en una
+línea legible y, sobre todo, se pueden distinguir en el log los tres finales que importan y
+que inline se confunden: `flock -n -E 99` hace que «ya hay una corrida en curso» (SALTEADA)
+no se mezcle con un exit 1 del comando, y `timeout` devuelve 124 (CORTADA). `ts` no se usó
+porque viene en `moreutils`, que no está instalado en el host.
+
+## Implementación
+
+**Al arrancar un contenedor**, el entrypoint ahora:
+
+1. Espera la base (sin cambios).
+2. Toma el candado `datanach_bootstrap` y, con él puesto y los timeouts en 1200 s, corre
+   la guarda de esquema, `migrate --noinput` (sin `--run-syncdb`) y el sembrado
+   obligatorio. Si otro proceso tiene el candado, espera hasta 900 s; si no lo consigue,
+   **no migra ni siembra nada** y aborta diciendo que hay otro bootstrap en curso.
+3. Recolecta estáticos, fuera del candado.
+4. Corre los comandos opcionales uno por uno, tolerando que fallen.
+
+**Las tareas programadas** tienen límite de tiempo en los dos ambientes. En Kubernetes,
+`activeDeadlineSeconds` y `backoffLimit: 1` por CronJob, más `timeZone` argentina —que
+además arregla una incoherencia que el propio archivo declaraba: decía «hora argentina» y
+corría en UTC, así que las 03:10 caían a las 00:10 ART—. En icore, los cuatro snippets
+(faltaban dos) pasan por `chaco-cron.sh`, que pone candado, `timeout`, fecha de inicio y de
+fin y el motivo de salida en el log, y el log rota.
+
+**En QA**, el caché y los websockets pasan a usar Redis, y `settings.ENVIRONMENT` dice
+«qa» en vez de «prd»: `diagnosticar_siis` y `diagnosticar_correo` empiezan a informar sobre
+el ambiente que de verdad está corriendo.
+
+**Al escribir una migración nueva con `atomic = False`**, los helpers de
+`core/migraciones.py` leen el estado real de `information_schema` en vez de asumir el
+anterior. La regla quedó en `CLAUDE.md`.
+
+## Archivos
+
+- `config/settings.py` — `DB_READ_TIMEOUT`/`DB_WRITE_TIMEOUT` y `USE_REDIS`.
+- `config/settings_production.py` — deja de reasignar `ENVIRONMENT`.
+- `core/checks.py` — `entorno_declarado` (`core.W002`).
+- `docker-entrypoint.sh` — `run_migrations_and_seeds` (candado + timeouts, sin
+  `--run-syncdb`) y `run_optional_management_commands`.
+- `core/management/commands/bootstrap_lock.py` — **nuevo**.
+- `core/management/commands/procesar_vencimientos.py` — una regla que falla no frena a las
+  demás.
+- `core/migraciones.py` — **nuevo**: la plantilla re-entrante.
+- `legajos/migrations/0007_ampliar_uuid_legajos.py` — camino de ida re-entrante.
+- `docker/k8s/cronjobs.yaml` · `docker/k8s/README.md`.
+- `docker/cron/chaco-cron.sh`, `logrotate-cron-chaco.conf`, `generar_alertas.cron`,
+  `limpiar_alertas_conversaciones.cron` — **nuevos**; `procesar_vencimientos.cron` y
+  `sincronizar_programas_siis.cron` actualizados.
+- `docs/internal/processes.md`, `docs/internal/espejo-ecom.md`,
+  `docs/client/architecture.md`, `.env.qa.example`, `CLAUDE.md`.
+- Tests: `core/tests/test_bootstrap_lock.py`, `test_entrypoint_bootstrap.py`,
+  `test_settings_entorno_y_timeouts.py`, `test_procesar_vencimientos_aislado.py`,
+  `test_tareas_programadas.py`, `legajos/tests/test_migracion_uuid.py` (todos nuevos) y
+  dos clases nuevas en `core/tests/test_motor_real.py`.
+
+## Base de datos
+
+**No requiere migración nueva.** Se edita `legajos.0007`, que ya está aplicada en icore,
+testing y PRD: el cambio solo afecta al `migrate` desde cero y al reintento de uno cortado,
+y en los dos casos el estado final es el mismo. Su SQL de ida no cambia (es un `RunPython`;
+`scripts/check_sqlmigrate.py` lo verifica).
+
+## Validación
+
+Con `.venv312` (Python 3.12 + Django 5.2.17, igual al CI):
+
+- `manage.py check` y `manage.py check --deploy` — sin problemas nuevos.
+- `manage.py makemigrations --check --dry-run` — «No changes detected».
+- `manage.py test` (suite entera, un solo proceso) — **3521 tests, OK** (35 saltados, 8
+  fallas esperadas).
+- `manage.py test --tag performance` — OK.
+- `manage.py test --tag mysql` contra `mariadb:10.11` sin tablas de zona horaria y con las
+  `OPTIONS` de producción — **32 tests, OK**.
+- `ruff check .` y `ruff format --check` sobre lo tocado.
+- `sh -n` y `bash -n` sobre `docker-entrypoint.sh` y `chaco-cron.sh`.
+- **Contenedor efímero** con un `python` de mentira: seis casos del entrypoint (arranque
+  por defecto, `RUN_MIGRATIONS=false`, `SKIP_SCHEMA_GUARD=true`, un opcional que falla,
+  `ENVIRONMENT=prd` y la guarda de gevent), verificando el `argv` exacto que recibe el
+  comando y las variables que ve cada proceso.
+- **`migrate` completo desde base vacía** contra `mariadb:10.11` a través de
+  `bootstrap_lock`: 24 migraciones aplicadas, candado tomado y liberado.
+- **RED-58 reproducido y cerrado contra el motor:** el segundo `DROP FOREIGN KEY` da
+  `ERROR 1091`; con esa FK caída —el estado exacto que deja un corte— dos corridas seguidas
+  del camino de ida dejan las cuatro columnas en `char(36)` y las dos FK puestas, la
+  segunda sin emitir un solo `ALTER`.
+
+## Puesta en marcha en el servidor
+
+**ECOM (testing y PRD) — antes de espejar, lo pregunta el PM.** Está escrito en
+`docs/internal/espejo-ecom.md`: (1) si el pod de `web` llega a un Redis y tiene
+`REDIS_HOST`/`REDIS_PORT` puestas —ECOM ya provee Redis para los websockets, lo que hay que
+confirmar es que las variables están en el Deployment de `web`—, y (2) cuánto valen
+`ENVIRONMENT` y `DJANGO_SETTINGS_MODULE` ahí (pregunta abierta H-09). Si testing no llega a
+un Redis, el release no se espeja hasta resolverlo.
+
+**icore-srv — una sola vez, como usuario `icore`:**
+
+```bash
+cp docker/cron/chaco-cron.sh ~/chaco-cron.sh && chmod +x ~/chaco-cron.sh
+crontab -e   # reemplazar las cuatro líneas por las de docker/cron/*.cron
+sudo cp docker/cron/logrotate-cron-chaco.conf /etc/logrotate.d/chaco-cron
+```
+
+El deploy en sí no cambia: el entrypoint hace todo lo demás solo.
+
+## Pendientes / a definir
+
+- **Retirar `.github/ci/settings_roundtrip.py`.** Existe porque el job `Migrate ida y
+  vuelta` necesita subir el `read_timeout` y `DB_READ_TIMEOUT` no existía (lo dice la
+  propia ficha de RED-17). Ahora existe, pero el job corre `manage.py` también en el
+  **árbol de la base**, que hasta que esto se mergee no entiende la variable. Se puede
+  sacar en un PR posterior.
+- **H-05 y H-09** siguen siendo del PM: el manifiesto real de los CronJobs de ECOM y los
+  valores de `ENVIRONMENT`/`DJANGO_SETTINGS_MODULE` de sus ambientes. `cronjobs.yaml` es la
+  plantilla de referencia, no lo que corre allá.
+- El candado protege el arranque, **no** el rolling: dos releases distintas migrando contra
+  el mismo esquema sigue siendo expand/contract (RED-19), que es regla y no mecanismo.
+
+## Reversión
+
+Revertir el commit alcanza: no hay migración nueva ni datos nuevos. Lo que vuelve: el
+`migrate` sin candado y con `read_timeout` de 10 s, los opcionales fatales, `--run-syncdb`,
+QA con caché local al proceso y `settings.ENVIRONMENT` informando «prd», y los CronJobs sin
+deadline. En icore quedarían instalados el envoltorio y el logrotate, que son inocuos: si
+se revierte, hay que volver las cuatro líneas del `crontab` a su forma anterior
+(`docker exec chaco-web-1 python manage.py <comando> >> ~/cron-chaco.log 2>&1`), porque
+`~/chaco-cron.sh` seguiría existiendo pero los snippets del repo ya no lo nombrarían.
+
+## Historial
+
+- **03/10/2026** — la auditoría abre OPS-05, OPS-07, OPS-11, OPS-12, G3-04 y G3-05.
+- **04/10/2026** (RS-R5-07 y RS-R5-08) — se amplía OPS-07 (lo que corre en carrera entre
+  réplicas no es solo el seed: es el `migrate`, reproducido contra MariaDB 11.8) y nace
+  RED-58, que se agrupa con OPS-05.
+- **06/10/2026** (Cambio 139, PR R-13) — RED-19 cierra sus dos primeros puntos: un solo
+  migrador (`RUN_MIGRATIONS=false` + Job único) y la regla expand/contract. El candado
+  quedó explícitamente para acá.
+- **06/10/2026** (Cambio 153, PR R-15) — la guarda de esquema
+  (`verificar_esquema_migraciones`) entra al entrypoint y `/health/ready/` al deploy. Es el
+  comando que este cambio mete adentro del candado.
+- **07/10/2026 (este cambio)** — las siete fichas. Con esto arranca la Ola 3.

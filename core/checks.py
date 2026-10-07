@@ -85,6 +85,39 @@ def entorno_de_integraciones(app_configs, **kwargs):
     return mensajes
 
 
+#: Ambientes servidos: los que tienen Redis y cuyo `ENVIRONMENT` es una declaración.
+ENTORNOS_SERVIDOS = ("prd", "qa")
+
+
+@register(Tags.compatibility, deploy=True)
+def entorno_declarado(app_configs, **kwargs):
+    """El módulo endurecido corre con el `ENVIRONMENT` declarado (OPS-12).
+
+    Hasta el Cambio 165, ``settings_production`` reasignaba ``ENVIRONMENT = "prd"`` y
+    tapaba el olvido: el ambiente decía «prd» y el cache era LocMem. Ahora no lo tapa,
+    así que un ambiente servido sin la variable queda con los defaults de desarrollo
+    —cache y channel layer locales al proceso— mientras sirve tráfico real con HSTS y
+    cookies seguras. Eso no se ve mirando una pantalla: se ve acá.
+    """
+    if os.environ.get("DJANGO_SETTINGS_MODULE", "") != "config.settings_production":
+        return []
+    if settings.ENVIRONMENT in ENTORNOS_SERVIDOS:
+        return []
+    return [
+        CheckWarning(
+            f"ENVIRONMENT={settings.ENVIRONMENT!r} con config.settings_production: el módulo "
+            "endurecido corriendo con la configuración de un ambiente de desarrollo.",
+            hint=(
+                "Declará ENVIRONMENT=prd o ENVIRONMENT=qa en el entorno del contenedor "
+                "(ver .env.qa.example). Con un valor de desarrollo, el cache y el channel layer "
+                "quedan locales al proceso: el throttle cuenta por worker, una invalidación limpia "
+                "un worker de varios y los websockets no cruzan entre pods."
+            ),
+            id="core.W002",
+        )
+    ]
+
+
 @register(Tags.compatibility, deploy=True)
 def presupuesto_de_llamadas_externas(app_configs, **kwargs):
     """La red de un request entra en los 60 s que aguanta nginx (SIIS-09).

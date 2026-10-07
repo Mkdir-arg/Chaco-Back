@@ -81,6 +81,30 @@ kubectl exec -it deploy/<web> -- sh -c 'echo "CMD_ARGS=[${GUNICORN_CMD_ARGS:-}] 
 Para **PRD** se le pide a ECOM esa misma línea junto con el `--solo-reporte`, en el paso 2.
 En **icore-srv**: `docker compose -f docker-compose.prod.yml exec -T web env | grep GUNICORN`.
 
+### Y confirmar que testing tiene Redis y declara `ENVIRONMENT` (OPS-12)
+
+**Propuesta para el PM: esto hay que preguntárselo a ECOM antes de espejar este release.
+No se supone nada del lado de ellos.**
+
+Hasta el **Cambio 165**, `config/settings_production.py` reasignaba `ENVIRONMENT = "prd"`
+después de que `settings.py` había derivado todo de la variable real. El efecto en testing
+(`ENVIRONMENT=qa`) era que la app **decía** «prd» y corría con caché y channel layer
+**locales al proceso**: el límite de intentos contaba por worker, una invalidación de
+caché limpiaba uno de varios y los websockets no cruzaban entre pods. Testing no
+reproducía lo que iba a pasar en producción, que es para lo que existe.
+
+Desde este release, `qa` usa Redis igual que `prd`. Las dos preguntas para ECOM:
+
+| Pregunta | Por qué importa |
+|---|---|
+| ¿El ambiente de testing tiene un Redis al que llega el pod, y `REDIS_HOST`/`REDIS_PORT` apuntan a él? | Es el cambio de comportamiento del release. ECOM ya provee Redis para los websockets; lo que hay que confirmar es que las variables están puestas en el Deployment de `web`, no solo en el de websockets |
+| ¿Qué valen `ENVIRONMENT` y `DJANGO_SETTINGS_MODULE` en testing y en PRD? (es la pregunta abierta H-09) | Si `ENVIRONMENT` no está declarada, el ambiente queda con los defaults de desarrollo —caché local al proceso— en vez de con «prd» de regalo. Lo avisa `manage.py check --deploy` con `core.W002` |
+
+Si testing **no** llega a un Redis, el release no se espeja hasta resolverlo: la app
+arranca igual (`django_redis` no se conecta hasta el primer uso) pero cada pantalla que
+lee caché responde error. Es un cambio de infraestructura del lado de ECOM, así que lo
+pide el PM, no el espejo.
+
 ## Paso 1 — `/pushGitLabecomTEST`
 
 Espeja el release a `ecom/test`, que despliega `https://datanach.ecomdev.ar/` (testing).

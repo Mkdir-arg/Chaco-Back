@@ -708,3 +708,116 @@ class IdentidadDelPadronMotorRealTests(MotorRealMixin, TestCase):
                     f"{connection.vendor} {connection.mysql_version}: el REGEXP del motor no coincide "
                     "con `tiene_identidad` para esta fila.",
                 )
+
+
+@tag("mysql")
+class CandadoDeBootstrapTests(MotorRealMixin, TransactionTestCase):
+    """OPS-07 · `bootstrap_lock` serializa de verdad, con dos conexiones.
+
+    `GET_LOCK` es de la **conexión**, así que para probarlo hace falta una segunda: con
+    una sola, el mismo cliente puede volver a tomar un candado que ya tiene. La capa de
+    protocolo —qué SQL manda, qué pasa si no lo consigue— está en
+    `core/tests/test_bootstrap_lock.py`, que corre en todos los PRs sobre SQLite; acá se
+    verifica lo único que SQLite no puede decir: que el segundo proceso **espera**.
+    """
+
+    NOMBRE = "datanach_test_bootstrap"
+
+    def _otra_conexion(self):
+        otra = connections.create_connection("default")
+        self.addCleanup(otra.close)
+        return otra
+
+    def _get_lock(self, conexion, espera=0):
+        with conexion.cursor() as cursor:
+            cursor.execute("SELECT GET_LOCK(%s, %s)", [self.NOMBRE, espera])
+            return cursor.fetchone()[0]
+
+    def _release(self, conexion):
+        with conexion.cursor() as cursor:
+            cursor.execute("SELECT RELEASE_LOCK(%s)", [self.NOMBRE])
+
+    def test_una_segunda_conexion_no_consigue_el_candado_tomado(self):
+        primera, segunda = self._otra_conexion(), self._otra_conexion()
+        self.assertEqual(self._get_lock(primera), 1)
+        try:
+            self.assertEqual(self._get_lock(segunda), 0, "el motor dejó entrar a dos migradores")
+        finally:
+            self._release(primera)
+
+    def test_al_soltarlo_el_siguiente_entra(self):
+        primera, segunda = self._otra_conexion(), self._otra_conexion()
+        self.assertEqual(self._get_lock(primera), 1)
+        self._release(primera)
+
+        self.assertEqual(self._get_lock(segunda), 1)
+        self._release(segunda)
+
+    def test_el_candado_muere_con_la_conexion(self):
+        """Es la razón de usar `GET_LOCK` y no una fila de control: un pod matado a mitad
+        del bootstrap no puede dejar bloqueado el deploy siguiente."""
+        efimera = connections.create_connection("default")
+        self.assertEqual(self._get_lock(efimera), 1)
+        efimera.close()
+
+        otra = self._otra_conexion()
+        self.assertEqual(self._get_lock(otra, espera=5), 1)
+        self._release(otra)
+
+    def test_el_comando_corre_sus_comandos_con_el_candado_puesto(self):
+        salida = StringIO()
+
+        call_command("bootstrap_lock", "--nombre", self.NOMBRE, "--espera", "5", "--comando", "check", stdout=salida)
+
+        self.assertIn("Candado", salida.getvalue())
+        # Al terminar, el candado quedó libre para el deploy siguiente.
+        otra = self._otra_conexion()
+        self.assertEqual(self._get_lock(otra), 1)
+        self._release(otra)
+
+
+@tag("mysql")
+class MigracionReentranteTests(MotorRealMixin, TransactionTestCase):
+    """RED-58 · `legajos.0007` corrida dos veces seguidas contra el motor.
+
+    La base de test ya tiene la migración aplicada (el job «Motor real» corre migraciones
+    de verdad). Lo que se verifica es que volver a correr el camino de ida —que es lo que
+    hace el reintento de una migración cortada, porque no hay fila en `django_migrations`—
+    no explote con el `ERROR 1091` del `DROP FOREIGN KEY` sobre una FK que ya no está, y
+    deje el esquema igual.
+    """
+
+    COLUMNAS = (
+        ("legajos_legajoatencion", "id"),
+        ("legajos_alertaciudadano", "legajo_id"),
+        ("legajos_historialcontacto", "legajo_id"),
+        ("legajos_adjunto", "object_id"),
+    )
+
+    def _esquema(self):
+        from core.migraciones import nombre_de_fk, tipo_de_columna
+
+        with connection.schema_editor(atomic=False) as editor:
+            tipos = {clave: tipo_de_columna(editor, *clave) for clave in self.COLUMNAS}
+            fks = {
+                tabla: nombre_de_fk(editor, tabla, "legajo_id")
+                for tabla in ("legajos_alertaciudadano", "legajos_historialcontacto")
+            }
+        return tipos, fks
+
+    def _ampliar(self):
+        import importlib
+
+        migracion = importlib.import_module("legajos.migrations.0007_ampliar_uuid_legajos")
+        with connection.schema_editor(atomic=False) as editor:
+            migracion.ampliar_uuid_legajos_mysql(None, editor)
+
+    def test_ampliar_uuid_es_idempotente(self):
+        antes = self._esquema()
+
+        self._ampliar()
+        self._ampliar()
+
+        self.assertEqual(self._esquema(), antes)
+        self.assertEqual({tipo for tipo in antes[0].values()}, {"char(36)"})
+        self.assertNotIn(None, antes[1].values())

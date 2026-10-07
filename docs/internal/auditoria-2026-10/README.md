@@ -1,5 +1,32 @@
 # Auditoría integral de DATAÑACH (Chaco) — octubre 2026
 
+## Estado al 07-oct-2026 (Ola 3, PR 1: operación y deploy — **arranca la Ola 3**)
+
+**El arranque del contenedor deja de ser frágil.** El PR 1 de la Ola 3 (Cambio 165) cierra OPS-05, OPS-07,
+OPS-11, OPS-12, G3-04, G3-05 y RED-58: 12 + 2 h, **sin migraciones nuevas**.
+
+| Ficha | Qué quedó |
+|---|---|
+| **OPS-05** ✅ | `read_timeout`/`write_timeout` salen del entorno (`DB_READ_TIMEOUT`, `DB_WRITE_TIMEOUT`), con default **10 s** —el límite acordado con ECOM, que sigue valiendo para el tráfico— y el entrypoint los levanta a 1200 **solo** para migrar (D-O05). Sin eso, un `ALTER` que espera el metadata lock más de 10 s devuelve un 2013 al cliente y **se aplica igual** en el servidor: esquema adelantado, migración sin registrar |
+| **OPS-07** ✅ | Los opcionales del bootstrap dejan de ser fatales (era lo que `processes.md` ya prometía); `procesar_vencimientos` aísla cada regla, loguea el traceback y **igual** termina en error; y el bloque que escribe en la base corre con `GET_LOCK('datanach_bootstrap', 900)` desde el comando nuevo `bootstrap_lock` |
+| **OPS-11** ✅ | Se fue `--run-syncdb`. Hoy era no-op; mañana crea una tabla sin migración, que es justo lo que la guarda de OPS-01 aborta en el arranque siguiente |
+| **OPS-12** ✅ | `settings_production` ya no pisa `ENVIRONMENT`, y `qa` usa Redis como `prd` para caché y websockets. **QA pasa a depender de Redis** |
+| **G3-04** ✅ | Los cuatro CronJobs llevan `timeZone`, `activeDeadlineSeconds`, `backoffLimit: 1` e historial acotado. La `timeZone` arregla además una incoherencia que el archivo declaraba: decía «hora argentina» y corría en UTC |
+| **G3-05** ✅ | Están los cuatro snippets de icore (faltaban dos, que los otros nombraban como «ya existentes») y los cuatro pasan por `docker/cron/chaco-cron.sh`: `flock`, `timeout`, fecha y motivo de salida en el log, más `logrotate` |
+| **RED-58** ✅ | Plantilla de migración re-entrante en `core/migraciones.py`, aplicada al camino de ida de `legajos.0007` y escrita en `CLAUDE.md` |
+
+**Dos desvíos medidos.** (1) Los dos números de las fichas no conviven: `read_timeout` 600 (OPS-05) con un
+`GET_LOCK(…, 900)` (OPS-07) hace que el cliente muera a los 600 s esperando el candado, porque `GET_LOCK` es
+una consulta que bloquea. Queda candado 900 / timeout 1200, y `bootstrap_lock` **aborta con el motivo** si la
+espera no entra. (2) Las fichas pedían dos candados con nombres distintos —uno para el `migrate`, otro para los
+seeds— y eso no sirve: una réplica sembraría contra el esquema que otra está migrando. Va **uno solo**
+envolviendo guarda + `migrate` + sembrado.
+
+**Pasos operativos para el PM.** Antes de espejar este release hay que preguntarle a ECOM dos cosas (quedaron
+escritas en `espejo-ecom.md`): si el pod de `web` de testing llega a un Redis, y cuánto valen `ENVIRONMENT` y
+`DJANGO_SETTINGS_MODULE` ahí y en PRD, que es la pregunta abierta **H-09**. En icore, además, hay que instalar
+el envoltorio de cron y la rotación del log (`processes.md`, *Cron del host*).
+
 ## Estado al 07-oct-2026 (Ola 1, PR 7: herramientas y correcciones manuales — **la Ola 1 cierra**)
 
 **Las tres fichas de herramientas, más la segunda parte de RED-32.** El PR 7 de la Ola 1 (Cambio 162) son
@@ -1308,7 +1335,7 @@ funcional ni coordinación con ECOM). Las horas de cada ola suman los esfuerzos 
 | **R** | **Red de seguridad: poder cambiar código sin romper nada sin enterarse** | — | — | — | — | **86** (79 RED con parte en R —78 del relevamiento + RED-89— + OPS-01, OPS-03, OPS-04, TST-01, TST-02, TST-03, R0-03; SEC-10, SEC-11 y SEC-18 se ejecutan en R-19 pero **siguen contadas como ítems de la Ola 2**, solo se mueven sus horas) | **285** · **107 cerradas el 04-oct (R-01..R-10 y R-19) → 178 restantes** |
 | 1 | Integridad SIIS | 23 | 72 | 22 (− SIIS-07) | 70 | 23 (+ RED-53; + parte de RED-32) | 78 · **76 cerradas (26 el 05-oct, PR 2; 6 el 06-oct, PR 3; 10 el 06-oct, PR 4; 4 el 06-oct, PR 5; 20 el 07-oct, PR 6; 10 el 07-oct, PR 7) → 2 restantes: el ítem 0 (V2-NEW-03, correr P-01 en PRD, sin código)** |
 | 2 | Autorización (RBAC, legajos, alcance de Becas, usuarios) | 36 | 116 | 50 (+ fase 2 de OPS-06, R0-05, resto de SEC-01, etapa 2 de SEC-09, R0b-01..10) | 136 | 51 (+ RED-80; + partes de RED-52, RED-79) | 135 (−7: SEC-10, SEC-18 y media SEC-11 se hacen en R-19, D-RED-14) |
-| 3 | Datos, operación, CI, app de campo y reglas de Becas | 55 | 158 | 59 (+ R0-03, R0-04, R0-06, R0-07) | 166 | 54 (− 7 a la Ola R; + RED-48, RED-58; + partes de RED-09, 35, 40, 50) | 152 |
+| 3 | Datos, operación, CI, app de campo y reglas de Becas | 55 | 158 | 59 (+ R0-03, R0-04, R0-06, R0-07) | 166 | 54 (− 7 a la Ola R; + RED-48, RED-58; + partes de RED-09, 35, 40, 50) | 152 · **14 cerradas el 07-oct (PR 1) → 138 restantes** |
 | 4 | Performance | 19 | 52 | 19 | 52 | 20 (+ RED-62; + partes de RED-10, 49, 51, 83) | 64 |
 | 5 | Bugs de front y parches v1 de Legajos/Dispositivos | 31 (+ V5A-NEW-07 b) | 114 | 31 (+ V5A-NEW-07 b) | 114 | 33 (+ RED-33, RED-75; + partes de RED-42, 53) (+ V5A-NEW-07 b) | 128 · **66 cerradas (PRs 1 a 5 y 7) → 62 restantes** |
 | 6 | Agente de diseño | 4 (+8 pasos) | 42 | 4 (+8 pasos) | 42 | 4 (+8 pasos) | 42 · **22 cerradas el 05-oct (pasos 0-3) → 20 restantes** |
@@ -1672,8 +1699,9 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
 - **Objetivo:** que no se pierdan datos (adjuntos, capturas offline), que el despliegue sea diagnosticable y robusto, que
   la CI pruebe el motor real, y cerrar las reglas de negocio de Becas.
 - **PRs y orden:**
-  1. *Operación y deploy:* OPS-05, OPS-07 (ampliado: el candado envuelve también el `migrate`), OPS-11, OPS-12, G3-04,
-     G3-05. 12 h. (OPS-01, OPS-03 y OPS-04 pasaron a la Ola R, PR R-15.)
+  1. ✅ *Operación y deploy:* OPS-05, OPS-07 (ampliado: el candado envuelve también el `migrate`), OPS-11, OPS-12,
+     G3-04, G3-05 **+ RED-58** (el ítem 9 lo traía junto con OPS-05). 12 + 2 h. **Cerrado el 07-oct-2026
+     (Cambio 165).** (OPS-01, OPS-03 y OPS-04 pasaron a la Ola R, PR R-15.)
   2. *Datos y catálogo:* DAT-01, DAT-02, DAT-03, DAT-05, V2-NEW-05, G1c-08. 18 h.
   3. *Comandos peligrosos:* OPS-02, G2-05, G1c-12. 6 h.
   4. *CI y tests:* pasó entero a la Ola R (TST-01 → R-11; TST-02, TST-03 y R0-03 → R-20).
@@ -1683,8 +1711,8 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
   7. *Integraciones y link público:* SIIS-10, SIIS-13, SIIS-14 (+G3-02), SIIS-15, SIIS-16, SIIS-18, SIIS-20, SIIS-21,
      G1c-15, G1-11, G1-12, G1-13, G1-14, R0-06, R0-07 (link público y `q_uuid_en_texto`). 30 h.
   8. *Reportes:* G2-01. 8 h.
-  9. *Red de seguridad (04-oct):* RED-48 (una sola regla de DNI, con G1c-08), RED-58 (plantilla de migración
-     re-entrante, con OPS-05) y segundas partes de RED-09 (`q_uuid_en_texto` a `core/db.py`, con el PR 7), RED-35
+  9. *Red de seguridad (04-oct):* RED-48 (una sola regla de DNI, con G1c-08), ~~RED-58 (plantilla de migración
+     re-entrante, con OPS-05)~~ ✅ **cerrada en el PR 1**, y segundas partes de RED-09 (`q_uuid_en_texto` a `core/db.py`, con el PR 7), RED-35
      (atomicidad del resto de las escrituras), RED-40 (`validators` en los `JSONField`, con G1-05) y RED-50 (una sola
      `edad_en_anios` con `timezone.localdate()` + regla `DTZ011`). 18 h.
   **Prerrequisito: ✅ cumplido el 07-oct-2026.** PRs R-11 a R-16 de la Ola R (motor real en CI, contrato de migraciones,
