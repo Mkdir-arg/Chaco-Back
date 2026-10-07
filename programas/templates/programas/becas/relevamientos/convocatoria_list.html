@@ -3,7 +3,6 @@
 {% block title %}Becas · Convocatorias{% endblock %}
 
 {% block main-content %}
-<style>[x-cloak]{display:none!important}</style>
 <div class="mb-8"
      x-data="convocatoriasPage('{% url 'becas:segmento_subsegmentos_json' pk=0 %}')"
      @becas-saved.window="modalCrear=false">
@@ -25,7 +24,7 @@
 
   {# Modal: Nueva convocatoria — x-becas-modal: foco, Tab atrapado, Escape y scroll del fondo (becas-modal.js) #}
   <div x-show="modalCrear" x-cloak x-becas-modal="modalCrear" class="fixed inset-0 z-50 flex items-center justify-center p-4">
-    <div class="absolute inset-0" style="background:rgba(0,0,0,.5);backdrop-filter:blur(4px)" @click="modalCrear=false"></div>
+    <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="modalCrear=false"></div>
     <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden" @click.stop
          role="dialog" aria-modal="true" aria-labelledby="modal-convocatoria-crear-titulo">
 
@@ -40,19 +39,19 @@
         <input type="hidden" name="activo" value="on">
         <div class="p-6 space-y-4 overflow-y-auto min-h-0">
           <div>
-            <label class="block text-sm font-medium text-heading mb-1">Nombre <span class="text-fg-danger">*</span></label>
+            <label for="{{ form_convocatoria.nombre.id_for_label }}" class="block text-sm font-medium text-heading mb-1">Nombre <span class="text-fg-danger">*</span></label>
             {{ form_convocatoria.nombre }}
             <p class="mt-1 text-xs text-fg-danger hidden" data-error="nombre"></p>
           </div>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label class="block text-sm font-medium text-heading mb-1">Segmento <span class="text-fg-danger">*</span></label>
+              <label for="{{ form_convocatoria.segmento.id_for_label }}" class="block text-sm font-medium text-heading mb-1">Segmento <span class="text-fg-danger">*</span></label>
               {{ form_convocatoria.segmento }}
               <p class="mt-1 text-xs text-fg-danger hidden" data-error="segmento"></p>
             </div>
             <div>
               {# Obligatorio para el Coordinador Regional: su alcance es el subsegmento. #}
-              <label class="block text-sm font-medium text-heading mb-1">Subsegmento{% if form_convocatoria.subsegmento.field.required %} <span class="text-fg-danger">*</span>{% endif %}</label>
+              <label for="{{ form_convocatoria.subsegmento.id_for_label }}" class="block text-sm font-medium text-heading mb-1">Subsegmento{% if form_convocatoria.subsegmento.field.required %} <span class="text-fg-danger">*</span>{% endif %}</label>
               {{ form_convocatoria.subsegmento }}
               <p x-show="loadingSubsegmentos"
                  class="mt-1 text-xs text-body-subtle"
@@ -67,18 +66,18 @@
           </div>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label class="block text-sm font-medium text-heading mb-1">Fecha de inicio <span class="text-fg-danger">*</span></label>
+              <label for="{{ form_convocatoria.fecha_inicio.id_for_label }}" class="block text-sm font-medium text-heading mb-1">Fecha de inicio <span class="text-fg-danger">*</span></label>
               {{ form_convocatoria.fecha_inicio }}
               <p class="mt-1 text-xs text-fg-danger hidden" data-error="fecha_inicio"></p>
             </div>
             <div>
-              <label class="block text-sm font-medium text-heading mb-1">Fecha de fin <span class="text-fg-danger">*</span></label>
+              <label for="{{ form_convocatoria.fecha_fin.id_for_label }}" class="block text-sm font-medium text-heading mb-1">Fecha de fin <span class="text-fg-danger">*</span></label>
               {{ form_convocatoria.fecha_fin }}
               <p class="mt-1 text-xs text-fg-danger hidden" data-error="fecha_fin"></p>
             </div>
           </div>
           <div>
-            <label class="block text-sm font-medium text-heading mb-1">Descripción</label>
+            <label for="{{ form_convocatoria.descripcion.id_for_label }}" class="block text-sm font-medium text-heading mb-1">Descripción</label>
             {{ form_convocatoria.descripcion }}
           </div>
           <p class="text-xs text-fg-danger hidden" data-error="__all__"></p>

@@ -58,7 +58,16 @@ def contar_ciudadanos():
 
 
 def contar_legajos():
-    """Contar inscripciones activas para mantener compatibilidad con el dashboard."""
+    """Contar **inscripciones** activas, pese al nombre.
+
+    Agrega `InscripcionPrograma`, no `LegajoAtencion`. Se mantiene tal cual porque la
+    consume `dashboard.views.home.DashboardView` (la copia vieja del inicio, tapada por
+    el orden del URLconf: RED-78) y porque RED-51 tiene dos tests escritos alrededor de
+    que `stats_legajos` agrega inscripciones.
+
+    La home **ya no la usa**: su tarjeta dice «Legajos activos» y para eso está
+    `contar_legajos_atencion()` (G2-04).
+    """
     from django.db.models import Count, Q
 
     cache_key = "stats_legajos"
@@ -67,6 +76,26 @@ def contar_legajos():
         cached_value = InscripcionPrograma.objects.aggregate(
             total=Count("id"), activos=Count("id", filter=Q(estado__in=["ACTIVO", "EN_SEGUIMIENTO"]))
         )
+        cache.set(cache_key, cached_value, timeout=CACHE_TIMEOUT)
+    return cached_value
+
+
+def contar_legajos_atencion():
+    """``{"total": n, "activos": n}`` de `LegajoAtencion`, cacheado.
+
+    La definición de «activo» no se escribe acá: la trae
+    `legajos.selectors.resumen_legajos_atencion()`, que es la misma que usa
+    `/legajos/reportes/`. Las dos pantallas tienen que dar el mismo número (G2-04).
+
+    La clave la borra el receiver de `legajos/signals/core.py` en cada alta, edición o
+    baja de un legajo, así que no queda vieja hasta que expire el TTL.
+    """
+    from legajos.selectors import resumen_legajos_atencion
+
+    cache_key = "stats_legajos_atencion"
+    cached_value = cache.get(cache_key)
+    if cached_value is None:
+        cached_value = resumen_legajos_atencion()
         cache.set(cache_key, cached_value, timeout=CACHE_TIMEOUT)
     return cached_value
 
@@ -100,6 +129,7 @@ def invalidate_dashboard_cache():
     cache.delete("contar_usuarios")
     cache.delete("contar_ciudadanos")
     cache.delete("stats_legajos")
+    cache.delete("stats_legajos_atencion")
     cache.delete("alertas_activas")
     from django.utils import timezone
 

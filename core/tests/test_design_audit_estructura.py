@@ -500,7 +500,8 @@ class CssCompiladoAlDiaTests(SimpleTestCase):
         "text-warning",
         # Definidas a mano en el `<style>` de un shell o en CSS propio, no por Tailwind.
         "animate-fadeInUp",
-        "font-lora",
+        # `font-lora` salió de la deuda con FE-22: su único consumidor era el `<h1>`
+        # propio de `legajos/reportes.html`, que pasó a `{% page_header %}`.
         "touch-target",
         # `ring-brand` no es un color del tema (el foco de marca es la custom
         # property `--ring-brand`, un box-shadow). O sea que el checkbox canónico

@@ -141,9 +141,9 @@
                     <form method="post" id="loginForm" style="display:flex; flex-direction:column; gap:18px;">
                         {% csrf_token %}
 
-                        <!-- Correo -->
+                        <!-- Usuario -->
                         <div>
-                            <label for="username" style="display:block; font-size:13px; font-weight:600; color:var(--text-heading); margin-bottom:8px;">Tu correo electrónico *</label>
+                            <label for="username" style="display:block; font-size:13px; font-weight:600; color:var(--text-heading); margin-bottom:8px;">Tu usuario *</label>
                             <div style="position:relative;">
                                 <span style="position:absolute; left:14px; top:50%; transform:translateY(-50%); color:var(--text-body-subtle); display:flex;">
                                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -152,7 +152,7 @@
                                 </span>
                                 <input type="text" id="username" name="username" required
                                        class="login-input" style="padding:0 16px 0 44px;"
-                                       placeholder="Ingresá tu correo electrónico">
+                                       placeholder="Ingresá tu usuario">
                             </div>
                         </div>
 
