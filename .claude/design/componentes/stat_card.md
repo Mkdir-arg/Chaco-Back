@@ -23,6 +23,21 @@
 | `icono` | Font Awesome sin `fas`; por defecto `fa-chart-simple` |
 | `tono` | `brand` (por defecto), `success`, `warning`, `danger`: color de la caja del ícono, **según significado** |
 
+Opcionales, para los tableros cuyos números escribe un JS (`becas-dashboard.js`). **Sin
+ninguno de ellos el render es exactamente el de arriba**, carácter por carácter, y hay un
+test que lo fija contra todas las invocaciones del repo:
+
+| Parámetro | Efecto |
+|---|---|
+| `kpi_id` | marca el valor con `data-kpi="<kpi_id>"` para que el JS lo refresque |
+| `sufijo` | texto corto pegado al valor (« %», « / »), en `text-sm text-body-subtle font-semibold` |
+| `sufijo_id` | segundo número dentro del sufijo, también con `data-kpi`: el «M» de un valor compuesto «N / M». Su texto inicial sale de `valor_sufijo` («—») |
+| `nota` | pie de tarjeta: `text-xs text-body-subtle mt-1` |
+| `nota_id` | `data-kpi` del pie, cuando lo escribe el JS (ahí `nota` va vacía) |
+
+**Con `sufijo`/`sufijo_id`, `kpi_id` marca un `<span>` y no el `<p>`:** el JS asigna
+`textContent`, que sobre el `<p>` entero borraría el sufijo.
+
 Render: card `bg-white rounded-xl border border-base p-4` (sin sombra); fila superior
 `flex items-center justify-between gap-2` con la etiqueta y el ícono en caja
 `w-8 h-8 rounded-lg … bg-{tono}-soft text-fg-{tono}` (ícono `text-sm`, `aria-hidden`); valor
@@ -46,3 +61,7 @@ lo que corresponda.
   quedaron fuera del canon.
 - KPIs escritos a mano con utilidades sueltas (la deuda del tablero de Becas).
 - Métricas que nadie usa para decidir.
+- **Ranura de cuerpo.** La pieza no acepta contenido libre. Una tarjeta que necesita
+  minigráfico o barra de progreso se escribe en la pantalla **con el mismo esqueleto**
+  (es lo que hacen dos de las seis de `becas/config/_dashboard_panel.html`), hasta que
+  exista el **arquetipo Dashboard**. No se le inventa una ranura.
