@@ -171,12 +171,17 @@ jobs:
   #   pase la suite entera a paralelo.
   #
   # El job duplica la suite (~8,5 min), por eso va aparte y no adentro de
-  # `Tests & Coverage`, que tiene `timeout-minutes: 15`.
+  # `Tests & Coverage`, que ya tarda ~12 min midiendo ramas.
+  #
+  # El `continue-on-error` va **en los dos pasos que miden**, no en el job: a nivel
+  # job, GitHub reporta el check como *success* incluso cuando falla y la evidencia
+  # queda solo adentro del log. En los pasos, el paso queda marcado en rojo y con su
+  # anotación en la pestaña del PR —que es lo que hace falta para que alguien lo mire—
+  # mientras el job termina en verde y no bloquea nada.
   orden-y-paralelo:
     name: Orden y paralelo
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    continue-on-error: true
 
     steps:
       - uses: actions/checkout@v4
@@ -196,6 +201,7 @@ jobs:
       # La semilla queda impresa en el log: `manage.py test --shuffle <semilla>`
       # reproduce exactamente este orden.
       - name: Suite en orden aleatorio
+        continue-on-error: true
         env:
           DJANGO_SECRET_KEY: ci-test-key-not-a-real-secret
           PYTEST_RUNNING: "1"
@@ -203,7 +209,7 @@ jobs:
         run: python manage.py test --shuffle
 
       - name: Suite paralela de core, users y portal
-        if: always()
+        continue-on-error: true
         env:
           DJANGO_SECRET_KEY: ci-test-key-not-a-real-secret
           PYTEST_RUNNING: "1"

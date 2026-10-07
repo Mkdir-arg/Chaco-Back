@@ -321,9 +321,19 @@ flujos críticos (la ficha nombraba cuatro en la propuesta y nueve en la ampliac
 92 % y 98 % con ramas, TOTAL 94 %. **Dos desvíos:** el techo es 79 y no 74 porque se remidió, y los «comandos demo» no
 se agregaron al `omit` —cada uno necesitaría su justificación propia y OPS-02 los va a borrar—. `Tests & Coverage`
 sube su `timeout-minutes` de 15 a 20: medir ramas pasa la corrida de 480 s a 744 s.
-**Test permanente:** `core/tests/test_gates_ci.py::ContratosDelRepoTests` (el job y sus pasos) más el propio
-`coverage report`, que es el gate: con `fail_under = 79` y el piso de 90 por módulo, un PR que baje la cobertura queda
-rojo donde antes no pasaba nada.
+**Ronda 2 de la revisión:** el gate no tenía test que lo sostuviera. Son **tres números y una lista**, repartidos entre
+`pyproject.toml` y `pr-backend.yml`, así que borrar el paso del piso por módulo o volver `fail_under` a 48 dejaba todo
+en verde —el mismo modo de falla que TST-03 venía a cerrar—. Lo cubre `core/tests/test_gates_ci.py::CoberturaTests`
+(9 tests, calcado de `ContratoDeMigracionesTests`, que ya parsea `pr-backend.yml`): exige el paso «Coverage por módulo
+crítico» con los nueve módulos y `--fail-under=90`, `branch = true` y `fail_under = 79` en `pyproject.toml`, el `omit`
+de lo que no es producto, y **que las nueve rutas del `--include` existan** —un módulo renombrado desaparece del
+`--include` en silencio: `coverage` no se queja de una ruta inexistente, simplemente mide menos, y con ocho de nueve el
+TOTAL sigue arriba de 90 y el gate queda verde midiendo de menos—.
+**Test permanente:** `core/tests/test_gates_ci.py::CoberturaTests.test_el_fail_under_global_sigue_en_el_techo_medido`
+(y `.test_existe_el_paso_del_piso_por_modulo_critico`, `.test_el_piso_por_modulo_sigue_en_noventa`,
+`.test_el_paso_nombra_exactamente_los_nueve_modulos_criticos`, `.test_los_nueve_modulos_criticos_existen`,
+`.test_el_coverage_mide_ramas`, `.test_el_omit_deja_afuera_lo_que_no_es_producto`,
+`.test_el_job_mide_cobertura`, `.test_el_paso_va_en_un_job_que_el_ruleset_exige`).
 
 - **Propuesta:** sumar `core/performance/*` muerto, `scripts/*`, `awslabs-mcp/*`, `docker/*` y los comandos demo al `omit`; paso separado en `pr-backend.yml`: `coverage report --include=programas/services/siis_envio.py,programas/services/proceso_masivo.py,programas/services/cupo.py,programas/services/inscripcion_publica.py --fail-under=80`.
 

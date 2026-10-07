@@ -32,28 +32,6 @@ from programas.models import (
     TipoCampo,
 )
 
-
-def es_sqlite_en_memoria(database_name):
-    """¿`database_name` es una base SQLite en memoria (incluidos los clones de `--parallel`)?
-
-    RED-88. La guarda de abajo comparaba contra **dos literales**
-    (`":memory:"` y `"file:memorydb_default?mode=memory&cache=shared"`). Con
-    `manage.py test --parallel N` el runner clona la base por worker y la nombra
-    `file:memorydb_default_<n>?mode=memory&cache=shared`: sigue siendo memoria, pero
-    no estaba en la lista, así que `seed_perf` cortaba con `CommandError` en el
-    `setUpTestData` de `core.tests.test_performance_budgets`. Una excepción levantada
-    ahí se reporta como error **de clase**, y su `exc_info` lleva un `traceback` que
-    `multiprocessing` no puede serializar: el runner moría con
-    `TypeError: cannot pickle 'traceback' object` **sin decir qué test falló**, que es
-    lo que bloqueaba la vía obvia para acelerar el CI (RED-86).
-
-    El criterio es el mismo que usa Django (`is_in_memory_db`): `:memory:` o cualquier
-    URI con `mode=memory`. Sigue excluyendo un archivo `.sqlite3` en disco, que es lo
-    que la guarda quería impedir junto con `PYTEST_RUNNING=1`.
-    """
-    return database_name == ":memory:" or "mode=memory" in database_name
-
-
 PERF_PREFIX = "PERF"
 PERF_ADMIN_USERNAME = "perf_admin"
 PERF_CITIZEN_USERNAME = "perf_ciudadano"
@@ -107,10 +85,23 @@ class Command(BaseCommand):
         if scale < 1:
             raise CommandError("--scale debe ser mayor que cero")
         database_name = str(connection.settings_dict.get("NAME") or "")
+        # RED-88: la condición comparaba contra **dos literales** (`":memory:"` y
+        # `"file:memorydb_default?mode=memory&cache=shared"`). Con `test --parallel N`
+        # el runner clona la base por worker y la nombra
+        # `file:memorydb_default_<n>?mode=memory&cache=shared`: sigue siendo memoria,
+        # pero no estaba en la lista, así que `seed_perf` cortaba con `CommandError` en
+        # el `setUpTestData` de `core.tests.test_performance_budgets`. Una excepción
+        # levantada ahí se reporta como error **de clase**, y su `exc_info` lleva un
+        # `traceback` que `multiprocessing` no serializa: el runner moría con
+        # `TypeError: cannot pickle 'traceback' object` **sin decir qué test falló**, que
+        # es lo que bloqueaba la vía obvia para acelerar el CI (RED-86).
+        #
+        # `connection.is_in_memory_db()` es el predicado de Django —existe solo en el
+        # backend de SQLite, por eso va después del `vendor`— y sigue excluyendo un
+        # archivo en disco, que es lo que la guarda quiere impedir junto con
+        # `PYTEST_RUNNING=1`.
         sqlite_test_database = (
-            os.environ.get("PYTEST_RUNNING") == "1"
-            and connection.vendor == "sqlite"
-            and es_sqlite_en_memoria(database_name)
+            os.environ.get("PYTEST_RUNNING") == "1" and connection.vendor == "sqlite" and connection.is_in_memory_db()
         )
         ephemeral_ci_config = (
             os.environ.get("PERFORMANCE_CI") == "1"
