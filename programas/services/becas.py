@@ -4,8 +4,6 @@ Funciones puras sobre los modelos de Becas. La autorización combinada con el
 RBAC (admin vs coordinador con alcance) vive en ``programas.services.autorizacion``.
 """
 
-from datetime import date
-
 from django.db import models, transaction
 from django.db.models import CharField, F, Q, Value
 from django.db.models.lookups import Exact
@@ -214,18 +212,6 @@ def coordinador_gestiona_segmento(user, segmento):
     if user is None or not getattr(user, "is_authenticated", False):
         return False
     return AsignacionCoordinador.objects.filter(coordinador=user, segmento=segmento, activo=True).exists()
-
-
-def es_menor(fecha_nacimiento, referencia=None):
-    """True si ``fecha_nacimiento`` corresponde a un menor de 18 años (RN-22).
-
-    Devuelve None si no hay fecha (no se puede determinar).
-    """
-    if not fecha_nacimiento:
-        return None
-    hoy = referencia or date.today()
-    edad = hoy.year - fecha_nacimiento.year - ((hoy.month, hoy.day) < (fecha_nacimiento.month, fecha_nacimiento.day))
-    return edad < 18
 
 
 def registrar_traza(formulario, usuario, cambios):

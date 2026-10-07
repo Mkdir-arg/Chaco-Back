@@ -20,8 +20,8 @@ depende de él. Sin anidamiento.
 
 from __future__ import annotations
 
-from datetime import date, datetime
-
+from core.edad import edad_en_anios
+from core.edad import fecha_o_none as _fecha
 from programas.models import TipoCampo
 
 MODO_TODAS = "todas"
@@ -85,21 +85,6 @@ def esta_vacio(valor):
     return False
 
 
-def _fecha(valor):
-    if isinstance(valor, datetime):
-        return valor.date()
-    if isinstance(valor, date):
-        return valor
-    if isinstance(valor, str):
-        texto = valor.strip()
-        for formato in ("%Y-%m-%d", "%d/%m/%Y"):
-            try:
-                return datetime.strptime(texto, formato).date()
-            except ValueError:
-                continue
-    return None
-
-
 def _numero(valor):
     if isinstance(valor, bool):
         return None
@@ -110,15 +95,6 @@ def _numero(valor):
         return float(texto) if "." in texto else int(texto)
     except (TypeError, ValueError):
         return None
-
-
-def edad_en_anios(fecha_nacimiento, hoy=None):
-    """Años cumplidos a ``hoy`` (misma cuenta que ``es_menor``, RN-22)."""
-    nacimiento = _fecha(fecha_nacimiento)
-    if nacimiento is None:
-        return None
-    hoy = hoy or date.today()
-    return hoy.year - nacimiento.year - ((hoy.month, hoy.day) < (nacimiento.month, nacimiento.day))
 
 
 def _lista(valor):
@@ -286,6 +262,42 @@ def validar_coherencia(items):
         if problemas:
             errores[item["clave"]] = problemas
         anteriores[item["clave"]] = {"tipo": item.get("tipo"), "tipo_campo": item.get("tipo_campo")}
+    return errores
+
+
+def fuentes_fuera_del_canal(items_del_canal, etiqueta_canal):
+    """``{clave: [errores]}`` de las condiciones cuya fuente no se pide en el canal (BEC-04).
+
+    ``items_del_canal`` es la lista plana **ya filtrada** por ese canal: lo que la
+    persona va a ver ahí. Tiene que venir de ``diseno.items_planos(items, canal)``,
+    que además de mirar el canal de cada ítem arrastra la exclusión del padre —un
+    campo de canal «ambos» colgado de un grupo que solo se pide en la app no se
+    sirve en el link, porque el grupo no viaja—. Filtrar solo por el canal propio
+    del ítem dejaría en pie justo la condición imposible que esto busca.
+
+    Una regla que apunta a un campo que no entra en el canal
+    no se cumple nunca —la fuente llega vacía y ``evaluar_regla`` devuelve ``False``—,
+    así que el ítem queda oculto para siempre y el servidor tampoco lo exige: un
+    grupo obligatorio de canal «ambos» desaparecía del link público sin un solo
+    error, y nadie se enteraba de que faltaba responderlo.
+
+    Es un chequeo aparte de :func:`validar_coherencia` porque la incoherencia no
+    está en el diseño mirado entero —ahí la fuente existe y está antes—, sino en
+    cada canal servido por separado.
+    """
+    presentes = {item["clave"] for item in items_del_canal}
+    errores = {}
+    for item in items_del_canal:
+        reglas = (item.get("condicion") or {}).get("reglas") or []
+        for numero, regla in enumerate(reglas, start=1):
+            if not isinstance(regla, dict):
+                continue
+            fuente = regla.get("fuente")
+            if fuente not in presentes:
+                errores.setdefault(item["clave"], []).append(
+                    f"Regla {numero}: la fuente «{fuente}» no se pide en {etiqueta_canal}, "
+                    f"así que este ítem nunca se mostraría ahí."
+                )
     return errores
 
 

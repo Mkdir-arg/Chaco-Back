@@ -38,7 +38,9 @@ def _calcular_metricas_dashboard():
     total_ciudadanos = Ciudadano.objects.count()
     alertas_activas = AlertaCiudadano.objects.filter(activa=True).count()
 
-    hoy = timezone.now().date()
+    # `localdate()`: `fecha_inscripcion` es un DateField en hora local, así que
+    # con la fecha UTC el contador «de hoy» daba 0 entre las 21 y las 24 (BEC-18).
+    hoy = timezone.localdate()
     inscripciones = InscripcionPrograma.objects.aggregate(
         legajos_activos=Count("id", filter=Q(estado__in=["ACTIVO", "EN_SEGUIMIENTO"])),
         seguimientos_hoy=Count("id", filter=Q(fecha_inscripcion=hoy)),

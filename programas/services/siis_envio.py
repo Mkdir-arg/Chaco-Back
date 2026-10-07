@@ -15,6 +15,7 @@ from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from core.dni import dni_valido
+from core.edad import MAYORIA_DE_EDAD, edad_en_anios
 from programas.models import EnvioSIIS, Formulario, PreguntaGlobal
 from programas.services.dashboard_becas import respuesta_de
 from programas.services.padron import normalizar_dni
@@ -47,7 +48,6 @@ LARGO_CELULAR = 10
 # domicilio es aproximado, en vez de una calle real con una altura inventada.
 CALLE_SIN_NUMERO = "Planta urbana sin número"
 ALTURA_SIN_NUMERO = 1
-MAYORIA_DE_EDAD = 18
 _PESOS_CUIL = (5, 4, 3, 2, 7, 6, 5, 4, 3, 2)
 _PALABRAS_DIRECCION = {"piso", "dpto", "depto", "dto", "departamento", "de", "y", "casa", "mz", "mza", "manzana"}
 _FRASE_PISO_DPTO = r"\b(?:piso|dpto|depto|dto|departamento)\.?\s*([A-Za-z0-9]{1,3})\b"
@@ -320,10 +320,6 @@ def normalizar_celular(valor):
     return digitos if len(digitos) <= LARGO_CELULAR else ""
 
 
-def _edad(fecha_nacimiento, hoy):
-    return hoy.year - fecha_nacimiento.year - ((hoy.month, hoy.day) < (fecha_nacimiento.month, fecha_nacimiento.day))
-
-
 def _con_valor(valor):
     return valor is not None and str(valor).strip() != ""
 
@@ -484,7 +480,7 @@ def _apoderado(formulario, faltantes, correcciones=None, hoy=None, dni_titular=N
     control.
     """
     correcciones = correcciones or {}
-    hoy = hoy or date.today()
+    hoy = hoy or timezone.localdate()
     if formulario.apoderado_ciudadano_id:
         a = formulario.apoderado_ciudadano
         dni, nombre, apellido, sexo, nacimiento = a.dni, a.nombre, a.apellido, a.genero, a.fecha_nacimiento
@@ -522,7 +518,7 @@ def _apoderado(formulario, faltantes, correcciones=None, hoy=None, dni_titular=N
         faltantes["fecha_nacim_apoderado"] = "Falta la fecha de nacimiento del apoderado."
     elif nacimiento > hoy:
         faltantes["fecha_nacim_apoderado"] = "La fecha de nacimiento del apoderado es futura."
-    elif _edad(nacimiento, hoy) < MAYORIA_DE_EDAD:
+    elif edad_en_anios(nacimiento, hoy) < MAYORIA_DE_EDAD:
         faltantes["fecha_nacim_apoderado"] = "El apoderado debe ser mayor de 18 años."
     else:
         datos["fecha_nacim_apoderado"] = nacimiento.isoformat()
@@ -604,7 +600,7 @@ def armar_payload(formulario, catalogos=None, hoy=None):
     Los nombres de campo son **exactamente** los del manual; no se inventan.
     """
     catalogos = catalogos or Catalogos()
-    hoy = hoy or date.today()
+    hoy = hoy or timezone.localdate()
     faltantes = {}
     payload = {"tdoc": TDOC_DNI}
     ciudadano = formulario.ciudadano if formulario.ciudadano_id else None
@@ -754,7 +750,7 @@ def armar_payload(formulario, catalogos=None, hoy=None):
             faltantes[campo] = f"{motivo} También podés completarlo en «Completar datos para SIIS»."
 
     # --- Apoderado (condicional: menor de 18 a la fecha del envío) ---
-    if nacimiento and _edad(nacimiento, hoy) < MAYORIA_DE_EDAD:
+    if nacimiento and edad_en_anios(nacimiento, hoy) < MAYORIA_DE_EDAD:
         payload.update(_apoderado(formulario, faltantes, correcciones, hoy, ciudadano.dni if ciudadano else None))
 
     return payload, faltantes
