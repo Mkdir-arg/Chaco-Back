@@ -27,7 +27,9 @@ class ProgramaListView(CapacidadRequeridaMixin, LoginRequiredMixin, ListView):
     context_object_name = "programas"
 
     def get_queryset(self):
-        # DEPRECATED: filtros/annotates legacy removidos (dependían de models_institucional).
+        # Solo el listado de programas activos. Las anotaciones de instituciones,
+        # derivaciones pendientes y casos activos dependían de `models_institucional`
+        # y se fueron con él; el template dejó de imprimirlas (FE-16).
         return Programa.objects.filter(estado=Programa.Estado.ACTIVO).order_by("orden", "nombre")
 
     def get_context_data(self, **kwargs):

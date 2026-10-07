@@ -202,8 +202,9 @@ de ítems sobre `bg-tertiary`), derecha la vista previa `xl:sticky` con toggle d
 `programas/templates/programas/becas/config/_dashboard_panel.html`,
 `programas/templates/programas/becas/config/_dashboard_card.html` y
 `static/custom/js/becas-dashboard.js`. Se compone con piezas del inventario, pero **tiene deuda
-propia** (KPIs en línea, títulos con tamaño fijo, un modal que todavía no usa el helper): no se
-clona para una pantalla nueva. Lo que vale como contrato:
+propia**: los seis KPIs siguen armados en línea porque `_stat_card.html` no expresa el valor
+compuesto, la nota, el minigráfico ni el medidor, y darle parámetros nuevos es una novedad que
+necesita OK. No se clona para una pantalla nueva. Lo que vale como contrato:
 
 - Tarjeta de gráfico: `data-dash-card`, header con título y subtítulo (`data-dash-sub`) que
   completa el JS, alternador gráfico/tabla (`data-dash-toggle`, `aria-pressed`), descarga CSV
@@ -228,16 +229,16 @@ clona para una pantalla nueva. Lo que vale como contrato:
   El indicador de formularios lleva un minigráfico SVG de doce semanas con `stroke="currentColor"`
   sobre `text-body-subtle` y el último punto en `text-fg-brand`. Las tarjetas de barras fijan su
   alto según la cantidad de filas y la grilla usa `items-start` para que no se estiren.
-- **Pop up «Exportar respuestas por persona»:** mismo patrón de modal Alpine
-  (`fixed inset-0 z-50 … backdrop-blur-sm` con `rgba(0,0,0,.5)`, panel
-  `bg-white rounded-2xl shadow-xl max-w-lg`, header con caja de ícono `bg-brand-soft` /
-  `text-fg-brand`, `role="dialog" aria-modal="true"`, cierre con Escape vía
-  `@keydown.escape.window` y clic afuera), abierto desde el botón `btn-nodo btn-secondary btn-sm`
-  de la tarjeta de respuestas y desde el menú Exportar. El `<form>` lleva un `nodo-field` de
-  convocatoria obligatorio, la nota informativa de los modales de Becas y el pie `bg-secondary`
-  con Cancelar (`btn-tertiary`) y acción (`btn-brand`). El JS escucha `dash-respuestas-abierto`
-  para heredar la convocatoria del filtro y, al enviar, navega a la URL de descarga
-  (`data-url-respuestas`, con `/0/` como marcador del id).
+- **Pop up «Exportar respuestas por persona»:** es el **arquetipo Modal**, sin excepciones —
+  `x-becas-modal="modalRespuestas"`, backdrop propio `bg-black/50 backdrop-blur-sm`, panel
+  `max-w-[560px] max-h-[90vh] flex flex-col`, cuerpo `overflow-y-auto min-h-0`,
+  `_modal_header.html` y `_modal_footer.html`, y la nota con
+  `components/_alerta.html tono="info"`. Se abre desde el botón `btn-nodo btn-secondary btn-sm`
+  de la tarjeta de respuestas y desde el menú Exportar. El `<form id="dash-form-respuestas">`
+  envuelve cuerpo y pie y lleva un `nodo-field` de convocatoria obligatorio con su
+  `data-dash="respuestas-error"`. El JS escucha `dash-respuestas-abierto` para heredar la
+  convocatoria del filtro y, al enviar, navega a la URL de descarga (`data-url-respuestas`, con
+  `/0/` como marcador del id).
 - Medidores de progreso: pista `h-2 rounded-full bg-brand-soft overflow-hidden` y relleno con
   `background: var(--text-fg-brand)` (`--text-fg-warning-subtle` o `--text-fg-danger` por
   severidad). Ocultar en impresión con la clase `dash-no-print` (regla `@media print` local del
@@ -247,16 +248,23 @@ clona para una pantalla nueva. Lo que vale como contrato:
 
 ## Home del backoffice
 
-`templates/inicio.html` (ruta `/inicio/`, `core.views.public.inicio_view`). Alpine
-`dashboardInicio()`: saludo, buscador de ciudadanos con typeahead (`AbortController` + número de
-secuencia para descartar respuestas tardías), stat cards, «Mi trabajo de hoy» con dos feeds,
-accesos rápidos y la grilla «Cobertura por programa» (barras de progreso + tarjeta de tendencias
-con Chart.js vendorizado y carga diferida por `IntersectionObserver`).
+`templates/inicio.html` (ruta `/inicio/`, `core.views.public.inicio_view`). Encabezado
+**canónico** (`{% page_header %}` con el saludo como título, la bajada en el bloque
+`{% bajada %}` y «Ver ciudadanos» como acción): **no hay hero**, el canon no los usa en
+backoffice operativo. Alpine `dashboardInicio()`: buscador de ciudadanos con typeahead
+(`AbortController` + número de secuencia para descartar respuestas tardías), stat cards, «Mi
+trabajo de hoy» con dos feeds, accesos rápidos y la grilla «Cobertura por programa» (barras de
+progreso + tarjeta de tendencias con Chart.js vendorizado y carga diferida por
+`IntersectionObserver`).
 
 **Cada pieza que pide datos a una API con capacidad se esconde con el mismo `puede` que exige esa
 API:** tarjeta de búsqueda rápida y feed de derivaciones con `ciudadano.ver` (la tarjeta sobrevive
 con solo `ciudadano.crear`, pero sin el input), feed de conversaciones sin asignar con
 `conversacion.operar`, tarjeta de tendencias con `dashboard.ver` —si falta el canvas, el JS no
 llama a `dashboard:api_tendencias`—. El typeahead pega a `dashboard:api_buscar_ciudadanos`. Un panel no se deja pedir y fallar en consola, ni se muestra vacío como si no
-hubiera trabajo pendiente: el hero solo dice «Todo al día» a quien tiene alguna de las dos
-capacidades de los contadores; sin ellas, saludo neutro.
+hubiera trabajo pendiente: la bajada del encabezado solo dice «Todo al día» a quien tiene alguna
+de las dos capacidades de los contadores; sin ellas, saludo neutro. Sus cuatro stat cards son
+conteos globales, sin gate de capacidad, y cada una cuenta lo que dice su rótulo: «Legajos
+activos» agrega `LegajoAtencion` con la regla de `legajos.selectors.legajos`, la misma que usa
+`/legajos/reportes/`. Siguen armadas a mano —`_stat_card.html` no tiene pie de tarjeta—, y
+migrarlas necesita OK: es la misma novedad que frena los KPIs del dashboard de Becas.

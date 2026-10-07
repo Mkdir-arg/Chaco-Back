@@ -11,6 +11,7 @@ from core.rbac import requiere
 from programas.models import InscripcionPrograma
 
 from ..models import LegajoAtencion
+from ..selectors import legajos_abiertos
 from ..services.linking import annotate_legajo_link_data
 
 
@@ -33,7 +34,9 @@ def reportes_view(request):
     legajos = annotate_legajo_link_data(LegajoAtencion.objects.all())
     stats = {
         "total_legajos": legajos.count(),
-        "legajos_activos": legajos.exclude(estado="CERRADO").count(),
+        # La definición de «activo» vive en `legajos.selectors.legajos`: la comparte
+        # con la tarjeta del inicio, que antes contaba otra cosa (G2-04).
+        "legajos_activos": legajos_abiertos(legajos).count(),
         "riesgo_alto": legajos.filter(nivel_riesgo="ALTO").count(),
         "nuevos_semana": legajos.filter(fecha_admision__gte=hace_7_dias).count(),
         "por_estado": [
@@ -62,13 +65,9 @@ def reportes_view(request):
             .order_by("-mes")
             .annotate(total=models.Count("id"))[:6]
         ],
-        "metricas_calidad": {
-            "ttr_promedio": 0,
-            "adherencia_adecuada": 0,
-            "tasa_derivacion": 0,
-            "eventos_por_100": 0,
-            "cobertura_seguimiento": 0,
-        },
+        # FE-22: acá iban cinco indicadores de calidad devueltos en cero literal que
+        # la pantalla mostraba como si fueran una medición («0 % de adherencia
+        # adecuada»). Se fueron con el bloque que los imprimía.
     }
     return render(request, "legajos/reportes.html", {"stats": stats})
 

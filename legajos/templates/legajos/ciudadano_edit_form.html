@@ -1,49 +1,22 @@
 {% extends "includes/base.html" %}
-{% load static %}
+{% load static nodo_ui %}
 
 {% block title %}Editar Ciudadano{% endblock %}
 
 {% block main-content %}
 <div class="space-y-8">
-    <section class="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm">
-        <div class="bg-gradient-to-r from-blue-50 via-white to-indigo-50 px-6 py-6 lg:px-8">
-
-            <div class="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-                <div class="flex items-start gap-4">
-                    {% if object.foto %}
-                    <img src="{{ object.foto.url }}" alt="Foto de {{ object.nombre_completo|default:object.nombre }}" class="h-16 w-16 rounded-2xl object-cover shadow-sm ring-4 ring-white">
-                    {% else %}
-                    <div class="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 text-xl font-bold text-white shadow-sm ring-4 ring-white">
-                        {{ object.nombre.0 }}{{ object.apellido.0 }}
-                    </div>
-                    {% endif %}
-                    <div class="rounded-2xl border border-white/80 bg-white px-5 py-4 shadow-sm backdrop-blur">
-                        <div class="mb-2 inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-xs font-medium text-blue-700 shadow-sm ring-1 ring-blue-100">
-                            <span class="h-2 w-2 rounded-full bg-blue-600"></span>
-                            Edición de legajo ciudadano
-                        </div>
-                        <h1 class="text-3xl font-bold tracking-tight text-slate-950">{{ object.apellido }}, {{ object.nombre }}</h1>
-                        <p class="mt-2 max-w-2xl text-sm text-slate-700">Actualizá datos personales, ubicación y perfil social desde una vista unificada con componentes Flowbite.</p>
-                    </div>
-                </div>
-
-                <div class="grid gap-3 sm:grid-cols-3">
-                    <div class="rounded-2xl border border-white/80 bg-white px-4 py-3 shadow-sm backdrop-blur">
-                        <p class="text-xs font-medium uppercase tracking-wide text-gray-500">DNI</p>
-                        <p class="mt-1 text-sm font-semibold text-gray-900">{{ object.dni }}</p>
-                    </div>
-                    <div class="rounded-2xl border border-white/80 bg-white px-4 py-3 shadow-sm backdrop-blur">
-                        <p class="text-xs font-medium uppercase tracking-wide text-gray-500">Estado</p>
-                        <p class="mt-1 text-sm font-semibold text-emerald-700">Activo</p>
-                    </div>
-                    <div class="rounded-2xl border border-white/80 bg-white px-4 py-3 shadow-sm backdrop-blur">
-                        <p class="text-xs font-medium uppercase tracking-wide text-gray-500">Perfil</p>
-                        <p class="mt-1 text-sm font-semibold text-gray-900">Backoffice</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
+    {% comment %}V5A-NEW-04: el hero con gradiente, las tarjetas traslúcidas y la bajada que
+    le nombraba al usuario la librería de maquetado usada salieron. El encabezado es el canónico
+    y los tres datos de cabecera van como badges, leídos del ciudadano: «Activo» y «Backoffice»
+    estaban escritos a mano y no cambiaban con el registro.{% endcomment %}
+    {% url 'legajos:ciudadano_detalle' object.pk as url_detalle %}
+    {% with titulo_pagina=object.nombre_completo|default:object.dni %}
+    {% page_header titulo=titulo_pagina bajada="Datos personales, ubicación y perfil social del ciudadano." volver_url=url_detalle volver_label="el detalle del ciudadano" %}
+        <span class="badge badge-gray">DNI {{ object.dni }}</span>
+        {% if object.activo %}<span class="badge badge-success">Activo</span>{% else %}<span class="badge badge-gray">Inactivo</span>{% endif %}
+        {% if object.usuario %}<span class="badge badge-info">Con usuario del portal</span>{% endif %}
+    {% endpage_header %}
+    {% endwith %}
 
     <form method="post" enctype="multipart/form-data" class="space-y-6">
             {% csrf_token %}
@@ -294,7 +267,8 @@
                                     {% if object.foto %}
                                     <img src="{{ object.foto.url }}" alt="Foto actual" class="h-20 w-20 rounded-2xl object-cover shadow-sm">
                                     {% else %}
-                                    <div class="flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 text-2xl font-bold text-white shadow-sm">
+                                    {# Iniciales según el canon (D5): sin gradiente en el contenido #}
+                                    <div class="flex h-20 w-20 items-center justify-center rounded-2xl bg-brand-soft text-fg-brand text-2xl font-bold shadow-sm">
                                         {{ object.nombre.0 }}{{ object.apellido.0 }}
                                     </div>
                                     {% endif %}

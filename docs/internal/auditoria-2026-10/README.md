@@ -41,6 +41,12 @@ diff que su evidencia. Lo commiteó el juez (19718fb), porque la sesión headles
 |---|---|---|---|---|
 | R-18 | 160 | RED-42 ✅(R) · RED-39 ✅(R) · RED-40 ✅(R) · RED-41 ✅ · RED-43 ✅ · RED-44 ✅ | ✅ | **Las 6 fichas, 18 h, sin migraciones y sin tocar una sola vista de producción.** El único código nuevo que se despliega es `core/http.py` (dos helpers que todavía no usa nadie) y un comando de management de **solo lectura**; todo lo demás son tests, fixtures y CI. (1) **RED-42:** `core/tests/test_urls_del_front.py` barre `templates/`, los ocho `*/templates/` y `static/**/*.js`, normaliza los segmentos que son una interpolación entera probándolos con una sonda entera **y** una UUID, y mide **14 literales con 3 rotos** —`/legajos/1/contactos/api/`, `/legajos/contactos/1/detalle/` (LEG-06) y `/set_dark_mode/` (RED-75)—, que son la allowlist inicial con ratchet en **las dos direcciones**; del otro lado, `dashboard/tests/test_api_contrato.py` congela el conjunto **exacto** de `results`/`has_more`, `labels`/`datos` y `count`/`criticas`, que son los kwargs de un `aggregate()` que nadie eligió a propósito. (2) **RED-39:** `core/http.py` con `error_json`/`ok_json`, y las cinco claves de hoy congeladas **donde están** —el constructor en `message`, legajos en `error` y en `mensaje`—, para que la migración de la Ola 7 no se lleve puesto un front. (3) **RED-40:** `verificar_json_guardado [--json]`, la foto que hay que sacar contra un dump restaurado **antes** de cambiar la forma de un `JSONField`: condiciones con operadores que no existen (el ítem no se muestra nunca), `propio` sin `tipo`, fotos sin `items` y correcciones de SIIS que nadie consume. (4) **RED-41:** seis fixtures sintéticos de RENAPER, Personas y SIIS con **D-RED-04 aplicada por default**, consumidos por los parsers reales, de punta a punta y con el domicilio anidado; dos bugs quedan **medidos y no arreglados** (SIIS-10 con `expectedFailure` y su contracara, y el `result` anidado un nivel que marca al caso validado con el nombre en `None`). (5) **RED-43:** job **`Contratos de API`** —`spectacular --validate` + 8 módulos, 62 tests en 8,8 s, sin base real ni red—, **obligatorio desde el primer día**: sumado a `ruleset-development.json` y a `CHECKS_OBLIGATORIOS` en el mismo PR, con el filtro por rutas adentro del job. (6) **RED-44:** cruce AST en las dos direcciones entre los literales de capacidad y el `CATALOGO`. **Tres desvíos, los tres code-first:** la allowlist de RED-42 nace en 3 y no en 4 (el Cambio 150 ya retiró la cuarta); la `definicion` «plana anterior al Cambio 58» que pedía RED-40 **no puede existir** —el campo nació en `programas.0062`, que es de ese mismo cambio—, así que se prueba lo viejo de verdad (`definicion = NULL` + `data` legacy); y RED-44 midió **seis** capacidades sin uso propio y no una. **Abierto:** `config.ver`, `relevamiento.ver`, `institucion.ver` e `institucion.administrar` están en el catálogo, el ABM de Roles las ofrece y **tildarlas no habilita nada** → decisión de la Ola 7 (OPS-14); las partes no-R de RED-39 (Ola 7), RED-40 (Ola 3, los `validators`) y RED-42 (Ola 5, literales → `{% url %}`); SIIS-10 (Ola 3); y el job no nombra todavía `programas.tests.test_definicion_contrato` ni `scripts/check_condiciones_js.mjs`, que los crea **R-17** y hay que agregar al workflow en ese mismo PR. **Ronda 2 (4 MINOR, todos corregidos):** los dos jobs con `dorny/paths-filter` —el nuevo y `Migrate ida y vuelta`— declaraban solo `contents: read` y podían terminar **en verde sin correr nada** en cuanto D-RED-01 vuelva privado el repo; ahora llevan `pull-requests: read` y un paso que falla si el filtro no resolvió. El test de la subida feliz escribía en el `MEDIA_ROOT` real (siete huérfanos borrados): va a un `TemporaryDirectory`. **La vuelta de RED-44 era ciega a la mitad del catálogo** —contaba `CAPS_GESTION`, que *es* el catálogo de Becas— y al corregirlo apareció `becas.coordinador.ver`. Y el barrido de URLs usaba la misma sonda para todos los segmentos, así que una ruta que mezcle `<uuid:>` con `<int:>` daba falso roto. **Para el PM:** el ruleset de `development` cambió —cuando lo aplique, va con `Contratos de API` adentro— |
 
+## Estado al 07-oct-2026 (Ola 5, PR 7: números que no miden lo que su rótulo dice)
+
+| PR | Cambio | Fichas | Estado | Qué quedó abierto |
+|---|---|---|---|---|
+| Ola 5 · PR 7 | 161 | G2-04 ✅ · G2-06 ✅ · FE-16 ✅ · V5A-NEW-04 ✅ · FE-22 🟡 · V5A-NEW-07 (b) 🟡 | 🟡 | **4 fichas cerradas, 2 parciales, 20 h, sin migraciones.** Hilo común: la pantalla afirma algo que el código no sostiene. (1) **G2-04:** «↑N nuevos este mes» contaba inscripciones y pasa a decirlo; `actividad_hoy` —el mismo número con otro nombre, impreso dos veces— se **borra** del contexto; «usuarios activos hoy» pasa a `ingresos_24h`, **excluye a los ciudadanos del portal** y se rotula por lo que mide (`last_login` es el último ingreso, no actividad), con clave de caché nueva para que la semántica vieja no sobreviva al deploy; y la serie de `tendencias_datos` arranca en `hoy - (dias - 1)`, así que **el gráfico ya incluye hoy**. (2) **G2-06:** el login se rotula «Tu usuario», igual que lo que el ABM da de alta; el backend no se toca. (3) **FE-16:** salen los tres KPIs que leían anotaciones que `get_queryset` dejó de calcular. **Desvío de D-F16:** no se borra la pantalla —el default dice «borrar **con LEG-06**», Ola 7, y `programa_detalle` sigue siendo destino de redirect de las bajas y derivaciones—. (4) **V5A-NEW-04:** encabezado canónico, bajada funcional (se va la que le nombraba la librería de maquetado al usuario) y DNI/estado/portal como badges **leídos del registro**: «Activo» estaba escrito a mano. (5) **FE-22, con D-F22 en su default:** el hero del inicio sale, `/legajos/reportes/` queda migrada sin los «(Próximamente)» ni las cinco «métricas de calidad» en cero literal, el semáforo de WebSocket vive detrás de `websockets_enabled` y los emojis pasan a Font Awesome con `aria-hidden`. (6) **V5A-NEW-07 (b):** los 6 labels de `convocatoria_list` con `for`, más el `[x-cloak]` local y el backdrop con `style=` que la descartaban como golden (`--arquetipo modal` da OK); en `_dashboard_panel`, los títulos a `text-base` y el modal de respuestas al arquetipo Modal con `x-becas-modal`. **Abierto (los dos 🟡, mismo bloqueo):** las 4 stat cards del inicio y los 6 KPIs de `_dashboard_panel` siguen a mano. `_stat_card.html` acepta `etiqueta`/`valor`/`icono`/`tono` y las tarjetas piden además nota, `data-kpi`, valor compuesto, sufijo, variación, sparkline y barra de progreso: darle esos parámetros al componente canónico es **novedad del agente** y el protocolo manda frenar. La propuesta va en el cuerpo del PR, para OK del PM. Fuera de alcance, code-first: `dashboard/templates/dashboard.html` tiene el mismo defecto que FE-16 pero su vista está tapada por el orden del URLconf (RED-78, Ola 7) |
+
 ## Estado al 07-oct-2026 (Ola R: R-21, los ratchets de arquitectura)
 
 | PR | Cambio | Fichas | Estado | Qué quedó abierto |
@@ -1208,19 +1214,22 @@ Avance: 0 ✅ · 1 🟡 · 23 ⬜ (+ R0-02, R0-03 ⬜).
 Avance: 11 ⬜ (+ R0b-01, 02, 03, 10 ⬜; R0b-12 operativo). SEC-03 (con G1b-01) está en 4.1.
 - **ALTA:** G1b-02 autootorgamiento de capacidades.
 - **MEDIA:** G1b-05 cuentas fantasma · G1b-06 capacidades globales borradas · G2-03 cambio de clave sin la actual.
-- **BAJA:** G1b-07, 08, 09, 10, 12 · G2-04 · G2-06.
+- **BAJA:** G1b-07, 08, 09, 10, 12 · ✅ G2-04 · ✅ G2-06 (Ola 5, PR 7).
 - **Seguimientos (BAJA/MINOR):** R0b-01 `help_text` de los campos bloqueados (2) · R0b-02 rol desactivado en SEC-03 (2) ·
   R0b-03 P-04 sin roles Backoffice/Sistema (2) · R0b-10 botones del listado para no gestionables (2).
 - **Operativo (PM):** R0b-12 correr P-04 ampliado en PRD.
 
 ### 4.7 Front del backoffice → `hallazgos/07-front.md` (28)
-Avance: 17 ✅ · 1 🟡 · 10 ⬜ (FE-13, V5A-NEW-01, V5A-NEW-08 y la parte (a) de V5A-NEW-07 en la Ola 6; FE-02, FE-09 y
+Avance: 19 ✅ · 2 🟡 · 7 ⬜ (FE-13, V5A-NEW-01, V5A-NEW-08 y la parte (a) de V5A-NEW-07 en la Ola 6; FE-02, FE-09 y
 FE-21 en el PR 2 de la Ola 5; FE-04, FE-05 y FE-08 en el PR 3; FE-06, FE-07, FE-01 y FE-10 en el PR 4;
-FE-18, FE-19, FE-25 y FE-26 en el PR 5).
+FE-18, FE-19, FE-25 y FE-26 en el PR 5; FE-16, V5A-NEW-04, 🟡 FE-22 y la parte (b) de V5A-NEW-07 en el PR 7).
+Los dos 🟡 que quedan son el **mismo** bloqueo: las 4 stat cards del inicio (FE-22) y los 6 KPIs de
+`_dashboard_panel` (V5A-NEW-07 b) necesitan parámetros nuevos en `_stat_card.html`, que es novedad del agente y
+espera OK del PM.
 - **ALTA:** ✅ FE-02 `toastr` (Ola 5, PR 2) · ✅ FE-04 paginación de Geografía · ✅ FE-05 wizard (Ola 5, PR 3) ·
   ✅ FE-06 clases inexistentes (Ola 5, PR 4).
 - **MEDIA:** ✅ 01, ✅ 07, ✅ 08, ✅ 09, ✅ 10, 11, 12, ✅ 13, 17, ✅ 18, ✅ 19, 20, ✅ 21 · ✅ V5A-NEW-01 · 🟡 V5A-NEW-07.
-- **BAJA:** FE-14, 16, 22, 23, 24, ✅ 25, ✅ 26 · V5A-NEW-04 · ✅ V5A-NEW-08.
+- **BAJA:** FE-14, ✅ 16, 🟡 22, 23, 24, ✅ 25, ✅ 26 · ✅ V5A-NEW-04 · ✅ V5A-NEW-08.
 
 ### 4.8 Red de seguridad → `hallazgos/08-red-de-seguridad.md` (89, frente del 04-oct-2026)
 Avance al cierre de la Ola R mínima: **30 ✅ · 3 🟡 · 56 ⬜**. Agrupadas por tema: (a) flujos críticos y cobertura, (b) regresión de bugs pasados, (c) contratos, tipado y
@@ -1301,7 +1310,7 @@ funcional ni coordinación con ECOM). Las horas de cada ola suman los esfuerzos 
 | 2 | Autorización (RBAC, legajos, alcance de Becas, usuarios) | 36 | 116 | 50 (+ fase 2 de OPS-06, R0-05, resto de SEC-01, etapa 2 de SEC-09, R0b-01..10) | 136 | 51 (+ RED-80; + partes de RED-52, RED-79) | 135 (−7: SEC-10, SEC-18 y media SEC-11 se hacen en R-19, D-RED-14) |
 | 3 | Datos, operación, CI, app de campo y reglas de Becas | 55 | 158 | 59 (+ R0-03, R0-04, R0-06, R0-07) | 166 | 54 (− 7 a la Ola R; + RED-48, RED-58; + partes de RED-09, 35, 40, 50) | 152 |
 | 4 | Performance | 19 | 52 | 19 | 52 | 20 (+ RED-62; + partes de RED-10, 49, 51, 83) | 64 |
-| 5 | Bugs de front y parches v1 de Legajos/Dispositivos | 31 (+ V5A-NEW-07 b) | 114 | 31 (+ V5A-NEW-07 b) | 114 | 33 (+ RED-33, RED-75; + partes de RED-42, 53) (+ V5A-NEW-07 b) | 128 · **4 cerradas el 06-oct (PR 1: DIS-01, DIS-08) → 124 restantes** |
+| 5 | Bugs de front y parches v1 de Legajos/Dispositivos | 31 (+ V5A-NEW-07 b) | 114 | 31 (+ V5A-NEW-07 b) | 114 | 33 (+ RED-33, RED-75; + partes de RED-42, 53) (+ V5A-NEW-07 b) | 128 · **66 cerradas (PRs 1 a 5 y 7) → 62 restantes** |
 | 6 | Agente de diseño | 4 (+8 pasos) | 42 | 4 (+8 pasos) | 42 | 4 (+8 pasos) | 42 · **22 cerradas el 05-oct (pasos 0-3) → 20 restantes** |
 | 7 | Deuda | 9 (+ fase 2 de G1-01) | 46 | 10 (+ fase 2 de G1-01; + R0-02) | 48 | 13 (+ RED-64, 76, 86; + partes de RED-13, 37, 39, 54, 78, 85) | 88 |
 | v2 | Criterios de aceptación de la v2 (§7), no se implementan en v1 | 13 | — | 13 | — | 13 | — |
@@ -1714,7 +1723,7 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
 ### Ola 5 — Bugs de front y parches v1 de Legajos y Dispositivos
 - **Objetivo:** que las pantallas funcionen (subir archivos, paginar, cascadas, botones visibles) y migrar las pantallas
   fuera de Becas a las piezas canónicas clonando las goldens.
-- **Avance: 46 h de 128, 82 restantes.** PR 1 (DIS-01 + DIS-08) en el Cambio 140, 06-oct-2026: helper de fechas locales,
+- **Avance: 66 h de 128, 62 restantes.** PR 1 (DIS-01 + DIS-08) en el Cambio 140, 06-oct-2026: helper de fechas locales,
   los dos usos de Dispositivos más los tres latentes y cuatro de Conversaciones, y la guardia `test_sql_portable.py`
   (recorre el código con `ast`, allowlist vacía). **PR 2 (FE-02, LEG-02, LEG-03, LEG-04, LEG-05, FE-09, FE-21) en el
   Cambio 150, 06-oct-2026**: las 7 fichas cerradas, sin migración. **PR 3 (FE-04, FE-05, FE-08) en el Cambio 152,
@@ -1725,12 +1734,18 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
   **PR 5 (FE-18, FE-19, FE-25, FE-26) en el Cambio 157, 07-oct-2026**: las 4 fichas cerradas, sin migración;
   Merenderos estrena sus dos parciales de badges, los tres handlers de confirmación copiados pasan a
   `programas/_swal_confirm_js.html` con el tono declarado por la pantalla, `alertas_websocket.js` deja de
-  tener avisos propios y el shell carga una guardia de doble envío. Quedan abiertos los PRs 6 a 8.
+  tener avisos propios y el shell carga una guardia de doble envío. **PR 7 (FE-22, FE-16, V5A-NEW-04, G2-04,
+  G2-06 y V5A-NEW-07 b) en el Cambio 161, 07-oct-2026**: 4 fichas cerradas y 2 en 🟡 por el **mismo** motivo —las
+  4 stat cards del inicio y los 6 KPIs de `_dashboard_panel` piden parámetros nuevos en `_stat_card.html`, que
+  es novedad del agente y espera OK—; sin migración. D-F22 y D-G204 aplicados con su default: el hero del inicio
+  sale, los cuatro contadores pasan a decir lo que miden y los números que nadie calcula (KPIs de «Gestión de
+  Programas», «métricas de calidad» de reportes, botones «Próximamente») se borran en vez de maquillarse.
+  Quedan abiertos los PRs 6 y 8.
 - **PRs y orden:** (1) DIS-01 + DIS-08 (helper de fechas locales + guardia de `__date`) 4 h · (2) Legajos: FE-02, LEG-04,
   LEG-05, LEG-02, LEG-03, FE-09, FE-21 14 h · (3) ✅ Configuración: FE-04, FE-05, FE-08 6 h (Cambio 152) · (4) ✅ FE-06,
   FE-07, FE-01 y FE-10 14 h (Cambio 155) · (5) ✅ FE-18, FE-19, FE-25, FE-26 8 h (Cambio 157) · (6) **después de la
-  Ola 6 paso 4:** FE-11, FE-12, FE-17, FE-20, FE-23, FE-24 48 h · (7) FE-22, FE-16, V5A-NEW-04, G2-04, G2-06, V5A-NEW-07 parte (b) (labels de `convocatoria_list` y deuda de
-  `_dashboard_panel`) 20 h · (8) *Red de seguridad (04-oct):* RED-33 (tests HTTP de las vistas de Dispositivos y
+  Ola 6 paso 4:** FE-11, FE-12, FE-17, FE-20, FE-23, FE-24 48 h · (7) ✅ FE-22 (🟡), FE-16, V5A-NEW-04, G2-04, G2-06, V5A-NEW-07 parte (b) (labels de `convocatoria_list` y deuda de
+  `_dashboard_panel`) 20 h (Cambio 161) · (8) *Red de seguridad (04-oct):* RED-33 (tests HTTP de las vistas de Dispositivos y
   Merenderos, con el PR 1), RED-75 (`/set_dark_mode/`, D-RED-07) y segundas partes de RED-42 (URLs literales →
   `{% url %}`) y RED-53 (`_subir_padron`) 14 h.
 - **Hecho cuando:** V-STD + V-UI (desde la Ola 6, `--ratchet` = 0 nuevos y `--arquetipo` OK en pantallas migradas); PoC
