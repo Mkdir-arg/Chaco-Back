@@ -14,7 +14,7 @@ from dashboard.utils import (
     contar_usuarios,
 )
 
-from ..rbac import puede
+from ..rbac import GRUPO_CIUDADANO_PORTAL, puede
 from ..selectors import get_localidades_values, get_municipios_values
 
 
@@ -65,10 +65,17 @@ def inicio_view(request):
     seguimientos_hoy = contar_seguimientos_hoy()
 
     context = {
+        # El título del encabezado canónico se arma acá: `{% page_header %}` toma
+        # `titulo` como argumento con nombre y lo escapa (FE-22, el hero salió).
+        "titulo_inicio": f"Hola, {request.user.get_short_name() or request.user.get_username()}",
         "total_ciudadanos": contar_ciudadanos(),
-        "usuarios_activos": cache.get_or_set(
-            "home:usuarios_activos_24h",
-            lambda: User.objects.filter(last_login__gte=hace_24h).count(),
+        # G2-04: es el último ingreso de las últimas 24 h, no «usuarios activos».
+        # Los ciudadanos del portal quedan afuera: el grupo `Ciudadanos` es un
+        # marcador de identidad del portal, no un rol del backoffice, y contarlos
+        # infla un número que la home presenta como operación interna.
+        "ingresos_24h": cache.get_or_set(
+            "home:ingresos_backoffice_24h",
+            lambda: User.objects.filter(last_login__gte=hace_24h).exclude(groups__name=GRUPO_CIUDADANO_PORTAL).count(),
             300,
         ),
         "registros_mes": cache.get_or_set(
@@ -76,7 +83,6 @@ def inicio_view(request):
             lambda: InscripcionPrograma.objects.filter(fecha_inscripcion__gte=inicio_mes).count(),
             300,
         ),
-        "actividad_hoy": seguimientos_hoy,
         "total_usuarios": contar_usuarios(),
         "total_legajos": legajo_stats["total"],
         "legajos_activos": legajo_stats["activos"],

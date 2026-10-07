@@ -214,7 +214,10 @@ def tendencias_datos(request):
     dias = dias_map.get(periodo, 30)
 
     try:
-        fecha_inicio = timezone.now().date() - timedelta(days=dias)
+        # G2-04: la serie termina **hoy**. Arrancaba en `hoy - dias` y recorría
+        # `range(dias)`, así que el último punto era ayer y la actividad del día
+        # en curso no aparecía nunca en el gráfico del inicio.
+        fecha_inicio = timezone.now().date() - timedelta(days=dias - 1)
 
         # ``fecha_inscripcion`` ya es un DateField: ``TruncDate`` no aportaba nada y
         # generaba ``DATE(CONVERT_TZ(...))``. Sin tablas de zona horaria —el MySQL de

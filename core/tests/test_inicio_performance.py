@@ -22,8 +22,11 @@ class InicioPerformanceTests(TestCase):
 
         contexto = renderizar.call_args.args[2]
         contar_seguimientos.assert_called_once_with()
-        self.assertEqual(contexto["actividad_hoy"], 7)
         self.assertEqual(contexto["seguimientos_hoy"], 7)
+        # G2-04 se llevó `actividad_hoy`: era el mismo número con otro nombre y la
+        # home lo imprimía dos veces. Lo que sigue importando acá es que el conteo
+        # se pida **una sola vez** por request.
+        self.assertNotIn("actividad_hoy", contexto)
 
     def test_inicio_difiere_chartjs_hasta_que_el_grafico_este_cerca_del_viewport(self):
         user = get_user_model().objects.create_user(username="inicio-chart", password="secret")

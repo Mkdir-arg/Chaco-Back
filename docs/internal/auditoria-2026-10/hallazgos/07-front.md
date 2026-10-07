@@ -35,15 +35,15 @@ FE-18, FE-19); las migraciones de estilo de esos dos módulos las hereda la v2.
 | FE-20 | Wrapper legacy `includes/main.html`: contenido desplazado; 403/404/500 sin estilo | MEDIA | CONF. navegador | 5 | M | ⬜ |
 | FE-21 | Modales de Legajos sin Escape ni foco | MEDIA | CONF. | 5 | S | ✅ |
 | V5A-NEW-01 | `tailwind.css` committeado desactualizado y sin gate | MEDIA | CONF. | 6 | S | ✅ |
-| V5A-NEW-07 | Deuda de accesibilidad en las pantallas candidatas a referencia | MEDIA | CONF. | 6 (a) / 5 (b) | (a) en paso 3 · (b) 2 × S | 🟡 (a) ✅ |
+| V5A-NEW-07 | Deuda de accesibilidad en las pantallas candidatas a referencia | MEDIA | CONF. | 6 (a) / 5 (b) | (a) en paso 3 · (b) 2 × S | 🟡 (a) ✅ · (b) parcial |
 | FE-14 | 29 JS y 1 CSS huérfanos | BAJA (A6: MEDIA) | CONF. ajustado | 7 | S | ⬜ |
-| FE-16 | «Gestión de Programas» de Legajos con KPIs sin valor | BAJA | CONF. | 5 | S | ⬜ |
-| FE-22 | Dashboards fuera de canon | BAJA | CONF. | 5 | M | ⬜ |
+| FE-16 | «Gestión de Programas» de Legajos con KPIs sin valor | BAJA | CONF. | 5 | S | ✅ |
+| FE-22 | Dashboards fuera de canon | BAJA | CONF. | 5 | M | 🟡 |
 | FE-23 | `_field.html` duplicado | BAJA | CONF. ajustado | 5 | S | ⬜ |
 | FE-24 | Solapas sin ARIA ni teclado | BAJA | CONF. | 5 | S | ⬜ |
 | FE-25 | Avisos paralelos en `alertas_websocket.js` | BAJA | CONF. código | 5 | S | ✅ |
 | FE-26 | Doble envío en formularios clásicos | BAJA | PLAUSIBLE | 5 | S | ✅ |
-| V5A-NEW-04 | Edición del ciudadano: hero fuera de canon y texto técnico visible | BAJA | CONF. navegador | 5 | S | ⬜ |
+| V5A-NEW-04 | Edición del ciudadano: hero fuera de canon y texto técnico visible | BAJA | CONF. navegador | 5 | S | ✅ |
 | V5A-NEW-08 | `compile_templates.py` compila templates de terceros | BAJA | CONF. | 6 | S | ✅ |
 
 ---
@@ -402,7 +402,7 @@ sumaba 20 px de hueco con el error oculto — va adentro del primer bloque de ca
 leía la tabla `## Arquetipos` del núcleo, que escribe el paso 4, y sin ella el gate salía verde sin verificar nada —desde
 el **Cambio 132** esa tabla existe y manda, y que el núcleo no la declare es un error del gate—; (c) el
 `<style>[x-cloak]` de `programa_list` que la ficha no nombraba también sale, porque `--goldens` audita el archivo entero.
-**Parte (b) sigue abierta** (Ola 5, PR 7). **Test permanente:** `core.tests.test_design_audit_estructura.GoldensSaneadasTests`
+**Parte (b): cerrada salvo los 6 KPIs** en el PR #NNN (Cambio 161), 07-10-2026 — ver abajo. **Test permanente:** `core.tests.test_design_audit_estructura.GoldensSaneadasTests`
 (9 tests) + `MarcadoresDeArquetipoTests.test_las_goldens_limpias_cumplen_sus_marcadores` sobre los 4 arquetipos +
 `GateDeCiTests.test_el_step_de_goldens_corre_y_bloquea`.
 - **Evidencia:** `becas/config/programa_list.html:50` (help text del campo SIIS en `text-fg-danger`: parece un error); `becas/relevamientos/convocatoria_list.html:43,49,55,70,75,81` (6 `<label>` sin `for`, WCAG 1.3.1); `becas/revision/personas_list.html:39` (`<th>` de acciones vacío); `_dashboard_panel.html` (KPIs sin `_stat_card`, `modalRespuestas` sin `x-becas-modal`).
@@ -418,6 +418,33 @@ el **Cambio 132** esa tabla existe y manda, y que el núcleo no la declare es un
   - **Verificación (b):** V-UI; Playwright: cada label enfoca su control; `modalRespuestas` cierra con Escape y atrapa el
     foco.
 
+**Resolución de la parte (b):** 🟡 Resuelta **menos los KPIs**, en el PR #NNN (Cambio 161), 07-10-2026.
+**(b.1) `relevamientos/convocatoria_list.html` — cerrada.** Los seis `<label>` del modal «Nueva convocatoria»
+llevan `for="{{ form_convocatoria.<campo>.id_for_label }}"` (nombre, segmento, subsegmento, fecha_inicio,
+fecha_fin, descripción). **Se saneó además lo otro que la ficha del arquetipo Modal le reprochaba** —es lo que
+la descartó como golden—: el `[x-cloak]` propio en un `<style>` local, que `override.css` ya declara global
+(misma limpieza que el Cambio 131 en `programa_list`), y el backdrop con el fondo y el blur en un `style=`, que
+pasan a `bg-black/50 backdrop-blur-sm`. `design_audit.py --arquetipo modal` sobre ese archivo da **OK**.
+**(b.2) `config/_dashboard_panel.html` — parcial.** Los tres títulos de bloque con el tamaño fijado en un
+`style=` pasan a `text-base`, y el modal «Exportar respuestas por persona» pasa al arquetipo Modal:
+`x-becas-modal="modalRespuestas"` (foco al abrir, Tab atrapado, Escape, scroll del fondo bloqueado y foco
+devuelto al disparador), backdrop como hijo propio, panel `max-w-[560px] max-h-[90vh] flex flex-col`, cuerpo
+`overflow-y-auto min-h-0`, `_modal_header.html` —que se lleva el SVG de la X pegado a mano— y
+`_modal_footer.html`; la nota informativa, que era el markup de `_alerta.html tono="info"` copiado, pasa al
+include. `becas-modal.js` ya lo carga el consumidor (`config/programa_detail.html`).
+**Los 6 KPIs NO se migraron: frenado por el protocolo del agente.** La ficha lo anticipaba («es novedad del
+agente: pedir OK»). `templates/components/_stat_card.html` acepta `etiqueta`, `valor`, `icono` y `tono`; las
+tarjetas necesitan además `data-kpi` en el valor, nota al pie, valor compuesto `N / M`, sufijo « %», variación,
+un minigráfico SVG de 12 semanas y una barra de progreso. Darle esos parámetros al componente canónico es
+rediseñarlo para un arquetipo que no tiene golden: la propuesta concreta va en el cuerpo del PR, para OK del PM.
+Es el mismo bloqueo que deja 🟡 a FE-22 con las 4 stat cards del inicio. Quedan también fuera, por no estar en la
+ficha, la regla local de impresión del panel y el gradiente del ícono de «Formularios recibidos».
+**Test permanente:** `core.tests.test_front_ola5_pr7.ConvocatoriaListLabelsTests.test_cada_label_apunta_a_su_control`
+(+ `test_no_quedan_labels_sueltos`, `test_el_modal_no_arrastra_estilo_local`) y
+`DashboardPanelDeBecasTests.test_el_modal_de_respuestas_usa_la_pieza_del_arquetipo`
+(+ `test_los_titulos_de_bloque_no_fijan_el_tamano_en_linea`, `test_el_modal_de_respuestas_usa_el_header_y_el_pie_canonicos`,
+`test_el_modal_no_dibuja_su_propia_x_con_svg`).
+
 ## BAJA
 
 ### FE-14 · Estáticos huérfanos
@@ -431,9 +458,42 @@ el **Cambio 132** esa tabla existe y manda, y que el núcleo no la declare es un
 - **Ubicación:** `legajos/views/programas.py:get_queryset` («DEPRECATED»; el template lee anotaciones que ya no existen).
 - **Propuesta (default D-F16 = borrar con LEG-06):** si se usa, `_stat_card.html` con conteos anotados en `get_queryset`.
 
+**Resolución:** ✅ Resuelto en el PR #NNN (Cambio 161), 07-10-2026 — salen las tres métricas por tarjeta
+(`total_instituciones`, `total_derivaciones_pendientes`, `total_casos_activos`), que imprimían anotaciones que
+`get_queryset` dejó de calcular al retirarse `models_institucional`, y el «DEPRECATED» de la vista pasa a decir
+qué calcula hoy. **Desvío respecto del default D-F16:** no se borra la pantalla. El default es «borrar **con
+LEG-06**», que es de la Ola 7 y es donde vive la decisión sobre derivaciones (D-L06); además `programa_detalle`
+sigue siendo el destino de redirect de `dar_de_baja_inscripcion` y de las derivaciones. Acá se saca la deuda
+visible; el borrado completo sigue siendo de LEG-06. **Test permanente:**
+`core.tests.test_front_ola5_pr7.ProgramasDeLegajosSinKpisVaciosTests.test_las_tres_anotaciones_muertas_no_estan`
+(+ `test_el_queryset_ya_no_se_declara_deprecado_con_anotaciones`).
+
 ### FE-22 · Dashboards fuera de canon: hero, cards de colores, emojis y «Próximamente»
 **Severidad:** BAJA · **Origen:** A6-23 · **Ola:** 5 · **Esfuerzo:** M · **Decisión:** D-F22 (hero de `inicio.html`)
 - **Propuesta:** stat cards → `_stat_card.html`; quitar los «(Próximamente)» de `legajos/reportes.html`; emojis → Font Awesome con `aria-hidden`; `page_header`; ocultar «Estado WebSocket» si `websockets_enabled` es falso. El dashboard completo no tiene golden (agente: frenar): limitarse a estas piezas. D-F22: ¿el hero de `inicio.html` queda como excepción registrada? (el canon dice «no hero sections»). G2-04 corrige los números del mismo inicio.
+
+**Resolución:** 🟡 Resuelto en el PR #NNN (Cambio 161), 07-10-2026 — **salvo las stat cards del inicio**.
+**D-F22 aplicado con el default** («aplicar el canon salvo que el PM registre la excepción»): el hero de
+`inicio.html` sale y el encabezado pasa al tag canónico, con el mismo saludo de título, la misma bajada en el
+bloque `bajada` (trae `<strong>`) y «Ver ciudadanos» como acción. Con él se fueron sus cinco reglas CSS y el
+eyebrow que calculaba el saludo por hora en el cliente, su único consumidor. `legajos/reportes.html` queda
+migrada: encabezado canónico con «Exportar CSV», cuatro `components/_stat_card.html`, cuatro surfaces con los
+cortes que sí se calculan, y **afuera** los dos botones «(Próximamente)» y las cinco «métricas de calidad» que
+la vista devolvía en cero literal (también salen de `reportes_view`). El semáforo «Estado WebSocket» de
+`alertas_dashboard.html` vive detrás de `{% if websockets_enabled %}`. Los cinco emojis de
+`dashboard_contactos_simple.html` pasan a Font Awesome con `aria-hidden`, igual que los seis íconos que ya
+estaban sin él.
+**Lo que queda abierto (por eso 🟡):** las **4 stat cards de `inicio.html` siguen armadas a mano**. Las cuatro
+tienen pie de tarjeta y una además un delta, y `_stat_card.html` solo acepta `etiqueta`, `valor`, `icono` y
+`tono`: darle `nota`/`delta` es **novedad del agente** y el protocolo manda frenar y pedir OK. Es el mismo
+bloqueo que V5A-NEW-07 (b) con los 6 KPIs de `_dashboard_panel`, y la propuesta concreta va en el cuerpo del PR.
+**Fuera de alcance, code-first:** `dashboard/templates/dashboard.html` tiene el mismo defecto que FE-16 —tres de
+sus cuatro cards leen claves que `DashboardView` no pone en el contexto— pero la vista está **tapada** por el
+orden de `config/urls.py` (RED-78) y su borrado es de la Ola 7 con OPS-14. Y `dashboard_simple.html`,
+`historial_contactos_simple.html` y `red_contactos_simple.html` también tienen emojis: son código muerto de
+LEG-06 y dos de ellos ni siquiera tienen ruta. **Test permanente:**
+`core.tests.test_front_ola5_pr7.ReportesDeLegajosTests` (6 tests) + `EstadoWebsocketTests.test_el_semaforo_vive_detras_de_websockets_enabled`
++ `EmojisComoIconosTests` (2) + `InicioSinHeroTests` (3).
 
 ### FE-23 · `_field.html` duplicado
 **Severidad:** BAJA · **Estado:** CONFIRMADO-AJUSTADO (el de Becas lleva wrapper `mb-4`; el de Dispositivos ninguno) · **Origen:** A6-24 · **Ola:** 5 · **Esfuerzo:** S
@@ -517,6 +577,21 @@ queda cancelado y el formulario con `aria-busy="true"`.
 **Severidad:** BAJA · **Estado:** CONFIRMADO en navegador · **Origen:** V5A-NEW-04 · **Ola:** 5 · **Esfuerzo:** S
 - **Ubicación:** `legajos/templates/legajos/ciudadano_edit_form.html` (hero con gradiente; tarjetas `bg-white/78` y `/90` computan transparente; la bajada visible dice «…desde una vista unificada con **componentes Flowbite**»).
 - **Propuesta:** `page_header` con bajada funcional, sin hero; DNI, estado y perfil como `badge` en el header.
+
+**Resolución:** ✅ Resuelto en el PR #NNN (Cambio 161), 07-10-2026 — encabezado canónico con volver circular al
+detalle, título con el nombre del ciudadano y bajada funcional («Datos personales, ubicación y perfil social del
+ciudadano»); los tres datos de cabecera pasan a badges y **salen del registro**: `DNI {{ object.dni }}`,
+`badge-success`/`badge-gray` según `object.activo` —«Activo» estaba escrito a mano y era igual para un ciudadano
+dado de baja— y «Con usuario del portal» solo si `object.usuario` existe («Perfil: Backoffice» no correspondía a
+ningún campo). Se fueron el hero con gradiente, su tarjeta sobre fondo y la bajada que le nombraba al usuario la
+librería de maquetado.
+**Dos desvíos code-first:** (a) las tarjetas `bg-white/78` y `bg-white/90` que citaba la ficha **ya no estaban**:
+las arregló FE-06 (Cambio 155) al barrer las clases que el build no genera; (b) el avatar de la tarjeta
+«Resumen» también llevaba gradiente y la ficha solo nombraba el del hero — se corrigió con el mismo criterio
+**D5** del Cambio 131 (iniciales en `bg-brand-soft text-fg-brand`). **Test permanente:**
+`core.tests.test_front_ola5_pr7.EdicionDelCiudadanoTests.test_la_bajada_no_nombra_la_libreria_de_maquetado`
+(+ `test_el_encabezado_es_el_canonico`, `test_no_queda_el_hero_con_gradiente`,
+`test_el_estado_sale_del_dato_y_no_de_un_literal`).
 
 ### V5A-NEW-08 · `compile_templates.py` compila templates de terceros en el checkout principal
 **Severidad:** BAJA · **Estado:** CONFIRMADO (349 templates en el checkout contra 199 en un árbol limpio: el filtro de `scripts/compile_templates.py:41-42` compara prefijo de ruta y `.venv312` vive dentro del repo) · **Origen:** V5A-NEW-08 · **Ola:** 6 (paso 2) · **Esfuerzo:** S

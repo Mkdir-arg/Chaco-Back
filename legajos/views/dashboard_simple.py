@@ -62,13 +62,9 @@ def reportes_view(request):
             .order_by("-mes")
             .annotate(total=models.Count("id"))[:6]
         ],
-        "metricas_calidad": {
-            "ttr_promedio": 0,
-            "adherencia_adecuada": 0,
-            "tasa_derivacion": 0,
-            "eventos_por_100": 0,
-            "cobertura_seguimiento": 0,
-        },
+        # FE-22: acá iban cinco indicadores de calidad devueltos en cero literal que
+        # la pantalla mostraba como si fueran una medición («0 % de adherencia
+        # adecuada»). Se fueron con el bloque que los imprimía.
     }
     return render(request, "legajos/reportes.html", {"stats": stats})
 

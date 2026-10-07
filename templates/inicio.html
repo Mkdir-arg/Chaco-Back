@@ -2,67 +2,17 @@
 {% load static %}
 {% load custom_filters %}
 {% load rbac %}
+{% load nodo_ui %}
 
 {% block title %}Inicio — DATAÑACH{% endblock %}
 
 {% block page_css %}
 <style>
 /* ── Dashboard / Inicio ── */
-.ini-hero {
-    border-radius: 16px;
-    padding: 28px 32px;
-    background: var(--gradient-brand);
-    color: #fff;
-    box-shadow: var(--shadow-brand);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 24px;
-    flex-wrap: wrap;
-}
-.ini-hero-eyebrow {
-    font-size: 13px;
-    font-weight: 600;
-    opacity: .92;
-    text-transform: uppercase;
-    letter-spacing: .06em;
-    font-family: var(--font-sans);
-}
-.ini-hero h1 {
-    margin: 4px 0 6px;
-    font-size: 30px;
-    font-weight: 800;
-    letter-spacing: -0.5px;
-    font-family: var(--font-sans);
-    color: #fff;
-}
-.ini-hero p {
-    margin: 0;
-    font-size: 14.5px;
-    opacity: .92;
-    max-width: 520px;
-    font-family: var(--font-sans);
-    line-height: 1.5;
-}
-.ini-hero-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    height: 44px;
-    padding: 0 18px;
-    border-radius: 9999px;
-    border: none;
-    cursor: pointer;
-    background: #fff;
-    color: var(--text-fg-brand);
-    font-family: var(--font-sans);
-    font-size: 14px;
-    font-weight: 700;
-    flex-shrink: 0;
-    text-decoration: none;
-    transition: filter 150ms var(--ease-standard);
-}
-.ini-hero-btn:hover { filter: brightness(0.95); }
+/* El banner hero salió con FE-22 (D-F22): el canon no arma heros para
+   backoffice operativo, y el encabezado de la home pasa al tag canónico
+   `page_header` como el del resto de las pantallas. Con él se fueron sus
+   cinco reglas y el eyebrow que calculaba el buenos días/tardes/noches. */
 
 /* IniSectionTitle */
 .ini-section-title {
@@ -430,28 +380,21 @@
 {% block main-content %}
 <div class="w-full" x-data="dashboardInicio()">
 
-    {# ── Banner hero ── #}
-    <div class="ini-hero mb-7">
-        <div>
-            <div class="ini-hero-eyebrow" x-text="saludo"></div>
-            <h1>Hola, {{ request.user.get_short_name|default:request.user.get_username }}</h1>
-            <p>
-                {% if derivaciones_pendientes_count %}Tenés <strong>{{ derivaciones_pendientes_count }} derivación{% if derivaciones_pendientes_count != 1 %}es{% endif %} pendiente{% if derivaciones_pendientes_count != 1 %}s{% endif %}</strong>
-                {% if conversaciones_sin_asignar_count %} y <strong>{{ conversaciones_sin_asignar_count }} conversación{% if conversaciones_sin_asignar_count != 1 %}es{% endif %} sin asignar</strong>{% endif %}.
-                Este es el resumen de tu jornada.
-                {% elif conversaciones_sin_asignar_count %}Tenés <strong>{{ conversaciones_sin_asignar_count }} conversación{% if conversaciones_sin_asignar_count != 1 %}es{% endif %} sin asignar</strong>. Este es el resumen de tu jornada.
+    {# ── Encabezado canónico (FE-22 / D-F22: el hero salió) ── #}
+    <div class="mb-7">
+        {% page_header titulo=titulo_inicio %}
+            {% bajada %}
+                {% if derivaciones_pendientes_count %}Tenés <strong class="text-heading">{{ derivaciones_pendientes_count }} derivación{% if derivaciones_pendientes_count != 1 %}es{% endif %} pendiente{% if derivaciones_pendientes_count != 1 %}s{% endif %}</strong>{% if conversaciones_sin_asignar_count %} y <strong class="text-heading">{{ conversaciones_sin_asignar_count }} conversación{% if conversaciones_sin_asignar_count != 1 %}es{% endif %} sin asignar</strong>{% endif %}. Este es el resumen de tu jornada.
+                {% elif conversaciones_sin_asignar_count %}Tenés <strong class="text-heading">{{ conversaciones_sin_asignar_count }} conversación{% if conversaciones_sin_asignar_count != 1 %}es{% endif %} sin asignar</strong>. Este es el resumen de tu jornada.
                 {% elif user|puede:"ciudadano.ver" or user|puede:"conversacion.operar" %}Todo al día. Sin tareas pendientes urgentes. Este es el resumen de tu jornada.
                 {% else %}Este es el resumen de tu jornada.{% endif %}
-            </p>
-        </div>
-        {% if user|puede:"ciudadano.ver" %}
-        <a href="{% url 'legajos:ciudadanos' %}" class="ini-hero-btn">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z"/>
-            </svg>
-            Ver ciudadanos
-        </a>
-        {% endif %}
+            {% endbajada %}
+            {% if user|puede:"ciudadano.ver" %}
+            <a href="{% url 'legajos:ciudadanos' %}" class="btn-nodo btn-brand btn-base">
+                <i class="fas fa-users" aria-hidden="true"></i> Ver ciudadanos
+            </a>
+            {% endif %}
+        {% endpage_header %}
     </div>
 
     {# ── Stat cards (4 col) ── #}
@@ -475,7 +418,7 @@
                 </span>
                 {% endif %}
             </div>
-            <div class="stat-card-footnote">nuevos este mes</div>
+            <div class="stat-card-footnote">inscripciones este mes</div>
         </div>
 
         {# Legajos activos #}
@@ -503,7 +446,7 @@
                 </div>
             </div>
             <div class="stat-card-value">{{ seguimientos_hoy|default:"0" }}</div>
-            <div class="stat-card-footnote">{{ actividad_hoy|default:"0" }} actividades hoy</div>
+            <div class="stat-card-footnote">inscripciones con fecha de hoy</div>
         </div>
 
         {# Alertas activas #}
@@ -520,7 +463,7 @@
                 </div>
             </div>
             <div class="stat-card-value">{{ alertas_activas|default:"0" }}</div>
-            <div class="stat-card-footnote">{{ usuarios_activos|default:"0" }} usuarios activos hoy</div>
+            <div class="stat-card-footnote">{{ ingresos_24h|default:"0" }} ingreso{{ ingresos_24h|pluralize }} al backoffice en las últimas 24 h</div>
         </div>
     </div>
 
@@ -849,14 +792,12 @@ function dashboardInicio() {
         busquedaAbortController: null,
         busquedaSecuencia: 0,
         periodo: '30d',
-        saludo: '',
         dashboardApiUrls: {
             buscarCiudadanos: "{% url 'dashboard:api_buscar_ciudadanos' %}",
             tendencias: "{% url 'dashboard:api_tendencias' %}",
         },
 
         init() {
-            this.actualizarSaludo();
             this.$nextTick(() => {
                 this.observarTendencias();
             });
@@ -887,13 +828,6 @@ function dashboardInicio() {
                 inicializar();
             }, {rootMargin: '200px'});
             observer.observe(canvas);
-        },
-
-        actualizarSaludo() {
-            const hora = new Date().getHours();
-            if (hora < 12) this.saludo = 'Buenos días';
-            else if (hora < 18) this.saludo = 'Buenas tardes';
-            else this.saludo = 'Buenas noches';
         },
 
         buscarCiudadano() {

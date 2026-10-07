@@ -20,7 +20,7 @@ class UsuariosAuthenticationForm(AuthenticationForm):
 
     error_messages = {
         **AuthenticationForm.error_messages,
-        "invalid_login": "Credenciales inválidas. Verificá tu correo y contraseña.",
+        "invalid_login": "Credenciales inválidas. Verificá tu usuario y contraseña.",
         "inactive": "Tu usuario está inactivo. Contactá a un administrador para que lo reactive.",
         "territorial_mobile_only": "Usuario no válido para ingresar al sistema.",
     }

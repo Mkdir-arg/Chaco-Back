@@ -17,8 +17,8 @@ PoC: `poc/test_repro_usuarios.py`. Lo de la API REST de usuarios está en SEC-05
 | G1b-09 | «Último administrador» salteable con dos operaciones simultáneas | BAJA | PLAUSIBLE | 7 | M | ⬜ |
 | G1b-10 | Alta rápida: 500 ante colisión en carrera | BAJA | CONF. ajustado | 7 | S | ⬜ |
 | G1b-12 | Dashboard de Becas: período sin tope y `?recalcular=1` sin freno | BAJA | CONF. ajustado | 4 | S | ⬜ |
-| G2-04 | Inicio: los contadores no miden lo que dicen sus etiquetas | BAJA | CONF. lectura | 5 | S | ⬜ |
-| G2-06 | El login pide «Tu correo electrónico» pero autentica por `username` | BAJA | CONF. lectura | 5 | S | ⬜ |
+| G2-04 | Inicio: los contadores no miden lo que dicen sus etiquetas | BAJA | CONF. lectura | 5 | S | ✅ |
+| G2-06 | El login pide «Tu correo electrónico» pero autentica por `username` | BAJA | CONF. lectura | 5 | S | ✅ |
 | R0b-01 | `user_form.html` no muestra el `help_text` de los campos que SEC-03 bloquea | BAJA (MINOR) | revisión Ola 0 (2ª tanda) | 2 (Usuarios) | S | ⬜ |
 | R0b-02 | SEC-03: un rol desactivado no cuenta como fuera de alcance | BAJA (MINOR) | revisión Ola 0 (2ª tanda) | 2 (Usuarios) | S | ⬜ |
 | R0b-03 | P-04 no cubre roles Backoffice/Sistema sin programa | BAJA (MINOR) | revisión Ola 0 (2ª tanda) | 2 (Usuarios; antes de R0b-12) | S | ⬜ |
@@ -103,10 +103,33 @@ PoC: `poc/test_repro_usuarios.py`. Lo de la API REST de usuarios está en SEC-05
 - **Propuesta:** corregir etiquetas («inscripciones este mes», sacar la línea duplicada, «ingresaron en las últimas 24 h»), filtrar `last_login` a usuarios de backoffice, `range(dias + 1)` (o `fecha_inicio = hoy - (dias - 1)`); D-G204: ¿el inicio muestra indicadores de Becas? El «hoy» UTC es BEC-18.
 - **Tests:** contexto de `inicio_view` con 1 ciudadano nuevo y 2 inscripciones del mes muestra las dos cifras por separado; `tendencias_datos` con `labels[-1]` = hoy. V-UI.
 
+**Resolución:** ✅ Resuelto en el PR #NNN (Cambio 161), 07-10-2026 — los cuatro defectos, los cuatro de rótulo o
+de ventana. (1) «↑N nuevos este mes» pasa a «inscripciones este mes», que es lo que `registros_mes` cuenta.
+(2) `actividad_hoy` **se borra** del contexto y del template: era `seguimientos_hoy` con otro nombre, y el pie de
+esa tarjeta ahora explica el número de arriba («inscripciones con fecha de hoy») en vez de repetirlo. (3)
+`usuarios_activos` pasa a `ingresos_24h`, **excluye a los ciudadanos del portal** (`groups__name` ≠ `Ciudadanos`,
+el marcador de identidad de `core.rbac.es_ciudadano_portal`) y el rótulo dice «N ingresos al backoffice en las
+últimas 24 h»: `last_login` es el último ingreso, no actividad sostenida. La clave de caché pasa a
+`home:ingresos_backoffice_24h` para que las entradas con la semántica vieja no sobrevivan al deploy —de paso
+deja de pisarse con la que escribe la vista muerta `DashboardView`—. (4) `tendencias_datos` arranca la serie en
+`hoy - (dias - 1)`: el último punto es hoy y el selector sigue dando la cantidad de barras que promete.
+**D-G204 aplicado:** se corrigen las etiquetas; que el inicio muestre indicadores de Becas sigue siendo un
+requerimiento aparte. **Test permanente:**
+`core.tests.test_inicio_contadores_ola5.ContextoDelInicioTests.test_el_contexto_no_repite_el_mismo_numero_en_dos_claves`
+(+ `test_los_ingresos_no_cuentan_a_los_ciudadanos_del_portal`, `test_los_ingresos_viejos_quedan_fuera_de_la_ventana`,
+`EtiquetasDelInicioTests` ×3 y `TendenciasIncluyenHoyTests` ×3).
+
 ### G2-06 · El login pide «Tu correo electrónico» pero autentica por `username`
 **Severidad:** BAJA · **Estado:** CONFIRMADO (lectura) · **Origen:** G2-06 · **Ola:** 5 · **Esfuerzo:** S
 - **Ubicación:** `users/templates/user/login.html:146`, `:155`; `users/forms/auth.py:23`; sin `AUTHENTICATION_BACKENDS` propio (ModelBackend por username); el ABM (`user_form.html:156`) y el alta rápida (`_alta_rapida_modal.html:27`) piden «Nombre de usuario» libre; el correo de credenciales informa «Usuario: {{ username }}».
 - **Propuesta:** rotular «Usuario» (lo más chico; default). Alternativa: backend que acepte email **solo si es único**, lo que exige validar unicidad del email en `users/forms/__init__.py` (hoy no). V-UI.
+
+**Resolución:** ✅ Resuelto en el PR #NNN (Cambio 161), 07-10-2026 — **default aplicado**: el label pasa a «Tu
+usuario *», el placeholder a «Ingresá tu usuario» y el `invalid_login` de `UsuariosAuthenticationForm` a
+«Credenciales inválidas. Verificá tu usuario y contraseña». No se tocó el backend: sigue el `ModelBackend` por
+`username`, que es lo que el ABM y el alta rápida dan de alta. **Test permanente:**
+`core.tests.test_front_ola5_pr7.LoginRotuladoPorUsuarioTests.test_el_campo_se_rotula_usuario`
+(+ `test_el_placeholder_no_pide_un_correo`, `test_el_error_de_credenciales_no_habla_de_correo`).
 
 ## Seguimientos de la revisión de la Ola 0, segunda tanda (agregados el 03-oct-2026)
 

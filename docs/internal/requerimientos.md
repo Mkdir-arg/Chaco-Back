@@ -330,6 +330,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 156 | La red de Becas: el adjunto que llega hasta la revisión, los dos borrados sin probar, la atomicidad, el padrón y la edad | Becas (adjuntos del caso, Configuración de requisitos y subsegmentos, cupo, padrón, exportaciones) · Transversal (registro de vencimientos, contrato de escrituras atómicas) | `#datos` `#metodo` `#cupos` `#relevamientos` | Auditoría integral oct-2026 — fichas RED-05, RED-31, RED-35, RED-77, RED-49, RED-50, RED-81 y RED-70 (Ola R, PR R-16) | 07/10/2026 | 🟢 **Hecho** (RED-50 queda caracterizada con `expectedFailure`: el arreglo es de la Ola 3) | No requiere |
 | 157 | El rojo deja de significar dos cosas: badges de estado, confirmaciones, avisos duplicados y el doble clic que mandaba dos POST | Merenderos (listado, detalle y solicitudes) · Dispositivos (detalle del legajo) · Usuarios y roles · Transversal (shell: guardia de doble envío y avisos de alertas) | `#ui` `#metodo` | Auditoría integral oct-2026 — fichas FE-18, FE-19, FE-25 y FE-26 (Ola 5, PR 5) | 07/10/2026 | 🟢 **Hecho** | No requiere |
 | 159 | Ratchets de arquitectura: el contrato de los modelos, el grafo de imports y las tres dependencias ocultas del shell | Transversal (contrato de `programas.models`, grafo de imports, shell del backoffice, arranque del contenedor, middlewares de usuarios, cache de la home, ruteo de la raíz) | `#metodo` `#infra` `#datos` | Auditoría integral oct-2026 — fichas RED-46, RED-79, RED-13, RED-45, RED-52, RED-51, RED-78 y RED-82 (Ola R, PR R-21) | 07/10/2026 | 🟢 **Hecho** (seis fichas cierran su parte R; el resto queda en las Olas 2, 4 y 7 con su test rojo o su ratchet puesto) | No requiere |
+| 161 | Números que no miden lo que su rótulo dice, y pantallas que prometen lo que no hacen | Transversal (home del backoffice, login) · Legajos (reportes, edición del ciudadano, gestión de programas, dashboards) · Becas (modal de convocatorias y solapa Dashboard del programa) | `#ui` `#textos` `#datos` | Auditoría integral oct-2026 — fichas FE-22, FE-16, V5A-NEW-04, G2-04, G2-06 y V5A-NEW-07 (b) (Ola 5, PR 7) | 07/10/2026 | 🟢 **Hecho** (la migración de los 10 KPIs a `_stat_card.html` queda frenada: necesita parámetros nuevos del componente, que es novedad del agente) | No requiere |
 
 **Notas del índice**
 
@@ -21542,3 +21543,230 @@ según lo que devuelva. En icore: `docker compose -f docker-compose.prod.yml exe
   `debe_cambiar_contrasena=False`, así que el gate salía por la rama del flag y nunca evaluaba el path —con el filtro
   `/api/` **borrado**, el test seguía pasando—. Se relee el usuario de la base y se le agregó el control negativo con
   el mismo request y otro path.
+
+---
+
+# Cambio 161 — Números que no miden lo que su rótulo dice, y pantallas que prometen lo que no hacen
+
+🟢 **HECHO — 07/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal (home del backoffice, login) · Legajos (reportes, edición del ciudadano, gestión de programas, dashboard de contactos, dashboard de alertas) · Becas (modal de convocatorias y solapa «Dashboard» del programa) |
+| **Etiquetas** | `#ui` `#textos` `#datos` |
+| **Solicitante** | Auditoría integral oct-2026 — fichas FE-22, FE-16, V5A-NEW-04, G2-04, G2-06 y V5A-NEW-07 parte (b) (Ola 5, PR 7) |
+| **Fecha del pedido** | 07/10/2026 |
+| **Issue / épica** | Sin issue (plan de la auditoría: `docs/internal/auditoria-2026-10/`) |
+| **Partes afectadas** | Backoffice: `templates/inicio.html`, `core/views/public.py`, `dashboard/api_views/__init__.py`, `users/templates/user/login.html`, `users/forms/auth.py`, `legajos/templates/legajos/{reportes,ciudadano_edit_form,dashboard_contactos_simple,programas/programa_list}.html`, `legajos/views/{dashboard_simple,programas}.py`, `templates/legajos/alertas_dashboard.html`, `programas/templates/programas/becas/relevamientos/convocatoria_list.html` y `programas/templates/programas/becas/config/_dashboard_panel.html`. Ninguna pantalla nueva, ningún archivo estático nuevo |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> «(7) FE-22, FE-16, V5A-NEW-04, G2-04, G2-06, V5A-NEW-07 parte (b) (labels de `convocatoria_list` y deuda de
+> `_dashboard_panel`) 20 h» (README de la auditoría, §6, Ola 5, PR 7.)
+
+Seis fichas con un hilo común: **la pantalla afirma algo que el código no sostiene.**
+
+1. **G2-04 — el inicio.** «Total ciudadanos ↑N **nuevos este mes**» mostraba las `InscripcionPrograma` del mes,
+   no las altas de ciudadanos. «Seguimientos hoy: X · **X actividades hoy**» era el mismo número dos veces
+   (`actividad_hoy` es `seguimientos_hoy` copiado a otra clave). «N **usuarios activos hoy**» contaba cualquier
+   `last_login` de las últimas 24 h, **incluidos los ciudadanos del portal**. Y `tendencias_datos` armaba la
+   serie desde `hoy - dias` recorriendo `range(dias)`: el último punto era **ayer**, el gráfico no incluía hoy
+   nunca.
+2. **G2-06 — el login.** Pedía «Tu correo electrónico» y el placeholder decía «Ingresá tu correo electrónico»,
+   pero no hay `AUTHENTICATION_BACKENDS` propio: autentica el `ModelBackend` por `username`, y el ABM
+   (`user_form.html`) y el alta rápida piden «Nombre de usuario» libre. El mensaje de credenciales inválidas
+   remataba con «Verificá tu **correo** y contraseña».
+3. **FE-16 — «Gestión de Programas» de Legajos.** Cada tarjeta imprimía `total_instituciones`,
+   `total_derivaciones_pendientes` y `total_casos_activos`: tres anotaciones que `get_queryset` dejó de
+   calcular al retirarse `models_institucional` —el propio código lo decía con un «DEPRECATED»—, así que
+   salían tres huecos en blanco bajo sus rótulos.
+4. **FE-22 — dashboards fuera de canon.** Hero con gradiente en el inicio, cards de colores crudos, emojis como
+   íconos, dos botones «(Próximamente)» deshabilitados en `/legajos/reportes/` y un semáforo «Estado WebSocket»
+   que con los WebSockets apagados queda gris para siempre.
+5. **V5A-NEW-04 — edición del ciudadano.** Hero con gradiente, avatar con gradiente, y una bajada **visible al
+   usuario** que nombraba la librería de maquetado con la que se armó la pantalla. Las tres tarjetas de
+   cabecera (DNI, Estado, Perfil) traían «Activo» y «Backoffice» escritos a mano, iguales para cualquier
+   ciudadano.
+6. **V5A-NEW-07 (b) — accesibilidad y consistencia fuera de las goldens.** Los seis `<label>` del modal «Nueva
+   convocatoria» sin `for` (WCAG 1.3.1: el clic en el rótulo no enfoca el campo y el lector de pantalla no los
+   asocia), y la deuda puntual de la solapa «Dashboard» del programa: títulos de bloque con el tamaño fijado en
+   un `style=` y un modal armado a mano, sin `x-becas-modal`.
+
+## Alcance acordado
+
+**Entra:** lo que nombran las seis fichas, y nada más.
+
+**Queda afuera, explícitamente:**
+
+- **El rediseño de los dashboards.** El arquetipo *dashboard* figura como **pendiente** en el agente de diseño
+  («no hay golden: frenar y devolver al llamador»), y la propia ficha FE-22 lo dice: «el dashboard completo no
+  tiene golden (agente: frenar): limitarse a estas piezas». Se tocó solo el bloque que cada ficha nombra.
+- **La migración de los 10 KPIs a `_stat_card.html`.** Ver *Lo que quedó frenado*: es una novedad del agente y
+  necesita OK.
+- **El borrado de «Gestión de Programas» de Legajos.** D-F16 = «borrar **con LEG-06**», que es de la Ola 7.
+  Acá se saca la deuda visible; el borrado completo sigue siendo de LEG-06.
+- **Los `*_simple.html` de Legajos.** `dashboard_simple.html`, `historial_contactos_simple.html` y
+  `red_contactos_simple.html` también tienen emojis, pero son código muerto de LEG-06 (Ola 7): dos de ellos ni
+  siquiera tienen ruta. Solo se tocó `dashboard_contactos_simple.html`, que sí la tiene (`dashboard.ver`).
+- **`dashboard/templates/dashboard.html`.** Tiene el mismo defecto que FE-16 —tres de sus cuatro stat cards
+  leen `legajos_abiertos`, `seguimientos_semana` y `legajos_riesgo_alto`, claves que `DashboardView` no pone en
+  el contexto, así que muestran `0` siempre—, pero la vista **está tapada**: `dashboard:inicio` resuelve a `/`,
+  que gana `users.urls` por el orden de `config/urls.py`. Es RED-78, y su borrado es de la Ola 7 (con OPS-14).
+  Queda anotado en *Pendientes*.
+
+## Decisiones tomadas
+
+- **D-G204 = corregir las etiquetas ahora; indicadores de Becas, requerimiento aparte.** Es el default del
+  README §2 de la auditoría. Ningún contador del inicio mira `Formulario` —donde está casi toda la operación—,
+  y eso sigue igual.
+
+- **«Usuarios activos» pasa a «ingresos al backoffice».** Dos cambios en una: el número excluye a los
+  ciudadanos del portal (el grupo `Ciudadanos` es un marcador de identidad del portal, no un rol de backoffice:
+  `core.rbac.es_ciudadano_portal`) y el rótulo dice lo que mide. `last_login` es *el último ingreso*, no
+  actividad sostenida: «activos hoy» prometía una medición de uso que nadie calcula. La clave de caché cambió
+  de `home:usuarios_activos_24h` a `home:ingresos_backoffice_24h` para que las entradas con la semántica vieja
+  no sobrevivan cinco minutos al deploy. La vista muerta `dashboard.views.home.DashboardView` sigue escribiendo
+  la clave vieja: ahora ya no se pisan.
+
+- **`actividad_hoy` se borra en vez de calcularse.** La ficha pedía «sacar la línea duplicada». Se podía
+  inventar una métrica de actividad, pero no hay fuente: el pie de esa tarjeta ahora explica qué es el número
+  de arriba («inscripciones con fecha de hoy») en vez de repetirlo.
+
+- **La serie de tendencias arranca en `hoy - (dias - 1)`**, no en `range(dias + 1)`. Las dos opciones estaban
+  en la ficha; esta conserva la cantidad de puntos que promete el selector (7D son 7 barras, no 8).
+
+- **G2-06 = rotular «Usuario» (lo más chico).** La alternativa —un backend que acepte email— exige validar
+  unicidad del email en `users/forms/__init__.py`, que hoy no se valida, y es cambiar el contrato de
+  autenticación por un rótulo. El mensaje de error acompaña: «Verificá tu usuario y contraseña».
+
+- **D-F22 = aplicar el canon: el hero del inicio sale.** Default del README §2, y es lo que dice el agente
+  canónico («no se arman landing pages, heros, cards decorativas ni grillas de tarjetas para backoffice
+  operativo»). El encabezado pasa al tag `page_header` con el mismo saludo como título, la misma bajada —que
+  ahora va en el bloque `bajada` porque trae `<strong>`— y «Ver ciudadanos» como acción del header. Con
+  el hero se fueron sus cinco reglas CSS y el eyebrow que calculaba buenos días/tardes/noches en el cliente:
+  era su único consumidor.
+
+- **Los números que no se calculan se borran, no se maquillan.** Tres lugares, el mismo criterio: los tres KPIs
+  muertos de `legajos/programas/programa_list.html` (FE-16), las cinco «métricas de calidad» de
+  `/legajos/reportes/` —que la vista devolvía con ceros literales y la pantalla mostraba como «0 % de
+  adherencia adecuada»— y los dos botones «(Próximamente)». Una pantalla que muestra un cero inventado es peor
+  que una que no muestra el indicador.
+
+- **El semáforo de WebSocket se esconde con `websockets_enabled`.** Es el mismo flag que publica el context
+  processor de conversaciones para todas las pantallas. `alertas_websocket.js` ya consultaba el elemento con
+  `if (indicator)`, así que no hay nada que tocar del lado del JS.
+
+- **En la edición del ciudadano, el estado sale del dato.** `Ciudadano.activo` existe desde siempre: el badge
+  es `badge-success`/`badge-gray` según el registro. «Perfil: Backoffice» no correspondía a ningún campo y se
+  reemplazó por un badge «Con usuario del portal» que solo aparece si `object.usuario` existe.
+
+- **`convocatoria_list.html` se sanea entero, no solo los labels.** La ficha del arquetipo Modal
+  (`.claude/design/arquetipos/modal.md`) la descartó como golden por tres cosas: los 6 labels sin `for`, el
+  `[x-cloak]` propio en un `<style>` local —`override.css` ya lo declara global— y el backdrop con el fondo y
+  el blur en un `style=`, que tienen clase compilada (`bg-black/50 backdrop-blur-sm`). Las tres salieron
+  juntas, igual que el Cambio 131 hizo con `programa_list`. `design_audit.py --arquetipo modal` sobre ese
+  archivo da **OK**.
+
+## Desvíos code-first
+
+- **El hero de `ciudadano_edit_form.html` ya no tenía las tarjetas transparentes.** La ficha V5A-NEW-04 citaba
+  `bg-white/78` y `bg-white/90` en las líneas 20, 31, 35 y 39; hoy son `bg-white`: las arregló FE-06 (Cambio
+  155), que atacaba las clases que el build no genera. Lo que quedaba es lo demás de la ficha.
+
+- **El avatar de la tarjeta «Resumen» también llevaba gradiente**, y la ficha solo nombraba el del hero. Se
+  corrigió con el mismo criterio **D5** que aplicó el Cambio 131 en `cupo/segmento_detail.html`: iniciales en
+  `bg-brand-soft text-fg-brand`, sin gradiente en el contenido.
+
+- **`font-lora` salió de la deuda congelada de `CssCompiladoAlDiaTests`.** Su único consumidor era el `<h1>` a
+  mano de `legajos/reportes.html`. El ratchet solo baja, así que la entrada se borró de `DEUDA` y el test que
+  lo verifica volvió a verde.
+
+- **`test_reutiliza_el_conteo_de_seguimientos_en_el_contexto` se actualizó.** Afirmaba
+  `contexto["actividad_hoy"] == 7`; esa clave ya no existe. Lo que el test cuida —que `contar_seguimientos_hoy`
+  se llame **una sola vez** por request— sigue igual, y ahora además exige que la clave duplicada no vuelva.
+
+## Lo que quedó frenado, y por qué
+
+**La migración de los 10 KPIs a `_stat_card.html` no se escribió.** Es lo que manda el protocolo del agente:
+*novedad → no escribir, devolver al llamador con la evidencia.* La propia ficha V5A-NEW-07 lo anticipaba: «si
+hace falta el parámetro `kpi_id`/`nota` para los que llena `becas-dashboard.js`, es novedad del agente: pedir
+OK».
+
+El contrato de `templates/components/_stat_card.html` es `etiqueta`, `valor`, `icono` y `tono`. Lo que las
+tarjetas necesitan y el componente no tiene:
+
+| Tarjeta | Qué no entra en el contrato |
+|---|---|
+| `_dashboard_panel` · Convocatorias activas | valor compuesto `N / M` + `data-kpi` en dos nodos + nota |
+| `_dashboard_panel` · Formularios recibidos | variación al lado del número + minigráfico SVG de 12 semanas + nota |
+| `_dashboard_panel` · Cupo ocupado | sufijo « %» + barra de progreso con `role="img"` + nota |
+| `_dashboard_panel` · Relevamientos / Aprobados / Lista de espera | `data-kpi` en el valor (lo llena el JS) + nota |
+| `inicio.html` · las 4 | pie de tarjeta («de N legajos en total», «inscripciones este mes»…) y, en una, el delta |
+
+Darle al componente canónico `kpi_id`, `nota`, `sufijo`, `delta` y un slot de cuerpo es rediseñarlo para un
+arquetipo que **no tiene golden**. El contenido exacto de la propuesta quedó en el cuerpo del PR, para que el
+PM decida.
+
+## Verificación
+
+- `manage.py check` — 0 issues. `manage.py check --deploy` — 6 warnings, todas de entorno local (sin SSL,
+  `SECRET_KEY` de prueba): las mismas que en `development`.
+- `manage.py makemigrations --check --dry-run` — «No changes detected».
+- `manage.py test` (suite entera, un solo proceso) — **3314 tests, OK** (30 skipped, 7 expected failures).
+- `manage.py test --tag performance` — 4 tests, OK. `core:inicio` sigue bajo su presupuesto de 20 consultas:
+  el filtro nuevo va dentro del mismo `cache.get_or_set` y no agrega consultas.
+- `ruff check .` — All checks passed. `ruff format` sobre lo tocado — limpio.
+- `design_audit.py --ratchet` — **0 hallazgos nuevos** en 9 archivos de UI cambiados. `--goldens` — 0 en 5
+  goldens. `--arquetipo modal` sobre `convocatoria_list.html` — **OK**. `compile_templates.py --bloques` — 203
+  compilados, 0 errores, 0 bloques sin destino.
+- `npm run build:tailwind` corrido y `static/custom/css/tailwind.css` committeado.
+
+Verificación en navegador (Chromium vía Playwright, `runserver` con SQLite en archivo, a **1440 y 390 px**,
+**0 errores de consola** en las 7 pantallas):
+
+| Qué | 1440 px | 390 px |
+|---|---|---|
+| `/inicio/` | encabezado canónico «Hola, admin» + «Ver ciudadanos» como `btn-brand`, sin hero | igual |
+| Pies de las stat cards del inicio | «inscripciones este mes», «inscripciones con fecha de hoy», «1 ingreso al backoffice en las últimas 24 h» | igual |
+| `/legajos/reportes/` | encabezado canónico + «Exportar CSV», 4 stat cards de la pieza única, 4 bloques, sin «Próximamente» ni métricas en cero | igual |
+| `/legajos/ciudadanos/1/editar/` | encabezado con volver circular, badges «DNI 30111222» y «Activo», sin hero ni gradientes | igual |
+| Modal «Nueva convocatoria» | backdrop `bg-black/50 backdrop-blur-sm`, foco en el primer campo, 6 labels con `for` | igual |
+| `/legajos/alertas/` | **sin** «Estado WebSocket» (`WEBSOCKETS_ENABLED=False`) | igual |
+| `/legajos/dashboard-contactos/` | íconos Font Awesome en vez de emojis, todos con `aria-hidden` | igual |
+
+## Puesta en marcha en el servidor
+
+Nada más que el deploy. Sin migraciones, sin archivos estáticos nuevos y sin variables de entorno. `tailwind.css`
+cambió, así que conviene reiniciar `nginx` después de recrear `web` por el gotcha de la IP cacheada del upstream.
+La entrada de caché `home:usuarios_activos_24h` queda huérfana y expira sola a los 5 minutos.
+
+## Pendientes / a definir
+
+1. **El contrato del agente de diseño lo aplica el juez.** La sesión implementadora no tiene permiso de
+   escritura sobre `.claude/`. `check_design_agent.py --changed` pide actualizar la ficha de
+   `.claude/design/dominio/becas.md` por `_dashboard_panel.html` y por `templates/inicio.html`: el bloque
+   completo va en el cuerpo del PR.
+2. **Los 10 KPIs siguen armados a mano** (ver *Lo que quedó frenado*). Necesita OK para tocar
+   `_stat_card.html`.
+3. **`dashboard/templates/dashboard.html` tiene el mismo defecto que FE-16** y además es la copia vieja del
+   inicio **sin el gate de SEC-14**. Está tapada por el orden de `config/urls.py` (RED-78, con su test de
+   regresión) y su borrado es de la Ola 7, con OPS-14. No se tocó.
+4. **Las pantallas tocadas siguen fuera de los arquetipos.** `/legajos/reportes/`, el dashboard de contactos, el
+   de alertas y «Gestión de Programas» conservan su tabla, su paginación y su estado vacío a mano; el inicio
+   conserva su bloque de estilos de 400 líneas y sus `.stat-card`. Eso es FE-11, FE-12 y FE-17 (PR 6), y el
+   arquetipo dashboard, que sigue pendiente.
+5. **`_dashboard_panel.html` conserva su regla local de impresión** (la que esconde `.dash-no-print`) y el
+   gradiente del ícono de «Formularios recibidos». Ninguna de las dos la nombra la ficha; la primera
+   necesitaría una regla nueva en un CSS `nodo-*`.
+6. **El inicio sigue sin mirar Becas.** Es lo que D-G204 manda dejar como requerimiento aparte.
+7. **`metricas_dashboard` (`dashboard/api_views/__init__.py`) sigue contando ciudadanos del portal** en
+   `usuarios_conectados`, con el mismo criterio viejo. No lo consume ningún template ni JS del repo, así que no
+   se tocó.
+
+## Reversión
+
+Revertir el commit. Vuelven los seis defectos: los cuatro contadores del inicio con sus rótulos viejos, el hero,
+el login pidiendo correo, los KPIs vacíos de Legajos, los botones «Próximamente», el hero de la edición del
+ciudadano y los labels sin `for`. No hay nada que deshacer en la base. **Al revertir hay que volver a correr
+`npm run build:tailwind`**, porque `tailwind.css` es generado.
