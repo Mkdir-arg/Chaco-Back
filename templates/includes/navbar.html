@@ -78,8 +78,16 @@
             para que el menú y la vista no puedan quedar desalineados.
             {% endcomment %}
             {% if request.user|puede:"ciudadano.ver" %}
+            {% comment %}
+            Las dos rutas que consulta `alertas_websocket.js` viajan como `data-url-*`
+            y no escritas a mano adentro del JS (RED-42): un archivo de `static/` no
+            pasa por el motor de templates, así que un `{% url %}` ahí es imposible y
+            un literal no lo revisa nadie hasta que devuelve 404 en producción.
+            {% endcomment %}
             <!-- Indicador de alertas -->
-            <div class="relative" x-data="{ showDropdown: false }">
+            <div id="alertas-campana" class="relative" x-data="{ showDropdown: false }"
+                 data-url-count="{% url 'legajos:alertas_count_ajax' %}"
+                 data-url-preview="{% url 'legajos:alertas_preview_ajax' %}">
                 <button @click="showDropdown = !showDropdown"
                         class="navbar-accent-hover transition-colors relative"
                         style="color: var(--text-body-subtle);"
