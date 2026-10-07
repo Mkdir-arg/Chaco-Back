@@ -4,7 +4,7 @@
 {% block title %}Programas{% endblock %}
 
 {% block main-content %}
-{% url 'configuracion:programa_list' as url_sin_filtros %}
+{% url 'configuracion:programas' as url_sin_filtros %}
 {% url 'configuracion:programa_wizard_paso1' as url_crear %}
 {% comment %}Sin `programa.configurar` el estado vacío no ofrece el alta (como el encabezado).{% endcomment %}
 {% if puede_editar %}{% url 'configuracion:programa_wizard_paso1' as url_alta %}{% endif %}
@@ -115,6 +115,7 @@
                 </tbody>
             </table>
         </div>
+        {% include "components/_paginacion.html" with page_obj=page_obj entidad="programa" %}
         {% elif request.GET|hay_filtros %}
           {% include "components/_estado_vacio.html" with con_filtros=True titulo="Ningún programa coincide con los filtros" texto="Probá con otro texto, estado o subsecretaría." accion_url=url_sin_filtros %}
         {% else %}

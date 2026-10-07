@@ -345,21 +345,38 @@ de ficha. Queda anotado en el propio template.
 pieza canónica. (1) **`rol_list` pagina la vista**, que es la opción de fondo de las dos que ofrecía la ficha:
 `RolListView.por_pagina = 25` sobre la lista ya filtrada, y el pie estático «1 de 1» con los dos botones
 `disabled` se reemplaza por `components/_paginacion.html`. Con 30 roles visibles la pantalla decía «1 de 1» y
-los 30 colgaban abajo; ahora dice «Página 1 de 2» y la 2 es alcanzable. `total_roles` **no** se paginó: sigue
-contando todo el alcance del operador. (2) **`user_list` pasa al componente**: se fue el pie de 20 líneas
-copiado a mano (`page_obj.has_previous`/`has_next` con sus SVG), y el querystring de los filtros viaja por
-`filtros_qs`. (3) Las tres listas de geografía ya usaban la pieza desde FE-04; `secretaria`, `subsecretaria` y
-`programa` **la incluyen pero todavía no paginan**: sus `form_invalid` renderizan el listado a mano, así que
+los 30 colgaban abajo; ahora dice «Página 1 de 2» y la 2 es alcanzable. El contador `total_roles` se fue con
+el pie que lo imprimía: la pieza cuenta lo que se está viendo. (2) **`user_list` pasa al componente**: se fue
+el pie de 20 líneas copiado a mano (`page_obj.has_previous`/`has_next` con sus SVG), y el querystring de los
+filtros viaja por `filtros_qs`. (3) **Las ocho incluyen la pieza**, pero **solo cinco paginan**: las tres
+listas de geografía ya lo hacían desde FE-04, más `user_list` y `rol_list`. `secretaria`, `subsecretaria` y
+`programa` la incluyen y **todavía no paginan**: sus `form_invalid` renderizan el listado a mano, así que
 ponerles `paginate_by` sin el tratamiento de `_contexto_lista` (FE-04) reestrena el bug de la fila 21 en
-Configuración. Va en el PR 6b, junto con el `param`/`extra_qs` de la pieza, los tres detalles de Becas
-(`segmento_detail` —que es golden—, `convocatoria_detail`, `relevamiento_detail`) y `ConvocatoriaListView`.
+Configuración. El include no dibuja nada sin `page_obj`, así que el PR 6b solo toca la vista. Va ahí, junto
+con el `param`/`extra_qs` de la pieza, los tres detalles de Becas (`segmento_detail` —que es golden—,
+`convocatoria_detail`, `relevamiento_detail`) y `ConvocatoriaListView`.
 **Test permanente:** `users.tests.test_listados_paginados_ola5_pr6.RolesPaginaDeVerdadTests.test_el_pie_ya_no_afirma_una_sola_pagina`
 (+ `test_la_primera_pagina_corta_en_el_tope`, `test_la_segunda_pagina_trae_el_resto_y_es_alcanzable`,
-`test_el_filtro_viaja_a_la_pagina_siguiente`, `test_total_roles_sigue_contando_todos_los_visibles`,
+`test_el_filtro_viaja_a_la_pagina_siguiente`, `test_el_contador_lo_pone_la_pieza_y_cuenta_lo_filtrado`,
 `UsuariosUsaLaPiezaDePaginacionTests.test_la_pagina_1_ofrece_la_2_con_el_texto_de_la_pieza`,
-`test_la_ultima_fila_es_alcanzable` y
-`core.tests.test_listados_canonicos_ola5_pr6.PaginacionCanonicaTests.test_ningun_pie_esta_escrito_a_mano`).
-**Playwright (1440 y 390 px):** «Página 1 de 2» en las ocho pantallas.
+`test_la_ultima_fila_es_alcanzable`,
+`core.tests.test_listados_canonicos_ola5_pr6.PaginacionCanonicaTests.test_ningun_pie_esta_escrito_a_mano` y
+`test_las_ocho_incluyen_la_pieza`).
+**Playwright (1440 y 390 px):** «Página 1 de 2» en las **cinco** que paginan (Usuarios, Roles y las tres de
+geografía).
+
+**Ronda 2 de la revisión (07-10-2026).** `{% url 'configuracion:programa_list' as url_sin_filtros %}`
+nombraba una ruta que **no existe** —se llama `configuracion:programas`—, y la forma `as` **se traga el
+`NoReverseMatch`**: la variable queda vacía, `components/_estado_vacio.html` recibe `accion_url=""` y no
+dibuja el ancla. Medido: `/configuracion/programas/?q=zzzz` daba 0 anchors, así que el botón «Limpiar
+filtros» de esa pantalla no existió nunca, sin error ni log. Además del nombre corregido quedan dos redes:
+una **conductual** —las ocho listas, llevadas a su estado vacío, tienen que dibujar el botón con un `href`
+no vacío que `resolve()`— y una **de repositorio**: un barrido de todos los `{% url '<nombre>' %}` literales
+de `templates/` y los ocho `*/templates/` que exige que cada nombre resuelva, con ratchet en las dos
+direcciones. El barrido midió **33** nombres rotos preexistentes: 32 en `portal/templates/portal/ciudadano/`
+(pantallas sin ruta, que el inventario ya declara «no son referencia» y borra la Ola 7) y
+`legajos:metricas_contactos_api` en `templates/components/widget_contactos.html`, parcial del shell legacy
+que retira LEG-06. **Ninguno fuera de eso.**
 
 ### FE-18 · Badges de estado: Merenderos sin badge, «Inactivo» en rojo, «Sin datos» en rojo
 **Severidad:** MEDIA · **Estado:** CONFIRMADO · **Origen:** A6-18 · **Ola:** 5 · **Esfuerzo:** S

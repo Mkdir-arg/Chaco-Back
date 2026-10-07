@@ -22818,9 +22818,10 @@ Configuración de FE-12, con la parte de FE-17 que no toca la pieza canónica.
 
 - **`rol_list` pagina la vista, no se le saca el pie.** La ficha ofrecía las dos; paginar es lo que hace que
   el listado deje de crecer sin tope y es lo que el arquetipo pide («listados con `paginate_by`»). El tope es
-  25, el de Becas. `total_roles` **no** se paginó: mide el alcance del operador, no la página.
+  25, el de Becas. `total_roles` se fue con el pie que lo imprimía: la pieza canónica cuenta lo que se está
+  viendo, y ninguna otra pantalla lo consumía.
 
-- **`secretaria`, `subsecretaria` y `programa` incluyen la pieza de paginación pero todavía no paginan.** Sus
+- **Las ocho incluyen la pieza de paginación, pero `secretaria`, `subsecretaria` y `programa` todavía no paginan.** Sus
   `form_invalid` renderizan el listado a mano, sin `page_obj`: ponerles `paginate_by` sin el tratamiento de
   `_contexto_lista` que **FE-04** le dio a geografía reestrena el bug de la fila 21 —el error de edición
   vuelve a una página 1 donde la fila no está y el modal no se renderiza nunca—. El `include` queda puesto
@@ -22851,7 +22852,8 @@ Configuración de FE-12, con la parte de FE-17 que no toca la pieza canónica.
   cinco son los exentos del inventario: cuatro `display:none` de formularios ocultos y el
   `style="color: {{ programa.color }}"` del ícono del programa. 57 `<svg>` → 0: todo pasa a Font Awesome con
   `aria-hidden="true"`.
-- **Paginación (FE-17).** `components/_paginacion.html` en las ocho; `RolListView.por_pagina = 25` con su
+- **Paginación (FE-17).** `components/_paginacion.html` en las ocho, y **cinco de ellas paginan de verdad**
+  (las tres de geografía desde FE-04, más `user_list` y `rol_list`); `RolListView.por_pagina = 25` con su
   `Paginator`; el pie copiado de `user_list` se fue y su querystring viaja por `filtros_qs`.
 - **Filtros.** Los cuatro listados con filtros propios pasan al contrato de la pieza: `<form method="get"
   data-dynamic-list-filters>` sin `class` ni `style`, cada control con `aria-label`, sin botones «Filtrar» ni
@@ -22873,7 +22875,7 @@ Configuración de FE-12, con la parte de FE-17 que no toca la pieza canónica.
 - **Playwright (Chromium, SQLite local) a 1440 y 390 px, 0 errores de consola y 0 respuestas ≥ 400:** `<h1>` en
   x = 320 (1440) y x = 16 (390), 30 px, peso 800; `th` 11 px, mayúsculas, fondo `rgb(249,250,251)`; `td` 14 px
   con padding `13px 16px`; `.nodo-icon-btn` 26 × 26 px en `rgb(107,114,128)` con `aria-label` que nombra el
-  registro; «Página 1 de 2» en las ocho; a 390 px el wrapper scrollea (`scrollWidth` 709 contra `clientWidth`
+  registro; «Página 1 de 2» en las cinco que paginan; a 390 px el wrapper scrollea (`scrollWidth` 709 contra `clientWidth`
   356 en Usuarios) y el documento no. Los modales de Configuración siguen abriendo centrados (0,00 px de
   desvío) y el borrado sigue confirmando con `btn-nodo btn-danger btn-base`.
 
@@ -22904,3 +22906,25 @@ Configuración de FE-12, con la parte de FE-17 que no toca la pieza canónica.
 - **07/10/2026** (Cambio 157, PR 5) — FE-18 y FE-19 fijan el tono de los badges y de las confirmaciones de
   `user_list` y `rol_list`. Acá se preserva tal cual, y por eso las dos pantallas siguen con SweetAlert2.
 - **07/10/2026 (este cambio)** — primer lote del PR 6. Con esto la Ola 5 va por **88 h de 128**.
+- **07/10/2026 (ronda 2 de la revisión)** — un MAJOR y cuatro MINOR. El MAJOR es el modo de falla que la
+  migración trajo consigo: `{% url 'configuracion:programa_list' as url_sin_filtros %}` nombraba una ruta que
+  **no existe** (se llama `configuracion:programas`), y la forma **`as` se traga el `NoReverseMatch`**: deja la
+  variable vacía, `components/_estado_vacio.html` recibe `accion_url=""` y no dibuja el ancla. Medido:
+  `/configuracion/programas/?q=zzzz` daba **0 anchors**, así que el botón «Limpiar filtros» de esa pantalla no
+  existió nunca —sin error, sin log y sin 404—. Además del nombre corregido quedan **dos redes**: una
+  conductual, que lleva las ocho listas a su estado vacío por HTTP y exige que el botón tenga `href` no vacío y
+  que ese `href` `resolve()`; y una **de repositorio**, que barre todos los `{% url '<nombre>' %}` literales de
+  `templates/` y los ocho `*/templates/` y exige que cada nombre resuelva, con ratchet en las dos direcciones.
+  El barrido midió **33 nombres rotos preexistentes**, todos con dueño: 32 en
+  `portal/templates/portal/ciudadano/` —pantallas que quedaron sin ruta y que el inventario del agente ya
+  declara «no son referencia»— y `legajos:metricas_contactos_api` en `templates/components/widget_contactos.html`,
+  parcial del shell legacy que retira LEG-06. Fuera de eso, **ninguno**. Los cuatro MINOR: (1) `programa_list`
+  no incluía `components/_paginacion.html` y tres documentos decían que sí —se agregó el include, con lo que
+  las ocho lo tienen, y el test pasó de cubrir cinco a cubrir las ocho—; (2) `RolListView` dejaba `roles`,
+  `total_roles` y `hay_filtros_activos` en el contexto **sin un solo consumidor** desde que la pantalla decide
+  el estado vacío con `request.GET|hay_filtros`: se fueron los tres, y `test_roles_abm` pasa a afirmar que no
+  vuelven; (3) al reemplazar el kebab de `rol_list` se había perdido el aviso «Rol del sistema — no se puede
+  editar ni eliminar», que era lo único que explicaba por qué esa fila solo ofrece «Ver»: vuelve como `title`
+  del badge «Protegido» más un `sr-only` atado con `aria-describedby` a la acción «Ver», sin piezas nuevas;
+  (4) el Playwright de la primera vuelta midió «Página 1 de 2» en las cinco pantallas que paginan, no en las
+  ocho, y así quedó escrito acá, en la ficha y en el README.

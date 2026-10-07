@@ -69,10 +69,16 @@ class RolesPaginaDeVerdadTests(TestCase):
         self.assertEqual(respuesta.context["page_obj"].paginator.count, 29)
         self.assertContains(respuesta, "categoria=Backoffice")
 
-    def test_total_roles_sigue_contando_todos_los_visibles(self):
-        """El contador del encabezado no se paginó: mide el alcance del operador."""
+    def test_el_contador_lo_pone_la_pieza_y_cuenta_lo_filtrado(self):
+        """El pie viejo decía «Mostrando N de total_roles»; la pieza cuenta lo que se está viendo.
+
+        `total_roles` —el total del alcance del operador— se fue del contexto con el pie que
+        lo imprimía: ningún consumidor quedó.
+        """
         respuesta = self.client.get(reverse("users:roles"), {"categoria": "Backoffice"})
-        self.assertEqual(respuesta.context["total_roles"], 30)
+        self.assertNotIn("total_roles", respuesta.context)
+        self.assertNotContains(respuesta, "Mostrando")
+        self.assertContains(respuesta, "29 roles")
 
 
 class UsuariosUsaLaPiezaDePaginacionTests(TestCase):

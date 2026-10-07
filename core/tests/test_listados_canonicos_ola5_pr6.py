@@ -21,7 +21,9 @@ import re
 from pathlib import Path
 
 from django.conf import settings
-from django.test import SimpleTestCase
+from django.contrib.auth.models import User
+from django.test import SimpleTestCase, TestCase
+from django.urls import resolve, reverse
 
 REPO = Path(settings.BASE_DIR)
 
@@ -144,8 +146,11 @@ class PaginacionCanonicaTests(SimpleTestCase):
         self.assertNotIn("1 de 1", contenido, "el pie estático de rol_list tiene que irse")
         self.assertIn("components/_paginacion.html", contenido)
 
-    def test_los_listados_paginados_incluyen_la_pieza(self):
-        for ruta in USUARIOS + CONFIGURACION[:3]:
+    def test_las_ocho_incluyen_la_pieza(self):
+        """Las ocho, no siete: `secretaria`, `subsecretaria` y `programa` todavía no paginan
+        (sus `form_invalid` arman el listado a mano, FE-04), pero el include no dibuja nada sin
+        `page_obj` y así el PR 6b solo toca la vista."""
+        for ruta in LISTADOS:
             with self.subTest(ruta=ruta):
                 self.assertIn("components/_paginacion.html", texto(ruta), ruta)
 
@@ -212,3 +217,157 @@ class FiltrosCanonicosTests(SimpleTestCase):
                     r"<form method=\"get\" data-dynamic-list-filters>(.*?)</form>", texto(ruta), re.S
                 ).group(1)
                 self.assertNotIn("<button", form, f"{ruta}: el JS tira los botones propios del form")
+
+
+# --- Guarda: ningún {% url %} nombra una ruta que no existe -------------------
+#
+# `{% url 'x' as var %}` **no** levanta `NoReverseMatch`: deja la variable vacía y el
+# enlace desaparece sin error, sin log y sin 404. Así se coló
+# `configuracion:programa_list` (la ruta se llama `configuracion:programas`) y el botón
+# «Limpiar filtros» del estado vacío de Programas no se dibujaba nunca. La forma sin
+# `as` sí revienta, pero solo cuando alguien entra a esa pantalla.
+
+URL_LITERAL = re.compile(r"\{%\s*url\s+(['\"])([a-zA-Z0-9_:.-]+)\1")
+
+#: Las pantallas de `portal/templates/portal/ciudadano/` quedaron **sin ruta** y el
+#: inventario del agente las declara «no son referencia»; las borra la Ola 7. Se
+#: congela el conteo para que no crezcan.
+PORTAL_CIUDADANO_DIR = "portal/templates/portal/ciudadano/"
+PORTAL_CIUDADANO_ROTAS = 32
+
+#: Lo roto fuera de esa carpeta, con su dueño.
+URLS_ROTAS_CONOCIDAS = {
+    # Parcial del shell legacy `includes/main.html`; lo retira LEG-06 (Ola 7).
+    ("templates/components/widget_contactos.html", "legajos:metricas_contactos_api"),
+}
+
+
+def _nombres_de_url_rotos():
+    from django.urls import NoReverseMatch, reverse
+
+    raices = [REPO / "templates"] + sorted(REPO.glob("*/templates"))
+    rotos = set()
+    for raiz in raices:
+        for archivo in sorted(raiz.rglob("*.html")):
+            contenido = archivo.read_text(encoding="utf-8", errors="replace")
+            for coincidencia in URL_LITERAL.finditer(contenido):
+                nombre = coincidencia.group(2)
+                try:
+                    reverse(nombre)
+                except NoReverseMatch as exc:
+                    # «requires arguments» = la ruta existe; solo no se puede resolver sin ellos.
+                    if "argument" in str(exc):
+                        continue
+                    rotos.add((archivo.relative_to(REPO).as_posix(), nombre))
+    return rotos
+
+
+class UrlsDeTemplatesResuelvenTests(SimpleTestCase):
+    """Todo nombre literal de `{% url %}` existe en el URLconf (ratchet en dos direcciones)."""
+
+    def test_ningun_template_nombra_una_ruta_inexistente(self):
+        nuevos = sorted(
+            par
+            for par in _nombres_de_url_rotos()
+            if par not in URLS_ROTAS_CONOCIDAS and not par[0].startswith(PORTAL_CIUDADANO_DIR)
+        )
+        self.assertEqual(nuevos, [], f"{len(nuevos)} nombre(s) de URL sin ruta: {nuevos}")
+
+    def test_la_lista_de_rotas_conocidas_no_tiene_entradas_muertas(self):
+        """Si alguien arregla una, el ratchet obliga a sacarla de la lista."""
+        rotos = _nombres_de_url_rotos()
+        resueltas = sorted(par for par in URLS_ROTAS_CONOCIDAS if par not in rotos)
+        self.assertEqual(resueltas, [], f"ya resuelto(s), sacar de URLS_ROTAS_CONOCIDAS: {resueltas}")
+
+    def test_el_portal_ciudadano_no_suma_rutas_rotas(self):
+        del_portal = {par for par in _nombres_de_url_rotos() if par[0].startswith(PORTAL_CIUDADANO_DIR)}
+        self.assertEqual(
+            len(del_portal),
+            PORTAL_CIUDADANO_ROTAS,
+            f"el portal ciudadano pasó de {PORTAL_CIUDADANO_ROTAS} a {len(del_portal)} nombres sin ruta",
+        )
+
+    def test_el_barrido_ve_la_forma_con_as(self):
+        """Control del andamio: `{% url 'x' as var %}` también tiene que entrar al barrido."""
+        self.assertIsNotNone(URL_LITERAL.search("{% url 'configuracion:programas' as url_sin_filtros %}"))
+        self.assertEqual(
+            URL_LITERAL.search("{% url 'configuracion:programas' as url_sin_filtros %}").group(2),
+            "configuracion:programas",
+        )
+
+
+# --- El botón del estado vacío existe y lleva a algún lado -------------------
+
+#: Para cada listado: nombre de ruta y la querystring que lo deja sin filas. Las tres
+#: pantallas de geografía no tienen filtros: su estado vacío es el de «no hay nada».
+SIN_RESULTADOS = (
+    (
+        "users:usuarios",
+        {"filters": '{"logic":"AND","items":[{"field":"username","op":"contains","value":"zzzz-no-existe"}]}'},
+    ),
+    ("users:roles", {"q": "zzzz-no-existe"}),
+    ("configuracion:provincias", {}),
+    ("configuracion:municipios", {}),
+    ("configuracion:localidades", {}),
+    ("configuracion:secretarias", {"search": "zzzz-no-existe"}),
+    ("configuracion:subsecretarias", {"secretaria": "999999"}),
+    ("configuracion:programas", {"q": "zzzz-no-existe"}),
+)
+
+#: El ancla que dibuja `components/_estado_vacio.html` (`mt-2` es suyo y de nadie más).
+ACCION_DEL_ESTADO_VACIO = re.compile(r'<a href="([^"]*)" class="btn-nodo [^"]*mt-2">')
+
+
+class EstadoVacioConBotonTests(TestCase):
+    """El botón del estado vacío tiene `href` y ese `href` resuelve, en las ocho listas.
+
+    `{% url 'x' as var %}` con un nombre inexistente deja `var` vacía: el componente
+    recibe `accion_url=""`, no dibuja el ancla y nadie se entera. Es exactamente lo que
+    pasaba en Programas con `configuracion:programa_list`.
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.admin = User.objects.create_superuser("estado-vacio-admin", "ev@chaco.gob.ar", "x")
+
+    def setUp(self):
+        self.client.force_login(self.admin)
+
+    def _estado_vacio(self, nombre, params):
+        respuesta = self.client.get(reverse(nombre), params)
+        self.assertEqual(respuesta.status_code, 200, nombre)
+        html = respuesta.content.decode()
+        self.assertIn("py-14 px-6 text-center", html, f"{nombre}: no se renderizó el estado vacío")
+        return html
+
+    def test_las_ocho_listas_dibujan_el_boton_y_su_href_resuelve(self):
+        for nombre, params in SIN_RESULTADOS:
+            with self.subTest(pantalla=nombre):
+                html = self._estado_vacio(nombre, params)
+                enlaces = ACCION_DEL_ESTADO_VACIO.findall(html)
+                self.assertTrue(enlaces, f"{nombre}: el estado vacío quedó sin botón")
+                for href in enlaces:
+                    self.assertTrue(href.strip(), f"{nombre}: el botón quedó con href vacío")
+                    self.assertIsNotNone(resolve(href.split("?")[0]), f"{nombre}: {href} no resuelve")
+
+    def test_la_variante_con_filtros_ofrece_limpiar_y_no_el_alta(self):
+        """Con filtros la acción es terciaria («Limpiar filtros»), nunca la primaria de alta."""
+        for nombre, params in SIN_RESULTADOS:
+            if not params:
+                continue
+            with self.subTest(pantalla=nombre):
+                html = self._estado_vacio(nombre, params)
+                bloque = html[html.index("py-14 px-6 text-center") :][:1200]
+                self.assertIn("btn-tertiary", bloque, f"{nombre}: la acción con filtros no es terciaria")
+                self.assertIn("Limpiar filtros", bloque, nombre)
+
+    def test_sin_filtros_la_accion_es_el_alta_y_apunta_a_la_pantalla_de_creacion(self):
+        """Las tres de geografía: sin registros, el botón lleva al alta."""
+        for nombre, destino in (
+            ("configuracion:provincias", "configuracion:provincia_crear"),
+            ("configuracion:municipios", "configuracion:municipio_crear"),
+            ("configuracion:localidades", "configuracion:localidad_crear"),
+        ):
+            with self.subTest(pantalla=nombre):
+                html = self._estado_vacio(nombre, {})
+                self.assertIn(f'<a href="{reverse(destino)}" class="btn-nodo btn-brand btn-base mt-2">', html)

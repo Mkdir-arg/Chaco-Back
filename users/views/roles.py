@@ -45,29 +45,26 @@ class RolListView(_RolesPermMixin, TemplateView):
         user = self.request.user
         get = self.request.GET
 
-        # El pipeline (JOINs + COUNT DISTINCT) se ejecuta UNA vez y las tres
-        # formas (agrupados / filtrados / total) se derivan de ese resultado.
-        roles = roles_visibles_para(user)
-        lista = roles_lista_para(user, visibles=roles)
+        # El pipeline (JOINs + COUNT DISTINCT) se ejecuta UNA vez: la lista plana y la
+        # filtrada se derivan de ese resultado.
+        lista = roles_lista_para(user, visibles=roles_visibles_para(user))
         filtrados = roles_filtrados_para(user, get, lista=lista)
         paginator = Paginator(filtrados, self.por_pagina)
         page_obj = paginator.get_page(get.get("page"))
-        context["roles"] = roles
         context["items"] = page_obj.object_list
         context["page_obj"] = page_obj
         context["paginator"] = paginator
         context["is_paginated"] = page_obj.has_other_pages()
-        context["total_roles"] = len(lista)
         context["categorias_rol"] = list(rbac.CATEGORIAS_ROL) + [rbac.CATEGORIA_PROGRAMA]
         context["programas_admin"] = programas_administrables_roles(user)
 
+        # La pantalla decide «los filtros no traen nada» con `request.GET|hay_filtros`
+        # (el filtro canónico de `nodo_ui`), así que no se pasa un `hay_filtros_activos`
+        # propio; `roles` (el agrupado) y `total_roles` tampoco tienen consumidor.
         context["filtro_q"] = get.get("q", "")
         context["filtro_categoria"] = get.get("categoria", "")
         context["filtro_programa"] = get.get("programa", "")
         context["filtro_estado"] = get.get("estado", "")
-        context["hay_filtros_activos"] = bool(
-            context["filtro_q"] or context["filtro_categoria"] or context["filtro_programa"] or context["filtro_estado"]
-        )
         return context
 
 
