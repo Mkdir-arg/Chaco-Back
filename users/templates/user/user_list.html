@@ -1,151 +1,105 @@
 {% extends "includes/base.html" %}
-{% load static %}
-{% load static custom_filters %}
+{% load static nodo_ui %}
 
 {% block title %}Usuarios{% endblock %}
 
 {% block main-content %}
+{% url 'users:usuario_crear' as url_crear %}
+<div class="space-y-6">
 
-{# Page Header #}
-<div style="display:flex; align-items:flex-end; justify-content:space-between; gap:16px; margin-bottom:24px; flex-wrap:wrap;">
-    <div style="min-width:220px; flex:1 1 280px;">
-        <h1 style="font-size:28px; font-weight:800; color:var(--text-heading); letter-spacing:-0.5px; margin:0 0 4px;">Usuarios</h1>
-        <p style="font-size:14px; color:var(--text-body-subtle); margin:0;">Gestión de usuarios del sistema</p>
-    </div>
-    <a href="{% url 'users:usuario_crear' %}" class="btn-nodo btn-brand btn-base" aria-label="Nuevo usuario" style="flex:0 0 auto; white-space:nowrap;">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
-        Nuevo usuario
+  {% page_header titulo="Usuarios" bajada="Gestión de usuarios del sistema" %}
+    <a href="{{ url_crear }}" class="btn-nodo btn-brand btn-base">
+      <i class="fas fa-plus" aria-hidden="true"></i> Nuevo usuario
     </a>
-</div>
+  {% endpage_header %}
 
-{% comment %}Los mensajes de Django se muestran como toast global (ver includes/base.html + nodo-toast.js).{% endcomment %}
+  {% comment %}Los mensajes de Django se muestran como toast global (ver includes/base.html + nodo-toast.js).{% endcomment %}
 
-{% if filters_mode %}
-{{ filters_config|json_script:"usuarios-filters-config" }}
-<form id="filters-form" method="get" action="{{ filters_action }}" data-config-id="usuarios-filters-config"
-      class="dynamic-list-filters">
+  {% comment %}Filtros avanzados (advanced_filters.js): este listado arma el form desde
+  `filters_config` y no desde controles sueltos, así que no usa el contrato
+  `data-dynamic-list-filters` del arquetipo.{% endcomment %}
+  {% if filters_mode %}
+  {{ filters_config|json_script:"usuarios-filters-config" }}
+  <form id="filters-form" method="get" action="{{ filters_action }}" data-config-id="usuarios-filters-config"
+        class="dynamic-list-filters">
     <input type="hidden" id="filters-input" name="filters">
     {% include "components/list_filters.html" with advanced=True allow_or=True reset_url=reset_url %}
-</form>
-{% endif %}
+  </form>
+  {% endif %}
 
-{# TableCard #}
-<div style="background:var(--bg-white); border:1px solid var(--border-base); border-radius:12px; box-shadow:var(--shadow-sm); overflow:hidden;">
+  <div class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
     {% if users %}
-    <div style="overflow-x:auto;">
-        <table style="width:100%; border-collapse:collapse;">
-            <thead>
-                <tr>
-                    <th scope="col" style="padding:11px 16px; text-align:left; font-size:11px; font-weight:700; color:var(--text-body-subtle); text-transform:uppercase; letter-spacing:.05em;">Usuario</th>
-                    <th scope="col" style="padding:11px 16px; text-align:left; font-size:11px; font-weight:700; color:var(--text-body-subtle); text-transform:uppercase; letter-spacing:.05em;">Nombre</th>
-                    <th scope="col" style="padding:11px 16px; text-align:left; font-size:11px; font-weight:700; color:var(--text-body-subtle); text-transform:uppercase; letter-spacing:.05em;">Email</th>
-                    <th scope="col" style="padding:11px 16px; text-align:left; font-size:11px; font-weight:700; color:var(--text-body-subtle); text-transform:uppercase; letter-spacing:.05em;">Roles</th>
-                    <th scope="col" style="padding:11px 16px; text-align:left; font-size:11px; font-weight:700; color:var(--text-body-subtle); text-transform:uppercase; letter-spacing:.05em;">Estado</th>
-                    <th scope="col" style="padding:11px 16px; text-align:right; font-size:11px; font-weight:700; color:var(--text-body-subtle); text-transform:uppercase; letter-spacing:.05em; width:110px;">Acciones</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for user in users %}
-                <tr style="transition:background 150ms;" onmouseenter="this.style.background='var(--bg-tertiary)'" onmouseleave="this.style.background=''">
-                    <td style="padding:13px 16px; font-size:13.5px; font-weight:700; color:var(--text-heading); border-top:1px solid var(--border-light);">{{ user.username }}</td>
-                    <td style="padding:13px 16px; font-size:13.5px; color:var(--text-body); border-top:1px solid var(--border-light);">{{ user.get_full_name|default:"—" }}</td>
-                    <td style="padding:13px 16px; font-size:13.5px; color:var(--text-body-subtle); border-top:1px solid var(--border-light);">{{ user.email|default:"—" }}</td>
-                    <td style="padding:13px 16px; border-top:1px solid var(--border-light);">
-                        <div style="display:flex; align-items:center; gap:4px; flex-wrap:wrap;">
-                            {% for group in user.groups.all %}
-                            <span class="badge badge-info">{{ group.name }}</span>
-                            {% empty %}
-                            <span style="font-size:12px; color:var(--text-body-subtle);">Sin roles</span>
-                            {% endfor %}
-                        </div>
-                    </td>
-                    <td style="padding:13px 16px; border-top:1px solid var(--border-light);">
-                        {% if user.is_active %}
-                        <span class="badge badge-success badge-dot">Activo</span>
-                        {% else %}
-                        <span class="badge badge-gray badge-dot">Inactivo</span>
-                        {% endif %}
-                    </td>
-                    <td style="padding:13px 16px; border-top:1px solid var(--border-light);">
-                        <div style="display:flex; align-items:center; justify-content:flex-end; gap:4px;">
-                            <a href="{% url 'users:usuario_editar' user.pk %}"
-                               aria-label="Editar {{ user.username }}"
-                               style="display:inline-flex; align-items:center; justify-content:center; padding:6px; border-radius:8px; color:var(--text-heading); background:transparent; text-decoration:none; transition:background 150ms;"
-                               onmouseenter="this.style.background='var(--bg-secondary)'" onmouseleave="this.style.background='transparent'">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125"/></svg>
-                            </a>
-                            {% if user.pk == request.user.pk %}
-                            <span style="font-size:12px; color:var(--text-body-subtle); margin-left:4px;">Vos</span>
-                            {% else %}
-                            {% if user.is_active %}
-                            <button type="button"
-                                    aria-label="Desactivar {{ user.username }}"
-                                    onclick="confirmarToggleUsuario('{{ user.pk }}', '{{ user.username|escapejs }}', true)"
-                                    style="display:inline-flex; align-items:center; justify-content:center; padding:6px; border-radius:8px; color:var(--text-fg-brand); background:transparent; border:none; cursor:pointer; transition:background 150ms;"
-                                    onmouseenter="this.style.background='var(--bg-secondary)'" onmouseleave="this.style.background='transparent'">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                            </button>
-                            {% else %}
-                            <button type="button"
-                                    aria-label="Activar {{ user.username }}"
-                                    onclick="confirmarToggleUsuario('{{ user.pk }}', '{{ user.username|escapejs }}', false)"
-                                    style="display:inline-flex; align-items:center; justify-content:center; padding:6px; border-radius:8px; color:var(--text-fg-brand); background:transparent; border:none; cursor:pointer; transition:background 150ms;"
-                                    onmouseenter="this.style.background='var(--bg-secondary)'" onmouseleave="this.style.background='transparent'">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                            </button>
-                            {% endif %}
-                            <form id="form-toggle-user-{{ user.pk }}" method="post" action="{% url 'users:usuario_toggle' user.pk %}" style="display:none;">{% csrf_token %}</form>
-                            {% endif %}
-                        </div>
-                    </td>
-                </tr>
+    <div class="overflow-x-auto">
+      <table class="w-full border-collapse">
+        <thead>
+          <tr class="nodo-thead-row">
+            <th class="nodo-th">Usuario</th>
+            <th class="nodo-th">Nombre</th>
+            <th class="nodo-th">Email</th>
+            <th class="nodo-th">Roles</th>
+            <th class="nodo-th">Estado</th>
+            <th class="nodo-th text-right"><span class="sr-only">Acciones</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for user in users %}
+          <tr class="hover:bg-secondary">
+            <td class="nodo-td text-heading font-bold">{{ user.username }}</td>
+            <td class="nodo-td text-body">{{ user.get_full_name|default:"—" }}</td>
+            <td class="nodo-td text-body-subtle">{{ user.email|default:"—" }}</td>
+            <td class="nodo-td">
+              <div class="flex items-center gap-1 flex-wrap">
+                {% for group in user.groups.all %}
+                <span class="badge badge-info">{{ group.name }}</span>
+                {% empty %}
+                <span class="text-xs text-body-subtle">Sin roles</span>
                 {% endfor %}
-            </tbody>
-        </table>
+              </div>
+            </td>
+            <td class="nodo-td">
+              {% if user.is_active %}
+              <span class="badge badge-success badge-dot">Activo</span>
+              {% else %}
+              <span class="badge badge-gray badge-dot">Inactivo</span>
+              {% endif %}
+            </td>
+            <td class="nodo-td text-right">
+              <div class="inline-flex items-center gap-1">
+                <a href="{% url 'users:usuario_editar' user.pk %}" class="nodo-icon-btn"
+                   aria-label="Editar {{ user.username }}">
+                  <i class="fas fa-pen" aria-hidden="true"></i>
+                </a>
+                {% if user.pk == request.user.pk %}
+                <span class="text-xs text-body-subtle">Vos</span>
+                {% else %}
+                {% if user.is_active %}
+                <button type="button" class="nodo-icon-btn" aria-label="Desactivar {{ user.username }}"
+                        onclick="confirmarToggleUsuario('{{ user.pk }}', '{{ user.username|escapejs }}', true)">
+                  <i class="fas fa-circle-xmark" aria-hidden="true"></i>
+                </button>
+                {% else %}
+                <button type="button" class="nodo-icon-btn" aria-label="Activar {{ user.username }}"
+                        onclick="confirmarToggleUsuario('{{ user.pk }}', '{{ user.username|escapejs }}', false)">
+                  <i class="fas fa-circle-check" aria-hidden="true"></i>
+                </button>
+                {% endif %}
+                <form id="form-toggle-user-{{ user.pk }}" method="post"
+                      action="{% url 'users:usuario_toggle' user.pk %}" style="display:none;">{% csrf_token %}</form>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
-
-    {# Footer / paginación #}
-    <div style="display:flex; align-items:center; justify-content:space-between; padding:12px 16px; border-top:1px solid var(--border-light); background:var(--bg-secondary);">
-        <span style="font-size:12.5px; color:var(--text-body-subtle);">Mostrando {{ users|length }} de {{ page_obj.paginator.count }} usuario{{ page_obj.paginator.count|pluralize }}</span>
-        <div style="display:flex; align-items:center; gap:8px;">
-            {% if page_obj.has_previous %}
-            <a href="?{% if filtros_qs %}{{ filtros_qs }}&{% endif %}page={{ page_obj.previous_page_number }}" class="btn-nodo btn-tertiary btn-sm" style="min-width:0;">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5"/></svg>
-                Anterior
-            </a>
-            {% else %}
-            <button type="button" class="btn-nodo btn-tertiary btn-sm" style="min-width:0;" disabled>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5"/></svg>
-                Anterior
-            </button>
-            {% endif %}
-            <span style="font-size:13px; font-weight:600; color:var(--text-body);">{{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
-            {% if page_obj.has_next %}
-            <a href="?{% if filtros_qs %}{{ filtros_qs }}&{% endif %}page={{ page_obj.next_page_number }}" class="btn-nodo btn-tertiary btn-sm" style="min-width:0;">Siguiente</a>
-            {% else %}
-            <button type="button" class="btn-nodo btn-tertiary btn-sm" style="min-width:0;" disabled>Siguiente</button>
-            {% endif %}
-        </div>
-    </div>
-
+    {% include "components/_paginacion.html" with page_obj=page_obj entidad="usuario" filtros_qs=filtros_qs %}
+    {% elif hay_filtros_activos %}
+      {% include "components/_estado_vacio.html" with con_filtros=True titulo="Sin resultados" texto="Ningún usuario coincide con los filtros aplicados. Probá con otra búsqueda o limpiá los filtros." accion_url=reset_url %}
     {% else %}
-    <div style="padding:56px 24px; text-align:center; display:flex; flex-direction:column; align-items:center; gap:10px;">
-        {% if hay_filtros_activos %}
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--text-fg-brand);" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/></svg>
-        <h3 style="font-size:17px; font-weight:700; color:var(--text-heading); margin:0;">Sin resultados</h3>
-        <p style="font-size:14px; color:var(--text-body); max-width:360px; margin:0;">Ningún usuario coincide con los filtros aplicados. Probá con otra búsqueda o limpiá los filtros.</p>
-        <a href="{{ reset_url }}" class="btn-nodo btn-tertiary" style="margin-top:6px;">Limpiar filtros</a>
-        {% else %}
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--text-fg-brand);" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z"/></svg>
-        <h3 style="font-size:17px; font-weight:700; color:var(--text-heading); margin:0;">No hay usuarios registrados</h3>
-        <p style="font-size:14px; color:var(--text-body); max-width:360px; margin:0;">Comenzá agregando el primer usuario al sistema.</p>
-        <a href="{% url 'users:usuario_crear' %}" class="btn-nodo btn-brand btn-base" style="margin-top:6px;">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
-            Nuevo usuario
-        </a>
-        {% endif %}
-    </div>
+      {% include "components/_estado_vacio.html" with icono="fa-users" titulo="No hay usuarios registrados" texto="Comenzá agregando el primer usuario al sistema." accion_url=url_crear accion_texto="Nuevo usuario" accion_icono="fa-plus" %}
     {% endif %}
+  </div>
 </div>
 
 {% endblock %}

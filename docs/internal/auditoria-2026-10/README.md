@@ -27,6 +27,12 @@ escritas en `espejo-ecom.md`): si el pod de `web` de testing llega a un Redis, y
 `DJANGO_SETTINGS_MODULE` ahí y en PRD, que es la pregunta abierta **H-09**. En icore, además, hay que instalar
 el envoltorio de cron y la rotación del log (`processes.md`, *Cron del host*).
 
+## Estado al 07-oct-2026 (Ola 5, PR 6a: los listados de afuera de Becas clonan la golden)
+
+| PR | Cambio | Fichas | Estado | Qué quedó abierto |
+|---|---|---|---|---|
+| Ola 5 PR 6a | 166 | FE-11 🟡 · FE-12 🟡 · FE-17 🟡 | 🟡 | **Primer lote del PR más grande de la ola (22 h de 48), sin migraciones.** Ocho pantallas —`user_list`, `rol_list` y las seis listas de Configuración— **clonan la golden del arquetipo Listado** (`becas/revision/personas_list.html`) y pasan `--arquetipo listado`; `rol_detail` entra como **ajuste**, no como arquetipo (no tiene solapas ni métricas: solo encabezado y paleta). Lo que se fue: ocho `<h1 style="font-size:28px">`, **277 de los 282 `style=`** —los 5 que quedan son `display:none` de formularios ocultos y el color del ícono del programa, los dos exentos del inventario—, los **57 SVG Heroicons** del contenido, los cuatro handlers de hover inline, dos estados vacíos escritos a mano por pantalla y el `<style>` de 140 líneas de `rol_list` —con su kebab de Alpine y `x-teleport`, reemplazado por las cuatro `.nodo-icon-btn` de la celda, que es lo que el arquetipo permite—. **FE-17 de fondo:** `RolListView` **pagina de verdad** (25 por página); el pie decía «1 de 1» con los dos botones `disabled` sobre los 30 roles enteros. **Tres desvíos, los tres code-first:** (a) los puntos (1) y (2) de FE-11 (Dispositivos y Merenderos) **no se hacen** porque **D-V1 = No**: los hereda la v2; (b) las ocho incluyen la pieza de paginación pero **solo cinco paginan**: `secretaria`, `subsecretaria` y `programa` no, porque sus `form_invalid` arman el listado a mano y ponerles `paginate_by` sin el `_contexto_lista` de FE-04 reestrena el bug de la fila 21 (el include no dibuja nada sin `page_obj`, así que el 6b solo toca la vista); (c) el `badge-danger` de «Inactiva» en las dos listas de secretarías **no se toca**: es el defecto de FE-18, que nombró otras tres pantallas. **Playwright a 1440 y 390 px, 0 errores de consola:** `<h1>` en x=320 / x=16, `th` 11 px mayúsculas sobre `rgb(249,250,251)`, `td` 14 px, `.nodo-icon-btn` 26 × 26 en `rgb(107,114,128)` con `aria-label` que nombra el registro, «Página 1 de 2» en las cinco que paginan, y la tabla scrolleando **adentro** de su card a 390 px. **Ronda 2 (1 MAJOR + 4 MINOR):** el MAJOR es un `{% url %}` con un nombre que no existe (`configuracion:programa_list` por `configuracion:programas`); la forma `as` **se traga el `NoReverseMatch`** y el botón «Limpiar filtros» de Programas no se dibujaba nunca, sin error ni log. Además del arreglo quedan dos redes: el botón del estado vacío medido por HTTP en las ocho listas, y un **barrido de todos los `{% url %}` literales del repo** con ratchet en las dos direcciones (33 nombres rotos preexistentes: 32 del portal ciudadano sin ruta y uno de `widget_contactos.html`, los dos con su ficha dueña en la Ola 7). Los MINOR: tres claves muertas del contexto de `RolListView`, el aviso «Rol del sistema — no se puede editar ni eliminar» que se había perdido al sacar el kebab (vuelve como `title` + `aria-describedby` sobre la acción «Ver») y esta misma fila, que decía que las ocho paginaban. **Para el juez:** el bloque de `.claude/design/componentes/filtros.md` va en el cuerpo del PR (la sesión no escribe bajo `.claude/`); hasta aplicarlo, «Design Agent Contract» queda rojo. **PR 6b:** `legajos/ciudadano_list.html`, FE-20 (17 formularios de Configuración + páginas de error), FE-23 (`_field.html` único), FE-24 (solapas con ARIA y teclado, que **necesita OK** para `nodo-tabs.js`) y el resto de FE-17 (`param`/`extra_qs` de la pieza, los tres detalles de Becas y `ConvocatoriaListView`) |
+
 ## Estado al 07-oct-2026 (Ola 5, PR 8: la red de seguridad del front)
 
 | PR | Cambio | Fichas | Estado | Qué quedó abierto |
@@ -1759,7 +1765,11 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
 ### Ola 5 — Bugs de front y parches v1 de Legajos y Dispositivos
 - **Objetivo:** que las pantallas funcionen (subir archivos, paginar, cascadas, botones visibles) y migrar las pantallas
   fuera de Becas a las piezas canónicas clonando las goldens.
-- **Avance: 66 h de 128, 62 restantes.** PR 1 (DIS-01 + DIS-08) en el Cambio 140, 06-oct-2026: helper de fechas locales,
+- **Avance: 88 h de 128, 40 restantes.** **PR 6a (FE-11 🟡, FE-12 🟡, FE-17 🟡) en el Cambio 166, 07-oct-2026**:
+  22 h de las 48 del PR 6, sin migraciones. Las ocho listas de Usuarios, Roles y Configuración clonan la golden
+  del arquetipo Listado y `rol_detail` recibe el encabezado canónico; `RolListView` pasa a paginar de a 25.
+  Quedan para el **PR 6b** (26 h) `legajos/ciudadano_list.html`, FE-20, FE-23, FE-24 y el resto de FE-17.
+  PR 1 (DIS-01 + DIS-08) en el Cambio 140, 06-oct-2026: helper de fechas locales,
 
 - **Avance: 60 h de 128, 68 restantes.** PR 1 (DIS-01 + DIS-08) en el Cambio 140, 06-oct-2026: helper de fechas locales,
   los dos usos de Dispositivos más los tres latentes y cuatro de Conversaciones, y la guardia `test_sql_portable.py`
@@ -1782,7 +1792,9 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
 - **PRs y orden:** (1) DIS-01 + DIS-08 (helper de fechas locales + guardia de `__date`) 4 h · (2) Legajos: FE-02, LEG-04,
   LEG-05, LEG-02, LEG-03, FE-09, FE-21 14 h · (3) ✅ Configuración: FE-04, FE-05, FE-08 6 h (Cambio 152) · (4) ✅ FE-06,
   FE-07, FE-01 y FE-10 14 h (Cambio 155) · (5) ✅ FE-18, FE-19, FE-25, FE-26 8 h (Cambio 157) · (6) **después de la
-  Ola 6 paso 4:** FE-11, FE-12, FE-17, FE-20, FE-23, FE-24 48 h · (7) ✅ FE-22 (🟡), FE-16, V5A-NEW-04, G2-04, G2-06, V5A-NEW-07 parte (b) (labels de `convocatoria_list` y deuda de
+  Ola 6 paso 4:** FE-11, FE-12, FE-17, FE-20, FE-23, FE-24 48 h, **partido en dos**: **6a** ✅ (FE-11, FE-12 y
+  FE-17 sobre los listados de Usuarios, Roles y Configuración, 22 h, Cambio 166) y **6b** (`ciudadano_list`,
+  FE-20, FE-23, FE-24 y el resto de FE-17, 26 h) · (7) ✅ FE-22 (🟡), FE-16, V5A-NEW-04, G2-04, G2-06, V5A-NEW-07 parte (b) (labels de `convocatoria_list` y deuda de
   `_dashboard_panel`) 20 h (Cambio 161) · (8) *Red de seguridad (04-oct):* RED-33 (tests HTTP de las vistas de Dispositivos y
   Merenderos, con el PR 1), RED-75 (`/set_dark_mode/`, D-RED-07) y segundas partes de RED-42 (URLs literales →
   `{% url %}`) y RED-53 (`_subir_padron`) 14 h.
@@ -1795,7 +1807,9 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
 - **PRs y orden:** (1) DIS-01 + DIS-08 (helper de fechas locales + guardia de `__date`) 4 h · (2) Legajos: FE-02, LEG-04,
   LEG-05, LEG-02, LEG-03, FE-09, FE-21 14 h · (3) ✅ Configuración: FE-04, FE-05, FE-08 6 h (Cambio 152) · (4) ✅ FE-06,
   FE-07, FE-01 y FE-10 14 h (Cambio 155) · (5) ✅ FE-18, FE-19, FE-25, FE-26 8 h (Cambio 157) · (6) **después de la
-  Ola 6 paso 4:** FE-11, FE-12, FE-17, FE-20, FE-23, FE-24 48 h · (7) FE-22, FE-16, V5A-NEW-04, G2-04, G2-06, V5A-NEW-07 parte (b) (labels de `convocatoria_list` y deuda de
+  Ola 6 paso 4:** FE-11, FE-12, FE-17, FE-20, FE-23, FE-24 48 h, **partido en dos**: **6a** ✅ (FE-11, FE-12 y
+  FE-17 sobre los listados de Usuarios, Roles y Configuración, 22 h, Cambio 166) y **6b** (`ciudadano_list`,
+  FE-20, FE-23, FE-24 y el resto de FE-17, 26 h) · (7) FE-22, FE-16, V5A-NEW-04, G2-04, G2-06, V5A-NEW-07 parte (b) (labels de `convocatoria_list` y deuda de
   `_dashboard_panel`) 20 h · (8) ✅ *Red de seguridad (04-oct):* RED-33 (tests HTTP de las vistas de Dispositivos y
   Merenderos), RED-75 (`/set_dark_mode/`, D-RED-07 = A) y segundas partes de RED-42 (URLs literales →
   `{% url %}`) y RED-53 (`_subir_padron`) 14 h (Cambio 164). No entró con el PR 1, como decía el plan: DIS-01

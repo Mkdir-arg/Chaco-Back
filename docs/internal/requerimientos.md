@@ -334,8 +334,10 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 160 | Contratos del backoffice: las URLs que el front escribe a mano, las claves que lee, los parsers externos y el gate que los corre | Transversal (barrido de URLs del front, sobre de error JSON, catálogo de capacidades, CI de GitHub Actions) · Inicio (APIs del dashboard y contador de alertas) · Becas (JSON guardados, fixtures de RENAPER/Personas/SIIS) | `#api` `#metodo` `#rbac` `#siis` | Auditoría integral oct-2026 — fichas RED-42, RED-39, RED-40, RED-41, RED-43 y RED-44 (Ola R, PR R-18) | 07/10/2026 | 🟢 **Hecho** (RED-39, RED-40 y RED-42 cierran su parte R; el resto queda en las Olas 3, 5 y 7 con su test o su ratchet puesto) | No requiere |
 | 161 | Números que no miden lo que su rótulo dice, y pantallas que prometen lo que no hacen | Transversal (home del backoffice, login) · Legajos (reportes, edición del ciudadano, gestión de programas, dashboards) · Becas (modal de convocatorias y solapa Dashboard del programa) | `#ui` `#textos` `#datos` | Auditoría integral oct-2026 — fichas FE-22, FE-16, V5A-NEW-04, G2-04, G2-06 y V5A-NEW-07 (b) (Ola 5, PR 7) | 07/10/2026 | 🟢 **Hecho** (la migración de los 10 KPIs a `_stat_card.html` queda frenada: necesita parámetros nuevos del componente, que es novedad del agente) | No requiere |
 | 162 | Las herramientas de SIIS dejan de pisar lo que otro corrigió, y el alta de prueba no sale del ambiente de pruebas | Becas · revisión de casos (modal «Completar datos para SIIS») · comandos de gestión de SIIS (`diagnosticar_siis`, `corregir_datos_siis`, `correr_alta_siis`, `completar_casos_renaper`) | `#siis` `#datos` `#relevamientos` `#ui` `#metodo` | Auditoría integral oct-2026 — fichas SIIS-19, SIIS-17 y G3-06, más la segunda parte de RED-32 (Ola 1 «Integridad SIIS», PR 7 — cierra la ola) | 07/10/2026 | 🟢 **Hecho** | No requiere |
+| 163 | Cobertura y regresión: la suite deja de depender del orden, el `--parallel` vuelve a correr y la cobertura se mide donde importa | Transversal (runner de tests, medición de cobertura, CI, contrato de la auditoría) · Configuración (wizard de programas, ABM de secretarías) · Legajos (pasada horaria de alertas) · Becas (alta de relevamiento, padrón, convocatorias) · Dispositivos (indicador de última actualización) | `#metodo` `#infra` `#datos` | Auditoría integral oct-2026 — fichas TST-02, TST-03, R0-03, RED-34, RED-74, RED-72 y RED-88 (Ola R, PR R-20) | 07/10/2026 | 🟢 **Hecho** | No requiere |
 | 164 | La red de seguridad del front: lo que no estaba probado, el toggle que prometía de más y las URLs escritas a mano | Dispositivos (admisiones) · Merenderos (entregas, detalle y estado) · Transversal (shell: toggle de tema y campana de alertas) · Legajos (detalle del ciudadano) · Becas (carga de padrón) | `#metodo` `#ui` `#api` `#rbac` | Auditoría integral oct-2026 — fichas RED-33, RED-75 y las segundas partes de RED-42 y RED-53 (Ola 5, PR 8) | 07/10/2026 | 🟢 **Hecho** (D-RED-07 = A aplicada por default) | No requiere |
 | 165 | El arranque del contenedor deja de ser frágil: candado, timeouts de migración y tareas programadas con vigilancia | Transversal (arranque del contenedor, settings de entorno, tareas programadas de k8s e icore, plantilla de migraciones) | `#infra` `#datos` `#metodo` | Auditoría integral oct-2026 — fichas OPS-05, OPS-07, OPS-11, OPS-12, G3-04, G3-05 y RED-58 (Ola 3, PR 1) | 07/10/2026 | 🟢 **Hecho** | No requiere (se edita `legajos.0007`, ya aplicada, sin cambiar su SQL de ida) |
+| 166 | Los listados de afuera de Becas dejan de ser cada uno su propio diseño: encabezado, tabla, estado vacío y paginación canónicos | Usuarios y roles (listado de usuarios, listado y detalle de roles) · Configuración (provincias, municipios, localidades, secretarías, subsecretarías y programas) | `#ui` `#usuarios` `#metodo` | Auditoría integral oct-2026 — fichas FE-11, FE-12 y FE-17 (Ola 5, PR 6a — primer lote del PR más grande de la ola) | 07/10/2026 | 🟡 **Parcial** (las tres fichas cierran Usuarios, Roles y Configuración; `legajos/ciudadano_list` y el resto van en el PR 6b) | No requiere |
 
 **Notas del índice**
 
@@ -22540,6 +22542,238 @@ el modal no puede quitar, y `diagnosticar_siis --alta` sale contra cualquier URL
 
 ---
 
+# Cambio 163 — Cobertura y regresión: la suite deja de depender del orden, el `--parallel` vuelve a correr y la cobertura se mide donde importa
+
+🟢 **HECHO — 07/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal: runner de tests (orden y paralelo), medición de cobertura, CI de GitHub Actions y contrato de la auditoría. Configuración (wizard de programas, ABM de secretarías). Legajos (pasada horaria de alertas). Becas (alta de relevamiento, padrón, convocatorias). Dispositivos (indicador de última actualización) |
+| **Etiquetas** | `#metodo` `#infra` `#datos` |
+| **Solicitante** | Auditoría integral de octubre 2026 — hallazgos **TST-02**, **TST-03**, **R0-03**, **RED-34**, **RED-74**, **RED-72** y **RED-88** (Ola R «Red de seguridad», PR R-20) |
+| **Fecha del pedido** | 07/10/2026 |
+| **Issue / épica** | Sin issue — auditoría oct-2026, `docs/internal/auditoria-2026-10/hallazgos/05-datos-operacion-tests.md` y `08-red-de-seguridad.md` |
+| **Partes afectadas** | Casi todo son tests y configuración de CI. Código que viaja al release: **nada**. El único `.py` no-test que cambia es `core/management/commands/seed_perf.py`, un comando de management que solo corre en la base de test y en la MySQL efímera del CI. Más `pyproject.toml` (alcance y techo de coverage), `.github/workflows/pr-backend.yml` y `.gitignore` |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Siete fichas de la familia «cobertura y regresión». Todas comparten una forma: **la suite dice que algo está probado y
+no lo está**, o **el gate que debería avisar no avisa**.
+
+- **TST-02** (MEDIA): configuración sin tests de comportamiento, `generar_alertas` al 0 %, dos tests que son
+  `assertTrue(True)` y —ampliación del 06-oct— **cinco módulos de `programas/tests/` que solo pasan si otro corrió
+  antes**: con `--shuffle`, 21 fallas con la semilla 1234 y 26 con la 777.
+- **TST-03** (BAJA): el `fail_under = 48` se mide sobre **todo** el repo, incluidas herramientas de desarrollo y
+  módulos muertos.
+- **R0-03** (BAJA): una fecha literal en `test_becas_relevamientos.py` que **vence el 01-ene-2027** y pone rojo el
+  `Backend CI` de todos los PRs sin que nadie haya tocado una línea.
+- **RED-34** (MEDIA): nada obliga a que una ficha cerrada deje un test permanente. Las PoC viven bajo `docs/`, que el
+  runner no descubre: `unittest.defaultTestLoader.discover('docs')` devuelve **0 tests**.
+- **RED-74** (BAJA): ocho arreglos mergeados sin ningún test; dos de ellos sin ficha propia que los cubra.
+- **RED-72** (BAJA): el harness e2e de Playwright no existe en el repo; quedan `.pyc` de julio que la documentación de
+  trabajo da por «en verde».
+- **RED-88** (BAJA): `manage.py test core users portal --parallel` revienta con `TypeError: cannot pickle 'traceback'
+  object` **sin decir qué test falló**.
+
+## Qué lo motivó
+
+El objetivo de la Ola R es que nada se rompa sin que alguien se entere. Estas siete son el caso en que **el aviso mismo
+está roto**:
+
+- Un test que pasa por el orden de la suite no prueba lo que dice. Alcanza con que alguien agregue un módulo antes para
+  que 26 tests se pongan rojos sin que haya cambiado una línea de código —y, peor, para que dejen de cubrir lo suyo sin
+  ponerse rojos.
+- Un `fail_under` 35 puntos por debajo de lo real no puede fallar: la cobertura podía partirse al medio y el CI seguía
+  en verde.
+- Una fecha literal que vence es una bomba de tiempo con fecha conocida: el 01-ene-2027 **todos** los PRs quedan rojos.
+- Y cerrar una ficha invirtiendo su PoC, sin tocar `<app>/tests/`, deja la ficha en ✅ y el bug vuelve el día que alguien
+  toque el módulo.
+
+## Alcance acordado
+
+**Entra:** las siete fichas completas, más un *flake* de la misma familia que apareció esta madrugada y que ninguna
+ficha tenía (ver «Tres hallazgos que las fichas no tenían»).
+
+**Queda afuera**, con su destino anotado:
+
+- El `assertNumQueries` de `generar_alertas` (3 consultas por ciudadano activo) es **PERF-20**, Ola 4. Acá se prueba
+  comportamiento, no costo.
+- Los comandos sin test `completar_casos_renaper`, `validar_casos_siis` y `sincronizar_programas_siis` los cerró
+  **RED-32** (Cambios 123 y 162).
+- Los «tests que faltan» que midió la prueba de mutación están en RED-25 a RED-29, RED-66 a RED-70 y RED-87, todos ya
+  cerrados.
+- **RED-86** (pasar la suite entera a paralelo) sigue en su ola: acá solo se desbloquea.
+
+## Decisiones tomadas
+
+- **El arreglo de los módulos que dependían del orden va a una base compartida, no copiado cinco veces.**
+  `programas/tests/base_becas.py` define `ProgramaBecasSembrado` (mixin) y `BecasPantallaTestCase`. El contenido nació
+  en `test_becas_convocatorias_diseno.py` (Cambio 130, PR R-11) y ese módulo pasa a heredarlo, así que queda **una sola
+  definición** del porqué: sin la fila `Programa(codigo="BECAS")` los guards de Becas fallan cerrados desde RED-56 y la
+  pantalla da 403 **también para un superusuario**; y la clave de caché `programas:becas` es de **proceso** y sobrevive
+  al rollback de la base entre tests.
+- **El gate de orden es `--shuffle` en un job NO bloqueante, no un test estructural.** Se intentó primero un detector
+  AST («todo módulo que pegue a `/becas/` tiene que sembrar su Programa»): **medido, marca 10 módulos que en realidad
+  pasan solos**, porque lo consiguen por caminos que el AST no ve. Un gate que miente es peor que no tenerlo. Lo que
+  queda es (a) el ratchet acotado a los **seis módulos medidos** y (b) el job `Orden y paralelo` que corre la suite de
+  verdad en otro orden. **No bloqueante a propósito:** `--shuffle` toma una semilla al azar, así que un PR podría quedar
+  rojo por una dependencia que introdujo otro PR y re-correr lo pondría verde; un check no reproducible no puede
+  bloquear un merge. Deja la semilla en el log para reproducir.
+- **El gate por módulo de TST-03 va como paso del job `Tests & Coverage`, no como check nuevo.** Es el mismo tema (la
+  cobertura de este PR), reusa la medición que ya se hizo y **no hay que tocar el ruleset**, que todavía no está
+  aplicado. Mismo criterio que el Cambio 135 con `check_migraciones.py`. Por eso este PR **no** modifica
+  `docs/internal/rulesets/ruleset-development.json` ni `CHECKS_OBLIGATORIOS`.
+- **`branch = true` se activa, y el `fail_under` queda en 79.** La ficha lo proponía «midiendo de nuevo antes de
+  fijarlo», así que se midió: con el `omit` nuevo, **83 %** de sentencias y **81 %** contando ramas (23.315 sentencias,
+  6.192 ramas). Se fija sobre el número **con ramas**, que es el que vale la pena: sin él, un `if` cuyo cuerpo se
+  ejecuta siempre por la misma rama cuenta como 100 % cubierto. El techo queda **dos puntos abajo** de lo medido, para
+  que un PR no se ponga rojo por redondeo. Es un ratchet: sube cuando la medición suba. La ficha proponía 74 sobre una
+  medición de 76 % del 04-oct sin ramas; los PRs de las olas R, 1 y 5 subieron el número desde entonces.
+  El costo: la corrida con coverage pasa de 480 s a 744 s en local, por eso `Tests & Coverage` sube su
+  `timeout-minutes` de 15 a 20.
+- **El piso por módulo crítico queda en 90.** Los nueve que nombra la ficha están entre 92 % y 98 % contando ramas
+  (TOTAL 94 %); el más bajo es `programas/services/siis_envio.py` con 92 %.
+- **DECISIÓN CLIENTE aplicada: D-RED-06 (default del README §2) — no se reconstruye un e2e por ahora.** Lo que se hace
+  desde el repo es cerrarle la puerta: `/tests/e2e/` entra al `.gitignore` —ahí viven el usuario y la clave del compose
+  local— y cuatro tests afirman que nada de `tests/` está versionado, que no hay bytecode en el árbol y que **ningún
+  workflow menciona Playwright** («nunca como gate»). Si alguna vez se reconstruye, va solo donde hay JavaScript que
+  decide, nightly o a mano.
+- **Los dos `assertTrue(True)` se reemplazan por una afirmación real, no se borran.** La ficha decía «borrarlos»; un
+  archivo de test borrado no deja nada, y las dos cosas que afirmaban mal sí vale la pena sostenerlas:
+  `configuracion/services/` sigue vacío y `tramites` sigue siendo un stub **sin modelos** —un modelo ahí sería una tabla
+  nueva en producción por una app que nadie usa— hasta que OPS-14 la borre.
+- **La guarda de `seed_perf` se afloja lo mínimo.** Pasa de comparar contra dos literales a usar el mismo criterio que
+  Django (`:memory:` o `mode=memory` en el nombre), que es lo que cubre los clones de `--parallel`. Sigue rechazando un
+  archivo en disco, que es lo que la guarda existe para impedir.
+
+## Qué se hizo
+
+**58 tests nuevos** en nueve módulos, todos descubiertos por `manage.py test` sin argumentos. La suite pasa de 3.407 a
+**3.465** tests.
+
+- **TST-02 (a) — los cinco módulos que dependían del orden.** `programas/tests/base_becas.py` nuevo, y los seis módulos
+  (los cinco medidos más `test_becas_convocatorias_diseno`, que ya traía su copia) heredan de él.
+  `programas/tests/test_aislamiento_modulos.py` (7 tests) prueba el **mecanismo** —sin el Programa la pantalla da 403
+  aunque seas superusuario; con la caché sucia abre una pantalla que la base ya no respalda— y deja el ratchet sobre
+  los seis módulos medidos.
+- **TST-02 (b) — `legajos/tests/test_generar_alertas.py`** (8 tests) sobre la pasada horaria que estaba al 0 %:
+  genera la alerta, **dos pasadas no duplican**, la MEDIA/BAJA que ya no aplica se desactiva, la ALTA **no** se apaga
+  sola, un ciudadano sin legajo no rompe la pasada, un inactivo queda fuera, y el WebSocket sale una vez por alerta
+  **nueva** (LEG-01).
+- **TST-02 (c) — `configuracion/tests/test_wizard_programas.py`** (12 tests: los cuatro pasos crean el Programa con
+  todo, el estado de sesión queda limpio, entrar al paso 3 sin el 1 redirige, los ocho pasos sin capacidad y como
+  anónimo, código repetido, lista de espera sin cupo, y los cinco de `programa_cambiar_estado`) y
+  **`configuracion/tests/test_secretarias.py`** (6 tests: el `ProtectedError` de la jerarquía y su control). Los dos
+  `assertTrue(True)` reemplazados.
+- **TST-03 — `pyproject.toml`**: `omit` suma `core/performance/*` (muerto, OPS-10), `scripts/*`, `awslabs-mcp/*` y
+  `docker/*`; `branch = true` y `fail_under` 48 → **79**. Y un paso nuevo en `Tests & Coverage` con el piso de **90**
+  sobre los nueve módulos de los flujos críticos.
+- **R0-03 — `ConvocatoriaTests`**: las fechas pasan a ser relativas a `timezone.localdate()`, más
+  `test_crear_convocatoria_sigue_andando_pasado_el_01_ene_2027`, que corre el alta con **el reloj congelado en 2027**.
+  Helper nuevo `core/tests/reloj.py` (`reloj_en` + `ART`), sin agregar dependencias: parchea
+  `django.utils.timezone.now`, que es de donde salen `localtime()` y `localdate()`.
+- **RED-34 — `core/tests/test_contrato_auditoria.py`** (8 tests). Lee los ocho `hallazgos/*.md`, parsea las **131**
+  líneas «Test permanente» —en las dos formas que conviven, `ruta.py::Clase.test` y punteada— y exige que módulo, clase
+  y método existan. La otra mitad: toda ficha cerrada **desde el 04-oct-2026** tiene que declarar la línea (las 18
+  anteriores quedan exentas, y están todas con fecha). Más el control del parser y la afirmación de la premisa: `docs/`
+  sigue aportando **0 tests** al runner.
+- **RED-74 — los dos arreglos sin test**: `AltaRelevamientoTests` (3 tests) cuenta los `SAVEPOINT` del alta de
+  relevamiento y exige **uno**, con un control que demuestra que el contador ve el segundo; y
+  `ResumenFijoPadronTests.test_tolera_un_request_sin_sesion` (+ su control) para el `request` sin `SessionMiddleware`.
+- **RED-72 — `HarnessE2ENoVersionadoTests`** (4 tests) + `/tests/e2e/` en `.gitignore`.
+- **RED-88 — `core/management/commands/seed_perf.py`**: la guarda pasa a `es_sqlite_en_memoria()`, con
+  `core/tests/test_seed_perf_guarda.py` (4 tests). `core users portal --parallel 2` pasa de morir a **1.171 tests OK en
+  56 s**, y el job `Orden y paralelo` lo corre en cada PR.
+
+## Tres hallazgos que las fichas no tenían
+
+1. **Un sexto módulo dependía del orden, y está en `legajos`, no en `programas`.** La ficha midió los 77 módulos de
+   `programas/tests/`; `legajos.tests.test_adjuntos_robustez.AdjuntoBlobFaltanteTests.test_archivos_ciudadano_sin_n_mas_1`
+   fallaba corrido solo con `4 != 3`. Su comentario decía que las subidas dejaban «los `ContentType`» calientes, pero
+   suben adjuntos de **Ciudadano**: el de `LegajoAtencion` —que el payload también necesita— quedaba frío salvo que otro
+   módulo lo hubiera consultado antes. Se calienta explícitamente por los dos modelos. **Barrido completo:** después del
+   arreglo, los **77 módulos de `programas/tests/` y los de las otras diez apps pasan corridos solos, uno por uno.**
+   **Y un séptimo que el barrido no podía encontrar.** `legajos.tests.test_consulta_renaper_encoding.RenaperTestModeTests`
+   pasa corrido solo —en el orden alfabético el acoplamiento juega a favor— y falla con la semilla aleatoria del CI
+   (2529168576): `consultar_datos_renaper` cachea por `renaper:consulta:<dni>:<sexo>` en LocMem, que es de **proceso**,
+   y el segundo test en correr pegaba en la caché sin llamar al servicio. En el orden de siempre eso dejaba al otro
+   test **pasando por el motivo equivocado** (no dormía porque no se ejecutaba). Arreglado con `cache.clear()` en el
+   `setUp` **y** un DNI distinto por caso, más un test que afirma la caché como comportamiento buscado —si no, alguien
+   podría «arreglar» el acoplamiento sacándola, que es lo que evita una llamada a RENAPER por visita—. **Lo encontró el
+   job `Orden y paralelo` en su primera corrida**, que es la mejor evidencia de que el ratchet estructural no alcanzaba
+   y de por qué el gate real tiene que ser `--shuffle`.
+2. **Un flake de medianoche, de la misma familia pero por hora y no por orden.**
+   `programas.tests.test_fechas_locales_dispositivos.IndicadorActualizacionFechaLocalTests.test_un_parte_de_hoy_no_suma_dias`
+   fijaba `modificado = timezone.now() - timedelta(minutes=5)` y lo comparaba contra la **fecha local**: entre las 00:00
+   y las 00:05 ART ese instante es «ayer» y el indicador devolvía 1. Rojo cinco minutos por día, siempre de noche y
+   nunca en el CI (que corre en UTC). Arreglado (`modificado=timezone.now()`) y protegido con
+   `test_la_medianoche_local_no_mueve_el_contador`, que congela el reloj a las **00:02 ART** y prueba las dos caras.
+   Se buscó el mismo patrón en toda la suite (`now() - timedelta(minutes|seconds|hours=…)`): los otros nueve usos
+   comparan datetime contra datetime (latido del masivo, `fecha_hasta` vencida, frescura del sellado), no contra una
+   fecha local, así que no tienen el defecto.
+3. **El caso «con padrón» de RED-74 ya no existe.** La ficha pedía probar las dos ramas del `save()` de
+   `RelevamientoForm`; ese `save()` **ya no está** —`grep padron programas/forms.py` da cero—, porque la carga del Excel
+   se mudó a su propia vista. El control que ocupa su lugar envuelve el alta en un `atomic()` extra y verifica que el
+   contador de savepoints ve dos: sin eso, `assertEqual(…, 1)` podría estar verde por no medir nada.
+
+## Verificación
+
+- `manage.py check` → sin issues; `check --deploy` → los avisos preexistentes de ambiente local;
+  `makemigrations --check --dry-run` → «No changes detected».
+- **`manage.py test` sin argumentos: 3.465 tests, OK (skipped=30, expected failures=8)**, 480 s.
+- **`manage.py test --shuffle 1234` → OK** (antes del PR: 21 fallas). **`--shuffle 777` → OK** (antes: 26).
+- **Barrido módulo por módulo:** los 77 de `programas/tests/` y los de `core`, `legajos`, `users`, `portal`,
+  `configuracion`, `dashboard`, `conversaciones`, `healthcheck`, `tramites` y `config`, cada uno con
+  `manage.py test <app>.tests.<modulo>` → **0 en rojo**.
+- **`manage.py test core users portal --parallel 2` → 1.171 tests OK en 56 s** (antes: `TypeError: cannot pickle
+  'traceback' object`).
+- `manage.py test --tag performance` → OK.
+- `coverage run manage.py test && coverage report` con `branch = true` → **81 %** (23.315 sentencias, 6.192 ramas),
+  sobre un `fail_under` de 79. El paso por módulo crítico → **94 %** (2.199 sentencias, 852 ramas), sobre un piso de 90.
+  Sin ramas los mismos dos números son 83 % y 95 %.
+- `ruff check .` → All checks passed; `ruff format --check` sobre lo tocado → ya formateado.
+- `scripts/requerimientos.py --check` → OK.
+
+**Las mutaciones de control**, todas aplicadas, corridas y revertidas:
+
+| Mutación | Resultado |
+|---|---|
+| `fecha_fin = "2026-12-31"` literal en el alta de convocatoria (R0-03) | `test_crear_convocatoria_sigue_andando_pasado_el_01_ene_2027`: rojo (`200 != 302`) |
+| las MEDIA/BAJA dejan de desactivarse (`update(activa=True)`) | `test_la_alerta_que_ya_no_aplica_se_desactiva`: rojo |
+| umbral de contacto `> 30` a `> 0` | `test_un_contacto_dentro_del_umbral_no_genera_alerta`: rojo |
+| `_crear_alerta` siempre crea (`if True:`) | 2 rojos: la idempotencia y el conteo de avisos por WebSocket |
+| la desactivación en bloque alcanza **todas** las prioridades | 3 rojos, incluido `test_una_alerta_alta_no_se_apaga_sola` |
+| un `atomic()` extra alrededor del alta de relevamiento | el contador de savepoints da 2, como pide el control |
+| un target inventado en una línea «Test permanente» | `test_toda_ficha_resuelta_nombra_un_test_que_existe`: rojo nombrando la ficha |
+
+Antes del cambio, los cinco módulos de TST-02 corridos solos daban **12, 6, 4, 3 y 1** fallas (26 en total, casi todas
+`403 != 200`), exactamente los números de la ficha.
+
+## Puesta en marcha en el servidor
+
+**No requiere ningún paso.** No hay migraciones, ni variables nuevas, ni cambios en el arranque del contenedor. El
+único `.py` no-test que cambia es `core/management/commands/seed_perf.py`, un comando que **no se puede correr fuera de
+la base de test o de la MySQL efímera del CI** —esa es justamente su guarda— y que ningún cron ni entrypoint invoca.
+
+Lo que cambia para quien desarrolla:
+
+- `coverage report` ahora mide ramas y falla por debajo de **79 %** (antes, sin ramas, 48) y hay un paso nuevo que
+  exige **90 %** en los nueve módulos de los flujos críticos. Un PR que baje la cobertura de `siis_envio.py`, `cupo.py`, `padron.py` o `rbac.py`
+  queda rojo donde antes no pasaba nada.
+- El job **`Orden y paralelo`** es nuevo y **no bloqueante**: corre la suite con `--shuffle` y `core users portal
+  --parallel 2`. Si sale amarillo, el log trae la semilla para reproducir el orden exacto.
+- Al cerrar una ficha de la auditoría, la línea «**Test permanente:** …» ahora la verifica un test
+  (`core.tests.test_contrato_auditoria`): si nombra algo que no existe, el `Backend CI` queda rojo.
+
+**Pendiente para el PM (operativo, fuera del repo):** en el checkout principal quedan los restos del harness e2e de
+julio —`tests/e2e/__pycache__/`, `tests/e2e/pages/__pycache__/` y `tests/e2e/.pytest_cache/`, **sin ningún `.py`**—.
+Nunca estuvieron versionados, así que el PR no los puede borrar; conviene hacerlo a mano
+(`Remove-Item -Recurse -Force C:\Users\mkdir\Proyectos\Chaco\tests\e2e`) para que nadie los confunda con un harness
+vivo: son bytecode de Python 3.14, incompatible con el 3.12 del CI. Y corregir la memoria de trabajo que lo daba por
+existente «y en verde» (D-RED-06 = No).
+---
+
 # Cambio 164 — La red de seguridad del front: lo que no estaba probado, el toggle que prometía de más y las URLs escritas a mano
 
 🟢 **HECHO — 07/10/2026**
@@ -22728,6 +22962,206 @@ lo deja otra vez sin medir.
   `url` con el reemplazo **anclado al final**: el patrón de `alertas_eventos.html` acá pisaba el primer
   cero, que es el del ciudadano (`/ciudadanos/10/archivos/0/` → `/ciudadanos/177/archivos/0/`). El barrido
   ensanchado destapó dos literales más de LEG-06 y el 404 de «Dar de baja» que queda en *Pendientes*.
+
+---
+
+# Cambio 166 — Los listados de afuera de Becas dejan de ser cada uno su propio diseño
+
+🟡 **PARCIAL — 07/10/2026** (primer lote del PR 6 de la Ola 5; el segundo es el PR 6b)
+
+| | |
+|---|---|
+| **Programa / módulo** | Usuarios y roles (listado de usuarios, listado y detalle de roles) · Configuración (provincias, municipios, localidades, secretarías, subsecretarías y programas) |
+| **Etiquetas** | `#ui` `#usuarios` `#metodo` |
+| **Solicitante** | Auditoría integral oct-2026 — fichas FE-11, FE-12 y FE-17 (Ola 5, PR 6a) |
+| **Fecha del pedido** | 07/10/2026 |
+| **Issue / épica** | Sin issue (plan de la auditoría: `docs/internal/auditoria-2026-10/`) |
+| **Partes afectadas** | Backoffice: nueve templates (`users/templates/user/user_list.html`, `users/templates/rol/{rol_list,rol_detail}.html` y las seis listas de `configuracion/templates/configuracion/`) y una vista (`users/views/roles.py`). Ninguna pantalla nueva, ninguna pieza canónica nueva |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> «(6) **después de la Ola 6 paso 4:** FE-11, FE-12, FE-17, FE-20, FE-23, FE-24 — 48 h» (README de la
+> auditoría, §6, Ola 5). Por tamaño, el PR se parte: este es el **6a** (22 h) y queda el **6b** (26 h).
+
+## Qué estaba mal
+
+1. **FE-11 — los componentes canónicos solo los usaba Becas.** `page_header`, `_estado_vacio`, `_paginacion`,
+   `_stat_card` y `_alerta` existían, tenían ficha y contrato, y **cero consumidores** fuera de
+   `programas/templates/programas/becas/**`. Cada listado de afuera dibujaba su propio encabezado —ocho
+   `<h1 style="font-size:28px; font-weight:800; …">` con la misma intención y distintos valores— y su propio
+   estado vacío, un bloque de `py-14 px-6 text-center` con un SVG de 48 px copiado nueve veces.
+2. **FE-12 — la tabla venía con las utilidades pegadas por celda.** 282 `style=` entre las nueve pantallas
+   (94 en `subsecretaria_list`, 79 en `secretaria_list`, 70 en `localidad_list`, 65 en `rol_list`, 46 en
+   `user_list`), el hover de fila en dos handlers inline por `<tr>`, 57 SVG de Heroicons pegados en el
+   contenido —contra la decisión **D3**, que los deja solo en el shell— y la columna de acciones con un `<th>`
+   que decía «Acciones» en texto visible en unas y nada en otras. Ninguna acción de fila usaba `.nodo-icon-btn`.
+3. **FE-17 — paginaciones falsas o copiadas.** `rol_list` cerraba con un pie **estático**: «1 de 1» entre dos
+   botones `disabled`, debajo de una tabla que renderizaba **todos** los roles visibles. Con 30 roles el pie
+   seguía diciendo «1 de 1». `user_list` tenía el pie de verdad, pero escrito a mano: 20 líneas con
+   `page_obj.has_previous`/`has_next` y sus SVG.
+
+## Alcance acordado
+
+**Entra:** los puntos **(3)** y **(5)** de la propuesta de FE-11 y los archivos de Usuarios, Roles y
+Configuración de FE-12, con la parte de FE-17 que no toca la pieza canónica.
+
+- Las **ocho listas** (`user_list`, `rol_list`, y `provincia`, `municipio`, `localidad`, `secretaria`,
+  `subsecretaria` y `programa` de Configuración) clonadas de la golden del arquetipo Listado.
+- `rol_detail` como **ajuste**: encabezado canónico y paleta cruda a tokens.
+- `RolListView` paginando de a 25.
+
+**Queda afuera, explícitamente:**
+
+- **Dispositivos y Merenderos** (puntos 1 y 2 de FE-11, y sus archivos en FE-12 y FE-17): **D-V1 = No**, así
+  que sus pantallas solo reciben fixes de bug y la migración de estilo la hereda la v2.
+- **`legajos/ciudadano_list.html`** (punto 4 de FE-11, y su fila en FE-12 y FE-17): 492 líneas con JS propio.
+  Va en el PR 6b.
+- **FE-20, FE-23 y FE-24**: los 17 formularios de Configuración, el `_field.html` único y las solapas con
+  ARIA y teclado. PR 6b. FE-24 además **necesita OK**: `static/custom/js/nodo-tabs.js` es un archivo JS nuevo,
+  o sea novedad del agente.
+- **`param` y `extra_qs` de `components/_paginacion.html`** y sus consumidores de Becas
+  (`segmento_detail` —que es **golden**—, `convocatoria_detail`, `relevamiento_detail`) más el `paginate_by`
+  de `ConvocatoriaListView`. PR 6b: cambiar la pieza canónica obliga a mover su ficha y la del arquetipo
+  Detalle en el mismo diff.
+
+## Decisiones tomadas
+
+- **El molde es la golden, no la hermana.** Las ocho listas clonan
+  `programas/templates/programas/becas/revision/personas_list.html` —esqueleto, no apariencia— y de la hermana
+  del módulo se tomó solo dominio: textos, columnas, URLs y capacidades. `design_audit.py --arquetipo listado`
+  da OK en las ocho.
+
+- **`rol_detail` no se migra a un arquetipo: se ajusta.** No es un listado ni un detalle del arquetipo Detalle
+  —no tiene solapas ni franja de métricas—, así que el protocolo del agente lo trata como **tipo A**: se cambia
+  el bloque pedido (el encabezado, que era un `<h1 class="text-2xl">` con un «volver» circular escrito a mano)
+  y el resto queda como está, salvo la paleta cruda que arrastraba (`text-gray-900`, `text-gray-600`,
+  `border-gray-200`, `text-green-500`, `bg-blue-600`), que pasa a tokens.
+
+- **El kebab de `rol_list` se reemplaza por las cuatro acciones de ícono.** El menú era un `x-data` de 25
+  líneas con `x-teleport`, posicionamiento calculado a mano y un `<style>` de 140 líneas que lo sostenía. El
+  arquetipo permite «varias `.nodo-icon-btn` en la misma celda, la destructiva con `.nodo-icon-btn--danger`»,
+  que es exactamente este caso (Ver, Editar, Activar/Desactivar, Eliminar). Con eso se va el `<style>` entero,
+  incluido su `[x-cloak]` local —que `override.css` ya define global— y el `@media (max-width:900px)` con
+  `min-width:720px`, que `responsive.css` reemplaza con `.overflow-x-auto > table { width: max-content;
+  min-width: 100% }`: medido a 390 px, la tabla scrollea adentro de su card y el documento no se desplaza.
+
+- **Las confirmaciones no se tocan.** `user_list` y `rol_list` siguen con su `Swal.fire` y el tono por acción
+  que fijó **FE-19** (Cambio 157), y las seis listas de Configuración siguen con `data-confirm-url` →
+  `ModernModal`. Migrar las dos primeras a `ModernModal` sería revertir una decisión tomada hace un PR.
+
+- **`rol_list` pagina la vista, no se le saca el pie.** La ficha ofrecía las dos; paginar es lo que hace que
+  el listado deje de crecer sin tope y es lo que el arquetipo pide («listados con `paginate_by`»). El tope es
+  25, el de Becas. `total_roles` se fue con el pie que lo imprimía: la pieza canónica cuenta lo que se está
+  viendo, y ninguna otra pantalla lo consumía.
+
+- **Las ocho incluyen la pieza de paginación, pero `secretaria`, `subsecretaria` y `programa` todavía no paginan.** Sus
+  `form_invalid` renderizan el listado a mano, sin `page_obj`: ponerles `paginate_by` sin el tratamiento de
+  `_contexto_lista` que **FE-04** le dio a geografía reestrena el bug de la fila 21 —el error de edición
+  vuelve a una página 1 donde la fila no está y el modal no se renderiza nunca—. El `include` queda puesto
+  (sin `page_obj` no dibuja nada) para que el PR 6b solo toque la vista.
+
+- **El «Nuevo X» del estado vacío lleva a la página de alta, no al modal.** El bloque a mano tenía un
+  `@click.prevent="modalCrear = true"`; `components/_estado_vacio.html` recibe una URL, no una expresión de
+  Alpine. Las seis pantallas de Configuración tienen su `*_form.html` ruteado y funcionando, así que el enlace
+  resuelve. El botón del encabezado sigue abriendo el modal.
+
+- **El `badge-danger` de «Inactiva» en las dos listas de secretarías no se toca.** Es el mismo defecto que
+  arregló FE-18, pero esa ficha nombró `user_list`, `rol_list` y `rol_detail`: cambiar el tono acá es una
+  decisión de producto fuera de ficha. Queda anotado en el propio template.
+
+## Qué se hizo
+
+- **Encabezado (FE-11).** `{% page_header titulo=… bajada=… %}` en las ocho listas y en `rol_detail` (con
+  `volver_url` y `volver_label="roles"`, que reemplaza el `btn-back-circle` escrito a mano). Ningún template
+  del lote contiene ya un `<h1`.
+- **Estado vacío (FE-11).** `components/_estado_vacio.html` en las ocho, con sus **dos** variantes: la de
+  «los filtros no traen nada» (`request.GET|hay_filtros`, acción terciaria «Limpiar filtros») y la de «no hay
+  nada» (acción primaria de alta). Las listas con filtros (`rol_list`, `secretaria`, `subsecretaria`,
+  `programa`) estrenan la primera: antes mostraban el mismo texto para los dos casos o directamente el de
+  «no hay nada».
+- **Tabla (FE-12).** `overflow-x-auto` + `table.w-full.border-collapse` + `nodo-thead-row`/`nodo-th`/`nodo-td`,
+  fila con `hover:bg-secondary`, columna de acciones con `<span class="sr-only">Acciones</span>` y acciones en
+  `.nodo-icon-btn` (`--danger` para borrar) con `aria-label` que nombra el registro. 282 `style=` → 5, y los
+  cinco son los exentos del inventario: cuatro `display:none` de formularios ocultos y el
+  `style="color: {{ programa.color }}"` del ícono del programa. 57 `<svg>` → 0: todo pasa a Font Awesome con
+  `aria-hidden="true"`.
+- **Paginación (FE-17).** `components/_paginacion.html` en las ocho, y **cinco de ellas paginan de verdad**
+  (las tres de geografía desde FE-04, más `user_list` y `rol_list`); `RolListView.por_pagina = 25` con su
+  `Paginator`; el pie copiado de `user_list` se fue y su querystring viaja por `filtros_qs`.
+- **Filtros.** Los cuatro listados con filtros propios pasan al contrato de la pieza: `<form method="get"
+  data-dynamic-list-filters>` sin `class` ni `style`, cada control con `aria-label`, sin botones «Filtrar» ni
+  «Limpiar» propios (el JS los tira). `user_list` conserva el modo **avanzado**
+  (`components/list_filters.html with advanced=True`), que es la variante que la ficha de filtros ya declara.
+
+## Verificación
+
+- `manage.py check` sin issues; `check --deploy` con las 6 advertencias de siempre; `makemigrations --check`
+  sin cambios.
+- **Suite entera en un solo proceso:** 3.527 tests, `OK (skipped=30, expected failures=8)`.
+  `--tag performance`: 4 tests, OK.
+- **TDD:** los 24 tests nuevos corridos contra un worktree de `HEAD` dan **95 fallas y 6 errores**; contra esta
+  rama, OK.
+- Diseño: `--arquetipo listado` OK en las ocho; `--ratchet` **0 hallazgos nuevos** en 9 archivos; `--goldens` 0;
+  `compile_templates.py --bloques` 0 errores y 0 bloques sin destino; `npm run build:tailwind` corrido y el CSS
+  commiteado. `check_design_agent.py --changed` exige mover la ficha de filtros, que cita `user_list.html`: el
+  bloque va en el cuerpo del PR porque la sesión no escribe bajo `.claude/`.
+- **Playwright (Chromium, SQLite local) a 1440 y 390 px, 0 errores de consola y 0 respuestas ≥ 400:** `<h1>` en
+  x = 320 (1440) y x = 16 (390), 30 px, peso 800; `th` 11 px, mayúsculas, fondo `rgb(249,250,251)`; `td` 14 px
+  con padding `13px 16px`; `.nodo-icon-btn` 26 × 26 px en `rgb(107,114,128)` con `aria-label` que nombra el
+  registro; «Página 1 de 2» en las cinco que paginan; a 390 px el wrapper scrollea (`scrollWidth` 709 contra `clientWidth`
+  356 en Usuarios) y el documento no. Los modales de Configuración siguen abriendo centrados (0,00 px de
+  desvío) y el borrado sigue confirmando con `btn-nodo btn-danger btn-base`.
+
+## Pendientes
+
+- **PR 6b (26 h):** `legajos/ciudadano_list.html`; **FE-20** (17 formularios de Configuración al arquetipo
+  Formulario y `403/404/500.html` con el shell, que además vacía tres entradas de la allowlist de
+  `compile_templates --bloques`); **FE-23** (`_field.html` único en `templates/components/`); **FE-24**
+  (solapas con ARIA y teclado — **frenar y pedir OK**: `nodo-tabs.js` es un archivo nuevo); y el resto de
+  **FE-17** (`param`/`extra_qs` de la pieza, los tres detalles de Becas y `ConvocatoriaListView`).
+- **`secretaria`, `subsecretaria` y `programa` sin paginar.** Necesitan el `_contexto_lista` de FE-04 en
+  `configuracion/views/secretaria.py` y un `Paginator` en `configuracion/views/programas.py::programa_list`.
+  Hoy traen la tabla entera.
+- **El `badge-danger` de «Inactiva»** en las dos listas de secretarías: mismo defecto que FE-18, sin ficha que
+  lo cubra.
+- **Para el juez:** aplicar el bloque de `.claude/design/componentes/filtros.md` del cuerpo del PR, o
+  «Design Agent Contract» queda rojo.
+
+## Historial
+
+- **03/10/2026** — la auditoría abre FE-11, FE-12 y FE-17, y las ata al paso 4 de la Ola 6 (goldens saneadas
+  y fichas por arquetipo): sin golden no hay molde.
+- **05/10/2026** (Cambios 131 y 132) — la Ola 6 deja las cuatro goldens en 0 P1 con marcadores completos y el
+  agente reescrito con sus fichas. Es el prerrequisito de este cambio.
+- **06/10/2026** (Cambio 152, PR 3 de la Ola 5) — FE-04 pagina geografía y nace `components/_form_errores.html`.
+- **06/10/2026** (Cambio 155, PR 4) — los diez modales de Configuración clonan la golden del arquetipo Modal.
+  Este cambio los deja intactos y migra lo que los rodea.
+- **07/10/2026** (Cambio 157, PR 5) — FE-18 y FE-19 fijan el tono de los badges y de las confirmaciones de
+  `user_list` y `rol_list`. Acá se preserva tal cual, y por eso las dos pantallas siguen con SweetAlert2.
+- **07/10/2026 (este cambio)** — primer lote del PR 6. Con esto la Ola 5 va por **88 h de 128**.
+- **07/10/2026 (ronda 2 de la revisión)** — un MAJOR y cuatro MINOR. El MAJOR es el modo de falla que la
+  migración trajo consigo: `{% url 'configuracion:programa_list' as url_sin_filtros %}` nombraba una ruta que
+  **no existe** (se llama `configuracion:programas`), y la forma **`as` se traga el `NoReverseMatch`**: deja la
+  variable vacía, `components/_estado_vacio.html` recibe `accion_url=""` y no dibuja el ancla. Medido:
+  `/configuracion/programas/?q=zzzz` daba **0 anchors**, así que el botón «Limpiar filtros» de esa pantalla no
+  existió nunca —sin error, sin log y sin 404—. Además del nombre corregido quedan **dos redes**: una
+  conductual, que lleva las ocho listas a su estado vacío por HTTP y exige que el botón tenga `href` no vacío y
+  que ese `href` `resolve()`; y una **de repositorio**, que barre todos los `{% url '<nombre>' %}` literales de
+  `templates/` y los ocho `*/templates/` y exige que cada nombre resuelva, con ratchet en las dos direcciones.
+  El barrido midió **33 nombres rotos preexistentes**, todos con dueño: 32 en
+  `portal/templates/portal/ciudadano/` —pantallas que quedaron sin ruta y que el inventario del agente ya
+  declara «no son referencia»— y `legajos:metricas_contactos_api` en `templates/components/widget_contactos.html`,
+  parcial del shell legacy que retira LEG-06. Fuera de eso, **ninguno**. Los cuatro MINOR: (1) `programa_list`
+  no incluía `components/_paginacion.html` y tres documentos decían que sí —se agregó el include, con lo que
+  las ocho lo tienen, y el test pasó de cubrir cinco a cubrir las ocho—; (2) `RolListView` dejaba `roles`,
+  `total_roles` y `hay_filtros_activos` en el contexto **sin un solo consumidor** desde que la pantalla decide
+  el estado vacío con `request.GET|hay_filtros`: se fueron los tres, y `test_roles_abm` pasa a afirmar que no
+  vuelven; (3) al reemplazar el kebab de `rol_list` se había perdido el aviso «Rol del sistema — no se puede
+  editar ni eliminar», que era lo único que explicaba por qué esa fila solo ofrece «Ver»: vuelve como `title`
+  del badge «Protegido» más un `sr-only` atado con `aria-describedby` a la acción «Ver», sin piezas nuevas;
+  (4) el Playwright de la primera vuelta midió «Página 1 de 2» en las cinco pantallas que paginan, no en las
+  ocho, y así quedó escrito acá, en la ficha y en el README.
 ---
 
 # Cambio 165 — El arranque del contenedor deja de ser frágil: candado, timeouts de migración y tareas programadas con vigilancia

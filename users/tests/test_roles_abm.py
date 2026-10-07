@@ -588,12 +588,14 @@ class RolesFiltrosTests(TestCase):
         self.assertEqual(resp.status_code, 200)
         nombres = {it["group"].name for it in resp.context["items"]}
         self.assertEqual(nombres, {"Territorial Becas", "Territorial Vivienda"})
-        self.assertIn("roles", resp.context)
         self.assertEqual(resp.context["filtro_q"], "territorial")
         self.assertEqual(resp.context["filtro_categoria"], rbac.CATEGORIA_PROGRAMA)
         self.assertEqual(resp.context["filtro_estado"], "activo")
-        self.assertTrue(resp.context["hay_filtros_activos"])
         self.assertIn(rbac.CATEGORIA_PROGRAMA, resp.context["categorias_rol"])
+        # El estado vacío con filtros lo decide `request.GET|hay_filtros` en la plantilla
+        # (Cambio 166): la vista ya no pasa `hay_filtros_activos`, `roles` ni `total_roles`.
+        for muerta in ("roles", "total_roles", "hay_filtros_activos"):
+            self.assertNotIn(muerta, resp.context, f"{muerta} quedó sin consumidor")
 
     def test_vista_ignora_programa_ajeno_del_admin_de_programa(self):
         self.client.force_login(self.admin_becas)
