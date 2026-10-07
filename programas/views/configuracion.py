@@ -1025,6 +1025,22 @@ class PreguntaGlobalUpdateView(CapacidadRequeridaMixin, LoginRequiredMixin, Upda
         return super().form_invalid(form)
 
 
+def _etiqueta_destino_siis(valor):
+    """El nombre legible del destino SIIS, o el valor crudo si no está en el enum.
+
+    ``destino_siis`` es un ``CharField`` con ``choices``: la base acepta
+    cualquier texto de hasta 20 caracteres. Un valor que quedó de una versión
+    anterior de la lista —o que entró por un `update()`, una migración o un
+    restore— hacía explotar `DestinoSiis(valor)` con `ValueError`, y el botón de
+    activar respondía 500 en vez de decir lo que pasaba. Mostrar el valor crudo
+    es peor que la etiqueta y mucho mejor que un error.
+    """
+    try:
+        return PreguntaGlobal.DestinoSiis(valor).label
+    except ValueError:
+        return valor
+
+
 @login_required
 @requiere(CAP_PREGUNTA_EDITAR)
 def pregunta_toggle_activo(request, pk):
@@ -1035,6 +1051,25 @@ def pregunta_toggle_activo(request, pk):
         # Cambio 58, D12: sin identidad no hay caso.
         messages.error(request, "Los campos de identidad de la persona no se pueden desactivar.")
         return redirect("becas:preguntas")
+    # G1-09: «una sola pregunta activa por destino SIIS» era una regla del form,
+    # y este botón no pasa por el form. Reactivar una pregunta vieja dejaba dos
+    # activas con el mismo destino y lo que viajaba a SIIS pasaba a depender del
+    # orden físico de la tabla. El mensaje es el del form a propósito: es la
+    # misma regla, dicha igual.
+    if not pregunta.activo and pregunta.destino_siis:
+        otra = (
+            PreguntaGlobal.objects.filter(activo=True, destino_siis=pregunta.destino_siis)
+            .exclude(pk=pregunta.pk)
+            .first()
+        )
+        if otra is not None:
+            etiqueta = _etiqueta_destino_siis(pregunta.destino_siis)
+            messages.error(
+                request,
+                f"No se activó: ya hay una pregunta activa que alimenta «{etiqueta}»: «{otra.texto}». "
+                "Desactivá esa primero o sacale el destino SIIS a una de las dos.",
+            )
+            return redirect("becas:preguntas")
     pregunta.activo = not pregunta.activo
     pregunta.save(update_fields=["activo", "modificado"])
     messages.success(request, f"Pregunta {'activada' if pregunta.activo else 'desactivada'}.")

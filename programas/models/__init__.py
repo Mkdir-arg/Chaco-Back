@@ -1247,6 +1247,41 @@ class CampoTipoDispositivo(TimeStamped):
         return f"{self.tipo_dispositivo}: {self.seccion} · {self.nombre}"
 
 
+class CatalogoSiisLocal(TimeStamped):
+    """Lo último que SIIS devolvió para un catálogo maestro, guardado de este lado.
+
+    **Por qué una tabla y no la caché (SIIS-09, ronda 2).** ``armar_payload``
+    resuelve estado civil, provincia y localidad contra los catálogos de SIIS, y
+    los pedía por HTTP cuando la caché estaba fría. Eso pasa dentro del request
+    de «Aprobar», que ya encadena token + compatibilidad + alta + correo: 55 s de
+    los 55 que aguanta nginx (``core.integraciones.CADENAS``). Tres GET más eran
+    45 s que no entran en ningún presupuesto, así que la llamada tenía que salir
+    del request, no declararse.
+
+    La caché sola no alcanza para sacarla: es Redis **solo** en ``prd``
+    (``settings.py``), y en el resto de los ambientes es LocMem por proceso, que
+    se vacía con cada reciclado de worker de gunicorn (``--max-requests 1000``).
+    Una tabla la comparten todos los procesos, sobrevive a los reinicios y no
+    depende de que haya Redis. La caché se conserva arriba, con su TTL de un día,
+    para no ir a la base en cada caso del masivo.
+
+    La escribe cualquier lectura exitosa del catálogo (comandos, masivo,
+    pantallas de configuración) y, todas las noches, el CronJob de
+    ``sincronizar_programas_siis``. El request solo lee.
+    """
+
+    nombre = models.CharField(max_length=40, unique=True, verbose_name="Catálogo")
+    items = models.JSONField(default=list, verbose_name="Ítems normalizados")
+
+    class Meta:
+        verbose_name = "Catálogo maestro de SIIS"
+        verbose_name_plural = "Catálogos maestros de SIIS"
+        ordering = ["nombre"]
+
+    def __str__(self):
+        return f"{self.nombre} ({len(self.items or [])} ítems)"
+
+
 class ProvinciaSiis(TimeStamped):
     """Provincia del catálogo de SIIS, con **su** id y **su** nombre.
 

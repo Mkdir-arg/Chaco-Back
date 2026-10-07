@@ -6,6 +6,54 @@
 |---|---|---|---|---|
 | R-21 | 159 | RED-46 ✅ · RED-79 ✅(R) · RED-13 ✅(R) · RED-45 ✅(R) · RED-52 ✅(R) · RED-51 ✅(R) · RED-78 ✅(R) · RED-82 ✅ | ✅ | **Las 8 fichas, 18 h, sin migraciones.** Todo lo que las Olas 2, 4 y 7 van a mover queda medido con un techo que falla si sube. (1) **RED-82 (prerrequisito de SEC-20):** `exportacion_reportes.py` tenía 122 CR y **cero** LF —git lo marcaba `i/-text`, así que el diff de un PR sobre él no mostraba el contenido y pylint lo salteaba devolviendo verde—; queda en LF, con el contenido verificado idéntico, más `*.py text eol=lf` y un test que recorre `git ls-files "*.py"`. (2) **RED-46:** contrato de las 3.252 líneas de `programas/models/__init__.py` —65 nombres públicos, 45 `app_label`/`db_table` y las properties de negocio con valores concretos, incluido el borde en que `habilitado_en(date)` cae **antes** de la apertura—; el corte del archivo deja de ser riesgoso. (3) **RED-79:** detector AST propio que distingue import de módulo del **diferido**: 9 aristas vista→vista y **5** ciclos (la ficha decía 3; la medición suma `models ↔ services.inscripciones` y `proceso_masivo ↔ siis_envio`), y los dos ratchets fallan en las dos direcciones, así que la Ola 2 **tiene** que bajar el techo al resolver. (4) **RED-13:** los dos criterios de «hecho» de G1-01 fase 2 escritos y rojos con `expectedFailure`, cada uno con su control de andamio y con la afirmación de **por qué** falla hoy; la tercera pata —las cuatro variables que `conversaciones` le presta al shell— queda en verde, que es el modo de falla silencioso. (5) **RED-45:** el entrypoint aborta ante **las dos** perillas de gevent (la ficha nombraba una) y ante **las cuatro** formas de pedirlo —incluida `-k`, la corta, que la ronda 2 encontró abierta—, pero **solo** ante gevent y eventlet: es el `ENTRYPOINT` único de la imagen y un `sync` explícito no puede dejar un ambiente sin arrancar. Probado ejecutando el script, no leyéndolo. (6) **RED-52:** el *lost update* del Profile tiene **dos** caras, no una: la segunda la dispara **el login mismo** vía `update_last_login`. (7) **RED-51:** los dos contadores de la home que nadie refresca, con la trampa de la deduplicación de OPS-10 vuelta explícita (las dos funciones homónimas no borran las mismas claves). (8) **RED-78:** la raíz es el login solo por el orden del URLconf. **Abierto:** las partes no-R de seis fichas —RED-79 y RED-52 en la **Ola 2**, RED-51 en la **Ola 4**, RED-13, RED-45 y RED-78 en la **Ola 7**—, cada una con su test rojo o su ratchet ya puesto |
 
+## Estado al 07-oct-2026 (Ola 1, PR 6: qué viaja a SIIS)
+
+**Las cuatro fichas de «qué viaja», más los cuatro MINOR que dejó la revisión del PR 5.** El PR 6 de la Ola 1
+(Cambio 158) son 20 h y **una migración** (`programas.0077_catalogo_siis_local`, tabla nueva y vacía). Con esto
+la Ola 1 va por 66 h cerradas de 78: queda el PR 7 (SIIS-19, SIIS-17, G3-06, y la segunda parte de RED-32).
+
+| Ficha | Qué quedó |
+|---|---|
+| **SIIS-08** ✅ | Un legajo que ya existía con datos autodeclarados recibía un caso validado por padrón o Base de Personas y se quedaba como estaba: el caso figuraba validado y el alta salía con el nombre que nadie verificó. Ahora la identidad acreditada se compara contra el legajo, queda guardada en `datos_siis` con su traza por campo, y mientras no coincidan el caso es INCOMPLETO y no llega a `cargar_beneficiario`. **Default de D-S08** (opción mínima, sin migración): el legajo **no** se corrige solo —quién manda sobre él es la decisión abierta— |
+| **G1-08** ✅ | El mapeo «esta pregunta alimenta este campo de SIIS» salía del catálogo de hoy. Desactivar «Calle y altura» para reemplazarla mandaba de golpe todos los aprobados pendientes como «Planta urbana sin número», altura 1, sin un solo error y sin vuelta atrás. Ahora la **foto del caso** declara sus destinos (`destinos_siis`, solo los campos marcados, para no engordar una foto de 27 KB en una tabla de 283 MB). Los casos anteriores siguen leyendo el catálogo —no hay otra fuente para ellos— y eso quedó caracterizado |
+| **G1-09** ✅ | «Una sola pregunta activa por destino SIIS» era una regla del form, y el botón de activar/desactivar no pasa por el form. Ahora el botón la chequea **al activar**; desactivar nunca se bloquea, porque dos activas es un estado que ya puede existir en la base |
+| **G1-10** ✅ | Entre dos campos con el mismo destino ganaba el de mayor `orden`, así que un requisito del programa le ganaba al del subsegmento. Ahora gana el **más específico** (subsegmento → segmento → programa → pregunta general) y `orden` desempata dentro del nivel. Vale por los dos caminos, foto y catálogo |
+| **MINOR 1** ✅ | «Aprobar» y «promover» no declaraban los **GET de catálogos** que `armar_payload` dispara con la caché fría: tres de 15 s sobre una cadena que ya estaba justo en 55 de 55, o sea 100 s contra los 60 de nginx, invisibles para `core.E003`. No había forma de declararlos y que la cuenta cerrara, así que la llamada salió del request: copia local en la base (`CatalogoSiisLocal`) y `Catalogos.sin_red()` en las dos vistas que dan de alta |
+| **MINOR 2** ✅ | Con `--parallel` y *spawn* la guarda sin red no llegaba a los workers: la suite paralela corría con la red abierta |
+| **MINOR 3** ✅ | La guarda era cierta solo para `requests`; `urllib.request` y `http.client` salían de verdad. Se corta también `http.client.HTTPConnection.connect` |
+| **MINOR 4** ✅ | «Configuración SIIS incompleta» se logueaba igual para una variable vacía que para un token que SIIS devolvió mal, que mandan a mirar lugares opuestos |
+
+**Un desvío de la ficha, a favor (SIIS-08):** se guarda la **identidad acreditada** y no una marca «hay
+conflicto». Con la marca, el caso quedaba bloqueado para siempre salvo que alguien se acordara de borrarla
+después de corregir el legajo; guardando la identidad, la comparación se rehace contra el legajo de ahora y el
+caso se destraba solo. **Lo que no se hizo:** la mitigación «mientras tanto» de G1-08 (confirmación al
+desactivar una pregunta con destino) queda sin sentido con la foto, y la opción de fondo de SIIS-08
+(`Ciudadano.identidad_origen` con migración) espera a que D-S08 se decida.
+
+**Queda abierto, de la misma familia que el MINOR 1:** la pantalla «Completar datos para SIIS»
+(`programas/forms.py:283-308`) pide **cinco** catálogos en un GET y tampoco está declarada en ninguna cadena.
+Es el mismo agujero en una pantalla que no hace nada irreversible; se anota como seguimiento.
+
+**Ronda 2 de la revisión (07-oct):** cuatro MINOR. Dos de código — el botón de activar una pregunta daba **500**
+con un `destino_siis` fuera del enum (la columna es un `CharField` con `choices`, así que la base acepta cualquier
+texto: ahora muestra la etiqueta si existe y el valor crudo si no), y el envío que no sale por falta de copia de
+catálogos deja de decir «SIIS no respondió correctamente» —lo contrario de lo que pasó, porque no se consultó a
+SIIS—: lleva su propio `codigo_error` (`CATALOGO_SIN_COPIA`) y un mensaje que dice qué hacer. Dos de documentación:
+**SIIS-08 es hacia adelante** (la marca solo se escribe cuando el caso resuelve su legajo; los ya resueltos se
+siguen informando con el nombre del legajo), con la consulta **`P-18`** de §3 para medir cuántos son sin sacar un
+solo nombre; y la **huella de la foto cambia**, así que una inscripción pública con el paso 2 abierto durante el
+rolling tiene que reenviarse.
+
+**Pendiente operativo (PM):** después de desplegar, **correr `sincronizar_programas_siis` una vez**. La tabla
+`programas_catalogosiislocal` nace vacía y el backoffice ya no va a buscar los catálogos a SIIS dentro del
+request: hasta que la copia exista, el alta desde la pantalla del caso queda como ERROR **reintentable** con un
+mensaje que lo explica (el masivo y los comandos siguen funcionando, y de paso llenan la copia). **El camino que
+falla el día 1 es «Promover» desde Cupo**: aprobar desde el detalle suele encontrar la copia ya llena, porque
+«Completar datos para SIIS» sí va a la red. Y conviene **desplegar fuera del horario de una convocatoria con el
+link público abierto**, por la huella de la foto.
+
+---
+
 ## Estado al 07-oct-2026 (Ola R: R-16, la red de Becas)
 
 | PR | Cambio | Fichas | Estado | Qué quedó abierto |
@@ -1019,6 +1067,39 @@ SELECT REGEXP_REPLACE(dni, '[^0-9]', '') AS dni_normalizado, COUNT(*) AS n, GROU
   FROM legajos_ciudadano GROUP BY dni_normalizado HAVING n > 1;
 ```
 
+**P-18 · Casos ya resueltos cuyo legajo no coincide con el padrón que los validó (SIIS-08).** El arreglo del Cambio
+158 es **hacia adelante**: la identidad acreditada se compara y se guarda en el momento en que el caso resuelve su
+legajo, y los casos que ya lo tenían resuelto antes del deploy **no quedan marcados** —se siguen informando con el
+nombre del legajo—. Esto los cuenta para decidir si hace falta una corrección de datos aparte. Devuelve **solo
+números**: ningún nombre ni documento sale en el resultado. Para la lista, agregar `f.id` al `SELECT` (nunca
+`c.nombre`/`c.dni`).
+```sql
+-- 1) Cuántos casos validados por padrón tienen hoy el legajo con otro nombre, y
+--    cuántos de ellos ya se informaron a SIIS (esos son irreversibles).
+SELECT COUNT(*) AS casos_en_conflicto,
+       SUM(EXISTS (SELECT 1 FROM programas_enviosiis e
+                    WHERE e.formulario_id = f.id AND e.estado = 'ENVIADO')) AS ya_informados
+  FROM programas_formulario f
+  JOIN legajos_ciudadano c      ON c.id = f.ciudadano_id
+  JOIN programas_relevamiento r ON r.id = f.relevamiento_id
+  JOIN programas_padronhabilitado p
+       ON p.dni = c.dni AND p.convocatoria_id = r.convocatoria_id
+      AND (p.relevamiento_id IS NULL OR p.relevamiento_id = r.id)
+ WHERE f.origen_validacion = 'padron'
+   AND TRIM(p.nombre) <> '' AND TRIM(p.apellido) <> ''
+   AND (UPPER(TRIM(c.apellido)) <> UPPER(TRIM(p.apellido))
+        OR UPPER(TRIM(c.nombre))   <> UPPER(TRIM(p.nombre)));
+
+-- 2) El punto ciego: los validados por Base de Personas no se pueden contrastar
+--    de este lado (lo que contestó la Gran Base no se guarda). Esto dice cuántos son.
+SELECT origen_validacion, COUNT(*) AS casos
+  FROM programas_formulario WHERE validado_renaper = 1 GROUP BY origen_validacion;
+```
+La primera consulta da un **techo**, no el número exacto: compara con `UPPER`/`TRIM` y no normaliza acentos como lo
+hace el código (`Peréz` = `PEREZ` para el sistema, distinto para este SQL), así que puede contar de más. Si el número
+es chico, se revisa a mano; si es grande, hace falta un comando de corrección —que no está escrito— antes de seguir
+informando esos casos.
+
 ---
 
 ## 4. Hallazgos por dominio (índice)
@@ -1430,7 +1511,15 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
      sobre el alta—, y `requests.Session` por módulo. Los MINOR: la guarda de SIIS-06 cuenta el estado
      **resultante** (el goteo de catálogos parciales la salteaba), `--forzar` exige `--motivo` y deja rastro, y
      lo que SIIS contesta fuera de contrato se guarda en `respuesta["_crudo"]`. **Sin migraciones.** 4 h.
-  6. SIIS-08 + G1-08 + G1-09 + G1-10 (qué viaja a SIIS). 20 h.
+  6. ✅ **Hecho el 07-oct-2026 (Cambio 158):** SIIS-08 + G1-08 + G1-09 + G1-10, más los cuatro MINOR que dejó
+     la revisión del PR 5. La foto del caso declara sus destinos SIIS (`destinos_siis`), así que desactivar o
+     remarcar una pregunta ya no reinterpreta un caso guardado; entre dos campos con el mismo destino gana el
+     **más específico** (subsegmento → segmento → programa → general) y no el de mayor `orden`; el botón de
+     activar/desactivar respeta «una sola activa por destino»; y una identidad acreditada que no coincide con
+     el legajo frena el envío (default de **D-S08**), guardando la identidad y no una marca, para que corregir
+     el legajo destrabe el caso solo. De los MINOR, el grande: los catálogos maestros **salieron del request**
+     a una copia en la base (migración `programas.0077_catalogo_siis_local`), porque declararlos en la cadena de
+     «Aprobar» era imposible —ya estaba justo en 55 de 55—. 20 h.
   7. SIIS-19, SIIS-17, G3-06 (herramientas y correcciones manuales). 6 h.
   8. *Red de seguridad (04-oct):* ✅ RED-53 (`ComandoSiisBase`) entró con el **PR 2** (Cambio 127): un candado que se
      agrega en un comando se agrega en los cuatro. Queda la segunda parte de RED-32 (suite de comportamiento de
@@ -1446,7 +1535,12 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
   mergeada en #515) y la de `EnvioSIIS` (hoy sería la 0075; `programas_enviosiis`: decenas de miles de filas, AddField +
   índice único + índice `(documento, id_programa)` +
   migración de datos). Requisitos: P-01 corrido; no desplegar con una corrida masiva en curso; acordar con ECOM el
-  procedimiento de conciliación de INCIERTOS (D-S02) y pedir la clave de idempotencia.
+  procedimiento de conciliación de INCIERTOS (D-S02) y pedir la clave de idempotencia. **Tercera migración (PR 6,
+  07-oct):** `programas.0077_catalogo_siis_local`, tabla nueva y vacía (*expand* puro, sin DDL sobre nada existente).
+  Nace sin filas y el backoffice ya no va a buscar los catálogos a SIIS, así que **hay que correr
+  `sincronizar_programas_siis` una vez después del deploy**: hasta entonces el alta desde la pantalla queda como
+  ERROR reintentable con el mensaje que lo dice. El masivo y los comandos no dependen de eso —van a la red y, de
+  paso, llenan la copia—.
 
 ### Ola 2 — Autorización
 - **Objetivo:** que cada capacidad se evalúe con su alcance de programa y que ninguna vista de legajos, Becas o usuarios

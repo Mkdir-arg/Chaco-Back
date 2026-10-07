@@ -18,7 +18,11 @@ responde y evita el error en el log.
 
 from __future__ import annotations
 
+import unicodedata
+from datetime import date
+
 from django.conf import settings
+from django.utils.dateparse import parse_date
 
 from programas.services.padron import datos_de_fila, fila_padron, normalizar_dni, normalizar_sexo
 from programas.services.personas import consultar_persona
@@ -26,8 +30,52 @@ from programas.services.personas import consultar_persona
 ORIGEN_PADRON = "padron"
 ORIGEN_PERSONAS = "personas"
 ORIGEN_MANUAL = "manual"
+#: Los dos orígenes que acreditan identidad: el resto es lo que la persona dijo.
+ORIGENES_ACREDITADOS = (ORIGEN_PADRON, ORIGEN_PERSONAS)
 
 _CAMPOS_COMPARADOS = ("nombre", "apellido", "fecha_nacimiento")
+
+#: Clave de ``Formulario.datos_siis`` con la identidad acreditada de un caso cuyo
+#: legajo ya existía y dice otra cosa (SIIS-08). Empieza con ``_`` porque el
+#: resto de las claves de ``datos_siis`` son campos del payload y esta no lo es:
+#: ``armar_payload`` nunca la lee como una corrección.
+CLAVE_IDENTIDAD_ACREDITADA = "_identidad_acreditada"
+
+
+def _texto_comparable(valor):
+    """Sin acentos, sin mayúsculas y con un solo espacio: «Peréz» == «PEREZ»."""
+    plano = unicodedata.normalize("NFKD", str(valor or "")).encode("ascii", "ignore").decode().casefold()
+    return " ".join(plano.split())
+
+
+def _fecha_comparable(valor):
+    if isinstance(valor, date):
+        return valor
+    return parse_date(str(valor or "").strip()[:10])
+
+
+def diferencias_con_el_legajo(ciudadano, acreditada):
+    """``{campo: (lo del legajo, lo acreditado)}`` de lo que no coincide (SIIS-08).
+
+    Solo compara los campos donde **los dos** tienen valor: que el legajo no
+    tenga fecha de nacimiento no es un conflicto de identidad, es un dato que
+    falta, y el payload ya lo reclama por su cuenta.
+    """
+    acreditada = acreditada if isinstance(acreditada, dict) else {}
+    diferencias = {}
+    for campo in _CAMPOS_COMPARADOS:
+        del_legajo = getattr(ciudadano, campo, None)
+        acreditado = acreditada.get(campo)
+        if campo == "fecha_nacimiento":
+            del_legajo, acreditado = _fecha_comparable(del_legajo), _fecha_comparable(acreditado)
+            iguales = del_legajo == acreditado
+        else:
+            iguales = _texto_comparable(del_legajo) == _texto_comparable(acreditado)
+        if not del_legajo or not acreditado:
+            continue
+        if not iguales:
+            diferencias[campo] = (str(del_legajo), str(acreditado))
+    return diferencias
 
 
 def gran_base_activa():

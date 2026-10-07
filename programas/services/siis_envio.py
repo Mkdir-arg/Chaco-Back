@@ -22,9 +22,11 @@ from programas.services.siis import (
     RESULTADO_NO_ENVIADO,
     RESULTADO_OK,
     RESULTADO_RECHAZADO,
+    CatalogoSinCopiaLocal,
     SiisCatalogError,
     cargar_beneficiario,
     catalogo,
+    catalogo_local,
 )
 
 TDOC_DNI = 1
@@ -52,6 +54,19 @@ _FRASE_PISO_DPTO = r"\b(?:piso|dpto|depto|dto|departamento)\.?\s*([A-Za-z0-9]{1,
 
 class CatalogoNoDisponible(Exception):
     """SIIS no devolvió un catálogo: el envío se reintenta, no se corrige."""
+
+
+class CopiaDeCatalogoFaltante(CatalogoNoDisponible):
+    """La copia local del catálogo todavía no existe: **no se tocó la red**.
+
+    Se reintenta igual que el resto, pero lo que hay que hacer es otra cosa
+    —correr ``sincronizar_programas_siis`` o esperar al CronJob de las 04:00—,
+    así que lleva su propio ``codigo_error`` y su propio mensaje.
+    """
+
+
+#: ``EnvioSIIS.codigo_error`` de un envío que no salió porque falta la copia.
+CODIGO_SIN_COPIA_CATALOGO = "CATALOGO_SIN_COPIA"
 
 
 # ---------------------------------------------------------------------------
@@ -146,10 +161,25 @@ class Catalogos:
         self._cargar = cargar
         self._cache = {}
 
+    @classmethod
+    def sin_red(cls):
+        """Los mismos catálogos, leídos de la copia local: no abre conexiones.
+
+        Es el que usan las vistas del backoffice. Dentro de un request no se
+        puede ir a buscar un catálogo a SIIS: la cadena de «Aprobar» ya gasta los
+        55 s que deja nginx (``core.integraciones.CADENAS``) y tres GET con la
+        caché fría la llevaban a 100, o sea a un 504 **con el alta posiblemente
+        hecha del otro lado**. Fuera del request —masivo, comandos— se sigue
+        usando el de siempre, que es además el que mantiene la copia al día.
+        """
+        return cls(cargar=catalogo_local)
+
     def _items(self, nombre):
         if nombre not in self._cache:
             try:
                 self._cache[nombre] = list(self._cargar(nombre))
+            except CatalogoSinCopiaLocal as exc:
+                raise CopiaDeCatalogoFaltante(str(exc)) from exc
             except SiisCatalogError as exc:
                 raise CatalogoNoDisponible(str(exc)) from exc
         return self._cache[nombre]
@@ -318,26 +348,69 @@ def _primer_valor(formulario, clave):
     return valores[0] if valores else None
 
 
-def respuestas_por_destino(formulario):
-    """``{destino: texto}`` con la primera respuesta no vacía de cada campo marcado.
+# G1-10 · Entre dos campos marcados con el mismo destino gana el más específico,
+# no el de mayor ``orden``. Antes se recorrían los requisitos por ``orden`` y el
+# último pisaba al anterior, así que un requisito del programa con orden 9 le
+# ganaba al del subsegmento con orden 1: el payload llevaba el dato general
+# habiendo uno particular de ese subsegmento. El orden sigue desempatando
+# **dentro** del mismo nivel.
+NIVEL_DESTINO = {"global": 0, "programa": 1, "segmento": 2, "subsegmento": 3}
+_NIVEL_DESCONOCIDO = 0
 
-    Se miran las preguntas generales activas y, además (Cambio 80), los
-    requisitos nativos que alcanzan al formulario —los del programa, los del
-    segmento y los del subsegmento de su convocatoria, la misma herencia que
-    ``get_campos_formulario``—. Si una general y un requisito apuntan al mismo
-    destino, manda el requisito: es el dato más específico de ese segmento.
+
+def _clave_data(clave_item, pk):
+    """La clave con la que ``respuesta_de`` lee ``Formulario.data``.
+
+    La foto identifica los campos como ``pg-<pk>`` / ``rn-<pk>`` (Cambio 58) y
+    ``data`` sigue siendo ``{"globales": {pk: …}, "requisitos": {pk: …}}``. Un
+    campo propio del constructor (``cp-…``) no tiene lugar en ``data`` y tampoco
+    puede tener destino: devuelve ``None``.
+    """
+    if pk is None:
+        return None
+    if str(clave_item or "").startswith("pg-"):
+        return f"global:{pk}"
+    if str(clave_item or "").startswith("rn-"):
+        return f"requisito:{pk}"
+    return None
+
+
+def _destinos_de_la_foto(formulario):
+    """``[(nivel, orden, pk, clave_data, destino)]`` según la foto del caso, o
+    ``None`` si el caso no tiene una foto que declare sus destinos."""
+    definicion = formulario.definicion if isinstance(formulario.definicion, dict) else None
+    if definicion is None or "destinos_siis" not in definicion:
+        return None
+    marcados = []
+    for entrada in definicion.get("destinos_siis") or []:
+        if not isinstance(entrada, dict) or not entrada.get("destino"):
+            continue
+        pk = entrada.get("id")
+        clave = _clave_data(entrada.get("clave"), pk)
+        if clave is None:
+            continue
+        nivel = NIVEL_DESTINO.get(entrada.get("alcance") or "", _NIVEL_DESCONOCIDO)
+        marcados.append((nivel, entrada.get("orden") or 0, pk, clave, entrada["destino"]))
+    return marcados
+
+
+def _destinos_del_catalogo(formulario):
+    """Lo mismo que :func:`_destinos_de_la_foto`, leyendo el catálogo de hoy.
+
+    Es el camino de los casos anteriores a G1-08, que no guardaron sus destinos:
+    no hay otra fuente para ellos. Para los nuevos **no se usa**, justamente
+    porque el catálogo de hoy no es el que la persona respondió.
     """
     from django.db.models import Q
 
     from programas.models import RequisitoNativo
 
-    resultado = {}
-    preguntas = PreguntaGlobal.objects.filter(activo=True).exclude(destino_siis="").values_list("pk", "destino_siis")
-    for pk, destino in preguntas:
-        valor = _primer_valor(formulario, f"global:{pk}")
-        if valor is not None:
-            resultado[destino] = valor
-
+    marcados = [
+        (NIVEL_DESTINO["global"], orden, pk, f"global:{pk}", destino)
+        for pk, destino, orden in PreguntaGlobal.objects.filter(activo=True)
+        .exclude(destino_siis="")
+        .values_list("pk", "destino_siis", "orden")
+    ]
     convocatoria = formulario.relevamiento.convocatoria
     segmento = convocatoria.segmento
     alcance = Q(segmento_id=segmento.pk, subsegmento__isnull=True)
@@ -348,11 +421,44 @@ def respuestas_por_destino(formulario):
     requisitos = (
         RequisitoNativo.objects.filter(alcance)
         .exclude(destino_siis="")
-        .order_by("orden", "id")
-        .values_list("pk", "destino_siis")
+        .values_list("pk", "destino_siis", "orden", "subsegmento_id", "segmento_id")
     )
-    for pk, destino in requisitos:
-        valor = _primer_valor(formulario, f"requisito:{pk}")
+    for pk, destino, orden, subsegmento_id, segmento_id in requisitos:
+        if subsegmento_id:
+            nivel = NIVEL_DESTINO["subsegmento"]
+        elif segmento_id:
+            nivel = NIVEL_DESTINO["segmento"]
+        else:
+            nivel = NIVEL_DESTINO["programa"]
+        marcados.append((nivel, orden, pk, f"requisito:{pk}", destino))
+    return marcados
+
+
+def respuestas_por_destino(formulario):
+    """``{destino: texto}`` con la primera respuesta no vacía de cada campo marcado.
+
+    **De dónde sale el mapeo (G1-08).** De la foto del caso cuando la tiene: el
+    Cambio 58 (D3) guardó la definición que la persona respondió justamente para
+    que un caso viejo no se reinterprete con el diseño de hoy, y el destino SIIS
+    de cada campo es parte de esa interpretación. Leerlo del catálogo vivo hacía
+    que desactivar «Calle y altura» —para reemplazarla por otra pregunta— mandara
+    a SIIS, de golpe y sin un solo error, «Planta urbana sin número» con altura 1
+    para todos los casos aprobados que todavía no se habían informado; y el alta
+    en SIIS no tiene baja. Los casos anteriores a este cambio no guardaron sus
+    destinos: para ellos el catálogo de hoy sigue siendo la única fuente.
+
+    **Quién gana cuando dos campos apuntan al mismo destino (G1-10).** El más
+    específico: subsegmento > segmento > programa > pregunta general (Cambio 80:
+    el requisito es el dato particular de ese segmento). Dentro del mismo nivel
+    desempata ``orden`` y después el id.
+    """
+    marcados = _destinos_de_la_foto(formulario)
+    if marcados is None:
+        marcados = _destinos_del_catalogo(formulario)
+    resultado = {}
+    # Se aplican del más general al más específico: el último pisa al anterior.
+    for _nivel, _orden, _pk, clave, destino in sorted(marcados, key=lambda m: m[:3]):
+        valor = _primer_valor(formulario, clave)
         if valor is not None:
             resultado[destino] = valor
     return resultado
@@ -456,6 +562,39 @@ def _fecha_corregida(valor):
         return None
 
 
+_NOMBRE_ORIGEN = {"padron": "el padrón de la convocatoria", "personas": "Base de Personas"}
+_ETIQUETA_IDENTIDAD = {"nombre": "nombre", "apellido": "apellido", "fecha_nacimiento": "fecha de nacimiento"}
+
+
+def _chequear_identidad_acreditada(ciudadano, correcciones, faltantes):
+    """SIIS-08: no se informa a SIIS un legajo que contradice la identidad validada.
+
+    El caso llegó validado por padrón o por Base de Personas y encontró un legajo
+    que ya existía con otro nombre: ``resolver_ciudadano_offline`` guardó la
+    identidad acreditada en ``datos_siis`` en vez de pisar el legajo (D-S08,
+    opción mínima). Acá se vuelve a comparar contra el legajo **de ahora**, no
+    contra una marca vieja: si alguien ya corrigió el legajo, el caso sale sin
+    que nadie tenga que acordarse de destrabarlo.
+    """
+    from programas.services.identidad import CLAVE_IDENTIDAD_ACREDITADA, diferencias_con_el_legajo
+
+    acreditada = correcciones.get(CLAVE_IDENTIDAD_ACREDITADA)
+    if not isinstance(acreditada, dict):
+        return
+    diferencias = diferencias_con_el_legajo(ciudadano, acreditada)
+    if not diferencias:
+        return
+    fuente = _NOMBRE_ORIGEN.get(acreditada.get("origen"), "la fuente que lo validó")
+    detalle = "; ".join(
+        f"{_ETIQUETA_IDENTIDAD[campo]}: el legajo dice «{del_legajo}» y {fuente} «{acreditado}»"
+        for campo, (del_legajo, acreditado) in diferencias.items()
+    )
+    faltantes["identidad"] = (
+        f"El legajo no coincide con la identidad validada ({detalle}). "
+        "Corregí el legajo de la persona antes de informarlo a SIIS."
+    )
+
+
 def armar_payload(formulario, catalogos=None, hoy=None):
     """``(payload, faltantes)``: el payload solo se manda si ``faltantes`` está vacío.
 
@@ -499,6 +638,8 @@ def armar_payload(formulario, catalogos=None, hoy=None):
         payload["fecha_nacim"] = nacimiento.isoformat()
     else:
         faltantes["fecha_nacim"] = "Falta la fecha de nacimiento o es futura."
+    if ciudadano is not None:
+        _chequear_identidad_acreditada(ciudadano, correcciones, faltantes)
 
     # --- Estado civil ---
     est_civil = _resolver_catalogo(correcciones, respuestas, "est_civil", catalogos.estado_civil_id)
@@ -853,7 +994,7 @@ def enviar_beneficiario_a_siis(
     except CatalogoNoDisponible as exc:
         return EnvioSIIS.objects.create(
             estado=EnvioSIIS.Estado.ERROR,
-            codigo_error="ERROR_TECNICO",
+            codigo_error=_codigo_de_catalogo(exc),
             detalles={"catalogo": [str(exc)]},
             resuelto_en=timezone.now(),
             **base,
@@ -921,7 +1062,7 @@ def guardar_en_tabla_intermedia(formulario, solicitado_por, catalogos=None, exig
     except CatalogoNoDisponible as exc:
         return None, EnvioSIIS.objects.create(
             estado=EnvioSIIS.Estado.ERROR,
-            codigo_error="ERROR_TECNICO",
+            codigo_error=_codigo_de_catalogo(exc),
             detalles={"catalogo": [str(exc)]},
             resuelto_en=timezone.now(),
             **base,
@@ -1060,6 +1201,11 @@ def sincronizar_tabla_intermedia(solicitado_por, limite=None, al_terminar=None):
     return cuenta
 
 
+def _codigo_de_catalogo(exc):
+    """``codigo_error`` del envío que no salió por un catálogo."""
+    return CODIGO_SIN_COPIA_CATALOGO if isinstance(exc, CopiaDeCatalogoFaltante) else "ERROR_TECNICO"
+
+
 def mensaje_envio(envio):
     """``(nivel, texto)`` para el toast de la vista; ``nivel`` es un método de ``messages``."""
     if envio.estado == EnvioSIIS.Estado.ENVIADO:
@@ -1083,4 +1229,13 @@ def mensaje_envio(envio):
         return "warning", f"El envío a SIIS quedó pendiente: faltan {cantidad} dato(s). Completalos desde el caso."
     if envio.estado == EnvioSIIS.Estado.RECHAZADO:
         return "warning", "SIIS rechazó el alta del beneficiario: revisá los datos señalados y reenviá."
+    if envio.codigo_error == CODIGO_SIN_COPIA_CATALOGO:
+        # Es lo contrario de «SIIS no respondió»: no se consultó a SIIS. El texto
+        # de abajo mandaba a revisar un servicio externo que nadie tocó, y lo que
+        # hay que hacer es bajar la copia de los catálogos a esta base.
+        return (
+            "warning",
+            "Faltan los catálogos de SIIS en la base: corré «sincronizar_programas_siis» o esperá al "
+            "proceso de las 04:00, y reintentá. No se informó nada a SIIS.",
+        )
     return "error", "SIIS no respondió correctamente; el envío quedó registrado para reintentar."
