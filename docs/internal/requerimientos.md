@@ -22249,7 +22249,7 @@ el modal no puede quitar, y `diagnosticar_siis --alta` sale contra cualquier URL
 | **Etiquetas** | `#metodo` `#ui` `#api` `#rbac` |
 | **Solicitante** | Auditoría integral oct-2026 — fichas RED-33, RED-75 y las segundas partes de RED-42 y RED-53 (Ola 5, PR 8 — «red de seguridad del front») |
 | **Fecha del pedido** | 07/10/2026 |
-| **Issue / épica** | Sin issue (plan de la auditoría: `docs/internal/auditoria-2026-10/`) |
+| **Issue / épica** | Sin issue (plan de la auditoría: `docs/internal/auditoria-2026-10/`; PR #611) |
 | **Partes afectadas** | `programas/tests/test_admisiones_vistas.py` (nuevo) · `programas/tests/test_merenderos.py` · `programas/tests/test_padron.py` · `users/tests/test_tema.py` (nuevo) · `core/tests/test_urls_del_front.py` · `programas/views/relevamientos.py` (`_subir_padron`) · `users/serializers/__init__.py` · `static/custom/js/base.js` · `static/custom/js/alertas_websocket.js` · `templates/includes/navbar.html` · `templates/core/performance_dashboard.html` · `legajos/templates/legajos/ciudadano_detail.html`. Ninguna pantalla nueva |
 | **Migración** | No requiere |
 
@@ -22349,8 +22349,8 @@ Todo con `.venv312` (Python 3.12 + Django 5.2.17, igual al CI) y `DJANGO_SECRET_
 | `manage.py check` | 0 issues |
 | `manage.py check --deploy` | 6 issues, los mismos de `development` (no hay ninguno nuevo) |
 | `manage.py makemigrations --check --dry-run` | `No changes detected` |
-| `manage.py test` (suite completa, un solo proceso) | ver el cuerpo del PR |
-| `manage.py test --tag performance` | ver el cuerpo del PR |
+| `manage.py test` (suite completa, un solo proceso) | `Ran 3449 tests — OK (skipped=30, expected failures=8)`, 466 s |
+| `manage.py test --tag performance` | `Ran 4 tests — OK` |
 | `scripts/compile_templates.py --bloques` | 203 compilados, **0 errores, 0 bloques sin destino** |
 | `scripts/design_audit.py --ratchet` | **0 hallazgos nuevos** en 5 archivos |
 | `scripts/design_audit.py --goldens` | **0 hallazgos** en 5 goldens |
