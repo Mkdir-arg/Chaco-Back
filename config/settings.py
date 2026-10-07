@@ -106,6 +106,14 @@ INSTALLED_APPS = [
     # Los bundles de Swagger-UI y Redoc, vendorizados. Va después de
     # `drf_spectacular` y existe solo para que `collectstatic` los encuentre.
     "drf_spectacular_sidecar",
+    # `django-filter` ya estaba en `requirements.txt` y seis ViewSets declaran
+    # `DjangoFilterBackend`, pero sin la app el cargador por directorios no
+    # encontraba `django_filters/rest_framework/form.html`: la página navegable
+    # de DRF —lo que recibe cualquiera que abra `/api/legajos/ciudadanos/` en el
+    # navegador— daba 500 al dibujar el formulario de filtros (#521, QA de
+    # testing 06/10/2026). No trae modelos ni migraciones: solo templates y los
+    # `FilterSet` que ya se estaban usando.
+    "django_filters",
     "channels",
     "django_redis",
     # OPS-04: sus URLs ya **no** se montan (`config/urls.py`), porque el include de
