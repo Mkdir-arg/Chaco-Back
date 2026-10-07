@@ -17,13 +17,13 @@ módulo se pone rojo antes de que la URL vuelva a la `ALLOWLIST` de
 `core/tests/test_urls_del_front.py`.
 """
 
-import re
 from pathlib import Path
 
 from django.conf import settings
 from django.test import SimpleTestCase
 from django.urls import Resolver404, resolve
 
+from core.tests.js_harness import sin_comentarios
 from users.serializers import ProfileSerializer
 
 RAIZ = Path(settings.BASE_DIR)
@@ -33,10 +33,9 @@ SHELL_JS = RAIZ / "static" / "custom" / "js" / "base.js"
 # y el resto del JS propio.
 FUENTES_DEL_FRONT = [RAIZ / "templates", RAIZ / "static" / "custom" / "js"]
 
-# Comentarios de JS, de HTML y de Django: ahí **sí** se nombra lo que se borró,
-# que es justamente la documentación de por qué no está. Lo que no puede volver
-# es el código.
-COMENTARIOS = re.compile(r"/\*.*?\*/|//[^\n]*|<!--.*?-->|\{#.*?#\}|\{%\s*comment\s*%\}.*?\{%\s*endcomment\s*%\}", re.S)
+# Los comentarios se saltean (`sin_comentarios`, el helper compartido con el barrido
+# de RED-42): ahí **sí** se nombra lo que se borró, que es justamente la documentación
+# de por qué no está. Lo que no puede volver es el código.
 
 
 def _archivos_del_front():
@@ -50,10 +49,7 @@ class TemaTests(SimpleTestCase):
         """Ni la función ni la ruta aparecen en el código de ningún archivo del front."""
         hallazgos = []
         for archivo in _archivos_del_front():
-            texto = archivo.read_text(encoding="utf-8", errors="replace")
-            # Se borra el comentario pero se conservan sus saltos de línea, para que
-            # el número de línea del mensaje siga siendo el del archivo real.
-            codigo = COMENTARIOS.sub(lambda m: "\n" * m.group(0).count("\n"), texto)
+            codigo = sin_comentarios(archivo.read_text(encoding="utf-8", errors="replace"))
             for marca in ("sendThemePreference", "set_dark_mode"):
                 if marca in codigo:
                     linea = codigo[: codigo.index(marca)].count("\n") + 1
@@ -66,10 +62,10 @@ class TemaTests(SimpleTestCase):
         )
 
     def test_el_barrido_mira_el_codigo_y_no_solo_los_comentarios(self):
-        """Si `COMENTARIOS` se comiera de más, el test de arriba pasaría vacío."""
+        """Si `sin_comentarios` se comiera de más, el test de arriba pasaría vacío."""
         muestra = 'a = 1;\n// sendThemePreference\nurl: "/set_dark_mode/";\n'
 
-        codigo = COMENTARIOS.sub(lambda m: "\n" * m.group(0).count("\n"), muestra)
+        codigo = sin_comentarios(muestra)
 
         self.assertNotIn("sendThemePreference", codigo)
         self.assertIn("/set_dark_mode/", codigo)

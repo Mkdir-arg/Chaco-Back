@@ -22672,10 +22672,19 @@ lo deja otra vez sin medir.
 
 ## Pendientes / a definir
 
-- **`.claude/design/shells.md` queda sin actualizar en este PR.** La sesión que lo escribió no tiene
-  permiso de escritura bajo `.claude/`; el bloque completo está en el cuerpo del PR y lo aplica el juez.
-  Sin ese parche, `check_design_agent.py --changed` queda en rojo (es su regla: tocar evidencia canónica
-  de UI obliga a mover su ficha en el mismo diff).
+- ~~**`.claude/design/shells.md` queda sin actualizar en este PR.**~~ **Resuelto:** lo aplicó el juez en
+  `db3e99f8`, porque la sesión implementadora no tiene permiso de escritura bajo `.claude/`.
+  `check_design_agent.py --changed --base origin/development` da **OK**.
+- **`dar_de_baja_inscripcion` es una vista sin URL, y una pantalla viva le postea.** Lo destapó el barrido
+  ensanchado de la ronda 2: `legajos/templates/legajos/programas/programa_detail.html:654` le pone al form
+  de «Dar de baja» un `action = /legajos/acompanamiento/<id>/dar-de-baja/` que **no está en el URLconf**. La
+  vista existe (`legajos/views/programas.py:99`, con `@login_required` y `@require_http_methods(["POST"])`) y
+  el servicio también (`legajos/services/programas.py::BajaProgramaService.dar_de_baja`), pero nadie las
+  rutea: el botón de `/legajos/programas/<pk>/` da **404 desde siempre**. **No se arregló acá a propósito:**
+  rutearla haría funcionar por primera vez una baja destructiva que nunca corrió en producción, y si la baja
+  se quiere, se quiere con su confirmación, su traza y su capacidad revisadas. **Decide el PM**: o se rutea
+  con una ficha propia, o se saca el botón. Mientras tanto queda en la `ALLOWLIST` del barrido con el motivo
+  escrito.
 - **La promoción desde la lista de espera no persiste quién promovió.** `promover_espera` usa el `usuario`
   para resolver la membresía, pero no hay un campo «promovida por»: el único rastro del autor es el kwarg
   que la vista le pasa al servicio, y eso es lo que el test fija. Agregar el campo es una migración y
@@ -22703,3 +22712,18 @@ lo deja otra vez sin medir.
   URLs rotas y el ratchet en las dos direcciones. Es el gate que este cambio tiene que bajar.
 - **07/10/2026 (este cambio)** — las cuatro fichas cerradas. Con esto la Ola 5 va por **60 h de 128**: le
   quedan los PRs 6 (después del paso 4 de la Ola 6) y 7.
+- **07/10/2026 (ronda 2 de la revisión)** — dos MAJOR y un MINOR, los tres sobre **RED-42**, que en este PR
+  *es* el entregable y era el único que había quedado sin candado. (a) Los dos tests de JS **no
+  discriminaban**: con el `alertas_websocket.js` de `origin/development` —rutas escritas a mano— pasaban
+  igual, porque el stub anunciaba la misma ruta que el literal y el caso «sin campana» salía por el «no hay
+  dónde pintar» antes de mirar la URL. Ahora la campana del harness anuncia rutas **centinela** y el `null`
+  es solo para `#alertas-campana`. (b) **Del lado del template no había nada**: borrar los dos `data-url-*`
+  del navbar dejaba la suite en verde y la campana dejaba de contar **en silencio**, sin 404 ni error de
+  consola; lo cubre una aserción de render contra `reverse()`, con y sin `ciudadano.ver`. (c) El barrido
+  solo miraba el **punto de llamada**, así que una ruta armada en `const url = …` pasaba por abajo —era el
+  caso de las dos de borrado de adjuntos del detalle del ciudadano—: se agregó el patrón de asignación,
+  filtrado por prefijo real del URLconf para no inundarlo de `/static/…`, y salteando comentarios, porque la
+  ficha que documenta una ruta retirada la volvía a dar por viva. Las dos rutas de borrado pasaron al tag
+  `url` con el reemplazo **anclado al final**: el patrón de `alertas_eventos.html` acá pisaba el primer
+  cero, que es el del ciudadano (`/ciudadanos/10/archivos/0/` → `/ciudadanos/177/archivos/0/`). El barrido
+  ensanchado destapó dos literales más de LEG-06 y el 404 de «Dar de baja» que queda en *Pendientes*.
