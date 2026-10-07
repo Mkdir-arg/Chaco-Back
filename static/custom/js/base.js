@@ -56,27 +56,14 @@ $.widget.bridge("uibutton", $.ui.button);
         updateDarkModeIcon(isDark);
     }
 
-    function getCSRFToken() {
-        const match = document.cookie.match(/(?:^|;)\s*csrftoken=([^;]+)/);
-        return match ? decodeURIComponent(match[1]) : "";
-    }
-
-    function sendThemePreference(isDark) {
-        $.ajax({
-            url: "/set_dark_mode/",
-            type: "POST",
-            headers: (function() {
-                const token = getCSRFToken();
-                return token ? {"X-CSRFToken": token} : {};
-            })(),
-            data: {"dark_mode": isDark},
-        }).fail(function(error) {
-            console.warn("No se pudo sincronizar la preferencia de modo oscuro.", error);
-        });
-    }
-
+    // La preferencia de tema se guarda **solo** en el navegador (D-RED-07 = A,
+    // RED-75): acá vivía `sendThemePreference`, que posteaba a `/set_dark_mode/`,
+    // una ruta que nunca existió en el URLconf. Cada cambio de tema era un 404 que
+    // el `.fail()` tapaba con un `console.warn`, y `Profile.dark_mode` —el campo
+    // que iba a recibirlo— nunca se escribió. El candado está en
+    // `users/tests/test_tema.py`.
     function applyTheme(theme, options) {
-        const settings = $.extend({persist: true, notify: false}, options);
+        const settings = $.extend({persist: true}, options);
         const resolved = resolveTheme(theme);
 
         updatingThemeAttr = true;
@@ -87,10 +74,6 @@ $.widget.bridge("uibutton", $.ui.button);
 
         if (settings.persist) {
             storeTheme(theme);
-        }
-
-        if (settings.notify) {
-            sendThemePreference(resolved === "dark");
         }
     }
 
@@ -107,7 +90,7 @@ $.widget.bridge("uibutton", $.ui.button);
         const rootTheme = document.documentElement.getAttribute("data-bs-theme");
 
         if (storedTheme && storedTheme !== rootTheme) {
-            applyTheme(storedTheme, {persist: true, notify: false});
+            applyTheme(storedTheme, {persist: true});
             return;
         }
 
@@ -120,7 +103,7 @@ $.widget.bridge("uibutton", $.ui.button);
         }
 
         const preferred = storedTheme || (prefersDark() ? "dark" : "light");
-        applyTheme(preferred, {persist: !storedTheme, notify: false});
+        applyTheme(preferred, {persist: !storedTheme});
     }
 
     initializeTheme();
@@ -143,7 +126,7 @@ $.widget.bridge("uibutton", $.ui.button);
 
     window.addEventListener("storage", function(event) {
         if (event.key === THEME_STORAGE_KEY && event.newValue) {
-            applyTheme(event.newValue, {persist: false, notify: false});
+            applyTheme(event.newValue, {persist: false});
         }
     });
 
@@ -151,7 +134,7 @@ $.widget.bridge("uibutton", $.ui.button);
         const colorSchemeQuery = window.matchMedia("(prefers-color-scheme: dark)");
         const handleColorSchemeChange = function() {
             if (getStoredTheme() === "auto") {
-                applyTheme("auto", {persist: false, notify: false});
+                applyTheme("auto", {persist: false});
             }
         };
 
@@ -181,7 +164,7 @@ $.widget.bridge("uibutton", $.ui.button);
                 event.preventDefault();
                 const currentTheme = document.documentElement.getAttribute("data-bs-theme") === "dark" ? "dark" : "light";
                 const nextTheme = currentTheme === "dark" ? "light" : "dark";
-                applyTheme(nextTheme, {persist: true, notify: true});
+                applyTheme(nextTheme, {persist: true});
             });
         } else {
             updateDarkModeIcon(document.body.classList.contains(DARK_CLASS));

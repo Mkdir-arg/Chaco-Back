@@ -921,19 +921,23 @@ def _resumen_fijo_padron(request, clave):
     return {"tono": "warning" if hay_problemas else "success", "titulo": "Última carga del padrón", "texto": texto}
 
 
-@login_required
-@requiere(CAP_CONVOCATORIA_EDITAR)
-@require_POST
-def convocatoria_padron(request, pk):
-    """Carga o reemplaza el padrón de habilitados de la convocatoria (Cambio 57).
+def _subir_padron(request, duenio, destino, clave, prefijo=""):
+    """Sube el Excel del padrón a `duenio` y vuelve a `destino` (RED-53).
 
-    Reemplazo total, con efecto inmediato en el paso 1 del link y en la app de
-    campo. Al terminar, los casos pendientes que figuren con nombre y apellido
-    quedan validados por padrón (cruce automático, RN-5). Quien edita la
-    convocatoria administra su padrón: admin del programa y coordinador.
+    Las dos pantallas que cargan padrón —la convocatoria (Cambio 57) y el
+    relevamiento con padrón propio (Cambio 74)— tenían este cuerpo escrito dos
+    veces, igual salvo el objeto, la URL de vuelta y el prefijo del aviso. Eran
+    dos de los quince clones que midió la auditoría: el riesgo real es que una
+    corrección —el mensaje, el orden de `parsear` y `cargar`, el no borrar el
+    padrón anterior si el archivo no se entiende— entre en una copia y no en la
+    otra. Lo que **no** se unifica es la autorización: la convocatoria filtra por
+    `convocatorias_visibles` y el relevamiento llama a `_assert_scope`, que son
+    guardas distintas y se quedan en cada vista.
+
+    `clave` es la del resumen fijo en sesión (`conv-<pk>` / `rel-<pk>`): la lee el
+    detalle de cada pantalla, así que no se puede derivar del objeto sin atar las
+    dos cosas.
     """
-    conv = get_object_or_404(convocatorias_visibles(request.user).select_related("segmento"), pk=pk)
-    destino = reverse("becas:convocatoria_detalle", kwargs={"pk": conv.pk})
     archivo = request.FILES.get("padron")
     if archivo is None:
         messages.error(
@@ -949,11 +953,31 @@ def convocatoria_padron(request, pk):
     except DjangoValidationError as exc:
         messages.error(request, " ".join(exc.messages))
         return redirect(destino)
-    resumen = cargar_padron(conv, archivo, entradas, usuario=request.user)
+    resumen = cargar_padron(duenio, archivo, entradas, usuario=request.user)
     resumen.rechazadas = resumen_parseo.rechazadas
     resumen.fechas_invalidas = resumen_parseo.fechas_invalidas
-    _informar_carga_padron(request, f"conv-{conv.pk}", resumen)
+    _informar_carga_padron(request, clave, resumen, prefijo=prefijo)
     return redirect(destino)
+
+
+@login_required
+@requiere(CAP_CONVOCATORIA_EDITAR)
+@require_POST
+def convocatoria_padron(request, pk):
+    """Carga o reemplaza el padrón de habilitados de la convocatoria (Cambio 57).
+
+    Reemplazo total, con efecto inmediato en el paso 1 del link y en la app de
+    campo. Al terminar, los casos pendientes que figuren con nombre y apellido
+    quedan validados por padrón (cruce automático, RN-5). Quien edita la
+    convocatoria administra su padrón: admin del programa y coordinador.
+    """
+    conv = get_object_or_404(convocatorias_visibles(request.user).select_related("segmento"), pk=pk)
+    return _subir_padron(
+        request,
+        conv,
+        reverse("becas:convocatoria_detalle", kwargs={"pk": conv.pk}),
+        f"conv-{conv.pk}",
+    )
 
 
 @login_required
@@ -968,27 +992,13 @@ def relevamiento_padron(request, pk):
     """
     rel = get_object_or_404(Relevamiento.objects.select_related("convocatoria__segmento"), pk=pk)
     _assert_scope(request, rel)
-    destino = reverse("becas:relevamiento_detalle", kwargs={"pk": rel.pk})
-    archivo = request.FILES.get("padron")
-    if archivo is None:
-        messages.error(
-            request, "Adjuntá el Excel del padrón (.xlsx): documento, sexo y, si los tenés, los datos de identidad."
-        )
-        return redirect(destino)
-    from django.core.exceptions import ValidationError as DjangoValidationError
-
-    from programas.services.padron import cargar_padron, parsear_padron
-
-    try:
-        entradas, resumen_parseo = parsear_padron(archivo)
-    except DjangoValidationError as exc:
-        messages.error(request, " ".join(exc.messages))
-        return redirect(destino)
-    resumen = cargar_padron(rel, archivo, entradas, usuario=request.user)
-    resumen.rechazadas = resumen_parseo.rechazadas
-    resumen.fechas_invalidas = resumen_parseo.fechas_invalidas
-    _informar_carga_padron(request, f"rel-{rel.pk}", resumen, prefijo="Padrón propio de este relevamiento. ")
-    return redirect(destino)
+    return _subir_padron(
+        request,
+        rel,
+        reverse("becas:relevamiento_detalle", kwargs={"pk": rel.pk}),
+        f"rel-{rel.pk}",
+        prefijo="Padrón propio de este relevamiento. ",
+    )
 
 
 @login_required

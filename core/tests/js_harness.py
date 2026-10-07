@@ -12,6 +12,10 @@ Dos piezas:
 - ``correr_script_pagina(...)``: lo mismo para el script completo de una página, con
   un DOM permisivo (stubs para todo lo desconocido), ``fetch`` con respuestas fijas y
   registro de cada ``innerHTML`` y ``value`` asignados.
+- ``sin_comentarios(texto)``: el mismo archivo sin comentarios de JS, de HTML ni de
+  Django, conservando los saltos de línea. Los barridos que buscan código —una ruta
+  escrita a mano, una función que no tiene que volver— necesitan no leer el comentario
+  que **documenta** justamente eso.
 """
 
 import json
@@ -26,6 +30,22 @@ requiere_node = unittest.skipUnless(NODE, "node no está instalado")
 
 # Acepta atributos en la etiqueta (p. ej. un nonce de CSP); los <script src> no tienen cuerpo.
 _SCRIPT_INLINE = re.compile(r"<script\b[^>]*>(.*?)</script>", re.S)
+
+# Comentarios de JS (`/* */`, `//`), de HTML (`<!-- -->`) y de Django (`{# #}` y el
+# bloque `comment`).
+_COMENTARIOS = re.compile(r"/\*.*?\*/|//[^\n]*|<!--.*?-->|\{#.*?#\}|\{%\s*comment\s*%\}.*?\{%\s*endcomment\s*%\}", re.S)
+
+
+def sin_comentarios(texto):
+    """``texto`` sin comentarios, con los saltos de línea intactos.
+
+    Cada comentario se reemplaza por sus propios ``\\n`` para que el número de línea
+    que reporte un barrido siga siendo el del archivo real. Lo necesitan los barridos
+    que buscan **código** —una ruta escrita a mano, una función que no tiene que
+    volver—, porque el comentario que documenta justamente eso los daba por presentes.
+    """
+    return _COMENTARIOS.sub(lambda m: "\n" * m.group(0).count("\n"), texto)
+
 
 # DOM mínimo: registra listeners, modales, llamadas a Swal y submits de formularios.
 _PRELUDIO = r"""

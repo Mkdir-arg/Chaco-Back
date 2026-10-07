@@ -6,11 +6,13 @@ La cascada de identidad y el cruce automático se prueban en
 ``test_padron_identidad``; acá queda el parser, la carga y la pantalla.
 """
 
+import ast
 from datetime import date
 from decimal import Decimal
 from io import BytesIO, StringIO
 
-from django.contrib.auth.models import Group, User
+from django.conf import settings
+from django.contrib.auth.models import Group, Permission, User
 from django.contrib.messages import constants as message_levels
 from django.contrib.messages import get_messages
 from django.core.cache import cache
@@ -21,6 +23,7 @@ from django.test import SimpleTestCase, TestCase
 from django.urls import reverse
 
 from core.models import Localidad, Municipio, Provincia
+from core.rbac import APP_LABEL, codename_de
 from legajos.models import Ciudadano
 from programas.forms import RelevamientoForm
 from programas.management.commands import completar_casos_renaper, corregir_datos_siis
@@ -815,3 +818,127 @@ class IdentidadDelPadronTests(_BasePadronTest):
             resp.context["n_padron_identidad"],
             PadronHabilitado.objects.con_identidad().count(),
         )
+
+
+class UnaSolaPuertaDePadronTests(_BasePadronTest):
+    """Las dos pantallas que suben padrón comparten el cuerpo (RED-53, Ola 5).
+
+    `convocatoria_padron` y `relevamiento_padron` eran clones literales salvo el
+    objeto, la URL de vuelta y el prefijo del aviso: uno de los quince grupos que
+    midió el detector AST de la auditoría. El riesgo que la ficha nombra no es
+    estético —una corrección entra en una copia y no en la otra, como el candado
+    de corrida viva que SIIS-03 le puso a dos de los tres comandos—, así que acá
+    van las dos mitades: que la puerta sea una sola (AST) y que las dos vistas se
+    comporten igual en los bordes compartidos (HTTP).
+    """
+
+    FUENTE = "programas/views/relevamientos.py"
+    #: Las dos vistas y lo único que `_subir_padron` **no** puede absorber.
+    VISTAS = ("convocatoria_padron", "relevamiento_padron")
+
+    def setUp(self):
+        super().setUp()
+        call_command("seed_becas", stdout=StringIO())
+        self.admin = User.objects.create_user("admin_red53", password="x")
+        self.admin.groups.add(Group.objects.get(name=ROL_ADMIN))
+        Group.objects.get(name=ROL_ADMIN).permissions.add(
+            Permission.objects.get(
+                content_type__app_label=APP_LABEL, codename=codename_de("becas.relevamiento.publico")
+            )
+        )
+        cache.clear()
+        self.client.force_login(self.admin)
+        self.urls = {
+            "convocatoria": reverse("becas:convocatoria_padron", args=[self.convocatoria.pk]),
+            "relevamiento": reverse("becas:relevamiento_padron", args=[self.relevamiento.pk]),
+        }
+        self.duenios = {"convocatoria": self.convocatoria, "relevamiento": self.relevamiento}
+        #: El padrón propio del relevamiento cuelga de otro `related_name`.
+        self.padrones = {"convocatoria": "padron", "relevamiento": "padron_propio"}
+
+    def _post(self, url, datos):
+        """Un cliente por POST: los avisos no se consumen y se acumularían en sesión."""
+        from django.test import Client
+
+        cliente = Client()
+        cliente.force_login(self.admin)
+        resp = cliente.post(url, datos)
+        return resp, [m.message for m in get_messages(resp.wsgi_request)]
+
+    def _cuerpos(self):
+        arbol = ast.parse((settings.BASE_DIR / self.FUENTE).read_text(encoding="utf-8"))
+        return {
+            nodo.name: nodo
+            for nodo in ast.walk(arbol)
+            if isinstance(nodo, ast.FunctionDef) and nodo.name in self.VISTAS
+        }
+
+    def test_las_dos_vistas_suben_por_la_misma_puerta(self):
+        cuerpos = self._cuerpos()
+
+        self.assertEqual(sorted(cuerpos), sorted(self.VISTAS))
+        for nombre, nodo in cuerpos.items():
+            llamadas = {
+                hijo.func.id
+                for hijo in ast.walk(nodo)
+                if isinstance(hijo, ast.Call) and isinstance(hijo.func, ast.Name)
+            }
+            with self.subTest(vista=nombre):
+                self.assertIn("_subir_padron", llamadas)
+                # Lo que la vista deja de hacer por su cuenta: si vuelve a hacerlo,
+                # volvió el clon.
+                self.assertEqual(llamadas & {"cargar_padron", "parsear_padron"}, set())
+
+    def test_el_cuerpo_de_cada_vista_es_corto_porque_delega(self):
+        """Un clon que vuelva no va a entrar en cinco sentencias."""
+        for nombre, nodo in self._cuerpos().items():
+            with self.subTest(vista=nombre):
+                sentencias = [
+                    s for s in nodo.body if not isinstance(s, ast.Expr) or not isinstance(s.value, ast.Constant)
+                ]
+
+                self.assertLessEqual(len(sentencias), 5, f"{nombre} volvió a tener cuerpo propio")
+
+    def test_las_dos_avisan_igual_cuando_falta_el_archivo(self):
+        for pantalla, url in self.urls.items():
+            with self.subTest(pantalla=pantalla):
+                resp, mensajes = self._post(url, {})
+
+                self.assertEqual(resp.status_code, 302)
+                self.assertEqual(len(mensajes), 1)
+                self.assertIn("Adjuntá el Excel del padrón", mensajes[0])
+                self.assertEqual(getattr(self.duenios[pantalla], self.padrones[pantalla]).count(), 0)
+
+    def test_las_dos_conservan_el_padron_anterior_si_el_excel_no_se_entiende(self):
+        for pantalla, url in self.urls.items():
+            with self.subTest(pantalla=pantalla):
+                duenio = self.duenios[pantalla]
+                cargado = getattr(duenio, self.padrones[pantalla])
+                cargar_padron(duenio, None, [("11111111", "M")])
+
+                self._post(url, {"padron": SimpleUploadedFile("p.xlsx", b"no excel", content_type=XLSX_MIME)})
+
+                self.assertEqual(list(cargado.values_list("dni", flat=True)), ["11111111"])
+
+    def test_solo_el_padron_propio_del_relevamiento_se_anuncia_con_su_prefijo(self):
+        """Lo único que `_subir_padron` recibe distinto de cada vista."""
+        excel = [("documento", "sexo"), ("30123456", "F")]
+
+        _, de_convocatoria = self._post(self.urls["convocatoria"], {"padron": _xlsx(excel)})
+        _, de_relevamiento = self._post(self.urls["relevamiento"], {"padron": _xlsx(excel)})
+
+        self.assertEqual(len(de_convocatoria), 1)
+        self.assertEqual(len(de_relevamiento), 1)
+        self.assertNotIn("Padrón propio", de_convocatoria[0])
+        self.assertTrue(de_relevamiento[0].startswith("Padrón propio de este relevamiento. "))
+
+    def test_la_autorizacion_sigue_siendo_de_cada_vista(self):
+        """`_subir_padron` no autoriza: el guard de cada pantalla es distinto."""
+        cuerpos = self._cuerpos()
+        fuentes = {
+            nombre: ast.get_source_segment((settings.BASE_DIR / self.FUENTE).read_text(encoding="utf-8"), nodo)
+            for nombre, nodo in cuerpos.items()
+        }
+
+        self.assertIn("convocatorias_visibles", fuentes["convocatoria_padron"])
+        self.assertIn("_assert_scope", fuentes["relevamiento_padron"])
