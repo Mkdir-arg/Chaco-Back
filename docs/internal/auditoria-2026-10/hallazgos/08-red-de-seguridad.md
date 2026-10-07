@@ -1164,14 +1164,25 @@ acompañan dos controles de andamio: que `gevent_patch.py` siga pisando esa func
 fue por otro lado) y que `wsgi.py` siga teniendo **las dos** perillas. (2) `docker-entrypoint.sh` aborta con el motivo
 en vez de arrancar roto. **Desvío de la ficha:** la guarda cubre **las dos** perillas, no solo `GUNICORN_CMD_ARGS`:
 `config/wsgi.py:13` también reacciona a `GUNICORN_WORKER_CLASS=gevent`, así que frenar únicamente la primera dejaba
-abierto el mismo camino. Y mira `worker-class`, no `gevent`: `--worker-class eventlet` tiene el mismo problema de
-hilos. `EntrypointTests` **ejecuta el script de verdad** (`sh docker-entrypoint.sh true`, que llega a la rama del
+abierto el mismo camino. Y cubre también `eventlet`, que tiene el mismo problema de hilos aunque `wsgi.py` no lo
+parchee. `EntrypointTests` **ejecuta el script de verdad** (`sh docker-entrypoint.sh true`, que llega a la rama del
 comando personalizado sin tocar la base) en vez de leer su texto, y verifica también que sin las variables el arranque
 sigue y que la guarda corre **antes** de `wait_for_database` —si quedara después, en un ambiente con la base caída el
 pod esperaría para siempre sin dar nunca el motivo real—. `test_el_parche_ya_no_existe` queda escrito y salteado: deja
 de saltearse cuando OPS-13 borre el archivo.
+**Ronda 2 de la revisión:** la guarda tenía un agujero y era demasiado ancha a la vez. (a) Miraba la cadena
+`worker-class`, así que **`-k gevent` y `-k=gevent` —la forma corta— pasaban con rc 0** y el proceso arrancaba con el
+parche aplicado: exactamente el estado que la ficha viene a cerrar, y los dos **sí** lo encienden, porque `wsgi.py`
+busca la palabra en toda la variable. La condición pasó a ser la palabra (`gevent`/`eventlet`) y no la bandera, que
+cubre las cuatro formas de una. (b) Abortaba ante **cualquier** `--worker-class`, y este script es el `ENTRYPOINT`
+único de la imagen —daphne, gunicorn, el Job de bootstrap y los cuatro CronJobs—: un `sync` o un `gthread` explícito
+habrían dejado un ambiente sin arrancar por un valor inocuo. Ahora esos dejan un `AVISO` y siguen. Y la rama de
+`GUNICORN_WORKER_CLASS` dice qué hacer («Sacar la variable del entorno»), como la otra. Los ocho subcasos nuevos
+fallan contra la guarda anterior. La verificación de las dos variables en el ambiente antes de espejar quedó como paso
+0 de [`espejo-ecom.md`](../../espejo-ecom.md), junto al `--solo-reporte` de OPS-01.
 **Test permanente:** `config.tests.test_wsgi_runtime.GeventTests.test_nadie_piso_validate_thread_sharing` (y
-`EntrypointTests.test_gunicorn_cmd_args_con_worker_class_aborta`).
+`EntrypointTests.test_las_cuatro_formas_de_pedir_gevent_abortan`,
+`EntrypointTests.test_un_worker_class_inocuo_avisa_pero_arranca`).
 
 ### RED-46 · `programas/models/__init__.py` sin tests de contrato
 **Severidad:** MEDIA (era ALTA) · **Estado:** CONFIRMADO con test (`radon`: 3.252 líneas, MI 0.00; fan-in 90) · **Origen:** RS-R4-04 (VR2: CONFIRMADO) · **Ola:** R (los tests; el corte del archivo no se planifica) · **Esfuerzo:** S-M (4 h)
@@ -1358,6 +1369,14 @@ request. Queda en `test_un_login_pisa_el_flag_de_clave_provisoria`, también con
 con `update_fields` o sacar el guardado del `post_save`) cubre las dos de una: se verificó que los dos pasan a
 *unexpected success*. `test_sin_profile_en_la_cache_el_user_save_no_consulta` deja fijada la optimización que el
 receiver **sí** aporta y que el arreglo tiene que conservar (nada de N+1 en un `User.save()` en lote).
+**Ronda 2 de la revisión — el bug de esta ficha se comió a uno de sus propios tests.**
+`test_la_api_no_pasa_por_el_gate_de_clave` era **vacuo**: usaba el objeto de `setUpTestData`, que arrastra en su
+`fields_cache` el Profile del alta con `debe_cambiar_contrasena=False`, así que el gate salía por la rama del flag y
+nunca llegaba a evaluar el path. Medido: con el filtro `request.path.startswith("/api/")` **borrado**, el test seguía
+pasando. Ahora el usuario se relee de la base y lo acompaña
+`test_fuera_de_la_api_la_misma_peticion_si_redirige`, que cambia **solo** el path; con esa mutación, el primero queda
+rojo. De paso quedó corregido el docstring, que atribuía la exención al usuario anónimo cuando la condición escrita en
+el código es por path (los tokens de DRF se resuelven dentro de la vista, pero eso no es lo que el gate mira).
 **Test permanente:** `users.tests.test_middleware_profile.ProfileEnCacheTests.test_user_save_no_pisa_la_clave_de_sesion_de_otro_login`
 (y `.test_un_login_pisa_el_flag_de_clave_provisoria`, `OrdenMiddlewareTests.test_single_session_va_antes_que_cambio_de_clave`).
 

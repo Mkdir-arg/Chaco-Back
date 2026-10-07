@@ -110,15 +110,43 @@ class ProfileEnCacheTests(TestCase):
             CambioContrasenaObligatorioMiddleware(lambda _peticion: None)(peticion)
 
     def test_la_api_no_pasa_por_el_gate_de_clave(self):
-        """`/api/` usa tokens y ahí `request.user` es anónimo: el gate se saltea a
-        propósito. Sin esto, cambiar la condición rompería la app de campo."""
-        peticion = RequestFactory().get("/api/becas/relevamientos/")
-        peticion.user = self.usuario
+        """El gate se saltea **por el path**, no por el usuario.
+
+        `/api/` usa tokens de DRF, que se resuelven dentro de la vista: en el middleware
+        `request.user` suele ser anónimo. Pero la condición escrita en el código es
+        `request.path.startswith("/api/")`, así que lo que hay que fijar es eso —el
+        request de acá lleva un usuario autenticado con la clave provisoria marcada, el
+        caso más exigente, y aun así el gate lo deja pasar—. Sin esta aserción, cambiar
+        la condición a «solo si es anónimo» rompería la app de campo sin que nada lo
+        avise, y el cambio de clave del backoffice se resuelve en el navegador, no
+        interceptando la API.
+
+        El `get()` fresco es lo que vuelve al test no vacuo: el objeto de
+        `setUpTestData` arrastra en su `fields_cache` el Profile del alta, con
+        `debe_cambiar_contrasena=False`, así que el gate salía por la otra rama y el
+        test pasaba aunque se le sacara el filtro por path (RED-52 otra vez, esta vez
+        mordiendo a su propio test).
+        """
         Profile.objects.filter(user=self.usuario).update(debe_cambiar_contrasena=True)
+        peticion = RequestFactory().get("/api/becas/relevamientos/")
+        peticion.user = get_user_model().objects.get(pk=self.usuario.pk)
 
         respuesta = CambioContrasenaObligatorioMiddleware(lambda _peticion: "siguio")(peticion)
 
         self.assertEqual(respuesta, "siguio")
+
+    def test_fuera_de_la_api_la_misma_peticion_si_redirige(self):
+        """Control del test de arriba: lo único que cambia es el path. Sin esto, aquel
+        podría estar pasando porque el gate no se dispara nunca."""
+        Profile.objects.filter(user=self.usuario).update(debe_cambiar_contrasena=True)
+        peticion = RequestFactory().get("/becas/relevamientos/")
+        peticion.user = get_user_model().objects.get(pk=self.usuario.pk)
+
+        respuesta = CambioContrasenaObligatorioMiddleware(lambda _peticion: "siguio")(peticion)
+
+        self.assertNotEqual(respuesta, "siguio")
+        self.assertEqual(respuesta.status_code, 302)
+        self.assertEqual(respuesta["Location"], reverse("users:cambiar_contrasena_obligatorio"))
 
     def test_con_la_clave_provisoria_el_backoffice_redirige(self):
         """El comportamiento que el gate tiene que conservar cuando la Ola 2 lo toque.

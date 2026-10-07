@@ -21045,7 +21045,7 @@ Que los opcionales no sean fatales es **OPS-07**, de la Ola 3.
 | **Solicitante** | Auditoría integral de octubre 2026 — hallazgos **RED-46**, **RED-79**, **RED-13**, **RED-45**, **RED-52**, **RED-51**, **RED-78** y **RED-82** (Ola R «Red de seguridad», PR R-21) |
 | **Fecha del pedido** | 07/10/2026 |
 | **Issue / épica** | Sin issue — auditoría oct-2026, `docs/internal/auditoria-2026-10/hallazgos/08-red-de-seguridad.md` |
-| **Partes afectadas** | Casi todo son tests. Código que viaja al release: `programas/services/exportacion_reportes.py` (solo terminadores de línea, contenido idéntico), `.gitattributes` (regla `*.py text eol=lf`) y `docker-entrypoint.sh` (una guarda nueva al principio). Ninguna vista, ningún modelo, ninguna plantilla |
+| **Partes afectadas** | Casi todo son tests. Código que viaja al release: `programas/services/exportacion_reportes.py` (solo terminadores de línea, contenido idéntico), `.gitattributes` (regla `*.py text eol=lf`) y `docker-entrypoint.sh` (una guarda nueva al principio, que aborta solo ante gevent/eventlet). Documentación operativa: un paso previo nuevo en `docs/internal/espejo-ecom.md`. Ninguna vista, ningún modelo, ninguna plantilla |
 | **Migración** | No requiere |
 
 ## Pedido original
@@ -21106,9 +21106,22 @@ datos de una persona a otra.
 - **No se escribe «ninguna vista importa de otra vista».** Falla en nueve lugares, `ajax_utils` es compartido a
   propósito, y un test que nace fallando se termina apagando. Lo dice la propia ficha y es el criterio de todo el
   bloque.
-- **La guarda de gevent cubre `worker-class`, no `gevent`.** `--worker-class eventlet` tiene exactamente el mismo
-  problema de hilos y la imagen tampoco lo soporta. Y cubre **las dos** perillas que lee `config/wsgi.py`: frenar solo
-  `GUNICORN_CMD_ARGS` dejaba `GUNICORN_WORKER_CLASS=gevent` abierto, que es el mismo camino con otro nombre.
+- **La guarda de gevent aborta solo ante `gevent` y `eventlet`, y mira la palabra, no la bandera** (decisión revisada
+  en la **ronda 2**; la primera versión miraba la cadena `worker-class`). Dos motivos, uno por cada mitad:
+  - **Mira la palabra** porque `-k` es la forma corta de `--worker-class` y `wsgi.py` busca `"gevent"` en **toda** la
+    variable: con la condición vieja, `-k gevent` y `-k=gevent` pasaban con rc 0 y arrancaban **con el parche
+    aplicado**. Mirar la palabra cubre las cuatro formas (`--worker-class gevent`, `--worker-class=gevent`,
+    `-k gevent`, `-k=gevent`) sin tener que enumerar la sintaxis de gunicorn, y coincide exactamente con lo que mira
+    `wsgi.py`. Si la palabra apareciera por otro motivo (una ruta de log que se llame así), `wsgi.py` aplicaría el
+    parche igual, así que abortar también es lo correcto ahí.
+  - **Solo gevent y eventlet** porque `docker-entrypoint.sh` es el `ENTRYPOINT` **único** de la imagen: lo corren
+    daphne, gunicorn, el Job/initContainer de bootstrap y los cuatro CronJobs. Abortar ante cualquier
+    `--worker-class` habría dejado un ambiente sin arrancar por un `sync` o un `gthread` explícito, que no tienen
+    nada que ver con el hallazgo. Esos dejan un `AVISO` en el log y siguen. `eventlet` sí entra: `wsgi.py` no lo
+    parchea, pero tiene el mismo problema de hilos y la imagen tampoco lo soporta.
+  - Y cubre **las dos** perillas que lee `config/wsgi.py:13`: frenar solo `GUNICORN_CMD_ARGS` dejaba
+    `GUNICORN_WORKER_CLASS=gevent` abierto, que es el mismo camino con otro nombre. Los **dos** mensajes de error
+    dicen qué hacer («Sacar la variable del entorno»).
 - **La guarda va al principio del entrypoint, antes de `wait_for_database`.** Después del bootstrap, en un ambiente con
   la base caída, el pod se quedaría esperando para siempre sin llegar nunca a dar el motivo real.
 - **RED-52 se mide sobre el middleware, no sobre `GET /inicio/`.** La ficha pedía un `assertNumQueries(N)` de la página
@@ -21126,8 +21139,8 @@ datos de una persona a otra.
 
 ## Qué se hizo
 
-**75 tests nuevos en ocho módulos**, todos descubiertos por `manage.py test` sin argumentos (se verificó, incluido
-`config/tests/`, que no es una app instalada).
+**81 tests nuevos en ocho módulos** (75 en la ronda 1, 6 más en la ronda 2 de revisión), todos descubiertos por
+`manage.py test` sin argumentos (se verificó, incluido `config/tests/`, que no es una app instalada).
 
 - **RED-82 — `core/tests/test_higiene_fuentes.py`** (3 tests). El archivo pasa de 122 CR y **cero** LF a 122 líneas LF.
   `git ls-files --eol` lo marcaba `i/-text` y ahora `i/lf`. El test recorre `git ls-files "*.py"` y exige que cada `\r`
@@ -21142,9 +21155,11 @@ datos de una persona a otra.
   `_assert_scope` homónimos.
 - **RED-13 — `core/tests/test_shell_backoffice.py`** (8 tests, 2 en `expectedFailure`). Los dos criterios de «hecho» de
   G1-01 fase 2, cada uno con control de andamio; la tercera pata (el context processor prestado) en verde.
-- **RED-45 — `config/tests/test_wsgi_runtime.py`** (9 tests, 1 salteado) + la guarda del entrypoint, que los tests
+- **RED-45 — `config/tests/test_wsgi_runtime.py`** (14 tests, 1 salteado) + la guarda del entrypoint, que los tests
   **ejecutan de verdad** (`sh docker-entrypoint.sh true` llega a la rama del comando personalizado sin tocar la base).
-- **RED-52 — `users/tests/test_middleware_profile.py`** (11 tests, 2 en `expectedFailure`).
+  Cubre las cuatro formas de pedir gevent, `eventlet`, los valores inocuos que avisan y siguen, y que los dos mensajes
+  de error digan qué hacer.
+- **RED-52 — `users/tests/test_middleware_profile.py`** (12 tests, 2 en `expectedFailure`).
 - **RED-51 — `dashboard/tests/test_cache_invalidacion.py`** (11 tests, 2 en `expectedFailure`).
 - **RED-78 — `core/tests/test_dashboard_redirect.py::RuteoRaizTests`** (3 tests).
 
@@ -21178,10 +21193,13 @@ duck-type de `PausableMixin`), y de los 65 nombres públicos **8 son imports que
 - **`manage.py test` sin argumentos: 3205 tests, OK (skipped=30, expected failures=7)**, 466 s.
 - `manage.py test --tag performance` → 4 tests, OK.
 - `ruff check .` → All checks passed; `ruff format --check` sobre los archivos tocados → ya formateados.
-- **RED-82, equivalencia byte a byte:** `git show HEAD:programas/services/exportacion_reportes.py | tr '\r' '\n'`
-  comparado con el archivo nuevo → sin diferencias. `git ls-files --eol` pasa de `i/-text` a `i/lf`.
-- **RED-45, guarda del entrypoint ejecutada a mano** antes de escribir el test: sin variables → exit 0; con
-  `GUNICORN_CMD_ARGS="--worker-class gevent"` → exit 1 con el motivo; con `GUNICORN_WORKER_CLASS=gevent` → exit 1.
+- **RED-45, guarda del entrypoint ejecutada a mano**, además de los tests: `sh -n` y `bash -n` del script; las seis
+  formas peligrosas (`--worker-class gevent`, `--worker-class=gevent`, `-k gevent`, `-k=gevent`, `-k eventlet`,
+  `--worker-class=eventlet`) → exit 1 con el motivo; `--worker-class sync` y `-k gthread` → exit 0 con `AVISO`;
+  `--timeout 90` y sin variables → exit 0 y sin aviso; `GUNICORN_WORKER_CLASS` gevent/eventlet → exit 1, `sync` →
+  exit 0 con `AVISO`.
+- **RED-82, equivalencia byte a byte:** el blob de `HEAD` normalizado de CR a LF comparado con el archivo nuevo → sin
+  diferencias. `git ls-files --eol` pasa de `i/-text` a `i/lf`.
 
 **Las mutaciones de control**, todas aplicadas, corridas y revertidas:
 
@@ -21191,6 +21209,8 @@ duck-type de `PausableMixin`), y de los 65 nombres públicos **8 son imports que
 | renombrar `PausableMixin` y sacar el `max(…, 0)` de `Relevamiento.cupo_disponible` (RED-46) | 2 rojos |
 | un import nuevo entre `views/merenderos.py` y `views/cupo.py` (RED-79) | los **dos** ratchets rojos: arista nueva y ciclo nuevo |
 | sacar la llamada a `guard_worker_class` del entrypoint (RED-45) | 3 rojos + 1 error |
+| **la guarda de la ronda 1** (`case *worker-class*`), contra los tests de la ronda 2 (RED-45) | **8 subcasos rojos**: `-k gevent`, `-k=gevent`, `-k eventlet`, los dos inocuos que abortaban y los dos mensajes sin «Sacar la variable» |
+| borrar el filtro `request.path.startswith("/api/")` del gate de clave (RED-52) | `test_la_api_no_pasa_por_el_gate_de_clave`: rojo. **Antes de la ronda 2 pasaba igual** |
 | `profile.save(update_fields=[])`, o sea el arreglo de la Ola 2 (RED-52) | los 2 `expectedFailure` pasan a **unexpected success** |
 | receivers con el `sender` correcto, o sea el arreglo de la Ola 4 (RED-51) | los 2 `expectedFailure` pasan a **unexpected success** |
 
@@ -21200,12 +21220,21 @@ Antes del cambio, el test de RED-82 daba **rojo nombrando el archivo** y el de `
 
 No requiere pasos manuales, ni migraciones, ni variables nuevas.
 
-**Lo único que cambia en el arranque del contenedor:** si el entorno tiene `GUNICORN_CMD_ARGS` con `--worker-class` o
-`GUNICORN_WORKER_CLASS` definida, el contenedor **no arranca** y escribe el motivo en stderr. Es lo buscado (D-RED-08).
-Hoy ningún manifiesto del repo las define —se revisó `docker-compose*.yml`, el `Dockerfile` y `docker/k8s/*`—, pero
-**el entorno de ECOM no se ve desde acá**: si alguna vez alguien las agregó a mano en testing o en PRD para probar
-contra los 504 del padrón, hay que sacarlas antes de desplegar. Es exactamente el escenario que la ficha describe, así
-que si están, el arranque rechazado es el resultado correcto, no un problema del PR.
+**Lo único que cambia en el arranque del contenedor:** si el entorno pide workers **gevent o eventlet** —por
+`GUNICORN_CMD_ARGS` (en cualquiera de las cuatro formas) o por `GUNICORN_WORKER_CLASS`—, el contenedor **no arranca** y
+escribe el motivo en stderr. Es lo buscado (D-RED-08). Cualquier otro `--worker-class` (`sync`, `gthread`) **sí
+arranca** y solo deja un `AVISO`: el script es el `ENTRYPOINT` único de la imagen —daphne, gunicorn, el Job de
+bootstrap y los cuatro CronJobs pasan por él— y abortar por un valor inocuo habría dejado un ambiente caído por algo
+que no tiene que ver con el hallazgo.
+
+Hoy ningún manifiesto del repo define esas variables —se revisó `docker-compose*.yml`, el `Dockerfile` y
+`docker/k8s/*`—, pero **el entorno de ECOM no se ve desde acá**: si alguna vez alguien las agregó a mano en testing o
+en PRD para probar contra los 504 del padrón, hay que sacarlas antes de desplegar. Es exactamente el escenario que la
+ficha describe, así que si están, el arranque rechazado es el resultado correcto, no un problema del PR.
+
+**Queda como paso previo del espejo:** [`espejo-ecom.md`](espejo-ecom.md) §«Paso 0» suma la verificación de las dos
+variables en el pod, junto al `verificar_esquema_migraciones --solo-reporte` de OPS-01, con la tabla de qué hacer
+según lo que devuelva. En icore: `docker compose -f docker-compose.prod.yml exec -T web env | grep GUNICORN`.
 
 ## Pendientes / a definir
 
@@ -21256,3 +21285,16 @@ que si están, el arranque rechazado es el resultado correcto, no un problema de
   RED-45, RED-51, RED-52, RED-78 y RED-79 con su parte R cerrada y el resto en las Olas 2, 4 y 7, cada una con su test
   rojo o su ratchet ya puesto. Tres hallazgos nuevos: los ciclos son cinco y no tres, el *lost update* del Profile lo
   dispara también el login, y la función que la ficha de RED-51 daba por muerta tiene tres llamadores.
+- **07/10/2026 (ronda 2 de revisión)** — un MAJOR y tres MINOR sobre RED-45 y RED-52, todos corregidos.
+  (1) **La guarda del entrypoint tenía un agujero y era demasiado ancha a la vez.** Miraba la cadena `worker-class`,
+  así que **`-k gevent` y `-k=gevent` —la forma corta de gunicorn— arrancaban con rc 0 y con el parche aplicado**, que
+  es el estado exacto que la ficha dice cerrar; y, del otro lado, abortaba ante **cualquier** `--worker-class`, lo que
+  en el `ENTRYPOINT` único de la imagen habría dejado un ambiente sin arrancar por un `sync` o un `gthread`. Ahora la
+  condición es la palabra `gevent`/`eventlet` —lo mismo que mira `wsgi.py`, y cubre las cuatro formas de una— y los
+  valores inocuos avisan y siguen. (2) La rama de `GUNICORN_WORKER_CLASS` dice qué hacer, como la otra. (3) La
+  verificación de las dos variables en el ambiente de ECOM quedó como paso previo en `espejo-ecom.md`, junto al
+  `--solo-reporte` de OPS-01. (4) **`test_la_api_no_pasa_por_el_gate_de_clave` era vacuo**, y por el propio bug de
+  RED-52: usaba el objeto de `setUpTestData`, que arrastra el Profile del alta en su `fields_cache` con
+  `debe_cambiar_contrasena=False`, así que el gate salía por la rama del flag y nunca evaluaba el path —con el filtro
+  `/api/` **borrado**, el test seguía pasando—. Se relee el usuario de la base y se le agregó el control negativo con
+  el mismo request y otro path.

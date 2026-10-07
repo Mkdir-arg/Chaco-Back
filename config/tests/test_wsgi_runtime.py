@@ -1,7 +1,7 @@
-"""El parche de gevent no está aplicado, y no hay forma de pedirlo (RED-45).
+"""El parche de gevent no está aplicado, y el entrypoint rechaza pedirlo (RED-45).
 
-`config/wsgi.py` mira dos variables de entorno —`GUNICORN_CMD_ARGS` con la palabra
-`gevent`, o `GUNICORN_WORKER_CLASS=gevent`— y, si alguna aparece, aplica
+`config/wsgi.py:13` mira dos variables de entorno —`GUNICORN_CMD_ARGS` que **contenga**
+la palabra `gevent`, o `GUNICORN_WORKER_CLASS=gevent`— y, si alguna aparece, aplica
 `config/gevent_patch.py`. Ese parche pisa `BaseDatabaseWrapper.validate_thread_sharing`
 con una función que **no hace nada**.
 
@@ -14,7 +14,18 @@ pasar.
 
 Hoy nadie lo activa —por eso la severidad bajó a MEDIA—, pero la perilla está y es lo
 primero que se prueba cuando aparecen 504: `GUNICORN_CMD_ARGS="--worker-class gevent"`.
-`docker-entrypoint.sh` ahora aborta antes de arrancar.
+`docker-entrypoint.sh` aborta antes de arrancar.
+
+**La guarda frena solo `gevent` y `eventlet`, no cualquier `--worker-class`.** Este
+script es el `ENTRYPOINT` único de la imagen —daphne, gunicorn, el Job de bootstrap y
+los cuatro CronJobs pasan por acá—, así que abortar ante un `sync` o un `gthread`
+explícito dejaría un ambiente sin arrancar por un valor inocuo. Esos avisan y siguen.
+
+Y cubre las **cuatro** formas de pedirlo, porque mira la palabra y no la bandera:
+`--worker-class gevent`, `--worker-class=gevent`, `-k gevent` y `-k=gevent`. Las tres
+últimas pasaban en la primera versión de la guarda (ronda 2 de la revisión), y `-k
+gevent` / `-k=gevent` **sí** encienden el parche, porque `wsgi.py` busca la palabra en
+toda la variable.
 
 **D-RED-08:** la opción de workers gevent no se conserva. El borrado de
 `config/gevent_patch.py`, de las líneas de `wsgi.py` y de `gevent`/`greenlet` de
@@ -112,19 +123,85 @@ class EntrypointTests(SimpleTestCase):
         self.assertEqual(resultado.returncode, 1)
         self.assertIn("RED-45", resultado.stderr)
 
-    def test_cualquier_worker_class_aborta_no_solo_gevent(self):
-        """La guarda mira `worker-class`, no `gevent`: `--worker-class eventlet` tiene
-        el mismo problema de hilos y tampoco está soportado por la imagen."""
-        resultado = _correr_entrypoint({"GUNICORN_CMD_ARGS": "--worker-class eventlet"})
+    def test_las_cuatro_formas_de_pedir_gevent_abortan(self):
+        """`-k` es la forma corta de `--worker-class`, y `=` es una variante de las dos.
 
-        self.assertEqual(resultado.returncode, 1)
+        La primera versión de la guarda miraba la cadena `worker-class`, así que
+        `-k gevent` y `-k=gevent` pasaban con rc=0 y el proceso arrancaba con el parche
+        aplicado: el estado exacto que esta ficha viene a cerrar. Ahora la condición es
+        la palabra `gevent`, que es **lo mismo que mira `wsgi.py`**.
+        """
+        for valor in (
+            "--worker-class gevent",
+            "--worker-class=gevent",
+            "-k gevent",
+            "-k=gevent",
+        ):
+            with self.subTest(cmd_args=valor):
+                resultado = _correr_entrypoint({"GUNICORN_CMD_ARGS": valor})
+
+                self.assertEqual(resultado.returncode, 1, resultado.stderr)
+                self.assertIn("RED-45", resultado.stderr)
+
+    def test_eventlet_aborta_igual_que_gevent(self):
+        """`wsgi.py` no lo parchea, pero tiene el mismo problema de hilos y la imagen
+        tampoco lo soporta: los workers son gthread."""
+        for valor in ("--worker-class eventlet", "-k eventlet"):
+            with self.subTest(cmd_args=valor):
+                resultado = _correr_entrypoint({"GUNICORN_CMD_ARGS": valor})
+
+                self.assertEqual(resultado.returncode, 1, resultado.stderr)
+
+    def test_un_worker_class_inocuo_avisa_pero_arranca(self):
+        """La guarda frena gevent y eventlet, **no** cualquier `--worker-class`.
+
+        Este script es el `ENTRYPOINT` único de la imagen: lo corren daphne, gunicorn,
+        el Job de bootstrap y los cuatro CronJobs. Abortar ante un `sync` o un `gthread`
+        explícito dejaría un ambiente sin arrancar por un valor que no tiene nada que
+        ver con el hallazgo.
+        """
+        for valor in ("--worker-class sync", "-k gthread"):
+            with self.subTest(cmd_args=valor):
+                resultado = _correr_entrypoint({"GUNICORN_CMD_ARGS": valor})
+
+                self.assertEqual(resultado.returncode, 0, resultado.stderr)
+                self.assertIn("AVISO", resultado.stderr)
+
+    def test_un_cmd_args_sin_worker_class_no_avisa_nada(self):
+        """Lo más común en un entorno real (`--timeout`, `--workers`) pasa en silencio:
+        un aviso en cada arranque deja de leerse."""
+        resultado = _correr_entrypoint({"GUNICORN_CMD_ARGS": "--timeout 90 --workers 4"})
+
+        self.assertEqual(resultado.returncode, 0, resultado.stderr)
+        self.assertNotIn("AVISO", resultado.stderr)
+        self.assertNotIn("RED-45", resultado.stderr)
 
     def test_gunicorn_worker_class_tambien_aborta(self):
         """La segunda perilla de `wsgi.py`. La ficha solo nombraba la primera."""
-        resultado = _correr_entrypoint({"GUNICORN_WORKER_CLASS": "gevent"})
+        for valor in ("gevent", "eventlet"):
+            with self.subTest(worker_class=valor):
+                resultado = _correr_entrypoint({"GUNICORN_WORKER_CLASS": valor})
 
-        self.assertEqual(resultado.returncode, 1)
-        self.assertIn("RED-45", resultado.stderr)
+                self.assertEqual(resultado.returncode, 1, resultado.stderr)
+                self.assertIn("RED-45", resultado.stderr)
+
+    def test_gunicorn_worker_class_inocuo_avisa_pero_arranca(self):
+        resultado = _correr_entrypoint({"GUNICORN_WORKER_CLASS": "sync"})
+
+        self.assertEqual(resultado.returncode, 0, resultado.stderr)
+        self.assertIn("AVISO", resultado.stderr)
+
+    def test_los_dos_errores_dicen_que_hacer(self):
+        """Un mensaje que dice «no se admite» y no dice cómo salir del paso obliga a
+        leer el script a las tres de la mañana."""
+        for entorno in (
+            {"GUNICORN_CMD_ARGS": "-k gevent"},
+            {"GUNICORN_WORKER_CLASS": "gevent"},
+        ):
+            with self.subTest(entorno=entorno):
+                resultado = _correr_entrypoint(entorno)
+
+                self.assertIn("Sacar la variable del entorno", resultado.stderr)
 
     def test_la_guarda_corre_antes_de_tocar_la_base(self):
         """Si quedara después de `run_bootstrap`, en un ambiente con la base caída el
