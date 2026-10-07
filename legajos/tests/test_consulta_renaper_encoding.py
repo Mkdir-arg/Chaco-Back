@@ -1,5 +1,6 @@
 from unittest.mock import Mock, patch
 
+from django.core.cache import cache
 from django.test import SimpleTestCase, override_settings
 
 from legajos.services.consulta_renaper import (
@@ -41,6 +42,25 @@ class RenaperEncodingTests(SimpleTestCase):
 
 
 class RenaperTestModeTests(SimpleTestCase):
+    """TST-02: estos dos dependían del orden en que corrieran.
+
+    `consultar_datos_renaper` cachea por `renaper:consulta:<dni>:<sexo>`, y esa caché
+    es de **proceso** (LocMem): nadie la limpia entre tests y un `SimpleTestCase` no
+    revierte nada. Con los dos consultando el mismo DNI, el segundo en correr pegaba
+    en la caché y **no llamaba al servicio**. En el orden alfabético de siempre eso
+    dejaba a `test_el_modo_test_no_agrega_latencia_por_defecto` pasando por el motivo
+    equivocado —no dormía porque no se ejecutaba—, y con `--shuffle` (semilla
+    2529168576 del CI) el que quedaba segundo era el de la latencia, que sí falla:
+    `Expected 'sleep' to be called once. Called 0 times.`
+
+    El arreglo es doble a propósito: `cache.clear()` para que cada test arranque frío
+    pase lo que pase antes, y **un DNI distinto por caso**, para que ni siquiera
+    puedan pisarse entre sí.
+    """
+
+    def setUp(self):
+        cache.clear()
+
     @override_settings(RENAPER_TEST_MODE=True)
     @patch("legajos.services.consulta_renaper.time.sleep")
     def test_el_modo_test_no_agrega_latencia_por_defecto(self, sleep):
@@ -52,9 +72,23 @@ class RenaperTestModeTests(SimpleTestCase):
     @override_settings(RENAPER_TEST_MODE=True, RENAPER_TEST_LATENCY_SECONDS=0.25)
     @patch("legajos.services.consulta_renaper.time.sleep")
     def test_el_modo_test_aplica_la_latencia_configurada(self, sleep):
-        result = consultar_datos_renaper("30111222", "M")
+        result = consultar_datos_renaper("30111333", "M")
 
         self.assertTrue(result["success"])
+        sleep.assert_called_once_with(0.25)
+
+    @override_settings(RENAPER_TEST_MODE=True, RENAPER_TEST_LATENCY_SECONDS=0.25)
+    @patch("legajos.services.consulta_renaper.time.sleep")
+    def test_la_segunda_consulta_del_mismo_dni_sale_de_la_cache(self, sleep):
+        """La caché que causaba el problema, afirmada: es comportamiento buscado.
+
+        Sin este test, alguien podría «arreglar» el acoplamiento sacando la caché, que
+        es justamente lo que evita una llamada a RENAPER por cada visita a la pantalla.
+        """
+        primera = consultar_datos_renaper("30111444", "M")
+        segunda = consultar_datos_renaper("30111444", "M")
+
+        self.assertEqual(primera, segunda)
         sleep.assert_called_once_with(0.25)
 
 

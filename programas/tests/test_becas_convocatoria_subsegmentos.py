@@ -1,15 +1,16 @@
 from datetime import date
 
 from django.contrib.auth.models import User
-from django.test import TestCase
 from django.urls import reverse
 
 from programas.forms import ConvocatoriaForm
 from programas.models import Segmento, Subsegmento
+from programas.tests.base_becas import BecasPantallaTestCase
 
 
-class ConvocatoriaSubsegmentosTests(TestCase):
+class ConvocatoriaSubsegmentosTests(BecasPantallaTestCase):
     def setUp(self):
+        super().setUp()
         self.user = User.objects.create_superuser("admin-subsegmentos", password="x")
         self.client.force_login(self.user)
         self.segmento_a = Segmento.objects.create(nombre="Segmento A", cupo_maximo=100)

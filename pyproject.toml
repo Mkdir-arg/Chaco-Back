@@ -24,6 +24,14 @@ skips = ["B101", "B104", "B110", "B311", "B404", "B603", "B607"]
 
 [tool.coverage.run]
 source = ["."]
+# TST-03: sin esto, un `if` cuyo cuerpo se ejecuta siempre por la misma rama cuenta
+# como 100 % cubierto. Medido el 07-10-2026 con la suite completa: 81 % de ramas
+# contra 83 % de sentencias, y los nueve módulos críticos 94 % contra 95 %.
+branch = true
+# TST-03: el 48 % se medía sobre **todo** el repo, incluidas cosas que no son el
+# producto (herramientas de desarrollo, módulos muertos, archivos que ni se
+# despliegan). Con el alcance acotado a las apps, lo medido es 76 %: un `fail_under`
+# de 48 no habría avisado aunque la cobertura real se partiera al medio.
 omit = [
     "*/migrations/*",
     "*/tests/*",
@@ -32,8 +40,23 @@ omit = [
     ".venv/*",
     "staticfiles/*",
     "docs/*",
+    # Módulos de «optimización» muertos: DDL y `SET GLOBAL` que no corre nadie. Se
+    # borran en OPS-10 (Ola 7); mientras tanto no son producto y hunden la medición.
+    "core/performance/*",
+    # Herramientas de desarrollo y de CI, no código desplegado. La imagen de release
+    # ni siquiera las lleva (`export-ignore` en `.gitattributes`).
+    "scripts/*",
+    "awslabs-mcp/*",
+    "docker/*",
 ]
 
 [tool.coverage.report]
-fail_under = 48
+# Medido con la suite completa el 07-10-2026 (Python 3.12 + Django 5.2.17, el mismo
+# par que el CI) y **con `branch = true`**: 81 % sobre 23.315 sentencias y 6.192
+# ramas. El techo queda dos puntos abajo para que un PR no se ponga rojo por
+# redondeo. Es un **ratchet**, no un objetivo: cuando la medición suba, sube con ella.
+#
+# La ficha TST-03 proponía 74 sobre una medición de 76 % del 04-10-2026, sin ramas;
+# desde entonces los PRs de las olas R, 1 y 5 agregaron tests y el número real subió.
+fail_under = 79
 show_missing = true

@@ -40,6 +40,10 @@ Thumbs.db
 .pytest_cache/
 .coverage
 htmlcov/
+# Harness e2e de Playwright: local y nunca versionado (RED-72, D-RED-06 = No).
+# Si alguna vez se reconstruye, va contra el compose local, nightly o a mano y nunca
+# como gate; acá viven el usuario y la clave de ese compose.
+/tests/e2e/
 
 # Docker
 *.pid

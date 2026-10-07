@@ -556,6 +556,114 @@ class ContratoDeMigracionesTests(SimpleTestCase):
         self.assertNotIn("manage.py", script)
 
 
+class CoberturaTests(SimpleTestCase):
+    """TST-03: el gate de cobertura existe, mide ramas y tiene los umbrales medidos.
+
+    El gate son **tres números y una lista**, y viven en archivos distintos
+    (`pyproject.toml` y `pr-backend.yml`). Sin este test, bajarlos es gratis: volver
+    `fail_under` a 48, apagar `branch`, o borrar el paso del piso por módulo deja la
+    suite entera en verde y nadie se entera hasta que alguien mire el diff. Que es
+    exactamente el agujero que TST-03 venía a cerrar —el `fail_under = 48` estaba 33
+    puntos por debajo de lo real y por eso no podía fallar nunca—.
+
+    Mismo molde que `ContratoDeMigracionesTests`: el paso vive adentro de
+    `Tests & Coverage`, que ya está en `CHECKS_OBLIGATORIOS`, así que no hace falta
+    sumar un `context` nuevo al ruleset —que todavía no está aplicado—.
+
+    Lo medido el 07-10-2026 con la suite completa, Python 3.12 + Django 5.2.17: 81 %
+    con ramas sobre 23.315 sentencias y 6.192 ramas; los nueve módulos críticos, 94 %.
+    Los umbrales quedan dos y cuatro puntos abajo. Son **ratchets**: cuando la
+    medición suba, suben con ella y este test se actualiza en el mismo diff.
+    """
+
+    JOB = "Tests & Coverage"
+    PASO = "Coverage por módulo crítico"
+
+    #: Los nueve flujos por donde pasan el alta en SIIS, el cupo, el padrón y el link
+    #: público. Escritos a mano, no derivados del workflow: si alguien saca uno del
+    #: `--include`, la lista tiene que cambiar acá y eso se ve en el diff.
+    MODULOS_CRITICOS = (
+        "programas/services/siis_envio.py",
+        "programas/services/proceso_masivo.py",
+        "programas/services/cupo.py",
+        "programas/services/inscripcion_publica.py",
+        "programas/services/padron.py",
+        "programas/services/respuestas.py",
+        "programas/api/views.py",
+        "portal/views/inscripcion.py",
+        "core/rbac.py",
+    )
+    PISO_POR_MODULO = 90
+    FAIL_UNDER = 79
+
+    def setUp(self):
+        self.flujo = _cargar("pr-backend.yml")
+        clave = _nombres_de_jobs(self.flujo).get(self.JOB)
+        self.assertIsNotNone(clave, f"no existe el job «{self.JOB}»")
+        self.job = self.flujo["jobs"][clave]
+        self.pyproject = (RAIZ / "pyproject.toml").read_text(encoding="utf-8")
+
+    def _paso_del_piso(self):
+        pasos = [p for p in self.job["steps"] if p.get("name") == self.PASO]
+        self.assertEqual(
+            len(pasos),
+            1,
+            f"el paso «{self.PASO}» tiene que existir una sola vez en «{self.JOB}»: es el "
+            "único gate que mira módulo por módulo, y el número global promedia 23.315 "
+            "sentencias, así que una caída fuerte en un módulo caliente se diluye y no lo mueve",
+        )
+        return pasos[0]
+
+    def test_el_job_mide_cobertura(self):
+        comandos = "\n".join(paso.get("run", "") for paso in self.job["steps"])
+
+        self.assertIn("coverage run", comandos)
+        self.assertIn("coverage report", comandos)
+
+    def test_el_paso_va_en_un_job_que_el_ruleset_exige(self):
+        self.assertIn(self.JOB, CHECKS_OBLIGATORIOS)
+
+    def test_existe_el_paso_del_piso_por_modulo_critico(self):
+        self.assertIn("coverage report", self._paso_del_piso()["run"])
+
+    def test_el_piso_por_modulo_sigue_en_noventa(self):
+        self.assertIn(f"--fail-under={self.PISO_POR_MODULO}", self._paso_del_piso()["run"])
+
+    def test_el_paso_nombra_exactamente_los_nueve_modulos_criticos(self):
+        run = self._paso_del_piso()["run"]
+        incluidos = run.split("--include=", 1)[1].split()[0].strip()
+
+        self.assertEqual(sorted(incluidos.split(",")), sorted(self.MODULOS_CRITICOS))
+
+    def test_los_nueve_modulos_criticos_existen(self):
+        """Un módulo renombrado desaparece del `--include` **en silencio**: `coverage`
+        no se queja de una ruta que no existe, simplemente mide menos. Con ocho de los
+        nueve el TOTAL sigue por encima de 90 y el gate queda verde midiendo de menos.
+        """
+        faltantes = [ruta for ruta in self.MODULOS_CRITICOS if not (RAIZ / ruta).is_file()]
+
+        self.assertEqual(
+            faltantes,
+            [],
+            "estos módulos del `--include` ya no existen: el gate los mide como 0 líneas y "
+            f"baja de hecho el alcance sin ponerse rojo. Actualizá el paso y esta lista: {faltantes}",
+        )
+
+    def test_el_coverage_mide_ramas(self):
+        """Sin `branch`, un `if` cuyo cuerpo se ejecuta siempre por la misma rama cuenta
+        como 100 % cubierto."""
+        self.assertIn("branch = true", self.pyproject)
+
+    def test_el_fail_under_global_sigue_en_el_techo_medido(self):
+        self.assertIn(f"fail_under = {self.FAIL_UNDER}", self.pyproject)
+
+    def test_el_omit_deja_afuera_lo_que_no_es_producto(self):
+        """El 48 % se medía sobre **todo** el repo, herramientas incluidas."""
+        for ruta in ("core/performance/*", "scripts/*", "awslabs-mcp/*", "docker/*"):
+            with self.subTest(ruta=ruta):
+                self.assertIn(f'"{ruta}"', self.pyproject)
+
+
 class ReleaseGateTests(SimpleTestCase):
     """RED-23: alguien verifica el release antes de que exista el espejo.
 
