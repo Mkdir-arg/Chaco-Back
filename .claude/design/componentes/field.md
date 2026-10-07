@@ -52,6 +52,10 @@ sale del form) sí lo lleva en el markup:
 
 No hay «clases equivalentes»: es `nodo-field` o nada.
 
+De `programas/forms.py` la evidencia de diseño es **`INPUT_CLASS` y los `widget=…` que la usan**;
+el resto del archivo es validación de dominio (`clean_*`, validaciones cruzadas) y no define nada
+visual. Un cambio ahí que no toque `INPUT_CLASS` ni un widget no mueve esta ficha.
+
 ## Selector múltiple apilado
 
 El contenedor del campo lleva `.nodo-checks`: el widget de Django queda como grilla de filas
