@@ -402,7 +402,7 @@ sumaba 20 px de hueco con el error oculto — va adentro del primer bloque de ca
 leía la tabla `## Arquetipos` del núcleo, que escribe el paso 4, y sin ella el gate salía verde sin verificar nada —desde
 el **Cambio 132** esa tabla existe y manda, y que el núcleo no la declare es un error del gate—; (c) el
 `<style>[x-cloak]` de `programa_list` que la ficha no nombraba también sale, porque `--goldens` audita el archivo entero.
-**Parte (b): cerrada salvo los 6 KPIs** en el PR #NNN (Cambio 161), 07-10-2026 — ver abajo. **Test permanente:** `core.tests.test_design_audit_estructura.GoldensSaneadasTests`
+**Parte (b): cerrada salvo los 6 KPIs** en el PR #609 (Cambio 161), 07-10-2026 — ver abajo. **Test permanente:** `core.tests.test_design_audit_estructura.GoldensSaneadasTests`
 (9 tests) + `MarcadoresDeArquetipoTests.test_las_goldens_limpias_cumplen_sus_marcadores` sobre los 4 arquetipos +
 `GateDeCiTests.test_el_step_de_goldens_corre_y_bloquea`.
 - **Evidencia:** `becas/config/programa_list.html:50` (help text del campo SIIS en `text-fg-danger`: parece un error); `becas/relevamientos/convocatoria_list.html:43,49,55,70,75,81` (6 `<label>` sin `for`, WCAG 1.3.1); `becas/revision/personas_list.html:39` (`<th>` de acciones vacío); `_dashboard_panel.html` (KPIs sin `_stat_card`, `modalRespuestas` sin `x-becas-modal`).
@@ -418,7 +418,7 @@ el **Cambio 132** esa tabla existe y manda, y que el núcleo no la declare es un
   - **Verificación (b):** V-UI; Playwright: cada label enfoca su control; `modalRespuestas` cierra con Escape y atrapa el
     foco.
 
-**Resolución de la parte (b):** 🟡 Resuelta **menos los KPIs**, en el PR #NNN (Cambio 161), 07-10-2026.
+**Resolución de la parte (b):** 🟡 Resuelta **menos los KPIs**, en el PR #609 (Cambio 161), 07-10-2026.
 **(b.1) `relevamientos/convocatoria_list.html` — cerrada.** Los seis `<label>` del modal «Nueva convocatoria»
 llevan `for="{{ form_convocatoria.<campo>.id_for_label }}"` (nombre, segmento, subsegmento, fecha_inicio,
 fecha_fin, descripción). **Se saneó además lo otro que la ficha del arquetipo Modal le reprochaba** —es lo que
@@ -458,7 +458,7 @@ ficha, la regla local de impresión del panel y el gradiente del ícono de «For
 - **Ubicación:** `legajos/views/programas.py:get_queryset` («DEPRECATED»; el template lee anotaciones que ya no existen).
 - **Propuesta (default D-F16 = borrar con LEG-06):** si se usa, `_stat_card.html` con conteos anotados en `get_queryset`.
 
-**Resolución:** ✅ Resuelto en el PR #NNN (Cambio 161), 07-10-2026 — salen las tres métricas por tarjeta
+**Resolución:** ✅ Resuelto en el PR #609 (Cambio 161), 07-10-2026 — salen las tres métricas por tarjeta
 (`total_instituciones`, `total_derivaciones_pendientes`, `total_casos_activos`), que imprimían anotaciones que
 `get_queryset` dejó de calcular al retirarse `models_institucional`, y el «DEPRECATED» de la vista pasa a decir
 qué calcula hoy. **Desvío respecto del default D-F16:** no se borra la pantalla. El default es «borrar **con
@@ -472,7 +472,7 @@ visible; el borrado completo sigue siendo de LEG-06. **Test permanente:**
 **Severidad:** BAJA · **Origen:** A6-23 · **Ola:** 5 · **Esfuerzo:** M · **Decisión:** D-F22 (hero de `inicio.html`)
 - **Propuesta:** stat cards → `_stat_card.html`; quitar los «(Próximamente)» de `legajos/reportes.html`; emojis → Font Awesome con `aria-hidden`; `page_header`; ocultar «Estado WebSocket» si `websockets_enabled` es falso. El dashboard completo no tiene golden (agente: frenar): limitarse a estas piezas. D-F22: ¿el hero de `inicio.html` queda como excepción registrada? (el canon dice «no hero sections»). G2-04 corrige los números del mismo inicio.
 
-**Resolución:** 🟡 Resuelto en el PR #NNN (Cambio 161), 07-10-2026 — **salvo las stat cards del inicio**.
+**Resolución:** 🟡 Resuelto en el PR #609 (Cambio 161), 07-10-2026 — **salvo las stat cards del inicio**.
 **D-F22 aplicado con el default** («aplicar el canon salvo que el PM registre la excepción»): el hero de
 `inicio.html` sale y el encabezado pasa al tag canónico, con el mismo saludo de título, la misma bajada en el
 bloque `bajada` (trae `<strong>`) y «Ver ciudadanos» como acción. Con él se fueron sus cinco reglas CSS y el
@@ -578,7 +578,7 @@ queda cancelado y el formulario con `aria-busy="true"`.
 - **Ubicación:** `legajos/templates/legajos/ciudadano_edit_form.html` (hero con gradiente; tarjetas `bg-white/78` y `/90` computan transparente; la bajada visible dice «…desde una vista unificada con **componentes Flowbite**»).
 - **Propuesta:** `page_header` con bajada funcional, sin hero; DNI, estado y perfil como `badge` en el header.
 
-**Resolución:** ✅ Resuelto en el PR #NNN (Cambio 161), 07-10-2026 — encabezado canónico con volver circular al
+**Resolución:** ✅ Resuelto en el PR #609 (Cambio 161), 07-10-2026 — encabezado canónico con volver circular al
 detalle, título con el nombre del ciudadano y bajada funcional («Datos personales, ubicación y perfil social del
 ciudadano»); los tres datos de cabecera pasan a badges y **salen del registro**: `DNI {{ object.dni }}`,
 `badge-success`/`badge-gray` según `object.activo` —«Activo» estaba escrito a mano y era igual para un ciudadano

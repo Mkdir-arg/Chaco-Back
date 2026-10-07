@@ -103,7 +103,7 @@ PoC: `poc/test_repro_usuarios.py`. Lo de la API REST de usuarios está en SEC-05
 - **Propuesta:** corregir etiquetas («inscripciones este mes», sacar la línea duplicada, «ingresaron en las últimas 24 h»), filtrar `last_login` a usuarios de backoffice, `range(dias + 1)` (o `fecha_inicio = hoy - (dias - 1)`); D-G204: ¿el inicio muestra indicadores de Becas? El «hoy» UTC es BEC-18.
 - **Tests:** contexto de `inicio_view` con 1 ciudadano nuevo y 2 inscripciones del mes muestra las dos cifras por separado; `tendencias_datos` con `labels[-1]` = hoy. V-UI.
 
-**Resolución:** ✅ Resuelto en el PR #NNN (Cambio 161), 07-10-2026 — los cuatro defectos, los cuatro de rótulo o
+**Resolución:** ✅ Resuelto en el PR #609 (Cambio 161), 07-10-2026 — los cuatro defectos, los cuatro de rótulo o
 de ventana. (1) «↑N nuevos este mes» pasa a «inscripciones este mes», que es lo que `registros_mes` cuenta.
 (2) `actividad_hoy` **se borra** del contexto y del template: era `seguimientos_hoy` con otro nombre, y el pie de
 esa tarjeta ahora explica el número de arriba («inscripciones con fecha de hoy») en vez de repetirlo. (3)
@@ -124,7 +124,7 @@ requerimiento aparte. **Test permanente:**
 - **Ubicación:** `users/templates/user/login.html:146`, `:155`; `users/forms/auth.py:23`; sin `AUTHENTICATION_BACKENDS` propio (ModelBackend por username); el ABM (`user_form.html:156`) y el alta rápida (`_alta_rapida_modal.html:27`) piden «Nombre de usuario» libre; el correo de credenciales informa «Usuario: {{ username }}».
 - **Propuesta:** rotular «Usuario» (lo más chico; default). Alternativa: backend que acepte email **solo si es único**, lo que exige validar unicidad del email en `users/forms/__init__.py` (hoy no). V-UI.
 
-**Resolución:** ✅ Resuelto en el PR #NNN (Cambio 161), 07-10-2026 — **default aplicado**: el label pasa a «Tu
+**Resolución:** ✅ Resuelto en el PR #609 (Cambio 161), 07-10-2026 — **default aplicado**: el label pasa a «Tu
 usuario *», el placeholder a «Ingresá tu usuario» y el `invalid_login` de `UsuariosAuthenticationForm` a
 «Credenciales inválidas. Verificá tu usuario y contraseña». No se tocó el backend: sigue el `ModelBackend` por
 `username`, que es lo que el ABM y el alta rápida dan de alta. **Test permanente:**

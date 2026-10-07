@@ -21556,7 +21556,7 @@ según lo que devuelva. En icore: `docker compose -f docker-compose.prod.yml exe
 | **Etiquetas** | `#ui` `#textos` `#datos` |
 | **Solicitante** | Auditoría integral oct-2026 — fichas FE-22, FE-16, V5A-NEW-04, G2-04, G2-06 y V5A-NEW-07 parte (b) (Ola 5, PR 7) |
 | **Fecha del pedido** | 07/10/2026 |
-| **Issue / épica** | Sin issue (plan de la auditoría: `docs/internal/auditoria-2026-10/`) |
+| **Issue / épica** | Sin issue (plan de la auditoría: `docs/internal/auditoria-2026-10/`) · PR #609 |
 | **Partes afectadas** | Backoffice: `templates/inicio.html`, `core/views/public.py`, `dashboard/api_views/__init__.py`, `users/templates/user/login.html`, `users/forms/auth.py`, `legajos/templates/legajos/{reportes,ciudadano_edit_form,dashboard_contactos_simple,programas/programa_list}.html`, `legajos/views/{dashboard_simple,programas}.py`, `templates/legajos/alertas_dashboard.html`, `programas/templates/programas/becas/relevamientos/convocatoria_list.html` y `programas/templates/programas/becas/config/_dashboard_panel.html`. Ninguna pantalla nueva, ningún archivo estático nuevo |
 | **Migración** | No requiere |
 
