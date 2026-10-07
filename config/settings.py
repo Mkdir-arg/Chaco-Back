@@ -332,8 +332,17 @@ DATABASES = {
             "isolation_level": "read committed",
             "autocommit": True,
             "connect_timeout": 10,
-            "read_timeout": 10,
-            "write_timeout": 10,
+            # OPS-05 / D-O05. Los 10 s son el límite acordado con ECOM para el tráfico
+            # (Cambio 91) y ahí se quedan: subirlos corre el corte hacia adelante sin
+            # arreglar la consulta lenta. Lo que no puede valer 10 s es el `migrate`: en
+            # MySQL/MariaDB no hay DDL transaccional, así que un ALTER que espera el
+            # metadata lock más de 10 s devuelve un 2013 al cliente y **se aplica igual**
+            # en el servidor — esquema adelantado, migración sin fila en
+            # `django_migrations` y un deploy que no se arregla reintentando. El
+            # `docker-entrypoint.sh` levanta estas dos variables solo para el bloque de
+            # migraciones y sembrado, sin exportarlas al proceso del server.
+            "read_timeout": int(os.environ.get("DB_READ_TIMEOUT", "10")),
+            "write_timeout": int(os.environ.get("DB_WRITE_TIMEOUT", "10")),
         },
         "CONN_MAX_AGE": 60,
         "CONN_HEALTH_CHECKS": True,
@@ -360,7 +369,16 @@ REDIS_URL = os.environ.get(
     f"{'rediss' if REDIS_SSL else 'redis'}://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}",
 )
 
-if ENVIRONMENT == "prd" or PERFORMANCE_CI:
+# OPS-12: QA (el testing de ECOM) también usa Redis. Antes el único ambiente servido
+# con Redis era `prd`, así que QA corría con un cache y un channel layer **locales al
+# proceso**: el throttle contaba por worker, una invalidación limpiaba uno de varios y
+# los websockets no cruzaban entre pods. Y como `settings_production` reasignaba
+# `ENVIRONMENT = "prd"` después de este bloque, `settings.ENVIRONMENT` decía «prd»
+# mientras el cache era LocMem: QA no reproducía lo que iba a pasar en producción.
+# `USE_REDIS_CACHE=True` es la escotilla para reproducirlo en un dev.
+USE_REDIS = ENVIRONMENT in ("prd", "qa") or PERFORMANCE_CI or os.environ.get("USE_REDIS_CACHE") == "True"
+
+if USE_REDIS:
     CACHES = {
         "default": {
             "BACKEND": "django_redis.cache.RedisCache",
@@ -428,7 +446,10 @@ SESSION_IDLE_TIMEOUT_MINUTES = int(os.environ.get("SESSION_IDLE_TIMEOUT_MINUTES"
 # sesión. 0 = cerrar sin aviso.
 SESSION_IDLE_WARNING_SECONDS = int(os.environ.get("SESSION_IDLE_WARNING_SECONDS", "60"))
 
-if ENVIRONMENT == "prd":
+# El channel layer compartido hace falta donde hay más de un proceso atendiendo
+# websockets, que son los ambientes servidos. El CI de performance y la escotilla
+# `USE_REDIS_CACHE` encienden el cache, no los websockets: ahí no hay WS que cruzar.
+if ENVIRONMENT in ("prd", "qa"):
     CHANNEL_LAYERS = {
         "default": {
             "BACKEND": "channels_redis.core.RedisChannelLayer",

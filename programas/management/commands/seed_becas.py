@@ -196,10 +196,12 @@ def asegurar_programa_becas():
             )
         programa = Programa.objects.create(codigo=PROGRAMA_BECAS_CODIGO, **PROGRAMA_BECAS_DEFAULTS)
     # Evita conservar una instancia con PK obsoleta entre recreaciones de la
-    # base de test o ejecuciones idempotentes del seed.
-    from django.core.cache import cache
+    # base de test o ejecuciones idempotentes del seed. Tolera un cache caído: esto corre
+    # en el arranque del contenedor y un Redis inalcanzable no puede impedir que arranque
+    # (ver `invalidar_programa_becas`).
+    from programas.services.autorizacion import invalidar_programa_becas
 
-    cache.delete("programas:becas")
+    invalidar_programa_becas()
     return programa
 
 
