@@ -1104,8 +1104,26 @@ function abrirModalArchivos() {
 // de la papelera no se dibuja. El guard real está en la vista; esto es la UI.
 const puedeEditarArchivos = {{ request.user|puede:"ciudadano.editar"|yesno:"true,false" }};
 
+// Las dos rutas de borrado salen del tag `url` con marcadores, no escritas a mano
+// (RED-42): el dueño del adjunto viaja en la URL y el backend borra solo los que
+// cuelgan de ESE ciudadano o de ESE legajo (SEC-10), así que una ruta mal armada
+// acá es un 404 silencioso en el peor momento.
+//
+// El reemplazo del id va **anclado al final** a propósito: con un `.replace('0', …)`
+// suelto, `/legajos/ciudadanos/10/archivos/0/eliminar/` se convertía en
+// `/legajos/ciudadanos/15/…` —se pisa el primer cero, que es del ciudadano—.
+const URL_ELIMINAR_CIUDADANO = "{% url 'legajos:eliminar_archivo_ciudadano' ciudadano.id 0 %}";
+const URL_ELIMINAR_LEGAJO = "{% url 'legajos:eliminar_archivo_legajo' '00000000-0000-0000-0000-000000000000' 0 %}";
+
+function urlEliminarArchivo(archivo) {
+    const plantilla = archivo.tipo_origen === 'legajo'
+        ? URL_ELIMINAR_LEGAJO.replace('00000000-0000-0000-0000-000000000000', encodeURIComponent(archivo.legajo_id))
+        : URL_ELIMINAR_CIUDADANO;
+    return plantilla.replace(/\/0\/eliminar\/$/, '/' + Number(archivo.id) + '/eliminar/');
+}
+
 function cargarArchivos() {
-    fetch(`/legajos/ciudadanos/{{ ciudadano.id }}/archivos/`)
+    fetch("{% url 'legajos:archivos_ciudadano' ciudadano.id %}")
         .then(response => response.json())
         .then(data => {
             const tbody = document.getElementById('tabla-archivos');
@@ -1121,11 +1139,7 @@ function cargarArchivos() {
                     const fecha = new Date(archivo.fecha_subida).toLocaleDateString('es-AR');
                     const extension = archivo.nombre.split('.').pop().toLowerCase();
                     const icono = getIconoArchivo(extension);
-                    // El dueño del adjunto viaja en la URL: el backend borra solo
-                    // los que cuelgan de ESE ciudadano o de ESE legajo (SEC-10).
-                    const urlEliminar = archivo.tipo_origen === 'legajo'
-                        ? `/legajos/${encodeURIComponent(archivo.legajo_id)}/archivos/${Number(archivo.id)}/eliminar/`
-                        : `/legajos/ciudadanos/{{ ciudadano.id }}/archivos/${Number(archivo.id)}/eliminar/`;
+                    const urlEliminar = urlEliminarArchivo(archivo);
 
                     return `
                         <tr class="cd-row">
@@ -1234,7 +1248,7 @@ document.getElementById('formArchivos')?.addEventListener('submit', function(e) 
 
     const formData = new FormData(this);
 
-    fetch(`/legajos/ciudadanos/{{ ciudadano.id }}/subir-archivos/`, {
+    fetch("{% url 'legajos:subir_archivos_ciudadano' ciudadano.id %}", {
         method: 'POST',
         body: formData,
         headers: {
@@ -1260,7 +1274,7 @@ document.getElementById('formArchivos')?.addEventListener('submit', function(e) 
 // Actividad reciente (Resumen)
 // ============================================================
 function cargarActividades() {
-    fetch(`/legajos/ciudadanos/{{ ciudadano.id }}/actividades/`)
+    fetch("{% url 'legajos:actividades_ciudadano' ciudadano.id %}")
         .then(response => response.json())
         .then(data => {
             const tbody = document.getElementById('tabla-actividades');
@@ -1359,7 +1373,7 @@ function getTipoNombre(tipo) {
 // Predicción de riesgo (Resumen)
 // ============================================================
 function cargarPrediccionRiesgo() {
-    fetch(`/legajos/ciudadanos/{{ ciudadano.id }}/prediccion-riesgo/`)
+    fetch("{% url 'legajos:prediccion_riesgo' ciudadano.id %}")
         .then(response => response.json())
         .then(data => {
             const abandono = data.abandono;

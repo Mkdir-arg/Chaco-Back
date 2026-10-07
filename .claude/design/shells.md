@@ -51,6 +51,14 @@ Se hereda; no se recrean el sidebar ni sus offsets.
   nada. Ninguna pantalla repite esa guardia. El shell publica además `window.alertasConfig`
   (`ciudadanoDetalleUrlTemplate`), que es de donde sale el destino de «Ver» en la alerta crítica:
   el JS no escribe rutas literales.
+- **Las rutas que consulta el JS del shell salen del template, no del `.js`.** La campana de
+  alertas (`#alertas-campana`, en `templates/includes/navbar.html`) lleva `data-url-count` y
+  `data-url-preview` resueltos con `{% url %}`, y `static/custom/js/alertas_websocket.js` las lee
+  con `dataset`; sin el atributo no consulta nada. Un archivo de `static/` no pasa por el motor
+  de templates, así que una ruta escrita a mano ahí no la revisa nadie hasta que devuelve 404 en
+  producción (RED-42; el barrido vive en `core/tests/test_urls_del_front.py`). Lo mismo vale para
+  el tema: la preferencia de modo oscuro se guarda **solo** en `localStorage` y no se postea a
+  ninguna ruta (RED-75, D-RED-07 = A; candado en `users/tests/test_tema.py`).
 - El backdrop del sidebar móvil es `bg-black/50`; el botón de menú y su separador se esconden en
   escritorio con `lg:hidden` y nada más, sin `!important` ni clases hook.
 

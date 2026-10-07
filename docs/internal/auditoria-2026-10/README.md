@@ -27,6 +27,12 @@ escritas en `espejo-ecom.md`): si el pod de `web` de testing llega a un Redis, y
 `DJANGO_SETTINGS_MODULE` ahí y en PRD, que es la pregunta abierta **H-09**. En icore, además, hay que instalar
 el envoltorio de cron y la rotación del log (`processes.md`, *Cron del host*).
 
+## Estado al 07-oct-2026 (Ola 5, PR 8: la red de seguridad del front)
+
+| PR | Cambio | Fichas | Estado | Qué quedó abierto |
+|---|---|---|---|---|
+| Ola 5 PR 8 (#611) | 164 | RED-33 ✅ · RED-75 ✅ · RED-42 ✅ (parte 5) · RED-53 ✅ (parte 5) | ✅ | **Las 4 fichas cerradas, 14 h, sin migraciones y con un solo cambio de comportamiento visible (ninguno).** (1) **RED-33:** 30 tests HTTP de **caracterización** sobre las vistas v1 que operan —`AdmisionesPorHttpTests` (16), `EntregaDeMercaderiaTests` (5) y `MerenderoDetalleYEstadoPorHttpTests` (9)—, con los cuatro perfiles por pantalla (anónimo → login, cuenta sin rol → 403, rol con la capacidad justa y superusuario) y GET y POST. Las tres conductas que la ficha llama «se rompería sin que nadie se entere» están **verificadas por mutación**: pasar `usuario=None` al servicio, sacar el guard de «esta admisión es de este dispositivo» y resolver el merendero de la entrega desde el cuerpo del POST ponen rojo sus tests. (2) **RED-75 (D-RED-07 = A):** se fueron `sendThemePreference`, la opción `notify` de `applyTheme` y `dark_mode` de `ProfileSerializer`; `/set_dark_mode/` salió de la `ALLOWLIST` en el mismo diff. (3) **RED-42 parte 5:** los once literales vivos del front se fueron —nueve a `{% url %}` en `ciudadano_detail.html` y `performance_dashboard.html`, dos a `data-url-count`/`data-url-preview` sobre `#alertas-campana` porque `static/*.js` no pasa por el motor de templates—; quedan los dos de LEG-06. (4) **RED-53 parte 5:** `_subir_padron` como puerta única de las dos pantallas que cargan padrón, con la autorización **fuera** del helper porque es distinta en cada una. **Cuatro desvíos, los cuatro code-first:** (a) `static/custom/js/base.js` **no lo carga ningún template**, así que el 404 por cambio de tema que describe RED-75 no estaba pasando en producción —el arreglo igual va, pero el impacto real era cero y el archivo huérfano es de FE-14 (Ola 7)—; (b) la nota de RED-42 «lo que queda son `base.js` e `historial_contactos.html`» quedaba corta: el barrido lista además once literales que **resolvían** y eran justo lo que la ficha manda convertir; (c) `test_las_cuatro_exigen_post` de RED-33 no se puede escribir así —tres de las cuatro vistas tienen GET— y quedó como «el GET no mueve nada y la lista de espera contesta 405»; (d) `_subir_padron` lleva un argumento más que el de la ficha (`clave`), porque la clave del resumen fijo en sesión la lee el detalle de cada pantalla. **Abierto, anotado y no arreglado:** la promoción desde la lista de espera **no persiste quién promovió** (no hay campo; agregarlo es una migración y no está en la ficha), así que lo único que la ata a su autor es el `usuario` que la vista le pasa al servicio, y eso es lo que el test fija. **Ronda 2 de la revisión:** RED-42 —que en este PR **es** el entregable— no tenía candado en ninguna de sus dos puntas. Los dos tests de JS pasaban igual con el `alertas_websocket.js` viejo (el stub anunciaba la misma ruta que el literal, y el caso «sin campana» salía por el «no hay dónde pintar» antes de mirar la URL): ahora van rutas **centinela** y el `null` es solo para `#alertas-campana`. Del lado del template no había nada: borrar los dos `data-url-*` del navbar dejaba la suite en verde y la campana dejaba de contar en silencio; lo cubre una aserción de render contra `reverse()`. Y el barrido no veía las rutas **asignadas a una variable**, que es como se armaban las dos de borrado de adjuntos del detalle del ciudadano: se agregó ese patrón, filtrado por prefijo real del URLconf y salteando comentarios. **Hallazgo nuevo que destapó, sin ficha:** el form «Dar de baja» de `programa_detail.html` postea a `/legajos/acompanamiento/<id>/dar-de-baja/`, que **no está ruteada** —la vista existe, la URL no—, así que ese botón da 404 desde siempre en una pantalla viva. No se arregla acá: rutearla estrena una baja destructiva que nunca corrió, y eso lo decide el PM. **Para el PM / el juez:** el bloque de `.claude/design/shells.md` ya lo aplicó el juez (`db3e99f8`) y «Design Agent Contract» quedó en verde |
+
 ## Estado al 07-oct-2026 (Ola 1, PR 7: herramientas y correcciones manuales — **la Ola 1 cierra**)
 
 **Las tres fichas de herramientas, más la segunda parte de RED-32.** El PR 7 de la Ola 1 (Cambio 162) son
@@ -946,7 +952,7 @@ cliente antes de cualquier otra cosa.
 | D-RED-04 ✅ | ¿Se graban respuestas **reales** de RENAPER, Personas y SIIS (anonimizadas) como fixtures de test? | **Default aplicado el 07-oct-2026 (Cambio 160, PR R-18): sintético.** Seis fixtures en `programas/fixtures/contratos/`, compartidos por todos los tests, con DNI inventados. Si el PM aprueba grabar: solo con `RENAPER_TEST_MODE=1` contra el DNI de prueba y con revisión antes de versionar | RED-41 |
 | D-RED-05 | ¿Se arregla la reversa de las migraciones UUID (L) o se declaran barrera de reversa? | Barrera: por debajo de `legajos.0007`, `programas.0047/0048/0073` y `users.0023` solo se vuelve con restore | RED-15 |
 | D-RED-06 | ¿Se reconstruye un e2e con Playwright? | No por ahora: borrar los residuos de `tests/e2e/`; si se hace, solo constructor y paso 2 del link, nightly, nunca como gate | RED-72 |
-| D-RED-07 | Preferencia de tema oscuro: (A) se persiste solo en el navegador o (B) se guarda en el perfil | A: borrar `sendThemePreference` y `dark_mode` del serializer | RED-75 |
+| D-RED-07 ✅ | Preferencia de tema oscuro: (A) se persiste solo en el navegador o (B) se guarda en el perfil | A: borrar `sendThemePreference` y `dark_mode` del serializer. **Default aplicado el 07-oct-2026 (Cambio 164, PR 8 de la Ola 5):** se fueron la función, la opción `notify` que la disparaba y el campo del serializer; la preferencia vive en `localStorage`, que es donde ya vivía de verdad. La columna `users_profile.dark_mode` queda hasta que una ficha de *contract* la retire. Si el PM quiere B, hay que escribir la vista `POST /usuarios/tema/` y sus tests | RED-75 |
 | D-RED-08 | ¿Se conserva la opción de workers gevent? | No: borrar el parche y las dependencias (Ola 7); hasta entonces, el entrypoint aborta si se pide | RED-45 |
 | D-RED-09 | ¿La publicación de `docs/client/` en Pages requiere aprobación? | Sí: `environment: github-pages` con revisores + chequeo de patrones | RED-64 |
 | D-RED-10 | ¿Se unifica la respuesta de la pausa de la app (409 en cinco endpoints, 400 en el PATCH)? | No ahora: el test fija el contrato tal cual; unificar solo con un release coordinado de `Chaco-mobile`. 🟡 04-oct: **default aplicado** en #548 (Cambio 119) — `PausaEnTodosLosEndpointsTests` afirma el código real por endpoint | RED-03 |
@@ -1338,6 +1344,8 @@ funcional ni coordinación con ECOM). Las horas de cada ola suman los esfuerzos 
 | 3 | Datos, operación, CI, app de campo y reglas de Becas | 55 | 158 | 59 (+ R0-03, R0-04, R0-06, R0-07) | 166 | 54 (− 7 a la Ola R; + RED-48, RED-58; + partes de RED-09, 35, 40, 50) | 152 · **14 cerradas el 07-oct (PR 1) → 138 restantes** |
 | 4 | Performance | 19 | 52 | 19 | 52 | 20 (+ RED-62; + partes de RED-10, 49, 51, 83) | 64 |
 | 5 | Bugs de front y parches v1 de Legajos/Dispositivos | 31 (+ V5A-NEW-07 b) | 114 | 31 (+ V5A-NEW-07 b) | 114 | 33 (+ RED-33, RED-75; + partes de RED-42, 53) (+ V5A-NEW-07 b) | 128 · **66 cerradas (PRs 1 a 5 y 7) → 62 restantes** |
+
+| 5 | Bugs de front y parches v1 de Legajos/Dispositivos | 31 (+ V5A-NEW-07 b) | 114 | 31 (+ V5A-NEW-07 b) | 114 | 33 (+ RED-33, RED-75; + partes de RED-42, 53) (+ V5A-NEW-07 b) | 128 · **60 h cerradas (PR 1: DIS-01, DIS-08; PR 2: 7 fichas; PR 3: 3; PR 4: 4; PR 5: 4; PR 8: RED-33, RED-75, RED-42 y RED-53) → 68 restantes (PRs 6 y 7)** |
 | 6 | Agente de diseño | 4 (+8 pasos) | 42 | 4 (+8 pasos) | 42 | 4 (+8 pasos) | 42 · **22 cerradas el 05-oct (pasos 0-3) → 20 restantes** |
 | 7 | Deuda | 9 (+ fase 2 de G1-01) | 46 | 10 (+ fase 2 de G1-01; + R0-02) | 48 | 13 (+ RED-64, 76, 86; + partes de RED-13, 37, 39, 54, 78, 85) | 88 |
 | v2 | Criterios de aceptación de la v2 (§7), no se implementan en v1 | 13 | — | 13 | — | 13 | — |
@@ -1752,6 +1760,8 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
 - **Objetivo:** que las pantallas funcionen (subir archivos, paginar, cascadas, botones visibles) y migrar las pantallas
   fuera de Becas a las piezas canónicas clonando las goldens.
 - **Avance: 66 h de 128, 62 restantes.** PR 1 (DIS-01 + DIS-08) en el Cambio 140, 06-oct-2026: helper de fechas locales,
+
+- **Avance: 60 h de 128, 68 restantes.** PR 1 (DIS-01 + DIS-08) en el Cambio 140, 06-oct-2026: helper de fechas locales,
   los dos usos de Dispositivos más los tres latentes y cuatro de Conversaciones, y la guardia `test_sql_portable.py`
   (recorre el código con `ast`, allowlist vacía). **PR 2 (FE-02, LEG-02, LEG-03, LEG-04, LEG-05, FE-09, FE-21) en el
   Cambio 150, 06-oct-2026**: las 7 fichas cerradas, sin migración. **PR 3 (FE-04, FE-05, FE-08) en el Cambio 152,
@@ -1776,6 +1786,20 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
   `_dashboard_panel`) 20 h (Cambio 161) · (8) *Red de seguridad (04-oct):* RED-33 (tests HTTP de las vistas de Dispositivos y
   Merenderos, con el PR 1), RED-75 (`/set_dark_mode/`, D-RED-07) y segundas partes de RED-42 (URLs literales →
   `{% url %}`) y RED-53 (`_subir_padron`) 14 h.
+
+  tener avisos propios y el shell carga una guardia de doble envío. **PR 8 (RED-33, RED-75 y las segundas
+  partes de RED-42 y RED-53) en el Cambio 164, 07-oct-2026**: las 4 fichas cerradas, sin migración; 30 tests
+  HTTP de caracterización sobre las vistas v1 de Dispositivos y Merenderos, el toggle de tema deja de
+  prometer una persistencia que no existía (D-RED-07 = A) y el front se queda sin URLs escritas a mano
+  salvo las dos de LEG-06. Quedan abiertos los PRs 6 y 7.
+- **PRs y orden:** (1) DIS-01 + DIS-08 (helper de fechas locales + guardia de `__date`) 4 h · (2) Legajos: FE-02, LEG-04,
+  LEG-05, LEG-02, LEG-03, FE-09, FE-21 14 h · (3) ✅ Configuración: FE-04, FE-05, FE-08 6 h (Cambio 152) · (4) ✅ FE-06,
+  FE-07, FE-01 y FE-10 14 h (Cambio 155) · (5) ✅ FE-18, FE-19, FE-25, FE-26 8 h (Cambio 157) · (6) **después de la
+  Ola 6 paso 4:** FE-11, FE-12, FE-17, FE-20, FE-23, FE-24 48 h · (7) FE-22, FE-16, V5A-NEW-04, G2-04, G2-06, V5A-NEW-07 parte (b) (labels de `convocatoria_list` y deuda de
+  `_dashboard_panel`) 20 h · (8) ✅ *Red de seguridad (04-oct):* RED-33 (tests HTTP de las vistas de Dispositivos y
+  Merenderos), RED-75 (`/set_dark_mode/`, D-RED-07 = A) y segundas partes de RED-42 (URLs literales →
+  `{% url %}`) y RED-53 (`_subir_padron`) 14 h (Cambio 164). No entró con el PR 1, como decía el plan: DIS-01
+  y DIS-08 cerraron solos.
 - **Hecho cuando:** V-STD + V-UI (desde la Ola 6, `--ratchet` = 0 nuevos y `--arquetipo` OK en pantallas migradas); PoC
   invertidas de `poc/test_repro_dispositivos_legajos.py` (DIS-01, DIS-08, LEG-02..05); las verificaciones de Playwright de
   cada ficha FE (a 1440 y 390 px); CLASSDEF en 0 para los archivos tocados.

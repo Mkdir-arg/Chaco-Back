@@ -6,6 +6,14 @@ function escaparHtmlAlerta(valor) {
     ));
 }
 
+// Las rutas de las dos consultas las pone el template en la campana del navbar
+// (`templates/includes/navbar.html`, RED-42): `static/` no pasa por el motor de
+// templates, así que un literal acá no lo revisa nadie hasta que da 404 en PRD.
+function urlDeAlertas(nombre) {
+    const campana = document.querySelector('#alertas-campana');
+    return campana ? (campana.dataset[nombre] || '') : '';
+}
+
 class AlertasWebSocket {
     constructor() {
         this.socket = null;
@@ -189,8 +197,9 @@ class AlertasWebSocket {
     updateAlertasCounter() {
         // Actualizar contador de alertas en la UI
         const counter = document.querySelector('#alertas-counter');
-        if (counter) {
-            fetch('/legajos/alertas/count/')
+        const url = urlDeAlertas('urlCount');
+        if (counter && url) {
+            fetch(url)
                 .then(response => this.leerJson(response))
                 .then(data => {
                     counter.textContent = data.count;
@@ -212,7 +221,9 @@ class AlertasWebSocket {
         if (!preview) return;
 
         // Intentar primero el endpoint simple
-        fetch('/legajos/alertas/preview/')
+        const url = urlDeAlertas('urlPreview');
+        if (!url) return;
+        fetch(url)
             .then(response => this.leerJson(response))
             .then(data => {
                 const alertas = data.results || data;
@@ -257,7 +268,9 @@ class AlertasWebSocket {
         if (!preview) return;
         
         // Usar endpoint de views_alertas como fallback
-        fetch('/legajos/alertas/count/')
+        const url = urlDeAlertas('urlCount');
+        if (!url) return;
+        fetch(url)
             .then(response => this.leerJson(response))
             .then(data => {
                 if (data.count > 0) {
