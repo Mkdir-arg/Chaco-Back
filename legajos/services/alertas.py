@@ -6,6 +6,8 @@ from channels.layers import get_channel_layer
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 
+from core.utils_fechas import fecha_local
+
 from ..models import (
     AlertaCiudadano,
     Ciudadano,
@@ -82,7 +84,7 @@ class AlertasService:
 
         evaluacion = getattr(legajo, "evaluacion", None)
         if not evaluacion:
-            dias_sin_eval = (timezone.now().date() - legajo.fecha_apertura).days
+            dias_sin_eval = (timezone.localdate() - legajo.fecha_apertura).days
             if dias_sin_eval > 15:
                 alertas.append(
                     AlertasService._crear_alerta(
@@ -108,7 +110,7 @@ class AlertasService:
         ultimo_contacto = HistorialContacto.objects.filter(legajo=legajo).order_by("-fecha_contacto").first()
 
         if ultimo_contacto:
-            dias_sin_contacto = (timezone.now().date() - ultimo_contacto.fecha_contacto.date()).days
+            dias_sin_contacto = (timezone.localdate() - fecha_local(ultimo_contacto.fecha_contacto)).days
             if dias_sin_contacto > 30:
                 alertas.append(
                     AlertasService._crear_alerta(

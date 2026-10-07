@@ -6,9 +6,10 @@ from django.utils.dateparse import parse_date
 from rest_framework import serializers
 
 from core.dni import MENSAJE_DNI_INVALIDO, dni_valido
+from core.edad import es_menor
 from legajos.models import Ciudadano
 from programas.models import AdjuntoFormulario, Formulario, Relevamiento
-from programas.services.becas import definicion_formulario, es_menor
+from programas.services.becas import definicion_formulario
 from programas.services.padron import normalizar_dni
 
 logger = logging.getLogger(__name__)

@@ -27,6 +27,11 @@ Qué mira:
 4. **Correcciones para SIIS** (`Formulario.datos_siis`): claves que
    `armar_payload` **no consume** —lo cargado ahí nunca llega a SIIS y el
    coordinador cree que sí—.
+5. **Condiciones imposibles por canal** (BEC-04): reglas cuya fuente no se pide
+   en el canal servido. El ítem queda oculto para siempre ahí y el servidor
+   tampoco lo exige. Desde la Ola 3 el constructor **rechaza** guardar un diseño
+   así, y lo ya guardado se sirve con la condición anulada: esta pasada dice, antes
+   de desplegar, a cuántos diseños les va a cambiar el comportamiento y cuáles son.
 
 Es de **solo lectura**: no hay `save()`, `update()` ni `delete()` en este
 archivo, y por eso se puede correr contra una réplica. Termina en 0 siempre (es
@@ -138,6 +143,37 @@ def _problemas_de_datos_siis(datos, donde):
     return []
 
 
+def _problemas_de_canal():
+    """Condiciones que no se pueden cumplir en el canal donde se sirven (BEC-04).
+
+    Se recorre diseño por diseño porque la pregunta es «qué ve quien entra por la
+    app» y «qué ve quien entra por el link», y eso depende de todos los ítems de
+    ese diseño junto con el canal de cada uno (que para los requisitos lo manda el
+    catálogo, RN-2). Solo lecturas.
+    """
+    from programas.models import CanalFormulario, DisenoFormulario
+    from programas.services.condiciones import fuentes_fuera_del_canal
+    from programas.services.diseno import items_ordenados, items_planos
+
+    canales = ((CanalFormulario.APP, "app"), (CanalFormulario.LINK, "link"))
+    problemas = []
+    disenos = DisenoFormulario.objects.select_related("convocatoria").order_by("pk")
+    for diseno in disenos.iterator(chunk_size=LOTE):
+        items = items_ordenados(diseno)
+        if not any(item.condicion for item in items):
+            continue
+        for canal, nombre in canales:
+            for clave, errores in fuentes_fuera_del_canal(items_planos(items, canal), nombre).items():
+                problemas.append(
+                    {
+                        "donde": f"DisenoFormulario#{diseno.pk} (convocatoria {diseno.convocatoria_id}).{clave}",
+                        "problema": "condicion_con_fuente_fuera_del_canal",
+                        "detalle": f"{nombre}: {' / '.join(errores)}",
+                    }
+                )
+    return problemas
+
+
 def revisar():
     """Todos los problemas encontrados. Solo lecturas, en lotes."""
     problemas = []
@@ -158,6 +194,8 @@ def revisar():
         donde = f"Formulario#{caso.pk}"
         problemas += _problemas_de_definicion(caso.definicion, f"{donde}.definicion")
         problemas += _problemas_de_datos_siis(caso.datos_siis, f"{donde}.datos_siis")
+
+    problemas += _problemas_de_canal()
 
     return problemas
 

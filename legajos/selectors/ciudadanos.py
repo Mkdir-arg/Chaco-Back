@@ -1,8 +1,9 @@
-from datetime import date
-
 from django.core.cache import cache
 from django.db.models import Count, Q
+from django.utils import timezone
 
+from core.edad import edad_en_anios
+from core.utils_fechas import fecha_local
 from programas.models import DerivacionPrograma, InscripcionPrograma, Programa
 
 from ..models import AlertaCiudadano, Ciudadano, LegajoAtencion
@@ -29,18 +30,10 @@ def buscar_ciudadanos_rapido(q):
     else:
         return []
 
-    from datetime import date as _date
-
-    hoy = _date.today()
+    hoy = timezone.localdate()
     resultados = []
     for c in qs.order_by("apellido", "nombre")[:10]:
-        edad = None
-        if c.fecha_nacimiento:
-            edad = (
-                hoy.year
-                - c.fecha_nacimiento.year
-                - ((hoy.month, hoy.day) < (c.fecha_nacimiento.month, c.fecha_nacimiento.day))
-            )
+        edad = edad_en_anios(c.fecha_nacimiento, hoy)
         resultados.append(
             {
                 "id": c.pk,
@@ -70,7 +63,7 @@ def _build_ciudadanos_dashboard_metrics(total_ciudadanos=None):
             "id",
             filter=Q(estado__in=[InscripcionPrograma.Estado.ACTIVO, InscripcionPrograma.Estado.EN_SEGUIMIENTO]),
         ),
-        hoy=Count("id", filter=Q(fecha_inscripcion=date.today())),
+        hoy=Count("id", filter=Q(fecha_inscripcion=timezone.localdate())),
     )
     total_inscripciones_activas = totales_inscripciones["activas"]
     total_inscripciones = totales_inscripciones["total"]
@@ -214,7 +207,9 @@ def build_ciudadano_detail_context(ciudadano, user=None):
     for deriv in derivaciones_ciudadano[:10]:
         linea.append(
             {
-                "fecha": deriv.creado.date() if hasattr(deriv.creado, "date") else deriv.creado,
+                # `fecha_local` y no `.date()`: `creado` está en UTC, así que una
+                # derivación de las 22:00 figuraba con la fecha de mañana (BEC-18).
+                "fecha": fecha_local(deriv.creado),
                 "icono": "share-nodes",
                 "color_hex": "#F97316",
                 "titulo": f"Derivación a {deriv.programa_destino.nombre}",
