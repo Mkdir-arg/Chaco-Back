@@ -170,3 +170,104 @@ class RespuestaQueNoCorrespondeTests(SimpleTestCase):
 
         self.assertFalse(resultado["success"])
         self.assertIn("ambigua", resultado["error"])
+
+
+@override_settings(
+    PERSONAS_API_URL="https://personas.example/api/v1",
+    PERSONAS_API_CLIENT_ID="client",
+    PERSONAS_API_CLIENT_SECRET="secret",
+    PERSONAS_API_ENTIDAD_UUID="entity",
+    PERSONAS_API_FUENTE_ID=13,
+    PERSONAS_API_CONNECT_TIMEOUT=5,
+    PERSONAS_API_TIMEOUT=10,
+)
+class FormatosNoPrevistosTests(SimpleTestCase):
+    """Ronda 2 (MINOR): el desempate ante formatos que el contrato no fijó.
+
+    El contrato de la fuente 13 sigue abierto (task #243), así que el documento
+    y el sexo pueden llegar de formas que nadie previó. La regla: **nunca una
+    identidad equivocada**. Lo que no se puede interpretar no objeta —si no, un
+    código de sexo numérico dejaría todas las identidades en `manual` por un
+    campo que acá es solo desempate— y lo que se puede interpretar y no
+    coincide manda a `manual`.
+    """
+
+    def setUp(self):
+        cache.clear()
+        cache.set(TOKEN_CACHE_KEY, "token-prueba", 60)
+
+    def _consultar(self, data, dni="30111222", sexo="F"):
+        respuesta = Mock(status_code=200)
+        respuesta.json.return_value = {"codigo_http": 200, "data": data}
+        respuesta.raise_for_status.return_value = None
+        with patch("programas.services.personas.sesion.get", return_value=respuesta):
+            return PersonasAPIClient().consultar(dni, sexo)
+
+    # ── Documento ────────────────────────────────────────────────────────────
+    def test_el_documento_con_cero_a_la_izquierda_es_la_misma_persona(self):
+        """La fuente lo guarda en ocho dígitos y la persona lo tipea en siete."""
+        resultado = self._consultar(
+            {"dni": "07123456", "nombres": "Ana", "apellido": "Perez"},
+            dni="7123456",
+        )
+
+        self.assertTrue(resultado["success"], resultado.get("error"))
+        self.assertEqual(resultado["data"]["nombre"], "Ana")
+
+    def test_el_documento_con_puntos_tambien(self):
+        resultado = self._consultar({"dni": "30.111.222", "nombres": "Ana", "apellido": "Perez"})
+
+        self.assertTrue(resultado["success"], resultado.get("error"))
+
+    def test_un_documento_parecido_pero_distinto_sigue_yendo_a_manual(self):
+        """Quitar el cero a la izquierda no puede volver laxa la comparación."""
+        resultado = self._consultar({"dni": "71234567", "nombres": "Otra"}, dni="7123456")
+
+        self.assertFalse(resultado["success"])
+        self.assertIn("no corresponde", resultado["error"])
+
+    def test_un_documento_vacio_en_la_respuesta_no_objeta(self):
+        resultado = self._consultar({"dni": "", "nombres": "Ana", "apellido": "Perez"})
+
+        self.assertTrue(resultado["success"], resultado.get("error"))
+
+    # ── Sexo ─────────────────────────────────────────────────────────────────
+    def test_un_sexo_numerico_no_se_interpreta_ni_bloquea(self):
+        """Con el documento verificado, un código que no sabemos leer no decide."""
+        resultado = self._consultar({"dni": "30111222", "sexo": 1, "nombres": "Ana", "apellido": "Perez"})
+
+        self.assertTrue(resultado["success"], resultado.get("error"))
+        self.assertEqual(resultado["data"]["nombre"], "Ana")
+
+    def test_un_sexo_numerico_no_rescata_a_un_documento_que_no_corresponde(self):
+        """Lo que impide la identidad equivocada es el documento, no el sexo."""
+        resultado = self._consultar({"dni": "99999999", "sexo": 1, "nombres": "Otra"})
+
+        self.assertFalse(resultado["success"])
+        self.assertIn("no corresponde", resultado["error"])
+
+    def test_dos_registros_que_solo_se_distinguen_por_un_sexo_ilegible_son_ambiguos(self):
+        """Sin desempate posible, `manual`: nunca una de las dos al azar."""
+        resultado = self._consultar(
+            {
+                "personas": [
+                    {"dni": "30111222", "sexo": 1, "nombres": "Ana"},
+                    {"dni": "30111222", "sexo": 2, "nombres": "Juan"},
+                ]
+            }
+        )
+
+        self.assertFalse(resultado["success"])
+        self.assertIn("ambigua", resultado["error"])
+
+    def test_un_sexo_que_si_se_entiende_y_no_coincide_manda_a_manual(self):
+        resultado = self._consultar({"dni": "30111222", "sexo": "MASCULINO", "nombres": "Juan"}, sexo="F")
+
+        self.assertFalse(resultado["success"])
+        self.assertIn("no corresponde", resultado["error"])
+
+    def test_el_sexo_pedido_en_un_formato_raro_no_bloquea(self):
+        """La vista normaliza a F/M, pero el servicio no puede confiar en eso."""
+        resultado = self._consultar({"dni": "30111222", "sexo": "F", "nombres": "Ana", "apellido": "Perez"}, sexo="1")
+
+        self.assertTrue(resultado["success"], resultado.get("error"))

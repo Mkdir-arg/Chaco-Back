@@ -132,7 +132,6 @@ class ContratoUpstreamTests(TestCase):
         self.assertEqual(resultado["data"]["nombre"], "Sintetica Prueba")
 
     @override_settings(**RENAPER_SETTINGS)
-    @override_settings(**RENAPER_SETTINGS)
     def test_renaper_con_el_result_anidado_un_nivel_mas_no_se_marca_validado(self):
         """El escenario que nombra la ficha, cerrado en la Ola 3 (Cambio 174).
 

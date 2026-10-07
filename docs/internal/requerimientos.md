@@ -24717,9 +24717,11 @@ con el nombre vacío.
 - `programas/services/personas.py` — `_plano`, `_registros`, `_coincide`,
   `elegir_registro`; `normalizar_persona` toma `sexo` y lee por ruta
 - `legajos/services/consulta_renaper.py` — `Retry` (tres parámetros),
-  `threading.RLock`, `descartar_token`, `_headers`/`_pedir`, logs saneados y la
-  guarda de nombre y apellido
-- `core/integraciones.py` — la cadena de RENAPER, documentada
+  `descartar_token`, `_token_vigente`, `_headers`/`_pedir`, logs saneados, la
+  guarda de nombre y apellido y —ronda 2— el login sin cola (`Event` + espera
+  acotada), el `Cortacircuito` y `sesion_http()`
+- `core/integraciones.py` — la cadena de RENAPER, documentada, y `max_retries`
+  en `sesion_http`
 - `core/checks.py` — `core.E004` (SIIS-20) y `core.W003` (SIIS-21)
 - `core/validators.py` — `FIRMAS`, `cabecera`, `firma_coincide`, `validar_firma`
 - `core/services/throttle.py` — el comentario deja de escribir una regla general
@@ -24752,20 +24754,20 @@ Python 3.12 + Django 5.2.17 (`.venv312`), igual al CI.
   seis** avisos que `HEAD` (comparado contra un worktree de la base): ninguno
   nuevo.
 - `manage.py makemigrations --check --dry-run` → «No changes detected».
-- Suite completa en un solo proceso: **3982 tests**, una falla
-  (`core.tests.test_inicio_contadores_ola5::test_una_inscripcion_del_ultimo_dia_entra_en_la_serie`),
-  **preexistente y reproducida en un worktree de `HEAD`**: es un desfase de
-  medianoche entre el `date.today()` del `auto_now_add` y `timezone.localdate()`,
-  en esta máquina y no en el CI.
+- Suite completa en un solo proceso, después de mergear `development`:
+  **4078 tests, todo en verde** (la falla de medianoche que la ronda 1 había
+  medido como preexistente la cerró el Cambio 172 en su propia ronda 2).
 - `manage.py test --tag performance` → OK.
 - `ruff check .` → «All checks passed»; `ruff format --check` sobre lo tocado → OK.
-- **Los 42 tests nuevos fallan antes del cambio**, cada uno por su motivo: 8 de
+- **Los tests nuevos fallan antes del cambio**, cada uno por su motivo: 8 de
   SIIS-10 (la identidad salía del domicilio y no se comparaba el documento), 3 de
   SIIS-13, 14 de RENAPER (el `Retry` levantaba `MaxRetryError`, el 401 no
   descartaba el token y el log llevaba el DNI), 3 de SIIS-15, 4 de SIIS-16, 3 de
   SIIS-18 y 7 de SIIS-20/21. También se verificó la contracara: el
   `expectedFailure` de `test_personas_no_toma_claves_anidadas` pasó a *unexpected
-  success*.
+  success*. Los 8 de la ronda 2 se corrieron contra un worktree del commit
+  anterior: el de la cola midió **10,02 s** de espera detrás de un login colgado
+  y el de los logins simultáneos contó **4 logins para 4 requests** en vez de 1.
 - No tocó UI (ni templates, ni JS, ni CSS): no corresponde `design_audit`.
 
 ## Puesta en marcha en el servidor
@@ -24796,4 +24798,51 @@ bloqueado por un RECHAZADO sin validar (SIIS-13); esos casos quedan y al reverti
 vuelven a bloquear ese DNI, que es el estado de antes.
 
 ## Historial
-No aplica (entrada nueva).
+**Ronda 2 de la revisión (08/10/2026) — 1 MAJOR y 2 MINOR, todos corregidos.**
+
+**El MAJOR lo había introducido esta misma entrada.** El `threading.RLock`
+alrededor de `login()` evitaba N logins simultáneos, pero convertía un login
+colgado en una **cola**: N requests esperaban su turno para fallar igual.
+Medido con 4 hilos y un login de 0,4 s que falla, **1,61 s** (0,41 / 0,80 /
+1,20 / 1,59) contra 0,41 s sin candado; y con el login colgado, el segundo
+request esperaba **10 s**. Con los timeouts reales (5 + 10 s) la cuarta alta de
+ciudadano concurrente se come los 60 s de nginx, que es exactamente lo que
+SIIS-09 no quiere. El candado solo tiene sentido para no pedir dos tokens a la
+vez **cuando el login funciona**.
+
+Hoy el candado (`_candado_estado`, un `Lock` común) protege nada más que la
+decisión de **quién** se loguea y se suelta antes del HTTP. El que la gana
+avisa por un `threading.Event` cómo le fue —en un `finally`, así que un login
+que falla también avisa— y los demás esperan ese aviso acotado a
+`ESPERA_LOGIN_SEGUNDOS` (2 s): si no aparece un token, fallan rápido en vez de
+hacer fila. El tiempo total deja de crecer con la cantidad de requests.
+
+Dos cosas más del mismo hallazgo:
+- **`Cortacircuito`** de `core/integraciones.py` en el cliente RENAPER, que era
+  el único de los tres sin él (SIIS-09 lo había puesto en SIIS y en Base de
+  Personas). Tres fallas de **red** seguidas y el alta falla en el acto por un
+  minuto; un 401 o un 500 son respuestas y no lo abren.
+- **`sesion_http()`** en vez de `requests.Session()` cruda: el cliente es de
+  módulo, así que su *cookie jar* es estado compartido **entre personas**. Para
+  no pisar el `Retry` de G1c-15, `sesion_http` acepta `max_retries`; se reenvía
+  solo cuando no es `None`, porque `HTTPAdapter(max_retries=None)` no es «el
+  default» sino `Retry(3)`, o sea tres reintentos silenciosos para los otros dos
+  clientes.
+
+**Los dos MINOR.** (1) Un `@override_settings(**RENAPER_SETTINGS)` duplicado en
+`test_contratos_externos`. (2) El desempate de identidad no estaba medido contra
+los formatos que el contrato de la fuente 13 **no** fija. La regla quedó
+explícita: nunca una identidad equivocada, pero tampoco un `manual` masivo por
+un campo que acá es solo desempate. El documento se compara sin ceros a la
+izquierda (`_documento`) —la fuente lo guarda en ocho dígitos y la persona lo
+tipea en siete, así que `07123456` contra `7123456` mandaba a `manual` a todos
+los DNI cortos— y el sexo se interpreta **solo** si empieza con `F` o `M`
+(`_inicial_de_sexo`): un código numérico no objeta, porque quien acredita el
+registro es el documento. Siguen yendo a `manual` un documento parecido pero
+distinto, un sexo legible que no coincide y dos registros que solo se
+distinguen por un sexo ilegible.
+
+**Presupuesto `core.E003`:** la cadena de RENAPER sigue en 30 s de 55. La espera
+del token ajeno no se declara porque ese request **no** hace su propia llamada:
+su peor caso son 2 s, no la cadena —y antes de este arreglo era el timeout
+completo, sin techo—.

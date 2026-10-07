@@ -23,6 +23,8 @@ ficha se ejercita en la capa donde de verdad vive:
   arrastra la URL completa en el traceback de `requests`.
 """
 
+import threading
+import time
 from unittest.mock import Mock, patch
 
 from django.core.cache import cache
@@ -254,3 +256,177 @@ class LogSinDatosPersonalesTests(_BaseRenaperTest):
 
         self.assertNotIn("30111222", str(capturado.exception))
         self.assertIn("RequestException", str(capturado.exception))
+
+
+# ── Ronda 2: el login no puede hacer cola (MAJOR de la revisión) ─────────────
+
+#: Cuánto tarda el login simulado en fallar. Suficiente para que una cola de 4
+#: se note (4 × 0,3 = 1,2 s) sin que el test tarde.
+LOGIN_LENTO = 0.3
+HILOS = 4
+
+
+class LoginConcurrenteTests(_BaseRenaperTest):
+    """El candado del token no puede serializar los logins que fallan.
+
+    Medido antes del arreglo con 4 hilos y un login de 0,4 s que falla: 1,61 s
+    (0,41 / 0,80 / 1,20 / 1,59), porque cada request esperaba su turno para
+    fallar igual. Con los timeouts reales (5 + 10 s) la cuarta alta concurrente
+    se come los 60 s de nginx. El candado solo sirve para no pedir dos tokens a
+    la vez **cuando el login funciona**.
+    """
+
+    def _correr(self, post, cliente=None, hilos=HILOS):
+        """``(resultados, segundos)`` de ``hilos`` consultas simultáneas."""
+        cliente = cliente or consulta_renaper.APIClient()
+        resultados = []
+        barrera = threading.Barrier(hilos)
+
+        def trabajo():
+            barrera.wait()
+            resultados.append(cliente.consultar_ciudadano("30111222", "F"))
+
+        with patch.object(cliente.session, "post", side_effect=post):
+            equipo = [threading.Thread(target=trabajo) for _ in range(hilos)]
+            arranque = time.monotonic()
+            for hilo in equipo:
+                hilo.start()
+            for hilo in equipo:
+                hilo.join()
+            tardo = time.monotonic() - arranque
+        return resultados, tardo
+
+    def test_un_login_lento_que_falla_no_hace_cola(self):
+        intentos = []
+
+        def post(url, **kwargs):
+            if url.endswith("/auth/login"):
+                intentos.append(url)
+                time.sleep(LOGIN_LENTO)
+                return _respuesta(500, {"message": "no"})
+            return _respuesta(200, PERSONA)
+
+        resultados, tardo = self._correr(post)
+
+        # Lo determinista: un solo login para las cuatro consultas.
+        self.assertEqual(len(intentos), 1, "cada request pidió su propio token")
+        self.assertEqual(len(resultados), HILOS)
+        for resultado in resultados:
+            self.assertFalse(resultado["success"])
+        # Y el tiempo total no crece con la cantidad de requests: en cola serían
+        # 4 × 0,3 = 1,2 s, y el margen de abajo deja lugar al ruido del runner.
+        self.assertLess(tardo, LOGIN_LENTO * 2.5, f"los logins hicieron cola: {tardo:.2f} s")
+
+    def test_un_login_lento_que_funciona_se_comparte(self):
+        """La razón de ser del candado: un solo round-trip para los cuatro."""
+        intentos = []
+
+        def post(url, **kwargs):
+            if url.endswith("/auth/login"):
+                intentos.append(url)
+                time.sleep(LOGIN_LENTO)
+                return _respuesta(200, {"token": "tok1", "expiration": "2099-01-01T00:00:00Z"})
+            return _respuesta(200, PERSONA)
+
+        resultados, tardo = self._correr(post)
+
+        self.assertEqual(len(intentos), 1)
+        for resultado in resultados:
+            self.assertTrue(resultado["success"], resultado.get("error"))
+        self.assertLess(tardo, LOGIN_LENTO * 2.5)
+
+    def test_el_que_espera_el_token_de_otro_no_espera_para_siempre(self):
+        """Si el login se cuelga, el que espera falla rápido en vez de encolarse."""
+        cliente = consulta_renaper.APIClient()
+        cliente.espera_login = 0.1
+        arrancó = threading.Event()
+        soltar = threading.Event()
+
+        def post(url, **kwargs):
+            if url.endswith("/auth/login"):
+                arrancó.set()
+                soltar.wait(5)
+                return _respuesta(500, {"message": "no"})
+            return _respuesta(200, PERSONA)
+
+        with patch.object(cliente.session, "post", side_effect=post):
+            colgado = threading.Thread(target=lambda: cliente.consultar_ciudadano("30111222", "F"))
+            colgado.start()
+            self.assertTrue(arrancó.wait(2), "el login simulado no arrancó")
+            arranque = time.monotonic()
+            resultado = cliente.consultar_ciudadano("30111223", "F")
+            tardo = time.monotonic() - arranque
+            soltar.set()
+            colgado.join(5)
+
+        self.assertFalse(resultado["success"])
+        self.assertLess(tardo, 1.0, f"hizo cola detrás del login colgado: {tardo:.2f} s")
+
+
+class CortacircuitoRenaperTests(_BaseRenaperTest):
+    """SIIS-09 para RENAPER: con el servicio caído se falla rápido."""
+
+    def setUp(self):
+        super().setUp()
+        self.addCleanup(cache.clear)
+
+    def test_tres_fallas_de_red_seguidas_dejan_de_consultar(self):
+        cliente = consulta_renaper.APIClient()
+        llamadas = []
+
+        def post(url, **kwargs):
+            llamadas.append(url)
+            raise RequestException("sin ruta al host")
+
+        with patch.object(cliente.session, "post", side_effect=post):
+            for _ in range(consulta_renaper.cortacircuito.fallas):
+                cliente.consultar_ciudadano("30111222", "F")
+            antes = len(llamadas)
+            resultado = cliente.consultar_ciudadano("30111223", "F")
+
+        self.assertEqual(len(llamadas), antes, "siguió saliendo a la red con el cortacircuito abierto")
+        self.assertTrue(resultado["cortado"])
+        self.assertFalse(resultado["success"])
+
+    def test_una_respuesta_de_error_no_abre_el_cortacircuito(self):
+        """Un 500 del proveedor es una respuesta: el servicio está en pie."""
+        cliente = consulta_renaper.APIClient()
+
+        for _ in range(consulta_renaper.cortacircuito.fallas + 2):
+            resultado, servicio = self._consultar([500], cliente=cliente)
+
+        self.assertFalse(consulta_renaper.cortacircuito.abierto())
+        self.assertEqual(resultado["status_code"], 500)
+
+    def test_una_consulta_que_anda_borra_lo_acumulado(self):
+        cliente = consulta_renaper.APIClient()
+
+        with patch.object(cliente.session, "post", side_effect=RequestException("boom")):
+            cliente.consultar_ciudadano("30111222", "F")
+            cliente.consultar_ciudadano("30111223", "F")
+        self._consultar([200], cliente=cliente)
+
+        with patch.object(cliente.session, "post", side_effect=RequestException("boom")) as post:
+            cliente.consultar_ciudadano("30111224", "F")
+
+        self.assertFalse(consulta_renaper.cortacircuito.abierto())
+        self.assertTrue(post.called)
+
+
+class SesionCompartidaTests(_BaseRenaperTest):
+    """El cliente usa la sesión del repo: pool acotado y sin cookie jar."""
+
+    def test_la_sesion_no_guarda_cookies(self):
+        cliente = consulta_renaper.APIClient()
+
+        politica = cliente.session.cookies.get_policy()
+
+        self.assertFalse(politica.set_ok(Mock(), Mock()))
+        self.assertFalse(politica.return_ok(Mock(), Mock()))
+
+    def test_la_sesion_conserva_la_configuracion_de_reintentos(self):
+        """`sesion_http` no puede pisar el `Retry` de G1c-15."""
+        reintentos = consulta_renaper.APIClient().session.get_adapter(BASE).max_retries
+
+        self.assertFalse(reintentos.raise_on_status)
+        self.assertEqual(reintentos.total, 0)

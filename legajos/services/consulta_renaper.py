@@ -5,14 +5,13 @@ import threading
 import time
 import unicodedata
 
-import requests
 import urllib3
 from django.conf import settings
 from django.core.cache import cache
-from requests.adapters import HTTPAdapter
 from requests.exceptions import ConnectionError, RequestException
 from urllib3.util.retry import Retry
 
+from core.integraciones import Cortacircuito, sesion_http
 from core.models import Provincia
 from core.performance.query_observability import instrument_external_call
 
@@ -24,6 +23,17 @@ logger = logging.getLogger(__name__)
 # Clave interna de cache; no contiene una credencial.
 TOKEN_CACHE_KEY = "renaper:token"  # nosec B105
 CONSULTA_CACHE_TTL = 600  # 10 min por (dni, sexo)
+
+#: SIIS-09 / ronda 2 del PR 7a. Con RENAPER caído, cada alta de ciudadano
+#: retenía un hilo de daphne hasta agotar el timeout, una por una. Tres fallas
+#: de red seguidas lo dejan sin consultar por un minuto, y en ese minuto el alta
+#: falla en el acto con «no se pudo consultar» en vez de colgarse.
+cortacircuito = Cortacircuito("renaper")
+
+#: Cuánto espera un request al token que **otro** está pidiendo. Es un techo de
+#: cola, no de red: pasado eso se falla rápido en vez de hacer fila detrás de un
+#: login que puede estar colgado. Ver :meth:`APIClient.get_token`.
+ESPERA_LOGIN_SEGUNDOS = 2.0
 
 MOJIBAKE_MARKERS = ("Ã", "Â", "â€", "â€“", "â€”", "â€œ", "â€", "â€™")
 
@@ -140,11 +150,18 @@ class APIClient:
         self.token_expiration = None
         # El cliente es de módulo (``_get_client``) y daphne corre las vistas
         # sync en un pool de hilos: ``login`` escribe ``self.token`` y
-        # ``get_token`` lo lee. Sin candado, N requests simultáneos con el token
-        # vencido disparaban N logins contra RENAPER (G1c-15). Reentrante porque
-        # ``get_token`` llama a ``login`` con el candado ya tomado.
-        self._candado_token = threading.RLock()
-        self.session = requests.Session()
+        # ``get_token`` lo lee. Sin coordinación, N requests simultáneos con el
+        # token vencido disparan N logins contra RENAPER (G1c-15).
+        #
+        # El candado protege **solo el estado**, nunca el HTTP: envolver el
+        # login con un candado hacía que N requests hicieran cola detrás de un
+        # login colgado y que el enésimo esperara N × timeout —con (5, 10) la
+        # cuarta alta concurrente se comía los 60 s de nginx—. Quién se loguea se
+        # decide acá; los demás esperan el **resultado**, acotado (ver
+        # :meth:`get_token`).
+        self._candado_estado = threading.Lock()
+        self._login_en_curso = None
+        self.espera_login = ESPERA_LOGIN_SEGUNDOS
         retry_count = _parse_positive_int(getattr(settings, "RENAPER_RETRIES", 0), 0)
         retries = Retry(
             total=retry_count,
@@ -166,9 +183,11 @@ class APIClient:
             # `core.integraciones` sabe contar.
             respect_retry_after_header=False,
         )
-        adapter = HTTPAdapter(max_retries=retries)
-        self.session.mount("https://", adapter)
-        self.session.mount("http://", adapter)
+        # Sesión compartida del repo (SIIS-09): pool acotado y **sin cookie
+        # jar**. Con una `requests.Session()` cruda, una cookie que devolviera
+        # el proveedor quedaba guardada en el cliente de módulo y se reenviaba
+        # en las consultas que ese proceso hace por otras personas.
+        self.session = sesion_http(max_retries=retries)
 
     def _build_consulta_url(self, api_base):
         explicit_url = _clean_api_base(getattr(settings, "RENAPER_CONSULTA_URL", ""))
@@ -204,67 +223,115 @@ class APIClient:
         return "post" if self._use_api_key_mode() else "get"
 
     def login(self):
+        """Pide un token nuevo. **Sin candado**: ver :meth:`get_token`."""
         if self._use_api_key_mode():
             return
 
-        with self._candado_token:
+        try:
+            response = instrument_external_call(
+                "renaper",
+                self.session.post,
+                self.login_url,
+                json={"username": self.username, "password": self.password},
+                timeout=self.timeout,
+            )
+        except ConnectionError:
+            cortacircuito.registrar_falla()
+            raise Exception("Error de conexion con el servicio.")
+        except RequestException as e:
+            # SIIS-14: nunca `str(e)`. El texto de una excepción de
+            # `requests` arrastra la URL completa, y en modo GET ahí viaja el
+            # documento consultado. El tipo es lo que sirve para diagnosticar.
+            cortacircuito.registrar_falla()
+            raise Exception(f"No se pudo conectar al servicio de login: {type(e).__name__}")
+
+        # Contestó: el servicio está en pie. Un 500 del login es una respuesta,
+        # no una falla de red, y no abre el cortacircuito (mismo criterio que
+        # ``programas.services.personas``).
+        cortacircuito.registrar_exito()
+        if response.status_code != 200:
+            # SIIS-14: sin `response.text`. El cuerpo de un login fallido es
+            # del proveedor y puede traer cualquier cosa (incluido el eco de
+            # lo que se le mandó); esto termina en el log por `exception`.
+            raise Exception(f"Login fallido: {response.status_code}")
+
+        data = response.json()
+        self.token = data.get("token")
+        self.token_expiration = datetime.datetime.fromisoformat(data["expiration"].replace("Z", "+00:00"))
+        # Compartir el token entre workers/procesos: sin esto cada request
+        # pagaba un round-trip extra de login contra RENAPER.
+        ttl = (self.token_expiration - datetime.datetime.now(datetime.timezone.utc)).total_seconds() - 60
+        if ttl > 0:
+            cache.set(
+                TOKEN_CACHE_KEY,
+                {"token": self.token, "expiration": self.token_expiration.isoformat()},
+                ttl,
+            )
+
+    def _token_vigente(self):
+        """El token que ya se tiene —propio o de la caché compartida—, o ``None``."""
+        ahora = datetime.datetime.now(datetime.timezone.utc)
+        if self.token and self.token_expiration and ahora < self.token_expiration:
+            return self.token
+
+        cached = cache.get(TOKEN_CACHE_KEY)
+        if cached:
             try:
-                response = instrument_external_call(
-                    "renaper",
-                    self.session.post,
-                    self.login_url,
-                    json={"username": self.username, "password": self.password},
-                    timeout=self.timeout,
-                )
-            except ConnectionError:
-                raise Exception("Error de conexion con el servicio.")
-            except RequestException as e:
-                # SIIS-14: nunca `str(e)`. El texto de una excepción de
-                # `requests` arrastra la URL completa, y en modo GET ahí viaja el
-                # documento consultado. El tipo es lo que sirve para diagnosticar.
-                raise Exception(f"No se pudo conectar al servicio de login: {type(e).__name__}")
-
-            if response.status_code != 200:
-                # SIIS-14: sin `response.text`. El cuerpo de un login fallido es
-                # del proveedor y puede traer cualquier cosa (incluido el eco de
-                # lo que se le mandó); esto termina en el log por `exception`.
-                raise Exception(f"Login fallido: {response.status_code}")
-
-            data = response.json()
-            self.token = data.get("token")
-            self.token_expiration = datetime.datetime.fromisoformat(data["expiration"].replace("Z", "+00:00"))
-            # Compartir el token entre workers/procesos: sin esto cada request
-            # pagaba un round-trip extra de login contra RENAPER.
-            ttl = (self.token_expiration - datetime.datetime.now(datetime.timezone.utc)).total_seconds() - 60
-            if ttl > 0:
-                cache.set(
-                    TOKEN_CACHE_KEY,
-                    {"token": self.token, "expiration": self.token_expiration.isoformat()},
-                    ttl,
-                )
+                expiration = datetime.datetime.fromisoformat(cached["expiration"])
+                if ahora < expiration:
+                    with self._candado_estado:
+                        self.token = cached["token"]
+                        self.token_expiration = expiration
+                    return self.token
+            except (KeyError, TypeError, ValueError):
+                pass
+        return None
 
     def get_token(self):
+        """El token, pidiéndolo si hace falta. Un solo login a la vez, sin cola.
+
+        **Lo que no se puede hacer es envolver el login en un candado.** Medido
+        con 4 hilos y un login de 0,4 s que falla: con candado, 1,61 s
+        (0,41/0,80/1,20/1,59), porque cada uno espera su turno para fallar
+        igual; con los timeouts reales (5 + 10 s) la cuarta alta concurrente se
+        come los 60 s de nginx. El candado solo sirve para no pedir dos tokens a
+        la vez **cuando el login funciona**.
+
+        Así que el candado protege nada más que la decisión —quién se loguea— y
+        se suelta antes del HTTP. El que la gana avisa por un ``Event`` cómo le
+        fue; los demás esperan ese aviso **acotado** a ``espera_login`` y, si no
+        aparece un token, fallan rápido en vez de hacer fila. El tiempo total
+        deja de crecer con la cantidad de requests.
+        """
         if self._use_api_key_mode():
             return None
 
-        with self._candado_token:
-            ahora = datetime.datetime.now(datetime.timezone.utc)
-            if self.token and self.token_expiration and ahora < self.token_expiration:
-                return self.token
+        token = self._token_vigente()
+        if token:
+            return token
 
-            cached = cache.get(TOKEN_CACHE_KEY)
-            if cached:
-                try:
-                    expiration = datetime.datetime.fromisoformat(cached["expiration"])
-                    if ahora < expiration:
-                        self.token = cached["token"]
-                        self.token_expiration = expiration
-                        return self.token
-                except (KeyError, TypeError, ValueError):
-                    pass
+        with self._candado_estado:
+            aviso = self._login_en_curso
+            me_toca = aviso is None
+            if me_toca:
+                aviso = self._login_en_curso = threading.Event()
 
-            self.login()
+        if me_toca:
+            try:
+                self.login()
+            finally:
+                with self._candado_estado:
+                    self._login_en_curso = None
+                # Pase lo que pase, los que esperan se enteran ahora: un login
+                # que falla no puede dejarlos esperando su turno para fallar.
+                aviso.set()
             return self.token
+
+        aviso.wait(self.espera_login)
+        token = self._token_vigente()
+        if token:
+            return token
+        raise Exception("No se pudo obtener el token de RENAPER: hay un login en curso.")
 
     def descartar_token(self):
         """Olvida el token, acá y en la caché que comparten los workers.
@@ -274,7 +341,7 @@ class APIClient:
         los procesos siguen usándolo hasta que caduque de viejo: horas de «Error
         HTTP 401» en cada alta de ciudadano del backoffice.
         """
-        with self._candado_token:
+        with self._candado_estado:
             self.token = None
             self.token_expiration = None
         cache.delete(TOKEN_CACHE_KEY)
@@ -300,7 +367,7 @@ class APIClient:
         """``(response, error)`` de una sola llamada a la consulta."""
         try:
             if method == "post":
-                return instrument_external_call(
+                respuesta = instrument_external_call(
                     "renaper",
                     self.session.post,
                     self.consulta_url,
@@ -308,19 +375,26 @@ class APIClient:
                     json=payload,
                     timeout=self.timeout,
                     verify=False,
-                ), None
-            return instrument_external_call(
-                "renaper",
-                self.session.get,
-                self.consulta_url,
-                headers=headers,
-                params=payload,
-                timeout=self.timeout,
-                verify=False,
-            ), None
+                )
+            else:
+                respuesta = instrument_external_call(
+                    "renaper",
+                    self.session.get,
+                    self.consulta_url,
+                    headers=headers,
+                    params=payload,
+                    timeout=self.timeout,
+                    verify=False,
+                )
+            # Contestó: el servicio está en pie. Lo que abre el cortacircuito es
+            # **no poder hablarle**; un 401 o un 500 son respuestas.
+            cortacircuito.registrar_exito()
+            return respuesta, None
         except ConnectionError:
+            cortacircuito.registrar_falla()
             return None, {"success": False, "error": "Error de conexion al servicio."}
         except RequestException as exc:
+            cortacircuito.registrar_falla()
             # SIIS-14: sin `logger.exception`. El traceback de `requests`
             # arrastra la URL completa y con `RENAPER_HTTP_METHOD=get` ahí va
             # `?dni=…&sexo=…`. Queda el tipo del error, que es lo que diagnostica.
@@ -331,6 +405,13 @@ class APIClient:
             }
 
     def consultar_ciudadano(self, dni, sexo):
+        if cortacircuito.abierto():
+            # SIIS-09: tres fallas de red seguidas. Con RENAPER caído, cada alta
+            # de ciudadano retenía un hilo hasta agotar el timeout; durante el
+            # minuto que dura el corte el alta falla en el acto y el operador
+            # decide qué hacer, que es lo mismo que haría al minuto siguiente.
+            return {"success": False, "error": "No se pudo consultar RENAPER.", "cortado": True}
+
         payload = {"dni": dni, "sexo": _normalizar_sexo(sexo)}
         method = self._resolve_http_method()
 

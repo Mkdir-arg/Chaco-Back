@@ -110,19 +110,44 @@ def _registros(data):
     return [data]
 
 
+def _documento(valor):
+    """Un documento comparable: solo dígitos y sin ceros a la izquierda.
+
+    La fuente devuelve el documento con el mismo largo que tiene en su base
+    (``07123456``) y la persona lo tipea sin el cero (``7123456``). Compararlos
+    crudos hacía que un DNI de siete dígitos no coincidiera nunca con su propia
+    respuesta y la identidad cayera a ``manual``.
+    """
+    return re.sub(r"\D", "", _texto(valor)).lstrip("0")
+
+
+def _inicial_de_sexo(valor):
+    """``"F"``/``"M"``, o ``""`` si lo que vino no es ninguno de los dos.
+
+    El proveedor manda ``F`` y ``FEMENINO``, así que alcanza con la inicial.
+    Un valor que no empieza con F ni con M —un código numérico, por ejemplo— no
+    se interpreta: **no objeta**. Convertir un formato no previsto en un
+    rechazo dejaría todas las identidades en ``manual`` por un campo que acá es
+    solo desempate; quien de verdad acredita que el registro es de la persona
+    consultada es el documento.
+    """
+    inicial = _texto(valor)[:1].upper()
+    return inicial if inicial in ("F", "M") else ""
+
+
 def _coincide(registro, dni, sexo):
     """¿El registro es de la persona que se consultó?
 
-    Lo que el registro **no trae** no objeta: la fuente puede no devolver el
-    documento o el sexo. El sexo se compara por la inicial porque el proveedor
-    manda tanto ``F`` como ``FEMENINO``.
+    Lo que el registro **no trae** —o trae en un formato que no se puede
+    interpretar— no objeta: la fuente puede no devolver el documento o el sexo.
     """
     plano = _plano(registro)
-    documento = re.sub(r"\D", "", _texto(_primero(plano, *CLAVES_DNI)))
-    if documento and dni and documento != dni:
+    documento = _documento(_primero(plano, *CLAVES_DNI))
+    if documento and dni and documento != _documento(dni):
         return False
-    genero = _texto(_primero(plano, *CLAVES_SEXO))[:1].upper()
-    return not (genero and sexo and genero != _texto(sexo)[:1].upper())
+    genero = _inicial_de_sexo(_primero(plano, *CLAVES_SEXO))
+    pedido = _inicial_de_sexo(sexo)
+    return not (genero and pedido and genero != pedido)
 
 
 def elegir_registro(payload, dni, sexo=""):
