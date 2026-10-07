@@ -34,13 +34,13 @@ indicación.
 | SIIS-13 | Link abierto: un DNI ajeno bloquea al titular | MEDIA | CONF. ajustado | 3 | S | ⬜ |
 | BEC-01 | Aprobar y promover no bloquean la fila del caso | MEDIA | CONF. test | 1 | S | ✅ |
 | BEC-02 | Agregar a espera y dar de baja chequean antes del lock | MEDIA | CONF. test | 1 | S | ✅ |
-| BEC-03 | La revisión reevalúa condiciones de edad con la fecha de hoy | MEDIA | CONF. lectura | 3 | S | ⬜ |
-| BEC-04 | Condición con fuente fuera del canal queda colgando | MEDIA | CONF. lectura | 3 | S | ⬜ |
-| BEC-05 | El cupo del subsegmento nunca se aplica | MEDIA | CONF. ajustado (decisión) | 3 | S | ⬜ |
-| BEC-06 | Se puede cambiar segmento/subsegmento de una convocatoria con casos | MEDIA | CONF. lectura | 3 | S | ⬜ |
-| BEC-07 | El cupo del segmento se puede bajar por debajo de los aprobados | MEDIA | CONF. lectura | 3 | S | ⬜ |
-| BEC-09 | No se puede rechazar un caso sin ciudadano con DNI o sin programa SIIS | MEDIA | CONF. lectura | 3 | S | ⬜ |
-| BEC-10 | Un relevamiento con casos en espera no se puede terminar | MEDIA | CONF. (decisión) | 3 | S | ⬜ |
+| BEC-03 | La revisión reevalúa condiciones de edad con la fecha de hoy | MEDIA | CONF. lectura | 3 | S |  ✅ |
+| BEC-04 | Condición con fuente fuera del canal queda colgando | MEDIA | CONF. lectura | 3 | S |  ✅ |
+| BEC-05 | El cupo del subsegmento nunca se aplica | MEDIA | CONF. ajustado (decisión) | 3 | S |  ✅ |
+| BEC-06 | Se puede cambiar segmento/subsegmento de una convocatoria con casos | MEDIA | CONF. lectura | 3 | S |  ✅ |
+| BEC-07 | El cupo del segmento se puede bajar por debajo de los aprobados | MEDIA | CONF. lectura | 3 | S |  ✅ |
+| BEC-09 | No se puede rechazar un caso sin ciudadano con DNI o sin programa SIIS | MEDIA | CONF. lectura | 3 | S |  ✅ |
+| BEC-10 | Un relevamiento con casos en espera no se puede terminar | MEDIA | CONF. (decisión) | 3 | S |  ✅ |
 | BEC-11 | El masivo aprueba a quien SIIS declaró incompatible | MEDIA | CONF. (decisión) | 1 | S | ✅ |
 | G1-03 | La app lee solo la primera página (10) de casos y relevamientos | MEDIA | CONF. lectura | 3 | S | ⬜ |
 | G1-04 | Captura offline que sincroniza después del corte de las 03:10 → 409 permanente | MEDIA | CONF. lectura (pendiente Cambio 54) | 3 | M | ⬜ |
@@ -57,15 +57,15 @@ indicación.
 | SIIS-20 | `RENAPER_TEST_MODE` sin guarda en PRD | BAJA | CONF. lectura | 3 | S | ⬜ |
 | SIIS-21 | Captcha aritmético deja agotar la cuota por DNI de un tercero | BAJA | CONF. ajustado | 3 | S | ⬜ |
 | BEC-14 | Doble clic en «Aprobar» | BAJA | CONF. lectura | 1 | S | ✅ |
-| BEC-15 | Carga de padrón concurrente | BAJA | CONF. lectura | 3 | S | ⬜ |
-| BEC-16 | Constructor: mutaciones sin candado y `reconciliar` en cada request | BAJA | CONF. lectura | 3 | S | ⬜ |
-| BEC-17 | Pausar/reanudar con doble envío duplica eventos | BAJA | CONF. lectura | 3 | S | ⬜ |
-| BEC-18 | Fechas UTC en Python fuera de Dispositivos | BAJA | CONF. lectura | 3 | S | ⬜ |
+| BEC-15 | Carga de padrón concurrente | BAJA | CONF. lectura | 3 | S |  ✅ |
+| BEC-16 | Constructor: mutaciones sin candado y `reconciliar` en cada request | BAJA | CONF. lectura | 3 | S |  ✅ |
+| BEC-17 | Pausar/reanudar con doble envío duplica eventos | BAJA | CONF. lectura | 3 | S |  ✅ |
+| BEC-18 | Fechas UTC en Python fuera de Dispositivos | BAJA | CONF. lectura | 3 | S |  ✅ |
 | BEC-19 | Redirect a `POST['next']` sin validar | BAJA | CONF. lectura | 2 | S | ⬜ |
-| BEC-20 | Convocatoria acepta fin anterior al inicio | BAJA | CONF. lectura | 3 | S | ⬜ |
+| BEC-20 | Convocatoria acepta fin anterior al inicio | BAJA | CONF. lectura | 3 | S |  ✅ |
 | BEC-21 | El masivo selecciona casos no aprobables y no mira pausas | BAJA | CONF. lectura | 1 | S | ✅ |
 | BEC-23 | La solapa Becas del legajo muestra casos fuera de alcance | BAJA | CONF. ajustado (decisión) | 2 | S | ⬜ |
-| BEC-24 | Edición de contacto/apoderado en revisión no atómica | BAJA | CONF. lectura | 3 | S | ⬜ |
+| BEC-24 | Edición de contacto/apoderado en revisión no atómica | BAJA | CONF. lectura | 3 | S |  ✅ |
 | BEC-25 | `siguiente_nombre` calculado sin convocatoria y sin uso | BAJA | CONF. lectura | 7 | S | ⬜ |
 | G1-06 | Fecha de nacimiento ilegible de la app → caso sin legajo y bucle de 500 | BAJA | CONF. lectura | 3 | S | ⬜ |
 | G1-07 | Adjuntos de la app sin idempotencia ni control de pertenencia | BAJA | CONF. lectura | 3 | S | ⬜ |
@@ -365,6 +365,10 @@ y `.test_el_catalogo_distingue_los_dos_motivos`).
 
 ### BEC-03 · La revisión reevalúa las condiciones de edad con la fecha de hoy y oculta respuestas que la persona sí dio
 **Severidad:** MEDIA · **Estado:** CONFIRMADO (lectura) · **Origen:** A1-07 · **Ola:** 3 · **Esfuerzo:** S
+
+**Resolución:** ✅ Resuelto en #621 (Cambio 172), 07-oct-2026 — `respuestas_legibles` evalúa las condiciones con `fecha_de_referencia(formulario)` = `capturado_en` (o `creado`) pasado a hora local, no con «hoy». Es la otra mitad de la decisión D3 del Cambio 58: la foto de la definición existe para que un caso viejo no se reinterprete con el diseño de después, y la fecha de referencia para que no se reinterprete con el calendario de después. **Test permanente:** `programas/tests/test_becas_reglas_negocio.py::RespuestasLegiblesFechaDeCargaTests.test_condicion_de_edad_se_evalua_a_la_fecha_de_carga` (y `.test_la_fecha_de_referencia_es_la_de_captura_en_hora_local`, `.test_sin_captura_vale_la_fecha_de_creacion`, `.test_un_caso_que_de_verdad_era_mayor_sigue_oculto`).
+
+**Desvío de la ficha, a favor:** el paso 2 del link público (`portal/forms/inscripcion.py:299`) **no** se toca. Ahí la persona está respondiendo en este momento: «hoy» es la fecha correcta, y pasarle la de captura sería el bug al revés. El único lector que reinterpreta un caso ya cargado es la revisión.
 - **Ubicación:** `programas/services/respuestas.py:284` (`aplicar(definicion, respuestas)` sin `hoy`); `programas/services/condiciones.py:115-121`, `:170-180` (`edad_*` con `date.today()`); `revision/formulario_detalle.html:409-414`.
 - **Escenario:** grupo con condición «edad menor a 18»; la persona lo completa con 17 y al mes cumple 18: la revisión muestra «No se pidió» y «—». Contradice D3 del Cambio 58. (Aclaración V2: el bug es la **fecha de referencia**, no la zona horaria.)
 - **Propuesta:** `respuestas_legibles(formulario, ...)` pasa `hoy=timezone.localdate(formulario.capturado_en or formulario.creado)` a `aplicar`. Revisar el mismo patrón en el sync de la app y en la exportación de respuestas (G2-01).
@@ -372,6 +376,22 @@ y `.test_el_catalogo_distingue_los_dos_motivos`).
 
 ### BEC-04 · Una condición cuya fuente no se pide en el canal queda colgando
 **Severidad:** MEDIA · **Estado:** CONFIRMADO (lectura) · **Origen:** A1-08 · **Ola:** 3 · **Esfuerzo:** S (V2: `items_planos(items, canal=None)` ya admite canal)
+
+**Resolución:** ✅ Resuelto en #621 (Cambio 172), 07-oct-2026 — en dos mitades, porque validar al editar no arregla lo que ya está guardado. (1) **Al editar:** `_asegurar_coherencia` valida el diseño una vez por canal servido (`CANALES_SERVIDOS`) con `condiciones.fuentes_fuera_del_canal`, que nombra el ítem y la fuente («la fuente «cp-…» no se pide en el link público»); la mutación se deshace entera. (2) **Al servir:** `serializar(items, canal)` anula la condición cuya fuente no entra en el canal, con el mismo criterio que `items_vigentes` ya aplicaba cuando la fuente desaparecía del diseño —sin condición evaluable, el ítem se pide—. Pedir de más es recuperable; no pedir nunca un requisito obligatorio, no. (3) **Antes de desplegar:** `verificar_json_guardado` suma el chequeo `condicion_con_fuente_fuera_del_canal`, que es el barrido sobre los diseños guardados que pedía el «Riesgo» de la ficha. **Test permanente:** `programas/tests/test_becas_reglas_negocio.py::CoherenciaPorCanalTests.test_condicion_con_fuente_solo_app_en_item_ambos_se_rechaza` (y `.test_definicion_link_no_trae_condiciones_con_fuente_fuera_de_canal`, `.test_el_constructor_rechaza_guardar_un_diseno_asi`, `.test_una_condicion_entre_campos_del_mismo_canal_se_guarda`, `.test_en_la_app_la_condicion_se_sirve_intacta`, `.test_el_diseno_entero_sigue_siendo_coherente`, `.test_el_comando_de_diagnostico_lo_encuentra_antes_de_desplegar`).
+
+**Ampliado por #621 (ronda 2 de la revisión), 08-oct-2026 — dos bordes.** (a) **El constructor solo
+bloquea lo que la edición agrega.** Validar el diseño entero dejaba congelado cualquier formulario con
+una condición imposible anterior a esta ficha: no se podía ni renombrar un grupo hasta que alguien
+adivinara cuál era la condición ofensora, y el 400 no lo decía. `_mutar` ahora saca la foto por canal
+**antes** de la mutación —con el candado ya tomado— y `_asegurar_coherencia` rechaza solo la
+diferencia. Lo viejo se sigue sirviendo bien igual (`serializar` lo anula) y `verificar_json_guardado`
+lo lista. (b) **Un campo que cuelga de un grupo que no se sirve en el canal deja de contar como fuente
+disponible:** un campo de canal «ambos» dentro de un grupo solo-app no viaja al link —`serializar` lo
+saltea porque su grupo no está—, y tomarlo por presente dejaba en pie justo la condición imposible que
+esta ficha corrige. `claves_servidas()` aplica la misma cascada de padres que `items_planos`, que es de
+donde ya salían los ítems del chequeo del constructor.
+**Test permanente:** `programas/tests/test_becas_reglas_negocio.py::CoherenciaPorCanalTests.test_una_mutacion_ajena_no_queda_bloqueada_por_una_condicion_vieja`
+(y `.test_empeorar_una_condicion_vieja_sigue_rechazandose`, más la clase `FuenteBajoGrupoNoServidoTests` entera).
 - **Ubicación:** `programas/views/diseno.py:222-229` (`_asegurar_coherencia` valida sin canal); `programas/services/diseno.py:537-543`, `:600-632`; `condiciones.py:145-147`.
 - **Escenario:** campo propio con canal APP es fuente de un grupo obligatorio canal AMBOS: en el link público el grupo queda oculto siempre y el servidor tampoco lo exige.
 - **Propuesta:** en `_asegurar_coherencia`, `for canal in (APP, LINK): cond.validar_coherencia(items_planos(items, canal))`, rechazando con «la fuente no se pide en el canal X»; en `items_vigentes`/`serializar`, anular (con aviso en el constructor) las reglas cuya fuente no está en el canal servido.
@@ -380,12 +400,16 @@ y `.test_el_catalogo_distingue_los_dos_motivos`).
 
 ### BEC-05 · El cupo del subsegmento nunca se aplica
 **Severidad:** MEDIA · **Estado:** CONFIRMADO-AJUSTADO (sin decisión registrada) · **Origen:** A1-09 · **Ola:** 3 · **Esfuerzo:** S (default) / M (tope duro) · **Decisión:** D-B05
+
+**Resolución:** ✅ Resuelto en #621 (Cambio 172), 07-oct-2026 — **default de D-B05 (`DECISIÓN CLIENTE`: el cupo del subsegmento no es tope duro)**. No se agrega ninguna validación: lo que se arregla es que la pantalla dejara creer lo contrario. La bajada del subsegmento pasa de «Cupo máximo» a **«Cupo asignado»** con la aclaración de que el número que decide aprobar o mandar a espera es el del segmento, y la tarjeta «Distribución del cupo» del segmento lo repite. `Subsegmento` y `get_cupo_stats` documentan la decisión y qué habría que escribir si alguna vez cambia (contar los APROBADO del subsegmento y devolver `min(disponible_segmento, disponible_subsegmento)` bajo el **mismo** lock del segmento: una validación suelta en el alta se la saltean dos aprobaciones en paralelo). **Test permanente:** `programas/tests/test_becas_reglas_negocio.py::CupoDelSubsegmentoEsReferenciaTests.test_el_cupo_se_mide_por_segmento_no_por_subsegmento` (y `.test_la_suma_de_los_subsegmentos_si_se_valida`, que fija RN-40). Si el PM decide que sí es tope, ese test se da vuelta y ahí recién hay trabajo de M.
 - **Ubicación:** `programas/services/cupo.py:16-27` (`get_cupo_stats` por segmento), `:224-226`, `:283`; `programas/models/__init__.py:1592-1643` (`Subsegmento.cupo_maximo`, RN-40 solo valida la suma).
 - **Propuesta (default D-B05 = no es tope duro):** mostrarlo como referencia y documentarlo. Si es tope duro: `get_cupo_stats(segmento, subsegmento=None)` que cuente APROBADO de convocatorias del subsegmento contra su `cupo_maximo` y devuelva `min(disponible_segmento, disponible_subsegmento)`, con lock adicional sobre la fila del subsegmento.
 - **Tests a agregar (si tope duro):** subsegmento con cupo 1 y segmento con 10 → el segundo caso cae en espera.
 
 ### BEC-06 · Se puede cambiar el segmento/subsegmento de una convocatoria que ya tiene casos
 **Severidad:** MEDIA · **Estado:** CONFIRMADO (lectura) · **Origen:** A1-10 · **Ola:** 3 · **Esfuerzo:** S
+
+**Resolución:** ✅ Resuelto en #621 (Cambio 172), 07-oct-2026 — `ConvocatoriaForm` deshabilita `segmento` y `subsegmento` en cuanto `instance.relevamientos.exists()`, con el motivo en el `help_text`; un campo `disabled` de Django además **ignora el POST**, así que la regla no depende del navegador. `Convocatoria.clean` lo valida también para el admin y para cualquier `full_clean`, comparando contra el alcance con el que la fila salió de la base (`from_db`), sin releerla: el `exists()` de relevamientos solo se paga cuando el alcance de verdad cambió. Mover una convocatoria sigue siendo posible, pero como operación de datos —hay que migrar `ListaEspera.segmento` junto con ella—, no como edición de formulario. **Riesgo de deploy:** presupuesto `edicion_convocatoria` 13→14 (una consulta, justificada en `scripts/perf_budgets.json`). **Test permanente:** `programas/tests/test_becas_reglas_negocio.py::ConvocatoriaEdicionTests.test_no_cambia_segmento_con_relevamientos` (y `.test_los_campos_de_alcance_quedan_deshabilitados`, `.test_el_modelo_tambien_lo_rechaza`, `.test_sin_relevamientos_el_segmento_se_puede_cambiar`, `.test_sin_relevamientos_el_modelo_no_molesta`, `.test_guardar_sin_tocar_el_alcance_no_consulta_los_relevamientos`).
 - **Ubicación:** `programas/forms.py:1300-1397` (`ConvocatoriaForm`); `programas/views/relevamientos.py:343-367`; `Convocatoria.clean` (`models:1745-1750`).
 - **Escenario:** convocatoria con 300 APROBADO y 20 en espera en S1 pasa a S2: libera 300 lugares en S1, sobrepasa S2, la espera sigue con `segmento=S1`, cambian requisitos y programa SIIS.
 - **Propuesta:** en `ConvocatoriaForm.__init__`, si `instance.pk` y `instance.relevamientos.exists()`, `disabled=True` en `segmento` y `subsegmento`; validarlo también en `clean()`. Si hace falta mover una convocatoria, un comando que migre también `ListaEspera.segmento`.
@@ -393,12 +417,23 @@ y `.test_el_catalogo_distingue_los_dos_motivos`).
 
 ### BEC-07 · El cupo máximo del segmento se puede bajar por debajo de los beneficiarios reales
 **Severidad:** MEDIA · **Estado:** CONFIRMADO (lectura) · **Origen:** A1-11 · **Ola:** 3 · **Esfuerzo:** S
+
+**Resolución:** ✅ Resuelto en #621 (Cambio 172), 07-oct-2026 — `Segmento.clean` cuenta los aprobados con `get_cupo_stats(self)` (import local) en vez de leer `CupoSegmento.cupo_ocupado`, que es una columna que **nadie mantiene** —el cupo se cuenta en vivo desde #72 justamente por eso— y quedaba en 0: el cupo máximo se podía bajar por debajo de los beneficiarios reales, el disponible pasaba a negativo y toda aprobación caía en lista de espera sin motivo visible. El mensaje ahora dice cuántos hay y qué hacer. El ciclo `programas.models ↔ programas.services.cupo` queda registrado en `test_arquitectura.CICLOS_CONOCIDOS` con su motivo. **Test permanente:** `programas/tests/test_becas_reglas_negocio.py::CupoDelSegmentoNoBajaDeLosAprobadosTests.test_bajar_el_cupo_por_debajo_de_los_aprobados_se_rechaza` (y `.test_bajarlo_hasta_los_aprobados_se_permite`, `.test_los_no_aprobados_no_cuentan`).
 - **Ubicación:** `programas/models/__init__.py:1559-1563` (`Segmento.clean` compara contra `CupoSegmento.cupo_ocupado`, estático); `programas/services/cupo.py:3-5`.
 - **Propuesta:** en `Segmento.clean`, `ocupado = get_cupo_stats(self)["cupo_ocupado"]` (import local para evitar el ciclo) y usarlo en el mensaje.
 - **Tests a agregar:** 3 APROBADO y `cupo_maximo=2` → `ValidationError`.
 
 ### BEC-09 · No se puede rechazar un caso sin ciudadano con DNI o de un segmento sin programa SIIS
 **Severidad:** MEDIA · **Estado:** CONFIRMADO (lectura) · **Origen:** A1-13 · **Ola:** 3 · **Esfuerzo:** S
+
+**Resolución:** ✅ Resuelto en #621 (Cambio 172), 07-oct-2026 — `formulario_rechazar` captura el `ValueError` de `validar_formulario_en_siis`, rechaza igual y deja el motivo en la traza («Consulta SIIS: No se pudo consultar → …») más un aviso en pantalla. Es la misma línea del Cambio 34: un error de consulta no impide documentar la decisión local, que es lo único que el rechazo registra. La guarda de estado concurrente sigue intacta: un caso ya resuelto no se rechaza. **Test permanente:** `programas/tests/test_becas_reglas_negocio.py::RechazoSinSiisTests.test_rechaza_caso_sin_ciudadano` (y `.test_rechaza_caso_de_segmento_sin_programa_siis`, `.test_el_motivo_de_la_no_consulta_queda_en_la_traza`, `.test_un_caso_ya_resuelto_sigue_sin_poder_rechazarse`, `.test_el_relevamiento_se_puede_terminar_despues_del_rechazo`, que es la consecuencia real de la ficha).
+
+**Ampliado por #621 (ronda 2 de la revisión), 08-oct-2026.** El aviso de cierre se decidía con
+`elif validacion.estado == …`, y `validacion` queda en `None` justamente cuando hubo `ValueError`. Con
+el mensaje vacío —`motivo_sin_consulta` falsy— el `elif` se evaluaba igual y reventaba con
+`AttributeError` **después** de commitear el rechazo: el caso quedaba rechazado y el operador veía un
+500. Pasa a `elif validacion and …`.
+**Test permanente:** `programas/tests/test_becas_reglas_negocio.py::RechazoSinSiisTests.test_un_valueerror_sin_mensaje_no_deja_el_rechazo_a_medias`.
 - **Ubicación:** `programas/views/revision.py:1085-1089` (`validar_formulario_en_siis` antes de rechazar; el `ValueError` corta); `programas/services/validacion_siis.py:13-16`. El Cambio 34 decidió que un error de consulta no impide documentar la decisión local.
 - **Escenario:** el caso queda ENVIADO para siempre y `relevamiento_terminar` (`revision.py:1324`) nunca puede cerrar el relevamiento.
 - **Propuesta:** en `formulario_rechazar`, capturar el `ValueError`, seguir con el rechazo y registrar en la traza «Sin consulta SIIS: <motivo>».
@@ -406,6 +441,8 @@ y `.test_el_catalogo_distingue_los_dos_motivos`).
 
 ### BEC-10 · Un relevamiento con casos en lista de espera no se puede terminar nunca
 **Severidad:** MEDIA · **Estado:** CONFIRMADO (requiere decisión) · **Origen:** A1-14 · **Ola:** 3 · **Esfuerzo:** S · **Decisión:** D-B10
+
+**Resolución:** ✅ Resuelto en #621 (Cambio 172), 07-oct-2026 — **default de D-B10 (`DECISIÓN CLIENTE`: «en lista de espera» cuenta como revisado, con mensaje diferenciado)**. `relevamiento_terminar` excluye del conteo de pendientes los casos con espera activa (`lista_espera__promovido=False`) y, cuando quedan pendientes de verdad, el mensaje aclara cuántos están en espera y no cuentan. Un caso en espera ya se revisó: entró, se le miró el cupo y no había; lo que falta no depende de la revisión sino de una baja o una ampliación. Un promovido que siga ENVIADO vuelve a contar como pendiente. **Test permanente:** `programas/tests/test_becas_reglas_negocio.py::TerminarRelevamientoTests.test_casos_en_espera_no_bloquean_terminar` (y `.test_un_caso_sin_revisar_sigue_bloqueando`, `.test_el_mensaje_aclara_cuantos_hay_en_espera`, `.test_un_promovido_vuelve_a_contar_como_pendiente`).
 - **Ubicación:** `programas/views/revision.py:1324-1326` (cuenta todo ENVIADO; un caso en espera es ENVIADO); `programas/services/cupo.py:302`.
 - **Propuesta (default D-B10 = «en espera» cuenta como revisado):** `.exclude(lista_espera__promovido=False)` y mensaje «Quedan N sin revisar (M en lista de espera no cuentan)».
 - **Tests a agregar:** `test_becas_revision.TerminarRelevamientoTests.test_casos_en_espera_no_bloquean_terminar`.
@@ -542,12 +579,16 @@ y `.test_el_catalogo_distingue_los_dos_motivos`).
 
 ### BEC-15 · Carga de padrón concurrente: 500 por unique o filas duplicadas
 **Severidad:** BAJA · **Origen:** A1-20, A8-S6 · **Ola:** 3 · **Esfuerzo:** S
+
+**Resolución:** ✅ Resuelto en #621 (Cambio 172), 07-oct-2026 — `cargar_padron` toma `select_for_update()` sobre la fila del **dueño** (la convocatoria, o el relevamiento si es padrón propio) antes de borrar y volver a insertar. La carga es un reemplazo total: sin candado, dos cargas en paralelo se intercalan y el padrón queda con filas de las dos tandas —en MySQL y MariaDB el `unique` de `(convocatoria, relevamiento, dni)` ni siquiera aplica con `relevamiento` NULL, así que el final normal son duplicados silenciosos, no un 500—. **No se hizo** la columna real `alcance` de A8-S6: es una migración sobre la tabla del padrón para cubrir un caso que el candado ya cierra, y cambiar el esquema no es decisión de esta ficha. **Test permanente:** `programas/tests/test_becas_reglas_negocio.py::PadronConcurrenteTests.test_la_carga_bloquea_la_fila_del_duenio` (y `.test_el_candado_de_un_padron_propio_es_el_del_relevamiento`, `.test_la_segunda_carga_reemplaza_y_no_duplica`), con el contrato de presencia de RED-67 (`core.tests.candados`), porque en SQLite `select_for_update()` es un no-op.
 - **Ubicación:** `programas/services/padron.py:282-331` (`@transaction.atomic` sin lock del dueño); `models:2098-2106` (unique con `relevamiento` NULL no aplica en MySQL/MariaDB).
 - **Propuesta:** `select_for_update()` sobre la Convocatoria/Relevamiento al entrar a `cargar_padron`. Opcional (A8-S6): columna real `alcance` (no generada) con `UniqueConstraint(convocatoria, alcance, dni)`. El Excel viejo huérfano es DAT-05.
 - **Test:** dos cargas simuladas en paralelo (mock en la ventana) → sin filas duplicadas.
 
 ### BEC-16 · Constructor: mutaciones sin candado del diseño y `reconciliar` escribiendo en cada request
 **Severidad:** BAJA · **Origen:** A1-21 · **Ola:** 3 · **Esfuerzo:** S
+
+**Resolución:** ✅ Resuelto en #621 (Cambio 172), 07-oct-2026 — `services.diseno.bloquear(diseno)` es el único lugar que pide el candado de la fila del `DisenoFormulario`, y lo piden `reconciliar` (ahora `@transaction.atomic`) y `_mutar` antes de tocar nada; `obtener_o_crear_diseno` acepta `reconciliar_con_catalogo=False` y los **ocho** POST de mutación lo pasan. Antes, cada POST reconciliaba —una segunda escritura del diseño metida dentro de cada guardado, compitiendo por las mismas claves— y dos aperturas simultáneas del constructor creaban los mismos ítems las dos, con `IntegrityError` de `uniq_item_diseno_clave` en un GET. La sincronización con el catálogo sigue ocurriendo al **abrir** la pantalla, que es cuando el operador puede leer el aviso de qué entró y qué salió. **Test permanente:** `programas/tests/test_becas_reglas_negocio.py::ConstructorConcurrenciaTests.test_reconciliar_dos_veces_no_duplica_claves` (y `.test_reconciliar_toma_el_candado_del_diseno`, `.test_el_mutar_toma_el_candado`, `.test_un_post_de_mutacion_no_reconcilia`).
 - **Ubicación:** `programas/views/diseno.py:68-71`, `:232-245`; `programas/services/diseno.py:287-294`, `:387-470`.
 - **Escenario:** dos operadores a la vez dejan un diseño con la fuente después del destino (RN-6 roto); dos aperturas simultáneas → `IntegrityError` (`uniq_item_diseno_clave`) → 500.
 - **Propuesta:** `DisenoFormulario.objects.select_for_update().get(pk=diseno.pk)` al empezar `_mutar` y `reconciliar`; no reconciliar en los POST de mutación.
@@ -555,12 +596,49 @@ y `.test_el_catalogo_distingue_los_dos_motivos`).
 
 ### BEC-17 · Pausar/reanudar con doble envío deja dos eventos en el historial
 **Severidad:** BAJA · **Origen:** A1-22 · **Ola:** 3 · **Esfuerzo:** S
+
+**Resolución:** ✅ Resuelto en #621 (Cambio 172), 07-oct-2026 — `cambiar_pausa` sale sin escribir si el objeto ya está en el estado pedido, **después** del `select_for_update`. La comparación que hacía la vista es un check-then-act: con doble clic los dos POST la pasan y el historial —que es inmutable— quedaba con dos «Pausado» seguidos y dos motivos, sin forma de borrar el repetido. El ciclo completo pausar→reanudar sigue dejando sus dos eventos y el motivo sigue siendo obligatorio. **Test permanente:** `programas/tests/test_becas_reglas_negocio.py::CambiarPausaTests.test_pausar_dos_veces_un_solo_registro` (y `.test_reanudar_sin_estar_pausado_no_registra_nada`, `.test_el_ciclo_completo_sigue_dejando_los_dos_eventos`, `.test_el_motivo_sigue_siendo_obligatorio`).
 - **Ubicación:** `programas/views/pausas.py:52-56`; `programas/services/pausas.py:6-29`.
 - **Propuesta:** en `cambiar_pausa`, tras el `select_for_update`, `if objeto.pausado == pausar: return objeto`.
 - **Test:** `test_pausas.CambiarPausaTests.test_pausar_dos_veces_un_solo_registro`.
 
 ### BEC-18 · Fechas UTC en Python donde se espera hora de Argentina (fuera de Dispositivos)
 **Severidad:** BAJA · **Origen:** A1-23 (parte `solapas`), V3-NEW-04 · **Ola:** 3 · **Esfuerzo:** S
+
+**Resolución:** ✅ Resuelto en #621 (Cambio 172), 07-oct-2026 — barrido de `timezone.now().date()` y `datetime.now().date()` a `timezone.localdate()` en los **doce** lugares productivos de `programas/`, `legajos/` y `dashboard/`: los ocho de la ficha más `legajos/models/base.py` (`LegajoAtencion.cerrar` y `dias_desde_admision`), `legajos/views/dashboard_simple.py` y `programas/views/merenderos.py`, que el barrido encontró. Donde lo que había que pasar a día local era un `datetime` guardado —el último contacto de las alertas, la fecha de una derivación en la línea de tiempo— se usa `core.utils_fechas.fecha_local` (Cambio 140). **No se tocó ninguna consulta:** nada de `__date` ni `Trunc*` sobre un `DateTimeField`, que en ECOM devuelve NULL (DIS-01, guardia `core/tests/test_sql_portable.py`). Detalle que la ficha no nombraba y era el peor: la clave de caché de `contar_seguimientos_hoy` llevaba la fecha **de UTC**, así que a las 21:00 ART empezaba una clave nueva y vacía y el contador se reiniciaba a mitad del día de trabajo. El guardarraíl para que no vuelva es la regla `DTZ011` de ruff (ver RED-50). **Test permanente:** `legajos/tests/test_fechas_locales_bec18.py::ContadoresDeHoyTests.test_las_inscripciones_de_hoy_se_cuentan_en_el_dia_local` (y las otras once del módulo: clave de caché, métricas de la API del inicio, edad del buscador rápido y de `Ciudadano.edad`, antigüedad del legajo y de las alertas, y las dos fechas de cierre).
+
+**Ampliado por #621 (ronda 2 de la revisión), 08-oct-2026 — la ficha describía media verdad.**
+La propuesta original («`timezone.localdate()` y `timezone.localtime(...)`. Sin efecto en las
+consultas») arreglaba solo la **lectura**, y tres de los lugares que la ficha nombra comparan contra
+`InscripcionPrograma.fecha_inscripcion`, que es un `DateField(auto_now_add=True)`. `auto_now_add`
+guarda `datetime.date.today()`: la fecha del **proceso**, no la del `TIME_ZONE` del proyecto. En los
+contenedores —UTC— una inscripción de las 22:00 ART **nace con fecha de mañana**, así que cambiar la
+lectura a `timezone.localdate()` no recupera el día: lo sigue perdiendo, ahora por el otro lado. La
+primera versión de este PR dejó en rojo
+`legajos.tests.test_ciudadanos_selectors.CiudadanosDashboardMetricsTests.test_consolida_metricas_de_inscripciones_sin_cambiar_valores`
+exactamente por eso.
+
+Los **siete** `DateField` que registran «el día en que pasó» pasan a `default=timezone.localdate`,
+que es la misma función con la que se los consulta: `InscripcionPrograma.fecha_inscripcion`,
+`LegajoBase.fecha_apertura`, `LegajoAtencion.fecha_admision`, los tres `fecha_asignacion` de las
+asignaciones y `ListaEspera.fecha_ingreso`. Los dos últimos grupos no se comparan hoy con «hoy»,
+pero se **muestran**, y una fila que dice «mañana» ya está mal aunque todavía nadie la filtre. Los
+`DateTimeField` no se tocan: guardan un instante absoluto en UTC y están bien. Migraciones
+`programas.0079_fechas_locales_bec18` y `legajos.0009_fechas_locales_bec18`, las dos **sin una sola
+sentencia** (`sqlmigrate` da `(no-op)` en ida y en vuelta contra MariaDB 10.11): `default` es un
+callable de Python y no toca el esquema, así que durante el rolling el código viejo sigue
+escribiendo contra la misma tabla. **No hay migración de datos:** de una fila vieja no se puede
+saber a qué hora local se creó.
+
+De yapa, esto cierra `core.tests.test_inicio_contadores_ola5.TendenciasIncluyenHoyTests.test_una_inscripcion_del_ultimo_dia_entra_en_la_serie`,
+que ya fallaba en `development` por la misma raíz cada vez que el proceso no corría en hora de
+Argentina, y le corrige el docstring, que daba por buena la premisa equivocada.
+**Test permanente:** `legajos/tests/test_fechas_locales_bec18.py::FechaDeAltaEnDiaLocalTests.test_el_alta_de_las_2230_queda_con_la_fecha_local_y_no_con_la_del_proceso`
+(y `.test_lo_escrito_y_lo_leido_salen_de_la_misma_funcion`, `.test_el_legajo_tambien_se_abre_y_se_admite_en_el_dia_local`,
+más los dos ratchets: `.test_ningun_datefield_del_dominio_vuelve_a_auto_now`, que barre **todos** los
+modelos del repo, y `.test_los_campos_de_la_ficha_usan_la_fecha_local`). El instante de los tests está
+en el pasado a propósito: así la `localdate()` congelada nunca coincide con el `date.today()` real de
+la máquina, y el test distingue las dos fuentes corra donde corra.
 - **Ubicación:** `programas/services/solapas.py:192,195`; `dashboard/views/home.py:49`; `dashboard/utils.py:78-81` (compara con `fecha_inscripcion`, DateField en hora local); `dashboard/api_views/__init__.py:32`, `:203`; `legajos/services/alertas.py:84`, `:110`; `legajos/services/programas.py:46`. (La parte de `indicadores.py` está en DIS-08.)
 - **Escenario:** entre las 21:00 y las 24:00 ART «hoy» pasa a ser mañana: contadores «de hoy» en 0, `fecha_cierre` corrida un día.
 - **Propuesta:** `timezone.localdate()` y `timezone.localtime(...)`. Sin efecto en las consultas (V4).
@@ -574,6 +652,8 @@ y `.test_el_catalogo_distingue_los_dos_motivos`).
 
 ### BEC-20 · La convocatoria acepta fecha de fin anterior a la de inicio
 **Severidad:** BAJA · **Origen:** A1-25 · **Ola:** 3 · **Esfuerzo:** S
+
+**Resolución:** ✅ Resuelto en #621 (Cambio 172), 07-oct-2026 — `ConvocatoriaForm.clean` y `Convocatoria.clean` rechazan `fecha_fin < fecha_inicio`. Una convocatoria así nace vencida y `procesar_vencimientos` la cierra en la corrida siguiente, sin que nadie entienda por qué desapareció; el mensaje de «extendé la fecha de fin» que había tapaba el problema real. El mismo día de inicio y fin sigue siendo válido. **Test permanente:** `programas/tests/test_becas_reglas_negocio.py::ConvocatoriaEdicionTests.test_la_fecha_de_fin_no_puede_ser_anterior_a_la_de_inicio` (y `.test_el_modelo_tambien_valida_el_orden_de_las_fechas`, `.test_el_mismo_dia_de_inicio_y_fin_es_valido`).
 - **Ubicación:** `programas/forms.py:1368-1385`; `programas/models/__init__.py:1745-1750`.
 - **Propuesta:** `add_error("fecha_fin", ...)` si `fecha_fin < fecha_inicio` en el form y en `Convocatoria.clean`.
 
@@ -597,6 +677,8 @@ y `.test_el_catalogo_distingue_los_dos_motivos`).
 
 ### BEC-24 · La edición de contacto/apoderado en revisión no es atómica
 **Severidad:** BAJA · **Origen:** A1-29 · **Ola:** 3 · **Esfuerzo:** S
+
+**Resolución:** ✅ Resuelto en #621 (Cambio 172), 07-oct-2026 — el POST de `formulario_detalle` envuelve en `transaction.atomic()` las cuatro escrituras que son una sola edición: `form.save()`, `sincronizar_desde_legacy`, `resolver_ciudadano_offline` y `registrar_traza`. Sin eso, un fallo en el medio —`resolver_ciudadano_offline` crea o actualiza el legajo— dejaba las columnas del caso guardadas, las respuestas por clave a medio sincronizar y **sin traza**: datos nuevos con un historial que decía que no había pasado nada. **Test permanente:** `programas/tests/test_becas_reglas_negocio.py::EdicionContactoTests.test_falla_en_resolver_revierte_todo` (y `.test_la_edicion_feliz_sigue_guardando_y_trazando`).
 - **Ubicación:** `programas/views/revision.py:644-663`.
 - **Propuesta:** envolver el bloque del POST en `transaction.atomic()`.
 - **Test:** `test_becas_revision.EdicionContactoTests.test_falla_en_resolver_revierte_todo`.

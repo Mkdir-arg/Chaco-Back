@@ -35,7 +35,7 @@
     {% url 'becas:segmento_detalle' segmento.pk as url_segmento %}
     {% becas_migas subsegmento as migas %}
     {% page_header titulo=subsegmento.nombre volver_url=url_segmento volver_label=segmento.nombre migas=migas %}
-      {% bajada %}Segmento padre: <a href="{% url 'becas:segmento_detalle' segmento.pk %}" class="text-fg-brand hover:underline font-medium">{{ segmento.nombre }}</a> · Cupo máximo: <strong class="text-heading">{{ subsegmento.cupo_maximo }}</strong>{% if subsegmento.descripcion %}<br>{{ subsegmento.descripcion }}{% endif %}{% endbajada %}
+      {% bajada %}Segmento padre: <a href="{% url 'becas:segmento_detalle' segmento.pk %}" class="text-fg-brand hover:underline font-medium">{{ segmento.nombre }}</a> · Cupo asignado: <strong class="text-heading">{{ subsegmento.cupo_maximo }}</strong> <span class="text-body-subtle">(referencia de distribución: el cupo que decide aprobar o mandar a espera es el del segmento)</span>{% if subsegmento.descripcion %}<br>{{ subsegmento.descripcion }}{% endif %}{% endbajada %}
       {% include "programas/becas/_pausable_estado_badge.html" with objeto=subsegmento %}
       {% if request.user|puede:"becas.subsegmento.editar" %}
       <button type="button" @click="modalSubEdit=true" class="btn-nodo btn-secondary btn-sm" aria-label="Editar subsegmento">

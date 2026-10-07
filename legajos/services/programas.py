@@ -43,7 +43,7 @@ class BajaProgramaService:
         # 1. Dar de baja la inscripción
         inscripcion.estado = InscripcionPrograma.Estado.DADO_DE_BAJA
         inscripcion.motivo_cierre = motivo
-        inscripcion.fecha_cierre = timezone.now().date()
+        inscripcion.fecha_cierre = timezone.localdate()
         inscripcion.save(update_fields=["estado", "motivo_cierre", "fecha_cierre"])
 
         return inscripcion

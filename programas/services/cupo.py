@@ -52,7 +52,13 @@ def _escribir_estado(formulario, nuevo, desde):
 
 
 def get_cupo_stats(segmento):
-    """Retorna dict con cupo_maximo, cupo_ocupado (dinámico) y cupo_disponible."""
+    """Retorna dict con cupo_maximo, cupo_ocupado (dinámico) y cupo_disponible.
+
+    **El cupo se mide siempre por segmento** (BEC-05, decisión D-B05): el
+    `cupo_maximo` de un subsegmento es una referencia de distribución y no frena
+    ninguna aprobación. Un subsegmento puede quedar con más aprobados que su cupo
+    mientras al segmento le sobre lugar.
+    """
     cupo_ocupado = Formulario.objects.filter(
         estado=Formulario.Estado.APROBADO,
         relevamiento__convocatoria__segmento=segmento,
