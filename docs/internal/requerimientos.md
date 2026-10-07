@@ -325,7 +325,9 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 151 | El catálogo vacío de SIIS deja de bloquear Becas, y cuatro reglas que se decidían con datos viejos | Becas · catálogo SIIS · alta de beneficiarios (payload) · cupo y lista de espera · proceso masivo | `#siis` `#cupos` `#datos` `#relevamientos` | Auditoría integral oct-2026 — SIIS-06, SIIS-11, SIIS-12, BEC-01, BEC-02 y el resto de BEC-21 (Ola 1 «Integridad SIIS», PR 4) | 06/10/2026 | 🟢 **Hecho** | No requiere |
 | 152 | Configuración: la fila 21 deja de ser inalcanzable, el wizard vuelve a filtrar subsecretarías y los errores no de campo se ven | Configuración (geografía, secretarías, wizard de programas) · Transversal (pieza de errores no de campo, gate de bloques sin destino) · Legajos y Dispositivos (un formulario cada uno) | `#ui` `#metodo` | Auditoría integral oct-2026 — fichas FE-04, FE-05 y FE-08 (Ola 5, PR 3) | 06/10/2026 | 🟢 **Hecho** | No requiere |
 | 153 | El deploy deja de ser a ciegas: traceback en stdout, un health que sabe, guarda de esquema y una release con nombre | Transversal (logging, sonda de salud, entrypoint, script de deploy, CI de GitHub Actions) | `#infra` `#datos` `#metodo` | Auditoría integral oct-2026 — fichas OPS-03, RED-55, OPS-04, RED-59, OPS-01 y RED-16 (Ola R, PR R-15) | 06/10/2026 | 🟢 **Hecho** (RED-16 parcial: el tag de imagen lo aplica ECOM) | **Sí:** correr `verificar_esquema_migraciones --solo-reporte` en cada ambiente antes de desplegar o espejar, y en icore además el renombre de `core/sql/2026-10-06_renombrar_migraciones_icore.sql` |
+| 154 | «Aprobar» deja de poder pasarse de los 60 s de nginx: un timeout por llamada, cortacircuito y presupuesto verificado | Transversal · clientes de SIIS, Base de Personas y RENAPER · correo saliente · sincronización del catálogo SIIS | `#siis` `#performance` `#infra` `#datos` | Auditoría integral oct-2026 — SIIS-09 (= PERF-09) y los tres MINOR de la revisión del PR 4 (Ola 1 «Integridad SIIS», PR 5) | 06/10/2026 | 🟢 **Hecho** | No requiere |
 | 155 | Controles que el navegador no dibujaba: botones sin caja, backdrop transparente, modales en la esquina y la grilla del mes ilegible en celular | Transversal (shell del backoffice, sidebar, navbar, CSS de botones) · Configuración (10 modales, formularios y wizard) · Legajos · Usuarios y roles · Dispositivos · Merenderos (prestación mensual) | `#ui` `#mobile` | Auditoría integral oct-2026 — fichas FE-06, FE-07, FE-01 y FE-10 (Ola 5, PR 4) | 06/10/2026 | 🟢 **Hecho** | No requiere |
+| 156 | La red de Becas: el adjunto que llega hasta la revisión, los dos borrados sin probar, la atomicidad, el padrón y la edad | Becas (adjuntos del caso, Configuración de requisitos y subsegmentos, cupo, padrón, exportaciones) · Transversal (registro de vencimientos, contrato de escrituras atómicas) | `#datos` `#metodo` `#cupos` `#relevamientos` | Auditoría integral oct-2026 — fichas RED-05, RED-31, RED-35, RED-77, RED-49, RED-50, RED-81 y RED-70 (Ola R, PR R-16) | 07/10/2026 | 🟢 **Hecho** (RED-50 queda caracterizada con `expectedFailure`: el arreglo es de la Ola 3) | No requiere |
 | 157 | El rojo deja de significar dos cosas: badges de estado, confirmaciones, avisos duplicados y el doble clic que mandaba dos POST | Merenderos (listado, detalle y solicitudes) · Dispositivos (detalle del legajo) · Usuarios y roles · Transversal (shell: guardia de doble envío y avisos de alertas) | `#ui` `#metodo` | Auditoría integral oct-2026 — fichas FE-18, FE-19, FE-25 y FE-26 (Ola 5, PR 5) | 07/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
@@ -19907,6 +19909,10 @@ mismo commit, así que no queda ninguno en rojo.
   Ola 1 la decida a la vista.
 - **06/10/2026** (Cambio 136, PR 3) — BEC-21 queda parcial: el bloqueo por estado del programa espera a SIIS-06.
 - **06/10/2026 (este cambio)** — las cinco fichas y la línea que faltaba.
+- **06/10/2026** (Cambio 154, PR 5) — se corrige la decisión «se cuentan las transiciones *nuevas* a
+  `DESCONOCIDO`»: con ese criterio la guarda se saltea por goteo (tres catálogos parciales seguidos dejan todo
+  bloqueado sin que salte nunca). Pasa a contar el estado **resultante**, que es lo que la ficha SIIS-06 pide
+  confirmar.
 
 ---
 
@@ -20349,6 +20355,226 @@ escritos** en `docs/internal/propuesta-ecom-verify.md` para que los mande el PM:
 
 ---
 
+# Cambio 154 — «Aprobar» deja de poder pasarse de los 60 s de nginx: un timeout por llamada, cortacircuito y presupuesto verificado
+
+🟢 **HECHO — 06/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · clientes de SIIS, Base de Personas y RENAPER · correo saliente · sincronización del catálogo SIIS |
+| **Etiquetas** | `#siis` `#performance` `#infra` `#datos` |
+| **Solicitante** | Auditoría integral oct-2026 — ficha SIIS-09 (= PERF-09) y los tres MINOR que dejó la revisión del PR 4 (Ola 1 «Integridad SIIS», PR 5) |
+| **Fecha del pedido** | 06/10/2026 |
+| **Issue / épica** | Sin issue (plan de la auditoría: `docs/internal/auditoria-2026-10/`) |
+| **Partes afectadas** | `config/settings.py` (timeouts) · `core/integraciones.py` (nuevo) · `core/checks.py` · clientes de SIIS y de Base de Personas · cliente de RENAPER (solo los defaults) · `validacion_siis.py` · `siis_sync.py` y `sincronizar_programas_siis` · `.env.*.example`, `docker-compose.yml`. Ninguna pantalla nueva |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Cerrar **SIIS-09** (= PERF-09, misma cadena de llamadas externas), el quinto PR de la Ola 1, y los **tres MINOR**
+que la revisión del PR 4 (Cambio 151) dejó anotados sin bloquear el merge.
+
+## Qué lo motivó
+
+**nginx corta el request a los 60 s** (`nginx.conf:97` y `:172`, `proxy_read_timeout 60s`) y el backoffice
+encadena varias llamadas externas dentro de un mismo clic. «Aprobar» hace **token de SIIS → compatibilidad →
+alta en la tabla intermedia → correo de resolución**, y las tres llamadas a SIIS compartían un único par de
+timeouts de `(10, 30)`: en el peor caso la cadena pasaba los **120 s**. Lo que el operador veía era un 504, y
+detrás del 504 el alta podía estar hecha del otro lado —SIIS no tiene baja— con el 504 empujando al reintento
+manual, que es justo lo que SIIS-01 y SIIS-02 tratan de evitar. Lo mismo del lado del portal: con la Gran Base
+caída, cada paso 1 del link público retenía un hilo de daphne hasta agotar el timeout para terminar, igual, con
+la identidad en `manual`.
+
+Los tres MINOR son del PR anterior:
+
+- **`_exigir_confirmacion` contaba las novedades, no el resultado.** El revisor lo reprodujo: diez programas
+  vinculados y tres catálogos parciales seguidos (4 ausentes de 10, después 5, después 1) dejan **los diez
+  bloqueados** sin que la guarda salte nunca, porque ninguna corrida pasa el umbral por sí sola.
+- **`--forzar` era un flag pelado**, igual que `--ignorar-corrida` antes del PR 3, y deja bloqueada media Becas
+  o más.
+- **`respuesta = {}`** tiraba lo que SIIS había contestado cuando no era un objeto: en la fila registrada, «SIIS
+  no contestó» y «SIIS contestó el HTML de error de un proxy» quedaban indistinguibles.
+
+## Decisiones tomadas
+
+- **Un timeout por tipo de llamada** (default de **D-S09**): conexión 5 s para las tres integraciones;
+  lectura 10 s para las consultas (compatibilidad y catálogos de SIIS, Base de Personas, RENAPER), **20 s solo
+  para el alta** en la tabla intermedia, y `EMAIL_TIMEOUT` 5. El alta se queda **adentro** del request de
+  `formulario_aprobar`, con el timeout corto: si SIIS no contesta, el `INCIERTO` de SIIS-02 se concilia con
+  ECOM, que es mejor que un 504 sin registro.
+- **Un timeout propio para el token (`SIIS_API_TIMEOUT_TOKEN`, 5 s), que D-S09 no nombra.** Es el **único
+  desvío** de la decisión, y es lo que hace que la cuenta cierre: D-S09 habla de «consultas» pensando en las de
+  negocio, pero el token está en todas las cadenas y con `(5, 10)` la de «Aprobar» daba 60 s, o sea por encima
+  del presupuesto. Un endpoint de autenticación que tarda más de 5 s en devolver un JWT está roto.
+- **El presupuesto se declara y se verifica, no se calcula a mano una vez.** `core/integraciones.py` declara qué
+  llamadas externas encadena cada request (`CADENAS`) y cuánto puede tardar cada tipo (`COSTOS`);
+  `core.checks.presupuesto_de_llamadas_externas` suma los timeouts **configurados** y falla con `core.E003` si
+  alguna cadena pasa los **55 s** (los 60 de nginx menos 5 para lo que no es red). Corre en `check --deploy`, o
+  sea en el CI y antes del deploy. Es lo que impide que «subile el timeout, que SIIS anda lento» vuelva a poner
+  «Aprobar» por encima del corte sin que nadie lo note hasta el 504.
+- **«Aprobar un caso» queda justo en 55 s y eso es a propósito.** Nada más se puede encadenar ahí sin una
+  decisión: la siguiente llamada que alguien agregue deja el check en rojo. Que el margen sea cero es el punto.
+- **Cortacircuito en caché: tres fallas de red seguidas, un minuto sin consultar.** Se aplica a Base de Personas
+  (el tope del paso 1 del link público, punto 4 de la ficha: el resultado ya era `manual`, lo que se ahorra es
+  la espera) y a la consulta de compatibilidad de SIIS. **No se aplica al alta**: es lo irreversible y se decide
+  caso por caso, y para SIIS caído ya está el `INCIERTO`.
+- **Lo que abre el cortacircuito es no poder hablarle al servicio, no que conteste mal.** Un 404, un 401 o un
+  500 son respuestas: el servicio está en pie y el contador se resetea. Solo acumulan el timeout, la conexión
+  rechazada y la respuesta ilegible.
+- **El conteo del cortacircuito no toma candado.** Dos pedidos a la vez pueden pisarse un incremento y el costo
+  de eso es abrir un pedido más tarde. Un candado por cada llamada externa costaría más que lo que ahorra.
+- **Una `requests.Session` por módulo** (`siis.py`, `personas.py`) con `HTTPAdapter(pool_maxsize=10)`: sin
+  sesión, cada llamada abre una conexión TLS nueva contra el mismo host. Se comparte entre hilos —daphne corre
+  las vistas sync en un pool— y por eso no se usa *cookie jar*: las tres integraciones autentican por header.
+- **`LATIDO_VENCIDO` sigue en 5 minutos, pero su derivación cambia.** El techo de un caso del masivo ya no es
+  `(connect + timeout) × 3` sino la suma declarada de token + consulta + alta, que es la misma cuenta del
+  presupuesto. El test que lo ata lo lee de `core.integraciones`, no de un número escrito a mano.
+- **MINOR 1 — la guarda mira el estado resultante.** `_exigir_confirmacion` cuenta cuántos programas
+  **quedarían** en `DESCONOCIDO` al aplicar, no cuántos cambiarían. Contradice una línea escrita en el Cambio
+  151 («se cuentan las transiciones nuevas»), y está dicho ahí y acá: con ese criterio la guarda se saltea por
+  goteo. Efecto lateral buscado: mientras SIIS siga devolviendo catálogos parciales, el CronJob de las 04:00
+  queda en rojo todas las noches. Eso **es** la alarma.
+- **MINOR 2 — `--forzar` exige `--motivo`**, como `--ignorar-corrida` en `ComandoSiisBase`, y acepta `--usuario`.
+  El rastro es el mismo mecanismo (`logger.warning` con quién, cuándo y por qué) con una diferencia que se
+  explica en el código: `--ignorar-corrida` anota además en la `CorridaSiis` que pisa, y acá no hay ninguna fila
+  que sea «la sincronización» donde dejar la nota. Solo se registra cuando el forzado **hizo falta de verdad**:
+  un `--forzar` por costumbre sobre una baja normal no ensucia el log. **El CronJob de `cronjobs.yaml` corre sin
+  el flag y no cambia**, y hay un test que lo fija.
+- **MINOR 3 — lo que contestó SIIS se guarda en `respuesta["_crudo"]`**, recortado a 500 caracteres (un 502 de
+  nginx son varios KB de HTML). El guion bajo adelante es para que no se confunda con un campo del contrato. Se
+  revisaron los lectores de `ValidacionSIS.respuesta`: el único estructurado es `_detalle_validacion_siis`
+  (detalle de la revisión), que ya lee con `isinstance` + `.get` y sigue mostrando lo mismo; hay un test que lo
+  fija. **No se loguea**: no entran datos personales nuevos al log.
+
+## Decisiones de la ronda 2 de la revisión
+
+- **La suite no sale a internet, y eso es un runner y no un test.** Cambiar los clientes a una `Session` de
+  módulo movió el punto de parcheo, y un test de seguridad del portal se quedó parcheando
+  `programas.services.personas.requests.get`: el mock quedaba en **cero llamadas**, el cliente salía a resolver
+  `personas.example` de verdad y la regresión que cuidaba —que el DNI no viaje en el log— pasaba **por
+  accidente**, porque el error de conexión real tampoco traía el DNI. El parche se corrigió y el test ahora
+  afirma que el mock se llamó; pero lo que impide que vuelva a pasar es `core/tests/runner.py`
+  (`TEST_RUNNER`), que corta `HTTPAdapter.send` durante toda la corrida. Se corta ahí y no a nivel de socket:
+  la base, Redis y el servidor de pruebas siguen funcionando.
+- **El corte se instala asignando el método, no con `mock.patch(...).start()`.** Trece tests de la suite usan
+  `self.addCleanup(patch.stopall)`, que apaga todos los parches activos del proceso: con `start()` la guarda se
+  caía en el primero de ellos y de ahí en adelante la suite volvía a salir a la red sin avisar. Eso se midió:
+  con `start()`, los dos tests de la guarda pasaban solos y fallaban en la suite completa.
+- **El reCAPTCHA entra en la cadena del paso 1 del link público.** Faltaba declararlo y es la llamada **más
+  lenta** de las tres: la cadena decía 30 s cuando el peor caso real eran 45. Además su timeout era un escalar
+  —`requests` lo aplica a conectar **y** a leer, o sea el doble de lo que dice la variable— y estaba congelado
+  en el import, así que `override_settings` no lo movía. Pasa a ser el par `(RECAPTCHA_CONNECT_TIMEOUT,
+  RECAPTCHA_TIMEOUT)` = `(5, 10)`, leído de `settings` en cada llamada (`timeout_recaptcha()`), y hay un test
+  que ata la suma de lo que se pide a lo que declara `COSTOS["recaptcha"]`.
+- **Se revisó el resto de las cadenas contra el código** y se agregaron las tres que faltaban: promover desde la
+  lista de espera (token + alta + correo), agregar a la lista de espera (correo) y el alta de usuario con clave
+  provisoria (correo). RENAPER y el correo ya estaban declarados donde correspondía.
+- **La `Session` de módulo no guarda cookies.** El docstring afirmaba que no había *cookie jar* y era falso: una
+  `requests.Session` guarda lo que le manden y lo reenvía. Como la sesión vive lo que vive el proceso y la
+  comparten todos los requests que pasen por él, una cookie de sesión del servicio externo se guardaría una vez
+  y viajaría en las llamadas que ese proceso haga **por otras personas**. Se le pone una política que rechaza
+  todo (`SinCookies`); las tres integraciones autentican con token en el header y ninguna la necesita. El test
+  compara contra una `Session` pelada, que sí se la guarda.
+- **Una variable de entorno que falta no es «SIIS caído».** `_SiisConfigurationError` —`SIIS_API_URL` vacía,
+  credenciales vacías, un token que no es un objeto— sale del `except` del cortacircuito: no hay espera que
+  ahorrar (el cliente corta antes de abrir la conexión) y contarlo hacía que el log dijera «siis.consulta falló
+  3 veces seguidas», que manda a mirar a ECOM cuando lo que falta es una variable. El log ahora dice
+  «Configuración SIIS incompleta».
+- **La PoC se actualizó** (`poc/test_repro_siis_becas.py`): parcheaba `programas.services.siis.requests.post` y
+  habría dejado de reproducir.
+
+## Lo que la ficha pedía y no se hizo
+
+- **Cortacircuito para RENAPER.** La ficha nombra a RENAPER solo en el punto de los timeouts, y ahí sí entró. El
+  cortacircuito se dejó para las dos integraciones de alto volumen; RENAPER se consulta desde el backoffice,
+  detrás de login y de a una persona por vez.
+- **Sesión por módulo en RENAPER.** Ya tenía la suya (`APIClient.__init__`), aunque es por instancia y no por
+  módulo. No se tocó: su `Retry` cuelga de ese adaptador.
+
+## Un test que cambia a propósito
+
+`test_proceso_masivo.LatidoTests.test_el_latido_vencido_cubre_tres_llamadas_a_siis_con_margen` (Cambio 136)
+derivaba el techo de un caso de `SIIS_API_CONNECT_TIMEOUT + SIIS_API_TIMEOUT`, que ahora es **solo el del alta**.
+Pasa a leer los tres costos de `core.integraciones`, que es la misma declaración que mide el presupuesto. El
+umbral de 5 minutos no cambia.
+
+Y dos aserciones de `test_siis_catalogo_y_payload` que afirmaban `data == {}` / `respuesta == {}` ahora afirman
+el `_crudo`: es exactamente lo que el MINOR 3 vino a corregir.
+
+## Base de datos
+
+No requiere migración. `ValidacionSIS.respuesta` ya es un `JSONField`: `{"_crudo": "…"}` es un valor más.
+
+## Validación
+
+- **Suite completa** (`manage.py test` sin argumentos, Python 3.12 + Django 5.2.17 del `.venv312`, igual al CI):
+  **2.985 tests, OK** (25 skips) después de la ronda 2; 2.942 en la ronda 1.
+- **Tests nuevos: 45.** 32 en `programas/tests/test_llamadas_externas.py` (presupuesto, timeouts que salen de
+  verdad a la red, cortacircuito, Gran Base caída, SIIS caído, SIIS mal configurado, sesión compartida), 13 en
+  `programas/tests/test_siis_catalogo_y_payload.py` (los tres MINOR) y 4 en `core/tests/test_sin_red.py` (la
+  guarda de red). Fallaban antes por el motivo esperado: la cuarta consulta con la Gran Base caída **sí** salía
+  a la red; el goteo de catálogos parciales dejaba los diez programas bloqueados sin excepción; `--forzar` sin
+  `--motivo` corría; `respuesta` quedaba en `{}`; la cadena del paso 1 no contaba el captcha; y la `Session` se
+  guardaba las cookies.
+- **La guarda de red probada en las dos direcciones.** Con la versión que usaba `patch(...).start()`, los dos
+  tests de `core/tests/test_sin_red.py` pasaban **solos** y fallaban **en la suite completa** (el primer
+  `patch.stopall` de otro módulo la apagaba, y la llamada llegaba hasta `socket.getaddrinfo`); con la asignación
+  directa, la suite entera queda en verde con la guarda armada de punta a punta.
+- `manage.py check`, `check --deploy`, `makemigrations --check --dry-run` (sin cambios), `--tag performance`
+  (4 tests OK) y `ruff check . && ruff format --check` en verde. `requerimientos.py --check` OK.
+- **`core.E003` verificado contra el entorno**, en los dos hallazgos que lo mueven: con
+  `SIIS_API_TIMEOUT=30 EMAIL_TIMEOUT=10` dice «becas · aprobar un caso … 70 s», y con `RECAPTCHA_TIMEOUT=60`
+  dice «link público · paso 1 (identificar) … 95 s».
+- **No se corrió nada contra SIIS, ECOM, icore ni PRD.** Todo el tráfico de los tests está mockeado —y desde la
+  ronda 2 eso lo garantiza el runner, no la buena memoria de quien escribe el test—.
+
+## Reversión
+
+Revertir el commit. Vuelven los timeouts largos, se va el cortacircuito y la guarda del catálogo vuelve a contar
+novedades. No hay datos que migrar. Si hiciera falta solo aflojar los timeouts sin revertir el código, alcanza
+con las variables de entorno —pero el `check --deploy` va a marcarlo, que es lo que se quiere.
+
+## Pendientes / a definir
+
+- **Las variables de entorno de ECOM mandan sobre los defaults.** Si en testing o PRD están seteadas
+  `SIIS_API_TIMEOUT=30`, `PERSONAS_API_TIMEOUT=20`, `RENAPER_TIMEOUT=20` o `EMAIL_TIMEOUT=10` (los valores de
+  `.env.qa.example` hasta este cambio), el código nuevo las respeta y el presupuesto **no** se cumple. Hay que
+  bajarlas o borrarlas del entorno para que valgan los defaults. `manage.py check --deploy` lo dice con
+  `core.E003`; el entrypoint del contenedor no corre ese check, así que no frena el arranque.
+- **`SIIS_API_TIMEOUT_TOKEN` y `SIIS_API_TIMEOUT_CONSULTA` son variables nuevas.** Sin setearlas valen 5 y 10,
+  que es lo que se quiere: no hay que agregarlas al entorno de ECOM.
+- **El CronJob de las 04:00 ahora puede quedar en rojo varias noches seguidas** si SIIS devuelve catálogos
+  parciales: eso es lo que la corrección del MINOR 1 destapa. Antes de usar `--forzar --motivo` hay que
+  confirmar la baja con ECOM.
+- **El cortacircuito no tiene pantalla.** Mientras está abierto, el único rastro es el `WARNING` del log del pod
+  (`cortacircuito abierto: personas falló 3 veces seguidas`). Si hiciera falta verlo desde el backoffice, es un
+  requerimiento aparte.
+- **El correo sigue dentro del request** de «Aprobar». Bajarlo a 5 s lo acota; sacarlo del request (marca en el
+  caso + cron) es lo que el Cambio 91 dejó anotado y sigue abierto.
+- **`RECAPTCHA_CONNECT_TIMEOUT` es una variable nueva** (default 5). Sin setearla vale lo que se quiere; no hay
+  que agregarla al entorno de ECOM. `RECAPTCHA_TIMEOUT` ya existía y sigue en 10.
+- **El presupuesto solo cubre lo declarado.** `CADENAS` se escribió leyendo el código, pero nada ata
+  automáticamente una llamada externa nueva a su cadena: si alguien agrega un `requests.post` en una vista, el
+  check no se entera hasta que alguien lo declare. Atarlo de verdad pide un barrido estático como el de
+  `core/tests/test_sql_portable.py` (DIS-01); no entró acá.
+
+## Historial
+
+- **25/09/2026** (Cambio 91) — el incidente de 500 del portal deja anotados, como «para después», los timeouts
+  largos del paso 1, el correo sincrónico y las llamadas a SIIS/RENAPER «de hasta 40 s por clic, sin lock».
+- **03/10/2026** — la auditoría los junta en SIIS-09 y les pone decisión (D-S09).
+- **06/10/2026 (este cambio)** — SIIS-09 cerrada, con el presupuesto verificado por `check --deploy`, y los tres
+  MINOR del PR 4.
+- **07/10/2026 (ronda 2 de la revisión)** — dos MAJOR y tres MINOR. El cambio a `Session` había dejado un test
+  de seguridad del portal parcheando el lugar equivocado —mock en cero llamadas y salida a la red real—, así
+  que además de arreglarlo y de arreglar la PoC, la suite entera pasa a correr con la red cortada
+  (`core/tests/runner.py` por `TEST_RUNNER`). El reCAPTCHA entra en la cadena del paso 1 del link público, que
+  no lo declaraba y es su llamada más lenta, con el timeout pasado a par `(5, 10)` leído en cada llamada; se
+  declaran además tres cadenas que faltaban. La `Session` de módulo deja de guardar cookies. Y una
+  configuración incompleta de SIIS deja de contar como falla del cortacircuito.
+
+---
+
 # Cambio 155 — Controles que el navegador no dibujaba: botones sin caja, backdrop transparente, modales en la esquina y la grilla del mes ilegible en celular
 
 🟢 **HECHO — 06/10/2026**
@@ -20566,6 +20792,246 @@ Revertir el commit. Vuelven los cuatro defectos y vuelve `mobile-enhancements.js
 que deshacer en la base: el PR no escribe ni borra una sola fila, no trae migraciones y no cambia ninguna
 vista. **Al revertir hay que volver a correr `npm run build:tailwind`**, porque `tailwind.css` es generado:
 el revert lo deja en el estado anterior, que es el correcto para el markup anterior.
+
+---
+
+# Cambio 156 — La red de Becas: el adjunto que llega hasta la revisión, los dos borrados sin probar, la atomicidad, el padrón y la edad
+
+🟢 **HECHO — 07/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas: adjuntos del caso, Configuración (borrado de requisitos y subsegmentos), cupo, padrón y exportaciones · Transversal: registro de vencimientos y contrato de escrituras atómicas |
+| **Etiquetas** | `#datos` `#metodo` `#cupos` `#relevamientos` |
+| **Solicitante** | Auditoría integral de octubre 2026 — hallazgos **RED-05**, **RED-31**, **RED-35**, **RED-77**, **RED-49**, **RED-50**, **RED-81** y **RED-70** (Ola R «Red de seguridad», PR R-16) |
+| **Fecha del pedido** | 07/10/2026 |
+| **Issue / épica** | Sin issue — auditoría oct-2026, `docs/internal/auditoria-2026-10/hallazgos/08-red-de-seguridad.md` |
+| **Partes afectadas** | Casi todo son tests. Código de producción: el manager `PadronHabilitado.objects.con_identidad()` y sus tres llamadores, y el comando `procesar_vencimientos`, que con el registro vacío pasa a fallar en vez de salir con éxito. Nada de UI, ningún modelo nuevo, ninguna migración |
+| **Migración** | No requiere (el manager no se serializa: `use_in_migrations` queda en `False`) |
+
+## Pedido original
+
+Ocho fichas que comparten una propiedad: **la Ola 3 va a tocar exactamente estas piezas y hoy no hay nada que se ponga
+rojo si se rompen.**
+
+- **RED-05** (ALTA): «ningún test sigue un adjunto desde el canal que lo sube hasta la revisión». El alta se afirma en
+  un test y la revisión en otro, con datos distintos: nadie cruza el puente.
+- **RED-31** (MEDIA): «`requisito_eliminar` y `subsegmento_eliminar` no se ejecutan en ningún test» — los dos cuerpos
+  enteros sin cubrir, y uno de ellos es el bug de DAT-01.
+- **RED-35** (MEDIA): «ningún test afirma que las escrituras críticas sigan siendo atómicas» — 39 `transaction.atomic`
+  en los `services/`, 0 afirmados.
+- **RED-77** (BAJA): «RN-2 del padrón escrita dos veces: property y filtro de queryset», y las dos no coinciden.
+- **RED-49** (MEDIA): «`cupo_disponible` significa tres cosas y dos pantallas lo rotulan igual».
+- **RED-50** (MEDIA): «la edad (RN-22) está cuatro veces y tres usan `date.today()`», que en un contenedor UTC es el día
+  siguiente desde las 21:00 de Chaco.
+- **RED-81** (BAJA): «el registro de reglas de vencimiento puede quedar vacío y el comando sale OK».
+- **RED-70** (MEDIA): «`celda_segura`: la limpieza de caracteres de control no está probada» (mutación M49 sobreviviente).
+
+## Qué lo motivó
+
+El PR R-16 es el último prerrequisito de la **Ola 3**. DAT-01 va a cambiar el borrado de requisitos, las fichas BEC-\*
+van a tocar cupo y reglas, y SEC-20 va a aplicar `celda_segura` a cinco exports más. Todo eso se iba a hacer sobre
+código que nadie estaba mirando: el cuerpo de las dos vistas de borrado no se ejecutaba ni una vez en 3.000 tests, y el
+puente entre el adjunto subido y el adjunto mostrado —dos módulos distintos que se ponen de acuerdo por una convención
+de prefijos de clave (`pg-<pk>`, `rn-<pk>`)— no tenía una sola aserción que lo cruzara. Cambiar el prefijo en
+`diseno.clave_pregunta` sin tocar `respuestas._adjuntos_por_clave` hace que la foto del DNI desaparezca de la pantalla
+del revisor **sin error ni log**: el revisor la lee como «faltante» y rechaza el caso.
+
+Dos de las ocho no son solo tests: la regla del padrón y el registro de vencimientos tenían el defecto adentro y se
+arreglaron acá.
+
+## Alcance acordado
+
+**Entra:** los tests de las ocho fichas; el manager `con_identidad()` que unifica RN-2 (RED-77); el `CommandError` de
+`procesar_vencimientos` con el registro vacío (RED-81); y dos tests `@tag("mysql")` nuevos, porque las dos cosas que
+este PR cambia dependen del motor (el `REGEXP` de la regla del padrón y el `ROLLBACK` real de la atomicidad).
+
+**Queda afuera:** el arreglo de **DAT-01** (el adjunto del caso que se borra con el requisito), que es de la Ola 3 — acá
+queda **caracterizado**: hay un test que afirma el daño de hoy y dice en su mensaje cómo invertirlo. El arreglo de
+**RED-50** (una sola `edad_en_anios` con `timezone.localdate()` y la regla `DTZ011`), también de la Ola 3: acá queda un
+`expectedFailure` que describe el bug. El renombre de las tres acepciones de `cupo_disponible` (RED-49), que es de la
+Ola 4 con PERF-02. Y **RED-82** (los terminadores CR de `exportacion_reportes.py`), que es del PR R-21: los tests de
+RED-70 se escribieron sin tocar ese archivo.
+
+## Decisiones tomadas
+
+- **La regla RN-2 del padrón se unifica con un `__regex`, no con `Trim`.** `TRIM()` de MySQL y de MariaDB saca **solo
+  espacios**; `str.strip()` de Python saca también tabulaciones, saltos de línea y los espacios Unicode. Con `Trim` la
+  property y el queryset seguirían discrepando para una fila con `nombre="\t"`, que es justo la clase de divergencia
+  que la ficha viene a cerrar.
+- **Y el patrón es una clase literal de 29 caracteres, no `\s` ni `[[:space:]]`** (corrección de la **ronda 2**). La
+  primera versión usaba `r"^\s*$"`, y eso **sigue discrepando en MariaDB**: Django compila el lookup `regex` como
+  `%s REGEXP BINARY %s` —PCRE, donde `\s` y `[[:space:]]` son **ASCII**—, mientras que MySQL 8 lo compila como
+  `REGEXP_LIKE(…, 'c')` —ICU, Unicode— y SQLite lo resuelve con `re` de Python. Medido contra `mariadb:10.11`: un
+  nombre de un solo NBSP (`\xa0`), EM SPACE, IDEOGRAPHIC SPACE o NEL quedaba **dentro** de `con_identidad()` mientras
+  `tiene_identidad` decía `False`. `CARACTERES_SIN_TEXTO` es ahora la lista explícita de los 29 caracteres que
+  `str.strip()` saca —ninguno es especial dentro de una clase de regex—, y los tres motores contestan lo mismo que
+  `strip()` en las 17 combinaciones del test, incluidos los tres controles de falso positivo que `REGEXP BINARY`
+  haría sospechar (`à`, que se codifica con el mismo byte `A0` del NBSP; un NBSP **interno**; y el ZWSP, que para
+  Python **no** es whitespace). Que la lista no se desfase de `str.isspace()` lo fija
+  `test_la_clase_cubre_exactamente_lo_que_saca_strip`.
+- **La regla se expone como `Q`, no solo como método del queryset.** `q_con_identidad()` se puede meter en un `filter`,
+  en un `Count(filter=…)` o en cualquier otra expresión: era la única forma de que el contador de la convocatoria
+  —que es un `Count` anotado, no un queryset— usara la **misma** definición.
+- **El manager se aplica a los cuatro llamadores, no a los dos que nombra la ficha.** `.exclude(nombre="").exclude(apellido="")`
+  aparecía también en `diagnosticar_integraciones.py:320`, que cuenta «cuántas filas del padrón tienen identidad» para
+  el operador, y —esto lo encontró la **ronda 2**— en `views/relevamientos.py:301`, el «N con identidad» del detalle de
+  la convocatoria. Dejarlos afuera habría dejado dos copias de la regla vivas, y la de la pantalla es la que el
+  operador lee para decidir si el padrón sirve.
+- **El registro de vencimientos vacío ahora es un error, no un aviso.** El comando lo corre un cron (03:10) y el
+  arranque del contenedor: «nada que hacer» y «el import de `ready()` se perdió» eran indistinguibles desde afuera.
+- **Y el comando lee el registro por el módulo, no por `from … import REGLAS`.** `registrar()` **rebindea** la lista
+  global, así que un nombre importado al cargar el comando se queda con la lista anterior al último registro. Hoy no se
+  manifiesta —el comando se importa después de `django.setup()`—, pero es la misma clase de fragilidad que la ficha
+  describe y cuesta dos líneas sacarla.
+- **DAT-01 se caracteriza, no se arregla.** `test_requisito_con_adjunto_en_un_caso` afirma el comportamiento de hoy
+  (el adjunto del caso desaparece y el archivo queda huérfano en `media/`) y su mensaje de fallo dice textualmente qué
+  invertir cuando llegue el arreglo. Lo mismo con el `expectedFailure` de RED-50.
+- **El test de RED-05 recorre los dos canales por HTTP de punta a punta**, no por servicio: paso 1 y paso 2 del link
+  público con el padrón como fuente de identidad, y el alta + `POST …/adjuntos/` de la API con token. Una aserción
+  compartida mira lo mismo en los dos casos, así que la mitad que se rompa se ve igual venga por donde venga.
+
+## Implementación
+
+**RED-05 — `programas/tests/test_adjunto_punta_a_punta.py`.** Dos tests sobre un helper de aserción común
+(`_assert_el_adjunto_se_ve_en_la_revision`): la fila `AdjuntoFormulario` existe, el bloque del campo llega a
+`formulario_detalle` con `es_archivo=True` y `adjunto` no nulo, el contenido guardado es el subido y el HTML trae la URL
+del archivo. Los adjuntos van a un `MEDIA_ROOT` temporal que se borra al terminar la clase: el almacenamiento no se
+revierte con la transacción del test. **Mutación de control:** cambiar `pg-` por `pgx-` en `_adjuntos_por_clave` deja
+los dos tests en rojo con el mensaje que nombra el puente.
+
+**RED-31 — `EliminarRequisitoYSubsegmentoTests` en `programas/tests/test_becas_config.py`.** Cinco tests: el
+subsegmento usado por una convocatoria no se borra y avisa (es un `ProtectedError` convertido en mensaje, no un 500); el
+libre se borra y redirige al segmento; el requisito sin adjuntos se borra con su `ItemDiseno` (lo que el Cambio 58 sí
+quiere); el requisito con adjunto en un caso queda **caracterizado** (DAT-01); y los dos verbos y las tres identidades
+—GET, anónimo, sin capacidad— no borran nada.
+
+**RED-35 — `core/tests/test_contrato_escrituras.py`.** Prueba **conductual**: se hace fallar `_completar_contacto`, que
+corre después del alta del `Ciudadano` y antes de guardar el formulario, y se afirma que no quedó nada escrito. La
+aserción introspectiva que proponía la pasada original (`getattr(fn, "_atomic", False)`) no sirve —`atomic` usa
+`@wraps`— y está anotada en el docstring para que nadie la reintroduzca. Un test de control afirma que sin la falla
+inyectada la escritura sí ocurre entera. **Mutación de control:** sacar `@transaction.atomic` de
+`resolver_ciudadano_offline` deja el test en rojo.
+
+**RED-77 — el manager.** `PadronHabilitadoQuerySet.con_identidad()` en `programas/models/__init__.py`, sobre el `Q`
+reusable `q_con_identidad()`, usado por `padron.objetivo_con_identidad`, `padron.validar_casos_pendientes`,
+`diagnosticar_integraciones` y el `Count` del detalle de la convocatoria (`views/relevamientos.py`). El docstring de la
+property y el del queryset se nombran mutuamente. Seis tests en `programas/tests/test_padron.py`: las once
+combinaciones vacío/espacios/Unicode con `subTest`, la clase de caracteres enfrentada contra `str.isspace()`, el cruce
+automático que ya no valida una fila en blanco (con su control, que sí valida la completa), `objetivo_con_identidad` y
+el contador de la pantalla.
+
+**RED-49 — `programas/tests/test_cupo.py`.** Un segmento de 10 con subsegmentos de 3 y 4 y 6 casos aprobados deja los
+tres números distintos: `Segmento.cupo_disponible == 3` (sin distribuir), `get_cupo_stats(...)["cupo_disponible"] == 4`
+(lugares libres) y `Relevamiento.cupo_disponible == 2` (contra su propio tope). Hay además una aserción explícita de que
+las dos acepciones del segmento **siguen difiriendo**, que es lo que se rompería si PERF-02 las unificara en vez de
+renombrarlas. Un segundo test fija que `CupoSegmento.cupo_ocupado` es un contador que nadie mueve y que `Segmento.clean()`
+valida contra él.
+
+**RED-50 — `programas/tests/test_becas_reglas.py`.** El reloj se pone en las 23:00 del 30/06 local (02:00 UTC del 01/07)
+parcheando `timezone.now` y el `date` que importaron los cuatro módulos que resuelven «hoy». Quien cumple 18 el 01/07
+sigue siendo menor esa noche: `test_el_corte_es_la_fecha_local_no_la_del_sistema` lo afirma y hoy está **rojo**
+(`expectedFailure`). Hay un test de control del andamio —para que el `expectedFailure` no esté en rojo por un parche que
+no hace lo que dice— y dos que fijan la aritmética y el `None` sin fecha, que tienen que sobrevivir a la Ola 3.
+
+**RED-81 — `RegistroTests` en `programas/tests/test_becas_vencimientos.py` + el comando.**
+`procesar_vencimientos` levanta `CommandError` con el registro vacío, y lee `registro.REGLAS` por el módulo. El test que
+vale es `test_el_ready_de_la_app_es_el_que_las_registra`: vacía el registro, saca el módulo de reglas de `sys.modules`
+**y del paquete que lo contiene** —`from X import Y` lo encuentra como atributo del paquete y no lo volvería a
+ejecutar— y vuelve a correr `ProgramasConfig.ready()`. **Mutación de control:** borrar ese import deja el test en rojo.
+Los otros tests de vencimientos no servían de red porque importan el módulo y de paso lo vuelven a registrar.
+
+**RED-70 — `CeldaSeguraTests` en `programas/tests/test_reportes.py`.** Cinco tests sobre `celda_segura`,
+`respuesta_reporte` (xlsx y csv) y `respuesta_libro`. El que cierra la mutación M49 es
+`test_celda_segura_limpia_y_prefija_a_la_vez`: `celda_segura("\x0b=1+1") == "'=1+1"` falla si se invierte el orden,
+porque `lstrip()` de Python se come el `\x0b` y la fórmula se escapa del prefijo —un bypass real de la inyección que
+SEC-20 va a extender a cinco exports más—. **Mutación de control:** borrar
+`ILLEGAL_CHARACTERS_RE.sub` deja los **cinco** en rojo, tres de ellos con `IllegalCharacterError` (el 500 de la
+descarga). El archivo tiene terminadores CR (RED-82, PR R-21) y no se tocó.
+
+**Los dos `@tag("mysql")`,** en `core/tests/test_motor_real.py`: `EscriturasAtomicasMotorRealTests` repite RED-35 en un
+`TransactionTestCase`, donde lo que deshace el error es un `ROLLBACK` de InnoDB y no un savepoint de SQLite; e
+`IdentidadDelPadronMotorRealTests` enfrenta `con_identidad()` contra la property con ocho filas —incluidas dos con
+tabulación— evaluando el `REGEXP` en el servidor.
+
+## Cómo se probó
+
+Validación completa con Python 3.12 + Django 5.2.17 (`.venv312`, el mismo del CI):
+
+- `manage.py check` → sin issues; `check --deploy` → los 6 avisos preexistentes de ambiente local;
+  `makemigrations --check --dry-run` → «No changes detected» (el manager no pide migración).
+- **`manage.py test` sin argumentos: 3061 tests, OK (skipped=29, expected failures=1)**, 607 s.
+- `manage.py test --tag performance` → 4 tests, OK.
+- `manage.py test --tag mysql` contra **`mariadb:10.11`** (con `MARIADB_INITDB_SKIP_TZINFO=1`, como ECOM) → 27 tests, OK;
+  y contra **`mysql:8.0`** → 27 tests, OK (3 skips propios de MariaDB). Contenedores efímeros, borrados al terminar.
+- `ruff check .` → All checks passed; `ruff format --check` sobre los 13 archivos tocados → ya formateados.
+
+**Las cuatro mutaciones de control** se aplicaron, se corrió y se revirtió: el prefijo de `_adjuntos_por_clave`
+(RED-05, 2 rojos), `@transaction.atomic` de `resolver_ciudadano_offline` (RED-35, 1 rojo), el import de
+`ProgramasConfig.ready()` (RED-81, 1 rojo) y la línea `ILLEGAL_CHARACTERS_RE.sub` (RED-70, M49, 5 rojos). Los tests de
+RED-77 se corrieron además contra la regla vieja (`.exclude(nombre="")`) y dieron 4 rojos.
+
+**Ronda 2 de revisión**, las tres mutaciones propias, todas aplicadas y revertidas:
+
+| Mutación | Resultado |
+|---|---|
+| devolverle al `Count` de `relevamientos.py` su regla escrita a mano | `test_el_contador_de_la_convocatoria_usa_la_misma_regla`: rojo (8 ≠ 3) |
+| `SIN_TEXTO_REGEX` de vuelta a `r"^\s*$"` | `IdentidadDelPadronMotorRealTests` contra `mariadb:10.11`: **5 rojos** (NBSP, EM SPACE, IDEOGRAPHIC SPACE, NEL y la mezcla). En **SQLite la suite sigue verde**, que es exactamente el motivo por el que esto necesitaba un test `@tag("mysql")` |
+| `q_con_identidad()` de vuelta a `~Q(nombre="")` (el estado de `development`) | 4 rojos, uno de ellos `test_el_cruce_automatico_no_valida_un_caso_con_identidad_en_blanco` (1 ≠ 0), que **antes de la ronda 2 pasaba igual**: el `Ciudadano` no llevaba `genero`, así que el cruce no llegaba a mirar ninguna fila |
+
+## Puesta en marcha en el servidor
+
+No requiere: ningún paso manual, ninguna migración, ninguna variable de entorno nueva.
+
+**Lo único a mirar en el primer arranque después del deploy:** `procesar_vencimientos` corre en el bootstrap opcional
+del contenedor (`LOCAL_OPTIONAL_BOOTSTRAP_COMMANDS`) bajo `set -eu`, así que si el registro de reglas quedara vacío el
+contenedor **no arranca**. Es el comportamiento buscado —antes arrancaba y las convocatorias vencidas no se cerraban
+más—, y la condición que lo dispara es un bug de código que el test nuevo pone en rojo en el CI antes de llegar acá.
+Que los opcionales no sean fatales es **OPS-07**, de la Ola 3.
+
+## Pendientes / a definir
+
+- **DAT-01 (Ola 3):** el borrado de un requisito se sigue llevando puestos los `AdjuntoFormulario` de casos ya
+  cargados, y deja el archivo huérfano en `media/`. `test_requisito_con_adjunto_en_un_caso` lo afirma tal cual está y
+  dice en su mensaje qué invertir.
+- **RED-50 (Ola 3):** una sola `edad_en_anios(fecha, hoy=None)` con `hoy = hoy or timezone.localdate()`,
+  `MAYORIA_DE_EDAD` en un solo lugar, `timezone.localdate()` en los dos sitios de `legajos/selectors/ciudadanos.py` y la
+  regla `DTZ011` en `pyproject.toml`. Cuando eso entre,
+  `test_el_corte_es_la_fecha_local_no_la_del_sistema` pasa a *unexpected success* y hay que sacarle el decorador.
+  Sigue abierta la pregunta **H-13** (¿qué `TZ` tienen de verdad los contenedores de ECOM?), que define la severidad.
+- **RED-49 (Ola 4, con PERF-02):** renombrar —`cupo_sin_distribuir`, `cupos_libres_del_relevamiento`— y dejar
+  `cupo_disponible` solo para `get_cupo_stats`. **No unificar:** `test_las_tres_acepciones_son_distintas` lo frena.
+- **RED-35 (Ola 3):** el mismo patrón conductual para `cupo.aprobar_formulario`,
+  `inscripcion_publica.crear_formulario_publico`, `padron.quitar_padron_propio` y `admisiones.trasladar_admision`.
+- **RED-82 (PR R-21):** `programas/services/exportacion_reportes.py` sigue con terminadores CR; los diffs de ese archivo
+  no se leen y `ruff format` no lo normaliza. La revisión de SEC-20, que toca `celda_segura`, lo va a necesitar antes.
+- **RED-05, tercer test (Ola 3, con DAT-01):** `test_una_pregunta_recreada_con_otro_pk_no_deja_el_adjunto_huerfano`.
+
+## Reversión
+
+1. Revertir el commit. Vuelven los ocho defectos de cobertura y los dos de código: la regla del padrón vuelve a estar
+   escrita tres veces con dos semánticas, y `procesar_vencimientos` vuelve a salir con éxito sin procesar nada.
+2. **No hay nada que deshacer en ninguna base.** El cambio no trae migraciones, no escribe filas y no toca el esquema:
+   `con_identidad()` es un filtro de lectura y el `CommandError` es un camino de salida.
+3. Los archivos que los tests escriben en `media/` van a un directorio temporal propio y se borran solos; no queda nada
+   en el `media/` del repo ni del servidor.
+4. Si se revierte **después** de que la Ola 3 haya arreglado DAT-01 o RED-50, los dos tests de caracterización vuelven a
+   quedar al revés de lo que hace el código: conviene revertir también esa parte o actualizarlos en el mismo commit.
+
+## Historial
+
+- **03/10/2026** — la auditoría registra DAT-01 (el borrado en cascada) en la Ola 3.
+- **04/10/2026** — el frente Red de seguridad agrega las ocho fichas de este cambio y las agrupa en el PR R-16, con un
+  criterio explícito: donde el arreglo sea de otra ola, acá va el test que **fija lo que hay hoy**.
+- **07/10/2026 (este cambio)** — las ocho cerradas. RED-05, RED-31, RED-35, RED-49, RED-70, RED-77 y RED-81 completas en
+  su parte de la Ola R; RED-50 caracterizada con `expectedFailure` hasta que la Ola 3 unifique la edad.
+- **07/10/2026 (ronda 2 de revisión)** — tres correcciones sobre RED-77 y su test. Había una **cuarta** copia de la
+  RN-2 (el `Count` del detalle de la convocatoria, que contaba como «con identidad» filas que el cruce ya no valida);
+  la regla con `\s` **seguía discrepando en MariaDB**, donde el lookup se compila como `REGEXP BINARY` con PCRE y `\s`
+  es ASCII, así que pasó a ser la clase literal de los 29 caracteres de `str.strip()`; y el test del cruce automático
+  era vacuo —el caso no llevaba `genero`, con lo que nunca llegaba a mirar la identidad y pasaba también con la regla
+  vieja—.
+
 
 ---
 

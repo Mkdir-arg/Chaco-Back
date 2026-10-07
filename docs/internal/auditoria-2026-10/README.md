@@ -1,5 +1,11 @@
 # Auditoría integral de DATAÑACH (Chaco) — octubre 2026
 
+## Estado al 07-oct-2026 (Ola R: R-16, la red de Becas)
+
+| PR | Cambio | Fichas | Estado | Qué quedó abierto |
+|---|---|---|---|---|
+| R-16 | 156 | RED-05 ✅ · RED-31 ✅ · RED-35 ✅ · RED-77 ✅ · RED-49 ✅ · RED-50 🟡 · RED-81 ✅ · RED-70 ✅ | ✅ | **Las 8 fichas, 22 h, sin migraciones.** Es el último prerrequisito de la **Ola 3**: lo que DAT-01, BEC-\* y SEC-20 van a tocar ahora tiene antes un test que se pone rojo. (1) **RED-05:** el adjunto se sigue por HTTP de punta a punta desde los **dos** canales —paso 1 + paso 2 del link público y el alta + `POST …/adjuntos/` de la app— hasta el bloque que renderiza `formulario_detalle`; cambiar el prefijo `pg-` en `_adjuntos_por_clave` deja los dos tests en rojo (antes, la foto del DNI desaparecía de la pantalla del revisor sin error ni log). (2) **RED-31:** los cuerpos de `requisito_eliminar` y `subsegmento_eliminar`, que no se ejecutaban ni una vez en 3.000 tests, quedan cubiertos con sus bordes de método y capacidad; el daño de **DAT-01** queda *caracterizado* con el mensaje de qué invertir. (3) **RED-35:** prueba **conductual** de la atomicidad (se hace fallar el paso siguiente al alta del legajo y nada queda escrito), con gemelo `@tag("mysql")` en `TransactionTestCase`, donde el rollback es de InnoDB y no un savepoint de SQLite. (4) **RED-77 (código):** `q_con_identidad()` unifica la RN-2 del padrón que estaba escrita **cuatro** veces (no dos) con dos semánticas distintas; se expone como `Q` para que el `Count` del detalle de la convocatoria use la misma regla, y el patrón es la **clase literal** de los 29 caracteres que saca `str.strip()` —ni `Trim`, ni `\s`, ni `[[:space:]]`: Django compila el lookup como `REGEXP BINARY` en MariaDB, donde esas dos clases son ASCII y un nombre de un solo NBSP quedaba dentro del queryset mientras la property decía que no—. (5) **RED-49:** las tres acepciones de `cupo_disponible` quedan fijadas con sus tres números distintos, más la aserción de que **siguen difiriendo** (PERF-02 tiene que renombrar, no unificar). (6) **RED-81 (código):** `procesar_vencimientos` con el registro vacío pasa de salir con éxito a `CommandError`, y lee el registro por el módulo —`registrar()` rebindea la lista global—. (7) **RED-70:** M49 muerta: borrar `ILLEGAL_CHARACTERS_RE.sub` deja los cinco tests nuevos en rojo, tres con el `IllegalCharacterError` que es el 500 de la descarga. **Abierto:** **RED-50 queda 🟡** —el `expectedFailure` describe el bug de la edad en UTC y el arreglo (una sola `edad_en_anios` con `timezone.localdate()` + `DTZ011`) es de la **Ola 3**, con H-13 definiendo su severidad—; DAT-01 y el tercer test de RED-05 también son de la Ola 3; el renombre de RED-49 es de la Ola 4; y `exportacion_reportes.py` sigue con terminadores CR (**RED-82**, PR R-21), que conviene cerrar antes de la revisión de SEC-20 |
+
 ## Estado al 06-oct-2026 (Ola R: R-15, operación y deploy)
 
 | PR | Cambio | Fichas | Estado | Qué quedó abierto |
@@ -18,11 +24,46 @@
 |---|---|---|---|---|
 | Ola 5 PR 4 (#603) | 155 | FE-06 ✅ · FE-07 ✅ · FE-01 ✅ · FE-10 ✅ | ✅ | **Las 4 fichas cerradas, sin migración: 14 h.** Los controles que el navegador no dibujaba vuelven a verse: ninguna pantalla en alcance nombra una clase que el build no genera (CLASSDEF P1 en 0 para las 31 de la ficha), el backdrop del sidebar oscurece de verdad (`bg-black/50`) y los «Cancelar» y «Volver» son botones del sistema con su tamaño. Los **diez** modales de Configuración clonan la golden del arquetipo Modal —overlay por clase, `x-becas-modal`, `_modal_header`/`_modal_footer`— y se abren centrados con **0,00 px** de desvío medido. `static/custom/js/mobile-enhancements.js` **se borró**: reescribía estilos en línea sobre cada control de cada página, también en escritorio, y abría el sidebar con cualquier swipe horizontal; el área táctil de 44 px pasó a `nodo-buttons.css` y al `<style>` del sidebar, detrás de `@media (pointer: coarse)` (D-F01 = No: sin swipe). La grilla de la prestación mensual scrollea (`overflow-auto` + `min-w-[720px]`) y a 390 px sus `<th>` pasan de 50 a 101 px. **Playwright a 1440 y 390 px: 11 de 11 mediciones OK.** **Cuatro desvíos, los cuatro code-first:** (a) **un bug que ninguna ficha vio** —el criterio de FE-01 seguía fallando con el script ya borrado porque `nodo-buttons.css` se carga después de Tailwind y `.btn-nodo` le ganaba a `.hidden` por orden: el «Cancelar» de un `ModernModal` de aviso se veía igual—; (b) la confirmación de borrado de Configuración deja SweetAlert2 y pasa a `data-confirm-url` → `ModernModal`, porque el arquetipo Modal prohíbe un `Swal.fire` nuevo y el inventario no habilita SweetAlert2 en ese módulo; (c) el indicador de WebSocket quedó en `bg-disabled` y no en `badge badge-gray` (es un punto de 12 px, no una píldora); (d) `divide-y divide-light` en vez de `divide-y [&>*]:border-light`, que evita un arbitrario nuevo. **Pendiente del juez:** los tres parches de `.claude/` (fila «CSS responsive/mobile global» del núcleo, bloque nuevo de `design/shells.md` y retoque de `design/componentes/botones_badges.md`) van en el cuerpo del PR porque la sesión no tiene permiso de escritura ahí; hasta aplicarlos, «Design Agent Contract» queda rojo —la fila cita el script que este PR borra— |
 
+## Estado al 06-oct-2026 (Ola 1, PR 5: la cadena de llamadas externas entra en los 60 s)
+
+**SIIS-09 (= PERF-09) cerrada, más los tres MINOR que dejó la revisión del PR 4.** El PR 5 de la Ola 1
+(Cambio 154) son 4 h, **sin migraciones**. Con esto la Ola 1 va por 46 h cerradas de 78.
+
+| Ficha | Qué quedó |
+|---|---|
+| **SIIS-09 / PERF-09** ✅ | «Aprobar» encadena token → compatibilidad → alta → correo, y las tres llamadas a SIIS compartían `(10, 30)`: la cadena podía pasar los 120 s contra los 60 de nginx, y el 504 llega con el alta posiblemente hecha del otro lado. Ahora hay **un timeout por tipo de llamada** (D-S09: conexión 5 s, consultas 10 s, alta 20 s, `EMAIL_TIMEOUT` 5) y, sobre todo, un **presupuesto declarado y verificado**: `core/integraciones.py::CADENAS` dice qué encadena cada request y `check --deploy` falla con `core.E003` si alguna pasa los 55 s. «Aprobar un caso» queda **justo en 55**: la próxima llamada que alguien encadene ahí deja el check en rojo. Cortacircuito de 3 fallas de red / 60 s sobre Base de Personas (el tope de `identificar` del punto 4) y sobre la compatibilidad de SIIS; **no** sobre el alta. `requests.Session` por módulo con `pool_maxsize=10` |
+| **MINOR 1** ✅ | La guarda de SIIS-06 contaba los `DESCONOCIDO` **nuevos**: diez programas vinculados y tres catálogos parciales seguidos (4 → 5 → 1) los dejaban **a los diez bloqueados** sin que saltara nunca. Pasa a contar el estado **resultante**, que es lo que la ficha pide confirmar. Contradice una línea escrita en el Cambio 151 y está dicho en los dos lados |
+| **MINOR 2** ✅ | `--forzar` exige `--motivo` y acepta `--usuario`, como `--ignorar-corrida` desde el PR 3, y deja rastro en el log —solo cuando el forzado hizo falta de verdad—. El CronJob de `cronjobs.yaml` corre sin el flag y **no cambia**: hay un test que lo fija |
+| **MINOR 3** ✅ | Lo que SIIS contesta fuera de contrato deja de perderse: va a `respuesta["_crudo"]`, recortado a 500 caracteres. El único lector estructurado (`_detalle_validacion_siis`) sigue mostrando lo mismo, con test. No se loguea |
+
+**Un desvío de la ficha:** el token de SIIS lleva su propio `SIIS_API_TIMEOUT_TOKEN` de 5 s, que D-S09 no
+nombra. Con los `(5, 10)` de «consulta» la cadena de «Aprobar» daba 60 s y no entraba en el presupuesto.
+
+**Ronda 2 de la revisión (07-oct):** el cambio a `requests.Session` había movido el punto de parcheo de los
+tests y uno de seguridad del portal se quedó parcheando `requests.get`: mock en **cero llamadas** y salida a la
+red real, con la regresión del DNI en el log pasando por accidente. Se arregló el parche y la PoC, y la suite
+entera pasa a correr **con la red cortada** (`core/tests/runner.py` por `TEST_RUNNER`, sustituyendo
+`HTTPAdapter.send` por asignación y no con `patch().start()`, que trece tests apagaban con `patch.stopall`).
+Además: el **reCAPTCHA** entra en la cadena del paso 1 del link —era su llamada más lenta y no estaba
+declarada; su timeout pasa de escalar congelado a par `(5, 10)` leído en cada llamada—, se declaran tres
+cadenas que faltaban, la `Session` de módulo deja de guardar cookies (las habría reenviado entre personas
+distintas del mismo proceso) y una configuración incompleta de SIIS deja de contar como falla del
+cortacircuito.
+
+**Pendiente operativo (PM):** **las variables del entorno de ECOM mandan sobre los defaults.** Si en testing o
+PRD siguen `SIIS_API_TIMEOUT=30`, `PERSONAS_API_TIMEOUT=20`, `RENAPER_TIMEOUT=20` o `EMAIL_TIMEOUT=10`, el
+presupuesto no se cumple: hay que bajarlas o sacarlas del entorno. `SIIS_API_TIMEOUT_TOKEN`,
+`SIIS_API_TIMEOUT_CONSULTA` y `RECAPTCHA_CONNECT_TIMEOUT` son nuevas y no hace falta agregarlas (sin setear
+valen 5, 10 y 5).
+
+---
+
 ## Estado al 06-oct-2026 (Ola 5, PR 3: parches v1 de Configuración)
 
 | PR | Cambio | Fichas | Estado | Qué quedó abierto |
 |---|---|---|---|---|
 | Ola 5 PR 3 | 152 | FE-04 ✅ · FE-05 ✅ · FE-08 ✅ | ✅ | **Las 3 fichas cerradas, sin migración: 6 h.** Las tres pantallas de Geografía dibujan su pie de paginación —la fila 21 dejó de ser inalcanzable— y los seis `form_invalid` devuelven la lista paginada con el **mismo** queryset del listado (el de provincias salía por `id` y el reintento por `nombre`). El `<script>` del paso 1 del wizard vuelve a llegar al navegador (`extra_js` → `customJS`) y la cascada Secretaría → Subsecretaría funciona, con aviso por `window.toast` si la API falla. Los errores no de campo salen de una **pieza canónica nueva** (`templates/components/_form_errores.html`, con contrato, test, ficha y fila de inventario) que usan los diez modales de Geografía y Secretarías, los cuatro pasos del wizard, dos formularios de Legajos y Dispositivos y la **golden del arquetipo Formulario**. FE-05 además queda convertida en gate: `compile_templates.py --bloques`, en «Contratos del repo», falla con cualquier bloque que ningún ancestro declare (allowlist de 6, cada una con su ficha dueña). **Tres desvíos, los tres code-first:** (a) el `form_invalid` de edición devuelve la **página que contiene la fila**, no la 1 —paginarlo a secas, como salía de la ficha, escondía el error de la fila 21—; (b) `legajos/ciudadano_{edit,manual,confirmar}_form.html` **no** se tocaron: vuelcan `form.errors.items`, que incluye `__all__`, así que el error ya se ve y la pieza lo duplicaría (su migración es FE-11/FE-12); (c) se arregló de paso un bug del propio `design_audit --ratchet`, que leía la base en cp1252 y daba por nueva toda la deuda vieja de cualquier template con tildes (34 hallazgos falsos; en el CI, UTF-8, no se veía). **Pendiente del juez:** las tres fichas de `.claude/` (la nueva `componentes/form_errores.md`, los retoques de `arquetipos/formulario.md` y la fila de inventario) van en el cuerpo del PR porque la sesión no tiene permiso de escritura ahí; hasta aplicarlas, «Design Agent Contract» queda rojo |
+
 
 ## Estado al 06-oct-2026 (Ola 5, PR 2: parches v1 de Legajos)
 
@@ -1127,7 +1168,7 @@ funcional ni coordinación con ECOM). Las horas de cada ola suman los esfuerzos 
 |---|---|---:|---:|---:|---:|---:|---:|
 | 0 | Hotfix de seguridad y seeds | 16 | 36 | 0 (completa en código; lo operativo, en «Estado») | 0 | 0 | 0 |
 | **R** | **Red de seguridad: poder cambiar código sin romper nada sin enterarse** | — | — | — | — | **86** (79 RED con parte en R —78 del relevamiento + RED-89— + OPS-01, OPS-03, OPS-04, TST-01, TST-02, TST-03, R0-03; SEC-10, SEC-11 y SEC-18 se ejecutan en R-19 pero **siguen contadas como ítems de la Ola 2**, solo se mueven sus horas) | **285** · **107 cerradas el 04-oct (R-01..R-10 y R-19) → 178 restantes** |
-| 1 | Integridad SIIS | 23 | 72 | 22 (− SIIS-07) | 70 | 23 (+ RED-53; + parte de RED-32) | 78 · **32 cerradas (26 el 05-oct, PR 2; 6 el 06-oct, PR 3) → 46 restantes** |
+| 1 | Integridad SIIS | 23 | 72 | 22 (− SIIS-07) | 70 | 23 (+ RED-53; + parte de RED-32) | 78 · **46 cerradas (26 el 05-oct, PR 2; 6 el 06-oct, PR 3; 10 el 06-oct, PR 4; 4 el 06-oct, PR 5) → 32 restantes** |
 | 2 | Autorización (RBAC, legajos, alcance de Becas, usuarios) | 36 | 116 | 50 (+ fase 2 de OPS-06, R0-05, resto de SEC-01, etapa 2 de SEC-09, R0b-01..10) | 136 | 51 (+ RED-80; + partes de RED-52, RED-79) | 135 (−7: SEC-10, SEC-18 y media SEC-11 se hacen en R-19, D-RED-14) |
 | 3 | Datos, operación, CI, app de campo y reglas de Becas | 55 | 158 | 59 (+ R0-03, R0-04, R0-06, R0-07) | 166 | 54 (− 7 a la Ola R; + RED-48, RED-58; + partes de RED-09, 35, 40, 50) | 152 |
 | 4 | Performance | 19 | 52 | 19 | 52 | 20 (+ RED-62; + partes de RED-10, 49, 51, 83) | 64 |
@@ -1244,13 +1285,19 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
 - **✅ R-13 cerrado el 06-oct-2026 (Cambio 139), 14 h.** El job `Migrate ida y vuelta` corre las migraciones del PR
   contra `mariadb:10.11` (sin tablas de zona horaria) y `mysql:8.0` sobre datos sembrados, las desaplica y las vuelve a
   aplicar; y tapa los dos agujeros del gate estático. Desbloquea la **Ola 3** (G1-04, G1-05, DAT-01).
+- **✅ R-16 cerrado el 07-oct-2026 (Cambio 156), 22 h.** La red de Becas antes de la Ola 3: el adjunto seguido de
+  punta a punta por los dos canales (RED-05), los dos borrados de Configuración que no se ejecutaban (RED-31, con
+  DAT-01 caracterizada), la atomicidad probada por conducta (RED-35), la RN-2 del padrón escrita una sola vez (RED-77,
+  **código**), las tres acepciones de `cupo_disponible` fijadas (RED-49), la edad en UTC descrita con `expectedFailure`
+  (RED-50 🟡, el arreglo es de la Ola 3), el registro de vencimientos que ya no queda vacío en silencio (RED-81,
+  **código**) y la mutación M49 de `celda_segura` muerta (RED-70). **Desbloquea la Ola 3** (DAT-01, BEC-\*) y SEC-20.
 - **✅ R-15 cerrado el 06-oct-2026 (Cambio 153), 18 h.** Operación y deploy: el traceback de cada 500 llega a stdout
   (OPS-03) y los context processors dejan rastro (RED-55); `/health/ready/` distingue «vivo» de «sirve» (OPS-04) y
   `deploy_prod.sh` lo usa, verifica después del deploy y no vuelve el código a ciegas si hubo migraciones (RED-59);
   `verificar_esquema_migraciones` frena el arranque antes del `1050 Table already exists` (OPS-01); y cada release deja
   un tag al que volver (RED-16, 🟡: el tag de **imagen** es de ECOM). Habilita **el próximo deploy en icore**.
-- **Quedan 98 h:** R-16 a R-18, R-20 y R-21. El orden sigue siendo el de dependencias: **R-16 antes de la Ola 3**,
-  R-21 antes de la Ola 2.
+- **Quedan 76 h:** R-17, R-18, R-20 y R-21. **R-16 ya está cerrado (Cambio 156), así que la Ola 3 queda
+  desbloqueada**; de lo que falta, R-21 va antes de la Ola 2 y el resto puede ir en cualquier orden.
 - **Objetivo:** poder cambiar código sin romper nada sin enterarse. Que todo lo que las Olas 1 a 7 van a tocar tenga antes
   un test que se ponga rojo si se rompe, que el CI pruebe el motor de producción (MariaDB) y las migraciones en las dos
   direcciones, que ningún gate dependa de la buena voluntad (protección de rama, release que exige CI verde, verificación
@@ -1277,7 +1324,7 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
 | ✅ R-13 | **Job `migration-roundtrip`** (Anexo B): RED-17, RED-19 (un solo migrador, expand/contract) — **#596, Cambio 139**; cierra además los dos agujeros que el Cambio 135 le dejó anotados (el `AlterField` que vuelve obligatoria una columna y la edición de una migración ya aplicada). **No es obligatorio todavía**, igual que `Motor real` | 14 | Ola 3 (G1-04, G1-05, DAT-01) |
 | ✅ R-14 | **Gates del release:** RED-24 (`Contratos del repo`), RED-21 (`publish-main` exige CI verde), RED-65, RED-23 (`release-gate.yml` + `/pushGitLabecom` en dos), RED-22 (propuesta a ECOM) — **#575, Cambio 128** (RED-22 y RED-23 🟡: falta el envío a ECOM y copiar los dos comandos a `.claude/`) | 22 | el próximo espejo a ECOM |
 | ✅ R-15 | **Operación y deploy** (desde la Ola 3): OPS-03, OPS-04, OPS-01 (ampliados), RED-59 (`deploy_prod.sh`), RED-16 (tag de release), RED-55 — **Cambio 153** (RED-16 🟡: el tag de imagen lo tiene que aplicar ECOM, D-RED-02) | 18 | el próximo deploy en icore |
-| R-16 | **Becas: adjuntos, borrados, atomicidad, padrón:** RED-05, RED-31, RED-35, RED-77, RED-49, RED-50, RED-81, RED-70 | 22 | Ola 3 (DAT-01, BEC-*), SEC-20 |
+| ✅ R-16 | **Becas: adjuntos, borrados, atomicidad, padrón:** RED-05, RED-31, RED-35, RED-77, RED-49, RED-50, RED-81, RED-70 — **Cambio 156** (RED-50 🟡: el arreglo de la edad es de la Ola 3) | 22 | Ola 3 (DAT-01, BEC-*), SEC-20 |
 | R-17 | **Definición y condiciones (dos repos):** RED-12, RED-38 | 16 | cualquier cambio del constructor |
 | R-18 | **Contratos del backoffice y job `Contratos de API`:** RED-42, RED-39, RED-40, RED-41 (D-RED-04), RED-43, RED-44 | 18 | Ola 2 (capacidades), Ola 5 |
 | ✅ R-19 | **Legajos y Roles por HTTP:** **RED-89** (CRÍTICA: barrido con usuario sin rol + `ALLOWLIST_SIN_ROL` medida + ratchet, 4 h) y, adelantadas de la Ola 2 por **D-RED-14**, **SEC-10 completa** (CRÍTICA, 4 h: el hard delete de adjuntos), **SEC-18 completa** (+ R0b-06, 2 h: alertas y el `self.get_object()` que mata el 500) y **SEC-11 con `ciudadano.ver` de piso en sus 5 rutas** (1 h: así salen los 17 `expectedFailure` y ninguna queda abierta; la Ola 2 sube 3 a `ciudadano.sensible` con D-11); más RED-06 (humo de 37 rutas + alertas) y RED-04 (escrituras del ABM de roles) — **#556, Cambio 126** | 21 | Ola 2 |
@@ -1292,7 +1339,9 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
   y **R-12** (Cambio 135, 18 h: el contrato de migraciones, que habilita R-13 y protege toda migración nueva) y
   **R-13** (Cambio 139, 14 h: la ida y vuelta contra el motor real, que desbloquea la Ola 3).
   **R-15** (Cambio 153, 18 h: operación y deploy, que habilita el próximo deploy en icore).
-  **Quedan 98 h de la Ola R:** R-16 antes de la Ola 3; R-21 antes de la Ola 2. El resto puede ir en
+  **R-16** (Cambio 156, 22 h: la red de Becas —adjuntos, borrados, atomicidad, padrón, cupo, edad, vencimientos y
+  exportaciones—, que desbloquea la Ola 3).
+  **Quedan 76 h de la Ola R:** R-21 antes de la Ola 2. El resto puede ir en
   paralelo con otro implementador.
 - **Hecho cuando (verificable):**
   1. `gh api repos/Mkdir-arg/Chaco-Back/rulesets` lista los rulesets de `development` y `main`; un push directo a
@@ -1319,7 +1368,12 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
   que PRD define la variable y pedir `DATANACH_ES_PRODUCCION=1`; sin la variable el check de PRD nunca dispara, y sin
   `SIIS_API_URL` lo que queda rojo es `check --deploy` en el CI, no el deploy); logging a stdout
   (OPS-03: avisar a ECOM del volumen); `/health/ready/` (OPS-04); `verificar_esquema_migraciones` en el entrypoint (OPS-01,
-  con `SKIP_SCHEMA_GUARD`); `logger.exception` en los context processors; LF en `exportacion_reportes.py`; las reversas de
+  con `SKIP_SCHEMA_GUARD`); `logger.exception` en los context processors; `q_con_identidad()` y sus cuatro llamadores
+  (RED-77: una fila del padrón con nombre o apellido **solo con espacios** —incluidos los Unicode, que es donde
+  MariaDB discrepaba— deja de validar en el cruce automático y deja de contarse en el «N con identidad» del detalle de
+  la convocatoria, que es lo que ya hacía el botón manual); `procesar_vencimientos` con el registro vacío pasa a **fallar** en vez de salir
+  con éxito (RED-81: corre en el bootstrap opcional bajo `set -eu`, así que si alguna vez se diera, el contenedor no
+  arranca — es lo buscado, y que los opcionales no sean fatales es OPS-07); LF en `exportacion_reportes.py`; las reversas de
   `0047`, `0048` y `legajos.0007` (solo el camino de vuelta); `DATOS_SIIS_DIR` para `correr_alta_siis` (requiere montar el
   directorio en icore y en ECOM antes de la próxima corrida); el guard de gevent en el entrypoint. Sin migraciones de
   esquema. Operativos: la purga del historial reescribe `main` y el espejo de ECOM (coordinar antes); los rulesets cambian
@@ -1351,7 +1405,13 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
      propósito dos tests: la caracterización de R-06 (`test_catalogo_vacio_marca_todo_desconocido`,
      puesta «para que la Ola 1 lo decida») y la primera mitad de la del Cambio 98 sobre el apoderado.
      10 h.
-  5. SIIS-09 (+PERF-09) **después** del PR 2. 4 h.
+  5. ✅ **Hecho el 06-oct-2026 (Cambio 154):** SIIS-09 (+PERF-09), más los tres MINOR que dejó la revisión del
+     PR 4. Un timeout por tipo de llamada (D-S09) y el presupuesto de red por request **verificado en
+     `check --deploy`** (`core/integraciones.py` + `core.E003`): «Aprobar un caso» queda justo en 55 s de los 60
+     de nginx. Cortacircuito de 3 fallas / 60 s sobre Base de Personas y sobre la compatibilidad de SIIS —no
+     sobre el alta—, y `requests.Session` por módulo. Los MINOR: la guarda de SIIS-06 cuenta el estado
+     **resultante** (el goteo de catálogos parciales la salteaba), `--forzar` exige `--motivo` y deja rastro, y
+     lo que SIIS contesta fuera de contrato se guarda en `respuesta["_crudo"]`. **Sin migraciones.** 4 h.
   6. SIIS-08 + G1-08 + G1-09 + G1-10 (qué viaja a SIIS). 20 h.
   7. SIIS-19, SIIS-17, G3-06 (herramientas y correcciones manuales). 6 h.
   8. *Red de seguridad (04-oct):* ✅ RED-53 (`ComandoSiisBase`) entró con el **PR 2** (Cambio 127): un candado que se
@@ -1425,8 +1485,12 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
      re-entrante, con OPS-05) y segundas partes de RED-09 (`q_uuid_en_texto` a `core/db.py`, con el PR 7), RED-35
      (atomicidad del resto de las escrituras), RED-40 (`validators` en los `JSONField`, con G1-05) y RED-50 (una sola
      `edad_en_anios` con `timezone.localdate()` + regla `DTZ011`). 18 h.
-  **Prerrequisito:** PRs R-11 a R-16 de la Ola R (motor real en CI, contrato de migraciones, job de ida y vuelta, gates del
-  release, operación, y los tests de Becas que DAT-01 y las reglas van a invertir).
+  **Prerrequisito: ✅ cumplido el 07-oct-2026.** PRs R-11 a R-16 de la Ola R (motor real en CI, contrato de migraciones,
+  job de ida y vuelta, gates del release, operación, y los tests de Becas que DAT-01 y las reglas van a invertir). Los
+  dos tests que esta ola tiene que **invertir** están nombrados en sus fichas:
+  `test_becas_config.EliminarRequisitoYSubsegmentoTests.test_requisito_con_adjunto_en_un_caso` (DAT-01) y
+  `test_becas_reglas.EdadHorarioTests.test_el_corte_es_la_fecha_local_no_la_del_sistema` (RED-50, sacarle el
+  `expectedFailure`).
 - **Hecho cuando:** V-STD (+ V-UI donde aplique); PoC invertidas de `poc/test_repro_datos_operacion.py` (DAT-01; OPS-03 y
   OPS-04 se invierten en la Ola R), `test_repro_admin_cron_renaper.py` (G1c-08, RENAPER 401/503) y `test_repro_dashboard_campos_propios.py`
   (G2-01); el job de CI con `mariadb:<versión de P-11>` corre `migrate` y `test --tag mysql` en verde; `seed_datos_base`
@@ -1926,7 +1990,7 @@ Estado: CONF. test / CONF. lectura / PLAUSIBLE / REFUTADO / absorbido (= su cont
 | BEC-12 | PERF-04 | mismo cruce de padrón |
 | BEC-13 | LEG-02 | mismo `unique_together`; su vista no tiene ruta (LEG-06) |
 | PERF-05 | DIS-01 | mismo `__date` |
-| PERF-09 | SIIS-09 | misma cadena de llamadas externas |
+| PERF-09 | SIIS-09 | misma cadena de llamadas externas — ✅ cerrada con SIIS-09 en #PENDIENTE (Cambio 154), 06-oct |
 | PERF-14 | — | REFUTADO (A4-15) |
 | LEG-07 | SEC-18 | lo cierra V1 |
 | LEG-08 | SEC-19 | lo cierra V1 |

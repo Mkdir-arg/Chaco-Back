@@ -6,7 +6,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group, Permission
 from django.contrib.contenttypes.models import ContentType
 from django.core.cache import cache
-from django.test import TestCase
+from django.test import SimpleTestCase, TestCase
 from django.urls import reverse
 from django.utils import timezone
 from openpyxl import load_workbook
@@ -23,12 +23,86 @@ from programas.models import (
     Programa,
     TipoDispositivo,
 )
+from programas.services.exportacion_reportes import celda_segura, respuesta_libro, respuesta_reporte
+from programas.services.reportes import Reporte
 from users.models import Capacidad, RolMeta
 
 
 def permiso(codigo):
     content_type = ContentType.objects.get_for_model(Capacidad)
     return Permission.objects.get(codename=rbac.codename_de(codigo), content_type=content_type)
+
+
+class CeldaSeguraTests(SimpleTestCase):
+    """RED-70: `celda_segura` limpia caracteres de control **antes** de prefijar.
+
+    La línea `ILLEGAL_CHARACTERS_RE.sub("", valor)` parece redundante al lado
+    del prefijo anti-fórmula y sobrevivió a la prueba de mutación (M49): ningún
+    test la ejercía. Hace dos cosas, y las dos importan:
+
+    1. **Sin la limpieza, `libro.save()` lanza `IllegalCharacterError`** y la
+       descarga entera da 500 por una sola fila entre miles —un texto pegado
+       desde Word o un PDF alcanza—.
+    2. **El orden no es intercambiable:** limpiar después de prefijar deja que
+       un `\\x0b` adelante del `=` esconda la fórmula del chequeo, que es un
+       bypass real de la inyección CSV/XLSX que SEC-20 va a extender a cinco
+       exports más.
+    """
+
+    #: Un verticaltab y un bell en el medio de un nombre, como los deja un copy&paste.
+    CON_CONTROLES = "Mart\x0bin\x07"
+    REPORTE = Reporte(encabezados=("Nombre",), filas=((CON_CONTROLES,),))
+
+    def _primera_celda(self, respuesta, hoja=0):
+        libro = load_workbook(BytesIO(respuesta.content))
+        return libro[libro.sheetnames[hoja]].cell(row=1, column=1).value
+
+    def test_celda_segura_limpia_y_prefija_a_la_vez(self):
+        self.assertEqual(celda_segura(self.CON_CONTROLES), "Martin")
+        self.assertEqual(
+            celda_segura("\x0b=1+1"),
+            "'=1+1",
+            "Se invirtió el orden: el carácter de control impide detectar la fórmula (bypass de SEC-20).",
+        )
+        # Los cuatro arranques de fórmula se siguen prefijando sin controles de por medio.
+        for inicio in ("=", "+", "-", "@"):
+            with self.subTest(inicio=inicio):
+                self.assertEqual(celda_segura(f"{inicio}cmd"), f"'{inicio}cmd")
+
+    def test_un_caracter_de_control_no_rompe_el_xlsx(self):
+        respuesta = respuesta_reporte(self.REPORTE, "xlsx", "reporte")
+
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertEqual(self._primera_celda(respuesta), "Nombre")
+        libro = load_workbook(BytesIO(respuesta.content))
+        self.assertEqual(libro["Reporte"].cell(row=2, column=1).value, "Martin")
+
+    def test_un_caracter_de_control_no_rompe_el_libro_de_varias_hojas(self):
+        respuesta = respuesta_libro([("Personas", self.REPORTE)], "libro")
+
+        self.assertEqual(respuesta.status_code, 200)
+        libro = load_workbook(BytesIO(respuesta.content))
+        self.assertEqual(libro["Personas"].cell(row=2, column=1).value, "Martin")
+
+    def test_el_alcance_del_libro_tambien_pasa_por_celda_segura(self):
+        """El alcance sale de los filtros que eligió quien descarga: es texto de
+        usuario y también se limpia. La fórmula no necesita prefijo acá porque
+        la celda arranca con el literal «Alcance: », no con el `=`."""
+        respuesta = respuesta_libro(
+            [("Personas", self.REPORTE)],
+            "libro",
+            alcance="Conv\x0b2026 =cmd|'/C calc'!A0",
+        )
+
+        libro = load_workbook(BytesIO(respuesta.content))
+        self.assertEqual(libro["Personas"].cell(row=1, column=1).value, "Alcance: Conv2026 =cmd|'/C calc'!A0")
+
+    def test_el_csv_tambien_sale_limpio(self):
+        respuesta = respuesta_reporte(self.REPORTE, "csv", "reporte")
+
+        self.assertEqual(respuesta.status_code, 200)
+        filas = list(csv.reader(respuesta.content.decode("utf-8-sig").splitlines()))
+        self.assertEqual(filas[1], ["Martin"])
 
 
 class ReportesExportablesTests(TestCase):

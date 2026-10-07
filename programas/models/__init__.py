@@ -2034,6 +2034,52 @@ class Relevamiento(PausableMixin, TimeStamped):
         )
 
 
+#: Los 29 caracteres que ``str.strip()`` saca, escritos a mano para poder
+#: mandárselos al motor. **No se usa ``\s`` ni ``[[:space:]]``**: MariaDB compila
+#: el lookup ``regex`` como ``REGEXP BINARY`` con PCRE, donde las dos clases son
+#: **ASCII**, así que un nombre de un solo NBSP (``\xa0``) o de un espacio ideográfico
+#: quedaba *dentro* de :meth:`PadronHabilitadoQuerySet.con_identidad` mientras
+#: ``tiene_identidad`` decía ``False`` —medido contra ``mariadb:10.11``—. Con la clase
+#: literal los tres motores (PCRE en MariaDB, ICU en MySQL 8, ``re`` en SQLite)
+#: contestan lo mismo que ``strip()``, y sin falsos positivos: lo fija
+#: ``IdentidadDelPadronMotorRealTests``, y que la lista no se desfase de ``str.isspace()``
+#: lo fija ``test_la_clase_cubre_exactamente_lo_que_saca_strip``.
+#: Ninguno de los 29 es especial dentro de una clase de regex (``]``, ``^``, ``-``, ``\``).
+CARACTERES_SIN_TEXTO = (
+    "\t\n\v\f\r\x1c\x1d\x1e\x1f\x20"  # tab, LF, VT, FF, CR, los cuatro separadores ASCII y el espacio
+    "\x85\xa0\u1680"  # NEL, NBSP, OGHAM SPACE MARK
+    "\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a"  # EN QUAD … HAIR SPACE
+    "\u2028\u2029\u202f\u205f\u3000"  # separadores de línea y párrafo, NNBSP, MMSP, IDEOGRAPHIC SPACE
+)
+
+#: Nombre o apellido que no aportan identidad: vacío o solo espacios. RED-77: la
+#: RN-2 del Cambio 57 estaba escrita **cuatro** veces —la property ``tiene_identidad``,
+#: con ``strip()``, y un ``.exclude(nombre="").exclude(apellido="")`` repetido en los
+#: dos cruces masivos, en el diagnóstico y en el contador de la convocatoria, sin
+#: ``strip()``—, y no coincidían: una fila con ``nombre="  "`` (cargada por admin,
+#: fixture o migración) la validaba el cruce automático y la rechazaba el botón manual
+#: de la revisión.
+SIN_TEXTO_REGEX = f"^[{CARACTERES_SIN_TEXTO}]*$"
+
+
+def q_con_identidad():
+    """El ``Q`` de la RN-2, para reusar la **misma** regla en un ``filter``, en un
+    ``Count(filter=…)`` o en cualquier otra expresión (RED-77).
+
+    Es el equivalente de :attr:`PadronHabilitado.tiene_identidad` para la base:
+    los dos tienen que decir lo mismo fila por fila.
+    """
+    return ~models.Q(nombre__regex=SIN_TEXTO_REGEX) & ~models.Q(apellido__regex=SIN_TEXTO_REGEX)
+
+
+class PadronHabilitadoQuerySet(models.QuerySet):
+    def con_identidad(self):
+        """Las filas que cumplen RN-2: nombre **y** apellido con algo más que
+        espacios. Es la misma regla que :attr:`PadronHabilitado.tiene_identidad`
+        —y el único lugar donde se escribe para un queryset (RED-77)."""
+        return self.filter(q_con_identidad())
+
+
 class PadronHabilitado(TimeStamped):
     """Entrada del padrón de habilitados de una convocatoria (RN-P14, Cambio 57).
 
@@ -2085,6 +2131,8 @@ class PadronHabilitado(TimeStamped):
     # Lo que decía el Excel, reconocida o no contra el catálogo.
     localidad_texto = models.CharField(max_length=120, blank=True, verbose_name="Localidad (texto del Excel)")
 
+    objects = PadronHabilitadoQuerySet.as_manager()
+
     class Meta:
         verbose_name = "Habilitado del padrón"
         verbose_name_plural = "Habilitados del padrón"
@@ -2104,7 +2152,12 @@ class PadronHabilitado(TimeStamped):
 
     @property
     def tiene_identidad(self):
-        """RN-2 del Cambio 57: valida solo con nombre **y** apellido."""
+        """RN-2 del Cambio 57: valida solo con nombre **y** apellido.
+
+        El equivalente para un queryset es
+        :meth:`PadronHabilitadoQuerySet.con_identidad`; los dos tienen que decir
+        lo mismo fila por fila (RED-77).
+        """
         return bool(self.nombre.strip() and self.apellido.strip())
 
 
@@ -3304,11 +3357,13 @@ class CorridaSiis(TimeStamped):
 
     # Sin señal por más de esto, se da por interrumpida. Cinco minutos no es un
     # número redondo: un solo caso son hasta tres llamadas a SIIS —token,
-    # compatibilidad y alta—, y cada una puede tardar
-    # ``SIIS_API_CONNECT_TIMEOUT + SIIS_API_TIMEOUT`` (10 + 30 s), o sea dos
-    # minutos justos. Con el umbral en dos minutos, **un** caso lento alcanzaba
-    # para que la corrida se declarara muerta a sí misma y la pantalla dejara
-    # lanzar otra con el hilo viejo todavía mandando altas (SIIS-03).
+    # compatibilidad y alta—, que desde SIIS-09 tienen un timeout cada una y en
+    # el peor caso suman los 55 s del presupuesto de red
+    # (``core.integraciones.CADENAS["becas · aprobar un caso"]``; antes de
+    # SIIS-09 eran 10 + 30 s cada una, o sea dos minutos justos). Con el umbral
+    # en dos minutos, **un** caso lento alcanzaba para que la corrida se
+    # declarara muerta a sí misma y la pantalla dejara lanzar otra con el hilo
+    # viejo todavía mandando altas (SIIS-03).
     LATIDO_VENCIDO = timedelta(minutes=5)
 
     programa = models.ForeignKey(ProgramaSiis, on_delete=models.CASCADE, related_name="corridas_siis")

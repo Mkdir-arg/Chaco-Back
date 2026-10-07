@@ -32,7 +32,7 @@ from programas.forms import (
     ReprogramarForm,
     VolverACampoForm,
 )
-from programas.models import Convocatoria, Formulario, ListaEspera, Relevamiento
+from programas.models import Convocatoria, Formulario, ListaEspera, Relevamiento, q_con_identidad
 from programas.services.autorizacion import (
     convocatorias_visibles,
     programa_becas,
@@ -298,7 +298,10 @@ class ConvocatoriaDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, Detail
         nivel_convocatoria = Q(relevamiento__isnull=True)
         conteo_padron = conv.padron.aggregate(
             total=Count("pk", filter=nivel_convocatoria),
-            con_identidad=Count("pk", filter=nivel_convocatoria & ~Q(nombre="") & ~Q(apellido="")),
+            # RED-77: la misma regla que el cruce automático y el botón manual.
+            # Escrita a mano, este contador decía «N con identidad» incluyendo
+            # filas con nombre o apellido de solo espacios, que no validan nada.
+            con_identidad=Count("pk", filter=nivel_convocatoria & q_con_identidad()),
             rels_propios=Count("relevamiento", distinct=True),
         )
         ctx["n_padron"] = conteo_padron["total"] or 0

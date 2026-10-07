@@ -129,8 +129,11 @@ class APIClient:
         self.login_url = self._build_login_url(self.api_base)
         self.consulta_url = self._build_consulta_url(self.api_base)
 
-        connect_timeout = _parse_positive_int(getattr(settings, "RENAPER_CONNECT_TIMEOUT", 10), 10)
-        read_timeout = _parse_positive_int(getattr(settings, "RENAPER_TIMEOUT", 20), 20)
+        # SIIS-09: los defaults siguen a los de ``settings`` —consulta (5, 10)—
+        # para que el presupuesto de red por request no dependa de cuál de los
+        # dos valores gane.
+        connect_timeout = _parse_positive_int(getattr(settings, "RENAPER_CONNECT_TIMEOUT", 5), 5)
+        read_timeout = _parse_positive_int(getattr(settings, "RENAPER_TIMEOUT", 10), 10)
         self.timeout = (connect_timeout, read_timeout)
 
         self.token = None

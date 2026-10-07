@@ -521,14 +521,17 @@ class LatidoTests(_BaseCorrerTest):
         self.assertNotIn(True, interrumpida_en_el_caso, "una corrida que está trabajando apareció como muerta")
 
     def test_el_latido_vencido_cubre_tres_llamadas_a_siis_con_margen(self):
-        """Dos minutos no alcanzaban: un caso son hasta tres llamadas de 40 s.
+        """Dos minutos no alcanzaban: un caso son hasta tres llamadas a SIIS.
 
         El umbral tiene que estar **por encima** del peor caso de un solo caso, o
         un caso lento alcanza para que la corrida se declare muerta a sí misma.
+        Desde SIIS-09 las tres llamadas tienen un timeout cada una y el peor caso
+        sale de la misma declaración que mide el presupuesto por request, así que
+        el número no se escribe acá ni se deriva del timeout del alta.
         """
-        from django.conf import settings
+        from core.integraciones import costo
 
-        techo = (settings.SIIS_API_CONNECT_TIMEOUT + settings.SIIS_API_TIMEOUT) * 3
+        techo = costo("siis.token") + costo("siis.consulta") + costo("siis.alta")
         self.assertGreater(CorridaSiis.LATIDO_VENCIDO.total_seconds(), techo)
 
 
