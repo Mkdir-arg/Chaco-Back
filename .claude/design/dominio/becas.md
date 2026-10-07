@@ -263,6 +263,8 @@ con solo `ciudadano.crear`, pero sin el input), feed de conversaciones sin asign
 `conversacion.operar`, tarjeta de tendencias con `dashboard.ver` —si falta el canvas, el JS no
 llama a `dashboard:api_tendencias`—. El typeahead pega a `dashboard:api_buscar_ciudadanos`. Un panel no se deja pedir y fallar en consola, ni se muestra vacío como si no
 hubiera trabajo pendiente: la bajada del encabezado solo dice «Todo al día» a quien tiene alguna
-de las dos capacidades de los contadores; sin ellas, saludo neutro. Sus cuatro stat cards siguen
-armadas a mano —`_stat_card.html` no tiene pie de tarjeta ni delta—, y migrarlas necesita OK:
-es la misma novedad que frena los KPIs del dashboard de Becas.
+de las dos capacidades de los contadores; sin ellas, saludo neutro. Sus cuatro stat cards son
+conteos globales, sin gate de capacidad, y cada una cuenta lo que dice su rótulo: «Legajos
+activos» agrega `LegajoAtencion` con la regla de `legajos.selectors.legajos`, la misma que usa
+`/legajos/reportes/`. Siguen armadas a mano —`_stat_card.html` no tiene pie de tarjeta—, y
+migrarlas necesita OK: es la misma novedad que frena los KPIs del dashboard de Becas.
