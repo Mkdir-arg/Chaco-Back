@@ -26,13 +26,21 @@ import re
 import unicodedata
 from dataclasses import dataclass, field
 from datetime import date, datetime
-from decimal import Decimal
 from io import BytesIO
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
 
+# RED-48: la regla de DNI vive en `core/dni.py` —`legajos` y `portal` también la
+# necesitan y no pueden importar `programas` sin cerrar un ciclo—. Se reexporta acá
+# porque este módulo es su casa histórica y medio repo la importa de este nombre.
+from core.dni import (  # noqa: F401
+    LARGOS_DNI_VALIDOS,
+    MENSAJE_DNI_INVALIDO,
+    dni_valido,
+    normalizar_dni,
+)
 from programas.models import Convocatoria, Formulario, PadronHabilitado
 
 # Tamaño máximo del Excel (los padrones reales son de cientos de filas).
@@ -55,23 +63,6 @@ _SEXOS = {
 _ENCABEZADOS_DNI = {"DOCUMENTO", "DNI", "NRO DOCUMENTO", "NUMERO DE DOCUMENTO", "NÚMERO DE DOCUMENTO"}
 
 _FORMATOS_FECHA = ("%d/%m/%Y", "%Y-%m-%d", "%d-%m-%Y", "%d/%m/%y", "%Y/%m/%d")
-
-
-def normalizar_dni(valor):
-    # openpyxl entrega floats (30123456.0) en Excels exportados desde CSV,
-    # pandas o LibreOffice, y el driver de MySQL entrega Decimal cuando la
-    # columna es DECIMAL (es el caso de ``ciudadanos_renaper``, que crea un
-    # script externo); sin este cast el DNI queda con un 0 de más y no cruza
-    # con nada (RED-47). Un NaN o un decimal con parte fraccionaria siguen
-    # yendo por texto en vez de reventar.
-    if isinstance(valor, (float, Decimal)):
-        try:
-            entero = int(valor)
-        except (ValueError, ArithmeticError):
-            entero = None
-        if entero is not None and valor == entero:
-            valor = entero
-    return "".join(ch for ch in str(valor or "") if ch.isdigit())
 
 
 def normalizar_sexo(valor):
@@ -189,7 +180,7 @@ def parsear_padron(archivo):
                 continue  # fila totalmente vacía
             if indice == 0 and not dni and str(crudo_dni or "").strip().upper() in _ENCABEZADOS_DNI:
                 continue  # fila de encabezado
-            if not dni or not sexo or len(dni) not in (7, 8):
+            if not sexo or not dni_valido(dni):
                 resumen.rechazadas += 1
                 continue
             if dni in vistos:
@@ -289,6 +280,24 @@ def _indice_localidades():
     return indice
 
 
+def _borrar_archivo_tras_commit(campo_archivo, nombre):
+    """Borra del storage un Excel de padrón **después** del commit (DAT-05).
+
+    Dos problemas, uno por punta. Al **reemplazar** el padrón nadie borraba el Excel
+    anterior: cada recarga dejaba otro archivo con DNI, nombre y fecha de nacimiento
+    de miles de personas en ``media/``, sin dueño y sin fecha de baja. Al **quitar**
+    el padrón propio pasaba lo contrario: el archivo se borraba *dentro* de la
+    transacción, así que un error posterior dejaba la fila apuntando a un archivo que
+    ya no existía.
+
+    `on_commit` resuelve las dos: el storage se toca solo si la base confirmó.
+    """
+    if not nombre:
+        return
+    storage = campo_archivo.storage
+    transaction.on_commit(lambda: storage.delete(nombre))
+
+
 @transaction.atomic
 def cargar_padron(objetivo, archivo, entradas, usuario=None):
     """Reemplaza el padrón de ``objetivo`` por ``entradas`` (reemplazo total,
@@ -337,8 +346,14 @@ def cargar_padron(objetivo, archivo, entradas, usuario=None):
         if hasattr(archivo, "seek"):
             archivo.seek(0)
         duenio = relevamiento or convocatoria
+        anterior = duenio.padron_archivo.name
         duenio.padron_archivo = archivo
         duenio.save(update_fields=["padron_archivo", "modificado"])
+        # DAT-05: el Excel que se acaba de reemplazar se va con el commit. Se compara
+        # el nombre final —el storage puede haberle agregado un sufijo— para no
+        # borrar el que se acaba de guardar si resultó ser el mismo.
+        if anterior != duenio.padron_archivo.name:
+            _borrar_archivo_tras_commit(duenio.padron_archivo, anterior)
     resumen.casos_validados = validar_casos_pendientes(objetivo, usuario)
     return resumen
 
@@ -350,9 +365,12 @@ def quitar_padron_propio(relevamiento):
     filas = relevamiento.padron_propio.count()
     relevamiento.padron_propio.all().delete()
     if relevamiento.padron_archivo:
-        relevamiento.padron_archivo.delete(save=False)
+        anterior = relevamiento.padron_archivo.name
         relevamiento.padron_archivo = None
         relevamiento.save(update_fields=["padron_archivo", "modificado"])
+        # DAT-05: antes el `delete(save=False)` corría acá adentro, así que si el
+        # `save` fallaba la fila quedaba apuntando a un archivo borrado.
+        _borrar_archivo_tras_commit(relevamiento.padron_archivo, anterior)
     return filas
 
 

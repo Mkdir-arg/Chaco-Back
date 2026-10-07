@@ -14,6 +14,7 @@ from datetime import date
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
+from core.dni import dni_valido
 from programas.models import EnvioSIIS, Formulario, PreguntaGlobal
 from programas.services.dashboard_becas import respuesta_de
 from programas.services.padron import normalizar_dni
@@ -614,7 +615,11 @@ def armar_payload(formulario, catalogos=None, hoy=None):
 
     # --- Persona ---
     dni = _digitos(ciudadano.dni if ciudadano else "")
-    if dni and len(dni) <= 10:
+    # RED-48: la misma regla de largo que los formularios. El `len(dni) <= 10` que
+    # había acá dejaba pasar a SIIS —que no tiene baja— un DNI de un dígito o de
+    # nueve, justo lo que las seis puertas de entrada rechazan. Un caso con un DNI
+    # así queda frenado acá, con su motivo, en vez de llegar al alta.
+    if dni_valido(dni):
         payload["dni"] = int(dni)
     else:
         faltantes["dni"] = "El caso no tiene un ciudadano con DNI válido."

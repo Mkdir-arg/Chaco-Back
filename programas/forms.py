@@ -13,6 +13,7 @@ from django.db.models import Q
 from django.utils import timezone
 from django.utils.dateparse import parse_date
 
+from core.dni import MENSAJE_DNI_INVALIDO, dni_valido, normalizar_dni
 from core.models import Localidad, Municipio
 from core.selectors.geografia import localidades_operativas, municipios_operativos
 from programas.models import (
@@ -793,9 +794,10 @@ class BusquedaCiudadanoDNIForm(forms.Form):
     )
 
     def clean_dni(self):
-        dni = "".join(filter(str.isdigit, self.cleaned_data["dni"]))
-        if not 7 <= len(dni) <= 8:
-            raise forms.ValidationError("El DNI debe tener entre 7 y 8 dígitos.")
+        # RED-48: una sola regla de DNI en el repo (`core.dni.dni_valido`).
+        dni = normalizar_dni(self.cleaned_data["dni"])
+        if not dni_valido(dni):
+            raise forms.ValidationError(MENSAJE_DNI_INVALIDO)
         return dni
 
 
