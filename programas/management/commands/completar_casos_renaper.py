@@ -52,8 +52,16 @@ Sobre los 287 casos que ya tenían el dato se vieron CUIT truncados, un dígito
 verificador equivocado y un caso con el CUIL del alumno en el campo del
 apoderado, así que RENAPER es la fuente más confiable; aun así no se pisa nada
 salvo que se pida explícitamente.
+
+**Un caso roto no se lleva puesta la corrida (RED-32).** Son 7.500 casos y los
+lotes ya confirmados quedan, así que un caso con la foto o las respuestas
+ilegibles que reventara el proceso dejaba la corrida muriendo siempre en el
+mismo lugar, sin ningún flag con el que saltearlo. Ahora se cuenta, se nombra
+por pk en el resumen (el detalle va al log del pod, no a la consola) y la
+corrida sigue.
 """
 
+import logging
 import time
 import unicodedata
 
@@ -74,7 +82,11 @@ from programas.services.respuestas import (
     respuestas_desde_legacy,
 )
 
+logger = logging.getLogger(__name__)
+
 TABLA_RENAPER = "ciudadanos_renaper"
+#: Cuántos pks de casos fallados se nombran en el resumen antes de resumirlos.
+FALLADOS_A_MOSTRAR = 20
 
 # Los campos del catálogo que se completan, buscados por su texto normalizado
 # para no depender del id. En el catálogo de hoy son rn-26, rn-29, rn-25 y rn-28.
@@ -371,6 +383,7 @@ class Command(BaseCommand):
         cuenta = {f"{c}_{e}": 0 for c in activos for e in ("completado", "pisado", "ya_estaba", "sin_match")}
         cuenta.update(sin_apoderado=0, fotos=0, guardados=0)
         sin_opcion = {}
+        fallados = []
 
         for numero, lote_ids in _lotes(ids, tamano):
             lote = list(
@@ -384,9 +397,17 @@ class Command(BaseCommand):
                 continue
             cambiados = []
             for caso in lote:
-                con_foto = self._poner_foto(caso, fotos)
-                cuenta["fotos"] += int(con_foto)
-                con_cruce = self._cruzar(caso, renaper, campos, conversores, activos, pisar, cuenta, sin_opcion)
+                # RED-32: un caso ilegible no puede matar la corrida entera. El
+                # detalle va al log del pod —puede traer valores del caso— y a la
+                # consola solo el pk, que es con lo que se lo busca después.
+                try:
+                    con_foto = self._poner_foto(caso, fotos)
+                    cuenta["fotos"] += int(con_foto)
+                    con_cruce = self._cruzar(caso, renaper, campos, conversores, activos, pisar, cuenta, sin_opcion)
+                except Exception as exc:  # noqa: BLE001 - cualquier caso roto vale igual: se saltea y se nombra
+                    logger.exception("completar_casos_renaper: el caso %s no se pudo procesar", caso.pk)
+                    fallados.append((caso.pk, type(exc).__name__))
+                    continue
                 if con_foto or con_cruce:
                     caso.modificado = timezone.now()
                     cambiados.append(caso)
@@ -418,6 +439,13 @@ class Command(BaseCommand):
             self._log("   Provincias de RENAPER sin opción en el selector (no se escribieron):", self.style.WARNING)
             for valor, n in sorted(sin_opcion.items(), key=lambda x: -x[1]):
                 self._log(f"      {valor:32} {n:5} casos")
+        if fallados:
+            self._log(f"   {'casos que no se pudieron procesar':52} {len(fallados):6}", self.style.WARNING)
+            for pk, error in fallados[:FALLADOS_A_MOSTRAR]:
+                self._log(f"      caso {pk} — {error}", self.style.WARNING)
+            if len(fallados) > FALLADOS_A_MOSTRAR:
+                self._log(f"      y {len(fallados) - FALLADOS_A_MOSTRAR} más", self.style.WARNING)
+            self._log("   El detalle de cada uno está en el log, con su traceback.", self.style.WARNING)
 
         self._log("")
         segundos = time.monotonic() - arranque

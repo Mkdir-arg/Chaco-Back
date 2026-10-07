@@ -332,6 +332,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 158 | Lo que viaja a SIIS deja de depender del catálogo de hoy: la foto del caso manda, gana el dato más específico y una identidad validada frena el envío | Becas · alta de beneficiarios en SIIS (payload, foto de la definición, catálogo de preguntas) · Transversal (copia local de los catálogos de SIIS, runner de tests) | `#siis` `#datos` `#relevamientos` `#metodo` | Auditoría integral oct-2026 — SIIS-08, G1-08, G1-09 y G1-10, más los cuatro MINOR de la revisión del PR 5 (Ola 1 «Integridad SIIS», PR 6) | 07/10/2026 | 🟢 **Hecho** | **Sí:** `programas.0077_catalogo_siis_local` (tabla nueva y vacía) |
 | 159 | Ratchets de arquitectura: el contrato de los modelos, el grafo de imports y las tres dependencias ocultas del shell | Transversal (contrato de `programas.models`, grafo de imports, shell del backoffice, arranque del contenedor, middlewares de usuarios, cache de la home, ruteo de la raíz) | `#metodo` `#infra` `#datos` | Auditoría integral oct-2026 — fichas RED-46, RED-79, RED-13, RED-45, RED-52, RED-51, RED-78 y RED-82 (Ola R, PR R-21) | 07/10/2026 | 🟢 **Hecho** (seis fichas cierran su parte R; el resto queda en las Olas 2, 4 y 7 con su test rojo o su ratchet puesto) | No requiere |
 | 160 | Contratos del backoffice: las URLs que el front escribe a mano, las claves que lee, los parsers externos y el gate que los corre | Transversal (barrido de URLs del front, sobre de error JSON, catálogo de capacidades, CI de GitHub Actions) · Inicio (APIs del dashboard y contador de alertas) · Becas (JSON guardados, fixtures de RENAPER/Personas/SIIS) | `#api` `#metodo` `#rbac` `#siis` | Auditoría integral oct-2026 — fichas RED-42, RED-39, RED-40, RED-41, RED-43 y RED-44 (Ola R, PR R-18) | 07/10/2026 | 🟢 **Hecho** (RED-39, RED-40 y RED-42 cierran su parte R; el resto queda en las Olas 3, 5 y 7 con su test o su ratchet puesto) | No requiere |
+| 162 | Las herramientas de SIIS dejan de pisar lo que otro corrigió, y el alta de prueba no sale del ambiente de pruebas | Becas · revisión de casos (modal «Completar datos para SIIS») · comandos de gestión de SIIS (`diagnosticar_siis`, `corregir_datos_siis`, `correr_alta_siis`, `completar_casos_renaper`) | `#siis` `#datos` `#relevamientos` `#ui` `#metodo` | Auditoría integral oct-2026 — fichas SIIS-19, SIIS-17 y G3-06, más la segunda parte de RED-32 (Ola 1 «Integridad SIIS», PR 7 — cierra la ola) | 07/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -22022,3 +22023,215 @@ El comando nuevo es **opcional y de solo lectura**: cuando convenga, correr
   (tope de 4 segmentos; hoy el máximo real es 1), con su test sobre una ruta mixta que existe.
   **Además, al mergear `development`:** la foto del caso sumó `destinos_siis` con el Cambio 158 (G1-08), así que el
   contrato exacto que afirma `test_un_caso_legacy_se_traduce_a_respuestas_por_clave` pasó a cuatro claves.
+---
+
+# Cambio 162 — Las herramientas de SIIS dejan de pisar lo que otro corrigió
+
+🟢 **HECHO — 07/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · revisión de casos (modal «Completar datos para SIIS») · comandos de gestión de SIIS (`diagnosticar_siis`, `corregir_datos_siis`, `correr_alta_siis`, `completar_casos_renaper`) |
+| **Etiquetas** | `#siis` `#datos` `#relevamientos` `#ui` `#metodo` |
+| **Solicitante** | Auditoría integral oct-2026 — fichas SIIS-19, SIIS-17 y G3-06, más la segunda parte de RED-32 (Ola 1 «Integridad SIIS», PR 7 — cierra la ola) |
+| **Fecha del pedido** | 07/10/2026 |
+| **Issue / épica** | Sin issue (plan de la auditoría: `docs/internal/auditoria-2026-10/`) |
+| **Partes afectadas** | `programas/management/commands/_base_siis.py` (guarda y flags nuevos) · `diagnosticar_siis.py` · `corregir_datos_siis.py` · `correr_alta_siis.py` (paso 5) · `completar_casos_renaper.py` · `programas/forms.py` (`DatosSiisForm`) · `programas/views/revision.py` (`formulario_datos_siis`, detalle) · `revision/formulario_detalle.html` (bloque «Quitar corrección» del modal). Ninguna pantalla nueva |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Cerrar el séptimo y último PR de la Ola 1: **SIIS-19**, **SIIS-17** y **G3-06** —las tres fichas de
+«herramientas y correcciones manuales»— y la **segunda parte de RED-32**, la suite de comportamiento de
+`validar_casos_siis` que el PR R-06 dejó anotada.
+
+## Qué lo motivó
+
+Las tres fichas son el mismo problema visto desde tres lugares: **el alta en SIIS no tiene baja**, y las
+herramientas con las que se preparan esas altas escribían encima de lo que decidía otro.
+
+- **G3-06.** `corregir_datos_siis --aplicar` leía un lote de 200 casos, calculaba las correcciones y escribía
+  el `datos_siis` **entero** con un `bulk_update`. Entre la lectura y la escritura pasan segundos: lo que el
+  coordinador guardara desde la ficha en esa ventana desaparecía sin dejar rastro. Desde el Cambio 106 (#513)
+  la ventana no es manual, es sistemática: el paso 5 de `correr_alta_siis` corre ese comando en **cada**
+  corrida.
+- **SIIS-17.** El mismo campo, del otro lado. El modal «Completar datos para SIIS» descarta lo vacío
+  (`como_datos_siis`), así que una corrección cargada mal **no se podía borrar**: solo tapar con otra. Y su
+  merge `{**anteriores, **nuevos}` usaba la foto del principio del request, así que de dos guardados
+  simultáneos el segundo borraba lo del primero. Un `id_plan_soc` mal corregido viaja a SIIS igual.
+- **SIIS-19.** El paso 6 de `diagnosticar_siis` es el único que **escribe**: da de alta un beneficiario de
+  prueba en la tabla intermedia. Venía con el DNI del ejemplo del manual por defecto y sin ninguna guarda de
+  ambiente, así que un `--alta` tecleado de más contra el SIIS productivo deja ahí, para siempre, a
+  «PRUEBA INTEGRACION DATANACH» mezclado con beneficiarios reales.
+- **RED-32.** `validar_casos_siis` tenía **0 % de cobertura** hasta el PR R-06, y lo que R-06 fijó fue el
+  **ensayo**: los flags de selección y los dos frenos de arranque, sin que el comando llegara a llamar al
+  servicio. Lo que la ficha nombra como frágil solo se ve corriendo de verdad: tocar el `order_by` del
+  `Subquery` o el `exclude(estado=RECHAZADO)` de `_casos` revalida miles de casos ya validados o saltea los que
+  faltan, y romper el freno por errores seguidos deja miles de filas `ERROR` que el revisor abre y lee como
+  «SIIS dijo que es incompatible», porque la pantalla toma como vigente la **última** validación del caso.
+
+## Decisiones tomadas
+
+- **La escritura del lote relee bajo candado y compara campo por campo.** `corregir_datos_siis` arma las
+  correcciones fuera de la transacción —ahí están el catálogo y los cruces, que son caros— y escribe en
+  `_escribir_lote`, que abre la `atomic`, relee las filas con `select_for_update()` y hace el merge sobre lo
+  que la fila dice **ahora**. De cada campo propuesto se compara el valor actual contra el que se había leído:
+  si cambió, **gana el otro**. Quien miró el caso sabe más que la planilla, y además lo hizo después.
+- **Nada de red adentro del candado.** Es el gotcha de siempre (SIIS-01, `read_timeout = 10 s` en MariaDB):
+  esperar un HTTP con 200 filas tomadas es la forma de tumbar la corrida. Vale igual para la vista de SIIS-17:
+  los cinco catálogos se consultan al validar el form, **antes** de abrir la transacción.
+- **Un caso con un `EnvioSIIS` vigente no se toca**, releído en el momento de escribir. Es más ancho que el
+  `exclude` de `ENVIADO` con el que se arma la lista de pendientes: cubre también el `EN_PROCESO` en vuelo y el
+  `INCIERTO` sin conciliar. Si el payload de ese envío ya se armó, cambiarle los datos ahora solo logra que la
+  base y SIIS digan cosas distintas.
+- **Una traza por caso, no una por campo.** `TracaFormulario(campo="Datos SIIS · corregir_datos_siis")` con los
+  valores viejo y nuevo en JSON, solo de los campos efectivamente escritos. Una fila por campo sobre 7.500
+  casos son decenas de miles de filas por corrida y el historial del caso deja de poder leerse.
+- **El comando aprende `--usuario`, y `correr_alta_siis` se lo reenvía.** La traza del circuito completo no
+  puede quedar sin autor. El flag sale de `ComandoSiisBase.agregar_flag_usuario`, no de una copia: es el mismo
+  `--usuario` que ya firma los envíos.
+- **El «quitar» de SIIS-17 es un campo aparte, no un centinela por campo.** La ficha pedía un centinela dentro
+  de cada control; seis de los trece campos son selects que llena el navegador (`loc_actual`, `loc_nacim`,
+  `id_fun_x_plan`) o inputs de texto, donde un centinela no tiene dónde vivir. Quedó un
+  `MultipleChoiceField` con `CheckboxSelectMultiple` cuyas opciones son **solo los campos que hoy tienen
+  corrección**: sin ninguna, el campo se borra del form y el modal no muestra un bloque vacío. Además de
+  resolver los trece de una, es la pregunta que el coordinador realmente se hace («¿qué le puse yo acá?»).
+- **Quitar y completar el mismo campo en el mismo guardado es un error de validación**, no un desempate
+  silencioso. Las dos cosas son intenciones legítimas y opuestas; adivinar cuál gana es inventar.
+- **La localidad se cruza contra la provincia ya guardada.** El modal manda solo lo que se tocó, así que
+  corregir únicamente la localidad dejaba la validación cruzada sin provincia y no corría: entraba una
+  localidad de otra provincia y SIIS la aceptaba igual, con el domicilio equivocado. Si lo que se está
+  quitando es justamente la corrección de provincia, no hay contra qué cruzar —la que va a valer sale del
+  relevamiento y el form no la conoce— y no se cruza.
+- **La guarda de PRD mira la URL, no el entorno.** `settings.ENVIRONMENT` vale `prd` también en QA y en icore
+  (OPS-12), y `DATANACH_ES_PRODUCCION` solo está puesta en PRD, así que su ausencia no prueba nada. Se permite
+  solo contra el host de desarrollo de ECOM (`core.checks.es_host_de_desarrollo`), que es el único donde un
+  beneficiario inventado no molesta a nadie. **Falla cerrado:** con `SIIS_API_URL` vacía no se manda.
+- **La guarda vive en `ComandoSiisBase`, no en `diagnosticar_siis`.** Es la regla de RED-53: un candado nuevo
+  se agrega en la base para que el día que haya una segunda herramienta que escriba datos inventados en SIIS lo
+  encuentre ya hecho. Por eso `diagnosticar_siis` y `corregir_datos_siis` pasan a heredar de ella, **sin** tomar
+  los flags del lote (`--max-errores`, `--pausa`): ninguno llama a SIIS caso por caso. `add_arguments` de cada
+  uno toma las piezas sueltas que necesita (`agregar_flag_usuario`, `agregar_flags_de_escritura_de_prueba`).
+- **`--si-entiendo-prd` no es gratis: exige `--motivo` y deja rastro**, mismo patrón que `--ignorar-corrida` y
+  que el `--forzar` del Cambio 154. Una guarda que se puede saltear en silencio no es una guarda.
+- **`--alta-dni` deja de tener default.** El DNI del beneficiario de prueba se elige a propósito.
+- **Los pasos 1 a 5 de `diagnosticar_siis` no cambian.** Son de solo lectura y es lo primero que se corre en un
+  ambiente recién configurado: ponerles una guarda de ambiente sería romper la herramienta para arreglar su
+  paso 6.
+- **`completar_casos_renaper` no se muere entero por un caso ilegible** (de yapa, dentro de RED-32). Son 7.500
+  casos y los lotes ya confirmados quedan: una excepción en uno dejaba la corrida muriendo siempre en el mismo
+  lugar, sin ningún flag con el que saltearlo. Ahora se cuenta, se nombra por pk en el resumen y se sigue; el
+  traceback va a `logger.exception` —log del pod— y no a la consola, porque puede traer valores del caso.
+
+## Qué se hizo
+
+1. **`_base_siis.py`:** `exigir_ambiente_de_pruebas(options, que_escribe)` —la guarda de SIIS-19, con su
+   mensaje, su `logger.warning` y su aviso por stdout—, los helpers `agregar_flag_usuario`,
+   `agregar_flag_motivo` y `agregar_flags_de_escritura_de_prueba`, y `agregar_flags_comunes` reescrito para
+   usarlos (los flags siguen siendo exactamente los mismos para los cuatro comandos que ya la heredaban).
+2. **`diagnosticar_siis.py`:** hereda de `ComandoSiisBase`; `--alta-dni` sin default; las dos guardas al
+   principio de `handle()`, no al llegar al paso 6 —cortar ahí es cortar después de haber pedido el token y los
+   catálogos, y deja la sensación de que el comando «iba bien»—.
+3. **`corregir_datos_siis.py`:** hereda de `ComandoSiisBase` (se van su `_lotes` y su `_log` copiados), toma
+   `--usuario`, y la escritura del lote se muda a `_escribir_lote` con la relectura bajo candado, la
+   comparación por campo, el salteo del envío vigente y la traza. Dos contadores nuevos en el resumen:
+   «corrección más nueva de otro (no se pisa)» y «caso con un envío a SIIS vigente (no se toca)».
+4. **`correr_alta_siis.py`:** el paso 5 le reenvía `--usuario` al comando hijo.
+5. **`completar_casos_renaper.py`:** `try/except` por caso, lista de fallados y su bloque en el resumen.
+6. **`DatosSiisForm`:** `actuales`, el campo `quitar`, `campos_a_quitar()`, la validación cruzada de
+   quitar+completar y `_provincia_de_referencia`.
+7. **`formulario_datos_siis`:** el merge adentro de `transaction.atomic()` sobre la fila releída con
+   `select_for_update()`, los `pop` de las claves quitadas y sus filas de traza.
+8. **`formulario_detalle.html`:** el bloque «Quitar corrección», fuera de la grilla de dos columnas y con la
+   clase canónica `.nodo-checks` (ficha `.claude/design/componentes/field.md`).
+
+## Validación
+
+- **Suite completa** (`manage.py test` **sin argumentos**, Python 3.12 + Django 5.2.17 del `.venv312`, igual al
+  CI): **3.355 tests, OK** (30 skips, 7 expected failures).
+- **Tests nuevos: 40** (37 + 3 de la ronda 2). 11 en `programas/tests/test_validar_casos_siis.py` (RED-32), 11 en
+  `test_becas_revision.py::QuitarCorreccionSiisTests` (SIIS-17), 7 en
+  `test_corregir_datos_siis.py::CorreccionManualEnElMedioTests` (G3-06), 7 en
+  `test_diagnosticar_siis.py::AltaDePruebaTests` (SIIS-19) y 1 en
+  `test_comandos_siis_caracterizacion.py::CompletarCasosRenaperTests` (RED-32, de yapa). La ronda 2 suma
+  `CorreccionManualEnElMedioTests.test_una_reserva_que_entra_con_el_candado_tambien_frena_la_escritura` y
+  `test_correr_alta_siis.py::OrdenTests.test_el_paso_5_le_pasa_el_usuario_a_corregir_datos_siis` (+ su negativo
+  `.test_sin_usuario_el_paso_5_no_inventa_uno`), y le agrega la aserción del aviso a
+  `test_quitar_y_completar_el_mismo_campo_a_la_vez_no_se_guarda`. Los dos primeros se verificaron con su propia
+  mutación: volver `tomados` antes del candado y sacar el reenvío de `--usuario` del paso 5 los dejan en rojo.
+- **Fallaban antes del cambio, por el motivo esperado:** 5 de los 7 de SIIS-19 (los otros 2 son el control: la
+  URL de desarrollo y los pasos de solo lectura, que no debían cambiar), 7 de los 11 de SIIS-17 más 1 error, 6
+  de los 7 de G3-06 (el séptimo, `test_el_ensayo_no_deja_traza`, es el control) y el de
+  `completar_casos_renaper`.
+- **Los 11 de RED-32 son red, no reproducción de un bug: pasan desde el primer día.** Su valor se verificó con
+  **tres mutaciones** sobre `validar_casos_siis.py`, revertidas después (`git diff` vacío): invertir el
+  `order_by` del `Subquery` (`-creado, -id` → `creado, id`) deja
+  `test_reintentar_errores_suma_los_que_quedaron_en_error` en rojo; sacar el `exclude(estado=RECHAZADO)` deja
+  `test_un_rechazado_por_el_revisor_se_saltea_salvo_incluir_rechazados` en rojo; y cambiar el
+  `if freno.registrar(falla): break` por un `freno.registrar(falla)` suelto deja los dos tests del freno en
+  rojo.
+- **PoC de la auditoría** (`docs/internal/auditoria-2026-10/poc/test_repro_siis_becas.py`, copiada al worktree
+  y borrada después): de sus 13 tests —que afirman el comportamiento **defectuoso**— hoy hay **12 en rojo**.
+  El único verde es `PersonasAplanadoTests` (SIIS-10), que es de la Ola 3 y tiene que seguir pasando. Con eso
+  queda cerrado el «Hecho cuando» de la Ola 1.
+- `manage.py check` (0 issues), `check --deploy` (6 warnings preexistentes del entorno local: `SECRET_KEY`,
+  cookies sin `Secure`…; ningún error), `makemigrations --check --dry-run` (sin cambios), `--tag performance`
+  (4 tests OK), `ruff check .` y `ruff format --check` en verde. `requerimientos.py --check` OK.
+- **UI:** `design_audit.py --changed` (0 errores; los 33 P1 son deuda previa del archivo),
+  `design_audit.py --ratchet` (**0 hallazgos nuevos**), `--goldens` (0 en las 5 goldens),
+  `compile_templates.py --bloques` (203 compilados, 0 errores, 0 bloques sin destino). Sin utilidades nuevas de
+  Tailwind: todas las clases del bloque nuevo ya se usan en ese mismo template, y `.nodo-checks` es CSS propio.
+- **No se corrió nada contra SIIS, ECOM, icore ni PRD.** Todo el tráfico de los tests está mockeado y el runner
+  lo garantiza desde el Cambio 154.
+
+## Reversión
+
+Revertir el commit. No hay migraciones ni datos que deshacer: lo único que queda escrito de este cambio son
+filas de `TracaFormulario` con `campo = "Datos SIIS · corregir_datos_siis"`, que el código viejo muestra en el
+historial del caso sin problema. Al revertir vuelven las tres conductas viejas: `corregir_datos_siis` pisa,
+el modal no puede quitar, y `diagnosticar_siis --alta` sale contra cualquier URL con el DNI del manual.
+
+## Pendientes / a definir
+
+- **`.claude/design/componentes/field.md` queda sin actualizar en este PR.** La sesión que lo escribió no tiene
+  permiso de escritura bajo `.claude/`; el texto completo está en el cuerpo del PR y lo aplica el juez. Sin ese
+  parche, `check_design_agent.py --changed` queda en rojo (es su regla: tocar evidencia canónica de UI obliga a
+  mover su ficha en el mismo diff).
+- **La pantalla «Completar datos para SIIS» sigue pidiendo cinco catálogos en un GET** (`programas/forms.py`),
+  sin declararlos en ninguna cadena de `core/integraciones.py`. Viene anotado del Cambio 158 y sigue abierto:
+  no hace nada irreversible, pero es el mismo agujero del MINOR 1 de aquel PR. Este cambio **no lo empeora** —el
+  `quitar` no consulta nada— pero tampoco lo cierra.
+- **El tope de la traza.** Una corrida de `corregir_datos_siis` sobre los 7.500 pendientes deja hasta 7.500
+  filas nuevas en `programas_tracaformulario`. Es una por caso y solo de los que efectivamente se corrigieron,
+  así que no es un problema hoy; si el circuito se corriera a diario habría que mirarlo.
+- **El ítem 0 de la Ola 1 (V2-NEW-03: correr `P-01` en PRD) sigue abierto** y es lo único que le queda a la
+  ola. Es operativo, sin código, y lo corre el PM.
+- **El Total de la tabla §6 del README de la auditoría está desactualizado y duplicado** (dos filas «Total»
+  seguidas, una con 137 y otra con 139 cerradas, de una resolución de conflicto en `development`). No se tocó:
+  recalcularlo necesita una pasada por todas las olas y hay carriles trabajando en varias a la vez.
+
+## Historial
+
+- **23/09/2026** (Cambio 98) — nace `corregir_datos_siis` para destrabar los 265 rechazos de la corrida del
+  organismo. Escribe en `datos_siis` con `bulk_update`, que es la pisada que esta entrada corrige.
+- **01/10/2026** (Cambio 106, #513) — `correr_alta_siis` encadena el circuito completo y deja
+  `corregir_datos_siis --aplicar --limite 999999` en su paso 5: la ventana de pisada deja de ser manual.
+- **03/10/2026** — la auditoría abre SIIS-19, SIIS-17 y G3-06 y las agrupa en el PR 7 de la Ola 1,
+  «herramientas y correcciones manuales».
+- **04/10/2026** (Cambio 123, PR R-06) — se caracteriza `validar_casos_siis` en su ensayo (RED-32, mitad de la
+  Ola R) y queda anotada la segunda parte para este PR.
+- **05/10/2026** (Cambio 127, PR 2) — nace `ComandoSiisBase` (RED-53), con el candado de corrida viva. Es la
+  clase donde este cambio pone la guarda de ambiente, en vez de dejarla suelta en `diagnosticar_siis`.
+- **06/10/2026** (Cambio 154) — `--forzar` de `sincronizar_programas_siis` empieza a exigir `--motivo` y a
+  dejar rastro. Es el patrón que `--si-entiendo-prd` copia.
+- **07/10/2026 (este cambio)** — las tres fichas de herramientas y la segunda parte de RED-32. **Con esto
+  cierra la Ola 1 de la auditoría**: 76 de sus 78 h, y las 2 restantes son el `P-01` en PRD, que no es código.
+- **07/10/2026 (ronda 2 de la revisión)** — tres MINOR. El importante es una **carrera que el propio arreglo de
+  G3-06 dejaba abierta**: los envíos vigentes se leían **antes** del `select_for_update`, y `siis_envio._reservar`
+  hace lo inverso —bloquea la fila del `Formulario` y recién entonces crea el `EnvioSIIS`—, así que una reserva
+  del masivo que entrara en esa ventana no aparecía en `tomados` y el comando le reescribía el `datos_siis` a un
+  caso cuyo payload ya había salido. Las dos consultas cambian de orden y queda un test que simula la reserva en
+  el instante en que el comando pide el candado. Los otros dos: el recorrido de `.errors` del bloque «Quitar
+  corrección» era **inalcanzable** —con el form inválido la vista redirige con un solo aviso (ALR-8)— y se
+  reemplaza por la comprobación de que ese aviso **llega** con la etiqueta del campo; y ningún test afirmaba que
+  el paso 5 de `correr_alta_siis` reenvía `--usuario` a `corregir_datos_siis`, que es lo que firma la traza.
