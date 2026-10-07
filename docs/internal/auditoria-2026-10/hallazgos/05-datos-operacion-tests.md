@@ -9,13 +9,13 @@ Fichas completas del dominio. Convenciones, `V-STD` y `V-UI`: README §0. PoC: `
 | DAT-01 | Borrar una pregunta o requisito borra los adjuntos de todos los casos | ALTA | CONF. test | 3 | S (+M fase 2) | ✅ fase 1 |
 | OPS-03 | Los tracebacks de 500 no llegan a stdout | ALTA | CONF. test | **R** (antes 3) | S | ✅ |
 | OPS-01 | Sin guarda de coherencia `django_migrations` ↔ esquema antes de `migrate` | MEDIA | CONF. código | **R** (antes 3) | M | ✅ |
-| OPS-02 | `crear_usuarios_sistema` y seeds demo con claves conocidas viajan en el release | MEDIA | CONF. ajustado | 3 | S | ⬜ |
+| OPS-02 | `crear_usuarios_sistema` y seeds demo con claves conocidas viajan en el release | MEDIA | CONF. ajustado | 3 | S | ✅ |
 | OPS-04 | `/health/` siempre 200 y tapa `health_check.urls` | MEDIA | CONF. test | **R** (antes 3) | S | ✅ |
 | OPS-05 | `read_timeout=10 s` también corta `migrate` | MEDIA | PLAUSIBLE | 3 | S | ✅ |
 | OPS-07 | Bootstrap frágil (`set -eu`, opcionales fatales, réplicas) | MEDIA | CONF. ajustado | 3 | S | ✅ |
 | TST-01 | La CI no prueba MariaDB | MEDIA | CONF. ajustado (tesis central refutada) | **R** (antes 3) | M | ✅ |
 | TST-02 | Configuración sin tests de comportamiento; tests que no prueban nada | MEDIA | CONF. | **R** (antes 3) | M (+S-M) | ✅ |
-| G1c-12 | `debug_ciudadanos` hace `FLUSHDB` del Redis compartido | MEDIA | CONF. código | 3 | S | ⬜ |
+| G1c-12 | `debug_ciudadanos` hace `FLUSHDB` del Redis compartido | MEDIA | CONF. código | 3 | S | ✅ |
 | DAT-02 | El admin de Django borra casos y relevamientos con su auditoría | BAJA | CONF. ajustado | 3 | S | ✅ |
 | DAT-03 | `dni_titular` desincronizado del DNI real | BAJA | PLAUSIBLE | 3 | S | ✅ |
 | DAT-05 | El Excel del padrón reemplazado/quitado queda en `media/` (o se borra antes del commit) | BAJA | CONF. | 3 | S | ✅ |
@@ -26,7 +26,7 @@ Fichas completas del dominio. Convenciones, `V-STD` y `V-UI`: README §0. PoC: `
 | OPS-13 | Dependencias sin uso en la imagen | BAJA | CONF. | 7 | S | ⬜ |
 | OPS-14 | Código muerto o stub; un `.py` vivo que git trata como binario | BAJA | CONF. | 7 | S | ⬜ |
 | TST-03 | Coverage global de 48 % sobre todo el repo | BAJA | CONF. | **R** (antes 3) | S | ✅ |
-| G2-05 | `import_users_from_csv` reparte grupos de un usuario fijo y pisa cuentas | BAJA | CONF. lectura | 3 | S | ⬜ |
+| G2-05 | `import_users_from_csv` reparte grupos de un usuario fijo y pisa cuentas | BAJA | CONF. lectura | 3 | S | ✅ |
 | G3-04 | CronJobs de referencia sin deadlines, `backoffLimit` ni `timeZone` | BAJA | PLAUSIBLE | 3 | S | ✅ |
 | G3-05 | Cron de icore sin versionar y sin vigilancia | BAJA | CONF. lectura | 3 | S | ✅ |
 | R0-02 | `CLAUDE.md` y `docs/client/architecture.md` todavía nombran `portal:ciudadano_mi_perfil` | BAJA (MINOR) | revisión Ola 0 | 7 | S | ⬜ |
@@ -147,6 +147,28 @@ mensaje pasa a seguir la causa real.
 - **Ubicación:** `users/management/commands/crear_usuarios_sistema.py` (viaja en `origin/main`: `.gitattributes` solo excluye docs y auditorías; nadie lo invoca); deja `admin`/`admin123` superusuario y `admin1..3`/`admin123` en el rol **«Administrador» real** (`rbac.ROL_ADMINISTRADOR`, protegido con todas las capacidades, `seed_rbac.py:73-83`), con `is_staff=True`, y les resetea la clave si existen. `seed_relevamientos_periodo_demo.py:16-49` (`set_password` sobre el `--username` que se pase, default `territorial_demo`/`demo1234`, `is_active=True`); `seed_becas_demo_mobile.py:320-325` (`terri123`); `legajos/management/commands/setup_roles_contactos.py` (10 grupos `Psicologo`, `Director`, … sin `RolMeta`, con permisos de modelo sobre `historialcontacto`; `seed_rbac:56-64` los convierte en roles con `RolMeta` activa: roles fantasma) y `setup_groups.py` (`Responsable`). Refutado: `seed_perf`, `prepare_perf_http_probe` y `seed_aceptacion_reportes` ya exigen base efímera.
 - **Propuesta:** `git rm users/management/commands/crear_usuarios_sistema.py`, `setup_roles_contactos.py` y `setup_groups.py`; helper `core/management/guardas.py::exigir_entorno_demo()` = `if not (settings.DEBUG or os.environ.get("CHACO_PERMITIR_SEED_DEMO") == "1"): raise CommandError(...)` al inicio de `seed_becas_demo_mobile`, `seed_relevamientos_periodo_demo` y `seed_busqueda_ciudadanos_demo`, que además no deben resetear la clave de usuarios existentes. **No** usar `settings.ENVIRONMENT` (icore DEV vale `prd`; QA lo pisa a `prd`, OPS-12). Contar con P-09 las cuentas que ya existan en PRD.
 - **Tests:** `call_command("crear_usuarios_sistema")` → `CommandError: Unknown command`; cada seed demo con `DEBUG=False` y sin la variable → `CommandError`.
+
+**Resolución:** ✅ Resuelto en el PR 3 de la Ola 3 (Cambio 171), 07-oct-2026 — los tres comandos **se borraron**, que es
+el remedio que el Cambio 28 ya había elegido para `crear_superadmin` y por el mismo motivo: cualquier variante que los
+deje creando usuarios vuelve a poner una credencial por defecto en un ambiente servido. `crear_usuarios_sistema` era
+además el peor de los tres —`admin`/`admin123` superusuario y `admin1..3` en el rol «Administrador» real, **reseteando
+la clave si ya existían**—. Los tres seeds de demo que quedan pasan por `core/management/guardas.py::exigir_entorno_demo()`
+(`DEBUG` o `CHACO_PERMITIR_SEED_DEMO=1`, **no** `settings.ENVIRONMENT`), y `seed_relevamientos_periodo_demo` dejó de
+pisarle la clave —y de reactivar— a un `territorial_demo` que ya exista: ahora avisa y sigue. **Lo que la ficha no
+pedía y es lo que impide que vuelva por otra puerta:** dos ratchets AST sobre `*/management/commands/*.py`. Uno exige
+que todo comando que llame a `set_password`/`create_user`/`create_superuser` llame también a `exigir_entorno_demo`, con
+un allowlist de cuatro archivos y su motivo escrito; el otro es el de G1c-12. Sin ellos, borrar cuatro archivos no
+impide que mañana el quinto haga lo mismo. **Desvío medido:** la ficha nombraba tres comandos con guarda propia de base
+efímera (`seed_perf`, `prepare_perf_http_probe`, `seed_aceptacion_reportes`) y el ratchet confirmó los tres, así que
+entraron al allowlist en vez de recibir la guarda de demo —la suya es más fuerte—. `docs/internal/onboarding.md` dejó
+de mandar a leer `setup_groups.py` para saber los roles (apuntaba a un archivo borrado y además la respuesta era
+equivocada: los roles salen del `CATALOGO` de `core/rbac.py`). **Pendiente operativo, no de código:** contar con P-09
+las cuentas que hayan quedado en PRD (`admin`, `admin1..3`, `territorial_demo`) y darlas de baja o cambiarles la clave;
+borrar el comando no borra lo que ya creó. **Test permanente:** `core.tests.test_comandos_peligrosos`
+(`ComandosBorradosTests.test_los_cuatro_comandos_peligrosos_ya_no_existen`,
+`SeedsDemoExigenEntornoDeDemoTests.test_sin_debug_ni_variable_los_tres_cortan`,
+`SeedsDemoExigenEntornoDeDemoTests.test_no_le_cambia_la_clave_ni_reactiva_a_un_usuario_que_ya_existe`,
+`NingunComandoSiembraCredencialesSinGuardaTests.test_todo_comando_que_toca_claves_tiene_su_guarda`).
 
 ### OPS-04 · `/health/` siempre 200 y tapa `health_check.urls`
 **Severidad:** MEDIA (era ALTA) · **Estado:** CONFIRMADO con test (`A805HealthTests`: `resolve('/health/')` → `healthcheck.views.basic`; con la DB caída responde `200 OK`) · **Origen:** A8-05 · **Ola:** 3 · **Esfuerzo:** S · **Decisión:** D-O04
@@ -328,6 +350,19 @@ el job **no bloqueante** `Orden y paralelo` y no como test estructural: el detec
 - **Escenario:** un «debug» desloguea a todo el backoffice, corta los pasos en curso de la inscripción pública (viven en sesión) y borra los grupos de Channels.
 - **Propuesta:** borrar el comando (no lo usa nada ni ningún documento) o reemplazar `cache.clear()` por `CiudadanosService.invalidate_ciudadanos_cache()`; defensa en profundidad: sesiones y channel layer en otra DB lógica de Redis (PERF-10).
 - **Test:** `call_command("debug_ciudadanos")` con `patch("django.core.cache.cache.clear")` → `assert_not_called` (o `Unknown command` si se borra).
+
+**Resolución:** ✅ Resuelto en el PR 3 de la Ola 3 (Cambio 171), 07-oct-2026 — **se borró el comando**, que es la primera
+opción de la propuesta. No lo invocaba nada: ni el entrypoint, ni `docker/k8s/cronjobs.yaml`, ni `chaco-cron.sh`, ni
+ningún documento (verificado con un barrido del repo entero). La segunda opción —cambiar `cache.clear()` por
+`CiudadanosService.invalidate_ciudadanos_cache()`— se descartó por dos motivos: no arregla la otra mitad del hallazgo
+(el comando imprimía DNI y nombre de tres ciudadanos, que es un volcado de datos personales a una terminal), y
+`legajos/services/ciudadanos.py` está tomado por el PR 2 de esta misma ola. **Lo que queda de pie en vez del archivo:**
+`core.tests.test_comandos_peligrosos` barre con AST **todos** los `*/management/commands/*.py` y falla si alguno vuelve
+a llamar `cache.clear()`; el único permitido es `seed_perf`, que no puede correr fuera de una base efímera. La defensa
+en profundidad que nombra la propuesta —sesiones y channel layer en otra DB lógica de Redis— **no entra acá**: es
+PERF-10 (Ola 4) y depende de H-06, la configuración del Redis de ECOM. **Test permanente:**
+`core.tests.test_comandos_peligrosos` (`ComandosBorradosTests.test_los_cuatro_comandos_peligrosos_ya_no_existen`,
+`NingunComandoVaciaElCacheCompartidoTests.test_ningun_comando_llama_a_cache_clear`).
 
 ## BAJA
 
@@ -520,6 +555,30 @@ TOTAL sigue arriba de 90 y el gate queda verde midiendo de menos—.
 - **Propuesta:** borrarlo junto con OPS-02, o exigir `--reference-user-id` sin default, ensayo por defecto (`--aplicar`), no tocar existentes salvo `--actualizar`, `validate_password`, `debe_cambiar_contrasena=True` en los creados y todo dentro de `transaction.atomic()`.
 - **Test (si se conserva):** un usuario existente en el CSV conserva sus grupos sin `--actualizar`.
 
+**Resolución:** ✅ Resuelto en el PR 3 de la Ola 3 (Cambio 171), 07-oct-2026 — **se conserva endurecido**, que es la
+segunda opción de la propuesta (`DECISIÓN CLIENTE`: borrarlo es una línea y lo decide el PM; conservarlo no cuesta nada
+porque todos sus caminos peligrosos quedaron cerrados). Entra todo lo que pedía la ficha: `--reference-user-id` es
+**obligatorio y sin default** (el 368 es otra persona en cada base), **ensayo por defecto** con escritura en
+`--aplicar`, los usuarios que ya existen **no se tocan** salvo `--actualizar`, `validate_password` por fila,
+`debe_cambiar_contrasena=True` en todo aquel a quien el comando le fija la clave —no solo en los creados: la clave
+viajó en texto plano en un CSV, así que es provisoria igual— y la escritura entera en `transaction.atomic()`. Entra
+también el `asegurar_admin_restante` que la ficha listaba como faltante, acotado al caso que lo necesita (si
+`--actualizar` pisó a alguien, el `groups.set` pudo haberle quitado el rol al único que administra; el `CommandError`
+revierte la tanda). **Tres cosas que la ficha no pedía.** (1) `--actualizar` **exige `--motivo`**, que queda en el log
+con el archivo y el usuario de referencia: es la forma destructiva del comando y el repo ya trata así a
+`--ignorar-corrida` y a `--si-entiendo-prd` (`ComandoSiisBase`). (2) La planificación y la validación de claves corren
+**también en el ensayo**, así que un CSV con una clave débil en la fila 40 corta antes de escribir la 1, y el ensayo
+sirve de verdad para revisar. (3) La columna **`Rol` dejó de ser obligatoria**: estaba entre las requeridas y **no la
+leía nadie** —los grupos salen del usuario de referencia—, así que exigirla hacía creer que asignaba el rol; si viene,
+se avisa que se ignora. La salida nombra usuarios y nada más: ni la contraseña ni el correo quedan en la terminal.
+**Test permanente:** `users.tests.test_import_users_from_csv`
+(`ImportUsersFromCsvTests.test_un_usuario_existente_conserva_grupos_clave_y_email_sin_actualizar`,
+`ImportUsersFromCsvTests.test_reference_user_id_es_obligatorio`,
+`ImportUsersFromCsvTests.test_sin_aplicar_no_escribe_nada`,
+`ImportUsersFromCsvTests.test_actualizar_exige_motivo`,
+`ImportUsersFromCsvTests.test_una_clave_debil_corta_y_no_deja_nada_escrito`,
+`ImportUsersFromCsvTests.test_actualizar_no_puede_dejar_al_sistema_sin_administrador`).
+
 ### G3-04 · CronJobs de referencia sin `activeDeadlineSeconds`, `startingDeadlineSeconds`, `backoffLimit` ni `timeZone`
 **Severidad:** BAJA · **Estado:** PLAUSIBLE (manifiesto de referencia; el real de ECOM no está en el repo) · **Origen:** G3-04 · **Ola:** 3 · **Esfuerzo:** S · **Decisión:** pregunta ECOM (manifiestos)
 - **Ubicación:** `docker/k8s/cronjobs.yaml` (4 CronJobs, `schedule` en las líneas 18, 38, 58 y 80; 93 líneas en total).
@@ -570,9 +629,10 @@ la instalación (incluida la del logrotate, que es el único paso que necesita r
 | `migrate --run-syncdb` / `collectstatic` | ídem (`RUN_MIGRATIONS`, `RUN_COLLECTSTATIC`) | cada arranque | no | OPS-05, OPS-07, OPS-11; restore de PRD con tablas huérfanas (nunca `--fake`). |
 | Proceso masivo SIIS (hilo en `web`, `CorridaSiis`) | pantalla `/becas/config/programas/<pk>/proceso-masivo/` | a pedido | latido | SIIS-01/02/03. |
 
-**No programados** (manuales; riesgo si se corren en PRD): `debug_ciudadanos` (G1c-12); `optimize_db`, `optimize_database`,
-`setup_system`, `initialize_phase2` (OPS-10); `crear_usuarios_sistema` y seeds demo (OPS-02); `setup_roles_contactos` y
-`setup_groups` (OPS-02); `import_users_from_csv` (G2-05); `corregir_datos_siis` (G3-06); `reenviar_siis_pendientes`
+**No programados** (manuales; riesgo si se corren en PRD): ~~`debug_ciudadanos` (G1c-12)~~, ~~`crear_usuarios_sistema`~~,
+~~`setup_roles_contactos`~~ y ~~`setup_groups`~~ (OPS-02) **borrados en el Cambio 171**; los seeds demo quedan detrás de
+`exigir_entorno_demo` y `import_users_from_csv` (G2-05) detrás de `--aplicar` / `--actualizar --motivo`; `optimize_db`,
+`optimize_database`, `setup_system`, `initialize_phase2` (OPS-10); `corregir_datos_siis` (G3-06); `reenviar_siis_pendientes`
 (el Cambio 27 lo pensó para cron, no está programado), `enviar_casos_siis`, `procesar_casos_siis`, `validar_casos_siis` y
 `completar_casos_renaper` (SIIS-01/03, PERF-06); `correr_alta_siis` (#513, 01-oct: encadena los `.sql` del organismo, `seed_catalogo_siis`, `completar_casos_renaper`, `corregir_datos_siis --aplicar` y `procesar_casos_siis` por tandas de 500, sin candado de corrida; SIIS-01/03/04, G3-06); `cerrar_espera_colgada` (correcto: ensayo por defecto y
 `select_for_update`); `verificar_usuarios` (inocuo); `load_fixtures`, `load_initial_data`, `cargar_config_dispositivos`,

@@ -342,6 +342,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 168 | Datos y catálogo: borrar una pregunta deja de borrar documentos del ciudadano, y «DNI válido» pasa a ser una sola regla | Becas (configuración del catálogo, padrón, alta a SIIS, `/admin/`) · Legajos (alta, confirmación y edición del ciudadano, comandos de datos) · Portal (inscripción pública y registro) | `#datos` `#requisitos` `#rbac` `#siis` `#metodo` | Auditoría integral oct-2026 — fichas DAT-01, DAT-02, DAT-03, DAT-05, V2-NEW-05, G1c-08 y RED-48 (Ola 3, PR 2) | 07/10/2026 | 🟢 **Hecho** (DAT-01 cierra su fase 1; los dos puntos que tocan templates y seeds quedan para el PR siguiente del carril) | `programas.0078` (solo de estado, sin DDL) |
 | 169 | La API navegable de Legajos no da 500 y `/becas/` tiene índice | Legajos (APIs de ciudadanos y alertas) · Becas (raíz del módulo) · Transversal (APIs de geografía) | `#api` `#rbac` `#metodo` | QA (matias-abate) — pruebas sobre testing de ECOM, issue #521 (caso TC-OLA0-02) | 07/10/2026 | 🟢 **Hecho** | No requiere |
 | 170 | Las solapas se manejan con el teclado, las tarjetas de número dejan de escribirse a mano y hay un solo campo de formulario | Transversal (shell: teclado de solapas; piezas de tarjeta de número, campo de formulario y paginación) · Inicio del backoffice · Becas (tablero del programa, solapas de programa, convocatoria y relevamiento, modal de convocatorias) · Usuarios y roles (ABM de roles) · Dispositivos, Admisiones y Merenderos (campos de sus formularios) · Configuración (wizard: campo de color) | `#ui` `#metodo` | Auditoría integral oct-2026 — fichas FE-23, FE-24, lo que faltaba de FE-22 y de V5A-NEW-07 (b), más los tres MINOR de la revisión del PR 6b (Ola 5, PR 6c — **cierra la ola**) | 07/10/2026 | 🟢 **Hecho** | No requiere |
+| 171 | Se van los comandos que sembraban `admin`/`admin123` y el «debug» que vaciaba el Redis | Transversal (comandos de management, cuentas de sistema, seeds de demo, alta masiva por CSV) | `#infra` `#usuarios` `#sesion` `#metodo` | Auditoría integral oct-2026 — fichas OPS-02, G2-05 y G1c-12 (Ola 3, PR 3) | 07/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -23901,6 +23902,162 @@ siguen andando con el mouse, que es el punto de la mejora progresiva).
 ## Reversión
 Revertir el commit. Vuelven los dos `_field.html`, las tarjetas escritas a mano y las
 solapas sin ARIA. No se pierde ningún dato: no hay migraciones ni cambios de modelo.
+
+## Historial
+No aplica (entrada nueva).
+
+---
+
+# Cambio 171 — Se van los comandos que sembraban `admin`/`admin123` y el «debug» que vaciaba el Redis
+
+🟢 **HECHO — 07/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal — comandos de management, seguridad de cuentas y operación |
+| **Etiquetas** | `#infra` `#usuarios` `#sesion` `#metodo` |
+| **Solicitante** | Auditoría integral oct-2026 — fichas OPS-02, G2-05 y G1c-12 (Ola 3, PR 3) |
+| **Fecha del pedido** | 07/10/2026 |
+| **Issue / épica** | Auditoría oct-2026, Ola 3 ítem 3 |
+| **Partes afectadas** | Backoffice (cuentas y roles) · Infra/ECOM (lo que viaja en el release) |
+| **Migración** | No requiere |
+
+## Pedido original
+Tres hallazgos del mismo tipo: **comandos de management que cualquiera con `exec`
+al pod puede correr y que hacen daño irreversible en un ambiente servido.**
+
+- **OPS-02** — `crear_usuarios_sistema` deja `admin`/`admin123` como superusuario y
+  `admin1..3`/`admin123` en el rol «Administrador» real (el protegido, con todas
+  las capacidades), con `is_staff=True`, y **les resetea la clave si ya existen**.
+  `setup_roles_contactos` y `setup_groups` crean diez grupos sin `RolMeta` que
+  `seed_rbac` convierte después en roles fantasma. Los tres viajan en el release
+  espejado a ECOM.
+- **G1c-12** — `debug_ciudadanos` termina con `cache.clear()`, que en `django_redis`
+  es un `FLUSHDB`. En `prd`, caché, sesiones y Channels salen del **mismo**
+  `REDIS_URL`: un «debug» desloguea a todo el backoffice, corta los pasos en curso
+  de la inscripción pública y borra los grupos de Channels. De paso imprime DNI y
+  nombre de tres ciudadanos.
+- **G2-05** — `import_users_from_csv` traía `--reference-user-id` con **default 368**
+  —otra persona en cada base— y a todo usuario del CSV le hacía `groups.set(...)`:
+  una fila con el nombre de alguien que ya trabaja le reemplazaba roles, email y
+  contraseña, sin ensayo, sin `validate_password`, sin `transaction.atomic` y sin
+  marcar la clave como provisoria.
+
+## Alcance acordado
+Entra: borrar los cuatro comandos, la guarda nueva de los seeds de demo, el
+endurecimiento de `import_users_from_csv`, los dos ratchets que impiden que
+vuelvan por otra puerta, y la corrección de `docs/internal/onboarding.md`. Queda
+afuera: separar sesiones y Channels en otra DB lógica de Redis (es PERF-10, Ola 4,
+y depende de la configuración que tiene ECOM), tocar `legajos/services/ciudadanos.py`
+(tomado por el PR 2 de esta ola) y dar de baja las cuentas que ya existan en PRD
+(operativo del PM, con P-09).
+
+## Decisiones tomadas
+- **Los comandos se borran, no se parametrizan.** Es exactamente lo que el
+  **Cambio 28** decidió para `crear_superadmin` y por el mismo motivo: cualquier
+  variante que los deje creando usuarios vuelve a poner una credencial por defecto
+  en un ambiente servido. Sin comando, la única forma de crear el superusuario es
+  que alguien elija las credenciales (`createsuperuser`, ya documentado).
+- **`debug_ciudadanos` se borra en vez de arreglarle el `cache.clear()`.** La ficha
+  ofrecía las dos. Cambiar la línea por `invalidate_ciudadanos_cache()` no arregla
+  la otra mitad —el volcado de DNI y nombre a la terminal— y además ese archivo
+  está tomado por otro PR en curso. No lo invoca nada: ni el entrypoint, ni
+  `docker/k8s/cronjobs.yaml`, ni `chaco-cron.sh`, ni ningún documento.
+- **La guarda de los seeds de demo mira `DEBUG`, no `settings.ENVIRONMENT`.** En
+  icore —que es DEV— `ENVIRONMENT` vale `prd`, y QA lo pisa a `prd` (OPS-12): esa
+  variable no distingue un ambiente de demo de uno servido. Queda
+  `core/management/guardas.py::exigir_entorno_demo()` con `DEBUG` o la escotilla
+  explícita `CHACO_PERMITIR_SEED_DEMO=1`, y vive en un módulo compartido por el
+  mismo criterio que `ComandoSiisBase`: una guarda se escribe en un solo lugar.
+- **Un seed de demo no le toca la clave a una cuenta que ya existe.**
+  `seed_relevamientos_periodo_demo` hacía `set_password` e `is_active = True`
+  incondicionales sobre `territorial_demo`; ahora solo al crearla, y si ya estaba
+  avisa y sigue.
+- **`import_users_from_csv` se conserva endurecido.** La ficha daba a elegir entre
+  borrarlo y endurecerlo; se endurece porque es la herramienta de alta masiva que
+  el área puede necesitar y todos sus caminos peligrosos quedaron cerrados.
+  Borrarlo sigue siendo una línea y lo decide el PM.
+- **Lo destructivo del comando pide motivo.** Tocar cuentas que ya existen es
+  `--actualizar` y **exige `--motivo`**, que queda en el log con el archivo y el
+  usuario de referencia. Es el mismo trato que el repo le da a `--ignorar-corrida`
+  y a `--si-entiendo-prd`.
+- **El ensayo valida de verdad.** La planificación y `validate_password` corren
+  también sin `--aplicar`, así que un CSV con una clave débil en la fila 40 corta
+  antes de escribir la fila 1.
+- **`debe_cambiar_contrasena=True` para todo aquel a quien el comando le fije la
+  clave**, no solo para los creados: esa clave viajó en texto plano en un CSV, así
+  que es provisoria igual.
+- **La columna `Rol` del CSV deja de ser obligatoria.** Estaba entre las requeridas
+  y **no la leía nadie** —los grupos salen del usuario de referencia—, así que
+  exigirla hacía creer que asignaba el rol. Si viene, se avisa que se ignora.
+- **Dos ratchets, porque borrar archivos no alcanza.** Un barrido AST sobre todos
+  los `*/management/commands/*.py` falla si alguno vuelve a llamar `cache.clear()`,
+  y otro si alguno toca contraseñas sin llamar a `exigir_entorno_demo`. El
+  allowlist tiene cuatro archivos y cada uno su motivo escrito; tres de ellos ya
+  tenían una guarda **más** fuerte (solo corren contra su base efímera), que es lo
+  que la propia ficha de OPS-02 refutaba de A8-03.
+
+## Implementación
+- `manage.py crear_usuarios_sistema`, `setup_groups`, `setup_roles_contactos` y
+  `debug_ciudadanos` responden `Unknown command`.
+- Los tres seeds de demo cortan con un mensaje que nombra la variable si se los
+  corre en un ambiente servido.
+- `import_users_from_csv` sin `--aplicar` informa qué haría y no escribe nada; sin
+  `--reference-user-id` no arranca; con una cuenta que ya existe la saltea y dice
+  cómo pisarla; con `--actualizar` sin `--motivo` corta.
+- Ningún comportamiento de las pantallas cambia: no se tocó una sola vista.
+
+## Archivos
+- `users/management/commands/crear_usuarios_sistema.py` (eliminado)
+- `legajos/management/commands/setup_groups.py` (eliminado)
+- `legajos/management/commands/setup_roles_contactos.py` (eliminado)
+- `legajos/management/commands/debug_ciudadanos.py` (eliminado)
+- `core/management/guardas.py` (nuevo) — `exigir_entorno_demo()`
+- `users/management/commands/import_users_from_csv.py` — reescrito
+- `programas/management/commands/seed_becas_demo_mobile.py`,
+  `programas/management/commands/seed_relevamientos_periodo_demo.py`,
+  `legajos/management/commands/seed_busqueda_ciudadanos_demo.py` — la guarda
+- `core/tests/test_comandos_peligrosos.py` (nuevo) — 9 tests, incluidos los dos ratchets
+- `users/tests/test_import_users_from_csv.py` (nuevo) — 11 tests
+- `docs/internal/onboarding.md` — dejaba de apuntar a `setup_groups.py` (y la
+  respuesta era equivocada: los roles salen del `CATALOGO` de `core/rbac.py`)
+- `docs/internal/auditoria-2026-10/hallazgos/05-datos-operacion-tests.md`,
+  `docs/internal/auditoria-2026-10/README.md`
+
+## Base de datos
+No requiere migración. **Pero borrar un comando no borra lo que ya creó:** si
+alguien corrió `crear_usuarios_sistema` en algún ambiente, las cuentas `admin`,
+`admin1..3` y los grupos siguen ahí con su contraseña. Eso lo cierra P-09.
+
+## Validación
+- `manage.py check` y `manage.py check --deploy` (con `SIIS_API_URL` definida, como
+  en el CI) → solo las advertencias de seguridad preexistentes.
+- `manage.py makemigrations --check --dry-run` → «No changes detected».
+- Suite completa y `--tag performance` con Python 3.12 + Django 5.2.17 (`.venv312`).
+- Los 20 tests nuevos **fallan antes del cambio**: 14 en `test_comandos_peligrosos`
+  (los cuatro comandos existían, los seeds corrían sin guarda, el `cache.clear()`
+  estaba y cinco comandos tocaban claves sin guarda) y 11 en
+  `test_import_users_from_csv` (el comando no tenía ninguno de los flags nuevos).
+- `ruff check .` y `ruff format --check` sobre lo tocado.
+- No tocó UI (ni templates, ni JS, ni CSS): no corresponde `design_audit`.
+
+## Puesta en marcha en el servidor
+Nada en el deploy: ningún comando borrado se invoca desde el entrypoint, los
+CronJobs de k8s ni el cron de icore. **Aparte del deploy** hay que correr P-09 en
+PRD y dar de baja —o cambiarle la clave a— lo que haya quedado.
+
+## Pendientes / a definir
+- **P-09 en PRD** (`admin`, `admin1..3`, `territorial_demo` y las cuentas `is_staff`).
+  Es lo único que cierra la exposición ya creada.
+- Si el PM prefiere que `import_users_from_csv` tampoco exista, borrarlo es una
+  línea; el PR lo deja marcado como decisión suya.
+- Separar sesiones y channel layer en otra DB lógica de Redis sigue abierto
+  (PERF-10, Ola 4; depende de la configuración de ECOM, H-06).
+
+## Reversión
+`git revert` del commit. Vuelven los cuatro comandos tal como estaban y el
+`import_users_from_csv` sin guardas. No se pierde ningún dato: el PR no escribe en
+la base.
 
 ## Historial
 No aplica (entrada nueva).

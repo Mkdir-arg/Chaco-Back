@@ -7,6 +7,7 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
 
+from core.management.guardas import exigir_entorno_demo
 from programas.models import AsignacionTerritorial, Convocatoria, Relevamiento, Segmento
 
 
@@ -19,6 +20,7 @@ class Command(BaseCommand):
 
     @transaction.atomic
     def handle(self, *args, **options):
+        exigir_entorno_demo("seed_relevamientos_periodo_demo")
         call_command("seed_becas", verbosity=0)
         hoy = timezone.localdate()
 
@@ -40,10 +42,17 @@ class Command(BaseCommand):
         User = get_user_model()
         username = options["username"]
         password = options["password"]
-        territorial, _ = User.objects.get_or_create(username=username)
-        territorial.is_active = True
-        territorial.set_password(password)
-        territorial.save()
+        territorial, creado = User.objects.get_or_create(username=username, defaults={"is_active": True})
+        if creado:
+            territorial.set_password(password)
+            territorial.save(update_fields=["password"])
+        else:
+            # OPS-02: pisarle la clave (y reactivar) a una cuenta que ya existe es
+            # justo el daño del comando que este PR borró. Si el usuario ya está,
+            # el seed siembra los relevamientos y deja la cuenta como está.
+            self.stdout.write(
+                self.style.WARNING(f"El usuario «{username}» ya existía: no se le toca la clave ni el estado.")
+            )
         grupo = Group.objects.filter(name__icontains="Becas").filter(name__icontains="Territorial").first()
         if grupo:
             territorial.groups.add(grupo)
