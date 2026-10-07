@@ -821,3 +821,70 @@ class MigracionReentranteTests(MotorRealMixin, TransactionTestCase):
         self.assertEqual(self._esquema(), antes)
         self.assertEqual({tipo for tipo in antes[0].values()}, {"char(36)"})
         self.assertNotIn(None, antes[1].values())
+
+
+@tag("mysql")
+class CandadoSobreviveAlLoaddataTests(MotorRealMixin, TransactionTestCase):
+    """OPS-07 · El candado no se suelta porque un comando cierre la conexión.
+
+    `seed_datos_base` llama a `loaddata`, y `loaddata` termina con
+    `connections[alias].close()` —a propósito: es un workaround de Django para un bug
+    viejo de MySQL (#7572)—. Con el candado tomado sobre `connections["default"]`, ese
+    `close()` lo liberaba a mitad del sembrado y un segundo bootstrap podía entrar: medido
+    con dos arranques simultáneos sobre una base vacía, los dos sembraron en paralelo.
+
+    Esto solo se puede probar contra el motor real: en SQLite `GET_LOCK` no existe y el
+    comando ni siquiera toma candado.
+    """
+
+    NOMBRE = "datanach_test_loaddata"
+
+    def _conexion_testigo(self):
+        """Un tercero que intenta tomar el candado, como haría el otro pod."""
+        testigo = connections.create_connection("default")
+        self.addCleanup(testigo.close)
+        return testigo
+
+    def test_un_comando_que_cierra_la_conexion_no_suelta_el_candado(self):
+        testigo = self._conexion_testigo()
+        visto = {}
+        salida = StringIO()
+
+        def comando_que_cierra_la_conexion(*args, **kwargs):
+            connections["default"].close()  # exactamente lo que hace `loaddata`
+            with testigo.cursor() as cursor:
+                cursor.execute("SELECT GET_LOCK(%s, 0)", [self.NOMBRE])
+                visto["lo_tomo_el_testigo"] = cursor.fetchone()[0]
+
+        with patch("core.management.commands.bootstrap_lock.call_command", comando_que_cierra_la_conexion):
+            call_command(
+                "bootstrap_lock",
+                "--nombre",
+                self.NOMBRE,
+                "--espera",
+                "3",
+                "--comando",
+                "seed_datos_base",
+                stdout=salida,
+            )
+
+        self.assertEqual(
+            visto["lo_tomo_el_testigo"],
+            0,
+            "otro bootstrap pudo tomar el candado mientras este sembraba",
+        )
+        self.assertNotIn("AVISO", salida.getvalue())
+        self.assertIn("liberado", salida.getvalue())
+
+    def test_al_terminar_el_candado_queda_libre_para_el_deploy_siguiente(self):
+        salida = StringIO()
+        with patch("core.management.commands.bootstrap_lock.call_command", lambda *a, **kw: None):
+            call_command(
+                "bootstrap_lock", "--nombre", self.NOMBRE, "--espera", "3", "--comando", "check", stdout=salida
+            )
+
+        testigo = self._conexion_testigo()
+        with testigo.cursor() as cursor:
+            cursor.execute("SELECT GET_LOCK(%s, 0)", [self.NOMBRE])
+            self.assertEqual(cursor.fetchone()[0], 1)
+            cursor.execute("SELECT RELEASE_LOCK(%s)", [self.NOMBRE])

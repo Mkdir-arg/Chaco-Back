@@ -112,6 +112,10 @@ run_optional_management_commands() {
 #
 # La espera del candado tiene que entrar holgada en ese read_timeout --`GET_LOCK` es una
 # consulta que bloquea-- y `bootstrap_lock` aborta con el motivo si no entra.
+#
+# Lo que el candado NO cubre: `collectstatic` (no toca la base) y los comandos de
+# LOCAL_OPTIONAL_BOOTSTRAP_COMMANDS, que corren despues y afuera. Son idempotentes y no
+# pueden abortar el arranque, asi que dos replicas corriendolos a la vez no rompe nada.
 run_migrations_and_seeds() {
   set --
 

@@ -74,6 +74,28 @@ class _Conexion:
         return [sql for sql, _ in self.ejecutado]
 
 
+class _Conexiones:
+    """`connections` falso: `["default"]` y `create_connection` dan la misma conexión.
+
+    En producción son **dos distintas** a propósito (el candado vive aparte de la que
+    usan los comandos); acá comparten objeto para que las aserciones puedan mirar un solo
+    registro de SQL. Que sean dos lo fija `CandadoSobreviveAlLoaddataTests`
+    (`@tag("mysql")`), que es donde se puede cerrar una de verdad.
+    """
+
+    def __init__(self, conexion):
+        self.conexion = conexion
+        self.creadas = 0
+        self.cerradas = 0
+
+    def __getitem__(self, alias):
+        return self.conexion
+
+    def create_connection(self, alias):
+        self.creadas += 1
+        return self.conexion
+
+
 def _sql_con(conexion, fragmento):
     return [sql for sql in conexion.sql if fragmento in sql]
 
@@ -81,8 +103,10 @@ def _sql_con(conexion, fragmento):
 class BootstrapLockTests(SimpleTestCase):
     def setUp(self):
         self.conexion = _Conexion()
+        self.conexiones = _Conexiones(self.conexion)
+        self.conexion.close = lambda: setattr(self.conexiones, "cerradas", self.conexiones.cerradas + 1)
         self.salida = io.StringIO()
-        parche = mock.patch(f"{MODULO}.connection", self.conexion)
+        parche = mock.patch(f"{MODULO}.connections", self.conexiones)
         parche.start()
         self.addCleanup(parche.stop)
         self.corridos = []
@@ -174,11 +198,37 @@ class BootstrapLockTests(SimpleTestCase):
         self.assertEqual(self.corridos, [("migrate", "--noinput")])
         self.assertIn("sqlite", self.salida.getvalue())
 
-    def test_avisa_si_perdio_el_candado_a_mitad_del_bootstrap(self):
-        """Si la conexión se reconectó, `IS_USED_LOCK` ya no devuelve nuestro `CONNECTION_ID`."""
+    def test_el_candado_va_en_una_conexion_dedicada(self):
+        """`loaddata` cierra `connections["default"]` al terminar: con el candado ahí, se
+        soltaba a mitad del sembrado. La conexión del candado se abre aparte y se cierra
+        recién al final."""
+        self._correr("--comando", "seed_datos_base")
+
+        self.assertEqual(self.conexiones.creadas, 1)
+        self.assertEqual(self.conexiones.cerradas, 1)
+
+    def test_el_caso_normal_no_avisa_nada(self):
+        """El AVISO era un falso positivo con un solo contenedor: no puede salir acá."""
+        self._correr("--comando", "migrate --noinput")
+
+        self.assertNotIn("AVISO", self.salida.getvalue())
+
+    def test_avisa_distinto_si_el_candado_lo_tiene_otra_conexion(self):
+        """Otro `CONNECTION_ID` lo tiene: un segundo bootstrap entró de verdad."""
         self.conexion.duenio_del_candado = 99
 
         self._correr("--comando", "migrate --noinput")
 
         self.assertIn("AVISO", self.salida.getvalue())
-        self.assertIn("candado", self.salida.getvalue().lower())
+        self.assertIn("otro bootstrap entró", self.salida.getvalue())
+        self.assertEqual(_sql_con(self.conexion, "RELEASE_LOCK"), [], "no se suelta un candado ajeno")
+
+    def test_avisa_distinto_si_el_candado_quedo_libre(self):
+        """Nadie lo tiene: se cayó la conexión dedicada. No hay señal de que entrara otro."""
+        self.conexion.duenio_del_candado = None
+
+        self._correr("--comando", "migrate --noinput")
+
+        self.assertIn("AVISO", self.salida.getvalue())
+        self.assertIn("se cayó durante el bootstrap", self.salida.getvalue())
+        self.assertNotIn("otro bootstrap entró", self.salida.getvalue())

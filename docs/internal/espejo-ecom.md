@@ -81,7 +81,14 @@ kubectl exec -it deploy/<web> -- sh -c 'echo "CMD_ARGS=[${GUNICORN_CMD_ARGS:-}] 
 Para **PRD** se le pide a ECOM esa misma línea junto con el `--solo-reporte`, en el paso 2.
 En **icore-srv**: `docker compose -f docker-compose.prod.yml exec -T web env | grep GUNICORN`.
 
-### Y confirmar que testing tiene Redis y declara `ENVIRONMENT` (OPS-12)
+### Y confirmar que testing llega a Redis y declara `ENVIRONMENT` (OPS-12)
+
+> **Gate, no sugerencia: no se espeja a `ecom/test` sin la confirmación de que el pod de
+> `web` llega a un Redis.** No es «se degrada alguna pantalla»: medido, con
+> `ENVIRONMENT=qa` y el Redis inalcanzable el arranque del contenedor **terminaba en exit
+> 1** y el pod quedaba en CrashLoopBackOff. El Cambio 165 arregló la causa conocida (ver
+> abajo), así que hoy arranca; pero el ambiente queda sirviendo con el caché roto, que es
+> justo lo que testing existe para no descubrir en producción.
 
 **Propuesta para el PM: esto hay que preguntárselo a ECOM antes de espejar este release.
 No se supone nada del lado de ellos.**
@@ -100,10 +107,31 @@ Desde este release, `qa` usa Redis igual que `prd`. Las dos preguntas para ECOM:
 | ¿El ambiente de testing tiene un Redis al que llega el pod, y `REDIS_HOST`/`REDIS_PORT` apuntan a él? | Es el cambio de comportamiento del release. ECOM ya provee Redis para los websockets; lo que hay que confirmar es que las variables están puestas en el Deployment de `web`, no solo en el de websockets |
 | ¿Qué valen `ENVIRONMENT` y `DJANGO_SETTINGS_MODULE` en testing y en PRD? (es la pregunta abierta H-09) | Si `ENVIRONMENT` no está declarada, el ambiente queda con los defaults de desarrollo —caché local al proceso— en vez de con «prd» de regalo. Lo avisa `manage.py check --deploy` con `core.W002` |
 
-Si testing **no** llega a un Redis, el release no se espeja hasta resolverlo: la app
-arranca igual (`django_redis` no se conecta hasta el primer uso) pero cada pantalla que
-lee caché responde error. Es un cambio de infraestructura del lado de ECOM, así que lo
-pide el PM, no el espejo.
+#### Qué pasa de verdad si el pod no llega a Redis
+
+Esto se midió, porque la primera versión de esta sección decía que «la app arranca igual
+porque `django_redis` no se conecta hasta el primer uso», y **era falso**: el primer uso
+ocurre durante el propio arranque.
+
+| Momento | Qué pasa |
+|---|---|
+| Arranque del contenedor | `seed_becas` invalida la clave `programas:becas` al asegurar el programa. Con Redis inalcanzable eso era un `ConnectionError` sin atrapar → **el bootstrap terminaba en exit 1**, el pod en CrashLoopBackOff y el Job de migración de R-13 en `Failed`. **Corregido en el Cambio 165:** esa invalidación es *best-effort*, deja un `WARNING` en el log y el arranque sigue |
+| Ya arrancado, sirviendo | Cada lectura de caché levanta la excepción: las pantallas de Becas responden 500, el límite de intentos del login deja de contar y las sesiones de `prd` no se resuelven. Eso **no** se tapa a propósito: un ambiente servido con el caché caído es una caída y tiene que verse |
+| Websockets | El channel layer también es Redis desde este release: sin él, el chat y los avisos no cruzan entre pods |
+
+Por eso el gate es **antes** de espejar y no «lo vemos cuando falle»: hoy el pod levanta,
+así que la falta de Redis no se nota en el rollout —se nota recién cuando alguien abre una
+pantalla—.
+
+Si testing **no** llega a un Redis, el release no se espeja hasta resolverlo. Es un cambio
+de infraestructura del lado de ECOM, así que lo pide el PM, no el espejo.
+
+La verificación, una vez que ECOM diga que está, se hace desde el pod:
+
+```bash
+kubectl exec -it deploy/<web> -- python manage.py shell -c \
+  "from django.core.cache import cache; cache.set('ping', 1, 5); print('redis ok:', cache.get('ping'))"
+```
 
 ## Paso 1 — `/pushGitLabecomTEST`
 

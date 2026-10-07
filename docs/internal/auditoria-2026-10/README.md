@@ -22,10 +22,23 @@ espera no entra. (2) Las fichas pedían dos candados con nombres distintos —un
 seeds— y eso no sirve: una réplica sembraría contra el esquema que otra está migrando. Va **uno solo**
 envolviendo guarda + `migrate` + sembrado.
 
+**Ronda 2 de la revisión.** Dos hallazgos reales, los dos consecuencia de lo que este mismo PR movió.
+(1) **Un caché caído pasaba a impedir el arranque:** con `qa` usando Redis (OPS-12), el `cache.delete`
+incondicional de `seed_becas` terminaba el bootstrap en **exit 1** y dejaba el pod en CrashLoopBackOff.
+Esa invalidación pasó a ser *best-effort* —y solo esa: `programa_becas()` sigue fallando fuerte, porque un
+ambiente sirviendo con el caché roto es una caída—, y el runbook de `espejo-ecom.md`, que decía lo contrario,
+se corrigió y pasó a ser un **gate explícito**. (2) **El candado no cubría el sembrado:** `loaddata` cierra
+`connections["default"]` al terminar (workaround de Django para un bug de MySQL), así que el `GET_LOCK` se
+soltaba a mitad del seed y dos bootstraps sembraban en paralelo, con un aviso que además era falso positivo
+con un solo contenedor. El candado pasó a una **conexión dedicada** y el aviso distingue «lo tiene otro» de
+«no lo tiene nadie». Medido: dos bootstrap en paralelo sobre base vacía ahora serializan (uno aplica las 138
+migraciones, el otro no encuentra nada), los dos con exit 0 y sin avisos.
+
 **Pasos operativos para el PM.** Antes de espejar este release hay que preguntarle a ECOM dos cosas (quedaron
-escritas en `espejo-ecom.md`): si el pod de `web` de testing llega a un Redis, y cuánto valen `ENVIRONMENT` y
-`DJANGO_SETTINGS_MODULE` ahí y en PRD, que es la pregunta abierta **H-09**. En icore, además, hay que instalar
-el envoltorio de cron y la rotación del log (`processes.md`, *Cron del host*).
+escritas en `espejo-ecom.md`, ahora como gate y no como sugerencia): si el pod de `web` de testing llega a un
+Redis, y cuánto valen `ENVIRONMENT` y `DJANGO_SETTINGS_MODULE` ahí y en PRD, que es la pregunta abierta
+**H-09**. En icore, además, hay que instalar el envoltorio de cron y la rotación del log (`processes.md`,
+*Cron del host*).
 
 ## Estado al 07-oct-2026 (Ola 5, PR 6a: los listados de afuera de Becas clonan la golden)
 

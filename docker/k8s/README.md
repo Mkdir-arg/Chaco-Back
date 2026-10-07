@@ -58,7 +58,13 @@ candado de base tomado (`manage.py bootstrap_lock`, un `GET_LOCK('datanach_boots
 arranca con el entrypoint— los pods se **esperan** en vez de pisarse. No reemplaza al Job:
 el candado serializa, pero N pods migrando de a uno siguen siendo N arranques lentos, y el
 Job es además lo que frena el rollout si la migración falla. `GET_LOCK` es de la conexión,
-así que un pod matado a mitad del bootstrap lo suelta solo.
+así que un pod matado a mitad del bootstrap lo suelta solo — y por eso el candado va en una
+conexión **dedicada**: `loaddata` (dentro de `seed_datos_base`) cierra la conexión por
+defecto al terminar, y con el candado ahí se soltaba a mitad del sembrado.
+
+Lo que el candado **no** cubre: los comandos de `LOCAL_OPTIONAL_BOOTSTRAP_COMMANDS`, que
+corren fuera y después (son idempotentes y no pueden abortar el arranque), y el rolling en
+sí —dos releases distintas migrando contra el mismo esquema sigue siendo expand/contract—.
 
 Ese mismo bloque corre con el `read_timeout` levantado a 1200 s
 (`MIGRATE_DB_READ_TIMEOUT`), sin exportarlo al proceso del server: con los 10 s del

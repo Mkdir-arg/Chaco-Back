@@ -23436,3 +23436,42 @@ se revierte, hay que volver las cuatro líneas del `crontab` a su forma anterior
   (`verificar_esquema_migraciones`) entra al entrypoint y `/health/ready/` al deploy. Es el
   comando que este cambio mete adentro del candado.
 - **07/10/2026 (este cambio)** — las siete fichas. Con esto arranca la Ola 3.
+- **07/10/2026 (ronda 2 de la revisión)** — dos hallazgos reales, los dos medidos, y los dos
+  consecuencia de cosas que este mismo cambio movió.
+
+  **(1) Un caché caído pasaba a impedir el arranque.** La decisión 1 de OPS-12 —que `qa`
+  use Redis— destapó que `seed_becas` invalida la clave `programas:becas` con un
+  `cache.delete` **incondicional**, y que ese seed corre en el bootstrap del contenedor.
+  Con `ENVIRONMENT=qa` y el Redis inalcanzable, el arranque terminaba en **exit 1**
+  (`ConnectionError`) y el pod quedaba en CrashLoopBackOff; lo mismo el Job de migración de
+  R-13. La invalidación pasó a ser *best-effort* (`invalidar_programa_becas` en
+  `programas/services/autorizacion.py`: atrapa, deja un `WARNING` y sigue, con la clave
+  venciendo sola en 300 s). **Solo esa**: `programa_becas()` no se tocó, porque ahí un
+  caché caído tiene que fallar fuerte —es un ambiente sirviendo tráfico con la
+  infraestructura rota, y taparlo escondería una caída real—. Y el runbook de
+  `espejo-ecom.md`, que afirmaba lo contrario («la app arranca igual porque `django_redis`
+  no se conecta hasta el primer uso»), se corrigió y pasó a ser un **gate explícito**: no
+  se espeja a `ecom/test` sin confirmar que el pod llega a Redis.
+
+  **(2) El candado no cubría el sembrado.** `GET_LOCK` es de la conexión, y eso tiene una
+  contracara que la primera versión no vio: `seed_datos_base` llama a `loaddata`, que
+  termina con `connections[alias].close()` —a propósito, es un workaround de Django para
+  un bug viejo de MySQL (#7572)—. Con el candado tomado sobre `connections["default"]`,
+  ese `close()` lo soltaba a mitad del sembrado: con dos arranques simultáneos sobre una
+  base vacía el segundo lo tomaba y sembraba en paralelo, y los dos imprimían el aviso de
+  candado perdido **incluso con un solo contenedor**. El candado pasó a una **conexión
+  dedicada**, que ningún comando toca y que solo se cierra al final, y el aviso ahora
+  distingue los dos casos que mezclaba: que lo tenga otro `CONNECTION_ID` (entró un segundo
+  bootstrap) y que no lo tenga nadie (se cayó la conexión del candado). Medido contra
+  `mariadb:10.11`: con el patrón viejo un tercero toma el candado después del `close()`
+  (`GET_LOCK` devuelve 1) y con el nuevo no lo consigue (devuelve 0); y dos bootstrap en
+  paralelo sobre una base vacía ahora **serializan** —uno aplica las 138 migraciones y el
+  otro no encuentra nada que aplicar, los dos con exit 0 y sin avisos—.
+
+  Y cuatro MINOR: el comentario de `bootstrap-initcontainer.yaml` nombraba un candado
+  (`datanach_migrate`) que no existe y lo daba por futuro; `docker-compose.yml` dejó de
+  pasar `DJANGO_SYNCDB_PROJECT_APPS` —sin `--run-syncdb`, encenderla deja la base con cero
+  tablas de proyecto—; `PyYAML` quedó declarada en `requirements.txt` (cinco módulos de
+  tests la importan y venía solo como dependencia transitiva de `drf-spectacular`); y se
+  escribió qué **no** cubre el candado (los opcionales y `collectstatic` corren afuera, a
+  propósito) en el entrypoint, en `docker/k8s/README.md` y en `docker-compose.prod.yml`.

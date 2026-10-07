@@ -117,7 +117,7 @@ arranque. Ninguna de estas fallas se ve en pantalla ni deja traza en el log.
 | `DJANGO_ENV_FILE` | p. ej. `.env.local` | archivo de entorno a cargar. Se carga **sin sobreescribir** lo que ya viene en el entorno |
 | `SERVE_MEDIA` | `True` siempre (desde SEC-09 nginx ya no sirve `/media/`) | archivos adjuntos accesibles, detrás de login |
 | `WEBSOCKETS_ENABLED` | se deduce de `APP_RUNTIME` (`True` solo con `daphne`) | con `gunicorn` hay que ponerla en `True` si otro contenedor daphne atiende `/ws/` |
-| `DJANGO_SYNCDB_PROJECT_APPS` | `False` | solo para CI |
+| `DJANGO_SYNCDB_PROJECT_APPS` | `False` | **solo para el runner de tests.** Apaga las migraciones de las apps del proyecto para que las tablas se creen desde los modelos. **Nunca en un contenedor servido:** desde OPS-11 el entrypoint corre `migrate` sin `--run-syncdb`, así que con esto en `True` sobre una base vacía se crean **0 tablas de proyecto** y el contenedor arranca contra una base que no sirve. Por eso `docker-compose.yml` ya no la pasa |
 
 #### Opcionales con default sano (se toca solo si hace falta)
 

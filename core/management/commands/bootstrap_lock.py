@@ -24,13 +24,23 @@ consulta que bloquea hasta `espera` segundos; con el `read_timeout` de 10 s de p
 el cliente se cae antes (error 2013) y el candado nunca llega a conseguirse. Por eso el
 comando se niega a arrancar si la espera no entra holgada en el `read_timeout` de la
 conexión: el entrypoint lo invoca con `DB_READ_TIMEOUT` levantado (OPS-05).
+
+**El candado va en una conexión aparte, y no es un detalle.** Ser de la conexión
+también significa que se suelta cuando *esa* conexión se cierra, y uno de los comandos
+que corren adentro la cierra: `seed_datos_base` llama a `loaddata`, que termina con
+`connections[alias].close()` —a propósito, es un workaround de Django para un bug viejo
+de MySQL (#7572)—. Con el candado tomado sobre `connections["default"]`, ese `close()`
+lo liberaba a mitad del sembrado y otro bootstrap podía entrar; medido con dos
+arranques simultáneos sobre una base vacía. Por eso se abre una conexión dedicada que
+**nadie más usa**: los comandos siguen trabajando sobre `default` y pueden cerrarla
+todas las veces que quieran.
 """
 
 import shlex
 
 from django.core.management import call_command
 from django.core.management.base import BaseCommand, CommandError
-from django.db import connection
+from django.db import connections
 
 NOMBRE_POR_DEFECTO = "datanach_bootstrap"
 ESPERA_POR_DEFECTO = 900
@@ -71,27 +81,36 @@ class Command(BaseCommand):
             return
 
         nombre = options["nombre"]
-        tomado = self._tomar_candado(nombre, options["espera"])
+        if connections["default"].vendor != "mysql":
+            self.stdout.write(
+                f"AVISO: el motor «{connections['default'].vendor}» no tiene GET_LOCK; los comandos corren sin candado."
+            )
+            self._correr(comandos)
+            return
+
+        self._verificar_margen(options["espera"])
+        # Conexión dedicada: ver el encabezado del módulo. `loaddata` cierra
+        # `connections["default"]` al terminar y con el candado ahí se soltaba solo.
+        candado = connections.create_connection("default")
         try:
-            for partes in comandos:
-                self.stdout.write(f"Ejecutando python manage.py {' '.join(partes)}")
-                call_command(*partes)
+            id_conexion = self._tomar_candado(candado, nombre, options["espera"])
+            try:
+                self._correr(comandos)
+            finally:
+                self._soltar_candado(candado, nombre, id_conexion)
         finally:
-            if tomado is not None:
-                self._soltar_candado(nombre, tomado)
+            candado.close()
+
+    def _correr(self, comandos):
+        for partes in comandos:
+            self.stdout.write(f"Ejecutando python manage.py {' '.join(partes)}")
+            call_command(*partes)
 
     # ── candado ────────────────────────────────────────────────────────────────
 
-    def _tomar_candado(self, nombre, espera):
-        """Devuelve el `CONNECTION_ID` que tomó el candado, o `None` si no hubo candado."""
-        if connection.vendor != "mysql":
-            self.stdout.write(
-                f"AVISO: el motor «{connection.vendor}» no tiene GET_LOCK; los comandos corren sin candado."
-            )
-            return None
-
-        self._verificar_margen(espera)
-        with connection.cursor() as cursor:
+    def _tomar_candado(self, candado, nombre, espera):
+        """Devuelve el `CONNECTION_ID` de la conexión dedicada que tomó el candado."""
+        with candado.cursor() as cursor:
             cursor.execute("SELECT CONNECTION_ID()")
             id_conexion = (cursor.fetchone() or [None])[0]
             cursor.execute("SELECT GET_LOCK(%s, %s)", [nombre, espera])
@@ -107,24 +126,36 @@ class Command(BaseCommand):
         self.stdout.write(f"Candado «{nombre}» tomado (conexión {id_conexion}).")
         return id_conexion
 
-    def _soltar_candado(self, nombre, id_conexion):
-        with connection.cursor() as cursor:
+    def _soltar_candado(self, candado, nombre, id_conexion):
+        """Suelta el candado y, si dejó de ser nuestro, dice **qué** pasó exactamente.
+
+        Los dos casos anómalos no son el mismo y el aviso distingue: que lo tenga **otro**
+        `CONNECTION_ID` significa que un segundo bootstrap entró mientras este corría; que
+        no lo tenga nadie significa que la conexión dedicada se cayó y la exclusión mutua
+        dejó de estar garantizada, sin evidencia de que alguien se haya metido.
+        """
+        with candado.cursor() as cursor:
             cursor.execute("SELECT IS_USED_LOCK(%s)", [nombre])
             duenio = (cursor.fetchone() or [None])[0]
-            if duenio != id_conexion:
-                # La conexión se cayó y se reconectó a mitad del bootstrap: el candado se
-                # soltó solo y otro proceso pudo haber entrado. No es fatal —lo que corrió
-                # ya corrió— pero es lo primero que hay que mirar si el esquema quedó raro.
-                self.stdout.write(
-                    f"AVISO: el candado «{nombre}» ya no es de esta conexión ({duenio} != {id_conexion}): "
-                    "la conexión se reconectó durante el bootstrap y otro proceso pudo correr en paralelo."
-                )
+            if duenio == id_conexion:
+                cursor.execute("SELECT RELEASE_LOCK(%s)", [nombre])
+                self.stdout.write(f"Candado «{nombre}» liberado.")
                 return
-            cursor.execute("SELECT RELEASE_LOCK(%s)", [nombre])
-        self.stdout.write(f"Candado «{nombre}» liberado.")
+
+        if duenio is None:
+            self.stdout.write(
+                f"AVISO: el candado «{nombre}» ya no estaba tomado al terminar: la conexión que lo "
+                "sostenía se cayó durante el bootstrap. No hay señal de que otro proceso haya entrado, "
+                "pero la exclusión mutua dejó de estar garantizada desde ese momento."
+            )
+            return
+        self.stdout.write(
+            f"AVISO: el candado «{nombre}» lo tiene otra conexión ({duenio}, no la {id_conexion}): "
+            "otro bootstrap entró mientras este corría y los dos pudieron migrar o sembrar a la vez."
+        )
 
     def _verificar_margen(self, espera):
-        read_timeout = (connection.settings_dict.get("OPTIONS") or {}).get("read_timeout")
+        read_timeout = (connections["default"].settings_dict.get("OPTIONS") or {}).get("read_timeout")
         if read_timeout and espera + MARGEN_SEGUNDOS > read_timeout:
             raise CommandError(
                 f"La espera del candado ({espera}s) no entra en el read_timeout de la conexión "

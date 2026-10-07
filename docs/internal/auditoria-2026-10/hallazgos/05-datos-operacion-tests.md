@@ -186,13 +186,22 @@ de OPS-01 abortaría el arranque por una foto a medias que no es un problema rea
 guarda + `migrate` + sembrado; `collectstatic` queda afuera porque no toca la base y no tiene sentido hacer esperar a
 las demás réplicas mientras se comprime CSS. (b) La espera del candado tiene que entrar en el `read_timeout` (ver
 OPS-05): el comando lo verifica y aborta con el motivo en vez de morir con un 2013. `GET_LOCK` es de la **conexión**,
-así que un pod matado a mitad del bootstrap lo suelta solo —es la razón de usarlo y no una fila de control— y el
-comando avisa si `IS_USED_LOCK` deja de devolver su `CONNECTION_ID` (la conexión se reconectó a mitad). No reemplaza a
+así que un pod matado a mitad del bootstrap lo suelta solo —es la razón de usarlo y no una fila de control—.
+**Ronda 2 de la revisión:** eso mismo lo volvía inútil para el sembrado. `seed_datos_base` llama a `loaddata`, que
+termina con `connections[alias].close()` —un workaround de Django para un bug viejo de MySQL (#7572)—, así que el
+candado tomado sobre `connections["default"]` **se soltaba a mitad del sembrado**: con dos arranques simultáneos
+sobre una base vacía, el segundo lo tomaba y sembraba en paralelo, y los dos imprimían el aviso de candado perdido
+inclusive con **un solo** contenedor. El candado pasó a una conexión **dedicada**, que ningún comando toca y que
+solo se cierra al final; y el aviso distingue ahora los dos casos que antes mezclaba —que el candado lo tenga **otro**
+`CONNECTION_ID` (entró un segundo bootstrap) y que no lo tenga nadie (se cayó la conexión dedicada)—, así que el falso
+positivo con un solo contenedor desapareció. Medido contra `mariadb:10.11`: con el patrón viejo un tercero tomaba el
+candado después del `close()` (devuelve 1) y con el nuevo no lo consigue (devuelve 0); y dos bootstrap en paralelo
+sobre una base vacía ahora serializan —uno aplica las 138 migraciones y el otro no encuentra nada que aplicar—. No reemplaza a
 la regla de RED-19 (`RUN_MIGRATIONS=false` + Job único), y `docker/k8s/README.md` lo dice. Verificado en contenedores
 efímeros: el entrypoint con un `python` de mentira (seis casos: default, `RUN_MIGRATIONS=false`, `SKIP_SCHEMA_GUARD`,
 opcional que falla, `ENVIRONMENT=prd`, guarda de gevent) y un `migrate` completo desde base vacía contra
 `mariadb:10.11` a través del candado. **Test permanente:** `core.tests.test_bootstrap_lock.BootstrapLockTests`,
-`core.tests.test_motor_real.CandadoDeBootstrapTests` (`@tag("mysql")`, dos conexiones),
+`core.tests.test_motor_real.CandadoDeBootstrapTests` y `CandadoSobreviveAlLoaddataTests` (`@tag("mysql")`, dos conexiones),
 `core.tests.test_procesar_vencimientos_aislado.ReglasAisladasTests` y
 `core.tests.test_entrypoint_bootstrap.EntrypointBootstrapTests`.
 
@@ -320,9 +329,17 @@ hoy. Lo demás ya estaba bien derivado de la variable real desde siempre (el pre
 el `ManifestStaticFilesStorage`): lo único que el override cambiaba era lo que el código lee **en runtime**.
 **Consecuencia operativa, para el PM:** QA pasa a depender de Redis. Está escrito en `docs/internal/espejo-ecom.md`
 como las dos preguntas que hay que hacerle a ECOM antes de espejar este release (es la pregunta H-09 más «¿el pod de
-`web` llega al Redis?»), y en `.env.qa.example`. **Test permanente:**
+`web` llega al Redis?»), y en `.env.qa.example`. **Ronda 2 de la revisión:** el runbook decía que sin Redis «la app arranca igual porque `django_redis` no se conecta
+hasta el primer uso», y **era falso**: el primer uso es el propio arranque. Medido con `ENVIRONMENT=qa` y el Redis
+inalcanzable, el bootstrap terminaba en **exit 1** en `seed_becas` —un `cache.delete("programas:becas")` incondicional—
+y el pod quedaba en CrashLoopBackOff, igual que el Job de migración de R-13. O sea: el cambio de ambiente de OPS-12
+convertía un caché caído, que antes degradaba, en algo que **impedía arrancar**. Dos cosas: esa invalidación pasó a ser
+*best-effort* (`invalidar_programa_becas`, con `WARNING` en el log y la clave venciendo sola en 300 s) —y **solo esa**:
+`programa_becas()` sigue fallando fuerte, porque un ambiente sirviendo tráfico con el caché roto es una caída y taparla
+la escondería—; y el runbook de `espejo-ecom.md` dejó de mentir y ahora es un **gate explícito**, con la tabla de qué pasa
+en cada momento y el `cache.set/get` de verificación desde el pod. **Test permanente:**
 `core.tests.test_settings_entorno_y_timeouts.EntornoDeclaradoTests` (arranca Django en un subproceso con el entorno de
-QA) y `EntornoDeclaradoCheckTests`.
+QA), `EntornoDeclaradoCheckTests` y `programas.tests.test_seed_becas_cache_caido.InvalidacionToleranteTests`.
 
 ### OPS-13 · Dependencias sin uso en la imagen de producción
 **Severidad:** BAJA · **Origen:** A8-17 · **Ola:** 7 · **Esfuerzo:** S
