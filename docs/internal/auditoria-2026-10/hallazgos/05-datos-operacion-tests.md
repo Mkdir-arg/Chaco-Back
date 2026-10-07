@@ -218,7 +218,12 @@ real en vez de borrarse. **Dos desvíos code-first:** el wizard lo gobierna `pro
 se registró en RED-73). (4) **Un sexto módulo con el mismo defecto, que la ficha no tenía** —midió solo
 `programas/tests/`—: `legajos.tests.test_adjuntos_robustez` fallaba solo con `4 != 3` porque el `ContentType` de
 `LegajoAtencion` quedaba frío; ahora se calienta explícitamente. Barrido completo de las once apps: **0 módulos en
-rojo corridos solos**. El `assertNumQueries` de la pasada sigue siendo PERF-20 (Ola 4). El gate de orden quedó como
+rojo corridos solos**. **(5) Y un séptimo, que el barrido módulo por módulo
+no podía encontrar:** `legajos.tests.test_consulta_renaper_encoding.RenaperTestModeTests` pasa corrido solo —en el
+orden alfabético el acoplamiento juega a favor— y falla con la semilla aleatoria del CI (2529168576), porque
+`consultar_datos_renaper` cachea por DNI en LocMem (de proceso) y el segundo test pegaba en la caché sin llamar al
+servicio; en el orden de siempre eso dejaba al otro test **pasando por el motivo equivocado**. Lo encontró el job
+`Orden y paralelo` en su **primera** corrida, que es exactamente para lo que está. El `assertNumQueries` de la pasada sigue siendo PERF-20 (Ola 4). El gate de orden quedó como
 el job **no bloqueante** `Orden y paralelo` y no como test estructural: el detector AST que se probó primero marca
 10 módulos que en realidad pasan solos, y un gate que miente es peor que no tenerlo.
 **Test permanente:** `programas/tests/test_aislamiento_modulos.py::ModulosMedidosTests.test_todas_las_clases_de_los_modulos_medidos_heredan_el_mixin`

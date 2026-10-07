@@ -22391,6 +22391,15 @@ ficha tenía (ver «Tres hallazgos que las fichas no tenían»).
    suben adjuntos de **Ciudadano**: el de `LegajoAtencion` —que el payload también necesita— quedaba frío salvo que otro
    módulo lo hubiera consultado antes. Se calienta explícitamente por los dos modelos. **Barrido completo:** después del
    arreglo, los **77 módulos de `programas/tests/` y los de las otras diez apps pasan corridos solos, uno por uno.**
+   **Y un séptimo que el barrido no podía encontrar.** `legajos.tests.test_consulta_renaper_encoding.RenaperTestModeTests`
+   pasa corrido solo —en el orden alfabético el acoplamiento juega a favor— y falla con la semilla aleatoria del CI
+   (2529168576): `consultar_datos_renaper` cachea por `renaper:consulta:<dni>:<sexo>` en LocMem, que es de **proceso**,
+   y el segundo test en correr pegaba en la caché sin llamar al servicio. En el orden de siempre eso dejaba al otro
+   test **pasando por el motivo equivocado** (no dormía porque no se ejecutaba). Arreglado con `cache.clear()` en el
+   `setUp` **y** un DNI distinto por caso, más un test que afirma la caché como comportamiento buscado —si no, alguien
+   podría «arreglar» el acoplamiento sacándola, que es lo que evita una llamada a RENAPER por visita—. **Lo encontró el
+   job `Orden y paralelo` en su primera corrida**, que es la mejor evidencia de que el ratchet estructural no alcanzaba
+   y de por qué el gate real tiene que ser `--shuffle`.
 2. **Un flake de medianoche, de la misma familia pero por hora y no por orden.**
    `programas.tests.test_fechas_locales_dispositivos.IndicadorActualizacionFechaLocalTests.test_un_parte_de_hoy_no_suma_dias`
    fijaba `modificado = timezone.now() - timedelta(minutes=5)` y lo comparaba contra la **fecha local**: entre las 00:00
