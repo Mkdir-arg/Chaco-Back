@@ -113,6 +113,21 @@ el marcador de identidad de `core.rbac.es_ciudadano_portal`) y el rótulo dice �
 `home:ingresos_backoffice_24h` para que las entradas con la semántica vieja no sobrevivan al deploy —de paso
 deja de pisarse con la que escribe la vista muerta `DashboardView`—. (4) `tendencias_datos` arranca la serie en
 `hoy - (dias - 1)`: el último punto es hoy y el selector sigue dando la cantidad de barras que promete.
+**Ronda 2 — la cuarta tarjeta tampoco medía lo que decía.** «Legajos activos · de N legajos en total» salía de
+`dashboard.utils.contar_legajos()`, que agrega **`InscripcionPrograma`**, no `LegajoAtencion`. Con 4 legajos de
+atención (3 activos) y 5 inscripciones en PENDIENTE, el inicio decía «0 · de 5» y `/legajos/reportes/` decía
+«4 · 3» en la misma sesión: dos pantallas contradiciéndose, y ninguna rota —medían cosas distintas bajo el
+mismo rótulo—. Manda el rótulo: la tarjeta pasa a `LegajoAtencion` con la **misma** definición de «activo» que
+usa reportes (*todo lo que no esté `CERRADO`*, así que ABIERTO, EN_SEGUIMIENTO y DERIVADO cuentan), y esa
+definición deja de estar escrita dos veces: vive en `legajos/selectors/legajos.py`
+(`legajos_abiertos`, `resumen_legajos_atencion`) y la consumen las dos pantallas.
+`contar_legajos()` **no se tocó** —la usa `dashboard.views.home.DashboardView` (vista tapada, RED-78) y RED-51
+tiene dos tests escritos sobre que `stats_legajos` agrega inscripciones—: el contador nuevo es
+`contar_legajos_atencion()`, con su clave `stats_legajos_atencion`, que el receiver de
+`legajos/signals/core.py` ya invalida en cada alta o baja de legajo. Mismo presupuesto de consultas: el
+`aggregate` resuelve total y activos en una, igual que el anterior.
+**Efecto visible:** hoy en PRD no hay legajos de atención cargados, así que la tarjeta va a mostrar **0**. Es el
+número correcto; el que se veía antes era el de otra cosa.
 **D-G204 aplicado:** se corrigen las etiquetas; que el inicio muestre indicadores de Becas sigue siendo un
 requerimiento aparte.
 **Evidencia nueva para BEC-18, encontrada por el CI:** el primer test de la serie afirmaba «una inscripción de
@@ -123,12 +138,17 @@ el valor que se le pase** para escribir `datetime.date.today()`, la fecha naíf 
 que esa fecha es la de **Argentina**, mientras que la ventana de la serie se arma con `timezone.now().date()`,
 que es la de **UTC**. Entre las 21 y las 24 de Argentina las dos difieren en un día, y una inscripción recién
 creada cae un bucket antes del que el gráfico rotula como hoy. En Windows `time.tzset` no existe, Django saltea
-el bloque y el desfase no se ve: por eso la suite local daba verde. Es exactamente **BEC-18** («el hoy UTC»,
-Ola 3) y no se arregla acá; el test lo esquiva forzando la fecha con `update()` —que sí saltea `auto_now_add`—
-en vez de taparlo. **Test permanente:**
+el bloque y el desfase no se ve: por eso la suite local daba verde. Es exactamente **BEC-18** («el hoy UTC», Ola 3).
+**Resuelto para este uso en la ronda 2:** la ventana la arma `timezone.localdate()`, que es lo que propone la
+ficha BEC-18, así que los dos relojes coinciden y el `update()` del test se fue. Entre las 21 y las 24 de
+Argentina el último bucket rotulaba «mañana» y salía siempre en cero. El resto de los «hoy» UTC del sistema
+siguen abiertos en BEC-18. **Test permanente:**
 `core.tests.test_inicio_contadores_ola5.ContextoDelInicioTests.test_el_contexto_no_repite_el_mismo_numero_en_dos_claves`
 (+ `test_los_ingresos_no_cuentan_a_los_ciudadanos_del_portal`, `test_los_ingresos_viejos_quedan_fuera_de_la_ventana`,
-`EtiquetasDelInicioTests` ×3 y `TendenciasIncluyenHoyTests` ×4, incluido
+`EtiquetasDelInicioTests` ×3, `TendenciasIncluyenHoyTests` ×5 —incluido
+`test_la_ventana_usa_la_fecha_local_y_no_la_utc`, con el reloj congelado a las 23:30 ART— y, por la cuarta
+tarjeta, `core.tests.test_inicio_legajos_ola5_pr7` ×8 (`ReproDelRevisorTests`,
+`UnaSolaDefinicionDeActivoTests`, `ContadorDeInscripcionesIntactoTests`); incluido
 `test_antes_el_ultimo_dia_quedaba_fuera_de_la_ventana`, que fija el borde opuesto: el primer bucket es
 `hoy - (dias - 1)`, así que la serie no se corrió un día para atrás al arreglarla).
 

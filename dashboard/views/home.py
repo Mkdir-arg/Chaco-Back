@@ -39,7 +39,10 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         context["actividad_hoy"] = context["seguimientos_hoy"]
 
         hace_24h = timezone.now() - timedelta(hours=24)
-        # Mismas claves que inicio_view (core/views/public.py): cache compartido.
+        # Clave **propia**: `inicio_view` dejó de compartirla. Su contador pasó a
+        # `home:ingresos_backoffice_24h` y excluye a los ciudadanos del portal (G2-04);
+        # este sigue contando a todos, que es el comportamiento viejo de esta vista
+        # tapada (RED-78). Las dos claves ya no se pisan.
         context["usuarios_activos"] = cache.get_or_set(
             "home:usuarios_activos_24h",
             lambda: User.objects.filter(last_login__gte=hace_24h).count(),

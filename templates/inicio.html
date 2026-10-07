@@ -73,17 +73,8 @@
     color: var(--text-body-subtle);
     font-family: var(--font-sans);
 }
-.stat-card-valrow {
-    display: flex;
-    align-items: baseline;
-    gap: 10px;
-}
-.stat-card-delta {
-    font-size: 13px;
-    font-weight: 600;
-    font-family: var(--font-sans);
-    line-height: 1;
-}
+/* `.stat-card-valrow` y `.stat-card-delta` salieron con el chip «↑N» del total de
+   ciudadanos (G2-04): era el único consumidor de las dos reglas. */
 
 /* Accesos rápidos */
 .acceso-btn {
@@ -410,15 +401,11 @@
                     </svg>
                 </div>
             </div>
-            <div class="stat-card-valrow">
-                <span class="stat-card-value">{{ total_ciudadanos|default:"0" }}</span>
-                {% if registros_mes %}
-                <span class="stat-card-delta" style="color: var(--text-fg-success);">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="display:inline;vertical-align:-1px;"><path stroke-linecap="round" stroke-linejoin="round" d="M12 19V5M5 12l7-7 7 7"/></svg>{{ registros_mes }}
-                </span>
-                {% endif %}
-            </div>
-            <div class="stat-card-footnote">inscripciones este mes</div>
+            {% comment %}G2-04: el chip verde «↑N» pegado al total de ciudadanos se leía como
+            «+N ciudadanos», pero N son las inscripciones del mes. El número vive solo en el pie,
+            que sí dice qué mide.{% endcomment %}
+            <div class="stat-card-value">{{ total_ciudadanos|default:"0" }}</div>
+            <div class="stat-card-footnote">{{ registros_mes|default:"0" }} inscripci{{ registros_mes|pluralize:"ón,ones" }} este mes</div>
         </div>
 
         {# Legajos activos #}

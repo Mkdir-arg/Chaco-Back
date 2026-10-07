@@ -10,7 +10,14 @@ Cuatro defectos distintos, todos de rótulo o de ventana, ninguno de cálculo:
    24 h, incluidos los ciudadanos del portal, que no son usuarios del
    backoffice; y «activos» sugiere actividad sostenida, no un ingreso.
 4. `tendencias_datos` arranca la serie en `hoy - dias` y recorre `range(dias)`:
-   el último punto es **ayer**. El gráfico nunca incluye hoy.
+   el último punto es **ayer**. El gráfico nunca incluye hoy. Y el «hoy» con el
+   que arma la ventana era el de **UTC**, mientras que `fecha_inscripcion` lleva
+   el de Argentina: entre las 21 y las 24 el último bucket rotulaba «mañana» y
+   salía siempre en cero (ronda 2; es la corrección que propone BEC-18 para
+   este uso).
+
+El quinto contador —«Legajos activos», que agregaba `InscripcionPrograma` en vez
+de `LegajoAtencion`— va en `core.tests.test_inicio_legajos_ola5_pr7`.
 
 **D-G204** (README §2 de la auditoría): se corrigen las etiquetas ahora; que el
 inicio muestre indicadores de Becas es un requerimiento aparte.
@@ -91,7 +98,10 @@ class EtiquetasDelInicioTests(TestCase):
         html = self.client.get(reverse("core:inicio")).content.decode()
 
         self.assertNotIn("nuevos este mes", html)
-        self.assertIn("inscripciones este mes", html)
+        # El sustantivo se pluraliza en el template («1 inscripción», «2 inscripciones»),
+        # así que el test mira la raíz y no una de las dos formas.
+        self.assertIn("inscripci", html)
+        self.assertIn("este mes", html)
 
     def test_no_queda_la_linea_duplicada_de_actividades(self):
         html = self.client.get(reverse("core:inicio")).content.decode()
@@ -128,7 +138,7 @@ class TendenciasIncluyenHoyTests(TestCase):
     def test_el_ultimo_punto_de_la_serie_es_hoy(self):
         datos = self._labels()
 
-        self.assertEqual(datos["labels"][-1], timezone.now().date().strftime("%d/%m"))
+        self.assertEqual(datos["labels"][-1], timezone.localdate().strftime("%d/%m"))
 
     def test_la_serie_conserva_la_cantidad_de_dias_del_periodo(self):
         datos = self._labels()
@@ -137,30 +147,45 @@ class TendenciasIncluyenHoyTests(TestCase):
         self.assertEqual(len(datos["datos"]), 7)
 
     def test_una_inscripcion_del_ultimo_dia_entra_en_la_serie(self):
-        """La fecha se fuerza con `update()`, no en el `create()`.
+        """Sin forzar la fecha: el `create()` y la ventana usan el mismo reloj.
 
-        `InscripcionPrograma.fecha_inscripcion` es `DateField(auto_now_add=True)`, y
-        el `pre_save` de Django **ignora el valor que se le pase** y escribe
-        `datetime.date.today()`: fecha naíf del proceso. En Linux, `Settings.__init__`
-        hace `os.environ["TZ"] = TIME_ZONE; time.tzset()`, así que esa fecha es la de
-        **Argentina**, mientras que la ventana de la serie se arma con
-        `timezone.now().date()`, que es la de **UTC**. Entre las 21 y las 24 de
-        Argentina las dos difieren en un día y el `create()` cae un bucket antes. Ese
-        desfase es real y es **BEC-18** (el «hoy» UTC), no de esta ficha: el test lo
-        esquiva en vez de taparlo, para medir lo que G2-04 arregla —que el último
-        bucket de la serie sea el de hoy— sin arrastrar el otro bug.
+        `InscripcionPrograma.fecha_inscripcion` es `DateField(auto_now_add=True)` y el
+        `pre_save` de Django escribe `datetime.date.today()`, fecha local del proceso.
+        Mientras la ventana se armaba con `timezone.now().date()` (UTC) había que
+        esquivar el desfase; ahora la arma `timezone.localdate()` y los dos relojes
+        coinciden, así que un alta recién hecha cae en el último bucket a cualquier
+        hora del día.
         """
         from legajos.models import Ciudadano
         from programas.models import InscripcionPrograma, Programa
 
         programa = Programa.objects.create(nombre="Serie", estado=Programa.Estado.ACTIVO)
         ciudadano = Ciudadano.objects.create(dni="40111222", nombre="Ana", apellido="Serie")
-        inscripcion = InscripcionPrograma.objects.create(ciudadano=ciudadano, programa=programa)
-        InscripcionPrograma.objects.filter(pk=inscripcion.pk).update(fecha_inscripcion=timezone.now().date())
+        InscripcionPrograma.objects.create(ciudadano=ciudadano, programa=programa)
 
         datos = self._labels()
 
         self.assertEqual(datos["datos"][-1], 1)
+
+    def test_la_ventana_usa_la_fecha_local_y_no_la_utc(self):
+        """El borde que el CI encontró, con el reloj congelado para que sea determinista.
+
+        A las 23:30 de Argentina son las 02:30 UTC **del día siguiente**. Con
+        `timezone.now().date()` el último bucket quedaba rotulado con la fecha de
+        mañana —y siempre en cero, porque ninguna fila puede tener esa fecha—. Con
+        `timezone.localdate()` el último bucket es el día en curso en Argentina.
+        """
+        from datetime import datetime
+        from datetime import timezone as tz_utc
+        from unittest.mock import patch
+
+        instante = datetime(2026, 10, 7, 2, 30, tzinfo=tz_utc.utc)  # 23:30 ART del 06/10
+
+        with patch("django.utils.timezone.now", return_value=instante):
+            datos = self._labels()
+
+        self.assertEqual(datos["labels"][-1], "06/10")
+        self.assertEqual(datos["labels"][0], "30/09")
 
     def test_antes_el_ultimo_dia_quedaba_fuera_de_la_ventana(self):
         """La regresión concreta de G2-04, en el borde opuesto.
@@ -168,12 +193,13 @@ class TendenciasIncluyenHoyTests(TestCase):
         Con `fecha_inicio = hoy - dias` y `range(dias)` la serie terminaba **ayer**:
         un registro del día de hoy no aparecía en ningún bucket. Acá se verifica que
         el registro de hoy sí está y que la serie no se corrió un día: el primer
-        bucket es `hoy - (dias - 1)`.
+        bucket es `hoy - (dias - 1)`. La fecha vieja se fuerza con `update()` porque
+        `auto_now_add` descarta cualquier valor que se le pase al `create()`.
         """
         from legajos.models import Ciudadano
         from programas.models import InscripcionPrograma, Programa
 
-        hoy = timezone.now().date()
+        hoy = timezone.localdate()
         programa = Programa.objects.create(nombre="Borde", estado=Programa.Estado.ACTIVO)
         ciudadano = Ciudadano.objects.create(dni="40111333", nombre="Eva", apellido="Borde")
         inscripcion = InscripcionPrograma.objects.create(ciudadano=ciudadano, programa=programa)

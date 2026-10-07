@@ -468,6 +468,16 @@ visible; el borrado completo sigue siendo de LEG-06. **Test permanente:**
 `core.tests.test_front_ola5_pr7.ProgramasDeLegajosSinKpisVaciosTests.test_las_tres_anotaciones_muertas_no_estan`
 (+ `test_el_queryset_ya_no_se_declara_deprecado_con_anotaciones`).
 
+**Queda afuera, medido en la ronda 2:** `ProgramaDetailView` (`legajos/views/programas.py`) inyecta el mismo
+tipo de ceros literales —`total_instituciones`, `total_derivaciones_pendientes`, `total_casos_activos`,
+`total_casos_totales`, `tasa_aceptacion`, `total_derivaciones`, `promedio_casos_institucion`,
+`total_acompanamientos_activos`— y `programas/programa_detail.html` los imprime en **19 lugares** repartidos
+por los cinco tabs: la grilla de métricas del encabezado (`:37,45,53,61`), los badges de los tabs (`:77,83`),
+las cuatro tarjetas del tab «Dashboard» (`:108,119,130,141`), las tres barras de progreso y la tasa
+(`:159,168,177,184`) y tres tarjetas del tab «Indicadores» (`:494,503,512`). Sacarlos deja los tabs «Dashboard»
+e «Indicadores» **vacíos**: es rediseñar la pantalla, y D-F16 la borra entera con **LEG-06** (Ola 7). El único
+número real de esa vista es `total_acompanamientos_totales` (`:586`), que sí cuenta `InscripcionPrograma`.
+
 ### FE-22 · Dashboards fuera de canon: hero, cards de colores, emojis y «Próximamente»
 **Severidad:** BAJA · **Origen:** A6-23 · **Ola:** 5 · **Esfuerzo:** M · **Decisión:** D-F22 (hero de `inicio.html`)
 - **Propuesta:** stat cards → `_stat_card.html`; quitar los «(Próximamente)» de `legajos/reportes.html`; emojis → Font Awesome con `aria-hidden`; `page_header`; ocultar «Estado WebSocket» si `websockets_enabled` es falso. El dashboard completo no tiene golden (agente: frenar): limitarse a estas piezas. D-F22: ¿el hero de `inicio.html` queda como excepción registrada? (el canon dice «no hero sections»). G2-04 corrige los números del mismo inicio.

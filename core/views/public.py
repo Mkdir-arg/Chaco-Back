@@ -9,7 +9,7 @@ from django.views.decorators.http import require_GET
 from dashboard.utils import (
     contar_alertas_activas,
     contar_ciudadanos,
-    contar_legajos,
+    contar_legajos_atencion,
     contar_seguimientos_hoy,
     contar_usuarios,
 )
@@ -61,7 +61,10 @@ def inicio_view(request):
     ahora = timezone.now()
     hace_24h = ahora - timedelta(hours=24)
     inicio_mes = ahora.date().replace(day=1)
-    legajo_stats = contar_legajos()
+    # G2-04: la tarjeta dice «Legajos activos», así que cuenta `LegajoAtencion`.
+    # `contar_legajos()` agrega `InscripcionPrograma` pese al nombre, y era lo que
+    # hacía que el inicio y `/legajos/reportes/` se contradijeran en la misma sesión.
+    legajo_stats = contar_legajos_atencion()
     seguimientos_hoy = contar_seguimientos_hoy()
 
     context = {

@@ -22089,6 +22089,14 @@ Seis fichas con un hilo común: **la pantalla afirma algo que el código no sost
 - **Los `*_simple.html` de Legajos.** `dashboard_simple.html`, `historial_contactos_simple.html` y
   `red_contactos_simple.html` también tienen emojis, pero son código muerto de LEG-06 (Ola 7): dos de ellos ni
   siquiera tienen ruta. Solo se tocó `dashboard_contactos_simple.html`, que sí la tiene (`dashboard.ver`).
+- **`ProgramaDetailView` y `programas/programa_detail.html` (Legajos).** Inyecta y muestra el mismo tipo de
+  ceros literales que FE-16 —`total_instituciones`, `total_derivaciones_pendientes`, `total_casos_activos`,
+  `total_casos_totales`, `tasa_aceptacion`, `total_derivaciones`, `promedio_casos_institucion`,
+  `total_acompanamientos_activos`—, pero el template los imprime en **19 lugares** repartidos por los cinco
+  tabs: grilla del encabezado, badges de los tabs, las cuatro tarjetas del tab «Dashboard», tres barras de
+  progreso con su tasa, y tres tarjetas del tab «Indicadores». Sacarlos deja dos tabs **vacíos**: es rediseñar
+  la pantalla, y D-F16 la borra entera con **LEG-06** (Ola 7). El único número real de la vista es
+  `total_acompanamientos_totales`, que cuenta `InscripcionPrograma`. Medido en la ronda 2 de revisión.
 - **`dashboard/templates/dashboard.html`.** Tiene el mismo defecto que FE-16 —tres de sus cuatro stat cards
   leen `legajos_abiertos`, `seguimientos_semana` y `legajos_riesgo_alto`, claves que `DashboardView` no pone en
   el contexto, así que muestran `0` siempre—, pero la vista **está tapada**: `dashboard:inicio` resuelve a `/`,
@@ -22264,7 +22272,53 @@ La entrada de caché `home:usuarios_activos_24h` queda huérfana y expira sola a
 
 ## Reversión
 
-Revertir el commit. Vuelven los seis defectos: los cuatro contadores del inicio con sus rótulos viejos, el hero,
+Revertir el commit. Vuelven los seis defectos: los cinco contadores del inicio con sus rótulos viejos —incluida
+la tarjeta «Legajos activos», que volvería a contar inscripciones—, el hero,
 el login pidiendo correo, los KPIs vacíos de Legajos, los botones «Próximamente», el hero de la edición del
 ciudadano y los labels sin `for`. No hay nada que deshacer en la base. **Al revertir hay que volver a correr
 `npm run build:tailwind`**, porque `tailwind.css` es generado.
+
+## Historial
+
+- **07/10/2026 (ronda 2 de revisión).** Un MAJOR y cuatro MINOR.
+
+  **MAJOR — la cuarta stat card tampoco medía lo que decía.** «Legajos activos · de N legajos en total» salía
+  de `dashboard.utils.contar_legajos()`, que agrega **`InscripcionPrograma`**, no `LegajoAtencion`. Repro del
+  revisor: con 4 legajos de atención (3 activos) y 5 inscripciones en PENDIENTE, el inicio decía «0 · de 5» y
+  `/legajos/reportes/` decía «4 · 3» **en la misma sesión**. Ninguna de las dos estaba rota: medían cosas
+  distintas bajo el mismo rótulo, que es justo el defecto que ataca G2-04. Manda el rótulo. Tres cambios:
+  1. la regla de «activo» deja de estar escrita dos veces y baja a `legajos/selectors/legajos.py`
+     (`legajos_abiertos`, `resumen_legajos_atencion`): *todo lo que no esté `CERRADO`*, así que ABIERTO,
+     EN_SEGUIMIENTO y DERIVADO cuentan. `reportes_view` la consume en vez de repetirla;
+  2. `dashboard/utils.py` suma `contar_legajos_atencion()`, con su propia clave `stats_legajos_atencion`, y el
+     inicio la usa. **`contar_legajos()` no se tocó**: la consume `dashboard.views.home.DashboardView` (la copia
+     vieja del inicio, tapada por el orden del URLconf, RED-78) y RED-51 tiene dos tests escritos sobre que
+     `stats_legajos` agrega inscripciones — romperlo habría movido una ficha de otra ola;
+  3. el receiver de `legajos/signals/core.py` borra también la clave nueva, así que el número no queda viejo
+     hasta que expire el TTL. Es, de paso, la primera vez que ese receiver invalida algo que de verdad depende
+     de `LegajoAtencion`.
+
+  Sin consultas nuevas: el `aggregate` con `filter=` resuelve total y activos en una sola, igual que el
+  contador anterior, y `core:inicio` sigue bajo su presupuesto. **Alcance:** la tarjeta queda como las otras
+  tres del inicio —conteo global, sin gate de capacidad—; ponerle uno sería una regla nueva, no paridad.
+  **Efecto visible:** hoy en PRD no hay legajos de atención cargados, así que la tarjeta va a mostrar **0**. Es
+  el número correcto; el que se veía antes era el de otra cosa.
+
+  **MINOR 1 — el «hoy» de la serie pasa a ser local.** El arreglo de la ventana volvía visible el desfase de
+  BEC-18: entre las 21 y las 24 de Argentina el último bucket rotulaba «mañana» y salía siempre en cero. La
+  ventana la arma ahora `timezone.localdate()` —lo que propone la propia ficha BEC-18 para este uso—, así que
+  coincide con el `date.today()` que `auto_now_add` escribe en `fecha_inscripcion`. El `update()` que el test
+  usaba para esquivar el desfase se fue, y entró
+  `test_la_ventana_usa_la_fecha_local_y_no_la_utc`, con el reloj congelado a las 23:30 ART para que el borde
+  sea determinista. **BEC-18 sigue abierta** para el resto de los «hoy» UTC del sistema.
+
+  **MINOR 2 — el chip «↑N» del total de ciudadanos.** Pegado al número grande se leía como «+N ciudadanos»,
+  pero N son inscripciones. El chip salió; el número vive en el pie, que sí dice qué mide. Con él se fueron
+  `.stat-card-valrow` y `.stat-card-delta`, sus únicas consumidoras.
+
+  **MINOR 3 — los ceros literales de `ProgramaDetailView`.** Se midieron y **quedan afuera**, con su evidencia
+  en *Alcance acordado* y en la ficha FE-16: son 19 apariciones en los cinco tabs y sacarlas deja dos tabs
+  vacíos, que es el rediseño que D-F16 reserva para LEG-06 (Ola 7).
+
+  **MINOR 4 — el comentario de `dashboard/views/home.py`.** Decía que compartía claves de cache con
+  `inicio_view` y ya no es cierto desde que el contador de ingresos cambió de clave. Corregido.
