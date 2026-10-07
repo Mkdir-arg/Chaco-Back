@@ -1,27 +1,20 @@
-{% extends "includes/main.html" %}
-{% load static %}
+{% extends "includes/base.html" %}
+{% load nodo_ui %}
+{% block title %}Configuración · Eliminar municipio{% endblock %}
 
-{% block title %}Eliminar Municipio{% endblock %}
-
-{% block content %}
-<div class="p-6">
-    <div class="mb-6">
-        <h1 class="text-2xl font-bold text-gray-900">Eliminar Municipio</h1>
+{% block main-content %}
+<div class="space-y-5">
+  {% url 'configuracion:municipios' as url_municipios %}
+  {% page_header titulo="Eliminar municipio" volver_url=url_municipios volver_label="municipios" %}
+    {% bajada %}El municipio «{{ object.nombre }}» deja de estar disponible en todo el sistema.{% endbajada %}
+  {% endpage_header %}
+  <form method="post" class="bg-white rounded-xl border border-base shadow-sm p-6">
+    {% csrf_token %}
+    {% include "components/_alerta.html" with tono="danger" titulo="Esta acción no se puede deshacer" texto="Se borra el municipio y todo lo que cuelgue de él queda sin referencia. Si tiene localidades asociadas, la eliminación se bloquea." %}
+    <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-light">
+      <a href="{% url 'configuracion:municipios' %}" class="btn-nodo btn-tertiary btn-base">Cancelar</a>
+      <button type="submit" class="btn-nodo btn-danger btn-base"><i class="fas fa-trash" aria-hidden="true"></i> Eliminar municipio</button>
     </div>
-
-    <div class="bg-white rounded-lg shadow p-6">
-        <div class="mb-4">
-            <p class="text-gray-700">¿Está seguro que desea eliminar el municipio <strong>{{ object.nombre }}</strong>?</p>
-            <p class="text-sm text-red-600 mt-2">Esta acción no se puede deshacer.</p>
-        </div>
-        
-        <form method="post">
-            {% csrf_token %}
-            <div class="flex justify-end space-x-3">
-                <a href="{% url 'configuracion:municipios' %}" class="btn-nodo btn-tertiary btn-base">Cancelar</a>
-                <button type="submit" class="btn-nodo btn-danger btn-base">Eliminar</button>
-            </div>
-        </form>
-    </div>
+  </form>
 </div>
 {% endblock %}

@@ -111,19 +111,7 @@
           </tbody>
         </table>
       </div>
-      {% if beneficiarios.paginator.num_pages > 1 %}
-      <div class="flex items-center justify-between gap-3 flex-wrap px-4 py-3 border-t border-light bg-secondary">
-        <span class="text-xs text-body-subtle">Página {{ beneficiarios.number }} de {{ beneficiarios.paginator.num_pages }} · {{ beneficiarios.paginator.count }} beneficiario{{ beneficiarios.paginator.count|pluralize }}</span>
-        <div class="flex gap-2">
-          {% if beneficiarios.has_previous %}
-          <a href="?tab=beneficiarios{% if beneficiarios_querystring %}&amp;{{ beneficiarios_querystring }}{% endif %}&amp;beneficiarios_page={{ beneficiarios.previous_page_number }}" class="btn-nodo btn-tertiary btn-sm" aria-label="Página anterior"><i class="fas fa-chevron-left" aria-hidden="true"></i> Anterior</a>
-          {% endif %}
-          {% if beneficiarios.has_next %}
-          <a href="?tab=beneficiarios{% if beneficiarios_querystring %}&amp;{{ beneficiarios_querystring }}{% endif %}&amp;beneficiarios_page={{ beneficiarios.next_page_number }}" class="btn-nodo btn-tertiary btn-sm" aria-label="Página siguiente">Siguiente <i class="fas fa-chevron-right" aria-hidden="true"></i></a>
-          {% endif %}
-        </div>
-      </div>
-      {% endif %}
+      {% include "components/_paginacion.html" with page_obj=beneficiarios entidad="beneficiario" param="beneficiarios_page" extra_qs="tab=beneficiarios" filtros_qs=beneficiarios_querystring %}
     </div>
 
     {# ===== TAB: Lista de espera ===== #}
@@ -181,19 +169,7 @@
           </tbody>
         </table>
       </div>
-      {% if lista_espera.paginator.num_pages > 1 %}
-      <div class="flex items-center justify-between gap-3 flex-wrap px-4 py-3 border-t border-light bg-secondary">
-        <span class="text-xs text-body-subtle">Página {{ lista_espera.number }} de {{ lista_espera.paginator.num_pages }} · {{ lista_espera.paginator.count }} persona{{ lista_espera.paginator.count|pluralize }} en espera</span>
-        <div class="flex gap-2">
-          {% if lista_espera.has_previous %}
-          <a href="?tab=lista_espera{% if lista_espera_querystring %}&amp;{{ lista_espera_querystring }}{% endif %}&amp;lista_espera_page={{ lista_espera.previous_page_number }}" class="btn-nodo btn-tertiary btn-sm" aria-label="Página anterior"><i class="fas fa-chevron-left" aria-hidden="true"></i> Anterior</a>
-          {% endif %}
-          {% if lista_espera.has_next %}
-          <a href="?tab=lista_espera{% if lista_espera_querystring %}&amp;{{ lista_espera_querystring }}{% endif %}&amp;lista_espera_page={{ lista_espera.next_page_number }}" class="btn-nodo btn-tertiary btn-sm" aria-label="Página siguiente">Siguiente <i class="fas fa-chevron-right" aria-hidden="true"></i></a>
-          {% endif %}
-        </div>
-      </div>
-      {% endif %}
+      {% include "components/_paginacion.html" with page_obj=lista_espera entidad="persona en espera" entidad_plural="personas en espera" param="lista_espera_page" extra_qs="tab=lista_espera" filtros_qs=lista_espera_querystring %}
     </div>
 
     {# ===== TAB: Pendientes de cupo ===== #}
@@ -251,19 +227,7 @@
           </tbody>
         </table>
       </div>
-      {% if pendientes.paginator.num_pages > 1 %}
-      <div class="flex items-center justify-between gap-3 flex-wrap px-4 py-3 border-t border-light bg-secondary">
-        <span class="text-xs text-body-subtle">Página {{ pendientes.number }} de {{ pendientes.paginator.num_pages }} · {{ pendientes.paginator.count }} pendiente{{ pendientes.paginator.count|pluralize }}</span>
-        <div class="flex gap-2">
-          {% if pendientes.has_previous %}
-          <a href="?tab=pendientes{% if pendientes_querystring %}&amp;{{ pendientes_querystring }}{% endif %}&amp;pendientes_page={{ pendientes.previous_page_number }}" class="btn-nodo btn-tertiary btn-sm" aria-label="Página anterior"><i class="fas fa-chevron-left" aria-hidden="true"></i> Anterior</a>
-          {% endif %}
-          {% if pendientes.has_next %}
-          <a href="?tab=pendientes{% if pendientes_querystring %}&amp;{{ pendientes_querystring }}{% endif %}&amp;pendientes_page={{ pendientes.next_page_number }}" class="btn-nodo btn-tertiary btn-sm" aria-label="Página siguiente">Siguiente <i class="fas fa-chevron-right" aria-hidden="true"></i></a>
-          {% endif %}
-        </div>
-      </div>
-      {% endif %}
+      {% include "components/_paginacion.html" with page_obj=pendientes entidad="pendiente" param="pendientes_page" extra_qs="tab=pendientes" filtros_qs=pendientes_querystring %}
     </div>
 
   </div>

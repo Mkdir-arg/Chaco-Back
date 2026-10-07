@@ -56,6 +56,8 @@ CAP_RELEVAMIENTO_EDITAR = "becas.relevamiento.editar"
 CAP_RELEVAMIENTO_PUBLICO = "becas.relevamiento.publico"
 CAP_REPORTES = "becas.programa.administrar"
 DETALLE_PAGE_SIZE = 50
+#: FE-17: el listado de convocatorias no paginaba. 25 es el valor del resto del backoffice.
+CONVOCATORIAS_PAGE_SIZE = 25
 
 
 def _paginate(request, queryset, page_param="page", per_page=DETALLE_PAGE_SIZE):
@@ -135,12 +137,28 @@ def _convocatorias_qs(request):
     )
 
 
+def _contexto_convocatorias(request):
+    """Página del listado de convocatorias, igual para la vista y para el re-render AJAX.
+
+    FE-17: la vista no paginaba y el modal devolvía la tabla entera. Con ``paginate_by``
+    solo en la vista, guardar una convocatoria reemplazaba la página por las N filas
+    visibles, que es el bug de la pantalla sin paginar con otro disfraz.
+    """
+    pagina = Paginator(_convocatorias_qs(request), CONVOCATORIAS_PAGE_SIZE).get_page(request.GET.get("page"))
+    return {
+        "convocatorias": pagina.object_list,
+        "page_obj": pagina,
+        "paginator": pagina.paginator,
+        "is_paginated": pagina.has_other_pages(),
+    }
+
+
 def _convocatorias_ajax(request, message="Convocatoria guardada."):
     return ajax_ok(
         request,
         target="#convocatorias-table",
         partial="programas/becas/relevamientos/_convocatorias_table.html",
-        context={"convocatorias": _convocatorias_qs(request)},
+        context=_contexto_convocatorias(request),
         message=message,
     )
 
@@ -199,6 +217,7 @@ class ConvocatoriaListView(CapacidadRequeridaMixin, LoginRequiredMixin, ListView
     capacidades_requeridas = CAP_CONVOCATORIA_VER
     template_name = "programas/becas/relevamientos/convocatoria_list.html"
     context_object_name = "convocatorias"
+    paginate_by = CONVOCATORIAS_PAGE_SIZE
 
     def get_queryset(self):
         return _convocatorias_qs(self.request)

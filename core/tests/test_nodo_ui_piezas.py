@@ -14,7 +14,7 @@ from django.template.loader import render_to_string
 from django.test import RequestFactory, SimpleTestCase, TestCase
 from django.urls import reverse
 
-from core.templatetags.nodo_ui import hay_filtros
+from core.templatetags.nodo_ui import hay_filtros, sin_parametros
 
 PAGINACION = "components/_paginacion.html"
 STAT = "components/_stat_card.html"
@@ -90,6 +90,109 @@ class PaginacionTest(SimpleTestCase):
 
         html = self._render(page_obj=_pagina(1, 1, 1), entidad="caso")
         self.assertEqual(html.strip(), "")
+
+
+class PaginacionPorSolapaTest(SimpleTestCase):
+    """FE-17: ``param`` y ``extra_qs`` para más de una lista paginada por pantalla.
+
+    Hasta el Cambio 167 la pieza leía y escribía siempre ``?page=``, así que las tres
+    solapas de la golden de detalle (`becas/cupo/segmento_detail.html`) y los dos detalles
+    de relevamientos tenían el pie copiado a mano.
+    """
+
+    def _render(self, query="", **contexto):
+        request = RequestFactory().get("/detalle/" + (f"?{query}" if query else ""))
+        request.user = AnonymousUser()
+        return render_to_string(PAGINACION, contexto, request=request)
+
+    def test_param_cambia_el_nombre_del_parametro_de_pagina(self):
+        html = self._render(page_obj=_pagina(40, 1), entidad="beneficiario", param="beneficiarios_page")
+
+        self.assertIn('href="?beneficiarios_page=2"', html)
+        self.assertNotIn("?page=", html)
+
+    def test_extra_qs_viaja_en_los_dos_enlaces(self):
+        html = self._render(
+            page_obj=_pagina(40, 2),
+            entidad="beneficiario",
+            param="beneficiarios_page",
+            extra_qs="tab=beneficiarios",
+        )
+
+        self.assertIn('href="?beneficiarios_page=1&amp;tab=beneficiarios"', html)
+        self.assertIn('href="?beneficiarios_page=3&amp;tab=beneficiarios"', html)
+
+    def test_el_parametro_propio_no_se_duplica_al_conservar_los_filtros(self):
+        """Sin esto el enlace salía con el parámetro dos veces y la página no cambiaba."""
+        html = self._render(
+            "tab=beneficiarios&beneficiarios_page=2&dni=30",
+            page_obj=_pagina(40, 2),
+            entidad="beneficiario",
+            param="beneficiarios_page",
+            extra_qs="tab=beneficiarios",
+        )
+
+        self.assertIn('href="?beneficiarios_page=1&amp;tab=beneficiarios&amp;dni=30"', html)
+        self.assertEqual(html.count("beneficiarios_page="), 2)
+        self.assertEqual(html.count("tab=beneficiarios"), 2)
+
+    def test_dos_listas_en_la_misma_pantalla_no_se_pisan(self):
+        contexto = {"page_obj": _pagina(40, 1)}
+        beneficiarios = self._render(
+            "lista_espera_page=3", entidad="beneficiario", param="beneficiarios_page", **contexto
+        )
+        espera = self._render("lista_espera_page=3", entidad="persona", param="lista_espera_page", **contexto)
+
+        self.assertIn('href="?beneficiarios_page=2&amp;lista_espera_page=3"', beneficiarios)
+        self.assertIn('href="?lista_espera_page=2"', espera)
+        self.assertNotIn("lista_espera_page=3", espera)
+
+    def test_filtros_qs_explicito_tambien_manda_con_param(self):
+        html = self._render(
+            "otro=1",
+            page_obj=_pagina(40, 1),
+            entidad="pendiente",
+            param="pendientes_page",
+            extra_qs="tab=pendientes",
+            filtros_qs="dni=30",
+        )
+
+        self.assertIn('href="?pendientes_page=2&amp;tab=pendientes&amp;dni=30"', html)
+        self.assertNotIn("otro=1", html)
+
+
+class SinParametrosFiltroTest(SimpleTestCase):
+    """El filtro que sostiene ``param``/``extra_qs``: ``{% load %}``-able y sin «?»."""
+
+    def test_saca_las_claves_pedidas_y_conserva_el_orden(self):
+        qs = QueryDict("fecha=2026-09-30&beneficiarios_page=2&segmento=7")
+
+        self.assertEqual(sin_parametros(qs, "beneficiarios_page"), "fecha=2026-09-30&segmento=7")
+
+    def test_acepta_un_querystring_y_usa_solo_la_clave_de_cada_par(self):
+        qs = QueryDict("tab=beneficiarios&dni=30")
+
+        self.assertEqual(sin_parametros(qs, "tab=beneficiarios"), "dni=30")
+
+    def test_acepta_varias_claves_separadas_por_coma_o_ampersand(self):
+        qs = QueryDict("a=1&b=2&c=3")
+
+        self.assertEqual(sin_parametros(qs, "a,b"), "c=3")
+        self.assertEqual(sin_parametros(qs, "a=1&b=2"), "c=3")
+
+    def test_encadenable_sobre_su_propia_salida(self):
+        qs = QueryDict("a=1&b=2&c=3")
+
+        self.assertEqual(sin_parametros(sin_parametros(qs, "a"), "b"), "c=3")
+
+    def test_sin_excluidos_ni_parametros_no_rompe(self):
+        self.assertEqual(sin_parametros(QueryDict("a=1"), ""), "a=1")
+        self.assertEqual(sin_parametros(None, "a"), "")
+
+    def test_conserva_los_valores_repetidos(self):
+        qs = QueryDict("estado=A&estado=B&page=2")
+
+        self.assertEqual(sin_parametros(qs, "page"), "estado=A&estado=B")
 
 
 class StatCardTest(SimpleTestCase):

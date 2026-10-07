@@ -1,30 +1,23 @@
-{% extends "includes/main.html" %}
-{% load static %}
+{% extends "includes/base.html" %}
+{% load nodo_ui %}
+{% block title %}Configuración · {% if form.instance.pk %}Editar{% else %}Nueva{% endif %} provincia{% endblock %}
 
-{% block title %}{% if object %}Editar{% else %}Nueva{% endif %} Provincia{% endblock %}
-
-{% block content %}
-<div class="p-6">
-    <div class="mb-6">
-        <h1 class="text-2xl font-bold text-gray-900">{% if object %}Editar{% else %}Nueva{% endif %} Provincia</h1>
+{% block main-content %}
+<div class="space-y-5">
+  {% url 'configuracion:provincias' as url_provincias %}
+  {% with titulo_pagina=form.instance.pk|yesno:"Editar provincia,Nueva provincia" %}
+  {% page_header titulo=titulo_pagina volver_url=url_provincias volver_label="provincias" %}
+    {% bajada %}{% if form.instance.pk %}Cambiá el nombre de la provincia; sus municipios y localidades no se tocan.{% else %}Cargá la provincia; los municipios y las localidades se cargan después.{% endif %}{% endbajada %}
+  {% endpage_header %}
+  {% endwith %}
+  <form method="post" class="bg-white rounded-xl border border-base shadow-sm p-6">
+    {% csrf_token %}
+    {% include "components/_form_errores.html" %}
+    {% for field in form %}{% include "programas/becas/_field.html" %}{% endfor %}
+    <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-light">
+      <a href="{% url 'configuracion:provincias' %}" class="btn-nodo btn-tertiary btn-base">Cancelar</a>
+      <button type="submit" class="btn-nodo btn-brand btn-base"><i class="fas fa-check" aria-hidden="true"></i> Guardar provincia</button>
     </div>
-
-    <div class="bg-white rounded-lg shadow p-6">
-        <form method="post">
-            {% csrf_token %}
-            <div class="mb-4">
-                <label for="{{ form.nombre.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">Nombre</label>
-                {{ form.nombre }}
-                {% if form.nombre.errors %}
-                    <div class="text-red-600 text-sm mt-1">{{ form.nombre.errors }}</div>
-                {% endif %}
-            </div>
-            
-            <div class="flex justify-end space-x-3">
-                <a href="{% url 'configuracion:provincias' %}" class="btn-nodo btn-tertiary btn-base">Cancelar</a>
-                <button type="submit" class="btn-nodo btn-brand btn-base">Guardar</button>
-            </div>
-        </form>
-    </div>
+  </form>
 </div>
 {% endblock %}

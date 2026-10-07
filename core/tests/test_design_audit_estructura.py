@@ -491,13 +491,13 @@ class CssCompiladoAlDiaTests(SimpleTestCase):
         "bg-gray-900",
         "hover:bg-gray-50",
         # Bootstrap/AdminLTE heredado, con la forma justa para parecer utilidad.
-        # Se van con FE-20 (403/404/500 y el shell legacy) y FE-14.
+        # FE-20 (Cambio 167) se llevó `text-warning`, que solo vivía en `404.html`;
+        # las otras cinco siguen con consumidores fuera de su alcance (FE-14).
         "bg-info",
         "content-header",
         "text-danger",
         "text-info",
         "text-success",
-        "text-warning",
         # Definidas a mano en el `<style>` de un shell o en CSS propio, no por Tailwind.
         "animate-fadeInUp",
         # `font-lora` salió de la deuda con FE-22: su único consumidor era el `<h1>`
@@ -572,13 +572,18 @@ class CssCompiladoAlDiaTests(SimpleTestCase):
     def test_las_clases_que_vienen_de_un_widget_estan_en_el_build(self):
         """Regresión del blocker: `content` no escaneaba Python y el build las borraba.
 
-        `focus:ring-1` lo usan los 5 campos del wizard de programas
-        (`configuracion/forms/programas.py`) y `cursor-not-allowed` el campo
-        deshabilitado del legajo (`legajos/forms/ciudadanos.py`). Sin ellas, los
-        campos quedan sin indicador de foco (WCAG 2.4.7).
+        `cursor-not-allowed` lo usa el campo deshabilitado del legajo y
+        `file:bg-blue-600` su input de archivo (`legajos/forms/ciudadanos.py`): si el
+        `content` deja de escanear Python, el build las borra y el control queda sin
+        estado visible.
+
+        Las dos anclas originales —`focus:ring-1` y `focus:ring-indigo-500`, de los cinco
+        campos del wizard de programas— **ya no existen**: FE-20 (Cambio 167) pasó esos
+        widgets a `nodo-field`, que trae su propio foco de marca. Exigirlas acá haría
+        fallar el test por una clase que nadie usa, no por el `content`.
         """
         build = design_audit._clases_del_build()
-        esperadas = ("focus:ring-1", "cursor-not-allowed", "focus:ring-indigo-500", "file:bg-blue-600")
+        esperadas = ("cursor-not-allowed", "file:bg-blue-600")
 
         # `assertTrue` y no `assertIn`: el set del build tiene ~1.400 clases y
         # unittest lo volcaría entero en el mensaje de error.
