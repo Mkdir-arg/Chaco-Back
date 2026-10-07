@@ -57,6 +57,30 @@ Qué mirar en la salida:
 | `fila sin archivo que no frena el deploy` | Aviso. Son filas inertes (`silk`, `turnos`, `tramites`, migraciones borradas) que ninguna base se saca de encima |
 | `Tablas que existen y que ningún modelo … nombra` | Aviso. Restos de una app retirada o de una reversa cortada; no rompe el deploy |
 
+### Y mirar las dos variables de gevent (RED-45)
+
+Desde el **Cambio 159**, `docker-entrypoint.sh` **aborta el arranque** si el entorno pide
+workers gevent o eventlet. Es deliberado: el soporte de gevent de la imagen aplica
+`config/gevent_patch.py`, que apaga `validate_thread_sharing` de Django y puede devolver
+los datos de una persona en la respuesta de otra, sin error ni log (D-RED-08).
+
+Pero si alguien en ECOM las puso alguna vez para probar contra los 504 del padrón, el
+primer deploy con este release deja el pod en CrashLoop. **Se mira antes, no después:**
+
+```bash
+kubectl exec -it deploy/<web> -- sh -c 'echo "CMD_ARGS=[${GUNICORN_CMD_ARGS:-}] WORKER_CLASS=[${GUNICORN_WORKER_CLASS:-}]"'
+```
+
+| Lo que devuelve | Qué hacer |
+|---|---|
+| las dos vacías | Seguir. Es lo esperado: ningún manifiesto del repo las define |
+| `GUNICORN_CMD_ARGS` con `gevent` o `eventlet` (en cualquier forma: `--worker-class`, `-k`, con o sin `=`) | **Frena**: sacarla del Deployment/ConfigMap antes de espejar |
+| `GUNICORN_WORKER_CLASS=gevent` o `=eventlet` | **Frena**: ídem |
+| cualquier otro valor (`sync`, `gthread`, `--timeout …`) | Arranca igual; el entrypoint deja un `AVISO` en el log y sigue |
+
+Para **PRD** se le pide a ECOM esa misma línea junto con el `--solo-reporte`, en el paso 2.
+En **icore-srv**: `docker compose -f docker-compose.prod.yml exec -T web env | grep GUNICORN`.
+
 ## Paso 1 — `/pushGitLabecomTEST`
 
 Espeja el release a `ecom/test`, que despliega `https://datanach.ecomdev.ar/` (testing).
