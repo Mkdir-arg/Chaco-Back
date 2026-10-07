@@ -20,11 +20,17 @@ class GroupSerializer(serializers.ModelSerializer):
 
 
 class ProfileSerializer(serializers.ModelSerializer):
-    """Serializer para Profile"""
+    """Serializer para Profile.
+
+    Sin `dark_mode` (RED-75, D-RED-07 = A): la preferencia de tema vive en el
+    `localStorage` del navegador. La columna sigue en la base —sacarla es
+    *contract*, dos releases después de que nadie la lea— pero nadie la escribe,
+    así que exponerla solo prometía un dato que siempre vale el default.
+    """
 
     class Meta:
         model = Profile
-        fields = ["id", "dark_mode", "dni", "telefono", "institucion", "observacion"]
+        fields = ["id", "dni", "telefono", "institucion", "observacion"]
 
 
 class UserSerializer(serializers.ModelSerializer):

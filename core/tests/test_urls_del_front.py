@@ -64,9 +64,9 @@ ALLOWLIST = {
     # borra el template.
     "/legajos/1/contactos/api/",
     "/legajos/contactos/1/detalle/",
-    # RED-75 (Ola 5, D-RED-07 = A): `static/custom/js/base.js::sendThemePreference`
-    # postea la preferencia de tema a una vista que nunca existió.
-    "/set_dark_mode/",
+    # RED-75 salió de acá el 07/10/2026 (Cambio 164): `sendThemePreference` se
+    # borró de `base.js` con el default D-RED-07 = A, así que `/set_dark_mode/`
+    # ya no aparece en el front. El candado lo tiene `users/tests/test_tema.py`.
 }
 
 
@@ -156,9 +156,39 @@ class UrlsDelFrontTests(SimpleTestCase):
         super().setUpClass()
         cls.literales = _literales_del_front()
 
-    def test_el_barrido_encuentra_literales(self):
-        """Si el patrón deja de matchear, el test pasaría vacío sin medir nada."""
-        self.assertGreater(len(self.literales), 5, "el barrido no encontró literales: el patrón se rompió")
+    def test_los_patrones_siguen_sacando_la_ruta(self):
+        """Si el patrón deja de matchear, el test pasaría vacío sin medir nada.
+
+        El contador de literales **vivos** no sirve de guardia: la Ola 5 convirtió
+        los once que quedaban a `{% url %}` o a `data-url` (RED-42), y el día que
+        LEG-06 borre `historial_contactos.html` el barrido va a dar cero
+        legítimamente. Lo que tiene que seguir funcionando es el extractor, así
+        que se lo ejercita contra una muestra escrita acá.
+        """
+        muestra = (
+            'fetch("/uno/");\n'
+            "fetch('/dos/${id}/');\n"
+            "fetch(`/tres/`);\n"
+            '$.ajax({url: "/cuatro/", type: "POST"});\n'
+            'fetch("https://ajeno.example/x/");\n'  # no empieza con `/`: se descarta
+            "fetch(`/cinco/pre${id}post/`);\n"  # interpolación mezclada: indecidible
+        )
+
+        encontrados = sorted(
+            "/".join("1" if parte is None else parte for parte in _normalizar(m.group("url")) or [])
+            for patron in (LITERAL_FETCH, LITERAL_AJAX)
+            for m in patron.finditer(muestra)
+            if _normalizar(m.group("url"))
+        )
+
+        self.assertEqual(encontrados, ["/cuatro/", "/dos/1/", "/tres/", "/uno/"])
+
+    def test_el_barrido_recorre_el_front_de_verdad(self):
+        """Y que los archivos estén donde el módulo los busca."""
+        archivos = list(_archivos())
+
+        self.assertGreater(len(archivos), 100, "el barrido no encontró archivos: se movió alguna carpeta")
+        self.assertTrue(any(a.name == "base.html" for a in archivos))
 
     def test_una_url_que_mezcla_conversores_no_da_falso_roto(self):
         """`/legajos/<uuid:legajo_id>/archivos/<int:archivo_id>/eliminar/` existe.

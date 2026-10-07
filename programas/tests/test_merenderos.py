@@ -13,7 +13,7 @@ from django.urls import reverse
 
 from core import rbac
 from programas.forms import SolicitudMerenderoForm
-from programas.models import Merendero, PrestacionDiaria, Programa, SolicitudMerendero
+from programas.models import EntregaMercaderia, Merendero, PrestacionDiaria, Programa, SolicitudMerendero
 from programas.services.merenderos import (
     aprobar_solicitud,
     cambiar_estado_merendero,
@@ -458,3 +458,236 @@ class PrestacionMensualEnCelularTests(TestCase):
         spec.loader.exec_module(design_audit)
 
         self.assertIn("min-w-[720px]", design_audit._clases_del_build())
+
+
+class EntregaDeMercaderiaTests(TestCase):
+    """La entrega se registra desde la pantalla del merendero (RED-33).
+
+    `EntregaMercaderiaCreateView` estaba cubierta solo por el lado del guard
+    (`EntregaCreateAutorizaAntesDeBuscarTests`, RED-73): nadie había registrado
+    una entrega **por HTTP**. El riesgo que nombra la ficha es que la entrega
+    deje de asociarse al merendero del `pk` de la URL —el `form_class` no tiene
+    campo `merendero`, así que el único vínculo es `self.merendero`—, y eso no
+    rompe ningún test de servicio porque `registrar_entrega` lo recibe armado.
+    """
+
+    def setUp(self):
+        cache.clear()
+        self.programa = Programa.objects.create(
+            codigo="MERENDEROS",
+            nombre="Merenderos",
+            tipo=Programa.TipoPrograma.MERENDEROS,
+        )
+        self.merendero = self._merendero("MER-ENT-01", "Merendero Uno")
+        self.otro = self._merendero("MER-ENT-02", "Merendero Dos")
+        self.admin = get_user_model().objects.create_superuser(username="admin-entrega", password="test")
+        self.sin_rol = get_user_model().objects.create_user(username="sin-rol-entrega", password="test")
+        self.operador = self._usuario_con("operador-entrega", ["merendero.ver", "merendero.entregar"])
+        self.miron = self._usuario_con("miron-entrega", ["merendero.ver"])
+        cache.clear()
+
+    def _merendero(self, codigo, nombre):
+        return Merendero.objects.create(
+            codigo=codigo,
+            nombre=nombre,
+            domicilio="Calle 7",
+            responsable_nombre="Responsable",
+            estado=Merendero.Estado.ACTIVO,
+        )
+
+    def _usuario_con(self, username, capacidades):
+        rol = Group.objects.create(name=f"Rol {username}")
+        RolMeta.objects.create(grupo=rol, categoria=rbac.CATEGORIA_PROGRAMA, programa=self.programa, activo=True)
+        rol.permissions.add(*[permiso(codigo) for codigo in capacidades])
+        usuario = get_user_model().objects.create_user(username=username, password="test")
+        usuario.groups.add(rol)
+        return usuario
+
+    @staticmethod
+    def _datos(**extra):
+        datos = {
+            "fecha": date(2026, 10, 6).isoformat(),
+            "cantidad_kits": 12,
+            "servicio": "Merienda",
+            "responsable_receptor": "Quien recibe",
+            "observaciones": "",
+        }
+        datos.update(extra)
+        return datos
+
+    def test_la_entrega_queda_asociada_al_merendero_de_la_url(self):
+        self.client.force_login(self.operador)
+
+        respuesta = self.client.post(reverse("merenderos:entrega_crear", args=[self.merendero.pk]), self._datos())
+
+        self.assertRedirects(respuesta, reverse("merenderos:detalle", args=[self.merendero.pk]))
+        entrega = self.merendero.entregas_mercaderia.get()
+        self.assertEqual(entrega.cantidad_kits, 12)
+        self.assertEqual(entrega.servicio, "Merienda")
+        self.assertFalse(self.otro.entregas_mercaderia.exists())
+
+    def test_una_entrega_de_un_merendero_ajeno_no_se_crea(self):
+        """El `merendero` del cuerpo no manda: el formulario ni siquiera lo tiene."""
+        self.client.force_login(self.operador)
+
+        respuesta = self.client.post(
+            reverse("merenderos:entrega_crear", args=[self.merendero.pk]),
+            self._datos(merendero=self.otro.pk),
+        )
+
+        self.assertRedirects(respuesta, reverse("merenderos:detalle", args=[self.merendero.pk]))
+        self.assertEqual(self.merendero.entregas_mercaderia.count(), 1)
+        self.assertFalse(self.otro.entregas_mercaderia.exists())
+
+    def test_sin_capacidad_403(self):
+        url = reverse("merenderos:entrega_crear", args=[self.merendero.pk])
+
+        for descripcion, usuario in (("sin rol", self.sin_rol), ("solo ver", self.miron)):
+            with self.subTest(usuario=descripcion):
+                self.client.force_login(usuario)
+
+                self.assertEqual(self.client.get(url).status_code, 403)
+                self.assertEqual(self.client.post(url, self._datos()).status_code, 403)
+
+        self.assertFalse(self.merendero.entregas_mercaderia.exists())
+
+    def test_una_entrega_en_un_merendero_suspendido_vuelve_al_formulario(self):
+        cambiar_estado_merendero(self.merendero, nuevo_estado=Merendero.Estado.SUSPENDIDO, usuario=self.admin)
+        self.client.force_login(self.operador)
+
+        respuesta = self.client.post(reverse("merenderos:entrega_crear", args=[self.merendero.pk]), self._datos())
+
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertFalse(self.merendero.entregas_mercaderia.exists())
+        self.assertIn("activos", " ".join(respuesta.context["form"].errors["__all__"]))
+
+    def test_cero_kits_no_crea_la_entrega(self):
+        self.client.force_login(self.operador)
+
+        respuesta = self.client.post(
+            reverse("merenderos:entrega_crear", args=[self.merendero.pk]), self._datos(cantidad_kits=0)
+        )
+
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertFalse(self.merendero.entregas_mercaderia.exists())
+
+
+class MerenderoDetalleYEstadoPorHttpTests(TestCase):
+    """El detalle y el cambio de estado, por la URL (RED-33).
+
+    `MerenderoDetailView` decide con `puede_entregar`/`puede_editar` qué botones
+    dibuja, y `MerenderoEstadoView` es el único camino para suspender o cerrar:
+    las dos estaban sin un test que entrara por HTTP (`merenderos.py` al 76 %).
+    """
+
+    def setUp(self):
+        cache.clear()
+        self.programa = Programa.objects.create(
+            codigo="MERENDEROS",
+            nombre="Merenderos",
+            tipo=Programa.TipoPrograma.MERENDEROS,
+        )
+        self.merendero = Merendero.objects.create(
+            codigo="MER-EST-01",
+            nombre="Merendero Estado",
+            domicilio="Calle 8",
+            responsable_nombre="Responsable",
+            estado=Merendero.Estado.ACTIVO,
+        )
+        self.editor = self._usuario_con("editor-merendero", ["merendero.ver", "merendero.editar"])
+        self.miron = self._usuario_con("miron-estado", ["merendero.ver"])
+        cache.clear()
+
+    def _usuario_con(self, username, capacidades):
+        rol = Group.objects.create(name=f"Rol {username}")
+        RolMeta.objects.create(grupo=rol, categoria=rbac.CATEGORIA_PROGRAMA, programa=self.programa, activo=True)
+        rol.permissions.add(*[permiso(codigo) for codigo in capacidades])
+        usuario = get_user_model().objects.create_user(username=username, password="test")
+        usuario.groups.add(rol)
+        return usuario
+
+    def test_el_detalle_dice_que_puede_hacer_quien_mira(self):
+        self.client.force_login(self.miron)
+
+        respuesta = self.client.get(reverse("merenderos:detalle", args=[self.merendero.pk]))
+
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertFalse(respuesta.context["puede_entregar"])
+        self.assertFalse(respuesta.context["puede_editar"])
+        self.assertEqual(list(respuesta.context["entregas"]), [])
+
+    def test_el_detalle_no_lista_las_entregas_anuladas(self):
+        vigente = EntregaMercaderia.objects.create(
+            merendero=self.merendero,
+            fecha=date(2026, 10, 6),
+            cantidad_kits=3,
+            servicio="Merienda",
+            responsable_receptor="Quien recibe",
+        )
+        EntregaMercaderia.objects.create(
+            merendero=self.merendero,
+            fecha=date(2026, 10, 6),
+            cantidad_kits=4,
+            servicio="Merienda",
+            responsable_receptor="Quien recibe",
+            anulada=True,
+        )
+        self.client.force_login(self.miron)
+
+        respuesta = self.client.get(reverse("merenderos:detalle", args=[self.merendero.pk]))
+
+        self.assertEqual(list(respuesta.context["entregas"]), [vigente])
+
+    def test_suspender_guarda_quien_y_solo_por_post(self):
+        self.client.force_login(self.editor)
+        url = reverse("merenderos:estado", args=[self.merendero.pk, "suspender"])
+
+        self.assertEqual(self.client.get(url).status_code, 405)
+        self.merendero.refresh_from_db()
+        self.assertEqual(self.merendero.estado, Merendero.Estado.ACTIVO)
+
+        respuesta = self.client.post(url)
+
+        self.assertRedirects(respuesta, reverse("merenderos:detalle", args=[self.merendero.pk]))
+        self.merendero.refresh_from_db()
+        self.assertEqual(self.merendero.estado, Merendero.Estado.SUSPENDIDO)
+        self.assertEqual(self.merendero.estado_actualizado_por, self.editor)
+
+    def test_una_accion_de_estado_inventada_da_400(self):
+        self.client.force_login(self.editor)
+
+        respuesta = self.client.post(reverse("merenderos:estado", args=[self.merendero.pk, "reactivar"]))
+
+        self.assertEqual(respuesta.status_code, 400)
+        self.merendero.refresh_from_db()
+        self.assertEqual(self.merendero.estado, Merendero.Estado.ACTIVO)
+
+    def test_una_transicion_prohibida_no_cambia_el_estado(self):
+        cambiar_estado_merendero(self.merendero, nuevo_estado=Merendero.Estado.CERRADO, usuario=self.editor)
+        self.client.force_login(self.editor)
+
+        respuesta = self.client.post(reverse("merenderos:estado", args=[self.merendero.pk, "suspender"]))
+
+        self.assertRedirects(respuesta, reverse("merenderos:detalle", args=[self.merendero.pk]))
+        self.merendero.refresh_from_db()
+        self.assertEqual(self.merendero.estado, Merendero.Estado.CERRADO)
+
+    def test_sin_merendero_editar_no_se_cambia_el_estado(self):
+        self.client.force_login(self.miron)
+
+        respuesta = self.client.post(reverse("merenderos:estado", args=[self.merendero.pk, "suspender"]))
+
+        self.assertEqual(respuesta.status_code, 403)
+        self.merendero.refresh_from_db()
+        self.assertEqual(self.merendero.estado, Merendero.Estado.ACTIVO)
+
+    def test_un_anonimo_va_al_login(self):
+        for nombre, url in (
+            ("detalle", reverse("merenderos:detalle", args=[self.merendero.pk])),
+            ("estado", reverse("merenderos:estado", args=[self.merendero.pk, "suspender"])),
+        ):
+            with self.subTest(pantalla=nombre):
+                respuesta = self.client.get(url)
+
+                self.assertEqual(respuesta.status_code, 302)
+                self.assertEqual(urlparse(respuesta["Location"]).path, reverse(settings.LOGIN_URL))

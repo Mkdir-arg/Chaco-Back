@@ -1105,7 +1105,7 @@ function abrirModalArchivos() {
 const puedeEditarArchivos = {{ request.user|puede:"ciudadano.editar"|yesno:"true,false" }};
 
 function cargarArchivos() {
-    fetch(`/legajos/ciudadanos/{{ ciudadano.id }}/archivos/`)
+    fetch("{% url 'legajos:archivos_ciudadano' ciudadano.id %}")
         .then(response => response.json())
         .then(data => {
             const tbody = document.getElementById('tabla-archivos');
@@ -1234,7 +1234,7 @@ document.getElementById('formArchivos')?.addEventListener('submit', function(e) 
 
     const formData = new FormData(this);
 
-    fetch(`/legajos/ciudadanos/{{ ciudadano.id }}/subir-archivos/`, {
+    fetch("{% url 'legajos:subir_archivos_ciudadano' ciudadano.id %}", {
         method: 'POST',
         body: formData,
         headers: {
@@ -1260,7 +1260,7 @@ document.getElementById('formArchivos')?.addEventListener('submit', function(e) 
 // Actividad reciente (Resumen)
 // ============================================================
 function cargarActividades() {
-    fetch(`/legajos/ciudadanos/{{ ciudadano.id }}/actividades/`)
+    fetch("{% url 'legajos:actividades_ciudadano' ciudadano.id %}")
         .then(response => response.json())
         .then(data => {
             const tbody = document.getElementById('tabla-actividades');
@@ -1359,7 +1359,7 @@ function getTipoNombre(tipo) {
 // Predicción de riesgo (Resumen)
 // ============================================================
 function cargarPrediccionRiesgo() {
-    fetch(`/legajos/ciudadanos/{{ ciudadano.id }}/prediccion-riesgo/`)
+    fetch("{% url 'legajos:prediccion_riesgo' ciudadano.id %}")
         .then(response => response.json())
         .then(data => {
             const abandono = data.abandono;

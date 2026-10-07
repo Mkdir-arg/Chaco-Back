@@ -333,6 +333,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 159 | Ratchets de arquitectura: el contrato de los modelos, el grafo de imports y las tres dependencias ocultas del shell | Transversal (contrato de `programas.models`, grafo de imports, shell del backoffice, arranque del contenedor, middlewares de usuarios, cache de la home, ruteo de la raíz) | `#metodo` `#infra` `#datos` | Auditoría integral oct-2026 — fichas RED-46, RED-79, RED-13, RED-45, RED-52, RED-51, RED-78 y RED-82 (Ola R, PR R-21) | 07/10/2026 | 🟢 **Hecho** (seis fichas cierran su parte R; el resto queda en las Olas 2, 4 y 7 con su test rojo o su ratchet puesto) | No requiere |
 | 160 | Contratos del backoffice: las URLs que el front escribe a mano, las claves que lee, los parsers externos y el gate que los corre | Transversal (barrido de URLs del front, sobre de error JSON, catálogo de capacidades, CI de GitHub Actions) · Inicio (APIs del dashboard y contador de alertas) · Becas (JSON guardados, fixtures de RENAPER/Personas/SIIS) | `#api` `#metodo` `#rbac` `#siis` | Auditoría integral oct-2026 — fichas RED-42, RED-39, RED-40, RED-41, RED-43 y RED-44 (Ola R, PR R-18) | 07/10/2026 | 🟢 **Hecho** (RED-39, RED-40 y RED-42 cierran su parte R; el resto queda en las Olas 3, 5 y 7 con su test o su ratchet puesto) | No requiere |
 | 162 | Las herramientas de SIIS dejan de pisar lo que otro corrigió, y el alta de prueba no sale del ambiente de pruebas | Becas · revisión de casos (modal «Completar datos para SIIS») · comandos de gestión de SIIS (`diagnosticar_siis`, `corregir_datos_siis`, `correr_alta_siis`, `completar_casos_renaper`) | `#siis` `#datos` `#relevamientos` `#ui` `#metodo` | Auditoría integral oct-2026 — fichas SIIS-19, SIIS-17 y G3-06, más la segunda parte de RED-32 (Ola 1 «Integridad SIIS», PR 7 — cierra la ola) | 07/10/2026 | 🟢 **Hecho** | No requiere |
+| 164 | La red de seguridad del front: lo que no estaba probado, el toggle que prometía de más y las URLs escritas a mano | Dispositivos (admisiones) · Merenderos (entregas, detalle y estado) · Transversal (shell: toggle de tema y campana de alertas) · Legajos (detalle del ciudadano) · Becas (carga de padrón) | `#metodo` `#ui` `#api` `#rbac` | Auditoría integral oct-2026 — fichas RED-33, RED-75 y las segundas partes de RED-42 y RED-53 (Ola 5, PR 8) | 07/10/2026 | 🟢 **Hecho** (D-RED-07 = A aplicada por default) | No requiere |
 
 **Notas del índice**
 
@@ -22235,3 +22236,170 @@ el modal no puede quitar, y `diagnosticar_siis --alta` sale contra cualquier URL
   corrección» era **inalcanzable** —con el form inválido la vista redirige con un solo aviso (ALR-8)— y se
   reemplaza por la comprobación de que ese aviso **llega** con la etiqueta del campo; y ningún test afirmaba que
   el paso 5 de `correr_alta_siis` reenvía `--usuario` a `corregir_datos_siis`, que es lo que firma la traza.
+
+---
+
+# Cambio 164 — La red de seguridad del front: lo que no estaba probado, el toggle que prometía de más y las URLs escritas a mano
+
+🟢 **HECHO — 07/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos (admisiones: egreso, lista de espera, promoción y traslado) · Merenderos (entrega de mercadería, detalle y cambio de estado) · Transversal (shell del backoffice: toggle de tema y campana de alertas) · Legajos (detalle del ciudadano) · Becas (carga de padrón) |
+| **Etiquetas** | `#metodo` `#ui` `#api` `#rbac` |
+| **Solicitante** | Auditoría integral oct-2026 — fichas RED-33, RED-75 y las segundas partes de RED-42 y RED-53 (Ola 5, PR 8 — «red de seguridad del front») |
+| **Fecha del pedido** | 07/10/2026 |
+| **Issue / épica** | Sin issue (plan de la auditoría: `docs/internal/auditoria-2026-10/`) |
+| **Partes afectadas** | `programas/tests/test_admisiones_vistas.py` (nuevo) · `programas/tests/test_merenderos.py` · `programas/tests/test_padron.py` · `users/tests/test_tema.py` (nuevo) · `core/tests/test_urls_del_front.py` · `programas/views/relevamientos.py` (`_subir_padron`) · `users/serializers/__init__.py` · `static/custom/js/base.js` · `static/custom/js/alertas_websocket.js` · `templates/includes/navbar.html` · `templates/core/performance_dashboard.html` · `legajos/templates/legajos/ciudadano_detail.html`. Ninguna pantalla nueva |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Cerrar el PR 8 de la Ola 5, que es el ítem (8) de esa ola: **RED-33** (tests HTTP de las vistas v1 de
+Dispositivos y Merenderos), **RED-75** (`/set_dark_mode/`, con la decisión **D-RED-07**) y las **segundas
+partes** de **RED-42** (las URLs que el front escribe a mano pasan a `{% url %}`) y **RED-53**
+(`_subir_padron`, el clon entre las dos pantallas que cargan padrón).
+
+## Qué lo motivó
+
+Las cuatro fichas son la misma clase de problema: **código que no tiene quién lo contradiga**.
+
+- **RED-33.** `programas/views/admisiones.py` estaba al 59 % de cobertura y `merenderos.py` al 76 %.
+  Las vistas que **operan** —egresar a alguien, promoverlo de la lista de espera, trasladarlo, registrar
+  una entrega— no tenían un solo test que entrara por la URL. Los tests de servicio pasan igual porque
+  reciben el `usuario`, la cama y la admisión ya armados: lo que no estaba medido es el pegamento, que es
+  justo donde se rompe. Tres ejemplos de la ficha: que la vista deje de pasarle el `usuario` al servicio
+  (egreso sin responsable), que `PromoverEsperaView` no revalide la cama, o que la entrega se asocie a un
+  merendero que no es el del `pk` de la URL.
+- **RED-75.** El toggle de modo oscuro posteaba a `/set_dark_mode/`, una ruta que **nunca existió** en el
+  URLconf, y el `.fail()` lo tapaba con un `console.warn`. Del otro lado, `Profile.dark_mode` nacía en
+  `True`, estaba publicado en `ProfileSerializer` y no lo escribía nadie: cualquier trabajo futuro que lo
+  leyera iba a leer siempre el default.
+- **RED-42 (parte 5).** El Cambio 160 puso el barrido (`core/tests/test_urls_del_front.py`) y midió 14
+  literales con 3 rotos. Medir no arregla: una URL escrita a mano dentro de un `fetch` no la revisa nadie
+  hasta que devuelve 404 en producción, y `{% url %}` revienta en el render si la ruta no existe.
+- **RED-53 (parte 5).** `convocatoria_padron` y `relevamiento_padron` eran clones literales salvo el
+  objeto, la URL de vuelta y el prefijo del aviso. El riesgo no es estético: es el molde de SIIS-03, donde
+  el candado de corrida viva entró en dos de los tres comandos que comparten el 80 % del código.
+
+## Decisiones tomadas
+
+| # | Decisión | Por qué |
+|---|---|---|
+| **D-RED-07 = A** | La preferencia de tema se persiste **solo en el navegador**. Se borran `sendThemePreference`, la opción `notify` de `applyTheme` —que era lo único que la disparaba— y `dark_mode` de `ProfileSerializer` | Es el default registrado en el README §2.4 de la auditoría y **no hay decisión del PM en contra**. Además es lo que el shell ya hacía de verdad: el tema se guarda en `localStorage` y se sincroniza entre pestañas por el evento `storage`. La opción B (vista `POST /usuarios/tema/`) es trabajo nuevo para persistir algo que nadie pidió |
+| **La columna `users_profile.dark_mode` no se toca** | Queda en la base, con su `default=True` y sin lectores | Borrarla es *contract*: durante el rolling conviven la release vieja y la nueva contra el mismo esquema (expand/contract, RED-15). Va dos releases después de que nadie la lea, y hoy recién deja de leerse |
+| **Los tests de RED-33 son caracterización, no corrección** | Fijan lo que el código hace hoy; no se cambió una línea de `admisiones.py` ni de `merenderos.py` | Es lo que la ficha pide. Un test que «arregla» de paso mezcla dos cosas: si mañana falla, no se sabe si cambió la conducta o el test estaba mal desde el principio |
+| **La autorización queda fuera de `_subir_padron`** | El helper recibe el objeto ya resuelto y autorizado; cada vista conserva su guard (`convocatorias_visibles` en la convocatoria, `_assert_scope` en el relevamiento) | Son guardas distintas, no un clon. Meterlas adentro obligaría a un `if` por tipo de objeto dentro del helper, que es exactamente la forma en que un refactor de duplicación crea un agujero de permisos |
+| **Las rutas del JS de `static/` viajan por `data-url-*`** | `#alertas-campana` en `templates/includes/navbar.html` lleva `data-url-count` y `data-url-preview` resueltos con `{% url %}`; `alertas_websocket.js` las lee con `dataset` y, sin el atributo, no consulta nada | Un archivo de `static/` **no pasa por el motor de templates**: `{% url %}` ahí es imposible. El patrón ya existía en el repo (`_dashboard_panel.html`, `convocatoria_formulario.html`, `programa_list.html`) |
+| **El guard de «el barrido encuentra literales» cambia de forma** | `test_el_barrido_encuentra_literales` (medía > 5 literales vivos) se reemplaza por `test_los_patrones_siguen_sacando_la_ruta`, que ejercita el extractor contra una muestra escrita en el test, más `test_el_barrido_recorre_el_front_de_verdad` | Contar literales vivos deja de medir nada cuando el trabajo es que no queden: con este cambio quedan dos, y el día que LEG-06 borre su template van a quedar cero **legítimamente**. Lo que tiene que seguir vivo es el extractor |
+
+## Qué se hizo
+
+**(1) RED-33 — 30 tests HTTP sobre las vistas v1 que operan.**
+
+- `programas/tests/test_admisiones_vistas.py::AdmisionesPorHttpTests` (16): egreso, lista de espera,
+  promoción y traslado, cada una con los cuatro perfiles —anónimo (302 al login con su `?next=`), cuenta
+  de backoffice sin rol de Dispositivos (403), rol de Programa con **la capacidad justa** y su
+  `AsignacionDispositivo`, y superusuario (bypass, sin asignación)— y con GET y POST.
+- `programas/tests/test_merenderos.py::EntregaDeMercaderiaTests` (5) y
+  `MerenderoDetalleYEstadoPorHttpTests` (9): la entrega queda atada al merendero del `pk` de la URL,
+  un merendero suspendido devuelve el formulario con el error, el detalle no lista las entregas anuladas
+  y el cambio de estado guarda quién, solo por POST (el GET es 405).
+- **Verificado por mutación, una por una, las tres conductas de la ficha:** `usuario=None` en vez de
+  `request.user` pone rojo el egreso y la promoción; sacar el `raise PermissionDenied` de
+  `get_admision`/`get_espera` pone rojo las dos pantallas que se operan por id ajeno; y resolver el
+  merendero de la entrega desde el cuerpo del POST pone rojo `test_una_entrega_de_un_merendero_ajeno_no_se_crea`.
+  También se mutaron `anulada=False` del detalle y el `usuario` del cambio de estado.
+
+**(2) RED-75 — el toggle deja de prometer una persistencia que no existe.**
+
+Se fueron `sendThemePreference`, su llamada, la opción `notify` de `applyTheme` y el `getCSRFToken` que
+solo ella usaba; `dark_mode` salió de `ProfileSerializer`; y `/set_dark_mode/` salió de la `ALLOWLIST` de
+`core/tests/test_urls_del_front.py` **en el mismo diff**, que es lo que exige el ratchet de RED-42 (una
+entrada que ya no aparece en el front hace fallar `test_la_allowlist_no_tiene_entradas_de_mas`). El
+candado nuevo es `users/tests/test_tema.py`, que barre `templates/` y `static/custom/js/` **salteando los
+comentarios** —ahí sí se nombra lo que se borró, que es la documentación de por qué no está— y tiene su
+propio control de que el salteo no se coma el código.
+
+**(3) RED-42 parte 5 — el front se queda sin URLs escritas a mano (salvo las dos de LEG-06).**
+
+| Dónde | Cuántas | A qué pasaron |
+|---|---|---|
+| `legajos/templates/legajos/ciudadano_detail.html` | 4 | `{% url 'legajos:archivos_ciudadano' %}`, `subir_archivos_ciudadano`, `actividades_ciudadano`, `prediccion_riesgo` |
+| `templates/core/performance_dashboard.html` | 5 | `{% url 'core:system_metrics_api' %}`, `performance_api`, `query_analysis_api`, `optimization_suggestions_api`, `run_phase2_tests_api` |
+| `static/custom/js/alertas_websocket.js` | 2 | `data-url-count` / `data-url-preview` sobre `#alertas-campana` (navbar) |
+| `static/custom/js/base.js` | 1 | borrada con RED-75 |
+
+**(4) RED-53 parte 5 — una sola puerta para subir padrón.**
+
+`programas/views/relevamientos.py::_subir_padron(request, duenio, destino, clave, prefijo="")`. Cada vista
+queda en su `get_object_or_404`, su guard y la llamada. El candado es
+`programas/tests/test_padron.py::UnaSolaPuertaDePadronTests` (6), que mira por AST que las dos vistas
+llamen al helper y **ninguna** a `cargar_padron`/`parsear_padron`, que el cuerpo de cada una no pase de
+cinco sentencias, que las dos se comporten igual en los bordes compartidos (sin archivo, Excel ilegible) y
+que cada una conserve su propia autorización.
+
+## Validación
+
+Todo con `.venv312` (Python 3.12 + Django 5.2.17, igual al CI) y `DJANGO_SECRET_KEY=test-key`,
+`PYTEST_RUNNING=1`, `DJANGO_SYNCDB_PROJECT_APPS=True`.
+
+| Comando | Resultado |
+|---|---|
+| `manage.py check` | 0 issues |
+| `manage.py check --deploy` | 6 issues, los mismos de `development` (no hay ninguno nuevo) |
+| `manage.py makemigrations --check --dry-run` | `No changes detected` |
+| `manage.py test` (suite completa, un solo proceso) | ver el cuerpo del PR |
+| `manage.py test --tag performance` | ver el cuerpo del PR |
+| `scripts/compile_templates.py --bloques` | 203 compilados, **0 errores, 0 bloques sin destino** |
+| `scripts/design_audit.py --ratchet` | **0 hallazgos nuevos** en 5 archivos |
+| `scripts/design_audit.py --goldens` | **0 hallazgos** en 5 goldens |
+| `scripts/check_design_agent.py --changed` | **ERROR a propósito**: `templates/includes/navbar.html` es evidencia canónica y el parche de `.claude/design/shells.md` lo aplica el juez (ver *Pendientes*) |
+| `ruff check` / `ruff format --check` | limpio sobre lo tocado |
+| `scripts/requerimientos.py --check` | OK |
+
+Mutación (tres comprobaciones, revertidas después): `usuario=None` en el egreso y la promoción,
+`get_admision`/`get_espera` sin su guard de dispositivo, y el clon de `convocatoria_padron` reescrito a
+mano. Las tres ponen rojo exactamente los tests que las tienen que atrapar.
+
+## Reversión
+
+Revertir el commit. **No hay migraciones ni datos que deshacer.** Al revertir vuelven: el POST del toggle
+de tema a una ruta inexistente (que hoy no lo dispara nadie, porque ningún template carga `base.js`),
+`dark_mode` en `/api/users/me/`, las once URLs literales del front y el clon de las dos vistas de padrón.
+Los 30 tests de RED-33 son caracterización pura: revertirlos no cambia el comportamiento del sistema, solo
+lo deja otra vez sin medir.
+
+## Pendientes / a definir
+
+- **`.claude/design/shells.md` queda sin actualizar en este PR.** La sesión que lo escribió no tiene
+  permiso de escritura bajo `.claude/`; el bloque completo está en el cuerpo del PR y lo aplica el juez.
+  Sin ese parche, `check_design_agent.py --changed` queda en rojo (es su regla: tocar evidencia canónica
+  de UI obliga a mover su ficha en el mismo diff).
+- **La promoción desde la lista de espera no persiste quién promovió.** `promover_espera` usa el `usuario`
+  para resolver la membresía, pero no hay un campo «promovida por»: el único rastro del autor es el kwarg
+  que la vista le pasa al servicio, y eso es lo que el test fija. Agregar el campo es una migración y
+  **no está en RED-33**; queda anotado por si el PM lo quiere.
+- **`static/custom/js/base.js` no lo carga ningún template.** El archivo entero es huérfano, lo que baja a
+  cero el impacto real que describía RED-75 (no había 404 en los logs porque el código no corría). Borrarlo
+  es de **FE-14** (Ola 7), que barre el JS sin consumidores.
+- **Los otros tres grupos de clones de RED-53 siguen abiertos** (`dispositivos_config` ≡
+  `dispositivos_legajo`, `padron.py` ≡ `revision.py`, `_sin_formularios_publicos_si_no_puede` ≡
+  `_assert_scope`): son de **RED-79**.
+- **Las dos entradas de LEG-06 siguen en la `ALLOWLIST`** (`/legajos/1/contactos/api/` y
+  `/legajos/contactos/1/detalle/`). Las saca su ficha, que borra `historial_contactos.html` entero.
+- **El traslado necesita `dispositivo.ver` además de `dispositivo.egresar`**, porque el combo de destino
+  sale de `dispositivos_visibles`. Un rol con `egresar` y sin `ver` no puede trasladar a ningún lado y la
+  pantalla no lo explica: queda medido por test y anotado como observación de producto.
+
+## Historial
+
+- **04/10/2026** — la auditoría abre RED-33, RED-42, RED-53 y RED-75 en el frente «Red de seguridad».
+- **05/10/2026** (Cambio 127, PR 2 de la Ola 1) — se cierra la parte de la Ola 1 de **RED-53**:
+  `ComandoSiisBase` unifica los cuatro comandos de SIIS. Queda anotada la parte de padrón.
+- **06/10/2026** (Cambio 140, PR 1 de la Ola 5) — DIS-01 y DIS-08. El plan decía que RED-33 entraba «con el
+  PR 1»; no entró, y quedó registrado ahí mismo.
+- **07/10/2026** (Cambio 160, PR R-18) — nace `core/tests/test_urls_del_front.py` con la `ALLOWLIST` de 3
+  URLs rotas y el ratchet en las dos direcciones. Es el gate que este cambio tiene que bajar.
+- **07/10/2026 (este cambio)** — las cuatro fichas cerradas. Con esto la Ola 5 va por **60 h de 128**: le
+  quedan los PRs 6 (después del paso 4 de la Ola 6) y 7.
