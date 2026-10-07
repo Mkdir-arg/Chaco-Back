@@ -13,3 +13,8 @@ from .contactos import (  # noqa: F401
     build_legajo_evolucion_payload,
     get_legajo_contactos_context,
 )
+from .legajos import (  # noqa: F401
+    ESTADO_CERRADO,
+    legajos_abiertos,
+    resumen_legajos_atencion,
+)

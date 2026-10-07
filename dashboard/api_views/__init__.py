@@ -214,7 +214,17 @@ def tendencias_datos(request):
     dias = dias_map.get(periodo, 30)
 
     try:
-        fecha_inicio = timezone.now().date() - timedelta(days=dias)
+        # G2-04: la serie termina **hoy**. Arrancaba en `hoy - dias` y recorría
+        # `range(dias)`, así que el último punto era ayer y la actividad del día
+        # en curso no aparecía nunca en el gráfico del inicio.
+        #
+        # `localdate()` y no `now().date()`: `fecha_inscripcion` es un DateField que
+        # `auto_now_add` llena con `date.today()` —fecha local del proceso, que en
+        # Linux es la de Argentina porque Django hace `os.environ["TZ"]` + `tzset()`—.
+        # Con la fecha UTC, entre las 21 y las 24 de Argentina el último bucket quedaba
+        # en «mañana» y salía siempre en cero. Es la corrección que propone BEC-18 para
+        # este uso; el resto de los «hoy» UTC siguen abiertos en esa ficha.
+        fecha_inicio = timezone.localdate() - timedelta(days=dias - 1)
 
         # ``fecha_inscripcion`` ya es un DateField: ``TruncDate`` no aportaba nada y
         # generaba ``DATE(CONVERT_TZ(...))``. Sin tablas de zona horaria —el MySQL de

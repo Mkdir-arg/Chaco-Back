@@ -190,7 +190,7 @@ densa, estado vacío, badges, botones y campos NODO. Sin CSS nuevo.
     <section class="xl:col-span-4 bg-white rounded-xl border border-base shadow-sm" aria-labelledby="dash-titulo-estados" data-dash-card="estados">
       <div class="flex items-start justify-between gap-3 px-5 py-4 border-b border-light">
         <div class="min-w-0">
-          <h3 id="dash-titulo-estados" class="text-heading font-bold" style="font-size:16px">Estado de los formularios</h3>
+          <h3 id="dash-titulo-estados" class="text-heading font-bold text-base">Estado de los formularios</h3>
           <p class="text-xs text-body-subtle mt-0.5" data-dash-sub="estados"></p>
         </div>
         <div class="flex items-center gap-1 flex-shrink-0 dash-no-print">
@@ -212,7 +212,7 @@ densa, estado vacío, badges, botones y campos NODO. Sin CSS nuevo.
     <section class="xl:col-span-12 bg-white rounded-xl border border-base shadow-sm" aria-labelledby="dash-titulo-convocatorias" data-dash-card="convocatorias">
       <div class="flex items-start justify-between gap-3 px-5 py-4 border-b border-light">
         <div>
-          <h3 id="dash-titulo-convocatorias" class="text-heading font-bold" style="font-size:16px">Avance por convocatoria</h3>
+          <h3 id="dash-titulo-convocatorias" class="text-heading font-bold text-base">Avance por convocatoria</h3>
           <p class="text-xs text-body-subtle mt-0.5" data-dash-sub="convocatorias">El cupo se mide sobre el total aprobado del segmento, sin filtro de período.</p>
         </div>
         {% if puede_exportar_dashboard %}
@@ -234,7 +234,7 @@ densa, estado vacío, badges, botones y campos NODO. Sin CSS nuevo.
     <section class="xl:col-span-8 bg-white rounded-xl border border-base shadow-sm" aria-labelledby="dash-titulo-respuestas" data-dash-card="respuestas">
       <div class="flex items-start justify-between gap-3 px-5 py-4 border-b border-light flex-wrap">
         <div class="min-w-0">
-          <h3 id="dash-titulo-respuestas" class="text-heading font-bold" style="font-size:16px">Respuestas de los formularios</h3>
+          <h3 id="dash-titulo-respuestas" class="text-heading font-bold text-base">Respuestas de los formularios</h3>
           <p class="text-xs text-body-subtle mt-0.5" data-dash-sub="respuestas"></p>
         </div>
         <div class="flex items-center gap-1 dash-no-print">
@@ -268,24 +268,17 @@ densa, estado vacío, badges, botones y campos NODO. Sin CSS nuevo.
 
   {% if puede_exportar_dashboard %}
   {# ============ Modal: Respuestas por persona (Cambio 65) — mismo patrón que los modales de programa_detail.html ============ #}
-  <div x-show="modalRespuestas" x-cloak @click="modalRespuestas=false" class="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style="background:rgba(0,0,0,.5)">
-    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden" @click.stop role="dialog" aria-modal="true" aria-labelledby="dash-modal-respuestas-titulo">
-      <div class="flex items-center justify-between px-6 py-5 border-b" style="border-color:var(--border-light)">
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style="background:var(--bg-brand-soft);color:var(--text-fg-brand)">
-            <i class="fas fa-file-excel" aria-hidden="true"></i>
-          </div>
-          <h3 id="dash-modal-respuestas-titulo" class="text-lg font-bold text-heading">Exportar respuestas por persona</h3>
-        </div>
-        <button type="button" @click="modalRespuestas=false" aria-label="Cerrar"
-                class="p-1.5 rounded-lg text-body-subtle hover:text-heading hover:bg-secondary transition-colors">
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-      </div>
-      <form id="dash-form-respuestas" @submit.prevent>
-        <div class="p-6 space-y-5">
+  {% comment %}V5A-NEW-07 (b): el modal pasa al arquetipo Modal. `x-becas-modal` da foco al abrir,
+  atrapa el Tab, cierra con Escape, bloquea el scroll del fondo y devuelve el foco al disparador;
+  el encabezado y el pie son los canónicos de Becas (la X sale en Font Awesome, no en un SVG
+  pegado a mano) y la nota usa la alerta informativa canónica.{% endcomment %}
+  <div x-show="modalRespuestas" x-cloak x-becas-modal="modalRespuestas" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="modalRespuestas=false"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden" @click.stop
+         role="dialog" aria-modal="true" aria-labelledby="dash-modal-respuestas-titulo">
+      {% include "programas/becas/_modal_header.html" with titulo="Exportar respuestas por persona" titulo_id="dash-modal-respuestas-titulo" icono="fa-file-excel" cerrar="modalRespuestas=false" %}
+      <form id="dash-form-respuestas" @submit.prevent class="flex flex-col flex-1 min-h-0">
+        <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
           <p class="text-sm text-body">
             Un archivo Excel con <strong class="text-heading">un registro por caso enviado</strong> de la convocatoria, en cualquier estado:
             relevamiento y canal, identificación de la persona, estado y fecha del caso, y <strong class="text-heading">una columna por cada pregunta</strong> del formulario.
@@ -298,15 +291,9 @@ densa, estado vacío, badges, botones y campos NODO. Sin CSS nuevo.
             </select>
             <p class="mt-1 text-xs text-fg-danger hidden" data-dash="respuestas-error">Elegí la convocatoria que querés exportar.</p>
           </div>
-          <div class="flex items-center gap-2" style="padding:10px 12px; border-radius:10px; background:var(--bg-info-soft); border:1px solid var(--color-brand-200)">
-            <i class="fas fa-info-circle flex-shrink-0" style="color:var(--text-fg-info)" aria-hidden="true"></i>
-            <span style="font-size:12.5px; color:var(--text-body)">Incluye todos los casos de la convocatoria, sin el filtro de período del tablero. Las respuestas múltiples van separadas por « | » y los adjuntos muestran el nombre del archivo.</span>
-          </div>
+          {% include "components/_alerta.html" with tono="info" texto="Incluye todos los casos de la convocatoria, sin el filtro de período del tablero. Las respuestas múltiples van separadas por « | » y los adjuntos muestran el nombre del archivo." %}
         </div>
-        <div class="flex justify-end gap-3 px-6 py-4 border-t bg-secondary" style="border-color:var(--border-light)">
-          <button type="button" @click="modalRespuestas=false" class="btn-nodo btn-tertiary btn-base">Cancelar</button>
-          <button type="submit" class="btn-nodo btn-brand btn-base"><i class="fas fa-download" aria-hidden="true"></i> Descargar Excel</button>
-        </div>
+        {% include "programas/becas/_modal_footer.html" with cancelar="modalRespuestas=false" accion_texto="Descargar Excel" accion_icono="fa-download" %}
       </form>
     </div>
   </div>
