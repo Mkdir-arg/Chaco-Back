@@ -424,7 +424,7 @@ saltearla dejaría a la guarda sin red. El SQL del comando corre tal cual.
 Verificado a mano: volver a un solo lote (`_lotes(ids, len(ids))`) → `test_procesa_por_lotes` en rojo; sacar el
 `exclude(estado=RECHAZADO)` de `_casos` → 4 tests en rojo.
 
-**Resolución (segunda parte, Ola 1):** ✅ Cerrada en #PENDIENTE (Cambio 162), 07-oct-2026 — nuevo
+**Resolución (segunda parte, Ola 1):** ✅ Cerrada en #610 (Cambio 162), 07-oct-2026 — nuevo
 `programas/tests/test_validar_casos_siis.py::ValidarCasosSiisTests`, 11 tests, todos **con `--aplicar`**: lo que R-06
 dejó fijado era el ensayo, y lo que la ficha nombra como frágil solo se ve cuando el comando corre de verdad. Los seis
 de la propuesta (`test_toma_solo_los_casos_sin_validacion`, `test_reintentar_errores_suma_los_que_quedaron_en_error`,
