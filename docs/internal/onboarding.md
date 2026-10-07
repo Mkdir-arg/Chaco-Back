@@ -48,7 +48,9 @@ El sistema gestiona:
 En `services/` de cada app. Las views solo orquestan.
 
 **¿Cómo sé qué permisos tiene cada rol?**
-Ver `users/` y los grupos definidos en `legajos/management/commands/setup_groups.py`.
+En el `CATALOGO` de `core/rbac.py`: un Rol es un `Group` + `users.RolMeta`, y sus
+capacidades se tildan desde el ABM de Roles. El sembrado de arranque está en
+`users/management/commands/seed_rbac.py` y `programas/management/commands/seed_becas.py`.
 
 **¿Cómo funciona el multi-institución?**
 El middleware `config/middlewares/institucion_redirect.py` maneja el contexto por institución.

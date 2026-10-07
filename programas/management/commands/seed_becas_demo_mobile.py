@@ -16,6 +16,7 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
 
+from core.management.guardas import exigir_entorno_demo
 from programas.models import (
     Convocatoria,
     Formulario,
@@ -407,6 +408,7 @@ class Command(BaseCommand):
 
     @transaction.atomic
     def handle(self, *args, **options):
+        exigir_entorno_demo("seed_becas_demo_mobile")
         call_command("seed_becas", verbosity=0)
         asegurar_preguntas_comunes()
         segmentos, subsegmentos = asegurar_segmentos()
