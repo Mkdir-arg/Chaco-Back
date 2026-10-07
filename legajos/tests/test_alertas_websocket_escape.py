@@ -4,6 +4,11 @@
 websockets) armaba el toast, el modal de alerta crítica y la vista previa del menú con
 ``innerHTML`` y el nombre del ciudadano sin escapar. Se ejecuta el archivo real con
 ``node`` sobre un DOM simulado.
+
+Desde FE-25 el aviso y el modal son los del shell (``window.toast`` y ``ModernModal``),
+que escriben con ``textContent``: ahí el nombre ya **no** se escapa a mano, y lo que hay
+que verificar es que no vuelva a aparecer un ``innerHTML``. La vista previa del menú
+sigue siendo markup propio y sigue escapando (su migración es FE-11/FE-12).
 """
 
 import json
@@ -45,13 +50,29 @@ class AlertasWebSocketEscapeTests(SimpleTestCase):
         self.assertNotIn("img", [tag for tag, _ in atributos_de(html)], html)
         self.assertIn("&lt;img src=x", html)
 
+    def _log_de(self, acciones):
+        espias = (
+            "window.toast = function (t, m) { __log.toast = [t, m]; };\n"
+            "window.ModernModal = {show: function (o) { __log.modal = o.message; }};\n"
+            "window.alertasConfig = {ciudadanoDetalleUrlTemplate: '/legajos/ciudadanos/0/'};\n"
+        )
+        return correr_script_pagina(
+            self.script,
+            f"{espias}var __ws = Object.create(AlertasWebSocket.prototype);\n"
+            f"var __alerta = {json.dumps(ALERTA)};\n{acciones}",
+        )
+
     def test_toast(self):
-        self.assertSinMarcadoInyectado(self._html_de("__ws.showToast(__alerta);", "document.createElement()"))
+        # El aviso va por la pieza del shell, que escribe con textContent: el marcado
+        # llega crudo al sumidero seguro y el script no toca ningún innerHTML.
+        log = self._log_de("__ws.showToast(__alerta);")
+        self.assertIn(MARCADO, log["toast"][1])
+        self.assertEqual(log["html"], {})
 
     def test_modal_de_alerta_critica(self):
-        html = self._html_de("__ws.showCriticalModal(__alerta);", "document.createElement()")
-        self.assertSinMarcadoInyectado(html)
-        self.assertIn('href="/legajos/4/"', html)
+        log = self._log_de("__ws.showCriticalModal(__alerta);")
+        self.assertIn(MARCADO, log["modal"])
+        self.assertEqual(log["html"], {})
 
     def test_vista_previa_del_menu(self):
         acciones = (

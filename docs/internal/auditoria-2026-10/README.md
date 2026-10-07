@@ -66,6 +66,12 @@ link público abierto**, por la huella de la foto.
 |---|---|---|---|---|
 | R-15 | 153 | OPS-03 ✅ · RED-55 ✅ · OPS-04 ✅ · RED-59 ✅ · OPS-01 ✅ · RED-16 🟡 | ✅ | **Las 6 fichas, 18 h, sin migraciones.** Lo que habilita: el próximo deploy en icore deja de ser a ciegas. (1) El traceback de cada 500 llega a **stdout** —`django.request` propaga a la raíz— y los archivos de `logs/` pasan a depender de `LOG_TO_FILES`, con retención de 14 días (OPS-03); los dos context processors que tragaban toda excepción ahora loguean, **sin cambiar lo que ve el usuario** (RED-55). (2) `/health/ready/` toca la base y, en prd, el cache de sesiones, y devuelve 503; `/health/` no cambia, así que ninguna sonda de ECOM se toca (OPS-04) — se retiró el include de `health_check.urls`, que estaba montado en la misma ruta y era inalcanzable; el paquete **sigue instalado**, porque sacarlo deja dos filas de `django_migrations` sin archivo y una tabla sin modelo, y eso frena el arranque (lo midió la guarda de OPS-01 en el CI de este mismo PR: queda anotado en OPS-13). (3) `deploy_prod.sh` verifica con `/health/ready/` + `migrate --check` + manifest + `GET /login/`, crea `rollback/<ts>` en vez de quedar en detached HEAD y **aborta el rollback automático si el deploy aplicó migraciones** (RED-59). (4) `verificar_esquema_migraciones` corre en el entrypoint y en el paso 8/8 del roundtrip, con el chequeo inverso de RED-15, y el renombre de icore quedó versionado en `core/sql/2026-10-06_renombrar_migraciones_icore.sql` (OPS-01). (5) Cada release deja un tag `release-AAAA.MM.DD-<short>` (RED-16). **Abierto:** la otra mitad de RED-16 —el tag de **imagen** por commit— es D-RED-02 y la aplica ECOM; está en `propuesta-ecom-verify.md` §2, junto con los avisos nuevos §4 (volumen en stdout) y §5 (`/health/ready/`), todo pendiente de que lo mande el PM. El renombre de `django_migrations` en icore lo corre una persona antes del próximo deploy |
 
+## Estado al 07-oct-2026 (Ola 5, PR 5: bugs de front y parches v1)
+
+| PR | Cambio | Fichas | Estado | Qué quedó abierto |
+|---|---|---|---|---|
+| Ola 5 PR 5 (#605) | 157 | FE-18 ✅ · FE-19 ✅ · FE-25 ✅ · FE-26 ✅ | ✅ | **Las 4 fichas cerradas, sin migración: 8 h.** El rojo del sistema deja de significar dos cosas. Merenderos estrena sus dos parciales de badges —legajo y solicitud, con el contrato del de Dispositivos— y sus tres pantallas dejan de volcar `get_estado_display` como texto suelto; «Inactivo» pasa a `badge-gray` en usuarios y roles, y «Sin datos» a `text-body-subtle` en los indicadores del dispositivo. Los **tres** handlers de confirmación copiados (y distintos entre sí) se reemplazan por `programas/_swal_confirm_js.html`, donde el tono lo declara la pantalla con `data-confirm-danger`: «Rechazar» y «Cerrar» confirman en rojo, «Validar», «Aprobar», «Suspender» e «Inactivar» no, y «Activar usuario/rol» deja de salir con el botón de borrado. `alertas_websocket.js` deja de tener sistema de avisos propio: toast por `window.toast` y alerta crítica por `ModernModal`, con foco atrapado y Escape. Y una guardia global (`static/custom/js/nodo-submit-guard.js`, una sola carga en el shell) cancela el segundo `submit` de cualquier formulario POST que no sea `data-ajax`. **Playwright a 1440 y 390 px, 0 errores de consola:** los badges con su tono, el Swal de «Cerrar» en `btn-danger` con fondo `rgb(199,0,54)` y `padding-left: 16px`, el de «Suspender» en `btn-brand`, y el doble envío bloqueado con `aria-busy="true"`. **Cinco desvíos, los cinco code-first:** (a) la rama `SIN_DATOS` va en **dos** de los cuatro indicadores, no en los cuatro: ocupación y disponibilidad nunca devuelven ese semáforo y la rama sería código muerto; (b) los botones del diálogo llevan `btn-base`, que la ficha no nombraba —`customClass` reemplaza entero el del mixin y sin tamaño el botón queda en `padding-left: 0`, el mismo defecto de FE-06/FE-07—; (c) el envío confirmado va por `requestSubmit()`, porque `submit()` no dispara el evento y se saltearía la guardia de FE-26; (d) el `disabled` de la guardia se aplica en el turno siguiente, o el navegador deja el `name`/`value` del botón fuera del POST; (e) el «Ver» de la alerta crítica apunta al detalle del **ciudadano** y la URL la arma el shell con `{% url %}`: el destino que proponía el modal viejo (`/legajos/<id>/`) no existe (FE-09). **Lo que no se hizo:** las tres acciones del listado de solicitudes siguen siendo texto subrayado, no `btn-nodo` (eso es FE-12), y estas pantallas siguen sin arquetipo: su encabezado, tabla y paginación son de FE-11/FE-12/FE-17, PRs 6 y 7. Los dos parches de `.claude/` (tres filas del núcleo y un bloque de `design/shells.md`) los **aplicó el juez** en `b355eb9c`, porque la sesión implementadora no tiene permiso de escritura ahí: «Design Agent Contract» quedó en verde. La **ronda 2** cerró dos MINOR del revisor: (1) la guardia de doble envío leía `event.defaultPrevented` **una sola vez, al entrar**, y un listener delegado en `document` registrado después —los de `{% block customJS %}`, que corren dentro de `DOMContentLoaded`— se ejecuta detrás de ella: si ese cancelaba el envío, el formulario quedaba `aria-busy` con los botones `disabled` para siempre (reproducido en Chromium; ninguna pantalla lo pisa hoy, pero el script es global). Ahora se reevalúa en el mismo turno diferido del `disabled` y, si quedó cancelado, se suelta la marca; (2) esta misma fila decía que los parches de `.claude/` seguían pendientes |
+
 ## Estado al 06-oct-2026 (Ola 5, PR 4: bugs de front)
 
 | PR | Cambio | Fichas | Estado | Qué quedó abierto |
@@ -1166,12 +1172,13 @@ Avance: 11 ⬜ (+ R0b-01, 02, 03, 10 ⬜; R0b-12 operativo). SEC-03 (con G1b-01)
 - **Operativo (PM):** R0b-12 correr P-04 ampliado en PRD.
 
 ### 4.7 Front del backoffice → `hallazgos/07-front.md` (28)
-Avance: 13 ✅ · 1 🟡 · 14 ⬜ (FE-13, V5A-NEW-01, V5A-NEW-08 y la parte (a) de V5A-NEW-07 en la Ola 6; FE-02, FE-09 y
-FE-21 en el PR 2 de la Ola 5; FE-04, FE-05 y FE-08 en el PR 3; FE-06, FE-07, FE-01 y FE-10 en el PR 4).
+Avance: 17 ✅ · 1 🟡 · 10 ⬜ (FE-13, V5A-NEW-01, V5A-NEW-08 y la parte (a) de V5A-NEW-07 en la Ola 6; FE-02, FE-09 y
+FE-21 en el PR 2 de la Ola 5; FE-04, FE-05 y FE-08 en el PR 3; FE-06, FE-07, FE-01 y FE-10 en el PR 4;
+FE-18, FE-19, FE-25 y FE-26 en el PR 5).
 - **ALTA:** ✅ FE-02 `toastr` (Ola 5, PR 2) · ✅ FE-04 paginación de Geografía · ✅ FE-05 wizard (Ola 5, PR 3) ·
   ✅ FE-06 clases inexistentes (Ola 5, PR 4).
-- **MEDIA:** ✅ 01, ✅ 07, ✅ 08, ✅ 09, ✅ 10, 11, 12, ✅ 13, 17, 18, 19, 20, ✅ 21 · ✅ V5A-NEW-01 · 🟡 V5A-NEW-07.
-- **BAJA:** FE-14, 16, 22, 23, 24, 25, 26 · V5A-NEW-04 · V5A-NEW-08.
+- **MEDIA:** ✅ 01, ✅ 07, ✅ 08, ✅ 09, ✅ 10, 11, 12, ✅ 13, 17, ✅ 18, ✅ 19, 20, ✅ 21 · ✅ V5A-NEW-01 · 🟡 V5A-NEW-07.
+- **BAJA:** FE-14, 16, 22, 23, 24, ✅ 25, ✅ 26 · V5A-NEW-04 · ✅ V5A-NEW-08.
 
 ### 4.8 Red de seguridad → `hallazgos/08-red-de-seguridad.md` (89, frente del 04-oct-2026)
 Avance al cierre de la Ola R mínima: **30 ✅ · 3 🟡 · 56 ⬜**. Agrupadas por tema: (a) flujos críticos y cobertura, (b) regresión de bugs pasados, (c) contratos, tipado y
@@ -1626,7 +1633,7 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
 ### Ola 5 — Bugs de front y parches v1 de Legajos y Dispositivos
 - **Objetivo:** que las pantallas funcionen (subir archivos, paginar, cascadas, botones visibles) y migrar las pantallas
   fuera de Becas a las piezas canónicas clonando las goldens.
-- **Avance: 38 h de 128, 90 restantes.** PR 1 (DIS-01 + DIS-08) en el Cambio 140, 06-oct-2026: helper de fechas locales,
+- **Avance: 46 h de 128, 82 restantes.** PR 1 (DIS-01 + DIS-08) en el Cambio 140, 06-oct-2026: helper de fechas locales,
   los dos usos de Dispositivos más los tres latentes y cuatro de Conversaciones, y la guardia `test_sql_portable.py`
   (recorre el código con `ast`, allowlist vacía). **PR 2 (FE-02, LEG-02, LEG-03, LEG-04, LEG-05, FE-09, FE-21) en el
   Cambio 150, 06-oct-2026**: las 7 fichas cerradas, sin migración. **PR 3 (FE-04, FE-05, FE-08) en el Cambio 152,
@@ -1634,10 +1641,13 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
   convertida en gate (`compile_templates.py --bloques`). **PR 4 (FE-06, FE-07, FE-01, FE-10) en el Cambio 155,
   06-oct-2026**: las 4 fichas cerradas, sin migración; los diez modales de Configuración clonan la golden del
   arquetipo Modal, `mobile-enhancements.js` se borra y el área táctil baja al CSS con `@media (pointer: coarse)`.
-  Quedan abiertos los PRs 5 a 8.
+  **PR 5 (FE-18, FE-19, FE-25, FE-26) en el Cambio 157, 07-oct-2026**: las 4 fichas cerradas, sin migración;
+  Merenderos estrena sus dos parciales de badges, los tres handlers de confirmación copiados pasan a
+  `programas/_swal_confirm_js.html` con el tono declarado por la pantalla, `alertas_websocket.js` deja de
+  tener avisos propios y el shell carga una guardia de doble envío. Quedan abiertos los PRs 6 a 8.
 - **PRs y orden:** (1) DIS-01 + DIS-08 (helper de fechas locales + guardia de `__date`) 4 h · (2) Legajos: FE-02, LEG-04,
   LEG-05, LEG-02, LEG-03, FE-09, FE-21 14 h · (3) ✅ Configuración: FE-04, FE-05, FE-08 6 h (Cambio 152) · (4) ✅ FE-06,
-  FE-07, FE-01 y FE-10 14 h (Cambio 155) · (5) FE-18, FE-19, FE-25, FE-26 8 h · (6) **después de la
+  FE-07, FE-01 y FE-10 14 h (Cambio 155) · (5) ✅ FE-18, FE-19, FE-25, FE-26 8 h (Cambio 157) · (6) **después de la
   Ola 6 paso 4:** FE-11, FE-12, FE-17, FE-20, FE-23, FE-24 48 h · (7) FE-22, FE-16, V5A-NEW-04, G2-04, G2-06, V5A-NEW-07 parte (b) (labels de `convocatoria_list` y deuda de
   `_dashboard_panel`) 20 h · (8) *Red de seguridad (04-oct):* RED-33 (tests HTTP de las vistas de Dispositivos y
   Merenderos, con el PR 1), RED-75 (`/set_dark_mode/`, D-RED-07) y segundas partes de RED-42 (URLs literales →

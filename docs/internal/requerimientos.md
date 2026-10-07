@@ -328,6 +328,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 154 | «Aprobar» deja de poder pasarse de los 60 s de nginx: un timeout por llamada, cortacircuito y presupuesto verificado | Transversal · clientes de SIIS, Base de Personas y RENAPER · correo saliente · sincronización del catálogo SIIS | `#siis` `#performance` `#infra` `#datos` | Auditoría integral oct-2026 — SIIS-09 (= PERF-09) y los tres MINOR de la revisión del PR 4 (Ola 1 «Integridad SIIS», PR 5) | 06/10/2026 | 🟢 **Hecho** | No requiere |
 | 155 | Controles que el navegador no dibujaba: botones sin caja, backdrop transparente, modales en la esquina y la grilla del mes ilegible en celular | Transversal (shell del backoffice, sidebar, navbar, CSS de botones) · Configuración (10 modales, formularios y wizard) · Legajos · Usuarios y roles · Dispositivos · Merenderos (prestación mensual) | `#ui` `#mobile` | Auditoría integral oct-2026 — fichas FE-06, FE-07, FE-01 y FE-10 (Ola 5, PR 4) | 06/10/2026 | 🟢 **Hecho** | No requiere |
 | 156 | La red de Becas: el adjunto que llega hasta la revisión, los dos borrados sin probar, la atomicidad, el padrón y la edad | Becas (adjuntos del caso, Configuración de requisitos y subsegmentos, cupo, padrón, exportaciones) · Transversal (registro de vencimientos, contrato de escrituras atómicas) | `#datos` `#metodo` `#cupos` `#relevamientos` | Auditoría integral oct-2026 — fichas RED-05, RED-31, RED-35, RED-77, RED-49, RED-50, RED-81 y RED-70 (Ola R, PR R-16) | 07/10/2026 | 🟢 **Hecho** (RED-50 queda caracterizada con `expectedFailure`: el arreglo es de la Ola 3) | No requiere |
+| 157 | El rojo deja de significar dos cosas: badges de estado, confirmaciones, avisos duplicados y el doble clic que mandaba dos POST | Merenderos (listado, detalle y solicitudes) · Dispositivos (detalle del legajo) · Usuarios y roles · Transversal (shell: guardia de doble envío y avisos de alertas) | `#ui` `#metodo` | Auditoría integral oct-2026 — fichas FE-18, FE-19, FE-25 y FE-26 (Ola 5, PR 5) | 07/10/2026 | 🟢 **Hecho** | No requiere |
 | 158 | Lo que viaja a SIIS deja de depender del catálogo de hoy: la foto del caso manda, gana el dato más específico y una identidad validada frena el envío | Becas · alta de beneficiarios en SIIS (payload, foto de la definición, catálogo de preguntas) · Transversal (copia local de los catálogos de SIIS, runner de tests) | `#siis` `#datos` `#relevamientos` `#metodo` | Auditoría integral oct-2026 — SIIS-08, G1-08, G1-09 y G1-10, más los cuatro MINOR de la revisión del PR 5 (Ola 1 «Integridad SIIS», PR 6) | 07/10/2026 | 🟢 **Hecho** | **Sí:** `programas.0077_catalogo_siis_local` (tabla nueva y vacía) |
 | 159 | Ratchets de arquitectura: el contrato de los modelos, el grafo de imports y las tres dependencias ocultas del shell | Transversal (contrato de `programas.models`, grafo de imports, shell del backoffice, arranque del contenedor, middlewares de usuarios, cache de la home, ruteo de la raíz) | `#metodo` `#infra` `#datos` | Auditoría integral oct-2026 — fichas RED-46, RED-79, RED-13, RED-45, RED-52, RED-51, RED-78 y RED-82 (Ola R, PR R-21) | 07/10/2026 | 🟢 **Hecho** (seis fichas cierran su parte R; el resto queda en las Olas 2, 4 y 7 con su test rojo o su ratchet puesto) | No requiere |
 
@@ -21032,6 +21033,249 @@ Que los opcionales no sean fatales es **OPS-07**, de la Ola 3.
   es ASCII, así que pasó a ser la clase literal de los 29 caracteres de `str.strip()`; y el test del cruce automático
   era vacuo —el caso no llevaba `genero`, con lo que nunca llegaba a mirar la identidad y pasaba también con la regla
   vieja—.
+
+---
+
+# Cambio 157 — El rojo deja de significar dos cosas: badges de estado, confirmaciones, avisos duplicados y el doble clic que mandaba dos POST
+
+🟢 **HECHO — 07/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Merenderos (listado, detalle y solicitudes) · Dispositivos (detalle del legajo) · Usuarios y roles · Transversal (shell del backoffice: guardia de doble envío y avisos de alertas en tiempo real) |
+| **Etiquetas** | `#ui` `#metodo` |
+| **Solicitante** | Auditoría integral oct-2026 — fichas FE-18, FE-19, FE-25 y FE-26 (Ola 5, PR 5) |
+| **Fecha del pedido** | 07/10/2026 |
+| **Issue / épica** | Sin issue (plan de la auditoría: `docs/internal/auditoria-2026-10/`) · PR #605 |
+| **Partes afectadas** | Backoffice: dos parciales de badges nuevos de Merenderos, el handler único de confirmación `programas/_swal_confirm_js.html`, `static/custom/js/nodo-submit-guard.js` (nuevo) cargado desde `templates/includes/base.html`, y `static/custom/js/alertas_websocket.js`. Ninguna pantalla nueva |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> «(5) FE-18, FE-19, FE-25, FE-26 — 8 h» (README de la auditoría, §6, Ola 5, PR 5.)
+
+Cuatro defectos de lectura de la interfaz:
+
+1. **FE-18 — badges de estado incoherentes.** Merenderos no tenía ningún badge: sus tres pantallas volcaban
+   `{{ objeto.get_estado_display }}` como texto suelto, así que un merendero cerrado y uno activo se leían
+   igual. En Usuarios y Roles, «Inactivo» salía en `badge-danger`: el rojo del sistema significa *peligro*, y
+   una cuenta apagada no es un error. Y en el detalle del dispositivo, «Sin datos» —ausencia de información—
+   caía en el `{% else %}` de la cadena del semáforo y se pintaba en rojo de alarma.
+2. **FE-19 — confirmaciones con colores invertidos y handler copiado tres veces.** El mismo `[data-confirm]`
+   estaba implementado en tres pantallas y las tres distintas: una sin `data-confirm-ok` ni motivo, otra sin
+   `buttonsStyling:false` y la tercera con el botón de confirmar en `btn-tertiary … text-fg-danger` **siempre**.
+   Efecto: «Rechazar» confirmaba en el color de marca y «Suspender» —reversible— confirmaba en rojo. En
+   Usuarios y Roles el mismo error al revés: «Activar usuario» salía con el botón rojo de borrado.
+3. **FE-25 — avisos paralelos en `alertas_websocket.js`.** El archivo se carga en todo el backoffice cuando
+   `WEBSOCKETS_ENABLED` está encendido y traía su propio sistema de avisos: una pila de toasts con markup e
+   `innerHTML` propios, sin rol ARIA ni live region, en la misma esquina que los toasts del shell; y un modal
+   de alerta crítica armado a mano, sin foco atrapado ni Escape, con clases que el build no genera y un enlace
+   a `/legajos/<id>/`, ruta que no existe (FE-09).
+4. **FE-26 — doble envío en los formularios clásicos.** Fuera de Becas todo el backoffice manda formularios
+   con un POST normal y nada impedía que un doble clic sobre «Confirmar egreso» o «Registrar entrega» mandara
+   dos POST: dos egresos, dos entregas, dos altas.
+
+## Alcance acordado
+
+**Entra:** lo que nombran las cuatro fichas y nada más.
+
+- Dos parciales de badges nuevos para Merenderos y su inclusión en las tres pantallas.
+- El badge «Inactivo» de `user_list`, `rol_list` y `rol_detail`, y la rama «Sin datos» del semáforo del
+  dispositivo.
+- Un include único de confirmación legacy para Dispositivos y Merenderos, con el tono declarado por la
+  pantalla, y el tono de los dos diálogos de activar/desactivar de Usuarios y Roles.
+- Los avisos de `alertas_websocket.js` por las piezas del shell.
+- Una guardia de doble envío global, cargada una sola vez desde el shell.
+
+**Queda afuera, explícitamente:**
+
+- **La migración de estas pantallas a las piezas canónicas.** Merenderos, Dispositivos, `user_list` y
+  `rol_list` siguen con su encabezado, su tabla, su paginación y su estado vacío a mano. Eso es FE-11, FE-12 y
+  FE-17, PRs 6 y 7 de la ola, después del paso 4 de la Ola 6. Acá se tocó solo el bloque que nombra cada ficha.
+- **La v2 de Dispositivos y Merenderos.** Estos son parches de la v1, con D-V1 = No: la v1 no se opera en PRD
+  antes de aprobar la v2, y por eso de esos dos módulos solo entran los fixes de bug.
+- **La migración de SweetAlert2 a `ModernModal` en esas tres pantallas.** El inventario clasifica SweetAlert2
+  como *legacy condicionado* justamente para ellas, y la decisión de extraer un include propio del módulo —en
+  vez de copiar el de Becas— ya está tomada en el Cambio 48.
+
+## Decisiones tomadas
+
+- **Un parcial de badges por módulo, con el contrato del de Dispositivos.** Es lo que manda el inventario: el
+  mapa estado→badge vive en un solo lugar y las pantallas lo incluyen. Merenderos recibe dos,
+  `_estado_badge.html` (legajo) y `_solicitud_estado_badge.html` (solicitud), porque son dos entidades con dos
+  juegos de estados. El mapa de la solicitud sigue al de Dispositivos, que recorre el mismo circuito de
+  validación: borrador en `badge-white`, en revisión en `badge-info`, observada en `badge-warning`, aprobada en
+  `badge-success`, rechazada en `badge-danger`.
+
+- **Suspendido es `warning`, no `danger`.** La suspensión de un merendero es reversible (D-M01), así que es una
+  advertencia. Y cerrado va en `badge-gray`, el mismo criterio que ya fija `_pausable_estado_badge.html` para
+  los segmentos de Becas: apagado no es un error.
+
+- **«Sin datos» va en `text-body-subtle`.** Ausencia de información no es un problema operativo. La rama entra
+  **antes** del `{% else %}`, que es lo que la atrapaba.
+
+- **El tono del botón de confirmar lo declara la pantalla, con `data-confirm-danger`.** El handler no puede
+  adivinar si la acción destruye algo. Sin el atributo, el botón va en `btn-brand`. Lo llevan «Rechazar» y
+  «Cerrar» (de dispositivo, de merendero y de solicitud); no lo llevan «Enviar a validación», «Validar»,
+  «Aprobar», «Observar», «Suspender» ni «Inactivar». Es el mismo contrato que ya tiene el confirm canónico de
+  Becas, que también lee `data-confirm-danger`.
+
+- **El handler único escucha `[data-confirm]` a secas, distinto del `[data-confirm-url]` de Becas.** Son dos
+  contratos que pueden convivir en la misma pantalla sin pisarse; hay un test que lo fija.
+
+- **El envío confirmado pasa por `requestSubmit()`, no por `submit()`.** `form.submit()` **no** dispara el
+  evento `submit`, así que se saltearía la guardia de doble envío del shell. Con `requestSubmit()` la
+  confirmación legacy y la guardia nueva trabajan juntas. Hay fallback a `submit()` para navegadores que no lo
+  tengan.
+
+- **La guardia de doble envío deshabilita los botones en el turno siguiente, no durante el evento.** El
+  navegador arma la lista de entradas del POST *después* de despachar el `submit`, y un control deshabilitado
+  queda fuera: deshabilitar en el acto le borraría el `name`/`value` al botón que disparó el envío, y hay
+  formularios que distinguen la acción por ahí. La protección real es síncrona y es otra: el segundo `submit`
+  se **cancela** porque el formulario ya está marcado `aria-busy`.
+
+- **La guardia respeta `event.defaultPrevented` y el bfcache.** El listener va en `document`, en burbuja, así
+  que corre después de los del propio formulario: si una validación o una confirmación canceló el envío, no se
+  bloquea nada. Y al volver con «atrás» (`pageshow` con `persisted`) se libera todo, o el formulario quedaría
+  inutilizable.
+
+- **Los formularios `data-ajax` quedan afuera.** Becas ya deshabilita su botón en `_ajax_js.html`; dos guardias
+  sobre el mismo formulario es una de más.
+
+- **El destino de «Ver» en la alerta crítica es el detalle del ciudadano, y lo arma Django.** `/legajos/<id>/`
+  no existe como ruta (FE-09) y el payload de la alerta trae `ciudadano_id`. La plantilla de URL se publica
+  desde el shell con `{% url %}` en `window.alertasConfig`, siguiendo el patrón que ya usa
+  `window.conversacionesConfig`: en el JS no se escriben rutas literales. Si falta la plantilla o el ciudadano,
+  el modal se muestra sin acción en vez de ofrecer un enlace roto.
+
+## Implementación
+
+Qué hace el sistema ahora y antes no:
+
+- **Merenderos muestra el estado como badge** en el listado, en el detalle (al lado del nombre, como el detalle
+  del dispositivo) y en la tabla de solicitudes. Ninguna de las tres pantallas vuelca ya
+  `get_estado_display` como texto suelto.
+- **«Inactivo» es gris** en el listado de usuarios, en el de roles y en el detalle del rol.
+- **«Sin datos» es gris** en los indicadores de actualización y completitud del detalle del dispositivo.
+- **Hay un solo handler de confirmación legacy**, `programas/templates/programas/_swal_confirm_js.html`, que
+  carga SweetAlert2 y lee `data-confirm-title`, `-text`, `-ok`, `-danger` y `data-requires-motivo`. Las tres
+  pantallas que tenían su copia la perdieron. El diálogo confirma en rojo solo cuando la acción destruye algo,
+  y los dos botones salen con variante **y tamaño** (`btn-base`), que es lo que les faltaba para no quedar sin
+  caja.
+- **«Activar usuario» y «Activar rol» ya no confirman en rojo**; «Desactivar» y «Eliminar rol» sí.
+- **Las alertas en tiempo real avisan por `window.toast`** —el único sistema de avisos del backoffice— y la
+  alerta crítica abre el `ModernModal` del shell, con foco atrapado, Escape y devolución de foco. El archivo
+  dejó de escribir `innerHTML` para avisar y dejó de nombrar clases que el build no genera.
+- **Un segundo envío de un formulario POST no sale.** El primero marca el formulario `aria-busy="true"` y
+  deshabilita sus botones de envío —también los externos, los que apuntan al formulario con `form="<id>"`—; el
+  segundo queda cancelado. Al volver con «atrás» todo se libera.
+
+## Archivos
+
+Nuevos:
+
+- `programas/templates/programas/merenderos/_estado_badge.html`
+- `programas/templates/programas/merenderos/_solicitud_estado_badge.html`
+- `programas/templates/programas/_swal_confirm_js.html`
+- `static/custom/js/nodo-submit-guard.js`
+- `programas/tests/test_estado_badges_merenderos.py`, `programas/tests/test_confirmaciones_legacy.py`,
+  `users/tests/test_badges_confirmaciones_ola5.py`, `legajos/tests/test_alertas_avisos_ola5.py`,
+  `core/tests/test_submit_guard.py`
+
+Modificados:
+
+- `programas/templates/programas/merenderos/{list,detail,solicitudes}.html`
+- `programas/templates/programas/dispositivos/legajo/detail.html`
+- `users/templates/user/user_list.html`, `users/templates/rol/{rol_list,rol_detail}.html`
+- `templates/includes/base.html` (carga la guardia y publica `window.alertasConfig`)
+- `static/custom/js/alertas_websocket.js`
+- `static/custom/css/tailwind.css` (regenerado: pierde `-mx-1.5` y `-my-1.5`, que vivían en el markup borrado)
+- `core/tests/test_design_audit_estructura.py` y `legajos/tests/test_alertas_websocket_escape.py` (dueños de la
+  deuda y expectativas que cambiaron)
+- `docs/internal/auditoria-2026-10/hallazgos/07-front.md` y `README.md`
+
+## Base de datos
+
+No requiere. El PR no trae migraciones, no escribe ni borra una sola fila y no toca ninguna vista.
+
+## Validación
+
+Con `.venv312` (Python 3.12 + Django 5.2.17, igual al CI):
+
+- `manage.py check` — sin issues.
+- `manage.py check --deploy` — 6 issues, las mismas de `HEAD` (W004, W008, W009, W012, W016: todas de settings
+  de cookies y HSTS del entorno de desarrollo). No se tocó ningún settings.
+- `manage.py makemigrations --check --dry-run` — «No changes detected».
+- `manage.py test` (suite completa, un solo proceso) — **3121 tests, OK (27 skipped)**.
+- `manage.py test --tag performance` — 4 tests, OK.
+- `ruff check .` — All checks passed. `ruff format --check` sobre lo tocado — limpio.
+- `design_audit.py --ratchet` — **0 hallazgos nuevos** en 13 archivos de UI cambiados. `--goldens` — 0 en 5
+  goldens. `compile_templates.py --bloques` — 203 compilados, 0 errores, 0 bloques sin destino.
+- `npm run build:tailwind` corrido y `static/custom/css/tailwind.css` committeado; el build **no agrega**
+  ninguna clase y saca dos (`-mx-1.5`, `-my-1.5`).
+
+Verificación en navegador (Chromium vía Playwright, `runserver` con SQLite en archivo, a **1440 y 390 px**,
+**0 errores de consola**):
+
+| Qué | 1440 px | 390 px |
+|---|---|---|
+| Badges del listado de merenderos | Activo `rgb(236,253,245)` · Suspendido `rgb(255,248,241)` · Cerrado `rgb(229,231,235)` | igual |
+| Badges de solicitudes | los cinco estados, cada uno con su tono | igual |
+| «Inactivo» en el listado de usuarios | `rgb(229,231,235)` (gris), «Activo» en verde | igual |
+| Swal de «Cerrar merendero» | `swal2-confirm btn-nodo btn-danger btn-base`, fondo `rgb(199,0,54)`, `padding-left: 16px` | igual |
+| Swal de «Suspender» | `btn-nodo btn-brand btn-base`, sin rojo | igual |
+| Guardia de doble envío | cargada una vez; primer `submit` pasa, segundo cancelado, `aria-busy="true"` | igual |
+
+FE-25 no se ejercita en el navegador porque el mensaje `alerta_critica` **nunca se emite** hoy (el servicio
+manda `nueva_alerta_critica` y el consumer solo declara `alerta_critica`: es G1c-17) y el archivo solo se carga
+con `WEBSOCKETS_ENABLED`. Se cubre corriendo el archivo real con `node` sobre un DOM simulado.
+
+## Puesta en marcha en el servidor
+
+Nada más que el deploy. Hay **un** archivo estático nuevo
+(`static/custom/js/nodo-submit-guard.js`): el `collectstatic` del entrypoint lo toma, y conviene reiniciar
+`nginx` después de recrear `web` por el gotcha de la IP cacheada del upstream. Sin ese estático la pantalla
+sigue funcionando: se pierde la guardia, no el formulario.
+
+## Pendientes / a definir
+
+1. ~~**El contrato del agente de diseño lo cierra el juez.**~~ **Cerrado:** la sesión implementadora no tiene
+   permiso de escritura sobre `.claude/`, así que el bloque del núcleo (tres filas del inventario) y el de
+   `design/shells.md` fueron en el cuerpo del PR y **los aplicó el juez**. «Design Agent Contract» quedó en
+   verde. El contenido se había verificado antes contra los límites del checker (núcleo en 26.292 bytes de
+   30.000, celdas en 438 y 374 de 450, sin referencias de historia) y contra `validate(..., limites=True)`.
+2. **Las pantallas tocadas siguen fuera de los arquetipos.** No se les corrió `--arquetipo` porque ninguna está
+   migrada: su encabezado, su tabla y su paginación siguen a mano. Es FE-11, FE-12 y FE-17.
+3. **Las tres acciones del listado de solicitudes siguen siendo texto subrayado**, no botones del sistema. La
+   ficha FE-19 pedía `btn-nodo btn-danger btn-base` para «Rechazar»; acá recibió `data-confirm-danger` —que es
+   lo que arregla el color del diálogo— pero no la clase de botón: convertir tres acciones dentro de una celda
+   en botones completos es rediseñar la tabla, que es FE-12.
+4. **`hover:bg-gray-50` sigue en la deuda congelada de `CssCompiladoAlDiaTests`**, ahora con un solo dueño:
+   `alertas_conversaciones_simple.js` (FE-14). De `alertas_websocket.js` se fue.
+5. **La vista previa de la campana sigue con markup propio y paleta cruda** (`bg-red-100`, `text-gray-600`…).
+   Esta ficha solo le sacó las dos clases que el build no genera; su migración es FE-11/FE-12.
+6. **`showCriticalModal` sigue sin dispararse.** El modal quedó bien construido, pero el bug que lo deja
+   inalcanzable es G1c-17 (el servicio emite `nueva_alerta_critica` y el consumer declara `alerta_critica`) y
+   no es de esta ficha.
+
+## Reversión
+
+Revertir el commit. Vuelven los cuatro defectos: Merenderos sin badges, «Inactivo» y «Sin datos» en rojo, los
+tres handlers de confirmación copiados, los avisos paralelos del WebSocket y el doble envío. No hay nada que
+deshacer en la base. **Al revertir hay que volver a correr `npm run build:tailwind`**, porque `tailwind.css` es
+generado: el revert lo deja en el estado anterior, que es el correcto para el markup anterior.
+
+## Historial
+
+- **07/10/2026 (ronda 2 de revisión)** — la guardia de doble envío leía `event.defaultPrevented` **una sola
+  vez, al entrar**, y el comentario daba por hecho que alcanzaba «porque el listener va en `document`, en
+  burbuja». No alcanza: la guardia se registra al cargar el shell y los scripts de `{% block customJS %}` se
+  registran dentro de `DOMContentLoaded`, o sea **después**, así que un listener delegado en `document` que
+  cancele el envío corre **detrás** de la guardia. Reproducido en Chromium: el envío quedaba cancelado y el
+  formulario con `aria-busy="true"` y los botones `disabled` para siempre. Hoy ninguna pantalla delega así,
+  pero el script es global. Ahora `defaultPrevented` se reevalúa en el mismo turno diferido en que se fija el
+  `disabled`, y si el envío terminó cancelado se suelta la marca y no se deshabilita nada. El comentario del
+  archivo quedó corregido.
 
 ---
 

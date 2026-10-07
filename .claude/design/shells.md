@@ -42,6 +42,15 @@ Se hereda; no se recrean el sidebar ni sus offsets.
   `<style>` de `templates/includes/sidebar/base.html`, los dos detrás de `@media (pointer: coarse)`, así
   que con mouse cada control conserva el alto de su token (ítem del sidebar: 40 px).
 - El `<html>` no lleva utilidad de fondo: el canvas sale de `--fondo-principal`.
+- El shell carga `static/custom/js/nodo-submit-guard.js`: el segundo envío de un
+  `<form method="post">` que no sea `data-ajax` queda cancelado, sus botones de envío pasan a
+  `disabled` en el turno siguiente —deshabilitarlos durante el evento les borraría el `name`/`value`
+  del POST— y el form queda `aria-busy="true"` hasta que se recargue o se vuelva con «atrás».
+  Si el envío terminó **cancelado** —incluso por un listener delegado en `document` que la pantalla
+  registre en `customJS`, que corre *después* de la guardia— la marca se suelta y no se deshabilita
+  nada. Ninguna pantalla repite esa guardia. El shell publica además `window.alertasConfig`
+  (`ciudadanoDetalleUrlTemplate`), que es de donde sale el destino de «Ver» en la alerta crítica:
+  el JS no escribe rutas literales.
 - El backdrop del sidebar móvil es `bg-black/50`; el botón de menú y su separador se esconden en
   escritorio con `lg:hidden` y nada más, sin `!important` ni clases hook.
 
