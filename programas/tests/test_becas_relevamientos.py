@@ -1,17 +1,20 @@
 """Tests del ABM de Relevamientos de Becas (#76)."""
 
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from io import StringIO
 
 from django.contrib.auth.models import Group, Permission, User
 from django.contrib.contenttypes.models import ContentType
 from django.core.management import call_command
+from django.db import connection
 from django.test import TestCase
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
 
 from core import rbac
 from core.models import Localidad, Municipio, Provincia
+from core.tests.reloj import ART, reloj_en
 from programas.forms import RelevamientoForm, ReprogramarForm
 from programas.management.commands.seed_becas import (
     ROL_ADMIN,
@@ -141,6 +144,105 @@ class ScopingTests(_BaseRelevTest):
         self.assertEqual(len(primera.context["relevamientos"]), 25)
         self.assertEqual(len(segunda.context["relevamientos"]), 1)
         self.assertContains(primera, "Siguiente")
+
+
+class AltaRelevamientoTests(_BaseRelevTest):
+    """RED-74: el arreglo `057cce86` se mergeó sin ningún test propio.
+
+    `RelevamientoForm.save()` envolvía **siempre** el `super().save()` en un
+    `transaction.atomic()` anidado con el que `Relevamiento.save()` ya abre para
+    numerar: un `SAVEPOINT` + `RELEASE` de más en cada alta. Lo único que lo
+    cuidaba era un número en `scripts/perf_budgets.json`, que mide la pantalla
+    entera: si el anidado volviera junto con cualquier otra consulta de menos, el
+    presupuesto seguiría en verde y nadie lo vería.
+
+    Lo que se afirma acá es el anidamiento en sí, contando los `SAVEPOINT` que el
+    alta emite: tiene que abrir **uno**, el de `Relevamiento.save()`.
+
+    **Desvío de la ficha, code-first:** la ficha pedía además el caso «con padrón»,
+    que en `057cce86` era la única rama que sí necesitaba transacción propia. Esa
+    rama ya no existe: `RelevamientoForm` **no tiene `save()`** —`grep padron
+    programas/forms.py` da cero— porque la carga del Excel se mudó a su propia vista
+    (`becas:relevamiento_padron`, que prueba `test_padron`). El control que ocupa su
+    lugar envuelve el alta en un `atomic()` extra y verifica que el contador ve
+    **dos**: sin eso, `assertEqual(…, 1)` podría estar verde porque la medición no
+    cuenta nada.
+    """
+
+    def _savepoints(self, datos):
+        self.client.force_login(self.admin)
+        with CaptureQueriesContext(connection) as capturadas:
+            respuesta = self.client.post(reverse("becas:relevamiento_crear"), datos)
+        self.assertEqual(respuesta.status_code, 302, "el alta tiene que haber funcionado")
+        return [q["sql"] for q in capturadas if q["sql"].startswith("SAVEPOINT")]
+
+    def test_el_alta_no_abre_una_transaccion_anidada(self):
+        savepoints = self._savepoints(
+            {
+                "convocatoria": self.conv_a.pk,
+                "territorial": self.territorial.pk,
+                "fecha_asignada": "2026-07-02",
+                "municipio": self.municipio.pk,
+                "zona": self.localidad.pk,
+            }
+        )
+
+        self.assertEqual(
+            len(savepoints),
+            1,
+            "el alta sin padrón solo puede abrir el savepoint de `Relevamiento.save()`; "
+            f"se abrieron {len(savepoints)}: {savepoints}",
+        )
+
+    def test_el_contador_de_savepoints_ve_una_transaccion_de_mas(self):
+        """Control del andamio: con un `atomic()` extra alrededor, el contador da 2.
+
+        Es exactamente la forma que tenía el bug (`with transaction.atomic():`
+        envolviendo el guardado): si el contador no la viera, el test de arriba
+        estaría verde por no medir nada.
+        """
+        from django.db import transaction
+
+        datos = {
+            "convocatoria": self.conv_a.pk,
+            "territorial": self.territorial.pk,
+            "fecha_asignada": "2026-07-03",
+            "municipio": self.municipio.pk,
+            "zona": self.localidad.pk,
+        }
+        self.client.force_login(self.admin)
+
+        with CaptureQueriesContext(connection) as capturadas:
+            with transaction.atomic():
+                respuesta = self.client.post(reverse("becas:relevamiento_crear"), datos)
+
+        self.assertEqual(respuesta.status_code, 302)
+        savepoints = [q["sql"] for q in capturadas if q["sql"].startswith("SAVEPOINT")]
+        self.assertEqual(len(savepoints), 2, savepoints)
+
+    def test_el_alta_no_deja_callbacks_de_on_commit_colgados(self):
+        """`captureOnCommitCallbacks`: el alta no difiere trabajo al commit.
+
+        Si alguien agregara un `transaction.on_commit` adentro del form, el alta
+        pasaría a depender de que la transacción cierre —y dentro de un `TestCase`
+        eso **nunca** pasa—: el efecto quedaría sin probar en toda la suite.
+        """
+        self.client.force_login(self.admin)
+
+        with self.captureOnCommitCallbacks() as callbacks:
+            respuesta = self.client.post(
+                reverse("becas:relevamiento_crear"),
+                {
+                    "convocatoria": self.conv_a.pk,
+                    "territorial": self.territorial.pk,
+                    "fecha_asignada": "2026-07-04",
+                    "municipio": self.municipio.pk,
+                    "zona": self.localidad.pk,
+                },
+            )
+
+        self.assertEqual(respuesta.status_code, 302)
+        self.assertEqual(callbacks, [])
 
 
 class CrearReasignarReprogramarTests(_BaseRelevTest):
@@ -631,21 +733,55 @@ class VencidoTests(_BaseRelevTest):
 
 
 class ConvocatoriaTests(_BaseRelevTest):
+    """R0-03: las fechas del alta son **relativas a hoy**, nunca literales.
+
+    ``ConvocatoriaForm.clean()`` rechaza una convocatoria que nace ``activo`` con la
+    fecha de fin vencida ("fecha manda"). Con ``fecha_fin = "2026-12-31"`` escrita a
+    mano, este test se ponía rojo **solo** a partir del 01-ene-2027 —y con él el
+    `Backend CI` de todos los PRs, sin que nadie hubiera tocado una línea—. Es el
+    mismo patrón que ya pasó una vez (Cambio 105).
+    """
+
     def test_crear_convocatoria(self):
         self.client.force_login(self.admin)
+        hoy = timezone.localdate()
         resp = self.client.post(
             reverse("becas:convocatoria_crear"),
             {
                 "nombre": "Conv nueva",
                 "segmento": self.seg_a.pk,
-                "fecha_inicio": "2026-01-01",
-                "fecha_fin": "2026-12-31",
+                "fecha_inicio": (hoy - timedelta(days=30)).isoformat(),
+                "fecha_fin": (hoy + timedelta(days=30)).isoformat(),
                 "descripcion": "",
                 "activo": "on",
             },
         )
         self.assertEqual(resp.status_code, 302)
         self.assertTrue(Convocatoria.objects.filter(nombre="Conv nueva").exists())
+
+    def test_crear_convocatoria_sigue_andando_pasado_el_01_ene_2027(self):
+        """El corte que vencía: con el reloj en 2027 el alta tiene que seguir en verde.
+
+        Si alguien vuelve a escribir una fecha literal acá, este test es el que avisa.
+        """
+        with reloj_en(datetime(2027, 6, 15, 10, 0, tzinfo=ART)):
+            self.client.force_login(self.admin)
+            hoy = timezone.localdate()
+            self.assertEqual(hoy.year, 2027)
+            resp = self.client.post(
+                reverse("becas:convocatoria_crear"),
+                {
+                    "nombre": "Conv de 2027",
+                    "segmento": self.seg_a.pk,
+                    "fecha_inicio": (hoy - timedelta(days=30)).isoformat(),
+                    "fecha_fin": (hoy + timedelta(days=30)).isoformat(),
+                    "descripcion": "",
+                    "activo": "on",
+                },
+            )
+
+        self.assertEqual(resp.status_code, 302)
+        self.assertTrue(Convocatoria.objects.filter(nombre="Conv de 2027").exists())
 
 
 class ZonaDesdeCatalogoTests(_BaseRelevTest):

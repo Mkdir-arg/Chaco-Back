@@ -126,10 +126,16 @@ solapa, las capacidades resueltas con `puede()` y las relaciones con `select_rel
 
 ## Paginación dentro de una solapa
 
-`templates/components/_paginacion.html` lee `?page=` y **no acepta otro nombre de parámetro**,
-así que sirve para **una sola** lista paginada por pantalla. La golden pagina tres solapas con
-el pie copiado a mano: es **deuda conocida**, no molde. Si tu pantalla necesita más de una lista
-paginada, es una **novedad**: frená y devolvé el plan al llamador.
+`templates/components/_paginacion.html` acepta `param` (nombre del parámetro de página) y `extra_qs`
+(el `tab` al que vuelve el enlace), así que **cada solapa pagina con su propio parámetro** sin mover
+a las otras. La golden lo hace en sus tres solapas; la vista prepara el `Page` y el querystring sin
+ese parámetro ni `tab`:
+
+```django
+{% include "components/_paginacion.html" with page_obj=beneficiarios entidad="beneficiario" param="beneficiarios_page" extra_qs="tab=beneficiarios" filtros_qs=beneficiarios_querystring %}
+```
+
+Ficha del componente: `.claude/design/componentes/paginacion.md`.
 
 ## Checklist (la usa el revisor)
 

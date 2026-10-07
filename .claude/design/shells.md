@@ -174,14 +174,13 @@ Lo extienden `portal/templates/portal/inscripcion/paso1.html`,
 
 ---
 
-## 5. Legacy — `templates/includes/main.html`
+## 5. Legacy — el wrapper heredado (retirado)
 
-**Clasificación:** Legacy solo mantenimiento. **No se extiende.**
+**Clasificación:** histórico. El archivo **ya no existe**: FE-20 migró sus 17 consumidores —los 14
+templates de Configuración (`*_form`, `*_confirm_delete` y los cuatro pasos del wizard) y las tres
+páginas de error 403/404/500— al shell del backoffice y lo borró. La regla `[R:SHELLLEGACY]` de
+`scripts/design_audit.py` queda como guarda: si alguien vuelve a escribir ese `{% extends %}`, falla.
 
-Wrapper heredado que desplaza el contenido. Lo extienden hoy 17 templates: los de Configuración y
-las páginas de error 403/404/500. Sus parciales `templates/components/alertas_eventos.html` y
-`templates/components/widget_contactos.html` pertenecen a ese mundo y tampoco se incluyen en
-pantallas nuevas.
-
-Pantalla nueva: shell del backoffice. Pantalla legacy que se toca: solo la corrección pedida; la
-migración del shell es un trabajo aparte.
+Sus parciales `templates/components/alertas_eventos.html` y
+`templates/components/widget_contactos.html` siguen vivos y pertenecen a ese mundo: no se incluyen
+en pantallas nuevas (el segundo lo retira LEG-06).

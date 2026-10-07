@@ -14,7 +14,7 @@ Fichas completas del dominio. Convenciones, `V-STD` y `V-UI`: README §0. PoC: `
 | OPS-05 | `read_timeout=10 s` también corta `migrate` | MEDIA | PLAUSIBLE | 3 | S | ✅ |
 | OPS-07 | Bootstrap frágil (`set -eu`, opcionales fatales, réplicas) | MEDIA | CONF. ajustado | 3 | S | ✅ |
 | TST-01 | La CI no prueba MariaDB | MEDIA | CONF. ajustado (tesis central refutada) | **R** (antes 3) | M | ✅ |
-| TST-02 | Configuración sin tests de comportamiento; tests que no prueban nada | MEDIA | CONF. | **R** (antes 3) | M (+S-M) | ⬜ |
+| TST-02 | Configuración sin tests de comportamiento; tests que no prueban nada | MEDIA | CONF. | **R** (antes 3) | M (+S-M) | ✅ |
 | G1c-12 | `debug_ciudadanos` hace `FLUSHDB` del Redis compartido | MEDIA | CONF. código | 3 | S | ⬜ |
 | DAT-02 | El admin de Django borra casos y relevamientos con su auditoría | BAJA | CONF. ajustado | 3 | S | ⬜ |
 | DAT-03 | `dni_titular` desincronizado del DNI real | BAJA | PLAUSIBLE | 3 | S | ⬜ |
@@ -25,12 +25,12 @@ Fichas completas del dominio. Convenciones, `V-STD` y `V-UI`: README §0. PoC: `
 | OPS-12 | QA no reproduce el cache de PRD y declara `ENVIRONMENT=prd` | BAJA | CONF. | 3 | S | ✅ |
 | OPS-13 | Dependencias sin uso en la imagen | BAJA | CONF. | 7 | S | ⬜ |
 | OPS-14 | Código muerto o stub; un `.py` vivo que git trata como binario | BAJA | CONF. | 7 | S | ⬜ |
-| TST-03 | Coverage global de 48 % sobre todo el repo | BAJA | CONF. | **R** (antes 3) | S | ⬜ |
+| TST-03 | Coverage global de 48 % sobre todo el repo | BAJA | CONF. | **R** (antes 3) | S | ✅ |
 | G2-05 | `import_users_from_csv` reparte grupos de un usuario fijo y pisa cuentas | BAJA | CONF. lectura | 3 | S | ⬜ |
 | G3-04 | CronJobs de referencia sin deadlines, `backoffLimit` ni `timeZone` | BAJA | PLAUSIBLE | 3 | S | ✅ |
 | G3-05 | Cron de icore sin versionar y sin vigilancia | BAJA | CONF. lectura | 3 | S | ✅ |
 | R0-02 | `CLAUDE.md` y `docs/client/architecture.md` todavía nombran `portal:ciudadano_mi_perfil` | BAJA (MINOR) | revisión Ola 0 | 7 | S | ⬜ |
-| R0-03 | Fecha fija en `programas/tests/test_becas_relevamientos.py:636-648` que vence el 01-ene-2027 | BAJA (MINOR) | revisión Ola 0 | **R** (antes 3; antes del 31-dic-2026) | S | ⬜ |
+| R0-03 | Fecha fija en `programas/tests/test_becas_relevamientos.py:636-648` que vence el 01-ene-2027 | BAJA (MINOR) | revisión Ola 0 | **R** (antes 3; antes del 31-dic-2026) | S | ✅ |
 
 ---
 
@@ -256,6 +256,34 @@ el **PR R-20** junto con el resto de TST-02; mientras tanto `--shuffle` no sirve
 - **Propuesta:** borrar los dos `assertTrue(True)`; tests de RBAC de cada vista (sin `config.administrar` → redirect/403), del wizard de 4 pasos con estado en sesión, de `programa_cambiar_estado` (activar sin naturaleza → error) y del borrado de secretaría con subsecretarías (mensaje y no se borra).
 - **Verificación:** coverage de `configuracion/` de ~0 % de vistas a > 60 %.
 - **Top-5 de tests faltantes por valor (V6):** (1) DAT-01; (2) `seed_datos_base` idempotente y respetuoso del ABM (OPS-06); (3) `generar_alertas`/`AlertasService` con `assertNumQueries` y dos pasadas (PERF-20/LEG-01; el servicio no tiene ningún test y corre cada hora); (4) `procesar_vencimientos` con una regla que falla y un `FINALIZANDO` dentro de la gracia (OPS-07, G1-04); (5) contrato de operación: `django.request` llega a un `StreamHandler` y `/health/ready/` → 503 con la DB caída (OPS-03, OPS-04).
+**Resolución:** ✅ Resuelto en #612 (Cambio 163, PR R-20), 07-oct-2026 — las cuatro patas. (1) **Los cinco
+módulos que solo pasaban si otro corría antes** heredan de `programas/tests/base_becas.BecasPantallaTestCase`, una
+sola definición del `cache.clear()` + `crear_programas` que el Cambio 130 había dejado copiado en
+`test_becas_convocatorias_diseno` (ese módulo pasa a heredarla también). Verificado como pide la ficha: los **77
+módulos de `programas/tests/` corridos uno por uno** dan 0 en rojo —antes, 12 + 6 + 4 + 3 + 1 = 26 fallas— y
+`--shuffle` queda en verde con las dos semillas medidas (1234 y 777, que daban 21 y 26). (2) `generar_alertas`, que
+corre **cada hora** y estaba al 0 %, estrena `legajos/tests/test_generar_alertas.py` (8 tests): genera, **no duplica
+en dos pasadas**, desactiva lo que ya no aplica sin apagar las ALTA, tolera un ciudadano sin legajo y avisa por
+WebSocket una vez por alerta **nueva**. Cuatro mutaciones de control lo verifican. (3) Configuración estrena
+`test_wizard_programas.py` (12 tests) y `test_secretarias.py` (6), y los dos `assertTrue(True)` pasan a afirmar algo
+real en vez de borrarse. **Dos desvíos code-first:** el wizard lo gobierna `programa.configurar` y no
+`config.administrar`, y sin capacidad el backoffice **redirige**, no da 403 (el 403 es solo para AJAX, igual que ya
+se registró en RED-73). (4) **Un sexto módulo con el mismo defecto, que la ficha no tenía** —midió solo
+`programas/tests/`—: `legajos.tests.test_adjuntos_robustez` fallaba solo con `4 != 3` porque el `ContentType` de
+`LegajoAtencion` quedaba frío; ahora se calienta explícitamente. Barrido completo de las once apps: **0 módulos en
+rojo corridos solos**. **(5) Y un séptimo, que el barrido módulo por módulo
+no podía encontrar:** `legajos.tests.test_consulta_renaper_encoding.RenaperTestModeTests` pasa corrido solo —en el
+orden alfabético el acoplamiento juega a favor— y falla con la semilla aleatoria del CI (2529168576), porque
+`consultar_datos_renaper` cachea por DNI en LocMem (de proceso) y el segundo test pegaba en la caché sin llamar al
+servicio; en el orden de siempre eso dejaba al otro test **pasando por el motivo equivocado**. Lo encontró el job
+`Orden y paralelo` en su **primera** corrida, que es exactamente para lo que está. El `assertNumQueries` de la pasada sigue siendo PERF-20 (Ola 4). El gate de orden quedó como
+el job **no bloqueante** `Orden y paralelo` y no como test estructural: el detector AST que se probó primero marca
+10 módulos que en realidad pasan solos, y un gate que miente es peor que no tenerlo.
+**Test permanente:** `programas/tests/test_aislamiento_modulos.py::ModulosMedidosTests.test_todas_las_clases_de_los_modulos_medidos_heredan_el_mixin`
+(y `MecanismoDelGuardTests` ×3, `MixinSiembraTests` ×2, `legajos/tests/test_generar_alertas.py::GenerarAlertasTests`
+×8, `configuracion/tests/test_wizard_programas.py::WizardDeProgramaTests` ×7 y `::CambiarEstadoDePrograma` ×5,
+`configuracion/tests/test_secretarias.py::BorradoDeSecretariaTests` ×6).
+
 - **Mapa de cobertura (confirmado por grep):** sin ningún test: `legajos.services.alertas` (268 LOC, cron horario), `linking`, `ciudadanos`, `contactos`, `programas`, `filtros_usuario`, `ml_predictor`; `users.services.listing` y `filter_config`; `core.services.cache`; vistas de `configuracion`. Comandos sin test: `generar_alertas`, `sincronizar_programas_siis` (solo el servicio), `seed_datos_base`, `crear_programas`, `completar_casos_renaper`, `validar_casos_siis`, `import_users_from_csv`. **Sí tienen test** (corrección a A8): `reenviar_siis_pendientes` y `enviar_casos_siis` (`test_siis_envio.py:624-678`), `cerrar_espera_colgada` (`test_cupo_espera_reglas.py:263`).
 
 ### G1c-12 · `debug_ciudadanos` vacía el Redis compartido
@@ -369,6 +397,31 @@ operación de *contract* (N+2) y con su reversa declarada. Las que solo son `pip
 **Ampliado por RS-R1-14 (04-oct-2026, duplicado):** pasa a la **Ola R** (PR R-20). Medido sobre las apps del producto el coverage es **76 %** (21.746 stmts), 28 puntos sobre el `fail_under`. El paso por módulo cubre los 9 de los flujos críticos, hoy entre 91 % y 98 %: `coverage report --fail-under=90 --include=programas/services/siis_envio.py,programas/services/proceso_masivo.py,programas/services/cupo.py,programas/services/inscripcion_publica.py,programas/services/padron.py,programas/services/respuestas.py,programas/api/views.py,portal/views/inscripcion.py,core/rbac.py`. Con el `omit`, subir `fail_under` a 74 y activar `branch = true` midiendo de nuevo antes de fijarlo.
 
 - **Ubicación:** `pyproject.toml:24-39` (`source=["."]`, `fail_under = 48`).
+**Resolución:** ✅ Resuelto en #612 (Cambio 163, PR R-20), 07-oct-2026 — el `omit` suma `core/performance/*`
+(muerto, OPS-10), `scripts/*`, `awslabs-mcp/*` y `docker/*`, nada de lo cual viaja en la imagen de release. Con ese
+alcance, remedido el 07-oct con la suite completa: **83 %** de sentencias (23.315) y **81 %** contando ramas (6.192),
+no el 76 % del 04-oct —los PRs de las olas R, 1 y 5 lo subieron—. Se activa **`branch = true`**, como pedía la ficha
+«midiendo de nuevo antes de fijarlo», y el `fail_under` queda en **79**: dos puntos abajo de lo medido **con ramas**,
+que es el número que vale (sin ramas, un `if` que siempre toma el mismo camino cuenta como 100 %). El paso por módulo
+va adentro del job `Tests & Coverage`, que ya es obligatorio, con `--fail-under=90` sobre los **nueve** módulos de los
+flujos críticos (la ficha nombraba cuatro en la propuesta y nueve en la ampliación: se tomaron los nueve), hoy entre
+92 % y 98 % con ramas, TOTAL 94 %. **Dos desvíos:** el techo es 79 y no 74 porque se remidió, y los «comandos demo» no
+se agregaron al `omit` —cada uno necesitaría su justificación propia y OPS-02 los va a borrar—. `Tests & Coverage`
+sube su `timeout-minutes` de 15 a 20: medir ramas pasa la corrida de 480 s a 744 s.
+**Ronda 2 de la revisión:** el gate no tenía test que lo sostuviera. Son **tres números y una lista**, repartidos entre
+`pyproject.toml` y `pr-backend.yml`, así que borrar el paso del piso por módulo o volver `fail_under` a 48 dejaba todo
+en verde —el mismo modo de falla que TST-03 venía a cerrar—. Lo cubre `core/tests/test_gates_ci.py::CoberturaTests`
+(9 tests, calcado de `ContratoDeMigracionesTests`, que ya parsea `pr-backend.yml`): exige el paso «Coverage por módulo
+crítico» con los nueve módulos y `--fail-under=90`, `branch = true` y `fail_under = 79` en `pyproject.toml`, el `omit`
+de lo que no es producto, y **que las nueve rutas del `--include` existan** —un módulo renombrado desaparece del
+`--include` en silencio: `coverage` no se queja de una ruta inexistente, simplemente mide menos, y con ocho de nueve el
+TOTAL sigue arriba de 90 y el gate queda verde midiendo de menos—.
+**Test permanente:** `core/tests/test_gates_ci.py::CoberturaTests.test_el_fail_under_global_sigue_en_el_techo_medido`
+(y `.test_existe_el_paso_del_piso_por_modulo_critico`, `.test_el_piso_por_modulo_sigue_en_noventa`,
+`.test_el_paso_nombra_exactamente_los_nueve_modulos_criticos`, `.test_los_nueve_modulos_criticos_existen`,
+`.test_el_coverage_mide_ramas`, `.test_el_omit_deja_afuera_lo_que_no_es_producto`,
+`.test_el_job_mide_cobertura`, `.test_el_paso_va_en_un_job_que_el_ruleset_exige`).
+
 - **Propuesta:** sumar `core/performance/*` muerto, `scripts/*`, `awslabs-mcp/*`, `docker/*` y los comandos demo al `omit`; paso separado en `pr-backend.yml`: `coverage report --include=programas/services/siis_envio.py,programas/services/proceso_masivo.py,programas/services/cupo.py,programas/services/inscripcion_publica.py --fail-under=80`.
 
 ### G2-05 · `import_users_from_csv`: copia los grupos de un usuario fijo (id 368) y pisa grupos, email y clave de cuentas existentes
@@ -453,3 +506,14 @@ las líneas son de `origin/development @ 7393c41`.
 - **Ubicación:** `ConvocatoriaTests.test_crear_convocatoria` manda `fecha_fin = "2026-12-31"` con `activo: "on"`; desde el 01-ene-2027 `ConvocatoriaForm.clean()` la rechaza y el Backend CI de todos los PRs queda rojo (mismo patrón que el Cambio 105).
 - **Propuesta:** fechas relativas (`timezone.localdate()` ± `timedelta`), como el Cambio 105; buscar otras fechas fijas con `grep -rn '"202[6-9]-' */tests/`.
 - **Plazo:** antes del 31-dic-2026.
+**Resolución:** ✅ Resuelto en #612 (Cambio 163, PR R-20), 07-oct-2026, **56 días antes del plazo** — las fechas del
+alta pasan a ser relativas a `timezone.localdate()` (±30 días), como el Cambio 105. El guard es
+`test_crear_convocatoria_sigue_andando_pasado_el_01_ene_2027`, que corre el mismo POST con **el reloj congelado en
+2027**: con la fecha literal puesta de vuelta da `200 != 302` (el form rechaza la convocatoria activa con fecha de fin
+vencida), que es exactamente lo que iba a pasar el 01-ene-2027 en todos los PRs. El helper
+`core/tests/reloj.py::reloj_en` es nuevo y no agrega dependencias: parchea `django.utils.timezone.now`, de donde salen
+`localtime()` y `localdate()`. El `grep -rn '"202[6-9]-' */tests/` que pedía la ficha se corrió: las otras fechas
+literales de ese archivo son los **límites de la convocatoria del fixture** y los bordes que se prueban contra ellos,
+que no dependen de hoy y por eso no vencen.
+**Test permanente:** `programas/tests/test_becas_relevamientos.py::ConvocatoriaTests.test_crear_convocatoria_sigue_andando_pasado_el_01_ene_2027`
+

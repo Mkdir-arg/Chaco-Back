@@ -63,6 +63,17 @@ desde `INPUT_CLASS` de `programas/forms.py`: el template no agrega clases a los 
   cupo y padrón.
 - Confirmación de borrado: misma estructura, con el texto del riesgo en
   `{% include "components/_alerta.html" with tono="danger" … %}` y la acción `btn-nodo btn-danger btn-base`.
+- **Confirmación de borrado** (ya listada arriba): **no** pasa `--arquetipo formulario`, y está bien.
+  No tiene campos (así que no hay `_field.html` ni `_form_errores`) y su acción primaria es
+  `btn-nodo btn-danger btn-base`, no `btn-brand`. El modo de marcadores no modela esa variante:
+  se valida por revisión. Evidencia: los cinco `*_confirm_delete.html` de Configuración, por ejemplo
+  `configuracion/templates/configuracion/provincia_confirm_delete.html`.
+- **Paso de un wizard:** el arquetipo wizard está **pendiente** (ficha `pendientes.md`). Un paso que
+  es una lista de campos se escribe con este esqueleto y pasa los marcadores; uno cuyo control es un
+  grupo de radios con descripción por opción **no** (no cabe en `_field.html`) y conserva solo shell,
+  surface, `_form_errores` y pie. Evidencia:
+  `configuracion/templates/configuracion/programa_wizard_paso1.html` (y los pasos 3 y 4) contra
+  `configuracion/templates/configuracion/programa_wizard_paso2.html`.
 
 ## Prohibido
 

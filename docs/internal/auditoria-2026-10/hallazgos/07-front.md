@@ -26,13 +26,13 @@ FE-18, FE-19); las migraciones de estilo de esos dos módulos las hereda la v2.
 | FE-08 | Errores no de campo invisibles | MEDIA | CONF. | 5 | S | ✅ |
 | FE-09 | Links a `/legajos/<id>/`, ruta inexistente | MEDIA | CONF. ajustado | 5 | S | ✅ |
 | FE-10 | Prestación mensual ilegible en celular | MEDIA | CONF. navegador | 5 | S | ✅ |
-| FE-11 | Componentes canónicos solo en Becas | MEDIA | CONF. | 5 | L | 🟡 (Usuarios, Roles y Configuración ✅; `ciudadano_list` en el PR 6b) |
-| FE-12 | Tablas con estilos en línea e iconografía mezclada | MEDIA | CONF. | 5 | M | 🟡 (8 de 9 archivos; falta `ciudadano_list`) |
+| FE-11 | Componentes canónicos solo en Becas | MEDIA | CONF. | 5 | L | ✅ (los puntos 3, 4 y 5; Dispositivos y Merenderos los hereda la v2 por D-V1 = No) |
+| FE-12 | Tablas con estilos en línea e iconografía mezclada | MEDIA | CONF. | 5 | M | ✅ (los 9 archivos de fuera de Dispositivos y Merenderos) |
 | FE-13 | `design_audit`: decodificador roto y sin regla «clase sin definición» | MEDIA | CONF. ajustado | 6 | S | ✅ |
-| FE-17 | Paginaciones falsas o copiadas | MEDIA | CONF. | 5 | M | 🟡 (`rol_list` pagina y `user_list` usa la pieza; `param`/`extra_qs` y los detalles de Becas en el PR 6b) |
+| FE-17 | Paginaciones falsas o copiadas | MEDIA | CONF. | 5 | M | ✅ (la pieza acepta `param`/`extra_qs` y las 11 listas y solapas la usan; Dispositivos y Merenderos, v2) |
 | FE-18 | Badges de estado incoherentes | MEDIA | CONF. | 5 | S | ✅ |
 | FE-19 | Confirmaciones con colores invertidos y handler copiado | MEDIA | CONF. ajustado | 5 | S | ✅ |
-| FE-20 | Wrapper legacy `includes/main.html`: contenido desplazado; 403/404/500 sin estilo | MEDIA | CONF. navegador | 5 | M | ⬜ |
+| FE-20 | Wrapper legacy `includes/main.html`: contenido desplazado; 403/404/500 sin estilo | MEDIA | CONF. navegador | 5 | M | ✅ (los 17 consumidores migrados y el shell borrado) |
 | FE-21 | Modales de Legajos sin Escape ni foco | MEDIA | CONF. | 5 | S | ✅ |
 | V5A-NEW-01 | `tailwind.css` committeado desactualizado y sin gate | MEDIA | CONF. | 6 | S | ✅ |
 | V5A-NEW-07 | Deuda de accesibilidad en las pantallas candidatas a referencia | MEDIA | CONF. | 6 (a) / 5 (b) | (a) en paso 3 · (b) 2 × S | 🟡 (a) ✅ · (b) parcial |
@@ -295,6 +295,23 @@ pantallas de Dispositivos y Merenderos las hereda la v2. **Queda para el PR 6b**
 **Playwright (1440 y 390 px, 0 errores de consola):** `<h1>` en **x = 320** a 1440 px y **x = 16** a 390 px, 30 px
 y peso 800, en las ocho pantallas.
 
+**Resolución:** ✅ **Cerrada** en el PR 6b de la Ola 5 (Cambio 167), 07-10-2026 — entra el punto **(4)**,
+`legajos/ciudadano_list.html`: 492 líneas con un `<style>` de 290 que redefinía a mano el encabezado
+(`.cl-h1`, 28 px), las **seis** tarjetas de número (cajas de 52 px, avatares con `var(--gradient-brand)`),
+la barra de búsqueda, la tabla, el pie de paginación y el estado vacío. Queda en 84 líneas, clonada de
+la golden del arquetipo Listado (`--arquetipo listado` OK): `{% page_header %}`, las seis métricas con
+`components/_stat_card.html`, el `<form data-dynamic-list-filters>` sin `class`, la tabla canónica,
+`components/_paginacion.html` y los **dos** estados vacíos de `components/_estado_vacio.html`. Las 25
+clases `cl-*` y los 8 SVG de Heroicons se fueron. **Con los puntos (3), (4) y (5) hechos, la ficha
+cierra:** los puntos (1) y (2) —Dispositivos y Merenderos— no se hacen porque **D-V1 = No** y los
+hereda la v2.
+**Test permanente:** `legajos.tests.test_ciudadano_list_ola5_pr6b.PantallaCanonicaTests.test_pasa_los_marcadores_del_arquetipo_listado`
+(+ `test_usa_el_encabezado_canonico_y_no_escribe_su_propio_h1`, `test_no_queda_ninguna_clase_de_pantalla`,
+`test_las_piezas_canonicas_reemplazan_a_las_copias`, `test_el_avatar_no_usa_el_gradiente_de_marca` y
+`CiudadanosListadoPorHttpTests.test_sin_ciudadanos_y_sin_capacidad_el_estado_vacio_no_ofrece_el_alta`).
+**Playwright (1440 y 390 px, 0 errores de consola propios):** `<h1>` en **x = 320** / **x = 16**, 30 px y
+peso 800; las 6 stat cards en una fila a 1440 px y apiladas a 390 px.
+
 ### FE-12 · Tablas con estilos en línea por celda e iconografía mezclada
 **Severidad:** MEDIA · **Estado:** CONFIRMADO (`style="` por archivo: 94 en `subsecretaria_list`, 79 en `secretaria_list`, 70 en `localidad_list`, 65 en `rol_list`, 46 en `user_list`, 296 en `ciudadano_detail`; SVG `stroke-width="1.5"`: 14 en `rol_list`, 9-10 en cada lista de Configuración y en `user_list`) · **Origen:** A6-13, A6-26 · **Ola:** 5 (después de Ola 6 paso 4) · **Esfuerzo:** M · **Decisión:** D3 del agente (íconos)
 - **Propuesta (por archivo, según la ficha `componentes/tabla.md`):** `<table class="w-full border-collapse">`, `<tr class="nodo-thead-row">`, `<th class="nodo-th">` (acciones con `text-right` y `<span class="sr-only">Acciones</span>`), `<tr class="hover:bg-secondary">`, `<td class="nodo-td">`; acciones `<a class="nodo-icon-btn" aria-label="Editar {{ obj }}"><i class="fas fa-pen" aria-hidden="true"></i></a>` (borrar con `nodo-icon-btn--danger`); borrar `onmouseenter`/`onmouseleave` y SVG Heroicons del contenido (el shell puede seguir con Heroicons). Archivos: `users/templates/user/user_list.html`, `users/templates/rol/rol_list.html`, `configuracion/templates/configuracion/{provincia,municipio,localidad,secretaria,subsecretaria,programa}_list.html`, `legajos/templates/legajos/ciudadano_list.html`; y si D-V1 = sí, `dispositivos/legajo/list.html`, `dispositivos/config/tipo_list.html`, `merenderos/{list,solicitudes,detail}.html`.
@@ -325,6 +342,21 @@ de ficha. Queda anotado en el propio template.
 `13px 16px` de padding; `.nodo-icon-btn` de 26 × 26 px en `rgb(107,114,128)` con su `aria-label`
 («Editar Localidad 00», «Ver rol Rol de prueba 00»). A 390 px la tabla scrollea **adentro de su card**
 (`scrollWidth` 709 contra `clientWidth` 356 en Usuarios) y el documento no se desplaza.
+
+**Resolución:** ✅ **Cerrada** en el PR 6b de la Ola 5 (Cambio 167), 07-10-2026 — entra el **noveno**
+archivo, `legajos/templates/legajos/ciudadano_list.html`. Sus 296 `style=` (el archivo con más de los
+seis que contaba la ficha), las 25 clases `cl-*` de su `<style>` de 290 líneas y sus **8 SVG** de
+Heroicons quedan en 0; la tabla pasa a `nodo-thead-row`/`nodo-th`/`nodo-td` dentro de `overflow-x-auto`,
+la columna de acciones se nombra con `sr-only` y el «ver» de la fila es una `.nodo-icon-btn` con
+`aria-label` que nombra a la persona. El avatar de la primera celda deja `var(--gradient-brand)` —el
+gradiente que el vocabulario reserva para el shell— y pasa a `bg-brand-soft text-fg-brand` (D5).
+**Dispositivos y Merenderos no entran:** D-V1 = No.
+**Test permanente:** `legajos.tests.test_ciudadano_list_ola5_pr6b.PantallaCanonicaTests.test_la_tabla_usa_las_clases_del_sistema`
+(+ `test_no_queda_bloque_de_estilos_ni_utilidades_en_linea`, `test_los_iconos_del_contenido_son_font_awesome`
+y `test_el_form_de_filtros_cumple_el_contrato`).
+**Playwright (1440 y 390 px):** `th` 11 px mayúsculas, `td` 14 px con `13px 16px` de padding,
+`.nodo-icon-btn` en `rgb(107,114,128)` con `aria-label="Ver legajo de Beca0 Prueba"`, y a 390 px
+`scrollWidth` 512 contra `clientWidth` 356 **adentro de la card**.
 
 ### FE-13 · `design_audit`: decodificador que trunca clases y sin regla «clase sin definición»
 **Severidad:** MEDIA · **Estado:** CONFIRMADO-AJUSTADO · **Origen:** A6-14, V5A-NEW-10; regla CLASSDEF construida sobre A6-06 y gate de build de V5A-NEW-01 · **Ola:** 6 (paso 2, herramientas; primer PR) · **Esfuerzo:** S
@@ -377,6 +409,33 @@ direcciones. El barrido midió **33** nombres rotos preexistentes: 32 en `portal
 (pantallas sin ruta, que el inventario ya declara «no son referencia» y borra la Ola 7) y
 `legajos:metricas_contactos_api` en `templates/components/widget_contactos.html`, parcial del shell legacy
 que retira LEG-06. **Ninguno fuera de eso.**
+
+**Resolución:** ✅ **Cerrada** en el PR 6b de la Ola 5 (Cambio 167), 07-10-2026 — entra lo que faltaba,
+que era **la pieza**. `components/_paginacion.html` acepta `param` (nombre del parámetro de página, por
+defecto `page`) y `extra_qs` (querystring que el enlace conserva siempre, p. ej. `tab=beneficiarios`),
+sostenidos por el filtro nuevo `sin_parametros` de `core/templatetags/nodo_ui.py`: sin él el enlace
+salía con el parámetro de página **repetido** y el pie no movía de página. Con eso:
+(1) la **golden del arquetipo Detalle** (`becas/cupo/segmento_detail.html`) deja sus **tres** pies
+copiados a mano —la «deuda conocida» que las fichas `paginacion.md` y `detalle.md` declaraban— y usa la
+pieza en las tres solapas; (2) `relevamientos/convocatoria_detail.html` y `relevamiento_detail.html`
+también, y de paso estrenan la caja del pie canónico y el `aria-label` de las flechas, que no tenían;
+(3) **`ConvocatoriaListView` pagina** (`paginate_by = 25`) y el re-render AJAX del modal devuelve **la
+misma página**, no la lista entera —sin eso, guardar una convocatoria reemplazaba la tabla por las N
+filas visibles, que es el bug de la pantalla sin paginar con otro disfraz—; (4) `legajos/ciudadano_list`
+pasa a la pieza y su `&search=` deja de viajar **sin codificar**; (5) `secretaria`, `subsecretaria` y
+`programa` de Configuración —las tres que el PR 6a dejó con el `{% include %}` puesto y sin paginar—
+reciben `paginate_by = 20` y, en los `form_invalid`, el tratamiento de `_contexto_lista` de FE-04: el
+error de validación de una fila de la página 2 vuelve **a su propia página**, no a la 1. **Lo único que
+no entra son las listas de Merenderos y Dispositivos**, que la propuesta condicionaba a D-V1: es No.
+**Test permanente:** `core.tests.test_nodo_ui_piezas.PaginacionPorSolapaTest.test_el_parametro_propio_no_se_duplica_al_conservar_los_filtros`
+(+ `test_param_cambia_el_nombre_del_parametro_de_pagina`, `test_extra_qs_viaja_en_los_dos_enlaces`,
+`test_dos_listas_en_la_misma_pantalla_no_se_pisan`, `SinParametrosFiltroTest.*`,
+`programas.tests.test_paginacion_solapas_ola5_pr6b.CupoSegmentoPaginaPorSolapaTests.test_el_enlace_de_una_solapa_no_mueve_a_la_otra`,
+`ConvocatoriasPaginanTests.test_el_re_render_del_modal_devuelve_la_misma_pagina_que_el_listado`,
+`legajos.tests.test_ciudadano_list_ola5_pr6b.CiudadanosListadoPorHttpTests.test_la_busqueda_viaja_codificada_a_la_pagina_siguiente`
+y `configuracion.tests.test_formularios_canonicos_ola5_pr6b.LasTresListasQueFaltabanPaginanTests.test_el_error_de_edicion_de_la_fila_21_vuelve_a_su_propia_pagina`).
+**Playwright (1440 y 390 px):** «Página 1 de 2 · 30 ciudadanos» y «Página 1 de 2 · 21 secretarías», con
+el pie en `px-4 py-3 border-t border-light bg-secondary` dentro de la card.
 
 ### FE-18 · Badges de estado: Merenderos sin badge, «Inactivo» en rojo, «Sin datos» en rojo
 **Severidad:** MEDIA · **Estado:** CONFIRMADO · **Origen:** A6-18 · **Ola:** 5 · **Esfuerzo:** S
@@ -439,6 +498,52 @@ con `btn-nodo btn-brand btn-base` y sin rojo.
 **Severidad:** MEDIA · **Estado:** CONFIRMADO en navegador (H1 en x=644, y=224 en `/configuracion/localidades/crear/` y en el paso 1 del wizard, contra x=320, y=104 en la lista; la 404 real con `DEBUG=False` sale como texto plano de 16 px en x=620) · **Origen:** A6-20, V5A-NEW-03 · **Ola:** 5 (después de Ola 6 paso 4) · **Esfuerzo:** M
 - **Propuesta:** los 17 templates de Configuración (`*_form`, `*_confirm_delete`, `programa_wizard_paso1-4`) → `{% extends "includes/base.html" %}{% block main-content %}` con el esqueleto del arquetipo Formulario (`div.space-y-5` → `page_header` con `volver_url` → `form.bg-white.rounded-xl.border.border-base.shadow-sm.p-6` → `_form_errores` → `_field` → pie `btn-tertiary`/`btn-brand` `btn-base`). El wizard **no tiene golden** (D4 del agente: frenar): migrar solo el shell y el formulario de cada paso, sin inventar un stepper. `templates/{403,404,500}.html` → `extends includes/base.html` con `_estado_vacio.html` (`icono="fa-triangle-exclamation"`, `titulo`, `texto`, `accion_url` a `core:inicio`). Cuando no quede consumidor, borrar `templates/includes/main.html` (regla SHELLLEGACY del agente).
 - **Verificación:** capturas a 1440 y 390 px (H1 en x=320); test con `DEBUG=False` que pide una URL inexistente → 404 con el título; `compile_templates`.
+
+**Resolución:** ✅ Resuelta en el PR 6b de la Ola 5 (Cambio 167), 07-10-2026 — los **17** consumidores
+de `templates/includes/main.html` pasan a `includes/base.html` + `{% block main-content %}` y el shell
+legacy **se borra**. Los cinco `*_form` y los pasos 1, 3 y 4 del wizard clonan la golden del arquetipo
+Formulario (`--arquetipo formulario` OK en los ocho): `space-y-5` → `{% page_header %}` con `volver_url`
+→ `form.bg-white.rounded-xl.border.border-base.shadow-sm.p-6` → `_form_errores` → un
+`programas/becas/_field.html` por campo → pie `btn-tertiary btn-base` / `btn-brand btn-base`. Los cinco
+`*_confirm_delete` usan la **variante «confirmación de borrado»** de esa misma ficha: el riesgo en
+`components/_alerta.html` con `tono="danger"` y la acción en `btn-nodo btn-danger btn-base`. Las tres
+páginas de error extienden el shell y su cuerpo es `components/_estado_vacio.html` con
+`fa-triangle-exclamation` y la acción a `core:inicio`; con eso **desaparecen las tres entradas de la
+allowlist de `compile_templates --bloques`** (`menu-adicional`), que existían solo porque el wrapper no
+declaraba ese bloque. Las clases que el build no genera (`app-content`, `container-fluid`, `col-sm-9`,
+`float-sm-end`, `error-page`, `headline`) quedan en 0, y `text-warning` sale de la deuda congelada de
+`CssCompiladoAlDiaTests`.
+**Tres desvíos, los tres code-first.** (a) Los consumidores eran **14 de Configuración + 3 páginas de
+error**, no «17 templates de Configuración»: `programa_list.html` ya estaba migrado (PR 6a) y lo que
+falta para 17 son las páginas de error, que la propia ficha nombra aparte. (b) El **paso 2 del wizard**
+no pasa `--arquetipo formulario`: su único control es un grupo de radios con descripción por opción, que
+no puede pasar por `_field.html` sin perder las descripciones; el wizard **no tiene golden** (D4) y la
+ficha manda migrar solo el shell y el formulario, así que queda con shell, surface, errores y pie
+canónicos y el bloque de radios como contenido de dominio. Los `*_confirm_delete` tampoco pasan ese modo
+—no tienen campos y su acción primaria es `btn-danger`—, que es exactamente la variante que la ficha
+permite y el modo no modela. (c) Los widgets del wizard (`configuracion/forms/programas.py`) llevaban su
+propio dialecto de clases (`block w-full rounded-md border border-gray-300 focus:ring-indigo-500`…) y
+pasan a `nodo-field`: la clase del control la pone el widget, no el template. Las cuatro ayudas que el
+template dibujaba a mano («Seleccione primero una secretaría», «Si se deja vacío…», «Menor número =
+aparece primero», el ícono de Material Icons) pasan a `help_text` del form, que es lo que rinde el
+include de campo.
+**Abierto, no introducido por este PR:** `django.views.defaults.server_error` renderiza `500.html`
+**sin** `request`, y el shell del backoffice hace `{{ request.user.get_full_name|default:request.user.username }}`
+—un lookup en el *argumento* de un filtro, que con `request` ausente **levanta** `VariableDoesNotExist`—.
+O sea que la 500 estilada solo se ve cuando algo le pasa un request; con el handler por defecto, el
+usuario ve el 500 genérico del servidor. Pasaba igual antes (la pantalla ya extendía el mismo shell a
+través del wrapper) y arreglarlo es tocar el shell global o `handler500`: decisión del PM.
+**Test permanente:** `configuracion.tests.test_formularios_canonicos_ola5_pr6b.ShellLegacyRetiradoTests.test_ningun_template_del_repo_lo_extiende`
+(+ `test_el_archivo_del_shell_legacy_ya_no_existe`, `test_la_allowlist_de_bloques_sin_destino_pierde_las_tres_paginas_de_error`,
+`test_ninguna_usa_las_clases_que_el_build_no_genera`, `FormulariosCanonicosTests.test_pasan_los_marcadores_del_arquetipo`,
+`BorradosConAvisoTests.test_el_riesgo_se_explica_con_la_pieza_de_alerta`,
+`PaginasDeErrorTests.test_usan_el_encabezado_y_el_estado_vacio_canonicos` y
+`PantallasDeConfiguracionPorHttpTests.test_los_cuatro_pasos_del_wizard_abren`).
+**Playwright (1440 y 390 px, 0 errores de consola propios):** el `<h1>` de
+`/configuracion/localidades/crear/` medido en **x = 372** a 1440 px y **x = 68** a 390 px —el mismo
+offset que la golden del arquetipo Formulario, que lleva el volver circular antes del título—, contra
+los **x = 644** que medía la ficha; el campo `nodo-field` en 42 px de alto; la 404 real con
+`DEBUG = False` sale con su encabezado, el ícono de 5xl y el botón «Volver al inicio».
 
 ### FE-21 · Modales de Legajos sin Escape ni foco atrapado
 **Severidad:** MEDIA · **Estado:** CONFIRMADO (la única escucha de teclado en `ciudadano_detail.html` es la de flechas del tablist, `:1155`) · **Origen:** A6-21 · **Ola:** 5 · **Esfuerzo:** S

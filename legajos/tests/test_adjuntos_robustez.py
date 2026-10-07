@@ -16,13 +16,14 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
+from django.contrib.contenttypes.models import ContentType
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import DatabaseError
 from django.db.models.sql.compiler import SQLInsertCompiler
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
-from legajos.models import Adjunto, Ciudadano
+from legajos.models import Adjunto, Ciudadano, LegajoAtencion
 from legajos.selectors.contactos import build_ciudadano_archivos_payload
 from legajos.services.contactos import ContactosFilesError, subir_archivos_para_objeto
 from legajos.tests.test_adjuntos_rbac import usuario_con
@@ -78,12 +79,22 @@ class AdjuntoBlobFaltanteTests(TestCase):
         Sin ``select_related`` cada fila preguntaba por su ``ContentType``, así que el
         costo crecía con la cantidad de adjuntos (zeal lo levanta en la suite). El
         contrato es que **no crezca**: se mide con uno y con cuatro.
+
+        **TST-02:** la medición arrancaba dependiendo del orden de la suite. El
+        comentario viejo decía que las subidas dejaban «los `ContentType`» calientes,
+        pero suben adjuntos de **Ciudadano**: el de `LegajoAtencion` —que el payload
+        también necesita, para buscar los adjuntos del legajo— quedaba frío salvo que
+        otro módulo lo hubiera consultado antes. Corrido solo, el test daba `4 != 3`.
+        La caché de `ContentType` es de proceso y Django la limpia entre tests, así
+        que lo que hay que hacer es calentarla **acá**, explícitamente y por los dos
+        modelos: así la medición empieza siempre igual, corra sola o en la suite.
         """
         otro = Ciudadano.objects.create(dni="24111333", nombre="Rosa", apellido="Díaz")
+        for modelo in (Ciudadano, LegajoAtencion):
+            ContentType.objects.get_for_model(modelo)
         with TemporaryDirectory() as media, override_settings(MEDIA_ROOT=media):
             subir_archivos_para_objeto(otro, [SimpleUploadedFile("uno.pdf", b"x")])
             subir_archivos_para_objeto(self.ciudadano, [SimpleUploadedFile(f"doc{i}.pdf", b"x") for i in range(4)])
-            # Los `ContentType` ya quedaron en la caché del proceso con las subidas.
             with self.assertNumQueries(3):  # ciudadano · legajos · adjuntos
                 una = build_ciudadano_archivos_payload(otro.pk)
             with self.assertNumQueries(3):  # las mismas 3 con cuatro adjuntos

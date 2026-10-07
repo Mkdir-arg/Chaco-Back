@@ -1,96 +1,33 @@
-{% extends "includes/main.html" %}
-{% load static %}
+{% extends "includes/base.html" %}
+{% load nodo_ui %}
+{% block title %}Configuración · {% if es_edicion %}Editar{% else %}Nuevo{% endif %} programa — Paso 1{% endblock %}
 
-{% block title %}{% if es_edicion %}Editar{% else %}Nuevo{% endif %} Programa — Paso 1{% endblock %}
+{% comment %}El wizard no tiene golden (D4 del agente de diseño): FE-20 migra el shell y el
+formulario de cada paso al arquetipo Formulario y **no inventa un stepper**. La barra de
+progreso que ya existía se conserva tal cual, con el ancho por clase en vez de por `style=`.{% endcomment %}
 
-{% block content %}
-<div class="p-6">
-    <div class="mb-6">
-        <h1 class="text-2xl font-bold text-gray-900">
-            {% if es_edicion %}Editar programa{% else %}Nuevo programa{% endif %}
-        </h1>
+{% block main-content %}
+<div class="space-y-5">
+  {% url 'configuracion:programas' as url_programas %}
+  {% with titulo_pagina=es_edicion|yesno:"Editar programa,Nuevo programa" %}
+  {% page_header titulo=titulo_pagina volver_url=url_programas volver_label="programas" %}
+    {% bajada %}Paso {{ paso_actual }} de {{ total_pasos }} · Identidad y jerarquía.{% endbajada %}
+  {% endpage_header %}
+  {% endwith %}
+
+  <div class="w-full bg-tertiary rounded-full h-2" role="presentation">
+    <div class="bg-brand h-2 rounded-full w-1/4"></div>
+  </div>
+
+  <form method="post" class="bg-white rounded-xl border border-base shadow-sm p-6">
+    {% csrf_token %}
+    {% include "components/_form_errores.html" %}
+    {% for field in form %}{% include "programas/becas/_field.html" %}{% endfor %}
+    <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-light">
+      <a href="{% url 'configuracion:programas' %}" class="btn-nodo btn-tertiary btn-base">Cancelar</a>
+      <button type="submit" class="btn-nodo btn-brand btn-base">Siguiente <i class="fas fa-arrow-right" aria-hidden="true"></i></button>
     </div>
-
-    <!-- Barra de progreso -->
-    <div class="mb-8">
-        <div class="flex items-center gap-2 text-sm text-gray-500 mb-2">
-            <span class="font-medium text-indigo-600">Paso {{ paso_actual }} de {{ total_pasos }}</span>
-            — Identidad y jerarquía
-        </div>
-        <div class="w-full bg-tertiary rounded-full h-2">
-            <div class="bg-brand h-2 rounded-full" style="width: {% widthratio paso_actual total_pasos 100 %}%"></div>
-        </div>
-    </div>
-
-    <div class="bg-white rounded-lg shadow p-6">
-        <form method="post">
-            {% csrf_token %}
-            {% include "components/_form_errores.html" %}
-            <div class="space-y-5">
-
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">
-                        Nombre <span class="text-red-500">*</span>
-                    </label>
-                    {{ form.nombre }}
-                    {% if form.nombre.errors %}
-                    <p class="text-red-600 text-sm mt-1">{{ form.nombre.errors.0 }}</p>
-                    {% endif %}
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">
-                        Código <span class="text-red-500">*</span>
-                    </label>
-                    {{ form.codigo }}
-                    {% if form.codigo.errors %}
-                    <p class="text-red-600 text-sm mt-1">{{ form.codigo.errors.0 }}</p>
-                    {% endif %}
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
-                    {{ form.descripcion }}
-                    {% if form.descripcion.errors %}
-                    <p class="text-red-600 text-sm mt-1">{{ form.descripcion.errors.0 }}</p>
-                    {% endif %}
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">
-                        Secretaría <span class="text-red-500">*</span>
-                    </label>
-                    {{ form.secretaria }}
-                    {% if form.secretaria.errors %}
-                    <p class="text-red-600 text-sm mt-1">{{ form.secretaria.errors.0 }}</p>
-                    {% endif %}
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">
-                        Subsecretaría <span class="text-red-500">*</span>
-                    </label>
-                    {{ form.subsecretaria }}
-                    {% if form.subsecretaria.errors %}
-                    <p class="text-red-600 text-sm mt-1">{{ form.subsecretaria.errors.0 }}</p>
-                    {% endif %}
-                    <p class="text-xs text-gray-400 mt-1">Seleccione primero una secretaría.</p>
-                </div>
-
-            </div>
-
-            <div class="flex justify-between mt-8">
-                <a href="{% url 'configuracion:programas' %}"
-                   class="btn-nodo btn-tertiary btn-base">
-                    Cancelar
-                </a>
-                <button type="submit"
-                        class="btn-nodo btn-brand btn-base">
-                    Siguiente <i class="fas fa-arrow-right ml-1"></i>
-                </button>
-            </div>
-        </form>
-    </div>
+  </form>
 </div>
 {% endblock %}
 

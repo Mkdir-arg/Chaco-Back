@@ -647,6 +647,36 @@ class ResumenFijoPadronTests(_BasePadronTest):
         resp = self.client.get(self.detalle)
         self.assertNotContains(resp, "Última carga del padrón")
 
+    def test_tolera_un_request_sin_sesion(self):
+        """RED-74: el arreglo `7feb9d83` se mergeó sin ningún test.
+
+        `_resumen_fijo_padron` leía `request.session` directo. Un request que no pasó
+        por `SessionMiddleware` —un `RequestFactory` crudo, un render fuera del ciclo
+        normal— no tiene el atributo y la pantalla moría con `AttributeError`, o sea
+        **500** en el detalle de la convocatoria. Ahora devuelve `None`, que es lo
+        mismo que una sesión sin resumen cargado.
+        """
+        from django.test import RequestFactory
+
+        from programas.views.relevamientos import _resumen_fijo_padron
+
+        request = RequestFactory().get(self.detalle)
+
+        self.assertFalse(hasattr(request, "session"))
+        self.assertIsNone(_resumen_fijo_padron(request, f"conv-{self.convocatoria.pk}"))
+
+    def test_con_sesion_y_resumen_cargado_si_devuelve_el_texto(self):
+        """Control del andamio: el `None` de arriba es por la sesión ausente y no
+        porque la función devuelva `None` siempre."""
+        from programas.views.relevamientos import _clave_resumen_padron, _resumen_fijo_padron
+
+        self._cargar([("30123456", "F", "Ana", "Paz")])
+        clave = f"conv-{self.convocatoria.pk}"
+        request = self.client.get(self.detalle).wsgi_request
+
+        self.assertIn(_clave_resumen_padron(clave), request.session)
+        self.assertIn("1 habilitados", _resumen_fijo_padron(request, clave)["texto"])
+
 
 class IdentidadDelPadronTests(_BasePadronTest):
     """RED-77: RN-2 escrita una sola vez para la fila y para el queryset.
