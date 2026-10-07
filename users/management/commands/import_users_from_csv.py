@@ -1,93 +1,202 @@
+"""Alta masiva de usuarios desde un CSV, con los grupos de un usuario de referencia (G2-05).
+
+Qué hacía mal y por qué importa: `--reference-user-id` traía **el id 368 escrito
+en el código**, que en otra base es cualquiera —o nadie—; a todo usuario del CSV
+le hacía `groups.set(...)`, así que una fila con el nombre de alguien que ya
+trabaja le reemplazaba los roles, el email y **la contraseña** sin preguntar, sin
+ensayo, sin `validate_password`, sin `transaction.atomic` y sin marcar la clave
+como provisoria. Una fila rota a mitad del archivo dejaba la mitad aplicada.
+
+El contrato nuevo es el del resto de los comandos que escriben
+(`ComandoSiisBase`): **en seco por defecto**, escritura con `--aplicar`, y lo
+destructivo —pisar una cuenta que ya existe— detrás de `--actualizar --motivo`,
+que deja rastro en el log. La planificación y la validación de claves corren
+igual en el ensayo: el objetivo es que lo que falle, falle **antes** de escribir.
+
+La salida nombra usuarios y nada más: ni la contraseña del CSV ni el correo de
+nadie van a quedar en el log de una terminal compartida.
+"""
+
 import csv
+import logging
 from pathlib import Path
 
 from django.contrib.auth import get_user_model
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
 from django.core.management.base import BaseCommand, CommandError
+from django.db import transaction
+
+from core import rbac
+from users.models import Profile
+
+logger = logging.getLogger(__name__)
+
+COLUMNAS_REQUERIDAS = {"Usuario", "Email", "Nombre completo", "Apellido", "Contraseña"}
+#: Estaba entre las obligatorias y **no la leía nadie**: los grupos salen del
+#: usuario de referencia. Exigir una columna que se ignora hace creer que asigna
+#: el rol; se acepta si viene, con aviso, y ya no se pide.
+COLUMNA_IGNORADA = "Rol"
+
+AYUDA_REFERENCIA = (
+    "ID del usuario cuyos grupos se replican. Obligatorio y sin default: el 368 que traía escrito "
+    "es otra persona en cada base."
+)
+AYUDA_APLICAR = "Escribe de verdad. Sin esto solo informa qué haría."
+AYUDA_ACTUALIZAR = (
+    "Toca también a los usuarios que ya existen: les reemplaza grupos, email, nombre y contraseña. Exige --motivo."
+)
+AYUDA_MOTIVO = "Por qué se pisan cuentas existentes. Obligatorio con --actualizar; queda en el log."
+
+FALTA_MOTIVO = (
+    "--actualizar necesita --motivo: le reemplaza los grupos y la contraseña a gente que ya está "
+    "trabajando, así que tiene que quedar escrito quién lo hizo y por qué."
+)
+YA_EXISTE = "«{usuario}» ya existe: no se toca. Con --actualizar --motivo «...» se le replican los grupos."
 
 
 class Command(BaseCommand):
-    """Create or update users from a CSV and copy groups from a reference user."""
-
     help = "Crea usuarios a partir de un CSV y replica los grupos del usuario de referencia."
 
     def add_arguments(self, parser):
-        parser.add_argument(
-            "csv_path",
-            type=str,
-            help="Ruta al archivo CSV con las columnas requeridas.",
-        )
-        parser.add_argument(
-            "--reference-user-id",
-            type=int,
-            default=368,
-            help="ID del usuario cuyos grupos se copiarán (por defecto 368).",
-        )
+        parser.add_argument("csv_path", type=str, help="Ruta al archivo CSV con las columnas requeridas.")
+        parser.add_argument("--reference-user-id", type=int, required=True, help=AYUDA_REFERENCIA)
+        parser.add_argument("--aplicar", action="store_true", help=AYUDA_APLICAR)
+        parser.add_argument("--actualizar", action="store_true", help=AYUDA_ACTUALIZAR)
+        parser.add_argument("--motivo", default="", help=AYUDA_MOTIVO)
 
     def handle(self, *args, **options):
-        csv_path = Path(options["csv_path"])
-        reference_user_id = options["reference_user_id"]
+        aplicar = options["aplicar"]
+        actualizar = options["actualizar"]
+        motivo = (options.get("motivo") or "").strip()
 
+        if actualizar and not motivo:
+            raise CommandError(FALTA_MOTIVO)
+
+        csv_path = Path(options["csv_path"])
         if not csv_path.exists():
             raise CommandError(f"El archivo '{csv_path}' no existe.")
 
         user_model = get_user_model()
-
         try:
-            reference_user = user_model.objects.get(pk=reference_user_id)
+            referencia = user_model.objects.get(pk=options["reference_user_id"])
         except user_model.DoesNotExist as exc:
-            raise CommandError(f"No se encontró el usuario de referencia con id={reference_user_id}.") from exc
+            raise CommandError(
+                f"No se encontró el usuario de referencia con id={options['reference_user_id']}."
+            ) from exc
 
-        reference_groups = list(reference_user.groups.all())
+        grupos_referencia = list(referencia.groups.all())
+        self.stdout.write(f"Grupos a replicar (de «{referencia.username}»): {len(grupos_referencia)}")
 
-        created_count = 0
-        updated_count = 0
+        if not aplicar:
+            self.stdout.write(self.style.WARNING("ENSAYO: no se escribe nada. Agregá --aplicar para hacerlo."))
+        if actualizar:
+            self.stdout.write(self.style.WARNING(f"--actualizar: se pisan las cuentas existentes. Motivo: {motivo}"))
+            logger.warning(
+                "import_users_from_csv --actualizar sobre %s (referencia: %s, motivo: %s)",
+                csv_path.name,
+                referencia.username,
+                motivo,
+            )
+
+        plan, omitidos = self._planificar(csv_path, user_model, actualizar)
+
+        if aplicar:
+            self._aplicar(plan, grupos_referencia)
+
+        creados = sum(1 for p in plan if p["crear"])
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"{'Proceso finalizado' if aplicar else 'Ensayo finalizado'}. "
+                f"Usuarios {'creados' if aplicar else 'a crear'}: {creados}, "
+                f"{'actualizados' if aplicar else 'a actualizar'}: {len(plan) - creados}, "
+                f"omitidos: {len(omitidos)}."
+            )
+        )
+
+    # ── Planificación (corre igual en el ensayo) ────────────────────────────
+
+    def _planificar(self, csv_path, user_model, actualizar):
+        """`([{usuario, crear, datos, clave}], [omitidos])`, o corta sin escribir nada."""
+        plan, omitidos, errores = [], [], []
 
         with csv_path.open(newline="", encoding="utf-8-sig") as csv_file:
             reader = csv.DictReader(csv_file)
-            expected_columns = {
-                "Usuario",
-                "Email",
-                "Nombre completo",
-                "Apellido",
-                "Rol",
-                "Contraseña",
-            }
             headers = set(reader.fieldnames or [])
-            missing_columns = expected_columns - headers
-            if missing_columns:
-                missing = ", ".join(sorted(missing_columns))
-                raise CommandError(f"El CSV no contiene las columnas requeridas: {missing}")
+            faltantes = COLUMNAS_REQUERIDAS - headers
+            if faltantes:
+                raise CommandError(f"El CSV no contiene las columnas requeridas: {', '.join(sorted(faltantes))}")
+            if COLUMNA_IGNORADA in headers:
+                self.stdout.write(
+                    self.style.WARNING(
+                        f"La columna «{COLUMNA_IGNORADA}» se ignora: los grupos salen de --reference-user-id."
+                    )
+                )
 
-            for row in reader:
+            for numero, row in enumerate(reader, start=2):
                 username = (row.get("Usuario") or "").strip()
                 if not username:
-                    self.stdout.write(self.style.WARNING("Se encontró una fila sin valor en 'Usuario'; se omite."))
+                    self.stdout.write(self.style.WARNING(f"Fila {numero} sin 'Usuario': se omite."))
                     continue
 
-                email = (row.get("Email") or "").strip()
-                first_name = (row.get("Nombre completo") or "").strip()
-                last_name = (row.get("Apellido") or "").strip()
-                raw_password = (row.get("Contraseña") or "").strip()
+                existente = user_model.objects.filter(username=username).first()
+                if existente is not None and not actualizar:
+                    self.stdout.write(self.style.WARNING(YA_EXISTE.format(usuario=username)))
+                    omitidos.append(username)
+                    continue
 
-                user, created = user_model.objects.get_or_create(username=username, defaults={"email": email})
-                if created:
-                    created_count += 1
-                else:
-                    updated_count += 1
-                    if email:
-                        user.email = email
+                datos = {
+                    "email": (row.get("Email") or "").strip(),
+                    "first_name": (row.get("Nombre completo") or "").strip(),
+                    "last_name": (row.get("Apellido") or "").strip(),
+                }
+                clave = (row.get("Contraseña") or "").strip()
+                if existente is None and not clave:
+                    errores.append(f"Fila {numero} («{username}»): falta la contraseña.")
+                    continue
+                if clave:
+                    molde = existente or user_model(username=username, **datos)
+                    try:
+                        validate_password(clave, molde)
+                    except ValidationError as exc:
+                        errores.append(f"Fila {numero} («{username}»): {' '.join(exc.messages)}")
+                        continue
 
-                user.first_name = first_name
-                user.last_name = last_name
-                if raw_password:
-                    user.set_password(raw_password)
-                user.save()
+                plan.append({"username": username, "crear": existente is None, "datos": datos, "clave": clave})
 
-                user.groups.set(reference_groups)
+        if errores:
+            raise CommandError("El CSV tiene filas que no se pueden aplicar:\n  - " + "\n  - ".join(errores))
+        return plan, omitidos
 
-                action = "creado" if created else "actualizado"
-                self.stdout.write(self.style.SUCCESS(f"Usuario '{username}' {action} y grupos replicados."))
+    # ── Escritura ───────────────────────────────────────────────────────────
 
-        self.stdout.write(
-            self.style.SUCCESS(f"Proceso finalizado. Usuarios creados: {created_count}, actualizados: {updated_count}.")
-        )
+    def _aplicar(self, plan, grupos_referencia):
+        user_model = get_user_model()
+        hubo_pisados = False
+
+        with transaction.atomic():
+            for item in plan:
+                usuario, creado = user_model.objects.get_or_create(username=item["username"], defaults=item["datos"])
+                if not creado:
+                    hubo_pisados = True
+                    for campo, valor in item["datos"].items():
+                        if valor:
+                            setattr(usuario, campo, valor)
+                if item["clave"]:
+                    usuario.set_password(item["clave"])
+                usuario.save()
+                usuario.groups.set(grupos_referencia)
+                if item["clave"]:
+                    # La clave viajó en texto plano en el CSV: es provisoria y el
+                    # middleware no deja operar hasta que la persona la cambie.
+                    perfil, _ = Profile.objects.get_or_create(user=usuario)
+                    perfil.debe_cambiar_contrasena = True
+                    perfil.save(update_fields=["debe_cambiar_contrasena"])
+                self.stdout.write(self.style.SUCCESS(f"«{item['username']}» {'creado' if creado else 'actualizado'}."))
+
+            if hubo_pisados:
+                # `groups.set` puede haberle quitado el rol al único que administra.
+                try:
+                    rbac.asegurar_admin_restante()
+                except rbac.SinAdministradorError as exc:
+                    raise CommandError(str(exc)) from exc
