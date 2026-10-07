@@ -21507,6 +21507,11 @@ tabla, el backoffice no puede armar el payload.
   (`CATALOGO_SIN_COPIA`) y su propio mensaje. Y quedó escrito que SIIS-08 es hacia adelante —con la consulta
   `P-18` para medir los casos viejos—, que la huella de la foto cambia durante el rolling y que «Promover» desde
   Cupo es el camino que se lleva el ERROR el día 1.
+- **07/10/2026 (ronda 3)** — el PR R-21 (#607, Cambio 159) entró a `development` con el ratchet
+  `programas/tests/test_models_contrato.py`, que fija los modelos de la app uno por uno. `CatalogoSiisLocal`
+  quedó registrado ahí (`programas_catalogosiislocal`): es el contrato que vuelve seguro partir
+  `programas/models/__init__.py`, así que un modelo nuevo se anota a mano a propósito. Ningún otro ratchet de
+  R-21 lo pidió.
 
 ---
 
