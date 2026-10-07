@@ -20,9 +20,15 @@
  *   arma la lista de entradas del POST *después* de despachar el evento `submit`, y un
  *   control deshabilitado queda fuera: deshabilitar en el acto borraría el `name`/`value`
  *   del botón que disparó el envío. La protección real es el paso 1, que sí es síncrona.
- * - **Se respeta `event.defaultPrevented`.** El listener va en `document`, en burbuja, así
- *   que corre después de los del propio formulario: si alguien canceló el envío
- *   (validación, confirmación), no se bloquea nada.
+ * - **`event.defaultPrevented` se mira dos veces, y la que manda es la segunda.** Leerlo
+ *   solo al entrar no alcanza: este script se registra en `document` al cargar el shell,
+ *   y los scripts de `{% block customJS %}` se registran dentro de `DOMContentLoaded`, o
+ *   sea **después**. Un listener delegado en `document` que cancele el envío corre detrás
+ *   de esta guardia, así que al entrar `defaultPrevented` todavía es `false` y el POST no
+ *   sale igual. Por eso se vuelve a mirar en el mismo turno diferido del `disabled`: si el
+ *   envío terminó cancelado, se suelta la marca y no se deshabilita nada, o el formulario
+ *   queda muerto. La lectura de entrada queda como atajo barato para los listeners que sí
+ *   corren antes (los del propio `<form>`).
  */
 (function () {
     'use strict';
@@ -55,10 +61,18 @@
         return botones;
     }
 
-    function bloquear(form) {
+    function bloquear(form, event) {
         form.setAttribute('aria-busy', 'true');
         var botones = botonesDe(form);
         setTimeout(function () {
+            // Segunda lectura, la que manda: acá ya corrieron todos los listeners,
+            // incluidos los delegados en `document` que se registraron después de
+            // esta guardia. Si el envío quedó cancelado, el formulario no se fue a
+            // ningún lado y hay que soltarlo.
+            if (event.defaultPrevented) {
+                form.removeAttribute('aria-busy');
+                return;
+            }
             botones.forEach(function (boton) {
                 if (boton.disabled) return;
                 boton.disabled = true;
@@ -87,7 +101,7 @@
             event.preventDefault();
             return;
         }
-        bloquear(form);
+        bloquear(form, event);
     });
 
     window.addEventListener('pageshow', function (event) {

@@ -21238,12 +21238,11 @@ sigue funcionando: se pierde la guardia, no el formulario.
 
 ## Pendientes / a definir
 
-1. **El contrato del agente de diseño lo cierra el juez.** Esta sesión no tiene permiso de escritura sobre
-   `.claude/`, así que el bloque del núcleo (tres filas del inventario) y de `design/shells.md` está en el
-   cuerpo del PR. Hasta que se pegue, «Design Agent Contract» queda en rojo: el PR toca
-   `templates/includes/base.html` y `users/templates/user/user_list.html`, que son evidencia de filas canónicas.
-   El contenido propuesto se verificó contra los límites del checker (núcleo en 26.292 bytes de 30.000, celdas
-   en 438 y 374 de 450, sin referencias de historia) y contra `validate(..., limites=True)`, que da OK.
+1. ~~**El contrato del agente de diseño lo cierra el juez.**~~ **Cerrado:** la sesión implementadora no tiene
+   permiso de escritura sobre `.claude/`, así que el bloque del núcleo (tres filas del inventario) y el de
+   `design/shells.md` fueron en el cuerpo del PR y **los aplicó el juez**. «Design Agent Contract» quedó en
+   verde. El contenido se había verificado antes contra los límites del checker (núcleo en 26.292 bytes de
+   30.000, celdas en 438 y 374 de 450, sin referencias de historia) y contra `validate(..., limites=True)`.
 2. **Las pantallas tocadas siguen fuera de los arquetipos.** No se les corrió `--arquetipo` porque ninguna está
    migrada: su encabezado, su tabla y su paginación siguen a mano. Es FE-11, FE-12 y FE-17.
 3. **Las tres acciones del listado de solicitudes siguen siendo texto subrayado**, no botones del sistema. La
@@ -21264,3 +21263,15 @@ Revertir el commit. Vuelven los cuatro defectos: Merenderos sin badges, «Inacti
 tres handlers de confirmación copiados, los avisos paralelos del WebSocket y el doble envío. No hay nada que
 deshacer en la base. **Al revertir hay que volver a correr `npm run build:tailwind`**, porque `tailwind.css` es
 generado: el revert lo deja en el estado anterior, que es el correcto para el markup anterior.
+
+## Historial
+
+- **07/10/2026 (ronda 2 de revisión)** — la guardia de doble envío leía `event.defaultPrevented` **una sola
+  vez, al entrar**, y el comentario daba por hecho que alcanzaba «porque el listener va en `document`, en
+  burbuja». No alcanza: la guardia se registra al cargar el shell y los scripts de `{% block customJS %}` se
+  registran dentro de `DOMContentLoaded`, o sea **después**, así que un listener delegado en `document` que
+  cancele el envío corre **detrás** de la guardia. Reproducido en Chromium: el envío quedaba cancelado y el
+  formulario con `aria-busy="true"` y los botones `disabled` para siempre. Hoy ninguna pantalla delega así,
+  pero el script es global. Ahora `defaultPrevented` se reevalúa en el mismo turno diferido en que se fija el
+  `disabled`, y si el envío terminó cancelado se suelta la marca y no se deshabilita nada. El comentario del
+  archivo quedó corregido.

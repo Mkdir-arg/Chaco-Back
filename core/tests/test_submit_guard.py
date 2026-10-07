@@ -190,6 +190,48 @@ class LoQueElGuardNoToca(SimpleTestCase):
         self.assertIsNone(log["ariaBusy"])
         self.assertFalse(log["segundo"], "el formulario tiene que seguir enviable")
 
+    def test_un_listener_delegado_tardio_que_cancela_libera_el_formulario(self):
+        """El caso que `defaultPrevented` leído al entrar **no** ve.
+
+        La guardia se registra en `document` al cargar el shell; los scripts de
+        `{% block customJS %}` se registran dentro de `DOMContentLoaded`, o sea
+        **después**. Si uno de ellos delega en `document` y cancela el envío, corre
+        detrás de la guardia: cuando la guardia miró `defaultPrevented` todavía era
+        `false`, pero el POST nunca sale. Sin reevaluar, el formulario queda
+        `aria-busy` con los botones `disabled` para siempre.
+        """
+        log = _correr(
+            "var b = __boton();\nvar f = __form({method: 'post'}, [b]);\n"
+            # Se registra DESPUÉS de la guardia, como el customJS de una pantalla.
+            # Cancela solo el primer envío, para que el segundo mida a la guardia y
+            # no al listener.
+            "var cancelarUna = true;\n"
+            "document.addEventListener('submit', function (ev) {\n"
+            "  if (cancelarUna) { cancelarUna = false; ev.preventDefault(); }\n"
+            "});\n"
+            "__log.cancelado = __enviar(f).defaultPrevented;\n"
+            "__log.ariaBusyDurante = f.getAttribute('aria-busy');\n"
+            "__turno();\n"
+            "__log.ariaBusy = f.getAttribute('aria-busy');\n"
+            "__log.boton = b.disabled;\n"
+            "__log.segundo = __enviar(f).defaultPrevented;\n"
+        )
+        self.assertTrue(log["cancelado"], "el listener tardío tiene que haber cancelado el envío")
+        self.assertEqual(log["ariaBusyDurante"], "true", "la marca se pone síncrona: es la que frena el doble clic")
+        self.assertIsNone(log["ariaBusy"], "el envío no salió: la marca tiene que soltarse")
+        self.assertFalse(log["boton"], "el botón no puede quedar deshabilitado por un envío que no salió")
+        self.assertFalse(log["segundo"], "el formulario tiene que seguir enviable")
+
+    def test_un_listener_delegado_tardio_que_no_cancela_no_cambia_nada(self):
+        log = _correr(
+            "var b = __boton();\nvar f = __form({method: 'post'}, [b]);\n"
+            "document.addEventListener('submit', function () {});\n"
+            "__enviar(f);\n__turno();\n"
+            "__log.ariaBusy = f.getAttribute('aria-busy');\n__log.boton = b.disabled;\n"
+        )
+        self.assertEqual(log["ariaBusy"], "true")
+        self.assertTrue(log["boton"])
+
 
 @requiere_node
 class VolverConAtrasTests(SimpleTestCase):

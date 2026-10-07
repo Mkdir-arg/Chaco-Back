@@ -491,14 +491,23 @@ el envío; si no, lo marca `aria-busy="true"` y deshabilita sus botones de enví
 (`setTimeout(…, 0)`), no durante el despacho del evento: el navegador arma la lista de entradas del POST
 después de despachar `submit` y un control deshabilitado queda fuera, así que hacerlo en el acto le borraría
 el `name`/`value` al botón que disparó el envío. La protección real es síncrona y es otra —el segundo
-`submit` se cancela—, así que no se pierde nada; (b) el listener respeta `event.defaultPrevented`: va en
-`document`, en burbuja, detrás de los del propio formulario, y si una validación o una confirmación canceló el
-envío no bloquea nada. El selector de los botones externos compara el atributo `form` en vez de armar un
-selector con el id, que con un id raro se rompería.
+`submit` se cancela—, así que no se pierde nada; (b) el listener respeta `event.defaultPrevented` **y lo mira
+dos veces**: si una validación o una confirmación canceló el envío, no bloquea nada. El selector de los
+botones externos compara el atributo `form` en vez de armar un selector con el id, que con un id raro se
+rompería.
+**Ronda 2 de revisión (07-10-2026):** la primera versión leía `defaultPrevented` **solo al entrar**, con el
+argumento de que el listener va en `document`, en burbuja, detrás de los del propio formulario. No alcanza: la
+guardia se registra al cargar el shell y los scripts de `{% block customJS %}` se registran dentro de
+`DOMContentLoaded`, o sea **después**, así que un listener delegado en `document` que cancele el envío corre
+**detrás** de la guardia. Reproducido en Chromium: el envío quedaba cancelado y el formulario con
+`aria-busy="true"` y los botones `disabled` para siempre. Hoy ninguna pantalla delega así, pero el script es
+global. Ahora `defaultPrevented` se reevalúa en el mismo turno diferido del `disabled` y, si quedó cancelado,
+se suelta la marca.
 **Test permanente:** `core.tests.test_submit_guard.DobleEnvioBloqueadoTests.test_el_primer_envio_pasa_y_el_segundo_se_cancela`
 (+ `test_el_boton_no_se_deshabilita_durante_el_despacho`, `test_alcanza_a_los_botones_externos_con_atributo_form`,
 `LoQueElGuardNoToca.test_un_formulario_data_ajax_queda_libre`,
 `test_un_envio_ya_cancelado_no_bloquea_el_formulario`,
+`LoQueElGuardNoToca.test_un_listener_delegado_tardio_que_cancela_libera_el_formulario` (el de la ronda 2),
 `VolverConAtrasTests.test_el_bfcache_devuelve_el_formulario_a_su_estado` y
 `ElShellCargaLaGuardiaTests.test_el_shell_lo_carga_una_sola_vez`).
 **Playwright (1440 y 390 px):** el script está una sola vez en la página; el primer `submit` pasa, el segundo
