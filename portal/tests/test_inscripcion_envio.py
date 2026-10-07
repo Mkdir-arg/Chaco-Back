@@ -148,7 +148,9 @@ class _BasePaso2Test(TestCase):
         )
 
     def _files(self, **extra):
-        files = {self.k_requisito: SimpleUploadedFile("cert.png", b"\x89PNG fake", content_type="image/png")}
+        # SIIS-16: el adjunto tiene que empezar con la firma real del formato;
+        # desde el Cambio 174 la extensión sola no alcanza.
+        files = {self.k_requisito: SimpleUploadedFile("cert.png", b"\x89PNG\r\n\x1a\nfake", content_type="image/png")}
         files.update(extra)
         return files
 

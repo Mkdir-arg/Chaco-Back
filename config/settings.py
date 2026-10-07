@@ -524,9 +524,20 @@ TRUSTED_PROXY_NETS = [
     if red.strip()
 ]
 
-# Techos de carga. Django no limita por sí mismo el tamaño de los archivos, y el
-# formulario público acepta adjuntos sin autenticación: sin estos valores un solo
-# request podía escribir cientos de MB a disco antes de que el form los validara.
+# Techos de carga. **Ojo con lo que cada uno limita de verdad** (SIIS-16: el
+# comentario anterior prometía un tope del request que estos valores no dan):
+#
+# * ``DATA_UPLOAD_MAX_MEMORY_SIZE`` es el tope del cuerpo **sin contar los
+#   archivos**: Django lo evalúa sobre lo que no son uploads. No frena un POST
+#   multipart de 100 MB de adjuntos.
+# * ``FILE_UPLOAD_MAX_MEMORY_SIZE`` no es un tope: es el umbral a partir del cual
+#   el archivo se vuelca a disco en vez de quedar en memoria.
+# * ``DATA_UPLOAD_MAX_NUMBER_FILES`` sí acota el request anónimo, por cantidad.
+#
+# El tamaño de cada adjunto lo valida el formulario (``portal.forms.inscripcion``,
+# 5 MB y firma por magic bytes). El techo del **request** solo lo puede poner el
+# proxy: ``client_max_body_size`` en la location del link público (ver
+# ``nginx.conf`` y el ingress de ECOM).
 DATA_UPLOAD_MAX_MEMORY_SIZE = int(os.environ.get("DATA_UPLOAD_MAX_MEMORY_SIZE", 5 * 1024 * 1024))
 FILE_UPLOAD_MAX_MEMORY_SIZE = int(os.environ.get("FILE_UPLOAD_MAX_MEMORY_SIZE", 2 * 1024 * 1024))
 DATA_UPLOAD_MAX_NUMBER_FIELDS = int(os.environ.get("DATA_UPLOAD_MAX_NUMBER_FIELDS", 500))

@@ -1,8 +1,11 @@
 """Formularios de la inscripción pública de Becas (#293 paso 1, #294 paso 2)."""
 
+from pathlib import Path
+
 from django import forms
 
 from core.dni import MENSAJE_DNI_INVALIDO, dni_valido, normalizar_dni
+from core.validators import validar_firma
 from programas.services.personas import fecha_iso
 from programas.services.respuestas import aplicar, foto_definicion, legible, planos_de
 
@@ -56,6 +59,11 @@ def _validar_archivo(archivo):
         raise forms.ValidationError("Solo se aceptan archivos JPG, PNG o PDF.")
     if archivo.size > ARCHIVO_MAX_BYTES:
         raise forms.ValidationError("El archivo no puede superar los 5 MB.")
+    # SIIS-16: la extensión la elige quien sube el archivo, y acá el upload es
+    # **anónimo**. Sin mirar el contenido, un `.pdf` con HTML adentro quedaba en
+    # `media/` y después lo abría un coordinador desde el backoffice. La firma
+    # de los primeros bytes es del archivo, no de su nombre.
+    validar_firma(archivo, Path(nombre).suffix, "El archivo no es un JPG, PNG o PDF válido.")
 
 
 def _es_buscador(campo):

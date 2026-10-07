@@ -42,6 +42,7 @@ from programas.models import (
 from programas.services.becas import es_menor
 from programas.services.dispositivos import normalizar_codigo_institucional
 from programas.services.siis import SiisCatalogError, catalogo, funciones_programa, listar_programas
+from programas.services.siis_envio import provincia_de
 from users.presentation import etiqueta_usuario
 
 # Clase reutilizable del design system para inputs/selects/textareas.
@@ -354,7 +355,9 @@ class DatosSiisForm(forms.Form):
         if item is None:
             self.add_error(campo, "La localidad no está en el catálogo de SIIS.")
             return
-        prov_item = item.get("id_provincia") or item.get("provincia_id")
+        # SIIS-18: la misma lectura de las cuatro claves que usa el armado del
+        # payload; antes se miraban dos y la localidad de otra provincia pasaba.
+        prov_item = provincia_de(item)
         if prov and prov_item is not None and str(prov_item) != str(prov):
             self.add_error(campo, "La localidad no pertenece a la provincia elegida.")
 

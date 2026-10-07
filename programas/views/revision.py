@@ -61,7 +61,7 @@ from programas.services.padron import fila_padron, padron_de
 from programas.services.personas import consultar_persona
 from programas.services.respuestas import respuestas_legibles, sincronizar_desde_legacy
 from programas.services.siis import SiisCatalogError, catalogo, funciones_programa
-from programas.services.siis_envio import Catalogos, enviar_beneficiario_a_siis, mensaje_envio
+from programas.services.siis_envio import Catalogos, enviar_beneficiario_a_siis, mensaje_envio, provincia_de
 from programas.services.validacion_siis import validar_formulario_en_siis
 from programas.views.cupo import CAP_BENEFICIARIO_VER, CAP_CUPO_VER
 from programas.views.relevamientos import CAP_RELEVAMIENTO_PUBLICO, PaginadorConConteo
@@ -886,7 +886,10 @@ def siis_localidades_json(request):
     except SiisCatalogError as exc:
         return JsonResponse({"localidades": [], "error": str(exc)}, status=503)
     if provincia:
-        items = [i for i in items if str(i.get("id_provincia") or i.get("provincia_id") or provincia) == str(provincia)]
+        # SIIS-18: la misma lectura que el armado del payload. Antes se miraban
+        # dos de las cuatro claves y, con el `or provincia`, un ítem sin ninguna
+        # se daba por bueno: el select ofrecía localidades de otras provincias.
+        items = [i for i in items if provincia_de(i) == provincia]
     localidades = [{"id": i["id"], "nombre": i["nombre"]} for i in sorted(items, key=lambda i: i["nombre"])]
     return JsonResponse({"localidades": localidades})
 

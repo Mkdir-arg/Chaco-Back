@@ -20,7 +20,6 @@ No se toca la red: todo pasa por `unittest.mock`.
 
 import ast
 import json
-import unittest
 from pathlib import Path
 from unittest.mock import Mock, patch
 
@@ -133,22 +132,23 @@ class ContratoUpstreamTests(TestCase):
         self.assertEqual(resultado["data"]["nombre"], "Sintetica Prueba")
 
     @override_settings(**RENAPER_SETTINGS)
+    @override_settings(**RENAPER_SETTINGS)
     def test_renaper_con_el_result_anidado_un_nivel_mas_no_se_marca_validado(self):
-        """El escenario que nombra la ficha, hoy **no** cubierto por el cliente.
+        """El escenario que nombra la ficha, cerrado en la Ola 3 (Cambio 174).
 
-        Si el proveedor anida `result` un nivel, el cliente devuelve
-        `{"success": True, "data": {}}` y el caso se marca validado con el nombre
-        vacío. El arreglo (exigir que el `data` traiga al menos nombre y
-        apellido) es de la Ola 3 junto con SIIS-10: acá queda medido.
+        Si el proveedor anida `result` un nivel, el cliente devolvía
+        `{"success": True, "data": {}}` y el caso se daba de alta **marcado como
+        validado** con el nombre vacío. Hoy una respuesta sin nombre ni apellido
+        no acredita identidad: no hay nada que validar.
         """
         cuerpo = contrato("renaper_ok")
         anidado = {"isSuccess": True, "result": {"persona": cuerpo["data"]}}
 
         resultado = self._renaper(anidado)
 
-        self.assertTrue(resultado["success"])
-        self.assertEqual(resultado["data"]["nombre"], None)
-        self.assertEqual(resultado["data"]["apellido"], None)
+        self.assertFalse(resultado["success"])
+        self.assertIn("identidad", resultado["error"])
+        self.assertNotIn("data", resultado)
 
     # ── Base de Personas ─────────────────────────────────────────────────
     def _personas(self, cuerpo, status=200):
@@ -178,26 +178,21 @@ class ContratoUpstreamTests(TestCase):
         self.assertFalse(resultado["success"])
         self.assertTrue(resultado["not_found"])
 
-    @unittest.expectedFailure
     def test_personas_no_toma_claves_anidadas(self):
-        """SIIS-10 (Ola 3): `_aplanar` aplana a cualquier profundidad con `setdefault`.
+        """SIIS-10 (Ola 3, Cambio 174): se extrae por ruta, no aplanando el árbol.
 
-        En el fixture, `domicilio.localidad.nombre` («Resistencia») aparece antes
-        que `nombres` en el recorrido, así que gana y la persona queda validada
-        llamándose «Resistencia». El arreglo —extraer por ruta, leyendo solo el
-        primer nivel— es de la Ola 3. Mientras tanto este test documenta el bug
-        con `expectedFailure`: el día que SIIS-10 lo arregle, pasa a verde y hay
-        que sacarle el decorador.
+        Hasta el Cambio 174 `_aplanar` recorría la respuesta entera con
+        `setdefault`: en el fixture, `domicilio.localidad.nombre`
+        («Resistencia») aparece antes que `nombres` en el recorrido, así que
+        ganaba y la persona quedaba validada llamándose «Resistencia». El test
+        tenía `expectedFailure` y lo documentaba; hoy afirma el arreglo.
         """
         persona = normalizar_persona(contrato("personas_ok"), "11111111")
 
         self.assertEqual(persona["nombre"], "Sintetica Prueba")
-
-    def test_personas_toma_hoy_la_clave_anidada(self):
-        """Contracara del anterior, para que el bug quede medido y no solo esperado."""
-        persona = normalizar_persona(contrato("personas_ok"), "11111111")
-
-        self.assertEqual(persona["nombre"], "Resistencia")
+        # El domicilio sigue estando en la respuesta: lo que cambió es que no se
+        # lo confunde con la persona (RN-P7 nunca lo deja viajar a la pantalla).
+        self.assertEqual(contrato("personas_ok")["data"]["domicilio"]["localidad"]["nombre"], "Resistencia")
 
     # ── SIIS ─────────────────────────────────────────────────────────────
     def _alta_siis(self, cuerpo, status):
@@ -263,6 +258,12 @@ PARSERS = {
         "ignorar": {
             "data",
             "token",
+            # Sobres alternativos del registro de persona (SIIS-10). El fixture
+            # trae la forma plana —`data` **es** el registro—; estas dos son las
+            # otras formas vistas de la fuente 13, cuyo contrato sigue abierto
+            # (task #243) y por eso no se congelan en un fixture propio.
+            "persona",
+            "personas",
             # Ramas de fallecido y variantes que el parser tolera pero que el
             # proveedor todavía no confirmó (task #243).
             "mensaf",

@@ -1,5 +1,11 @@
 # Auditoría integral de DATAÑACH (Chaco) — octubre 2026
 
+## Estado al 08-oct-2026 (Ola 3, PR 7a: integraciones SIIS y RENAPER)
+
+| PR | Cambio | Fichas | Estado | Qué quedó abierto |
+|---|---|---|---|---|
+| Ola 3 PR 7a | 174 | SIIS-10 ✅ · SIIS-13 🟡 · SIIS-14 (+G3-02) ✅ · SIIS-15 ✅ · SIIS-16 🟡 · SIIS-18 ✅ · SIIS-20 ✅ · SIIS-21 ✅ · G1c-15 ✅ | ✅ | **Las 9 fichas de la mitad «integraciones» del ítem 7, 16 h, sin migraciones.** Lo que deja de pasar: la identidad de Base de Personas **ya no sale del domicilio** —`_aplanar` recorría el árbol entero con `setdefault`, así que `domicilio.localidad.nombre` le ganaba a `nombres` y la persona quedaba **validada** llamándose «Resistencia», fijo en el paso 2 del link, en el legajo y en lo que viaja a SIIS—, y dos registros que no se pueden desempatar o uno de otro documento dejan de mezclarse en una identidad inventada; un **401 de RENAPER descarta el token** (en la caché compartida, no solo en el proceso) y reintenta una vez, en vez de dejar todas las altas de ciudadano en «Error HTTP 401» hasta que el token caduca de viejo; un **5xx de RENAPER deja de informarse como «error de conexión»** con `status_code: None` (`Retry(total=0, status_forcelist=…)` levantaba `MaxRetryError` sin reintentar nada); el **documento consultado deja de llegar al log** (con `RENAPER_HTTP_METHOD=get` la URL lleva `?dni=…` y el traceback de `requests` la arrastra) y el cuerpo del login tampoco; un **RECHAZADO cuya identidad nunca se validó libera el DNI** en la convocatoria, así que una carga ajena en un link abierto deja de bloquear al titular para siempre; un **error de plantilla del comprobante** ya no da 500 con la inscripción commiteada y la persona sin correo; un **adjunto anónimo se valida por su firma** y no por la extensión; la **localidad del modal de SIIS** se cruza contra la provincia con las cuatro claves del catálogo y los ítems sin provincia dejan de colarse en todas; y `check --deploy` **frena en producción** `RENAPER_TEST_MODE` (`core.E004`, identidades al azar marcadas validadas) y **avisa** del captcha aritmético (`core.W003`). **Cuatro desvíos, los cuatro code-first:** (a) SIIS-20 dispara por `DATANACH_ES_PRODUCCION` y no por `ENVIRONMENT == "prd"` —icore (DEV) declara `prd` y ahí el modo de prueba es legítimo; es además la regla del §0.4—; (b) el test permanente de G1c-15 **no** puede levantar el `HTTPServer` de la PoC, porque el runner corta toda salida HTTP incluido localhost: corre la decisión real de `HTTPConnectionPool.urlopen` sobre el `Retry` que el cliente monta; (c) el sexo devuelto por Base de Personas se compara por la **inicial** y solo si viene, porque el proveedor manda `F` y `FEMENINO` y rechazar por formato rompería el camino feliz en PRD; (d) `_informa_fallecido` sigue aplanando el árbol, porque ahí lo que se busca es la *presencia* de una marca. **Contradice a propósito una decisión registrada:** SIIS-21 hace que la cubeta por documento cuente por IP **en modo aritmético**, al revés de lo que fijó el Cambio 71 —que la dejó global para que rotar de IP no sirviera para enumerar—; vale solo en el modo degradado, donde enumerar ya era barato, y lo que compra es que no se le pueda quemar la cuota de una hora al documento de un tercero con quince POST. **Lo que la ficha no pedía y entra igual:** una respuesta de RENAPER con éxito pero **sin nombre ni apellido** deja de dar `success=True` (el agujero que `test_renaper_con_el_result_anidado_un_nivel_mas_no_se_marca_validado` tenía medido nombrando a esta ola). **Abierto:** el `client_max_body_size` de SIIS-16, que necesita medir los envíos reales en PRD y vale también para el ingress de ECOM, que no está en este repo; y la opción (b) de SIIS-13 (`conflicto_duplicado`), que la ficha deja «para después» |
+
 ## Estado al 07-oct-2026 (Ola 3, PR 2: datos y catálogo)
 
 **Las 7 fichas del PR 2 de la Ola 3 cerradas** (DAT-01 🟡 fase 1, DAT-02, DAT-03, DAT-05, V2-NEW-05, G1c-08 y
@@ -1813,9 +1819,11 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
 ### Ola 3 — Datos, operación, CI, app de campo y reglas de Becas
 - **Objetivo:** que no se pierdan datos (adjuntos, capturas offline), que el despliegue sea diagnosticable y robusto, que
   la CI pruebe el motor real, y cerrar las reglas de negocio de Becas.
-- **Avance: 40 h de 152, 112 restantes.** **PR 2 (DAT-01 🟡, DAT-02, DAT-03, DAT-05, V2-NEW-05, G1c-08 y RED-48)
-  en el Cambio 168, 07-oct-2026**: las 7 fichas, con una migración solo de estado (`programas.0078`), sobre los
-  PR 1 (Cambio 165) y 3 (Cambio 171) ya mergeados.
+- **Avance: 56 h de 152, 96 restantes.** **PR 7a (SIIS-10, SIIS-13 🟡, SIIS-14 +G3-02, SIIS-15, SIIS-16 🟡,
+  SIIS-18, SIIS-20, SIIS-21 y G1c-15) en el Cambio 174, 08-oct-2026**: 16 h, sin migraciones. Antes, el
+  **PR 2 (DAT-01 🟡, DAT-02, DAT-03, DAT-05, V2-NEW-05, G1c-08 y RED-48) en el Cambio 168, 07-oct-2026**:
+  las 7 fichas, con una migración solo de estado (`programas.0078`), sobre los PR 1 (Cambio 165) y 3
+  (Cambio 171) ya mergeados.
 - **PRs y orden:**
   1. ✅ *Operación y deploy:* OPS-05, OPS-07 (ampliado: el candado envuelve también el `migrate`), OPS-11, OPS-12,
      G3-04, G3-05 **+ RED-58** (el ítem 9 lo traía junto con OPS-05). 12 + 2 h. **Cerrado el 07-oct-2026
@@ -1829,8 +1837,12 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
   5. *App de campo:* G1-03, G1-04 (+BEC-22), G1-05, G1-06, G1-07, G1-16, R0-04 (raíz `/api/becas/` con Token). 34 h.
   6. *Reglas de Becas:* BEC-03, BEC-04, BEC-05, BEC-06, BEC-07, BEC-09, BEC-10, BEC-15, BEC-16, BEC-17, BEC-18,
      BEC-20, BEC-24. 26 h.
-  7. *Integraciones y link público:* SIIS-10, SIIS-13, SIIS-14 (+G3-02), SIIS-15, SIIS-16, SIIS-18, SIIS-20, SIIS-21,
-     G1c-15, G1-11, G1-12, G1-13, G1-14, R0-06, R0-07 (link público y `q_uuid_en_texto`). 30 h.
+  7. *Integraciones y link público:* 30 h, partido en dos PRs.
+     - **7a ✅ *Integraciones (SIIS y RENAPER)*:** SIIS-10, SIIS-13 (🟡 opción a), SIIS-14 (+G3-02), SIIS-15,
+       SIIS-16 (🟡 falta el techo de nginx, que necesita medición en PRD), SIIS-18, SIIS-20, SIIS-21 y G1c-15.
+       **16 h, cerrado el 08-oct-2026 (Cambio 174), sin migraciones.**
+     - 7b *Link público y `q_uuid_en_texto`:* G1-11, G1-12, G1-13, G1-14, R0-06, R0-07 (+ la segunda parte de
+       RED-09 del ítem 9). 14 h.
   8. *Reportes:* G2-01. 8 h.
   9. *Red de seguridad (04-oct):* ✅ RED-48 (una sola regla de DNI, con G1c-08 — Cambio 168), ~~RED-58 (plantilla de migración
      re-entrante, con OPS-05)~~ ✅ **cerrada en el PR 1**, y segundas partes de RED-09 (`q_uuid_en_texto` a `core/db.py`, con el PR 7), RED-35

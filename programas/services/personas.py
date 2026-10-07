@@ -60,6 +60,87 @@ def _primero(flat, *keys):
     return ""
 
 
+# ── Elegir el registro de la persona (SIIS-10) ────────────────────────────────
+
+#: Mensajes del paso 1 cuando la respuesta no se puede atribuir a quien se
+#: consultó. Los dos caen a ``manual``, que es el camino previsto del Cambio 57.
+ERROR_AMBIGUA = "La respuesta de Base de Personas es ambigua."
+ERROR_OTRO_DOCUMENTO = "La respuesta de Base de Personas no corresponde al documento consultado."
+
+CLAVES_DNI = ("dni", "documento", "numero_documento", "nro_documento")
+CLAVES_SEXO = ("sexo", "genero")
+
+
+def _plano(registro):
+    """Claves de **primer nivel** del registro, normalizadas.
+
+    SIIS-10: antes se aplanaba el árbol entero con ``setdefault``, así que la
+    primera aparición a cualquier profundidad ganaba y
+    ``domicilio.localidad.nombre`` se leía como el nombre de la persona. Los
+    objetos y listas anidados no son datos de la persona: son su domicilio, su
+    localidad, su provincia.
+    """
+    if not isinstance(registro, dict):
+        return {}
+    return {
+        _normalizar_clave(clave): valor
+        for clave, valor in registro.items()
+        if not isinstance(valor, (dict, list)) and valor not in (None, "")
+    }
+
+
+def _registros(data):
+    """Los registros de persona de la respuesta, por ruta y sin bajar de nivel.
+
+    El contrato de la fuente 13 sigue abierto (task #243), así que se aceptan
+    las tres formas vistas: el propio ``data``, ``data.persona`` y
+    ``data.personas``. Lo que **no** se hace es buscar las claves en cualquier
+    rama del árbol.
+    """
+    if isinstance(data, list):
+        return [item for item in data if isinstance(item, dict)]
+    if not isinstance(data, dict):
+        return []
+    persona = data.get("persona")
+    if isinstance(persona, dict):
+        return [persona]
+    personas = data.get("personas")
+    if isinstance(personas, list):
+        return [item for item in personas if isinstance(item, dict)]
+    return [data]
+
+
+def _coincide(registro, dni, sexo):
+    """¿El registro es de la persona que se consultó?
+
+    Lo que el registro **no trae** no objeta: la fuente puede no devolver el
+    documento o el sexo. El sexo se compara por la inicial porque el proveedor
+    manda tanto ``F`` como ``FEMENINO``.
+    """
+    plano = _plano(registro)
+    documento = re.sub(r"\D", "", _texto(_primero(plano, *CLAVES_DNI)))
+    if documento and dni and documento != dni:
+        return False
+    genero = _texto(_primero(plano, *CLAVES_SEXO))[:1].upper()
+    return not (genero and sexo and genero != _texto(sexo)[:1].upper())
+
+
+def elegir_registro(payload, dni, sexo=""):
+    """``(registro, error)``: el único registro atribuible a ``(dni, sexo)``.
+
+    Ninguno o más de uno es una respuesta que no se puede usar: se devuelve el
+    error y el paso 1 resuelve por padrón o manual, como con la fuente caída.
+    """
+    data = payload.get("data") if isinstance(payload, dict) else payload
+    registros = _registros(data)
+    candidatos = [registro for registro in registros if _coincide(registro, dni, sexo)]
+    if len(candidatos) == 1:
+        return candidatos[0], ""
+    if registros and not candidatos:
+        return None, ERROR_OTRO_DOCUMENTO
+    return None, ERROR_AMBIGUA
+
+
 def fecha_iso(valor):
     """Normaliza la fecha de un proveedor a ``AAAA-MM-DD`` (o ``""`` si no se
     puede). Gran Base/RENAPER no garantizan formato: llegó ``15/03/2010`` y
@@ -77,16 +158,22 @@ def fecha_iso(valor):
     return ""
 
 
-def normalizar_persona(payload, dni):
-    """Tolera variantes de nombres hasta que se cierre el contrato definitivo."""
-    data = payload.get("data") if isinstance(payload, dict) else payload
-    flat = _aplanar(data)
+def normalizar_persona(payload, dni, sexo=""):
+    """Tolera variantes de nombres hasta que se cierre el contrato definitivo.
+
+    Acepta el sobre completo del proveedor o un registro ya elegido. Lee solo el
+    primer nivel del registro (SIIS-10) y ``nombres`` antes que ``nombre``: la
+    fuente usa ``nombre`` para el nombre completo «APELLIDO, Ana» en algunas
+    ramas y ``nombres`` para el de pila, que es lo que la pantalla muestra.
+    """
+    registro, _ = elegir_registro(payload, dni, sexo)
+    flat = _plano(registro if registro is not None else payload)
     return {
-        "dni": _texto(_primero(flat, "dni", "documento", "numero_documento", "nro_documento")) or dni,
+        "dni": _texto(_primero(flat, *CLAVES_DNI)) or dni,
         "apellido": _texto(_primero(flat, "apellido", "apellidos")),
-        "nombre": _texto(_primero(flat, "nombre", "nombres")),
+        "nombre": _texto(_primero(flat, "nombres", "nombre")),
         "fecha_nacimiento": fecha_iso(_primero(flat, "fecha_nacimiento", "fechaNacimiento", "nacimiento")),
-        "sexo": _texto(_primero(flat, "sexo", "genero")).upper(),
+        "sexo": _texto(_primero(flat, *CLAVES_SEXO)).upper(),
     }
 
 
@@ -187,6 +274,14 @@ class PersonasAPIClient:
                     "not_found": True,
                     "error": "El DNI no fue encontrado en Base de Personas.",
                 }
+            _, error = elegir_registro(body, dni, sexo)
+            if error:
+                # SIIS-10: dos registros que no se pueden desempatar, o uno que
+                # es de otro documento. Antes se mezclaban en una sola identidad
+                # y se marcaba **validada**; hoy el paso 1 sigue por padrón o
+                # manual, igual que con la fuente caída.
+                logger.warning("Base de Personas devolvió una respuesta que no se puede atribuir: %s", error)
+                return {"success": False, "error": error}
             if _informa_fallecido(data):
                 # Mismo contrato que el cliente RENAPER
                 # (``legajos/services/consulta_renaper.py``): quien consume la
@@ -194,7 +289,7 @@ class PersonasAPIClient:
                 # publico ya lo esperaba, pero nada lo producia nunca, asi que
                 # la regla "FALLECIDO corta" del Cambio 41 no se cumplia.
                 return {"success": False, "fallecido": True}
-            return {"success": True, "data": normalizar_persona(body, dni), "datos_api": body}
+            return {"success": True, "data": normalizar_persona(body, dni, sexo), "datos_api": body}
         except (requests.RequestException, ValueError, TypeError) as exc:
             # Sin `logger.exception`: el traceback de `requests` arrastra la URL
             # completa, y ahí viaja el documento consultado (?dni=...). Queda el

@@ -87,6 +87,12 @@ CADENAS = {
     "link público · paso 1 (identificar)": ("recaptcha", "personas.token", "personas.consulta"),
     "link público · paso 2 (enviar la inscripción)": ("smtp",),
     "app de campo · identificar": ("personas.token", "personas.consulta"),
+    # SIIS-14 le suma un camino condicional: con un 401/403 el cliente descarta
+    # el token, vuelve a loguearse y repite la consulta **una** vez. No se
+    # declara dos veces por el mismo motivo que el token de SIIS: un 401 llega
+    # rápido, no agota ningún timeout, así que el peor caso de la cadena sigue
+    # siendo el de las dos llamadas que sí pueden colgarse —y en ese peor caso
+    # (timeout, no 401) el reintento no existe—.
     "legajos · consultar RENAPER": ("renaper.login", "renaper.consulta"),
     "usuarios · alta con clave provisoria": ("smtp",),
 }
