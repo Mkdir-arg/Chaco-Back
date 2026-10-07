@@ -23991,9 +23991,12 @@ los que ninguna fila referenciaba.
   baja las dos foreign keys antes del mismo `UPDATE` y el comando no, así que con un `LegajoAtencion` en el
   formato viejo **y** una `AlertaCiudadano` que lo referencia moría con un `1451` y no normalizaba nada. Ahora
   repite la secuencia de la migración —bajar las FK, normalizar, reponerlas, con las FK repuestas también si el
-  `UPDATE` falla—, lee el nombre real de cada FK de `information_schema` (un restore puede traer otro), **no
-  escribe nada sin `--aplicar`** y cubre las **dos** direcciones: a 36 con guiones en MariaDB 10.7+ y a 32 en
-  hexadecimal en MySQL, que es el caso de un dump de ECOM restaurado en icore.
+  `UPDATE` falla— **con las mismas funciones**: `quitar_fk_si_existe` y `crear_fk_si_falta` de
+  `core/migraciones.py`, que entró con el PR 1 (Cambio 165) mientras esta ronda estaba abierta, más el
+  `_normalizar_uuid` de la propia migración. El comando no declara ni una columna ni un nombre de FK propios:
+  se los pide a `legajos.0007`. **No escribe nada sin `--aplicar`** y cubre las **dos** direcciones: a 36 con
+  guiones en MariaDB 10.7+ y a 32 en hexadecimal en MySQL, que es el caso de un dump de ECOM restaurado en
+  icore.
   **(2) Su test permanente nunca había corrido:** `LegajoAtencion.objects.create(ciudadano=…)` choca con la
   `@property` sin setter y, siendo `TestCase`, después con el `TransactionManagementError` del `schema_editor`.
   Pasó a `TransactionTestCase` con los kwargs reales, y arma el estado de restore de verdad —pk en el formato

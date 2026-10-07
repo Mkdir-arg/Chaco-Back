@@ -397,9 +397,11 @@ informando que no hay nada que normalizar. Queda nombrado en el **paso 3 del run
 las dos foreign keys antes del mismo `UPDATE`, y el comando no: con un `LegajoAtencion` en el formato viejo
 **y** una `AlertaCiudadano` que lo referencia moría con
 `IntegrityError (1451 … legajos_alertaciudadano)` sin normalizar nada. Ahora repite la secuencia de la migración
-—bajar, normalizar, reponer, con las FK repuestas también si el `UPDATE` falla—, lee el nombre real de cada FK
-de `information_schema`, **no escribe sin `--aplicar`** y cubre las **dos** direcciones (a 36 con guiones en
-MariaDB 10.7+, a 32 en hexadecimal en MySQL: un dump de ECOM restaurado en icore). Su test tampoco había corrido
+—bajar, normalizar, reponer, con las FK repuestas también si el `UPDATE` falla— **con sus mismas funciones**:
+`quitar_fk_si_existe` y `crear_fk_si_falta` de `core/migraciones.py` (RED-58, Cambio 165, que entró mientras esta
+ronda estaba abierta) y el `_normalizar_uuid` de la migración. No declara ni una columna ni un nombre de FK
+propios: se los pide a `legajos.0007`. **No escribe sin `--aplicar`** y cubre las **dos** direcciones (a 36 con
+guiones en MariaDB 10.7+, a 32 en hexadecimal en MySQL: un dump de ECOM restaurado en icore). Su test tampoco había corrido
 nunca —`LegajoAtencion.objects.create(ciudadano=…)` choca con la `@property` sin setter, y el `schema_editor`
 adentro de un `TestCase` con el `TransactionManagementError`—: pasó a `TransactionTestCase`, medido en rojo con
 el comando de la ronda 1 y en verde con este, en `mariadb:10.11` y en `mysql:8.0`.

@@ -38,36 +38,44 @@ class NormalizarUuidLegajosTests(SimpleTestCase):
 
         self.assertIn("no hay nada que normalizar", _correr_uuid())
 
-    def test_las_columnas_y_las_foreign_keys_son_las_de_la_migracion(self):
-        """Si `legajos.0007` suma una columna UUID o una FK, el comando tiene que verla.
+    def test_las_columnas_y_las_foreign_keys_salen_de_la_migracion(self):
+        """No hay una segunda lista: si `legajos.0007` suma una columna, el comando la ve.
 
-        El comando le pide el SQL y los nombres a la migración (`_normalizar_uuid`,
-        `FK_ALERTA`, `FK_HISTORIAL`) en vez de copiarlos; lo que sí declara aparte es
-        **qué** columnas mira, y eso es lo que se cruza acá.
+        El comando no declara nada propio —columnas, FK, nombres y el `UPDATE` se los
+        pide a la migración—, que es lo que impide que las dos formas de normalizar se
+        separen.
         """
+        migracion = comando_uuid.migracion()
+
+        self.assertEqual(
+            comando_uuid.columnas(),
+            [(tabla, columna) for tabla, columna, _ in migracion.COLUMNAS],
+        )
+        self.assertEqual(comando_uuid.foreign_keys(), list(migracion.FOREIGN_KEYS))
+        self.assertEqual(comando_uuid.nombre_por_defecto("legajos_alertaciudadano"), migracion.FK_ALERTA)
+        self.assertEqual(comando_uuid.nombre_por_defecto("legajos_historialcontacto"), migracion.FK_HISTORIAL)
+
+    def test_el_sql_que_normaliza_y_el_ddl_de_las_fk_son_los_compartidos(self):
+        """El `UPDATE` es el de la migración y el DDL de las FK, el de `core.migraciones`.
+
+        Es el corazón del arreglo de la ronda 2: el comando dejó de tener su propia
+        secuencia y usa la que ya está probada (Cambio 165).
+        """
+        import importlib
         import inspect
 
-        migracion = comando_uuid.migracion()
-        fuente = inspect.getsource(migracion)
+        from core import migraciones
 
-        for tabla, columna in comando_uuid.COLUMNAS:
-            with self.subTest(tabla=tabla, columna=columna):
-                self.assertIn(tabla, fuente)
-                self.assertIn(columna, fuente)
-        self.assertEqual(
-            {tabla: comando_uuid.nombre_por_defecto(tabla) for tabla, _ in comando_uuid.FOREIGN_KEYS},
-            {
-                "legajos_alertaciudadano": migracion.FK_ALERTA,
-                "legajos_historialcontacto": migracion.FK_HISTORIAL,
-            },
-        )
-
-    def test_el_sql_que_normaliza_es_el_de_la_migracion(self):
-        """No hay una copia del `UPDATE`: el comando llama a la misma función."""
         self.assertIs(
             comando_uuid.migracion()._normalizar_uuid,
-            __import__("importlib").import_module(comando_uuid.MIGRACION)._normalizar_uuid,
+            importlib.import_module(comando_uuid.MIGRACION)._normalizar_uuid,
         )
+        fuente = inspect.getsource(comando_uuid.Command._normalizar)
+        self.assertIn("quitar_fk_si_existe", fuente)
+        self.assertIn("crear_fk_si_falta", fuente)
+        self.assertNotIn("ALTER TABLE", fuente)
+        self.assertIs(comando_uuid.quitar_fk_si_existe, migraciones.quitar_fk_si_existe)
+        self.assertIs(comando_uuid.crear_fk_si_falta, migraciones.crear_fk_si_falta)
 
 
 @tag("mysql")
@@ -138,10 +146,10 @@ class NormalizarUuidLegajosMotorRealTests(TransactionTestCase):
 
         _correr_uuid("--aplicar")
 
-        with connection.cursor() as cursor:
-            for tabla, columna in comando_uuid.FOREIGN_KEYS:
+        with connection.schema_editor(atomic=False) as editor:
+            for tabla, columna, _ in comando_uuid.foreign_keys():
                 with self.subTest(tabla=tabla):
-                    self.assertIsNotNone(comando_uuid.fk_puesta(cursor, tabla, columna))
+                    self.assertIsNotNone(comando_uuid.fk_puesta(editor, tabla, columna))
 
     def test_sin_aplicar_informa_y_no_escribe_nada(self):
         legajo, _ = self._estado_de_restore()

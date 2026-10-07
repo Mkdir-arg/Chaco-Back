@@ -16,7 +16,7 @@ direcciones y por eso el comando mira el motor y no asume una:
   las filas de 36. Es el caso de un dump de ECOM restaurado en icore.
 
 **Las dos foreign keys se bajan antes del `UPDATE` y se reponen después**, igual que
-hace la migración: `legajos_legajoatencion.id` es la columna referenciada por
+hace la migración y con sus mismas funciones (`core.migraciones`, del Cambio 165): `legajos_legajoatencion.id` es la columna referenciada por
 `legajos_alertaciudadano.legajo_id` y `legajos_historialcontacto.legajo_id`, así que
 reescribirla con las FK puestas muere con *«Cannot delete or update a parent row»*
 (1451) y no normaliza nada. Es exactamente el estado que deja un restore: pks en hex
@@ -36,25 +36,11 @@ import importlib
 from django.core.management.base import BaseCommand
 from django.db import connection
 
-#: La migración es la dueña del SQL y de los nombres de las FK: se le piden en vez de
-#: copiarlos, para que las dos formas de normalizar no puedan separarse.
+from core.migraciones import crear_fk_si_falta, nombre_de_fk, quitar_fk_si_existe
+
+#: La migración es la dueña del SQL, de las columnas y de los nombres de las FK: se le
+#: piden en vez de copiarlos, para que las dos formas de normalizar no puedan separarse.
 MIGRACION = "legajos.migrations.0007_ampliar_uuid_legajos"
-
-#: Las cuatro columnas UUID de Legajos, las mismas que amplía `legajos.0007`.
-COLUMNAS = (
-    ("legajos_legajoatencion", "id"),
-    ("legajos_alertaciudadano", "legajo_id"),
-    ("legajos_historialcontacto", "legajo_id"),
-    ("legajos_adjunto", "object_id"),
-)
-
-#: `(tabla, columna)` de las dos FK que apuntan a `legajos_legajoatencion.id`. El
-#: nombre real se lee de la base —un restore puede traer otro— y solo si no está puesta
-#: se usa el que declara la migración.
-FOREIGN_KEYS = (
-    ("legajos_alertaciudadano", "legajo_id"),
-    ("legajos_historialcontacto", "legajo_id"),
-)
 
 TABLA_REFERENCIADA = "legajos_legajoatencion"
 
@@ -63,25 +49,24 @@ def migracion():
     return importlib.import_module(MIGRACION)
 
 
+def columnas():
+    """`[(tabla, columna)]`: las cuatro columnas UUID que amplía `legajos.0007`."""
+    return [(tabla, columna) for tabla, columna, _ in migracion().COLUMNAS]
+
+
+def foreign_keys():
+    """`[(tabla, columna, nombre por defecto)]` de las FK hacia el legajo."""
+    return list(migracion().FOREIGN_KEYS)
+
+
 def nombre_por_defecto(tabla):
     """El nombre con el que la migración crea la FK de ``tabla``."""
-    modulo = migracion()
-    return {
-        "legajos_alertaciudadano": modulo.FK_ALERTA,
-        "legajos_historialcontacto": modulo.FK_HISTORIAL,
-    }[tabla]
+    return {t: nombre for t, _, nombre in foreign_keys()}[tabla]
 
 
-def fk_puesta(cursor, tabla, columna):
+def fk_puesta(schema_editor, tabla, columna):
     """El nombre de la FK de ``tabla.columna`` hacia el legajo, o ``None``."""
-    cursor.execute(
-        "SELECT CONSTRAINT_NAME FROM information_schema.KEY_COLUMN_USAGE "
-        "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND COLUMN_NAME = %s "
-        "AND REFERENCED_TABLE_NAME = %s",
-        [tabla, columna, TABLA_REFERENCIADA],
-    )
-    fila = cursor.fetchone()
-    return fila[0] if fila else None
+    return nombre_de_fk(schema_editor, tabla, columna)
 
 
 def contar_en_el_formato_viejo(cursor, tabla, columna, largo_viejo):
@@ -113,7 +98,7 @@ class Command(BaseCommand):
         with connection.cursor() as cursor:
             pendientes = [
                 (tabla, columna, contar_en_el_formato_viejo(cursor, tabla, columna, largo_viejo))
-                for tabla, columna in COLUMNAS
+                for tabla, columna in columnas()
             ]
 
         total = sum(cuantas for _, _, cuantas in pendientes)
@@ -137,15 +122,13 @@ class Command(BaseCommand):
     def _normalizar(self, pendientes, con_guiones):
         """Baja las dos FK, normaliza y las repone: la secuencia de `legajos.0007`."""
         modulo = migracion()
-        with connection.cursor() as cursor:
+        with connection.schema_editor(atomic=False) as editor:
             # El nombre real primero: un restore puede traer otro, y si la FK no está
             # puesta no hay nada que bajar (el reintento de una corrida cortada).
-            nombres = {tabla: fk_puesta(cursor, tabla, columna) for tabla, columna in FOREIGN_KEYS}
-
-        with connection.schema_editor(atomic=False) as editor:
-            for tabla, nombre in nombres.items():
-                if nombre:
-                    editor.execute(f"ALTER TABLE {tabla} DROP FOREIGN KEY {nombre}")
+            nombres = {
+                tabla: quitar_fk_si_existe(editor, tabla, columna) or por_defecto
+                for tabla, columna, por_defecto in foreign_keys()
+            }
             try:
                 for tabla, columna, cuantas in pendientes:
                     if cuantas:
@@ -153,9 +136,5 @@ class Command(BaseCommand):
             finally:
                 # Las FK vuelven aunque el `UPDATE` haya fallado: dejarlas caídas es
                 # peor que no haber normalizado.
-                for tabla, columna in FOREIGN_KEYS:
-                    nombre = nombres[tabla] or nombre_por_defecto(tabla)
-                    editor.execute(
-                        f"ALTER TABLE {tabla} ADD CONSTRAINT {nombre} "
-                        f"FOREIGN KEY ({columna}) REFERENCES {TABLA_REFERENCIADA} (id)"
-                    )
+                for tabla, columna, _ in foreign_keys():
+                    crear_fk_si_falta(editor, tabla, columna, TABLA_REFERENCIADA, "id", nombres[tabla])
