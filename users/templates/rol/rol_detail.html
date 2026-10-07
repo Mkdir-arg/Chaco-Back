@@ -1,49 +1,42 @@
 {% extends "includes/base.html" %}
-{% load static %}
+{% load nodo_ui %}
 
 {% block title %}Rol {{ group.name }}{% endblock %}
 
 {% block main-content %}
-<div class="p-6">
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
-        <div>
-            <div class="flex items-center gap-2 flex-wrap">
-                <a href="{% url 'users:roles' %}"
-                   class="btn-tertiary btn-back-circle"
-                   aria-label="Volver a roles">
-                    <i class="fas fa-arrow-left" aria-hidden="true"></i>
-                </a>
-                <h1 class="text-2xl font-bold text-gray-900">{{ group.name }}</h1>
-                {% if meta.protegido %}<span class="badge badge-warning"><i class="fas fa-lock"></i>Protegido</span>{% endif %}
-                {% if meta and not meta.activo %}<span class="badge badge-gray badge-dot">Inactivo</span>{% else %}<span class="badge badge-success badge-dot">Activo</span>{% endif %}
-            </div>
-            <p class="text-gray-600 mt-1">{{ meta.descripcion|default:"Sin descripción" }}</p>
-            <p class="text-sm text-gray-500 mt-1">Categoría: {{ meta.categoria|default:"—" }}{% if meta.programa %} · <i class="fas fa-folder mr-1"></i>Programa: {{ meta.programa.nombre }}{% endif %} · {{ num_usuarios }} usuario(s)</p>
-        </div>
-        <div class="flex gap-3">
-            {% if not meta.protegido %}
-                <a href="{% url 'users:rol_editar' group.pk %}" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"><i class="fas fa-edit mr-1"></i>Editar</a>
-            {% endif %}
-        </div>
-    </div>
+{% url 'users:roles' as url_roles %}
+<div class="space-y-5">
 
-    <div class="bg-white rounded-lg shadow p-6">
-        <h2 class="text-lg font-semibold text-gray-900 mb-4">Capacidades que otorga</h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {% for modulo in arbol %}
-                <div class="border border-gray-200 rounded-lg p-4">
-                    <h3 class="text-sm font-semibold text-gray-800 mb-2">{{ modulo.label }}</h3>
-                    <ul class="space-y-1">
-                        {% for cap in modulo.capacidades %}
-                            <li class="flex items-center gap-2 text-sm {% if cap.checked %}text-gray-800{% else %}text-gray-400{% endif %}">
-                                {% if cap.checked %}<i class="fas fa-check-circle text-green-500"></i>{% else %}<i class="far fa-circle"></i>{% endif %}
-                                <span>{{ cap.label }}</span>
-                            </li>
-                        {% endfor %}
-                    </ul>
-                </div>
-            {% endfor %}
-        </div>
+  {% page_header titulo=group.name volver_url=url_roles volver_label="roles" %}
+    {% bajada %}{{ meta.descripcion|default:"Sin descripción" }}{% endbajada %}
+    {% if meta.protegido %}<span class="badge badge-warning"><i class="fas fa-lock" aria-hidden="true"></i> Protegido</span>{% endif %}
+    {% if meta and not meta.activo %}<span class="badge badge-gray badge-dot">Inactivo</span>{% else %}<span class="badge badge-success badge-dot">Activo</span>{% endif %}
+    {% if not meta.protegido %}
+    <a href="{% url 'users:rol_editar' group.pk %}" class="btn-nodo btn-brand btn-sm">
+      <i class="fas fa-pen" aria-hidden="true"></i> Editar
+    </a>
+    {% endif %}
+  {% endpage_header %}
+
+  <p class="text-xs text-body-subtle">Categoría: {{ meta.categoria|default:"—" }}{% if meta.programa %} · <i class="fas fa-folder" aria-hidden="true"></i> Programa: {{ meta.programa.nombre }}{% endif %} · {{ num_usuarios }} usuario(s)</p>
+
+  <div class="bg-white rounded-xl border border-base shadow-sm p-6">
+    <h2 class="text-heading font-bold">Capacidades que otorga</h2>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+      {% for modulo in arbol %}
+      <div class="border border-base rounded-xl p-4">
+        <h3 class="text-sm font-bold text-heading mb-2">{{ modulo.label }}</h3>
+        <ul class="space-y-1">
+          {% for cap in modulo.capacidades %}
+          <li class="flex items-center gap-2 text-sm {% if cap.checked %}text-body{% else %}text-body-subtle{% endif %}">
+            {% if cap.checked %}<i class="fas fa-circle-check text-fg-success" aria-hidden="true"></i>{% else %}<i class="far fa-circle" aria-hidden="true"></i>{% endif %}
+            <span>{{ cap.label }}</span>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endfor %}
     </div>
+  </div>
 </div>
 {% endblock %}
