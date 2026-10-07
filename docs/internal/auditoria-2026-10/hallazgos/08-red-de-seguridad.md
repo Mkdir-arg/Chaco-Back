@@ -73,7 +73,7 @@ con lo que existe hoy; la lista solo baja.
 | RED-31 | `requisito_eliminar` y `subsegmento_eliminar` no se ejecutan en ningún test | MEDIA | CONF. test (coverage) | R | S | ✅ |
 | RED-32 | Comandos contra SIIS y RENAPER sin red (`validar_casos_siis`, `completar_casos_renaper`, `sincronizar_programas_siis`) | MEDIA | CONF. test (coverage) | R (+1) | S-M (+S-M) | ✅ |
 | RED-33 | Dispositivos y Merenderos: las vistas que operan no tienen test HTTP | MEDIA | CONF. test (coverage) | 5 | M | ⬜ |
-| RED-34 | Nada obliga a que una ficha cerrada deje un test permanente (0 tests bajo `docs/`) | MEDIA | CONF. test | R | S | ⬜ |
+| RED-34 | Nada obliga a que una ficha cerrada deje un test permanente (0 tests bajo `docs/`) | MEDIA | CONF. test | R | S | ✅ |
 | RED-35 | Ningún test afirma que las escrituras críticas sigan siendo atómicas | MEDIA | CONF. lectura | R (+3) | S (+S-M) | ✅ |
 | RED-36 | `drf_spectacular` fuera de `INSTALLED_APPS`: `/api/docs/` y `/api/redoc/` dan 500 | MEDIA | CONF. test | R (primero) | S | ✅ |
 | RED-37 | El esquema OpenAPI publica tipos falsos y pierde 11 vistas | MEDIA | CONF. test | R (+7) | S-M (+S-M) | ✅ (R; falta Ola 7) |
@@ -111,9 +111,9 @@ con lo que existe hoy; la lista solo baja.
 | RED-69 | Fecha de nacimiento ausente o futura sin test en el payload SIIS | MEDIA | CONF. test (mutación M34) | R | S | ✅ |
 | RED-70 | `celda_segura`: la limpieza de caracteres de control no está probada | MEDIA | CONF. test (mutación M49) | R | S | ✅ |
 | RED-71 | `ApiCorsMiddleware` sin tests de contrato (y el Cambio 52 lo da por inexistente) | BAJA | CONF. test (ajustado) | R | S | ✅ |
-| RED-72 | El harness e2e de Playwright no existe en el repo: quedan `.pyc` de julio | BAJA | CONF. lectura | R | S | ⬜ |
+| RED-72 | El harness e2e de Playwright no existe en el repo: quedan `.pyc` de julio | BAJA | CONF. lectura | R | S | ✅ |
 | RED-73 | `CiudadanoConfirmarView` decide antes de mirar si hay sesión | BAJA | CONF. test (barrido) | R | S | ✅ |
-| RED-74 | Ocho arreglos mergeados sin ningún test | BAJA | CONF. lectura (git) | R | S | ⬜ |
+| RED-74 | Ocho arreglos mergeados sin ningún test | BAJA | CONF. lectura (git) | R | S | ✅ |
 | RED-75 | `/set_dark_mode/` no existe: el toggle de tema postea a un 404 | BAJA | CONF. test (`resolve`) | 5 | S | ⬜ |
 | RED-76 | Tipado: 2,7 % de retornos anotados, sin mypy ni pyright | BAJA | CONF. test (AST) | 7 | S-M | ⬜ |
 | RED-77 | RN-2 del padrón escrita dos veces: property y filtro de queryset | BAJA | CONF. lectura | R | S | ✅ |
@@ -127,7 +127,7 @@ con lo que existe hoy; la lista solo baja.
 | RED-85 | Herramientas del CI sin pinear y actions por tag en workflows con `contents: write` | BAJA | CONF. lectura | R (+7) | S (+S) | ✅ (R; falta Ola 7) |
 | RED-86 | Job de tests con timeout de 15 min, sin `--parallel` ni alarma de crecimiento | BAJA | CONF. test (`gh run list`) | 7 | S | ⬜ |
 | RED-87 | El largo mínimo del barrio del payload SIIS no se prueba en su borde | BAJA | CONF. test (mutación M33) | R | S | ✅ |
-| RED-88 | `manage.py test core users portal --parallel` revienta con `cannot pickle 'traceback'` | BAJA | CONF. test | R | S | ⬜ |
+| RED-88 | `manage.py test core users portal --parallel` revienta con `cannot pickle 'traceback'` | BAJA | CONF. test | R | S | ✅ |
 | RED-89 | Ningún test recorre el URLconf con un usuario **sin rol**: 200 en 31 rutas, y 17 de Legajos dejan borrar adjuntos y cerrar alertas ajenas (SEC-10, SEC-18, SEC-11) | CRÍTICA | CONF. test (barrido 04-oct) | R (**primero**) | S-M | ✅ |
 
 «Ola» con paréntesis = la ficha tiene una segunda parte en esa ola (detalle en la ficha y en README §6). Horas: S = 2,
@@ -502,6 +502,19 @@ verdad (contador de errores seguidos, `--max-errores`) y `test_un_caso_que_falla
   JavaScript que decide —drag & drop y condiciones del constructor, condiciones en vivo del paso 2 del link— con
   `pytest-playwright` contra el compose local, **nightly o a mano, nunca como gate** (L, no planificado).
 
+**Resolución:** ✅ Resuelto en #NNN (Cambio 163, PR R-20), 07-oct-2026, con el **default D-RED-06 aplicado = No** —
+no se reconstruye un e2e por ahora. **Code-first, lo que había es menos de lo que la ficha suponía:** en
+`tests/e2e/` del checkout principal no quedó **ni un `.py`**, solo `__pycache__/`, `pages/__pycache__/` y
+`.pytest_cache/`, todos de julio-2026 y bytecode de Python 3.14 (incompatible con el 3.12 del CI). Nunca estuvo
+versionado (`git ls-files tests/` vacío), así que un PR no puede borrarlo: **el `rm` queda como paso operativo del
+PM**, anotado en la entrada del Cambio 163. Lo que sí hace el PR es cerrarle la puerta desde el repo: `/tests/e2e/`
+entra al `.gitignore` —ahí viven el usuario y la clave del compose local, y un `git add -A` distraído los
+publicaría— y cuatro tests afirman que nada de `tests/` está versionado, que la regla del `.gitignore` sigue puesta,
+que **no hay bytecode en el árbol** y que **ningún workflow menciona Playwright**, que es la forma ejecutable de
+«nunca como gate». Si alguna vez se reconstruye, ese último test se pone rojo y obliga a volver a discutir D-RED-06.
+**Test permanente:** `core/tests/test_higiene_fuentes.py::HarnessE2ENoVersionadoTests.test_ningun_workflow_depende_de_playwright`
+(y `.test_no_hay_nada_versionado_bajo_tests`, `.test_el_gitignore_cubre_el_harness_local`, `.test_no_hay_bytecode_versionado`).
+
 ### RED-73 · `CiudadanoConfirmarView` decide antes de mirar si hay sesión
 **Severidad:** BAJA · **Estado:** CONFIRMADO con test (barrido de VR1) · **Origen:** RS-VR1-NEW-01 · **Ola:** R · **Esfuerzo:** S (2 h)
 
@@ -834,6 +847,24 @@ que siguen en la Ola 4 como dice la ficha.
   «Resolución: ✅» posteriores al 04-oct-2026 y exige que la ruta y la clase nombradas existan (import + `hasattr`). No
   mover las PoC al código (muchas afirman el bug).
 
+**Resolución:** ✅ Resuelto en #NNN (Cambio 163, PR R-20), 07-oct-2026 — `core/tests/test_contrato_auditoria.py`
+(8 tests) lee los ocho `hallazgos/*.md`, parsea las **131** líneas «Test permanente» y exige que módulo, clase y
+método existan. La regla queda cerrada **por las dos puntas**, que es lo que la propuesta no cubría: un segundo test
+exige que toda ficha cerrada **desde el 04-oct-2026 declare la línea**, porque sin eso cerrar una ficha sin dejar test
+seguía siendo gratis —bastaba con no escribirla—. Las 18 fichas anteriores al corte quedan exentas y están **todas con
+fecha**, cosa que un tercer test sostiene: sin fecha no se puede saber a quién le toca la regla y la excepción sería
+para siempre. **Tres detalles que la propuesta no anticipaba:** (a) en `hallazgos/` conviven **dos** formatos de target
+(`app/tests/mod.py::Clase.test` y `app.tests.mod.Clase.test`) y **dos** de fecha (`06-oct-2026` y `06-10-2026`), así
+que el parser acepta los cuatro; (b) la forma punteada no dice dónde termina el módulo, así que se importa el prefijo
+más largo que importe y el resto se resuelve por `getattr`; (c) dos fichas de front (FE-13 y V5A-NEW-08) nombran
+`scripts/test_design_audit.py`, que **no** lo descubre el runner de Django y aun así es permanente porque lo corre el
+job obligatorio `Validate inventory and authority` —se carga por ruta, con su carpeta en `sys.path`—. La premisa de la
+ficha queda afirmada en un test: `unittest.defaultTestLoader.discover('docs')` sigue devolviendo **0 tests**. Las PoC
+**no** se movieron al código, como pide la ficha.
+**Test permanente:** `core/tests/test_contrato_auditoria.py::FichasCerradasTests.test_toda_ficha_resuelta_nombra_un_test_que_existe`
+(y `.test_toda_ficha_resuelta_desde_el_04_oct_declara_su_test_permanente`, `.test_toda_resolucion_lleva_fecha`,
+`.test_las_poc_siguen_sin_ser_descubiertas_por_el_runner` y `ParserDelContratoTests` ×4).
+
 ### RED-35 · Ningún test afirma que las escrituras críticas sigan siendo atómicas
 **Severidad:** MEDIA · **Estado:** CONFIRMADO (lectura; 39 usos de `transaction.atomic` en los `services/`, 0 afirmados) · **Origen:** RS-R2-09 (VR1: CONFIRMADO-AJUSTADO: la aserción introspectiva propuesta siempre da `False`) · **Ola:** R (`resolver_ciudadano_offline`) + 3 (el resto de la lista) · **Esfuerzo:** S (2 h) + S-M (4 h)
 - **Ubicación:** `programas/services/becas.py:261` (`@transaction.atomic` sobre `resolver_ciudadano_offline`); el Cambio 58
@@ -872,6 +903,22 @@ Las otras cuatro escrituras siguen en la Ola 3.
   (`assertNumQueries` + `captureOnCommitCallbacks`). Para `7feb9d83`:
   `programas/tests/test_padron.py::ResumenFijoTests.test_tolera_un_request_sin_sesion` (`RequestFactory` sin middleware de
   sesión → `None`, no `AttributeError`).
+
+**Resolución:** ✅ Resuelto en #NNN (Cambio 163, PR R-20), 07-oct-2026 — los dos arreglos que **no tenían ficha
+propia** quedan cubiertos; los cuatro primeros de la lista ya los habían cerrado sus fichas (RED-07 ✅, RED-32 ✅,
+RED-17 ✅, RED-09 ✅) y los dos últimos siguen como dice la ficha (`1ada8e41` ya está cubierto por
+`test_becas_models.py`; `7f36ab06` es JS). Para `057cce86`:
+`AltaRelevamientoTests.test_el_alta_no_abre_una_transaccion_anidada` cuenta los `SAVEPOINT` que emite el alta y exige
+**uno** —el de `Relevamiento.save()`—, en vez de confiar en un número de `perf_budgets.json` que mide la pantalla
+entera y seguiría en verde si el anidado volviera junto con cualquier otra consulta de menos. **Desvío code-first:**
+la ficha pedía además el caso «con padrón», que era la rama que sí necesitaba transacción propia; esa rama **ya no
+existe** —`RelevamientoForm` no tiene `save()`, `grep padron programas/forms.py` da cero, la carga del Excel se mudó a
+su propia vista—, así que el control que ocupa su lugar envuelve el alta en un `atomic()` extra y verifica que el
+contador ve **dos**: sin eso, `assertEqual(…, 1)` podría estar verde por no medir nada. Se suma
+`test_el_alta_no_deja_callbacks_de_on_commit_colgados`. Para `7feb9d83`, el test va en
+`ResumenFijoPadronTests` —la clase que ya existe, no una `ResumenFijoTests` nueva— con su control de andamio.
+**Test permanente:** `programas/tests/test_becas_relevamientos.py::AltaRelevamientoTests.test_el_alta_no_abre_una_transaccion_anidada`
+(y `programas/tests/test_padron.py::ResumenFijoPadronTests.test_tolera_un_request_sin_sesion`).
 
 ## (c) Contratos, tipado y validaciones
 
@@ -2664,6 +2711,22 @@ Mutación M33 verificada a mano (aplicar, correr, revertir): `>=` → `>` deja e
   mock con `side_effect` de excepción instanciada a nivel de clase); arreglarla y agregar a `pr-backend.yml` un paso **no
   bloqueante** `manage.py test core users portal --parallel 2` que avise si vuelve a romperse, hasta que RED-86 pase la suite
   entera a paralelo.
+
+**Resolución:** ✅ Resuelto en #NNN (Cambio 163, PR R-20), 07-oct-2026 — bisecado hasta
+`core.tests.test_performance_budgets`, y la causa **no era la que los candidatos de la ficha anticipaban**: no hay
+ninguna excepción guardada como atributo de clase. `PerformanceBudgetTests.setUpTestData` llama a `seed_perf`, cuya
+guarda comparaba el `NAME` de la base contra **dos literales** (`":memory:"` y
+`"file:memorydb_default?mode=memory&cache=shared"`). Con `--parallel N` el runner clona la base por worker y le pone
+un sufijo —medido: `file:memorydb_default_2?mode=memory&cache=shared`—, que no estaba en la lista. El `CommandError`
+salía de `setUpTestData`, o sea como error **de clase**, y su `exc_info` arrastra un `traceback` que
+`multiprocessing` no serializa: de ahí el `TypeError` y el aborto sin decir qué test falló. La guarda pasa al mismo
+criterio que usa Django (`:memory:` o `mode=memory` en el nombre) y sigue rechazando un archivo en disco, que es lo
+que existe para impedir. Medido después: **`core users portal --parallel 2` → 1.171 tests OK en 56 s**. El paso no
+bloqueante que pide la ficha vive en el job nuevo `Orden y paralelo` de `pr-backend.yml`, junto con la pasada
+`--shuffle` de TST-02.
+**Test permanente:** `core/tests/test_seed_perf_guarda.py::GuardaDeSeedPerfTests.test_acepta_los_clones_que_crea_parallel`
+(y `.test_acepta_la_base_en_memoria_sin_clonar`, `.test_rechaza_una_base_en_disco`,
+`.test_un_nombre_que_solo_se_parece_no_alcanza`).
 
 ---
 

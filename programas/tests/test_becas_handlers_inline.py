@@ -11,13 +11,14 @@ import json
 from datetime import date, timedelta
 
 from django.contrib.auth.models import User
-from django.test import Client, TestCase
+from django.test import Client
 from django.urls import reverse
 from django.utils import timezone
 
 from core.tests.js_harness import atributos_de, correr_script, requiere_node, script_con
 from legajos.models import Ciudadano
 from programas.models import Convocatoria, Formulario, ListaEspera, Relevamiento, Segmento
+from programas.tests.base_becas import BecasPantallaTestCase
 
 APELLIDO_CON_COMILLA = "O'Brien"
 # Cierra el literal JS del handler viejo y encadena una expresión propia.
@@ -25,8 +26,9 @@ APELLIDO_QUE_CIERRA_EL_LITERAL = "x',window.__inyectado=1,'"
 NOMBRE_CON_MARCADO = '<img src=x onerror="window.__inyectado=1">'
 
 
-class CupoSegmentoHandlersInlineTests(TestCase):
+class CupoSegmentoHandlersInlineTests(BecasPantallaTestCase):
     def setUp(self):
+        super().setUp()
         self.admin = User.objects.create_superuser("admin-cupo-xss", password="x")
         self.segmento = Segmento.objects.create(nombre="Seg XSS", cupo_maximo=100)
         convocatoria = Convocatoria.objects.create(
@@ -121,10 +123,11 @@ def _form_de_reactivar(html):
     return atributos_de(html[inicio : html.index("</form>", marca)])
 
 
-class ReactivarConvocatoriaNombreTests(TestCase):
+class ReactivarConvocatoriaNombreTests(BecasPantallaTestCase):
     """El modal de reactivar recibe el nombre de la convocatoria como texto, nunca como marcado."""
 
     def setUp(self):
+        super().setUp()
         self.admin = User.objects.create_superuser("admin-reactivar-xss", password="x")
         segmento = Segmento.objects.create(nombre="Seg R", cupo_maximo=100)
         hoy = timezone.localdate()
@@ -188,10 +191,11 @@ class ReactivarConvocatoriaNombreTests(TestCase):
         )
 
 
-class ReactivarConvocatoriaModalTests(TestCase):
+class ReactivarConvocatoriaModalTests(BecasPantallaTestCase):
     """POP-3: «Reactivar» abre un modal propio con form POST, sin depender de SweetAlert2."""
 
     def setUp(self):
+        super().setUp()
         self.admin = User.objects.create_superuser("admin-reactivar-modal", password="x")
         segmento = Segmento.objects.create(nombre="Seg M", cupo_maximo=100)
         self.hoy = timezone.localdate()

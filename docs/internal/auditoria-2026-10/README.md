@@ -35,6 +35,12 @@ ese aviso llega; y ningún test afirmaba que el paso 5 de `correr_alta_siis` ree
 como consumidor nuevo de `.nodo-checks`: el contrato del agente de diseño obliga a mover la ficha en el mismo
 diff que su evidencia. Lo commiteó el juez (19718fb), porque la sesión headless no escribe bajo `.claude/`.
 
+## Estado al 07-oct-2026 (Ola R: R-20, cobertura y regresión)
+
+| PR | Cambio | Fichas | Estado | Qué quedó abierto |
+|---|---|---|---|---|
+| R-20 | 163 | TST-02 ✅ · TST-03 ✅ · R0-03 ✅ · RED-34 ✅ · RED-74 ✅ · RED-72 ✅ · RED-88 ✅ | ✅ | **Las 7 fichas, 24 h, sin migraciones y sin una línea de código de producción.** El único `.py` no-test que cambia es `core/management/commands/seed_perf.py`, un comando que no se puede correr fuera de la base de test. (1) **TST-02:** los cinco módulos de `programas/tests/` que solo pasaban si otro había corrido antes heredan de `programas/tests/base_becas.BecasPantallaTestCase` —una sola definición del `cache.clear()` + `crear_programas` que el Cambio 130 había dejado copiado—, y la verificación es la que pedía la ficha: **los 77 módulos de `programas/tests/` corridos uno por uno dan 0 en rojo** (antes: 12 + 6 + 4 + 3 + 1 = 26 fallas) y `--shuffle` queda verde con las dos semillas medidas, 1234 y 777, que daban 21 y 26. Además, `generar_alertas` —que corre **cada hora** y estaba al 0 %— estrena 8 tests (idempotencia de dos pasadas, desactivación de lo que ya no aplica sin apagar las ALTA, un ciudadano sin legajo, y el WebSocket una vez por alerta **nueva**), el wizard de Configuración 12 y el ABM de secretarías 6, y los dos `assertTrue(True)` pasan a afirmar algo real. (2) **TST-03:** el `omit` deja afuera lo que no es producto, se activa **`branch = true`** y el `fail_under` pasa de 48 a **79** sobre un medido de 81 % con ramas; más un piso de **90 %** por módulo en los nueve flujos críticos, como paso del job que ya era obligatorio (sin tocar el ruleset). (3) **R0-03** cerrada 56 días antes del plazo, con un test que corre el alta **con el reloj congelado en 2027**. (4) **RED-34:** `core/tests/test_contrato_auditoria.py` parsea las **131** líneas «Test permanente» de los ocho `hallazgos/*.md` y exige que existan, **y** que toda ficha cerrada desde el 04-oct declare la suya —sin esa segunda mitad, cerrar sin dejar test seguía siendo gratis—. (5) **RED-88:** la causa no era la que la ficha anticipaba (ninguna excepción guardada como atributo de clase): `seed_perf` comparaba el nombre de la base contra dos literales y no reconocía el clon que crea `--parallel` (`file:memorydb_default_2?mode=memory&cache=shared`); el `CommandError` en `setUpTestData` arrastra un `traceback` impickleable y mataba el runner entero. **`core users portal --parallel 2` pasa de morir a 1.171 tests OK en 56 s.** (6) **RED-72:** D-RED-06 = No aplicada; en `tests/e2e/` **no quedaba ni un `.py`**, solo bytecode de Python 3.14, así que el PR cierra la puerta (`.gitignore` + 4 tests, incluido «ningún workflow menciona Playwright») y el `rm` queda como paso del PM. (7) **RED-74:** los dos arreglos sin ficha propia. **Tres hallazgos que las fichas no tenían:** un **sexto** módulo con el mismo defecto, y en `legajos` —la ficha midió solo `programas/`—; un **flake de medianoche** en DIS-01 (`now() - timedelta(minutes=5)` comparado contra la fecha local se pone rojo entre las 00:00 y las 00:05 ART, nunca en el CI, que corre en UTC), arreglado y protegido con un test que congela el reloj a las 00:02; y que la rama «con padrón» que RED-74 pedía probar **ya no existe**. **Abierto:** el `assertNumQueries` de `generar_alertas` es PERF-20 (Ola 4) y RED-86 (suite entera en paralelo) sigue en la suya, ahora desbloqueada. **Para el PM:** borrar a mano `tests/e2e/` del checkout principal (nunca estuvo versionado) y corregir la memoria de trabajo que lo daba por existente «y en verde» |
+
 ## Estado al 07-oct-2026 (Ola R: R-18, contratos del backoffice y job `Contratos de API`)
 
 | PR | Cambio | Fichas | Estado | Qué quedó abierto |
@@ -1449,8 +1455,8 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
   (`definicion = NULL` + `data` legacy); y RED-44 encontró **cinco** capacidades sin uso y no una (`config.ver`,
   `relevamiento.ver`, `institucion.ver`, `institucion.administrar`, más `ciudadano.eliminar`), todas declaradas con su
   motivo y derivadas a OPS-14.
-- **Quedan 40 h:** R-17 y R-20. **R-16 y R-21 ya están cerrados (Cambios 156 y 159), así que la Ola 3 y la
-  Ola 2 quedan desbloqueadas**; lo que falta puede ir en cualquier orden.
+- **Quedan 16 h:** solo **R-17**. **R-16, R-21, R-18 y R-20 están cerrados (Cambios 156, 159, 160 y 163), así que
+  la Ola 3 y la Ola 2 quedan desbloqueadas**.
 - **Objetivo:** poder cambiar código sin romper nada sin enterarse. Que todo lo que las Olas 1 a 7 van a tocar tenga antes
   un test que se ponga rojo si se rompe, que el CI pruebe el motor de producción (MariaDB) y las migraciones en las dos
   direcciones, que ningún gate dependa de la buena voluntad (protección de rama, release que exige CI verde, verificación
@@ -1481,7 +1487,7 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
 | R-17 | **Definición y condiciones (dos repos):** RED-12, RED-38 | 16 | cualquier cambio del constructor |
 | ✅ R-18 | **Contratos del backoffice y job `Contratos de API`:** RED-42, RED-39, RED-40, RED-41 (D-RED-04), RED-43, RED-44 — **#608, Cambio 160** (RED-39, RED-40 y RED-42 cierran su parte R; el resto es de las Olas 3, 5 y 7) | 18 | Ola 2 (capacidades), Ola 5 |
 | ✅ R-19 | **Legajos y Roles por HTTP:** **RED-89** (CRÍTICA: barrido con usuario sin rol + `ALLOWLIST_SIN_ROL` medida + ratchet, 4 h) y, adelantadas de la Ola 2 por **D-RED-14**, **SEC-10 completa** (CRÍTICA, 4 h: el hard delete de adjuntos), **SEC-18 completa** (+ R0b-06, 2 h: alertas y el `self.get_object()` que mata el 500) y **SEC-11 con `ciudadano.ver` de piso en sus 5 rutas** (1 h: así salen los 17 `expectedFailure` y ninguna queda abierta; la Ola 2 sube 3 a `ciudadano.sensible` con D-11); más RED-06 (humo de 37 rutas + alertas) y RED-04 (escrituras del ABM de roles) — **#556, Cambio 126** | 21 | Ola 2 |
-| R-20 | **Cobertura y regresión** (desde la Ola 3): TST-02 (+generar_alertas y wizard), TST-03 (+gate por módulo), R0-03 (**antes del 31-dic-2026**), RED-34, RED-74, RED-72, RED-88 | 24 | — |
+| ✅ R-20 | **Cobertura y regresión** (desde la Ola 3): TST-02 (+generar_alertas y wizard), TST-03 (+gate por módulo), R0-03 (**antes del 31-dic-2026**), RED-34, RED-74, RED-72, RED-88 — **#NNN, Cambio 163** (las 7 fichas; D-RED-06 aplicada) | 24 | — |
 | ✅ R-21 | **Arquitectura y dependencias ocultas (ratchets):** RED-46, RED-79, RED-13, RED-45, RED-52, RED-51, RED-78, RED-82 — **#607, Cambio 159** (RED-13, RED-45, RED-51, RED-52, RED-78 y RED-79 cierran su parte R; el resto de cada una es de las Olas 2, 4 y 7) | 18 | Ola 2 (SEC-21), Ola 7 (G1-01 fase 2, OPS-10) |
 | | **Total Ola R** | **285** | |
 
@@ -1497,8 +1503,9 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
   **R-21** (Cambio 159, 18 h: los ratchets de arquitectura y dependencias ocultas, que desbloquea la Ola 2 y es el
   prerrequisito de la revisión de SEC-20).
   **R-18** (Cambio 160, 18 h: los contratos del backoffice y el job obligatorio `Contratos de API`).
-  **Quedan 40 h de la Ola R:** R-17 y R-20, sin precedencias entre sí. Pueden ir en
-  paralelo con otro implementador.
+  **R-20** (Cambio 163, 24 h: cobertura y regresión —la suite deja de depender del orden, el `--parallel` vuelve a
+  correr y el coverage se mide donde importa—).
+  **Quedan 16 h de la Ola R:** solo **R-17**.
 - **Hecho cuando (verificable):**
   1. `gh api repos/Mkdir-arg/Chaco-Back/rulesets` lista los rulesets de `development` y `main`; un push directo a
      `development` es rechazado y un PR con un test roto no se puede mergear.

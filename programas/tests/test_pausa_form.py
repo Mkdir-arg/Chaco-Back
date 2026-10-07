@@ -1,14 +1,15 @@
 from datetime import date
 
 from django.contrib.auth.models import User
-from django.test import TestCase
 from django.urls import reverse
 
 from programas.models import Convocatoria, ProgramaSiis, Relevamiento, Segmento, Subsegmento
+from programas.tests.base_becas import BecasPantallaTestCase
 
 
-class PausaFormEncabezadoTests(TestCase):
+class PausaFormEncabezadoTests(BecasPantallaTestCase):
     def setUp(self):
+        super().setUp()
         self.admin = User.objects.create_user("admin-pausa-form", password="x", is_superuser=True)
         self.programa = ProgramaSiis.objects.create(nombre="Programa P", siis_programa_id=9001)
         self.segmento = Segmento.objects.create(nombre="Segmento S", cupo_maximo=10, programa=self.programa)

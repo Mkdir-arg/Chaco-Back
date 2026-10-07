@@ -333,6 +333,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 159 | Ratchets de arquitectura: el contrato de los modelos, el grafo de imports y las tres dependencias ocultas del shell | Transversal (contrato de `programas.models`, grafo de imports, shell del backoffice, arranque del contenedor, middlewares de usuarios, cache de la home, ruteo de la raíz) | `#metodo` `#infra` `#datos` | Auditoría integral oct-2026 — fichas RED-46, RED-79, RED-13, RED-45, RED-52, RED-51, RED-78 y RED-82 (Ola R, PR R-21) | 07/10/2026 | 🟢 **Hecho** (seis fichas cierran su parte R; el resto queda en las Olas 2, 4 y 7 con su test rojo o su ratchet puesto) | No requiere |
 | 160 | Contratos del backoffice: las URLs que el front escribe a mano, las claves que lee, los parsers externos y el gate que los corre | Transversal (barrido de URLs del front, sobre de error JSON, catálogo de capacidades, CI de GitHub Actions) · Inicio (APIs del dashboard y contador de alertas) · Becas (JSON guardados, fixtures de RENAPER/Personas/SIIS) | `#api` `#metodo` `#rbac` `#siis` | Auditoría integral oct-2026 — fichas RED-42, RED-39, RED-40, RED-41, RED-43 y RED-44 (Ola R, PR R-18) | 07/10/2026 | 🟢 **Hecho** (RED-39, RED-40 y RED-42 cierran su parte R; el resto queda en las Olas 3, 5 y 7 con su test o su ratchet puesto) | No requiere |
 | 162 | Las herramientas de SIIS dejan de pisar lo que otro corrigió, y el alta de prueba no sale del ambiente de pruebas | Becas · revisión de casos (modal «Completar datos para SIIS») · comandos de gestión de SIIS (`diagnosticar_siis`, `corregir_datos_siis`, `correr_alta_siis`, `completar_casos_renaper`) | `#siis` `#datos` `#relevamientos` `#ui` `#metodo` | Auditoría integral oct-2026 — fichas SIIS-19, SIIS-17 y G3-06, más la segunda parte de RED-32 (Ola 1 «Integridad SIIS», PR 7 — cierra la ola) | 07/10/2026 | 🟢 **Hecho** | No requiere |
+| 163 | Cobertura y regresión: la suite deja de depender del orden, el `--parallel` vuelve a correr y la cobertura se mide donde importa | Transversal (runner de tests, medición de cobertura, CI, contrato de la auditoría) · Configuración (wizard de programas, ABM de secretarías) · Legajos (pasada horaria de alertas) · Becas (alta de relevamiento, padrón, convocatorias) · Dispositivos (indicador de última actualización) | `#metodo` `#infra` `#datos` | Auditoría integral oct-2026 — fichas TST-02, TST-03, R0-03, RED-34, RED-74, RED-72 y RED-88 (Ola R, PR R-20) | 07/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -22235,3 +22236,227 @@ el modal no puede quitar, y `diagnosticar_siis --alta` sale contra cualquier URL
   corrección» era **inalcanzable** —con el form inválido la vista redirige con un solo aviso (ALR-8)— y se
   reemplaza por la comprobación de que ese aviso **llega** con la etiqueta del campo; y ningún test afirmaba que
   el paso 5 de `correr_alta_siis` reenvía `--usuario` a `corregir_datos_siis`, que es lo que firma la traza.
+
+---
+
+# Cambio 163 — Cobertura y regresión: la suite deja de depender del orden, el `--parallel` vuelve a correr y la cobertura se mide donde importa
+
+🟢 **HECHO — 07/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal: runner de tests (orden y paralelo), medición de cobertura, CI de GitHub Actions y contrato de la auditoría. Configuración (wizard de programas, ABM de secretarías). Legajos (pasada horaria de alertas). Becas (alta de relevamiento, padrón, convocatorias). Dispositivos (indicador de última actualización) |
+| **Etiquetas** | `#metodo` `#infra` `#datos` |
+| **Solicitante** | Auditoría integral de octubre 2026 — hallazgos **TST-02**, **TST-03**, **R0-03**, **RED-34**, **RED-74**, **RED-72** y **RED-88** (Ola R «Red de seguridad», PR R-20) |
+| **Fecha del pedido** | 07/10/2026 |
+| **Issue / épica** | Sin issue — auditoría oct-2026, `docs/internal/auditoria-2026-10/hallazgos/05-datos-operacion-tests.md` y `08-red-de-seguridad.md` |
+| **Partes afectadas** | Casi todo son tests y configuración de CI. Código que viaja al release: **nada**. El único `.py` no-test que cambia es `core/management/commands/seed_perf.py`, un comando de management que solo corre en la base de test y en la MySQL efímera del CI. Más `pyproject.toml` (alcance y techo de coverage), `.github/workflows/pr-backend.yml` y `.gitignore` |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Siete fichas de la familia «cobertura y regresión». Todas comparten una forma: **la suite dice que algo está probado y
+no lo está**, o **el gate que debería avisar no avisa**.
+
+- **TST-02** (MEDIA): configuración sin tests de comportamiento, `generar_alertas` al 0 %, dos tests que son
+  `assertTrue(True)` y —ampliación del 06-oct— **cinco módulos de `programas/tests/` que solo pasan si otro corrió
+  antes**: con `--shuffle`, 21 fallas con la semilla 1234 y 26 con la 777.
+- **TST-03** (BAJA): el `fail_under = 48` se mide sobre **todo** el repo, incluidas herramientas de desarrollo y
+  módulos muertos.
+- **R0-03** (BAJA): una fecha literal en `test_becas_relevamientos.py` que **vence el 01-ene-2027** y pone rojo el
+  `Backend CI` de todos los PRs sin que nadie haya tocado una línea.
+- **RED-34** (MEDIA): nada obliga a que una ficha cerrada deje un test permanente. Las PoC viven bajo `docs/`, que el
+  runner no descubre: `unittest.defaultTestLoader.discover('docs')` devuelve **0 tests**.
+- **RED-74** (BAJA): ocho arreglos mergeados sin ningún test; dos de ellos sin ficha propia que los cubra.
+- **RED-72** (BAJA): el harness e2e de Playwright no existe en el repo; quedan `.pyc` de julio que la documentación de
+  trabajo da por «en verde».
+- **RED-88** (BAJA): `manage.py test core users portal --parallel` revienta con `TypeError: cannot pickle 'traceback'
+  object` **sin decir qué test falló**.
+
+## Qué lo motivó
+
+El objetivo de la Ola R es que nada se rompa sin que alguien se entere. Estas siete son el caso en que **el aviso mismo
+está roto**:
+
+- Un test que pasa por el orden de la suite no prueba lo que dice. Alcanza con que alguien agregue un módulo antes para
+  que 26 tests se pongan rojos sin que haya cambiado una línea de código —y, peor, para que dejen de cubrir lo suyo sin
+  ponerse rojos.
+- Un `fail_under` 35 puntos por debajo de lo real no puede fallar: la cobertura podía partirse al medio y el CI seguía
+  en verde.
+- Una fecha literal que vence es una bomba de tiempo con fecha conocida: el 01-ene-2027 **todos** los PRs quedan rojos.
+- Y cerrar una ficha invirtiendo su PoC, sin tocar `<app>/tests/`, deja la ficha en ✅ y el bug vuelve el día que alguien
+  toque el módulo.
+
+## Alcance acordado
+
+**Entra:** las siete fichas completas, más un *flake* de la misma familia que apareció esta madrugada y que ninguna
+ficha tenía (ver «Tres hallazgos que las fichas no tenían»).
+
+**Queda afuera**, con su destino anotado:
+
+- El `assertNumQueries` de `generar_alertas` (3 consultas por ciudadano activo) es **PERF-20**, Ola 4. Acá se prueba
+  comportamiento, no costo.
+- Los comandos sin test `completar_casos_renaper`, `validar_casos_siis` y `sincronizar_programas_siis` los cerró
+  **RED-32** (Cambios 123 y 162).
+- Los «tests que faltan» que midió la prueba de mutación están en RED-25 a RED-29, RED-66 a RED-70 y RED-87, todos ya
+  cerrados.
+- **RED-86** (pasar la suite entera a paralelo) sigue en su ola: acá solo se desbloquea.
+
+## Decisiones tomadas
+
+- **El arreglo de los módulos que dependían del orden va a una base compartida, no copiado cinco veces.**
+  `programas/tests/base_becas.py` define `ProgramaBecasSembrado` (mixin) y `BecasPantallaTestCase`. El contenido nació
+  en `test_becas_convocatorias_diseno.py` (Cambio 130, PR R-11) y ese módulo pasa a heredarlo, así que queda **una sola
+  definición** del porqué: sin la fila `Programa(codigo="BECAS")` los guards de Becas fallan cerrados desde RED-56 y la
+  pantalla da 403 **también para un superusuario**; y la clave de caché `programas:becas` es de **proceso** y sobrevive
+  al rollback de la base entre tests.
+- **El gate de orden es `--shuffle` en un job NO bloqueante, no un test estructural.** Se intentó primero un detector
+  AST («todo módulo que pegue a `/becas/` tiene que sembrar su Programa»): **medido, marca 10 módulos que en realidad
+  pasan solos**, porque lo consiguen por caminos que el AST no ve. Un gate que miente es peor que no tenerlo. Lo que
+  queda es (a) el ratchet acotado a los **seis módulos medidos** y (b) el job `Orden y paralelo` que corre la suite de
+  verdad en otro orden. **No bloqueante a propósito:** `--shuffle` toma una semilla al azar, así que un PR podría quedar
+  rojo por una dependencia que introdujo otro PR y re-correr lo pondría verde; un check no reproducible no puede
+  bloquear un merge. Deja la semilla en el log para reproducir.
+- **El gate por módulo de TST-03 va como paso del job `Tests & Coverage`, no como check nuevo.** Es el mismo tema (la
+  cobertura de este PR), reusa la medición que ya se hizo y **no hay que tocar el ruleset**, que todavía no está
+  aplicado. Mismo criterio que el Cambio 135 con `check_migraciones.py`. Por eso este PR **no** modifica
+  `docs/internal/rulesets/ruleset-development.json` ni `CHECKS_OBLIGATORIOS`.
+- **`branch = true` se activa, y el `fail_under` queda en 79.** La ficha lo proponía «midiendo de nuevo antes de
+  fijarlo», así que se midió: con el `omit` nuevo, **83 %** de sentencias y **81 %** contando ramas (23.315 sentencias,
+  6.192 ramas). Se fija sobre el número **con ramas**, que es el que vale la pena: sin él, un `if` cuyo cuerpo se
+  ejecuta siempre por la misma rama cuenta como 100 % cubierto. El techo queda **dos puntos abajo** de lo medido, para
+  que un PR no se ponga rojo por redondeo. Es un ratchet: sube cuando la medición suba. La ficha proponía 74 sobre una
+  medición de 76 % del 04-oct sin ramas; los PRs de las olas R, 1 y 5 subieron el número desde entonces.
+  El costo: la corrida con coverage pasa de 480 s a 744 s en local, por eso `Tests & Coverage` sube su
+  `timeout-minutes` de 15 a 20.
+- **El piso por módulo crítico queda en 90.** Los nueve que nombra la ficha están entre 92 % y 98 % contando ramas
+  (TOTAL 94 %); el más bajo es `programas/services/siis_envio.py` con 92 %.
+- **DECISIÓN CLIENTE aplicada: D-RED-06 (default del README §2) — no se reconstruye un e2e por ahora.** Lo que se hace
+  desde el repo es cerrarle la puerta: `/tests/e2e/` entra al `.gitignore` —ahí viven el usuario y la clave del compose
+  local— y cuatro tests afirman que nada de `tests/` está versionado, que no hay bytecode en el árbol y que **ningún
+  workflow menciona Playwright** («nunca como gate»). Si alguna vez se reconstruye, va solo donde hay JavaScript que
+  decide, nightly o a mano.
+- **Los dos `assertTrue(True)` se reemplazan por una afirmación real, no se borran.** La ficha decía «borrarlos»; un
+  archivo de test borrado no deja nada, y las dos cosas que afirmaban mal sí vale la pena sostenerlas:
+  `configuracion/services/` sigue vacío y `tramites` sigue siendo un stub **sin modelos** —un modelo ahí sería una tabla
+  nueva en producción por una app que nadie usa— hasta que OPS-14 la borre.
+- **La guarda de `seed_perf` se afloja lo mínimo.** Pasa de comparar contra dos literales a usar el mismo criterio que
+  Django (`:memory:` o `mode=memory` en el nombre), que es lo que cubre los clones de `--parallel`. Sigue rechazando un
+  archivo en disco, que es lo que la guarda existe para impedir.
+
+## Qué se hizo
+
+**58 tests nuevos** en nueve módulos, todos descubiertos por `manage.py test` sin argumentos. La suite pasa de 3.407 a
+**3.465** tests.
+
+- **TST-02 (a) — los cinco módulos que dependían del orden.** `programas/tests/base_becas.py` nuevo, y los seis módulos
+  (los cinco medidos más `test_becas_convocatorias_diseno`, que ya traía su copia) heredan de él.
+  `programas/tests/test_aislamiento_modulos.py` (7 tests) prueba el **mecanismo** —sin el Programa la pantalla da 403
+  aunque seas superusuario; con la caché sucia abre una pantalla que la base ya no respalda— y deja el ratchet sobre
+  los seis módulos medidos.
+- **TST-02 (b) — `legajos/tests/test_generar_alertas.py`** (8 tests) sobre la pasada horaria que estaba al 0 %:
+  genera la alerta, **dos pasadas no duplican**, la MEDIA/BAJA que ya no aplica se desactiva, la ALTA **no** se apaga
+  sola, un ciudadano sin legajo no rompe la pasada, un inactivo queda fuera, y el WebSocket sale una vez por alerta
+  **nueva** (LEG-01).
+- **TST-02 (c) — `configuracion/tests/test_wizard_programas.py`** (12 tests: los cuatro pasos crean el Programa con
+  todo, el estado de sesión queda limpio, entrar al paso 3 sin el 1 redirige, los ocho pasos sin capacidad y como
+  anónimo, código repetido, lista de espera sin cupo, y los cinco de `programa_cambiar_estado`) y
+  **`configuracion/tests/test_secretarias.py`** (6 tests: el `ProtectedError` de la jerarquía y su control). Los dos
+  `assertTrue(True)` reemplazados.
+- **TST-03 — `pyproject.toml`**: `omit` suma `core/performance/*` (muerto, OPS-10), `scripts/*`, `awslabs-mcp/*` y
+  `docker/*`; `branch = true` y `fail_under` 48 → **79**. Y un paso nuevo en `Tests & Coverage` con el piso de **90**
+  sobre los nueve módulos de los flujos críticos.
+- **R0-03 — `ConvocatoriaTests`**: las fechas pasan a ser relativas a `timezone.localdate()`, más
+  `test_crear_convocatoria_sigue_andando_pasado_el_01_ene_2027`, que corre el alta con **el reloj congelado en 2027**.
+  Helper nuevo `core/tests/reloj.py` (`reloj_en` + `ART`), sin agregar dependencias: parchea
+  `django.utils.timezone.now`, que es de donde salen `localtime()` y `localdate()`.
+- **RED-34 — `core/tests/test_contrato_auditoria.py`** (8 tests). Lee los ocho `hallazgos/*.md`, parsea las **131**
+  líneas «Test permanente» —en las dos formas que conviven, `ruta.py::Clase.test` y punteada— y exige que módulo, clase
+  y método existan. La otra mitad: toda ficha cerrada **desde el 04-oct-2026** tiene que declarar la línea (las 18
+  anteriores quedan exentas, y están todas con fecha). Más el control del parser y la afirmación de la premisa: `docs/`
+  sigue aportando **0 tests** al runner.
+- **RED-74 — los dos arreglos sin test**: `AltaRelevamientoTests` (3 tests) cuenta los `SAVEPOINT` del alta de
+  relevamiento y exige **uno**, con un control que demuestra que el contador ve el segundo; y
+  `ResumenFijoPadronTests.test_tolera_un_request_sin_sesion` (+ su control) para el `request` sin `SessionMiddleware`.
+- **RED-72 — `HarnessE2ENoVersionadoTests`** (4 tests) + `/tests/e2e/` en `.gitignore`.
+- **RED-88 — `core/management/commands/seed_perf.py`**: la guarda pasa a `es_sqlite_en_memoria()`, con
+  `core/tests/test_seed_perf_guarda.py` (4 tests). `core users portal --parallel 2` pasa de morir a **1.171 tests OK en
+  56 s**, y el job `Orden y paralelo` lo corre en cada PR.
+
+## Tres hallazgos que las fichas no tenían
+
+1. **Un sexto módulo dependía del orden, y está en `legajos`, no en `programas`.** La ficha midió los 77 módulos de
+   `programas/tests/`; `legajos.tests.test_adjuntos_robustez.AdjuntoBlobFaltanteTests.test_archivos_ciudadano_sin_n_mas_1`
+   fallaba corrido solo con `4 != 3`. Su comentario decía que las subidas dejaban «los `ContentType`» calientes, pero
+   suben adjuntos de **Ciudadano**: el de `LegajoAtencion` —que el payload también necesita— quedaba frío salvo que otro
+   módulo lo hubiera consultado antes. Se calienta explícitamente por los dos modelos. **Barrido completo:** después del
+   arreglo, los **77 módulos de `programas/tests/` y los de las otras diez apps pasan corridos solos, uno por uno.**
+2. **Un flake de medianoche, de la misma familia pero por hora y no por orden.**
+   `programas.tests.test_fechas_locales_dispositivos.IndicadorActualizacionFechaLocalTests.test_un_parte_de_hoy_no_suma_dias`
+   fijaba `modificado = timezone.now() - timedelta(minutes=5)` y lo comparaba contra la **fecha local**: entre las 00:00
+   y las 00:05 ART ese instante es «ayer» y el indicador devolvía 1. Rojo cinco minutos por día, siempre de noche y
+   nunca en el CI (que corre en UTC). Arreglado (`modificado=timezone.now()`) y protegido con
+   `test_la_medianoche_local_no_mueve_el_contador`, que congela el reloj a las **00:02 ART** y prueba las dos caras.
+   Se buscó el mismo patrón en toda la suite (`now() - timedelta(minutes|seconds|hours=…)`): los otros nueve usos
+   comparan datetime contra datetime (latido del masivo, `fecha_hasta` vencida, frescura del sellado), no contra una
+   fecha local, así que no tienen el defecto.
+3. **El caso «con padrón» de RED-74 ya no existe.** La ficha pedía probar las dos ramas del `save()` de
+   `RelevamientoForm`; ese `save()` **ya no está** —`grep padron programas/forms.py` da cero—, porque la carga del Excel
+   se mudó a su propia vista. El control que ocupa su lugar envuelve el alta en un `atomic()` extra y verifica que el
+   contador de savepoints ve dos: sin eso, `assertEqual(…, 1)` podría estar verde por no medir nada.
+
+## Verificación
+
+- `manage.py check` → sin issues; `check --deploy` → los avisos preexistentes de ambiente local;
+  `makemigrations --check --dry-run` → «No changes detected».
+- **`manage.py test` sin argumentos: 3.465 tests, OK (skipped=30, expected failures=8)**, 480 s.
+- **`manage.py test --shuffle 1234` → OK** (antes del PR: 21 fallas). **`--shuffle 777` → OK** (antes: 26).
+- **Barrido módulo por módulo:** los 77 de `programas/tests/` y los de `core`, `legajos`, `users`, `portal`,
+  `configuracion`, `dashboard`, `conversaciones`, `healthcheck`, `tramites` y `config`, cada uno con
+  `manage.py test <app>.tests.<modulo>` → **0 en rojo**.
+- **`manage.py test core users portal --parallel 2` → 1.171 tests OK en 56 s** (antes: `TypeError: cannot pickle
+  'traceback' object`).
+- `manage.py test --tag performance` → OK.
+- `coverage run manage.py test && coverage report` con `branch = true` → **81 %** (23.315 sentencias, 6.192 ramas),
+  sobre un `fail_under` de 79. El paso por módulo crítico → **94 %** (2.199 sentencias, 852 ramas), sobre un piso de 90.
+  Sin ramas los mismos dos números son 83 % y 95 %.
+- `ruff check .` → All checks passed; `ruff format --check` sobre lo tocado → ya formateado.
+- `scripts/requerimientos.py --check` → OK.
+
+**Las mutaciones de control**, todas aplicadas, corridas y revertidas:
+
+| Mutación | Resultado |
+|---|---|
+| `fecha_fin = "2026-12-31"` literal en el alta de convocatoria (R0-03) | `test_crear_convocatoria_sigue_andando_pasado_el_01_ene_2027`: rojo (`200 != 302`) |
+| las MEDIA/BAJA dejan de desactivarse (`update(activa=True)`) | `test_la_alerta_que_ya_no_aplica_se_desactiva`: rojo |
+| umbral de contacto `> 30` a `> 0` | `test_un_contacto_dentro_del_umbral_no_genera_alerta`: rojo |
+| `_crear_alerta` siempre crea (`if True:`) | 2 rojos: la idempotencia y el conteo de avisos por WebSocket |
+| la desactivación en bloque alcanza **todas** las prioridades | 3 rojos, incluido `test_una_alerta_alta_no_se_apaga_sola` |
+| un `atomic()` extra alrededor del alta de relevamiento | el contador de savepoints da 2, como pide el control |
+| un target inventado en una línea «Test permanente» | `test_toda_ficha_resuelta_nombra_un_test_que_existe`: rojo nombrando la ficha |
+
+Antes del cambio, los cinco módulos de TST-02 corridos solos daban **12, 6, 4, 3 y 1** fallas (26 en total, casi todas
+`403 != 200`), exactamente los números de la ficha.
+
+## Puesta en marcha en el servidor
+
+**No requiere ningún paso.** No hay migraciones, ni variables nuevas, ni cambios en el arranque del contenedor. El
+único `.py` no-test que cambia es `core/management/commands/seed_perf.py`, un comando que **no se puede correr fuera de
+la base de test o de la MySQL efímera del CI** —esa es justamente su guarda— y que ningún cron ni entrypoint invoca.
+
+Lo que cambia para quien desarrolla:
+
+- `coverage report` ahora mide ramas y falla por debajo de **79 %** (antes, sin ramas, 48) y hay un paso nuevo que
+  exige **90 %** en los nueve módulos de los flujos críticos. Un PR que baje la cobertura de `siis_envio.py`, `cupo.py`, `padron.py` o `rbac.py`
+  queda rojo donde antes no pasaba nada.
+- El job **`Orden y paralelo`** es nuevo y **no bloqueante**: corre la suite con `--shuffle` y `core users portal
+  --parallel 2`. Si sale amarillo, el log trae la semilla para reproducir el orden exacto.
+- Al cerrar una ficha de la auditoría, la línea «**Test permanente:** …» ahora la verifica un test
+  (`core.tests.test_contrato_auditoria`): si nombra algo que no existe, el `Backend CI` queda rojo.
+
+**Pendiente para el PM (operativo, fuera del repo):** en el checkout principal quedan los restos del harness e2e de
+julio —`tests/e2e/__pycache__/`, `tests/e2e/pages/__pycache__/` y `tests/e2e/.pytest_cache/`, **sin ningún `.py`**—.
+Nunca estuvieron versionados, así que el PR no los puede borrar; conviene hacerlo a mano
+(`Remove-Item -Recurse -Force C:\Users\mkdir\Proyectos\Chaco\tests\e2e`) para que nadie los confunda con un harness
+vivo: son bytecode de Python 3.14, incompatible con el 3.12 del CI. Y corregir la memoria de trabajo que lo daba por
+existente «y en verde» (D-RED-06 = No).
