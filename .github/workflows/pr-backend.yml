@@ -127,3 +127,84 @@ jobs:
 
       - name: Coverage report
         run: coverage report
+
+  # RED-43: el CI no tenía **ningún** gate de contrato de API. El esquema se podía
+  # romper, una clave que el front lee a mano podía desaparecer y una capacidad mal
+  # tipeada podía apagar una pantalla, y nada de eso salía rojo hasta que alguien
+  # entrara a la pantalla. Este job agrupa todo lo que congela un contrato: el esquema
+  # OpenAPI, la app de campo, los endpoints JSON del backoffice, los servicios externos,
+  # la forma de los JSON guardados y el catálogo de capacidades.
+  #
+  # No necesita base (SQLite en memoria), no toca la red y tarda ~9 s de tests: lo caro
+  # es instalar las dependencias. Mide ~2-3 min con la caché de pip caliente.
+  #
+  # El filtro va **adentro** del job (RED-20): con `paths:` en el trigger el check no
+  # reporta cuando el PR no toca esas rutas, y un check que no reporta no puede ser
+  # obligatorio.
+  contratos-api:
+    name: Contratos de API
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dorny/paths-filter@0e4a8c6effa4802afeda77dc8d303f8176d7dfad # v3.0.4
+        id: filtro
+        with:
+          filters: |
+            contrato:
+              - '**/*.py'
+              - '**/*.html'
+              - 'static/**'
+              - 'programas/fixtures/contratos/**'
+              - 'requirements.txt'
+              - '.github/workflows/pr-backend.yml'
+
+      - uses: actions/setup-python@v5
+        if: steps.filtro.outputs.contrato == 'true' || github.event_name == 'push'
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install system dependencies
+        if: steps.filtro.outputs.contrato == 'true' || github.event_name == 'push'
+        run: sudo apt-get install -y default-libmysqlclient-dev
+
+      - name: Install Python dependencies
+        if: steps.filtro.outputs.contrato == 'true' || github.event_name == 'push'
+        run: pip install -r requirements.txt
+
+      # **Sin `--fail-on-warn`** todavía: hoy el esquema deja 15 warnings únicos y el
+      # gate nacería rojo. Se enciende cuando la allowlist de RED-37 quede vacía (Ola 7).
+      # El conteo con ratchet lo mide `core.tests.test_api_schema_contrato`, que corre
+      # en el paso siguiente; acá lo que se valida es el documento OpenAPI en sí.
+      - name: Esquema OpenAPI válido
+        if: steps.filtro.outputs.contrato == 'true' || github.event_name == 'push'
+        env:
+          DJANGO_SECRET_KEY: ci-test-key-not-a-real-secret
+          PYTEST_RUNNING: "1"
+          DJANGO_SYNCDB_PROJECT_APPS: "True"
+        run: python manage.py spectacular --validate --file /dev/null
+
+      # Un solo proceso: los módulos comparten la base de test y la caché, igual que en
+      # la suite completa. `programas.tests.test_definicion_contrato` y el paso de `node`
+      # con `scripts/check_condiciones_js.mjs` los agrega el PR R-17 (RED-12, RED-38):
+      # hoy no existen y nombrarlos dejaría el job rojo desde el primer día.
+      - name: Tests de contrato
+        if: steps.filtro.outputs.contrato == 'true' || github.event_name == 'push'
+        env:
+          DJANGO_SECRET_KEY: ci-test-key-not-a-real-secret
+          PYTEST_RUNNING: "1"
+          DJANGO_SYNCDB_PROJECT_APPS: "True"
+        run: >
+          python manage.py test
+          core.tests.test_api_schema_contrato
+          core.tests.test_contrato_errores_ajax
+          core.tests.test_urls_del_front
+          dashboard.tests.test_api_contrato
+          programas.tests.test_becas_api_contrato
+          programas.tests.test_contratos_externos
+          programas.tests.test_json_compatibilidad
+          users.tests.test_rbac_contrato

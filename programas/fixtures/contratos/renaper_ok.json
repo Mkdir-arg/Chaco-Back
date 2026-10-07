@@ -1,0 +1,23 @@
+{
+  "success": true,
+  "data": {
+    "mensaf": "",
+    "nombres": "Sintetica Prueba",
+    "apellido": "Contrato",
+    "fechaNacimiento": "1990-01-02",
+    "sexo": "F",
+    "nroDni": "11111111",
+    "cuil": "27111111118",
+    "calle": "Calle Inventada",
+    "numero": "742",
+    "piso": "3",
+    "departamento": "B",
+    "barrio": "Barrio Sintetico",
+    "ciudad": "Resistencia",
+    "provincia": "Chaco",
+    "codigoPostal": "3500",
+    "fechaEmision": "2015-06-10",
+    "fechaVencimiento": "2030-06-10",
+    "ejemplar": "A"
+  }
+}
