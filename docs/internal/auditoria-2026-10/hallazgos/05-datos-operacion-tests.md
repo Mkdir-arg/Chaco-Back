@@ -6,7 +6,7 @@ Fichas completas del dominio. Convenciones, `V-STD` y `V-UI`: README §0. PoC: `
 | ID | Título | Sev. | Estado | Ola | Esf. | Avance 03-oct |
 |---|---|---|---|---|---|---|
 | OPS-06 | **Seeds de arranque pisan configuración del ABM** (capacidades, roles, Operador de backoffice, programa Becas) | ALTA | CONF. test | **0** | S-M | 🟡 |
-| DAT-01 | Borrar una pregunta o requisito borra los adjuntos de todos los casos | ALTA | CONF. test | 3 | S (+M fase 2) | ⬜ |
+| DAT-01 | Borrar una pregunta o requisito borra los adjuntos de todos los casos | ALTA | CONF. test | 3 | S (+M fase 2) | ✅ fase 1 |
 | OPS-03 | Los tracebacks de 500 no llegan a stdout | ALTA | CONF. test | **R** (antes 3) | S | ✅ |
 | OPS-01 | Sin guarda de coherencia `django_migrations` ↔ esquema antes de `migrate` | MEDIA | CONF. código | **R** (antes 3) | M | ✅ |
 | OPS-02 | `crear_usuarios_sistema` y seeds demo con claves conocidas viajan en el release | MEDIA | CONF. ajustado | 3 | S | ✅ |
@@ -16,10 +16,10 @@ Fichas completas del dominio. Convenciones, `V-STD` y `V-UI`: README §0. PoC: `
 | TST-01 | La CI no prueba MariaDB | MEDIA | CONF. ajustado (tesis central refutada) | **R** (antes 3) | M | ✅ |
 | TST-02 | Configuración sin tests de comportamiento; tests que no prueban nada | MEDIA | CONF. | **R** (antes 3) | M (+S-M) | ✅ |
 | G1c-12 | `debug_ciudadanos` hace `FLUSHDB` del Redis compartido | MEDIA | CONF. código | 3 | S | ✅ |
-| DAT-02 | El admin de Django borra casos y relevamientos con su auditoría | BAJA | CONF. ajustado | 3 | S | ⬜ |
-| DAT-03 | `dni_titular` desincronizado del DNI real | BAJA | PLAUSIBLE | 3 | S | ⬜ |
-| DAT-05 | El Excel del padrón reemplazado/quitado queda en `media/` (o se borra antes del commit) | BAJA | CONF. | 3 | S | ⬜ |
-| V2-NEW-05 | Un restore deja pks de legajo en hex que el ORM de MariaDB no encuentra | BAJA | a confirmar | 3 | S | ⬜ |
+| DAT-02 | El admin de Django borra casos y relevamientos con su auditoría | BAJA | CONF. ajustado | 3 | S | ✅ |
+| DAT-03 | `dni_titular` desincronizado del DNI real | BAJA | PLAUSIBLE | 3 | S | ✅ |
+| DAT-05 | El Excel del padrón reemplazado/quitado queda en `media/` (o se borra antes del commit) | BAJA | CONF. | 3 | S | ✅ |
+| V2-NEW-05 | Un restore deja pks de legajo en hex que el ORM de MariaDB no encuentra | BAJA | a confirmar | 3 | S | ✅ |
 | OPS-10 | Módulos de «optimización» con DDL y `SET GLOBAL` en el release | BAJA | CONF. ajustado | 7 | S-M | ⬜ |
 | OPS-11 | `migrate --run-syncdb` en el entrypoint | BAJA | CONF. ajustado | 3 | S | ✅ |
 | OPS-12 | QA no reproduce el cache de PRD y declara `ENVIRONMENT=prd` | BAJA | CONF. | 3 | S | ✅ |
@@ -79,6 +79,28 @@ Fichas completas del dominio. Convenciones, `V-STD` y `V-UI`: README §0. PoC: `
   5. Fase 2 (M): `RequisitoNativo.activo` (AddField con default: INSTANT en MariaDB 10.3+, tabla chica) filtrado en `definicion_formulario`, la API y la validación. D-D01: ¿un requisito en uso se desactiva (default) o se prohíbe tocarlo?
 - **Tests a agregar:** (a) pregunta con adjunto → POST → siguen la pregunta y el adjunto y aparece el mensaje; (b) pregunta sin adjuntos → se borra con su `ItemDiseno` (preserva Cambio 58); (c) ídem requisito; (d) admin: POST de borrado de `PreguntaGlobal` con adjuntos no borra nada; (e) `seed_becas` deja `protegido=True` en las ARCHIVO obligatorias.
 - **Verificación:** V-STD + V-UI. Revisar `diseno.py:279,410` (borra ítems, no adjuntos).
+
+**Resolución:** 🟡 **Fase 1 resuelta** en el PR 2 de la Ola 3 (Cambio 168), 07-oct-2026 — `programas.0078` pasa
+`AdjuntoFormulario.pregunta_global` y `.requisito_nativo` a **PROTECT**, y `requisito_eliminar` y
+`pregunta_eliminar` convierten el `ProtectedError` en un aviso con el número de **casos** (no de archivos) que
+ya subieron ese documento; el de la pregunta además nombra la salida que existe («Desactivala en lugar de
+borrarla»), que el requisito todavía no tiene. `ItemDiseno` sigue en CASCADE, como manda el Cambio 58. La
+migración es **solo de estado**: `sqlmigrate` sale vacío —`on_delete` vive en Python y la FK del motor nunca
+tuvo `ON DELETE CASCADE`— y lo fija `programas.tests.test_contrato_migraciones::Migracion0078SoloEstadoTests`,
+así que no hay ventana ni bloqueo sobre `programas_adjuntoformulario`. El `/admin/` queda cubierto por el mismo
+PROTECT: arma la cascada antes de borrar, lista los adjuntos como objetos **protegidos** y el POST no borra
+nada. **Falta** (quedó fuera por los carriles abiertos sobre templates y seeds, #614 y #615): el punto 3 —texto
+del modal de `_requisitos_panel.html`— y el punto 4 —`protegido=True` para `ADJUNTOS_OBLIGATORIOS` en
+`seed_becas` más la migración de datos—, los dos con su contenido exacto escrito en el cuerpo del PR; y la
+**fase 2** (`RequisitoNativo.activo`, D-D01), que es la que le da salida a un requisito en uso.
+**Ronda 2:** `subsegmento_eliminar` decía «está utilizado por una convocatoria» también cuando lo frenaba un
+adjunto —`RequisitoNativo.subsegmento` es CASCADE, así que borrar el subsegmento choca con el PROTECT nuevo—; el
+mensaje pasa a seguir la causa real.
+**Test permanente:** `programas.tests.test_becas_config.EliminarRequisitoYSubsegmentoTests.test_requisito_con_adjunto_en_un_caso`
+(el de RED-31 invertido) + `test_pregunta_con_adjunto_en_un_caso_no_se_borra_y_avisa`,
+`test_el_aviso_cuenta_casos_y_no_archivos`, `test_pregunta_sin_adjuntos_se_borra_con_su_item_de_diseno`,
+`test_el_admin_tampoco_borra_un_requisito_con_adjuntos` y
+`test_el_subsegmento_frenado_por_un_adjunto_lo_dice_por_su_nombre`.
 
 ### OPS-03 · Los tracebacks de 500 no llegan a stdout
 **Severidad:** ALTA · **Estado:** CONFIRMADO con test (`A804LoggingTests`: `django.request` con handlers `[error_file, warning_file]` y `propagate=False`) · **Origen:** A8-04 · **Ola:** 3 (independiente; se recomienda adelantarlo al primer release porque sin tracebacks no se diagnostica el resto) · **Esfuerzo:** S
@@ -348,6 +370,14 @@ PERF-10 (Ola 4) y depende de H-06, la configuración del Redis de ECOM. **Test p
 **Severidad:** BAJA (era MEDIA: solo un superusuario borra desde `/admin/` y la confirmación lista la cascada) · **Origen:** A8-12; aporte de G1c-10 · **Ola:** 3 · **Esfuerzo:** S
 - **Propuesta:** `has_delete_permission → False` en `RelevamientoAdmin`, `FormularioAdmin`, `TracaFormularioAdmin` y `ListaEsperaAdmin`; `disable_action("delete_selected")`; `readonly_fields` en los campos de estado de `FormularioAdmin` (`estado`, `validado_renaper`, `identidad_forzada`, `origen_validacion`, `datos_siis`, `data`: hoy se editan sin traza) y en el contador de `CupoSegmentoAdmin`. Con DAT-01 se cubren también `PreguntaGlobalAdmin`/`RequisitoNativoAdmin`.
 
+**Resolución:** ✅ Resuelto en el PR 2 de la Ola 3 (Cambio 168), 07-oct-2026 — `SinBorradoMixin` sobre los
+cuatro admins, los seis campos de `FormularioAdmin` y el `cupo_ocupado` de `CupoSegmentoAdmin` a
+`readonly_fields`. **Un desvío:** no hizo falta `disable_action("delete_selected")` —que además es global del
+sitio—: con `has_delete_permission` en `False` Django saca la acción de `get_actions()` y el botón de la ficha
+por su cuenta, y eso es lo que mide el test. `PreguntaGlobalAdmin` y `RequisitoNativoAdmin` quedan cubiertos
+por el PROTECT de DAT-01, como anticipaba la ficha.
+**Test permanente:** `programas.tests.test_admin_borrado.AdminSinBorradoTests` (6 tests).
+
 ### DAT-03 · `Formulario.dni_titular` se puede desincronizar del DNI real
 **Severidad:** BAJA · **Estado:** PLAUSIBLE · **Origen:** A8-19 · **Ola:** 3 · **Esfuerzo:** S
 - **Ubicación:** `programas/models/__init__.py:2650-2668` (`_dni_titular_actual`); edición de `Ciudadano.dni` en Legajos sin propagar (G1c-08 muestra que se puede cambiar el DNI de un titular).
@@ -355,11 +385,34 @@ PERF-10 (Ola 4) y depende de H-06, la configuración del Redis de ECOM. **Test p
 - **Propuesta:** en el servicio de edición de ciudadano (o `Ciudadano.save()`), si cambia `dni`, `Formulario.objects.filter(ciudadano=self).update(dni_titular=self.dni[:20])`; opcional: comando de reconciliación por lotes.
 - **Test:** cambiar `Ciudadano.dni` y verificar `dni_titular` de sus formularios.
 
+**Resolución:** ✅ Resuelto en el PR 2 de la Ola 3 (Cambio 168), 07-oct-2026 — `Ciudadano.from_db` recuerda el
+DNI con el que la fila salió de la base y `programas/signals.py::sincronizar_dni_titular` actualiza el
+`dni_titular` de los casos de esa persona cuando cambia. **Dos desvíos, los dos a propósito:** va en una señal
+de `programas` y no en `Ciudadano.save()` para que la dependencia siga yendo de Becas al legajo y no al revés
+(`legajos.models` importando `programas` cierra un ciclo que mide el ratchet de RED-79); y el disparo es por
+cambio real, no por cada guardado, así que un alta o un `save(update_fields=[...])` sin el DNI **no agrega ni
+una consulta** —hay un test que lo mide con `assertNumQueries`—. El comando de reconciliación por lotes, que la
+ficha marca «opcional», no se hizo: con la sincronización puesta lo que queda es el pasado, y para eso está
+`listar_dni_no_normalizados` (G1c-08).
+**Ronda 2:** el receptor tampoco dispara con un `Ciudadano` leído con `.only()`/`.defer()` sin el DNI —antes
+pagaba la consulta diferida **y** un `UPDATE` que no cambiaba ninguna fila—; lo mismo en `Ciudadano.save()`.
+**Test permanente:** `legajos.tests.test_ciudadanos_identidad.EdicionDeIdentidadTests.test_corregir_el_dni_arrastra_el_dni_titular_del_caso`
+(+ `test_guardar_sin_tocar_el_dni_no_toca_los_casos`, `test_un_ciudadano_nuevo_no_dispara_la_sincronizacion`,
+`test_un_ciudadano_leido_con_only_no_paga_la_consulta_diferida` y
+`test_si_se_le_asigna_el_dni_a_una_instancia_diferida_igual_sincroniza`).
+
 ### DAT-05 · El Excel del padrón reemplazado queda en `media/`, y `quitar_padron_propio` lo borra antes del commit
 **Severidad:** BAJA · **Origen:** A8-22, A1-20 (parte Excel), V6-NEW-05 · **Ola:** 3 · **Esfuerzo:** S
 - **Ubicación:** `programas/services/padron.py:325-331` (reasigna el `FileField` sin borrar el anterior: cada recarga deja otro Excel con DNI, nombre y nacimiento de miles de personas, expuesto con SEC-09); `:337-346` (`quitar_padron_propio`: `padron_archivo.delete(save=False)` dentro de la transacción; si el `save` falla, la fila apunta a un archivo que ya no existe).
 - **Propuesta:** `viejo = duenio.padron_archivo.name` antes de reasignar y `transaction.on_commit(lambda: storage.delete(viejo))`; igual en `quitar_padron_propio`.
 - **Test:** cargar dos veces → el primer archivo no existe en el storage; `save` que falla en `quitar_padron_propio` → el archivo sigue.
+
+**Resolución:** ✅ Resuelto en el PR 2 de la Ola 3 (Cambio 168), 07-oct-2026 — `_borrar_archivo_tras_commit()`
+en `padron.py` y las dos puntas pasando por ella: al reemplazar el padrón se borra el Excel que quedó sin dueño
+y al quitar el padrón propio el archivo sobrevive si la transacción se cae. El nombre nuevo se compara con el
+anterior antes de borrar, porque el storage puede haberle agregado un sufijo y el viejo y el nuevo podrían ser
+el mismo. Los tests corren con `MEDIA_ROOT` en un `TemporaryDirectory` y `captureOnCommitCallbacks`.
+**Test permanente:** `programas.tests.test_padron.PadronArchivoViejoTests` (3 tests).
 
 ### V2-NEW-05 · Un restore posterior a `legajos.0007` deja pks de legajo en hex que el ORM de MariaDB no encuentra
 **Severidad:** BAJA · **Estado:** a confirmar con P-12 · **Origen:** V2-NEW-05 · **Ola:** 3 · **Esfuerzo:** S
@@ -367,6 +420,29 @@ PERF-10 (Ola 4) y depende de H-06, la configuración del Redis de ECOM. **Test p
 **⚠ Actualizar (03-oct-2026):** `q_uuid_en_texto` (#515) cubre `token_publico` y `client_uuid`, no los pk de legajo: este ítem sigue igual.
 - **Ubicación:** `legajos/migrations/0007_ampliar_uuid_legajos.py` normaliza una sola vez; si se restaura una base con filas en hex (dump de un motor sin UUID nativo), `LegajoAtencion.objects.get(pk=uuid)` manda guiones y no encuentra: 404 en el detalle del legajo.
 - **Propuesta:** comando idempotente que re-corra `_normalizar_uuid` (misma función de la migración) y agregarlo al procedimiento de restore (memoria: «Restore de PRD deja tablas huérfanas»).
+
+**Resolución:** ✅ Resuelto en el PR 2 de la Ola 3 (Cambio 168), 07-oct-2026 —
+`manage.py normalizar_uuid_legajos [--revisar]` recorre las cuatro columnas UUID de Legajos y le pide la
+función a la migración (`_normalizar_uuid`, por `importlib`) en vez de copiarla, que es lo que pedía la ficha.
+Es idempotente por construcción: el `UPDATE` solo toca filas de largo 32, así que correrlo dos veces no hace
+nada la segunda. Fuera de MySQL/MariaDB —y en MySQL, que guarda el UUID en hex de 32 a propósito— sale
+informando que no hay nada que normalizar. Queda nombrado en el **paso 3 del runbook D.4** de
+[`processes.md`](../../processes.md), que es donde la ficha lo pedía.
+**Ronda 2:** la primera versión no servía contra el estado que de verdad deja un restore. `legajos.0007` baja
+las dos foreign keys antes del mismo `UPDATE`, y el comando no: con un `LegajoAtencion` en el formato viejo
+**y** una `AlertaCiudadano` que lo referencia moría con
+`IntegrityError (1451 … legajos_alertaciudadano)` sin normalizar nada. Ahora repite la secuencia de la migración
+—bajar, normalizar, reponer, con las FK repuestas también si el `UPDATE` falla— **con sus mismas funciones**:
+`quitar_fk_si_existe` y `crear_fk_si_falta` de `core/migraciones.py` (RED-58, Cambio 165, que entró mientras esta
+ronda estaba abierta) y el `_normalizar_uuid` de la migración. No declara ni una columna ni un nombre de FK
+propios: se los pide a `legajos.0007`. **No escribe sin `--aplicar`** y cubre las **dos** direcciones (a 36 con
+guiones en MariaDB 10.7+, a 32 en hexadecimal en MySQL: un dump de ECOM restaurado en icore). Su test tampoco había corrido
+nunca —`LegajoAtencion.objects.create(ciudadano=…)` choca con la `@property` sin setter, y el `schema_editor`
+adentro de un `TestCase` con el `TransactionManagementError`—: pasó a `TransactionTestCase`, medido en rojo con
+el comando de la ronda 1 y en verde con este, en `mariadb:10.11` y en `mysql:8.0`.
+**Test permanente:** `legajos.tests.test_comandos_datos.NormalizarUuidLegajosTests` y
+`NormalizarUuidLegajosMotorRealTests` (`@tag("mysql")`: el pk que vuelve, las dos FK repuestas, el modo seco y
+la idempotencia; los corre el job «Motor real»).
 
 ### OPS-10 · Módulos de «optimización» con DDL y `SET GLOBAL` en el release
 **Severidad:** BAJA · **Estado:** CONFIRMADO-AJUSTADO (no es código muerto en runtime: `core/views/performance.py:8-9` importa `system_monitor` y `phase2_manager`, que instancian singletons al importar; `core/urls.py:55-64` expone 9 endpoints de lectura) · **Origen:** A8-13, V6-NEW-03, A5-39 (parte), G1c-13 · **Ola:** 7 · **Esfuerzo:** S-M

@@ -882,10 +882,11 @@ class EliminarRequisitoYSubsegmentoTests(_BaseConfigTest):
     borra en cascada —y se lleva puestos los `AdjuntoFormulario` de casos ya
     cargados, que es el bug de **DAT-01**—.
 
-    Esta clase fija lo que hay **antes** de tocar DAT-01: los tres primeros
-    tests y el de permisos describen lo que el arreglo tiene que conservar, y
-    `test_requisito_con_adjunto_en_un_caso` documenta el daño de hoy y lo
-    invierte el PR de DAT-01.
+    Desde **DAT-01** (Cambio 168) las dos se comportan igual: `AdjuntoFormulario`
+    pasó a PROTECT y `requisito_eliminar` convierte el `ProtectedError` en un aviso
+    con el número de casos afectados. `test_requisito_con_adjunto_en_un_caso` es el
+    test de RED-31 **invertido**: caracterizaba el daño —la fila del adjunto
+    desaparecía— y ahora exige que el documento del ciudadano sobreviva.
     """
 
     def setUp(self):
@@ -964,20 +965,11 @@ class EliminarRequisitoYSubsegmentoTests(_BaseConfigTest):
         self.assertFalse(RequisitoNativo.objects.filter(pk=requisito.pk).exists())
         self.assertFalse(ItemDiseno.objects.filter(pk=item.pk).exists())
 
-    def test_requisito_con_adjunto_en_un_caso(self):
-        """**Caracterización de DAT-01: el comportamiento de HOY, no el deseado.**
-
-        `AdjuntoFormulario.requisito_nativo` es CASCADE: borrar el requisito
-        borra la fila del adjunto de un caso ya cargado y deja el archivo
-        huérfano en `media/`. El revisor abre el caso y la foto no está, sin
-        error ni log.
-
-        El PR de DAT-01 invierte este test: el adjunto del caso tiene que
-        sobrevivir al borrado del requisito.
-        """
-        requisito = self._requisito()
+    def _caso_con_adjunto(self, nombre_conv, **campo):
+        """Un caso cargado con un documento subido para `pregunta_global=` o
+        `requisito_nativo=`, que es lo que DAT-01 protege."""
         relevamiento = Relevamiento.objects.create(
-            convocatoria=self._convocatoria("Conv con caso"),
+            convocatoria=self._convocatoria(nombre_conv),
             territorial=self.admin,
             fecha_asignada=date(2026, 6, 1),
             zona="A",
@@ -985,24 +977,131 @@ class EliminarRequisitoYSubsegmentoTests(_BaseConfigTest):
         formulario = Formulario.objects.create(relevamiento=relevamiento, celular="3624000000")
         adjunto = AdjuntoFormulario.objects.create(
             formulario=formulario,
-            requisito_nativo=requisito,
             archivo=SimpleUploadedFile("constancia.pdf", b"%PDF-1.4", content_type="application/pdf"),
+            **campo,
         )
+        self.addCleanup(adjunto.archivo.storage.delete, adjunto.archivo.name)
+        return formulario, adjunto
+
+    def test_requisito_con_adjunto_en_un_caso(self):
+        """**DAT-01: el documento del ciudadano sobrevive al borrado del catálogo.**
+
+        Es el test de RED-31 invertido. Hasta el Cambio 168
+        `AdjuntoFormulario.requisito_nativo` era CASCADE: borrar el requisito
+        borraba la fila del adjunto de todos los casos ya cargados y dejaba el
+        archivo huérfano en `media/`. El revisor abría el caso y la foto no estaba,
+        sin error ni log —el bloque de revisión arma la vista desde la foto de la
+        definición, así que lo mostraba como *faltante*, no como borrado—.
+        """
+        requisito = self._requisito()
+        formulario, adjunto = self._caso_con_adjunto("Conv con caso", requisito_nativo=requisito)
         nombre, storage = adjunto.archivo.name, adjunto.archivo.storage
-        self.addCleanup(storage.delete, nombre)
 
-        resp = self.client.post(reverse("becas:requisito_eliminar", args=[requisito.pk]))
+        resp = self.client.post(reverse("becas:requisito_eliminar", args=[requisito.pk]), follow=True)
 
-        self.assertEqual(resp.status_code, 302)
-        self.assertFalse(
-            AdjuntoFormulario.objects.filter(pk=adjunto.pk).exists(),
-            "DAT-01 ya está arreglado: invertí este test (el adjunto del caso tiene que sobrevivir).",
-        )
-        self.assertTrue(
-            storage.exists(nombre),
-            "El archivo también se borró del storage: cambió el daño que describe DAT-01, revisá la ficha.",
-        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(RequisitoNativo.objects.filter(pk=requisito.pk).exists())
+        self.assertTrue(AdjuntoFormulario.objects.filter(pk=adjunto.pk).exists())
+        self.assertTrue(storage.exists(nombre))
         self.assertTrue(Formulario.objects.filter(pk=formulario.pk).exists())
+        self.assertIn(
+            "No se puede eliminar: 1 caso(s) ya subieron este documento.",
+            [str(m) for m in resp.context["messages"]][0],
+        )
+
+    def test_el_aviso_cuenta_casos_y_no_archivos(self):
+        """Dos documentos del mismo caso son **un** caso para quien configura."""
+        requisito = self._requisito()
+        formulario, _ = self._caso_con_adjunto("Conv dos adjuntos", requisito_nativo=requisito)
+        extra = AdjuntoFormulario.objects.create(
+            formulario=formulario,
+            requisito_nativo=requisito,
+            archivo=SimpleUploadedFile("otra.pdf", b"%PDF-1.4", content_type="application/pdf"),
+        )
+        self.addCleanup(extra.archivo.storage.delete, extra.archivo.name)
+
+        resp = self.client.post(reverse("becas:requisito_eliminar", args=[requisito.pk]), follow=True)
+
+        self.assertIn("1 caso(s)", [str(m) for m in resp.context["messages"]][0])
+
+    def test_pregunta_con_adjunto_en_un_caso_no_se_borra_y_avisa(self):
+        """La otra mitad de DAT-01: el mismo CASCADE colgaba de `PreguntaGlobal`.
+
+        Acá sí hay salida y el mensaje la nombra: la pregunta se **desactiva** y
+        deja de pedirse sin borrar el documento de nadie.
+        """
+        pregunta = PreguntaGlobal.objects.create(
+            texto="Foto del certificado",
+            tipo=TipoCampo.ARCHIVO,
+            orden=900,
+        )
+        _, adjunto = self._caso_con_adjunto("Conv pregunta", pregunta_global=pregunta)
+
+        resp = self.client.post(reverse("becas:pregunta_eliminar", args=[pregunta.pk]), follow=True)
+
+        self.assertTrue(PreguntaGlobal.objects.filter(pk=pregunta.pk).exists())
+        self.assertTrue(AdjuntoFormulario.objects.filter(pk=adjunto.pk).exists())
+        self.assertIn(
+            "No se puede eliminar: 1 caso(s) ya subieron este documento. Desactivala en lugar de borrarla.",
+            [str(m) for m in resp.context["messages"]],
+        )
+
+    def test_pregunta_sin_adjuntos_se_borra_con_su_item_de_diseno(self):
+        """Lo que DAT-01 **no** puede romper: sin adjuntos el catálogo sigue mandando
+        y el ítem del diseño se va con la pregunta (Cambio 58)."""
+        pregunta = PreguntaGlobal.objects.create(texto="Dato suelto", tipo=TipoCampo.STRING, orden=901)
+        diseno = DisenoFormulario.objects.create(convocatoria=self._convocatoria("Conv pregunta libre"))
+        item = ItemDiseno.objects.create(
+            diseno=diseno,
+            tipo=ItemDiseno.Tipo.CAMPO,
+            clave=f"pg-{pregunta.pk}",
+            pregunta=pregunta,
+        )
+
+        self.client.post(reverse("becas:pregunta_eliminar", args=[pregunta.pk]))
+
+        self.assertFalse(PreguntaGlobal.objects.filter(pk=pregunta.pk).exists())
+        self.assertFalse(ItemDiseno.objects.filter(pk=item.pk).exists())
+
+    def test_el_admin_tampoco_borra_un_requisito_con_adjuntos(self):
+        """DAT-01: la guarda es del modelo, así que `/admin/` también la tiene.
+
+        El `/admin/` arma la cascada antes de borrar: con PROTECT los adjuntos
+        aparecen como objetos protegidos, la confirmación no ofrece el botón y el
+        POST no borra nada. Antes, la misma pantalla listaba los adjuntos entre lo
+        que se iba a borrar y el POST se los llevaba.
+        """
+        requisito = self._requisito()
+        _, adjunto = self._caso_con_adjunto("Conv admin", requisito_nativo=requisito)
+        root = User.objects.create_superuser("root_dat01", "root@dat01.test", "x")
+        self.client.force_login(root)
+        url = reverse("admin:programas_requisitonativo_delete", args=[requisito.pk])
+
+        resp = self.client.post(url, {"post": "yes"})
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(resp.context["protected"])
+        self.assertTrue(RequisitoNativo.objects.filter(pk=requisito.pk).exists())
+        self.assertTrue(AdjuntoFormulario.objects.filter(pk=adjunto.pk).exists())
+
+    def test_el_subsegmento_frenado_por_un_adjunto_lo_dice_por_su_nombre(self):
+        """El mensaje sigue a la causa real, no al único caso que había antes.
+
+        `RequisitoNativo.subsegmento` es CASCADE, así que borrar el subsegmento
+        intenta borrar sus requisitos y choca con el PROTECT de DAT-01. Decirle
+        «está utilizado por una convocatoria» a eso manda a buscar donde no está.
+        """
+        sub = self._subsegmento("Sub con documentos")
+        requisito = self._requisito(segmento=None, subsegmento=sub)
+        self._caso_con_adjunto("Conv sub adjunto", requisito_nativo=requisito)
+
+        resp = self.client.post(reverse("becas:subsegmento_eliminar", args=[sub.pk]), follow=True)
+
+        self.assertTrue(Subsegmento.objects.filter(pk=sub.pk).exists())
+        self.assertIn(
+            "No se puede eliminar el subsegmento: alguno de sus requisitos ya tiene documentos subidos en 1 caso(s).",
+            [str(m) for m in resp.context["messages"]],
+        )
 
     # -- Método y capacidad --------------------------------------------------
 

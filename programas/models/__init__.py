@@ -2870,9 +2870,17 @@ class AdjuntoFormulario(TimeStamped):
         related_name="adjuntos",
         verbose_name="Formulario",
     )
+    # DAT-01: PROTECT, no CASCADE. Borrar una pregunta general o un requisito desde
+    # Configuración se llevaba puestas las filas de ``AdjuntoFormulario`` de **todos**
+    # los casos ya cargados, con el archivo quedando huérfano en ``media/``. El
+    # revisor abría el caso y veía el documento como *faltante*, no como borrado: ni
+    # error ni log. Con PROTECT el catálogo no puede borrar documentos del ciudadano;
+    # las dos vistas convierten el ``ProtectedError`` en un aviso con el número de
+    # casos afectados. ``ItemDiseno`` **sigue** en CASCADE a propósito: el diseño
+    # sigue al catálogo (Cambio 58).
     pregunta_global = models.ForeignKey(
         PreguntaGlobal,
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         null=True,
         blank=True,
         related_name="adjuntos_formulario",
@@ -2880,7 +2888,7 @@ class AdjuntoFormulario(TimeStamped):
     )
     requisito_nativo = models.ForeignKey(
         RequisitoNativo,
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         null=True,
         blank=True,
         related_name="adjuntos_formulario",

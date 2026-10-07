@@ -30,6 +30,62 @@ justificación en `scripts/perf_budgets.json` (RED-62).
 
 **Abierto:** de la Ola 3 quedan los PRs 2 (datos y catálogo), 3 (comandos peligrosos), 5 (app de campo),
 7 (integraciones y link público), 8 (reportes) y el resto del ítem 9 (RED-48, RED-09, RED-35, RED-40).
+## Estado al 07-oct-2026 (Ola 3, PR 2: datos y catálogo)
+
+**Las 7 fichas del PR 2 de la Ola 3 cerradas** (DAT-01 🟡 fase 1, DAT-02, DAT-03, DAT-05, V2-NEW-05, G1c-08 y
+RED-48), 18 h + 4 h, **Cambio 168**, con una migración **solo de estado** (`programas.0078`: `sqlmigrate` sale
+vacío). Lo que deja de pasar: borrar una pregunta general o un requisito nativo ya no se lleva los documentos
+que subieron los casos —`AdjuntoFormulario` pasa a PROTECT y las dos vistas avisan con el número de casos—; el
+`/admin/` no borra relevamientos, casos, trazas ni lista de espera, y los seis campos que cuentan la historia
+del caso quedan de lectura; `Formulario.dni_titular` sigue al DNI real de la persona, así que un DNI corregido
+deja de bloquear a su titular en el link público; los Excel de padrón reemplazados ya no se acumulan en
+`media/` y el del padrón propio no se borra antes de que la transacción confirme; un restore que deje los pk de
+legajo en el formato que el ORM no consulta tiene su comando (`normalizar_uuid_legajos`, paso 3 del runbook
+D.4), que baja y repone las dos foreign keys como hace `legajos.0007` y no escribe nada sin `--aplicar`; el DNI
+y la procedencia del legajo dejan de entrar como fuera —`12.345.678` ya no crea una segunda persona, la pantalla
+de confirmación no acepta un POST alterado y la edición no mueve ni el DNI ni el `estado_renaper`—; y «DNI
+válido» pasa de **nueve** implementaciones con **cuatro** reglas de largo a una sola en `core/dni.py`, con
+ratchet AST que no deja nacer la décima ni por `len()` ni por expresión regular.
+
+**Cinco desvíos, todos code-first:** las puertas de DNI eran nueve y no seis (la ficha no nombraba
+`ConsultaRenaperForm`, el registro del portal —6 a 9, la más laxa— ni el ABM de usuarios, que la escribía como
+regex y por eso ningún barrido anterior la había visto); la regla única vive en `core/dni.py` y no en
+`padron.py`, que la reexporta, porque `legajos.models` no puede importar `programas` sin cerrar un ciclo
+(RED-79); `siis_envio` **no** queda más laxo a propósito —el `len(dni) <= 10` dejaba pasar un DNI de un dígito
+hacia un alta que no tiene baja—, lo que es un **cambio de conducta declarado**; la marca de D-C08 viaja por
+sesión en vez de por `?fallecido=1`, porque el template que tenía que pasar el parámetro estaba tomado por otro
+carril; y la validación del DNI en la edición corre **solo si el DNI cambia**, para que un legajo con un DNI
+legacy no quede inmodificable hasta en el teléfono.
+
+**Ronda 2 (1 BLOCKER, 3 MAJOR y 4 MINOR, todos corregidos).** El comando de V2-NEW-05 **no funcionaba** contra
+el estado que de verdad deja un restore: `legajos.0007` baja las dos foreign keys antes del mismo `UPDATE` y el
+comando no, así que con un legajo en el formato viejo y una alerta que lo referencia moría con un `1451` sin
+normalizar nada; y su test permanente **nunca había corrido** —`LegajoAtencion.objects.create(ciudadano=…)`
+choca con la `@property` sin setter, y el `schema_editor` adentro de un `TestCase` con el
+`TransactionManagementError`—, así que ponía en rojo el job `Motor real`. Las dos cosas están medidas ahora en
+`mariadb:10.11` **y** en `mysql:8.0`, en rojo con la versión anterior. Un DNI legacy dejaba la ficha
+**inmodificable hasta en el teléfono**. El listado de P-17 solo veía los DNI con separadores, no los numéricos
+de largo inválido, que son justo los que el PR frena. Y el ratchet de RED-48, extendido a `scripts/` y a las
+reglas escritas como expresión regular, encontró la **novena** puerta: el DNI del usuario de backoffice.
+
+**Ronda 3 (1 BLOCKER, 1 MAJOR y 4 MINOR, todos corregidos).** Esa novena puerta estaba a medias y el agujero era
+de los que solo se ven contra el motor real: el ABM de usuarios **validaba normalizado y guardaba crudo**, y
+`Profile.dni` es un `CharField(max_length=8)`, así que `12.345.678` era un
+`DataError (1406, "Data too long for column 'dni'")` —un **500**— en MariaDB y en MySQL, invisible en SQLite.
+Queda normalizado, con test `@tag("mysql")` contra los dos motores, y el barrido del resto de las puertas
+encontró una más del mismo patrón (`ConsultaRenaperForm` limitaba a 8 el valor crudo). De ahí sale el invariante
+nuevo: **toda puerta que acepta un DNI con puntos tiene que devolverlo en dígitos**. Además, el usuario con DNI
+legacy vuelve a ser editable —la misma regla que se eligió para `Ciudadano`—, `listar_dni_no_normalizados` barre
+también `users_profile` y cuenta las dos poblaciones por separado, y el `finally` del comando de UUID dejó de
+prometer que las foreign keys vuelven siempre.
+
+**Abierto (para el PR siguiente del carril):** los puntos 3 y 4 de DAT-01 —texto del modal de
+`_requisitos_panel.html` y `protegido=True` para `ADJUNTOS_OBLIGATORIOS` en `seed_becas`, con su migración de
+datos—, los dos con su contenido exacto escrito en el cuerpo del PR; y la **fase 2** de DAT-01
+(`RequisitoNativo.activo`, D-D01), que es lo único que le da salida a un requisito en uso.
+**Para el PM:** correr `manage.py listar_dni_no_normalizados` contra PRD (P-17) —ahora lista también los DNI
+numéricos de largo inválido, que son los que el PR frena— y, antes de desplegar, mirar ese conteo.
+
 ## Estado al 07-oct-2026 (Ola 3, PR 3: comandos peligrosos — **la Ola 3 suma su segundo PR**)
 
 | PR | Cambio | Fichas | Estado | Qué quedó abierto |
@@ -1787,11 +1843,17 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
 ### Ola 3 — Datos, operación, CI, app de campo y reglas de Becas
 - **Objetivo:** que no se pierdan datos (adjuntos, capturas offline), que el despliegue sea diagnosticable y robusto, que
   la CI pruebe el motor real, y cerrar las reglas de negocio de Becas.
+- **Avance: 40 h de 152, 112 restantes.** **PR 2 (DAT-01 🟡, DAT-02, DAT-03, DAT-05, V2-NEW-05, G1c-08 y RED-48)
+  en el Cambio 168, 07-oct-2026**: las 7 fichas, con una migración solo de estado (`programas.0078`), sobre los
+  PR 1 (Cambio 165) y 3 (Cambio 171) ya mergeados.
 - **PRs y orden:**
   1. ✅ *Operación y deploy:* OPS-05, OPS-07 (ampliado: el candado envuelve también el `migrate`), OPS-11, OPS-12,
      G3-04, G3-05 **+ RED-58** (el ítem 9 lo traía junto con OPS-05). 12 + 2 h. **Cerrado el 07-oct-2026
      (Cambio 165).** (OPS-01, OPS-03 y OPS-04 pasaron a la Ola R, PR R-15.)
-  2. *Datos y catálogo:* DAT-01, DAT-02, DAT-03, DAT-05, V2-NEW-05, G1c-08. 18 h.
+  2. ✅ *Datos y catálogo:* DAT-01 (🟡 fase 1), DAT-02, DAT-03, DAT-05, V2-NEW-05, G1c-08 — **22 h de 18 + 4**,
+     **Cambio 168**, 07-oct-2026, con RED-48 adentro (ítem 9). Migración `programas.0078`, solo de estado.
+     Quedan los puntos 3 y 4 de DAT-01 (modal y `seed_becas`: templates y seeds estaban tomados por #614 y
+     #615) y su fase 2.
   3. ✅ *Comandos peligrosos:* OPS-02, G2-05, G1c-12. 6 h. **Cerrado el 07-oct-2026 (Cambio 171).**
   4. *CI y tests:* pasó entero a la Ola R (TST-01 → R-11; TST-02, TST-03 y R0-03 → R-20).
   5. *App de campo:* G1-03, G1-04 (+BEC-22), G1-05, G1-06, G1-07, G1-16, R0-04 (raíz `/api/becas/` con Token). 34 h.
@@ -1801,7 +1863,7 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
   7. *Integraciones y link público:* SIIS-10, SIIS-13, SIIS-14 (+G3-02), SIIS-15, SIIS-16, SIIS-18, SIIS-20, SIIS-21,
      G1c-15, G1-11, G1-12, G1-13, G1-14, R0-06, R0-07 (link público y `q_uuid_en_texto`). 30 h.
   8. *Reportes:* G2-01. 8 h.
-  9. *Red de seguridad (04-oct):* RED-48 (una sola regla de DNI, con G1c-08), ~~RED-58 (plantilla de migración
+  9. *Red de seguridad (04-oct):* ✅ RED-48 (una sola regla de DNI, con G1c-08 — Cambio 168), ~~RED-58 (plantilla de migración
      re-entrante, con OPS-05)~~ ✅ **cerrada en el PR 1**, y segundas partes de RED-09 (`q_uuid_en_texto` a `core/db.py`, con el PR 7), RED-35
      (atomicidad del resto de las escrituras), RED-40 (`validators` en los `JSONField`, con G1-05) y
      ~~RED-50 (una sola `edad_en_anios` con `timezone.localdate()` + regla `DTZ011`)~~ ✅ **cerrada en el PR 6**.

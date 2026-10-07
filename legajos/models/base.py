@@ -8,6 +8,7 @@ from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
 
+from core.dni import normalizar_dni
 from core.models import LegajoBase, TimeStamped
 
 # from simple_history.models import HistoricalRecords  # Comentado temporalmente
@@ -209,6 +210,45 @@ class Ciudadano(TimeStamped):
 
     def __str__(self):
         return f"{self.apellido}, {self.nombre} ({self.dni})"
+
+    @classmethod
+    def from_db(cls, db, field_names, values):
+        """Recuerda el DNI con el que la fila salió de la base.
+
+        Es lo que deja a `programas.signals.sincronizar_dni_titular` saber si el
+        DNI **cambió** sin pagar una consulta extra por cada guardado (DAT-03).
+        """
+        instancia = super().from_db(db, field_names, values)
+        if "dni" in field_names:
+            instancia._dni_original = instancia.dni
+        return instancia
+
+    def save(self, *args, **kwargs):
+        """G1c-08: el DNI se guarda en dígitos, venga de donde venga.
+
+        Los formularios ya normalizan; esto es la red para el `/admin/`, los
+        comandos y los scripts, que son por donde entraron los `12.345.678` que
+        hoy conviven con su gemelo normalizado. Solo normaliza —no rechaza—: la
+        regla de largo la aplican las puertas de entrada (RED-48), y un `save()`
+        que levante `ValidationError` rompería migraciones y cargas masivas.
+
+        Con el DNI **diferido** (`.only()`/`.defer()`) no se lo mira: leerlo costaría
+        una consulta para descubrir que nadie lo tocó. Si alguien se lo asignó deja de
+        estar diferido y se normaliza como siempre.
+        """
+        if "dni" in self.get_deferred_fields():
+            super().save(*args, **kwargs)
+            return
+
+        normalizado = normalizar_dni(self.dni)
+        if normalizado and normalizado != self.dni:
+            self.dni = normalizado
+            campos = kwargs.get("update_fields")
+            # `update_fields=[]` es un no-op documentado de Django: no se lo convierte
+            # en una escritura por normalizar.
+            if campos and "dni" not in campos:
+                kwargs["update_fields"] = [*campos, "dni"]
+        super().save(*args, **kwargs)
 
     # Managers
     objects = models.Manager()  # Manager por defecto

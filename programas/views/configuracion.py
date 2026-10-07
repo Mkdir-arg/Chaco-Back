@@ -558,6 +558,40 @@ def subsegmento_editar(request, pk):
     )
 
 
+def _casos_con_adjunto(error):
+    """Cuántos **casos** distintos bloquean el borrado (DAT-01).
+
+    `ProtectedError.protected_objects` trae los `AdjuntoFormulario` uno por uno: lo
+    que le importa a quien configura no es cuántos archivos hay sino a cuánta gente
+    le desaparecería el documento.
+    """
+    return len({getattr(obj, "formulario_id", obj.pk) for obj in error.protected_objects})
+
+
+def _motivo_subsegmento_protegido(error):
+    """Qué está frenando el borrado del subsegmento, de verdad.
+
+    Antes el mensaje decía siempre «está utilizado por una convocatoria», que era el
+    único caso que había cuando se escribió. Desde DAT-01 hay un segundo camino: el
+    subsegmento cuelga de un `RequisitoNativo` y ese requisito tiene adjuntos de casos
+    ya cargados, que ahora son PROTECT. Decirle «convocatoria» a eso manda a buscar
+    donde no está.
+    """
+    modelos = {type(obj).__name__ for obj in error.protected_objects}
+    if modelos == {"AdjuntoFormulario"}:
+        casos = _casos_con_adjunto(error)
+        return (
+            f"No se puede eliminar el subsegmento: alguno de sus requisitos ya tiene documentos "
+            f"subidos en {casos} caso(s)."
+        )
+    if "AdjuntoFormulario" in modelos:
+        return (
+            "No se puede eliminar el subsegmento: está en uso por una convocatoria y alguno de sus "
+            "requisitos ya tiene documentos subidos en casos cargados."
+        )
+    return "No se puede eliminar el subsegmento porque está utilizado por una convocatoria."
+
+
 @login_required
 @requiere(CAP_SUBSEGMENTO_EDITAR)
 def subsegmento_eliminar(request, pk):
@@ -568,8 +602,8 @@ def subsegmento_eliminar(request, pk):
         try:
             sub.delete()
             messages.success(request, "Subsegmento eliminado.")
-        except ProtectedError:
-            messages.error(request, "No se puede eliminar el subsegmento porque está utilizado por una convocatoria.")
+        except ProtectedError as error:
+            messages.error(request, _motivo_subsegmento_protegido(error))
     return redirect("becas:segmento_detalle", pk=segmento_pk)
 
 
@@ -686,8 +720,18 @@ def requisito_eliminar(request, pk):
     segmento_pk = req.segmento_id
     subsegmento_pk = req.subsegmento_id
     if request.method == "POST":
-        req.delete()
-        messages.success(request, "Requisito eliminado.")
+        try:
+            req.delete()
+            messages.success(request, "Requisito eliminado.")
+        except ProtectedError as error:
+            # DAT-01: hasta acá el borrado se llevaba los adjuntos de todos los casos
+            # que ya habían subido ese documento, sin avisar y sin vuelta atrás.
+            casos = _casos_con_adjunto(error)
+            messages.error(
+                request,
+                f"No se puede eliminar: {casos} caso(s) ya subieron este documento. "
+                "Si dejó de pedirse, sacalo del diseño de las convocatorias nuevas.",
+            )
     if subsegmento_pk:
         return redirect("becas:subsegmento_detalle", pk=subsegmento_pk)
     if segmento_pk:
@@ -1087,8 +1131,17 @@ def pregunta_eliminar(request, pk):
                 request, "Este campo viene con el sistema y no se puede eliminar; podés renombrarlo o moverlo de grupo."
             )
             return redirect("becas:preguntas")
-        pregunta.delete()
-        messages.success(request, "Pregunta eliminada.")
+        try:
+            pregunta.delete()
+            messages.success(request, "Pregunta eliminada.")
+        except ProtectedError as error:
+            # DAT-01, mismo caso que el requisito. Acá sí hay salida: la pregunta se
+            # desactiva (`pregunta_toggle_activo`) y deja de pedirse sin borrar nada.
+            casos = _casos_con_adjunto(error)
+            messages.error(
+                request,
+                f"No se puede eliminar: {casos} caso(s) ya subieron este documento. Desactivala en lugar de borrarla.",
+            )
     return redirect("becas:preguntas")
 
 
