@@ -378,6 +378,20 @@ y `.test_el_catalogo_distingue_los_dos_motivos`).
 **Severidad:** MEDIA · **Estado:** CONFIRMADO (lectura) · **Origen:** A1-08 · **Ola:** 3 · **Esfuerzo:** S (V2: `items_planos(items, canal=None)` ya admite canal)
 
 **Resolución:** ✅ Resuelto en #621 (Cambio 172), 07-oct-2026 — en dos mitades, porque validar al editar no arregla lo que ya está guardado. (1) **Al editar:** `_asegurar_coherencia` valida el diseño una vez por canal servido (`CANALES_SERVIDOS`) con `condiciones.fuentes_fuera_del_canal`, que nombra el ítem y la fuente («la fuente «cp-…» no se pide en el link público»); la mutación se deshace entera. (2) **Al servir:** `serializar(items, canal)` anula la condición cuya fuente no entra en el canal, con el mismo criterio que `items_vigentes` ya aplicaba cuando la fuente desaparecía del diseño —sin condición evaluable, el ítem se pide—. Pedir de más es recuperable; no pedir nunca un requisito obligatorio, no. (3) **Antes de desplegar:** `verificar_json_guardado` suma el chequeo `condicion_con_fuente_fuera_del_canal`, que es el barrido sobre los diseños guardados que pedía el «Riesgo» de la ficha. **Test permanente:** `programas/tests/test_becas_reglas_negocio.py::CoherenciaPorCanalTests.test_condicion_con_fuente_solo_app_en_item_ambos_se_rechaza` (y `.test_definicion_link_no_trae_condiciones_con_fuente_fuera_de_canal`, `.test_el_constructor_rechaza_guardar_un_diseno_asi`, `.test_una_condicion_entre_campos_del_mismo_canal_se_guarda`, `.test_en_la_app_la_condicion_se_sirve_intacta`, `.test_el_diseno_entero_sigue_siendo_coherente`, `.test_el_comando_de_diagnostico_lo_encuentra_antes_de_desplegar`).
+
+**Ampliado por #621 (ronda 2 de la revisión), 08-oct-2026 — dos bordes.** (a) **El constructor solo
+bloquea lo que la edición agrega.** Validar el diseño entero dejaba congelado cualquier formulario con
+una condición imposible anterior a esta ficha: no se podía ni renombrar un grupo hasta que alguien
+adivinara cuál era la condición ofensora, y el 400 no lo decía. `_mutar` ahora saca la foto por canal
+**antes** de la mutación —con el candado ya tomado— y `_asegurar_coherencia` rechaza solo la
+diferencia. Lo viejo se sigue sirviendo bien igual (`serializar` lo anula) y `verificar_json_guardado`
+lo lista. (b) **Un campo que cuelga de un grupo que no se sirve en el canal deja de contar como fuente
+disponible:** un campo de canal «ambos» dentro de un grupo solo-app no viaja al link —`serializar` lo
+saltea porque su grupo no está—, y tomarlo por presente dejaba en pie justo la condición imposible que
+esta ficha corrige. `claves_servidas()` aplica la misma cascada de padres que `items_planos`, que es de
+donde ya salían los ítems del chequeo del constructor.
+**Test permanente:** `programas/tests/test_becas_reglas_negocio.py::CoherenciaPorCanalTests.test_una_mutacion_ajena_no_queda_bloqueada_por_una_condicion_vieja`
+(y `.test_empeorar_una_condicion_vieja_sigue_rechazandose`, más la clase `FuenteBajoGrupoNoServidoTests` entera).
 - **Ubicación:** `programas/views/diseno.py:222-229` (`_asegurar_coherencia` valida sin canal); `programas/services/diseno.py:537-543`, `:600-632`; `condiciones.py:145-147`.
 - **Escenario:** campo propio con canal APP es fuente de un grupo obligatorio canal AMBOS: en el link público el grupo queda oculto siempre y el servidor tampoco lo exige.
 - **Propuesta:** en `_asegurar_coherencia`, `for canal in (APP, LINK): cond.validar_coherencia(items_planos(items, canal))`, rechazando con «la fuente no se pide en el canal X»; en `items_vigentes`/`serializar`, anular (con aviso en el constructor) las reglas cuya fuente no está en el canal servido.
@@ -413,6 +427,13 @@ y `.test_el_catalogo_distingue_los_dos_motivos`).
 **Severidad:** MEDIA · **Estado:** CONFIRMADO (lectura) · **Origen:** A1-13 · **Ola:** 3 · **Esfuerzo:** S
 
 **Resolución:** ✅ Resuelto en #621 (Cambio 172), 07-oct-2026 — `formulario_rechazar` captura el `ValueError` de `validar_formulario_en_siis`, rechaza igual y deja el motivo en la traza («Consulta SIIS: No se pudo consultar → …») más un aviso en pantalla. Es la misma línea del Cambio 34: un error de consulta no impide documentar la decisión local, que es lo único que el rechazo registra. La guarda de estado concurrente sigue intacta: un caso ya resuelto no se rechaza. **Test permanente:** `programas/tests/test_becas_reglas_negocio.py::RechazoSinSiisTests.test_rechaza_caso_sin_ciudadano` (y `.test_rechaza_caso_de_segmento_sin_programa_siis`, `.test_el_motivo_de_la_no_consulta_queda_en_la_traza`, `.test_un_caso_ya_resuelto_sigue_sin_poder_rechazarse`, `.test_el_relevamiento_se_puede_terminar_despues_del_rechazo`, que es la consecuencia real de la ficha).
+
+**Ampliado por #621 (ronda 2 de la revisión), 08-oct-2026.** El aviso de cierre se decidía con
+`elif validacion.estado == …`, y `validacion` queda en `None` justamente cuando hubo `ValueError`. Con
+el mensaje vacío —`motivo_sin_consulta` falsy— el `elif` se evaluaba igual y reventaba con
+`AttributeError` **después** de commitear el rechazo: el caso quedaba rechazado y el operador veía un
+500. Pasa a `elif validacion and …`.
+**Test permanente:** `programas/tests/test_becas_reglas_negocio.py::RechazoSinSiisTests.test_un_valueerror_sin_mensaje_no_deja_el_rechazo_a_medias`.
 - **Ubicación:** `programas/views/revision.py:1085-1089` (`validar_formulario_en_siis` antes de rechazar; el `ValueError` corta); `programas/services/validacion_siis.py:13-16`. El Cambio 34 decidió que un error de consulta no impide documentar la decisión local.
 - **Escenario:** el caso queda ENVIADO para siempre y `relevamiento_terminar` (`revision.py:1324`) nunca puede cerrar el relevamiento.
 - **Propuesta:** en `formulario_rechazar`, capturar el `ValueError`, seguir con el rechazo y registrar en la traza «Sin consulta SIIS: <motivo>».
@@ -583,6 +604,39 @@ y `.test_el_catalogo_distingue_los_dos_motivos`).
 **Severidad:** BAJA · **Origen:** A1-23 (parte `solapas`), V3-NEW-04 · **Ola:** 3 · **Esfuerzo:** S
 
 **Resolución:** ✅ Resuelto en #621 (Cambio 172), 07-oct-2026 — barrido de `timezone.now().date()` y `datetime.now().date()` a `timezone.localdate()` en los **doce** lugares productivos de `programas/`, `legajos/` y `dashboard/`: los ocho de la ficha más `legajos/models/base.py` (`LegajoAtencion.cerrar` y `dias_desde_admision`), `legajos/views/dashboard_simple.py` y `programas/views/merenderos.py`, que el barrido encontró. Donde lo que había que pasar a día local era un `datetime` guardado —el último contacto de las alertas, la fecha de una derivación en la línea de tiempo— se usa `core.utils_fechas.fecha_local` (Cambio 140). **No se tocó ninguna consulta:** nada de `__date` ni `Trunc*` sobre un `DateTimeField`, que en ECOM devuelve NULL (DIS-01, guardia `core/tests/test_sql_portable.py`). Detalle que la ficha no nombraba y era el peor: la clave de caché de `contar_seguimientos_hoy` llevaba la fecha **de UTC**, así que a las 21:00 ART empezaba una clave nueva y vacía y el contador se reiniciaba a mitad del día de trabajo. El guardarraíl para que no vuelva es la regla `DTZ011` de ruff (ver RED-50). **Test permanente:** `legajos/tests/test_fechas_locales_bec18.py::ContadoresDeHoyTests.test_las_inscripciones_de_hoy_se_cuentan_en_el_dia_local` (y las otras once del módulo: clave de caché, métricas de la API del inicio, edad del buscador rápido y de `Ciudadano.edad`, antigüedad del legajo y de las alertas, y las dos fechas de cierre).
+
+**Ampliado por #621 (ronda 2 de la revisión), 08-oct-2026 — la ficha describía media verdad.**
+La propuesta original («`timezone.localdate()` y `timezone.localtime(...)`. Sin efecto en las
+consultas») arreglaba solo la **lectura**, y tres de los lugares que la ficha nombra comparan contra
+`InscripcionPrograma.fecha_inscripcion`, que es un `DateField(auto_now_add=True)`. `auto_now_add`
+guarda `datetime.date.today()`: la fecha del **proceso**, no la del `TIME_ZONE` del proyecto. En los
+contenedores —UTC— una inscripción de las 22:00 ART **nace con fecha de mañana**, así que cambiar la
+lectura a `timezone.localdate()` no recupera el día: lo sigue perdiendo, ahora por el otro lado. La
+primera versión de este PR dejó en rojo
+`legajos.tests.test_ciudadanos_selectors.CiudadanosDashboardMetricsTests.test_consolida_metricas_de_inscripciones_sin_cambiar_valores`
+exactamente por eso.
+
+Los **siete** `DateField` que registran «el día en que pasó» pasan a `default=timezone.localdate`,
+que es la misma función con la que se los consulta: `InscripcionPrograma.fecha_inscripcion`,
+`LegajoBase.fecha_apertura`, `LegajoAtencion.fecha_admision`, los tres `fecha_asignacion` de las
+asignaciones y `ListaEspera.fecha_ingreso`. Los dos últimos grupos no se comparan hoy con «hoy»,
+pero se **muestran**, y una fila que dice «mañana» ya está mal aunque todavía nadie la filtre. Los
+`DateTimeField` no se tocan: guardan un instante absoluto en UTC y están bien. Migraciones
+`programas.0079_fechas_locales_bec18` y `legajos.0009_fechas_locales_bec18`, las dos **sin una sola
+sentencia** (`sqlmigrate` da `(no-op)` en ida y en vuelta contra MariaDB 10.11): `default` es un
+callable de Python y no toca el esquema, así que durante el rolling el código viejo sigue
+escribiendo contra la misma tabla. **No hay migración de datos:** de una fila vieja no se puede
+saber a qué hora local se creó.
+
+De yapa, esto cierra `core.tests.test_inicio_contadores_ola5.TendenciasIncluyenHoyTests.test_una_inscripcion_del_ultimo_dia_entra_en_la_serie`,
+que ya fallaba en `development` por la misma raíz cada vez que el proceso no corría en hora de
+Argentina, y le corrige el docstring, que daba por buena la premisa equivocada.
+**Test permanente:** `legajos/tests/test_fechas_locales_bec18.py::FechaDeAltaEnDiaLocalTests.test_el_alta_de_las_2230_queda_con_la_fecha_local_y_no_con_la_del_proceso`
+(y `.test_lo_escrito_y_lo_leido_salen_de_la_misma_funcion`, `.test_el_legajo_tambien_se_abre_y_se_admite_en_el_dia_local`,
+más los dos ratchets: `.test_ningun_datefield_del_dominio_vuelve_a_auto_now`, que barre **todos** los
+modelos del repo, y `.test_los_campos_de_la_ficha_usan_la_fecha_local`). El instante de los tests está
+en el pasado a propósito: así la `localdate()` congelada nunca coincide con el `date.today()` real de
+la máquina, y el test distingue las dos fuentes corra donde corra.
 - **Ubicación:** `programas/services/solapas.py:192,195`; `dashboard/views/home.py:49`; `dashboard/utils.py:78-81` (compara con `fecha_inscripcion`, DateField en hora local); `dashboard/api_views/__init__.py:32`, `:203`; `legajos/services/alertas.py:84`, `:110`; `legajos/services/programas.py:46`. (La parte de `indicadores.py` está en DIS-08.)
 - **Escenario:** entre las 21:00 y las 24:00 ART «hoy» pasa a ser mañana: contadores «de hoy» en 0, `fecha_cierre` corrida un día.
 - **Propuesta:** `timezone.localdate()` y `timezone.localtime(...)`. Sin efecto en las consultas (V4).

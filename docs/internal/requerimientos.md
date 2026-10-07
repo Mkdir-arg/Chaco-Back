@@ -343,7 +343,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 169 | La API navegable de Legajos no da 500 y `/becas/` tiene índice | Legajos (APIs de ciudadanos y alertas) · Becas (raíz del módulo) · Transversal (APIs de geografía) | `#api` `#rbac` `#metodo` | QA (matias-abate) — pruebas sobre testing de ECOM, issue #521 (caso TC-OLA0-02) | 07/10/2026 | 🟢 **Hecho** | No requiere |
 | 170 | Las solapas se manejan con el teclado, las tarjetas de número dejan de escribirse a mano y hay un solo campo de formulario | Transversal (shell: teclado de solapas; piezas de tarjeta de número, campo de formulario y paginación) · Inicio del backoffice · Becas (tablero del programa, solapas de programa, convocatoria y relevamiento, modal de convocatorias) · Usuarios y roles (ABM de roles) · Dispositivos, Admisiones y Merenderos (campos de sus formularios) · Configuración (wizard: campo de color) | `#ui` `#metodo` | Auditoría integral oct-2026 — fichas FE-23, FE-24, lo que faltaba de FE-22 y de V5A-NEW-07 (b), más los tres MINOR de la revisión del PR 6b (Ola 5, PR 6c — **cierra la ola**) | 07/10/2026 | 🟢 **Hecho** | No requiere |
 | 171 | Se van los comandos que sembraban `admin`/`admin123` y el «debug» que vaciaba el Redis | Transversal (comandos de management, cuentas de sistema, seeds de demo, alta masiva por CSV) | `#infra` `#usuarios` `#sesion` `#metodo` | Auditoría integral oct-2026 — fichas OPS-02, G2-05 y G1c-12 (Ola 3, PR 3) | 07/10/2026 | 🟢 **Hecho** | No requiere |
-| 172 | Trece reglas de negocio de Becas, y la edad que estaba escrita seis veces | Becas (revisión de casos, constructor de formularios, convocatorias, segmentos y subsegmentos, carga de padrón, pausas) · Legajos e Inicio (contadores «de hoy», edad del ciudadano, alertas) · Transversal (`core/edad.py`, regla `DTZ011`) | `#relevamientos` `#cupos` `#datos` `#ui` `#requisitos` | Auditoría integral oct-2026 — fichas BEC-03, BEC-04, BEC-05, BEC-06, BEC-07, BEC-09, BEC-10, BEC-15, BEC-16, BEC-17, BEC-18, BEC-20 y BEC-24, más RED-50 (Ola 3, PR 6) | 07/10/2026 | 🟢 **Hecho** (D-B05 y D-B10 aplicadas por default) | No requiere |
+| 172 | Trece reglas de negocio de Becas, y la edad que estaba escrita seis veces | Becas (revisión de casos, constructor de formularios, convocatorias, segmentos y subsegmentos, carga de padrón, pausas) · Legajos e Inicio (contadores «de hoy», edad del ciudadano, alertas) · Transversal (`core/edad.py`, regla `DTZ011`) | `#relevamientos` `#cupos` `#datos` `#ui` `#requisitos` | Auditoría integral oct-2026 — fichas BEC-03, BEC-04, BEC-05, BEC-06, BEC-07, BEC-09, BEC-10, BEC-15, BEC-16, BEC-17, BEC-18, BEC-20 y BEC-24, más RED-50 (Ola 3, PR 6) | 08/10/2026 | 🟢 **Hecho** (D-B05 y D-B10 aplicadas por default) | `programas.0079` y `legajos.0009`, las dos sin DDL |
 
 **Notas del índice**
 
@@ -24365,7 +24365,7 @@ los que ninguna fila referenciaba.
 | **Fecha del pedido** | 03/10/2026 |
 | **Issue / épica** | Fichas BEC-03, BEC-04, BEC-05, BEC-06, BEC-07, BEC-09, BEC-10, BEC-15, BEC-16, BEC-17, BEC-18, BEC-20 y BEC-24 de `docs/internal/auditoria-2026-10/hallazgos/02-siis-becas.md`, y RED-50 de `08-red-de-seguridad.md` |
 | **Partes afectadas** | Backoffice · Link público de inscripción (definición servida) · App de campo (definición servida) |
-| **Migración** | No requiere |
+| **Migración** | `programas.0079_fechas_locales_bec18` y `legajos.0009_fechas_locales_bec18`: `AlterField` de los siete `DateField` con `auto_now_add`. **Sin DDL** (`sqlmigrate` da `(no-op)` en ida y en vuelta contra MariaDB 10.11) |
 
 ## Pedido original
 Trece reglas de negocio de Becas que la auditoría encontró mal implementadas o sin
@@ -24465,7 +24465,19 @@ qué desapareció.
 medio dejaba las columnas guardadas, las respuestas a medio sincronizar y **sin traza**:
 datos nuevos con un historial que decía que no había pasado nada.
 
-**«Hoy» es el día local en los doce lugares, no en los ocho de la ficha (BEC-18).** El
+**El día local hay que arreglarlo en las dos puntas, o el bug cambia de lado (BEC-18,
+ronda 2 de la revisión).** La ficha pedía solo la lectura, y era media verdad:
+`DateField(auto_now_add=True)` guarda `datetime.date.today()`, que es la fecha del
+**proceso**. Los contenedores no definen `TZ`, así que corren en UTC y una inscripción
+de las 22:00 ART **nace con fecha de mañana**; leerla con `timezone.localdate()` la deja
+afuera igual. Los **siete** `DateField` que registran «el día en que pasó» pasan a
+`default=timezone.localdate`, la misma función con la que se los consulta. Entran también
+los tres `fecha_asignacion` y `ListaEspera.fecha_ingreso`, que hoy nadie filtra pero sí se
+**muestran**: una fila que dice «mañana» ya está mal aunque todavía no la filtre nadie. Los
+`DateTimeField` no se tocan —guardan un instante absoluto en UTC— y **no hay migración de
+datos**: de una fila vieja no se puede saber a qué hora local se creó.
+
+**«Hoy» es el día local en los doce lugares de lectura, no en los ocho de la ficha (BEC-18).** El
 barrido encontró cuatro más. Lo peor no estaba en la ficha: la clave de caché de
 `contar_seguimientos_hoy` llevaba la fecha **de UTC**, así que a las 21:00 ART empezaba
 una clave nueva y vacía y el contador se reiniciaba a mitad del día de trabajo. **No se
@@ -24494,10 +24506,14 @@ ECOM —MariaDB sin tablas de zona horaria— devuelve NULL.
   (BEC-10), edición atómica (BEC-24).
 - `programas/services/padron.py` (BEC-15), `programas/services/pausas.py` (BEC-17),
   `programas/services/cupo.py` (docstring de BEC-05).
-- BEC-18: `dashboard/api_views/__init__.py`, `dashboard/utils.py`, `dashboard/views/home.py`,
-  `legajos/services/alertas.py`, `legajos/services/programas.py`,
+- BEC-18 (lectura): `dashboard/api_views/__init__.py`, `dashboard/utils.py`,
+  `dashboard/views/home.py`, `legajos/services/alertas.py`, `legajos/services/programas.py`,
   `legajos/views/dashboard_simple.py`, `programas/services/solapas.py`,
   `programas/views/merenderos.py`.
+- BEC-18 (escritura, ronda 2): `programas/models/__init__.py` (`fecha_inscripcion`, los tres
+  `fecha_asignacion`, `fecha_ingreso`), `core/models/base.py` (`fecha_apertura`) y
+  `legajos/models/base.py` (`fecha_admision`), con `programas/migrations/0079_fechas_locales_bec18.py`
+  y `legajos/migrations/0009_fechas_locales_bec18.py`.
 - Templates: `becas/config/subsegmento_detail.html` y `becas/config/segmento_detail.html`
   (BEC-05); fichas de diseño `.claude/design/dominio/becas.md` y
   `.claude/design/componentes/field.md`.
@@ -24508,13 +24524,27 @@ ECOM —MariaDB sin tablas de zona horaria— devuelve NULL.
   más ajustes en `test_becas_models.py`, `test_becas_config.py` y `test_arquitectura.py`.
 
 ## Base de datos
-No requiere. Ninguna migración: no cambia ningún campo ni índice.
+Dos migraciones **sin una sola sentencia**: `programas.0079_fechas_locales_bec18` y
+`legajos.0009_fechas_locales_bec18` son `AlterField` de `auto_now_add=True` a
+`default=timezone.localdate, editable=False`. Ninguno de los dos atributos existe en la
+base —el `default` es un callable de Python y `editable` no se materializa—, así que el
+tipo, el `NOT NULL` y los índices quedan exactamente como estaban. Verificado con
+`sqlmigrate` contra MariaDB 10.11: `(no-op)` en ida y en vuelta. Durante el rolling el
+código viejo sigue escribiendo contra la misma tabla sin enterarse. **No hay migración de
+datos** y no la va a haber: de una fila vieja no se puede saber a qué hora local se creó.
 
 ## Validación
 - `manage.py check` y `manage.py check --deploy`.
 - `manage.py makemigrations --check --dry-run` → «No changes detected».
-- Suite completa en un solo proceso con Python 3.12 + Django 5.2.17: **3883 tests, OK**
-  (39 skipped, 7 expected failures — uno menos que antes: el de RED-50 ya no lo es).
+- Suite completa en un solo proceso con Python 3.12 + Django 5.2.17: **3998 tests, OK**
+  (47 skipped, 7 expected failures — uno menos que antes: el de RED-50 ya no lo es).
+- La misma suite **con el proceso en UTC** (`TZ=UTC`, que en Windows sí mueve
+  `date.today()`): 3998 OK. Y la corrida sin `TZ` salió con el proceso en UTC+2, o sea con
+  `date.today()` un día adelante de `timezone.localdate()`: las dos condiciones que rompían
+  BEC-18, las dos en verde.
+- `manage.py test --tag mysql` contra `mariadb:10.11` con `MARIADB_INITDB_SKIP_TZINFO=1`
+  (0 filas en `mysql.time_zone`, como ECOM): **44 tests, OK**. Contenedor borrado al terminar.
+- `scripts/check_migraciones.py`: 2 migraciones revisadas, 0 problemas.
 - `manage.py test --tag performance` → OK (con `edicion_convocatoria` en 14).
 - `ruff check .` y `ruff format --check` sobre lo tocado.
 - `design_audit.py --changed` 0 errores y `--ratchet` 0 hallazgos nuevos,
@@ -24531,6 +24561,9 @@ Nada más que el deploy. Conviene correr **antes**, contra un dump restaurado,
 cambiar el comportamiento en el link o en la app (el ítem pasa a pedirse).
 
 ## Pendientes / a definir
+- **Las filas viejas conservan la fecha con la que se escribieron.** Las creadas entre las
+  21:00 y las 24:00 ART desde que el sistema corre en contenedores tienen la fecha del día
+  siguiente, y no hay forma de distinguirlas a esta altura. No se corrigen.
 - **D-B05** y **D-B10** se aplicaron por su default. Si el PM decide otra cosa, los dos
   tests que las fijan se dan vuelta y recién ahí hay trabajo.
 - **BEC-15, lo que no se hizo:** la columna real `alcance` con
@@ -24546,4 +24579,24 @@ No se pierde ningún dato: no hay migraciones ni cambios de modelo. Lo único qu
 en el constructor, que siguen siendo válidos.
 
 ## Historial
-No aplica (entrada nueva).
+**Ronda 2 de la revisión (08/10/2026).** Dos MAJOR de fechas y tres MINOR:
+
+1. **BEC-18 tenía la premisa al revés** en su mitad de escritura (detalle arriba, en
+   *Decisiones tomadas* y en *Base de datos*). La primera versión de este PR dejó en rojo
+   `legajos.tests.test_ciudadanos_selectors.CiudadanosDashboardMetricsTests.test_consolida_metricas_de_inscripciones_sin_cambiar_valores`,
+   y de paso destapó que
+   `core.tests.test_inicio_contadores_ola5.TendenciasIncluyenHoyTests.test_una_inscripcion_del_ultimo_dia_entra_en_la_serie`
+   **ya fallaba en `development`** por lo mismo cada vez que el proceso no corría en hora de
+   Argentina. Los dos quedan en verde, con su docstring corregido.
+2. `fecha_de_referencia` se compara con `core.utils_fechas.fecha_local()` y no con
+   `.astimezone()`, que sin argumento convierte a la zona del **sistema operativo**: el test
+   se ponía verde o rojo según dónde corriera.
+3. `formulario_rechazar` usa `elif validacion and …`: con un `ValueError` de mensaje vacío,
+   `validacion` quedaba en `None` y el `AttributeError` llegaba **después** de commitear el
+   rechazo (caso rechazado + 500 en pantalla).
+4. El constructor **solo bloquea lo que la edición agrega** (BEC-04). Validar el diseño entero
+   congelaba cualquier formulario con una condición imposible anterior a la ficha: no se podía
+   ni renombrar un grupo, y el 400 no decía cuál era la ofensora.
+5. Un campo que cuelga de un grupo que no se sirve en el canal deja de contar como fuente
+   disponible (`claves_servidas`): un campo «ambos» dentro de un grupo solo-app no viaja al
+   link, así que tomarlo por presente dejaba en pie la condición imposible.

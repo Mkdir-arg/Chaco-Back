@@ -4,12 +4,13 @@
 
 **Trece reglas de Becas y la edad, que estaba escrita seis veces.** El PR 6 de la Ola 3 (Cambio 172) cierra
 BEC-03, BEC-04, BEC-05, BEC-06, BEC-07, BEC-09, BEC-10, BEC-15, BEC-16, BEC-17, BEC-18, BEC-20 y BEC-24, más
-**RED-50** del ítem 9 de la ola: 26 + 4 h, **sin migraciones**.
+**RED-50** del ítem 9 de la ola: 26 + 4 h. Dos migraciones, las dos **sin DDL** (`AlterField` de
+`auto_now_add` a `default=timezone.localdate`; `sqlmigrate` da `(no-op)` en ida y en vuelta).
 
 | Ficha | Qué quedó |
 |---|---|
 | **RED-50** ✅ | Una sola `core/edad.py` (`edad_en_anios`, `es_menor`, `MAYORIA_DE_EDAD`) con `timezone.localdate()`. Eran **seis** copias, no cuatro: el detector encontró además `legajos/selectors/ciudadanos.py` y `Ciudadano.edad`. El `expectedFailure` de `EdadHorarioTests` se fue y el test pasa de verdad. Dos guardarraíles: la regla **`DTZ011`** de ruff (prohíbe `date.today()` en el código productivo, con `# noqa` motivado en los dos usos deliberados) y un ratchet `ast` que nombra el archivo y la línea si la resta de cumpleaños vuelve a escribirse a mano. La severidad deja de depender de **H-13** |
-| **BEC-18** ✅ | Barrido de `timezone.now().date()` a `timezone.localdate()` en los **doce** lugares productivos (ocho de la ficha + cuatro que encontró el barrido), con `core.utils_fechas.fecha_local` donde lo que había que convertir era un `datetime` guardado. Lo peor no estaba en la ficha: la clave de caché de `contar_seguimientos_hoy` llevaba la fecha **de UTC**, así que a las 21:00 ART empezaba una clave nueva y vacía y el contador se reiniciaba a mitad del día. **Ninguna consulta cambia**: nada de `__date` ni `Trunc*` |
+| **BEC-18** ✅ | Barrido de `timezone.now().date()` a `timezone.localdate()` en los **doce** lugares productivos (ocho de la ficha + cuatro que encontró el barrido), con `core.utils_fechas.fecha_local` donde lo que había que convertir era un `datetime` guardado. Lo peor no estaba en la ficha: la clave de caché de `contar_seguimientos_hoy` llevaba la fecha **de UTC**, así que a las 21:00 ART empezaba una clave nueva y vacía y el contador se reiniciaba a mitad del día. **Ninguna consulta cambia**: nada de `__date` ni `Trunc*`. **Ronda 2:** la ficha describía media verdad —arreglar la lectura sin arreglar la escritura mueve el día perdido de lado, no lo recupera—, así que los **siete** `DateField(auto_now_add=True)` que registran «el día en que pasó» pasan a `default=timezone.localdate` (migraciones `programas.0079` y `legajos.0009`, las dos con `sqlmigrate` en `(no-op)`) |
 | **BEC-03** ✅ | La revisión evalúa las condiciones con la fecha de **carga** (`capturado_en` o `creado`, en hora local), no con «hoy»: quien se inscribió con 17 y cumplió 18 al mes dejaba de mostrar el bloque del apoderado que **sí había respondido**. Es la otra mitad de D3 del Cambio 58 |
 | **BEC-04** ✅ | En dos mitades: el constructor **rechaza** guardar una condición cuya fuente no se pide en el canal (una validación por canal servido, con el ítem y la fuente nombrados) y `serializar` **anula** esa condición al servir, para los diseños que ya están guardados. `verificar_json_guardado` suma el chequeo para correr antes del deploy, que es el «Riesgo» de la ficha |
 | **BEC-05** ✅ | **D-B05 por default (no es tope duro):** no se valida nada, se deja de prometer lo que no se cumple. «Cupo máximo» → **«Cupo asignado»** en el subsegmento, con la aclaración de que el que decide es el del segmento, y lo mismo en la tarjeta de distribución |
@@ -27,6 +28,22 @@ el segmento de una convocatoria con relevamientos **deja de editarse**; bajar el
 aprobados **deja de poder hacerse**; un relevamiento con casos en espera **ya se puede terminar**; y los contadores
 «de hoy» del inicio **dejan de dar cero** entre las 21:00 y las 24:00. Presupuesto `edicion_convocatoria` 13→14, con
 justificación en `scripts/perf_budgets.json` (RED-62).
+
+**Ronda 2 de la revisión (08-oct): dos MAJOR de fechas y tres MINOR.** (1) **BEC-18 tenía la premisa
+al revés en su mitad de escritura:** `DateField(auto_now_add=True)` guarda `datetime.date.today()`, la
+fecha del **proceso** —UTC en los contenedores—, así que una inscripción de las 22:00 ART nace con
+fecha de mañana y leerla con `timezone.localdate()` no la encuentra. Los siete campos de «el día en que
+pasó» pasan a `default=timezone.localdate`, con dos ratchets: uno barre **todos** los modelos del repo
+buscando `auto_now*` en un `DateField` y el otro nombra los campos de la ficha. Con eso vuelven a verde
+`test_ciudadanos_selectors` (que la ronda 1 había roto) y
+`test_inicio_contadores_ola5.TendenciasIncluyenHoyTests`, **que ya fallaba en `development`** por la
+misma raíz cada vez que el proceso no corría en hora de Argentina. (2) `fecha_de_referencia` se compara
+con `fecha_local()` y no con `.astimezone()`, que sin argumento usa la zona del sistema operativo.
+(3) El rechazo sin SIIS ya no da `AttributeError` con un `ValueError` de mensaje vacío —era un 500
+**después** de commitear el rechazo—. (4) El constructor solo bloquea las condiciones imposibles que la
+edición **agrega**: antes, un diseño con una violación vieja quedaba congelado hasta que alguien
+adivinara cuál era. (5) Un campo que cuelga de un grupo que no se sirve en el canal deja de contar como
+fuente disponible.
 
 **Abierto:** de la Ola 3 quedan los PRs 2 (datos y catálogo), 3 (comandos peligrosos), 5 (app de campo),
 7 (integraciones y link público), 8 (reportes) y el resto del ítem 9 (RED-48, RED-09, RED-35, RED-40).
@@ -1858,8 +1875,9 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
   4. *CI y tests:* pasó entero a la Ola R (TST-01 → R-11; TST-02, TST-03 y R0-03 → R-20).
   5. *App de campo:* G1-03, G1-04 (+BEC-22), G1-05, G1-06, G1-07, G1-16, R0-04 (raíz `/api/becas/` con Token). 34 h.
   6. ✅ *Reglas de Becas:* BEC-03, BEC-04, BEC-05, BEC-06, BEC-07, BEC-09, BEC-10, BEC-15, BEC-16, BEC-17, BEC-18,
-     BEC-20, BEC-24 **+ RED-50** (el ítem 9 lo traía aparte). 26 + 4 h. **Cerrado el 07-oct-2026 (Cambio 172),
-     sin migraciones.**
+     BEC-20, BEC-24 **+ RED-50** (el ítem 9 lo traía aparte). 26 + 4 h. **Cerrado el 08-oct-2026
+     (Cambio 172).** Dos migraciones sin DDL, de la ronda 2: BEC-18 necesitaba arreglar también la
+     **escritura** de los `DateField` con `auto_now_add`, que guardan la fecha del proceso.
   7. *Integraciones y link público:* SIIS-10, SIIS-13, SIIS-14 (+G3-02), SIIS-15, SIIS-16, SIIS-18, SIIS-20, SIIS-21,
      G1c-15, G1-11, G1-12, G1-13, G1-14, R0-06, R0-07 (link público y `q_uuid_en_texto`). 30 h.
   8. *Reportes:* G2-01. 8 h.
