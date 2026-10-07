@@ -1,0 +1,10 @@
+{
+  "error": "DATOS_INVALIDOS",
+  "mensaje": "El beneficiario no cumple los requisitos del programa.",
+  "detail": "El beneficiario no cumple los requisitos del programa.",
+  "resultado": "RECHAZADO",
+  "detalles": {
+    "fecha_nacim_apoderado": "El apoderado debe ser mayor de 18 anios",
+    "id_fun_x_plan": "La funcion no pertenece al programa indicado"
+  }
+}

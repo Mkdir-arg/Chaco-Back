@@ -331,6 +331,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 157 | El rojo deja de significar dos cosas: badges de estado, confirmaciones, avisos duplicados y el doble clic que mandaba dos POST | Merenderos (listado, detalle y solicitudes) · Dispositivos (detalle del legajo) · Usuarios y roles · Transversal (shell: guardia de doble envío y avisos de alertas) | `#ui` `#metodo` | Auditoría integral oct-2026 — fichas FE-18, FE-19, FE-25 y FE-26 (Ola 5, PR 5) | 07/10/2026 | 🟢 **Hecho** | No requiere |
 | 158 | Lo que viaja a SIIS deja de depender del catálogo de hoy: la foto del caso manda, gana el dato más específico y una identidad validada frena el envío | Becas · alta de beneficiarios en SIIS (payload, foto de la definición, catálogo de preguntas) · Transversal (copia local de los catálogos de SIIS, runner de tests) | `#siis` `#datos` `#relevamientos` `#metodo` | Auditoría integral oct-2026 — SIIS-08, G1-08, G1-09 y G1-10, más los cuatro MINOR de la revisión del PR 5 (Ola 1 «Integridad SIIS», PR 6) | 07/10/2026 | 🟢 **Hecho** | **Sí:** `programas.0077_catalogo_siis_local` (tabla nueva y vacía) |
 | 159 | Ratchets de arquitectura: el contrato de los modelos, el grafo de imports y las tres dependencias ocultas del shell | Transversal (contrato de `programas.models`, grafo de imports, shell del backoffice, arranque del contenedor, middlewares de usuarios, cache de la home, ruteo de la raíz) | `#metodo` `#infra` `#datos` | Auditoría integral oct-2026 — fichas RED-46, RED-79, RED-13, RED-45, RED-52, RED-51, RED-78 y RED-82 (Ola R, PR R-21) | 07/10/2026 | 🟢 **Hecho** (seis fichas cierran su parte R; el resto queda en las Olas 2, 4 y 7 con su test rojo o su ratchet puesto) | No requiere |
+| 160 | Contratos del backoffice: las URLs que el front escribe a mano, las claves que lee, los parsers externos y el gate que los corre | Transversal (barrido de URLs del front, sobre de error JSON, catálogo de capacidades, CI de GitHub Actions) · Inicio (APIs del dashboard y contador de alertas) · Becas (JSON guardados, fixtures de RENAPER/Personas/SIIS) | `#api` `#metodo` `#rbac` `#siis` | Auditoría integral oct-2026 — fichas RED-42, RED-39, RED-40, RED-41, RED-43 y RED-44 (Ola R, PR R-18) | 07/10/2026 | 🟢 **Hecho** (RED-39, RED-40 y RED-42 cierran su parte R; el resto queda en las Olas 3, 5 y 7 con su test o su ratchet puesto) | No requiere |
 | 162 | Las herramientas de SIIS dejan de pisar lo que otro corrigió, y el alta de prueba no sale del ambiente de pruebas | Becas · revisión de casos (modal «Completar datos para SIIS») · comandos de gestión de SIIS (`diagnosticar_siis`, `corregir_datos_siis`, `correr_alta_siis`, `completar_casos_renaper`) | `#siis` `#datos` `#relevamientos` `#ui` `#metodo` | Auditoría integral oct-2026 — fichas SIIS-19, SIIS-17 y G3-06, más la segunda parte de RED-32 (Ola 1 «Integridad SIIS», PR 7 — cierra la ola) | 07/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
@@ -21780,7 +21781,248 @@ según lo que devuelva. En icore: `docker compose -f docker-compose.prod.yml exe
   `debe_cambiar_contrasena=False`, así que el gate salía por la rama del flag y nunca evaluaba el path —con el filtro
   `/api/` **borrado**, el test seguía pasando—. Se relee el usuario de la base y se le agregó el control negativo con
   el mismo request y otro path.
+---
 
+# Cambio 160 — Contratos del backoffice: las URLs que el front escribe a mano, las claves que lee, los parsers externos y el gate que los corre
+
+🟢 **HECHO — 07/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal: barrido de las URLs del front, sobre de error JSON, catálogo de capacidades y CI de GitHub Actions · Inicio (APIs del dashboard y contador de alertas del navbar) · Becas (forma de los JSON guardados, fixtures de RENAPER / Base de Personas / SIIS) |
+| **Etiquetas** | `#api` `#metodo` `#rbac` `#siis` |
+| **Solicitante** | Auditoría integral de octubre 2026 — hallazgos **RED-42**, **RED-39**, **RED-40**, **RED-41** (D-RED-04), **RED-43** y **RED-44** (Ola R «Red de seguridad», PR R-18) |
+| **Fecha del pedido** | 07/10/2026 |
+| **Issue / épica** | Sin issue — auditoría oct-2026, `docs/internal/auditoria-2026-10/hallazgos/08-red-de-seguridad.md` |
+| **Partes afectadas** | Casi todo son tests, fixtures y CI. Código que viaja al release: `core/http.py` (dos helpers que todavía no usa ninguna vista) y `programas/management/commands/verificar_json_guardado.py` (comando de **solo lectura**). Más el job `Contratos de API` en `.github/workflows/pr-backend.yml`, su entrada en `docs/internal/rulesets/ruleset-development.json` y una regla nueva en `CLAUDE.md`. **Ninguna vista, ningún modelo, ninguna plantilla, ningún JS** |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Seis fichas de la familia «contratos». Comparten una forma: **hay un dato que dos piezas se pasan sin que nadie lo haya
+escrito en ningún lado**, y cambiarlo no rompe ningún test.
+
+- **RED-42** (MEDIA): el front llama a sus endpoints JSON de dos maneras —con `{% url %}`, que revienta en el render si
+  la ruta no existe, y con la ruta escrita a mano adentro del JavaScript, que no la revisa nadie—. Cuatro literales
+  resolvían 404 en producción, tapados por un `console.error`. Y las claves que el JS lee (`data.count || 0`,
+  `data.has_more`) son, en un caso, **los kwargs de un `aggregate()`**.
+- **RED-39** (MEDIA): cinco sobres de error JSON conviven en el backoffice —`error` 79 usos, `message` 38, `mensaje` 17,
+  `detail` 14, `errors` 5— y cada consumidor lee el suyo con un `||` de fallback que tapa la diferencia.
+- **RED-40** (MEDIA): ocho `JSONField` con estructura implícita, `validators` = 0, y nada que diga si lo guardado hace
+  seis meses se sigue leyendo.
+- **RED-41** (MEDIA): los parsers de RENAPER, Base de Personas y SIIS se probaban contra diccionarios escritos a mano,
+  de tres o cuatro claves planas. Los dos únicos lugares con una respuesta realista **discrepaban** en el formato de la
+  misma clave.
+- **RED-43** (MEDIA): el CI no tenía **ningún** gate de contrato de API.
+- **RED-44** (MEDIA): un código de capacidad mal tipeado devuelve `False` en silencio, y el superusuario —que es quien
+  suele probar el cambio— lo ve todo igual por el bypass de `is_superuser`.
+
+## Qué lo motivó
+
+El patrón, otra vez, es que **el cambio que rompe parece una mejora**:
+
+- Renombrar `count=Count("id")` a `total=Count("id")` en `legajos/views/alertas.py` —cualquiera lo haría buscando
+  claridad— deja el badge de alertas del navbar en **0 para todo el backoffice**.
+- Normalizar el sobre de error del constructor de `message` a `detail`, que es la convención de DRF, deja al coordinador
+  mirando «No se pudo guardar. Recargá la página.» en vez del motivo real.
+- Renombrar `presentacion` → `modo_presentacion` adentro de `ItemDiseno.propio` devuelve **todos los selectores propios
+  ya guardados** a «LISTA», porque se leen con `propio.get("presentacion", "LISTA")`.
+- Que el proveedor anide `result` un nivel más hace que `consultar_renaper` devuelva `{"success": True, "data": {}}` y
+  el caso se marque **validado con el nombre vacío**.
+- Renombrar una capacidad en el `CATALOGO` y actualizar cuatro de los cinco usos hace desaparecer una pantalla para
+  todos los roles, menos para el admin.
+
+Ninguno de esos cinco cambios rompía un test antes de este PR. Los cinco lo rompen ahora: están verificados por mutación,
+uno por uno.
+
+Va **antes de la Ola 2** (que mueve capacidades) y **antes de la Ola 5** (que reemplaza los literales por `{% url %}`).
+
+## Alcance acordado
+
+**Entra:** los tests y fixtures de las seis fichas, el comando de diagnóstico de RED-40, los dos helpers de RED-39 y el
+job `Contratos de API` con su entrada en el ruleset.
+
+**Queda afuera**, con su test o su ratchet ya puesto:
+
+- **Ola 3:** `validators=[validar_condicion_json]` en `ItemDiseno.condicion` y `GrupoRequisito.condicion_defecto`
+  (RED-40, con G1-05); y el arreglo de SIIS-10, que acá queda con `expectedFailure`.
+- **Ola 5:** reemplazar los literales del front por `{% url %}` donde el template lo permita (RED-42, segunda parte).
+- **Ola 7:** migrar las vistas al sobre único de `core/http.py`, app por app (RED-39, segunda parte); y decidir qué pasa
+  con las cinco capacidades sin uso (OPS-14).
+- **R-17:** el job no nombra todavía `programas.tests.test_definicion_contrato` ni el paso de `node` con
+  `scripts/check_condiciones_js.mjs`, porque no existen. Los crea R-17 y hay que agregarlos al workflow en ese mismo PR.
+
+## Decisiones tomadas
+
+- **DECISIÓN CLIENTE — D-RED-04 aplicada por default: fixture sintético.** No se graba ninguna respuesta real de
+  RENAPER, Base de Personas ni SIIS. icore tiene datos de personas y corre con `ENVIRONMENT=prd`; versionar una
+  respuesta de un organismo de identidad, aun anonimizada, necesita aprobación explícita. Los seis fixtures de
+  `programas/fixtures/contratos/` están escritos a mano con la estructura documentada —domicilio anidado incluido— y
+  DNI `11111111`/`22222222`. Si el PM aprueba grabar, el camino es `diagnosticar_integraciones --grabar <dir>` **solo**
+  con `RENAPER_TEST_MODE=1` contra el DNI de prueba, anonimizando y con revisión antes de versionar.
+- **El sobre único usa `errores` y no `errors`.** La ficha proponía `errors`; el código ya escribe `errores` en
+  `programas/views/diseno.py`. Cambiarlo ahora sería exactamente el renombre silencioso que RED-39 vino a evitar, y el
+  idioma del repo es el español.
+- **Los contratos se congelan con el conjunto *exacto* de claves,** no con un `assertIn`. Una clave que se va rompe el
+  front; una que se agrega sin avisar es una clave que la app móvil o el WebSocket pueden empezar a leer sin que nadie
+  lo decida.
+- **La allowlist de RED-42 es un ratchet en las dos direcciones.** `test_la_allowlist_no_tiene_entradas_de_mas` falla
+  cuando una entrada ya resuelve **o** ya no aparece en el front: si solo mirara hacia arriba, la lista crecería y
+  dejaría de medir nada. Cada ficha que arregla su URL tiene que sacar su entrada en el mismo diff.
+- **`Contratos de API` entra obligatorio desde el primer día.** Se midió antes de decidirlo: 62 tests en 8,8 s, sin base
+  de verdad (SQLite en memoria), sin red, sin dependencia del orden entre módulos. No hay motivo para el amarillo. El
+  filtro por rutas va **adentro** del job (RED-20): un check con `paths:` en el trigger no reporta cuando el PR no toca
+  esas rutas, y un check que no reporta no puede ser obligatorio.
+- **Las capacidades sin uso se declaran, no se borran.** Sacarlas del `CATALOGO` es un cambio de producto —el ABM de
+  Roles las ofrece hoy y alguien puede tenerlas tildadas—, no una limpieza de tests. Quedan declaradas con su motivo y
+  la decisión es de la Ola 7 (OPS-14).
+- **`CAPS_GESTION` no cuenta como uso** (ronda 2). Se calcula *del propio catálogo* en tiempo de import —todo `becas.*`
+  menos dos—, así que contarla volvía **circular** la vuelta: cualquier capacidad de Becas quedaba «usada» por el solo
+  hecho de estar en el catálogo. La vuelta exige un uso como literal, y lo que de verdad se evalúa en bloque se nombra
+  a mano en `USOS_EN_BLOQUE`, con un test que verifica que esa lista siga siendo exactamente `CAPS_ADMIN_PROGRAMA`.
+- **Un gate que no puede decidir no dice «verde»** (ronda 2). Los dos jobs con `dorny/paths-filter` fallan si la salida
+  del filtro no es `true` ni `false`, en vez de saltearse todos los pasos y terminar en éxito.
+
+## Qué se hizo
+
+**RED-42 — las URLs y las claves del front.** `core/tests/test_urls_del_front.py` recorre `templates/`, los ocho
+`*/templates/` y `static/**/*.js`, extrae los literales de `fetch(...)` y `url: "..."`, normaliza los segmentos que son
+una interpolación entera (`${id}`, `{{ pk }}`) y los prueba con una sonda entera **y** una UUID —así una ruta con
+`<uuid:legajo_id>` también cuenta como resuelta—, y afirma que `django.urls.resolve` los encuentra. **Medición: 14
+literales, 3 rotos**, que son la allowlist inicial. `dashboard/tests/test_api_contrato.py` congela el conjunto exacto de
+claves de los tres endpoints del inicio, incluida la invariante `len(labels) == len(datos) == dias` para los cuatro
+períodos (Chart.js emparea por posición: una lista más larga que la otra corre todo el gráfico un día).
+
+**RED-39 — el sobre de error.** `core/http.py` con `error_json(mensaje, *, status=400, errores=None)` y
+`ok_json(**datos)`; `ok` no se puede pisar con un kwarg, porque una respuesta con `ok=False` y status 200 es justo el
+caso que el front no sabe leer. `core/tests/test_contrato_errores_ajax.py` congela las claves de hoy de los dos
+consumidores que el usuario nota enseguida.
+
+**RED-40 — la forma de los JSON guardados.** `verificar_json_guardado [--json] [--detalle N]`, de solo lectura, en lotes
+de 500: condiciones (`ItemDiseno.condicion`, `GrupoRequisito.condicion_defecto`), campos propios, fotos de la definición
+y correcciones para SIIS. Diez formas rotas, la peor primero: un operador fuera de `OPERADORES_POR_TIPO` cae al
+`return False` final de `evaluar_regla` y el ítem condicionado **no se muestra nunca**.
+
+**RED-41 — los parsers externos.** Seis fixtures sintéticos compartidos y `programas/tests/test_contratos_externos.py`,
+que los pasa por los parsers **reales**: RENAPER por la cadena entera `consultar_ciudadano` → `consultar_datos_renaper`
+con los dos sobres que el proveedor ya usó (`success`/`data` e `isSuccess`/`result`), Personas con su token y su 404, y
+SIIS con el token y el alta de la tabla intermedia (201 con `ids_generados`, 400 con `detalles` por campo).
+`test_toda_clave_leida_existe_en_el_fixture` cierra el círculo por AST: una clave nueva que el parser empiece a leer y
+que ningún fixture tenga pone el módulo en rojo, que es el recordatorio de verificarla contra el proveedor.
+
+**RED-43 — el gate.** Job `Contratos de API` en `pr-backend.yml`: `manage.py spectacular --validate --file /dev/null`
+—**sin** `--fail-on-warn`, que se enciende cuando la allowlist de RED-37 quede vacía— más los ocho módulos de contrato
+en un solo proceso. Sumado a `ruleset-development.json` y a `CHECKS_OBLIGATORIOS` de `core/tests/test_gates_ci.py`.
+`CLAUDE.md` suma la regla: tocar `programas/api/serializers.py`, `definicion_formulario` o una clave que el front lee a
+mano obliga a actualizar el test de contrato en el mismo diff.
+
+**RED-44 — el catálogo de capacidades.** `users/tests/test_rbac_contrato.py` cruza las dos direcciones por AST,
+resolviendo las constantes `CAP_*`/`CAPS_*` de todo el repo en dos pasadas (una se arma con otra) y tomando solo los
+argumentos **posicionales** (así `redirect_to="configuracion:programas"` no se confunde con una capacidad). El mensaje
+de error trae `archivo:línea` y `difflib.get_close_matches`. La vuelta exige un uso **como literal**: lo demás se
+declara en una de tres listas —`CAPACIDADES_SIN_USO`, `CAPACIDADES_SOLO_COLECTIVAS` o `USOS_EN_BLOQUE`—, cada
+entrada con su motivo.
+
+## Cuatro hallazgos que las fichas no tenían
+
+1. **La `definicion` «plana anterior al Cambio 58» no puede existir.** RED-40 pedía un test con un `Formulario.definicion`
+   con listas planas `globales`/`requisitos` y sin `items`. El campo **nació** en `programas.0062`, que es del propio
+   Cambio 58, junto con `foto_definicion`, que siempre escribe `{version, canal, items}`. Lo viejo de verdad es
+   `definicion = NULL` con `data` en el contrato plano de la app, y eso es lo que se prueba: `respuestas_legibles`
+   devuelve `None` y el lector cae al camino por pk, en vez de mostrar el caso **vacío**.
+2. **RED-44 encontró seis capacidades sin uso propio, no una.** La ficha esperaba solo `ciudadano.eliminar`. Medido de
+   verdad también están `config.ver` (todo `/configuracion/` exige `config.administrar`), `relevamiento.ver` (el módulo
+   genérico quedó sin consumidores: Becas usa `becas.relevamiento.ver`), `institucion.ver` /
+   `institucion.administrar` —**no existe el módulo de Instituciones**: no hay vista ni URL que las evalúe, solo el tab
+   del ABM de Roles— y, desde la ronda 2, `becas.coordinador.ver`, que es de otra categoría: **sí** se evalúa, pero
+   solo dentro de `CAPS_GESTION`; ninguna pantalla pregunta por ella, mientras `crear` y `editar` sí tienen su
+   `{% if … %}`. Todas verificadas una por una y declaradas con su motivo.
+3. **El extractor de capacidades tenía que cubrir dos entradas más de las que la ficha nombraba:** el mixin de
+   Dispositivos usa `capacidad_requerida` en **singular**, y sus tres tags de template (`puede_en_programa_dispositivos`,
+   `puede_operar_dispositivo`) reciben la capacidad como literal. Sin eso, 14 capacidades aparecían como «sin uso»
+   siendo falso.
+4. **La allowlist de RED-42 nace en 3 y no en 4.** El Cambio 150 (Ola 5, PR 2) ya retiró la solapa de Red Familiar, y
+   su propio informe anotó que la allowlist «no existía todavía». Queda reconciliado en las dos fichas.
+
+## Verificación
+
+- `manage.py check` → 0 issues. `manage.py check --deploy` → exit 0 (5 warnings preexistentes, los mismos de siempre).
+  `makemigrations --check --dry-run` → «No changes detected».
+- **Suite completa en un solo proceso** (Python 3.12 + Django 5.2.17, `.venv312`, igual al CI): **3.257 tests, OK**,
+  30 skipped y **8 expected failures** (eran 7: el octavo es `test_personas_no_toma_claves_anidadas`, de SIIS-10).
+- `manage.py test --tag performance` → 4 tests, OK.
+- `ruff check .` → «All checks passed»; `ruff format --check` limpio sobre lo tocado.
+- `manage.py spectacular --validate --file /dev/null` → exit 0 (26 warnings / 53 errores reportados, 15 y 10 únicos, con
+  su ratchet en `test_api_schema_contrato`).
+- `actionlint` (Docker `rhysd/actionlint`) sobre los nueve workflows → exit 0.
+- `scripts/requerimientos.py --check` → OK.
+- **Cinco mutaciones, cinco tests en rojo:** `count=` → `total=` en `legajos/views/alertas.py`; `"has_more"` →
+  `"hasMore"` en `dashboard/api_views/__init__.py`; renombrar `becas.cupo.ver` en el `CATALOGO` sin tocar sus usos;
+  `message` → `detail` en `programas/views/diseno.py`; `propio.get("presentacion", …)` →
+  `propio.get("modo_presentacion", …)` en `programas/services/diseno.py`. Todas revertidas.
+
+## Puesta en marcha en el servidor
+
+Nada que correr. No hay migraciones, no se escribe una sola fila y no cambia ninguna vista.
+
+El comando nuevo es **opcional y de solo lectura**: cuando convenga, correr
+`python manage.py verificar_json_guardado --json > antes.json` contra un dump de PRD restaurado en una base local
+—nunca contra PRD— **antes** de cualquier cambio de forma de un `JSONField`, y comparar después.
+
+## Pendientes / a definir
+
+- **PM:** el ruleset de `development` cambió. Cuando lo aplique, va con `Contratos de API` adentro de los checks
+  obligatorios.
+- **Ola 7 (OPS-14):** decidir qué pasa con `config.ver`, `relevamiento.ver`, `institucion.ver`,
+  `institucion.administrar` y `ciudadano.eliminar`: o se usan, o salen del catálogo. Mientras tanto el ABM de Roles las
+  ofrece y tildarlas no habilita nada.
+- **R-17:** agregar `programas.tests.test_definicion_contrato` y el paso de `node` con `scripts/check_condiciones_js.mjs`
+  al job, en el mismo PR que los crea.
+- **Ola 5:** al borrar `historial_contactos.html` (LEG-06) y `sendThemePreference` (RED-75), sacar sus entradas de la
+  `ALLOWLIST` de `core/tests/test_urls_del_front.py` en el mismo diff.
+- **Ola 7 (RED-37):** cuando la allowlist del esquema quede vacía, sumar `--fail-on-warn` al paso de `spectacular`.
+
+## Reversión
+
+1. Revertir el commit. Vuelven los seis defectos: el front sin contrato de URLs ni de claves, los cinco sobres de error
+   sin congelar, los `JSONField` sin diagnóstico, los parsers externos probados contra diccionarios inventados, el CI sin
+   gate de contrato y el catálogo de capacidades sin cruzar.
+2. **No hay nada que deshacer en ninguna base.** Sin migraciones, sin escrituras, sin cambios de esquema. Los
+   `expectedFailure` describen bugs que **ya existen**: revertir no los introduce ni los arregla.
+3. **Si el ruleset ya está aplicado**, revertir deja `Contratos de API` como check requerido sin job que lo publique, y
+   todo PR queda esperando para siempre. Hay que sacar el context del ruleset en el mismo movimiento.
+4. Si se revierte **después** de que la Ola 3, la 5 o la 7 hayan hecho su parte, las allowlists vuelven a listar
+   entradas que ya no existen: conviene revertir también esa parte o actualizar las listas en el mismo commit.
+
+## Historial
+
+- **04/10/2026** — el frente Red de seguridad registra las seis fichas y las agrupa en el PR R-18, por detrás de R-04
+  (el esquema, que es lo que hace posible el gate) y de R-07 y R-12 (los contratos que el job va a correr).
+- **06/10/2026 (Cambio 150, PR 2 de la Ola 5)** — LEG-03 anota que la allowlist de RED-42 «no existe todavía» y que
+  nacerá sin su entrada. Queda reconciliado acá.
+- **07/10/2026 (este cambio)** — las seis cerradas en su parte de la Ola R. RED-41, RED-43 y RED-44 **completas**;
+  RED-39, RED-40 y RED-42 con su parte R cerrada y el resto en las Olas 7, 3 y 5. **D-RED-04 aplicada por default
+  (sintético).** Cuatro hallazgos nuevos: la `definicion` plana no puede existir, las capacidades sin uso propio son
+  seis, el extractor necesitaba dos entradas más, y la allowlist nace en 3.
+- **07/10/2026 (ronda 2 de revisión)** — aprobado, con cuatro MINOR corregidos encima.
+  (1) **Los dos jobs con `dorny/paths-filter` podían mentir.** `pr-backend.yml` declaraba solo
+  `permissions: contents: read`; el filtro en `pull_request` necesita además `pull-requests: read`. Con el repo público
+  el token lee igual, pero con **D-RED-01** (privado) el filtro podía dejar de resolver, todos los pasos saltearse y un
+  check **obligatorio** terminar en verde sin correr nada. Se agregó el permiso en `pr-backend.yml` y en
+  `pr-performance.yml` —que arrastraba la misma omisión en `Migrate ida y vuelta`— y, en los dos, un paso que **falla**
+  si la salida del filtro no es `true` ni `false`.
+  (2) El test del camino feliz de la subida escribía un PDF en el `MEDIA_ROOT` **real** del repo (dejó siete huérfanos
+  en `media/adjuntos/`, borrados): ahora va a un `TemporaryDirectory` con `override_settings` y limpieza, como
+  `legajos/tests/test_adjuntos_rbac.py`.
+  (3) **La vuelta de RED-44 era ciega a la mitad del catálogo.** Contaba `CAPS_GESTION` como uso, y `CAPS_GESTION`
+  **es** el catálogo de Becas: las 33 capacidades finas quedaban «usadas» por existir. Sacarla descubrió
+  `becas.coordinador.ver`. Quedan dos listas nuevas —`CAPACIDADES_SOLO_COLECTIVAS` y `USOS_EN_BLOQUE`— y dos tests que
+  impiden volver atrás. Verificado por mutación: un `becas.inventada.ver` agregado al `CATALOGO` ahora sale rojo.
+  (4) `_candidatas` del barrido de URLs usaba **la misma** sonda para todos los segmentos variables, así que un literal
+  que mezclara `<uuid:>` con `<int:>` daba falso roto; ahora prueba una sonda por segmento, en todas las combinaciones
+  (tope de 4 segmentos; hoy el máximo real es 1), con su test sobre una ruta mixta que existe.
+  **Además, al mergear `development`:** la foto del caso sumó `destinos_siis` con el Cambio 158 (G1-08), así que el
+  contrato exacto que afirma `test_un_caso_legacy_se_traduce_a_respuestas_por_clave` pasó a cuatro claves.
 ---
 
 # Cambio 162 — Las herramientas de SIIS dejan de pisar lo que otro corrigió

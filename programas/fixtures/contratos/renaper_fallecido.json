@@ -1,0 +1,16 @@
+{
+  "success": true,
+  "data": {
+    "mensaf": "FALLECIDO",
+    "nombres": "Sintetica Baja",
+    "apellido": "Contrato",
+    "fechaNacimiento": "1940-03-04",
+    "sexo": "M",
+    "nroDni": "22222222",
+    "calle": "",
+    "numero": "",
+    "piso": "",
+    "departamento": "",
+    "provincia": "Chaco"
+  }
+}
