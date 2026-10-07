@@ -53,6 +53,11 @@ columna y las filas se cortan. El label de un `CheckboxSelectMultiple` no apunta
 único, así que ahí va un `<p class="block text-sm font-medium text-heading mb-1">` y no un
 `<label for>` sin destino.
 
+El bloque de checks **no** lleva recorrido de `.errors` cuando su form no se re-renderiza inválido: el modal
+«Completar datos para SIIS» no es AJAX y su vista arma un solo aviso con todos los errores y redirige (ALR-8),
+así que ese markup sería muerto y simularía una validación inline que no existe. Donde el form sí vuelve
+renderizado —un formulario de pantalla completa—, el error va como en el resto de `_field.html`.
+
 ## Campos dentro de un modal
 
 En un modal con guardado AJAX el campo se escribe a mano para poder enganchar el error inline:
