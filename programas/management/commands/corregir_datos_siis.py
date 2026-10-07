@@ -32,19 +32,31 @@ Corre en seco por defecto: sin ``--aplicar`` no escribe nada y solo informa.
 
 Avanza por lotes, cada uno en su transacción: si se corta, lo confirmado queda
 y volver a correrlo es seguro (reconoce lo ya corregido y no lo repite).
+
+**Quién gana si dos escriben a la vez (G3-06).** Entre que el comando lee el lote
+y lo escribe pasan segundos, y en esa ventana el coordinador puede guardar una
+corrección desde la ficha o el masivo puede informar el caso. Antes el
+``bulk_update`` mandaba el JSON entero calculado sobre la lectura vieja y se
+llevaba puesto lo que hubiera pasado en el medio, sin dejar rastro. Ahora la
+escritura relee las filas **bajo el candado** de cada una y, campo por campo,
+solo escribe los que siguen como estaban: una corrección manual más nueva gana
+—quien miró el caso sabe más que la planilla—, y un caso con un envío a SIIS
+vigente ni se toca. Cada caso escrito deja su ``TracaFormulario``.
 """
 
 import collections
+import json
 import time
 from datetime import date
 
-from django.core.management.base import BaseCommand, CommandError
+from django.core.management.base import CommandError
 from django.db import connection, transaction
 from django.utils import timezone
 
 from legajos.models import Ciudadano
+from programas.management.commands._base_siis import ComandoSiisBase
 from programas.management.commands._insumos_siis import falta_tabla
-from programas.models import EnvioSIIS, Formulario, LocalidadSiis
+from programas.models import EnvioSIIS, Formulario, LocalidadSiis, TracaFormulario
 from programas.services import proceso_masivo
 from programas.services.padron import normalizar_dni
 from programas.services.siis import catalogo
@@ -56,6 +68,10 @@ from programas.services.siis_envio import (
 )
 
 TABLA_LOCALIDADES = "localidades_corregidas"
+#: Campo de la traza que deja el comando. Uno por caso, no uno por corrección.
+CAMPO_TRAZA = "Datos SIIS · corregir_datos_siis"
+#: Centinela para distinguir «la clave no está» de «la clave vale None».
+_SIN_VALOR = object()
 MAYORIA_DE_EDAD = 18
 LOTE = 200
 # SIIS exige al menos 4 caracteres de barrio.
@@ -72,11 +88,6 @@ _digitos = normalizar_dni
 
 def _edad(nacimiento, hoy):
     return hoy.year - nacimiento.year - ((hoy.month, hoy.day) < (nacimiento.month, nacimiento.day))
-
-
-def _lotes(lista, tamano):
-    for inicio in range(0, len(lista), tamano):
-        yield inicio // tamano + 1, lista[inicio : inicio + tamano]
 
 
 def _catalogo_que_se_rinde():
@@ -102,11 +113,21 @@ def _catalogo_que_se_rinde():
     return cargar
 
 
-class Command(BaseCommand):
+class Command(ComandoSiisBase):
+    """Hereda de :class:`ComandoSiisBase` por las piezas compartidas, no por los flags.
+
+    No llama a SIIS caso por caso, así que ``add_arguments`` no llama a
+    ``agregar_flags_comunes`` —``--max-errores`` o ``--pausa`` no significan nada
+    acá—: toma ``--usuario`` suelto, que es el que firma la traza de G3-06. Lo
+    que gana del parentesco es que ``_lotes``, ``_log``, ``_resumen`` y
+    ``_solicitante`` dejan de estar copiados (RED-53).
+    """
+
     help = "Corrige localidad del domicilio y fecha del apoderado para que el caso pueda informarse a SIIS."
 
     def add_arguments(self, parser):
         parser.add_argument("--aplicar", action="store_true", help="Escribe. Sin esto solo informa qué haría.")
+        self.agregar_flag_usuario(parser)
         parser.add_argument(
             "--tabla",
             default=TABLA_LOCALIDADES,
@@ -153,10 +174,6 @@ class Command(BaseCommand):
         parser.add_argument("--lote", type=int, default=LOTE, help=f"Casos por transacción. Por defecto {LOTE}.")
         parser.add_argument("--limite", type=int, default=0, help="Procesa como mucho N casos. 0 = todos.")
         parser.add_argument("--convocatoria", type=int, default=None, help="Acota a una convocatoria por id.")
-
-    def _log(self, texto="", estilo=None):
-        self.stdout.write(estilo(texto) if estilo else texto)
-        self.stdout.flush()
 
     # ── Insumos ─────────────────────────────────────────────────────────────
 
@@ -493,6 +510,88 @@ class Command(BaseCommand):
 
     # ── Orquestación ────────────────────────────────────────────────────────
 
+    def _escribir_lote(self, propuestos, leidos, ciudadanos, solicitante, cuenta):
+        """Escribe el lote releyendo bajo candado, y devuelve cuántos casos tocó (G3-06).
+
+        Tres cosas pasan acá y ninguna podía pasar antes, porque el
+        ``bulk_update`` mandaba el JSON calculado sobre la lectura del principio:
+
+        1. El caso se relee con ``select_for_update``, así que el merge se hace
+           sobre lo que la fila dice **ahora**: una corrección manual de otro
+           campo guardada en el medio sobrevive.
+        2. Campo por campo se compara contra lo que se había leído. Si cambió,
+           alguien lo tocó después y gana el de él: quien miró el caso sabe más
+           que la planilla.
+        3. Un caso con un envío a SIIS **vigente** —releído acá, no al armar la
+           lista— no se toca: el payload de ese envío ya se armó.
+
+        **El orden de las dos consultas no es casual.** El candado va primero y
+        los envíos vigentes se leen **después**, ya con las filas tomadas.
+        ``siis_envio._reservar`` hace lo mismo que esto en el otro sentido:
+        bloquea la fila del ``Formulario`` y recién entonces crea el
+        ``EnvioSIIS``. Leyendo los vigentes antes del candado queda una ventana
+        —corta, pero es la ventana en la que el masivo trabaja— donde una reserva
+        que todavía no commiteó no aparece en ``tomados`` y el comando le
+        reescribe el ``datos_siis`` a un caso cuyo payload ya salió. Con el
+        candado tomado primero, o la reserva ya commiteó (y ``tomados`` la ve,
+        READ COMMITTED) o no puede empezar hasta que esta transacción cierre.
+
+        Nada de red adentro del candado (el catálogo ya está resuelto en memoria):
+        con ``read_timeout`` de 10 s en MariaDB, esperar un HTTP con las filas
+        tomadas es la forma de tumbar la corrida (SIIS-01).
+        """
+        with transaction.atomic():
+            if ciudadanos:
+                Ciudadano.objects.bulk_update(ciudadanos, ["fecha_nacimiento"])
+            if not propuestos:
+                return 0
+            frescos = list(
+                Formulario.objects.select_for_update()
+                .filter(pk__in=propuestos)
+                .only("pk", "datos_siis", "modificado")
+                .order_by("pk")
+            )
+            # Después del candado, nunca antes: ver el párrafo del docstring.
+            tomados = set(
+                EnvioSIIS.objects.filter(formulario_id__in=propuestos, vigente=True).values_list(
+                    "formulario_id", flat=True
+                )
+            )
+            ahora = timezone.now()
+            cambiados, trazas = [], []
+            for caso in frescos:
+                if caso.pk in tomados:
+                    cuenta["tomado_por_un_envio"] += 1
+                    continue
+                antes = caso.datos_siis if isinstance(caso.datos_siis, dict) else {}
+                leido = leidos[caso.pk]
+                escritos = {}
+                for campo, valor in propuestos[caso.pk].items():
+                    if antes.get(campo, _SIN_VALOR) != leido.get(campo, _SIN_VALOR):
+                        cuenta["correccion_mas_nueva_respetada"] += 1
+                        continue
+                    escritos[campo] = valor
+                if not escritos:
+                    continue
+                caso.datos_siis = {**antes, **escritos}
+                caso.modificado = ahora
+                cambiados.append(caso)
+                trazas.append(
+                    TracaFormulario(
+                        formulario_id=caso.pk,
+                        editado_por=solicitante,
+                        campo=CAMPO_TRAZA,
+                        valor_anterior=json.dumps(
+                            {c: antes[c] for c in escritos if c in antes}, ensure_ascii=False, default=str
+                        ),
+                        valor_nuevo=json.dumps(escritos, ensure_ascii=False, default=str),
+                    )
+                )
+            if cambiados:
+                Formulario.objects.bulk_update(cambiados, ["datos_siis", "modificado"])
+                TracaFormulario.objects.bulk_create(trazas)
+            return len(cambiados)
+
     def handle(self, *args, **options):
         aplicar = options["aplicar"]
         tamano = max(1, options["lote"])
@@ -501,6 +600,9 @@ class Command(BaseCommand):
         self.sin_cruce = {}
         self.sin_planilla = {}
         self.sin_equivalente = {}
+        # Antes de leer nada: un --usuario que no existe tiene que cortar acá y
+        # no después de media corrida escrita sin firma.
+        solicitante = self._solicitante(options["usuario"])
 
         if not aplicar:
             self._log("ENSAYO: no se escribe nada. Agregá --aplicar para hacerlo de verdad.\n", self.style.WARNING)
@@ -574,13 +676,18 @@ class Command(BaseCommand):
         cuenta = collections.Counter()
         guardados = 0
         legajos = 0
-        for numero, lote_ids in _lotes(ids, tamano):
+        for numero, lote_ids in self._lotes(ids, tamano):
             lote = list(
                 Formulario.objects.select_related("ciudadano", "apoderado_ciudadano", "relevamiento__convocatoria")
                 .filter(pk__in=lote_ids)
                 .order_by("pk")
             )
-            cambiados = []
+            propuestos = {}
+            # La foto de ``datos_siis`` **antes** de calcular nada: es contra
+            # esto que la escritura compara para saber si alguien lo tocó en el
+            # medio. Va acá porque ``--heredar-nacimiento`` pisa el atributo del
+            # objeto en memoria unas líneas más abajo.
+            leidos = {caso.pk: dict(caso.datos_siis or {}) for caso in lote}
             ciudadanos = []
             for caso in lote:
                 nuevos = {}
@@ -608,23 +715,17 @@ class Command(BaseCommand):
                     nuevos.update(self._corregir_apoderado(caso, fecha_apoderado, hoy, cuenta) or {})
                 if not nuevos:
                     continue
-                datos = dict(caso.datos_siis or {})
-                datos.update(nuevos)
-                caso.datos_siis = datos
-                caso.modificado = timezone.now()
-                cambiados.append(caso)
-            if aplicar and (cambiados or ciudadanos):
-                with transaction.atomic():
-                    if ciudadanos:
-                        Ciudadano.objects.bulk_update(ciudadanos, ["fecha_nacimiento"])
-                    if cambiados:
-                        Formulario.objects.bulk_update(cambiados, ["datos_siis", "modificado"])
-            guardados += len(cambiados)
+                propuestos[caso.pk] = nuevos
+            if aplicar:
+                escritos = self._escribir_lote(propuestos, leidos, ciudadanos, solicitante, cuenta)
+            else:
+                escritos = len(propuestos)
+            guardados += escritos
             legajos += len(ciudadanos)
             verbo = "corregidos" if aplicar else "a corregir"
             self._log(
                 f"   lote {numero:>3}/{total_lotes} · casos {lote[0].pk}-{lote[-1].pk} · "
-                f"{verbo} {len(cambiados):>3} · acumulado {guardados:>5} · {time.monotonic() - arranque:5.1f} s"
+                f"{verbo} {escritos:>3} · acumulado {guardados:>5} · {time.monotonic() - arranque:5.1f} s"
             )
 
         self._log("")
@@ -654,6 +755,9 @@ class Command(BaseCommand):
             "apo_sin_fecha": "apoderado sin fecha de nacimiento",
             "apo_ya_corregido": "apoderado ya corregido antes (no se toca)",
             "apo_ok": "apoderado correcto (no se toca)",
+            # G3-06: lo que la relectura bajo candado dejó afuera a propósito.
+            "correccion_mas_nueva_respetada": "corrección más nueva de otro (no se pisa)",
+            "tomado_por_un_envio": "caso con un envío a SIIS vigente (no se toca)",
         }
         for clave, etiqueta in etiquetas.items():
             if cuenta[clave]:

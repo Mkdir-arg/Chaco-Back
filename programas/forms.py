@@ -211,7 +211,17 @@ class DatosSiisForm(forms.Form):
     Todos los campos son opcionales: solo lo completado pisa lo que salió del
     relevamiento (``Formulario.datos_siis``). Las validaciones espejan las del
     manual (barrio de 4 caracteres como mínimo, altura entera, dpto de 2).
+
+    ``actuales`` son las correcciones ya guardadas del caso, y hacen falta para
+    dos cosas que sin ellas no se pueden (SIIS-17): ofrecer **quitar** una
+    corrección —lo vacío se descarta, así que sin esto una corrección cargada mal
+    solo se podía tapar con otra— y validar la localidad contra la provincia
+    guardada cuando el POST no la trae, que es lo que pasa siempre que se corrige
+    solo la localidad.
     """
+
+    #: Centinela de «quitar»: el campo elegido se borra de ``datos_siis``.
+    QUITAR = "quitar"
 
     CAMPOS_TEXTO = ("barrio_actual", "calle_actual", "dpto_actual")
     CAMPOS = (
@@ -277,9 +287,16 @@ class DatosSiisForm(forms.Form):
     id_fun_x_plan = forms.IntegerField(
         label="Función por programa (SIIS)", required=False, widget=forms.Select(attrs={"class": INPUT_CLASS})
     )
+    quitar = forms.MultipleChoiceField(
+        label="Quitar corrección",
+        required=False,
+        widget=forms.CheckboxSelectMultiple,
+        help_text="El campo vuelve a lo que salió del relevamiento.",
+    )
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, actuales=None, **kwargs):
         super().__init__(*args, **kwargs)
+        self.actuales = actuales if isinstance(actuales, dict) else {}
         provincias, error_prov = _cargar_catalogo(lambda: catalogo("provincias"))
         estados, error_est = _cargar_catalogo(lambda: catalogo("estados-civiles"))
         jurisdicciones, error_jur = _cargar_catalogo(lambda: catalogo("jurisdicciones"))
@@ -299,12 +316,35 @@ class DatosSiisForm(forms.Form):
             actual = (self.initial or {}).get(campo)
             if actual not in (None, ""):
                 self.fields[campo].widget.attrs["data-actual"] = str(actual)
+        # Solo se puede quitar lo que está puesto. Sin correcciones guardadas el
+        # campo no existe, y así el modal no muestra un bloque vacío.
+        quitables = [(campo, self.fields[campo].label) for campo in self.CAMPOS if campo in self.actuales]
+        if quitables:
+            self.fields["quitar"].choices = quitables
+        else:
+            del self.fields["quitar"]
+
+    def _a_quitar(self):
+        return set(self.cleaned_data.get("quitar") or ())
+
+    def _provincia_de_referencia(self, campo_provincia):
+        """La provincia contra la que cruzar la localidad.
+
+        La del POST si vino; si no, la **ya guardada**, que es el caso normal:
+        el modal manda solo lo que se tocó, así que corregir únicamente la
+        localidad dejaba la validación cruzada sin provincia y no corría. Si se
+        está quitando la corrección de provincia no hay contra qué cruzar: la
+        que va a valer sale del relevamiento y este form no la conoce.
+        """
+        if campo_provincia in self._a_quitar():
+            return None
+        return self.cleaned_data.get(campo_provincia) or self.actuales.get(campo_provincia)
 
     def _validar_localidad(self, campo, campo_provincia):
         loc = self.cleaned_data.get(campo)
-        if loc is None:
+        if loc is None or campo in self._a_quitar():
             return
-        prov = self.cleaned_data.get(campo_provincia)
+        prov = self._provincia_de_referencia(campo_provincia)
         localidades, error = _cargar_catalogo(lambda: catalogo("localidades"))
         if error:
             self.add_error(campo, error)
@@ -328,6 +368,14 @@ class DatosSiisForm(forms.Form):
 
     def clean(self):
         cleaned = super().clean()
+        quitar = self._a_quitar()
+        for campo in sorted(quitar):
+            if cleaned.get(campo) not in (None, ""):
+                self.add_error(
+                    "quitar",
+                    f"«{self.fields[campo].label}» no puede quitarse y completarse en el mismo guardado: "
+                    "elegí una de las dos cosas.",
+                )
         self._validar_localidad("loc_actual", "prov_actual")
         self._validar_localidad("loc_nacim", "prov_nacim")
         return cleaned
@@ -341,6 +389,10 @@ class DatosSiisForm(forms.Form):
                 continue
             datos[campo] = valor if campo in self.CAMPOS_TEXTO else int(valor)
         return datos
+
+    def campos_a_quitar(self):
+        """Las claves que hay que **sacar** de ``datos_siis`` (SIIS-17)."""
+        return self._a_quitar()
 
 
 class SegmentoForm(forms.ModelForm):

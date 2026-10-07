@@ -43,8 +43,20 @@ No hay «clases equivalentes»: es `nodo-field` o nada.
 
 El contenedor del campo lleva `.nodo-checks`: el widget de Django queda como grilla de filas
 clickeables, caja de 18 px con `accent-color` de marca y `:focus-visible` con anillo. Lo consumen
-el paso 2 del portal (`portal/templates/portal/inscripcion/paso2.html`) y la vista previa del
-constructor, que lo espeja con sus propias clases.
+el paso 2 del portal (`portal/templates/portal/inscripcion/paso2.html`), la vista previa del
+constructor —que lo espeja con sus propias clases— y el bloque «Quitar corrección» del modal
+«Completar datos para SIIS» (`revision/formulario_detalle.html`, `DatosSiisForm.quitar`).
+
+Cuando el campo de checks convive con una grilla de campos normales va **fuera** de la grilla,
+separado con `border-t border-light mt-2 pt-5`: metido adentro de `sm:grid-cols-2` queda en media
+columna y las filas se cortan. El label de un `CheckboxSelectMultiple` no apunta a un control
+único, así que ahí va un `<p class="block text-sm font-medium text-heading mb-1">` y no un
+`<label for>` sin destino.
+
+El bloque de checks **no** lleva recorrido de `.errors` cuando su form no se re-renderiza inválido: el modal
+«Completar datos para SIIS» no es AJAX y su vista arma un solo aviso con todos los errores y redirige (ALR-8),
+así que ese markup sería muerto y simularía una validación inline que no existe. Donde el form sí vuelve
+renderizado —un formulario de pantalla completa—, el error va como en el resto de `_field.html`.
 
 ## Campos dentro de un modal
 
