@@ -558,6 +558,40 @@ def subsegmento_editar(request, pk):
     )
 
 
+def _casos_con_adjunto(error):
+    """Cuántos **casos** distintos bloquean el borrado (DAT-01).
+
+    `ProtectedError.protected_objects` trae los `AdjuntoFormulario` uno por uno: lo
+    que le importa a quien configura no es cuántos archivos hay sino a cuánta gente
+    le desaparecería el documento.
+    """
+    return len({getattr(obj, "formulario_id", obj.pk) for obj in error.protected_objects})
+
+
+def _motivo_subsegmento_protegido(error):
+    """Qué está frenando el borrado del subsegmento, de verdad.
+
+    Antes el mensaje decía siempre «está utilizado por una convocatoria», que era el
+    único caso que había cuando se escribió. Desde DAT-01 hay un segundo camino: el
+    subsegmento cuelga de un `RequisitoNativo` y ese requisito tiene adjuntos de casos
+    ya cargados, que ahora son PROTECT. Decirle «convocatoria» a eso manda a buscar
+    donde no está.
+    """
+    modelos = {type(obj).__name__ for obj in error.protected_objects}
+    if modelos == {"AdjuntoFormulario"}:
+        casos = _casos_con_adjunto(error)
+        return (
+            f"No se puede eliminar el subsegmento: alguno de sus requisitos ya tiene documentos "
+            f"subidos en {casos} caso(s)."
+        )
+    if "AdjuntoFormulario" in modelos:
+        return (
+            "No se puede eliminar el subsegmento: está en uso por una convocatoria y alguno de sus "
+            "requisitos ya tiene documentos subidos en casos cargados."
+        )
+    return "No se puede eliminar el subsegmento porque está utilizado por una convocatoria."
+
+
 @login_required
 @requiere(CAP_SUBSEGMENTO_EDITAR)
 def subsegmento_eliminar(request, pk):
@@ -568,8 +602,8 @@ def subsegmento_eliminar(request, pk):
         try:
             sub.delete()
             messages.success(request, "Subsegmento eliminado.")
-        except ProtectedError:
-            messages.error(request, "No se puede eliminar el subsegmento porque está utilizado por una convocatoria.")
+        except ProtectedError as error:
+            messages.error(request, _motivo_subsegmento_protegido(error))
     return redirect("becas:segmento_detalle", pk=segmento_pk)
 
 
@@ -666,16 +700,6 @@ def requisito_crear(request, segmento_pk):
         "programas/becas/config/requisito_form.html",
         {"form": form, "segmento": segmento, "subsegmento": subsegmento},
     )
-
-
-def _casos_con_adjunto(error):
-    """Cuántos **casos** distintos bloquean el borrado (DAT-01).
-
-    `ProtectedError.protected_objects` trae los `AdjuntoFormulario` uno por uno: lo
-    que le importa a quien configura no es cuántos archivos hay sino a cuánta gente
-    le desaparecería el documento.
-    """
-    return len({getattr(obj, "formulario_id", obj.pk) for obj in error.protected_objects})
 
 
 def _assert_scope_requisito(request, req):

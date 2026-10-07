@@ -1,4 +1,4 @@
-"""Guardia: una sola regla de «DNI válido» en el código productivo (RED-48).
+r"""Guardia: una sola regla de «DNI válido» en el código productivo (RED-48).
 
 Antes de este cambio «DNI válido» estaba escrito **ocho** veces con **cuatro** reglas
 de largo distintas. La diferencia no la veía nadie, porque las dos puntas callan: el
@@ -10,10 +10,17 @@ comportan igual. Esto es la otra mitad: recorre el código productivo con `ast` 
 cuando aparece una **novena** regla escrita a mano, que es el modo real de que esto se
 vuelva a abrir —nadie va a cambiar las ocho, alguien va a agregar la novena—.
 
-Qué marca: una comparación de largo (`len(...)`) contra 6, 7, 8, 9 o 10 en una línea
-que habla de un DNI. La salida es usar `core.dni.dni_valido`; si de verdad hace falta
-otra cosa, se deja `# regla-dni: ok` en la línea con el motivo al lado. Hoy el repo no
-tiene ninguna excepción y la idea es que siga así.
+Qué marca, en el código productivo de las apps, de `config/` y de `scripts/`:
+
+1. una comparación de largo (`len(...)`) contra 6, 7, 8, 9 o 10 en una sentencia que
+   habla de un documento —es como estaban escritas las ocho—; y
+2. una expresión regular con un cuantificador de esos largos sobre dígitos
+   (`\d{7,8}`, `[0-9]{8}`), venga de `re`, de un `RegexValidator` o de un `__regex`
+   del ORM. Es la otra forma de escribir la misma regla, y no tener que mirarla sería
+   dejar la puerta de al lado abierta.
+
+La salida es usar `core.dni.dni_valido`; si de verdad hace falta otra cosa, se deja
+`# regla-dni: ok` en la línea con el motivo al lado.
 """
 
 import ast
@@ -35,10 +42,16 @@ PRAGMA = "regla-dni: ok"
 #: salva el largo (11 no está en LARGOS_SOSPECHOSOS).
 NOMBRE_DNI = re.compile(r"dni|documento|cuit", re.IGNORECASE)
 
+#: Un cuantificador de los largos sospechosos sobre una clase de dígitos: `\d{7,8}`,
+#: `[0-9]{8}`, `[[:digit:]]{6,9}`. Es la regla escrita como expresión regular.
+LARGO_EN_REGEX = re.compile(r"(?:\\d|\[0-9\]|\[\[:digit:\]\])\{\s*(?P<desde>\d+)\s*(?:,\s*(?P<hasta>\d+)\s*)?\}")
+
 DIRECTORIOS_IGNORADOS = {"migrations", "tests", "__pycache__", "node_modules", "static", "templates", "fixtures"}
 
-#: La casa de la regla: acá los largos son la definición, no una copia.
-EXCEPTUADOS = {"core/dni.py"}
+#: La casa de la regla: acá los largos son la definición, no una copia. El gate de datos
+#: personales busca documentos por `\b\d{7,8}\b` a propósito: ese es su trabajo, no una
+#: regla de validación.
+EXCEPTUADOS = {"core/dni.py", "scripts/check_datos_personales.py"}
 
 
 def _es_de_tests(ruta: Path) -> bool:
@@ -46,9 +59,13 @@ def _es_de_tests(ruta: Path) -> bool:
 
 
 def raices_productivas():
-    """Carpetas de código propio: las apps del repo más `config/` y `scripts/`."""
+    """Carpetas de código propio: las apps del repo, `config/` y `scripts/`.
+
+    `scripts/` entra porque ahí viven los comandos de operación y los gates del CI, que
+    también leen documentos (el docstring lo decía y el barrido no lo hacía).
+    """
     base = Path(settings.BASE_DIR).resolve()
-    raices = {base / "config"}
+    raices = {base / "config", base / "scripts"}
     for config in apps.get_app_configs():
         ruta = Path(config.path).resolve()
         if base in ruta.parents or ruta == base:
@@ -97,12 +114,42 @@ def _sentencias_que_hablan_de_dni(arbol):
     return marcadas
 
 
+def _largos_de_la_regex(texto):
+    """Los largos que exige un cuantificador sobre dígitos dentro de ``texto``."""
+    largos = set()
+    for coincidencia in LARGO_EN_REGEX.finditer(texto):
+        desde = int(coincidencia.group("desde"))
+        hasta = int(coincidencia.group("hasta") or desde)
+        largos |= {valor for valor in range(desde, hasta + 1) if valor in LARGOS_SOSPECHOSOS}
+    return largos
+
+
+def _literales_de_texto(arbol):
+    """Cada literal de texto del módulo, con su nodo (para la línea y el pragma)."""
+    for nodo in ast.walk(arbol):
+        if isinstance(nodo, ast.Constant) and isinstance(nodo.value, str):
+            yield nodo, nodo.value
+        elif isinstance(nodo, ast.JoinedStr):
+            for parte in nodo.values:
+                if isinstance(parte, ast.Constant) and isinstance(parte.value, str):
+                    yield nodo, parte.value
+
+
 def hallazgos_en(codigo, nombre="<codigo>"):
-    """Comparaciones de largo de un DNI contra un número, fuera de `core.dni`."""
+    """Reglas de largo de DNI escritas a mano, fuera de `core.dni`.
+
+    Las dos formas: la comparación con `len()` y el cuantificador de una expresión
+    regular sobre dígitos.
+    """
     arbol = ast.parse(codigo)
     lineas = codigo.splitlines()
     de_dni = _sentencias_que_hablan_de_dni(arbol)
+    docstrings = _docstrings(arbol)
     encontrados = []
+
+    def _pragma(nodo):
+        linea = lineas[nodo.lineno - 1] if 0 < nodo.lineno <= len(lineas) else ""
+        return PRAGMA in linea
 
     for nodo in ast.walk(arbol):
         if not isinstance(nodo, ast.Compare):
@@ -113,13 +160,32 @@ def hallazgos_en(codigo, nombre="<codigo>"):
         if not (NOMBRE_DNI.search(ast.unparse(nodo)) or id(nodo) in de_dni):
             continue
         largos = sorted(set(_enteros_sospechosos(partes)))
-        if not largos:
-            continue
-        linea = lineas[nodo.lineno - 1] if 0 < nodo.lineno <= len(lineas) else ""
-        if PRAGMA in linea:
+        if not largos or _pragma(nodo):
             continue
         encontrados.append(f"{nombre}:{nodo.lineno}: {ast.unparse(nodo)} (largos {largos})")
+
+    for nodo, texto in _literales_de_texto(arbol):
+        # En un docstring un `\d{7,8}` es prosa, no una validación.
+        if id(nodo) in docstrings:
+            continue
+        largos = sorted(_largos_de_la_regex(texto))
+        if not largos or _pragma(nodo):
+            continue
+        if not (NOMBRE_DNI.search(texto) or id(nodo) in de_dni):
+            continue
+        encontrados.append(f"{nombre}:{nodo.lineno}: regex {texto!r} (largos {largos})")
     return encontrados
+
+
+def _docstrings(arbol):
+    """Nodos que son docstring de módulo, clase o función."""
+    marcados = set()
+    for nodo in ast.walk(arbol):
+        if isinstance(nodo, (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
+            cuerpo = getattr(nodo, "body", None)
+            if cuerpo and isinstance(cuerpo[0], ast.Expr) and isinstance(cuerpo[0].value, ast.Constant):
+                marcados.add(id(cuerpo[0].value))
+    return marcados
 
 
 class UnaSolaReglaDeDniTests(SimpleTestCase):
@@ -151,6 +217,30 @@ class UnaSolaReglaDeDniTests(SimpleTestCase):
         for codigo in casos:
             with self.subTest(codigo=codigo.splitlines()[0]):
                 self.assertTrue(hallazgos_en(codigo), f"no detectó: {codigo!r}")
+
+    def test_detecta_la_regla_escrita_como_expresion_regular(self):
+        """La otra forma de escribir lo mismo: `re`, `RegexValidator` o `__regex`."""
+        casos = [
+            r'dni_valido = re.compile(r"^\d{7,8}$")' + "\n",
+            'dni = RegexValidator(r"^[0-9]{8}$", "DNI inválido")\n',
+            'Ciudadano.objects.filter(dni__regex=r"^[0-9]{6,9}$")\n',
+        ]
+        for codigo in casos:
+            with self.subTest(codigo=codigo.strip()):
+                self.assertTrue(hallazgos_en(codigo), f"no detectó: {codigo!r}")
+
+    def test_la_regex_que_no_habla_de_un_dni_no_se_reporta(self):
+        self.assertEqual(hallazgos_en('celular = re.compile(r"^[0-9]{10}$")\n'), [])
+        self.assertEqual(hallazgos_en('cuit = re.compile(r"^[0-9]{11}$")\n'), [])
+
+    def test_el_barrido_incluye_scripts(self):
+        """El docstring lo decía y el barrido no lo hacía."""
+        from pathlib import Path as _Path
+
+        raices = {ruta.name for ruta in raices_productivas()}
+
+        self.assertIn("scripts", raices)
+        self.assertTrue(any(_Path(ruta).parts[-2] == "scripts" for ruta in archivos_productivos()))
 
     def test_el_pragma_y_lo_que_no_es_un_dni_no_se_reportan(self):
         self.assertEqual(hallazgos_en("if len(dni) == 8:  # regla-dni: ok motivo\n    pass\n"), [])

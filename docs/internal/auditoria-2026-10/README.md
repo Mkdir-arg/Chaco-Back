@@ -4,28 +4,39 @@
 
 **Las 7 fichas del PR 2 de la Ola 3 cerradas** (DAT-01 🟡 fase 1, DAT-02, DAT-03, DAT-05, V2-NEW-05, G1c-08 y
 RED-48), 18 h + 4 h, **Cambio 168**, con una migración **solo de estado** (`programas.0078`: `sqlmigrate` sale
-vacío en SQLite, MariaDB y MySQL). Lo que deja de pasar: borrar una pregunta general o un requisito nativo ya
-no se lleva los documentos que subieron los casos —`AdjuntoFormulario` pasa a PROTECT y las dos vistas avisan
-con el número de casos—; el `/admin/` no borra relevamientos, casos, trazas ni lista de espera, y los seis
-campos que cuentan la historia del caso quedan de lectura; `Formulario.dni_titular` sigue al DNI real de la
-persona, así que un DNI corregido deja de bloquear a su titular en el link público; los Excel de padrón
-reemplazados ya no se acumulan en `media/` y el del padrón propio no se borra antes de que la transacción
-confirme; un restore que deje los pk de legajo en hexadecimal tiene su comando (`normalizar_uuid_legajos`,
-paso 3 del runbook D.4), que baja y repone las dos foreign keys como hace `legajos.0007` —sin eso el `UPDATE`
-moría con un 1451— y **no escribe nada sin `--aplicar`**; el DNI y la procedencia del legajo dejan de entrar
-como fuera —`12.345.678` ya no crea una segunda persona, la pantalla de confirmación no acepta un POST alterado
-y la edición no mueve ni el DNI ni el `estado_renaper`—; y «DNI válido» pasa de **ocho** implementaciones con
-**cuatro** reglas de largo a una sola en `core/dni.py`, con ratchet AST que no deja nacer la novena ni por
-`len()` ni por expresión regular.
+vacío). Lo que deja de pasar: borrar una pregunta general o un requisito nativo ya no se lleva los documentos
+que subieron los casos —`AdjuntoFormulario` pasa a PROTECT y las dos vistas avisan con el número de casos—; el
+`/admin/` no borra relevamientos, casos, trazas ni lista de espera, y los seis campos que cuentan la historia
+del caso quedan de lectura; `Formulario.dni_titular` sigue al DNI real de la persona, así que un DNI corregido
+deja de bloquear a su titular en el link público; los Excel de padrón reemplazados ya no se acumulan en
+`media/` y el del padrón propio no se borra antes de que la transacción confirme; un restore que deje los pk de
+legajo en el formato que el ORM no consulta tiene su comando (`normalizar_uuid_legajos`, paso 3 del runbook
+D.4), que baja y repone las dos foreign keys como hace `legajos.0007` y no escribe nada sin `--aplicar`; el DNI
+y la procedencia del legajo dejan de entrar como fuera —`12.345.678` ya no crea una segunda persona, la pantalla
+de confirmación no acepta un POST alterado y la edición no mueve ni el DNI ni el `estado_renaper`—; y «DNI
+válido» pasa de **nueve** implementaciones con **cuatro** reglas de largo a una sola en `core/dni.py`, con
+ratchet AST que no deja nacer la décima ni por `len()` ni por expresión regular.
 
-**Cinco desvíos, todos code-first:** las puertas de DNI eran ocho y no seis (la ficha no nombraba
-`ConsultaRenaperForm` ni el registro del portal, que es la más laxa: 6 a 9); la regla única vive en `core/dni.py`
-y no en `padron.py`, que la reexporta, porque `legajos.models` no puede importar `programas` sin cerrar un ciclo
+**Cinco desvíos, todos code-first:** las puertas de DNI eran nueve y no seis (la ficha no nombraba
+`ConsultaRenaperForm`, el registro del portal —6 a 9, la más laxa— ni el ABM de usuarios, que la escribía como
+regex y por eso ningún barrido anterior la había visto); la regla única vive en `core/dni.py` y no en
+`padron.py`, que la reexporta, porque `legajos.models` no puede importar `programas` sin cerrar un ciclo
 (RED-79); `siis_envio` **no** queda más laxo a propósito —el `len(dni) <= 10` dejaba pasar un DNI de un dígito
 hacia un alta que no tiene baja—, lo que es un **cambio de conducta declarado**; la marca de D-C08 viaja por
 sesión en vez de por `?fallecido=1`, porque el template que tenía que pasar el parámetro estaba tomado por otro
 carril; y la validación del DNI en la edición corre **solo si el DNI cambia**, para que un legajo con un DNI
-legacy de 6 o 9 dígitos no quede inmodificable hasta en el teléfono.
+legacy no quede inmodificable hasta en el teléfono.
+
+**Ronda 2 (1 BLOCKER, 3 MAJOR y 4 MINOR, todos corregidos).** El comando de V2-NEW-05 **no funcionaba** contra
+el estado que de verdad deja un restore: `legajos.0007` baja las dos foreign keys antes del mismo `UPDATE` y el
+comando no, así que con un legajo en el formato viejo y una alerta que lo referencia moría con un `1451` sin
+normalizar nada; y su test permanente **nunca había corrido** —`LegajoAtencion.objects.create(ciudadano=…)`
+choca con la `@property` sin setter, y el `schema_editor` adentro de un `TestCase` con el
+`TransactionManagementError`—, así que ponía en rojo el job `Motor real`. Las dos cosas están medidas ahora en
+`mariadb:10.11` **y** en `mysql:8.0`, en rojo con la versión anterior. Un DNI legacy dejaba la ficha
+**inmodificable hasta en el teléfono**. El listado de P-17 solo veía los DNI con separadores, no los numéricos
+de largo inválido, que son justo los que el PR frena. Y el ratchet de RED-48, extendido a `scripts/` y a las
+reglas escritas como expresión regular, encontró la **novena** puerta: el DNI del usuario de backoffice.
 
 **Abierto (para el PR siguiente del carril):** los puntos 3 y 4 de DAT-01 —texto del modal de
 `_requisitos_panel.html` y `protegido=True` para `ADJUNTOS_OBLIGATORIOS` en `seed_becas`, con su migración de
@@ -33,6 +44,60 @@ datos—, los dos con su contenido exacto escrito en el cuerpo del PR; y la **fa
 (`RequisitoNativo.activo`, D-D01), que es lo único que le da salida a un requisito en uso.
 **Para el PM:** correr `manage.py listar_dni_no_normalizados` contra PRD (P-17) —ahora lista también los DNI
 numéricos de largo inválido, que son los que el PR frena— y, antes de desplegar, mirar ese conteo.
+
+> **Aviso sobre este archivo:** `development` lo trae **duplicado entero** —el documento dos veces, con
+> contenidos que divergen: a la segunda copia le falta el bloque de R-20—. Viene de una resolución de conflicto
+> fallida de otro carril, no de este PR, que se limitó a marcar sus filas en las **dos** copias para no
+> empeorarlo. Hay que deduplicarlo en un PR propio.
+
+## Estado al 07-oct-2026 (Ola 3, PR 1: operación y deploy — **arranca la Ola 3**)
+
+**El arranque del contenedor deja de ser frágil.** El PR 1 de la Ola 3 (Cambio 165) cierra OPS-05, OPS-07,
+OPS-11, OPS-12, G3-04, G3-05 y RED-58: 12 + 2 h, **sin migraciones nuevas**.
+
+| Ficha | Qué quedó |
+|---|---|
+| **OPS-05** ✅ | `read_timeout`/`write_timeout` salen del entorno (`DB_READ_TIMEOUT`, `DB_WRITE_TIMEOUT`), con default **10 s** —el límite acordado con ECOM, que sigue valiendo para el tráfico— y el entrypoint los levanta a 1200 **solo** para migrar (D-O05). Sin eso, un `ALTER` que espera el metadata lock más de 10 s devuelve un 2013 al cliente y **se aplica igual** en el servidor: esquema adelantado, migración sin registrar |
+| **OPS-07** ✅ | Los opcionales del bootstrap dejan de ser fatales (era lo que `processes.md` ya prometía); `procesar_vencimientos` aísla cada regla, loguea el traceback y **igual** termina en error; y el bloque que escribe en la base corre con `GET_LOCK('datanach_bootstrap', 900)` desde el comando nuevo `bootstrap_lock` |
+| **OPS-11** ✅ | Se fue `--run-syncdb`. Hoy era no-op; mañana crea una tabla sin migración, que es justo lo que la guarda de OPS-01 aborta en el arranque siguiente |
+| **OPS-12** ✅ | `settings_production` ya no pisa `ENVIRONMENT`, y `qa` usa Redis como `prd` para caché y websockets. **QA pasa a depender de Redis** |
+| **G3-04** ✅ | Los cuatro CronJobs llevan `timeZone`, `activeDeadlineSeconds`, `backoffLimit: 1` e historial acotado. La `timeZone` arregla además una incoherencia que el archivo declaraba: decía «hora argentina» y corría en UTC |
+| **G3-05** ✅ | Están los cuatro snippets de icore (faltaban dos, que los otros nombraban como «ya existentes») y los cuatro pasan por `docker/cron/chaco-cron.sh`: `flock`, `timeout`, fecha y motivo de salida en el log, más `logrotate` |
+| **RED-58** ✅ | Plantilla de migración re-entrante en `core/migraciones.py`, aplicada al camino de ida de `legajos.0007` y escrita en `CLAUDE.md` |
+
+**Dos desvíos medidos.** (1) Los dos números de las fichas no conviven: `read_timeout` 600 (OPS-05) con un
+`GET_LOCK(…, 900)` (OPS-07) hace que el cliente muera a los 600 s esperando el candado, porque `GET_LOCK` es
+una consulta que bloquea. Queda candado 900 / timeout 1200, y `bootstrap_lock` **aborta con el motivo** si la
+espera no entra. (2) Las fichas pedían dos candados con nombres distintos —uno para el `migrate`, otro para los
+seeds— y eso no sirve: una réplica sembraría contra el esquema que otra está migrando. Va **uno solo**
+envolviendo guarda + `migrate` + sembrado.
+
+**Ronda 2 de la revisión.** Dos hallazgos reales, los dos consecuencia de lo que este mismo PR movió.
+(1) **Un caché caído pasaba a impedir el arranque:** con `qa` usando Redis (OPS-12), el `cache.delete`
+incondicional de `seed_becas` terminaba el bootstrap en **exit 1** y dejaba el pod en CrashLoopBackOff.
+Esa invalidación pasó a ser *best-effort* —y solo esa: `programa_becas()` sigue fallando fuerte, porque un
+ambiente sirviendo con el caché roto es una caída—, y el runbook de `espejo-ecom.md`, que decía lo contrario,
+se corrigió y pasó a ser un **gate explícito**. (2) **El candado no cubría el sembrado:** `loaddata` cierra
+`connections["default"]` al terminar (workaround de Django para un bug de MySQL), así que el `GET_LOCK` se
+soltaba a mitad del seed y dos bootstraps sembraban en paralelo, con un aviso que además era falso positivo
+con un solo contenedor. El candado pasó a una **conexión dedicada** y el aviso distingue «lo tiene otro» de
+«no lo tiene nadie». Medido: dos bootstrap en paralelo sobre base vacía ahora serializan (uno aplica las 138
+migraciones, el otro no encuentra nada), los dos con exit 0 y sin avisos.
+
+**Ronda 3 de la revisión.** La conexión dedicada que resolvió la ronda 2 queda **ociosa** todo el bootstrap
+(141-218 s), y si el servidor la cierra en el medio el `IS_USED_LOCK` del `finally` levantaba un 2013: exit 1
+sobre un esquema correcto, con el Job en `Failed` y el AVISO escrito para ese caso sin imprimirse. Arreglado por
+las dos puntas —la sesión del candado pide `wait_timeout = 28800`, que es el default de fábrica de los dos
+motores, y soltar el candado ya no puede cambiar el exit code—, medido contra `mariadb:10.11`. Y dos MINOR del
+runbook: el comando del gate de Redis daba verde falso sin `ENVIRONMENT` declarada (LocMem), y la fila «ya
+arrancado» decía «algunas pantallas» cuando en realidad **el login da 500** y nadie puede entrar
+(`conversaciones/presencia.py:30` desde el signal `user_logged_in`).
+
+**Pasos operativos para el PM.** Antes de espejar este release hay que preguntarle a ECOM dos cosas (quedaron
+escritas en `espejo-ecom.md`, ahora como gate y no como sugerencia): si el pod de `web` de testing llega a un
+Redis, y cuánto valen `ENVIRONMENT` y `DJANGO_SETTINGS_MODULE` ahí y en PRD, que es la pregunta abierta
+**H-09**. En icore, además, hay que instalar el envoltorio de cron y la rotación del log (`processes.md`,
+*Cron del host*).
 
 ## Estado al 07-oct-2026 (Ola 5, PR 6a: los listados de afuera de Becas clonan la golden)
 
@@ -1360,7 +1425,7 @@ funcional ni coordinación con ECOM). Las horas de cada ola suman los esfuerzos 
 | **R** | **Red de seguridad: poder cambiar código sin romper nada sin enterarse** | — | — | — | — | **86** (79 RED con parte en R —78 del relevamiento + RED-89— + OPS-01, OPS-03, OPS-04, TST-01, TST-02, TST-03, R0-03; SEC-10, SEC-11 y SEC-18 se ejecutan en R-19 pero **siguen contadas como ítems de la Ola 2**, solo se mueven sus horas) | **285** · **107 cerradas el 04-oct (R-01..R-10 y R-19) → 178 restantes** |
 | 1 | Integridad SIIS | 23 | 72 | 22 (− SIIS-07) | 70 | 23 (+ RED-53; + parte de RED-32) | 78 · **76 cerradas (26 el 05-oct, PR 2; 6 el 06-oct, PR 3; 10 el 06-oct, PR 4; 4 el 06-oct, PR 5; 20 el 07-oct, PR 6; 10 el 07-oct, PR 7) → 2 restantes: el ítem 0 (V2-NEW-03, correr P-01 en PRD, sin código)** |
 | 2 | Autorización (RBAC, legajos, alcance de Becas, usuarios) | 36 | 116 | 50 (+ fase 2 de OPS-06, R0-05, resto de SEC-01, etapa 2 de SEC-09, R0b-01..10) | 136 | 51 (+ RED-80; + partes de RED-52, RED-79) | 135 (−7: SEC-10, SEC-18 y media SEC-11 se hacen en R-19, D-RED-14) |
-| 3 | Datos, operación, CI, app de campo y reglas de Becas | 55 | 158 | 59 (+ R0-03, R0-04, R0-06, R0-07) | 166 | 54 (− 7 a la Ola R; + RED-48, RED-58; + partes de RED-09, 35, 40, 50) | 152 |
+| 3 | Datos, operación, CI, app de campo y reglas de Becas | 55 | 158 | 59 (+ R0-03, R0-04, R0-06, R0-07) | 166 | 54 (− 7 a la Ola R; + RED-48, RED-58; + partes de RED-09, 35, 40, 50) | 152 · **14 cerradas el 07-oct (PR 1) → 138 restantes** |
 | 4 | Performance | 19 | 52 | 19 | 52 | 20 (+ RED-62; + partes de RED-10, 49, 51, 83) | 64 |
 | 5 | Bugs de front y parches v1 de Legajos/Dispositivos | 31 (+ V5A-NEW-07 b) | 114 | 31 (+ V5A-NEW-07 b) | 114 | 33 (+ RED-33, RED-75; + partes de RED-42, 53) (+ V5A-NEW-07 b) | 128 · **66 cerradas (PRs 1 a 5 y 7) → 62 restantes** |
 
@@ -1730,8 +1795,9 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
   en el Cambio 168, 07-oct-2026**: las 7 fichas, con una migración solo de estado (`programas.0078`). El PR 1
   (operación y deploy) está en revisión.
 - **PRs y orden:**
-  1. *Operación y deploy:* OPS-05, OPS-07 (ampliado: el candado envuelve también el `migrate`), OPS-11, OPS-12, G3-04,
-     G3-05. 12 h. (OPS-01, OPS-03 y OPS-04 pasaron a la Ola R, PR R-15.)
+  1. ✅ *Operación y deploy:* OPS-05, OPS-07 (ampliado: el candado envuelve también el `migrate`), OPS-11, OPS-12,
+     G3-04, G3-05 **+ RED-58** (el ítem 9 lo traía junto con OPS-05). 12 + 2 h. **Cerrado el 07-oct-2026
+     (Cambio 165).** (OPS-01, OPS-03 y OPS-04 pasaron a la Ola R, PR R-15.)
   2. ✅ *Datos y catálogo:* DAT-01 (🟡 fase 1), DAT-02, DAT-03, DAT-05, V2-NEW-05, G1c-08 — **22 h de 18 + 4**,
      **Cambio 168**, 07-oct-2026, con RED-48 adentro (ítem 9). Migración `programas.0078`, solo de estado.
      Quedan los puntos 3 y 4 de DAT-01 (modal y `seed_becas`: templates y seeds estaban tomados por #614 y
@@ -1744,8 +1810,8 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
   7. *Integraciones y link público:* SIIS-10, SIIS-13, SIIS-14 (+G3-02), SIIS-15, SIIS-16, SIIS-18, SIIS-20, SIIS-21,
      G1c-15, G1-11, G1-12, G1-13, G1-14, R0-06, R0-07 (link público y `q_uuid_en_texto`). 30 h.
   8. *Reportes:* G2-01. 8 h.
-  9. *Red de seguridad (04-oct):* ✅ RED-48 (una sola regla de DNI, con G1c-08 — Cambio 168), RED-58 (plantilla de migración
-     re-entrante, con OPS-05) y segundas partes de RED-09 (`q_uuid_en_texto` a `core/db.py`, con el PR 7), RED-35
+  9. *Red de seguridad (04-oct):* RED-48 (una sola regla de DNI, con G1c-08), ~~RED-58 (plantilla de migración
+     re-entrante, con OPS-05)~~ ✅ **cerrada en el PR 1**, y segundas partes de RED-09 (`q_uuid_en_texto` a `core/db.py`, con el PR 7), RED-35
      (atomicidad del resto de las escrituras), RED-40 (`validators` en los `JSONField`, con G1-05) y RED-50 (una sola
      `edad_en_anios` con `timezone.localdate()` + regla `DTZ011`). 18 h.
   **Prerrequisito: ✅ cumplido el 07-oct-2026.** PRs R-11 a R-16 de la Ola R (motor real en CI, contrato de migraciones,

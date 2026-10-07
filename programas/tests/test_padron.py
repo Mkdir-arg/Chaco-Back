@@ -949,6 +949,31 @@ class UnaSolaPuertaDePadronTests(_BasePadronTest):
         self.assertIn("_assert_scope", fuentes["relevamiento_padron"])
 
 
+def _apoderado_dni_aceptado(dni):
+    """¿La app de campo puede dar de alta un caso de un menor con ese DNI de apoderado?
+
+    Es la octava puerta: `FormularioSerializer.validate` solo valida el apoderado
+    cuando la persona relevada es **menor**, así que el caso se arma con una fecha de
+    nacimiento de hace diez años. Lo que interesa es si `apoderado_dni` queda o no en
+    los errores.
+    """
+    from programas.api.serializers import FormularioSerializer
+
+    nacimiento = date.today().replace(year=date.today().year - 10)
+    serializer = FormularioSerializer(
+        data={
+            "datos_identificacion": {"dni": "30123456", "fecha_nacimiento": nacimiento.isoformat()},
+            "apoderado_nombre": "Apo",
+            "apoderado_apellido": "Derado",
+            "apoderado_dni": dni,
+            "apoderado_genero": "F",
+            "apoderado_fecha_nacimiento": "1980-01-01",
+        }
+    )
+    serializer.is_valid()
+    return "apoderado_dni" not in serializer.errors
+
+
 class DniValidoTests(TestCase):
     """RED-48: «DNI válido» es una sola regla, y todas las puertas la usan.
 
@@ -988,6 +1013,7 @@ class DniValidoTests(TestCase):
             "CiudadanosService.extract_dni_from_cuit": lambda dni: bool(
                 CiudadanosService.extract_dni_from_cuit(f"20{dni.zfill(8)}3")
             ),
+            "FormularioSerializer.apoderado_dni": _apoderado_dni_aceptado,
         }
         for nombre, puerta in puertas.items():
             for dni, esperado in self.CASOS:

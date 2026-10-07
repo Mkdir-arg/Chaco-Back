@@ -23,18 +23,29 @@ def sincronizar_dni_titular(sender, instance, created, **kwargs):
     bloqueaba al verdadero titular en el link público, con un mensaje de duplicado
     que no se correspondía con ningún caso visible.
 
-    Solo corre cuando el DNI pudo haber cambiado: `Ciudadano.from_db` guarda el valor
-    con que la fila salió de la base, así que un alta o un guardado que declara sus
-    `update_fields` sin el DNI no agrega ni una consulta. Si la instancia **no** se
-    leyó de la base —se armó a mano con su pk— no hay con qué comparar y se sincroniza
-    igual: el `exclude()` lo deja en un `UPDATE` que no toca ninguna fila. El
-    `update()` es a propósito: no hay nada más que recalcular y el filtro va por el
-    índice de la FK.
+    Solo corre cuando el DNI pudo haber cambiado, y en ese orden para no pagar nada de
+    más:
+
+    1. un alta no tiene casos que arrastrar;
+    2. un `save(update_fields=[...])` que no nombra el DNI no lo escribió;
+    3. una instancia leída con `.only()`/`.defer()` sin el DNI **no lo tiene cargado**:
+       tocarlo acá dispararía una consulta diferida para descubrir que nadie lo cambió,
+       y después un `UPDATE` inútil. Si alguien se lo asignó deja de estar diferido y
+       el caso cae en los de abajo;
+    4. con el DNI cargado se compara contra el valor con el que la fila salió de la
+       base, que guarda `Ciudadano.from_db`.
+
+    Si la instancia **no** se leyó de la base —se armó a mano con su pk— no hay con qué
+    comparar y se sincroniza igual: el `exclude()` lo deja en un `UPDATE` que no toca
+    ninguna fila. El `update()` es a propósito: no hay nada más que recalcular y el
+    filtro va por el índice de la FK.
     """
     if created:
         return
     campos = kwargs.get("update_fields")
     if campos is not None and "dni" not in campos:
+        return
+    if "dni" in instance.get_deferred_fields():
         return
     anterior = getattr(instance, "_dni_original", None)
     if anterior is not None and anterior == instance.dni:

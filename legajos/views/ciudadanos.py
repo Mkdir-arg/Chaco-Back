@@ -8,6 +8,7 @@ from django.shortcuts import redirect
 from django.urls import reverse_lazy
 from django.views.generic import CreateView, DetailView, FormView, ListView, UpdateView
 
+from core.dni import dni_valido
 from core.rbac import CapacidadRequeridaMixin, puede, requiere
 
 from ..forms import (
@@ -260,6 +261,32 @@ class CiudadanoUpdateView(CapacidadRequeridaMixin, LoginRequiredMixin, UpdateVie
         kwargs["puede_ver_sensible"] = self._puede_ver_sensible()
         kwargs["puede_editar_dni"] = self._puede_editar_dni()
         return kwargs
+
+    def get(self, request, *args, **kwargs):
+        """Avisa cuando la ficha arrastra un DNI fuera de la regla única (RED-48).
+
+        El form **no** lo convierte en error —eso dejaría la ficha inmodificable
+        hasta en el teléfono, con el mensaje colgado de un campo `disabled`—, así que
+        el aviso va por el canal que sí se ve: un toast que dice qué pasa y quién lo
+        arregla. Son las fichas que `manage.py listar_dni_no_normalizados` enumera
+        para P-17.
+        """
+        respuesta = super().get(request, *args, **kwargs)
+        if not dni_valido(self.object.dni):
+            if self._puede_editar_dni():
+                messages.warning(
+                    request,
+                    f"El DNI «{self.object.dni}» no cumple la regla del sistema (7 u 8 dígitos). "
+                    "Podés corregirlo acá; el resto de los datos se guarda igual.",
+                )
+            else:
+                messages.warning(
+                    request,
+                    f"El DNI «{self.object.dni}» no cumple la regla del sistema (7 u 8 dígitos). "
+                    "El resto de los datos se guarda igual; el DNI lo corrige quien administra la "
+                    "configuración.",
+                )
+        return respuesta
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

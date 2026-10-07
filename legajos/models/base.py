@@ -230,7 +230,15 @@ class Ciudadano(TimeStamped):
         hoy conviven con su gemelo normalizado. Solo normaliza —no rechaza—: la
         regla de largo la aplican las puertas de entrada (RED-48), y un `save()`
         que levante `ValidationError` rompería migraciones y cargas masivas.
+
+        Con el DNI **diferido** (`.only()`/`.defer()`) no se lo mira: leerlo costaría
+        una consulta para descubrir que nadie lo tocó. Si alguien se lo asignó deja de
+        estar diferido y se normaliza como siempre.
         """
+        if "dni" in self.get_deferred_fields():
+            super().save(*args, **kwargs)
+            return
+
         normalizado = normalizar_dni(self.dni)
         if normalizado and normalizado != self.dni:
             self.dni = normalizado

@@ -151,10 +151,15 @@ class CiudadanoForm(forms.ModelForm):
         creaba una **segunda** persona junto a `12345678`. Becas normaliza, así que
         nunca la encontraba: la misma persona quedaba partida en dos legajos.
 
-        La regla de largo es `core.dni.dni_valido`, la única del repo (RED-48).
+        La regla de largo es `core.dni.dni_valido`, la única del repo (RED-48), y se
+        aplica **solo cuando el DNI es nuevo o cambió**. En una edición que no lo
+        toca, exigirla dejaba inmodificable a cualquier ficha con un DNI legacy de 6,
+        9 o 10 dígitos: el error colgaba de un campo `disabled`, no se veía dónde, y
+        no se guardaba nada —ni el teléfono—. Corregir esos DNI es un trabajo aparte
+        (`manage.py listar_dni_no_normalizados`, P-17) y lo hace quien puede editarlo.
         """
         dni = normalizar_dni(self.cleaned_data.get("dni"))
-        if not dni_valido(dni):
+        if not dni_valido(dni) and dni != normalizar_dni(getattr(self.instance, "dni", "")):
             raise forms.ValidationError(MENSAJE_DNI_INVALIDO)
         return dni
 

@@ -211,9 +211,16 @@ pantalla sin salida); `dni` y `estado_renaper` van `disabled` y no fuera de `fie
 de **D-C08** viaja por la **sesión** en vez de por `?fallecido=1`, porque el template que tenía que pasar el
 parámetro no se podía tocar en este PR (el `?fallecido=1` se sigue aceptando). La capacidad elegida para editar
 el DNI es `config.administrar`, que ya existe: no se agregó nada al `CATALOGO`.
+**Ronda 2, dos correcciones.** (a) La validación del DNI en la edición corre **solo si el DNI cambia o es un
+alta**: corriendo siempre, una ficha con un DNI legacy de 6, 9 o 10 dígitos quedaba inmodificable —el error
+colgaba de un campo `disabled`, no se veía dónde y no se guardaba ningún otro dato, ni el teléfono—. La pantalla
+avisa por `messages` qué pasa y quién puede corregirlo, que es el canal que se ve sin tocar el template.
+(b) `listar_dni_no_normalizados` barría solo por `[^0-9]` y **no veía los DNI numéricos de largo inválido**, que
+son justo los que este cambio frena: ahora lista los dos grupos con su conteo por motivo, y la salida de
+pantalla enmascara el documento (el CSV lo trae entero, que es para lo que existe).
 **Test permanente:** `legajos.tests.test_ciudadanos_identidad` (`DniNormalizadoTests`,
-`ConfirmacionRenaperTests`, `EdicionDeIdentidadTests`, `ExisteConDniTests`; 19 tests) y
-`legajos.tests.test_comandos_datos.ListarDniNoNormalizadosTests`.
+`ConfirmacionRenaperTests`, `EdicionDeIdentidadTests`, `DniLegacyEnLaEdicionTests`, `ExisteConDniTests`;
+26 tests) y `legajos.tests.test_comandos_datos.ListarDniNoNormalizadosTests`.
 
 ## BAJA
 

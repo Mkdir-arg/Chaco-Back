@@ -255,9 +255,103 @@ class EdicionDeIdentidadTests(_BaseIdentidadTest):
         self.caso.refresh_from_db()
         self.assertEqual(self.caso.dni_titular, "27888999")
 
+    def test_un_ciudadano_leido_con_only_no_paga_la_consulta_diferida(self):
+        """Con el DNI diferido no hay nada que comparar ni que sincronizar.
+
+        Si el receptor mirara `instance.dni` igual, cada `save()` de una instancia
+        cargada con `.only()` sumaría la consulta diferida **y** un `UPDATE` que no
+        cambia ninguna fila.
+        """
+        parcial = Ciudadano.objects.only("pk", "nombre").get(pk=self.ciudadano.pk)
+        self.assertIn("dni", parcial.get_deferred_fields())
+
+        with self.assertNumQueries(1):
+            parcial.nombre = "Benedicta"
+            parcial.save()
+
+        self.caso.refresh_from_db()
+        self.assertEqual(self.caso.dni_titular, "27888999")
+
+    def test_si_se_le_asigna_el_dni_a_una_instancia_diferida_igual_sincroniza(self):
+        """Asignarlo lo saca de los diferidos: el caso vuelve al camino normal."""
+        parcial = Ciudadano.objects.only("pk", "nombre").get(pk=self.ciudadano.pk)
+
+        parcial.dni = "11111111"
+        parcial.save()
+
+        self.caso.refresh_from_db()
+        self.assertEqual(self.caso.dni_titular, "11111111")
+
     def test_un_ciudadano_nuevo_no_dispara_la_sincronizacion(self):
         with self.assertNumQueries(1):
             Ciudadano.objects.create(dni="33444555", nombre="Nueva", apellido="Persona")
+
+
+class DniLegacyEnLaEdicionTests(_BaseIdentidadTest):
+    """Una ficha con un DNI que la regla nueva rechaza tiene que seguir editándose.
+
+    La validación del DNI corre **solo si el DNI cambia**: si corriera siempre, un
+    legajo con `123456` quedaba inmodificable —el error colgaba de un campo
+    `disabled`, no se veía dónde, y no se guardaba nada, ni el teléfono—.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.ciudadano = Ciudadano.objects.create(dni="30123456", nombre="Legacy", apellido="Persona")
+        # Sin pasar por `save()`, que normaliza: es como está cargado en la base.
+        Ciudadano.objects.filter(pk=self.ciudadano.pk).update(dni="123456")
+        self.ciudadano.refresh_from_db()
+        self.url = reverse("legajos:ciudadano_editar", args=[self.ciudadano.pk])
+
+    def _editar(self, **datos):
+        return self.client.post(self.url, {"nombre": "Legacy", "apellido": "Persona", **datos})
+
+    def test_se_guarda_el_telefono_sin_tocar_el_dni(self):
+        resp = self._editar(telefono="3624000000")
+
+        self.assertEqual(resp.status_code, 302)
+        self.ciudadano.refresh_from_db()
+        self.assertEqual(self.ciudadano.telefono, "3624000000")
+        self.assertEqual(self.ciudadano.dni, "123456")
+
+    def test_la_pantalla_avisa_quien_puede_corregirlo(self):
+        resp = self.client.get(self.url)
+
+        avisos = [str(m) for m in resp.context["messages"]]
+        self.assertTrue(any("no cumple la regla del sistema" in aviso for aviso in avisos), avisos)
+        self.assertTrue(any("quien administra la configuración" in aviso for aviso in avisos), avisos)
+
+    def test_quien_administra_lo_corrige_y_el_aviso_se_lo_dice(self):
+        self.user.groups.add(_rol("Config legacy (test)", ("config.administrar",)))
+
+        resp = self.client.get(self.url)
+        avisos = [str(m) for m in resp.context["messages"]]
+        self.assertTrue(any("Podés corregirlo acá" in aviso for aviso in avisos), avisos)
+
+        self._editar(dni="30123456")
+
+        self.ciudadano.refresh_from_db()
+        self.assertEqual(self.ciudadano.dni, "30123456")
+
+    def test_cambiarlo_por_otro_invalido_sigue_sin_poder(self):
+        self.user.groups.add(_rol("Config legacy 2 (test)", ("config.administrar",)))
+
+        resp = self._editar(dni="999")
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("dni", resp.context["form"].errors)
+        self.ciudadano.refresh_from_db()
+        self.assertEqual(self.ciudadano.dni, "123456")
+
+    def test_un_alta_con_un_dni_invalido_sigue_rechazada(self):
+        """La laxitud es solo para lo que **ya** estaba guardado."""
+        resp = self.client.post(
+            reverse("legajos:ciudadano_manual"),
+            {"dni": "123456", "nombre": "Nueva", "apellido": "Persona"},
+        )
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("dni", resp.context["form"].errors)
 
 
 class ExisteConDniTests(TestCase):

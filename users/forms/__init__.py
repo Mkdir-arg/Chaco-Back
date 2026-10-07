@@ -4,6 +4,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.utils.text import slugify
 
 from core import rbac
+from core.dni import MENSAJE_DNI_INVALIDO, dni_valido
 
 
 def _normalize_groups_data(data):
@@ -54,12 +55,22 @@ def _normalize_groups_args(args, kwargs):
 _INPUT_ABM = "nodo-field"
 
 
+def _validar_dni_de_usuario(valor):
+    """La regla única del repo, aplicada al DNI del usuario de backoffice (RED-48)."""
+    if valor and not dni_valido(valor):
+        raise forms.ValidationError(MENSAJE_DNI_INVALIDO)
+
+
 def _agregar_campos_perfil_usuario(form):
-    form.fields["dni"] = forms.RegexField(
-        regex=r"^\d{6,8}$",
+    # RED-48: el DNI del usuario de backoffice también es un DNI. Era la **novena**
+    # regla del repo —6 a 8 dígitos, escrita como regex, que es por donde el ratchet de
+    # `len()` no la veía— y pasa a la única (`core.dni.dni_valido`). El de 6 dígitos que
+    # deja de aceptarse corresponde a personas nacidas antes de 1930: no hay operadores
+    # así. Sigue siendo opcional (`required=False`): el Cambio 5 permite usuarios sin DNI.
+    form.fields["dni"] = forms.CharField(
         required=False,
         label="DNI",
-        error_messages={"invalid": "Ingresá un DNI de 6 a 8 números."},
+        validators=[_validar_dni_de_usuario],
         widget=forms.TextInput(attrs={"class": _INPUT_ABM, "placeholder": "Ingrese el DNI", "inputmode": "numeric"}),
     )
     form.fields["telefono"] = forms.CharField(

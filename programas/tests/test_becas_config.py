@@ -1080,6 +1080,25 @@ class EliminarRequisitoYSubsegmentoTests(_BaseConfigTest):
         self.assertTrue(RequisitoNativo.objects.filter(pk=requisito.pk).exists())
         self.assertTrue(AdjuntoFormulario.objects.filter(pk=adjunto.pk).exists())
 
+    def test_el_subsegmento_frenado_por_un_adjunto_lo_dice_por_su_nombre(self):
+        """El mensaje sigue a la causa real, no al único caso que había antes.
+
+        `RequisitoNativo.subsegmento` es CASCADE, así que borrar el subsegmento
+        intenta borrar sus requisitos y choca con el PROTECT de DAT-01. Decirle
+        «está utilizado por una convocatoria» a eso manda a buscar donde no está.
+        """
+        sub = self._subsegmento("Sub con documentos")
+        requisito = self._requisito(segmento=None, subsegmento=sub)
+        self._caso_con_adjunto("Conv sub adjunto", requisito_nativo=requisito)
+
+        resp = self.client.post(reverse("becas:subsegmento_eliminar", args=[sub.pk]), follow=True)
+
+        self.assertTrue(Subsegmento.objects.filter(pk=sub.pk).exists())
+        self.assertIn(
+            "No se puede eliminar el subsegmento: alguno de sus requisitos ya tiene documentos subidos en 1 caso(s).",
+            [str(m) for m in resp.context["messages"]],
+        )
+
     # -- Método y capacidad --------------------------------------------------
 
     def test_las_dos_vistas_exigen_post_y_capacidad(self):

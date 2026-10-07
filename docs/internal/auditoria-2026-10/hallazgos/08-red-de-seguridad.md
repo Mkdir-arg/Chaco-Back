@@ -97,7 +97,7 @@ con lo que existe hoy; la lista solo baja.
 | RED-55 | Los context processors corren en cada render y tragan toda excepción sin log | MEDIA | CONF. lectura | R | S | ✅ |
 | RED-56 | Los guards de alcance de Becas fallan abiertos si el Programa BECAS no está sembrado | MEDIA | CONF. test | R | S | ✅ |
 | RED-57 | 14 reversas `RunPython.noop` (más `users/0007`) pierden datos e informan `OK` | MEDIA | CONF. test (SQLite con datos) | R | S-M | ✅ |
-| RED-58 | `legajos.0007` no es re-entrante: un corte deja legajos sin FK y el reintento muere con 1091 | MEDIA | CONF. test (SQL) | 3 | S | ⬜ |
+| RED-58 | `legajos.0007` no es re-entrante: un corte deja legajos sin FK y el reintento muere con 1091 | MEDIA | CONF. test (SQL) | 3 | S | ✅ |
 | RED-59 | `deploy_prod.sh`: rollback sin base, detached HEAD y un health que siempre da 200 | MEDIA | CONF. lectura | R | S | ✅ |
 | RED-60 | `processes.md` enseña un rollback que destruye datos y autoriza `--fake` | MEDIA | CONF. lectura | R (prioridad 1) | S | ✅ |
 | RED-61 | `SIIS_API_URL` cae al SIIS de desarrollo y nada lo valida al arrancar | MEDIA | CONF. lectura (PRD PLAUSIBLE) | R | S | ✅ |
@@ -1362,6 +1362,15 @@ el código productivo con `ast` y marca una comparación de largo contra 6-10 en
 documento: se comprobó contra `HEAD` que detecta las **ocho** reglas que este PR retiró, incluida la del form
 dinámico del portal, donde la variable se llama `valor` y quien dice de qué se habla es la rama
 (`vinculo == "dni"`) y el mensaje de error. Escape documentado `# regla-dni: ok`, con la allowlist vacía.
+**Ronda 2:** el ratchet barre además `scripts/` —el docstring lo decía y no lo hacía— y detecta la regla
+escrita como **expresión regular** (`\d{7,8}`, `[0-9]{8}`, venga de `re`, de un `RegexValidator` o de un
+`__regex` del ORM), no solo con `len()`. Al encenderlo apareció la **novena** puerta, que ningún barrido anterior
+había visto: `users/forms/__init__.py` validaba el DNI del **usuario de backoffice** con
+`RegexField(r"^\d{6,8}$")` —6 a 8 dígitos—. Queda unificada; el DNI de 6 que deja de aceptarse corresponde a
+personas nacidas antes de 1930, y el campo sigue siendo opcional (Cambio 5). Se exceptúa
+`scripts/check_datos_personales.py`, cuyo `\b\d{7,8}\b` es el gate que busca documentos, no una validación.
+También se sumó `FormularioSerializer.apoderado_dni` —la puerta de la app de campo— al cruce de
+`DniValidoTests`.
 **Test permanente:** `programas.tests.test_padron.DniValidoTests.test_misma_regla_en_todas_las_puertas`
 (+ `test_el_padron_descarta_la_fila_con_la_misma_regla` y
 `test_siis_envio_ya_no_es_mas_laxo_que_los_formularios`) y
@@ -1939,6 +1948,27 @@ Del punto (2) de la propuesta —los tests de migración con el registro histór
   checklist, Anexo A): cada paso idempotente, con el nombre real de la FK desde `information_schema.KEY_COLUMN_USAGE` y
   chequeo previo en `information_schema.COLUMNS`. Test sobre el banco `scripts/perf_mysql/`:
   `legajos/tests/test_migracion_uuid.py::test_ampliar_uuid_es_idempotente` (`@tag("mysql")`, dos llamadas seguidas).
+
+**Resolución:** ✅ Resuelto en el PR 1 de la Ola 3 (Cambio 165), 07-oct-2026 — la plantilla es `core/migraciones.py`:
+`nombre_de_fk` y `quitar_fk_si_existe` (por `KEY_COLUMN_USAGE`), `crear_fk_si_falta`, `tipo_de_columna` y
+`modificar_columna` (por `COLUMNS`). El camino de **ida** de `legajos.0007` se reescribió sobre esos helpers y la regla
+quedó en `CLAUDE.md` (§Convenciones), como el ítem 6 del Anexo A pedía. **Tres cosas que la ficha no decía:**
+(1) la mejora no es solo «no explota el reintento»: si **ninguna** de las cuatro columnas está pendiente, la migración
+ya **no baja las dos FK** —bajarlas y recrearlas por las dudas es trabajo caro sobre tablas en uso y deja la integridad
+referencial abierta un rato por nada—, así que una segunda corrida completa manda **cero** `ALTER`; (2) la
+normalización de los UUID corre aunque no haya hecho falta ningún `MODIFY`, porque un corte entre el `ALTER` y el
+`UPDATE` deja filas a medias y es justo lo que hay que terminar (su `WHERE CHAR_LENGTH(…)` ya la hacía idempotente);
+(3) la **reversa** se dejó como estaba, a propósito: está bloqueada por la barrera de RED-15 —el camino de vuelta es un
+restore, no un reintento— y `programas/tests/test_migraciones_uuid.py` fija el orden del SQL que emite. Editar una
+migración ya aplicada es legítimo acá: `scripts/check_sqlmigrate.py` compara el SQL de **ida** y un `RunPython` sale
+como comentario, y el estado final es idéntico (verificado migrando desde base vacía contra `mariadb:10.11`).
+**Verificación contra el motor real**, no sobre el banco de `scripts/perf_mysql/` (no agregaba nada: lo que se mide es
+esquema, no volumen): sobre `mariadb:10.11` sin tzinfo y con las `OPTIONS` de prod se reprodujo el `ERROR 1091` del
+segundo `DROP FOREIGN KEY`, y después, con la FK caída —el estado exacto que deja el corte—, dos corridas seguidas de
+la función de ida dejaron las cuatro columnas en `char(36)` y las dos FK puestas, la segunda sin emitir un solo
+`ALTER`. **Test permanente:** `core.tests.test_motor_real.MigracionReentranteTests.test_ampliar_uuid_es_idempotente`
+(`@tag("mysql")`, dos llamadas seguidas) y `legajos.tests.test_migracion_uuid` (`AmpliarUuidReentranteTests`,
+`PlantillaReentranteTests`), que corre en todos los PRs contra un `schema_editor` que simula `information_schema`.
 
 ### RED-59 · `deploy_prod.sh`: rollback sin base, detached HEAD y un health que siempre da 200
 **Severidad:** MEDIA · **Estado:** CONFIRMADO (lectura) · **Origen:** RS-R5-09 (VR2: CONFIRMADO; su punto 2 es el mismo hallazgo que RS-R6-06, que se agregó a OPS-04) · **Ola:** R (con OPS-04, que pasa a la Ola R) · **Esfuerzo:** S (2 h)
