@@ -1,6 +1,37 @@
 #!/bin/sh
 set -eu
 
+# RED-45 / D-RED-08: no se arranca con workers gevent. `config/wsgi.py` reacciona a dos
+# perillas --`GUNICORN_CMD_ARGS` con la palabra gevent y `GUNICORN_WORKER_CLASS`-- y lo
+# que aplica entonces es `config/gevent_patch.py`, que pisa
+# `BaseDatabaseWrapper.validate_thread_sharing` con una funcion vacia. O sea: gevent de
+# verdad, sin `monkey.patch_all()` (mysqlclient y requests siguen bloqueando) y sin el
+# unico chequeo que impide que dos greenlets compartan una conexion. El sintoma seria
+# una respuesta con los datos de otra persona, intermitente y sin error en el log.
+# El escenario no es hipotetico: ante los 504 del padron, probar
+# GUNICORN_CMD_ARGS="--worker-class gevent" en ECOM es lo primero que sugiere internet.
+# El borrado del parche y de las dependencias es OPS-13 (Ola 7); hasta entonces, se
+# aborta con el motivo en vez de arrancar roto.
+guard_worker_class() {
+  case "${GUNICORN_CMD_ARGS:-}" in
+    *worker-class*)
+      echo "ERROR: GUNICORN_CMD_ARGS pide un --worker-class y este arranque no lo admite (RED-45)." >&2
+      echo "       Valor recibido: ${GUNICORN_CMD_ARGS}" >&2
+      echo "       Los workers de la imagen son gthread (--threads): el soporte de gevent" >&2
+      echo "       activa un parche que apaga la validacion de hilos de Django y puede" >&2
+      echo "       devolver datos de otra request. Sacar la variable del entorno." >&2
+      exit 1
+      ;;
+  esac
+  if [ -n "${GUNICORN_WORKER_CLASS:-}" ]; then
+    echo "ERROR: GUNICORN_WORKER_CLASS esta definida (${GUNICORN_WORKER_CLASS}) y este arranque" >&2
+    echo "       no la admite (RED-45). Es la segunda perilla que enciende el parche de gevent." >&2
+    exit 1
+  fi
+}
+
+guard_worker_class
+
 # Reintenta sin limite a proposito: en Kubernetes el pod puede arrancar antes que
 # la base este lista y no hay que fallar por eso. El costo es que, si la base
 # nunca responde, el Job queda «Progressing» para siempre sin dar un error: si un
