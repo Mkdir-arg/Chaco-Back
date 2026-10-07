@@ -149,12 +149,13 @@ class TendenciasIncluyenHoyTests(TestCase):
     def test_una_inscripcion_del_ultimo_dia_entra_en_la_serie(self):
         """Sin forzar la fecha: el `create()` y la ventana usan el mismo reloj.
 
-        `InscripcionPrograma.fecha_inscripcion` es `DateField(auto_now_add=True)` y el
-        `pre_save` de Django escribe `datetime.date.today()`, fecha local del proceso.
-        Mientras la ventana se armaba con `timezone.now().date()` (UTC) había que
-        esquivar el desfase; ahora la arma `timezone.localdate()` y los dos relojes
-        coinciden, así que un alta recién hecha cae en el último bucket a cualquier
-        hora del día.
+        `InscripcionPrograma.fecha_inscripcion` se escribe con `timezone.localdate()`
+        —el `default` del campo, desde BEC-18— y la ventana se arma con la misma
+        función, así que un alta recién hecha cae en el último bucket a cualquier hora
+        del día y en cualquier zona horaria del proceso. Con el `auto_now_add` que el
+        campo tenía antes, el alta quedaba con `datetime.date.today()`: en un proceso
+        que no corre en hora de Argentina —los contenedores, en UTC— es otro día y este
+        test se ponía rojo sin que nadie hubiera tocado nada.
         """
         from legajos.models import Ciudadano
         from programas.models import InscripcionPrograma, Programa

@@ -56,6 +56,13 @@ De `programas/forms.py` la evidencia de diseño es **`INPUT_CLASS` y los `widget
 el resto del archivo es validación de dominio (`clean_*`, validaciones cruzadas) y no define nada
 visual. Un cambio ahí que no toque `INPUT_CLASS` ni un widget no mueve esta ficha.
 
+**Un campo que el negocio congela se deshabilita, no se saca.** Cuando una regla hace que un
+campo deje de poder cambiarse —el segmento de una convocatoria que ya tiene relevamientos,
+BEC-06—, el form le pone `disabled=True` y un `help_text` que dice el motivo. El control sigue
+renderizado con su valor y con `nodo-field`: esconderlo dejaría la pantalla sin mostrar un dato
+que el operador necesita leer, y `disabled` además hace que Django ignore lo que venga en el
+POST, así que la regla no depende del navegador.
+
 ## Selector múltiple apilado
 
 El contenedor del campo lleva `.nodo-checks`: el widget de Django queda como grilla de filas

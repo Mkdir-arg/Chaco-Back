@@ -1,6 +1,7 @@
-from datetime import date, timedelta
+from datetime import timedelta
 
 from django.test import TestCase
+from django.utils import timezone
 
 from legajos.models import Ciudadano
 from legajos.selectors.ciudadanos import _build_ciudadanos_dashboard_metrics
@@ -23,7 +24,12 @@ class CiudadanosDashboardMetricsTests(TestCase):
                 InscripcionPrograma.objects.create(ciudadano=ciudadano, programa=programa, estado=estado)
             )
 
-        InscripcionPrograma.objects.filter(pk=inscripciones[1].pk).update(fecha_inscripcion=date.today() - timedelta(1))
+            # `timezone.localdate()` y no `date.today()`: `fecha_inscripcion` se escribe
+        # con la fecha **local** del proyecto (BEC-18), que en un proceso que no corre
+        # en hora de Argentina —los contenedores, en UTC— es otro día.
+        InscripcionPrograma.objects.filter(pk=inscripciones[1].pk).update(
+            fecha_inscripcion=timezone.localdate() - timedelta(1)
+        )
 
         with self.assertNumQueries(3):
             metricas = _build_ciudadanos_dashboard_metrics(total_ciudadanos=17)

@@ -188,7 +188,7 @@ class SolapasService:
         if inscripcion.estado == "CERRADO":
             raise ValueError("La inscripción ya está cerrada")
         inscripcion.estado = "CERRADO"
-        inscripcion.fecha_cierre = timezone.now().date()
+        inscripcion.fecha_cierre = timezone.localdate()
         inscripcion.motivo_cierre = motivo_cierre
         nota_cierre = (
             f"\n\n[{timezone.now().strftime('%d/%m/%Y %H:%M')}] "

@@ -12,6 +12,12 @@ def cambiar_pausa(objeto, usuario, pausar, motivo):
         raise ValueError("El motivo es obligatorio.")
 
     objeto = objeto.__class__.objects.select_for_update().get(pk=objeto.pk)
+    # BEC-17: idempotente **después** del candado. La vista ya compara el estado
+    # antes de llamar, pero eso es un check-then-act: con doble clic los dos POST
+    # pasan esa guarda y el historial —que es inmutable— quedaba con dos «Pausado»
+    # seguidos y dos motivos, sin forma de borrar el repetido.
+    if objeto.pausado == pausar:
+        return objeto
     ahora = timezone.now()
     objeto.pausado = pausar
     objeto.pausa_motivo = motivo if pausar else ""

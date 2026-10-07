@@ -2,6 +2,7 @@ from uuid import uuid4
 
 from django.conf import settings
 from django.db import models
+from django.utils import timezone
 
 
 def generate_codigo():
@@ -127,7 +128,12 @@ class LegajoBase(TimeStamped):
     id = models.UUIDField(primary_key=True, default=uuid4, editable=False)
     codigo = models.CharField(max_length=36, unique=True, default=generate_codigo)
     estado = models.CharField(max_length=20, choices=Estado.choices, default=Estado.ABIERTO)
-    fecha_apertura = models.DateField(auto_now_add=True)
+    # BEC-18: `auto_now_add` guarda `datetime.date.today()`, que es la fecha del
+    # **proceso**. Los contenedores no definen `TZ`, así que corren en UTC y entre las
+    # 21:00 y las 24:00 de Chaco escriben el día siguiente: la fila nace con fecha de
+    # mañana y ningún contador que pregunte por «hoy» la encuentra. `default=` se
+    # evalúa con el mismo `TIME_ZONE` del proyecto que usan las consultas.
+    fecha_apertura = models.DateField(default=timezone.localdate, editable=False)
     fecha_cierre = models.DateField(null=True, blank=True)
     responsable = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="legajos_responsable"

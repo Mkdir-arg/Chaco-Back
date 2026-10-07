@@ -1,7 +1,6 @@
 """Vistas del backoffice del programa Merenderos."""
 
 from calendar import monthrange
-from datetime import date
 
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -9,6 +8,7 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.http import HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.functional import cached_property
 from django.views import View
 from django.views.generic import CreateView, DetailView, ListView, UpdateView
@@ -274,7 +274,7 @@ class PrestacionMensualView(MerenderosPermissionMixin, View):
         merendero = get_object_or_404(Merendero, pk=pk)
         if merendero.estado != Merendero.Estado.ACTIVO:
             raise PermissionDenied("No se puede generar la grilla de un merendero inactivo.")
-        hoy = date.today()
+        hoy = timezone.localdate()
         try:
             contexto = self._contexto(request, merendero, *self._periodo_seleccionado(request, hoy))
         except (TypeError, ValueError, ValidationError):

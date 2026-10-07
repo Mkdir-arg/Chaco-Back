@@ -249,7 +249,12 @@ class InscripcionPrograma(TimeStamped):
         choices=ViaIngreso.choices,
         default=ViaIngreso.DIRECTO,
     )
-    fecha_inscripcion = models.DateField(auto_now_add=True, db_index=True)
+    # BEC-18: `auto_now_add` guarda `datetime.date.today()`, que es la fecha del
+    # **proceso**. Los contenedores no definen `TZ`, así que corren en UTC y entre las
+    # 21:00 y las 24:00 de Chaco escriben el día siguiente: la fila nace con fecha de
+    # mañana y ningún contador que pregunte por «hoy» la encuentra. `default=` se
+    # evalúa con el mismo `TIME_ZONE` del proyecto que usan las consultas.
+    fecha_inscripcion = models.DateField(default=timezone.localdate, editable=False, db_index=True)
     fecha_inicio = models.DateField(null=True, blank=True)
     fecha_cierre = models.DateField(null=True, blank=True, db_index=True)
 
@@ -1582,10 +1587,25 @@ class Segmento(PausableMixin, TimeStamped):
             raise ValidationError(
                 {"cupo_maximo": f"El cupo no puede ser menor que los {distribuido} ya distribuidos en subsegmentos."}
             )
-        cupo = getattr(self, "cupo", None)
-        ocupado = cupo.cupo_ocupado if cupo else 0
+        # BEC-07: los lugares ocupados se **cuentan**, no se leen de `CupoSegmento`.
+        # `cupo_ocupado` es una columna que nadie mantiene (`get_cupo_stats` cuenta
+        # los APROBADO en vivo justamente por eso, #72): quedaba en 0 y dejaba bajar
+        # el cupo máximo por debajo de los beneficiarios reales. A partir de ahí el
+        # cupo disponible es negativo, toda aprobación cae en lista de espera y nadie
+        # entiende por qué. El import es local para no cerrar el ciclo
+        # `models` → `services.cupo` → `models`.
+        from programas.services.cupo import get_cupo_stats
+
+        ocupado = get_cupo_stats(self)["cupo_ocupado"]
         if self.cupo_maximo is not None and self.cupo_maximo < ocupado:
-            raise ValidationError({"cupo_maximo": f"El cupo no puede ser menor que los {ocupado} lugares ocupados."})
+            raise ValidationError(
+                {
+                    "cupo_maximo": (
+                        f"El cupo no puede ser menor que los {ocupado} beneficiarios ya aprobados "
+                        f"en este segmento. Para reducirlo, primero hay que dar de baja los que sobren."
+                    )
+                }
+            )
 
     @property
     def pausa_efectiva(self):
@@ -1615,7 +1635,21 @@ class Segmento(PausableMixin, TimeStamped):
 
 
 class Subsegmento(PausableMixin, TimeStamped):
-    """Nivel opcional dentro de un segmento, con cupo propio (RN-35/40)."""
+    """Nivel opcional dentro de un segmento, con cupo propio (RN-35/40).
+
+    **`cupo_maximo` es una referencia de distribución, no un tope duro** (BEC-05,
+    decisión D-B05 del cliente). Lo único que valida es RN-40: la suma de los
+    subsegmentos no puede pasarse del cupo del segmento (`Segmento.clean`). Quien
+    decide si un caso se aprueba o cae en lista de espera es
+    `services.cupo.get_cupo_stats`, que cuenta **por segmento**: un subsegmento
+    puede terminar con más aprobados que su cupo mientras al segmento le quede
+    lugar, y eso es lo esperado.
+
+    Si alguna vez pasa a ser tope duro, el cambio no es poner una validación en el
+    alta: hay que contar los APROBADO de las convocatorias del subsegmento y
+    devolver `min(disponible_segmento, disponible_subsegmento)` bajo el mismo lock
+    del segmento, o dos aprobaciones en paralelo se lo saltean igual.
+    """
 
     segmento = models.ForeignKey(
         Segmento,
@@ -1768,11 +1802,57 @@ class Convocatoria(PausableMixin, TimeStamped):
         return self.subsegmento.pausa_efectiva if self.subsegmento_id else None
 
     def clean(self):
-        """El subsegmento (si se indica) debe pertenecer al segmento elegido."""
+        """El subsegmento (si se indica) pertenece al segmento, las fechas van en
+        orden (BEC-20) y el alcance no se mueve con relevamientos hechos (BEC-06)."""
         super().clean()
         if self.subsegmento_id and self.segmento_id:
             if self.subsegmento.segmento_id != self.segmento_id:
                 raise ValidationError({"subsegmento": "El subsegmento debe pertenecer al segmento seleccionado."})
+        if self.fecha_inicio and self.fecha_fin and self.fecha_fin < self.fecha_inicio:
+            raise ValidationError({"fecha_fin": "La fecha de fin no puede ser anterior a la de inicio."})
+        self._validar_alcance_congelado()
+
+    #: Los campos cuyo cambio hay que detectar sin releer la fila (BEC-06).
+    CAMPOS_DE_ALCANCE = ("segmento_id", "subsegmento_id")
+
+    @classmethod
+    def from_db(cls, db, field_names, values):
+        """Guarda el alcance con el que salió de la base, para comparar sin consultar.
+
+        Releer la fila en cada `clean()` cuesta una consulta en **toda** edición de
+        convocatoria, incluidas las que no tocan el alcance; con la foto de la carga
+        la comparación es en memoria y solo se paga el `exists()` de relevamientos
+        cuando el alcance de verdad cambió.
+        """
+        instancia = super().from_db(db, field_names, values)
+        if all(campo in field_names for campo in cls.CAMPOS_DE_ALCANCE):
+            instancia._alcance_original = tuple(getattr(instancia, campo) for campo in cls.CAMPOS_DE_ALCANCE)
+        return instancia
+
+    def _validar_alcance_congelado(self):
+        """BEC-06: con relevamientos cargados, el segmento y el subsegmento quedan fijos.
+
+        El formulario ya los deshabilita; esto cubre al admin de Django y a
+        cualquier escritura que pase por `full_clean`. Cambiarlos libera el cupo
+        ocupado en el segmento viejo, se pasa del nuevo, cambia los requisitos y
+        el programa SIIS de casos que quizá ya se informaron, y deja las entradas
+        de `ListaEspera` apuntando al segmento anterior.
+        """
+        anterior = getattr(self, "_alcance_original", None)
+        if not self.pk or anterior is None:
+            return
+        if anterior == tuple(getattr(self, campo) for campo in self.CAMPOS_DE_ALCANCE):
+            return
+        if not self.relevamientos.exists():
+            return
+        raise ValidationError(
+            {
+                "segmento": (
+                    "No se puede cambiar el segmento ni el subsegmento de una convocatoria que ya "
+                    "tiene relevamientos: habría que mover también el cupo y la lista de espera."
+                )
+            }
+        )
 
     @property
     def esta_vencida(self):
@@ -2469,7 +2549,7 @@ class AsignacionCoordinador(TimeStamped):
         verbose_name="Coordinador",
     )
     activo = models.BooleanField(default=True, db_index=True, verbose_name="Activo")
-    fecha_asignacion = models.DateField(auto_now_add=True, verbose_name="Fecha de asignación")
+    fecha_asignacion = models.DateField(default=timezone.localdate, editable=False, verbose_name="Fecha de asignación")
 
     class Meta:
         verbose_name = "Asignación de coordinador"
@@ -2490,7 +2570,7 @@ class AsignacionReferente(TimeStamped):
     coordinador = models.ForeignKey(
         User, on_delete=models.CASCADE, related_name="referentes_asignados", verbose_name="Coordinador"
     )
-    fecha_asignacion = models.DateField(auto_now_add=True, verbose_name="Fecha de asignación")
+    fecha_asignacion = models.DateField(default=timezone.localdate, editable=False, verbose_name="Fecha de asignación")
 
     class Meta:
         verbose_name = "Asignación de referente"
@@ -2522,7 +2602,7 @@ class AsignacionTerritorial(TimeStamped):
         related_name="asignacion_territorial",
         verbose_name="Territorial",
     )
-    fecha_asignacion = models.DateField(auto_now_add=True, verbose_name="Fecha de asignación")
+    fecha_asignacion = models.DateField(default=timezone.localdate, editable=False, verbose_name="Fecha de asignación")
 
     class Meta:
         verbose_name = "Asignación de territorial"
@@ -3187,7 +3267,7 @@ class ListaEspera(TimeStamped):
     )
     posicion = models.PositiveIntegerField(verbose_name="Posición")
     promovido = models.BooleanField(default=False, verbose_name="Promovido")
-    fecha_ingreso = models.DateField(auto_now_add=True, verbose_name="Fecha de ingreso")
+    fecha_ingreso = models.DateField(default=timezone.localdate, editable=False, verbose_name="Fecha de ingreso")
 
     class Meta:
         verbose_name = "Lista de espera"

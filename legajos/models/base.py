@@ -6,6 +6,7 @@ from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.utils import timezone
 
 from core.dni import normalizar_dni
 from core.models import LegajoBase, TimeStamped
@@ -259,17 +260,14 @@ class Ciudadano(TimeStamped):
 
     @property
     def edad(self):
-        """Edad en años calculada desde fecha_nacimiento (None si no hay fecha)."""
-        if not self.fecha_nacimiento:
-            return None
-        from datetime import date
+        """Edad en años cumplidos hoy, en hora local (``None`` si no hay fecha).
 
-        hoy = date.today()
-        return (
-            hoy.year
-            - self.fecha_nacimiento.year
-            - ((hoy.month, hoy.day) < (self.fecha_nacimiento.month, self.fecha_nacimiento.day))
-        )
+        La cuenta es la de RN-22 y vive en :mod:`core.edad`: el día del sistema es
+        el de UTC en los contenedores y adelantaba el cumpleaños una noche (RED-50).
+        """
+        from core.edad import edad_en_anios
+
+        return edad_en_anios(self.fecha_nacimiento)
 
 
 class LegajoAtencion(LegajoBase):
@@ -294,7 +292,12 @@ class LegajoAtencion(LegajoBase):
     via_ingreso = models.CharField(
         max_length=20, choices=ViaIngreso.choices, default=ViaIngreso.ESPONTANEA, db_index=True
     )
-    fecha_admision = models.DateField(auto_now_add=True, db_index=True)
+    # BEC-18: `auto_now_add` guarda `datetime.date.today()`, que es la fecha del
+    # **proceso**. Los contenedores no definen `TZ`, así que corren en UTC y entre las
+    # 21:00 y las 24:00 de Chaco escriben el día siguiente: la fila nace con fecha de
+    # mañana y ningún contador que pregunte por «hoy» la encuentra. `default=` se
+    # evalúa con el mismo `TIME_ZONE` del proyecto que usan las consultas.
+    fecha_admision = models.DateField(default=timezone.localdate, editable=False, db_index=True)
     plan_vigente = models.BooleanField(default=False, db_index=True)
     nivel_riesgo = models.CharField(max_length=20, default="BAJO", db_index=True)
 
@@ -357,8 +360,6 @@ class LegajoAtencion(LegajoBase):
         """Verifica si el legajo puede cerrarse"""
         from datetime import timedelta
 
-        from django.utils import timezone
-
         from core.utils_fechas import inicio_del_dia_local
 
         if self.estado == "CERRADO":
@@ -377,14 +378,12 @@ class LegajoAtencion(LegajoBase):
 
     def cerrar(self, motivo_cierre=None, usuario=None):
         """Cierra el legajo"""
-        from datetime import datetime
-
         puede, mensaje = self.puede_cerrar()
         if not puede and not motivo_cierre:
             raise ValidationError(mensaje)
 
         self.estado = "CERRADO"
-        self.fecha_cierre = datetime.now().date()
+        self.fecha_cierre = timezone.localdate()
         if motivo_cierre:
             if not self.notas:
                 self.notas = f"Motivo de cierre: {motivo_cierre}"
@@ -408,10 +407,8 @@ class LegajoAtencion(LegajoBase):
 
     @property
     def dias_desde_admision(self):
-        """Días transcurridos desde la admisión"""
-        from datetime import datetime
-
-        return (datetime.now().date() - self.fecha_admision).days
+        """Días transcurridos desde la admisión, contra el día **local** (BEC-18)."""
+        return (timezone.localdate() - self.fecha_admision).days
 
     # Managers
     objects = models.Manager()  # Manager por defecto
@@ -494,8 +491,6 @@ class AlertaCiudadano(TimeStamped):
 
     def cerrar(self, usuario=None):
         """Cerrar la alerta"""
-        from django.utils import timezone
-
         self.activa = False
         self.fecha_cierre = timezone.now()
         self.cerrada_por = usuario

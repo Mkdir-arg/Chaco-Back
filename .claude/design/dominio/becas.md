@@ -125,6 +125,25 @@ su propia migración.
 
 ---
 
+## Cupo: qué número manda, y qué campo se congela
+
+**El cupo del subsegmento es una referencia de distribución, no un tope.** Quien decide aprobar o
+mandar a lista de espera es el cupo del **segmento** (`services/cupo.get_cupo_stats`); el del
+subsegmento solo valida que lo distribuido no se pase del segmento (RN-40). La pantalla lo dice,
+no lo deja deducir: la bajada de `programas/templates/programas/becas/config/subsegmento_detail.html`
+rotula **«Cupo asignado»** —no «máximo»— con la aclaración entre paréntesis, y la tarjeta
+«Distribución del cupo» de `config/segmento_detail.html` lo repite debajo de los lugares
+disponibles. Un rótulo que promete un tope que el sistema no aplica es la clase de número que la
+Ola 5 PR 7 ya tuvo que corregir en otras cinco pantallas.
+
+**El segmento y el subsegmento de una convocatoria con relevamientos se muestran deshabilitados,
+no escondidos.** `ConvocatoriaForm` les pone `disabled=True` y un `help_text` que dice por qué
+(«No se puede cambiar: la convocatoria ya tiene relevamientos»). El control sigue en el
+formulario con su valor: sacarlo dejaría la pantalla sin decir a qué segmento pertenece la
+convocatoria que se está editando, y un `disabled` de Django además ignora lo que venga en el POST.
+
+---
+
 ## Drag & drop (SortableJS)
 
 `static/vendor/sortablejs/Sortable.min.js` (1.15.6, MIT, sin CDN por la CSP) +

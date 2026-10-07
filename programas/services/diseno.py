@@ -284,12 +284,34 @@ def generar_por_defecto(diseno):
     return diseno
 
 
-def obtener_o_crear_diseno(convocatoria, usuario=None):
+def bloquear(diseno):
+    """Toma el candado de la fila del diseño (BEC-16).
+
+    Un solo lugar para que el orden sea siempre el mismo —primero el diseño,
+    después sus ítems— y para que se vea en el registro de `RED-67` quién lo pide.
+    En SQLite `select_for_update()` es un no-op: lo que vale en los tres motores
+    es que todo el que escribe el diseño pase por acá.
+    """
+    DisenoFormulario.objects.select_for_update().filter(pk=diseno.pk).first()
+    return diseno
+
+
+@transaction.atomic
+def obtener_o_crear_diseno(convocatoria, usuario=None, reconciliar_con_catalogo=True):
     """El diseño de la convocatoria, generado si no existía y reconciliado con
-    el catálogo si ya estaba. Es lo que abre el constructor."""
+    el catálogo si ya estaba. Es lo que abre el constructor.
+
+    ``reconciliar_con_catalogo=False`` lo usan los POST de mutación (BEC-16): ahí
+    el diseño no se sincroniza con el catálogo, porque reconciliar **escribe** y
+    hacerlo en cada request convertía un guardado de orden en dos escrituras
+    distintas compitiendo por las mismas claves. La reconciliación pasa a ocurrir
+    donde tiene sentido: al abrir la pantalla.
+    """
     diseno, creado = DisenoFormulario.objects.get_or_create(convocatoria=convocatoria)
     if creado:
-        generar_por_defecto(diseno)
+        generar_por_defecto(bloquear(diseno))
+        return diseno, {}
+    if not reconciliar_con_catalogo:
         return diseno, {}
     return diseno, reconciliar(diseno, usuario)
 
@@ -388,7 +410,16 @@ def reconciliar(diseno, usuario=None):
     """El diseño sigue al catálogo (RN-1): agrega al final de su grupo por
     defecto lo que falte, quita lo que ya no exista o esté inactivo, y elimina
     las condiciones que apuntaban a lo quitado. Devuelve el detalle para avisar
-    y sube la versión si cambió algo."""
+    y sube la versión si cambió algo.
+
+    **Candado del diseño (BEC-16).** Escribe, así que no puede correr dos veces a
+    la vez sobre el mismo diseño: dos operadores abriendo el constructor en el
+    mismo momento creaban los ítems que faltaban los dos y el segundo moría con
+    un `IntegrityError` de `uniq_item_diseno_clave` —un 500 en un GET—. Se
+    serializa por la fila del `DisenoFormulario`, que es el mismo candado que
+    toma `_mutar`.
+    """
+    bloquear(diseno)
     convocatoria = diseno.convocatoria
     items = list(diseno.items.select_related("pregunta", "requisito", "grupo_catalogo"))
     por_pregunta = {i.pregunta_id: i for i in items if i.pregunta_id}
@@ -597,9 +628,49 @@ def items_planos(items, canal=None):
     return planos
 
 
+def _condicion_en_canal(condicion, claves_del_canal):
+    """La condición, o ``None`` si alguna de sus fuentes no se pide en este canal.
+
+    BEC-04: una regla cuya fuente no se pregunta en el canal servido **nunca** se
+    cumple —la fuente llega vacía y ``evaluar_regla`` devuelve ``False``—, así que
+    el ítem quedaba oculto para siempre y el servidor tampoco lo exigía. Es el
+    mismo criterio que ya aplicaba ``items_vigentes`` cuando la fuente desaparecía
+    del diseño: sin condición evaluable, el ítem se pide. Pedir de más es
+    recuperable; no pedir nunca un requisito obligatorio, no.
+
+    El constructor rechaza estos diseños al editarlos (``_asegurar_coherencia``),
+    pero los que ya están guardados se siguen sirviendo y tienen que servirse bien.
+    """
+    reglas = (condicion or {}).get("reglas") or []
+    if reglas and any(not isinstance(r, dict) or r.get("fuente") not in claves_del_canal for r in reglas):
+        return None
+    return condicion
+
+
+def claves_servidas(items, canal=None):
+    """Las claves que la persona **va a ver** en ``canal``.
+
+    No alcanza con ``se_pide_en``: un campo de canal «ambos» que cuelga de un grupo
+    que solo se pide en la app no se sirve en el link, porque el grupo no viaja (y
+    ``serializar`` lo saltea con ``actual is None``). Tomarlo como disponible dejaba
+    en pie una condición que nunca se puede cumplir, que es justo lo que BEC-04
+    corrige. Es la misma cascada de padres que aplica :func:`items_planos`.
+    """
+    servidas = set()
+    excluidos = set()
+    for item in items:
+        padre_clave = item.padre.clave if item.padre is not None else None
+        if not item.se_pide_en(canal) or padre_clave in excluidos:
+            excluidos.add(item.clave)
+            continue
+        servidas.add(item.clave)
+    return servidas
+
+
 def serializar(items, canal=None):
     """La estructura anidada de la definición v2: grupos con sus campos y textos,
     filtrada por canal. Un grupo sin hijos visibles no se emite (RN-3)."""
+    claves_del_canal = claves_servidas(items, canal)
     grupos = []
     actual = None
     for item in items:
@@ -607,13 +678,14 @@ def serializar(items, canal=None):
             if item.es_grupo:
                 actual = None
             continue
+        condicion = _condicion_en_canal(item.condicion, claves_del_canal)
         if item.es_grupo:
             actual = {
                 "tipo": "grupo",
                 "clave": item.clave,
                 "titulo": item.titulo,
                 "subtitulo": item.subtitulo,
-                "condicion": item.condicion,
+                "condicion": condicion,
                 "canal": item.canal_efectivo,
                 "items": [],
             }
@@ -622,11 +694,10 @@ def serializar(items, canal=None):
         if actual is None:
             continue  # ítem suelto sin grupo: no se muestra
         if item.es_texto:
-            actual["items"].append(
-                {"tipo": "texto", "clave": item.clave, "texto": item.texto, "condicion": item.condicion}
-            )
+            actual["items"].append({"tipo": "texto", "clave": item.clave, "texto": item.texto, "condicion": condicion})
         else:
             datos = campo_dict(item)
             datos["tipo_item"] = "campo"
+            datos["condicion"] = condicion
             actual["items"].append(datos)
     return [g for g in grupos if g["items"]]

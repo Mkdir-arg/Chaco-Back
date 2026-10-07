@@ -13,6 +13,7 @@ from django.core.management import call_command
 from django.db import connection, models
 from django.test import TestCase, tag
 
+from core.edad import es_menor
 from legajos.models import Ciudadano
 from programas.models import (
     AsignacionCoordinador,
@@ -29,7 +30,6 @@ from programas.models import (
 )
 from programas.services.becas import (
     coordinador_gestiona_segmento,
-    es_menor,
     formulario_por_client_uuid,
     get_campos_formulario,
     get_segmentos_coordinador,
@@ -560,8 +560,8 @@ class FormularioTests(TestCase):
 class HelpersTests(TestCase):
     def test_es_menor(self):
         ref = date(2026, 6, 23)
-        self.assertTrue(es_menor(date(2015, 1, 1), referencia=ref))
-        self.assertFalse(es_menor(date(1990, 1, 1), referencia=ref))
+        self.assertTrue(es_menor(date(2015, 1, 1), hoy=ref))
+        self.assertFalse(es_menor(date(1990, 1, 1), hoy=ref))
         self.assertIsNone(es_menor(None))
 
 

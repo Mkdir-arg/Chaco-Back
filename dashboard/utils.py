@@ -104,10 +104,14 @@ def contar_seguimientos_hoy():
     """Contar nuevas inscripciones del día con caché."""
     from django.utils import timezone
 
-    cache_key = f"seguimientos_hoy_{timezone.now().date()}"
+    # El día **local**: `fecha_inscripcion` es un DateField que se llena con la
+    # fecha local, así que con la de UTC el contador daba 0 entre las 21 y las 24
+    # y además partía la clave de caché en dos días distintos (BEC-18).
+    hoy = timezone.localdate()
+    cache_key = f"seguimientos_hoy_{hoy}"
     cached_value = cache.get(cache_key)
     if cached_value is None:
-        cached_value = InscripcionPrograma.objects.filter(fecha_inscripcion=timezone.now().date()).count()
+        cached_value = InscripcionPrograma.objects.filter(fecha_inscripcion=hoy).count()
         cache.set(cache_key, cached_value, timeout=300)  # 5 min
     return cached_value
 
@@ -133,4 +137,4 @@ def invalidate_dashboard_cache():
     cache.delete("alertas_activas")
     from django.utils import timezone
 
-    cache.delete(f"seguimientos_hoy_{timezone.now().date()}")
+    cache.delete(f"seguimientos_hoy_{timezone.localdate()}")
