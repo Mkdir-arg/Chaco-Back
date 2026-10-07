@@ -1,21 +1,15 @@
-{% extends "includes/main.html" %}
-{% load static %}
+{% extends "includes/base.html" %}
+{% load nodo_ui %}
 {% block title %}Error 500{% endblock %}
-{% block titulo-pagina %}{% endblock %}
-{% block breadcrumb %}{% endblock %}
-{% block menu-adicional %}{% endblock %}
-{% block content %}
-    <div class="error-page align-items-center">
-        <h2 class="headline text-danger">500</h2>
-        <div class="error-content">
-            <h3>
-                <i class="fas fa-exclamation-triangle text-danger"></i>
-                ¡Ups! Algo salió mal.
-            </h3>
-            <p>Trabajaremos para solucionarlo de inmediato.</p>
-            <p>
-                Mientras tanto, puede <a href="{% url 'core:inicio' %}">volver al inicio</a> o intentar usar el buscador de menú.
-            </p>
-        </div>
-    </div>
-{% endblock content %}
+
+{% block main-content %}
+<div class="space-y-5">
+  {% url 'core:inicio' as url_inicio %}
+  {% page_header titulo="Algo salió mal de nuestro lado" volver_url=url_inicio volver_label="el inicio" %}
+    {% bajada %}Error 500 · El servidor no pudo completar la operación.{% endbajada %}
+  {% endpage_header %}
+  <div class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
+    {% include "components/_estado_vacio.html" with icono="fa-triangle-exclamation" titulo="Error del servidor" texto="Ya quedó registrado y lo vamos a revisar. Mientras tanto, volvé al inicio o reintentá en un rato." accion_url=url_inicio accion_texto="Volver al inicio" accion_icono="fa-house" %}
+  </div>
+</div>
+{% endblock %}

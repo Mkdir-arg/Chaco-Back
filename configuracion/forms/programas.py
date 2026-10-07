@@ -3,12 +3,14 @@ from django import forms
 from core.models import Secretaria, Subsecretaria
 from programas.models import Programa
 
+_FIELD_CLASS = "nodo-field"
+
 
 class ProgramaPaso1Form(forms.Form):
     """Paso 1 — Identidad y jerarquía organizacional."""
 
-    _INPUT = "block w-full rounded-md border border-gray-300 py-2 px-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-    _SELECT = "block w-full rounded-md border border-gray-300 py-2 px-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+    # La clase del control la pone el widget, no el template (contrato del campo NODO).
+    _INPUT = _SELECT = _FIELD_CLASS
 
     nombre = forms.CharField(
         max_length=200,
@@ -34,6 +36,7 @@ class ProgramaPaso1Form(forms.Form):
     subsecretaria = forms.ModelChoiceField(
         queryset=Subsecretaria.objects.none(),
         label="Subsecretaría",
+        help_text="Seleccioná primero una secretaría.",
         empty_label="Seleccionar subsecretaría...",
         widget=forms.Select(attrs={"class": _SELECT}),
     )
@@ -91,16 +94,18 @@ class ProgramaPaso3Form(forms.Form):
         required=False,
         min_value=1,
         label="Cupo máximo",
+        help_text="Si se deja vacío, el programa no tiene límite de inscripciones.",
         widget=forms.NumberInput(
             attrs={
                 "placeholder": "Sin límite si se deja vacío",
-                "class": "w-40 rounded-md border border-gray-300 py-2 px-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500",
+                "class": _FIELD_CLASS,
             }
         ),
     )
     tiene_lista_espera = forms.BooleanField(
         required=False,
         label="Habilitar lista de espera cuando se alcance el cupo",
+        help_text="Solo disponible si se configuró un cupo máximo.",
     )
 
     def clean(self):
@@ -115,11 +120,12 @@ class ProgramaPaso3Form(forms.Form):
 class ProgramaPaso4Form(forms.Form):
     """Paso 4 — Visual: ícono, color y orden de solapa."""
 
-    _INPUT = "block w-full rounded-md border border-gray-300 py-2 px-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+    _INPUT = _FIELD_CLASS
 
     icono = forms.CharField(
         max_length=50,
         label="Ícono",
+        help_text="Nombre del ícono Material Icons (ej: people, school).",
         initial="folder",
         widget=forms.TextInput(attrs={"placeholder": "Ej: people, school, assessment", "class": _INPUT}),
     )
@@ -127,18 +133,17 @@ class ProgramaPaso4Form(forms.Form):
         max_length=20,
         label="Color",
         initial="#6366f1",
-        widget=forms.TextInput(
-            attrs={"type": "color", "class": "h-10 w-16 rounded border border-gray-300 cursor-pointer"}
-        ),
+        widget=forms.TextInput(attrs={"type": "color", "class": _FIELD_CLASS}),
     )
     orden = forms.IntegerField(
         label="Orden de visualización",
+        help_text="Menor número = aparece primero.",
         initial=0,
         min_value=0,
         widget=forms.NumberInput(
             attrs={
                 "placeholder": "0",
-                "class": "w-24 rounded-md border border-gray-300 py-2 px-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500",
+                "class": _FIELD_CLASS,
             }
         ),
     )

@@ -8,7 +8,7 @@ from django.shortcuts import redirect
 from django.urls import reverse_lazy
 from django.views.generic import CreateView, DetailView, FormView, ListView, UpdateView
 
-from core.rbac import CapacidadRequeridaMixin, requiere
+from core.rbac import CapacidadRequeridaMixin, puede, requiere
 
 from ..forms import (
     CiudadanoConfirmarForm,
@@ -40,7 +40,12 @@ class CiudadanoListView(CapacidadRequeridaMixin, LoginRequiredMixin, ListView):
         total_ciudadanos = None
         if not self.request.GET.get("search"):
             total_ciudadanos = context["paginator"].count
-        context["metricas"] = get_ciudadanos_dashboard_metrics(total_ciudadanos)
+        metricas = get_ciudadanos_dashboard_metrics(total_ciudadanos)
+        context["metricas"] = metricas
+        # `_stat_card.html` recibe el valor **ya formateado**: el «%» lo ponía el template.
+        # El dict de métricas está cacheado, así que la clave nueva va al contexto, no adentro.
+        context["tasa_adherencia_texto"] = f"{metricas.get('tasa_adherencia', 0)}%"
+        context["puede_crear"] = puede(self.request.user, "ciudadano.crear")
         return context
 
 
