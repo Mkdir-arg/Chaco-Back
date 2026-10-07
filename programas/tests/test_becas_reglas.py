@@ -130,9 +130,7 @@ class SinCalculoDeEdadPropioTests(SimpleTestCase):
         izq, der = nodo.left, nodo.comparators[0]
         if not (isinstance(izq, ast.Tuple) and isinstance(der, ast.Tuple)):
             return False
-        atributos = {
-            n.attr for lado in (izq, der) for n in ast.walk(lado) if isinstance(n, ast.Attribute)
-        }
+        atributos = {n.attr for lado in (izq, der) for n in ast.walk(lado) if isinstance(n, ast.Attribute)}
         return {"month", "day"} <= atributos
 
     def test_no_queda_ningun_calculo_de_edad_con_la_fecha_del_sistema(self):
@@ -148,8 +146,7 @@ class SinCalculoDeEdadPropioTests(SimpleTestCase):
         self.assertEqual(
             copias,
             [],
-            "RN-22 volvió a escribirse a mano. La cuenta vive en `core.edad.edad_en_anios`: "
-            f"{', '.join(copias)}",
+            f"RN-22 volvió a escribirse a mano. La cuenta vive en `core.edad.edad_en_anios`: {', '.join(copias)}",
         )
 
     def test_el_detector_ve_la_cuenta_cuando_esta(self):
