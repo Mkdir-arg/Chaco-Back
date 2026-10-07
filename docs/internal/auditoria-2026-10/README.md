@@ -1,5 +1,11 @@
 # Auditoría integral de DATAÑACH (Chaco) — octubre 2026
 
+## Estado al 07-oct-2026 (Ola R: R-21, los ratchets de arquitectura)
+
+| PR | Cambio | Fichas | Estado | Qué quedó abierto |
+|---|---|---|---|---|
+| R-21 | 159 | RED-46 ✅ · RED-79 ✅(R) · RED-13 ✅(R) · RED-45 ✅(R) · RED-52 ✅(R) · RED-51 ✅(R) · RED-78 ✅(R) · RED-82 ✅ | ✅ | **Las 8 fichas, 18 h, sin migraciones.** Todo lo que las Olas 2, 4 y 7 van a mover queda medido con un techo que falla si sube. (1) **RED-82 (prerrequisito de SEC-20):** `exportacion_reportes.py` tenía 122 CR y **cero** LF —git lo marcaba `i/-text`, así que el diff de un PR sobre él no mostraba el contenido y pylint lo salteaba devolviendo verde—; queda en LF, con el contenido verificado idéntico, más `*.py text eol=lf` y un test que recorre `git ls-files "*.py"`. (2) **RED-46:** contrato de las 3.252 líneas de `programas/models/__init__.py` —65 nombres públicos, 45 `app_label`/`db_table` y las properties de negocio con valores concretos, incluido el borde en que `habilitado_en(date)` cae **antes** de la apertura—; el corte del archivo deja de ser riesgoso. (3) **RED-79:** detector AST propio que distingue import de módulo del **diferido**: 9 aristas vista→vista y **5** ciclos (la ficha decía 3; la medición suma `models ↔ services.inscripciones` y `proceso_masivo ↔ siis_envio`), y los dos ratchets fallan en las dos direcciones, así que la Ola 2 **tiene** que bajar el techo al resolver. (4) **RED-13:** los dos criterios de «hecho» de G1-01 fase 2 escritos y rojos con `expectedFailure`, cada uno con su control de andamio y con la afirmación de **por qué** falla hoy; la tercera pata —las cuatro variables que `conversaciones` le presta al shell— queda en verde, que es el modo de falla silencioso. (5) **RED-45:** el entrypoint aborta ante **las dos** perillas de gevent (la ficha nombraba una), probado ejecutando el script, no leyéndolo. (6) **RED-52:** el *lost update* del Profile tiene **dos** caras, no una: la segunda la dispara **el login mismo** vía `update_last_login`. (7) **RED-51:** los dos contadores de la home que nadie refresca, con la trampa de la deduplicación de OPS-10 vuelta explícita (las dos funciones homónimas no borran las mismas claves). (8) **RED-78:** la raíz es el login solo por el orden del URLconf. **Abierto:** las partes no-R de seis fichas —RED-79 y RED-52 en la **Ola 2**, RED-51 en la **Ola 4**, RED-13, RED-45 y RED-78 en la **Ola 7**—, cada una con su test rojo o su ratchet ya puesto |
+
 ## Estado al 07-oct-2026 (Ola R: R-16, la red de Becas)
 
 | PR | Cambio | Fichas | Estado | Qué quedó abierto |
@@ -1289,8 +1295,18 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
   `deploy_prod.sh` lo usa, verifica después del deploy y no vuelve el código a ciegas si hubo migraciones (RED-59);
   `verificar_esquema_migraciones` frena el arranque antes del `1050 Table already exists` (OPS-01); y cada release deja
   un tag al que volver (RED-16, 🟡: el tag de **imagen** es de ECOM). Habilita **el próximo deploy en icore**.
-- **Quedan 76 h:** R-17, R-18, R-20 y R-21. **R-16 ya está cerrado (Cambio 156), así que la Ola 3 queda
-  desbloqueada**; de lo que falta, R-21 va antes de la Ola 2 y el resto puede ir en cualquier orden.
+- **✅ R-21 cerrado el 07-oct-2026 (Cambio 159), 18 h.** Arquitectura y dependencias ocultas, todo ratchet y sin
+  migraciones: el contrato de `programas/models/__init__.py` —65 nombres, 45 tablas y las properties de negocio con
+  valores concretos— que vuelve seguro el corte del archivo (RED-46); el grafo de imports medido por AST, con las 9
+  aristas vista→vista y los **5** ciclos (la ficha decía 3) como techo que falla en las dos direcciones (RED-79); los
+  dos criterios de «hecho» de G1-01 fase 2 escritos y rojos (RED-13); el parche de gevent, que el entrypoint ahora
+  rechaza por **las dos** perillas (RED-45); el *lost update* del Profile, que resultó tener **dos** caras —la segunda
+  la dispara el login mismo— (RED-52); las dos `invalidate_dashboard_cache` y los dos contadores de la home que nadie
+  refresca (RED-51); la raíz que es el login solo por el orden del URLconf (RED-78); y
+  `exportacion_reportes.py` convertido a LF, **prerrequisito de SEC-20**, con su guarda (RED-82). **Desbloquea la
+  Ola 2** (SEC-21) y deja medido lo que la Ola 7 (G1-01 fase 2, OPS-10, OPS-13, OPS-14) y la Ola 4 van a tocar.
+- **Quedan 58 h:** R-17, R-18 y R-20. **R-16 y R-21 ya están cerrados (Cambios 156 y 159), así que la Ola 3 y la
+  Ola 2 quedan desbloqueadas**; lo que falta puede ir en cualquier orden.
 - **Objetivo:** poder cambiar código sin romper nada sin enterarse. Que todo lo que las Olas 1 a 7 van a tocar tenga antes
   un test que se ponga rojo si se rompe, que el CI pruebe el motor de producción (MariaDB) y las migraciones en las dos
   direcciones, que ningún gate dependa de la buena voluntad (protección de rama, release que exige CI verde, verificación
@@ -1322,7 +1338,7 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
 | R-18 | **Contratos del backoffice y job `Contratos de API`:** RED-42, RED-39, RED-40, RED-41 (D-RED-04), RED-43, RED-44 | 18 | Ola 2 (capacidades), Ola 5 |
 | ✅ R-19 | **Legajos y Roles por HTTP:** **RED-89** (CRÍTICA: barrido con usuario sin rol + `ALLOWLIST_SIN_ROL` medida + ratchet, 4 h) y, adelantadas de la Ola 2 por **D-RED-14**, **SEC-10 completa** (CRÍTICA, 4 h: el hard delete de adjuntos), **SEC-18 completa** (+ R0b-06, 2 h: alertas y el `self.get_object()` que mata el 500) y **SEC-11 con `ciudadano.ver` de piso en sus 5 rutas** (1 h: así salen los 17 `expectedFailure` y ninguna queda abierta; la Ola 2 sube 3 a `ciudadano.sensible` con D-11); más RED-06 (humo de 37 rutas + alertas) y RED-04 (escrituras del ABM de roles) — **#556, Cambio 126** | 21 | Ola 2 |
 | R-20 | **Cobertura y regresión** (desde la Ola 3): TST-02 (+generar_alertas y wizard), TST-03 (+gate por módulo), R0-03 (**antes del 31-dic-2026**), RED-34, RED-74, RED-72, RED-88 | 24 | — |
-| R-21 | **Arquitectura y dependencias ocultas (ratchets):** RED-46, RED-79, RED-13, RED-45, RED-52, RED-51, RED-78, RED-82 | 18 | Ola 2 (SEC-21), Ola 7 (G1-01 fase 2, OPS-10) |
+| ✅ R-21 | **Arquitectura y dependencias ocultas (ratchets):** RED-46, RED-79, RED-13, RED-45, RED-52, RED-51, RED-78, RED-82 — **Cambio 159** (RED-13, RED-45, RED-51, RED-52, RED-78 y RED-79 cierran su parte R; el resto de cada una es de las Olas 2, 4 y 7) | 18 | Ola 2 (SEC-21), Ola 7 (G1-01 fase 2, OPS-10) |
 | | **Total Ola R** | **285** | |
 
 - **Mínimo antes de la Ola 1: ✅ hecho el 04-oct-2026.** R-01 a R-10 (86 h) están mergeados en `development` (detalle,
@@ -1334,7 +1350,9 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
   **R-15** (Cambio 153, 18 h: operación y deploy, que habilita el próximo deploy en icore).
   **R-16** (Cambio 156, 22 h: la red de Becas —adjuntos, borrados, atomicidad, padrón, cupo, edad, vencimientos y
   exportaciones—, que desbloquea la Ola 3).
-  **Quedan 76 h de la Ola R:** R-21 antes de la Ola 2. El resto puede ir en
+  **R-21** (Cambio 159, 18 h: los ratchets de arquitectura y dependencias ocultas, que desbloquea la Ola 2 y es el
+  prerrequisito de la revisión de SEC-20).
+  **Quedan 58 h de la Ola R:** R-17, R-18 y R-20, sin precedencias entre sí. Pueden ir en
   paralelo con otro implementador.
 - **Hecho cuando (verificable):**
   1. `gh api repos/Mkdir-arg/Chaco-Back/rulesets` lista los rulesets de `development` y `main`; un push directo a

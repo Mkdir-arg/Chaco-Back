@@ -328,6 +328,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 154 | «Aprobar» deja de poder pasarse de los 60 s de nginx: un timeout por llamada, cortacircuito y presupuesto verificado | Transversal · clientes de SIIS, Base de Personas y RENAPER · correo saliente · sincronización del catálogo SIIS | `#siis` `#performance` `#infra` `#datos` | Auditoría integral oct-2026 — SIIS-09 (= PERF-09) y los tres MINOR de la revisión del PR 4 (Ola 1 «Integridad SIIS», PR 5) | 06/10/2026 | 🟢 **Hecho** | No requiere |
 | 155 | Controles que el navegador no dibujaba: botones sin caja, backdrop transparente, modales en la esquina y la grilla del mes ilegible en celular | Transversal (shell del backoffice, sidebar, navbar, CSS de botones) · Configuración (10 modales, formularios y wizard) · Legajos · Usuarios y roles · Dispositivos · Merenderos (prestación mensual) | `#ui` `#mobile` | Auditoría integral oct-2026 — fichas FE-06, FE-07, FE-01 y FE-10 (Ola 5, PR 4) | 06/10/2026 | 🟢 **Hecho** | No requiere |
 | 156 | La red de Becas: el adjunto que llega hasta la revisión, los dos borrados sin probar, la atomicidad, el padrón y la edad | Becas (adjuntos del caso, Configuración de requisitos y subsegmentos, cupo, padrón, exportaciones) · Transversal (registro de vencimientos, contrato de escrituras atómicas) | `#datos` `#metodo` `#cupos` `#relevamientos` | Auditoría integral oct-2026 — fichas RED-05, RED-31, RED-35, RED-77, RED-49, RED-50, RED-81 y RED-70 (Ola R, PR R-16) | 07/10/2026 | 🟢 **Hecho** (RED-50 queda caracterizada con `expectedFailure`: el arreglo es de la Ola 3) | No requiere |
+| 159 | Ratchets de arquitectura: el contrato de los modelos, el grafo de imports y las tres dependencias ocultas del shell | Transversal (contrato de `programas.models`, grafo de imports, shell del backoffice, arranque del contenedor, middlewares de usuarios, cache de la home, ruteo de la raíz) | `#metodo` `#infra` `#datos` | Auditoría integral oct-2026 — fichas RED-46, RED-79, RED-13, RED-45, RED-52, RED-51, RED-78 y RED-82 (Ola R, PR R-21) | 07/10/2026 | 🟢 **Hecho** (seis fichas cierran su parte R; el resto queda en las Olas 2, 4 y 7 con su test rojo o su ratchet puesto) | No requiere |
 
 **Notas del índice**
 
@@ -21031,3 +21032,227 @@ Que los opcionales no sean fatales es **OPS-07**, de la Ola 3.
   era vacuo —el caso no llevaba `genero`, con lo que nunca llegaba a mirar la identidad y pasaba también con la regla
   vieja—.
 
+---
+
+# Cambio 159 — Ratchets de arquitectura: el contrato de los modelos, el grafo de imports y las tres dependencias ocultas del shell
+
+🟢 **HECHO — 07/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal: contrato de `programas.models`, grafo de imports del repo, shell del backoffice, arranque del contenedor, middlewares de usuarios, cache de la home y ruteo de la raíz |
+| **Etiquetas** | `#metodo` `#infra` `#datos` |
+| **Solicitante** | Auditoría integral de octubre 2026 — hallazgos **RED-46**, **RED-79**, **RED-13**, **RED-45**, **RED-52**, **RED-51**, **RED-78** y **RED-82** (Ola R «Red de seguridad», PR R-21) |
+| **Fecha del pedido** | 07/10/2026 |
+| **Issue / épica** | Sin issue — auditoría oct-2026, `docs/internal/auditoria-2026-10/hallazgos/08-red-de-seguridad.md` |
+| **Partes afectadas** | Casi todo son tests. Código que viaja al release: `programas/services/exportacion_reportes.py` (solo terminadores de línea, contenido idéntico), `.gitattributes` (regla `*.py text eol=lf`) y `docker-entrypoint.sh` (una guarda nueva al principio). Ninguna vista, ningún modelo, ninguna plantilla |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Ocho fichas de la familia «arquitectura y dependencias ocultas». Comparten una forma: **hay un cambio chico y razonable
+que rompe algo grande, y hoy nada lo frena.**
+
+- **RED-46** (MEDIA): `programas/models/__init__.py` tiene 3.252 líneas, índice de mantenibilidad 0.00 y **90 módulos**
+  que lo importan, sin un solo test de contrato.
+- **RED-79** (BAJA): tres ciclos de import y nueve aristas vista→vista, sin ratchet.
+- **RED-13** (ALTA): el shell de todo el backoffice, un context processor y `legajos.ready()` dependen de
+  `conversaciones`, la app que G1-01 fase 2 va a apagar.
+- **RED-45** (MEDIA): `GUNICORN_CMD_ARGS` con gevent activa un parche que **apaga** `validate_thread_sharing`.
+- **RED-52** (MEDIA): contrato implícito por `user._state.fields_cache["profile"]`.
+- **RED-51** (MEDIA): dos funciones `invalidate_dashboard_cache` y `stats_legajos` colgado del modelo equivocado.
+- **RED-78** (BAJA): `DashboardView` es una copia del inicio sin el blindaje de SEC-14, muerta **solo** por el orden de
+  `config/urls.py`.
+- **RED-82** (BAJA): `exportacion_reportes.py` con terminadores CR; git lo trata como binario y pylint lo saltea.
+
+## Qué lo motivó
+
+R-21 va **antes de la Ola 2**: SEC-21 va a mover `_assert_scope_formulario` a `autorizacion.py`, que ya está en un ciclo
+de import, y hoy nadie se lo señalaría. Y es el prerrequisito de la revisión de **SEC-20**, que toca `celda_segura`
+dentro de un archivo cuyo diff literalmente no se puede leer.
+
+El patrón que repiten las ocho es el peor de todos: **el cambio que las rompe parece una mejora.** «Partir el archivo de
+modelos en tres», «subir ese import diferido al encabezado», «desmontar la app que no se usa», «probar workers gevent
+porque hay 504», «sacar esa línea del `fields_cache` que parece de más», «deduplicar las dos funciones con el mismo
+nombre», «poner las rutas raíz al final como dice el comentario». Ninguno de esos siete cambios rompe un test hoy. Dos
+de ellos —desmontar `conversaciones` y subir un import— dejan la aplicación **sin arrancar**; uno —gevent— devuelve
+datos de una persona a otra.
+
+## Alcance acordado
+
+**Entra:** los ratchets y tests de las ocho fichas; la conversión a LF de `exportacion_reportes.py` con su regla en
+`.gitattributes` (RED-82); y la guarda de arranque del entrypoint contra workers gevent (RED-45).
+
+**Queda afuera**, con su test o su ratchet ya puesto para que la ola que lo tome lo encuentre rojo o lo tenga que bajar:
+
+- **Ola 2 (PR 5, con SEC-21):** mover `CAP_RELEVAMIENTO_PUBLICO` y los guards de alcance a `autorizacion.py`, `_programas_qs`
+  a `selectors/` y renombrar `configuracion._assert_scope` (RED-79). **Ola 2 (PR 2):** acotar `save_user_profile` con
+  `update_fields` (RED-52).
+- **Ola 4:** `dashboard/cache.py` con las claves como constantes y los receivers con el `sender` correcto (RED-51).
+- **Ola 7:** G1-01 fase 2 —shell, context processor y la señal de legajos— (RED-13); OPS-13, borrar el parche de gevent
+  y las dependencias (RED-45); OPS-14, borrar `DashboardView` (RED-78).
+- **El corte de `programas/models/__init__.py`** sigue siendo deuda **opcional**: la ficha no lo planifica y este PR no
+  lo adelanta. Lo que cambia es que ahora se puede hacer sin adivinar.
+
+## Decisiones tomadas
+
+- **Los ratchets fallan en las dos direcciones.** Un techo que solo mira hacia arriba deja de medir apenas alguien
+  resuelve algo y no actualiza la lista. Acá, si una arista vista→vista o un ciclo **desaparece**, el test también se
+  pone rojo y pide sacarlo de la lista. Esa es, literalmente, la única forma de que el registro que la Ola 2 tiene que
+  dejar no dependa de que alguien se acuerde.
+- **El detector de ciclos excluye la relación paquete↔submódulo.** `models/__init__.py` re-exporta `models/base.py`, que
+  importa del paquete: es diseño normal de paquetes, no acoplamiento. Sin ese filtro aparecían dos «ciclos» más —en
+  `legajos.models` y en `conversaciones.selectors`— que habrían vuelto ruidoso el ratchet desde el día uno.
+- **No se escribe «ninguna vista importa de otra vista».** Falla en nueve lugares, `ajax_utils` es compartido a
+  propósito, y un test que nace fallando se termina apagando. Lo dice la propia ficha y es el criterio de todo el
+  bloque.
+- **La guarda de gevent cubre `worker-class`, no `gevent`.** `--worker-class eventlet` tiene exactamente el mismo
+  problema de hilos y la imagen tampoco lo soporta. Y cubre **las dos** perillas que lee `config/wsgi.py`: frenar solo
+  `GUNICORN_CMD_ARGS` dejaba `GUNICORN_WORKER_CLASS=gevent` abierto, que es el mismo camino con otro nombre.
+- **La guarda va al principio del entrypoint, antes de `wait_for_database`.** Después del bootstrap, en un ambiente con
+  la base caída, el pod se quedaría esperando para siempre sin llegar nunca a dar el motivo real.
+- **RED-52 se mide sobre el middleware, no sobre `GET /inicio/`.** La ficha pedía un `assertNumQueries(N)` de la página
+  entera; ese número es frágil, ya está cubierto por los presupuestos de performance y, sobre todo, **no dice qué
+  consulta se agregó**. `assertNumQueries(0)` sobre `CambioContrasenaObligatorioMiddleware` con la caché poblada, y
+  `assertNumQueries(1)` sin ella, miden exactamente lo que la línea del `fields_cache` compra.
+- **`core/tests/urls_sin_conversaciones.py` filtra el URLconf real, no lo copia.** Una copia de `config/urls.py` queda
+  congelada el día que se escribe y el test de G1-01 fase 2 terminaría midiendo el ruteo de 2026. El filtro saca los dos
+  `include()` de la app y deja pasar todo lo demás, incluido lo que se agregue después.
+- **`exportacion_reportes.py` se convierte sin tocar una línea de código.** La equivalencia se verificó normalizando el
+  blob de `HEAD`: `git show HEAD:<archivo>` pasado de CR a LF da **idéntico** al archivo nuevo. El `git diff` normal no
+  sirve para probarlo —para git el archivo viejo es una sola línea—, así que la verificación es esa.
+- **DECISIÓN CLIENTE aplicada: D-RED-08 (default del README §2) — no se conserva la opción de workers gevent.** Hasta
+  que OPS-13 borre el parche y las dependencias, el entrypoint aborta si alguien la pide.
+
+## Qué se hizo
+
+**75 tests nuevos en ocho módulos**, todos descubiertos por `manage.py test` sin argumentos (se verificó, incluido
+`config/tests/`, que no es una app instalada).
+
+- **RED-82 — `core/tests/test_higiene_fuentes.py`** (3 tests). El archivo pasa de 122 CR y **cero** LF a 122 líneas LF.
+  `git ls-files --eol` lo marcaba `i/-text` y ahora `i/lf`. El test recorre `git ls-files "*.py"` y exige que cada `\r`
+  sea parte de un `\r\n`: tolera CRLF en el árbol de trabajo —es lo que deja un checkout de Windows— y no tolera el CR
+  solitario, que git **no** normaliza. `.gitattributes` suma `*.py text eol=lf` para la otra mitad.
+- **RED-46 — `programas/tests/test_models_contrato.py`** (19 tests). `ExportsTests` fija los **65** nombres públicos de
+  `dir(programas.models)`; `AppLabelTests`, el `app_label` y la `db_table` de los **45** modelos contra un mapa literal;
+  `PropiedadesDeNegocioTests`, las properties con valores concretos.
+- **RED-79 — `programas/tests/test_arquitectura.py`** (11 tests). Detector AST propio del grafo de imports de las diez
+  apps, que distingue el import a nivel de módulo del **diferido**. 9 aristas vista→vista (`EXENTOS = {"ajax_utils"}`) y
+  5 ciclos como techo. `GuardsDeAlcanceTests` fija el tercer cabo: el invariante de alcance escrito tres veces y los dos
+  `_assert_scope` homónimos.
+- **RED-13 — `core/tests/test_shell_backoffice.py`** (8 tests, 2 en `expectedFailure`). Los dos criterios de «hecho» de
+  G1-01 fase 2, cada uno con control de andamio; la tercera pata (el context processor prestado) en verde.
+- **RED-45 — `config/tests/test_wsgi_runtime.py`** (9 tests, 1 salteado) + la guarda del entrypoint, que los tests
+  **ejecutan de verdad** (`sh docker-entrypoint.sh true` llega a la rama del comando personalizado sin tocar la base).
+- **RED-52 — `users/tests/test_middleware_profile.py`** (11 tests, 2 en `expectedFailure`).
+- **RED-51 — `dashboard/tests/test_cache_invalidacion.py`** (11 tests, 2 en `expectedFailure`).
+- **RED-78 — `core/tests/test_dashboard_redirect.py::RuteoRaizTests`** (3 tests).
+
+## Tres hallazgos que las fichas no tenían
+
+1. **Los ciclos de import son cinco, no tres.** A los tres que la ficha nombra, la medición agrega
+   `programas.models ↔ programas.services.inscripciones` y `programas.services.proceso_masivo ↔
+   programas.services.siis_envio`. El segundo es el único con una pata **ya a nivel de módulo**: es el que está más
+   cerca de romperse.
+2. **El *lost update* del Profile tiene dos caras, no una.** Apareció escribiendo el módulo: el primer intento de probar
+   el gate de clave provisoria **falló por este motivo**. Además del escenario de la ficha
+   (`backoffice_session_key` pisada por un `user.save()` concurrente), **el login mismo** lo dispara: `login()` llama a
+   `update_last_login`, que hace `user.save(update_fields=["last_login"])`, y `save_user_profile` guarda el Profile
+   **entero** que tenía en la caché del objeto en memoria, revirtiendo un `debe_cambiar_contrasena` escrito por otro
+   request. Queda en `test_un_login_pisa_el_flag_de_clave_provisoria`, también con `expectedFailure`. El arreglo de la
+   Ola 2 cubre las dos de una.
+3. **`CiudadanosService.invalidate_ciudadanos_cache` sí tiene llamadores.** La ficha de RED-51 decía que no. Las tres
+   vistas de alta, edición y borrado de ciudadanos la llaman (`legajos/views/ciudadanos.py:142,199,233`), así que la
+   función de `dashboard/utils.py` se ejecuta en producción y borrarla en la deduplicación de OPS-10 **no es gratis**.
+   Queda fijado con un test AST.
+
+Dos detalles menores más: `BloqueoSiis` aparece en `dir(programas.models)` pero **no es un modelo** (es una clase plana,
+duck-type de `PausableMixin`), y de los 65 nombres públicos **8 son imports que se filtran** al namespace (`Ciudadano`,
+`Group`, `User`, `Path`, `TimeStamped`, `ValidationError` y los dos validadores); se verificó sobre los 320
+`from … import` del repo que nadie los importa desde ahí, así que el corte puede dejarlos afuera a propósito.
+
+## Verificación
+
+- `manage.py check` → sin issues; `check --deploy` → los 6 avisos preexistentes de ambiente local;
+  `makemigrations --check --dry-run` → «No changes detected».
+- **`manage.py test` sin argumentos: 3205 tests, OK (skipped=30, expected failures=7)**, 466 s.
+- `manage.py test --tag performance` → 4 tests, OK.
+- `ruff check .` → All checks passed; `ruff format --check` sobre los archivos tocados → ya formateados.
+- **RED-82, equivalencia byte a byte:** `git show HEAD:programas/services/exportacion_reportes.py | tr '\r' '\n'`
+  comparado con el archivo nuevo → sin diferencias. `git ls-files --eol` pasa de `i/-text` a `i/lf`.
+- **RED-45, guarda del entrypoint ejecutada a mano** antes de escribir el test: sin variables → exit 0; con
+  `GUNICORN_CMD_ARGS="--worker-class gevent"` → exit 1 con el motivo; con `GUNICORN_WORKER_CLASS=gevent` → exit 1.
+
+**Las mutaciones de control**, todas aplicadas, corridas y revertidas:
+
+| Mutación | Resultado |
+|---|---|
+| `path("", include("dashboard.urls"))` arriba de `users.urls` (RED-78) | `test_la_raiz_es_el_login`: rojo (`'dashboard:inicio' != 'users:login'`) |
+| renombrar `PausableMixin` y sacar el `max(…, 0)` de `Relevamiento.cupo_disponible` (RED-46) | 2 rojos |
+| un import nuevo entre `views/merenderos.py` y `views/cupo.py` (RED-79) | los **dos** ratchets rojos: arista nueva y ciclo nuevo |
+| sacar la llamada a `guard_worker_class` del entrypoint (RED-45) | 3 rojos + 1 error |
+| `profile.save(update_fields=[])`, o sea el arreglo de la Ola 2 (RED-52) | los 2 `expectedFailure` pasan a **unexpected success** |
+| receivers con el `sender` correcto, o sea el arreglo de la Ola 4 (RED-51) | los 2 `expectedFailure` pasan a **unexpected success** |
+
+Antes del cambio, el test de RED-82 daba **rojo nombrando el archivo** y el de `.gitattributes` también.
+
+## Puesta en marcha en el servidor
+
+No requiere pasos manuales, ni migraciones, ni variables nuevas.
+
+**Lo único que cambia en el arranque del contenedor:** si el entorno tiene `GUNICORN_CMD_ARGS` con `--worker-class` o
+`GUNICORN_WORKER_CLASS` definida, el contenedor **no arranca** y escribe el motivo en stderr. Es lo buscado (D-RED-08).
+Hoy ningún manifiesto del repo las define —se revisó `docker-compose*.yml`, el `Dockerfile` y `docker/k8s/*`—, pero
+**el entorno de ECOM no se ve desde acá**: si alguna vez alguien las agregó a mano en testing o en PRD para probar
+contra los 504 del padrón, hay que sacarlas antes de desplegar. Es exactamente el escenario que la ficha describe, así
+que si están, el arranque rechazado es el resultado correcto, no un problema del PR.
+
+## Pendientes / a definir
+
+- **Ola 2, PR 5 (con SEC-21):** mover `CAP_RELEVAMIENTO_PUBLICO`, `_puede_publico` y
+  `_sin_formularios_publicos_si_no_puede` a `autorizacion.py`, `_programas_qs` a `programas/selectors/`, unificar los
+  guards en `assert_alcance_relevamiento` / `assert_alcance_formulario` y renombrar `configuracion._assert_scope` a
+  `_assert_scope_segmento`. **Al hacerlo hay que bajar el techo**: sacar las aristas resueltas de `ARISTAS_CONOCIDAS` y
+  el ciclo de `CICLOS_CONOCIDOS`, o `test_las_aristas_resueltas_salen_de_la_lista` queda rojo. `GuardsDeAlcanceTests`
+  también se pone rojo y hay que actualizarlo: ese es el aviso.
+- **Ola 2, PR 2:** acotar `save_user_profile` con `update_fields` o reemplazarlo por guardados explícitos. Cuando entre,
+  los **dos** `expectedFailure` de `ProfileEnCacheTests` pasan a *unexpected success* y hay que sacarles el decorador.
+  `test_sin_profile_en_la_cache_el_user_save_no_consulta` fija la optimización que el arreglo tiene que conservar.
+- **Ola 4:** `dashboard/cache.py` con las claves como constantes y el mapa `{modelo: [claves]}`; receiver de
+  `stats_legajos` con `sender=InscripcionPrograma` y uno nuevo para `alertas_activas`. Los dos `expectedFailure` de
+  `InvalidacionTests` se invierten. `DosFuncionesTests` hay que actualizarlo en el mismo PR.
+- **Ola 7, G1-01 fase 2:** mover `user_groups` a `core/context_processors.py` como `identidad_usuario`, sacar del shell
+  el bloque `window.conversacionesConfig` y los `<script>` a un include condicional, y mover
+  `alerta_mensaje_ciudadano` a `conversaciones/signals/`. Los dos `expectedFailure` de
+  `core/tests/test_shell_backoffice.py` **son el criterio de «hecho»** de esa fase.
+- **Ola 7, OPS-13:** borrar `config/gevent_patch.py`, las líneas 12-17 de `wsgi.py` y `gevent`/`greenlet` de
+  `requirements.txt`. `test_el_parche_ya_no_existe` deja de saltearse solo.
+- **Ola 7, OPS-14:** borrar `dashboard/views/home.py`, `dashboard/templates/dashboard.html` y su `path`, y llevar los
+  contadores a `dashboard/selectors.py::metricas_home()`. Las 5 APIs de `dashboard/api_views` se conservan.
+- **El corte de `programas/models/__init__.py`** queda disponible y sin fecha. Con `test_models_contrato.py` es un
+  movimiento de archivos; nunca en un PR con cambios funcionales.
+
+## Reversión
+
+1. Revertir el commit. Vuelven los ocho defectos: el archivo de modelos sin contrato, el grafo de imports sin techo, las
+   tres dependencias ocultas del shell sin medir, el arranque con gevent otra vez posible, el `fields_cache` sin
+   documentar, los dos contadores de la home sin dueño, la raíz sin ratchet y `exportacion_reportes.py` de vuelta en CR.
+2. **No hay nada que deshacer en ninguna base.** El cambio no trae migraciones, no escribe una sola fila y no toca el
+   esquema. Los `expectedFailure` describen bugs que **ya existen**: revertir no los introduce ni los arregla.
+3. **Al revertir, `exportacion_reportes.py` vuelve a quedar con terminadores CR** y el diff de ese revert tampoco se va a
+   poder leer. Si lo que se quiere deshacer es otra cosa, conviene revertir todo **menos** ese archivo y
+   `.gitattributes`: son independientes del resto.
+4. Si se revierte **después** de que la Ola 2, la 4 o la 7 hayan hecho su parte, los ratchets vuelven a listar aristas,
+   ciclos y receivers que ya no existen, y los `expectedFailure` vuelven a estar al revés de lo que hace el código:
+   conviene revertir también esa parte o actualizar las listas en el mismo commit.
+
+## Historial
+
+- **04/10/2026** — el frente Red de seguridad registra las ocho fichas y las agrupa en el PR R-21, con la regla del
+  bloque: **los tests van antes del refactor y nunca en el mismo PR que un cambio funcional.**
+- **07/10/2026 (Cambio 156, PR R-16)** — RED-82 queda anotada como pendiente de este PR: la revisión de SEC-20 la iba a
+  necesitar antes.
+- **07/10/2026 (este cambio)** — las ocho cerradas en su parte de la Ola R. RED-46 y RED-82 **completas**; RED-13,
+  RED-45, RED-51, RED-52, RED-78 y RED-79 con su parte R cerrada y el resto en las Olas 2, 4 y 7, cada una con su test
+  rojo o su ratchet ya puesto. Tres hallazgos nuevos: los ciclos son cinco y no tres, el *lost update* del Profile lo
+  dispara también el login, y la función que la ficha de RED-51 daba por muerta tiene tres llamadores.

@@ -52,7 +52,7 @@ con lo que existe hoy; la lista solo baja.
 | RED-10 | Las dos escrituras que dieron 500 bajo el lock no tienen presupuesto de consultas | ALTA | CONF. lectura | R (+4) | S (+S-M) | 🟡 |
 | RED-11 | Ningún test fija la forma del JSON de `/api/becas/*` que lee la app de campo | ALTA | CONF. lectura (dos repos) | R | S | ✅ |
 | RED-12 | `definicion_formulario` y los prefijos `pg-`/`rn-`: contrato de dos repos sin serializer ni test | ALTA | CONF. lectura (dos repos) | R | M | ⬜ |
-| RED-13 | El shell de todo el backoffice y `legajos.ready()` dependen de `conversaciones` | ALTA | CONF. lectura | R (test) + 7 | S + M | ⬜ |
+| RED-13 | El shell de todo el backoffice y `legajos.ready()` dependen de `conversaciones` | ALTA | CONF. lectura | R (test) + 7 | S + M | ✅ (R; falta Ola 7) |
 | RED-14 | Un rollback de release con una columna `NOT NULL` nueva rompe el alta de casos (error 1364) | ALTA | CONF. test (MariaDB 11.8) | R | M | ✅ |
 | RED-15 | En MariaDB la reversa falla (errno 150) y deja tabla huérfana y `django_migrations` a mitad | ALTA | CONF. test (MariaDB 11.8) | R | S | ✅ |
 | RED-16 | No hay artefacto al que volver: ECOM publica solo `:latest` y `main` no se tagea | ALTA | CONF. lectura (rollout PLAUSIBLE) | R | S | 🟡 |
@@ -84,14 +84,14 @@ con lo que existe hoy; la lista solo baja.
 | RED-42 | Endpoints JSON del backoffice sin contrato; 4 `fetch` literales resuelven 404 | MEDIA | CONF. test (`resolve`) | R (+5) | S-M (+S) | ⬜ |
 | RED-43 | El CI no tiene ningún gate de contrato de API | MEDIA | CONF. lectura | R | S | ⬜ |
 | RED-44 | Una capacidad mal tipeada devuelve `False` en silencio y el superusuario no lo ve | MEDIA | CONF. test (prototipo) | R | S | ⬜ |
-| RED-45 | `GUNICORN_CMD_ARGS` con gevent activa un parche que apaga `validate_thread_sharing` | MEDIA | CONF. lectura | R (+7 en OPS-13) | S | ⬜ |
-| RED-46 | `programas/models/__init__.py` (3.252 líneas, 90 importadores) sin tests de contrato | MEDIA | CONF. test (radon) | R | S-M | ⬜ |
+| RED-45 | `GUNICORN_CMD_ARGS` con gevent activa un parche que apaga `validate_thread_sharing` | MEDIA | CONF. lectura | R (+7 en OPS-13) | S | ✅ (R; falta Ola 7) |
+| RED-46 | `programas/models/__init__.py` (3.252 líneas, 90 importadores) sin tests de contrato | MEDIA | CONF. test (radon) | R | S-M | ✅ |
 | RED-47 | `normalizar_dni` y sus tres copias agregan un 0 con `float` o `Decimal` | MEDIA | CONF. test | R | S | ✅ |
 | RED-48 | «DNI válido» está implementado 6 veces con 3 reglas de largo | MEDIA | CONF. lectura | 3 | S-M | ⬜ |
 | RED-49 | `cupo_disponible` significa tres cosas y dos pantallas lo rotulan igual | MEDIA | CONF. lectura | R (+4) | S (+S) | ✅ |
 | RED-50 | La edad (RN-22) está cuatro veces y tres usan `date.today()` (UTC en los contenedores) | MEDIA | CONF. lectura | R (+3) | S (+S-M) | 🟡 (el arreglo es de la Ola 3) |
-| RED-51 | Dos `invalidate_dashboard_cache`; `stats_legajos` colgado del modelo equivocado | MEDIA | CONF. lectura | R (+4) | S (+S) | ⬜ |
-| RED-52 | Contrato implícito por `user._state.fields_cache["profile"]` | MEDIA | CONF. lectura | R (+2) | S (+S) | ⬜ |
+| RED-51 | Dos `invalidate_dashboard_cache`; `stats_legajos` colgado del modelo equivocado | MEDIA | CONF. lectura | R (+4) | S (+S) | ✅ (R; falta Ola 4) |
+| RED-52 | Contrato implícito por `user._state.fields_cache["profile"]` | MEDIA | CONF. lectura | R (+2) | S (+S) | ✅ (R; falta Ola 2) |
 | RED-53 | Clones literales entre los comandos SIIS y entre las vistas de padrón | MEDIA | CONF. test (pylint + AST) | 1 (+5) | S-M (+S) | ✅ (1; falta Ola 5) |
 | RED-54 | `revision.py` (1.331 líneas): ningún test fija el contexto del detalle | MEDIA | CONF. test (radon) | R (+7) | S-M (+M) | ✅ (R; falta Ola 7) |
 | RED-55 | Los context processors corren en cada render y tragan toda excepción sin log | MEDIA | CONF. lectura | R | S | ✅ |
@@ -117,11 +117,11 @@ con lo que existe hoy; la lista solo baja.
 | RED-75 | `/set_dark_mode/` no existe: el toggle de tema postea a un 404 | BAJA | CONF. test (`resolve`) | 5 | S | ⬜ |
 | RED-76 | Tipado: 2,7 % de retornos anotados, sin mypy ni pyright | BAJA | CONF. test (AST) | 7 | S-M | ⬜ |
 | RED-77 | RN-2 del padrón escrita dos veces: property y filtro de queryset | BAJA | CONF. lectura | R | S | ✅ |
-| RED-78 | `DashboardView`: copia del inicio sin el blindaje de SEC-14, muerta solo por el orden de URLs | BAJA | CONF. test (`resolve`) | R (+7) | S (+S) | ⬜ |
-| RED-79 | Tres ciclos de import y nueve aristas vista→vista sin ratchet | BAJA | CONF. test (AST) | R (+2) | S (+S) | ⬜ |
+| RED-78 | `DashboardView`: copia del inicio sin el blindaje de SEC-14, muerta solo por el orden de URLs | BAJA | CONF. test (`resolve`) | R (+7) | S (+S) | ✅ (R; falta Ola 7) |
+| RED-79 | Tres ciclos de import y nueve aristas vista→vista sin ratchet | BAJA | CONF. test (AST) | R (+2) | S (+S) | ✅ (R; falta Ola 2) |
 | RED-80 | `programa_becas` y `programa_dispositivos`: mismo cache, distinta guarda e invalidación | BAJA | CONF. lectura | 2 | S | ⬜ |
 | RED-81 | El registro de reglas de vencimiento puede quedar vacío y el comando sale OK | BAJA | CONF. lectura | R | S | ✅ |
-| RED-82 | `exportacion_reportes.py` con terminadores CR: git lo trata como binario y pylint lo saltea | BAJA | CONF. test | R | S | ⬜ |
+| RED-82 | `exportacion_reportes.py` con terminadores CR: git lo trata como binario y pylint lo saltea | BAJA | CONF. test | R | S | ✅ |
 | RED-83 | Índices duplicados en `programas_formulario` y `legajos_ciudadano` | BAJA | CONF. test (`information_schema`) | R (+4) | S (+S) | ✅ (R; falta Ola 4) |
 | RED-84 | `requerimientos.py --check` no verifica la sección «Reversión» | BAJA | CONF. lectura | R | S | ✅ |
 | RED-85 | Herramientas del CI sin pinear y actions por tag en workflows con `contents: write` | BAJA | CONF. lectura | R (+7) | S (+S) | ✅ (R; falta Ola 7) |
@@ -1124,6 +1124,23 @@ que un cambio funcional.**
     IndependenciaTests.test_legajos_no_importa_conversaciones` (AST: ningún `import conversaciones` a nivel de módulo en
     `legajos/**`). G1-01 fase 2 queda en 2 h + estas 8 h.
 
+**Resolución:** ✅ (parte R) Resuelto en #PENDIENTE (Cambio 159, PR R-21), 07-oct-2026 — **el refactor sigue siendo de
+la Ola 7.** `core/tests/test_shell_backoffice.py` deja los **dos** criterios de «hecho» de G1-01 fase 2 escritos y
+rojos, con `expectedFailure`: (1) `ShellSinConversacionesTests.test_inicio_renderiza_sin_urls_de_conversaciones`, con
+`ROOT_URLCONF` apuntando a `core/tests/urls_sin_conversaciones.py`; (2)
+`IndependenciaTests.test_legajos_no_importa_conversaciones` (AST sobre `legajos/**`), que la ficha ubicaba en la Ola 7 y
+se adelanta porque es la mitad que impide **arrancar**, no la que da 500. **Un desvío de la ficha, a favor:**
+`urls_sin_conversaciones.py` no es una copia de `config/urls.py` sino un **filtro** sobre la lista real —una ruta nueva
+aparece ahí sola, y el test no termina midiendo un URLconf congelado—. Cada `expectedFailure` va con su control de
+andamio (`test_el_urlconf_recortado_no_tiene_las_rutas_de_conversaciones` y `test_el_detector_ve_el_import_de_hoy`) y,
+el primero, con un test que fija **por qué** falla hoy (`NoReverseMatch` nombrando `conversaciones`): sin eso, el
+criterio de la fase 2 podría quedar midiendo otra rotura. La tercera pata —el context processor prestado— queda en
+verde y fijada: `ContextProcessorPrestadoTests` afirma que la línea sigue en `settings.py`, que las cuatro variables
+llegan al contexto del inicio y que `window.isSuperuser = true;` sale renderizado. Ese es el modo de falla silencioso
+que la ficha describe como «peor que un 500».
+**Test permanente:** `core.tests.test_shell_backoffice.ShellSinConversacionesTests.test_inicio_renderiza_sin_urls_de_conversaciones`
+(y `IndependenciaTests.test_legajos_no_importa_conversaciones`, `ContextProcessorPrestadoTests`).
+
 ### RED-45 · `GUNICORN_CMD_ARGS` con gevent activa un parche que apaga `validate_thread_sharing`
 **Severidad:** MEDIA (era ALTA: hoy nadie lo activa) · **Estado:** CONFIRMADO (lectura) · **Origen:** RS-R4-02 (VR2: CONFIRMADO) · **Ola:** R (test y guarda) + 7 (borrado, dentro de OPS-13) · **Esfuerzo:** S (2 h) · **Decisión:** D-RED-08
 - **Ubicación:** `config/wsgi.py:13-17` (`if "gevent" in os.environ.get("GUNICORN_CMD_ARGS", "") …`);
@@ -1139,6 +1156,23 @@ que un cambio funcional.**
   las líneas 12-17 de `wsgi.py` junto con `gevent`/`greenlet` (OPS-13), y sumar al test
   `assertFalse(Path("config/gevent_patch.py").exists())`.
 
+**Resolución:** ✅ (parte R) Resuelto en #PENDIENTE (Cambio 159, PR R-21), 07-oct-2026 — **el borrado del parche sigue
+siendo OPS-13 (Ola 7), D-RED-08.** Dos mitades. (1) `config/tests/test_wsgi_runtime.py::GeventTests.
+test_nadie_piso_validate_thread_sharing` afirma que `BaseDatabaseWrapper.validate_thread_sharing` sigue siendo el de
+Django; pasa hoy y se pone rojo el día que el parche se aplique, por la variable de entorno o por un import suelto. Lo
+acompañan dos controles de andamio: que `gevent_patch.py` siga pisando esa función (si dejara de hacerlo, el riesgo se
+fue por otro lado) y que `wsgi.py` siga teniendo **las dos** perillas. (2) `docker-entrypoint.sh` aborta con el motivo
+en vez de arrancar roto. **Desvío de la ficha:** la guarda cubre **las dos** perillas, no solo `GUNICORN_CMD_ARGS`:
+`config/wsgi.py:13` también reacciona a `GUNICORN_WORKER_CLASS=gevent`, así que frenar únicamente la primera dejaba
+abierto el mismo camino. Y mira `worker-class`, no `gevent`: `--worker-class eventlet` tiene el mismo problema de
+hilos. `EntrypointTests` **ejecuta el script de verdad** (`sh docker-entrypoint.sh true`, que llega a la rama del
+comando personalizado sin tocar la base) en vez de leer su texto, y verifica también que sin las variables el arranque
+sigue y que la guarda corre **antes** de `wait_for_database` —si quedara después, en un ambiente con la base caída el
+pod esperaría para siempre sin dar nunca el motivo real—. `test_el_parche_ya_no_existe` queda escrito y salteado: deja
+de saltearse cuando OPS-13 borre el archivo.
+**Test permanente:** `config.tests.test_wsgi_runtime.GeventTests.test_nadie_piso_validate_thread_sharing` (y
+`EntrypointTests.test_gunicorn_cmd_args_con_worker_class_aborta`).
+
 ### RED-46 · `programas/models/__init__.py` sin tests de contrato
 **Severidad:** MEDIA (era ALTA) · **Estado:** CONFIRMADO con test (`radon`: 3.252 líneas, MI 0.00; fan-in 90) · **Origen:** RS-R4-04 (VR2: CONFIRMADO) · **Ola:** R (los tests; el corte del archivo no se planifica) · **Esfuerzo:** S-M (4 h)
 - **Qué cambio lo rompería sin que nadie se entere:** partir el archivo en `becas.py`/`dispositivos.py`/`merenderos.py`
@@ -1151,6 +1185,26 @@ que un cambio funcional.**
   `Convocatoria.pausa_efectiva` heredada, `Relevamiento.habilitado_en` con `date` y `datetime`,
   `Formulario._dni_titular_actual` con y sin ciudadano). El corte en sí (L) queda como deuda opcional: con estos tests es
   seguro hacerlo cuando se decida, nunca en un PR con cambios funcionales.
+
+**Resolución:** ✅ Resuelto en #PENDIENTE (Cambio 159, PR R-21), 07-oct-2026 — `programas/tests/test_models_contrato.py`,
+19 tests. `ExportsTests` fija los **65** nombres públicos de `dir(programas.models)` (la ficha estimaba «~60») y falla
+en **las dos direcciones**: uno que desaparezca es el re-export que el `__init__.py` de compatibilidad se olvidó —error
+de runtime, no de import—, y uno nuevo es el recordatorio de que el contrato se escribe a mano. `AppLabelTests` fija el
+`app_label` y la `db_table` de los **45** modelos contra un mapa literal, más la aserción de que la app no tiene modelos
+sin registrar. `PropiedadesDeNegocioTests` cubre las properties con valores concretos: `Segmento.cupo_disponible`,
+`Relevamiento.cupo_utilizado/cupo_disponible/cupo_completo` con su borde negativo, `Convocatoria.pausa_efectiva`
+heredada y su cadena hasta el segmento, `habilitado_en` con `date` y con `datetime` —incluido el borde en que el `date`
+se evalúa a las 00:00 locales y cae **antes** de la apertura de las 08:00— y `_dni_titular_actual` en sus cuatro
+caminos. **Dos cosas que la ficha no tenía:** (a) de los 65 nombres, 8 son **imports que se filtran** al namespace
+(`Ciudadano`, `Group`, `User`, `Path`, `TimeStamped`, `ValidationError` y los dos validadores); se verificó sobre los
+320 `from … import` del repo que nadie los importa desde ahí, así que el corte puede dejarlos afuera a propósito, y el
+test lo dice en el comentario; (b) `BloqueoSiis` aparece en `dir()` pero **no es un modelo** —es una clase plana,
+duck-type de `PausableMixin`—. Dos tests cubren la anotación `formularios_count` y el `assertNumQueries(0)` de
+`_dni_titular_actual` con el ciudadano asignado por id: un corte que «simplifique» esas dos ramas agrega N+1 sin que
+ningún test de valores lo note. **Mutación de control:** renombrar `PausableMixin` y sacarle el `max(..., 0)` a
+`Relevamiento.cupo_disponible` deja dos tests en rojo. El corte del archivo sigue siendo deuda opcional.
+**Test permanente:** `programas.tests.test_models_contrato` (`ExportsTests.test_nombres_publicos_estables`,
+`AppLabelTests.test_todos_los_modelos_siguen_en_programas`, `PropiedadesDeNegocioTests`).
 
 ### RED-47 · `normalizar_dni` y sus tres copias agregan un 0 con `float` o `Decimal`
 **Severidad:** MEDIA · **Estado:** CONFIRMADO con test (VR2 reprodujo la tabla de las cuatro funciones) · **Origen:** RS-R4-05 (VR2: CONFIRMADO-AJUSTADO), RS-VR2-NEW-02 · **Ola:** R · **Esfuerzo:** S (2 h)
@@ -1255,6 +1309,23 @@ aritmética con `hoy` explícito y el `None` sin fecha, que el arreglo tiene que
   claves como constantes y el mapa `{modelo: [claves]}`; receiver de `stats_legajos` con `sender=InscripcionPrograma`;
   `test_no_quedan_dos_funciones_llamadas_invalidate_dashboard_cache`.
 
+**Resolución:** ✅ (parte R) Resuelto en #PENDIENTE (Cambio 159, PR R-21), 07-oct-2026 — **el arreglo sigue siendo de la
+Ola 4.** `dashboard/tests/test_cache_invalidacion.py`, 11 tests, con los **dos** bugs en `expectedFailure`:
+`test_inscripcion_nueva_invalida_stats_legajos` (la clave la escribe `contar_legajos()` sobre `InscripcionPrograma` y el
+único receiver que la borra está colgado de `LegajoAtencion`) y `test_alerta_nueva_invalida_alertas_activas` (nadie
+borra esa clave cuando nace una alerta). Los dos pasan a *unexpected success* al agregar los receivers con el `sender`
+correcto: se verificó. En verde quedan fijados los caminos que la deduplicación de OPS-10 **no puede perder**: el
+receiver de `Ciudadano`, el de `User` con su rama que saltea `update_last_login`, el que sí borra `stats_legajos` al
+guardar un `LegajoAtencion` (para que el arreglo mueva el `sender` sin borrar el receiver) y la limpieza que hace hoy el
+alta de ciudadanos. `DosFuncionesTests.test_no_borran_las_mismas_claves` es el ratchet que vuelve visible la trampa: no
+son copias —una borra tres claves más—, así que «deduplicar» quedándose con cualquiera de las dos pierde algo.
+**Un desvío de la ficha, verificado contra el código:** `CiudadanosService.invalidate_ciudadanos_cache` **sí tiene
+llamadores** —las tres vistas de alta, edición y borrado de ciudadanos (`legajos/views/ciudadanos.py:142,199,233`)—, así
+que la función de `dashboard/utils.py` se ejecuta en producción y borrarla no es gratis. Queda fijado con un test AST
+(`test_el_servicio_de_ciudadanos_tiene_llamadores`).
+**Test permanente:** `dashboard.tests.test_cache_invalidacion.InvalidacionTests.test_inscripcion_nueva_invalida_stats_legajos`
+(y `.test_alerta_nueva_invalida_alertas_activas`, `DosFuncionesTests.test_no_borran_las_mismas_claves`).
+
 ### RED-52 · Contrato implícito por `user._state.fields_cache["profile"]`
 **Severidad:** MEDIA · **Estado:** CONFIRMADO (lectura; 5 usos) · **Origen:** RS-R4-12 (VR2: CONFIRMADO-AJUSTADO) · **Ola:** R (tests) + 2 (PR 2, usuarios) · **Esfuerzo:** S (2 h) + S (2 h)
 - **Ubicación:** `users/middleware.py:16-20` (`get_or_create` del Profile en cada GET y `fields_cache["profile"] = profile`),
@@ -1268,6 +1339,27 @@ aritmética con `hoy` explícito y el `None` sin fecha, que el arreglo tiene que
   `ProfileEnCacheTests.test_el_gate_de_clave_no_consulta_el_profile` (`assertNumQueries(N)` de hoy sobre `GET /inicio/`) ·
   `ProfileEnCacheTests.test_user_save_no_pisa_la_clave_de_sesion_de_otro_login` (hoy falla: `expectedFailure`). **Ola 2:**
   reemplazar `save_user_profile` por guardados explícitos o acotarlo con `update_fields`.
+
+**Resolución:** ✅ (parte R) Resuelto en #PENDIENTE (Cambio 159, PR R-21), 07-oct-2026 — **el arreglo sigue siendo de la
+Ola 2 (PR 2).** `users/tests/test_middleware_profile.py`, 11 tests. `OrdenMiddlewareTests` fija el orden del que
+depende todo —`BackofficeSingleSessionMiddleware` antes que `CambioContrasenaObligatorioMiddleware`, y los dos después
+de `AuthenticationMiddleware`, porque antes de ese `request.user` no existe y la sesión única dejaría de aplicarse en
+silencio—. `ProfileEnCacheTests` prueba la promesa del `fields_cache` midiendo el middleware, no la pantalla:
+`assertNumQueries(0)` con la caché poblada y `assertNumQueries(1)` sin ella, que es el costo exacto que la línea evita.
+**Desvío de la ficha:** se midió el gate en vez de `GET /inicio/` entero; el número global es frágil, ya está cubierto
+por los presupuestos de performance y no distingue qué consulta se agregó.
+**Un hallazgo que la ficha no tenía:** el *lost update* tiene **dos** caras, no una. La que la ficha describe
+(`backoffice_session_key` pisada por un `user.save()` concurrente) está en
+`test_user_save_no_pisa_la_clave_de_sesion_de_otro_login`; la segunda apareció escribiendo el módulo —el primer intento
+de probar el gate de clave provisoria falló por este motivo—: **el login mismo** lo dispara. `login()` llama a
+`update_last_login`, que hace `user.save(update_fields=["last_login"])`, y `save_user_profile` guarda el Profile
+**entero** que tenía en la caché del objeto en memoria, revirtiendo un `debe_cambiar_contrasena` escrito por otro
+request. Queda en `test_un_login_pisa_el_flag_de_clave_provisoria`, también con `expectedFailure`. El arreglo (acotar
+con `update_fields` o sacar el guardado del `post_save`) cubre las dos de una: se verificó que los dos pasan a
+*unexpected success*. `test_sin_profile_en_la_cache_el_user_save_no_consulta` deja fijada la optimización que el
+receiver **sí** aporta y que el arreglo tiene que conservar (nada de N+1 en un `User.save()` en lote).
+**Test permanente:** `users.tests.test_middleware_profile.ProfileEnCacheTests.test_user_save_no_pisa_la_clave_de_sesion_de_otro_login`
+(y `.test_un_login_pisa_el_flag_de_clave_provisoria`, `OrdenMiddlewareTests.test_single_session_va_antes_que_cambio_de_clave`).
 
 ### RED-53 · Clones literales entre los comandos SIIS y entre las vistas de padrón
 **Severidad:** MEDIA · **Estado:** CONFIRMADO con test (pylint `R0801`: 14 grupos a 5 líneas; AST: 15 grupos, peso máximo 128) · **Origen:** RS-R4-16 (VR2: CONFIRMADO) · **Ola:** 1 (comandos, dentro del PR 2 o 3) + 5 (vistas) · **Esfuerzo:** S-M (4 h) + S (2 h)
@@ -1431,6 +1523,17 @@ que para Python no es whitespace—, verificado contra `mariadb:10.11` (sin tzin
   `dashboard/views/home.py`, `dashboard/templates/dashboard.html` y su `path` (las 5 APIs de `dashboard/api_views` se
   conservan) y llevar los contadores a `dashboard/selectors.py::metricas_home()`.
 
+**Resolución:** ✅ (parte R) Resuelto en #PENDIENTE (Cambio 159, PR R-21), 07-oct-2026 — **el borrado de `DashboardView`
+sigue siendo de la Ola 7 (con OPS-14).** `core/tests/test_dashboard_redirect.py::RuteoRaizTests`, 3 tests:
+`test_la_raiz_es_el_login` (`resolve('/').view_name == 'users:login'`), `test_dashboard_inicio_sigue_apuntando_a_la_raiz`
+(`reverse('dashboard:inicio') == '/'`, o sea la vista está **tapada**, no montada en otra ruta) y
+`test_la_vista_tapada_no_tiene_el_gate_de_capacidad`, que es lo que vuelve grave al reordenamiento: `DashboardView` solo
+exige `LoginRequiredMixin` y no tiene el gate por capacidad de SEC-14, así que si alguna vez lo tuviera, ese test se
+pone rojo y la ficha baja de riesgo. **Mutación de control:** mover `path("", include("dashboard.urls"))` arriba de
+`users.urls` —lo que el comentario «Root paths last» de `config/urls.py` invita a hacer— deja
+`test_la_raiz_es_el_login` en rojo con `'dashboard:inicio' != 'users:login'`.
+**Test permanente:** `core.tests.test_dashboard_redirect.RuteoRaizTests.test_la_raiz_es_el_login`.
+
 ### RED-79 · Tres ciclos de import y nueve aristas vista→vista sin ratchet
 **Severidad:** BAJA (era MEDIA) · **Estado:** CONFIRMADO con test (AST; VR2 midió 9 aristas, no 2) · **Origen:** RS-R4-14 (VR2: CONFIRMADO-AJUSTADO); incluye la parte no refutada de RS-R4-01 y el punto 3 de RS-R4-16 (VR2 §2.10: «un solo movimiento») · **Ola:** R (ratchets) + 2 (movimientos, PR 5 con SEC-21) · **Esfuerzo:** S (2 h) + S (2 h)
 - **Ubicación:** ciclos `programas.services.becas ↔ diseno` (por privados `_alcance_requisito`, `_campo_dict`),
@@ -1450,6 +1553,27 @@ que para Python no es whitespace—, verificado contra `mariadb:10.11` (sin tzin
   `_puede_publico`/`_sin_formularios_publicos_si_no_puede` a `autorizacion.py`, `_programas_qs` a `programas/selectors/`,
   unificar los guards en `assert_alcance_relevamiento`/`assert_alcance_formulario` y renombrar
   `configuracion.py:_assert_scope` a `_assert_scope_segmento`; sacar las aristas resueltas de la lista.
+
+**Resolución:** ✅ (parte R) Resuelto en #PENDIENTE (Cambio 159, PR R-21), 07-oct-2026 — **los movimientos siguen siendo
+de la Ola 2 (PR 5, con SEC-21).** `programas/tests/test_arquitectura.py`, 11 tests, con un detector AST propio del grafo
+de imports de las diez apps (sin migraciones ni tests), que además distingue el import **a nivel de módulo** del
+**diferido**. `CapasTests.test_no_crecen_las_dependencias_entre_vistas` fija las 9 aristas vista→vista con
+`EXENTOS = {"ajax_utils"}`, e `ImportsTests.test_no_hay_ciclos_nuevos` los ciclos conocidos. Los dos ratchets fallan en
+**las dos direcciones**: lo que crece y lo que se resolvió y nadie sacó de la lista —que es, literalmente, el registro
+que la Ola 2 tiene que dejar—.
+**Un desvío de la ficha:** los ciclos son **cinco**, no tres. A los tres que la ficha nombra (`becas ↔ diseno`,
+`views.configuracion ↔ views.dashboard_becas`, `users.forms ↔ users.selectors.usuarios`) la medición agrega
+`programas.models ↔ programas.services.inscripciones` y `programas.services.proceso_masivo ↔
+programas.services.siis_envio`; este último es el único con una pata ya a nivel de módulo. El detector **excluye** la
+relación paquete↔submódulo (`models/__init__.py` re-exporta `models/base.py`, que importa del paquete): sin ese filtro
+aparecen dos «ciclos» más que son diseño normal de paquetes, no acoplamiento.
+`test_cada_ciclo_conocido_tiene_al_menos_un_import_diferido` deja escrito **por qué** hoy ninguno explota, que es
+exactamente lo que una «limpieza de imports» se lleva puesto. El tercer cabo de la ficha —el invariante de alcance
+escrito tres veces y los dos `_assert_scope` homónimos— queda en `GuardsDeAlcanceTests`, que fija dónde está cada copia
+hoy y se pone rojo cuando SEC-21 las mueva: ese es el aviso que la ficha pide que nadie se pierda.
+**Mutación de control:** un import nuevo entre `views/merenderos.py` y `views/cupo.py` deja los dos ratchets en rojo.
+**Test permanente:** `programas.tests.test_arquitectura.CapasTests.test_no_crecen_las_dependencias_entre_vistas`
+(y `ImportsTests.test_no_hay_ciclos_nuevos`, `GuardsDeAlcanceTests`).
 
 ### RED-80 · `programa_becas` y `programa_dispositivos`: mismo cache, distinta guarda e invalidación
 **Severidad:** BAJA · **Estado:** CONFIRMADO (lectura) · **Origen:** RS-R4-18 (VR2: CONFIRMADO) · **Ola:** 2 (PR 1, con SEC-07) · **Esfuerzo:** S (2 h)
@@ -1498,6 +1622,17 @@ es **OPS-07** (Ola 3).
 - **Propuesta:** convertir a LF (`*.py text eol=lf` en `.gitattributes` y `git add --renormalize .`) y test
   `core/tests/test_higiene_fuentes.py::EOLTests.test_ningun_py_con_cr_solitario` (recorre `git ls-files "*.py"` y afirma
   `b.count(b"\r") == b.count(b"\r\n")` por archivo).
+
+**Resolución:** ✅ Resuelto en #PENDIENTE (Cambio 159, PR R-21), 07-oct-2026 — **prerrequisito de SEC-20, cerrado antes
+de su revisión.** `programas/services/exportacion_reportes.py` pasa de 122 CR y cero LF a 122 líneas LF, **sin un solo
+cambio de contenido**: verificado normalizando el blob de `HEAD` (`git show HEAD:<archivo> | tr` de CR a LF), que da
+idéntico al archivo nuevo. `git ls-files --eol` lo marcaba `i/-text` y ahora `i/lf`, así que el diff del PR de SEC-20
+se va a poder leer. La guarda es doble: `core/tests/test_higiene_fuentes.py::EOLTests.test_ningun_py_con_cr_solitario`
+recorre `git ls-files "*.py"` y exige que cada CR sea parte de un CRLF —tolera CRLF en el árbol de trabajo, que es lo
+que deja un checkout de Windows, y no tolera el CR solitario, que git **no** normaliza—, y `.gitattributes` suma
+`*.py text eol=lf` para que tampoco entre un `.py` con CRLF. Antes del cambio el test daba rojo nombrando el archivo;
+hay además un control de andamio (`git ls-files` devuelve más de 100 `.py`) para que no pase por lista vacía.
+**Test permanente:** `core.tests.test_higiene_fuentes.EOLTests.test_ningun_py_con_cr_solitario`.
 
 ## (e) Migraciones y rollback
 
