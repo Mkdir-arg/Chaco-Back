@@ -1,0 +1,23 @@
+{
+  "data": {
+    "codigo": 0,
+    "mensaje": "OK",
+    "dni": "11111111",
+    "nombres": "Sintetica Prueba",
+    "apellido": "Contrato",
+    "fechaNacimiento": "08/05/1992",
+    "sexo": "F",
+    "domicilio": {
+      "calle": "Calle Inventada",
+      "numero": "742",
+      "localidad": {
+        "id": 99,
+        "nombre": "Resistencia"
+      },
+      "provincia": {
+        "id": 22,
+        "nombre": "Chaco"
+      }
+    }
+  }
+}
