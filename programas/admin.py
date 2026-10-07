@@ -24,6 +24,24 @@ from .models import (
 )
 
 
+class SinBorradoMixin:
+    """DAT-02: estos modelos no se borran desde `/admin/`.
+
+    `Relevamiento`, `Formulario`, `TracaFormulario` y `ListaEspera` arrastran en
+    cascada los adjuntos del ciudadano, las trazas de edición (RN-14/29 las declara
+    **inmutables**) y la posición en la lista de espera. La pantalla de confirmación
+    lista la cascada, pero la lista es larga y la acción masiva `delete_selected`
+    borra varios de un saque sin que nadie lea nada. No hay ningún procedimiento que
+    pida borrar un caso: lo que hay es rechazarlo.
+
+    Con `has_delete_permission` en `False` Django además saca `delete_selected` de
+    las acciones y el botón «Eliminar» de la ficha.
+    """
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
 @admin.register(Programa)
 class ProgramaAdmin(admin.ModelAdmin):
     list_display = ("codigo", "nombre", "tipo", "estado", "orden", "ver_programa_button")
@@ -220,6 +238,10 @@ class SubsegmentoAdmin(admin.ModelAdmin):
 class CupoSegmentoAdmin(admin.ModelAdmin):
     list_display = ("segmento", "cupo_ocupado")
     search_fields = ("segmento__nombre",)
+    # DAT-02: `cupo_ocupado` es un contador derivado (lo mantiene el servicio de
+    # cupo). Editarlo a mano desajusta la cuenta contra la que valida
+    # `Segmento.clean()` y no deja traza de quién lo tocó.
+    readonly_fields = ("cupo_ocupado",)
 
 
 @admin.register(Convocatoria)
@@ -230,7 +252,7 @@ class ConvocatoriaAdmin(admin.ModelAdmin):
 
 
 @admin.register(Relevamiento)
-class RelevamientoAdmin(admin.ModelAdmin):
+class RelevamientoAdmin(SinBorradoMixin, admin.ModelAdmin):
     list_display = ("nombre", "tipo", "convocatoria", "territorial", "fecha_asignada", "fecha_hasta", "zona", "estado")
     list_filter = ("tipo", "estado", "convocatoria")
     search_fields = ("nombre", "zona", "territorial__username")
@@ -296,11 +318,25 @@ class TracaFormularioInline(admin.TabularInline):
 
 
 @admin.register(Formulario)
-class FormularioAdmin(admin.ModelAdmin):
+class FormularioAdmin(SinBorradoMixin, admin.ModelAdmin):
     list_display = ("id", "relevamiento", "ciudadano", "estado", "validado_renaper", "creado")
     list_filter = ("estado", "validado_renaper", "relevamiento")
     search_fields = ("ciudadano__dni", "ciudadano__nombre", "ciudadano__apellido", "celular")
-    readonly_fields = ("creado", "modificado")
+    # DAT-02: los campos que cuentan la historia del caso se leen, no se escriben.
+    # El estado lo mueven la revisión y el masivo dejando `TracaFormulario`; la
+    # validación de identidad y su origen los pone la cascada del Cambio 57; `data`
+    # es lo que la persona declaró y `datos_siis` lo que el coordinador corrigió
+    # para el alta. Cambiarlos por acá no dejaba ninguna traza.
+    readonly_fields = (
+        "creado",
+        "modificado",
+        "estado",
+        "validado_renaper",
+        "identidad_forzada",
+        "origen_validacion",
+        "datos_siis",
+        "data",
+    )
     inlines = (TracaFormularioInline,)
 
     def get_queryset(self, request):
@@ -308,7 +344,7 @@ class FormularioAdmin(admin.ModelAdmin):
 
 
 @admin.register(TracaFormulario)
-class TracaFormularioAdmin(admin.ModelAdmin):
+class TracaFormularioAdmin(SinBorradoMixin, admin.ModelAdmin):
     list_display = ("formulario", "campo", "editado_por", "created_at")
     list_filter = ("created_at",)
     search_fields = ("campo", "formulario__id")
@@ -316,6 +352,6 @@ class TracaFormularioAdmin(admin.ModelAdmin):
 
 
 @admin.register(ListaEspera)
-class ListaEsperaAdmin(admin.ModelAdmin):
+class ListaEsperaAdmin(SinBorradoMixin, admin.ModelAdmin):
     list_display = ("segmento", "posicion", "formulario", "promovido", "fecha_ingreso")
     list_filter = ("segmento", "promovido")

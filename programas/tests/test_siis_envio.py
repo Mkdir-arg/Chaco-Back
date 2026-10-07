@@ -398,9 +398,28 @@ class ArmarPayloadTests(_ConPayloadCompleto):
         self.assertEqual(len(payload["barrio_actual"]), largo)
         self.assertEqual(len(payload["calle_actual"]), largo)
 
-    def test_el_dni_de_diez_digitos_es_el_maximo_aceptado(self):
-        """RED-87: el borde de ``len(dni) <= 10``."""
-        for dni, aceptado in (("1234567890", True), ("12345678901", False)):
+    def test_el_dni_que_viaja_a_siis_usa_la_regla_del_resto_del_sistema(self):
+        """RED-48 (Cambio 168): el borde que mide RED-87, con la regla nueva.
+
+        Hasta acá el payload aceptaba cualquier DNI de **hasta 10** dígitos —uno
+        solo también— mientras las seis puertas de entrada exigían 7 u 8. SIIS no
+        tiene baja: lo que entraba por esa diferencia era un alta de una persona
+        con un documento que ninguna pantalla del sistema habría aceptado. Ahora
+        el caso queda frenado con su motivo en ``faltantes``, que es lo que la
+        pantalla de revisión muestra.
+
+        Este test es el de RED-87 **invertido**: los dos valores que antes
+        marcaban el borde del 10 hoy caen los dos del lado de ``faltantes``, y el
+        borde que importa es el de ``core.dni.LARGOS_DNI_VALIDOS``.
+        """
+        for dni, aceptado in (
+            ("123456", False),
+            ("1234567", True),
+            ("12345678", True),
+            ("123456789", False),
+            ("1234567890", False),
+            ("12345678901", False),
+        ):
             with self.subTest(dni=dni, largo=len(dni)):
                 self.ciudadano.dni = dni
                 self.ciudadano.save(update_fields=["dni"])

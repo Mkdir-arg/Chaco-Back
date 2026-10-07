@@ -2,6 +2,7 @@ from django import forms
 from django.contrib.auth.forms import AuthenticationForm, PasswordChangeForm, PasswordResetForm
 from django.contrib.auth.models import User
 
+from core.dni import MENSAJE_DNI_INVALIDO, dni_valido, normalizar_dni
 from core.rbac import es_ciudadano_portal
 from legajos.models import Ciudadano
 
@@ -37,11 +38,13 @@ class RegistroStep1Form(forms.Form):
     )
 
     def clean_dni(self):
-        dni = self.cleaned_data["dni"].strip().replace(".", "").replace("-", "")
-        if not dni.isdigit():
-            raise forms.ValidationError("El DNI debe contener solo números.")
-        if len(dni) < 6 or len(dni) > 9:
-            raise forms.ValidationError("El DNI ingresado no es válido.")
+        # RED-48: este form aceptaba de 6 a 9 dígitos, la más laxa de las reglas que
+        # convivían en el repo. Pasa a la única (`padron.dni_valido`). La ruta del
+        # registro no está publicada desde SEC-29, así que el cambio no toca ninguna
+        # pantalla viva: lo que evita es que la regla vuelva con el portal.
+        dni = normalizar_dni(self.cleaned_data["dni"])
+        if not dni_valido(dni):
+            raise forms.ValidationError(MENSAJE_DNI_INVALIDO)
         return dni
 
 

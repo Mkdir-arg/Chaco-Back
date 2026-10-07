@@ -1,5 +1,7 @@
 from django import forms
 
+from core.dni import MENSAJE_DNI_INVALIDO, dni_valido, normalizar_dni
+
 from ..models import Ciudadano
 
 _FLOWBITE_INPUT_CSS = (
@@ -34,7 +36,10 @@ class ConsultaRenaperForm(forms.Form):
     ]
 
     dni = forms.CharField(
-        max_length=8,
+        # Sin `max_length`: lo que se mide es el DNI **normalizado**, en `clean_dni`.
+        # Con el límite puesto sobre el valor crudo, `12.345.678` —diez caracteres—
+        # moría con «asegúrese de que tenga menos de 8», que no es la regla del sistema
+        # y además contradice a las otras ocho puertas, que lo aceptan (RED-48).
         label="DNI",
         widget=forms.TextInput(
             attrs={
@@ -55,12 +60,10 @@ class ConsultaRenaperForm(forms.Form):
     )
 
     def clean_dni(self):
-        dni = self.cleaned_data.get("dni")
-        if dni:
-            dni_limpio = "".join(filter(str.isdigit, dni))
-            if len(dni_limpio) < 7 or len(dni_limpio) > 8:
-                raise forms.ValidationError("El DNI debe tener entre 7 y 8 dígitos.")
-            return dni_limpio
+        # RED-48: la regla de largo es la única del repo (`core.dni.dni_valido`).
+        dni = normalizar_dni(self.cleaned_data.get("dni"))
+        if not dni_valido(dni):
+            raise forms.ValidationError(MENSAJE_DNI_INVALIDO)
         return dni
 
 
@@ -143,6 +146,26 @@ class CiudadanoForm(forms.ModelForm):
             ),
         }
 
+    def clean_dni(self):
+        """G1c-08: el DNI del legajo entra normalizado y con la regla del repo.
+
+        El widget tenía `readonly` y nada más —una propiedad del HTML, no una
+        validación—, así que `12.345.678` entraba tal cual por la carga manual y
+        creaba una **segunda** persona junto a `12345678`. Becas normaliza, así que
+        nunca la encontraba: la misma persona quedaba partida en dos legajos.
+
+        La regla de largo es `core.dni.dni_valido`, la única del repo (RED-48), y se
+        aplica **solo cuando el DNI es nuevo o cambió**. En una edición que no lo
+        toca, exigirla dejaba inmodificable a cualquier ficha con un DNI legacy de 6,
+        9 o 10 dígitos: el error colgaba de un campo `disabled`, no se veía dónde, y
+        no se guardaba nada —ni el teléfono—. Corregir esos DNI es un trabajo aparte
+        (`manage.py listar_dni_no_normalizados`, P-17) y lo hace quien puede editarlo.
+        """
+        dni = normalizar_dni(self.cleaned_data.get("dni"))
+        if not dni_valido(dni) and dni != normalizar_dni(getattr(self.instance, "dni", "")):
+            raise forms.ValidationError(MENSAJE_DNI_INVALIDO)
+        return dni
+
 
 class CiudadanoManualForm(CiudadanoForm):
     class Meta(CiudadanoForm.Meta):
@@ -157,8 +180,34 @@ class CiudadanoManualForm(CiudadanoForm):
         }
 
 
+#: Lo que RENAPER respondió y el operador **confirma**, no edita (G1c-08). Django
+#: ignora lo que llegue en el POST para un campo `disabled` y usa el `initial`, que
+#: en esta pantalla sale de la sesión: el `dni=99999999, nombre=Inventado` que la
+#: PoC mandaba a mano deja de poder entrar. El domicilio, el teléfono y el email no
+#: están acá a propósito: son los datos que el operador sí completa o corrige.
+CAMPOS_CONFIRMADOS_DE_RENAPER = ("dni", "nombre", "apellido", "fecha_nacimiento")
+
+
 class CiudadanoConfirmarForm(CiudadanoForm):
-    pass
+    """Confirmación del alta con datos de RENAPER.
+
+    Los cuatro campos de identidad llegan de la consulta y quedan bloqueados: la
+    pantalla dice «confirmar», y hasta acá un POST armado a mano guardaba cualquier
+    cosa con la procedencia de RENAPER puesta.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for nombre in CAMPOS_CONFIRMADOS_DE_RENAPER:
+            campo = self.fields[nombre]
+            # Se bloquea lo que RENAPER **respondió**. Si un campo volvió vacío no
+            # hay nada que confirmar y el operador lo completa: bloquearlo también
+            # dejaría la pantalla sin salida (RED-41 midió respuestas reales con el
+            # nombre en `None`).
+            if self.get_initial_for_field(campo, nombre) in (None, ""):
+                continue
+            campo.disabled = True
+            campo.widget.attrs["class"] = _FLOWBITE_READONLY_CSS
 
 
 _UPDATE_CSS = _FLOWBITE_INPUT_CSS
@@ -203,8 +252,26 @@ class CiudadanoUpdateForm(CiudadanoForm):
             "observaciones": forms.Textarea(attrs={"class": _FLOWBITE_TEXTAREA_CSS, "rows": 4}),
         }
 
-    def __init__(self, *args, puede_ver_sensible=False, **kwargs):
+    def __init__(self, *args, puede_ver_sensible=False, puede_editar_dni=False, **kwargs):
         super().__init__(*args, **kwargs)
+        # G1c-08. Dos campos que la edición dejaba cambiar a cualquiera con
+        # `ciudadano.editar`:
+        #
+        # * **`dni`**: es la identidad de la persona en los tres módulos. Cambiarlo
+        #   en un titular con un caso APROBADO cambia lo que se reintenta contra
+        #   SIIS, y el DNI viejo queda ocupado en la convocatoria (DAT-03). Queda
+        #   para quien administra la configuración; el resto corrige por el alta.
+        # * **`estado_renaper`**: es la **procedencia** del dato, no un dato del
+        #   legajo. Lo pone el alta según de dónde vino la identidad; a mano
+        #   cualquiera marcaba «REGISTRADO» una carga manual.
+        #
+        # Van `disabled` y no fuera de `fields`: el template los renderiza por
+        # nombre, y Django ignora lo que llegue en el POST para un campo disabled.
+        if not puede_editar_dni:
+            self.fields["dni"].disabled = True
+            self.fields["dni"].widget.attrs["class"] = _FLOWBITE_READONLY_CSS
+        self.fields["estado_renaper"].disabled = True
+        self.fields["estado_renaper"].widget.attrs["class"] = _FLOWBITE_READONLY_CSS
         if puede_ver_sensible:
             from ..models import Ciudadano as _C
 

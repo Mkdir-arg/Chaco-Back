@@ -336,9 +336,10 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 162 | Las herramientas de SIIS dejan de pisar lo que otro corrigió, y el alta de prueba no sale del ambiente de pruebas | Becas · revisión de casos (modal «Completar datos para SIIS») · comandos de gestión de SIIS (`diagnosticar_siis`, `corregir_datos_siis`, `correr_alta_siis`, `completar_casos_renaper`) | `#siis` `#datos` `#relevamientos` `#ui` `#metodo` | Auditoría integral oct-2026 — fichas SIIS-19, SIIS-17 y G3-06, más la segunda parte de RED-32 (Ola 1 «Integridad SIIS», PR 7 — cierra la ola) | 07/10/2026 | 🟢 **Hecho** | No requiere |
 | 163 | Cobertura y regresión: la suite deja de depender del orden, el `--parallel` vuelve a correr y la cobertura se mide donde importa | Transversal (runner de tests, medición de cobertura, CI, contrato de la auditoría) · Configuración (wizard de programas, ABM de secretarías) · Legajos (pasada horaria de alertas) · Becas (alta de relevamiento, padrón, convocatorias) · Dispositivos (indicador de última actualización) | `#metodo` `#infra` `#datos` | Auditoría integral oct-2026 — fichas TST-02, TST-03, R0-03, RED-34, RED-74, RED-72 y RED-88 (Ola R, PR R-20) | 07/10/2026 | 🟢 **Hecho** | No requiere |
 | 164 | La red de seguridad del front: lo que no estaba probado, el toggle que prometía de más y las URLs escritas a mano | Dispositivos (admisiones) · Merenderos (entregas, detalle y estado) · Transversal (shell: toggle de tema y campana de alertas) · Legajos (detalle del ciudadano) · Becas (carga de padrón) | `#metodo` `#ui` `#api` `#rbac` | Auditoría integral oct-2026 — fichas RED-33, RED-75 y las segundas partes de RED-42 y RED-53 (Ola 5, PR 8) | 07/10/2026 | 🟢 **Hecho** (D-RED-07 = A aplicada por default) | No requiere |
-| 165 | El arranque del contenedor deja de ser frágil: candado, timeouts de migración y tareas programadas con vigilancia | Transversal (arranque del contenedor, settings de entorno, tareas programadas de k8s e icore, plantilla de migraciones) | `#infra` `#datos` `#metodo` | Auditoría integral oct-2026 — fichas OPS-05, OPS-07, OPS-11, OPS-12, G3-04, G3-05 y RED-58 (Ola 3, PR 1) | 07/10/2026 | 🟢 **Hecho** | No requiere (se edita `legajos.0007`, ya aplicada, sin cambiar su SQL de ida) |
 | 166 | Los listados de afuera de Becas dejan de ser cada uno su propio diseño: encabezado, tabla, estado vacío y paginación canónicos | Usuarios y roles (listado de usuarios, listado y detalle de roles) · Configuración (provincias, municipios, localidades, secretarías, subsecretarías y programas) | `#ui` `#usuarios` `#metodo` | Auditoría integral oct-2026 — fichas FE-11, FE-12 y FE-17 (Ola 5, PR 6a — primer lote del PR más grande de la ola) | 07/10/2026 | 🟡 **Parcial** (las tres fichas cierran Usuarios, Roles y Configuración; `legajos/ciudadano_list` y el resto van en el PR 6b) | No requiere |
+| 165 | El arranque del contenedor deja de ser frágil: candado, timeouts de migración y tareas programadas con vigilancia | Transversal (arranque del contenedor, settings de entorno, tareas programadas de k8s e icore, plantilla de migraciones) | `#infra` `#datos` `#metodo` | Auditoría integral oct-2026 — fichas OPS-05, OPS-07, OPS-11, OPS-12, G3-04, G3-05 y RED-58 (Ola 3, PR 1) | 07/10/2026 | 🟢 **Hecho** | No requiere (se edita `legajos.0007`, ya aplicada, sin cambiar su SQL de ida) |
 | 167 | Legajos, Configuración y las páginas de error dejan el diseño paralelo: la pieza de paginación aprende a convivir y el shell legacy se borra | Legajos (listado de ciudadanos) · Configuración (formularios, borrados y wizard de programas) · Becas (cupo, convocatorias y relevamientos: paginación de solapas) · Transversal (pieza de paginación, páginas 403/404/500, shell legacy) | `#ui` `#metodo` | Auditoría integral oct-2026 — fichas FE-11, FE-12, FE-17 y FE-20 (Ola 5, PR 6b — segundo lote; con esto el PR 6 cierra) | 07/10/2026 | 🟢 **Hecho** (las cuatro fichas cierran; FE-23 y FE-24 pasan a un PR 6c) | No requiere |
+| 168 | Datos y catálogo: borrar una pregunta deja de borrar documentos del ciudadano, y «DNI válido» pasa a ser una sola regla | Becas (configuración del catálogo, padrón, alta a SIIS, `/admin/`) · Legajos (alta, confirmación y edición del ciudadano, comandos de datos) · Portal (inscripción pública y registro) | `#datos` `#requisitos` `#rbac` `#siis` `#metodo` | Auditoría integral oct-2026 — fichas DAT-01, DAT-02, DAT-03, DAT-05, V2-NEW-05, G1c-08 y RED-48 (Ola 3, PR 2) | 07/10/2026 | 🟢 **Hecho** (DAT-01 cierra su fase 1; los dos puntos que tocan templates y seeds quedan para el PR siguiente del carril) | `programas.0078` (solo de estado, sin DDL) |
 | 169 | La API navegable de Legajos no da 500 y `/becas/` tiene índice | Legajos (APIs de ciudadanos y alertas) · Becas (raíz del módulo) · Transversal (APIs de geografía) | `#api` `#rbac` `#metodo` | QA (matias-abate) — pruebas sobre testing de ECOM, issue #521 (caso TC-OLA0-02) | 07/10/2026 | 🟢 **Hecho** | No requiere |
 | 170 | Las solapas se manejan con el teclado, las tarjetas de número dejan de escribirse a mano y hay un solo campo de formulario | Transversal (shell: teclado de solapas; piezas de tarjeta de número, campo de formulario y paginación) · Inicio del backoffice · Becas (tablero del programa, solapas de programa, convocatoria y relevamiento, modal de convocatorias) · Usuarios y roles (ABM de roles) · Dispositivos, Admisiones y Merenderos (campos de sus formularios) · Configuración (wizard: campo de color) | `#ui` `#metodo` | Auditoría integral oct-2026 — fichas FE-23, FE-24, lo que faltaba de FE-22 y de V5A-NEW-07 (b), más los tres MINOR de la revisión del PR 6b (Ola 5, PR 6c — **cierra la ola**) | 07/10/2026 | 🟢 **Hecho** | No requiere |
 | 171 | Se van los comandos que sembraban `admin`/`admin123` y el «debug» que vaciaba el Redis | Transversal (comandos de management, cuentas de sistema, seeds de demo, alta masiva por CSV) | `#infra` `#usuarios` `#sesion` `#metodo` | Auditoría integral oct-2026 — fichas OPS-02, G2-05 y G1c-12 (Ola 3, PR 3) | 07/10/2026 | 🟢 **Hecho** | No requiere |
@@ -23167,7 +23168,6 @@ Configuración de FE-12, con la parte de FE-17 que no toca la pieza canónica.
   del badge «Protegido» más un `sr-only` atado con `aria-describedby` a la acción «Ver», sin piezas nuevas;
   (4) el Playwright de la primera vuelta midió «Página 1 de 2» en las cinco pantallas que paginan, no en las
   ocho, y así quedó escrito acá, en la ficha y en el README.
----
 
 # Cambio 165 — El arranque del contenedor deja de ser frágil: candado, timeouts de migración y tareas programadas con vigilancia
 
@@ -23511,6 +23511,8 @@ se revierte, hay que volver las cuatro líneas del `crontab` a su forma anterior
   receptor de `conversaciones` registra la presencia en el caché
   (`conversaciones/presencia.py:30`) sin atrapar nada, así que el POST de login responde
   500 y el ambiente queda inaccesible.
+
+---
 
 ---
 
@@ -24060,7 +24062,6 @@ la base.
 
 ## Historial
 No aplica (entrada nueva).
-
 ---
 
 # Cambio 173 — Los campos propios del constructor llegan al Excel por persona y al dashboard de Becas
@@ -24235,3 +24236,290 @@ pierde ningún dato: el PR no escribe en la base.
 
 ## Historial
 No aplica (entrada nueva).
+
+---
+
+# Cambio 168 — Datos y catálogo: borrar una pregunta deja de borrar documentos del ciudadano, y «DNI válido» pasa a ser una sola regla
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas (configuración del catálogo, padrón, alta a SIIS, `/admin/`) · Legajos (alta, confirmación y edición del ciudadano, comandos de datos) · Portal (inscripción pública y registro) |
+| **Etiquetas** | `#datos` `#requisitos` `#rbac` `#siis` `#metodo` |
+| **Solicitante** | Auditoría integral oct-2026 — fichas DAT-01, DAT-02, DAT-03, DAT-05, V2-NEW-05, G1c-08 y RED-48 (Ola 3, PR 2 «Datos y catálogo») |
+| **Fecha del pedido** | 07/10/2026 |
+| **Issue / épica** | Sin issue (plan de la auditoría: `docs/internal/auditoria-2026-10/`) |
+| **Partes afectadas** | `programas/models/__init__.py` (`AdjuntoFormulario`), `programas/views/configuracion.py`, `programas/admin.py`, `programas/services/padron.py`, `programas/services/siis_envio.py`, `programas/api/serializers.py`, `programas/forms.py`, `programas/signals.py` (nuevo), `programas/apps.py` · `legajos/models/base.py`, `legajos/forms/ciudadanos.py`, `legajos/views/ciudadanos.py`, `legajos/services/ciudadanos.py`, dos comandos nuevos · `portal/forms/inscripcion.py`, `portal/forms/ciudadano.py` · `core/dni.py` (nuevo) |
+| **Migración** | `programas.0078_adjunto_formulario_protect` — **solo de estado, sin DDL** (`sqlmigrate` sale vacío) |
+
+## Pedido original
+
+> «(2) *Datos y catálogo:* DAT-01, DAT-02, DAT-03, DAT-05, V2-NEW-05, G1c-08. 18 h» y «(9) *Red de seguridad:*
+> RED-48 (una sola regla de DNI, con G1c-08)» (README de la auditoría, §6, Ola 3).
+
+## Qué estaba mal
+
+1. **DAT-01 (ALTA) — borrar una pregunta general o un requisito nativo borraba los adjuntos de todos los
+   casos.** `AdjuntoFormulario.pregunta_global` y `.requisito_nativo` eran `CASCADE`: un POST a
+   `requisito_eliminar` o `pregunta_eliminar` se llevaba la fila del adjunto de **cada** caso ya cargado y
+   dejaba el archivo huérfano en `media/`. El agravante es que no se ve: la revisión arma la pantalla desde la
+   foto de la definición (`_adjuntos_por_clave`), así que el revisor veía el documento como **faltante**, no
+   como borrado — ni error, ni log, ni vuelta atrás. Y si lo borrado era «Foto DNI - Frente», el arranque
+   siguiente la recreaba con otro pk y la pantalla de configuración se veía sana.
+2. **DAT-02 — el `/admin/` borraba casos con su auditoría.** `RelevamientoAdmin`, `FormularioAdmin`,
+   `TracaFormularioAdmin` y `ListaEsperaAdmin` ofrecían borrar (y `delete_selected`, que se lleva varios de un
+   saque sin que nadie lea la confirmación), arrastrando adjuntos y las trazas que RN-14/29 declara
+   **inmutables**. Además, los campos que cuentan la historia del caso —`estado`, `validado_renaper`,
+   `identidad_forzada`, `origen_validacion`, `datos_siis`, `data`— se editaban sin dejar traza, y el contador
+   derivado `CupoSegmento.cupo_ocupado` también.
+3. **DAT-03 — `Formulario.dni_titular` se desincronizaba del DNI real.** Es la columna con índice por la que
+   una convocatoria decide si un DNI ya está inscripto (Cambio 91). La escribe `Formulario.save()` y nadie la
+   volvía a mirar: al corregir un DNI mal tipeado en el legajo, el DNI **erróneo** seguía ocupando el lugar y
+   bloqueaba a su verdadero titular en el link público, con un duplicado que no correspondía a ningún caso
+   visible.
+4. **DAT-05 — los Excel del padrón se acumulaban en `media/`.** `cargar_padron` reasignaba el `FileField` sin
+   borrar el anterior: cada recarga dejaba otro archivo con DNI, nombre y fecha de nacimiento de miles de
+   personas, sin dueño. Y `quitar_padron_propio` hacía lo contrario —`delete(save=False)` **dentro** de la
+   transacción—, así que un error posterior dejaba la fila apuntando a un archivo que ya no existía.
+5. **V2-NEW-05 — un restore deja pks de legajo en hexadecimal.** `legajos.0007` normaliza los UUID una sola
+   vez, cuando se aplica. Si después se restaura un dump que los trae en hex de 32, el ORM de MariaDB —que
+   manda el UUID **con guiones**— no encuentra nada: el detalle del legajo responde 404 sin un solo error en
+   los logs. `q_uuid_en_texto` (Cambio 99) cubre `token_publico` y `client_uuid`, no los pk de legajo.
+6. **G1c-08 — el DNI y la procedencia del legajo entraban como fuera.** El `dni` tenía `readonly` **solo de
+   widget** (una propiedad del HTML, no una validación): `12.345.678` por la carga manual creaba una segunda
+   persona junto a `12345678`, que Becas —que normaliza— nunca encontraba. El chequeo de duplicado del alta con
+   RENAPER comparaba contra el DNI normalizado y no veía al gemelo con puntos. La pantalla de **confirmación**
+   aceptaba un POST con `dni=99999999, nombre=Inventado` y guardaba `estado_renaper=''`. Y la edición cambiaba
+   el DNI de un titular con caso APROBADO —los reintentos a SIIS usan `ciudadano.dni`— y marcaba
+   `estado_renaper=REGISTRADO` a mano, con cualquier `ciudadano.editar`.
+7. **RED-48 — «DNI válido» estaba escrito ocho veces con cuatro reglas de largo.** 7 u 8 (padrón, los dos
+   formularios del portal, el serializer de la app, el buscador de Dispositivos y la consulta a RENAPER de
+   Legajos), exactamente 8 (`extract_dni_from_cuit`), hasta 10 (`siis_envio`) y de 6 a 9 (registro del portal).
+   La diferencia no la veía nadie porque las dos puntas callan: el padrón **descarta la fila en silencio** (la
+   suma a `rechazadas`) y `siis_envio` mandaba a SIIS —que no tiene baja— lo que los formularios rechazaban.
+
+## Alcance acordado
+
+**Entra:** las siete fichas, con DAT-01 en su **fase 1** (PROTECT + captura del error).
+
+**Queda afuera, y por qué:**
+
+- **DAT-01 punto 3 y punto 4** (texto del modal de `_requisitos_panel.html` y `protegido=True` para los cinco
+  adjuntos obligatorios en `seed_becas`): el carril tenía prohibido tocar **templates y seeds** porque el PR 1
+  de la Ola 3 (#614) y el PR 6b de la Ola 5 (#615) estaban abiertos sobre esos archivos. El contenido exacto de
+  los dos cambios quedó escrito en el cuerpo del PR para que entren en el PR siguiente del carril.
+- **DAT-01 fase 2** (`RequisitoNativo.activo` + D-D01): la ficha la declara «M» y aparte; el índice de la
+  auditoría la cuenta como «S (+M fase 2)».
+- **El comando de reconciliación por lotes de DAT-03**: la ficha lo marca «opcional». Con la sincronización
+  automática puesta, lo que queda por reconciliar son los casos anteriores a este cambio; se pide cuando el PM
+  lo necesite.
+- **G1c-15 (RENAPER 401/503)**: el «Hecho cuando» de la Ola 3 nombra `test_repro_admin_cron_renaper.py` con la
+  etiqueta «(G1c-08, RENAPER 401/503)», pero esos dos escenarios son de **`RenaperClienteTests`**, que la ficha
+  G1c-15 reclama para el **PR 7** de la misma ola (integraciones). Acá se invirtieron los **tres** escenarios de
+  `G1c08AltaRenaperTests`, que es lo que pide la ficha de G1c-08 («los escenarios de la PoC invertidos»).
+
+## Decisiones tomadas
+
+1. **La regla de DNI vive en `core/dni.py`, no en `programas/services/padron.py`.** `legajos` y `portal`
+   también tienen puertas de DNI, y `legajos.models` no puede importar `programas` sin cerrar un ciclo de
+   import —el ratchet de RED-79 lo mide—. `padron` **reexporta** `normalizar_dni`, `dni_valido`,
+   `LARGOS_DNI_VALIDOS` y `MENSAJE_DNI_INVALIDO`, así que las ~20 importaciones que ya existían siguen
+   funcionando y `NormalizarDniTests` (RED-47) no se mueve.
+2. **`siis_envio` deja de ser más laxo.** La ficha habilitaba documentarlo como excepción; no se tomó. El
+   `len(dni) <= 10` dejaba pasar un DNI de **un** dígito, y el alta en SIIS no tiene baja: es mejor frenar el
+   caso localmente, con su motivo en `faltantes["dni"]`, que crear un alta con un documento que ninguna pantalla
+   del sistema habría aceptado. **Cambio de conducta:** un caso cuyo ciudadano tenga un DNI de 6, 9 o 10
+   dígitos pasa de informarse a SIIS a quedar frenado con «El caso no tiene un ciudadano con DNI válido».
+3. **El registro del portal (`portal/forms/ciudadano.py`, 6 a 9 dígitos) también se unifica**, aunque la ficha
+   solo nombraba seis puertas. Es la séptima que VR2 no verificó y la más laxa de todas. Su ruta no está
+   publicada desde SEC-29, así que el cambio no toca ninguna pantalla viva: lo que evita es que la regla vuelva
+   con el portal.
+4. **`DECISIÓN CLIENTE: D-C08 = «guardar `estado_renaper=FALLECIDO`» (default del README §2), con la marca por
+   sesión y no por query string.** La ficha proponía que el link «Cargar manualmente» de
+   `ciudadano_renaper_form.html` llevara `?fallecido=1`; ese template no se podía tocar. La vista deja la marca
+   en la sesión cuando RENAPER contesta «fallecido» y la **consume** en el alta manual del mismo DNI, así que el
+   comportamiento es el pedido sin depender del template. El `?fallecido=1` se sigue aceptando, para cuando el
+   template lo pase.
+5. **`dni` y `estado_renaper` quedan `disabled`, no fuera de `fields`.** `ciudadano_edit_form.html` los
+   renderiza por nombre (`{{ form.dni }}`, `{{ form.estado_renaper }}`): sacarlos del form dejaba dos huecos en
+   la pantalla. Django ignora lo que llegue en el POST para un campo `disabled`, así que la garantía es la
+   misma y no hace falta tocar el template.
+6. **El DNI lo edita `config.administrar`**, la capacidad que ya tiene quien toca la parametría del sistema. No
+   se agrega una capacidad nueva al `CATALOGO` por esto (la ficha ofrecía `ciudadano.eliminar` como alternativa
+   «mientras exista»).
+7. **La confirmación bloquea lo que RENAPER respondió, no los cuatro campos siempre.** Si un campo volvió
+   vacío no hay nada que confirmar y el operador lo completa: RED-41 midió respuestas reales con el nombre en
+   `None`, y bloquearlo dejaría la pantalla sin salida.
+8. **`Ciudadano.save()` normaliza el DNI pero no lo rechaza.** La regla de largo la aplican las puertas de
+   entrada; un `save()` que levante `ValidationError` rompería migraciones y cargas masivas. La normalización es
+   la red para el `/admin/`, los comandos y los scripts, que es por donde entraron los `12.345.678` que hoy
+   conviven con su gemelo.
+9. **La validación del DNI en la edición corre solo si el DNI cambia** (ronda 2). Corriendo siempre, una ficha
+   con un DNI legacy de 6, 9 o 10 dígitos quedaba inmodificable: el error colgaba de un campo `disabled`, no se
+   veía dónde y no se guardaba ningún otro dato. El aviso de que esa ficha tiene un DNI fuera de la regla —y de
+   quién puede corregirlo— va por `messages`, que es el canal que sí se ve sin tocar el template.
+10. **El DNI del usuario de backoffice entra en la regla única** (ronda 2). Era la novena puerta, escrita como
+   `RegexField(r"^\d{6,8}$")`. El DNI de 6 dígitos que deja de aceptarse corresponde a personas nacidas antes
+   de 1930; sigue siendo opcional, como fijó el Cambio 5. **Ronda 3:** se guarda normalizado —`Profile.dni` es
+   `char(8)` y el valor crudo con puntos es un 1406— y la regla se exige solo si el DNI cambia o es un alta,
+   igual que en `Ciudadano`.
+11. **Una puerta que acepta un DNI con puntos tiene que devolverlo en dígitos** (ronda 3). Validar normalizado y
+   guardar crudo es un 500 esperando a que la columna sea corta: es lo que pasó con `users_profile.dni`. El
+   barrido de todas las puertas está en
+   `programas.tests.test_padron.DniValidoTests.test_toda_puerta_que_acepta_un_dni_con_puntos_lo_deja_en_digitos`.
+
+## Qué se hizo
+
+**DAT-01.** `programas.0078` pasa las dos FK de `AdjuntoFormulario` a `PROTECT`. Es una migración **solo de
+estado**: `on_delete` vive en Python —es lo que el ORM hace antes del `DELETE`— y la foreign key del motor ya
+estaba creada sin `ON DELETE CASCADE`, así que `sqlmigrate` sale vacío y no hay ventana ni bloqueo sobre
+`programas_adjuntoformulario`. `requisito_eliminar` y `pregunta_eliminar` capturan el `ProtectedError` y avisan
+con el número de **casos** (no de archivos) que ya subieron ese documento; el de la pregunta además nombra la
+salida que existe («Desactivala en lugar de borrarla»). `ItemDiseno` **sigue** en CASCADE: el diseño sigue al
+catálogo (Cambio 58).
+
+**DAT-02.** `SinBorradoMixin` sobre los cuatro admins de la ficha —con `has_delete_permission` en `False`
+Django además saca `delete_selected` de las acciones—, los seis campos de `FormularioAdmin` y el
+`cupo_ocupado` de `CupoSegmentoAdmin` a `readonly_fields`. `PreguntaGlobalAdmin` y `RequisitoNativoAdmin` los
+cubre DAT-01: la guarda es del modelo, así que el `/admin/` arma la cascada, lista los adjuntos como objetos
+**protegidos** y el POST no borra nada.
+
+**DAT-03.** `Ciudadano.from_db` recuerda el DNI con el que la fila salió de la base y
+`programas/signals.py::sincronizar_dni_titular` actualiza `Formulario.dni_titular` de los casos de esa persona
+cuando cambia. Vive en `programas` y no en `legajos` a propósito: la dependencia va de Becas al legajo, nunca
+al revés. Un alta o un `save(update_fields=[...])` sin el DNI **no agrega ni una consulta**.
+
+**DAT-05.** El borrado del Excel anterior va en `transaction.on_commit` en las dos puntas: al reemplazar el
+padrón se borra el que quedó sin dueño, y al quitar el padrón propio el archivo sobrevive si la transacción se
+cae.
+
+**V2-NEW-05.** `manage.py normalizar_uuid_legajos` deja las cuatro columnas UUID de Legajos en el formato
+que el ORM consulta **en este motor**: 36 con guiones en MariaDB 10.7+, 32 en hexadecimal en MySQL —un dump
+de ECOM restaurado en icore está en el caso inverso—. Para poder escribir la columna referenciada **baja las
+dos foreign keys antes del `UPDATE` y las repone después**, igual que `legajos.0007` y con sus mismas
+funciones (`quitar_fk_si_existe` y `crear_fk_si_falta` de `core/migraciones.py`) más su `_normalizar_uuid`:
+sin eso el `UPDATE` sobre `legajos_legajoatencion.id` muere con un `1451` y no normaliza nada. No declara ni
+una columna ni un nombre de FK propios. **No escribe nada sin `--aplicar`** —sin la bandera informa y
+termina— y es idempotente: el `UPDATE` solo toca las filas del largo equivocado. Queda nombrado en el paso 3
+del runbook D.4 de `processes.md`, que es donde hacía falta.
+
+**G1c-08.** `CiudadanoForm.clean_dni` normaliza y valida (lo heredan Manual, Confirmar y Update);
+`CiudadanosService.existe_con_dni` mira también las fichas cargadas con separadores;
+`CiudadanoConfirmarForm` bloquea los cuatro campos de identidad que RENAPER contestó y el alta guarda
+`estado_renaper=REGISTRADO`; `CiudadanoUpdateForm` deja `dni` fuera de alcance salvo `config.administrar` y
+`estado_renaper` fuera de alcance siempre. `manage.py listar_dni_no_normalizados [--csv]` es la lista de P-17,
+de **solo lectura**: unir dos legajos mueve adjuntos, alertas, historial, inscripciones y casos de Becas, y
+cuál sobrevive no lo decide un script.
+
+**RED-48.** `core/dni.py` con `LARGOS_DNI_VALIDOS = (7, 8)`, `MENSAJE_DNI_INVALIDO` y `dni_valido()`, usados
+por las **ocho** puertas. El ratchet es `core/tests/test_regla_dni.py`: recorre el código productivo con `ast`
+y falla cuando aparece una comparación de largo contra 6-10 en una sentencia que habla de un documento. Detecta
+las ocho reglas que este PR retiró —se comprobó contra `HEAD`— y tiene escape documentado (`# regla-dni: ok`)
+con la allowlist vacía.
+
+## Base de datos
+
+`programas.0078_adjunto_formulario_protect` — **solo de estado, sin DDL**. Cambia `on_delete` de
+`AdjuntoFormulario.pregunta_global` y `.requisito_nativo` de `CASCADE` a `PROTECT`. `on_delete` vive en Python
+—es lo que el ORM hace antes del `DELETE`—, y la foreign key de MySQL y MariaDB ya estaba creada sin
+`ON DELETE CASCADE` (Django nunca lo delega al motor): `sqlmigrate` sale vacío, no hay `ALTER TABLE` y no hay
+ventana ni bloqueo sobre `programas_adjuntoformulario`, que es la tabla de los documentos del ciudadano.
+
+**Expand/contract:** ni expand ni contract — no agrega, no borra y no renombra ninguna columna. El código viejo
+y el nuevo conviven contra el mismo esquema durante todo el rolling; lo único que cambia es que, desde que la
+release nueva está arriba, borrar una pregunta o un requisito con adjuntos levanta `ProtectedError` en vez de
+llevarse los documentos.
+
+**Reversa:** `migrate programas 0077` vuelve el `on_delete` a CASCADE, también sin DDL.
+
+## Verificación
+
+- `manage.py check`, `check --deploy` y `makemigrations --check --dry-run`: en verde.
+- `scripts/check_migraciones.py` sobre `programas/migrations/0078_adjunto_formulario_protect.py`: OK (un
+  `AlterField` de `on_delete` no es expand, no es contract y no tiene `RunPython`).
+- `manage.py sqlmigrate programas 0078`: solo `BEGIN;`, dos `-- (no-op)` y `COMMIT;`. Lo fija
+  `Migracion0078SoloEstadoTests`.
+- Suite completa en un solo proceso y `test --tag performance`: en verde.
+- `test --tag mysql` contra **`mariadb:10.11` sin tablas de zona horaria** y contra **`mysql:8.0`**: en verde en
+  los dos. Es donde se mide el comando de V2-NEW-05, que en SQLite no hace nada.
+- Los tests nuevos se vieron **en rojo antes** del cambio: los cuatro de DAT-01 con las FK vueltas a CASCADE,
+  dos de los tres de DAT-05 con el borrado como estaba, y los de `normalizar_uuid_legajos` con la versión que no
+  bajaba las foreign keys —el error exacto es
+  `IntegrityError (1451, 'Cannot delete or update a parent row … legajos_alertaciudadano')`—.
+
+## Pendientes
+
+1. **DAT-01 punto 3** — el modal del requisito (`_requisitos_panel.html:51`) sigue diciendo «deja de pedirse… No
+   se puede deshacer», que ya no es cierto. El texto nuevo está en el cuerpo del PR.
+2. **DAT-01 punto 4** — `protegido=True` para `ADJUNTOS_OBLIGATORIOS` en `seed_becas` + migración de datos que lo
+   marque en las existentes. Sin esto, los cinco adjuntos obligatorios siguen ofreciendo el botón «Eliminar»
+   (que ahora frena solo si hay casos con ese documento).
+3. **DAT-01 fase 2** — `RequisitoNativo.activo` y D-D01: hoy un requisito en uso no se puede ni borrar ni
+   desactivar.
+4. **P-17, operativo** — correr `listar_dni_no_normalizados` contra PRD y pasarle la lista al área para que
+   decida qué legajos se unen. El comando no toca nada e informa por separado los dos motivos y las dos
+   poblaciones (ciudadanos y usuarios de backoffice).
+5. **Riesgo de deploy declarado** — el cambio de `siis_envio` frena el alta de los casos cuyo ciudadano tenga un
+   DNI fuera de 7-8 dígitos, y el ABM de usuarios deja de aceptar un DNI de 6 **nuevo** (los que ya están
+   cargados se siguen pudiendo editar). Antes de desplegar, los dos conteos «con un largo fuera de (7, 8)» de
+   `listar_dni_no_normalizados` son los números a mirar.
+
+## Reversión
+
+`migrate programas 0077` vuelve el `on_delete` a CASCADE sin tocar el esquema (la ida tampoco lo tocó). El resto
+del cambio es código: revertir el PR alcanza. Los Excel de padrón ya borrados por DAT-05 no vuelven, pero son
+los que ninguna fila referenciaba.
+
+## Historial
+
+- **07/10/2026** — Ola 3, PR 2 de la auditoría integral oct-2026. Las siete fichas cerradas salvo los dos
+  puntos de DAT-01 que tocan templates y seeds, bloqueados por los carriles abiertos (#614 y #615).
+- **07/10/2026, ronda 2** — siete correcciones de la revisión.
+  **(1) El comando de V2-NEW-05 no funcionaba** contra el estado que de verdad deja un restore: `legajos.0007`
+  baja las dos foreign keys antes del mismo `UPDATE` y el comando no, así que con un `LegajoAtencion` en el
+  formato viejo **y** una `AlertaCiudadano` que lo referencia moría con un `1451` y no normalizaba nada. Ahora
+  repite la secuencia de la migración —bajar las FK, normalizar, reponerlas, con las FK repuestas también si el
+  `UPDATE` falla— **con las mismas funciones**: `quitar_fk_si_existe` y `crear_fk_si_falta` de
+  `core/migraciones.py`, que entró con el PR 1 (Cambio 165) mientras esta ronda estaba abierta, más el
+  `_normalizar_uuid` de la propia migración. El comando no declara ni una columna ni un nombre de FK propios:
+  se los pide a `legajos.0007`. **No escribe nada sin `--aplicar`** y cubre las **dos** direcciones: a 36 con
+  guiones en MariaDB 10.7+ y a 32 en hexadecimal en MySQL, que es el caso de un dump de ECOM restaurado en
+  icore.
+  **(2) Su test permanente nunca había corrido:** `LegajoAtencion.objects.create(ciudadano=…)` choca con la
+  `@property` sin setter y, siendo `TestCase`, después con el `TransactionManagementError` del `schema_editor`.
+  Pasó a `TransactionTestCase` con los kwargs reales, y arma el estado de restore de verdad —pk en el formato
+  viejo más la alerta que lo referencia—. Medido en rojo con el comando de la ronda 1 y en verde con este.
+  **(3) Un DNI legacy dejaba la ficha inmodificable:** la validación corría siempre, el error colgaba de un
+  campo `disabled` y no se guardaba nada, ni el teléfono. Ahora corre **solo si el DNI cambia o es un alta**, y
+  la pantalla de edición avisa por toast qué pasa y quién puede corregirlo.
+  **(4) `listar_dni_no_normalizados` solo veía los DNI con separadores**, no los numéricos de largo inválido,
+  que son justo los que este cambio frena: ahora lista los dos grupos, con el conteo por motivo, y la salida de
+  pantalla enmascara el documento (el CSV lo trae entero, que es su razón de ser).
+  **(5)** `subsegmento_eliminar` decía «utilizado por una convocatoria» también cuando lo frenaba un adjunto
+  —`RequisitoNativo.subsegmento` es CASCADE y choca con el PROTECT de DAT-01—: el mensaje sigue a la causa real.
+  **(6)** El ratchet de RED-48 barre además `scripts/` —el docstring lo decía y no lo hacía— y detecta la regla
+  escrita como **expresión regular** (`\d{7,8}`, `RegexValidator`, `__regex`), no solo con `len()`. Al
+  encenderlo apareció la **novena** puerta, que ningún barrido anterior había visto: el DNI del usuario de
+  backoffice en `users/forms` validaba **6 a 8** dígitos con un `RegexField`. Queda unificado.
+  **(7)** El receptor de DAT-03 ya no dispara con un `Ciudadano` leído con `.only()`/`.defer()` sin el DNI: antes
+  pagaba la consulta diferida **y** un `UPDATE` que no cambiaba ninguna fila. Lo mismo en `Ciudadano.save()`.
+- **07/10/2026, ronda 3** — la novena puerta que abrió la ronda 2 estaba a medias.
+  **(1) BLOCKER:** el ABM de usuarios **validaba normalizado y guardaba crudo**. `dni_valido()` normaliza antes
+  de medir, así que `12.345.678` pasaba; `_sync_profile` lo escribía tal cual en `Profile.dni`, que es un
+  `CharField(max_length=8)`, y MariaDB y MySQL responden `DataError (1406, "Data too long for column 'dni'")`:
+  un **500** en el alta de usuarios. SQLite no aplica el `max_length`, así que la suite normal no lo veía. Ahora
+  `_validar_dni_perfil_usuario` **normaliza** —como `CiudadanoForm.clean_dni`— y hay un test `@tag("mysql")` que
+  da de alta y edita con el DNI tipeado con puntos contra los dos motores. El barrido del resto de las puertas
+  encontró una más del mismo patrón: `ConsultaRenaperForm.dni` tenía `max_length=8` sobre el valor **crudo**, así
+  que `12.345.678` moría con «asegúrese de que tenga menos de 8 caracteres» —ni la regla del sistema ni lo que
+  hacen las otras ocho puertas—; el límite se fue y la regla la aplica `clean_dni`. Lo fija
+  `test_toda_puerta_que_acepta_un_dni_con_puntos_lo_deja_en_digitos`, que exige que **lo que cada puerta devuelve
+  ya sean dígitos**.
+  **(2)** Un usuario de backoffice con un DNI legacy de 6 dígitos no se podía editar sin tocar el DNI —ni el rol,
+  ni el correo—: se aplica la **misma** regla que en `Ciudadano`, validar solo si el DNI cambia o es un alta.
+  **(3)** `listar_dni_no_normalizados` barre ahora las **dos** tablas con DNI —`legajos_ciudadano` y
+  `users_profile`— y las cuenta por separado, que es lo que el PM necesita para medir el impacto antes del
+  deploy; el descarte dejó de usar un `dni__regex` con el largo interpolado (esquivaba el ratchet de RED-48) y
+  la decisión es una sola, `core.dni`, aplicada fila por fila.
+  **(4)** El `finally` de `normalizar_uuid_legajos` ya no promete que las FK vuelven siempre: si el `UPDATE` se
+  cortó entre el padre y el hijo quedan huérfanas y el `ADD CONSTRAINT` falla con un 1452 —y está bien que
+  falle—, pero ese 1452 no puede tapar el error original, así que se registra y se deja pasar el primero.
