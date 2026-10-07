@@ -15,6 +15,11 @@
 # del contenido versionado.
 .gitlab-ci.yml text eol=lf
 
+# El 07-oct-2026 el PR #612 subió el README de la auditoría y dos fichas en CRLF; el merge
+# siguiente vio el archivo entero en conflicto y el README quedó duplicado completo (8778fbca).
+# Acotado a la carpeta de la auditoría para no renormalizar el repo con PRs abiertos.
+docs/internal/auditoria-2026-10/**/*.md text eol=lf
+
 # Exclusiones del snapshot de release para main.
 /.claude export-ignore
 /.amazonq export-ignore
