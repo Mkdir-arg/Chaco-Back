@@ -1035,6 +1035,25 @@ def pregunta_toggle_activo(request, pk):
         # Cambio 58, D12: sin identidad no hay caso.
         messages.error(request, "Los campos de identidad de la persona no se pueden desactivar.")
         return redirect("becas:preguntas")
+    # G1-09: «una sola pregunta activa por destino SIIS» era una regla del form,
+    # y este botón no pasa por el form. Reactivar una pregunta vieja dejaba dos
+    # activas con el mismo destino y lo que viajaba a SIIS pasaba a depender del
+    # orden físico de la tabla. El mensaje es el del form a propósito: es la
+    # misma regla, dicha igual.
+    if not pregunta.activo and pregunta.destino_siis:
+        otra = (
+            PreguntaGlobal.objects.filter(activo=True, destino_siis=pregunta.destino_siis)
+            .exclude(pk=pregunta.pk)
+            .first()
+        )
+        if otra is not None:
+            etiqueta = PreguntaGlobal.DestinoSiis(pregunta.destino_siis).label
+            messages.error(
+                request,
+                f"No se activó: ya hay una pregunta activa que alimenta «{etiqueta}»: «{otra.texto}». "
+                "Desactivá esa primero o sacale el destino SIIS a una de las dos.",
+            )
+            return redirect("becas:preguntas")
     pregunta.activo = not pregunta.activo
     pregunta.save(update_fields=["activo", "modificado"])
     messages.success(request, f"Pregunta {'activada' if pregunta.activo else 'desactivada'}.")

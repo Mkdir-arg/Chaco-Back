@@ -61,7 +61,7 @@ from programas.services.padron import fila_padron, padron_de
 from programas.services.personas import consultar_persona
 from programas.services.respuestas import respuestas_legibles, sincronizar_desde_legacy
 from programas.services.siis import SiisCatalogError, catalogo, funciones_programa
-from programas.services.siis_envio import enviar_beneficiario_a_siis, mensaje_envio
+from programas.services.siis_envio import Catalogos, enviar_beneficiario_a_siis, mensaje_envio
 from programas.services.validacion_siis import validar_formulario_en_siis
 from programas.views.cupo import CAP_BENEFICIARIO_VER, CAP_CUPO_VER
 from programas.views.relevamientos import CAP_RELEVAMIENTO_PUBLICO, PaginadorConConteo
@@ -261,7 +261,9 @@ def _informar_a_siis(formulario, user):
     solo o pegado al del desenlace (ALR-16).
     """
     try:
-        envio = enviar_beneficiario_a_siis(formulario, user)
+        # SIIS-09: dentro de un request los catálogos salen de la copia local,
+        # nunca de la red. Ver ``Catalogos.sin_red``.
+        envio = enviar_beneficiario_a_siis(formulario, user, catalogos=Catalogos.sin_red())
     except ValueError as error:
         # SIIS-04: el estado releído bajo lock ya no habilita el envío (otro
         # revisor lo rechazó o lo dio de baja entre la carga y el POST).

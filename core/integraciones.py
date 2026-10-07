@@ -65,6 +65,17 @@ COSTOS = {
 #: caché compartida con el TTL que informa SIIS (``expires_in - 60``), así que
 #: dentro de un mismo request no se pide dos veces salvo que haya un 401 de por
 #: medio —y un 401 llega rápido, no agota ningún timeout—.
+#:
+#: **Los catálogos maestros no están acá a propósito.** ``armar_payload``
+#: resuelve estado civil, provincia y localidad contra ellos, y con la caché
+#: fría eso eran tres GET más —45 s— dentro de «Aprobar», que ya gasta los 55 de
+#: presupuesto: no hay forma de declararlos y que la cuenta cierre. Por eso la
+#: llamada salió del request: el backoffice lee la copia local
+#: (``programas.models.CatalogoSiisLocal``, ``siis.catalogo_local``) y quien la
+#: mantiene al día es el CronJob nocturno. Lo ata
+#: ``programas.tests.test_llamadas_externas.CatalogosFueraDelRequestTests``: si
+#: alguien vuelve a enchufar ``Catalogos()`` en una vista, ese test se pone en
+#: rojo, que es lo que el presupuesto no puede ver por su cuenta.
 CADENAS = {
     "becas · aprobar un caso": ("siis.token", "siis.consulta", "siis.alta", "smtp"),
     "becas · rechazar un caso": ("siis.token", "siis.consulta", "smtp"),
