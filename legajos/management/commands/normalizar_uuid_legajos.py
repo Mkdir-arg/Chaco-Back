@@ -82,7 +82,19 @@ def fk_puesta(schema_editor, tabla, columna):
 
 
 def contar_en_el_formato_viejo(cursor, tabla, columna, largo_viejo):
-    cursor.execute(f"SELECT COUNT(*) FROM {tabla} WHERE CHAR_LENGTH({columna}) = {largo_viejo}")
+    """Cuántas filas de ``tabla.columna`` miden ``largo_viejo`` caracteres.
+
+    La tabla y la columna no se pueden parametrizar —no son valores, son
+    identificadores—, así que van citadas con `quote_name` y salen de las constantes
+    de `legajos.0007`, nunca de entrada del usuario. El único valor, el largo, sí va
+    como parámetro. Bandit igual marca el f-string (B608): no distingue un
+    identificador citado de una interpolación cualquiera, y por eso la excepción se
+    declara en la línea en vez de apagar la regla para todo el repo.
+    """
+    nombre_tabla = connection.ops.quote_name(tabla)
+    nombre_columna = connection.ops.quote_name(columna)
+    sql = f"SELECT COUNT(*) FROM {nombre_tabla} WHERE CHAR_LENGTH({nombre_columna}) = %s"  # nosec B608
+    cursor.execute(sql, [largo_viejo])
     return cursor.fetchone()[0]
 
 
