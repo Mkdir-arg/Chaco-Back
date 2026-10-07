@@ -8,12 +8,19 @@
 # en docker-compose.prod.yml), así que un deploy ya pone al día lo vencido; este
 # cron es la corrida periódica.
 #
-# INSTALACIÓN (una sola vez, en el host icore-srv, usuario `icore`):
-#   crontab -e     # y pegar la línea de abajo, junto a los crons ya existentes
-#                  # (generar_alertas / limpiar_alertas_conversaciones).
+# Desde OPS-07, una regla de vencimiento que falla ya no se lleva puestas a las demás:
+# cada una corre aislada, el traceback va al log y el comando igual termina en error al
+# final. El rojo de esta corrida es la única notificación que hay: hay que mirarlo.
 #
-# Sigue el mismo patrón que esos crons: `docker exec chaco-web-1` + log en
-# ~/cron-chaco.log. NO usar `sudo su` (la sesión de docker/git es del usuario icore).
+# INSTALACIÓN (una sola vez, en el host icore-srv, usuario `icore`):
+#   cp docker/cron/chaco-cron.sh ~/chaco-cron.sh && chmod +x ~/chaco-cron.sh
+#   crontab -e     # y pegar la línea de abajo, junto a los otros tres crons de
+#                  # docker/cron/ (generar_alertas, limpiar_alertas_conversaciones,
+#                  # sincronizar_programas_siis).
+#
+# Todos pasan por el mismo envoltorio (G3-05): candado `flock` para que dos corridas no
+# se solapen, `timeout` para que una colgada no quede para siempre, y fecha en el log.
+# NO usar `sudo su` (la sesión de docker/git es del usuario icore).
 #
 # ZONA HORARIA: el corte usa la hora Argentina de la app (localdate()), pero el
 # cron dispara en hora del HOST. Programalo bien pasada la medianoche ART.
@@ -21,4 +28,4 @@
 # Requiere que el contenedor `chaco-web-1` esté arriba (lo está: restart: unless-stopped).
 
 # m h  dom mon dow   command
-10 3 * * * docker exec chaco-web-1 python manage.py procesar_vencimientos >> ~/cron-chaco.log 2>&1
+10 3 * * * $HOME/chaco-cron.sh procesar_vencimientos 15m

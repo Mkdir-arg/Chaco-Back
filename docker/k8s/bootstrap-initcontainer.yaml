@@ -16,8 +16,12 @@
 #   - con `replicas > 1` el `migrate` va en `bootstrap-job.yaml`, que corre una sola
 #     vez antes del rollout, y acá también se pone `RUN_MIGRATIONS=false`.
 #
-# El candado `GET_LOCK('datanach_migrate', 900)` que volvería esto tolerante a fallas
-# está en OPS-07; hasta entonces, la regla es la de arriba.
+# Desde OPS-07 el arranque toma además un candado `GET_LOCK('datanach_bootstrap', 900)`
+# sobre una conexión dedicada, que envuelve la guarda de esquema, el `migrate` y el
+# sembrado (`manage.py bootstrap_lock`). Es una red, no un reemplazo de la regla de
+# arriba: serializa a los pods que arrancan a la vez, pero N pods migrando de a uno
+# siguen siendo N arranques lentos, y el que no consigue el candado en 900 s **aborta sin
+# migrar**. Quien decide quién migra sigue siendo el manifiesto.
 apiVersion: apps/v1
 kind: Deployment
 metadata:

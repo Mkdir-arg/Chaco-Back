@@ -68,6 +68,11 @@ services:
       # Django detras de login_required; sin este flag no hay ruta que los sirva.
       - SERVE_MEDIA=True
       # Cierra lo vencido en cada arranque (idempotente); el cron del host lo corre a diario.
+      # Corre **fuera** del candado de bootstrap y después de los seeds, a propósito: es
+      # idempotente, cada regla va en su propia transacción y desde OPS-07 ya no puede
+      # tirar abajo el arranque (los opcionales fallan con un AVISO y el entrypoint sigue).
+      # Que dos réplicas lo corran a la vez no rompe nada: las reglas filtran por «vencido
+      # y todavía por procesar», así que la segunda no encuentra pendientes.
       - LOCAL_OPTIONAL_BOOTSTRAP_COMMANDS=procesar_vencimientos
       - REDIS_HOST=redis
       - REDIS_PORT=6379

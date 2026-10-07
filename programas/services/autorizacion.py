@@ -12,10 +12,14 @@ El RBAC tiene alcance de *programa*, no de *segmento*; el alcance por segmento l
 aporta este módulo combinando la capacidad con ``AsignacionCoordinador``.
 """
 
+import logging
+
 from django.core.exceptions import ObjectDoesNotExist, PermissionDenied
 
 from core import rbac
 from programas.services.becas import coordinador_gestiona_segmento, get_segmentos_coordinador
+
+logger = logging.getLogger(__name__)
 
 CAP_ADMINISTRAR = "becas.programa.administrar"
 CAP_CAMPO = "becas.campo"
@@ -75,6 +79,37 @@ def programa_becas(user=None):
     if user is not None:
         user._programa_becas_cache = programa
     return programa
+
+
+def invalidar_programa_becas():
+    """Borra la clave cacheada del Programa Becas. **No falla si el cache no responde.**
+
+    La llama `seed_becas`, que corre en el **arranque del contenedor**, antes de que nadie
+    pueda usar el sistema. Desde OPS-12 los dos ambientes servidos usan Redis, así que un
+    Redis inalcanzable hacía que el `cache.delete` incondicional terminara el bootstrap en
+    exit 1 (`ConnectionInterrupted`) y el pod quedara en CrashLoopBackOff: un cache caído
+    pasaba a impedir el **arranque**, no solo a degradar el servicio.
+
+    Que la invalidación sea *best-effort* es correcto y acotado: lo peor que queda es que
+    otro proceso —uno que sí llegue al cache— siga viendo el `Programa` anterior hasta que
+    venza su TTL de 300 s. No se toca `programa_becas()`: ahí un cache caído **sí** tiene
+    que fallar fuerte, porque es un ambiente sirviendo tráfico con la infraestructura rota
+    y taparlo sería esconder una caída real.
+
+    Se atrapa `Exception` a propósito: el cliente de Redis traduce la falla a su propia
+    jerarquía (`redis.exceptions.*`, que `django_redis` re-lanza) y acá no se quiere
+    acoplar el seed a los tipos de un backend concreto.
+    """
+    from django.core.cache import cache
+
+    try:
+        cache.delete(_PROGRAMA_BECAS_CACHE_KEY)
+    except Exception as excepcion:  # noqa: BLE001 — ver el docstring
+        logger.warning(
+            "No se pudo invalidar la clave %s en el cache (%s): el arranque sigue y la clave vence sola en 300 s.",
+            _PROGRAMA_BECAS_CACHE_KEY,
+            type(excepcion).__name__,
+        )
 
 
 def _programa_o_denegar(user, programa=None):
