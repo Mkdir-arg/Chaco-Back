@@ -37,22 +37,10 @@ class UsuariosAdminService:
 
     @staticmethod
     def _programas_que_administra(user):
-        """IDs de programas que el usuario administra (rol activo programa=X + capacidad de admin).
-
-        Usa el mismo criterio que ``rbac.usuarios_que_administran_programa``: si
-        divergieran, el check de "no dejar el programa sin admin" se dispararía
-        contra un conjunto vacío y bloquearía la edición.
-        """
-        if not user.pk:
-            return set()
-        return set(
-            user.groups.filter(
-                meta__activo=True,
-                meta__categoria=rbac.CATEGORIA_PROGRAMA,
-                meta__programa__isnull=False,
-                permissions__codename__in=[rbac.codename_de(c) for c in rbac.CAPS_ADMIN_PROGRAMA],
-            ).values_list("meta__programa_id", flat=True)
-        )
+        """IDs de programas que el usuario administra (rol activo programa=X + capacidad
+        de admin). La consulta vive en ``core.rbac`` porque el alta masiva por CSV
+        necesita exactamente la misma (`import_users_from_csv`)."""
+        return rbac.programas_que_administra(user)
 
     @staticmethod
     def _apply_user_data(form, user):

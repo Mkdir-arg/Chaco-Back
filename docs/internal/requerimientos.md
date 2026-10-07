@@ -342,6 +342,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 169 | La API navegable de Legajos no da 500 y `/becas/` tiene índice | Legajos (APIs de ciudadanos y alertas) · Becas (raíz del módulo) · Transversal (APIs de geografía) | `#api` `#rbac` `#metodo` | QA (matias-abate) — pruebas sobre testing de ECOM, issue #521 (caso TC-OLA0-02) | 07/10/2026 | 🟢 **Hecho** | No requiere |
 | 170 | Las solapas se manejan con el teclado, las tarjetas de número dejan de escribirse a mano y hay un solo campo de formulario | Transversal (shell: teclado de solapas; piezas de tarjeta de número, campo de formulario y paginación) · Inicio del backoffice · Becas (tablero del programa, solapas de programa, convocatoria y relevamiento, modal de convocatorias) · Usuarios y roles (ABM de roles) · Dispositivos, Admisiones y Merenderos (campos de sus formularios) · Configuración (wizard: campo de color) | `#ui` `#metodo` | Auditoría integral oct-2026 — fichas FE-23, FE-24, lo que faltaba de FE-22 y de V5A-NEW-07 (b), más los tres MINOR de la revisión del PR 6b (Ola 5, PR 6c — **cierra la ola**) | 07/10/2026 | 🟢 **Hecho** | No requiere |
 | 171 | Se van los comandos que sembraban `admin`/`admin123` y el «debug» que vaciaba el Redis | Transversal (comandos de management, cuentas de sistema, seeds de demo, alta masiva por CSV) | `#infra` `#usuarios` `#sesion` `#metodo` | Auditoría integral oct-2026 — fichas OPS-02, G2-05 y G1c-12 (Ola 3, PR 3) | 07/10/2026 | 🟢 **Hecho** | No requiere |
+| 173 | Los campos propios del constructor llegan al Excel por persona y al dashboard de Becas | Becas (tablero del programa y su exportación «respuestas por persona») · Comandos de management (ratchets y alta masiva por CSV) | `#requisitos` `#performance` `#metodo` | Auditoría integral oct-2026 — ficha G2-01 y los cinco seguimientos de las revisiones de los PRs 1 y 3 (Ola 3, PR 8) | 07/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -24056,6 +24057,181 @@ PRD y dar de baja —o cambiarle la clave a— lo que haya quedado.
 `git revert` del commit. Vuelven los cuatro comandos tal como estaban y el
 `import_users_from_csv` sin guardas. No se pierde ningún dato: el PR no escribe en
 la base.
+
+## Historial
+No aplica (entrada nueva).
+
+---
+
+# Cambio 173 — Los campos propios del constructor llegan al Excel por persona y al dashboard de Becas
+
+🟢 **HECHO — 07/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas — reportes del programa (Excel «respuestas por persona» y tablero de respuestas) |
+| **Etiquetas** | `#requisitos` `#performance` `#metodo` |
+| **Solicitante** | Auditoría integral oct-2026 — ficha G2-01 (Ola 3, PR 8), más los cinco seguimientos de las revisiones de los PRs 1 y 3 de la ola |
+| **Fecha del pedido** | 07/10/2026 |
+| **Issue / épica** | Auditoría oct-2026, Ola 3 ítem 8 |
+| **Partes afectadas** | Backoffice (tablero del programa y su exportación) · Comandos de management · Documentación de la auditoría |
+| **Migración** | No requiere |
+
+## Pedido original
+**G2-01.** Desde el **Cambio 58** una convocatoria arma su formulario con el
+constructor y puede agregar **campos propios** (`cp-…`), que no están en el catálogo
+(`PreguntaGlobal` / `RequisitoNativo`) y cuya respuesta no tiene lugar en
+`Formulario.data`: vive en `Formulario.respuestas`, con la foto de la definición
+(`Formulario.definicion`) al lado. Los dos reportes de Becas —el Excel «respuestas por
+persona» (Cambio 65) y el tablero de respuestas del dashboard (Cambio 64)— leían
+`data`, así que **una convocatoria con preguntas propias exportaba planillas sin
+ellas** y su dashboard no tenía ninguna para graficar. Es exactamente el pendiente que
+el Cambio 58 había dejado escrito: «si algún día exportan respuestas, tienen que leer
+`respuestas` + la foto, no `data`». La ficha agrega una segunda mitad: el dashboard
+además **cuenta respuestas que el motor de condiciones ocultó**, y una respuesta a un
+campo que la persona nunca vio no es una respuesta (RN-6, D11).
+
+Con la ficha entraron cinco seguimientos chicos de las revisiones de los PRs 1 y 3 de
+esta misma ola, sin horas de plan propias: dos ratchets AST que miraban menos de lo
+que su nombre prometía, el `asegurar_admin_restante` acotado por programa del alta
+masiva por CSV, un snapshot del ejercicio de diseño que apuntaba a un parcial borrado
+y el techo del ratchet de `design_audit`, que decía 42 y medía 15.
+
+## Alcance acordado
+Entra: las columnas y los valores del Excel por persona desde la foto y `respuestas`;
+los campos propios de opciones cerradas en el catálogo graficable del dashboard y su
+extracción por SQL; el descarte de lo que una condición ocultó en los dos reportes; y
+los cinco seguimientos. Queda afuera: el botón CSV y `lxml` del mismo export (PERF-03,
+Ola 4), el arquetipo **Dashboard** del sistema de diseño (sigue pendiente: no se
+rediseñó ninguna pantalla) y `programas/services/` de reglas, cupo y revisión y los
+archivos de DNI/UUID, tomados por los PRs 2 y 6 de esta ola.
+
+## Decisiones tomadas
+- **Un solo espacio de claves, el del constructor.** El Excel pasa a identificar cada
+  columna por `pg-<pk>`, `rn-<pk>` o `cp-…` en vez de `global:<pk>` / `requisito:<pk>`.
+  Es lo que permite que un caso con foto (leído de `respuestas`) y uno anterior al
+  Cambio 58 (leído de `data`) caigan en la **misma** columna sin duplicarla, y es la
+  clave con la que ya vienen indexados los adjuntos.
+- **Las columnas salen de las fotos; el catálogo las completa.** El orden es el de la
+  pantalla que la persona tuvo delante, deduplicado por clave entre todas las fotos de
+  la convocatoria. El catálogo vigente aporta las que nadie respondió todavía, así una
+  convocatoria **sin casos** sigue exportando sus columnas, que es como venía siendo.
+- **Segunda pasada por lotes de 500 pks.** `respuestas` y `definicion` son las dos
+  columnas pesadas de la fila (la foto son ~7 KB) y están fuera de la consulta
+  principal desde el **Cambio 93**, porque traerlas había dado el 500 a los 10,4 s del
+  24/09. No se las devuelve ahí: se leen aparte, de a 500, que es lo que mantiene cada
+  consulta lejos del `read_timeout` de 10 s de ECOM. Para los encabezados alcanza con
+  **una** foto por `huella_definicion`.
+- **La ruta JSON va entre comillas y como parámetro.** `JSON_EXTRACT(respuestas,
+  '$."cp-xxx"')` con la misma técnica de `_ValorJson` del Cambio 92: `KeyTransform`
+  trata una clave numérica como índice de arreglo y en MariaDB devolvería NULL. La
+  clave se valida contra un patrón antes de armar la ruta.
+- **La condición se resuelve agrupando por sus fuentes, no caso por caso.** Para que
+  una respuesta oculta no cuente hay que evaluar el motor de condiciones, que depende
+  de las demás respuestas del caso. Evaluarlo caso por caso obliga a traer la foto de
+  los 20.000 casos y se pasa del `read_timeout`. En cambio se agrega al `GROUP BY` el
+  **cierre transitivo** de las claves de las que depende la visibilidad de la pregunta
+  (las fuentes de su condición, las de la de su grupo, y recursivamente las de esas), y
+  el motor se corre una vez por combinación distinta: sigue habiendo **una consulta por
+  pregunta**.
+- **El catálogo de campos propios sale del diseño vigente (`ItemDiseno`), no de las
+  fotos.** `preguntas_graficables` se arma en cada request del dashboard; leer las
+  fotos de todos los casos ahí es justo la consulta que el `read_timeout` no tolera.
+  La consecuencia es que un campo propio borrado del diseño deja de ofrecerse —el mismo
+  criterio que ya rige para `PreguntaGlobal` y `RequisitoNativo`— y lo ya respondido se
+  sigue listando como opción fuera de catálogo. Por lo mismo, la condición del
+  **dashboard** se evalúa con el plan vigente; la del **Excel**, con la foto de cada
+  caso, que ahí ya está leída.
+- **La clave `cp-…` viaja cruda al selector del dashboard**, sin un prefijo análogo a
+  `global:`: es la misma clave que está en el JSON, en la foto y en el diseño.
+- **El ratchet de comandos mira el objeto, no el nombre.** Detecta `.clear()` sobre
+  cualquier cosa que venga de `django.core.cache` —`cache`, `caches["default"]`,
+  `caches[alias]`, un alias de importación, `django.core.cache.cache`—, porque en
+  `django_redis` todos terminan en el mismo `FLUSHDB`. Y «tocar una clave» pasa a
+  incluir `make_password` y la asignación directa `usuario.password = …`: un comando
+  que escribe el hash a mano esquivaba el ratchet entero.
+- **`perf_ci_probe` entra al allowlist de credenciales con su motivo**, no se lo
+  exceptúa en silencio: le **copia el hash** a un usuario de sonda y su guarda es más
+  fuerte que `exigir_entorno_demo` (`PERFORMANCE_CI=1`, `ENVIRONMENT=ci`, MySQL y
+  `SELECT DATABASE()` contra `chaco_perf_ci`), igual que los otros tres del allowlist.
+- **La consulta de «qué programas administra este usuario» vive en `core/rbac.py`.**
+  El ABM la tenía como método privado de `UsuariosAdminService` y el alta masiva
+  necesitaba la misma: duplicarla es exactamente cómo el alcance de admin de programa
+  se desalinea (son cuatro lugares que se mueven juntos). `programas_que_administra`
+  queda al lado de `usuarios_que_administran_programa`, que es su contracara.
+- **El `id` duplicado se arregla con `auto_id`, no con `prefix`.** `prefix` cambia el
+  `name` del POST y obligaría a tocar la vista que lo procesa; `auto_id` cambia solo el
+  `id` del HTML.
+
+## Qué se implementó
+**Excel «respuestas por persona»** (`programas/services/dashboard_becas.py`):
+`_respuestas_de_los_casos` lee `(pk, respuestas, definicion)` por lotes de
+`LOTE_RESPUESTAS = 500`, memoiza los planos y los campos de cada foto por
+`huella_definicion`, corre el motor de condiciones por caso y devuelve las celdas ya
+legibles (`respuestas.legible`: fechas dd/mm/aaaa, sexo con su nombre, múltiple unida
+con « | »). `respuestas_por_persona` arma las columnas con el orden de las fotos +
+el catálogo + los extras («ya no está en el formulario»), y lo que la condición ocultó
+se saca también de lo que el contrato anterior había dejado en `data`.
+
+**Dashboard** (mismo archivo): `_preguntas_propias` suma al catálogo graficable los
+campos propios de tipo selector de los diseños de las convocatorias **en alcance**,
+con el nombre de la convocatoria en el origen (la clave `cp-` es única por diseño, así
+que dos convocatorias con la misma pregunta son dos entradas). `_expresion_respuesta`
+decide la columna por la forma de la clave; `_planos_del_diseno`, `_fuentes_de` y
+`_claves_que_condicionan` arman el cierre transitivo, y `_la_condicion_la_oculta` corre
+`condiciones.aplicar` por combinación. `respuesta_de` queda como la lectura única en
+Python de las dos formas.
+
+**Seguimientos:** `core/tests/test_comandos_peligrosos.py` estrena
+`vaciados_del_cache`, `asignaciones_de_clave` y `toca_claves` (con sus meta-tests, que
+son lo que fija que el ratchet ve lo que dice ver); `core/rbac.py` estrena
+`programas_que_administra` y `users/services/admin.py` delega en ella;
+`users/management/commands/import_users_from_csv.py` junta los programas que
+administraba cada cuenta pisada **antes** del `groups.set` y corre el check acotado
+además del global, dentro del mismo `atomic`, con los programas como objetos para que
+el mensaje diga el nombre y no el id; `VolverACampoForm` lleva `auto_id` propio; el
+snapshot `linea-base-agente-diseno/despues/03-merenderos-tipo-prestacion/` apunta al
+`components/_field.html` vivo, anotado en la línea y en el README de la carpeta; y
+`.design-audit-ratchet` baja de 42 a 15.
+
+## Base de datos
+No requiere migración: ninguna columna nueva y ningún cambio de forma de un JSON
+guardado. Los dos reportes **leen** `respuestas` y `definicion`, que existen desde el
+Cambio 58.
+
+## Validación
+- `manage.py check` y `manage.py check --deploy` → solo las advertencias de seguridad
+  preexistentes.
+- `manage.py makemigrations --check --dry-run` → «No changes detected».
+- Suite completa y `--tag performance` con Python 3.12 + Django 5.2.17 (`.venv312`).
+- Los tests nuevos **fallan antes del cambio**, medidos en un worktree de `HEAD`: 13 de
+  los 15 de `test_dashboard_campos_propios` (los dos que no, son el presupuesto de
+  consultas y el de permisos, que son guardas de regresión), los 2 de ids únicos de
+  `test_becas_relevamientos` y el de `asegurar_admin_restante` por programa.
+- `ruff check .` y `ruff format --check` sobre lo tocado.
+- No tocó templates, JS ni CSS de la app: el único `.html` del diff es un snapshot
+  dentro de `docs/`, que `design_audit.py` excluye. `compile_templates.py --bloques`
+  igual se corrió.
+
+## Puesta en marcha en el servidor
+Nada en el deploy: no hay migraciones, ni comandos nuevos, ni variables de entorno. El
+Excel por persona hace ahora una consulta más por cada 500 casos de la convocatoria;
+con los 20.000 del banco son 40 consultas chicas en vez de ninguna, y las dos columnas
+pesadas siguen fuera de la consulta principal.
+
+## Pendientes / a definir
+- El **arquetipo Dashboard** del sistema de diseño sigue pendiente: las dos tarjetas
+  con minigráfico y barra de progreso lo esperan (Cambio 170) y este PR no tocó UI.
+- El botón CSV y `lxml` para este mismo export son **PERF-03** (Ola 4), que la ficha
+  nombra como dependencia.
+- Un campo propio **borrado** del diseño deja de ofrecerse en el selector del
+  dashboard, aunque haya casos que lo respondieron. Si el ministerio lo pide, la
+  salida es un catálogo histórico por convocatoria, que no estaba en la ficha.
+
+## Reversión
+`git revert` del commit. Los dos reportes vuelven a leer `data` y a no mostrar los
+campos propios; el ratchet de comandos vuelve a mirar solo `cache.clear()`. No se
+pierde ningún dato: el PR no escribe en la base.
 
 ## Historial
 No aplica (entrada nueva).

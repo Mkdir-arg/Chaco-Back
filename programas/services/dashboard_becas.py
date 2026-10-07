@@ -30,6 +30,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import re
 from collections import Counter, defaultdict
 from dataclasses import asdict, dataclass, field
 from datetime import date, datetime, time, timedelta
@@ -43,6 +44,7 @@ from programas.models import (
     AdjuntoFormulario,
     Convocatoria,
     Formulario,
+    ItemDiseno,
     ListaEspera,
     OrigenRequisito,
     PreguntaGlobal,
@@ -52,6 +54,7 @@ from programas.models import (
     TipoCampo,
     ValidacionSIS,
 )
+from programas.services import condiciones
 from programas.services.autorizacion import (
     convocatorias_visibles,
     es_coordinador_regional_becas,
@@ -61,6 +64,7 @@ from programas.services.autorizacion import (
 )
 from programas.services.becas import get_campos_formulario
 from programas.services.reportes import Reporte
+from programas.services.respuestas import campos_de, huella_definicion, legible, planos_de
 
 logger = logging.getLogger(__name__)
 
@@ -72,6 +76,16 @@ SIN_LOCALIDAD = "Sin localidad"
 OTRAS_LOCALIDADES = "Otras"
 
 RELEVAMIENTOS_EN_CURSO = (Relevamiento.Estado.EN_CURSO, Relevamiento.Estado.FINALIZANDO)
+
+#: Clave de un campo propio del constructor (``nueva_clave("cp")`` = ``cp-`` + hex).
+#: Se valida antes de armar la ruta JSON y antes de decidir de qué columna se lee.
+_CLAVE_PROPIA = re.compile(r"^cp-[0-9A-Za-z_-]{1,48}$")
+#: El resto del espacio de claves del diseño: catálogo (``pg-``/``rn-``), grupos y textos.
+_CLAVE_DISENO = re.compile(r"^(?:pg|rn|g|t)-[0-9A-Za-z_-]{1,48}$")
+#: Tamaño del lote de la segunda pasada del Excel por persona (``respuestas`` y la
+#: foto son las dos columnas pesadas de la fila: de a 500 la consulta sigue siendo
+#: chica para el ``read_timeout`` de 10 s de ECOM).
+LOTE_RESPUESTAS = 500
 
 
 # ---------------------------------------------------------------------------
@@ -147,6 +161,11 @@ class Pregunta:
     origen: str
     opciones: list
     multiple: bool
+    #: Solo para un campo propio cuya visibilidad depende de una condición: los
+    #: ítems del diseño donde vive (``{clave, tipo, padre, condicion}``), para
+    #: descartar las respuestas que el motor de condiciones oculta. Vacío = la
+    #: pregunta se ve siempre y la cuenta agrupada en SQL ya es la correcta.
+    plan: tuple = ()
 
 
 @dataclass
@@ -716,6 +735,120 @@ def preguntas_graficables(user, programa):
         )
         for r in requisitos
     )
+    preguntas.extend(_preguntas_propias(user, programa))
+    return preguntas
+
+
+def _planos_del_diseno(items):
+    """``[{clave, tipo, padre, condicion}]`` en orden de pantalla, desde las filas
+    planas de ``ItemDiseno``: es lo que come el motor de condiciones.
+
+    Mismo contrato que :func:`programas.services.respuestas.planos_de`, que arma lo
+    mismo desde la **foto** de un caso. Acá la fuente es el diseño vigente porque el
+    catálogo del dashboard no mira caso por caso.
+    """
+    hijos = defaultdict(list)
+    for item in items:
+        if item.padre_id:
+            hijos[item.padre_id].append(item)
+
+    def orden(item):
+        return (item.orden, item.pk)
+
+    planos = []
+    for grupo in sorted((i for i in items if i.tipo == ItemDiseno.Tipo.GRUPO), key=orden):
+        planos.append({"clave": grupo.clave, "tipo": "grupo", "padre": None, "condicion": grupo.condicion})
+        for hijo in sorted(hijos[grupo.pk], key=orden):
+            tipo = "texto" if hijo.tipo == ItemDiseno.Tipo.TEXTO else "campo"
+            planos.append({"clave": hijo.clave, "tipo": tipo, "padre": grupo.clave, "condicion": hijo.condicion})
+    return planos
+
+
+def _fuentes_de(condicion):
+    """Las claves que lee una condición (``{modo, reglas: [{fuente, op, valor}]}``)."""
+    reglas = (condicion or {}).get("reglas")
+    if not isinstance(reglas, list):
+        return []
+    return [r["fuente"] for r in reglas if isinstance(r, dict) and isinstance(r.get("fuente"), str) and r["fuente"]]
+
+
+def _claves_que_condicionan(plan, clave):
+    """Cierre transitivo de las claves de las que depende que ``clave`` se vea.
+
+    Son las fuentes de su propia condición y las del grupo que la contiene, más —
+    recursivamente— las de los ítems que esas fuentes necesitan: una fuente oculta
+    cuenta como vacía, así que su visibilidad también entra en la cuenta. Devuelve
+    las claves en el orden del plan, sin la propia.
+    """
+    por_clave = {p["clave"]: p for p in plan}
+    pendientes, vistas, necesarias = [clave], set(), set()
+    while pendientes:
+        actual = pendientes.pop()
+        if actual in vistas:
+            continue
+        vistas.add(actual)
+        item = por_clave.get(actual)
+        if item is None:
+            continue
+        if item.get("padre"):
+            pendientes.append(item["padre"])
+        for fuente in _fuentes_de(item.get("condicion")):
+            necesarias.add(fuente)
+            pendientes.append(fuente)
+    necesarias.discard(clave)
+    return tuple(p["clave"] for p in plan if p["clave"] in necesarias)
+
+
+def _preguntas_propias(user, programa):
+    """Campos propios del constructor (``cp-…``) de opciones cerradas, de los diseños
+    de las convocatorias en alcance (G2-01).
+
+    No están en el catálogo (`PreguntaGlobal` / `RequisitoNativo`): viven en el
+    diseño de **una** convocatoria y su respuesta no tiene lugar en ``data``, solo en
+    ``Formulario.respuestas``. Por eso el dashboard los ignoraba enteros desde el
+    Cambio 58 y una convocatoria con preguntas propias no tenía ninguna graficable.
+
+    La clave (``cp-`` + hex de ``uuid4``) es única en todo el repo, así que dos
+    convocatorias con la misma pregunta son dos entradas distintas; el origen lleva el
+    nombre de la convocatoria para poder distinguirlas en el selector.
+    """
+    convocatorias = convocatorias_visibles(user).filter(segmento__programa=programa)
+    items = list(
+        ItemDiseno.objects.filter(diseno__convocatoria__in=convocatorias)
+        .select_related("diseno__convocatoria")
+        .order_by("diseno_id", "orden", "id")
+    )
+    por_diseno = defaultdict(list)
+    for item in items:
+        por_diseno[item.diseno_id].append(item)
+
+    selectores = set(TipoCampo.selectores())
+    preguntas = []
+    for del_diseno in por_diseno.values():
+        con_condicion = {i.pk for i in del_diseno if i.condicion}
+        planos = None
+        for item in del_diseno:
+            propio = item.propio if isinstance(item.propio, dict) else None
+            if item.tipo != ItemDiseno.Tipo.CAMPO or propio is None or not _CLAVE_PROPIA.match(item.clave):
+                continue
+            if propio.get("tipo") not in selectores:
+                continue
+            # Oculto solo puede estar si algo lo condiciona: su propia regla o la del
+            # grupo que lo contiene (un hijo de un grupo oculto está oculto).
+            condicionado = item.pk in con_condicion or item.padre_id in con_condicion
+            if condicionado and planos is None:
+                planos = tuple(_planos_del_diseno(del_diseno))
+            preguntas.append(
+                Pregunta(
+                    clave=item.clave,
+                    texto=item.titulo,
+                    tipo=TipoCampo(propio["tipo"]).label,
+                    origen=f"Campo propio · {item.diseno.convocatoria.nombre}",
+                    opciones=_opciones_texto(propio.get("opciones")),
+                    multiple=propio["tipo"] == TipoCampo.SELECTOR_MULTIPLE,
+                    plan=planos if condicionado else (),
+                )
+            )
     return preguntas
 
 
@@ -773,14 +906,20 @@ def _ambito_y_pk(clave):
     return ("globales" if ambito == "global" else "requisitos"), str(pk)
 
 
-def respuesta_de(data, clave):
+def respuesta_de(documento, clave):
     """**Única** lectura de la respuesta de un formulario a una pregunta a partir del
-    documento completo (``Formulario.data``). La pasada masiva usa
-    :func:`_expresion_respuesta`, que extrae la misma clave en SQL; las dos deben
-    coincidir. Cuando entre el constructor (#326) y las respuestas pasen a
-    ``respuestas`` + ``definicion``, estos dos puntos son los únicos a tocar."""
+    documento completo. La pasada masiva usa :func:`_expresion_respuesta`, que extrae
+    la misma clave en SQL; las dos deben coincidir.
+
+    Dos espacios de claves conviven (G2-01): una del catálogo (``global:<pk>`` /
+    ``requisito:<pk>``) se lee de ``Formulario.data``, bajo ``globales`` o
+    ``requisitos``; un campo propio del constructor (``cp-…``) no tiene lugar ahí y se
+    lee de ``Formulario.respuestas``, donde la clave está en la raíz.
+    """
+    if _CLAVE_PROPIA.match(clave):
+        return _valores_de(_como_dict(documento).get(clave))
     bolsa, pk = _ambito_y_pk(clave)
-    return _valores_de(_como_dict(_como_dict(data).get(bolsa)).get(pk))
+    return _valores_de(_como_dict(_como_dict(documento).get(bolsa)).get(pk))
 
 
 class _ValorJson(Func):
@@ -796,8 +935,20 @@ class _ValorJson(Func):
 
 
 def _expresion_respuesta(clave):
-    """``data -> 'globales'|'requisitos' -> '<pk>'`` como expresión SQL: el motor
-    devuelve solo el valor de la pregunta en vez del documento entero."""
+    """La respuesta a ``clave`` como expresión SQL: el motor devuelve solo ese valor en
+    vez del documento entero.
+
+    - Catálogo (``global:<pk>`` / ``requisito:<pk>``): ``data -> globales|requisitos -> <pk>``.
+    - Clave del constructor (``cp-…``, ``pg-<pk>``, ``rn-<pk>``): ``respuestas -> <clave>``,
+      en la raíz del documento.
+
+    La ruta va siempre **entre comillas**: ``KeyTransform`` trata una clave numérica
+    como índice de arreglo y en MariaDB devolvería NULL (§0.2 de la auditoría). La ruta
+    viaja como parámetro (``Value``), no concatenada al SQL, y la clave está validada
+    contra un patrón antes de llegar acá.
+    """
+    if _CLAVE_PROPIA.match(clave) or _CLAVE_DISENO.match(clave):
+        return _ValorJson(F("respuestas"), Value(f'$."{clave}"'))
     bolsa, pk = _ambito_y_pk(clave)
     return _ValorJson(F("data"), Value(f'$."{bolsa}"."{int(pk)}"'))
 
@@ -856,21 +1007,45 @@ def distribuciones_respuestas(user, programa, filtros, claves=None, alcance=None
     resultado = []
     for pregunta in catalogo:
         conteo, base = Counter(), 0
+        # Una pregunta que una condición puede ocultar se agrupa **también** por las
+        # claves de las que depende, así el motor sigue devolviendo una fila por
+        # combinación distinta (no una por caso) y la condición se evalúa en Python
+        # una vez por combinación. Evaluarla caso por caso obligaría a traer la foto
+        # de los 20.000 casos y se pasa del read_timeout.
+        fuentes = _claves_que_condicionan(pregunta.plan, pregunta.clave) if pregunta.plan else ()
+        anotaciones = {f"fuente_{i}": _expresion_respuesta(clave) for i, clave in enumerate(fuentes)}
         grupos = (
-            formularios.annotate(valor=_expresion_respuesta(pregunta.clave))
-            .values("valor")
+            formularios.annotate(valor=_expresion_respuesta(pregunta.clave), **anotaciones)
+            .values("valor", *anotaciones)
             .annotate(total=Count("pk"))
-            .values_list("valor", "total")
+            .values_list("valor", *anotaciones, "total")
         )
-        for valor, total in grupos:
+        for fila in grupos:
+            valor, total = fila[0], fila[-1]
             valores = _valores_de(valor)
             if not valores:
+                continue
+            if fuentes and _la_condicion_la_oculta(pregunta, fuentes, valor, fila[1:-1]):
                 continue
             base += total
             for v in valores if pregunta.multiple else valores[:1]:
                 conteo[v] += total
         resultado.append(_armar_distribucion(pregunta, conteo, base))
     return resultado
+
+
+def _la_condicion_la_oculta(pregunta, fuentes, valor, valores_fuente):
+    """¿El motor de condiciones esconde esta pregunta con estas respuestas? (RN-6)
+
+    Se corre el motor completo sobre el plan del diseño con las respuestas de las
+    claves que importan: las que están fuera del cierre no cambian si la pregunta se
+    ve o no. Una respuesta a un campo que la persona nunca vio no es una respuesta y
+    no entra en la distribución.
+    """
+    respuestas = {clave: v for clave, v in zip(fuentes, valores_fuente) if v not in (None, "", [], {})}
+    respuestas[pregunta.clave] = valor
+    _, ocultos, _ = condiciones.aplicar(list(pregunta.plan), respuestas)
+    return pregunta.clave in ocultos
 
 
 def distribucion_respuestas(user, programa, filtros, clave, alcance=None, catalogo=None):
@@ -1113,6 +1288,8 @@ def _relevamientos_de(convocatoria):
 # datetimes por fila que nadie mira— era la mitad del tiempo de Python del export
 # (banco MySQL, 25/09/2026). ``respuestas``, ``definicion`` y ``datos_siis`` quedan
 # afuera: eran lo más pesado de cada fila y pasaban el read_timeout (500, 24/09/2026).
+# ``respuestas`` y ``definicion`` entran en una **segunda pasada por lotes de pk**
+# (G2-01, :func:`_respuestas_de_los_casos`), que es lo que trae los campos propios.
 _COLUMNAS_CASO = (
     "pk",
     "relevamiento_id",
@@ -1141,21 +1318,82 @@ _COLUMNAS_CASO = (
 )
 
 
+def _texto_legible(item, valor):
+    """El valor de una respuesta como celda de la planilla: fechas en dd/mm/aaaa, el
+    sexo con su nombre y la selección múltiple unida con « | » (misma lectura que la
+    pantalla de revisión, :func:`programas.services.respuestas.legible`)."""
+    texto = legible(item, valor)
+    if isinstance(texto, list):
+        return " | ".join(str(v) for v in texto if v not in (None, "", [], {}))
+    return str(texto)
+
+
+def _respuestas_de_los_casos(pks):
+    """Segunda pasada del Excel por persona: ``{pk: {clave: celda}}``, ``{pk: ocultas}``
+    y los campos de las fotos, en orden y deduplicados por clave (G2-01).
+
+    ``respuestas`` y ``definicion`` son las dos columnas pesadas del caso (la foto son
+    ~7 KB) y por eso no viajan en la consulta principal: se leen **por lotes de pk**,
+    que es lo que mantiene cada consulta lejos del ``read_timeout`` de 10 s de ECOM.
+    Para los encabezados alcanza con **una** foto por ``huella_definicion``: todos los
+    casos que respondieron el mismo diseño traen exactamente los mismos campos.
+
+    Lo que una condición ocultó no es una respuesta y no va a la planilla: sale de la
+    celda y, si el contrato anterior lo había guardado en ``data``, también de ahí.
+    """
+    celdas, ocultas_por_caso, campos, orden = {}, {}, {}, []
+    planos_por_huella, campos_por_huella = {}, {}
+    for inicio in range(0, len(pks), LOTE_RESPUESTAS):
+        lote = pks[inicio : inicio + LOTE_RESPUESTAS]
+        for pk, respuestas, foto in (
+            Formulario.objects.filter(pk__in=lote).order_by().values_list("pk", "respuestas", "definicion")
+        ):
+            respuestas = _como_dict(respuestas)
+            foto = foto if isinstance(foto, dict) else {}
+            huella = huella_definicion(foto) if foto else ""
+            if huella and huella not in planos_por_huella:
+                planos_por_huella[huella] = planos_de(foto)
+                campos_por_huella[huella] = {c["clave"]: c for c in campos_de(foto)}
+                for clave, campo in campos_por_huella[huella].items():
+                    if clave not in campos:
+                        campos[clave] = campo
+                        orden.append(clave)
+            if not respuestas:
+                continue
+            del_caso = campos_por_huella.get(huella, {})
+            _, ocultos, _ = condiciones.aplicar(planos_por_huella.get(huella, []), respuestas)
+            ocultas_por_caso[pk] = ocultos
+            valores = {}
+            for clave, valor in respuestas.items():
+                if clave in ocultos:
+                    continue
+                texto = _texto_legible(del_caso.get(clave) or {}, valor)
+                if texto:
+                    valores[clave] = texto
+            celdas[pk] = valores
+    return celdas, ocultas_por_caso, campos, orden
+
+
 def respuestas_por_persona(convocatoria):
     """Base cruda de una convocatoria: **un registro por caso** (formulario enviado,
     en cualquier estado) con los datos del relevamiento, de la persona y **una columna
     por cada pregunta** del formulario, más las preguntas que ya no están en el
     formulario pero fueron respondidas en su momento.
 
-    Devuelve ``(Reporte, texto_de_alcance)``. La definición del formulario es la misma
-    que ven la app de campo y el link público (:func:`get_campos_formulario`), así
-    que las columnas coinciden con lo que la persona completó. Las respuestas de
-    selección múltiple se unen con « | »; los adjuntos muestran el nombre del archivo.
-    El alcance por rol lo controla la vista: acá la convocatoria ya está autorizada.
+    Devuelve ``(Reporte, texto_de_alcance)``. Las columnas salen de las **fotos** de la
+    definición que respondieron los casos (``Formulario.definicion``), que es lo que la
+    persona tuvo delante, completadas con el catálogo vigente
+    (:func:`get_campos_formulario`) para que una convocatoria sin casos siga
+    exportando sus columnas. Los valores salen de ``Formulario.respuestas`` —la única
+    fuente que tiene los **campos propios** del constructor (``cp-…``), que no caben en
+    ``data``— y, para los casos anteriores al Cambio 58 que todavía no tienen foto, del
+    ``data`` de siempre. Las respuestas de selección múltiple se unen con « | »; los
+    adjuntos muestran el nombre del archivo. El alcance por rol lo controla la vista:
+    acá la convocatoria ya está autorizada.
     """
     globales, requisitos = get_campos_formulario(convocatoria)
-    definicion = [(f"global:{p.pk}", p, "Pregunta general") for p in globales] + [
-        (f"requisito:{r.pk}", r, "Requisito") for r in requisitos
+    definicion = [(f"pg-{p.pk}", p, "Pregunta general") for p in globales] + [
+        (f"rn-{r.pk}", r, "Requisito") for r in requisitos
     ]
     en_definicion = {clave for clave, _, _ in definicion}
 
@@ -1166,7 +1404,7 @@ def respuestas_por_persona(convocatoria):
         .order_by()
         .values_list("formulario_id", "pregunta_global_id", "requisito_nativo_id", "archivo")
     ):
-        clave = f"global:{pg_id}" if pg_id else f"requisito:{rn_id}"
+        clave = f"pg-{pg_id}" if pg_id else f"rn-{rn_id}"
         adjuntos.setdefault(form_id, {}).setdefault(clave, []).append(_nombre_archivo(archivo))
 
     relevamientos = _relevamientos_de(convocatoria)
@@ -1204,31 +1442,44 @@ def respuestas_por_persona(convocatoria):
         ]
         data = _como_dict(f["data"])
         contestadas = {}
-        for bolsa, ambito in (("globales", "global"), ("requisitos", "requisito")):
+        for bolsa, prefijo in (("globales", "pg"), ("requisitos", "rn")):
             for pk, valor in _como_dict(data.get(bolsa)).items():
-                clave = f"{ambito}:{pk}"
                 valores = _valores_de(valor)
                 if valores:
-                    contestadas[clave] = " | ".join(valores)
-                    if clave not in en_definicion:
-                        extra_claves.add(clave)
+                    contestadas[f"{prefijo}-{pk}"] = " | ".join(valores)
         casos.append((f["pk"], base, contestadas))
+
+    # Segunda pasada: ``respuestas`` + la foto. Lo que dice la foto manda sobre lo que
+    # el contrato anterior dejó en ``data`` (las dos se escriben juntas, pero solo la
+    # primera tiene los campos propios y ya pasó por el motor de condiciones).
+    celdas, ocultas, campos_foto, orden_foto = _respuestas_de_los_casos([pk for pk, _, _ in casos])
+    for pk, _base, contestadas in casos:
+        for clave in ocultas.get(pk, ()):
+            contestadas.pop(clave, None)
+        contestadas.update(celdas.get(pk, {}))
+        extra_claves.update(clave for clave in contestadas if clave not in en_definicion and clave not in campos_foto)
 
     # Preguntas respondidas que ya no están en el formulario: se conservan como columnas propias.
     extras = []
     if extra_claves:
-        pg_ids = [int(c.split(":")[1]) for c in extra_claves if c.startswith("global:") and c.split(":")[1].isdigit()]
-        rn_ids = [
-            int(c.split(":")[1]) for c in extra_claves if c.startswith("requisito:") and c.split(":")[1].isdigit()
-        ]
-        textos = {f"global:{p.pk}": p.texto for p in PreguntaGlobal.objects.filter(pk__in=pg_ids)}
-        textos.update({f"requisito:{r.pk}": r.texto for r in RequisitoNativo.objects.filter(pk__in=rn_ids)})
-        for clave in sorted(extra_claves):
-            extras.append(
-                (clave, f"{textos.get(clave, 'Pregunta #' + clave.split(':')[1])} (ya no está en el formulario)")
-            )
 
-    columnas = [(clave, _texto_columna(campo, prefijo)) for clave, campo, prefijo in definicion] + extras
+        def pks_de(prefijo):
+            return [int(c[3:]) for c in extra_claves if c.startswith(f"{prefijo}-") and c[3:].isdigit()]
+
+        textos = {f"pg-{p.pk}": p.texto for p in PreguntaGlobal.objects.filter(pk__in=pks_de("pg"))}
+        textos.update({f"rn-{r.pk}": r.texto for r in RequisitoNativo.objects.filter(pk__in=pks_de("rn"))})
+        for clave in sorted(extra_claves):
+            extras.append((clave, f"{textos.get(clave, 'Pregunta ' + clave)} (ya no está en el formulario)"))
+
+    # Columnas: el orden de la pantalla (las fotos de los casos, deduplicadas por
+    # clave), después lo que el catálogo de hoy pide y nadie respondió todavía —una
+    # convocatoria sin casos sigue exportando sus columnas— y al final los extras.
+    del_catalogo = {clave: _texto_columna(campo, prefijo) for clave, campo, prefijo in definicion}
+    columnas = [
+        (clave, del_catalogo.get(clave) or campos_foto[clave].get("texto", "") or clave) for clave in orden_foto
+    ]
+    columnas += [(clave, texto) for clave, texto in del_catalogo.items() if clave not in campos_foto]
+    columnas += extras
     # Dos preguntas con el mismo texto (una general y un requisito) no pueden confundirse en la planilla.
     repetidos = Counter(texto for _, texto in columnas)
     encabezados_preguntas = [f"{texto} [{clave}]" if repetidos[texto] > 1 else texto for clave, texto in columnas]

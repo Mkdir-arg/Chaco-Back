@@ -27,7 +27,7 @@ después a los agentes reescritos (`despues/`, paso 6). El método está en `ane
 | `antes/<n>-<pantalla>/<template>.html` | El template tal como lo entregó el agente **de antes**, literal |
 | `antes/<n>-<pantalla>/design_audit.txt` | `scripts/design_audit.py <template>` — hallazgos P1. **Medido con el template fuera de `docs/`** (ver el aviso de abajo) |
 | `antes/<n>-<pantalla>/arquetipo.txt` | `scripts/design_audit.py --arquetipo <a> <template>` — marcadores |
-| `despues/<n>-<pantalla>/<template>.html` | El template tal como lo entregó el agente **reescrito**, literal |
+| `despues/<n>-<pantalla>/<template>.html` | El template tal como lo entregó el agente **reescrito**, literal (una excepción anotada: ver abajo) |
 | `despues/<n>-<pantalla>/plan.txt` | El *Plan de pantalla* que declaró el agente antes del primer `Write` |
 | `despues/<n>-<pantalla>/design_audit.txt` y `arquetipo.txt` | Las mismas dos mediciones que en `antes/` |
 | `despues/<n>-<pantalla>/revision.md` | Dictamen de `chaco-design-reviewer`, en sesión independiente |
@@ -36,6 +36,13 @@ después a los agentes reescritos (`despues/`, paso 6). El método está en `ane
 
 Los `.html` de acá **no son templates de la app**: no están en ningún directorio de templates, no los ve
 `compile_templates.py` y `design_audit.py` excluye `docs/` entero, así que no cuentan como deuda del repo.
+
+> **Único retoque sobre lo entregado (07-oct-2026, Ola 3 PR 8).**
+> `despues/03-merenderos-tipo-prestacion/tipo_prestacion_form.html` incluía
+> `programas/becas/_field.html`, que FE-23 borró al unificar el campo en
+> `templates/components/_field.html`: el snapshot apuntaba a un archivo que ya no existe. Se cambió el include y
+> quedó anotado con un `{# … #}` en la línea. No altera la medición de la pantalla (0 P1, 1 desvío de arquetipo) ni
+> la conclusión del ejercicio; el dictamen de `revision.md`, que cita la línea original, se deja como se escribió.
 
 > ⚠️ **Esa misma exclusión vuelve inservible medirlos donde están.** `design_audit.py <archivo>` y `--ratchet`
 > apuntados a una ruta de `docs/` auditan **cero archivos** y aun así imprimen `0 error(es), 0 P1, 0 warning(s)` con

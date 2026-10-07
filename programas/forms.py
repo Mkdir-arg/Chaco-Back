@@ -1840,7 +1840,16 @@ class VolverACampoForm(forms.Form):
         label="Nueva fecha hasta",
     )
 
+    #: El detalle del relevamiento muestra este form y el de reprogramar a la vez, y
+    #: los dos tienen un campo `fecha_hasta`: con el `auto_id` de Django quedaban dos
+    #: `id="id_fecha_hasta"` y dos `id="id_fecha_hasta-error"` en la misma página, así
+    #: que el `<label for>` apuntaba al control del otro form y el lector de pantalla
+    #: leía el error equivocado. Solo cambia el `id` del HTML: el `name` del POST sigue
+    #: siendo `fecha_hasta` y la vista que lo procesa no se entera.
+    AUTO_ID = "id_volver_%s"
+
     def __init__(self, *args, convocatoria=None, **kwargs):
+        kwargs.setdefault("auto_id", self.AUTO_ID)
         super().__init__(*args, **kwargs)
         self.convocatoria = convocatoria
         if convocatoria is not None:
