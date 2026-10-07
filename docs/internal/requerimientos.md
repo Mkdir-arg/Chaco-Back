@@ -338,6 +338,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 164 | La red de seguridad del front: lo que no estaba probado, el toggle que prometía de más y las URLs escritas a mano | Dispositivos (admisiones) · Merenderos (entregas, detalle y estado) · Transversal (shell: toggle de tema y campana de alertas) · Legajos (detalle del ciudadano) · Becas (carga de padrón) | `#metodo` `#ui` `#api` `#rbac` | Auditoría integral oct-2026 — fichas RED-33, RED-75 y las segundas partes de RED-42 y RED-53 (Ola 5, PR 8) | 07/10/2026 | 🟢 **Hecho** (D-RED-07 = A aplicada por default) | No requiere |
 | 166 | Los listados de afuera de Becas dejan de ser cada uno su propio diseño: encabezado, tabla, estado vacío y paginación canónicos | Usuarios y roles (listado de usuarios, listado y detalle de roles) · Configuración (provincias, municipios, localidades, secretarías, subsecretarías y programas) | `#ui` `#usuarios` `#metodo` | Auditoría integral oct-2026 — fichas FE-11, FE-12 y FE-17 (Ola 5, PR 6a — primer lote del PR más grande de la ola) | 07/10/2026 | 🟡 **Parcial** (las tres fichas cierran Usuarios, Roles y Configuración; `legajos/ciudadano_list` y el resto van en el PR 6b) | No requiere |
 | 167 | Legajos, Configuración y las páginas de error dejan el diseño paralelo: la pieza de paginación aprende a convivir y el shell legacy se borra | Legajos (listado de ciudadanos) · Configuración (formularios, borrados y wizard de programas) · Becas (cupo, convocatorias y relevamientos: paginación de solapas) · Transversal (pieza de paginación, páginas 403/404/500, shell legacy) | `#ui` `#metodo` | Auditoría integral oct-2026 — fichas FE-11, FE-12, FE-17 y FE-20 (Ola 5, PR 6b — segundo lote; con esto el PR 6 cierra) | 07/10/2026 | 🟢 **Hecho** (las cuatro fichas cierran; FE-23 y FE-24 pasan a un PR 6c) | No requiere |
+| 169 | La API navegable de Legajos no da 500 y `/becas/` tiene índice | Legajos (APIs de ciudadanos y alertas) · Becas (raíz del módulo) · Transversal (APIs de geografía) | `#api` `#rbac` `#metodo` | QA (matias-abate) — pruebas sobre testing de ECOM, issue #521 (caso TC-OLA0-02) | 07/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -23317,3 +23318,101 @@ decide el PM.
   `componentes/paginacion.md`, `arquetipos/detalle.md`, `arquetipos/formulario.md`,
   `componentes/filtros.md` y la fila «Shell legacy» del núcleo) van en el cuerpo del PR: la sesión
   implementadora no tiene permiso de escritura ahí y los aplica el juez.
+
+---
+
+# Cambio 169 — La API navegable de Legajos no da 500 y `/becas/` tiene índice
+
+🟢 **HECHO — 07/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Legajos · Becas · Transversal |
+| **Etiquetas** | `#api` `#rbac` `#metodo` |
+| **Solicitante** | QA (matias-abate) — pruebas sobre testing de ECOM, 06/10/2026 |
+| **Fecha del pedido** | 06/10/2026 |
+| **Issue / épica** | #521 (caso de prueba TC-OLA0-02) |
+| **Partes afectadas** | Backoffice · Servidor/API |
+| **Migración** | No requiere |
+
+## Pedido original
+Dos bugs del mismo recorrido de QA: abrir `/api/legajos/ciudadanos/` desde el
+navegador devuelve **500** (`TemplateDoesNotExist: django_filters/rest_framework/form.html`),
+y `/becas/` devuelve **404** a cualquier usuario de backoffice, incluido un
+superusuario.
+
+## Alcance acordado
+Entra: la app `django_filters` en `INSTALLED_APPS` y la ruta raíz de Becas, con
+sus tests. Queda afuera: tocar el menú «Programas» del sidebar (sigue igual),
+crear una pantalla de tablero propia para Becas, y cualquier cambio en los
+`filterset_fields` o en los permisos de las APIs.
+
+## Decisiones tomadas
+- **`django_filters` va en `INSTALLED_APPS`, no se saca `DjangoFilterBackend`.**
+  El paquete ya estaba en `requirements.txt` y seis ViewSets lo declaran; lo que
+  faltaba era que el cargador de templates por directorios de app encontrara
+  `django_filters/rest_framework/form.html`. Sacar el backend hubiera apagado los
+  filtros que la app de campo y el front usan. La app **no trae modelos ni
+  migraciones**: no mueve el esquema, así que no toca la guarda de
+  `verificar_esquema_migraciones` (R-15) ni el expand/contract.
+- **El bug solo se veía desde el navegador.** Con `Accept: application/json` DRF
+  usa `JSONRenderer` y no dibuja formulario de filtros; el 500 aparecía solo con
+  `Accept: text/html`, que es lo que manda un browser. Por eso ningún consumidor
+  real lo detectó y el test permanente pide las URLs con `HTTP_ACCEPT="text/html"`.
+- **`/becas/` redirige, no renderiza.** Becas no tiene pantalla de tablero propia:
+  el índice manda al primer listado que el usuario puede ver, con **el mismo orden
+  que ya usa el link «Programas» del sidebar colapsado** (segmentos → convocatorias
+  → relevamientos → revisión). No se inventa un criterio nuevo ni se toca el menú.
+- **Los bordes se resuelven con `@requiere`, como el resto de Becas.** Anónimo va
+  al login; un usuario de backoffice sin ninguna de las cuatro capacidades vuelve a
+  `core:inicio` con el mensaje de siempre (o JSON 403 si la petición es AJAX).
+  Nunca un 404 ni un 500.
+- **`HistorialContactoViewSet` también declara `DjangoFilterBackend` pero no tiene
+  URL** (su router se borró con LEG-03): no se puede pedir por HTTP, así que no
+  entra en el test de la página navegable. El reporte de QA lo mencionaba; el
+  código manda.
+
+## Implementación
+- Abrir cualquiera de las APIs del backoffice con filtros desde el navegador
+  (`/api/legajos/ciudadanos/`, `/api/legajos/alertas/`, `/api/core/municipios/`,
+  `/api/core/localidades/`) muestra la página navegable de DRF con su formulario
+  de filtros, en vez de un 500. Las respuestas JSON no cambian.
+- `/becas/` lleva al primer listado de Becas que el usuario puede ver. Las APIs
+  siguen detrás de login: anónimo no ve nada.
+
+## Archivos
+- `config/settings.py` — `"django_filters"` en `INSTALLED_APPS`, con el motivo.
+- `programas/views/inicio_becas.py` (nuevo) — la vista índice de Becas.
+- `programas/urls.py` — `path("", ini.inicio, name="inicio")`.
+- `core/tests/test_api_navegable.py` (nuevo) — test permanente del 500.
+- `programas/tests/test_inicio_becas.py` (nuevo) — test permanente del 404.
+
+## Base de datos
+No requiere. `django_filters` no define modelos ni migraciones.
+
+## Validación
+- `manage.py check` → sin issues. `manage.py check --deploy` (con `SIIS_API_URL`
+  definida, como en el CI) → solo las 5 advertencias de seguridad preexistentes.
+- `manage.py makemigrations --check --dry-run` → «No changes detected».
+- Suite completa y `--tag performance` con Python 3.12 + Django 5.2.17.
+- Los dos tests fallan antes del arreglo: `TemplateDoesNotExist` en los 8 casos de
+  la API navegable, y `404 != 302` / `NoReverseMatch` en los 6 de `/becas/`.
+- `ruff check .` y `ruff format --check` sobre lo tocado.
+- No tocó UI (ni templates, ni JS, ni CSS): no corresponde `design_audit`.
+
+## Puesta en marcha en el servidor
+Nada más que el deploy. No hay variables nuevas ni comandos manuales.
+
+## Pendientes / a definir
+- `HistorialContactoViewSet` sigue sin URL: o se le da una o se borra el módulo
+  (queda donde lo dejó LEG-03).
+- Si en algún momento Becas tiene una pantalla de tablero propia, el índice pasa a
+  apuntarle a ella en vez de redirigir al primer listado.
+
+## Reversión
+Sacar `"django_filters"` de `INSTALLED_APPS` y la ruta `""` de `programas/urls.py`
+(con sus tests). Vuelve el 500 de la página navegable y el 404 de `/becas/`. No se
+pierde ningún dato.
+
+## Historial
+No aplica (entrada nueva).
