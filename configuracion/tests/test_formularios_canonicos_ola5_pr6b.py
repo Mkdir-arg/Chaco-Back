@@ -118,7 +118,8 @@ class FormulariosCanonicosTests(SimpleTestCase):
         for ruta in FORMULARIOS:
             with self.subTest(ruta=ruta):
                 contenido = texto(ruta)
-                self.assertIn('{% include "programas/becas/_field.html" %}', contenido)
+                # FE-23: la pieza se mudó de Becas a `templates/components/`.
+                self.assertIn('{% include "components/_field.html" %}', contenido)
                 self.assertNotIn("id_for_label", contenido)
                 self.assertNotIn("field.errors", contenido)
 

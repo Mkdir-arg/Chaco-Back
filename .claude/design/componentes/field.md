@@ -1,34 +1,47 @@
-# Componente · Campo de formulario (`_field.html`, `nodo-field`, `.nodo-checks`)
+# Componente · Campo de formulario (`components/_field.html`, `nodo-field`, `.nodo-checks`)
 
-**Clasificación:** Canónico reutilizable.
-**Evidencia:** `programas/templates/programas/becas/_field.html`,
-`static/custom/css/nodo-forms.css`, `programas/forms.py` (`INPUT_CLASS`).
-**Consumidores de referencia:** `programas/templates/programas/becas/config/segmento_form.html`,
-`programas/templates/programas/becas/revision/formulario_detalle.html` (modal de corrección).
+**Clasificación:** Canónico reutilizable. Pieza única.
+**Evidencia:** `templates/components/_field.html`, `static/custom/css/nodo-forms.css`,
+`core/templatetags/nodo_ui.py` (`campo_control`, `campo_wrapper_class`),
+`programas/forms.py` (`INPUT_CLASS`).
+**Consumidores de referencia:** `programas/templates/programas/becas/config/segmento_form.html`
+(golden del arquetipo Formulario), `configuracion/templates/configuracion/secretaria_form.html`.
 
-El include vive en Becas pero es **transversal**: se incluye desde esa ruta desde cualquier
-módulo. (Está previsto moverlo a `templates/components/`; hasta entonces, se usa donde está y
-**no se copia** un `_field.html` propio por módulo.)
+Es **una sola pieza para todo el repo**. Hasta FE-23 había dos —una en Becas y otra en
+Dispositivos, con otro dialecto de label—: las dos se borraron.
 
 ## Invocación
 
 ```django
-{% for field in form %}{% include "programas/becas/_field.html" %}{% endfor %}
+{% for field in form %}{% include "components/_field.html" %}{% endfor %}
+{% with field=form.nombre %}{% include "components/_field.html" %}{% endwith %}
 ```
+
+| Parámetro | Efecto |
+|---|---|
+| `field` | `BoundField` (obligatorio) |
+| `wrapper_class` | clases del contenedor; por defecto `mb-4`. Un formulario cuya grilla ya separa con `gap`/`space-y` pasa `wrapper_class=""` |
 
 Render de cada campo:
 
 ```html
 <div class="mb-4">
   <label class="block text-sm font-medium text-heading mb-1" for="…">Etiqueta <span class="text-fg-danger">*</span></label>
-  {{ field }}
-  <p class="mt-1 text-xs text-body-subtle">ayuda</p>
-  <p class="mt-1 text-xs text-fg-danger">error</p>
+  <input class="nodo-field" aria-describedby="id_campo-ayuda" …>
+  <p id="id_campo-ayuda" class="mt-1 text-xs text-body-subtle">ayuda</p>
+  <p id="id_campo-error" class="mt-1 text-xs text-fg-danger hidden" data-error="campo"></p>
 </div>
 ```
 
 - El asterisco sale de `field.field.required`, no se escribe a mano.
 - La ayuda va en `text-body-subtle`; el rojo queda **solo** para el error.
+- **El `<p>` del error está siempre**, con `data-error="<campo>"` y oculto mientras no haya
+  texto: es donde el guardado AJAX (`programas/templates/programas/becas/_ajax_js.html`) lo
+  escribe sin recargar.
+- **ARIA:** `aria-describedby` apunta a la ayuda, y suma el error **solo cuando hay error**
+  (si no, cada campo se leería con una descripción vacía); con errores el control lleva
+  además `aria-invalid="true"`. Lo pone `{% campo_control field %}`, porque una plantilla no
+  puede llamar a `BoundField.as_widget(attrs=…)`.
 
 ## La clase del control la pone el widget
 
@@ -71,14 +84,8 @@ En un modal con guardado AJAX el campo se escribe a mano para poder enganchar el
 
 ## Prohibido
 
-- Labels con valores arbitrarios: `block text-[13px] font-semibold mb-1.5` es el dialecto de
-  `programas/templates/programas/dispositivos/config/_field.html`, que **duplica** esta pieza. No
-  se copia; esa pantalla se migra cuando se la toque.
+- Un `_field.html` propio por módulo. Hay **uno solo**, y labels con valores arbitrarios
+  (`block text-[13px] font-semibold mb-1.5`, el dialecto que tenía Dispositivos) no vuelven.
 - `class="nodo-field"` escrito en el template sobre un control que sale del form.
 - Label sin `for`.
 - Validar en el template: la validación vive en el Django Form y en los servicios.
-
-## Deuda conocida
-
-El include todavía no emite `aria-describedby` ni `aria-invalid` para enlazar el error con el
-control. Está previsto; hasta entonces se usa tal cual y no se inventa otra forma.

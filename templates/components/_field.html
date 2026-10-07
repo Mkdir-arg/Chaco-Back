@@ -1,0 +1,24 @@
+{% comment %}
+Campo de formulario del backoffice: label, control, ayuda y error (FE-23). Pieza
+única y transversal: antes vivía en Becas (`programas/becas/_field.html`) y Dispositivos
+tenía su propia copia con otro dialecto de label.
+  {% for field in form %}{% include "components/_field.html" %}{% endfor %}
+  {% with field=form.nombre %}{% include "components/_field.html" %}{% endwith %}
+Contexto:
+  field          BoundField (obligatorio).
+  wrapper_class  clases del contenedor; por defecto «mb-4». Un formulario cuya
+                 grilla ya separa con `gap`/`space-y` pasa `wrapper_class=""`.
+El `<p>` del error está siempre, con `data-error="<campo>"` y oculto mientras no
+haya texto: es donde el guardado AJAX (`programas/becas/_ajax_js.html`) escribe
+el error del campo sin recargar la página. El control sale de `{% templatetag openblock %} campo_control {% templatetag closeblock %}`,
+que le cuelga `aria-describedby` hacia la ayuda y el error y `aria-invalid` con
+errores; la clase `nodo-field` sigue viniendo del widget del form.
+{% endcomment %}{% load nodo_ui %}
+<div class="{% campo_wrapper_class %}">
+  <label class="block text-sm font-medium text-heading mb-1" for="{{ field.id_for_label }}">
+    {{ field.label }}{% if field.field.required %} <span class="text-fg-danger">*</span>{% endif %}
+  </label>
+  {% campo_control field %}
+  {% if field.help_text %}<p id="{{ field.auto_id }}-ayuda" class="mt-1 text-xs text-body-subtle">{{ field.help_text }}</p>{% endif %}
+  <p id="{{ field.auto_id }}-error" class="mt-1 text-xs text-fg-danger{% if not field.errors %} hidden{% endif %}" data-error="{{ field.name }}">{{ field.errors|join:" " }}</p>
+</div>
