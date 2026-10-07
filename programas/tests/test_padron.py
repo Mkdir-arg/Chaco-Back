@@ -974,6 +974,30 @@ def _apoderado_dni_aceptado(dni):
     return "apoderado_dni" not in serializer.errors
 
 
+def _dni_de_usuario_aceptado(dni):
+    """¿El ABM de usuarios acepta ese DNI en un alta? (RED-48, la novena puerta.)
+
+    `Profile.dni` es un `CharField(max_length=8)`, así que esta puerta no solo tiene que
+    aceptar lo mismo que las otras: también tiene que **guardar** los dígitos. Lo
+    segundo lo mide `users/tests/test_dni_usuario.py` contra el motor real, donde el
+    `max_length` existe de verdad.
+    """
+    from users.forms import UserCreationForm
+
+    form = UserCreationForm(
+        data={
+            "username": f"puerta_{dni}",
+            "email": "puerta@example.com",
+            "password": "clave-segura-123",
+            "first_name": "A",
+            "last_name": "B",
+            "dni": dni,
+        }
+    )
+    form.is_valid()
+    return "dni" not in form.errors
+
+
 class DniValidoTests(TestCase):
     """RED-48: «DNI válido» es una sola regla, y todas las puertas la usan.
 
@@ -1014,11 +1038,56 @@ class DniValidoTests(TestCase):
                 CiudadanosService.extract_dni_from_cuit(f"20{dni.zfill(8)}3")
             ),
             "FormularioSerializer.apoderado_dni": _apoderado_dni_aceptado,
+            "UserCreationForm (ABM de usuarios)": _dni_de_usuario_aceptado,
         }
         for nombre, puerta in puertas.items():
             for dni, esperado in self.CASOS:
                 with self.subTest(puerta=nombre, dni=dni):
                     self.assertEqual(bool(puerta(dni)), esperado)
+
+    def test_toda_puerta_que_acepta_un_dni_con_puntos_lo_deja_en_digitos(self):
+        """RED-48, ronda 3: validar normalizado y **guardar crudo** es un 500 esperando.
+
+        `dni_valido()` normaliza antes de medir, así que `12.345.678` pasa. Si después
+        la puerta deja el valor crudo, lo que llega a la columna son diez caracteres: en
+        `users_profile.dni`, que es `char(8)`, eso es un
+        `DataError (1406, "Data too long")`. SQLite no aplica el `max_length` y no lo ve,
+        por eso el barrido es acá: **lo que cada puerta devuelve ya tiene que ser
+        dígitos**.
+        """
+        from legajos.forms import CiudadanoManualForm, ConsultaRenaperForm
+        from portal.forms.ciudadano import RegistroStep1Form
+        from portal.forms.inscripcion import InscripcionPaso1Form
+        from programas.forms import BusquedaCiudadanoDNIForm
+        from users.forms import UserCreationForm
+
+        con_puntos = "12.345.678"
+
+        def _limpio(clase, extra=None):
+            form = clase(data={"dni": con_puntos, **(extra or {})})
+            form.is_valid()
+            return form.cleaned_data.get("dni")
+
+        puertas = {
+            "InscripcionPaso1Form": lambda: _limpio(InscripcionPaso1Form),
+            "RegistroStep1Form": lambda: _limpio(RegistroStep1Form),
+            "BusquedaCiudadanoDNIForm": lambda: _limpio(BusquedaCiudadanoDNIForm),
+            "ConsultaRenaperForm": lambda: _limpio(ConsultaRenaperForm),
+            "CiudadanoManualForm": lambda: _limpio(CiudadanoManualForm),
+            "UserCreationForm": lambda: _limpio(
+                UserCreationForm,
+                {
+                    "username": "puerta_cruda",
+                    "email": "puerta@example.com",
+                    "password": "clave-segura-123",
+                    "first_name": "A",
+                    "last_name": "B",
+                },
+            ),
+        }
+        for nombre, puerta in puertas.items():
+            with self.subTest(puerta=nombre):
+                self.assertEqual(puerta(), "12345678")
 
     def test_el_padron_descarta_la_fila_con_la_misma_regla(self):
         """La puerta que **no** avisa: la fila entra a `rechazadas` y nadie la ve."""

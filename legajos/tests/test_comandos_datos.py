@@ -77,6 +77,33 @@ class NormalizarUuidLegajosTests(SimpleTestCase):
         self.assertIs(comando_uuid.quitar_fk_si_existe, migraciones.quitar_fk_si_existe)
         self.assertIs(comando_uuid.crear_fk_si_falta, migraciones.crear_fk_si_falta)
 
+    def test_el_error_del_update_gana_al_1452_de_reponer_la_foreign_key(self):
+        """Si el `UPDATE` se corta a mitad, las huérfanas impiden reponer la FK.
+
+        Está bien que el `ADD CONSTRAINT` falle —para eso existe la FK—, pero el error
+        que tiene que ver quien corre el comando es el **original**, no el 1452 que es
+        su consecuencia.
+        """
+        from unittest.mock import patch
+
+        from django.db import DatabaseError
+
+        original = DatabaseError("2013 Lost connection during query")
+        comando = comando_uuid.Command()
+        pendientes = [("legajos_legajoatencion", "id", 1)]
+
+        with (
+            patch.object(comando_uuid, "quitar_fk_si_existe", return_value="fk_vieja"),
+            patch.object(comando_uuid, "crear_fk_si_falta", side_effect=DatabaseError("1452 huérfanas")),
+            patch.object(comando_uuid.connection, "schema_editor"),
+            patch.object(comando_uuid, "migracion") as migracion,
+        ):
+            migracion.return_value._normalizar_uuid.side_effect = original
+            with self.assertRaises(DatabaseError) as capturado:
+                comando._normalizar(pendientes, con_guiones=True)
+
+        self.assertIs(capturado.exception, original)
+
 
 @tag("mysql")
 class NormalizarUuidLegajosMotorRealTests(TransactionTestCase):
@@ -192,12 +219,14 @@ def _al_formato_viejo(columna, con_guiones):
 
 
 class ListarDniNoNormalizadosTests(TestCase):
+    """P-17: las dos poblaciones con DNI —ciudadanos y usuarios de backoffice—."""
+
     def _correr(self, *args):
         salida = StringIO()
         call_command("listar_dni_no_normalizados", *args, stdout=salida)
         return salida.getvalue()
 
-    def _con_dni(self, dni, nombre="Con", apellido="Puntos"):
+    def _ciudadano_con_dni(self, dni, nombre="Con", apellido="Puntos"):
         """Escribe la columna sin pasar por `save()`, que desde G1c-08 normaliza.
 
         Es la única forma de reproducir lo que ya está cargado en la base.
@@ -207,29 +236,35 @@ class ListarDniNoNormalizadosTests(TestCase):
         ciudadano.refresh_from_db()
         return ciudadano
 
+    def _usuario_con_dni(self, dni, username="legacy"):
+        from django.contrib.auth.models import User
+
+        from users.models import Profile
+
+        usuario = User.objects.create_user(username, password="x", first_name="Ope", last_name="Rador")
+        perfil, _ = Profile.objects.update_or_create(user=usuario, defaults={"dni": dni})
+        return perfil
+
     def test_sin_dni_problematicos_no_reporta_nada(self):
         Ciudadano.objects.create(dni="30123456", nombre="A", apellido="B")
+        self._usuario_con_dni("30111222")
 
         self.assertIn("Ningún DNI fuera de la regla única", self._correr())
 
     def test_lista_el_dni_con_separadores_y_marca_la_colision(self):
-        self._con_dni("12.345.678")
+        self._ciudadano_con_dni("12.345.678")
         gemelo = Ciudadano.objects.create(dni="12345678", nombre="Sin", apellido="Puntos")
 
         salida = self._correr()
 
         self.assertIn("[separadores]", salida)
-        self.assertIn(f"colisiona con el ciudadano {gemelo.pk}", salida)
-        self.assertIn("1 con separadores", salida)
+        self.assertIn(f"colisiona con ciudadano {gemelo.pk}", salida)
+        self.assertIn("1 ciudadano(s) fuera de la regla única: 1 con separadores", salida)
 
     def test_lista_tambien_los_numericos_de_largo_invalido(self):
-        """La otra mitad: son justo los que este PR frena en el alta a SIIS.
-
-        El barrido por `[^0-9]` no los veía, y son los que el PM necesita contar
-        antes del deploy.
-        """
-        self._con_dni("123456", nombre="Corto")
-        self._con_dni("1234567890", nombre="Largo")
+        """La otra mitad: son justo los que este PR frena en el alta a SIIS."""
+        self._ciudadano_con_dni("123456", nombre="Corto")
+        self._ciudadano_con_dni("1234567890", nombre="Largo")
         Ciudadano.objects.create(dni="30123456", nombre="Bien", apellido="Formado")
 
         salida = self._correr()
@@ -238,14 +273,26 @@ class ListarDniNoNormalizadosTests(TestCase):
         self.assertIn("2 con un largo fuera de (7, 8)", salida)
         self.assertNotIn("Bien", salida)
 
+    def test_cuenta_aparte_los_usuarios_de_backoffice(self):
+        """La novena puerta (ronda 3): el PM necesita medir cuántos usuarios afecta."""
+        self._ciudadano_con_dni("123456", nombre="Corto")
+        self._usuario_con_dni("123456", username="legacy_corto")
+
+        salida = self._correr()
+
+        self.assertIn("1 ciudadano(s) fuera de la regla única", salida)
+        self.assertIn("1 usuario(s) de backoffice fuera de la regla única", salida)
+        self.assertIn("usuario	", salida)
+        self.assertIn("ciudadano	", salida)
+
     def test_un_dni_puede_estar_mal_por_los_dos_motivos(self):
-        self._con_dni("1.234.56")
+        self._ciudadano_con_dni("1.234.56")
 
         self.assertIn("[separadores+largo]", self._correr())
 
     def test_la_salida_de_pantalla_enmascara_el_documento(self):
         """Es un listado para mirar: alcanza con reconocer la ficha y tener su id."""
-        ciudadano = self._con_dni("12.345.678")
+        ciudadano = self._ciudadano_con_dni("12.345.678")
 
         salida = self._correr()
 
@@ -255,17 +302,22 @@ class ListarDniNoNormalizadosTests(TestCase):
 
     def test_el_csv_trae_las_columnas_declaradas_y_el_documento_entero(self):
         """El CSV es el insumo con el que el área cruza las fichas (P-17)."""
-        self._con_dni("12.345.678")
+        self._ciudadano_con_dni("12.345.678")
+        self._usuario_con_dni("123456", username="legacy_csv")
 
         salida = self._correr("--csv")
 
         self.assertEqual(salida.splitlines()[0], ",".join(COLUMNAS_LISTADO))
         self.assertIn("12.345.678", salida)
+        self.assertIn("usuario,", salida)
 
     def test_el_comando_no_toca_nada(self):
-        sucio = self._con_dni("12.345.678")
+        sucio = self._ciudadano_con_dni("12.345.678")
+        perfil = self._usuario_con_dni("123456", username="legacy_intacto")
 
         self._correr()
 
         sucio.refresh_from_db()
+        perfil.refresh_from_db()
         self.assertEqual(sucio.dni, "12.345.678")
+        self.assertEqual(perfil.dni, "123456")

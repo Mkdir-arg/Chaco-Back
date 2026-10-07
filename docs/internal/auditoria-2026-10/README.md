@@ -38,6 +38,17 @@ choca con la `@property` sin setter, y el `schema_editor` adentro de un `TestCas
 de largo inválido, que son justo los que el PR frena. Y el ratchet de RED-48, extendido a `scripts/` y a las
 reglas escritas como expresión regular, encontró la **novena** puerta: el DNI del usuario de backoffice.
 
+**Ronda 3 (1 BLOCKER, 1 MAJOR y 4 MINOR, todos corregidos).** Esa novena puerta estaba a medias y el agujero era
+de los que solo se ven contra el motor real: el ABM de usuarios **validaba normalizado y guardaba crudo**, y
+`Profile.dni` es un `CharField(max_length=8)`, así que `12.345.678` era un
+`DataError (1406, "Data too long for column 'dni'")` —un **500**— en MariaDB y en MySQL, invisible en SQLite.
+Queda normalizado, con test `@tag("mysql")` contra los dos motores, y el barrido del resto de las puertas
+encontró una más del mismo patrón (`ConsultaRenaperForm` limitaba a 8 el valor crudo). De ahí sale el invariante
+nuevo: **toda puerta que acepta un DNI con puntos tiene que devolverlo en dígitos**. Además, el usuario con DNI
+legacy vuelve a ser editable —la misma regla que se eligió para `Ciudadano`—, `listar_dni_no_normalizados` barre
+también `users_profile` y cuenta las dos poblaciones por separado, y el `finally` del comando de UUID dejó de
+prometer que las foreign keys vuelven siempre.
+
 **Abierto (para el PR siguiente del carril):** los puntos 3 y 4 de DAT-01 —texto del modal de
 `_requisitos_panel.html` y `protegido=True` para `ADJUNTOS_OBLIGATORIOS` en `seed_becas`, con su migración de
 datos—, los dos con su contenido exacto escrito en el cuerpo del PR; y la **fase 2** de DAT-01

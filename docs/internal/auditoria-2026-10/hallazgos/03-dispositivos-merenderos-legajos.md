@@ -218,9 +218,13 @@ avisa por `messages` qué pasa y quién puede corregirlo, que es el canal que se
 (b) `listar_dni_no_normalizados` barría solo por `[^0-9]` y **no veía los DNI numéricos de largo inválido**, que
 son justo los que este cambio frena: ahora lista los dos grupos con su conteo por motivo, y la salida de
 pantalla enmascara el documento (el CSV lo trae entero, que es para lo que existe).
+**Ronda 3:** `listar_dni_no_normalizados` barre también `users_profile.dni` —la novena puerta de RED-48— y
+cuenta las dos poblaciones por separado, para que el PM pueda medir cuántos usuarios afecta el cambio antes del
+deploy; y el descarte dejó de usar un `dni__regex` con el largo interpolado, que esquivaba el ratchet.
 **Test permanente:** `legajos.tests.test_ciudadanos_identidad` (`DniNormalizadoTests`,
 `ConfirmacionRenaperTests`, `EdicionDeIdentidadTests`, `DniLegacyEnLaEdicionTests`, `ExisteConDniTests`;
-26 tests) y `legajos.tests.test_comandos_datos.ListarDniNoNormalizadosTests`.
+26 tests), `legajos.tests.test_comandos_datos.ListarDniNoNormalizadosTests` y
+`users.tests.test_dni_usuario.DniLegacyDelUsuarioTests`.
 
 ## BAJA
 

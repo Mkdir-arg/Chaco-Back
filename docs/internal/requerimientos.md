@@ -24183,7 +24183,13 @@ No aplica (entrada nueva).
    quién puede corregirlo— va por `messages`, que es el canal que sí se ve sin tocar el template.
 10. **El DNI del usuario de backoffice entra en la regla única** (ronda 2). Era la novena puerta, escrita como
    `RegexField(r"^\d{6,8}$")`. El DNI de 6 dígitos que deja de aceptarse corresponde a personas nacidas antes
-   de 1930; sigue siendo opcional, como fijó el Cambio 5.
+   de 1930; sigue siendo opcional, como fijó el Cambio 5. **Ronda 3:** se guarda normalizado —`Profile.dni` es
+   `char(8)` y el valor crudo con puntos es un 1406— y la regla se exige solo si el DNI cambia o es un alta,
+   igual que en `Ciudadano`.
+11. **Una puerta que acepta un DNI con puntos tiene que devolverlo en dígitos** (ronda 3). Validar normalizado y
+   guardar crudo es un 500 esperando a que la columna sea corta: es lo que pasó con `users_profile.dni`. El
+   barrido de todas las puertas está en
+   `programas.tests.test_padron.DniValidoTests.test_toda_puerta_que_acepta_un_dni_con_puntos_lo_deja_en_digitos`.
 
 ## Qué se hizo
 
@@ -24210,10 +24216,15 @@ al revés. Un alta o un `save(update_fields=[...])` sin el DNI **no agrega ni un
 padrón se borra el que quedó sin dueño, y al quitar el padrón propio el archivo sobrevive si la transacción se
 cae.
 
-**V2-NEW-05.** `manage.py normalizar_uuid_legajos` (con `--revisar`, que solo informa) vuelve a ponerle los
-guiones a las cuatro columnas UUID de Legajos. Le pide la función a la migración (`_normalizar_uuid`) en vez de
-copiarla, y es idempotente —el `UPDATE` solo toca filas de largo 32—. Queda nombrado en el paso 3 del runbook
-D.4 de `processes.md`, que es donde hacía falta.
+**V2-NEW-05.** `manage.py normalizar_uuid_legajos` deja las cuatro columnas UUID de Legajos en el formato
+que el ORM consulta **en este motor**: 36 con guiones en MariaDB 10.7+, 32 en hexadecimal en MySQL —un dump
+de ECOM restaurado en icore está en el caso inverso—. Para poder escribir la columna referenciada **baja las
+dos foreign keys antes del `UPDATE` y las repone después**, igual que `legajos.0007` y con sus mismas
+funciones (`quitar_fk_si_existe` y `crear_fk_si_falta` de `core/migraciones.py`) más su `_normalizar_uuid`:
+sin eso el `UPDATE` sobre `legajos_legajoatencion.id` muere con un `1451` y no normaliza nada. No declara ni
+una columna ni un nombre de FK propios. **No escribe nada sin `--aplicar`** —sin la bandera informa y
+termina— y es idempotente: el `UPDATE` solo toca las filas del largo equivocado. Queda nombrado en el paso 3
+del runbook D.4 de `processes.md`, que es donde hacía falta.
 
 **G1c-08.** `CiudadanoForm.clean_dni` normaliza y valida (lo heredan Manual, Confirmar y Update);
 `CiudadanosService.existe_con_dni` mira también las fichas cargadas con separadores;
@@ -24269,10 +24280,12 @@ llevarse los documentos.
 3. **DAT-01 fase 2** — `RequisitoNativo.activo` y D-D01: hoy un requisito en uso no se puede ni borrar ni
    desactivar.
 4. **P-17, operativo** — correr `listar_dni_no_normalizados` contra PRD y pasarle la lista al área para que
-   decida qué legajos se unen. El comando no toca nada y ahora informa los dos grupos por separado.
+   decida qué legajos se unen. El comando no toca nada e informa por separado los dos motivos y las dos
+   poblaciones (ciudadanos y usuarios de backoffice).
 5. **Riesgo de deploy declarado** — el cambio de `siis_envio` frena el alta de los casos cuyo ciudadano tenga un
-   DNI fuera de 7-8 dígitos, y el ABM de usuarios deja de aceptar un DNI de 6. Antes de desplegar, el conteo
-   «con un largo fuera de (7, 8)» de `listar_dni_no_normalizados` es el número a mirar.
+   DNI fuera de 7-8 dígitos, y el ABM de usuarios deja de aceptar un DNI de 6 **nuevo** (los que ya están
+   cargados se siguen pudiendo editar). Antes de desplegar, los dos conteos «con un largo fuera de (7, 8)» de
+   `listar_dni_no_normalizados` son los números a mirar.
 
 ## Reversión
 
@@ -24313,3 +24326,24 @@ los que ninguna fila referenciaba.
   backoffice en `users/forms` validaba **6 a 8** dígitos con un `RegexField`. Queda unificado.
   **(7)** El receptor de DAT-03 ya no dispara con un `Ciudadano` leído con `.only()`/`.defer()` sin el DNI: antes
   pagaba la consulta diferida **y** un `UPDATE` que no cambiaba ninguna fila. Lo mismo en `Ciudadano.save()`.
+- **07/10/2026, ronda 3** — la novena puerta que abrió la ronda 2 estaba a medias.
+  **(1) BLOCKER:** el ABM de usuarios **validaba normalizado y guardaba crudo**. `dni_valido()` normaliza antes
+  de medir, así que `12.345.678` pasaba; `_sync_profile` lo escribía tal cual en `Profile.dni`, que es un
+  `CharField(max_length=8)`, y MariaDB y MySQL responden `DataError (1406, "Data too long for column 'dni'")`:
+  un **500** en el alta de usuarios. SQLite no aplica el `max_length`, así que la suite normal no lo veía. Ahora
+  `_validar_dni_perfil_usuario` **normaliza** —como `CiudadanoForm.clean_dni`— y hay un test `@tag("mysql")` que
+  da de alta y edita con el DNI tipeado con puntos contra los dos motores. El barrido del resto de las puertas
+  encontró una más del mismo patrón: `ConsultaRenaperForm.dni` tenía `max_length=8` sobre el valor **crudo**, así
+  que `12.345.678` moría con «asegúrese de que tenga menos de 8 caracteres» —ni la regla del sistema ni lo que
+  hacen las otras ocho puertas—; el límite se fue y la regla la aplica `clean_dni`. Lo fija
+  `test_toda_puerta_que_acepta_un_dni_con_puntos_lo_deja_en_digitos`, que exige que **lo que cada puerta devuelve
+  ya sean dígitos**.
+  **(2)** Un usuario de backoffice con un DNI legacy de 6 dígitos no se podía editar sin tocar el DNI —ni el rol,
+  ni el correo—: se aplica la **misma** regla que en `Ciudadano`, validar solo si el DNI cambia o es un alta.
+  **(3)** `listar_dni_no_normalizados` barre ahora las **dos** tablas con DNI —`legajos_ciudadano` y
+  `users_profile`— y las cuenta por separado, que es lo que el PM necesita para medir el impacto antes del
+  deploy; el descarte dejó de usar un `dni__regex` con el largo interpolado (esquivaba el ratchet de RED-48) y
+  la decisión es una sola, `core.dni`, aplicada fila por fila.
+  **(4)** El `finally` de `normalizar_uuid_legajos` ya no promete que las FK vuelven siempre: si el `UPDATE` se
+  cortó entre el padre y el hijo quedan huérfanas y el `ADD CONSTRAINT` falla con un 1452 —y está bien que
+  falle—, pero ese 1452 no puede tapar el error original, así que se registra y se deja pasar el primero.

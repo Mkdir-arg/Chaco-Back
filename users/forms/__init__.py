@@ -4,7 +4,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.utils.text import slugify
 
 from core import rbac
-from core.dni import MENSAJE_DNI_INVALIDO, dni_valido
+from core.dni import MENSAJE_DNI_INVALIDO, dni_valido, normalizar_dni
 
 
 def _normalize_groups_data(data):
@@ -55,22 +55,16 @@ def _normalize_groups_args(args, kwargs):
 _INPUT_ABM = "nodo-field"
 
 
-def _validar_dni_de_usuario(valor):
-    """La regla única del repo, aplicada al DNI del usuario de backoffice (RED-48)."""
-    if valor and not dni_valido(valor):
-        raise forms.ValidationError(MENSAJE_DNI_INVALIDO)
-
-
 def _agregar_campos_perfil_usuario(form):
     # RED-48: el DNI del usuario de backoffice también es un DNI. Era la **novena**
     # regla del repo —6 a 8 dígitos, escrita como regex, que es por donde el ratchet de
-    # `len()` no la veía— y pasa a la única (`core.dni.dni_valido`). El de 6 dígitos que
-    # deja de aceptarse corresponde a personas nacidas antes de 1930: no hay operadores
-    # así. Sigue siendo opcional (`required=False`): el Cambio 5 permite usuarios sin DNI.
+    # `len()` no la veía— y pasa a la única (`core.dni.dni_valido`). Sigue siendo
+    # opcional (`required=False`): el Cambio 5 permite usuarios sin DNI. La
+    # normalización y la regla de largo viven en `_validar_dni_perfil_usuario`, que es
+    # el único lugar que puede comparar con lo que la fila ya tiene guardado.
     form.fields["dni"] = forms.CharField(
         required=False,
         label="DNI",
-        validators=[_validar_dni_de_usuario],
         widget=forms.TextInput(attrs={"class": _INPUT_ABM, "placeholder": "Ingrese el DNI", "inputmode": "numeric"}),
     )
     form.fields["telefono"] = forms.CharField(
@@ -98,10 +92,38 @@ def _agregar_campos_perfil_usuario(form):
                 form.fields[campo].initial = getattr(perfil, campo, "") or ""
 
 
-def _validar_dni_perfil_usuario(form):
+def _dni_guardado_del_perfil(instancia):
+    """El DNI que la fila ya tiene, o ``None`` si es un alta o no hay perfil.
+
+    Se lee de la base y no de `instancia.profile`: la relación puede venir cacheada de
+    antes de que el perfil existiera, y entonces el legacy no se reconocería.
+    """
     from users.models import Profile
 
-    dni = form.cleaned_data.get("dni") or None
+    if not (instancia and instancia.pk):
+        return None
+    return Profile.objects.filter(user=instancia).values_list("dni", flat=True).first()
+
+
+def _validar_dni_perfil_usuario(form):
+    """Normaliza el DNI del perfil, lo valida y comprueba que no esté repetido.
+
+    **Normalizar es obligatorio, no cosmético** (RED-48, ronda 3): `Profile.dni` es un
+    `CharField(max_length=8)`, así que guardar `12.345.678` crudo —diez caracteres—
+    muere en MariaDB y MySQL con un `DataError (1406, "Data too long for column 'dni'")`,
+    que es un **500**. En SQLite el `max_length` no se aplica y no se ve; lo mide
+    `users/tests/test_dni_usuario_motor_real.py` contra los dos motores.
+
+    La regla de largo se exige **solo si el DNI cambia o es un alta**, igual que en
+    `CiudadanoForm.clean_dni`: exigirla siempre dejaba inmodificable a cualquier usuario
+    con un DNI legacy de 6 dígitos —no se podía ni cambiarle el rol ni el correo—.
+    """
+    from users.models import Profile
+
+    dni = normalizar_dni(form.cleaned_data.get("dni")) or None
+    anterior = _dni_guardado_del_perfil(form.instance)
+    if dni and not dni_valido(dni) and dni != anterior:
+        form.add_error("dni", MENSAJE_DNI_INVALIDO)
     duplicado = Profile.objects.filter(dni=dni) if dni else Profile.objects.none()
     if form.instance and form.instance.pk:
         duplicado = duplicado.exclude(user=form.instance)

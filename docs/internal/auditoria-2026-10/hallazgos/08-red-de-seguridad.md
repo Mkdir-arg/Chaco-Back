@@ -1371,10 +1371,20 @@ personas nacidas antes de 1930, y el campo sigue siendo opcional (Cambio 5). Se 
 `scripts/check_datos_personales.py`, cuyo `\b\d{7,8}\b` es el gate que busca documentos, no una validación.
 También se sumó `FormularioSerializer.apoderado_dni` —la puerta de la app de campo— al cruce de
 `DniValidoTests`.
+**Ronda 3:** la novena puerta estaba a medias. El ABM de usuarios **validaba normalizado y guardaba crudo**:
+`Profile.dni` es un `CharField(max_length=8)`, así que `12.345.678` entraba por el form y moría en la escritura
+con `DataError (1406, "Data too long for column 'dni'")` —un **500**— en MariaDB y en MySQL; SQLite no aplica el
+`max_length` y la suite normal no lo veía. Se normaliza en `_validar_dni_perfil_usuario`, la regla de largo se
+exige solo si el DNI cambia o es un alta (igual que en `Ciudadano`), y el barrido del resto encontró una más del
+mismo patrón: `ConsultaRenaperForm.dni` limitaba a 8 el valor **crudo**. De ahí sale el invariante nuevo: **toda
+puerta que acepta un DNI con puntos tiene que devolverlo en dígitos**, que es lo que mide
+`test_toda_puerta_que_acepta_un_dni_con_puntos_lo_deja_en_digitos`.
 **Test permanente:** `programas.tests.test_padron.DniValidoTests.test_misma_regla_en_todas_las_puertas`
-(+ `test_el_padron_descarta_la_fila_con_la_misma_regla` y
-`test_siis_envio_ya_no_es_mas_laxo_que_los_formularios`) y
-`core.tests.test_regla_dni.UnaSolaReglaDeDniTests`.
+(+ `test_toda_puerta_que_acepta_un_dni_con_puntos_lo_deja_en_digitos`,
+`test_el_padron_descarta_la_fila_con_la_misma_regla` y
+`test_siis_envio_ya_no_es_mas_laxo_que_los_formularios`),
+`core.tests.test_regla_dni.UnaSolaReglaDeDniTests` y `users.tests.test_dni_usuario`
+(`UsuarioDniMotorRealTests` con `@tag("mysql")`, que es donde el 1406 existe).
 
 ### RED-49 · `cupo_disponible` significa tres cosas y dos pantallas lo rotulan igual
 **Severidad:** MEDIA · **Estado:** CONFIRMADO (lectura + templates) · **Origen:** RS-R4-07 (VR2: CONFIRMADO) · **Ola:** R (test) + 4 (renombre, con PERF-02) · **Esfuerzo:** S (2 h) + S (2 h)

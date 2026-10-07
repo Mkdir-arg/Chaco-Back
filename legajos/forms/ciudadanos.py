@@ -36,7 +36,10 @@ class ConsultaRenaperForm(forms.Form):
     ]
 
     dni = forms.CharField(
-        max_length=8,
+        # Sin `max_length`: lo que se mide es el DNI **normalizado**, en `clean_dni`.
+        # Con el límite puesto sobre el valor crudo, `12.345.678` —diez caracteres—
+        # moría con «asegúrese de que tenga menos de 8», que no es la regla del sistema
+        # y además contradice a las otras ocho puertas, que lo aceptan (RED-48).
         label="DNI",
         widget=forms.TextInput(
             attrs={

@@ -15,12 +15,20 @@ direcciones y por eso el comando mira el motor y no asume una:
 * **MySQL y MariaDB < 10.7**: el formato bueno es el hexadecimal de 32; se normalizan
   las filas de 36. Es el caso de un dump de ECOM restaurado en icore.
 
-**Las dos foreign keys se bajan antes del `UPDATE` y se reponen después**, igual que
-hace la migración y con sus mismas funciones (`core.migraciones`, del Cambio 165): `legajos_legajoatencion.id` es la columna referenciada por
+**Las dos foreign keys se bajan antes del `UPDATE` y se intentan reponer después**,
+igual que hace la migración y con sus mismas funciones (`core.migraciones`, del Cambio
+165): `legajos_legajoatencion.id` es la columna referenciada por
 `legajos_alertaciudadano.legajo_id` y `legajos_historialcontacto.legajo_id`, así que
 reescribirla con las FK puestas muere con *«Cannot delete or update a parent row»*
-(1451) y no normaliza nada. Es exactamente el estado que deja un restore: pks en hex
-**con** filas que los referencian.
+(1451) y no normaliza nada. Es exactamente el estado que deja un restore: pks en el
+formato viejo **con** filas que los referencian.
+
+Si el `UPDATE` se corta **entre** el padre y el hijo —el `read_timeout`, el proceso
+muerto—, reponer la FK falla con un 1452 porque quedaron huérfanas, y está bien que
+falle: la FK existe justamente para que ese estado no se consolide en silencio. Lo que
+el comando sí garantiza es que ese 1452 **no tape** el error original: se registra y se
+deja pasar la excepción que dice qué falló de verdad. Se arregla la causa y se vuelve a
+correr.
 
 Es el paso 3 del runbook D.4 de `docs/internal/processes.md`. **No escribe nada sin
 `--aplicar`**: sin esa bandera informa qué haría y termina. Y es **idempotente**: el
@@ -32,9 +40,11 @@ nada la segunda.
 """
 
 import importlib
+import logging
+import sys
 
 from django.core.management.base import BaseCommand
-from django.db import connection
+from django.db import DatabaseError, connection
 
 from core.migraciones import crear_fk_si_falta, nombre_de_fk, quitar_fk_si_existe
 
@@ -43,6 +53,8 @@ from core.migraciones import crear_fk_si_falta, nombre_de_fk, quitar_fk_si_exist
 MIGRACION = "legajos.migrations.0007_ampliar_uuid_legajos"
 
 TABLA_REFERENCIADA = "legajos_legajoatencion"
+
+logger = logging.getLogger(__name__)
 
 
 def migracion():
@@ -134,7 +146,23 @@ class Command(BaseCommand):
                     if cuantas:
                         modulo._normalizar_uuid(editor, tabla, columna, con_guiones=con_guiones)
             finally:
-                # Las FK vuelven aunque el `UPDATE` haya fallado: dejarlas caídas es
-                # peor que no haber normalizado.
+                # Se **intenta** reponer las dos FK. No siempre se puede: si el `UPDATE`
+                # se cortó entre el padre y el hijo —el `read_timeout`, el proceso
+                # muerto—, quedan huérfanas y el `ADD CONSTRAINT` muere con un 1452. Es
+                # correcto que así sea: la FK existe para que ese estado no se consolide
+                # en silencio. Lo que no puede pasar es que ese 1452 tape el error
+                # original, así que si venimos de una excepción se registra y se deja
+                # pasar la primera, que es la que dice qué falló de verdad.
                 for tabla, columna, _ in foreign_keys():
-                    crear_fk_si_falta(editor, tabla, columna, TABLA_REFERENCIADA, "id", nombres[tabla])
+                    try:
+                        crear_fk_si_falta(editor, tabla, columna, TABLA_REFERENCIADA, "id", nombres[tabla])
+                    except DatabaseError as error:
+                        if sys.exc_info()[0] is None:
+                            raise
+                        logger.error(
+                            "No se pudo reponer la foreign key de %s.%s: %s. Las filas quedaron a medias; "
+                            "volver a correr el comando con --aplicar después de resolver el error de arriba.",
+                            tabla,
+                            columna,
+                            error,
+                        )
