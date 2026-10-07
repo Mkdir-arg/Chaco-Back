@@ -36,7 +36,7 @@ aceptación de la v2** (README §7), con el test nombrado para que la task lo he
 | DIS-06 | El egreso acepta fechas futuras | MEDIA | CONF. test | Criterio v2 | v2 | S | ⬜ |
 | LEG-01 | La pasada horaria de alertas recrea y re-notifica | MEDIA | CONF. test | Parchear v1 | 4 | S-M | ⬜ |
 | LEG-04 | Endpoints AJAX de legajos tragan excepciones; un blob faltante vacía la lista | MEDIA | CONF. test | Parchear v1 | 5 | S | ✅ |
-| G1c-08 | Alta/edición de ciudadano: DNI sin normalizar, confirmación RENAPER alterable | MEDIA | CONF. test | Parchear v1 | 3 | M | ⬜ |
+| G1c-08 | Alta/edición de ciudadano: DNI sin normalizar, confirmación RENAPER alterable | MEDIA | CONF. test | Parchear v1 | 3 | M | ✅ |
 | DIS-07 | Camas RESERVADAS cuentan como libres | BAJA | CONF. test | Criterio v2 | v2 | S | ⬜ |
 | DIS-08 | Fechas UTC en indicador y export de movimientos | BAJA | CONF. test | Parchear v1 + criterio v2 | 5 | S | ✅ |
 | DIS-09 | El egreso cierra la membresía aunque haya espera en otro dispositivo | BAJA | CONF. test | Criterio v2 | v2 | S | ⬜ |
@@ -194,6 +194,26 @@ acá se agregó el test permanente que lo fija.
 - **Tests:** los 4 escenarios de la PoC invertidos.
 - **Verificación:** V-STD + V-UI.
 - **Dependencias:** SIIS-08 (identidad validada que no corrige el legajo), G1-01, DAT-03 (`dni_titular` desincronizado al cambiar el DNI).
+
+**Resolución:** ✅ Resuelto en el PR 2 de la Ola 3 (Cambio 168), 07-oct-2026 — los **tres** escenarios de
+`G1c08AltaRenaperTests` invertidos. (1) `CiudadanoForm.clean_dni` normaliza y valida con la regla única de
+RED-48, y lo heredan la carga manual, la confirmación y la edición; `Ciudadano.save()` normaliza como red para
+el `/admin/`, los comandos y los scripts —normaliza, no rechaza: un `save()` que levante `ValidationError`
+rompería migraciones y cargas masivas—; y `CiudadanosService.existe_con_dni` mira también las fichas cargadas
+con separadores, que es lo que el `exists()` pelado no veía. (2) `CiudadanoConfirmarForm` bloquea `dni`,
+`nombre`, `apellido` y `fecha_nacimiento`, y el alta guarda `estado_renaper=REGISTRADO`. (3)
+`CiudadanoUpdateForm` deja el `dni` fuera de alcance salvo `config.administrar` y `estado_renaper` fuera de
+alcance siempre. Más `manage.py listar_dni_no_normalizados [--csv]`, que es la lista de **P-17**, de solo
+lectura. **Tres desvíos, los tres code-first:** los campos de la confirmación se bloquean solo si RENAPER los
+**contestó** (RED-41 midió respuestas reales con el nombre en `None`: bloquear un campo vacío dejaba la
+pantalla sin salida); `dni` y `estado_renaper` van `disabled` y no fuera de `fields`, porque
+`ciudadano_edit_form.html` los renderiza por nombre y Django ignora igual lo que llegue en el POST; y la marca
+de **D-C08** viaja por la **sesión** en vez de por `?fallecido=1`, porque el template que tenía que pasar el
+parámetro no se podía tocar en este PR (el `?fallecido=1` se sigue aceptando). La capacidad elegida para editar
+el DNI es `config.administrar`, que ya existe: no se agregó nada al `CATALOGO`.
+**Test permanente:** `legajos.tests.test_ciudadanos_identidad` (`DniNormalizadoTests`,
+`ConfirmacionRenaperTests`, `EdicionDeIdentidadTests`, `ExisteConDniTests`; 19 tests) y
+`legajos.tests.test_comandos_datos.ListarDniNoNormalizadosTests`.
 
 ## BAJA
 

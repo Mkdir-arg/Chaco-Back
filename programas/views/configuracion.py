@@ -668,6 +668,16 @@ def requisito_crear(request, segmento_pk):
     )
 
 
+def _casos_con_adjunto(error):
+    """Cuántos **casos** distintos bloquean el borrado (DAT-01).
+
+    `ProtectedError.protected_objects` trae los `AdjuntoFormulario` uno por uno: lo
+    que le importa a quien configura no es cuántos archivos hay sino a cuánta gente
+    le desaparecería el documento.
+    """
+    return len({getattr(obj, "formulario_id", obj.pk) for obj in error.protected_objects})
+
+
 def _assert_scope_requisito(request, req):
     """Scope según el ancla: segmento/subsegmento → gestión del segmento;
     programa → solo el Administrador del programa."""
@@ -686,8 +696,18 @@ def requisito_eliminar(request, pk):
     segmento_pk = req.segmento_id
     subsegmento_pk = req.subsegmento_id
     if request.method == "POST":
-        req.delete()
-        messages.success(request, "Requisito eliminado.")
+        try:
+            req.delete()
+            messages.success(request, "Requisito eliminado.")
+        except ProtectedError as error:
+            # DAT-01: hasta acá el borrado se llevaba los adjuntos de todos los casos
+            # que ya habían subido ese documento, sin avisar y sin vuelta atrás.
+            casos = _casos_con_adjunto(error)
+            messages.error(
+                request,
+                f"No se puede eliminar: {casos} caso(s) ya subieron este documento. "
+                "Si dejó de pedirse, sacalo del diseño de las convocatorias nuevas.",
+            )
     if subsegmento_pk:
         return redirect("becas:subsegmento_detalle", pk=subsegmento_pk)
     if segmento_pk:
@@ -1087,8 +1107,17 @@ def pregunta_eliminar(request, pk):
                 request, "Este campo viene con el sistema y no se puede eliminar; podés renombrarlo o moverlo de grupo."
             )
             return redirect("becas:preguntas")
-        pregunta.delete()
-        messages.success(request, "Pregunta eliminada.")
+        try:
+            pregunta.delete()
+            messages.success(request, "Pregunta eliminada.")
+        except ProtectedError as error:
+            # DAT-01, mismo caso que el requisito. Acá sí hay salida: la pregunta se
+            # desactiva (`pregunta_toggle_activo`) y deja de pedirse sin borrar nada.
+            casos = _casos_con_adjunto(error)
+            messages.error(
+                request,
+                f"No se puede eliminar: {casos} caso(s) ya subieron este documento. Desactivala en lugar de borrarla.",
+            )
     return redirect("becas:preguntas")
 
 

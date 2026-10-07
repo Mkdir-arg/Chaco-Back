@@ -25,10 +25,15 @@ import importlib.util
 import subprocess
 import sys
 import tempfile
+from io import StringIO
 from pathlib import Path
 
 from django.conf import settings
-from django.test import SimpleTestCase
+from django.core.management import call_command
+from django.db import models
+from django.test import SimpleTestCase, override_settings
+
+from programas.models import AdjuntoFormulario
 
 RAIZ = Path(settings.BASE_DIR)
 GATE = RAIZ / "scripts" / "check_migraciones.py"
@@ -459,3 +464,46 @@ class MigracionesDelRepoTests(SimpleTestCase):
         nuevas = {(app, nombre) for app, nombre, _ in _migraciones_nuevas()}
 
         self.assertIn(("programas", "0075_enviosiis_vigente"), nuevas)
+
+
+class Migracion0078SoloEstadoTests(SimpleTestCase):
+    """DAT-01 · `programas.0078` no emite una sola línea de DDL.
+
+    El riesgo de la Ola 3 dice «una migración solo de estado (sin DDL)» y de eso
+    depende que se pueda desplegar sobre `programas_adjuntoformulario` sin ventana ni
+    bloqueo. `on_delete` vive en Python —es lo que el ORM hace *antes* del `DELETE`—,
+    así que la foreign key del motor no cambia.
+
+    La decisión la toma `BaseDatabaseSchemaEditor._field_should_be_altered`, que mira
+    `Field.non_db_attrs`: es la misma lista en SQLite, en MySQL y en MariaDB, así que
+    el `-- (no-op)` que se mide acá vale también para producción. La prueba sobre el
+    motor real la da el job `Migrate ida y vuelta`.
+
+    Va sobre `SimpleTestCase` con `databases` a propósito: el editor de esquema de
+    SQLite no se puede abrir adentro de la transacción de un `TestCase`.
+    """
+
+    databases = {"default"}
+
+    def test_sqlmigrate_no_tiene_ninguna_sentencia(self):
+        salida = StringIO()
+        # La suite corre con `DJANGO_SYNCDB_PROJECT_APPS`, que apaga las migraciones
+        # (`MIGRATION_MODULES`): acá se las vuelve a encender para esta llamada.
+        with override_settings(MIGRATION_MODULES={}):
+            call_command("sqlmigrate", "programas", "0078", stdout=salida)
+
+        sentencias = [
+            linea.strip()
+            for linea in salida.getvalue().splitlines()
+            if linea.strip() and not linea.strip().startswith("--") and linea.strip() not in ("BEGIN;", "COMMIT;")
+        ]
+
+        self.assertEqual(sentencias, [], f"0078 dejó de ser solo de estado: {sentencias}")
+        self.assertIn("(no-op)", salida.getvalue())
+
+    def test_on_delete_no_es_un_atributo_de_base(self):
+        """El motivo de fondo, por si alguien cambia el campo y espera un ALTER."""
+        campo = AdjuntoFormulario._meta.get_field("requisito_nativo")
+
+        self.assertEqual(campo.remote_field.on_delete, models.PROTECT)
+        self.assertIn("on_delete", campo.non_db_attrs)

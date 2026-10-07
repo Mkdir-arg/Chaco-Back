@@ -440,7 +440,10 @@ motor.
 2. `DROP DATABASE` + `CREATE DATABASE` + restore del dump de D.0. **Nunca restaurar
    encima:** deja tablas huérfanas de la release nueva y el deploy siguiente muere con
    *«Table already exists»*.
-3. Si el dump viene de otro motor, re-normalizar los UUID antes de levantar.
+3. Si el dump viene de otro motor, re-normalizar los UUID antes de levantar:
+   `manage.py normalizar_uuid_legajos` (con `--revisar` primero, que solo informa). Es idempotente y, si no
+   hay nada en hexadecimal, no escribe. Sin ese paso el ORM de MariaDB pregunta con guiones contra filas de
+   32 caracteres y el detalle del legajo da 404 **sin un solo error en los logs** (V2-NEW-05).
 4. Desplegar la release anterior y verificar que la última migración `[X]` sea la de esa
    release.
 5. Levantar y verificar con un alta real.
