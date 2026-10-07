@@ -51,6 +51,19 @@ sale del form) sí lo lleva en el markup:
 `<select name="estado" class="nodo-field" aria-label="Estado">`.
 
 No hay «clases equivalentes»: es `nodo-field` o nada.
+## Dos formularios en la misma pantalla: el `auto_id` lo decide el form
+
+La pieza arma tres `id` a partir del `BoundField`: `field.id_for_label` para el `<label for>` y
+`{{ field.auto_id }}-ayuda` / `{{ field.auto_id }}-error` para la ayuda y el error. Con el
+`auto_id` de fábrica de Django (`id_%s`) eso sale del **nombre del campo**, así que dos
+formularios distintos renderizados en la misma página con un campo que se llama igual dejan
+`id` repetidos: el `<label for>` apunta al control del otro form y el lector de pantalla anuncia
+el error equivocado.
+
+Se resuelve dándole `auto_id` propio a uno de los dos (`kwargs.setdefault("auto_id", "id_<algo>_%s")`
+en su `__init__`), **no** `prefix`: `prefix` cambia también el `name` del POST y obliga a tocar la
+vista que lo procesa. Caso vivo: `VolverACampoForm` y `ReprogramarForm` comparten `fecha_hasta` en
+el detalle del relevamiento, y el primero declara `AUTO_ID = "id_volver_%s"`.
 
 ## Selector múltiple apilado
 
