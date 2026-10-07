@@ -1791,9 +1791,9 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
 ### Ola 3 — Datos, operación, CI, app de campo y reglas de Becas
 - **Objetivo:** que no se pierdan datos (adjuntos, capturas offline), que el despliegue sea diagnosticable y robusto, que
   la CI pruebe el motor real, y cerrar las reglas de negocio de Becas.
-- **Avance: 22 h de 152, 130 restantes.** **PR 2 (DAT-01 🟡, DAT-02, DAT-03, DAT-05, V2-NEW-05, G1c-08 y RED-48)
-  en el Cambio 168, 07-oct-2026**: las 7 fichas, con una migración solo de estado (`programas.0078`). El PR 1
-  (operación y deploy) está en revisión.
+- **Avance: 34 h de 152, 118 restantes.** **PR 2 (DAT-01 🟡, DAT-02, DAT-03, DAT-05, V2-NEW-05, G1c-08 y RED-48)
+  en el Cambio 168, 07-oct-2026**: las 7 fichas, con una migración solo de estado (`programas.0078`), sobre el
+  PR 1 (Cambio 165) ya mergeado.
 - **PRs y orden:**
   1. ✅ *Operación y deploy:* OPS-05, OPS-07 (ampliado: el candado envuelve también el `migrate`), OPS-11, OPS-12,
      G3-04, G3-05 **+ RED-58** (el ítem 9 lo traía junto con OPS-05). 12 + 2 h. **Cerrado el 07-oct-2026
@@ -4217,16 +4217,10 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
 ### Ola 3 — Datos, operación, CI, app de campo y reglas de Becas
 - **Objetivo:** que no se pierdan datos (adjuntos, capturas offline), que el despliegue sea diagnosticable y robusto, que
   la CI pruebe el motor real, y cerrar las reglas de negocio de Becas.
-- **Avance: 22 h de 152, 130 restantes.** **PR 2 (DAT-01 🟡, DAT-02, DAT-03, DAT-05, V2-NEW-05, G1c-08 y RED-48)
-  en el Cambio 168, 07-oct-2026**: las 7 fichas, con una migración solo de estado (`programas.0078`). El PR 1
-  (operación y deploy) está en revisión.
 - **PRs y orden:**
   1. *Operación y deploy:* OPS-05, OPS-07 (ampliado: el candado envuelve también el `migrate`), OPS-11, OPS-12, G3-04,
      G3-05. 12 h. (OPS-01, OPS-03 y OPS-04 pasaron a la Ola R, PR R-15.)
-  2. ✅ *Datos y catálogo:* DAT-01 (🟡 fase 1), DAT-02, DAT-03, DAT-05, V2-NEW-05, G1c-08 — **22 h de 18 + 4**,
-     **Cambio 168**, 07-oct-2026, con RED-48 adentro (ítem 9). Migración `programas.0078`, solo de estado.
-     Quedan los puntos 3 y 4 de DAT-01 (modal y `seed_becas`: templates y seeds estaban tomados por #614 y
-     #615) y su fase 2.
+  2. *Datos y catálogo:* DAT-01, DAT-02, DAT-03, DAT-05, V2-NEW-05, G1c-08. 18 h.
   3. *Comandos peligrosos:* OPS-02, G2-05, G1c-12. 6 h.
   4. *CI y tests:* pasó entero a la Ola R (TST-01 → R-11; TST-02, TST-03 y R0-03 → R-20).
   5. *App de campo:* G1-03, G1-04 (+BEC-22), G1-05, G1-06, G1-07, G1-16, R0-04 (raíz `/api/becas/` con Token). 34 h.
@@ -4235,7 +4229,7 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
   7. *Integraciones y link público:* SIIS-10, SIIS-13, SIIS-14 (+G3-02), SIIS-15, SIIS-16, SIIS-18, SIIS-20, SIIS-21,
      G1c-15, G1-11, G1-12, G1-13, G1-14, R0-06, R0-07 (link público y `q_uuid_en_texto`). 30 h.
   8. *Reportes:* G2-01. 8 h.
-  9. *Red de seguridad (04-oct):* ✅ RED-48 (una sola regla de DNI, con G1c-08 — Cambio 168), RED-58 (plantilla de migración
+  9. *Red de seguridad (04-oct):* ✅ RED-48 (una sola regla de DNI, con G1c-08 — Cambio 168), ✅ RED-58 (plantilla de migración
      re-entrante, con OPS-05) y segundas partes de RED-09 (`q_uuid_en_texto` a `core/db.py`, con el PR 7), RED-35
      (atomicidad del resto de las escrituras), RED-40 (`validators` en los `JSONField`, con G1-05) y RED-50 (una sola
      `edad_en_anios` con `timezone.localdate()` + regla `DTZ011`). 18 h.

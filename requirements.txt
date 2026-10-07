@@ -76,3 +76,9 @@ drf-spectacular==0.27.0
 # código de terceros sin pinear ejecutándose en una pantalla de backoffice
 # (RED-36, revisión del PR R-04).
 drf-spectacular-sidecar==2026.10.1
+# Declarada aunque `drf-spectacular` ya la arrastre: cinco módulos de tests la importan
+# directo —los que leen los workflows de GitHub Actions y los manifiestos de
+# `docker/k8s/` (gates de CI, publish guard, roundtrip, un solo migrador, tareas
+# programadas)— y una dependencia transitiva que un día deje de serlo los rompería sin
+# que nada lo anuncie.
+PyYAML==6.0.3

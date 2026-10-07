@@ -208,9 +208,14 @@ provisoria) y `config.middlewares.security_headers.SecurityHeadersMiddleware` (C
 
 `config/settings.py` es único y se ramifica por variables de entorno: `ENVIRONMENT`
 (`dev|qa|prd`), `DJANGO_DEBUG`, `PYTEST_RUNNING` (→ SQLite en memoria + `zeal`),
-`DJANGO_SYNCDB_PROJECT_APPS` (→ sin migraciones), `PERFORMANCE_*`. Redis solo se usa
-como cache/sessions en `prd` o en el CI de performance; en dev es LocMem.
-`config/settings_production.py` fuerza `DEBUG=False`.
+`DJANGO_SYNCDB_PROJECT_APPS` (→ sin migraciones), `PERFORMANCE_*`. Redis se usa como
+cache/sessions en los **ambientes servidos** (`prd` y `qa`) y en el CI de performance; en
+dev es LocMem, y `USE_REDIS_CACHE=True` es la escotilla para reproducirlo ahí.
+`config/settings_production.py` fuerza `DEBUG=False` y **no** pisa `ENVIRONMENT`: cuál es
+el ambiente lo dice la variable, y `core.W002` avisa si el módulo endurecido corre con un
+valor de desarrollo. Los `read_timeout`/`write_timeout` de la conexión son 10 s —el límite
+acordado con ECOM— y solo el bloque de migraciones del entrypoint los levanta, con
+`MIGRATE_DB_READ_TIMEOUT`.
 
 ## Convenciones de implementación
 
@@ -228,6 +233,17 @@ como cache/sessions en `prd` o en el CI de performance; en dev es LocMem.
   lo lea; y todo `RunPython`/`RunSQL` declara su reversa, con `# REVERSA-NOOP: <qué dato
   queda inconsistente>` si no deshace nada. Las ocho migraciones por las que no se vuelve
   están en el paso D.4 de [`processes.md`](docs/internal/processes.md).
+- **`atomic = False` ⇒ cada paso idempotente** (RED-58). MySQL y MariaDB no tienen DDL
+  transaccional: una migración cortada deja el esquema donde llegó y **sin** fila en
+  `django_migrations`, así que el reintento vuelve a correr el archivo desde la primera
+  línea. Los pasos se condicionan al estado real leído de `information_schema`, con los
+  helpers de [`core/migraciones.py`](core/migraciones.py) —`quitar_fk_si_existe`,
+  `crear_fk_si_falta`, `modificar_columna`, que miran `KEY_COLUMN_USAGE` y `COLUMNS`—,
+  nunca al nombre de una FK escrito a mano ni al tipo que *debería* tener la columna. El
+  caso medido es `legajos.0007`: el `MODIFY` del medio se pasó del `read_timeout`, el
+  `ALTER` se aplicó igual en el servidor y el reintento murió con un `ERROR 1091` que no
+  dice nada. Las migraciones de **datos** se hacen idempotentes filtrando por el estado de
+  origen (`WHERE CHAR_LENGTH(col) = 32`); eso no lo ve ninguna herramienta.
 - **Expand/contract** (job `Migrate ida y vuelta`, que ejecuta las migraciones del PR
   contra MariaDB y MySQL y después las desaplica, sobre datos sembrados): durante el
   rolling conviven la release vieja y la nueva contra el mismo esquema, así que *expand*

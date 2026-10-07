@@ -23166,8 +23166,6 @@ Configuración de FE-12, con la parte de FE-17 que no toca la pieza canónica.
   (4) el Playwright de la primera vuelta midió «Página 1 de 2» en las cinco pantallas que paginan, no en las
   ocho, y así quedó escrito acá, en la ficha y en el README.
 
----
-
 # Cambio 165 — El arranque del contenedor deja de ser frágil: candado, timeouts de migración y tareas programadas con vigilancia
 
 🟢 **HECHO — 07/10/2026**

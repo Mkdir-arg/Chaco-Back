@@ -354,8 +354,11 @@ El sistema distingue tres ambientes vía la variable `ENVIRONMENT`:
 | Valor | Settings module | Características |
 |---|---|---|
 | `dev` | `config.settings` | DEBUG opcional, `LocMemCache`, SQLite en tests, sesiones en DB |
-| `qa` | `config.settings` | Igual a dev pero apunta a infraestructura QA por env vars |
+| `qa` | `config.settings_production` | **Redis obligatorio** (caché y websockets, igual que producción), HSTS, cookies seguras, `ManifestStaticFilesStorage`, sesiones en DB |
 | `prd` | `config.settings_production` | Redis obligatorio, HSTS, cookies seguras, `ManifestStaticFilesStorage`, sesiones en cache |
+
+El módulo endurecido es el mismo para `qa` y `prd`: lo que distingue a los dos ambientes
+es el valor de `ENVIRONMENT`, que ya no se reescribe al cargarlo.
 
 ### 7.1 Variables de entorno clave
 
