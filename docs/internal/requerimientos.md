@@ -335,6 +335,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 161 | Números que no miden lo que su rótulo dice, y pantallas que prometen lo que no hacen | Transversal (home del backoffice, login) · Legajos (reportes, edición del ciudadano, gestión de programas, dashboards) · Becas (modal de convocatorias y solapa Dashboard del programa) | `#ui` `#textos` `#datos` | Auditoría integral oct-2026 — fichas FE-22, FE-16, V5A-NEW-04, G2-04, G2-06 y V5A-NEW-07 (b) (Ola 5, PR 7) | 07/10/2026 | 🟢 **Hecho** (la migración de los 10 KPIs a `_stat_card.html` queda frenada: necesita parámetros nuevos del componente, que es novedad del agente) | No requiere |
 | 162 | Las herramientas de SIIS dejan de pisar lo que otro corrigió, y el alta de prueba no sale del ambiente de pruebas | Becas · revisión de casos (modal «Completar datos para SIIS») · comandos de gestión de SIIS (`diagnosticar_siis`, `corregir_datos_siis`, `correr_alta_siis`, `completar_casos_renaper`) | `#siis` `#datos` `#relevamientos` `#ui` `#metodo` | Auditoría integral oct-2026 — fichas SIIS-19, SIIS-17 y G3-06, más la segunda parte de RED-32 (Ola 1 «Integridad SIIS», PR 7 — cierra la ola) | 07/10/2026 | 🟢 **Hecho** | No requiere |
 | 164 | La red de seguridad del front: lo que no estaba probado, el toggle que prometía de más y las URLs escritas a mano | Dispositivos (admisiones) · Merenderos (entregas, detalle y estado) · Transversal (shell: toggle de tema y campana de alertas) · Legajos (detalle del ciudadano) · Becas (carga de padrón) | `#metodo` `#ui` `#api` `#rbac` | Auditoría integral oct-2026 — fichas RED-33, RED-75 y las segundas partes de RED-42 y RED-53 (Ola 5, PR 8) | 07/10/2026 | 🟢 **Hecho** (D-RED-07 = A aplicada por default) | No requiere |
+| 166 | Los listados de afuera de Becas dejan de ser cada uno su propio diseño: encabezado, tabla, estado vacío y paginación canónicos | Usuarios y roles (listado de usuarios, listado y detalle de roles) · Configuración (provincias, municipios, localidades, secretarías, subsecretarías y programas) | `#ui` `#usuarios` `#metodo` | Auditoría integral oct-2026 — fichas FE-11, FE-12 y FE-17 (Ola 5, PR 6a — primer lote del PR más grande de la ola) | 07/10/2026 | 🟡 **Parcial** (las tres fichas cierran Usuarios, Roles y Configuración; `legajos/ciudadano_list` y el resto van en el PR 6b) | No requiere |
 
 **Notas del índice**
 
@@ -22727,3 +22728,203 @@ lo deja otra vez sin medir.
   `url` con el reemplazo **anclado al final**: el patrón de `alertas_eventos.html` acá pisaba el primer
   cero, que es el del ciudadano (`/ciudadanos/10/archivos/0/` → `/ciudadanos/177/archivos/0/`). El barrido
   ensanchado destapó dos literales más de LEG-06 y el 404 de «Dar de baja» que queda en *Pendientes*.
+
+---
+
+# Cambio 166 — Los listados de afuera de Becas dejan de ser cada uno su propio diseño
+
+🟡 **PARCIAL — 07/10/2026** (primer lote del PR 6 de la Ola 5; el segundo es el PR 6b)
+
+| | |
+|---|---|
+| **Programa / módulo** | Usuarios y roles (listado de usuarios, listado y detalle de roles) · Configuración (provincias, municipios, localidades, secretarías, subsecretarías y programas) |
+| **Etiquetas** | `#ui` `#usuarios` `#metodo` |
+| **Solicitante** | Auditoría integral oct-2026 — fichas FE-11, FE-12 y FE-17 (Ola 5, PR 6a) |
+| **Fecha del pedido** | 07/10/2026 |
+| **Issue / épica** | Sin issue (plan de la auditoría: `docs/internal/auditoria-2026-10/`) |
+| **Partes afectadas** | Backoffice: nueve templates (`users/templates/user/user_list.html`, `users/templates/rol/{rol_list,rol_detail}.html` y las seis listas de `configuracion/templates/configuracion/`) y una vista (`users/views/roles.py`). Ninguna pantalla nueva, ninguna pieza canónica nueva |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> «(6) **después de la Ola 6 paso 4:** FE-11, FE-12, FE-17, FE-20, FE-23, FE-24 — 48 h» (README de la
+> auditoría, §6, Ola 5). Por tamaño, el PR se parte: este es el **6a** (22 h) y queda el **6b** (26 h).
+
+## Qué estaba mal
+
+1. **FE-11 — los componentes canónicos solo los usaba Becas.** `page_header`, `_estado_vacio`, `_paginacion`,
+   `_stat_card` y `_alerta` existían, tenían ficha y contrato, y **cero consumidores** fuera de
+   `programas/templates/programas/becas/**`. Cada listado de afuera dibujaba su propio encabezado —ocho
+   `<h1 style="font-size:28px; font-weight:800; …">` con la misma intención y distintos valores— y su propio
+   estado vacío, un bloque de `py-14 px-6 text-center` con un SVG de 48 px copiado nueve veces.
+2. **FE-12 — la tabla venía con las utilidades pegadas por celda.** 282 `style=` entre las nueve pantallas
+   (94 en `subsecretaria_list`, 79 en `secretaria_list`, 70 en `localidad_list`, 65 en `rol_list`, 46 en
+   `user_list`), el hover de fila en dos handlers inline por `<tr>`, 57 SVG de Heroicons pegados en el
+   contenido —contra la decisión **D3**, que los deja solo en el shell— y la columna de acciones con un `<th>`
+   que decía «Acciones» en texto visible en unas y nada en otras. Ninguna acción de fila usaba `.nodo-icon-btn`.
+3. **FE-17 — paginaciones falsas o copiadas.** `rol_list` cerraba con un pie **estático**: «1 de 1» entre dos
+   botones `disabled`, debajo de una tabla que renderizaba **todos** los roles visibles. Con 30 roles el pie
+   seguía diciendo «1 de 1». `user_list` tenía el pie de verdad, pero escrito a mano: 20 líneas con
+   `page_obj.has_previous`/`has_next` y sus SVG.
+
+## Alcance acordado
+
+**Entra:** los puntos **(3)** y **(5)** de la propuesta de FE-11 y los archivos de Usuarios, Roles y
+Configuración de FE-12, con la parte de FE-17 que no toca la pieza canónica.
+
+- Las **ocho listas** (`user_list`, `rol_list`, y `provincia`, `municipio`, `localidad`, `secretaria`,
+  `subsecretaria` y `programa` de Configuración) clonadas de la golden del arquetipo Listado.
+- `rol_detail` como **ajuste**: encabezado canónico y paleta cruda a tokens.
+- `RolListView` paginando de a 25.
+
+**Queda afuera, explícitamente:**
+
+- **Dispositivos y Merenderos** (puntos 1 y 2 de FE-11, y sus archivos en FE-12 y FE-17): **D-V1 = No**, así
+  que sus pantallas solo reciben fixes de bug y la migración de estilo la hereda la v2.
+- **`legajos/ciudadano_list.html`** (punto 4 de FE-11, y su fila en FE-12 y FE-17): 492 líneas con JS propio.
+  Va en el PR 6b.
+- **FE-20, FE-23 y FE-24**: los 17 formularios de Configuración, el `_field.html` único y las solapas con
+  ARIA y teclado. PR 6b. FE-24 además **necesita OK**: `static/custom/js/nodo-tabs.js` es un archivo JS nuevo,
+  o sea novedad del agente.
+- **`param` y `extra_qs` de `components/_paginacion.html`** y sus consumidores de Becas
+  (`segmento_detail` —que es **golden**—, `convocatoria_detail`, `relevamiento_detail`) más el `paginate_by`
+  de `ConvocatoriaListView`. PR 6b: cambiar la pieza canónica obliga a mover su ficha y la del arquetipo
+  Detalle en el mismo diff.
+
+## Decisiones tomadas
+
+- **El molde es la golden, no la hermana.** Las ocho listas clonan
+  `programas/templates/programas/becas/revision/personas_list.html` —esqueleto, no apariencia— y de la hermana
+  del módulo se tomó solo dominio: textos, columnas, URLs y capacidades. `design_audit.py --arquetipo listado`
+  da OK en las ocho.
+
+- **`rol_detail` no se migra a un arquetipo: se ajusta.** No es un listado ni un detalle del arquetipo Detalle
+  —no tiene solapas ni franja de métricas—, así que el protocolo del agente lo trata como **tipo A**: se cambia
+  el bloque pedido (el encabezado, que era un `<h1 class="text-2xl">` con un «volver» circular escrito a mano)
+  y el resto queda como está, salvo la paleta cruda que arrastraba (`text-gray-900`, `text-gray-600`,
+  `border-gray-200`, `text-green-500`, `bg-blue-600`), que pasa a tokens.
+
+- **El kebab de `rol_list` se reemplaza por las cuatro acciones de ícono.** El menú era un `x-data` de 25
+  líneas con `x-teleport`, posicionamiento calculado a mano y un `<style>` de 140 líneas que lo sostenía. El
+  arquetipo permite «varias `.nodo-icon-btn` en la misma celda, la destructiva con `.nodo-icon-btn--danger`»,
+  que es exactamente este caso (Ver, Editar, Activar/Desactivar, Eliminar). Con eso se va el `<style>` entero,
+  incluido su `[x-cloak]` local —que `override.css` ya define global— y el `@media (max-width:900px)` con
+  `min-width:720px`, que `responsive.css` reemplaza con `.overflow-x-auto > table { width: max-content;
+  min-width: 100% }`: medido a 390 px, la tabla scrollea adentro de su card y el documento no se desplaza.
+
+- **Las confirmaciones no se tocan.** `user_list` y `rol_list` siguen con su `Swal.fire` y el tono por acción
+  que fijó **FE-19** (Cambio 157), y las seis listas de Configuración siguen con `data-confirm-url` →
+  `ModernModal`. Migrar las dos primeras a `ModernModal` sería revertir una decisión tomada hace un PR.
+
+- **`rol_list` pagina la vista, no se le saca el pie.** La ficha ofrecía las dos; paginar es lo que hace que
+  el listado deje de crecer sin tope y es lo que el arquetipo pide («listados con `paginate_by`»). El tope es
+  25, el de Becas. `total_roles` se fue con el pie que lo imprimía: la pieza canónica cuenta lo que se está
+  viendo, y ninguna otra pantalla lo consumía.
+
+- **Las ocho incluyen la pieza de paginación, pero `secretaria`, `subsecretaria` y `programa` todavía no paginan.** Sus
+  `form_invalid` renderizan el listado a mano, sin `page_obj`: ponerles `paginate_by` sin el tratamiento de
+  `_contexto_lista` que **FE-04** le dio a geografía reestrena el bug de la fila 21 —el error de edición
+  vuelve a una página 1 donde la fila no está y el modal no se renderiza nunca—. El `include` queda puesto
+  (sin `page_obj` no dibuja nada) para que el PR 6b solo toque la vista.
+
+- **El «Nuevo X» del estado vacío lleva a la página de alta, no al modal.** El bloque a mano tenía un
+  `@click.prevent="modalCrear = true"`; `components/_estado_vacio.html` recibe una URL, no una expresión de
+  Alpine. Las seis pantallas de Configuración tienen su `*_form.html` ruteado y funcionando, así que el enlace
+  resuelve. El botón del encabezado sigue abriendo el modal.
+
+- **El `badge-danger` de «Inactiva» en las dos listas de secretarías no se toca.** Es el mismo defecto que
+  arregló FE-18, pero esa ficha nombró `user_list`, `rol_list` y `rol_detail`: cambiar el tono acá es una
+  decisión de producto fuera de ficha. Queda anotado en el propio template.
+
+## Qué se hizo
+
+- **Encabezado (FE-11).** `{% page_header titulo=… bajada=… %}` en las ocho listas y en `rol_detail` (con
+  `volver_url` y `volver_label="roles"`, que reemplaza el `btn-back-circle` escrito a mano). Ningún template
+  del lote contiene ya un `<h1`.
+- **Estado vacío (FE-11).** `components/_estado_vacio.html` en las ocho, con sus **dos** variantes: la de
+  «los filtros no traen nada» (`request.GET|hay_filtros`, acción terciaria «Limpiar filtros») y la de «no hay
+  nada» (acción primaria de alta). Las listas con filtros (`rol_list`, `secretaria`, `subsecretaria`,
+  `programa`) estrenan la primera: antes mostraban el mismo texto para los dos casos o directamente el de
+  «no hay nada».
+- **Tabla (FE-12).** `overflow-x-auto` + `table.w-full.border-collapse` + `nodo-thead-row`/`nodo-th`/`nodo-td`,
+  fila con `hover:bg-secondary`, columna de acciones con `<span class="sr-only">Acciones</span>` y acciones en
+  `.nodo-icon-btn` (`--danger` para borrar) con `aria-label` que nombra el registro. 282 `style=` → 5, y los
+  cinco son los exentos del inventario: cuatro `display:none` de formularios ocultos y el
+  `style="color: {{ programa.color }}"` del ícono del programa. 57 `<svg>` → 0: todo pasa a Font Awesome con
+  `aria-hidden="true"`.
+- **Paginación (FE-17).** `components/_paginacion.html` en las ocho, y **cinco de ellas paginan de verdad**
+  (las tres de geografía desde FE-04, más `user_list` y `rol_list`); `RolListView.por_pagina = 25` con su
+  `Paginator`; el pie copiado de `user_list` se fue y su querystring viaja por `filtros_qs`.
+- **Filtros.** Los cuatro listados con filtros propios pasan al contrato de la pieza: `<form method="get"
+  data-dynamic-list-filters>` sin `class` ni `style`, cada control con `aria-label`, sin botones «Filtrar» ni
+  «Limpiar» propios (el JS los tira). `user_list` conserva el modo **avanzado**
+  (`components/list_filters.html with advanced=True`), que es la variante que la ficha de filtros ya declara.
+
+## Verificación
+
+- `manage.py check` sin issues; `check --deploy` con las 6 advertencias de siempre; `makemigrations --check`
+  sin cambios.
+- **Suite entera en un solo proceso:** 3.527 tests, `OK (skipped=30, expected failures=8)`.
+  `--tag performance`: 4 tests, OK.
+- **TDD:** los 24 tests nuevos corridos contra un worktree de `HEAD` dan **95 fallas y 6 errores**; contra esta
+  rama, OK.
+- Diseño: `--arquetipo listado` OK en las ocho; `--ratchet` **0 hallazgos nuevos** en 9 archivos; `--goldens` 0;
+  `compile_templates.py --bloques` 0 errores y 0 bloques sin destino; `npm run build:tailwind` corrido y el CSS
+  commiteado. `check_design_agent.py --changed` exige mover la ficha de filtros, que cita `user_list.html`: el
+  bloque va en el cuerpo del PR porque la sesión no escribe bajo `.claude/`.
+- **Playwright (Chromium, SQLite local) a 1440 y 390 px, 0 errores de consola y 0 respuestas ≥ 400:** `<h1>` en
+  x = 320 (1440) y x = 16 (390), 30 px, peso 800; `th` 11 px, mayúsculas, fondo `rgb(249,250,251)`; `td` 14 px
+  con padding `13px 16px`; `.nodo-icon-btn` 26 × 26 px en `rgb(107,114,128)` con `aria-label` que nombra el
+  registro; «Página 1 de 2» en las cinco que paginan; a 390 px el wrapper scrollea (`scrollWidth` 709 contra `clientWidth`
+  356 en Usuarios) y el documento no. Los modales de Configuración siguen abriendo centrados (0,00 px de
+  desvío) y el borrado sigue confirmando con `btn-nodo btn-danger btn-base`.
+
+## Pendientes
+
+- **PR 6b (26 h):** `legajos/ciudadano_list.html`; **FE-20** (17 formularios de Configuración al arquetipo
+  Formulario y `403/404/500.html` con el shell, que además vacía tres entradas de la allowlist de
+  `compile_templates --bloques`); **FE-23** (`_field.html` único en `templates/components/`); **FE-24**
+  (solapas con ARIA y teclado — **frenar y pedir OK**: `nodo-tabs.js` es un archivo nuevo); y el resto de
+  **FE-17** (`param`/`extra_qs` de la pieza, los tres detalles de Becas y `ConvocatoriaListView`).
+- **`secretaria`, `subsecretaria` y `programa` sin paginar.** Necesitan el `_contexto_lista` de FE-04 en
+  `configuracion/views/secretaria.py` y un `Paginator` en `configuracion/views/programas.py::programa_list`.
+  Hoy traen la tabla entera.
+- **El `badge-danger` de «Inactiva»** en las dos listas de secretarías: mismo defecto que FE-18, sin ficha que
+  lo cubra.
+- **Para el juez:** aplicar el bloque de `.claude/design/componentes/filtros.md` del cuerpo del PR, o
+  «Design Agent Contract» queda rojo.
+
+## Historial
+
+- **03/10/2026** — la auditoría abre FE-11, FE-12 y FE-17, y las ata al paso 4 de la Ola 6 (goldens saneadas
+  y fichas por arquetipo): sin golden no hay molde.
+- **05/10/2026** (Cambios 131 y 132) — la Ola 6 deja las cuatro goldens en 0 P1 con marcadores completos y el
+  agente reescrito con sus fichas. Es el prerrequisito de este cambio.
+- **06/10/2026** (Cambio 152, PR 3 de la Ola 5) — FE-04 pagina geografía y nace `components/_form_errores.html`.
+- **06/10/2026** (Cambio 155, PR 4) — los diez modales de Configuración clonan la golden del arquetipo Modal.
+  Este cambio los deja intactos y migra lo que los rodea.
+- **07/10/2026** (Cambio 157, PR 5) — FE-18 y FE-19 fijan el tono de los badges y de las confirmaciones de
+  `user_list` y `rol_list`. Acá se preserva tal cual, y por eso las dos pantallas siguen con SweetAlert2.
+- **07/10/2026 (este cambio)** — primer lote del PR 6. Con esto la Ola 5 va por **88 h de 128**.
+- **07/10/2026 (ronda 2 de la revisión)** — un MAJOR y cuatro MINOR. El MAJOR es el modo de falla que la
+  migración trajo consigo: `{% url 'configuracion:programa_list' as url_sin_filtros %}` nombraba una ruta que
+  **no existe** (se llama `configuracion:programas`), y la forma **`as` se traga el `NoReverseMatch`**: deja la
+  variable vacía, `components/_estado_vacio.html` recibe `accion_url=""` y no dibuja el ancla. Medido:
+  `/configuracion/programas/?q=zzzz` daba **0 anchors**, así que el botón «Limpiar filtros» de esa pantalla no
+  existió nunca —sin error, sin log y sin 404—. Además del nombre corregido quedan **dos redes**: una
+  conductual, que lleva las ocho listas a su estado vacío por HTTP y exige que el botón tenga `href` no vacío y
+  que ese `href` `resolve()`; y una **de repositorio**, que barre todos los `{% url '<nombre>' %}` literales de
+  `templates/` y los ocho `*/templates/` y exige que cada nombre resuelva, con ratchet en las dos direcciones.
+  El barrido midió **33 nombres rotos preexistentes**, todos con dueño: 32 en
+  `portal/templates/portal/ciudadano/` —pantallas que quedaron sin ruta y que el inventario del agente ya
+  declara «no son referencia»— y `legajos:metricas_contactos_api` en `templates/components/widget_contactos.html`,
+  parcial del shell legacy que retira LEG-06. Fuera de eso, **ninguno**. Los cuatro MINOR: (1) `programa_list`
+  no incluía `components/_paginacion.html` y tres documentos decían que sí —se agregó el include, con lo que
+  las ocho lo tienen, y el test pasó de cubrir cinco a cubrir las ocho—; (2) `RolListView` dejaba `roles`,
+  `total_roles` y `hay_filtros_activos` en el contexto **sin un solo consumidor** desde que la pantalla decide
+  el estado vacío con `request.GET|hay_filtros`: se fueron los tres, y `test_roles_abm` pasa a afirmar que no
+  vuelven; (3) al reemplazar el kebab de `rol_list` se había perdido el aviso «Rol del sistema — no se puede
+  editar ni eliminar», que era lo único que explicaba por qué esa fila solo ofrece «Ver»: vuelve como `title`
+  del badge «Protegido» más un `sr-only` atado con `aria-describedby` a la acción «Ver», sin piezas nuevas;
+  (4) el Playwright de la primera vuelta midió «Página 1 de 2» en las cinco pantallas que paginan, no en las
+  ocho, y así quedó escrito acá, en la ficha y en el README.

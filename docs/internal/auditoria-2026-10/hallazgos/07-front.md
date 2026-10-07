@@ -26,10 +26,10 @@ FE-18, FE-19); las migraciones de estilo de esos dos módulos las hereda la v2.
 | FE-08 | Errores no de campo invisibles | MEDIA | CONF. | 5 | S | ✅ |
 | FE-09 | Links a `/legajos/<id>/`, ruta inexistente | MEDIA | CONF. ajustado | 5 | S | ✅ |
 | FE-10 | Prestación mensual ilegible en celular | MEDIA | CONF. navegador | 5 | S | ✅ |
-| FE-11 | Componentes canónicos solo en Becas | MEDIA | CONF. | 5 | L | ⬜ |
-| FE-12 | Tablas con estilos en línea e iconografía mezclada | MEDIA | CONF. | 5 | M | ⬜ |
+| FE-11 | Componentes canónicos solo en Becas | MEDIA | CONF. | 5 | L | 🟡 (Usuarios, Roles y Configuración ✅; `ciudadano_list` en el PR 6b) |
+| FE-12 | Tablas con estilos en línea e iconografía mezclada | MEDIA | CONF. | 5 | M | 🟡 (8 de 9 archivos; falta `ciudadano_list`) |
 | FE-13 | `design_audit`: decodificador roto y sin regla «clase sin definición» | MEDIA | CONF. ajustado | 6 | S | ✅ |
-| FE-17 | Paginaciones falsas o copiadas | MEDIA | CONF. | 5 | M | ⬜ |
+| FE-17 | Paginaciones falsas o copiadas | MEDIA | CONF. | 5 | M | 🟡 (`rol_list` pagina y `user_list` usa la pieza; `param`/`extra_qs` y los detalles de Becas en el PR 6b) |
 | FE-18 | Badges de estado incoherentes | MEDIA | CONF. | 5 | S | ✅ |
 | FE-19 | Confirmaciones con colores invertidos y handler copiado | MEDIA | CONF. ajustado | 5 | S | ✅ |
 | FE-20 | Wrapper legacy `includes/main.html`: contenido desplazado; 403/404/500 sin estilo | MEDIA | CONF. navegador | 5 | M | ⬜ |
@@ -277,10 +277,54 @@ pasa de 50 a **101 px**, sin encabezados partidos.
 - **Propuesta (pantalla por pantalla, en este orden, clonando la golden de su arquetipo):** (1) Dispositivos `legajo/list`, `legajo/detail`, `admisiones/*` (solo si D-V1 = sí; si no, lo hereda la v2); (2) Merenderos `list`, `detail`, `solicitudes` (ídem); (3) `user_list`, `rol_list`, `rol_detail`; (4) `legajos/ciudadano_list`; (5) Configuración. Reemplazos: header ad hoc → `{% load nodo_ui %}{% page_header titulo=… bajada=… volver_url=… volver_label=… %}…{% endpage_header %}` (sacar `style="font-size:28px…"` de `user_list.html:10-13`, `.cl-h1` y el «← Volver» de texto); vacíos inline → `components/_estado_vacio.html` con `con_filtros=request.GET|hay_filtros`; stat cards propias → `_stat_card.html`.
 - **Verificación:** `git grep -l "page_header"` ≥ 1 por pantalla migrada; `design_audit.py --ratchet` (Ola 6) con 0 nuevos; `check_design_agent.py --changed`; capturas antes/después.
 
+**Resolución:** 🟡 **Parcial** en el PR 6 de la Ola 5 (Cambio 166), 07-10-2026 — migrados los puntos **(3)** y
+**(5)** de la propuesta: `user_list`, `rol_list`, `rol_detail` y las **seis** listas de Configuración
+(`provincia`, `municipio`, `localidad`, `secretaria`, `subsecretaria`, `programa`). Las ocho listas clonan la
+golden `becas/revision/personas_list.html` (`--arquetipo listado` OK en las ocho): encabezado con
+`{% page_header %}` —se fue el `<h1 style="font-size:28px">` de las ocho y el «← Volver» circular a mano de
+`rol_detail`—, estado vacío con `components/_estado_vacio.html` en sus **dos** variantes (con filtros, con
+«Limpiar filtros» decidido por `request.GET|hay_filtros`; sin datos, con la acción de alta) y paginación con
+`components/_paginacion.html`. `rol_detail` entra como **ajuste (tipo A)**, no como arquetipo: no tiene solapas
+ni métricas, así que solo se le cambió el encabezado y la paleta cruda (`text-gray-900`, `bg-blue-600`,
+`border-gray-200`, `text-green-500` → tokens). **Los puntos (1) y (2) no se hacen:** D-V1 = No, así que las
+pantallas de Dispositivos y Merenderos las hereda la v2. **Queda para el PR 6b** el punto (4),
+`legajos/ciudadano_list.html` (492 líneas, con su propio JS), y los formularios de Configuración, que son FE-20.
+**Test permanente:** `core.tests.test_listados_canonicos_ola5_pr6.EncabezadoCanonicoTests.test_todas_usan_el_tag_canonico`
+(+ `test_ninguna_escribe_su_propio_h1`, `test_ninguna_dibuja_su_estado_vacio_a_mano` y
+`MarcadoresDelArquetipoTests.test_las_nueve_clonan_el_esqueleto_de_la_golden`).
+**Playwright (1440 y 390 px, 0 errores de consola):** `<h1>` en **x = 320** a 1440 px y **x = 16** a 390 px, 30 px
+y peso 800, en las ocho pantallas.
+
 ### FE-12 · Tablas con estilos en línea por celda e iconografía mezclada
 **Severidad:** MEDIA · **Estado:** CONFIRMADO (`style="` por archivo: 94 en `subsecretaria_list`, 79 en `secretaria_list`, 70 en `localidad_list`, 65 en `rol_list`, 46 en `user_list`, 296 en `ciudadano_detail`; SVG `stroke-width="1.5"`: 14 en `rol_list`, 9-10 en cada lista de Configuración y en `user_list`) · **Origen:** A6-13, A6-26 · **Ola:** 5 (después de Ola 6 paso 4) · **Esfuerzo:** M · **Decisión:** D3 del agente (íconos)
 - **Propuesta (por archivo, según la ficha `componentes/tabla.md`):** `<table class="w-full border-collapse">`, `<tr class="nodo-thead-row">`, `<th class="nodo-th">` (acciones con `text-right` y `<span class="sr-only">Acciones</span>`), `<tr class="hover:bg-secondary">`, `<td class="nodo-td">`; acciones `<a class="nodo-icon-btn" aria-label="Editar {{ obj }}"><i class="fas fa-pen" aria-hidden="true"></i></a>` (borrar con `nodo-icon-btn--danger`); borrar `onmouseenter`/`onmouseleave` y SVG Heroicons del contenido (el shell puede seguir con Heroicons). Archivos: `users/templates/user/user_list.html`, `users/templates/rol/rol_list.html`, `configuracion/templates/configuracion/{provincia,municipio,localidad,secretaria,subsecretaria,programa}_list.html`, `legajos/templates/legajos/ciudadano_list.html`; y si D-V1 = sí, `dispositivos/legajo/list.html`, `dispositivos/config/tipo_list.html`, `merenderos/{list,solicitudes,detail}.html`.
 - **Verificación:** conteo de `style="` y `stroke-width="1.5"` en 0 en las tablas; captura lado a lado con `personas_list`.
+
+**Resolución:** 🟡 **Parcial** en el PR 6 de la Ola 5 (Cambio 166), 07-10-2026 — **8 de los 9 archivos** que
+nombra la ficha (`ciudadano_list.html` queda para el PR 6b; Dispositivos y Merenderos no entran porque
+D-V1 = No). Las ocho tablas pasan a `nodo-thead-row`/`nodo-th`/`nodo-td` dentro de `overflow-x-auto` +
+`table.w-full.border-collapse`, con la columna de acciones nombrada (`<span class="sr-only">Acciones</span>`,
+que ninguna tenía) y cada acción de fila en `.nodo-icon-btn` con `aria-label` que **nombra el registro**; la
+destructiva, en `.nodo-icon-btn--danger`. **Conteos a 0 en los ocho archivos:** `style="` fuera del contrato
+(eran 94 en `subsecretaria_list`, 79 en `secretaria_list`, 70 en `localidad_list`, 65 en `rol_list` y 46 en
+`user_list`), `<svg` en el contenido —los 14 de `rol_list` y los 9-10 de cada lista pasan a Font Awesome con
+`aria-hidden`, D3— y los cuatro handlers de hover inline (`onmouseenter`/`onmouseleave`/`onmouseover`/`onmouseout`),
+que ahora son `hover:bg-secondary`. **Dos desvíos, los dos code-first:** (a) el **kebab** de `rol_list` —menú
+Alpine con `x-teleport`, posicionado a mano y sostenido por un `<style>` de 140 líneas— se reemplaza por las
+cuatro `.nodo-icon-btn` en la celda, que es la variante que el arquetipo permite; con eso se va el `<style>`
+entero, incluido su `[x-cloak]` local (ya lo define `override.css`) y el `@media` con `min-width:720px`
+(`responsive.css` le da a la tabla `width: max-content; min-width: 100%`, que es lo mismo sin arbitrario). (b)
+El `badge-danger` de «Inactiva» en `secretaria_list` y `subsecretaria_list` **no se tocó**: es el defecto de
+FE-18, que nombró `user_list`, `rol_list` y `rol_detail`, y cambiarlo acá sería una decisión de producto fuera
+de ficha. Queda anotado en el propio template.
+**Test permanente:** `core.tests.test_listados_canonicos_ola5_pr6.TablaCanonicaTests.test_ninguna_celda_lleva_sus_utilidades_en_linea`
+(+ `test_las_celdas_usan_las_clases_del_sistema`, `test_el_hover_de_fila_no_es_un_handler_inline`,
+`test_los_iconos_del_contenido_son_font_awesome`, `test_la_accion_de_fila_nombra_el_registro`,
+`test_la_columna_de_acciones_tiene_nombre` y `SinEstilosDePantallaTests.test_ninguna_pantalla_trae_su_propio_bloque_de_estilos`).
+**Playwright (1440 y 390 px):** `th` en 11 px, mayúsculas y fondo `rgb(249,250,251)`; `td` en 14 px con
+`13px 16px` de padding; `.nodo-icon-btn` de 26 × 26 px en `rgb(107,114,128)` con su `aria-label`
+(«Editar Localidad 00», «Ver rol Rol de prueba 00»). A 390 px la tabla scrollea **adentro de su card**
+(`scrollWidth` 709 contra `clientWidth` 356 en Usuarios) y el documento no se desplaza.
 
 ### FE-13 · `design_audit`: decodificador que trunca clases y sin regla «clase sin definición»
 **Severidad:** MEDIA · **Estado:** CONFIRMADO-AJUSTADO · **Origen:** A6-14, V5A-NEW-10; regla CLASSDEF construida sobre A6-06 y gate de build de V5A-NEW-01 · **Ola:** 6 (paso 2, herramientas; primer PR) · **Esfuerzo:** S
@@ -296,6 +340,43 @@ pasa de 50 a **101 px**, sin encabezados partidos.
 **Severidad:** MEDIA · **Estado:** CONFIRMADO (`rol_list.html:379-389` pie estático «1 de 1» con botones `disabled`; `ciudadano_list.html` arma `&search={{ search_value }}` sin `urlencode`) · **Origen:** A6-17 · **Ola:** 5 · **Esfuerzo:** M
 - **Propuesta:** `templates/components/_paginacion.html` con `param` (default `page`) y `extra_qs` (p. ej. `tab=beneficiarios`) —parámetro nuevo de componente canónico: actualizar su fila/ficha—; usarlo en `becas/cupo/segmento_detail.html:116,186,256` (golden de detalle: actualizar su ficha), `relevamientos/convocatoria_detail.html:222`, `relevamiento_detail.html:287`; `rol_list.html`: quitar el pie estático o paginar la vista; `user_list.html:110-128` y `legajos/ciudadano_list.html:154-172` al componente; `ConvocatoriaListView` y el detalle de convocatoria (PERF-17, pendiente del Cambio 92) con `paginate_by` + componente; listas de Merenderos y Dispositivos con `paginate_by = 25` (criterio v2 si D-V1 = no).
 - **Verificación:** casos `param`/`extra_qs` en `core/tests/test_nodo_ui_piezas.py`; test de `rol_list` sin «1 de 1».
+
+**Resolución:** 🟡 **Parcial** en el PR 6 de la Ola 5 (Cambio 166), 07-10-2026 — cierra la parte que no toca la
+pieza canónica. (1) **`rol_list` pagina la vista**, que es la opción de fondo de las dos que ofrecía la ficha:
+`RolListView.por_pagina = 25` sobre la lista ya filtrada, y el pie estático «1 de 1» con los dos botones
+`disabled` se reemplaza por `components/_paginacion.html`. Con 30 roles visibles la pantalla decía «1 de 1» y
+los 30 colgaban abajo; ahora dice «Página 1 de 2» y la 2 es alcanzable. El contador `total_roles` se fue con
+el pie que lo imprimía: la pieza cuenta lo que se está viendo. (2) **`user_list` pasa al componente**: se fue
+el pie de 20 líneas copiado a mano (`page_obj.has_previous`/`has_next` con sus SVG), y el querystring de los
+filtros viaja por `filtros_qs`. (3) **Las ocho incluyen la pieza**, pero **solo cinco paginan**: las tres
+listas de geografía ya lo hacían desde FE-04, más `user_list` y `rol_list`. `secretaria`, `subsecretaria` y
+`programa` la incluyen y **todavía no paginan**: sus `form_invalid` renderizan el listado a mano, así que
+ponerles `paginate_by` sin el tratamiento de `_contexto_lista` (FE-04) reestrena el bug de la fila 21 en
+Configuración. El include no dibuja nada sin `page_obj`, así que el PR 6b solo toca la vista. Va ahí, junto
+con el `param`/`extra_qs` de la pieza, los tres detalles de Becas (`segmento_detail` —que es golden—,
+`convocatoria_detail`, `relevamiento_detail`) y `ConvocatoriaListView`.
+**Test permanente:** `users.tests.test_listados_paginados_ola5_pr6.RolesPaginaDeVerdadTests.test_el_pie_ya_no_afirma_una_sola_pagina`
+(+ `test_la_primera_pagina_corta_en_el_tope`, `test_la_segunda_pagina_trae_el_resto_y_es_alcanzable`,
+`test_el_filtro_viaja_a_la_pagina_siguiente`, `test_el_contador_lo_pone_la_pieza_y_cuenta_lo_filtrado`,
+`UsuariosUsaLaPiezaDePaginacionTests.test_la_pagina_1_ofrece_la_2_con_el_texto_de_la_pieza`,
+`test_la_ultima_fila_es_alcanzable`,
+`core.tests.test_listados_canonicos_ola5_pr6.PaginacionCanonicaTests.test_ningun_pie_esta_escrito_a_mano` y
+`test_las_ocho_incluyen_la_pieza`).
+**Playwright (1440 y 390 px):** «Página 1 de 2» en las **cinco** que paginan (Usuarios, Roles y las tres de
+geografía).
+
+**Ronda 2 de la revisión (07-10-2026).** `{% url 'configuracion:programa_list' as url_sin_filtros %}`
+nombraba una ruta que **no existe** —se llama `configuracion:programas`—, y la forma `as` **se traga el
+`NoReverseMatch`**: la variable queda vacía, `components/_estado_vacio.html` recibe `accion_url=""` y no
+dibuja el ancla. Medido: `/configuracion/programas/?q=zzzz` daba 0 anchors, así que el botón «Limpiar
+filtros» de esa pantalla no existió nunca, sin error ni log. Además del nombre corregido quedan dos redes:
+una **conductual** —las ocho listas, llevadas a su estado vacío, tienen que dibujar el botón con un `href`
+no vacío que `resolve()`— y una **de repositorio**: un barrido de todos los `{% url '<nombre>' %}` literales
+de `templates/` y los ocho `*/templates/` que exige que cada nombre resuelva, con ratchet en las dos
+direcciones. El barrido midió **33** nombres rotos preexistentes: 32 en `portal/templates/portal/ciudadano/`
+(pantallas sin ruta, que el inventario ya declara «no son referencia» y borra la Ola 7) y
+`legajos:metricas_contactos_api` en `templates/components/widget_contactos.html`, parcial del shell legacy
+que retira LEG-06. **Ninguno fuera de eso.**
 
 ### FE-18 · Badges de estado: Merenderos sin badge, «Inactivo» en rojo, «Sin datos» en rojo
 **Severidad:** MEDIA · **Estado:** CONFIRMADO · **Origen:** A6-18 · **Ola:** 5 · **Esfuerzo:** S
