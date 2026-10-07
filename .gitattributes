@@ -1,5 +1,13 @@
 *.sh text eol=lf
 
+# RED-82: `programas/services/exportacion_reportes.py` se versionó con 122 terminadores
+# CR solitarios y ni un LF. git lo marcaba `i/-text` —el diff del PR no mostraba su
+# contenido—, `grep -n` lo veía como una sola línea y pylint lo salteaba devolviendo
+# verde. Esta regla impide que entre un `.py` con CRLF desde un checkout de Windows;
+# el CR solitario, que git no normaliza, lo cuida
+# `core/tests/test_higiene_fuentes.py::EOLTests`.
+*.py text eol=lf
+
 # El pipeline de GitLab lo mantiene ECOM: nuestra copia existe para que viaje en el
 # release, porque sin el archivo GitLab no crea pipeline y la rama se actualiza sin
 # construir imagen. Se fija en LF para que el blob quede idéntico al suyo: en un clon
