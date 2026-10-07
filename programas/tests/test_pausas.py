@@ -1,15 +1,16 @@
 from datetime import date
 
 from django.contrib.auth.models import User
-from django.test import TestCase
 from django.urls import reverse
 
 from programas.models import Convocatoria, RegistroPausa, Relevamiento, Segmento, Subsegmento
 from programas.services.pausas import cambiar_pausa
+from programas.tests.base_becas import BecasPantallaTestCase
 
 
-class PausasOperativasTests(TestCase):
+class PausasOperativasTests(BecasPantallaTestCase):
     def setUp(self):
+        super().setUp()
         self.usuario = User.objects.create_user("admin-pausas", password="x")
         self.territorial = User.objects.create_user("territorial-pausas", password="x")
         self.segmento = Segmento.objects.create(nombre="Segmento", cupo_maximo=10)

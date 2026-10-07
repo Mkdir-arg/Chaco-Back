@@ -105,7 +105,9 @@ jobs:
   tests-and-coverage:
     name: Tests & Coverage
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # Sube de 15 a 20: `branch = true` (TST-03) agrega ~50 % al tiempo de la corrida
+    # con coverage. Medido en local, de 480 s a 744 s.
+    timeout-minutes: 20
 
     steps:
       - uses: actions/checkout@v4
@@ -131,8 +133,88 @@ jobs:
           DJANGO_SYNCDB_PROJECT_APPS: "True"
         run: coverage run manage.py test --verbosity=2
 
+      # Mide el repo entero con el `omit` de `pyproject.toml` (TST-03): fuera
+      # `core/performance/*` (muerto), `scripts/*`, `awslabs-mcp/*` y `docker/*`, que
+      # no son producto ni viajan en la imagen. Con `branch = true` y
+      # `fail_under = 79`, dos puntos abajo de lo medido (81 %).
       - name: Coverage report
         run: coverage report
+
+      # TST-03, segunda mitad: el número global promedia 23.315 sentencias, así que
+      # una caída fuerte en un módulo caliente se diluye y no lo mueve. Estos nueve
+      # son los flujos por donde pasan el alta en SIIS, el cupo, el padrón y el link
+      # público, y están todos entre 92 % y 98 % con ramas (TOTAL 94 %, medido el
+      # 07-10-2026). El piso va en 90: es un ratchet, se sube cuando la medición suba.
+      #
+      # Va como paso del job que ya es obligatorio y no como check nuevo: es el mismo
+      # tema (la cobertura de este PR), reusa la medición que ya se hizo y no hay que
+      # tocar el ruleset del repo, que todavía no está aplicado.
+      - name: Coverage por módulo crítico
+        run: >
+          coverage report --fail-under=90
+          --include=programas/services/siis_envio.py,programas/services/proceso_masivo.py,programas/services/cupo.py,programas/services/inscripcion_publica.py,programas/services/padron.py,programas/services/respuestas.py,programas/api/views.py,portal/views/inscripcion.py,core/rbac.py
+
+  # TST-02 y RED-88: la suite tiene que pasar **en cualquier orden** y en paralelo.
+  #
+  # Cinco módulos de `programas/tests/` solo pasaban si otro había corrido antes (el
+  # Programa Becas quedaba en una caché de proceso que sobrevive al rollback), y
+  # `--parallel` moría con `cannot pickle 'traceback' object` sin decir qué test
+  # falló. Las dos cosas se arreglaron en el PR R-20; esto es lo que avisa si vuelven.
+  #
+  # **No bloqueante a propósito**, por dos razones distintas:
+  #
+  # * `--shuffle` toma una semilla al azar en cada corrida. Como gate obligatorio, un
+  #   PR podría quedar rojo por una dependencia de orden que otro PR introdujo, y
+  #   re-correr lo pondría verde: un check que no es reproducible no puede bloquear.
+  #   Lo que sí hace es dejar la evidencia en el log, con la semilla para reproducir.
+  # * El paso `--parallel 2` es el que pide RED-88 explícitamente, hasta que RED-86
+  #   pase la suite entera a paralelo.
+  #
+  # El job duplica la suite (~8,5 min), por eso va aparte y no adentro de
+  # `Tests & Coverage`, que ya tarda ~12 min midiendo ramas.
+  #
+  # El `continue-on-error` va **en los dos pasos que miden**, no en el job: a nivel
+  # job, GitHub reporta el check como *success* incluso cuando falla y la evidencia
+  # queda solo adentro del log. En los pasos, el paso queda marcado en rojo y con su
+  # anotación en la pestaña del PR —que es lo que hace falta para que alguien lo mire—
+  # mientras el job termina en verde y no bloquea nada.
+  orden-y-paralelo:
+    name: Orden y paralelo
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install system dependencies
+        run: sudo apt-get install -y default-libmysqlclient-dev
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      # La semilla queda impresa en el log: `manage.py test --shuffle <semilla>`
+      # reproduce exactamente este orden.
+      - name: Suite en orden aleatorio
+        continue-on-error: true
+        env:
+          DJANGO_SECRET_KEY: ci-test-key-not-a-real-secret
+          PYTEST_RUNNING: "1"
+          DJANGO_SYNCDB_PROJECT_APPS: "True"
+        run: python manage.py test --shuffle
+
+      - name: Suite paralela de core, users y portal
+        continue-on-error: true
+        env:
+          DJANGO_SECRET_KEY: ci-test-key-not-a-real-secret
+          PYTEST_RUNNING: "1"
+          DJANGO_SYNCDB_PROJECT_APPS: "True"
+        run: python manage.py test core users portal --parallel 2
 
   # RED-43: el CI no tenía **ningún** gate de contrato de API. El esquema se podía
   # romper, una clave que el front lee a mano podía desaparecer y una capacidad mal

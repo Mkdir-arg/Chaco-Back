@@ -4,16 +4,17 @@ from datetime import date
 from urllib.parse import quote
 
 from django.contrib.auth.models import User
-from django.test import TestCase
 from django.urls import reverse
 
 from core.tests.js_harness import atributos_de
 from legajos.models import Ciudadano
 from programas.models import Convocatoria, Formulario, ListaEspera, Relevamiento, Segmento
+from programas.tests.base_becas import BecasPantallaTestCase
 
 
-class CupoSegmentoDisenoTests(TestCase):
+class CupoSegmentoDisenoTests(BecasPantallaTestCase):
     def setUp(self):
+        super().setUp()
         self.admin = User.objects.create_superuser("admin-cupo-diseno", password="x")
         self.segmento = Segmento.objects.create(nombre="Seg Diseño", cupo_maximo=10)
         convocatoria = Convocatoria.objects.create(

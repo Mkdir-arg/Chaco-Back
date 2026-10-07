@@ -16,19 +16,17 @@ Cubre lo que se ve en la pantalla y que ningún otro test fija:
 """
 
 from datetime import timedelta
-from io import StringIO
 
 from django.contrib.auth.models import User
 from django.core.cache import cache
-from django.core.management import call_command
 from django.db import connection
-from django.test import TestCase
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
 
 from core.tests.js_harness import atributos_de
 from programas.models import Convocatoria, ProgramaSiis, Segmento, Subsegmento
+from programas.tests.base_becas import BecasPantallaTestCase
 
 
 def _badges(html):
@@ -46,27 +44,13 @@ def _badges(html):
         resto = resto[fin + 1 :]
 
 
-class _BaseConvocatoriasDiseno(TestCase):
-    """Estado compartido que estas pantallas necesitan, puesto por el propio módulo.
+class _BaseConvocatoriasDiseno(BecasPantallaTestCase):
+    """Alias local de la base compartida.
 
-    Dos cosas que vienen de afuera del test y que, sin esto, lo vuelven dependiente
-    del orden en que corra la suite:
-
-    * **El Programa Becas tiene que existir.** Desde RED-56 (Cambio 123) los guards
-      de Becas fallan cerrados: sin la fila ``codigo="BECAS"``, ``_programa_o_denegar``
-      levanta ``PermissionDenied`` **también para un superusuario** y toda la pantalla
-      da 403. Este módulo no la sembraba: pasaba solo porque algún módulo anterior
-      corría ``seed_becas`` y dejaba el Programa cacheado en ``programas:becas``, una
-      clave de proceso que sobrevive al rollback de la base. Corrido solo —o si el
-      orden cambia— daba 403 en 17 tests.
-    * **La caché arranca vacía.** Es de proceso (LocMem) y nadie la limpia entre
-      tests, así que lo que haya quedado de otro módulo decide cuántas consultas hace
-      la pantalla.
+    El contenido de este `setUp` nació acá (Cambio 130, PR R-11) y el PR R-20 lo
+    movió a `programas.tests.base_becas` cuando apareció en otros cinco módulos
+    (TST-02): el porqué de cada línea está en el docstring de ese archivo.
     """
-
-    def setUp(self):
-        cache.clear()
-        call_command("crear_programas", stdout=StringIO())
 
 
 class ConvocatoriaListadoEstadoTests(_BaseConvocatoriasDiseno):
