@@ -1,5 +1,31 @@
 # Auditoría integral de DATAÑACH (Chaco) — octubre 2026
 
+## Estado al 07-oct-2026 (Ola 1, PR 7: herramientas y correcciones manuales — **la Ola 1 cierra**)
+
+**Las tres fichas de herramientas, más la segunda parte de RED-32.** El PR 7 de la Ola 1 (Cambio 162) son
+6 + 4 h y **sin migraciones**. Con esto la Ola 1 va por **76 h cerradas de 78**: lo único que queda es el
+ítem 0 (V2-NEW-03, correr P-01 en PRD), que es operativo y no tiene código.
+
+| Ficha | Qué quedó |
+|---|---|
+| **SIIS-19** ✅ | `diagnosticar_siis --alta` escribe un beneficiario inventado en un servicio **sin baja**, y lo hacía con el DNI del ejemplo del manual por defecto y contra cualquier URL. Ahora `--alta-dni` es obligatorio y el alta solo sale contra el SIIS de desarrollo de ECOM —decidido por la **URL** (`es_host_de_desarrollo`), no por `ENVIRONMENT`, que vale `prd` también en QA y en icore—; fuera de ahí pide `--si-entiendo-prd --motivo`, que deja rastro en el log. La guarda vive en `ComandoSiisBase` (RED-53), no en el comando. Los pasos 1 a 5, de solo lectura, no cambian |
+| **SIIS-17** ✅ | Una corrección cargada mal en «Completar datos para SIIS» no se podía borrar —lo vacío se descarta, así que solo se podía tapar con otra— y dos guardados simultáneos se pisaban, porque el merge leía la foto del principio del request. Ahora hay un bloque «Quitar corrección» con los campos que de verdad están corregidos, el merge va bajo `select_for_update` adentro de la transacción, y la localidad se cruza contra la provincia **ya guardada** cuando el POST no la trae (que es siempre que se corrige solo la localidad) |
+| **G3-06** ✅ | `corregir_datos_siis --aplicar` mandaba el `datos_siis` entero calculado sobre una lectura de hace segundos: lo que el coordinador hubiera guardado en el medio desaparecía sin rastro, y desde #513 esa ventana se abre en **cada** corrida de `correr_alta_siis`. Ahora relee bajo candado, compara campo por campo y respeta la corrección más nueva, no toca un caso con un `EnvioSIIS` vigente (más ancho que el `exclude` de `ENVIADO` del armado de la lista: cubre el `EN_PROCESO` en vuelo y el `INCIERTO`), y deja **una** traza por caso firmada con el `--usuario` nuevo |
+| **RED-32** ✅ | Cierra su segunda parte: `test_validar_casos_siis.py`, 11 tests con `--aplicar` sobre lo que la ficha nombra como frágil (el `order_by` del `Subquery`, el `exclude(estado=RECHAZADO)` y el freno por errores seguidos), verificados con tres mutaciones. De yapa, `completar_casos_renaper` deja de morirse entero por un caso ilegible: lo saltea, lo nombra por pk y sigue |
+
+**Dos desvíos de las fichas, a favor del código.** (1) SIIS-17 pedía «un centinela por campo»: seis de los
+trece campos son selects que llena el navegador o inputs de texto, donde un centinela no tiene dónde vivir,
+así que el «quitar» quedó como un campo aparte que además **solo ofrece lo que está puesto**. (2) RED-32
+pedía parchear `programas.services.validacion_siis.validar_formulario_en_siis`: el comando importa ese nombre
+en su encabezado, así que con ese target los tests pasarían **saliendo a la red de verdad**; el patch va sobre
+el módulo del comando. **Lo que no se cierra:** el «además no deja `EnvioSIIS`» de SIIS-19 no se puede hacer
+—esa tabla cuelga de un `Formulario` y el alta de prueba no tiene caso—; la guarda de ambiente lo reemplaza:
+en vez de anotar el alta irreversible, la impide.
+
+**Bloqueado por permisos:** el PR necesita actualizar `.claude/design/componentes/field.md` (ficha del
+componente Campo, consumidor nuevo de `.nodo-checks`) y esta sesión no tiene escritura bajo `.claude/`. El
+texto completo va en el cuerpo del PR; sin ese parche, `check_design_agent.py --changed` queda en rojo.
+
 ## Estado al 07-oct-2026 (Ola R: R-21, los ratchets de arquitectura)
 
 | PR | Cambio | Fichas | Estado | Qué quedó abierto |
@@ -383,7 +409,8 @@ columna «Avance» de la tabla índice de `hallazgos/08-red-de-seguridad.md` coi
 | **Total** | **89** | **33** | **5** | **51** |
 
 La columna ✅ incluye las fichas cuya **parte de la Ola R** quedó cerrada y tienen una segunda parte planificada en otra
-ola, anotadas `✅ (R; falta Ola N)`: RED-09 (Ola 3), RED-32 (Ola 1), RED-37, RED-54, RED-65 y RED-85 (Ola 7). El 🟡 se reserva
+ola, anotadas `✅ (R; falta Ola N)`: RED-09 (Ola 3), RED-37, RED-54, RED-65 y RED-85 (Ola 7). **RED-32 ya no está en esa
+lista: su segunda parte cerró el 07-oct con el PR 7 de la Ola 1 (Cambio 162).** El 🟡 se reserva
 para una ficha cuya propia parte de la Ola R quedó incompleta: RED-01 y RED-20 (falta el paso del dueño del repo),
 RED-10 (falta un test), RED-22 (falta enviar la propuesta a ECOM) y RED-23 (faltan los dos comandos en `.claude/`).
 
@@ -1255,7 +1282,7 @@ funcional ni coordinación con ECOM). Las horas de cada ola suman los esfuerzos 
 |---|---|---:|---:|---:|---:|---:|---:|
 | 0 | Hotfix de seguridad y seeds | 16 | 36 | 0 (completa en código; lo operativo, en «Estado») | 0 | 0 | 0 |
 | **R** | **Red de seguridad: poder cambiar código sin romper nada sin enterarse** | — | — | — | — | **86** (79 RED con parte en R —78 del relevamiento + RED-89— + OPS-01, OPS-03, OPS-04, TST-01, TST-02, TST-03, R0-03; SEC-10, SEC-11 y SEC-18 se ejecutan en R-19 pero **siguen contadas como ítems de la Ola 2**, solo se mueven sus horas) | **285** · **107 cerradas el 04-oct (R-01..R-10 y R-19) → 178 restantes** |
-| 1 | Integridad SIIS | 23 | 72 | 22 (− SIIS-07) | 70 | 23 (+ RED-53; + parte de RED-32) | 78 · **46 cerradas (26 el 05-oct, PR 2; 6 el 06-oct, PR 3; 10 el 06-oct, PR 4; 4 el 06-oct, PR 5) → 32 restantes** |
+| 1 | Integridad SIIS | 23 | 72 | 22 (− SIIS-07) | 70 | 23 (+ RED-53; + parte de RED-32) | 78 · **76 cerradas (26 el 05-oct, PR 2; 6 el 06-oct, PR 3; 10 el 06-oct, PR 4; 4 el 06-oct, PR 5; 20 el 07-oct, PR 6; 10 el 07-oct, PR 7) → 2 restantes: el ítem 0 (V2-NEW-03, correr P-01 en PRD, sin código)** |
 | 2 | Autorización (RBAC, legajos, alcance de Becas, usuarios) | 36 | 116 | 50 (+ fase 2 de OPS-06, R0-05, resto de SEC-01, etapa 2 de SEC-09, R0b-01..10) | 136 | 51 (+ RED-80; + partes de RED-52, RED-79) | 135 (−7: SEC-10, SEC-18 y media SEC-11 se hacen en R-19, D-RED-14) |
 | 3 | Datos, operación, CI, app de campo y reglas de Becas | 55 | 158 | 59 (+ R0-03, R0-04, R0-06, R0-07) | 166 | 54 (− 7 a la Ola R; + RED-48, RED-58; + partes de RED-09, 35, 40, 50) | 152 |
 | 4 | Performance | 19 | 52 | 19 | 52 | 20 (+ RED-62; + partes de RED-10, 49, 51, 83) | 64 |
@@ -1520,17 +1547,37 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
      el legajo destrabe el caso solo. De los MINOR, el grande: los catálogos maestros **salieron del request**
      a una copia en la base (migración `programas.0077_catalogo_siis_local`), porque declararlos en la cadena de
      «Aprobar» era imposible —ya estaba justo en 55 de 55—. 20 h.
-  7. SIIS-19, SIIS-17, G3-06 (herramientas y correcciones manuales). 6 h.
+  7. ✅ **Hecho el 07-oct-2026 (Cambio 162):** SIIS-19 + SIIS-17 + G3-06 (herramientas y correcciones manuales).
+     El alta de prueba de `diagnosticar_siis` solo sale contra el SIIS de desarrollo —por la **URL**, no por
+     `ENVIRONMENT`— y fuera de ahí pide `--si-entiendo-prd --motivo`, con la guarda en `ComandoSiisBase` y no
+     en el comando; `--alta-dni` deja de tener default. En el modal «Completar datos para SIIS» una corrección
+     se puede **quitar** (antes solo se podía tapar con otra), el merge se hace bajo `select_for_update` adentro
+     de la transacción y la localidad se cruza contra la provincia **ya guardada** cuando el POST no la trae.
+     `corregir_datos_siis` relee el lote bajo candado, respeta la corrección manual más nueva, no toca un caso
+     con un envío vigente y deja una traza por caso firmada con `--usuario`. **Sin migraciones.** 6 h.
   8. *Red de seguridad (04-oct):* ✅ RED-53 (`ComandoSiisBase`) entró con el **PR 2** (Cambio 127): un candado que se
-     agrega en un comando se agrega en los cuatro. Queda la segunda parte de RED-32 (suite de comportamiento de
-     `validar_casos_siis`, con el PR 7). 8 h (4 cerradas).
+     agrega en un comando se agrega en los cuatro. ✅ La segunda parte de RED-32 cerró con el **PR 7** (Cambio 162):
+     `programas/tests/test_validar_casos_siis.py`, 11 tests con `--aplicar` (selección, freno y frenos de arranque),
+     verificados con tres mutaciones; y `completar_casos_renaper` deja de morirse entero por un caso ilegible. 8 h.
   **Prerrequisito:** PRs R-01 a R-10 de la Ola R (caracterización de comandos y del detalle de revisión, contrato de la
   app, particiones de estados, cupo y forma del SQL).
-- **Hecho cuando:** V-STD; PoC invertidas de `poc/test_repro_siis_becas.py` pasan (SIIS-01: 1 sola llamada y un solo
+- **Hecho cuando:** ✅ **cerrado el 07-oct-2026 con el PR 7 (Cambio 162).** V-STD; PoC invertidas de
+  `poc/test_repro_siis_becas.py` pasan (SIIS-01: 1 sola llamada y un solo
   `vigente`; SIIS-02: `ReadTimeout` → INCIERTO no reintentable; SIIS-03: latido por caso, freno, comandos abortan con
   corrida viva; SIIS-04: no informa casos en BAJA; SIIS-05: `DUPLICADO_LOCAL`; SIIS-06: catálogo vacío no escribe;
   SIIS-11/12; BEC-01/02); la migración de `EnvioSIIS` (ya no la 0074) probada en MariaDB real con varios NULL en el índice único y con un formulario
   con 2 `ENVIADO`; `manage.py test programas` completo en verde.
+  **Evidencia de las PoC (07-oct, `.venv312`, PoC copiada al worktree y borrada después):** de sus 13 tests
+  —que afirman el comportamiento **defectuoso**— hoy hay **12 en rojo** y uno en verde. El verde es
+  `PersonasAplanadoTests.test_nombre_sale_de_objeto_anidado`, que reproduce **SIIS-10, de la Ola 3**, y por eso
+  tiene que seguir pasando. Los 12 rojos cubren las nueve clases de esta ola: `SiisAltaSinExclusionTests` (3,
+  SIIS-01/03/05), `ResultadoAmbiguoTests` (SIIS-02), `EstadoViejoEnMasivoTests` (SIIS-04), `LatidoTests` (2,
+  SIIS-03), `AprobarPisaRechazoTests` (BEC-01), `EsperaDobleTests` (BEC-02), `SyncCatalogoVacioTests` (SIIS-06),
+  `CompatibilidadBodyListaTests` (SIIS-11) y `ApoderadoTests` (SIIS-12). La suite completa del repo
+  —`manage.py test` sin argumentos, no solo `programas`— da **3355 tests OK** (30 skipped, 7 expected failures).
+  **Lo único que queda del «Hecho cuando» es operativo y no es de código:** la migración de `EnvioSIIS` probada
+  contra MariaDB real con datos (varios NULL en el índice único y un formulario con 2 `ENVIADO`); en el CI la
+  cubre el job `Migrate ida y vuelta`, pero el ensayo con la foto de PRD lo corre el PM.
 - **Riesgo de deploy:** medio. Dos migraciones: 0073 (`programas_relevamiento`, tabla chica, `RunPython` con `MODIFY`; ya
   mergeada en #515) y la de `EnvioSIIS` (hoy sería la 0075; `programas_enviosiis`: decenas de miles de filas, AddField +
   índice único + índice `(documento, id_programa)` +
@@ -1540,7 +1587,11 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
   Nace sin filas y el backoffice ya no va a buscar los catálogos a SIIS, así que **hay que correr
   `sincronizar_programas_siis` una vez después del deploy**: hasta entonces el alta desde la pantalla queda como
   ERROR reintentable con el mensaje que lo dice. El masivo y los comandos no dependen de eso —van a la red y, de
-  paso, llenan la copia—.
+  paso, llenan la copia—. **El PR 7 (07-oct) no trae migraciones**, pero sí dos cambios de interfaz de comandos que
+  importan para quien opere: `diagnosticar_siis --alta` ahora **exige** `--alta-dni` y, contra una URL que no sea la
+  del SIIS de desarrollo de ECOM, `--si-entiendo-prd --motivo`; y `corregir_datos_siis` acepta `--usuario`, que
+  `correr_alta_siis` le reenvía solo. Ningún script del repo ni del CI corre `diagnosticar_siis --alta`, pero un
+  alias o un runbook del organismo que lo haga va a cortar con el mensaje que explica qué falta.
 
 ### Ola 2 — Autorización
 - **Objetivo:** que cada capacidad se evalúe con su alcance de programa y que ninguna vista de legajos, Becas o usuarios

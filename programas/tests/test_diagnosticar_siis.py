@@ -12,6 +12,7 @@ from unittest.mock import Mock, patch
 
 from django.core.cache import cache
 from django.core.management import call_command
+from django.core.management.base import CommandError
 from django.test import SimpleTestCase, override_settings
 
 CREDENCIALES = dict(
@@ -22,6 +23,9 @@ CREDENCIALES = dict(
     SIIS_API_TIMEOUT=2,
 )
 
+#: El SIIS de desarrollo de ECOM, el único ambiente donde el alta de prueba es gratis.
+URL_DESARROLLO = "https://siisapi.ecomdev.ar"
+
 
 def _respuesta(payload, status=200):
     respuesta = Mock(status_code=status)
@@ -30,12 +34,12 @@ def _respuesta(payload, status=200):
     return respuesta
 
 
-def _correr():
+def _correr(*args):
     """Corre el comando y devuelve ``(salida, codigo_de_salida)``."""
     salida = StringIO()
     codigo = 0
     try:
-        call_command("diagnosticar_siis", stdout=salida)
+        call_command("diagnosticar_siis", *args, stdout=salida)
     except SystemExit as exc:
         codigo = exc.code
     return salida.getvalue(), codigo
@@ -163,3 +167,107 @@ class DiagnosticarSiisSinConfiguracionTests(SimpleTestCase):
         self.assertIn("SIIS_API_CLIENT_SECRET: vacía", salida)
         self.assertNotIn("2. Autenticación", salida)
         post.assert_not_called()
+
+
+class AltaDePruebaTests(SimpleTestCase):
+    """SIIS-19: el paso 6 escribe en SIIS y SIIS no tiene baja.
+
+    Un alta de prueba mandada al ambiente equivocado deja ahí, para siempre, un
+    beneficiario «PRUEBA INTEGRACION DATANACH» con un DNI que ni siquiera eligió
+    quien corrió el comando —venía por defecto—. Las dos guardas: fuera del SIIS
+    de desarrollo el alta pide ``--si-entiendo-prd --motivo``, y el DNI deja de
+    tener default.
+    """
+
+    def setUp(self):
+        cache.clear()
+
+    def correr(self, *args):
+        """Corre ``--alta`` con la red mockeada.
+
+        Devuelve ``(salida, mock_del_alta, error)``. El mock vuelve también
+        cuando el comando cortó, porque lo que hay que afirmar en ese caso es
+        justamente que **no** llegó a llamarse.
+        """
+        salida = StringIO()
+        error = None
+        with (
+            patch("programas.services.siis.SiisAPIClient.cargar_beneficiario") as alta,
+            patch("programas.services.siis.sesion.get") as get,
+            patch("programas.services.siis.sesion.post") as post,
+        ):
+            post.return_value = _respuesta({"access_token": "abc", "expires_in": 3600})
+            get.return_value = _respuesta({"programas": [{"id": 34, "nombre": "Chaco Joven", "estado": "ACTIVO"}]})
+            alta.return_value = {"success": True, "siis_id": 7, "data": {}}
+            try:
+                call_command("diagnosticar_siis", "--alta", *args, stdout=salida)
+            except SystemExit:
+                pass
+            except CommandError as exc:
+                error = exc
+        return salida.getvalue(), alta, error
+
+    @override_settings(**{**CREDENCIALES, "SIIS_API_URL": "https://siis.chaco.gob.ar"})
+    def test_contra_una_url_que_no_es_la_de_desarrollo_corta_sin_escribir(self):
+        _, alta, error = self.correr("--alta-dni", "35111222")
+
+        self.assertIn("--si-entiendo-prd", str(error))
+        alta.assert_not_called()
+
+    @override_settings(**{**CREDENCIALES, "SIIS_API_URL": "https://siis.chaco.gob.ar"})
+    def test_la_bandera_sin_motivo_tampoco_alcanza(self):
+        _, alta, error = self.correr("--alta-dni", "35111222", "--si-entiendo-prd")
+
+        self.assertIn("--motivo", str(error))
+        alta.assert_not_called()
+
+    @override_settings(**{**CREDENCIALES, "SIIS_API_URL": "https://siis.chaco.gob.ar"})
+    def test_con_bandera_y_motivo_escribe_y_deja_rastro(self):
+        with self.assertLogs("programas.management.commands._base_siis", level="WARNING") as registro:
+            salida, alta, error = self.correr(
+                "--alta-dni", "35111222", "--si-entiendo-prd", "--motivo", "verificación pedida por ECOM"
+            )
+
+        self.assertIsNone(error)
+        alta.assert_called_once()
+        self.assertIn("verificación pedida por ECOM", "\n".join(registro.output))
+        self.assertIn("si-entiendo-prd", salida)
+
+    @override_settings(**{**CREDENCIALES, "SIIS_API_URL": URL_DESARROLLO})
+    def test_contra_el_siis_de_desarrollo_no_pide_nada(self):
+        _, alta, error = self.correr("--alta-dni", "35111222")
+
+        self.assertIsNone(error)
+        alta.assert_called_once()
+        self.assertEqual(alta.call_args.args[0]["dni"], 35111222)
+
+    @override_settings(**{**CREDENCIALES, "SIIS_API_URL": URL_DESARROLLO})
+    def test_sin_alta_dni_no_se_inventa_uno(self):
+        """El default `35111222` hacía que correr `--alta` sin pensar diera de
+        alta siempre a la misma persona del manual."""
+        _, alta, error = self.correr()
+
+        self.assertIn("--alta-dni", str(error))
+        alta.assert_not_called()
+
+    @override_settings(**{**CREDENCIALES, "SIIS_API_URL": ""})
+    def test_sin_url_no_se_puede_saber_a_donde_iria(self):
+        _, alta, error = self.correr("--alta-dni", "35111222")
+
+        self.assertIn("SIIS_API_URL", str(error))
+        alta.assert_not_called()
+
+    @override_settings(**{**CREDENCIALES, "SIIS_API_URL": "https://siis.chaco.gob.ar"})
+    def test_los_pasos_de_solo_lectura_siguen_corriendo_contra_produccion(self):
+        """La guarda es del paso 6, no del comando: diagnosticar sigue siendo lo
+        primero que se corre en un ambiente recién configurado."""
+        with (
+            patch("programas.services.siis.sesion.get") as get,
+            patch("programas.services.siis.sesion.post") as post,
+        ):
+            post.return_value = _respuesta({"access_token": "abc", "expires_in": 3600})
+            get.return_value = _respuesta({"programas": [{"id": 34, "nombre": "Chaco Joven", "estado": "ACTIVO"}]})
+            salida, codigo = _correr()
+
+        self.assertEqual(codigo, 0)
+        self.assertIn("Diagnóstico sin fallas", salida)

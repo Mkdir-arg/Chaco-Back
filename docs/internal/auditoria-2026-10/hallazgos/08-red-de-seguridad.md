@@ -71,7 +71,7 @@ con lo que existe hoy; la lista solo baja.
 | RED-29 | El envío del link público no prueba que el relevamiento siga `EN_CURSO` | ALTA | CONF. test (mutación M44) | R | S | ✅ |
 | RED-30 | Sin test de humo por pantalla: nada afirma «ninguna ruta da 500» | MEDIA | CONF. test (barrido) | R | S | ✅ |
 | RED-31 | `requisito_eliminar` y `subsegmento_eliminar` no se ejecutan en ningún test | MEDIA | CONF. test (coverage) | R | S | ✅ |
-| RED-32 | Comandos contra SIIS y RENAPER sin red (`validar_casos_siis`, `completar_casos_renaper`, `sincronizar_programas_siis`) | MEDIA | CONF. test (coverage) | R (+1) | S-M (+S-M) | ✅ (R; falta Ola 1) |
+| RED-32 | Comandos contra SIIS y RENAPER sin red (`validar_casos_siis`, `completar_casos_renaper`, `sincronizar_programas_siis`) | MEDIA | CONF. test (coverage) | R (+1) | S-M (+S-M) | ✅ |
 | RED-33 | Dispositivos y Merenderos: las vistas que operan no tienen test HTTP | MEDIA | CONF. test (coverage) | 5 | M | ⬜ |
 | RED-34 | Nada obliga a que una ficha cerrada deje un test permanente (0 tests bajo `docs/`) | MEDIA | CONF. test | R | S | ⬜ |
 | RED-35 | Ningún test afirma que las escrituras críticas sigan siendo atómicas | MEDIA | CONF. lectura | R (+3) | S (+S-M) | ✅ |
@@ -423,6 +423,33 @@ función registrada en la conexión) en vez de saltear la clase en motores que n
 saltearla dejaría a la guarda sin red. El SQL del comando corre tal cual.
 Verificado a mano: volver a un solo lote (`_lotes(ids, len(ids))`) → `test_procesa_por_lotes` en rojo; sacar el
 `exclude(estado=RECHAZADO)` de `_casos` → 4 tests en rojo.
+
+**Resolución (segunda parte, Ola 1):** ✅ Cerrada en #PENDIENTE (Cambio 162), 07-oct-2026 — nuevo
+`programas/tests/test_validar_casos_siis.py::ValidarCasosSiisTests`, 11 tests, todos **con `--aplicar`**: lo que R-06
+dejó fijado era el ensayo, y lo que la ficha nombra como frágil solo se ve cuando el comando corre de verdad. Los seis
+de la propuesta (`test_toma_solo_los_casos_sin_validacion`, `test_reintentar_errores_suma_los_que_quedaron_en_error`,
+`test_un_rechazado_por_el_revisor_se_saltea_salvo_incluir_rechazados`,
+`test_diez_errores_tecnicos_seguidos_detienen_la_corrida`, `test_un_ok_entre_errores_reinicia_el_contador`,
+`test_sin_credenciales_con_aplicar_corta_con_commanderror`) más cinco que salieron de mirar el código al lado de la
+ficha: `test_el_limite_corta_la_lista_por_el_orden_de_pk`, `test_un_caso_sin_dni_se_saltea_y_no_cuenta_como_error` —un
+salteo no puede sumar al freno ni, peor, ponerle el contador en cero a una racha de errores de verdad—,
+`test_el_usuario_queda_como_solicitante_de_la_validacion`, `test_un_rechazo_de_siis_no_es_una_falla_tecnica` y
+`test_el_tope_de_errores_se_puede_bajar`.
+**Desvío de la ficha, a favor del código:** el patch no va sobre `programas.services.validacion_siis.validar_formulario_en_siis`
+sino sobre `programas.management.commands.validar_casos_siis.validar_formulario_en_siis`. El comando importa el nombre
+en su encabezado, así que parchear el módulo del servicio no cambia la referencia que el comando ya tiene: con el
+target de la ficha los tests pasarían **saliendo a la red de verdad**, que es exactamente lo que no se quiere. (La
+caracterización de R-06 usa el target de la ficha y no se nota porque ahí el comando nunca llega a llamar al servicio.)
+`CompletarCasosRenaperTests.test_un_caso_que_falla_no_corta_el_resto` **sí necesitó tocar código**: hoy una excepción
+en un caso mataba la corrida, y con los lotes anteriores ya confirmados volver a correrla avanzaba hasta el mismo caso
+y moría ahí para siempre, sin flag con el que saltearlo. Ahora el caso se saltea, se cuenta y se nombra por pk en el
+resumen; el traceback va a `logger.exception` (log del pod) y no a la consola, porque puede traer valores del caso.
+Verificado a mano con tres mutaciones sobre `validar_casos_siis`: invertir el `order_by` del `Subquery`
+(`-creado, -id` → `creado, id`) → `test_reintentar_errores_suma_los_que_quedaron_en_error` en rojo; sacar el
+`exclude(estado=RECHAZADO)` → `test_un_rechazado_por_el_revisor_se_saltea_salvo_incluir_rechazados` en rojo; cambiar el
+`if freno.registrar(falla): break` por un `freno.registrar(falla)` suelto → los dos tests del freno en rojo.
+**Test permanente:** `programas.tests.test_validar_casos_siis.ValidarCasosSiisTests` y
+`programas.tests.test_comandos_siis_caracterizacion.CompletarCasosRenaperTests.test_un_caso_que_falla_no_corta_el_resto`.
 **Queda abierto (Ola 1, PR 7):** los seis tests de `validar_casos_siis` con `validar_formulario_en_siis` mockeado de
 verdad (contador de errores seguidos, `--max-errores`) y `test_un_caso_que_falla_no_corta_el_resto`, más RED-53.
 **Test permanente:** `programas/tests/test_comandos_siis_caracterizacion.py::CompletarCasosRenaperTests.test_procesa_por_lotes`

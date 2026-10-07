@@ -1427,8 +1427,11 @@ class EnvioSiisAlAprobarTests(_BaseAprobacionTest):
 
 def _catalogo_siis_falso(nombre):
     return {
-        "provincias": [{"id": 22, "nombre": "Chaco"}],
-        "localidades": [{"id": 37, "nombre": "Juan José Castelli", "id_provincia": 22}],
+        "provincias": [{"id": 22, "nombre": "Chaco"}, {"id": 18, "nombre": "Corrientes"}],
+        "localidades": [
+            {"id": 37, "nombre": "Juan José Castelli", "id_provincia": 22},
+            {"id": 51, "nombre": "Goya", "id_provincia": 18},
+        ],
         "estados-civiles": [{"id": 1, "nombre": "Soltero/a"}],
         "jurisdicciones": [{"id": 28, "nombre": "Ministerio de Desarrollo Humano"}],
     }[nombre]
@@ -1545,6 +1548,121 @@ class ReenvioYDatosSiisTests(_BaseAprobacionTest):
 
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.json(), {"localidades": [{"id": 37, "nombre": "Juan José Castelli"}]})
+
+
+class QuitarCorreccionSiisTests(_BaseAprobacionTest):
+    """SIIS-17: una corrección cargada mal no se podía borrar, y dos a la vez se pisaban.
+
+    El formulario descarta lo vacío (`como_datos_siis`), así que el único modo de
+    deshacer una corrección equivocada era cargarle otra encima; y el merge
+    `{**anteriores, **nuevos}` leía `anteriores` de la instancia traída al
+    principio del request, así que de dos guardados simultáneos el segundo
+    borraba lo del primero. Un `id_plan_soc` mal corregido viaja a SIIS y SIIS no
+    tiene baja: por eso una ficha BAJA tiene este tamaño.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.form_a.estado = Formulario.Estado.APROBADO
+        self.form_a.datos_siis = {"barrio_actual": "Barrio 108", "prov_actual": 22, "loc_actual": 37}
+        self.form_a.save(update_fields=["estado", "datos_siis"])
+        patch("programas.forms.catalogo", side_effect=_catalogo_siis_falso).start()
+        patch("programas.forms.listar_programas", side_effect=_programas_siis_falsos).start()
+        patch("programas.views.revision.catalogo", side_effect=_catalogo_siis_falso).start()
+        self.addCleanup(patch.stopall)
+        self.url = reverse("becas:formulario_datos_siis", args=[self.form_a.pk])
+
+    def correcciones(self):
+        self.form_a.refresh_from_db()
+        return self.form_a.datos_siis
+
+    def test_quitar_borra_la_clave_y_deja_traza(self):
+        self.client.post(self.url, {"quitar": ["barrio_actual"]})
+
+        self.assertNotIn("barrio_actual", self.correcciones())
+        self.assertEqual(self.correcciones()["loc_actual"], 37)
+        self.assertTrue(self.form_a.trazas.filter(valor_nuevo="(sin corrección)").exists())
+
+    def test_quitar_dos_de_una_vez(self):
+        self.client.post(self.url, {"quitar": ["barrio_actual", "loc_actual"]})
+
+        self.assertEqual(self.correcciones(), {"prov_actual": 22})
+
+    def test_solo_se_puede_quitar_lo_que_esta_corregido(self):
+        """El select de quitar se arma con lo que hay guardado: pedir un campo
+        que nadie corrigió es un POST armado a mano, y no borra nada."""
+        resp = self.client.post(self.url, {"quitar": ["calle_actual"]})
+
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(self.correcciones(), {"barrio_actual": "Barrio 108", "prov_actual": 22, "loc_actual": 37})
+
+    def test_quitar_y_completar_el_mismo_campo_a_la_vez_no_se_guarda(self):
+        resp = self.client.post(self.url, {"quitar": ["barrio_actual"], "barrio_actual": "Barrio Sur"})
+
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(self.correcciones()["barrio_actual"], "Barrio 108")
+
+    def test_sin_correcciones_guardadas_el_modal_no_ofrece_quitar(self):
+        self.form_a.datos_siis = {}
+        self.form_a.save(update_fields=["datos_siis"])
+
+        resp = self.client.get(reverse("becas:formulario_detalle", args=[self.form_a.pk]))
+
+        self.assertNotContains(resp, "Quitar corrección")
+
+    def test_el_modal_ofrece_quitar_lo_que_ya_esta_corregido(self):
+        resp = self.client.get(reverse("becas:formulario_detalle", args=[self.form_a.pk]))
+
+        self.assertContains(resp, "Quitar corrección")
+        self.assertContains(resp, 'value="barrio_actual"')
+
+    def test_la_localidad_se_valida_contra_la_provincia_ya_guardada(self):
+        """Guardar solo la localidad no manda la provincia en el POST, y sin
+        provincia la validación cruzada no corría: entraba una localidad de otra
+        provincia y SIIS la aceptaba igual, con el domicilio equivocado."""
+        resp = self.client.post(self.url, {"loc_actual": "51"})
+
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(self.correcciones()["loc_actual"], 37)
+
+    def test_si_se_quita_la_provincia_la_localidad_nueva_no_se_valida_contra_ella(self):
+        resp = self.client.post(self.url, {"quitar": ["prov_actual"], "loc_actual": "51"})
+
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(self.correcciones(), {"barrio_actual": "Barrio 108", "loc_actual": 51})
+
+    def test_lo_que_guardo_otro_en_el_medio_no_se_pierde(self):
+        """El merge se hacía con la foto del principio del request. Dos
+        coordinadores en el mismo caso: el segundo en confirmar borraba la
+        corrección del primero sin que quedara rastro."""
+
+        def guardar_en_el_medio(form):
+            Formulario.objects.filter(pk=self.form_a.pk).update(
+                datos_siis={**self.form_a.datos_siis, "calle_actual": "Los Álamos"}
+            )
+            return {"nro_actual": 15}
+
+        with patch.object(DatosSiisForm, "como_datos_siis", guardar_en_el_medio):
+            self.client.post(self.url, {"nro_actual": "15"})
+
+        self.assertEqual(self.correcciones()["calle_actual"], "Los Álamos")
+        self.assertEqual(self.correcciones()["nro_actual"], 15)
+
+    def test_sin_la_capacidad_no_se_quita_nada(self):
+        self.client.force_login(self.territorial)
+
+        self.client.post(self.url, {"quitar": ["barrio_actual"]})
+
+        self.assertEqual(self.correcciones()["barrio_actual"], "Barrio 108")
+
+    def test_anonimo_no_llega_a_la_vista(self):
+        self.client.logout()
+
+        resp = self.client.post(self.url, {"quitar": ["barrio_actual"]})
+
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn("next=", resp["Location"])
+        self.assertEqual(self.correcciones()["barrio_actual"], "Barrio 108")
 
 
 class UiEnvioSiisTests(_BaseAprobacionTest):

@@ -10,13 +10,22 @@ llega pero que el normalizador descarta por un cambio de contrato de ECOM.
     python manage.py diagnosticar_siis --usar-cache
     python manage.py diagnosticar_siis --dni 20123456 --programa 34
     python manage.py diagnosticar_siis --catalogos
-    python manage.py diagnosticar_siis --alta            # escribe en SIIS
+    python manage.py diagnosticar_siis --alta --alta-dni 35111222   # escribe en SIIS
 
 Los pasos 1 a 4 son de solo lectura. El paso 6 (``--alta``) es el unico que
 **escribe**: da de alta un beneficiario de prueba en la tabla intermedia, con
 los identificadores del ambiente de testing del manual v4.2 (jurisdiccion 28,
 programa 79, funcion 4). Como el servicio no expone baja, ese registro queda
 del lado de ECOM: por eso es opt-in y nunca corre solo.
+
+**Las dos guardas del paso 6 (SIIS-19).** El alta solo sale contra el SIIS de
+desarrollo de ECOM; contra cualquier otra URL hay que escribir
+``--si-entiendo-prd --motivo «...»``, que queda en el log. Y ``--alta-dni`` es
+obligatorio: antes venía con el del ejemplo del manual, así que un ``--alta``
+tecleado de más daba de alta siempre a la misma persona inventada. El alta de
+prueba tampoco deja ``EnvioSIIS`` —esa tabla cuelga de un ``Formulario`` y acá
+no hay caso—, y por eso la guarda está puesta de este lado: es lo único que
+separa la prueba del alta irreversible.
 
 Devuelve código de salida distinto de 0 si algún paso falla, para poder usarlo
 como chequeo de despliegue.
@@ -26,9 +35,10 @@ import json
 
 from django.conf import settings
 from django.core.cache import cache
-from django.core.management.base import BaseCommand
+from django.core.management.base import CommandError
 
 from core.checks import VARIABLE_PRODUCCION, es_host_de_desarrollo, es_produccion
+from programas.management.commands._base_siis import ComandoSiisBase
 from programas.services.siis import (
     CATALOGO_CACHE_KEY,
     CATALOGOS_MAESTROS,
@@ -47,7 +57,20 @@ TESTING_PLAN = 79
 TESTING_FUNCION = 4
 
 
-class Command(BaseCommand):
+#: Lo que el paso 6 escribe, para los mensajes de la guarda.
+QUE_ESCRIBE = "El alta de prueba de `diagnosticar_siis --alta`"
+
+
+class Command(ComandoSiisBase):
+    """Hereda de :class:`ComandoSiisBase` por la guarda, no por los flags.
+
+    No llama a SIIS caso por caso, así que no toma los flags del lote (``--lote``,
+    ``--max-errores``…): ``add_arguments`` no llama a ``agregar_flags_comunes``.
+    Lo que hereda es ``exigir_ambiente_de_pruebas``, que es donde vive el candado
+    nuevo, para que el día que haya otra herramienta que escriba datos inventados
+    en SIIS lo encuentre ya hecho (RED-53).
+    """
+
     help = "Verifica la integración con SIIS paso a paso: configuración, token, catálogo y parseo."
 
     def add_arguments(self, parser):
@@ -78,15 +101,30 @@ class Command(BaseCommand):
         parser.add_argument(
             "--alta-dni",
             type=int,
-            default=35111222,
-            help="DNI del beneficiario de prueba (por defecto el del ejemplo del manual).",
+            default=None,
+            help=(
+                "DNI del beneficiario de prueba. Obligatorio con --alta: sin esto venía el del ejemplo "
+                "del manual y un --alta de más daba de alta siempre a la misma persona inventada."
+            ),
         )
         parser.add_argument("--jurid", type=int, default=TESTING_JURID, help="Jurisdicción para el alta de prueba.")
         parser.add_argument("--plan", type=int, default=TESTING_PLAN, help="Programa social para el alta de prueba.")
         parser.add_argument("--funcion", type=int, default=TESTING_FUNCION, help="Función por programa para el alta.")
+        self.agregar_flags_de_escritura_de_prueba(parser)
 
     def handle(self, *args, **options):
         self._fallas = []
+        # SIIS-19: las guardas del paso 6 van antes de todo. Cortar recién al
+        # llegar al alta sería cortar después de haber pedido el token y los
+        # catálogos, y sobre todo deja la sensación de que el comando «iba bien».
+        if options["alta"]:
+            if options["alta_dni"] is None:
+                raise CommandError(
+                    "--alta necesita --alta-dni: el DNI del beneficiario de prueba se elige a propósito, "
+                    "no viene por defecto. El del ejemplo del manual es 35111222."
+                )
+            self.exigir_ambiente_de_pruebas(options, QUE_ESCRIBE)
+
         cliente = SiisAPIClient()
 
         if not options["usar_cache"]:

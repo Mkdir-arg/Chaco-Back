@@ -350,6 +350,35 @@ class CompletarCasosRenaperTests(_BaseEnvioTest):
         self.assertIn("RENAPER: 0 personas con respuesta", salida)
         self.assertNotIn(f"rn-{self.requisitos['cuit'].pk}", self.formulario.respuestas or {})
 
+    def test_un_caso_que_falla_no_corta_el_resto(self):
+        """RED-32 (Ola 1): la corrida son 7.500 casos y los lotes ya confirmados
+        quedan. Si un caso con la foto rota tumba el proceso, volver a correrlo
+        avanza hasta el mismo caso y muere ahí para siempre, y no hay flag que lo
+        saltee. El caso malo se cuenta y se nombra; los demás se guardan."""
+        from programas.management.commands import completar_casos_renaper as comando
+
+        crear_tabla_renaper(
+            (self.ciudadano.dni, "20301234569", "CHACO", "RESISTENCIA", 1),
+            ("30100000", "27301000008", "CHACO", "RESISTENCIA", 1),
+        )
+        roto, *_ = self._casos(1)
+        original = comando.Command._cruzar
+
+        def explota_en_uno(self_, caso, *args, **kwargs):
+            if caso.pk == roto.pk:
+                raise ValueError("respuestas ilegibles")
+            return original(self_, caso, *args, **kwargs)
+
+        with patch.object(comando.Command, "_cruzar", explota_en_uno):
+            salida = self.correr("--aplicar", "--lote", "50")
+
+        self.formulario.refresh_from_db()
+        roto.refresh_from_db()
+        self.assertIn(f"rn-{self.requisitos['cuit'].pk}", self.formulario.respuestas)
+        self.assertNotIn(f"rn-{self.requisitos['cuit'].pk}", roto.respuestas or {})
+        self.assertIn("casos que no se pudieron procesar", salida)
+        self.assertIn(str(roto.pk), salida)
+
 
 # ───────────────────────────────────────────────────────────────────────────
 # sincronizar_programas_siis
