@@ -22,6 +22,15 @@ el módulo del comando. **Lo que no se cierra:** el «además no deja `EnvioSIIS
 —esa tabla cuelga de un `Formulario` y el alta de prueba no tiene caso—; la guarda de ambiente lo reemplaza:
 en vez de anotar el alta irreversible, la impide.
 
+**Ronda 2 de la revisión (APPROVE @ 19718fb, tres MINOR cerrados).** El importante es una carrera que el
+propio arreglo de G3-06 dejaba abierta: `corregir_datos_siis` leía los envíos vigentes **antes** del
+`select_for_update`, y `siis_envio._reservar` hace lo inverso —bloquea la fila del `Formulario` y recién
+entonces crea el `EnvioSIIS`—, así que una reserva del masivo que entrara en esa ventana no aparecía en
+`tomados` y el comando le reescribía el `datos_siis` a un caso cuyo payload ya había salido. Las dos consultas
+cambian de orden. Los otros dos: el recorrido de `.errors` del bloque «Quitar corrección» era inalcanzable
+—con el form inválido la vista redirige con un solo aviso (ALR-8)— y se reemplaza por la comprobación de que
+ese aviso llega; y ningún test afirmaba que el paso 5 de `correr_alta_siis` reenvía `--usuario`.
+
 **La ficha del componente Campo** (`.claude/design/componentes/field.md`) suma el bloque «Quitar corrección»
 como consumidor nuevo de `.nodo-checks`: el contrato del agente de diseño obliga a mover la ficha en el mismo
 diff que su evidencia. Lo commiteó el juez (19718fb), porque la sesión headless no escribe bajo `.claude/`.

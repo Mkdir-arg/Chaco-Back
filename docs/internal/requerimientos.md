@@ -22149,11 +22149,16 @@ herramientas con las que se preparan esas altas escribían encima de lo que deci
 
 - **Suite completa** (`manage.py test` **sin argumentos**, Python 3.12 + Django 5.2.17 del `.venv312`, igual al
   CI): **3.355 tests, OK** (30 skips, 7 expected failures).
-- **Tests nuevos: 37.** 11 en `programas/tests/test_validar_casos_siis.py` (RED-32), 11 en
+- **Tests nuevos: 40** (37 + 3 de la ronda 2). 11 en `programas/tests/test_validar_casos_siis.py` (RED-32), 11 en
   `test_becas_revision.py::QuitarCorreccionSiisTests` (SIIS-17), 7 en
   `test_corregir_datos_siis.py::CorreccionManualEnElMedioTests` (G3-06), 7 en
   `test_diagnosticar_siis.py::AltaDePruebaTests` (SIIS-19) y 1 en
-  `test_comandos_siis_caracterizacion.py::CompletarCasosRenaperTests` (RED-32, de yapa).
+  `test_comandos_siis_caracterizacion.py::CompletarCasosRenaperTests` (RED-32, de yapa). La ronda 2 suma
+  `CorreccionManualEnElMedioTests.test_una_reserva_que_entra_con_el_candado_tambien_frena_la_escritura` y
+  `test_correr_alta_siis.py::OrdenTests.test_el_paso_5_le_pasa_el_usuario_a_corregir_datos_siis` (+ su negativo
+  `.test_sin_usuario_el_paso_5_no_inventa_uno`), y le agrega la aserción del aviso a
+  `test_quitar_y_completar_el_mismo_campo_a_la_vez_no_se_guarda`. Los dos primeros se verificaron con su propia
+  mutación: volver `tomados` antes del candado y sacar el reenvío de `--usuario` del paso 5 los dejan en rojo.
 - **Fallaban antes del cambio, por el motivo esperado:** 5 de los 7 de SIIS-19 (los otros 2 son el control: la
   URL de desarrollo y los pasos de solo lectura, que no debían cambiar), 7 de los 11 de SIIS-17 más 1 error, 6
   de los 7 de G3-06 (el séptimo, `test_el_ensayo_no_deja_traza`, es el control) y el de
@@ -22221,3 +22226,12 @@ el modal no puede quitar, y `diagnosticar_siis --alta` sale contra cualquier URL
   dejar rastro. Es el patrón que `--si-entiendo-prd` copia.
 - **07/10/2026 (este cambio)** — las tres fichas de herramientas y la segunda parte de RED-32. **Con esto
   cierra la Ola 1 de la auditoría**: 76 de sus 78 h, y las 2 restantes son el `P-01` en PRD, que no es código.
+- **07/10/2026 (ronda 2 de la revisión)** — tres MINOR. El importante es una **carrera que el propio arreglo de
+  G3-06 dejaba abierta**: los envíos vigentes se leían **antes** del `select_for_update`, y `siis_envio._reservar`
+  hace lo inverso —bloquea la fila del `Formulario` y recién entonces crea el `EnvioSIIS`—, así que una reserva
+  del masivo que entrara en esa ventana no aparecía en `tomados` y el comando le reescribía el `datos_siis` a un
+  caso cuyo payload ya había salido. Las dos consultas cambian de orden y queda un test que simula la reserva en
+  el instante en que el comando pide el candado. Los otros dos: el recorrido de `.errors` del bloque «Quitar
+  corrección» era **inalcanzable** —con el form inválido la vista redirige con un solo aviso (ALR-8)— y se
+  reemplaza por la comprobación de que ese aviso **llega** con la etiqueta del campo; y ningún test afirmaba que
+  el paso 5 de `correr_alta_siis` reenvía `--usuario` a `corregir_datos_siis`, que es lo que firma la traza.

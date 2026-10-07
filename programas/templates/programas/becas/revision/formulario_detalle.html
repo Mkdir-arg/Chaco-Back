@@ -848,13 +848,17 @@
               {% if field.name != 'quitar' %}{% include "programas/becas/_field.html" with field=field %}{% endif %}
             {% endfor %}
           </div>
-          {# SIIS-17: lo vacío se descarta, así que sin esto una corrección cargada mal solo se tapaba con otra. #}
+          {% comment %}
+            SIIS-17: lo vacío se descarta, así que sin esto una corrección cargada mal solo se tapaba con otra.
+            Sin bloque de errores a propósito: este form nunca se re-renderiza inválido —la vista arma un solo
+            aviso con todos los errores y redirige (ALR-8)—, así que recorrer .errors acá sería markup muerto
+            que simula una validación inline que no existe. La inline la trae DA-3, con el envío AJAX.
+          {% endcomment %}
           {% if datos_siis_form.quitar %}
           <div class="nodo-checks border-t border-light mt-2 pt-5">
             <p class="block text-sm font-medium text-heading mb-1">{{ datos_siis_form.quitar.label }}</p>
             {{ datos_siis_form.quitar }}
             <p class="mt-1 text-xs text-body-subtle">{{ datos_siis_form.quitar.help_text }}</p>
-            {% for error in datos_siis_form.quitar.errors %}<p class="mt-1 text-xs text-fg-danger">{{ error }}</p>{% endfor %}
           </div>
           {% endif %}
         </div>

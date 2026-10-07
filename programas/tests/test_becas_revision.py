@@ -1597,10 +1597,17 @@ class QuitarCorreccionSiisTests(_BaseAprobacionTest):
         self.assertEqual(self.correcciones(), {"barrio_actual": "Barrio 108", "prov_actual": 22, "loc_actual": 37})
 
     def test_quitar_y_completar_el_mismo_campo_a_la_vez_no_se_guarda(self):
-        resp = self.client.post(self.url, {"quitar": ["barrio_actual"], "barrio_actual": "Barrio Sur"})
+        """El modal no es AJAX y la vista redirige con un solo aviso (ALR-8), así
+        que el error tiene que salir **ahí**: en el template no hay bloque de
+        errores donde pudiera verse, y sin esto el guardado no haría nada sin
+        decir por qué."""
+        resp = self.client.post(self.url, {"quitar": ["barrio_actual"], "barrio_actual": "Barrio Sur"}, follow=True)
 
-        self.assertEqual(resp.status_code, 302)
         self.assertEqual(self.correcciones()["barrio_actual"], "Barrio 108")
+        mensajes = [str(m) for m in resp.context["messages"]]
+        self.assertEqual(len(mensajes), 1, mensajes)
+        self.assertIn("Quitar corrección:", mensajes[0])
+        self.assertIn("no puede quitarse y completarse", mensajes[0])
 
     def test_sin_correcciones_guardadas_el_modal_no_ofrece_quitar(self):
         self.form_a.datos_siis = {}

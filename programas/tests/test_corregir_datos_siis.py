@@ -384,6 +384,58 @@ class CorreccionManualEnElMedioTests(_BaseCorreccionTest):
         self.assertEqual(self.correcciones()["loc_actual"], 1)
         self.assertIn("corrección más nueva", salida)
 
+    def reservar_al_tomar_el_candado(self):
+        """Crea el ``EnvioSIIS`` en el instante en que el comando pide el candado.
+
+        Es la ventana exacta que abría leer los envíos vigentes **antes** del
+        ``select_for_update``: ``siis_envio._reservar`` bloquea la fila del
+        ``Formulario`` y recién después crea el ``EnvioSIIS``, así que una reserva
+        que arranca ahí no estaba en la lectura previa.
+
+        En SQLite el candado es un no-op, así que lo que este test fija no es el
+        bloqueo —eso lo da el motor— sino el **orden de las dos consultas**, que
+        es lo único que el código puede garantizar y lo que cierra la ventana en
+        MariaDB. Se proxea el manager de ``Formulario`` y no el método del
+        `Manager` base para no tocar el de todos los modelos.
+        """
+        from programas.models import EnvioSIIS, Formulario
+
+        prueba = self
+
+        class ManagerQueReserva:
+            disparado = False
+
+            def __init__(self, real):
+                self._real = real
+
+            def __getattr__(self, nombre):
+                return getattr(self._real, nombre)
+
+            def select_for_update(self, *args, **kwargs):
+                if not ManagerQueReserva.disparado:
+                    ManagerQueReserva.disparado = True
+                    EnvioSIIS.objects.create(
+                        formulario=prueba.formulario,
+                        estado=EnvioSIIS.Estado.EN_PROCESO,
+                        documento=prueba.ciudadano.dni,
+                    )
+                return self._real.select_for_update(*args, **kwargs)
+
+        return patch.object(Formulario, "objects", ManagerQueReserva(Formulario.objects))
+
+    def test_una_reserva_que_entra_con_el_candado_tambien_frena_la_escritura(self):
+        """Los envíos vigentes se leen **después** de tomar el candado.
+
+        Al revés, el comando le reescribe el `datos_siis` a un caso cuyo payload
+        ya salió para SIIS, y SIIS no tiene baja.
+        """
+        with self.reservar_al_tomar_el_candado():
+            salida = self.correr("--aplicar")
+
+        self.assertEqual(self.correcciones(), {})
+        self.assertEqual(self.formulario.trazas.count(), 0)
+        self.assertIn("envío a SIIS vigente", salida)
+
     def test_un_caso_tomado_por_un_envio_en_vuelo_no_se_toca(self):
         """Mientras hay un alta en vuelo, el payload ya se armó: cambiarle los
         datos ahora solo logra que la base y SIIS digan cosas distintas."""

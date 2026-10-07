@@ -231,6 +231,22 @@ class OrdenTests(_BaseAltaTest):
 
         self.assertEqual(self.llamadas.count("procesar_casos_siis"), 1)
 
+    def test_el_paso_5_le_pasa_el_usuario_a_corregir_datos_siis(self):
+        """G3-06: `corregir_datos_siis` deja una traza por caso, y la traza del
+        circuito no puede quedar sin autor. El paso 5 es el único que escribe
+        `datos_siis` acá adentro, y nadie lo corre a mano durante la corrida."""
+        self.correr("--continuar", "--aplicar", "--usuario", self.user.username)
+
+        paso5 = next(ll for ll in self.argumentos if ll.args[0] == "corregir_datos_siis")
+        self.assertIn("--usuario", paso5.args)
+        self.assertEqual(paso5.args[paso5.args.index("--usuario") + 1], self.user.username)
+
+    def test_sin_usuario_el_paso_5_no_inventa_uno(self):
+        self.correr("--continuar", "--aplicar")
+
+        paso5 = next(ll for ll in self.argumentos if ll.args[0] == "corregir_datos_siis")
+        self.assertNotIn("--usuario", paso5.args)
+
 
 class CatalogoVacioTests(_BaseAltaTest):
     def test_corta_si_el_catalogo_quedo_vacio(self):

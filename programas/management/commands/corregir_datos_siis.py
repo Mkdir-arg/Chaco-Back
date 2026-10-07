@@ -525,6 +525,17 @@ class Command(ComandoSiisBase):
         3. Un caso con un envío a SIIS **vigente** —releído acá, no al armar la
            lista— no se toca: el payload de ese envío ya se armó.
 
+        **El orden de las dos consultas no es casual.** El candado va primero y
+        los envíos vigentes se leen **después**, ya con las filas tomadas.
+        ``siis_envio._reservar`` hace lo mismo que esto en el otro sentido:
+        bloquea la fila del ``Formulario`` y recién entonces crea el
+        ``EnvioSIIS``. Leyendo los vigentes antes del candado queda una ventana
+        —corta, pero es la ventana en la que el masivo trabaja— donde una reserva
+        que todavía no commiteó no aparece en ``tomados`` y el comando le
+        reescribe el ``datos_siis`` a un caso cuyo payload ya salió. Con el
+        candado tomado primero, o la reserva ya commiteó (y ``tomados`` la ve,
+        READ COMMITTED) o no puede empezar hasta que esta transacción cierre.
+
         Nada de red adentro del candado (el catálogo ya está resuelto en memoria):
         con ``read_timeout`` de 10 s en MariaDB, esperar un HTTP con las filas
         tomadas es la forma de tumbar la corrida (SIIS-01).
@@ -534,16 +545,17 @@ class Command(ComandoSiisBase):
                 Ciudadano.objects.bulk_update(ciudadanos, ["fecha_nacimiento"])
             if not propuestos:
                 return 0
-            tomados = set(
-                EnvioSIIS.objects.filter(formulario_id__in=propuestos, vigente=True).values_list(
-                    "formulario_id", flat=True
-                )
-            )
             frescos = list(
                 Formulario.objects.select_for_update()
                 .filter(pk__in=propuestos)
                 .only("pk", "datos_siis", "modificado")
                 .order_by("pk")
+            )
+            # Después del candado, nunca antes: ver el párrafo del docstring.
+            tomados = set(
+                EnvioSIIS.objects.filter(formulario_id__in=propuestos, vigente=True).values_list(
+                    "formulario_id", flat=True
+                )
             )
             ahora = timezone.now()
             cambiados, trazas = [], []
