@@ -66,3 +66,64 @@ class EOLTests(SimpleTestCase):
         reglas = (RAIZ / ".gitattributes").read_text(encoding="utf-8").splitlines()
 
         self.assertIn("*.py text eol=lf", [linea.strip() for linea in reglas])
+
+
+class HarnessE2ENoVersionadoTests(SimpleTestCase):
+    """RED-72 / **D-RED-06 = No**: el e2e no entra al repo ni al CI.
+
+    En el checkout principal quedaban los restos de un harness de Playwright de
+    julio-2026: `tests/e2e/__pycache__/*.cpython-314-pytest-9.1.1.pyc` y un
+    `.pytest_cache/`. Ni un `.py`: `git log --all --diff-filter=A -- "tests/e2e/*"`
+    da vacío, nunca estuvo versionado. El daño es de confusión —la documentación de
+    trabajo lo daba por existente «y en verde», y quien lo buscara encontraba
+    bytecode de Python 3.14 incompatible con el 3.12 del CI—.
+
+    La decisión registrada (D-RED-06, default aplicado) es **no** reconstruirlo por
+    ahora; si alguna vez se hace, va solo donde hay JavaScript que decide, nightly o
+    a mano, **nunca como gate**, y sin credenciales ni datos reales adentro. Lo que
+    este test sostiene es la parte que se puede sostener desde el repo: que nada de
+    `tests/` esté versionado y que no entre bytecode al árbol.
+    """
+
+    def _versionados(self, patron):
+        salida = subprocess.run(
+            ["git", "ls-files", "-z", "--", patron],
+            cwd=RAIZ,
+            capture_output=True,
+            check=True,
+        )
+        return [nombre for nombre in salida.stdout.decode("utf-8").split("\0") if nombre]
+
+    def test_no_hay_nada_versionado_bajo_tests(self):
+        versionados = self._versionados("tests/")
+
+        self.assertEqual(
+            versionados,
+            [],
+            "D-RED-06: el harness e2e no se versiona. Si se decide lo contrario, actualizá "
+            f"la ficha RED-72 y este test en el mismo diff. Encontrado: {versionados}",
+        )
+
+    def test_el_gitignore_cubre_el_harness_local(self):
+        """Para que un harness local no se cuele por un `git add -A` distraído: ahí
+        viven el usuario y la clave del compose local."""
+        reglas = {linea.strip() for linea in (RAIZ / ".gitignore").read_text(encoding="utf-8").splitlines()}
+
+        self.assertIn("/tests/e2e/", reglas)
+
+    def test_no_hay_bytecode_versionado(self):
+        """Los `.pyc` de julio son el residuo concreto de RED-72, y un `.pyc` de otra
+        versión de Python es peor que nada: se importa y no coincide con el fuente."""
+        bytecode = self._versionados("*.pyc") + self._versionados("*.pyo")
+
+        self.assertEqual(bytecode, [])
+
+    def test_ningun_workflow_depende_de_playwright(self):
+        """«Nunca como gate»: si alguien agrega un job de e2e, este test lo frena y
+        obliga a volver a discutir D-RED-06."""
+        workflows = sorted((RAIZ / ".github" / "workflows").glob("*.yml"))
+        self.assertGreater(len(workflows), 5, "control del andamio: no se leyó ningún workflow")
+
+        con_playwright = [ruta.name for ruta in workflows if "playwright" in ruta.read_text(encoding="utf-8").lower()]
+
+        self.assertEqual(con_playwright, [], "D-RED-06: el e2e no es un gate del CI")

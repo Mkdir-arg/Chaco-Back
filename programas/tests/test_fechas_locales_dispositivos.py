@@ -21,6 +21,7 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.utils import timezone
 
+from core.tests.reloj import ART, reloj_en
 from legajos.models import Ciudadano
 from programas.models import (
     Admision,
@@ -152,7 +153,16 @@ class IndicadorActualizacionFechaLocalTests(BaseDispositivo):
         self.assertEqual(indicadores["actualizacion"]["dias"], 1)
 
     def test_un_parte_de_hoy_no_suma_dias(self):
-        """Contraprueba: el que de verdad se actualizó hoy sigue dando cero."""
+        """Contraprueba: el que de verdad se actualizó hoy sigue dando cero.
+
+        ``modificado`` es **ahora**, no «hace cinco minutos»: con el offset, entre las
+        00:00 y las 00:05 ART ese instante cae en el día local anterior y el indicador
+        devolvía 1. El test se ponía rojo cinco minutos por día, siempre de noche y
+        nunca en el CI (que corre en UTC), que es la peor forma de un test flaky.
+        Lo mismo vale para cualquier test que reste minutos a ``now()`` y después
+        compare contra una fecha local: `test_la_medianoche_local_no_mueve_el_contador`
+        es la red que lo impide.
+        """
         Programa.objects.create(codigo=Programa.TipoPrograma.DISPOSITIVOS, nombre="Dispositivos")
         registro = RegistroDiario.objects.create(
             dispositivo=self.dispositivo,
@@ -160,8 +170,37 @@ class IndicadorActualizacionFechaLocalTests(BaseDispositivo):
             turno=RegistroDiario.Turno.MANIANA,
             firmado_por=self.usuario,
         )
-        RegistroDiario.objects.filter(pk=registro.pk).update(modificado=timezone.now() - timedelta(minutes=5))
+        RegistroDiario.objects.filter(pk=registro.pk).update(modificado=timezone.now())
 
         indicadores = indicadores_dispositivo(self.dispositivo)
 
         self.assertEqual(indicadores["actualizacion"]["dias"], 0)
+
+    def test_la_medianoche_local_no_mueve_el_contador(self):
+        """A las 00:02 ART —el borde que hacía fallar el test de arriba— sigue dando cero.
+
+        Con el reloj congelado ahí, «hace cinco minutos» es *ayer* en hora local: si
+        alguien vuelve a escribir `now() - timedelta(minutes=…)` en un test de fecha
+        local, acá se ve sin esperar a la medianoche.
+        """
+        medianoche_pasada = datetime(2026, 9, 10, 0, 2, tzinfo=ART)
+        with reloj_en(medianoche_pasada):
+            Programa.objects.create(codigo=Programa.TipoPrograma.DISPOSITIVOS, nombre="Dispositivos")
+            registro = RegistroDiario.objects.create(
+                dispositivo=self.dispositivo,
+                fecha=timezone.localdate(),
+                turno=RegistroDiario.Turno.MANIANA,
+                firmado_por=self.usuario,
+            )
+            self.assertEqual(timezone.localdate(), date(2026, 9, 10))
+            RegistroDiario.objects.filter(pk=registro.pk).update(modificado=timezone.now())
+
+            indicadores = indicadores_dispositivo(self.dispositivo)
+
+            self.assertEqual(indicadores["actualizacion"]["dias"], 0)
+
+            # Y la contracara: cinco minutos antes **sí** es ayer, que es exactamente lo
+            # que le pasaba al test de arriba una vez por día.
+            RegistroDiario.objects.filter(pk=registro.pk).update(modificado=medianoche_pasada - timedelta(minutes=5))
+
+            self.assertEqual(indicadores_dispositivo(self.dispositivo)["actualizacion"]["dias"], 1)
