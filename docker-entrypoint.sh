@@ -73,19 +73,51 @@ wait_for_database() {
   echo "Base de datos disponible."
 }
 
-run_management_commands() {
+# OPS-07 / V6-NEW-04: los opcionales son opcionales. `docs/internal/processes.md`
+# promete desde siempre que LOCAL_OPTIONAL_BOOTSTRAP_COMMANDS son «comandos extra que
+# pueden fallar sin abortar el arranque», pero el script corre con `set -eu` y los corria
+# por la misma funcion que los obligatorios: una regla de vencimiento que explotaba
+# dejaba el contenedor sin levantar. Los obligatorios --roles, capacidades, programas--
+# siguen siendo fatales a proposito: sin ellos el sistema arranca pero no sirve.
+run_optional_management_commands() {
   if [ -z "$1" ]; then
     return 0
   fi
 
   for command_name in $1; do
-    echo "Ejecutando python manage.py ${command_name}"
-    python manage.py "${command_name}"
+    echo "Ejecutando python manage.py ${command_name} (opcional)"
+    if ! python manage.py "${command_name}"; then
+      echo "AVISO: el comando opcional ${command_name} fallo; el arranque sigue." >&2
+    fi
   done
 }
 
-run_bootstrap() {
-  wait_for_database
+# OPS-07 (ampliado por RS-R5-07) + RED-19: todo lo que escribe en la base durante el
+# arranque va bajo un unico candado `GET_LOCK`, tomado por `manage.py bootstrap_lock`.
+# Django no toma ningun candado para `migrate` en MySQL/MariaDB: dos replicas arrancando
+# a la vez se pisan y el esquema queda a medias SIN fila en django_migrations (medido
+# contra MariaDB 11.8: 1050 desde base vacia, 1060 desde base al dia). La regla sigue
+# siendo la de RED-19 --`RUN_MIGRATIONS=false` y un Job unico, docker/k8s/README.md--;
+# esto es la red debajo de la regla.
+#
+# Van en el MISMO candado la guarda de esquema, el migrate y el sembrado: con candados
+# distintos, una replica sembraria contra el esquema que otra esta migrando, y la guarda
+# de OPS-01 abortaria el arranque por una foto a medias que no es un problema real.
+#
+# OPS-05 / D-O05: el bloque corre con el `read_timeout` levantado. En MySQL/MariaDB no
+# hay DDL transaccional, asi que un ALTER que espera el metadata lock mas de 10 s
+# devuelve un 2013 al cliente y SE APLICA IGUAL en el servidor: el esquema queda
+# adelantado y la migracion sin registrar. La variable va solo en esta invocacion (no se
+# exporta): el trafico sigue con los 10 s acordados con ECOM.
+#
+# La espera del candado tiene que entrar holgada en ese read_timeout --`GET_LOCK` es una
+# consulta que bloquea-- y `bootstrap_lock` aborta con el motivo si no entra.
+#
+# Lo que el candado NO cubre: `collectstatic` (no toca la base) y los comandos de
+# LOCAL_OPTIONAL_BOOTSTRAP_COMMANDS, que corren despues y afuera. Son idempotentes y no
+# pueden abortar el arranque, asi que dos replicas corriendolos a la vez no rompe nada.
+run_migrations_and_seeds() {
+  set --
 
   # Si se restauro un dump de produccion sobre este ambiente, las tablas que solo
   # existen aca sobreviven --el dump trae un DROP por cada tabla que el contiene,
@@ -100,19 +132,52 @@ run_bootstrap() {
   # de un CrashLoop con «1050 Table already exists» y el esquema a medias. Se saltea con
   # SKIP_SCHEMA_GUARD=true, que es para el ambiente donde la guarda se equivoque, no
   # para el deploy que la guarda frena.
-  if [ "${RUN_MIGRATIONS:-true}" = "true" ] && [ "${SKIP_SCHEMA_GUARD:-false}" != "true" ]; then
-    echo "Verificando coherencia entre django_migrations y el esquema..."
-    python manage.py verificar_esquema_migraciones
+  if [ "${RUN_MIGRATIONS:-true}" = "true" ]; then
+    if [ "${SKIP_SCHEMA_GUARD:-false}" != "true" ]; then
+      set -- "$@" --comando "verificar_esquema_migraciones"
+    fi
+    # OPS-11: sin `--run-syncdb`. Hoy es no-op --las 12 apps sin migraciones no tienen
+    # modelos-- y manana crearia tablas sin migracion, que es justo lo que la guarda de
+    # OPS-01 rechaza en el arranque siguiente.
+    set -- "$@" --comando "migrate --noinput"
   fi
 
-  if [ "${RUN_MIGRATIONS:-true}" = "true" ]; then
-    echo "Aplicando migraciones..."
-    python manage.py migrate --run-syncdb --noinput
+  # El bootstrap NO crea usuarios: siembra roles, capacidades, programas y el
+  # catalogo geografico de SIIS (Cambio 85), que es idempotente y hace falta
+  # para que el alta de beneficiarios resuelva provincia y localidad. El
+  # superusuario se crea a mano con `createsuperuser`, con las credenciales que
+  # defina quien monta el ambiente (antes existia un `crear_superadmin` con usuario
+  # y contrasena escritos en el codigo, que se ejecutaba en cualquier ambiente).
+  bootstrap_commands="${LOCAL_BOOTSTRAP_COMMANDS:-seed_datos_base crear_programas seed_catalogo_siis}"
+  if [ "${bootstrap_commands}" != "false" ]; then
+    for command_name in ${bootstrap_commands}; do
+      set -- "$@" --comando "${command_name}"
+    done
   fi
+
+  if [ "$#" -eq 0 ]; then
+    echo "Sin migraciones ni sembrado que correr."
+    return 0
+  fi
+
+  echo "Aplicando migraciones y sembrado con el candado de bootstrap tomado..."
+  DB_READ_TIMEOUT="${MIGRATE_DB_READ_TIMEOUT:-1200}" \
+  DB_WRITE_TIMEOUT="${MIGRATE_DB_WRITE_TIMEOUT:-1200}" \
+    python manage.py bootstrap_lock \
+      --nombre "${BOOTSTRAP_LOCK_NOMBRE:-datanach_bootstrap}" \
+      --espera "${BOOTSTRAP_LOCK_ESPERA:-900}" \
+      "$@"
+}
+
+run_bootstrap() {
+  wait_for_database
+
+  run_migrations_and_seeds
 
   # En un ambiente servido (prd/qa) los estaticos se recolectan por defecto: sin
   # el manifest, cualquier template con {% static %} responde 500. En dev queda
-  # apagado para no alargar cada arranque.
+  # apagado para no alargar cada arranque. No toca la base: va fuera del candado,
+  # para no tener a las demas replicas esperando mientras se comprime CSS.
   collect_default="false"
   case "${ENVIRONMENT:-dev}" in
     prd|qa) collect_default="true" ;;
@@ -122,19 +187,9 @@ run_bootstrap() {
     python manage.py collectstatic --noinput
   fi
 
-  # El bootstrap NO crea usuarios: siembra roles, capacidades, programas y el
-  # catalogo geografico de SIIS (Cambio 85), que es idempotente y hace falta
-  # para que el alta de beneficiarios resuelva provincia y localidad. El
-  # superusuario se crea a mano con `createsuperuser`, con las credenciales que
-  # defina quien monta el ambiente (antes existia un `crear_superadmin` con usuario
-  # y contrasena escritos en el codigo, que se ejecutaba en cualquier ambiente).
-  if [ "${LOCAL_BOOTSTRAP_COMMANDS:-seed_datos_base crear_programas seed_catalogo_siis}" != "false" ]; then
-    run_management_commands "${LOCAL_BOOTSTRAP_COMMANDS:-seed_datos_base crear_programas seed_catalogo_siis}"
-  fi
-
   if [ -n "${LOCAL_OPTIONAL_BOOTSTRAP_COMMANDS:-}" ]; then
     echo "Ejecutando bootstrap opcional..."
-    run_management_commands "${LOCAL_OPTIONAL_BOOTSTRAP_COMMANDS}"
+    run_optional_management_commands "${LOCAL_OPTIONAL_BOOTSTRAP_COMMANDS}"
   fi
 }
 

@@ -21,11 +21,14 @@
 # del contenedor hacia el host de SIIS.
 #
 # INSTALACIÓN (una sola vez, en el host icore-srv, usuario `icore`):
-#   crontab -e     # y pegar la línea de abajo, junto a los crons ya existentes
-#                  # (generar_alertas / limpiar_alertas_conversaciones /
-#                  #  procesar_vencimientos).
+#   cp docker/cron/chaco-cron.sh ~/chaco-cron.sh && chmod +x ~/chaco-cron.sh
+#   crontab -e     # y pegar la línea de abajo, junto a los otros tres crons de
+#                  # docker/cron/ (generar_alertas, limpiar_alertas_conversaciones,
+#                  # procesar_vencimientos).
 #
-# Mismo patrón que esos crons: `docker exec chaco-web-1` + log en ~/cron-chaco.log.
+# Todos pasan por el mismo envoltorio (G3-05): candado `flock`, `timeout` y fecha en el
+# log. Acá el `timeout` importa más que en los otros: el comando habla con SIIS, y una
+# llamada que no vuelve dejaría el `docker exec` colgado indefinidamente.
 # NO usar `sudo su` (la sesión de docker/git es del usuario icore).
 #
 # HORARIO: no es sensible a la zona horaria (no hay corte por fecha). Se programa
@@ -35,4 +38,4 @@
 # Requiere que el contenedor `chaco-web-1` esté arriba (lo está: restart: unless-stopped).
 
 # m h  dom mon dow   command
-0 4 * * * docker exec chaco-web-1 python manage.py sincronizar_programas_siis >> ~/cron-chaco.log 2>&1
+0 4 * * * $HOME/chaco-cron.sh sincronizar_programas_siis 30m

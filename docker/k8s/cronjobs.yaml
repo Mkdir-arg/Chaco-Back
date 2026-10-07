@@ -2,11 +2,23 @@
 # Reemplazar <IMAGEN> por la imagen del registry y <SECRET-ENV> por el Secret con
 # las variables del ambiente (las mismas del Deployment).
 #
-# HORARIOS: Kubernetes interpreta `schedule` en el timezone del controlador (UTC,
-# salvo que el cluster diga otra cosa). Los horarios de abajo replican el cron de
-# la VM en hora argentina: para que signifiquen lo mismo, agregar a cada spec
-# `timeZone: America/Argentina/Buenos_Aires` (Kubernetes >= 1.27) o correr los
-# horarios tres horas.
+# HORARIOS: van en hora argentina, declarada con `timeZone` (Kubernetes >= 1.27). Sin
+# esa clave el `schedule` se interpreta en el timezone del controlador —UTC salvo que el
+# cluster diga otra cosa— y las 03:10 del archivo caen a las 00:10 ART, que no es lo que
+# dicen los snippets de icore ni lo que el corte por fecha de `procesar_vencimientos`
+# espera (usa `localdate()`). Si el cluster es anterior a 1.27, sacar `timeZone` y correr
+# los horarios tres horas.
+#
+# POR QUÉ CADA CRONJOB TIENE DEADLINE (G3-04): con `concurrencyPolicy: Forbid` y sin
+# `activeDeadlineSeconds`, una corrida colgada —un `docker exec` que no vuelve, una
+# consulta esperando un lock— bloquea **en silencio** todas las corridas siguientes. El
+# síntoma es «las alertas dejaron de generarse» una semana después, sin un error en
+# ninguna parte. `backoffLimit: 1` es lo mismo del otro lado: sin él, Kubernetes reintenta
+# hasta seis veces, y `sincronizar_programas_siis` reintentando contra un SIIS caído es
+# ruido que no arregla nada.
+#
+# Los `activeDeadlineSeconds` son generosos a propósito (entre 2 y 4 veces lo que tarda
+# hoy la corrida más lenta): el objetivo es cortar lo colgado, no lo lento.
 #
 # Qué pasa si no corren, comando por comando, está en la guía publicada
 # (sección "Tareas programadas").
@@ -16,9 +28,16 @@ metadata:
   name: datanach-generar-alertas
 spec:
   schedule: "0 * * * *"
+  timeZone: America/Argentina/Buenos_Aires
   concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 600
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 5
   jobTemplate:
     spec:
+      # Horario: una corrida que pasa de 30 min está colgada (hoy son segundos).
+      activeDeadlineSeconds: 1800
+      backoffLimit: 1
       template:
         spec:
           restartPolicy: Never
@@ -36,9 +55,16 @@ metadata:
   name: datanach-procesar-vencimientos
 spec:
   schedule: "10 3 * * *"
+  timeZone: America/Argentina/Buenos_Aires
   concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 600
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 5
   jobTemplate:
     spec:
+      # Trabajo local sobre la base, una `atomic` por regla: 15 min es de sobra.
+      activeDeadlineSeconds: 900
+      backoffLimit: 1
       template:
         spec:
           restartPolicy: Never
@@ -56,9 +82,16 @@ metadata:
   name: datanach-limpiar-alertas-conversaciones
 spec:
   schedule: "30 3 * * *"
+  timeZone: America/Argentina/Buenos_Aires
   concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 600
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 5
   jobTemplate:
     spec:
+      # Un DELETE sin lotes: si la tabla creciera, el deadline es lo que avisa.
+      activeDeadlineSeconds: 900
+      backoffLimit: 1
       template:
         spec:
           restartPolicy: Never
@@ -78,9 +111,17 @@ metadata:
   name: datanach-sincronizar-programas-siis
 spec:
   schedule: "0 4 * * *"
+  timeZone: America/Argentina/Buenos_Aires
   concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 600
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 5
   jobTemplate:
     spec:
+      # Depende de SIIS: el deadline corta la espera, y `backoffLimit: 1` evita
+      # martillar un servicio que ya está caído. El rojo del Job es la notificación.
+      activeDeadlineSeconds: 1800
+      backoffLimit: 1
       template:
         spec:
           restartPolicy: Never

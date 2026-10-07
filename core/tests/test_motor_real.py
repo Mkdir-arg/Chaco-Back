@@ -39,6 +39,7 @@ Para correrlo a mano (contenedor efímero, puerto libre)::
 """
 
 import threading
+import time
 import uuid
 from datetime import date, timedelta
 from io import StringIO
@@ -708,3 +709,274 @@ class IdentidadDelPadronMotorRealTests(MotorRealMixin, TestCase):
                     f"{connection.vendor} {connection.mysql_version}: el REGEXP del motor no coincide "
                     "con `tiene_identidad` para esta fila.",
                 )
+
+
+@tag("mysql")
+class CandadoDeBootstrapTests(MotorRealMixin, TransactionTestCase):
+    """OPS-07 · `bootstrap_lock` serializa de verdad, con dos conexiones.
+
+    `GET_LOCK` es de la **conexión**, así que para probarlo hace falta una segunda: con
+    una sola, el mismo cliente puede volver a tomar un candado que ya tiene. La capa de
+    protocolo —qué SQL manda, qué pasa si no lo consigue— está en
+    `core/tests/test_bootstrap_lock.py`, que corre en todos los PRs sobre SQLite; acá se
+    verifica lo único que SQLite no puede decir: que el segundo proceso **espera**.
+    """
+
+    NOMBRE = "datanach_test_bootstrap"
+
+    def _otra_conexion(self):
+        otra = connections.create_connection("default")
+        self.addCleanup(otra.close)
+        return otra
+
+    def _get_lock(self, conexion, espera=0):
+        with conexion.cursor() as cursor:
+            cursor.execute("SELECT GET_LOCK(%s, %s)", [self.NOMBRE, espera])
+            return cursor.fetchone()[0]
+
+    def _release(self, conexion):
+        with conexion.cursor() as cursor:
+            cursor.execute("SELECT RELEASE_LOCK(%s)", [self.NOMBRE])
+
+    def test_una_segunda_conexion_no_consigue_el_candado_tomado(self):
+        primera, segunda = self._otra_conexion(), self._otra_conexion()
+        self.assertEqual(self._get_lock(primera), 1)
+        try:
+            self.assertEqual(self._get_lock(segunda), 0, "el motor dejó entrar a dos migradores")
+        finally:
+            self._release(primera)
+
+    def test_al_soltarlo_el_siguiente_entra(self):
+        primera, segunda = self._otra_conexion(), self._otra_conexion()
+        self.assertEqual(self._get_lock(primera), 1)
+        self._release(primera)
+
+        self.assertEqual(self._get_lock(segunda), 1)
+        self._release(segunda)
+
+    def test_el_candado_muere_con_la_conexion(self):
+        """Es la razón de usar `GET_LOCK` y no una fila de control: un pod matado a mitad
+        del bootstrap no puede dejar bloqueado el deploy siguiente."""
+        efimera = connections.create_connection("default")
+        self.assertEqual(self._get_lock(efimera), 1)
+        efimera.close()
+
+        otra = self._otra_conexion()
+        self.assertEqual(self._get_lock(otra, espera=5), 1)
+        self._release(otra)
+
+    def test_el_comando_corre_sus_comandos_con_el_candado_puesto(self):
+        salida = StringIO()
+
+        call_command("bootstrap_lock", "--nombre", self.NOMBRE, "--espera", "5", "--comando", "check", stdout=salida)
+
+        self.assertIn("Candado", salida.getvalue())
+        # Al terminar, el candado quedó libre para el deploy siguiente.
+        otra = self._otra_conexion()
+        self.assertEqual(self._get_lock(otra), 1)
+        self._release(otra)
+
+
+@tag("mysql")
+class MigracionReentranteTests(MotorRealMixin, TransactionTestCase):
+    """RED-58 · `legajos.0007` corrida dos veces seguidas contra el motor.
+
+    La base de test ya tiene la migración aplicada (el job «Motor real» corre migraciones
+    de verdad). Lo que se verifica es que volver a correr el camino de ida —que es lo que
+    hace el reintento de una migración cortada, porque no hay fila en `django_migrations`—
+    no explote con el `ERROR 1091` del `DROP FOREIGN KEY` sobre una FK que ya no está, y
+    deje el esquema igual.
+    """
+
+    COLUMNAS = (
+        ("legajos_legajoatencion", "id"),
+        ("legajos_alertaciudadano", "legajo_id"),
+        ("legajos_historialcontacto", "legajo_id"),
+        ("legajos_adjunto", "object_id"),
+    )
+
+    def _esquema(self):
+        from core.migraciones import nombre_de_fk, tipo_de_columna
+
+        with connection.schema_editor(atomic=False) as editor:
+            tipos = {clave: tipo_de_columna(editor, *clave) for clave in self.COLUMNAS}
+            fks = {
+                tabla: nombre_de_fk(editor, tabla, "legajo_id")
+                for tabla in ("legajos_alertaciudadano", "legajos_historialcontacto")
+            }
+        return tipos, fks
+
+    def _ampliar(self):
+        import importlib
+
+        migracion = importlib.import_module("legajos.migrations.0007_ampliar_uuid_legajos")
+        with connection.schema_editor(atomic=False) as editor:
+            migracion.ampliar_uuid_legajos_mysql(None, editor)
+
+    def test_ampliar_uuid_es_idempotente(self):
+        antes = self._esquema()
+
+        self._ampliar()
+        self._ampliar()
+
+        self.assertEqual(self._esquema(), antes)
+        self.assertEqual({tipo for tipo in antes[0].values()}, {"char(36)"})
+        self.assertNotIn(None, antes[1].values())
+
+
+@tag("mysql")
+class CandadoSobreviveAlLoaddataTests(MotorRealMixin, TransactionTestCase):
+    """OPS-07 · El candado no se suelta porque un comando cierre la conexión.
+
+    `seed_datos_base` llama a `loaddata`, y `loaddata` termina con
+    `connections[alias].close()` —a propósito: es un workaround de Django para un bug
+    viejo de MySQL (#7572)—. Con el candado tomado sobre `connections["default"]`, ese
+    `close()` lo liberaba a mitad del sembrado y un segundo bootstrap podía entrar: medido
+    con dos arranques simultáneos sobre una base vacía, los dos sembraron en paralelo.
+
+    Esto solo se puede probar contra el motor real: en SQLite `GET_LOCK` no existe y el
+    comando ni siquiera toma candado.
+    """
+
+    NOMBRE = "datanach_test_loaddata"
+
+    def _conexion_testigo(self):
+        """Un tercero que intenta tomar el candado, como haría el otro pod."""
+        testigo = connections.create_connection("default")
+        self.addCleanup(testigo.close)
+        return testigo
+
+    def test_un_comando_que_cierra_la_conexion_no_suelta_el_candado(self):
+        testigo = self._conexion_testigo()
+        visto = {}
+        salida = StringIO()
+
+        def comando_que_cierra_la_conexion(*args, **kwargs):
+            connections["default"].close()  # exactamente lo que hace `loaddata`
+            with testigo.cursor() as cursor:
+                cursor.execute("SELECT GET_LOCK(%s, 0)", [self.NOMBRE])
+                visto["lo_tomo_el_testigo"] = cursor.fetchone()[0]
+
+        with patch("core.management.commands.bootstrap_lock.call_command", comando_que_cierra_la_conexion):
+            call_command(
+                "bootstrap_lock",
+                "--nombre",
+                self.NOMBRE,
+                "--espera",
+                "3",
+                "--comando",
+                "seed_datos_base",
+                stdout=salida,
+            )
+
+        self.assertEqual(
+            visto["lo_tomo_el_testigo"],
+            0,
+            "otro bootstrap pudo tomar el candado mientras este sembraba",
+        )
+        self.assertNotIn("AVISO", salida.getvalue())
+        self.assertIn("liberado", salida.getvalue())
+
+    def test_al_terminar_el_candado_queda_libre_para_el_deploy_siguiente(self):
+        salida = StringIO()
+        with patch("core.management.commands.bootstrap_lock.call_command", lambda *a, **kw: None):
+            call_command(
+                "bootstrap_lock", "--nombre", self.NOMBRE, "--espera", "3", "--comando", "check", stdout=salida
+            )
+
+        testigo = self._conexion_testigo()
+        with testigo.cursor() as cursor:
+            cursor.execute("SELECT GET_LOCK(%s, 0)", [self.NOMBRE])
+            self.assertEqual(cursor.fetchone()[0], 1)
+            cursor.execute("SELECT RELEASE_LOCK(%s)", [self.NOMBRE])
+
+
+@tag("mysql")
+class CandadoConLaConexionMuertaTests(MotorRealMixin, TransactionTestCase):
+    """OPS-07 · Que se caiga la conexión del candado no puede hacer fallar el bootstrap.
+
+    La conexión dedicada es la que **no habla**: toma el candado y se queda ociosa hasta
+    que terminan el `migrate` y los seeds (141-218 s medidos). Si el servidor la cierra en
+    el medio —`wait_timeout` apretado, un `KILL`, un firewall que corta ociosos— el
+    `SELECT IS_USED_LOCK` del `finally` levantaba un 2013 y el comando salía con **exit 1**
+    sobre un esquema correcto: Job en `Failed`, initContainer en CrashLoop, y el AVISO
+    escrito justo para ese caso no llegaba a imprimirse nunca.
+
+    Acá se mata la conexión de verdad, con un `KILL` desde otra, en el momento exacto en
+    que el comando está corriendo sus comandos con el candado tomado.
+    """
+
+    NOMBRE = "datanach_test_muerta"
+
+    def _conexion_testigo(self):
+        testigo = connections.create_connection("default")
+        self.addCleanup(testigo.close)
+        return testigo
+
+    @staticmethod
+    def _id_del_candado(salida):
+        """El comando imprime «Candado «x» tomado (conexión N).» antes de correr nada."""
+        for linea in salida.getvalue().splitlines():
+            if "tomado (conexión" in linea:
+                return int(linea.rsplit("conexión", 1)[1].strip(" ).\n"))
+        raise AssertionError(f"el comando no informó qué conexión tomó el candado:\n{salida.getvalue()}")
+
+    def test_un_kill_de_la_conexion_del_candado_no_cambia_el_exit_code(self):
+        testigo = self._conexion_testigo()
+        salida = StringIO()
+        visto = {}
+
+        def comando_que_corre_mientras_matan_la_conexion(*args, **kwargs):
+            visto["id"] = self._id_del_candado(salida)
+            with testigo.cursor() as cursor:
+                cursor.execute(f"KILL {visto['id']}")
+
+        with patch(
+            "core.management.commands.bootstrap_lock.call_command",
+            comando_que_corre_mientras_matan_la_conexion,
+        ):
+            # Lo que importa es que NO levante: antes salía con un 2013 desde el `finally`.
+            call_command(
+                "bootstrap_lock", "--nombre", self.NOMBRE, "--espera", "3", "--comando", "check", stdout=salida
+            )
+
+        self.assertIn("AVISO", salida.getvalue())
+        self.assertIn("se cayó durante el bootstrap", salida.getvalue())
+        self.assertNotIn("liberado", salida.getvalue())
+
+        # Y el candado quedó libre: el servidor lo soltó al cerrar la conexión.
+        with testigo.cursor() as cursor:
+            cursor.execute("SELECT GET_LOCK(%s, 0)", [self.NOMBRE])
+            self.assertEqual(cursor.fetchone()[0], 1)
+            cursor.execute("SELECT RELEASE_LOCK(%s)", [self.NOMBRE])
+
+    def test_la_conexion_del_candado_sobrevive_a_un_wait_timeout_global_apretado(self):
+        """El `SET SESSION wait_timeout` es la otra mitad: que no se caiga, no solo que no
+        falle cuando se cae."""
+        testigo = self._conexion_testigo()
+        with testigo.cursor() as cursor:
+            cursor.execute("SELECT @@GLOBAL.wait_timeout")
+            global_original = cursor.fetchone()[0]
+            cursor.execute("SET GLOBAL wait_timeout = 2")
+        self.addCleanup(self._restaurar_wait_timeout, testigo, global_original)
+
+        salida = StringIO()
+
+        def comando_que_tarda_mas_que_el_wait_timeout(*args, **kwargs):
+            time.sleep(5)
+
+        with patch(
+            "core.management.commands.bootstrap_lock.call_command",
+            comando_que_tarda_mas_que_el_wait_timeout,
+        ):
+            call_command(
+                "bootstrap_lock", "--nombre", self.NOMBRE, "--espera", "3", "--comando", "check", stdout=salida
+            )
+
+        self.assertIn("liberado", salida.getvalue(), f"el candado no sobrevivió:\n{salida.getvalue()}")
+        self.assertNotIn("AVISO", salida.getvalue())
+
+    @staticmethod
+    def _restaurar_wait_timeout(testigo, valor):
+        with testigo.cursor() as cursor:
+            cursor.execute("SET GLOBAL wait_timeout = %s", [valor])

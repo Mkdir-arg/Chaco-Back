@@ -403,9 +403,12 @@ class EntrypointTests(SimpleTestCase):
         self.assertIn("verificar_esquema_migraciones", self.script)
 
     def test_corre_antes_del_migrate(self):
+        """Desde OPS-07 los dos van como `--comando` de `bootstrap_lock`, en ese orden y
+        bajo el mismo candado: la guarda fuera del candado mira un esquema que otra
+        réplica está migrando justo en ese momento."""
         self.assertLess(
-            self.script.index("verificar_esquema_migraciones"),
-            self.script.index("migrate --run-syncdb"),
+            self.script.index('--comando "verificar_esquema_migraciones"'),
+            self.script.index('--comando "migrate --noinput"'),
             "después del migrate no sirve de nada: el 1050 ya pasó",
         )
 
