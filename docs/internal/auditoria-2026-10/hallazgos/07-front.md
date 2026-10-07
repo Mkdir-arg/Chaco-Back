@@ -786,6 +786,13 @@ deep-link por hash al cargar). El ARIA completo de la golden —`role=tablist` c
 la solapa está, y su panel la nombra por ese id; (c) el ABM de roles **no usa Alpine** —sus
 solapas las mueve un `activarTab()` propio—, así que ahí el `aria-selected` lo escribe ese JS,
 y su botón de búsqueda, que es solo un ícono, estrena `aria-label`.
+**Se fue también, en las tres de Becas, el `<style>[x-cloak]` local** —`override.css` ya lo
+declara global, misma limpieza que los Cambios 131 y 161 en sus pantallas hermanas—: con eso
+`config/programa_detail.html` pasa **entero** los marcadores de `--arquetipo detalle` (6 desvíos
+→ 0) y `relevamiento_detail` baja de 8 a 1 (le queda `space-y-6` en el contenedor de página).
+`convocatoria_detail` queda en 5: su franja de métricas vive **adentro** de la solapa
+«Información general», así que los marcadores de solapa salen «fuera de orden»; moverla es
+rediseñar la pantalla y eso es FE-11/FE-12, no esta ficha.
 **Verificación sin Playwright (D-RED-06 = No):** el archivo real se ejecuta con `node` sobre un
 DOM mínimo, como el resto de los scripts del shell. **Test permanente:**
 `core.tests.test_nodo_tabs.TecladoDeSolapasTests` (11 tests: flechas con vuelta circular,

@@ -298,6 +298,13 @@ class SolapasConAriaTests(SimpleTestCase):
         self.assertIn("btn.setAttribute('aria-selected', activo ? 'true' : 'false');", contenido)
         self.assertIn('aria-label="Buscar en todas las categorías"', contenido)
 
+    def test_las_tres_de_becas_dejaron_su_estilo_local(self):
+        """`[x-cloak]` ya es global en `override.css`: con él afuera, `programa_detail`
+        pasa entero los marcadores del arquetipo Detalle."""
+        for ruta in list(TABS_CON_ARIA)[:3]:
+            with self.subTest(ruta=ruta):
+                self.assertNotIn("[x-cloak]{display:none", texto(ruta))
+
     def test_dispositivos_queda_afuera(self):
         """D-V1 = No: el detalle del legajo de Dispositivos lo reemplaza la v2."""
         contenido = texto("programas/templates/programas/dispositivos/legajo/detail.html")

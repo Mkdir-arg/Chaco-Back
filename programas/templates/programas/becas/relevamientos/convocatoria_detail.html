@@ -3,7 +3,6 @@
 {% block title %}Becas · {{ convocatoria.nombre }}{% endblock %}
 
 {% block main-content %}
-<style>[x-cloak]{display:none!important}</style>
 <div class="space-y-5" x-data="{ tab: new URLSearchParams(window.location.search).get('tab') || 'info', modalRel: false, tipoRel: 'TERRITORIAL' }" @becas-saved.window="modalRel=false">
 
   {% load nodo_ui becas_extras %}
