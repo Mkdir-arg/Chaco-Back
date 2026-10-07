@@ -22,6 +22,7 @@ from programas.services.siis import (
     RESULTADO_NO_ENVIADO,
     RESULTADO_OK,
     RESULTADO_RECHAZADO,
+    CatalogoSinCopiaLocal,
     SiisCatalogError,
     cargar_beneficiario,
     catalogo,
@@ -53,6 +54,19 @@ _FRASE_PISO_DPTO = r"\b(?:piso|dpto|depto|dto|departamento)\.?\s*([A-Za-z0-9]{1,
 
 class CatalogoNoDisponible(Exception):
     """SIIS no devolvió un catálogo: el envío se reintenta, no se corrige."""
+
+
+class CopiaDeCatalogoFaltante(CatalogoNoDisponible):
+    """La copia local del catálogo todavía no existe: **no se tocó la red**.
+
+    Se reintenta igual que el resto, pero lo que hay que hacer es otra cosa
+    —correr ``sincronizar_programas_siis`` o esperar al CronJob de las 04:00—,
+    así que lleva su propio ``codigo_error`` y su propio mensaje.
+    """
+
+
+#: ``EnvioSIIS.codigo_error`` de un envío que no salió porque falta la copia.
+CODIGO_SIN_COPIA_CATALOGO = "CATALOGO_SIN_COPIA"
 
 
 # ---------------------------------------------------------------------------
@@ -164,6 +178,8 @@ class Catalogos:
         if nombre not in self._cache:
             try:
                 self._cache[nombre] = list(self._cargar(nombre))
+            except CatalogoSinCopiaLocal as exc:
+                raise CopiaDeCatalogoFaltante(str(exc)) from exc
             except SiisCatalogError as exc:
                 raise CatalogoNoDisponible(str(exc)) from exc
         return self._cache[nombre]
@@ -978,7 +994,7 @@ def enviar_beneficiario_a_siis(
     except CatalogoNoDisponible as exc:
         return EnvioSIIS.objects.create(
             estado=EnvioSIIS.Estado.ERROR,
-            codigo_error="ERROR_TECNICO",
+            codigo_error=_codigo_de_catalogo(exc),
             detalles={"catalogo": [str(exc)]},
             resuelto_en=timezone.now(),
             **base,
@@ -1046,7 +1062,7 @@ def guardar_en_tabla_intermedia(formulario, solicitado_por, catalogos=None, exig
     except CatalogoNoDisponible as exc:
         return None, EnvioSIIS.objects.create(
             estado=EnvioSIIS.Estado.ERROR,
-            codigo_error="ERROR_TECNICO",
+            codigo_error=_codigo_de_catalogo(exc),
             detalles={"catalogo": [str(exc)]},
             resuelto_en=timezone.now(),
             **base,
@@ -1185,6 +1201,11 @@ def sincronizar_tabla_intermedia(solicitado_por, limite=None, al_terminar=None):
     return cuenta
 
 
+def _codigo_de_catalogo(exc):
+    """``codigo_error`` del envío que no salió por un catálogo."""
+    return CODIGO_SIN_COPIA_CATALOGO if isinstance(exc, CopiaDeCatalogoFaltante) else "ERROR_TECNICO"
+
+
 def mensaje_envio(envio):
     """``(nivel, texto)`` para el toast de la vista; ``nivel`` es un método de ``messages``."""
     if envio.estado == EnvioSIIS.Estado.ENVIADO:
@@ -1208,4 +1229,13 @@ def mensaje_envio(envio):
         return "warning", f"El envío a SIIS quedó pendiente: faltan {cantidad} dato(s). Completalos desde el caso."
     if envio.estado == EnvioSIIS.Estado.RECHAZADO:
         return "warning", "SIIS rechazó el alta del beneficiario: revisá los datos señalados y reenviá."
+    if envio.codigo_error == CODIGO_SIN_COPIA_CATALOGO:
+        # Es lo contrario de «SIIS no respondió»: no se consultó a SIIS. El texto
+        # de abajo mandaba a revisar un servicio externo que nadie tocó, y lo que
+        # hay que hacer es bajar la copia de los catálogos a esta base.
+        return (
+            "warning",
+            "Faltan los catálogos de SIIS en la base: corré «sincronizar_programas_siis» o esperá al "
+            "proceso de las 04:00, y reintentá. No se informó nada a SIIS.",
+        )
     return "error", "SIIS no respondió correctamente; el envío quedó registrado para reintentar."

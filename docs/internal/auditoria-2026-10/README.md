@@ -28,10 +28,23 @@ desactivar una pregunta con destino) queda sin sentido con la foto, y la opción
 (`programas/forms.py:283-308`) pide **cinco** catálogos en un GET y tampoco está declarada en ninguna cadena.
 Es el mismo agujero en una pantalla que no hace nada irreversible; se anota como seguimiento.
 
+**Ronda 2 de la revisión (07-oct):** cuatro MINOR. Dos de código — el botón de activar una pregunta daba **500**
+con un `destino_siis` fuera del enum (la columna es un `CharField` con `choices`, así que la base acepta cualquier
+texto: ahora muestra la etiqueta si existe y el valor crudo si no), y el envío que no sale por falta de copia de
+catálogos deja de decir «SIIS no respondió correctamente» —lo contrario de lo que pasó, porque no se consultó a
+SIIS—: lleva su propio `codigo_error` (`CATALOGO_SIN_COPIA`) y un mensaje que dice qué hacer. Dos de documentación:
+**SIIS-08 es hacia adelante** (la marca solo se escribe cuando el caso resuelve su legajo; los ya resueltos se
+siguen informando con el nombre del legajo), con la consulta **`P-18`** de §3 para medir cuántos son sin sacar un
+solo nombre; y la **huella de la foto cambia**, así que una inscripción pública con el paso 2 abierto durante el
+rolling tiene que reenviarse.
+
 **Pendiente operativo (PM):** después de desplegar, **correr `sincronizar_programas_siis` una vez**. La tabla
 `programas_catalogosiislocal` nace vacía y el backoffice ya no va a buscar los catálogos a SIIS dentro del
 request: hasta que la copia exista, el alta desde la pantalla del caso queda como ERROR **reintentable** con un
-mensaje que lo explica (el masivo y los comandos siguen funcionando, y de paso llenan la copia).
+mensaje que lo explica (el masivo y los comandos siguen funcionando, y de paso llenan la copia). **El camino que
+falla el día 1 es «Promover» desde Cupo**: aprobar desde el detalle suele encontrar la copia ya llena, porque
+«Completar datos para SIIS» sí va a la red. Y conviene **desplegar fuera del horario de una convocatoria con el
+link público abierto**, por la huella de la foto.
 
 ---
 
@@ -1041,6 +1054,39 @@ SELECT COUNT(*) FROM legajos_ciudadano WHERE dni REGEXP '[^0-9]';
 SELECT REGEXP_REPLACE(dni, '[^0-9]', '') AS dni_normalizado, COUNT(*) AS n, GROUP_CONCAT(id) AS ids
   FROM legajos_ciudadano GROUP BY dni_normalizado HAVING n > 1;
 ```
+
+**P-18 · Casos ya resueltos cuyo legajo no coincide con el padrón que los validó (SIIS-08).** El arreglo del Cambio
+158 es **hacia adelante**: la identidad acreditada se compara y se guarda en el momento en que el caso resuelve su
+legajo, y los casos que ya lo tenían resuelto antes del deploy **no quedan marcados** —se siguen informando con el
+nombre del legajo—. Esto los cuenta para decidir si hace falta una corrección de datos aparte. Devuelve **solo
+números**: ningún nombre ni documento sale en el resultado. Para la lista, agregar `f.id` al `SELECT` (nunca
+`c.nombre`/`c.dni`).
+```sql
+-- 1) Cuántos casos validados por padrón tienen hoy el legajo con otro nombre, y
+--    cuántos de ellos ya se informaron a SIIS (esos son irreversibles).
+SELECT COUNT(*) AS casos_en_conflicto,
+       SUM(EXISTS (SELECT 1 FROM programas_enviosiis e
+                    WHERE e.formulario_id = f.id AND e.estado = 'ENVIADO')) AS ya_informados
+  FROM programas_formulario f
+  JOIN legajos_ciudadano c      ON c.id = f.ciudadano_id
+  JOIN programas_relevamiento r ON r.id = f.relevamiento_id
+  JOIN programas_padronhabilitado p
+       ON p.dni = c.dni AND p.convocatoria_id = r.convocatoria_id
+      AND (p.relevamiento_id IS NULL OR p.relevamiento_id = r.id)
+ WHERE f.origen_validacion = 'padron'
+   AND TRIM(p.nombre) <> '' AND TRIM(p.apellido) <> ''
+   AND (UPPER(TRIM(c.apellido)) <> UPPER(TRIM(p.apellido))
+        OR UPPER(TRIM(c.nombre))   <> UPPER(TRIM(p.nombre)));
+
+-- 2) El punto ciego: los validados por Base de Personas no se pueden contrastar
+--    de este lado (lo que contestó la Gran Base no se guarda). Esto dice cuántos son.
+SELECT origen_validacion, COUNT(*) AS casos
+  FROM programas_formulario WHERE validado_renaper = 1 GROUP BY origen_validacion;
+```
+La primera consulta da un **techo**, no el número exacto: compara con `UPPER`/`TRIM` y no normaliza acentos como lo
+hace el código (`Peréz` = `PEREZ` para el sistema, distinto para este SQL), así que puede contar de más. Si el número
+es chico, se revisa a mano; si es grande, hace falta un comando de corrección —que no está escrito— antes de seguir
+informando esos casos.
 
 ---
 

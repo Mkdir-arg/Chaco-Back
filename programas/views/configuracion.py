@@ -1025,6 +1025,22 @@ class PreguntaGlobalUpdateView(CapacidadRequeridaMixin, LoginRequiredMixin, Upda
         return super().form_invalid(form)
 
 
+def _etiqueta_destino_siis(valor):
+    """El nombre legible del destino SIIS, o el valor crudo si no está en el enum.
+
+    ``destino_siis`` es un ``CharField`` con ``choices``: la base acepta
+    cualquier texto de hasta 20 caracteres. Un valor que quedó de una versión
+    anterior de la lista —o que entró por un `update()`, una migración o un
+    restore— hacía explotar `DestinoSiis(valor)` con `ValueError`, y el botón de
+    activar respondía 500 en vez de decir lo que pasaba. Mostrar el valor crudo
+    es peor que la etiqueta y mucho mejor que un error.
+    """
+    try:
+        return PreguntaGlobal.DestinoSiis(valor).label
+    except ValueError:
+        return valor
+
+
 @login_required
 @requiere(CAP_PREGUNTA_EDITAR)
 def pregunta_toggle_activo(request, pk):
@@ -1047,7 +1063,7 @@ def pregunta_toggle_activo(request, pk):
             .first()
         )
         if otra is not None:
-            etiqueta = PreguntaGlobal.DestinoSiis(pregunta.destino_siis).label
+            etiqueta = _etiqueta_destino_siis(pregunta.destino_siis)
             messages.error(
                 request,
                 f"No se activó: ya hay una pregunta activa que alimenta «{etiqueta}»: «{otra.texto}». "

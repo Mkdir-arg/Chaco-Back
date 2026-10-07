@@ -143,6 +143,16 @@ class SiisCatalogError(Exception):
     """Error seguro para mostrar al usuario al cargar catálogos de SIIS."""
 
 
+class CatalogoSinCopiaLocal(SiisCatalogError):
+    """No hay copia local del catálogo todavía: nadie la bajó.
+
+    Es lo contrario de «SIIS no respondió»: no se tocó la red. Tiene su propia
+    clase porque el arreglo también es otro —correr el comando o esperar al
+    CronJob— y el mensaje que ve el coordinador no puede decirle que falló un
+    servicio externo que nadie consultó.
+    """
+
+
 class _SiisConfigurationError(Exception):
     """No se pudo conseguir el token, y no fue por la red.
 
@@ -663,7 +673,7 @@ def catalogo_local(nombre):
         return cached
     items = CatalogoSiisLocal.objects.filter(nombre=nombre).values_list("items", flat=True).first()
     if not items:
-        raise SiisCatalogError(
+        raise CatalogoSinCopiaLocal(
             f"Todavía no hay una copia local del catálogo de {nombre.replace('-', ' ')} de SIIS. "
             "Se baja sola con la próxima corrida del proceso masivo o del CronJob nocturno "
             "(`sincronizar_programas_siis`); si corre, reintentá el envío después."

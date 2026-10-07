@@ -21117,6 +21117,13 @@ Los cuatro MINOR son del PR anterior:
   nacimiento no es un conflicto de identidad: el payload ya lo reclama por su cuenta, y marcarlo mandaría a
   revisar la identidad de alguien por un dato que simplemente no está. Lo autodeclarado (`origen` = `manual`)
   nunca marca nada: lo que la persona dijo de sí misma no acredita.
+- **SIIS-08 es hacia adelante, y eso es parte de la decisión.** La comparación vive en
+  `resolver_ciudadano_offline`, que solo hace algo **mientras el caso todavía tiene `datos_identificacion`**: en
+  el momento en que resuelve su legajo. Los casos que ya lo tenían resuelto antes del deploy no quedan marcados
+  y **se siguen informando con el nombre del legajo**; para ellos la identidad acreditada ya se descartó y no
+  hay de dónde recuperarla, salvo del padrón de su convocatoria, que sí sigue en la base. La alternativa era un
+  backfill que decidiera por su cuenta qué nombre vale, que es justamente lo que D-S08 no decidió todavía.
+  **Cuántos son se mide con `P-18`** (README §3 de la auditoría), que devuelve solo números.
 - **Los catálogos maestros salen del request.** Declararlos en la cadena de «Aprobar» era imposible: la cadena
   ya estaba **justo en 55 de 55** y tres GET con la caché fría la llevan a 100, con cualquier timeout. Así que
   el backoffice lee una **copia local** en la base (`CatalogoSiisLocal`) por `siis.catalogo_local`, y las dos
@@ -21147,6 +21154,32 @@ rolling. La reversa borra la tabla y lo único que se pierde es la copia, que se
 
 Ninguna de las cuatro fichas necesita migración: `Formulario.definicion` y `Formulario.datos_siis` ya son
 `JSONField` y `destinos_siis` / `_identidad_acreditada` son claves más.
+
+## Puesta en marcha en el servidor
+
+**Correr `python manage.py sincronizar_programas_siis` una vez, después de migrar.** La tabla
+`programas_catalogosiislocal` nace vacía y el backoffice ya no va a buscar los catálogos a SIIS dentro del
+request. El CronJob de las 04:00 lo hace solo, pero conviene no esperar hasta la madrugada.
+
+**El camino que falla el día 1 es «Promover» desde Cupo.** Las dos vistas que dan de alta leen la copia, pero no
+llegan igual de vacías: para aprobar desde el detalle del caso, el coordinador suele haber pasado antes por
+«Completar datos para SIIS», y ese formulario **sí** va a la red y deja la copia escrita. Promover desde Cupo no
+pasa por ninguna pantalla que cargue catálogos, así que es el que se lleva el `EnvioSIIS` en ERROR si nadie
+corrió el comando. Es **reintentable** y el toast dice exactamente qué hacer («Faltan los catálogos de SIIS en
+la base: corré `sincronizar_programas_siis` o esperá al proceso de las 04:00, y reintentá. No se informó nada a
+SIIS»): no se pierde ni se manda nada mal.
+
+**Una inscripción pública con el paso 2 abierto durante el rolling se va a tener que reenviar.** La foto suma la
+clave `destinos_siis` y `huella_definicion` hashea la foto entera, así que la huella que el paso 1 guardó en la
+sesión con la release vieja no coincide con la que calcula el paso 2 con la nueva: la persona recibe «el
+formulario cambió» y tiene que volver a enviarlo. Es **recuperable** —nada se pierde, el formulario se vuelve a
+completar— y es el comportamiento previsto para cuando el diseño cambia en el medio, pero le cae a alguien que
+no hizo nada mal. **Recomendación: desplegar fuera del horario de una convocatoria con el link abierto.** La
+ventana es corta (lo que una persona tarda entre el paso 1 y el paso 2) y afecta solo a quien esté justo ahí.
+
+**Durante el rolling conviven las dos releases sin problema:** la vieja ignora `destinos_siis` y no conoce la
+tabla nueva; la nueva lee la copia o deja el ERROR reintentable. Sigue valiendo lo del PR 2: no desplegar con
+una corrida masiva en curso.
 
 ## Validación
 
@@ -21195,6 +21228,13 @@ tabla, el backoffice no puede armar el payload.
 - **D-S08 sigue abierta.** La opción de fondo —`Ciudadano.identidad_origen` (`manual`/`padron`/`personas`/
   `renaper`) y que una identidad validada actualice un legajo `manual`— necesita la decisión del cliente sobre
   quién manda. Mientras tanto, el caso se frena y lo corrige un coordinador.
+- **Los casos que ya tenían el legajo resuelto antes del deploy no quedan marcados** y se siguen informando con
+  el nombre del legajo (SIIS-08 es hacia adelante, ver Decisiones). **Correr `P-18`** del README §3 de la
+  auditoría para saber cuántos son: devuelve solo números —ningún nombre ni documento— y separa los que ya se
+  informaron a SIIS, que son los irreversibles. Da un **techo**, porque compara con `UPPER`/`TRIM` y no
+  normaliza acentos como el código. Si el número es chico se revisa a mano; si es grande hace falta un comando
+  de corrección, **que no está escrito**. Los validados por Base de Personas no se pueden contrastar de este
+  lado: lo que contestó la Gran Base no se guarda.
 - **No hay pantalla para el conflicto de identidad.** Se ve como un faltante más en el detalle del caso, con el
   texto que nombra los campos y las dos versiones. Si hiciera falta un listado de «casos con identidad en
   conflicto», es un requerimiento aparte.
@@ -21215,3 +21255,10 @@ tabla, el backoffice no puede armar el payload.
 - **07/10/2026 (este cambio)** — las cuatro fichas, más los cuatro MINOR del PR 5. El del presupuesto destapó
   que la cadena de «Aprobar» ya estaba por encima del techo con la caché fría, y la única salida era sacar los
   catálogos del request.
+- **07/10/2026 (ronda 2 de la revisión)** — cuatro MINOR, dos de código y dos de documentación. El botón de
+  activar una pregunta daba **500** con un `destino_siis` fuera del enum (la columna es un `CharField` con
+  `choices`: la base acepta cualquier texto); el toast del envío sin copia de catálogos decía «SIIS no respondió
+  correctamente», que es lo contrario de lo que pasó, y pasa a tener su propio `codigo_error`
+  (`CATALOGO_SIN_COPIA`) y su propio mensaje. Y quedó escrito que SIIS-08 es hacia adelante —con la consulta
+  `P-18` para medir los casos viejos—, que la huella de la foto cambia durante el rolling y que «Promover» desde
+  Cupo es el camino que se lleva el ERROR el día 1.

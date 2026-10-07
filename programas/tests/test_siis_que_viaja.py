@@ -289,6 +289,21 @@ class ToggleDeDestinoOcupadoTests(TestCase):
         suelta.refresh_from_db()
         self.assertTrue(suelta.activo)
 
+    def test_un_destino_fuera_del_enum_no_da_500(self):
+        """Ronda 2: ``destino_siis`` es un `CharField` con `choices`, así que la
+        base acepta cualquier texto. Un valor viejo —de una lista anterior, de un
+        `update()` o de un restore— hacía explotar `DestinoSiis(valor)` y el
+        botón respondía 500 en vez de decir lo que pasaba."""
+        PreguntaGlobal.objects.filter(pk__in=[self.vigente.pk, self.vieja.pk]).update(destino_siis="est_civil_viejo")
+
+        respuesta = self._toggle(self.vieja)
+
+        self.assertEqual(respuesta.status_code, 200)
+        self.vieja.refresh_from_db()
+        self.assertFalse(self.vieja.activo)
+        avisos = [str(m) for m in respuesta.context["messages"]]
+        self.assertTrue(any("est_civil_viejo" in a for a in avisos), avisos)
+
     def test_desactivar_nunca_se_bloquea_por_esta_regla(self):
         """Dos activas con el mismo destino es un estado que ya puede existir en
         la base: la salida tiene que seguir abierta."""
@@ -474,3 +489,59 @@ class CatalogosFueraDelRequestTests(TestCase):
         self.assertEqual(catalogos.provincia_id("Chaco"), 22)
         self.assertEqual(catalogos.localidad_id("Resistencia", 22), 1)
         self.assertEqual(catalogos.estado_civil_id("Soltero/a"), 1)
+
+
+class SinCopiaDeCatalogosTests(_ConPayloadCompleto):
+    """Ronda 2: lo que ve el coordinador el día 1, antes de que la copia exista.
+
+    El toast decía «SIIS no respondió correctamente», que es **lo contrario** de
+    lo que pasó: no se consultó a SIIS. Mandaba a revisar un servicio externo
+    que nadie tocó, en vez de a bajar la copia a esta base.
+    """
+
+    def test_sin_copia_el_envio_queda_error_reintentable_con_su_propio_codigo(self):
+        with patch.object(siis_envio, "cargar_beneficiario") as cargar:
+            envio = siis_envio.enviar_beneficiario_a_siis(
+                self.formulario, self.user, catalogos=siis_envio.Catalogos.sin_red()
+            )
+
+        cargar.assert_not_called()
+        self.assertEqual(envio.estado, siis_envio.EnvioSIIS.Estado.ERROR)
+        self.assertEqual(envio.codigo_error, siis_envio.CODIGO_SIN_COPIA_CATALOGO)
+        # Reintentable: no queda vigente, así que el caso vuelve a los candidatos.
+        self.assertIsNone(envio.vigente)
+
+    def test_el_toast_dice_que_faltan_los_catalogos_y_no_que_siis_fallo(self):
+        envio = siis_envio.EnvioSIIS(
+            estado=siis_envio.EnvioSIIS.Estado.ERROR, codigo_error=siis_envio.CODIGO_SIN_COPIA_CATALOGO
+        )
+
+        nivel, texto = siis_envio.mensaje_envio(envio)
+
+        self.assertEqual(nivel, "warning")
+        self.assertIn("Faltan los catálogos de SIIS", texto)
+        self.assertIn("sincronizar_programas_siis", texto)
+        self.assertNotIn("SIIS no respondió", texto)
+
+    def test_un_error_tecnico_de_verdad_sigue_diciendo_que_siis_no_respondio(self):
+        """El mensaje nuevo es para **este** caso y no para todos los ERROR."""
+        envio = siis_envio.EnvioSIIS(estado=siis_envio.EnvioSIIS.Estado.ERROR, codigo_error="ERROR_TECNICO")
+
+        nivel, texto = siis_envio.mensaje_envio(envio)
+
+        self.assertEqual(nivel, "error")
+        self.assertIn("SIIS no respondió", texto)
+
+    def test_un_catalogo_que_si_se_consulto_y_fallo_no_usa_el_codigo_nuevo(self):
+        """SIIS caído de verdad (el masivo y los comandos, que sí van a la red):
+        sigue siendo `ERROR_TECNICO`."""
+
+        def se_cae(nombre):
+            raise siis_envio.SiisCatalogError("SIIS tardó demasiado en responder.")
+
+        with patch.object(siis_envio, "cargar_beneficiario"):
+            envio = siis_envio.enviar_beneficiario_a_siis(
+                self.formulario, self.user, catalogos=siis_envio.Catalogos(cargar=se_cae)
+            )
+
+        self.assertEqual(envio.codigo_error, "ERROR_TECNICO")
