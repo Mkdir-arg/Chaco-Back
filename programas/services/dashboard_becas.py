@@ -64,7 +64,7 @@ from programas.services.autorizacion import (
 )
 from programas.services.becas import get_campos_formulario
 from programas.services.reportes import Reporte
-from programas.services.respuestas import campos_de, huella_definicion, legible, planos_de
+from programas.services.respuestas import campos_de, legible, planos_de
 
 logger = logging.getLogger(__name__)
 
@@ -82,10 +82,12 @@ RELEVAMIENTOS_EN_CURSO = (Relevamiento.Estado.EN_CURSO, Relevamiento.Estado.FINA
 _CLAVE_PROPIA = re.compile(r"^cp-[0-9A-Za-z_-]{1,48}$")
 #: El resto del espacio de claves del diseño: catálogo (``pg-``/``rn-``), grupos y textos.
 _CLAVE_DISENO = re.compile(r"^(?:pg|rn|g|t)-[0-9A-Za-z_-]{1,48}$")
-#: Tamaño del lote de la segunda pasada del Excel por persona (``respuestas`` y la
-#: foto son las dos columnas pesadas de la fila: de a 500 la consulta sigue siendo
-#: chica para el ``read_timeout`` de 10 s de ECOM).
-LOTE_RESPUESTAS = 500
+#: Tamaño del lote de la segunda pasada del Excel por persona. El mismo ``chunk_size``
+#: que usa la pasada principal: lo que viaja es ``respuestas`` (~0,8 KB por caso), así
+#: que un lote son ~1,6 MB y la consulta sigue lejos del ``read_timeout`` de 10 s de
+#: ECOM. Los lotes de 500 de la primera versión protegían de la **foto**, que ya no se
+#: lee por fila; con 20.000 casos eran 40 consultas en vez de 10, al mismo tiempo.
+LOTE_RESPUESTAS = 2000
 
 
 # ---------------------------------------------------------------------------
@@ -1288,8 +1290,9 @@ def _relevamientos_de(convocatoria):
 # datetimes por fila que nadie mira— era la mitad del tiempo de Python del export
 # (banco MySQL, 25/09/2026). ``respuestas``, ``definicion`` y ``datos_siis`` quedan
 # afuera: eran lo más pesado de cada fila y pasaban el read_timeout (500, 24/09/2026).
-# ``respuestas`` y ``definicion`` entran en una **segunda pasada por lotes de pk**
-# (G2-01, :func:`_respuestas_de_los_casos`), que es lo que trae los campos propios.
+# ``respuestas`` entra en una **segunda pasada por lotes de pk** (G2-01,
+# :func:`_respuestas_de_los_casos`), que es lo que trae los campos propios;
+# ``definicion`` no se lee nunca por fila (ver el porqué en esa función).
 _COLUMNAS_CASO = (
     "pk",
     "relevamiento_id",
@@ -1328,50 +1331,63 @@ def _texto_legible(item, valor):
     return str(texto)
 
 
-def _respuestas_de_los_casos(pks):
-    """Segunda pasada del Excel por persona: ``{pk: {clave: celda}}``, ``{pk: ocultas}``
-    y los campos de las fotos, en orden y deduplicados por clave (G2-01).
+def formulario_vigente(convocatoria):
+    """``(campos_por_clave, planos)`` del formulario que la convocatoria sirve hoy, en
+    orden de pantalla y **sin filtrar por canal**: la misma estructura anidada que ve la
+    app de campo y el link público, reconciliada en memoria con el catálogo de hoy
+    (RN-1) o, si nadie abrió el constructor, el plan por defecto.
 
-    ``respuestas`` y ``definicion`` son las dos columnas pesadas del caso (la foto son
-    ~7 KB) y por eso no viajan en la consulta principal: se leen **por lotes de pk**,
-    que es lo que mantiene cada consulta lejos del ``read_timeout`` de 10 s de ECOM.
-    Para los encabezados alcanza con **una** foto por ``huella_definicion``: todos los
-    casos que respondieron el mismo diseño traen exactamente los mismos campos.
+    Es lo que resuelve el texto, el tipo y las condiciones de cada clave en el Excel por
+    persona. **No escribe nada** (BEC-16: reconciliar en un GET no puede guardar) y
+    cuesta tres consultas fijas, no una por caso.
+    """
+    from programas.services.diseno import catalogo_convocatoria, items_vigentes, plan_por_defecto, serializar
+
+    catalogo = catalogo_convocatoria(convocatoria)
+    diseno = getattr(convocatoria, "diseno", None)
+    items = (
+        items_vigentes(diseno, catalogo) if diseno is not None else plan_por_defecto(convocatoria, catalogo=catalogo)
+    )
+    definicion = {"items": serializar(items, None)}
+    return {campo["clave"]: campo for campo in campos_de(definicion)}, planos_de(definicion)
+
+
+def _respuestas_de_los_casos(pks, campos, planos):
+    """Segunda pasada del Excel por persona: ``{pk: {clave: celda}}`` y ``{pk: ocultas}``
+    (G2-01).
+
+    **Trae solo ``(pk, respuestas)``.** La foto (``definicion``) es la columna más pesada
+    del caso —15 KB— y es **la misma** para todos los que respondieron el mismo diseño:
+    pedirla por fila costaba 12,5 s de los 14 s del export con 20.000 casos, y hacer que
+    el motor la mire —aunque sea para hashearla y mandar 32 bytes— cuesta 3 s, porque
+    InnoDB tiene que leer igual las 300 MB de páginas externas (medido en
+    ``mariadb:10.11``, 08/10/2026). El texto, el tipo y las condiciones de cada clave
+    salen de :func:`formulario_vigente`, que son tres consultas fijas.
+
+    Se lee **por lotes de pk**, que es lo que mantiene cada consulta lejos del
+    ``read_timeout`` de 10 s de ECOM.
 
     Lo que una condición ocultó no es una respuesta y no va a la planilla: sale de la
     celda y, si el contrato anterior lo había guardado en ``data``, también de ahí.
     """
-    celdas, ocultas_por_caso, campos, orden = {}, {}, {}, []
-    planos_por_huella, campos_por_huella = {}, {}
+    celdas, ocultas_por_caso = {}, {}
     for inicio in range(0, len(pks), LOTE_RESPUESTAS):
         lote = pks[inicio : inicio + LOTE_RESPUESTAS]
-        for pk, respuestas, foto in (
-            Formulario.objects.filter(pk__in=lote).order_by().values_list("pk", "respuestas", "definicion")
-        ):
+        for pk, respuestas in Formulario.objects.filter(pk__in=lote).order_by().values_list("pk", "respuestas"):
             respuestas = _como_dict(respuestas)
-            foto = foto if isinstance(foto, dict) else {}
-            huella = huella_definicion(foto) if foto else ""
-            if huella and huella not in planos_por_huella:
-                planos_por_huella[huella] = planos_de(foto)
-                campos_por_huella[huella] = {c["clave"]: c for c in campos_de(foto)}
-                for clave, campo in campos_por_huella[huella].items():
-                    if clave not in campos:
-                        campos[clave] = campo
-                        orden.append(clave)
             if not respuestas:
                 continue
-            del_caso = campos_por_huella.get(huella, {})
-            _, ocultos, _ = condiciones.aplicar(planos_por_huella.get(huella, []), respuestas)
+            _, ocultos, _ = condiciones.aplicar(planos, respuestas)
             ocultas_por_caso[pk] = ocultos
             valores = {}
             for clave, valor in respuestas.items():
                 if clave in ocultos:
                     continue
-                texto = _texto_legible(del_caso.get(clave) or {}, valor)
+                texto = _texto_legible(campos.get(clave) or {}, valor)
                 if texto:
                     valores[clave] = texto
             celdas[pk] = valores
-    return celdas, ocultas_por_caso, campos, orden
+    return celdas, ocultas_por_caso
 
 
 def respuestas_por_persona(convocatoria):
@@ -1380,17 +1396,21 @@ def respuestas_por_persona(convocatoria):
     por cada pregunta** del formulario, más las preguntas que ya no están en el
     formulario pero fueron respondidas en su momento.
 
-    Devuelve ``(Reporte, texto_de_alcance)``. Las columnas salen de las **fotos** de la
-    definición que respondieron los casos (``Formulario.definicion``), que es lo que la
-    persona tuvo delante, completadas con el catálogo vigente
-    (:func:`get_campos_formulario`) para que una convocatoria sin casos siga
-    exportando sus columnas. Los valores salen de ``Formulario.respuestas`` —la única
-    fuente que tiene los **campos propios** del constructor (``cp-…``), que no caben en
-    ``data``— y, para los casos anteriores al Cambio 58 que todavía no tienen foto, del
-    ``data`` de siempre. Las respuestas de selección múltiple se unen con « | »; los
-    adjuntos muestran el nombre del archivo. El alcance por rol lo controla la vista:
-    acá la convocatoria ya está autorizada.
+    Devuelve ``(Reporte, texto_de_alcance)``. Las columnas y su orden salen del
+    **formulario vigente** de la convocatoria (:func:`formulario_vigente`: el diseño
+    reconciliado con el catálogo de hoy, que es lo que incluye los **campos propios**
+    del constructor), completadas con el catálogo (:func:`get_campos_formulario`) para
+    que una convocatoria sin diseño ni casos siga exportando sus columnas, y con una
+    columna «ya no está en el formulario» por cada clave respondida que ninguno de los
+    dos nombra: **ninguna respuesta se pierde aunque su pregunta ya no exista**.
+
+    Los valores salen de ``Formulario.respuestas`` —la única fuente que tiene los campos
+    propios (``cp-…``), que no caben en ``data``— y, para los casos anteriores al Cambio
+    58 que todavía no tienen foto, del ``data`` de siempre. Las respuestas de selección
+    múltiple se unen con « | »; los adjuntos muestran el nombre del archivo. El alcance
+    por rol lo controla la vista: acá la convocatoria ya está autorizada.
     """
+    campos_vigentes, planos_vigentes = formulario_vigente(convocatoria)
     globales, requisitos = get_campos_formulario(convocatoria)
     definicion = [(f"pg-{p.pk}", p, "Pregunta general") for p in globales] + [
         (f"rn-{r.pk}", r, "Requisito") for r in requisitos
@@ -1449,15 +1469,17 @@ def respuestas_por_persona(convocatoria):
                     contestadas[f"{prefijo}-{pk}"] = " | ".join(valores)
         casos.append((f["pk"], base, contestadas))
 
-    # Segunda pasada: ``respuestas`` + la foto. Lo que dice la foto manda sobre lo que
-    # el contrato anterior dejó en ``data`` (las dos se escriben juntas, pero solo la
-    # primera tiene los campos propios y ya pasó por el motor de condiciones).
-    celdas, ocultas, campos_foto, orden_foto = _respuestas_de_los_casos([pk for pk, _, _ in casos])
+    # Segunda pasada: ``respuestas``. Lo que sale de ahí manda sobre lo que el contrato
+    # anterior dejó en ``data`` (las dos se escriben juntas, pero solo la primera tiene
+    # los campos propios y ya pasó por el motor de condiciones).
+    celdas, ocultas = _respuestas_de_los_casos([pk for pk, _, _ in casos], campos_vigentes, planos_vigentes)
     for pk, _base, contestadas in casos:
         for clave in ocultas.get(pk, ()):
             contestadas.pop(clave, None)
         contestadas.update(celdas.get(pk, {}))
-        extra_claves.update(clave for clave in contestadas if clave not in en_definicion and clave not in campos_foto)
+        extra_claves.update(
+            clave for clave in contestadas if clave not in en_definicion and clave not in campos_vigentes
+        )
 
     # Preguntas respondidas que ya no están en el formulario: se conservan como columnas propias.
     extras = []
@@ -1471,14 +1493,21 @@ def respuestas_por_persona(convocatoria):
         for clave in sorted(extra_claves):
             extras.append((clave, f"{textos.get(clave, 'Pregunta ' + clave)} (ya no está en el formulario)"))
 
-    # Columnas: el orden de la pantalla (las fotos de los casos, deduplicadas por
-    # clave), después lo que el catálogo de hoy pide y nadie respondió todavía —una
+    # Columnas: el orden de la pantalla (el formulario vigente de la convocatoria),
+    # después lo que el catálogo de hoy pide y el diseño no muestra —así una
     # convocatoria sin casos sigue exportando sus columnas— y al final los extras.
     del_catalogo = {clave: _texto_columna(campo, prefijo) for clave, campo, prefijo in definicion}
     columnas = [
-        (clave, del_catalogo.get(clave) or campos_foto[clave].get("texto", "") or clave) for clave in orden_foto
+        (clave, del_catalogo.get(clave) or campo.get("texto", "") or clave)
+        for clave, campo in campos_vigentes.items()
+        # Los campos vinculados al legajo o al apoderado (DNI, nombre, contacto…) son
+        # parte del formulario, pero su respuesta va a la ficha de la persona y **ya
+        # tiene su columna fija**: ponerlos acá duplicaba el encabezado «DNI» y la
+        # segunda copia salía vacía. Siguen contando para las condiciones y para que
+        # no se los confunda con una pregunta que ya no está en el formulario.
+        if (campo.get("origen") or OrigenRequisito.PREGUNTA) == OrigenRequisito.PREGUNTA
     ]
-    columnas += [(clave, texto) for clave, texto in del_catalogo.items() if clave not in campos_foto]
+    columnas += [(clave, texto) for clave, texto in del_catalogo.items() if clave not in campos_vigentes]
     columnas += extras
     # Dos preguntas con el mismo texto (una general y un requisito) no pueden confundirse en la planilla.
     repetidos = Counter(texto for _, texto in columnas)

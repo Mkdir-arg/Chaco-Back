@@ -20,7 +20,7 @@ from django.test import TestCase
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
-from programas.models import CanalFormulario, ItemDiseno, TipoCampo
+from programas.models import CanalFormulario, Formulario, ItemDiseno, TipoCampo
 from programas.services import dashboard_becas as svc
 from programas.tests.test_dashboard_becas import HOY, VENTANA, DashboardBecasBase
 
@@ -135,7 +135,50 @@ class CamposPropiosEnReportesTests(DashboardBecasBase):
             reporte, _ = svc.respuestas_por_persona(self.conv_propia)
         self.assertEqual(len(reporte.filas), 13)
         self.assertEqual(len(muchas), len(pocas))
-        self.assertLessEqual(len(muchas), 8)
+        self.assertLessEqual(len(muchas), 10)
+
+    def test_con_dos_fotos_distintas_el_orden_de_columnas_es_el_del_diseno(self):
+        """Ronda 2: el orden no puede depender de cuál caso devuelva primero el motor.
+
+        Dos casos con fotos **distintas** —uno respondió antes de que se agregara el
+        segundo campo propio— y la planilla sale en el orden del formulario vigente, que
+        es el de la pantalla. La respuesta del caso viejo sigue en su columna."""
+        self._propio("cp-primero", "Primera propia", ["Sí", "No"], orden=90)
+        viejo = self._caso_con_foto(self.rel_publico, {"cp-primero": "Sí"})
+        # Se agrega una pregunta: los casos nuevos traen otra foto.
+        self._propio("cp-segundo", "Segunda propia", ["A", "B"], orden=91)
+        nuevo = self._caso_con_foto(self.rel_publico, {"cp-primero": "No", "cp-segundo": "B"})
+        self.assertNotEqual(
+            Formulario.objects.get(pk=viejo.pk).definicion, Formulario.objects.get(pk=nuevo.pk).definicion
+        )
+
+        primeras = [list(svc.respuestas_por_persona(self.conv_propia)[0].encabezados) for _ in range(3)]
+
+        self.assertEqual(primeras[0], primeras[1])
+        self.assertEqual(primeras[1], primeras[2])
+        cab = primeras[0]
+        self.assertLess(cab.index("Primera propia"), cab.index("Segunda propia"))
+        filas = {
+            fila[cab.index("ID caso")]: dict(zip(cab, fila))
+            for fila in svc.respuestas_por_persona(self.conv_propia)[0].filas
+        }
+        self.assertEqual(filas[viejo.pk]["Primera propia"], "Sí")
+        self.assertEqual(filas[viejo.pk]["Segunda propia"], "")
+        self.assertEqual(filas[nuevo.pk]["Segunda propia"], "B")
+
+    def test_una_respuesta_a_una_pregunta_que_ya_no_esta_en_el_diseno_no_se_pierde(self):
+        """El formulario vigente no tiene esa clave: cae en su columna «ya no está»."""
+        propio = self._propio("cp-retirada", "Pregunta retirada", ["Sí", "No"], orden=90)
+        caso = self._caso_con_foto(self.rel_publico, {"cp-retirada": "Sí"})
+        propio.delete()  # el operador la saca del constructor
+
+        reporte, _ = svc.respuestas_por_persona(self.conv_propia)
+
+        cab = list(reporte.encabezados)
+        columna = next(c for c in cab if "cp-retirada" in c)
+        self.assertIn("ya no está en el formulario", columna)
+        self.assertEqual(dict(zip(cab, reporte.filas[0]))[columna], "Sí")
+        self.assertEqual(reporte.filas[0][cab.index("ID caso")], caso.pk)
 
     # --- Dashboard ----------------------------------------------------------
     def test_el_campo_propio_entra_al_catalogo_graficable(self):

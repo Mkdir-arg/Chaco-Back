@@ -24118,12 +24118,18 @@ archivos de DNI/UUID, tomados por los PRs 2 y 6 de esta ola.
   pantalla que la persona tuvo delante, deduplicado por clave entre todas las fotos de
   la convocatoria. El catálogo vigente aporta las que nadie respondió todavía, así una
   convocatoria **sin casos** sigue exportando sus columnas, que es como venía siendo.
-- **Segunda pasada por lotes de 500 pks.** `respuestas` y `definicion` son las dos
-  columnas pesadas de la fila (la foto son ~7 KB) y están fuera de la consulta
-  principal desde el **Cambio 93**, porque traerlas había dado el 500 a los 10,4 s del
-  24/09. No se las devuelve ahí: se leen aparte, de a 500, que es lo que mantiene cada
-  consulta lejos del `read_timeout` de 10 s de ECOM. Para los encabezados alcanza con
-  **una** foto por `huella_definicion`.
+- **La foto no se lee nunca por fila; `respuestas` sí, por lotes.** Las dos están
+  fuera de la consulta principal desde el **Cambio 93**, porque traerlas había dado el
+  500 a los 10,4 s del 24/09. `respuestas` (~0,8 KB) se lee aparte por lotes de 2.000,
+  el mismo `chunk_size` de la pasada principal. La **foto** no se lee: el texto, el
+  tipo, el orden y las condiciones de cada clave salen de `formulario_vigente()`, que
+  son tres consultas fijas. Es la decisión que corrige la ronda 1, donde la foto venía
+  en la segunda pasada: medido contra `mariadb:10.11` con 20.000 casos y una foto de
+  15 KB, eso llevaba el export de **1,47 s / 5 consultas** a **13,99 s / 45**. Y
+  **hashearla en el servidor tampoco sirve** —`MD5(definicion)` sobre las 20.000 filas
+  cuesta 3,0 s por sí solo, porque InnoDB lee igual las ~300 MB de páginas externas—,
+  así que no hay variante que mire esa columna por fila y entre en presupuesto. Con el
+  arreglo: **2,14 s / 19 consultas**, con 704 ms de SQL contra los 734 ms de la base.
 - **La ruta JSON va entre comillas y como parámetro.** `JSON_EXTRACT(respuestas,
   '$."cp-xxx"')` con la misma técnica de `_ValorJson` del Cambio 92: `KeyTransform`
   trata una clave numérica como índice de arreglo y en MariaDB devolvería NULL. La
@@ -24141,9 +24147,11 @@ archivos de DNI/UUID, tomados por los PRs 2 y 6 de esta ola.
   fotos de todos los casos ahí es justo la consulta que el `read_timeout` no tolera.
   La consecuencia es que un campo propio borrado del diseño deja de ofrecerse —el mismo
   criterio que ya rige para `PreguntaGlobal` y `RequisitoNativo`— y lo ya respondido se
-  sigue listando como opción fuera de catálogo. Por lo mismo, la condición del
-  **dashboard** se evalúa con el plan vigente; la del **Excel**, con la foto de cada
-  caso, que ahí ya está leída.
+  sigue listando como opción fuera de catálogo. **Desde la ronda 2 el Excel usa el mismo
+  criterio**: el formulario de hoy decide etiqueta, orden y condiciones, igual que el
+  catálogo venía decidiéndolo desde el Cambio 65. Lo que **no** se resigna es la
+  respuesta: una pregunta que ya no está en el diseño conserva su columna «ya no está en
+  el formulario», con test.
 - **La clave `cp-…` viaja cruda al selector del dashboard**, sin un prefijo análogo a
   `global:`: es la misma clave que está en el JSON, en la foto y en el diseño.
 - **El ratchet de comandos mira el objeto, no el nombre.** Detecta `.clear()` sobre
@@ -24214,6 +24222,14 @@ Cambio 58.
 - No tocó templates, JS ni CSS de la app: el único `.html` del diff es un snapshot
   dentro de `docs/`, que `design_audit.py` excluye. `compile_templates.py --bloques`
   igual se corrió.
+- **Ronda 2:** banco propio de 20.000 casos con foto de 15 KB en un `mariadb:10.11`
+  efímero (`MARIADB_INITDB_SKIP_TZINFO=1`). `development` 1,47 s / 5 consultas · PR
+  ronda 1 **13,99 s / 45** · PR ronda 2 **2,14 s / 19**, con 704 ms de SQL contra 734 ms
+  de la base. `manage.py test --tag mysql` contra ese mismo contenedor: 47 tests OK,
+  incluidos los tres nuevos de campos propios.
+- La guarda del presupuesto se verificó **al revés**: con la segunda pasada parchada
+  para volver a pedir `definicion`, `test_la_foto_de_la_definicion_no_viaja_por_fila`
+  se pone rojo.
 
 ## Puesta en marcha en el servidor
 Nada en el deploy: no hay migraciones, ni comandos nuevos, ni variables de entorno. El
