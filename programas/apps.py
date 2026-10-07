@@ -7,6 +7,8 @@ class ProgramasConfig(AppConfig):
     verbose_name = "Programas"
 
     def ready(self):
-        # Registra las reglas de vencimiento por fecha (las corre
+        # `signals`: DAT-03, `Formulario.dni_titular` sigue al DNI del ciudadano.
+        # `vencimientos`: las reglas de vencimiento por fecha (las corre
         # `manage.py procesar_vencimientos`).
+        from programas import signals  # noqa: F401
         from programas.services import vencimientos  # noqa: F401

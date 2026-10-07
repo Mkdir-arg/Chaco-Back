@@ -5,6 +5,7 @@ import logging
 from django.utils.dateparse import parse_date
 from rest_framework import serializers
 
+from core.dni import MENSAJE_DNI_INVALIDO, dni_valido
 from legajos.models import Ciudadano
 from programas.models import AdjuntoFormulario, Formulario, Relevamiento
 from programas.services.becas import definicion_formulario, es_menor
@@ -174,9 +175,11 @@ class FormularioSerializer(serializers.ModelSerializer):
                     }
                 )
             valor_dni = attrs.get("apoderado_dni") if "apoderado_dni" in attrs else self.instance.apoderado_dni
-            dni_apoderado = "".join(character for character in str(valor_dni or "") if character.isdigit())
-            if len(dni_apoderado) not in (7, 8):
-                raise serializers.ValidationError({"apoderado_dni": "Ingresá un DNI válido de 7 u 8 dígitos."})
+            # RED-48: misma normalización y misma regla de largo que el resto de las
+            # puertas (acá estaban las dos escritas a mano).
+            dni_apoderado = normalizar_dni(valor_dni)
+            if not dni_valido(dni_apoderado):
+                raise serializers.ValidationError({"apoderado_dni": MENSAJE_DNI_INVALIDO})
             attrs["apoderado_dni"] = dni_apoderado
             valor_genero = (
                 attrs.get("apoderado_genero") if "apoderado_genero" in attrs else self.instance.apoderado_genero

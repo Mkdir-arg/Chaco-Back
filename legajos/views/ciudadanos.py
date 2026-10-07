@@ -8,6 +8,7 @@ from django.shortcuts import redirect
 from django.urls import reverse_lazy
 from django.views.generic import CreateView, DetailView, FormView, ListView, UpdateView
 
+from core.dni import dni_valido
 from core.rbac import CapacidadRequeridaMixin, puede, requiere
 
 from ..forms import (
@@ -99,7 +100,11 @@ class CiudadanoCreateView(CapacidadRequeridaMixin, LoginRequiredMixin, FormView)
         dni = form.cleaned_data["dni"]
         sexo = form.cleaned_data["sexo"]
 
-        if Ciudadano.objects.filter(dni=dni).exists():
+        # G1c-08: el DNI tipeado ya viene normalizado, pero en la base puede haber
+        # personas cargadas antes con puntos (`87.654.321`). Un `filter(dni=dni)`
+        # pelado no las ve y el alta crea la **segunda** ficha de la misma persona.
+        # `listar_dni_no_normalizados` es el comando que los enumera para P-17.
+        if CiudadanosService.existe_con_dni(dni):
             messages.error(self.request, f"Ya existe un ciudadano con DNI {dni}")
             return self.form_invalid(form)
 
@@ -112,6 +117,11 @@ class CiudadanoCreateView(CapacidadRequeridaMixin, LoginRequiredMixin, FormView)
             context["sexo_consultado"] = sexo
 
             if resultado.get("fallecido"):
+                # D-C08 (default): si desde acá se sigue por la carga manual, el
+                # legajo nace con la procedencia que RENAPER informó. El dato viaja
+                # por la sesión y no por la query string: así vale venga el link con
+                # `?fallecido=1` o sin él.
+                CiudadanosService.marcar_fallecido_en_renaper(self.request.session, dni)
                 context["error_message"] = "La persona consultada figura como fallecida en RENAPER"
             else:
                 context["error_message"] = (
@@ -143,6 +153,15 @@ class CiudadanoManualView(CapacidadRequeridaMixin, LoginRequiredMixin, CreateVie
         return initial
 
     def form_valid(self, form):
+        # D-C08 (default): la carga manual que viene de un «fallecido» de RENAPER
+        # guarda esa procedencia. El flag lo deja el paso anterior en la sesión; si
+        # el link trae `?fallecido=1` también vale, para cuando el template lo pase.
+        de_fallecido = (
+            CiudadanosService.consumir_fallecido_en_renaper(self.request.session, form.cleaned_data.get("dni"))
+            or self.request.GET.get("fallecido") == "1"
+        )
+        if de_fallecido:
+            form.instance.estado_renaper = Ciudadano.EstadoRenaper.FALLECIDO
         super().form_valid(form)
         CiudadanosService.invalidate_ciudadanos_cache()
         messages.success(
@@ -199,6 +218,10 @@ class CiudadanoConfirmarView(CapacidadRequeridaMixin, LoginRequiredMixin, Create
         return context
 
     def form_valid(self, form):
+        # G1c-08: el alta que confirma una consulta a RENAPER deja escrita su
+        # procedencia. Sin esto, un legajo validado contra el registro civil y uno
+        # tipeado a mano quedaban idénticos en la base.
+        form.instance.estado_renaper = Ciudadano.EstadoRenaper.REGISTRADO
         super().form_valid(form)
         CiudadanosService.clear_renaper_data(self.request.session)
         CiudadanosService.invalidate_ciudadanos_cache()
@@ -223,10 +246,47 @@ class CiudadanoUpdateView(CapacidadRequeridaMixin, LoginRequiredMixin, UpdateVie
 
         return puede(self.request.user, "ciudadano.sensible")
 
+    def _puede_editar_dni(self):
+        """G1c-08: el DNI de un legajo lo cambia quien administra la configuración.
+
+        `config.administrar` es la capacidad que ya tiene el perfil que toca la
+        parametría del sistema; no se inventa una nueva para esto.
+        """
+        from core.rbac import puede
+
+        return puede(self.request.user, "config.administrar")
+
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
         kwargs["puede_ver_sensible"] = self._puede_ver_sensible()
+        kwargs["puede_editar_dni"] = self._puede_editar_dni()
         return kwargs
+
+    def get(self, request, *args, **kwargs):
+        """Avisa cuando la ficha arrastra un DNI fuera de la regla única (RED-48).
+
+        El form **no** lo convierte en error —eso dejaría la ficha inmodificable
+        hasta en el teléfono, con el mensaje colgado de un campo `disabled`—, así que
+        el aviso va por el canal que sí se ve: un toast que dice qué pasa y quién lo
+        arregla. Son las fichas que `manage.py listar_dni_no_normalizados` enumera
+        para P-17.
+        """
+        respuesta = super().get(request, *args, **kwargs)
+        if not dni_valido(self.object.dni):
+            if self._puede_editar_dni():
+                messages.warning(
+                    request,
+                    f"El DNI «{self.object.dni}» no cumple la regla del sistema (7 u 8 dígitos). "
+                    "Podés corregirlo acá; el resto de los datos se guarda igual.",
+                )
+            else:
+                messages.warning(
+                    request,
+                    f"El DNI «{self.object.dni}» no cumple la regla del sistema (7 u 8 dígitos). "
+                    "El resto de los datos se guarda igual; el DNI lo corrige quien administra la "
+                    "configuración.",
+                )
+        return respuesta
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

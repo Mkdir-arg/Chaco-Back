@@ -1,8 +1,14 @@
 """El botón «Copiar DNI» no interpola el DNI en un onclick (Cambio 95).
 
-El modelo no restringe el DNI a dígitos y la API de campo lo acepta tal cual llega
-en ``datos_identificacion``: dentro de ``onclick="copiarDni('...')"`` una comilla en
-el valor cerraba el literal JS. El DNI viaja en ``data-copiar-dni``.
+Dentro de ``onclick="copiarDni('...')"`` una comilla en el valor cerraba el literal
+JS. El DNI viaja en ``data-copiar-dni``.
+
+Desde G1c-08 (Cambio 168) `Ciudadano.save()` **normaliza** el DNI a dígitos, así que
+por el alta ese valor ya no entra. La defensa sigue haciendo falta igual y por eso el
+test sigue acá: la columna guarda lo que haya —un `update()` masivo, un restore, o
+las filas que ya estaban cargadas antes de la normalización—, y la pantalla tiene que
+poder renderizar cualquiera de ellas sin ejecutar nada. Lo único que cambia es cómo se
+escribe el valor hostil: por `update()`, que es el único camino que queda.
 """
 
 from datetime import date
@@ -21,8 +27,11 @@ class CopiarDniHandlerInlineTests(TestCase):
     def setUp(self):
         self.admin = User.objects.create_superuser("admin-dni-xss", password="x")
         self.ciudadano = Ciudadano.objects.create(
-            dni=DNI_QUE_CIERRA_EL_LITERAL, nombre="Ana", apellido="Paz", fecha_nacimiento=date(1990, 1, 1), genero="F"
+            dni="30123456", nombre="Ana", apellido="Paz", fecha_nacimiento=date(1990, 1, 1), genero="F"
         )
+        # Sin pasar por `save()`, que normaliza: así es como el valor puede estar
+        # hoy en la columna (filas viejas, un `update()` masivo o un restore).
+        Ciudadano.objects.filter(pk=self.ciudadano.pk).update(dni=DNI_QUE_CIERRA_EL_LITERAL)
 
     def test_el_dni_viaja_en_data_y_no_en_un_handler_on(self):
         self.client.force_login(self.admin)

@@ -10,6 +10,7 @@ import ast
 from datetime import date
 from decimal import Decimal
 from io import BytesIO, StringIO
+from tempfile import TemporaryDirectory
 
 from django.conf import settings
 from django.contrib.auth.models import Group, Permission, User
@@ -19,9 +20,11 @@ from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
-from django.test import SimpleTestCase, TestCase
+from django.db import transaction
+from django.test import SimpleTestCase, TestCase, override_settings
 from django.urls import reverse
 
+from core.dni import dni_valido
 from core.models import Localidad, Municipio, Provincia
 from core.rbac import APP_LABEL, codename_de
 from legajos.models import Ciudadano
@@ -46,8 +49,10 @@ from programas.services.padron import (
     objetivo_con_identidad,
     parsear_padron,
     plantilla_padron,
+    quitar_padron_propio,
     validar_casos_pendientes,
 )
+from programas.services.padron import dni_valido as padron_dni_valido
 from programas.services.siis_envio import _digitos as siis_envio_digitos
 
 XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
@@ -942,3 +947,230 @@ class UnaSolaPuertaDePadronTests(_BasePadronTest):
 
         self.assertIn("convocatorias_visibles", fuentes["convocatoria_padron"])
         self.assertIn("_assert_scope", fuentes["relevamiento_padron"])
+
+
+def _apoderado_dni_aceptado(dni):
+    """¿La app de campo puede dar de alta un caso de un menor con ese DNI de apoderado?
+
+    Es la octava puerta: `FormularioSerializer.validate` solo valida el apoderado
+    cuando la persona relevada es **menor**, así que el caso se arma con una fecha de
+    nacimiento de hace diez años. Lo que interesa es si `apoderado_dni` queda o no en
+    los errores.
+    """
+    from programas.api.serializers import FormularioSerializer
+
+    nacimiento = date.today().replace(year=date.today().year - 10)
+    serializer = FormularioSerializer(
+        data={
+            "datos_identificacion": {"dni": "30123456", "fecha_nacimiento": nacimiento.isoformat()},
+            "apoderado_nombre": "Apo",
+            "apoderado_apellido": "Derado",
+            "apoderado_dni": dni,
+            "apoderado_genero": "F",
+            "apoderado_fecha_nacimiento": "1980-01-01",
+        }
+    )
+    serializer.is_valid()
+    return "apoderado_dni" not in serializer.errors
+
+
+def _dni_de_usuario_aceptado(dni):
+    """¿El ABM de usuarios acepta ese DNI en un alta? (RED-48, la novena puerta.)
+
+    `Profile.dni` es un `CharField(max_length=8)`, así que esta puerta no solo tiene que
+    aceptar lo mismo que las otras: también tiene que **guardar** los dígitos. Lo
+    segundo lo mide `users/tests/test_dni_usuario.py` contra el motor real, donde el
+    `max_length` existe de verdad.
+    """
+    from users.forms import UserCreationForm
+
+    form = UserCreationForm(
+        data={
+            "username": f"puerta_{dni}",
+            "email": "puerta@example.com",
+            "password": "clave-segura-123",
+            "first_name": "A",
+            "last_name": "B",
+            "dni": dni,
+        }
+    )
+    form.is_valid()
+    return "dni" not in form.errors
+
+
+class DniValidoTests(TestCase):
+    """RED-48: «DNI válido» es una sola regla, y todas las puertas la usan.
+
+    Antes de este cambio convivían **cuatro** reglas de largo sobre ocho puertas:
+    7 u 8 (padrón, los dos formularios públicos, el serializer de la app, el
+    buscador de Dispositivos y la consulta a RENAPER de Legajos), exactamente 8
+    (`extract_dni_from_cuit`), hasta 10 (`siis_envio`) y de 6 a 9 (el registro del
+    portal). Las dos puntas callaban: el padrón descartaba la fila en silencio y
+    `siis_envio` mandaba a SIIS —que no tiene baja— lo que los formularios
+    rechazaban.
+
+    Los cuatro valores de la ficha, uno por cada borde de la regla.
+    """
+
+    CASOS = [("123456", False), ("1234567", True), ("12345678", True), ("123456789", False)]
+
+    def test_misma_regla_en_todas_las_puertas(self):
+        from legajos.forms.ciudadanos import CiudadanoManualForm, ConsultaRenaperForm
+        from legajos.services.ciudadanos import CiudadanosService
+        from portal.forms.ciudadano import RegistroStep1Form
+        from portal.forms.inscripcion import InscripcionPaso1Form
+        from programas.forms import BusquedaCiudadanoDNIForm
+
+        def _form(clase, dni, campo="dni", **extra):
+            form = clase(data={campo: dni, **extra})
+            form.is_valid()
+            return campo not in form.errors
+
+        puertas = {
+            "core.dni.dni_valido": dni_valido,
+            "padron (reexporta la canónica)": padron_dni_valido,
+            "InscripcionPaso1Form.clean_dni": lambda dni: _form(InscripcionPaso1Form, dni),
+            "RegistroStep1Form.clean_dni": lambda dni: _form(RegistroStep1Form, dni),
+            "BusquedaCiudadanoDNIForm.clean_dni": lambda dni: _form(BusquedaCiudadanoDNIForm, dni),
+            "ConsultaRenaperForm.clean_dni": lambda dni: _form(ConsultaRenaperForm, dni),
+            "CiudadanoManualForm.clean_dni": lambda dni: _form(CiudadanoManualForm, dni),
+            "CiudadanosService.extract_dni_from_cuit": lambda dni: bool(
+                CiudadanosService.extract_dni_from_cuit(f"20{dni.zfill(8)}3")
+            ),
+            "FormularioSerializer.apoderado_dni": _apoderado_dni_aceptado,
+            "UserCreationForm (ABM de usuarios)": _dni_de_usuario_aceptado,
+        }
+        for nombre, puerta in puertas.items():
+            for dni, esperado in self.CASOS:
+                with self.subTest(puerta=nombre, dni=dni):
+                    self.assertEqual(bool(puerta(dni)), esperado)
+
+    def test_toda_puerta_que_acepta_un_dni_con_puntos_lo_deja_en_digitos(self):
+        """RED-48, ronda 3: validar normalizado y **guardar crudo** es un 500 esperando.
+
+        `dni_valido()` normaliza antes de medir, así que `12.345.678` pasa. Si después
+        la puerta deja el valor crudo, lo que llega a la columna son diez caracteres: en
+        `users_profile.dni`, que es `char(8)`, eso es un
+        `DataError (1406, "Data too long")`. SQLite no aplica el `max_length` y no lo ve,
+        por eso el barrido es acá: **lo que cada puerta devuelve ya tiene que ser
+        dígitos**.
+        """
+        from legajos.forms import CiudadanoManualForm, ConsultaRenaperForm
+        from portal.forms.ciudadano import RegistroStep1Form
+        from portal.forms.inscripcion import InscripcionPaso1Form
+        from programas.forms import BusquedaCiudadanoDNIForm
+        from users.forms import UserCreationForm
+
+        con_puntos = "12.345.678"
+
+        def _limpio(clase, extra=None):
+            form = clase(data={"dni": con_puntos, **(extra or {})})
+            form.is_valid()
+            return form.cleaned_data.get("dni")
+
+        puertas = {
+            "InscripcionPaso1Form": lambda: _limpio(InscripcionPaso1Form),
+            "RegistroStep1Form": lambda: _limpio(RegistroStep1Form),
+            "BusquedaCiudadanoDNIForm": lambda: _limpio(BusquedaCiudadanoDNIForm),
+            "ConsultaRenaperForm": lambda: _limpio(ConsultaRenaperForm),
+            "CiudadanoManualForm": lambda: _limpio(CiudadanoManualForm),
+            "UserCreationForm": lambda: _limpio(
+                UserCreationForm,
+                {
+                    "username": "puerta_cruda",
+                    "email": "puerta@example.com",
+                    "password": "clave-segura-123",
+                    "first_name": "A",
+                    "last_name": "B",
+                },
+            ),
+        }
+        for nombre, puerta in puertas.items():
+            with self.subTest(puerta=nombre):
+                self.assertEqual(puerta(), "12345678")
+
+    def test_el_padron_descarta_la_fila_con_la_misma_regla(self):
+        """La puerta que **no** avisa: la fila entra a `rechazadas` y nadie la ve."""
+        entradas, resumen = parsear_padron(
+            _xlsx([("documento", "sexo"), ("1234567", "F"), ("123456", "F"), ("123456789", "M")])
+        )
+
+        self.assertEqual(_pares(entradas), [("1234567", "F")])
+        self.assertEqual(resumen.rechazadas, 2)
+
+    def test_siis_envio_ya_no_es_mas_laxo_que_los_formularios(self):
+        """El alta a SIIS no tiene baja: lo que el formulario rechaza no viaja.
+
+        El `len(dni) <= 10` que había dejaba pasar un DNI de un dígito o de nueve.
+        """
+        from programas.services.siis_envio import dni_valido as dni_valido_en_siis_envio
+
+        for dni, esperado in [*self.CASOS, ("1", False)]:
+            with self.subTest(dni=dni):
+                self.assertEqual(dni_valido_en_siis_envio(dni), esperado)
+
+
+class PadronArchivoViejoTests(_BasePadronTest):
+    """DAT-05: el Excel reemplazado no se queda para siempre en `media/`.
+
+    Cada archivo tiene DNI, nombre y fecha de nacimiento de miles de personas. Al
+    recargar el padrón el `FileField` se reasignaba y el anterior quedaba en el
+    storage sin dueño; al quitar el padrón propio pasaba lo contrario —el borrado
+    corría **dentro** de la transacción, así que un error posterior dejaba la fila
+    apuntando a un archivo que ya no existía—.
+
+    El borrado va en `transaction.on_commit`, que en un `TestCase` no se dispara
+    solo: por eso cada carga pasa por `captureOnCommitCallbacks`.
+    """
+
+    def setUp(self):
+        super().setUp()
+        temporal = TemporaryDirectory()
+        self.addCleanup(temporal.cleanup)
+        ajustes = override_settings(MEDIA_ROOT=temporal.name)
+        ajustes.enable()
+        self.addCleanup(ajustes.disable)
+
+    def _cargar(self, objetivo, nombre):
+        archivo = _xlsx([("documento", "sexo"), ("30123456", "F")], nombre=nombre)
+        entradas, _ = parsear_padron(archivo)
+        with self.captureOnCommitCallbacks(execute=True):
+            cargar_padron(objetivo, archivo, entradas)
+        objetivo.refresh_from_db()
+        return objetivo.padron_archivo.name
+
+    def test_recargar_el_padron_borra_el_excel_anterior(self):
+        primero = self._cargar(self.convocatoria, "padron-1.xlsx")
+        storage = self.convocatoria.padron_archivo.storage
+
+        segundo = self._cargar(self.convocatoria, "padron-2.xlsx")
+
+        self.assertNotEqual(primero, segundo)
+        self.assertFalse(storage.exists(primero), "el Excel viejo sigue en media/ con los datos de todo el padrón")
+        self.assertTrue(storage.exists(segundo))
+
+    def test_quitar_el_padron_propio_borra_el_excel(self):
+        nombre = self._cargar(self.relevamiento, "propio.xlsx")
+        storage = self.relevamiento.padron_archivo.storage
+
+        with self.captureOnCommitCallbacks(execute=True):
+            quitar_padron_propio(self.relevamiento)
+        self.relevamiento.refresh_from_db()
+
+        self.assertFalse(self.relevamiento.padron_archivo)
+        self.assertFalse(storage.exists(nombre))
+
+    def test_si_la_transaccion_falla_el_excel_sigue_estando(self):
+        """El borrado va en `on_commit`: un rollback deja fila y archivo intactos."""
+        nombre = self._cargar(self.relevamiento, "propio-rollback.xlsx")
+        storage = self.relevamiento.padron_archivo.storage
+
+        with self.captureOnCommitCallbacks(execute=True):
+            with self.assertRaises(RuntimeError):
+                with transaction.atomic():
+                    quitar_padron_propio(self.relevamiento)
+                    raise RuntimeError("algo falla después de quitar el padrón")
+
+        self.relevamiento.refresh_from_db()
+        self.assertEqual(self.relevamiento.padron_archivo.name, nombre)
+        self.assertTrue(storage.exists(nombre))

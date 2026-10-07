@@ -2,7 +2,7 @@
 
 from django import forms
 
-from programas.services.padron import normalizar_dni
+from core.dni import MENSAJE_DNI_INVALIDO, dni_valido, normalizar_dni
 from programas.services.personas import fecha_iso
 from programas.services.respuestas import aplicar, foto_definicion, legible, planos_de
 
@@ -37,9 +37,10 @@ class InscripcionPaso1Form(forms.Form):
     )
 
     def clean_dni(self):
+        # RED-48: la regla de largo es la de `padron.dni_valido`, no una copia.
         dni = normalizar_dni(self.cleaned_data["dni"])
-        if len(dni) not in (7, 8):
-            raise forms.ValidationError("Ingresá un DNI válido de 7 u 8 dígitos, sin puntos.")
+        if not dni_valido(dni):
+            raise forms.ValidationError(MENSAJE_DNI_INVALIDO)
         return dni
 
     def clean_sexo(self):
@@ -308,8 +309,8 @@ class InscripcionPaso2Form(forms.Form):
             if (item.get("vinculo") or "") == "dni" and valor:
                 valor = normalizar_dni(valor)
                 cleaned[clave] = valor
-                if len(valor) not in (7, 8):
-                    self.add_error(clave, "Ingresá un DNI válido de 7 u 8 dígitos.")
+                if not dni_valido(valor):
+                    self.add_error(clave, MENSAJE_DNI_INVALIDO)
                     continue
             if self.obligatorios.get(clave) and valor in (None, "", []) and clave not in self.errors:
                 self.add_error(clave, "Este dato es obligatorio.")

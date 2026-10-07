@@ -87,7 +87,7 @@ con lo que existe hoy; la lista solo baja.
 | RED-45 | `GUNICORN_CMD_ARGS` con gevent activa un parche que apaga `validate_thread_sharing` | MEDIA | CONF. lectura | R (+7 en OPS-13) | S | ✅ (R; falta Ola 7) |
 | RED-46 | `programas/models/__init__.py` (3.252 líneas, 90 importadores) sin tests de contrato | MEDIA | CONF. test (radon) | R | S-M | ✅ |
 | RED-47 | `normalizar_dni` y sus tres copias agregan un 0 con `float` o `Decimal` | MEDIA | CONF. test | R | S | ✅ |
-| RED-48 | «DNI válido» está implementado 6 veces con 3 reglas de largo | MEDIA | CONF. lectura | 3 | S-M | ⬜ |
+| RED-48 | «DNI válido» está implementado 6 veces con 3 reglas de largo | MEDIA | CONF. lectura | 3 | S-M | ✅ |
 | RED-49 | `cupo_disponible` significa tres cosas y dos pantallas lo rotulan igual | MEDIA | CONF. lectura | R (+4) | S (+S) | ✅ |
 | RED-50 | La edad (RN-22) está cuatro veces y tres usan `date.today()` (UTC en los contenedores) | MEDIA | CONF. lectura | R (+3) | S (+S-M) | 🟡 (el arreglo es de la Ola 3) |
 | RED-51 | Dos `invalidate_dashboard_cache`; `stats_legajos` colgado del modelo equivocado | MEDIA | CONF. lectura | R (+4) | S (+S) | ✅ (R; falta Ola 4) |
@@ -1345,6 +1345,46 @@ un `Decimal`, y unificarla es parte de RED-48, que además tiene que resolver la
 - **Propuesta:** `LARGOS_DNI_VALIDOS = (7, 8)` y `dni_valido(valor) -> bool` en `padron.py`, usados por las seis puertas
   (documentar en el test si `siis_envio` queda más laxo a propósito). Test `programas/tests/test_padron.py::DniValidoTests.
   test_misma_regla_en_todas_las_puertas` sobre `["123456", "1234567", "12345678", "123456789"]`.
+
+**Resolución:** ✅ Resuelto en el PR 2 de la Ola 3 (Cambio 168), 07-oct-2026 — `LARGOS_DNI_VALIDOS = (7, 8)`,
+`MENSAJE_DNI_INVALIDO` y `dni_valido()` en **`core/dni.py`**, consumidos por las puertas. **Tres desvíos:**
+(1) la regla vive en `core/` y no en `padron.py`, porque `legajos` y `portal` también tienen puertas de DNI y
+`legajos.models` no puede importar `programas` sin cerrar un ciclo que mide el ratchet de RED-79 — `padron`
+**reexporta** los cuatro nombres, así que las ~20 importaciones que ya existían siguen andando y
+`NormalizarDniTests` (RED-47) no se mueve; (2) las puertas eran **ocho**, no seis: la ficha no nombraba
+`ConsultaRenaperForm.clean_dni` (7-8) ni `portal/forms/ciudadano.py::RegistroStep1Form.clean_dni` (**6 a 9**,
+la más laxa de todas, y la séptima que VR2 no verificó) — la del registro se unificó igual, aunque su ruta no
+esté publicada desde SEC-29, para que la regla no vuelva con el portal; (3) `siis_envio` **no** queda más laxo:
+el `len(dni) <= 10` dejaba pasar un DNI de un dígito, el alta en SIIS no tiene baja y es mejor frenar el caso
+con su motivo que informar un documento que ninguna pantalla habría aceptado. Eso último es un **cambio de
+conducta** declarado en el riesgo de deploy del PR. El ratchet es `core/tests/test_regla_dni.py`, que recorre
+el código productivo con `ast` y marca una comparación de largo contra 6-10 en una sentencia que habla de un
+documento: se comprobó contra `HEAD` que detecta las **ocho** reglas que este PR retiró, incluida la del form
+dinámico del portal, donde la variable se llama `valor` y quien dice de qué se habla es la rama
+(`vinculo == "dni"`) y el mensaje de error. Escape documentado `# regla-dni: ok`, con la allowlist vacía.
+**Ronda 2:** el ratchet barre además `scripts/` —el docstring lo decía y no lo hacía— y detecta la regla
+escrita como **expresión regular** (`\d{7,8}`, `[0-9]{8}`, venga de `re`, de un `RegexValidator` o de un
+`__regex` del ORM), no solo con `len()`. Al encenderlo apareció la **novena** puerta, que ningún barrido anterior
+había visto: `users/forms/__init__.py` validaba el DNI del **usuario de backoffice** con
+`RegexField(r"^\d{6,8}$")` —6 a 8 dígitos—. Queda unificada; el DNI de 6 que deja de aceptarse corresponde a
+personas nacidas antes de 1930, y el campo sigue siendo opcional (Cambio 5). Se exceptúa
+`scripts/check_datos_personales.py`, cuyo `\b\d{7,8}\b` es el gate que busca documentos, no una validación.
+También se sumó `FormularioSerializer.apoderado_dni` —la puerta de la app de campo— al cruce de
+`DniValidoTests`.
+**Ronda 3:** la novena puerta estaba a medias. El ABM de usuarios **validaba normalizado y guardaba crudo**:
+`Profile.dni` es un `CharField(max_length=8)`, así que `12.345.678` entraba por el form y moría en la escritura
+con `DataError (1406, "Data too long for column 'dni'")` —un **500**— en MariaDB y en MySQL; SQLite no aplica el
+`max_length` y la suite normal no lo veía. Se normaliza en `_validar_dni_perfil_usuario`, la regla de largo se
+exige solo si el DNI cambia o es un alta (igual que en `Ciudadano`), y el barrido del resto encontró una más del
+mismo patrón: `ConsultaRenaperForm.dni` limitaba a 8 el valor **crudo**. De ahí sale el invariante nuevo: **toda
+puerta que acepta un DNI con puntos tiene que devolverlo en dígitos**, que es lo que mide
+`test_toda_puerta_que_acepta_un_dni_con_puntos_lo_deja_en_digitos`.
+**Test permanente:** `programas.tests.test_padron.DniValidoTests.test_misma_regla_en_todas_las_puertas`
+(+ `test_toda_puerta_que_acepta_un_dni_con_puntos_lo_deja_en_digitos`,
+`test_el_padron_descarta_la_fila_con_la_misma_regla` y
+`test_siis_envio_ya_no_es_mas_laxo_que_los_formularios`),
+`core.tests.test_regla_dni.UnaSolaReglaDeDniTests` y `users.tests.test_dni_usuario`
+(`UsuarioDniMotorRealTests` con `@tag("mysql")`, que es donde el 1406 existe).
 
 ### RED-49 · `cupo_disponible` significa tres cosas y dos pantallas lo rotulan igual
 **Severidad:** MEDIA · **Estado:** CONFIRMADO (lectura + templates) · **Origen:** RS-R4-07 (VR2: CONFIRMADO) · **Ola:** R (test) + 4 (renombre, con PERF-02) · **Esfuerzo:** S (2 h) + S (2 h)
