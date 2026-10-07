@@ -20579,7 +20579,7 @@ el revert lo deja en el estado anterior, que es el correcto para el markup anter
 | **Etiquetas** | `#ui` `#metodo` |
 | **Solicitante** | Auditoría integral oct-2026 — fichas FE-18, FE-19, FE-25 y FE-26 (Ola 5, PR 5) |
 | **Fecha del pedido** | 07/10/2026 |
-| **Issue / épica** | Sin issue (plan de la auditoría: `docs/internal/auditoria-2026-10/`) |
+| **Issue / épica** | Sin issue (plan de la auditoría: `docs/internal/auditoria-2026-10/`) · PR #605 |
 | **Partes afectadas** | Backoffice: dos parciales de badges nuevos de Merenderos, el handler único de confirmación `programas/_swal_confirm_js.html`, `static/custom/js/nodo-submit-guard.js` (nuevo) cargado desde `templates/includes/base.html`, y `static/custom/js/alertas_websocket.js`. Ninguna pantalla nueva |
 | **Migración** | No requiere |
 

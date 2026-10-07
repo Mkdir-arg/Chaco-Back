@@ -302,7 +302,7 @@ pasa de 50 a **101 px**, sin encabezados partidos.
 - **Propuesta:** `programas/templates/programas/merenderos/_estado_badge.html` y `_solicitud_estado_badge.html` con el contrato de `dispositivos/_estado_badge.html`, incluidos en `merenderos/list.html:10`, `detail.html:11`, `solicitudes.html:23`; «Inactivo» → `badge badge-gray badge-dot` en `user_list.html:66`, `rol_list.html:269`, `rol_detail.html:18`; en `dispositivos/legajo/detail.html:50-53`, rama `{% elif …semaforo == 'SIN_DATOS' %}text-body-subtle` antes del `else`. Registrar los parciales nuevos en el inventario.
 - **Verificación:** test al estilo de `programas/tests/test_estado_badges.py`; `check_design_agent.py --changed`.
 
-**Resolución:** ✅ Resuelto en el PR #NNN (Cambio 157), 07-10-2026 — Merenderos estrena sus dos parciales,
+**Resolución:** ✅ Resuelto en el PR #605 (Cambio 157), 07-10-2026 — Merenderos estrena sus dos parciales,
 `merenderos/_estado_badge.html` (ACTIVO success · SUSPENDIDO warning · CERRADO gray) y
 `merenderos/_solicitud_estado_badge.html` (BORRADOR white · EN_REVISION info · OBSERVADA warning · APROBADA
 success · RECHAZADA danger), los dos con el contrato de `dispositivos/_estado_badge.html`, y los incluyen el
@@ -327,7 +327,7 @@ muerto. Los dos parciales nuevos se registran en el inventario del agente (fila 
 - **Propuesta (pantallas legacy existentes, coherente con el Cambio 48):** `programas/templates/programas/_swal_confirm_js.html` que lea `data-confirm-title`, `-text`, `-ok`, `data-confirm-danger` (→ `customClass.confirmButton: 'btn-nodo btn-danger btn-base'`; si no, `btn-brand btn-base`) y `data-requires-motivo`; incluirlo en `dispositivos/legajo/detail.html`, `merenderos/detail.html`, `merenderos/solicitudes.html` y borrar los tres `<script>` locales; «Rechazar»/«Cerrar» → `btn-nodo btn-danger btn-base` con `data-confirm-danger`; en `user_list.html:171` y `rol_list.html:452`, `confirmButton: activo ? 'btn-nodo btn-danger' : 'btn-nodo btn-brand'`. **Para pantallas nuevas** (v2 incluida) rige la decisión D2 del agente de diseño: confirmación sí/no con `data-confirm-url` → `ModernModal`; con motivo, arquetipo Modal con form POST. Ojo con la colisión de selectores: Becas escucha `[data-confirm-url]` y este handler `[data-confirm]`.
 - **Verificación:** test estático del include; Playwright: el Swal de «Rechazar» tiene `.btn-danger` y el de «Activar» no.
 
-**Resolución:** ✅ Resuelto en el PR #NNN (Cambio 157), 07-10-2026 — `programas/templates/programas/_swal_confirm_js.html`
+**Resolución:** ✅ Resuelto en el PR #605 (Cambio 157), 07-10-2026 — `programas/templates/programas/_swal_confirm_js.html`
 es el handler único: carga SweetAlert2 y lee `data-confirm-title`, `-text`, `-ok`, `data-confirm-danger` (→
 `confirmButton: 'btn-nodo btn-danger btn-base'`; si no, `btn-brand btn-base`) y `data-requires-motivo`. Lo
 incluyen `dispositivos/legajo/detail.html`, `merenderos/detail.html` y `merenderos/solicitudes.html`, y los
@@ -450,7 +450,7 @@ el **Cambio 132** esa tabla existe y manda, y que el núcleo no la declare es un
 - **Propuesta:** `showToast(alerta)` → `window.toast(alerta.prioridad === 'CRITICA' ? 'error' : 'warning', texto)`; `showCriticalModal` → `ModernModal.show({type:'warning', title, message, confirmText:'Ver'})` (hoy nunca se dispara: G1c-17); elimina además `bg-gray-200/hover:bg-gray-300` de `:146` y `hover:bg-gray-50` de `:245`.
 - **Verificación:** test estático sin `alert-toast`.
 
-**Resolución:** ✅ Resuelto en el PR #NNN (Cambio 157), 07-10-2026 — `showToast` pasa a
+**Resolución:** ✅ Resuelto en el PR #605 (Cambio 157), 07-10-2026 — `showToast` pasa a
 `window.toast(alerta.prioridad === 'CRITICA' ? 'error' : 'warning', …)` y `showCriticalModal` a
 `ModernModal.show({type:'warning', title, message, confirmText:'Ver'})`. Se fueron con ellos la pila de avisos
 propia, el overlay armado a mano, `getAlertIcon` —sus cuatro SVG con `text-red-600`/`orange`/`yellow`/`blue`
@@ -482,7 +482,7 @@ sigue en la deuda de `CssCompiladoAlDiaTests` con un solo dueño, `alertas_conve
 - **Propuesta:** script global chico en `base.html`: en `submit` de `form[method=post]:not([data-ajax])`, deshabilitar sus `[type=submit]` (incluidos los externos con `form=`), marcar `aria-busy` y restaurar en `pageshow` con `persisted`.
 - **Verificación:** Playwright con doble clic en «Confirmar egreso» → un solo POST.
 
-**Resolución:** ✅ Resuelto en el PR #NNN (Cambio 157), 07-10-2026 — `static/custom/js/nodo-submit-guard.js`,
+**Resolución:** ✅ Resuelto en el PR #605 (Cambio 157), 07-10-2026 — `static/custom/js/nodo-submit-guard.js`,
 cargado una sola vez desde `templates/includes/base.html`, cubre todo el backoffice sin tocar una sola
 pantalla. En el `submit` de un `form[method=post]` que no sea `data-ajax`: si ya está `aria-busy`, **cancela**
 el envío; si no, lo marca `aria-busy="true"` y deshabilita sus botones de envío, incluidos los externos con
