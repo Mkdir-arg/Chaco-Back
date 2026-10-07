@@ -40,7 +40,7 @@ from programas.models import (
     Subsegmento,
 )
 
-# Los 45 modelos de la app, con la tabla con la que viven hoy en la base. El mapa es
+# Los 46 modelos de la app, con la tabla con la que viven hoy en la base. El mapa es
 # literal a propósito: calcularlo desde `_meta` haría que el test se mueva solo y no
 # detectaría nada. `AltaIntermediaSIIS` es la única con `db_table` explícita.
 TABLAS = {
@@ -55,6 +55,7 @@ TABLAS = {
     "AsignacionTerritorial": "programas_asignacionterritorial",
     "Cama": "programas_cama",
     "CampoTipoDispositivo": "programas_campotipodispositivo",
+    "CatalogoSiisLocal": "programas_catalogosiislocal",
     "Convocatoria": "programas_convocatoria",
     "CorridaSiis": "programas_corridasiis",
     "CupoSegmento": "programas_cuposegmento",

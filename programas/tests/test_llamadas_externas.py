@@ -413,3 +413,48 @@ class SiisMalConfiguradoTests(TestCase):
                 siis_mod.validar_compatibilidad("30111222", 7)
 
         self.assertFalse(siis_mod.cortacircuito_consultas.abierto())
+
+    @override_settings(**CREDENCIALES)
+    def test_un_token_que_no_sirve_no_se_loguea_como_configuracion_incompleta(self):
+        """Ronda 2 del PR 5: los dos caminos decían «Configuración SIIS incompleta».
+
+        Mandan a mirar lugares opuestos. Con las credenciales puestas y SIIS
+        contestando un cuerpo que no es objeto —o sin ``access_token``— el
+        problema está del otro lado, y el log que decía «incompleta» mandaba a
+        Infraestructura a revisar variables que estaban bien.
+        """
+        for cuerpo in (["???"], {"token_type": "Bearer"}):
+            with self.subTest(cuerpo=cuerpo):
+                cache.clear()
+                with (
+                    patch.object(siis_mod.sesion, "post", return_value=_respuesta(cuerpo)),
+                    self.assertLogs("programas.services.siis", level="ERROR") as registro,
+                ):
+                    siis_mod.validar_compatibilidad("30111222", 7)
+
+                texto = "\n".join(registro.output)
+                self.assertIn("no devolvió un token usable", texto)
+                self.assertNotIn("Configuración SIIS incompleta", texto)
+                self.assertNotIn("30111222", texto)
+
+    @override_settings(**CREDENCIALES)
+    def test_el_catalogo_distingue_los_dos_motivos(self):
+        """El mismo corte en ``_cargar_catalogo``, que tenía el mismo texto único."""
+        with (
+            patch.object(siis_mod.sesion, "post", return_value=_respuesta({"token_type": "Bearer"})),
+            self.assertLogs("programas.services.siis", level="ERROR") as registro,
+            self.assertRaisesMessage(siis_mod.SiisCatalogError, "SIIS no devolvió un token válido"),
+        ):
+            siis_mod.catalogo("provincias")
+
+        self.assertIn("no devolvió un token usable", "\n".join(registro.output))
+
+    @override_settings(SIIS_API_URL="", SIIS_API_CLIENT_ID="", SIIS_API_CLIENT_SECRET="")
+    def test_el_catalogo_sin_variables_sigue_diciendo_que_falta_configuracion(self):
+        with (
+            self.assertLogs("programas.services.siis", level="ERROR") as registro,
+            self.assertRaisesMessage(siis_mod.SiisCatalogError, "no está configurada"),
+        ):
+            siis_mod.catalogo("provincias")
+
+        self.assertIn("Configuración incompleta", "\n".join(registro.output))
