@@ -313,8 +313,13 @@ repo**; hasta entonces, no mergear en rojo es una regla del proceso, no un mecan
 
 - **Backend CI** — `manage.py check --deploy` (`Django System Check`),
   `makemigrations --check --dry-run` + `scripts/check_migraciones.py` sobre las
-  migraciones nuevas del PR (`Migration Check`) y `coverage run manage.py test`
-  (`Tests & Coverage`, `fail_under = 48` en `pyproject.toml`).
+  migraciones nuevas del PR (`Migration Check`), `coverage run manage.py test`
+  (`Tests & Coverage`, `fail_under = 48` en `pyproject.toml`) y `Contratos de API`:
+  `manage.py spectacular --validate` más los módulos que congelan un contrato (esquema,
+  app de campo, endpoints JSON del backoffice, servicios externos, forma de los JSON
+  guardados, catálogo de capacidades). **Tocar `programas/api/serializers.py`,
+  `definicion_formulario` o una clave que el front lee a mano obliga a actualizar el test
+  de contrato en el mismo diff.**
 - **Performance Guard** — tests `--tag performance` (presupuestos de queries en
   `scripts/perf_budgets.json`), comparación de duración y contrato MySQL/Redis efímero.
   Ahí viven también los dos jobs que corren contra el motor de verdad, **todavía no

@@ -95,6 +95,10 @@ CHECKS_OBLIGATORIOS = {
     # RED-24, Cambio 128: la ficha de RED-20 ya lo anticipaba («los checks nuevos se
     # suman a la lista cuando existan»).
     "Contratos del repo",
+    # RED-43, Cambio 160 (PR R-18): el gate de contrato de API. Entra obligatorio desde
+    # el primer día porque es determinista, no toca la red ni el motor real y mide ~9 s
+    # de tests; el filtro por rutas va adentro del job, así que reporta siempre.
+    "Contratos de API",
 }
 
 

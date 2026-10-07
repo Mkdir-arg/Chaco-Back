@@ -1,5 +1,11 @@
 # Auditoría integral de DATAÑACH (Chaco) — octubre 2026
 
+## Estado al 07-oct-2026 (Ola R: R-18, contratos del backoffice y job `Contratos de API`)
+
+| PR | Cambio | Fichas | Estado | Qué quedó abierto |
+|---|---|---|---|---|
+| R-18 | 160 | RED-42 ✅(R) · RED-39 ✅(R) · RED-40 ✅(R) · RED-41 ✅ · RED-43 ✅ · RED-44 ✅ | ✅ | **Las 6 fichas, 18 h, sin migraciones y sin tocar una sola vista de producción.** El único código nuevo que se despliega es `core/http.py` (dos helpers que todavía no usa nadie) y un comando de management de **solo lectura**; todo lo demás son tests, fixtures y CI. (1) **RED-42:** `core/tests/test_urls_del_front.py` barre `templates/`, los ocho `*/templates/` y `static/**/*.js`, normaliza los segmentos que son una interpolación entera probándolos con una sonda entera **y** una UUID, y mide **14 literales con 3 rotos** —`/legajos/1/contactos/api/`, `/legajos/contactos/1/detalle/` (LEG-06) y `/set_dark_mode/` (RED-75)—, que son la allowlist inicial con ratchet en **las dos direcciones**; del otro lado, `dashboard/tests/test_api_contrato.py` congela el conjunto **exacto** de `results`/`has_more`, `labels`/`datos` y `count`/`criticas`, que son los kwargs de un `aggregate()` que nadie eligió a propósito. (2) **RED-39:** `core/http.py` con `error_json`/`ok_json`, y las cinco claves de hoy congeladas **donde están** —el constructor en `message`, legajos en `error` y en `mensaje`—, para que la migración de la Ola 7 no se lleve puesto un front. (3) **RED-40:** `verificar_json_guardado [--json]`, la foto que hay que sacar contra un dump restaurado **antes** de cambiar la forma de un `JSONField`: condiciones con operadores que no existen (el ítem no se muestra nunca), `propio` sin `tipo`, fotos sin `items` y correcciones de SIIS que nadie consume. (4) **RED-41:** seis fixtures sintéticos de RENAPER, Personas y SIIS con **D-RED-04 aplicada por default**, consumidos por los parsers reales, de punta a punta y con el domicilio anidado; dos bugs quedan **medidos y no arreglados** (SIIS-10 con `expectedFailure` y su contracara, y el `result` anidado un nivel que marca al caso validado con el nombre en `None`). (5) **RED-43:** job **`Contratos de API`** —`spectacular --validate` + 8 módulos, 62 tests en 8,8 s, sin base real ni red—, **obligatorio desde el primer día**: sumado a `ruleset-development.json` y a `CHECKS_OBLIGATORIOS` en el mismo PR, con el filtro por rutas adentro del job. (6) **RED-44:** cruce AST en las dos direcciones entre los literales de capacidad y el `CATALOGO`. **Tres desvíos, los tres code-first:** la allowlist de RED-42 nace en 3 y no en 4 (el Cambio 150 ya retiró la cuarta); la `definicion` «plana anterior al Cambio 58» que pedía RED-40 **no puede existir** —el campo nació en `programas.0062`, que es de ese mismo cambio—, así que se prueba lo viejo de verdad (`definicion = NULL` + `data` legacy); y RED-44 midió **seis** capacidades sin uso propio y no una. **Abierto:** `config.ver`, `relevamiento.ver`, `institucion.ver` e `institucion.administrar` están en el catálogo, el ABM de Roles las ofrece y **tildarlas no habilita nada** → decisión de la Ola 7 (OPS-14); las partes no-R de RED-39 (Ola 7), RED-40 (Ola 3, los `validators`) y RED-42 (Ola 5, literales → `{% url %}`); SIIS-10 (Ola 3); y el job no nombra todavía `programas.tests.test_definicion_contrato` ni `scripts/check_condiciones_js.mjs`, que los crea **R-17** y hay que agregar al workflow en ese mismo PR. **Ronda 2 (4 MINOR, todos corregidos):** los dos jobs con `dorny/paths-filter` —el nuevo y `Migrate ida y vuelta`— declaraban solo `contents: read` y podían terminar **en verde sin correr nada** en cuanto D-RED-01 vuelva privado el repo; ahora llevan `pull-requests: read` y un paso que falla si el filtro no resolvió. El test de la subida feliz escribía en el `MEDIA_ROOT` real (siete huérfanos borrados): va a un `TemporaryDirectory`. **La vuelta de RED-44 era ciega a la mitad del catálogo** —contaba `CAPS_GESTION`, que *es* el catálogo de Becas— y al corregirlo apareció `becas.coordinador.ver`. Y el barrido de URLs usaba la misma sonda para todos los segmentos, así que una ruta que mezcle `<uuid:>` con `<int:>` daba falso roto. **Para el PM:** el ruleset de `development` cambió —cuando lo aplique, va con `Contratos de API` adentro— |
+
 ## Estado al 07-oct-2026 (Ola R: R-21, los ratchets de arquitectura)
 
 | PR | Cambio | Fichas | Estado | Qué quedó abierto |
@@ -868,7 +874,7 @@ cliente antes de cualquier otra cosa.
 |---|---|---|---|
 | D-RED-02 | ¿Se le pide a ECOM un tag de imagen inmutable por commit además de `:latest`? | Sí (una línea en su pipeline); el rollback de PRD pasa de 5-7 min de build a segundos | RED-16, runbook D.2.1 |
 | D-RED-03 | ¿El job `migration-roundtrip` entra obligatorio (CI rojo hasta arreglar la reversa en MariaDB) o con `continue-on-error`? | `continue-on-error` dos semanas (hasta RED-18 y las barreras de RED-15), después obligatorio | RED-17 |
-| D-RED-04 | ¿Se graban respuestas **reales** de RENAPER, Personas y SIIS (anonimizadas) como fixtures de test? | No: fixture **sintético** acordado y compartido por todos los tests (cubre el 90 % del valor sin tocar datos de personas). Si el PM aprueba grabar: solo con `RENAPER_TEST_MODE=1` contra el DNI de prueba y con revisión antes de versionar | RED-41 |
+| D-RED-04 ✅ | ¿Se graban respuestas **reales** de RENAPER, Personas y SIIS (anonimizadas) como fixtures de test? | **Default aplicado el 07-oct-2026 (Cambio 160, PR R-18): sintético.** Seis fixtures en `programas/fixtures/contratos/`, compartidos por todos los tests, con DNI inventados. Si el PM aprueba grabar: solo con `RENAPER_TEST_MODE=1` contra el DNI de prueba y con revisión antes de versionar | RED-41 |
 | D-RED-05 | ¿Se arregla la reversa de las migraciones UUID (L) o se declaran barrera de reversa? | Barrera: por debajo de `legajos.0007`, `programas.0047/0048/0073` y `users.0023` solo se vuelve con restore | RED-15 |
 | D-RED-06 | ¿Se reconstruye un e2e con Playwright? | No por ahora: borrar los residuos de `tests/e2e/`; si se hace, solo constructor y paso 2 del link, nightly, nunca como gate | RED-72 |
 | D-RED-07 | Preferencia de tema oscuro: (A) se persiste solo en el navegador o (B) se guarda en el perfil | A: borrar `sendThemePreference` y `dark_mode` del serializer | RED-75 |
@@ -1393,7 +1399,21 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
   refresca (RED-51); la raíz que es el login solo por el orden del URLconf (RED-78); y
   `exportacion_reportes.py` convertido a LF, **prerrequisito de SEC-20**, con su guarda (RED-82). **Desbloquea la
   Ola 2** (SEC-21) y deja medido lo que la Ola 7 (G1-01 fase 2, OPS-10, OPS-13, OPS-14) y la Ola 4 van a tocar.
-- **Quedan 58 h:** R-17, R-18 y R-20. **R-16 y R-21 ya están cerrados (Cambios 156 y 159), así que la Ola 3 y la
+- **✅ R-18 cerrado el 07-oct-2026 (Cambio 160), 18 h.** Contratos del backoffice y el gate que los corre: el barrido
+  de las URLs que el front escribe a mano (14 literales, **3** rotos en la allowlist con ratchet en las dos
+  direcciones) y las claves exactas de los tres endpoints JSON del inicio (RED-42); el sobre único `core/http.py` con
+  las cinco claves de hoy congeladas donde están (RED-39); el comando de solo lectura `verificar_json_guardado`, la
+  foto que hay que sacar contra un dump antes de cambiar la forma de un `JSONField` (RED-40); los seis fixtures
+  sintéticos de RENAPER, Personas y SIIS, con **D-RED-04 aplicada por default** y los parsers corriendo contra la
+  respuesta completa (RED-41); el job obligatorio **`Contratos de API`** —`spectacular --validate` + 8 módulos, 62
+  tests en 8,8 s— sumado al ruleset y a `CHECKS_OBLIGATORIOS` en el mismo PR (RED-43); y el cruce en las dos
+  direcciones entre los literales de capacidad y el `CATALOGO` (RED-44). **Tres desvíos, los tres code-first:** la
+  allowlist de RED-42 nace en 3 y no en 4 (LEG-03 ya retiró la cuarta); la `definicion` «plana anterior al Cambio 58»
+  que pedía RED-40 **no puede existir** —el campo nació con ese cambio—, así que se prueba lo viejo de verdad
+  (`definicion = NULL` + `data` legacy); y RED-44 encontró **cinco** capacidades sin uso y no una (`config.ver`,
+  `relevamiento.ver`, `institucion.ver`, `institucion.administrar`, más `ciudadano.eliminar`), todas declaradas con su
+  motivo y derivadas a OPS-14.
+- **Quedan 40 h:** R-17 y R-20. **R-16 y R-21 ya están cerrados (Cambios 156 y 159), así que la Ola 3 y la
   Ola 2 quedan desbloqueadas**; lo que falta puede ir en cualquier orden.
 - **Objetivo:** poder cambiar código sin romper nada sin enterarse. Que todo lo que las Olas 1 a 7 van a tocar tenga antes
   un test que se ponga rojo si se rompe, que el CI pruebe el motor de producción (MariaDB) y las migraciones en las dos
@@ -1423,7 +1443,7 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
 | ✅ R-15 | **Operación y deploy** (desde la Ola 3): OPS-03, OPS-04, OPS-01 (ampliados), RED-59 (`deploy_prod.sh`), RED-16 (tag de release), RED-55 — **Cambio 153** (RED-16 🟡: el tag de imagen lo tiene que aplicar ECOM, D-RED-02) | 18 | el próximo deploy en icore |
 | ✅ R-16 | **Becas: adjuntos, borrados, atomicidad, padrón:** RED-05, RED-31, RED-35, RED-77, RED-49, RED-50, RED-81, RED-70 — **Cambio 156** (RED-50 🟡: el arreglo de la edad es de la Ola 3) | 22 | Ola 3 (DAT-01, BEC-*), SEC-20 |
 | R-17 | **Definición y condiciones (dos repos):** RED-12, RED-38 | 16 | cualquier cambio del constructor |
-| R-18 | **Contratos del backoffice y job `Contratos de API`:** RED-42, RED-39, RED-40, RED-41 (D-RED-04), RED-43, RED-44 | 18 | Ola 2 (capacidades), Ola 5 |
+| ✅ R-18 | **Contratos del backoffice y job `Contratos de API`:** RED-42, RED-39, RED-40, RED-41 (D-RED-04), RED-43, RED-44 — **#608, Cambio 160** (RED-39, RED-40 y RED-42 cierran su parte R; el resto es de las Olas 3, 5 y 7) | 18 | Ola 2 (capacidades), Ola 5 |
 | ✅ R-19 | **Legajos y Roles por HTTP:** **RED-89** (CRÍTICA: barrido con usuario sin rol + `ALLOWLIST_SIN_ROL` medida + ratchet, 4 h) y, adelantadas de la Ola 2 por **D-RED-14**, **SEC-10 completa** (CRÍTICA, 4 h: el hard delete de adjuntos), **SEC-18 completa** (+ R0b-06, 2 h: alertas y el `self.get_object()` que mata el 500) y **SEC-11 con `ciudadano.ver` de piso en sus 5 rutas** (1 h: así salen los 17 `expectedFailure` y ninguna queda abierta; la Ola 2 sube 3 a `ciudadano.sensible` con D-11); más RED-06 (humo de 37 rutas + alertas) y RED-04 (escrituras del ABM de roles) — **#556, Cambio 126** | 21 | Ola 2 |
 | R-20 | **Cobertura y regresión** (desde la Ola 3): TST-02 (+generar_alertas y wizard), TST-03 (+gate por módulo), R0-03 (**antes del 31-dic-2026**), RED-34, RED-74, RED-72, RED-88 | 24 | — |
 | ✅ R-21 | **Arquitectura y dependencias ocultas (ratchets):** RED-46, RED-79, RED-13, RED-45, RED-52, RED-51, RED-78, RED-82 — **#607, Cambio 159** (RED-13, RED-45, RED-51, RED-52, RED-78 y RED-79 cierran su parte R; el resto de cada una es de las Olas 2, 4 y 7) | 18 | Ola 2 (SEC-21), Ola 7 (G1-01 fase 2, OPS-10) |
@@ -1440,7 +1460,8 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
   exportaciones—, que desbloquea la Ola 3).
   **R-21** (Cambio 159, 18 h: los ratchets de arquitectura y dependencias ocultas, que desbloquea la Ola 2 y es el
   prerrequisito de la revisión de SEC-20).
-  **Quedan 58 h de la Ola R:** R-17, R-18 y R-20, sin precedencias entre sí. Pueden ir en
+  **R-18** (Cambio 160, 18 h: los contratos del backoffice y el job obligatorio `Contratos de API`).
+  **Quedan 40 h de la Ola R:** R-17 y R-20, sin precedencias entre sí. Pueden ir en
   paralelo con otro implementador.
 - **Hecho cuando (verificable):**
   1. `gh api repos/Mkdir-arg/Chaco-Back/rulesets` lista los rulesets de `development` y `main`; un push directo a

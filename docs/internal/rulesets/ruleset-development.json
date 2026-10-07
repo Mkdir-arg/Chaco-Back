@@ -35,7 +35,8 @@
           { "context": "Sin datos personales" },
           { "context": "Ruff errores" },
           { "context": "Validate inventory and authority" },
-          { "context": "Contratos del repo" }
+          { "context": "Contratos del repo" },
+          { "context": "Contratos de API" }
         ]
       }
     }
