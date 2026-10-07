@@ -5,6 +5,7 @@ Acceso restringido a la capacidad ``rol.administrar``. Reemplaza a ``GroupListVi
 
 from django.contrib import messages
 from django.contrib.auth.models import Group
+from django.core.paginator import Paginator
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views import View
 from django.views.generic import TemplateView
@@ -35,6 +36,9 @@ def _fuera_de_alcance(request):
 
 class RolListView(_RolesPermMixin, TemplateView):
     template_name = "rol/rol_list.html"
+    # El listado paginaba «1 de 1» con los dos botones deshabilitados y la tabla
+    # entera debajo: un pie que afirmaba algo falso (FE-17). Pagina de verdad.
+    por_pagina = 25
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -45,8 +49,14 @@ class RolListView(_RolesPermMixin, TemplateView):
         # formas (agrupados / filtrados / total) se derivan de ese resultado.
         roles = roles_visibles_para(user)
         lista = roles_lista_para(user, visibles=roles)
+        filtrados = roles_filtrados_para(user, get, lista=lista)
+        paginator = Paginator(filtrados, self.por_pagina)
+        page_obj = paginator.get_page(get.get("page"))
         context["roles"] = roles
-        context["items"] = roles_filtrados_para(user, get, lista=lista)
+        context["items"] = page_obj.object_list
+        context["page_obj"] = page_obj
+        context["paginator"] = paginator
+        context["is_paginated"] = page_obj.has_other_pages()
         context["total_roles"] = len(lista)
         context["categorias_rol"] = list(rbac.CATEGORIAS_ROL) + [rbac.CATEGORIA_PROGRAMA]
         context["programas_admin"] = programas_administrables_roles(user)
