@@ -336,6 +336,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 162 | Las herramientas de SIIS dejan de pisar lo que otro corrigió, y el alta de prueba no sale del ambiente de pruebas | Becas · revisión de casos (modal «Completar datos para SIIS») · comandos de gestión de SIIS (`diagnosticar_siis`, `corregir_datos_siis`, `correr_alta_siis`, `completar_casos_renaper`) | `#siis` `#datos` `#relevamientos` `#ui` `#metodo` | Auditoría integral oct-2026 — fichas SIIS-19, SIIS-17 y G3-06, más la segunda parte de RED-32 (Ola 1 «Integridad SIIS», PR 7 — cierra la ola) | 07/10/2026 | 🟢 **Hecho** | No requiere |
 | 164 | La red de seguridad del front: lo que no estaba probado, el toggle que prometía de más y las URLs escritas a mano | Dispositivos (admisiones) · Merenderos (entregas, detalle y estado) · Transversal (shell: toggle de tema y campana de alertas) · Legajos (detalle del ciudadano) · Becas (carga de padrón) | `#metodo` `#ui` `#api` `#rbac` | Auditoría integral oct-2026 — fichas RED-33, RED-75 y las segundas partes de RED-42 y RED-53 (Ola 5, PR 8) | 07/10/2026 | 🟢 **Hecho** (D-RED-07 = A aplicada por default) | No requiere |
 | 166 | Los listados de afuera de Becas dejan de ser cada uno su propio diseño: encabezado, tabla, estado vacío y paginación canónicos | Usuarios y roles (listado de usuarios, listado y detalle de roles) · Configuración (provincias, municipios, localidades, secretarías, subsecretarías y programas) | `#ui` `#usuarios` `#metodo` | Auditoría integral oct-2026 — fichas FE-11, FE-12 y FE-17 (Ola 5, PR 6a — primer lote del PR más grande de la ola) | 07/10/2026 | 🟡 **Parcial** (las tres fichas cierran Usuarios, Roles y Configuración; `legajos/ciudadano_list` y el resto van en el PR 6b) | No requiere |
+| 167 | Legajos, Configuración y las páginas de error dejan el diseño paralelo: la pieza de paginación aprende a convivir y el shell legacy se borra | Legajos (listado de ciudadanos) · Configuración (formularios, borrados y wizard de programas) · Becas (cupo, convocatorias y relevamientos: paginación de solapas) · Transversal (pieza de paginación, páginas 403/404/500, shell legacy) | `#ui` `#metodo` | Auditoría integral oct-2026 — fichas FE-11, FE-12, FE-17 y FE-20 (Ola 5, PR 6b — segundo lote; con esto el PR 6 cierra) | 07/10/2026 | 🟢 **Hecho** (las cuatro fichas cierran; FE-23 y FE-24 pasan a un PR 6c) | No requiere |
 
 **Notas del índice**
 
@@ -22928,3 +22929,158 @@ Configuración de FE-12, con la parte de FE-17 que no toca la pieza canónica.
   del badge «Protegido» más un `sr-only` atado con `aria-describedby` a la acción «Ver», sin piezas nuevas;
   (4) el Playwright de la primera vuelta midió «Página 1 de 2» en las cinco pantallas que paginan, no en las
   ocho, y así quedó escrito acá, en la ficha y en el README.
+
+---
+
+# Cambio 167 — Legajos, Configuración y las páginas de error dejan el diseño paralelo
+
+🟢 **HECHO — 07/10/2026** (segundo lote del PR 6 de la Ola 5; con esto el PR 6 cierra)
+
+| | |
+|---|---|
+| **Programa / módulo** | Legajos (listado de ciudadanos) · Configuración (formularios, borrados y wizard de programas) · Becas (cupo, convocatorias y relevamientos: paginación de solapas) · Transversal (pieza de paginación, páginas 403/404/500, shell legacy) |
+| **Etiquetas** | `#ui` `#metodo` |
+| **Solicitante** | Auditoría integral oct-2026 — fichas FE-11, FE-12, FE-17 y FE-20 (Ola 5, PR 6b) |
+| **Fecha del pedido** | 07/10/2026 |
+| **Issue / épica** | Sin issue (plan de la auditoría: `docs/internal/auditoria-2026-10/`) |
+| **Partes afectadas** | Backoffice: 21 templates (uno de Legajos, 14 de Configuración, tres de Becas, la pieza `components/_paginacion.html`, las tres páginas de error), cuatro módulos de vistas (`legajos/views/ciudadanos.py`, `configuracion/views/{secretaria,programas}.py`, `programas/views/relevamientos.py`), un form (`configuracion/forms/programas.py`), un templatetag (`core/templatetags/nodo_ui.py`) y un gate (`scripts/compile_templates.py`). **Se borra `templates/includes/main.html`.** Ninguna pieza canónica nueva |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> «(6) **después de la Ola 6 paso 4:** FE-11, FE-12, FE-17, FE-20, FE-23, FE-24 — 48 h» (README de la
+> auditoría, §6, Ola 5). El PR se partió en dos: el **6a** (22 h, Cambio 166) y este **6b** (24 h). FE-23 y
+> FE-24 no entran y pasan a un **6c**.
+
+## Qué estaba mal
+
+1. **FE-11 y FE-12 — `legajos/ciudadano_list.html` era su propio sistema de diseño.** 492 líneas, de las
+   cuales **290 eran un `<style>`** que redefinía a mano el encabezado (`.cl-h1`, 28 px), las seis tarjetas
+   de número (cajas de ícono de 52 px, avatares con `var(--gradient-brand)`), la barra de búsqueda, la
+   tabla, el pie de paginación y el estado vacío —todo lo que ya existe como pieza canónica—, más 296
+   `style=` por celda y ocho SVG de Heroicons pegados en el contenido.
+2. **FE-17 — la pieza de paginación servía para una sola lista por pantalla.** `components/_paginacion.html`
+   leía y escribía siempre `?page=`, así que la **golden del arquetipo Detalle**
+   (`becas/cupo/segmento_detail.html`) tenía **tres** pies copiados a mano, y `convocatoria_detail` y
+   `relevamiento_detail` uno cada uno —los dos sin la caja del pie canónico y sin `aria-label` en las
+   flechas—. Además `ConvocatoriaListView` no paginaba (renderizaba todas las convocatorias visibles), el
+   enlace de `ciudadano_list` llevaba `&search={{ search_value }}` **sin codificar** —buscar «Pérez Gómez» y
+   pasar de página perdía el filtro— y las tres listas de Configuración que el PR 6a dejó con el
+   `{% include %}` puesto seguían sin paginar.
+3. **FE-20 — 17 pantallas colgaban del wrapper legacy.** `templates/includes/main.html` envuelve el
+   contenido en `app-main > app-content-header > container-fluid > row > col-sm-9`, clases que el build de
+   Tailwind **no genera**: el `<h1>` de `/configuracion/localidades/crear/` salía en x=644 contra los x=320
+   de su propia lista, y las tres páginas de error salían como texto plano de 16 px. Sus consumidores eran
+   los 14 templates de Configuración (`*_form`, `*_confirm_delete` y los cuatro pasos del wizard) y
+   `templates/{403,404,500}.html`.
+
+## Alcance acordado
+
+**Entra:** el punto (4) de FE-11, el noveno archivo de FE-12, **todo lo que faltaba de FE-17** y FE-20
+completa.
+
+**Queda afuera, explícitamente:**
+
+- **FE-23** (`_field.html` único) y **FE-24** (solapas con ARIA y teclado). Van a un **PR 6c** de ~8 h.
+  FE-24 además **necesita OK**: `static/custom/js/nodo-tabs.js` es un archivo JS nuevo, o sea novedad del
+  agente de diseño.
+- **Dispositivos y Merenderos** (puntos 1 y 2 de FE-11, sus archivos en FE-12 y las listas de FE-17):
+  **D-V1 = No**, la migración de estilo la hereda la v2.
+
+## Decisiones tomadas
+
+- **La pieza de paginación aprende a convivir, no se duplica.** `components/_paginacion.html` suma dos
+  parámetros: `param` (nombre del parámetro de página, por defecto `page`) y `extra_qs` (querystring que el
+  enlace conserva siempre, p. ej. `tab=beneficiarios`). Los sostiene un filtro nuevo en
+  `core/templatetags/nodo_ui.py`, **`sin_parametros`**, que devuelve el querystring sin las claves que se le
+  pasan y se encadena consigo mismo. Sin él no alcanzaba: el fallback «conservar `request.GET` menos `page`»
+  dejaba el parámetro propio adentro y el enlace salía con **el mismo parámetro dos veces**, con lo cual el
+  pie no movía de página. El contrato está en el comentario de cabecera de la pieza y en su ficha.
+
+- **La golden del arquetipo Detalle deja su deuda declarada.** Las fichas `componentes/paginacion.md` y
+  `arquetipos/detalle.md` decían que los tres pies copiados de `becas/cupo/segmento_detail.html` eran
+  «deuda conocida, no molde» *porque la pieza no podía*. Ahora puede, así que la golden los usa y las dos
+  fichas pierden esa salvedad.
+
+- **El re-render AJAX pagina igual que la vista.** `ConvocatoriaListView` recibe `paginate_by = 25`, pero el
+  modal de alta re-renderiza `_convocatorias_table.html` por su cuenta: con `paginate_by` solo en la vista,
+  guardar una convocatoria reemplazaba la página por **todas** las filas visibles, que es el mismo bug con
+  otro disfraz. Las dos puntas comparten `_contexto_convocatorias(request)`.
+
+- **Las tres listas que faltaban paginan con el tratamiento de FE-04.** `secretaria`, `subsecretaria` y
+  `programa` reciben `paginate_by = 20`, y los `form_invalid` de secretarías dejan de armar el listado a
+  mano: usan un `_contexto_lista` que devuelve **la página que contiene la fila** cuya edición falló. Sin
+  eso, el error de validación de una fila de la página 2 volvía a una página 1 donde esa fila no está y el
+  modal no se renderizaba nunca (la «fila 21» de FE-04).
+
+- **El botón de alta del estado vacío se gatea igual que el del encabezado.** En `ciudadano_list` los dos
+  apuntan al mismo destino (`legajos:ciudadano_nuevo`), así que la URL se resuelve **adentro** del
+  `{% if puede_crear %}`: sin la capacidad no hay URL y `components/_estado_vacio.html` no dibuja el ancla.
+  Antes el encabezado estaba gateado y el estado vacío no.
+
+- **El wizard se migra sin inventarle un stepper.** El arquetipo wizard está **pendiente** (D4 del agente):
+  la ficha FE-20 manda migrar solo el shell y el formulario de cada paso. La barra de progreso que ya existía
+  se conserva, con el ancho por clase (`w-1/4`, `w-1/2`, `w-3/4`, `w-full`) en vez de por
+  `style="width: {% widthratio %}%"`, que es `style=` con declaración y no está exento.
+
+- **La clase del control la pone el widget.** Los cinco campos del wizard traían su propio dialecto
+  (`block w-full rounded-md border border-gray-300 focus:ring-1 focus:ring-indigo-500`…) y pasan a
+  `nodo-field`, igual que los de `configuracion/forms/geografia.py`. Las cuatro ayudas que el template
+  dibujaba a mano pasan a `help_text` del form, que es lo que rinde el include de campo: si no, se perdían.
+
+## Desvíos (code-first)
+
+1. **Los consumidores del wrapper eran 14 de Configuración + 3 páginas de error**, no «17 templates de
+   Configuración» como decía la ficha: `programa_list.html` ya lo había dejado el PR 6a.
+2. **El paso 2 del wizard y los cinco `*_confirm_delete` no pasan `--arquetipo formulario`.** El paso 2
+   porque su único control es un grupo de radios con descripción por opción, que no puede pasar por
+   `_field.html` sin perder las descripciones; los borrados porque no tienen campos y su acción primaria es
+   `btn-danger`, que es **exactamente** la variante «confirmación de borrado» que la ficha del arquetipo
+   permite y que el modo de marcadores no modela. Los cinco `*_form` y los pasos 1, 3 y 4 sí pasan.
+3. **`users.tests.test_menu_rbac.CiudadanoListBotonNuevoTests` medía el botón por su texto**
+   («Nuevo Ciudadano»), que la migración cambia a «Nuevo ciudadano». Pasa a medirlo por su **destino**: con
+   la aserción sobre el texto, el caso «sin capacidad» pasaba igual aunque el botón se siguiera dibujando.
+4. **`focus:ring-1` y `focus:ring-indigo-500` salen de las anclas de `CssCompiladoAlDiaTests`**: ese test
+   vigila que el `content` de Tailwind siga escaneando los `.py`, y sus dos anclas eran justamente los
+   widgets del wizard que este cambio migra a `nodo-field`. Quedan `cursor-not-allowed` y `file:bg-blue-600`,
+   que siguen viniendo de `legajos/forms/ciudadanos.py`. `text-warning` sale de la deuda congelada porque su
+   único consumidor era `404.html`.
+
+## Abierto, anotado y no arreglado
+
+`django.views.defaults.server_error` renderiza `500.html` **sin** `request`, y el shell del backoffice hace
+`{{ request.user.get_full_name|default:request.user.username }}` —un lookup dentro del **argumento** de un
+filtro, que con `request` ausente levanta `VariableDoesNotExist` en vez de resolver a vacío—. O sea que la
+500 estilada solo se ve cuando algo le pasa un request; con el handler por defecto, el usuario ve el 500
+genérico del servidor. **Pasaba igual antes de este cambio** (la pantalla ya extendía el mismo shell a
+través del wrapper legacy). Arreglarlo es tocar el shell global o escribir un `handler500` propio que
+renderice con request —y un 500 suele venir de la base caída, que es justo lo que ese shell consulta—: lo
+decide el PM.
+
+## Verificación
+
+- `manage.py check` y `check --deploy` sin issues nuevos; `makemigrations --check --dry-run`: «No changes
+  detected».
+- Suite completa con `.venv312` (Python 3.12 + Django 5.2.17): **3593 tests**, y `--tag performance` en verde.
+- `ruff check .` y `ruff format --check` limpios.
+- `design_audit.py --ratchet` → **0 hallazgos nuevos** en 24 archivos; `--goldens` → **0** en las 5 goldens;
+  `--arquetipo listado` OK en `ciudadano_list` y `--arquetipo formulario` OK en los cinco `*_form` y en los
+  pasos 1, 3 y 4 del wizard. `compile_templates.py --bloques`: 0 errores y **0 bloques sin destino**, con la
+  allowlist tres entradas más corta. El total de errores de `design_audit` no cambia (15, igual que en la
+  base) y los P1 bajan de 2693 a 2539.
+- **Playwright a 1440 y 390 px** sobre SQLite sembrado, 0 errores de consola propios: `<h1>` en x=320/x=16
+  en los listados y x=372/x=68 en formularios y detalles (el offset del volver circular, igual que las
+  goldens), 30 px y peso 800; `th` 11 px mayúsculas, `td` 14 px con `13px 16px` de padding; `.nodo-icon-btn`
+  en `rgb(107,114,128)` con `aria-label="Ver legajo de …"`; «Página 1 de 2 · 30 ciudadanos» y «Página 1 de 2
+  · 21 secretarías»; el `nodo-field` en 42 px de alto; y la 404 real con `DEBUG=False` con su encabezado, su
+  ícono de 5xl y el botón «Volver al inicio».
+- `npm run build:tailwind` con el `tailwindcss 3.4.19` pineado: el CSS committeado suma `w-1/4`, `w-1/2` y
+  `w-3/4` y no saca nada.
+
+## Historial
+
+- 07/10/2026 — Implementado y registrado. Las fichas FE-11, FE-12, FE-17 y FE-20 quedan ✅ en
+  `docs/internal/auditoria-2026-10/hallazgos/07-front.md`. Los bloques de `.claude/design/` (las fichas
+  `componentes/paginacion.md`, `arquetipos/detalle.md`, `arquetipos/formulario.md`,
+  `componentes/filtros.md` y la fila «Shell legacy» del núcleo) van en el cuerpo del PR: la sesión
+  implementadora no tiene permiso de escritura ahí y los aplica el juez.

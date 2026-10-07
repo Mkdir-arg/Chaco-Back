@@ -40,9 +40,23 @@ Filtros activos::
 excluidos (separada por comas; por defecto ``page``) trae un valor no vacío.
 Sirve para que el estado vacío (``components/_estado_vacio.html``) distinga
 «no hay nada» de «los filtros no traen nada».
+
+Querystring sin algunas claves::
+
+    {{ request.GET|sin_parametros:"beneficiarios_page"|sin_parametros:"tab=beneficiarios" }}
+
+``sin_parametros`` devuelve el querystring codificado (sin ``?``) de un
+``QueryDict`` —o de otro querystring ya codificado, así se encadena— sacando
+las claves que se le pasan. Lo usa ``components/_paginacion.html`` para armar
+el enlace de la página siguiente cuando la pantalla pagina con un parámetro
+propio (``param``/``extra_qs``): sin esto el enlace salía con el parámetro de
+página repetido.
 """
 
+import re
+
 from django import template
+from django.http import QueryDict
 from django.template.base import NodeList, token_kwargs
 
 register = template.Library()
@@ -154,3 +168,36 @@ def hay_filtros(parametros, excluidos=EXCLUIDOS_HAY_FILTROS):
         if any(str(valor).strip() for valor in valores if valor is not None):
             return True
     return False
+
+
+SEPARADOR_CLAVES = re.compile(r"[,&]")
+
+
+@register.filter
+def sin_parametros(parametros, excluidos=""):
+    """Querystring de ``parametros`` sin las claves de ``excluidos``.
+
+    ``parametros`` es un ``QueryDict`` (``request.GET``) o un querystring ya
+    codificado —así el filtro se encadena consigo mismo—. ``excluidos`` es una
+    lista de claves separadas por comas o por ``&``; de un par ``clave=valor``
+    se usa solo la clave, para poder pasarle el mismo ``extra_qs`` que viaja en
+    el enlace.
+
+    Devuelve el querystring **sin** ``?`` y **sin** escapar: lo escapa la
+    plantilla (o el ``{% firstof %}`` que lo recibe).
+    """
+    if not parametros:
+        return ""
+    if not hasattr(parametros, "getlist"):
+        parametros = QueryDict(str(parametros))
+    fuera = {
+        trozo.split("=", 1)[0].strip()
+        for trozo in SEPARADOR_CLAVES.split(str(excluidos or ""))
+        if trozo.split("=", 1)[0].strip()
+    }
+    if not fuera:
+        return parametros.urlencode()
+    restantes = parametros.copy()
+    for clave in fuera:
+        restantes.pop(clave, None)
+    return restantes.urlencode()

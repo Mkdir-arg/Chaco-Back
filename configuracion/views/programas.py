@@ -5,6 +5,7 @@ Wizard de configuración de programas sociales (US-005).
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator
 from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 
@@ -20,6 +21,8 @@ from ..forms.programas import (
 )
 
 _REDIRECT = "configuracion:programas"
+#: Mismo tamaño que las otras listas de Configuración (FE-04/FE-17).
+POR_PAGINA = 20
 
 # ---------------------------------------------------------------------------
 # Helpers de sesión
@@ -65,12 +68,18 @@ def programa_list(request):
         qs = qs.filter(Q(nombre__icontains=search) | Q(codigo__icontains=search))
 
     puede_editar = puede(request.user, "programa.configurar")
+    # FE-17: la pantalla ya incluía el pie de paginación (Cambio 166) pero la vista
+    # devolvía la lista entera, así que el pie no se dibujaba nunca.
+    pagina = Paginator(qs, POR_PAGINA).get_page(request.GET.get("page"))
 
     return render(
         request,
         "configuracion/programa_list.html",
         {
-            "programas": qs,
+            "programas": pagina.object_list,
+            "page_obj": pagina,
+            "paginator": pagina.paginator,
+            "is_paginated": pagina.has_other_pages(),
             "estados": Programa.Estado.choices,
             "subsecretarias": Subsecretaria.objects.filter(activo=True).order_by("nombre"),
             "estado_filtro": estado,

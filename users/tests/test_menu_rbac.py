@@ -157,13 +157,16 @@ class CiudadanoListBotonNuevoTests(TestCase):
         u.groups.add(g)
         return u
 
+    # El botón se mide por su **destino** y no por su texto: el rótulo cambió con la
+    # migración al arquetipo Listado (Cambio 167) y, con la aserción sobre el texto, el
+    # caso «sin capacidad» pasaba igual aunque el botón siguiera dibujándose.
     def test_sin_crear_no_ve_boton(self):
         self.client.force_login(self._user("ciudadano.ver"))
         resp = self.client.get(reverse("legajos:ciudadanos"))
         self.assertEqual(resp.status_code, 200)
-        self.assertNotContains(resp, "Nuevo Ciudadano")
+        self.assertNotContains(resp, reverse("legajos:ciudadano_nuevo"))
 
     def test_con_crear_ve_boton(self):
         self.client.force_login(self._user("ciudadano.ver", "ciudadano.crear"))
         resp = self.client.get(reverse("legajos:ciudadanos"))
-        self.assertContains(resp, "Nuevo Ciudadano")
+        self.assertContains(resp, f'href="{reverse("legajos:ciudadano_nuevo")}"')

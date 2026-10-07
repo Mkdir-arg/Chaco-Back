@@ -1,5 +1,11 @@
 # Auditoría integral de DATAÑACH (Chaco) — octubre 2026
 
+## Estado al 07-oct-2026 (Ola 5, PR 6b: Legajos, Configuración y la pieza de paginación — **el PR 6 cierra**)
+
+| PR | Cambio | Fichas | Estado | Qué quedó abierto |
+|---|---|---|---|---|
+| Ola 5 PR 6b | 167 | FE-11 ✅ · FE-12 ✅ · FE-17 ✅ · FE-20 ✅ | ✅ | **Segundo lote del PR más grande de la ola (24 h de 48), sin migraciones.** Con esto **FE-11, FE-12, FE-17 y FE-20 cierran** y el PR 6 termina. (1) **`legajos/ciudadano_list.html`**, el punto (4) de FE-11 y el noveno archivo de FE-12: 492 líneas con un `<style>` de **290** que redefinía a mano el encabezado (`.cl-h1`, 28 px), las seis tarjetas de número (cajas de 52 px, avatares con `var(--gradient-brand)`), el buscador, la tabla, el pie y el estado vacío, más 296 `style=` y 8 SVG de Heroicons. Queda en 84 líneas clonadas de la golden del arquetipo Listado (`--arquetipo listado` OK), con las seis métricas en `_stat_card.html` y los **dos** estados vacíos. De paso, el botón de alta del estado vacío **se gatea** con `ciudadano.crear`, que es el mismo destino que el del encabezado: antes el estado vacío lo ofrecía a cualquiera que pudiera ver la lista. (2) **FE-17 completa, que era la pieza:** `components/_paginacion.html` acepta `param` y `extra_qs` —con el filtro nuevo `sin_parametros` de `nodo_ui.py`, sin el cual el enlace repetía el parámetro de página y el pie no movía de página—, así que la **golden del arquetipo Detalle** deja sus **tres** pies copiados a mano (la «deuda conocida» de sus dos fichas), lo mismo `convocatoria_detail` y `relevamiento_detail`; `ConvocatoriaListView` pasa a paginar de a 25 **también en el re-render AJAX del modal** (sin eso, guardar una convocatoria devolvía la lista entera); y `secretaria`, `subsecretaria` y `programa` —las tres que el 6a dejó con el include puesto y sin paginar— reciben `paginate_by` con el `_contexto_lista` de FE-04, así que el error de validación de una fila de la página 2 vuelve **a su propia página**. (3) **FE-20:** los **17** consumidores de `templates/includes/main.html` migran y el shell legacy **se borra**; los cinco `*_form` y los pasos 1, 3 y 4 del wizard pasan `--arquetipo formulario`, los cinco `*_confirm_delete` usan la variante «confirmación de borrado» con `_alerta` en `danger`, y las tres páginas de error estrenan encabezado y `_estado_vacio`. Se van las tres entradas de la allowlist de `compile_templates --bloques` y `text-warning` sale de la deuda congelada del CSS. **Cuatro desvíos, los cuatro code-first:** (a) los consumidores del wrapper eran **14 de Configuración + 3 páginas de error**, no «17 de Configuración»; (b) el **paso 2 del wizard** y los cinco `*_confirm_delete` **no pasan `--arquetipo formulario`** —el primero porque su único control es un grupo de radios con descripción por opción, que no cabe en `_field.html`; los segundos porque no tienen campos y su acción primaria es `btn-danger`, que es justo la variante que la ficha permite y el modo no modela—; (c) los widgets del wizard llevaban su propio dialecto de clases y pasan a `nodo-field`, con las cuatro ayudas inline convertidas en `help_text` del form; (d) `users.tests.test_menu_rbac.CiudadanoListBotonNuevoTests` medía el botón por su **texto** («Nuevo Ciudadano»), que la migración cambia: pasa a medirlo por su **destino**, que además no podía pasar en vacío. **Playwright a 1440 y 390 px, 0 errores de consola propios:** `<h1>` en x=320/x=16 en los listados y x=372/x=68 en formularios y detalles (el offset del volver circular, igual que las goldens), `th` 11 px mayúsculas, `td` 14 px, `.nodo-icon-btn` en `rgb(107,114,128)` con `aria-label` que nombra a la persona, «Página 1 de 2 · 30 ciudadanos», el `nodo-field` en 42 px y la 404 real con `DEBUG=False` con su encabezado y su botón. **Abierto, no introducido acá:** `handler500` renderiza `500.html` **sin** `request` y el shell hace `request.user.get_full_name|default:request.user.username` —un lookup en el argumento de un filtro, que sin `request` levanta—, así que la 500 estilada no se ve con el handler por defecto; pasaba igual antes. **Para el juez:** los bloques de `.claude/design/componentes/paginacion.md`, `.claude/design/arquetipos/detalle.md`, `.claude/design/arquetipos/formulario.md`, `.claude/design/componentes/filtros.md` y la fila «Shell legacy» del núcleo van en el cuerpo del PR (la sesión no escribe bajo `.claude/`); hasta aplicarlos, «Design Agent Contract» queda rojo. **Queda para un 6c:** FE-23 (`_field.html` único) y FE-24 (solapas con ARIA y teclado, que **necesita OK** para `nodo-tabs.js`), ~8 h |
+
 ## Estado al 07-oct-2026 (Ola 5, PR 6a: los listados de afuera de Becas clonan la golden)
 
 | PR | Cambio | Fichas | Estado | Qué quedó abierto |
@@ -1232,15 +1238,16 @@ Avance: 11 ⬜ (+ R0b-01, 02, 03, 10 ⬜; R0b-12 operativo). SEC-03 (con G1b-01)
 - **Operativo (PM):** R0b-12 correr P-04 ampliado en PRD.
 
 ### 4.7 Front del backoffice → `hallazgos/07-front.md` (28)
-Avance: 19 ✅ · 2 🟡 · 7 ⬜ (FE-13, V5A-NEW-01, V5A-NEW-08 y la parte (a) de V5A-NEW-07 en la Ola 6; FE-02, FE-09 y
+Avance: 23 ✅ · 2 🟡 · 3 ⬜ (FE-13, V5A-NEW-01, V5A-NEW-08 y la parte (a) de V5A-NEW-07 en la Ola 6; FE-02, FE-09 y
 FE-21 en el PR 2 de la Ola 5; FE-04, FE-05 y FE-08 en el PR 3; FE-06, FE-07, FE-01 y FE-10 en el PR 4;
-FE-18, FE-19, FE-25 y FE-26 en el PR 5; FE-16, V5A-NEW-04, 🟡 FE-22 y la parte (b) de V5A-NEW-07 en el PR 7).
+FE-18, FE-19, FE-25 y FE-26 en el PR 5; FE-11, FE-12 y FE-17 entre el PR 6a y el 6b, y FE-20 en el 6b;
+FE-16, V5A-NEW-04, 🟡 FE-22 y la parte (b) de V5A-NEW-07 en el PR 7).
 Los dos 🟡 que quedan son el **mismo** bloqueo: las 4 stat cards del inicio (FE-22) y los 6 KPIs de
 `_dashboard_panel` (V5A-NEW-07 b) necesitan parámetros nuevos en `_stat_card.html`, que es novedad del agente y
-espera OK del PM.
+espera OK del PM. Los tres ⬜ son FE-14 (Ola 7) y FE-23 y FE-24, que van a un PR 6c de la Ola 5.
 - **ALTA:** ✅ FE-02 `toastr` (Ola 5, PR 2) · ✅ FE-04 paginación de Geografía · ✅ FE-05 wizard (Ola 5, PR 3) ·
   ✅ FE-06 clases inexistentes (Ola 5, PR 4).
-- **MEDIA:** ✅ 01, ✅ 07, ✅ 08, ✅ 09, ✅ 10, 11, 12, ✅ 13, 17, ✅ 18, ✅ 19, 20, ✅ 21 · ✅ V5A-NEW-01 · 🟡 V5A-NEW-07.
+- **MEDIA:** ✅ 01, ✅ 07, ✅ 08, ✅ 09, ✅ 10, ✅ 11, ✅ 12, ✅ 13, ✅ 17, ✅ 18, ✅ 19, ✅ 20, ✅ 21 · ✅ V5A-NEW-01 · 🟡 V5A-NEW-07.
 - **BAJA:** FE-14, ✅ 16, 🟡 22, 23, 24, ✅ 25, ✅ 26 · ✅ V5A-NEW-04 · ✅ V5A-NEW-08.
 
 ### 4.8 Red de seguridad → `hallazgos/08-red-de-seguridad.md` (89, frente del 04-oct-2026)
@@ -1737,10 +1744,15 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
 ### Ola 5 — Bugs de front y parches v1 de Legajos y Dispositivos
 - **Objetivo:** que las pantallas funcionen (subir archivos, paginar, cascadas, botones visibles) y migrar las pantallas
   fuera de Becas a las piezas canónicas clonando las goldens.
-- **Avance: 88 h de 128, 40 restantes.** **PR 6a (FE-11 🟡, FE-12 🟡, FE-17 🟡) en el Cambio 166, 07-oct-2026**:
+- **Avance: 112 h de 128, 16 restantes.** **PR 6b (FE-11 ✅, FE-12 ✅, FE-17 ✅, FE-20 ✅) en el Cambio 167,
+  07-oct-2026**: 24 h de las 48 del PR 6, sin migraciones. `legajos/ciudadano_list.html` clona la golden del
+  arquetipo Listado, `components/_paginacion.html` acepta `param`/`extra_qs` —así la golden del arquetipo
+  Detalle deja sus tres pies copiados a mano— y los 17 consumidores de `templates/includes/main.html` migran
+  al shell del backoffice, con lo que el wrapper legacy **se borra**. Con esto el PR 6 cierra; queda un **6c**
+  con FE-23 y FE-24 (~8 h; FE-24 **necesita OK** para `static/custom/js/nodo-tabs.js`).
+  **PR 6a (FE-11 🟡, FE-12 🟡, FE-17 🟡) en el Cambio 166, 07-oct-2026**:
   22 h de las 48 del PR 6, sin migraciones. Las ocho listas de Usuarios, Roles y Configuración clonan la golden
   del arquetipo Listado y `rol_detail` recibe el encabezado canónico; `RolListView` pasa a paginar de a 25.
-  Quedan para el **PR 6b** (26 h) `legajos/ciudadano_list.html`, FE-20, FE-23, FE-24 y el resto de FE-17.
   PR 1 (DIS-01 + DIS-08) en el Cambio 140, 06-oct-2026: helper de fechas locales,
 
 - **Avance: 60 h de 128, 68 restantes.** PR 1 (DIS-01 + DIS-08) en el Cambio 140, 06-oct-2026: helper de fechas locales,
@@ -1765,8 +1777,10 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
   LEG-05, LEG-02, LEG-03, FE-09, FE-21 14 h · (3) ✅ Configuración: FE-04, FE-05, FE-08 6 h (Cambio 152) · (4) ✅ FE-06,
   FE-07, FE-01 y FE-10 14 h (Cambio 155) · (5) ✅ FE-18, FE-19, FE-25, FE-26 8 h (Cambio 157) · (6) **después de la
   Ola 6 paso 4:** FE-11, FE-12, FE-17, FE-20, FE-23, FE-24 48 h, **partido en dos**: **6a** ✅ (FE-11, FE-12 y
-  FE-17 sobre los listados de Usuarios, Roles y Configuración, 22 h, Cambio 166) y **6b** (`ciudadano_list`,
-  FE-20, FE-23, FE-24 y el resto de FE-17, 26 h) · (7) ✅ FE-22 (🟡), FE-16, V5A-NEW-04, G2-04, G2-06, V5A-NEW-07 parte (b) (labels de `convocatoria_list` y deuda de
+  FE-17 sobre los listados de Usuarios, Roles y Configuración, 22 h, Cambio 166) y **6b** ✅ (`ciudadano_list`,
+  FE-20 y el resto de FE-17 —la pieza con `param`/`extra_qs`, los tres detalles de Becas,
+  `ConvocatoriaListView` y las tres listas de Configuración que faltaban—, 24 h, Cambio 167; FE-23 y FE-24
+  pasan a un **6c** de ~8 h) · (7) ✅ FE-22 (🟡), FE-16, V5A-NEW-04, G2-04, G2-06, V5A-NEW-07 parte (b) (labels de `convocatoria_list` y deuda de
   `_dashboard_panel`) 20 h (Cambio 161) · (8) *Red de seguridad (04-oct):* RED-33 (tests HTTP de las vistas de Dispositivos y
   Merenderos, con el PR 1), RED-75 (`/set_dark_mode/`, D-RED-07) y segundas partes de RED-42 (URLs literales →
   `{% url %}`) y RED-53 (`_subir_padron`) 14 h.
@@ -1780,8 +1794,10 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
   LEG-05, LEG-02, LEG-03, FE-09, FE-21 14 h · (3) ✅ Configuración: FE-04, FE-05, FE-08 6 h (Cambio 152) · (4) ✅ FE-06,
   FE-07, FE-01 y FE-10 14 h (Cambio 155) · (5) ✅ FE-18, FE-19, FE-25, FE-26 8 h (Cambio 157) · (6) **después de la
   Ola 6 paso 4:** FE-11, FE-12, FE-17, FE-20, FE-23, FE-24 48 h, **partido en dos**: **6a** ✅ (FE-11, FE-12 y
-  FE-17 sobre los listados de Usuarios, Roles y Configuración, 22 h, Cambio 166) y **6b** (`ciudadano_list`,
-  FE-20, FE-23, FE-24 y el resto de FE-17, 26 h) · (7) FE-22, FE-16, V5A-NEW-04, G2-04, G2-06, V5A-NEW-07 parte (b) (labels de `convocatoria_list` y deuda de
+  FE-17 sobre los listados de Usuarios, Roles y Configuración, 22 h, Cambio 166) y **6b** ✅ (`ciudadano_list`,
+  FE-20 y el resto de FE-17 —la pieza con `param`/`extra_qs`, los tres detalles de Becas,
+  `ConvocatoriaListView` y las tres listas de Configuración que faltaban—, 24 h, Cambio 167; FE-23 y FE-24
+  pasan a un **6c** de ~8 h) · (7) FE-22, FE-16, V5A-NEW-04, G2-04, G2-06, V5A-NEW-07 parte (b) (labels de `convocatoria_list` y deuda de
   `_dashboard_panel`) 20 h · (8) ✅ *Red de seguridad (04-oct):* RED-33 (tests HTTP de las vistas de Dispositivos y
   Merenderos), RED-75 (`/set_dark_mode/`, D-RED-07 = A) y segundas partes de RED-42 (URLs literales →
   `{% url %}`) y RED-53 (`_subir_padron`) 14 h (Cambio 164). No entró con el PR 1, como decía el plan: DIS-01

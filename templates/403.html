@@ -1,25 +1,15 @@
-{% extends "includes/main.html" %}
-{% load static custom_filters %}
+{% extends "includes/base.html" %}
+{% load nodo_ui %}
 {% block title %}Error 403{% endblock %}
-{% block titulo-pagina %}{% endblock %}
-{% block breadcrumb %}{% endblock %}
-{% block menu-adicional %}{% endblock %}
-{% block content %}
-    <div class="error-page align-items-center">
-        <h2 class="headline text-info">403</h2>
-        <div class="error-content">
-            <h3>
-                <i class="fas fa-lock text-info"></i>
-                No tiene permisos para esta acción
-            </h3>
-            <p>
-                Su usuario no tiene los permisos necesarios para ver esta página o realizar la acción. Si cree que se trata de un error, comuníquese con el administrador del sistema.
-            </p>
-            <p class="mt-2">
-                Mientras tanto, puede
-                <a href="{% url 'core:inicio' %}">volver al inicio</a>
-                o intentar usar el buscador de menú.
-            </p>
-        </div>
-    </div>
-{% endblock content %}
+
+{% block main-content %}
+<div class="space-y-5">
+  {% url 'core:inicio' as url_inicio %}
+  {% page_header titulo="No tenés permisos para esta acción" volver_url=url_inicio volver_label="el inicio" %}
+    {% bajada %}Error 403 · Tu usuario no tiene las capacidades necesarias para ver esta página o realizar la acción.{% endbajada %}
+  {% endpage_header %}
+  <div class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
+    {% include "components/_estado_vacio.html" with icono="fa-triangle-exclamation" titulo="Acceso denegado" texto="Si creés que se trata de un error, comunicate con el administrador del sistema." accion_url=url_inicio accion_texto="Volver al inicio" accion_icono="fa-house" %}
+  </div>
+</div>
+{% endblock %}
