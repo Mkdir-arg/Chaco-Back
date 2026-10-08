@@ -100,6 +100,17 @@ la primera opción es siempre «Sin cambios».
 lista de espera no es un estado sino un badge adicional «Lista de espera · posición N», y mientras
 dura el caso no ofrece «Aprobar»: lo explica una alerta inline `role="status"` con link a Cupo.
 
+**Cómo llegó el caso (G1-04 / G1-05).** Lo que el servidor tuvo que decidir solo al recibir una
+carga de la app de campo se cuenta con las dos piezas que ya están en la pantalla, sin markup
+propio: un **badge adicional** del encabezado —`badge badge-warning` con ícono, al lado de
+«Duplicado por resolver»— para «Sincronizado tarde» (la captura se hizo en fecha y el teléfono la
+subió después del cierre), y la **alerta inline** `components/_alerta.html` con `tono="warning"`
+para las observaciones de la carga (una obligatoria sin responder, una opción fuera del
+formulario, el GPS que faltaba). Las dos son advertencias, no bloqueos: «Aprobar» sigue
+habilitado, que es la regla de la ficha de la alerta. La vista entrega el texto **ya armado** en
+una sola cadena; la plantilla no recorre ni formatea la lista, igual que con el detalle por campo
+del panel de integración.
+
 ---
 
 ## Modal de requisito (alta / edición)
