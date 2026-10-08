@@ -122,6 +122,18 @@ class CiudadanoCreateView(CapacidadRequeridaMixin, LoginRequiredMixin, FormView)
     template_name = "legajos/ciudadano_renaper_form.html"
     form_class = ConsultaRenaperForm
 
+    def get(self, request, *args, **kwargs):
+        """Abrir el alta borra lo que haya quedado de una consulta anterior.
+
+        G1c-16: los datos de RENAPER vivían en la sesión hasta que alguien
+        confirmaba el alta. Quien consultaba y se arrepentía —o se iba a otra
+        pantalla— dejaba el nombre, la fecha de nacimiento y el domicilio de esa
+        persona guardados **24 h** (en Redis, en producción). Empezar de nuevo es
+        exactamente el momento en que ese dato dejó de hacer falta.
+        """
+        CiudadanosService.clear_renaper_data(request.session)
+        return super().get(request, *args, **kwargs)
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context.setdefault("renaper_error", False)

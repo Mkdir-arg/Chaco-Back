@@ -342,10 +342,22 @@
           {% endif %}
         </div>
         {% if mapa %}
+          {% comment %}
+            SEC-33: el mapa no se carga solo. Abrir el caso mandaba las coordenadas
+            exactas del domicilio de la persona a OpenStreetMap —con la IP y el
+            Referer del backoffice— en cada apertura, aunque nadie mirara el mapa.
+            Ahora lo pide quien lo necesita, y sin Referer.
+          {% endcomment %}
+          <button type="button" id="ver-mapa"
+                  class="btn-nodo btn-secondary btn-sm w-full">
+            <i class="fas fa-map" aria-hidden="true"></i> Ver el mapa
+          </button>
           <iframe
+            id="mapa-del-caso"
             title="Mapa del lugar donde se realizó la toma"
-            src="{{ mapa.embed_url }}"
-            class="w-full rounded-xl border border-base"
+            data-src="{{ mapa.embed_url }}"
+            referrerpolicy="no-referrer"
+            class="w-full rounded-xl border border-base hidden"
             style="height:320px;"
             loading="lazy">
           </iframe>
@@ -969,6 +981,21 @@ document.addEventListener('DOMContentLoaded', function () {
       const abierto = btnHistorialSiis.getAttribute('aria-expanded') === 'true';
       btnHistorialSiis.setAttribute('aria-expanded', String(!abierto));
       historialSiis.classList.toggle('hidden', abierto);
+    });
+  }
+
+  // SEC-33: el mapa se carga recien cuando alguien lo pide. El `src` viaja en
+  // `data-src` para que abrir el caso no le mande las coordenadas del domicilio
+  // —ni la IP, ni el Referer— a OpenStreetMap.
+  const btnVerMapa = document.getElementById('ver-mapa');
+  const mapaDelCaso = document.getElementById('mapa-del-caso');
+  if (btnVerMapa && mapaDelCaso) {
+    btnVerMapa.addEventListener('click', function () {
+      if (!mapaDelCaso.getAttribute('src')) {
+        mapaDelCaso.setAttribute('src', mapaDelCaso.dataset.src);
+      }
+      mapaDelCaso.classList.remove('hidden');
+      btnVerMapa.classList.add('hidden');
     });
   }
 

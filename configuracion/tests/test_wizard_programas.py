@@ -117,7 +117,14 @@ class WizardDeProgramaTests(TestCase):
         self.assertRedirects(respuesta, reverse("configuracion:programa_wizard_paso1"))
 
     def test_sin_programa_configurar_los_ocho_pasos_vuelven_al_listado(self):
-        """Los cuatro del alta y los cuatro de la edición, con un usuario sin rol."""
+        """Los cuatro del alta y los cuatro de la edición, con un usuario sin rol.
+
+        Desde el Cambio 185 (SEC-36) el listado **también** pide capacidad, así que
+        a un usuario sin ninguna el rebote le queda en dos saltos: el paso lo manda
+        al listado y el listado al inicio. Lo que este test fija es el primero —que
+        es el que depende del wizard—; el segundo lo fija
+        `core.tests.test_bajos_ola2.CatalogoDeProgramasTests`.
+        """
         programa = Programa.objects.create(
             codigo="PROG-RBAC", nombre="Programa RBAC", naturaleza=Programa.Naturaleza.PERSISTENTE
         )
@@ -126,11 +133,13 @@ class WizardDeProgramaTests(TestCase):
 
         for nombre in PASOS_ALTA:
             with self.subTest(paso=nombre):
-                self.assertRedirects(self.client.get(reverse(nombre)), listado)
+                self.assertRedirects(self.client.get(reverse(nombre)), listado, target_status_code=302)
 
         for nombre in PASOS_EDICION:
             with self.subTest(paso=nombre):
-                self.assertRedirects(self.client.get(reverse(nombre, args=[programa.pk])), listado)
+                self.assertRedirects(
+                    self.client.get(reverse(nombre, args=[programa.pk])), listado, target_status_code=302
+                )
 
     def test_un_anonimo_va_al_login_en_los_ocho_pasos(self):
         """El login del backoffice vive en la **raíz** (`users:login` → `/`, RED-78),
@@ -258,5 +267,7 @@ class CambiarEstadoDePrograma(TestCase):
         )
 
         programa.refresh_from_db()
-        self.assertRedirects(respuesta, self.listado)
+        # El listado también pide capacidad desde el Cambio 185 (SEC-36): a un
+        # usuario sin ninguna, el rebote le queda en dos saltos.
+        self.assertRedirects(respuesta, self.listado, target_status_code=302)
         self.assertEqual(programa.estado, Programa.Estado.BORRADOR)

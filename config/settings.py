@@ -168,6 +168,10 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    # SEC-35 · Va primero de los propios: una sesión vencida por inactividad no
+    # tiene por qué pagar el Profile de la sesión única ni terminar en la pantalla
+    # de cambio de clave obligatorio; termina en el login.
+    "core.middleware.ExpiracionPorInactividadMiddleware",
     "core.middleware.PortalCiudadanoMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "users.middleware.BackofficeSingleSessionMiddleware",
@@ -437,10 +441,14 @@ SESSION_ENGINE = (
 SESSION_CACHE_ALIAS = "sessions"
 SESSION_COOKIE_AGE = 86400
 
-# Cierre de sesión automático por inactividad (idle logout, lado cliente).
+# Cierre de sesión automático por inactividad.
 # Minutos sin actividad del usuario (mouse/teclado/scroll/touch) tras los cuales
 # se cierra la sesión. Configurable por entorno para ajustar a 10, 15, 20, etc.
 # 0 desactiva la funcionalidad.
+# SEC-35: el mismo número lo aplica el servidor en
+# `core.middleware.ExpiracionPorInactividadMiddleware`, contando pedidos HTTP. El
+# JS sigue estando para el aviso con cuenta regresiva y para el latido que avisa
+# que alguien está tipeando un formulario largo sin pedir pantallas.
 SESSION_IDLE_TIMEOUT_MINUTES = int(os.environ.get("SESSION_IDLE_TIMEOUT_MINUTES", "15"))
 # Segundos de aviso previo (modal con cuenta regresiva) antes de cerrar la
 # sesión. 0 = cerrar sin aviso.
@@ -512,6 +520,24 @@ RENAPER_TEST_LATENCY_SECONDS = max(0, float(os.getenv("RENAPER_TEST_LATENCY_SECO
 RENAPER_CONNECT_TIMEOUT = int(os.getenv("RENAPER_CONNECT_TIMEOUT", "5"))
 RENAPER_TIMEOUT = int(os.getenv("RENAPER_TIMEOUT", "10"))
 RENAPER_RETRIES = int(os.getenv("RENAPER_RETRIES", "0"))
+# SEC-27 · Verificación del certificado de RENAPER. El cliente va con
+# `verify=False` desde siempre: cualquiera en el camino de red puede presentar su
+# propio certificado, leer el documento que se consulta y devolver la identidad
+# que quiera —y lo que vuelve de ahí es lo que marca a un ciudadano como
+# «validado»—.
+#
+# **D-27 (default aplicado): queda preparado y apagado.** Encenderlo depende de
+# que ECOM confirme la cadena de certificados del organismo (H-08 / pasos para el
+# PM): si RENAPER usa una CA privada y no está en el almacén del contenedor, con
+# `verify` activo **se corta la consulta en el acto**, y con ella el alta de
+# ciudadanos. Por eso el default es el comportamiento de hoy y el cambio es una
+# variable de entorno, ambiente por ambiente, con `manage.py diagnosticar_integraciones`
+# como prueba antes de tocar producción.
+#
+# `RENAPER_CA_BUNDLE` (ruta a un .pem) implica verificar: es la forma de hacerlo
+# con una CA privada sin meterla en el almacén del sistema.
+RENAPER_CA_BUNDLE = os.getenv("RENAPER_CA_BUNDLE", "").strip()
+RENAPER_VERIFY_TLS = os.getenv("RENAPER_VERIFY_TLS", "False") == "True"
 # ─── Seguridad de la superficie pública ───────────────────────────────────────
 # Redes desde las que se aceptan las cabeceras de proxy (X-Real-IP / X-Forwarded-For)
 # al resolver la IP del cliente para el rate limit. Fuera de estas redes manda
@@ -682,13 +708,21 @@ SILKY_INTERCEPT_PERCENT = 100 if DEBUG else 10
 USE_X_FORWARDED_HOST = True
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
+# SEC-35 · Las cookies de sesión y de CSRF dejan de depender de `ENVIRONMENT`.
+# Atarlas a `prd` las dejaba viajando en claro en cualquier ambiente servido que
+# no declarara la variable —y `ENVIRONMENT` es una declaración, no un hecho: icore
+# vale `prd` siendo DEV y QA lo pisa a `prd` (OPS-12)—. Lo que sí es un hecho es
+# `DEBUG`: con `DEBUG=False` hay alguien sirviendo tráfico detrás de TLS, y ahí la
+# cookie va con `Secure`. Un desarrollo local sobre `http://localhost` corre con
+# `DJANGO_DEBUG=True` y no cambia.
+SESSION_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SECURE = not DEBUG
+
 if ENVIRONMENT == "prd":
     SECURE_HSTS_SECONDS = int(os.environ.get("SECURE_HSTS_SECONDS", "31536000"))
     SECURE_HSTS_INCLUDE_SUBDOMAINS = os.environ.get("SECURE_HSTS_INCLUDE_SUBDOMAINS", "True") == "True"
     SECURE_HSTS_PRELOAD = os.environ.get("SECURE_HSTS_PRELOAD", "True") == "True"
     SECURE_SSL_REDIRECT = os.environ.get("SECURE_SSL_REDIRECT", "True") == "True"
-    SESSION_COOKIE_SECURE = True
-    CSRF_COOKIE_SECURE = True
     SECURE_BROWSER_XSS_FILTER = True
     SECURE_CONTENT_TYPE_NOSNIFF = True
     X_FRAME_OPTIONS = "DENY"
@@ -697,8 +731,6 @@ else:
     SECURE_HSTS_INCLUDE_SUBDOMAINS = False
     SECURE_HSTS_PRELOAD = False
     SECURE_SSL_REDIRECT = False
-    SESSION_COOKIE_SECURE = False
-    CSRF_COOKIE_SECURE = False
 
 SPECTACULAR_SETTINGS = {
     "TITLE": "Sistema API",
@@ -714,6 +746,14 @@ SPECTACULAR_SETTINGS = {
     "SWAGGER_UI_DIST": "SIDECAR",
     "SWAGGER_UI_FAVICON_HREF": "SIDECAR",
     "REDOC_DIST": "SIDECAR",
+    # SEC-01 · Las tres pantallas de documentación van envueltas en
+    # `login_required` (`config/urls.py`), pero por dentro declaran `AllowAny`, que
+    # es el default de Spectacular: la sesión de un ciudadano del portal —si
+    # alguna vez esquivara `PortalCiudadanoMiddleware`— tenía ahí el inventario
+    # completo de endpoints, parámetros y modelos. **Qué NO cambia:** la decisión
+    # del 26/08/2026 fue dejarlas detrás de login y no detrás de una capacidad, así
+    # que un usuario de backoffice sin rol las sigue viendo.
+    "SERVE_PERMISSIONS": ["core.api_permissions.BackofficeAutenticado"],
     # `drf_spectacular/checks.py` registra un check `deploy=True` que vuelca cada
     # warning y cada error del esquema como un issue más de `manage.py check
     # --deploy`: 25 líneas nuevas en el log del CI, sin umbral y sin forma de

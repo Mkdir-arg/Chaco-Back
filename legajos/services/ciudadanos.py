@@ -3,7 +3,7 @@ import re
 from core.dni import dni_valido, normalizar_dni
 
 from ..models import Ciudadano
-from .consulta_renaper import consultar_datos_renaper
+from .consulta_renaper import consultar_datos_renaper, datos_api_mostrables
 
 
 class RenaperLookupError(Exception):
@@ -38,8 +38,15 @@ class CiudadanosService:
 
     @classmethod
     def store_renaper_data(cls, session, resultado):
+        """Deja en la sesión lo necesario para la pantalla de confirmación.
+
+        G1c-16: el payload crudo pasa por la lista blanca de
+        :func:`datos_api_mostrables` también acá, y no solo en el origen. La
+        sesión vive 24 h —en Redis, en producción— y es el lugar donde ese dato
+        más tiempo queda: que el recorte no dependa de por dónde entró.
+        """
         session[cls.RENAPER_SESSION_KEY] = resultado["data"]
-        session[cls.RENAPER_RAW_SESSION_KEY] = resultado.get("datos_api", {})
+        session[cls.RENAPER_RAW_SESSION_KEY] = datos_api_mostrables(resultado.get("datos_api", {}))
 
     @classmethod
     def clear_renaper_data(cls, session):

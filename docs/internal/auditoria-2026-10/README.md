@@ -808,7 +808,7 @@ tienen la columna «Avance 03-oct» (✅ resuelto · 🟡 parcial · ⬜ pendien
 | SEC-17 | MEDIA | ✅ | #540 · Cambio 113 | Escritura de usuarios y roles por API retirada (con SEC-05) |
 | SEC-19 | MEDIA | ✅ | #537 · Cambio 111 | Las 4 rutas de debug/prueba de legajos → 404 y sus vistas borradas |
 | R0-01 | BAJA (MINOR) | ✅ | #537 · Cambio 111 | `<id>/evaluar/` desmontada; no queda escritura anónima en `conversaciones` |
-| SEC-01 | CRÍTICA | 🟡 | #509 · Cambio 100; #536 · Cambio 109 (+ #540, #541, #542) | Puntos 1 y 2 hechos sobre toda la lista de la ficha (`users`, `legajos`, `core`, `dashboard`; `BackofficeAutenticado` exige `is_active`). Falta, sin riesgo explotable hoy: `conversaciones/api_views` (4), `core/views/performance.py` (8), las vistas de Spectacular y las raíces de los routers → Ola 2, PR 8 (2 h). H-08 (PM) |
+| SEC-01 | CRÍTICA | ✅ | #509 · Cambio 100; #536 · Cambio 109 (+ #540, #541, #542); #PENDIENTE · Cambio 185 | Puntos 1 y 2 hechos sobre toda la lista de la ficha (`users`, `legajos`, `core`, `dashboard`; `BackofficeAutenticado` exige `is_active`). El Cambio 185 cierra el resto —`conversaciones` (4), performance (8), Spectacular (3) y las raíces de los routers— y lo deja como contrato sobre el URLconf, no como lista. `/api/becas/` (app de campo) queda fuera: R0-04. H-08 (PM) |
 | SEC-09 | ALTA | 🟡 | #538 · Cambio 112 | Etapa 1 en código (nginx `internal`, `SERVE_MEDIA=True`, el middleware ya no exime `/media/`). Falta desplegarla en icore (R0b-11, PM: `web` antes que `nginx`) y la etapa 2 (pertenencia, Ola 2, PR 7). Seguimientos R0b-07, R0b-08 |
 | SEC-29 | ALTA | 🟡 | #511 · Cambio 102 | Rutas `mi-perfil/*` apagadas + comando `desactivar_usuarios_portal`. Falta correrlo en PRD tras P-08 (PM) |
 | G1-01 | ALTA | 🟡 | #510 · Cambio 101 | Rutas públicas desmontadas y `evaluar/` cerrada (R0-01, #537). Falta la fase 2 (Ola 7) y P-10 |
@@ -1968,8 +1968,16 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
      (Cambio 177)**, con D-20, D-22 y D-B23 aplicadas por default y `users.0027` + `users.0028`.
   6. *App de campo:* SEC-23 (+G1-15), SEC-24, SEC-25 (+ R0-05: usar o borrar la tasa `renaper`). 12 h.
   7. *Media y uploads:* SEC-09 etapa 2, SEC-15, SEC-31, R0b-07 (+ R0b-08). 14 h.
-  8. *Bajos:* SEC-27, SEC-32, SEC-33, SEC-34, SEC-35, SEC-36, SEC-37, G1c-10, G1c-16 y el resto de SEC-01
-     (`BackofficeAutenticado` fuera de la lista de la ficha; viene de la Ola 0). 20 h.
+  8. ✅ *Bajos:* SEC-27 🟡, SEC-32 ✅, SEC-33 ✅, SEC-34 ✅, SEC-35 🟡, SEC-36 ✅, SEC-37 ✅, G1c-10 🟡, G1c-16 ✅
+     y el resto de SEC-01 ✅ (`BackofficeAutenticado` fuera de la lista de la ficha; viene de la Ola 0). 20 h.
+     **Cerrado el 08-oct-2026 (Cambio 185), sin migraciones**, con **D-27** (el `verify` de RENAPER queda
+     preparado y **apagado** hasta que ECOM confirme la cadena) y **D-37 = No** (el Cambio 71 no se reabre y
+     el captcha real en producción pasa de aviso a **error** de `check --deploy`) aplicadas por default.
+     Lo que queda abierto es de infraestructura y va con el PM: la cadena de certificados de RENAPER
+     (SEC-27), el `X-Forwarded-Host` de nginx (SEC-35, H-09) y `/admin/` por IP (G1c-10, punto 6 de
+     SEC-26). SEC-34 ya estaba resuelta por el barrido de RED-02 (#553): se verificó y se cerró sin tocar
+     código. El resto de SEC-01 cierra con un contrato que recorre el URLconf en vez de una lista escrita
+     a mano: toda vista DRF declara `BackofficeAutenticado`, con la app de campo como única excepción.
   9. 🟡 *Red de seguridad (04-oct):* RED-80 (cache de `programa_*`, con el PR 1), segunda parte de RED-52 (`save_user_profile`
      explícito, con el PR 2) y de RED-79 (mover los guards de alcance y constantes a `autorizacion.py`, con el PR 5). 6 h.
      **✅ RED-79 cerrada el 08-oct-2026 (Cambio 177, PR 5): 2 h.** Los dos ratchets bajaron en el mismo PR —aristas

@@ -1,12 +1,13 @@
 from django.urls import include, path
-from rest_framework.routers import DefaultRouter
+
+from core.api_routers import RouterBackoffice
 
 from ..api_views import (
     AlertasViewSet,
     CiudadanoViewSet,
 )
 
-router = DefaultRouter()
+router = RouterBackoffice()
 router.register(r"ciudadanos", CiudadanoViewSet)
 router.register(r"alertas", AlertasViewSet)
 
