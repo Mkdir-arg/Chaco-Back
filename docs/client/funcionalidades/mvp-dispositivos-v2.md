@@ -1,7 +1,7 @@
 # Programa Dispositivos — MVP de la Versión 2
 
 !!! abstract "En una línea"
-    Un primer alcance de **700 horas** que pone en funcionamiento dos cosas: el **relevamiento de los dispositivos en campo**, desde la aplicación móvil y aunque no haya señal, y el **circuito operativo de las personas** —quién entra, dónde está, cómo se mueve y cuándo sale—, con verificación en toda la red.
+    Un primer alcance de **700 horas** que pone en funcionamiento dos cosas: el **relevamiento de los edificios en campo**, desde la aplicación móvil y aunque no haya señal, y el **circuito operativo de las personas** —quién entra, dónde está, cómo se mueve y cuándo sale—, con verificación en toda la red.
 
 | | |
 |---|---|
@@ -30,7 +30,7 @@ El criterio del recorte es poner en marcha **el circuito de las personas** y **e
 
 - **La aplicación móvil conectada al módulo Dispositivos**: el agente entra con su usuario y ve los dispositivos sobre los que puede trabajar. Incluye los servicios del lado del sistema, la autenticación y las pruebas de integración entre ambas partes.
 - **Creación y asignación del relevamiento**: el coordinador elige el dispositivo, asigna el agente que lo va a relevar y la tarea le llega a su aplicación. El agente no elige libremente qué relevar: recibe lo que se le asignó.
-- **Selección del dispositivo y del sector** que se está relevando.
+- **Selección del edificio** que se está relevando. Un mismo predio puede alojar más de una institución —el caso del parador, el geriátrico y Sotai compartiendo predio en Resistencia—: se releva **una sola vez** y lo ven todas las instituciones que lo comparten.
 - Carga de **criticidad** —la calificación de severidad de lo que se encontró—, **observaciones** en texto y **fotos** como evidencia.
 - **Responsable y fecha** se toman solos del usuario que carga y del momento de la carga: no se tipean.
 - **Funcionamiento sin conexión.** El agente puede completar el relevamiento y sacar las fotos **sin señal**; cuando el celular recupera conexión, todo se sincroniza solo. Es la pieza de mayor peso técnico de este MVP.
@@ -84,7 +84,6 @@ Nada de esto se descarta: está definido y estimado en la [propuesta de la Versi
 - **Servicios disponibles**: luz, agua, internet y señal.
 - **Vencimiento automático** del relevamiento a los seis meses, o al mes si el dispositivo está en obra, con aviso por correo.
 - El botón **«Relevar ya»** para forzar una revisión ante un reclamo puntual.
-- **Predios compartidos**: acá cada dispositivo se releva por separado, aunque compartan edificio.
 - El **informe oficial** generado y vinculado al legajo del dispositivo.
 - La regla de que el agente sea **externo a la institución** que releva.
 

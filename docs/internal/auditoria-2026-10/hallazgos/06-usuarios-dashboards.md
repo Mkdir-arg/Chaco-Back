@@ -16,7 +16,7 @@ PoC: `poc/test_repro_usuarios.py`. Lo de la API REST de usuarios está en SEC-05
 | G1b-08 | Claves tipeadas por un operador sin validadores ni cambio obligatorio | BAJA | CONF. lectura | 2 | S | ✅ |
 | G1b-09 | «Último administrador» salteable con dos operaciones simultáneas | BAJA | PLAUSIBLE | 7 | M | ⬜ |
 | G1b-10 | Alta rápida: 500 ante colisión en carrera | BAJA | CONF. ajustado | 7 | S | ⬜ |
-| G1b-12 | Dashboard de Becas: período sin tope y `?recalcular=1` sin freno | BAJA | CONF. ajustado | 4 | S | ⬜ |
+| G1b-12 | Dashboard de Becas: período sin tope y `?recalcular=1` sin freno | BAJA | CONF. ajustado | 4 | S | ✅ |
 | G2-04 | Inicio: los contadores no miden lo que dicen sus etiquetas | BAJA | CONF. lectura | 5 | S | ✅ |
 | G2-06 | El login pide «Tu correo electrónico» pero autentica por `username` | BAJA | CONF. lectura | 5 | S | ✅ |
 | R0b-01 | `user_form.html` no muestra el `help_text` de los campos que SEC-03 bloquea | BAJA (MINOR) | revisión Ola 0 (2ª tanda) | 2 (Usuarios) | S | ✅ |
@@ -215,6 +215,21 @@ al territorial le llega un enlace para fijarla él.
 - **Ubicación:** `programas/forms_reportes.py:121-126` (sin techo); `programas/services/dashboard_becas.py:281` (`_serie_semanal`), `:303-312`, `:326` (`_variacion`); `programas/views/dashboard_becas.py:83`.
 - **Escenario:** `desde=2000-01-01&hasta=3999-12-31` arma ~104k semanas y las cachea; si la ventana es más larga que la distancia de `desde` al año 1, `_variacion` tira `OverflowError`, que la vista devuelve como 500 con mensaje.
 - **Propuesta:** `hasta <= hoy` y rango máximo de 5 años en el form; ignorar `recalcular` si la entrada de caché tiene menos de N segundos.
+
+**Resolución:** ✅ Resuelto en #NNN (Cambio 189, Ola 4 PR 5), 08-oct-2026 — la propuesta tal cual. El período
+personalizado rechaza `hasta` posterior a hoy y una ventana mayor a `MAX_ANIOS_PERIODO = 5` años (`_hace_anios` tolera
+el 29 de febrero), así que la variación contra el período anterior no puede irse antes del año 1 y el `OverflowError`
+deja de existir por construcción: `desde=2000-01-01&hasta=3999-12-31` devolvía **500** y ahora devuelve 400 con el
+error del filtro. `?recalcular=1` se atiende como mucho **uno cada 30 s por recorte** (`recalculo_permitido`, un
+`cache.add` atómico en Redis y en LocMem); el resto se sirve de la caché, que por RN-17 nunca tiene más de 5 minutos.
+Si la caché no responde se recalcula, que es lo que pasaba antes. **DECISIÓN CLIENTE: 30 s** —la ficha no fija N; es un
+décimo del TTL del tablero—.
+**Test permanente:** `programas.tests.test_dashboard_exports.PeriodoYRecalculoTests`
+(`test_el_periodo_personalizado_no_puede_terminar_despues_de_hoy`,
+`test_el_periodo_personalizado_tiene_techo_de_cinco_anios`, `test_una_ventana_imposible_da_400_y_no_un_500`,
+`test_recalcular_se_atiende_una_vez_por_ventana`, `test_vencido_el_freno_recalcular_vuelve_a_valer` y
+`test_el_freno_no_mezcla_dos_recortes`).
+
 
 ### G2-04 · Inicio: los contadores no miden lo que dicen sus etiquetas
 **Severidad:** BAJA · **Estado:** CONFIRMADO (lectura) · **Origen:** G2-04 · **Ola:** 5 · **Esfuerzo:** S · **Decisión:** D-G204

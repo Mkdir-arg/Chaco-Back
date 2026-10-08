@@ -87,6 +87,11 @@ def programa_dashboard_datos(request, pk):
         # El alcance (ids de segmentos, convocatorias y relevamientos) se resuelve una
         # sola vez y lo comparten la clave de caché, las métricas y las respuestas.
         alcance = dashboard_becas.resolver_alcance(request.user, programa, filtros)
+        # G1b-12: «Actualizar» recalcula el tablero entero; se atiende como mucho uno
+        # cada RECALCULO_MINIMO segundos por recorte y el resto sale de la caché, que
+        # por RN-17 nunca tiene más de 5 minutos.
+        if recalcular and not dashboard_becas.recalculo_permitido(programa, filtros, alcance.huella):
+            recalcular = False
         datos, desde_cache = dashboard_becas.metricas_cacheadas(
             request.user, programa, filtros, recalcular=recalcular, alcance=alcance
         )
@@ -141,9 +146,13 @@ def programa_dashboard_exportar(request, pk, formato):
     try:
         alcance = dashboard_becas.resolver_alcance(request.user, programa, filtros)
         datos, _ = dashboard_becas.metricas_cacheadas(request.user, programa, filtros, alcance=alcance)
-        distribuciones = dashboard_becas.distribuciones_respuestas(
-            request.user, programa, filtros, alcance=alcance, catalogo=form.preguntas
-        )
+        # Las distribuciones cuestan una consulta por pregunta sobre todo el recorte y
+        # alimentan **un solo** bloque (G1b-11): el CSV de cualquier otro no las pide.
+        distribuciones = ()
+        if formato == "xlsx" or codigo == "respuestas":
+            distribuciones = dashboard_becas.distribuciones_cacheadas(
+                request.user, programa, filtros, alcance=alcance, catalogo=form.preguntas
+            )
         bloques = dashboard_becas.bloques_exportacion(datos, distribuciones)
         nombre = f"becas_dashboard_{slugify(programa.nombre) or programa.pk}_{timezone.localdate():%Y-%m-%d}"
         if formato == "xlsx":
@@ -159,10 +168,18 @@ def programa_dashboard_exportar(request, pk, formato):
 
 @login_required
 @require_GET
-def programa_dashboard_respuestas_xlsx(request, pk, convocatoria_pk):
-    """Excel con **un registro por caso** de la convocatoria y una columna por pregunta
-    (Cambio 65). Exige la capacidad de exportar y que la convocatoria sea del programa
-    y esté dentro del alcance del usuario; si no, 404 como el resto del backoffice."""
+def programa_dashboard_respuestas(request, pk, convocatoria_pk, formato):
+    """**Un registro por caso** de la convocatoria y una columna por pregunta (Cambio
+    65), en ``xlsx`` o en ``csv``. Exige la capacidad de exportar y que la convocatoria
+    sea del programa y esté dentro del alcance del usuario; si no, 404 como el resto
+    del backoffice.
+
+    Los dos formatos salen del **mismo** reporte: mismas columnas, mismo orden y mismos
+    valores. El CSV existe porque armar el xlsx de 20.000 casos son ~7 s de CPU con el
+    GIL tomado y el mismo contenido en CSV son ~0,7 s (PERF-03, banco `mariadb:10.11`);
+    quien necesite la planilla la sigue bajando igual."""
+    if formato not in FORMATOS:
+        return HttpResponseBadRequest("Formato de exportación no válido.")
     programa = _programa_o_403(request, pk, CAP_EXPORTAR)
     convocatoria = get_object_or_404(
         convocatorias_visibles(request.user).filter(segmento__programa=programa).select_related("segmento"),
@@ -176,6 +193,8 @@ def programa_dashboard_respuestas_xlsx(request, pk, convocatoria_pk):
             incluir_publicos=puede_relevamiento_publico(request.user, programa=programa_becas(request.user)),
         )
         nombre = f"becas_respuestas_{slugify(convocatoria.nombre) or convocatoria.pk}_{timezone.localdate():%Y-%m-%d}"
+        if formato == "csv":
+            return respuesta_reporte(reporte, "csv", nombre, alcance=alcance)
         return respuesta_libro([("Respuestas", reporte)], nombre, alcance=alcance)
     except Exception as exc:  # noqa: BLE001
         logger.exception("dashboard becas: fallo al exportar respuestas por persona (convocatoria=%s)", convocatoria_pk)

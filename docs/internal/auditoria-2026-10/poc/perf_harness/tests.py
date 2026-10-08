@@ -165,7 +165,7 @@ class V4Perf(TestCase):
         del reporte, resp
         # Request completo con Accept-Encoding: gzip (pasa por GZipMiddleware)
         c = self._client()
-        url = reverse("becas:programa_dashboard_respuestas_xlsx", args=[conv.segmento.programa_id or 0, conv.pk])
+        url = reverse("becas:programa_dashboard_respuestas", args=[conv.segmento.programa_id or 0, conv.pk, "xlsx"])
         res["url"] = url
         t = time.perf_counter()
         r = c.get(url, HTTP_ACCEPT_ENCODING="gzip")
