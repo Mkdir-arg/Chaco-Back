@@ -42,7 +42,7 @@ PoC: `poc/test_repro_usuarios.py`. Lo de la API REST de usuarios está en SEC-05
 - **Verificación:** V-STD + `manage.py test users`. Pre-chequeo P-06 (README §3).
 - **Dependencias:** SEC-07 y SEC-06 (mismo `RolForm.clean`); SEC-03.
 
-**Resolución:** ✅ Resuelta en #PENDIENTE (Cambio 192, Ola 2 PR 1), 08-oct-2026 — las dos mitades de la escalada, por
+**Resolución:** ✅ Resuelta en #646 (Cambio 193, Ola 2 PR 1), 08-oct-2026 — las dos mitades de la escalada, por
 caminos distintos. **(a) El rol propio:** `users.selectors.roles.puede_editar_rol` es la puerta nueva de editar, borrar
 y desactivar un rol, y para un operador **no global** devuelve False sobre los roles que él mismo tiene; ver sigue
 abierto (la ficha del rol propio se abre, y el listado lo muestra sin las acciones, con `item.puede_editar` resuelto en
@@ -93,7 +93,7 @@ las cuentas que ya quedaron así.
 - **Propuesta:** en `RolesAdminService.actualizar`, `finales = (actuales − permitidas_operador) ∪ seleccionadas`.
 - **Tests:** el de la PoC invertido.
 
-**Resolución:** ✅ Resuelta en #PENDIENTE (Cambio 192, Ola 2 PR 1), 08-oct-2026 — exactamente la fórmula de la ficha.
+**Resolución:** ✅ Resuelta en #646 (Cambio 193, Ola 2 PR 1), 08-oct-2026 — exactamente la fórmula de la ficha.
 `RolForm.clean` deja en `form.capacidades_permitidas` el conjunto que ese operador puede tocar (`None` para el admin
 global, que sí decide todo el catálogo) y `_set_capacidades` arma `finales = (actuales − permitidas) ∪ seleccionadas`.
 Lo que el árbol no le muestra, el guardado no lo pisa. La contracara tiene su propio test: lo que **sí** ve se sigue

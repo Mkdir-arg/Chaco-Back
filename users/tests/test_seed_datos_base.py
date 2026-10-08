@@ -104,7 +104,7 @@ class SeedRolesBecasTests(TestCase):
     def test_un_rol_renombrado_no_genera_un_duplicado(self):
         """OPS-06 fase 2: la PoC invertida.
 
-        Hasta el Cambio 192 el seed buscaba sus roles por ``Group.name``, que el ABM
+        Hasta el Cambio 193 el seed buscaba sus roles por ``Group.name``, que el ABM
         deja renombrar: el arranque siguiente creaba un **segundo** rol con el nombre
         canónico —sin usuarios y con todas las capacidades— al lado del que la gente
         usaba. Con ``RolMeta.clave`` el renombre se reconoce y el nombre nuevo queda.

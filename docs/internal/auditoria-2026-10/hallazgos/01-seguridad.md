@@ -176,7 +176,7 @@ la API detrás de **login** y no detrás de capacidad —un usuario de backoffic
 ### SEC-06 · Las capacidades `becas.*` se otorgan en roles de otro programa y los gates no las acotan
 **Severidad:** ALTA · **Estado:** CONFIRMADO-AJUSTADO con test (`SEC06BecasCrossProgramTests`) · **Origen:** A5-06; observación de A4 sobre los exports (refutada en su forma original, absorbida acá) · **Ola:** 2 · **Esfuerzo:** M · **Decisión:** D-06
 
-**Resolución:** ✅ Resuelta en #PENDIENTE (Cambio 192, Ola 2 PR 1), 08-oct-2026 — tres candados, porque el catálogo
+**Resolución:** ✅ Resuelta en #646 (Cambio 193, Ola 2 PR 1), 08-oct-2026 — tres candados, porque el catálogo
 solo cierra lo que se puede **otorgar** de acá en adelante. (1) Los **trece** módulos `becas_*` declaran
 `"programas": ("BECAS",)`, así que el árbol del ABM deja de ofrecérselos al admin de roles de otro programa y el
 `MultipleChoiceField` rechaza el POST que los mande igual —el rol ni se crea—. (2) Los gates de las tres superficies
@@ -213,7 +213,7 @@ desplegar; si da vacío, la migración no quita nada.
 ### SEC-07 · `programa.configurar` tildada en un rol de programa habilita el wizard de **todos** los programas
 **Severidad:** ALTA · **Estado:** CONFIRMADO-AJUSTADO con test (`SEC07ProgramaConfigurarTests`) · **Origen:** A5-07; V1-NEW-02 (corrección de la propuesta de P1) · **Ola:** 2 · **Esfuerzo:** S-M · **Decisión:** D-07
 
-**Resolución:** ✅ Resuelta en #PENDIENTE (Cambio 192, Ola 2 PR 1), 08-oct-2026, con **D-07 = Sí** aplicada —
+**Resolución:** ✅ Resuelta en #646 (Cambio 193, Ola 2 PR 1), 08-oct-2026, con **D-07 = Sí** aplicada —
 `core/rbac.py` estrena `puede_sin_programa(user, codigo)` (la capacidad tiene que venir de un rol con
 `RolMeta.programa` nulo) y el decorador `requiere_sin_programa`. Las **diez** vistas del wizard se reparten en tres
 grupos: los cuatro pasos del **alta** piden la capacidad en un rol global (crear un programa no tiene alcance posible —

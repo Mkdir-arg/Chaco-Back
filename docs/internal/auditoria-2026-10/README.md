@@ -818,7 +818,7 @@ tienen la columna «Avance 03-oct» (✅ resuelto · 🟡 parcial · ⬜ pendien
 | SEC-09 | ALTA | ✅ | #538 · Cambio 112 (etapa 1); Cambio 188 (etapa 2) | Etapa 2 hecha: pertenencia por archivo en `media_protegida`, `upload_to` con UUID y `X-Accel-Redirect` preparado y apagado (`MEDIA_X_ACCEL`, D-09/H-05). R0b-07 y R0b-08 cerrados con ella. Falta (operativo, PM): desplegar la etapa 1 en icore (R0b-11, `web` antes que `nginx`) |
 | SEC-29 | ALTA | 🟡 | #511 · Cambio 102 | Rutas `mi-perfil/*` apagadas + comando `desactivar_usuarios_portal`. Falta correrlo en PRD tras P-08 (PM) |
 | G1-01 | ALTA | 🟡 | #510 · Cambio 101 | Rutas públicas desmontadas y `evaluar/` cerrada (R0-01, #537). Falta la fase 2 (Ola 7) y P-10 |
-| OPS-06 | ALTA | ✅ | #508 · Cambio 104; #PENDIENTE · Cambio 192 (fase 2) | Opt-in, activo, Operador (DECISIÓN PM 01-oct: queda como está) y `crear_programas`; la **fase 2** cierra con `RolMeta.clave` (`users.0029`/`0030`): un rol sembrado y renombrado ya no se duplica en el arranque. Operativo (PM): P-05 y re-tildar en PRD; un rol renombrado **antes** de este deploy queda sin clave y hay que unirlo a mano |
+| OPS-06 | ALTA | ✅ | #508 · Cambio 104; #646 · Cambio 193 (fase 2) | Opt-in, activo, Operador (DECISIÓN PM 01-oct: queda como está) y `crear_programas`; la **fase 2** cierra con `RolMeta.clave` (`users.0029`/`0030`): un rol sembrado y renombrado ya no se duplica en el arranque. Operativo (PM): P-05 y re-tildar en PRD; un rol renombrado **antes** de este deploy queda sin clave y hay que unirlo a mano |
 
 **PRs sin ficha propia.** #512 (Cambio 105) arregló las fechas fijas de `test_coordinador_regional.py` (no es un
 hallazgo; dejó R0-03 como seguimiento). #513, #516, #517 y #518 son desarrollo nuevo (comando `correr_alta_siis`,
@@ -1949,7 +1949,7 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
   ninguna con DDL) por la capacidad nueva `ciudadano.exportar` (D-20). Es el **primer PR de la ola**.
 - **PRs y orden:**
   1. ✅ *Catálogo y roles:* SEC-06 ✅, SEC-07 ✅, G1b-02 ✅, G1b-06 ✅ y la **fase 2 de OPS-06** ✅
-     (`RolMeta.clave`, con migración; venía de la Ola 0). 26 h. **Cerrado el 08-oct-2026 (Cambio 192)**, con
+     (`RolMeta.clave`, con migración; venía de la Ola 0). 26 h. **Cerrado el 08-oct-2026 (Cambio 193)**, con
      **D-06 = No** y **D-07 = Sí** aplicadas por default y **tres migraciones de `users`** (`0029`, `0030` y `0031`);
      la única con DDL es la `0029`, sobre `users_rolmeta`, que tiene una fila por rol. Las capacidades `becas.*` dejan
      de ofrecerse fuera de Becas y los gates de los exports, el proceso masivo y la bandeja de RENAPER las evalúan
@@ -2015,7 +2015,7 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
      **✅ RED-52 cerrada el 08-oct-2026 (Cambio 181, PR 2): 2 h.** `save_user_profile` se borró (no se acotó con
      `update_fields`): los cuatro llamadores reales ya guardaban el Profile explícitos, y los dos `expectedFailure`
      que dejó R-21 pasaron a verdes.
-     **✅ RED-80 cerrada el 08-oct-2026 (Cambio 192, PR 1): 2 h. El ítem 9 cierra.**
+     **✅ RED-80 cerrada el 08-oct-2026 (Cambio 193, PR 1): 2 h. El ítem 9 cierra.**
      `programas/services/programa_cache.py` es la pieza única de los dos (clave derivada del código, memo por request e
      invalidación *best-effort*), y la invalidación se enganchó donde un `Programa` **se escribe de verdad** —el wizard
      de Configuración, que además deja cambiar el **código**— y no en un seed de Dispositivos, que no existe.

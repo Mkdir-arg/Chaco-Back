@@ -39,7 +39,7 @@ Fichas completas del dominio. Convenciones, `V-STD` y `V-UI`: README §0. PoC: `
 ### OPS-06 · Seeds de arranque pisan la configuración que el ABM deja editar
 **Severidad:** ALTA (sube desde la MEDIA de OPS-06 de V6 por G1c-02) · **Estado:** CONFIRMADO con test (`poc/test_repro_admin_cron_renaper.py::G1c02SeedPisaCapacidadesTests`; `poc/test_repro_usuarios.py::G2OperadorBackofficeSeedTests`); impacto en PRD PLAUSIBLE con alta probabilidad · **Origen:** A8-08, G1c-02, G1c-03, G2-02 · **Ola:** **0** · **Esfuerzo:** S-M (M si se agrega `RolMeta.clave`) · **Decisión:** D-O06
 
-**Resolución (fase 2):** ✅ Cerrada en #PENDIENTE (Cambio 192, Ola 2 PR 1), 08-oct-2026 — `RolMeta.clave`
+**Resolución (fase 2):** ✅ Cerrada en #646 (Cambio 193, Ola 2 PR 1), 08-oct-2026 — `RolMeta.clave`
 identifica a los **siete** roles que siembra el arranque (`sistema.administrador`, `sistema.operador_backoffice` y los
 cinco `becas.*`). `users.0029` agrega la columna —`NULL`, única, expand puro: el código viejo no la escribe y MySQL y
 MariaDB admiten varios `NULL` en un índice único— y `users.0030` se la pone a los roles que ya existen empatando por el

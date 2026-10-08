@@ -1872,7 +1872,7 @@ ese motivo.
   dos seeds (Becas ya falla cerrado con RED-56). Test `programas/tests/test_dispositivos_config.py::CacheProgramaTests.
   test_el_seed_invalida_las_dos_claves`.
 
-**Resolución:** ✅ Resuelta en #PENDIENTE (Cambio 192, Ola 2 PR 1), 08-oct-2026 —
+**Resolución:** ✅ Resuelta en #646 (Cambio 193, Ola 2 PR 1), 08-oct-2026 —
 `programas/services/programa_cache.py` es la pieza única: `clave_de(codigo)` (que **deriva** las dos claves históricas,
 `programas:becas` y `programas:dispositivos`, así que una base con Redis vivo no pierde lo cacheado el día del deploy),
 `programa_por_codigo(codigo, user=None)` con el memo por request —ahora un dict por código en vez de dos atributos— y

@@ -52,7 +52,7 @@ ROL_REFERENTE = "Becas — Referente"
 ROL_TERRITORIAL = "Becas — Territorial"
 
 # OPS-06 fase 2: clave estable de cada rol sembrado → nombre con el que nace. Hasta el
-# Cambio 192 el seed los reconocía por ``Group.name``, que el ABM deja renombrar, y un
+# Cambio 193 el seed los reconocía por ``Group.name``, que el ABM deja renombrar, y un
 # rol renombrado hacía que el arranque siguiente creara **otro** con el nombre canónico.
 # El nombre de acá es el del alta; a un rol que ya existe no se lo renombra.
 CLAVES_ROLES_BECAS = {
