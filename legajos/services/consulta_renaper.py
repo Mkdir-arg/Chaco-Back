@@ -48,7 +48,7 @@ VUELTAS_TOKEN = 3
 #: problema: uno dice «el login de otro no termina» y el otro «terminó y no
 #: dejó token» (lo descartó un 401, o el proveedor contestó 200 sin token).
 ESPERA_AGOTADA = "No se pudo obtener el token de RENAPER: se agotó la espera de un login en curso."
-LOGIN_SIN_TOKEN = "No se pudo obtener el token de RENAPER: el login terminó sin dejar token."
+LOGIN_SIN_TOKEN = "No se pudo obtener el token de RENAPER: el login terminó sin dejar token."  # nosec B105 - mensaje de error, no una credencial
 
 
 class _IntentoDeLogin:
