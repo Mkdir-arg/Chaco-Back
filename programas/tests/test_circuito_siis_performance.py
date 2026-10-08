@@ -35,7 +35,7 @@ from django.contrib.auth.models import Group, User
 from django.core.cache import cache
 from django.core.management import call_command
 from django.db import connection
-from django.db.models import OuterRef, Q, Subquery
+from django.db.models import OuterRef, Q, Subquery, Value
 from django.test import TestCase, override_settings
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
@@ -62,17 +62,37 @@ from programas.tests.test_siis_envio import _catalogo_falso, _ConPayloadCompleto
 JSON_DEL_CASO = ("data", "respuestas", "definicion", "datos_siis")
 
 
-def _candidatos_a_la_vieja(**filtros):
-    """El filtro de «último envío» anterior a PERF-19, como referencia de **resultado**.
+#: Valor de relleno que no coincide con ningún estado de ``EnvioSIIS``: con él en lugar
+#: del ``Coalesce`` real, el ``exclude(ultimo_envio=ENVIADO)`` de ``candidatos()`` queda
+#: sin efecto y el queryset devuelve todo lo demás tal cual.
+_SIN_FILTRO_DE_ULTIMO_ENVIO = "ningún-estado"
 
-    Dos ``Q`` sobre la misma anotación: el conjunto que devolvía es el que
-    :func:`proceso_masivo.candidatos` tiene que seguir devolviendo.
+
+def _candidatos_sin_el_filtro_del_ultimo_envio(**filtros):
+    """``candidatos()`` con el criterio de «último envío» neutralizado, y nada más.
+
+    Es el **queryset base completo** sobre el que PERF-19 cambió una sola condición:
+    estados, conflictos de carga, lista de espera, materias, exclusiones del PM, pausas
+    e incompatibles siguen siendo los de producción. Se consigue reemplazando el
+    ``Coalesce`` que usa la función por una constante que no es ningún estado, en vez de
+    copiar acá sesenta líneas de queryset que envejecerían al primer filtro nuevo.
+    """
+    with patch.object(proceso_masivo, "Coalesce", lambda *_a, **_k: Value(_SIN_FILTRO_DE_ULTIMO_ENVIO)):
+        return proceso_masivo.candidatos(**filtros)
+
+
+def _candidatos_a_la_vieja(**filtros):
+    """Los candidatos tal como los devolvía el código anterior a PERF-19.
+
+    Los dos ``Q`` originales (``origin/development`` antes de #639) aplicados sobre el
+    queryset base completo, **no** sobre el resultado del filtro nuevo: partir de los
+    candidatos de hoy solo podía detectar un filtro más laxo, porque un caso que el
+    nuevo descarta de más nunca habría llegado a la comparación. Así la diferencia se ve
+    en las dos direcciones.
     """
     ultimo = EnvioSIIS.objects.filter(formulario=OuterRef("pk")).order_by("-creado", "-id").values("estado")[:1]
-    base = proceso_masivo.candidatos(**filtros)
-    # Se rearma desde cero el pedazo que cambió, sobre el mismo resto de condiciones.
     return list(
-        Formulario.objects.filter(pk__in=base.values_list("pk", flat=True))
+        _candidatos_sin_el_filtro_del_ultimo_envio(**filtros)
         .annotate(ultimo_viejo=Subquery(ultimo))
         .filter(Q(ultimo_viejo__isnull=True) | ~Q(ultimo_viejo=EnvioSIIS.Estado.ENVIADO))
         .order_by("pk")
@@ -270,6 +290,22 @@ class LosMismosCandidatosTests(TestCase):
         self.assertEqual(nuevos, _candidatos_a_la_vieja(programa=self.programa))
         self.assertEqual(nuevos, [self.casos[0].pk, self.casos[1].pk, self.casos[2].pk])
 
+    def test_la_referencia_parte_del_queryset_completo(self):
+        """Control del andamio de `_candidatos_a_la_vieja`.
+
+        Si la referencia se armara sobre `candidatos()` —como estaba—, un caso que el
+        filtro nuevo descarta **de más** nunca llegaría a compararse y la comparación
+        solo detectaría un filtro más laxo. Acá se fija que la base es el conjunto
+        completo: incluye al caso que el filtro de hoy saca.
+        """
+        self._envio(self.casos[3], EnvioSIIS.Estado.ENVIADO, 5, como_el_codigo_viejo=True)
+
+        base = list(_candidatos_sin_el_filtro_del_ultimo_envio(programa=self.programa).values_list("pk", flat=True))
+        nuevos = list(proceso_masivo.candidatos(programa=self.programa).values_list("pk", flat=True))
+
+        self.assertIn(self.casos[3].pk, base)
+        self.assertNotIn(self.casos[3].pk, nuevos)
+
     def test_un_envio_sin_estado_no_entra_como_candidato_nuevo(self):
         """El borde del ``Coalesce``: el valor de relleno (``""``) no puede coincidir
         con ningún estado real, o un caso informado volvería a salir."""
@@ -303,6 +339,29 @@ class PantallaDelMasivoTests(TestCase):
         self.assertEqual(respuesta.status_code, 200)
         return respuesta, [q["sql"] for q in capturadas.captured_queries]
 
+    def _un_candidato(self):
+        """Un caso aprobado y habilitado por materias: deja la pantalla en 1 pendiente."""
+        segmento = Segmento.objects.create(nombre="S masivo", cupo_maximo=10, programa=self.programa)
+        convocatoria = Convocatoria.objects.create(
+            nombre="C masivo", segmento=segmento, fecha_inicio=date(2026, 1, 1), fecha_fin=date(2026, 12, 31)
+        )
+        relevamiento = Relevamiento.objects.create(
+            convocatoria=convocatoria,
+            territorial=User.objects.create_user("terri_masivo_perf", password="x"),
+            fecha_asignada=date(2026, 6, 1),
+            zona="Z",
+        )
+        ciudadano = Ciudadano.objects.create(
+            dni="50000000", nombre="N", apellido="Candidato", fecha_nacimiento=date(1990, 1, 1), genero="F"
+        )
+        return Formulario.objects.create(
+            relevamiento=relevamiento,
+            ciudadano=ciudadano,
+            estado=Formulario.Estado.APROBADO,
+            validado_renaper=True,
+            data={"globales": {}, "requisitos": {}},
+        )
+
     def test_con_una_corrida_en_curso_no_se_cuentan_los_candidatos(self):
         """La pantalla se relee sola cada 5 s mientras corre, y en ese estado la
         plantilla **no** muestra ninguno de los dos números."""
@@ -327,9 +386,14 @@ class PantallaDelMasivoTests(TestCase):
         )
 
     def test_sin_corrida_el_conteo_se_calcula_una_vez_y_se_cachea(self):
-        _, primera = self._sql_de_la_pantalla()
+        # Con pendientes: el cero no se cachea a propósito (ver el test de abajo), así
+        # que medir el cacheo exige que haya al menos un candidato.
+        self._un_candidato()
+
+        respuesta, primera = self._sql_de_la_pantalla()
         _, segunda = self._sql_de_la_pantalla()
 
+        self.assertEqual(respuesta.context["pendientes"], 1)
         self.assertTrue([s for s in primera if "COUNT" in s.upper() and "programas_formulario" in s])
         self.assertFalse(
             [s for s in segunda if "COUNT" in s.upper() and "programas_formulario" in s],
@@ -344,6 +408,38 @@ class PantallaDelMasivoTests(TestCase):
             proceso_masivo.candidatos(programa=self.programa, solo_incompatibles=True).count()
 
         self.assertLess(len(juntos.captured_queries), len(separados.captured_queries))
+
+    def test_con_cero_pendientes_el_conteo_no_se_cachea(self):
+        """El cero **decide**: esconde el formulario y promete que el caso nuevo
+        aparece «al recargar». Cacheado, esa promesa fallaba hasta por un minuto.
+
+        El seed no deja ningún candidato de este programa, así que la pantalla arranca
+        en 0: los dos renders tienen que contar.
+        """
+        respuesta, primera = self._sql_de_la_pantalla()
+        self.assertEqual(respuesta.context["pendientes"], 0, "el escenario tiene que arrancar sin pendientes")
+
+        _, segunda = self._sql_de_la_pantalla()
+
+        self.assertTrue([s for s in segunda if "COUNT" in s.upper() and "programas_formulario" in s], primera)
+        self.assertIsNone(cache.get(proceso_masivo.clave_conteos(self.programa.pk)))
+
+    def test_el_fin_de_la_corrida_tira_el_conteo_cacheado(self):
+        """Lo que vacía los pendientes de golpe es la corrida, y termina en un hilo que
+        no pasa por ninguna vista: si no invalida, la pantalla muestra el número de
+        antes de lanzarla."""
+        cache.set(proceso_masivo.clave_conteos(self.programa.pk), (7, 0), 60)
+        corrida = CorridaSiis.objects.create(
+            programa=self.programa,
+            solicitada_por=self.admin,
+            total_pedido=1,
+            estado=CorridaSiis.Estado.EN_CURSO,
+            latido=timezone.now(),
+        )
+
+        proceso_masivo.correr(corrida)
+
+        self.assertIsNone(cache.get(proceso_masivo.clave_conteos(self.programa.pk)))
 
     def test_sin_la_tabla_de_materias_la_pantalla_lo_dice_sin_leerla(self):
         with connection.cursor() as cur:

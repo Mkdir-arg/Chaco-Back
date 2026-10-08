@@ -136,6 +136,8 @@
       </button>
     </form>
     {% else %}
+    {% comment %}La promesa de «al recargar» es la que sostiene el conteo sin cachear el
+    cero: con 0 pendientes la vista vuelve a contar en cada render (views/proceso_masivo.py).{% endcomment %}
     <p class="text-sm text-body">No quedan casos pendientes de informar. Si entran casos nuevos, aparecen acá al recargar.</p>
     {% endif %}
     <p class="text-xs text-body-subtle mt-3">
