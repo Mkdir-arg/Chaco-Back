@@ -3,7 +3,7 @@
 ## Estado al 08-oct-2026 (Ola 3, PR 5b: app de campo — **segundo lote, cierra el ítem**)
 
 **Una foto por campo, y el servidor sabe con qué formulario se capturó.** El PR 5b de la Ola 3
-(#PENDIENTE, Cambio 178) cierra **G1-07** y deja **G1-16** 🟡 —el servidor hace su mitad; la otra es un release de
+(#627, Cambio 178) cierra **G1-07** y deja **G1-16** 🟡 —el servidor hace su mitad; la otra es un release de
 `Chaco-mobile`—: las 14 h que le quedaban al ítem 5 del plan. Mismo criterio del PR 5: todo cambio de
 request o de respuesta es **aditivo**, y lo que la app instalada (`origin/main @ a66c2d3`) manda hoy
 sigue significando lo mismo y recibiendo los mismos códigos.
@@ -60,7 +60,7 @@ de magnitud bajo el `read_timeout` de 10 s del `migrate` (OPS-05). Conducta que 
 el teléfono **sube** capturas que antes rechazaba, con hasta 24 h de gracia; el revisor **ve** dos
 marcas nuevas; y un caso con una fecha de nacimiento o un DNI imposibles **deja de crearse**.
 
-**Cerrado en el PR 5b** (#PENDIENTE, Cambio 178, 08-oct-2026): **G1-07** ✅ y **G1-16** 🟡, las 14 h que faltaban.
+**Cerrado en el PR 5b** (#627, Cambio 178, 08-oct-2026): **G1-07** ✅ y **G1-16** 🟡, las 14 h que faltaban.
 
 ## Estado al 07-oct-2026 (Ola 3, PR 6: reglas de negocio de Becas)
 
@@ -1586,7 +1586,7 @@ PR 5b = 14, PR 6 = 30, PR 7a = 16, PR 7b = 14, PR 8 = 8), **128** de la Ola 5 y 
 y 7 todavía no cerraron ningún PR. 972 − 661 = **311 restantes**. El «139 cerradas» venía del 04-oct y no contaba nada
 de lo mergeado entre el 05 y el 07; el **543** del 07-oct arrastraba la celda de la Ola 3 en 28 h, que no sumaba los
 PRs 2 (22 h) y 6 (30 h), ya mergeados cuando se escribió. Los PRs 5 y 7b se escribieron en paralelo y cada uno contó
-el otro como abierto (633 y 625); esta cuenta los suma a los dos. El PR 5b (#PENDIENTE) suma sus 14 h sobre las 647
+el otro como abierto (633 y 625); esta cuenta los suma a los dos. El PR 5b (#627) suma sus 14 h sobre las 647
 que dejó el PR 7b: 647 + 14 = **661**, y la Ola 3 pasa de 132 a **146** (14 + 22 + 6 + 22 + 14 + 30 + 16 + 14 + 8).
 **Dos arreglos de la misma tabla, residuo del README duplicado (ver #620):** la Ola 5 tenía **dos filas** con cifras
 distintas (66 y 60 h cerradas) — se dejó una sola, y con el 128/128 que declara su sección —, y en la sección de la
@@ -1944,7 +1944,7 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
 - **Objetivo:** que no se pierdan datos (adjuntos, capturas offline), que el despliegue sea diagnosticable y robusto, que
   la CI pruebe el motor real, y cerrar las reglas de negocio de Becas.
 - **Avance: 146 h de 152, 6 restantes** (14 PR 1 · 22 PR 2 · 6 PR 3 · 22 PR 5 · 14 PR 5b · 30 PR 6 · 16 PR 7a · 14 PR 7b · 8 PR 8).
-  **PR 5b (G1-07 ✅ y G1-16 🟡) en el Cambio 178 (#PENDIENTE), 08-oct-2026**: las 14 h que le quedaban al ítem 5,
+  **PR 5b (G1-07 ✅ y G1-16 🟡) en el Cambio 178 (#627), 08-oct-2026**: las 14 h que le quedaban al ítem 5,
   con `programas.0081` (una columna nullable sobre `programas_formulario`, expand puro). G1-16 cierra
   del lado del servidor y deja **pendiente el release de `Chaco-mobile`** que mande el dato.
   **PR 7b (G1-11, G1-12, G1-13, G1-14, R0-06, R0-07 + la segunda parte de RED-09) en el Cambio 176, 08-oct-2026**:

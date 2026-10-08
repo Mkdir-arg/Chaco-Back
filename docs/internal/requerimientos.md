@@ -25582,7 +25582,7 @@ de ahí.
 | **Etiquetas** | `#api` `#relevamientos` `#requisitos` `#datos` `#metodo` |
 | **Solicitante** | Auditoría integral oct-2026 — fichas G1-07 y G1-16 (Ola 3, PR 5b, segundo lote), más los tres MINOR de la revisión del PR 5 (#624, Cambio 175) |
 | **Fecha del pedido** | 08/10/2026 |
-| **Issue / épica** | Auditoría oct-2026, Ola 3 ítem 5 (segundo lote — cierra el ítem) |
+| **Issue / épica** | Auditoría oct-2026, Ola 3 ítem 5 (segundo lote — cierra el ítem) · PR #627 |
 | **Partes afectadas** | API de campo (`POST …/adjuntos/`, alta de casos) · Revisión de casos (qué adjunto se muestra) · Cron `procesar_vencimientos` (línea de log) |
 | **Migración** | `programas.0081` — una columna nullable en `programas_formulario` (expand puro) |
 
