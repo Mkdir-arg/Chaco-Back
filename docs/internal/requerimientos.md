@@ -28793,6 +28793,19 @@ Todavía no. Cuando se ejecute: baja de seis modelos en dos releases, y alta de 
 
 ## Historial
 
-Entrada nueva.
+**08/10/2026 — dos decisiones del PM que cierran el plan.**
+
+**El relevamiento es por edificio, no por sector.** Era la definición más urgente de las cinco del
+correo a Guido. Entra al MVP la entidad **`Edificio`** con relación de varios a varios con
+`Dispositivo`, que estaba prevista para la etapa 5 de la Versión 2: un predio puede alojar más de una
+institución —parador, geriátrico y Sotai en el mismo predio de Resistencia— y se releva **una sola
+vez**, con el resultado visible para todas las que lo ocupan. El `Sector` sigue colgando del
+dispositivo: el edificio es el inmueble, el sector es la organización operativa. El modelo del
+relevamiento pasa a llamarse `InspeccionEdificio` y no cuelga del sector. Se actualizaron la E1 y la
+E4 del plan y el documento del cliente, que decía «selección del dispositivo y del sector» y listaba
+los predios compartidos entre lo que **no** se entregaba.
+
+**La etapa 0 se absorbe.** Las ~100 h de piezas de diseño y goldens no se cotizan aparte («no importa
+que lleve esas 100 horas»).
 
 ---

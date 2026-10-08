@@ -147,18 +147,24 @@ E0 · terreno y piezas
       └── carril B (campo)      ──────────────── E4 relevamiento (necesita E1)
 ```
 
-El carril B depende de la E1 porque el relevamiento se carga **por sector**, así que no puede
-arrancar antes de que el sector exista.
+El carril B depende de la E1 porque el relevamiento se carga **por edificio**, así que no puede
+arrancar antes de que esa entidad exista.
 
 ---
 
-## 4. Etapa 1 · Sectores y plazas
+## 4. Etapa 1 · El edificio, los sectores y las plazas
 
 La base de los dos carriles. Sin esto no hay dónde alojar a nadie ni qué relevar.
 
 ### Lógica
 
-- `Sector`: nombre, tipo, capacidad y condiciones de uso.
+- **`Edificio`**: el inmueble, con relación de **varios a varios** con `Dispositivo`. Un predio puede
+  alojar más de una institución —parador, geriátrico y Sotai en el mismo predio de Resistencia— y una
+  institución podría ocupar más de un inmueble. **Decisión del PM del 08/10/2026**: el relevamiento es
+  del edificio, no del sector, así que esta entidad entra al MVP y deja de ser parte de la etapa 5 de
+  la Versión 2.
+- `Sector`: nombre, tipo, capacidad y condiciones de uso. Cuelga del dispositivo, no del edificio:
+  el edificio es el inmueble y el sector es la organización operativa de la institución.
 - `Plaza` dentro del sector, con su tipo —cama, cupo o turno— y su estado.
 - El **servicio único de cálculo**: operativas, ocupadas, disponibles. Todo derivado de los
   movimientos; nada se tipea. Es la pieza de la que después dependen el censo y la vista de situación.
@@ -232,8 +238,9 @@ Carril paralelo. Arranca cuando la E1 deja el sector disponible.
 
 ### Lógica
 
-- `InspeccionDispositivo` —nombre a confirmar—: dispositivo, sector, criticidad, observaciones,
-  responsable, fecha y estado.
+- `InspeccionEdificio` —nombre a confirmar—: **edificio**, criticidad, observaciones, responsable,
+  fecha y estado. **No cuelga del sector ni del dispositivo**: un predio compartido se releva una vez
+  y el resultado lo ven todas las instituciones que lo ocupan.
 - **Creación y asignación por el coordinador**: elige el dispositivo y el agente, y la tarea le llega
   a la aplicación. El agente no elige libremente qué relevar.
 - Fotos como evidencia, con almacenamiento protegido detrás de login, sobre el patrón que ya usa
@@ -260,7 +267,7 @@ Carril paralelo. Arranca cuando la E1 deja el sector disponible.
 | Etapa | Qué deja | Carril |
 |---|---|---|
 | **E0** | El terreno limpio y las piezas de diseño que hacen que se vea igual al mockup, más las dos goldens que faltan | Bloquea todo |
-| **E1** | Sectores y plazas, y el cálculo único de ocupación | A y B |
+| **E1** | El edificio, los sectores y las plazas, con el cálculo único de ocupación | A y B |
 | **E2** | Ingreso y egreso con verificación en toda la red, y la solapa del legajo ciudadano | A |
 | **E3** | Movimientos, bitácora por turno con censo automático y la vista de situación | A |
 | **E4** | El relevamiento en campo, con la app y el funcionamiento sin conexión | B |
@@ -272,9 +279,9 @@ arranca por la E1 y sigue de corrido; el carril B se suma apenas la E1 libera el
 
 1. **El nombre del modelo del relevamiento.** Propuesta: `InspeccionDispositivo` como modelo,
    «Relevamientos» como etiqueta visible.
-2. **Si la etapa 0 se absorbe o se cotiza.** Son unas 100 h de trabajo de sistema que las 700 h no
-   contemplan y que la reserva ya tiene comprometidas.
-3. **Las cinco definiciones del cliente** que están en el correo a Guido: escala de criticidad,
-   relevamiento por sector o por edificio, si el agente debe ser externo, estados del relevamiento y
-   catálogo de motivos de egreso. La segunda es la más urgente: **si fuera por edificio, la E1 y la
-   E4 cambian de modelo**.
+2. ~~Si la etapa 0 se absorbe o se cotiza.~~ **Resuelto el 08/10/2026: se absorbe.** El PM lo dio por
+   cerrado («no importa que lleve esas 100 horas»).
+3. **Las definiciones del cliente** que están en el correo a Guido: escala de criticidad, si el
+   agente debe ser externo, estados del relevamiento y catálogo de motivos de egreso. La de
+   «sector o edificio» **ya la cerró el PM el 08/10/2026: por edificio**, y el plan está escrito con
+   esa decisión aplicada.
