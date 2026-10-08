@@ -34,7 +34,7 @@ hide:
 
     ---
 
-    **Octubre 2026 (en curso):** 336h 30min consumidas de 850h (40%), con 513h 30min disponibles — al 08/10
+    **Octubre 2026 (en curso):** 238h consumidas de 850h (28%), con 612h disponibles — al 08/10
 
     **Septiembre 2026 (cerrado):** esfuerzo real 942h 30min, imputadas las 850h del presupuesto (100%); 92h 30min pasaron a octubre como consumo inicial
 
