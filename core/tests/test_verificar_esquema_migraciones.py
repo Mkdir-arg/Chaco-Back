@@ -310,6 +310,21 @@ class TablasHuerfanasTests(SimpleTestCase):
     def test_django_migrations_no_es_huerfana(self):
         self.assertEqual(tablas_huerfanas({"django_migrations"}, set()), [])
 
+    def test_las_tablas_que_carga_el_organismo_no_son_huerfanas(self):
+        """`seed_perf` crea `aprobados_materias` y el job «Migrate ida y vuelta» corre el
+        chequeo estricto: sin esto, todo PR posterior a #639 salía rojo."""
+        self.assertEqual(
+            tablas_huerfanas({"aprobados_materias", "localidades_corregidas", "ciudadanos_renaper"}, set()),
+            [],
+        )
+
+    def test_la_lista_de_tablas_externas_es_la_de_los_insumos_siis(self):
+        """La lista vive repetida en `core` por el ratchet de capas: este test la ata a la fuente."""
+        from core.management.commands.verificar_esquema_migraciones import TABLAS_EXTERNAS_DEL_ORGANISMO
+        from programas.management.commands._insumos_siis import INSUMOS
+
+        self.assertEqual(TABLAS_EXTERNAS_DEL_ORGANISMO, {tabla for tabla, _archivo, _para in INSUMOS})
+
 
 class ComandoTests(TransactionTestCase):
     """El comando entero contra la base de la suite."""

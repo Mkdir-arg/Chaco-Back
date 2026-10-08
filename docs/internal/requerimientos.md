@@ -358,6 +358,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 184 | El caso que la app ya cargó no se edita, la identidad la acredita el servidor y la consulta de personas tiene tope | Becas — API de campo (`/api/becas/formularios/`, alta de casos, adjuntos y consulta de identidad) · Transversal (tasas de throttle de DRF, presupuesto de llamadas externas) | `#api` `#rbac` `#relevamientos` `#datos` | Auditoría integral oct-2026 — fichas SEC-23 (+G1-15), SEC-24, SEC-25 y R0-05 (Ola 2, PR 6 — **cierra el ítem 6**) | 08/10/2026 | 🟢 **Hecho** (D-24 y D-25 aplicadas por default) | No requiere |
 | 185 | La sesión se cierra sola del lado del servidor, el catálogo de programas pide permiso y RENAPER deja de viajar sin verificar | Transversal (sesión, cookies, system checks, API del backoffice) · Legajos (consulta RENAPER) · Dispositivos (admisión) · Becas (mapa del caso) | `#sesion` `#rbac` `#api` `#infra` | Auditoría integral oct-2026 — fichas SEC-27, SEC-32, SEC-33, SEC-34, SEC-35, SEC-36, SEC-37, G1c-10, G1c-16 y el resto de SEC-01 (Ola 2, PR 8) | 08/10/2026 | 🟢 **Hecho** (D-27 y D-37 aplicadas por default; quedan tres pendientes de infraestructura) | No requiere |
 | 186 | El circuito de SIIS deja de pagar por caso lo que es igual para todos | Becas (proceso masivo a SIIS, pantalla del masivo, comandos `procesar_casos_siis` y `validar_casos_siis`) · Transversal (presupuestos de performance, seed de performance, caché de ciudadanos) | `#siis` `#performance` `#relevamientos` `#datos` | Auditoría integral oct-2026 — fichas PERF-01 (+V4-NEW-02), PERF-19, PERF-07 y PERF-06 (Ola 4, PR 3) | 08/10/2026 | 🟢 **Hecho** | `programas.0082` (dos índices, online) |
+| 190 | El chequeo de esquema del CI deja de marcar como huérfanas las tablas que carga el organismo | Transversal — CI (job «Migrate ida y vuelta»), `verificar_esquema_migraciones` | `#infra` `#datos` | Juez, por la regresión de #639 que dejaba rojo ese job en todo PR posterior | 08/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -28033,3 +28034,50 @@ clave foránea de `programas_validacionsis` con su nombre de Django: hay que hac
 Un índice no cambia ningún dato, así que no queda nada inconsistente. Si lo que molesta es
 el presupuesto nuevo, se saca `becas_proceso_masivo` de `scripts/perf_budgets.json` **y**
 de `scripts/perf_audit.py::build_targets` en el mismo diff.
+
+---
+
+# Cambio 190 — El chequeo de esquema del CI deja de marcar como huérfanas las tablas que carga el organismo
+
+🟢 **HECHO — 08/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal — CI (job «Migrate ida y vuelta»), comando `verificar_esquema_migraciones` |
+| **Etiquetas** | `#infra` `#datos` |
+| **Solicitante** | Juez de la auditoría oct-2026, al ver rojo el job en #640 |
+| **Fecha del pedido** | 08/10/2026 |
+| **Issue / épica** | Auditoría oct-2026, seguimiento de #639 (Cambio 186) |
+| **Partes afectadas** | `core/management/commands/verificar_esquema_migraciones.py` · `core/tests/test_verificar_esquema_migraciones.py` |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Desde #639 (Cambio 186), `seed_perf` crea `aprobados_materias` —la tabla que en producción
+carga el organismo con `Aprobados.sql`— para que el banco y el job «Migrate ida y vuelta»
+puedan medir el circuito SIIS. El paso 8/8 de ese job corre `verificar_esquema_migraciones
+--estricto`, que encontró una tabla sin modelo y salió con error: **todo PR abierto después
+de #639 quedaba rojo** en las dos variantes del job (#640 fue el primero). #639 no lo vio
+porque su propia base todavía no tenía el seed nuevo.
+
+## Decisiones tomadas
+
+- Las tres tablas de `INSUMOS` (`programas/management/commands/_insumos_siis.py`:
+  `aprobados_materias`, `localidades_corregidas`, `ciudadanos_renaper`) son conocidas para el
+  chequeo de huérfanas: se leen con SQL crudo y no tienen modelo a propósito.
+- La lista se repite en `core` (`TABLAS_EXTERNAS_DEL_ORGANISMO`) porque `core` no importa de
+  `programas` (ratchet de capas, R-21); un test la ata a `INSUMOS` para que no diverjan.
+
+## Implementación
+
+`tablas_huerfanas` suma `TABLAS_EXTERNAS_DEL_ORGANISMO` a las conocidas, junto con
+`django_migrations`. Dos tests nuevos en `TablasHuerfanasTests`.
+
+## Validación
+
+`core.tests.test_verificar_esquema_migraciones` + `programas.tests.test_arquitectura`: 44 OK.
+ruff limpio.
+
+## Pendientes
+
+Ninguno.
