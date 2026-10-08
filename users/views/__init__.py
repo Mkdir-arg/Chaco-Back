@@ -2,6 +2,7 @@
 
 from .admin import (  # noqa: F401
     AdminRequiredMixin,
+    UserCerrarSesionAppView,
     UserCreateView,
     UserListView,
     UserToggleActivoView,

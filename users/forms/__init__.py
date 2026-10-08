@@ -232,6 +232,41 @@ def _validar_clave_tipeada(form):
         form.add_error("password", exc)
 
 
+def _validar_correo_de_entrega(form):
+    """Cómo le llega la clave a quien se está dando de alta (G1b-08 + D-26).
+
+    Para un usuario de **backoffice** hay dos vías y el formulario elige una: con
+    correo, la clave la genera el sistema y viaja en el mensaje (RN-C1); sin
+    correo, la tipea el operador y se la entrega por otro canal, y como la conoce
+    vale un solo ingreso (`_marcar_cambio_obligatorio`).
+
+    Para un usuario **de campo** esa segunda vía no existe. «Vale un solo ingreso»
+    se apoya en que el backoffice le pida cambiarla al entrar, y a él el backoffice
+    no le pide nada: el login web lo rechaza (``territorial_mobile_only``) y
+    ``/api/becas/auth/token/`` no mira ``debe_cambiar_contrasena``. La clave que
+    tipeó el operador le quedaba vigente **para siempre**, que es justo lo que D-26
+    (b) vino a cerrar con el link de reseteo. El link viaja por correo, así que acá
+    el correo es obligatorio: es la única forma de entregarle una clave que después
+    el operador no conozca.
+    """
+    if form.cleaned_data.get("email"):
+        return
+    if rbac.roles_solo_campo(form.cleaned_data.get("groups") or []):
+        form.add_error(
+            "email",
+            "Un usuario de campo necesita correo: la clave se le entrega con un enlace para que la "
+            "defina él, y no hay otra vía.",
+        )
+        return
+    # Sin correo no hay forma de entregarle una clave generada: la tiene que
+    # poner el operador acá.
+    if not form.cleaned_data.get("password"):
+        form.add_error(
+            "password",
+            "Sin correo informado, la contraseña es obligatoria: el sistema no puede enviársela.",
+        )
+
+
 def _validar_al_menos_un_rol(form):
     """G1b-05: un operador no global no deja la cuenta activa y sin ningún rol.
 
@@ -469,13 +504,7 @@ class UserCreationForm(RolesPorAmbitoMixin, forms.ModelForm):
         _validar_segmento_territorial(self)
         _validar_clave_tipeada(self)
         _validar_al_menos_un_rol(self)
-        # Sin correo no hay forma de entregarle una clave generada: la tiene que
-        # poner el operador ací.
-        if not self.cleaned_data.get("email") and not self.cleaned_data.get("password"):
-            self.add_error(
-                "password",
-                "Sin correo informado, la contraseña es obligatoria: el sistema no puede enviársela.",
-            )
+        _validar_correo_de_entrega(self)
         return _validar_jerarquia_becas(self)
 
 

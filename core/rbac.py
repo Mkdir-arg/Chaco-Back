@@ -649,6 +649,28 @@ def es_solo_campo(user):
     return not puede_alguna(user, [c for c in codigos_de_capacidad() if c != "becas.campo"])
 
 
+def roles_solo_campo(grupos):
+    """La misma pregunta que :func:`es_solo_campo`, pero sobre roles sueltos.
+
+    En el **alta** el usuario todavía no existe —ni tiene grupos— y el formulario
+    necesita saber si lo que está por crear es un usuario de campo: de eso depende
+    que le exija el correo, porque a él la clave se le entrega por el link de
+    reseteo y por ninguna otra vía (D-26 (b)).
+
+    No hay bypass de superusuario acá: un rol no vuelve superusuario a nadie.
+    """
+    from django.contrib.auth.models import Permission
+
+    grupos = [g for g in grupos if getattr(g, "pk", None)]
+    if not grupos:
+        return False
+    codenames = set(Permission.objects.filter(group__in=grupos).values_list("codename", flat=True))
+    if codename_de("becas.campo") not in codenames:
+        return False
+    otras = {codename_de(c) for c in codigos_de_capacidad() if c != "becas.campo"}
+    return not (codenames & otras)
+
+
 # ---------------------------------------------------------------------------
 # Enforcement: decorador (FBV) y mixin (CBV)
 # ---------------------------------------------------------------------------

@@ -192,18 +192,16 @@ class LimiteDeIntentosTests(_SinCubetas):
         super().setUp()
         self.usuario = _user("operador", _rol("OpX", ["ciudadano.ver"]), password="Original-2026")
 
-    def _fallar(self, veces, username="operador"):
+    def _fallar(self, veces, username="operador", ip="203.0.113.9"):
         for _ in range(veces):
-            self.client.post(reverse("users:login"), {"username": username, "password": "no-es"})
+            self.client.post(reverse("users:login"), {"username": username, "password": "no-es"}, REMOTE_ADDR=ip)
 
-    def test_despues_de_diez_intentos_fallidos_la_cuenta_queda_frenada(self):
+    def test_despues_de_diez_intentos_fallidos_quien_no_sabe_la_clave_queda_frenado(self):
         self._fallar(10)
 
-        respuesta = self.client.post(
-            reverse("users:login"), {"username": "operador", "password": "Original-2026"}
-        )
+        respuesta = self.client.post(reverse("users:login"), {"username": "operador", "password": "tampoco"})
 
-        self.assertEqual(respuesta.status_code, 200)  # no entra ni con la clave buena
+        self.assertEqual(respuesta.status_code, 200)
         self.assertEqual(respuesta.context["form"].non_field_errors().as_data()[0].code, "demasiados_intentos")
         self.assertNotIn("_auth_user_id", self.client.session)
 
@@ -211,9 +209,7 @@ class LimiteDeIntentosTests(_SinCubetas):
         otro = _user("companiera", _rol("OpY", ["ciudadano.ver"]), password="Original-2026")
 
         self._fallar(10)
-        respuesta = self.client.post(
-            reverse("users:login"), {"username": otro.username, "password": "Original-2026"}
-        )
+        respuesta = self.client.post(reverse("users:login"), {"username": otro.username, "password": "Original-2026"})
 
         self.assertEqual(respuesta.status_code, 302)
         self.assertIn("_auth_user_id", self.client.session)
@@ -225,10 +221,25 @@ class LimiteDeIntentosTests(_SinCubetas):
             self.client.post(reverse("users:login"), {"username": "operador", "password": "Original-2026"})
             self.client.logout()
 
-        respuesta = self.client.post(
-            reverse("users:login"), {"username": "operador", "password": "Original-2026"}
-        )
+        respuesta = self.client.post(reverse("users:login"), {"username": "operador", "password": "Original-2026"})
         self.assertEqual(respuesta.status_code, 302)
+
+    def test_la_cubeta_por_usuario_no_deja_afuera_al_dueno_de_la_cuenta(self):
+        """Bloqueo de cuenta por tercero (ronda 2). La cubeta por usuario no mira la
+        IP —si no, rotar de proxy devolvía la cuota—, y por eso mismo la llena
+        **cualquiera** tipeando el usuario de otro. Diez POST desde un locutorio
+        dejaban diez minutos afuera a quien quisieran. Ahora se consulta recién
+        después de autenticar: con la clave correcta se entra siempre."""
+        self._fallar(10)
+
+        respuesta = self.client.post(
+            reverse("users:login"),
+            {"username": "operador", "password": "Original-2026"},
+            REMOTE_ADDR="198.51.100.7",
+        )
+
+        self.assertEqual(respuesta.status_code, 302)
+        self.assertIn("_auth_user_id", self.client.session)
 
     @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
     def test_el_recupero_deja_de_mandar_correos_al_pasarse_del_limite(self):
@@ -258,8 +269,16 @@ class TokenDeCampoYClaveDelTerritorialTests(_SinCubetas):
     def _token(self, password=CLAVE):
         return self.api.post(reverse("becas_api:token"), {"username": "terri", "password": password})
 
-    def test_el_token_viejo_deja_de_valer_tras_cambiar_la_clave(self):
-        """La PoC invertida: el token sobrevivía a `set_password` sin vencimiento."""
+    def test_cambiar_la_clave_no_cierra_la_sesion_de_la_app(self):
+        """Ronda 2: la revocación automática dejaba varados los relevamientos.
+
+        Contra la app instalada (`Chaco-mobile @ a66c2d3`) un 401 no es
+        «reintentá»: `relevamientoService.js:1487` marca la operación
+        `FAILED_PERMANENT` y `:1411`/`:1563` no la vuelven a tomar nunca, ni
+        después de re-loguearse. Un territorial al que le resetean la clave perdía
+        lo que el teléfono todavía no había subido, sin que nadie se entere. El
+        token se borra ahora solo cuando alguien lo pide (ver
+        `CerrarSesionDeLaAppTests`)."""
         clave = self._token().data["token"]
         self.api.credentials(HTTP_AUTHORIZATION=f"Token {clave}")
         self.assertEqual(self.api.get("/api/becas/relevamientos/").status_code, 200)
@@ -267,8 +286,8 @@ class TokenDeCampoYClaveDelTerritorialTests(_SinCubetas):
         self.territorial.set_password("Nueva-Clave-2026")
         self.territorial.save()
 
-        self.assertEqual(self.api.get("/api/becas/relevamientos/").status_code, 401)
-        self.assertFalse(Token.objects.filter(user=self.territorial).exists())
+        self.assertEqual(self.api.get("/api/becas/relevamientos/").status_code, 200)
+        self.assertTrue(Token.objects.filter(user=self.territorial).exists())
 
     def test_la_app_instalada_sigue_entrando_con_la_clave_nueva(self):
         """Contrato con `Chaco-mobile` a66c2d3: el login de la app manda
@@ -283,13 +302,34 @@ class TokenDeCampoYClaveDelTerritorialTests(_SinCubetas):
         self.assertEqual(set(respuesta.data), {"token", "user_id", "username"})
 
     def test_el_login_de_la_app_frena_tras_diez_intentos_fallidos(self):
+        for _ in range(9):
+            self._token("no-es")
+
+        respuesta = self._token("tampoco")
+
+        self.assertEqual(respuesta.status_code, 429)
+        self.assertIn("Demasiados intentos", respuesta.data["detail"])
+
+    def test_la_cubeta_del_token_no_deja_afuera_al_dueno_de_la_cuenta(self):
+        """Mismo bloqueo por tercero que en el login web: con la clave correcta se
+        entra siempre, porque la cubeta por usuario la llena cualquiera."""
         for _ in range(10):
             self._token("no-es")
 
         respuesta = self._token()
 
-        self.assertEqual(respuesta.status_code, 429)
-        self.assertIn("Demasiados intentos", respuesta.data["detail"])
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertIn("token", respuesta.data)
+
+    def test_un_username_gigante_no_arma_una_clave_de_cache_gigante(self):
+        """El usuario tipeado entraba entero en la clave de la caché: un POST con
+        400 caracteres escribía una clave de 400 caracteres en Redis por intento.
+        Se recorta a 150, que es el largo de `auth_user.username`."""
+        largo = "x" * 400
+        self.api.post(reverse("becas_api:token"), {"username": largo, "password": "no-es"})
+
+        self.assertIsNotNone(cache.get("throttle:token_campo:" + "x" * 150))
+        self.assertIsNone(cache.get("throttle:token_campo:" + largo))
 
     def test_la_cubeta_del_token_no_mira_la_ip(self):
         """Los territoriales salen por el NAT del operador móvil: una cubeta por IP
@@ -298,9 +338,7 @@ class TokenDeCampoYClaveDelTerritorialTests(_SinCubetas):
         for _ in range(10):
             self._token("no-es")
 
-        respuesta = self.api.post(
-            reverse("becas_api:token"), {"username": otro.username, "password": CLAVE}
-        )
+        respuesta = self.api.post(reverse("becas_api:token"), {"username": otro.username, "password": CLAVE})
 
         self.assertEqual(respuesta.status_code, 200)
 
@@ -356,14 +394,10 @@ class TokenDeCampoYClaveDelTerritorialTests(_SinCubetas):
         self.assertTrue(self.territorial.check_password("Elegida-Por-Mi-2026"))
 
     def test_el_territorial_sigue_sin_poder_entrar_al_backoffice(self):
-        respuesta = self.client.post(
-            reverse("users:login"), {"username": "terri", "password": CLAVE}
-        )
+        respuesta = self.client.post(reverse("users:login"), {"username": "terri", "password": CLAVE})
 
         self.assertEqual(respuesta.status_code, 200)
-        self.assertEqual(
-            respuesta.context["form"].non_field_errors().as_data()[0].code, "territorial_mobile_only"
-        )
+        self.assertEqual(respuesta.context["form"].non_field_errors().as_data()[0].code, "territorial_mobile_only")
 
     def test_un_territorial_con_otra_capacidad_no_es_solo_campo(self):
         """El combo que decide D-26 es el mismo que el del login: si además tiene
@@ -409,3 +443,210 @@ class TokenDeCampoYClaveDelTerritorialTests(_SinCubetas):
         self.assertEqual(respuesta.status_code, 200, respuesta.content)
         self.assertTrue(respuesta.json()["ok"], respuesta.json())
         self.assertIn("enlace para definir la contraseña", respuesta.json()["message"])
+
+
+# --------------------------------------------------------------------------- #
+# SEC-26 — «Cerrar sesión de la app»: la revocación, ahora explícita
+# --------------------------------------------------------------------------- #
+class CerrarSesionDeLaAppTests(_SinCubetas):
+    def setUp(self):
+        super().setUp()
+        self.becas = Programa.objects.create(codigo="BECAS", nombre="Becas")
+        self.disp = Programa.objects.create(codigo="DISPOSITIVOS", nombre="Dispositivos")
+        self.rol_terr = _rol("Terr", ["becas.campo"], self.becas)
+        self.territorial = _user("terri", self.rol_terr)
+        Token.objects.create(user=self.territorial)
+        self.adm_becas = _user("adm-becas", _rol("AdmBecas", ["programa.usuario.administrar"], self.becas))
+        self.adm_disp = _user("adm-disp", _rol("AdmDisp", ["programa.usuario.administrar"], self.disp))
+        self.url = reverse("users:usuario_cerrar_sesion_app", args=[self.territorial.pk])
+
+    def test_la_accion_explicita_si_borra_el_token(self):
+        self.client.force_login(self.adm_becas)
+
+        respuesta = self.client.post(self.url)
+
+        self.assertEqual(respuesta.status_code, 302)
+        self.assertFalse(Token.objects.filter(user=self.territorial).exists())
+
+    def test_un_admin_de_otro_programa_recibe_403_y_el_token_sigue_vivo(self):
+        """El alcance es el de las credenciales (R0b-02/R0b-10): borrar el token es
+        sobre la cuenta entera, no sobre los roles de un programa."""
+        self.client.force_login(self.adm_disp)
+
+        respuesta = self.client.post(self.url)
+
+        self.assertEqual(respuesta.status_code, 403)
+        self.assertTrue(Token.objects.filter(user=self.territorial).exists())
+
+    def test_sin_capacidad_y_anonimo_no_cierran_nada(self):
+        pelado = _user("pelado", _rol("OpX", ["ciudadano.ver"]))
+        self.client.force_login(pelado)
+        self.assertEqual(self.client.post(self.url).status_code, 302)
+
+        self.client.logout()
+        self.assertEqual(self.client.post(self.url).status_code, 302)
+        self.assertTrue(Token.objects.filter(user=self.territorial).exists())
+
+    def test_no_se_cierra_por_GET(self):
+        self.client.force_login(self.adm_becas)
+
+        self.assertEqual(self.client.get(self.url).status_code, 405)
+        self.assertTrue(Token.objects.filter(user=self.territorial).exists())
+
+    def test_el_boton_aparece_solo_sobre_quien_tiene_sesion_en_la_app(self):
+        sin_app = _user("terri-sin-app", self.rol_terr)
+        self.client.force_login(self.adm_becas)
+
+        respuesta = self.client.get(reverse("users:usuarios"))
+
+        self.assertContains(respuesta, self.url)
+        self.assertNotContains(respuesta, reverse("users:usuario_cerrar_sesion_app", args=[sin_app.pk]))
+
+    def test_el_aviso_del_modal_dice_que_se_pierde_lo_no_sincronizado(self):
+        self.client.force_login(self.adm_becas)
+
+        respuesta = self.client.get(reverse("users:usuarios"))
+
+        self.assertContains(respuesta, "no haya sincronizado van a quedar trabados en la app")
+
+
+# --------------------------------------------------------------------------- #
+# SEC-26 — techo por IP: lo que corta el password-spray
+# --------------------------------------------------------------------------- #
+@override_settings(
+    AUTH_FALLIDOS_MAX_POR_IP=5,
+    PASSWORD_HASHERS=["django.contrib.auth.hashers.MD5PasswordHasher"],
+)
+class TechoPorIpTests(_SinCubetas):
+    """La cubeta por usuario no ve un barrido: cambia de usuario en cada intento y
+    ninguna llega a 10. Lo que lo ve es el techo por IP, que acá se baja a 5 con el
+    setting —que existe justamente para poder moverlo por entorno—."""
+
+    ATACANTE = "203.0.113.9"
+
+    def setUp(self):
+        super().setUp()
+        self.becas = Programa.objects.create(codigo="BECAS", nombre="Becas")
+        self.rol_terr = _rol("Terr", ["becas.campo"], self.becas)
+        self.territorial = _user("terri", self.rol_terr)
+        self.operador = _user("operador", _rol("OpX", ["ciudadano.ver"]), password="Original-2026")
+        self.api = APIClient()
+
+    def test_el_login_web_corta_un_barrido_de_usuarios_distintos(self):
+        for i in range(5):
+            self.client.post(
+                reverse("users:login"),
+                {"username": f"victima-{i}", "password": "no-es"},
+                REMOTE_ADDR=self.ATACANTE,
+            )
+
+        respuesta = self.client.post(
+            reverse("users:login"),
+            {"username": "operador", "password": "Original-2026"},
+            REMOTE_ADDR=self.ATACANTE,
+        )
+
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertEqual(respuesta.context["form"].non_field_errors().as_data()[0].code, "demasiados_intentos")
+        self.assertNotIn("_auth_user_id", self.client.session)
+
+    def test_el_token_de_la_app_corta_un_barrido_de_usuarios_distintos(self):
+        for i in range(5):
+            self.api.post(
+                reverse("becas_api:token"),
+                {"username": f"victima-{i}", "password": "no-es"},
+                REMOTE_ADDR=self.ATACANTE,
+            )
+
+        respuesta = self.api.post(
+            reverse("becas_api:token"),
+            {"username": "terri", "password": CLAVE},
+            REMOTE_ADDR=self.ATACANTE,
+        )
+
+        self.assertEqual(respuesta.status_code, 429)
+        self.assertIn("Demasiados intentos", respuesta.data["detail"])
+
+    def test_el_techo_es_por_ip_y_no_toca_a_los_de_al_lado(self):
+        """El argumento del NAT móvil se respeta por lo holgado del default (300),
+        no por dejar la puerta sin techo: desde otra IP no cambia nada."""
+        for i in range(5):
+            self.api.post(
+                reverse("becas_api:token"),
+                {"username": f"victima-{i}", "password": "no-es"},
+                REMOTE_ADDR=self.ATACANTE,
+            )
+
+        respuesta = self.api.post(
+            reverse("becas_api:token"),
+            {"username": "terri", "password": CLAVE},
+            REMOTE_ADDR="198.51.100.7",
+        )
+
+        self.assertEqual(respuesta.status_code, 200)
+
+
+# --------------------------------------------------------------------------- #
+# G1b-08 + D-26 — cómo le llega la clave a un usuario de campo
+# --------------------------------------------------------------------------- #
+class AltaDeUsuarioDeCampoTests(_SinCubetas):
+    def setUp(self):
+        super().setUp()
+        self.becas = Programa.objects.create(codigo="BECAS", nombre="Becas")
+        self.rol_terr = _rol("Terr", ["becas.campo"], self.becas)
+        self.rol_op = _rol("OpX", ["ciudadano.ver"])
+        self.segmento = Segmento.objects.create(nombre="Seg", cupo_maximo=5)
+        self.root = _user("root-global", _rol("Admins", ["usuario.administrar"]))
+        self.client.force_login(self.root)
+
+    def _alta(self, **extra):
+        datos = {
+            "username": "nuevo",
+            "email": "",
+            "password": "Clave-Larguisima-2026",
+            "first_name": "",
+            "last_name": "",
+            "groups": [str(self.rol_terr.pk)],
+            "segmento_territorial": str(self.segmento.pk),
+        }
+        datos.update(extra)
+        return self.client.post(reverse("users:usuario_crear"), datos)
+
+    def test_el_alta_de_un_usuario_de_campo_sin_correo_se_rechaza(self):
+        """D-26 (b): la clave se le entrega con un link de reseteo, y el link viaja
+        por correo. Sin correo quedaba la que tipeó el operador —que la conoce— y
+        vigente para siempre, porque a él el backoffice nunca le pide cambiarla:
+        el login web lo rechaza y la API no mira `debe_cambiar_contrasena`."""
+        respuesta = self._alta()
+
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertIn("email", respuesta.context["form"].errors)
+        self.assertFalse(User.objects.filter(username="nuevo").exists())
+
+    @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
+    def test_con_correo_el_alta_de_campo_anda_y_manda_el_link(self):
+        respuesta = self._alta(email="nuevo@x.test")
+
+        self.assertEqual(respuesta.status_code, 302)
+        self.assertTrue(User.objects.filter(username="nuevo").exists())
+        self.assertIn("/establecer-contrasena/", mail.outbox[0].body)
+
+    def test_un_usuario_de_backoffice_sin_correo_sigue_pudiendo_darse_de_alta(self):
+        """Para él la otra vía existe: la clave la tipea el operador y el primer
+        ingreso se la hace cambiar (G1b-08). Nada de esto cambió."""
+        respuesta = self._alta(groups=[str(self.rol_op.pk)])
+
+        self.assertEqual(respuesta.status_code, 302)
+        self.assertTrue(User.objects.filter(username="nuevo").exists())
+
+    def test_un_usuario_mixto_no_es_de_campo_y_no_necesita_correo(self):
+        respuesta = self._alta(groups=[str(self.rol_terr.pk), str(self.rol_op.pk)])
+
+        self.assertEqual(respuesta.status_code, 302)
+        self.assertTrue(User.objects.filter(username="nuevo").exists())
+
+    def test_sin_correo_y_sin_clave_sigue_fallando_por_la_clave(self):
+        respuesta = self._alta(groups=[str(self.rol_op.pk)], password="")
+
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertIn("password", respuesta.context["form"].errors)

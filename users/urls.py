@@ -13,6 +13,7 @@ from users.views import (
     RolListView,
     RolToggleActivoView,
     RolUpdateView,
+    UserCerrarSesionAppView,
     UserCreateView,
     UserListView,
     UserToggleActivoView,
@@ -72,6 +73,13 @@ urlpatterns = [
     path("usuarios/alta-rapida/", usuario_alta_rapida, name="usuario_alta_rapida"),
     path("usuarios/editar/<int:pk>/", UserUpdateView.as_view(), name="usuario_editar"),
     path("usuarios/<int:pk>/toggle/", UserToggleActivoView.as_view(), name="usuario_toggle"),
+    # SEC-26: revocación **explícita** del token de la app de campo. Cambiar la
+    # clave no lo toca (la app instalada no se recupera de un 401).
+    path(
+        "usuarios/<int:pk>/cerrar-sesion-app/",
+        UserCerrarSesionAppView.as_view(),
+        name="usuario_cerrar_sesion_app",
+    ),
     # --- Roles (RBAC por capacidad: rol.administrar) ---
     path("roles/", RolListView.as_view(), name="roles"),
     path("roles/crear/", RolCreateView.as_view(), name="rol_crear"),

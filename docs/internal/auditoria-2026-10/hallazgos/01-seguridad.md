@@ -504,28 +504,61 @@ dos (sin alcance → vacío; con legajo propio → solo las suyas), porque afirm
 - **Verificación:** V-STD + `manage.py test users programas.tests.test_becas_api`.
 - **Dependencias:** SEC-05, G2-03, G1b-08.
 
-**Resolución:** 🟡 Resuelta **la parte de código** en #631 (Cambio 181, Ola 2 PR 2), 08-10-2026;
-queda abierto solo el punto 6, que es de infraestructura. Punto por punto:
+**Resolución:** 🟡 Resuelta **la parte de código** en #631 (Cambio 181, Ola 2 PR 2), 08-10-2026.
+Quedan abiertos el punto 6, que es de infraestructura, y **la revocación automática del token al
+cambiar la clave, que espera un release de `Chaco-mobile` que reintente o re-loguee ante un 401**
+(ver el punto 3: hoy la revocación es una acción explícita del ABM). Punto por punto:
 
 1. **Límite de intentos.** `UsuariosAuthenticationForm` y una `RecuperarContrasenaView` propia usan
    `core.services.throttle`. **Desvío de la ficha:** solo cuentan los intentos **fallidos**, para lo
    cual se agregó `rate_limit_bloqueado`, la mitad de solo lectura del helper (preguntar sin gastar
    ficha). Con la receta literal, una repartición que sale por una IP única se quemaba la cuota con
-   el tráfico normal de la mañana. Las cubetas: login 10/10 min por **usuario** (sin IP, que es lo
-   que ve la fuerza bruta distribuida) y 30/10 min por IP; recupero 5/h por correo y 20/h por IP, y
-   al pasarse **no manda el correo pero devuelve la misma pantalla**, para no revelar nada.
+   el tráfico normal de la mañana. Recupero: 5/h por correo y 20/h por IP, y al pasarse **no manda
+   el correo pero devuelve la misma pantalla**, para no revelar nada.
+
+   **Corregido en la ronda 2 de la revisión** —la primera versión abría dos agujeros propios—:
+
+   * *Bloqueo de cuenta por tercero.* La cubeta por usuario no mira la IP (si no, rotar de proxy
+     devolvía la cuota) y se consultaba **antes** de autenticar: diez POST con el usuario de otra
+     persona la dejaban diez minutos afuera, y repitiéndolos, afuera indefinidamente. Ahora se
+     consulta **después**, y solo si la credencial estaba mal: el dueño con su clave correcta entra
+     siempre, esté la cubeta como esté. Vale para el login web y para `/api/becas/auth/token/`.
+   * *Techo por IP.* `/api/becas/auth/token/` no tenía ninguno y el del login web (30/10 min) se
+     fue con él: ahora hay **una sola cubeta por IP compartida por las dos puertas**,
+     `AUTH_FALLIDOS_MAX_POR_IP` (300 fallidos cada 10 min, por setting). Es holgada a propósito —el
+     argumento del NAT móvil se respeta con el número, no dejando la puerta sin techo— y es la
+     **única** que rechaza antes de verificar la clave, cosa que puede hacer porque la paga la IP
+     que ataca y no la cuenta atacada. Es lo que corta el password-spray, que la cubeta por usuario
+     no ve porque cambia de usuario en cada intento. La IP sale de `ip_cliente`, que lee
+     `X-Forwarded-For` solo si el salto anterior está en `TRUSTED_PROXY_NETS`.
+   * Y el usuario tipeado se recorta a 150 (el largo de `auth_user.username`) **antes** de armar la
+     clave de la caché: un POST con 400 caracteres escribía una clave de 400 caracteres en Redis por
+     intento.
 2. **`django.contrib.auth.urls` fuera de la raíz.** Con él se va `/password_change/`, que sin
    plantilla moría en el GET pero en el POST cambiaba la clave y redirigía —sin pedir la actual y
    sin límite—. El reemplazo con clave actual es `users:cambiar_contrasena` (G2-03), con su pantalla
    y su link en el menú del avatar, que es la primera entrada que ese flujo tiene en el producto.
-3. **Token de campo.** `users/signals/credenciales.py` borra los `Token` del usuario cuando cambia
-   el hash de la clave, y cubre de una los cuatro caminos (ABM, credenciales provisorias, cambio
-   obligatorio, link de reseteo). El disparador es `AbstractBaseUser._password`, el mismo atributo
-   que Django usa para `password_changed`: no consulta nada en los `User.save()` que no tocan la
-   clave y se saltea las altas, así que el CSV masivo no cambia de consultas. **Desvío:** el límite
-   de `/api/becas/auth/token/` **no** es un `ScopedRateThrottle` sino la misma cubeta por usuario sin
-   IP (10/10 min, solo fallidos): los territoriales salen por el NAT del operador móvil y una cubeta
-   por IP le cerraría la app a una región entera.
+3. **Token de campo — la revocación es explícita, no automática.** La primera versión colgaba el
+   borrado de un `post_save(User)`: cambiar la clave por cualquiera de los cuatro caminos borraba el
+   token. **Se dio marcha atrás en la ronda 2**, y el motivo está en la app instalada: ante un 401,
+   `Chaco-mobile @ a66c2d3` marca la operación `FAILED_PERMANENT` (`relevamientoService.js:1487`) y
+   `:1411`/`:1563` no la vuelven a tomar **nunca**, ni después de re-loguearse. Un territorial al que
+   le resetean la clave perdía, en silencio, todo lo que el teléfono todavía no había sincronizado.
+   Así que **cambiar la clave ya no toca el token** —las sesiones web se cierran como siempre— y
+   quien se quedó con el token viejo sigue pudiendo sincronizar lo que tenía pendiente.
+
+   En su lugar hay una acción explícita en el ABM de Usuarios, **«Cerrar sesión de la app»**
+   (`users/views/admin.py::UserCerrarSesionAppView` + `users/services/credenciales.py`), para cuando
+   el teléfono se perdió o la clave se filtró: ahí perder lo no sincronizado es el mal menor y quien
+   aprieta el botón lo decide avisado. POST con CSRF, confirmación con el modal estándar (SweetAlert2,
+   nunca `confirm()`) que dice textualmente que «los relevamientos que el teléfono no haya
+   sincronizado van a quedar trabados en la app», resultado por toast, y el mismo alcance que editarle
+   las credenciales a ese usuario (`puede_gestionar_credenciales`, el de R0b-02/R0b-10): fuera de
+   alcance contesta **403**. El botón se dibuja solo sobre quien de verdad tiene un token, con una
+   consulta por página sumada a la anotación en lote de R0b-10.
+
+   **Queda abierto:** la revocación automática al cambiar la clave espera un release de
+   `Chaco-mobile` que reintente o re-loguee ante un 401.
 4. **Clave provisoria del territorial — D-26 = (b), el default.** `entregar_credenciales_provisorias`
    le manda un **link de reseteo** a quien solo tiene `becas.campo` (`rbac.es_solo_campo`, extraída
    del propio login, que ya hacía esa pregunta), y una clave aleatoria larga que no conoce nadie
@@ -539,11 +572,18 @@ queda abierto solo el punto 6, que es de infraestructura. Punto por punto:
 6. **`/admin/` por IP: sigue abierto.** Es nginx/ingress de ECOM, no código; va con G1c-10 (PR 8 de
    esta ola) y con el PM.
 
-**Test permanente:** `users.tests.test_credenciales_ola2_pr2.TokenDeCampoYClaveDelTerritorialTests.test_el_token_viejo_deja_de_valer_tras_cambiar_la_clave`
-(+ `test_la_app_instalada_sigue_entrando_con_la_clave_nueva`, `test_el_login_de_la_app_frena_tras_diez_intentos_fallidos`,
-`test_la_cubeta_del_token_no_mira_la_ip`, `test_el_alta_del_territorial_manda_un_link_y_no_una_clave_en_claro`,
+**Test permanente:** `users.tests.test_credenciales_ola2_pr2.CerrarSesionDeLaAppTests.test_la_accion_explicita_si_borra_el_token`
+(+ `test_un_admin_de_otro_programa_recibe_403_y_el_token_sigue_vivo`, `test_sin_capacidad_y_anonimo_no_cierran_nada`,
+`test_no_se_cierra_por_GET`, `test_el_boton_aparece_solo_sobre_quien_tiene_sesion_en_la_app`,
+`test_el_aviso_del_modal_dice_que_se_pierde_lo_no_sincronizado`;
+`TokenDeCampoYClaveDelTerritorialTests.test_cambiar_la_clave_no_cierra_la_sesion_de_la_app` —la contracara, con la app
+sincronizando con el token viejo—, `test_la_app_instalada_sigue_entrando_con_la_clave_nueva`,
+`test_el_login_de_la_app_frena_tras_diez_intentos_fallidos`, `test_la_cubeta_del_token_no_deja_afuera_al_dueno_de_la_cuenta`,
+`test_la_cubeta_del_token_no_mira_la_ip`, `test_un_username_gigante_no_arma_una_clave_de_cache_gigante`,
+`test_el_alta_del_territorial_manda_un_link_y_no_una_clave_en_claro`,
 `test_el_alta_de_un_usuario_de_backoffice_sigue_llevando_la_clave`, `test_el_link_limpia_la_marca_de_clave_provisoria`,
-`test_el_alta_rapida_de_un_territorial_avisa_que_mando_el_link`; `LimiteDeIntentosTests` ×4 y
+`test_el_alta_rapida_de_un_territorial_avisa_que_mando_el_link`; `TechoPorIpTests` ×3,
+`LimiteDeIntentosTests` ×5 —incluido `test_la_cubeta_por_usuario_no_deja_afuera_al_dueno_de_la_cuenta`— y
 `SinRutasDeAuthDeDjangoTests` ×2).
 
 **Hallazgo lateral que destapó el punto 2.** Sacar `django.contrib.auth.urls` sacó también su

@@ -124,3 +124,41 @@ def rate_limit_excedido(request, clave, limite, ventana_segundos=60, *, sufijo="
     except Exception:  # Redis caído, timeout, etc.
         logger.exception("No se pudo aplicar el rate limit %s", clave)
         return False
+
+
+# --------------------------------------------------------------------------- #
+# SEC-26 · techo por IP de los intentos de autenticación fallidos
+# --------------------------------------------------------------------------- #
+#: Cubeta **compartida** por el login web y ``/api/becas/auth/token/``: las dos
+#: puertas dan lo mismo para un password-spray, así que el techo es uno solo.
+#:
+#: Es la única cubeta que frena **antes** de verificar la clave, y puede hacerlo
+#: porque la paga la IP que ataca y no la cuenta atacada: nadie deja afuera a un
+#: tercero llenándola. Por eso es holgada —el default son 300 fallidos cada 10
+#: minutos—: tiene que aguantar una repartición entera detrás de una IP y a los
+#: territoriales detrás del NAT del operador móvil, y a la vez cortar el barrido
+#: de miles de usuarios distintos, que es lo que la cubeta por usuario no ve.
+CUBETA_AUTH_IP = "auth_ip"
+
+
+def limite_auth_por_ip():
+    """Se lee en cada llamada, no al importar: así el setting se puede pisar."""
+    return int(getattr(settings, "AUTH_FALLIDOS_MAX_POR_IP", 300))
+
+
+def ventana_auth_por_ip():
+    return int(getattr(settings, "AUTH_FALLIDOS_VENTANA_SEGUNDOS", 600))
+
+
+def auth_ip_bloqueada(request):
+    """¿Esta IP se pasó del techo de intentos fallidos? Sin consumir ficha."""
+    if request is None:
+        return False
+    return rate_limit_bloqueado(request, CUBETA_AUTH_IP, limite_auth_por_ip())
+
+
+def registrar_auth_fallida_por_ip(request):
+    """Consume una ficha de la cubeta por IP. Solo se llama si el intento falló."""
+    if request is None:
+        return
+    rate_limit_excedido(request, CUBETA_AUTH_IP, limite_auth_por_ip(), ventana_auth_por_ip())

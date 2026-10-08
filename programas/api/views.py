@@ -20,7 +20,12 @@ from rest_framework.response import Response
 from rest_framework.routers import APIRootView
 
 from core.rbac import puede
-from core.services.throttle import rate_limit_bloqueado, rate_limit_excedido
+from core.services.throttle import (
+    auth_ip_bloqueada,
+    rate_limit_bloqueado,
+    rate_limit_excedido,
+    registrar_auth_fallida_por_ip,
+)
 from programas.api.serializers import (
     AdjuntoFormularioSerializer,
     ConsultaPersonaRespuestaSerializer,
@@ -94,30 +99,45 @@ class CampoBecasPermission(BasePermission):
 class ObtainCampoToken(ObtainAuthToken):
     """Login de la app de campo: valida credenciales y exige ``becas.campo``.
 
-    SEC-26 · el límite de intentos es **por usuario y sin mirar la IP**. Es a
-    propósito y es lo contrario de lo que haría un ``ScopedRateThrottle``: los
-    territoriales entran desde datos móviles, detrás del NAT del operador, así que
-    una cubeta por IP le cerraría la app a una región entera por los errores de
-    tipeo de una persona. La fuerza bruta, además, apunta a una cuenta, no a una
-    IP. Solo cuentan los intentos fallidos.
+    SEC-26 · dos cubetas, y cada una frena en un momento distinto:
+
+    * **Por usuario, sin mirar la IP** (acá). Es lo contrario de lo que haría un
+      ``ScopedRateThrottle``, a propósito: los territoriales entran desde datos
+      móviles, detrás del NAT del operador, así que una cubeta por IP estrecha le
+      cerraría la app a una región entera por los errores de tipeo de una persona.
+      Como la llena cualquiera con solo tipear el usuario de otro, se consulta
+      **después** de validar las credenciales y solo si estaban mal: el dueño con
+      su clave entra siempre.
+    * **Por IP, holgada y compartida con el login web**
+      (``AUTH_FALLIDOS_MAX_POR_IP``, 300/10 min por defecto). Es la única que
+      rechaza antes de verificar la clave —la paga quien ataca— y es lo que corta
+      el password-spray, que la cubeta por usuario no ve porque cambia de usuario
+      en cada intento.
+
+    En las dos, solo cuentan los intentos fallidos.
     """
 
     TOKEN_VENTANA_SEGUNDOS = 600
     TOKEN_MAX_POR_USUARIO = 10
 
+    def _demasiados_intentos(self):
+        return Response(
+            {"detail": "Demasiados intentos fallidos. Esperá unos minutos antes de volver a probar."},
+            status=status.HTTP_429_TOO_MANY_REQUESTS,
+        )
+
     def post(self, request, *args, **kwargs):
-        usuario_pedido = str(request.data.get("username") or "").strip().lower()
-        if usuario_pedido and rate_limit_bloqueado(
-            request, "token_campo", self.TOKEN_MAX_POR_USUARIO, sufijo=usuario_pedido, incluir_ip=False
-        ):
-            return Response(
-                {"detail": "Demasiados intentos fallidos. Esperá unos minutos antes de volver a probar."},
-                status=status.HTTP_429_TOO_MANY_REQUESTS,
-            )
+        if auth_ip_bloqueada(request):
+            return self._demasiados_intentos()
+        # El recorte a 150 es el de `auth_user.username`: sin él, el usuario tipeado
+        # entraba entero en la clave de la caché y un POST con 10 KB de "username"
+        # escribía una clave de 10 KB en Redis por intento.
+        usuario_pedido = str(request.data.get("username") or "").strip().lower()[:150]
         serializer = self.serializer_class(data=request.data, context={"request": request})
         try:
             serializer.is_valid(raise_exception=True)
         except ValidationError:
+            registrar_auth_fallida_por_ip(request)
             if usuario_pedido:
                 rate_limit_excedido(
                     request,
@@ -127,6 +147,10 @@ class ObtainCampoToken(ObtainAuthToken):
                     sufijo=usuario_pedido,
                     incluir_ip=False,
                 )
+                if rate_limit_bloqueado(
+                    request, "token_campo", self.TOKEN_MAX_POR_USUARIO, sufijo=usuario_pedido, incluir_ip=False
+                ):
+                    return self._demasiados_intentos()
             raise
         user = serializer.validated_data["user"]
         if not puede(user, CAP):

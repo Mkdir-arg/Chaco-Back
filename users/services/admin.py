@@ -75,6 +75,15 @@ class UsuariosAdminService:
 
         Se escribe sobre el Profile cacheado y se sincroniza la relación, que es
         lo que esperan `users/services/correo.py` y el middleware (Cambio 37).
+
+        **Dónde no alcanza: el usuario de campo.** La marca la cobra el backoffice,
+        y a quien solo tiene `becas.campo` el backoffice nunca le pide nada —el
+        login web lo rechaza y `/api/becas/auth/token/` no mira el flag—, así que
+        acá queda puesta y no la hace cumplir nadie. Esa puerta se cierra en el
+        alta y no en esta función: `_validar_correo_de_entrega` le exige correo a
+        un usuario de campo, para que la clave le llegue como link de reseteo
+        (D-26 (b)) y el operador no la conozca. La marca igual se escribe: si
+        mañana suma un rol de backoffice, el primer ingreso se la cobra.
         """
         from users.models import Profile
 

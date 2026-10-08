@@ -26331,20 +26331,27 @@ Queda **explícitamente afuera**:
   de personas entran a la misma hora, así que el tráfico normal se comía la cuota.
   Para eso se agregó `rate_limit_bloqueado`, la mitad de solo lectura del helper:
   se pregunta antes de intentar y se gasta ficha solo si el intento falló.
-- **La cubeta que frena el ataque es la de usuario, no la de IP.** Una fuerza
-  bruta distribuida cambia de IP en cada intento. Login: 10/10 min por usuario
-  (sin IP) y 30/10 min por IP. Recupero: 5/h por correo y 20/h por IP, y al
-  pasarse **no se manda el correo pero la pantalla es la misma**, para no revelar
-  nada. Token de la app: 10/10 min por usuario **sin IP** —y acá no es una
-  preferencia sino una necesidad: los territoriales salen por el NAT del operador
-  móvil, y una cubeta por IP le cerraría la app a una región entera por los
-  errores de tipeo de una persona—.
-- **La revocación del token va por señal y no por cuatro llamadas.** El receiver
-  mira `AbstractBaseUser._password`, el mismo atributo que Django usa para
-  disparar `password_changed`: está puesto entre `set_password()` y el final de
-  `save()`. Así cubre los cuatro caminos que cambian una clave —ABM, credenciales
-  provisorias, cambio obligatorio y link de reseteo— y cualquiera que se agregue
-  mañana, sin consultar nada en los `User.save()` que no tocan la clave.
+- **Las dos cubetas frenan en momentos distintos, y por qué.** La de **usuario**
+  (10/10 min, sin mirar la IP) es la que ve la fuerza bruta distribuida, que cambia
+  de IP en cada intento; pero por no mirar la IP la llena **cualquiera** tipeando
+  el usuario de otro, así que se consulta **después** de autenticar y solo si la
+  credencial estaba mal: el dueño con su clave entra siempre. La de **IP**
+  (`AUTH_FALLIDOS_MAX_POR_IP`, 300/10 min, compartida por el login web y el token
+  de la app) es la única que rechaza **antes** de verificar la clave, cosa que
+  puede hacer porque la paga la IP que ataca y no la cuenta atacada; es lo que
+  corta el password-spray, que la cubeta por usuario no ve. Es holgada porque
+  tiene que aguantar una repartición detrás de una IP única y a los territoriales
+  detrás del NAT del operador móvil: al argumento del NAT se le contesta con el
+  número, no dejando la puerta sin techo. Recupero: 5/h por correo y 20/h por IP,
+  y al pasarse **no se manda el correo pero la pantalla es la misma**, para no
+  revelar nada.
+- **La revocación del token de la app es explícita y no la dispara el cambio de
+  clave.** La primera versión la colgaba de `post_save(User)`, y contra la app
+  instalada (`Chaco-mobile @ a66c2d3`) eso perdía trabajo: ante un 401 marca la
+  operación `FAILED_PERMANENT` y no la retoma nunca. Hoy el token lo borra una
+  acción del ABM —«Cerrar sesión de la app»—, que es la que corresponde cuando el
+  teléfono se perdió o la clave se filtró. Volver a la revocación automática
+  depende de un release de `Chaco-mobile` que reintente o re-loguee ante un 401.
 - **El check de «último administrador» al desactivar un rol corre solo si ese rol
   otorga administración.** Correrlo siempre tenía un efecto perverso medible: en
   una base que ya está sin administradores —un seed a medias, un restore— pasaba
@@ -26368,12 +26375,19 @@ Queda **explícitamente afuera**:
 - Entrar a «Cambiar contraseña» desde el menú del usuario pide la **contraseña
   actual**. La pantalla que no la pedía ya no se puede abrir salvo que el sistema
   te esté obligando a cambiar una clave provisoria.
-- Diez intentos fallidos seguidos sobre un mismo usuario lo frenan diez minutos,
-  en el backoffice y en la app. Entrar bien no gasta cuota.
-- **Cambiar la contraseña cierra la sesión de la app de campo.** Hay que volver a
-  entrar; la app no lo hace sola.
-- Al dar de alta un **territorial** con correo, le llega un enlace para definir su
-  contraseña en vez de la clave. El mensaje de la pantalla lo dice.
+- Diez intentos fallidos seguidos sobre un mismo usuario frenan diez minutos a
+  **quien no sabe la clave**, en el backoffice y en la app; el dueño, con su clave
+  correcta, entra igual. Entrar bien no gasta cuota. Y una misma IP tiene un techo
+  de 300 intentos fallidos cada 10 minutos, para las dos puertas juntas.
+- **Cambiar la contraseña NO cierra la sesión de la app de campo**, para no dejar
+  trabados los relevamientos que el teléfono todavía no subió. Para cerrarla hay
+  un botón en el listado de usuarios, **«Cerrar sesión de la app»**, que avisa
+  justamente eso antes de confirmar: se usa cuando el teléfono se perdió o la
+  clave se filtró.
+- Al dar de alta un **territorial** le llega un enlace para definir su contraseña
+  en vez de la clave, y por eso el **correo es obligatorio** para un usuario de
+  campo: es la única vía por la que le puede llegar una clave que el operador no
+  conozca.
 - Al dar de alta o editar cualquier usuario, la contraseña que tipee el operador
   tiene que pasar los validadores, y la persona va a tener que cambiarla en su
   primer ingreso.
@@ -26388,8 +26402,8 @@ Queda **explícitamente afuera**:
 `git revert` del merge y desplegar. No hay migraciones ni datos migrados, así que
 el revert alcanza. Lo que **no** vuelve atrás solo:
 
-- Los **tokens de la app ya revocados**: quien cambió su contraseña después del
-  deploy tiene que volver a entrar en la app igual, haya revert o no.
+- Los **tokens de la app ya borrados** desde «Cerrar sesión de la app»: esa
+  persona tiene que volver a entrar en el teléfono igual, haya revert o no.
 - Las **contraseñas ya definidas** por los territoriales desde el link: son suyas
   y siguen valiendo.
 - Las **marcas `debe_cambiar_contrasena`** que haya puesto el ABM: se limpian
@@ -26423,6 +26437,9 @@ PR.
 ## Pendientes
 
 - **`/admin/` por IP** (SEC-26 punto 6), en nginx/ingress de ECOM.
+- **La revocación automática del token al cambiar la clave**, que espera un
+  release de `Chaco-mobile` que reintente o re-loguee ante un 401. Hasta entonces
+  la revocación es la acción explícita del ABM.
 - **Correr P-04** —reescrita acá— en PRD, antes o junto con este release
   (R0b-12), y **P-07** para contar las cuentas que ya quedaron activas y sin rol.
 - **Que la documentación de la API (`/api/docs/`, `/api/schema/`, `/api/redoc/`)
@@ -26448,3 +26465,58 @@ PR.
   clave de sesión vieja. Sin el receiver, el segundo cliente recibe «Tu sesión fue
   reemplazada», que es el comportamiento real del producto; el test ahora escribe
   la clave de sesión como lo hace el login.
+- **08/10/2026 — ronda 2 de la revisión: el candado de la clave se estaba
+  comiendo el trabajo de la gente, y los límites de intentos tenían dos agujeros
+  propios.** Seis correcciones:
+  1. **La revocación del token de la app deja de ser automática.** Cambiar la
+     clave borraba el token por `post_save(User)`, y contra la app instalada
+     (`Chaco-mobile @ a66c2d3`) eso no es «volvé a entrar»: ante un 401 marca la
+     operación `FAILED_PERMANENT` (`relevamientoService.js:1487`) y
+     `:1411`/`:1563` no la retoman **nunca**, ni después de re-loguearse. Un
+     territorial al que le resetean la clave perdía, en silencio, todo lo que el
+     teléfono no había sincronizado. **Decisión:** cambiar la clave —el admin
+     desde el ABM o el propio usuario— ya **no** revoca el token; las sesiones web
+     se cierran como siempre. En su lugar hay una acción explícita en el ABM,
+     **«Cerrar sesión de la app»**, para cuando el teléfono se perdió o la clave se
+     filtró: POST con CSRF, confirmación con SweetAlert2 que avisa textualmente
+     que «los relevamientos que el teléfono no haya sincronizado van a quedar
+     trabados en la app», resultado por toast, y el mismo alcance que editar las
+     credenciales de ese usuario (fuera de alcance, 403). El botón aparece solo
+     sobre quien tiene un token. **La revocación automática al cambiar la clave
+     espera un release de `Chaco-mobile` que reintente o re-loguee ante un 401.**
+  2. **Bloqueo de cuenta por tercero.** La cubeta por usuario no mira la IP (si no,
+     rotar de proxy devolvía la cuota) y se consultaba **antes** de autenticar:
+     diez POST con el usuario de otra persona la dejaban diez minutos afuera, y
+     repitiéndolos, afuera indefinidamente. Ahora se autentica primero y la cubeta
+     se consulta solo si la credencial estaba mal: el dueño con su clave correcta
+     entra siempre. Vale para el login web y para `/api/becas/auth/token/`.
+  3. **Techo por IP, que no había.** `/api/becas/auth/token/` no tenía ninguno y el
+     del login web (30/10 min) se fue con él: ahora hay **una sola cubeta por IP
+     compartida por las dos puertas**, `AUTH_FALLIDOS_MAX_POR_IP` (300 fallidos
+     cada 10 min, configurable por entorno). Es holgada a propósito —al argumento
+     del NAT móvil se le contesta con el número, no dejando la puerta sin techo— y
+     es la **única** que rechaza antes de verificar la clave, cosa que puede hacer
+     porque la paga la IP que ataca y no la cuenta atacada. Es lo que corta el
+     password-spray, que la cubeta por usuario no ve porque cambia de usuario en
+     cada intento. La IP sale de `ip_cliente`, que lee `X-Forwarded-For` solo si el
+     salto anterior está en `TRUSTED_PROXY_NETS`.
+  4. **El alta de un usuario de campo exige correo** (G1b-08 + D-26). La marca
+     `debe_cambiar_contrasena` la cobra el backoffice, y a quien solo tiene
+     `becas.campo` el backoffice no le pide nada: quedaba puesta sin que nadie la
+     hiciera cumplir y la clave que tipeó el operador le quedaba vigente para
+     siempre. Es el agujero que D-26 (b) cerró para el alta **con** correo y que
+     por el alta **sin** correo seguía abierto. Se cierra en el alta y no en la
+     marca: el link de reseteo es la única vía por la que a un usuario de campo le
+     puede llegar una clave que el operador no conozca, y el link viaja por correo.
+     Para el resto nada cambia.
+  5. **La leyenda «Fuera de tu alcance» faltaba en una de las dos ramas** del
+     listado: con `gestionable=True` y `credenciales_editables=False` —el
+     multiprograma, que se puede editar pero no activar— la celda quedaba con el
+     lápiz y nada más, y la ausencia del interruptor no se explicaba sola.
+  6. **El usuario tipeado se recorta a 150** (el largo de `auth_user.username`)
+     antes de armar la clave de la caché: un POST con 400 caracteres escribía una
+     clave de 400 caracteres en Redis por intento.
+
+  De paso, `R0b-03` cerraba sin «Test permanente» —es SQL que corre el PM, no deja
+  código— y el contrato de la auditoría lo marcaba en rojo: ahora tiene un candado
+  sobre el README, que es su única superficie.

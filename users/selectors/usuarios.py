@@ -174,8 +174,20 @@ def alcance_roles_ids_credenciales(operador):
     return set(Group.objects.filter(meta__programa__in=programas).values_list("id", flat=True))
 
 
+def _usuarios_con_token_de_app(usuarios):
+    """IDs de los que tienen una sesión abierta en la app de campo.
+
+    Una sola consulta por página: «Cerrar sesión de la app» solo se ofrece sobre
+    quien de verdad tiene un token, para que el botón no aparezca en todas las
+    filas del backoffice —donde no significa nada— (SEC-26).
+    """
+    from rest_framework.authtoken.models import Token
+
+    return set(Token.objects.filter(user__in=[u.pk for u in usuarios]).values_list("user_id", flat=True))
+
+
 def anotar_acciones_del_listado(operador, usuarios):
-    """Marca ``gestionable`` y ``credenciales_editables`` en cada fila del listado.
+    """Marca ``gestionable``, ``credenciales_editables`` y ``tiene_token_app`` en cada fila.
 
     R0b-10: el servidor ya rechaza editar o activar a quien excede el alcance
     (SEC-03), pero la pantalla mostraba igual el lápiz y el interruptor sobre un
@@ -188,6 +200,9 @@ def anotar_acciones_del_listado(operador, usuarios):
     usuarios = list(usuarios)
     if not usuarios:
         return usuarios
+    con_token = _usuarios_con_token_de_app(usuarios)
+    for usuario in usuarios:
+        usuario.tiene_token_app = usuario.pk in con_token
     if es_admin_global_usuarios(operador):
         for usuario in usuarios:
             usuario.gestionable = True

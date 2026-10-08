@@ -133,11 +133,27 @@ PR— deja de arreglar por accidente. **Dos detalles code-first que la ficha no 
 operador se cambia la clave a sí mismo desde el ABM no se marca nada, porque ya la conoce; (b) el
 campo `password` del form de **edición** existe pero `user_form.html` no lo renderiza (solo lo
 muestra en el alta), así que por pantalla esa clave hoy se tipea únicamente al dar de alta sin
-correo —el validador igual hace falta, porque el campo sigue aceptando el POST—. **Test permanente:**
+correo —el validador igual hace falta, porque el campo sigue aceptando el POST—.
+
+**Corregido en la ronda 2: el usuario de campo.** La marca `debe_cambiar_contrasena` la cobra el
+backoffice, y a quien solo tiene `becas.campo` el backoffice no le pide nada —el login web lo rechaza
+y `/api/becas/auth/token/` no mira el flag—, así que sobre él quedaba puesta y no la hacía cumplir
+nadie: la clave que tipeaba el operador le quedaba vigente para siempre. Es el mismo agujero que D-26
+(b) cerró para el alta **con** correo mandando un link de reseteo, y que por la puerta de al lado
+—alta **sin** correo— seguía abierto. Se cierra por donde corresponde, que es el alta y no la marca:
+`_validar_correo_de_entrega` le **exige correo a un usuario de campo** (`rbac.roles_solo_campo`, la
+misma pregunta que `es_solo_campo` pero sobre los roles tildados, porque en el alta el usuario todavía
+no existe), ya que el link es la única vía por la que le puede llegar una clave que el operador no
+conozca. Para el resto nada cambia: sin correo la clave la sigue tipeando el operador y vale un solo
+ingreso. La marca se escribe igual sobre el usuario de campo, por si mañana suma un rol de backoffice.
+
+**Test permanente:**
 `users.tests.test_usuarios_ola2_pr2.G1b08ClaveTipeadaTests.test_fijarle_la_clave_a_otro_obliga_a_cambiarla`
 (+ `test_el_alta_rechaza_una_clave_que_no_pasa_los_validadores`,
 `test_la_edicion_rechaza_una_clave_que_no_pasa_los_validadores`,
-`test_cambiarse_la_propia_clave_desde_el_abm_no_obliga_a_nada`, `test_una_edicion_sin_clave_no_toca_el_flag`).
+`test_cambiarse_la_propia_clave_desde_el_abm_no_obliga_a_nada`, `test_una_edicion_sin_clave_no_toca_el_flag`;
+`users.tests.test_credenciales_ola2_pr2.AltaDeUsuarioDeCampoTests` ×5, encabezada por
+`test_el_alta_de_un_usuario_de_campo_sin_correo_se_rechaza`).
 
 ### G1b-09 · «Último administrador» salteable con dos operaciones simultáneas
 **Severidad:** BAJA · **Estado:** PLAUSIBLE (sin repro de concurrencia) · **Origen:** G1b-09 · **Ola:** 7 · **Esfuerzo:** M
@@ -273,7 +289,10 @@ README §3 con los dos `LEFT JOIN` y columnas nuevas `roles_sin_programa` y `rol
 sumó `roles_desactivados`, que la ficha no pedía pero que R0b-02 vuelve relevante en el mismo
 release: desde este PR un rol desactivado de otro programa también saca de alcance, así que esas
 cuentas entran en la misma lista que el PM tiene que revisar. Es SQL de solo lectura: lo corre el PM
-(R0b-12), no este PR.
+(R0b-12), no este PR. **Test permanente:**
+`core/tests/test_contrato_auditoria.py::PrechequeoP04Tests.test_las_dos_consultas_llegan_a_rolmeta_y_a_programa_con_left_join`
+(+ `test_la_segunda_consulta_lista_las_cuentas_que_quedaban_invisibles`): la ficha no deja código, así
+que el candado es sobre el README, que es su única superficie.
 
 ### R0b-10 · Listado de usuarios: editar y activar/desactivar visibles para usuarios no gestionables
 **Severidad:** BAJA (MINOR del revisor de #539) · **Estado:** CONFIRMADO (lectura) · **Origen:** revisión de la Ola 0, 2ª tanda · **Ola:** 2 (PR 2, Usuarios) · **Esfuerzo:** S
@@ -291,6 +310,11 @@ resuelven con cuatro consultas acotadas a los roles que aparecen en la página, 
 Cubre las tres ramas de alcance —admin global, admin de programa y gestor territorial de Becas—, que
 es donde estaba el riesgo de que la pantalla y el servidor dijeran cosas distintas. El servidor sigue
 siendo la autoridad: `puede_gestionar_usuario` y `puede_gestionar_credenciales` no se tocaron.
+**Ajuste de la ronda 2:** la leyenda «Fuera de tu alcance» faltaba en una de las dos ramas. Con
+`gestionable=True` y `credenciales_editables=False` —el multiprograma: editar sí, activar no— la celda
+quedaba con el lápiz y **nada más**, y la ausencia del interruptor no se explicaba sola. Ahora también
+ahí va la leyenda. Se sumó una consulta a la anotación (`tiene_token_app`), para «Cerrar sesión de la
+app» de SEC-26: el techo del test pasa de 15 a 16.
 **Test permanente:**
 `users.tests.test_usuarios_ola2_pr2.R0b10BotonesDelListadoTests.test_el_listado_no_ofrece_editar_ni_togglear_a_un_superusuario`
 (+ `test_el_listado_no_ofrece_togglear_a_un_multiprograma` —editar sí, togglear no, que es

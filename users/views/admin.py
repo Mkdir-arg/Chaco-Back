@@ -3,6 +3,7 @@ import logging
 from django.contrib import messages
 from django.contrib.auth.models import User
 from django.db import transaction
+from django.http import HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse_lazy
 from django.views import View
@@ -22,6 +23,7 @@ from ..selectors.usuarios import (
 from ..services import UsuariosService
 from ..services.admin import UsuariosAdminService
 from ..services.correo import ENTREGA_LINK, entregar_credenciales_provisorias
+from ..services.credenciales import revocar_tokens_de_la_app
 
 logger = logging.getLogger(__name__)
 
@@ -182,4 +184,38 @@ class UserToggleActivoView(AdminRequiredMixin, View):
             messages.error(request, str(exc))
             return redirect("users:usuarios")
         messages.success(request, "Usuario activado." if user.is_active else "Usuario desactivado.")
+        return redirect("users:usuarios")
+
+
+class UserCerrarSesionAppView(AdminRequiredMixin, View):
+    """SEC-26 · borra el token de la app de campo del usuario, a pedido.
+
+    Es la contracara de que cambiar la clave **no** revoque el token: la app
+    instalada no se recupera de un 401 —marca la operación `FAILED_PERMANENT` y no
+    la reintenta— y hacerlo de oficio perdía los relevamientos que el teléfono
+    todavía no había subido. Acá el operador lo decide avisado (el modal lo dice
+    con todas las letras) y se usa cuando el teléfono se perdió o la clave se
+    filtró.
+
+    Alcance: el mismo que editarle las credenciales (``puede_gestionar_credenciales``,
+    con el alcance de R0b-02/R0b-10). Borrar el token es sobre la cuenta entera,
+    no sobre los roles de un programa.
+
+    Fuera de alcance contesta **403** y no un redirect con aviso, al revés que el
+    toggle: ese botón se dibujaba sobre cuentas que el servidor rechazaba y el
+    aviso era la explicación; este no se dibuja nunca fuera de alcance, así que un
+    POST desde afuera es una pantalla vieja o un intento, no un usuario perdido.
+    """
+
+    def post(self, request, pk):
+        user = get_object_or_404(User, pk=pk)
+        if not puede_gestionar_usuario(request.user, user) or not puede_gestionar_credenciales(request.user, user):
+            return HttpResponseForbidden("No podés cerrar la sesión de la app de un usuario fuera de tu alcance.")
+        if revocar_tokens_de_la_app(user):
+            messages.success(
+                request,
+                f"Se cerró la sesión de la app de {user.username}. Tiene que volver a iniciar sesión en el teléfono.",
+            )
+        else:
+            messages.info(request, f"{user.username} no tenía ninguna sesión abierta en la app.")
         return redirect("users:usuarios")

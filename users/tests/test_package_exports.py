@@ -24,10 +24,14 @@ class UsersPackageExportsTests(SimpleTestCase):
     def test_signals_package_exports_receivers(self):
         # `save_user_profile` se retiró en la Ola 2 (RED-52): el Profile lo guarda
         # quien lo escribe, no un `post_save(User)` que propaga el objeto entero.
-        from users.signals import create_user_profile, revocar_tokens_al_cambiar_la_clave
+        # `revocar_tokens_al_cambiar_la_clave` también se fue, y no por accidente:
+        # la revocación del token de la app dejó de ser automática (SEC-26, ronda 2)
+        # y vive en `users.services.credenciales`, que llama una vista explícita.
+        import users.signals as signals
+        from users.signals import create_user_profile
 
         self.assertTrue(callable(create_user_profile))
-        self.assertTrue(callable(revocar_tokens_al_cambiar_la_clave))
+        self.assertFalse(hasattr(signals, "revocar_tokens_al_cambiar_la_clave"))
 
     def test_api_views_package_exports_la_vista_de_me(self):
         # Los ViewSets de usuarios, roles y perfiles se retiraron (D-05 de la

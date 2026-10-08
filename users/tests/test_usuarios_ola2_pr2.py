@@ -133,9 +133,7 @@ class G1b05CuentaSinRolTests(Base):
         ajeno = _user("adm-becas", _rol("AdmUsuBecas", ["programa.usuario.administrar"], self.becas))
         self.client.force_login(ajeno)
 
-        self.assertEqual(
-            self.client.get(reverse("users:usuario_editar", args=[self.operador.pk])).status_code, 302
-        )
+        self.assertEqual(self.client.get(reverse("users:usuario_editar", args=[self.operador.pk])).status_code, 302)
 
     def test_sin_rol_y_anonimo_no_entran_al_abm(self):
         self.assertEqual(self.client.get(reverse("users:usuarios")).status_code, 302)  # anónimo
@@ -390,10 +388,11 @@ class R0b10BotonesDelListadoTests(Base):
     def test_la_anotacion_no_consulta_una_vez_por_fila(self):
         """«En lote, sin N+1» (R0b-10). El techo se mide sobre un listado de 12
         usuarios: si alguien vuelve a llamar a `puede_gestionar_usuario` por fila,
-        el número se dispara."""
+        el número se dispara. 15 → 16 por la consulta única que marca quién tiene
+        sesión abierta en la app de campo (SEC-26)."""
         for i in range(12):
             _user(f"op-{i}", self.rol_op_disp)
         self.client.force_login(self.adm)
 
-        with self.assertNumQueries(15):
+        with self.assertNumQueries(16):
             self.client.get(reverse("users:usuarios"))

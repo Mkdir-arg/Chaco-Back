@@ -222,6 +222,43 @@ class FichasCerradasTests(SimpleTestCase):
         self.assertEqual(suite.countTestCases(), 0)
 
 
+class PrechequeoP04Tests(SimpleTestCase):
+    """R0b-03: el pre-chequeo P-04 no puede volver a los `JOIN` que lo dejaban ciego.
+
+    P-04 es SQL de solo lectura que corre el PM contra PRD (R0b-12), así que su
+    única superficie es el README: la ficha no deja código que testear y sin esto
+    se cierra sin nada que la sostenga. Lo que se afirma es justo lo que estaba
+    mal: con `JOIN programas_programa` quedaban afuera los roles **sin programa**
+    (Backoffice y Sistema) y con `JOIN users_rolmeta` los grupos **sin `RolMeta`**
+    —las dos cosas que `puede_gestionar_credenciales` cuenta como fuera de alcance,
+    o sea exactamente las cuentas que la consulta tenía que encontrar—.
+    """
+
+    @staticmethod
+    def _sql_de_p04():
+        readme = (Path(settings.BASE_DIR) / "docs" / "internal" / "auditoria-2026-10" / "README.md").read_text(
+            encoding="utf-8"
+        )
+        bloque = re.search(r"\*\*P-04 · .*?```sql\n(?P<sql>.*?)```", readme, re.S)
+        assert bloque, "P-04 ya no está en el README §3"
+        return bloque.group("sql")
+
+    def test_las_dos_consultas_llegan_a_rolmeta_y_a_programa_con_left_join(self):
+        sql = self._sql_de_p04()
+
+        self.assertEqual(sql.count("LEFT JOIN users_rolmeta"), 2)
+        self.assertIn("LEFT JOIN programas_programa", sql)
+        self.assertNotIn("\n  JOIN users_rolmeta", sql)
+        self.assertNotIn("\n  JOIN programas_programa", sql)
+
+    def test_la_segunda_consulta_lista_las_cuentas_que_quedaban_invisibles(self):
+        sql = self._sql_de_p04()
+
+        for columna in ("roles_sin_programa", "roles_sin_meta", "roles_desactivados"):
+            with self.subTest(columna=columna):
+                self.assertIn(columna, sql)
+
+
 class ParserDelContratoTests(SimpleTestCase):
     """Control del andamio: si el parser dejara de ver las fichas o de resolver los
     targets, los tests de arriba quedarían verdes sin afirmar nada."""
