@@ -366,6 +366,35 @@ class CondicionTests(_Base):
         resp = self._json("formulario_condicion", {"condicion": sin_valor}, clave_requisito(self.certificado))
         self.assertEqual(resp.status_code, 400)
 
+    def test_rechaza_una_condicion_cuya_forma_no_se_puede_ni_evaluar(self):
+        """RED-40: antes de este chequeo el endpoint validaba solo que el cuerpo
+        fuera un objeto. Un operador que el motor no conoce no falla al
+        evaluarse —`evaluar_regla` devuelve `False`—, así que la condición se
+        guardaba y el ítem quedaba escondido **para siempre**, sin error ni log."""
+        self._diseno()
+        inventado = {
+            "modo": "todas",
+            "reglas": [{"fuente": clave_requisito(self.nivel), "op": "mayor_que", "valor": 1}],
+        }
+
+        resp = self._json("formulario_condicion", {"condicion": inventado}, clave_requisito(self.certificado))
+
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("mayor_que", resp.json()["message"])
+        self.assertIsNone(self._item(clave_requisito(self.certificado)).condicion)
+
+    def test_rechaza_un_modo_que_el_motor_no_conoce(self):
+        self._diseno()
+        modo_raro = {
+            "modo": "cualquiera",
+            "reglas": [{"fuente": clave_requisito(self.nivel), "op": "es", "valor": "Secundario"}],
+        }
+
+        resp = self._json("formulario_condicion", {"condicion": modo_raro}, clave_requisito(self.certificado))
+
+        self.assertEqual(resp.status_code, 400)
+        self.assertIsNone(self._item(clave_requisito(self.certificado)).condicion)
+
     def test_quitar_la_condicion(self):
         GrupoRequisito.objects.filter(clave="apoderado").update(
             condicion_defecto={

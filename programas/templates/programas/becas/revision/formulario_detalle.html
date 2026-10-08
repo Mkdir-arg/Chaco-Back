@@ -55,7 +55,18 @@
     {% if tiene_conflicto_duplicado_pendiente %}
       <span class="badge badge-warning"><i class="fas fa-code-compare"></i> Duplicado por resolver</span>
     {% endif %}
+    {% if formulario.sincronizado_tarde %}
+      {# G1-04: la captura se hizo en fecha y el teléfono la subió tras el cierre. #}
+      <span class="badge badge-warning"><i class="fas fa-clock-rotate-left" aria-hidden="true"></i> Sincronizado tarde</span>
+    {% endif %}
   {% endpage_header %}
+
+  {% comment %}G1-05: lo que el servidor observó de la carga de la app. No bloquea
+  nada —la acción de aprobar sigue habilitada—, es lo que el revisor necesita saber
+  antes de decidir: tono «warning» con la pieza canónica, no una caja a mano.{% endcomment %}
+  {% if observaciones_carga %}
+    {% include "components/_alerta.html" with tono="warning" titulo="Observaciones de la carga" texto=observaciones_carga %}
+  {% endif %}
 
   {% if conflicto_pendiente %}
   <section class="rounded-xl border border-warning-subtle bg-warning-soft p-5">

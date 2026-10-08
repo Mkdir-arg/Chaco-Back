@@ -29,6 +29,7 @@ pone rojo) y, aparte, que un `propio` sin ella se sigue leyendo.
 from datetime import date
 from io import StringIO
 
+from django.core.exceptions import ValidationError
 from django.core.management import call_command
 from django.test import TestCase
 
@@ -46,6 +47,7 @@ from programas.models import (
     Convocatoria,
     DisenoFormulario,
     Formulario,
+    GrupoRequisito,
     ItemDiseno,
     PreguntaGlobal,
     Relevamiento,
@@ -55,6 +57,7 @@ from programas.models import (
 from programas.services.becas import definicion_formulario
 from programas.services.diseno import campo_dict, clave_pregunta, obtener_o_crear_diseno
 from programas.services.respuestas import respuestas_legibles, sincronizar_desde_legacy
+from programas.validadores import validar_condicion_json
 
 
 class _Base(TestCase):
@@ -248,3 +251,89 @@ class VerificarJsonGuardadoTests(_Base):
         call_command("verificar_json_guardado", stdout=salida)
 
         self.assertIn("Sin problemas", salida.getvalue())
+
+
+class ValidadorDeCondicionTests(_Base):
+    """La parte Ola 3 de RED-40: `validators` en los dos `JSONField` que guardan
+    una condición.
+
+    El diagnóstico (`verificar_json_guardado`, parte R) dice qué hay roto en lo
+    ya guardado; esto impide que entre lo siguiente. El hallazgo que ordena la
+    lista: un operador fuera de `OPERADORES_POR_TIPO` cae al `return False`
+    final de `evaluar_regla`, así que el ítem condicionado **no se muestra
+    nunca** — sin error, sin log y sin forma de notarlo desde la pantalla.
+
+    El validador mira la **forma**, no la coherencia: que la fuente exista, esté
+    antes y el operador aplique al tipo de **ese** campo lo decide
+    `condiciones.validar_condicion`, que necesita el diseño alrededor.
+    """
+
+    def _item(self, condicion):
+        diseno = self._diseno()
+        grupo = diseno.items.filter(tipo=ItemDiseno.Tipo.GRUPO).first()
+        return ItemDiseno(
+            diseno=diseno,
+            tipo=ItemDiseno.Tipo.CAMPO,
+            clave="cp-condicionado",
+            padre=grupo,
+            orden=98,
+            condicion=condicion,
+        )
+
+    def test_un_operador_inventado_no_se_guarda(self):
+        item = self._item({"modo": "todas", "reglas": [{"fuente": "pg-1", "op": "mayor_que", "valor": 3}]})
+
+        with self.assertRaises(ValidationError) as caso:
+            item.full_clean(exclude=["diseno", "padre", "pregunta", "requisito"])
+
+        self.assertIn("mayor_que", str(caso.exception))
+
+    def test_un_modo_inventado_no_se_guarda(self):
+        item = self._item({"modo": "cualquiera", "reglas": []})
+
+        with self.assertRaises(ValidationError):
+            item.full_clean(exclude=["diseno", "padre", "pregunta", "requisito"])
+
+    def test_un_operador_que_necesita_valor_sin_valor_no_se_guarda(self):
+        item = self._item({"modo": "todas", "reglas": [{"fuente": "pg-1", "op": "es"}]})
+
+        with self.assertRaises(ValidationError) as caso:
+            item.full_clean(exclude=["diseno", "padre", "pregunta", "requisito"])
+
+        self.assertIn("necesita un valor", str(caso.exception))
+
+    def test_un_operador_de_lista_con_un_escalar_no_se_guarda(self):
+        item = self._item({"modo": "todas", "reglas": [{"fuente": "pg-1", "op": "es_alguno", "valor": "Sí"}]})
+
+        with self.assertRaises(ValidationError) as caso:
+            item.full_clean(exclude=["diseno", "padre", "pregunta", "requisito"])
+
+        self.assertIn("lista de valores", str(caso.exception))
+
+    def test_una_regla_sin_fuente_no_se_guarda(self):
+        item = self._item({"modo": "todas", "reglas": [{"op": "completo"}]})
+
+        with self.assertRaises(ValidationError):
+            item.full_clean(exclude=["diseno", "padre", "pregunta", "requisito"])
+
+    def test_un_operador_sin_valor_no_necesita_valor(self):
+        """`vacio`, `completo`, `adjuntado` y `no_adjuntado` se guardan solos:
+        el validador no puede pedirles lo que no llevan."""
+        item = self._item({"modo": "alguna", "reglas": [{"fuente": "pg-1", "op": "completo"}]})
+
+        item.full_clean(exclude=["diseno", "padre", "pregunta", "requisito"])
+
+    def test_sin_condicion_no_hay_nada_que_validar(self):
+        for vacio in (None, {}, ""):
+            with self.subTest(valor=vacio):
+                validar_condicion_json(vacio)
+
+    def test_el_grupo_del_catalogo_valida_la_misma_forma(self):
+        grupo = GrupoRequisito(
+            clave="g-condicionado",
+            nombre="Grupo",
+            condicion_defecto={"modo": "todas", "reglas": [{"fuente": "pg-1", "op": "no_existe"}]},
+        )
+
+        with self.assertRaises(ValidationError):
+            grupo.full_clean(exclude=["clave"])

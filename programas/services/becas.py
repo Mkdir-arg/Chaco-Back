@@ -313,12 +313,20 @@ def resolver_ciudadano_offline(formulario):
             # La localidad viene del padrón (Cambio 57) y solo completa el legajo:
             # nunca pisa una ya cargada.
             localidad_id = datos.get("localidad_id") or None
+            # G1-06: la fecha puede venir en cualquier formato (o ser imposible)
+            # y hasta acá llegaba cruda al ORM. El alta explota **después** del
+            # commit del caso: 500, la app reintenta por ser 5xx y el caso queda
+            # sin legajo. La API ya la normaliza al entrar; este es el cinturón
+            # para los otros caminos y para los datos ya guardados.
+            from programas.services.personas import fecha_iso
+
+            fecha_nacimiento = fecha_iso(datos.get("fecha_nacimiento")) or None
             ciudadano, creado = Ciudadano.objects.get_or_create(
                 dni=dni,
                 defaults={
                     "nombre": datos.get("nombre", ""),
                     "apellido": datos.get("apellido", ""),
-                    "fecha_nacimiento": datos.get("fecha_nacimiento") or None,
+                    "fecha_nacimiento": fecha_nacimiento,
                     "genero": genero,
                     "localidad_id": localidad_id,
                 },

@@ -143,7 +143,7 @@ class RelevamientoApiTests(_BaseApiTest):
         self.autenticar(self.terri)
         resp = self.client.get(reverse("becas_api:relevamiento-list"))
         self.assertEqual(resp.status_code, 200)
-        ids = [r["id"] for r in resp.data["results"]]
+        ids = [r["id"] for r in resp.data]
         self.assertIn(self.rel.id, ids)
         self.assertNotIn(self.rel_ajeno.id, ids)
 
@@ -160,7 +160,7 @@ class RelevamientoApiTests(_BaseApiTest):
         resp = self.client.get(reverse("becas_api:relevamiento-list"))
 
         self.assertEqual(resp.status_code, 200)
-        propio = next(item for item in resp.data["results"] if item["id"] == self.rel.id)
+        propio = next(item for item in resp.data if item["id"] == self.rel.id)
         self.assertEqual(propio["localidad"], "Localidad Norte")
 
     def test_lista_incluye_relevamientos_vigentes_y_futuros(self):
@@ -181,12 +181,12 @@ class RelevamientoApiTests(_BaseApiTest):
         resp = self.client.get(reverse("becas_api:relevamiento-list"))
 
         self.assertEqual(resp.status_code, 200)
-        ids = [r["id"] for r in resp.data["results"]]
+        ids = [r["id"] for r in resp.data]
         self.assertIn(self.rel.id, ids)
         self.assertNotIn(vencido.id, ids)
         self.assertIn(futuro.id, ids)
 
-        propio = next(item for item in resp.data["results"] if item["id"] == self.rel.id)
+        propio = next(item for item in resp.data if item["id"] == self.rel.id)
         self.assertIn("T", propio["fecha_asignada"])
         self.assertRegex(propio["fecha_asignada"], r"(Z|[+-]\d{2}:\d{2})$")
 
@@ -329,11 +329,19 @@ class RelevamientoApiTests(_BaseApiTest):
 
     def test_finalizar_solo_sale_de_en_curso_o_finalizando(self):
         """RED-66: el mismo recorrido para `finalizar`. FINALIZANDO (la ventana
-        de sincronización tardía) también cierra; ASIGNADO, EN_REVISION y
-        TERMINADO no."""
+        de sincronización tardía) también cierra; ASIGNADO y TERMINADO no.
+
+        G1-04 cambió una celda de esta tabla: un relevamiento **ya cerrado**
+        (FINALIZADO o EN_REVISION) dentro de la gracia responde 200 sin tocar
+        nada, en vez de 400. La cola offline sube primero las personas y después
+        el «finalizar»; el 400 lo dejaba `FAILED_PERMANENT` en el teléfono y le
+        mostraba un error al territorial por algo que ya estaba hecho.
+        """
         self.autenticar(self.terri)
         url = reverse("becas_api:relevamiento-finalizar", args=[self.rel.id])
         cierran = {Relevamiento.Estado.EN_CURSO, Relevamiento.Estado.FINALIZANDO}
+        # Idempotentes dentro de la gracia: ya están cerrados.
+        ya_cerrados = {Relevamiento.Estado.FINALIZADO, Relevamiento.Estado.EN_REVISION}
 
         for estado in Relevamiento.Estado:
             with self.subTest(estado=estado):
@@ -347,11 +355,36 @@ class RelevamientoApiTests(_BaseApiTest):
                     self.assertEqual(resp.status_code, 200)
                     self.assertEqual(self.rel.estado, Relevamiento.Estado.FINALIZADO)
                     self.assertIsNotNone(self.rel.fecha_finalizado)
+                elif estado in ya_cerrados:
+                    self.assertEqual(resp.status_code, 200)
+                    self.assertEqual(self.rel.estado, estado)
+                    self.assertIsNone(self.rel.fecha_finalizado)
                 else:
                     self.assertEqual(resp.status_code, 400)
                     self.assertEqual(resp.data["detail"], "El relevamiento no está en curso.")
                     self.assertEqual(self.rel.estado, estado)
                     self.assertIsNone(self.rel.fecha_finalizado)
+
+    def test_finalizar_un_relevamiento_cerrado_hace_mucho_sigue_dando_400(self):
+        """La idempotencia de arriba vale **dentro de la gracia**: pasadas las
+        24 h del cierre, un `finalizar` sobre un relevamiento ya cerrado vuelve
+        a ser lo que siempre fue, un error."""
+        self.autenticar(self.terri)
+        fin = timezone.now() - timedelta(days=4)
+        Relevamiento.objects.filter(pk=self.rel.pk).update(
+            estado=Relevamiento.Estado.EN_REVISION,
+            fecha_asignada=timezone.now() - timedelta(days=5),
+            fecha_hasta=fin,
+        )
+
+        resp = self.client.post(
+            reverse("becas_api:relevamiento-finalizar", args=[self.rel.id]),
+            {"capturado_en": (fin - timedelta(hours=1)).isoformat()},
+            format="json",
+        )
+
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.data["detail"], "El relevamiento no está en curso.")
 
     def test_no_permite_iniciar_relevamiento_fuera_de_fecha(self):
         self.rel.fecha_asignada = timezone.localdate() - timedelta(days=1)
@@ -968,7 +1001,7 @@ class FormularioSyncTests(_BaseApiTest):
         url = reverse("becas_api:relevamiento-formularios", args=[self.rel.id])
         resp = self.client.get(url)
         self.assertEqual(resp.status_code, 200)
-        formulario = resp.data["results"][0]
+        formulario = resp.data[0]
         self.assertEqual(formulario["ciudadano_nombre"], "Nombre")
         self.assertEqual(formulario["ciudadano_apellido"], "Visible")
 
@@ -1533,9 +1566,20 @@ class AltaBajoElLockTests(_BaseApiTest):
 
     El número es el **medido hoy** sobre SQLite, el motor del CI. Como cualquier
     presupuesto, solo puede bajar: subirlo exige justificarlo (RED-62).
+
+    **29 → 30 (G1-05, RED-62).** La consulta de más es el `UPDATE` que deja la
+    revisión de la carga: respuestas sin lo que las condiciones ocultaron y
+    `observaciones_carga`. Tres cosas la hacen aceptable y hay que conservarlas:
+    (1) corre **después del commit**, fuera del `select_for_update`, que es lo
+    que este presupuesto protege; (2) es **condicional** —si no hay nada que
+    descartar ni que observar no se escribe, y el caso de este test entra en el
+    `UPDATE` porque el segmento de `_BaseApiTest` pide GPS y el payload no lo
+    manda—; y (3) no escala con la cantidad de casos ni de campos, que es lo que
+    fija el segundo test. La alternativa —no validar— es lo que dejaba entrar
+    respuestas a preguntas que el formulario escondía y mandarlas a SIIS.
     """
 
-    CONSULTAS_ALTA = 29
+    CONSULTAS_ALTA = 30
 
     def setUp(self):
         super().setUp()
