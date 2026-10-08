@@ -15,13 +15,10 @@ from ..models import LegajoAtencion
 from ..selectors import legajos_abiertos
 from ..services.linking import annotate_legajo_link_data
 
-
-@login_required
-def dashboard_contactos_simple(request):
-    """Dashboard simple para probar"""
-    return render(request, "legajos/dashboard_simple.html", {"titulo": "Dashboard de Contactos - Funcionando!"})
-
-
+# LEG-06 (Ola 7): acá había un segundo `dashboard_contactos_simple` —sin ruta, con
+# el título «Dashboard de Contactos - Funcionando!» sobre `legajos/dashboard_simple.html`—
+# homónimo del que sí se sirve (`legajos.views.contactos_panel`). Se borró con su
+# template.
 # `test_api`, la vista de la ruta de prueba `test-api/`, se eliminó con ella
 # (SEC-19, auditoría oct-2026).
 

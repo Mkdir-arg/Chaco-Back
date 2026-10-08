@@ -4,11 +4,12 @@
 lo que se espeja al GitLab de ECOM y lo que termina horneado en la imagen de producción.
 Hasta el 05/10/2026 tenía dos agujeros medidos por la auditoría:
 
-- **RED-65** — la lista de archivos de runtime exige `docker/django/Dockerfile` y
-  `scripts/startup.sh`, que OPS-10 y OPS-14 van a borrar. El día que eso pase, `Publish
-  main` falla **después** del merge, con `main` sin actualizar y sin que nadie se entere
-  salvo que mire Actions. El test de acá pone ese fallo en el PR, que es donde se puede
-  arreglar.
+- **RED-65** — la lista de archivos de runtime exigía `docker/django/Dockerfile` y
+  `scripts/startup.sh`, que OPS-10 y OPS-14 borraron en la Ola 7. Si hubieran salido del
+  árbol sin salir de la lista, `Publish main` fallaba **después** del merge, con `main`
+  sin actualizar y sin que nadie se entere salvo que mire Actions. El test de acá pone
+  ese fallo en el PR, que es donde se puede arreglar; su gemelo nuevo cubre el camino
+  inverso (sacar una ruta del guard sin borrar el archivo).
 - **RED-21** — el denylist estaba escrito a mano y duplicaba, sin nada que las
   sincronizara, las mismas rutas que `.gitattributes`: un `NOTAS.md` o un `.cursor/`
   nuevo en la raíz no estaba en ninguna de las dos y viajaba al release (le pasó a
@@ -105,10 +106,30 @@ class PublishGuardTests(SimpleTestCase):
         self.assertEqual(faltantes, [], f"el guard exige rutas que ya no existen: {faltantes}")
 
     def test_la_lista_de_runtime_no_esta_vacia(self):
-        """Vaciar la lista apagaría el guard entero dejando este módulo en verde."""
+        """Vaciar la lista apagaría el guard entero dejando este módulo en verde.
+
+        El piso bajó de 10 a 8 en la Ola 7: RED-65 sacó `docker/django/Dockerfile` y
+        `scripts/startup.sh` **porque los archivos se borraron**, que es la única razón
+        por la que una ruta puede salir de acá. Las ocho que quedan son las que la imagen
+        de PRD y el pipeline de ECOM necesitan de verdad.
+        """
         requeridos = listas_del_guard(_paso("Guard")["run"])["RUNTIME"]
 
-        self.assertGreaterEqual(len(requeridos), 10)
+        self.assertGreaterEqual(len(requeridos), 8)
+
+    def test_lo_que_salio_de_la_lista_salio_porque_no_existe(self):
+        """RED-65 al revés: una ruta no se saca del guard «para que pase».
+
+        El modo de falla que la ficha cierra es borrar un archivo y dejar el guard
+        pidiéndolo. El inverso —sacarlo del guard con el archivo todavía en el árbol—
+        apaga la red sin que nadie lo note: el artefacto podría dejar de viajar al
+        release y `Publish main` seguiría verde.
+        """
+        salidas_de_la_ola_7 = ("docker/django/Dockerfile", "scripts/startup.sh")
+
+        presentes = [ruta for ruta in salidas_de_la_ola_7 if (RAIZ / ruta).exists()]
+
+        self.assertEqual(presentes, [], f"volvieron al árbol: tienen que volver a RUNTIME: {presentes}")
 
     def test_los_requeridos_viajan_al_release(self):
         """Un requerido marcado `export-ignore` es una contradicción que rompe el release.
