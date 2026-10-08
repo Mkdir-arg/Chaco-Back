@@ -777,6 +777,13 @@ def formulario_detalle(request, pk):
             "datos_siis_form": datos_siis_form,
             "puede_enviar_siis": puede_enviar_siis,
             "detalles_envio_siis": detalles_envio_siis,
+            # G1-04 / G1-05: lo que el servidor tuvo que decidir solo cuando
+            # entró esta carga de la app. Son las dos cosas que el revisor no
+            # podía saber: que la captura llegó después del cierre y qué le
+            # faltaba o sobraba a lo que subió el teléfono.
+            "observaciones_carga": " ".join(
+                linea.strip() for linea in (formulario.observaciones_carga or "").splitlines() if linea.strip()
+            ),
             # CMP-N1: en espera no se aprueba desde acá, se promueve desde Cupo.
             "posicion_espera": posicion_espera,
             "puede_ver_cupo": posicion_espera is not None

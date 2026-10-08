@@ -18,11 +18,15 @@ La forma de **cada campo** de ``definicion_formulario`` (claves, prefijos
 ``pg-``/``rn-``, enums) es la ficha RED-12 y tiene su propio test.
 """
 
-from datetime import date
+from datetime import date, timedelta
 
+from django.contrib.auth.models import Group, User
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
+from django.utils import timezone
+from rest_framework.authtoken.models import Token
 
+from programas.management.commands.seed_becas import ROL_COORDINADOR
 from programas.models import (
     Formulario,
     PreguntaGlobal,
@@ -88,15 +92,29 @@ CLAVES_FORMULARIO = [
     "apoderado_ciudadano",
     "gps_lat",
     "gps_lng",
+    "sincronizado_tarde",
     "data",
     "creado",
     "modificado",
 ]
 
+# G1-03: el **listado** de casos de un relevamiento sirve lo mismo menos `data`,
+# que es el JSON de respuestas del contrato anterior (~7 KB por caso) y de esta
+# lista la app no lo lee. `datos_identificacion` se queda: es de donde salen el
+# nombre y el DNI mientras el caso todavía no tiene legajo, que es el estado
+# normal de una carga offline recién sincronizada (`RelevamientoDetailScreen.js`,
+# la lista de personas, y `dniYaRelevado` en `relevamientoService.js`).
+CLAVES_FORMULARIO_LISTADO = [clave for clave in CLAVES_FORMULARIO if clave != "data"]
+
 CLAVES_ADJUNTO = ["id", "formulario", "pregunta_global", "requisito_nativo", "archivo", "creado"]
 
-# La paginación de DRF: la app recorre `results` y usa `next` para traer el
-# resto. Cambiar la clase de paginación le rompe la sincronización.
+# G1-03: las dos listas de la API de campo se sirven **sin paginar**. La app
+# nunca siguió `next` —`relevamientoService.js` hace
+# `Array.isArray(payload?.results) ? payload.results : (Array.isArray(payload) ? payload : [])`
+# y se queda con la primera página—, así que la paginación global de DRF, que
+# corta en 10, le escondía los casos del 11 en adelante y los relevamientos
+# vigentes a partir del 11. Acepta las dos formas, por eso el cambio no necesita
+# release de la app; lo que este test fija es que de acá sale la lista plana.
 CLAVES_PAGINACION = ["count", "next", "previous", "results"]
 
 
@@ -118,8 +136,25 @@ class ContratoAppDeCampoTests(_BaseApiTest):
     def test_lista_de_relevamientos_tiene_exactamente_estas_claves(self):
         cuerpo = self._relevamiento_del_listado()
 
-        self.assertEqual(sorted(cuerpo), sorted(CLAVES_PAGINACION))
-        self.assertEqual(sorted(cuerpo["results"][0]), sorted(CLAVES_RELEVAMIENTO_LIST))
+        # G1-03: lista plana, no el sobre de paginación.
+        self.assertIsInstance(cuerpo, list)
+        self.assertEqual(sorted(cuerpo[0]), sorted(CLAVES_RELEVAMIENTO_LIST))
+
+    def test_la_agenda_no_se_corta_en_la_decima_fila(self):
+        """G1-03: con la paginación global de DRF (`PAGE_SIZE: 10`) el
+        territorial con 12 relevamientos vigentes veía 10, y la caché offline
+        del teléfono guardaba esos 10. La app no sigue `next`."""
+        for dia in range(1, 12):
+            Relevamiento.objects.create(
+                convocatoria=self.conv,
+                territorial=self.terri,
+                fecha_asignada=timezone.localdate() + timedelta(days=dia),
+                zona=f"Zona {dia}",
+            )
+
+        cuerpo = self._relevamiento_del_listado()
+
+        self.assertEqual(len(cuerpo), 12)
 
     def test_detalle_agrega_definicion_formulario(self):
         resp = self.client.get(reverse("becas_api:relevamiento-detail", args=[self.rel.pk]))
@@ -175,7 +210,7 @@ class ContratoAppDeCampoTests(_BaseApiTest):
             format="json",
         )
 
-        propio = next(r for r in self._relevamiento_del_listado()["results"] if r["id"] == self.rel.pk)
+        propio = next(r for r in self._relevamiento_del_listado() if r["id"] == self.rel.pk)
 
         self.assertEqual(propio["formularios_count"], 1)
         self.assertEqual(propio["cupo_maximo"], 2)
@@ -247,5 +282,77 @@ class ContratoAppDeCampoTests(_BaseApiTest):
 
         self.assertEqual(resp.status_code, 200)
         cuerpo = resp.json()
-        self.assertEqual(sorted(cuerpo), sorted(CLAVES_PAGINACION))
-        self.assertEqual(sorted(cuerpo["results"][0]), sorted(CLAVES_FORMULARIO))
+        self.assertIsInstance(cuerpo, list)
+        self.assertEqual(sorted(cuerpo[0]), sorted(CLAVES_FORMULARIO_LISTADO))
+        # Lo que la app lee de esta lista, nombrado: sin esto, «lo mismo menos
+        # `data`» es una frase y no un contrato.
+        caso = cuerpo[0]
+        self.assertEqual(caso["ciudadano_dni"], "40400400")
+        self.assertEqual(caso["estado"], "ENVIADO")
+        self.assertIn("datos_identificacion", caso)
+
+    def test_el_listado_de_casos_no_se_corta_en_la_decima_fila(self):
+        """G1-03: con 15 casos cargados, `dniYaRelevado` solo veía los 10 más
+        nuevos y la app dejaba cargar de nuevo a alguien ya relevado; el
+        servidor marcaba el caso como `conflicto_duplicado` y alguien lo tenía
+        que descartar a mano desde el backoffice."""
+        self.rel.estado = Relevamiento.Estado.EN_CURSO
+        self.rel.cupo_maximo = 50
+        self.rel.save(update_fields=["estado", "cupo_maximo", "modificado"])
+        for numero in range(15):
+            Formulario.objects.create(
+                relevamiento=self.rel,
+                datos_identificacion={"dni": f"4040{numero:04d}"},
+                celular="1",
+                email_contacto="a@b.com",
+            )
+
+        resp = self.client.get(reverse("becas_api:relevamiento-formularios", args=[self.rel.pk]))
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(len(resp.json()), 15)
+
+    def test_el_listado_de_casos_no_arrastra_el_json_de_respuestas(self):
+        """G1-03: `data` pesa ~7 KB por caso. Sin paginación, servirlo por fila
+        es lo que pone este listado contra el `read_timeout` de 10 s."""
+        self.rel.estado = Relevamiento.Estado.EN_CURSO
+        self.rel.save(update_fields=["estado", "modificado"])
+        Formulario.objects.create(
+            relevamiento=self.rel,
+            datos_identificacion={"dni": "40400400"},
+            data={"globales": {"1": "x" * 5000}},
+            celular="1",
+            email_contacto="a@b.com",
+        )
+
+        resp = self.client.get(reverse("becas_api:relevamiento-formularios", args=[self.rel.pk]))
+
+        self.assertNotIn("data", resp.json()[0])
+        # El detalle del caso, en cambio, sigue trayéndolo: es el contrato con
+        # el que la app rehidrata un formulario.
+        detalle = self.client.get(reverse("becas_api:formulario-detail", args=[self.rel.formularios.first().pk]))
+        self.assertIn("data", detalle.json())
+        self.assertEqual(detalle.json()["data"]["globales"]["1"], "x" * 5000)
+
+    def test_la_raiz_de_la_api_responde_con_el_token_de_la_app(self):
+        """R0-04: desde SEC-01 la raíz del router quedó con la autenticación por
+        defecto y un `Authorization: Token` —el único que usa la app— recibía
+        403 mientras todo lo que cuelga de ella respondía 200. La app en
+        producción **no** la consulta (`Chaco-mobile@a66c2d3`: su
+        `initializeWafSession` pide `/`, la raíz del sitio), así que esto no
+        cambia nada para el teléfono; lo que arregla es la contradicción."""
+        resp = self.client.get("/api/becas/")
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("relevamientos", resp.json())
+
+    def test_la_raiz_de_la_api_no_se_abre_a_quien_no_es_de_campo(self):
+        self.client.credentials()
+        self.assertIn(self.client.get("/api/becas/").status_code, (401, 403))
+
+        coordinador = User.objects.create_user("coord-raiz", password="secret123")
+        coordinador.groups.add(Group.objects.get(name=ROL_COORDINADOR))
+        token, _ = Token.objects.get_or_create(user=coordinador)
+        self.client.credentials(HTTP_AUTHORIZATION=f"Token {token.key}")
+
+        self.assertEqual(self.client.get("/api/becas/").status_code, 403)
