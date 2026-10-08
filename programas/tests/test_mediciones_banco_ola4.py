@@ -113,9 +113,7 @@ class BandejaFiltradaPorEstadoTests(_BaseMedicion):
     def setUp(self):
         super().setUp()
         for n in range(3):
-            Formulario.objects.create(
-                relevamiento=self.relevamiento, numero=n + 1, estado=Formulario.Estado.BAJA
-            )
+            Formulario.objects.create(relevamiento=self.relevamiento, numero=n + 1, estado=Formulario.Estado.BAJA)
 
     def test_la_bandeja_filtra_por_la_columna_desnuda_y_proyecta_solo_el_pk(self):
         """Sin función sobre la columna (gotcha de MariaDB) y sin traer la fila ancha.
@@ -208,10 +206,7 @@ class ConteosDelPadronTests(_BaseMedicion):
         self.client.get(url)  # primera visita: sesión y Profile
         con_pocas = len(self._consultas_al_padron(url))
         PadronHabilitado.objects.bulk_create(
-            [
-                PadronHabilitado(convocatoria=self.convocatoria, dni=f"8{n:07d}", sexo="M")
-                for n in range(200)
-            ]
+            [PadronHabilitado(convocatoria=self.convocatoria, dni=f"8{n:07d}", sexo="M") for n in range(200)]
         )
 
         self.assertEqual(len(self._consultas_al_padron(url)), con_pocas)
