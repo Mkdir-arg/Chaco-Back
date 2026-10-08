@@ -75,29 +75,22 @@ TOPE_COMBINACIONES = 4
 # NO se agregan entradas nuevas **por código nuevo**: una URL que no resuelve y la
 # escribió este PR es un bug de este PR. Lo que sí entra —y entró en la ronda 2 del
 # #611— es deuda vieja que el barrido recién empieza a ver porque se ensanchó.
-ALLOWLIST = {
-    # LEG-06 (Ola 5): `historial_contactos.html` es código muerto; las vistas
-    # existen (`legajos/views/historial_contactos.py`) pero sin ruta. La ficha
-    # borra el template. Las dos últimas las destapó el patrón de asignación de la
-    # ronda 2 (`const url = modoEdicion ? … : …`, líneas 598-599).
-    "/legajos/1/contactos/api/",
-    "/legajos/contactos/1/detalle/",
-    "/legajos/1/contactos/crear/",
-    "/legajos/contactos/1/editar/",
-    # HALLAZGO NUEVO de la ronda 2 del #611, **sin ficha todavía**:
-    # `legajos/templates/legajos/programas/programa_detail.html:654` le pone al form
-    # de «Dar de baja» un `action` que no existe en el URLconf. La vista sí existe
-    # (`legajos/views/programas.py::dar_de_baja_inscripcion`, con `@login_required` y
-    # `@require_http_methods(["POST"])`), pero **nadie la rutea**: el botón de una
-    # pantalla viva (`/legajos/programas/<pk>/`) postea a un 404 desde siempre.
-    # NO se arregla acá: rutear la vista haría funcionar por primera vez una baja
-    # destructiva que nunca corrió en producción, y eso es decisión del PM, no un
-    # arreglo al paso. Ver la Resolución de RED-42 y el cuerpo del PR.
-    "/legajos/acompanamiento/1/dar-de-baja/",
-    # RED-75 salió de acá el 07/10/2026 (Cambio 164): `sendThemePreference` se
-    # borró de `base.js` con el default D-RED-07 = A, así que `/set_dark_mode/`
-    # ya no aparece en el front. El candado lo tiene `users/tests/test_tema.py`.
-}
+# La Ola 7 (LEG-06, Cambio 195) la dejó **vacía**: se borraron las cinco entradas y
+# con ellas el front que las escribía.
+#
+# - `/legajos/1/contactos/api/`, `/legajos/contactos/1/detalle/`,
+#   `/legajos/1/contactos/crear/` y `/legajos/contactos/1/editar/` salían de
+#   `historial_contactos.html`, un template sin vista ruteada. Se fue el template y se
+#   fue `legajos/views/historial_contactos.py`.
+# - `/legajos/acompanamiento/1/dar-de-baja/` era el `action` del form de «Dar de baja»
+#   de `programa_detail.html` (hallazgo de la ronda 2 del #611, sin ficha propia).
+#   Tampoco se ruteó la vista: se borraron el botón y `dar_de_baja_inscripcion`, porque
+#   estrenar una baja destructiva que nunca corrió es decisión del PM.
+# - RED-75 ya había salido el 07/10/2026 (Cambio 164), con `sendThemePreference`.
+#
+# Que esté vacía es el estado deseado y el ratchet de abajo lo sostiene en las dos
+# direcciones: una URL rota nueva falla, y una entrada que sobra también.
+ALLOWLIST = set()
 
 
 def _archivos():

@@ -235,11 +235,10 @@ URL_LITERAL = re.compile(r"\{%\s*url\s+(['\"])([a-zA-Z0-9_:.-]+)\1")
 PORTAL_CIUDADANO_DIR = "portal/templates/portal/ciudadano/"
 PORTAL_CIUDADANO_ROTAS = 32
 
-#: Lo roto fuera de esa carpeta, con su dueño.
-URLS_ROTAS_CONOCIDAS = {
-    # Parcial del shell legacy `includes/main.html`; lo retira LEG-06 (Ola 7).
-    ("templates/components/widget_contactos.html", "legajos:metricas_contactos_api"),
-}
+#: Lo roto fuera de esa carpeta, con su dueño. **Vacío desde la Ola 7**: la única
+#: entrada era `widget_contactos.html` con `legajos:metricas_contactos_api`, y LEG-06
+#: (Cambio 195) borró el parcial junto con la vista sin ruta que pedía.
+URLS_ROTAS_CONOCIDAS = set()
 
 
 def _nombres_de_url_rotos():

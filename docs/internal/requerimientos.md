@@ -366,6 +366,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 192 | Configuración, admin y las tres fichas de performance que se cerraron midiendo | Transversal (conexiones de base, Redis de sesiones, `/admin/` de Django) · Becas (link público: vigencia de la sesión anónima; banco de medición) · Legajos (admin de contactos y vínculos) | `#performance` `#infra` `#sesion` `#datos` | Auditoría integral oct-2026 — fichas PERF-08, PERF-10, G1c-09, G1c-11, PERF-12, PERF-13 y PERF-15 (Ola 4, PRs 6, 7 y 8) | 08/10/2026 | 🟢 **Hecho** (PERF-12, PERF-13 y PERF-15 cerradas con la medición como evidencia: **ningún índice entra**; `REDIS_SESSIONS_DB` preparada y apagada, H-06) | No requiere |
 | 193 | Las capacidades de un programa dejan de valer fuera de él: catálogo, wizard, delegación y roles sembrados | Transversal — RBAC (ABM de Roles y de Usuarios) · Becas (exports de convocatoria, proceso masivo, pendientes de RENAPER) · Configuración (wizard de programas) | `#rbac` `#usuarios` `#datos` `#infra` | Auditoría oct-2026, Ola 2 PR 1 (SEC-06, SEC-07, G1b-02, G1b-06, OPS-06 fase 2, RED-80) | 08/10/2026 | 🟢 **Hecho** | Sí: `users.0029`-`0032` (la `0031` **quita** capacidades, con reversa real y registro) y `programas.0084` |
 | 194 | La red de seguridad de la Ola 4: presupuestos que no se suben solos, los dos destinos que faltaban, el cache de la home por modelo y los índices que no servían | Transversal (CI de performance, cache del inicio, índices de base) · Becas (link público y alta por la app de campo: presupuestos) · Legajos (admin de contactos) | `#performance` `#infra` `#datos` `#metodo` | Auditoría integral oct-2026 — fichas RED-62, RED-10 (2.ª parte), RED-51 (parte Ola 4) y RED-83 (migración) (Ola 4, PR 9) | 08/10/2026 | 🟢 **Hecho** (cierra la Ola 4) | `legajos.0011` y `programas.0084` (solo `DROP INDEX`, online) |
+| 195 | Sacar del repo lo que no corre: los módulos de «optimización», 29 JS huérfanos y el código muerto de Legajos | Transversal (dashboard de performance, comandos, guard del release, estáticos) · Legajos (vistas y templates sin ruta, «Derivar a Programa») | `#infra` `#performance` `#ui` `#rbac` | Auditoría integral oct-2026 — fichas OPS-10, OPS-14 (con RED-65), FE-14 y LEG-06 (Ola 7, PR 1) | 09/10/2026 | 🟢 **Hecho** (D-L06 aplicada por default; D-F16 no: `programa_detalle` sigue siendo destino de redirect de las derivaciones) | `users.0033` (sin DDL) |
 
 **Notas del índice**
 
@@ -29232,7 +29233,6 @@ pierde.
   (`programas.0084`, columna nueva `NULL`), que escribe el alta. `merendero.ver` y
   `merendero.validar` siguen leyendo todas; una solicitud anterior a la columna queda en `NULL` y
   no la abre el alta.
-
 ---
 
 # Cambio 194 — La red de seguridad de la Ola 4: presupuestos que no se suben solos, los dos destinos que faltaban, el cache de la home por modelo y los índices que no servían
@@ -29420,3 +29420,148 @@ esquema.
   fija con un test de consultas constantes en vez de un presupuesto —el catálogo decide
   cuántos adjuntos hay— y la sonda pasa a nombrar la ruta y la consulta repetida en su
   mensaje de error.
+
+---
+
+# Cambio 195 — Sacar del repo lo que no corre: los módulos de «optimización», 29 JS huérfanos y el código muerto de Legajos
+
+🟢 **HECHO — 09/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal (dashboard de performance, comandos de management, guard del release, estáticos) · Legajos (vistas y templates sin ruta, botón «Derivar a Programa») |
+| **Etiquetas** | `#infra` `#performance` `#ui` `#rbac` |
+| **Solicitante** | Auditoría integral oct-2026 — Ola 7 «Deuda», PR 1 |
+| **Fecha del pedido** | 09/10/2026 |
+| **Issue / épica** | Auditoría oct-2026 — fichas OPS-10, OPS-14 (con RED-65), FE-14 y LEG-06 |
+| **Partes afectadas** | Backoffice · Infra/ECOM (guard de `publish-main.yml`) |
+| **Migración** | `users.0033` (retira la capacidad `ciudadano.eliminar`; sin DDL) |
+
+## Pedido original
+
+Las cuatro fichas de código muerto de la Ola 7. El criterio de cierre de la ola que
+aplica acá: `git grep -n "phase2\|core.performance.monitoring"` tiene que quedar vacío y
+`collectstatic` con el almacenamiento con manifest tiene que pasar sin 404.
+
+## Alcance acordado
+
+**Entra:** los nueve módulos de `core/performance/` con los que nadie mide nada y sus seis
+comandos; cinco endpoints del dashboard de performance; `tramites`; `docker/django/`;
+`scripts/startup.sh`; `core/services/cache.py`; la capacidad `ciudadano.eliminar`; los 29
+JS huérfanos y `dashboard.css`; las vistas y templates sin ruta de Legajos; y las dos
+rutas que el guard del release exigía y ya no existen (RED-65).
+
+**Queda afuera, y por qué:**
+
+- **`dashboard/templates/dashboard.html` y `DashboardView`.** LEG-06 nombra el template,
+  pero la vista, su `path` y el traslado de los contadores a `metricas_home()` son de
+  **RED-78**, que es otro PR de esta misma ola. Borrar solo el template deja una vista que
+  renderiza algo inexistente. Acá sale **únicamente** el `{% include %}` de
+  `widget_contactos.html`, que sí es de LEG-06.
+- **La pantalla «Gestión de Programas» de Legajos entera (default de D-F16).** Code-first:
+  `legajos:programa_detalle` es el destino de `redirect` de `aceptar_derivacion_programa` y
+  `rechazar_derivacion_programa`, las dos **ruteadas y vivas** desde SEC-12; y
+  `dashboard.html` la enlaza. No es código muerto: es una pantalla pobre. Lo muerto de ella
+  —`dar_de_baja_inscripcion` y su botón— sí sale.
+- **`relevamiento.ver`, `institucion.ver` e `institucion.administrar`.** R-18 las mandó a
+  OPS-14 («o se usan, o salen del catálogo»), pero la *Propuesta* de la ficha solo nombra
+  `ciudadano.eliminar`. Retirar las de `instituciones` vacía el módulo y hace desaparecer
+  una solapa del ABM de Roles, y `relevamiento.ver` convive con `relevamiento.gestionar`,
+  que sí se evalúa. Las tres siguen declaradas en `CAPACIDADES_SIN_USO` con su motivo.
+- **`legajos/services/ml_predictor.py`**, que OPS-14 lista en *Ubicación* y **no** en
+  *Propuesta*: `legajos/views/contactos_api.py::prediccion_riesgo_api` lo importa y esa
+  ruta existe (`legajos:prediccion_riesgo`). No está muerto.
+- **`BajaProgramaService`**, que se queda aunque su único invocador se haya ido: lo cubre un
+  test permanente de BEC-18 y estrenar una baja destructiva es decisión del PM.
+
+## Decisiones tomadas
+
+- **Del dashboard de performance sobrevive lo que mide de verdad.** `query_observability`,
+  `cache_utils` y `ci_external_stubs` se conservan, igual que `/performance-api/`,
+  `/query-analysis-api/` y `/optimization-suggestions-api/`. Se van `system-metrics`,
+  `alerts`, `realtime-metrics`, `phase2-metrics` y `run-phase2-tests`: las dos primeras
+  leían `psutil` **del proceso que atendiera el request** (una réplica cualquiera, no el
+  host) y las tres últimas un caché que solo llenaba un ciclo de «optimización» que nadie
+  dispara. `/run-phase2-tests-api/` autorizaba además por `IsAdminUser` (`is_staff`), contra
+  la regla de capacidades, y corría análisis de índices y particiones desde una request.
+- **`SET GLOBAL` y `CREATE INDEX IF NOT EXISTS` no vuelven.** `DatabaseOptimizer` pedía
+  `SUPER` (que ECOM casi seguro no da) y `DatabasePartitioner` escribía SQL que MySQL no
+  entiende sobre tablas que no existen. Se borran con sus comandos, no se arreglan.
+- **D-L06 con su default:** «Derivar a Programa» se **oculta** en el detalle del ciudadano.
+  La ruta y la vista siguen montadas: la decisión era sobre el botón, no sobre la URL.
+- **RED-65 en las dos direcciones.** Además del test que ya existía («lo que el guard exige
+  tiene que existir»), se agrega el inverso: una ruta solo puede salir de `RUNTIME` si el
+  archivo se borró. Sacarla con el archivo en el árbol apagaría la red en silencio.
+- **`ciudadano.eliminar` se borra también como `Permission`.** Django no lo hace al sacarlo
+  de `Meta.permissions`: quedaría tildado en los grupos que lo tenían y `rbac.puede()`
+  seguiría resolviéndolo. Mismo patrón que `users.0017`.
+
+## Implementación
+
+El dashboard de performance muestra cuatro paneles en vez de seis y ya no ofrece el botón
+«Ejecutar Pruebas Automáticas». El ABM de Roles deja de ofrecer «Eliminar ciudadanos». El
+detalle del ciudadano deja de ofrecer «Derivar a Programa». Nada más cambia de lo que el
+usuario ve: todo lo demás era código que no se ejecutaba.
+
+## Archivos
+
+Borrados: 9 módulos de `core/performance/`, 6 comandos de management, `tramites/`,
+`docker/django/`, `scripts/startup.sh`, `core/services/cache.py`, 29 `static/custom/js/*.js`,
+`static/custom/css/dashboard.css`, 4 módulos de `legajos/views/` y 3 templates.
+Editados: `core/views/performance.py`, `core/urls.py`, `core/middleware.py`,
+`config/middlewares/query_counter.py`, `config/settings.py`, `core/rbac.py`,
+`users/management/commands/seed_datos_base.py`, `templates/core/performance_dashboard.html`,
+`legajos/templates/legajos/ciudadano_detail.html`,
+`legajos/templates/legajos/programas/programa_detail.html`, `dashboard/templates/dashboard.html`,
+`.github/workflows/publish-main.yml`, `pyproject.toml`, `tailwind.config.js`,
+`scripts/design_audit.py`, `scripts/perf_audit.py`, `scripts/compile_templates.py`,
+`docs/api/core.postman_collection.json`, `static/custom/css/tailwind.css` y nueve módulos de tests.
+
+## Base de datos
+
+`users.0033_retirar_capacidad_ciudadano_eliminar`: `AlterModelOptions` sobre el modelo ancla
+`users.Capacidad` (`managed = False`: **no toca el esquema**) y un `RunPython` que borra la
+fila de `auth_permission` con codename `ciudadano_eliminar`, más las de
+`auth_group_permissions` que caen por cascada. Seguro sobre datos existentes y seguro
+durante el rolling: ninguna vista evalúa esa capacidad, y el `seed_datos_base` de la release
+vieja la busca con un `filter(codename__in=…)` que simplemente no la encuentra.
+
+## Validación
+
+`manage.py check` y `check --deploy`: 0 issues. `makemigrations --check --dry-run`: sin
+cambios. `scripts/check_migraciones.py`: OK. Suite de `core`, `users`, `dashboard`,
+`legajos`, `programas`, `configuracion`, `portal` y `conversaciones`: 0 fallos.
+Los 14 tests nuevos se corrieron primero contra un worktree de `origin/development` y
+**fallaron los 14**. `compile_templates.py --bloques`: 0 errores y 0 bloques sin destino.
+`design_audit.py --ratchet`: 0 hallazgos nuevos. `--goldens`: 0. `npm run build:tailwind`
+con su diff commiteado. `collectstatic --clear` con `ENVIRONMENT=prd`
+(`ManifestStaticFilesStorage`): 332 archivos, 1.448 post-procesados, sin errores. ruff
+`check` y `format --check` limpios.
+
+## Puesta en marcha en el servidor
+
+Nada especial. Conviene saber que `scripts/startup.sh` y `docker/django/Dockerfile` ya no
+existen: **ningún entorno los usaba** —el `Dockerfile` de la raíz y `docker-entrypoint.sh`
+son los que construyen y arrancan—, pero si alguien tenía un `docker build -f
+docker/django/Dockerfile` a mano, deja de funcionar.
+
+## Pendientes / a definir
+
+- **Para el juez:** los dos bloques de `.claude/` van en el cuerpo del PR (esta sesión no
+  escribe ahí). Hasta aplicarlos, «Design Agent Contract» queda rojo.
+- `relevamiento.ver`, `institucion.ver` e `institucion.administrar` siguen en el catálogo sin
+  que nada las evalúe: decisión del PM.
+- `dashboard/templates/dashboard.html` y `DashboardView` los retira RED-78, misma ola.
+- `legajos/forms/contactos.py::HistorialContactoForm` se quedó sin consumidores al irse
+  `historial_contactos.py`; el modelo `HistorialContacto` sigue vivo, así que no se tocó.
+
+## Reversión
+
+`manage.py migrate users 0032` recrea el `Permission` **sin volver a tildarlo en ningún rol**
+(la fila de `auth_group_permissions` se fue por cascada y la migración no la guarda). Para
+el código, revertir el merge alcanza: no hay estado nuevo en la base ni archivos generados
+fuera de `static/custom/css/tailwind.css`, que se regenera con `npm run build:tailwind`.
+
+## Historial
+
+No aplica.

@@ -3,7 +3,6 @@ from django.shortcuts import redirect
 from django.urls import path
 
 from .views import (
-    alerts_api,
     inicio_view,
     latido_de_sesion,
     load_localidad,
@@ -12,13 +11,9 @@ from .views import (
     optimization_suggestions_api,
     performance_api,
     performance_dashboard,
-    phase2_metrics_api,
     query_analysis_api,
-    realtime_metrics_api,
     relevamiento_detail_view,
     relevamientos_view,
-    run_phase2_tests_api,
-    system_metrics_api,
 )
 
 app_name = "core"
@@ -55,15 +50,11 @@ urlpatterns = [
         login_required(load_subsecretarias),
         name="ajax_load_subsecretarias",
     ),
-    # Performance Dashboard URLs
+    # Observabilidad de consultas (OPS-10: lo que quedó del dashboard de performance;
+    # las APIs de monitoreo de la «fase 2» se fueron con los módulos que las
+    # alimentaban, y el candado está en `core/tests/test_performance_observability.py`).
     path("performance-dashboard/", performance_dashboard, name="performance_dashboard"),
     path("performance-api/", performance_api, name="performance_api"),
     path("query-analysis-api/", query_analysis_api, name="query_analysis_api"),
     path("optimization-suggestions-api/", optimization_suggestions_api, name="optimization_suggestions_api"),
-    # Monitoring APIs
-    path("system-metrics-api/", system_metrics_api, name="system_metrics_api"),
-    path("alerts-api/", alerts_api, name="alerts_api"),
-    path("realtime-metrics-api/", realtime_metrics_api, name="realtime_metrics_api"),
-    path("phase2-metrics-api/", phase2_metrics_api, name="phase2_metrics_api"),
-    path("run-phase2-tests-api/", run_phase2_tests_api, name="run_phase2_tests_api"),
 ]

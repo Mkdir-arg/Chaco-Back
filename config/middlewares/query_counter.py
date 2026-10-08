@@ -68,11 +68,6 @@ class QueryCountMiddleware:
             "/performance-api/",
             "/query-analysis-api/",
             "/optimization-suggestions-api/",
-            "/system-metrics-api/",
-            "/alerts-api/",
-            "/realtime-metrics-api/",
-            "/phase2-metrics-api/",
-            "/run-phase2-tests-api/",
         }
     )
 

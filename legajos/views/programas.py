@@ -2,11 +2,7 @@
 Vistas para Gestión Operativa de Programas
 """
 
-from django.contrib import messages
-from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.shortcuts import get_object_or_404, redirect
-from django.views.decorators.http import require_http_methods
 from django.views.generic import DetailView, ListView
 
 from core.rbac import CapacidadRequeridaMixin
@@ -94,33 +90,9 @@ class ProgramaDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, DetailView
         return context
 
 
-@login_required
-@require_http_methods(["POST"])
-def dar_de_baja_inscripcion(request, inscripcion_id):
-    """
-    Da de baja a un ciudadano de un programa persistente.
-    Espera campo POST 'motivo' (obligatorio).
-    """
-    from ..services.programas import BajaProgramaService
-
-    inscripcion = get_object_or_404(InscripcionPrograma, id=inscripcion_id)
-    motivo = request.POST.get("motivo", "").strip()
-
-    if not motivo:
-        messages.error(request, "Debe ingresar un motivo para la baja.")
-        return redirect("legajos:programa_detalle", pk=inscripcion.programa_id)
-
-    try:
-        BajaProgramaService.dar_de_baja(
-            inscripcion_id=inscripcion_id,
-            usuario=request.user,
-            motivo=motivo,
-        )
-        messages.success(
-            request,
-            f"{inscripcion.ciudadano.nombre_completo} fue dado de baja del programa correctamente.",
-        )
-    except ValueError as exc:
-        messages.error(request, str(exc))
-
-    return redirect("legajos:programa_detalle", pk=inscripcion.programa_id)
+# LEG-06 (Ola 7): acá vivía `dar_de_baja_inscripcion`, que **ningún `path()` montaba**.
+# Su único invocador era un botón de `programa_detail.html` que posteaba a
+# `/legajos/acompanamiento/<id>/dar-de-baja/` —404 desde siempre, medido por RED-42— y
+# que además nunca se dibujaba, porque `acompanamientos` viene vacío fijo (FE-16). El
+# servicio que llamaba, `BajaProgramaService`, sigue en `legajos/services/programas.py`
+# con su test de BEC-18: estrenar la baja es decisión del PM, no limpieza de deuda.

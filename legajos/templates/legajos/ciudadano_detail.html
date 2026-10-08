@@ -188,10 +188,16 @@
                         <i class="fas fa-pen" aria-hidden="true"></i>
                         <span>Editar</span>
                     </a>
-                    <a href="{% url 'legajos:derivar_programa' ciudadano.pk %}" class="btn-nodo btn-brand btn-base">
-                        <i class="fas fa-share-nodes" aria-hidden="true"></i>
-                        <span>Derivar a Programa</span>
-                    </a>
+                    {% comment %}
+                    LEG-06 / D-L06 (default aplicado, Ola 7): «Derivar a Programa» queda
+                    oculto hasta que la v2 (issue 390) defina las derivaciones. Creaba una
+                    `DerivacionPrograma` en PENDIENTE que **nadie puede aceptar desde la
+                    UI**: la bandeja que la recibiría es la de `programa_detail.html`, que
+                    imprime una lista vacía fija desde que se retiró `models_institucional`
+                    (FE-16). La ruta `legajos:derivar_programa` y su vista siguen montadas
+                    —retirarlas es decisión del PM, no limpieza de deuda— y la inscripción
+                    directa sigue disponible para quien tenga la capacidad.
+                    {% endcomment %}
                 </div>
             </div>
 

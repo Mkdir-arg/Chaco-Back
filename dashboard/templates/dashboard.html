@@ -179,7 +179,6 @@
         <div class="overflow-hidden rounded-lg bg-white shadow">
             <div class="px-4 py-5 sm:p-6">
                 <div class="text-center">
-                    <img class="mx-auto h-32 w-auto" src="{% static 'custom/img/sisoc_logo.png' %}" alt="DATAÑACH">
                     <h3 class="mt-6 text-lg font-medium" style="color: var(--text-heading)">
                         Bienvenido a DATAÑACH
                     </h3>
@@ -253,17 +252,13 @@
     </div>
     {% endif %}
 
-    <!-- Widget Sistema de Contactos -->
-    <div class="mt-6 sm:mt-8">
-        <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
-            <div class="lg:col-span-1">
-                {% include 'components/widget_contactos.html' %}
-            </div>
-            <div class="lg:col-span-2">
-                <!-- Otros widgets pueden ir aquí -->
-            </div>
-        </div>
-    </div>
+    {% comment %}
+    LEG-06 (Ola 7): acá iba `components/widget_contactos.html`, que pedía cada
+    5 minutos `legajos:metricas_contactos_api` —una vista sin ruta: el fetch era
+    un 404 permanente— y mostraba los ceros literales que devolvía
+    `legajos/views/dashboard_contactos.py`. Las dos cosas se borraron. Esta
+    pantalla entera la retira RED-78 (misma ola, otro PR).
+    {% endcomment %}
 
     <!-- Quick actions -->
     <div class="mt-6 sm:mt-8">

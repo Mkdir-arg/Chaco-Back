@@ -11,8 +11,9 @@ Consumidores de cada clave:
 
 - `results` / `has_more` — `templates/inicio.html:909` (buscador del inicio).
 - `labels` / `datos` — `templates/inicio.html:938` (gráfico de tendencias).
-- `count` / `criticas` — `static/custom/js/alertas_conversaciones_simple.js:47` y
-  `static/custom/js/alertas_websocket.js:239`.
+- `count` / `criticas` — `static/custom/js/alertas_websocket.js:239`. El otro
+  consumidor que figuraba acá, `alertas_conversaciones_simple.js`, era un
+  huérfano que no cargaba ningún template y se borró con FE-14 (Ola 7).
 
 El contrato se congela con el conjunto **exacto** de claves: una clave que se va
 rompe el front, y una que se agrega sin avisar es una clave que la app móvil o

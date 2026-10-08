@@ -15,6 +15,11 @@ contract la retire (expand/contract: borrarla acá rompería la release vieja).
 Estos tests son el candado: si alguien vuelve a postear la preferencia, el
 módulo se pone rojo antes de que la URL vuelva a la `ALLOWLIST` de
 `core/tests/test_urls_del_front.py`.
+
+**Ola 7, FE-14:** `base.js` era además un **huérfano** —no lo cargaba ningún
+template—, así que el 404 por cambio de tema que describe RED-75 nunca llegó a
+pasar en producción. El archivo se borró; el barrido de abajo sigue mirando todo
+el front, que es donde el POST podría reaparecer.
 """
 
 from pathlib import Path
@@ -79,9 +84,14 @@ class TemaTests(SimpleTestCase):
         """`dark_mode` salió de `ProfileSerializer`: nadie lo lee ni lo escribe."""
         self.assertNotIn("dark_mode", ProfileSerializer().fields)
 
-    def test_el_shell_sigue_recordando_el_tema_en_el_navegador(self):
-        """La conducta que el usuario ve no cambia: `localStorage` la sostiene."""
-        shell = SHELL_JS.read_text(encoding="utf-8")
+    def test_el_archivo_que_posteaba_el_tema_ya_no_existe(self):
+        """FE-14 (Ola 7): `base.js` era huérfano —ningún template lo cargaba—.
 
-        self.assertIn("localStorage.setItem(THEME_STORAGE_KEY", shell)
-        self.assertIn("localStorage.getItem(THEME_STORAGE_KEY", shell)
+        Hasta acá este módulo afirmaba que `base.js` seguía guardando el tema en
+        `localStorage`. Era cierto como texto y **falso como conducta**: el archivo
+        no se servía en ninguna pantalla, así que ni el POST que RED-75 sacó ni el
+        `localStorage` que lo reemplazó llegaban nunca al navegador. Lo que sostiene
+        la red ahora son los tres tests de arriba, que barren **todo** el front: si
+        el POST vuelve —en este archivo o en cualquier otro—, se ponen rojos.
+        """
+        self.assertFalse(SHELL_JS.exists(), f"{SHELL_JS.name} volvió al repo: revisar FE-14 y RED-75")

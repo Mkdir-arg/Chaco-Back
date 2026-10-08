@@ -38,7 +38,6 @@ CATALOGO = [
             ("ciudadano.ver", "Ver ciudadanos y legajos"),
             ("ciudadano.crear", "Crear ciudadanos"),
             ("ciudadano.editar", "Editar ciudadanos"),
-            ("ciudadano.eliminar", "Eliminar ciudadanos"),
             ("ciudadano.sensible", "Ver datos sensibles"),
             # SEC-20 / D-20: descargar el padrón entero (~100k DNI) es otra cosa que
             # consultar una ficha. Se siembra a los roles que ya tienen
