@@ -20,10 +20,11 @@ app_name = "core"
 
 
 def dashboard_redirect(request):
-    # `/dashboard/` es un alias histórico del inicio del backoffice. Apuntar a
-    # `dashboard:inicio` era ambiguo: esa vista está montada en la raíz, así que
-    # reverseaba a `/` —la misma URL que el login— y el usuario autenticado
-    # rebotaba por la pantalla de login en vez de ir derecho al inicio.
+    # `/dashboard/` es un alias histórico del inicio del backoffice. Apuntaba a
+    # `dashboard:inicio`, que era ambiguo: esa vista estaba montada en la raíz, así
+    # que reverseaba a `/` —la misma URL que el login— y el usuario autenticado
+    # rebotaba por la pantalla de login en vez de ir derecho al inicio. Desde RED-78
+    # esa vista no existe; el destino sigue siendo `core:inicio`, que es el real.
     return redirect("core:inicio")
 
 

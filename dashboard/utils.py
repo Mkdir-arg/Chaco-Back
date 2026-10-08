@@ -68,10 +68,11 @@ def contar_ciudadanos():
 def contar_legajos():
     """Contar **inscripciones** activas, pese al nombre.
 
-    Agrega `InscripcionPrograma`, no `LegajoAtencion`. Se mantiene tal cual porque la
-    consume `dashboard.views.home.DashboardView` (la copia vieja del inicio, tapada por
-    el orden del URLconf: RED-78) y porque RED-51 tiene dos tests escritos alrededor de
-    que `stats_legajos` agrega inscripciones.
+    Agrega `InscripcionPrograma`, no `LegajoAtencion`. Ninguna pantalla la consume:
+    su último llamador era `dashboard.views.home.DashboardView`, que RED-78 borró. Se
+    mantiene porque la clave `stats_legajos` que escribe sigue teniendo quien la
+    invalide y porque RED-51 (Ola 4) tiene dos tests escritos alrededor de que
+    `stats_legajos` agrega inscripciones; sacarla es de esa ficha, no de esta.
 
     La home **ya no la usa**: su tarjeta dice «Legajos activos» y para eso está
     `contar_legajos_atencion()` (G2-04).

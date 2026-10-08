@@ -2084,15 +2084,12 @@ class Relevamiento(PausableMixin, TimeStamped):
         if errores:
             raise ValidationError(errores)
 
-    @classmethod
-    def proximo_nombre(cls, convocatoria=None):
-        """Nombre autogenerado del próximo relevamiento.
-
-        Usa ``Max(numero)`` en vez de ``count()`` (evita el full scan y la carrera
-        de dos altas simultáneas con el mismo número).
-        """
-        siguiente = cls.proximo_numero(convocatoria)
-        return cls.nombre_para(convocatoria, siguiente)
+    # BEC-25: acá estaba `proximo_nombre()`, que componía el nombre del próximo
+    # relevamiento. Sus dos únicos llamadores lo dejaban en el contexto de
+    # `ConvocatoriaDetailView` y `RelevamientoListView` **sin convocatoria** —o sea
+    # «Relevamiento NNN» a secas, no el nombre que el alta iba a usar— y ningún
+    # template lo imprimía. El nombre real lo arma `save()` con `proximo_numero()`
+    # y `nombre_para()`, que siguen acá.
 
     @classmethod
     def nombre_para(cls, convocatoria, numero):
