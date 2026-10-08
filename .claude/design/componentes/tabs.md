@@ -8,6 +8,10 @@ y solapa condicionada por permiso) y
 `programas/templates/programas/becas/relevamientos/convocatoria_detail.html` (deep link; ya
 tiene ARIA desde FE-24).
 
+Una acción que el servidor va a rechazar **no se dibuja**, viva en el panel que viva: en
+`convocatoria_detail.html` los cuatro botones de export van bajo el mismo flag que decide la
+solapa Reportes, aunque uno de ellos esté en el panel de Beneficiarios (Cambio 193, ronda 2).
+
 No hay include ni tag: las solapas se clonan de la golden de detalle con su ARIA.
 
 ## Contrato
