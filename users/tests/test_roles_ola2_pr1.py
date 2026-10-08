@@ -198,6 +198,171 @@ class G1b02EscaladaDentroDelProgramaTests(Base):
         self.assertTrue(objetivo.groups.filter(pk=rol_full.pk).exists())
 
 
+class OperadorDeVariosProgramasTests(Base):
+    """Ronda 2: el candado (1) de SEC-06 no cubría al operador de **2 o más** programas.
+
+    ``programa_fijo`` solo se setea con un único programa administrable, así que el
+    árbol caía a ``capacidades_delegables(None)`` —el catálogo de programa entero— y le
+    ofrecía los trece módulos ``becas_*`` a un operador de Dispositivos y Merenderos. No
+    había escalada (el ``clean`` filtraba por el programa posteado), pero lo tildado
+    desaparecía sin mensaje.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.merenderos = Programa.objects.create(codigo="MERENDEROS", nombre="Merenderos")
+        self.operador = _usuario(
+            "adm-roles-disp-mere",
+            _rol("RA Dispositivos", ["programa.rol.administrar"], self.dispositivos),
+            _rol("RA Merenderos", ["programa.rol.administrar"], self.merenderos),
+        )
+
+    def _form(self, data=None, instance=None):
+        from users.forms.roles import RolForm
+
+        return RolForm(data, instance=instance, operador=self.operador)
+
+    def test_el_arbol_no_ofrece_los_modulos_de_un_programa_ajeno(self):
+        form = self._form()
+
+        modulos = {m["modulo"] for m in form.arbol_capacidades()}
+        codigos = {codigo for codigo, _ in form.fields["capacidades"].choices}
+
+        self.assertFalse({m for m in modulos if m.startswith("becas")}, modulos)
+        self.assertNotIn("becas.programa.administrar", codigos)
+        self.assertIn("dispositivo.ver", codigos)
+        self.assertIn("merendero.ver", codigos)
+
+    def test_tampoco_en_el_arbol_por_tabs(self):
+        form = self._form()
+
+        modulos = {m["modulo"] for tab in form.arbol_por_tabs() for m in tab["modulos"]}
+
+        self.assertFalse({m for m in modulos if m.startswith("becas")}, modulos)
+
+    def test_una_capacidad_de_su_otro_programa_no_se_descarta_en_silencio(self):
+        """Lo delegable de Merenderos **sí** está entre los choices (es suyo), pero no
+        corresponde a un rol de Dispositivos: antes se guardaba el rol sin ella."""
+        form = self._form(
+            {
+                "name": "Operativo Dispositivos",
+                "categoria": rbac.CATEGORIA_PROGRAMA,
+                "programa": str(self.dispositivos.pk),
+                "capacidades": ["dispositivo.ver", "merendero.ver"],
+            }
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("capacidades", form.errors)
+        self.assertIn("merendero.ver", form.errors["capacidades"][0])
+        self.assertFalse(Group.objects.filter(name="Operativo Dispositivos").exists())
+
+    def test_y_la_pantalla_lo_dice(self):
+        self.client.force_login(self.operador)
+
+        with zeal_ignore():
+            respuesta = self.client.post(
+                reverse("users:rol_crear"),
+                {
+                    "name": "Operativo Dispositivos 2",
+                    "categoria": rbac.CATEGORIA_PROGRAMA,
+                    "programa": str(self.dispositivos.pk),
+                    "capacidades": ["dispositivo.ver", "merendero.ver"],
+                },
+            )
+
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertIn("capacidades", respuesta.context["form"].errors)
+        self.assertFalse(Group.objects.filter(name="Operativo Dispositivos 2").exists())
+
+    def test_lo_que_sí_corresponde_se_guarda(self):
+        form = self._form(
+            {
+                "name": "Operativo Dispositivos 3",
+                "categoria": rbac.CATEGORIA_PROGRAMA,
+                "programa": str(self.dispositivos.pk),
+                "capacidades": ["dispositivo.ver"],
+            }
+        )
+
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertEqual(form.cleaned_data["capacidades"], ["dispositivo.ver"])
+
+
+class MoverUnRolDeProgramaTests(Base):
+    """Ronda 2: cambiarle el programa a un rol dejaba las capacidades del anterior."""
+
+    def test_al_moverlo_pierde_las_capacidades_del_programa_viejo(self):
+        rol = _rol(
+            "Operativo Becas movido",
+            ["becas.programa.administrar", "becas.segmento.ver", "dispositivo.ver"],
+            self.becas,
+        )
+        self.client.force_login(self.root)
+
+        with zeal_ignore():
+            respuesta = self.client.post(
+                reverse("users:rol_editar", args=[rol.pk]),
+                {
+                    "name": "Operativo Becas movido",
+                    "categoria": rbac.CATEGORIA_PROGRAMA,
+                    "programa": str(self.dispositivos.pk),
+                    "capacidades": ["dispositivo.ver"],
+                },
+            )
+
+        self.assertEqual(respuesta.status_code, 302)
+        self.assertEqual(rbac.capacidades_de_grupo(rol), ["dispositivo.ver"])
+
+    def test_tambien_cuando_las_conserva_la_regla_de_g1b06(self):
+        """El caso medido: un operador **no global** no ve las ``becas.*``, así que
+        ``(actuales − permitidas)`` se las devolvía al rol."""
+        rol = _rol("Operativo Becas g1b06", ["becas.segmento.ver", "dispositivo.ver"], self.becas)
+        operador = _usuario(
+            "adm-roles-becas-disp",
+            _rol("RA Becas mueve", ["programa.rol.administrar"], self.becas),
+            _rol("RA Disp mueve", ["programa.rol.administrar"], self.dispositivos),
+        )
+        self.client.force_login(operador)
+
+        with zeal_ignore():
+            respuesta = self.client.post(
+                reverse("users:rol_editar", args=[rol.pk]),
+                {
+                    "name": "Operativo Becas g1b06",
+                    "categoria": rbac.CATEGORIA_PROGRAMA,
+                    "programa": str(self.dispositivos.pk),
+                    "capacidades": ["dispositivo.ver"],
+                },
+            )
+
+        self.assertEqual(respuesta.status_code, 302)
+        self.assertEqual(rbac.capacidades_de_grupo(rol), ["dispositivo.ver"])
+
+    def test_un_rol_de_programa_no_pierde_las_capacidades_globales(self):
+        """El recorte es de las capacidades **de programa** ajenas: `ciudadano.ver` no
+        pertenece a ningún programa y se queda donde el admin global la puso."""
+        rol = _rol("Operativo Becas global", ["becas.segmento.ver"], self.becas)
+        rol.permissions.add(_perm("ciudadano.ver"))
+        self.client.force_login(self.root)
+
+        with zeal_ignore():
+            self.client.post(
+                reverse("users:rol_editar", args=[rol.pk]),
+                {
+                    "name": "Operativo Becas global",
+                    "categoria": rbac.CATEGORIA_PROGRAMA,
+                    "programa": str(self.dispositivos.pk),
+                    "capacidades": ["ciudadano.ver", "dispositivo.ver"],
+                },
+            )
+
+        self.assertEqual(
+            sorted(rbac.capacidades_de_grupo(rol)),
+            ["ciudadano.ver", "dispositivo.ver"],
+        )
+
+
 class G1b06CapsGlobalesBorradasTests(Base):
     def test_el_admin_de_programa_no_borra_las_caps_globales_del_rol(self):
         """La PoC invertida: ``ciudadano.ver`` sobrevive al guardado."""
@@ -322,6 +487,36 @@ class Migracion0031Tests(Base):
 
         modulo.restituir(apps, None)
 
+        self.assertEqual(
+            sorted(rbac.capacidades_de_grupo(rol_disp)),
+            ["becas.programa.administrar", "dispositivo.ver"],
+        )
+        self.assertFalse(CapacidadRevocada.objects.exists())
+
+    def test_sin_la_fila_becas_no_toca_a_nadie(self):
+        """Ronda 2: sin el ancla, el «otro programa» es *todos* y la migración vaciaba
+        las ``becas.*`` de los cinco roles de Becas, opt-in incluida. Ahora frena."""
+        import importlib
+
+        from django.apps import apps
+
+        modulo = importlib.import_module("users.migrations.0031_quitar_becas_de_roles_de_otros_programas")
+        rol_becas = _rol("Becas — Referente mig", ["becas.segmento.ver", "becas.relevamiento.publico"], self.becas)
+        rol_disp = _rol("Escalada Disp sin ancla", ["dispositivo.ver", "becas.programa.administrar"], self.dispositivos)
+        # El escenario de RED-56: el restore dejó la fila con otro código (borrarla no se
+        # puede, los roles la referencian), así que `codigo="BECAS"` no existe.
+        Programa.objects.filter(pk=self.becas.pk).update(codigo="BECAS_VIEJO")
+
+        with self.assertLogs(modulo.logger.name, level=logging.WARNING) as log:
+            modulo.quitar(apps, None)
+
+        self.assertIn("falta el programa", log.output[0])
+        self.assertIn("P-02", log.output[0])
+        self.assertEqual(
+            sorted(rbac.capacidades_de_grupo(rol_becas)),
+            ["becas.relevamiento.publico", "becas.segmento.ver"],
+        )
+        # Tampoco quita lo que sí correspondería: sin el ancla no se decide nada.
         self.assertEqual(
             sorted(rbac.capacidades_de_grupo(rol_disp)),
             ["becas.programa.administrar", "dispositivo.ver"],

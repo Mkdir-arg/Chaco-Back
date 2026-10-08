@@ -129,17 +129,33 @@ def _archivo_de_f00(user, ruta):
 
 
 def _documentacion_de_merendero(user, ruta):
+    """``ver`` y ``validar`` leen cualquier solicitud; ``crear``, solo las suyas.
+
+    El link lo rinde el widget del form de la solicitud (``merendero.crear``) y quien
+    tiene que leer la documentación **antes de aprobar** entra por la pantalla de
+    resolución (``merendero.validar``). Con solo ``merendero.ver`` la regla contestaba
+    403 a las dos. Ver la regla de :data:`REGLAS`.
+
+    Lo que faltaba (revisión de la ronda 2 del Cambio 193) es el **alcance por objeto**
+    de ``merendero.crear``: tomada sin alcance, la capacidad de dar de alta abría la
+    documentación de *cualquier* solicitud, que es acceso que se gana. Lo que esa
+    capacidad necesita ver es el adjunto que ella misma subió, así que se resuelve por
+    ``creado_por``. Una solicitud anterior a ese campo lo tiene en ``NULL`` y no la abre
+    nadie por esta vía: la leen ``merendero.ver`` y ``merendero.validar``, que es por
+    donde se la mira en el listado y en la resolución.
+    """
     from programas.models import SolicitudMerendero
     from programas.services.merenderos import puede_en_merenderos
 
-    if not SolicitudMerendero.objects.filter(documentacion=ruta).exists():
+    solicitud = SolicitudMerendero.objects.filter(documentacion=ruta).only("pk", "creado_por").first()
+    if solicitud is None:
         return None
-    # El link lo rinde el widget del form de la solicitud (``merendero.crear``) y quien
-    # tiene que leer la documentación **antes de aprobar** entra por la pantalla de
-    # resolución (``merendero.validar``). Con solo ``merendero.ver`` la regla contestaba
-    # 403 a las dos. Ver la regla de :data:`REGLAS`.
-    return any(
-        puede_en_merenderos(user, capacidad) for capacidad in ("merendero.ver", "merendero.crear", "merendero.validar")
+    if any(puede_en_merenderos(user, capacidad) for capacidad in ("merendero.ver", "merendero.validar")):
+        return True
+    return (
+        solicitud.creado_por_id is not None
+        and solicitud.creado_por_id == user.pk
+        and puede_en_merenderos(user, "merendero.crear")
     )
 
 

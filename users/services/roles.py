@@ -13,7 +13,7 @@ class RolProtegidoError(Exception):
     """No se puede editar/eliminar/desactivar un rol protegido."""
 
 
-def _set_capacidades(group, codigos, permitidas=None):
+def _set_capacidades(group, codigos, permitidas=None, programa=None):
     """Deja el rol con ``codigos``, **conservando** lo que el operador no podía tocar.
 
     G1b-06: el ``permissions.set()`` crudo reemplazaba el conjunto entero, y el POST de
@@ -25,11 +25,21 @@ def _set_capacidades(group, codigos, permitidas=None):
 
     ``permitidas=None`` es el admin global: él sí ve y decide todo el catálogo, así que
     lo que no mandó es lo que quiso sacar.
+
+    ``programa`` es el del rol **después** de guardar: lo que no se puede asignar ahí
+    (:func:`core.rbac.capacidades_fuera_del_programa`) se cae del conjunto final. Sin
+    eso, mover «Operativo Becas» a Dispositivos le dejaba `becas.programa.administrar`
+    y `becas.segmento.ver` —la fórmula de G1b-06 las trata como «lo que el operador no
+    ve», y el admin global ni siquiera las mandó—: hoy no otorgan nada porque los gates
+    evalúan con alcance, pero reintroducen el dato que ``users.0031`` acaba de limpiar y
+    nadie lo vuelve a limpiar. Con ``programa=None`` (rol que no es de programa) no se
+    filtra nada.
     """
     ct = ContentType.objects.get_for_model(Capacidad)
     finales = set(codigos)
     if permitidas is not None:
         finales |= {c for c in rbac.capacidades_de_grupo(group) if c not in permitidas}
+    finales -= rbac.capacidades_fuera_del_programa(programa)
     codenames = [rbac.codename_de(c) for c in finales]
     perms = Permission.objects.filter(content_type=ct, codename__in=codenames)
     group.permissions.set(list(perms))
@@ -121,7 +131,7 @@ class RolesAdminService:
             activo=True,
             protegido=False,
         )
-        _set_capacidades(group, cd.get("capacidades", []))
+        _set_capacidades(group, cd.get("capacidades", []), programa=cd.get("programa"))
         _sincronizar_alcance_dispositivos(group, cd.get("dispositivos_alcance", []))
         return group
 
@@ -141,7 +151,12 @@ class RolesAdminService:
         meta.categoria = cd["categoria"]
         meta.programa = cd.get("programa")
         meta.save()
-        _set_capacidades(group, cd.get("capacidades", []), getattr(form, "capacidades_permitidas", None))
+        _set_capacidades(
+            group,
+            cd.get("capacidades", []),
+            getattr(form, "capacidades_permitidas", None),
+            programa=cd.get("programa"),
+        )
         _sincronizar_alcance_dispositivos(group, cd.get("dispositivos_alcance", []))
         # Si la edición quitó usuario.administrar/rol.administrar y dejaría al
         # sistema sin admins, revierte la transacción.

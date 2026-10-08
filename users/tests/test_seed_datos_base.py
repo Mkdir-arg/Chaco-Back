@@ -8,9 +8,10 @@ así que no puede pisar lo que la pantalla de Roles y la de Programas dejan edit
   (regla del Cambio 29): si alguien saca una a mano, vuelve.
 - Las capacidades **opt-in** (``becas.relevamiento.publico``, Cambios 41 y 91) se
   encienden tildándolas en Roles y **sobreviven** al seed.
-- Un rol existente conserva su descripción y su estado activo/inactivo. Los roles se
-  identifican solo por nombre: uno renombrado deja de ser «sembrado» (el arranque crea
-  otro con el nombre canónico) y un rol hecho a mano nunca recibe capacidades del seed.
+- Un rol existente conserva su descripción y su estado activo/inactivo. Los doce roles
+  sembrados se identifican por ``RolMeta.clave`` (OPS-06 fase 2): uno renombrado desde el
+  ABM **sigue siendo el mismo** y el arranque no crea un duplicado con el nombre
+  canónico; un rol hecho a mano no tiene clave y nunca recibe capacidades del seed.
 - «Operador de backoffice» solo se siembra al crearlo.
 - ``crear_programas`` no pisa el estado ni los demás campos del Programa Becas.
 
@@ -233,10 +234,12 @@ class SeedOperadorBackofficeTests(TestCase):
 
 
 class ClaveEstableDeLosRolesSembradosTests(TestCase):
-    """OPS-06 fase 2: los siete roles del arranque llevan ``RolMeta.clave``.
+    """OPS-06 fase 2: los **doce** roles del arranque llevan ``RolMeta.clave``.
 
     Con la clave, el seed reconoce un rol renombrado desde el ABM y deja de crear un
-    duplicado con el nombre canónico (escenario 3 de la ficha).
+    duplicado con el nombre canónico (escenario 3 de la ficha). Los cinco roles de menú
+    se sumaron en la ronda 2 del Cambio 193: la fase 2 cubría solo los siete de
+    ``seed_rbac`` y ``seed_becas``.
     """
 
     def test_el_seed_deja_la_clave_puesta(self):
@@ -254,8 +257,46 @@ class ClaveEstableDeLosRolesSembradosTests(TestCase):
                 "becas.coordinador_regional": seed_becas.ROL_COORDINADOR_REGIONAL,
                 "becas.referente": seed_becas.ROL_REFERENTE,
                 "becas.territorial": seed_becas.ROL_TERRITORIAL,
+                "menu.dashboard": "Dashboard",
+                "menu.ciudadanos": "Gestión de Ciudadanos",
+                "menu.reportes": "Reportes",
+                "menu.configuracion": "Configuración",
+                "menu.administracion": "Administración",
             },
         )
+
+    def test_dos_roles_de_menu_renombrados_no_se_duplican(self):
+        """El escenario 3 medido en la revisión: renombrar «Gestión de Ciudadanos» y
+        «Administración» y correr el arranque dos veces daba **dos roles más**, y el
+        «Administración» duplicado nace con `usuario.administrar` + `rol.administrar`,
+        cero usuarios y `clave=None`, al lado del que la gente usa."""
+        _correr()
+        for nombre, nuevo in (("Gestión de Ciudadanos", "Legajos"), ("Administración", "Mesa de sistemas")):
+            grupo = Group.objects.get(name=nombre)
+            grupo.name = nuevo
+            grupo.save()
+        roles_antes = Group.objects.count()
+
+        _correr()
+        _correr()
+
+        self.assertEqual(Group.objects.count(), roles_antes)
+        self.assertFalse(Group.objects.filter(name__in=["Gestión de Ciudadanos", "Administración"]).exists())
+        self.assertEqual(
+            _codigos(Group.objects.get(name="Mesa de sistemas")),
+            {"usuario.administrar", "rol.administrar"},
+        )
+
+    def test_un_rol_de_menu_no_recupera_las_capacidades_que_le_sacaron(self):
+        """La contracara de reconocerlo: sigue siendo «solo al crearlo» (Cambio 104),
+        así que el arranque no revierte lo que el ABM editó."""
+        _correr()
+        reportes = Group.objects.get(name="Reportes")
+        reportes.permissions.clear()
+
+        _correr()
+
+        self.assertEqual(_codigos(reportes), set())
 
     def test_un_rol_creado_a_mano_no_lleva_clave(self):
         """La clave es de los sembrados: lo que crea el ABM no la tiene."""

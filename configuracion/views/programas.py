@@ -30,7 +30,6 @@ from core import rbac
 from core.models import Subsecretaria
 from core.rbac import requiere, requiere_sin_programa
 from programas.models import Programa
-from programas.services.programa_cache import invalidar_programa
 
 from ..forms.programas import (
     ProgramaPaso1Form,
@@ -440,12 +439,10 @@ def programa_editar_paso4(request, pk):
         p4 = form.cleaned_data
 
         # RED-80: el alcance del RBAC resuelve el ``Programa`` desde una clave cacheada
-        # 300 s, y el paso 1 deja **cambiar el código**. Sin invalidar las dos —la vieja
-        # y la nueva—, durante cinco minutos los pods evalúan contra la fila anterior:
-        # en Dispositivos eso es «nadie entra», y en Becas un 403 (RED-56). Es la única
-        # pantalla que escribe un ``Programa``, así que es la que tiene que borrarlas.
-        codigo_anterior = programa.codigo
-
+        # 300 s, y el paso 1 deja **cambiar el código**. Las dos claves —la vieja y la
+        # nueva— las borran las señales de ``programas.signals`` sobre el ``save()``:
+        # esta pantalla no es la única que escribe un ``Programa`` (``/admin/`` también,
+        # y deja borrarlo), así que la invalidación va pegada al modelo y no acá.
         programa.nombre = p1["nombre"]
         programa.codigo = p1["codigo"]
         programa.descripcion = p1.get("descripcion", "")
@@ -457,10 +454,6 @@ def programa_editar_paso4(request, pk):
         programa.color = p4["color"]
         programa.orden = p4["orden"]
         programa.save()
-        invalidar_programa(codigo_anterior)
-        if programa.codigo != codigo_anterior:
-            invalidar_programa(programa.codigo)
-
         _clear_data(request, pk)
         messages.success(request, f'Programa "{programa.nombre}" actualizado.')
         return redirect("configuracion:programas")
@@ -521,8 +514,8 @@ def programa_cambiar_estado(request, pk):
             )
             return redirect("configuracion:programas")
     programa.estado = nuevo_estado
+    # RED-80: la entrada cacheada guarda el ``Programa`` entero, estado incluido; la
+    # borra la señal ``post_save`` de ``programas.signals``.
     programa.save(update_fields=["estado"])
-    # RED-80: la entrada cacheada guarda el ``Programa`` entero, estado incluido.
-    invalidar_programa(programa.codigo)
     messages.success(request, f"Estado del programa actualizado a {programa.get_estado_display()}.")
     return redirect("configuracion:programas")

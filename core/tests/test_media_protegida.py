@@ -430,7 +430,8 @@ class AlcanceDispositivosTests(MediaBaseTests):
 
 
 class AlcanceMerenderosTests(MediaBaseTests):
-    """La documentación respaldatoria de una solicitud pide `merendero.ver`."""
+    """La documentación respaldatoria: `merendero.ver` y `merendero.validar` leen
+    cualquier solicitud; `merendero.crear`, solo las que ese usuario creó."""
 
     def setUp(self):
         super().setUp()
@@ -461,8 +462,39 @@ class AlcanceMerenderosTests(MediaBaseTests):
         que se sirve bajo ``merendero.crear``. Con solo esa capacidad, el click daba 403
         sobre el archivo que la pantalla acababa de mostrar."""
         operador = usuario_con("merendero.crear", username="alta_merenderos", programa=self.programa)
+        self.solicitud.creado_por = operador
+        self.solicitud.save(update_fields=["creado_por"])
 
         self.assertEqual(self._cliente(operador).get(self.ruta).status_code, 200)
+
+    def test_pero_no_la_documentacion_de_una_solicitud_ajena(self):
+        """Ronda 2: ``merendero.crear`` tomada sin alcance por objeto abría la
+        documentación de **cualquier** solicitud. Lo que esa capacidad necesita ver es
+        el adjunto que ella misma subió."""
+        otro = usuario_con("merendero.crear", username="alta_otra_persona", programa=self.programa)
+        self.solicitud.creado_por = usuario_con("merendero.crear", username="alta_duena", programa=self.programa)
+        self.solicitud.save(update_fields=["creado_por"])
+
+        self.assertEqual(self._cliente(otro).get(self.ruta).status_code, 403)
+
+    def test_una_solicitud_sin_autor_registrado_no_la_abre_el_alta(self):
+        """Las anteriores a ``creado_por`` quedan en ``NULL``: las leen ``merendero.ver``
+        y ``merendero.validar``, que es por donde se las mira."""
+        operador = usuario_con("merendero.crear", username="alta_legacy", programa=self.programa)
+
+        self.assertIsNone(self.solicitud.creado_por_id)
+        self.assertEqual(self._cliente(operador).get(self.ruta).status_code, 403)
+
+    def test_ver_y_validar_siguen_abriendo_la_de_cualquiera(self):
+        """El recorte es solo de ``merendero.crear``: el listado y la resolución miran
+        todas las solicitudes, y así tienen que seguir."""
+        self.solicitud.creado_por = usuario_con("merendero.crear", username="alta_tercero", programa=self.programa)
+        self.solicitud.save(update_fields=["creado_por"])
+        lector = usuario_con("merendero.ver", username="ve_ajena", programa=self.programa)
+        resolutor = usuario_con("merendero.validar", username="valida_ajena", programa=self.programa)
+
+        self.assertEqual(self._cliente(lector).get(self.ruta).status_code, 200)
+        self.assertEqual(self._cliente(resolutor).get(self.ruta).status_code, 200)
 
     def test_quien_resuelve_la_solicitud_tambien_la_descarga(self):
         """Y quien tiene que **leer** la documentación antes de aprobar entra por la

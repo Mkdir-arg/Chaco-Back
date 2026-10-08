@@ -524,6 +524,21 @@ def capacidades_de_programa_asignables(programa):
     }
 
 
+def capacidades_fuera_del_programa(programa):
+    """Capacidades "de programa" que **no** corresponden a un rol de ``programa``.
+
+    Es el complemento de :func:`capacidades_de_programa_asignables` dentro de
+    :func:`codigos_de_programa`: para un rol de DISPOSITIVOS son los trece módulos
+    ``becas_*`` y los de MERENDEROS. Con ``programa=None`` —un rol que no es de
+    programa— es el conjunto vacío: ahí no hay contra qué comparar y un rol global puede
+    tener cualquier capacidad.
+
+    Lo usa el guardado del ABM para que **mover** un rol de programa no le deje las
+    capacidades del anterior (es la misma limpieza que hizo ``users.0031`` de una vez).
+    """
+    return codigos_de_programa() - capacidades_de_programa_asignables(programa)
+
+
 def capacidades_no_delegables(programa):
     """Capacidades que un admin **de programa** no puede repartir, ni tildando ni en un rol.
 

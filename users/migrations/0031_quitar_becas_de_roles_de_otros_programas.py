@@ -20,6 +20,15 @@ existe: hoy el único seed que reparte ``becas.*`` es ``seed_becas``, y siempre 
 roles de Becas. Si en una base concreta hubiera uno, aparecería en P-02 con su nombre y
 el PM lo vería antes de desplegar; esta migración no hace excepciones por nombre.
 
+**Sin la fila BECAS no quita nada.** El «otro programa» se define por diferencia contra
+el pk del Programa Becas, y si ese pk no existe —un restore que dejó la fila ausente o
+con otro código, el caso que ``_programa_o_denegar`` documenta como real (RED-56)— la
+diferencia es *todos* los roles de programa, incluidos los cinco de Becas: la migración
+pasaría de quitar lo que P-02 lista a vaciar las ``becas.*`` del programa entero, y con
+ellas las **opt-in** (``becas.relevamiento.publico``), que es justo lo que no repone el
+arranque siguiente. El resto del código de Becas falla **cerrado** cuando falta el ancla;
+acá eso se traduce en no tocar nada y dejarlo dicho en el log.
+
 **Reversa real:** cada par (rol, capacidad) que se quita queda escrito en
 ``users_capacidadrevocada``, así que desaplicar restituye exactamente lo que había y no
 una reconstrucción aproximada (que acá sería imposible: el dato ya no está).
@@ -39,20 +48,31 @@ MIGRACION = "users.0031"
 logger = logging.getLogger(__name__)
 
 
-def _roles_de_otro_programa(apps):
+def _roles_de_otro_programa(apps, becas_ids):
     """Los ``Group`` con ``RolMeta.programa`` no nulo y distinto de BECAS."""
     Group = apps.get_model("auth", "Group")
-    Programa = apps.get_model("programas", "Programa")
 
-    becas_ids = list(Programa.objects.filter(codigo=CODIGO_BECAS).values_list("pk", flat=True))
     return Group.objects.filter(meta__programa__isnull=False).exclude(meta__programa_id__in=becas_ids).order_by("name")
 
 
 def quitar(apps, schema_editor):
     CapacidadRevocada = apps.get_model("users", "CapacidadRevocada")
+    Programa = apps.get_model("programas", "Programa")
+
+    becas_ids = list(Programa.objects.filter(codigo=CODIGO_BECAS).values_list("pk", flat=True))
+    if not becas_ids:
+        # Con la lista vacía el ``exclude`` no excluye nada y la migración borraría las
+        # ``becas.*`` de **todos** los roles de programa (ver el docstring del módulo).
+        logger.warning(
+            "SEC-06: falta el programa con codigo=%s, así que no se puede distinguir un rol de Becas de uno de "
+            "otro programa: %s no quitó nada. Revisar la tabla programas_programa, correr P-02 y volver a aplicar.",
+            CODIGO_BECAS,
+            MIGRACION,
+        )
+        return
 
     quitadas = []
-    for grupo in _roles_de_otro_programa(apps):
+    for grupo in _roles_de_otro_programa(apps, becas_ids):
         # ``startswith`` en Python y no ``codename__startswith``: la lista de permisos de
         # un rol son decenas de filas, y así el ``LIKE`` con guion bajo —que en SQL es un
         # comodín— no tiene que escaparse motor por motor.

@@ -19,6 +19,7 @@ from django.db import migrations
 
 #: Clave estable → nombre con el que el seed creó el rol hasta hoy.
 #: ``sistema.*`` los siembra ``users.seed_rbac``; ``becas.*``, ``programas.seed_becas``.
+#: Los cinco ``menu.*`` de ``seed_datos_base`` van en ``users.0032``.
 CLAVES = {
     "sistema.administrador": "Administrador",
     "sistema.operador_backoffice": "Operador de backoffice",
@@ -47,6 +48,9 @@ def borrar_claves(apps, schema_editor):
     clave puesta a mano después del deploy sobre uno de estos siete roles —no hay
     pantalla que lo permita, así que no debería existir—; al reaplicar, la migración la
     vuelve a poner con el mismo valor.
+
+    Los **cinco roles de menú** no están acá: su backfill es ``users.0032``, que se sumó
+    después de que esta migración ya pudiera estar aplicada.
     """
     RolMeta = apps.get_model("users", "RolMeta")
     RolMeta.objects.filter(clave__in=list(CLAVES)).update(clave=None)

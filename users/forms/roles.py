@@ -70,6 +70,7 @@ class RolForm(forms.Form):
 
         self.es_admin_global = operador is None or es_admin_global(operador)
         self.programa_fijo = None
+        self.programas_administrables = []
         self.programa_dispositivos_id = (
             Programa.objects.filter(codigo="DISPOSITIVOS").values_list("pk", flat=True).first()
         )
@@ -87,15 +88,14 @@ class RolForm(forms.Form):
             # Materializado una vez para decidir (evita COUNT + SELECT extra);
             # el field conserva el queryset.
             progs_list = list(progs)
+            self.programas_administrables = progs_list
             if len(progs_list) == 1:
                 self.programa_fijo = progs_list[0]
                 self.fields["programa"].initial = self.programa_fijo.pk
             # G1b-02 / SEC-07: del catálogo de su programa quedan afuera las dos
             # transversales de administración y `programa.configurar` (salvo en
             # DISPOSITIVOS). Delegar la administración es de un rol global.
-            self.fields["capacidades"].choices = [
-                (codigo, codigo) for codigo in sorted(rbac.capacidades_delegables(self.programa_fijo))
-            ]
+            self.fields["capacidades"].choices = [(codigo, codigo) for codigo in sorted(self._permitidas())]
 
         if instance is not None and not self.is_bound:
             self.fields["name"].initial = instance.name
@@ -141,6 +141,18 @@ class RolForm(forms.Form):
             caps = cleaned.get("capacidades") or []
             permitidas = rbac.capacidades_delegables(cleaned.get("programa"))
             self.capacidades_permitidas = permitidas
+            # El árbol ofrece la unión de los programas que el operador administra, así
+            # que con dos o más puede llegar una capacidad válida en **otro** programa
+            # suyo. Antes se descartaba en silencio y el rol se guardaba sin ella;
+            # ahora el formulario lo dice y no guarda nada.
+            ajenas = [c for c in caps if c not in permitidas]
+            if ajenas and "capacidades" not in self.errors:
+                self.add_error(
+                    "capacidades",
+                    "Estas capacidades no se pueden asignar a un rol de este programa: "
+                    + ", ".join(sorted(ajenas))
+                    + ".",
+                )
             cleaned["capacidades"] = [c for c in caps if c in permitidas]
         if (
             cleaned.get("categoria") == rbac.CATEGORIA_PROGRAMA
@@ -178,10 +190,24 @@ class RolForm(forms.Form):
         return self.fields["capacidades"].initial or []
 
     def _permitidas(self):
-        """Códigos que el operador puede tildar, o ``None`` si es admin global."""
+        """Códigos que el operador puede tildar, o ``None`` si es admin global.
+
+        Con **un** programa administrable es lo delegable de ese programa. Con dos o
+        más, la **unión** de lo delegable de cada uno: ``capacidades_delegables(None)``
+        devolvía el catálogo de programa entero, así que a un operador de Dispositivos y
+        Merenderos el árbol le ofrecía igual los trece módulos ``becas_*`` y el POST los
+        descartaba sin decir nada (SEC-06 cerraba el agujero por el lado del `clean`,
+        no por el del árbol). Cuál de sus programas se aplica lo decide ``clean`` con el
+        programa posteado, que es el que manda.
+        """
         if self.es_admin_global:
             return None
-        return rbac.capacidades_delegables(self.programa_fijo)
+        if self.programa_fijo is not None:
+            return rbac.capacidades_delegables(self.programa_fijo)
+        permitidas = set()
+        for programa in self.programas_administrables:
+            permitidas |= rbac.capacidades_delegables(programa)
+        return permitidas
 
     def arbol_capacidades(self):
         """Árbol plano por módulo (retrocompatibilidad)."""

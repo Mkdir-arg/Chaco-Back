@@ -64,8 +64,24 @@ CAP_RELEVAMIENTO_EDITAR = "becas.relevamiento.editar"
 # alcance**, y bajaban la convocatoria por ``pk`` suelto. Un rol de **otro** programa con
 # ``becas.programa.administrar`` tildada se llevaba el CSV con DNI de cualquier
 # convocatoria. Desde este cambio la capacidad va por ``es_admin_becas`` —que la evalúa
-# contra el Programa Becas— y el objeto sale de ``convocatorias_visibles``.
-CAP_REPORTES = "becas.programa.administrar"
+# contra el Programa Becas— y el objeto sale de ``convocatorias_visibles``; el flag
+# ``puede_reportes`` que decide qué muestra la pantalla usa **la misma regla**, para que
+# la UI no ofrezca un botón que va a contestar 403.
+
+
+def _puede_exportar(user):
+    """El flag de UI de los CSV de convocatoria: **la misma regla que el gate**.
+
+    Era ``puede(user, "becas.programa.administrar")`` sin alcance, o sea lo que SEC-06
+    acaba de dejar de aceptar en ``_convocatoria_para_export``: la pantalla seguía
+    ofreciendo los botones a quien el export contesta 403. Falla en ``False`` —y no en
+    403— si el Programa Becas no está configurado: esto decide qué se dibuja, no quién
+    entra.
+    """
+    try:
+        return es_admin_becas(user)
+    except PermissionDenied:
+        return False
 
 
 def _convocatoria_para_export(request, pk, queryset=None):
@@ -285,7 +301,7 @@ class ConvocatoriaDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, Detail
         ctx["n_beneficiarios"] = conteos["total"] or 0
         ctx["n_aprobados"] = conteos["aprobados"] or 0
         ctx["beneficiarios_querystring"] = _querystring_without(self.request, "beneficiarios_page", "tab")
-        ctx["puede_reportes"] = puede(self.request.user, CAP_REPORTES)
+        ctx["puede_reportes"] = _puede_exportar(self.request.user)
         # Cambio 58: «Configurar formulario» (admin del programa y coordinador del segmento, D7).
         ctx["puede_formulario"] = puede(self.request.user, CAP_CONVOCATORIA_EDITAR) and puede_gestionar_segmento(
             self.request.user, conv.segmento

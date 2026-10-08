@@ -279,3 +279,68 @@ class RenaperPendientesTests(Base):
         self.client.force_login(User.objects.get(username="root-sec06"))
 
         self.assertEqual([f.pk for f in self.client.get(self.url).context["formularios"]], [self.caso.pk])
+
+
+class BotonesDeExportEnLaPantallaTests(Base):
+    """Ronda 2: lo que la pantalla ofrece tiene que ser lo que el gate acepta.
+
+    El flag ``puede_reportes`` se calculaba con ``puede(...)`` **sin alcance**, o sea la
+    regla vieja: para un Coordinador la solapa Reportes quedaba visible y sus tres CSV
+    daban 403. Y el botón «Exportar beneficiarios (CSV)» de la solapa Beneficiarios no
+    estaba bajo el flag, así que se lo veía hasta sin la solapa.
+    """
+
+    def setUp(self):
+        super().setUp()
+        from programas.models import AsignacionCoordinador
+
+        self.url = reverse("becas:convocatoria_detalle", args=[self.convocatoria.pk])
+        self.coordinador = _usuario(
+            "coord-botones",
+            _rol(
+                "Coord Becas botones",
+                ["becas.convocatoria.ver", "becas.segmento.ver", "becas.relevamiento.ver"],
+                programa=self.becas,
+            ),
+        )
+        AsignacionCoordinador.objects.create(segmento=self.convocatoria.segmento, coordinador=self.coordinador)
+
+    def test_el_coordinador_no_ve_ningun_boton_de_export(self):
+        self.client.force_login(self.coordinador)
+
+        respuesta = self.client.get(self.url)
+
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertFalse(respuesta.context["puede_reportes"])
+        self.assertNotIn("Exportar beneficiarios (CSV)", respuesta.content.decode())
+        self.assertNotIn(
+            reverse("becas:convocatoria_export_beneficiarios", args=[self.convocatoria.pk]),
+            respuesta.content.decode(),
+        )
+
+    def test_y_el_export_le_sigue_contestando_403(self):
+        """La contracara: el botón no está porque el gate no lo deja, no al revés."""
+        self.client.force_login(self.coordinador)
+
+        for nombre in EXPORTS:
+            with self.subTest(export=nombre):
+                self.assertEqual(
+                    self.client.get(reverse(nombre, args=[self.convocatoria.pk])).status_code,
+                    403,
+                )
+
+    def test_el_admin_de_becas_sigue_viendo_los_cuatro(self):
+        rol = _rol(
+            "Admin Becas botones",
+            ["becas.programa.administrar", "becas.convocatoria.ver"],
+            programa=self.becas,
+        )
+        self.client.force_login(_usuario("adm-becas-botones", rol))
+
+        respuesta = self.client.get(self.url)
+        cuerpo = respuesta.content.decode()
+
+        self.assertTrue(respuesta.context["puede_reportes"])
+        self.assertIn("Exportar beneficiarios (CSV)", cuerpo)
+        for nombre in EXPORTS:
+            self.assertIn(reverse(nombre, args=[self.convocatoria.pk]), cuerpo)

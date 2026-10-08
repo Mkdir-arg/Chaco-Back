@@ -363,7 +363,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 189 | Las descargas del tablero de Becas: una planilla que no es la única opción, y dejar de recalcular lo que ya está calculado | Becas — solapa «Dashboard» del programa (exportaciones y filtros) · Transversal (`requirements.txt`, banco de performance) | `#performance` `#relevamientos` `#ui` `#metodo` | Auditoría integral oct-2026 — fichas PERF-03, G1b-11 y G1b-12 (Ola 4, PR 5) | 08/10/2026 | 🟢 **Hecho** (PERF-03 parcial: el punto (3), exportar fuera del request, sigue abierto) | No requiere |
 | 190 | El chequeo de esquema del CI deja de marcar como huérfanas las tablas que carga el organismo | Transversal — CI (job «Migrate ida y vuelta»), `verificar_esquema_migraciones` | `#infra` `#datos` | Juez, por la regresión de #639 que dejaba rojo ese job en todo PR posterior | 08/10/2026 | 🟢 **Hecho** | No requiere |
 | 191 | Plan de implementación del MVP de Dispositivos: tabla rasa, dos carriles y las piezas de diseño primero | Dispositivos · planificación | `#gestion` `#ui` `#datos` | PM — en sesión: «quiero borrar lo que tenemos hoy de ese programa e implementarlo desde 0… planificá bien las etapas y quiero hacer hincapié en la parte de lógica y la parte de diseño, se tiene que ver igual» | 08/10/2026 | 🟢 **Hecho — plan escrito** | Sí: baja de 6 modelos en dos releases |
-| 193 | Las capacidades de un programa dejan de valer fuera de él: catálogo, wizard, delegación y roles sembrados | Transversal — RBAC (ABM de Roles y de Usuarios) · Becas (exports de convocatoria, proceso masivo, pendientes de RENAPER) · Configuración (wizard de programas) | `#rbac` `#usuarios` `#datos` `#infra` | Auditoría oct-2026, Ola 2 PR 1 (SEC-06, SEC-07, G1b-02, G1b-06, OPS-06 fase 2, RED-80) | 08/10/2026 | 🟢 **Hecho** | Sí: `users.0029`, `0030` y `0031` (la `0031` **quita** capacidades, con reversa real y registro) |
+| 193 | Las capacidades de un programa dejan de valer fuera de él: catálogo, wizard, delegación y roles sembrados | Transversal — RBAC (ABM de Roles y de Usuarios) · Becas (exports de convocatoria, proceso masivo, pendientes de RENAPER) · Configuración (wizard de programas) | `#rbac` `#usuarios` `#datos` `#infra` | Auditoría oct-2026, Ola 2 PR 1 (SEC-06, SEC-07, G1b-02, G1b-06, OPS-06 fase 2, RED-80) | 08/10/2026 | 🟢 **Hecho** | Sí: `users.0029`-`0032` (la `0031` **quita** capacidades, con reversa real y registro) y `programas.0084` |
 
 **Notas del índice**
 
@@ -28823,8 +28823,8 @@ que lleve esas 100 horas»).
 | **Solicitante** | Auditoría oct-2026, Ola 2 PR 1 (fichas SEC-06, SEC-07, G1b-02, G1b-06, OPS-06 fase 2, RED-80) |
 | **Fecha del pedido** | 08/10/2026 |
 | **Issue / épica** | Auditoría oct-2026 — `docs/internal/auditoria-2026-10/` |
-| **Partes afectadas** | `core/rbac.py` · `core/checks.py` · `core/validators.py` · `core/views/media.py` · `configuracion/views/programas.py` y su listado · `legajos/forms/contactos.py` · `programas/services/programa_cache.py` (nuevo) · `programas/services/{autorizacion,dispositivos}.py` · `programas/views/{relevamientos,proceso_masivo,revision}.py` · `programas/management/commands/seed_becas.py` · `users/{models,forms,selectors,services,views}` · `users/management/commands/seed_rbac.py` · `users/migrations/0029-0031` · `docker/k8s/README.md` |
-| **Migración** | Sí: `users.0029` (columna `RolMeta.clave` + tabla `users_capacidadrevocada`), `users.0030` (backfill de la clave) y `users.0031` (**quita** capacidades de Becas a roles de otro programa, con reversa real) |
+| **Partes afectadas** | `core/rbac.py` · `core/checks.py` · `core/validators.py` · `core/views/media.py` · `configuracion/views/programas.py` y su listado · `legajos/forms/contactos.py` · `programas/services/programa_cache.py` (nuevo) · `programas/services/{autorizacion,dispositivos}.py` · `programas/signals.py` · `programas/views/{relevamientos,proceso_masivo,revision,merenderos}.py` · `programas/templates/.../convocatoria_detail.html` · `programas/management/commands/seed_becas.py` · `programas/migrations/0084` · `users/{models,forms,selectors,services,views}` · `users/management/commands/{seed_rbac,seed_datos_base}.py` · `users/migrations/0029-0032` · `docker/k8s/README.md` |
+| **Migración** | Sí: `users.0029` (columna `RolMeta.clave` + tabla `users_capacidadrevocada`), `users.0030` (backfill de la clave), `users.0031` (**quita** capacidades de Becas a roles de otro programa, con reversa real), `users.0032` (la clave de los cinco roles de menú) y `programas.0084` (`SolicitudMerendero.creado_por`, nullable) |
 
 ## Pedido original
 
@@ -28890,15 +28890,17 @@ rol (ver sí puede, y el listado lo muestra sin las acciones). Y el guardado arm
 guardado no lo pisa.
 
 **Roles sembrados (OPS-06 fase 2).** `asegurar_rol_sembrado(clave, nombre, defaults)`, una
-sola implementación para `seed_rbac` y `seed_becas`, busca por `RolMeta.clave` y solo cae al
-nombre canónico cuando ninguna fila la tiene todavía —en ese caso se la deja puesta, así que
-a partir del segundo arranque el nombre deja de importar—.
+sola implementación para `seed_rbac`, `seed_becas` y los roles de menú de `seed_datos_base`,
+busca por `RolMeta.clave` y solo cae al nombre canónico cuando ninguna fila la tiene todavía
+—en ese caso se la deja puesta, así que a partir del segundo arranque el nombre deja de
+importar—. Son **doce** roles: dos de sistema, cinco de Becas y cinco de menú.
 
 **Cache del programa (RED-80).** `programas/services/programa_cache.py` unifica la lectura
 cacheada de los dos programas: clave derivada del código, memo por request e invalidación
 *best-effort* (un Redis caído no puede impedir el arranque, OPS-12). La invalidación la
-dispara el wizard, que es la única pantalla que escribe un `Programa` y la que deja cambiarle
-el **código**: se borran la clave vieja y la nueva.
+disparan **señales sobre el modelo** (`programas/signals.py`): `post_save` borra la clave del
+código nuevo, `pre_save` recuerda el anterior para borrar también el viejo cuando el wizard
+cambia el código, y `post_delete` cubre el borrado desde `/admin/`.
 
 **Tres seguimientos de #643.** La regla de `/media/` acepta la capacidad de la pantalla que
 **crea o valida** el archivo y no solo la de «ver» (el admisor baja el F-00 que él cargó, y
@@ -28918,19 +28920,28 @@ Tres migraciones sobre tablas chicas (una fila por rol): `users.0029`, `users.00
   Agrega `users_rolmeta.clave` (`varchar(50) NULL UNIQUE`: el código viejo no la escribe y la
   fila sigue entrando; MySQL y MariaDB admiten varios `NULL` en un índice único) y crea
   `users_capacidadrevocada`, que nadie lee salvo la `0031` y su reversa.
-- **`users.0030` (`0030_backfill_rolmeta_clave`)** — datos. Le pone su clave a los siete roles que siembra
-  el arranque, empatando por el nombre canónico, que es lo único que hay para hacer el empate
-  **esta vez**. Reversa: las vuelve a `NULL`.
+- **`users.0030` (`0030_backfill_rolmeta_clave`)** — datos. Le pone su clave a los siete roles de
+  `seed_rbac` y `seed_becas`, empatando por el nombre canónico, que es lo único que hay para hacer el
+  empate **esta vez**. Reversa: las vuelve a `NULL`.
 - **`users.0031` (`0031_quitar_becas_de_roles_de_otros_programas`)** — datos, y **es la que quita acceso**.
   Saca los permisos `becas_%` de todo `Group` cuyo `RolMeta.programa` no sea nulo ni BECAS.
   Antes de quitarlos escribe cada par (rol, capacidad) en `users_capacidadrevocada` y loguea
   el listado completo en la salida del `migrate`. **Reversa real:** lee esas filas, restituye
   exactamente lo mismo y las borra. Sobre datos existentes es segura en el sentido de que no
   toca ninguna fila de negocio —solo `auth_group_permissions`— pero **cambia permisos**: por
-  eso va con P-02 corrido antes.
+  eso va con P-02 corrido antes. **Sin la fila `Programa(codigo="BECAS")` no quita nada** y lo dice
+  en el log (ronda 2): con el ancla ausente, el «otro programa» pasaba a ser *todos*.
+- **`users.0032` (`0032_backfill_rolmeta_clave_menu`)** — datos, ronda 2. La misma clave para los
+  **cinco roles de menú**, que la `0030` no cubría. Va aparte y no ampliando la `0030` porque esta
+  rama se puede haber desplegado ya en testing, y una migración aplicada no vuelve a correr.
+  Reversa: las vuelve a `NULL`.
+- **`programas.0084` (`0084_solicitud_merendero_creado_por`)** — esquema, ronda 2. **Expand puro:**
+  `SolicitudMerendero.creado_por` nullable, para acotarle a `merendero.crear` qué documentación
+  puede bajar por `/media/`. Las filas existentes quedan en `NULL`.
 
-Ninguna de las tres bloquea: el `ALTER` de la `0029` es instantáneo en los dos motores sobre
-una tabla de decenas de filas, y las otras dos recorren `auth_group_permissions`.
+Ninguna bloquea: los dos `ALTER` (la `0029` sobre `users_rolmeta` y la `0084` sobre
+`programas_solicitudmerendero`) son instantáneos en los dos motores sobre tablas chicas, y las de
+datos recorren `auth_group_permissions` y `users_rolmeta`.
 
 ## Validación
 
@@ -28960,8 +28971,56 @@ como `becas_consulta_duplicada`. `design_audit --changed` y `--ratchet`,
 ## Reversión
 
 Revertir el commit devuelve las capacidades `becas.*` al árbol de cualquier programa y los
-gates a la evaluación global. Las migraciones se desaplican con `migrate users 0028`:
-`users.0031` **restituye** a cada rol exactamente lo que le quitó —lo lee de
-`users_capacidadrevocada`— y `users.0030` vuelve las claves a `NULL`. Lo único que no se puede
-distinguir al revertir es una capacidad `becas.*` tildada **a mano** sobre un rol de otro
-programa después del deploy: esa no está registrada y se pierde.
+gates a la evaluación global. Las migraciones se desaplican con `migrate users 0028` y
+`migrate programas 0083`: `users.0031` **restituye** a cada rol exactamente lo que le quitó —lo
+lee de `users_capacidadrevocada`—, `users.0030` y `users.0032` vuelven las claves a `NULL`, y
+`programas.0084` borra la columna `creado_por` (el dato de quién creó cada solicitud se pierde,
+y nada más lo lee). Lo único que no se puede distinguir al revertir es una capacidad `becas.*`
+tildada **a mano** sobre un rol de otro programa después del deploy: esa no está registrada y se
+pierde.
+
+## Historial
+
+### 08/10/2026 — Ronda 2 de la revisión (2 MAJOR y 5 MINOR)
+
+- **`users.0031` sin la fila `Programa(codigo="BECAS")` quitaba las `becas.*` de TODOS los roles
+  de programa**, los cinco de Becas incluidos: `becas_ids = []` hace que el
+  `.exclude(meta__programa_id__in=[])` no excluya nada. El escenario es el restore que
+  `_programa_o_denegar` ya documenta como real (RED-56), y el daño no es simétrico: el arranque
+  siguiente repone las capacidades **base** de los roles de Becas, pero no las **opt-in**
+  (`becas.relevamiento.publico`), que es justo lo que OPS-06 fue a proteger. El resto del código
+  de Becas falla cerrado cuando falta el ancla; esta fallaba abierta. Ahora frena antes de tocar
+  nada, con un `logger.warning` que nombra P-02. La reversa queda igual.
+- **OPS-06 fase 2 cubría 7 de los 12 roles que siembra el arranque.** Los cinco de menú
+  (Dashboard, Gestión de Ciudadanos, Reportes, Configuración y Administración) seguían
+  identificándose por `Group.name`: renombrar dos desde el ABM y correr `seed_datos_base` dejaba
+  **14 → 16 grupos**, y el «Administración» duplicado nace con `usuario.administrar` +
+  `rol.administrar`, cero usuarios y `clave=None`, al lado del que la gente usa. Pasan por
+  `asegurar_rol_sembrado` con claves `menu.*` y su backfill es **`users.0032`**: una migración
+  **nueva** y no una ampliación de la `0030`, porque esta rama puede estar desplegada en testing y
+  una migración ya aplicada no vuelve a correr. Sigue valiendo el «solo al crearlo» del Cambio 104.
+- **El árbol del ABM con un operador de 2 o más programas** ofrecía los trece módulos `becas_*`
+  aunque no administrara Becas (`programa_fijo` solo se setea con un único programa, y
+  `capacidades_delegables(None)` es el catálogo de programa entero). Ahora `_permitidas()` devuelve
+  la **unión** de lo delegable de sus programas, así que el árbol muestra solo lo suyo; y una
+  capacidad que no corresponde al programa posteado deja de descartarse en silencio: es un error de
+  validación visible y el rol no se guarda.
+- **Mover un rol de programa** le dejaba las capacidades del anterior —un rol movido de Becas a
+  Dispositivos quedaba con `becas.programa.administrar` y `becas.segmento.ver`—, porque la fórmula
+  `(actuales − permitidas) ∪ seleccionadas` de G1b-06 las trata como «lo que el operador no ve».
+  Hoy no otorgan nada (los gates evalúan con alcance), pero reintroducen el dato que `users.0031`
+  acaba de limpiar. `_set_capacidades` recibe el programa final y descarta lo que no se puede
+  asignar ahí (`rbac.capacidades_fuera_del_programa`, la misma regla de la migración).
+- **RED-80:** la resolución afirmaba que el wizard «es la única pantalla que escribe un
+  `Programa`». `/admin/` está ruteado y `ProgramaAdmin` deja cambiar el `codigo` y el `estado`, y
+  **borrar**. La invalidación se muda a señales sobre el modelo (`post_save`, `post_delete`, más un
+  `pre_save` que recuerda el código anterior) y el wizard deja de invalidar a mano.
+- **Exports con 403:** el botón «Exportar beneficiarios (CSV)» de la solapa Beneficiarios no estaba
+  bajo `{% if puede_reportes %}`, a diferencia de los tres de la solapa Reportes; y el flag se
+  calculaba con `puede(...)` **sin alcance**, o sea la regla que SEC-06 acaba de dejar de aceptar.
+  Los cuatro botones van bajo el flag y el flag usa `es_admin_becas`, la misma regla del gate.
+- **`merendero.crear` abría la documentación de cualquier solicitud** (la regla de `/media/` no
+  tenía alcance por objeto). Se acota a las que ese usuario creó: `SolicitudMerendero.creado_por`
+  (`programas.0084`, columna nueva `NULL`), que escribe el alta. `merendero.ver` y
+  `merendero.validar` siguen leyendo todas; una solicitud anterior a la columna queda en `NULL` y
+  no la abre el alta.

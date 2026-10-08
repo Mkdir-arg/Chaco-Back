@@ -138,3 +138,66 @@ class ElWizardInvalidaTests(TestCase):
         self.assertEqual(self.dispositivos.codigo, "DISPOSITIVOS-V2")
         self.assertIsNone(cache.get("programas:dispositivos"))
         self.assertIsNone(cache.get("programas:dispositivos-v2"))
+
+
+class SenalesDeProgramaTests(TestCase):
+    """RED-80, ronda 2: la invalidación va pegada al modelo, no a una pantalla.
+
+    La resolución del PR afirmaba que el wizard «es la única pantalla que escribe un
+    ``Programa``». No lo es: ``/admin/`` está ruteado (``config/urls.py``) y
+    ``ProgramaAdmin`` deja cambiar el ``codigo`` y el ``estado``, y **borrar**. Con las
+    señales queda cubierto cualquier camino, incluido el que no existe todavía.
+    """
+
+    def setUp(self):
+        cache.clear()
+        self.dispositivos = Programa.objects.create(codigo="DISPOSITIVOS", nombre="Dispositivos")
+
+    def test_guardar_el_programa_borra_su_clave(self):
+        programa_por_codigo("DISPOSITIVOS")
+        self.assertIsNotNone(cache.get("programas:dispositivos"))
+
+        self.dispositivos.estado = Programa.Estado.SUSPENDIDO
+        self.dispositivos.save(update_fields=["estado"])
+
+        self.assertIsNone(cache.get("programas:dispositivos"))
+
+    def test_cambiarle_el_codigo_borra_la_vieja_y_la_nueva(self):
+        programa_por_codigo("DISPOSITIVOS")
+        cache.set("programas:otro", self.dispositivos, 300)
+
+        self.dispositivos.codigo = "OTRO"
+        self.dispositivos.save()
+
+        self.assertIsNone(cache.get("programas:dispositivos"))
+        self.assertIsNone(cache.get("programas:otro"))
+
+    def test_borrarlo_borra_su_clave(self):
+        programa_por_codigo("DISPOSITIVOS")
+        self.assertIsNotNone(cache.get("programas:dispositivos"))
+
+        self.dispositivos.delete()
+
+        self.assertIsNone(cache.get("programas:dispositivos"))
+        self.assertIsNone(programa_por_codigo("DISPOSITIVOS"))
+
+    def test_el_admin_de_django_tambien(self):
+        """El camino reportado: ``ProgramaAdmin.save_model``."""
+        from django.contrib.admin.sites import site
+        from django.test import RequestFactory
+
+        programa_por_codigo("DISPOSITIVOS")
+        self.dispositivos.codigo = "DISPOSITIVOS-ADMIN"
+        admin = site._registry[Programa]
+
+        admin.save_model(RequestFactory().post("/admin/"), self.dispositivos, None, True)
+
+        self.assertIsNone(cache.get("programas:dispositivos"))
+
+    def test_el_alta_no_envenena_la_clave(self):
+        """Un ``Programa`` nuevo no tiene código anterior y nadie cachea el ``None``."""
+        self.assertIsNone(programa_por_codigo("MERENDEROS"))
+
+        merenderos = Programa.objects.create(codigo="MERENDEROS", nombre="Merenderos")
+
+        self.assertEqual(programa_por_codigo("MERENDEROS"), merenderos)
