@@ -361,6 +361,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 187 | La pasada horaria de alertas deja de recorrer el padrón y de recrear lo que ya existe | Legajos (comando `generar_alertas`, servicio de alertas, señal de legajo) · Becas (pantalla del proceso masivo) · Transversal (seed de performance) | `#performance` `#datos` `#ui` | Auditoría integral oct-2026 — fichas PERF-20 y LEG-01 (Ola 4, PR 4) + 3 seguimientos MINOR de #639 | 08/10/2026 | 🟢 **Hecho** | No requiere |
 | 188 | `/media/` deja de ser «cualquiera con sesión baja cualquier archivo», y los uploads miran lo que entra | Transversal — descarga de `/media/` (adjuntos, fotos, contactos, F-00, merenderos, adjuntos y padrones de Becas) · Dispositivos (campo ARCHIVO del F-00) · Merenderos (solicitud) · Becas (carga del padrón) | `#rbac` `#datos` `#infra` `#api` | Auditoría integral oct-2026 — fichas SEC-09 etapa 2, SEC-15, SEC-31, R0b-07 y R0b-08 (Ola 2, PR 7) | 08/10/2026 | 🟢 **Hecho** (**D-15 = PDF e imagen**; `X-Accel-Redirect` preparado y apagado tras `MEDIA_X_ACCEL`, D-09/H-05) | `legajos.0010` y `programas.0083` (las dos sin DDL) |
 | 190 | El chequeo de esquema del CI deja de marcar como huérfanas las tablas que carga el organismo | Transversal — CI (job «Migrate ida y vuelta»), `verificar_esquema_migraciones` | `#infra` `#datos` | Juez, por la regresión de #639 que dejaba rojo ese job en todo PR posterior | 08/10/2026 | 🟢 **Hecho** | No requiere |
+| 191 | Plan de implementación del MVP de Dispositivos: tabla rasa, dos carriles y las piezas de diseño primero | Dispositivos · planificación | `#gestion` `#ui` `#datos` | PM — en sesión: «quiero borrar lo que tenemos hoy de ese programa e implementarlo desde 0… planificá bien las etapas y quiero hacer hincapié en la parte de lógica y la parte de diseño, se tiene que ver igual» | 08/10/2026 | 🟢 **Hecho — plan escrito** | Sí: baja de 6 modelos en dos releases |
 
 **Notas del índice**
 
@@ -28496,3 +28497,99 @@ ruff limpio.
 ## Pendientes
 
 Ninguno.
+
+---
+
+# Cambio 191 — Plan de implementación del MVP de Dispositivos: tabla rasa
+
+🟢 **HECHO — 08/10/2026** · Plan en `docs/internal/dispositivos-v2/plan-mvp.md`
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · planificación de la implementación |
+| **Etiquetas** | `#gestion` `#ui` `#datos` |
+| **Solicitante** | PM — en sesión |
+| **Fecha del pedido** | 08/10/2026 |
+| **Issue / épica** | Épica #127 · continúa los Cambios 134 (mapeo) y 183 (MVP) |
+| **Partes afectadas** | `docs/internal/dispositivos-v2/plan-mvp.md` (nuevo) |
+| **Migración** | No requiere todavía: el plan no toca el esquema. Cuando se ejecute, baja de 6 modelos en dos releases |
+
+## Pedido original
+
+> «Lo que quiero hacer es borrar lo que tenemos hoy de ese programa e implementarlo desde 0.»
+>
+> Y después: «No hay datos reales, ese programa en particular no [se usa]. Merenderos los sacaría. Es
+> solo el MVP. Quiero que en base a esto planifiques bien las etapas, y quiero hacer hincapié en la
+> parte de lógica y la parte de diseño: se tiene que ver igual.»
+
+## Decisiones tomadas
+
+**La tabla rasa es viable y el PM la confirmó con las dos condiciones que la habilitan: no hay datos
+reales cargados y nadie usa el programa hoy.** Sin eso habría que convivir y migrar, que era la
+alternativa planteada.
+
+**Qué se borra y qué queda, verificado contra el código.** Los seis modelos que se dan de baja
+—`Cama`, `Admision`, `ArchivoAdmision`, `RegistroDiario`, `EsperaAdmision`, `CampoTipoDispositivo`—
+**solo se referencian entre sí**, y **Merenderos no depende de ninguno** (sus claves foráneas van a
+`Merendero`, `User`, `PrestacionMensual` y la geografía de SIIS). El acoplamiento hacia afuera del
+programa es una sola vista de 38 líneas, `legajos/views/dispositivos.py`, que el MVP reescribe igual.
+
+**Se conserva el legajo institucional**: `TipoDispositivo`, `Dispositivo`, `AsignacionDispositivo` y
+`TrazaDispositivo`. Es coherente con el MVP, que dice textual «el dispositivo tal como está hoy».
+
+**El borrado va en dos releases**, respetando `check_migraciones.py`: primero el código deja de leer
+los modelos viejos, después la migración de baja con su `# CONTRACT`. Con la base vacía es trámite,
+pero no se saltea ni se usa `--fake`.
+
+**Dos carriles en paralelo, no una fila.** El relevamiento en campo lo ejecuta el equipo móvil con
+backend y el circuito de las personas es backoffice, así que avanzan a la vez. El carril de campo
+depende de la E1 porque el relevamiento se carga **por sector**.
+
+| Etapa | Qué deja | Carril |
+|---|---|---|
+| **E0** | Terreno limpio, las piezas de diseño y las dos goldens que faltan | Bloquea todo |
+| **E1** | Sectores y plazas, y el cálculo único de ocupación | A y B |
+| **E2** | Ingreso y egreso con verificación en toda la red, y la solapa del legajo | A |
+| **E3** | Movimientos, bitácora con censo automático y vista de situación | A |
+| **E4** | Relevamiento en campo, con la app y el funcionamiento sin conexión | B |
+
+**El eje de diseño es explícito, por pedido del PM.** Cada etapa declara qué piezas del sistema usa.
+La E0 existe justamente por eso: construir primero las seis piezas aprobadas el 06/10 y las once
+nuevas que el MVP necesita, porque si cada pantalla improvisa su componente el parecido con el
+mockup se pierde.
+
+**Dos pantallas del MVP están frenadas por el agente de diseño.** P6 (ingreso) es un *wizard* y P7
+(detalle de la estadía) un *caso complejo*; ninguno de los dos arquetipos tiene golden y el agente
+manda frenar y devolver. **Construir esas dos goldens es precondición de las etapas 2 y 3**, y son
+las dos pantallas más importantes del MVP. Van en la E0, en paralelo.
+
+**Nombre del relevamiento edilicio (Q4 del mapeo).** `Relevamiento` ya existe y es de Becas, con sus
+capacidades y una entrada de memoria sobre el vocabulario. Propuesta: el modelo se llama
+**`InspeccionDispositivo`** y la etiqueta visible sigue siendo **«Relevamientos»**, que es el
+vocabulario del cliente. A confirmar.
+
+## Pendientes
+
+- **La etapa 0 son unas 100 h que las 700 del Ministerio no contemplan**, y la reserva de 100 h ya
+  está comprometida con las cinco funcionalidades que se sumaron después, el funcionamiento sin
+  conexión sobre todo. Hay que decidir si se absorbe o se cotiza. A favor de absorberla: las piezas y
+  las goldens sirven para toda la Versión 2 y para el resto del sistema, no se pagan dos veces.
+- **Si el relevamiento es por sector o por edificio** es la definición más urgente de las cinco que
+  están en el correo a Guido: si fuera por edificio, **la E1 y la E4 cambian de modelo**.
+- La memoria del proyecto dice que la v2 de Dispositivos **era solo definición y no se implementaba
+  sin pedido del PM**. Con esta decisión queda levantada.
+
+## Archivos
+
+- `docs/internal/dispositivos-v2/plan-mvp.md` (nuevo)
+
+## Base de datos
+
+Todavía no. Cuando se ejecute: baja de seis modelos en dos releases, y alta de `Sector`, `Plaza`,
+`Estadia`, `MovimientoEstadia`, `Turno`, `EntradaBitacora` e `InspeccionDispositivo`.
+
+## Historial
+
+Entrada nueva.
+
+---
