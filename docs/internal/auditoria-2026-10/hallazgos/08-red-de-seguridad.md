@@ -905,7 +905,7 @@ Hay además un gemelo `@tag("mysql")` —`EscriturasAtomicasMotorRealTests`, `Tr
 Las otras cuatro escrituras siguen en la Ola 3.
 **Test permanente:** `core.tests.test_contrato_escrituras.EscriturasAtomicasTests.test_resolver_ciudadano_offline_no_deja_nada_a_medias`.
 
-**2.ª parte (Ola 3, PR 9) — ✅ cerrada en #NNN (Cambio 180), 08-oct-2026.** Las cuatro
+**2.ª parte (Ola 3, PR 9) — ✅ cerrada en #630 (Cambio 180), 08-oct-2026.** Las cuatro
 escrituras restantes quedan afirmadas por conducta en el mismo módulo, cada una haciendo
 fallar el paso siguiente a la primera escritura: `AprobacionAtomicaTests` (la traza se cae
 después del cambio de estado → el caso no queda APROBADO sin registro),

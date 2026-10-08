@@ -1976,7 +1976,7 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
   9. ✅ *Red de seguridad (04-oct):* ~~RED-48 (una sola regla de DNI, con G1c-08)~~ ✅ **cerrada en el PR 2**,
      ~~RED-58 (plantilla de migración re-entrante, con OPS-05)~~ ✅ **cerrada en el PR 1**,
      ~~RED-09 (`q_uuid_en_texto` a `core/db.py`)~~ ✅ **cerrada en el PR 7b**, ~~segunda parte de RED-35
-     (atomicidad del resto de las escrituras)~~ ✅ **cerrada en el PR 9 (Cambio 180), 08-oct-2026**,
+     (atomicidad del resto de las escrituras)~~ ✅ **cerrada en el PR 9 (#630, Cambio 180), 08-oct-2026**,
      ~~RED-40 (`validators` en los `JSONField`, con G1-05)~~ ✅ **cerrada en
      el PR 5** y ~~RED-50 (una sola `edad_en_anios` con `timezone.localdate()` + regla `DTZ011`)~~ ✅ **cerrada en el PR 6**.
      **18 h, de las que quedan 6: la segunda parte de RED-35.** La cuenta: 2 de RED-58 (el «+ 2» del PR 1), 4 de
