@@ -42,6 +42,33 @@ class FiltrosUsuarioService:
         return AlertaCiudadano.objects.filter(filtros, activa=True)
 
     @staticmethod
+    def tiene_alcance_global(usuario):
+        """Quién ve el sistema entero: el superusuario y ``config.administrar``.
+
+        Misma puerta que ya usa ``obtener_alertas_usuario``; existe aparte para
+        que los otros feeds del inicio no la reescriban con otro criterio.
+        """
+        if not usuario or not usuario.is_authenticated:
+            return False
+        return bool(usuario.is_superuser or puede(usuario, "config.administrar"))
+
+    @staticmethod
+    def acotar_a_programas_del_usuario(queryset, usuario, campo="programa_id"):
+        """Acota inscripciones o derivaciones al alcance del usuario (R0b-09).
+
+        El alcance es el mismo que el de las alertas: los programas en los que
+        están inscriptos los legajos de los que el usuario es responsable. Se
+        pasa como **subconsulta lazy**, no como lista de ids materializada, para
+        no armar un ``IN`` gigante en cada poll del inicio.
+        """
+        if not usuario or not usuario.is_authenticated:
+            return queryset.none()
+        if FiltrosUsuarioService.tiene_alcance_global(usuario):
+            return queryset
+        programas = FiltrosUsuarioService._obtener_programas_usuario(usuario)
+        return queryset.filter(**{f"{campo}__in": programas})
+
+    @staticmethod
     def _obtener_programas_usuario(usuario):
         legajo_ids = LegajoAtencion.objects.filter(responsable=usuario).values_list("id", flat=True)
         return get_programa_ids_for_legajo_ids(legajo_ids)

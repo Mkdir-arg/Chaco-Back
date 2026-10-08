@@ -39,19 +39,32 @@ class CiudadanoViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Ciudadano.objects.annotate(legajos_count=Count("inscripciones_programas"))
     serializer_class = CiudadanoSerializer
     permission_classes = [BackofficeAutenticado, RequiereCapacidad("ciudadano.ver")]
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+    # `OrderingFilter` es el único backend que lee `ordering`/`ordering_fields`:
+    # sin él la paginación salía en el orden que quisiera el motor y dos páginas
+    # consecutivas podían repetir o saltear filas (R0b-05).
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ["dni", "genero", "activo"]
     search_fields = ["nombre", "apellido", "dni"]
     ordering_fields = ["apellido", "nombre", "creado"]
-    ordering = ["apellido", "nombre"]
+    # `pk` desempata: dos homónimos no tienen orden propio y la página 2 se los
+    # volvía a traer. Es una columna indexada, así que no agrega costo.
+    ordering = ["apellido", "nombre", "pk"]
 
     def get_queryset(self):
-        """Sin una búsqueda de al menos 3 caracteres no se devuelve nada.
+        """Sin una búsqueda de al menos 3 caracteres el **listado** no devuelve nada.
 
         La API contesta búsquedas, no listados: así una capacidad de lectura no
         alcanza para bajarse el padrón completo paginando.
+
+        El mínimo vale solo para ``list``, que es la acción que enumera. Aplicado
+        también a ``retrieve``, ``GET /api/legajos/ciudadanos/<pk>/`` daba **404
+        con un ciudadano que existe** (R0b-04): nadie lo consume hoy, pero un 404
+        que miente es lo que rompe al próximo que lo use. El pk ya hay que
+        conocerlo para pedirlo, así que no habilita ninguna enumeración.
         """
         queryset = super().get_queryset()
+        if self.action != "list":
+            return queryset
         busqueda = self.request.query_params.get("search", "").strip()
         if len(busqueda) < BUSQUEDA_MINIMA:
             return queryset.none()
@@ -65,16 +78,19 @@ class AlertasViewSet(viewsets.ReadOnlyModelViewSet):
     """
     ViewSet para consultar alertas del sistema.
 
-    Exige ``ciudadano.ver``: con solo ``IsAuthenticated`` cualquier cuenta de
-    backoffice listaba las alertas con el **nombre del ciudadano y el texto de
-    la alerta**, y ``cerrar`` silenciaba cualquiera por id (SEC-18 y R0b-06,
-    auditoría oct-2026). El contenido de la alerta es sensible: cuando se
-    resuelva D-11, la Ola 2 sube esta capacidad a ``ciudadano.sensible``.
+    Exige ``ciudadano.sensible``: con solo ``IsAuthenticated`` cualquier cuenta
+    de backoffice listaba las alertas con el **nombre del ciudadano y el texto
+    de la alerta**, y ``cerrar`` silenciaba cualquiera por id (SEC-18 y R0b-06,
+    auditoría oct-2026). SEC-18 le puso ``ciudadano.ver`` y el Cambio 179 la
+    subió a ``ciudadano.sensible`` con **D-11**: es el mismo texto que entregan
+    el WebSocket y ``alertas_ciudadano_api``, y el dato sensible pide la misma
+    capacidad por cualquier canal. Deja de valer la excepción que la Ola 2 le
+    había reservado («es la campana del navbar»): la campana también subió.
     """
 
     queryset = AlertaCiudadano.objects.select_related("ciudadano", "legajo", "cerrada_por")
     serializer_class = AlertaCiudadanoSerializer
-    permission_classes = [BackofficeAutenticado, RequiereCapacidad("ciudadano.ver")]
+    permission_classes = [BackofficeAutenticado, RequiereCapacidad("ciudadano.sensible")]
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ["prioridad", "tipo", "ciudadano"]
     ordering = ["-creado"]  # Ordenar por fecha de creación descendente

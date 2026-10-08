@@ -389,8 +389,11 @@
             {% endif %}
             <script src="{% static 'custom/js/notification_sound.js' %}"></script>
             <script src="{% static 'custom/js/alertas_conversaciones_fallback.js' %}"></script>
-            {% if websockets_enabled %}
+            {# G3-03: un solo guard. Desde D-11 (Cambio 179) la campana del navbar —única superficie de este script— y `/ws/alertas/` piden la misma capacidad, `ciudadano.sensible`: quien no la tiene no ve campana, ni punto de estado, ni script, y por lo tanto no dispara el handshake que rebotaba con 4403 y sus 5 reintentos contra el único daphne. #}
+            {% if websockets_enabled and puede_alertas_sensibles %}
                 <script src="{% static 'custom/js/alertas_websocket.js' %}"></script>
+            {% endif %}
+            {% if websockets_enabled %}
                 <script src="{% static 'custom/js/alertas_conversaciones_rt.js' %}"></script>
             {% endif %}
             

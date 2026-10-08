@@ -350,6 +350,8 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 176 | El link público deja de romperse con un token duplicado, el padrón deja de escribir fechas imposibles y el alta a SIIS manda el CUIL real | Becas (link público de inscripción, carga de padrón, revisión de casos, alta a SIIS) · Legajos (cliente RENAPER) · Transversal (`core/db.py`) | `#relevamientos` `#siis` `#datos` `#metodo` | Auditoría integral oct-2026 — fichas G1-11, G1-12, G1-13, G1-14, R0-06, R0-07 y la 2.ª parte de RED-09 (Ola 3, PR 7b), más los tres seguimientos de la revisión del PR 7a | 08/10/2026 | 🟢 **Hecho** | No requiere |
 | 177 | El alcance de Becas vale también fuera de la pantalla: cupo, reportes, exports y la solapa del legajo | Becas (cupo, revisión, relevamientos, reportes, tablero del programa, configuración de segmentos) · Legajos (padrón de ciudadanos, solapa Becas, CSV de reportes) · Transversal (catálogo de capacidades) | `#rbac` `#cupos` `#relevamientos` `#datos` `#metodo` | Auditoría integral oct-2026 — fichas SEC-20, SEC-21, SEC-22, SEC-30, BEC-19 y BEC-23, más la segunda parte de RED-79 (Ola 2, PR 5) | 08/10/2026 | 🟢 **Hecho** (D-22 y D-B23 por default; **D-20 la resolvió el PM**: la exportación se siembra a quienes tienen `ciudadano.ver`) | `users.0027` y `users.0028`, las dos sin DDL; la segunda se revierte quitando la capacidad de todos los roles |
 | 178 | Una foto por campo, y el servidor sabe con qué versión del formulario se capturó | Becas — API de campo (`POST …/adjuntos/` y alta de casos) · Revisión de casos (qué adjunto se muestra) · Cron de vencimientos (línea de log) | `#api` `#relevamientos` `#requisitos` `#datos` `#metodo` | Auditoría integral oct-2026 — fichas G1-07 y G1-16, más los tres MINOR de la revisión del PR 5 (Ola 3, PR 5b — **cierra el ítem 5**) | 08/10/2026 | 🟢 **Hecho** (G1-16 cierra del lado del servidor; mandar el dato es un release de `Chaco-mobile`) | `programas.0081` — una columna nullable en `programas_formulario` (expand puro) |
+| 179 | El timeline, las alertas y el riesgo del ciudadano dejan de verse con la capacidad de consulta, y una derivación deja de aceptarse abriendo un link | Legajos (APIs del detalle del ciudadano, bandeja de derivaciones, inscripción directa, API de ciudadanos) · Inicio (feed de actividad reciente, campana de alertas) · Transversal (WebSocket `/ws/alertas/`, shell del backoffice) | `#rbac` `#api` `#sesion` `#ui` | Auditoría integral oct-2026 — fichas SEC-12, la 2.ª mitad de SEC-11, R0b-04, R0b-05, R0b-09, G1c-04, G1c-17 y G3-03 (Ola 2, PRs 3 y 4 en un solo PR) | 08/10/2026 | 🟢 **Hecho** (D-11 y D-12 aplicadas por default) | No requiere |
+| 180 | Las escrituras que fallan no dejan nada a medias: ni medio caso, ni un padrón vacío, ni un adjunto huérfano | Becas (aprobación de casos, link público de inscripción, padrón propio del relevamiento) · Dispositivos (admisión, lista de espera y traslado) · Transversal (`core/archivos.py`) | `#datos` `#cupos` `#relevamientos` `#metodo` | Auditoría integral oct-2026 — 2.ª parte de la ficha RED-35 (Ola 3, PR 9 — **cierra la ola**) | 08/10/2026 | 🟢 **Hecho** | No requiere |
 | 181 | Una cuenta ya no se toma sin conocer su clave: cambio de contraseña, intentos, token de la app y el alcance del ABM de usuarios | Transversal — login, recupero y cambio de contraseña · ABM de usuarios y roles · API de la app de campo (`/api/becas/auth/token/`) · Correo de credenciales | `#sesion` `#usuarios` `#rbac` `#correo` `#api` | Auditoría integral oct-2026 — fichas G1b-05, G1b-07, G1b-08, G2-03, SEC-26, R0b-01, R0b-02, R0b-03 y R0b-10, más la segunda parte de RED-52 (Ola 2, PR 2) | 08/10/2026 | 🟢 **Hecho** (**D-26 = (b)** por default: link de reseteo, sin release de la app; de SEC-26 queda abierto `/admin/` por IP, que es de infraestructura) | No requiere |
 
 **Notas del índice**
@@ -26229,6 +26231,493 @@ otro.
 `test_un_campo_que_el_formulario_no_pide_se_rechaza`, que fijaba el 400 que esta ronda corrige. El
 contrato del 400 legible (`test_el_400_del_adjunto_trae_el_motivo_en_non_field_errors`) pasó a usar
 la referencia de otro segmento, que es el rechazo que queda.
+
+---
+
+# Cambio 179 — El timeline, las alertas y el riesgo del ciudadano dejan de verse con la capacidad de consulta, y una derivación deja de aceptarse abriendo un link
+
+🟢 **HECHO — 08/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Legajos (APIs del detalle del ciudadano, bandeja de derivaciones, inscripción directa, API de ciudadanos) · Inicio (feed de actividad reciente, campana de alertas) · Transversal (WebSocket `/ws/alertas/`, shell del backoffice) |
+| **Etiquetas** | `#rbac` `#api` `#sesion` `#ui` |
+| **Solicitante** | Auditoría integral oct-2026 — fichas SEC-12, la 2.ª mitad de SEC-11, R0b-04 (+ R0b-05), R0b-09, G1c-04, G1c-17 y G3-03 |
+| **Fecha del pedido** | 08/10/2026 |
+| **Issue / épica** | Auditoría oct-2026, Ola 2 (Autorización) ítems 3 y 4, en un solo PR |
+| **Partes afectadas** | Backoffice: detalle del ciudadano (solapas de timeline, alertas y riesgo), detalle de programa (bandeja de derivaciones), pantalla de derivación/inscripción, home (feed de actividad y campana), shell · APIs DRF de Legajos y del dashboard · WebSocket de alertas · Documentación de la auditoría |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Ocho hallazgos que tocan **el mismo dato por tres caminos distintos**: el timeline, las
+alertas y el score de riesgo del ciudadano se leen por HTTP (SEC-11), se difunden por
+WebSocket (G1c-04) y aparecen en el feed del inicio (R0b-09). Hasta acá cada camino
+pedía una capacidad distinta —o ninguna—, así que la pregunta «¿quién puede ver esto?»
+tenía tres respuestas.
+
+- **SEC-11, 2.ª mitad.** R-19 (Cambio 126) les puso `ciudadano.ver` como **piso** a las
+  seis APIs JSON del legajo, para que ninguna quedara abierta mientras se decidía D-11.
+  Tres de ellas —`timeline_ciudadano_api`, `alertas_ciudadano_api` y
+  `prediccion_riesgo_api`— tenían que subir a `ciudadano.sensible` cuando la decisión
+  llegara. Llegó.
+- **SEC-12.** `GET /legajos/derivaciones-ciudadano/<id>/aceptar/` aceptaba la
+  derivación —y creaba la `InscripcionPrograma`— con solo estar logueado: sin capacidad,
+  sin CSRF y por GET, así que un `<img src="…">` en cualquier página la ejecutaba con la
+  sesión de quien la mirara. La pantalla de derivación decidía la inscripción directa
+  por `request.user.is_staff`, que es la marca del admin de Django y no una capacidad.
+- **G1c-04.** `/ws/alertas/` entregaba a todo el grupo `alertas_sistema` la alerta de
+  cualquier ciudadano —incluido el tipo «Riesgo Suicida», y además como notificación del
+  sistema operativo—, pedía solo `ciudadano.ver`, no revalidaba nada después del
+  handshake (quitarle el rol no cortaba el socket), no miraba si la sesión seguía siendo
+  la única del backoffice y aceptaba cualquier `Origin`.
+- **G1c-17.** La rama crítica de la difusión era **código muerto**: el emisor mandaba al
+  grupo `alertas_criticas` con el tipo `nueva_alerta_critica`, y ni ese grupo ni ese tipo
+  existen en ningún consumer. El modal crítico del front nunca se disparó.
+- **G3-03.** `alertas_websocket.js` se cargaba para todo el backoffice mirando solo
+  `websockets_enabled`, y ante un rechazo reintentaba cinco veces cada 3 s contra el
+  único proceso daphne.
+- **R0b-04, R0b-05 y R0b-09**, los tres seguimientos que dejó la revisión de la Ola 0:
+  `retrieve` de `/api/legajos/ciudadanos/<pk>/` daba 404 con un ciudadano que existe; el
+  `ordering` del ViewSet estaba declarado sin el backend que lo lee; y el feed de
+  actividad del inicio pedía `ciudadano.sensible` y mostraba inscripciones y derivaciones
+  de todos los programas.
+
+## Alcance acordado
+
+Entra: las ocho fichas completas. Queda afuera: `AlertasViewSet` de
+`/api/legajos/alertas/`, que R-19 dejó en `ciudadano.ver` **a propósito** porque es la
+campana del navbar y su alcance ya lo pone `FiltrosUsuarioService` (subirla apagaría el
+contador para quien hoy lo tiene); el apagado de `conversaciones` (G1-01 fase 2, Ola 7);
+la bandeja de derivaciones como funcionalidad (LEG-06, Ola 7); y el channel layer de QA,
+que es operación y no código (OPS-12).
+
+## Decisiones tomadas
+
+- **DECISIÓN CLIENTE D-11 = Sí.** El timeline, las alertas y la predicción de riesgo del
+  legajo piden `ciudadano.sensible`, en las **tres** superficies a la vez: las tres rutas
+  HTTP de SEC-11, el WebSocket (G1c-04) y la rama de alertas del feed del inicio
+  (R0b-09). Que el mismo dato pidiera capacidades distintas según el transporte es
+  exactamente lo que G1c-04 explotaba. En la ronda 2 esto se extendió a las seis
+  superficies HTTP de alertas, y en la ronda 3 a la séptima: la solapa «Alertas activas»
+  del detalle, que se arma del lado del servidor y no es una API.
+- **El PR no le da acceso nuevo a nadie.** Es de endurecimiento: todo lo que mueve, lo
+  mueve hacia arriba. Por eso `actividad_reciente` **se queda** en `ciudadano.sensible`,
+  la capacidad que ya pedía antes del PR, y lo único que cambia ahí es el alcance —hacia
+  adentro—. Bajarla a `ciudadano.ver` le habría abierto el feed del inicio a roles que hoy
+  no lo ven, y en particular a `config.administrar` sin `ciudadano.sensible`, que
+  `acotar_a_programas_del_usuario` trata como alcance global (ronda 3).
+- **DECISIÓN CLIENTE D-12 = reusar `ciudadano.editar`**, sin capacidad nueva. Mover una
+  derivación es escribir sobre el legajo del ciudadano, que es lo que esa capacidad
+  habilita; así el cambio no necesita migración de datos ni re-tildar roles en PRD. La
+  contracara, deliberada: `puede_inscripcion_directa` queda en `true` para todo el que
+  puede abrir la pantalla, porque es la misma capacidad.
+- **`@requiere` va por fuera de `@require_POST`.** La autorización se evalúa antes que el
+  método: un GET sin capacidad rebota al inicio en vez de contestar 405, que le
+  confirmaría a quien prueba que la ruta existe.
+- **El WebSocket revalida en cada entrega, no por temporizador.** La entrega ya pega a la
+  base para resolver el alcance, así que la capacidad, el alta del usuario y la sesión
+  viajan en la misma consulta y no queda ventana. Si el usuario perdió la capacidad, el
+  socket se cierra con **4403** en vez de seguir abierto mudo.
+- **El `AlertasConsumer` relee el usuario de la base.** `scope["user"]` se resuelve una
+  vez en el handshake: sus grupos no se refrescan solos, que es por lo que quitarle el
+  rol no cortaba nada.
+- **Dos guards distintos para el script de alertas, porque son dos poblaciones.** El
+  script viaja con `ciudadano.ver` —es la capacidad de la campana del navbar, su única
+  superficie, y el contador se refresca por HTTP—; el socket se abre solo con
+  `ciudadano.sensible`. Sin el segundo, subir la capacidad del consumer **habría creado**
+  la población que describe G3-03.
+- **El feed del inicio se acota con el mismo alcance que las alertas:** los programas de
+  los legajos propios, por subconsulta lazy; superusuario y `config.administrar` ven
+  todo. Se acepta que para quien no tiene legajos propios el feed quede vacío, igual que
+  el badge de alertas (mismo criterio que D-18).
+- **El mínimo de 3 caracteres de la API de ciudadanos vale solo para `list`.** Es la
+  acción que enumera; `retrieve` exige conocer el pk, así que no habilita ninguna
+  enumeración y no tiene por qué mentir con un 404.
+
+## Implementación
+
+- `legajos/views/contactos_api.py` — las tres vistas sensibles pasan a
+  `@requiere("ciudadano.sensible")`; las otras tres se quedan en `ciudadano.ver`.
+- `legajos/views/derivacion_programa.py` — `@requiere("ciudadano.editar")` +
+  `@require_POST` en aceptar y rechazar.
+- `legajos/views/derivacion.py` — `@requiere("ciudadano.editar")` y
+  `puede_inscripcion_directa` por `rbac.puede` en vez de `is_staff`.
+- `legajos/templates/legajos/programas/programa_detail.html` — «Rechazar» pasa de `<a>`
+  a form POST con `{% csrf_token %}` y confirmación SweetAlert2.
+- `legajos/api_views/__init__.py` — `OrderingFilter` en `filter_backends`, `ordering` con
+  desempate por `pk` y el mínimo de búsqueda solo en `list`.
+- `legajos/services/filtros_usuario.py` — `tiene_alcance_global` y
+  `acotar_a_programas_del_usuario` (helpers nuevos).
+- `dashboard/api_views/__init__.py` — `actividad_reciente` conserva `ciudadano.sensible`
+  (ver *Historial*, ronda 3) y suma el alcance en inscripciones y derivaciones.
+- `legajos/selectors/ciudadanos.py` — `alertas_ciudadano` y la solapa «Alertas» del
+  detalle solo con `ciudadano.sensible` (ronda 3).
+- `config/asgi.py` — `AllowedHostsOriginValidator` sobre el router de WebSocket.
+- `legajos/views/alertas.py` — dashboard, `count-ajax`, `preview-ajax` y `cerrar-ajax`
+  pasan a `@requiere("ciudadano.sensible")` (ronda 2, ver *Historial*).
+- `legajos/api_views/__init__.py` — `AlertasViewSet` a `ciudadano.sensible`.
+- `conversaciones/consumers.py` — `AlertasConsumer` con `refrescar_alcance`,
+  `_alcance_vigente`, `_en_alcance`, `_sesion_vigente` y `_entregar`;
+  `VENTANA_REVALIDACION = 60` s.
+- `legajos/services/alertas.py` — **un solo** `group_send` por alerta, con `ruteo` de
+  servidor (`_ruteo_de`); `_enviar_cierre_alerta` desde `cerrar_alerta`; y `legajo_id`
+  como `str` (ver *Historial*).
+- `conversaciones/context_processors.py` — `puede_alertas_sensibles`;
+  `templates/includes/base.html` y `templates/includes/navbar.html` lo usan como guard
+  único de la campana y del script.
+- `static/custom/js/alertas_websocket.js` — `mostrarAlerta()` decide modal o toast por
+  prioridad, y `rechazado` (sin reintento tras un 4403).
+- `legajos/templates/legajos/ciudadano_detail.html` — el panel «Predicción de riesgo» y
+  su `fetch`, y (ronda 3) el panel de la solapa «Alertas» y su contador del encabezado,
+  van dentro de `{% if puede_ver_sensible %}`.
+- `core/tests/js_harness.py` — `document.querySelectorAll` en el DOM simulado.
+- Tests: `legajos/tests/test_derivaciones_rbac.py` (16),
+  `conversaciones/tests/test_ws_alertas_rbac.py` (14) y
+  `core/tests/test_alertas_ws_shell.py` (7) nuevos; clases nuevas en
+  `legajos/tests/test_api_ciudadanos_rbac.py`, `dashboard/tests/test_api_rbac.py` y
+  `legajos/tests/test_alertas_rbac.py` (`AlertasEnElDetalleDelCiudadanoTests`, ronda 3), y
+  `legajos/tests/test_contactos_api_rbac.py` partido en rutas sensibles y de consulta.
+
+## Validación
+
+- `manage.py test legajos core users conversaciones dashboard` con Python 3.12 /
+  Django 5.2.17 (venv igual al CI): **1.732 tests, OK** (ronda 3).
+- `manage.py check` sin issues; `check --deploy` con los 6 avisos preexistentes de
+  settings de desarrollo; `makemigrations --check --dry-run`: «No changes detected».
+- `test --tag performance` OK (el presupuesto de `inicio` no se mueve: las dos
+  capacidades nuevas del context processor salen del mismo juego de permisos ya leído).
+- `ruff check .` y `ruff format --check` sobre lo tocado, limpios.
+- `design_audit --ratchet --base origin/development`: **0 hallazgos nuevos**;
+  `compile_templates --bloques` 201 / 0 errores / 0 bloques sin destino;
+  `requerimientos.py --check` OK.
+
+## Pendientes / a definir
+
+- ~~Reemplazar a mano el bloque de `.claude/design/shells.md`~~ — **hecho** en `0421d901`
+  (lo aplicó el juez, porque la sesión del PR no escribe en `.claude/`).
+  `check_design_agent --changed` da OK.
+- **Revisar con el PM qué roles quedan con `ciudadano.ver` y sin `ciudadano.sensible`**
+  en PRD. Los roles sembrados no pierden nada («Gestión de Ciudadanos» ya trae las dos),
+  pero el «Operador de backoffice» de `seed_rbac` tiene solo `ciudadano.ver`: deja de ver
+  el timeline, las alertas y el riesgo del ciudadano, el dashboard de alertas, **la
+  campana del navbar entera** (contador y punto de estado incluidos) y **la solapa
+  «Alertas» del detalle del ciudadano** (ronda 3). El resto del detalle lo sigue abriendo
+  con `ciudadano.ver`. Nadie gana acceso. Va sin migración de datos a propósito: si el PM
+  decide que lo siga viendo, se tilda `ciudadano.sensible` desde el ABM de Roles y vuelve
+  todo, sin release.
+- **Partir `actividad_reciente` en dos (R0b-09, mitad abierta).** La ficha pedía dos cosas
+  —acotar el feed y que el rol de Legajos sin datos sensibles viera *algo*— y este PR
+  resolvió solo la primera. La segunda necesita separar inscripciones y derivaciones
+  (`ciudadano.ver`) de la rama de alertas (`ciudadano.sensible`), en dos endpoints o con
+  el feed sin alertas, y una decisión del PM sobre qué ve el «Operador de backoffice» en
+  el inicio. Queda registrada en la ficha R0b-09, para una ola posterior.
+- **El channel layer fuera de `prd` es `InMemoryChannelLayer`:** en QA lo que emite el
+  CronJob de `generar_alertas` no llega a ningún navegador. Es OPS-12, no este cambio.
+
+## Reversión
+
+Todo es código, sin esquema ni datos. Revertir el commit devuelve las tres rutas
+sensibles a `ciudadano.ver`, la aceptación de derivaciones por GET sin capacidad, la
+inscripción directa por `is_staff`, el WebSocket sin origen, sesión, alcance ni
+revalidación, el feed global del inicio y el script de alertas cargado para todos.
+Ningún dato guardado depende de este cambio.
+
+## Historial
+
+**Hallazgo extra encontrado al escribir los tests de G1c-04, fuera de las ocho fichas.**
+`AlertasService._enviar_notificacion_alerta` ponía `legajo_id` como `UUID` en el payload,
+y el consumer serializa el evento con `json.dumps`: **toda** alerta que colgara de un
+legajo moría con «Object of type UUID is not JSON serializable» dentro del consumer, y el
+error quedaba en el log sin que nadie lo viera. Son justamente las únicas alertas que
+caen dentro del alcance de alguien, así que la difusión «funcionaba» únicamente para las
+que no debía entregar. Va como `str()`; lo cubre
+`test_entrega_una_alerta_del_alcance`.
+
+### Ronda 2 de la revisión del PR #629 — 08/10/2026
+
+Tres MAJOR y tres MINOR. Los tres MAJOR son la misma idea aplicada a tres planos: **una
+regla, un lugar**.
+
+1. **D-11 vale por canal de transporte, no por pantalla (MAJOR).** La primera vuelta subió
+   a `ciudadano.sensible` las tres APIs JSON del detalle y el WebSocket, pero dejó el
+   **texto de la alerta** saliendo con `ciudadano.ver` por el dashboard de alertas,
+   `count-ajax`, `preview-ajax`, `cerrar-ajax`, `cerrar_alerta_api` y el `AlertasViewSet`
+   de `/api/legajos/alertas/`. Es el mismo dato —«Riesgo Suicida», el nombre del
+   ciudadano— que G1c-04 le cerró al mismo usuario por socket; y como
+   `FiltrosUsuarioService.tiene_alcance_global` mira `config.administrar`, un rol de
+   Configuración con `ciudadano.ver` lo leía de **todo** el padrón. Las seis superficies
+   suben a `ciudadano.sensible`. El `AlertasViewSet` tenía una excepción escrita en el
+   *Alcance acordado* («es la campana del navbar, subirla apagaría el contador»): se cae,
+   porque la campana también sube.
+2. **La campana del navbar y su script, con un solo guard (MAJOR, cierra G3-03 mejor).**
+   `templates/includes/navbar.html` pasa de `ciudadano.ver` a `ciudadano.sensible`, y el
+   shell incluye `alertas_websocket.js` con `puede_alertas_sensibles`. Quien no la tiene
+   no ve campana, ni dropdown, ni punto de estado, ni script. Desaparecen la variable
+   `puede_ver_ciudadanos` del context processor y el flag
+   `window.alertasConfig.puedeSocket`: la población «script sí, socket no» que obligaba a
+   los dos guards ya no existe.
+3. **La alerta CRÍTICA llegaba duplicada (MAJOR).** G1c-17 alineó el grupo y el tipo de la
+   rama crítica, pero la dejó como un **segundo** `group_send` sobre `alertas_sistema`: el
+   cliente corría las dos ramas, así que salía toast *y* modal, el sonido sonaba dos veces
+   y el contador se refrescaba dos veces. Ahora el emisor manda **un** mensaje por alerta y
+   `mostrarAlerta()` elige por `alerta.prioridad`: crítica → modal + sonido + parpadeo;
+   resto → toast. El tipo `alerta_critica` no existe más en ningún lado.
+4. **Revalidar en cada entrega costaba 5 consultas por alerta y por socket (MAJOR).** El
+   alcance se resolvía con `obtener_alertas_usuario(user).filter(pk=…).exists()`: tres `IN`
+   anidados sobre 40k inscripciones, multiplicado por cada alerta de la pasada horaria de
+   `generar_alertas` y por cada socket abierto, contra el `read_timeout` de 10 s de ECOM.
+   Se partió en dos: el **emisor** calcula una vez por alerta el `responsable_id` del
+   legajo y sus `programa_ids` (`AlertasService._ruteo_de`), que viajan en el evento
+   **aparte** del payload y nunca llegan al navegador; el **consumer** resuelve el alcance
+   del usuario una vez por ventana (`VENTANA_REVALIDACION = 60` s, pisable con
+   `ALERTAS_WS_VENTANA_REVALIDACION`) y cada entrega decide en memoria, con la misma regla
+   que `FiltrosUsuarioService`. Al vencer la ventana se revalida usuario, capacidad y
+   sesión, y si los perdió el socket se cierra con 4403. **La contracara, explícita: 60 s
+   es la latencia máxima entre quitarle el rol a alguien y que deje de recibir.** Lo mide
+   `VentanaDeRevalidacionTests` con `CaptureQueriesContext`: 10 entregas ≤ 2 consultas.
+5. **`alerta_cerrada`: se resolvió, no se borró (MINOR).** El handler no tenía productor y
+   además era inalcanzable por construcción, porque su alcance salía de
+   `obtener_alertas_usuario`, que filtra `activa=True`. Se eligió darle productor
+   —`AlertasService.cerrar_alerta` emite `_enviar_cierre_alerta`— porque el dashboard ya
+   dibuja `data-alerta-id` y el cliente ya sabe sacar la tarjeta: la alerta que otro cierra
+   desaparece sin recargar. El ruteo del emisor no mira `activa`, así que el cierre llega a
+   los mismos sockets que recibieron el alta.
+6. **Panel «Predicción de riesgo» detrás de `puede_ver_sensible` (MINOR).** El panel y el
+   `fetch` a `legajos:prediccion_riesgo` quedaban dibujados con guiones para quien no tiene
+   la capacidad, y el `fetch` rebotaba con 403 en cada apertura del detalle.
+
+Lo que **no** cambió: el alcance sigue siendo el de `FiltrosUsuarioService` (no se tocó
+`tiene_alcance_global`; lo que cambió es que ahora hay que tener `ciudadano.sensible` para
+llegar a usarlo), y no hay migración de datos ni de esquema.
+
+Costo del cambio para el usuario: ver *Pendientes*. Quien tiene `ciudadano.ver` y no
+`ciudadano.sensible` pierde la campana de alertas; se devuelve tildando la capacidad en
+Roles.
+
+### Ronda 3 de la revisión del PR #629 — 08/10/2026
+
+Dos MAJOR y un MINOR. Los dos MAJOR son el mismo descuido en dos planos: **una regla que
+se aplicó donde se la buscó, no donde el dato sale**.
+
+1. **Séptima superficie del texto de la alerta: la solapa del detalle (MAJOR).** La ronda 2
+   cerró seis superficies HTTP, todas APIs JSON, y se le pasó la única que no lo es.
+   `legajos/templates/legajos/ciudadano_detail.html` renderiza la solapa «Alertas activas»
+   del lado del servidor, con `alertas_ciudadano`, que `build_ciudadano_detail_context`
+   traía de la base sin mirar ninguna capacidad: un «Operador de backoffice» abría el
+   legajo con `ciudadano.ver` y leía ahí el tipo y el mensaje de cada alerta —«Riesgo
+   Suicida»— que el mismo PR le había cerrado por las otras seis y por el socket. El corte
+   va en el **selector**, no en el template: sin `ciudadano.sensible` el queryset es
+   `AlertaCiudadano.objects.none()`, que **no consulta**, y con él se vacían el panel, el
+   botón de la solapa (se filtra de `solapas`, porque es estática y aparecía siempre), el
+   badge y los tres contadores del encabezado. El panel y la tarjeta «Alertas activas» de
+   los indicadores van además dentro de `{% if puede_ver_sensible %}`, para que no quede
+   un `id="tab-alertas"` huérfano en el DOM. **Barrido hecho sobre `legajos`, `dashboard`
+   y `core`:** no hay octava. Las únicas dos plantillas que renderizan **texto** de alerta
+   son esta y `templates/legajos/alertas_dashboard.html`, que la ronda 2 ya dejó en
+   `ciudadano.sensible`; todo lo demás —`ciudadano_list.html`, `dashboard.html`,
+   `core/views/public.py` (`alertas_activas`, `pie_alertas`)— son **contadores globales**,
+   sin ciudadano ni mensaje, y quedan como estaban.
+2. **El logout no cortaba el socket (MAJOR).** `_sesion_vigente` comparaba la clave del
+   handshake contra `Profile.backoffice_session_key`, y `logout()` **no toca esa columna**:
+   borra la fila de `django_session` y deja la clave vieja escrita, así que la comparación
+   daba `True` para siempre. La ronda 2 había cubierto *reemplazar* la sesión (otro login
+   pisa la columna) pero no *cerrarla*: quien se deslogueaba seguía recibiendo alertas por
+   el socket abierto, con el texto sensible y como notificación del sistema operativo,
+   hasta cerrar la pestaña. Ahora la revalidación confirma además que la sesión exista, con
+   `scope["session"].exists(clave)` —por el backend configurado: `db` en dev y QA, `cache`
+   en prd, así que sirve en los dos—. Va dentro de `refrescar_alcance`, no en cada entrega:
+   es **una consulta por ventana**, y `VentanaDeRevalidacionTests` sigue midiendo ≤ 2
+   consultas para 10 entregas.
+3. **`actividad_reciente` vuelve a `ciudadano.sensible` (MINOR).** La ronda 1 la bajó a
+   `ciudadano.ver` siguiendo la propuesta de R0b-09. Visto de nuevo, eso era **dar acceso
+   nuevo** en un PR de endurecimiento: con `config.administrar` —que
+   `acotar_a_programas_del_usuario` trata como alcance global— el «Operador de backoffice»
+   pasaba a ver las inscripciones y derivaciones de todo el sistema, que es justo el agujero
+   que la ficha quería cerrar. Se restituye la capacidad que el endpoint pedía antes del PR;
+   el alcance acotado, que es la mitad buena de R0b-09, **se queda**. Nada se rompe por
+   volver: es el estado previo. Lo que queda abierto —que quien solo tiene `ciudadano.ver`
+   siga sin ver nada del feed del inicio— está escrito como pendiente en la ficha R0b-09,
+   que baja de ✅ a 🟡.
+
+Resultado neto del PR, chequeado: **nadie gana acceso a nada**. Todas las capacidades que
+el PR mueve, las mueve hacia arriba; lo único que se afloja son los alcances, hacia adentro.
+
+---
+
+# Cambio 180 — Las escrituras que fallan no dejan nada a medias: ni medio caso, ni un padrón vacío, ni un adjunto huérfano
+
+🟢 **HECHO — 08/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas (aprobación de casos, link público de inscripción, padrón propio del relevamiento) · Dispositivos (admisión, lista de espera y traslado) · Transversal (`core/archivos.py`) |
+| **Etiquetas** | `#datos` `#cupos` `#relevamientos` `#metodo` |
+| **Solicitante** | Auditoría integral oct-2026 — 2.ª parte de la ficha RED-35 (Ola 3, PR 9, el que cierra la ola) |
+| **Fecha del pedido** | 08/10/2026 |
+| **Issue / épica** | Auditoría oct-2026, `docs/internal/auditoria-2026-10/` |
+| **Partes afectadas** | Backoffice · Portal (link público) |
+| **Migración** | No requiere |
+
+## Pedido original
+
+«Ningún test afirma que las escrituras críticas sigan siendo atómicas.» Hay 39
+`@transaction.atomic` en los `services/` y ninguno estaba sostenido por una
+prueba: sacar el decorador al mover una función de módulo no rompía nada. La
+primera parte (Cambio 156) cubrió `resolver_ciudadano_offline`, que es la que ya
+se había perdido una vez. Esta cierra las otras cuatro que nombra la ficha:
+aprobar un caso, la inscripción por link público, quitar el padrón propio de un
+relevamiento y trasladar una admisión entre dispositivos.
+
+## Alcance acordado
+
+**Entra:** una prueba de conducta por escritura —se hace fallar el paso
+siguiente a la primera escritura y se mira que no haya quedado nada—, su control
+sin la falla inyectada, y el arreglo de lo que esas pruebas encontraron abierto.
+
+**Queda afuera:** las otras 34 escrituras con `@transaction.atomic` del repo. La
+ficha nombra cinco y son las que tienen daño demostrable; convertir esto en una
+regla general («toda función con `atomic` necesita su test») sería un gate que
+nadie puede cumplir de una sola vez.
+
+## Decisiones tomadas
+
+- **La prueba es de conducta, no de forma.** Afirmar la atomicidad leyendo el
+  fuente o un atributo del decorador no sirve: `transaction.atomic` usa `@wraps`,
+  no deja `_atomic`, y buscar la palabra «atomic» en el código da verde con un
+  comentario. Lo que se hace es inyectar una falla en el paso siguiente a la
+  primera escritura y afirmar que la base quedó como estaba. Es la misma decisión
+  del Cambio 156 y acá se repite para las cuatro.
+- **Cada prueba va con su control.** Sin un test que afirme que, sin la falla, la
+  escritura sí ocurre entera, el primero quedaría verde el día que la función
+  dejara de hacer su trabajo.
+- **Lo que corre fuera de la transacción a propósito sigue afuera.** En el link
+  público, los adjuntos y la resolución del legajo salen del candado del
+  relevamiento desde el Cambio 91, porque cada milisegundo adentro lo pagan en
+  cola los que vienen atrás y a los 10 s el `read_timeout` les devuelve un 500.
+  Eso **no** se tocó: lo que se agregó es la prueba de las dos mitades —adentro,
+  que una falla no deje medio caso; afuera, que lo que no llegó a completarse lo
+  termine el reintento de la persona, que es lo que hace defendible la decisión—.
+- **Un archivo escrito en una transacción que vuelve atrás hay que borrarlo a
+  mano.** Django tiene `transaction.on_commit` para la dirección contraria (no
+  borrar del disco algo que la base todavía puede devolver) y **no** tiene
+  `on_rollback`. Se agregó `core/archivos.py`, que registra los archivos que
+  escribió la operación y los borra si la operación termina fallando. El borrado
+  es best effort y logueado: un volumen de media caído no puede tapar el error
+  real.
+- **Quitar el padrón propio toma el mismo candado que cargarlo.** Es la otra mitad
+  del par de BEC-15, y se escribe igual: `select_for_update()` sobre la fila del
+  relevamiento, que siempre existe. No se promete nada que el motor no dé: un
+  `SELECT … FOR UPDATE` que no encuentra filas no toma gap lock, y acá siempre
+  encuentra la suya.
+- **Desvío code-first:** la ficha nombra `cupo.aprobar_formulario`. Esa función no
+  existe; la que aprueba es `cupo.aprobar_o_poner_en_espera`.
+
+## Implementación
+
+Lo que el sistema hace ahora y antes no:
+
+1. **Aprobar un caso** (Becas → Revisión). Si falla el registro de la traza —el
+   paso siguiente al cambio de estado— el caso **no** queda APROBADO. Antes podía
+   quedar aprobado sin ningún registro de quién lo aprobó, consumiendo cupo y
+   saliendo en el reporte de beneficiarios.
+2. **Inscripción por link público.** Una falla posterior al alta del caso, dentro
+   del candado, no deja medio caso escrito. Y si falla la resolución del legajo
+   —que corre después, a propósito— el caso sigue estando y el reintento de la
+   persona, con el mismo `client_uuid`, lo completa sin duplicar nada.
+3. **Quitar el padrón propio de un relevamiento.** Las filas del padrón y el Excel
+   se van juntos o no se va ninguno. Un padrón propio vacío no es un estado
+   neutro: el relevamiento pasa a regirse por el de la convocatoria y, si no hay,
+   **el link acepta cualquier documento**. Además, quitar y cargar ya no se
+   intercalan: las dos operaciones toman el mismo candado.
+4. **Trasladar una admisión entre dispositivos.** El traslado abre el destino
+   —crea la estadía, ocupa la cama y guarda el F-00— y recién después cierra el
+   origen, que puede negarse (otra pestaña ya lo trasladó). La base volvía atrás
+   sola; el adjunto del F-00 **no**, y quedaba en `media/` con el documento y el
+   informe social de la persona, sin ninguna fila que lo nombre, sin fecha de baja
+   y sin forma de encontrarlo. Ahora se borra con el resto. Lo mismo vale para la
+   admisión directa y el alta a lista de espera, que escriben el F-00 igual.
+
+## Archivos
+
+- `core/archivos.py` (nuevo) — `archivos_atomicos` y `anotar_archivo_escrito`.
+- `programas/services/admisiones.py` — las tres operaciones que reciben F-00.
+- `programas/services/padron.py` — el candado de `quitar_padron_propio`.
+- `core/tests/test_contrato_escrituras.py` — las cuatro clases nuevas con sus controles.
+- `programas/tests/test_becas_reglas_negocio.py` — el contrato del candado nuevo.
+- `docs/internal/auditoria-2026-10/hallazgos/08-red-de-seguridad.md` y su `README.md`.
+
+## Base de datos
+
+No requiere migración. No se agregan ni se modifican columnas.
+
+## Validación
+
+- **Las cuatro mutaciones de control, medidas una por una** (el test tiene que
+  ponerse rojo sin el arreglo, con su mensaje): sacar `@transaction.atomic` de
+  `aprobar_o_poner_en_espera` → «El caso quedó APROBADO por una escritura que
+  falló»; sacarlo de `quitar_padron_propio` → «El padrón propio quedó vacío con
+  el Excel puesto»; abrir el `with transaction.atomic()` de
+  `crear_formulario_publico` → «Quedó un caso de una inscripción que falló»;
+  sacar `@archivos_atomicos` de `trasladar_admision` → `['constancia.txt'] != []`,
+  que es el adjunto huérfano. Sacar el candado nuevo deja en rojo el test de
+  `PadronConcurrenteTests`.
+- `manage.py test core programas portal`: 3505 tests, OK (42 salteados, 2 fallas
+  esperadas, las de siempre).
+- `manage.py check`: sin hallazgos. `manage.py check --deploy` con
+  `SIIS_API_URL` como la pone el CI: solo las 5 advertencias preexistentes.
+  `makemigrations --check --dry-run`: sin cambios.
+- `ruff check .` y `ruff format --check` de lo tocado: OK.
+- `requerimientos.py --check`: OK. No se tocó UI.
+
+## Puesta en marcha en el servidor
+
+No requiere nada: ni variables, ni comandos, ni cron. Los archivos huérfanos que
+ya estén en `media/admisiones/f00/` de traslados fallados anteriores **siguen
+ahí**: este cambio evita los nuevos, no limpia los viejos.
+
+## Pendientes / a definir
+
+- **Los huérfanos ya existentes.** No se barren acá porque no hay forma de
+  distinguirlos sin cruzar el volumen contra la tabla, y eso es un comando con
+  borrado masivo: entra como pedido propio si el PM lo quiere.
+- **`update_or_create` del F-00 reemplazando un adjunto.** Cuando se vuelve a
+  cargar el mismo campo, el archivo **anterior** queda en el storage. Es la misma
+  familia que DAT-05 y la dirección contraria a la de este cambio (ahí hace falta
+  `on_commit`, no rollback); no estaba en la ficha y queda anotado.
+- **Las 34 escrituras restantes con `@transaction.atomic`.** Sin test propio.
+
+## Reversión
+
+Se revierte el commit. No hay datos que recuperar: el cambio no escribe nada
+nuevo en la base. Revertir devuelve el comportamiento anterior —los adjuntos
+huérfanos y la posibilidad de intercalar carga y quitado de padrón—, así que
+conviene revertir solo los tests si lo que molesta es un test.
+
+## Historial
+
+- **08/10/2026 — ronda 2 de la revisión del PR #630.** Dos riesgos latentes que
+  el limpiador nuevo abría, los dos sobre archivos con datos personales. (1) **El
+  limpiador borraba lo que no había escrito:** `anotar_archivo_escrito` anotaba
+  lo que quedara en el campo, sin saber si esta operación lo escribió. Un F-00
+  que reusa un adjunto ya guardado —el del origen de un traslado— le pasa un
+  `FieldFile` commiteado: Django no toca el storage y las dos filas nombran el
+  mismo archivo, así que un traslado fallado se llevaba puesta documentación
+  preexistente que la fila del origen sigue nombrando. Ahora se anota solo lo que
+  Django va a escribir de verdad (el valor del campo **sin commitear**, que es la
+  única condición con la que `FileField.pre_save` toca el storage); un
+  `FieldFile` ya guardado o un nombre suelto en `str` no se anotan. Queda dicho
+  en el módulo, además, que la dirección inversa no está cubierta: si la
+  operación decorada sale bien y un `atomic` **externo** vuelve atrás después, el
+  registro ya se descartó y el archivo queda huérfano —por eso la operación
+  decorada tiene que ser la transacción entera—. (2) **El padrón decidía adentro
+  del candado con un valor leído afuera:** `quitar_padron_propio` y
+  `cargar_padron` programaban el borrado del `padron_archivo` que traía el objeto
+  en memoria, leído antes de esperar el `select_for_update`. Si en esa espera
+  entró otra carga, ese nombre ya no existe y el Excel vigente —el padrón de
+  miles de personas— quedaba en `media/` sin ninguna fila que lo nombre. Las dos
+  releen el campo con `refresh_from_db` apenas toman el candado. Los tres tests
+  nuevos se midieron en rojo contra `571d4156`, cada uno con su mensaje.
 
 ---
 

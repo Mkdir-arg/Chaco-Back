@@ -72,12 +72,15 @@
         <div class="flex items-center gap-x-3 sm:gap-x-4 lg:gap-x-6">
             {% comment %}
             Indicador de alertas. Los tres endpoints que alimenta —contador, preview
-            y el dashboard al que linkea— piden `ciudadano.ver` desde SEC-18: sin la
-            capacidad, la campana quedaba con el spinner colgado para siempre y los
-            dos links rebotaban al inicio. Misma capacidad que el guard de las vistas,
-            para que el menú y la vista no puedan quedar desalineados.
+            y el dashboard al que linkea— piden `ciudadano.sensible` desde D-11
+            (Cambio 179): el texto de la alerta es el mismo dato que el WebSocket
+            entrega con esa capacidad. Misma capacidad que el guard de las vistas,
+            para que el menú y la vista no puedan quedar desalineados; sin ella la
+            campana quedaba con el spinner colgado y los dos links rebotaban.
+            Adentro de este `if` vive **todo** lo que toca `alertas_websocket.js`:
+            la campana, su dropdown y el punto de estado del socket.
             {% endcomment %}
-            {% if request.user|puede:"ciudadano.ver" %}
+            {% if request.user|puede:"ciudadano.sensible" %}
             {% comment %}
             Las dos rutas que consulta `alertas_websocket.js` viajan como `data-url-*`
             y no escritas a mano adentro del JS (RED-42): un archivo de `static/` no
@@ -133,8 +136,9 @@
 
             {% comment %}
             El punto de estado lo pinta `alertas_websocket.js`, que es el cliente de
-            `ws/alertas/` y se carga con la misma capacidad: sin ella quedaba gris para
-            siempre, anunciando una conexión que nadie iba a abrir.
+            `ws/alertas/` y se carga con la misma capacidad `ciudadano.sensible`: sin
+            ella quedaba gris para siempre, anunciando una conexión que nadie iba a
+            abrir.
             {% endcomment %}
             <!-- Estado WebSocket -->
             <div class="flex items-center">

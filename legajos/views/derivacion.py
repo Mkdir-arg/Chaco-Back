@@ -1,16 +1,29 @@
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
+
+from core.rbac import puede, requiere
 
 from ..forms import DerivarProgramaForm
 from ..models import Ciudadano
 
 
-@login_required
+@requiere("ciudadano.editar")
 def derivar_programa_view(request, ciudadano_id):
-    """Pantalla de derivación/inscripción de ciudadanos a programas activos."""
+    """Pantalla de derivación/inscripción de ciudadanos a programas activos.
+
+    La pantalla crea una derivación o —con la opción habilitada— inscribe
+    directo en el programa, así que exige ``ciudadano.editar`` y no solo sesión
+    (SEC-12).
+
+    ``puede_inscripcion_directa`` salía de ``request.user.is_staff``, que es la
+    marca de acceso al admin de Django y no una capacidad del RBAC: un usuario
+    con el tilde de staff y sin ningún rol inscribía a cualquiera en cualquier
+    programa, y un operador con todas las capacidades de Legajos no podía.
+    **DECISIÓN CLIENTE D-12 = reusar ``ciudadano.editar``**, sin capacidad
+    nueva: quien puede abrir esta pantalla puede además inscribir directo.
+    """
     ciudadano = get_object_or_404(Ciudadano, id=ciudadano_id)
-    puede_inscripcion_directa = request.user.is_staff
+    puede_inscripcion_directa = puede(request.user, "ciudadano.editar")
 
     payload = request.POST
     if request.method == "POST" and "programa_destino" in request.POST and "institucion_programa" not in request.POST:

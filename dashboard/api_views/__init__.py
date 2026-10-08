@@ -137,13 +137,30 @@ def alertas_criticas(request):
 @api_view(["GET"])
 @permission_classes([BackofficeAutenticado, RequiereCapacidad("ciudadano.sensible")])
 def actividad_reciente(request):
-    """Obtiene actividad reciente del sistema."""
+    """Actividad reciente del inicio, por tipo de evento y dentro del alcance.
+
+    R0b-09: el feed listaba las últimas inscripciones y derivaciones **de todos
+    los programas**, sin pasar por ningún alcance, y el tipo de la alerta —dato
+    sensible— viajaba con ellas. Ahora todo sale acotado al alcance del usuario,
+    el mismo que usa ``FiltrosUsuarioService`` para las alertas.
+
+    La capacidad sigue siendo ``ciudadano.sensible``, la que el endpoint ya
+    pedía: la rama de alertas es parte del feed, así que bajarla a
+    ``ciudadano.ver`` abriría las inscripciones y derivaciones a roles que hoy
+    no las ven —con ``config.administrar``, las de todo el sistema—. Ese cambio
+    de alcance no entra en este PR (pendiente en la ficha G3-03).
+    """
     try:
-        inscripciones = InscripcionPrograma.objects.select_related("ciudadano", "programa", "responsable").order_by(
-            "-creado"
-        )[:4]
-        derivaciones = DerivacionPrograma.objects.select_related(
-            "ciudadano", "programa_origen", "programa_destino", "derivado_por"
+        inscripciones = FiltrosUsuarioService.acotar_a_programas_del_usuario(
+            InscripcionPrograma.objects.select_related("ciudadano", "programa", "responsable"),
+            request.user,
+        ).order_by("-creado")[:4]
+        derivaciones = FiltrosUsuarioService.acotar_a_programas_del_usuario(
+            DerivacionPrograma.objects.select_related(
+                "ciudadano", "programa_origen", "programa_destino", "derivado_por"
+            ),
+            request.user,
+            campo="programa_destino_id",
         ).order_by("-creado")[:3]
         alertas = (
             FiltrosUsuarioService.obtener_alertas_usuario(request.user)

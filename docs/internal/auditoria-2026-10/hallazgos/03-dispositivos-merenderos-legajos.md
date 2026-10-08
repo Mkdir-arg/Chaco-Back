@@ -47,7 +47,7 @@ aceptación de la v2** (README §7), con el test nombrado para que la task lo he
 | LEG-02 | Reinscribir con una inscripción no activa rompe `unique_together` | BAJA | CONF. test | Parchear v1 | 5 | S | ✅ |
 | LEG-05 | Subida múltiple de adjuntos no atómica | BAJA | CONF. test | Parchear v1 | 5 | S | ✅ |
 | LEG-06 | Código muerto de legajos y derivaciones sin dónde procesarse | BAJA | CONF. lectura | Parchear v1 | 7 | S | ⬜ |
-| G1c-17 | Difusión de alertas críticas es código muerto; channel layer InMemory fuera de prd | BAJA | CONF. lectura | Parchear v1 | 2 | S | ⬜ |
+| G1c-17 | Difusión de alertas críticas es código muerto; channel layer InMemory fuera de prd | BAJA | CONF. lectura | Parchear v1 | 2 | S | ✅ |
 
 ---
 
@@ -336,3 +336,23 @@ objeto ya creado— se lo perdía. El nombre se anota en un `finally` alrededor 
 **Severidad:** BAJA · **Estado:** CONFIRMADO (lectura) · **Origen:** G1c-17 · **Tratamiento:** parchear v1 · **Ola:** 2 (mismo PR que G1c-04) · **Esfuerzo:** S
 - **Ubicación:** `legajos/services/alertas.py:185-189` (manda a `alertas_criticas` / `nueva_alerta_critica`, que nadie escucha); `conversaciones/consumers.py:236-240` (el consumer tiene `alerta_critica` y `alerta_cerrada`, que nadie emite); el modal crítico de `alertas_websocket.js:57` **nunca se dispara**; `config/settings.py:387-392` (`InMemoryChannelLayer` fuera de `prd`: lo que emite un CronJob en otro pod no llega a nadie).
 - **Propuesta:** alinear nombres de grupo y tipo de mensaje entre emisor y consumer (o borrar la rama crítica si no se quiere); documentar que en QA el WS no recibe lo emitido por el cron (ver OPS-12).
+
+**Resolución:** ✅ Resuelto en #629 (Cambio 179), 08-oct-2026, **cerrado en la ronda 2 del PR** — el emisor manda
+**un solo** `group_send` por alerta, también cuando es CRÍTICA, y la forma del aviso la decide el cliente por
+`alerta.prioridad`: crítica → modal + sonido + parpadeo del título; el resto → toast. La primera vuelta había
+alineado el grupo y el tipo de la rama crítica (antes iba a `alertas_criticas` con `nueva_alerta_critica`: grupo sin
+suscriptores y tipo sin handler, así que el modal nunca se disparó) pero la dejó como un **segundo** mensaje sobre
+el mismo grupo, con lo cual la crítica llegaba duplicada: toast *y* modal, el sonido dos veces y dos refrescos del
+contador. El tipo `alerta_critica` ya no existe en ningún lado —ni emisor, ni consumer, ni cliente—. La entrega pasa
+por el mismo filtro de alcance que G1c-04, así que la crítica fuera del alcance tampoco llega. Se arregló además el
+`legajo_id` que viajaba como `UUID` y rompía `json.dumps` en el consumer. El otro handler sin productor,
+`alerta_cerrada`, **sí** se resolvió en vez de borrarse: `AlertasService.cerrar_alerta` lo emite y el alcance ya no
+lo decide `obtener_alertas_usuario` (que filtra `activa=True` y lo volvía inalcanzable por construcción), así que la
+tarjeta que otro cierra desaparece del dashboard abierto. **Lo que queda y es de operación, no de código:** fuera de
+`prd` el channel layer es `InMemoryChannelLayer` (`config/settings.py`), así que en QA lo que emite el CronJob de
+`generar_alertas` en otro proceso no llega a ningún navegador; para verlo en QA hace falta Redis como channel layer
+(OPS-12). **Test permanente:**
+`conversaciones.tests.test_ws_alertas_rbac.WsAlertasRbacTests.test_la_alerta_critica_del_alcance_llega_una_sola_vez`
+(y `test_el_emisor_manda_un_solo_group_send_por_alerta_critica`,
+`test_el_cierre_de_una_alerta_del_alcance_llega`,
+`core.tests.test_alertas_ws_shell.AlertaCriticaSinDuplicarTests` del lado del cliente).

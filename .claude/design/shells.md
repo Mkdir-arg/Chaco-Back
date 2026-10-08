@@ -34,6 +34,13 @@ Se hereda; no se recrean el sidebar ni sus offsets.
   `conversaciones:lista`; en esa ruta, `static/custom/js/conversaciones_tiempo_real_global.js` usa HTTP
   solo como fallback mientras el socket no esté abierto, y suspende o cancela el polling en
   pestañas ocultas.
+- `static/custom/js/alertas_websocket.js` viaja **solo** con `puede_alertas_sensibles`, la variable que
+  publica el context processor `conversaciones.context_processors.user_groups` a partir de
+  `ciudadano.sensible`. Es un guard **único**: la campana del navbar —su única superficie, con el
+  dropdown y el punto de estado— y `/ws/alertas/` piden la misma capacidad desde D-11, así que quien no
+  la tiene no ve campana ni recibe el archivo. Un script de tiempo real que se carga sin mirar
+  capacidades cobra 1 + 5 handshakes rechazados por página contra el único proceso ASGI y deja el
+  indicador en «Desconectado»: ante un cierre con código `4403` el cliente **no reintenta**.
 - El shell ya carga: el modal global de confirmaciones (`ModernModal`, `#modal-overlay`), los
   toasts, el `<template>` de los filtros dinámicos (`templates/components/list_filters.html`) y
   `static/custom/js/dynamic_list_filters.js`.
