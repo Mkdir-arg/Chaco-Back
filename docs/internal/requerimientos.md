@@ -27329,6 +27329,16 @@ No requiere.
 
 ## Historial
 
+**08/10/2026 — detalle del alcance.** El PM pidió ser específico: «podés ser más específico en lo que
+se va a hacer y lo que no». Cada bloque pasó a tener dos listas, **Queda funcionando** y **No
+incluye**, con el detalle de lo que el texto del Ministerio deja implícito: las validaciones son solo
+dentro del dispositivo (una persona puede figurar alojada en dos a la vez), el traslado son dos
+movimientos sueltos sin vínculo, el agente elige qué relevar en vez de recibir una tarea asignada, y
+el relevamiento necesita señal porque no hay funcionamiento sin conexión. Se agregaron además la tabla
+de trece temas con «qué entra / qué queda para después», una sección **«Qué no se va a poder hacer el
+día uno»** en ocho frases directas, y dos definiciones pendientes más: los estados del relevamiento y
+el catálogo de motivos de egreso.
+
 **08/10/2026 — reparación.** El commit `487647a2` publicó este documento pero **borró 7.905 líneas de
 este archivo**: los Cambios 139 y 150 a 182. La causa fue copiar `requerimientos.md` desde el checkout
 local, que en ese momento estaba parado en la rama `fix/drenaje-por-paginas` de otra sesión y por eso
