@@ -54,6 +54,15 @@ Por eso el `aria-label` tiene que leerse bien **como chip**: «Estado», no «Es
   renderiza la barra sin pasar por el `<template>` del shell. Único consumidor:
   `users/templates/user/user_list.html`, que arma el form desde `filters_config` (`json_script`) y por eso
   **sí** lleva `id`, `action` y `class="dynamic-list-filters"`: es la excepción, no el contrato.
+  Su columna de acciones, además, es **condicional por fila** (`user.gestionable`,
+  `user.credenciales_editables` y `user.tiene_token_app`, anotadas en lote por la vista): el lápiz
+  y el interruptor no se dibujan sobre una cuenta que el servidor va a rechazar, y en su lugar va
+  «Fuera de tu alcance» en `text-xs text-body-subtle` (R0b-10) —en las **dos** ramas sin acción
+  posible: la cuenta fuera de alcance y la gestionable con credenciales ajenas—. La tercera acción
+  es «Cerrar sesión de la app» (`nodo-icon-btn` con `fa-mobile-screen`), que solo aparece sobre
+  quien tiene un token de la app de campo y confirma con el modal estándar de SweetAlert2 avisando
+  que lo no sincronizado queda trabado en el teléfono (SEC-26). Es alcance, no estilo: no se copia
+  como patrón de listado salvo que la pantalla tenga la misma asimetría.
 - Sin filtros: se omite el `<form>` entero (las tres listas de geografía).
 - Consumidores del contrato simple fuera de Becas: `users/templates/rol/rol_list.html`,
   `configuracion/templates/configuracion/secretaria_list.html`,

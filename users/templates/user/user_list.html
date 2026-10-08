@@ -64,14 +64,29 @@
               {% endif %}
             </td>
             <td class="nodo-td text-right">
+              {# R0b-10: sin alcance sobre la cuenta no se ofrece el botón; el servidor ya lo rechazaba. #}
               <div class="inline-flex items-center gap-1">
+                {% if user.gestionable %}
                 <a href="{% url 'users:usuario_editar' user.pk %}" class="nodo-icon-btn"
                    aria-label="Editar {{ user.username }}">
                   <i class="fas fa-pen" aria-hidden="true"></i>
                 </a>
+                {% endif %}
                 {% if user.pk == request.user.pk %}
                 <span class="text-xs text-body-subtle">Vos</span>
-                {% else %}
+                {% elif not user.gestionable %}
+                <span class="text-xs text-body-subtle">Fuera de tu alcance</span>
+                {% elif user.credenciales_editables %}
+                {# SEC-26: solo si de verdad hay una sesión abierta en la app. #}
+                {% if user.tiene_token_app %}
+                <button type="button" class="nodo-icon-btn" aria-label="Cerrar sesión de la app de {{ user.username }}"
+                        onclick="confirmarCerrarSesionApp('{{ user.pk }}', '{{ user.username|escapejs }}')">
+                  <i class="fas fa-mobile-screen" aria-hidden="true"></i>
+                </button>
+                <form id="form-cerrar-app-{{ user.pk }}" method="post"
+                      action="{% url 'users:usuario_cerrar_sesion_app' user.pk %}"
+                      class="hidden">{% csrf_token %}</form>
+                {% endif %}
                 {% if user.is_active %}
                 <button type="button" class="nodo-icon-btn" aria-label="Desactivar {{ user.username }}"
                         onclick="confirmarToggleUsuario('{{ user.pk }}', '{{ user.username|escapejs }}', true)">
@@ -85,6 +100,9 @@
                 {% endif %}
                 <form id="form-toggle-user-{{ user.pk }}" method="post"
                       action="{% url 'users:usuario_toggle' user.pk %}" style="display:none;">{% csrf_token %}</form>
+                {% else %}
+                {% comment %}Gestionable pero con roles fuera del alcance (SEC-03): la celda quedaba vacía y no se entendía por qué faltaba el interruptor.{% endcomment %}
+                <span class="text-xs text-body-subtle">Fuera de tu alcance</span>
                 {% endif %}
               </div>
             </td>
@@ -130,6 +148,28 @@ function confirmarToggleUsuario(pk, username, activo) {
     }).then(function (result) {
         if (result.isConfirmed) {
             var f = document.getElementById('form-toggle-user-' + pk);
+            if (f) f.submit();
+        }
+    });
+}
+
+function confirmarCerrarSesionApp(pk, username) {
+    Swal.fire({
+        title: 'Cerrar sesión de la app',
+        text: 'El teléfono de "' + username + '" va a tener que volver a iniciar sesión. '
+            + 'Los relevamientos que el teléfono no haya sincronizado van a quedar trabados en la app.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Cerrar sesión de la app',
+        cancelButtonText: 'Cancelar',
+        buttonsStyling: false,
+        customClass: {
+            confirmButton: 'btn-nodo btn-danger btn-base',
+            cancelButton: 'btn-nodo btn-tertiary btn-base',
+        },
+    }).then(function (result) {
+        if (result.isConfirmed) {
+            var f = document.getElementById('form-cerrar-app-' + pk);
             if (f) f.submit();
         }
     });

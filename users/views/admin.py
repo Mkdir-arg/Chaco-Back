@@ -3,6 +3,7 @@ import logging
 from django.contrib import messages
 from django.contrib.auth.models import User
 from django.db import transaction
+from django.http import HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse_lazy
 from django.views import View
@@ -15,12 +16,14 @@ from core.rbac import CapacidadRequeridaMixin
 from ..forms import CustomUserChangeForm, UserCreationForm
 from ..selectors.usuarios import (
     alcance_roles_ids,
+    anotar_acciones_del_listado,
     puede_gestionar_credenciales,
     puede_gestionar_usuario,
 )
 from ..services import UsuariosService
 from ..services.admin import UsuariosAdminService
-from ..services.correo import entregar_credenciales_provisorias
+from ..services.correo import ENTREGA_LINK, entregar_credenciales_provisorias
+from ..services.credenciales import revocar_tokens_de_la_app
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +55,9 @@ class UserListView(AdminRequiredMixin, ListView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context.update(UsuariosService.get_usuarios_list_context())
+        # R0b-10: cada fila sabe si el operador puede editarla y si puede
+        # activarla/desactivarla, para no ofrecer un botón que el servidor rechaza.
+        context["users"] = anotar_acciones_del_listado(self.request.user, context["users"])
         context["hay_filtros_activos"] = bool(self.request.GET.get("filters"))
         querystring = self.request.GET.copy()
         querystring.pop("page", None)
@@ -85,8 +91,13 @@ class UserCreateView(TimestampedSuccessUrlMixin, AdminRequiredMixin, CreateView)
             # que tipeó el operador en el formulario no se usa (RN-C1). El primer
             # ingreso obliga a cambiarla (RN-C2).
             try:
-                entregar_credenciales_provisorias(self.object, self.request)
-                messages.success(self.request, "Usuario creado. Se envió el correo con la clave provisoria.")
+                modalidad = entregar_credenciales_provisorias(self.object, self.request)
+                messages.success(
+                    self.request,
+                    "Usuario creado. Se envió el correo con el enlace para definir la contraseña."
+                    if modalidad == ENTREGA_LINK
+                    else "Usuario creado. Se envió el correo con la clave provisoria.",
+                )
             except Exception:
                 logger.exception("El usuario fue creado, pero no se pudo enviar la clave provisoria")
                 messages.warning(
@@ -173,4 +184,38 @@ class UserToggleActivoView(AdminRequiredMixin, View):
             messages.error(request, str(exc))
             return redirect("users:usuarios")
         messages.success(request, "Usuario activado." if user.is_active else "Usuario desactivado.")
+        return redirect("users:usuarios")
+
+
+class UserCerrarSesionAppView(AdminRequiredMixin, View):
+    """SEC-26 · borra el token de la app de campo del usuario, a pedido.
+
+    Es la contracara de que cambiar la clave **no** revoque el token: la app
+    instalada no se recupera de un 401 —marca la operación `FAILED_PERMANENT` y no
+    la reintenta— y hacerlo de oficio perdía los relevamientos que el teléfono
+    todavía no había subido. Acá el operador lo decide avisado (el modal lo dice
+    con todas las letras) y se usa cuando el teléfono se perdió o la clave se
+    filtró.
+
+    Alcance: el mismo que editarle las credenciales (``puede_gestionar_credenciales``,
+    con el alcance de R0b-02/R0b-10). Borrar el token es sobre la cuenta entera,
+    no sobre los roles de un programa.
+
+    Fuera de alcance contesta **403** y no un redirect con aviso, al revés que el
+    toggle: ese botón se dibujaba sobre cuentas que el servidor rechazaba y el
+    aviso era la explicación; este no se dibuja nunca fuera de alcance, así que un
+    POST desde afuera es una pantalla vieja o un intento, no un usuario perdido.
+    """
+
+    def post(self, request, pk):
+        user = get_object_or_404(User, pk=pk)
+        if not puede_gestionar_usuario(request.user, user) or not puede_gestionar_credenciales(request.user, user):
+            return HttpResponseForbidden("No podés cerrar la sesión de la app de un usuario fuera de tu alcance.")
+        if revocar_tokens_de_la_app(user):
+            messages.success(
+                request,
+                f"Se cerró la sesión de la app de {user.username}. Tiene que volver a iniciar sesión en el teléfono.",
+            )
+        else:
+            messages.info(request, f"{user.username} no tenía ninguna sesión abierta en la app.")
         return redirect("users:usuarios")

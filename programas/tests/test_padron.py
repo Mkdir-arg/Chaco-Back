@@ -862,11 +862,22 @@ class UnaSolaPuertaDePadronTests(_BasePadronTest):
         self.padrones = {"convocatoria": "padron", "relevamiento": "padron_propio"}
 
     def _post(self, url, datos):
-        """Un cliente por POST: los avisos no se consumen y se acumularían en sesión."""
+        """Un cliente por POST: los avisos no se consumen y se acumularían en sesión.
+
+        `force_login` no es un login: no escribe `backoffice_session_key`, que es
+        lo que el login de verdad hace en `UsuariosLoginView.form_valid`. Sin esa
+        línea, el segundo cliente del mismo usuario lo recibe
+        `BackofficeSingleSessionMiddleware` con «Tu sesión fue reemplazada». Antes
+        se tapaba solo: el `save_user_profile` que RED-52 retiró reescribía el
+        Profile con el objeto cacheado y le devolvía el valor viejo a la columna.
+        """
         from django.test import Client
+
+        from users.models import Profile
 
         cliente = Client()
         cliente.force_login(self.admin)
+        Profile.objects.filter(user=self.admin).update(backoffice_session_key=cliente.session.session_key)
         resp = cliente.post(url, datos)
         return resp, [m.message for m in get_messages(resp.wsgi_request)]
 

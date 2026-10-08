@@ -34,7 +34,13 @@ urlpatterns = [
     path("merenderos/", include("programas.merenderos_urls")),
     # Root paths last
     path("", include(("users.urls", "users"), namespace="users")),
-    path("", include("django.contrib.auth.urls")),
+    # SEC-26: `django.contrib.auth.urls` estuvo montado acá y publicaba en la raíz
+    # un segundo juego de login, logout, recupero y **cambio de contraseña** que
+    # ninguna pantalla enlazaba. Sin plantillas propias, el GET moría en
+    # `TemplateDoesNotExist`, pero el POST a `/password_change/` no renderiza nada:
+    # cambiaba la clave y redirigía, sin pedir la actual y sin pasar por ningún
+    # límite de intentos. Los flujos de verdad —con sus plantillas, su throttle y
+    # su gate— viven en `users.urls`.
     path("", include(("core.urls", "core"), namespace="core")),
     path("", include("dashboard.urls")),
     # `/health/` (liveness) y `/health/ready/` (readiness, OPS-04). Hasta el Cambio 153
