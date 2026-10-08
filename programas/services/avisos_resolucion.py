@@ -52,8 +52,35 @@ ASUNTOS = {
     PROMOVIDO: "Tu inscripción fue aprobada",
 }
 
+#: El campo con el que el aviso queda en ``TracaFormulario``. Es el prefijo que
+#: lee el detalle del caso para mostrar el último intento.
+CAMPO_TRAZA_AVISO = "Aviso por correo"
+
 PLANTILLA_TXT = "programas/becas/email/resolucion_body.txt"
 PLANTILLA_HTML = "programas/becas/email/resolucion_body.html"
+
+
+def resultado_vigente(formulario, en_espera=False):
+    """El desenlace que hoy corresponde al caso, o ``""`` si todavía no se resolvió.
+
+    Es lo que necesita «Reenviar aviso» (G1-14): el botón no puede pedirle al
+    operador que elija el desenlace, y el caso ya lo dice. ``en_espera`` lo trae
+    quien llama porque ``Formulario.Estado`` no tiene un estado «en espera»: sin
+    cupo el caso sigue en ``ENVIADO`` (ver el encabezado del módulo).
+
+    ``promovido`` no se devuelve nunca: para el ciudadano es el mismo hecho que
+    ``aprobado`` —mismo asunto y mismo cuerpo—, y desde el caso ya resuelto no se
+    distingue si llegó directo o desde la lista.
+    """
+    from programas.models import Formulario
+
+    if formulario.estado == Formulario.Estado.APROBADO:
+        return APROBADO
+    if formulario.estado == Formulario.Estado.RECHAZADO:
+        return RECHAZADO
+    if en_espera and formulario.estado == Formulario.Estado.ENVIADO:
+        return LISTA_ESPERA
+    return ""
 
 
 def _identidad(formulario):
@@ -74,7 +101,9 @@ def _identidad(formulario):
     return nombre.split(" ")[0], documento
 
 
-def enviar_aviso_resolucion(formulario, resultado, *, motivo="", protocol="https", domain=""):
+def enviar_aviso_resolucion(
+    formulario, resultado, *, motivo="", protocol="https", domain="", usuario=None, conexion=None
+):
     """Avisa al ciudadano cómo se resolvió su formulario.
 
     ``resultado`` ∈ {"aprobado", "lista_espera", "rechazado", "promovido"}.
@@ -82,6 +111,9 @@ def enviar_aviso_resolucion(formulario, resultado, *, motivo="", protocol="https
     cual** al cuerpo, por decisión del cliente. ``protocol`` y ``domain`` arman
     la URL absoluta del logo —los clientes de correo no resuelven rutas
     relativas—; sin ellos se cae a ``settings.DOMINIO``.
+
+    ``usuario`` firma la traza; ``conexion`` es una conexión SMTP ya abierta (el
+    masivo abre una por lote en vez de una por correo, G1-14).
 
     Devuelve ``True`` solo si el correo salió. Devuelve ``False`` —sin
     propagar nunca— si el relevamiento no notifica, si el formulario no tiene
@@ -128,6 +160,7 @@ def enviar_aviso_resolucion(formulario, resultado, *, motivo="", protocol="https
             body=cuerpo,
             from_email=None,
             to=[formulario.email_contacto],
+            connection=conexion,
         )
         mensaje.attach_alternative(html, "text/html")
         mensaje.send(fail_silently=False)
@@ -138,5 +171,28 @@ def enviar_aviso_resolucion(formulario, resultado, *, motivo="", protocol="https
             formulario.pk,
             relevamiento.pk,
         )
+        _registrar(formulario, usuario, resultado, "falló")
         return False
+    _registrar(formulario, usuario, resultado, "enviado")
     return True
+
+
+def _registrar(formulario, usuario, resultado, desenlace):
+    """Deja en la traza del caso que se intentó avisar y cómo salió (G1-14).
+
+    Hasta acá el correo era el único hecho del circuito que no dejaba rastro: el
+    retorno se descartaba en los cuatro llamadores y en el masivo, así que cuando
+    la persona decía «no me llegó nada» no había forma de saber si había salido.
+    Se registra **solo lo que se intentó**: un relevamiento con el aviso apagado o
+    un caso sin correo no generan un envío, y anotarlos llenaría la traza de
+    filas que no son un hecho.
+
+    Nunca propaga: si escribir la traza falla, el correo ya salió y la acción del
+    técnico ya está firme — perder el registro es menos malo que un 500 encima.
+    """
+    from programas.services.becas import registrar_traza
+
+    try:
+        registrar_traza(formulario, usuario, [(CAMPO_TRAZA_AVISO, "", f"{desenlace} ({resultado})")])
+    except Exception:
+        logger.exception("No se pudo registrar la traza del aviso del formulario %s", formulario.pk)

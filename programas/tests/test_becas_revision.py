@@ -1803,6 +1803,9 @@ class ContextoDetalleTests(_BaseRevisionTest):
     CLAVES_DE_LA_VISTA = frozenset(
         {
             "advertencia_aprobacion",
+            # G1-14: el panel «Aviso al ciudadano». ``resultado_aviso`` vacío
+            # significa «el caso no está resuelto» y el panel no se dibuja.
+            "aviso_por_correo_activo",
             "bloques",
             "conflicto_pendiente",
             "convocatoria_tiene_padron",
@@ -1833,15 +1836,18 @@ class ContextoDetalleTests(_BaseRevisionTest):
             "observaciones_carga",
             "posicion_espera",
             "puede_enviar_siis",
+            "puede_reenviar_aviso",
             "puede_revalidar_renaper",
             "puede_validar_siis",
             "puede_ver_cupo",
             "relevamiento",
             "requisitos_segmento",
             "requisitos_subsegmento",
+            "resultado_aviso",
             "tiene_conflicto_duplicado_pendiente",
             "titulo_caso",
             "trazas",
+            "ultimo_aviso",
             "validacion_sis",
             "volver_label",
             "volver_url",

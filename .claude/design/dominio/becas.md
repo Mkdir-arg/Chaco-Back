@@ -111,6 +111,17 @@ habilitado, que es la regla de la ficha de la alerta. La vista entrega el texto 
 una sola cadena; la plantilla no recorre ni formatea la lista, igual que con el detalle por campo
 del panel de integración.
 
+**Panel «Aviso al ciudadano»** (G1-14, Cambio 176): misma surface estándar que las secciones
+hermanas —`bg-white rounded-xl border border-base shadow-sm overflow-hidden`, header
+`px-5 py-4 border-b border-light` con `<h2 class="text-heading font-bold text-base">` e ícono
+`text-fg-brand` con `aria-hidden="true"`, cuerpo `p-6`—. El encabezado usa la utilidad `text-base`
+y **no** el `style="font-size:16px"` que arrastran las secciones vecinas: la medida es la misma y
+la deuda no se propaga a lo nuevo. Aparece solo con el caso ya resuelto; cuando no hay a quién
+avisar (toggle apagado o sin correo de contacto) el cuerpo es una sola línea
+`text-sm text-body-subtle` que dice por qué, sin botón. El reenvío es un `<form method="post">` con
+un `btn-nodo btn-secondary btn-base`: es una acción de apoyo sobre algo ya resuelto, no la acción
+principal de la pantalla.
+
 ---
 
 ## Modal de requisito (alta / edición)
