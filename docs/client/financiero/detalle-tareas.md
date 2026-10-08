@@ -1009,8 +1009,7 @@
     se organizó la remediación por olas y se cerraron los frentes de acceso, red de seguridad y
     controles automáticos de publicación. En paralelo se terminó el **envío de beneficiarios a SIIS**
     (sin duplicados, con exclusiones y herramientas de operación), se migraron pantallas de Becas al
-    sistema de diseño y se definió la **Versión 2 del Programa Dispositivos**. El viernes 2 no registra
-    trabajo.
+    sistema de diseño y se definió la **Versión 2 del Programa Dispositivos**.
 
 | Período | Persona | Programa | Entregable | Qué incluye | Horas | Equiv. |
 |---|---|---|---|---|---:|---:|
@@ -1029,6 +1028,15 @@
 | 01/10 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
 | 01/10 | Nahuel De Francesco | Transversal | Los nombres y textos de administración dejan de inyectarse en la página | Revisión y corrección del armado de los nombres de rol y textos relacionados. | 2 h | 4 h |
 | 01/10 | Nahuel De Francesco | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 02/10 | Matías Fariña | Transversal | Relevamiento del sistema para la auditoría integral | Recorrido completo del producto, módulo por módulo, para levantar el estado real de cada frente. | 3,5 h | — |
+| 02/10 | Matías Fariña | Transversal | Organización de la remediación por olas de trabajo | Agrupamiento de lo relevado en olas, con su orden y su criterio de cierre. | 2 h | — |
+| 02/10 | Matías Fariña | Transversal | Coordinación del equipo y gestión del tablero | Reparto del trabajo del fin de semana y puesta al día del tablero. | 1 h | — |
+| 02/10 | Matías Fariña | Transversal | Reunión de seguimiento diaria e informe | Reunión diaria del equipo y armado del informe del día. | 1,5 h | — |
+| 02/10 | Pablo Cao | Becas | Cupo y lista de espera dejan de descontar dos veces | Un caso en espera no vuelve a ocupar lugar cuando se resuelve. | 2,5 h | 5 h |
+| 02/10 | Pablo Cao | Transversal | Los legajos sin responsable asignado dejan de verse | El acceso a un legajo exige que la persona tenga rol sobre él. | 2,5 h | 5 h |
+| 02/10 | Juani Portilla | Transversal | Control automático de datos personales en el repositorio | Ningún volcado con datos de personas puede entrar al código del sistema. | 2,5 h | 5 h |
+| 02/10 | Juani Portilla | Transversal | Pruebas de humo sobre toda la superficie del sistema | Recorrido automático que comprueba que cada pantalla responde antes de publicar. | 2,5 h | 5 h |
+| 02/10 | Matías Abate | Transversal | Pruebas de la red de seguridad y de los estados | Verificación de los controles nuevos y de las transiciones de estado. | 3 h | — |
 | 03/10 | Matías Fariña | Transversal | Cierre de la primera ola de la auditoría | Verificación de lo remediado y registro del estado de cada hallazgo. | 4,5 h | — |
 | 03/10 | Matías Fariña | Transversal | Coordinación del trabajo de fin de semana | Reparto del trabajo, seguimiento de los frentes abiertos y revisión de lo resuelto. | 3,5 h | — |
 | 03/10 | Pablo Cao | Transversal | Las consultas de ciudadanos y de usuarios piden sesión | La capa de consultas del sistema queda cerrada a usuarios identificados. | 3 h | 6 h |
@@ -1037,11 +1045,6 @@
 | 04/10 | Matías Fariña | Transversal | Dirección de la red de seguridad del sistema | Definición de los controles automáticos que corren en cada cambio para que una regresión no llegue a producción. | 3,5 h | — |
 | 04/10 | Matías Fariña | Transversal | Procedimiento de vuelta atrás de una publicación | Paso a paso para revertir una publicación sin perder datos. | 2,5 h | — |
 | 04/10 | Matías Fariña | Transversal | Coordinación y registro del día | Seguimiento de los frentes y registro de lo resuelto. | 2 h | — |
-| 04/10 | Pablo Cao | Becas | Cupo y lista de espera dejan de descontar dos veces | Un caso en espera no vuelve a ocupar lugar cuando se resuelve. | 2,5 h | 5 h |
-| 04/10 | Pablo Cao | Transversal | Los legajos sin responsable asignado dejan de verse | El acceso a un legajo exige que la persona tenga rol sobre él. | 2,5 h | 5 h |
-| 04/10 | Juani Portilla | Transversal | Control automático de datos personales en el repositorio | Ningún volcado con datos de personas puede entrar al código del sistema. | 2,5 h | 5 h |
-| 04/10 | Juani Portilla | Transversal | Pruebas de humo sobre toda la superficie del sistema | Recorrido automático que comprueba que cada pantalla responde antes de publicar. | 2,5 h | 5 h |
-| 04/10 | Matías Abate | Transversal | Pruebas de la red de seguridad y de los estados | Verificación de los controles nuevos y de las transiciones de estado. | 3 h | — |
 | 05/10 | Matías Fariña | Transversal | Definición de las pantallas de referencia del sistema de diseño | Qué pantalla es el molde de cada tipo y qué tiene que copiar una pantalla nueva. | 3,5 h | — |
 | 05/10 | Matías Fariña | Transversal | Gestión del tablero y atención de consultas del organismo | Seguimiento del trabajo, revisión funcional de lo publicado y respuesta a las consultas del equipo del organismo. | 4 h | — |
 | 05/10 | Matías Fariña | Transversal | Reunión de seguimiento diaria e informe | Reunión diaria del equipo y armado del informe del día. | 1,5 h | — |
@@ -1098,20 +1101,20 @@
 | 08/10 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
 | 08/10 | Nahuel De Francesco | Transversal | Documentación funcional del período | Registro de lo resuelto y de las decisiones tomadas. | 1 h | — |
 | 08/10 | Nahuel De Francesco | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
-| | | | **Total 1 al 8/10** | | **168 h** | **121 h** |
+| | | | **Total 1 al 8/10** | | **176 h** | **121 h** |
 
 ### :material-briefcase-outline: Consumo de octubre por programa
 
 | Programa | Horas octubre |
 |---|---:|
 | Becas | 139 h 30 min |
-| Transversal | 118 h 00 min |
+| Transversal | 126 h 00 min |
 | Dispositivos | 3 h 00 min |
-| **Total octubre 2026 (al 08/10)** | **260 h 30 min** |
+| **Total octubre 2026 (al 08/10)** | **268 h 30 min** |
 
 !!! note "Qué incluye"
     Las horas de Becas incluyen las **92 h 30 min trasladadas de septiembre**, cuyo detalle día por día
-    está en las secciones de ese mes. El trabajo propio de octubre al 08/10 es de **168 h 00 min**.
+    está en las secciones de ese mes. El trabajo propio de octubre al 08/10 es de **176 h 00 min**.
 
 ---
 
@@ -1120,13 +1123,13 @@
 | Persona | Rol | Junio | Julio | Agosto | Septiembre | Octubre *(al 08/10)* | **Total** |
 |---|---|---:|---:|---:|---:|---:|---:|
 | Juani Portilla | Desarrollo, automatización de pruebas y rendimiento | 113,4 | 263,8 | 197,0 | 196,5 | 32,0 | **802 h 43 min** |
-| Matías Fariña | Análisis funcional, gestión y publicaciones | 112,5 | 146,0 | 230,0 | 229,5 | 61,0 | **779 h 01 min** |
+| Matías Fariña | Análisis funcional, gestión y publicaciones | 112,5 | 146,0 | 230,0 | 229,5 | 69,0 | **787 h 01 min** |
 | Pablo Cao | Desarrollo del backoffice, del portal y de la app de campo | 96,0 | 40,3 | 219,0 | 197,5 | 32,0 | **584 h 47 min** |
 | Matías Abate | Pruebas funcionales, casos de prueba y documentación | — | 50,0 | 157,5 | 177,0 | 28,0 | **412 h 30 min** |
 | Nahuel De Francesco | Desarrollo, documentación y pruebas *(desde el 09/09)* | — | — | — | 38,5 | 15,0 | **53 h 30 min** |
 | Agostina Coppola | Análisis funcional y testing *(hasta agosto)* | 112,3 | — | — | — | — | **112 h 17 min** |
 | Equipo UX | Mockups del programa *(junio)* | 65,0 | — | — | — | — | **65 h 00 min** |
-| **Total del mes** | | **499 h 12 min** | **500 h 00 min** | **803 h 30 min** | **839 h 00 min** | **168 h 00 min** | **2.809 h 42 min** |
+| **Total del mes** | | **499 h 12 min** | **500 h 00 min** | **803 h 30 min** | **839 h 00 min** | **176 h 00 min** | **2.817 h 42 min** |
 
 !!! note "Cómo leer esta tabla"
     Las columnas mensuales van en horas decimales, tal como las publica la página de cada mes; los totales
@@ -1171,9 +1174,9 @@
 
 
 
-    **168.582 minutos** (2.809 h 42 min)
+    **169.062 minutos** (2.817 h 42 min)
 
-    Junio 499 h 12 min + julio 500 h 00 min + agosto 803 h 30 min + septiembre 839 h 00 min + octubre 168 h 00 min (al 08/10).
+    Junio 499 h 12 min + julio 500 h 00 min + agosto 803 h 30 min + septiembre 839 h 00 min + octubre 176 h 00 min (al 08/10).
     (El contador anterior decía 1.939 h 42 min: no sumaba bien los cuatro meses; se corrigió al recalcularlo.)
 
     Es el **esfuerzo real ejecutado**. A efectos de imputación, agosto cierra por 700 h y sus 103 h 30 min de
