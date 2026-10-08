@@ -26030,3 +26030,28 @@ Se revierte el commit. No hay datos que recuperar: el cambio no escribe nada
 nuevo en la base. Revertir devuelve el comportamiento anterior —los adjuntos
 huérfanos y la posibilidad de intercalar carga y quitado de padrón—, así que
 conviene revertir solo los tests si lo que molesta es un test.
+
+## Historial
+
+- **08/10/2026 — ronda 2 de la revisión del PR #630.** Dos riesgos latentes que
+  el limpiador nuevo abría, los dos sobre archivos con datos personales. (1) **El
+  limpiador borraba lo que no había escrito:** `anotar_archivo_escrito` anotaba
+  lo que quedara en el campo, sin saber si esta operación lo escribió. Un F-00
+  que reusa un adjunto ya guardado —el del origen de un traslado— le pasa un
+  `FieldFile` commiteado: Django no toca el storage y las dos filas nombran el
+  mismo archivo, así que un traslado fallado se llevaba puesta documentación
+  preexistente que la fila del origen sigue nombrando. Ahora se anota solo lo que
+  Django va a escribir de verdad (el valor del campo **sin commitear**, que es la
+  única condición con la que `FileField.pre_save` toca el storage); un
+  `FieldFile` ya guardado o un nombre suelto en `str` no se anotan. Queda dicho
+  en el módulo, además, que la dirección inversa no está cubierta: si la
+  operación decorada sale bien y un `atomic` **externo** vuelve atrás después, el
+  registro ya se descartó y el archivo queda huérfano —por eso la operación
+  decorada tiene que ser la transacción entera—. (2) **El padrón decidía adentro
+  del candado con un valor leído afuera:** `quitar_padron_propio` y
+  `cargar_padron` programaban el borrado del `padron_archivo` que traía el objeto
+  en memoria, leído antes de esperar el `select_for_update`. Si en esa espera
+  entró otra carga, ese nombre ya no existe y el Excel vigente —el padrón de
+  miles de personas— quedaba en `media/` sin ninguna fila que lo nombre. Las dos
+  releen el campo con `refresh_from_db` apenas toman el candado. Los tres tests
+  nuevos se midieron en rojo contra `571d4156`, cada uno con su mensaje.

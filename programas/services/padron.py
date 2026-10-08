@@ -365,8 +365,14 @@ def cargar_padron(objetivo, archivo, entradas, usuario=None):
     # —en MySQL y MariaDB ese índice ni siquiera aplica cuando `relevamiento` es
     # NULL, así que el final normal es duplicados silenciosos—. Es el mismo
     # objeto sobre el que después se escribe `padron_archivo`.
-    duenio_pk = (relevamiento or convocatoria).pk
-    type(relevamiento or convocatoria).objects.select_for_update().filter(pk=duenio_pk).first()
+    duenio = relevamiento or convocatoria
+    type(duenio).objects.select_for_update().filter(pk=duenio.pk).first()
+    # El `padron_archivo` que trae el objeto en memoria se leyó **antes** de
+    # esperar el candado: si mientras tanto entró otra carga, ese nombre ya no es
+    # el de la base y el borrado que se programa más abajo apuntaría al Excel
+    # equivocado —dejando el vigente colgado para siempre—. Se relee bajo el
+    # candado, que es el único momento en que el valor no puede cambiar.
+    duenio.refresh_from_db(fields=["padron_archivo"])
     filas = [_entrada(item) for item in entradas]
     resumen = ResumenPadron(validas=len(filas))
     localidades = _indice_localidades() if any(f["localidad_texto"] for f in filas) else {}
@@ -402,7 +408,6 @@ def cargar_padron(objetivo, archivo, entradas, usuario=None):
         # El parser ya consumió el stream: rebobinar antes de persistirlo.
         if hasattr(archivo, "seek"):
             archivo.seek(0)
-        duenio = relevamiento or convocatoria
         anterior = duenio.padron_archivo.name
         duenio.padron_archivo = archivo
         duenio.save(update_fields=["padron_archivo", "modificado"])
@@ -427,6 +432,11 @@ def quitar_padron_propio(relevamiento):
     # padrón propio vacío no retiene a nadie: `padron_de` cae al de la
     # convocatoria y, si no hay, el link queda abierto (RN-P14).
     Relevamiento.objects.select_for_update().filter(pk=relevamiento.pk).first()
+    # Y el `padron_archivo` que decide qué se borra se relee acá, bajo el candado:
+    # el del objeto que llegó por parámetro es una foto anterior a la espera, y si
+    # en el medio entró una carga, programar el borrado de ese nombre viejo deja el
+    # Excel vigente en `media/` sin ninguna fila que lo nombre.
+    relevamiento.refresh_from_db(fields=["padron_archivo"])
     filas = relevamiento.padron_propio.count()
     relevamiento.padron_propio.all().delete()
     if relevamiento.padron_archivo:

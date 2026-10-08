@@ -18,9 +18,18 @@ Se usa en dos partes:
   volvió atrás—;
 - el punto que guarda el archivo llama a :func:`anotar_archivo_escrito` con el
   ``FieldFile`` ya guardado (el nombre final lo pone el storage, que puede
-  haberle agregado un sufijo).
+  haberle agregado un sufijo) y con el valor que se le **asignó** al campo, que
+  es lo que decide si hubo escritura de verdad.
 
 Si la operación termina bien, el registro se descarta sin tocar nada.
+
+**Solo se borra lo que esta operación escribió.** Un campo de archivo también se
+llena reusando un ``FieldFile`` que ya estaba guardado —el F-00 del origen de un
+traslado, el adjunto de otra fila—, y ahí Django no toca el storage: las dos
+filas pasan a nombrar el mismo archivo. Anotarlo haría que el rollback borre
+documentación personal **preexistente** que la otra fila sigue nombrando, que es
+peor que el huérfano que esto viene a evitar. El criterio está en
+:func:`_lo_escribio_esta_operacion`.
 
 **Alcance, dicho de frente:** esto deshace lo que escribió una operación que
 **falló entera**. Una anidada que falle y cuyo error atrape la de afuera para
@@ -28,6 +37,12 @@ seguir adelante (un ``savepoint`` que vuelve atrás solo) no está cubierta: el
 registro es uno solo, el de la más externa, y se limpia recién cuando esa
 termina. Hoy ningún llamador hace eso; si alguno lo hiciera, el archivo de la
 rama fallida quedaría registrado y se borraría de más.
+
+Y la dirección inversa tampoco está cubierta: si la operación decorada **sale
+bien**, el registro se descarta ahí mismo, así que un ``transaction.atomic``
+**externo** que vuelva atrás después deja la fila sin existir y el archivo en
+``media/``, huérfano. Por eso la operación decorada tiene que ser la transacción
+entera —lo es en las tres de ``admisiones``— y no una pieza adentro de otra.
 """
 
 import logging
@@ -43,10 +58,31 @@ logger = logging.getLogger(__name__)
 _ESCRITOS = ContextVar("archivos_escritos", default=None)
 
 
-def anotar_archivo_escrito(fieldfile):
-    """Anota un ``FieldFile`` recién guardado para borrarlo si la operación falla."""
+def _lo_escribio_esta_operacion(asignado):
+    """¿Guardar ``asignado`` escribió bytes nuevos en el storage?
+
+    ``FileField.pre_save`` es el único punto que lo toca, y llama a
+    ``FieldFile.save()`` solo cuando el valor del campo está **sin commitear**:
+    el ``UploadedFile`` del formulario, el ``File`` de un script. Un
+    ``FieldFile`` que vino de la base (``_committed`` en ``True``) o un nombre
+    suelto en ``str`` reusan el archivo que ya estaba y no escriben nada, así que
+    no son de esta operación y no se anotan.
+    """
+    if asignado is None or isinstance(asignado, str):
+        return False
+    return not getattr(asignado, "_committed", False)
+
+
+def anotar_archivo_escrito(fieldfile, *, asignado):
+    """Anota un ``FieldFile`` recién guardado para borrarlo si la operación falla.
+
+    ``fieldfile`` es el campo **ya guardado**, porque el nombre final lo pone el
+    storage (puede haberle agregado un sufijo). ``asignado`` es lo que se le puso
+    al campo antes de guardar, y es lo que decide si se anota: ver
+    :func:`_lo_escribio_esta_operacion`.
+    """
     escritos = _ESCRITOS.get()
-    if escritos is None or not fieldfile:
+    if escritos is None or not fieldfile or not _lo_escribio_esta_operacion(asignado):
         return
     escritos.append((fieldfile.storage, fieldfile.name))
 

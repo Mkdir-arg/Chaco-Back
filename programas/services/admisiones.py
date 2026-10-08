@@ -59,7 +59,10 @@ def _guardar_f00(admision, respuestas_f00=None, archivos_f00=None):
             # El archivo ya está escrito en el storage: se anota con el nombre
             # final —el storage pudo agregarle un sufijo— para que
             # ``archivos_atomicos`` lo borre si la operación termina fallando.
-            anotar_archivo_escrito(fila.archivo)
+            # ``archivo`` va aparte porque es lo que dice si hubo escritura: un
+            # `FieldFile` ya guardado —el F-00 del origen de un traslado— se reusa
+            # tal cual, lo sigue nombrando su fila y no se borra.
+            anotar_archivo_escrito(fila.archivo, asignado=archivo)
 
 
 def _es_reingreso(ciudadano, dispositivo):

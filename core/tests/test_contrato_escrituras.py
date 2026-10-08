@@ -28,6 +28,9 @@ Dos de ellas no estaban enteras, y el test que las nombra es el que lo muestra:
   candado que `cargar_padron` sí toma (BEC-15), así que las dos operaciones se
   intercalaban sobre el mismo relevamiento.
 
+`PadronBajoCandadoTests` es la continuación de ese candado: tomarlo no alcanza si
+lo que se decide adentro se leyó afuera.
+
 El gemelo contra el motor de producción —donde el rollback es un `ROLLBACK` de
 verdad y no un savepoint de SQLite— está en
 `core/tests/test_motor_real.py::EscriturasAtomicasMotorRealTests`.
@@ -277,14 +280,8 @@ class InscripcionPublicaAtomicaTests(_BasePaso2Test):
         self.assertEqual(self.relevamiento.formularios.count(), 1)
 
 
-class QuitarPadronAtomicoTests(TestCase):
-    """`padron.quitar_padron_propio`: las filas y el Excel se van juntos.
-
-    Un padrón propio vacío no es un estado neutro: `padron_de` cae al de la
-    convocatoria y, si la convocatoria no tiene, el link queda **abierto para
-    cualquier DNI** (RN-P14). Así que borrar las filas y no llegar a sacar el
-    Excel —o al revés— es exactamente el estado que no puede quedar.
-    """
+class _BasePadronConExcel(TestCase):
+    """Un relevamiento público con padrón propio y su Excel ya guardado."""
 
     def setUp(self):
         temporal = TemporaryDirectory()
@@ -315,6 +312,36 @@ class QuitarPadronAtomicoTests(TestCase):
         self.excel = self.relevamiento.padron_archivo.name
         self.storage = self.relevamiento.padron_archivo.storage
 
+    def _carga_concurrente(self):
+        """Otra carga sobre el mismo relevamiento, por una referencia distinta.
+
+        Es lo que pasa de verdad mientras la operación de este test espera el
+        candado: el Excel de la base pasa a ser otro y el que tiene en memoria el
+        objeto que llegó por parámetro ya no existe en el storage.
+        """
+        otra = Relevamiento.objects.get(pk=self.relevamiento.pk)
+        with self.captureOnCommitCallbacks(execute=True):
+            cargar_padron(
+                otra,
+                SimpleUploadedFile("propio.xlsx", b"la carga que entro en el medio"),
+                [{"dni": "30111222", "sexo": "F"}],
+            )
+        otra.refresh_from_db()
+        vigente = otra.padron_archivo.name
+        self.assertNotEqual(vigente, self.excel)
+        self.assertFalse(self.storage.exists(self.excel))
+        return vigente
+
+
+class QuitarPadronAtomicoTests(_BasePadronConExcel):
+    """`padron.quitar_padron_propio`: las filas y el Excel se van juntos.
+
+    Un padrón propio vacío no es un estado neutro: `padron_de` cae al de la
+    convocatoria y, si la convocatoria no tiene, el link queda **abierto para
+    cualquier DNI** (RN-P14). Así que borrar las filas y no llegar a sacar el
+    Excel —o al revés— es exactamente el estado que no puede quedar.
+    """
+
     def test_si_falla_al_guardar_el_relevamiento_las_filas_siguen_estando(self):
         with self.captureOnCommitCallbacks(execute=True):
             with patch.object(Relevamiento, "save", side_effect=RuntimeError("se cayó el guardado")):
@@ -339,6 +366,51 @@ class QuitarPadronAtomicoTests(TestCase):
         self.assertEqual(PadronHabilitado.objects.filter(relevamiento=self.relevamiento).count(), 0)
         self.assertFalse(self.relevamiento.padron_archivo)
         self.assertFalse(self.storage.exists(self.excel))
+
+
+class PadronBajoCandadoTests(_BasePadronConExcel):
+    """Lo que se decide adentro del candado se lee adentro del candado.
+
+    Las dos operaciones del padrón reciben un objeto que el llamador leyó antes,
+    y recién después esperan el `select_for_update`. Si en esa espera entró otra
+    carga, el `padron_archivo` en memoria es una foto vieja: su archivo ya lo
+    borró la otra carga y el que está en `media/` es el nuevo. Programar el
+    borrado del nombre viejo no rompe nada visible —borrar lo que no está es un
+    no-op— pero deja el Excel vigente colgado, con el padrón de miles de personas
+    y sin ninguna fila que lo nombre. Por eso el valor se relee bajo el candado.
+    """
+
+    def test_quitar_borra_el_excel_vigente_y_no_el_de_la_foto_vieja(self):
+        vigente = self._carga_concurrente()
+
+        with self.captureOnCommitCallbacks(execute=True):
+            quitar_padron_propio(self.relevamiento)
+
+        self.relevamiento.refresh_from_db()
+        self.assertFalse(self.relevamiento.padron_archivo)
+        self.assertFalse(
+            self.storage.exists(vigente),
+            "`quitar_padron_propio` borró el Excel de la foto vieja: el vigente quedó en media/ "
+            "sin ninguna fila que lo nombre. El `padron_archivo` se relee bajo el candado.",
+        )
+
+    def test_cargar_borra_el_excel_vigente_y_no_el_de_la_foto_vieja(self):
+        vigente = self._carga_concurrente()
+
+        with self.captureOnCommitCallbacks(execute=True):
+            cargar_padron(
+                self.relevamiento,
+                SimpleUploadedFile("propio.xlsx", b"la carga que llega despues"),
+                [{"dni": "30111222", "sexo": "F"}],
+            )
+
+        self.relevamiento.refresh_from_db()
+        self.assertTrue(self.storage.exists(self.relevamiento.padron_archivo.name))
+        self.assertFalse(
+            self.storage.exists(vigente),
+            "`cargar_padron` borró el Excel de la foto vieja: el que reemplazó quedó en media/ "
+            "sin ninguna fila que lo nombre. El `padron_archivo` se relee bajo el candado.",
+        )
 
 
 class TrasladoAtomicoTests(TestCase):
@@ -415,6 +487,47 @@ class TrasladoAtomicoTests(TestCase):
             [],
             "El adjunto del F-00 quedó en media/ sin ninguna fila que lo nombre: el traslado "
             "escribe en el storage, que no vuelve atrás con la transacción (`core.archivos`).",
+        )
+
+    def test_un_adjunto_que_ya_estaba_guardado_no_se_borra_al_volver_atras(self):
+        """Lo que la operación **no** escribió no es suyo y no se toca.
+
+        Un F-00 también se llena reusando un adjunto que ya estaba —el del
+        origen—: ahí el campo recibe un `FieldFile` commiteado, Django no toca el
+        storage y las dos filas pasan a nombrar el mismo archivo. Si el traslado
+        falla y el limpiador borra igual, se lleva puesta documentación personal
+        **preexistente** que la fila del origen sigue nombrando: un archivo que
+        falta es peor que uno huérfano.
+        """
+        del_origen = ArchivoAdmision.objects.create(
+            admision=self.admision,
+            campo=self.campo,
+            archivo=SimpleUploadedFile("dni.txt", b"documento de identidad"),
+        )
+        del_origen.refresh_from_db()
+        guardado = del_origen.archivo.name
+
+        with patch(
+            "programas.services.admisiones._cerrar_origen_por_traslado",
+            side_effect=ValidationError("La estadía de origen ya no está alojada."),
+        ):
+            with self.assertRaises(ValidationError):
+                trasladar_admision(
+                    admision=self.admision,
+                    destino=self.destino,
+                    cama=self.cama_destino,
+                    usuario=self.usuario,
+                    respuestas_f00={},
+                    archivos_f00={self.campo: del_origen.archivo},
+                )
+
+        del_origen.refresh_from_db()
+        self.assertEqual(del_origen.archivo.name, guardado)
+        self.assertEqual(
+            self._archivos_en_media(),
+            [Path(guardado).name],
+            "El limpiador borró un adjunto que esta operación no escribió: la fila del origen "
+            "sigue apuntando a él y el archivo ya no está (`core.archivos`).",
         )
 
     def test_sin_la_falla_inyectada_el_traslado_guarda_su_f00(self):
