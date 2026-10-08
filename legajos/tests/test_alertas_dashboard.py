@@ -44,8 +44,11 @@ class AlertasDashboardTests(TestCase):
             prioridad=AlertaCiudadano.Prioridad.CRITICA,
             mensaje="Sin contacto hace 30 días",
         )
-        # El operador ve sus alertas (`ciudadano.ver`) y además opera conversaciones.
-        cls.operador.groups.add(_rol("Rol alertas + conversaciones", "ciudadano.ver", "conversacion.operar"))
+        # El operador ve sus alertas (`ciudadano.sensible` desde D-11) y además
+        # opera conversaciones.
+        cls.operador.groups.add(
+            _rol("Rol alertas + conversaciones", "ciudadano.ver", "ciudadano.sensible", "conversacion.operar")
+        )
         conversacion = Conversacion.objects.create(tipo="anonima", estado="activa", operador_asignado=cls.operador)
         HistorialAlertaConversacion.objects.create(
             conversacion=conversacion,
@@ -72,7 +75,7 @@ class AlertasDashboardTests(TestCase):
 
     def test_responde_200_sin_la_capacidad_de_conversaciones_y_no_las_lista(self):
         otro = User.objects.create_user("solo-ciudadanos", password="Clave-Seg-2026x")
-        otro.groups.add(_rol("Rol solo ciudadanos", "ciudadano.ver"))
+        otro.groups.add(_rol("Rol solo ciudadanos", "ciudadano.ver", "ciudadano.sensible"))
         cliente = Client()
         cliente.force_login(otro)
 

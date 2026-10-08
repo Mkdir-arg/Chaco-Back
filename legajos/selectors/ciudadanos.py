@@ -122,7 +122,17 @@ def build_ciudadano_detail_context(ciudadano, user=None):
     # El mismo queryset alimenta el badge y la lista de la pantalla: el badge lo evalúa con
     # len(), así que la plantilla lo encuentra ya cacheado y el COUNT aparte desaparece.
     # Tiene que ser el MISMO objeto, no un clon: cualquier .filter() posterior pierde el caché.
-    alertas_activas = ciudadano.alertas.filter(activa=True).order_by("prioridad", "-creado")
+    #
+    # D-11 / SEC-11: el tipo y el mensaje de la alerta son dato sensible, igual que en las
+    # APIs JSON (`alertas_ciudadano_api`), el preview del navbar y el WebSocket. La solapa
+    # del detalle se renderiza del lado del servidor, así que el corte va acá: sin
+    # `ciudadano.sensible` el queryset es `none()` —no consulta— y con él se quedan vacíos
+    # el panel, el badge de la solapa y los tres contadores del encabezado.
+    alertas_activas = (
+        ciudadano.alertas.filter(activa=True).order_by("prioridad", "-creado")
+        if puede_ver_sensible
+        else AlertaCiudadano.objects.none()
+    )
 
     # BEC-23: la solapa Becas del legajo oculta los casos del link público a quien no
     # tiene RN-P13 y muestra el resto (el legajo es transversal).
@@ -130,8 +140,14 @@ def build_ciudadano_detail_context(ciudadano, user=None):
     todas_las_solapas = SolapasService.obtener_solapas_ciudadano(
         ciudadano, resumen_becas=resumen_becas, alertas_activas=alertas_activas
     )
+    # La solapa «Alertas» es estática: aparece siempre, con alertas o sin ellas. Sin la
+    # capacidad no hay nada que mostrar adentro, así que tampoco se dibuja el botón.
     solapas = [
-        solapa for solapa in todas_las_solapas if solapa["id"] != "legajos" and "ACOMPANAMIENTO" not in solapa["id"]
+        solapa
+        for solapa in todas_las_solapas
+        if solapa["id"] != "legajos"
+        and "ACOMPANAMIENTO" not in solapa["id"]
+        and (puede_ver_sensible or solapa["id"] != "alertas")
     ]
     programas_activos = [solapa["inscripcion"] for solapa in todas_las_solapas if "inscripcion" in solapa]
 

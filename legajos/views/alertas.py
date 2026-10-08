@@ -21,13 +21,25 @@ logger = logging.getLogger(__name__)
 # Las cuatro vistas de este módulo llevaban solo `@login_required`: el dashboard
 # y el preview traían el **nombre del ciudadano y el texto de la alerta** a
 # cualquier cuenta de backoffice, y `cerrar-ajax/` con `n = 1..N` silenciaba las
-# alertas de todo el sistema (SEC-18, auditoría oct-2026). Ahora piden
+# alertas de todo el sistema (SEC-18, auditoría oct-2026). SEC-18 les puso
 # `ciudadano.ver`; el alcance de qué alertas entran lo sigue poniendo
 # `FiltrosUsuarioService`.
+#
+# Desde el Cambio 179 (ronda 2) piden `ciudadano.sensible`, no `ciudadano.ver`.
+# **D-11 vale por canal de transporte, no por pantalla**: el mensaje de una
+# alerta —«Riesgo Suicida», «Violencia», el nombre del ciudadano— es el mismo
+# dato que el WebSocket entrega con `ciudadano.sensible` y que
+# `alertas_ciudadano_api` devuelve con `ciudadano.sensible`. Mientras el
+# dashboard, el contador y el preview se quedaran en `ciudadano.ver`, el
+# «Operador de backoffice» de `seed_rbac` seguía leyendo por HTTP exactamente lo
+# que G1c-04 le cerró por WS, y —si además tiene `config.administrar`, que es lo
+# que `FiltrosUsuarioService.tiene_alcance_global` mira— de **todo** el padrón.
+# Va sin migración de datos: si el PM decide que el Operador siga viendo
+# alertas, se tilda `ciudadano.sensible` en el ABM de Roles.
 
 
 @login_required
-@requiere("ciudadano.ver")
+@requiere("ciudadano.sensible")
 def alertas_dashboard(request):
     """Vista principal del dashboard de alertas"""
     # Obtener alertas filtradas por usuario
@@ -81,9 +93,13 @@ def alertas_dashboard(request):
 
 
 @login_required
-@requiere("ciudadano.ver")
+@requiere("ciudadano.sensible")
 def cerrar_alerta_ajax(request, alerta_id):
-    """Cierra una alerta vía AJAX"""
+    """Cierra una alerta vía AJAX.
+
+    Sube con el dashboard, que es su única superficie: dejarla en
+    `ciudadano.ver` habilitaba a mutar por id alertas que ya no se pueden leer.
+    """
     if request.method == "POST":
         success = AlertasService.cerrar_alerta(alerta_id, request.user)
         return JsonResponse({"success": success})
@@ -92,7 +108,7 @@ def cerrar_alerta_ajax(request, alerta_id):
 
 
 @login_required
-@requiere("ciudadano.ver")
+@requiere("ciudadano.sensible")
 def alertas_count_ajax(request):
     """Obtiene el contador de alertas para el navbar (polled: cacheado 30 s)."""
     from django.core.cache import cache
@@ -110,7 +126,7 @@ def alertas_count_ajax(request):
 
 
 @login_required
-@requiere("ciudadano.ver")
+@requiere("ciudadano.sensible")
 def alertas_preview_ajax(request):
     """Obtiene las últimas 5 alertas para el preview del navbar"""
     try:

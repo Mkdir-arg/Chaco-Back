@@ -44,7 +44,9 @@ class ApiNavegableTests(TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.operador = User.objects.create_user("operador-navegable", password="Clave-Seg-2026x")
-        cls.operador.groups.add(_rol_con("Operador navegable", ["ciudadano.ver"]))
+        # `ciudadano.sensible` por `/api/legajos/alertas/`: el texto de la alerta
+        # pide esa capacidad por cualquier canal desde D-11 (Cambio 179).
+        cls.operador.groups.add(_rol_con("Operador navegable", ["ciudadano.ver", "ciudadano.sensible"]))
 
     def test_navegador_recibe_la_pagina_navegable(self):
         self.client.force_login(self.operador)
@@ -80,7 +82,7 @@ class ApiNavegableTests(TestCase):
                 self.assertIn(respuesta.status_code, (301, 302, 401, 403))
 
     def test_sin_capacidad_no_lista_ciudadanos_ni_alertas(self):
-        """Un usuario de backoffice sin `ciudadano.ver` sigue en 403, no en 500."""
+        """Un usuario de backoffice sin capacidades sigue en 403, no en 500."""
         self.client.force_login(User.objects.create_user("sin-rol-navegable", password="Clave-Seg-2026x"))
 
         for url in ("/api/legajos/ciudadanos/", "/api/legajos/alertas/"):

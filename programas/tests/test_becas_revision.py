@@ -1865,6 +1865,7 @@ class ContextoDetalleTests(_BaseRevisionTest):
             "gtm_container_id",
             "messages",
             "perms",
+            "puede_alertas_sensibles",
             "puede_conversaciones",
             "request",
             "session_idle_timeout_minutes",

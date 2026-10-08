@@ -34,6 +34,14 @@ def user_groups(request):
             "user_is_superuser": request.user.is_superuser,
             "websockets_enabled": getattr(settings, "WEBSOCKETS_ENABLED", False),
             "puede_conversaciones": rbac.puede(request.user, "conversacion.operar"),
+            # G3-03: `alertas_websocket.js` se incluía para **todo** el
+            # backoffice, y ante el 4403 reintentaba cinco veces por página
+            # contra el único daphne. Con D-11 (Cambio 179) la campana del
+            # navbar —su única superficie— y `/ws/alertas/` piden la misma
+            # capacidad, así que alcanza **un** flag: sin él no hay campana ni
+            # script. Resuelve sobre el mismo juego de permisos que ya leyó la
+            # línea de arriba, así que no agrega consultas.
+            "puede_alertas_sensibles": rbac.puede(request.user, "ciudadano.sensible"),
         }
     return {
         "user_groups_list": [],
@@ -41,4 +49,5 @@ def user_groups(request):
         "user_is_superuser": False,
         "websockets_enabled": getattr(settings, "WEBSOCKETS_ENABLED", False),
         "puede_conversaciones": False,
+        "puede_alertas_sensibles": False,
     }

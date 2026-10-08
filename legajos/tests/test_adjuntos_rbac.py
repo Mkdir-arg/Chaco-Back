@@ -370,12 +370,16 @@ class UrlDeBorradoDelDetalleTests(TestCase):
 
 
 class CampanaDeAlertasEnElNavbarTests(TestCase):
-    """La campana del navbar sigue a `ciudadano.ver` (SEC-18).
+    """La campana del navbar sigue a `ciudadano.sensible` (SEC-18 + D-11).
 
     El bloque se renderizaba para todo usuario de backoffice. Con las capacidades
     puestas, a un rol de Becas o de Dispositivos el contador le contestaba un
     rebote, `response.json()` reventaba y el dropdown quedaba en «Cargando
     alertas...» para siempre; los dos links iban al inicio.
+
+    SEC-18 la ató a `ciudadano.ver`; el Cambio 179 la subió a `ciudadano.sensible`,
+    que es lo que piden el contador, el preview, el dashboard y `/ws/alertas/`: el
+    texto de la alerta es el mismo dato por los cuatro canales (D-11).
     """
 
     def _html(self, usuario):
@@ -395,8 +399,17 @@ class CampanaDeAlertasEnElNavbarTests(TestCase):
         # que renderiza una lista siempre vacía (nadie provee su contexto).
         self.assertNotIn(f'href="{reverse("legajos:alertas_dashboard")}"', html)
 
-    def test_con_ciudadano_ver_la_campana_esta(self):
+    def test_con_ciudadano_ver_solo_tampoco_ve_la_campana(self):
+        """D-11: el «Operador de backoffice» pierde la campana entera."""
         html = self._html(usuario_con("ciudadano.ver", username="ve-ciudadanos"))
+
+        self.assertNotIn('id="alertas-counter"', html)
+        self.assertNotIn('id="alertas-preview"', html)
+        self.assertNotIn('id="websocket-status"', html)
+        self.assertNotIn(f'href="{reverse("legajos:alertas_dashboard")}"', html)
+
+    def test_con_ciudadano_sensible_la_campana_esta(self):
+        html = self._html(usuario_con("ciudadano.ver", "ciudadano.sensible", username="ve-sensible"))
 
         self.assertIn('id="alertas-counter"', html)
         self.assertIn('id="alertas-preview"', html)
@@ -417,7 +430,7 @@ class CampanaDeAlertasEnElNavbarTests(TestCase):
         que las mueva tiene que mover también el template.
         """
         for descripcion, usuario in (
-            ("con ciudadano.ver", usuario_con("ciudadano.ver", username="ve-campana-urls")),
+            ("con ciudadano.sensible", usuario_con("ciudadano.sensible", username="ve-campana-urls")),
             ("superusuario", User.objects.create_superuser("root-urls", "root-u@example.test", "x")),
         ):
             with self.subTest(usuario=descripcion):

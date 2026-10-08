@@ -283,11 +283,15 @@
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-body-subtle)]">{{ derivacion.creado|date:"d/m/Y H:i" }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm">
                                     {% if derivacion.estado == 'PENDIENTE' %}
+                                    {# SEC-12: las dos acciones van por POST con CSRF. «Rechazar» era un <a> —un GET— y bastaba con que alguien abriera el link para cerrar la derivación. #}
                                     <form method="post" action="{% url 'legajos:derivacion_ciudadano_aceptar' derivacion.pk %}" class="inline">
                                         {% csrf_token %}
                                         <button type="submit" class="text-green-600 hover:underline mr-2">Aceptar</button>
                                     </form>
-                                    <a href="{% url 'legajos:derivacion_ciudadano_rechazar' derivacion.pk %}" class="text-red-600 hover:underline">Rechazar</a>
+                                    <form method="post" action="{% url 'legajos:derivacion_ciudadano_rechazar' derivacion.pk %}" class="inline js-rechazar-derivacion" data-ciudadano="{{ derivacion.ciudadano.nombre_completo }}">
+                                        {% csrf_token %}
+                                        <button type="submit" class="text-red-600 hover:underline">Rechazar</button>
+                                    </form>
                                     {% elif derivacion.inscripcion_creada and derivacion.inscripcion_creada.legajo_id %}
                                     <a href="{% url 'legajos:ciudadano_detalle' derivacion.ciudadano.id %}" class="text-blue-600 hover:underline">
                                         <i class="fas fa-user mr-1"></i>Ver Ciudadano
@@ -656,6 +660,34 @@ function confirmarBaja(inscripcionId, nombreCiudadano) {
         }
     });
 }
+
+// Rechazar una derivación la cierra sin vuelta atrás: confirmación con
+// SweetAlert2, nunca `confirm()` nativo (SEC-12, Cambio 48).
+document.querySelectorAll('.js-rechazar-derivacion').forEach((formulario) => {
+    formulario.addEventListener('submit', (evento) => {
+        if (formulario.dataset.confirmado === '1') return;
+        evento.preventDefault();
+        // El html de SweetAlert2 se interpreta como marcado: el nombre va escapado.
+        const nombreSeguro = String(formulario.dataset.ciudadano || 'esta persona').replace(/[&<>"']/g, (c) => (
+            { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+        ));
+        Swal.fire({
+            title: '¿Rechazar la derivación?',
+            html: `<p class="text-body-subtle">Estás por rechazar la derivación de <strong>${nombreSeguro}</strong>. La derivación queda cerrada y no vuelve a la bandeja.</p>`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Rechazar',
+            cancelButtonText: 'Cancelar',
+            buttonsStyling: false,
+            customClass: { confirmButton: 'btn-nodo btn-danger', cancelButton: 'btn-nodo btn-tertiary' }
+        }).then((resultado) => {
+            if (resultado.isConfirmed) {
+                formulario.dataset.confirmado = '1';
+                formulario.submit();
+            }
+        });
+    });
+});
 </script>
 
 <form id="form-dar-baja" method="post">

@@ -20,6 +20,9 @@ class AlertasWebSocket {
         this.reconnectAttempts = 0;
         this.maxReconnectAttempts = 5;
         this.reconnectInterval = 3000;
+        // `/ws/alertas/` cierra con 4403 cuando falta la capacidad: es un
+        // veredicto, no una caída de red, y reintentarlo es ruido puro (G3-03).
+        this.rechazado = false;
         this.init();
     }
 
@@ -29,28 +32,36 @@ class AlertasWebSocket {
     }
 
     connect() {
+        if (this.rechazado) {
+            this.showConnectionStatus(false);
+            return;
+        }
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const wsUrl = `${protocol}//${window.location.host}/ws/alertas/`;
-        
+
         this.socket = new WebSocket(wsUrl);
-        
+
         this.socket.onopen = () => {
             console.log('Conectado a alertas WebSocket');
             this.reconnectAttempts = 0;
             this.showConnectionStatus(true);
         };
-        
+
         this.socket.onmessage = (event) => {
             const data = JSON.parse(event.data);
             this.handleMessage(data);
         };
-        
-        this.socket.onclose = () => {
+
+        this.socket.onclose = (event) => {
             console.log('Desconectado de alertas WebSocket');
             this.showConnectionStatus(false);
+            if (event && event.code === 4403) {
+                this.rechazado = true;
+                return;
+            }
             this.reconnect();
         };
-        
+
         this.socket.onerror = (error) => {
             console.error('Error WebSocket:', error);
         };
@@ -59,11 +70,7 @@ class AlertasWebSocket {
     handleMessage(data) {
         switch(data.type) {
             case 'nueva_alerta':
-                this.showAlertaNotification(data.alerta);
-                this.updateAlertasCounter();
-                break;
-            case 'alerta_critica':
-                this.showAlertaCritica(data.alerta);
+                this.mostrarAlerta(data.alerta);
                 this.updateAlertasCounter();
                 break;
             case 'alerta_cerrada':
@@ -73,30 +80,36 @@ class AlertasWebSocket {
         }
     }
 
-    showAlertaNotification(alerta) {
-        // Notificación toast
-        this.showToast(alerta);
-        
-        // Notificación del navegador
-        if (Notification.permission === 'granted') {
-            new Notification(`Nueva Alerta - ${alerta.prioridad}`, {
-                body: `${alerta.ciudadano}: ${alerta.mensaje}`,
-                icon: '/static/custom/img/alert-icon.png',
-                tag: `alerta-${alerta.id}`
-            });
-        }
-        
-        // Sonido para alertas críticas
+    // Un alta de alerta = **un** mensaje del servidor, y acá se decide la forma del
+    // aviso por prioridad. Antes el emisor mandaba dos (`nueva_alerta` + el tipo
+    // crítico) y la crítica llegaba duplicada: toast *y* modal, el sonido dos veces
+    // y dos refrescos del contador. El emisor ya no manda el segundo mensaje.
+    mostrarAlerta(alerta) {
         if (alerta.prioridad === 'CRITICA') {
-            this.playAlertSound();
+            this.showAlertaCritica(alerta);
+        } else {
+            this.showToast(alerta);
         }
+        this.notificarEnElSistema(alerta);
+    }
+
+    notificarEnElSistema(alerta) {
+        if (typeof Notification === 'undefined' || Notification.permission !== 'granted') {
+            return;
+        }
+        new Notification(`Nueva Alerta - ${alerta.prioridad}`, {
+            body: `${alerta.ciudadano}: ${alerta.mensaje}`,
+            icon: '/static/custom/img/alert-icon.png',
+            // El `tag` colapsa los avisos repetidos de la misma alerta en uno solo.
+            tag: `alerta-${alerta.id}`
+        });
     }
 
     showAlertaCritica(alerta) {
-        // Modal para alertas críticas
+        // Modal para alertas críticas (sin toast: el modal ya interrumpe)
         this.showCriticalModal(alerta);
         this.playAlertSound();
-        
+
         // Parpadeo en el título
         this.blinkTitle('🚨 ALERTA CRÍTICA');
     }
@@ -106,10 +119,10 @@ class AlertasWebSocket {
     // propios, abajo a la derecha igual que la otra, sin rol ARIA ni live region
     // y con clases que el build no genera.
     showToast(alerta) {
-        const tipo = alerta.prioridad === 'CRITICA' ? 'error' : 'warning';
         // `window.toast` escribe con textContent: el nombre del ciudadano -que carga
         // el propio ciudadano en la inscripción pública- no necesita escaparse acá.
-        window.toast(tipo, `${alerta.ciudadano}: ${alerta.mensaje}`);
+        // Solo lo ven las que no son CRÍTICAS: esas van por modal.
+        window.toast('warning', `${alerta.ciudadano}: ${alerta.mensaje}`);
     }
 
     // Destino de «Ver»: el detalle del **ciudadano**. `/legajos/<id>/` no existe como
@@ -322,6 +335,7 @@ class AlertasWebSocket {
     }
 
     reconnect() {
+        if (this.rechazado) return;
         if (this.reconnectAttempts < this.maxReconnectAttempts) {
             this.reconnectAttempts++;
             setTimeout(() => {
@@ -335,10 +349,11 @@ class AlertasWebSocket {
 // Inicializar cuando el DOM esté listo
 document.addEventListener('DOMContentLoaded', () => {
     // La campana del navbar es la única superficie de este script, y solo se
-    // renderiza para quien tiene `ciudadano.ver` (SEC-18): es la misma capacidad
+    // renderiza para quien tiene `ciudadano.sensible` (D-11): es la misma capacidad
     // que piden `ws/alertas/`, el contador y el preview. Sin campana no hay nada
     // que actualizar, así que no se abre el WebSocket ni se pide un endpoint que
-    // va a rebotar. El guard vive en el template, acá solo se lo respeta.
+    // va a rebotar. El guard vive en el template —el shell ni siquiera incluye este
+    // archivo sin la capacidad—, acá solo se lo respeta.
     if (!document.querySelector('#alertas-counter')) {
         return;
     }
