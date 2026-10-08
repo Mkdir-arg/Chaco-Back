@@ -152,7 +152,9 @@ class CamposPropiosEnReportesTests(DashboardBecasBase):
             Formulario.objects.get(pk=viejo.pk).definicion, Formulario.objects.get(pk=nuevo.pk).definicion
         )
 
-        primeras = [list(svc.respuestas_por_persona(self.conv_propia, incluir_publicos=True)[0].encabezados) for _ in range(3)]
+        primeras = [
+            list(svc.respuestas_por_persona(self.conv_propia, incluir_publicos=True)[0].encabezados) for _ in range(3)
+        ]
 
         self.assertEqual(primeras[0], primeras[1])
         self.assertEqual(primeras[1], primeras[2])

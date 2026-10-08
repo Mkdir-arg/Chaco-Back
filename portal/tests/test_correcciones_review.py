@@ -99,7 +99,12 @@ class PendientesRenaperConPublicosTests(TestCase):
         vista = RenaperPendientesListView()
         vista.request = RequestFactory().get("/?territorial=None&segmento=abc")
         vista.request.user = User.objects.create_user("admin_publicos")
-        with patch("programas.views.revision.puede", return_value=True):
+        # RN-P13 se resuelve en `services.autorizacion` desde la Ola 2 PR 5 (RED-79): el
+        # usuario ve los públicos, que es lo que hace falta para que el caso cuente.
+        with (
+            patch("programas.views.revision.puede", return_value=True),
+            patch.object(autorizacion, "puede_relevamiento_publico", return_value=True),
+        ):
             self.assertEqual(vista.get_queryset().count(), 1)
 
 

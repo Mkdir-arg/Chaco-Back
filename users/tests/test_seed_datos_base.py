@@ -218,6 +218,18 @@ class SeedOperadorBackofficeTests(TestCase):
         self.assertFalse(RolMeta.objects.get(grupo=operador).activo)
 
 
+class SeedGestionCiudadanosTests(TestCase):
+    def test_quien_edita_ciudadanos_nace_exportando(self):
+        """SEC-20 / D-20: en una base nueva la 0028 no encuentra roles; el seed cumple la regla."""
+        _correr()
+
+        gestion = Group.objects.get(name="Gestión de Ciudadanos")
+        self.assertIn("ciudadano.editar", _codigos(gestion))
+        self.assertIn("ciudadano.exportar", _codigos(gestion))
+        operador = Group.objects.get(name=OPERADOR)
+        self.assertNotIn("ciudadano.exportar", _codigos(operador))
+
+
 class CrearProgramasTests(TestCase):
     def test_no_pisa_el_estado_ni_los_campos_editados(self):
         _correr()

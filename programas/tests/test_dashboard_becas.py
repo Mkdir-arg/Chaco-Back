@@ -58,6 +58,18 @@ class DashboardBecasBase(TestCase):
             programa=self.otro_programa, nombre="Ajeno al programa", cupo_maximo=10
         )
 
+        # Estos tests miden el tablero **con** el canal del link público (embudo por
+        # canal, filtro de canal, distribuciones que suman casos públicos). Desde SEC-22
+        # (Ola 2 PR 5) eso exige RN-P13, que el seed no tilda (opt-in, OPS-06): se la
+        # dan acá a los dos roles que leen el tablero. Sin la capacidad, el recorte lo
+        # prueba `test_relevamiento_publico.RnP13FueraDeLaPantallaTests`.
+        publico = Permission.objects.get(
+            content_type=ContentType.objects.get_for_model(Capacidad),
+            codename=rbac.codename_de("becas.relevamiento.publico"),
+        )
+        for rol in (ROL_ADMIN, ROL_COORDINADOR_REGIONAL):
+            Group.objects.get(name=rol).permissions.add(publico)
+
         self.admin = self._usuario("admin-dash", ROL_ADMIN)
         self.regional = self._usuario("regional-dash", ROL_COORDINADOR_REGIONAL)
         self.otro_regional = self._usuario("regional-ajeno-dash", ROL_COORDINADOR_REGIONAL)
