@@ -148,7 +148,9 @@ class Command(BaseCommand):
         )
         if com_creado:
             com_group.permissions.set([codename_a_perm[rbac.codename_de(c)] for c in CAPS_COMUNICACIONES])
-            self.stdout.write(self.style.SUCCESS(f"  ✓ Comunicaciones creado con {len(CAPS_COMUNICACIONES)} capacidades"))
+            self.stdout.write(
+                self.style.SUCCESS(f"  ✓ Comunicaciones creado con {len(CAPS_COMUNICACIONES)} capacidades")
+            )
         else:
             self.stdout.write("  · Comunicaciones ya existe (no se tocan sus capacidades ni su estado)")
 

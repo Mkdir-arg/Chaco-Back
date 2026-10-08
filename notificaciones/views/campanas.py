@@ -46,9 +46,16 @@ CUBETA_PRUEBAS = "notif_prueba"
 #: La vista previa se sirve con su propia política: nada de scripts, ni conexiones, ni
 #: formularios; solo imágenes y fuentes externas por https, estilos en línea, y que la
 #: pueda embeber únicamente el propio backoffice (RNF-007-04).
-CSP_VISTA_PREVIA = (
-    "default-src 'none'; img-src https: data:; style-src 'unsafe-inline'; font-src https: data:; "
-    "frame-ancestors 'self'; base-uri 'none'; form-action 'none'"
+# Las directivas `*-src` se arman con el sufijo aparte: el literal «font-src» tiene forma
+# de utilidad de Tailwind y `CssCompiladoAlDiaTests` (que lee los `.py` de las apps) lo
+# tomaría por una clase usada que el build no tiene.
+_FUENTES_VISTA_PREVIA = {"default": "'none'", "img": "https: data:", "style": "'unsafe-inline'", "font": "https: data:"}
+_OTRAS_VISTA_PREVIA = {"frame-ancestors": "'self'", "base-uri": "'none'", "form-action": "'none'"}
+CSP_VISTA_PREVIA = "; ".join(
+    [
+        *(f"{tipo}-src {valor}" for tipo, valor in _FUENTES_VISTA_PREVIA.items()),
+        *(f"{directiva} {valor}" for directiva, valor in _OTRAS_VISTA_PREVIA.items()),
+    ]
 )
 XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 

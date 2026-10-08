@@ -290,6 +290,27 @@ class RenderTests(ConMediaTemporal):
         filtrada = self.client.get(url("campanas"), {"estado": "ENVIADA"})
         self.assertContains(filtrada, "Ninguna campaña coincide con los filtros")
 
+    def test_listado_y_detalle_no_crecen_con_las_filas(self):
+        """Las consultas no dependen de cuántas campañas o destinatarios hay (sin N+1)."""
+        creadora = usuario_con("notificacion.gestionar", username="creadora")
+        chica = crear_campana(nombre="Una", usuario=creadora, emails=["a@x.com"])
+        self._consultas(url("campanas"))  # calienta sesión y caches del shell
+        con_una = self._consultas(url("campanas"))
+        detalle_chico = self._consultas(url("campana_detalle", chica.pk))
+        for i in range(4):
+            crear_campana(nombre=f"Otra {i}", usuario=creadora, emails=[f"x{i}@x.com", f"y{i}@x.com"])
+        grande = crear_campana(nombre="Grande", usuario=creadora, emails=[f"p{i}@x.com" for i in range(30)])
+        self.assertEqual(self._consultas(url("campanas")), con_una)
+        self.assertEqual(self._consultas(url("campana_detalle", grande.pk)), detalle_chico)
+
+    def _consultas(self, destino):
+        from django.db import connection
+        from django.test.utils import CaptureQueriesContext
+
+        with CaptureQueriesContext(connection) as capturadas:
+            self.assertEqual(self.client.get(destino).status_code, 200)
+        return len(capturadas)
+
     def test_formulario_de_alta(self):
         respuesta = self.client.get(url("campana_crear"))
         self.assertContains(respuesta, "Nueva campaña")

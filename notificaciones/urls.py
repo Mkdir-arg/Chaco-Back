@@ -1,3 +1,4 @@
+from django.contrib.auth.decorators import login_required
 from django.urls import path
 from django.views.generic import RedirectView
 
@@ -6,7 +7,7 @@ from notificaciones.views import campanas
 app_name = "notificaciones"
 
 urlpatterns = [
-    path("", RedirectView.as_view(pattern_name="notificaciones:campanas", permanent=False)),
+    path("", login_required(RedirectView.as_view(pattern_name="notificaciones:campanas", permanent=False))),
     path("campanas/", campanas.CampanaListView.as_view(), name="campanas"),
     path("campanas/nueva/", campanas.campana_crear, name="campana_crear"),
     path("campanas/plantilla.xlsx", campanas.plantilla_excel, name="plantilla_excel"),

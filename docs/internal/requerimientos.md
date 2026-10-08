@@ -363,6 +363,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 189 | Las descargas del tablero de Becas: una planilla que no es la única opción, y dejar de recalcular lo que ya está calculado | Becas — solapa «Dashboard» del programa (exportaciones y filtros) · Transversal (`requirements.txt`, banco de performance) | `#performance` `#relevamientos` `#ui` `#metodo` | Auditoría integral oct-2026 — fichas PERF-03, G1b-11 y G1b-12 (Ola 4, PR 5) | 08/10/2026 | 🟢 **Hecho** (PERF-03 parcial: el punto (3), exportar fuera del request, sigue abierto) | No requiere |
 | 190 | El chequeo de esquema del CI deja de marcar como huérfanas las tablas que carga el organismo | Transversal — CI (job «Migrate ida y vuelta»), `verificar_esquema_migraciones` | `#infra` `#datos` | Juez, por la regresión de #639 que dejaba rojo ese job en todo PR posterior | 08/10/2026 | 🟢 **Hecho** | No requiere |
 | 191 | Plan de implementación del MVP de Dispositivos: tabla rasa, dos carriles y las piezas de diseño primero | Dispositivos · planificación | `#gestion` `#ui` `#datos` | PM — en sesión: «quiero borrar lo que tenemos hoy de ese programa e implementarlo desde 0… planificá bien las etapas y quiero hacer hincapié en la parte de lógica y la parte de diseño, se tiene que ver igual» | 08/10/2026 | 🟢 **Hecho — plan escrito** | Sí: baja de 6 modelos en dos releases |
+| 192 | Notificaciones: campañas de correo masivo con lista en Excel y cuerpo en HTML | Transversal — módulo nuevo `notificaciones` (backoffice: sidebar, listado, alta y edición, previsualización y envío) | `#correo` `#rbac` `#ui` `#datos` `#infra` | PM — análisis funcional 007 | 08/10/2026 | 🟢 **Hecho** (falta probar el envío real contra el SMTP de ECOM en testing) | `notificaciones.0001`, `users.0029` (sin DDL) y `users.0030` (datos, con reversa) |
 
 **Notas del índice**
 
@@ -28807,5 +28808,157 @@ los predios compartidos entre lo que **no** se entregaba.
 
 **La etapa 0 se absorbe.** Las ~100 h de piezas de diseño y goldens no se cotizan aparte («no importa
 que lleve esas 100 horas»).
+
+---
+
+# Cambio 192 — Notificaciones: campañas de correo masivo con lista en Excel y cuerpo en HTML
+
+🟢 **HECHO — 08/10/2026** · falta probar el envío real contra el SMTP de ECOM en testing
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal — módulo nuevo `notificaciones` (`/notificaciones/`), grupo «Notificaciones › Campañas» del sidebar |
+| **Etiquetas** | `#correo` `#rbac` `#ui` `#datos` `#infra` |
+| **Solicitante** | PM — análisis funcional 007, con mock-ups (`docs/internal/analisis/007-notificaciones-campanas-email.md`) |
+| **Fecha del pedido** | 08/10/2026 |
+| **Issue / épica** | sin issue (análisis 007, estado Definido) |
+| **Partes afectadas** | Backoffice · Servidor (hilo de envío) · Infra/ECOM (SMTP, `NOTIF_LOTE`, `NOTIF_PAUSA_SEG`) |
+| **Migración** | `notificaciones.0001` (cuatro tablas nuevas), `users.0029` (capacidades, sin DDL) y `users.0030` (rol «Comunicaciones», datos con reversa) |
+
+## Pedido original
+
+Un módulo donde el equipo arme una **campaña**: nombre, asunto, un Excel con la lista de correos
+y el cuerpo como archivo HTML ya diseñado. Antes de enviar, una previsualización con todos los
+destinatarios, el total y el correo tal como llega. La campaña queda «A enviar» hasta que alguien
+aprieta **Enviar**. Detalle completo, reglas y criterios de aceptación en el
+[análisis 007](analisis/007-notificaciones-campanas-email.md).
+
+## Alcance acordado
+
+Entra todo el análisis 007 (RF-007-01 a RF-007-19): listado con métricas y filtros, alta y edición
+con validación de los dos archivos, previsualización con solapas (vista previa, destinatarios,
+descartados), envío en segundo plano con avance, detener, reanudar, resultado en Excel, plantilla,
+prueba a una dirección y duplicar. Queda afuera lo de la sección 9 del análisis (personalización
+con columnas, programación, plantillas, adjuntos, métricas de apertura, desuscripción, remitente
+propio, destinatarios desde legajos, otros canales).
+
+## Decisiones tomadas
+
+- **Capacidades separadas** `notificacion.ver` / `notificacion.gestionar` / `notificacion.enviar`
+  (módulo global, sin alcance de programa): el envío no se deshace y se le puede dar a menos gente.
+  Las pantallas sin la capacidad redirigen con aviso, como el resto; las acciones POST responden
+  **403** (el botón no se dibuja, así que el POST es armado a mano).
+- **Rol «Comunicaciones»** con las tres, por migración (`users.0030`, corre en todos los ambientes)
+  y por `seed_rbac` (base nueva). Se siembra solo al crearlo. El «Administrador» recibe las tres en
+  la misma migración porque es protegido y la pantalla de Roles no lo deja editar.
+- **La vista previa no inyecta el HTML en el backoffice**: va en un `iframe sandbox` vacío cuyo
+  `src` es una vista propia que sirve el HTML **saneado** con su CSP (`default-src 'none'`, solo
+  imágenes y fuentes `https:`, estilos en línea, `frame-ancestors 'self'`) y
+  `X-Frame-Options: SAMEORIGIN` (decorador `xframe_options_sameorigin`). El análisis decía
+  `srcdoc`; el juez pidió `src` a una vista con cabeceras propias. El `SecurityHeadersMiddleware`
+  **no se tocó**: respeta la CSP que ya trae la respuesta (`setdefault`), y el `frame-src 'self'`
+  de la página padre ya permite el iframe del mismo origen.
+- **Saneo con `nh3` al subir**: fuera `script`, `iframe`, `object`, `embed`, `form` y controles,
+  `meta`/`link`/`base`, eventos `on*` y `javascript:`; se conservan tablas, estilos en línea y el
+  `<style>` del `<head>`. El texto plano se deriva del HTML saneado (enlaces como «texto (url)»).
+- **Asunto de la prueba**: `EMAIL_ASUNTO_PREFIJO` primero y después `[PRUEBA] ` («[QA] [PRUEBA] …»),
+  el mismo orden que ya usa `diagnosticar_correo`.
+- **Envío**: hilo del pod con ejecutor inyectable, una conexión SMTP por lote, lote y pausa leídos
+  de `settings` en cada vuelta (`NOTIF_LOTE`=50, `NOTIF_PAUSA_SEG`=10), latido por correo, un correo
+  por destinatario con un solo `To`. El candado contra doble envío es la propia fila de la campaña
+  (`select_for_update`), commiteado antes de lanzar el hilo. El resultado de cada destinatario se
+  escribe con un `UPDATE` condicionado a PENDIENTE: reanudar nunca reenvía a un ENVIADO.
+- **Fallos del servidor en racha** (no los de una dirección, `SMTPRecipientsRefused`): a los 10
+  seguidos se frena, esos correos vuelven a pendientes y la campaña queda interrumpida con el
+  motivo, para reanudar cuando el SMTP se normalice. Es la lectura conservadora del caso límite
+  «rechazo por cuota: si es masivo, se pausa».
+- **SMTP caído al empezar o error no previsto**: la campaña queda «Enviando» interrumpida en el acto
+  (el latido se fecha vencido) con el error, y se ofrece Reanudar. «Detener» sobre una interrumpida
+  la cancela directamente (no hay hilo que lea el pedido).
+- **Excel**: primera hoja; encabezado `email`/`correo`/`mail` sin mayúsculas ni acentos, buscado en
+  la primera fila con datos; si no hay, columna A desde la fila 1. Las filas vacías del todo no
+  cuentan; una fila con datos y el correo vacío es «Vacío» (cuenta como inválido). Tope 5.000 y
+  techo de 20 MB descomprimido (mismo criterio que SEC-31 del padrón).
+- **Archivos** en `media/notificaciones/{excel,html}/` con nombre UUID; regla propia en
+  `media_protegida` (los baja quien tiene `notificacion.ver`). Lo que se envía y se previsualiza es
+  la copia saneada guardada en la base, no el archivo.
+- **Métricas del mes** por rango de fechas en hora local, sin `Trunc*` (ECOM sin tablas de zona).
+- **UI sin piezas nuevas**: las pantallas clonan sus goldens (Listado, Detalle con solapas,
+  Formulario, Modal y Confirmación). El avance se muestra con `_stat_card` y una alerta, y la
+  pantalla se relee sola cada 5 s como el proceso masivo; no hay barra de progreso (no existe pieza
+  canónica). El grupo del sidebar se escribió con utilidades en vez de `style=` para no subir el
+  ratchet de `INLINESTYLE`: suma dos utilidades al CSS compilado (`px-3.5`, `text-[13.5px]`) para
+  quedar idéntico a los demás grupos; la regla quedó en `.claude/design/shells.md`.
+
+## Implementación
+
+- Sidebar: grupo «Notificaciones» (ícono de sobre) con «Campañas», después de Reportes, visible con
+  `notificacion.ver`, expandido y colapsado.
+- Listado: métricas (a enviar, enviando, enviadas y correos enviados en el mes), filtros por estado
+  y texto, 25 por página, acciones ver y duplicar.
+- Alta y edición: nombre, asunto, Excel y HTML, con la ayuda del formato y «Descargar plantilla». En
+  la edición los archivos son opcionales: vacío conserva el que está; reemplazar el Excel recalcula
+  la lista entera.
+- Detalle: métricas de lectura (o de avance una vez enviada), solapas Vista previa (De, Para de
+  ejemplo, asunto con prefijo, escritorio o móvil, avisos de imágenes no visibles y de contenido
+  quitado), Destinatarios (búsqueda, filtro por resultado, paginado) y Descartados. Acciones según
+  estado y capacidad: Editar, Eliminar, Duplicar, Enviar prueba (popup), Enviar, Detener, Reanudar
+  y Descargar resultado (.xlsx con destinatarios y descartados, celdas saneadas con `celda_segura`).
+- Prueba: popup con el correo del usuario precargado, una sola dirección, no cambia el estado,
+  queda registrada (`PruebaEnviada`), 10 por hora por usuario (`core.services.throttle`).
+- Duplicar: copia los dos archivos, relee el Excel y vuelve a sanear el HTML; «Copia de …» en
+  «A enviar» y lleva a editar la copia.
+
+## Archivos
+
+- `notificaciones/` (nuevo): `models/`, `selectors/`, `services/` (`lectura_excel`, `html`,
+  `campanas`, `envio`, `exportacion`), `views/campanas.py`, `forms/`, `urls.py`, `templates/`,
+  `migrations/0001_initial.py`, `tests/`.
+- `config/settings.py` (app, `MIGRATION_MODULES`, `NOTIF_LOTE`, `NOTIF_PAUSA_SEG`), `config/urls.py`,
+  `.env.qa.example`, `requirements.txt` (`nh3==0.3.7`).
+- `core/rbac.py` (módulo `notificaciones` en el `CATALOGO`), `core/rutas_media.py` y
+  `core/views/media.py` (prefijo y regla de `/media/`).
+- `users/migrations/0029_capacidades_notificaciones.py`, `users/migrations/0030_rol_comunicaciones.py`,
+  `users/management/commands/seed_rbac.py`, `users/tests/test_menu_rbac.py`.
+- `templates/includes/sidebar/opciones.html`, `tailwind.config.js` (la app en `APPS`),
+  `static/custom/css/tailwind.css`, `.claude/design/shells.md`.
+
+## Base de datos
+
+`notificaciones.0001` crea `Campana`, `Destinatario` (único por campaña y correo, índices por
+campaña+estado y estado+fecha de envío), `Descartado` y `PruebaEnviada`: tablas nuevas, sin tocar
+datos existentes. Sin `UUIDField`. `users.0029` es solo estado (los permisos los crea
+`post_migrate`) y `users.0030` siembra el rol y los permisos del Administrador, con reversa real.
+
+## Validación
+
+`manage.py check` y `check --deploy`, `makemigrations --check`, `check_migraciones.py` (3
+migraciones, 0 problemas), tests de `notificaciones`, `users` y `core`, `ruff`,
+`design_audit --ratchet` (0 nuevos), `--arquetipo` OK en listado, detalle, formulario y modal,
+`compile_templates` 0 errores, `check_design_agent --changed` OK y build de Tailwind. El detalle
+con los números está en el informe del PR.
+
+## Puesta en marcha en el servidor
+
+Instalar dependencias (`nh3`) con la imagen nueva. Opcional: `NOTIF_LOTE` y `NOTIF_PAUSA_SEG` en el
+entorno si el SMTP de ECOM rechaza por volumen. Asignar el rol «Comunicaciones» a quien corresponda
+desde Administración › Roles.
+
+## Pendientes / a definir
+
+- Probar en testing el envío real (prueba y una campaña chica) contra el SMTP de ECOM.
+- DECISIÓN CLIENTE: ¿se aceptan más encabezados para la columna del correo («correo electrónico»,
+  «e-mail»)? Hoy solo `email`, `correo` y `mail`, como dice RN-007-02.
+- El envío vive en un hilo del pod, como el proceso masivo: no hay cola. El candado de la fila
+  impide dos hilos sobre la misma campaña.
+
+## Reversión
+
+1. Revertir el código (la app deja de estar en `INSTALLED_APPS` y en las URLs).
+2. `migrate users 0028` saca las tres capacidades de todos los roles y borra el rol
+   «Comunicaciones» si nadie lo tiene asignado.
+3. `migrate notificaciones zero` borra las cuatro tablas: **se pierden las campañas, sus
+   destinatarios y el registro de pruebas**. Los archivos de `media/notificaciones/` quedan en el
+   disco y se borran a mano.
 
 ---
