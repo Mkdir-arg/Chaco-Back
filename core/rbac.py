@@ -748,6 +748,27 @@ def usuarios_que_administran_programa(programa, excluir_ids=()):
     )
 
 
+def programas_que_administra(user):
+    """IDs de los programas que ``user`` administra hoy (rol **activo** con
+    ``RolMeta.programa`` y alguna capacidad de :data:`CAPS_ADMIN_PROGRAMA`).
+
+    Es la contracara de :func:`usuarios_que_administran_programa` y tiene que usar su
+    mismo criterio: lo que se lee **antes** de un cambio para saber contra qué
+    programas correr después :func:`asegurar_admin_restante`. Si los dos divergieran,
+    el check se dispararía contra un conjunto vacío y bloquearía la edición.
+    """
+    if not getattr(user, "pk", None):
+        return set()
+    return set(
+        user.groups.filter(
+            meta__activo=True,
+            meta__categoria=CATEGORIA_PROGRAMA,
+            meta__programa__isnull=False,
+            permissions__codename__in=[codename_de(c) for c in CAPS_ADMIN_PROGRAMA],
+        ).values_list("meta__programa_id", flat=True)
+    )
+
+
 def asegurar_admin_restante(programa=None):
     """Lanza si una operación dejaría al sistema —o a un programa— sin administrador.
 

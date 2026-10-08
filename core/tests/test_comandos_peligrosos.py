@@ -68,12 +68,25 @@ CREDENCIALES_SIN_GUARDA_DE_DEMO = {
     "core/management/commands/seed_perf.py",
     "core/management/commands/prepare_perf_http_probe.py",
     "programas/management/commands/seed_aceptacion_reportes.py",
+    # Lo encontró el ratchet ampliado (ninguna de sus líneas llama a `set_password`:
+    # le **copia el hash** a un usuario de sonda, `user.password = source.password`).
+    # Su guarda es de las fuertes: `_assert_ephemeral_ci` exige `PERFORMANCE_CI=1`,
+    # `ENVIRONMENT=ci`, MySQL y que `SELECT DATABASE()` devuelva `chaco_perf_ci`.
+    "core/management/commands/perf_ci_probe.py",
     # La clave la trae el CSV del operador, no el código; sus guardas son las de
     # G2-05 (`--aplicar`, `--actualizar --motivo`, `validate_password`).
     "users/management/commands/import_users_from_csv.py",
 }
 
-_TOCA_CLAVES = {"set_password", "create_user", "create_superuser", "set_unusable_password"}
+#: Lo que «tocar una clave» puede ser: fijarla, generar su hash o dar de alta la
+#: cuenta que la lleva. `make_password` entró en la revisión del PR de G1c-12: un
+#: comando que escribe `user.password = make_password(...)` esquivaba el ratchet
+#: entero porque nunca llama a `set_password`.
+_TOCA_CLAVES = {"set_password", "create_user", "create_superuser", "set_unusable_password", "make_password"}
+
+#: De dónde sale el cache de Django. Los nombres que un módulo importe de acá son
+#: los que convierten un `.clear()` en un `FLUSHDB` del Redis compartido.
+_MODULO_CACHE = "django.core.cache"
 
 
 def comandos_del_repo():
@@ -98,6 +111,83 @@ def _nombres_llamados(arbol):
         elif isinstance(nodo.func, ast.Name):
             nombres.add(nodo.func.id)
     return nombres
+
+
+def _raiz_del_nombre(nodo):
+    """El nombre con el que arranca una expresión: `caches["default"].clear` → `caches`,
+    `django.core.cache.cache` → `django`. `None` si no arranca en un nombre."""
+    while isinstance(nodo, (ast.Attribute, ast.Subscript, ast.Call)):
+        nodo = nodo.func if isinstance(nodo, ast.Call) else nodo.value
+    return nodo.id if isinstance(nodo, ast.Name) else None
+
+
+def _nombres_del_cache(arbol):
+    """Los nombres locales del módulo que llevan al cache de Django, sea cual sea la
+    puerta: `from django.core.cache import cache`, `... import caches`, el mismo con
+    `as`, o `import django.core.cache`."""
+    nombres = set()
+    for nodo in ast.walk(arbol):
+        if isinstance(nodo, ast.ImportFrom) and (nodo.module or "") == _MODULO_CACHE:
+            nombres.update(alias.asname or alias.name for alias in nodo.names)
+        elif isinstance(nodo, ast.Import):
+            for alias in nodo.names:
+                if alias.name == _MODULO_CACHE or alias.name.startswith(f"{_MODULO_CACHE}."):
+                    nombres.add(alias.asname or alias.name.split(".")[0])
+    return nombres
+
+
+def vaciados_del_cache(arbol):
+    """Las líneas donde el módulo vacía un cache de Django.
+
+    Cuenta **cualquier** forma de llegar al objeto —`cache.clear()`,
+    `caches["default"].clear()`, `caches[alias].clear()`, `get_cache(...).clear()`,
+    `django.core.cache.cache.clear()`, y los mismos con un alias de importación—,
+    no solo el `cache.clear()` literal que miraba la primera versión del ratchet:
+    en `django_redis` todos terminan en el mismo `FLUSHDB` del Redis compartido.
+    """
+    nombres = _nombres_del_cache(arbol)
+    if not nombres:
+        return []
+    return sorted(
+        nodo.lineno
+        for nodo in ast.walk(arbol)
+        if isinstance(nodo, ast.Call)
+        and isinstance(nodo.func, ast.Attribute)
+        and nodo.func.attr == "clear"
+        and _raiz_del_nombre(nodo.func.value) in nombres
+    )
+
+
+def asignaciones_de_clave(arbol):
+    """Las líneas donde el módulo le escribe la contraseña a un objeto sin pasar por
+    `set_password`: `usuario.password = …` (o `+=`, o con anotación) y
+    `setattr(usuario, "password", …)`."""
+    lineas = []
+    for nodo in ast.walk(arbol):
+        if isinstance(nodo, ast.Assign):
+            destinos = nodo.targets
+        elif isinstance(nodo, (ast.AnnAssign, ast.AugAssign)):
+            destinos = [nodo.target]
+        elif (
+            isinstance(nodo, ast.Call)
+            and isinstance(nodo.func, ast.Name)
+            and nodo.func.id == "setattr"
+            and len(nodo.args) == 3
+            and isinstance(nodo.args[1], ast.Constant)
+            and nodo.args[1].value == "password"
+        ):
+            lineas.append(nodo.lineno)
+            continue
+        else:
+            continue
+        if any(isinstance(d, ast.Attribute) and d.attr == "password" for d in destinos):
+            lineas.append(nodo.lineno)
+    return sorted(lineas)
+
+
+def toca_claves(arbol):
+    """¿El módulo da de alta cuentas, les fija la clave o le escribe el hash?"""
+    return bool(_nombres_llamados(arbol) & _TOCA_CLAVES) or bool(asignaciones_de_clave(arbol))
 
 
 class ComandosBorradosTests(SimpleTestCase):
@@ -166,26 +256,42 @@ class SeedsDemoExigenEntornoDeDemoTests(TestCase):
 class NingunComandoVaciaElCacheCompartidoTests(SimpleTestCase):
     """G1c-12 · `cache.clear()` es `FLUSHDB` del Redis que comparten sesiones y Channels."""
 
-    def test_ningun_comando_llama_a_cache_clear(self):
+    def test_ningun_comando_vacia_un_cache_de_django(self):
         culpables = []
         for relativa, arbol in comandos_del_repo():
             if relativa in PUEDEN_VACIAR_EL_CACHE:
                 continue
-            for nodo in ast.walk(arbol):
-                if (
-                    isinstance(nodo, ast.Call)
-                    and isinstance(nodo.func, ast.Attribute)
-                    and nodo.func.attr == "clear"
-                    and isinstance(nodo.func.value, ast.Name)
-                    and nodo.func.value.id == "cache"
-                ):
-                    culpables.append(f"{relativa}:{nodo.lineno}")
+            culpables.extend(f"{relativa}:{linea}" for linea in vaciados_del_cache(arbol))
         self.assertEqual(
             culpables,
             [],
-            "`cache.clear()` vacía el Redis compartido (sesiones, Channels y caché): "
+            "Vaciar un cache de Django vacía el Redis compartido (sesiones, Channels y caché): "
             "invalidá solo las claves que tocaste.",
         )
+
+    def test_el_ratchet_ve_las_otras_formas_de_llegar_al_cache(self):
+        """La primera versión solo miraba el `cache.clear()` literal, así que
+        `caches["default"].clear()` —el mismo `FLUSHDB`— pasaba de largo."""
+        casos = {
+            "from django.core.cache import cache\ncache.clear()\n": [2],
+            'from django.core.cache import caches\ncaches["default"].clear()\n': [2],
+            "from django.core.cache import caches\ndef f(alias):\n    caches[alias].clear()\n": [3],
+            "from django.core.cache import cache as memoria\nmemoria.clear()\n": [2],
+            "import django.core.cache\ndjango.core.cache.cache.clear()\n": [2],
+            "from django.core.cache import caches\ncaches['sessions'].clear()\ncache.clear()\n": [2],
+        }
+        for fuente, lineas in casos.items():
+            with self.subTest(fuente=fuente.splitlines()[-1]):
+                self.assertEqual(vaciados_del_cache(ast.parse(fuente)), lineas)
+
+    def test_el_ratchet_no_se_queja_de_un_clear_que_no_es_del_cache(self):
+        for fuente in (
+            "def f(datos):\n    datos.clear()\n",
+            "cache = {}\ncache.clear()\n",  # un dict local llamado igual, sin el import
+            "from django.core.cache import cache\ncache.delete('x')\n",
+        ):
+            with self.subTest(fuente=fuente.splitlines()[-1]):
+                self.assertEqual(vaciados_del_cache(ast.parse(fuente)), [])
 
     def test_el_allowlist_nombra_archivos_que_existen(self):
         for relativa in PUEDEN_VACIAR_EL_CACHE | CREDENCIALES_SIN_GUARDA_DE_DEMO:
@@ -201,8 +307,7 @@ class NingunComandoSiembraCredencialesSinGuardaTests(SimpleTestCase):
         for relativa, arbol in comandos_del_repo():
             if relativa in CREDENCIALES_SIN_GUARDA_DE_DEMO:
                 continue
-            llamados = _nombres_llamados(arbol)
-            if llamados & _TOCA_CLAVES and "exigir_entorno_demo" not in llamados:
+            if toca_claves(arbol) and "exigir_entorno_demo" not in _nombres_llamados(arbol):
                 culpables.append(relativa)
         self.assertEqual(
             culpables,
@@ -211,3 +316,24 @@ class NingunComandoSiembraCredencialesSinGuardaTests(SimpleTestCase):
             "`core.management.guardas.exigir_entorno_demo()`, o entrar al allowlist con su motivo "
             "(OPS-02: `crear_usuarios_sistema` dejaba admin/admin123 en todo ambiente que lo corriera).",
         )
+
+    def test_el_ratchet_ve_el_hash_escrito_a_mano(self):
+        """`set_password` no es la única puerta: escribir el hash directo en la columna
+        deja la misma credencial y esquivaba el ratchet entero."""
+        for fuente in (
+            "from django.contrib.auth.hashers import make_password\nu.password = make_password('x')\n",
+            "u.password = 'pbkdf2_sha256$...'\n",
+            "setattr(u, 'password', hash_de_algun_lado)\n",
+            "u: str = ''\nu.password += 'x'\n",
+        ):
+            with self.subTest(fuente=fuente.splitlines()[-1]):
+                self.assertTrue(toca_claves(ast.parse(fuente)))
+
+    def test_el_ratchet_no_confunde_una_variable_local_con_la_columna(self):
+        for fuente in (
+            "password = input()\n",
+            "datos = {'password': 'x'}\n",
+            "clave = row.get('Contraseña')\n",
+        ):
+            with self.subTest(fuente=fuente.splitlines()[-1]):
+                self.assertFalse(toca_claves(ast.parse(fuente)))

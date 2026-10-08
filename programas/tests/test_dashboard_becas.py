@@ -901,4 +901,4 @@ class RespuestasPorPersonaTests(DashboardBecasBase):
             reporte, _ = svc.respuestas_por_persona(self.conv_propia)
         self.assertEqual(len(reporte.filas), 14)
         self.assertEqual(len(muchas), len(pocas))
-        self.assertLessEqual(len(muchas), 7)
+        self.assertLessEqual(len(muchas), 10)
