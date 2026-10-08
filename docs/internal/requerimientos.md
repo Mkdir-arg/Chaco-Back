@@ -27330,6 +27330,13 @@ No requiere.
 
 ## Historial
 
+**08/10/2026 — se quitan también las definiciones pendientes.** El documento del cliente queda en cuatro
+secciones: qué es el MVP, qué se entrega, qué no se entrega, y esfuerzo y plazo. Las cinco definiciones
+—escala de criticidad, relevamiento por sector o por edificio, si el agente debe ser externo a la
+institución, estados del relevamiento y catálogo de motivos de egreso— **siguen vigentes y hay que
+cerrarlas antes de arrancar**: se trasladan al correo de presentación y a la agenda de la reunión
+inicial, pero no figuran en el documento publicado.
+
 **08/10/2026 — se quita «Qué no se va a poder hacer el día uno».** Por decisión del PM, esa sección sale
 del documento del cliente: lo que no entra ya está dicho en §3, y repetirlo en negativo cargaba el
 documento de más. El contenido sigue registrado acá.

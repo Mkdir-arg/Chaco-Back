@@ -142,32 +142,4 @@ Nada de esto se descarta: está definido y estimado en la [propuesta de la Versi
 El Ministerio organizó el presupuesto en cuatro bloques:
 
 | | Bloque | Horas |
-|---|---|---:|
-| **1** | Aplicación, sectores y criticidad | 140 |
-| **2** | Ingresos y egresos | 220 |
-| **3** | Circuito interno | 240 |
-| **4** | Reserva | 100 |
-| | **Total** | **700** |
-
-**Aproximadamente 14 semanas** con un desarrollador backend y uno frontend a tiempo completo, más el equipo móvil.
-
-**Sobre el orden.** El ingreso y el egreso son la base: el circuito interno se apoya en ellos. El relevamiento en campo es **independiente** y puede ir en paralelo, porque toca otra parte del sistema y suma al equipo móvil. Arrancando por el ingreso y el egreso, **a las seis semanas** el Ministerio ya tiene dispositivos registrando movimientos reales.
-
-!!! note "Sobre la reserva"
-    Las 100 horas de reserva absorben ajustes de reglas, diferencias de operación entre dispositivos, retrabajo de interfaz, pruebas adicionales, carga de datos reales y despliegue. Se consumen contra trabajo concreto, acordado en el momento, y **lo que no se usa no se factura**.
-
-    Conviene saber que **una parte está comprometida desde el arranque**: el funcionamiento sin conexión, la verificación en toda la red, la solapa en el legajo ciudadano, la asignación del relevamiento y el censo automático se incorporaron al alcance después de la estimación inicial. El primero es, por lejos, el de mayor peso.
-
-## 5. Definiciones a cerrar antes de arrancar
-
-Cinco definiciones cortas, que conviene resolver en una sola reunión:
-
-1. **La criticidad.** Es un concepto nuevo, no estaba en la propuesta. ¿Qué escala usa —por ejemplo baja, media, alta, crítica—? ¿Quién la asigna, el agente territorial o el coordinador al revisar? ¿Y dispara algo además de avisar, o el sistema solo informa y la decisión queda en el área?
-
-2. **Si el relevamiento es por sector o por edificio.** Este MVP lo plantea **por sector**, que da más detalle y más trabajo de carga. La propuesta lo planteaba **por edificio**, que es lo que permite relevar una sola vez un predio compartido por varias instituciones, como el caso de Resistencia. Hay que elegir uno.
-
-3. **Quién puede ser asignado a un relevamiento.** La propuesta pedía que el agente fuera **externo a la institución** que releva, para que no se omitan irregularidades. El MVP incorpora la asignación, pero no esa restricción: hay que decidir si se aplica.
-
-4. **Los estados del relevamiento.** Cuáles son y quién los mueve: alcanza con *asignado*, *cargado* y *revisado*, o hace falta un circuito de validación con observaciones y corrección.
-
-5. **El catálogo de motivos de egreso.** Qué opciones tiene y si el Ministerio quiere poder modificarlo después sin pedir desarrollo.
+|---|---|
