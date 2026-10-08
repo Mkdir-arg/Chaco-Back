@@ -200,7 +200,7 @@ MIDDLEWARE = [
 ]
 ```
 
-`PortalCiudadanoMiddleware` es el guardia que mantiene la separación de superficies: cualquier usuario autenticado del grupo `Ciudadanos` que intente acceder fuera de `/portal/` (excepto `/static/` y `/media/`) es redirigido a `portal:ciudadano_mi_perfil`.
+`PortalCiudadanoMiddleware` es el guardia que mantiene la separación de superficies: cualquier usuario autenticado del grupo `Ciudadanos` que intente acceder fuera de `/portal/` (la única excepción es `/static/`) es redirigido a `portal:home`. `/media/` **no** está exento: ahí viven los adjuntos del backoffice, y además cada descarga pasa por `core.views.media.media_protegida`, que verifica de quién es el archivo.
 
 ### 4.3 Stack ASGI
 

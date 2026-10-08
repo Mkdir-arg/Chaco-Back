@@ -46,6 +46,19 @@ from programas.models import Convocatoria, Formulario, PadronHabilitado, Relevam
 # Tamaño máximo del Excel (los padrones reales son de cientos de filas).
 PADRON_MAX_BYTES = 2 * 1024 * 1024
 
+#: SEC-31: el tope de arriba mide el **comprimido**. Un .xlsx es un zip, y un zip
+#: de 1 MB puede declarar 2 GB de contenido; `openpyxl` lo arma en memoria antes
+#: de que ninguna validación lo mire. Se suman los tamaños declarados en el índice
+#: del zip —que es barato: no descomprime nada— y se corta ahí. 20 MB es ~10x lo
+#: que ocupa descomprimido el padrón más grande que midió el banco de performance
+#: (50.000 filas con las seis columnas).
+PADRON_MAX_DESCOMPRIMIDO = 20 * 1024 * 1024
+
+#: Techo de filas que se leen de la hoja. La otra mitad de SEC-31: un archivo que
+#: pasa el tope de bytes puede declarar un millón de filas vacías y `iter_rows`
+#: las recorre igual. Cómodamente por encima de los padrones reales y del banco.
+PADRON_MAX_FILAS = 200_000
+
 #: Filas de padrón por INSERT. Sin lote, las 50.000 filas del banco van en una sola
 #: sentencia de ~8 MB, y con las seis columnas de identidad el mismo padrón se acerca
 #: a los 16 MB de ``max_allowed_packet`` que MariaDB trae por defecto (PERF-04).
@@ -194,6 +207,34 @@ class ResumenPadron:
         return "Padrón cargado: " + " · ".join(partes) + "."
 
 
+def _verificar_descomprimido(archivo):
+    """Rechaza el .xlsx cuyo contenido declarado no entra en el techo (SEC-31).
+
+    Lee **solo el índice central** del zip, que trae el tamaño original de cada
+    entrada: no descomprime nada, así que un archivo inflado se corta antes de
+    pagar la memoria. Un archivo que no es un zip no se decide acá —lo informa
+    ``load_workbook`` con el mensaje de siempre—.
+    """
+    import zipfile
+
+    posicion = archivo.tell() if hasattr(archivo, "tell") else 0
+    try:
+        archivo.seek(0)
+        try:
+            with zipfile.ZipFile(archivo) as zf:
+                total = sum(info.file_size for info in zf.infolist())
+        except (zipfile.BadZipFile, OSError, ValueError):
+            return  # no es un zip: el mensaje lo da el parser de Excel
+    finally:
+        archivo.seek(posicion)
+    if total > PADRON_MAX_DESCOMPRIMIDO:
+        raise ValidationError(
+            "El padrón ocupa demasiado al descomprimirse "
+            f"({total // (1024 * 1024)} MB, máximo {PADRON_MAX_DESCOMPRIMIDO // (1024 * 1024)} MB). "
+            "Revisá que el archivo no tenga hojas o formatos de más."
+        )
+
+
 def parsear_padron(archivo):
     """Lee el Excel y devuelve ``(entradas, resumen)``.
 
@@ -214,6 +255,7 @@ def parsear_padron(archivo):
         )
     if getattr(archivo, "size", 0) > PADRON_MAX_BYTES:
         raise ValidationError("El padrón no puede superar los 2 MB.")
+    _verificar_descomprimido(archivo)
 
     from openpyxl import load_workbook
 
@@ -227,7 +269,8 @@ def parsear_padron(archivo):
         hoja = libro.active
         entradas = []
         vistos = set()
-        for indice, fila in enumerate(hoja.iter_rows(min_col=1, max_col=len(COLUMNAS), values_only=True)):
+        filas = hoja.iter_rows(min_col=1, max_col=len(COLUMNAS), max_row=PADRON_MAX_FILAS, values_only=True)
+        for indice, fila in enumerate(filas):
             celdas = (tuple(fila) + (None,) * len(COLUMNAS))[: len(COLUMNAS)]
             crudo_dni, crudo_sexo, crudo_nombre, crudo_apellido, crudo_fecha, crudo_localidad = celdas
             dni = normalizar_dni(crudo_dni)

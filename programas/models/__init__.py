@@ -10,6 +10,18 @@ from django.db import models, transaction
 from django.utils import timezone
 
 from core.models import TimeStamped
+from core.rutas_media import (
+    PREFIJO_ADJUNTO_BECAS as _PREFIJO_ADJUNTO_BECAS,  # con `_`: no son contrato de este módulo (RED-46)
+)
+from core.rutas_media import (
+    PREFIJO_PADRON_BECAS as _PREFIJO_PADRON_BECAS,
+)
+from core.rutas_media import (
+    nombre_opaco,
+    ruta_archivo_admision,
+    ruta_solicitud_merendero,
+)
+from core.validators import validar_adjunto
 from legajos.models import Ciudadano
 from programas.validadores import validar_condicion_json
 
@@ -21,13 +33,16 @@ def ruta_adjunto_becas(instance, filename):
     quedaba en una ruta que se adivina con un diccionario de cien entradas. Con un
     UUID el nombre deja de ser enumerable; el archivo original no aporta nada, la
     trazabilidad la da el ``AdjuntoFormulario``.
+
+    El prefijo sale de ``core.archivos`` porque es lo que ``media_protegida`` usa
+    para saber de quién es el archivo (SEC-09 etapa 2).
     """
-    return f"becas/adjuntos/{timezone.now():%Y/%m}/{uuid.uuid4().hex}{Path(filename).suffix.lower()}"
+    return f"{_PREFIJO_ADJUNTO_BECAS}{timezone.now():%Y/%m}/{nombre_opaco(filename)}"
 
 
 def ruta_padron_becas(instance, filename):
     """Ídem para el Excel del padrón, que es la lista de habilitados completa."""
-    return f"becas/padrones/{uuid.uuid4().hex}{Path(filename).suffix.lower()}"
+    return f"{_PREFIJO_PADRON_BECAS}{nombre_opaco(filename)}"
 
 
 class PausableMixin(models.Model):
@@ -871,7 +886,7 @@ class ArchivoAdmision(TimeStamped):
 
     admision = models.ForeignKey(Admision, on_delete=models.PROTECT, related_name="archivos_f00")
     campo = models.ForeignKey("CampoTipoDispositivo", on_delete=models.PROTECT, related_name="archivos_admisiones")
-    archivo = models.FileField(upload_to="admisiones/f00/")
+    archivo = models.FileField(upload_to=ruta_archivo_admision, validators=[validar_adjunto])
 
     class Meta:
         verbose_name = "Archivo de admisión"
@@ -971,7 +986,8 @@ class SolicitudMerendero(TimeStamped):
     responsable_email = models.EmailField(blank=True, verbose_name="Email del responsable")
     telefono = models.CharField(max_length=40, blank=True, verbose_name="Teléfono")
     documentacion = models.FileField(
-        upload_to="merenderos/solicitudes/%Y/%m/",
+        upload_to=ruta_solicitud_merendero,
+        validators=[validar_adjunto],
         verbose_name="Documentación respaldatoria",
     )
     estado = models.CharField(

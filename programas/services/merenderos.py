@@ -8,6 +8,29 @@ from django.utils import timezone
 
 from programas.models import EntregaMercaderia, Merendero, PrestacionDiaria, PrestacionMensual, SolicitudMerendero
 
+PROGRAMA_MERENDEROS_CODIGO = "MERENDEROS"
+
+
+def programa_merenderos():
+    from programas.models import Programa
+
+    return Programa.objects.filter(codigo=PROGRAMA_MERENDEROS_CODIGO).first()
+
+
+def puede_en_merenderos(user, capacidad):
+    """Evalúa una capacidad de Merenderos acotada a su programa.
+
+    Estaba escrito solo en `views/merenderos.py`; desde SEC-09 etapa 2 también lo
+    necesita `core.views.media` para decidir quién baja la documentación de una
+    solicitud, y una vista no es lugar del que importar un guard (RED-79). Falla
+    cerrado si el programa no está: sin él, `rbac.puede` caería al chequeo global
+    y cualquier rol con `merendero.*` tildada entraría.
+    """
+    from core.rbac import puede
+
+    programa = programa_merenderos()
+    return programa is not None and puede(user, capacidad, programa=programa)
+
 
 def aprobar_solicitud(solicitud, usuario):
     """Aprueba una solicitud documentada y crea una única vez su legajo activo."""
