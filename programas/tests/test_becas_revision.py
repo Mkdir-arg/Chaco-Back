@@ -478,11 +478,19 @@ class ReportesBecasTests(_BaseRevisionTest):
         self.assertEqual(rows[1][0:3], ["1", "Ana Pérez", "70700700"])
 
     def test_coordinador_no_puede_exportar(self):
+        """SEC-06: el export pasa de rechazar con un redirect a hacerlo con **403**.
+
+        El gate dejó de ser ``@requiere`` —que evalúa la capacidad sin alcance y manda al
+        inicio con un mensaje— y pasó a ser ``es_admin_becas`` + ``convocatorias_visibles``,
+        que es el patrón del resto de los guards de alcance de Becas
+        (``assert_alcance_formulario``, ``programa_identificadores_siis``). Lo que no
+        cambia es quién baja el archivo.
+        """
         self.client.force_login(self.coord_a)
 
         response = self.client.get(reverse("becas:convocatoria_export_beneficiarios", args=[self.conv_a.pk]))
 
-        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.status_code, 403)
         self.assertNotIn("attachment", response.headers.get("Content-Disposition", ""))
 
 

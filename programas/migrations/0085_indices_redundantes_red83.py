@@ -31,7 +31,7 @@ from django.db import migrations
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("programas", "0083_sec09_upload_to_uuid"),
+        ("programas", "0084_solicitud_merendero_creado_por"),
     ]
 
     operations = [

@@ -29,7 +29,9 @@ from programas.services.autorizacion import (
     programa_becas,
 )
 
-MODULO = "programas.services.autorizacion"
+#: RED-80: la invalidación vive en la pieza compartida, así que el aviso del cache caído
+#: sale de ahí. ``invalidar_programa_becas`` sigue siendo la fachada que llama el seed.
+MODULO = "programas.services.programa_cache"
 
 
 class _CacheCaido(Exception):

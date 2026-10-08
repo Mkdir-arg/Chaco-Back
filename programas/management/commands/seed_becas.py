@@ -22,7 +22,7 @@ Ejecutar tras ``migrate`` (las capacidades ``becas.*`` se materializan ahí)::
     python manage.py seed_becas
 """
 
-from django.contrib.auth.models import Group, Permission
+from django.contrib.auth.models import Permission
 from django.contrib.contenttypes.models import ContentType
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
@@ -37,7 +37,8 @@ from programas.models import (
     Programa,
     TipoCampo,
 )
-from users.models import Capacidad, RolMeta
+from users.models import Capacidad
+from users.services.roles import asegurar_rol_sembrado
 
 PROGRAMA_BECAS_CODIGO = "BECAS"
 
@@ -49,6 +50,18 @@ ROL_COORDINADOR = "Becas — Coordinador"
 ROL_COORDINADOR_REGIONAL = "Becas — Coordinador Regional"
 ROL_REFERENTE = "Becas — Referente"
 ROL_TERRITORIAL = "Becas — Territorial"
+
+# OPS-06 fase 2: clave estable de cada rol sembrado → nombre con el que nace. Hasta el
+# Cambio 193 el seed los reconocía por ``Group.name``, que el ABM deja renombrar, y un
+# rol renombrado hacía que el arranque siguiente creara **otro** con el nombre canónico.
+# El nombre de acá es el del alta; a un rol que ya existe no se lo renombra.
+CLAVES_ROLES_BECAS = {
+    "becas.administrador": ROL_ADMIN,
+    "becas.coordinador": ROL_COORDINADOR,
+    "becas.coordinador_regional": ROL_COORDINADOR_REGIONAL,
+    "becas.referente": ROL_REFERENTE,
+    "becas.territorial": ROL_TERRITORIAL,
+}
 
 # Capacidades opt-in (Cambio 104): ningún rol las recibe por seed, se encienden
 # tildándolas en la pantalla de Roles, y el seed las **conserva** en los roles que
@@ -337,16 +350,18 @@ def asegurar_catalogo_protegido():
 def asegurar_roles_becas(programa):
     """Crea/asegura los cinco roles del programa con sus capacidades (idempotente).
 
-    Los roles se identifican **solo por nombre** (D-O06). Un rol que falta se crea
-    activo, con su descripción y sus capacidades base. De un rol que ya existe solo se
-    sincronizan las capacidades —quedan exactamente las base del código (Cambio 29)
-    más las opt-in que el administrador le haya tildado (Cambio 104)— y el alcance
-    (categoría Programa sobre Becas). La descripción y el estado activo no se tocan.
+    Los roles se identifican por su **clave estable** (``RolMeta.clave``, OPS-06 fase 2)
+    y solo caen al nombre canónico cuando todavía ninguna fila la tiene. Un rol que
+    falta se crea activo, con su descripción y sus capacidades base. De un rol que ya
+    existe solo se sincronizan las capacidades —quedan exactamente las base del código
+    (Cambio 29) más las opt-in que el administrador le haya tildado (Cambio 104)— y el
+    alcance (categoría Programa sobre Becas). **La descripción, el nombre y el estado
+    activo no se tocan** (D-O06).
 
-    Un rol renombrado desde Roles deja de ser un rol sembrado: el seed no lo toca y
-    crea uno nuevo con el nombre canónico. Reconocerlo exige una clave estable en
-    ``RolMeta`` (fase 2 de OPS-06); adivinarlo por capacidades hacía adoptar —y
-    reescribir— roles creados a mano.
+    Un rol renombrado desde Roles ya no se duplica: la clave lo sigue reconociendo y el
+    nombre nuevo queda. Lo que la clave no puede arreglar hacia atrás es un rol
+    renombrado **antes** de que ``users.0030`` corriera: ese quedó sin clave y el seed
+    crea el canónico, como venía pasando. Es un paso del PM, no del código.
 
     Requiere que las ``Permission`` de las capacidades ``becas.*`` existan (las
     materializa ``migrate`` desde ``Capacidad.Meta.permissions``); por las dudas
@@ -364,14 +379,15 @@ def asegurar_roles_becas(programa):
 
     opt_in = [rbac.codename_de(c) for c in CAPACIDADES_OPT_IN]
 
-    for nombre, cfg in ROLES_BECAS.items():
-        group, _ = Group.objects.get_or_create(name=nombre)
+    for clave, nombre in CLAVES_ROLES_BECAS.items():
+        cfg = ROLES_BECAS[nombre]
         # Descripción, protegido y activo solo al crear la RolMeta: si existe, son del
         # ABM. La categoría y el programa sí se alinean, como las capacidades base: sin
         # ellos las capacidades becas.* no se evalúan contra el Programa Becas.
-        meta, _ = RolMeta.objects.get_or_create(
-            grupo=group,
-            defaults={
+        group, meta, _ = asegurar_rol_sembrado(
+            clave,
+            nombre,
+            {
                 "descripcion": cfg["descripcion"],
                 "categoria": rbac.CATEGORIA_PROGRAMA,
                 "protegido": False,

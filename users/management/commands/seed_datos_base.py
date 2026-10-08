@@ -19,8 +19,10 @@ Hace, sin duplicar nada al repetirse:
 3. Crea los **roles de menú** (uno por sección del sidebar) con sus
    capacidades y RolMeta. Solo al crearlos: si el rol ya existe no se le
    tocan las capacidades, para respetar lo editado desde el ABM de Roles.
-   La sección Becas no tiene rol de menú: sus roles son los de programa
-   que crea ``seed_becas``.
+   Se identifican por su ``RolMeta.clave`` (``asegurar_rol_sembrado``), así que
+   renombrar uno desde el ABM no hace que el arranque siguiente cree un
+   duplicado con el nombre canónico. La sección Becas no tiene rol de menú:
+   sus roles son los de programa que crea ``seed_becas``.
 4. Carga los catálogos base (sexo, día, mes, localidades) solo si la tabla
    correspondiente está vacía.
 
@@ -36,22 +38,31 @@ from django.core.management import call_command
 from django.core.management.base import BaseCommand
 
 from core import rbac
-from users.models import Capacidad, RolMeta
+from users.models import Capacidad
+from users.services.roles import asegurar_rol_sembrado
 
 # Grupos que el código referencia por nombre (sin capacidades propias).
 _GRUPOS_FUNCIONALES = ["Responsable", rbac.GRUPO_CIUDADANO_PORTAL]
 
-# Roles de menú: (nombre, categoría, descripción, capacidades).
+# Roles de menú: (clave estable, nombre, categoría, descripción, capacidades).
 # Un rol por sección del sidebar; "Inicio" no necesita rol (lo ve cualquier
 # usuario autenticado del backoffice).
+#
+# La **clave** es lo que identifica al rol (OPS-06 fase 2): el nombre lo deja
+# renombrar el ABM, y sin clave el arranque siguiente creaba un segundo rol con el
+# nombre canónico al lado del que la gente usa. Estos cinco se sumaron en la ronda 2
+# del Cambio 193 —la fase 2 cubría solo los siete de `seed_rbac` y `seed_becas`— y su
+# backfill es `users.0032`.
 _ROLES_MENU = [
     (
+        "menu.dashboard",
         "Dashboard",
         rbac.CATEGORIA_BACKOFFICE,
         "Acceso a la sección Dashboard.",
         ["dashboard.ver"],
     ),
     (
+        "menu.ciudadanos",
         "Gestión de Ciudadanos",
         rbac.CATEGORIA_BACKOFFICE,
         "Acceso completo a la sección Ciudadanos (legajos).",
@@ -68,18 +79,21 @@ _ROLES_MENU = [
         ],
     ),
     (
+        "menu.reportes",
         "Reportes",
         rbac.CATEGORIA_BACKOFFICE,
         "Acceso a la sección Reportes.",
         ["reporte.ver"],
     ),
     (
+        "menu.configuracion",
         "Configuración",
         rbac.CATEGORIA_SISTEMA,
         "Acceso a la sección Configuración.",
         ["config.ver", "config.administrar"],
     ),
     (
+        "menu.administracion",
         "Administración",
         rbac.CATEGORIA_SISTEMA,
         "Acceso a la sección Administración (usuarios y roles).",
@@ -116,18 +130,18 @@ class Command(BaseCommand):
 
         self.stdout.write(self.style.MIGRATE_LABEL("Roles de menú..."))
         ct = ContentType.objects.get_for_model(Capacidad)
-        for nombre, categoria, descripcion, capacidades in _ROLES_MENU:
-            group, created = Group.objects.get_or_create(name=nombre)
+        for clave, nombre, categoria, descripcion, capacidades in _ROLES_MENU:
+            group, _meta, created = asegurar_rol_sembrado(
+                clave,
+                nombre,
+                {"descripcion": descripcion, "categoria": categoria, "activo": True},
+            )
             if created:
                 perms = Permission.objects.filter(
                     content_type=ct, codename__in=[rbac.codename_de(c) for c in capacidades]
                 )
                 group.permissions.set(perms)
-            RolMeta.objects.get_or_create(
-                grupo=group,
-                defaults={"descripcion": descripcion, "categoria": categoria, "activo": True},
-            )
-            self.stdout.write(("  ✓ " if created else "  · ") + f"{nombre} ({len(capacidades)} capacidades)")
+            self.stdout.write(("  ✓ " if created else "  · ") + f"{group.name} ({len(capacidades)} capacidades)")
 
         self.stdout.write(self.style.MIGRATE_LABEL("Catálogos base..."))
         for model_label, fixture in _CATALOGOS:

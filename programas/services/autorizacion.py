@@ -18,6 +18,7 @@ from django.core.exceptions import ObjectDoesNotExist, PermissionDenied
 
 from core import rbac
 from programas.services.becas import coordinador_gestiona_segmento, get_segmentos_coordinador
+from programas.services.programa_cache import clave_de, invalidar_programa, programa_por_codigo
 
 logger = logging.getLogger(__name__)
 
@@ -47,74 +48,24 @@ CAPS_GESTION = _caps_gestion()
 
 # Programa genérico que ancla el alcance del RBAC de Becas (sembrado por seed_becas).
 PROGRAMA_BECAS_CODIGO = "BECAS"
-_PROGRAMA_BECAS_CACHE_KEY = "programas:becas"
-
-
-#: Centinela del memo por request (distingue "no memoizado" de "memoizado como None").
-_CACHE_MISS = object()
+#: Se conserva como nombre público: lo importan los tests que miden la invalidación.
+#: La clave la deriva ``programa_cache.clave_de`` a partir del código (RED-80).
+_PROGRAMA_BECAS_CACHE_KEY = clave_de(PROGRAMA_BECAS_CODIGO)
 
 
 def programa_becas(user=None):
     """Instancia genérica del Programa Becas, o None si no está sembrada.
 
-    Se consulta en casi todos los checks de autorización de Becas, así que se
-    cachea 5 minutos. Solo se cachea cuando existe (cachear el None rompería
-    los tests que siembran el programa después de la primera consulta).
-
-    Con ``user``, además memoiza en el propio objeto durante la request: una sola
-    pantalla llegaba a pedir la misma clave siete veces, y en producción cada una es
-    una ida y vuelta a Redis más el despickle del Programa. El memo muere con la
-    request, así que ``cache.clear()`` de los tests y el ``cache.delete`` del seed
-    siguen surtiendo efecto (mismo patrón que ``programa_dispositivos``).
+    Fachada sobre :func:`programas.services.programa_cache.programa_por_codigo`, que es
+    la pieza única desde RED-80 (antes había una copia acá y otra en ``dispositivos``,
+    con distinta invalidación).
     """
-    from django.core.cache import cache
-
-    from programas.models import Programa
-
-    if user is not None:
-        memo = getattr(user, "_programa_becas_cache", _CACHE_MISS)
-        if memo is not _CACHE_MISS:
-            return memo
-
-    programa = cache.get(_PROGRAMA_BECAS_CACHE_KEY)
-    if programa is None:
-        programa = Programa.objects.filter(codigo=PROGRAMA_BECAS_CODIGO).first()
-        if programa is not None:
-            cache.set(_PROGRAMA_BECAS_CACHE_KEY, programa, 300)
-    if user is not None:
-        user._programa_becas_cache = programa
-    return programa
+    return programa_por_codigo(PROGRAMA_BECAS_CODIGO, user=user)
 
 
 def invalidar_programa_becas():
-    """Borra la clave cacheada del Programa Becas. **No falla si el cache no responde.**
-
-    La llama `seed_becas`, que corre en el **arranque del contenedor**, antes de que nadie
-    pueda usar el sistema. Desde OPS-12 los dos ambientes servidos usan Redis, así que un
-    Redis inalcanzable hacía que el `cache.delete` incondicional terminara el bootstrap en
-    exit 1 (`ConnectionInterrupted`) y el pod quedara en CrashLoopBackOff: un cache caído
-    pasaba a impedir el **arranque**, no solo a degradar el servicio.
-
-    Que la invalidación sea *best-effort* es correcto y acotado: lo peor que queda es que
-    otro proceso —uno que sí llegue al cache— siga viendo el `Programa` anterior hasta que
-    venza su TTL de 300 s. No se toca `programa_becas()`: ahí un cache caído **sí** tiene
-    que fallar fuerte, porque es un ambiente sirviendo tráfico con la infraestructura rota
-    y taparlo sería esconder una caída real.
-
-    Se atrapa `Exception` a propósito: el cliente de Redis traduce la falla a su propia
-    jerarquía (`redis.exceptions.*`, que `django_redis` re-lanza) y acá no se quiere
-    acoplar el seed a los tipos de un backend concreto.
-    """
-    from django.core.cache import cache
-
-    try:
-        cache.delete(_PROGRAMA_BECAS_CACHE_KEY)
-    except Exception as excepcion:  # noqa: BLE001 — ver el docstring
-        logger.warning(
-            "No se pudo invalidar la clave %s en el cache (%s): el arranque sigue y la clave vence sola en 300 s.",
-            _PROGRAMA_BECAS_CACHE_KEY,
-            type(excepcion).__name__,
-        )
+    """Borra la clave cacheada del Programa Becas (la llama ``seed_becas``)."""
+    invalidar_programa(PROGRAMA_BECAS_CODIGO)
 
 
 def _programa_o_denegar(user, programa=None):

@@ -50,6 +50,24 @@ class RolMeta(models.Model):
     """
 
     grupo = models.OneToOneField(Group, on_delete=models.CASCADE, related_name="meta", verbose_name="Rol")
+    # OPS-06 fase 2: identificador **estable** de los roles que siembra el arranque.
+    # Los seeds los buscaban por ``Group.name``, que el ABM deja renombrar: renombrar
+    # «Becas — Coordinador» hacía que el arranque siguiente creara un segundo rol con
+    # el nombre canónico, vacío de usuarios y con todas las capacidades. Con la clave,
+    # el seed reconoce el rol renombrado y lo respeta.
+    #
+    # Nula para todo rol creado desde el ABM: solo la llevan los sembrados. Es única
+    # —MySQL y MariaDB admiten varios NULL en un índice único— así que dos roles no
+    # pueden disputarse la misma identidad.
+    clave = models.CharField(
+        max_length=50,
+        null=True,
+        blank=True,
+        unique=True,
+        editable=False,
+        verbose_name="Clave del rol sembrado",
+        help_text="Identificador estable de los roles que crea el arranque. Vacío en los roles creados a mano.",
+    )
     descripcion = models.TextField(blank=True, default="", verbose_name="Descripción")
     categoria = models.CharField(
         max_length=20,
@@ -84,6 +102,44 @@ class RolMeta(models.Model):
 
     def __str__(self):
         return self.grupo.name
+
+
+class CapacidadRevocada(models.Model):
+    """Capacidad que una migración le **quitó** a un rol, con su motivo.
+
+    Existe para que una migración de datos que revoca accesos tenga **reversa real**:
+    desaplicarla no puede «recalcular» lo que borró, porque el dato ya no está. Acá
+    queda la fila exacta (rol, codename) que se quitó, así que la reversa restituye lo
+    mismo y no una aproximación.
+
+    Es además el registro que el PM puede leer después del deploy para contestar «¿a
+    quién le sacó qué este release?» sin depender de que alguien haya guardado el log
+    del contenedor. Las filas las borra la reversa; si la migración no se revierte,
+    quedan como historia.
+    """
+
+    grupo = models.ForeignKey(
+        Group,
+        on_delete=models.CASCADE,
+        related_name="capacidades_revocadas",
+        verbose_name="Rol",
+    )
+    codename = models.CharField(max_length=100, verbose_name="Capacidad (codename)")
+    migracion = models.CharField(max_length=100, verbose_name="Migración que la quitó")
+    creado = models.DateTimeField(auto_now_add=True, verbose_name="Creado")
+
+    class Meta:
+        verbose_name = "Capacidad revocada por una migración"
+        verbose_name_plural = "Capacidades revocadas por migraciones"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["grupo", "codename", "migracion"],
+                name="users_capacidadrevocada_unica",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.grupo_id}:{self.codename} ({self.migracion})"
 
 
 class Capacidad(models.Model):

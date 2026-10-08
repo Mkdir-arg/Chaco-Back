@@ -6,12 +6,12 @@
 {% block main-content %}
 {% url 'configuracion:programas' as url_sin_filtros %}
 {% url 'configuracion:programa_wizard_paso1' as url_crear %}
-{% comment %}Sin `programa.configurar` el estado vacío no ofrece el alta (como el encabezado).{% endcomment %}
-{% if puede_editar %}{% url 'configuracion:programa_wizard_paso1' as url_alta %}{% endif %}
+{% comment %}Sin `programa.configurar` en un rol global el estado vacío no ofrece el alta (como el encabezado).{% endcomment %}
+{% if puede_crear %}{% url 'configuracion:programa_wizard_paso1' as url_alta %}{% endif %}
 <div class="space-y-6">
 
     {% page_header titulo="Programas" bajada="Administrá los programas sociales registrados en el sistema." %}
-      {% if puede_editar %}
+      {% if puede_crear %}
       <a href="{{ url_crear }}" class="btn-nodo btn-brand btn-base">
         <i class="fas fa-plus" aria-hidden="true"></i> Nuevo programa
       </a>
@@ -47,7 +47,7 @@
                         <th class="nodo-th">Subsecretaría</th>
                         <th class="nodo-th">Naturaleza</th>
                         <th class="nodo-th">Estado</th>
-                        {% if puede_editar %}
+                        {% if puede_editar_alguno %}
                         <th class="nodo-th text-right"><span class="sr-only">Acciones</span></th>
                         {% endif %}
                     </tr>
@@ -84,8 +84,10 @@
                             <span class="badge badge-gray badge-dot">Inactivo</span>
                             {% endif %}
                         </td>
-                        {% if puede_editar %}
+                        {% comment %}SEC-07: la celda sigue a la columna (si no, la fila queda corta) y las acciones, al alcance de la fila.{% endcomment %}
+                        {% if puede_editar_alguno %}
                         <td class="nodo-td text-right">
+                            {% if programa.puede_editar %}
                             <div class="inline-flex items-center gap-1">
                                 <a href="{% url 'configuracion:programa_editar_paso1' programa.pk %}"
                                    class="nodo-icon-btn" aria-label="Editar {{ programa.nombre }}">
@@ -108,6 +110,7 @@
                                 </button>
                                 {% endif %}
                             </div>
+                            {% endif %}
                         </td>
                         {% endif %}
                     </tr>

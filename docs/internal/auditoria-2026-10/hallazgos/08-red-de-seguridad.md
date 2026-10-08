@@ -119,7 +119,7 @@ con lo que existe hoy; la lista solo baja.
 | RED-77 | RN-2 del padrón escrita dos veces: property y filtro de queryset | BAJA | CONF. lectura | R | S | ✅ |
 | RED-78 | `DashboardView`: copia del inicio sin el blindaje de SEC-14, muerta solo por el orden de URLs | BAJA | CONF. test (`resolve`) | R (+7) | S (+S) | ✅ (R; falta Ola 7) |
 | RED-79 | Tres ciclos de import y nueve aristas vista→vista sin ratchet | BAJA | CONF. test (AST) | R (+2) | S (+S) | ✅ |
-| RED-80 | `programa_becas` y `programa_dispositivos`: mismo cache, distinta guarda e invalidación | BAJA | CONF. lectura | 2 | S | ⬜ |
+| RED-80 | `programa_becas` y `programa_dispositivos`: mismo cache, distinta guarda e invalidación | BAJA | CONF. lectura | 2 | S | ✅ |
 | RED-81 | El registro de reglas de vencimiento puede quedar vacío y el comando sale OK | BAJA | CONF. lectura | R | S | ✅ |
 | RED-82 | `exportacion_reportes.py` con terminadores CR: git lo trata como binario y pylint lo saltea | BAJA | CONF. test | R | S | ✅ |
 | RED-83 | Índices duplicados en `programas_formulario` y `legajos_ciudadano` | BAJA | CONF. test (`information_schema`) | R (+4) | S (+S) | ✅ |
@@ -1912,6 +1912,22 @@ ese motivo.
   dos seeds (Becas ya falla cerrado con RED-56). Test `programas/tests/test_dispositivos_config.py::CacheProgramaTests.
   test_el_seed_invalida_las_dos_claves`.
 
+**Resolución:** ✅ Resuelta en #646 (Cambio 193, Ola 2 PR 1), 08-oct-2026 —
+`programas/services/programa_cache.py` es la pieza única: `clave_de(codigo)` (que **deriva** las dos claves históricas,
+`programas:becas` y `programas:dispositivos`, así que una base con Redis vivo no pierde lo cacheado el día del deploy),
+`programa_por_codigo(codigo, user=None)` con el memo por request —ahora un dict por código en vez de dos atributos— y
+`invalidar_programa(codigo)` *best-effort*, con el mismo tratamiento del cache caído que tenía Becas (OPS-12: un Redis
+inalcanzable no puede dejar el pod en CrashLoopBackOff). `programa_becas` e `invalidar_programa_becas` quedan como
+fachadas, y `programa_dispositivos` también.
+**Desvío de la ficha, code-first:** el test que pedía —«el seed invalida las dos claves»— no se puede escribir, porque
+**no hay seed de Dispositivos**: `crear_programas` solo crea Becas y la fila `DISPOSITIVOS` se carga desde
+Configuración. Así que la invalidación se enganchó donde un `Programa` **de verdad se escribe**, que es el wizard
+(`programa_editar_paso4` y `programa_cambiar_estado`), y ahí está además el caso que la ficha no contemplaba: el paso 1
+deja **cambiar el código**, así que se invalidan la clave vieja y la nueva. Eso cubre el escenario de la ficha mejor que
+el seed: un restore que recrea la fila con otro pk sigue dependiendo del TTL de 300 s —nadie puede invalidar una clave
+por un cambio hecho fuera de la aplicación—, pero todo cambio hecho **desde el producto** se invalida ya.
+**Test permanente:** `programas.tests.test_programa_cache` (7).
+
 ### RED-81 · El registro de reglas de vencimiento puede quedar vacío y el comando sale OK
 **Severidad:** BAJA · **Estado:** CONFIRMADO (lectura; tras `django.setup()` `REGLAS` = `['becas.convocatoria', 'becas.relevamiento']`) · **Origen:** RS-R4-19 (VR2: CONFIRMADO) · **Ola:** R · **Esfuerzo:** S (2 h)
 - **Ubicación:** `core/services/vencimientos.py:40-50` (`REGLAS` global), `programas/apps.py:9-12` (`ready()` importa
@@ -2190,7 +2206,7 @@ puede medir desde el host sin parsear el plan entero. **Test permanente:** `core
   por par (`DROP INDEX` secundario es `INPLACE`/`LOCK=NONE`).
 
 **Resolución:** ✅ (segunda parte, la migración) Resuelta en #648 (Cambio 194, Ola 4 PR 9), 08-10-2026 —
-`legajos.0011_indices_redundantes_red83` y `programas.0084_indices_redundantes_red83` sacan los **cinco** pares
+`legajos.0011_indices_redundantes_red83` y `programas.0085_indices_redundantes_red83` sacan los **cinco** pares
 medidos, con la forma que pedía la ficha: `RemoveIndex` para los dos duplicados declarados en `Meta.indexes`
 (`dni`, `email`) y `AlterField` sin `db_index` para los dos de columna (`activo`, `apellido`), más el `RemoveIndex` de
 `estado` en `Formulario`. El ratchet baja de **26** a **21**; los que quedan son el mismo defecto en tablas chicas,
