@@ -212,6 +212,7 @@ templates de Configuración (`*_form`, `*_confirm_delete` y los cuatro pasos del
 páginas de error 403/404/500— al shell del backoffice y lo borró. La regla `[R:SHELLLEGACY]` de
 `scripts/design_audit.py` queda como guarda: si alguien vuelve a escribir ese `{% extends %}`, falla.
 
-Sus parciales `templates/components/alertas_eventos.html` y
-`templates/components/widget_contactos.html` siguen vivos y pertenecen a ese mundo: no se incluyen
-en pantallas nuevas (el segundo lo retira LEG-06).
+Su parcial `templates/components/alertas_eventos.html` sigue vivo y pertenece a ese mundo: no se
+incluye en pantallas nuevas. `templates/components/widget_contactos.html`, que lo acompañaba, lo
+retiró LEG-06 (Ola 7, Cambio 195): su único consumidor era `dashboard/templates/dashboard.html` —una
+pantalla tapada por el orden del URLconf— y pedía cada 5 minutos una vista sin ruta.
