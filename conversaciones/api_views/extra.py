@@ -1,7 +1,9 @@
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
+
+from core.api_permissions import BackofficeAutenticado
 
 from ..models import Conversacion
 from ..selectors.conversaciones import get_conversacion_api_detalle, usuario_tiene_permiso_conversaciones
@@ -9,6 +11,7 @@ from ..selectors.conversaciones import get_conversacion_api_detalle, usuario_tie
 
 @login_required
 @api_view(["GET"])
+@permission_classes([BackofficeAutenticado])
 def conversacion_detalle(request, conversacion_id):
     """Devuelve datos minimos de una conversacion para actualizar la lista en vivo"""
     if not usuario_tiene_permiso_conversaciones(request.user):

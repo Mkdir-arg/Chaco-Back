@@ -2,6 +2,7 @@
 
 import csv
 from datetime import date
+from decimal import Decimal
 from io import StringIO
 from unittest.mock import patch
 
@@ -2091,3 +2092,44 @@ class PantallaEnvioSiisTests(_BaseRevisionTest):
             Formulario.objects.filter(pk=self.form_a.pk).update(estado=Formulario.Estado.APROBADO)
             self.client.post(url)
             self.assertEqual(validar.call_count, 1)
+
+
+class MapaDelCasoTests(_BaseRevisionTest):
+    """SEC-33 · El mapa del caso no se carga solo.
+
+    Abrir un caso con GPS mandaba las coordenadas exactas del domicilio de la
+    persona a OpenStreetMap —con la IP del backoffice y el `Referer` de la
+    pantalla— en **cada** apertura, la mirara alguien o no. El dato sigue
+    disponible: lo pide quien lo necesita, y sin `Referer`.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.form_a.gps_lat = Decimal("-27.451000")
+        self.form_a.gps_lng = Decimal("-58.986800")
+        self.form_a.save(update_fields=["gps_lat", "gps_lng"])
+        self.client.force_login(self.admin)
+
+    def _detalle(self):
+        return self.client.get(reverse("becas:formulario_detalle", args=[self.form_a.pk]))
+
+    def test_abrir_el_caso_no_pide_nada_a_openstreetmap(self):
+        html = self._detalle().content.decode()
+
+        # El espacio de adelante es lo que distingue el `src` de verdad —el que
+        # dispara el pedido— del `data-src`, que es un dato inerte.
+        self.assertNotIn(' src="https://www.openstreetmap.org/export/embed.html', html)
+        self.assertIn('data-src="https://www.openstreetmap.org/export/embed.html', html)
+
+    def test_el_iframe_no_manda_referer(self):
+        self.assertContains(self._detalle(), 'referrerpolicy="no-referrer"')
+
+    def test_la_pantalla_ofrece_verlo(self):
+        self.assertContains(self._detalle(), 'id="ver-mapa"')
+
+    def test_un_caso_sin_gps_sigue_diciendo_que_no_hay(self):
+        self.form_a.gps_lat = None
+        self.form_a.gps_lng = None
+        self.form_a.save(update_fields=["gps_lat", "gps_lng"])
+
+        self.assertContains(self._detalle(), "no tiene coordenadas GPS")
