@@ -6,7 +6,9 @@ fixtures. Cada clase nombra su ficha:
 * **G1-11** — el alta a SIIS calculaba el CUIL por módulo 11 **siempre**, aunque
   el caso trajera el CUIL emitido (campo «Cuit Alumno» del catálogo, que
   ``completar_casos_renaper`` completa desde ``ciudadanos_renaper``). Un ``23-…``
-  real viajaba como ``20-…``, y el alta en SIIS no tiene baja.
+  real viajaba como ``20-…``, y el alta en SIIS no tiene baja. El real se usa
+  solo si es de ese DNI **y es un CUIL válido** (prefijo de la AFIP y
+  verificador por módulo 11): uno mal tipeado no puede pisar al calculado.
 * **G1-12** — el padrón aceptaba fechas de nacimiento futuras o absurdas
   (``05/06/30`` → 2030 por el pivote de ``%y``; el serial 0 de Excel →
   1899-12-30) y el cruce las **escribía en el legajo**.
@@ -24,9 +26,11 @@ fixtures. Cada clase nombra su ficha:
 
 import uuid
 from datetime import date, timedelta
+from io import StringIO
 from unittest.mock import Mock, patch
 
 from django.contrib.auth.models import User
+from django.core.management import call_command
 from django.db import connection
 from django.test import SimpleTestCase, TestCase
 from django.urls import reverse
@@ -47,13 +51,22 @@ from programas.services import personas as personas_mod
 from programas.services.avisos_resolucion import CAMPO_TRAZA_AVISO, enviar_aviso_resolucion, resultado_vigente
 from programas.services.becas import relevamiento_publico_por_token
 from programas.services.siis_envio import (
+    CUIL_DE_OTRO_DOCUMENTO,
+    CUIL_INVALIDO,
+    CUIL_SIN_DATO,
+    CUIL_USABLE,
+    PREFIJOS_CUIL,
     TEXTO_CUIL_APODERADO,
     TEXTO_CUIL_TITULAR,
+    armar_payload,
     calcular_cuil,
     clave_nombre,
     cuil_del_caso,
+    cuil_valido,
+    evaluar_cuil_respondido,
 )
 from programas.tests.test_becas_revision import _BaseAvisoResolucionTest
+from programas.tests.test_siis_que_viaja import _ConFoto
 
 
 class _BaseBecas(TestCase):
@@ -113,17 +126,43 @@ class CuilRealDelCasoTests(_BaseCuil):
     def test_el_cuil_real_de_ese_dni_le_gana_al_calculado(self):
         """El hallazgo: un 23-… emitido viajaba como 20-… / 27-…."""
         calculado = calcular_cuil(self.DNI, "F")
-        real = f"23{self.DNI}4"
+        real = f"23{self.DNI}2"
+        self.assertTrue(cuil_valido(real))
         self.assertNotEqual((int(real[:2]), int(real[-1])), calculado)
 
         caso = self._caso(respondido=real)
 
-        self.assertEqual(cuil_del_caso(caso, self.DNI, "F", TEXTO_CUIL_TITULAR), (23, 4))
+        self.assertEqual(cuil_del_caso(caso, self.DNI, "F", TEXTO_CUIL_TITULAR), (23, 2))
 
     def test_un_cuil_de_otro_documento_no_se_usa(self):
         caso = self._caso(respondido="23999999994")
 
         self.assertEqual(cuil_del_caso(caso, self.DNI, "F", TEXTO_CUIL_TITULAR), calcular_cuil(self.DNI, "F"))
+
+    def test_un_cuil_valido_de_otro_documento_tampoco(self):
+        """Que el CUIL sea válido no alcanza: tiene que ser de esta persona."""
+        otro = "31234567"
+        prefijo, digito = calcular_cuil(otro, "F")
+        de_otro = f"{prefijo:02d}{otro}{digito}"
+        self.assertTrue(cuil_valido(de_otro))
+        caso = self._caso(respondido=de_otro)
+
+        self.assertEqual(cuil_del_caso(caso, self.DNI, "F", TEXTO_CUIL_TITULAR), calcular_cuil(self.DNI, "F"))
+
+    def test_un_cuil_de_ese_dni_con_el_verificador_roto_no_se_usa(self):
+        """El de la revisión: 27-<DNI>-9 salía como (27, 9); el verificador es 8."""
+        self.assertEqual(calcular_cuil(self.DNI, "F"), (27, 8))
+        for roto in (f"27{self.DNI}9", f"23{self.DNI}4"):
+            with self.subTest(respondido=roto):
+                caso = self._caso(respondido=roto)
+                self.assertEqual(cuil_del_caso(caso, self.DNI, "F", TEXTO_CUIL_TITULAR), (27, 8))
+
+    def test_un_cuil_de_ese_dni_con_un_prefijo_imposible_no_se_usa(self):
+        """99-… no lo asigna la AFIP, aunque el módulo 11 cierre (con 9 cierra)."""
+        for imposible in (f"99{self.DNI}9", f"99{self.DNI}1", f"21{self.DNI}0"):
+            with self.subTest(respondido=imposible):
+                caso = self._caso(respondido=imposible)
+                self.assertEqual(cuil_del_caso(caso, self.DNI, "F", TEXTO_CUIL_TITULAR), (27, 8))
 
     def test_un_cuil_incompleto_o_vacio_no_se_usa(self):
         for respondido in ("", "2730123456", "no sé", None):
@@ -133,10 +172,10 @@ class CuilRealDelCasoTests(_BaseCuil):
 
     def test_el_cuil_entra_con_guiones_o_como_numero(self):
         """`completar_casos_renaper` lo guarda como int; a mano llega con guiones."""
-        for respondido in (f"27-{self.DNI}-3", int(f"27{self.DNI}3")):
+        for respondido in (f"23-{self.DNI}-2", int(f"23{self.DNI}2")):
             with self.subTest(respondido=respondido):
                 caso = self._caso(respondido=respondido)
-                self.assertEqual(cuil_del_caso(caso, self.DNI, "F", TEXTO_CUIL_TITULAR), (27, 3))
+                self.assertEqual(cuil_del_caso(caso, self.DNI, "F", TEXTO_CUIL_TITULAR), (23, 2))
 
     def test_un_caso_sin_foto_sigue_calculando(self):
         """Los casos anteriores a la foto no declaran sus campos: no hay de dónde leer."""
@@ -147,7 +186,7 @@ class CuilRealDelCasoTests(_BaseCuil):
         self.assertEqual(cuil_del_caso(caso, self.DNI, "F", TEXTO_CUIL_TITULAR), calcular_cuil(self.DNI, "F"))
 
     def test_el_campo_del_apoderado_no_se_confunde_con_el_del_titular(self):
-        caso = self._caso(respondido=f"23{self.DNI}4")
+        caso = self._caso(respondido=f"23{self.DNI}2")
 
         self.assertEqual(cuil_del_caso(caso, self.DNI, "F", TEXTO_CUIL_APODERADO), calcular_cuil(self.DNI, "F"))
 
@@ -164,16 +203,146 @@ class CuilEnElPayloadTests(_BaseCuil):
     """El payload que viaja a SIIS, no solo el helper."""
 
     def test_el_payload_lleva_el_cuil_real(self):
-        from programas.services.siis_envio import armar_payload
-
-        caso = self._caso(respondido=f"23{self.DNI}4")
+        caso = self._caso(respondido=f"23{self.DNI}2")
         caso.ciudadano.fecha_nacimiento = date(1990, 5, 4)
         caso.ciudadano.save(update_fields=["fecha_nacimiento"])
 
         payload, _ = armar_payload(caso, Mock(estado_civil_id=lambda *a, **k: None))[:2]
 
         self.assertEqual(payload["cuil_pref"], 23)
-        self.assertEqual(payload["cuil_dig"], 4)
+        self.assertEqual(payload["cuil_dig"], 2)
+
+
+class CuilValidoTests(SimpleTestCase):
+    """La regla que decide si el CUIL respondido puede pisar al calculado."""
+
+    def test_todo_cuil_que_calcula_el_alta_es_valido(self):
+        """Mismo verificador: lo que calcula ``calcular_cuil`` siempre valida.
+
+        Incluye el caso especial de la AFIP: 20301234 (M) da 10 con prefijo 20 y
+        sale ``23-…-9``; 30123407 (F) da 10 con prefijo 27 y sale ``23-…-4``.
+        """
+        self.assertEqual(calcular_cuil("20301234", "M"), (23, 9))
+        self.assertEqual(calcular_cuil("30123407", "F"), (23, 4))
+        for dni in [str(n) for n in range(30123400, 30123500)] + ["20301234", "7123456"]:
+            for sexo in ("M", "F"):
+                prefijo, digito = calcular_cuil(dni, sexo)
+                with self.subTest(dni=dni, sexo=sexo):
+                    self.assertTrue(cuil_valido(f"{prefijo:02d}{dni.zfill(8)}{digito}"))
+
+    def test_el_verificador_roto_no_es_valido(self):
+        self.assertTrue(cuil_valido("27301234568"))
+        for digito in "012345679":
+            with self.subTest(digito=digito):
+                self.assertFalse(cuil_valido(f"2730123456{digito}"))
+
+    def test_un_prefijo_que_no_asigna_la_afip_no_es_valido(self):
+        self.assertEqual(PREFIJOS_CUIL, {20, 23, 24, 27, 30, 33, 34})
+        self.assertFalse(cuil_valido("99301234569"))  # el módulo 11 cierra, el prefijo no existe
+
+    def test_un_verificador_que_da_diez_no_es_valido(self):
+        """20301234 con prefijo 20 da 10: ese CUIL no se emite (sale 23-…-9)."""
+        for digito in "0123456789":
+            with self.subTest(digito=digito):
+                self.assertFalse(cuil_valido(f"2020301234{digito}"))
+
+    def test_largo_y_formato(self):
+        self.assertTrue(cuil_valido("27-30123456-8"))
+        self.assertTrue(cuil_valido(27301234568))
+        for raro in ("", None, "2730123456", "273012345688"):
+            with self.subTest(valor=raro):
+                self.assertFalse(cuil_valido(raro))
+
+    def test_la_evaluacion_separa_las_cuatro_situaciones(self):
+        dni = "30123456"
+        self.assertEqual(evaluar_cuil_respondido(f"23{dni}2", dni), CUIL_USABLE)
+        self.assertEqual(evaluar_cuil_respondido(f"27{dni}9", dni), CUIL_INVALIDO)
+        self.assertEqual(evaluar_cuil_respondido(f"99{dni}9", dni), CUIL_INVALIDO)
+        self.assertEqual(evaluar_cuil_respondido("27312345671", dni), CUIL_DE_OTRO_DOCUMENTO)
+        self.assertEqual(evaluar_cuil_respondido("2730123456", dni), CUIL_SIN_DATO)
+
+
+class CuilEnElPayloadCompletoTests(_ConFoto):
+    """El contrato completo de ``test_siis_que_viaja``, con un CUIL real en el caso.
+
+    Compara el dict entero y no solo ``cuil_pref``/``cuil_dig``: preferir el real
+    no puede mover ningún otro campo de lo que viaja.
+    """
+
+    ESPERADO = {
+        "dni": 20301234,
+        "tdoc": 1,
+        "apellido": "PEREZ",
+        "nombre": "JUAN CARLOS",
+        "sexo": "M",
+        "est_civil": 1,
+        "prov_nacim": 22,
+        "fecha_nacim": "1995-06-15",
+        "loc_nacim": 1,
+        "celular": 3624123456,
+        "prov_actual": 22,
+        "loc_actual": 1,
+        "barrio_actual": "BARRIO CENTRO",
+        "calle_actual": "AV. 9 DE JULIO",
+        "nro_actual": 450,
+        "piso_actual": 2,
+        "dpto_actual": "B",
+        "correo_electron": "juan.perez@email.com",
+        "jurid": 28,
+        "id_plan_soc": 79,
+        "id_fun_x_plan": 4,
+    }
+
+    def setUp(self):
+        super().setUp()
+        self.cuit = RequisitoNativo.objects.create(texto="Cuit Alumno", tipo="INTEGER", segmento=self.segmento, orden=1)
+        self._sacar_foto()
+
+    def _responder_cuil(self, valor):
+        self.formulario.data["requisitos"][str(self.cuit.pk)] = valor
+        self.formulario.save(update_fields=["data"])
+        return armar_payload(self.formulario, catalogos=self.cat, hoy=date(2026, 9, 14))
+
+    def test_un_cuil_real_valido_distinto_del_calculado_viaja_entero(self):
+        # 20301234 (M) calcula 23-…-9; 24-20301234-5 es un CUIL válido de ese DNI.
+        self.assertEqual(calcular_cuil("20301234", "M"), (23, 9))
+        self.assertTrue(cuil_valido("24203012345"))
+
+        payload, faltantes = self._responder_cuil("24-20301234-5")
+
+        self.assertEqual(faltantes, {})
+        self.assertEqual(payload, {**self.ESPERADO, "cuil_pref": 24, "cuil_dig": 5})
+
+    def test_un_cuil_real_roto_deja_el_payload_de_siempre(self):
+        payload, faltantes = self._responder_cuil("24-20301234-6")
+
+        self.assertEqual(faltantes, {})
+        self.assertEqual(payload, {**self.ESPERADO, "cuil_pref": 23, "cuil_dig": 9})
+
+
+class MedirCuilRespondidoTests(_BaseCuil):
+    """La medición cuenta con la misma regla que el alta y no imprime datos personales."""
+
+    def test_cuenta_el_respondido_invalido_aparte_y_sin_datos_personales(self):
+        respondidos = (f"27{self.DNI}8", f"23{self.DNI}2", f"27{self.DNI}9", f"99{self.DNI}9", "27312345671", "")
+        for respondido in respondidos:
+            self._caso(respondido=respondido)
+        salida = StringIO()
+
+        call_command("medir_cuil_respondido", stdout=salida)
+
+        texto = salida.getvalue()
+        titular = texto.split("Titular:")[1].split("Apoderado:")[0]
+        conteo = {}
+        for linea in titular.splitlines():
+            nombre, _, numero = linea.strip().rpartition(" ")
+            if numero.isdigit():
+                conteo[nombre.strip()] = int(numero)
+        self.assertEqual(
+            conteo,
+            {"coincide": 1, "difiere": 1, "de otro documento": 1, "respondido inválido": 2, "sin CUIL": 1},
+        )
+        self.assertNotIn(self.DNI, texto)
 
 
 # ── G1-12 ────────────────────────────────────────────────────────────────────

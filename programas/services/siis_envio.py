@@ -98,6 +98,36 @@ def calcular_cuil(dni, sexo):
     return prefijo, digito
 
 
+#: Los prefijos que la AFIP asigna: 20, 23, 24 y 27 a personas humanas; 30, 33 y
+#: 34 a personas jurídicas. Cualquier otro no es un CUIL/CUIT que exista.
+PREFIJOS_CUIL = frozenset({20, 23, 24, 27, 30, 33, 34})
+
+
+def cuil_valido(cuil):
+    """``True`` si ``cuil`` es un CUIL/CUIT que puede existir: 11 dígitos, prefijo
+    de :data:`PREFIJOS_CUIL` y verificador que cierra por módulo 11.
+
+    El verificador sale de :func:`_verificador`, el mismo que usa
+    :func:`calcular_cuil`, para no tener dos copias del algoritmo. El caso
+    especial de la AFIP —si con 20/27 el verificador da 10, el CUIL emitido es
+    ``23-…-9`` (M) o ``23-…-4`` (F)— no necesita rama propia: el peso del ``23``
+    (2·5 + 3·4 = 22) es múltiplo de 11, así que el módulo 11 con prefijo 23 da
+    justo 9 o 4 en esos documentos. ``CuilValidoTests`` lo fija contra
+    ``calcular_cuil``. Un verificador que da 10 con el prefijo respondido no
+    corresponde a ningún CUIL emitido: no es válido.
+    """
+    digitos = _digitos(cuil)
+    if len(digitos) != 11:
+        return False
+    prefijo = int(digitos[:2])
+    if prefijo not in PREFIJOS_CUIL:
+        return False
+    esperado = _verificador(prefijo, digitos[2:10])
+    if esperado == 11:
+        esperado = 0
+    return esperado == int(digitos[10])
+
+
 #: Los dos campos del catálogo que traen un CUIL **emitido**, no deducido: los
 #: completa ``completar_casos_renaper`` cruzando contra ``ciudadanos_renaper``, y
 #: también se pueden responder a mano. Se buscan por su texto normalizado, igual
@@ -141,6 +171,36 @@ def _pk_de_clave(clave):
     return int(sufijo) if sufijo.isdigit() else None
 
 
+#: Lo que dice :func:`evaluar_cuil_respondido` de un CUIL respondido. Solo el
+#: primero se usa en el alta; los otros tres dejan el calculado.
+CUIL_USABLE = "usable"
+CUIL_SIN_DATO = "sin CUIL"
+CUIL_DE_OTRO_DOCUMENTO = "de otro documento"
+CUIL_INVALIDO = "respondido inválido"
+
+
+def evaluar_cuil_respondido(respondido, dni):
+    """Si el CUIL respondido se puede mandar a SIIS en lugar del calculado (D-G11).
+
+    La regla única del alta (:func:`cuil_del_caso`) y de la medición
+    (``medir_cuil_respondido``), para que las dos cuenten lo mismo:
+
+    * :data:`CUIL_SIN_DATO` — no son 11 dígitos;
+    * :data:`CUIL_DE_OTRO_DOCUMENTO` — los 8 centrales no son el DNI del caso;
+    * :data:`CUIL_INVALIDO` — es de ese DNI pero el prefijo no existe o el
+      verificador no cierra (:func:`cuil_valido`);
+    * :data:`CUIL_USABLE` — es de ese DNI y es un CUIL válido.
+    """
+    respondido = _digitos(respondido)
+    if len(respondido) != 11:
+        return CUIL_SIN_DATO
+    if respondido[2:10] != _digitos(dni).zfill(8)[-8:]:
+        return CUIL_DE_OTRO_DOCUMENTO
+    if not cuil_valido(respondido):
+        return CUIL_INVALIDO
+    return CUIL_USABLE
+
+
 def cuil_del_caso(formulario, dni, sexo, texto_campo):
     """``(prefijo, dígito)``: el CUIL **real** del caso si es verificable, o el calculado.
 
@@ -148,18 +208,20 @@ def cuil_del_caso(formulario, dni, sexo, texto_campo):
     80), y el módulo 11 no distingue los prefijos que la AFIP asigna por fuera de
     la regla: un ``23-…`` o un ``27-…`` emitido de verdad viajaba a SIIS como
     ``20-…``, y el alta en SIIS no tiene baja. El default registrado de D-G11 es
-    preferir el real **cuando coincide con el DNI**, que es lo que acá se
-    verifica: los 8 dígitos centrales del CUIL respondido tienen que ser el
-    documento de esa misma persona. Un CUIL de otro, mal tipeado o incompleto no
-    entra: ahí se sigue calculando, que es exactamente lo que se hacía antes.
+    preferir el real **cuando coincide con el DNI y es un CUIL válido**, que es
+    lo que acá se verifica (:func:`evaluar_cuil_respondido`): los 8 dígitos
+    centrales del CUIL respondido tienen que ser el documento de esa misma
+    persona, el prefijo uno de los que asigna la AFIP y el verificador tiene que
+    cerrar por módulo 11. Un CUIL de otro, mal tipeado, con el verificador roto,
+    con un prefijo imposible o incompleto no entra: ahí se sigue calculando, que
+    es exactamente lo que se hacía antes.
 
     Medir cuántos casos difieren es trabajo de datos y se hace con
     ``manage.py medir_cuil_respondido`` (solo lectura) contra la base del
     ambiente; el comportamiento no depende de esa medición.
     """
     respondido = _cuil_respondido(formulario, texto_campo)
-    documento = _digitos(dni).zfill(8)[-8:]
-    if len(respondido) == 11 and respondido[2:10] == documento:
+    if evaluar_cuil_respondido(respondido, dni) == CUIL_USABLE:
         return int(respondido[:2]), int(respondido[10])
     return calcular_cuil(dni, sexo)
 

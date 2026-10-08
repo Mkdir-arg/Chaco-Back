@@ -4,22 +4,28 @@ La **medición** que pide D-G11, en un comando de **solo lectura**: no hay
 ``save()``, ``update()`` ni ``delete()`` en este archivo, así que se puede correr
 contra una réplica o contra un dump restaurado. El comportamiento del alta no
 depende de esta corrida —``siis_envio.cuil_del_caso`` ya prefiere el CUIL real
-cuando sus 8 dígitos centrales son el DNI de la persona—; lo que esto responde es
+cuando sus 8 dígitos centrales son el DNI de la persona y es un CUIL válido—; lo
+que esto responde es
 **a cuántos casos les cambia** lo que viaja a SIIS, que es el dato que el PM
 necesita para decidir si hay que revisar los que ya se informaron.
 
     python manage.py medir_cuil_respondido
     python manage.py medir_cuil_respondido --convocatoria 7 --mostrar 50
 
-Las cuatro categorías que informa, por campo (titular y apoderado):
+Las cinco categorías que informa, por campo (titular y apoderado). Salen de
+``siis_envio.evaluar_cuil_respondido``, la misma regla que usa el alta, así que
+lo que se cuenta como «difiere» es exactamente lo que viaja distinto:
 
 * **coincide** — el CUIL respondido es exactamente el que da el módulo 11: nada
   cambia para ese caso.
-* **difiere** — el respondido es de ese DNI pero con otro prefijo o dígito: son
-  los casos a los que el alta ahora les manda el CUIL real. Es el número de
-  D-G11.
+* **difiere** — el respondido es de ese DNI, es un CUIL válido y tiene otro
+  prefijo o dígito: son los casos a los que el alta ahora les manda el CUIL
+  real. Es el número de D-G11.
 * **de otro documento** — 11 dígitos cuyo centro no es el DNI del caso: no se
   usa, se sigue calculando. Vale mirarlo, porque es un dato mal cargado.
+* **respondido inválido** — es de ese DNI, pero el prefijo no es uno de los que
+  asigna la AFIP o el dígito verificador no cierra: no se usa, se sigue
+  calculando. También es un dato mal cargado.
 * **sin CUIL** — el campo no está en la foto, está vacío o no tiene 11 dígitos.
 
 Termina siempre en 0: es un informe, no un gate.
@@ -31,11 +37,16 @@ from django.core.management.base import BaseCommand
 
 from programas.models import Formulario
 from programas.services.siis_envio import (
+    CUIL_DE_OTRO_DOCUMENTO,
+    CUIL_INVALIDO,
+    CUIL_SIN_DATO,
+    CUIL_USABLE,
     TEXTO_CUIL_APODERADO,
     TEXTO_CUIL_TITULAR,
     _cuil_respondido,
     _digitos,
     calcular_cuil,
+    evaluar_cuil_respondido,
 )
 
 #: De a cuántos casos se leen las dos columnas JSON pesadas (``definicion`` son
@@ -43,7 +54,7 @@ from programas.services.siis_envio import (
 #: en una sola consulta se pasa del ``read_timeout`` de 10 s de ECOM.
 LOTE = 500
 
-CATEGORIAS = ("coincide", "difiere", "de otro documento", "sin CUIL")
+CATEGORIAS = ("coincide", "difiere", CUIL_DE_OTRO_DOCUMENTO, CUIL_INVALIDO, CUIL_SIN_DATO)
 
 
 def _clasificar(formulario, texto_campo, dni, sexo):
@@ -52,10 +63,9 @@ def _clasificar(formulario, texto_campo, dni, sexo):
     documento = _digitos(dni).zfill(8)[-8:]
     prefijo, digito = calcular_cuil(dni, sexo)
     calculado = f"{prefijo:02d}{documento}{digito}"
-    if len(respondido) != 11:
-        return "sin CUIL", respondido, calculado
-    if respondido[2:10] != documento:
-        return "de otro documento", respondido, calculado
+    evaluacion = evaluar_cuil_respondido(respondido, dni)
+    if evaluacion != CUIL_USABLE:
+        return evaluacion, respondido, calculado
     return ("coincide" if respondido == calculado else "difiere"), respondido, calculado
 
 
@@ -127,7 +137,7 @@ class Command(BaseCommand):
 
     def _medir(self, formulario, campo, texto, dni, sexo, cuenta, ejemplos):
         if not _digitos(dni):
-            cuenta[campo]["sin CUIL"] += 1
+            cuenta[campo][CUIL_SIN_DATO] += 1
             return
         categoria, respondido, calculado = _clasificar(formulario, texto, dni, sexo)
         cuenta[campo][categoria] += 1

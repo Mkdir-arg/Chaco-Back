@@ -25434,11 +25434,18 @@ como comando de solo lectura para que la corra el PM.
   pedía la ficha. Lo que no se puede creer —futuro, o anterior a 1900— deja la fila sin
   fecha y suma a `fechas_invalidas`, el contador que el resumen ya mostraba: la fila
   entra igual, porque lo que habilita a la persona es el documento.
-- **El CUIL real le gana al calculado solo si es verificable**: sus 8 dígitos centrales
-  tienen que ser el DNI de esa misma persona. Un CUIL de otro, mal tipeado o incompleto
-  no entra; ahí se sigue calculando, que es exactamente lo que se hacía antes. Es el
-  default registrado de **D-G11**, y no contradice al Cambio 80 —que dijo «el alta
-  calcula el CUIL, no lo toma del formulario»— más de lo que la propia D-G11 ya preveía.
+- **El CUIL real le gana al calculado solo si coincide con el DNI y es un CUIL
+  válido**: sus 8 dígitos centrales tienen que ser el DNI de esa misma persona, el
+  prefijo uno de los que asigna la AFIP (20, 23, 24, 27, 30, 33, 34) y el dígito
+  verificador tiene que cerrar por módulo 11, con el mismo `_verificador` que usa
+  `calcular_cuil` (el caso especial `23-…-9` / `23-…-4` cierra solo: el peso del `23` es
+  múltiplo de 11). Un CUIL de otro, mal tipeado, con el verificador roto, con un prefijo
+  imposible o incompleto no entra; ahí se sigue calculando, que es exactamente lo que se
+  hacía antes. Es el default registrado de **D-G11** («preferir el real cuando coincide
+  con el DNI»), endurecido en la ronda 2 de la revisión, y no contradice al Cambio 80
+  —que dijo «el alta calcula el CUIL, no lo toma del formulario»— más de lo que la propia
+  D-G11 ya preveía. La regla es una sola función, `evaluar_cuil_respondido`, y la usan el
+  alta y la medición.
 - **El campo del CUIL se busca por su texto normalizado**, no por id: el catálogo lo
   edita el PM desde la pantalla. Y se lee de la **foto** del caso, no del catálogo de
   hoy: el masivo no puede pagar una consulta por caso, y es la misma regla de G1-08 —lo
@@ -25479,10 +25486,12 @@ como comando de solo lectura para que la corra el PM.
   y `normalizar_fecha(valor, hoy=None)`.
 - `programas/services/personas.py` — `"not_found": True` en la rama del 404 HTTP.
 - `programas/services/siis_envio.py` — `TEXTO_CUIL_TITULAR`/`TEXTO_CUIL_APODERADO`,
-  `_cuil_respondido`, `_pk_de_clave` y `cuil_del_caso`, usado en el payload del titular
-  y en el del apoderado.
+  `_cuil_respondido`, `_pk_de_clave`, `PREFIJOS_CUIL`, `cuil_valido`,
+  `evaluar_cuil_respondido` (con sus cuatro `CUIL_*`) y `cuil_del_caso`, usado en el
+  payload del titular y en el del apoderado.
 - `programas/management/commands/medir_cuil_respondido.py` (nuevo) — la medición de
-  D-G11, **solo lectura**, por lotes de 500 y sin datos personales en la salida.
+  D-G11, **solo lectura**, por lotes de 500 y sin datos personales en la salida; cuenta
+  aparte el «respondido inválido».
 - `programas/services/avisos_resolucion.py` — `usuario=` y `conexion=`, `_registrar`
   (traza «Aviso por correo»), `CAMPO_TRAZA_AVISO` y `resultado_vigente`.
 - `programas/views/revision.py` — `formulario_reenviar_aviso` y las cuatro claves nuevas
@@ -25496,7 +25505,7 @@ como comando de solo lectura para que la corra el PM.
 - `core/integraciones.py` — `MARGEN_ESPERA_LOGIN`, costo `renaper.espera_token` y la
   cadena de RENAPER con su cuenta; `legajos/services/consulta_renaper.py` — el límite
   compartido, `login()` que devuelve el token y `descartar_token` contra la caché.
-- Tests: `programas/tests/test_ola3_link_publico.py` (45) y
+- Tests: `programas/tests/test_ola3_link_publico.py` (57) y
   `legajos/tests/test_renaper_concurrencia.py` (14) nuevos; tres casos en
   `programas/tests/test_siis_envio.py`, uno `@tag("mysql")` en
   `core/tests/test_motor_real.py` y las cuatro claves nuevas en el contrato de
@@ -25534,3 +25543,28 @@ como 502, el aviso sin traza ni botón de reenvío y el CUIL siempre calculado. 
 ya escritas quedan: son filas de `TracaFormulario` como cualquier otra. El helper vuelve
 a `programas/services/becas.py` sin que ningún llamador cambie, porque todos lo importan
 de ahí.
+
+## Historial
+
+**Ronda 2 de la revisión (08/10/2026) — 1 MAJOR y 2 MINOR, todos corregidos.**
+
+- **MAJOR — el CUIL respondido viajaba sin validarse.** `cuil_del_caso` aceptaba el
+  CUIL respondido con solo cumplir que sus 8 dígitos centrales fueran el DNI, así que
+  `27-<DNI>-9` con el verificador roto salía como (27, 9) y `99-<DNI>-1` como (99, 1),
+  cuando antes viajaba siempre el calculado y el alta en SIIS no tiene baja. Ahora el
+  real se usa solo si además es un CUIL válido (`cuil_valido`: prefijo de la AFIP y
+  verificador por módulo 11, reutilizando `_verificador` de `calcular_cuil`); si no, se
+  calcula como antes. `medir_cuil_respondido` cuenta con la misma regla y separa el
+  «respondido inválido». Tests nuevos: verificador roto, prefijo imposible, válido de
+  otro documento, `CuilValidoTests` (6) y `MedirCuilRespondidoTests`; los que usaban
+  `23-<DNI>-4` / `27-<DNI>-3` como CUIL «real» pasaron a uno válido (`23-<DNI>-2`),
+  porque esos dos tenían el verificador roto. Revirtiendo la guarda fallan 7.
+- **MINOR — el test del payload solo miraba `cuil_pref`/`cuil_dig`.** Se suma
+  `CuilEnElPayloadCompletoTests`, con el contrato completo de `test_siis_que_viaja`: el
+  dict entero con un CUIL real válido distinto del calculado (`24-…-5` donde se calcula
+  `23-…-9`) y con uno roto, que deja el payload de siempre.
+- **MINOR — la cuenta del ítem 9 de la Ola 3 no cerraba** en el README de la
+  auditoría: decía «18 h, de las que quedan 12». Quedan **6**, la segunda parte de
+  RED-35: 18 − 2 (RED-58, PR 1) − 4 (RED-48, PR 2) − 2 (RED-40, PR 5) − 4 (RED-50, PR 6),
+  y RED-09 entró en las 14 h del PR 7b. Cierra con los 20 restantes de la ola (PR 5b,
+  14 + RED-35, 6).
