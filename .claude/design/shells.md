@@ -79,6 +79,12 @@ Se hereda; no se recrean el sidebar ni sus offsets.
   clave: antes el flujo existía solo como `/password_change/` de `django.contrib.auth.urls`, sin
   plantilla ni link, y se retiró (SEC-26). El enlace usa utilidades (`text-heading
   hover:bg-secondary`) y no `style=`; el ancho del panel es `w-40`.
+- El shell publica `window.idleLogoutConfig` y carga `static/custom/js/idle-logout.js`: aviso con
+  cuenta regresiva y cierre por inactividad. Lleva `keepAliveUrl` (`{% url 'core:sesion_latido' %}`),
+  que es lo que le traduce al servidor la actividad del usuario: el cierre de verdad lo decide
+  `core.middleware.ExpiracionPorInactividadMiddleware`, que cuenta **pedidos**, y sin ese latido una
+  pantalla larga que no pide nada —un relevamiento tipeado veinte minutos— terminaría en el login con
+  el formulario perdido. El latido sale como mucho una vez por minuto y solo con actividad real.
 
 ---
 
@@ -125,6 +131,10 @@ junto a la tarjeta de Ayuda). El contexto expone `programas` y `stats`; `ciudada
 `portal/templates/portal/ciudadano/base_ciudadano.html` y las pantallas bajo
 `portal/templates/portal/ciudadano/` quedan en el repo **sin ruta**: no son referencia para
 pantallas nuevas, y volver a publicarlas exige arreglar antes el registro.
+
+Ese shell comparte el cierre por inactividad del backoffice —misma `window.idleLogoutConfig`, mismo
+`keepAliveUrl`— y su `logoutUrl` propia: la configuración se escribe igual en las dos superficies para
+que el contador del servidor valga para las dos.
 
 Las pantallas de inscripción pública **no** extienden este shell: usan el suyo, para no cargar
 `static/custom/js/portal-effects.js`. Light-only.
