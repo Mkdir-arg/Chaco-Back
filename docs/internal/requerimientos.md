@@ -357,6 +357,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 183 | MVP de la Versión 2 de Dispositivos: los cuatro bloques del cliente, 700 h | Dispositivos · documentación | `#gestion` `#ui` `#datos` | Cliente, con su propio consumo de horas; PM: «armá un pequeño documento de MVP V2 en base a lo que nos pide el cliente y sus horas» | 08/10/2026 | 🟢 **Hecho — publicado** | No requiere |
 | 184 | El caso que la app ya cargó no se edita, la identidad la acredita el servidor y la consulta de personas tiene tope | Becas — API de campo (`/api/becas/formularios/`, alta de casos, adjuntos y consulta de identidad) · Transversal (tasas de throttle de DRF, presupuesto de llamadas externas) | `#api` `#rbac` `#relevamientos` `#datos` | Auditoría integral oct-2026 — fichas SEC-23 (+G1-15), SEC-24, SEC-25 y R0-05 (Ola 2, PR 6 — **cierra el ítem 6**) | 08/10/2026 | 🟢 **Hecho** (D-24 y D-25 aplicadas por default) | No requiere |
 | 186 | El circuito de SIIS deja de pagar por caso lo que es igual para todos | Becas (proceso masivo a SIIS, pantalla del masivo, comandos `procesar_casos_siis` y `validar_casos_siis`) · Transversal (presupuestos de performance, seed de performance, caché de ciudadanos) | `#siis` `#performance` `#relevamientos` `#datos` | Auditoría integral oct-2026 — fichas PERF-01 (+V4-NEW-02), PERF-19, PERF-07 y PERF-06 (Ola 4, PR 3) | 08/10/2026 | 🟢 **Hecho** | `programas.0082` (dos índices, online) |
+| 187 | La pasada horaria de alertas deja de recorrer el padrón y de recrear lo que ya existe | Legajos (comando `generar_alertas`, servicio de alertas, señal de legajo) · Becas (pantalla del proceso masivo) · Transversal (seed de performance) | `#performance` `#datos` `#ui` | Auditoría integral oct-2026 — fichas PERF-20 y LEG-01 (Ola 4, PR 4) + 3 seguimientos MINOR de #639 | 08/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -27830,3 +27831,151 @@ clave foránea de `programas_validacionsis` con su nombre de Django: hay que hac
 Un índice no cambia ningún dato, así que no queda nada inconsistente. Si lo que molesta es
 el presupuesto nuevo, se saca `becas_proceso_masivo` de `scripts/perf_budgets.json` **y**
 de `scripts/perf_audit.py::build_targets` en el mismo diff.
+
+---
+
+# Cambio 187 — La pasada horaria de alertas deja de recorrer el padrón y de recrear lo que ya existe
+
+🟢 **HECHO — 08/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Legajos (comando `generar_alertas`, `AlertasService`, señal `post_save` del legajo) · Becas (pantalla del proceso masivo) · Transversal (seed de performance) |
+| **Etiquetas** | `#performance` `#datos` `#ui` |
+| **Solicitante** | Auditoría integral oct-2026 — fichas PERF-20 y LEG-01 (Ola 4, PR 4), más los tres seguimientos MINOR de la revisión de #639 |
+| **Fecha del pedido** | 08/10/2026 |
+| **Issue / épica** | Auditoría oct-2026, Ola 4 (Performance) ítem 4 |
+| **Partes afectadas** | `legajos/services/alertas.py` · `legajos/services/linking.py` · `legajos/management/commands/generar_alertas.py` · `programas/views/proceso_masivo.py` · `programas/services/proceso_masivo.py` · `programas/templates/programas/becas/config/proceso_masivo.html` · `core/management/commands/seed_perf.py` · tests de `legajos` y `programas` |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Dos fichas sobre el mismo comando, que corre **cada hora** en los cuatro ambientes (cron
+de k8s y crontab de icore) y escribe alertas que después difunde por WebSocket.
+
+- **PERF-20.** `generar_alertas` recorría `Ciudadano.objects.filter(activo=True)` y
+  pagaba tres consultas por cada uno: el `SELECT` de la persona, el `UPDATE` en bloque de
+  sus alertas MEDIA/BAJA y el `SELECT` de sus legajos, casi siempre con un `IN` vacío.
+  Medido por la auditoría con 20.200 activos de los que 200 tienen legajo: **61.821
+  sentencias por corrida**, 38 s; con 40.000 ciudadanos, unas 122.000 por hora.
+- **LEG-01.** La pasada apagaba en bloque las MEDIA/BAJA —sin `fecha_cierre` ni
+  `cerrada_por`— y las volvía a crear: una fila nueva por hora, un aviso por WebSocket
+  por hora a todo el que estuviera conectado y `legajos_alertaciudadano` creciendo sin
+  techo (200 → 510 → 610 en dos corridas del seed de la auditoría).
+
+Más tres seguimientos MINOR de la revisión de #639 (Ola 4 PR 3), sin horas propias.
+
+## Alcance acordado
+
+Entra: las dos fichas completas y los tres MINOR. Queda afuera el resto de la Ola 4 y la
+pregunta abierta **H-02** (si ECOM tiene instalado el CronJob), que no cambia nada de lo
+que hace el código: si no corre, el cambio no se nota; si corre, se nota desde la primera
+hora.
+
+## Decisiones tomadas
+
+- **El universo de la pasada son los legajos, no el padrón.** Sale de
+  `InscripcionPrograma.filter(legajo_id__isnull=False, ciudadano__activo=True)
+  .values_list("legajo_id").distinct()`. `LegajoAtencion` no se crea en ningún camino
+  productivo, así que preguntar por los 20.000 ciudadanos sin legajo era el 99 % del
+  costo. La semántica se conserva: el ciudadano de cada alerta sigue siendo el de la
+  inscripción más reciente, que es lo que resuelve la property `LegajoAtencion.ciudadano`.
+- **Se reconcilia por lotes de 500 legajos**, con cuatro lecturas fijas por lote: las
+  inscripciones del lote (que en una sola consulta dan el ciudadano **y** los
+  `programa_ids` del ruteo del WebSocket), los legajos con `Max(fecha_contacto)` y el
+  `Count` filtrado de fallidos anotados sobre el mismo `JOIN`, las alertas activas del
+  lote y —solo si hay algo que crear— los ciudadanos. Más un `INSERT` por alta y **un**
+  `UPDATE` de cierre.
+- **Las altas van de a una, no con `bulk_create`** (desvío explícito de la propuesta de
+  PERF-20). En MySQL 8 —icore— `bulk_create` no devuelve el `pk`, y el aviso por
+  WebSocket lo necesita: el dashboard dibuja `data-alerta-id` y el cierre se entrega por
+  ese id (Cambio 179). En régimen las altas son cero, así que el término no se paga.
+- **Las reglas viven en un solo lugar.** `AlertasService._reglas_vigentes` devuelve
+  `[(tipo, prioridad, mensaje)]` **sin tocar la base**: la señal `post_save` le pasa los
+  dos insumos leídos de a uno y la pasada periódica se los pasa anotados por lote.
+  Escritas dos veces se habrían desincronizado al primer umbral que cambiara.
+- **El cierre se recorta al lote de legajos, no al ciudadano.** Consecuencia buscada: las
+  alertas **sin legajo** —todas las de `conversaciones`: `MENSAJE_CIUDADANO`,
+  `RESPUESTA_RAPIDA`, `RESPUESTA_RAPIDA_CIUDADANO` y `OPERADOR_ASIGNADO`— dejan de
+  apagarse en la pasada horaria. LEG-01 lo pedía para `MENSAJE_CIUDADANO`; las otras tres
+  caen por el mismo criterio, que las genera una conversación y no el estado del legajo.
+  `MENSAJE_CIUDADANO` queda además excluido **por nombre**, para que la regla siga
+  valiendo el día que alguien le ponga legajo.
+- **Las ALTA y CRÍTICA no se cierran solas**, igual que antes: el cierre automático es
+  solo MEDIA/BAJA.
+- **El ruteo del WebSocket se calcula una vez por lote**, no una por alerta, y se le pasa
+  a `_enviar_notificacion_alerta`. Es la misma pieza que el Cambio 179 dejó fuera del
+  payload: no cambia qué recibe el navegador, solo cuántas veces se resuelve.
+- **El conteo de la pantalla del masivo no cachea el cero** (seguimiento MINOR a). Un
+  número mayor que cero es informativo; el cero **decide**, porque esconde el formulario
+  y la pantalla promete que el caso nuevo «aparece acá al recargar». Además, el fin de
+  una corrida —que es lo que vacía los pendientes de golpe, desde un hilo que no pasa por
+  ninguna vista— invalida la clave (`proceso_masivo.invalidar_conteos`, en un `finally`).
+
+## Implementación
+
+- `legajos/services/alertas.py` — `reconciliar_alertas`, `_reconciliar_lote`,
+  `_legajos_con_sus_insumos`, `_crear_las_que_faltan`, `_cerrar_las_que_ya_no_aplican` y
+  `_reglas_vigentes`; `_generar_alertas_legajo` (señal) pasa a usar las mismas reglas;
+  `_enviar_notificacion_alerta` acepta el `ruteo` ya resuelto.
+- `legajos/services/linking.py` — `get_legajo_ids_de_ciudadanos_activos` y
+  `get_vinculos_de_legajos` (el acceso a `InscripcionPrograma` se queda en `linking`).
+- `legajos/management/commands/generar_alertas.py` — llama a `reconciliar_alertas` e
+  informa creadas, cerradas y legajos revisados.
+- `programas/views/proceso_masivo.py` — `_conteos()` reemplaza al `cache.get_or_set`.
+- `programas/services/proceso_masivo.py` — `clave_conteos` / `invalidar_conteos`, y
+  `correr()` invalida en un `finally`.
+- `core/management/commands/seed_perf.py` — el `CREATE TABLE IF NOT EXISTS` sale del
+  `transaction.atomic()` (en MySQL y MariaDB el DDL hace un commit implícito y cortaba la
+  transacción del seed por la mitad); el `DELETE` + `INSERT` se quedan adentro.
+- `programas/tests/test_circuito_siis_performance.py` — `_candidatos_a_la_vieja` se
+  reescribe sobre el **queryset base completo** (neutralizando el criterio de último
+  envío con un `patch` del `Coalesce` del módulo) en vez de partir de los candidatos
+  nuevos: así detecta un filtro más estricto y uno más laxo, no solo el segundo.
+- Tests: `legajos/tests/test_generar_alertas_performance.py` nuevo (2) y
+  `ReconciliacionDeAlertasTests` en `legajos/tests/test_generar_alertas.py` (5), más 3 en
+  `programas/tests/test_circuito_siis_performance.py`.
+
+## Validación
+
+- `manage.py test legajos conversaciones core`: **1.355 tests, OK** (41 skipped, 2
+  expected failures). `manage.py test programas dashboard`: **2.471 tests, OK**.
+  Python 3.12 / Django 5.2.17 (venv igual al CI).
+- `test --tag performance`: 8 tests OK. Ningún presupuesto de `scripts/perf_budgets.json`
+  se mueve (RED-62 no aplica): `generar_alertas` es un comando y la pantalla del masivo
+  no cambia su cantidad de consultas.
+- `manage.py check` sin issues; `check --deploy` con los 5 avisos preexistentes de
+  settings de desarrollo; `makemigrations --check --dry-run`: «No changes detected».
+- `ruff check .` limpio; `ruff format --check` sobre `legajos`, `programas` y `core`
+  limpio.
+- `design_audit --ratchet --base origin/development`: **0 hallazgos nuevos**;
+  `compile_templates --bloques`: 202 compilados, 0 errores, 0 bloques sin destino;
+  `check_design_agent --changed`: OK; `requerimientos.py --check`: OK.
+- **Medición de PERF-20**, banco sintético de 2.000 ciudadanos activos / 20 con legajo
+  (SQLite en memoria, mismo `execute_wrapper` que el harness de la auditoría), corrida en
+  un worktree de `HEAD` y en la rama:
+
+  | | pasada en frío | pasada en régimen | tiempo |
+  |---|---|---|---|
+  | antes (#639) | 6.181 sentencias | 6.141 | 6,6 s |
+  | después | 45 (40 son `INSERT` de altas) | **4** | 0,53 s |
+
+  Y la tabla deja de crecer: antes 40 alertas → 60 en la segunda pasada; ahora 40 → 40.
+
+## Pendientes / a definir
+
+- **H-02: ¿ECOM tiene instalado el CronJob `generar_alertas`?** No bloquea el cambio
+  —ninguna de las dos respuestas lo cambia—, pero decide si la mejora se nota.
+- **Las alertas de `conversaciones` ya no las cierra nadie automáticamente.** Hoy no
+  importa porque el módulo no está en uso, pero si se enciende hay que darles su propia
+  purga (no la de `limpiar_alertas_conversaciones`, que borra otras tablas).
+
+## Reversión
+
+Todo es código, sin esquema ni datos. Revertir el commit devuelve la pasada por padrón
+con el `UPDATE` global, la recreación horaria de las MEDIA/BAJA y el cacheo del cero en
+la pantalla del masivo. Las alertas que este cambio haya cerrado quedan cerradas con su
+`fecha_cierre`; la pasada vieja las volvería a crear en la primera corrida, que es
+exactamente lo que hacía antes.
+
+---

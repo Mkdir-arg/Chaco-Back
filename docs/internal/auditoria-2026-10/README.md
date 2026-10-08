@@ -2080,7 +2080,7 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
   ni al timeout de nginx.
 - **PRs y orden:** (1) ✅ PERF-04 + PERF-16 (padrón; prototipo listo) 10 h (Cambio 182) · (2) ✅ PERF-02 (cupo) 2 h
   (Cambio 182; los PRs 1 y 2 salieron juntos) · (3) ✅ PERF-01 (+V4-NEW-02),
-  PERF-19, PERF-07, PERF-06 (circuito SIIS) 8 h (Cambio 186) · (4) PERF-20 + LEG-01 (alertas) 6 h · (5) PERF-03 (`lxml` + botón CSV),
+  PERF-19, PERF-07, PERF-06 (circuito SIIS) 8 h (Cambio 186) · (4) ✅ PERF-20 + LEG-01 (alertas) 6 h (Cambio 187) · (5) PERF-03 (`lxml` + botón CSV),
   G1b-11, G1b-12 (exports y dashboard) 14 h · (6) PERF-08, PERF-10 (config) 4 h · (7) G1c-09, G1c-11 (admin) 4 h · (8)
   PERF-12, PERF-13, PERF-15 (medir en el banco; índice solo si el plan lo pide) 4 h · (9) *Red de seguridad (04-oct):*
   RED-62 (presupuestos que suben exigen justificación) y segundas partes de RED-10 (destinos del Performance Guard para el

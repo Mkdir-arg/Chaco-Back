@@ -27,9 +27,16 @@ from programas.services import proceso_masivo as servicio
 CAP_PROCESO_MASIVO = "becas.programa.proceso_masivo"
 TOTAL_MAXIMO = 5000
 MENSAJE_EN_CURSO = "Ya hay una corrida en curso. Esperá a que termine o frenala."
-#: Segundos que valen los dos conteos de la pantalla (PERF-07). Son informativos: se
-#: usan para decidir cuánto pedir, y quien lanza vuelve a contar del otro lado. Un
-#: minuto de desfasaje no cambia ninguna decisión y saca el `count()` caro del camino.
+#: Segundos que valen los dos conteos de la pantalla (PERF-07). Un número **mayor que
+#: cero** es informativo: se usa para decidir cuánto pedir, y quien lanza vuelve a
+#: contar del otro lado, así que un minuto de desfasaje no cambia ninguna decisión y
+#: saca el `count()` caro del camino.
+#:
+#: El cero, en cambio, **decide**: con 0 pendientes la plantilla esconde el formulario
+#: y dice «si entran casos nuevos, aparecen acá al recargar». Cacheado, esa frase era
+#: mentira hasta por un minuto —y la pantalla queda abierta justo cuando alguien espera
+#: que entren—. Por eso el cero no se guarda (ver `_conteos`), y el fin de una corrida,
+#: que es lo que lo vacía de golpe, invalida la clave (`servicio.invalidar_conteos`).
 VIGENCIA_CONTEOS = 60
 
 
@@ -72,12 +79,26 @@ class ProcesoMasivoView(CapacidadRequeridaMixin, LoginRequiredMixin, DetailView)
         # corrida los vuelve a consultar en cada vuelta—, pero tienen que verse: son
         # casos esperando que alguien decida, no casos resueltos. Los dos salen del
         # mismo cálculo porque comparten los insumos.
-        ctx["pendientes"], ctx["incompatibles"] = cache.get_or_set(
-            f"masivo_conteos_{self.object.pk}",
-            lambda: servicio.conteos_de_la_pantalla(self.object),
-            VIGENCIA_CONTEOS,
-        )
+        ctx["pendientes"], ctx["incompatibles"] = _conteos(self.object)
         return ctx
+
+
+def _conteos(programa):
+    """Los dos números de la pantalla, cacheados **salvo cuando el primero es cero**.
+
+    `cache.get_or_set` no sirve acá: guarda lo que devuelva el callable, y guardar el
+    cero es justo lo que deja el formulario escondido un minuto después de que entre
+    un caso nuevo. Con pendientes, el valor se cachea como siempre: ahí el `count()`
+    caro es el que vale la pena ahorrar.
+    """
+    clave = servicio.clave_conteos(programa.pk)
+    cacheado = cache.get(clave)
+    if cacheado is not None:
+        return cacheado
+    conteos = servicio.conteos_de_la_pantalla(programa)
+    if conteos[0]:
+        cache.set(clave, conteos, VIGENCIA_CONTEOS)
+    return conteos
 
 
 @login_required
