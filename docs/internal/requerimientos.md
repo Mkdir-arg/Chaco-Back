@@ -359,6 +359,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 185 | La sesión se cierra sola del lado del servidor, el catálogo de programas pide permiso y RENAPER deja de viajar sin verificar | Transversal (sesión, cookies, system checks, API del backoffice) · Legajos (consulta RENAPER) · Dispositivos (admisión) · Becas (mapa del caso) | `#sesion` `#rbac` `#api` `#infra` | Auditoría integral oct-2026 — fichas SEC-27, SEC-32, SEC-33, SEC-34, SEC-35, SEC-36, SEC-37, G1c-10, G1c-16 y el resto de SEC-01 (Ola 2, PR 8) | 08/10/2026 | 🟢 **Hecho** (D-27 y D-37 aplicadas por default; quedan tres pendientes de infraestructura) | No requiere |
 | 186 | El circuito de SIIS deja de pagar por caso lo que es igual para todos | Becas (proceso masivo a SIIS, pantalla del masivo, comandos `procesar_casos_siis` y `validar_casos_siis`) · Transversal (presupuestos de performance, seed de performance, caché de ciudadanos) | `#siis` `#performance` `#relevamientos` `#datos` | Auditoría integral oct-2026 — fichas PERF-01 (+V4-NEW-02), PERF-19, PERF-07 y PERF-06 (Ola 4, PR 3) | 08/10/2026 | 🟢 **Hecho** | `programas.0082` (dos índices, online) |
 | 187 | La pasada horaria de alertas deja de recorrer el padrón y de recrear lo que ya existe | Legajos (comando `generar_alertas`, servicio de alertas, señal de legajo) · Becas (pantalla del proceso masivo) · Transversal (seed de performance) | `#performance` `#datos` `#ui` | Auditoría integral oct-2026 — fichas PERF-20 y LEG-01 (Ola 4, PR 4) + 3 seguimientos MINOR de #639 | 08/10/2026 | 🟢 **Hecho** | No requiere |
+| 188 | `/media/` deja de ser «cualquiera con sesión baja cualquier archivo», y los uploads miran lo que entra | Transversal — descarga de `/media/` (adjuntos, fotos, contactos, F-00, merenderos, adjuntos y padrones de Becas) · Dispositivos (campo ARCHIVO del F-00) · Merenderos (solicitud) · Becas (carga del padrón) | `#rbac` `#datos` `#infra` `#api` | Auditoría integral oct-2026 — fichas SEC-09 etapa 2, SEC-15, SEC-31, R0b-07 y R0b-08 (Ola 2, PR 7) | 08/10/2026 | 🟢 **Hecho** (**D-15 = PDF e imagen**; `X-Accel-Redirect` preparado y apagado tras `MEDIA_X_ACCEL`, D-09/H-05) | `legajos.0010` y `programas.0083` (las dos sin DDL) |
 | 189 | Las descargas del tablero de Becas: una planilla que no es la única opción, y dejar de recalcular lo que ya está calculado | Becas — solapa «Dashboard» del programa (exportaciones y filtros) · Transversal (`requirements.txt`, banco de performance) | `#performance` `#relevamientos` `#ui` `#metodo` | Auditoría integral oct-2026 — fichas PERF-03, G1b-11 y G1b-12 (Ola 4, PR 5) | 08/10/2026 | 🟢 **Hecho** (PERF-03 parcial: el punto (3), exportar fuera del request, sigue abierto) | No requiere |
 | 190 | El chequeo de esquema del CI deja de marcar como huérfanas las tablas que carga el organismo | Transversal — CI (job «Migrate ida y vuelta»), `verificar_esquema_migraciones` | `#infra` `#datos` | Juez, por la regresión de #639 que dejaba rojo ese job en todo PR posterior | 08/10/2026 | 🟢 **Hecho** | No requiere |
 
@@ -28264,50 +28265,191 @@ exactamente lo que hacía antes.
 
 ---
 
-# Cambio 190 — El chequeo de esquema del CI deja de marcar como huérfanas las tablas que carga el organismo
+# Cambio 188 — `/media/` deja de ser «cualquiera con sesión baja cualquier archivo», y los uploads miran lo que entra
 
 🟢 **HECHO — 08/10/2026**
 
 | | |
 |---|---|
-| **Programa / módulo** | Transversal — CI (job «Migrate ida y vuelta»), comando `verificar_esquema_migraciones` |
-| **Etiquetas** | `#infra` `#datos` |
-| **Solicitante** | Juez de la auditoría oct-2026, al ver rojo el job en #640 |
+| **Programa / módulo** | Transversal — descarga de `/media/` (adjuntos del legajo, foto del ciudadano, archivos de contacto, F-00 de Dispositivos, documentación de Merenderos, adjuntos y padrones de Becas) · Dispositivos (campo ARCHIVO del F-00) · Merenderos (solicitud) · Becas (carga del padrón) |
+| **Etiquetas** | `#rbac` `#datos` `#infra` `#api` |
+| **Solicitante** | Auditoría integral oct-2026 — fichas SEC-09 etapa 2, SEC-15, SEC-31, R0b-07 y R0b-08 (Ola 2, PR 7) |
 | **Fecha del pedido** | 08/10/2026 |
-| **Issue / épica** | Auditoría oct-2026, seguimiento de #639 (Cambio 186) |
-| **Partes afectadas** | `core/management/commands/verificar_esquema_migraciones.py` · `core/tests/test_verificar_esquema_migraciones.py` |
-| **Migración** | No requiere |
+| **Issue / épica** | Auditoría oct-2026, Ola 2 (Autorización) ítem 7 |
+| **Partes afectadas** | `core/views/media.py` (nuevo) · `core/rutas_media.py` (nuevo) · `core/validators.py` · `config/urls.py` · `config/settings.py` · `legajos/models/base.py` y `contactos.py` · `programas/models/__init__.py` · `programas/forms.py` · `programas/api/serializers.py` · `programas/services/padron.py` y `merenderos.py` · `programas/views/merenderos.py` · `legajos/migrations/0010_sec09_upload_to_uuid.py` · `programas/migrations/0083_sec09_upload_to_uuid.py` · `.env.qa.example`, `docker-compose.prod.yml`, `docker/k8s/README.md`, `docs/client/architecture.md` |
+| **Migración** | `legajos.0010` y `programas.0083` — las dos **sin DDL** (`SeparateDatabaseAndState`, `database_operations=[]`): solo cambian `upload_to` y `validators`, que son Python |
 
 ## Pedido original
 
-Desde #639 (Cambio 186), `seed_perf` crea `aprobados_materias` —la tabla que en producción
-carga el organismo con `Aprobados.sql`— para que el banco y el job «Migrate ida y vuelta»
-puedan medir el circuito SIIS. El paso 8/8 de ese job corre `verificar_esquema_migraciones
---estricto`, que encontró una tabla sin modelo y salió con error: **todo PR abierto después
-de #639 quedaba rojo** en las dos variantes del job (#640 fue el primero). #639 no lo vio
-porque su propia base todavía no tenía el seed nuevo.
+La etapa 1 de SEC-09 (Cambio 112) sacó `/media/` de nginx y lo dejó detrás de
+`login_required`. Eso cerró lo que podía mirar cualquiera desde internet, pero adentro
+quedaba todo abierto: **con una sesión de backoffice se bajaba cualquier archivo**. Una
+cuenta recién creada sin un solo rol, un territorial de Becas, un operador de Merenderos:
+los tres bajaban el Excel del padrón de cualquier convocatoria —que es la lista completa
+de habilitados, con DNI, nombre y fecha de nacimiento—, el F-00 de cualquier dispositivo y
+la foto de DNI de cualquier ciudadano. `login_required` era todo el control.
+
+Alrededor de eso, cuatro fichas más:
+
+- **R0b-07.** `config/urls.py` registraba `static(MEDIA_URL, …)` **antes** del bloque
+  `SERVE_MEDIA`, y con los dos activos gana el primero: un ambiente con `DEBUG=True` y
+  `SERVE_MEDIA=True` servía `/media/` **sin sesión**.
+- **R0b-08.** `.env.qa.example` y `docs/client/architecture.md` seguían diciendo que
+  `/media/` lo sirve nginx y que el middleware lo exime. Las dos cosas son falsas desde el
+  Cambio 112.
+- **SEC-15.** El campo ARCHIVO del F-00 y la documentación respaldatoria de una solicitud
+  de merendero eran `FileField` pelados: entraba un `.html` con `<script>`, de cualquier
+  peso, y después `media/` lo servía same-origin.
+- **SEC-31.** El padrón tenía un tope de 2 MB **sobre el .xlsx comprimido**. Un .xlsx es un
+  zip: uno de 1 MB puede declarar 2 GB, y openpyxl lo arma en memoria antes de que ninguna
+  validación lo mire.
+
+## Alcance acordado
+
+Entran las cinco fichas. Lo que **depende de ECOM** (D-09, H-05) entra **preparado y
+apagado**, con el comportamiento de hoy como default: ver la primera decisión.
 
 ## Decisiones tomadas
 
-- Las tres tablas de `INSUMOS` (`programas/management/commands/_insumos_siis.py`:
-  `aprobados_materias`, `localidades_corregidas`, `ciudadanos_renaper`) son conocidas para el
-  chequeo de huérfanas: se leen con SQL crudo y no tienen modelo a propósito.
-- La lista se repite en `core` (`TABLAS_EXTERNAS_DEL_ORGANISMO`) porque `core` no importa de
-  `programas` (ratchet de capas, R-21); un test la ata a `INSUMOS` para que no diverjan.
+- **`X-Accel-Redirect` va detrás de `MEDIA_X_ACCEL`, apagado por default.** Prendido, la
+  app autoriza y responde vacío con `X-Accel-Redirect: /protected-media/<ruta>`, y los
+  bytes los manda el servidor de adelante sin pasar por Python. `nginx.conf` ya tiene ese
+  `location internal` desde la etapa 1; en ECOM depende del ingress y eso es D-09/H-05, así
+  que el default entrega los bytes desde Django, que es exactamente lo que pasa hoy. **La
+  autorización es idéntica en las dos ramas**: la perilla cambia quién manda el archivo,
+  nunca quién puede pedirlo. Las dos están probadas.
+- **`/media/` no tiene perilla de apagado.** `SERVE_MEDIA` decidía si la ruta existía, y por
+  eso había que registrar `static(MEDIA_URL)` para que dev funcionara —que es justo el
+  agujero de R0b-07—. Ahora la ruta está **siempre** y siempre autoriza, en dev y en
+  producción. `SERVE_MEDIA` se borró: después de la etapa 2 no tiene referente, y un flag
+  que se ignora es peor que no tenerlo. Quien la tenga puesta en su entorno no rompe nada.
+- **El dueño se resuelve por el prefijo de la ruta, y la capacidad es la de la pantalla que
+  muestra ese archivo.** `adjuntos/`, `ciudadanos/fotos/` y `contactos/` → `ciudadano.ver`;
+  `admisiones/f00/` → alcance del dispositivo (`puede_operar_dispositivo`, no solo la
+  capacidad de programa); `merenderos/solicitudes/` → `merendero.ver` acotada al programa;
+  `becas/adjuntos/` → `assert_alcance_formulario`; `becas/padrones/` → el mismo guard con
+  el que se carga.
+- **El padrón no pide admin de Becas** (la ficha lo proponía). Quien lo **sube** es quien
+  edita la convocatoria o el relevamiento, y eso incluye al Coordinador: pedir admin para
+  bajarlo dejaba afuera a quien lo cargó. Se usa `convocatorias_visibles` /
+  `assert_alcance_relevamiento`, que es el guard de la carga.
+- **Un prefijo sin regla no se sirve** (404 y un `warning` en el log). Es la única forma de
+  enterarse de que un `FileField` nuevo se olvidó de registrarse; un test lo recorre solo.
+- **Sin fila en la base, 404 aunque sobre la capacidad.** Un blob huérfano en el disco no
+  tiene quién lo autorice.
+- **Siempre `attachment` + `nosniff`,** igual que el bloque `/protected-media/` de nginx.
+  Los `<img>` del detalle del ciudadano y de las respuestas de Becas no se ven afectados:
+  la carga de subrecursos ignora `Content-Disposition`.
+- **La lista blanca de uploads es la que ya usa la app de campo** (Cambio 46), movida a
+  `core/validators.py` para que haya una sola: `.jpg .jpeg .png .pdf .heic .heif .webp` y
+  5 MB, más la firma de los primeros bytes para PDF, PNG y JPG. **D-15 = PDF e imagen, sin
+  `.doc/.docx`.** La ficha nombraba la lista sin `.heif`; se conserva, porque es lo que el
+  repo ya acepta y angostarla le rompe el trabajo al territorial (ante un 4xx la app
+  instalada marca `FAILED_PERMANENT` y no reintenta nunca).
+- **Lo ya guardado no se revalida.** `validar_adjunto` se sale ante un `FieldFile` ya
+  commiteado. Si no, guardar cualquier otro campo de una fila vieja —una solicitud de
+  merendero de 2025 con un `.docx` adjunto— fallaría con un error sobre un archivo que
+  nadie tocó, y `.size` iría al storage a preguntar.
+- **Los archivos existentes no se renombran.** El `upload_to` pasa a UUID en los cinco
+  campos que faltaban, pero la migración es de estado y la resolución del dueño es por el
+  `name` que tiene la fila: un `adjuntos/dni.pdf` de 2025 se sigue viendo y descargando.
+- **El tope del padrón descomprimido es 20 MB y el de filas 200.000.** ~10× lo que ocupa el
+  padrón más grande del banco de performance (50.000 filas con las seis columnas).
 
 ## Implementación
 
-`tablas_huerfanas` suma `TABLAS_EXTERNAS_DEL_ORGANISMO` a las conocidas, junto con
-`django_migrations`. Dos tests nuevos en `TablasHuerfanasTests`.
+**`core/rutas_media.py` (nuevo).** Los siete prefijos de `media/` y los `upload_to` con
+UUID. Es la tabla que `media_protegida` usa para saber de quién es cada archivo, y la que
+hace que el nombre deje de ser enumerable. No se confunde con `core/archivos.py`, que es
+otra cosa (el borrado de lo que escribió una operación que falló, RED-35).
+
+**`core/views/media.py` (nuevo).** `media_protegida(request, path)`: normaliza la ruta
+—`..`, separadores de Windows y caracteres de control—, resuelve el dueño por prefijo,
+evalúa la capacidad con su alcance y entrega. Con `MEDIA_X_ACCEL` el header lleva la ruta
+`quote()`-ada: es una URI, y los nombres legacy traen espacios y acentos que sin escapar
+cortan en nginx y ni siquiera se pueden poner en un header (latin-1).
+
+**`config/urls.py`.** Se van `static(settings.MEDIA_URL, …)` y el bloque
+`if settings.SERVE_MEDIA`; queda una sola `re_path` a `media_protegida`.
+
+**SEC-15.** `core/validators.py` estrena `ADJUNTO_EXTENSIONES`, `ADJUNTO_MAX_BYTES` y
+`validar_adjunto`, que reusa `validar_firma`. Va como `validators=[…]` en
+`HistorialContacto.archivo_adjunto`, `ArchivoAdmision.archivo` y
+`SolicitudMerendero.documentacion`, y en el `FileField` del campo ARCHIVO de
+`F00DinamicoForm`. Los dos widgets de archivo suman `accept`. `programas/api/serializers.py`
+importa las constantes en vez de declararlas: los nombres siguen existiendo ahí porque son
+contrato de la app.
+
+**SEC-31.** `_verificar_descomprimido` lee **solo el índice central** del zip —no
+descomprime nada— y suma los `file_size` declarados; `iter_rows` lleva `max_row`.
+
+**RED-79, de paso.** `puede_en_merenderos` y `programa_merenderos` se mudan de
+`views/merenderos.py` a `services/merenderos.py`: `core.views.media` necesita el guard y
+una vista no es lugar del que importarlo.
+
+## Base de datos
+
+`legajos.0010` y `programas.0083`, las dos dentro de `SeparateDatabaseAndState` con
+`database_operations=[]`. Lo único que cambia es Python: `upload_to` decide la ruta del
+archivo **nuevo** y `validators` corre en `full_clean()`; la columna sigue siendo el mismo
+`varchar(100)`. Django no lo sabe —`validators` está en `non_db_attrs` pero `upload_to`
+no—, así que un `AlterField` suelto le manda a MariaDB un `MODIFY COLUMN` idéntico sobre
+`legajos_ciudadano`, que son cien mil filas y el `read_timeout` de ECOM son 10 s: el mismo
+molde que cortó `legajos.0007` por la mitad (RED-58).
+
+Sin DDL no hay expand ni contract que respetar: la release vieja y la nueva conviven contra
+el mismo esquema sin orden de deploy. La reversa es el `AlterField` inverso y no toca un
+solo byte de `media/`.
 
 ## Validación
 
-`core.tests.test_verificar_esquema_migraciones` + `programas.tests.test_arquitectura`: 44 OK.
-ruff limpio.
+- `manage.py test core legajos`: **1.330 tests, OK**. `manage.py test programas portal
+  configuracion`: **2.710, OK**. `manage.py test users dashboard conversaciones tramites`:
+  **505, OK**. `--tag performance`: **6, OK**.
+- Los tests nuevos (51) corren **en rojo** contra el estado anterior: la primera tanda de 50 dio 16 fallas y 6 errores
+  —`/media/` daba 200 a una cuenta sin rol, `MEDIA_X_ACCEL` no existía y la lista blanca
+  tampoco—.
+- Las **dos ramas de entrega** probadas: `MEDIA_X_ACCEL` apagado (Django manda los bytes) y
+  prendido (header `X-Accel-Redirect`, cuerpo vacío, y la misma denegación para quien no
+  puede).
+- `manage.py check` sin issues; `check --deploy` con los avisos preexistentes de settings de
+  desarrollo; `makemigrations --check --dry-run`: «No changes detected».
+- `ruff check .` y `ruff format --check` limpios. `compile_templates.py --bloques`: 202
+  compilados, 0 errores, 0 bloques sin destino. `design_audit.py --ratchet`: ningún archivo
+  de UI cambiado.
+- `requerimientos.py --check` OK.
+- **App de campo:** `Chaco-mobile @ a66c2d3` (lo que corre en PRD) no descarga `/media/` —se
+  verificó con `git grep` sobre ese commit— y sube por
+  `/api/becas/formularios/<id>/adjuntos/`, cuyo serializer no cambió: la lista blanca es la
+  misma tupla, importada en vez de copiada.
 
-## Pendientes
+## Pendientes / a definir
 
-Ninguno.
+- **`MEDIA_X_ACCEL` en ECOM depende del ingress** (D-09, H-05): hay que pedirle a ECOM un
+  `location /protected-media/` `internal` que haga `alias` del volumen de `media/`. Hasta
+  entonces queda apagado y los bytes los manda Django, que es lo que pasa hoy.
+- **R0b-11 sigue abierto:** la etapa 1 todavía no se desplegó en icore-srv. Mientras el
+  nginx de esa VM conserve su `location /media/`, lo intercepta antes que Django y lo sirve
+  abierto; este cambio no lo empeora ni lo arregla.
+- **El `accept` de los dos widgets de archivo** necesita una línea en
+  `.claude/design/componentes/field.md`; la sesión que lo implementó no tiene permiso de
+  escritura ahí y el bloque quedó en el cuerpo del PR.
+- **`legajos.Adjunto` conserva su propia lista** (`legajos/services/contactos.py`, con
+  `.doc/.docx` y 10 MB). Es otra superficie y está fuera de SEC-15; lo que sube por ahí ya
+  se sirve con `attachment` + `nosniff`.
+- **Una consulta por descarga.** `media_protegida` pregunta de quién es el archivo, así que
+  una pantalla con doce miniaturas hace doce consultas de una fila por índice. Es el precio
+  de la pertenencia; con `MEDIA_X_ACCEL` prendido, además, el proceso deja de mover los
+  bytes.
+
+## Reversión
+
+Revertir el commit devuelve `/media/` a «cualquiera con sesión baja cualquier archivo» y a
+los uploads sin lista blanca. Las dos migraciones se desaplican con `migrate legajos 0009`
+y `migrate programas 0082`: no tienen DDL ni datos, así que no queda nada inconsistente —y
+los archivos escritos mientras la release estuvo puesta conservan su nombre con UUID, que
+se sigue resolviendo igual—. Si lo que molesta es solo la entrega por el servidor de
+adelante, alcanza con `MEDIA_X_ACCEL=False`, sin tocar código.
 
 ---
 
@@ -28471,3 +28613,50 @@ en `/xlsx/`), el export del tablero a calcular una consulta por pregunta en cada
 el período personalizado a no tener techo y «Actualizar» a recalcular sin freno. Sacar
 `lxml` de `requirements.txt` es independiente y no cambia ningún archivo descargado: solo
 vuelve a serializar el XML en Python puro. No hay migración ni dato que quede inconsistente.
+
+---
+
+# Cambio 190 — El chequeo de esquema del CI deja de marcar como huérfanas las tablas que carga el organismo
+
+🟢 **HECHO — 08/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal — CI (job «Migrate ida y vuelta»), comando `verificar_esquema_migraciones` |
+| **Etiquetas** | `#infra` `#datos` |
+| **Solicitante** | Juez de la auditoría oct-2026, al ver rojo el job en #640 |
+| **Fecha del pedido** | 08/10/2026 |
+| **Issue / épica** | Auditoría oct-2026, seguimiento de #639 (Cambio 186) |
+| **Partes afectadas** | `core/management/commands/verificar_esquema_migraciones.py` · `core/tests/test_verificar_esquema_migraciones.py` |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Desde #639 (Cambio 186), `seed_perf` crea `aprobados_materias` —la tabla que en producción
+carga el organismo con `Aprobados.sql`— para que el banco y el job «Migrate ida y vuelta»
+puedan medir el circuito SIIS. El paso 8/8 de ese job corre `verificar_esquema_migraciones
+--estricto`, que encontró una tabla sin modelo y salió con error: **todo PR abierto después
+de #639 quedaba rojo** en las dos variantes del job (#640 fue el primero). #639 no lo vio
+porque su propia base todavía no tenía el seed nuevo.
+
+## Decisiones tomadas
+
+- Las tres tablas de `INSUMOS` (`programas/management/commands/_insumos_siis.py`:
+  `aprobados_materias`, `localidades_corregidas`, `ciudadanos_renaper`) son conocidas para el
+  chequeo de huérfanas: se leen con SQL crudo y no tienen modelo a propósito.
+- La lista se repite en `core` (`TABLAS_EXTERNAS_DEL_ORGANISMO`) porque `core` no importa de
+  `programas` (ratchet de capas, R-21); un test la ata a `INSUMOS` para que no diverjan.
+
+## Implementación
+
+`tablas_huerfanas` suma `TABLAS_EXTERNAS_DEL_ORGANISMO` a las conocidas, junto con
+`django_migrations`. Dos tests nuevos en `TablasHuerfanasTests`.
+
+## Validación
+
+`core.tests.test_verificar_esquema_migraciones` + `programas.tests.test_arquitectura`: 44 OK.
+ruff limpio.
+
+## Pendientes
+
+Ninguno.

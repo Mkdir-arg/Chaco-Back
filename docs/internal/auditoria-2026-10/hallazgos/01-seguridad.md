@@ -20,7 +20,7 @@ Base verificada: `origin/development @ 917e583`. PoC: `poc/test_repro_seguridad.
 | SEC-06 | Capacidades `becas.*` otorgables en roles de otro programa | ALTA | CONF. test | 2 | M | ⬜ |
 | SEC-07 | `programa.configurar` en un rol de programa habilita el wizard de todos | ALTA | CONF. test | 2 | S-M | ⬜ |
 | SEC-08 | XSS almacenado por nombre de rol en todas las páginas | ALTA | CONF. test | 0 | S | ✅ |
-| SEC-09 | `/media/` sin login en DEV (nginx); sin pertenencia en ECOM | ALTA (DEV) / MEDIA (ECOM) | CONF. test | 0 (etapa 1) / 2 (etapa 2) | S + M | 🟡 |
+| SEC-09 | `/media/` sin login en DEV (nginx); sin pertenencia en ECOM | ALTA (DEV) / MEDIA (ECOM) | CONF. test | 0 (etapa 1) / 2 (etapa 2) | S + M | ✅ |
 | SEC-11 | APIs JSON de legajos (riesgo, alertas, timeline) sin capacidad | ALTA | CONF. test | **R-19** (`ciudadano.ver` de piso en las 5) / 2 (subir 3 a `ciudadano.sensible`, D-11) | S | ✅ |
 | SEC-12 | Derivaciones por GET (CSRF) sin capacidad; inscripción por `is_staff` | ALTA | CONF. test | 2 | S | ✅ |
 | SEC-13 | Catálogo geográfico escribible por API | ALTA | CONF. test | 0 | S | ✅ |
@@ -28,7 +28,7 @@ Base verificada: `origin/development @ 917e583`. PoC: `poc/test_repro_seguridad.
 | SEC-29 | Registro del portal sobre cualquier legajo con solo el DNI | ALTA | CONF. test | 0 | S | 🟡 |
 | G1-01 | Chat público crea legajos de cualquier DNI con nombre falso que llegan a SIIS | ALTA | CONF. lectura | 0 | S | 🟡 |
 | G1-02 | Segundo oráculo RENAPER anónimo en `/conversaciones/consultar-renaper/` | ALTA | CONF. lectura | 0 | S | ✅ |
-| SEC-15 | Uploads de F-00 y merenderos sin lista blanca ni tope | MEDIA | CONF. test | 2 | S | ⬜ |
+| SEC-15 | Uploads de F-00 y merenderos sin lista blanca ni tope | MEDIA | CONF. test | 2 | S | ✅ |
 | SEC-16 | `/api/users/` lista personal con DNI e `is_superuser` | MEDIA | CONF. test | 0 | (en SEC-05) | ✅ |
 | SEC-17 | La API de usuarios/roles saltea reglas del ABM | MEDIA | CONF. test | 0 | (en SEC-05) | ✅ |
 | SEC-18 | Alertas: cerrar cualquiera por id; CRÍTICAS globales a quien no tiene legajos | MEDIA | CONF. test | 2 → **R (en R-19)** | S | ✅ |
@@ -43,7 +43,7 @@ Base verificada: `origin/development @ 917e583`. PoC: `poc/test_repro_seguridad.
 | SEC-27 | RENAPER con `verify=False` | MEDIA | CONF. lectura | 2 | S | 🟡 |
 | G1c-04 | `/ws/alertas/` difunde fuera de alcance, sin Origin y sin revalidar | MEDIA | CONF. test | 2 | M | ✅ |
 | SEC-30 | Requisitos/subsegmentos/coordinadores validados solo contra el segmento (Regional) | BAJA | CONF. lectura (latente) | 2 | S | ✅ |
-| SEC-31 | Padrón .xlsx: límite solo sobre el comprimido (zip bomb) | BAJA | PLAUSIBLE | 2 | S | ⬜ |
+| SEC-31 | Padrón .xlsx: límite solo sobre el comprimido (zip bomb) | BAJA | PLAUSIBLE | 2 | S | ✅ |
 | SEC-32 | Consulta RENAPER desde la admisión sin `ciudadano.*`, por GET | BAJA | CONF. lectura | 2 | S | ✅ |
 | SEC-33 | El mapa del caso manda GPS a OpenStreetMap en cada apertura | BAJA | CONF. lectura | 2 | S | ✅ |
 | SEC-34 | `EntregaMercaderiaCreateView` busca antes de autorizar | BAJA | CONF. lectura | 2 | S | ✅ |
@@ -57,8 +57,8 @@ Base verificada: `origin/development @ 917e583`. PoC: `poc/test_repro_seguridad.
 | R0b-04 | `retrieve` de `/api/legajos/ciudadanos/<pk>/` da 404 sin `?search=` | BAJA (MINOR) | revisión Ola 0 (2ª tanda) | 2 (Legajos) | S | ✅ |
 | R0b-05 | `CiudadanoViewSet` declara `ordering` sin `OrderingFilter`: pagina sin orden | BAJA (MINOR) | revisión Ola 0 (2ª tanda) | 2 (Legajos) | incluido en R0b-04 | ✅ |
 | R0b-06 | `AlertasViewSet` sin capacidad decidida | BAJA (MINOR) | revisión Ola 0 (2ª tanda) | 2 (con SEC-18) | incluido en SEC-18 | ✅ |
-| R0b-07 | `config/urls.py` monta `/media/` abierto con `DEBUG=True` antes del bloque `SERVE_MEDIA` | BAJA (MINOR) | revisión Ola 0 (2ª tanda) | 2 (Media) | S | ⬜ |
-| R0b-08 | Comentarios que todavía dicen que nginx sirve `/media/` | BAJA (MINOR) | revisión Ola 0 (2ª tanda) | 2 (Media) | incluido en R0b-07 | ⬜ |
+| R0b-07 | `config/urls.py` monta `/media/` abierto con `DEBUG=True` antes del bloque `SERVE_MEDIA` | BAJA (MINOR) | revisión Ola 0 (2ª tanda) | 2 (Media) | S | ✅ |
+| R0b-08 | Comentarios que todavía dicen que nginx sirve `/media/` | BAJA (MINOR) | revisión Ola 0 (2ª tanda) | 2 (Media) | incluido en R0b-07 | ✅ |
 | R0b-09 | `actividad_reciente` pide `ciudadano.sensible` pero muestra inscripciones y derivaciones sin alcance | BAJA (MINOR) | revisión Ola 0 (2ª tanda) | 2 (Legajos) | S | 🟡 |
 | R0b-11 | Desplegar SEC-09 etapa 1 en icore-srv (`web` antes que `nginx`) | — (operativo, PM) | revisión Ola 0 (2ª tanda) | PM | — | ⬜ |
 
@@ -220,7 +220,7 @@ la API detrás de **login** y no detrás de capacidad —un usuario de backoffic
 ### SEC-09 · `/media/`: nginx lo sirve sin login en DEV; en ECOM cualquier sesión (también la de un ciudadano) baja cualquier archivo
 **Severidad:** ALTA en DEV, MEDIA en ECOM · **Estado:** CONFIRMADO-AJUSTADO (lectura de nginx + test `SEC09MediaTests` con `SERVE_MEDIA=True`) · **Origen:** A5-09, A2-12 · **Ola:** 0 (etapa 1) y 2 (etapa 2) · **Esfuerzo:** S + M · **Decisión:** D-09 (coordinación ECOM)
 
-**Resolución:** 🟡 Parcial en #538 (Cambio 112), 03-oct-2026 — etapa 1 hecha en código: `nginx.conf` reemplaza los dos `location /media/` por `location /protected-media/` (`internal`, `attachment`, `nosniff`) y `/media/` cae en Django; `SERVE_MEDIA=True` para `web` en `docker-compose.prod.yml`; `PortalCiudadanoMiddleware` deja de eximir `/media/` (la sesión de un ciudadano ya no baja adjuntos, también en ECOM). Tests en `core/tests/test_media_protegida.py` (6). **Falta:** desplegarlo en icore-srv (R0b-11, operativo del PM: `web` antes que `nginx`; hasta entonces DEV sigue sirviendo `/media/` sin login) y la **etapa 2** (pertenencia por archivo, `X-Accel-Redirect`, `upload_to` con UUID), que sigue en la Ola 2, PR 7: hoy cualquier usuario de backoffice con sesión baja cualquier archivo. Seguimientos: R0b-07 (`/media/` abierto con `DEBUG=True`) y R0b-08 (comentarios viejos).
+**Resolución:** ✅ Resuelta en #538 (Cambio 112, etapa 1) y en el **Cambio 188** (etapa 2), 08-oct-2026 — etapa 1: `nginx.conf` reemplaza los dos `location /media/` por `location /protected-media/` (`internal`, `attachment`, `nosniff`) y `PortalCiudadanoMiddleware` deja de eximir `/media/`. **Etapa 2:** `core/views/media.py::media_protegida` resuelve el dueño por el prefijo de la ruta y evalúa la capacidad con su alcance (`adjuntos/`, `ciudadanos/fotos/` y `contactos/` → `ciudadano.ver`; `admisiones/f00/` → `puede_operar_dispositivo`; `merenderos/solicitudes/` → `merendero.ver` en su programa; `becas/adjuntos/` → `assert_alcance_formulario`; `becas/padrones/` → el guard de su carga, **no** `es_admin_becas`: quien lo sube es el que edita la convocatoria); `upload_to` con UUID en los cinco campos que faltaban (`legajos.0010` y `programas.0083`, las dos **sin DDL**, los archivos existentes no se renombran); y `X-Accel-Redirect` **preparado y apagado** detrás de `MEDIA_X_ACCEL` (D-09/H-05: necesita el `location internal` del ingress de ECOM; el default entrega los bytes desde Django, que es lo de hoy). `SERVE_MEDIA` se borró: la ruta existe siempre y siempre autoriza. **Falta (operativo, PM):** desplegar la etapa 1 en icore-srv (R0b-11) y pedirle a ECOM el `location /protected-media/` si se quiere prender `MEDIA_X_ACCEL`. **Test permanente:** `core.tests.test_media_protegida` (35). Seguimientos R0b-07 y R0b-08: cerrados en el mismo PR.
 - **Ubicación:** `nginx.conf:62-65` y `:134-137` (`location /media/ { alias /media/; expires 7d; }`) → `docker-compose.prod.yml` → icore-srv (DEV `relevamiento-deshum.ecomdev.ar`); ECOM (`SERVE_MEDIA=True`): `config/urls.py:71-81` con `login_required(_media_serve)` sin pertenencia; `core/middleware.py:88` exime `/media/` para ciudadanos. Solo adjuntos y padrones de Becas usan UUID; `adjuntos/`, `ciudadanos/fotos/`, `admisiones/f00/` y `merenderos/solicitudes/%Y/%m/` conservan el nombre original.
 - **Escenario:** con `SERVE_MEDIA=True`, anónimo → 302; ciudadano del portal (SEC-29) → **200** con el contenido. En DEV, por nginx, lo baja cualquiera sin sesión durante 7 días desde caché.
 - **Propuesta:**
@@ -428,6 +428,7 @@ y `DerivarProgramaViewRbacTests.test_is_staff_sin_capacidad_ya_no_ofrece_inscrip
 ## MEDIA
 
 ### SEC-15 · Uploads de F-00 y de solicitud de merendero sin lista blanca de tipo ni techo de tamaño
+**Resolución:** ✅ Resuelta en el **Cambio 188**, 08-oct-2026 — `core/validators.py::validar_adjunto` (lista blanca `.jpg .jpeg .png .pdf .heic .heif .webp`, 5 MB y firma por magic bytes para PDF/PNG/JPG) como `validators=[…]` en `ArchivoAdmision.archivo`, `SolicitudMerendero.documentacion` y `HistorialContacto.archivo_adjunto`, y en el `FileField` del campo ARCHIVO de `F00DinamicoForm`. Las constantes salieron de `programas/api/serializers.py` a `core/validators.py` y el serializer las importa: una sola lista, **sin angostar** lo que acepta la app de campo. **D-15 = PDF e imagen** (sin `.doc/.docx`). Lo ya guardado no se revalida (`_committed`), así que los archivos legacy se siguen viendo. **Test permanente:** `programas.tests.test_uploads_whitelist` (PoC `SEC15UploadsTests` invertida en `SolicitudMerenderoUploadTests.test_merendero_rechaza_html`).
 **Severidad:** MEDIA (A3-08 era ALTA y A5-29 BAJA) · **Estado:** CONFIRMADO-AJUSTADO con test (`SEC15UploadsTests`) · **Origen:** A3-08, A5-29 · **Ola:** 2 · **Esfuerzo:** S · **Decisión:** D-15
 - **Ubicación:** `programas/forms.py:818-819` (`F00DinamicoForm`, `forms.FileField` sin validadores); `SolicitudMerenderoForm`; modelos `programas/models/__init__.py:878`, `:977-980`. Requiere usuario interno con `dispositivo.admitir` o `merendero.crear`. El XSS se sirve same-origin en DEV (nginx) y también en ECOM (`django.views.static.serve` infiere `text/html` para `.html` y no manda `attachment`).
 - **Escenario (reproducido):** `SolicitudMerenderoForm` con `documentacion=x.html` → válido.
@@ -841,6 +842,7 @@ handshake **siga existiendo** (`scope["session"].exists(clave)`, por el backend 
 - **Test:** Regional + `requisito.editar` → 403 sobre el requisito de un par.
 
 ### SEC-31 · Padrón .xlsx: límite de 2 MB solo sobre el archivo comprimido (zip bomb)
+**Resolución:** ✅ Resuelta en el **Cambio 188**, 08-oct-2026 — `padron._verificar_descomprimido` suma los `file_size` del **índice central** del zip (no descomprime nada) y corta en `PADRON_MAX_DESCOMPRIMIDO` = 20 MB; `iter_rows` lleva `max_row=PADRON_MAX_FILAS` (200.000). Un archivo que no es zip sigue dando el mensaje de siempre. **Test permanente:** `programas.tests.test_uploads_whitelist.PadronZipBombTests`.
 **Severidad:** BAJA · **Estado:** PLAUSIBLE · **Origen:** A5-28 · **Ola:** 2 · **Esfuerzo:** S
 - **Ubicación:** `programas/services/padron.py:158-164`, `:173`.
 - **Propuesta:** sumar los `file_size` del zip antes de openpyxl (tope ~20 MB) y cortar `iter_rows` por `max_row`.
@@ -1058,6 +1060,7 @@ Subir la capacidad a `ciudadano.sensible` para el **contenido** de la alerta que
 vistas de SEC-11. **Test permanente:** `legajos.tests.test_alertas_rbac.AlertasApiTests`.
 
 ### R0b-07 · `config/urls.py` monta `/media/` abierto con `DEBUG=True` antes del bloque `SERVE_MEDIA`
+**Resolución:** ✅ Resuelta en el **Cambio 188**, 08-oct-2026 — `static(MEDIA_URL, …)` se fue y `SERVE_MEDIA` también: `/media/` lo atiende siempre `media_protegida`, en dev y en producción. **Test permanente:** `core.tests.test_media_protegida.DebugNoAbreMediaTests.test_con_debug_el_anonimo_sigue_yendo_al_login`.
 **Severidad:** BAJA (MINOR del revisor de #538) · **Estado:** CONFIRMADO (lectura) · **Origen:** revisión de la Ola 0, 2ª tanda · **Ola:** 2 (PR 7, Media) · **Esfuerzo:** S
 - **Ubicación:** `config/urls.py:67` (`urlpatterns += static(settings.MEDIA_URL, ...)`, sin login, activo con `DEBUG=True`) antes de `:72-81` (`login_required(_media_serve)`). Con los dos activos gana el primero.
 - **Escenario:** un ambiente con `DEBUG=True` y `SERVE_MEDIA=True` sirve `/media/` sin sesión.
@@ -1065,6 +1068,7 @@ vistas de SEC-11. **Test permanente:** `legajos.tests.test_alertas_rbac.AlertasA
 - **Test:** con `DEBUG=True` y `SERVE_MEDIA=True`, anónimo → 302.
 
 ### R0b-08 · Comentarios que todavía dicen que nginx sirve `/media/`
+**Resolución:** ✅ Resuelta en el **Cambio 188**, 08-oct-2026 — reescritos `.env.qa.example`, `docs/client/architecture.md`, `docker/k8s/README.md` y el comentario de `docker-compose.prod.yml`. **Test permanente:** `core/tests/test_media_protegida.py::NginxNoSirveMediaTests.test_los_textos_de_despliegue_dicen_lo_que_pasa_de_verdad`.
 **Severidad:** BAJA (MINOR del revisor de #538) · **Estado:** CONFIRMADO (lectura) · **Origen:** revisión de la Ola 0, 2ª tanda · **Ola:** 2 (PR 7, Media) · **Esfuerzo:** incluido en R0b-07
 - **Ubicación:** `.env.qa.example:77-79` («en la VM lo sirve nginx y esto queda en False»: falso desde #538, la VM usa `SERVE_MEDIA=True`); también `docs/client/architecture.md:203` («excepto `/static/` y `/media/`»: el middleware ya no exime `/media/`; ese mismo párrafo es el de R0-02).
 - **Propuesta:** reescribir los dos textos según SEC-09 etapa 1.

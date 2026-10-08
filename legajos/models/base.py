@@ -10,6 +10,7 @@ from django.utils import timezone
 
 from core.dni import normalizar_dni
 from core.models import LegajoBase, TimeStamped
+from core.rutas_media import ruta_adjunto_legajo, ruta_foto_ciudadano
 
 # from simple_history.models import HistoricalRecords  # Comentado temporalmente
 
@@ -56,7 +57,7 @@ class Ciudadano(TimeStamped):
     # --- Perfil ampliado ---
 
     foto = models.ImageField(
-        upload_to="ciudadanos/fotos/",
+        upload_to=ruta_foto_ciudadano,
         blank=True,
         null=True,
         verbose_name="Foto",
@@ -425,7 +426,7 @@ class Adjunto(TimeStamped):
     content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
     object_id = models.UUIDField()
     content_object = GenericForeignKey("content_type", "object_id")
-    archivo = models.FileField(upload_to="adjuntos/")
+    archivo = models.FileField(upload_to=ruta_adjunto_legajo)
     etiqueta = models.CharField(max_length=120, blank=True)
 
     class Meta:
