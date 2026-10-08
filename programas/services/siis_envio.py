@@ -19,6 +19,7 @@ from core.edad import MAYORIA_DE_EDAD, edad_en_anios
 from programas.models import EnvioSIIS, Formulario, PreguntaGlobal
 from programas.services.dashboard_becas import respuesta_de
 from programas.services.padron import normalizar_dni
+from programas.services.respuestas import campos_de
 from programas.services.siis import (
     RESULTADO_INCIERTO,
     RESULTADO_NO_ENVIADO,
@@ -95,6 +96,134 @@ def calcular_cuil(dni, sexo):
         prefijo = 23
         digito = 4 if es_mujer else 9
     return prefijo, digito
+
+
+#: Los prefijos que la AFIP asigna: 20, 23, 24 y 27 a personas humanas; 30, 33 y
+#: 34 a personas jurídicas. Cualquier otro no es un CUIL/CUIT que exista.
+PREFIJOS_CUIL = frozenset({20, 23, 24, 27, 30, 33, 34})
+
+
+def cuil_valido(cuil):
+    """``True`` si ``cuil`` es un CUIL/CUIT que puede existir: 11 dígitos, prefijo
+    de :data:`PREFIJOS_CUIL` y verificador que cierra por módulo 11.
+
+    El verificador sale de :func:`_verificador`, el mismo que usa
+    :func:`calcular_cuil`, para no tener dos copias del algoritmo. El caso
+    especial de la AFIP —si con 20/27 el verificador da 10, el CUIL emitido es
+    ``23-…-9`` (M) o ``23-…-4`` (F)— no necesita rama propia: el peso del ``23``
+    (2·5 + 3·4 = 22) es múltiplo de 11, así que el módulo 11 con prefijo 23 da
+    justo 9 o 4 en esos documentos. ``CuilValidoTests`` lo fija contra
+    ``calcular_cuil``. Un verificador que da 10 con el prefijo respondido no
+    corresponde a ningún CUIL emitido: no es válido.
+    """
+    digitos = _digitos(cuil)
+    if len(digitos) != 11:
+        return False
+    prefijo = int(digitos[:2])
+    if prefijo not in PREFIJOS_CUIL:
+        return False
+    esperado = _verificador(prefijo, digitos[2:10])
+    if esperado == 11:
+        esperado = 0
+    return esperado == int(digitos[10])
+
+
+#: Los dos campos del catálogo que traen un CUIL **emitido**, no deducido: los
+#: completa ``completar_casos_renaper`` cruzando contra ``ciudadanos_renaper``, y
+#: también se pueden responder a mano. Se buscan por su texto normalizado, igual
+#: que ese comando, para no depender del id del requisito (hoy ``rn-26`` y
+#: ``rn-29``, pero el catálogo lo edita el PM desde la pantalla).
+#: Literales y no ``clave_nombre("Cuit Alumno")``: el normalizador se define más
+#: abajo en el módulo. Que los dos textos sigan normalizando a esto lo fija
+#: ``CuilRealDelCasoTests.test_los_textos_del_catalogo_normalizan_a_las_claves``.
+TEXTO_CUIL_TITULAR = "cuit alumno"
+TEXTO_CUIL_APODERADO = "cuil apoderado"
+
+
+def _cuil_respondido(formulario, texto_normalizado):
+    """Los dígitos del CUIL que el caso respondió en ese campo, o ``""``.
+
+    Se lee de la **foto** del caso (``definicion``), que es donde vive el texto
+    de cada campo, y no del catálogo de hoy: así no hay una consulta por caso en
+    el masivo, y vale la misma regla que ``respuestas_por_destino`` —lo que la
+    persona respondió se interpreta con el diseño que respondió (G1-08)—. Un caso
+    sin foto no aporta nada y se sigue calculando, que es lo que se hacía para
+    todos.
+    """
+    definicion = formulario.definicion if isinstance(formulario.definicion, dict) else None
+    if not definicion:
+        return ""
+    for item in campos_de(definicion):
+        if clave_nombre(item.get("texto")) != texto_normalizado:
+            continue
+        clave = item.get("clave") or ""
+        valor = (formulario.respuestas or {}).get(clave)
+        if valor in (None, "", []):
+            # Un caso anterior a la migración de respuestas solo tiene ``data``.
+            valor = _primer_valor(formulario, _clave_data(clave, _pk_de_clave(clave)))
+        return _digitos(valor)
+    return ""
+
+
+def _pk_de_clave(clave):
+    """El pk que lleva una clave ``pg-12`` / ``rn-26``, o ``None``."""
+    sufijo = str(clave or "").split("-", 1)[-1]
+    return int(sufijo) if sufijo.isdigit() else None
+
+
+#: Lo que dice :func:`evaluar_cuil_respondido` de un CUIL respondido. Solo el
+#: primero se usa en el alta; los otros tres dejan el calculado.
+CUIL_USABLE = "usable"
+CUIL_SIN_DATO = "sin CUIL"
+CUIL_DE_OTRO_DOCUMENTO = "de otro documento"
+CUIL_INVALIDO = "respondido inválido"
+
+
+def evaluar_cuil_respondido(respondido, dni):
+    """Si el CUIL respondido se puede mandar a SIIS en lugar del calculado (D-G11).
+
+    La regla única del alta (:func:`cuil_del_caso`) y de la medición
+    (``medir_cuil_respondido``), para que las dos cuenten lo mismo:
+
+    * :data:`CUIL_SIN_DATO` — no son 11 dígitos;
+    * :data:`CUIL_DE_OTRO_DOCUMENTO` — los 8 centrales no son el DNI del caso;
+    * :data:`CUIL_INVALIDO` — es de ese DNI pero el prefijo no existe o el
+      verificador no cierra (:func:`cuil_valido`);
+    * :data:`CUIL_USABLE` — es de ese DNI y es un CUIL válido.
+    """
+    respondido = _digitos(respondido)
+    if len(respondido) != 11:
+        return CUIL_SIN_DATO
+    if respondido[2:10] != _digitos(dni).zfill(8)[-8:]:
+        return CUIL_DE_OTRO_DOCUMENTO
+    if not cuil_valido(respondido):
+        return CUIL_INVALIDO
+    return CUIL_USABLE
+
+
+def cuil_del_caso(formulario, dni, sexo, texto_campo):
+    """``(prefijo, dígito)``: el CUIL **real** del caso si es verificable, o el calculado.
+
+    G1-11 / **D-G11**. El alta calculaba siempre el CUIL por módulo 11 (Cambio
+    80), y el módulo 11 no distingue los prefijos que la AFIP asigna por fuera de
+    la regla: un ``23-…`` o un ``27-…`` emitido de verdad viajaba a SIIS como
+    ``20-…``, y el alta en SIIS no tiene baja. El default registrado de D-G11 es
+    preferir el real **cuando coincide con el DNI y es un CUIL válido**, que es
+    lo que acá se verifica (:func:`evaluar_cuil_respondido`): los 8 dígitos
+    centrales del CUIL respondido tienen que ser el documento de esa misma
+    persona, el prefijo uno de los que asigna la AFIP y el verificador tiene que
+    cerrar por módulo 11. Un CUIL de otro, mal tipeado, con el verificador roto,
+    con un prefijo imposible o incompleto no entra: ahí se sigue calculando, que
+    es exactamente lo que se hacía antes.
+
+    Medir cuántos casos difieren es trabajo de datos y se hace con
+    ``manage.py medir_cuil_respondido`` (solo lectura) contra la base del
+    ambiente; el comportamiento no depende de esa medición.
+    """
+    respondido = _cuil_respondido(formulario, texto_campo)
+    if evaluar_cuil_respondido(respondido, dni) == CUIL_USABLE:
+        return int(respondido[:2]), int(respondido[10])
+    return calcular_cuil(dni, sexo)
 
 
 # ---------------------------------------------------------------------------
@@ -530,7 +659,9 @@ def _apoderado(formulario, faltantes, correcciones=None, hoy=None, dni_titular=N
     sexo = str(sexo or "").upper()
     if sexo in ("F", "M"):
         datos["sexo_apoderado"] = sexo
-        datos["cuil_pref_apoderado"], datos["cuil_dig_apoderado"] = calcular_cuil(dni, sexo)
+        datos["cuil_pref_apoderado"], datos["cuil_dig_apoderado"] = cuil_del_caso(
+            formulario, dni, sexo, TEXTO_CUIL_APODERADO
+        )
     else:
         faltantes["sexo_apoderado"] = "El sexo del apoderado debe ser F o M."
     if not nacimiento:
@@ -650,7 +781,7 @@ def armar_payload(formulario, catalogos=None, hoy=None):
     if sexo in ("F", "M"):
         payload["sexo"] = sexo
         if dni:
-            payload["cuil_pref"], payload["cuil_dig"] = calcular_cuil(dni, sexo)
+            payload["cuil_pref"], payload["cuil_dig"] = cuil_del_caso(formulario, dni, sexo, TEXTO_CUIL_TITULAR)
     else:
         faltantes["sexo"] = "SIIS solo admite sexo F o M; corregilo en la sección de género del caso."
     nacimiento = ciudadano.fecha_nacimiento if ciudadano else None

@@ -234,6 +234,7 @@ def promover_lista_espera_view(request, pk):
             enviar_aviso_resolucion(
                 lista.formulario,
                 "promovido",
+                usuario=request.user,
                 protocol="https" if request.is_secure() else "http",
                 domain=request.get_host(),
             )
@@ -267,6 +268,7 @@ def agregar_lista_espera_view(request, pk):
             enviar_aviso_resolucion(
                 formulario,
                 "lista_espera",
+                usuario=request.user,
                 protocol="https" if request.is_secure() else "http",
                 domain=request.get_host(),
             )

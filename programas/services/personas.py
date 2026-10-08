@@ -287,7 +287,19 @@ class PersonasAPIClient:
             if response.status_code == 401:
                 cache.delete(TOKEN_CACHE_KEY)
             if response.status_code == 404:
-                return {"success": False, "error": "El DNI no fue encontrado en Base de Personas."}
+                # G1-13: con ``not_found`` el 404 del proveedor es «esa persona
+                # no figura», no «el servicio falló». Sin la marca, el alta por
+                # la app de campo devolvía **502** —y el operador leía «Base de
+                # Personas no responde» por un documento que simplemente no está
+                # en la fuente—, mientras el mismo caso por el código 12 del
+                # cuerpo (la otra forma en que el proveedor dice lo mismo) daba
+                # 404. El paso 1 del link ya seguía por padrón o manual en los
+                # dos casos.
+                return {
+                    "success": False,
+                    "not_found": True,
+                    "error": "El DNI no fue encontrado en Base de Personas.",
+                }
             response.raise_for_status()
             body = response.json()
             data = body.get("data") if isinstance(body, dict) else None

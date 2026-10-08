@@ -259,6 +259,34 @@ class UuidEnElMotorRealTests(MotorRealMixin, TestCase):
 
         self.assertEqual(Relevamiento.objects.filter(pk=self.rel.pk).count(), 1)
 
+    def test_el_mismo_token_en_las_dos_formas_no_rompe_el_link(self):
+        """R0-06, en el motor donde de verdad pasa.
+
+        El índice único compara **texto**, así que las dos representaciones del
+        mismo UUID son dos valores distintos y el motor las acepta en dos filas:
+        es lo que queda después de restaurar un dump del otro motor sobre filas ya
+        cargadas. El `OR` de `q_uuid_en_texto` las trae a las dos y el
+        `get_object_or_404` que había levantaba `MultipleObjectsReturned` → 500 en
+        una superficie sin login.
+        """
+        from portal.views.inscripcion import _get_relevamiento
+
+        gemelo = Relevamiento.objects.create(
+            convocatoria=self.conv,
+            tipo=Relevamiento.Tipo.PUBLICO,
+            fecha_asignada=timezone.now(),
+        )
+        otra_forma = (
+            self.rel.token_publico.hex if connection.features.has_native_uuid_field else str(self.rel.token_publico)
+        )
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "UPDATE programas_relevamiento SET token_publico = %s WHERE id = %s", [otra_forma, gemelo.pk]
+            )
+
+        self.assertEqual(relevamiento_publico_por_token(self.rel.token_publico).count(), 2)
+        self.assertEqual(_get_relevamiento(self.rel.token_publico).pk, min(self.rel.pk, gemelo.pk))
+
 
 @tag("mysql")
 class DashboardEnElMotorRealTests(MotorRealMixin, TestCase):

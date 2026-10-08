@@ -448,9 +448,12 @@ class TokenRotadoConcurrenteTests(LoginConcurrenteTests):
             if len(logins) == 1:
                 entro.set()
                 seguir.wait(5)
-                return  # el token que trajo se lo llevó un 401 en el medio
+                # El proveedor contestó 200 sin token: `login` devuelve None y el
+                # ganador corta ahí (no hay nada que reintentar).
+                return None
             cliente.token = "tok2"
             cliente.token_expiration = datetime.datetime(2099, 1, 1, tzinfo=datetime.timezone.utc)
+            return "tok2"
 
         with patch.object(cliente, "login", side_effect=login_falso):
             ganador = threading.Thread(target=lambda: self.assertRaises(Exception, cliente.get_token))

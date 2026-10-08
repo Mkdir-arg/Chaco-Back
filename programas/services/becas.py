@@ -5,9 +5,12 @@ RBAC (admin vs coordinador con alcance) vive en ``programas.services.autorizacio
 """
 
 from django.db import models, transaction
-from django.db.models import CharField, F, Q, Value
-from django.db.models.lookups import Exact
 
+# RED-09 (segunda parte): el helper se mudó a ``core.db`` —lo necesitan también
+# ``legajos`` y ``users``, que no pueden importar un servicio de ``programas``—.
+# Se reexporta desde acá porque media docena de módulos ya lo importaban de este
+# nombre; borrar el reexport es un cambio aparte, no el de la mudanza.
+from core.db import q_uuid_en_texto
 from legajos.models import Ciudadano
 from programas.models import (
     AsignacionCoordinador,
@@ -157,22 +160,6 @@ def formulario_por_client_uuid(relevamiento, client_uuid):
     if not client_uuid:
         return None
     return relevamiento.formularios.filter(q_uuid_en_texto("client_uuid", client_uuid)).order_by("pk").first()
-
-
-def q_uuid_en_texto(campo, valor):
-    """Filtro por un ``UUIDField`` guardado como texto en cualquiera de sus dos formas.
-
-    En MySQL la columna es ``char`` y conviven filas en hex de 32 (MySQL, SQLite)
-    y con guiones (MariaDB 10.7+, que Django trata como UUID nativo; o una base
-    restaurada de un motor al otro). El lookup ``campo=valor`` del ORM manda una
-    sola de las dos, según el motor, y no encuentra la otra. Se compara por
-    igualdad contra las dos como texto plano, sin funciones sobre la columna,
-    para que el índice siga sirviendo.
-    """
-    columna = F(campo)
-    return Q(Exact(columna, Value(valor.hex, output_field=CharField()))) | Q(
-        Exact(columna, Value(str(valor), output_field=CharField()))
-    )
 
 
 def relevamiento_publico_por_token(token, queryset=None):

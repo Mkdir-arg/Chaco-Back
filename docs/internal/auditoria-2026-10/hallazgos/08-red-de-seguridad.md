@@ -48,7 +48,7 @@ con lo que existe hoy; la lista solo baja.
 | RED-06 | Legajos: 23 de 36 rutas sin test; `/legajos/alertas/` ya dio 500 y sigue sin test | ALTA | CONF. test (coverage) | R (+2) | S-M + S | ✅ |
 | RED-07 | Nada impide volver a poner `Trunc*`/`__date` sobre un `DateTimeField` (CONVERT_TZ, 500 en PRD) | ALTA | CONF. test (SQL compilado) | R | S-M | ✅ |
 | RED-08 | Los tests del 500 del link público cuentan consultas, no la forma del `WHERE` | ALTA | CONF. test (SQL compilado) | R | S | ✅ |
-| RED-09 | Un `UUIDField` nuevo sin `char(36)` pasa el CI; el único test de UUID se saltea siempre | ALTA | CONF. test | R (+3) | S-M (+S) | ✅ (R; falta Ola 3) |
+| RED-09 | Un `UUIDField` nuevo sin `char(36)` pasa el CI; el único test de UUID se saltea siempre | ALTA | CONF. test | R (+3) | S-M (+S) | ✅ |
 | RED-10 | Las dos escrituras que dieron 500 bajo el lock no tienen presupuesto de consultas | ALTA | CONF. lectura | R (+4) | S (+S-M) | 🟡 |
 | RED-11 | Ningún test fija la forma del JSON de `/api/becas/*` que lee la app de campo | ALTA | CONF. lectura (dos repos) | R | S | ✅ |
 | RED-12 | `definicion_formulario` y los prefijos `pg-`/`rn-`: contrato de dos repos sin serializer ni test | ALTA | CONF. lectura (dos repos) | R | M | ⬜ |
@@ -809,6 +809,17 @@ char(36)»; `users.0023` por `users.0099` → rojo por inexistente;
 `bloqueado.formularios.filter(client_uuid=client_uuid)` en `programas/api/views.py` → lint en rojo con archivo y línea.
 **Test permanente:** `programas/tests/test_becas_models.py::UUIDExternosMySQLTests.test_todo_uuidfield_nuevo_esta_en_la_lista_ampliada`
 y `core/tests/test_uuid_mariadb.py::BusquedasUUIDTests.test_las_busquedas_por_uuid_usan_el_helper`
+
+**Parte de la Ola 3:** ✅ Cerrada en #625 (Cambio 176, PR 7b), 08-oct-2026, junto con R0-07. `q_uuid_en_texto` vive
+en **`core/db.py`**: siete de los nueve `UUIDField` del repo están fuera de `programas` (`legajos`, `users`, `core`) y
+cualquiera de esas apps tenía que importar el servicio de un dominio ajeno para buscar por su propio UUID —y
+`legajos.models` no puede importar `programas` sin cerrar un ciclo—. Mismo criterio que `core/dni.py` (RED-48).
+`programas/services/becas.py` lo **reexporta**: ningún llamador tuvo que cambiar, y borrar el reexport es un cambio
+aparte. Entró con él la guarda de tipo de R0-07 (acepta `str`, devuelve un `Q` vacío con lo que no es un UUID) y el
+mensaje del lint pasó a apuntar a `core/db.py`. El ratchet de arquitectura (`programas/tests/test_arquitectura.py`) sigue
+igual: `core.db` no importa nada de las apps. **Test permanente:**
+`programas/tests/test_ola3_link_publico.py::QUuidEnTextoTests.test_vive_en_core_y_becas_lo_reexporta` (y los tres de la
+guarda de tipo).
 
 ### RED-10 · Las dos escrituras que dieron 500 bajo el lock no tienen presupuesto de consultas
 **Severidad:** ALTA · **Estado:** CONFIRMADO (lectura de los 23 presupuestos) · **Origen:** RS-R2-05 (VR1: CONFIRMADO) · **Ola:** R (`assertNumQueries`) + 4 (destinos del Performance Guard) · **Esfuerzo:** S (2 h) + S-M (4 h)

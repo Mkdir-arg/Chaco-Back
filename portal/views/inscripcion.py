@@ -16,9 +16,9 @@ import uuid
 from datetime import datetime
 
 from django.conf import settings
-from django.http import JsonResponse
+from django.http import Http404, JsonResponse
 from django.middleware.csrf import get_token
-from django.shortcuts import get_object_or_404, redirect, render
+from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_GET
 
@@ -103,7 +103,17 @@ def _get_relevamiento(token):
     # definición del paso 2 los pedían aparte en cada request (Cambio 91).
     # El token se busca en hex y con guiones (Cambio 99): MariaDB lo guarda con
     # guiones y una base restaurada desde PRD (MySQL) trae filas en hex.
-    return get_object_or_404(
+    #
+    # R0-06: ``.order_by("pk").first()`` y no ``get()``. El índice único compara
+    # texto, así que después de un restore de un motor al otro el mismo UUID
+    # puede convivir en hex y con guiones en **dos** filas; el ``OR`` las trae a
+    # las dos y un ``get`` levantaba ``MultipleObjectsReturned`` → 500 en el link
+    # público, que es una superficie sin login. Gana la fila más vieja (la misma
+    # regla que ``formulario_por_client_uuid``) y el duplicado queda en el log,
+    # que es lo único accionable: el link sigue funcionando.
+    # Dos filas en **una** consulta (``[:2]`` es un LIMIT): detectar el duplicado
+    # con un segundo SELECT le agregaría una consulta a cada request del link.
+    candidatos = list(
         relevamiento_publico_por_token(
             token,
             Relevamiento.objects.select_related(
@@ -111,8 +121,17 @@ def _get_relevamiento(token):
                 "convocatoria__subsegmento__segmento__programa",
                 "convocatoria__diseno",
             ),
-        )
+        ).order_by("pk")[:2]
     )
+    if not candidatos:
+        raise Http404("No hay un relevamiento público con ese token.")
+    if len(candidatos) > 1:
+        logger.error(
+            "Dos relevamientos públicos comparten el token: se atiende el %s y queda sin atender el %s",
+            candidatos[0].pk,
+            candidatos[1].pk,
+        )
+    return candidatos[0]
 
 
 def _no_disponible(request, relevamiento):

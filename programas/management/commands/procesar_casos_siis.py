@@ -52,8 +52,10 @@ del ambiente contra el que se corre.
 
 import sys
 import time
+from contextlib import nullcontext
 from dataclasses import replace
 
+from django.core.mail import get_connection
 from django.core.management.base import CommandError
 
 from programas.management.commands._base_siis import ComandoSiisBase
@@ -205,6 +207,18 @@ class Command(ComandoSiisBase):
         self._log("   Un alta en SIIS no se puede dar de baja desde acá.", self.style.WARNING)
         return input("¿Querés enviar? [y/N]: ").strip().lower() in ("y", "s", "si", "sí", "yes")
 
+    def _conexion_de_correo(self, avisar):
+        """La conexión SMTP del lote, o un contexto que no abre nada (G1-14).
+
+        ``fail_silently=True``: el aviso al ciudadano no puede voltear una corrida
+        de altas. Con el SMTP caído, ``open()`` devuelve ``None`` en vez de
+        levantar y cada envío sigue fallando de a uno, que es lo que
+        ``enviar_aviso_resolucion`` ya sabe registrar en la traza.
+        """
+        if not avisar:
+            return nullcontext()
+        return get_connection(fail_silently=True)
+
     def handle(self, *args, **options):
         aplicar = options["aplicar"]
         tamano = max(1, options["lote"])
@@ -345,19 +359,27 @@ class Command(ComandoSiisBase):
         self._log("")
         for numero, lote in self._lotes(casos, tamano):
             antes = replace(cuenta)
-            for caso in lote:
-                resultado = proceso_masivo.procesar_caso(
-                    caso,
-                    responsable,
-                    catalogos,
-                    cuenta,
-                    avisar=options["avisar"],
-                    solo_enviar=options["solo_enviar"],
-                    destino=destino,
-                )
-                if freno.registrar(resultado):
-                    detenido = True
-                    break
+            # G1-14: una conexión SMTP por **lote**, no una por correo. Con
+            # `--avisar` y lotes de 40 eran 40 handshakes TLS contra el mismo
+            # servidor dentro del mismo lote. Se abre solo si hay avisos que
+            # mandar; `fail_silently=True` porque el aviso nunca puede voltear el
+            # alta —el servicio ya trata el fallo como `False` y lo deja en la
+            # traza—, y `with` la cierra pase lo que pase.
+            with self._conexion_de_correo(options["avisar"]) as conexion:
+                for caso in lote:
+                    resultado = proceso_masivo.procesar_caso(
+                        caso,
+                        responsable,
+                        catalogos,
+                        cuenta,
+                        avisar=options["avisar"],
+                        solo_enviar=options["solo_enviar"],
+                        destino=destino,
+                        conexion_correo=conexion,
+                    )
+                    if freno.registrar(resultado):
+                        detenido = True
+                        break
             self._log(
                 f"   lote {numero:>3}/{total_lotes} · casos {lote[0].pk}-{lote[-1].pk} · "
                 f"aprobados {cuenta.aprobados - antes.aprobados:>3} · "
