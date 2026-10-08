@@ -26393,11 +26393,9 @@ que es operación y no código (OPS-12).
 
 ## Pendientes / a definir
 
-- **Reemplazar a mano el bloque de `.claude/design/shells.md`** por el que va en el cuerpo
-  del PR: el de HEAD describe los **dos** guards de la primera vuelta y la ronda 2 lo dejó
-  en uno solo. Esta sesión no tiene permiso de escritura en `.claude/`, y
-  `check_design_agent --changed` —y el job *Design Agent Contract*— queda rojo hasta que se
-  aplique.
+- ~~Reemplazar a mano el bloque de `.claude/design/shells.md`~~ — **hecho** en `0421d901`
+  (lo aplicó el juez, porque la sesión del PR no escribe en `.claude/`).
+  `check_design_agent --changed` da OK.
 - **Revisar con el PM qué roles quedan con `ciudadano.ver` y sin `ciudadano.sensible`**
   en PRD. Los roles sembrados no pierden nada («Gestión de Ciudadanos» ya trae las dos),
   pero el «Operador de backoffice» de `seed_rbac` tiene solo `ciudadano.ver`: deja de ver
