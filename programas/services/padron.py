@@ -582,7 +582,28 @@ def validar_casos_pendientes(objetivo, usuario=None):
     solo_constantes = []
     #: Casos que además mueven ``datos_identificacion`` o ``dni_titular``: ``bulk_update``.
     con_json = []
-    for formulario in pendientes.iterator(chunk_size=2000):
+    #: Ids de los ciudadanos escritos, para avisarle a la caché una sola vez al final.
+    ciudadanos_tocados = []
+
+    def _descargar_acumulado():
+        """Escribe trazas y ciudadanos de la tanda y vacía los acumuladores.
+
+        Seguimiento MINOR de la revisión de #632: los dos crecían hasta el final del
+        recorrido —tres trazas y un ciudadano por caso—, así que el ``iterator`` acotaba
+        la memoria de la **lectura** y la escritura la volvía a soltar. Lo que se escribe
+        no cambia: son las mismas sentencias, repartidas por tanda.
+        """
+        if trazas:
+            TracaFormulario.objects.bulk_create(trazas, batch_size=1000)
+            trazas.clear()
+        for campos, lista in ciudadanos_por_campos.items():
+            Ciudadano.objects.bulk_update(lista, [*campos, "modificado"], batch_size=500)
+            ciudadanos_tocados.extend(c.pk for c in lista)
+        ciudadanos_por_campos.clear()
+
+    for leidos, formulario in enumerate(pendientes.iterator(chunk_size=2000)):
+        if leidos and leidos % 2000 == 0:
+            _descargar_acumulado()
         dni, sexo = _identidad_del_caso(formulario)
         fila = filas.get((normalizar_dni(dni), normalizar_sexo(sexo)))
         if fila is None:
@@ -633,6 +654,7 @@ def validar_casos_pendientes(objetivo, usuario=None):
         else:
             solo_constantes.append(formulario.pk)
         trazas.extend(trazas_de(formulario, usuario, cambios))
+    _descargar_acumulado()
 
     constantes = {
         "validado_renaper": True,
@@ -647,16 +669,9 @@ def validar_casos_pendientes(objetivo, usuario=None):
             [*constantes, "datos_identificacion", "dni_titular"],
             batch_size=200,
         )
-    for campos, lista in ciudadanos_por_campos.items():
-        Ciudadano.objects.bulk_update(lista, [*campos, "modificado"], batch_size=500)
-    if trazas:
-        TracaFormulario.objects.bulk_create(trazas, batch_size=1000)
     # ``bulk_update`` no dispara ``post_save``, así que la caché del legajo se avisa
-    # a mano, una sola vez para toda la tanda (PERF-16).
-    invalidar_ciudadanos_tras_commit(
-        [c.pk for lista in ciudadanos_por_campos.values() for c in lista],
-        contadores=False,
-    )
+    # a mano, una sola vez para todo el cruce (PERF-16).
+    invalidar_ciudadanos_tras_commit(ciudadanos_tocados, contadores=False)
     return len(solo_constantes) + len(con_json)
 
 

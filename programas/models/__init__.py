@@ -3047,6 +3047,14 @@ class ValidacionSIS(models.Model):
         ordering = ["-creado", "-id"]
         verbose_name = "Validación SIIS"
         verbose_name_plural = "Validaciones SIIS"
+        indexes = [
+            # PERF-19: «la última validación de este caso» es una subconsulta
+            # correlacionada --``WHERE formulario_id = ? ORDER BY creado DESC, id DESC
+            # LIMIT 1``-- que corre **por fila** del recorte. Con solo el índice de la
+            # clave foránea, el motor junta todas las filas del caso y las ordena; con
+            # las tres columnas en orden, lee una sola entrada hacia atrás.
+            models.Index(fields=["formulario", "creado", "id"], name="idx_validacionsis_ult"),
+        ]
 
     def __str__(self):
         return f"Formulario #{self.formulario_id} · {self.estado}"
@@ -3163,6 +3171,11 @@ class EnvioSIIS(models.Model):
             # «¿esta persona ya está informada en este plan?», desde cualquier
             # caso y sin pasar por la clave. Sin el índice es un scan por alta.
             models.Index(fields=["documento", "id_programa"], name="idx_enviosiis_doc_plan"),
+            # PERF-19: «el último envío de este caso» es una subconsulta correlacionada
+            # --``WHERE formulario_id = ? ORDER BY creado DESC, id DESC LIMIT 1``-- que
+            # corre por fila del recorte de candidatos. Con las tres columnas en orden
+            # el motor lee una sola entrada hacia atrás en vez de ordenar los intentos.
+            models.Index(fields=["formulario", "creado", "id"], name="idx_enviosiis_ultimo"),
         ]
 
     def __str__(self):

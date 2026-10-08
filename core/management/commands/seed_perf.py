@@ -25,12 +25,14 @@ from programas.models import (
     Formulario,
     InscripcionPrograma,
     Programa,
+    ProgramaSiis,
     Relevamiento,
     RequisitoNativo,
     Segmento,
     Subsegmento,
     TipoCampo,
 )
+from programas.services.proceso_masivo import TABLA_APROBADOS_MATERIAS
 
 PERF_PREFIX = "PERF"
 PERF_ADMIN_USERNAME = "perf_admin"
@@ -39,6 +41,8 @@ PERF_LOGIN_USERNAME = "perf_login"
 # Contraseña de un usuario sintético, creado sólo por seed_perf en test/CI efímera.
 PERF_LOGIN_PASSWORD = "perf-login-only"  # nosec B105
 PERF_FIRST_DNI = "80000000"
+#: Programa SIIS sintético de la pantalla del proceso masivo (PERF-07).
+PERF_SIIS_PROGRAMA_ID = 9900
 
 
 def _ensure_user(username, *, first_name, last_name, is_staff=False, is_superuser=False, password=None):
@@ -126,6 +130,24 @@ class Command(BaseCommand):
 
         with transaction.atomic():
             self._seed(scale)
+
+    def _seed_aprobados_materias(self):
+        """La tabla cruda del Cambio 90 con los DNI sintéticos de este seed.
+
+        No tiene modelo Django —la carga el organismo desde una planilla— así que acá
+        se crea igual que en los tests. Sin ella la pantalla del proceso masivo no
+        ofrece lanzar nada y su presupuesto de consultas no mediría el camino real
+        (PERF-07).
+        """
+        # El nombre es una constante del módulo del servicio, no una entrada externa
+        # (Bandit B608).
+        with connection.cursor() as cursor:
+            cursor.execute(f"CREATE TABLE IF NOT EXISTS {TABLA_APROBADOS_MATERIAS} (dni VARCHAR(20))")  # nosec B608
+            cursor.execute(f"DELETE FROM {TABLA_APROBADOS_MATERIAS}")  # nosec B608
+            cursor.executemany(
+                f"INSERT INTO {TABLA_APROBADOS_MATERIAS} (dni) VALUES (%s)",  # nosec B608
+                [(dni,) for dni in Ciudadano.objects.filter(dni__startswith="8").values_list("dni", flat=True)],
+            )
 
     def _seed(self, scale):
 
@@ -254,6 +276,20 @@ class Command(BaseCommand):
             segmentos.append(segmento)
             convocatorias.append(convocatoria)
             territoriales.append(territorial)
+
+        # PERF-07: la pantalla del proceso masivo necesita un programa SIIS y la tabla
+        # cruda que decide quién va. Va sobre el **último** segmento a propósito: los
+        # otros presupuestos (cupo, detalle de caso) miran el 000, y colgarle un programa
+        # SIIS les cambiaría las filas que leen.
+        programa_siis, _ = ProgramaSiis.objects.update_or_create(
+            siis_programa_id=PERF_SIIS_PROGRAMA_ID,
+            defaults={
+                "nombre": "PERF Programa SIIS",
+                "siis_funcion_id": 4,
+                "siis_programa_estado": ProgramaSiis.EstadoSiis.ACTIVO,
+            },
+        )
+        Segmento.objects.filter(pk=segmentos[-1].pk).update(programa=programa_siis)
 
         relevamientos = []
         for index in range(scale):
@@ -465,6 +501,9 @@ class Command(BaseCommand):
             message.fecha_envio = expected.fecha_envio
             message.leido = expected.leido
         Mensaje.objects.bulk_update(stored_messages, ["conversacion", "remitente", "fecha_envio", "leido"])
+
+        # Después de los ciudadanos: la tabla lista los DNI que ya existen (PERF-07).
+        self._seed_aprobados_materias()
 
         cache.clear()
         self.stdout.write(

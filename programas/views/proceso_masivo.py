@@ -12,6 +12,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.core.cache import cache
 from django.shortcuts import get_object_or_404, redirect
 from django.views.decorators.http import require_POST
 from django.views.generic.detail import DetailView
@@ -26,6 +27,10 @@ from programas.services import proceso_masivo as servicio
 CAP_PROCESO_MASIVO = "becas.programa.proceso_masivo"
 TOTAL_MAXIMO = 5000
 MENSAJE_EN_CURSO = "Ya hay una corrida en curso. Esperá a que termine o frenala."
+#: Segundos que valen los dos conteos de la pantalla (PERF-07). Son informativos: se
+#: usan para decidir cuánto pedir, y quien lanza vuelve a contar del otro lado. Un
+#: minuto de desfasaje no cambia ninguna decisión y saca el `count()` caro del camino.
+VIGENCIA_CONTEOS = 60
 
 
 class ProcesoMasivoView(CapacidadRequeridaMixin, LoginRequiredMixin, DetailView):
@@ -48,25 +53,30 @@ class ProcesoMasivoView(CapacidadRequeridaMixin, LoginRequiredMixin, DetailView)
         # de lanzar. El host sale de SIIS_API_URL, que ya no tiene default.
         ctx["siis_host"] = urlparse(settings.SIIS_API_URL).netloc or settings.SIIS_API_URL
         # Cambio 90: sin la tabla que decide quién va, la pantalla no ofrece
-        # lanzar nada. Se muestra el motivo en vez de un 500.
-        try:
-            ctx["pendientes"] = servicio.candidatos(programa=self.object).count()
-            # BEC-11: los que SIIS declaró incompatibles ya no son candidatos —si
-            # no, la corrida los vuelve a consultar en cada vuelta—, pero tienen
-            # que verse: son casos esperando que alguien decida, no casos
-            # resueltos. Solo se cuentan cuando no hay corrida: mientras corre,
-            # la pantalla se relee sola cada 5 s y ese bloque no se muestra.
-            ctx["incompatibles"] = (
-                None
-                if en_curso is not None
-                else servicio.candidatos(programa=self.object, solo_incompatibles=True).count()
-            )
-            ctx["tabla_materias_faltante"] = False
-        except servicio.TablaAprobadosMateriasFaltante as exc:
-            ctx["pendientes"] = None
-            ctx["incompatibles"] = None
-            ctx["tabla_materias_faltante"] = True
-            ctx["motivo_bloqueo"] = str(exc)
+        # lanzar nada. Se muestra el motivo en vez de un 500. La **existencia** se
+        # pregunta al catálogo; leer los 15.531 DNI para enterarse era el primer
+        # cuarto del costo de esta pantalla (PERF-07).
+        ctx["pendientes"] = None
+        ctx["incompatibles"] = None
+        ctx["tabla_materias_faltante"] = not servicio.hay_aprobados_materias()
+        if ctx["tabla_materias_faltante"]:
+            ctx["motivo_bloqueo"] = str(servicio.TablaAprobadosMateriasFaltante())
+            return ctx
+        # PERF-07: con una corrida en curso la plantilla **no** muestra ninguno de los
+        # dos números —muestra el progreso— y se relee sola cada 5 s, en el mismo
+        # proceso que la corrida. Calcularlos era un `count()` de 188 KB de SQL (la
+        # lista de DNI habilitados viaja como literales) cada cinco segundos.
+        if en_curso is not None:
+            return ctx
+        # BEC-11: los que SIIS declaró incompatibles ya no son candidatos —si no, la
+        # corrida los vuelve a consultar en cada vuelta—, pero tienen que verse: son
+        # casos esperando que alguien decida, no casos resueltos. Los dos salen del
+        # mismo cálculo porque comparten los insumos.
+        ctx["pendientes"], ctx["incompatibles"] = cache.get_or_set(
+            f"masivo_conteos_{self.object.pk}",
+            lambda: servicio.conteos_de_la_pantalla(self.object),
+            VIGENCIA_CONTEOS,
+        )
         return ctx
 
 

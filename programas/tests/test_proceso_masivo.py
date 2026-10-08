@@ -11,6 +11,7 @@ from unittest import skipUnless
 from unittest.mock import patch
 
 from django.contrib.auth.models import User
+from django.core.cache import cache
 from django.core.management import call_command
 from django.db import connection
 from django.test import TestCase
@@ -106,6 +107,10 @@ def borrar_tabla_aprobados_materias():
 
 class _BaseProcesoTest(TestCase):
     def setUp(self):
+        # PERF-07: la pantalla cachea sus dos conteos por 60 s bajo la clave del
+        # programa, y en los tests el programa siempre nace con el mismo pk: sin esto,
+        # un test leería el número que calculó el anterior.
+        cache.clear()
         call_command("seed_becas", stdout=StringIO())
         # Cambio 90: sin esta tabla, candidatos() se niega a devolver nada.
         crear_tabla_aprobados_materias("20301234")
