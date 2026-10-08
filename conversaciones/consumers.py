@@ -370,7 +370,14 @@ class AlertasConsumer(AsyncWebsocketConsumer):
             return False
 
     def _sesion_vigente(self, user):
-        """La misma sesión única y el mismo bloqueo por clave provisoria del HTTP."""
+        """La misma sesión única y el mismo bloqueo por clave provisoria del HTTP.
+
+        El logout **no** limpia ``Profile.backoffice_session_key``: borra la sesión y
+        deja la clave vieja escrita, así que comparar solo contra el perfil daba
+        ``True`` para siempre y el socket seguía entregando alertas después de cerrar
+        sesión. Se confirma además que la sesión del handshake siga existiendo, por el
+        backend configurado (``db`` en dev y QA, ``cache`` en prd).
+        """
         from users.models import Profile
 
         sesion = self.scope.get("session")
@@ -381,6 +388,8 @@ class AlertasConsumer(AsyncWebsocketConsumer):
         if profile.debe_cambiar_contrasena:
             return False
         if profile.backoffice_session_key and profile.backoffice_session_key != clave:
+            return False
+        if clave and not sesion.exists(clave):
             return False
         return True
 

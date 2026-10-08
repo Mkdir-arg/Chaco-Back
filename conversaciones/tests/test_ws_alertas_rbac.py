@@ -264,6 +264,45 @@ class WsAlertasRbacTests(TestCase):
         self.assertEqual(salida["type"], "websocket.close")
         self.assertEqual(salida["code"], 4403)
 
+    @override_settings(ALERTAS_WS_VENTANA_REVALIDACION=0)
+    def test_el_logout_corta_el_socket_abierto(self):
+        """Cerrar sesión no deja un socket escuchando.
+
+        `logout()` borra la fila de la sesión pero **no** toca
+        `Profile.backoffice_session_key`: la clave vieja queda escrita y la
+        comparación contra el perfil daba `True` para siempre, así que el socket
+        seguía entregando alertas después del logout. La revalidación confirma
+        además que la sesión del handshake todavía exista.
+        """
+
+        def emitir():
+            alerta = AlertaCiudadano.objects.create(
+                ciudadano=self.ciudadano, legajo=self.legajo, tipo="SIN_CONTACTO", prioridad="BAJA", mensaje="m"
+            )
+            AlertasService._enviar_notificacion_alerta(alerta)
+
+        def desloguear():
+            clave = self.client.session.session_key
+            self.client.logout()
+            # La clave vieja sobrevive al logout: es exactamente lo que hacía
+            # inútil la comparación contra el perfil.
+            return Profile.objects.get(user=self.usuario).backoffice_session_key == clave
+
+        async def flujo():
+            com = self._comunicador(cookie=self.cookie)
+            conectado, _ = await com.connect()
+            quedo_la_clave_vieja = await sync_to_async(desloguear)()
+            await sync_to_async(emitir)()
+            salida = await com.receive_output(timeout=3)
+            await com.disconnect()
+            return conectado, quedo_la_clave_vieja, salida
+
+        conectado, quedo_la_clave_vieja, salida = async_to_sync(flujo)()
+        self.assertTrue(conectado)
+        self.assertTrue(quedo_la_clave_vieja)
+        self.assertEqual(salida["type"], "websocket.close")
+        self.assertEqual(salida["code"], 4403)
+
     # ------------------------------------------------------------------ G1c-17
     def test_la_alerta_critica_del_alcance_llega_una_sola_vez(self):
         """Un alta = **un** mensaje, también si es CRÍTICA.

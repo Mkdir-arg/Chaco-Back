@@ -17,6 +17,10 @@ preview y cierre— y en `AlertasViewSet`, por **D-11**: el mensaje de la alerta
 el mismo dato que entrega `/ws/alertas/`, y el dato sensible pide la misma
 capacidad por cualquier canal. Quien pierde acceso: un rol con `ciudadano.ver` y
 sin `ciudadano.sensible`, como el «Operador de backoffice» de `seed_rbac`.
+
+La ronda 3 sumó la séptima superficie, la única que no es una API: la solapa
+«Alertas activas» del detalle del ciudadano, que se arma del lado del servidor
+(`AlertasEnElDetalleDelCiudadanoTests`).
 """
 
 from django.contrib.auth.models import Group, Permission, User
@@ -235,6 +239,65 @@ class AlertasAlcanceTests(TestCase):
         respuesta = cliente.get(reverse("legajos:alertas_dashboard"))
 
         self.assertIn(respuesta.status_code, (302, 403))
+
+
+class AlertasEnElDetalleDelCiudadanoTests(TestCase):
+    """La séptima superficie: la solapa «Alertas activas» del legajo.
+
+    `ciudadano_detail.html` no pasa por ninguna API: el panel se renderiza del
+    lado del servidor con `alertas_ciudadano`, que `build_ciudadano_detail_context`
+    sacaba de la base sin mirar la capacidad. Un rol con `ciudadano.ver` a secas
+    —el «Operador de backoffice»— abría el detalle y leía ahí el mismo «Riesgo
+    Suicida» que D-11 le había cerrado por las otras seis.
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.mirta = Ciudadano.objects.create(dni="21444888", nombre="Mirta", apellido="Quiroga")
+        cls.alerta = AlertaCiudadano.objects.create(
+            ciudadano=cls.mirta,
+            tipo=AlertaCiudadano.TipoAlerta.RIESGO_SUICIDA,
+            prioridad=AlertaCiudadano.Prioridad.CRITICA,
+            mensaje="Riesgo suicida detectado en la última entrevista",
+        )
+        cls.url = reverse("legajos:ciudadano_detalle", args=[cls.mirta.pk])
+
+    def _html(self, usuario):
+        cliente = Client()
+        cliente.force_login(usuario)
+        respuesta = cliente.get(self.url)
+        self.assertEqual(respuesta.status_code, 200)
+        return respuesta.content.decode()
+
+    def test_con_ciudadano_ver_solo_entra_pero_no_lee_la_alerta(self):
+        html = self._html(usuario_con("ciudadano.ver", username="detalle-solo-ver"))
+
+        self.assertNotIn("Riesgo suicida detectado en la última entrevista", html)
+        self.assertNotIn(self.alerta.get_tipo_display(), html)
+
+    def test_con_ciudadano_ver_solo_tampoco_ve_la_solapa_ni_el_contador(self):
+        html = self._html(usuario_con("ciudadano.ver", username="detalle-solapa"))
+
+        self.assertNotIn('id="tab-btn-alertas"', html)
+        self.assertNotIn('id="tab-alertas"', html)
+        self.assertNotIn("Alertas activas", html)
+
+    def test_con_ciudadano_sensible_si_las_ve(self):
+        html = self._html(usuario_con("ciudadano.ver", "ciudadano.sensible", username="detalle-sensible"))
+
+        self.assertIn("Riesgo suicida detectado en la última entrevista", html)
+        self.assertIn(self.alerta.get_tipo_display(), html)
+        self.assertIn('id="tab-btn-alertas"', html)
+
+    def test_sin_la_capacidad_el_selector_no_consulta_las_alertas(self):
+        from legajos.selectors.ciudadanos import build_ciudadano_detail_context
+
+        usuario = usuario_con("ciudadano.ver", username="detalle-sin-consulta")
+
+        contexto = build_ciudadano_detail_context(self.mirta, user=usuario)
+
+        self.assertEqual(list(contexto["alertas_ciudadano"]), [])
+        self.assertNotIn("alertas", [solapa["id"] for solapa in contexto["solapas"]])
 
 
 class AlertasApiTests(TestCase):

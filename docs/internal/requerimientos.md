@@ -26297,7 +26297,15 @@ que es operación y no código (OPS-12).
   legajo piden `ciudadano.sensible`, en las **tres** superficies a la vez: las tres rutas
   HTTP de SEC-11, el WebSocket (G1c-04) y la rama de alertas del feed del inicio
   (R0b-09). Que el mismo dato pidiera capacidades distintas según el transporte es
-  exactamente lo que G1c-04 explotaba.
+  exactamente lo que G1c-04 explotaba. En la ronda 2 esto se extendió a las seis
+  superficies HTTP de alertas, y en la ronda 3 a la séptima: la solapa «Alertas activas»
+  del detalle, que se arma del lado del servidor y no es una API.
+- **El PR no le da acceso nuevo a nadie.** Es de endurecimiento: todo lo que mueve, lo
+  mueve hacia arriba. Por eso `actividad_reciente` **se queda** en `ciudadano.sensible`,
+  la capacidad que ya pedía antes del PR, y lo único que cambia ahí es el alcance —hacia
+  adentro—. Bajarla a `ciudadano.ver` le habría abierto el feed del inicio a roles que hoy
+  no lo ven, y en particular a `config.administrar` sin `ciudadano.sensible`, que
+  `acotar_a_programas_del_usuario` trata como alcance global (ronda 3).
 - **DECISIÓN CLIENTE D-12 = reusar `ciudadano.editar`**, sin capacidad nueva. Mover una
   derivación es escribir sobre el legajo del ciudadano, que es lo que esa capacidad
   habilita; así el cambio no necesita migración de datos ni re-tildar roles en PRD. La
@@ -26340,8 +26348,10 @@ que es operación y no código (OPS-12).
   desempate por `pk` y el mínimo de búsqueda solo en `list`.
 - `legajos/services/filtros_usuario.py` — `tiene_alcance_global` y
   `acotar_a_programas_del_usuario` (helpers nuevos).
-- `dashboard/api_views/__init__.py` — `actividad_reciente` con `ciudadano.ver`, alcance
-  en inscripciones y derivaciones, y alertas solo con `ciudadano.sensible`.
+- `dashboard/api_views/__init__.py` — `actividad_reciente` conserva `ciudadano.sensible`
+  (ver *Historial*, ronda 3) y suma el alcance en inscripciones y derivaciones.
+- `legajos/selectors/ciudadanos.py` — `alertas_ciudadano` y la solapa «Alertas» del
+  detalle solo con `ciudadano.sensible` (ronda 3).
 - `config/asgi.py` — `AllowedHostsOriginValidator` sobre el router de WebSocket.
 - `legajos/views/alertas.py` — dashboard, `count-ajax`, `preview-ajax` y `cerrar-ajax`
   pasan a `@requiere("ciudadano.sensible")` (ronda 2, ver *Historial*).
@@ -26358,18 +26368,20 @@ que es operación y no código (OPS-12).
 - `static/custom/js/alertas_websocket.js` — `mostrarAlerta()` decide modal o toast por
   prioridad, y `rechazado` (sin reintento tras un 4403).
 - `legajos/templates/legajos/ciudadano_detail.html` — el panel «Predicción de riesgo» y
-  su `fetch` van dentro de `{% if puede_ver_sensible %}`.
+  su `fetch`, y (ronda 3) el panel de la solapa «Alertas» y su contador del encabezado,
+  van dentro de `{% if puede_ver_sensible %}`.
 - `core/tests/js_harness.py` — `document.querySelectorAll` en el DOM simulado.
 - Tests: `legajos/tests/test_derivaciones_rbac.py` (16),
-  `conversaciones/tests/test_ws_alertas_rbac.py` (13) y
+  `conversaciones/tests/test_ws_alertas_rbac.py` (14) y
   `core/tests/test_alertas_ws_shell.py` (7) nuevos; clases nuevas en
-  `legajos/tests/test_api_ciudadanos_rbac.py` y `dashboard/tests/test_api_rbac.py`, y
+  `legajos/tests/test_api_ciudadanos_rbac.py`, `dashboard/tests/test_api_rbac.py` y
+  `legajos/tests/test_alertas_rbac.py` (`AlertasEnElDetalleDelCiudadanoTests`, ronda 3), y
   `legajos/tests/test_contactos_api_rbac.py` partido en rutas sensibles y de consulta.
 
 ## Validación
 
 - `manage.py test legajos core users conversaciones dashboard` con Python 3.12 /
-  Django 5.2.17 (venv igual al CI): **1.683 tests, OK**.
+  Django 5.2.17 (venv igual al CI): **1.732 tests, OK** (ronda 3).
 - `manage.py check` sin issues; `check --deploy` con los 6 avisos preexistentes de
   settings de desarrollo; `makemigrations --check --dry-run`: «No changes detected».
 - `test --tag performance` OK (el presupuesto de `inicio` no se mueve: las dos
@@ -26389,10 +26401,18 @@ que es operación y no código (OPS-12).
 - **Revisar con el PM qué roles quedan con `ciudadano.ver` y sin `ciudadano.sensible`**
   en PRD. Los roles sembrados no pierden nada («Gestión de Ciudadanos» ya trae las dos),
   pero el «Operador de backoffice» de `seed_rbac` tiene solo `ciudadano.ver`: deja de ver
-  el timeline, las alertas y el riesgo del ciudadano, el dashboard de alertas y **la
-  campana del navbar entera** (contador y punto de estado incluidos). Va sin migración de
-  datos a propósito: si el PM decide que lo siga viendo, se tilda `ciudadano.sensible`
-  desde el ABM de Roles y vuelve todo, sin release.
+  el timeline, las alertas y el riesgo del ciudadano, el dashboard de alertas, **la
+  campana del navbar entera** (contador y punto de estado incluidos) y **la solapa
+  «Alertas» del detalle del ciudadano** (ronda 3). El resto del detalle lo sigue abriendo
+  con `ciudadano.ver`. Nadie gana acceso. Va sin migración de datos a propósito: si el PM
+  decide que lo siga viendo, se tilda `ciudadano.sensible` desde el ABM de Roles y vuelve
+  todo, sin release.
+- **Partir `actividad_reciente` en dos (R0b-09, mitad abierta).** La ficha pedía dos cosas
+  —acotar el feed y que el rol de Legajos sin datos sensibles viera *algo*— y este PR
+  resolvió solo la primera. La segunda necesita separar inscripciones y derivaciones
+  (`ciudadano.ver`) de la rama de alertas (`ciudadano.sensible`), en dos endpoints o con
+  el feed sin alertas, y una decisión del PM sobre qué ve el «Operador de backoffice» en
+  el inicio. Queda registrada en la ficha R0b-09, para una ola posterior.
 - **El channel layer fuera de `prd` es `InMemoryChannelLayer`:** en QA lo que emite el
   CronJob de `generar_alertas` no llega a ningún navegador. Es OPS-12, no este cambio.
 
@@ -26475,6 +26495,54 @@ llegar a usarlo), y no hay migración de datos ni de esquema.
 Costo del cambio para el usuario: ver *Pendientes*. Quien tiene `ciudadano.ver` y no
 `ciudadano.sensible` pierde la campana de alertas; se devuelve tildando la capacidad en
 Roles.
+
+### Ronda 3 de la revisión del PR #629 — 08/10/2026
+
+Dos MAJOR y un MINOR. Los dos MAJOR son el mismo descuido en dos planos: **una regla que
+se aplicó donde se la buscó, no donde el dato sale**.
+
+1. **Séptima superficie del texto de la alerta: la solapa del detalle (MAJOR).** La ronda 2
+   cerró seis superficies HTTP, todas APIs JSON, y se le pasó la única que no lo es.
+   `legajos/templates/legajos/ciudadano_detail.html` renderiza la solapa «Alertas activas»
+   del lado del servidor, con `alertas_ciudadano`, que `build_ciudadano_detail_context`
+   traía de la base sin mirar ninguna capacidad: un «Operador de backoffice» abría el
+   legajo con `ciudadano.ver` y leía ahí el tipo y el mensaje de cada alerta —«Riesgo
+   Suicida»— que el mismo PR le había cerrado por las otras seis y por el socket. El corte
+   va en el **selector**, no en el template: sin `ciudadano.sensible` el queryset es
+   `AlertaCiudadano.objects.none()`, que **no consulta**, y con él se vacían el panel, el
+   botón de la solapa (se filtra de `solapas`, porque es estática y aparecía siempre), el
+   badge y los tres contadores del encabezado. El panel y la tarjeta «Alertas activas» de
+   los indicadores van además dentro de `{% if puede_ver_sensible %}`, para que no quede
+   un `id="tab-alertas"` huérfano en el DOM. **Barrido hecho sobre `legajos`, `dashboard`
+   y `core`:** no hay octava. Las únicas dos plantillas que renderizan **texto** de alerta
+   son esta y `templates/legajos/alertas_dashboard.html`, que la ronda 2 ya dejó en
+   `ciudadano.sensible`; todo lo demás —`ciudadano_list.html`, `dashboard.html`,
+   `core/views/public.py` (`alertas_activas`, `pie_alertas`)— son **contadores globales**,
+   sin ciudadano ni mensaje, y quedan como estaban.
+2. **El logout no cortaba el socket (MAJOR).** `_sesion_vigente` comparaba la clave del
+   handshake contra `Profile.backoffice_session_key`, y `logout()` **no toca esa columna**:
+   borra la fila de `django_session` y deja la clave vieja escrita, así que la comparación
+   daba `True` para siempre. La ronda 2 había cubierto *reemplazar* la sesión (otro login
+   pisa la columna) pero no *cerrarla*: quien se deslogueaba seguía recibiendo alertas por
+   el socket abierto, con el texto sensible y como notificación del sistema operativo,
+   hasta cerrar la pestaña. Ahora la revalidación confirma además que la sesión exista, con
+   `scope["session"].exists(clave)` —por el backend configurado: `db` en dev y QA, `cache`
+   en prd, así que sirve en los dos—. Va dentro de `refrescar_alcance`, no en cada entrega:
+   es **una consulta por ventana**, y `VentanaDeRevalidacionTests` sigue midiendo ≤ 2
+   consultas para 10 entregas.
+3. **`actividad_reciente` vuelve a `ciudadano.sensible` (MINOR).** La ronda 1 la bajó a
+   `ciudadano.ver` siguiendo la propuesta de R0b-09. Visto de nuevo, eso era **dar acceso
+   nuevo** en un PR de endurecimiento: con `config.administrar` —que
+   `acotar_a_programas_del_usuario` trata como alcance global— el «Operador de backoffice»
+   pasaba a ver las inscripciones y derivaciones de todo el sistema, que es justo el agujero
+   que la ficha quería cerrar. Se restituye la capacidad que el endpoint pedía antes del PR;
+   el alcance acotado, que es la mitad buena de R0b-09, **se queda**. Nada se rompe por
+   volver: es el estado previo. Lo que queda abierto —que quien solo tiene `ciudadano.ver`
+   siga sin ver nada del feed del inicio— está escrito como pendiente en la ficha R0b-09,
+   que baja de ✅ a 🟡.
+
+Resultado neto del PR, chequeado: **nadie gana acceso a nada**. Todas las capacidades que
+el PR mueve, las mueve hacia arriba; lo único que se afloja son los alcances, hacia adentro.
 
 ---
 

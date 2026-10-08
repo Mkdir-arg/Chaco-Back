@@ -167,14 +167,14 @@ class ApiDashboardSoloBackofficeTests(TestCase):
 
 
 class ActividadRecienteAlcanceTests(TestCase):
-    """R0b-09: la capacidad tiene que corresponder al contenido del feed.
+    """R0b-09: el feed sale acotado al alcance del usuario.
 
-    El endpoint pedía `ciudadano.sensible` y listaba las últimas inscripciones y
-    derivaciones **de todos los programas**, sin pasar por ningún alcance; quien
-    solo tenía `ciudadano.ver` —el rol de Legajos sin datos sensibles— no veía
-    nada. Ahora el piso es `ciudadano.ver`, las inscripciones y derivaciones
-    salen acotadas al alcance del usuario y la rama de alertas solo aparece con
-    `ciudadano.sensible` (D-11).
+    El endpoint listaba las últimas inscripciones y derivaciones **de todos los
+    programas**, sin pasar por ningún alcance. Ahora todo pasa por el mismo
+    corte que `FiltrosUsuarioService` aplica a las alertas. La capacidad sigue
+    siendo `ciudadano.sensible`, la que ya pedía: el tipo de la alerta viaja en
+    el feed y bajarla abriría inscripciones y derivaciones a roles que hoy no
+    las ven (pendiente en la ficha G3-03).
     """
 
     @classmethod
@@ -210,20 +210,19 @@ class ActividadRecienteAlcanceTests(TestCase):
 
         self.assertEqual(self.client.get(self.url).status_code, 403)
 
-    def test_con_ciudadano_ver_contesta_y_trae_lo_de_su_alcance_sin_alertas(self):
+    def test_con_ciudadano_ver_pelado_sigue_dando_403(self):
+        """El feed trae el tipo de la alerta: `ciudadano.ver` no alcanza."""
         self.responsable.groups.add(_rol_con("Feed solo ver", ["ciudadano.ver"]))
+        self.client.force_login(self.responsable)
 
-        descripciones = self._descripciones(self.responsable)
+        self.assertEqual(self.client.get(self.url).status_code, 403)
 
-        self.assertTrue(any("Programa propio" in d for d in descripciones))
-        self.assertFalse(any("Programa ajeno" in d for d in descripciones))
-        self.assertFalse(any(d.startswith("Alerta:") for d in descripciones))
-
-    def test_con_ciudadano_sensible_suma_las_alertas_de_su_alcance(self):
+    def test_con_ciudadano_sensible_trae_lo_de_su_alcance_y_nada_ajeno(self):
         self.responsable.groups.add(_rol_con("Feed sensible", ["ciudadano.ver", "ciudadano.sensible"]))
 
         descripciones = self._descripciones(self.responsable)
 
+        self.assertTrue(any("Programa propio" in d for d in descripciones))
         self.assertTrue(any(d.startswith("Alerta:") for d in descripciones))
         self.assertFalse(any("Programa ajeno" in d for d in descripciones))
 
@@ -236,7 +235,7 @@ class ActividadRecienteAlcanceTests(TestCase):
     def test_config_administrar_ve_todo(self):
         """Misma puerta global que usa `FiltrosUsuarioService` para las alertas."""
         admin = User.objects.create_user("agente-config", password="Clave-Seg-2026x")
-        admin.groups.add(_rol_con("Feed config", ["ciudadano.ver", "config.administrar"]))
+        admin.groups.add(_rol_con("Feed config", ["ciudadano.sensible", "config.administrar"]))
 
         descripciones = self._descripciones(admin)
 

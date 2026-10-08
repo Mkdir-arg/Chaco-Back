@@ -59,7 +59,7 @@ Base verificada: `origin/development @ 917e583`. PoC: `poc/test_repro_seguridad.
 | R0b-06 | `AlertasViewSet` sin capacidad decidida | BAJA (MINOR) | revisión Ola 0 (2ª tanda) | 2 (con SEC-18) | incluido en SEC-18 | ✅ |
 | R0b-07 | `config/urls.py` monta `/media/` abierto con `DEBUG=True` antes del bloque `SERVE_MEDIA` | BAJA (MINOR) | revisión Ola 0 (2ª tanda) | 2 (Media) | S | ⬜ |
 | R0b-08 | Comentarios que todavía dicen que nginx sirve `/media/` | BAJA (MINOR) | revisión Ola 0 (2ª tanda) | 2 (Media) | incluido en R0b-07 | ⬜ |
-| R0b-09 | `actividad_reciente` pide `ciudadano.sensible` pero muestra inscripciones y derivaciones sin alcance | BAJA (MINOR) | revisión Ola 0 (2ª tanda) | 2 (Legajos) | S | ✅ |
+| R0b-09 | `actividad_reciente` pide `ciudadano.sensible` pero muestra inscripciones y derivaciones sin alcance | BAJA (MINOR) | revisión Ola 0 (2ª tanda) | 2 (Legajos) | S | 🟡 |
 | R0b-11 | Desplegar SEC-09 etapa 1 en icore-srv (`web` antes que `nginx`) | — (operativo, PM) | revisión Ola 0 (2ª tanda) | PM | — | ⬜ |
 
 ---
@@ -309,16 +309,27 @@ navbar»). Es exactamente el dato que G1c-04 le cerró al mismo usuario por WebS
 `ciudadano.sensible`; la campana del navbar y su script, también. **Va sin migración de datos:** si el PM decide
 que el Operador siga viendo alertas, se tilda `ciudadano.sensible` en el ABM de Roles.
 
+**Séptima superficie, encontrada en la ronda 3: la solapa «Alertas activas» del legajo.** Las seis de arriba son
+APIs; esta se renderiza del lado del servidor desde `legajos/selectors/ciudadanos.py`
+(`build_ciudadano_detail_context` → `alertas_ciudadano`), así que no pasaba por ninguna de las capacidades que el
+PR movió: con `ciudadano.ver` el detalle del ciudadano seguía mostrando el tipo y el mensaje de cada alerta
+activa. El corte va en el selector -sin `ciudadano.sensible` el queryset es `none()` y **no consulta**-, y con él
+se vacían el panel, el botón de la solapa y los tres contadores del encabezado.
+
 **Quién pierde acceso:** nadie de los roles sembrados -«Gestión de Ciudadanos» ya trae `ciudadano.sensible`-; sí lo
 pierde un rol armado a mano con `ciudadano.ver` y sin `ciudadano.sensible`, como el «Operador de backoffice» que
-siembra `seed_rbac`: pierde el timeline, las alertas y el riesgo del ciudadano, el dashboard de alertas y **la
-campana del navbar** (y con ella el contador y el punto de estado). **Test permanente:**
+siembra `seed_rbac`: pierde el timeline, las alertas y el riesgo del ciudadano, el dashboard de alertas, **la
+campana del navbar** (y con ella el contador y el punto de estado) y **la solapa «Alertas» del detalle del
+ciudadano**. Lo que **no** pierde es el resto del detalle, que sigue abriendo con `ciudadano.ver`. En la otra
+dirección, el PR no le da acceso nuevo a nadie: `actividad_reciente` se quedó en `ciudadano.sensible`, la
+capacidad que ya pedía (ver R0b-09). **Test permanente:**
 `legajos.tests.test_contactos_api_rbac.ContactosApiRbacTests.test_con_ciudadano_ver_las_tres_sensibles_ya_no_contestan`
 (y `test_con_ciudadano_sensible_las_tres_contestan`,
 `legajos.tests.test_alertas_rbac.AlertasRbacTests.test_con_ciudadano_ver_solo_ya_no_entra_a_ninguna`,
 `test_con_ciudadano_ver_solo_no_lee_el_texto_de_la_alerta`,
 `AlertasAlcanceTests.test_el_alcance_global_no_es_una_puerta_de_entrada` y
-`AlertasApiTests.test_con_ciudadano_ver_solo_tampoco_lista`).
+`AlertasApiTests.test_con_ciudadano_ver_solo_tampoco_lista` y, por la séptima superficie,
+`AlertasEnElDetalleDelCiudadanoTests`).
 
 ### SEC-12 · Derivaciones: aceptar o rechazar por GET (CSRF) sin capacidad; inscripción directa por `is_staff`
 **Severidad:** ALTA · **Estado:** CONFIRMADO con test (`SEC12DerivacionGetTests`) · **Origen:** A5-12, A3-04, G1c-07 · **Ola:** 2 · **Esfuerzo:** S (reusando `ciudadano.editar`) / M (capacidad nueva) · **Decisión:** D-12
@@ -593,6 +604,16 @@ invertida: `test_origin_ajeno_no_conecta`, `test_sesion_reemplazada_no_conecta`,
 `test_reemplazarle_la_sesion_corta_el_socket_abierto` y `test_el_ruteo_no_viaja_al_cliente`) y
 `VentanaDeRevalidacionTests` (N entregas dentro de la ventana ≤ 2 consultas, con `CaptureQueriesContext`).
 
+**Corrección de la ronda 3 del PR: el logout no cortaba el socket.** `_sesion_vigente` comparaba la clave del
+handshake contra `Profile.backoffice_session_key`, y `logout()` **no toca esa columna**: borra la fila de la
+sesión y deja la clave vieja escrita, así que la comparación daba `True` para siempre. Quien cerraba sesión
+seguía recibiendo alertas por el socket abierto -con el texto sensible y como notificación del sistema
+operativo- hasta que la pestaña se cerrara. La revalidación por ventana confirma ahora, además, que la sesión del
+handshake **siga existiendo** (`scope["session"].exists(clave)`, por el backend configurado: `db` en dev y QA,
+`cache` en prd); si no está, 4403. Va en la revalidación, no en cada entrega: es una consulta por ventana.
+**Test permanente:** `WsAlertasRbacTests.test_el_logout_corta_el_socket_abierto` (con
+`ALERTAS_WS_VENTANA_REVALIDACION=0`, que es el peor caso de latencia).
+
 ## BAJA
 
 ### SEC-30 · Requisitos, subsegmentos y coordinadores validados solo contra el segmento (Coordinador Regional, latente)
@@ -729,14 +750,23 @@ vistas de SEC-11. **Test permanente:** `legajos.tests.test_alertas_rbac.AlertasA
 - **Propuesta:** separar por tipo de evento: inscripciones y derivaciones con `ciudadano.ver` (acotadas como en SEC-12/D-12), alertas con `ciudadano.sensible` (D-11); o partir el feed en dos endpoints.
 - **Test:** con `ciudadano.ver` solo, el feed trae inscripciones y no alertas; sin capacidad → 403.
 
-**Resolución:** ✅ Resuelto en #629 (Cambio 179), 08-oct-2026 - `actividad_reciente` baja a
-`RequiereCapacidad("ciudadano.ver")`, las inscripciones y derivaciones salen por
-`FiltrosUsuarioService.acotar_a_programas_del_usuario` (helper nuevo, mismo alcance que ya usan las alertas:
-los programas de los legajos propios; superusuario y `config.administrar` ven todo) y la rama de alertas -el
-único dato sensible del feed- solo se arma con `ciudadano.sensible` (D-11). **Test permanente:**
+**Resolución:** 🟡 Resuelta **la mitad del alcance** en #629 (Cambio 179), 08-oct-2026 - las inscripciones y
+derivaciones salen por `FiltrosUsuarioService.acotar_a_programas_del_usuario` (helper nuevo, mismo alcance que
+ya usan las alertas: los programas de los legajos propios; superusuario y `config.administrar` ven todo), así
+que el feed dejó de mostrar movimientos de programas ajenos. **Test permanente:**
 `dashboard.tests.test_api_rbac.ActividadRecienteAlcanceTests` (en particular
-`test_con_ciudadano_ver_contesta_y_trae_lo_de_su_alcance_sin_alertas` y
-`test_con_ciudadano_sensible_suma_las_alertas_de_su_alcance`).
+`test_con_ciudadano_sensible_trae_lo_de_su_alcance_y_nada_ajeno` y `test_config_administrar_ve_todo`).
+
+**Pendiente — la mitad de la capacidad.** La ronda 1 del PR había bajado el endpoint a
+`RequiereCapacidad("ciudadano.ver")` dejando la rama de alertas detrás de `ciudadano.sensible`. La ronda 3 lo
+devolvió a `ciudadano.sensible`: **el PR era de endurecimiento y no tenía que darle acceso nuevo a nadie**. Con
+`ciudadano.ver` el feed se abría a roles que hoy no lo ven y, en particular, un rol con `config.administrar` y
+sin `ciudadano.sensible` —que `acotar_a_programas_del_usuario` trata como alcance global— pasaba a ver las
+inscripciones y derivaciones de **todo el sistema**. Nada se rompe por volver: es la capacidad que el endpoint
+pedía antes del PR. Lo que queda abierto es la mitad original de la ficha —que quien solo tiene `ciudadano.ver`
+siga sin ver nada del feed—, y resolverlo bien es partir el endpoint en dos (inscripciones/derivaciones con
+`ciudadano.ver`, alertas con `ciudadano.sensible`) o sacar la rama de alertas del feed. Va a una ola posterior,
+con decisión del PM sobre qué ve el «Operador de backoffice» en el inicio.
 
 ### R0b-11 · Desplegar SEC-09 etapa 1 en icore-srv (operativo, PM)
 **Severidad:** — (operativo, sin código) · **Origen:** #538 (Cambio 112) · **Ola:** PM · **Esfuerzo:** —

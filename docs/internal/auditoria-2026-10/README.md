@@ -1924,7 +1924,8 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
   2. *Usuarios:* G1b-05, G1b-07, G1b-08, SEC-26, G2-03, R0b-01, R0b-02, R0b-03, R0b-10 (seguimientos de SEC-03). 24 h.
   3. ✅ *Legajos:* **SEC-12**, el ascenso de `ciudadano.ver` a `ciudadano.sensible` en las tres rutas sensibles de
      **SEC-11** (D-11: `timeline_ciudadano_api`, `alertas_ciudadano_api`, `prediccion_riesgo_api`), R0b-04 (+ R0b-05),
-     R0b-09 — **Cambio 179**, 08-oct-2026, junto con el ítem 4 en un solo PR. 7 h. ⬅ **SEC-10 completa, SEC-18 completa (+ R0b-06) y SEC-11 con `ciudadano.ver` de piso en sus cinco
+     R0b-09 (🟡 solo el alcance: la capacidad vuelve a `ciudadano.sensible`, ver su ficha) — **Cambio 179**,
+     08-oct-2026, junto con el ítem 4 en un solo PR. 7 h. ⬅ **SEC-10 completa, SEC-18 completa (+ R0b-06) y SEC-11 con `ciudadano.ver` de piso en sus cinco
      rutas se adelantaron al PR R-19 de la Ola R** (7 h movidas allá; D-RED-14, por el hard delete que midió RED-89).
      No rehacerlas acá: **ninguna de esas rutas llega a esta ola abierta**, lo único que falta es subir tres de
      `ciudadano.ver` a `ciudadano.sensible` —una línea por vista— cuando D-11 se resuelva.

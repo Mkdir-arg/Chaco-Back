@@ -452,6 +452,7 @@
                     <p class="mt-4 text-xs" style="color: var(--text-body-subtle);">Documentos disponibles</p>
                 </div>
 
+                {% if puede_ver_sensible %}
                 <div class="rounded-xl border p-6 transition-all duration-300" style="border-color: var(--border-base); background: var(--bg-primary); box-shadow: var(--shadow-sm);">
                     <div class="flex items-center justify-between">
                         <div>
@@ -464,6 +465,7 @@
                     </div>
                     <p class="mt-4 text-xs" style="color: var(--text-body-subtle);">Requieren atención</p>
                 </div>
+                {% endif %}
             </div>
         </div>
 
@@ -816,6 +818,12 @@
         </div>
     </div>
 
+    {% comment %}
+    El tipo y el mensaje de la alerta son dato sensible: sin `ciudadano.sensible` el
+    selector ya no los trae y la solapa tampoco se lista, así que el panel no se dibuja
+    (D-11, SEC-11, Cambio 179).
+    {% endcomment %}
+    {% if puede_ver_sensible %}
     <!-- Tab: Alertas -->
     <div id="tab-alertas" class="tab-content hidden" role="tabpanel" aria-labelledby="tab-btn-alertas">
         <div class="overflow-hidden rounded-xl border" style="border-color: var(--border-base); background: var(--bg-primary); box-shadow: var(--shadow-sm);">
@@ -853,6 +861,7 @@
             {% endif %}
         </div>
     </div>
+    {% endif %}
 
     <!-- Tab: Línea de tiempo -->
     <div id="tab-linea_tiempo" class="tab-content hidden" role="tabpanel" aria-labelledby="tab-btn-linea_tiempo">
