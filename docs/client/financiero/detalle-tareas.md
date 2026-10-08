@@ -260,8 +260,7 @@
 | Becas | 142 h 58 min |
 | Dispositivos (incluye Merenderos) | 283 h 15 min |
 | Transversal | 73 h 47 min |
-
-| **Total julio 2026 (mes completo)** | **500 h 0 min** |
+| **Total julio 2026 (mes completo)** | **500 h 00 min** |
 
 ---
 
@@ -992,15 +991,17 @@
 | Becas | 704 h 00 min |
 | Transversal | 204 h 30 min |
 | Dispositivos | 34 h 00 min |
-| **Esfuerzo real de septiembre 2026 (mes cerrado)** | **942 h 30 min** |
-| *Imputado a septiembre (100% del presupuesto)* | *850 h 00 min* |
-| *Remanente trasladado a octubre* | *92 h 30 min* |
+| **Esfuerzo real de septiembre 2026** | **942 h 30 min** |
+
+!!! abstract "Imputación de septiembre"
+    Septiembre se **imputa por 850 h** (el 100% de su presupuesto) y las **92 h 30 min** restantes se
+    **trasladan a octubre 2026**. Las horas de arriba son el esfuerzo real ejecutado: el traslado es de
+    imputación, no de registro.
 
 !!! note "Qué incluye"
-    Las horas de Becas incluyen las **103 h 30 min trasladadas de agosto**, cuyo detalle día por día está
-    en las secciones de ese mes. El trabajo propio de septiembre es de **839 h**: sumadas las
-    103 h 30 min que llegaron de agosto, el esfuerzo real del mes es de **942 h 30 min**, de las que
-    se imputan **850 h** y **92 h 30 min** pasan a octubre.
+    El trabajo propio de septiembre es de **839 h**. Las horas de Becas incluyen además las
+    **103 h 30 min trasladadas de agosto**, cuyo detalle día por día está en las secciones de ese mes:
+    839 h + 103 h 30 min = **942 h 30 min**.
 
 ### :material-package-variant-closed: Consumo del 1 al 8 de octubre — por entregable
 
@@ -1113,8 +1114,10 @@
 | **Total octubre 2026 (al 08/10)** | **268 h 30 min** |
 
 !!! note "Qué incluye"
-    Las horas de Becas incluyen las **92 h 30 min trasladadas de septiembre**, cuyo detalle día por día
-    está en las secciones de ese mes. El trabajo propio de octubre al 08/10 es de **176 h 00 min**.
+    El trabajo propio de octubre al 08/10 es de **176 h**. Las horas de Becas incluyen además las
+    **92 h 30 min trasladadas de septiembre**, cuyo detalle día por día está en las secciones de ese
+    mes: 176 h + 92 h 30 min = **268 h 30 min**. El mes está en curso, así que todavía no hay
+    imputación de cierre.
 
 ---
 
@@ -1122,9 +1125,9 @@
 
 | Persona | Rol | Junio | Julio | Agosto | Septiembre | Octubre *(al 08/10)* | **Total** |
 |---|---|---:|---:|---:|---:|---:|---:|
-| Juani Portilla | Desarrollo, automatización de pruebas y rendimiento | 113,4 | 263,8 | 197,0 | 196,5 | 32,0 | **802 h 43 min** |
+| Juani Portilla | Desarrollo, automatización de pruebas y rendimiento | 113,4 | 263,75 | 197,0 | 196,5 | 32,0 | **802 h 40 min** |
 | Matías Fariña | Análisis funcional, gestión y publicaciones | 112,5 | 146,0 | 230,0 | 229,5 | 69,0 | **787 h 01 min** |
-| Pablo Cao | Desarrollo del backoffice, del portal y de la app de campo | 96,0 | 40,3 | 219,0 | 197,5 | 32,0 | **584 h 47 min** |
+| Pablo Cao | Desarrollo del backoffice, del portal y de la app de campo | 96,0 | 40,25 | 219,0 | 197,5 | 32,0 | **584 h 44 min** |
 | Matías Abate | Pruebas funcionales, casos de prueba y documentación | — | 50,0 | 157,5 | 177,0 | 28,0 | **412 h 30 min** |
 | Nahuel De Francesco | Desarrollo, documentación y pruebas *(desde el 09/09)* | — | — | — | 38,5 | 15,0 | **53 h 30 min** |
 | Agostina Coppola | Análisis funcional y testing *(hasta agosto)* | 112,3 | — | — | — | — | **112 h 17 min** |
@@ -1133,11 +1136,17 @@
 
 !!! note "Cómo leer esta tabla"
     Las columnas mensuales van en horas decimales, tal como las publica la página de cada mes; los totales
-    por persona van en horas y minutos. La suma por persona difiere en **6 minutos** del total del proyecto
-    por el redondeo del registro de julio. Agosto es **esfuerzo real** (803 h 30 min): al cliente se le
-    imputaron 700 h y el resto se trasladó a septiembre. Septiembre también es **esfuerzo real**
-    (839 h propias + 103 h 30 min de agosto = 942 h 30 min): se imputaron 850 h y 92 h 30 min
-    pasaron a octubre.
+    por persona van en horas y minutos. **Las columnas suman exactamente el total de cada mes y los totales
+    por persona suman el contador del proyecto.**
+
+    Dos aclaraciones para cuadrar la tabla contra el registro día por día: en agosto hay filas de
+    **«Equipo (4 personas)»** por 8 h de reuniones, que acá figuran repartidas a razón de 2 h por
+    integrante; y del 1 al 14 de agosto el registro es día por día, sin columna de programa, por lo que
+    la apertura por programa de ese mes se arma sobre el total y no fila por fila.
+
+    Agosto y septiembre son **esfuerzo real**, no imputación: agosto 803 h 30 min (se imputaron 700 h y
+    103 h 30 min pasaron a septiembre) y septiembre 942 h 30 min (se imputaron 850 h y 92 h 30 min
+    pasaron a octubre).
 
 ### :material-clipboard-text-outline: En qué trabajó cada uno en septiembre
 
@@ -1163,7 +1172,7 @@
 
 | Programa | Horas junio |
 |---|---:|
-| Becas | 499 h 12 min (100%) |
+| Becas | 499 h 12 min |
 | **Total junio 2026** | **499 h 12 min** |
 
 ---
@@ -1172,15 +1181,16 @@
 
 !!! success "Contador total"
 
-
-
     **169.062 minutos** (2.817 h 42 min)
 
     Junio 499 h 12 min + julio 500 h 00 min + agosto 803 h 30 min + septiembre 839 h 00 min + octubre 176 h 00 min (al 08/10).
-    (El contador anterior decía 1.939 h 42 min: no sumaba bien los cuatro meses; se corrigió al recalcularlo.)
 
-    Es el **esfuerzo real ejecutado**. A efectos de imputación, agosto cierra por 700 h y sus 103 h 30 min de
-    excedente quedan imputadas a septiembre 2026.
+    Es el **esfuerzo real ejecutado**, no la imputación. A efectos de imputación, agosto cerró por 700 h con
+    103 h 30 min trasladadas a septiembre, y septiembre cerró por 850 h con 92 h 30 min trasladadas a octubre.
+    Cada traslado se registra en el mes en que se trabajó y se imputa en el siguiente, así que el contador
+    no lo cuenta dos veces.
+
+    *El contador se recalculó el 19/08/2026: la versión anterior no sumaba bien los meses y decía 1.939 h 42 min.*
 
 
 
