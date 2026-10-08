@@ -905,6 +905,40 @@ Hay además un gemelo `@tag("mysql")` —`EscriturasAtomicasMotorRealTests`, `Tr
 Las otras cuatro escrituras siguen en la Ola 3.
 **Test permanente:** `core.tests.test_contrato_escrituras.EscriturasAtomicasTests.test_resolver_ciudadano_offline_no_deja_nada_a_medias`.
 
+**2.ª parte (Ola 3, PR 9) — ✅ cerrada en #NNN (Cambio 180), 08-oct-2026.** Las cuatro
+escrituras restantes quedan afirmadas por conducta en el mismo módulo, cada una haciendo
+fallar el paso siguiente a la primera escritura: `AprobacionAtomicaTests` (la traza se cae
+después del cambio de estado → el caso no queda APROBADO sin registro),
+`InscripcionPublicaAtomicaTests` (un paso después del insert → no queda medio caso; y la
+contracara: lo que corre **fuera** del candado a propósito —adjuntos y legajo, Cambio 91—
+sí sobrevive y lo completa el reintento), `QuitarPadronAtomicoTests` (falla el `save` → las
+filas del padrón siguen estando) y `TrasladoAtomicoTests` (no se puede cerrar el origen →
+no queda nada del destino). Cada uno tiene su control sin la falla inyectada, para que no
+pueda quedar verde porque la función dejó de hacer su trabajo.
+**Desvío code-first:** la ficha nombra `cupo.aprobar_formulario`, que no existe; la función
+es `cupo.aprobar_o_poner_en_espera`.
+**Dos de las cuatro no estaban enteras, y lo mostró el test antes del arreglo:** (a)
+`admisiones.trasladar_admision` guarda el F-00 del destino **antes** de cerrar el origen, y
+el storage no vuelve atrás con la transacción —medido: el traslado que falla al cerrar
+dejaba `constancia.txt` en `media/` sin ninguna fila que lo nombre, con el DNI y el informe
+social adentro—; lo resuelve `core/archivos.py` (`@archivos_atomicos` + `anotar_archivo_escrito`),
+la simétrica del `on_commit` que ya existía para la otra dirección, aplicada a las tres
+operaciones de admisiones que reciben F-00; (b) `padron.quitar_padron_propio` borraba filas y
+escribía `padron_archivo` **sin** el candado que `cargar_padron` sí toma (BEC-15), así que una
+carga y un quitado simultáneos se intercalaban y podían dejar el padrón propio vacío con el
+Excel puesto —y un padrón propio vacío no retiene a nadie: el link pasa a aceptar cualquier
+DNI (RN-P14)—. El candado es `select_for_update().filter(pk=…)` sobre una fila que siempre
+existe (no se promete un gap lock que un `FOR UPDATE` sin filas no da) y conserva el orden de
+candados del módulo, sin ciclo posible. **Mutaciones de control, las cuatro medidas:** sacar
+el `@transaction.atomic` de `aprobar_o_poner_en_espera` y el de `quitar_padron_propio`, abrir
+el `with transaction.atomic()` de `crear_formulario_publico` y sacar el `@archivos_atomicos`
+de `trasladar_admision` ponen en rojo exactamente su test, con su mensaje.
+**Test permanente:** `core/tests/test_contrato_escrituras.py::TrasladoAtomicoTests.test_si_no_se_puede_cerrar_el_origen_no_queda_nada_del_destino`
+(y `AprobacionAtomicaTests.test_aprobar_no_deja_el_caso_aprobado_sin_su_traza`,
+`InscripcionPublicaAtomicaTests.test_una_falla_despues_del_insert_no_deja_el_caso_escrito`,
+`QuitarPadronAtomicoTests.test_si_falla_al_guardar_el_relevamiento_las_filas_siguen_estando`,
+más `programas/tests/test_becas_reglas_negocio.py::PadronConcurrenteTests.test_quitar_el_padron_propio_toma_el_mismo_candado_que_la_carga`).
+
 ### RED-74 · Ocho arreglos mergeados sin ningún test
 **Severidad:** BAJA · **Estado:** CONFIRMADO (lectura: `git show --stat` de cada uno) · **Origen:** RS-R2-10 (VR1: CONFIRMADO) · **Ola:** R · **Esfuerzo:** S (2 h)
 - **Ubicación / evidencia:** `f866d052` (serie semanal, → RED-07), `a427bffe` (`completar_casos_renaper`, → RED-32),

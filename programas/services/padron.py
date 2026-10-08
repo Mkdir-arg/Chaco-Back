@@ -41,7 +41,7 @@ from core.dni import (  # noqa: F401
     dni_valido,
     normalizar_dni,
 )
-from programas.models import Convocatoria, Formulario, PadronHabilitado
+from programas.models import Convocatoria, Formulario, PadronHabilitado, Relevamiento
 
 # Tamaño máximo del Excel (los padrones reales son de cientos de filas).
 PADRON_MAX_BYTES = 2 * 1024 * 1024
@@ -419,6 +419,14 @@ def cargar_padron(objetivo, archivo, entradas, usuario=None):
 def quitar_padron_propio(relevamiento):
     """El relevamiento vuelve a heredar el padrón de la convocatoria: borra sus
     filas propias y su Excel. Devuelve cuántas filas tenía."""
+    # BEC-15, la otra punta (RED-35): quitar también borra filas y escribe
+    # `padron_archivo`, así que toma **el mismo** candado que `cargar_padron`.
+    # Sin él, una carga simultánea sobre el mismo relevamiento se intercala y
+    # queda el estado peor de todos: filas de la carga nueva con el Excel ya
+    # borrado, o —al revés— el padrón propio vacío con el Excel puesto. Un
+    # padrón propio vacío no retiene a nadie: `padron_de` cae al de la
+    # convocatoria y, si no hay, el link queda abierto (RN-P14).
+    Relevamiento.objects.select_for_update().filter(pk=relevamiento.pk).first()
     filas = relevamiento.padron_propio.count()
     relevamiento.padron_propio.all().delete()
     if relevamiento.padron_archivo:

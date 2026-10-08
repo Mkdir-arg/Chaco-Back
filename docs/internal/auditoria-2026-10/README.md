@@ -1973,10 +1973,11 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
      dejaron las revisiones de los PRs 1 y 3 de esta ola (los dos ratchets AST de comandos, el
      `asegurar_admin_restante` por programa del alta masiva, el snapshot del ejercicio de diseño y el techo real del
      ratchet de `design_audit`), sin horas de plan propias.
-  9. *Red de seguridad (04-oct):* ~~RED-48 (una sola regla de DNI, con G1c-08)~~ ✅ **cerrada en el PR 2**,
+  9. ✅ *Red de seguridad (04-oct):* ~~RED-48 (una sola regla de DNI, con G1c-08)~~ ✅ **cerrada en el PR 2**,
      ~~RED-58 (plantilla de migración re-entrante, con OPS-05)~~ ✅ **cerrada en el PR 1**,
-     ~~RED-09 (`q_uuid_en_texto` a `core/db.py`)~~ ✅ **cerrada en el PR 7b**, segunda parte de RED-35
-     (atomicidad del resto de las escrituras), ~~RED-40 (`validators` en los `JSONField`, con G1-05)~~ ✅ **cerrada en
+     ~~RED-09 (`q_uuid_en_texto` a `core/db.py`)~~ ✅ **cerrada en el PR 7b**, ~~segunda parte de RED-35
+     (atomicidad del resto de las escrituras)~~ ✅ **cerrada en el PR 9 (Cambio 180), 08-oct-2026**,
+     ~~RED-40 (`validators` en los `JSONField`, con G1-05)~~ ✅ **cerrada en
      el PR 5** y ~~RED-50 (una sola `edad_en_anios` con `timezone.localdate()` + regla `DTZ011`)~~ ✅ **cerrada en el PR 6**.
      **18 h, de las que quedan 6: la segunda parte de RED-35.** La cuenta: 2 de RED-58 (el «+ 2» del PR 1), 4 de
      RED-48 (el «+ 4» de las 22 del PR 2), 2 de RED-40 (el «+ 2» de las 22 del PR 5) y 4 de RED-50 (el «+ 4» del

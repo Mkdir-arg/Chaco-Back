@@ -349,6 +349,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 175 | La app de campo deja de perder cargas: gracia de sincronización, listas completas y lo que el servidor sí valida | Becas — API de campo (`/api/becas/`: agenda, casos, alta y cierre) · Revisión de casos (detalle) · Cron de vencimientos · Constructor de formularios (guardado de condiciones) | `#api` `#relevamientos` `#datos` `#requisitos` `#metodo` | Auditoría integral oct-2026 — fichas G1-03, G1-04 (+BEC-22), G1-05, G1-06 y R0-04, más RED-40 (Ola 3, PR 5 — primer lote) | 08/10/2026 | 🟢 **Hecho** (D-G04 aplicada por default: 24 h) | `programas.0080` — dos columnas nuevas en `programas_formulario` (expand puro, medidas en MariaDB 10.11 y MySQL 8) |
 | 176 | El link público deja de romperse con un token duplicado, el padrón deja de escribir fechas imposibles y el alta a SIIS manda el CUIL real | Becas (link público de inscripción, carga de padrón, revisión de casos, alta a SIIS) · Legajos (cliente RENAPER) · Transversal (`core/db.py`) | `#relevamientos` `#siis` `#datos` `#metodo` | Auditoría integral oct-2026 — fichas G1-11, G1-12, G1-13, G1-14, R0-06, R0-07 y la 2.ª parte de RED-09 (Ola 3, PR 7b), más los tres seguimientos de la revisión del PR 7a | 08/10/2026 | 🟢 **Hecho** | No requiere |
 | 177 | El alcance de Becas vale también fuera de la pantalla: cupo, reportes, exports y la solapa del legajo | Becas (cupo, revisión, relevamientos, reportes, tablero del programa, configuración de segmentos) · Legajos (padrón de ciudadanos, solapa Becas, CSV de reportes) · Transversal (catálogo de capacidades) | `#rbac` `#cupos` `#relevamientos` `#datos` `#metodo` | Auditoría integral oct-2026 — fichas SEC-20, SEC-21, SEC-22, SEC-30, BEC-19 y BEC-23, más la segunda parte de RED-79 (Ola 2, PR 5) | 08/10/2026 | 🟢 **Hecho** (D-22 y D-B23 por default; **D-20 la resolvió el PM**: la exportación se siembra a quienes tienen `ciudadano.ver`) | `users.0027` y `users.0028`, las dos sin DDL; la segunda se revierte quitando la capacidad de todos los roles |
+| 180 | Las escrituras que fallan no dejan nada a medias: ni medio caso, ni un padrón vacío, ni un adjunto huérfano | Becas (aprobación de casos, link público de inscripción, padrón propio del relevamiento) · Dispositivos (admisión, lista de espera y traslado) · Transversal (`core/archivos.py`) | `#datos` `#cupos` `#relevamientos` `#metodo` | Auditoría integral oct-2026 — 2.ª parte de la ficha RED-35 (Ola 3, PR 9 — **cierra la ola**) | 08/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -25878,3 +25879,154 @@ legajo listaba los casos públicos.
   **`celda_segura` se mudó a `core/exportacion.py`.** Queda **diferido a
   SEC-06/07**, por decisión de la revisión, el RN-P13 sin acotar al programa de
   `services/solapas.py`.
+
+---
+
+# Cambio 180 — Las escrituras que fallan no dejan nada a medias: ni medio caso, ni un padrón vacío, ni un adjunto huérfano
+
+🟢 **HECHO — 08/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas (aprobación de casos, link público de inscripción, padrón propio del relevamiento) · Dispositivos (admisión, lista de espera y traslado) · Transversal (`core/archivos.py`) |
+| **Etiquetas** | `#datos` `#cupos` `#relevamientos` `#metodo` |
+| **Solicitante** | Auditoría integral oct-2026 — 2.ª parte de la ficha RED-35 (Ola 3, PR 9, el que cierra la ola) |
+| **Fecha del pedido** | 08/10/2026 |
+| **Issue / épica** | Auditoría oct-2026, `docs/internal/auditoria-2026-10/` |
+| **Partes afectadas** | Backoffice · Portal (link público) |
+| **Migración** | No requiere |
+
+## Pedido original
+
+«Ningún test afirma que las escrituras críticas sigan siendo atómicas.» Hay 39
+`@transaction.atomic` en los `services/` y ninguno estaba sostenido por una
+prueba: sacar el decorador al mover una función de módulo no rompía nada. La
+primera parte (Cambio 156) cubrió `resolver_ciudadano_offline`, que es la que ya
+se había perdido una vez. Esta cierra las otras cuatro que nombra la ficha:
+aprobar un caso, la inscripción por link público, quitar el padrón propio de un
+relevamiento y trasladar una admisión entre dispositivos.
+
+## Alcance acordado
+
+**Entra:** una prueba de conducta por escritura —se hace fallar el paso
+siguiente a la primera escritura y se mira que no haya quedado nada—, su control
+sin la falla inyectada, y el arreglo de lo que esas pruebas encontraron abierto.
+
+**Queda afuera:** las otras 34 escrituras con `@transaction.atomic` del repo. La
+ficha nombra cinco y son las que tienen daño demostrable; convertir esto en una
+regla general («toda función con `atomic` necesita su test») sería un gate que
+nadie puede cumplir de una sola vez.
+
+## Decisiones tomadas
+
+- **La prueba es de conducta, no de forma.** Afirmar la atomicidad leyendo el
+  fuente o un atributo del decorador no sirve: `transaction.atomic` usa `@wraps`,
+  no deja `_atomic`, y buscar la palabra «atomic» en el código da verde con un
+  comentario. Lo que se hace es inyectar una falla en el paso siguiente a la
+  primera escritura y afirmar que la base quedó como estaba. Es la misma decisión
+  del Cambio 156 y acá se repite para las cuatro.
+- **Cada prueba va con su control.** Sin un test que afirme que, sin la falla, la
+  escritura sí ocurre entera, el primero quedaría verde el día que la función
+  dejara de hacer su trabajo.
+- **Lo que corre fuera de la transacción a propósito sigue afuera.** En el link
+  público, los adjuntos y la resolución del legajo salen del candado del
+  relevamiento desde el Cambio 91, porque cada milisegundo adentro lo pagan en
+  cola los que vienen atrás y a los 10 s el `read_timeout` les devuelve un 500.
+  Eso **no** se tocó: lo que se agregó es la prueba de las dos mitades —adentro,
+  que una falla no deje medio caso; afuera, que lo que no llegó a completarse lo
+  termine el reintento de la persona, que es lo que hace defendible la decisión—.
+- **Un archivo escrito en una transacción que vuelve atrás hay que borrarlo a
+  mano.** Django tiene `transaction.on_commit` para la dirección contraria (no
+  borrar del disco algo que la base todavía puede devolver) y **no** tiene
+  `on_rollback`. Se agregó `core/archivos.py`, que registra los archivos que
+  escribió la operación y los borra si la operación termina fallando. El borrado
+  es best effort y logueado: un volumen de media caído no puede tapar el error
+  real.
+- **Quitar el padrón propio toma el mismo candado que cargarlo.** Es la otra mitad
+  del par de BEC-15, y se escribe igual: `select_for_update()` sobre la fila del
+  relevamiento, que siempre existe. No se promete nada que el motor no dé: un
+  `SELECT … FOR UPDATE` que no encuentra filas no toma gap lock, y acá siempre
+  encuentra la suya.
+- **Desvío code-first:** la ficha nombra `cupo.aprobar_formulario`. Esa función no
+  existe; la que aprueba es `cupo.aprobar_o_poner_en_espera`.
+
+## Implementación
+
+Lo que el sistema hace ahora y antes no:
+
+1. **Aprobar un caso** (Becas → Revisión). Si falla el registro de la traza —el
+   paso siguiente al cambio de estado— el caso **no** queda APROBADO. Antes podía
+   quedar aprobado sin ningún registro de quién lo aprobó, consumiendo cupo y
+   saliendo en el reporte de beneficiarios.
+2. **Inscripción por link público.** Una falla posterior al alta del caso, dentro
+   del candado, no deja medio caso escrito. Y si falla la resolución del legajo
+   —que corre después, a propósito— el caso sigue estando y el reintento de la
+   persona, con el mismo `client_uuid`, lo completa sin duplicar nada.
+3. **Quitar el padrón propio de un relevamiento.** Las filas del padrón y el Excel
+   se van juntos o no se va ninguno. Un padrón propio vacío no es un estado
+   neutro: el relevamiento pasa a regirse por el de la convocatoria y, si no hay,
+   **el link acepta cualquier documento**. Además, quitar y cargar ya no se
+   intercalan: las dos operaciones toman el mismo candado.
+4. **Trasladar una admisión entre dispositivos.** El traslado abre el destino
+   —crea la estadía, ocupa la cama y guarda el F-00— y recién después cierra el
+   origen, que puede negarse (otra pestaña ya lo trasladó). La base volvía atrás
+   sola; el adjunto del F-00 **no**, y quedaba en `media/` con el documento y el
+   informe social de la persona, sin ninguna fila que lo nombre, sin fecha de baja
+   y sin forma de encontrarlo. Ahora se borra con el resto. Lo mismo vale para la
+   admisión directa y el alta a lista de espera, que escriben el F-00 igual.
+
+## Archivos
+
+- `core/archivos.py` (nuevo) — `archivos_atomicos` y `anotar_archivo_escrito`.
+- `programas/services/admisiones.py` — las tres operaciones que reciben F-00.
+- `programas/services/padron.py` — el candado de `quitar_padron_propio`.
+- `core/tests/test_contrato_escrituras.py` — las cuatro clases nuevas con sus controles.
+- `programas/tests/test_becas_reglas_negocio.py` — el contrato del candado nuevo.
+- `docs/internal/auditoria-2026-10/hallazgos/08-red-de-seguridad.md` y su `README.md`.
+
+## Base de datos
+
+No requiere migración. No se agregan ni se modifican columnas.
+
+## Validación
+
+- **Las cuatro mutaciones de control, medidas una por una** (el test tiene que
+  ponerse rojo sin el arreglo, con su mensaje): sacar `@transaction.atomic` de
+  `aprobar_o_poner_en_espera` → «El caso quedó APROBADO por una escritura que
+  falló»; sacarlo de `quitar_padron_propio` → «El padrón propio quedó vacío con
+  el Excel puesto»; abrir el `with transaction.atomic()` de
+  `crear_formulario_publico` → «Quedó un caso de una inscripción que falló»;
+  sacar `@archivos_atomicos` de `trasladar_admision` → `['constancia.txt'] != []`,
+  que es el adjunto huérfano. Sacar el candado nuevo deja en rojo el test de
+  `PadronConcurrenteTests`.
+- `manage.py test core programas portal`: 3505 tests, OK (42 salteados, 2 fallas
+  esperadas, las de siempre).
+- `manage.py check`: sin hallazgos. `manage.py check --deploy` con
+  `SIIS_API_URL` como la pone el CI: solo las 5 advertencias preexistentes.
+  `makemigrations --check --dry-run`: sin cambios.
+- `ruff check .` y `ruff format --check` de lo tocado: OK.
+- `requerimientos.py --check`: OK. No se tocó UI.
+
+## Puesta en marcha en el servidor
+
+No requiere nada: ni variables, ni comandos, ni cron. Los archivos huérfanos que
+ya estén en `media/admisiones/f00/` de traslados fallados anteriores **siguen
+ahí**: este cambio evita los nuevos, no limpia los viejos.
+
+## Pendientes / a definir
+
+- **Los huérfanos ya existentes.** No se barren acá porque no hay forma de
+  distinguirlos sin cruzar el volumen contra la tabla, y eso es un comando con
+  borrado masivo: entra como pedido propio si el PM lo quiere.
+- **`update_or_create` del F-00 reemplazando un adjunto.** Cuando se vuelve a
+  cargar el mismo campo, el archivo **anterior** queda en el storage. Es la misma
+  familia que DAT-05 y la dirección contraria a la de este cambio (ahí hace falta
+  `on_commit`, no rollback); no estaba en la ficha y queda anotado.
+- **Las 34 escrituras restantes con `@transaction.atomic`.** Sin test propio.
+
+## Reversión
+
+Se revierte el commit. No hay datos que recuperar: el cambio no escribe nada
+nuevo en la base. Revertir devuelve el comportamiento anterior —los adjuntos
+huérfanos y la posibilidad de intercalar carga y quitado de padrón—, así que
+conviene revertir solo los tests si lo que molesta es un test.
