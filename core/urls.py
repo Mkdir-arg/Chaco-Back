@@ -5,6 +5,7 @@ from django.urls import path
 from .views import (
     alerts_api,
     inicio_view,
+    latido_de_sesion,
     load_localidad,
     load_municipios,
     load_subsecretarias,
@@ -34,6 +35,9 @@ def dashboard_redirect(request):
 urlpatterns = [
     path("inicio/", login_required(inicio_view), name="inicio"),
     path("dashboard/", login_required(dashboard_redirect), name="dashboard"),
+    # SEC-35: el latido del cierre por inactividad. POST, para que no lo dispare
+    # una etiqueta ajena con la cookie del usuario.
+    path("sesion/latido/", latido_de_sesion, name="sesion_latido"),
     path("relevamientos/", login_required(relevamientos_view), name="relevamientos"),
     path("relevamientos/<uuid:relevamiento_id>/", login_required(relevamiento_detail_view), name="relevamiento_detail"),
     path(

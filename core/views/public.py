@@ -4,7 +4,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.cache import cache
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
-from django.views.decorators.http import require_GET
+from django.views.decorators.http import require_GET, require_POST
 
 from dashboard.utils import (
     contar_alertas_activas,
@@ -46,6 +46,24 @@ def load_subsecretarias(request):
         qs = qs.filter(secretaria_id=secretaria_id)
     data = list(qs.values("id", "nombre"))
     return JsonResponse(data, safe=False)
+
+
+@login_required
+@require_POST
+def latido_de_sesion(request):
+    """Avisa que el usuario sigue trabajando, aunque no haya pedido una pantalla.
+
+    SEC-35. El contador del servidor
+    (``core.middleware.ExpiracionPorInactividadMiddleware``) mide **pedidos**, y el
+    del navegador mide actividad del usuario. Sin este latido, quien pasa veinte
+    minutos tipeando un relevamiento largo —mouse y teclado todo el tiempo, ni un
+    request— se encontraría con el login al guardar, y con el formulario perdido.
+    ``idle-logout.js`` lo llama como mucho una vez por minuto y **solo** cuando
+    hubo actividad real, que es la misma señal con la que decide no cerrar.
+
+    No devuelve nada: el trabajo lo hizo el middleware al dejar pasar el request.
+    """
+    return JsonResponse({"ok": True})
 
 
 @login_required

@@ -85,7 +85,9 @@
         timeoutMinutes: {{ session_idle_timeout_minutes }},
         warningSeconds: {{ session_idle_warning_seconds }},
         logoutUrl: "{% url 'portal:ciudadano_logout' %}",
-        csrfToken: "{{ csrf_token }}"
+        csrfToken: "{{ csrf_token }}",
+        {# SEC-35: el contador del servidor mide pedidos; esto le traduce la actividad del usuario. #}
+        keepAliveUrl: "{% url 'core:sesion_latido' %}"
     };
 </script>
 <script src="{% static 'custom/js/idle-logout.js' %}"></script>

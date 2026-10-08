@@ -23,7 +23,11 @@ urlpatterns = [
     re_path(r"^ws/conversaciones/(?P<conversacion_id>\w+)/$", websocket_upgrade_required),
     path("ws/alertas/", websocket_upgrade_required),
     path("ws/alertas-conversaciones/", websocket_upgrade_required),
-    path("admin/doc/", include("django.contrib.admindocs.urls")),
+    # G1c-10: acá estaba `admin/doc/` (`django.contrib.admindocs`), montado en
+    # todos los entornos. Publicaba el índice de modelos, vistas, templates y
+    # tags del proyecto —con sus docstrings— a cualquier `is_staff`; no lo
+    # enlazaba ninguna pantalla y no lo usa nadie. Restringir `/admin/` por IP es
+    # del ingress y va con el PM (punto 6 de SEC-26).
     path("admin/", admin.site.urls),
     # Specific paths first
     path("legajos/", include("legajos.urls")),

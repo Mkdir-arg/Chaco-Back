@@ -11,7 +11,15 @@
  * hardcodeados de tiempo en este archivo.
  *
  * Config esperada (window.idleLogoutConfig):
- *   { timeoutMinutes, warningSeconds, logoutUrl, csrfToken, redirectUrl }
+ *   { timeoutMinutes, warningSeconds, logoutUrl, csrfToken, redirectUrl,
+ *     keepAliveUrl }
+ *
+ * SEC-35: el cierre de verdad lo hace el servidor
+ * (core.middleware.ExpiracionPorInactividadMiddleware), que cuenta pedidos HTTP.
+ * `keepAliveUrl` es lo que le traduce la actividad del usuario: mientras haya
+ * mouse o teclado se le avisa como mucho una vez por minuto, así veinte minutos
+ * tipeando un formulario largo no terminan en el login con el formulario perdido.
+ * Sin `keepAliveUrl` el archivo sigue funcionando como antes.
  *
  * Nota: "detectar el mouse" se interpreta como "detectar actividad del
  * usuario". Además del mouse se escucha teclado / scroll / touch para no
@@ -40,7 +48,13 @@
     var STORAGE_ACTIVITY = "chaco:idle:lastActivity";
     var STORAGE_LOGOUT = "chaco:idle:loggedOut";
 
+    // Cada cuánto, como mucho, se le avisa al servidor que hay alguien del otro
+    // lado. Es la misma ventana que usa el middleware para no reescribir la
+    // sesión en cada request.
+    var KEEPALIVE_MS = 60 * 1000;
+
     var lastActivity = Date.now();
+    var lastKeepAlive = Date.now();
     var lastBroadcast = 0;
     var warningShown = false;
     var loggingOut = false;
@@ -48,9 +62,40 @@
     var countdownEl = null;
 
     // ── Actividad ────────────────────────────────────────────────────────────
+    function csrf() {
+        return (
+            cfg.csrfToken ||
+            (document.querySelector("input[name=csrfmiddlewaretoken]") || {}).value
+        );
+    }
+
+    // Avisarle al servidor que el usuario sigue acá (SEC-35). Solo con actividad
+    // real y como mucho una vez por KEEPALIVE_MS: no es un ping periódico, es la
+    // misma señal que mantiene vivo el contador de esta pestaña.
+    function keepAlive(now) {
+        if (!cfg.keepAliveUrl || loggingOut) return;
+        if (now - lastKeepAlive < KEEPALIVE_MS) return;
+        lastKeepAlive = now;
+        try {
+            fetch(cfg.keepAliveUrl, {
+                method: "POST",
+                credentials: "same-origin",
+                headers: {
+                    "X-CSRFToken": csrf() || "",
+                    "X-Requested-With": "XMLHttpRequest",
+                },
+            }).catch(function () {
+                /* sin red no hay nada que hacer: el contador sigue corriendo */
+            });
+        } catch (e) {
+            /* fetch puede no existir en un navegador viejo: no es crítico */
+        }
+    }
+
     function markActivity() {
         if (loggingOut) return;
         lastActivity = Date.now();
+        keepAlive(lastActivity);
 
         // Si el aviso estaba en pantalla y el usuario volvió (mouse/teclado/etc),
         // lo ocultamos: hay actividad, no cuenta.
@@ -117,9 +162,7 @@
         form.action = cfg.logoutUrl;
         form.style.display = "none";
 
-        var token =
-            cfg.csrfToken ||
-            (document.querySelector("input[name=csrfmiddlewaretoken]") || {}).value;
+        var token = csrf();
         if (token) {
             var input = document.createElement("input");
             input.type = "hidden";
