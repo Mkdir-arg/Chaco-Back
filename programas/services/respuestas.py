@@ -366,11 +366,20 @@ def respuestas_legibles(formulario, definicion=None, adjuntos=None):
 
 
 def _adjuntos_por_clave(formulario):
-    """Los adjuntos del caso por clave de ítem (``pg-<pk>`` / ``rn-<pk>``)."""
+    """Los adjuntos del caso por clave de ítem (``pg-<pk>`` / ``rn-<pk>``).
+
+    Con varias filas para el mismo campo gana la **más nueva** (G1-07). Antes
+    ganaba la más vieja —el ``ordering`` del modelo es ``-creado`` y el bucle
+    pisaba, así que la última iterada era la primera subida—: el territorial que
+    volvía a sacar la foto porque la primera había salido movida seguía viendo la
+    movida en la revisión, y no había forma de corregirla desde el teléfono.
+    Desde esta misma ficha no se crean filas nuevas por campo, pero producción ya
+    tiene las que se crearon antes.
+    """
     adjuntos = {}
-    for adjunto in formulario.adjuntos.all():
+    for adjunto in formulario.adjuntos.order_by("-creado", "-pk"):
         if adjunto.pregunta_global_id:
-            adjuntos[f"pg-{adjunto.pregunta_global_id}"] = adjunto
+            adjuntos.setdefault(f"pg-{adjunto.pregunta_global_id}", adjunto)
         elif adjunto.requisito_nativo_id:
-            adjuntos[f"rn-{adjunto.requisito_nativo_id}"] = adjunto
+            adjuntos.setdefault(f"rn-{adjunto.requisito_nativo_id}", adjunto)
     return adjuntos

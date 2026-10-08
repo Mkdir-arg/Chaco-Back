@@ -349,6 +349,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 175 | La app de campo deja de perder cargas: gracia de sincronización, listas completas y lo que el servidor sí valida | Becas — API de campo (`/api/becas/`: agenda, casos, alta y cierre) · Revisión de casos (detalle) · Cron de vencimientos · Constructor de formularios (guardado de condiciones) | `#api` `#relevamientos` `#datos` `#requisitos` `#metodo` | Auditoría integral oct-2026 — fichas G1-03, G1-04 (+BEC-22), G1-05, G1-06 y R0-04, más RED-40 (Ola 3, PR 5 — primer lote) | 08/10/2026 | 🟢 **Hecho** (D-G04 aplicada por default: 24 h) | `programas.0080` — dos columnas nuevas en `programas_formulario` (expand puro, medidas en MariaDB 10.11 y MySQL 8) |
 | 176 | El link público deja de romperse con un token duplicado, el padrón deja de escribir fechas imposibles y el alta a SIIS manda el CUIL real | Becas (link público de inscripción, carga de padrón, revisión de casos, alta a SIIS) · Legajos (cliente RENAPER) · Transversal (`core/db.py`) | `#relevamientos` `#siis` `#datos` `#metodo` | Auditoría integral oct-2026 — fichas G1-11, G1-12, G1-13, G1-14, R0-06, R0-07 y la 2.ª parte de RED-09 (Ola 3, PR 7b), más los tres seguimientos de la revisión del PR 7a | 08/10/2026 | 🟢 **Hecho** | No requiere |
 | 177 | El alcance de Becas vale también fuera de la pantalla: cupo, reportes, exports y la solapa del legajo | Becas (cupo, revisión, relevamientos, reportes, tablero del programa, configuración de segmentos) · Legajos (padrón de ciudadanos, solapa Becas, CSV de reportes) · Transversal (catálogo de capacidades) | `#rbac` `#cupos` `#relevamientos` `#datos` `#metodo` | Auditoría integral oct-2026 — fichas SEC-20, SEC-21, SEC-22, SEC-30, BEC-19 y BEC-23, más la segunda parte de RED-79 (Ola 2, PR 5) | 08/10/2026 | 🟢 **Hecho** (D-22 y D-B23 por default; **D-20 la resolvió el PM**: la exportación se siembra a quienes tienen `ciudadano.ver`) | `users.0027` y `users.0028`, las dos sin DDL; la segunda se revierte quitando la capacidad de todos los roles |
+| 178 | Una foto por campo, y el servidor sabe con qué versión del formulario se capturó | Becas — API de campo (`POST …/adjuntos/` y alta de casos) · Revisión de casos (qué adjunto se muestra) · Cron de vencimientos (línea de log) | `#api` `#relevamientos` `#requisitos` `#datos` `#metodo` | Auditoría integral oct-2026 — fichas G1-07 y G1-16, más los tres MINOR de la revisión del PR 5 (Ola 3, PR 5b — **cierra el ítem 5**) | 08/10/2026 | 🟢 **Hecho** (G1-16 cierra del lado del servidor; mandar el dato es un release de `Chaco-mobile`) | `programas.0081` — una columna nullable en `programas_formulario` (expand puro) |
 
 **Notas del índice**
 
@@ -25878,3 +25879,352 @@ legajo listaba los casos públicos.
   **`celda_segura` se mudó a `core/exportacion.py`.** Queda **diferido a
   SEC-06/07**, por decisión de la revisión, el RN-P13 sin acotar al programa de
   `services/solapas.py`.
+
+---
+
+# Cambio 178 — Una foto por campo, y el servidor sabe con qué versión del formulario se capturó
+
+🟢 **HECHO — 08/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas — API de campo (`/api/becas/`), revisión de casos y cron de vencimientos |
+| **Etiquetas** | `#api` `#relevamientos` `#requisitos` `#datos` `#metodo` |
+| **Solicitante** | Auditoría integral oct-2026 — fichas G1-07 y G1-16 (Ola 3, PR 5b, segundo lote), más los tres MINOR de la revisión del PR 5 (#624, Cambio 175) |
+| **Fecha del pedido** | 08/10/2026 |
+| **Issue / épica** | Auditoría oct-2026, Ola 3 ítem 5 (segundo lote — cierra el ítem) · PR #627 |
+| **Partes afectadas** | API de campo (`POST …/adjuntos/`, alta de casos) · Revisión de casos (qué adjunto se muestra) · Cron `procesar_vencimientos` (línea de log) |
+| **Migración** | `programas.0081` — una columna nullable en `programas_formulario` (expand puro) |
+
+## Pedido original
+
+Las dos fichas que le quedaban al PR 5 de la Ola 3, las dos sobre la app de campo
+(`Chaco-mobile`, otro repo; la versión instalada en producción es `origin/main @ a66c2d3`,
+del 21/08/2026).
+
+- **G1-07.** El `POST /api/becas/formularios/<id>/adjuntos/` no miraba nada: dos POST iguales
+  —el reintento de la cola offline— dejaban **dos filas**, y la pregunta o el requisito que
+  venían en el cuerpo podían no existir en el formulario de ese relevamiento. Encima
+  `_adjuntos_por_clave` se quedaba con el **más viejo** de los duplicados. El link público sí
+  deduplica (`inscripcion_publica.py`).
+- **G1-16.** La foto de la definición se guarda al **sincronizar**, no al capturar: entre una
+  cosa y la otra puede haber días y una edición del formulario en el medio, así que el caso
+  queda interpretado con un diseño que la persona nunca tuvo delante. La ficha pide que la app
+  mande la `version` con la que capturó y que el servidor guarde la foto de esa versión o
+  marque «capturado con otra versión».
+
+Y los **tres MINOR** que dejó la revisión del PR 5:
+
+- (a) `vencimientos.py`: el log decía «N relevamiento(s) … (ids=…)» con N = filas afectadas
+  (BEC-22) y la lista = ids **leídos**. En el único escenario donde las dos cosas difieren
+  —que es el que BEC-22 arregla— el rastro nombraba un relevamiento que nadie cerró.
+- (b) `test_becas_api_contrato.py`: `CLAVES_PAGINACION` quedó sin uso y su comentario describía
+  lo que la API ya no hace.
+- (c) `api/serializers.py`: los dos rechazos nuevos del alta (DNI y fecha de nacimiento)
+  devolvían un diccionario anidado por campo, sin `detail` ni `non_field_errors`. La app arma
+  el mensaje con esas dos claves (`becasApi.js`, `buildResponseError`), así que el territorial
+  —parado delante de la persona— leía «Error HTTP 400» y no sabía qué corregir.
+
+## Qué estaba mal
+
+El mismo hilo del PR 5: el servidor aceptaba o descartaba sin dejar rastro de lo que decidió.
+Acá se suma una variante peor, porque el que pierde el trabajo es el propio territorial: la
+segunda foto que saca —porque la primera salió movida— se guardaba y **no se mostraba**.
+
+## Alcance acordado
+
+Segundo lote del PR 5 de la Ola 3: **G1-07** y **G1-16**, las 14 h que le quedaban al ítem 5,
+más los tres MINOR, sin horas propias. **Regla de la ola, no negociable:** la app instalada no
+se rompe. Todo cambio de request o de respuesta es **aditivo** o acepta las dos formas, y queda
+fijado en `programas/tests/test_becas_api_contrato.py`.
+
+## Decisiones tomadas
+
+- **Un archivo por campo de archivo del caso, y el POST sigue respondiendo 201.** La ficha
+  permitía devolver 200 con el existente; se elige **no tocar el código de respuesta**, porque
+  la app clasifica la subida por el status y un 200 que hoy no espera sería un cambio de
+  contrato que pide release de `Chaco-mobile`. Lo que cambia es que la respuesta trae el `id`
+  del adjunto **que vale** en vez del de una fila nueva que duplicaba a la anterior.
+- **Reemplazar, no acumular.** El reintento y la foto corregida son el mismo movimiento desde
+  el lado del servidor, y los dos se resuelven igual: una fila por campo, con el archivo más
+  nuevo. El anterior se borra del almacenamiento con `transaction.on_commit`, nunca antes: si la
+  transacción se cae, el adjunto que sigue valiendo es el que todavía está en `media/`.
+- **Sin restricción única en la base**, a propósito: producción ya tiene filas duplicadas de
+  antes de esta ficha y un `UniqueConstraint` no se podría crear sobre ellas (y en MariaDB un
+  único **condicional** directamente no se crea, §0.2 del README de la auditoría). La unicidad
+  la sostiene `guardar_adjunto` con `select_for_update`, y para los duplicados viejos manda el
+  más nuevo, que es también el que la revisión muestra desde esta misma ficha.
+- **Pertenencia = estar en la foto del caso como `ARCHIVO`.** No es «cualquier pregunta
+  activa»: es un campo del formulario que respondió **ese** caso (`formulario.definicion`), y
+  solo si todavía no tiene foto se cae a la definición vigente de su relevamiento. A qué caso
+  se sube ya lo decidía `get_queryset` —solo los relevamientos del propio territorial—, y eso
+  queda fijado con su test en vez de duplicarse en el serializer.
+- **…y, si ahí no está, la lista plana vigente del relevamiento.** Ajuste hecho al leer
+  `Chaco-mobile@a66c2d3`: la app instalada arma el formulario con las listas **planas**
+  `globales`/`requisitos` de la definición (`mapDjangoRelevamientoDetail`), no con `items`, y sube
+  cada archivo con el `id` de esa lista. Las dos estructuras no coinciden siempre —un grupo del
+  diseño acotado a otro canal saca sus campos de `items` y no de la lista plana— y la foto del
+  caso guarda **solo** `items`. Rechazar un archivo que el teléfono mostró y pidió rompía más de lo
+  que arreglaba: `syncRemoteBecasFormulario` sube los adjuntos en orden y **corta en el primero que
+  falla** (el envío queda `PARCIAL`, `FAILED_PERMANENT`), así que los de los campos siguientes
+  tampoco se subían. La segunda mirada solo se paga cuando la primera no alcanzó. Lo que sigue
+  rebotando es lo que no está en ninguna de las dos: otro segmento, una pregunta de texto, una
+  pregunta desactivada. **(La pregunta desactivada dejó de rebotar en la ronda 2 — ver
+  *Historial*.)**
+- **`version_capturada` es `integer NULL`, sin `CHECK`.** Con `PositiveIntegerField` Django emite
+  `integer UNSIGNED NULL CHECK (… >= 0)`, y MySQL 8 no acepta `ALGORITHM=INSTANT` para un
+  `ADD COLUMN` con CHECK (error 1845, medido en `mysql:8.0.46`): copiaría `programas_formulario`
+  entera con la tabla bloqueada. MariaDB 10.11 sí lo hacía instantáneo, pero el código tiene que
+  andar igual en los dos motores. Es `IntegerField` + `MinValueValidator(0)`, y el serializer ya
+  tenía `min_value=0`.
+- **La gracia de D-G04 no se toca.** `_captura_habilitada` sigue aceptando las fotos de una
+  captura hecha en fecha aunque el cron ya haya cerrado el relevamiento. Es la otra mitad de
+  G1-04: la cola offline sube primero las personas y después las fotos, y si el cierre las
+  frenara el caso entraría sin sus documentos y el revisor lo rechazaría por faltantes.
+- **G1-16: se marca, no se reconstruye.** La ficha ofrece dos caminos y el primero —«guardar la
+  foto de esa versión»— supone un **historial de versiones del diseño** que no existe:
+  `DisenoFormulario.version` es un contador que `tocar()` incrementa, y de las versiones
+  anteriores no queda nada en ninguna tabla, así que esa foto no se puede reconstruir ni
+  siquiera para los casos ya cargados. Se aplica el segundo camino, que la propia ficha deja
+  escrito. Crear el historial es un ítem nuevo, no un desvío de este.
+- **`version_capturada` es opcional en los dos sentidos.** La app instalada no la manda —y el
+  alta responde 201 igual, con la columna en `NULL`— ni la lee. Que la mande es un release de
+  Mobile, y hasta entonces no hay nada que comparar.
+- **Una versión distinta no rechaza nada.** Es una advertencia para el revisor, igual que el
+  resto de `observaciones_carga`: la captura ya existe y tirarla sería perder trabajo de campo.
+  Lo único que se rechaza del dato es que no sea una versión (un negativo o un texto), y ahí el
+  400 sale antes de tocar la base.
+
+## Qué se hizo
+
+**G1-07 · un archivo por campo.** `programas/services/campo.py::guardar_adjunto` busca —con
+`select_for_update`, dentro de una `atomic`— el adjunto que ese campo ya tenía y le **reemplaza**
+el archivo; si no había, lo crea. El archivo viejo se borra con `transaction.on_commit`. La
+pertenencia la decide `campo_de_archivo_del_caso`, que arma las claves `ARCHIVO` de la foto del
+caso (`pg-<pk>` / `rn-<pk>`) y compara contra la referencia que llegó; la vista le pasa el
+formulario por el contexto del serializer, que es la única pieza que sabe de qué caso se trata.
+`respuestas._adjuntos_por_clave` ordena por `-creado, -pk` y usa `setdefault`, así que con
+duplicados viejos gana el **más nuevo** —antes el `ordering` del modelo era `-creado` y el bucle
+pisaba, con lo que ganaba la primera subida—.
+
+**G1-16 · la versión de la captura.** `Formulario.version_capturada` (columna nullable,
+`programas.0081`) y un campo opcional del mismo nombre en `FormularioSerializer`, que viaja
+también en la respuesta (clave nueva: la app vieja la ignora). `campo.revisar_carga` compara esa
+versión con la de la foto que el caso terminó guardando y, si difieren, deja la línea en
+`observaciones_carga` —que la revisión ya muestra en su alerta inline desde G1-05, así que no
+hace falta tocar una sola línea de template—.
+
+**MINOR (a) · el log del cron.** `pasar_relevamientos_a_revision` relee cuáles de los ids leídos
+quedaron en `EN_REVISION` y loguea **esos**; los que se saltearon porque cambiaron de estado en
+el medio salen en su propia línea, que es el dato que explica la diferencia cuando alguien la va
+a buscar. No se compara contra `modificado`: eso ataría el rastro a la precisión de fracciones
+de segundo de la columna, que depende del motor.
+
+**MINOR (b) · la constante muerta.** `CLAVES_PAGINACION` pasa a `CLAVES_DEL_SOBRE_DE_PAGINACION`
+y a ser la aserción de `test_ninguna_de_las_dos_listas_pagina`: si alguien vuelve a poner
+`pagination_class`, la app se queda con las diez primeras filas y **no lo nota** —no hay error,
+solo faltan datos—.
+
+**MINOR (c) · el motivo donde la app lo lee.** `rechazo_legible` agrega `non_field_errors`
+**además** del detalle por campo que ya viajaba, así que quien lea el error por campo —el
+navegador del backoffice, un test— lo sigue encontrando donde estaba. Se aplica a los dos
+rechazos del alta (DNI y fecha de nacimiento) y, **más allá del MINOR**, a los dos del adjunto
+(tipo y tamaño): una foto de 6 MB es lo que más probablemente le pasa a un territorial en el
+campo, y era el caso que menos le decía.
+
+### Desvíos de las fichas, los dos code-first
+
+1. **G1-16 no guarda la foto de la versión vieja** (ver *Decisiones*): no existe el historial que
+   ese camino supone.
+2. **G1-07 no agrega restricción única** (ver *Decisiones*): producción ya tiene duplicados.
+
+## Base de datos
+
+`programas.0081` (`programas/migrations/0081_formulario_version_capturada.py`), **expand puro**:
+un `AddField` de `version_capturada` → `integer NULL` (sin `CHECK`, ver *Decisiones*), al final
+de la fila de `programas_formulario`. Nace `NULL`, que es justo lo que significa —«la app no dijo con qué
+versión capturó»—, así que con el esquema adelantado y la release anterior todavía atendiendo su
+`INSERT` omite la columna y la base la completa sola.
+
+Es la misma operación que las dos columnas de `programas.0080`, medidas en el banco de 22.000
+casos de `scripts/perf_mysql/`: **MySQL 8.0.46 (350 MB) 82 + 104 ms** y **MariaDB 10.11.19
+(252 MB) 35 + 41 ms**, con `ALGORITHM=INSTANT` en los dos motores y tres órdenes de magnitud por
+debajo del `read_timeout` de 10 s del `migrate` (OPS-05). La regla EXPAND de
+`scripts/check_migraciones.py` la cubre `null=True`. **Medido en este PR:** el `ALTER TABLE
+programas_formulario ADD COLUMN version_capturada integer NULL, ALGORITHM=INSTANT` (y su
+`DROP COLUMN`, también `INSTANT`) entra en `mariadb:10.11.19` y en `mysql:8.0.46`; con el `CHECK`
+que emitía el `PositiveIntegerField`, MySQL lo rechazaba con el error 1845.
+
+## Verificación
+
+El código lo escribió una sesión que no podía ejecutar nada; la verificación la hizo otra, con el
+venv `.venv312` (Python 3.12 + Django 5.2.17, igual al CI), y es la que está acá.
+
+**Contra la app instalada (`Chaco-mobile@a66c2d3`, leída con `git show`, sin tocar ese repo):**
+
+- **Cuántos archivos por campo.** Uno. Un campo `ARCHIVO` guarda **un** valor
+  (`dynamicValues[field.id]`, con «CAMBIAR» que lo pisa), `persistFormularioAttachments` arma un
+  adjunto por campo con clave `scope:field_id` y `syncRemoteBecasFormulario` los sube de a uno, en
+  multipart, con `pregunta_global` o `requisito_nativo` = el `id` de la lista plana. La app
+  **nunca** manda varios archivos para el mismo campo esperando que se acumulen, así que
+  reemplazar no pierde datos. La única pieza que podría haberlo hecho —`subirAdjuntosDniFormulario`,
+  que buscaba «Frente» y «Dorso» por texto y, si un mismo campo decía las dos cosas, subía las dos
+  fotos a la misma referencia— **no se llama desde ningún lado** en esa versión.
+- **El 201.** `becasUploadFile` mira `response.ok` y no lee el cuerpo: el 201 de un reemplazo es
+  igual a uno de alta.
+- **`non_field_errors`.** `buildResponseError` (`becasApi.js:79-88`) arma el mensaje con
+  `payload.detail || payload.error || payload.non_field_errors[0]`: los rechazos legibles de este PR
+  caen en la tercera.
+- **Lo que no estaba previsto:** la app arma el formulario con las listas **planas** y su cola corta
+  en el primer adjunto que falla (el envío queda `PARCIAL` / `FAILED_PERMANENT`). Eso es lo que llevó
+  a mirar también la lista plana vigente antes de rechazar (ver *Decisiones*).
+- **El 404 de `POST /api/becas/personas/consultar/`** (que #625 empezó a devolver cuando Base de
+  Personas responde 404, en vez de 502): la app decide **solo por el status** —`e.status === 404` →
+  «DNI no encontrado» y carga manual, cualquier otro → aviso de validación fallida— y muestra el
+  texto de `error`. Un 404 del servicio se trata exactamente igual que el del código 12.
+
+Todo eso queda fijado en `programas/tests/test_becas_api_contrato.py`.
+
+**Resultados:**
+
+- `manage.py check` sin issues; `check --deploy` sin errores (con `SIIS_API_URL` puesta como en el
+  CI; solo los `security.W*` de siempre, sin `core.E003`).
+- `makemigrations --check --dry-run`: sin cambios. `scripts/check_migraciones.py` sobre `0081`: 0
+  problemas.
+- **Ida y vuelta de `programas.0081`** (`migrate` → `migrate programas 0080` → `migrate`) en
+  `mariadb:10.11.19` sin tablas de zona horaria (`MARIADB_INITDB_SKIP_TZINFO=1`) y en
+  `mysql:8.0.46`: las dos vueltas OK, la columna baja y vuelve, y el `ADD COLUMN … ALGORITHM=INSTANT`
+  (y su `DROP`) entra en los dos. `--tag mysql` en los dos motores: 48 tests OK (3 salteados en
+  MySQL, los de MariaDB).
+- Suite completa en un proceso: **4269 tests OK** (51 salteados, 6 fallas esperadas), sin carga en paralelo. Dos corridas anteriores con la máquina cargada (dos suites y los `--tag mysql` a la vez) dieron 1 y 3 fallas distintas cada vez, todas de login/clave (`test_usuarios_abm`, `test_api_auth`, `test_comandos_peligrosos`, `test_performance_budgets`), ninguna en código de este PR; las cuatro pasan solas y la corrida sin carga sale en verde.
+- `--tag performance`: 6 tests OK.
+- `ruff check .` limpio; `ruff format --check` de los archivos tocados, limpio.
+- `design_audit.py --ratchet --base origin/development`: ningún archivo de UI cambiado; `--goldens`: 0
+  hallazgos en 5 goldens; `compile_templates.py --bloques`: 0 errores, 0 bloques sin destino;
+  `check_design_agent.py --changed`: OK.
+- `bandit -r . -c pyproject.toml`: 0 issues, igual que en `8e338c7d`.
+- **En rojo contra `8e338c7d`** (el fix de G1-07 revertido en `api/views.py`, `api/serializers.py` y
+  `services/respuestas.py`): fallan los tests de reintento, reemplazo, archivo viejo, revisión con el
+  más nuevo, los tres de pertenencia y los de contrato del adjunto repetido y de `non_field_errors`.
+  `test_un_campo_de_la_lista_plana_que_items_no_trae_se_acepta` da 400 contra la versión que solo
+  miraba `items`.
+
+**Tests nuevos (25):** `programas/tests/test_app_de_campo.py::AdjuntosDeLaAppTests` (12),
+`::VersionDelFormularioTests` (5),
+`::CronDeVencimientosTests.test_el_log_nombra_los_que_se_cerraron_y_no_los_que_se_leyeron` (1) y
+siete de contrato en `test_becas_api_contrato.py` (`test_ninguna_de_las_dos_listas_pagina`,
+`test_el_alta_sin_version_capturada_sigue_entrando`,
+`test_el_adjunto_repetido_responde_201_y_no_duplica`,
+`test_el_adjunto_se_sube_con_el_id_de_la_lista_plana`,
+`test_el_400_del_adjunto_trae_el_motivo_en_non_field_errors`,
+`test_el_400_del_alta_trae_el_motivo_en_non_field_errors` y
+`test_la_persona_no_encontrada_es_un_404_con_error`), más dos aserciones agregadas a tests que ya
+existían (`non_field_errors` en el rechazo por DNI y por fecha).
+
+## Puesta en marcha en el servidor
+
+`migrate` normal; la migración es instantánea en los dos motores. **Si en el medio entró otra
+migración de `programas`**, hay que renumerar la `0081` y rehacer su `dependencies`: se escribió
+sobre la última de `development` al momento del PR (`0080_app_de_campo_gracia_y_validacion`) y hay
+carriles en paralelo.
+
+## Pendientes
+
+- **Release de `Chaco-mobile` (otro repo, otro equipo) para que G1-16 cierre de verdad:** guardar
+  la `version` que baja `GET /api/becas/relevamientos/<id>/` junto con la captura offline y
+  mandarla como `version_capturada` en el `POST …/formularios/`. Hasta entonces la columna queda
+  en `NULL` y el agujero que describe la ficha sigue abierto en producción.
+- ~~**Lo que el control de pertenencia todavía puede cortar en la app instalada:** un archivo de un
+  campo que **ya no está** ni en la foto ni en la lista plana vigente —una pregunta `ARCHIVO`
+  desactivada entre la captura y la sincronización— rebota con 400, y la cola de `Chaco-mobile`
+  deja de subir los adjuntos que venían después en ese envío.~~ **Resuelto del lado del servidor en
+  la ronda 2** (ver *Historial*): ese caso entra con 201 y queda observado. Lo que sigue siendo del
+  lado de la app es tolerar un 4xx de un adjunto y seguir con el siguiente —hoy el 400 que queda,
+  el de otro segmento, también corta la cola—; conviene sumarlo al mismo release que manda
+  `version_capturada`.
+- Los duplicados de adjuntos que producción ya tiene **no se limpian**: se los deja y se los
+  resuelve por «gana el más nuevo». Un comando de limpieza sería un ítem aparte, y borrar
+  documentos del ciudadano no es algo que convenga hacer de oficio.
+- El tope de `programas_formulario` sigue creciendo: cualquier columna futura sobre esa tabla hay
+  que medirla igual.
+
+## Reversión
+
+`migrate programas 0080` baja la columna (la reversa de un `AddField` es un `RemoveField`).
+Revertir el commit devuelve el adjunto duplicado por reintento, la referencia sin validar y el
+log del cron con los ids leídos.
+
+## Historial
+
+**Ronda 2 de la revisión (08/10/2026) — 1 MAJOR y 4 MINOR, todos corregidos.**
+
+**El MAJOR es el pendiente que la ronda 1 había dejado escrito: un campo `ARCHIVO` desactivado
+trababa la cola entera de la app.** El escenario medido: el teléfono baja una definición con dos
+campos `ARCHIVO` y captura offline; el PM desactiva uno —o lo saca del diseño, o le cambia el
+canal—; recién después el territorial sincroniza. El alta daba 201 y el `POST …/adjuntos/` del
+campo caído, 400. Del lado de la app, `syncRemoteBecasFormulario`
+(`relevamientoService.js:966-985`) sube los adjuntos en un `for` y **corta** en el 400, que además
+no es reintentable (`:1486`): la operación queda `FAILED_PERMANENT` y **el segundo documento, que
+el servidor sí aceptaba, no se sube nunca**, tampoco con el reintento manual. O sea que un campo
+desactivado en el backoffice se llevaba puestos todos los adjuntos de ese envío.
+
+El control de pertenencia pasó de dos respuestas a **tres** (`campo.pertenencia_del_adjunto`, que
+reemplaza a `campo_de_archivo_del_caso`):
+
+- **`ADJUNTO_DEL_FORMULARIO`** — la clave está en la foto del caso o en la definición vigente
+  (incluida la lista plana, que es la que lee la app instalada). Igual que antes.
+- **`ADJUNTO_YA_NO_SE_PIDE`** — es un campo `ARCHIVO` que **pudo** ser de esta convocatoria (una
+  pregunta general, que aplica a todas; o un requisito de su herencia RN-32) y hoy no aparece en el
+  formulario. Entra con **201** y queda observado en `observaciones_carga`, con el mismo criterio
+  que G1-05: la captura ya existe y el revisor tiene que enterarse de que llegó un archivo que la
+  pantalla no muestra entre las respuestas (`_adjuntos_por_clave` lo indexa por una clave que la
+  definición del caso no tiene).
+- **`ADJUNTO_AJENO`** — lo que **nunca** pudo ser de esta convocatoria: el requisito de otro
+  segmento, o un campo que no pide ningún archivo. Es el único 400 que queda.
+
+Que un requisito sea «de otro segmento» se pregunta con el **mismo** `Q` que arma la definición
+(`filtro_requisitos_convocatoria`) y no con una copia en memoria de la herencia: es exactamente lo
+contrario de que la definición lo sirva, y dos escrituras de la misma regla se separan. Una
+`PreguntaGlobal` es del catálogo general, así que siempre pudo estar en esta convocatoria. La
+observación se escribe dentro de la misma transacción que el adjunto, no se repite cuando la cola
+reintenta, y `revisar_carga` la **arrastra**: reescribe `observaciones_carga` entero y el reintento
+del alta vuelve a pasar por ahí mientras el caso siga incompleto (`_alta_incompleta`), que puede
+ser después de una subida.
+
+**Los cuatro MINOR.** (1) `version_capturada` tenía `min_value=0` y ningún tope: un `2**40` pasaba
+el serializer y MariaDB en modo estricto lo contestaba con un `DataError` —un 500, y la app
+reintenta ocho veces un envío que no va a entrar nunca—; va `max_value=2_147_483_647`, el `INT` con
+signo de la columna. (2) El docstring de `guardar_adjunto` decía que el `select_for_update`
+serializa dos subidas simultáneas del mismo campo, y con `READ COMMITTED` una primera subida sin
+fila que bloquear no toma gap lock: lo que hace es ordenar los reintentos sobre una fila que ya
+existe, puede haber dos filas, y con duplicados manda el más nuevo —que es el que
+`_adjuntos_por_clave` muestra—. (3) `pasar_relevamientos_a_revision` releía por estado para saber
+qué había cerrado, y `EN_REVISION` es también adonde llega el coordinador que termina su
+relevamiento desde la pantalla: el log se atribuía cierres ajenos. Ahora actualiza **de a un id**
+con el filtro de estado adentro del `UPDATE` y loguea los que devolvieron `1`; no hay ventana entre
+decidir y escribir, y son tantas consultas como relevamientos vencidos procesa el cron por noche.
+(4) El docstring de `test_una_version_que_no_es_una_version_se_rechaza` decía
+`PositiveIntegerField` y la columna es `IntegerField` a propósito (el `CHECK` del positivo impide
+`ALGORITHM=INSTANT`).
+
+**Verificación de la ronda 2** (mismo venv `.venv312`): `manage.py check` sin issues;
+`makemigrations --check --dry-run` sin cambios (esta ronda no toca modelos); `test_app_de_campo` +
+`test_becas_api_contrato` + `test_becas_vencimientos`, **99 tests OK**; los módulos vecinos de lo
+tocado (`test_becas_api`, `test_adjunto_punta_a_punta`, `test_becas_reglas_negocio`,
+`test_relevamiento_publico`, `core.tests.test_procesar_vencimientos_aislado`,
+`core.tests.test_tareas_programadas`), **174 tests OK**; `ruff check` y `ruff format --check` de lo
+tocado, limpios. **En rojo contra `ff9cde3c`** (los cuatro archivos de código revertidos, con los
+tests nuevos puestos): `test_un_campo_desactivado_no_traba_la_cola_de_la_app` y
+`test_la_observacion_del_adjunto_no_se_repite_con_el_reintento` dan 400 donde ahora hay 201;
+`test_una_version_mas_grande_que_la_columna_se_rechaza` acepta el `2**40`; y
+`test_el_cierre_de_otro_proceso_no_entra_en_el_log` nombra en el log el relevamiento que cerró
+otro.
+
+**Tests nuevos (4):**
+`test_app_de_campo.py::AdjuntosDeLaAppTests.test_un_campo_desactivado_no_traba_la_cola_de_la_app`,
+`::AdjuntosDeLaAppTests.test_la_observacion_del_adjunto_no_se_repite_con_el_reintento`,
+`::VersionDelFormularioTests.test_una_version_mas_grande_que_la_columna_se_rechaza` y
+`::CronDeVencimientosTests.test_el_cierre_de_otro_proceso_no_entra_en_el_log`. Reemplazado:
+`test_un_campo_que_el_formulario_no_pide_se_rechaza`, que fijaba el 400 que esta ronda corrige. El
+contrato del 400 legible (`test_el_400_del_adjunto_trae_el_motivo_en_non_field_errors`) pasó a usar
+la referencia de otro segmento, que es el rechazo que queda.
