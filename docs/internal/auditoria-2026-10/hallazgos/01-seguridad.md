@@ -504,7 +504,7 @@ dos (sin alcance → vacío; con legajo propio → solo las suyas), porque afirm
 - **Verificación:** V-STD + `manage.py test users programas.tests.test_becas_api`.
 - **Dependencias:** SEC-05, G2-03, G1b-08.
 
-**Resolución:** 🟡 Resuelta **la parte de código** en #NNN (Cambio 181, Ola 2 PR 2), 08-10-2026;
+**Resolución:** 🟡 Resuelta **la parte de código** en #631 (Cambio 181, Ola 2 PR 2), 08-10-2026;
 queda abierto solo el punto 6, que es de infraestructura. Punto por punto:
 
 1. **Límite de intentos.** `UsuariosAuthenticationForm` y una `RecuperarContrasenaView` propia usan

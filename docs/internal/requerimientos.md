@@ -26242,7 +26242,7 @@ la referencia de otro segmento, que es el rechazo que queda.
 | **Etiquetas** | `#sesion` `#usuarios` `#rbac` `#correo` `#api` |
 | **Solicitante** | Auditoría integral oct-2026 — fichas G1b-05, G1b-07, G1b-08, G2-03, SEC-26, R0b-01, R0b-02, R0b-03 y R0b-10, más la segunda parte de RED-52 (Ola 2, PR 2) |
 | **Fecha del pedido** | 08/10/2026 |
-| **Issue / épica** | Auditoría oct-2026, Ola 2 ítems 2 y 9 · PR #NNN |
+| **Issue / épica** | Auditoría oct-2026, Ola 2 ítems 2 y 9 · PR #631 |
 | **Partes afectadas** | Login del backoffice · «Olvidé mi contraseña» · Pantalla de cambio obligatorio y pantalla nueva de cambio voluntario · Menú del avatar · ABM de usuarios (alta, edición y listado) · ABM de roles (activar/desactivar) · Correo de credenciales · Login de la app de campo |
 | **Migración** | No requiere |
 

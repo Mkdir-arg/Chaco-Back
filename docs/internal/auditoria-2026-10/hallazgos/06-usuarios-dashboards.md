@@ -51,7 +51,7 @@ PoC: `poc/test_repro_usuarios.py`. Lo de la API REST de usuarios está en SEC-05
 - **Propuesta:** en el `clean` de los dos forms, para operador no global, exigir al menos un rol en su alcance; alternativa: si `groups` queda vacío, `is_active=False` en el servicio con mensaje explícito. Contar las cuentas que ya están así con P-07.
 - **Tests:** el de la PoC invertido (o: la cuenta queda inactiva y el admin sigue viéndola).
 
-**Resolución:** ✅ Resuelto en #NNN (Cambio 181, Ola 2 PR 2), 08-10-2026 — se aplicó la **primera**
+**Resolución:** ✅ Resuelto en #631 (Cambio 181, Ola 2 PR 2), 08-10-2026 — se aplicó la **primera**
 opción: `_validar_al_menos_un_rol` en el `clean` de los dos forms del ABM. Un operador no global que
 deja la selección vacía recibe un error de campo que además dice cuál es el camino correcto
 («desactivá el usuario»), y ese camino quedó cubierto con su propio test: desactivar conserva el rol,
@@ -80,7 +80,7 @@ las cuentas que ya quedaron así.
 - **Tests:** el de la PoC invertido (302 al inicio y la clave intacta) y que con `debe_cambiar_contrasena=True` siga andando (`users/tests/test_credenciales.py`).
 - **Dependencias:** SEC-08, SEC-26.
 
-**Resolución:** ✅ Resuelto en #NNN (Cambio 181, Ola 2 PR 2), 08-10-2026 — `dispatch` de
+**Resolución:** ✅ Resuelto en #631 (Cambio 181, Ola 2 PR 2), 08-10-2026 — `dispatch` de
 `CambioContrasenaObligatorioView` sale por redirect si el Profile no tiene `debe_cambiar_contrasena`.
 El `fetch` silencioso ya no cambia nada: el 302 sobre un POST se convierte en GET, así que no hay
 reenvío de la clave nueva. **Desvío de la ficha:** el redirect no va al inicio sino a la pantalla de
@@ -105,7 +105,7 @@ anónimo, sin rol y superusuario).
 - **Propuesta:** `toggle_activo` llama también `rbac.asegurar_admin_restante()` (global); la vista captura `SinAdministradorError`/`SinAdministradorProgramaError` y muestra el mensaje.
 - **Tests:** los dos de la PoC invertidos.
 
-**Resolución:** ✅ Resuelto en #NNN (Cambio 181, Ola 2 PR 2), 08-10-2026 — las dos mitades.
+**Resolución:** ✅ Resuelto en #631 (Cambio 181, Ola 2 PR 2), 08-10-2026 — las dos mitades.
 `RolToggleActivoView` captura `rbac.SinAdministradorError`, que es la base de
 `SinAdministradorProgramaError`, así que el 500 pasa a ser el mismo aviso que ya daban editar y
 borrar; y `toggle_activo` corre también el check **global**. **Desvío de la ficha:** el check global
@@ -124,7 +124,7 @@ no poder desactivarse **ningún** rol, con un mensaje que no explica nada. **Tes
 - **Ubicación:** `users/forms/__init__.py:313-325`, `:400-408` (`CharField` sin `validate_password`); `users/services/admin.py:65-67` (`set_password` sin marcar `debe_cambiar_contrasena`).
 - **Propuesta:** `clean_password` con `validate_password`; al fijar la clave de **otro** usuario, `debe_cambiar_contrasena=True` (cuidado con el `Profile` cacheado, Cambio 37).
 
-**Resolución:** ✅ Resuelto en #NNN (Cambio 181, Ola 2 PR 2), 08-10-2026 — `_validar_clave_tipeada`
+**Resolución:** ✅ Resuelto en #631 (Cambio 181, Ola 2 PR 2), 08-10-2026 — `_validar_clave_tipeada`
 corre `validate_password` en el `clean` de los dos forms del ABM (vacío sigue significando «no
 cambiar», así que no valida nada de más), y `_marcar_cambio_obligatorio` pone
 `debe_cambiar_contrasena=True` cuando la clave la tipeó **otro**. Se escribe sobre el Profile
@@ -235,7 +235,7 @@ Observaciones MINOR del revisor de #539 (SEC-03, Cambio 110) y un seguimiento op
 - **Propuesta:** renderizar `{{ form.<campo>.help_text }}` debajo de cada campo (con el estilo de ayuda del sistema de diseño), o un aviso único arriba del bloque cuando `not form.credenciales_editables`. V-UI.
 - **Test:** GET de la edición de un usuario multiprograma por un admin de programa contiene el texto del aviso.
 
-**Resolución:** ✅ Resuelto en #NNN (Cambio 181, Ola 2 PR 2), 08-10-2026 — `user_form.html` renderiza
+**Resolución:** ✅ Resuelto en #631 (Cambio 181, Ola 2 PR 2), 08-10-2026 — `user_form.html` renderiza
 el `help_text` de `username`, `email` y `password` con la pieza de ayuda del sistema (`mt-1 text-xs
 text-body-subtle`, la misma de `components/_field.html`), condicionada a que el campo tenga ayuda:
 en el alta no aparece nada y en la edición bloqueada aparece el aviso de SEC-03 debajo de cada campo
@@ -251,7 +251,7 @@ el form **ya** escribe y así no quedan dos lugares diciendo lo mismo. **Test pe
 - **Propuesta:** contar los roles inactivos como fuera de alcance (sacar el `exclude`), o fijar la decisión contraria en `requerimientos.md` con este escenario.
 - **Test:** usuario con rol de Becas + rol inactivo de otro programa → el admin de Becas no edita credenciales.
 
-**Resolución:** ✅ Resuelto en #NNN (Cambio 181, Ola 2 PR 2), 08-10-2026 — `puede_gestionar_credenciales`
+**Resolución:** ✅ Resuelto en #631 (Cambio 181, Ola 2 PR 2), 08-10-2026 — `puede_gestionar_credenciales`
 pasa a comparar contra un alcance propio, `alcance_roles_ids_credenciales`, que son los roles de los
 programas que el operador administra **sin filtrar por `activo`**. **Desvío de la ficha:** la
 propuesta literal era «sacar el `exclude`», y eso hacía además que un rol desactivado **del propio
@@ -268,7 +268,7 @@ exceden** (los de sus programas, activos o no)—, que es lo que el escenario de
 - **Ubicación:** README §3, P-04: la primera consulta hace `JOIN programas_programa` (descarta los roles sin programa) y la segunda `JOIN users_rolmeta` (descarta los grupos sin `RolMeta`, que `puede_gestionar_credenciales` cuenta como fuera de alcance).
 - **Propuesta:** `LEFT JOIN` a `programas_programa` y a `users_rolmeta` y listar, por usuario activo con algún rol de programa, cuántos roles de categoría Backoffice/Sistema (programa nulo) y cuántos grupos sin `RolMeta` tiene: son las cuentas cuyas credenciales el admin de programa dejó de poder tocar con SEC-03.
 
-**Resolución:** ✅ Resuelto en #NNN (Cambio 181, Ola 2 PR 2), 08-10-2026 — P-04 reescrita en el
+**Resolución:** ✅ Resuelto en #631 (Cambio 181, Ola 2 PR 2), 08-10-2026 — P-04 reescrita en el
 README §3 con los dos `LEFT JOIN` y columnas nuevas `roles_sin_programa` y `roles_sin_meta`. Se le
 sumó `roles_desactivados`, que la ficha no pedía pero que R0b-02 vuelve relevante en el mismo
 release: desde este PR un rol desactivado de otro programa también saca de alcance, así que esas
@@ -282,7 +282,7 @@ cuentas entran en la misma lista que el PM tiene que revisar. Es SQL de solo lec
 - **Propuesta:** anotar por fila `gestionable` y `credenciales_editables` en la vista del listado (en lote, sin N+1) y esconder o deshabilitar los botones. V-UI.
 - **Test:** el listado de un admin de programa no tiene la URL de edición ni de toggle de un superusuario.
 
-**Resolución:** ✅ Resuelto en #NNN (Cambio 181, Ola 2 PR 2), 08-10-2026 —
+**Resolución:** ✅ Resuelto en #631 (Cambio 181, Ola 2 PR 2), 08-10-2026 —
 `anotar_acciones_del_listado(operador, usuarios)` marca `gestionable` y `credenciales_editables` en
 cada fila de la página y `user_list.html` esconde el lápiz y el interruptor según esas dos marcas
 (con «Fuera de tu alcance» cuando no hay ninguna acción posible). La anotación es **en lote**: los

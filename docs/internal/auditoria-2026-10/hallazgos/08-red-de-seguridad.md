@@ -1548,7 +1548,7 @@ el código es por path (los tokens de DRF se resuelven dentro de la vista, pero 
 **Test permanente:** `users.tests.test_middleware_profile.ProfileEnCacheTests.test_user_save_no_pisa_la_clave_de_sesion_de_otro_login`
 (y `.test_un_login_pisa_el_flag_de_clave_provisoria`, `OrdenMiddlewareTests.test_single_session_va_antes_que_cambio_de_clave`).
 
-**Resolución:** ✅ (segunda parte, Ola 2) Resuelta en #NNN (Cambio 181, Ola 2 PR 2), 08-10-2026 —
+**Resolución:** ✅ (segunda parte, Ola 2) Resuelta en #631 (Cambio 181, Ola 2 PR 2), 08-10-2026 —
 `save_user_profile` **se borró**, no se acotó con `update_fields`. Acotarlo dejaba en pie el patrón
 («el Profile se propaga solo en algún `User.save()`») sin que nadie lo use: los cuatro llamadores que
 escriben el Profile —`users/middleware.py`, `users/services/admin.py`, `users/services/correo.py` e
