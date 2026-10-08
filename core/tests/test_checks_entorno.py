@@ -33,7 +33,15 @@ def _sin_la_variable():
     return patch.dict(os.environ, entorno, clear=True)
 
 
-@override_settings(DEBUG=False, RENAPER_TEST_MODE=False)
+# Las claves de reCAPTCHA se declaran a nivel de clase porque, vacías, disparan
+# el aviso de SIIS-21 (`core.W003`) y ensuciarían la lista de todos los demás
+# casos. Cada test que mira ese aviso las pisa.
+@override_settings(
+    DEBUG=False,
+    RENAPER_TEST_MODE=False,
+    RECAPTCHA_SITE_KEY="sitio-de-prueba",
+    RECAPTCHA_SECRET_KEY="secreto-de-prueba",
+)
 class ChecksDeEntornoTests(SimpleTestCase):
     def _correr(self):
         return entorno_de_integraciones(app_configs=None)
@@ -101,6 +109,51 @@ class ChecksDeEntornoTests(SimpleTestCase):
     def test_los_dos_problemas_se_informan_juntos(self):
         with _sin_la_variable():
             self.assertEqual(sorted(m.id for m in self._correr()), ["core.E001", "core.W001"])
+
+    # ── SIIS-20: RENAPER_TEST_MODE en producción ────────────────────────────
+    @override_settings(SIIS_API_URL=SIIS_PRD, RENAPER_TEST_MODE=True)
+    def test_renaper_en_modo_prueba_en_produccion_es_error(self):
+        """El modo de prueba inventa identidades al azar y las devuelve con
+        ``success=True``, cacheadas 10 min. En PRD eso es dar de alta ciudadanos
+        con datos inventados y marcarlos validados."""
+        with _en_produccion():
+            mensajes = self._correr()
+
+        self.assertEqual([m.id for m in mensajes], ["core.E004"])
+        self.assertIsInstance(mensajes[0], Error)
+
+    @override_settings(SIIS_API_URL=SIIS_PRD, RENAPER_TEST_MODE=True)
+    def test_fuera_de_produccion_el_modo_de_prueba_sigue_siendo_solo_un_aviso(self):
+        """QA declara ``RENAPER_TEST_MODE=True`` a propósito (`.env.qa.example`):
+        es como levanta sin credenciales del organismo."""
+        with _sin_la_variable():
+            self.assertEqual([m.id for m in self._correr()], ["core.W001"])
+
+    @override_settings(SIIS_API_URL=SIIS_PRD, RENAPER_TEST_MODE=False)
+    def test_en_produccion_sin_modo_de_prueba_no_dice_nada(self):
+        with _en_produccion():
+            self.assertEqual(self._correr(), [])
+
+    # ── SIIS-21: captcha aritmético en producción ───────────────────────────
+    @override_settings(SIIS_API_URL=SIIS_PRD, RECAPTCHA_SITE_KEY="", RECAPTCHA_SECRET_KEY="")
+    def test_el_captcha_aritmetico_en_produccion_es_warning(self):
+        """Sin claves de Google el desafío se resuelve leyendo la pregunta del
+        HTML: no frena a un script contra el link público."""
+        with _en_produccion():
+            mensajes = self._correr()
+
+        self.assertEqual([m.id for m in mensajes], ["core.W003"])
+        self.assertIsInstance(mensajes[0], CheckWarning)
+
+    @override_settings(SIIS_API_URL=SIIS_PRD, RECAPTCHA_SITE_KEY="sitio", RECAPTCHA_SECRET_KEY="secreto")
+    def test_con_claves_de_recaptcha_no_dice_nada(self):
+        with _en_produccion():
+            self.assertEqual(self._correr(), [])
+
+    @override_settings(SIIS_API_URL=SIIS_PRD, RECAPTCHA_SITE_KEY="", RECAPTCHA_SECRET_KEY="")
+    def test_fuera_de_produccion_el_captcha_aritmetico_no_molesta(self):
+        with _sin_la_variable():
+            self.assertEqual(self._correr(), [])
 
     # ── Registro ────────────────────────────────────────────────────────────
     def test_el_check_esta_registrado_solo_para_deploy(self):

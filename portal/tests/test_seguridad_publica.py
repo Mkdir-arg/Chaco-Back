@@ -186,7 +186,16 @@ class RechazosDiferenciadosTests(_BaseFlujoTest):
 
 
 class LimitePorDocumentoTests(_BaseFlujoTest):
+    @override_settings(RECAPTCHA_SITE_KEY="site", RECAPTCHA_SECRET_KEY="secreto")
     def test_el_mismo_documento_se_frena_aunque_cambie_la_ip(self):
+        """Con reCAPTCHA —el modo que corresponde en producción— la cubeta del
+        documento es global: rotar de IP no sirve para enumerar (Cambio 71).
+
+        SIIS-21 (Cambio 174) acotó esto al modo aritmético, donde el captcha se
+        resuelve leyendo el HTML y la cubeta global pasa a ser un arma contra el
+        titular del documento; ahí, y solo ahí, se cuenta también por IP. Lo fija
+        `portal.tests.test_inscripcion_cuota_por_documento`.
+        """
         with patch.object(servicio, "MAX_INTENTOS_DNI", 2):
             factory = RequestFactory()
             excedio = []
