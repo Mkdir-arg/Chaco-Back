@@ -25456,6 +25456,12 @@ WebSocket, la app de campo) y `PaginadorConConteo`, que es la arista
   link público (la ficha nombraba los otros dos exports).
 - Los **encabezados** de CSV y XLSX pasan por `celda_segura`: en «respuestas por
   persona» son los textos de las preguntas, que los carga un operador.
+- El rol de menú **«Gestión de Ciudadanos»** de `seed_datos_base` nace con
+  `ciudadano.exportar`. En una base **nueva** la `0028` corre antes de que el
+  seed cree los roles, así que no encuentra a nadie con `ciudadano.editar`: sin
+  esto, el único rol sembrado que edita ciudadanos arrancaba sin exportar,
+  contra D-20. El seed solo toca el rol al crearlo, así que en las bases que ya
+  existen no cambia nada (ahí lo resuelve la `0028`).
 - `programas_siis_visibles` (ex `_programas_qs`) queda en `autorizacion.py` y no
   en `programas/selectors/`, como decía RED-79: ese paquete **no existe** en
   `programas` y el resto de los querysets de alcance de Becas ya vive ahí.
@@ -25482,6 +25488,8 @@ WebSocket, la app de campo) y `PaginadorConConteo`, que es la arista
   `legajos/views/dashboard_simple.py` — capacidad, registro y `celda_segura`
 - `users/migrations/0027_capacidad_ciudadano_exportar.py`,
   `users/migrations/0028_sembrar_ciudadano_exportar.py`
+- `users/management/commands/seed_datos_base.py` — «Gestión de Ciudadanos»
+  nace con `ciudadano.exportar`
 - Tests nuevos: `programas/tests/test_coordinador_regional.py`
   (`AlcanceDeCupoTests`, `ConfiguracionDelSegmentoTests`),
   `programas/tests/test_relevamiento_publico.py`
@@ -25497,6 +25505,12 @@ WebSocket, la app de campo) y `PaginadorConConteo`, que es la arista
   `programas/tests/test_padron.py`, `portal/tests/test_correcciones_review.py`,
   `portal/tests/test_correcciones_review_2.py`, y los que llaman a
   `respuestas_por_persona`
+- Tests tocados en la validación: `programas/tests/test_dashboard_becas.py`
+  (la base le tilda RN-P13 a «Becas — Administrador» y «Becas — Coordinador
+  Regional»: esos tests miden el canal del link público, que desde SEC-22 exige
+  la capacidad, y el recorte sin ella ya lo cubre `RnP13FueraDeLaPantallaTests`),
+  `portal/tests/test_correcciones_review.py` (RN-P13 se parchea donde vive
+  ahora) y `users/tests/test_seed_datos_base.py` (`SeedGestionCiudadanosTests`)
 
 ## Base de datos
 Dos migraciones, ninguna con DDL:
@@ -25526,15 +25540,36 @@ que las dos pueden ir en la release N sin esperar a la N+2.
    —qué casos entran en una consulta— y los CSV ya descargados siguen como están.
 
 ## Validación
-**No se pudo ejecutar nada en la sesión donde se escribió este cambio**: el
-entorno no tenía permiso para correr el intérprete del venv ni `git`. Lo que
-queda escrito acá es lo que el PR declara y lo que el juez tiene que correr
-antes de mergear, con `.venv312` (Python 3.12 + Django 5.2.17, igual al CI):
-`manage.py check`, `check --deploy`, `makemigrations --check --dry-run`,
-`manage.py test` (suite entera, un solo proceso), `test --tag performance`,
-`ruff check .`, `ruff format --check`, `scripts/design_audit.py --changed`,
-`scripts/compile_templates.py`, `scripts/check_design_agent.py --changed` y la
-ida y vuelta de las migraciones contra `mariadb:10.11` y `mysql:8.0`.
+La sesión que escribió el cambio no pudo ejecutar nada; todo lo de abajo se corrió
+después, en el worktree del PR, con `.venv312` (Python 3.12 + Django 5.2.17, igual
+al CI), antes y después de mergear `origin/development` (que trajo #624 y
+`programas.0080`, sin choque de numeración con las de `users`).
+
+- `manage.py check`: sin hallazgos. `check --deploy` (con `SIIS_API_URL` de
+  mentira, como el CI): solo los cinco `security.W*` de siempre, ningún error.
+- `makemigrations --check --dry-run`: sin cambios (la `0027` escrita a mano
+  coincide con lo que genera Django). `scripts/check_migraciones.py`: 2
+  migraciones, 0 problemas.
+- Ida y vuelta en `mariadb:10.11` sin tablas de zona horaria
+  (`MARIADB_INITDB_SKIP_TZINFO=1`) y en `mysql:8.0`: `migrate` desde cero,
+  `migrate users 0026`, roles de prueba (uno con `ciudadano.editar`, uno solo con
+  `ciudadano.ver`, uno vacío), adelante otra vez y una segunda vuelta. En los dos
+  motores la `0028` siembra solo al que edita, deja el log con el rol que solo ve
+  y la reversa le saca la capacidad a todos.
+- Suite completa (un proceso): la primera corrida dio 14 fallas, todas por
+  RN-P13 —13 tests del tablero que medían el canal público con roles sin la
+  capacidad y uno de pendientes RENAPER que parcheaba la función vieja—, que se
+  arreglaron en los tests, no en el código. Después del merge: 4202 tests, sin
+  fallas propias; dos tests de `users` que verifican claves fallaron una vez y
+  pasan solos y en `test users core legajos portal` (1765 tests, OK): es el
+  Argon2 bajo carga de la máquina, ajeno a este cambio.
+- `test --tag performance`: OK, sin tocar presupuestos (`becas_reportes` y
+  `legajo_detalle` incluidos).
+- `ruff check .` y `ruff format --check` de lo tocado: OK.
+- `design_audit.py --ratchet --base origin/development`: 0 nuevos; `--goldens`:
+  0; `compile_templates.py --bloques`: 0 errores; `check_design_agent.py
+  --changed`: OK, sin cambios en `.claude/`.
+- `bandit -r . -c pyproject.toml`: 0 issues.
 
 Los tests nuevos están escritos para fallar antes del cambio, cada uno por su
 motivo: el cupo del Regional listaba y daba de baja el caso del par; el XLSX, el
@@ -25542,3 +25577,7 @@ reporte y el cupo traían los casos del link público; el CSV del padrón se
 descargaba con `ciudadano.ver` y con la fórmula cruda; el `next` ajeno se
 obedecía; el requisito del subsegmento del par se borraba; y la solapa del
 legajo listaba los casos públicos.
+
+## Historial
+
+No aplica: entrada nueva.
