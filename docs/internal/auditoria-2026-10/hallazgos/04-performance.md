@@ -19,7 +19,7 @@ exige que coincidan).
 | PERF-03 | Excel de respuestas por persona: 8,9 s de CPU en el request | MEDIA (baja desde ALTA) | CONF. ajustado | 4 | S-M | ⬜ |
 | PERF-07 | Pantalla del masivo: `count()` con 15.532 literales cada 5 s | MEDIA | CONF. ajustado | 4 | S | ✅ |
 | PERF-11 | La foto `definicion` en cada caso (88 % de los bytes) | MEDIA (estructural) | CONF. medido | 7 | L | ⬜ |
-| PERF-20 | `generar_alertas` recorre todos los ciudadanos activos cada hora | MEDIA | CONF. medido | 4 | S | ⬜ |
+| PERF-20 | `generar_alertas` recorre todos los ciudadanos activos cada hora | MEDIA | CONF. medido | 4 | S | ✅ |
 | G1b-11 | Export del dashboard: un `JSON_EXTRACT` por pregunta sobre todo el recorte | MEDIA | PLAUSIBLE | 4 | M | ⬜ |
 | G1c-09 | Admin: fichas de Formulario y Derivación que crecen con la tabla | MEDIA | CONF. test | 4 | S | ⬜ |
 | PERF-06 | `validar_casos_siis` trae todo con JSON en una consulta | BAJA | CONF. código | 4 | S | ✅ |
@@ -231,6 +231,24 @@ Medido en el banco MariaDB 10.11 (20.000 casos, 22.000 DNI habilitados):
   ```
   Ajustar los `related_name` reales (`historialcontacto`, `evaluacion`); traer `legajo.ciudadano` con `annotate_legajo_link_data` (`legajos/services/linking.py:50`). El `UPDATE` global de hoy desaparece con la reconciliación de LEG-01; **si PERF-20 saliera sin LEG-01**, hay que conservar un único `AlertaCiudadano.objects.filter(activa=True, prioridad__in=["MEDIA", "BAJA"], ciudadano__activo=True).update(activa=False)` antes de regenerar, para no cambiar la semántica actual. Esperado: de 61.821 a ~5 consultas + las altas, constante respecto de los ciudadanos sin legajo. Alternativa: retirar el CronJob si Legajos de atención no se usa (decidir con LEG-01).
 - **Tests a agregar:** `legajos/tests`: `call_command("generar_alertas")` dentro de `assertNumQueries(K)` con 10 y con 200 ciudadanos sin legajo → **el mismo K**; dos corridas seguidas no crean alertas (LEG-01).
+
+**Resolución:** ✅ Resuelto en el PR 4 de la Ola 4 (Cambio 187), 08-10-2026 — con LEG-01 en el mismo PR, como pedía la
+ficha. El universo de la pasada ya no es el padrón sino los legajos: `AlertasService.reconciliar_alertas` arranca de
+`InscripcionPrograma.filter(legajo_id__isnull=False, ciudadano__activo=True).values_list("legajo_id").distinct()` y
+reconcilia **por lotes de 500 legajos**, con cuatro lecturas fijas por lote —las inscripciones del lote (que resuelven
+en una sola consulta el ciudadano y los `programa_ids` del ruteo), los legajos con `Max(fecha_contacto)` y el
+`Count` filtrado de fallidos anotados sobre el mismo `JOIN`, las alertas activas del lote y, solo si hay algo que
+crear, los ciudadanos—, más un `INSERT` por alta y **un** `UPDATE` de cierre. Desaparecen las tres consultas por
+ciudadano activo y el `UPDATE` global, que LEG-01 reemplaza por el cierre selectivo. **Medido** en banco sintético
+equivalente (2.000 activos / 20 con legajo, SQLite en memoria, Django 5.2.17, mismo `execute_wrapper` del harness):
+**6.181 → 45 sentencias** en la pasada en frío (40 de las 45 son los `INSERT` de las altas) y **6.141 → 4** en la
+pasada en régimen, que es la que corre 23 de las 24 veces por día; 6,6 s → 0,53 s. **Desvío de la ficha, code-first:**
+las altas van de a una y no con `bulk_create`, porque en MySQL 8 (icore) `bulk_create` no devuelve el `pk` y el aviso
+por WebSocket lo necesita —el dashboard dibuja `data-alerta-id` y el cierre se entrega por ese id (Cambio 179)—; en
+régimen son cero, así que el término no se paga. El ruteo del WebSocket se calcula **una vez por lote** y se le pasa a
+`_enviar_notificacion_alerta`, en vez de una vez por alerta.
+**Test permanente:** `legajos.tests.test_generar_alertas_performance.PasadaDeAlertasPerformanceTests.test_las_consultas_no_crecen_con_los_ciudadanos_sin_legajo`
+(+ `test_la_pasada_en_regimen_cuesta_lo_mismo_con_3_que_con_9_legajos`).
 
 ### G1b-11 · Export del dashboard de Becas: una consulta `JSON_EXTRACT` + `GROUP BY` por pregunta sobre todo el recorte
 **Severidad:** MEDIA · **Estado:** PLAUSIBLE (sin medir en MariaDB) · **Origen:** G1b-11 (verificado en G2) · **Ola:** 4 · **Esfuerzo:** M
