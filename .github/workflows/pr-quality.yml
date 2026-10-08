@@ -157,8 +157,10 @@ jobs:
             exit 1
           fi
 
-      # Ratchet, no umbral cero: hoy el repo mide 42 errores heredados y arreglarlos es la
-      # Ola 6. Lo que este paso impide es que **suban**. El `|| true` es necesario: el
+      # Ratchet, no umbral cero: el repo arrastra errores heredados y arreglarlos es la
+      # Ola 6. El techo vive en `.design-audit-ratchet` (hoy 15, medido el 07-oct-2026;
+      # el 42 de antes quedó viejo: las olas 5 y 6 bajaron 27 sin bajar el techo).
+      # Lo que este paso impide es que **suban**. El `|| true` es necesario: el
       # script sale con 1 cuando hay errores y el paso corre con `-e -o pipefail`, así que
       # sin él aborta antes de comparar y el gate queda rojo siempre, o sea mudo.
       # Cuando la Ola 6 entregue `design_audit.py --ratchet`, este paso lo reemplaza.

@@ -28,28 +28,129 @@
     }
   },
   "budgets": {
-    "login": {"route": "users:login", "max_queries": 22, "max_duplicate_queries": 2},
-    "inicio": {"route": "core:inicio", "max_queries": 20, "max_duplicate_queries": 0},
-    "dashboard_redirect": {"route": "core:dashboard", "max_queries": 4, "max_duplicate_queries": 0},
-    "dashboard_metricas": {"route": "dashboard:api_metricas", "max_queries": 10, "max_duplicate_queries": 0},
-    "legajos_lista": {"route": "legajos:ciudadanos", "max_queries": 13, "max_duplicate_queries": 0},
-    "legajo_detalle": {"route": "legajos:ciudadano_detalle", "max_queries": 21, "max_duplicate_queries": 0},
-    "conversaciones_lista": {"route": "conversaciones:lista", "max_queries": 15, "max_duplicate_queries": 1},
-    "conversacion_detalle": {"route": "conversaciones:detalle", "max_queries": 14, "max_duplicate_queries": 0},
-    "portal_home": {"route": "portal:home", "max_queries": 4, "max_duplicate_queries": 0},
-    "becas_segmentos": {"route": "becas:segmentos", "max_queries": 15, "max_duplicate_queries": 1},
-    "becas_convocatorias": {"route": "becas:convocatorias", "max_queries": 12, "max_duplicate_queries": 1},
-    "becas_relevamientos": {"route": "becas:relevamientos", "max_queries": 16, "max_duplicate_queries": 1},
-    "becas_relevamiento_detalle": {"route": "becas:relevamiento_detalle", "max_queries": 15, "max_duplicate_queries": 1},
-    "becas_revision": {"route": "becas:revision", "max_queries": 16, "max_duplicate_queries": 1},
-    "becas_revision_formularios": {"route": "becas:revision_formularios", "max_queries": 17, "max_duplicate_queries": 1},
-    "becas_formulario_detalle": {"route": "becas:formulario_detalle", "max_queries": 20, "max_duplicate_queries": 1},
-    "legajos_ciudadano_nuevo": {"route": "legajos:ciudadano_nuevo", "max_queries": 8, "max_duplicate_queries": 0},
-    "becas_reportes": {"route": "becas:reportes", "max_queries": 10, "max_duplicate_queries": 1},
-    "becas_programas": {"route": "becas:programas", "max_queries": 12, "max_duplicate_queries": 1},
-    "alta_ciudadano": {"route": "legajos:ciudadano_manual", "max_queries": 14, "max_duplicate_queries": 0},
-    "carga_relevamiento": {"route": "becas:relevamiento_crear", "max_queries": 24, "max_duplicate_queries": 0},
-    "edicion_convocatoria": {"route": "becas:convocatoria_editar", "max_queries": 14, "max_duplicate_queries": 0},
-    "envio_conversacion": {"route": "conversaciones:enviar_mensaje_operador", "max_queries": 9, "max_duplicate_queries": 1}
+    "login": {
+      "route": "users:login",
+      "max_queries": 22,
+      "max_duplicate_queries": 2
+    },
+    "inicio": {
+      "route": "core:inicio",
+      "max_queries": 20,
+      "max_duplicate_queries": 0
+    },
+    "dashboard_redirect": {
+      "route": "core:dashboard",
+      "max_queries": 4,
+      "max_duplicate_queries": 0
+    },
+    "dashboard_metricas": {
+      "route": "dashboard:api_metricas",
+      "max_queries": 10,
+      "max_duplicate_queries": 0
+    },
+    "legajos_lista": {
+      "route": "legajos:ciudadanos",
+      "max_queries": 13,
+      "max_duplicate_queries": 0
+    },
+    "legajo_detalle": {
+      "route": "legajos:ciudadano_detalle",
+      "max_queries": 21,
+      "max_duplicate_queries": 0
+    },
+    "conversaciones_lista": {
+      "route": "conversaciones:lista",
+      "max_queries": 15,
+      "max_duplicate_queries": 1
+    },
+    "conversacion_detalle": {
+      "route": "conversaciones:detalle",
+      "max_queries": 14,
+      "max_duplicate_queries": 0
+    },
+    "portal_home": {
+      "route": "portal:home",
+      "max_queries": 4,
+      "max_duplicate_queries": 0
+    },
+    "becas_segmentos": {
+      "route": "becas:segmentos",
+      "max_queries": 15,
+      "max_duplicate_queries": 1
+    },
+    "becas_convocatorias": {
+      "route": "becas:convocatorias",
+      "max_queries": 12,
+      "max_duplicate_queries": 1
+    },
+    "becas_relevamientos": {
+      "route": "becas:relevamientos",
+      "max_queries": 16,
+      "max_duplicate_queries": 1
+    },
+    "becas_relevamiento_detalle": {
+      "route": "becas:relevamiento_detalle",
+      "max_queries": 15,
+      "max_duplicate_queries": 1
+    },
+    "becas_revision": {
+      "route": "becas:revision",
+      "max_queries": 16,
+      "max_duplicate_queries": 1
+    },
+    "becas_revision_formularios": {
+      "route": "becas:revision_formularios",
+      "max_queries": 17,
+      "max_duplicate_queries": 1
+    },
+    "becas_formulario_detalle": {
+      "route": "becas:formulario_detalle",
+      "max_queries": 20,
+      "max_duplicate_queries": 1
+    },
+    "legajos_ciudadano_nuevo": {
+      "route": "legajos:ciudadano_nuevo",
+      "max_queries": 8,
+      "max_duplicate_queries": 0
+    },
+    "becas_reportes": {
+      "route": "becas:reportes",
+      "max_queries": 10,
+      "max_duplicate_queries": 1
+    },
+    "becas_programas": {
+      "route": "becas:programas",
+      "max_queries": 12,
+      "max_duplicate_queries": 1
+    },
+    "alta_ciudadano": {
+      "route": "legajos:ciudadano_manual",
+      "max_queries": 14,
+      "max_duplicate_queries": 0
+    },
+    "carga_relevamiento": {
+      "route": "becas:relevamiento_crear",
+      "max_queries": 24,
+      "max_duplicate_queries": 0
+    },
+    "edicion_convocatoria": {
+      "route": "becas:convocatoria_editar",
+      "max_queries": 14,
+      "max_duplicate_queries": 0
+    },
+    "envio_conversacion": {
+      "route": "conversaciones:enviar_mensaje_operador",
+      "max_queries": 9,
+      "max_duplicate_queries": 1
+    }
+  },
+  "servicios": {
+    "_nota": "Presupuestos de servicios que no son una ruta del manifiesto de perf_audit (no entran en `budgets`, que tiene que coincidir exactamente con build_targets). Los corre programas/tests/test_export_respuestas_presupuesto.py con --tag performance.",
+    "becas_respuestas_por_persona": {
+      "servicio": "programas.services.dashboard_becas.respuestas_por_persona",
+      "consultas_fijas": 12,
+      "casos_por_consulta": 2000,
+      "motivo": "El export es O(casos) en filas pero tiene que ser O(1) en consultas por caso: las fijas son el formulario vigente, el catalogo, los relevamientos, los adjuntos y la pasada principal, y despues una consulta cada `casos_por_consulta`. El numero existe por el MAJOR de la ronda 2 del PR de G2-01: pedir `definicion` por fila llevo el export de 1,5 s a 14 s con 20.000 casos en mariadb:10.11 (08/10/2026). La foto no puede volver a leerse por fila, ni siquiera para hashearla: InnoDB lee igual las paginas externas."
+    }
   }
 }

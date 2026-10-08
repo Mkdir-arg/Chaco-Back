@@ -167,6 +167,69 @@ class ImportUsersFromCsvTests(TestCase):
         unico.refresh_from_db()
         self.assertEqual(list(unico.groups.all()), [rol_admin])
 
+    def _admin_global(self, username):
+        """Un administrador del sistema que **no** es superusuario: el superusuario
+        cuenta como admin de todos los programas y taparía el check acotado."""
+        rol = Group.objects.get_or_create(name="Administración del sistema")[0]
+        RolMeta.objects.get_or_create(grupo=rol, defaults={"categoria": "Sistema", "activo": True})
+        rol.permissions.add(_perm("usuario.administrar"))
+        usuario = self.User.objects.create_user(username=username, password=CLAVE_DE_LA_PERSONA)
+        usuario.groups.add(rol)
+        return usuario
+
+    def test_actualizar_no_puede_dejar_un_programa_sin_administrador(self):
+        """Seguimiento del PR de G2-05: el check **global** no alcanza. El sistema puede
+        quedarse con administradores de sobra y un programa concreto sin ninguno, que es
+        la mitad acotada de RN-8 y lo que el ABM ya hace (`UsuariosAdminService`)."""
+        from programas.models import Programa
+
+        vivienda = Programa.objects.create(codigo="VIVIENDA", nombre="Vivienda")
+        rol_programa = Group.objects.create(name="Administración de Vivienda")
+        RolMeta.objects.create(grupo=rol_programa, categoria=rbac.CATEGORIA_PROGRAMA, programa=vivienda, activo=True)
+        rol_programa.permissions.add(_perm("programa.usuario.administrar"))
+        unico = self.User.objects.create_user(username="ocupado", password=CLAVE_DE_LA_PERSONA)
+        unico.groups.add(rol_programa)
+        # El sistema sigue teniendo administrador —y no es superusuario, que cuenta
+        # como admin de todos los programas—: el check global no se dispara.
+        self._admin_global("de-sistema")
+
+        with self.assertLogs("users.management.commands.import_users_from_csv", level=logging.WARNING):
+            with self.assertRaises(CommandError) as capturado:
+                self.correr(
+                    self.csv_con([self.fila(usuario="ocupado")]),
+                    aplicar=True,
+                    actualizar=True,
+                    motivo="alta masiva",
+                )
+
+        self.assertIn("Vivienda", str(capturado.exception))
+        unico.refresh_from_db()
+        self.assertEqual(list(unico.groups.all()), [rol_programa])
+
+    def test_si_queda_otro_administrador_del_programa_el_lote_se_aplica(self):
+        from programas.models import Programa
+
+        vivienda = Programa.objects.create(codigo="VIVIENDA", nombre="Vivienda")
+        rol_programa = Group.objects.create(name="Administración de Vivienda")
+        RolMeta.objects.create(grupo=rol_programa, categoria=rbac.CATEGORIA_PROGRAMA, programa=vivienda, activo=True)
+        rol_programa.permissions.add(_perm("programa.usuario.administrar"))
+        pisado = self.User.objects.create_user(username="ocupado", password=CLAVE_DE_LA_PERSONA)
+        pisado.groups.add(rol_programa)
+        companiera = self.User.objects.create_user(username="companiera", password=CLAVE_DE_LA_PERSONA)
+        companiera.groups.add(rol_programa)
+        self._admin_global("de-sistema")
+
+        with self.assertLogs("users.management.commands.import_users_from_csv", level=logging.WARNING):
+            self.correr(
+                self.csv_con([self.fila(usuario="ocupado")]),
+                aplicar=True,
+                actualizar=True,
+                motivo="alta masiva",
+            )
+
+        pisado.refresh_from_db()
+        self.assertEqual(list(pisado.groups.all()), [self.grupo_referencia])
+
     # ── Claves ─────────────────────────────────────────────────────────────
 
     def test_una_clave_debil_corta_y_no_deja_nada_escrito(self):

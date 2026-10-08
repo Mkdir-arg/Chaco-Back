@@ -52,6 +52,7 @@ from django.core.exceptions import ValidationError
 from django.core.management import call_command
 from django.db import connection, connections
 from django.test import TestCase, TransactionTestCase, tag
+from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 
 from legajos.models import Ciudadano
@@ -59,8 +60,10 @@ from programas.models import (
     Admision,
     Cama,
     Convocatoria,
+    DisenoFormulario,
     Dispositivo,
     Formulario,
+    ItemDiseno,
     ListaEspera,
     PadronHabilitado,
     PreguntaGlobal,
@@ -80,6 +83,7 @@ from programas.services.becas import (
 )
 from programas.services.cupo import agregar_a_lista_espera, aprobar_o_poner_en_espera, dar_baja_beneficiario
 from programas.services.registro_diario import calcular_cantidades
+from programas.services.respuestas import foto_definicion
 
 #: El servidor que contestó, no el que se pidió.
 MOTOR_REAL = connection.vendor == "mysql"
@@ -308,6 +312,96 @@ class DashboardEnElMotorRealTests(MotorRealMixin, TestCase):
         self.assertEqual(
             {fila["opcion"]: fila["total"] for fila in distribucion.opciones},
             {"Trabaja": 2, "Estudia": 1},
+        )
+
+
+@tag("mysql")
+class CamposPropiosEnElMotorRealTests(MotorRealMixin, TestCase):
+    """G2-01 contra el motor real: los campos propios del constructor.
+
+    Lo que SQLite no prueba y acá sí: `JSON_EXTRACT(respuestas, '$."cp-xxx"')` sobre la
+    columna **nueva** y con la ruta en la raíz (no bajo `globales`/`requisitos`), y el
+    `GROUP BY` sobre **varias** extracciones JSON a la vez —la pregunta y las claves de
+    las que depende su condición—, que es la forma en que una respuesta oculta deja de
+    contar sin leer la foto de cada caso. Una ruta sin comillas o un `KeyTransform`
+    devolverían NULL y las tres distribuciones saldrían vacías.
+    """
+
+    def setUp(self):
+        super().setUp()
+        cache.clear()
+        call_command("crear_programas", stdout=StringIO())
+        self.admin = User.objects.create_superuser("admin-propios-motor", "a@b.com", "x")
+        self.programa = ProgramaSiis.objects.create(nombre="Programa propios", siis_programa_id=942)
+        self.conv = _convocatoria(programa=self.programa)
+        self.rel = Relevamiento.objects.create(
+            convocatoria=self.conv,
+            territorial=self.admin,
+            fecha_asignada=timezone.now(),
+            zona="Z",
+        )
+        diseno = DisenoFormulario.objects.create(convocatoria=self.conv, version=1)
+        grupo = ItemDiseno.objects.create(diseno=diseno, tipo=ItemDiseno.Tipo.GRUPO, clave="g-1", orden=0)
+        ItemDiseno.objects.create(
+            diseno=diseno,
+            tipo=ItemDiseno.Tipo.CAMPO,
+            clave="cp-madre001",
+            padre=grupo,
+            orden=1,
+            propio={"texto": "¿Sos madre?", "tipo": TipoCampo.SELECTOR, "opciones": ["Sí", "No"]},
+        )
+        ItemDiseno.objects.create(
+            diseno=diseno,
+            tipo=ItemDiseno.Tipo.CAMPO,
+            clave="cp-hijos001",
+            padre=grupo,
+            orden=2,
+            condicion={"modo": "todas", "reglas": [{"fuente": "cp-madre001", "op": "es", "valor": "Sí"}]},
+            propio={"texto": "¿Cuántos hijos?", "tipo": TipoCampo.SELECTOR, "opciones": ["Uno", "Dos"]},
+        )
+        for indice, respuestas in enumerate(
+            (
+                {"cp-madre001": "Sí", "cp-hijos001": "Dos"},
+                {"cp-madre001": "Sí", "cp-hijos001": "Dos"},
+                {"cp-madre001": "No", "cp-hijos001": "Uno"},  # oculta por la condición
+            )
+        ):
+            Formulario.objects.create(
+                relevamiento=self.rel,
+                celular=f"362420010{indice}",
+                data={"globales": {}, "requisitos": {}},
+                respuestas=respuestas,
+                definicion=foto_definicion(self.rel),
+            )
+        hoy = timezone.localdate()
+        self.filtros = dashboard.Filtros(desde=hoy - timedelta(days=30), hasta=hoy)
+
+    def test_la_distribucion_de_un_campo_propio_sale_de_la_columna_respuestas(self):
+        distribucion = dashboard.distribucion_respuestas(self.admin, self.programa, self.filtros, "cp-madre001")
+
+        self.assertEqual(distribucion.base, 3)
+        self.assertEqual({fila["opcion"]: fila["total"] for fila in distribucion.opciones}, {"Sí": 2, "No": 1})
+
+    def test_el_group_by_sobre_dos_extracciones_descarta_lo_que_la_condicion_oculto(self):
+        distribucion = dashboard.distribucion_respuestas(self.admin, self.programa, self.filtros, "cp-hijos001")
+
+        self.assertEqual(distribucion.base, 2)
+        self.assertEqual({fila["opcion"]: fila["total"] for fila in distribucion.opciones}, {"Dos": 2, "Uno": 0})
+
+    def test_el_excel_por_persona_trae_la_columna_propia_sin_leer_la_foto_por_fila(self):
+        with CaptureQueriesContext(connection) as capturadas:
+            reporte, _alcance = dashboard.respuestas_por_persona(self.conv)
+
+        cabeceras = list(reporte.encabezados)
+        self.assertIn("¿Sos madre?", cabeceras)
+        filas = [dict(zip(cabeceras, fila)) for fila in reporte.filas]
+        self.assertEqual(sorted(f["¿Sos madre?"] for f in filas), ["No", "Sí", "Sí"])
+        # La condición oculta la respuesta del tercer caso, también en la planilla.
+        self.assertEqual(sorted(f["¿Cuántos hijos?"] for f in filas), ["", "Dos", "Dos"])
+        self.assertEqual(
+            [sql for sql in (q["sql"] for q in capturadas) if "programas_formulario" in sql and "definicion" in sql],
+            [],
+            "la foto no puede volver a leerse por fila: con 20.000 casos son 12 s de export",
         )
 
 
