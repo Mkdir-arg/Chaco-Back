@@ -100,11 +100,7 @@
   {% else %}
   <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
     {% include "components/_stat_card.html" with etiqueta="Enviados" valor=stats.enviados icono="fa-circle-check" tono="success" %}
-    {% if hay_fallidos %}
-    {% include "components/_stat_card.html" with etiqueta="Fallidos" valor=stats.fallidos icono="fa-triangle-exclamation" tono="danger" %}
-    {% else %}
-    {% include "components/_stat_card.html" with etiqueta="Fallidos" valor=stats.fallidos icono="fa-triangle-exclamation" tono="brand" %}
-    {% endif %}
+    {% include "components/_stat_card.html" with etiqueta="Fallidos" valor=stats.fallidos icono="fa-triangle-exclamation" tono=tono_fallidos %}
     {% include "components/_stat_card.html" with etiqueta="Pendientes" valor=stats.pendientes icono="fa-hourglass-half" tono="warning" %}
     {% include "components/_stat_card.html" with etiqueta="Total de la campaña" valor=stats.total icono="fa-users" tono="brand" %}
   </div>
@@ -304,13 +300,18 @@
   (function () {
     // El envío corre en un hilo del pod y no avisa: la pantalla se relee sola. Si hay un
     // modal abierto (detener, por ejemplo) se espera, para no cerrarlo a mitad de la decisión.
+    // Se recarga con la solapa que se está mirando en ?tab=, conservando el resto del
+    // querystring (búsqueda, filtro y páginas): un reload a secas volvía a la de por defecto.
     var overlay = document.getElementById('modal-overlay');
     function releer() {
       if (overlay && !overlay.classList.contains('hidden')) {
         setTimeout(releer, 5000);
         return;
       }
-      window.location.reload();
+      var url = new URL(window.location.href);
+      var activa = document.querySelector('[role="tab"][aria-selected="true"]');
+      if (activa && activa.id.indexOf('tab-') === 0) url.searchParams.set('tab', activa.id.slice(4));
+      window.location.replace(url.toString());
     }
     setTimeout(releer, 5000);
   })();

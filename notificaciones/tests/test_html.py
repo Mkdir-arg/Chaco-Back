@@ -57,7 +57,27 @@ class SanitizarTests(SimpleTestCase):
             '<img src="cid:logo"><img src="img/rel.png"><img src="https://ok/a.png"><img src="data:image/png;base64,AA">'
         )
         self.assertEqual(servicio.contar_quitados(original), 2)
-        self.assertEqual(servicio.contar_imagenes_no_visibles(original), 2)
+        # cid:, relativa y data: no le llegan a nadie; https sí.
+        self.assertEqual(servicio.contar_imagenes_no_visibles(original), 3)
+
+    def test_saca_url_import_y_expression_del_css(self):
+        original = (
+            "<style>@import url(https://x/a.css); p{color:red;background:url(https://x/t.png)}"
+            " .b{width:expression(alert(1));margin:0} .c{background:u\\72l(https://x)}</style>"
+            '<p style="color:blue; background-image: url(&quot;https://x/t.png&quot;); padding:4px">a</p>'
+            '<div style="behavior:url(x.htc);font-size:12px">b</div>'
+        )
+        limpio = servicio.sanitizar(original).lower()
+        for prohibido in ("@import", "url(", "expression(", "behavior"):
+            self.assertNotIn(prohibido, limpio)
+        # El escape CSS (u\72l = url) queda sin barra: deja de ser una función.
+        self.assertNotIn(chr(92), limpio)
+        for conservado in ("color:red", "margin:0", "color:blue", "padding:4px", "font-size:12px"):
+            self.assertIn(conservado, limpio.replace(" ", ""))
+
+    def test_imagen_data_pierde_el_src(self):
+        limpio = servicio.sanitizar('<img src="data:image/png;base64,AAAA" alt="x">')
+        self.assertNotIn("data:", limpio)
 
     def test_texto_plano_derivado(self):
         texto = servicio.a_texto(

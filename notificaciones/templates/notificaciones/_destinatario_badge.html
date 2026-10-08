@@ -2,6 +2,7 @@
 Badge del resultado de envío de un destinatario. Espera `destinatario` en el contexto.
 
   PENDIENTE  gray     todavía no salió
+  EN_CURSO   brand    una corrida lo está mandando ahora
   ENVIADO    success  el servidor de correo lo aceptó
   FALLIDO    danger   no salió: el motivo va en la columna Detalle
 
@@ -10,6 +11,7 @@ Uso: {% include "notificaciones/_destinatario_badge.html" with destinatario=d %}
 {% with e=destinatario.estado %}
 <span class="badge badge-dot
   {% if e == 'ENVIADO' %}badge-success
+  {% elif e == 'EN_CURSO' %}badge-brand
   {% elif e == 'FALLIDO' %}badge-danger
   {% else %}badge-gray{% endif %}">{{ destinatario.get_estado_display }}</span>
 {% endwith %}

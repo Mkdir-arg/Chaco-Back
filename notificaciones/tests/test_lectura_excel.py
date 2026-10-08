@@ -5,7 +5,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import SimpleTestCase
 
 from notificaciones.models import Descartado
-from notificaciones.services.lectura_excel import EXCEL_MAX_BYTES, parsear_destinatarios
+from notificaciones.services.lectura_excel import EXCEL_MAX_BYTES, MAX_DESCARTADOS, parsear_destinatarios
 from notificaciones.tests.utils import XLSX, correos, xlsx
 
 
@@ -76,6 +76,16 @@ class LecturaExcelTests(SimpleTestCase):
         parsear_destinatarios(xlsx(["email", *correos(5000)]))
         with self.assertRaisesMessage(ValidationError, "el tope por campaña es 5.000"):
             parsear_destinatarios(xlsx(["email", *correos(5001)]))
+
+    def test_duplicados_sin_acentos_como_la_collation_de_la_base(self):
+        lectura = parsear_destinatarios(xlsx(["email", "ana@mañana.com", "ANA@manana.com"]))
+        self.assertEqual([email for _f, email in lectura.validos], ["ana@mañana.com"])
+        self.assertEqual(lectura.descartados, [(3, "ANA@manana.com", Descartado.Motivo.DUPLICADO)])
+
+    def test_demasiados_descartados_corta_con_error(self):
+        filas = ["email", "a@x.com", *(["no-es-correo"] * (MAX_DESCARTADOS + 1))]
+        with self.assertRaisesMessage(ValidationError, "20.000 filas"):
+            parsear_destinatarios(xlsx(filas))
 
     def test_no_xlsx_rechazado(self):
         for nombre in ("lista.xls", "lista.csv"):

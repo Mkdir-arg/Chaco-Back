@@ -23,7 +23,9 @@ Se hereda; no se recrean el sidebar ni sus offsets.
   botón); subítem `px-3 py-2 rounded-full text-[13px]`; chevron `transition-transform` con
   `:class="open ? 'rotate-180' : ''"`. Colores, hover y activo (`aria-current="page"`) los pone
   `.ds-snav` del `<style>` de `sidebar/base.html`, que gana con `!important`. Evidencia: el grupo
-  «Notificaciones».
+  «Notificaciones». `text-[13.5px]` y `text-[13px]` son una **excepción de shell**: reproducen los
+  tamaños que los demás grupos fijan en línea y no amplían la lista blanca de arbitrarios del
+  contenido.
 - Tailwind se sirve desde `static/custom/css/tailwind.css`, generado por `npm run build:tailwind`
   con `tailwind.config.js`. **No** se usa el CDN de Play.
 - La fuente de íconos se precarga con

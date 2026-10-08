@@ -49,7 +49,7 @@ CUBETA_PRUEBAS = "notif_prueba"
 # Las directivas `*-src` se arman con el sufijo aparte: el literal «font-src» tiene forma
 # de utilidad de Tailwind y `CssCompiladoAlDiaTests` (que lee los `.py` de las apps) lo
 # tomaría por una clase usada que el build no tiene.
-_FUENTES_VISTA_PREVIA = {"default": "'none'", "img": "https: data:", "style": "'unsafe-inline'", "font": "https: data:"}
+_FUENTES_VISTA_PREVIA = {"default": "'none'", "img": "https:", "style": "'unsafe-inline'", "font": "https: data:"}
 _OTRAS_VISTA_PREVIA = {"frame-ancestors": "'self'", "base-uri": "'none'", "form-action": "'none'"}
 CSP_VISTA_PREVIA = "; ".join(
     [
@@ -212,7 +212,8 @@ def campana_detalle(request, pk):
     )
     descartados = Paginator(selectors.descartados_de(campana), PAGINA).get_page(request.GET.get("descartados_page"))
 
-    pendientes = conteos[Destinatario.Estado.PENDIENTE]
+    # Los EN_CURSO son los que una corrida está mandando en este momento: todavía no salieron.
+    pendientes = conteos[Destinatario.Estado.PENDIENTE] + conteos[Destinatario.Estado.EN_CURSO]
     enviados = conteos[Destinatario.Estado.ENVIADO]
     fallidos = conteos[Destinatario.Estado.FALLIDO]
     interrumpida = campana.interrumpida
@@ -234,7 +235,7 @@ def campana_detalle(request, pk):
             "fallidos": _numero(fallidos),
             "pendientes": _numero(pendientes),
         },
-        "hay_fallidos": fallidos > 0,
+        "tono_fallidos": "danger" if fallidos else "brand",
         "avance": (
             f"Van {_numero(enviados + fallidos)} de {_numero(campana.total)} correos. "
             "Podés cerrar esta pantalla y volver a ver el avance."

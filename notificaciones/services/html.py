@@ -7,7 +7,11 @@ se envía es siempre la copia saneada:
 - fuera ``<script>``, ``<iframe>``, ``<object>``, ``<embed>``, ``<form>`` y sus controles,
   ``<meta>``/``<link>``/``<base>``, los manejadores ``on*`` y los enlaces ``javascript:``;
 - se conservan las tablas, los estilos en línea y el ``<style>`` del ``<head>``, que es como
-  se arma un correo (los clientes de correo los admiten parcialmente).
+  se arma un correo (los clientes de correo los admiten parcialmente), pero al CSS se le
+  sacan ``@import`` y toda declaración con ``url(…)``, ``expression(…)``, ``behavior`` o
+  ``-moz-binding``: cargarían recursos o código de afuera;
+- las imágenes solo quedan con ``src`` ``http(s)://``: ``cid:``, rutas relativas y ``data:``
+  pierden el ``src`` y se cuentan para el aviso de la previsualización.
 
 La vista previa además va en un ``iframe`` con ``sandbox`` vacío y una CSP propia
 (``views.campanas.vista_previa_html``): el saneo no es la única barrera.
@@ -72,6 +76,15 @@ _EVENTOS = re.compile(r"<[^>]*?\son[a-z]+\s*=", re.IGNORECASE)
 _JAVASCRIPT = re.compile(r"(?:href|src)\s*=\s*[\"']?\s*javascript:", re.IGNORECASE)
 _IMG_SRC = re.compile(r"<img\b[^>]*?\ssrc\s*=\s*(?:\"([^\"]*)\"|'([^']*)'|([^\s>]+))", re.IGNORECASE)
 
+# CSS: lo que carga recursos o código de afuera. Se descarta la declaración entera.
+_CSS_COMENTARIO = re.compile(r"/\*.*?\*/", re.DOTALL)
+_CSS_IMPORT = re.compile(r"@import\b[^;]*;?", re.IGNORECASE)
+_CSS_PELIGROSO = re.compile(
+    r"[^;{}]*(?:\burl\s*\(|\bexpression\s*\(|\bbehavior\s*:|-moz-binding)[^;{}]*;?", re.IGNORECASE
+)
+_ATRIBUTO_STYLE = re.compile(r'style="([^"]*)"')
+_BLOQUE_STYLE = re.compile(r"(<style\b[^>]*>)(.*?)(</style>)", re.IGNORECASE | re.DOTALL)
+
 # Para el texto plano: los cortes de bloque pasan a salto de línea y los enlaces llevan
 # su dirección entre paréntesis, que es lo que el lector de texto plano necesita.
 _CORTES = re.compile(r"<\s*(br|/p|/div|/tr|/h[1-6]|/li|/table|/blockquote|hr)\b[^>]*>", re.IGNORECASE)
@@ -100,16 +113,41 @@ def leer_html(archivo):
     return texto
 
 
+def limpiar_css(css):
+    """El CSS sin ``@import`` ni declaraciones que carguen algo (``url(``, ``expression(``…).
+
+    Se sacan antes los comentarios y las barras invertidas, que son la forma de esconder
+    esas palabras (``ur/**/l(``, ``u\\72l(``); un correo no las necesita.
+    """
+    css = _CSS_COMENTARIO.sub("", css).replace("\\", "")
+    css = _CSS_IMPORT.sub("", css)
+    return _CSS_PELIGROSO.sub("", css)
+
+
+def _limpiar_atributo_style(match):
+    limpio = limpiar_css(html_lib.unescape(match.group(1)))
+    return f'style="{html_lib.escape(limpio, quote=True)}"'
+
+
+def _limpiar_bloque_style(match):
+    return f"{match.group(1)}{limpiar_css(match.group(2))}{match.group(3)}"
+
+
 def sanitizar(html):
     """El HTML sin nada que ejecute código ni cargue contenido incrustado."""
-    return nh3.clean(
+    limpio = nh3.clean(
         html,
         tags=set(ETIQUETAS),
         clean_content_tags=set(ETIQUETAS_SIN_CONTENIDO),
         attributes={etiqueta: set(attrs) for etiqueta, attrs in ATRIBUTOS.items()},
         url_schemes=set(ESQUEMAS_URL),
         strip_comments=True,
-    ).strip()
+    )
+    # El CSS se limpia sobre la salida de nh3, que siempre escribe los atributos con
+    # comillas dobles y deja el contenido de <style> como texto crudo.
+    limpio = _ATRIBUTO_STYLE.sub(_limpiar_atributo_style, limpio)
+    limpio = _BLOQUE_STYLE.sub(_limpiar_bloque_style, limpio)
+    return limpio.strip()
 
 
 def contar_quitados(html_original):
@@ -122,15 +160,16 @@ def contar_quitados(html_original):
 
 
 def contar_imagenes_no_visibles(html_original):
-    """Imágenes cuyo ``src`` no es una URL absoluta: relativas o ``cid:`` (RN-007-08).
+    """Imágenes cuyo ``src`` no es una URL absoluta ``http(s)://`` (RN-007-08).
 
-    No se adjuntan archivos, así que esas imágenes no le llegan a nadie. ``data:`` se
-    deja pasar: viaja dentro del propio correo.
+    Relativas, ``cid:`` y ``data:``: el saneo les saca el ``src`` (no se adjuntan archivos
+    y ``data:`` no está entre los esquemas permitidos), así que no le llegan a nadie y la
+    previsualización lo avisa.
     """
     total = 0
     for match in _IMG_SRC.finditer(html_original):
         src = next((g for g in match.groups() if g is not None), "").strip().lower()
-        if not src.startswith(("https://", "http://", "data:")):
+        if not src.startswith(("https://", "http://")):
             total += 1
     return total
 

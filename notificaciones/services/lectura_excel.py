@@ -25,6 +25,9 @@ from notificaciones.models import TOPE_DESTINATARIOS, Descartado
 EXCEL_MAX_BYTES = 2 * 1024 * 1024
 #: Techo del contenido **descomprimido**: un .xlsx de 2 MB puede inflarse a cientos.
 EXCEL_MAX_DESCOMPRIMIDO = 20 * 1024 * 1024
+#: Más filas descartadas que esto y el archivo no es una lista de correos: se corta antes
+#: de armar una transacción con decenas de miles de filas de descarte.
+MAX_DESCARTADOS = 20_000
 ENCABEZADOS_EMAIL = frozenset({"email", "correo", "mail"})
 LARGO_VALOR = 255
 
@@ -68,6 +71,17 @@ def _es_encabezado(valor):
     return _sin_acentos(_texto(valor)).lower() in ENCABEZADOS_EMAIL
 
 
+def clave_de_duplicado(email):
+    """La clave con la que se compara un correo contra los demás (RN-007-04).
+
+    Sin mayúsculas (``casefold``) y sin acentos (NFKD): es lo que considera igual la
+    collation ``*_ci`` de MySQL y MariaDB sobre la que vive el único (campaña, correo). Si
+    acá fueran distintos y en la base iguales, el ``bulk_create`` reventaría con
+    ``IntegrityError`` en vez de mandar el segundo a «Duplicado».
+    """
+    return _sin_acentos(email).casefold()
+
+
 def normalizar_email(valor):
     """El correo como se compara y se guarda: recortado y en minúsculas (RN-007-03)."""
     return _texto(valor).lower()
@@ -103,6 +117,13 @@ def _verificar_descomprimido(archivo):
         raise ValidationError(
             "El Excel ocupa demasiado al descomprimirse. Dejá solo la hoja con los correos y volvé a subirlo."
         )
+
+
+def _demasiados_descartados():
+    raise ValidationError(
+        f"El Excel tiene más de {MAX_DESCARTADOS:,} filas que no se pueden usar. ".replace(",", ".")
+        + "Revisá que sea la lista de correos y que la columna sea la correcta."
+    )
 
 
 def parsear_destinatarios(archivo, *, tope=TOPE_DESTINATARIOS):
@@ -150,6 +171,8 @@ def parsear_destinatarios(archivo, *, tope=TOPE_DESTINATARIOS):
             lectura.leidas += 1
             crudo = celdas[columna] if columna < len(celdas) else None
             valor = _texto(crudo)[:LARGO_VALOR]
+            if len(lectura.descartados) > MAX_DESCARTADOS:
+                _demasiados_descartados()
             if not valor:
                 lectura.descartados.append((numero, "", Descartado.Motivo.VACIO))
                 continue
@@ -158,11 +181,14 @@ def parsear_destinatarios(archivo, *, tope=TOPE_DESTINATARIOS):
                 # RN-007-03 y caso límite: «a@x.com; b@y.com» en una celda no se separa.
                 lectura.descartados.append((numero, valor, Descartado.Motivo.INVALIDO))
                 continue
-            if email in vistos:
+            clave = clave_de_duplicado(email)
+            if clave in vistos:
                 lectura.descartados.append((numero, valor, Descartado.Motivo.DUPLICADO))
                 continue
-            vistos.add(email)
+            vistos.add(clave)
             lectura.validos.append((numero, email))
+        if len(lectura.descartados) > MAX_DESCARTADOS:
+            _demasiados_descartados()
     finally:
         libro.close()
         archivo.seek(0)

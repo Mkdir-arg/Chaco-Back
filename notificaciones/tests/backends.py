@@ -44,3 +44,33 @@ class DetenerTrasElPrimero(locmem.EmailBackend):
         enviados = super().send_messages(messages)
         Campana.objects.update(cancelacion_pedida=True)
         return enviados
+
+
+class CortaElSegundo(Contador):
+    """La conexión se cae al mandar el segundo correo, una sola vez; el resto sale bien."""
+
+    cortes = 0
+
+    def send_messages(self, messages):
+        if type(self).cortes == 0 and len(self.outbox_actual()) == 1:
+            type(self).cortes += 1
+            raise smtplib.SMTPServerDisconnected("Connection unexpectedly closed")
+        return super().send_messages(messages)
+
+    @staticmethod
+    def outbox_actual():
+        from django.core import mail
+
+        return mail.outbox
+
+
+class OtraCorridaEnElMedio(locmem.EmailBackend):
+    """Mientras sale el primer correo, otra corrida (``al_primero``) corre sobre la misma campaña."""
+
+    al_primero = None
+
+    def send_messages(self, messages):
+        accion, type(self).al_primero = type(self).al_primero, None
+        if accion is not None:
+            accion()
+        return super().send_messages(messages)

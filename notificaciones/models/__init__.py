@@ -68,6 +68,11 @@ class Campana(TimeStamped):
     finalizada_en = models.DateTimeField(null=True, blank=True, verbose_name="Envío terminado")
     latido = models.DateTimeField(null=True, blank=True, verbose_name="Última señal de vida")
     cancelacion_pedida = models.BooleanField(default=False, verbose_name="Se pidió detener")
+    # Token de la corrida a cargo del envío (uuid4 en hex). «Enviar» y «Reanudar» ponen uno
+    # nuevo; el hilo lo compara antes de cada correo y se retira si cambió. Es lo que impide
+    # que un hilo que se creyó muerto —latido vencido con el hilo vivo— siga mandando a la par
+    # del que lo reemplazó. CharField y no UUIDField: sin el gotcha de char(32) en MariaDB.
+    corrida = models.CharField(max_length=32, null=True, blank=True, verbose_name="Corrida a cargo")
     mensaje = models.TextField(blank=True, default="", verbose_name="Último aviso del envío")
 
     # Resultado de la lectura del Excel.
@@ -115,6 +120,9 @@ class Destinatario(TimeStamped):
 
     class Estado(models.TextChoices):
         PENDIENTE = "PENDIENTE", "Pendiente"
+        # Reclamado por una corrida, que lo está mandando ahora. Un destinatario solo se
+        # manda si se lo pudo pasar de PENDIENTE a EN_CURSO con un UPDATE condicional.
+        EN_CURSO = "EN_CURSO", "Enviándose"
         ENVIADO = "ENVIADO", "Enviado"
         FALLIDO = "FALLIDO", "Fallido"
 

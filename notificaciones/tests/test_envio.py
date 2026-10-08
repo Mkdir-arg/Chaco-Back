@@ -157,6 +157,98 @@ class EnvioTests(ConMediaTemporal):
 
 
 @override_settings(**SIN_PAUSA)
+class CorridasTests(ConMediaTemporal):
+    """Dos corridas sobre la misma campaña nunca le mandan dos veces al mismo destinatario."""
+
+    def _por_destino(self):
+        cuenta = {}
+        for mensaje in mail.outbox:
+            cuenta[mensaje.to[0]] = cuenta.get(mensaje.to[0], 0) + 1
+        return cuenta
+
+    @override_settings(EMAIL_BACKEND="notificaciones.tests.backends.OtraCorridaEnElMedio")
+    def test_dos_hilos_con_la_misma_corrida_no_duplican(self):
+        campana = _enviando(crear_campana(emails=["a@x.com", "b@x.com", "c@x.com"]))
+        token = campana.corrida
+        backends.OtraCorridaEnElMedio.al_primero = lambda: envio.correr(Campana.objects.get(pk=campana.pk), token=token)
+        envio.correr(campana, token=token)
+
+        self.assertEqual(self._por_destino(), {"a@x.com": 1, "b@x.com": 1, "c@x.com": 1})
+        campana.refresh_from_db()
+        self.assertEqual(campana.estado, Campana.Estado.ENVIADA)
+        self.assertEqual(campana.enviados, 3)
+
+    @override_settings(EMAIL_BACKEND="notificaciones.tests.backends.OtraCorridaEnElMedio")
+    def test_reanudar_retira_a_la_corrida_vieja(self):
+        campana = _enviando(crear_campana(emails=["a@x.com", "b@x.com", "c@x.com"]))
+        token_viejo = campana.corrida
+        nueva = {}
+
+        def reanudar():
+            # El hilo viejo se ve muerto (pausa larga, lote colgado) y alguien reanuda.
+            Campana.objects.filter(pk=campana.pk).update(latido=timezone.now() - timedelta(minutes=6))
+            nueva["campana"] = envio.preparar_reanudacion(Campana.objects.get(pk=campana.pk))
+
+        backends.OtraCorridaEnElMedio.al_primero = reanudar
+        envio.correr(campana, token=token_viejo)
+
+        # La corrida vieja anotó el que estaba mandando y se retiró sin tocar el resto.
+        self.assertEqual(self._por_destino(), {"a@x.com": 1})
+        reanudada = nueva["campana"]
+        self.assertNotEqual(reanudada.corrida, token_viejo)
+        self.assertEqual(Campana.objects.get(pk=campana.pk).estado, Campana.Estado.ENVIANDO)
+
+        envio.correr(reanudada)
+        self.assertEqual(self._por_destino(), {"a@x.com": 1, "b@x.com": 1, "c@x.com": 1})
+        self.assertEqual(Campana.objects.get(pk=campana.pk).estado, Campana.Estado.ENVIADA)
+
+    def test_una_corrida_reemplazada_no_late_ni_cierra(self):
+        campana = _enviando(crear_campana(emails=["a@x.com"]))
+        token_viejo = campana.corrida
+        Campana.objects.filter(pk=campana.pk).update(latido=timezone.now() - timedelta(minutes=6))
+        envio.preparar_reanudacion(Campana.objects.get(pk=campana.pk))
+        Campana.objects.filter(pk=campana.pk).update(latido=timezone.now() - timedelta(minutes=6))
+
+        envio.correr(Campana.objects.get(pk=campana.pk), token=token_viejo)
+
+        campana.refresh_from_db()
+        self.assertEqual(mail.outbox, [])
+        self.assertTrue(campana.interrumpida)  # el hilo viejo no le renovó el latido
+        self.assertEqual(campana.estado, Campana.Estado.ENVIANDO)
+
+    def test_reanudar_devuelve_los_en_curso_huerfanos(self):
+        campana = _enviando(crear_campana(emails=["a@x.com", "b@x.com"]))
+        campana.destinatarios.filter(email="a@x.com").update(estado=Destinatario.Estado.EN_CURSO)
+        Campana.objects.filter(pk=campana.pk).update(latido=timezone.now() - timedelta(minutes=6))
+        envio.correr(envio.preparar_reanudacion(Campana.objects.get(pk=campana.pk)))
+        self.assertEqual(self._por_destino(), {"a@x.com": 1, "b@x.com": 1})
+
+    @override_settings(NOTIF_LOTE=10, EMAIL_BACKEND="notificaciones.tests.backends.CortaElSegundo")
+    def test_conexion_cortada_a_mitad_de_lote_deja_pendiente_y_reabre(self):
+        backends.CortaElSegundo.aperturas = 0
+        backends.CortaElSegundo.cortes = 0
+        campana = _enviando(crear_campana(emails=["a@x.com", "b@x.com", "c@x.com"]))
+        envio.correr(campana)
+
+        campana.refresh_from_db()
+        self.assertEqual(campana.estado, Campana.Estado.ENVIADA)
+        self.assertFalse(campana.destinatarios.filter(estado=Destinatario.Estado.FALLIDO).exists())
+        self.assertEqual(self._por_destino(), {"a@x.com": 1, "b@x.com": 1, "c@x.com": 1})
+        self.assertEqual(backends.CortaElSegundo.aperturas, 2)  # cortó el lote y el siguiente reabrió
+
+    @override_settings(NOTIF_LOTE=1, NOTIF_PAUSA_SEG=75)
+    def test_la_pausa_se_duerme_en_tramos_y_late(self):
+        campana = _enviando(crear_campana(emails=["a@x.com", "b@x.com"]))
+        pausas = []
+        envio.correr(campana, dormir=pausas.append)
+        self.assertEqual(pausas, [30, 30, 15])
+
+    @override_settings(NOTIF_PAUSA_SEG=1000)
+    def test_la_pausa_tiene_techo_bajo_la_mitad_del_latido(self):
+        self.assertLess(envio.pausa_entre_lotes(), Campana.LATIDO_VENCIDO.total_seconds() / 2)
+
+
+@override_settings(**SIN_PAUSA)
 class TransicionesTests(ConMediaTemporal):
     def test_no_se_envia_dos_veces(self):
         campana = crear_campana()
