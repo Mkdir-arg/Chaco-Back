@@ -1597,23 +1597,23 @@ funcional ni coordinación con ECOM). Las horas de cada ola suman los esfuerzos 
 | 1 | Integridad SIIS | 23 | 72 | 22 (− SIIS-07) | 70 | 23 (+ RED-53; + parte de RED-32) | 78 · **76 cerradas (26 el 05-oct, PR 2; 6 el 06-oct, PR 3; 10 el 06-oct, PR 4; 4 el 06-oct, PR 5; 20 el 07-oct, PR 6; 10 el 07-oct, PR 7) → 2 restantes: el ítem 0 (V2-NEW-03, correr P-01 en PRD, sin código)** |
 | 2 | Autorización (RBAC, legajos, alcance de Becas, usuarios) | 36 | 116 | 50 (+ fase 2 de OPS-06, R0-05, resto de SEC-01, etapa 2 de SEC-09, R0b-01..10) | 136 | 51 (+ RED-80; + partes de RED-52, RED-79) | 135 (−7: SEC-10, SEC-18 y media SEC-11 se hacen en R-19, D-RED-14) · **93 cerradas el 08-oct (PR 2 = 24 + 2 de RED-52 · PRs 3 y 4 = 19 · PR 5 = 14 + 2 de RED-79 · PR 6 = 12 · PR 8 = 20) → 42 restantes** |
 | 3 | Datos, operación, CI, app de campo y reglas de Becas | 55 | 158 | 59 (+ R0-03, R0-04, R0-06, R0-07) | 166 | 54 (− 7 a la Ola R; + RED-48, RED-58; + partes de RED-09, 35, 40, 50) | 152 · **152 cerradas (14 PR 1 · 22 PR 2 · 6 PR 3 · 22 PR 5 · 14 PR 5b · 30 PR 6 · 16 PR 7a · 14 PR 7b · 8 PR 8 · 6 PR 9) → 0: la ola cierra** |
-| 4 | Performance | 19 | 52 | 19 | 52 | 20 (+ RED-62; + partes de RED-10, 49, 51, 83) | 64 · **20 cerradas el 08-oct (PRs 1 y 2 = 10 + 2, con la parte RED-49 adentro · PR 3 = 8) → 44 restantes** |
+| 4 | Performance | 19 | 52 | 19 | 52 | 20 (+ RED-62; + partes de RED-10, 49, 51, 83) | 64 · **26 cerradas el 08-oct (PRs 1 y 2 = 10 + 2, con la parte RED-49 adentro · PR 3 = 8 · PR 4 = 6) → 38 restantes** |
 | 5 | Bugs de front y parches v1 de Legajos/Dispositivos | 31 (+ V5A-NEW-07 b) | 114 | 31 (+ V5A-NEW-07 b) | 114 | 33 (+ RED-33, RED-75; + partes de RED-42, 53) (+ V5A-NEW-07 b) | 128 · **128 cerradas (PRs 1 a 8) → 0: la ola cierra** |
 | 6 | Agente de diseño | 4 (+8 pasos) | 42 | 4 (+8 pasos) | 42 | 4 (+8 pasos) | 42 · **42 cerradas el 06-oct (pasos 0-7) → 0: la ola cierra** |
 | 7 | Deuda | 9 (+ fase 2 de G1-01) | 46 | 10 (+ fase 2 de G1-01; + R0-02) | 48 | 13 (+ RED-64, 76, 86; + partes de RED-13, 37, 39, 54, 78, 85) | 88 |
 | v2 | Criterios de aceptación de la v2 (§7), no se implementan en v1 | 13 | — | 13 | — | 13 | — |
-| **Total** | | **206** | **636** | **208** | **628** | **297** | **972** · **780 cerradas al 08-oct-2026 → 192 restantes** |
+| **Total** | | **206** | **636** | **208** | **628** | **297** | **972** · **786 cerradas al 08-oct-2026 → 186 restantes** |
 
 Cada ficha RED cuenta como ítem una sola vez, en la primera ola donde tiene trabajo (por eso la columna suma 297 = 208 +
 89); si tiene una segunda parte en otra ola, esas horas se suman en esa ola («+ partes de …»).
 
 **Cómo se calcula la fila Total (08-oct-2026).** Las 972 h son la suma de la última columna, ola por ola: 0 (Ola 0, que
 cerró en código y cuyas horas ya se descontaron) + 285 (R) + 78 (1) + 135 (2) + 152 (3) + 64 (4) + 128 (5) + 42 (6) +
-88 (7); la v2 no tiene horas. Las **780 cerradas** son la suma de las horas cerradas que declara cada fila, y cada una
+88 (7); la v2 no tiene horas. Las **786 cerradas** son la suma de las horas cerradas que declara cada fila, y cada una
 sale de la lista de PRs de su propia sección de este §6: **269** de la Ola R (285 − las 16 de R-17, el único abierto),
 **76** de la Ola 1 (de 78: queda el ítem 0, operativo), **93** de la Ola 2 (PR 2 = 24 + 2 de RED-52, PRs 3 y 4 = 7 + 12, PR 5 = 14 + 2 de RED-79, PR 6 = 12, PR 8 = 20), **152** de la Ola 3 (PR 1 = 14, PR 2 = 22, PR 3 = 6, PR 5 = 22, PR 5b = 14, PR 6 = 30, PR 7a = 16, PR 7b = 14,
-PR 8 = 8, PR 9 = 6), **128** de la Ola 5 y **42** de la Ola 6, las tres cerradas; **20** de la Ola 4 (PRs 1 y 2 = 12, PR 3 = 8); la Ola 7 todavía no cerró ningún PR.
-La cuenta: 269 + 76 + 93 + 152 + 20 + 128 + 42 = **780 cerradas**; 972 − 780 = **192 restantes**. Desde el 08-oct estas
+PR 8 = 8, PR 9 = 6), **128** de la Ola 5 y **42** de la Ola 6, las tres cerradas; **26** de la Ola 4 (PRs 1 y 2 = 12, PR 3 = 8, PR 4 = 6); la Ola 7 todavía no cerró ningún PR.
+La cuenta: 269 + 76 + 93 + 152 + 26 + 128 + 42 = **786 cerradas**; 972 − 786 = **186 restantes**. Desde el 08-oct estas
 cuentas las actualiza **solo el juez**, una vez por tanda de merges: los PRs #626 (Ola 2 PR 5) y #627 (Ola 3 PR 5b) se
 escribieron en paralelo y cada uno sumó sus horas sobre una base que no tenía las del otro (663 y 661). El «139
 cerradas» venía del 04-oct y no contaba nada de lo mergeado entre el 05 y el 07; el **543** del 07-oct arrastraba la
