@@ -49,9 +49,9 @@ from programas.models import (
     Segmento,
     TipoCampo,
 )
+from programas.services.autorizacion import CAP_RELEVAMIENTO_PUBLICO
 from programas.services.diseno import clave_pregunta
 from programas.services.padron import cargar_padron
-from programas.views.relevamientos import CAP_RELEVAMIENTO_PUBLICO
 from users.models import Capacidad
 
 #: Lo que sube la persona. El contenido no importa; el nombre sí, porque la API

@@ -286,6 +286,44 @@ class ReactivacionTests(_Base):
         self.assertFalse(conv.activo)
         self.assertEqual(conv.fecha_fin, self.ayer)
 
+    def test_el_next_a_otro_sitio_no_se_obedece(self):
+        """BEC-19: ``POST['next']`` volvía al navegador tal cual.
+
+        Un link preparado con ``next=https://evil.example`` sacaba al operador del
+        backoffice en el mismo click con el que desactivaba una convocatoria.
+        """
+        conv = self._conv(self.manana, activo=True)
+
+        resp = self.client.post(
+            reverse("becas:convocatoria_toggle", args=[conv.pk]),
+            {"next": "https://evil.example/cosecha"},
+        )
+
+        self.assertEqual(resp.status_code, 302)
+        self.assertNotIn("evil.example", resp["Location"])
+        self.assertEqual(resp["Location"], reverse("becas:convocatorias"))
+
+    def test_el_next_a_otro_sitio_tampoco_al_reactivar(self):
+        conv = self._conv(self.ayer, activo=False)
+
+        resp = self.client.post(
+            reverse("becas:convocatoria_reactivar", args=[conv.pk]),
+            {"fecha_fin": self.manana.isoformat(), "next": "//evil.example/cosecha"},
+        )
+
+        self.assertEqual(resp.status_code, 302)
+        self.assertNotIn("evil.example", resp["Location"])
+        self.assertEqual(resp["Location"], reverse("becas:convocatorias"))
+
+    def test_el_next_relativo_sigue_funcionando(self):
+        """Lo que el `next` existe para hacer: volver a la pantalla desde donde se tocó."""
+        conv = self._conv(self.manana, activo=True)
+        destino = reverse("becas:convocatoria_detalle", args=[conv.pk])
+
+        resp = self.client.post(reverse("becas:convocatoria_toggle", args=[conv.pk]), {"next": destino})
+
+        self.assertEqual(resp["Location"], destino)
+
     def test_toggle_no_activa_vencida(self):
         # El toggle simple no puede reactivar una vencida (debe ir por reactivar).
         conv = self._conv(self.ayer, activo=False)

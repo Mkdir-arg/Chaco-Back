@@ -536,10 +536,12 @@ class CandadoDuplicadoTests(_BaseAprobacionTest):
     def test_el_conflicto_resuelto_se_relee_bajo_el_candado(self):
         """Otra pestaña resolvió el conflicto entre la lectura y el candado."""
 
-        def resuelve_el_otro(request, formulario):
+        def resuelve_el_otro(user, formulario, programa=None):
             Formulario.objects.filter(pk=formulario.pk).update(conflicto_resuelto=True)
 
-        with patch("programas.views.revision._assert_scope_formulario", side_effect=resuelve_el_otro):
+        # El guard se mudó a `services.autorizacion` (RED-79); se parchea donde la vista
+        # lo tiene importado, que es lo que la llamada resuelve.
+        with patch("programas.views.revision.assert_alcance_formulario", side_effect=resuelve_el_otro):
             self._resolver()
 
         self.form_a.refresh_from_db()

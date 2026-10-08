@@ -58,6 +58,8 @@ from programas.services import condiciones
 from programas.services.autorizacion import (
     convocatorias_visibles,
     es_coordinador_regional_becas,
+    programa_becas,
+    puede_relevamiento_publico,
     segmentos_visibles,
     subsegmentos_a_cargo,
     subsegmentos_visibles,
@@ -248,7 +250,8 @@ def resolver_alcance(user, programa, filtros):
     visibles = tuple(segmentos_visibles(user).filter(programa=programa).order_by("pk").values_list("pk", flat=True))
     regional = es_coordinador_regional_becas(user)
     subsegmentos = tuple(subsegmentos_a_cargo(user).order_by("pk").values_list("pk", flat=True)) if regional else ()
-    huella = f"s{list(visibles)}|ss{list(subsegmentos)}"
+    publicos = puede_relevamiento_publico(user, programa=programa_becas(user))
+    huella = _huella(visibles, subsegmentos, publicos)
 
     convs = convocatorias_visibles(user).filter(segmento__programa=programa)
     if filtros.segmento_id:
@@ -259,6 +262,11 @@ def resolver_alcance(user, programa, filtros):
     conv_ids = [pk for pk, _ in conv_rows]
 
     rels = Relevamiento.objects.filter(convocatoria_id__in=conv_ids)
+    if not publicos:
+        # SEC-22: sin RN-P13 los relevamientos de link público no entran al recorte, y
+        # con ellos se van sus casos de **todo** el dashboard: indicadores, series,
+        # distribuciones y los bloques que se exportan a CSV/XLSX.
+        rels = rels.exclude(tipo=Relevamiento.Tipo.PUBLICO)
     if filtros.relevamiento_id:
         rels = rels.filter(pk=filtros.relevamiento_id)
     if filtros.canal:
@@ -645,14 +653,22 @@ def _cache_delete(clave):
         logger.warning("dashboard becas: la caché no aceptó borrar %s", clave, exc_info=True)
 
 
+def _huella(segmentos, subsegmentos, publicos):
+    """La huella del alcance, en un solo lugar: ``resolver_alcance`` y
+    :func:`_huella_alcance` **tienen** que producir el mismo texto o dos usuarios con
+    alcances distintos comparten la entrada de caché."""
+    return f"s{list(segmentos)}|ss{list(subsegmentos)}|p{int(bool(publicos))}"
+
+
 def _huella_alcance(user, programa):
-    """Lo que hace distinto el alcance de dos usuarios: sus segmentos visibles y, para
-    el regional, sus subsegmentos a cargo. Va en la clave para no compartir caché."""
+    """Lo que hace distinto el alcance de dos usuarios: sus segmentos visibles, para
+    el regional sus subsegmentos a cargo, y RN-P13 (SEC-22: sin la capacidad el recorte
+    no tiene los casos del link público, y el dashboard se cachea por clave)."""
     segmentos = list(segmentos_visibles(user).filter(programa=programa).order_by("pk").values_list("pk", flat=True))
     subsegmentos = []
     if es_coordinador_regional_becas(user):
         subsegmentos = list(subsegmentos_a_cargo(user).order_by("pk").values_list("pk", flat=True))
-    return f"s{segmentos}|ss{subsegmentos}"
+    return _huella(segmentos, subsegmentos, puede_relevamiento_publico(user, programa=programa_becas(user)))
 
 
 def _clave(programa, filtros, huella, sufijo=""):
@@ -1262,23 +1278,27 @@ def _apoderado(f):
     return ""
 
 
-def _relevamientos_de(convocatoria):
+def _relevamientos_de(convocatoria, *, incluir_publicos=True):
     """``{id: (id, nombre, canal, territorial)}``: las columnas fijas del relevamiento se
-    resuelven una vez por relevamiento y no por cada caso."""
+    resuelven una vez por relevamiento y no por cada caso.
+
+    Sin ``incluir_publicos`` los de link público no entran, y como el export recorre los
+    casos **por estos ids**, sus casos tampoco (RN-P13, SEC-22).
+    """
+    base = Relevamiento.objects.filter(convocatoria=convocatoria)
+    if not incluir_publicos:
+        base = base.exclude(tipo=Relevamiento.Tipo.PUBLICO)
+    columnas = base.order_by().values_list(
+        "pk",
+        "nombre",
+        "tipo",
+        "territorial_id",
+        "territorial__first_name",
+        "territorial__last_name",
+        "territorial__username",
+    )
     filas = {}
-    for pk, nombre, tipo, territorial_id, first_name, last_name, username in (
-        Relevamiento.objects.filter(convocatoria=convocatoria)
-        .order_by()
-        .values_list(
-            "pk",
-            "nombre",
-            "tipo",
-            "territorial_id",
-            "territorial__first_name",
-            "territorial__last_name",
-            "territorial__username",
-        )
-    ):
+    for pk, nombre, tipo, territorial_id, first_name, last_name, username in columnas:
         territorial = (f"{first_name} {last_name}".strip() or username) if territorial_id else ""
         canal = "Link público" if tipo == Relevamiento.Tipo.PUBLICO else "Territorial"
         filas[pk] = (pk, nombre, canal, territorial)
@@ -1390,7 +1410,7 @@ def _respuestas_de_los_casos(pks, campos, planos):
     return celdas, ocultas_por_caso
 
 
-def respuestas_por_persona(convocatoria):
+def respuestas_por_persona(convocatoria, *, incluir_publicos):
     """Base cruda de una convocatoria: **un registro por caso** (formulario enviado,
     en cualquier estado) con los datos del relevamiento, de la persona y **una columna
     por cada pregunta** del formulario, más las preguntas que ya no están en el
@@ -1409,6 +1429,11 @@ def respuestas_por_persona(convocatoria):
     58 que todavía no tienen foto, del ``data`` de siempre. Las respuestas de selección
     múltiple se unen con « | »; los adjuntos muestran el nombre del archivo. El alcance
     por rol lo controla la vista: acá la convocatoria ya está autorizada.
+
+    ``incluir_publicos`` es obligatorio y sin valor por defecto a propósito (SEC-22):
+    es RN-P13 y lo resuelve quien tiene al usuario a mano —la vista, que ya resolvió el
+    Programa Becas—, así que este servicio no vuelve a consultar capacidades ni puede
+    quedar abierto por omisión.
     """
     campos_vigentes, planos_vigentes = formulario_vigente(convocatoria)
     globales, requisitos = get_campos_formulario(convocatoria)
@@ -1427,7 +1452,7 @@ def respuestas_por_persona(convocatoria):
         clave = f"pg-{pg_id}" if pg_id else f"rn-{rn_id}"
         adjuntos.setdefault(form_id, {}).setdefault(clave, []).append(_nombre_archivo(archivo))
 
-    relevamientos = _relevamientos_de(convocatoria)
+    relevamientos = _relevamientos_de(convocatoria, incluir_publicos=incluir_publicos)
     etiquetas_estado = {valor: str(etiqueta) for valor, etiqueta in Formulario.Estado.choices}
     # Filtrar por los ids de relevamiento (y no por el join a la convocatoria) deja que
     # el motor lea por el índice (relevamiento, numero), que ya es el orden pedido, sin

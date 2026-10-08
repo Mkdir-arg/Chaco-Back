@@ -91,7 +91,10 @@ class ExportRespuestasPorPersonaPresupuestoTests(TestCase):
         techo = presupuesto["consultas_fijas"] + -(-casos // presupuesto["casos_por_consulta"])
 
         with CaptureQueriesContext(connection) as capturadas:
-            reporte, _alcance = respuestas_por_persona(self.convocatoria)
+            # `incluir_publicos=True` es lo que pasa la vista para quien tiene RN-P13
+            # (SEC-22). El relevamiento del banco es público a propósito: así el
+            # presupuesto sigue midiendo los 60 casos.
+            reporte, _alcance = respuestas_por_persona(self.convocatoria, incluir_publicos=True)
 
         self.assertEqual(len(reporte.filas), casos)
         self.assertLessEqual(
@@ -109,7 +112,7 @@ class ExportRespuestasPorPersonaPresupuestoTests(TestCase):
         pesa 15 KB: ninguna consulta sobre `programas_formulario` puede nombrarla.
         """
         with CaptureQueriesContext(connection) as capturadas:
-            respuestas_por_persona(self.convocatoria)
+            respuestas_por_persona(self.convocatoria, incluir_publicos=True)
 
         culpables = [q["sql"] for q in capturadas if "programas_formulario" in q["sql"] and "definicion" in q["sql"]]
 

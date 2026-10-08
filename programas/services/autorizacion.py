@@ -25,6 +25,11 @@ CAP_ADMINISTRAR = "becas.programa.administrar"
 CAP_CAMPO = "becas.campo"
 CAP_REFERENTE = "becas.referente"
 CAP_COORD_REGIONAL = "becas.coordinador_regional"
+# Gateo del formulario público (RN-P13, análisis #289): sin esta capacidad los
+# relevamientos públicos —y sus casos— no existen para el usuario, ni en los
+# listados, ni en los reportes, ni por URL directa. Vivía en
+# ``programas/views/relevamientos.py`` y la importaban otras dos vistas (RED-79).
+CAP_RELEVAMIENTO_PUBLICO = "becas.relevamiento.publico"
 
 
 def _caps_gestion():
@@ -224,6 +229,21 @@ def puede_operar_subsegmento(user, subsegmento, programa=None):
     return True
 
 
+def puede_configurar_segmento(user, segmento, programa=None):
+    """¿``user`` puede **configurar** el segmento (no solo operar dentro de él)?
+
+    SEC-30: el Coordinador Regional ve el segmento como contexto y su alcance es el
+    subsegmento, así que no toca lo que es del segmento entero —requisitos, altas de
+    subsegmento, coordinadores, activar/desactivar—, ni siquiera sobre el segmento que
+    contiene el suyo: eso incluye lo de sus pares. Lo que es de **su** subsegmento pasa
+    por :func:`puede_operar_subsegmento`.
+    """
+    programa = programa or programa_becas(user)
+    if not puede_gestionar_segmento(user, segmento, programa=programa):
+        return False
+    return not es_coordinador_regional_becas(user, programa=programa)
+
+
 def segmentos_visibles(user, programa=None):
     """Queryset de ``Segmento`` que el usuario puede gestionar/revisar.
 
@@ -268,6 +288,94 @@ def convocatorias_visibles(user, programa=None):
         # (``subsegmento`` nulo) queda fuera de su alcance.
         return Convocatoria.objects.filter(subsegmento__in=subsegmentos_a_cargo(user))
     return Convocatoria.objects.filter(segmento__in=segmentos_visibles(user, programa=programa))
+
+
+# ---------------------------------------------------------------------------
+# RN-P13: el formulario público y sus casos (SEC-22, RED-79)
+#
+# Las tres copias de este filtro vivían en ``views/relevamientos.py`` y
+# ``views/revision.py``, y la constante la importaban otras dos vistas. Acá hay
+# una sola, y la usan también los reportes, el dashboard, el cupo y la solapa
+# del legajo, que antes no la aplicaban.
+# ---------------------------------------------------------------------------
+def puede_relevamiento_publico(user, programa=None):
+    """¿El usuario ve los relevamientos de link público? (RN-P13).
+
+    ``programa`` acota la capacidad al Programa Becas. Se pide explícito —y no se
+    resuelve acá con ``programa_becas(user)``— porque esta función también la llama
+    la solapa del legajo, que es transversal y tiene presupuesto de consultas propio:
+    quien ya tiene el programa a mano (todo Becas) lo pasa y no cuesta nada.
+    """
+    return rbac.puede(user, CAP_RELEVAMIENTO_PUBLICO, programa=programa)
+
+
+def sin_relevamientos_publicos_si_no_puede(qs, user, programa=None):
+    """Excluye de un queryset de ``Relevamiento`` los de link público (RN-P13)."""
+    if puede_relevamiento_publico(user, programa=programa):
+        return qs
+    from programas.models import Relevamiento
+
+    return qs.exclude(tipo=Relevamiento.Tipo.PUBLICO)
+
+
+def sin_formularios_publicos_si_no_puede(qs, user, programa=None, prefijo=""):
+    """Excluye los casos cargados por el link público (RN-P13).
+
+    ``prefijo`` es el camino hasta el ``Formulario`` cuando el queryset es de otro
+    modelo (``"formulario__"`` para ``ListaEspera``).
+    """
+    if puede_relevamiento_publico(user, programa=programa):
+        return qs
+    from programas.models import Relevamiento
+
+    return qs.exclude(**{f"{prefijo}relevamiento__tipo": Relevamiento.Tipo.PUBLICO})
+
+
+def _assert_alcance(user, relevamiento, programa, objeto):
+    programa = programa or programa_becas(user)
+    # RN-P13: sin la capacidad, un relevamiento público no existe para el usuario
+    # (tampoco para mutarlo por URL).
+    if relevamiento.es_publico and not puede_relevamiento_publico(user, programa=programa):
+        raise PermissionDenied(f"No tiene acceso a este {objeto}.")
+    if (
+        not puede_gestionar_segmento(user, relevamiento.segmento, programa=programa)
+        or not convocatorias_visibles(user, programa=programa).filter(pk=relevamiento.convocatoria_id).exists()
+    ):
+        raise PermissionDenied(f"No tiene acceso a este {objeto}.")
+
+
+def assert_alcance_relevamiento(user, relevamiento, programa=None):
+    """403 si el relevamiento queda fuera del alcance del usuario.
+
+    Alcance = segmento gestionable **y** convocatoria visible (que para el
+    Coordinador Regional es la de sus subsegmentos, no la del segmento entero)
+    **y** RN-P13.
+    """
+    _assert_alcance(user, relevamiento, programa, "relevamiento")
+
+
+def assert_alcance_formulario(user, formulario, programa=None):
+    """403 si el caso queda fuera del alcance del usuario (mismo invariante)."""
+    _assert_alcance(user, formulario.relevamiento, programa, "formulario")
+
+
+def programas_siis_visibles(user, programa=None):
+    """Programas SIIS que el usuario puede ver: todos para el admin de Becas; para
+    el resto, los que contienen alguno de sus segmentos visibles.
+
+    Vivía en ``views/configuracion.py`` y lo usaba el dashboard por un import
+    diferido entre vistas (RED-79). ``programas/`` no tiene paquete ``selectors/``
+    —el resto de los querysets de alcance de Becas vive acá—, así que queda acá.
+    """
+    from django.db.models import Count
+
+    from programas.models import ProgramaSiis
+
+    if es_admin_becas(user, programa=programa):
+        base = ProgramaSiis.objects.all()
+    else:
+        base = ProgramaSiis.objects.filter(segmentos__in=segmentos_visibles(user, programa=programa)).distinct()
+    return base.annotate(n_segmentos=Count("segmentos", distinct=True)).order_by("nombre")
 
 
 def segmentos_para_gestion_territoriales(user):

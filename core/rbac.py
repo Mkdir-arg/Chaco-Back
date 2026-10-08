@@ -40,6 +40,10 @@ CATALOGO = [
             ("ciudadano.editar", "Editar ciudadanos"),
             ("ciudadano.eliminar", "Eliminar ciudadanos"),
             ("ciudadano.sensible", "Ver datos sensibles"),
+            # SEC-20 / D-20: descargar el padrón entero (~100k DNI) es otra cosa que
+            # consultar una ficha. Se siembra a los roles que ya tienen
+            # ``ciudadano.editar`` (users.0028).
+            ("ciudadano.exportar", "Exportar el padrón de ciudadanos"),
         ],
     },
     {

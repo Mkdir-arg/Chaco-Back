@@ -24,15 +24,37 @@ from programas.models import (
     Segmento,
 )
 from programas.services.autorizacion import (
+    assert_alcance_formulario,
+    assert_alcance_relevamiento,
     es_admin_becas,
     es_coordinador_becas,
     programa_becas,
     puede_gestionar_segmento,
     segmentos_visibles,
 )
-from programas.views.configuracion import _assert_scope as config_assert_scope
-from programas.views.revision import _assert_scope_formulario, _assert_scope_relevamiento
+from programas.views.configuracion import _assert_scope_segmento as config_assert_scope
 from users.models import RolMeta
+
+
+def _LOS_TRES_GUARDS(caso):  # noqa: N802 — es una tabla, no una función de negocio
+    """Los tres guards de alcance con la misma firma `(request, objeto)`.
+
+    Dos de ellos se mudaron a `services.autorizacion` y reciben el **usuario** (RED-79,
+    Ola 2 PR 5); el de configuración sigue siendo de la vista y recibe el request.
+    """
+    return (
+        ("configuracion._assert_scope_segmento", config_assert_scope, caso.segmento),
+        (
+            "autorizacion.assert_alcance_relevamiento",
+            lambda request, objeto: assert_alcance_relevamiento(request.user, objeto),
+            caso.relevamiento,
+        ),
+        (
+            "autorizacion.assert_alcance_formulario",
+            lambda request, objeto: assert_alcance_formulario(request.user, objeto),
+            caso.formulario,
+        ),
+    )
 
 
 class RbacBecasTests(TestCase):
@@ -208,11 +230,7 @@ class GuardsFallanCerradoTests(TestCase):
     def test_los_tres_guards_dan_el_mismo_veredicto(self):
         """Ratchet barato: con Becas sembrado, un usuario de otro programa no entra."""
         request = self._request()
-        for nombre, guard, objeto in (
-            ("configuracion._assert_scope", config_assert_scope, self.segmento),
-            ("revision._assert_scope_relevamiento", _assert_scope_relevamiento, self.relevamiento),
-            ("revision._assert_scope_formulario", _assert_scope_formulario, self.formulario),
-        ):
+        for nombre, guard, objeto in _LOS_TRES_GUARDS(self):
             with self.subTest(guard=nombre):
                 with self.assertRaises(PermissionDenied):
                     guard(request, objeto)
@@ -220,16 +238,12 @@ class GuardsFallanCerradoTests(TestCase):
     def test_sin_programa_becas_el_guard_deniega(self):
         self._sin_programa_becas()
         with self.assertRaises(PermissionDenied):
-            _assert_scope_formulario(self._request(), self.formulario)
+            assert_alcance_formulario(self._request().user, self.formulario)
 
     def test_sin_programa_becas_los_tres_guards_deniegan(self):
         self._sin_programa_becas()
         request = self._request()
-        for nombre, guard, objeto in (
-            ("configuracion._assert_scope", config_assert_scope, self.segmento),
-            ("revision._assert_scope_relevamiento", _assert_scope_relevamiento, self.relevamiento),
-            ("revision._assert_scope_formulario", _assert_scope_formulario, self.formulario),
-        ):
+        for nombre, guard, objeto in _LOS_TRES_GUARDS(self):
             with self.subTest(guard=nombre):
                 with self.assertRaises(PermissionDenied):
                     guard(request, objeto)
@@ -257,5 +271,5 @@ class GuardsFallanCerradoTests(TestCase):
         request = self.factory.get("/becas/revision/")
         request.user = admin
         config_assert_scope(request, self.segmento)
-        _assert_scope_relevamiento(request, self.relevamiento)
-        _assert_scope_formulario(request, self.formulario)
+        assert_alcance_relevamiento(admin, self.relevamiento)
+        assert_alcance_formulario(admin, self.formulario)

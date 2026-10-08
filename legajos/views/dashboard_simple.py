@@ -7,6 +7,7 @@ from django.http import HttpResponse
 from django.shortcuts import render
 from django.utils import timezone
 
+from core.exportacion import celda_segura
 from core.rbac import requiere
 from programas.models import InscripcionPrograma
 
@@ -84,15 +85,20 @@ def exportar_reportes_csv(request):
 
     legajos = annotate_legajo_link_data(LegajoAtencion.objects.all()).order_by("-fecha_admision")[:1000]
     for legajo in legajos:
+        # SEC-20: el apellido lo carga el ciudadano (link público o app de campo) y
+        # Excel evalúa lo que empieza con `=`, `+`, `-` o `@`.
         writer.writerow(
             [
-                legajo.codigo,
-                legajo.linked_ciudadano_apellido or "",
-                legajo.linked_ciudadano_nombre or "",
-                legajo.linked_ciudadano_dni or "",
-                legajo.estado,
-                legajo.nivel_riesgo,
-                legajo.fecha_admision,
+                celda_segura(valor)
+                for valor in (
+                    legajo.codigo,
+                    legajo.linked_ciudadano_apellido or "",
+                    legajo.linked_ciudadano_nombre or "",
+                    legajo.linked_ciudadano_dni or "",
+                    legajo.estado,
+                    legajo.nivel_riesgo,
+                    legajo.fecha_admision,
+                )
             ]
         )
 
