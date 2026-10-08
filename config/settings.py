@@ -136,6 +136,9 @@ INSTALLED_APPS = [
     "tramites",
     "programas",
     "healthcheck",
+    # Campañas de correo masivo (análisis 007). Solo correo saliente: no es la
+    # campana de alertas del navbar ni el `NotificacionService` de conversaciones.
+    "notificaciones",
 ]
 
 # Silk (profiling): solo en desarrollo, nunca en producción.
@@ -155,6 +158,7 @@ if os.environ.get("DJANGO_SYNCDB_PROJECT_APPS", "False") == "True":
         "conversaciones": None,
         "portal": None,
         "programas": None,
+        "notificaciones": None,
     }
 
 MIDDLEWARE = [
@@ -318,6 +322,13 @@ EMAIL_ASUNTO_PREFIJO = "" if ENVIRONMENT == "prd" else f"[{ENVIRONMENT.upper()}]
 # Pie de los correos. Vacío = la línea no se renderiza (a definir con el cliente).
 EMAIL_SOPORTE = os.getenv("EMAIL_SOPORTE", "")
 EMAIL_PIE_DIRECCION = os.getenv("EMAIL_PIE_DIRECCION", "")
+
+# Campañas de Notificaciones (análisis 007, RNF-007-05): cuántos correos salen por
+# conexión SMTP y cuántos segundos se espera entre un lote y el siguiente. La cuota del
+# SMTP de ECOM no se conoce y el PM decidió no esperarla: se arranca conservador —50
+# cada 10 s, unos 18.000 por hora— y se ajusta por variable de entorno, sin release.
+NOTIF_LOTE = max(1, int(os.getenv("NOTIF_LOTE", "50")))
+NOTIF_PAUSA_SEG = max(0.0, float(os.getenv("NOTIF_PAUSA_SEG", "10")))
 
 # Vencimiento del enlace de recupero. Los correos (backoffice y portal) prometen
 # 24 h; el default de Django son 3 días.
