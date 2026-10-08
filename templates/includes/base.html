@@ -375,6 +375,10 @@
                 // ruta literal escrita en el JS. El `0` es el placeholder del id.
                 window.alertasConfig = {
                     ciudadanoDetalleUrlTemplate: "{% url 'legajos:ciudadano_detalle' 0 %}",
+                    // La campana se refresca por HTTP con `ciudadano.ver`; el socket
+                    // pide `ciudadano.sensible` (G1c-04). Sin esto el script lo abría
+                    // igual y cobraba 1 + 5 handshakes rechazados por página (G3-03).
+                    puedeSocket: {{ puede_alertas_sensibles|yesno:"true,false" }},
                 };
                 window.conversacionesConfig = {
                     listUrl: "{% url 'conversaciones:lista' %}",
@@ -389,8 +393,11 @@
             {% endif %}
             <script src="{% static 'custom/js/notification_sound.js' %}"></script>
             <script src="{% static 'custom/js/alertas_conversaciones_fallback.js' %}"></script>
-            {% if websockets_enabled %}
+            {# G3-03: el script viaja solo con `ciudadano.ver` —la capacidad de la campana del navbar, su única superficie—, y abre el socket solo con `ciudadano.sensible`, que es lo que pide /ws/alertas/ (G1c-04). Sin ese segundo guard, cada página de quien no la tiene disparaba 1 + 5 handshakes rechazados contra el único daphne y dejaba el indicador en «Desconectado». #}
+            {% if websockets_enabled and puede_ver_ciudadanos %}
                 <script src="{% static 'custom/js/alertas_websocket.js' %}"></script>
+            {% endif %}
+            {% if websockets_enabled %}
                 <script src="{% static 'custom/js/alertas_conversaciones_rt.js' %}"></script>
             {% endif %}
             

@@ -210,9 +210,29 @@ class ConversacionesListConsumer(AsyncWebsocketConsumer):
 
 
 class AlertasConsumer(AsyncWebsocketConsumer):
+    """Difusión en vivo de las alertas del legajo (G1c-04).
+
+    Tres reglas, todas medidas como agujeros por la auditoría oct-2026:
+
+    1. **Capacidad.** Pide ``ciudadano.sensible``, la misma que las APIs JSON de
+       alertas y timeline (SEC-11, D-11). Con ``ciudadano.ver`` el socket
+       entregaba por WS —y como notificación del sistema operativo— alertas de
+       tipo «Riesgo Suicida» que por HTTP ese usuario no veía.
+    2. **Sesión.** El backoffice admite una sola sesión por usuario
+       (``BackofficeSingleSessionMiddleware``) y bloquea la navegación con la
+       clave provisoria sin cambiar. El WS no pasa por middlewares de HTTP, así
+       que ambos chequeos se repiten acá a mano.
+    3. **Alcance, en cada entrega.** El grupo ``alertas_sistema`` es uno solo:
+       el filtro por alcance va en el envío, resuelto con
+       ``FiltrosUsuarioService`` —la misma pieza que acota el listado HTTP— y
+       revalidando la capacidad, así un socket ya abierto deja de recibir
+       cuando le quitan el rol (se cierra con 4403) en vez de seguir
+       escuchando hasta que el navegador se cierre.
+    """
+
     async def connect(self):
         try:
-            if not await self.tiene_permiso_alertas():
+            if not await self.puede_escuchar_alertas():
                 await self.close(code=4403)
                 return
 
@@ -230,25 +250,79 @@ class AlertasConsumer(AsyncWebsocketConsumer):
         except Exception:
             logger.exception("Error desconectando WebSocket de alertas")
 
+    async def _entregar(self, tipo, event):
+        """Revalida y manda solo si la alerta sigue siendo de este usuario."""
+        alerta_id = (event.get("alerta") or {}).get("id")
+        permitida = await self.alerta_entregable(alerta_id)
+        if permitida is None:
+            # Ya no tiene la capacidad (o la sesión dejó de ser válida): el
+            # socket no se queda escuchando con un rol que no existe.
+            await self.close(code=4403)
+            return
+        if not permitida:
+            return
+        await self.send(text_data=json.dumps({"type": tipo, "alerta": event["alerta"]}))
+
     async def nueva_alerta(self, event):
-        await self.send(text_data=json.dumps({"type": "nueva_alerta", "alerta": event["alerta"]}))
+        await self._entregar("nueva_alerta", event)
 
     async def alerta_critica(self, event):
-        await self.send(text_data=json.dumps({"type": "alerta_critica", "alerta": event["alerta"]}))
+        await self._entregar("alerta_critica", event)
 
     async def alerta_cerrada(self, event):
-        await self.send(text_data=json.dumps({"type": "alerta_cerrada", "alerta_id": event["alerta_id"]}))
+        if await self.alerta_entregable(event.get("alerta_id")):
+            await self.send(text_data=json.dumps({"type": "alerta_cerrada", "alerta_id": event["alerta_id"]}))
 
     @database_sync_to_async
-    def tiene_permiso_alertas(self):
+    def puede_escuchar_alertas(self):
         try:
             user = self.scope["user"]
             if not user.is_authenticated:
                 return False
-            return rbac.puede(user, "ciudadano.ver")
+            if not rbac.puede(user, "ciudadano.sensible"):
+                return False
+            return self._sesion_vigente(user)
         except Exception:
             logger.exception("Error validando permisos de alertas")
             return False
+
+    @database_sync_to_async
+    def alerta_entregable(self, alerta_id):
+        """``None`` = el usuario perdió el permiso; ``bool`` = está en su alcance."""
+        from django.contrib.auth import get_user_model
+
+        from legajos.services.filtros_usuario import FiltrosUsuarioService
+
+        try:
+            user = self.scope["user"]
+            if not user.is_authenticated:
+                return None
+            # Relee el usuario: `self.scope["user"]` quedó cacheado en el
+            # handshake y ni sus grupos ni su alta se refrescan solos.
+            user = get_user_model()._default_manager.filter(pk=user.pk, is_active=True).first()
+            if user is None or not rbac.puede(user, "ciudadano.sensible") or not self._sesion_vigente(user):
+                return None
+            if alerta_id is None:
+                return False
+            return FiltrosUsuarioService.obtener_alertas_usuario(user).filter(pk=alerta_id).exists()
+        except Exception:
+            logger.exception("Error resolviendo el alcance de la alerta %s", alerta_id)
+            return False
+
+    def _sesion_vigente(self, user):
+        """La misma sesión única y el mismo bloqueo por clave provisoria del HTTP."""
+        from users.models import Profile
+
+        sesion = self.scope.get("session")
+        clave = getattr(sesion, "session_key", None)
+        profile = Profile.objects.filter(user=user).only("backoffice_session_key", "debe_cambiar_contrasena").first()
+        if profile is None:
+            return True
+        if profile.debe_cambiar_contrasena:
+            return False
+        if profile.backoffice_session_key and profile.backoffice_session_key != clave:
+            return False
+        return True
 
 
 class AlertasConversacionesConsumer(AsyncWebsocketConsumer):

@@ -60,6 +60,10 @@ var document = {
   addEventListener: function (tipo, fn) { (__handlers[tipo] = __handlers[tipo] || []).push(fn); },
   getElementById: function (id) { return __form(id); },
   querySelector: function () { return null; },
+  // Un script de página puede engancharse a varios nodos al cargar; sin esto el
+  // harness muere con «document.querySelectorAll is not a function» antes de
+  // llegar a la función bajo prueba.
+  querySelectorAll: function () { return []; },
   createElement: function () { return __form(''); },
   body: {appendChild: function () {}}
 };

@@ -164,3 +164,99 @@ class ApiDashboardSoloBackofficeTests(TestCase):
         # `PortalCiudadanoMiddleware` lo saca antes de llegar a la vista; si alguna vez
         # no estuviera, `BackofficeAutenticado` responde 403.
         self.assertIn(respuesta.status_code, (302, 403))
+
+
+class ActividadRecienteAlcanceTests(TestCase):
+    """R0b-09: la capacidad tiene que corresponder al contenido del feed.
+
+    El endpoint pedía `ciudadano.sensible` y listaba las últimas inscripciones y
+    derivaciones **de todos los programas**, sin pasar por ningún alcance; quien
+    solo tenía `ciudadano.ver` —el rol de Legajos sin datos sensibles— no veía
+    nada. Ahora el piso es `ciudadano.ver`, las inscripciones y derivaciones
+    salen acotadas al alcance del usuario y la rama de alertas solo aparece con
+    `ciudadano.sensible` (D-11).
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        from programas.models import DerivacionPrograma, InscripcionPrograma, Programa
+
+        cls.url = reverse("dashboard:api_actividad_reciente")
+        cls.programa_propio = Programa.objects.create(codigo="PROPIO", nombre="Programa propio")
+        cls.programa_ajeno = Programa.objects.create(codigo="AJENO", nombre="Programa ajeno")
+        cls.vecina = Ciudadano.objects.create(dni="31222333", nombre="Vera", apellido="Nuñez")
+        cls.ajena = Ciudadano.objects.create(dni="31444555", nombre="Ajena", apellido="Lopez")
+
+        cls.responsable = User.objects.create_user("agente-actividad", password="Clave-Seg-2026x")
+        cls.legajo = LegajoAtencion.objects.create(responsable=cls.responsable)
+        InscripcionPrograma.objects.create(ciudadano=cls.vecina, programa=cls.programa_propio, legajo_id=cls.legajo.id)
+        InscripcionPrograma.objects.create(ciudadano=cls.ajena, programa=cls.programa_ajeno)
+        DerivacionPrograma.objects.create(ciudadano=cls.ajena, programa_destino=cls.programa_ajeno, motivo="ajena")
+        AlertaCiudadano.objects.create(
+            ciudadano=cls.vecina,
+            legajo=cls.legajo,
+            tipo=AlertaCiudadano.TipoAlerta.RIESGO_ALTO,
+            prioridad=AlertaCiudadano.Prioridad.CRITICA,
+            mensaje="Alerta del legajo propio",
+            activa=True,
+        )
+
+    def _descripciones(self, usuario):
+        self.client.force_login(usuario)
+        return [item["descripcion"] for item in self.client.get(self.url).json()["results"]]
+
+    def test_sin_capacidad_403(self):
+        self.client.force_login(User.objects.create_user("plano-feed", password="Clave-Seg-2026x"))
+
+        self.assertEqual(self.client.get(self.url).status_code, 403)
+
+    def test_con_ciudadano_ver_contesta_y_trae_lo_de_su_alcance_sin_alertas(self):
+        self.responsable.groups.add(_rol_con("Feed solo ver", ["ciudadano.ver"]))
+
+        descripciones = self._descripciones(self.responsable)
+
+        self.assertTrue(any("Programa propio" in d for d in descripciones))
+        self.assertFalse(any("Programa ajeno" in d for d in descripciones))
+        self.assertFalse(any(d.startswith("Alerta:") for d in descripciones))
+
+    def test_con_ciudadano_sensible_suma_las_alertas_de_su_alcance(self):
+        self.responsable.groups.add(_rol_con("Feed sensible", ["ciudadano.ver", "ciudadano.sensible"]))
+
+        descripciones = self._descripciones(self.responsable)
+
+        self.assertTrue(any(d.startswith("Alerta:") for d in descripciones))
+        self.assertFalse(any("Programa ajeno" in d for d in descripciones))
+
+    def test_sin_alcance_el_feed_queda_vacio(self):
+        mirona = User.objects.create_user("agente-sin-alcance", password="Clave-Seg-2026x")
+        mirona.groups.add(_rol_con("Feed sin alcance", ["ciudadano.ver", "ciudadano.sensible"]))
+
+        self.assertEqual(self._descripciones(mirona), [])
+
+    def test_config_administrar_ve_todo(self):
+        """Misma puerta global que usa `FiltrosUsuarioService` para las alertas."""
+        admin = User.objects.create_user("agente-config", password="Clave-Seg-2026x")
+        admin.groups.add(_rol_con("Feed config", ["ciudadano.ver", "config.administrar"]))
+
+        descripciones = self._descripciones(admin)
+
+        self.assertTrue(any("Programa ajeno" in d for d in descripciones))
+
+    def test_el_ciudadano_del_portal_no_entra(self):
+        """`PortalCiudadanoMiddleware` lo saca antes de la vista: 302 a /portal/."""
+        portal = User.objects.create_user("32111000", password="Clave-Seg-2026x")
+        portal.groups.add(Group.objects.create(name=rbac.GRUPO_CIUDADANO_PORTAL))
+        self.client.force_login(portal)
+
+        respuesta = self.client.get(self.url)
+
+        self.assertEqual(respuesta.status_code, 302)
+        self.assertTrue(respuesta["Location"].startswith("/portal/"))
+
+    def test_el_superusuario_ve_todo(self):
+        root = User.objects.create_superuser("root-feed", "root-feed@example.test", "Clave-Seg-2026x")
+
+        self.assertTrue(any("Programa ajeno" in d for d in self._descripciones(root)))
+
+    def test_el_anonimo_no_entra(self):
+        self.assertEqual(self.client.get(self.url).status_code, 403)

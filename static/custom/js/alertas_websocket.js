@@ -20,6 +20,9 @@ class AlertasWebSocket {
         this.reconnectAttempts = 0;
         this.maxReconnectAttempts = 5;
         this.reconnectInterval = 3000;
+        // `/ws/alertas/` cierra con 4403 cuando falta la capacidad: es un
+        // veredicto, no una caída de red, y reintentarlo es ruido puro (G3-03).
+        this.rechazado = false;
         this.init();
     }
 
@@ -28,29 +31,45 @@ class AlertasWebSocket {
         this.setupNotificationPermission();
     }
 
+    // La campana se refresca por HTTP con `ciudadano.ver`; el socket pide
+    // `ciudadano.sensible` (G1c-04). El shell lo resuelve en el servidor y lo
+    // deja en `window.alertasConfig.puedeSocket`: así quien solo ve la campana
+    // no paga ni un handshake.
+    puedeAbrirSocket() {
+        return (window.alertasConfig || {}).puedeSocket !== false;
+    }
+
     connect() {
+        if (this.rechazado || !this.puedeAbrirSocket()) {
+            this.showConnectionStatus(false);
+            return;
+        }
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const wsUrl = `${protocol}//${window.location.host}/ws/alertas/`;
-        
+
         this.socket = new WebSocket(wsUrl);
-        
+
         this.socket.onopen = () => {
             console.log('Conectado a alertas WebSocket');
             this.reconnectAttempts = 0;
             this.showConnectionStatus(true);
         };
-        
+
         this.socket.onmessage = (event) => {
             const data = JSON.parse(event.data);
             this.handleMessage(data);
         };
-        
-        this.socket.onclose = () => {
+
+        this.socket.onclose = (event) => {
             console.log('Desconectado de alertas WebSocket');
             this.showConnectionStatus(false);
+            if (event && event.code === 4403) {
+                this.rechazado = true;
+                return;
+            }
             this.reconnect();
         };
-        
+
         this.socket.onerror = (error) => {
             console.error('Error WebSocket:', error);
         };
@@ -322,6 +341,7 @@ class AlertasWebSocket {
     }
 
     reconnect() {
+        if (this.rechazado) return;
         if (this.reconnectAttempts < this.maxReconnectAttempts) {
             this.reconnectAttempts++;
             setTimeout(() => {

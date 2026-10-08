@@ -178,7 +178,14 @@ class AlertasService:
                 "prioridad": alerta.prioridad,
                 "mensaje": alerta.mensaje,
                 "fecha": alerta.creado.strftime("%d/%m/%Y %H:%M"),
-                "legajo_id": alerta.legajo.id if alerta.legajo else None,
+                # `LegajoAtencion.id` es un UUID y el consumer serializa el
+                # evento con `json.dumps`: sin `str()` reventaba con
+                # «Object of type UUID is not JSON serializable» —y reventaba
+                # justo en las alertas que **sí** cuelgan de un legajo, que son
+                # las únicas que caen dentro del alcance de alguien (G1c-04)—.
+                # El error moría en el log del consumer, así que la difusión
+                # parecía andar.
+                "legajo_id": str(alerta.legajo.id) if alerta.legajo else None,
             }
 
             async_to_sync(channel_layer.group_send)(
@@ -187,9 +194,16 @@ class AlertasService:
             )
 
             if alerta.prioridad == "CRITICA":
+                # G1c-17: la rama crítica mandaba al grupo `alertas_criticas` con
+                # el tipo `nueva_alerta_critica`. A ese grupo no se suscribe ningún
+                # consumer y ese tipo no existe como handler, así que el modal
+                # crítico de `alertas_websocket.js` **nunca se disparó**: el
+                # mensaje se iba al vacío. El grupo y el tipo son ahora los que el
+                # `AlertasConsumer` tiene de verdad, y el consumer filtra por
+                # alcance antes de entregarlo (G1c-04).
                 async_to_sync(channel_layer.group_send)(
-                    "alertas_criticas",
-                    {"type": "nueva_alerta_critica", "alerta": alerta_data},
+                    "alertas_sistema",
+                    {"type": "alerta_critica", "alerta": alerta_data},
                 )
         except Exception as exc:
             logger.exception("Error enviando notificación WebSocket: %s", exc)

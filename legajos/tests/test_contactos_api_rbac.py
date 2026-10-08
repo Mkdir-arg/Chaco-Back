@@ -41,15 +41,24 @@ class ContactosApiRbacTests(TestCase):
         cls.responsable = User.objects.create_user("resp-contactos", password="Clave-Seg-2026x")
         cls.legajo = LegajoAtencion.objects.create(responsable=cls.responsable)
 
-    def _rutas(self):
+    def _rutas_sensibles(self):
+        """Las tres que D-11 subió a `ciudadano.sensible` (SEC-11, Ola 2)."""
         return [
-            reverse("legajos:actividades_ciudadano", args=[self.mirta.id]),
             reverse("legajos:alertas_ciudadano", args=[self.mirta.id]),
             reverse("legajos:timeline_ciudadano", args=[self.mirta.id]),
             reverse("legajos:prediccion_riesgo", args=[self.mirta.id]),
+        ]
+
+    def _rutas_de_ver(self):
+        """Las tres en que `ciudadano.ver` es la capacidad definitiva."""
+        return [
+            reverse("legajos:actividades_ciudadano", args=[self.mirta.id]),
             reverse("legajos:evolucion_legajo", args=[self.legajo.id]),
             reverse("legajos:historial_contactos", args=[self.legajo.id]),
         ]
+
+    def _rutas(self):
+        return self._rutas_de_ver() + self._rutas_sensibles()
 
     def test_sin_rol_ninguna_contesta(self):
         cliente = Client()
@@ -69,12 +78,34 @@ class ContactosApiRbacTests(TestCase):
 
         self.assertRedirects(respuesta, reverse("core:inicio"))
 
-    def test_con_ciudadano_ver_todas_contestan(self):
+    def test_con_ciudadano_ver_contestan_las_tres_no_sensibles(self):
         """Un usuario que hoy usa Legajos con su rol normal sigue pudiendo."""
         cliente = Client()
         cliente.force_login(usuario_con("ciudadano.ver", username="ve-legajos"))
 
-        for url in self._rutas():
+        for url in self._rutas_de_ver():
+            with self.subTest(url=url):
+                self.assertEqual(cliente.get(url).status_code, 200)
+
+    def test_con_ciudadano_ver_las_tres_sensibles_ya_no_contestan(self):
+        """D-11 = Sí: timeline, alertas y predicción de riesgo piden `ciudadano.sensible`.
+
+        R-19 les había puesto `ciudadano.ver` como **piso** para que ninguna
+        quedara abierta mientras se decidía; este es el ascenso que faltaba.
+        """
+        cliente = Client()
+        cliente.force_login(usuario_con("ciudadano.ver", username="ve-pero-no-sensible"))
+
+        for url in self._rutas_sensibles():
+            with self.subTest(url=url):
+                respuesta = cliente.get(url, headers={"x-requested-with": "XMLHttpRequest"})
+                self.assertEqual(respuesta.status_code, 403)
+
+    def test_con_ciudadano_sensible_las_tres_contestan(self):
+        cliente = Client()
+        cliente.force_login(usuario_con("ciudadano.sensible", username="ve-lo-sensible"))
+
+        for url in self._rutas_sensibles():
             with self.subTest(url=url):
                 self.assertEqual(cliente.get(url).status_code, 200)
 

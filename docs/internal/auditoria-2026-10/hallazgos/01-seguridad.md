@@ -21,8 +21,8 @@ Base verificada: `origin/development @ 917e583`. PoC: `poc/test_repro_seguridad.
 | SEC-07 | `programa.configurar` en un rol de programa habilita el wizard de todos | ALTA | CONF. test | 2 | S-M | ⬜ |
 | SEC-08 | XSS almacenado por nombre de rol en todas las páginas | ALTA | CONF. test | 0 | S | ✅ |
 | SEC-09 | `/media/` sin login en DEV (nginx); sin pertenencia en ECOM | ALTA (DEV) / MEDIA (ECOM) | CONF. test | 0 (etapa 1) / 2 (etapa 2) | S + M | 🟡 |
-| SEC-11 | APIs JSON de legajos (riesgo, alertas, timeline) sin capacidad | ALTA | CONF. test | **R-19** (`ciudadano.ver` de piso en las 5) / 2 (subir 3 a `ciudadano.sensible`, D-11) | S | 🟡 |
-| SEC-12 | Derivaciones por GET (CSRF) sin capacidad; inscripción por `is_staff` | ALTA | CONF. test | 2 | S | ⬜ |
+| SEC-11 | APIs JSON de legajos (riesgo, alertas, timeline) sin capacidad | ALTA | CONF. test | **R-19** (`ciudadano.ver` de piso en las 5) / 2 (subir 3 a `ciudadano.sensible`, D-11) | S | ✅ |
+| SEC-12 | Derivaciones por GET (CSRF) sin capacidad; inscripción por `is_staff` | ALTA | CONF. test | 2 | S | ✅ |
 | SEC-13 | Catálogo geográfico escribible por API | ALTA | CONF. test | 0 | S | ✅ |
 | SEC-14 | APIs del dashboard: enumeración del padrón y alertas globales | ALTA | CONF. test | 0 | S | ✅ |
 | SEC-29 | Registro del portal sobre cualquier legajo con solo el DNI | ALTA | CONF. test | 0 | S | 🟡 |
@@ -41,7 +41,7 @@ Base verificada: `origin/development @ 917e583`. PoC: `poc/test_repro_seguridad.
 | SEC-25 | `consultar_persona_becas` sin throttle | MEDIA | CONF. lectura | 2 | S | ⬜ |
 | SEC-26 | Login, admin, recupero, clave provisoria y token de campo sin límites ni rotación | MEDIA | CONF. test (parte) | 2 | M | ⬜ |
 | SEC-27 | RENAPER con `verify=False` | MEDIA | CONF. lectura | 2 | S | ⬜ |
-| G1c-04 | `/ws/alertas/` difunde fuera de alcance, sin Origin y sin revalidar | MEDIA | CONF. test | 2 | M | ⬜ |
+| G1c-04 | `/ws/alertas/` difunde fuera de alcance, sin Origin y sin revalidar | MEDIA | CONF. test | 2 | M | ⬜✅ |
 | SEC-30 | Requisitos/subsegmentos/coordinadores validados solo contra el segmento (Regional) | BAJA | CONF. lectura (latente) | 2 | S | ⬜ |
 | SEC-31 | Padrón .xlsx: límite solo sobre el comprimido (zip bomb) | BAJA | PLAUSIBLE | 2 | S | ⬜ |
 | SEC-32 | Consulta RENAPER desde la admisión sin `ciudadano.*`, por GET | BAJA | CONF. lectura | 2 | S | ⬜ |
@@ -54,12 +54,12 @@ Base verificada: `origin/development @ 917e583`. PoC: `poc/test_repro_seguridad.
 | G1c-16 | Payload crudo de RENAPER en sesión (24 h) y caché (10 min) | BAJA | CONF. lectura | 2 | S | ⬜ |
 | R0-01 | `/conversaciones/<id>/evaluar/` acepta escritura anónima | BAJA (MINOR) | revisión Ola 0 | 0 | S | ✅ |
 | R0-05 | `DEFAULT_THROTTLE_RATES["renaper"]` sin consumidor | BAJA (MINOR) | revisión Ola 0 | 2 (con SEC-25) | incluido en SEC-25 | ⬜ |
-| R0b-04 | `retrieve` de `/api/legajos/ciudadanos/<pk>/` da 404 sin `?search=` | BAJA (MINOR) | revisión Ola 0 (2ª tanda) | 2 (Legajos) | S | ⬜ |
-| R0b-05 | `CiudadanoViewSet` declara `ordering` sin `OrderingFilter`: pagina sin orden | BAJA (MINOR) | revisión Ola 0 (2ª tanda) | 2 (Legajos) | incluido en R0b-04 | ⬜ |
+| R0b-04 | `retrieve` de `/api/legajos/ciudadanos/<pk>/` da 404 sin `?search=` | BAJA (MINOR) | revisión Ola 0 (2ª tanda) | 2 (Legajos) | S | ✅ |
+| R0b-05 | `CiudadanoViewSet` declara `ordering` sin `OrderingFilter`: pagina sin orden | BAJA (MINOR) | revisión Ola 0 (2ª tanda) | 2 (Legajos) | incluido en R0b-04 | ✅ |
 | R0b-06 | `AlertasViewSet` sin capacidad decidida | BAJA (MINOR) | revisión Ola 0 (2ª tanda) | 2 (con SEC-18) | incluido en SEC-18 | ✅ |
 | R0b-07 | `config/urls.py` monta `/media/` abierto con `DEBUG=True` antes del bloque `SERVE_MEDIA` | BAJA (MINOR) | revisión Ola 0 (2ª tanda) | 2 (Media) | S | ⬜ |
 | R0b-08 | Comentarios que todavía dicen que nginx sirve `/media/` | BAJA (MINOR) | revisión Ola 0 (2ª tanda) | 2 (Media) | incluido en R0b-07 | ⬜ |
-| R0b-09 | `actividad_reciente` pide `ciudadano.sensible` pero muestra inscripciones y derivaciones sin alcance | BAJA (MINOR) | revisión Ola 0 (2ª tanda) | 2 (Legajos) | S | ⬜ |
+| R0b-09 | `actividad_reciente` pide `ciudadano.sensible` pero muestra inscripciones y derivaciones sin alcance | BAJA (MINOR) | revisión Ola 0 (2ª tanda) | 2 (Legajos) | S | ✅ |
 | R0b-11 | Desplegar SEC-09 etapa 1 en icore-srv (`web` antes que `nginx`) | — (operativo, PM) | revisión Ola 0 (2ª tanda) | PM | — | ⬜ |
 
 ---
@@ -290,7 +290,19 @@ es 🟡:** subir `timeline_ciudadano_api`, `alertas_ciudadano_api` y `prediccion
 vista; en el código las tres llevan el comentario `# piso; la capacidad fina es ciudadano.sensible (D-11, Ola 2)`
 para que se encuentren con un `git grep`. **Test permanente:**
 `legajos.tests.test_contactos_api_rbac.ContactosApiRbacTests.test_sin_rol_ninguna_contesta` (y
-`test_con_ciudadano_ver_todas_contestan`, que fija que quien hoy usa Legajos con su rol normal sigue entrando).
+`test_con_ciudadano_ver_contestan_las_tres_no_sensibles`, que fija que quien hoy usa Legajos con su rol normal
+sigue entrando).
+
+**Resolución:** ✅ Completa en #PENDIENTE (Cambio 179), 08-oct-2026 - segunda mitad hecha con **D-11 = Sí**:
+`timeline_ciudadano_api`, `alertas_ciudadano_api` y `prediccion_riesgo_api` pasan de `@requiere("ciudadano.ver")` a
+`@requiere("ciudadano.sensible")`. Las otras tres (`actividades_ciudadano_api`, `evolucion_legajo_api`,
+`contactos_panel.historial_contactos_simple`) se quedan en `ciudadano.ver`, que es su capacidad definitiva. El
+mismo PR aplica D-11 al WebSocket (G1c-04) y al feed del inicio (R0b-09), que son las otras dos superficies del
+mismo dato. **Quién pierde acceso:** nadie de los roles sembrados -«Gestión de Ciudadanos» ya trae
+`ciudadano.sensible`-; sí lo pierde un rol armado a mano con `ciudadano.ver` y sin `ciudadano.sensible`, como el
+«Operador de backoffice» que siembra `seed_rbac`. **Test permanente:**
+`legajos.tests.test_contactos_api_rbac.ContactosApiRbacTests.test_con_ciudadano_ver_las_tres_sensibles_ya_no_contestan`
+(y `test_con_ciudadano_sensible_las_tres_contestan`).
 
 ### SEC-12 · Derivaciones: aceptar o rechazar por GET (CSRF) sin capacidad; inscripción directa por `is_staff`
 **Severidad:** ALTA · **Estado:** CONFIRMADO con test (`SEC12DerivacionGetTests`) · **Origen:** A5-12, A3-04, G1c-07 · **Ola:** 2 · **Esfuerzo:** S (reusando `ciudadano.editar`) / M (capacidad nueva) · **Decisión:** D-12
@@ -299,6 +311,22 @@ para que se encuentren con un `git grep`. **Test permanente:**
 - **Tests a agregar:** `test_aceptar_derivacion_get_405`, `test_rechazar_sin_capacidad_403_y_sigue_pendiente`, `test_inscripcion_directa_sin_capacidad_no_se_ofrece`.
 - **Verificación:** V-STD + V-UI. La bandeja hoy está vacía (LEG-06), así que no se rompe UI operativa.
 - **Dependencias:** LEG-02 (reactivar inscripción) y LEG-06 (decisión de derivaciones).
+
+**Resolución:** ✅ Resuelto en #PENDIENTE (Cambio 179), 08-oct-2026 - **DECISIÓN CLIENTE D-12 = reusar
+`ciudadano.editar`**, sin capacidad nueva ni migración. `aceptar_derivacion_programa` y
+`rechazar_derivacion_programa` van con `@requiere("ciudadano.editar")` + `@require_POST` (en ese orden: la
+autorización se evalúa antes que el método, así un GET sin capacidad no revela que la ruta existe);
+`derivar_programa_view` pasa de `@login_required` a `@requiere("ciudadano.editar")` y
+`puede_inscripcion_directa` sale de `rbac.puede(user, "ciudadano.editar")` en vez de `request.user.is_staff`.
+En `programas/programa_detail.html` «Rechazar» deja de ser un `<a>` (un GET) y es un form POST con
+`{% csrf_token %}` y confirmación SweetAlert2. La bandeja hoy está **vacía** -`ProgramaDetailView` deja
+`derivaciones_ciudadanos` en `[]` desde que se retiró `models_institucional` (LEG-06)-, así que el arreglo del
+template es latente; las dos URLs, en cambio, siguen publicadas y ejecutables, que es lo que la PoC explotaba.
+**Quién pierde acceso:** quien hoy inscribía directo por tener `is_staff` sin `ciudadano.editar` (hoy, nadie en
+los roles sembrados), y cualquier autenticado sin capacidad, que es el agujero. **Test permanente:**
+`legajos.tests.test_derivaciones_rbac` (en particular
+`DerivacionesRbacTests.test_aceptar_por_get_es_405_y_no_inscribe`, la PoC `SEC12DerivacionGetTests` invertida,
+y `DerivarProgramaViewRbacTests.test_is_staff_sin_capacidad_ya_no_ofrece_inscripcion_directa`).
 
 ### SEC-13 · Catálogo geográfico escribible por cualquier autenticado vía `/api/core/`
 **Severidad:** ALTA · **Estado:** CONFIRMADO con test (`SEC13GeoApiTests`) · **Origen:** A5-13 (absorbe A5-40) · **Ola:** 0 · **Esfuerzo:** S · **Decisión:** —
@@ -514,6 +542,23 @@ dos (sin alcance → vacío; con legajo propio → solo las suyas), porque afirm
 - **Verificación:** V-STD + `manage.py test conversaciones legajos`.
 - **Dependencias:** SEC-18, SEC-11; G1c-17 y G3-03 en el mismo PR.
 
+**Resolución:** ✅ Resuelto en #PENDIENTE (Cambio 179), 08-oct-2026 - las cuatro caras: (d) `config/asgi.py`
+envuelve el router en `AllowedHostsOriginValidator`, que cierra el CSWSH **de los cuatro consumers**, no solo
+del de alertas; (1) `AlertasConsumer` pide `ciudadano.sensible` (D-11, misma capacidad que SEC-11); (c) rechaza
+si `Profile.backoffice_session_key` no es la sesión del handshake o si `debe_cambiar_contrasena` -los dos
+chequeos que hacen los middlewares del HTTP y que el WS no atraviesa-; (a) y (b) el filtro por alcance va en
+**cada entrega**: `nueva_alerta`/`alerta_critica`/`alerta_cerrada` pasan por `alerta_entregable`, que relee al
+usuario de la base, revalida capacidad y sesión -y cierra con **4403** si las perdió, asi un socket abierto deja
+de recibir cuando le quitan el rol- y resuelve el alcance con
+`FiltrosUsuarioService.obtener_alertas_usuario(user).filter(pk=...).exists()`. Se eligió revalidar por entrega y no
+por temporizador: la entrega ya pega a la base para el alcance, así que el chequeo viaja en la misma consulta y
+no queda ventana. **Hallazgo extra, fuera de la ficha:** `legajos/services/alertas.py` mandaba `legajo_id` como
+`UUID`, que `json.dumps` no serializa, asi que la difusión **siempre** moría -en el log del consumer- justo para
+las alertas que cuelgan de un legajo, que son las únicas con alcance; va como `str()`. **Test permanente:**
+`conversaciones.tests.test_ws_alertas_rbac.WsAlertasRbacTests` (la PoC `G1c04WsAlertasTests` invertida:
+`test_origin_ajeno_no_conecta`, `test_sesion_reemplazada_no_conecta`,
+`test_no_entrega_una_alerta_fuera_del_alcance` y `test_quitarle_el_rol_corta_el_socket_abierto`).
+
 ## BAJA
 
 ### SEC-30 · Requisitos, subsegmentos y coordinadores validados solo contra el segmento (Coordinador Regional, latente)
@@ -600,11 +645,23 @@ Observaciones MINOR de los revisores de #536-#542 y seguimientos operativos. Las
 - **Propuesta:** decidirlo y dejarlo explícito: aplicar el mínimo de búsqueda solo si `self.action == "list"`, o sacar `retrieve` del ViewSet (`mixins.ListModelMixin` + `GenericViewSet`) para que la ruta no exista.
 - **Test:** `retrieve` con `ciudadano.ver` → 200 (o ruta inexistente), sin capacidad → 403.
 
+**Resolución:** ✅ Resuelto en #PENDIENTE (Cambio 179), 08-oct-2026 - el mínimo de búsqueda se aplica solo si
+`self.action == "list"`, que es la acción que enumera; `retrieve` necesita el pk, así que no habilita ninguna
+enumeración y deja de dar 404 sobre un ciudadano que existe. **Test permanente:**
+`legajos.tests.test_api_ciudadanos_rbac.ApiCiudadanosRetrieveYOrdenTests.test_retrieve_con_ciudadano_ver_200`
+(y `test_el_listado_sigue_pidiendo_tres_caracteres`, que fija que el mínimo de SEC-02 no se aflojó).
+
 ### R0b-05 · `CiudadanoViewSet` declara `ordering` sin `OrderingFilter`: pagina sin orden estable
 **Severidad:** BAJA (MINOR del revisor de #542) · **Estado:** CONFIRMADO (lectura) · **Origen:** revisión de la Ola 0, 2ª tanda · **Ola:** 2 (PR 3, Legajos) · **Esfuerzo:** incluido en R0b-04
 - **Ubicación:** `legajos/api_views/__init__.py:43-47` (`filter_backends = [DjangoFilterBackend, filters.SearchFilter]`; `ordering_fields`/`ordering` solo los lee `OrderingFilter`).
 - **Propuesta:** sumar `filters.OrderingFilter` a `filter_backends` (o `.order_by("apellido", "nombre", "pk")` en `get_queryset`) para que la paginación sea determinística.
 - **Test:** dos páginas consecutivas de una búsqueda no repiten ni saltean filas.
+
+**Resolución:** ✅ Resuelto en #PENDIENTE (Cambio 179), 08-oct-2026 - `filters.OrderingFilter` entra a
+`filter_backends` y `ordering` pasa a `["apellido", "nombre", "pk"]`: sin el desempate por `pk`, dos homónimos no
+tienen orden propio y el motor puede devolverlos distinto en cada página (y MariaDB y MySQL no tienen qué
+coincidir). **Test permanente:**
+`legajos.tests.test_api_ciudadanos_rbac.ApiCiudadanosRetrieveYOrdenTests.test_dos_paginas_no_repiten_ni_saltean`.
 
 ### R0b-06 · `AlertasViewSet` sin capacidad decidida
 **Severidad:** BAJA (MINOR del revisor de #542) · **Estado:** CONFIRMADO (lectura) · **Origen:** revisión de la Ola 0, 2ª tanda · **Ola:** 2 (con SEC-18) · **Esfuerzo:** incluido en SEC-18
@@ -635,6 +692,15 @@ vistas de SEC-11. **Test permanente:** `legajos.tests.test_alertas_rbac.AlertasA
 - **Escenario:** la capacidad no corresponde al contenido: quien tiene `ciudadano.sensible` ve las últimas inscripciones y derivaciones de todos los programas, y quien solo tiene `ciudadano.ver` no ve nada.
 - **Propuesta:** separar por tipo de evento: inscripciones y derivaciones con `ciudadano.ver` (acotadas como en SEC-12/D-12), alertas con `ciudadano.sensible` (D-11); o partir el feed en dos endpoints.
 - **Test:** con `ciudadano.ver` solo, el feed trae inscripciones y no alertas; sin capacidad → 403.
+
+**Resolución:** ✅ Resuelto en #PENDIENTE (Cambio 179), 08-oct-2026 - `actividad_reciente` baja a
+`RequiereCapacidad("ciudadano.ver")`, las inscripciones y derivaciones salen por
+`FiltrosUsuarioService.acotar_a_programas_del_usuario` (helper nuevo, mismo alcance que ya usan las alertas:
+los programas de los legajos propios; superusuario y `config.administrar` ven todo) y la rama de alertas -el
+único dato sensible del feed- solo se arma con `ciudadano.sensible` (D-11). **Test permanente:**
+`dashboard.tests.test_api_rbac.ActividadRecienteAlcanceTests` (en particular
+`test_con_ciudadano_ver_contesta_y_trae_lo_de_su_alcance_sin_alertas` y
+`test_con_ciudadano_sensible_suma_las_alertas_de_su_alcance`).
 
 ### R0b-11 · Desplegar SEC-09 etapa 1 en icore-srv (operativo, PM)
 **Severidad:** — (operativo, sin código) · **Origen:** #538 (Cambio 112) · **Ola:** PM · **Esfuerzo:** —

@@ -16,6 +16,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 
 from core.api_permissions import BackofficeAutenticado, RequiereCapacidad
+from core.rbac import puede
 from legajos.models import AlertaCiudadano, Ciudadano
 from legajos.services.filtros_usuario import FiltrosUsuarioService
 from programas.models import DerivacionPrograma, InscripcionPrograma
@@ -135,21 +136,40 @@ def alertas_criticas(request):
 
 
 @api_view(["GET"])
-@permission_classes([BackofficeAutenticado, RequiereCapacidad("ciudadano.sensible")])
+@permission_classes([BackofficeAutenticado, RequiereCapacidad("ciudadano.ver")])
 def actividad_reciente(request):
-    """Obtiene actividad reciente del sistema."""
+    """Actividad reciente del inicio, por tipo de evento y dentro del alcance.
+
+    R0b-09: el feed pedía ``ciudadano.sensible`` y después listaba las últimas
+    inscripciones y derivaciones **de todos los programas**, sin pasar por
+    ningún alcance. La capacidad no correspondía al contenido en ninguna de las
+    dos direcciones: quien tenía el dato sensible veía movimientos de programas
+    ajenos, y quien solo tiene ``ciudadano.ver`` —el rol normal de Legajos— no
+    veía nada. Ahora el piso es ``ciudadano.ver``, las inscripciones y
+    derivaciones salen acotadas al alcance del usuario, y la rama de alertas
+    —que es el único dato sensible del feed— solo aparece con
+    ``ciudadano.sensible`` (D-11).
+    """
     try:
-        inscripciones = InscripcionPrograma.objects.select_related("ciudadano", "programa", "responsable").order_by(
-            "-creado"
-        )[:4]
-        derivaciones = DerivacionPrograma.objects.select_related(
-            "ciudadano", "programa_origen", "programa_destino", "derivado_por"
+        inscripciones = FiltrosUsuarioService.acotar_a_programas_del_usuario(
+            InscripcionPrograma.objects.select_related("ciudadano", "programa", "responsable"),
+            request.user,
+        ).order_by("-creado")[:4]
+        derivaciones = FiltrosUsuarioService.acotar_a_programas_del_usuario(
+            DerivacionPrograma.objects.select_related(
+                "ciudadano", "programa_origen", "programa_destino", "derivado_por"
+            ),
+            request.user,
+            campo="programa_destino_id",
         ).order_by("-creado")[:3]
-        alertas = (
-            FiltrosUsuarioService.obtener_alertas_usuario(request.user)
-            .select_related("ciudadano")
-            .order_by("-creado")[:2]
-        )
+        if puede(request.user, "ciudadano.sensible"):
+            alertas = (
+                FiltrosUsuarioService.obtener_alertas_usuario(request.user)
+                .select_related("ciudadano")
+                .order_by("-creado")[:2]
+            )
+        else:
+            alertas = []
 
         actividades = []
 

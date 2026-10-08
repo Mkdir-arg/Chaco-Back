@@ -152,3 +152,68 @@ class ApiLegajosBackofficeAutenticadoTests(TestCase):
         from legajos.api_views.contactos import HistorialContactoViewSet
 
         self.assertIs(HistorialContactoViewSet.permission_classes[0], BackofficeAutenticado)
+
+
+class ApiCiudadanosRetrieveYOrdenTests(TestCase):
+    """R0b-04 y R0b-05, seguimientos de la revisión de #542.
+
+    `get_queryset` aplicaba el mínimo de búsqueda **también** en `retrieve`, así
+    que `GET /api/legajos/ciudadanos/<pk>/` daba 404 aunque el ciudadano
+    existiera. Y `ordering` estaba declarado sin `OrderingFilter`, que es el
+    único backend que lo lee: la paginación salía sin orden garantizado y dos
+    páginas consecutivas podían repetir o saltear filas.
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.gomez = Ciudadano.objects.create(dni="22333555", nombre="Hugo", apellido="Gomez")
+        # Mismo apellido y mismo nombre: sin el desempate por pk el orden lo
+        # decide el motor, y MariaDB y MySQL no tienen por qué coincidir.
+        for i in range(14):
+            Ciudadano.objects.create(dni=f"280000{i:02d}", nombre="Mellizo", apellido="Gomez")
+
+    def _cliente(self, usuario):
+        cliente = APIClient()
+        cliente.force_authenticate(usuario)
+        return cliente
+
+    def test_retrieve_con_ciudadano_ver_200(self):
+        cliente = self._cliente(_usuario_con("ciudadano.ver", username="ve-retrieve"))
+
+        respuesta = cliente.get(f"/api/legajos/ciudadanos/{self.gomez.pk}/")
+
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertEqual(respuesta.json()["dni"], "22333555")
+
+    def test_retrieve_sin_capacidad_403(self):
+        cliente = self._cliente(_usuario_con(username="sin-rol-retrieve"))
+
+        self.assertEqual(cliente.get(f"/api/legajos/ciudadanos/{self.gomez.pk}/").status_code, 403)
+
+    def test_retrieve_de_un_pk_inexistente_sigue_siendo_404(self):
+        cliente = self._cliente(_usuario_con("ciudadano.ver", username="ve-retrieve-404"))
+
+        self.assertEqual(cliente.get("/api/legajos/ciudadanos/999999/").status_code, 404)
+
+    def test_el_listado_sigue_pidiendo_tres_caracteres(self):
+        """El mínimo de SEC-02 vale para `list`, que es donde se enumera."""
+        cliente = self._cliente(_usuario_con("ciudadano.ver", username="ve-list-minimo"))
+
+        self.assertEqual(cliente.get("/api/legajos/ciudadanos/?search=go").json()["results"], [])
+
+    def test_dos_paginas_no_repiten_ni_saltean(self):
+        cliente = self._cliente(_usuario_con("ciudadano.ver", username="ve-paginado"))
+
+        primera = cliente.get("/api/legajos/ciudadanos/?search=gomez&page=1").json()["results"]
+        segunda = cliente.get("/api/legajos/ciudadanos/?search=gomez&page=2").json()["results"]
+
+        ids = [fila["id"] for fila in primera + segunda]
+        self.assertEqual(len(ids), 15)
+        self.assertEqual(len(set(ids)), 15)
+
+    def test_ordering_declarado_tiene_su_backend(self):
+        from rest_framework import filters
+
+        from legajos.api_views import CiudadanoViewSet
+
+        self.assertIn(filters.OrderingFilter, CiudadanoViewSet.filter_backends)
