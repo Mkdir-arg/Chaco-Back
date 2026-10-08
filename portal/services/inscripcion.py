@@ -95,11 +95,21 @@ def paso1_excedido(request):
 
 
 def documento_excedido(request, dni):
-    """Cubeta por documento, **sin** la IP: rotar de IP no la evade.
+    """Cubeta por documento. Se consume recién **después** del captcha.
 
-    Se consume recién **después** del captcha. Si se contara antes, cualquiera
-    podría quemarle la cuota a un documento ajeno con unos pocos POST y dejar a
-    esa persona sin poder inscribirse en toda la convocatoria.
+    Con **reCAPTCHA** va sin la IP: rotar de IP no la evade, que es lo que
+    impide enumerar un documento o barrer el padrón a escala (Cambio 71). Para
+    quemarle la cuota a un tercero hay que resolver un reCAPTCHA por intento.
+
+    Con el **captcha aritmético** (SIIS-21) esa cuenta se da vuelta: el desafío
+    se resuelve leyendo la pregunta del HTML, así que quince POST bastan para
+    dejar a una persona sin poder inscribirse durante una hora. Ahí la cubeta
+    pasa a contar también por IP: quemarla cuesta tantas IP como ataques, y la
+    cubeta por IP del paso 1 (``paso1_excedido``) sigue acotando el barrido.
+
+    Es una resignación consciente de la defensa contra enumeración **en el modo
+    degradado**: con un captcha que un script resuelve, enumerar ya era barato.
+    El modo que corresponde en producción es el otro, y lo avisa ``core.W003``.
     """
     dni = normalizar_dni(dni)
     if not dni:
@@ -110,7 +120,7 @@ def documento_excedido(request, dni):
         MAX_INTENTOS_DNI,
         VENTANA_DNI_SEGUNDOS,
         sufijo=dni,
-        incluir_ip=False,
+        incluir_ip=captcha_activo() == "aritmetico",
     )
 
 

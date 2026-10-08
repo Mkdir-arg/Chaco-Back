@@ -75,11 +75,52 @@ def entorno_de_integraciones(app_configs, **kwargs):
         )
 
     if getattr(settings, "RENAPER_TEST_MODE", False):
+        if es_produccion():
+            # SIIS-20. El modo de prueba no es un stub inerte: inventa nombre,
+            # apellido, fecha de nacimiento y domicilio al azar y los devuelve
+            # con ``success=True``, cacheados 10 min por (dni, sexo). En PRD eso
+            # es dar de alta ciudadanos con identidad inventada y **marcarlos
+            # como validados**, que es lo que después habilita a aprobarlos.
+            mensajes.append(
+                Error(
+                    f"RENAPER_TEST_MODE=True con {VARIABLE_PRODUCCION}=1: la identidad de los ciudadanos "
+                    "se resolvería con datos inventados al azar y quedarían marcados como validados.",
+                    hint=(
+                        "Sacá RENAPER_TEST_MODE del entorno de producción. Es la escotilla para levantar "
+                        "un ambiente sin credenciales del organismo (ver .env.qa.example), no una opción "
+                        "de PRD."
+                    ),
+                    id="core.E004",
+                )
+            )
+        else:
+            mensajes.append(
+                CheckWarning(
+                    "RENAPER_TEST_MODE=True con DEBUG=False: la identidad se resuelve contra datos de prueba.",
+                    hint="Sacá RENAPER_TEST_MODE del entorno salvo que sea un ambiente de pruebas a propósito.",
+                    id="core.W001",
+                )
+            )
+
+    # SIIS-21. Sin claves de Google el paso 1 del link público cae al desafío
+    # aritmético propio, que un script resuelve leyendo la pregunta del HTML.
+    # Además de no frenar automatización, es lo que obliga a que la cubeta por
+    # documento cuente por IP (``portal.services.inscripcion.documento_excedido``)
+    # y, con eso, a resignar parte de la defensa contra enumeración.
+    sin_recaptcha = not (
+        (getattr(settings, "RECAPTCHA_SITE_KEY", "") or "").strip()
+        and (getattr(settings, "RECAPTCHA_SECRET_KEY", "") or "").strip()
+    )
+    if es_produccion() and sin_recaptcha:
         mensajes.append(
             CheckWarning(
-                "RENAPER_TEST_MODE=True con DEBUG=False: la identidad se resuelve contra datos de prueba.",
-                hint="Sacá RENAPER_TEST_MODE del entorno salvo que sea un ambiente de pruebas a propósito.",
-                id="core.W001",
+                f"Sin RECAPTCHA_SITE_KEY/RECAPTCHA_SECRET_KEY con {VARIABLE_PRODUCCION}=1: el link público "
+                "queda con el desafío aritmético, que se resuelve leyendo la pregunta del HTML.",
+                hint=(
+                    "Cargá las claves de reCAPTCHA v2 en el entorno de producción. El desafío aritmético "
+                    "es el respaldo para que un ambiente sin credenciales siga funcionando."
+                ),
+                id="core.W003",
             )
         )
     return mensajes

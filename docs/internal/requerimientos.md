@@ -345,6 +345,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 171 | Se van los comandos que sembraban `admin`/`admin123` y el «debug» que vaciaba el Redis | Transversal (comandos de management, cuentas de sistema, seeds de demo, alta masiva por CSV) | `#infra` `#usuarios` `#sesion` `#metodo` | Auditoría integral oct-2026 — fichas OPS-02, G2-05 y G1c-12 (Ola 3, PR 3) | 07/10/2026 | 🟢 **Hecho** | No requiere |
 | 172 | Trece reglas de negocio de Becas, y la edad que estaba escrita seis veces | Becas (revisión de casos, constructor de formularios, convocatorias, segmentos y subsegmentos, carga de padrón, pausas) · Legajos e Inicio (contadores «de hoy», edad del ciudadano, alertas) · Transversal (`core/edad.py`, regla `DTZ011`) | `#relevamientos` `#cupos` `#datos` `#ui` `#requisitos` | Auditoría integral oct-2026 — fichas BEC-03, BEC-04, BEC-05, BEC-06, BEC-07, BEC-09, BEC-10, BEC-15, BEC-16, BEC-17, BEC-18, BEC-20 y BEC-24, más RED-50 (Ola 3, PR 6) | 08/10/2026 | 🟢 **Hecho** (D-B05 y D-B10 aplicadas por default) | `programas.0079` y `legajos.0009`, las dos sin DDL |
 | 173 | Los campos propios del constructor llegan al Excel por persona y al dashboard de Becas | Becas (tablero del programa y su exportación «respuestas por persona») · Comandos de management (ratchets y alta masiva por CSV) | `#requisitos` `#performance` `#metodo` | Auditoría integral oct-2026 — ficha G2-01 y los cinco seguimientos de las revisiones de los PRs 1 y 3 (Ola 3, PR 8) | 07/10/2026 | 🟢 **Hecho** | No requiere |
+| 174 | Las integraciones dejan de inventar identidades: el domicilio no es el nombre y un 401 de RENAPER no deja el token muerto | Becas (link público, revisión, alta a SIIS) · Legajos (consulta RENAPER) · Transversal (system checks, validación de adjuntos) | `#siis` `#datos` `#infra` `#metodo` | Auditoría integral oct-2026 — fichas SIIS-10, SIIS-13, SIIS-14 (+G3-02), SIIS-15, SIIS-16, SIIS-18, SIIS-20, SIIS-21 y G1c-15 (Ola 3, PR 7a) | 08/10/2026 | 🟢 **Hecho** (SIIS-13 cierra su opción (a) y SIIS-16 deja el techo de nginx como paso operativo) | No requiere |
 | 175 | La app de campo deja de perder cargas: gracia de sincronización, listas completas y lo que el servidor sí valida | Becas — API de campo (`/api/becas/`: agenda, casos, alta y cierre) · Revisión de casos (detalle) · Cron de vencimientos · Constructor de formularios (guardado de condiciones) | `#api` `#relevamientos` `#datos` `#requisitos` `#metodo` | Auditoría integral oct-2026 — fichas G1-03, G1-04 (+BEC-22), G1-05, G1-06 y R0-04, más RED-40 (Ola 3, PR 5 — primer lote) | 08/10/2026 | 🟢 **Hecho** (D-G04 aplicada por default: 24 h) | `programas.0080` — dos columnas nuevas en `programas_formulario` (expand puro, medidas en MariaDB 10.11 y MySQL 8) |
 
 **Notas del índice**
@@ -24544,8 +24545,6 @@ los que ninguna fila referenciaba.
 
 ---
 
----
-
 # Cambio 172 — Trece reglas de negocio de Becas, y la edad que estaba escrita seis veces
 
 🟢 **HECHO — 07/10/2026**
@@ -24793,6 +24792,314 @@ en el constructor, que siguen siendo válidos.
 5. Un campo que cuelga de un grupo que no se sirve en el canal deja de contar como fuente
    disponible (`claves_servidas`): un campo «ambos» dentro de un grupo solo-app no viaja al
    link, así que tomarlo por presente dejaba en pie la condición imposible.
+
+---
+
+# Cambio 174 — Las integraciones dejan de inventar identidades: el domicilio no es el nombre y un 401 de RENAPER no deja el token muerto
+
+🟢 **HECHO — 08/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas (link público, revisión y alta a SIIS) · Legajos (consulta RENAPER) · Transversal (system checks, validación de adjuntos) |
+| **Etiquetas** | `#siis` `#datos` `#infra` `#metodo` |
+| **Solicitante** | Auditoría integral oct-2026 — fichas SIIS-10, SIIS-13, SIIS-14 (+G3-02), SIIS-15, SIIS-16, SIIS-18, SIIS-20, SIIS-21 y G1c-15 (Ola 3, PR 7a) |
+| **Fecha del pedido** | 08/10/2026 |
+| **Issue / épica** | Auditoría oct-2026, Ola 3 ítem 7 (mitad «integraciones»; el link público va en el PR 7b) |
+| **Partes afectadas** | Portal (inscripción pública: identidad, adjuntos, comprobante, cuota por documento) · Becas (modal «Completar datos para SIIS») · Legajos (alta de ciudadano con RENAPER) · CI (`check --deploy`) |
+| **Migración** | No requiere |
+
+## Pedido original
+Nueve hallazgos de las dos integraciones de identidad. El que más duele es
+**SIIS-10**: `normalizar_persona` aplanaba la respuesta de Base de Personas con
+`setdefault` a cualquier profundidad, así que en la respuesta real —que trae el
+domicilio anidado— `domicilio.localidad.nombre` aparecía antes que `nombres` en
+el recorrido y **ganaba**. La persona quedaba validada llamándose «Resistencia»,
+y ese nombre se fija en el paso 2 del link, viaja al legajo y de ahí a SIIS, que
+no tiene baja. Además no se comparaba el documento devuelto contra el
+consultado, y dos registros en `data.personas` se mezclaban en una identidad
+sola.
+
+Del lado de RENAPER, dos fallas que se tapaban entre sí: un **401 no descartaba
+el token** (SIIS-14 / G3-02), así que si el proveedor lo rota antes del
+vencimiento que informó, todas las altas de ciudadano del backoffice fallan
+durante horas; y `Retry(total=0, status_forcelist=(429, 500, …))` con el
+`raise_on_status` por default convertía **cualquier 5xx en «error de conexión»**
+(G1c-15) con `status_code: None`. Más el documento consultado llegando al log
+por el traceback de `requests`.
+
+El resto: un DNI ajeno cargado en un link abierto bloqueaba al titular para
+siempre aunque el caso se rechazara (SIIS-13); el comprobante se renderizaba
+fuera del `try` y un error de plantilla daba 500 con la inscripción ya
+commiteada (SIIS-15); los adjuntos anónimos se validaban solo por extensión
+(SIIS-16); el select de localidades y la validación cruzada del modal de SIIS
+leían menos claves de provincia que el armado del payload (SIIS-18); y
+`RENAPER_TEST_MODE` y el captcha aritmético no tenían guarda de producción
+(SIIS-20, SIIS-21).
+
+## Alcance acordado
+Entra la mitad **integraciones** del ítem 7 de la Ola 3: las nueve fichas de
+arriba. Queda afuera el link público (G1-11 a G1-14, R0-06, R0-07 y la segunda
+parte de RED-09), que va en el PR 7b; la opción (b) de SIIS-13 —marcar la carga
+nueva como `conflicto_duplicado`—, que la propia ficha deja «para después» y
+necesita un estado nuevo del caso; y el `client_max_body_size` de SIIS-16, que
+la ficha condiciona a medir los envíos reales.
+
+## Decisiones tomadas
+- **La identidad se extrae por ruta, no aplanando.** `_plano(registro)` lee solo
+  el primer nivel: lo que es `dict` o `list` es el domicilio, la localidad o la
+  provincia, no la persona. `_registros(data)` acepta las tres formas vistas de
+  la fuente 13 —`data` plano, `data.persona`, `data.personas`— sin bajar de
+  nivel, y `elegir_registro` devuelve `(registro, error)`: ninguno o más de uno
+  es «respuesta ambigua», y un registro de otro documento es «no corresponde al
+  documento consultado». Las dos caen al camino que el **Cambio 57** ya tiene
+  previsto (padrón o manual), igual que con la fuente caída. `nombres` pasa a
+  leerse antes que `nombre`.
+- **El sexo se compara por la inicial y solo si el registro lo trae.** El
+  proveedor manda tanto `F` como `FEMENINO`; rechazar por una variante de
+  formato sería romper el camino feliz en PRD para evitar un caso que no es el
+  que la ficha describe.
+- **`_informa_fallecido` sigue aplanando el árbol entero.** Ahí lo que se busca
+  es la *presencia* de una marca de defunción, donde encontrarla una rama más
+  abajo es correcto; el riesgo de falso positivo no se parece al de un nombre.
+- **El 401 de RENAPER se reintenta una sola vez.** `descartar_token()` borra el
+  atributo **y** `TOKEN_CACHE_KEY`, que es lo que comparten los workers: borrar
+  solo el atributo dejaba al proceso de al lado con el token muerto. Un segundo
+  rechazo con un token recién emitido no es el token. En modo API key no hay
+  nada que renovar y no se reintenta.
+- **El reintento no se declara dos veces en `core.integraciones.CADENAS`**, por
+  el mismo motivo que el token de SIIS (**Cambio 154**): un 401 llega rápido y
+  no agota ningún timeout, y en el peor caso real —un timeout— no hay reintento.
+  Declararlo pondría la cadena en 60 s y `core.E003` en rojo por un camino que
+  no existe. Queda escrito en el archivo.
+- **SIIS-13 aplica el default `D-S13 = sí`** del README §2 de la auditoría: un
+  RECHAZADO cuya identidad nunca se validó libera el DNI. Siguen bloqueando el
+  RECHAZADO validado (esa persona se presentó y tiene resolución), el BAJA
+  (llegó a estar aprobado) y el ENVIADO sin revisar. La forma de la consulta no
+  cambia: dos lecturas, cada una por su índice, sin funciones sobre la columna
+  (**Cambio 91**).
+- **Las guardas de producción disparan por `DATANACH_ES_PRODUCCION`**, no por
+  `settings.ENVIRONMENT`. Es la regla del §0.4 de la auditoría y la que ya usan
+  `core.E002` y `core.W002`: icore (DEV) declara `prd` y ahí `RENAPER_TEST_MODE`
+  es legítimo. Lo que arregló OPS-12 fue que `settings_production` dejara de
+  **pisar** la variable, no que `prd` pasara a significar producción.
+- **SIIS-21 contradice a propósito el Cambio 71, y solo en el modo degradado.**
+  El Cambio 71 dejó la cubeta por documento **sin** la IP para que rotar de IP
+  no sirviera para enumerar, dando por sentado un reCAPTCHA delante. Con el
+  desafío aritmético —que un script resuelve leyendo la pregunta del HTML— esa
+  cubeta global se da vuelta: quince POST le queman al documento de un tercero
+  la cuota de una hora. Con `captcha_activo() == "aritmetico"` la cubeta pasa a
+  contar también por IP; con reCAPTCHA activo no cambia nada. Es una resignación
+  consciente de la defensa contra enumeración ahí donde enumerar ya era barato,
+  y el aviso `core.W003` dice que ese no es el modo de producción.
+- **Una sola lectura de «de qué provincia es esta localidad».**
+  `Catalogos._provincia_de` pasa a ser `siis_envio.provincia_de` y la usan los
+  tres lugares. Los ítems sin provincia quedan **fuera** del filtro: el
+  `or provincia` de la vista los daba por buenos y el select ofrecía localidades
+  de cualquier provincia.
+
+## Lo que la ficha no pedía y entra igual
+Una respuesta de RENAPER con éxito pero **sin nombre ni apellido** deja de dar
+`success=True`. Era el agujero que
+`test_contratos_externos::test_renaper_con_el_result_anidado_un_nivel_mas_no_se_marca_validado`
+tenía medido y que nombraba «Ola 3, junto con SIIS-10»: si el proveedor anida
+`result` un nivel más, el ciudadano se daba de alta **marcado como validado**
+con el nombre vacío.
+
+## Archivos
+- `programas/services/personas.py` — `_plano`, `_registros`, `_coincide`,
+  `elegir_registro`; `normalizar_persona` toma `sexo` y lee por ruta
+- `legajos/services/consulta_renaper.py` — `Retry` (tres parámetros),
+  `descartar_token`, `_token_vigente`, `_headers`/`_pedir`, logs saneados, la
+  guarda de nombre y apellido y —ronda 2— el login sin cola (`Event` + espera
+  acotada), el `Cortacircuito` y `sesion_http()`
+- `core/integraciones.py` — la cadena de RENAPER, documentada, y `max_retries`
+  en `sesion_http`
+- `core/checks.py` — `core.E004` (SIIS-20) y `core.W003` (SIIS-21)
+- `core/validators.py` — `FIRMAS`, `cabecera`, `firma_coincide`, `validar_firma`
+- `core/services/throttle.py` — el comentario deja de escribir una regla general
+- `portal/forms/inscripcion.py` — `_validar_archivo` con firma
+- `portal/services/inscripcion.py` — `documento_excedido` según el captcha activo
+- `programas/services/inscripcion_publica.py` — RN-P5 (SIIS-13) y el `try` del
+  comprobante (SIIS-15)
+- `programas/services/siis_envio.py` — `provincia_de` público
+- `programas/views/revision.py`, `programas/forms.py` — lo usan
+- `config/settings.py` — el comentario de los techos de carga, corregido
+- Tests nuevos: `programas/tests/test_personas_identidad.py`,
+  `programas/tests/test_inscripcion_dni_bloqueado.py`,
+  `programas/tests/test_siis_provincia_de_la_localidad.py`,
+  `legajos/tests/test_renaper_cliente.py`,
+  `portal/tests/test_inscripcion_comprobante_y_adjuntos.py`,
+  `portal/tests/test_inscripcion_cuota_por_documento.py`
+- Tests tocados: `programas/tests/test_contratos_externos.py` (el
+  `expectedFailure` del Cambio 160 se invierte),
+  `core/tests/test_checks_entorno.py`, `portal/tests/test_seguridad_publica.py`,
+  `portal/tests/test_inscripcion_envio.py`
+
+## Base de datos
+No requiere migración. **SIIS-13 cambia lo que una consulta cuenta, no lo que
+hay guardado:** un DNI que hoy figura bloqueado por un RECHAZADO sin validar
+pasa a estar libre apenas se despliega, sin tocar una fila.
+
+## Validación
+Python 3.12 + Django 5.2.17 (`.venv312`), igual al CI.
+- `manage.py check` → sin problemas. `manage.py check --deploy` → los **mismos
+  seis** avisos que `HEAD` (comparado contra un worktree de la base): ninguno
+  nuevo.
+- `manage.py makemigrations --check --dry-run` → «No changes detected».
+- Suite completa en un solo proceso, después de mergear `development`:
+  **4121 tests, todo en verde** (la falla de medianoche que la ronda 1 había
+  medido como preexistente la cerró el Cambio 172 en su propia ronda 2).
+- `manage.py test --tag performance` → OK.
+- `ruff check .` → «All checks passed»; `ruff format --check` sobre lo tocado → OK.
+- **Los tests nuevos fallan antes del cambio**, cada uno por su motivo: 8 de
+  SIIS-10 (la identidad salía del domicilio y no se comparaba el documento), 3 de
+  SIIS-13, 14 de RENAPER (el `Retry` levantaba `MaxRetryError`, el 401 no
+  descartaba el token y el log llevaba el DNI), 3 de SIIS-15, 4 de SIIS-16, 3 de
+  SIIS-18 y 7 de SIIS-20/21. También se verificó la contracara: el
+  `expectedFailure` de `test_personas_no_toma_claves_anidadas` pasó a *unexpected
+  success*. Los 8 de la ronda 2 se corrieron contra un worktree del commit
+  anterior: el de la cola midió **10,02 s** de espera detrás de un login colgado
+  y el de los logins simultáneos contó **4 logins para 4 requests** en vez de 1.
+- No tocó UI (ni templates, ni JS, ni CSS): no corresponde `design_audit`.
+
+## Puesta en marcha en el servidor
+Nada especial en el deploy: sin migraciones, sin variables nuevas obligatorias y
+sin cambios en el entrypoint. Dos cosas **antes** de desplegar a un ambiente
+servido, porque desde este cambio `check --deploy` las mira:
+- si PRD tiene `RENAPER_TEST_MODE=True`, sacarlo (sería `core.E004`);
+- si PRD no tiene `RECAPTCHA_SITE_KEY`/`RECAPTCHA_SECRET_KEY`, cargarlas
+  (`core.W003`).
+
+## Pendientes / a definir
+- **`client_max_body_size` del link público (SIIS-16).** Necesita medir los
+  envíos reales en PRD: el formulario puede llevar varios requisitos de tipo
+  ARCHIVO y un número a ojo rechaza inscripciones legítimas. Aplica a
+  `nginx.conf` (icore) y al ingress de ECOM, que no está en este repo.
+- **Confirmar RN-P5 con el programa** (análisis #289) para que `D-S13` deje de
+  ser un default aplicado.
+- **Opción (b) de SIIS-13** (`conflicto_duplicado`), que la ficha deja para
+  después.
+- El contrato de Base de Personas sigue abierto (**task #243**): `persona` y
+  `personas` se toleran como sobres pero no se congelan en un fixture.
+
+## Reversión
+`git revert` del commit. No hay migraciones ni datos escritos: todo vuelve al
+comportamiento anterior. Lo único que no «se deshace» es que, mientras el cambio
+estuvo desplegado, alguien se haya podido inscribir con un DNI que antes estaba
+bloqueado por un RECHAZADO sin validar (SIIS-13); esos casos quedan y al revertir
+vuelven a bloquear ese DNI, que es el estado de antes.
+
+## Historial
+**Ronda 2 de la revisión (08/10/2026) — 1 MAJOR y 2 MINOR, todos corregidos.**
+
+**El MAJOR lo había introducido esta misma entrada.** El `threading.RLock`
+alrededor de `login()` evitaba N logins simultáneos, pero convertía un login
+colgado en una **cola**: N requests esperaban su turno para fallar igual.
+Medido con 4 hilos y un login de 0,4 s que falla, **1,61 s** (0,41 / 0,80 /
+1,20 / 1,59) contra 0,41 s sin candado; y con el login colgado, el segundo
+request esperaba **10 s**. Con los timeouts reales (5 + 10 s) la cuarta alta de
+ciudadano concurrente se come los 60 s de nginx, que es exactamente lo que
+SIIS-09 no quiere. El candado solo tiene sentido para no pedir dos tokens a la
+vez **cuando el login funciona**.
+
+Hoy el candado (`_candado_estado`, un `Lock` común) protege nada más que la
+decisión de **quién** se loguea y se suelta antes del HTTP. El que la gana
+avisa por un `threading.Event` cómo le fue —en un `finally`, así que un login
+que falla también avisa— y los demás esperan ese aviso acotado a
+`ESPERA_LOGIN_SEGUNDOS` (2 s): si no aparece un token, fallan rápido en vez de
+hacer fila. El tiempo total deja de crecer con la cantidad de requests.
+
+Dos cosas más del mismo hallazgo:
+- **`Cortacircuito`** de `core/integraciones.py` en el cliente RENAPER, que era
+  el único de los tres sin él (SIIS-09 lo había puesto en SIIS y en Base de
+  Personas). Tres fallas de **red** seguidas y el alta falla en el acto por un
+  minuto; un 401 o un 500 son respuestas y no lo abren.
+- **`sesion_http()`** en vez de `requests.Session()` cruda: el cliente es de
+  módulo, así que su *cookie jar* es estado compartido **entre personas**. Para
+  no pisar el `Retry` de G1c-15, `sesion_http` acepta `max_retries`; se reenvía
+  solo cuando no es `None`, porque `HTTPAdapter(max_retries=None)` no es «el
+  default» sino `Retry(3)`, o sea tres reintentos silenciosos para los otros dos
+  clientes.
+
+**Los dos MINOR.** (1) Un `@override_settings(**RENAPER_SETTINGS)` duplicado en
+`test_contratos_externos`. (2) El desempate de identidad no estaba medido contra
+los formatos que el contrato de la fuente 13 **no** fija. La regla quedó
+explícita: nunca una identidad equivocada, pero tampoco un `manual` masivo por
+un campo que acá es solo desempate. El documento se compara sin ceros a la
+izquierda (`_documento`) —la fuente lo guarda en ocho dígitos y la persona lo
+tipea en siete, así que `07123456` contra `7123456` mandaba a `manual` a todos
+los DNI cortos— y el sexo se interpreta **solo** si empieza con `F` o `M`
+(`_inicial_de_sexo`): un código numérico no objeta, porque quien acredita el
+registro es el documento. Siguen yendo a `manual` un documento parecido pero
+distinto, un sexo legible que no coincide y dos registros que solo se
+distinguen por un sexo ilegible.
+
+**Presupuesto `core.E003`:** la cadena de RENAPER sigue en 30 s de 55. La espera
+del token ajeno no se declara porque ese request **no** hace su propia llamada:
+su peor caso es lo que tarda el login del otro, no la cadena —y antes de este
+arreglo era ese timeout **más** el propio, en fila—.
+
+**Ronda 3 de la revisión (08/10/2026) — 1 MAJOR y 2 MINOR, todos corregidos.**
+
+**El MAJOR volvía a ser de lo que movió la ronda anterior:** el que esperaba el
+token tenía **un solo intento**. Hacía `listo.wait()` → `_token_vigente()` y, si
+no había token, levantaba sin volver a la decisión. Dos escenarios lo rompían:
+
+- **Token rotado (SIIS-14).** El ganador se loguea, consulta, recibe el 401 y
+  llama `descartar_token()` **antes** de que los que esperan alcancen a leer: se
+  despiertan, no encuentran token y fallan con «Error interno al obtener token»
+  **sin haber consultado nada**. N−1 altas de ciudadano perdidas por request
+  concurrente.
+- **Login sano pero lento.** La espera era un número suelto (2 s) más chico que
+  el propio timeout del login (`connect + read` = 15 s), así que un login que
+  tardara 2,5 s —y que iba a terminar bien— volteaba a todos los que esperaban.
+  Era una regresión respecto de la ronda 1: con el candado, esos requests
+  terminaban bien.
+
+El que espera vuelve ahora al bloque de decisión, con tope `VUELTAS_TOKEN = 3`.
+Las tres salidas, explícitas: si el login ajeno **salió bien**, vuelta nueva —o
+toma ese token, o, si alguien lo descartó en el medio, esta vez el ganador es
+él—; si **falló**, corta (hacer el propio es pegarle al mismo muro y en fila,
+que es justo la cola que sacó la ronda 2); si **no terminó** dentro de la
+espera, corta. Y la espera se deriva de `connect + read` más un margen, porque
+ningún login sano puede durar más que su propio timeout: lo que la espera corta
+es el login que no termina nunca, que es el único que haría cola.
+
+Dos cosas más del mismo hallazgo:
+- **`descartar_token(usado=…)`** solo descarta **ese** token. Un 401 que llega
+  de un request que todavía tenía el token viejo no puede tirar el que otro
+  acaba de traer: eso convertía una rotación en una ronda de logins en cadena.
+- **`consultar_ciudadano` informa el 401 y no el error de token.** Si el
+  reintento de SIIS-14 no consigue token nuevo, lo que se devuelve es la
+  respuesta real del servicio; «no se pudo renovar el token» tapaba lo único que
+  de verdad se sabía de RENAPER en ese request.
+
+**Los dos MINOR.** (1) `login()` escribía `self.token` y `self.token_expiration`
+fuera del candado: son un solo dato y ahora se escriben juntos, porque sueltos
+dejan una ventana en la que otro hilo lee el token nuevo con el vencimiento
+viejo. (2) «Se agotó la espera de un login en curso» y «el login terminó sin
+dejar token» dejan de compartir mensaje: no son el mismo problema. De paso, un
+login que contesta 200 **sin** `token` en el cuerpo deja de seguir con
+`bearer None` —una consulta que no puede salir bien y que después se leía como
+un 401 del proveedor— y levanta ese segundo mensaje.
+
+**Medición antes/después** (worktree del commit anterior, mismos tests):
+
+| Escenario | Antes (ronda 2) | Después |
+|---|---|---|
+| (A) Rotación de token, N=4 y N=8 | el que espera levanta «hay un login en curso» en cuanto la ventana se abre | N/N éxitos y ≤ 2 logins por oleada |
+| (B) Login sano más lento que la espera | espera fija 2 s contra un peor caso de login de 15 s | espera ≥ `connect + read`; todos terminan bien |
+| (C) Login colgado que falla | — (ya resuelto en la ronda 2) | se conserva: el total no crece con N |
+
+De punta a punta, (A) con N=4 y N=8 **pasa también con el código anterior en
+esta máquina**: quién gana la carrera entre el `descartar_token()` del ganador y
+la lectura de los que esperan depende del planificador. Por eso la regresión la
+fija además un test que abre la ventana a mano
+(`test_el_que_espera_vuelve_a_intentar_cuando_el_token_ya_no_esta`), que contra
+el commit anterior falla con el mensaje exacto del hallazgo en 3 de 3 corridas.
+Los tests de hilos se corrieron **8 veces seguidas** en verde para descartar
+*flakes*.
 
 ---
 

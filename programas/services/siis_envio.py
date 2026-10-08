@@ -155,6 +155,33 @@ def _clave_sin_genero(clave):
     return re.sub(r"\b(\w+?)[ao]\b", r"\1", clave)
 
 
+#: Las cuatro formas en que el catálogo de SIIS dice de qué provincia es un ítem.
+CLAVES_PROVINCIA = ("id_provincia", "provincia_id", "provincia", "prov_id")
+
+
+def provincia_de(item):
+    """Id de provincia de un ítem del catálogo, o ``None`` si no lo declara.
+
+    SIIS-18: era un método privado de :class:`Catalogos` y el resto del código
+    reimplementaba el mismo criterio con menos claves. El select dependiente de
+    la revisión miraba dos de las cuatro y, encima, daba por buena la localidad
+    cuando ninguna estaba (``or provincia``): el modal ofrecía localidades de
+    cualquier provincia y la validación cruzada del form las dejaba pasar. Esa
+    localidad viaja a SIIS adentro de un alta que no tiene baja.
+    """
+    if not isinstance(item, dict):
+        return None
+    for clave in CLAVES_PROVINCIA:
+        valor = item.get(clave)
+        if isinstance(valor, dict):
+            valor = valor.get("id")
+        try:
+            return int(valor)
+        except (TypeError, ValueError):
+            continue
+    return None
+
+
 class Catalogos:
     """Resuelve nombres a ids de los catálogos maestros. ``cargar`` se inyecta en tests."""
 
@@ -185,17 +212,9 @@ class Catalogos:
                 raise CatalogoNoDisponible(str(exc)) from exc
         return self._cache[nombre]
 
-    @staticmethod
-    def _provincia_de(item):
-        for clave in ("id_provincia", "provincia_id", "provincia", "prov_id"):
-            valor = item.get(clave)
-            if isinstance(valor, dict):
-                valor = valor.get("id")
-            try:
-                return int(valor)
-            except (TypeError, ValueError):
-                continue
-        return None
+    #: Nombre histórico: lo usa el resto de esta clase. La definición es una
+    #: sola y pública (SIIS-18).
+    _provincia_de = staticmethod(provincia_de)
 
     def _buscar(self, nombre_catalogo, texto, filtro=None, sin_genero=False):
         clave = clave_nombre(texto)

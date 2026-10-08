@@ -65,6 +65,10 @@ en su `__init__`), **no** `prefix`: `prefix` cambia también el `name` del POST 
 vista que lo procesa. Caso vivo: `VolverACampoForm` y `ReprogramarForm` comparten `fecha_hasta` en
 el detalle del relevamiento, y el primero declara `AUTO_ID = "id_volver_%s"`.
 
+De `programas/forms.py` la evidencia de diseño es **`INPUT_CLASS` y los `widget=…` que la usan**;
+el resto del archivo es validación de dominio (`clean_*`, validaciones cruzadas) y no define nada
+visual. Un cambio ahí que no toque `INPUT_CLASS` ni un widget no mueve esta ficha.
+
 **Un campo que el negocio congela se deshabilita, no se saca.** Cuando una regla hace que un
 campo deje de poder cambiarse —el segmento de una convocatoria que ya tiene relevamientos,
 BEC-06—, el form le pone `disabled=True` y un `help_text` que dice el motivo. El control sigue
