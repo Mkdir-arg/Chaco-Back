@@ -232,7 +232,7 @@
     const calculado = $('[data-dash="calculado-texto"]');
     calculado.textContent = `Datos al ${cuando.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' })} ${cuando.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false })}`;
     calculado.parentElement.title = cuerpo.desde_cache
-      ? 'Servido desde la caché: los totales se recalculan cada 5 minutos o con «Actualizar».'
+      ? 'Servido desde la caché: los totales se recalculan cada 5 minutos, o con «Actualizar» si pasaron al menos 30 segundos desde el último cálculo.'
       : 'Recién calculado. Los totales se guardan 5 minutos.';
 
     kpi('convocatorias_activas', fmt(i.convocatorias_activas));

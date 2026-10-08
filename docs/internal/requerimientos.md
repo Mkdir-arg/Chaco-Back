@@ -28614,6 +28614,45 @@ el período personalizado a no tener techo y «Actualizar» a recalcular sin fre
 `lxml` de `requirements.txt` es independiente y no cambia ningún archivo descargado: solo
 vuelve a serializar el XML en Python puro. No hay migración ni dato que quede inconsistente.
 
+## Historial
+
+- **08/10/2026 — ronda 2 de la revisión: el guard del período imposible tenía su propio
+  500.** Una corrección y tres textos.
+  1. **`_hace_anios` reventaba con `hasta` en los primeros años de la era.** El techo de
+     G1b-12 resta `MAX_ANIOS_PERIODO` años a `hasta` con `date.replace`, y el `except
+     ValueError` daba por sentado que el único motivo era el 29 de febrero en un año no
+     bisiesto: repetía la misma operación con `day=28`. Pero `replace` levanta el **mismo**
+     `ValueError` cuando el año destino cae debajo de `MINYEAR`, y ahí el `except` vuelve a
+     fallar. Con `?periodo=custom&desde=0001-01-01&hasta=0005-01-01` el error escapaba de
+     `form.is_valid()` —que solo atrapa `ValidationError`— y salía del `try` de la vista:
+     500 crudo en los datos del tablero **y** en `programa_dashboard_exportar`. Ahora el
+     período personalizado tiene también piso: `ANIO_MINIMO = MINYEAR + 2 *
+     MAX_ANIOS_PERIODO + 1` (año 12), porque debajo de `hasta` tienen que entrar dos
+     ventanas máximas —la pedida y la anterior, que `_variacion` compara y que restaba días
+     hasta el `OverflowError`—. Cualquier ventana imposible da 400 con mensaje, como la de
+     `2000-01-01 → 3999-12-31`. Tres tests nuevos en `test_dashboard_exports.py`: los dos
+     endpoints con `hasta` en los años 1 a 5, el año 1 contra el 9999, y la guarda de que el
+     piso no recorta ventanas reales. Contra `e77adb68` el primero da error —no falla— en
+     sus cinco subtests (`ValueError: year -4 is out of range` … `year 0`) y el tercero
+     también, porque `ANIO_MINIMO` todavía no existe. El del 9999 pasa antes y después: lo
+     corta el techo de «no puede ser posterior a hoy», que se evalúa primero; queda como
+     no-regresión del borde superior.
+  2. **El tooltip de «Actualizar» decía media verdad.** Hablaba de «se recalculan cada 5
+     minutos o con "Actualizar"», sin el freno de `RECALCULO_MINIMO = 30` que el mismo PR
+     agregó: ahora dice que «Actualizar» recalcula si pasaron al menos 30 segundos desde el
+     último cálculo.
+  3. **La nota del modal de respuestas por persona** aclara que el CSV conviene importarlo
+     en Excel con «Datos → Desde texto/CSV»: con configuración regional es-AR el doble clic
+     lo abre todo en una sola columna. El separador **no** cambia, para no romper la
+     consistencia con el resto de los CSV del sistema.
+  4. **El `reverse` del harness de medición** (`docs/internal/auditoria-2026-10/poc/
+     perf_harness/tests.py`) todavía apuntaba a `programa_dashboard_respuestas_xlsx`, que
+     este PR renombró a `programa_dashboard_respuestas` con el formato en la URL.
+- El 404 del CSV por persona contra un pod viejo durante el rolling **no se toca**: la URL
+  cambió de forma y, mientras conviven las dos releases, un link recién pintado puede caer
+  en un pod que todavía no la tiene. Es transitorio, se resuelve solo al terminar el
+  rolling y queda anotado como riesgo de deploy en el cuerpo del PR.
+
 ---
 
 # Cambio 190 — El chequeo de esquema del CI deja de marcar como huérfanas las tablas que carga el organismo

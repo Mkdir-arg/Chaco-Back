@@ -238,6 +238,10 @@ class PeriodoYRecalculoTests(DashboardBecasBase):
         base = reverse("becas:programa_dashboard_datos", args=[self.programa.pk])
         return base + ("?" + "&".join(f"{k}={v}" for k, v in params.items()) if params else "")
 
+    def _url_export(self, **params):
+        base = reverse("becas:programa_dashboard_exportar", args=[self.programa.pk, "csv"])
+        return base + ("?" + "&".join(f"{k}={v}" for k, v in params.items()) if params else "")
+
     def test_el_periodo_personalizado_no_puede_terminar_despues_de_hoy(self):
         hoy = timezone.localdate()
 
@@ -266,6 +270,44 @@ class PeriodoYRecalculoTests(DashboardBecasBase):
 
         self.assertEqual(respuesta.status_code, 400)
         self.assertTrue(respuesta.json()["errores"])
+
+    def test_una_ventana_en_los_primeros_anios_tambien_da_400(self):
+        """El guard de G1b-12 tenía su propio 500: ``_hace_anios`` atrapaba el
+        ``ValueError`` del 29 de febrero, pero ``replace`` levanta el mismo error
+        cuando el año destino cae debajo de ``MINYEAR`` y el ``except`` repetía la
+        operación. ``hasta`` en los años 1 a 5 reventaba en los dos endpoints."""
+        self.client.force_login(self.admin)
+
+        for anio in range(1, 6):
+            parametros = {"periodo": "custom", "desde": "0001-01-01", "hasta": f"{anio:04d}-01-01"}
+            with self.subTest(anio=anio):
+                datos = self.client.get(self._url(**parametros))
+                export = self.client.get(self._url_export(**parametros))
+
+                self.assertEqual(datos.status_code, 400)
+                self.assertTrue(datos.json()["errores"])
+                self.assertEqual(export.status_code, 400)
+                self.assertTrue(export.content.strip())
+
+    def test_el_anio_uno_contra_el_9999_da_400_y_no_un_500(self):
+        self.client.force_login(self.admin)
+        parametros = {"periodo": "custom", "desde": "0001-01-01", "hasta": "9999-12-31"}
+
+        datos = self.client.get(self._url(**parametros))
+        export = self.client.get(self._url_export(**parametros))
+
+        self.assertEqual(datos.status_code, 400)
+        self.assertTrue(datos.json()["errores"])
+        self.assertEqual(export.status_code, 400)
+        self.assertTrue(export.content.strip())
+
+    def test_el_periodo_personalizado_sigue_valiendo_arriba_del_piso(self):
+        """El piso corta ventanas imposibles, no recortes reales: una ventana de un día
+        apenas arriba de ``ANIO_MINIMO`` sigue siendo válida."""
+        piso = DashboardBecasFiltroForm.ANIO_MINIMO
+
+        self.assertFalse(self._form(desde=f"{piso - 1:04d}-01-01", hasta=f"{piso - 1:04d}-01-01").is_valid())
+        self.assertTrue(self._form(desde=f"{piso:04d}-01-01", hasta=f"{piso:04d}-01-01").is_valid())
 
     def test_recalcular_se_atiende_una_vez_por_ventana(self):
         self.client.force_login(self.admin)
