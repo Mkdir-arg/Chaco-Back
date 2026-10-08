@@ -8,13 +8,13 @@
     {% becas_migas subsegmento actual="Editar" as migas %}
     {% url 'becas:subsegmento_detalle' subsegmento.pk as url_origen %}
     {% page_header titulo="Editar subsegmento" volver_url=url_origen volver_label=subsegmento.nombre migas=migas %}
-      {% bajada %}Disponible en el segmento: {{ segmento.cupo_disponible }}{% endbajada %}
+      {% bajada %}Disponible en el segmento: {{ segmento.cupo_sin_distribuir }}{% endbajada %}
     {% endpage_header %}
   {% else %}
     {% becas_migas segmento actual="Nuevo subsegmento" as migas %}
     {% url 'becas:segmento_detalle' segmento.pk as url_origen %}
     {% page_header titulo="Nuevo subsegmento" volver_url=url_origen volver_label=segmento.nombre migas=migas %}
-      {% bajada %}Disponible en el segmento: {{ segmento.cupo_disponible }}{% endbajada %}
+      {% bajada %}Disponible en el segmento: {{ segmento.cupo_sin_distribuir }}{% endbajada %}
     {% endpage_header %}
   {% endif %}
   <form method="post" class="bg-white rounded-xl border border-base shadow-sm p-6">

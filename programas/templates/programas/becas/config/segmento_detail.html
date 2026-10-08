@@ -144,7 +144,7 @@
               <i class="fas fa-clock text-sm"></i>
             </div>
           </div>
-          <p class="text-3xl font-bold text-heading">{{ cupo_disponible }}</p>
+          <p class="text-3xl font-bold text-heading">{{ cupo_sin_distribuir }}</p>
         </div>
       </div>
 
@@ -295,7 +295,7 @@
             <div class="h-2 w-full rounded-full bg-tertiary overflow-hidden">
               <div class="h-2 rounded-full" style="width: {{ pct }}%; background: var(--gradient-brand)"></div>
             </div>
-            <p class="text-xs text-body-subtle mt-2">{{ cupo_disponible }} lugares disponibles</p>
+            <p class="text-xs text-body-subtle mt-2">{{ cupo_sin_distribuir }} lugares disponibles</p>
             <p class="text-xs text-body-subtle mt-1">El cupo de cada subsegmento es una referencia de distribución:
               aprobar o mandar a lista de espera se decide siempre contra el cupo del segmento.</p>
           </div>
@@ -442,29 +442,29 @@
             <input type="number" id="sub-crear-cupo" name="cupo_maximo" min="0" required
                    class="nodo-field"
                    x-model="subCupo"
-                   placeholder="Disponible: {{ cupo_disponible }}"
-                   :class="Number(subCupo) > {{ cupo_disponible }} ? 'border-[color:var(--border-danger)] focus:ring-[color:var(--border-danger)]' : ''">
+                   placeholder="Disponible: {{ cupo_sin_distribuir }}"
+                   :class="Number(subCupo) > {{ cupo_sin_distribuir }} ? 'border-[color:var(--border-danger)] focus:ring-[color:var(--border-danger)]' : ''">
             <p class="mt-1 text-xs text-fg-danger hidden" data-error="cupo_maximo"></p>
             <p class="mt-1 text-xs text-fg-danger" x-cloak
-               x-show="Number(subCupo) > {{ cupo_disponible }}">
-              No podés asignar más de {{ cupo_disponible }} (disponible: {{ cupo_disponible }}).
+               x-show="Number(subCupo) > {{ cupo_sin_distribuir }}">
+              No podés asignar más de {{ cupo_sin_distribuir }} (disponible: {{ cupo_sin_distribuir }}).
             </p>
 
             {% comment %}Cuadro cupo disponible{% endcomment %}
             <div class="flex items-center gap-2 rounded-[10px] px-3 py-2.5 border mt-3"
-                 :class="Number(subCupo) > {{ cupo_disponible }}
+                 :class="Number(subCupo) > {{ cupo_sin_distribuir }}
                    ? 'bg-danger-soft border-[color:var(--border-danger-subtle)]'
                    : 'bg-secondary-soft border-base'">
               <i class="fas"
-                 :class="Number(subCupo) > {{ cupo_disponible }}
+                 :class="Number(subCupo) > {{ cupo_sin_distribuir }}
                    ? 'fa-triangle-exclamation text-fg-danger'
                    : 'fa-circle-check text-fg-success'"></i>
               <span class="text-[12.5px]"
-                    :class="Number(subCupo) > {{ cupo_disponible }}
+                    :class="Number(subCupo) > {{ cupo_sin_distribuir }}
                       ? 'text-fg-danger'
                       : 'text-body-subtle'">
                 Cupo disponible en el segmento:
-                <strong>{{ cupo_disponible }}</strong> de {{ segmento.cupo_maximo }}
+                <strong>{{ cupo_sin_distribuir }}</strong> de {{ segmento.cupo_maximo }}
               </span>
             </div>
           </div>

@@ -353,6 +353,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 179 | El timeline, las alertas y el riesgo del ciudadano dejan de verse con la capacidad de consulta, y una derivación deja de aceptarse abriendo un link | Legajos (APIs del detalle del ciudadano, bandeja de derivaciones, inscripción directa, API de ciudadanos) · Inicio (feed de actividad reciente, campana de alertas) · Transversal (WebSocket `/ws/alertas/`, shell del backoffice) | `#rbac` `#api` `#sesion` `#ui` | Auditoría integral oct-2026 — fichas SEC-12, la 2.ª mitad de SEC-11, R0b-04, R0b-05, R0b-09, G1c-04, G1c-17 y G3-03 (Ola 2, PRs 3 y 4 en un solo PR) | 08/10/2026 | 🟢 **Hecho** (D-11 y D-12 aplicadas por default) | No requiere |
 | 180 | Las escrituras que fallan no dejan nada a medias: ni medio caso, ni un padrón vacío, ni un adjunto huérfano | Becas (aprobación de casos, link público de inscripción, padrón propio del relevamiento) · Dispositivos (admisión, lista de espera y traslado) · Transversal (`core/archivos.py`) | `#datos` `#cupos` `#relevamientos` `#metodo` | Auditoría integral oct-2026 — 2.ª parte de la ficha RED-35 (Ola 3, PR 9 — **cierra la ola**) | 08/10/2026 | 🟢 **Hecho** | No requiere |
 | 181 | Una cuenta ya no se toma sin conocer su clave: cambio de contraseña, intentos, token de la app y el alcance del ABM de usuarios | Transversal — login, recupero y cambio de contraseña · ABM de usuarios y roles · API de la app de campo (`/api/becas/auth/token/`) · Correo de credenciales | `#sesion` `#usuarios` `#rbac` `#correo` `#api` | Auditoría integral oct-2026 — fichas G1b-05, G1b-07, G1b-08, G2-03, SEC-26, R0b-01, R0b-02, R0b-03 y R0b-10, más la segunda parte de RED-52 (Ola 2, PR 2) | 08/10/2026 | 🟢 **Hecho** (**D-26 = (b)** por default: link de reseteo, sin release de la app; de SEC-26 queda abierto `/admin/` por IP, que es de infraestructura) | No requiere |
+| 182 | Subir el padrón y abrir el cupo dejan de rozar el timeout, y «cupo disponible» pasa a ser tres nombres distintos | Becas (carga de padrón y cruce automático, pantalla de cupo y lista de espera, configuración de segmentos, API de la app de campo) · Transversal (caché de ciudadanos, paginación de bandejas, presupuestos de performance) | `#performance` `#cupos` `#relevamientos` `#datos` | Auditoría integral oct-2026 — fichas PERF-04, PERF-16, PERF-02 y la 2.ª parte de RED-49 (Ola 4, PRs 1 y 2) | 08/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -27048,3 +27049,197 @@ PR.
      único que cambia es el mensaje. El techo real del adivinado online es la cubeta
      por IP. La ficha SEC-26, las decisiones de este cambio y el cuerpo del PR
      decían «límite por cuenta» y ahora no.
+
+---
+
+# Cambio 182 — Subir el padrón y abrir el cupo dejan de rozar el timeout, y «cupo disponible» pasa a ser tres nombres distintos
+
+🟢 **HECHO — 08/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas (carga de padrón y cruce automático, pantalla de cupo y lista de espera, configuración de segmentos, API de la app de campo) · Transversal (caché de ciudadanos, paginación de bandejas, presupuestos de performance) |
+| **Etiquetas** | `#performance` `#cupos` `#relevamientos` `#datos` |
+| **Solicitante** | Auditoría integral oct-2026 — fichas PERF-04, PERF-16, PERF-02 y la 2.ª parte de RED-49 (Ola 4, PRs 1 y 2, en un solo PR) |
+| **Fecha del pedido** | 08/10/2026 |
+| **Issue / épica** | Auditoría oct-2026, Ola 4 (Performance) ítems 1 y 2, más el ítem 9 en la parte de RED-49 |
+| **Partes afectadas** | `programas/services/padron.py` · `programas/services/becas.py` · `programas/views/cupo.py` · `programas/services/listados.py` (nuevo) · `programas/views/relevamientos.py` y `programas/views/revision.py` (imports) · `core/performance/cache_utils.py` · `programas/models/__init__.py` (dos properties) · `programas/api/serializers.py` · `programas/views/configuracion.py` y dos templates de configuración · `scripts/perf_audit.py` y `scripts/perf_budgets.json` |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Los dos caminos de Becas que más cerca estaban de un 500 por `read_timeout`, medidos
+contra el motor de producción.
+
+- **PERF-04.** `validar_casos_pendientes` —el cruce que corre dentro del request que
+  sube el Excel del padrón— hacía un `UPDATE legajos_ciudadano` y un `INSERT` de traza
+  **por caso**. Con el relevamiento público de 20.000 casos del banco son 6.667
+  pendientes: 13.942 sentencias y 26.668 `cache.delete` medidos en SQLite, dentro de una
+  transacción y contra los 60 s de nginx.
+- **PERF-16.** La señal de `Ciudadano` borra cuatro claves de Redis por `save()` —y
+  `contar_ciudadanos` dos veces, porque las dos funciones de invalidación la borran—.
+  Sola es BAJA; es la que multiplica PERF-04.
+- **PERF-02.** La pantalla de cupo trae las tres tablas con **todas** las columnas de
+  `programas_formulario` —incluidas `respuestas`, `definicion` y `datos_siis`— más tres
+  joins, y ordena por `modificado` / `creado`, que no tienen índice.
+- **RED-49, 2.ª parte.** Hay tres cosas distintas llamadas `cupo_disponible` y dos
+  pantallas que las rotulan igual. La parte R (Cambio 156) dejó el test que fija los tres
+  números; la Ola 4 renombra.
+
+## Alcance acordado
+
+Entra: las cuatro fichas completas. Queda afuera el resto de la Ola 4 (PERF-01, PERF-03,
+PERF-07, PERF-19, PERF-20 y los ítems de configuración y admin), PERF-11 —la foto
+`definicion` deduplicada, que es Ola 7 y es la raíz estructural de PERF-02—, y los
+**textos visibles**: las dos pantallas siguen rotulando «Cupo disponible», cada una con su
+número, porque la ficha pedía renombrar el código y no cambiarle las palabras al cliente.
+
+## Decisiones tomadas
+
+- **Renombrar, no unificar** (RED-49). `Segmento.cupo_disponible` pasa a
+  `cupo_sin_distribuir` y `Relevamiento.cupo_disponible` a
+  `cupos_libres_del_relevamiento`; `cupo_disponible` queda **solo** para
+  `get_cupo_stats`. Sin alias de compatibilidad: un alias deja la ambigüedad viva, que es
+  justo lo que la ficha señala.
+- **El campo de la API no cambia.** `RelevamientoListSerializer` declara
+  `cupo_disponible = IntegerField(source="cupos_libres_del_relevamiento")`. Lo lee la app
+  de campo que ya está instalada en los teléfonos y lo congelan
+  `programas/tests/test_becas_api_contrato.py` y `core/tests/test_api_schema_contrato.py`:
+  renombrar el campo publicado habría roto la app sin un release suyo.
+- **El `ocupado` del cupo no sale del mismo `aggregate` que los beneficiarios**, como
+  proponía la ficha de PERF-02. SEC-21 (Cambio 177) dejó las tres bandejas acotadas al
+  alcance del usuario, y el cupo es del **segmento entero**: con el alcance adentro, un
+  Coordinador Regional vería un «cupo ocupado» más chico que el real. `get_cupo_stats` se
+  conserva como la fuente del número.
+- **La página se elige por pk y se hidrata después.** Es el patrón ya medido de los
+  Cambios 66, 92 y 93 (`RevisionPersonasListView` lo documenta con sus números): con los
+  `select_related` adentro de la consulta paginada el motor arranca el plan por
+  `programas_relevamiento` y materializa todo el conjunto antes de recortar.
+- **El orden suma el desempate por `pk`.** `ORDER BY modificado` con `LIMIT/OFFSET` y
+  valores repetidos puede repetir o saltear un caso entre páginas. Es la única diferencia
+  observable de la pantalla, y solo entre casos que comparten fecha al segundo —donde el
+  orden anterior lo decidía el motor, no el sistema—.
+- **Dos consultas más a cambio de 8,8 s menos.** La pantalla pasa de 16 a 18 consultas en
+  MariaDB. RED-62 exige justificar por escrito todo presupuesto que sube: la justificación
+  vive en `adjustments` de `scripts/perf_budgets.json`, con los dos números medidos.
+- **El cruce del padrón no invalida los contadores de la home.** No crea ni borra
+  ciudadanos, así que `contar_ciudadanos` y `contar_usuarios` no cambian. Es la misma
+  regla que estrena la señal.
+- **`invalidate_ciudadano_cache` e `invalidate_dashboard_cache` se conservan tal cual.**
+  Las llama `dashboard/utils.py` y las congela el ratchet de RED-51
+  (`DosFuncionesTests.test_no_borran_las_mismas_claves`): la deduplicación de esas dos es
+  OPS-10 y es de otra ola. Lo que cambió es **el receiver**, no las funciones.
+- **El padrón entra en lotes de 2.000 filas.** El INSERT único de 50.000 filas son ~8 MB
+  y con las seis columnas de identidad el mismo padrón se acerca a los 16 MB que MariaDB
+  trae por defecto en `max_allowed_packet`.
+
+## Implementación
+
+**PERF-04 — `programas/services/padron.py`.** `validar_casos_pendientes` recorre los
+pendientes con `.iterator(chunk_size=2000)` y no escribe nada adentro del bucle:
+
+- Las trazas se acumulan con `trazas_de()` —`registrar_traza` ahora delega en ese helper,
+  y sigue existiendo para sus otros llamadores— y salen en un `bulk_create(batch_size=1000)`.
+- Los ciudadanos se agrupan por la **tupla de campos que de verdad cambió** y van en un
+  `bulk_update(batch_size=500)` por grupo: así el `CASE WHEN` no le escribe `NULL` a los
+  campos que esa tanda no toca.
+- Los formularios se parten en dos. Los que solo mueven las tres constantes
+  (`validado_renaper`, `origen_validacion`, `modificado`) van por
+  `UPDATE … WHERE pk IN (1.000)`; solo los que además tocan `datos_identificacion` o
+  `dni_titular` pagan el `bulk_update`, que era la pieza más cara en Python.
+- `cargar_padron` inserta con `batch_size=2000`.
+
+**PERF-16 — `core/performance/cache_utils.py`.** `invalidar_tras_commit(claves)` hace un
+solo `delete_many` deduplicado dentro de `transaction.on_commit`. El receiver de
+`Ciudadano` lo usa y solo suma los dos contadores cuando el total pudo cambiar
+(`kwargs.get("created", True)`: `post_delete` no manda `created` y ahí el total **sí**
+cambió). `invalidar_ciudadanos_tras_commit(ids)` es la puerta para las escrituras en lote,
+que no disparan la señal, y es la que llama el cruce del padrón.
+
+**PERF-02 — `programas/views/cupo.py`.** Las tres condiciones de alcance (segmento,
+convocatorias visibles y RN-P13) son todas sobre el **relevamiento**: se resuelven una vez
+en `relevamiento_ids` y las tablas quedan con `WHERE relevamiento_id IN (…)`, sin joins.
+Beneficiarios y pendientes se eligen con `.values_list("pk", flat=True)` y se hidratan con
+`select_related` + `defer` de los **cinco** JSON; los dos totales salen de un `aggregate`
+con `Count(filter=…)` y alimentan `PaginadorConConteo`. `PaginadorConConteo` y la
+hidratación por pk se mudaron a **`programas/services/listados.py`**, que es de donde las
+toman las tres vistas que paginan casos; con eso **se cae la arista
+`revision → relevamientos`** del ratchet de RED-79 (7 → 6, `test_arquitectura.py`).
+
+**RED-49.** Las dos properties renombradas, el `source=` del serializer, la variable de
+contexto homónima de `programas/views/configuracion.py` —misma acepción, calculada aparte
+para no disparar un `SUM` por acceso— y los dos templates de configuración. Los tests de
+contrato (`test_models_contrato.py`, `test_becas_models.py`, `test_cupo.py`) acompañan.
+
+**Tests nuevos.** `programas/tests/test_padron_performance.py` (consultas constantes con 5
+y 25 casos, su control de que la versión vieja **sí** crecía, equivalencia campo por campo
+contra la copia congelada del algoritmo anterior sobre datasets gemelos, los dos bordes de
+«no pisa» y «no desvalida», e invalidación de caché) y
+`programas/tests/test_cupo_performance.py` (ninguna consulta pide los cinco JSON, la página
+se elige sin join, consultas constantes, y los mismos pks en el mismo orden que la consulta
+ancha anterior en la página 2 de beneficiarios y la 1 de pendientes, con lista de espera de
+por medio). Más dos en `dashboard/tests/test_cache_invalidacion.py`.
+
+## Validación
+
+Medido en el **banco MariaDB 10.11** (`scripts/perf_mysql`, base `chaco_perf_ci`,
+`seed_perf --scale 2000` + `escalar_bench --casos 20000`, `OPTIONS` de producción con
+`read_timeout` 10 s, sin tablas de timezone), antes contra `origin/development` y después
+contra esta rama, en la misma sesión:
+
+| Camino | Antes | Después |
+|---|---|---|
+| Cruce del padrón, legajos vacíos (6.667 pendientes, padrón de 50.000) | 13.376 sentencias · 55,93 s · 26.668 `cache.delete` | **74 sentencias · 21,84 s · 1 `delete_many`** |
+| Cruce del padrón, legajos ya cargados | 6.709 sentencias · 37,39 s | **46 sentencias · 14,96 s** |
+| `/becas/cupo/segmento/<id>/` página 1 | 9.239 ms frío · 8.890 ms caliente · 8.991 ms de SQL · 16 consultas | **305 ms · 189 ms · 167 ms de SQL · 18 consultas** |
+| `/becas/cupo/segmento/<id>/` página 50 | 9.149 ms · 8.971 ms · 8.973 ms de SQL · 14 consultas | **232 ms · 248 ms · 167 ms de SQL · 15 consultas** |
+
+`EXPLAIN` de la página de beneficiarios: antes arrancaba en `programas_convocatoria` con
+`Using temporary; Using filesort` y materializaba `programas_relevamiento`; después es un
+solo acceso a `programas_formulario` con `Using index condition`. Los 6.667 validados y las
+trazas son idénticos en las cuatro corridas del padrón; todas se hicieron dentro de una
+transacción revertida, así que el banco quedó intacto.
+
+- `manage.py test programas users portal conversaciones` con Python 3.12 / Django 5.2.17
+  (venv igual al CI): **2.975 tests, OK**.
+- `manage.py test core dashboard legajos configuracion`: **1.415 tests, OK**.
+- `manage.py test core.tests.test_performance_budgets --tag performance`: OK con
+  `becas_cupo_segmento` en 16 (medido 15 + 1).
+- Los cuatro tests nuevos que describen el defecto corren **en rojo** contra
+  `origin/development` (`62e49943`): los dos de `test_cupo_performance` y los dos de
+  `test_padron_performance` marcados abajo.
+- `manage.py check` sin issues; `check --deploy` con los 6 avisos preexistentes de settings
+  de desarrollo; `makemigrations --check --dry-run`: «No changes detected».
+- `ruff check .` y `ruff format --check .` limpios.
+- `design_audit --changed` 0 errores (20 P1 preexistentes del archivo), `--ratchet`
+  **0 hallazgos nuevos**, `--goldens` 0; `compile_templates --bloques` 201 / 0 / 0;
+  `requerimientos.py --check` OK.
+
+## Pendientes / a definir
+
+- **La ficha de diseño de `.claude/design/dominio/becas.md`** que documenta los tres
+  números de «cupo disponible»: la sesión del PR no tiene permiso de escritura en
+  `.claude/`, así que el texto completo va en el cuerpo del PR y lo aplica el juez.
+  `check_design_agent.py --changed` queda en ERROR hasta entonces.
+- **Los dos rótulos «Cupo disponible» siguen coincidiendo en pantalla.** Son los textos que
+  usa el cliente y la ficha no pedía cambiarlos; si el PM quiere desambiguar la tarjeta de
+  configuración («Cupo sin distribuir», por ejemplo), es un cambio de una línea.
+- **PERF-11 sigue siendo la raíz.** Mientras `definicion` se copie en cada caso, cualquier
+  listado nuevo que olvide el `defer` reintroduce el problema. La ficha propone
+  `Formulario.objects.listado()` y un test que recorra las vistas paginadas.
+- **El `max_allowed_packet` real de ECOM** no está confirmado: el lote de 2.000 lo vuelve
+  irrelevante para el padrón, pero conviene saberlo (pregunta para el PM).
+- **La lista de espera se sigue filtrando con el join** (`formulario__relevamiento__…`):
+  es su propia tabla y es chica, y cambiarla a los ids de relevamiento movía un borde de
+  alcance (una entrada cuyo caso quedó en otro segmento). No se tocó a propósito.
+
+## Reversión
+
+Todo es código: no hay migración, ni esquema, ni datos nuevos. Revertir el commit devuelve
+el cruce caso por caso, los cuatro `cache.delete` por `save()`, la pantalla de cupo con las
+páginas anchas y las tres properties llamadas `cupo_disponible`. Nada de lo que se escribió
+en la base mientras tanto depende del cambio: el padrón cruzado deja exactamente las mismas
+filas que dejaba antes. Si lo que molesta es el presupuesto nuevo, se saca
+`becas_cupo_segmento` de `scripts/perf_budgets.json` **y** de
+`scripts/perf_audit.py::build_targets` en el mismo diff: `core/tests/test_performance_budgets.py`
+exige que los dos coincidan.

@@ -62,10 +62,39 @@ class InvalidacionTests(TestCase):
 
         Es también el que la limpieza de OPS-10 puede romper sin querer, si «deduplica»
         quedándose con la función de `dashboard/utils.py`, que no tiene señales.
+
+        Desde PERF-04 el borrado va en un `on_commit`: fuera de una transacción corre en
+        el acto, pero dentro de un `TestCase` —que envuelve cada test— hay que soltarlo
+        a mano. Lo que se afirma sigue siendo lo mismo: el alta invalida el contador.
         """
         self._calentar()
 
-        Ciudadano.objects.create(nombre="Beto", apellido="Gómez", dni="20333444")
+        with self.captureOnCommitCallbacks(execute=True):
+            Ciudadano.objects.create(nombre="Beto", apellido="Gómez", dni="20333444")
+
+        self.assertIsNone(cache.get("contar_ciudadanos"))
+
+    def test_editar_un_ciudadano_no_invalida_los_contadores(self):
+        """PERF-16: un `save()` que no crea ni borra no cambia ningún total, y el cruce
+        del padrón llegó a disparar 26.668 `cache.delete` por ese camino. Lo que sí tiene
+        que seguir invalidándose es la ficha del ciudadano tocado."""
+        self._calentar()
+        cache.set(f"ciudadano_{self.ciudadano.pk}", "viejo", 300)
+
+        with self.captureOnCommitCallbacks(execute=True):
+            self.ciudadano.telefono = "3624000111"
+            self.ciudadano.save(update_fields=["telefono", "modificado"])
+
+        self.assertIsNotNone(cache.get("contar_ciudadanos"))
+        self.assertIsNone(cache.get(f"ciudadano_{self.ciudadano.pk}"))
+
+    def test_borrar_un_ciudadano_si_invalida_el_contador(self):
+        """`post_delete` no manda `created` y ahí el total **sí** cambió: el default del
+        `get` tiene que dejarlo pasar."""
+        self._calentar()
+
+        with self.captureOnCommitCallbacks(execute=True):
+            self.ciudadano.delete()
 
         self.assertIsNone(cache.get("contar_ciudadanos"))
 

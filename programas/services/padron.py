@@ -46,6 +46,15 @@ from programas.models import Convocatoria, Formulario, PadronHabilitado, Relevam
 # Tamaño máximo del Excel (los padrones reales son de cientos de filas).
 PADRON_MAX_BYTES = 2 * 1024 * 1024
 
+#: Filas de padrón por INSERT. Sin lote, las 50.000 filas del banco van en una sola
+#: sentencia de ~8 MB, y con las seis columnas de identidad el mismo padrón se acerca
+#: a los 16 MB de ``max_allowed_packet`` que MariaDB trae por defecto (PERF-04).
+LOTE_PADRON = 2000
+
+#: Casos por ``UPDATE … WHERE pk IN (…)`` del cruce. 1.000 literales es lo que MariaDB
+#: todavía resuelve como lista; más arriba lo convierte en tabla derivada.
+LOTE_CASOS = 1000
+
 # Encabezados de la plantilla, en el orden de las columnas.
 COLUMNAS = ("documento", "sexo", "nombre", "apellido", "fecha de nacimiento", "localidad")
 
@@ -403,7 +412,7 @@ def cargar_padron(objetivo, archivo, entradas, usuario=None):
         relevamiento.padron_propio.all().delete()
     else:
         convocatoria.padron.filter(relevamiento__isnull=True).delete()
-    PadronHabilitado.objects.bulk_create(objetos)
+    PadronHabilitado.objects.bulk_create(objetos, batch_size=LOTE_PADRON)
     if archivo is not None:
         # El parser ya consumió el stream: rebobinar antes de persistirlo.
         if hasattr(archivo, "seek"):
@@ -523,7 +532,10 @@ def validar_casos_pendientes(objetivo, usuario=None):
     y no forzados; nunca desvalida. Completa en el ciudadano lo vacío (no pisa)
     y deja traza por caso. Devuelve cuántos validó.
     """
-    from programas.services.becas import registrar_traza
+    from core.performance.cache_utils import invalidar_ciudadanos_tras_commit
+    from legajos.models import Ciudadano
+    from programas.models import TracaFormulario
+    from programas.services.becas import trazas_de
 
     # El padrón entero en memoria (está acotado a 2 MB, cientos de filas): el
     # día que por fin llega un padrón con datos puede haber cientos de casos
@@ -536,8 +548,8 @@ def validar_casos_pendientes(objetivo, usuario=None):
     # convocatoria cruza los pendientes de todos sus relevamientos. Con el
     # público de 20.000 casos eran 6.700 pendientes y 52 MB en una consulta
     # (1,2 s de SQL en el banco; contra la base de ECOM, más que su
-    # ``read_timeout`` de 10 s); sin ellas, 180 ms. El ``save`` de abajo escribe
-    # solo sus ``update_fields``, así que lo diferido no se toca.
+    # ``read_timeout`` de 10 s); sin ellas, 180 ms. Las escrituras de abajo nombran
+    # sus columnas una por una, así que lo diferido no se toca ni se relee.
     pendientes = (
         Formulario.objects.filter(
             validado_renaper=False,
@@ -555,13 +567,28 @@ def validar_casos_pendientes(objetivo, usuario=None):
             )
         )
 
-    validados = []
-    for formulario in pendientes:
+    # PERF-04: todas las escrituras salen en lotes y ninguna cuelga del caso. Con el
+    # relevamiento público de 20.000 casos eran **13.942 sentencias** (un UPDATE de
+    # ciudadano y un INSERT de traza por caso) más 26.668 ``cache.delete``, todo
+    # dentro del request que sube el Excel, contra los 60 s de nginx. Lo que se
+    # escribe es idéntico; cambia cuántas sentencias hacen falta.
+    ahora = timezone.now()
+    trazas = []
+    #: ``{tupla de campos completados: [ciudadano, …]}``. ``bulk_update`` escribe un
+    #: ``CASE WHEN`` por campo, así que agrupar por los campos que de verdad
+    #: cambiaron evita escribirles ``NULL`` a los demás y achica el SQL.
+    ciudadanos_por_campos = {}
+    #: Casos que solo cambian las tres constantes: van por ``UPDATE … WHERE pk IN``.
+    solo_constantes = []
+    #: Casos que además mueven ``datos_identificacion`` o ``dni_titular``: ``bulk_update``.
+    con_json = []
+    for formulario in pendientes.iterator(chunk_size=2000):
         dni, sexo = _identidad_del_caso(formulario)
         fila = filas.get((normalizar_dni(dni), normalizar_sexo(sexo)))
         if fila is None:
             continue
         cambios = [("Validación de identidad", "Pendiente", "Validada por padrón")]
+        toco_json = False
         ciudadano = formulario.ciudadano
         if ciudadano is not None:
             actualizados = []
@@ -576,7 +603,10 @@ def validar_casos_pendientes(objetivo, usuario=None):
                     actualizados.append(campo)
                     cambios.append((f"Ciudadano · {campo}", "", str(valor)))
             if actualizados:
-                ciudadano.save(update_fields=[*actualizados, "modificado"])
+                # Lo que haría ``save()``: ``modificado`` es ``auto_now`` y
+                # ``bulk_update`` no lo toca solo.
+                ciudadano.modificado = ahora
+                ciudadanos_por_campos.setdefault(tuple(actualizados), []).append(ciudadano)
         elif isinstance(formulario.datos_identificacion, dict):
             datos = dict(formulario.datos_identificacion)
             for campo, valor in (
@@ -590,26 +620,44 @@ def validar_casos_pendientes(objetivo, usuario=None):
                 datos["localidad_id"] = fila.localidad_id
             datos["origen"] = "padron"
             formulario.datos_identificacion = datos
-        formulario.validado_renaper = True
-        formulario.origen_validacion = Formulario.OrigenValidacion.PADRON
+            toco_json = True
         # Lo que ``save()`` haría por su cuenta: ``modificado`` (auto_now) y el
         # DNI del titular recalculado. Los casos se escriben juntos al final.
-        formulario.modificado = timezone.now()
-        formulario.dni_titular = formulario._dni_titular_actual()
-        validados.append(formulario)
-        registrar_traza(formulario, usuario, cambios)
-    if validados:
-        # Un UPDATE por lote en vez de uno por caso: con 1.000 casos validados
-        # eran 1.000 sentencias (1,4 s en el banco) dentro del request que sube
-        # el padrón. El legajo (``ciudadano.save``) y la traza siguen por caso:
-        # el primero dispara la señal que invalida su caché y la segunda vive en
-        # ``registrar_traza``.
+        formulario.validado_renaper = True
+        formulario.origen_validacion = Formulario.OrigenValidacion.PADRON
+        formulario.modificado = ahora
+        nuevo_dni = formulario._dni_titular_actual()
+        if toco_json or nuevo_dni != formulario.dni_titular:
+            formulario.dni_titular = nuevo_dni
+            con_json.append(formulario)
+        else:
+            solo_constantes.append(formulario.pk)
+        trazas.extend(trazas_de(formulario, usuario, cambios))
+
+    constantes = {
+        "validado_renaper": True,
+        "origen_validacion": Formulario.OrigenValidacion.PADRON,
+        "modificado": ahora,
+    }
+    for inicio in range(0, len(solo_constantes), LOTE_CASOS):
+        Formulario.objects.filter(pk__in=solo_constantes[inicio : inicio + LOTE_CASOS]).update(**constantes)
+    if con_json:
         Formulario.objects.bulk_update(
-            validados,
-            ["validado_renaper", "origen_validacion", "datos_identificacion", "modificado", "dni_titular"],
+            con_json,
+            [*constantes, "datos_identificacion", "dni_titular"],
             batch_size=200,
         )
-    return len(validados)
+    for campos, lista in ciudadanos_por_campos.items():
+        Ciudadano.objects.bulk_update(lista, [*campos, "modificado"], batch_size=500)
+    if trazas:
+        TracaFormulario.objects.bulk_create(trazas, batch_size=1000)
+    # ``bulk_update`` no dispara ``post_save``, así que la caché del legajo se avisa
+    # a mano, una sola vez para toda la tanda (PERF-16).
+    invalidar_ciudadanos_tras_commit(
+        [c.pk for lista in ciudadanos_por_campos.values() for c in lista],
+        contadores=False,
+    )
+    return len(solo_constantes) + len(con_json)
 
 
 def plantilla_padron():

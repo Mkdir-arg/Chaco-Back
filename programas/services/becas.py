@@ -201,15 +201,18 @@ def coordinador_gestiona_segmento(user, segmento):
     return AsignacionCoordinador.objects.filter(coordinador=user, segmento=segmento, activo=True).exists()
 
 
-def registrar_traza(formulario, usuario, cambios):
-    """Registra en ``TracaFormulario`` una lista de cambios de campos (RN-14/29).
+def trazas_de(formulario, usuario, cambios):
+    """Las filas de ``TracaFormulario`` de una lista de cambios, **sin guardarlas**.
 
-    ``cambios``: iterable de ``(campo, valor_anterior, valor_nuevo)``. Crea una
-    fila inmutable por cambio. Devuelve la cantidad registrada.
+    ``cambios``: iterable de ``(campo, valor_anterior, valor_nuevo)``. Una fila por
+    cambio (RN-14/29). Existe aparte de :func:`registrar_traza` porque los procesos
+    por lotes —el cruce del padrón, PERF-04— acumulan las filas de miles de casos y
+    las escriben con un solo ``bulk_create``: con un INSERT por caso, subir un padrón
+    de una convocatoria grande son miles de sentencias dentro del request.
     """
     from programas.models import TracaFormulario
 
-    objs = [
+    return [
         TracaFormulario(
             formulario=formulario,
             editado_por=usuario,
@@ -219,6 +222,17 @@ def registrar_traza(formulario, usuario, cambios):
         )
         for (campo, va, vn) in cambios
     ]
+
+
+def registrar_traza(formulario, usuario, cambios):
+    """Registra en ``TracaFormulario`` una lista de cambios de campos (RN-14/29).
+
+    ``cambios``: iterable de ``(campo, valor_anterior, valor_nuevo)``. Crea una
+    fila inmutable por cambio. Devuelve la cantidad registrada.
+    """
+    from programas.models import TracaFormulario
+
+    objs = trazas_de(formulario, usuario, cambios)
     if objs:
         TracaFormulario.objects.bulk_create(objs)
     return len(objs)

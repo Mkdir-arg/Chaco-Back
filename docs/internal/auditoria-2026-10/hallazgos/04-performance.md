@@ -13,8 +13,8 @@ exige que coincidan).
 
 | ID | Título | Sev. | Estado | Ola | Esf. | Avance 03-oct |
 |---|---|---|---|---|---|---|
-| PERF-04 | Carga de padrón: cruce caso por caso (13.942 sentencias) | ALTA | CONF. medido; prototipo listo | 4 | M | ⬜ |
-| PERF-02 | Cupo y beneficiarios: páginas anchas con join | ALTA | CONF. (forma medida; MariaDB NO-MEDIDO) | 4 | S | ⬜ |
+| PERF-04 | Carga de padrón: cruce caso por caso (13.942 sentencias) | ALTA | CONF. medido; prototipo listo | 4 | M | ✅ |
+| PERF-02 | Cupo y beneficiarios: páginas anchas con join | ALTA | CONF. medido en MariaDB (8,99 s de SQL) | 4 | S | ✅ |
 | PERF-01 | `armar_payload` por candidato y `hidratar()` con JSON que nadie lee | MEDIA | CONF. ajustado | 4 | S | ⬜ |
 | PERF-03 | Excel de respuestas por persona: 8,9 s de CPU en el request | MEDIA (baja desde ALTA) | CONF. ajustado | 4 | S-M | ⬜ |
 | PERF-07 | Pantalla del masivo: `count()` con 15.532 literales cada 5 s | MEDIA | CONF. ajustado | 4 | S | ⬜ |
@@ -28,7 +28,7 @@ exige que coincidan).
 | PERF-12 | `COUNT(*)` del cupo del link | BAJA | CONF. ajustado | 4 | — (medir) | ⬜ |
 | PERF-13 | Bandeja filtrada por estado raro sin índice combinado | BAJA | PLAUSIBLE | 4 | S (medir) | ⬜ |
 | PERF-15 | Conteos de padrón en cada detalle | BAJA | CONF. código | 4 | S (medir) | ⬜ |
-| PERF-16 | Señal de `Ciudadano`: 4 DEL de Redis por save | BAJA | CONF. medido | 4 | S | ⬜ |
+| PERF-16 | Señal de `Ciudadano`: 4 DEL de Redis por save | BAJA | CONF. medido | 4 | S | ✅ |
 | PERF-17 | Listados operativos sin paginar (Dispositivos/Merenderos/convocatorias) | BAJA | CONF. código | v2 (criterio) | S | ⬜ |
 | PERF-18 | Ocupación de Dispositivos con `Count(distinct)` sobre camas × admisiones | BAJA | CONF. código | v2 (criterio) | S | ⬜ |
 | PERF-19 | «Último intento» sin índice y subconsulta evaluada dos veces | BAJA | CONF. ajustado | 4 | S | ⬜ |
@@ -57,6 +57,23 @@ Refutado: **A4-15 / PERF-14** (GZip sobre xlsx): ver README §8.
 - **Tests a agregar:** `programas/tests/test_padron_identidad.py`: con 5 y con 25 casos cruzados, `assertNumQueries(K)` **igual** (hoy crece 2 por caso); mantener los tests de «no pisa JSON» y «traza por cambio» del Cambio 93.
 - **Verificación:** V-STD + banco: en la convocatoria del relevamiento público de 20k, subir por `cargar_padron` el xlsx de los pendientes (el harness `test_a404_perfil` muestra cómo) y cronometrar/contar antes y después.
 - **Dependencias:** PERF-16 (señal), DAT-05 (Excel viejo), BEC-15 (concurrencia), G1-12 (fechas): mismo módulo.
+
+**Resolución:** ✅ Resuelto en #632 (Cambio 182, Ola 4 PR 1-2), 08-oct-2026 — `validar_casos_pendientes` recorre los
+pendientes con `.iterator(chunk_size=2000)` y acumula: las trazas en un `bulk_create(batch_size=1000)`, los ciudadanos
+agrupados por tupla de campos completados en `bulk_update(batch_size=500)` y los formularios partidos en dos —los que
+solo mueven las tres constantes van por `UPDATE … WHERE pk IN (1.000)` y solo los que tocan `datos_identificacion` o
+`dni_titular` pagan el `CASE WHEN` del `bulk_update`—. `cargar_padron` inserta el padrón en lotes de 2.000 (el INSERT
+único de 50.000 filas son ~8 MB y con las seis columnas de identidad se acerca a los 16 MB de `max_allowed_packet`).
+**Medido en el banco MariaDB 10.11** (`scripts/perf_mysql`, 20.000 casos, 6.667 pendientes, padrón de 50.000 filas,
+`OPTIONS` de producción), con los legajos vacíos —el peor caso, que es el que dispara el `UPDATE` de ciudadano—:
+**13.376 → 74 sentencias y 55,93 → 21,84 s**; con los legajos ya cargados, **6.709 → 46 sentencias y 37,39 → 14,96 s**.
+Los 6.667 validados y las trazas son los mismos en las cuatro corridas. Queda debajo de los 30 s del criterio y lejos
+de los 60 s de nginx. **Desvío de la ficha:** el prototipo usaba `.exclude(nombre="").exclude(apellido="")`; el código
+real ya pasa por `q_con_identidad()` (RED-77) y se conservó.
+**Test permanente:** `programas.tests.test_padron_performance.ConsultasConstantesTests.test_el_cruce_no_crece_con_la_cantidad_de_casos`
+y `programas.tests.test_padron_performance.MismosCasosEnElMismoOrdenTests` — este último corre la copia congelada del
+algoritmo viejo (`_cruce_por_caso_referencia`) y la versión nueva sobre datasets gemelos y compara, caso por caso, lo
+validado, lo escrito en el legajo, el `datos_identificacion` y la lista de trazas.
 
 ### PERF-02 · Cupo y beneficiarios: páginas anchas con join y ORDER BY sobre filas de ~8 KB
 **Severidad:** ALTA · **Estado:** CONFIRMADO (forma medida; tiempo en MariaDB NO-MEDIDO) · **Origen:** A4-02 · **Ola:** 4 · **Esfuerzo:** S
@@ -87,6 +104,28 @@ Refutado: **A4-15 / PERF-14** (GZip sobre xlsx): ver README §8.
 - **Tests a agregar:** regresión: mismos pks y mismo orden en la página N antes y después (segmento con 2 relevamientos y casos en espera).
 - **Verificación:** V-STD + `manage.py test --tag performance`; banco: `/becas/cupo/segmento/<seg>/?pendientes_page=50&beneficiarios_page=50` en `bench_mysql.py` + `EXPLAIN ANALYZE` (deben desaparecer `Using temporary` y la materialización de `programas_relevamiento`).
 - **Dependencias:** SEC-21 y SEC-22 tocan los mismos querysets (filtros de alcance): coordinar o hacer en el mismo PR.
+
+**Resolución:** ✅ Resuelto en #632 (Cambio 182, Ola 4 PR 1-2), 08-oct-2026 — las tres condiciones de alcance (segmento,
+convocatorias visibles y RN-P13) son todas sobre el **relevamiento**, así que se resuelven una vez en una lista de ids y
+las tablas quedan con `WHERE relevamiento_id IN (…)`: desaparecen los joins con `programas_convocatoria` y
+`programas_relevamiento`. Beneficiarios y pendientes se eligen proyectando **solo el pk** (`order_by("modificado","pk")`
+y `("creado","pk")`) y se hidratan por pk con `select_related` + `defer` de los **cinco** JSON; los dos totales salen de
+un `aggregate` en vez de dos COUNT. `PaginadorConConteo` y la hidratación por pk se mudaron a
+`programas/services/listados.py`, con lo que **se cae la arista `revision → relevamientos`** del ratchet de RED-79 (7 → 6).
+**Medido en el banco MariaDB 10.11** (20.000 casos en el segmento, `OPTIONS` de producción): página 1 de **9.239 ms en
+frío / 8.890 ms en caliente y 8.991 ms de SQL** a **305 / 189 ms y 167 ms de SQL**; página 50, de 9.149 / 8.971 y 8.973 ms
+a 232 / 248 y 167 ms. El `EXPLAIN` pasa de arrancar en `programas_convocatoria` con **«Using temporary; Using filesort»**
+más la materialización de `programas_relevamiento`, a un solo acceso a `programas_formulario` con `Using index condition`.
+**Desvíos de la ficha:** (1) el `ocupado` no puede salir del mismo `aggregate` que `beneficiarios` —SEC-21 dejó la bandeja
+acotada al alcance del usuario y el cupo es del segmento entero—, así que `get_cupo_stats` se conserva; (2) la pantalla
+pasa de 16 a **18** consultas en MariaDB (15 en SQLite): +1 por los ids del alcance y +2 por las dos hidrataciones,
+contra −1 por unir los dos COUNT. Es el canje que RED-62 pide justificar y está escrito en `adjustments` de
+`scripts/perf_budgets.json`; (3) el orden suma el desempate por `pk`, sin el cual la página profunda puede repetir o
+saltear un caso cuando dos comparten `modificado`.
+**Presupuesto:** `becas_cupo_segmento` en `scripts/perf_audit.py::build_targets` y en `scripts/perf_budgets.json`
+(`max_queries: 16` = medido 15 + 1, `max_duplicate_queries: 1`).
+**Test permanente:** `programas.tests.test_cupo_performance.LaPaginaNoAbreLosJsonTests.test_ninguna_consulta_de_la_pantalla_pide_los_cinco_json`
+y `programas.tests.test_cupo_performance.MismosCasosEnElMismoOrdenTests.test_beneficiarios_pagina_2_igual_que_con_la_consulta_ancha`.
 
 ## MEDIA
 
@@ -192,6 +231,16 @@ Refutado: **A4-15 / PERF-14** (GZip sobre xlsx): ver README §8.
 **Severidad:** BAJA sola; se suma a PERF-04 · **Estado:** CONFIRMADO (medido: 26.668 `cache.delete` para 6.667 saves; `contar_ciudadanos` se borra dos veces) · **Origen:** A4-18 · **Ola:** 4 · **Esfuerzo:** S
 - **Ubicación:** `core/performance/cache_utils.py:22-49`; `dashboard/utils.py:50-57`.
 - **Propuesta:** `transaction.on_commit(lambda: cache.delete_many([...deduplicadas]))` en la señal; no invalidar `contar_ciudadanos` con `created=False`. El grueso desaparece con PERF-04 (`bulk_update` no dispara la señal).
+
+**Resolución:** ✅ Resuelto en #632 (Cambio 182, Ola 4 PR 1-2), 08-oct-2026 — la señal pasa a un solo `delete_many`
+deduplicado dentro de `transaction.on_commit` (`core/performance/cache_utils.invalidar_tras_commit`), y los dos
+contadores solo se invalidan cuando el total pudo cambiar: al crear o al borrar (`post_delete` no manda `created`, y ahí
+el total sí cambió). Editar un ciudadano deja de borrarlos. `invalidate_ciudadano_cache` e `invalidate_dashboard_cache`
+se conservan tal cual —las llama `dashboard/utils.py` y las congela el ratchet de RED-51—. El cruce del padrón, que ya
+no dispara la señal, avisa con `invalidar_ciudadanos_tras_commit`: en el banco los **26.668 `cache.delete`** del peor
+caso quedan en **un** `delete_many`.
+**Test permanente:** `dashboard.tests.test_cache_invalidacion.InvalidacionTests.test_editar_un_ciudadano_no_invalida_los_contadores`
+y `programas.tests.test_padron_performance.InvalidacionDeCacheTests.test_el_cruce_invalida_el_legajo_de_cada_ciudadano_una_sola_vez`.
 
 ### PERF-17 · Listados operativos sin paginar
 **Severidad:** BAJA · **Estado:** CONFIRMADO (código; volumen bajo hoy) · **Origen:** A4-19 · **Ola:** v2 · **Esfuerzo:** S · **Tratamiento:** **criterio de aceptación v2** (README §7) para Dispositivos y Merenderos; `ConvocatoriaListView` y el detalle de convocatoria (pendiente del Cambio 92) van con FE-17 (Ola 5)
