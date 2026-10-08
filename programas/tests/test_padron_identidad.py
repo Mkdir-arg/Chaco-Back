@@ -198,19 +198,78 @@ class OrigenPadronServidorTests(_Base):
         self.assertEqual(caso.datos_identificacion["nombre"], "Pamela Janet")
         self.assertEqual(caso.datos_identificacion["fecha_nacimiento"], "2010-03-14")
 
-    def test_personas_y_scan_llevan_su_origen(self):
-        caso = Formulario.objects.create(
+    def _caso_declarado_personas(self):
+        return Formulario.objects.create(
             relevamiento=self.relevamiento,
             celular="3624000000",
             email_contacto="a@b.com",
-            datos_identificacion={"dni": "36210951", "nombre": "A", "apellido": "B", "origen": "personas"},
+            datos_identificacion={
+                "dni": "36210951",
+                "sexo": "F",
+                "nombre": "A",
+                "apellido": "B",
+                "origen": "personas",
+            },
         )
+
+    @patch("programas.services.identidad.consultar_persona", return_value=GRAN_BASE)
+    def test_personas_y_scan_llevan_su_origen(self, consultar):
+        caso = self._caso_declarado_personas()
         _actualizar_validacion_identidad(caso, caso.datos_identificacion)
         caso.refresh_from_db()
         self.assertEqual(caso.origen_validacion, Formulario.OrigenValidacion.PERSONAS)
         _actualizar_validacion_identidad(caso, {"dni": "36210951", "origen": "scan"})
         caso.refresh_from_db()
         self.assertEqual(caso.origen_validacion, Formulario.OrigenValidacion.SCAN)
+
+    @patch("programas.services.identidad.consultar_persona", return_value=NO_ENCONTRADA)
+    def test_personas_sin_respaldo_queda_manual(self, consultar):
+        """SEC-24 · el gemelo de `test_padron_sin_respaldo_queda_manual`.
+
+        Hasta el Cambio 184 esta rama creía al cliente: con `origen: personas` y
+        cualquier nombre y apellido el caso quedaba acreditado por Base de
+        Personas sin que nadie la hubiera consultado. Ahora el servidor vuelve a
+        preguntar y, si la fuente no respalda nada, la identidad queda como lo
+        que es.
+        """
+        caso = self._caso_declarado_personas()
+
+        _actualizar_validacion_identidad(caso, caso.datos_identificacion)
+
+        caso.refresh_from_db()
+        self.assertFalse(caso.validado_renaper)
+        self.assertEqual(caso.origen_validacion, "")
+        self.assertEqual(caso.datos_identificacion["origen"], "manual")
+
+    @patch("programas.services.identidad.consultar_persona", return_value=GRAN_BASE)
+    def test_personas_con_respaldo_toma_los_datos_de_la_fuente(self, consultar):
+        """Igual que `padron`: la identidad que queda guardada es la de la
+        fuente, no la que tipeó el territorial. Sin esto el flag diría «sin
+        validar» pero el nombre del request seguiría viaje al legajo."""
+        caso = self._caso_declarado_personas()
+
+        _actualizar_validacion_identidad(caso, caso.datos_identificacion)
+
+        caso.refresh_from_db()
+        self.assertTrue(caso.validado_renaper)
+        self.assertEqual(caso.datos_identificacion["nombre"], "Pamela J.")
+        self.assertEqual(caso.datos_identificacion["apellido"], "Romero")
+        self.assertEqual(caso.datos_identificacion["fecha_nacimiento"], "2010-03-14")
+
+    @patch("programas.services.identidad.consultar_persona", return_value=NO_ENCONTRADA)
+    def test_personas_respaldado_por_el_padron_vale_como_padron(self, consultar):
+        """La cascada del Cambio 57 entera: el teléfono dice `personas`, la Gran
+        Base no la encuentra y el padrón de la convocatoria sí. Queda validada,
+        con el origen que corresponde."""
+        cargar_padron(self.convocatoria, None, [FILA_PAMELA])
+        caso = self._caso_declarado_personas()
+
+        _actualizar_validacion_identidad(caso, caso.datos_identificacion)
+
+        caso.refresh_from_db()
+        self.assertTrue(caso.validado_renaper)
+        self.assertEqual(caso.origen_validacion, Formulario.OrigenValidacion.PADRON)
+        self.assertEqual(caso.datos_identificacion["nombre"], "Pamela Janet")
 
     def test_una_validacion_manual_no_la_deshace_un_sync(self):
         caso = self._caso(identidad_forzada=True, validado_renaper=True, origen_validacion="forzada")

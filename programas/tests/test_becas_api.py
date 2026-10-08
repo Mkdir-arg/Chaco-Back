@@ -6,6 +6,7 @@ from unittest.mock import patch
 from uuid import uuid4
 
 from django.contrib.auth.models import Group, User
+from django.core.cache import cache
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
 from django.urls import reverse
@@ -13,6 +14,7 @@ from django.utils import timezone
 from rest_framework.test import APITestCase
 
 from legajos.models import Ciudadano
+from programas.api.views import ConsultaPersonasThrottle, _actualizar_validacion_identidad
 from programas.management.commands.seed_becas import ROL_COORDINADOR, ROL_TERRITORIAL
 from programas.models import (
     AdjuntoFormulario,
@@ -25,6 +27,7 @@ from programas.models import (
     Subsegmento,
     TipoCampo,
 )
+from programas.services import campo as servicio_campo
 
 
 class _BaseApiTest(APITestCase):
@@ -781,7 +784,14 @@ class FormularioSyncTests(_BaseApiTest):
         self.assertEqual(resp.status_code, 201)
         self.assertTrue(resp.data["validado_renaper"])
 
-    def test_crear_formulario_validado_por_personas_queda_validado(self):
+    @patch("programas.services.identidad.consultar_persona")
+    def test_crear_formulario_validado_por_personas_queda_validado(self, mock_consultar):
+        """SEC-24: sigue quedando validado, pero porque **el servidor** volvió a
+        preguntar y la Gran Base contestó, no porque lo dijera el request."""
+        mock_consultar.return_value = {
+            "success": True,
+            "data": {"dni": "41422422", "nombre": "Maria", "apellido": "Gomez", "fecha_nacimiento": "1990-01-02"},
+        }
         self.autenticar(self.terri)
         url = reverse("becas_api:relevamiento-formularios", args=[self.rel.id])
         resp = self.client.post(
@@ -791,6 +801,7 @@ class FormularioSyncTests(_BaseApiTest):
                 "email_contacto": "x@y.com",
                 "datos_identificacion": {
                     "dni": "41422422",
+                    "sexo": "F",
                     "nombre": "Maria",
                     "apellido": "Gomez",
                     "origen": "personas",
@@ -801,8 +812,17 @@ class FormularioSyncTests(_BaseApiTest):
         )
         self.assertEqual(resp.status_code, 201, resp.data)
         self.assertTrue(resp.data["validado_renaper"])
+        mock_consultar.assert_called_once_with("41422422", "F")
 
-    def test_personas_sin_nombre_y_apellido_completos_no_valida(self):
+    @patch("programas.services.identidad.consultar_persona")
+    def test_personas_sin_nombre_y_apellido_completos_no_valida(self, mock_consultar):
+        """La Gran Base solo acredita identidad cuando devuelve los **dos**
+        componentes: el apellido entero en un campo y el nombre vacío es la
+        respuesta que la fuente da para algunos documentos, y no alcanza."""
+        mock_consultar.return_value = {
+            "success": True,
+            "data": {"dni": "41433433", "nombre": "", "apellido": "IBAÑEZ LUCAS SEBASTIAN"},
+        }
         self.autenticar(self.terri)
         url = reverse("becas_api:relevamiento-formularios", args=[self.rel.id])
         resp = self.client.post(
@@ -812,6 +832,7 @@ class FormularioSyncTests(_BaseApiTest):
                 "email_contacto": "x@y.com",
                 "datos_identificacion": {
                     "dni": "41433433",
+                    "sexo": "M",
                     "nombre": "",
                     "apellido": "IBAÑEZ LUCAS SEBASTIAN",
                     "origen": "personas",
@@ -1005,14 +1026,28 @@ class FormularioSyncTests(_BaseApiTest):
         self.assertEqual(formulario["ciudadano_nombre"], "Nombre")
         self.assertEqual(formulario["ciudadano_apellido"], "Visible")
 
-    def test_actualizar_formulario(self):
+    def test_patch_formulario_405(self):
+        """SEC-23 · el caso cargado no se edita por la API de campo.
+
+        Hasta el Cambio 184 esto devolvía **200** y escribía: ``perform_update``
+        no miraba el estado del caso, así que con el token se podía reescribir un
+        caso ya resuelto. El sync legítimo solo crea (POST, idempotente por
+        ``client_uuid``) y la app instalada no manda un solo PATCH.
+        """
         form = Formulario.objects.create(relevamiento=self.rel, celular="111", email_contacto="a@b.com")
         self.autenticar(self.terri)
         url = reverse("becas_api:formulario-detail", args=[form.id])
-        resp = self.client.patch(url, {"celular": "999"}, format="json")
-        self.assertEqual(resp.status_code, 200)
-        form.refresh_from_db()
-        self.assertEqual(form.celular, "999")
+
+        for metodo in (self.client.patch, self.client.put):
+            with self.subTest(metodo=metodo.__name__):
+                resp = metodo(url, {"celular": "999"}, format="json")
+
+                self.assertEqual(resp.status_code, 405, resp.data)
+                form.refresh_from_db()
+                self.assertEqual(form.celular, "111")
+
+        # El GET del mismo caso sigue andando: lo que se saca es la escritura.
+        self.assertEqual(self.client.get(url).status_code, 200)
 
     def test_no_permite_crear_formulario_fuera_de_fecha(self):
         self.rel.fecha_asignada = timezone.localdate() - timedelta(days=1)
@@ -1224,25 +1259,13 @@ class FormularioSyncTests(_BaseApiTest):
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.data, {"existe": True})
 
-    def test_no_permite_actualizar_formulario_fuera_de_fecha(self):
-        form = Formulario.objects.create(relevamiento=self.rel, celular="111", email_contacto="a@b.com")
-        self.rel.fecha_asignada = timezone.localdate() - timedelta(days=1)
-        self.rel.fecha_hasta = self.rel.fecha_asignada
-        self.rel.save(update_fields=["fecha_asignada", "fecha_hasta"])
-        self.autenticar(self.terri)
-
-        resp = self.client.patch(
-            reverse("becas_api:formulario-detail", args=[form.id]),
-            {"celular": "999"},
-            format="json",
-        )
-
-        self.assertEqual(resp.status_code, 400)
-        form.refresh_from_db()
-        self.assertEqual(form.celular, "111")
+    # SEC-23 borró `test_no_permite_actualizar_formulario_fuera_de_fecha`: el
+    # PATCH ya no existe, así que su guard de período tampoco. Los otros cinco
+    # endpoints de escritura lo siguen teniendo, y lo fija
+    # `PeriodoEnTodosLosEndpointsTests`.
 
     # RED-26 (auditoría oct-2026): `FormularioViewSet.get_queryset` es el ÚNICO
-    # filtro de alcance de `/api/becas/formularios/<id>/` (GET, PUT, PATCH y
+    # filtro de alcance de `/api/becas/formularios/<id>/` (GET y
     # POST …/adjuntos/). Cambiarlo por `Formulario.objects.all()` —por ejemplo
     # «para que un supervisor vea los casos de su equipo»— deja todos los casos
     # de Becas (DNI, contacto, GPS, respuestas y adjuntos) visibles y
@@ -1274,8 +1297,11 @@ class FormularioSyncTests(_BaseApiTest):
             format="json",
         )
 
-        # Si SEC-23 (Ola 2) saca `UpdateModelMixin`, esto pasa a 405.
-        self.assertEqual(resp.status_code, 404)
+        # 405 y no 404 desde SEC-23 (Cambio 184): sin `UpdateModelMixin` el
+        # router no mapea el verbo, así que el método se rechaza antes de
+        # resolver el objeto. Lo que importa sigue siendo lo de abajo: el caso
+        # ajeno no cambió.
+        self.assertEqual(resp.status_code, 405)
         ajeno.refresh_from_db()
         self.assertEqual(ajeno.celular, "111")
 
@@ -1386,13 +1412,16 @@ class AdjuntoValidacionTests(_BaseApiTest):
         self.assertEqual(len(resp.data), 1)
 
 
-class _SeisEndpointsTest(_BaseApiTest):
-    """Los seis endpoints de escritura que la app de campo usa en una jornada.
+class _CincoEndpointsTest(_BaseApiTest):
+    """Los cinco endpoints de escritura que la app de campo usa en una jornada.
 
     RED-03: la pausa estaba probada en **uno** (`iniciar`) y el período en tres.
-    Borrar el guard de cualquiera de los otros cinco —o que `_respuesta_pausa`
-    dejara de mirar la pausa heredada de la convocatoria— seguía dando la suite
-    en verde, con el campo cargando sobre un programa pausado.
+    Borrar el guard de cualquiera de los otros —o que `_respuesta_pausa` dejara
+    de mirar la pausa heredada de la convocatoria— seguía dando la suite en
+    verde, con el campo cargando sobre un programa pausado.
+
+    Eran seis hasta el Cambio 184: el sexto era el ``PATCH`` del caso, que SEC-23
+    retiró.
     """
 
     def setUp(self):
@@ -1431,13 +1460,6 @@ class _SeisEndpointsTest(_BaseApiTest):
             format="json",
         )
 
-    def _editar_caso(self):
-        return self.client.patch(
-            reverse("becas_api:formulario-detail", args=[self.formulario.pk]),
-            {"celular": "999"},
-            format="json",
-        )
-
     def _subir_adjunto(self):
         return self.client.post(
             reverse("becas_api:formulario-adjuntos", args=[self.formulario.pk]),
@@ -1451,7 +1473,6 @@ class _SeisEndpointsTest(_BaseApiTest):
             ("finalizar", self._finalizar),
             ("reabrir", self._reabrir),
             ("formularios POST", self._crear_caso),
-            ("formulario PATCH", self._editar_caso),
             ("adjuntos POST", self._subir_adjunto),
         ]
 
@@ -1465,26 +1486,24 @@ class _SeisEndpointsTest(_BaseApiTest):
         self.assertEqual(AdjuntoFormulario.objects.count(), 0)
 
 
-class PausaEnTodosLosEndpointsTests(_SeisEndpointsTest):
-    """El contrato de la pausa **no es uniforme, y se fija tal cual** (D-RED-10).
+class PausaEnTodosLosEndpointsTests(_CincoEndpointsTest):
+    """El contrato de la pausa, fijado tal cual (D-RED-10).
 
-    Cinco endpoints contestan ``409 {"detail", "pausado": true}``; el PATCH
-    contesta ``400 {"detail": [...]}`` porque `perform_update` levanta un
-    `ValidationError` de DRF, que además envuelve el mensaje en una lista.
-    Escribir un 409 para los seis haría que el próximo implementador «arregle»
-    el test en vez de la inconsistencia: unificarla es un release coordinado con
-    Chaco-mobile, no un cambio de servidor suelto.
+    Los cinco contestan ``409 {"detail", "pausado": true}``. Hasta el Cambio 184
+    el contrato **no era uniforme**: el sexto endpoint, el PATCH del caso,
+    contestaba ``400 {"detail": [...]}`` porque `perform_update` levantaba un
+    `ValidationError` de DRF. SEC-23 retiró el PATCH, así que la excepción se
+    fue con él y ya no hay un release de Chaco-mobile pendiente para unificarla.
     """
 
     #: El código **exacto** que contesta cada endpoint con el relevamiento
     #: pausado. Es el contrato que lee la app: una regresión que pase cualquiera
-    #: de los cinco 409 a 400 (o al revés) tiene que fallar acá.
+    #: de los 409 a 400 (o al revés) tiene que fallar acá.
     CODIGO_DE_PAUSA = {
         "iniciar": 409,
         "finalizar": 409,
         "reabrir": 409,
         "formularios POST": 409,
-        "formulario PATCH": 400,
         "adjuntos POST": 409,
     }
 
@@ -1498,12 +1517,7 @@ class PausaEnTodosLosEndpointsTests(_SeisEndpointsTest):
         esperado = self.CODIGO_DE_PAUSA[nombre]
         self.assertEqual(resp.status_code, esperado, resp.data)
         self.assertIn(motivo, str(resp.data["detail"]))
-        if esperado == 409:
-            self.assertIs(resp.data["pausado"], True)
-        else:
-            # El PATCH no manda `pausado`: `perform_update` levanta un
-            # `ValidationError` de DRF y solo sobrevive `detail` (D-RED-10).
-            self.assertNotIn("pausado", resp.data)
+        self.assertIs(resp.data["pausado"], True)
         self._afirmar_que_nada_cambio()
 
     def test_la_pausa_bloquea_y_no_escribe(self):
@@ -1530,9 +1544,9 @@ class PausaEnTodosLosEndpointsTests(_SeisEndpointsTest):
                 self._afirmar_respuesta_de_pausa(nombre, resp, "Territorial de licencia")
 
 
-class PeriodoEnTodosLosEndpointsTests(_SeisEndpointsTest):
+class PeriodoEnTodosLosEndpointsTests(_CincoEndpointsTest):
     """Mismo barrido con la franja vencida y sin pausa: el período se miraba en
-    tres de los seis endpoints (faltaban `finalizar`, `reabrir` y `adjuntos`).
+    tres de los endpoints (faltaban `finalizar`, `reabrir` y `adjuntos`).
     """
 
     def setUp(self):
@@ -1629,3 +1643,371 @@ class AltaBajoElLockTests(_BaseApiTest):
             resp = self.client.post(url, self._payload(), format="json")
 
         self.assertEqual(resp.status_code, 201, resp.data)
+
+
+class AdjuntoSobreCasoResueltoTests(_BaseApiTest):
+    """SEC-23 · sobre un caso ya resuelto la documentación no se **reemplaza**.
+
+    `POST …/adjuntos/` pisa el archivo del campo (G1-07), así que sobre un caso
+    ya APROBADO un token de campo cambiaba la foto del DNI semanas después de la
+    resolución y sin dejar rastro en la revisión. El alcance por territorial
+    (`get_queryset`) no lo frenaba: es su propio caso.
+
+    Lo que **no** se cierra es el campo vacío: el 409 deja la operación
+    `FAILED_PERMANENT` en la cola del teléfono y con ella se traba el
+    `finalizar_relevamiento` del relevamiento entero. Ese archivo entra y queda
+    dicho en `observaciones_carga`.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.rel.estado = Relevamiento.Estado.EN_CURSO
+        self.rel.save(update_fields=["estado", "modificado"])
+        self.formulario = Formulario.objects.create(
+            relevamiento=self.rel,
+            celular="111",
+            email_contacto="a@b.com",
+        )
+        self.pregunta = PreguntaGlobal.objects.create(texto="Foto del DNI", tipo=TipoCampo.ARCHIVO, orden=900)
+        self.autenticar(self.terri)
+
+    def _subir(self, nombre="dni.jpg"):
+        return self.client.post(
+            reverse("becas_api:formulario-adjuntos", args=[self.formulario.pk]),
+            {"pregunta_global": self.pregunta.pk, "archivo": SimpleUploadedFile(nombre, b"datos")},
+            format="multipart",
+        )
+
+    def _resolver(self, estado):
+        self.formulario.estado = estado
+        self.formulario.save(update_fields=["estado", "modificado"])
+
+    def test_adjunto_sobre_caso_enviado_entra(self):
+        """El camino normal de la app: el caso recién sincronizado está ENVIADO
+        y sus fotos suben detrás. Es lo que el 409 de abajo **no** puede
+        romper."""
+        resp = self._subir()
+
+        self.assertEqual(resp.status_code, 201, resp.data)
+        self.assertEqual(self.formulario.adjuntos.count(), 1)
+        self.formulario.refresh_from_db()
+        self.assertFalse(self.formulario.observaciones_carga)
+
+    def test_el_reemplazo_sobre_un_caso_enviado_sigue_sin_observarse(self):
+        """G1-07 sin cambios: mientras el caso está ENVIADO la segunda foto pisa
+        a la primera, con 201 y sin nada que decirle al revisor."""
+        primera = self._subir("movida.jpg")
+        self.assertEqual(primera.status_code, 201, primera.data)
+
+        resp = self._subir("buena.jpg")
+
+        self.assertEqual(resp.status_code, 201, resp.data)
+        adjunto = self.formulario.adjuntos.get()
+        self.assertEqual(adjunto.pk, primera.data["id"])
+        self.assertNotEqual(resp.data["archivo"], primera.data["archivo"])
+        self.formulario.refresh_from_db()
+        self.assertFalse(self.formulario.observaciones_carga)
+
+    def test_adjunto_sobre_aprobado_409(self):
+        """El reemplazo sobre un caso resuelto, en los tres estados que lo son."""
+        for estado in (Formulario.Estado.APROBADO, Formulario.Estado.RECHAZADO, Formulario.Estado.BAJA):
+            with self.subTest(estado=estado):
+                self.formulario.adjuntos.all().delete()
+                self._resolver(Formulario.Estado.ENVIADO)
+                buena = self._subir("buena.jpg")
+                self.assertEqual(buena.status_code, 201, buena.data)
+                self._resolver(estado)
+
+                resp = self._subir("otra.jpg")
+
+                self.assertEqual(resp.status_code, 409, resp.data)
+                self.assertEqual(resp.data["code"], "CASO_RESUELTO")
+                adjunto = self.formulario.adjuntos.get()
+                self.assertEqual(adjunto.pk, buena.data["id"])
+                self.assertEqual(adjunto.archivo.name, buena.data["archivo"].split("/media/")[-1])
+
+    def test_el_campo_vacio_de_un_caso_resuelto_recibe_el_archivo_observado(self):
+        """No hay nada que reemplazar: el archivo entra y el revisor se entera
+        por la carga. Rechazarlo cuesta el relevamiento entero —la app marca la
+        operación `FAILED_PERMANENT` y `hasPendingFormularioOperations` le traba
+        el `finalizar_relevamiento` para siempre— y se pierden **todos** los
+        adjuntos pendientes del caso, no solo este."""
+        for estado in (Formulario.Estado.APROBADO, Formulario.Estado.RECHAZADO, Formulario.Estado.BAJA):
+            with self.subTest(estado=estado):
+                self.formulario.adjuntos.all().delete()
+                self.formulario.observaciones_carga = None
+                self.formulario.save(update_fields=["observaciones_carga", "modificado"])
+                self._resolver(estado)
+
+                resp = self._subir()
+
+                self.assertEqual(resp.status_code, 201, resp.data)
+                self.assertEqual(self.formulario.adjuntos.count(), 1)
+                self.formulario.refresh_from_db()
+                observaciones = self.formulario.observaciones_carga or ""
+                self.assertIn("Foto del DNI", observaciones)
+                self.assertIn(self.formulario.get_estado_display(), observaciones)
+                self.assertTrue(observaciones.startswith(servicio_campo.PREFIJO_ADJUNTO_TARDIO), observaciones)
+
+    def test_la_observacion_del_archivo_tardio_no_se_repite(self):
+        """La cola reintenta: la línea se escribe una sola vez."""
+        self._resolver(Formulario.Estado.APROBADO)
+        self.assertEqual(self._subir().status_code, 201)
+        # Como la fila ya está, el reintento se lleva el 409; el que podría
+        # duplicar la línea es el que vuelve a entrar porque el adjunto no quedó.
+        self.formulario.adjuntos.all().delete()
+
+        self.assertEqual(self._subir().status_code, 201)
+
+        self.formulario.refresh_from_db()
+        lineas = (self.formulario.observaciones_carga or "").splitlines()
+        self.assertEqual(len(lineas), 1, lineas)
+
+    def test_el_adjunto_del_caso_aprobado_no_se_puede_reemplazar(self):
+        """La forma concreta del abuso: la foto buena ya está, el caso se
+        aprobó, y el token la pisa por otra (`guardar_adjunto` **reemplaza**,
+        G1-07)."""
+        primera = self._subir("buena.jpg")
+        self.assertEqual(primera.status_code, 201)
+        self.formulario.estado = Formulario.Estado.APROBADO
+        self.formulario.save(update_fields=["estado", "modificado"])
+
+        resp = self._subir("otra.jpg")
+
+        self.assertEqual(resp.status_code, 409, resp.data)
+        adjunto = self.formulario.adjuntos.get()
+        self.assertEqual(adjunto.pk, primera.data["id"])
+        self.assertEqual(adjunto.archivo.name, primera.data["archivo"].split("/media/")[-1])
+
+    def test_listar_los_adjuntos_de_un_caso_resuelto_sigue_andando(self):
+        """Lo que se cierra es la escritura: el GET lo usa la app para saber qué
+        subió y un 4xx ahí sí le cortaría la cola."""
+        self.assertEqual(self._subir().status_code, 201)
+        self.formulario.estado = Formulario.Estado.APROBADO
+        self.formulario.save(update_fields=["estado", "modificado"])
+
+        resp = self.client.get(reverse("becas_api:formulario-adjuntos", args=[self.formulario.pk]))
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(len(resp.data), 1)
+
+
+class IdentidadNoLaAcreditaElClienteTests(_BaseApiTest):
+    """SEC-24 · con `origen: personas` la identidad se vuelve a resolver acá.
+
+    Antes alcanzaba con que el request dijera `"origen": "personas"` y trajera
+    un nombre y un apellido cualesquiera: el caso quedaba `validado_renaper=True`
+    y `origen_validacion="personas"`, o sea acreditado por Base de Personas sin
+    que nadie le hubiera preguntado nada a Base de Personas. El comentario de la
+    vista ya decía «el cliente nunca puede autovalidarse» y era falso para esta
+    rama (lo cumplía solo `padron`, Cambio 57 / RN-4).
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.rel.estado = Relevamiento.Estado.EN_CURSO
+        self.rel.save(update_fields=["estado", "modificado"])
+        self.autenticar(self.terri)
+
+    def _alta(self, **identidad):
+        datos = {"dni": "41422422", "sexo": "F", "origen": "personas"}
+        datos.update(identidad)
+        return self.client.post(
+            reverse("becas_api:relevamiento-formularios", args=[self.rel.pk]),
+            {
+                "celular": "3624111222",
+                "email_contacto": "x@y.com",
+                "validado_renaper": True,  # lo que la app instalada manda en el alta
+                "datos_identificacion": datos,
+                "data": {"globales": {}, "requisitos": {}},
+            },
+            format="json",
+        )
+
+    @patch("programas.services.identidad.consultar_persona")
+    def test_origen_personas_sin_respaldo_no_valida(self, mock_consultar):
+        """La Gran Base no conoce ese documento: la identidad es la que la
+        persona dijo, no una acreditada."""
+        mock_consultar.return_value = {
+            "success": False,
+            "not_found": True,
+            "error": "El DNI no fue encontrado en Base de Personas.",
+        }
+
+        resp = self._alta(nombre="Inventada", apellido="Totalmente")
+
+        self.assertEqual(resp.status_code, 201, resp.data)
+        self.assertFalse(resp.data["validado_renaper"])
+        caso = Formulario.objects.get(pk=resp.data["id"])
+        self.assertEqual(caso.origen_validacion, "")
+        # La carga entra igual —es el camino de una carga manual— y es el
+        # revisor el que decide (Cambio 55). Lo que no pasa es que el caso se
+        # presente como acreditado por Base de Personas.
+        self.assertEqual(caso.estado, Formulario.Estado.ENVIADO)
+
+    @patch("programas.services.identidad.consultar_persona")
+    def test_origen_personas_que_no_coincide_manda_la_fuente(self, mock_consultar):
+        """La fuente contesta, pero con otros datos que los que viajaron en el
+        request: lo que se guarda es lo que dijo la fuente."""
+        mock_consultar.return_value = {
+            "success": True,
+            "data": {"dni": "41422422", "nombre": "Maria", "apellido": "Gomez", "fecha_nacimiento": "1990-01-02"},
+        }
+
+        resp = self._alta(nombre="Otra", apellido="Persona")
+
+        self.assertEqual(resp.status_code, 201, resp.data)
+        caso = Formulario.objects.get(pk=resp.data["id"])
+        self.assertTrue(caso.validado_renaper)
+        self.assertEqual(caso.origen_validacion, Formulario.OrigenValidacion.PERSONAS)
+        self.assertEqual(caso.ciudadano.nombre, "Maria")
+        self.assertEqual(caso.ciudadano.apellido, "Gomez")
+
+    @patch("programas.services.identidad.consultar_persona")
+    def test_con_la_gran_base_caida_la_identidad_queda_pendiente(self, mock_consultar):
+        """No se puede verificar ⇒ no se acredita. Queda para la validación
+        manual del revisor (Cambio 55), que es el camino previsto."""
+        mock_consultar.return_value = {"success": False, "error": "No se pudo consultar Base de Personas."}
+
+        resp = self._alta(nombre="Maria", apellido="Gomez")
+
+        self.assertEqual(resp.status_code, 201, resp.data)
+        self.assertFalse(resp.data["validado_renaper"])
+
+    @patch("programas.services.identidad.consultar_persona")
+    def test_el_documento_que_no_figura_queda_escrito_en_la_carga(self, mock_consultar):
+        """La fuente **respondió** y el documento no está en ella: es un dato
+        sobre la persona, y el revisor lo necesita para decidir si valida a mano
+        (Cambio 55). El `logger.warning` lo ve el operador del servidor, no él."""
+        mock_consultar.return_value = {
+            "success": False,
+            "not_found": True,
+            "error": "El DNI no fue encontrado en Base de Personas.",
+        }
+
+        resp = self._alta(nombre="Inventada", apellido="Totalmente")
+
+        self.assertEqual(resp.status_code, 201, resp.data)
+        caso = Formulario.objects.get(pk=resp.data["id"])
+        self.assertIn(servicio_campo.IDENTIDAD_NO_ENCONTRADA, (caso.observaciones_carga or "").splitlines())
+
+    @patch("programas.services.identidad.consultar_persona")
+    def test_la_fuente_que_no_respondio_queda_escrita_en_la_carga(self, mock_consultar):
+        """La Gran Base caída no dice **nada** de la persona: el caso llega sin
+        validar porque nadie pudo verificarlo, que no es lo mismo que «no
+        figura». Sin la línea, los dos casos se ven iguales en la revisión."""
+        mock_consultar.return_value = {"success": False, "error": "No se pudo consultar Base de Personas."}
+
+        resp = self._alta(nombre="Maria", apellido="Gomez")
+
+        self.assertEqual(resp.status_code, 201, resp.data)
+        caso = Formulario.objects.get(pk=resp.data["id"])
+        lineas = (caso.observaciones_carga or "").splitlines()
+        self.assertIn(servicio_campo.IDENTIDAD_FUENTE_SIN_RESPUESTA, lineas)
+        self.assertNotIn(servicio_campo.IDENTIDAD_NO_ENCONTRADA, lineas)
+
+    @patch("programas.services.identidad.consultar_persona")
+    def test_la_carga_acreditada_no_lleva_ninguna_de_las_dos_lineas(self, mock_consultar):
+        """Y si un reintento del alta sí acredita, la línea que decía que no se
+        pudo acreditar se va: dejarla ahí sería un reparo que ya no es cierto."""
+        mock_consultar.return_value = {"success": False, "error": "No se pudo consultar Base de Personas."}
+        caso = Formulario.objects.get(pk=self._alta(nombre="Maria", apellido="Gomez").data["id"])
+        self.assertIn(servicio_campo.PREFIJO_IDENTIDAD_SIN_ACREDITAR, caso.observaciones_carga or "")
+        mock_consultar.return_value = {
+            "success": True,
+            "data": {"dni": "41422422", "nombre": "Maria", "apellido": "Gomez", "fecha_nacimiento": "1990-01-02"},
+        }
+
+        _actualizar_validacion_identidad(caso, {"dni": "41422422", "sexo": "F", "origen": "personas"})
+
+        caso.refresh_from_db()
+        self.assertTrue(caso.validado_renaper)
+        self.assertNotIn(servicio_campo.PREFIJO_IDENTIDAD_SIN_ACREDITAR, caso.observaciones_carga or "")
+
+    def test_el_scan_del_dni_sigue_valiendo(self):
+        """D-24: el escaneo del código de barras del documento físico cuenta
+        como validación y **no** sale a la red."""
+        with patch("programas.services.identidad.consultar_persona") as mock_consultar:
+            resp = self._alta(origen="scan", nombre="Maria", apellido="Gomez")
+
+        self.assertEqual(resp.status_code, 201, resp.data)
+        self.assertTrue(resp.data["validado_renaper"])
+        mock_consultar.assert_not_called()
+
+
+class ConsultaDePersonasConThrottleTests(_BaseApiTest):
+    """SEC-25 · `POST /api/becas/personas/consultar/` tiene tope por usuario.
+
+    Devuelve nombre, apellido y fecha de nacimiento de cualquier DNI + sexo: sin
+    tope, un token de campo recorre la Gran Base entera a dos consultas por
+    documento (F y M).
+    """
+
+    def setUp(self):
+        super().setUp()
+        cache.clear()
+        self.addCleanup(cache.clear)
+        self.autenticar(self.terri)
+
+    def _consultar(self, dni="40400400"):
+        return self.client.post(
+            reverse("becas_api:personas-consultar"),
+            {"dni": dni, "sexo": "M"},
+            format="json",
+        )
+
+    def test_la_tasa_configurada_es_la_de_d25(self):
+        self.assertEqual(ConsultaPersonasThrottle().rate, "120/hour")
+
+    @patch("programas.services.identidad.consultar_persona")
+    @patch.object(ConsultaPersonasThrottle, "get_rate", return_value="2/hour")
+    def test_pasado_el_tope_contesta_429(self, _rate, mock_consultar):
+        mock_consultar.return_value = {"success": True, "data": {"nombre": "Juan", "apellido": "Perez"}}
+
+        self.assertEqual(self._consultar("40400400").status_code, 200)
+        self.assertEqual(self._consultar("40400401").status_code, 200)
+        resp = self._consultar("40400402")
+
+        self.assertEqual(resp.status_code, 429)
+        # DRF manda `Retry-After`: la app lo ignora y cae a carga manual, pero
+        # un cliente nuevo sabe cuánto esperar.
+        self.assertIn("Retry-After", resp)
+
+    @patch("programas.services.identidad.consultar_persona")
+    @patch.object(ConsultaPersonasThrottle, "get_rate", return_value="1/hour")
+    def test_la_cubeta_es_por_usuario_y_no_por_ip(self, _rate, mock_consultar):
+        """Los territoriales salen por el NAT de la operadora móvil: una cubeta
+        por IP le cerraría la consulta a una región entera por el uso de una
+        sola persona."""
+        mock_consultar.return_value = {"success": True, "data": {"nombre": "Juan", "apellido": "Perez"}}
+        self.assertEqual(self._consultar().status_code, 200)
+        self.assertEqual(self._consultar().status_code, 429)
+
+        self.autenticar(self.terri2)
+
+        self.assertEqual(self._consultar().status_code, 200)
+
+    @patch.object(ConsultaPersonasThrottle, "get_rate", return_value="1/hour")
+    def test_el_alias_renaper_comparte_la_misma_cubeta(self, _rate):
+        """Las dos rutas son la misma vista: un tope que se evade cambiando de
+        URL no es un tope."""
+        with patch("programas.services.identidad.consultar_persona") as mock_consultar:
+            mock_consultar.return_value = {"success": True, "data": {"nombre": "Juan", "apellido": "Perez"}}
+            self.assertEqual(self._consultar().status_code, 200)
+
+            resp = self.client.post(
+                reverse("becas_api:renaper-consultar"),
+                {"dni": "40400400", "sexo": "M"},
+                format="json",
+            )
+
+        self.assertEqual(resp.status_code, 429)
+
+    def test_un_anonimo_sigue_frenando_en_el_permiso_y_no_en_la_cubeta(self):
+        """El permiso corre antes que el throttle: nadie puede gastarle la cuota
+        a un territorial desde afuera, ni llenar la caché sin credenciales."""
+        self.client.credentials()
+
+        resp = self._consultar()
+
+        self.assertIn(resp.status_code, (401, 403))

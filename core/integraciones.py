@@ -98,6 +98,11 @@ CADENAS = {
     "link público · paso 1 (identificar)": ("recaptcha", "personas.token", "personas.consulta"),
     "link público · paso 2 (enviar la inscripción)": ("smtp",),
     "app de campo · identificar": ("personas.token", "personas.consulta"),
+    # SEC-24: el alta vuelve a resolver la identidad en el servidor cuando el
+    # teléfono declara origen `personas`, así que sale a la red igual que el
+    # paso 1. Corre **después** del commit y fuera del `select_for_update`
+    # (Cambio 91), pero es tiempo del mismo request y por eso se declara.
+    "app de campo · alta de un caso": ("personas.token", "personas.consulta"),
     # **La cuenta, con los valores de hoy (5 + 10):**
     #
     #   espera del login ajeno   16 s  (connect + read + MARGEN_ESPERA_LOGIN)
