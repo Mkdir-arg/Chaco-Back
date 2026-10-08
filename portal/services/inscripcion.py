@@ -46,10 +46,6 @@ SESSION_KEY_CAPTCHA_PREGUNTA = "inscripcion_captcha_pregunta"
 
 CAMPO_RECAPTCHA = "g-recaptcha-response"
 
-#: PERF-10. Cuánto vive una sesión que todavía **solo** tiene el desafío anti-bot.
-#: Ver :func:`acotar_sesion_anonima`.
-SESION_ANONIMA_SEGUNDOS = getattr(settings, "INSCRIPCION_SESION_ANONIMA_SEGUNDOS", 3600)
-
 #: Lo único que puede haber en la sesión para considerarla «todavía anónima».
 CLAVES_SOLO_CAPTCHA = {SESSION_KEY_CAPTCHA, SESSION_KEY_CAPTCHA_PREGUNTA}
 
@@ -63,6 +59,19 @@ def timeout_recaptcha():
     código pedir otra.
     """
     return (settings.RECAPTCHA_CONNECT_TIMEOUT, settings.RECAPTCHA_TIMEOUT)
+
+
+def sesion_anonima_segundos():
+    """PERF-10. Cuánto vive una sesión que todavía **solo** tiene el desafío anti-bot.
+
+    Leído de ``settings`` en cada llamada, por el mismo motivo que
+    :func:`timeout_recaptcha` (SIIS-09): era un escalar congelado en el import, así que
+    la variable de entorno funcionaba pero ``override_settings`` no lo movía y un test
+    no podía probar otra vigencia que la del arranque.
+
+    Ver :func:`acotar_sesion_anonima`.
+    """
+    return getattr(settings, "INSCRIPCION_SESION_ANONIMA_SEGUNDOS", 3600)
 
 
 def relevamiento_disponible(relevamiento):
@@ -174,7 +183,7 @@ def acotar_sesion_anonima(request):
     identificación.
     """
     if set(request.session.keys()) <= CLAVES_SOLO_CAPTCHA:
-        request.session.set_expiry(SESION_ANONIMA_SEGUNDOS)
+        request.session.set_expiry(sesion_anonima_segundos())
 
 
 def restaurar_vigencia_sesion(request):

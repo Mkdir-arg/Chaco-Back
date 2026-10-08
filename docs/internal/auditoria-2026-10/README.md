@@ -6,6 +6,12 @@
 |---|---|---|---|---|
 | Ola 7 PR 1 | 195 | OPS-10 ✅ · OPS-14 ✅ · RED-65 ✅ · FE-14 ✅ · LEG-06 🟡 | 🟡 | **Cuatro fichas cerradas y una parcial, sin DDL.** Nada de lo que se borró se ejecutaba, salvo tres botones. (1) **OPS-10:** los nueve módulos de `core/performance/` que nadie usa para medir (`advanced_*`, `database_*`, `intelligent_*`, `monitoring`, `performance_analyzer`, `phase2_manager`), seis comandos —los cuatro de la ficha más `monitor_performance` y `performance_report`, que quedaban sin un solo invocador— y cinco endpoints. `/run-phase2-tests-api/` era el peor: autorizaba por `IsAdminUser` (`is_staff`), contra la regla de capacidades, y disparaba análisis de índices y particiones **desde una request**. `SET GLOBAL …` pedía `SUPER` y `CREATE INDEX IF NOT EXISTS` no es MySQL. Sobrevive lo que mide de verdad: `query_observability`, `cache_utils`, `ci_external_stubs` y las tres APIs que los leen. El criterio de la ola se cumple: `git grep -n "phase2|core.performance.monitoring"` vacío fuera de `docs/`. (2) **OPS-14 + RED-65:** `tramites`, `docker/django/`, `scripts/startup.sh`, `core/services/cache.py` y la capacidad `ciudadano.eliminar` (`users.0033`, que borra también el `Permission` —Django no lo hace al sacarlo de `Meta.permissions`— con reversa marcada `# REVERSA-NOOP`). Los dos primeros eran justo lo que el guard de `publish-main.yml` exigía: salieron del árbol y de `RUNTIME` **en el mismo diff**, que es el modo de falla que RED-65 anticipó, más un test para el camino inverso (sacar una ruta del guard sin borrar el archivo apagaría la red en silencio). La parte de los fines de línea ya la había cerrado RED-82. (3) **FE-14:** los 29 JS y `dashboard.css`, con el rebuild de Tailwind commiteado. Efecto medible: `bg-info`, `text-danger` y `text-info` salen de la `DEUDA` de `CssCompiladoAlDiaTests` (16 → 13). (4) **LEG-06 con D-L06 en su default:** cuatro módulos de vistas sin ruta, tres templates, el `dashboard_contactos_simple` **homónimo** del que sí se sirve, `dar_de_baja_inscripcion` con su botón, y «Derivar a Programa» oculto. **Tres ratchets quedan en cero**: la `ALLOWLIST` de RED-42, `URLS_ROTAS_CONOCIDAS` y `BLOQUES_SIN_DESTINO_CONOCIDOS`. **Cinco desvíos, los cinco code-first:** `dashboard/templates/dashboard.html` no se borra (la vista, su `path` y `metricas_home()` son de **RED-78**, otro PR de esta ola: acá sale solo su `{% include %}` del widget); **el default de D-F16 no se aplica** —`legajos:programa_detalle` es el destino de `redirect` de las dos vistas de derivación de SEC-12, que están ruteadas y vivas, así que la pantalla es pobre pero no está muerta—; `ml_predictor.py` se queda (la ficha lo nombra en *Ubicación* y no en *Propuesta*, y `legajos:prediccion_riesgo` lo usa); `relevamiento.ver` e `institucion.*` siguen en el catálogo (la *Propuesta* solo nombra `ciudadano.eliminar`; vaciar el módulo `instituciones` borra una solapa del ABM de Roles → decisión del PM); y `BajaProgramaService` se conserva, porque lo cubre un test permanente de BEC-18. **TDD:** los 14 tests nuevos se corrieron contra un worktree de `origin/development` y fallaron los 14. **Para el juez:** los dos bloques de `.claude/` (agente canónico y `shells.md`, por el borrado de `widget_contactos.html`) van en el cuerpo del PR; hasta aplicarlos, «Design Agent Contract» queda rojo. |
 
+## Estado al 08-oct-2026 (Ola 4, PR 9: la red de seguridad — **cierra la Ola 4**)
+
+| PR | Cambio | Fichas | Estado | Qué quedó abierto |
+|---|---|---|---|---|
+| Ola 4 PR 9 | 194 | RED-62 ✅ · RED-10 ✅ (2.ª parte) · RED-51 ✅ (parte Ola 4) · RED-83 ✅ (migración) | ✅ | **Las 4 fichas (12 h), con dos migraciones de solo `DROP INDEX`.** (1) **RED-62:** los presupuestos de `perf_budgets.json` eran autodeclarados —un N+1 deja el job en rojo «16 → 61» y subir el techo en el mismo PR lo devolvía a verde—; ahora `scripts/check_perf_budgets.py` compara contra el árbol **base del PR** y falla si un techo sube sin una entrada de `adjustments` que **nombre** ese presupuesto. Se miran también los `servicios` y los dos multiplicadores de la alarma de tiempo, que son la forma barata de correr el techo sin tocar la referencia; `failure_multiplier` baja de 3,0 a **2,0** (con 3,0 saltaba recién a 4,3 s, casi el triple). Probado con un caso rojo y uno verde reales. (2) **RED-10:** las dos escrituras que trabajan bajo el `select_for_update` del relevamiento entran al manifiesto —`inscripcion_publica_paso2` (46 consultas / 10 duplicadas) y `becas_api_alta` (31 / 1)—, sobre un **segmento propio** del seed para no moverles una fila a los presupuestos que ya existían. El payload del paso 2 se arma preguntándole al formulario qué campos tiene, porque es dinámico: los cinco adjuntos obligatorios del catálogo viajan solos. (3) **RED-51:** `dashboard/cache.py` es la tabla única clave → consulta → modelo; `stats_legajos` pasa al receiver de `InscripcionPrograma` (lo escribe ese modelo, no `LegajoAtencion`), `alertas_activas` estrena el suyo y la segunda `invalidate_dashboard_cache` **se borra**, con un recorrido `ast` que falla si el nombre vuelve. (4) **RED-83:** se van los cinco índices redundantes medidos, con `EXPLAIN` antes y después contra el banco MariaDB 10.11 (362 MB de `programas_formulario`): siete de ocho consultas calientes dan el **plan idéntico** y la octava pasa al compuesto `(apellido, nombre)` con el mismo `key_len`; el DDL cuesta 29-32 ms por índice y el ciclo ida → vuelta → ida quedó probado sobre datos. **Seguimientos MINOR de #645, los cinco cerrados:** la lupa de `legajo` en el admin vuelve registrando `LegajoAtencion`; PERF-08 declara que en los **consumers** de Channels el minuto sí se reusaba y qué se pierde; `docs/client/architecture.md` deja de afirmar «pool reusable 60 s» sin condición; `SESION_ANONIMA_SEGUNDOS` se lee por llamada; y `escenarios_borde.py` —el primer script del banco que **borra**— exige la base descartable. **Abierto:** los 21 pares de índices redundantes de tablas chicas que quedan en el ratchet, sin ficha propia |
+
 ## Estado al 08-oct-2026 (Ola 4, PRs 6, 7 y 8: configuración, admin y las tres fichas que se cerraron midiendo)
 
 | PR | Cambio | Fichas | Estado | Qué quedó abierto |
@@ -646,7 +652,8 @@ hallazgos en las 113 migraciones existentes (73 columnas `NOT NULL` sin default,
 
 **Pendiente operativo que deja este PR (PM):** ninguno de deploy (sin migraciones nuevas; las ocho barreras y las cuatro
 reversas UUID solo cambian el camino de vuelta, que en producción no se usa). Cuando la Ola 4 saque los cinco índices
-medidos, bajar las filas correspondientes de `REDUNDANTES_CONOCIDOS`.
+medidos, bajar las filas correspondientes de `REDUNDANTES_CONOCIDOS`. *(Hecho en el Cambio 194, Ola 4 PR 9: el ratchet
+quedó en 21 y los cinco se fueron con `legajos.0011` y `programas.0084`.)*
 
 ---
 
@@ -1615,23 +1622,23 @@ funcional ni coordinación con ECOM). Las horas de cada ola suman los esfuerzos 
 | 1 | Integridad SIIS | 23 | 72 | 22 (− SIIS-07) | 70 | 23 (+ RED-53; + parte de RED-32) | 78 · **76 cerradas (26 el 05-oct, PR 2; 6 el 06-oct, PR 3; 10 el 06-oct, PR 4; 4 el 06-oct, PR 5; 20 el 07-oct, PR 6; 10 el 07-oct, PR 7) → 2 restantes: el ítem 0 (V2-NEW-03, correr P-01 en PRD, sin código)** |
 | 2 | Autorización (RBAC, legajos, alcance de Becas, usuarios) | 36 | 116 | 50 (+ fase 2 de OPS-06, R0-05, resto de SEC-01, etapa 2 de SEC-09, R0b-01..10) | 136 | 51 (+ RED-80; + partes de RED-52, RED-79) | 135 (−7: SEC-10, SEC-18 y media SEC-11 se hacen en R-19, D-RED-14) · **135 cerradas el 08-oct (PR 1 = 26 + 2 de RED-80 · PR 2 = 24 + 2 de RED-52 · PRs 3 y 4 = 19 · PR 5 = 14 + 2 de RED-79 · PR 6 = 12 · PR 7 = 14 · PR 8 = 20) → 0: la ola cierra** |
 | 3 | Datos, operación, CI, app de campo y reglas de Becas | 55 | 158 | 59 (+ R0-03, R0-04, R0-06, R0-07) | 166 | 54 (− 7 a la Ola R; + RED-48, RED-58; + partes de RED-09, 35, 40, 50) | 152 · **152 cerradas (14 PR 1 · 22 PR 2 · 6 PR 3 · 22 PR 5 · 14 PR 5b · 30 PR 6 · 16 PR 7a · 14 PR 7b · 8 PR 8 · 6 PR 9) → 0: la ola cierra** |
-| 4 | Performance | 19 | 52 | 19 | 52 | 20 (+ RED-62; + partes de RED-10, 49, 51, 83) | 64 · **50 cerradas el 08-oct (PRs 1 y 2 = 10 + 2, con la parte RED-49 adentro · PR 3 = 8 · PR 4 = 6 · PR 5 = 12 de 14, PERF-03 🟡 · PRs 6, 7 y 8 = 12) → 14 restantes** |
+| 4 | Performance | 19 | 52 | 19 | 52 | 20 (+ RED-62; + partes de RED-10, 49, 51, 83) | 64 · **62 cerradas el 08-oct (PRs 1 y 2 = 10 + 2, con la parte RED-49 adentro · PR 3 = 8 · PR 4 = 6 · PR 5 = 12 de 14, PERF-03 🟡 · PRs 6, 7 y 8 = 12 · PR 9 = 12) → 2 restantes: el punto 3 de PERF-03 (exportar fuera del request)** |
 | 5 | Bugs de front y parches v1 de Legajos/Dispositivos | 31 (+ V5A-NEW-07 b) | 114 | 31 (+ V5A-NEW-07 b) | 114 | 33 (+ RED-33, RED-75; + partes de RED-42, 53) (+ V5A-NEW-07 b) | 128 · **128 cerradas (PRs 1 a 8) → 0: la ola cierra** |
 | 6 | Agente de diseño | 4 (+8 pasos) | 42 | 4 (+8 pasos) | 42 | 4 (+8 pasos) | 42 · **42 cerradas el 06-oct (pasos 0-7) → 0: la ola cierra** |
 | 7 | Deuda | 9 (+ fase 2 de G1-01) | 46 | 10 (+ fase 2 de G1-01; + R0-02) | 48 | 13 (+ RED-64, 76, 86; + partes de RED-13, 37, 39, 54, 78, 85) | 88 · **10 cerradas el 09-oct (PR 1: OPS-10 = 4, OPS-14 + RED-65 = 2, FE-14 = 2, LEG-06 🟡 = 2) → 78 restantes** |
 | v2 | Criterios de aceptación de la v2 (§7), no se implementan en v1 | 13 | — | 13 | — | 13 | — |
-| **Total** | | **206** | **636** | **208** | **628** | **297** | **972** · **862 cerradas al 09-oct-2026 → 110 restantes** |
+| **Total** | | **206** | **636** | **208** | **628** | **297** | **972** · **874 cerradas al 09-oct-2026 → 98 restantes** |
 
 Cada ficha RED cuenta como ítem una sola vez, en la primera ola donde tiene trabajo (por eso la columna suma 297 = 208 +
 89); si tiene una segunda parte en otra ola, esas horas se suman en esa ola («+ partes de …»).
 
 **Cómo se calcula la fila Total (08-oct-2026).** Las 972 h son la suma de la última columna, ola por ola: 0 (Ola 0, que
 cerró en código y cuyas horas ya se descontaron) + 285 (R) + 78 (1) + 135 (2) + 152 (3) + 64 (4) + 128 (5) + 42 (6) +
-88 (7); la v2 no tiene horas. Las **862 cerradas** son la suma de las horas cerradas que declara cada fila, y cada una
+88 (7); la v2 no tiene horas. Las **874 cerradas** son la suma de las horas cerradas que declara cada fila, y cada una
 sale de la lista de PRs de su propia sección de este §6: **269** de la Ola R (285 − las 16 de R-17, el único abierto),
 **76** de la Ola 1 (de 78: queda el ítem 0, operativo), **135** de la Ola 2 (PR 1 = 26 + 2 de RED-80, PR 2 = 24 + 2 de RED-52, PRs 3 y 4 = 7 + 12, PR 5 = 14 + 2 de RED-79, PR 6 = 12, PR 7 = 14, PR 8 = 20), **152** de la Ola 3 (PR 1 = 14, PR 2 = 22, PR 3 = 6, PR 5 = 22, PR 5b = 14, PR 6 = 30, PR 7a = 16, PR 7b = 14,
-PR 8 = 8, PR 9 = 6), **128** de la Ola 5 y **42** de la Ola 6, las tres cerradas; **50** de la Ola 4 (PRs 1 y 2 = 12, PR 3 = 8, PR 4 = 6, PR 5 = 12 de 14, PRs 6, 7 y 8 = 12); **10** de la Ola 7 (PR 1).
-La cuenta: 269 + 76 + 135 + 152 + 50 + 128 + 42 + 10 = **862 cerradas**; 972 − 862 = **110 restantes**. Desde el 08-oct estas
+PR 8 = 8, PR 9 = 6), **128** de la Ola 5 y **42** de la Ola 6, las tres cerradas; **62** de la Ola 4 (PRs 1 y 2 = 12, PR 3 = 8, PR 4 = 6, PR 5 = 12 de 14, PRs 6, 7 y 8 = 12, PR 9 = 12); **10** de la Ola 7 (PR 1).
+La cuenta: 269 + 76 + 135 + 152 + 62 + 128 + 42 + 10 = **874 cerradas**; 972 − 874 = **98 restantes**. Desde el 08-oct estas
 cuentas las actualiza **solo el juez**, una vez por tanda de merges: los PRs #626 (Ola 2 PR 5) y #627 (Ola 3 PR 5b) se
 escribieron en paralelo y cada uno sumó sus horas sobre una base que no tenía las del otro (663 y 661). El «139
 cerradas» venía del 04-oct y no contaba nada de lo mergeado entre el 05 y el 07; el **543** del 07-oct arrastraba la
@@ -1650,7 +1657,8 @@ la Ola 2 por D-11). Los ítems **no** se mueven: SEC-10, SEC-11 y SEC-18 siguen 
 quedó abierto en esos diez PRs se replanifica aparte: lo de RED-01 y RED-20 es operativo (sin horas, como R0b-11 y
 R0b-12), las segundas partes de RED-09, RED-32, RED-37 y RED-85 ya estaban contadas en las Olas 3, 1, 7 y 7, y de RED-10
 los dos destinos del Performance Guard siguen en la Ola 4 mientras el gemelo del link público viaja con el PR que toque
-esa pantalla.
+esa pantalla. *(Los dos destinos entraron en el Cambio 194, Ola 4 PR 9, y ahí mismo quedó cubierto el paso 2 del link:
+el presupuesto del manifiesto hace el trabajo del gemelo.)*
 
 Primera tanda (PRs #507-#518, 01-oct): se cerraron 16 h del plan (SEC-04, SEC-08, G1-02, SIIS-07, la parte hecha de
 SEC-29, G1-01 y OPS-06) y entraron 16 h nuevas (fase 2 de OPS-06, 4 h, que el plan no contaba —ver m-6—, y los
@@ -2130,11 +2138,11 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
   (5) ✅ PERF-03 (`lxml` + botón CSV, **parcial:** el punto 3 sigue abierto), G1b-11, G1b-12 (exports y dashboard)
   14 h (Cambio 189) · (6) ✅ PERF-08, PERF-10 (config) 4 h (Cambio 192) · (7) ✅ G1c-09, G1c-11 (admin) 4 h
   (Cambio 192) · (8) ✅ PERF-12, PERF-13, PERF-15 (medidas en el banco; **ningún índice entra**: el plan no lo pide)
-  4 h (Cambio 192) · (9) *Red de seguridad (04-oct):*
-  RED-62 (presupuestos que suben exigen justificación) y segundas partes de RED-10 (destinos del Performance Guard para el
-  paso 2 del link y el alta por API), ✅ RED-49 (renombrar las tres acepciones de `cupo_disponible`, con PERF-02 —
-  Cambio 182), RED-51
-  (cache del dashboard por modelo) y RED-83 (quitar los índices redundantes) 12 h.
+  4 h (Cambio 192) · (9) ✅ *Red de seguridad (04-oct):*
+  RED-62 ✅ (presupuestos que suben exigen justificación) y segundas partes de RED-10 ✅ (destinos del Performance Guard
+  para el paso 2 del link y el alta por API), ✅ RED-49 (renombrar las tres acepciones de `cupo_disponible`, con
+  PERF-02 — Cambio 182), RED-51 ✅
+  (cache del dashboard por modelo) y RED-83 ✅ (quitar los índices redundantes) 12 h (Cambio 194). **Cierra la Ola 4.**
 - **Hecho cuando:** V-STD + `test --tag performance`; presupuestos nuevos en `perf_budgets.json` (`becas_cupo_segmento`,
   `becas_proceso_masivo`); tests de consultas constantes (PERF-04, PERF-01, PERF-20, G1c-09); los criterios de cierre en
   el banco MariaDB de `anexo-mediciones-performance.md`.

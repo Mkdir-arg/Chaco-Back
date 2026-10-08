@@ -8,14 +8,24 @@ no crea: un estado raro en la bandeja y un padrón grande en la convocatoria.
   50.000 filas de nivel convocatoria, la mitad con identidad (RN-2), que es lo que cuenta
   el `aggregate` del detalle.
 
+**Este script BORRA.** Es el primero de la carpeta que lo hace: vacía el padrón de la
+convocatoria del último relevamiento público (`PadronHabilitado.objects.filter(
+convocatoria=conv).delete()`) antes de recargarlo, y le pone `BAJA` a 400 casos que hoy
+están `ENVIADO`. Por eso exige la base descartable del banco (`chaco_perf_ci`,
+preguntada al servidor) y no solo «no es SQLite», que es lo único que mira
+`_bootstrap.cargar_django()`: con `DATABASE_*` apuntando a cualquier MySQL/MariaDB con
+datos —un restore de PRD en el laptop, por ejemplo— esto se llevaba puesto un padrón sin
+avisar.
+
 Uso: python scripts/perf_mysql/escenarios_borde.py [--bajas 400] [--padron 50000]
 """
 
 import argparse
 
-from _bootstrap import cargar_django  # noqa: E402
+from _bootstrap import cargar_django, exigir_base_descartable  # noqa: E402
 
 cargar_django()
+exigir_base_descartable()
 
 from programas.models import Formulario, PadronHabilitado, Relevamiento  # noqa: E402
 

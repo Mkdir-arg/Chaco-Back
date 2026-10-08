@@ -18,6 +18,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import connection
 from django.template.loader import get_template
 from django.test import TestCase
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
 
@@ -490,6 +491,91 @@ class IngestaPublicaTests(_BasePaso2Test):
                     relevamiento_disponible(relevamiento),
                     estado == Relevamiento.Estado.EN_CURSO,
                 )
+
+
+class AdjuntosConsultasConstantesTests(_BasePaso2Test):
+    """RED-10 (ronda 2): el envío cuesta lo mismo con 2 archivos que con 6.
+
+    El guardado de los adjuntos era un ``create()`` por archivo. Con los cinco
+    adjuntos obligatorios del catálogo de Becas eso son cinco ``INSERT``
+    idénticos en el camino público más pesado —el que el Cambio 91 vio romper
+    contra el ``read_timeout`` de 10 s— y es lo que la sonda efímera de CI marca
+    como N+1 (``portal:inscripcion_paso2``, ``INSERT
+    programas_adjuntoformulario ×5``).
+
+    La guarda es de **forma**, no de techo: no fija cuántas consultas cuesta el
+    envío, fija que el número no dependa de cuántos archivos pide el
+    formulario. Un presupuesto no alcanzaba: el catálogo define cuántos adjuntos
+    hay y sumar uno más volvería a correr el techo.
+    """
+
+    def _escenario(self, cantidad_archivos, dni):
+        """Una convocatoria propia cuyo único eje variable son los adjuntos."""
+        segmento = Segmento.objects.create(nombre=f"Seg {dni}", cupo_maximo=100)
+        convocatoria = Convocatoria.objects.create(
+            nombre=f"Becas {dni}",
+            segmento=segmento,
+            fecha_inicio=date(2026, 1, 1),
+            fecha_fin=date(2026, 12, 31),
+        )
+        requisitos = [
+            RequisitoNativo.objects.create(
+                texto=f"Documento {orden}",
+                tipo="ARCHIVO",
+                segmento=segmento,
+                obligatorio=True,
+                orden=orden,
+            )
+            for orden in range(1, cantidad_archivos + 1)
+        ]
+        relevamiento = Relevamiento.objects.create(
+            convocatoria=convocatoria,
+            tipo=Relevamiento.Tipo.PUBLICO,
+            fecha_asignada=timezone.now() - timedelta(days=1),
+            fecha_hasta=timezone.now() + timedelta(days=10),
+        )
+        cache.clear()
+        identificacion = _identificacion(dni=dni)
+        form = InscripcionPaso2Form(
+            # El apoderado también estrena documento: su legajo se crea una sola
+            # vez y, compartido entre los dos escenarios, el segundo se ahorraría
+            # un alta que no tiene nada que ver con los adjuntos.
+            self._data(**{self.k_apo_dni: f"2{dni[1:]}"}),
+            {
+                f"rn-{requisito.pk}": SimpleUploadedFile(
+                    f"doc-{requisito.pk}.png", b"\x89PNG\r\n\x1a\nfake", content_type="image/png"
+                )
+                for requisito in requisitos
+            },
+            definicion=definicion_formulario(relevamiento),
+            identificacion=identificacion,
+        )
+        self.assertTrue(form.is_valid(), form.errors)
+        return relevamiento, identificacion, form
+
+    def _consultas_del_envio(self, cantidad_archivos, dni):
+        relevamiento, identificacion, form = self._escenario(cantidad_archivos, dni)
+        with CaptureQueriesContext(connection) as capturadas:
+            formulario, creado = crear_formulario_publico(
+                relevamiento,
+                identificacion=identificacion,
+                form=form,
+                client_uuid=identificacion["client_uuid"],
+            )
+        self.assertTrue(creado)
+        self.assertEqual(AdjuntoFormulario.objects.filter(formulario=formulario).count(), cantidad_archivos)
+        return len(capturadas)
+
+    def test_el_envio_no_paga_una_consulta_por_adjunto(self):
+        dos = self._consultas_del_envio(2, "30111222")
+        seis = self._consultas_del_envio(6, "30333444")
+
+        self.assertEqual(
+            seis,
+            dos,
+            f"triplicar los adjuntos movió el costo del envío ({dos} → {seis} consultas): "
+            "volvió el guardado fila por fila",
+        )
 
 
 class ContratoDeCandadosPublicoTests(_BasePaso2Test):

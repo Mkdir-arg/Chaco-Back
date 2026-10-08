@@ -29,7 +29,9 @@ class HistorialContactoAdmin(admin.ModelAdmin):
     date_hierarchy = "fecha_contacto"
     ordering = ["-fecha_contacto"]
     # G1c-09: el combo de `legajo` listaba todos los legajos de atención y el de
-    # `profesional` todos los usuarios.
+    # `profesional` todos los usuarios. La lupa de `legajo` existe porque
+    # `LegajoAtencionAdmin` está registrado (seguimiento MINOR de #645): sin eso,
+    # `ForeignKeyRawIdWidget` no dibuja el link y el alta pide el UUID de memoria.
     raw_id_fields = ["legajo", "profesional"]
     # G1c-11 daba por N+1 el listado: medido, no lo es. `legajo` y `profesional` son FK
     # **no nulas**, y Django ya le aplica `select_related()` sin argumentos a toda

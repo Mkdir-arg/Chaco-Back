@@ -6,14 +6,8 @@ import logging
 
 from django.core.cache import cache
 from django.db import transaction
-from django.db.models.signals import post_delete, post_save
-from django.dispatch import receiver
 
 logger = logging.getLogger("django")
-
-#: Los dos contadores de la home que dependen de **cuántos** ciudadanos hay. Solo
-#: cambian cuando nace o se borra uno: editar a alguien no mueve ningún total.
-CLAVES_CONTADORES = ("contar_ciudadanos", "contar_usuarios")
 
 
 def invalidate_cache_keys(*cache_keys):
@@ -51,49 +45,23 @@ def invalidar_tras_commit(claves):
     transaction.on_commit(_borrar)
 
 
-def invalidar_ciudadanos_tras_commit(ids, contadores=True):
+def invalidar_ciudadanos_tras_commit(ids, claves_extra=()):
     """Invalidación de una escritura **en lote** de ciudadanos (PERF-04).
 
     ``bulk_update`` no dispara ``post_save``, así que el cruce del padrón avisa por
     acá con las mismas claves que la señal, en un solo ``DEL`` para todos los casos.
+
+    ``claves_extra`` las pone quien llama —en la práctica, los contadores de la home
+    cuando el total pudo cambiar—. Antes se llamaban desde acá con una constante local
+    (RED-51): eso obligaba a este módulo, que es plomería de `core`, a conocer las claves
+    del dashboard, y el import de vuelta cerraba un ciclo que el ratchet de RED-79 marca.
     """
-    claves = [f"ciudadano_{pk}" for pk in ids]
-    if contadores:
-        claves.extend(CLAVES_CONTADORES)
-    invalidar_tras_commit(claves)
+    invalidar_tras_commit([f"ciudadano_{pk}" for pk in ids] + list(claves_extra))
 
 
-def invalidate_dashboard_cache():
-    """Invalida cache del dashboard."""
-    keys_to_invalidate = [
-        "contar_usuarios",
-        "contar_ciudadanos",
-    ]
-    invalidate_cache_keys(*keys_to_invalidate)
-
-
-# Signals para invalidación automática
-@receiver([post_save, post_delete], sender="legajos.Ciudadano")
-def invalidate_ciudadano_cache_on_change(sender, instance, **kwargs):
-    """Invalida cache cuando se modifica un ciudadano.
-
-    PERF-16: eran cuatro ``DEL`` por ``save()`` —``contar_ciudadanos`` dos veces,
-    porque el receiver llamaba a ``invalidate_ciudadano_cache`` y a
-    ``invalidate_dashboard_cache``, y las dos la borraban—. Ahora es **un**
-    ``delete_many`` deduplicado tras el commit, y
-    los dos contadores solo se tocan cuando el total pudo cambiar: al crear o al
-    borrar. ``post_delete`` no manda ``created``, y ahí el total sí cambió: por eso
-    el default del ``get`` es ``True``.
-    """
-    nacio_o_murio = kwargs.get("created", True)
-    invalidar_ciudadanos_tras_commit([instance.id] if instance.id else [], contadores=nacio_o_murio)
-
-
-@receiver([post_save, post_delete], sender="auth.User")
-def invalidate_user_cache_on_change(sender, instance, **kwargs):
-    """Invalida cache cuando se modifica un usuario."""
-    # update_last_login guarda solo last_login en cada login: no cambia los
-    # contadores del dashboard, no hace falta invalidarlos.
-    if kwargs.get("update_fields") and set(kwargs["update_fields"]) == {"last_login"}:
-        return
-    invalidate_dashboard_cache()
+# RED-51: acá vivían la segunda `invalidate_dashboard_cache` —la de dos claves— y los
+# receivers de `Ciudadano` y `User` que la llamaban. Las claves de la home y qué modelo
+# mueve cada una son ahora una tabla sola (`dashboard/cache.py`), y los receivers que las
+# usan viven al lado de esa tabla (`dashboard/signals/cache.py`). Acá queda la plomería:
+# el `delete_many` tras el commit y la invalidación en lote de fichas de ciudadano, que no
+# son contadores de la home.
