@@ -752,6 +752,33 @@ class AdjuntosDeLaAppTests(_CampoBase):
         self.assertEqual(resp.status_code, 400, resp.data)
         self.assertEqual(self.formulario.adjuntos.count(), 0)
 
+    def test_un_campo_de_la_lista_plana_que_items_no_trae_se_acepta(self):
+        """La app instalada (`Chaco-mobile@a66c2d3`) arma el formulario con las
+        listas planas `globales`/`requisitos`, no con `items`, y las dos no
+        coinciden siempre (un grupo del diseño acotado a otro canal saca sus
+        campos de `items` y no de la lista plana). El archivo de un campo que el
+        teléfono mostró no puede rebotar: la cola de la app corta en el primer
+        adjunto que falla y los que venían después tampoco se suben."""
+        from programas.services.becas import definicion_formulario
+        from programas.services.respuestas import campos_de
+
+        clave = f"pg-{self.pregunta.pk}"
+        vigente = definicion_formulario(Relevamiento.objects.get(pk=self.rel.pk))
+        self.assertIn(self.pregunta.pk, [campo["id"] for campo in vigente["globales"]])
+        definicion = dict(self.formulario.definicion)
+        definicion["items"] = [
+            {**grupo, "items": [item for item in grupo.get("items", []) if item.get("clave") != clave]}
+            for grupo in definicion.get("items") or []
+        ]
+        Formulario.objects.filter(pk=self.formulario.pk).update(definicion=definicion)
+        self.formulario.refresh_from_db()
+        self.assertNotIn(clave, {campo["clave"] for campo in campos_de(self.formulario.definicion)})
+
+        resp = self._subir(b"una foto")
+
+        self.assertEqual(resp.status_code, 201, resp.data)
+        self.assertEqual(self.formulario.adjuntos.count(), 1)
+
     def test_un_campo_que_no_es_de_archivo_se_rechaza(self):
         """Está en la foto del caso, pero su respuesta es texto: un archivo
         colgado de ahí no se muestra en ningún lado."""

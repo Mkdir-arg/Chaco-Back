@@ -19,6 +19,7 @@ La forma de **cada campo** de ``definicion_formulario`` (claves, prefijos
 """
 
 from datetime import date, timedelta
+from unittest.mock import patch
 
 from django.contrib.auth.models import Group, User
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -407,6 +408,113 @@ class ContratoAppDeCampoTests(_BaseApiTest):
         self.assertEqual(sorted(segunda.json()), sorted(CLAVES_ADJUNTO))
         self.assertEqual(segunda.json()["id"], primera.json()["id"])
         self.assertEqual(len(self.client.get(url).json()), 1)
+
+    def test_el_adjunto_se_sube_con_el_id_de_la_lista_plana(self):
+        """G1-07 contra lo que la app manda de verdad (`Chaco-mobile@a66c2d3`).
+
+        `mapDjangoRelevamientoDetail` arma `campos_definicion` con las listas
+        **planas** `globales`/`requisitos` —no con `items`— y
+        `syncRemoteBecasFormulario` sube un archivo por campo `ARCHIVO`, en
+        multipart, con `pregunta_global` o `requisito_nativo` = el `id` de esa
+        lista según el `scope`. Si el control de pertenencia rechazara una de
+        esas referencias, la cola de la app marca el envío `PARCIAL` y **corta**:
+        los adjuntos que venían después tampoco se suben."""
+        self.rel.estado = Relevamiento.Estado.EN_CURSO
+        self.rel.save(update_fields=["estado", "modificado"])
+        pregunta = PreguntaGlobal.objects.create(texto="Foto del DNI", tipo=TipoCampo.ARCHIVO, activo=True, orden=900)
+        requisito = RequisitoNativo.objects.create(
+            texto="Constancia", tipo=TipoCampo.ARCHIVO, segmento=self.seg, orden=901
+        )
+        alta = self.client.post(
+            reverse("becas_api:relevamiento-formularios", args=[self.rel.pk]),
+            {
+                "celular": "3624111222",
+                "email_contacto": "x@y.com",
+                "datos_identificacion": {"dni": "40400400", "nombre": "Juan", "apellido": "Perez"},
+            },
+            format="json",
+        )
+        self.assertEqual(alta.status_code, 201, alta.data)
+        definicion = self.client.get(reverse("becas_api:relevamiento-detail", args=[self.rel.pk])).json()[
+            "definicion_formulario"
+        ]
+        url = reverse("becas_api:formulario-adjuntos", args=[alta.json()["id"]])
+        subidas = [
+            ("pregunta_global" if scope == "globales" else "requisito_nativo", campo["id"])
+            for scope in ("globales", "requisitos")
+            for campo in definicion[scope]
+            if campo["tipo"] == "ARCHIVO"
+        ]
+        self.assertIn(("pregunta_global", pregunta.pk), subidas)
+        self.assertIn(("requisito_nativo", requisito.pk), subidas)
+
+        for relacion, ident in subidas:
+            with self.subTest(relacion=relacion):
+                # La app manda los campos del FormData como texto.
+                resp = self.client.post(
+                    url, {relacion: str(ident), "archivo": SimpleUploadedFile("foto.jpg", b"x")}, format="multipart"
+                )
+                self.assertEqual(resp.status_code, 201, resp.data)
+        self.assertEqual(len(self.client.get(url).json()), len(subidas))
+
+    def test_el_400_del_adjunto_trae_el_motivo_en_non_field_errors(self):
+        """`buildResponseError` (`becasApi.js`) arma el mensaje con
+        `detail || error || non_field_errors[0]`: el motivo tiene que estar en
+        una de esas tres, como texto."""
+        self.rel.estado = Relevamiento.Estado.EN_CURSO
+        self.rel.save(update_fields=["estado", "modificado"])
+        pregunta = PreguntaGlobal.objects.create(texto="Foto del DNI", tipo=TipoCampo.ARCHIVO, orden=900)
+        ajena = PreguntaGlobal.objects.create(texto="Ya no se pide", tipo=TipoCampo.ARCHIVO, activo=False, orden=901)
+        formulario = Formulario.objects.create(relevamiento=self.rel, celular="111", email_contacto="a@b.com")
+        url = reverse("becas_api:formulario-adjuntos", args=[formulario.pk])
+
+        for motivo, datos in (
+            ("formato", {"pregunta_global": pregunta.pk, "archivo": SimpleUploadedFile("dni.exe", b"x")}),
+            ("fuera del formulario", {"pregunta_global": ajena.pk, "archivo": SimpleUploadedFile("dni.jpg", b"x")}),
+        ):
+            with self.subTest(motivo=motivo):
+                resp = self.client.post(url, datos, format="multipart")
+                self.assertEqual(resp.status_code, 400)
+                self.assertIsInstance(resp.json()["non_field_errors"][0], str)
+
+    def test_el_400_del_alta_trae_el_motivo_en_non_field_errors(self):
+        self.rel.estado = Relevamiento.Estado.EN_CURSO
+        self.rel.save(update_fields=["estado", "modificado"])
+
+        resp = self.client.post(
+            reverse("becas_api:relevamiento-formularios", args=[self.rel.pk]),
+            {"celular": "1", "email_contacto": "x@y.com", "datos_identificacion": {"dni": "12"}},
+            format="json",
+        )
+
+        self.assertEqual(resp.status_code, 400)
+        self.assertIsInstance(resp.json()["non_field_errors"][0], str)
+
+    def test_la_persona_no_encontrada_es_un_404_con_error(self):
+        """La app (`RelevamientoDetailScreen.js`, consulta de identidad) decide
+        **solo por el status**: `e.status === 404` → «DNI no encontrado» y
+        carga manual; cualquier otro error → aviso de validación fallida. El
+        texto que deja a la vista sale de `error`. Da igual por qué no se la
+        encontró (código 12 de Personas o un 404 del servicio): las dos tienen
+        que llegar como este 404."""
+        no_encontrada = {
+            "validado": False,
+            "fallecido": False,
+            "no_encontrado": True,
+            "error": "Base de Personas no encontró a la persona.",
+            "datos": None,
+            "origen": "manual",
+            "diferencias": {},
+        }
+        with patch("programas.api.views.identificar", return_value=no_encontrada):
+            resp = self.client.post(
+                reverse("becas_api:personas-consultar"), {"dni": "40400400", "sexo": "F"}, format="json"
+            )
+
+        self.assertEqual(resp.status_code, 404)
+        self.assertIs(resp.json()["success"], False)
+        self.assertIsInstance(resp.json()["error"], str)
+        self.assertTrue(resp.json()["error"])
 
     def test_la_raiz_de_la_api_no_se_abre_a_quien_no_es_de_campo(self):
         self.client.credentials()

@@ -2686,9 +2686,16 @@ class Formulario(TimeStamped):
     # caso queda interpretado con un diseño que la persona nunca vio. El dato es
     # **opcional** —la app instalada no lo manda y sigue funcionando igual— y,
     # cuando viene y no coincide, la diferencia queda en ``observaciones_carga``.
-    version_capturada = models.PositiveIntegerField(
+    #
+    # ``IntegerField`` + validador y **no** ``PositiveIntegerField``: en MySQL 8
+    # Django escribe el positivo como ``CHECK (... >= 0)`` y un ``ADD COLUMN`` con
+    # CHECK no admite ``ALGORITHM=INSTANT`` (error 1845, medido en ``mysql:8.0``):
+    # reescribiría ``programas_formulario`` entera con la tabla bloqueada. El
+    # mínimo lo sostienen el validador y el ``min_value`` del serializer.
+    version_capturada = models.IntegerField(
         null=True,
         blank=True,
+        validators=[MinValueValidator(0)],
         verbose_name="Versión del formulario con la que se capturó",
     )
     # G1-05: lo que el servidor encontró mal en una carga de la app y no alcanza

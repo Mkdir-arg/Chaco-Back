@@ -25429,6 +25429,23 @@ fijado en `programas/tests/test_becas_api_contrato.py`.
   solo si todavía no tiene foto se cae a la definición vigente de su relevamiento. A qué caso
   se sube ya lo decidía `get_queryset` —solo los relevamientos del propio territorial—, y eso
   queda fijado con su test en vez de duplicarse en el serializer.
+- **…y, si ahí no está, la lista plana vigente del relevamiento.** Ajuste hecho al leer
+  `Chaco-mobile@a66c2d3`: la app instalada arma el formulario con las listas **planas**
+  `globales`/`requisitos` de la definición (`mapDjangoRelevamientoDetail`), no con `items`, y sube
+  cada archivo con el `id` de esa lista. Las dos estructuras no coinciden siempre —un grupo del
+  diseño acotado a otro canal saca sus campos de `items` y no de la lista plana— y la foto del
+  caso guarda **solo** `items`. Rechazar un archivo que el teléfono mostró y pidió rompía más de lo
+  que arreglaba: `syncRemoteBecasFormulario` sube los adjuntos en orden y **corta en el primero que
+  falla** (el envío queda `PARCIAL`, `FAILED_PERMANENT`), así que los de los campos siguientes
+  tampoco se subían. La segunda mirada solo se paga cuando la primera no alcanzó. Lo que sigue
+  rebotando es lo que no está en ninguna de las dos: otro segmento, una pregunta de texto, una
+  pregunta desactivada.
+- **`version_capturada` es `integer NULL`, sin `CHECK`.** Con `PositiveIntegerField` Django emite
+  `integer UNSIGNED NULL CHECK (… >= 0)`, y MySQL 8 no acepta `ALGORITHM=INSTANT` para un
+  `ADD COLUMN` con CHECK (error 1845, medido en `mysql:8.0.46`): copiaría `programas_formulario`
+  entera con la tabla bloqueada. MariaDB 10.11 sí lo hacía instantáneo, pero el código tiene que
+  andar igual en los dos motores. Es `IntegerField` + `MinValueValidator(0)`, y el serializer ya
+  tenía `min_value=0`.
 - **La gracia de D-G04 no se toca.** `_captura_habilitada` sigue aceptando las fotos de una
   captura hecha en fecha aunque el cron ya haya cerrado el relevamiento. Es la otra mitad de
   G1-04: la cola offline sube primero las personas y después las fotos, y si el cierre las
@@ -25493,8 +25510,8 @@ campo, y era el caso que menos le decía.
 ## Base de datos
 
 `programas.0081` (`programas/migrations/0081_formulario_version_capturada.py`), **expand puro**:
-un `AddField` de `version_capturada` → `integer UNSIGNED NULL`, al final de la fila de
-`programas_formulario`. Nace `NULL`, que es justo lo que significa —«la app no dijo con qué
+un `AddField` de `version_capturada` → `integer NULL` (sin `CHECK`, ver *Decisiones*), al final
+de la fila de `programas_formulario`. Nace `NULL`, que es justo lo que significa —«la app no dijo con qué
 versión capturó»—, así que con el esquema adelantado y la release anterior todavía atendiendo su
 `INSERT` omite la columna y la base la completa sola.
 
@@ -25502,7 +25519,10 @@ Es la misma operación que las dos columnas de `programas.0080`, medidas en el b
 casos de `scripts/perf_mysql/`: **MySQL 8.0.46 (350 MB) 82 + 104 ms** y **MariaDB 10.11.19
 (252 MB) 35 + 41 ms**, con `ALGORITHM=INSTANT` en los dos motores y tres órdenes de magnitud por
 debajo del `read_timeout` de 10 s del `migrate` (OPS-05). La regla EXPAND de
-`scripts/check_migraciones.py` la cubre `null=True`.
+`scripts/check_migraciones.py` la cubre `null=True`. **Medido en este PR:** el `ALTER TABLE
+programas_formulario ADD COLUMN version_capturada integer NULL, ALGORITHM=INSTANT` (y su
+`DROP COLUMN`, también `INSTANT`) entra en `mariadb:10.11.19` y en `mysql:8.0.46`; con el `CHECK`
+que emitía el `PositiveIntegerField`, MySQL lo rechazaba con el error 1845.
 
 ## Verificación
 
@@ -25542,7 +25562,13 @@ carriles en paralelo.
   la `version` que baja `GET /api/becas/relevamientos/<id>/` junto con la captura offline y
   mandarla como `version_capturada` en el `POST …/formularios/`. Hasta entonces la columna queda
   en `NULL` y el agujero que describe la ficha sigue abierto en producción.
-- **Verificación sin correr** (ver arriba). Es lo primero que tiene que mirar el juez.
+- **Lo que el control de pertenencia todavía puede cortar en la app instalada:** un archivo de un
+  campo que **ya no está** ni en la foto ni en la lista plana vigente —una pregunta `ARCHIVO`
+  desactivada entre la captura y la sincronización— rebota con 400, y la cola de `Chaco-mobile`
+  deja de subir los adjuntos que venían después en ese envío. Es el caso que la ficha pide
+  rechazar, y antes la fila se guardaba igual pero quedaba invisible para el revisor. Cerrarlo del
+  todo es del lado de la app (seguir con el adjunto siguiente cuando uno da 4xx), que conviene
+  sumar al mismo release que manda `version_capturada`.
 - Los duplicados de adjuntos que producción ya tiene **no se limpian**: se los deja y se los
   resuelve por «gana el más nuevo». Un comando de limpieza sería un ítem aparte, y borrar
   documentos del ciudadano no es algo que convenga hacer de oficio.

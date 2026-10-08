@@ -275,8 +275,20 @@ def definicion_del_caso(formulario, relevamiento=None):
 
 
 def claves_de_archivo(definicion):
-    """Las claves (``pg-<pk>`` / ``rn-<pk>`` / ``cp-…``) de los campos ``ARCHIVO``."""
-    return {campo.get("clave") for campo in campos_de(definicion or {}) if campo.get("tipo") == TipoCampo.ARCHIVO}
+    """Las claves (``pg-<pk>`` / ``rn-<pk>`` / ``cp-…``) de los campos ``ARCHIVO``.
+
+    Salen de la estructura anidada (``items``) y, si la definición las trae, de
+    las listas planas ``globales``/``requisitos``. La foto que guarda el caso
+    (``foto_definicion``) tiene solo ``items``; la definición vigente que sirve
+    la API trae las dos.
+    """
+    definicion = definicion or {}
+    claves = {campo.get("clave") for campo in campos_de(definicion) if campo.get("tipo") == TipoCampo.ARCHIVO}
+    for lista, prefijo in (("globales", "pg"), ("requisitos", "rn")):
+        for campo in definicion.get(lista) or []:
+            if isinstance(campo, dict) and campo.get("tipo") == TipoCampo.ARCHIVO and campo.get("id") is not None:
+                claves.add(f"{prefijo}-{campo['id']}")
+    return claves
 
 
 def campo_de_archivo_del_caso(formulario, pregunta_global=None, requisito_nativo=None):
@@ -288,6 +300,17 @@ def campo_de_archivo_del_caso(formulario, pregunta_global=None, requisito_nativo
     encontraba nadie: ``_adjuntos_por_clave`` la indexa por una clave que la foto
     del caso no tiene, así que el documento quedaba invisible en la revisión y el
     revisor lo veía como *faltante*.
+
+    Vale primero la foto del caso. Si ahí no está, se mira además la **lista
+    plana** vigente del relevamiento, porque es lo único que lee la app
+    instalada (``Chaco-mobile@a66c2d3``: ``mapDjangoRelevamientoDetail`` arma
+    ``campos_definicion`` con ``globales``/``requisitos``, no con ``items``, y
+    sube cada archivo con el ``id`` de esa lista). Las dos no coinciden
+    siempre —un grupo del diseño acotado a otro canal saca sus campos de
+    ``items`` pero no de la lista plana— y rechazar un archivo que el teléfono
+    mostró y pidió rompe más de lo que arregla: la cola de la app corta en el
+    primer adjunto que falla, así que los campos que venían después tampoco se
+    subían. La segunda mirada solo se paga cuando la primera no alcanzó.
     """
     clave = None
     if pregunta_global is not None:
@@ -296,7 +319,14 @@ def campo_de_archivo_del_caso(formulario, pregunta_global=None, requisito_nativo
         clave = f"rn-{requisito_nativo.pk}"
     if clave is None:
         return False
-    return clave in claves_de_archivo(definicion_del_caso(formulario))
+    if clave in claves_de_archivo(definicion_del_caso(formulario)):
+        return True
+    if not formulario.definicion:
+        # Sin foto, ``definicion_del_caso`` ya fue la definición vigente entera.
+        return False
+    from programas.services.becas import definicion_formulario
+
+    return clave in claves_de_archivo(definicion_formulario(formulario.relevamiento))
 
 
 def guardar_adjunto(formulario, *, archivo, pregunta_global=None, requisito_nativo=None):

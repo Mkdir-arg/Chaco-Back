@@ -7,6 +7,13 @@ misma operación que las dos columnas de ``programas.0080``, medidas en el banco
 de 22.000 casos de ``scripts/perf_mysql/`` en 35-104 ms, tres órdenes de magnitud
 por debajo del ``read_timeout`` de 10 s del ``migrate`` (OPS-05).
 
+**``integer NULL`` sin ``CHECK``.** El campo es un ``IntegerField`` con
+``MinValueValidator(0)`` y no un ``PositiveIntegerField``: con este último Django
+emite ``integer UNSIGNED NULL CHECK (`version_capturada` >= 0)`` y MySQL 8 no
+acepta ``ALGORITHM=INSTANT`` para un ``ADD COLUMN`` con CHECK (error 1845,
+probado en ``mysql:8.0.46``): copiaría la tabla entera. MariaDB 10.11 sí lo hacía
+instantáneo, pero el código tiene que andar igual en los dos motores.
+
 **Expand puro.** Nace ``NULL``: la columna significa «la app no dijo con qué
 versión capturó», que es exactamente lo que pasa con la app instalada
 (``Chaco-mobile@a66c2d3``) y con todo caso que ya está en la base. Con el esquema
@@ -15,6 +22,7 @@ rollback—, su ``INSERT`` omite la columna y la base la completa con ``NULL`` e
 vez de rechazar el alta entera.
 """
 
+import django.core.validators
 from django.db import migrations, models
 
 
@@ -27,9 +35,10 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="formulario",
             name="version_capturada",
-            field=models.PositiveIntegerField(
+            field=models.IntegerField(
                 blank=True,
                 null=True,
+                validators=[django.core.validators.MinValueValidator(0)],
                 verbose_name="Versión del formulario con la que se capturó",
             ),
         ),
