@@ -25746,27 +25746,68 @@ que emitía el `PositiveIntegerField`, MySQL lo rechazaba con el error 1845.
 
 ## Verificación
 
-**No se pudo correr nada en esta sesión.** El clasificador de permisos bloqueó **toda** invocación
-de Python: el venv del repo vive en el checkout principal
-(`C:\Users\mkdir\Proyectos\Chaco\.venv312`) y la sesión está acotada al worktree, así que
-`manage.py check`, la suite, `ruff` y `scripts/requerimientos.py --check` quedaron sin ejecutar
-—probado por Bash, por PowerShell, con ruta absoluta, relativa y por subagente—. Los comandos
-exactos quedan listados en el cuerpo del PR para que el juez los corra; **ningún resultado de
-verificación se afirma acá**.
+El código lo escribió una sesión que no podía ejecutar nada; la verificación la hizo otra, con el
+venv `.venv312` (Python 3.12 + Django 5.2.17, igual al CI), y es la que está acá.
 
-Por el mismo motivo **no se pudo leer `Chaco-mobile`**, que también está fuera del worktree. Lo
-que se usó en su lugar es la evidencia que el repo ya tiene registrada de esa app —el Cambio 175,
-las fichas G1-03, G1-04 y R0-04 y los comentarios de `programas/api/`, que citan
-`relevamientoService.js`, `becasApi.js` y `RelevamientoDetailScreen.js` con línea—, y la decisión
-de diseño frente a esa incertidumbre fue **no cambiar ningún código de respuesta ni sacar ninguna
-clave**: solo agregar. Verificar el contrato contra el repo móvil queda como paso del juez.
+**Contra la app instalada (`Chaco-mobile@a66c2d3`, leída con `git show`, sin tocar ese repo):**
 
-**Tests nuevos (19):** `programas/tests/test_app_de_campo.py::AdjuntosDeLaAppTests` (10),
+- **Cuántos archivos por campo.** Uno. Un campo `ARCHIVO` guarda **un** valor
+  (`dynamicValues[field.id]`, con «CAMBIAR» que lo pisa), `persistFormularioAttachments` arma un
+  adjunto por campo con clave `scope:field_id` y `syncRemoteBecasFormulario` los sube de a uno, en
+  multipart, con `pregunta_global` o `requisito_nativo` = el `id` de la lista plana. La app
+  **nunca** manda varios archivos para el mismo campo esperando que se acumulen, así que
+  reemplazar no pierde datos. La única pieza que podría haberlo hecho —`subirAdjuntosDniFormulario`,
+  que buscaba «Frente» y «Dorso» por texto y, si un mismo campo decía las dos cosas, subía las dos
+  fotos a la misma referencia— **no se llama desde ningún lado** en esa versión.
+- **El 201.** `becasUploadFile` mira `response.ok` y no lee el cuerpo: el 201 de un reemplazo es
+  igual a uno de alta.
+- **`non_field_errors`.** `buildResponseError` (`becasApi.js:79-88`) arma el mensaje con
+  `payload.detail || payload.error || payload.non_field_errors[0]`: los rechazos legibles de este PR
+  caen en la tercera.
+- **Lo que no estaba previsto:** la app arma el formulario con las listas **planas** y su cola corta
+  en el primer adjunto que falla (el envío queda `PARCIAL` / `FAILED_PERMANENT`). Eso es lo que llevó
+  a mirar también la lista plana vigente antes de rechazar (ver *Decisiones*).
+- **El 404 de `POST /api/becas/personas/consultar/`** (que #625 empezó a devolver cuando Base de
+  Personas responde 404, en vez de 502): la app decide **solo por el status** —`e.status === 404` →
+  «DNI no encontrado» y carga manual, cualquier otro → aviso de validación fallida— y muestra el
+  texto de `error`. Un 404 del servicio se trata exactamente igual que el del código 12.
+
+Todo eso queda fijado en `programas/tests/test_becas_api_contrato.py`.
+
+**Resultados:**
+
+- `manage.py check` sin issues; `check --deploy` sin errores (con `SIIS_API_URL` puesta como en el
+  CI; solo los `security.W*` de siempre, sin `core.E003`).
+- `makemigrations --check --dry-run`: sin cambios. `scripts/check_migraciones.py` sobre `0081`: 0
+  problemas.
+- **Ida y vuelta de `programas.0081`** (`migrate` → `migrate programas 0080` → `migrate`) en
+  `mariadb:10.11.19` sin tablas de zona horaria (`MARIADB_INITDB_SKIP_TZINFO=1`) y en
+  `mysql:8.0.46`: las dos vueltas OK, la columna baja y vuelve, y el `ADD COLUMN … ALGORITHM=INSTANT`
+  (y su `DROP`) entra en los dos. `--tag mysql` en los dos motores: 48 tests OK (3 salteados en
+  MySQL, los de MariaDB).
+- Suite completa en un proceso: **4269 tests OK** (51 salteados, 6 fallas esperadas), sin carga en paralelo. Dos corridas anteriores con la máquina cargada (dos suites y los `--tag mysql` a la vez) dieron 1 y 3 fallas distintas cada vez, todas de login/clave (`test_usuarios_abm`, `test_api_auth`, `test_comandos_peligrosos`, `test_performance_budgets`), ninguna en código de este PR; las cuatro pasan solas y la corrida sin carga sale en verde.
+- `--tag performance`: 6 tests OK.
+- `ruff check .` limpio; `ruff format --check` de los archivos tocados, limpio.
+- `design_audit.py --ratchet --base origin/development`: ningún archivo de UI cambiado; `--goldens`: 0
+  hallazgos en 5 goldens; `compile_templates.py --bloques`: 0 errores, 0 bloques sin destino;
+  `check_design_agent.py --changed`: OK.
+- `bandit -r . -c pyproject.toml`: 0 issues, igual que en `8e338c7d`.
+- **En rojo contra `8e338c7d`** (el fix de G1-07 revertido en `api/views.py`, `api/serializers.py` y
+  `services/respuestas.py`): fallan los tests de reintento, reemplazo, archivo viejo, revisión con el
+  más nuevo, los tres de pertenencia y los de contrato del adjunto repetido y de `non_field_errors`.
+  `test_un_campo_de_la_lista_plana_que_items_no_trae_se_acepta` da 400 contra la versión que solo
+  miraba `items`.
+
+**Tests nuevos (25):** `programas/tests/test_app_de_campo.py::AdjuntosDeLaAppTests` (12),
 `::VersionDelFormularioTests` (5),
 `::CronDeVencimientosTests.test_el_log_nombra_los_que_se_cerraron_y_no_los_que_se_leyeron` (1) y
-tres de contrato en `test_becas_api_contrato.py` (`test_ninguna_de_las_dos_listas_pagina`,
+siete de contrato en `test_becas_api_contrato.py` (`test_ninguna_de_las_dos_listas_pagina`,
 `test_el_alta_sin_version_capturada_sigue_entrando`,
-`test_el_adjunto_repetido_responde_201_y_no_duplica`), más dos aserciones agregadas a tests que ya
+`test_el_adjunto_repetido_responde_201_y_no_duplica`,
+`test_el_adjunto_se_sube_con_el_id_de_la_lista_plana`,
+`test_el_400_del_adjunto_trae_el_motivo_en_non_field_errors`,
+`test_el_400_del_alta_trae_el_motivo_en_non_field_errors` y
+`test_la_persona_no_encontrada_es_un_404_con_error`), más dos aserciones agregadas a tests que ya
 existían (`non_field_errors` en el rechazo por DNI y por fecha).
 
 ## Puesta en marcha en el servidor
