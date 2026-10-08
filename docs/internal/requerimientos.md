@@ -25762,8 +25762,9 @@ que las dos pueden ir en la release N sin esperar a la N+2.
 ## Validación
 La sesión que escribió el cambio no pudo ejecutar nada; todo lo de abajo se corrió
 después, en el worktree del PR, con `.venv312` (Python 3.12 + Django 5.2.17, igual
-al CI), antes y después de mergear `origin/development` (que trajo #624 y
-`programas.0080`, sin choque de numeración con las de `users`).
+al CI), antes y después de mergear `origin/development` (dos veces: trajo #624 con
+`programas.0080` —sin choque de numeración con las de `users`— y después #625, cuyo
+reenvío del aviso de resolución pasó a usar `assert_alcance_formulario`).
 
 - `manage.py check`: sin hallazgos. `check --deploy` (con `SIIS_API_URL` de
   mentira, como el CI): solo los cinco `security.W*` de siempre, ningún error.
@@ -25779,10 +25780,10 @@ al CI), antes y después de mergear `origin/development` (que trajo #624 y
 - Suite completa (un proceso): la primera corrida dio 14 fallas, todas por
   RN-P13 —13 tests del tablero que medían el canal público con roles sin la
   capacidad y uno de pendientes RENAPER que parcheaba la función vieja—, que se
-  arreglaron en los tests, no en el código. Después del merge: 4202 tests, sin
-  fallas propias; dos tests de `users` que verifican claves fallaron una vez y
-  pasan solos y en `test users core legajos portal` (1765 tests, OK): es el
-  Argon2 bajo carga de la máquina, ajeno a este cambio.
+  arreglaron en los tests, no en el código. Con los dos merges: **4277 tests,
+  OK**. En una corrida intermedia fallaron una vez dos tests de `users` que
+  verifican claves, con la máquina cargada (Argon2), y pasan en todas las demás:
+  ajenos a este cambio.
 - `test --tag performance`: OK, sin tocar presupuestos (`becas_reportes` y
   `legajo_detalle` incluidos).
 - `ruff check .` y `ruff format --check` de lo tocado: OK.
