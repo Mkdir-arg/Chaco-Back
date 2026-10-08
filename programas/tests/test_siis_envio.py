@@ -970,6 +970,25 @@ class ComandoCircuitoCompletoTests(_BaseEnvioTest):
         self._correr("--aplicar", "--avisar")
         self.assertEqual(self.avisar.call_count, 1)
 
+    def test_el_aviso_viaja_por_la_conexion_del_lote(self):
+        """G1-14: una conexión SMTP por lote, no un handshake TLS por correo."""
+        with patch("programas.management.commands.procesar_casos_siis.get_connection") as abrir:
+            self._correr("--aplicar", "--avisar", "--lote", "50")
+
+        self.assertEqual(abrir.call_count, 1, "abrió una conexión por correo y no por lote")
+        self.assertIs(self.avisar.call_args.kwargs["conexion"], abrir.return_value.__enter__.return_value)
+
+    def test_sin_avisar_no_se_abre_ninguna_conexion(self):
+        with patch("programas.management.commands.procesar_casos_siis.get_connection") as abrir:
+            self._correr("--aplicar")
+
+        abrir.assert_not_called()
+
+    def test_el_responsable_firma_la_traza_del_aviso(self):
+        self._correr("--aplicar", "--avisar")
+
+        self.assertIn("usuario", self.avisar.call_args.kwargs)
+
     def test_sin_cupo_no_se_informa_a_siis(self):
         self.aprobar.side_effect = lambda f, u: "lista_espera"
         salida = self._correr("--aplicar", "--total", "50")

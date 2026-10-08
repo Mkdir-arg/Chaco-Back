@@ -41,6 +41,13 @@ logger = logging.getLogger(__name__)
 #: todo lo que no es red (consultas a la base, render de la plantilla).
 PRESUPUESTO_SEGUNDOS = 55
 
+#: Margen sobre el peor caso del login de RENAPER para el request que espera el
+#: login de otro hilo (``legajos.services.consulta_renaper``). Ningún login sano
+#: puede durar más que su ``connect + read``; el margen es para que el ganador
+#: alcance a publicar el token. Vive acá, y no en ``legajos``, porque el
+#: presupuesto de abajo lo tiene que poder sumar sin importar una app de dominio.
+MARGEN_ESPERA_LOGIN = 1
+
 #: Cuánto puede tardar, como mucho, cada tipo de llamada externa. Son
 #: ``connect + read``: el peor caso de ``requests`` es agotar los dos.
 COSTOS = {
@@ -51,6 +58,10 @@ COSTOS = {
     "personas.consulta": lambda: settings.PERSONAS_API_CONNECT_TIMEOUT + settings.PERSONAS_API_TIMEOUT,
     "renaper.login": lambda: settings.RENAPER_CONNECT_TIMEOUT + settings.RENAPER_TIMEOUT,
     "renaper.consulta": lambda: settings.RENAPER_CONNECT_TIMEOUT + settings.RENAPER_TIMEOUT,
+    # Esperar el login que **otro hilo** ya arrancó. No es una llamada a la red
+    # —el que espera no abre ningún socket— pero sí es tiempo del request, y
+    # entra en el presupuesto por eso. Ver `MARGEN_ESPERA_LOGIN`.
+    "renaper.espera_token": lambda: settings.RENAPER_CONNECT_TIMEOUT + settings.RENAPER_TIMEOUT + MARGEN_ESPERA_LOGIN,
     # El paso 1 del link público verifica el token contra Google **antes** de
     # consultar identidad: es parte de la cadena, no algo aparte.
     "recaptcha": lambda: settings.RECAPTCHA_CONNECT_TIMEOUT + settings.RECAPTCHA_TIMEOUT,
@@ -87,18 +98,32 @@ CADENAS = {
     "link público · paso 1 (identificar)": ("recaptcha", "personas.token", "personas.consulta"),
     "link público · paso 2 (enviar la inscripción)": ("smtp",),
     "app de campo · identificar": ("personas.token", "personas.consulta"),
-    # SIIS-14 le suma un camino condicional: con un 401/403 el cliente descarta
-    # el token, vuelve a loguearse y repite la consulta **una** vez. No se
-    # declara dos veces por el mismo motivo que el token de SIIS: un 401 llega
-    # rápido, no agota ningún timeout, así que el peor caso de la cadena sigue
-    # siendo el de las dos llamadas que sí pueden colgarse —y en ese peor caso
-    # (timeout, no 401) el reintento no existe—.
+    # **La cuenta, con los valores de hoy (5 + 10):**
     #
-    # Tampoco suma la espera de ``consulta_renaper.ESPERA_LOGIN_SEGUNDOS``: el
-    # request que espera el token de otro **no** hace su propia llamada, así que
-    # su peor caso son esos 2 s y no la cadena. Y es un techo: antes ese request
-    # hacía cola detrás del login ajeno y pagaba su timeout completo.
-    "legajos · consultar RENAPER": ("renaper.login", "renaper.consulta"),
+    #   espera del login ajeno   16 s  (connect + read + MARGEN_ESPERA_LOGIN)
+    #   login propio             15 s
+    #   consulta                 15 s
+    #   ────────────────────────────
+    #                            46 s  < 55 (core.E003) < 60 (nginx)
+    #
+    # Los tres términos son los tres tiempos que un mismo request puede pagar en
+    # fila, y ninguno se repite: ``APIClient.consultar_ciudadano`` abre **un**
+    # límite por request (``monotonic() + espera_login``) y lo comparte con todo
+    # lo que puede repetirse —las vueltas de ``get_token``, su espera, la
+    # decisión de loguearse y el reintento por 401—. Pasado ese límite no se
+    # empieza nada nuevo, así que después de los 16 s de espera queda a lo sumo
+    # una acción en vuelo (el login) y la consulta final.
+    #
+    # SIIS-14 le suma un camino condicional: con un 401/403 el cliente descarta
+    # el token, vuelve a loguearse y repite la consulta **una** vez. Ese camino
+    # entra en los mismos 46 s porque el reintento solo corre si el límite
+    # todavía no venció; cuando venció, el 401 se informa tal cual.
+    #
+    # (Hasta el Cambio 176 este comentario nombraba un ``ESPERA_LOGIN_SEGUNDOS``
+    # que ya no existe y prometía 2 s de espera. Con ``VUELTAS_TOKEN`` vueltas de
+    # espera sin límite compartido el peor caso real rondaba los 63 s —por encima
+    # del corte de nginx— y la cadena declarada, 30, no lo veía.)
+    "legajos · consultar RENAPER": ("renaper.espera_token", "renaper.login", "renaper.consulta"),
     "usuarios · alta con clave provisoria": ("smtp",),
 }
 

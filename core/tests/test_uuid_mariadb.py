@@ -131,7 +131,7 @@ class BusquedasUUIDTests(SimpleTestCase):
             sorted(infracciones),
             [],
             "Búsqueda por un UUID externo con el lookup del ORM: en MariaDB no encuentra las filas "
-            "guardadas en la otra forma. Usar q_uuid_en_texto (programas/services/becas.py) o, si el "
+            "guardadas en la otra forma. Usar q_uuid_en_texto (core/db.py) o, si el "
             f"caso está justificado, dejar «{PRAGMA}» en la línea. Infracciones: " + ", ".join(sorted(infracciones)),
         )
 

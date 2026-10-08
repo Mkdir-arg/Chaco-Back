@@ -47,7 +47,7 @@ from programas.models import (
     ValidacionSIS,
 )
 from programas.services.autorizacion import convocatorias_visibles, puede_gestionar_segmento
-from programas.services.avisos_resolucion import enviar_aviso_resolucion
+from programas.services.avisos_resolucion import CAMPO_TRAZA_AVISO, enviar_aviso_resolucion, resultado_vigente
 from programas.services.becas import registrar_traza, resolver_ciudadano_offline
 from programas.services.cupo import (
     MENSAJE_CASO_EN_ESPERA,
@@ -728,6 +728,13 @@ def formulario_detalle(request, pk):
             datos_siis_form = DatosSiisForm(initial=correcciones, actuales=correcciones)
     detalles_envio_siis = _detalles_envio_siis(envio_siis)
     volver_url, volver_label, migas_origen = _origen_del_caso(request, formulario)
+    # G1-14: el aviso al ciudadano es el único hecho del circuito que no dejaba
+    # rastro. Se lee de las trazas **ya traídas** para la sección «Traza de
+    # cambios»: una consulta más por esto sería una consulta por cada caso que se
+    # abre, y el panel es informativo.
+    trazas = list(formulario.trazas.select_related("editado_por")[:50])
+    resultado_aviso = resultado_vigente(formulario, en_espera=posicion_espera is not None)
+    ultimo_aviso = next((traza for traza in trazas if traza.campo == CAMPO_TRAZA_AVISO), None)
     return render(
         request,
         "programas/becas/revision/formulario_detalle.html",
@@ -753,7 +760,13 @@ def formulario_detalle(request, pk):
             "requisitos_segmento": requisitos_segmento,
             "requisitos_subsegmento": requisitos_subsegmento,
             "mapa": mapa,
-            "trazas": formulario.trazas.select_related("editado_por")[:50],
+            "trazas": trazas,
+            # G1-14: panel «Aviso al ciudadano». ``resultado_aviso`` vacío = el
+            # caso no está resuelto y no hay nada que reenviar.
+            "resultado_aviso": resultado_aviso,
+            "ultimo_aviso": ultimo_aviso,
+            "aviso_por_correo_activo": formulario.relevamiento.confirmar_por_email,
+            "puede_reenviar_aviso": puede(request.user, CAP_REVISION_EDITAR),
             "puede_revalidar_renaper": puede(request.user, CAP_REVALIDAR_RENAPER),
             # Cambio 57: con la Gran Base apagada, «Revalidar» se deshabilita y
             # se ofrece validar contra el padrón de la convocatoria.
@@ -806,6 +819,44 @@ def formulario_validar_sis(request, pk):
         messages.warning(request, f"SIIS rechazo la compatibilidad: {validacion.motivo or 'sin motivo informado'}")
     else:
         messages.error(request, validacion.motivo or "No se pudo validar contra SIIS.")
+    return redirect(_url_caso(request, formulario))
+
+
+@login_required
+@requiere(CAP_REVISION_EDITAR)
+@require_POST
+def formulario_reenviar_aviso(request, pk):
+    """Vuelve a mandar el aviso de resolución al ciudadano (G1-14).
+
+    El correo de la resolución se manda una sola vez, en el momento en que el
+    técnico aprueba o rechaza, y hasta ahora su resultado se descartaba: cuando
+    la persona decía «no me llegó nada» no quedaba ni el registro ni forma de
+    reintentarlo sin volver a resolver el caso. El desenlace no lo elige el
+    operador —lo dice el estado del caso—, así que el botón no puede mandar
+    «aprobado» a alguien rechazado.
+    """
+    formulario = get_object_or_404(
+        Formulario.objects.select_related("relevamiento__convocatoria__segmento", "ciudadano"), pk=pk
+    )
+    _assert_scope_formulario(request, formulario)
+    resultado = resultado_vigente(formulario, en_espera=_espera_activa(formulario).exists())
+    if not resultado:
+        messages.error(request, "El caso todavía no está resuelto: no hay aviso que reenviar.")
+    elif not formulario.relevamiento.confirmar_por_email:
+        messages.error(request, "El relevamiento tiene apagado el aviso por correo.")
+    elif not formulario.email_contacto:
+        messages.error(request, "El caso no tiene correo de contacto cargado.")
+    elif enviar_aviso_resolucion(
+        formulario,
+        resultado,
+        motivo=formulario.motivo_rechazo or "",
+        protocol="https" if request.is_secure() else "http",
+        domain=request.get_host(),
+        usuario=request.user,
+    ):
+        messages.success(request, f"Aviso reenviado a {formulario.email_contacto}.")
+    else:
+        messages.error(request, "No se pudo enviar el aviso. Quedó registrado en la traza del caso.")
     return redirect(_url_caso(request, formulario))
 
 
@@ -1030,6 +1081,7 @@ def formulario_aprobar(request, pk):
             enviar_aviso_resolucion(
                 formulario,
                 resultado,
+                usuario=request.user,
                 protocol="https" if request.is_secure() else "http",
                 domain=request.get_host(),
             )
@@ -1170,6 +1222,7 @@ def formulario_rechazar(request, pk):
             formulario,
             "rechazado",
             motivo=motivo,
+            usuario=request.user,
             protocol="https" if request.is_secure() else "http",
             domain=request.get_host(),
         )

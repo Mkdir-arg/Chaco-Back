@@ -11,7 +11,7 @@ from django.core.cache import cache
 from requests.exceptions import ConnectionError, RequestException
 from urllib3.util.retry import Retry
 
-from core.integraciones import Cortacircuito, sesion_http
+from core.integraciones import MARGEN_ESPERA_LOGIN, Cortacircuito, sesion_http
 from core.models import Provincia
 from core.performance.query_observability import instrument_external_call
 
@@ -36,7 +36,9 @@ cortacircuito = Cortacircuito("renaper")
 #: que el ganador alcance a publicar el token. Un número fijo más chico que el
 #: timeout —la ronda 2 usaba 2 s— hacía fallar a los que esperaban un login
 #: **sano** que tardaba un poco más que eso.
-MARGEN_ESPERA_LOGIN = 1.0
+#:
+#: Vive en ``core.integraciones`` y se reexporta acá: el presupuesto de
+#: ``CADENAS`` lo tiene que sumar y no puede importar una app de dominio.
 
 #: Vueltas de :meth:`APIClient.get_token` antes de darse por vencido. Una vuelta
 #: es «¿hay token? si no, logueate vos o esperá al que está». Dos alcanzan para
@@ -258,9 +260,9 @@ class APIClient:
         return "post" if self._use_api_key_mode() else "get"
 
     def login(self):
-        """Pide un token nuevo. **Sin candado**: ver :meth:`get_token`."""
+        """Pide un token nuevo y lo devuelve. **Sin candado**: ver :meth:`get_token`."""
         if self._use_api_key_mode():
-            return
+            return None
 
         try:
             response = instrument_external_call(
@@ -308,6 +310,10 @@ class APIClient:
                 {"token": token, "expiration": expiration.isoformat()},
                 ttl,
             )
+        # Lo que trajo **esta** llamada, no ``self.token``: entre que se publica y
+        # que el ganador lo lee, un 401 de otro hilo puede haberlo descartado, y
+        # ahí «no hay token» significa cosas distintas (ver ``get_token``).
+        return token
 
     def _token_vigente(self):
         """El token que ya se tiene —propio o de la caché compartida—, o ``None``."""
@@ -329,7 +335,7 @@ class APIClient:
                 pass
         return None
 
-    def get_token(self):
+    def get_token(self, limite=None):
         """El token, pidiéndolo si hace falta. Un solo login a la vez, sin cola.
 
         **Lo que no se puede hacer es envolver el login en un candado.** Medido
@@ -359,14 +365,37 @@ class APIClient:
         * **no terminó** dentro de ``espera_login`` → corta. Un login sano no
           puede tardar más que su propio ``connect + read``, así que llegar acá
           es un login que no termina nunca.
+
+        **El ganador vuelve a la decisión igual que los que esperan** (seguimiento
+        del PR 7a). Leía ``self.token`` fuera del candado apenas volvía de
+        ``login()``: si un 401 de otro hilo lo descartaba en esa ventana, el
+        ganador —que acababa de traer un token bueno— levantaba «el login terminó
+        sin dejar token» sin usar sus vueltas restantes, mientras los que
+        esperaban sí reintentaban. Hoy ``login()`` devuelve **lo que trajo**: con
+        token vuelve a la decisión, y solo un 200 sin token en el cuerpo corta,
+        porque ahí no hay nada que reintentar.
+
+        **El límite** (``limite``, un ``time.monotonic()``) es de quien llama y
+        cubre **todo** el request: las vueltas, la espera y el reintento por 401
+        de ``consultar_ciudadano``. Pasado el límite no se empieza nada nuevo, que
+        es lo que hace que la cadena declarada en ``core.integraciones.CADENAS``
+        —espera + login + consulta— sea un techo de verdad y no la suma de dos de
+        los tres tiempos.
         """
         if self._use_api_key_mode():
             return None
+
+        if limite is None:
+            limite = time.monotonic() + self.espera_login
 
         for _ in range(VUELTAS_TOKEN):
             token = self._token_vigente()
             if token:
                 return token
+
+            restante = limite - time.monotonic()
+            if restante <= 0:
+                raise Exception(ESPERA_AGOTADA)
 
             with self._candado_estado:
                 intento = self._login_en_curso
@@ -376,7 +405,7 @@ class APIClient:
 
             if me_toca:
                 try:
-                    self.login()
+                    obtenido = self.login()
                 except Exception as exc:
                     intento.fallo = exc
                     raise
@@ -386,14 +415,15 @@ class APIClient:
                     # Pase lo que pase, los que esperan se enteran ahora: un
                     # login que falla no puede dejarlos esperando su turno.
                     intento.listo.set()
-                if self.token:
-                    return self.token
-                # 200 sin `token` en el cuerpo: seguir con «bearer None» es
-                # mandar una consulta que no puede salir bien y leerla como un
-                # 401 del proveedor.
-                raise Exception(LOGIN_SIN_TOKEN)
+                if obtenido is None:
+                    # 200 sin `token` en el cuerpo: seguir con «bearer None» es
+                    # mandar una consulta que no puede salir bien y leerla como un
+                    # 401 del proveedor. Reintentar tampoco sirve: el proveedor
+                    # contesta lo mismo y cada vuelta cuesta un login entero.
+                    raise Exception(LOGIN_SIN_TOKEN)
+                continue
 
-            if not intento.listo.wait(self.espera_login):
+            if not intento.listo.wait(restante):
                 raise Exception(ESPERA_AGOTADA)
             if intento.fallo is not None:
                 raise Exception(f"No se pudo obtener el token de RENAPER: {intento.fallo}")
@@ -411,15 +441,39 @@ class APIClient:
         Con ``usado`` solo descarta **ese** token. Un 401 que llega de un request
         que todavía tenía el token viejo no puede tirar el que otro acaba de
         traer: eso convertía una rotación en una ronda de logins en cadena.
+
+        **La guarda vale también entre procesos** (seguimiento del PR 7a). Antes
+        comparaba contra ``self.token``, que es del worker: si el que rotó fue
+        **otro** worker —en producción hay varios— el 401 viejo pasaba la guarda
+        (su ``self.token`` *era* el usado) y borraba de la caché compartida el
+        token nuevo que ese otro acababa de publicar, con lo que la rotación
+        volvía a ser una ronda de logins, ahora en todos los procesos. Hoy se
+        compara contra lo que hay **en la caché** y solo se borra si sigue siendo
+        el token que se usó.
+
+        **El límite**: la caché de Django no tiene un «borrar si vale esto»
+        atómico (ni LocMem ni Redis lo exponen por esta API), así que entre el
+        ``get`` y el ``delete`` queda una ventana de microsegundos en la que otro
+        worker puede publicar un token nuevo y este ``delete`` llevárselo. Es el
+        mismo desenlace que había **siempre** antes del arreglo y lo único que
+        cuesta es un login de más; cerrarla del todo pide un script Lua o un
+        ``WATCH``, que ataría el código al backend de caché.
         """
         with self._candado_estado:
             if usado is not None and self.token is not None and self.token != usado:
                 return
             self.token = None
             self.token_expiration = None
-        cache.delete(TOKEN_CACHE_KEY)
+        if usado is None:
+            cache.delete(TOKEN_CACHE_KEY)
+            return
+        compartido = cache.get(TOKEN_CACHE_KEY)
+        if compartido is None:
+            return
+        if not isinstance(compartido, dict) or compartido.get("token") == usado:
+            cache.delete(TOKEN_CACHE_KEY)
 
-    def _headers(self):
+    def _headers(self, limite=None):
         """``(headers, token, error)``: lo que autentica la consulta, o por qué no.
 
         El ``token`` sale acá y no se vuelve a leer del header: es el que hay que
@@ -433,7 +487,7 @@ class APIClient:
             headers[self.api_key_header] = f"{self.api_key_prefix} {self.api_key}".strip()
             return headers, None, None
         try:
-            token = self.get_token()
+            token = self.get_token(limite)
         except Exception:
             # El mensaje de la excepción ya viene saneado por `login`.
             logger.exception("Error al obtener token RENAPER")
@@ -493,12 +547,20 @@ class APIClient:
         payload = {"dni": dni, "sexo": _normalizar_sexo(sexo)}
         method = self._resolve_http_method()
 
+        # Un solo límite para todo lo que este request puede repetir: las vueltas
+        # de `get_token`, su espera y el reintento por 401. Es lo que hace que la
+        # cadena declarada en `core.integraciones.CADENAS` —espera + login +
+        # consulta, 46 s con los valores de hoy— sea un techo y no la suma de dos
+        # de los tres tiempos. Sin él, tres vueltas de espera más el reintento se
+        # pasaban de los 60 s de nginx.
+        limite = time.monotonic() + self.espera_login
+
         # SIIS-14: un 401/403 puede ser el token rotado antes de tiempo. Se
         # descarta y se reintenta **una** vez; un segundo rechazo con un token
         # recién pedido no es el token. En modo API key no hay nada que renovar.
         response = None
         for intento in (1, 2):
-            headers, usado, error = self._headers()
+            headers, usado, error = self._headers(limite)
             if error:
                 if response is not None:
                     # Ya hubo una respuesta del servicio —el 401 que disparó el
@@ -510,7 +572,15 @@ class APIClient:
             response, error = self._pedir(headers, payload, method)
             if error:
                 return error
-            if intento == 1 and response.status_code in (401, 403) and not self._use_api_key_mode():
+            if (
+                intento == 1
+                and response.status_code in (401, 403)
+                and not self._use_api_key_mode()
+                # Pasado el límite ya no se empieza nada: renovar el token y
+                # repetir la consulta son otros 30 s, y el 401 es lo único que de
+                # verdad se sabe de RENAPER en este request. Se informa ese.
+                and time.monotonic() < limite
+            ):
                 self.descartar_token(usado=usado)
                 continue
             break

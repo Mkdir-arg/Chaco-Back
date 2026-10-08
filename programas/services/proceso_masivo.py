@@ -634,10 +634,25 @@ def elegir_completos(casos, catalogos, total, cuenta, *, al_mirar=None):
     return elegidos, descartados
 
 
-def procesar_caso(caso, responsable, catalogos, cuenta, *, avisar=False, solo_enviar=False, destino=DESTINO_SIIS):
+def procesar_caso(
+    caso,
+    responsable,
+    catalogos,
+    cuenta,
+    *,
+    avisar=False,
+    solo_enviar=False,
+    destino=DESTINO_SIIS,
+    conexion_correo=None,
+):
     """Valida, aprueba e informa un caso. Devuelve ``"tecnico"`` si falló SIIS.
 
     Un caso que falla en un paso no avanza al siguiente y no interrumpe al resto.
+
+    ``conexion_correo``: la conexión SMTP del lote (G1-14). Sin ella cada aviso
+    abría y cerró su propia conexión —un handshake TLS por caso contra el mismo
+    servidor—; quien llama la abre una vez por lote y la pasa. ``None`` mantiene
+    el comportamiento de antes, que es lo que hacen los llamadores sin lote.
     """
     if not solo_enviar:
         try:
@@ -673,11 +688,11 @@ def procesar_caso(caso, responsable, catalogos, cuenta, *, avisar=False, solo_en
                 # Sin cupo no hay beneficiario que informar.
                 cuenta.lista_espera += 1
                 if avisar:
-                    enviar_aviso_resolucion(caso, resultado)
+                    enviar_aviso_resolucion(caso, resultado, usuario=responsable, conexion=conexion_correo)
                 return None
             cuenta.aprobados += 1
             if avisar:
-                enviar_aviso_resolucion(caso, resultado)
+                enviar_aviso_resolucion(caso, resultado, usuario=responsable, conexion=conexion_correo)
 
     try:
         if destino == DESTINO_TABLA:

@@ -346,6 +346,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 172 | Trece reglas de negocio de Becas, y la edad que estaba escrita seis veces | Becas (revisión de casos, constructor de formularios, convocatorias, segmentos y subsegmentos, carga de padrón, pausas) · Legajos e Inicio (contadores «de hoy», edad del ciudadano, alertas) · Transversal (`core/edad.py`, regla `DTZ011`) | `#relevamientos` `#cupos` `#datos` `#ui` `#requisitos` | Auditoría integral oct-2026 — fichas BEC-03, BEC-04, BEC-05, BEC-06, BEC-07, BEC-09, BEC-10, BEC-15, BEC-16, BEC-17, BEC-18, BEC-20 y BEC-24, más RED-50 (Ola 3, PR 6) | 08/10/2026 | 🟢 **Hecho** (D-B05 y D-B10 aplicadas por default) | `programas.0079` y `legajos.0009`, las dos sin DDL |
 | 173 | Los campos propios del constructor llegan al Excel por persona y al dashboard de Becas | Becas (tablero del programa y su exportación «respuestas por persona») · Comandos de management (ratchets y alta masiva por CSV) | `#requisitos` `#performance` `#metodo` | Auditoría integral oct-2026 — ficha G2-01 y los cinco seguimientos de las revisiones de los PRs 1 y 3 (Ola 3, PR 8) | 07/10/2026 | 🟢 **Hecho** | No requiere |
 | 174 | Las integraciones dejan de inventar identidades: el domicilio no es el nombre y un 401 de RENAPER no deja el token muerto | Becas (link público, revisión, alta a SIIS) · Legajos (consulta RENAPER) · Transversal (system checks, validación de adjuntos) | `#siis` `#datos` `#infra` `#metodo` | Auditoría integral oct-2026 — fichas SIIS-10, SIIS-13, SIIS-14 (+G3-02), SIIS-15, SIIS-16, SIIS-18, SIIS-20, SIIS-21 y G1c-15 (Ola 3, PR 7a) | 08/10/2026 | 🟢 **Hecho** (SIIS-13 cierra su opción (a) y SIIS-16 deja el techo de nginx como paso operativo) | No requiere |
+| 176 | El link público deja de romperse con un token duplicado, el padrón deja de escribir fechas imposibles y el alta a SIIS manda el CUIL real | Becas (link público de inscripción, carga de padrón, revisión de casos, alta a SIIS) · Legajos (cliente RENAPER) · Transversal (`core/db.py`) | `#relevamientos` `#siis` `#datos` `#metodo` | Auditoría integral oct-2026 — fichas G1-11, G1-12, G1-13, G1-14, R0-06, R0-07 y la 2.ª parte de RED-09 (Ola 3, PR 7b), más los tres seguimientos de la revisión del PR 7a | 08/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -25099,3 +25100,188 @@ fija además un test que abre la ventana a mano
 el commit anterior falla con el mensaje exacto del hallazgo en 3 de 3 corridas.
 Los tests de hilos se corrieron **8 veces seguidas** en verde para descartar
 *flakes*.
+
+---
+
+# Cambio 176 — El link público deja de romperse con un token duplicado, el padrón deja de escribir fechas imposibles y el alta a SIIS manda el CUIL real
+
+🟢 **HECHO — 08/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas (link público de inscripción, carga de padrón, revisión de casos, alta a SIIS) · Legajos (cliente RENAPER) · Transversal (`core/db.py`) |
+| **Etiquetas** | `#relevamientos` `#siis` `#datos` `#metodo` |
+| **Solicitante** | Auditoría integral oct-2026 — fichas G1-11, G1-12, G1-13, G1-14, R0-06, R0-07 y la segunda parte de RED-09 (Ola 3, PR 7b), más los tres seguimientos que dejó la revisión del PR 7a (#623) |
+| **Fecha del pedido** | 08/10/2026 |
+| **Issue / épica** | Auditoría oct-2026, Ola 3 ítem 7 (mitad «link público») e ítem 9 |
+| **Partes afectadas** | Portal (solo la inscripción pública por link) · Backoffice de Becas (detalle del caso, padrón, alta a SIIS) · Comandos de management · Cliente RENAPER · Documentación de la auditoría |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Seis hallazgos chicos del mismo lado del producto —el link público y lo que entra
+por él— más la mudanza del helper de UUID, y los tres seguimientos que dejó la
+revisión del PR anterior sobre la coordinación del token de RENAPER.
+
+- **R0-06.** El índice único de `token_publico` compara **texto**, así que después de
+  restaurar un dump de un motor sobre el otro el mismo UUID puede convivir en hex (32)
+  y con guiones (36) en dos filas. El `OR` de `q_uuid_en_texto` las trae a las dos y el
+  `get_object_or_404` de `portal/views/inscripcion.py` levantaba
+  `MultipleObjectsReturned`: **500 en una superficie sin login**.
+- **R0-07 + RED-09 (2.ª parte).** `q_uuid_en_texto` usaba `valor.hex` sin guarda —con
+  `None` o un `str` era un `AttributeError` adentro de una vista— y vivía en
+  `programas/services/becas.py`, cuando siete de los nueve `UUIDField` del repo están
+  en `legajos`, `users` y `core`, y `legajos.models` no puede importar `programas` sin
+  cerrar un ciclo.
+- **G1-12.** La carga de padrón aceptaba fechas de nacimiento futuras o absurdas: el
+  serial 0 de Excel, que `openpyxl` convierte en 1899-12-30, y `05/06/30` leído como
+  **2030** por el pivote fijo que POSIX le da a `%y`. El cruce del padrón después le
+  **escribe esa fecha al legajo** de la persona, donde la edad es regla de negocio.
+- **G1-13.** Un 404 de Base de Personas se informaba como «falló el servicio» (502) por
+  la app de campo, mientras el mismo «no figura» dicho por el código 12 del cuerpo daba
+  404. El operador leía «Base de Personas no responde» por un documento que
+  simplemente no está en la fuente.
+- **G1-14.** El correo que le avisa al ciudadano cómo se resolvió su inscripción no
+  dejaba **ningún** rastro: el retorno de `enviar_aviso_resolucion` se descartaba en los
+  cuatro llamadores y en el masivo. Cuando la persona decía «no me llegó nada» no había
+  forma de saber si había salido, ni de reintentarlo sin volver a resolver el caso.
+- **G1-11 (D-G11).** El alta a SIIS calculaba el CUIL por módulo 11 **siempre**, aunque
+  el caso trajera el CUIL emitido en el campo «Cuit Alumno» del catálogo (el que
+  `completar_casos_renaper` completa cruzando contra `ciudadanos_renaper`). El módulo 11
+  no conoce los prefijos que la AFIP asigna por fuera de la regla, así que un `23-…`
+  real viajaba como `20-…` — y el alta en SIIS no tiene baja.
+- **Seguimientos del PR 7a (#623), sobre lo que ese PR movió.** (a) El comentario de
+  `core/integraciones.py` nombraba un `ESPERA_LOGIN_SEGUNDOS` que ya no existe y
+  prometía 2 s de espera; con `VUELTAS_TOKEN` esperas sin límite compartido el peor caso
+  real eran 63 s —por encima del corte de nginx— y la cadena declarada, 30, no lo veía.
+  (b) El ganador de la carrera del login leía `self.token` fuera del candado. (c) La
+  guarda de `descartar_token(usado=…)` comparaba contra el estado del **worker**, no
+  contra la caché que comparten todos.
+
+## Alcance acordado
+
+Entra: las seis fichas con su texto completo, la segunda parte de RED-09 y los tres
+seguimientos. Queda afuera: `/api/becas/*`, sus serializers, los `validators` de los
+`JSONField` y la migración `programas.0080`, tomados por el PR 5 de la misma ola; el
+registro, el perfil y las consultas del portal ciudadano, que no están en alcance; y la
+**medición de D-G11 contra datos reales**, que necesita la base de ECOM y por eso queda
+como comando de solo lectura para que la corra el PM.
+
+## Decisiones tomadas
+
+- **`q_uuid_en_texto` vive en `core/db.py`**, con el mismo criterio que `core/dni.py`
+  (RED-48): la regla es del sistema, no de Becas. `programas/services/becas.py` lo
+  **reexporta**, así que ningún llamador tuvo que cambiar; borrar el reexport es un
+  cambio aparte, no el de la mudanza. Acepta un `uuid.UUID` o su texto en cualquiera de
+  las dos formas, y con lo que no es un UUID devuelve `Q(pk__in=[])`: «no traigas nada»
+  es la respuesta correcta a «buscá este token» cuando el token no puede existir.
+- **El link público atiende la fila más vieja** cuando hay dos con el mismo token, como
+  `formulario_por_client_uuid`, y deja el duplicado en el log con los dos pks. Las dos
+  filas vienen en **una** consulta (`[:2]`, un `LIMIT`): detectar el duplicado con un
+  segundo `SELECT` le agregaría una consulta a cada request de una pantalla caliente.
+- **El año de dos dígitos del padrón se interpreta hacia atrás.** Para una fecha de
+  nacimiento no hay ambigüedad: la que cae en el futuro es la del siglo anterior. Con
+  eso `05/06/30` entra **bien** como 1930 en vez de descartarse, que es mejor que lo que
+  pedía la ficha. Lo que no se puede creer —futuro, o anterior a 1900— deja la fila sin
+  fecha y suma a `fechas_invalidas`, el contador que el resumen ya mostraba: la fila
+  entra igual, porque lo que habilita a la persona es el documento.
+- **El CUIL real le gana al calculado solo si es verificable**: sus 8 dígitos centrales
+  tienen que ser el DNI de esa misma persona. Un CUIL de otro, mal tipeado o incompleto
+  no entra; ahí se sigue calculando, que es exactamente lo que se hacía antes. Es el
+  default registrado de **D-G11**, y no contradice al Cambio 80 —que dijo «el alta
+  calcula el CUIL, no lo toma del formulario»— más de lo que la propia D-G11 ya preveía.
+- **El campo del CUIL se busca por su texto normalizado**, no por id: el catálogo lo
+  edita el PM desde la pantalla. Y se lee de la **foto** del caso, no del catálogo de
+  hoy: el masivo no puede pagar una consulta por caso, y es la misma regla de G1-08 —lo
+  que la persona respondió se interpreta con el diseño que respondió—.
+- **La traza del aviso registra solo lo que se intentó.** Un relevamiento con el aviso
+  apagado o un caso sin correo no son un envío, y anotarlos llenaría la traza de filas
+  que no son un hecho. Si escribir la traza falla, el correo ya salió y la acción del
+  técnico ya está firme: se loguea y no se propaga.
+- **El desenlace del reenvío lo dice el caso, no el operador.** `resultado_vigente`
+  lo saca del estado (y de la lista de espera, que no es un estado: sin cupo el caso
+  sigue en `ENVIADO`), así que el botón no puede mandarle «aprobado» a alguien
+  rechazado. `promovido` no se devuelve nunca: para el ciudadano es el mismo hecho que
+  `aprobado`, con el mismo asunto y el mismo cuerpo.
+- **Un solo límite de tiempo por request contra RENAPER.** `consultar_ciudadano` abre
+  `monotonic() + espera_login` y lo comparte con **todo** lo que puede repetirse: las
+  vueltas de `get_token`, su espera, la decisión de loguearse y el reintento por 401.
+  Pasado el límite no se empieza nada nuevo, así que después de los 16 s de espera queda
+  a lo sumo una acción en vuelo (el login) y la consulta final: la cadena declarada
+  —`espera_token + login + consulta` = **46 s**— es un techo y no la suma de dos de sus
+  tres términos. La cuenta está escrita en el comentario de `CADENAS`.
+- **El ganador del login vuelve a la decisión igual que los que esperan.** `login()`
+  devuelve **lo que trajo** en vez de dejar que se lea `self.token`: con token vuelve a
+  la vuelta siguiente, y solo un 200 sin token en el cuerpo corta —ahí reintentar cuesta
+  un login entero y el proveedor contesta lo mismo—.
+- **`descartar_token(usado=…)` compara contra la caché**, que es lo compartido entre
+  procesos, y solo borra si sigue siendo el token que se usó. **Límite documentado:** la
+  caché de Django no expone un «borrar si vale esto» atómico (ni LocMem ni Redis por
+  esta API), así que entre el `get` y el `delete` queda una ventana de microsegundos; es
+  el mismo desenlace que había siempre antes del arreglo y cuesta un login de más.
+
+## Implementación
+
+- `core/db.py` (nuevo) — `q_uuid_en_texto` con guarda de tipo; `programas/services/becas.py`
+  lo reexporta y `core/tests/test_uuid_mariadb.py` apunta ahí en su mensaje.
+- `portal/views/inscripcion.py` — `_get_relevamiento` con `LIMIT 2`, `Http404` propio y
+  log del duplicado.
+- `programas/services/padron.py` — `FECHA_NACIMIENTO_MINIMA`, `_creible`, `_con_pivote`
+  y `normalizar_fecha(valor, hoy=None)`.
+- `programas/services/personas.py` — `"not_found": True` en la rama del 404 HTTP.
+- `programas/services/siis_envio.py` — `TEXTO_CUIL_TITULAR`/`TEXTO_CUIL_APODERADO`,
+  `_cuil_respondido`, `_pk_de_clave` y `cuil_del_caso`, usado en el payload del titular
+  y en el del apoderado.
+- `programas/management/commands/medir_cuil_respondido.py` (nuevo) — la medición de
+  D-G11, **solo lectura**, por lotes de 500 y sin datos personales en la salida.
+- `programas/services/avisos_resolucion.py` — `usuario=` y `conexion=`, `_registrar`
+  (traza «Aviso por correo»), `CAMPO_TRAZA_AVISO` y `resultado_vigente`.
+- `programas/views/revision.py` — `formulario_reenviar_aviso` y las cuatro claves nuevas
+  del contexto del detalle; `programas/views/cupo.py` y las otras tres llamadas firman
+  con `usuario=request.user`; `programas/urls.py` suma la ruta.
+- `programas/templates/programas/becas/revision/formulario_detalle.html` — sección
+  «Aviso al ciudadano».
+- `programas/services/proceso_masivo.py` y
+  `programas/management/commands/procesar_casos_siis.py` — `conexion_correo` y una
+  conexión SMTP por lote.
+- `core/integraciones.py` — `MARGEN_ESPERA_LOGIN`, costo `renaper.espera_token` y la
+  cadena de RENAPER con su cuenta; `legajos/services/consulta_renaper.py` — el límite
+  compartido, `login()` que devuelve el token y `descartar_token` contra la caché.
+- Tests: `programas/tests/test_ola3_link_publico.py` (45) y
+  `legajos/tests/test_renaper_concurrencia.py` (14) nuevos; tres casos en
+  `programas/tests/test_siis_envio.py`, uno `@tag("mysql")` en
+  `core/tests/test_motor_real.py` y las cuatro claves nuevas en el contrato de
+  `programas/tests/test_becas_revision.py`.
+
+## Validación
+
+- Suite completa en un solo proceso con Python 3.12 / Django 5.2.17 (venv igual al CI):
+  **4.183 tests, OK** (50 salteados, 6 fallos esperados).
+- `manage.py check` sin issues; `check --deploy` sin `core.E003`;
+  `makemigrations --check --dry-run` sin cambios; `test --tag performance` 6/6 OK.
+- `--tag mysql` contra `mariadb:10.11` **sin tablas de zona horaria**
+  (`MARIADB_INITDB_SKIP_TZINFO=1`): **48 tests OK**, incluido el de R0-06 en el motor
+  donde las dos formas del UUID de verdad conviven.
+- `ruff check .` y `ruff format --check` sobre lo tocado, limpios.
+- `design_audit --changed` 0 errores, `--ratchet` **0 hallazgos nuevos**,
+  `compile_templates --bloques` 201/0/0, `requerimientos.py --check` OK.
+
+## Pendientes / a definir
+
+- **Correr `manage.py medir_cuil_respondido` contra PRD** (solo lectura) para saber a
+  cuántos casos ya informados a SIIS les cambia el CUIL. Lo hace el PM; el
+  comportamiento no depende de esa corrida.
+- **Aplicar a mano el bloque de `.claude/design/dominio/becas.md`** que va en el cuerpo
+  del PR: la sesión que escribió este cambio no tiene permiso de escritura en `.claude/`
+  y el job `Design Agent Contract` queda rojo hasta que se aplique.
+- Los avisos anteriores a este cambio no tienen traza: el panel del caso lo dice en
+  lugar de mostrar un hueco.
+
+## Reversión
+
+Todo es código, sin esquema. Revertir el commit deja el link público como estaba
+(500 con el token duplicado), el padrón aceptando fechas imposibles, el 404 de Personas
+como 502, el aviso sin traza ni botón de reenvío y el CUIL siempre calculado. Las trazas
+ya escritas quedan: son filas de `TracaFormulario` como cualquier otra. El helper vuelve
+a `programas/services/becas.py` sin que ningún llamador cambie, porque todos lo importan
+de ahí.
