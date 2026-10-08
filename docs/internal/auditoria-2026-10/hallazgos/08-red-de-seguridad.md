@@ -49,7 +49,7 @@ con lo que existe hoy; la lista solo baja.
 | RED-07 | Nada impide volver a poner `Trunc*`/`__date` sobre un `DateTimeField` (CONVERT_TZ, 500 en PRD) | ALTA | CONF. test (SQL compilado) | R | S-M | ✅ |
 | RED-08 | Los tests del 500 del link público cuentan consultas, no la forma del `WHERE` | ALTA | CONF. test (SQL compilado) | R | S | ✅ |
 | RED-09 | Un `UUIDField` nuevo sin `char(36)` pasa el CI; el único test de UUID se saltea siempre | ALTA | CONF. test | R (+3) | S-M (+S) | ✅ |
-| RED-10 | Las dos escrituras que dieron 500 bajo el lock no tienen presupuesto de consultas | ALTA | CONF. lectura | R (+4) | S (+S-M) | 🟡 |
+| RED-10 | Las dos escrituras que dieron 500 bajo el lock no tienen presupuesto de consultas | ALTA | CONF. lectura | R (+4) | S (+S-M) | ✅ |
 | RED-11 | Ningún test fija la forma del JSON de `/api/becas/*` que lee la app de campo | ALTA | CONF. lectura (dos repos) | R | S | ✅ |
 | RED-12 | `definicion_formulario` y los prefijos `pg-`/`rn-`: contrato de dos repos sin serializer ni test | ALTA | CONF. lectura (dos repos) | R | M | ⬜ |
 | RED-13 | El shell de todo el backoffice y `legajos.ready()` dependen de `conversaciones` | ALTA | CONF. lectura | R (test) + 7 | S + M | ✅ (R; falta Ola 7) |
@@ -90,7 +90,7 @@ con lo que existe hoy; la lista solo baja.
 | RED-48 | «DNI válido» está implementado 6 veces con 3 reglas de largo | MEDIA | CONF. lectura | 3 | S-M | ✅ |
 | RED-49 | `cupo_disponible` significa tres cosas y dos pantallas lo rotulan igual | MEDIA | CONF. lectura | R (+4) | S (+S) | ✅ |
 | RED-50 | La edad (RN-22) está cuatro veces y tres usan `date.today()` (UTC en los contenedores) | MEDIA | CONF. lectura | R (+3) | S (+S-M) | ✅ |
-| RED-51 | Dos `invalidate_dashboard_cache`; `stats_legajos` colgado del modelo equivocado | MEDIA | CONF. lectura | R (+4) | S (+S) | ✅ (R; falta Ola 4) |
+| RED-51 | Dos `invalidate_dashboard_cache`; `stats_legajos` colgado del modelo equivocado | MEDIA | CONF. lectura | R (+4) | S (+S) | ✅ |
 | RED-52 | Contrato implícito por `user._state.fields_cache["profile"]` | MEDIA | CONF. lectura | R (+2) | S (+S) | ✅ |
 | RED-53 | Clones literales entre los comandos SIIS y entre las vistas de padrón | MEDIA | CONF. test (pylint + AST) | 1 (+5) | S-M (+S) | ✅ |
 | RED-54 | `revision.py` (1.331 líneas): ningún test fija el contexto del detalle | MEDIA | CONF. test (radon) | R (+7) | S-M (+M) | ✅ (R; falta Ola 7) |
@@ -101,7 +101,7 @@ con lo que existe hoy; la lista solo baja.
 | RED-59 | `deploy_prod.sh`: rollback sin base, detached HEAD y un health que siempre da 200 | MEDIA | CONF. lectura | R | S | ✅ |
 | RED-60 | `processes.md` enseña un rollback que destruye datos y autoriza `--fake` | MEDIA | CONF. lectura | R (prioridad 1) | S | ✅ |
 | RED-61 | `SIIS_API_URL` cae al SIIS de desarrollo y nada lo valida al arrancar | MEDIA | CONF. lectura (PRD PLAUSIBLE) | R | S | ✅ |
-| RED-62 | Los presupuestos de performance son autodeclarados: subirlos en el mismo PR pasa | MEDIA | CONF. lectura | 4 | S | ⬜ |
+| RED-62 | Los presupuestos de performance son autodeclarados: subirlos en el mismo PR pasa | MEDIA | CONF. lectura | 4 | S | ✅ |
 | RED-63 | Ruff y Bandit en `continue-on-error`; excepción de `pip-audit` sin vencimiento | MEDIA | CONF. lectura | R | S | ✅ |
 | RED-64 | `docs/client/` se publica en GitHub Pages público en cada push, sin revisión | MEDIA | CONF. lectura (API) | 7 | S | ⬜ |
 | RED-65 | El guard de `publish-main.yml` exige artefactos muertos y va a bloquear OPS-10/OPS-14 | MEDIA | CONF. lectura | R (+7) | S | ✅ (R; falta Ola 7) |
@@ -122,7 +122,7 @@ con lo que existe hoy; la lista solo baja.
 | RED-80 | `programa_becas` y `programa_dispositivos`: mismo cache, distinta guarda e invalidación | BAJA | CONF. lectura | 2 | S | ⬜ |
 | RED-81 | El registro de reglas de vencimiento puede quedar vacío y el comando sale OK | BAJA | CONF. lectura | R | S | ✅ |
 | RED-82 | `exportacion_reportes.py` con terminadores CR: git lo trata como binario y pylint lo saltea | BAJA | CONF. test | R | S | ✅ |
-| RED-83 | Índices duplicados en `programas_formulario` y `legajos_ciudadano` | BAJA | CONF. test (`information_schema`) | R (+4) | S (+S) | ✅ (R; falta Ola 4) |
+| RED-83 | Índices duplicados en `programas_formulario` y `legajos_ciudadano` | BAJA | CONF. test (`information_schema`) | R (+4) | S (+S) | ✅ |
 | RED-84 | `requerimientos.py --check` no verifica la sección «Reversión» | BAJA | CONF. lectura | R | S | ✅ |
 | RED-85 | Herramientas del CI sin pinear y actions por tag en workflows con `contents: write` | BAJA | CONF. lectura | R (+7) | S (+S) | ✅ (R; falta Ola 7) |
 | RED-86 | Job de tests con timeout de 15 min, sin `--parallel` ni alarma de crecimiento | BAJA | CONF. test (`gh run list`) | 7 | S | ⬜ |
@@ -848,6 +848,26 @@ que toque el link público; (2) los dos destinos del Performance Guard (`inscrip
 que siguen en la Ola 4 como dice la ficha.
 **Test permanente:** `programas/tests/test_becas_api.py::AltaBajoElLockTests.test_el_alta_no_crece_en_consultas`.
 
+**Resolución:** ✅ (segunda parte, Ola 4 PR 9) Resuelta en #NNN (Cambio 194), 08-10-2026 — los **dos** destinos del
+Performance Guard, con la mitad que faltaba del gemelo del link público resuelta por el mismo camino.
+`inscripcion_publica_paso2` (anónimo, sesión del paso 1 ya sembrada, `expected_status: 302` al comprobante) y
+`becas_api_alta` (Token del territorial, `201`, `max_duplicate_queries: 1`) entran a `build_targets` y a
+`perf_budgets.json` con su justificación en `adjustments`, como pedía la ficha. Medidos con `seed_perf --scale 200`
+bajo el TestCase de presupuestos: **46 consultas / 10 duplicadas** el paso 2 y **31 / 1** el alta por API; los techos
+quedan en medido + 1, salvo las duplicadas del alta, que quedan en el medido. **Tres cosas que la ficha no
+anticipaba:** (a) el link público no tenía dónde medirse —`seed_perf` no creaba ningún relevamiento `PUBLICO` ni
+ninguno `EN_CURSO`—, así que el seed estrena un **segmento propio** con su convocatoria, su relevamiento público y el
+del alta por API, justamente para no moverles ni una fila a `becas_cupo_segmento` ni al detalle del caso, que leen el
+segmento 000; (b) la sesión del paso 1 se siembra **al armar el manifiesto** y no adentro de la petición medida, con
+un `session_key` y un DNI distintos por muestra —el control de duplicados por convocatoria (RN-P5) rechaza el segundo
+envío del mismo documento—, porque crearla adentro le cobraría al presupuesto dos consultas que no son de la pantalla;
+(c) el payload del paso 2 **no se escribe a mano**: el formulario es dinámico (RN-1) y se le pregunta al propio
+`InscripcionPaso2Form` qué campos tiene, de modo que los cinco adjuntos obligatorios del catálogo viajan solos —y las
+10 duplicadas medidas son, justamente, esos cinco `INSERT` idénticos—. Como el envío sube archivos de verdad, el
+TestCase y `perf_audit` mandan `MEDIA_ROOT` a un temporal: medir no puede dejar basura en el `media/` del repo.
+**Test permanente:** `core/tests/test_performance_budgets.py::PerformanceBudgetTests.test_key_routes_stay_within_query_budgets`
+(cubre los dos destinos; el gemelo con `assertNumQueries` del alta sigue siendo `AltaBajoElLockTests`).
+
 ### RED-34 · Nada obliga a que una ficha cerrada deje un test permanente
 **Severidad:** MEDIA (era ALTA: las PoC nunca se pensaron para correr; el hueco es de proceso) · **Estado:** CONFIRMADO con test (`unittest.defaultTestLoader.discover('docs')` → 0 tests) · **Origen:** RS-R2-04 (VR1: CONFIRMADO-AJUSTADO) · **Ola:** R · **Esfuerzo:** S (2 h)
 - **Ubicación:** `docs/internal/auditoria-2026-10/poc/` (7 módulos, sin `__init__.py`); README §0.1 y §6 definen el cierre
@@ -1549,7 +1569,27 @@ llamadores** —las tres vistas de alta, edición y borrado de ciudadanos (`lega
 que la función de `dashboard/utils.py` se ejecuta en producción y borrarla no es gratis. Queda fijado con un test AST
 (`test_el_servicio_de_ciudadanos_tiene_llamadores`).
 **Test permanente:** `dashboard.tests.test_cache_invalidacion.InvalidacionTests.test_inscripcion_nueva_invalida_stats_legajos`
-(y `.test_alerta_nueva_invalida_alertas_activas`, `DosFuncionesTests.test_no_borran_las_mismas_claves`).
+(y `.test_alerta_nueva_invalida_alertas_activas`).
+
+**Resolución:** ✅ (segunda parte, Ola 4 PR 9) Resuelta en #NNN (Cambio 194), 08-10-2026 — `dashboard/cache.py` es la
+tabla única que pedía la ficha: cada clave con la consulta que la escribe y el `label_lower` del modelo que la
+invalida (`CLAVES_POR_MODELO`), con `clave_seguimientos_hoy()` resuelta en el momento porque lleva la fecha adentro.
+Los dos `expectedFailure` pasan a verde: `stats_legajos` la borra ahora el receiver de `InscripcionPrograma`
+(`dashboard/signals/cache.py`, registrado en `DashboardConfig.ready()`) y `alertas_activas` estrena el suyo sobre
+`AlertaCiudadano`. La segunda `invalidate_dashboard_cache` **se borró**: el receiver de `User` llama a
+`invalidar_por_modelo` y `CiudadanosService.invalidate_ciudadanos_cache` a `invalidar_dashboard`, la única que queda.
+`DosFuncionesTests` quedó invertido en `UnaSolaFuncionTests`: un recorrido `ast` por las siete apps falla si el nombre
+vuelve a definirse **en cualquier lado**, y dos tests nuevos cierran la regla por la otra punta —que la función única
+borre todo lo que la tabla declara, y que todo contador que escriba una clave esté en la tabla—, porque la mitad del
+bug original era un contador sin dueño. **Tres desvíos, los tres a favor:** (1) el receiver de `User` ya **no** borra
+`contar_ciudadanos` —dar de alta a alguien del backoffice no cambia cuántos ciudadanos hay, y la ficha no lo pedía
+pero es la consecuencia directa de invalidar por modelo—; (2) ese mismo receiver pasa a `on_commit`, como el de
+`Ciudadano` desde PERF-04, para no invalidar ante un rollback; (3) `invalidar_dashboard` borra **en el acto** y no
+diferido, que es la semántica de la función que reemplaza —la llaman las tres vistas de ciudadanos después de
+guardar—. Mutación de control: sin el `import` de `dashboard.signals` en `ready()`, los dos tests invertidos vuelven a
+rojo.
+**Test permanente:** `dashboard.tests.test_cache_invalidacion.InvalidacionTests.test_inscripcion_nueva_invalida_stats_legajos`
+(y `.test_alerta_nueva_invalida_alertas_activas`, `UnaSolaFuncionTests.test_no_quedan_dos_funciones_llamadas_invalidate_dashboard_cache`).
 
 ### RED-52 · Contrato implícito por `user._state.fields_cache["profile"]`
 **Severidad:** MEDIA · **Estado:** CONFIRMADO (lectura; 5 usos) · **Origen:** RS-R4-12 (VR2: CONFIRMADO-AJUSTADO) · **Ola:** R (tests) + 2 (PR 2, usuarios) · **Esfuerzo:** S (2 h) + S (2 h)
@@ -2149,6 +2189,30 @@ puede medir desde el host sin parsear el plan entero. **Test permanente:** `core
   `REDUNDANTES_CONOCIDOS` = los 5 pares; la lista solo baja). **Ola 4:** `AlterField` (sin `db_index`) + `RemoveIndex`
   por par (`DROP INDEX` secundario es `INPLACE`/`LOCK=NONE`).
 
+**Resolución:** ✅ (segunda parte, la migración) Resuelta en #NNN (Cambio 194, Ola 4 PR 9), 08-10-2026 —
+`legajos.0011_indices_redundantes_red83` y `programas.0084_indices_redundantes_red83` sacan los **cinco** pares
+medidos, con la forma que pedía la ficha: `RemoveIndex` para los dos duplicados declarados en `Meta.indexes`
+(`dni`, `email`) y `AlterField` sin `db_index` para los dos de columna (`activo`, `apellido`), más el `RemoveIndex` de
+`estado` en `Formulario`. El ratchet baja de **26** a **21**; los que quedan son el mismo defecto en tablas chicas,
+sin medir. **Verificado contra el banco MariaDB 10.11** (`scripts/perf_mysql`, 21.522 ciudadanos y una
+`programas_formulario` de **362 MB**), que es lo que la ficha no pedía y el PR sí exigió: los cinco pares confirmados
+en `information_schema.STATISTICS` y `EXPLAIN` de ocho consultas calientes **antes y después**. Siete dan el plan
+idéntico —el listado de ciudadanos ya elegía `legajos_ciu_listado_idx` y no `activo`; el lookup por documento ya era
+`const` por el UNIQUE; el de email y el conteo por estado ya usaban el superviviente; la bandeja por estado usa
+`prog_formulario_creado_idx`—. La única que elegía un índice que se va es la **búsqueda por apellido**, y después del
+`DROP` resuelve con el compuesto `(apellido, nombre)` con el mismo `type=range`, el mismo `key_len=482` y las mismas
+filas estimadas: el prefijo izquierdo sirve el mismo rango. Ninguno estaba en uso exclusivo.
+**Tres cosas medidas que la ficha no tenía:** (a) el costo real del DDL —31 + 31 + 27 + 32 ms en `legajos_ciudadano` y
+**29 ms** en los 362 MB de `programas_formulario`, contra el `read_timeout` de 10 s de ECOM—; (b) el ciclo
+**ida → vuelta → ida** corrido sobre los datos sembrados, las tres en verde, así que la reversa (que vuelve a crear
+los cinco índices) está probada y no solo declarada; (c) ninguno de los cinco es el índice implícito de una FK, así
+que no hay riesgo de `ERROR 1553`. No lleva marca `# CONTRACT:` y no es un descuido: durante el rolling la release
+vieja no nombra índices —los elige el optimizador—, así que no hay código viejo que esto pueda romper, y
+`check_migraciones.py` tampoco la pide.
+**Test permanente:** `core.tests.test_indices_redundantes.IndicesRedundantesTests.test_la_lista_conocida_no_tiene_entradas_muertas`
+(el que exige que los cinco pares hayan desaparecido de verdad de los modelos, junto con
+`.test_no_hay_indices_prefijo_de_otro`).
+
 ### RED-84 · `requerimientos.py --check` no verifica la sección «Reversión»
 **Severidad:** BAJA · **Estado:** CONFIRMADO (lectura) · **Origen:** RS-R5-13 (VR2: CONFIRMADO) · **Ola:** R · **Esfuerzo:** S (2 h)
 
@@ -2478,6 +2542,26 @@ entrypoint: queda para R-15.
 - **Propuesta:** paso en el job `performance-budgets` de `pr-performance.yml` que carga `perf_budgets.json` de la base del PR
   (`git show "${{ github.event.pull_request.base.sha }}":scripts/perf_budgets.json`) y falla si algún `max_queries` sube, o
   `reference_total_ms` sube más de 5 %, sin una clave nueva en `_meta.adjustments`; `failure_multiplier` a `2.0`.
+
+**Resolución:** ✅ Resuelta en #NNN (Cambio 194, Ola 4 PR 9), 08-10-2026 — `scripts/check_perf_budgets.py` corre como
+**primer** paso del job `Query Budgets & Smoke Time` (antes de medir: es barato, no necesita base y el mensaje es más
+claro que el del presupuesto excedido), contra `github.event.pull_request.base.sha`, con `fetch-depth: 0` en el
+checkout —sin eso, `git show <base>:…` no resuelve y el paso compararía contra nada— y con `HEAD^` de respaldo para el
+disparo por `push`. `failure_multiplier` baja de `3.0` a `2.0`: con 3,0 la alarma recién saltaba a 4,3 s, casi el
+triple de la referencia, y no había degradación capaz de encenderla (medido en este PR: 1.982 ms, ratio 1,38×).
+**Tres desvíos, los tres hacia más estricto:** (1) la justificación no alcanza con ser una clave nueva, tiene que
+**nombrar** el presupuesto que sube —con la regla original, una sola entrada tapaba cualquier cantidad de subidas en
+el mismo PR, y la convención del archivo ya escribe el nombre de la ruta—, y una entrada vieja **ampliada** cuenta
+igual que una nueva; (2) se miran también los `servicios` (`consultas_fijas` que sube, `casos_por_consulta` que
+**baja**: las dos son «el servicio puede consultar más») y los dos multiplicadores de la alarma de tiempo, que son la
+forma barata de correr el techo sin tocar la referencia —la puerta que quedaba abierta justo después de bajarlo—;
+(3) bajar un techo y estrenar una ruta no piden nada, escrito como test, porque un gate que pide trámite en la
+dirección buena genera justificaciones de trámite. Probado con las dos puntas que pedía el pedido: caso **rojo** —se
+infla un techo del `perf_budgets.json` real sin tocar `adjustments` y el proceso sale con 1— y caso **verde** —el
+archivo de este PR contra `origin/development`, salida 0—, más 16 casos sobre documentos sintéticos.
+**Test permanente:** `core/tests/test_check_perf_budgets.py::CasoRojoTests.test_subir_max_queries_sin_justificacion_es_un_hallazgo`
+(y `CasoVerdeTests` ×6, `ArchivoRealTests.test_inflar_un_presupuesto_del_repo_devuelve_1`,
+`ElJobLoCorreTests.test_el_workflow_de_performance_corre_el_script_contra_la_base_del_pr`).
 
 ### RED-63 · Ruff y Bandit en `continue-on-error`; excepción de `pip-audit` sin vencimiento
 **Severidad:** MEDIA · **Estado:** CONFIRMADO (lectura) · **Origen:** RS-R6-12 (VR2: CONFIRMADO) · **Ola:** R · **Esfuerzo:** S (2 h)

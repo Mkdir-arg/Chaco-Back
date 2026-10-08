@@ -26,7 +26,11 @@ jobs:
     timeout-minutes: 15
 
     steps:
+      # `fetch-depth: 0` lo pide el paso de RED-62: compara `perf_budgets.json` contra el
+      # árbol **base** del PR, y con el checkout de profundidad 1 ese commit no está.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-python@v5
         with:
@@ -39,6 +43,17 @@ jobs:
 
       - name: Install Python dependencies
         run: pip install -r requirements.txt
+
+      # RED-62: los presupuestos eran autodeclarados. Un N+1 deja el paso de abajo en
+      # rojo («16 → 61») y subir el techo en el mismo PR lo devolvía a verde. Va **antes**
+      # de medir: es barato, no necesita la base de datos y el mensaje es más claro que
+      # el del presupuesto excedido.
+      - name: Un presupuesto que sube viene justificado
+        shell: bash
+        run: |
+          base="${{ github.event.pull_request.base.sha }}"
+          [ -n "$base" ] || base="$(git rev-parse HEAD^)"
+          python scripts/check_perf_budgets.py --base "$base"
 
       - name: Run performance query budgets
         env:

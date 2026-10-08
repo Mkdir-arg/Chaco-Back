@@ -155,11 +155,18 @@ class ContadorDeInscripcionesIntactoTests(TestCase):
         self.assertIsNotNone(cache.get("stats_legajos_atencion"))
 
     def test_guardar_un_legajo_invalida_la_clave_nueva(self):
-        """Sin esto el inicio queda con el número viejo hasta que expire el TTL."""
+        """Sin esto el inicio queda con el número viejo hasta que expire el TTL.
+
+        Desde RED-51 (Cambio 194) el borrado va en un `on_commit`, como el de `Ciudadano`
+        desde PERF-04: invalidar antes del commit deja que otro request vuelva a cachear
+        el valor **viejo**, y si la transacción termina en rollback se borró por nada.
+        Dentro de un `TestCase` hay que soltarlo a mano; lo que se afirma es lo mismo.
+        """
         from dashboard.utils import contar_legajos_atencion
 
         contar_legajos_atencion()
 
-        LegajoAtencion.objects.create()
+        with self.captureOnCommitCallbacks(execute=True):
+            LegajoAtencion.objects.create()
 
         self.assertIsNone(cache.get("stats_legajos_atencion"))

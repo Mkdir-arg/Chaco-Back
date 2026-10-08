@@ -714,7 +714,9 @@ def validar_casos_pendientes(objetivo, usuario=None):
         )
     # ``bulk_update`` no dispara ``post_save``, así que la caché del legajo se avisa
     # a mano, una sola vez para todo el cruce (PERF-16).
-    invalidar_ciudadanos_tras_commit(ciudadanos_tocados, contadores=False)
+    # Sin `claves_extra`: el cruce **no** da de alta ni borra ciudadanos, así que ningún
+    # contador de la home cambia (RED-51; antes era el parámetro `contadores=False`).
+    invalidar_ciudadanos_tras_commit(ciudadanos_tocados)
     return len(solo_constantes) + len(con_json)
 
 

@@ -319,12 +319,16 @@ DATABASES["default"] = {
         "read_timeout": 10,
         "write_timeout": 10,
     },
-    "CONN_MAX_AGE": 60,            # connection pooling de Django
+    # 0 en el contenedor de websockets (APP_RUNTIME=daphne), 60 en el resto
+    "CONN_MAX_AGE": 0 if APP_RUNTIME == "daphne" else 60,
     "CONN_HEALTH_CHECKS": True,
 }
 ```
 
-- **Pool**: `CONN_MAX_AGE=60` mantiene conexiones reusables por 60 s con health-check previo.
+- **Pool**: `CONN_MAX_AGE=60` mantiene conexiones reusables por 60 s con health-check previo **en el
+  contenedor web** (gunicorn). En el contenedor de websockets (`APP_RUNTIME=daphne`) vale **0**: bajo
+  ASGI cada request HTTP lo atiende un hilo nuevo del pool de `asgiref`, así que la conexión persistente
+  no se reusaba nunca y quedaba abierta hasta que pasara el recolector.
 - **Aislamiento**: `READ COMMITTED` para reducir bloqueos en escrituras concurrentes (chat, derivaciones).
 - **Charset**: `utf8mb4` para soportar correctamente nombres con acentos y emojis.
 - **Tests**: bajo `pytest`, Django usa SQLite en memoria para acelerar.

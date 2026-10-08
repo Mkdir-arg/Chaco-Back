@@ -114,6 +114,11 @@ class ListadosDeLegajosTests(_BaseAdminLegajos):
         property `ciudadano`: `InscripcionPrograma.legajo_id` es un `UUIDField` suelto, no
         una FK, así que no hay relación que el ORM pueda seguir. Si el número sube de 1,
         alguien agregó otro N+1.
+
+        Dos cosas la disparan, no una: la columna `legajo` del `list_display` y —desde que
+        `LegajoAtencion` está registrado— el `action_checkbox`, que arma su etiqueta
+        accesible con `str(obj)`. Da igual: `__str__` guarda el resultado en un
+        `cached_property`, así que sigue siendo **una** consulta por fila.
         """
         self.sumar_filas(CHICO)
         url = reverse("admin:legajos_historialcontacto_changelist")
@@ -145,6 +150,43 @@ class FichasDeLegajosTests(_BaseAdminLegajos):
 
     def test_el_alta_de_un_vinculo_no_crece_con_el_padron(self):
         self.assert_no_crece(reverse("admin:legajos_vinculofamiliar_add"))
+
+    def test_el_alta_de_un_contacto_dibuja_la_lupa_de_las_dos_fk(self):
+        """Seguimiento MINOR de #645: `raw_id_fields` sin modelo registrado no da lupa.
+
+        `ForeignKeyRawIdWidget` solo dibuja el link de búsqueda si el modelo apuntado está
+        en `admin.site._registry`. `User` lo está (por `UserAdmin`), `LegajoAtencion` no lo
+        estaba: el alta de un contacto quedaba pidiendo el UUID del legajo de memoria.
+        """
+        self.sumar_filas(CHICO)
+        with zeal_ignore():
+            respuesta = self.client.get(reverse("admin:legajos_historialcontacto_add"))
+
+        self.assertEqual(respuesta.status_code, 200)
+        cuerpo = respuesta.content.decode()
+        self.assertIn("lookup_id_profesional", cuerpo)
+        self.assertIn("lookup_id_legajo", cuerpo)
+
+    def test_el_listado_de_legajos_crece_una_consulta_por_fila_y_solo_por_el_vinculo_blando(self):
+        """El registro nuevo trae **exactamente** la misma consulta por fila que el de
+        contactos, y por el mismo motivo: el `action_checkbox` del admin arma su etiqueta
+        accesible con `str(obj)`, y `LegajoAtencion.__str__` abre su property `ciudadano`,
+        que resuelve el vínculo blando `InscripcionPrograma.legajo_id` —un `UUIDField`
+        suelto, no una FK—. No hay relación que el ORM pueda seguir ni prefetchear y no se
+        arregla desde el admin; lo que sí hace este test es fijar el número en 1: si sube,
+        alguien agregó otro N+1.
+
+        `list_display` no agrega ninguno: nombra solo columnas reales más `responsable`,
+        que `list_select_related` resuelve en la consulta de la página.
+        """
+        url = reverse("admin:legajos_legajoatencion_changelist")
+        self.sumar_filas(CHICO)
+        self.primera_visita(url)
+        con_pocas = self.consultas_de(url)
+        self.sumar_filas(GRANDE)
+        con_muchas = self.consultas_de(url)
+
+        self.assertEqual(con_muchas - con_pocas, GRANDE)
 
     def test_las_fk_grandes_estan_en_raw_id_fields(self):
         esperado = {

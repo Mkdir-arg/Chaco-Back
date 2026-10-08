@@ -353,6 +353,14 @@ lee una vez al principio de `config/settings.py` (hasta ahora se leía suelto, s
 —ahí los hilos sí se reusan y el minuto sirve— y `daphne` en el de websockets, que es el que acumulaba conexiones; el
 dev local (`runserver`, el default del entrypoint) no cambia. **Medición en ECOM pendiente del PM** (`SHOW STATUS LIKE
 'Threads_connected'` antes y después): es la única parte de la ficha que no se puede correr desde acá.
+**No es ganancia pura: en los consumers el minuto sí se reusaba** (seguimiento MINOR de la revisión de #645, Ola 4
+PR 9). La sonda midió **HTTP** bajo ASGI, donde `django/core/handlers/asgi.py` abre un `ThreadSensitiveContext` por
+request —hilo nuevo, conexión que nunca se reusa—; Channels **no** abre ese contexto, así que sus consumers caen en el
+`single_thread_executor` global de `asgiref` y ahí la conexión persistente sí servía. Con `CONN_MAX_AGE=0` cada
+`database_sync_to_async` del contenedor daphne abre y cierra una conexión (`close_old_connections` →
+`close_if_unusable_or_obsolete` con el `close_at` ya vencido). El canje se acepta igual: conversaciones está sin uso
+(29-sep-2026) y el handshake de MySQL son milisegundos, contra las conexiones huérfanas que el `web` acumulaba. Si el
+chat vuelve a tener tráfico, la decisión se revisa.
 **Test permanente:** `core.tests.test_settings_entorno_y_timeouts.ConexionPersistenteSegunElRuntimeTests`
 (`test_bajo_daphne_las_conexiones_no_se_guardan`, `test_bajo_gunicorn_se_conserva_el_minuto` y
 `test_sin_app_runtime_declarado_se_conserva_el_minuto`), que arranca Django en un subproceso con la variable puesta:

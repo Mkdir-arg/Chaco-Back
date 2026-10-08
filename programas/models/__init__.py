@@ -2864,7 +2864,10 @@ class Formulario(TimeStamped):
         ordering = ["-creado"]
         indexes = [
             models.Index(fields=["relevamiento", "estado"]),
-            models.Index(fields=["estado"]),
+            # RED-83: acá estaba `Index(fields=["estado"])`, duplicado exacto del que
+            # crea `estado = CharField(db_index=True)` más arriba. Dos árboles idénticos
+            # sobre la columna más escrita de la tabla más grande (283 MB): se paga en
+            # cada alta, en cada cambio de estado de la revisión y en el ALTER.
             # Dashboard del programa (Cambio 64): el recorte es siempre
             # relevamiento IN (...) AND creado BETWEEN ..., y la serie semanal lee
             # solo ``creado`` de esas filas.

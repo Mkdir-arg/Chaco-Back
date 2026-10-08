@@ -364,6 +364,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 190 | El chequeo de esquema del CI deja de marcar como huérfanas las tablas que carga el organismo | Transversal — CI (job «Migrate ida y vuelta»), `verificar_esquema_migraciones` | `#infra` `#datos` | Juez, por la regresión de #639 que dejaba rojo ese job en todo PR posterior | 08/10/2026 | 🟢 **Hecho** | No requiere |
 | 191 | Plan de implementación del MVP de Dispositivos: tabla rasa, dos carriles y las piezas de diseño primero | Dispositivos · planificación | `#gestion` `#ui` `#datos` | PM — en sesión: «quiero borrar lo que tenemos hoy de ese programa e implementarlo desde 0… planificá bien las etapas y quiero hacer hincapié en la parte de lógica y la parte de diseño, se tiene que ver igual» | 08/10/2026 | 🟢 **Hecho — plan escrito** | Sí: baja de 6 modelos en dos releases |
 | 192 | Configuración, admin y las tres fichas de performance que se cerraron midiendo | Transversal (conexiones de base, Redis de sesiones, `/admin/` de Django) · Becas (link público: vigencia de la sesión anónima; banco de medición) · Legajos (admin de contactos y vínculos) | `#performance` `#infra` `#sesion` `#datos` | Auditoría integral oct-2026 — fichas PERF-08, PERF-10, G1c-09, G1c-11, PERF-12, PERF-13 y PERF-15 (Ola 4, PRs 6, 7 y 8) | 08/10/2026 | 🟢 **Hecho** (PERF-12, PERF-13 y PERF-15 cerradas con la medición como evidencia: **ningún índice entra**; `REDIS_SESSIONS_DB` preparada y apagada, H-06) | No requiere |
+| 194 | La red de seguridad de la Ola 4: presupuestos que no se suben solos, los dos destinos que faltaban, el cache de la home por modelo y los índices que no servían | Transversal (CI de performance, cache del inicio, índices de base) · Becas (link público y alta por la app de campo: presupuestos) · Legajos (admin de contactos) | `#performance` `#infra` `#datos` `#metodo` | Auditoría integral oct-2026 — fichas RED-62, RED-10 (2.ª parte), RED-51 (parte Ola 4) y RED-83 (migración) (Ola 4, PR 9) | 08/10/2026 | 🟢 **Hecho** (cierra la Ola 4) | `legajos.0011` y `programas.0084` (solo `DROP INDEX`, online) |
 
 **Notas del índice**
 
@@ -29015,3 +29016,160 @@ quien esté logueado vuelve al login una vez.
   estaba en los `fieldsets` sin ser de solo lectura, así que Django levantaba
   `FieldError`—. No tenía ficha propia porque el `/admin/` no estaba en ningún test hasta
   ahora; se arregla en el mismo PR sumándola a `readonly_fields`, donde se sigue viendo.
+
+---
+
+# Cambio 194 — La red de seguridad de la Ola 4: presupuestos que no se suben solos, los dos destinos que faltaban, el cache de la home por modelo y los índices que no servían
+
+🟢 **HECHO — 08/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal (CI de performance, cache del inicio, índices de base) · Becas (link público y alta por la app de campo: presupuestos) · Legajos (admin de contactos) |
+| **Etiquetas** | `#performance` `#infra` `#datos` `#metodo` |
+| **Solicitante** | Auditoría integral oct-2026 — fichas RED-62, RED-10 (segunda parte), RED-51 (parte Ola 4) y RED-83 (migración), Ola 4 PR 9 |
+| **Fecha del pedido** | 04/10/2026 |
+| **Issue / épica** | Auditoría oct-2026, `docs/internal/auditoria-2026-10/` |
+| **Partes afectadas** | Servidor/API · Infra/ECOM |
+| **Migración** | `legajos.0011` y `programas.0084` (las dos solo `DROP INDEX`, online) |
+
+## Pedido original
+Cierre de la Ola 4 (Performance): «RED-62 (presupuestos que suben exigen justificación) y
+segundas partes de RED-10 (destinos del Performance Guard para el paso 2 del link y el alta
+por API), RED-51 (cache del dashboard por modelo) y RED-83 (quitar los índices
+redundantes)».
+
+## Alcance acordado
+Entra: el gate de CI que exige justificar un presupuesto que sube; los dos destinos nuevos
+del Performance Guard con sus presupuestos medidos; la tabla única de claves cacheadas del
+inicio con sus receivers por modelo; y la migración que saca los cinco índices redundantes
+medidos. Entran además los cinco seguimientos MINOR de la revisión del PR anterior (#645).
+
+Queda afuera: los 21 pares de índices redundantes que el ratchet de RED-83 lista en tablas
+chicas —deuda conocida, sin medir y sin ficha propia—; sacarlos pide la misma evidencia que
+se pidió acá (`EXPLAIN` antes y después contra el banco).
+
+## Decisiones tomadas
+- **Justificar es nombrar.** La ficha RED-62 pedía «una clave nueva en `_meta.adjustments`».
+  Se exige además que el texto **nombre** el presupuesto que sube: con la regla original, una
+  sola entrada nueva alcanzaba para tapar cualquier cantidad de subidas en el mismo PR, y la
+  convención del archivo ya escribe el nombre de la ruta («legajos_lista 14→12»).
+- **Los multiplicadores de la alarma de tiempo también se miran.** Dejar
+  `reference_total_ms` quieto y subir `failure_multiplier` corre el mismo techo sin que se
+  note en el diff. Es la puerta que quedaba abierta justo después de bajarlo de 3,0 a 2,0.
+- **Bajar un techo y estrenar una ruta no piden nada.** Un gate que pide trámite en la
+  dirección buena se vuelve ruido, y lo primero que genera es una justificación de trámite.
+- **Los dos destinos nuevos cuelgan de un segmento propio.** No se les colgaron a los
+  segmentos que ya se miden: así no les mueven ni una fila a `becas_cupo_segmento` ni al
+  detalle del caso, y el formulario público queda con lo que trae el catálogo.
+- **El payload del paso 2 se arma solo.** El formulario público es dinámico (el diseño de la
+  convocatoria sobre el catálogo de hoy, RN-1), así que el destino le pregunta al propio
+  `InscripcionPaso2Form` qué campos tiene y contesta por tipo. Escrito a mano, una pregunta
+  obligatoria nueva habría dejado el destino midiendo un 200 con errores de validación en
+  vez de la escritura.
+- **El cache de la home se invalida por modelo, no todo junto.** Un `save()` de `User` no
+  cambia cuántos ciudadanos hay; borrar de más obliga a recalcular lo que no se movió.
+- **La función única borra en el acto y los receivers en `on_commit`.** `invalidar_dashboard`
+  conserva la semántica de la que reemplaza (la llaman las vistas de ciudadanos después de
+  guardar); los receivers difieren el borrado para no invalidar ante un rollback.
+- **Los índices se sacan con `RemoveIndex`/`AlterField` y no con `RunSQL`.** Los nombres de
+  los índices que crea `db_index=True` llevan un hash del schema editor y no están escritos
+  en ningún lado: Django los resuelve por introspección, y eso es lo que vuelve el paso
+  portable entre MySQL y MariaDB.
+- **La lupa del legajo se arregla registrando el modelo, no sacando `raw_id_fields`.** Lo
+  segundo sería reponer el combo con la tabla entera que G1c-09 acababa de sacar. Registrar
+  `LegajoAtencion` no expone nada nuevo: al `/admin/` se entra con `is_staff`, que ningún
+  camino del ABM de Usuarios otorga, y `Ciudadano` ya estaba registrado ahí al lado.
+
+## Implementación
+1. **RED-62 — un presupuesto que sube viene justificado.** `scripts/check_perf_budgets.py`
+   compara `scripts/perf_budgets.json` contra el archivo del **árbol base del PR** y falla si
+   sube un `max_queries` o un `max_duplicate_queries`, si un servicio sube sus
+   `consultas_fijas` o baja sus `casos_por_consulta`, si `reference_total_ms` se corre más de
+   un 5 % o si cualquiera de los dos multiplicadores de la alarma de tiempo crece —salvo que
+   una entrada de `_meta.adjustments`, nueva o ampliada, nombre ese presupuesto—. Corre como
+   primer paso del job `Query Budgets & Smoke Time`. `failure_multiplier` baja de 3,0 a 2,0:
+   con 3,0 la alarma recién saltaba a 4,3 s, casi el triple de la referencia.
+2. **RED-10 — las dos escrituras bajo el lock entran al manifiesto.**
+   `inscripcion_publica_paso2` (anónimo, con la sesión del paso 1 ya sembrada, 302 al
+   comprobante) y `becas_api_alta` (Token de territorial, 201). Las dos trabajan adentro del
+   `select_for_update` del relevamiento contra el `read_timeout` de 10 s y las dos ya
+   rompieron o estuvieron al borde; ahora tienen techo: 47 consultas / 11 duplicadas y 32 / 1.
+3. **RED-51 — los contadores del inicio tienen dueño.** `dashboard/cache.py` es la tabla
+   única: clave → qué consulta la escribe → qué modelo la invalida. `stats_legajos` se
+   mueve al receiver de `InscripcionPrograma`, que es quien la escribe; `alertas_activas`
+   estrena el suyo sobre `AlertaCiudadano`; y la segunda `invalidate_dashboard_cache`
+   desaparece, con un test que falla si el nombre vuelve a definirse en cualquier lado.
+4. **RED-83 — se van los cinco índices redundantes medidos.** Cuatro de
+   `legajos_ciudadano` (`activo`, `apellido`, `dni`, `email`) y uno de
+   `programas_formulario` (`estado`), todos prefijo exacto —o copia exacta— de otro.
+5. **Los cinco MINOR de #645:** `LegajoAtencion` registrado en el admin (la lupa de
+   `legajo` vuelve); la ficha PERF-08 dice qué pierde el contenedor de websockets;
+   `docs/client/architecture.md` deja de afirmar «pool reusable 60 s» sin condición;
+   `SESION_ANONIMA_SEGUNDOS` pasa a leerse por llamada; y `escenarios_borde.py` —el primer
+   script del banco que **borra**— exige la base descartable y lo dice en su docstring.
+
+## Archivos
+- `scripts/check_perf_budgets.py` (nuevo), `scripts/perf_budgets.json`,
+  `.github/workflows/pr-performance.yml`, `core/tests/test_check_perf_budgets.py` (nuevo).
+- `scripts/perf_audit.py`, `core/management/commands/seed_perf.py`,
+  `core/tests/test_performance_budgets.py`.
+- `dashboard/cache.py` (nuevo), `dashboard/signals/cache.py` (nuevo),
+  `dashboard/signals/__init__.py`, `dashboard/apps.py`, `dashboard/utils.py`,
+  `core/performance/cache_utils.py`, `legajos/signals/core.py`, `legajos/signals/__init__.py`,
+  `legajos/services/ciudadanos.py`, `dashboard/tests/test_cache_invalidacion.py`.
+- `legajos/models/base.py`, `programas/models/__init__.py`,
+  `legajos/migrations/0011_indices_redundantes_red83.py`,
+  `programas/migrations/0084_indices_redundantes_red83.py`,
+  `core/tests/test_indices_redundantes.py`.
+- `legajos/admin/__init__.py`, `legajos/admin/contactos.py`,
+  `legajos/tests/test_admin_performance.py`, `portal/services/inscripcion.py`,
+  `portal/tests/test_inscripcion_sesion_anonima.py`, `scripts/perf_mysql/_bootstrap.py`,
+  `scripts/perf_mysql/escenarios_borde.py`, `docs/client/architecture.md`.
+
+## Base de datos
+`legajos.0011_indices_redundantes_red83` y `programas.0084_indices_redundantes_red83`. Las
+dos son **solo `DROP INDEX`**: ninguna columna cambia de tipo ni de nulabilidad, ningún dato
+se toca. En InnoDB la baja de un índice secundario es in-place —no reconstruye la tabla ni
+bloquea DML—, y así quedó medido contra el banco MariaDB 10.11 con 21.522 ciudadanos y una
+`programas_formulario` de **362 MB**: 31 + 31 + 27 + 32 ms en `legajos_ciudadano` y 29 ms en
+`programas_formulario`, contra el `read_timeout` de 10 s de ECOM. Son seguras sobre datos
+existentes y toleran código viejo corriendo durante el rolling: la release anterior no
+nombra índices, los elige el optimizador.
+
+## Validación
+- `manage.py check` y `manage.py check --deploy`: sin hallazgos nuevos.
+- `manage.py makemigrations --check --dry-run`: sin cambios pendientes.
+- `scripts/check_migraciones.py` sobre las dos migraciones nuevas: OK.
+- Suite de las apps tocadas (`core legajos dashboard portal programas users`) contra el
+  venv Python 3.12 + Django 5.2.17, comparada con la misma corrida en un árbol de la base:
+  ninguna falla nueva.
+- `manage.py test --tag performance`: verde con los dos destinos nuevos.
+- `scripts/check_perf_budgets.py` probado con un caso rojo (un techo del archivo real
+  inflado sin justificación → salida 1) y uno verde (este PR → salida 0).
+- Banco MariaDB 10.11 (`scripts/perf_mysql`, 20.000 casos): `EXPLAIN` de ocho consultas
+  calientes antes y después de las bajas de índice; siete dan el **mismo plan** y la octava
+  —la búsqueda por apellido, la única que elegía un índice que se va— pasa al compuesto
+  `(apellido, nombre)` con el mismo `type=range`, el mismo `key_len=482` y las mismas filas.
+  Ciclo de migración ida → vuelta → ida sobre los datos sembrados, las tres en verde.
+- `ruff check .` y `ruff format --check` sobre lo tocado.
+
+## Puesta en marcha en el servidor
+Nada más que el deploy. Las dos migraciones corren con el `migrate` del entrypoint y no
+necesitan ventana: son `DROP INDEX` de milisegundos.
+
+## Pendientes / a definir
+- Los 21 pares de índices redundantes que quedan en el ratchet de
+  `core/tests/test_indices_redundantes.py`, todos en tablas chicas y sin ficha propia.
+- `failure_multiplier = 2.0` es el valor que pide la ficha; medido acá da ratio 1,38×. Si el
+  runner del CI resulta más lento y la alarma se vuelve ruidosa, moverlo ahora exige su
+  propia justificación escrita, que es exactamente lo que RED-62 quería.
+
+## Reversión
+Revertir el commit alcanza para el código. Para la base, `migrate legajos 0010` y
+`migrate programas 0083` vuelven a crear los cinco índices; está probado contra MariaDB
+10.11 con datos. No se pierde ningún dato: lo único que se deshace es una decisión de
+esquema.
+
+## Historial
+No aplica: entrada nueva.

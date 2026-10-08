@@ -49,7 +49,7 @@ class SesionAnonimaDelLinkPublicoTests(TestCase):
 
         sesion = self.client.session
         self.assertIn(servicio.SESSION_KEY_CAPTCHA, sesion)
-        self.assertEqual(sesion.get_expiry_age(), servicio.SESION_ANONIMA_SEGUNDOS)
+        self.assertEqual(sesion.get_expiry_age(), servicio.sesion_anonima_segundos())
         self.assertLess(sesion.get_expiry_age(), settings.SESSION_COOKIE_AGE)
 
     @patch("programas.services.identidad.consultar_persona", return_value=None)
@@ -89,6 +89,18 @@ class SesionAnonimaDelLinkPublicoTests(TestCase):
 
         self.assertEqual(self.client.session.get_expiry_age(), settings.SESSION_COOKIE_AGE)
 
+    @override_settings(INSCRIPCION_SESION_ANONIMA_SEGUNDOS=120)
+    def test_la_vigencia_corta_se_lee_en_cada_llamada(self):
+        """Seguimiento MINOR de #645: era un escalar congelado en el import.
+
+        La variable de entorno funcionaba igual —se lee al arrancar el proceso—, pero
+        `override_settings` no la movía y la perilla quedaba sin forma de probarse. El
+        resto de las perillas del módulo (`timeout_recaptcha`) ya se leían por llamada.
+        """
+        self.client.get(self._url())
+
+        self.assertEqual(self.client.session.get_expiry_age(), 120)
+
     def test_el_intento_fallido_sigue_siendo_una_visita_anonima(self):
         """Un captcha mal respondido renueva el desafío: la sesión sigue sin tener nada
         más que eso, así que conserva la vigencia corta."""
@@ -97,4 +109,4 @@ class SesionAnonimaDelLinkPublicoTests(TestCase):
 
         sesion = self.client.session
         self.assertNotIn(servicio.clave_sesion(self.relevamiento), sesion)
-        self.assertEqual(sesion.get_expiry_age(), servicio.SESION_ANONIMA_SEGUNDOS)
+        self.assertEqual(sesion.get_expiry_age(), servicio.sesion_anonima_segundos())

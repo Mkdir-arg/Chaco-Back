@@ -1,19 +1,26 @@
 import json
 import os
+import tempfile
 from io import StringIO
 from pathlib import Path
 
 from django.conf import settings
 from django.core.cache import cache
 from django.core.management import call_command
-from django.test import TestCase, tag
+from django.test import TestCase, override_settings, tag
 
 from scripts.perf_audit import _capture_request, build_clients, build_targets
 
 BUDGETS_PATH = settings.BASE_DIR / "scripts" / "perf_budgets.json"
 
+#: RED-10: el destino del paso 2 del link público sube los cinco adjuntos obligatorios
+#: del catálogo, así que la medición **escribe archivos**. Van a un temporal y no al
+#: `media/` del repo, que es donde caerían si no.
+MEDIA_DE_LA_MEDICION = tempfile.mkdtemp(prefix="chaco_perf_media_")
+
 
 @tag("performance")
+@override_settings(MEDIA_ROOT=MEDIA_DE_LA_MEDICION)
 class PerformanceBudgetTests(TestCase):
     @classmethod
     def setUpTestData(cls):

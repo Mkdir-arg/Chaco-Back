@@ -6,10 +6,14 @@ más largo para las dos consultas. Lo que sí hace es costar en cada `INSERT`, `
 (`programas_formulario` ronda los 283 MB).
 
 `information_schema.STATISTICS` en MariaDB 11.8 encontró cinco pares, los cinco
-declarados a mano en los modelos (la auditoría los verificó contra la base real). La
-migración que los saca es de la Ola 4; lo que este test aporta es el **ratchet**: la
-lista de abajo fija lo que hay hoy y solo puede achicarse. Un par nuevo pone el test en
-rojo en el PR que lo agrega, que es donde cuesta un minuto arreglarlo.
+declarados a mano en los modelos (la auditoría los verificó contra la base real).
+**Los cinco se fueron en la Ola 4 PR 9 (Cambio 194)**, con `legajos.0011` y
+`programas.0084`; el ratchet nació en 26 y queda en **21**, que es el mismo defecto en
+tablas chicas —deuda conocida, sin medir y sin ficha propia—.
+
+Lo que este test aporta es el **ratchet**: la lista de abajo fija lo que hay hoy y solo
+puede achicarse. Un par nuevo pone el test en rojo en el PR que lo agrega, que es donde
+cuesta un minuto arreglarlo.
 
 Qué se mira: lo que el modelo **declara**. `db_index=True`, `unique=True`,
 `Meta.indexes`, `Meta.constraints` (los `UniqueConstraint` con `fields`) y
@@ -34,14 +38,15 @@ APPS_DEL_PROYECTO = (
 )
 
 # Ratchet (RED-83). Cada fila es «modelo: (índice chico) dentro de (índice largo)».
-# **Esta lista solo baja.** La Ola 4 saca los cinco medidos con `AlterField` (sin
-# `db_index`) + `RemoveIndex` por par; cada par que se vaya tiene que salir también de
-# acá, y hay un test que lo exige para que la lista no se convierta en una mentira cómoda.
+# **Esta lista solo baja.** Cada par que se vaya tiene que salir también de acá, y hay un
+# test que lo exige para que la lista no se convierta en una mentira cómoda.
 #
-# Los cinco que la auditoría midió contra la base (marcados **RED-83**) son los de
-# `programas_formulario` y `legajos_ciudadano`, las dos tablas que miró. Los otros 21
-# salieron de recorrer los modelos de todas las apps del proyecto: son el mismo defecto
-# en tablas chicas, deuda conocida y sin medir.
+# Los cinco que la auditoría midió contra la base —los de `programas_formulario` y
+# `legajos_ciudadano`, las dos tablas que miró— salieron de la lista en el Cambio 194,
+# con la migración que los borra. Los 21 que quedan son el mismo defecto en tablas
+# chicas: deuda conocida, sin medir y sin ficha propia. Sacar cualquiera de ellos pide lo
+# mismo que pidió RED-83: `EXPLAIN` antes y después contra el banco, no solo leer el
+# modelo.
 REDUNDANTES_CONOCIDOS = {
     "conversaciones.colaasignacion: (activo) dentro de (activo, conversaciones_actuales)",
     "conversaciones.conversacion: (dni_ciudadano) dentro de (dni_ciudadano)",
@@ -53,10 +58,6 @@ REDUNDANTES_CONOCIDOS = {
     "conversaciones.mensaje: (remitente) dentro de (remitente, leido)",
     "legajos.alertaciudadano: (activa) dentro de (activa, prioridad, creado)",
     "legajos.alertaciudadano: (tipo) dentro de (tipo, prioridad)",
-    "legajos.ciudadano: (activo) dentro de (activo, apellido, nombre, dni, creado)",  # RED-83
-    "legajos.ciudadano: (apellido) dentro de (apellido, nombre)",  # RED-83
-    "legajos.ciudadano: (dni) dentro de (dni)",  # RED-83
-    "legajos.ciudadano: (email) dentro de (email)",  # RED-83
     "legajos.legajoatencion: (nivel_riesgo) dentro de (nivel_riesgo, fecha_admision)",
     "legajos.legajoatencion: (plan_vigente) dentro de (plan_vigente, estado)",
     "legajos.legajoatencion: (via_ingreso) dentro de (via_ingreso, fecha_admision)",
@@ -64,7 +65,6 @@ REDUNDANTES_CONOCIDOS = {
     "programas.derivacionprograma: (estado) dentro de (estado, urgencia)",
     "programas.dispositivo: (nombre) dentro de (nombre, estado)",
     "programas.dispositivo: (nombre) dentro de (nombre, localidad)",
-    "programas.formulario: (estado) dentro de (estado)",  # RED-83
     "programas.inscripcionprograma: (estado) dentro de (estado, fecha_inscripcion)",
     "programas.merendero: (nombre) dentro de (nombre, estado)",
     "programas.programa: (estado) dentro de (estado, orden)",
