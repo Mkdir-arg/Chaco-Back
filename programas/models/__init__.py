@@ -998,6 +998,20 @@ class SolicitudMerendero(TimeStamped):
         verbose_name="Estado",
     )
     observaciones = models.TextField(blank=True, verbose_name="Observaciones")
+    # SEC-09: la documentación respaldatoria se baja por `/media/`, y `merendero.crear`
+    # la abría para **cualquier** solicitud (la regla no tenía alcance por objeto). Con
+    # el autor registrado, quien solo da de alta ve el link de la suya —que es el caso
+    # que la regla tenía que cubrir: el widget del form rinde «Actualmente: …»— y no el
+    # de las demás. Las anteriores a este campo quedan en `NULL`: las leen `merendero.ver`
+    # y `merendero.validar`, que no cambian.
+    creado_por = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="solicitudes_merendero_creadas",
+        verbose_name="Creada por",
+    )
     validada_por = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,

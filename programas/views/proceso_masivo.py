@@ -13,16 +13,19 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.cache import cache
+from django.core.exceptions import PermissionDenied
 from django.shortcuts import get_object_or_404, redirect
 from django.views.decorators.http import require_POST
 from django.views.generic.detail import DetailView
 
+from core import rbac
 from core.rbac import CapacidadRequeridaMixin, requiere
 from programas.models import CorridaSiis, ProgramaSiis
 
 # Alias: este módulo ya se llama proceso_masivo; sin él, dentro del archivo
 # ``proceso_masivo`` sería ambiguo para quien lo lea.
 from programas.services import proceso_masivo as servicio
+from programas.services.autorizacion import programa_becas
 
 CAP_PROCESO_MASIVO = "becas.programa.proceso_masivo"
 TOTAL_MAXIMO = 5000
@@ -40,11 +43,31 @@ MENSAJE_EN_CURSO = "Ya hay una corrida en curso. Esperá a que termine o frenala
 VIGENCIA_CONTEOS = 60
 
 
+def _asegurar_alcance(user):
+    """La capacidad se evalúa **contra el Programa Becas** (SEC-06).
+
+    ``@requiere`` y ``CapacidadRequeridaMixin`` la pedían sin alcance, y
+    ``becas.programa.proceso_masivo`` es de un módulo "de programa": un rol de
+    **otro** programa con la capacidad tildada entraba acá y lanzaba altas en lote
+    contra SIIS, que **no tienen baja**. El decorador sigue siendo la puerta (anónimo →
+    login, sin la capacidad → redirect con mensaje); esto agrega el alcance.
+    ``programa_becas()`` falla cerrado si el programa no está configurado (RED-56).
+    """
+    if not rbac.puede(user, CAP_PROCESO_MASIVO, programa=programa_becas(user)):
+        raise PermissionDenied("No tiene el proceso masivo del programa Becas.")
+
+
 class ProcesoMasivoView(CapacidadRequeridaMixin, LoginRequiredMixin, DetailView):
     model = ProgramaSiis
+    # El mixin sigue siendo la puerta (anónimo → login, sin la capacidad → redirect con
+    # mensaje); el alcance lo agrega ``dispatch``, que es donde ya hay ``request.user``.
     capacidades_requeridas = CAP_PROCESO_MASIVO
     template_name = "programas/becas/config/proceso_masivo.html"
     context_object_name = "programa"
+
+    def get(self, request, *args, **kwargs):
+        _asegurar_alcance(request.user)
+        return super().get(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
@@ -106,6 +129,7 @@ def _conteos(programa):
 @require_POST
 def proceso_masivo_lanzar(request, pk):
     """Crea la corrida y devuelve enseguida: el trabajo sigue en un hilo."""
+    _asegurar_alcance(request.user)
     programa = get_object_or_404(ProgramaSiis, pk=pk)
     destino = redirect("becas:proceso_masivo", pk=programa.pk)
 
@@ -162,6 +186,7 @@ def proceso_masivo_frenar(request, pk):
       informando altas (V2-NEW-01). Si de verdad está muerta, marcarla no hace
       nada; si no lo está, es justo la que hay que frenar.
     """
+    _asegurar_alcance(request.user)
     programa = get_object_or_404(ProgramaSiis, pk=pk)
     frenadas = CorridaSiis.objects.filter(estado=CorridaSiis.Estado.EN_CURSO, programa=programa).update(
         cancelacion_pedida=True

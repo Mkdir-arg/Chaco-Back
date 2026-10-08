@@ -84,6 +84,9 @@ class SolicitudMerenderoCreateView(MerenderosPermissionMixin, CreateView):
         self.object.estado = (
             SolicitudMerendero.Estado.BORRADOR if es_borrador else SolicitudMerendero.Estado.EN_REVISION
         )
+        # SEC-09: es lo que le deja bajar **su** documentación por `/media/` a quien solo
+        # tiene `merendero.crear` (`core.views.media._documentacion_de_merendero`).
+        self.object.creado_por = self.request.user
         self.object.save()
         messages.success(self.request, "Borrador guardado." if es_borrador else "Solicitud enviada a revisión.")
         return redirect("merenderos:solicitudes")

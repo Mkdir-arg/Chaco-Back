@@ -1,6 +1,23 @@
 """
 Wizard de configuración de programas sociales (US-005).
-4 pasos con estado en sesión. Requiere grupo programaConfigurar.
+4 pasos con estado en sesión. Requiere la capacidad ``programa.configurar``.
+
+**SEC-07 / D-07.** ``programa.configurar`` es de un módulo "de programa", así que vive
+en roles acotados a un programa, pero las nueve vistas la pedían con ``@requiere``, que
+evalúa **sin alcance**: el admin de roles de Becas se la tildaba en un rol de Becas y
+editaba el wizard de Dispositivos. Desde este cambio:
+
+* **crear** un programa (los cuatro pasos del alta, que todavía no tienen ``pk`` contra
+  el cual evaluar nada) pide la capacidad en un rol **sin programa**
+  (``requiere_sin_programa``);
+* **editar** un programa concreto —y cambiarle el estado— la pide **sobre ese
+  programa**, o en un rol global;
+* el **listado** sigue abierto a ``CAPS_ENTRADA_PROGRAMAS`` (SEC-36) y decide fila por
+  fila qué acciones dibuja.
+
+Lo que **no** se hace es mover ``programa.configurar`` a un módulo global: con alcance
+DISPOSITIVOS la evalúa ``programas.services.dispositivos.puede_configurar_dispositivos``,
+y globalizarla rompería ese alcance.
 """
 
 from django.contrib import messages
@@ -11,7 +28,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 
 from core import rbac
 from core.models import Subsecretaria
-from core.rbac import puede, requiere
+from core.rbac import requiere, requiere_sin_programa
 from programas.models import Programa
 
 from ..forms.programas import (
@@ -24,6 +41,23 @@ from ..forms.programas import (
 _REDIRECT = "configuracion:programas"
 #: Mismo tamaño que las otras listas de Configuración (FE-04/FE-17).
 POR_PAGINA = 20
+CAP_CONFIGURAR = "programa.configurar"
+
+
+def puede_crear_programas(user):
+    """¿Puede dar de alta un programa? (D-07: solo roles **sin** programa).
+
+    El alta no tiene alcance posible —el programa todavía no existe—, así que la
+    capacidad tiene que venir de un rol global. Es también lo que decide si el
+    listado ofrece el botón «Nuevo programa».
+    """
+    return rbac.puede_sin_programa(user, CAP_CONFIGURAR)
+
+
+def puede_configurar_programa(user, programa):
+    """¿Puede editar **este** programa? (D-07: el suyo, o cualquiera si es global)."""
+    return puede_crear_programas(user) or rbac.puede(user, CAP_CONFIGURAR, programa=programa)
+
 
 # ---------------------------------------------------------------------------
 # Helpers de sesión
@@ -69,16 +103,23 @@ def programa_list(request):
     if search:
         qs = qs.filter(Q(nombre__icontains=search) | Q(codigo__icontains=search))
 
-    puede_editar = puede(request.user, "programa.configurar")
     # FE-17: la pantalla ya incluía el pie de paginación (Cambio 166) pero la vista
     # devolvía la lista entera, así que el pie no se dibujaba nunca.
     pagina = Paginator(qs, POR_PAGINA).get_page(request.GET.get("page"))
+
+    # SEC-07: el lápiz se dibuja por fila. Un admin de Dispositivos ve el catálogo
+    # entero (SEC-36) pero solo puede editar el suyo, y el botón tiene que decir lo
+    # mismo que contesta la vista de edición.
+    puede_crear = puede_crear_programas(request.user)
+    programas = list(pagina.object_list)
+    for programa in programas:
+        programa.puede_editar = puede_crear or rbac.puede(request.user, CAP_CONFIGURAR, programa=programa)
 
     return render(
         request,
         "configuracion/programa_list.html",
         {
-            "programas": pagina.object_list,
+            "programas": programas,
             "page_obj": pagina,
             "paginator": pagina.paginator,
             "is_paginated": pagina.has_other_pages(),
@@ -87,7 +128,8 @@ def programa_list(request):
             "estado_filtro": estado,
             "subsecretaria_filtro": subsecretaria_id,
             "search": search,
-            "puede_editar": puede_editar,
+            "puede_crear": puede_crear,
+            "puede_editar_alguno": any(p.puede_editar for p in programas),
         },
     )
 
@@ -98,7 +140,7 @@ def programa_list(request):
 
 
 @login_required
-@requiere("programa.configurar", redirect_to=_REDIRECT)
+@requiere_sin_programa(CAP_CONFIGURAR, redirect_to=_REDIRECT)
 def programa_wizard_paso1(request):
     data = _get_data(request)
     initial = {**data.get("paso1", {})}
@@ -128,7 +170,7 @@ def programa_wizard_paso1(request):
 
 
 @login_required
-@requiere("programa.configurar", redirect_to=_REDIRECT)
+@requiere_sin_programa(CAP_CONFIGURAR, redirect_to=_REDIRECT)
 def programa_wizard_paso2(request):
     data = _get_data(request)
     if not data.get("paso1"):
@@ -154,7 +196,7 @@ def programa_wizard_paso2(request):
 
 
 @login_required
-@requiere("programa.configurar", redirect_to=_REDIRECT)
+@requiere_sin_programa(CAP_CONFIGURAR, redirect_to=_REDIRECT)
 def programa_wizard_paso3(request):
     data = _get_data(request)
     if not data.get("paso2"):
@@ -183,7 +225,7 @@ def programa_wizard_paso3(request):
 
 
 @login_required
-@requiere("programa.configurar", redirect_to=_REDIRECT)
+@requiere_sin_programa(CAP_CONFIGURAR, redirect_to=_REDIRECT)
 def programa_wizard_paso4(request):
     data = _get_data(request)
     if not data.get("paso3"):
@@ -254,9 +296,11 @@ def programa_wizard_paso4(request):
 
 
 @login_required
-@requiere("programa.configurar", redirect_to=_REDIRECT)
 def programa_editar_paso1(request, pk):
     programa = get_object_or_404(Programa, pk=pk)
+    # SEC-07 / D-07: con el programa resuelto, la capacidad se evalúa **sobre él**.
+    if not puede_configurar_programa(request.user, programa):
+        return rbac.respuesta_sin_permiso(request, _REDIRECT)
     if programa.estado == Programa.Estado.INACTIVO:
         messages.error(request, "Los programas inactivos no pueden editarse.")
         return redirect("configuracion:programas")
@@ -298,9 +342,11 @@ def programa_editar_paso1(request, pk):
 
 
 @login_required
-@requiere("programa.configurar", redirect_to=_REDIRECT)
 def programa_editar_paso2(request, pk):
     programa = get_object_or_404(Programa, pk=pk)
+    # SEC-07 / D-07: con el programa resuelto, la capacidad se evalúa **sobre él**.
+    if not puede_configurar_programa(request.user, programa):
+        return rbac.respuesta_sin_permiso(request, _REDIRECT)
     data = _get_data(request, pk)
     if not data.get("paso1"):
         return redirect("configuracion:programa_editar_paso1", pk=pk)
@@ -327,9 +373,11 @@ def programa_editar_paso2(request, pk):
 
 
 @login_required
-@requiere("programa.configurar", redirect_to=_REDIRECT)
 def programa_editar_paso3(request, pk):
     programa = get_object_or_404(Programa, pk=pk)
+    # SEC-07 / D-07: con el programa resuelto, la capacidad se evalúa **sobre él**.
+    if not puede_configurar_programa(request.user, programa):
+        return rbac.respuesta_sin_permiso(request, _REDIRECT)
     data = _get_data(request, pk)
     if not data.get("paso2"):
         return redirect("configuracion:programa_editar_paso2", pk=pk)
@@ -365,9 +413,11 @@ def programa_editar_paso3(request, pk):
 
 
 @login_required
-@requiere("programa.configurar", redirect_to=_REDIRECT)
 def programa_editar_paso4(request, pk):
     programa = get_object_or_404(Programa, pk=pk)
+    # SEC-07 / D-07: con el programa resuelto, la capacidad se evalúa **sobre él**.
+    if not puede_configurar_programa(request.user, programa):
+        return rbac.respuesta_sin_permiso(request, _REDIRECT)
     data = _get_data(request, pk)
     if not data.get("paso3"):
         return redirect("configuracion:programa_editar_paso3", pk=pk)
@@ -388,6 +438,11 @@ def programa_editar_paso4(request, pk):
         p3 = data["paso3"]
         p4 = form.cleaned_data
 
+        # RED-80: el alcance del RBAC resuelve el ``Programa`` desde una clave cacheada
+        # 300 s, y el paso 1 deja **cambiar el código**. Las dos claves —la vieja y la
+        # nueva— las borran las señales de ``programas.signals`` sobre el ``save()``:
+        # esta pantalla no es la única que escribe un ``Programa`` (``/admin/`` también,
+        # y deja borrarlo), así que la invalidación va pegada al modelo y no acá.
         programa.nombre = p1["nombre"]
         programa.codigo = p1["codigo"]
         programa.descripcion = p1.get("descripcion", "")
@@ -399,7 +454,6 @@ def programa_editar_paso4(request, pk):
         programa.color = p4["color"]
         programa.orden = p4["orden"]
         programa.save()
-
         _clear_data(request, pk)
         messages.success(request, f'Programa "{programa.nombre}" actualizado.')
         return redirect("configuracion:programas")
@@ -437,12 +491,14 @@ def programa_editar_paso4(request, pk):
 
 
 @login_required
-@requiere("programa.configurar", redirect_to=_REDIRECT)
 def programa_cambiar_estado(request, pk):
     if request.method != "POST":
         return redirect("configuracion:programas")
 
     programa = get_object_or_404(Programa, pk=pk)
+    # SEC-07 / D-07: con el programa resuelto, la capacidad se evalúa **sobre él**.
+    if not puede_configurar_programa(request.user, programa):
+        return rbac.respuesta_sin_permiso(request, _REDIRECT)
     nuevo_estado = request.POST.get("estado")
 
     estados_validos = [e[0] for e in Programa.Estado.choices]
@@ -458,6 +514,8 @@ def programa_cambiar_estado(request, pk):
             )
             return redirect("configuracion:programas")
     programa.estado = nuevo_estado
+    # RED-80: la entrada cacheada guarda el ``Programa`` entero, estado incluido; la
+    # borra la señal ``post_save`` de ``programas.signals``.
     programa.save(update_fields=["estado"])
     messages.success(request, f"Estado del programa actualizado a {programa.get_estado_display()}.")
     return redirect("configuracion:programas")

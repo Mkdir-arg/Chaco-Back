@@ -315,10 +315,14 @@ class ListadosPublicosScopeTests(TestCase):
             patch.object(vistas_rel, "convocatorias_visibles", return_value=Convocatoria.objects.all()),
             patch.object(vistas_rel, "subsegmentos_visibles", return_value=[]),
             patch.object(vistas_rel, "usuarios_territoriales_becas", return_value=User.objects.none()),
+            # SEC-06: el export dejó de pedir la capacidad con `@requiere` (que la evalúa
+            # sin alcance) y ahora la pide con `es_admin_becas`. Queda **un** decorador,
+            # `login_required`, así que se desenvuelve una vez sola.
+            patch.object(vistas_rel, "es_admin_becas", return_value=True),
         ):
             ctx = view.get_context_data()
             self.assertEqual(ctx["n_beneficiarios"], 1)
-            response = vistas_rel.convocatoria_export_beneficiarios.__wrapped__.__wrapped__(request, self.conv.pk)
+            response = vistas_rel.convocatoria_export_beneficiarios.__wrapped__(request, self.conv.pk)
         filas = response.content.decode("utf-8").splitlines()
         self.assertEqual(len(filas), 2)
 

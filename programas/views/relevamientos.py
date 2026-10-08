@@ -36,6 +36,7 @@ from programas.models import Convocatoria, Formulario, ListaEspera, Relevamiento
 from programas.services.autorizacion import (
     assert_alcance_relevamiento,
     convocatorias_visibles,
+    es_admin_becas,
     programa_becas,
     puede_gestionar_segmento,
     puede_relevamiento_publico,
@@ -59,7 +60,45 @@ CAP_RELEVAMIENTO_CREAR = "becas.relevamiento.crear"
 CAP_RELEVAMIENTO_EDITAR = "becas.relevamiento.editar"
 # ``CAP_RELEVAMIENTO_PUBLICO`` (RN-P13) se mudó a ``programas.services.autorizacion``
 # junto con los filtros y los guards de alcance (RED-79): la importaban dos vistas más.
-CAP_REPORTES = "becas.programa.administrar"
+# SEC-06: los tres exports pedían esta capacidad con ``@requiere``, que evalúa **sin
+# alcance**, y bajaban la convocatoria por ``pk`` suelto. Un rol de **otro** programa con
+# ``becas.programa.administrar`` tildada se llevaba el CSV con DNI de cualquier
+# convocatoria. Desde este cambio la capacidad va por ``es_admin_becas`` —que la evalúa
+# contra el Programa Becas— y el objeto sale de ``convocatorias_visibles``; el flag
+# ``puede_reportes`` que decide qué muestra la pantalla usa **la misma regla**, para que
+# la UI no ofrezca un botón que va a contestar 403.
+
+
+def _puede_exportar(user):
+    """El flag de UI de los CSV de convocatoria: **la misma regla que el gate**.
+
+    Era ``puede(user, "becas.programa.administrar")`` sin alcance, o sea lo que SEC-06
+    acaba de dejar de aceptar en ``_convocatoria_para_export``: la pantalla seguía
+    ofreciendo los botones a quien el export contesta 403. Falla en ``False`` —y no en
+    403— si el Programa Becas no está configurado: esto decide qué se dibuja, no quién
+    entra.
+    """
+    try:
+        return es_admin_becas(user)
+    except PermissionDenied:
+        return False
+
+
+def _convocatoria_para_export(request, pk, queryset=None):
+    """La convocatoria del export, o 403 (SEC-06).
+
+    Dos candados, no uno: ``es_admin_becas`` exige la capacidad **en el Programa
+    Becas** (un rol de Dispositivos con la paraguas tildada deja de pasar) y
+    ``convocatorias_visibles`` acota el objeto al alcance fino del usuario, que para un
+    Coordinador Regional son sus subsegmentos. El primero solo no alcanza: ``puede``
+    sin alcance era justo el agujero.
+    """
+    if not es_admin_becas(request.user):
+        raise PermissionDenied("No administra el programa Becas.")
+    base = convocatorias_visibles(request.user) if queryset is None else queryset
+    return get_object_or_404(base, pk=pk)
+
+
 DETALLE_PAGE_SIZE = 50
 #: FE-17: el listado de convocatorias no paginaba. 25 es el valor del resto del backoffice.
 CONVOCATORIAS_PAGE_SIZE = 25
@@ -262,7 +301,7 @@ class ConvocatoriaDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, Detail
         ctx["n_beneficiarios"] = conteos["total"] or 0
         ctx["n_aprobados"] = conteos["aprobados"] or 0
         ctx["beneficiarios_querystring"] = _querystring_without(self.request, "beneficiarios_page", "tab")
-        ctx["puede_reportes"] = puede(self.request.user, CAP_REPORTES)
+        ctx["puede_reportes"] = _puede_exportar(self.request.user)
         # Cambio 58: «Configurar formulario» (admin del programa y coordinador del segmento, D7).
         ctx["puede_formulario"] = puede(self.request.user, CAP_CONVOCATORIA_EDITAR) and puede_gestionar_segmento(
             self.request.user, conv.segmento
@@ -420,9 +459,8 @@ def convocatoria_reactivar(request, pk):
 
 
 @login_required
-@requiere(CAP_REPORTES)
 def convocatoria_export_beneficiarios(request, pk):
-    conv = get_object_or_404(Convocatoria.objects.select_related("segmento"), pk=pk)
+    conv = _convocatoria_para_export(request, pk, convocatorias_visibles(request.user).select_related("segmento"))
     response = HttpResponse(content_type="text/csv; charset=utf-8")
     response["Content-Disposition"] = f'attachment; filename="beneficiarios_convocatoria_{conv.pk}.csv"'
     response.write("﻿")  # BOM para Excel
@@ -473,9 +511,8 @@ def convocatoria_export_beneficiarios(request, pk):
 
 
 @login_required
-@requiere(CAP_REPORTES)
 def convocatoria_export_relevamientos(request, pk):
-    conv = get_object_or_404(Convocatoria, pk=pk)
+    conv = _convocatoria_para_export(request, pk)
     response = HttpResponse(content_type="text/csv; charset=utf-8")
     response["Content-Disposition"] = f'attachment; filename="relevamientos_convocatoria_{conv.pk}.csv"'
     response.write("﻿")
@@ -526,9 +563,8 @@ def convocatoria_export_relevamientos(request, pk):
 
 
 @login_required
-@requiere(CAP_REPORTES)
 def convocatoria_export_lista_espera(request, pk):
-    conv = get_object_or_404(Convocatoria.objects.select_related("segmento"), pk=pk)
+    conv = _convocatoria_para_export(request, pk, convocatorias_visibles(request.user).select_related("segmento"))
     response = HttpResponse(content_type="text/csv; charset=utf-8")
     response["Content-Disposition"] = f'attachment; filename="lista_espera_convocatoria_{conv.pk}.csv"'
     response.write("\ufeff")
