@@ -4,16 +4,36 @@ import logging
 
 from django.utils.dateparse import parse_date
 from rest_framework import serializers
+from rest_framework.settings import api_settings
 
 from core.dni import MENSAJE_DNI_INVALIDO, dni_valido
 from core.edad import es_menor
 from legajos.models import Ciudadano
 from programas.models import AdjuntoFormulario, Formulario, Relevamiento
+from programas.services import campo as servicio_campo
 from programas.services.becas import definicion_formulario
 from programas.services.padron import normalizar_dni
 from programas.services.personas import fecha_iso
 
 logger = logging.getLogger(__name__)
+
+MENSAJE_FECHA_INVALIDA = "La fecha de nacimiento no es una fecha válida."
+
+
+def rechazo_legible(detalle, mensaje):
+    """Un 400 que el territorial puede leer, sin sacarle el detalle por campo.
+
+    La app (``becasApi.js``, ``buildResponseError``) arma el texto que ve la
+    persona mirando ``detail`` y ``non_field_errors``; un diccionario anidado por
+    campo —que es lo que devuelve un ``ValidationError`` con la forma de DRF— no
+    cae en ninguna de las dos y el territorial, parado delante de la persona,
+    lee «Error HTTP 400» y no sabe qué corregir.
+
+    Se agrega ``non_field_errors`` **además** de lo que ya viajaba: quien lea el
+    error por campo —el navegador del backoffice, un test— sigue encontrándolo
+    donde estaba.
+    """
+    return serializers.ValidationError({**detalle, api_settings.NON_FIELD_ERRORS_KEY: [mensaje]})
 
 
 class RelevamientoListSerializer(serializers.ModelSerializer):
@@ -79,6 +99,13 @@ class FormularioSerializer(serializers.ModelSerializer):
     ciudadano_apellido = serializers.CharField(source="ciudadano.apellido", read_only=True)
     client_uuid = serializers.UUIDField(required=False, allow_null=True)
     capturado_en = serializers.DateTimeField(required=False, allow_null=True)
+    # G1-16: con qué versión del diseño capturó el teléfono. **Opcional**: la app
+    # instalada (`Chaco-mobile@a66c2d3`) no la manda y el alta funciona igual.
+    # Si viene, se guarda y se compara contra la versión de la foto que el caso
+    # terminó guardando (`services.campo`). El tope es el del `INT` con signo de
+    # la columna: sin él, un `2**40` pasa el serializer y MariaDB en modo estricto
+    # lo contesta con un `DataError`, o sea un 500 para la app.
+    version_capturada = serializers.IntegerField(required=False, allow_null=True, min_value=0, max_value=2_147_483_647)
 
     class Meta:
         model = Formulario
@@ -109,6 +136,9 @@ class FormularioSerializer(serializers.ModelSerializer):
             # G1-04: la captura entró después de que el relevamiento cerró,
             # dentro de la gracia. Clave **nueva**: la app vieja la ignora.
             "sincronizado_tarde",
+            # G1-16: la versión del diseño con la que se capturó. Clave **nueva**
+            # y opcional en los dos sentidos: la app vieja ni la manda ni la lee.
+            "version_capturada",
             "data",
             "creado",
             "modificado",
@@ -148,7 +178,7 @@ class FormularioSerializer(serializers.ModelSerializer):
         if isinstance(datos, dict) and datos.get("dni") is not None:
             dni = normalizar_dni(datos.get("dni"))
             if not dni_valido(dni):
-                raise serializers.ValidationError({"datos_identificacion": {"dni": MENSAJE_DNI_INVALIDO}})
+                raise rechazo_legible({"datos_identificacion": {"dni": MENSAJE_DNI_INVALIDO}}, MENSAJE_DNI_INVALIDO)
             datos["dni"] = dni
         # G1-06: la fecha llega como la tipeó el territorial. `parse_date`
         # devuelve None para `15/03/2010` y traga el ValueError de `2000-02-30`,
@@ -158,8 +188,9 @@ class FormularioSerializer(serializers.ModelSerializer):
         if isinstance(datos, dict) and datos.get("fecha_nacimiento"):
             normalizada = fecha_iso(datos["fecha_nacimiento"])
             if not normalizada:
-                raise serializers.ValidationError(
-                    {"datos_identificacion": {"fecha_nacimiento": "La fecha de nacimiento no es una fecha válida."}}
+                raise rechazo_legible(
+                    {"datos_identificacion": {"fecha_nacimiento": MENSAJE_FECHA_INVALIDA}},
+                    MENSAJE_FECHA_INVALIDA,
                 )
             datos["fecha_nacimiento"] = normalizada
         fecha_nacimiento = datos.get("fecha_nacimiento") if isinstance(datos, dict) else None
@@ -288,27 +319,49 @@ ADJUNTO_EXTENSIONES = (".jpg", ".jpeg", ".png", ".pdf", ".heic", ".heif", ".webp
 ADJUNTO_MAX_BYTES = 5 * 1024 * 1024
 
 
+MENSAJE_ADJUNTO_FORMATO = "Solo se aceptan archivos JPG, PNG, WEBP, HEIC o PDF."
+MENSAJE_ADJUNTO_TAMANIO = "El archivo no puede superar los 5 MB."
+
+
 class AdjuntoFormularioSerializer(serializers.ModelSerializer):
     class Meta:
         model = AdjuntoFormulario
         fields = ["id", "formulario", "pregunta_global", "requisito_nativo", "archivo", "creado"]
         read_only_fields = ["id", "formulario", "creado"]
 
-    def validate_archivo(self, archivo):
-        """Ni tipo ni tamano se validaban: la API aceptaba cualquier archivo, de
-        cualquier peso. ``DATA_UPLOAD_MAX_MEMORY_SIZE`` no alcanza -- Django
-        excluye los archivos de ese limite -- y ``FILE_UPLOAD_MAX_MEMORY_SIZE``
-        solo decide cuando volcar a disco, no cuanto se acepta."""
+    def validate(self, attrs):
+        """Tipo y tamaño del archivo, y a qué campo del formulario pertenece.
+
+        Las dos reglas del archivo estaban en un ``validate_archivo``, que
+        devuelve el error **solo** bajo la clave ``archivo``: la app lo arma
+        mirando ``detail``/``non_field_errors``, así que el territorial veía
+        «Error HTTP 400» en vez de «el archivo no puede superar los 5 MB» —el
+        único mensaje que le dice qué hacer—. Se conserva la clave ``archivo``
+        (quien lea por campo la sigue encontrando) y se suma la legible.
+        """
+        archivo = attrs.get("archivo")
         nombre = (getattr(archivo, "name", "") or "").lower()
         if not nombre.endswith(ADJUNTO_EXTENSIONES):
-            raise serializers.ValidationError("Solo se aceptan archivos JPG, PNG, WEBP, HEIC o PDF.")
+            raise rechazo_legible({"archivo": [MENSAJE_ADJUNTO_FORMATO]}, MENSAJE_ADJUNTO_FORMATO)
         if archivo.size > ADJUNTO_MAX_BYTES:
-            raise serializers.ValidationError("El archivo no puede superar los 5 MB.")
-        return archivo
+            raise rechazo_legible({"archivo": [MENSAJE_ADJUNTO_TAMANIO]}, MENSAJE_ADJUNTO_TAMANIO)
 
-    def validate(self, attrs):
         pregunta = attrs.get("pregunta_global")
         requisito = attrs.get("requisito_nativo")
         if bool(pregunta) == bool(requisito):
             raise serializers.ValidationError("Se requiere exactamente uno: pregunta_global o requisito_nativo.")
+        # G1-07: se rechaza **solo** la referencia que nunca pudo ser de esta
+        # convocatoria (otro segmento, o un campo que no pide ningún archivo). La
+        # que quedó vieja entre la captura y la sincronización entra y se observa
+        # (`servicio_campo.guardar_adjunto`): un 400 corta la cola de subidas de
+        # la app y se lleva puestos los documentos que venían después. El
+        # ``formulario`` lo pone la vista en el contexto, que es la única que sabe
+        # de qué caso se trata (el campo es de solo lectura justamente para que el
+        # cliente no lo elija).
+        formulario = self.context.get("formulario")
+        if formulario is not None and (
+            servicio_campo.pertenencia_del_adjunto(formulario, pregunta_global=pregunta, requisito_nativo=requisito)
+            == servicio_campo.ADJUNTO_AJENO
+        ):
+            raise serializers.ValidationError(servicio_campo.MENSAJE_ADJUNTO_AJENO)
         return attrs
