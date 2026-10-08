@@ -28179,7 +28179,7 @@ solo byte de `media/`.
 - `manage.py test core legajos`: **1.330 tests, OK**. `manage.py test programas portal
   configuracion`: **2.710, OK**. `manage.py test users dashboard conversaciones tramites`:
   **505, OK**. `--tag performance`: **6, OK**.
-- Los tests nuevos (50) corren **en rojo** contra el estado anterior: 16 fallas y 6 errores
+- Los tests nuevos (51) corren **en rojo** contra el estado anterior: la primera tanda de 50 dio 16 fallas y 6 errores
   —`/media/` daba 200 a una cuenta sin rol, `MEDIA_X_ACCEL` no existía y la lista blanca
   tampoco—.
 - Las **dos ramas de entrega** probadas: `MEDIA_X_ACCEL` apagado (Django manda los bytes) y
