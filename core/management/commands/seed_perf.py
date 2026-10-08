@@ -128,21 +128,32 @@ class Command(BaseCommand):
         if "auth_user" not in connection.introspection.table_names():
             call_command("migrate", interactive=False, run_syncdb=True, verbosity=0)
 
+        # El DDL va **antes** del `atomic`, no adentro: en MySQL y MariaDB un
+        # `CREATE TABLE` hace un commit implícito, así que ejecutado dentro de la
+        # transacción la cerraba por la mitad y todo lo sembrado hasta ahí quedaba
+        # firme pasara lo que pasara después. La carga de filas —que sí es
+        # transaccional— se queda adentro, en `_seed_aprobados_materias`.
+        self._crear_tabla_aprobados_materias()
+
         with transaction.atomic():
             self._seed(scale)
 
-    def _seed_aprobados_materias(self):
-        """La tabla cruda del Cambio 90 con los DNI sintéticos de este seed.
-
-        No tiene modelo Django —la carga el organismo desde una planilla— así que acá
-        se crea igual que en los tests. Sin ella la pantalla del proceso masivo no
-        ofrece lanzar nada y su presupuesto de consultas no mediría el camino real
-        (PERF-07).
-        """
+    def _crear_tabla_aprobados_materias(self):
+        """La tabla cruda del Cambio 90. Solo el DDL: ver el comentario de `handle`."""
         # El nombre es una constante del módulo del servicio, no una entrada externa
         # (Bandit B608).
         with connection.cursor() as cursor:
             cursor.execute(f"CREATE TABLE IF NOT EXISTS {TABLA_APROBADOS_MATERIAS} (dni VARCHAR(20))")  # nosec B608
+
+    def _seed_aprobados_materias(self):
+        """Los DNI sintéticos de este seed en la tabla del Cambio 90.
+
+        No tiene modelo Django —la carga el organismo desde una planilla— así que acá
+        se llena igual que en los tests. Sin ella la pantalla del proceso masivo no
+        ofrece lanzar nada y su presupuesto de consultas no mediría el camino real
+        (PERF-07).
+        """
+        with connection.cursor() as cursor:
             cursor.execute(f"DELETE FROM {TABLA_APROBADOS_MATERIAS}")  # nosec B608
             cursor.executemany(
                 f"INSERT INTO {TABLA_APROBADOS_MATERIAS} (dni) VALUES (%s)",  # nosec B608

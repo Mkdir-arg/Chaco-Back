@@ -11,6 +11,7 @@ import re
 import threading
 from dataclasses import dataclass, field
 
+from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.db import connection, transaction
 from django.db.models import Count, Exists, OuterRef, Q, Subquery, Value
@@ -489,6 +490,27 @@ class Insumos:
         if self._agotados is self._VACIO:
             self._agotados = casos_con_errores_agotados()
         return self._agotados
+
+
+def clave_conteos(programa_id):
+    """Clave de caché de los dos conteos de la pantalla del masivo (PERF-07).
+
+    Vive en el servicio y no en la vista porque quien la **invalida** es el servicio:
+    la corrida es lo que vacía los pendientes, y lo hace desde un hilo que no pasa por
+    ninguna vista.
+    """
+    return f"masivo_conteos_{programa_id}"
+
+
+def invalidar_conteos(programa_id):
+    """Tira los conteos cacheados de un programa.
+
+    Se llama al terminar una corrida —de la forma que termine—: es el único momento en
+    que el número cae de golpe y en que alguien está mirando la pantalla esperando
+    verlo. El alta de casos nuevos no necesita invalidar nada: la vista no cachea el
+    cero, que es el valor que decide si se muestra el formulario.
+    """
+    cache.delete(clave_conteos(programa_id))
 
 
 def conteos_de_la_pantalla(programa):
@@ -1083,6 +1105,12 @@ def correr(
             mensaje=f"Error no previsto: {exc}",
         )
         return corrida
+    finally:
+        # Terminó como terminó: los pendientes cacheados ya no valen y la pantalla se
+        # está releyendo sola cada 5 s hasta que la corrida deja de estar en curso
+        # (PERF-07). Sin esto, el primer render sin corrida podía mostrar el número de
+        # antes de lanzarla.
+        invalidar_conteos(corrida.programa_id)
 
 
 def _en_un_hilo(funcion):
