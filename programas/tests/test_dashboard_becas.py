@@ -832,7 +832,7 @@ class RespuestasPorPersonaTests(DashboardBecasBase):
 
     def test_endpoint_excel_permisos_y_alcance(self):
         self._armar_casos()
-        url = reverse("becas:programa_dashboard_respuestas_xlsx", args=[self.programa.pk, self.conv_propia.pk])
+        url = reverse("becas:programa_dashboard_respuestas", args=[self.programa.pk, self.conv_propia.pk, "xlsx"])
         self.client.force_login(self.admin)
 
         respuesta = self.client.get(url)
@@ -847,20 +847,20 @@ class RespuestasPorPersonaTests(DashboardBecasBase):
         # Convocatoria de otro programa o fuera del alcance: 404, nunca datos ajenos.
         self.assertEqual(
             self.client.get(
-                reverse("becas:programa_dashboard_respuestas_xlsx", args=[self.programa.pk, self.conv_otro.pk])
+                reverse("becas:programa_dashboard_respuestas", args=[self.programa.pk, self.conv_otro.pk, "xlsx"])
             ).status_code,
             404,
         )
         self.client.force_login(self.regional)
         self.assertEqual(
             self.client.get(
-                reverse("becas:programa_dashboard_respuestas_xlsx", args=[self.programa.pk, self.conv_ajena.pk])
+                reverse("becas:programa_dashboard_respuestas", args=[self.programa.pk, self.conv_ajena.pk, "xlsx"])
             ).status_code,
             404,
         )
         self.assertEqual(
             self.client.get(
-                reverse("becas:programa_dashboard_respuestas_xlsx", args=[self.programa.pk, self.conv_propia.pk])
+                reverse("becas:programa_dashboard_respuestas", args=[self.programa.pk, self.conv_propia.pk, "xlsx"])
             ).status_code,
             200,
         )
@@ -872,7 +872,9 @@ class RespuestasPorPersonaTests(DashboardBecasBase):
         pantalla = self.client.get(reverse("becas:programa_detalle", args=[self.programa.pk]))
         self.assertContains(pantalla, "Exportar por persona")
         self.assertContains(pantalla, 'id="dash-form-respuestas"')
-        self.assertContains(pantalla, reverse("becas:programa_dashboard_respuestas_xlsx", args=[self.programa.pk, 0]))
+        self.assertContains(
+            pantalla, reverse("becas:programa_dashboard_respuestas", args=[self.programa.pk, 0, "FORMATO"])
+        )
 
     def test_apoderado_gps_y_consultas_constantes(self):
         """Las columnas fijas salen de ``values`` (sin instanciar el caso ni sus relaciones)

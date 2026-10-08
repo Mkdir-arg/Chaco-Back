@@ -27,11 +27,18 @@ from scripts.perf_audit import build_clients, build_targets, duplicate_query_gro
 
 
 def _extra_targets():
-    from programas.models import Convocatoria, Programa, Relevamiento
+    from programas.models import Convocatoria, ProgramaSiis, Relevamiento
 
-    programa = Programa.objects.order_by("pk").first()
     rel = Relevamiento.objects.filter(tipo=Relevamiento.Tipo.PUBLICO).order_by("-pk").first()
     conv = rel.convocatoria if rel else Convocatoria.objects.order_by("pk").first()
+    # Las tres rutas del dashboard reciben el pk de ``ProgramaSiis`` —el de la pantalla
+    # del programa—, no el ``Programa`` del RBAC: con ese otro pk las tres daban 404 y
+    # se medían vacías. Se toma el programa del segmento de la convocatoria del banco.
+    programa = (
+        ProgramaSiis.objects.filter(segmentos__convocatorias=conv).order_by("pk").first()
+        if conv
+        else ProgramaSiis.objects.order_by("pk").first()
+    )
     extras = []
     if programa:
         extras += [
@@ -45,15 +52,24 @@ def _extra_targets():
                 "actor": "backoffice",
                 "url": reverse("becas:programa_dashboard_exportar", args=[programa.pk, "xlsx"]),
             },
+            {
+                # El CSV de un bloque que no es «respuestas»: no tiene por qué pagar
+                # la consulta por pregunta del bloque de distribuciones (G1b-11).
+                "key": "dashboard_becas_export_csv_bloque",
+                "actor": "backoffice",
+                "url": reverse("becas:programa_dashboard_exportar", args=[programa.pk, "csv"])
+                + "?bloque=convocatorias",
+            },
         ]
         if conv:
-            extras.append(
+            extras += [
                 {
-                    "key": "dashboard_respuestas_xlsx",
+                    "key": f"dashboard_respuestas_{formato}",
                     "actor": "backoffice",
-                    "url": reverse("becas:programa_dashboard_respuestas_xlsx", args=[programa.pk, conv.pk]),
+                    "url": reverse("becas:programa_dashboard_respuestas", args=[programa.pk, conv.pk, formato]),
                 }
-            )
+                for formato in ("xlsx", "csv")
+            ]
     for reporte in ("cupos", "avance", "produccion", "embudo", "beneficiarios"):
         extras.append(
             {
