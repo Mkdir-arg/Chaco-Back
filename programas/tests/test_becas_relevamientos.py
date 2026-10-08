@@ -694,6 +694,45 @@ class FinalizarReabrirTests(_BaseRelevTest):
         self.rel_b.refresh_from_db()
         self.assertEqual(self.rel_b.estado, Relevamiento.Estado.EN_CURSO)
 
+    def test_el_detalle_no_repite_ningun_id_de_html(self):
+        """Seguimiento del PR de la Ola 3 (#618): «Volver a campo» y «Reprogramar fecha»
+        se muestran juntos y los dos tienen `fecha_hasta`, así que la página salía con
+        dos `id="id_fecha_hasta"` y dos `id="id_fecha_hasta-error"`. Con ids repetidos
+        el `<label for>` apunta al control del otro formulario y el lector de pantalla
+        anuncia el error equivocado."""
+        import re
+        from collections import Counter
+
+        self._cerrar_relevamiento(Relevamiento.Estado.EN_REVISION, fecha_hasta=timezone.now() - timedelta(days=1))
+        self.client.force_login(self.coord_a)
+
+        html = self.client.get(reverse("becas:relevamiento_detalle", args=[self.rel_a.pk])).content.decode()
+
+        # Los dos formularios están en la misma página: si no, el test no prueba nada.
+        self.assertIn('id="volver-a-campo"', html)
+        self.assertIn("Reprogramar fecha", html)
+        repetidos = {k: v for k, v in Counter(re.findall(r'\bid="([^"]+)"', html)).items() if v > 1}
+        self.assertEqual(repetidos, {})
+
+    def test_el_post_de_volver_a_campo_sigue_usando_el_nombre_de_siempre(self):
+        """El `auto_id` propio cambia el `id` del HTML y **no** el `name` del POST: la
+        vista que lo procesa no se entera."""
+        self._cerrar_relevamiento(Relevamiento.Estado.EN_REVISION, fecha_hasta=timezone.now() - timedelta(days=1))
+        self.client.force_login(self.coord_a)
+        nueva = timezone.localtime(timezone.now() + timedelta(days=10))
+
+        html = self.client.get(reverse("becas:relevamiento_detalle", args=[self.rel_a.pk])).content.decode()
+        self.assertIn('id="id_volver_fecha_hasta"', html)
+        self.assertIn('name="fecha_hasta"', html)
+
+        self.client.post(
+            reverse("becas:relevamiento_reabrir", args=[self.rel_a.pk]),
+            {"fecha_hasta": nueva.strftime("%Y-%m-%dT%H:%M")},
+        )
+
+        self.rel_a.refresh_from_db()
+        self.assertEqual(self.rel_a.estado, Relevamiento.Estado.EN_CURSO)
+
 
 class VencidoTests(_BaseRelevTest):
     def test_vence_por_hora(self):

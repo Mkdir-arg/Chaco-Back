@@ -173,12 +173,18 @@ class Command(BaseCommand):
     def _aplicar(self, plan, grupos_referencia):
         user_model = get_user_model()
         hubo_pisados = False
+        programas_previos = set()
 
         with transaction.atomic():
             for item in plan:
                 usuario, creado = user_model.objects.get_or_create(username=item["username"], defaults=item["datos"])
                 if not creado:
                     hubo_pisados = True
+                    # Qué programas administraba ANTES de que `groups.set` le reemplace
+                    # los roles: el check global no alcanza, porque el sistema puede
+                    # quedarse con admins y un programa concreto sin ninguno (RN-8).
+                    # Es lo mismo que mira el ABM (`UsuariosAdminService`).
+                    programas_previos |= rbac.programas_que_administra(usuario)
                     for campo, valor in item["datos"].items():
                         if valor:
                             setattr(usuario, campo, valor)
@@ -195,8 +201,23 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.SUCCESS(f"«{item['username']}» {'creado' if creado else 'actualizado'}."))
 
             if hubo_pisados:
-                # `groups.set` puede haberle quitado el rol al único que administra.
+                # `groups.set` puede haberle quitado el rol al único que administra:
+                # el sistema entero primero y después cada programa que alguno de los
+                # pisados administraba. Dentro del `atomic`, así la excepción revierte
+                # el lote completo en vez de dejar media planilla aplicada.
                 try:
                     rbac.asegurar_admin_restante()
+                    for programa in self._programas(programas_previos):
+                        rbac.asegurar_admin_restante(programa=programa)
                 except rbac.SinAdministradorError as exc:
                     raise CommandError(str(exc)) from exc
+
+    @staticmethod
+    def _programas(ids):
+        """Los programas como objetos y no como ids: el mensaje de error lo lee una
+        persona en una terminal y «el programa «3»» no le dice nada."""
+        if not ids:
+            return []
+        from programas.models import Programa
+
+        return list(Programa.objects.filter(pk__in=sorted(ids)).order_by("pk"))
