@@ -9,11 +9,12 @@ class UsuariosAdminService:
     @transaction.atomic
     def create_user_from_form(form, alcance_group_ids=None):
         user = User()
-        UsuariosAdminService._apply_user_data(form, user)
+        clave_tipeada = UsuariosAdminService._apply_user_data(form, user)
         user.save()
         UsuariosAdminService._sync_related_data(
             user, form.cleaned_data, alcance_group_ids, operador=getattr(form, "operador", None)
         )
+        UsuariosAdminService._marcar_cambio_obligatorio(form, user, clave_tipeada)
         return user
 
     @staticmethod
@@ -23,11 +24,12 @@ class UsuariosAdminService:
         # Programas que el usuario administraba ANTES del cambio: si la edición le
         # quita el rol de administración de alguno, no puede dejarlo huérfano (RN-8).
         programas_previos = UsuariosAdminService._programas_que_administra(user)
-        UsuariosAdminService._apply_user_data(form, user)
+        clave_tipeada = UsuariosAdminService._apply_user_data(form, user)
         user.save()
         UsuariosAdminService._sync_related_data(
             user, form.cleaned_data, alcance_group_ids, operador=getattr(form, "operador", None)
         )
+        UsuariosAdminService._marcar_cambio_obligatorio(form, user, clave_tipeada)
         # Si la edición quitó la última capacidad de administración del sistema
         # (p. ej. el admin se sacó su propio rol), revierte la transacción.
         rbac.asegurar_admin_restante()
@@ -58,8 +60,42 @@ class UsuariosAdminService:
         password = cleaned_data.get("password") if credenciales_editables else None
         if password:
             user.set_password(password)
-        elif hasattr(form, "_original_password_hash"):
+            return True
+        if hasattr(form, "_original_password_hash"):
             user.password = form._original_password_hash
+        return False
+
+    @staticmethod
+    def _marcar_cambio_obligatorio(form, user, clave_tipeada):
+        """G1b-08: una clave que eligió **otro** vale para un solo ingreso.
+
+        Si el operador tipeó la contraseña de otra persona, la conoce. El sistema
+        ya trata así a la clave que genera y manda por correo (RN-C2); la tipeada
+        a mano se escapaba por la ventana de al lado.
+
+        Se escribe sobre el Profile cacheado y se sincroniza la relación, que es
+        lo que esperan `users/services/correo.py` y el middleware (Cambio 37).
+
+        **Dónde no alcanza: el usuario de campo.** La marca la cobra el backoffice,
+        y a quien solo tiene `becas.campo` el backoffice nunca le pide nada —el
+        login web lo rechaza y `/api/becas/auth/token/` no mira el flag—, así que
+        acá queda puesta y no la hace cumplir nadie. Esa puerta se cierra en el
+        alta y no en esta función: `_validar_correo_de_entrega` le exige correo a
+        un usuario de campo, para que la clave le llegue como link de reseteo
+        (D-26 (b)) y el operador no la conozca. La marca igual se escribe: si
+        mañana suma un rol de backoffice, el primer ingreso se la cobra.
+        """
+        from users.models import Profile
+
+        if not clave_tipeada:
+            return
+        operador = getattr(form, "operador", None)
+        if operador is not None and operador.pk == user.pk:
+            return  # se la cambió a sí mismo: ya la conoce y no hay que forzar nada
+        perfil = user._state.fields_cache.get("profile") or Profile.objects.get_or_create(user=user)[0]
+        perfil.debe_cambiar_contrasena = True
+        perfil.save(update_fields=["debe_cambiar_contrasena"])
+        user._state.fields_cache["profile"] = perfil
 
     @staticmethod
     def _sync_related_data(user, cleaned_data, alcance_group_ids=None, operador=None):

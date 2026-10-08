@@ -6,6 +6,12 @@
 |---|---|---|---|---|
 | Ola 4 PRs 1 y 2 (#632) | 182 | PERF-04 ✅ · PERF-16 ✅ · PERF-02 ✅ · RED-49 ✅ (parte Ola 4) | ✅ | **Las 4 fichas (12 h), sin migraciones y sin DDL.** Los dos caminos que más cerca estaban de un 500 por `read_timeout` quedan medidos en el banco **MariaDB 10.11** con las `OPTIONS` de producción y 20.000 casos. (1) **PERF-04:** subir el padrón de una convocatoria grande era un `UPDATE legajos_ciudadano` y un `INSERT` de traza **por caso** dentro del request: **13.376 sentencias y 55,93 s** con los legajos vacíos, contra los 60 s de nginx. Ahora se itera con `.iterator(chunk_size=2000)` y se escribe en lotes —trazas en un `bulk_create`, ciudadanos agrupados por los campos que de verdad cambiaron, y los formularios partidos entre los que solo mueven las tres constantes (`UPDATE … WHERE pk IN`) y los que tocan el JSON (`bulk_update`)—: **74 sentencias y 21,84 s**; con los legajos ya cargados, 6.709 → 46 y 37,39 → 14,96 s. El padrón entra en lotes de 2.000 porque el INSERT único de 50.000 filas se acerca al `max_allowed_packet`. (2) **PERF-16:** la señal de `Ciudadano` mandaba cuatro `DEL` por `save()` —uno repetido— y 26.668 en esa misma carga; queda en un `delete_many` deduplicado dentro de `on_commit`, y los contadores de la home solo se invalidan al crear o borrar. (3) **PERF-02:** la pantalla de cupo traía las tres tablas con los cinco JSON del caso y ordenaba por una columna sin índice: **8,99 s de SQL**, con el `read_timeout` de ECOM en 10 s. El alcance baja a una lista de ids de relevamiento (se van los joins), la página se elige por pk y se hidrata después: **167 ms**, y el `EXPLAIN` deja de decir «Using temporary». Estrena presupuesto `becas_cupo_segmento`, con la justificación de RED-62 por las dos consultas que suma. (4) **RED-49:** las tres acepciones quedan con nombre propio (`cupo_sin_distribuir`, `cupos_libres_del_relevamiento`, y `cupo_disponible` solo para `get_cupo_stats`), sin alias y sin tocar el campo `cupo_disponible` de la API que lee la app de campo. **De yapa:** `PaginadorConConteo` y la hidratación por pk se mudan a `programas/services/listados.py` y **se cae la arista `revision → relevamientos`** del ratchet de RED-79 (7 → 6). **Abierto:** la ficha de diseño de `.claude/design/dominio/becas.md` que documenta los tres números —la sesión no tiene permiso de escritura ahí y el texto va en el cuerpo del PR—; y los dos rótulos «Cupo disponible» que siguen coincidiendo en pantalla, que es decisión del cliente |
 
+## Estado al 08-oct-2026 (Ola 2, PR 2: usuarios y credenciales)
+
+| PR | Cambio | Fichas | Estado | Qué quedó abierto |
+|---|---|---|---|---|
+| Ola 2 PR 2 (#631) | 181 | G1b-05 ✅ · G1b-07 ✅ · G1b-08 ✅ · G2-03 ✅ · SEC-26 🟡 · R0b-01 ✅ · R0b-02 ✅ · R0b-03 ✅ · R0b-10 ✅ · RED-52 ✅ (parte Ola 2) | ✅ | **Las 8 fichas del ítem 2 (24 h) más la segunda parte de RED-52 del ítem 9 (2 h), sin migraciones.** El hilo común es que **una cuenta se podía tomar sin conocer su clave, por cuatro puertas distintas**, y las cuatro se cierran: `/cambiar-contrasena/` cambiaba la clave de **cualquier** sesión abierta sin pedir la actual (G2-03), y ahora solo existe mientras la clave provisoria esté sin cambiar —el cambio voluntario es una pantalla nueva que sí la pide, la primera que ese flujo tiene en el producto—; `django.contrib.auth.urls` publicaba en la raíz un `/password_change/` sin plantilla, sin link y sin límite que en el POST **igual cambiaba la clave**, y el include se fue (SEC-26); la clave que tipea un operador pasa por `AUTH_PASSWORD_VALIDATORS` y vale **un solo ingreso** (G1b-08); y el token de la app de campo, que era eterno y sobrevivía a un `set_password`, **se puede revocar** desde el ABM con «Cerrar sesión de la app». **La revocación no es automática y es a propósito** (ronda 2 de la revisión): ante un 401 la app instalada marca la operación `FAILED_PERMANENT` (`relevamientoService.js:1487`) y no la retoma nunca, así que borrar el token al cambiar la clave perdía, en silencio, lo que el teléfono no había sincronizado; ahora lo decide una persona avisada —el modal lo dice— cuando el teléfono se perdió o la clave se filtró, y la revocación automática espera un release de `Chaco-mobile` que reintente o re-loguee ante un 401. **D-26 = (b), el default:** al territorial se le manda un **link de reseteo** en vez de la clave en claro, porque para él la mitigación del Cambio 37 («sirve una sola vez, el primer login obliga a cambiarla») **no existe** —el login web lo rechaza y la API no mira el flag—, así que esa clave le quedaba vigente para siempre; **la app instalada no se toca**: `Chaco-mobile @ a66c2d3` ya linkea «Olvidé mi contraseña» al navegador y el contrato del token no cambia. Además: un operador no global deja de poder dejar una cuenta **activa y sin roles**, que entraba al backoffice y desaparecía de su propio listado (G1b-05); desactivar el último rol admin pasa de **500** a un aviso (G1b-07); y los tres MINOR de la revisión de SEC-03 cierran —el aviso de los campos grises se ve (R0b-01), un rol **desactivado de otro programa** vuelve a sacar de alcance (R0b-02) y el listado no ofrece el lápiz ni el interruptor sobre cuentas que el servidor va a rechazar, anotado en lote (R0b-10)—. **Cuatro desvíos, los cuatro code-first:** (a) el rate limit cuenta **solo los intentos fallidos** y la cubeta que importa es la de usuario sin IP, porque una repartición sale por una IP única y los territoriales por el NAT del operador móvil; (b) el check global de «último admin» corre solo si el rol **otorga** administración, para no trabar un sistema que ya está sin admins; (c) R0b-02 se resolvió separando «qué puedo asignar» de «qué roles no me exceden», y no sacando el `exclude` a secas, que dejaba a un admin sin poder tocar a los suyos; (d) RED-52 se cerró **borrando** `save_user_profile`, no acotándolo. **Riesgo de deploy:** sin migraciones y **sin deslogueos de la app**. **Abierto:** de SEC-26, su punto 6 —`/admin/` por IP, que es nginx/ingress— y la revocación automática del token, que depende de un release de `Chaco-mobile`; y, fuera de alcance, que la documentación de la API (`/api/docs/`, `/api/schema/`, `/api/redoc/`) la vea un usuario de backoffice **sin un solo rol**: lo destapó este PR al arreglar un barrido que se deslogueaba a sí mismo |
+
 ## Estado al 08-oct-2026 (Ola 2, PR 5: alcance en Becas — **arranca la Ola 2**)
 
 | PR | Cambio | Fichas | Estado | Qué quedó abierto |
@@ -1251,26 +1257,38 @@ SELECT g.id, g.name AS rol, rm.categoria, p.codigo AS programa, rm.activo
  WHERE pe.codename = 'programa_configurar';
 ```
 
-**P-04 · Superusuarios con roles de programa y usuarios multiprograma (SEC-03).** *(03-oct: no cubre roles
-Backoffice/Sistema sin programa ni grupos sin `RolMeta`: ampliarla antes de correrla, R0b-03 / R0b-12.)*
+**P-04 · Superusuarios con roles de programa y usuarios multiprograma (SEC-03).** *(Ampliada el
+08-oct-2026 por R0b-03, Cambio 181. La versión anterior hacía `JOIN programas_programa`, que descarta
+los roles **sin programa** —categorías Backoffice y Sistema—, y `JOIN users_rolmeta`, que descarta los
+grupos **sin `RolMeta`**. `puede_gestionar_credenciales` cuenta a los dos como fuera de alcance, así
+que eran justamente las cuentas que el pre-chequeo tenía que encontrar y no encontraba. Van con
+`LEFT JOIN`. Desde el Cambio 181 un rol **desactivado** de otro programa también saca de alcance
+(R0b-02), por eso la segunda consulta ya no filtra `rm.activo = 1`.)*
 ```sql
-SELECT u.id, u.username, g.name AS rol, p.codigo AS programa
+-- (1) Superusuarios activos con algún rol: si el rol tiene programa, lo nombra.
+SELECT u.id, u.username, g.name AS rol, COALESCE(p.codigo, rm.categoria, 'SIN ROLMETA') AS alcance
   FROM auth_user u
   JOIN auth_user_groups ug ON ug.user_id = u.id
   JOIN auth_group g ON g.id = ug.group_id
-  JOIN users_rolmeta rm ON rm.grupo_id = g.id AND rm.activo = 1
-  JOIN programas_programa p ON p.id = rm.programa_id
+  LEFT JOIN users_rolmeta rm ON rm.grupo_id = g.id
+  LEFT JOIN programas_programa p ON p.id = rm.programa_id
  WHERE u.is_active = 1 AND u.is_superuser = 1;
 
+-- (2) Cuentas activas que un admin de programa deja de poder editar: multiprograma,
+--     con rol global, con rol Backoffice/Sistema (programa nulo) o con un grupo sin
+--     `RolMeta`. `roles_sin_meta` y `roles_sin_programa` son las dos que R0b-03 agregó.
 SELECT u.id, u.username,
-       COUNT(DISTINCT rm.programa_id) AS programas,
-       SUM(rm.programa_id IS NULL)    AS roles_globales
+       COUNT(DISTINCT rm.programa_id)                       AS programas,
+       SUM(rm.id IS NOT NULL AND rm.programa_id IS NULL)    AS roles_sin_programa,
+       SUM(rm.id IS NULL)                                   AS roles_sin_meta,
+       SUM(rm.id IS NOT NULL AND rm.activo = 0)             AS roles_desactivados
   FROM auth_user u
   JOIN auth_user_groups ug ON ug.user_id = u.id
-  JOIN users_rolmeta rm ON rm.grupo_id = ug.group_id AND rm.activo = 1
+  LEFT JOIN users_rolmeta rm ON rm.grupo_id = ug.group_id
  WHERE u.is_active = 1
  GROUP BY u.id, u.username
-HAVING programas > 1 OR (programas >= 1 AND roles_globales >= 1);
+HAVING programas > 1 OR roles_sin_programa > 0 OR roles_sin_meta > 0
+    OR (programas >= 1 AND roles_desactivados > 0);
 ```
 
 **P-05 · ¿El deploy del 28/09 borró las capacidades tildadas a mano? (OPS-06).** Roles de Becas con
@@ -1577,26 +1595,25 @@ funcional ni coordinación con ECOM). Las horas de cada ola suman los esfuerzos 
 | 0 | Hotfix de seguridad y seeds | 16 | 36 | 0 (completa en código; lo operativo, en «Estado») | 0 | 0 | 0 |
 | **R** | **Red de seguridad: poder cambiar código sin romper nada sin enterarse** | — | — | — | — | **86** (79 RED con parte en R —78 del relevamiento + RED-89— + OPS-01, OPS-03, OPS-04, TST-01, TST-02, TST-03, R0-03; SEC-10, SEC-11 y SEC-18 se ejecutan en R-19 pero **siguen contadas como ítems de la Ola 2**, solo se mueven sus horas) | **285** · **269 cerradas (R-01..R-16 y R-18..R-21) → 16 restantes: solo R-17** |
 | 1 | Integridad SIIS | 23 | 72 | 22 (− SIIS-07) | 70 | 23 (+ RED-53; + parte de RED-32) | 78 · **76 cerradas (26 el 05-oct, PR 2; 6 el 06-oct, PR 3; 10 el 06-oct, PR 4; 4 el 06-oct, PR 5; 20 el 07-oct, PR 6; 10 el 07-oct, PR 7) → 2 restantes: el ítem 0 (V2-NEW-03, correr P-01 en PRD, sin código)** |
-| 2 | Autorización (RBAC, legajos, alcance de Becas, usuarios) | 36 | 116 | 50 (+ fase 2 de OPS-06, R0-05, resto de SEC-01, etapa 2 de SEC-09, R0b-01..10) | 136 | 51 (+ RED-80; + partes de RED-52, RED-79) | 135 (−7: SEC-10, SEC-18 y media SEC-11 se hacen en R-19, D-RED-14) · **16 cerradas el 08-oct (PR 5: ítem 5 = 14 h + la parte RED-79 del ítem 9 = 2 h) → 119 restantes** |
+| 2 | Autorización (RBAC, legajos, alcance de Becas, usuarios) | 36 | 116 | 50 (+ fase 2 de OPS-06, R0-05, resto de SEC-01, etapa 2 de SEC-09, R0b-01..10) | 136 | 51 (+ RED-80; + partes de RED-52, RED-79) | 135 (−7: SEC-10, SEC-18 y media SEC-11 se hacen en R-19, D-RED-14) · **61 cerradas el 08-oct (PR 2 = 24 + 2 de RED-52 · PRs 3 y 4 = 19 · PR 5 = 14 + 2 de RED-79) → 74 restantes** |
 | 3 | Datos, operación, CI, app de campo y reglas de Becas | 55 | 158 | 59 (+ R0-03, R0-04, R0-06, R0-07) | 166 | 54 (− 7 a la Ola R; + RED-48, RED-58; + partes de RED-09, 35, 40, 50) | 152 · **152 cerradas (14 PR 1 · 22 PR 2 · 6 PR 3 · 22 PR 5 · 14 PR 5b · 30 PR 6 · 16 PR 7a · 14 PR 7b · 8 PR 8 · 6 PR 9) → 0: la ola cierra** |
-| 4 | Performance | 19 | 52 | 19 | 52 | 20 (+ RED-62; + partes de RED-10, 49, 51, 83) | 64 |
+| 4 | Performance | 19 | 52 | 19 | 52 | 20 (+ RED-62; + partes de RED-10, 49, 51, 83) | 64 · **12 cerradas el 08-oct (PRs 1 y 2 = 10 + 2, con la parte RED-49 adentro) → 52 restantes** |
 | 5 | Bugs de front y parches v1 de Legajos/Dispositivos | 31 (+ V5A-NEW-07 b) | 114 | 31 (+ V5A-NEW-07 b) | 114 | 33 (+ RED-33, RED-75; + partes de RED-42, 53) (+ V5A-NEW-07 b) | 128 · **128 cerradas (PRs 1 a 8) → 0: la ola cierra** |
 | 6 | Agente de diseño | 4 (+8 pasos) | 42 | 4 (+8 pasos) | 42 | 4 (+8 pasos) | 42 · **42 cerradas el 06-oct (pasos 0-7) → 0: la ola cierra** |
 | 7 | Deuda | 9 (+ fase 2 de G1-01) | 46 | 10 (+ fase 2 de G1-01; + R0-02) | 48 | 13 (+ RED-64, 76, 86; + partes de RED-13, 37, 39, 54, 78, 85) | 88 |
 | v2 | Criterios de aceptación de la v2 (§7), no se implementan en v1 | 13 | — | 13 | — | 13 | — |
-| **Total** | | **206** | **636** | **208** | **628** | **297** | **972** · **683 cerradas al 08-oct-2026 → 289 restantes** |
+| **Total** | | **206** | **636** | **208** | **628** | **297** | **972** · **740 cerradas al 08-oct-2026 → 232 restantes** |
 
 Cada ficha RED cuenta como ítem una sola vez, en la primera ola donde tiene trabajo (por eso la columna suma 297 = 208 +
 89); si tiene una segunda parte en otra ola, esas horas se suman en esa ola («+ partes de …»).
 
 **Cómo se calcula la fila Total (08-oct-2026).** Las 972 h son la suma de la última columna, ola por ola: 0 (Ola 0, que
 cerró en código y cuyas horas ya se descontaron) + 285 (R) + 78 (1) + 135 (2) + 152 (3) + 64 (4) + 128 (5) + 42 (6) +
-88 (7); la v2 no tiene horas. Las **683 cerradas** son la suma de las horas cerradas que declara cada fila, y cada una
+88 (7); la v2 no tiene horas. Las **740 cerradas** son la suma de las horas cerradas que declara cada fila, y cada una
 sale de la lista de PRs de su propia sección de este §6: **269** de la Ola R (285 − las 16 de R-17, el único abierto),
-**76** de la Ola 1 (de 78: queda el ítem 0, operativo), **16** de la Ola 2 (PR 5 = 14 del ítem 5 + 2 de la parte RED-79
-del ítem 9), **152** de la Ola 3 (PR 1 = 14, PR 2 = 22, PR 3 = 6, PR 5 = 22, PR 5b = 14, PR 6 = 30, PR 7a = 16, PR 7b = 14,
-PR 8 = 8, PR 9 = 6), **128** de la Ola 5 y **42** de la Ola 6, las tres cerradas; las Olas 4 y 7 todavía no cerraron ningún PR.
-La cuenta: 269 + 76 + 16 + 152 + 128 + 42 = **683 cerradas**; 972 − 683 = **289 restantes**. Desde el 08-oct estas
+**76** de la Ola 1 (de 78: queda el ítem 0, operativo), **61** de la Ola 2 (PR 2 = 24 + 2 de RED-52, PRs 3 y 4 = 7 + 12, PR 5 = 14 + 2 de RED-79), **152** de la Ola 3 (PR 1 = 14, PR 2 = 22, PR 3 = 6, PR 5 = 22, PR 5b = 14, PR 6 = 30, PR 7a = 16, PR 7b = 14,
+PR 8 = 8, PR 9 = 6), **128** de la Ola 5 y **42** de la Ola 6, las tres cerradas; **12** de la Ola 4 (PRs 1 y 2); la Ola 7 todavía no cerró ningún PR.
+La cuenta: 269 + 76 + 61 + 152 + 12 + 128 + 42 = **740 cerradas**; 972 − 740 = **232 restantes**. Desde el 08-oct estas
 cuentas las actualiza **solo el juez**, una vez por tanda de merges: los PRs #626 (Ola 2 PR 5) y #627 (Ola 3 PR 5b) se
 escribieron en paralelo y cada uno sumó sus horas sobre una base que no tenía las del otro (663 y 661). El «139
 cerradas» venía del 04-oct y no contaba nada de lo mergeado entre el 05 y el 07; el **543** del 07-oct arrastraba la
@@ -1920,7 +1937,8 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
 ### Ola 2 — Autorización
 - **Objetivo:** que cada capacidad se evalúe con su alcance de programa y que ninguna vista de legajos, Becas o usuarios
   dependa solo de estar logueado.
-- **Avance: 16 h de 135, 119 restantes.** **PR 5 (SEC-21, SEC-22, SEC-20, SEC-30, BEC-19, BEC-23 + la parte
+- **Avance: 61 h de 135, 74 restantes** (24 + 2 PR 2 · 19 PRs 3 y 4 · 14 + 2 PR 5). **PR 2 (Usuarios, Cambio 181, #631)** y
+  **PRs 3 y 4 (Legajos y alertas, Cambio 179, #629)**, 08-oct-2026, sin migraciones; R0b-09 queda 🟡. **PR 5 (SEC-21, SEC-22, SEC-20, SEC-30, BEC-19, BEC-23 + la parte
   RED-79 del ítem 9) en el Cambio 177, 08-oct-2026**: 16 h, con **dos migraciones de `users`** (`0027` y `0028`,
   ninguna con DDL) por la capacidad nueva `ciudadano.exportar` (D-20). Es el **primer PR de la ola**.
 - **PRs y orden:**
@@ -1929,6 +1947,14 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
      Ola 0). 26 h.
   2. *Usuarios:* G1b-05, G1b-07, G1b-08, SEC-26, G2-03, R0b-01, R0b-02, R0b-03, R0b-10 (seguimientos de SEC-03). 24 h.
   3. ✅ *Legajos:* **SEC-12**, el ascenso de `ciudadano.ver` a `ciudadano.sensible` en las tres rutas sensibles de
+
+  2. ✅ *Usuarios:* G1b-05, G1b-07, G1b-08, SEC-26, G2-03, R0b-01, R0b-02, R0b-03, R0b-10 (seguimientos
+     de SEC-03). 24 h. **Cerrado el 08-oct-2026 (Cambio 181)**, con **D-26 = (b)** aplicada por default
+     (link de reseteo para el territorial, sin release de la app) y **sin migraciones**. De SEC-26 quedan
+     abiertos su punto 6, `/admin/` por IP, que es nginx/ingress y va con G1c-10 (ítem 8) y el PM, y la
+     revocación automática del token al cambiar la clave, que espera un release de `Chaco-mobile` que
+     reintente o re-loguee ante un 401 (hoy la revocación es un botón del ABM).
+  3. *Legajos:* **SEC-12**, el ascenso de `ciudadano.ver` a `ciudadano.sensible` en las tres rutas sensibles de
      **SEC-11** (D-11: `timeline_ciudadano_api`, `alertas_ciudadano_api`, `prediccion_riesgo_api`), R0b-04 (+ R0b-05),
      R0b-09 (🟡 solo el alcance: la capacidad vuelve a `ciudadano.sensible`, ver su ficha) — **Cambio 179**,
      08-oct-2026, junto con el ítem 4 en un solo PR. 7 h. ⬅ **SEC-10 completa, SEC-18 completa (+ R0b-06) y SEC-11 con `ciudadano.ver` de piso en sus cinco
@@ -1947,8 +1973,10 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
   9. 🟡 *Red de seguridad (04-oct):* RED-80 (cache de `programa_*`, con el PR 1), segunda parte de RED-52 (`save_user_profile`
      explícito, con el PR 2) y de RED-79 (mover los guards de alcance y constantes a `autorizacion.py`, con el PR 5). 6 h.
      **✅ RED-79 cerrada el 08-oct-2026 (Cambio 177, PR 5): 2 h.** Los dos ratchets bajaron en el mismo PR —aristas
-     vista→vista de 9 a 7 y ciclos de 6 a 5—, que es la mitad que el test mide hacia abajo. Quedan RED-80 (PR 1) y
-     RED-52 (PR 2): 4 h.
+     vista→vista de 9 a 7 y ciclos de 6 a 5—, que es la mitad que el test mide hacia abajo.
+     **✅ RED-52 cerrada el 08-oct-2026 (Cambio 181, PR 2): 2 h.** `save_user_profile` se borró (no se acotó con
+     `update_fields`): los cuatro llamadores reales ya guardaban el Profile explícitos, y los dos `expectedFailure`
+     que dejó R-21 pasaron a verdes. Queda **RED-80** (PR 1): 2 h.
   **No hay ítem 10 de RED-89.** La medición del 04-oct no agregó trabajo nuevo a esta ola: las capacidades de las 17
   rutas que contesta un usuario sin rol **son** SEC-10, SEC-11 y SEC-18, y por D-RED-14 se hacen en R-19 salvo
   `ciudadano.sensible`, que queda en el PR 3 de arriba.
@@ -1960,8 +1988,9 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
 - **Riesgo de deploy:** medio. Migración de datos de SEC-06 sobre `auth_group_permissions` (chica, pero quita
   capacidades: P-02 y D-06 antes); si se agregan capacidades nuevas (D-12, D-20) va una migración de `users`
   (`AlterModelOptions`). SEC-09 etapa 2 necesita al ingress de ECOM (`X-Accel-Redirect` o `SERVE_MEDIA=True`, H-05).
-  SEC-26 revoca tokens al cambiar clave: los territoriales que cambien la clave reingresan en la app; si D-26 = (a), hace
-  falta release de la app.
+  SEC-26 **ya no** revoca tokens al cambiar la clave —la app instalada marca `FAILED_PERMANENT` ante un 401 y pierde lo
+  que no sincronizó—: la revocación es un botón del ABM y el deploy no desloguea a nadie de la app. Volver a la
+  revocación automática espera un release de `Chaco-mobile` que reintente o re-loguee ante un 401.
 
 ### Ola 3 — Datos, operación, CI, app de campo y reglas de Becas
 - **Objetivo:** que no se pierdan datos (adjuntos, capturas offline), que el despliegue sea diagnosticable y robusto, que

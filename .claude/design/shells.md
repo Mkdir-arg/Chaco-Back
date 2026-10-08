@@ -73,6 +73,12 @@ Se hereda; no se recrean el sidebar ni sus offsets.
   ninguna ruta (RED-75, D-RED-07 = A; candado en `users/tests/test_tema.py`).
 - El backdrop del sidebar móvil es `bg-black/50`; el botón de menú y su separador se esconden en
   escritorio con `lg:hidden` y nada más, sin `!important` ni clases hook.
+- El menú del avatar (`templates/includes/navbar.html`) tiene **dos** entradas: «Cambiar
+  contraseña» (enlace a `users:cambiar_contrasena`) y «Cerrar sesión» (botón de un `<form>` POST,
+  porque `LogoutView` ya no acepta GET). Es la única entrada del producto al cambio voluntario de
+  clave: antes el flujo existía solo como `/password_change/` de `django.contrib.auth.urls`, sin
+  plantilla ni link, y se retiró (SEC-26). El enlace usa utilidades (`text-heading
+  hover:bg-secondary`) y no `style=`; el ancho del panel es `w-40`.
 
 ---
 
@@ -82,8 +88,9 @@ Se hereda; no se recrean el sidebar ni sus offsets.
 Superficie **sin sesión**, sin menú ni alertas internas, para credenciales. La extienden
 `users/templates/user/establecer_contrasena.html`,
 `users/templates/user/recuperar_contrasena.html`,
-`users/templates/user/recuperar_contrasena_enviada.html` y
-`users/templates/user/cambiar_contrasena_obligatorio.html`.
+`users/templates/user/recuperar_contrasena_enviada.html`,
+`users/templates/user/cambiar_contrasena_obligatorio.html` y
+`users/templates/user/cambiar_contrasena.html`.
 
 Contrato: clases `public-auth__title`, `__help`, `__field`, `__error`, `__button` y `__link`, con
 `button.public-auth__link` para la misma apariencia cuando la acción tiene que ir por formulario.

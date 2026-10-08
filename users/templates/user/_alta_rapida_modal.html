@@ -25,14 +25,14 @@ funcionando sin ese script.
       {% csrf_token %}<input type="hidden" name="tipo"><input type="hidden" name="segmento_id">
       <div class="overflow-y-auto flex-1 p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
         <div><label for="quick-user-username" class="block text-sm font-medium text-heading mb-1">Usuario <span class="text-fg-danger">*</span></label><input id="quick-user-username" class="nodo-field" name="username" required></div>
-        <div><label for="quick-user-email" class="block text-sm font-medium text-heading mb-1">Email</label><input id="quick-user-email" class="nodo-field" name="email" type="email"></div>
+        <div><label for="quick-user-email" class="block text-sm font-medium text-heading mb-1">Email <span class="text-fg-danger" data-quick-user-email-obligatorio hidden>*</span></label><input id="quick-user-email" class="nodo-field" name="email" type="email"></div>
         <div><label for="quick-user-first-name" class="block text-sm font-medium text-heading mb-1">Nombre</label><input id="quick-user-first-name" class="nodo-field" name="first_name"></div>
         <div><label for="quick-user-last-name" class="block text-sm font-medium text-heading mb-1">Apellido</label><input id="quick-user-last-name" class="nodo-field" name="last_name"></div>
         <div><label for="quick-user-dni" class="block text-sm font-medium text-heading mb-1">DNI</label><input id="quick-user-dni" class="nodo-field" name="dni" maxlength="8"></div>
         <div><label for="quick-user-telefono" class="block text-sm font-medium text-heading mb-1">Teléfono</label><input id="quick-user-telefono" class="nodo-field" name="telefono"></div>
         <div class="md:col-span-2"><label for="quick-user-institucion" class="block text-sm font-medium text-heading mb-1">Institución</label><input id="quick-user-institucion" class="nodo-field" name="institucion"></div>
         <div class="md:col-span-2"><label for="quick-user-observacion" class="block text-sm font-medium text-heading mb-1">Observación</label><textarea id="quick-user-observacion" class="nodo-field" name="observacion" rows="2"></textarea></div>
-        <div class="md:col-span-2"><label for="quick-user-password" class="block text-sm font-medium text-heading mb-1">Contraseña provisoria</label><input id="quick-user-password" class="nodo-field" name="password" type="password" aria-describedby="quick-user-password-ayuda"><p id="quick-user-password-ayuda" class="text-xs mt-1 text-body-subtle">Con email informado no hace falta: el sistema genera una clave provisoria y se la envía al usuario.</p></div>
+        <div class="md:col-span-2"><label for="quick-user-password" class="block text-sm font-medium text-heading mb-1">Contraseña provisoria</label><input id="quick-user-password" class="nodo-field" name="password" type="password" aria-describedby="quick-user-password-ayuda"><p id="quick-user-password-ayuda" class="text-xs mt-1 text-body-subtle" data-quick-user-password-ayuda>Con email informado no hace falta: el sistema genera una clave provisoria y se la envía al usuario.</p></div>
         <div id="quick-user-error" class="md:col-span-2 text-sm text-fg-danger" role="alert" tabindex="-1"></div>
       </div>
       <div class="flex justify-end gap-3 px-6 py-4 border-t border-light bg-secondary flex-shrink-0">
@@ -49,8 +49,22 @@ funcionando sin ese script.
   if (!modal || !form || modal.dataset.ready) return;
   modal.dataset.ready = '1'; let target = null;
   const AYUDA = 'Elegí primero la convocatoria: el territorial se crea dentro de su segmento.';
+  // D-26 (b): al usuario de campo la clave se le entrega con un link de reseteo y
+  // por ninguna otra vía, así que para él el correo es obligatorio y la que tipee el
+  // operador no le queda. El servidor lo valida igual (`_validar_correo_de_entrega`);
+  // esto es para que el formulario no mienta sobre lo que va a pasar.
+  const AYUDA_CLAVE = 'Con email informado no hace falta: el sistema genera una clave provisoria y se la envía al usuario.';
+  const AYUDA_CLAVE_CAMPO = 'No hace falta: al territorial le llega por correo un enlace para que fije su propia clave.';
   const submit = form.querySelector('[data-quick-user-submit]');
   const error = document.getElementById('quick-user-error');
+  const asteriscoEmail = modal.querySelector('[data-quick-user-email-obligatorio]');
+  const ayudaClave = modal.querySelector('[data-quick-user-password-ayuda]');
+  const sincronizarTipo = tipo => {
+    const deCampo = tipo === 'territorial';
+    form.elements.email.required = deCampo;
+    if (asteriscoEmail) asteriscoEmail.hidden = !deCampo;
+    if (ayudaClave) ayudaClave.textContent = deCampo ? AYUDA_CLAVE_CAMPO : AYUDA_CLAVE;
+  };
   const abierto = () => modal.style.display !== 'none';
   const close = () => { modal.style.display = 'none'; };
   // Cierre propio: funciona aunque becas-modal.js no llegue a cargar (bloqueado o
@@ -112,6 +126,7 @@ funcionando sin ese script.
     const segmento = segmentoDe(button);
     if (tipo === 'territorial' && !segmento) return;
     form.reset(); form.elements.tipo.value = tipo; form.elements.segmento_id.value = segmento;
+    sincronizarTipo(tipo);
     modal.querySelector('[data-quick-user-title]').textContent = tipo; error.textContent = '';
     modal.style.display = 'flex';
   }));

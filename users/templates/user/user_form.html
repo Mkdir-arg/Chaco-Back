@@ -155,12 +155,14 @@
             <div>
                 <label for="{{ form.username.id_for_label }}" class="mb-1.5 block text-sm font-semibold text-heading">Nombre de usuario <span class="text-fg-danger">*</span></label>
                 {{ form.username }}
+                {% if form.username.help_text %}<p class="mt-1 text-xs text-body-subtle">{{ form.username.help_text }}</p>{% endif %}
                 {% for error in form.username.errors %}<p class="mt-1 text-xs text-fg-danger">{{ error }}</p>{% endfor %}
             </div>
 
             <div>
                 <label for="{{ form.email.id_for_label }}" class="mb-1.5 block text-sm font-semibold text-heading">Email</label>
                 {{ form.email }}
+                {% if form.email.help_text %}<p class="mt-1 text-xs text-body-subtle">{{ form.email.help_text }}</p>{% endif %}
                 {% for error in form.email.errors %}<p class="mt-1 text-xs text-fg-danger">{{ error }}</p>{% endfor %}
             </div>
 
@@ -204,6 +206,7 @@
             <div class="md:col-span-2">
                 <label for="{{ form.password.id_for_label }}" class="mb-1.5 block text-sm font-semibold text-heading">Contraseña <span class="text-fg-danger">*</span></label>
                 {{ form.password }}
+                {% if form.password.help_text %}<p class="mt-1 text-xs text-body-subtle">{{ form.password.help_text }}</p>{% endif %}
                 {% for error in form.password.errors %}<p class="mt-1 text-xs text-fg-danger">{{ error }}</p>{% endfor %}
             </div>
             {% endif %}

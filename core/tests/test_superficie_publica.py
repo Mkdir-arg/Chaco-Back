@@ -141,10 +141,6 @@ ALLOWLIST_PUBLICA = {
     "/recuperar-contrasena/": "Recupero de contraseña del backoffice (Cambio 37).",
     "/recuperar-contrasena/enviada/": "Confirmación del recupero: no revela si el correo existe.",
     "/establecer-contrasena/x/x/": "Alta de clave por token de un solo uso; el token inválido muestra el aviso.",
-    "/password_reset/": "Recupero de `django.contrib.auth.urls`, montado en la raíz.",
-    "/password_reset/done/": "Ídem, pantalla de confirmación.",
-    "/reset/x/x/": "Ídem, confirmación por token (el token inválido muestra el aviso).",
-    "/reset/done/": "Ídem, pantalla final.",
     "/portal/": "Portal ciudadano: a dónde manda el middleware a un ciudadano (Cambio 102).",
     "/portal/csrf/": "Semilla de CSRF del formulario público de inscripción (Cambio 52).",
     "/health/": "Sonda de salud del contenedor; la consulta el orquestador, sin sesión.",
@@ -247,7 +243,9 @@ class SuperficieAnonimaTests(TestCase):
         cubriendo de más. En los dos casos el arreglo es el mismo: revisar la
         lista y actualizar este número en el mismo commit.
         """
-        self.assertEqual(len(ALLOWLIST_PUBLICA), 18)  # +1: /health/ready/ (OPS-04, Cambio 153)
+        # +1: /health/ready/ (OPS-04, Cambio 153) · −4: las cuatro de
+        # `django.contrib.auth.urls`, que dejó de incluirse (SEC-26, Cambio 181).
+        self.assertEqual(len(ALLOWLIST_PUBLICA), 14)
 
     def test_la_allowlist_publica_no_tiene_entradas_muertas(self):
         """Una URL que ya no existe en el URLconf deja de justificar nada."""
@@ -335,6 +333,24 @@ EXTRAS_SIN_ROL = {
     # backoffice, no contienen datos de personas.
     "/api/core/dias/": "Catálogo de días de la semana.",
     "/api/core/localidades/": "Catálogo geográfico de localidades.",
+    # Las cuatro de abajo son de la misma familia que las dos de arriba. No son
+    # nuevas: contestaban 200 desde siempre y el barrido no las veía porque se
+    # deslogueaba antes de llegar (ver `_pedir`). Aparecieron al arreglarlo, en la
+    # Ola 2 (Cambio 181).
+    "/api/core/meses/": "Catálogo de meses del año.",
+    "/api/core/provincias/": "Catálogo geográfico de provincias.",
+    "/api/core/municipios/": "Catálogo geográfico de municipios.",
+    "/api/core/sexos/": "Catálogo de sexos (lista cerrada del formulario).",
+    # Documentación de la API: la decisión del 26/08/2026 fue ponerla **detrás de
+    # login** (antes era pública y el link público la regalaba), no detrás de una
+    # capacidad. Un usuario de backoffice sin rol ve el inventario de endpoints,
+    # no sus datos. Mismo origen que las cuatro de arriba.
+    "/api/schema/": "Esquema OpenAPI detrás de login (decisión del 26/08/2026).",
+    "/api/docs/": "Swagger UI detrás de login (ídem).",
+    "/api/redoc/": "Redoc detrás de login (ídem).",
+    # Autoservicio del propio usuario: cambiar la contraseña no depende de tener
+    # un rol, y pide la clave actual (G2-03).
+    "/cambiar-contrasena/propia/": "Cambio voluntario de la propia contraseña, con la clave actual.",
     "/ajax/load-localidades/": "Catálogo geográfico encadenado de los formularios.",
     "/ajax/load-municipios/": "Catálogo geográfico encadenado de los formularios.",
     "/ajax/load-subsecretarias/": "Catálogo institucional encadenado de los formularios.",
@@ -400,7 +416,19 @@ class SuperficieSinRolTests(TestCase):
         return 200 <= respuesta.status_code < 300
 
     def _pedir(self, url):
-        """GET; si la vista solo acepta POST, se repite con POST (ídem RED-02)."""
+        """GET; si la vista solo acepta POST, se repite con POST (ídem RED-02).
+
+        **La sesión se rehace antes de cada ruta, y eso no es prolijidad.** El
+        barrido reintenta con POST toda vista que conteste 405, y entre las rutas
+        hay un *logout*: al llegar a él se cerraba su propia sesión y seguía
+        barriendo como anónimo. Como el recorrido va ordenado por nombre de ruta,
+        todo lo que caía después quedaba medido contra un anónimo —que rebota
+        siempre— y el test daba verde sin haber preguntado nada. Lo destapó la
+        Ola 2 al sacar `django.contrib.auth.urls` (SEC-26): se fue el `logout` de
+        Django, el corte se corrió al `users:logout` del final y aparecieron de
+        golpe siete rutas que contestaban 200 desde siempre.
+        """
+        self.navegador.force_login(self.sin_rol)
         respuesta = self.navegador.get(url)
         if respuesta.status_code == 405:
             respuesta = self.navegador.post(url, {})
@@ -442,13 +470,19 @@ class SuperficieSinRolTests(TestCase):
     def test_la_allowlist_sin_rol_mide_lo_que_se_midio(self):
         """Ratchet en las dos direcciones, igual que el de `ALLOWLIST_PUBLICA`.
 
-        14 entradas propias + las 18 públicas. El barrido del 04-oct-2026 midió
-        31 rutas abiertas a este usuario: estas 14 y las 17 de Legajos, que no
-        están acá porque este PR les puso capacidad (SEC-10, SEC-11, SEC-18). La
-        32.ª es `/health/ready/`, que agregó el Cambio 153 (OPS-04).
+        22 entradas propias + las 14 públicas. El barrido del 04-oct-2026 midió
+        31 rutas abiertas a este usuario: 14 de las de acá y las 17 de Legajos, que
+        no están porque aquel PR les puso capacidad (SEC-10, SEC-11, SEC-18); la
+        32.ª era `/health/ready/`, del Cambio 153 (OPS-04).
+
+        El Cambio 181 mueve los dos números por motivos distintos: **+8** propias
+        —cuatro catálogos y las tres pantallas de documentación de la API, que el
+        barrido no veía porque se deslogueaba a sí mismo (ver `_pedir`), más el
+        cambio voluntario de contraseña, que es nuevo— y **−4** públicas, las de
+        `django.contrib.auth.urls`, que dejó de incluirse (SEC-26).
         """
-        self.assertEqual(len(EXTRAS_SIN_ROL), 14)
-        self.assertEqual(len(ALLOWLIST_SIN_ROL), 32)
+        self.assertEqual(len(EXTRAS_SIN_ROL), 22)
+        self.assertEqual(len(ALLOWLIST_SIN_ROL), 36)
 
     def test_la_allowlist_sin_rol_no_tiene_entradas_muertas(self):
         urls = {url for _, url in self.rutas}

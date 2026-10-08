@@ -524,6 +524,15 @@ TRUSTED_PROXY_NETS = [
     if red.strip()
 ]
 
+# SEC-26 · techo por IP de los intentos de autenticación FALLIDOS, compartido por
+# el login web y `/api/becas/auth/token/`. Holgado a propósito: tiene que aguantar
+# una repartición detrás de una IP y a los territoriales detrás del NAT del
+# operador móvil, y a la vez cortar un barrido de miles de usuarios distintos. Es
+# la única cubeta que frena antes de verificar la clave, y puede serlo porque la
+# paga la IP que ataca y no la cuenta atacada.
+AUTH_FALLIDOS_MAX_POR_IP = int(os.getenv("AUTH_FALLIDOS_MAX_POR_IP", "300"))
+AUTH_FALLIDOS_VENTANA_SEGUNDOS = int(os.getenv("AUTH_FALLIDOS_VENTANA_SEGUNDOS", "600"))
+
 # Techos de carga. **Ojo con lo que cada uno limita de verdad** (SIIS-16: el
 # comentario anterior prometía un tope del request que estos valores no dan):
 #

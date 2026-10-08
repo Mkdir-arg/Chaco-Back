@@ -139,9 +139,130 @@ def puede_gestionar_credenciales(operador, target):
         return True
     if not puede_gestionar_usuario(operador, target):
         return False
-    alcance = alcance_roles_ids(operador)
+    alcance = alcance_roles_ids_credenciales(operador)
     if alcance is None:  # admin global
         return True
-    # Los roles desactivados no otorgan nada, así que no cuentan; un grupo sin
-    # ``RolMeta`` sí cuenta como fuera de alcance (nunca es asignable desde el ABM).
-    return not target.groups.exclude(pk__in=alcance).exclude(meta__activo=False).exists()
+    return not target.groups.exclude(pk__in=alcance).exists()
+
+
+def alcance_roles_ids_credenciales(operador):
+    """IDs de roles que **no** sacan al usuario del alcance del operador (SEC-03).
+
+    Es el alcance de :func:`alcance_roles_ids` más los roles **desactivados** de
+    los mismos programas. La diferencia es R0b-02: un rol inactivo no otorga nada
+    *hoy*, pero alguien puede reactivarlo mañana, y entonces el usuario recupera
+    un acceso con una clave que puso el admin de otro programa —el vector de
+    G1b-01—. Así que un rol inactivo **de otro programa** sí saca del alcance.
+
+    Lo que no cambia: un rol inactivo **del propio programa** del operador sigue
+    estando bajo su alcance. Contarlo como ajeno (que es como se lee la propuesta
+    literal de la ficha, «sacar el `exclude`») dejaba a un admin de Becas sin
+    poder tocar las credenciales de su propio usuario por un rol de Becas que
+    alguien desactivó.
+    """
+    if es_admin_global_usuarios(operador):
+        return None
+    if es_gestor_territorial(operador):
+        from programas.services.autorizacion import grupos_territoriales_becas
+
+        return set(grupos_territoriales_becas().values_list("id", flat=True))
+    from django.contrib.auth.models import Group
+
+    programas = programas_administrables_usuarios(operador)
+    # Sin `meta__activo=True` y sin excluir Portal: acá no se pregunta qué puede
+    # asignar, sino qué roles del target **no** lo exceden.
+    return set(Group.objects.filter(meta__programa__in=programas).values_list("id", flat=True))
+
+
+def _usuarios_con_token_de_app(usuarios):
+    """IDs de los que tienen una sesión abierta en la app de campo.
+
+    Una sola consulta por página: «Cerrar sesión de la app» solo se ofrece sobre
+    quien de verdad tiene un token, para que el botón no aparezca en todas las
+    filas del backoffice —donde no significa nada— (SEC-26).
+    """
+    from rest_framework.authtoken.models import Token
+
+    return set(Token.objects.filter(user__in=[u.pk for u in usuarios]).values_list("user_id", flat=True))
+
+
+def anotar_acciones_del_listado(operador, usuarios):
+    """Marca ``gestionable``, ``credenciales_editables`` y ``tiene_token_app`` en cada fila.
+
+    R0b-10: el servidor ya rechaza editar o activar a quien excede el alcance
+    (SEC-03), pero la pantalla mostraba igual el lápiz y el interruptor sobre un
+    superusuario o un multiprograma, y recién al apretarlos aparecía el aviso.
+
+    Se calcula **en lote**: un puñado de consultas acotadas a los roles que la
+    página ya trae, no una por fila. La autoridad sigue siendo la vista; esto
+    solo evita ofrecer un botón que va a rebotar.
+    """
+    usuarios = list(usuarios)
+    if not usuarios:
+        return usuarios
+    con_token = _usuarios_con_token_de_app(usuarios)
+    for usuario in usuarios:
+        usuario.tiene_token_app = usuario.pk in con_token
+    if es_admin_global_usuarios(operador):
+        for usuario in usuarios:
+            usuario.gestionable = True
+            usuario.credenciales_editables = True
+        return usuarios
+
+    from django.contrib.auth.models import Group
+
+    # Los grupos salen del prefetch del listado: no agrega consultas.
+    roles_por_usuario = {usuario.pk: {grupo.pk for grupo in usuario.groups.all()} for usuario in usuarios}
+    ids_en_juego = set().union(*roles_por_usuario.values()) if roles_por_usuario else set()
+    alcance_credenciales = alcance_roles_ids_credenciales(operador)
+
+    if es_gestor_territorial(operador):
+        from programas.models import AsignacionTerritorial
+        from programas.services.autorizacion import (
+            grupos_territoriales_becas,
+            segmentos_para_gestion_territoriales,
+        )
+
+        territoriales = set(grupos_territoriales_becas().values_list("pk", flat=True))
+        segmentos = set(segmentos_para_gestion_territoriales(operador).values_list("pk", flat=True))
+        asignado = dict(
+            AsignacionTerritorial.objects.filter(territorial__in=[u.pk for u in usuarios]).values_list(
+                "territorial_id", "segmento_id"
+            )
+        )
+        for usuario in usuarios:
+            roles = roles_por_usuario[usuario.pk]
+            usuario.gestionable = bool(
+                not usuario.is_superuser and roles and roles <= territoriales and asignado.get(usuario.pk) in segmentos
+            )
+            usuario.credenciales_editables = usuario.gestionable and not (roles - alcance_credenciales)
+        return usuarios
+
+    programas = set(programas_administrables_usuarios(operador).values_list("pk", flat=True))
+    codenames_globales = [rbac.codename_de(c) for c in rbac.CAPS_ADMINISTRACION]
+    codenames_programa = [rbac.codename_de(c) for c in rbac.CAPS_ADMIN_PROGRAMA]
+    activos = set(Group.objects.filter(pk__in=ids_en_juego, meta__activo=True).values_list("pk", flat=True))
+    admin_global = set(
+        Group.objects.filter(
+            pk__in=ids_en_juego, meta__activo=True, permissions__codename__in=codenames_globales
+        ).values_list("pk", flat=True)
+    )
+    admin_programa = dict(
+        Group.objects.filter(
+            pk__in=ids_en_juego, meta__activo=True, permissions__codename__in=codenames_programa
+        ).values_list("pk", "meta__programa_id")
+    )
+    del_programa = dict(Group.objects.filter(pk__in=ids_en_juego).values_list("pk", "meta__programa_id"))
+
+    for usuario in usuarios:
+        roles = roles_por_usuario[usuario.pk]
+        # Mismo orden de preguntas que `puede_gestionar_usuario`.
+        excede = usuario.is_superuser or bool(roles & admin_global)
+        # Un rol de administración **sin** programa (categoría Backoffice/Sistema)
+        # también excede: es lo que hace el `exclude(meta__programa__in=…)` del
+        # selector, donde el `NULL` no queda excluido.
+        excede = excede or any(rol in admin_programa and admin_programa[rol] not in programas for rol in roles)
+        en_alcance = any(rol in activos and del_programa.get(rol) in programas for rol in roles)
+        usuario.gestionable = bool(not excede and en_alcance)
+        usuario.credenciales_editables = usuario.gestionable and not (roles - alcance_credenciales)
+    return usuarios

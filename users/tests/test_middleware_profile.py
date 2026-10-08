@@ -22,12 +22,12 @@ explicación.
 Borrar la línea del `fields_cache` parece una micro-optimización al revés; reordenar
 `MIDDLEWARE` parece prolijidad. Las dos cosas rompen algo que ningún test miraba.
 
-`test_user_save_no_pisa_la_clave_de_sesion_de_otro_login` está rojo
-(`expectedFailure`): el arreglo —reemplazar `save_user_profile` por guardados explícitos
-o acotarlo con `update_fields`— es de la **Ola 2, PR 2**.
+**Cerrado en la Ola 2, PR 2 (Cambio 181):** `save_user_profile` ya no existe. Los dos
+tests que estaban en `expectedFailure` —el de `backoffice_session_key` y el de
+`debe_cambiar_contrasena`— pasaron a verdes, y el punto (3) de la lista de arriba es
+historia. Los puntos (1) y (2) siguen vigentes: la línea del `fields_cache` sigue
+ahorrando una consulta por request autenticado y sigue sin estar escrita en otro lado.
 """
-
-import unittest
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -165,9 +165,8 @@ class ProfileEnCacheTests(TestCase):
             fetch_redirect_response=False,
         )
 
-    @unittest.expectedFailure
     def test_un_login_pisa_el_flag_de_clave_provisoria(self):
-        """RED-52, segunda cara del mismo *lost update* — se invierte en la Ola 2.
+        """RED-52, segunda cara del mismo *lost update* — **invertida** en la Ola 2.
 
         No estaba en la ficha; apareció escribiendo este módulo. El mecanismo es el
         mismo que el de `backoffice_session_key`, sobre otra columna y con un
@@ -178,8 +177,8 @@ class ProfileEnCacheTests(TestCase):
         guarda **entero**, con el `debe_cambiar_contrasena` de entonces.
 
         En un proceso de larga vida, cualquier objeto `User` que sobreviva a la
-        escritura de otro request arrastra este problema. El arreglo (acotar el
-        guardado con `update_fields`) cubre las dos caras de una.
+        escritura de otro request arrastra este problema. El arreglo —borrar el
+        receiver, Cambio 181— cubre las dos caras de una.
         """
         usuario = get_user_model().objects.create_user(username="clave_pisada", password="x")
         Profile.objects.filter(user=usuario).update(debe_cambiar_contrasena=True)
@@ -188,9 +187,8 @@ class ProfileEnCacheTests(TestCase):
 
         self.assertTrue(Profile.objects.get(user=usuario).debe_cambiar_contrasena)
 
-    @unittest.expectedFailure
     def test_user_save_no_pisa_la_clave_de_sesion_de_otro_login(self):
-        """RED-52 — se invierte en la Ola 2 (PR 2, usuarios).
+        """RED-52 — **invertida** en la Ola 2 (PR 2, usuarios).
 
         El escenario, con los dos actores reales:
 
@@ -202,9 +200,9 @@ class ProfileEnCacheTests(TestCase):
           cambio de nombre, `update_last_login`…). `save_user_profile` guarda el Profile
           **entero** que tenía en la caché y devuelve la columna a `"sesion-vieja"`.
 
-        Resultado: el login nuevo queda apuntando a una sesión que ya no es la de la
-        fila, y el próximo request lo saca con «Tu sesión fue reemplazada». El arreglo
-        es acotar el guardado (`update_fields`) o sacarlo del `post_save`.
+        Resultado: el login nuevo quedaba apuntando a una sesión que ya no era la de la
+        fila, y el próximo request lo sacaba con «Tu sesión fue reemplazada». El
+        arreglo fue sacar el guardado del `post_save`.
         """
         Profile.objects.filter(user=self.usuario).update(backoffice_session_key="sesion-vieja")
         usuario = get_user_model().objects.get(pk=self.usuario.pk)
@@ -221,11 +219,15 @@ class ProfileEnCacheTests(TestCase):
             "sesion-nueva",
         )
 
-    def test_hoy_el_user_save_propaga_el_profile_entero(self):
-        """El andamio del `expectedFailure`: deja escrito que el receiver existe y que
-        guarda de verdad. Si mañana `save_user_profile` dejara de correr, el test de
-        arriba pasaría por el motivo equivocado (y además se perdería la propagación
-        que algún llamador puede estar usando)."""
+    def test_el_user_save_ya_no_propaga_el_profile_entero(self):
+        """El contrato nuevo, al revés del andamio que acompañaba al `expectedFailure`.
+
+        `user.save()` guarda el User y **nada más**. Quien toque el Profile lo guarda
+        él, con `update_fields`; es lo que ya hacían los cuatro llamadores reales. Si
+        alguien reintrodujera el receiver —parece prolijidad: «que el Profile se
+        propague solo»—, este test se pone rojo antes de que vuelva el *lost update*
+        de los dos de arriba.
+        """
         usuario = get_user_model().objects.get(pk=self.usuario.pk)
         perfil = usuario.profile
         usuario._state.fields_cache["profile"] = perfil
@@ -233,14 +235,11 @@ class ProfileEnCacheTests(TestCase):
 
         usuario.save()
 
-        self.assertEqual(
-            Profile.objects.get(user=usuario).backoffice_session_key,
-            "escrita-en-memoria",
-        )
+        self.assertIsNone(Profile.objects.get(user=usuario).backoffice_session_key)
 
     def test_sin_profile_en_la_cache_el_user_save_no_consulta(self):
-        """La optimización que el receiver sí aporta y que el arreglo de la Ola 2 tiene
-        que conservar: un `User.save()` en lote no dispara un N+1 de Profiles."""
+        """La optimización que el receiver sí aportaba y que el arreglo conserva: un
+        `User.save()` en lote no dispara un N+1 de Profiles ni de tokens."""
         usuario = get_user_model().objects.get(pk=self.usuario.pk)
         usuario._state.fields_cache.pop("profile", None)
 

@@ -9,20 +9,20 @@ PoC: `poc/test_repro_usuarios.py`. Lo de la API REST de usuarios está en SEC-05
 | ID | Título | Sev. | Estado | Ola | Esf. | Avance 03-oct |
 |---|---|---|---|---|---|---|
 | G1b-02 | Capacidades «parciales» del programa se autootorgan las demás (contradice Cambio 20) | ALTA | CONF. test | 2 | M | ⬜ |
-| G1b-05 | Operador no global deja cuentas activas sin rol, que entran al backoffice | MEDIA | CONF. test | 2 | S | ⬜ |
+| G1b-05 | Operador no global deja cuentas activas sin rol, que entran al backoffice | MEDIA | CONF. test | 2 | S | ✅ |
 | G1b-06 | Admin de programa borra en silencio capacidades globales del rol al guardarlo | MEDIA | CONF. test | 2 | S | ⬜ |
-| G2-03 | «Cambiar contraseña» abierto para cualquier sesión y sin pedir la clave actual | MEDIA | CONF. test | 2 | S | ⬜ |
-| G1b-07 | Desactivar el último rol admin: 500 (programa) o sistema sin admin (global) | BAJA | CONF. test | 2 | S | ⬜ |
-| G1b-08 | Claves tipeadas por un operador sin validadores ni cambio obligatorio | BAJA | CONF. lectura | 2 | S | ⬜ |
+| G2-03 | «Cambiar contraseña» abierto para cualquier sesión y sin pedir la clave actual | MEDIA | CONF. test | 2 | S | ✅ |
+| G1b-07 | Desactivar el último rol admin: 500 (programa) o sistema sin admin (global) | BAJA | CONF. test | 2 | S | ✅ |
+| G1b-08 | Claves tipeadas por un operador sin validadores ni cambio obligatorio | BAJA | CONF. lectura | 2 | S | ✅ |
 | G1b-09 | «Último administrador» salteable con dos operaciones simultáneas | BAJA | PLAUSIBLE | 7 | M | ⬜ |
 | G1b-10 | Alta rápida: 500 ante colisión en carrera | BAJA | CONF. ajustado | 7 | S | ⬜ |
 | G1b-12 | Dashboard de Becas: período sin tope y `?recalcular=1` sin freno | BAJA | CONF. ajustado | 4 | S | ⬜ |
 | G2-04 | Inicio: los contadores no miden lo que dicen sus etiquetas | BAJA | CONF. lectura | 5 | S | ✅ |
 | G2-06 | El login pide «Tu correo electrónico» pero autentica por `username` | BAJA | CONF. lectura | 5 | S | ✅ |
-| R0b-01 | `user_form.html` no muestra el `help_text` de los campos que SEC-03 bloquea | BAJA (MINOR) | revisión Ola 0 (2ª tanda) | 2 (Usuarios) | S | ⬜ |
-| R0b-02 | SEC-03: un rol desactivado no cuenta como fuera de alcance | BAJA (MINOR) | revisión Ola 0 (2ª tanda) | 2 (Usuarios) | S | ⬜ |
-| R0b-03 | P-04 no cubre roles Backoffice/Sistema sin programa | BAJA (MINOR) | revisión Ola 0 (2ª tanda) | 2 (Usuarios; antes de R0b-12) | S | ⬜ |
-| R0b-10 | Listado de usuarios: editar y activar/desactivar visibles para usuarios no gestionables | BAJA (MINOR) | revisión Ola 0 (2ª tanda) | 2 (Usuarios) | S | ⬜ |
+| R0b-01 | `user_form.html` no muestra el `help_text` de los campos que SEC-03 bloquea | BAJA (MINOR) | revisión Ola 0 (2ª tanda) | 2 (Usuarios) | S | ✅ |
+| R0b-02 | SEC-03: un rol desactivado no cuenta como fuera de alcance | BAJA (MINOR) | revisión Ola 0 (2ª tanda) | 2 (Usuarios) | S | ✅ |
+| R0b-03 | P-04 no cubre roles Backoffice/Sistema sin programa | BAJA (MINOR) | revisión Ola 0 (2ª tanda) | 2 (Usuarios; antes de R0b-12) | S | ✅ |
+| R0b-10 | Listado de usuarios: editar y activar/desactivar visibles para usuarios no gestionables | BAJA (MINOR) | revisión Ola 0 (2ª tanda) | 2 (Usuarios) | S | ✅ |
 | R0b-12 | Correr P-04 (ampliado por R0b-03) en PRD | — (operativo, PM) | revisión Ola 0 (2ª tanda) | PM | — | ⬜ |
 
 ---
@@ -51,6 +51,20 @@ PoC: `poc/test_repro_usuarios.py`. Lo de la API REST de usuarios está en SEC-05
 - **Propuesta:** en el `clean` de los dos forms, para operador no global, exigir al menos un rol en su alcance; alternativa: si `groups` queda vacío, `is_active=False` en el servicio con mensaje explícito. Contar las cuentas que ya están así con P-07.
 - **Tests:** el de la PoC invertido (o: la cuenta queda inactiva y el admin sigue viéndola).
 
+**Resolución:** ✅ Resuelto en #631 (Cambio 181, Ola 2 PR 2), 08-10-2026 — se aplicó la **primera**
+opción: `_validar_al_menos_un_rol` en el `clean` de los dos forms del ABM. Un operador no global que
+deja la selección vacía recibe un error de campo que además dice cuál es el camino correcto
+(«desactivá el usuario»), y ese camino quedó cubierto con su propio test: desactivar conserva el rol,
+así que la cuenta sigue apareciendo en el listado y se puede reactivar. En la **edición** la regla
+mira los roles finales, no los tildados: si el usuario conserva roles fuera del alcance del operador
+—que el guardado acotado no toca— la cuenta no queda huérfana y el guardado pasa. El admin global
+queda afuera de la regla a propósito: a él la cuenta sin roles no se le esconde. **Test permanente:**
+`users.tests.test_usuarios_ola2_pr2.G1b05CuentaSinRolTests.test_admin_programa_no_puede_dejar_la_cuenta_sin_roles`
+(+ `test_el_camino_correcto_sigue_abierto_desactivar_la_cuenta`, `test_el_alta_de_un_admin_de_programa_exige_un_rol`,
+`test_el_admin_global_sigue_pudiendo_dejarla_sin_roles` y la batería por rol: anónimo, sin rol, admin
+de otro programa y superusuario). **P-07 sigue pendiente del PM:** este PR cierra la puerta, no limpia
+las cuentas que ya quedaron así.
+
 ### G1b-06 · El admin de programa borra en silencio las capacidades globales del rol al guardarlo
 **Severidad:** MEDIA · **Estado:** CONFIRMADO con test (`G1b06CapsGlobalesBorradasTests`) · **Origen:** G1b-06 · **Ola:** 2 · **Esfuerzo:** S
 - **Ubicación:** `users/forms/roles.py:138-147` (filtra `cleaned["capacidades"]` a las de programa); `users/services/roles.py:16-20`, `:95` (`group.permissions.set(...)` reemplaza todo).
@@ -66,6 +80,22 @@ PoC: `poc/test_repro_usuarios.py`. Lo de la API REST de usuarios está en SEC-05
 - **Tests:** el de la PoC invertido (302 al inicio y la clave intacta) y que con `debe_cambiar_contrasena=True` siga andando (`users/tests/test_credenciales.py`).
 - **Dependencias:** SEC-08, SEC-26.
 
+**Resolución:** ✅ Resuelto en #631 (Cambio 181, Ola 2 PR 2), 08-10-2026 — `dispatch` de
+`CambioContrasenaObligatorioView` sale por redirect si el Profile no tiene `debe_cambiar_contrasena`.
+El `fetch` silencioso ya no cambia nada: el 302 sobre un POST se convierte en GET, así que no hay
+reenvío de la clave nueva. **Desvío de la ficha:** el redirect no va al inicio sino a la pantalla de
+cambio **voluntario**, que este mismo PR crea (`users:cambiar_contrasena`,
+`user/cambiar_contrasena.html`, `PasswordChangeForm`): quien entró a propósito a cambiar su clave
+llega adonde quería, y quien no, igual no cambió nada. Esa pantalla es la que SEC-26 debía, porque el
+mismo PR saca `django.contrib.auth.urls` de la raíz y con él el `/password_change/` que contestaba
+sin plantilla; es también la única entrada nueva del shell (menú del avatar). El `Profile` lo lee de
+la caché que dejó `BackofficeSingleSessionMiddleware`, así que el gate no agrega consultas (Cambio 37
+y RED-52). **Test permanente:**
+`users.tests.test_credenciales_ola2_pr2.G2CambioClaveSinClaveActualTests.test_una_sesion_sin_clave_provisoria_no_cambia_la_clave_sin_la_actual`
+(+ `test_con_la_clave_provisoria_la_pantalla_sigue_andando`, `test_el_cambio_voluntario_exige_la_clave_actual`,
+`test_el_cambio_voluntario_con_la_clave_actual_funciona_y_no_pierde_la_sesion`, y la batería por rol:
+anónimo, sin rol y superusuario).
+
 ## BAJA
 
 ### G1b-07 · Desactivar el último rol admin: 500 si es de programa; sistema sin admin si es global
@@ -75,10 +105,72 @@ PoC: `poc/test_repro_usuarios.py`. Lo de la API REST de usuarios está en SEC-05
 - **Propuesta:** `toggle_activo` llama también `rbac.asegurar_admin_restante()` (global); la vista captura `SinAdministradorError`/`SinAdministradorProgramaError` y muestra el mensaje.
 - **Tests:** los dos de la PoC invertidos.
 
+**Resolución:** ✅ Resuelto en #631 (Cambio 181, Ola 2 PR 2), 08-10-2026 — las dos mitades.
+`RolToggleActivoView` captura `rbac.SinAdministradorError`, que es la base de
+`SinAdministradorProgramaError`, así que el 500 pasa a ser el mismo aviso que ya daban editar y
+borrar; y `toggle_activo` corre también el check **global**. **Desvío de la ficha:** el check global
+no corre en toda desactivación sino solo cuando el rol otorga alguna capacidad de
+`CAPS_ADMINISTRACION` (`_administra_el_sistema`, la contracara de `_programa_que_administra`).
+Desactivar un rol operativo no puede dejar al sistema sin admins, y correrlo igual tenía un efecto
+perverso medible: en una base que ya está sin administradores —un seed a medias, un restore— pasaba a
+no poder desactivarse **ningún** rol, con un mensaje que no explica nada. **Test permanente:**
+`users.tests.test_usuarios_ola2_pr2.G1b07ToggleRolSinAdminTests.test_desactivar_el_unico_rol_admin_de_un_programa_avisa_y_no_rompe`
+(+ `test_desactivar_el_unico_rol_admin_global_no_deja_el_sistema_sin_nadie`,
+`test_con_otro_admin_global_la_desactivacion_sigue_andando`,
+`test_un_rol_operativo_se_desactiva_sin_consultar_administradores`, `test_sin_capacidad_y_anonimo_no_togglean`).
+
 ### G1b-08 · Claves tipeadas por un operador sin validadores ni cambio obligatorio
 **Severidad:** BAJA · **Estado:** CONFIRMADO (lectura) · **Origen:** G1b-08 · **Ola:** 2 (con SEC-26) · **Esfuerzo:** S
 - **Ubicación:** `users/forms/__init__.py:313-325`, `:400-408` (`CharField` sin `validate_password`); `users/services/admin.py:65-67` (`set_password` sin marcar `debe_cambiar_contrasena`).
 - **Propuesta:** `clean_password` con `validate_password`; al fijar la clave de **otro** usuario, `debe_cambiar_contrasena=True` (cuidado con el `Profile` cacheado, Cambio 37).
+
+**Resolución:** ✅ Resuelto en #631 (Cambio 181, Ola 2 PR 2), 08-10-2026 — `_validar_clave_tipeada`
+corre `validate_password` en el `clean` de los dos forms del ABM (vacío sigue significando «no
+cambiar», así que no valida nada de más), y `_marcar_cambio_obligatorio` pone
+`debe_cambiar_contrasena=True` cuando la clave la tipeó **otro**. Se escribe sobre el Profile
+cacheado y se sincroniza `fields_cache`, que es lo que la segunda parte de RED-52 —en este mismo
+PR— deja de arreglar por accidente. **Dos detalles code-first que la ficha no tenía:** (a) si el
+operador se cambia la clave a sí mismo desde el ABM no se marca nada, porque ya la conoce; (b) el
+campo `password` del form de **edición** existe pero `user_form.html` no lo renderiza (solo lo
+muestra en el alta), así que por pantalla esa clave hoy se tipea únicamente al dar de alta sin
+correo —el validador igual hace falta, porque el campo sigue aceptando el POST—.
+
+**Corregido en la ronda 2: el usuario de campo.** La marca `debe_cambiar_contrasena` la cobra el
+backoffice, y a quien solo tiene `becas.campo` el backoffice no le pide nada —el login web lo rechaza
+y `/api/becas/auth/token/` no mira el flag—, así que sobre él quedaba puesta y no la hacía cumplir
+nadie: la clave que tipeaba el operador le quedaba vigente para siempre. Es el mismo agujero que D-26
+(b) cerró para el alta **con** correo mandando un link de reseteo, y que por la puerta de al lado
+—alta **sin** correo— seguía abierto. Se cierra por donde corresponde, que es el alta y no la marca:
+`_validar_correo_de_entrega` le **exige correo a un usuario de campo** (`rbac.roles_solo_campo`, la
+misma pregunta que `es_solo_campo` pero sobre los roles tildados, porque en el alta el usuario todavía
+no existe), ya que el link es la única vía por la que le puede llegar una clave que el operador no
+conozca. Para el resto nada cambia: sin correo la clave la sigue tipeando el operador y vale un solo
+ingreso. La marca se escribe igual sobre el usuario de campo, por si mañana suma un rol de backoffice.
+
+**Cerrado en la ronda 3: la edición era el camino de atrás.** Con el alta tapada quedaba una ruta de
+dos pasos hacia el mismo estado: se daba de alta un usuario **mixto** sin correo —legítimo, porque
+tiene otra capacidad y el backoffice sí le va a pedir cambiar la clave al entrar— y después se lo
+editaba destildándole el rol que no era de campo. La cuenta terminaba solo-campo, sin correo y con la
+clave que tipeó el operador, vigente para siempre. `_validar_correo_de_entrega_al_editar` rechaza esa
+edición con el mismo mensaje del alta, y mira la **transición**, no el estado final: los territoriales
+sin correo que ya existen se tienen que poder seguir editando (cambiarle el nombre a uno de ellos
+sigue andando), porque si no quedaban congelados hasta que alguien les cargara un correo. Los roles
+con los que la cuenta queda se calculan como los calcula el guardado —un admin de programa conserva
+los roles fuera de su alcance—, y la regla de la clave del alta no se aplica acá: en la edición el
+campo vacío significa «no la cambies». En el **alta rápida** de Becas el modal pasa a marcar el correo
+como obligatorio cuando el tipo es `territorial`, y la ayuda de la clave dice lo que de verdad pasa:
+al territorial le llega un enlace para fijarla él.
+
+**Test permanente:**
+`users.tests.test_usuarios_ola2_pr2.G1b08ClaveTipeadaTests.test_fijarle_la_clave_a_otro_obliga_a_cambiarla`
+(+ `test_el_alta_rechaza_una_clave_que_no_pasa_los_validadores`,
+`test_la_edicion_rechaza_una_clave_que_no_pasa_los_validadores`,
+`test_cambiarse_la_propia_clave_desde_el_abm_no_obliga_a_nada`, `test_una_edicion_sin_clave_no_toca_el_flag`;
+`users.tests.test_credenciales_ola2_pr2.AltaDeUsuarioDeCampoTests` ×5, encabezada por
+`test_el_alta_de_un_usuario_de_campo_sin_correo_se_rechaza`;
+`users.tests.test_credenciales_ola2_pr2.EdicionHaciaUsuarioDeCampoTests` ×4, encabezada por
+`test_sacarle_el_rol_de_backoffice_a_un_mixto_sin_correo_se_rechaza` y con
+`test_un_territorial_sin_correo_que_ya_existia_se_sigue_pudiendo_editar` como contracara).
 
 ### G1b-09 · «Último administrador» salteable con dos operaciones simultáneas
 **Severidad:** BAJA · **Estado:** PLAUSIBLE (sin repro de concurrencia) · **Origen:** G1b-09 · **Ola:** 7 · **Esfuerzo:** M
@@ -176,6 +268,15 @@ Observaciones MINOR del revisor de #539 (SEC-03, Cambio 110) y un seguimiento op
 - **Propuesta:** renderizar `{{ form.<campo>.help_text }}` debajo de cada campo (con el estilo de ayuda del sistema de diseño), o un aviso único arriba del bloque cuando `not form.credenciales_editables`. V-UI.
 - **Test:** GET de la edición de un usuario multiprograma por un admin de programa contiene el texto del aviso.
 
+**Resolución:** ✅ Resuelto en #631 (Cambio 181, Ola 2 PR 2), 08-10-2026 — `user_form.html` renderiza
+el `help_text` de `username`, `email` y `password` con la pieza de ayuda del sistema (`mt-1 text-xs
+text-body-subtle`, la misma de `components/_field.html`), condicionada a que el campo tenga ayuda:
+en el alta no aparece nada y en la edición bloqueada aparece el aviso de SEC-03 debajo de cada campo
+gris. Se eligió el `help_text` por campo y no un aviso único arriba del bloque porque es el texto que
+el form **ya** escribe y así no quedan dos lugares diciendo lo mismo. **Test permanente:**
+`users.tests.test_usuarios_ola2_pr2.R0b01AvisoDeCredencialesTests.test_el_formulario_muestra_por_que_el_usuario_y_el_correo_estan_grises`
+(+ `test_con_todos_los_roles_en_alcance_no_hay_aviso`).
+
 ### R0b-02 · SEC-03: un rol desactivado no cuenta como fuera de alcance
 **Severidad:** BAJA (MINOR del revisor de #539) · **Estado:** CONFIRMADO (lectura) · **Origen:** revisión de la Ola 0, 2ª tanda · **Ola:** 2 (PR 2, Usuarios) · **Esfuerzo:** S
 - **Ubicación:** `users/selectors/usuarios.py:145-147` (`puede_gestionar_credenciales` hace `.exclude(meta__activo=False)`: un rol inactivo de otro programa no frena).
@@ -183,10 +284,32 @@ Observaciones MINOR del revisor de #539 (SEC-03, Cambio 110) y un seguimiento op
 - **Propuesta:** contar los roles inactivos como fuera de alcance (sacar el `exclude`), o fijar la decisión contraria en `requerimientos.md` con este escenario.
 - **Test:** usuario con rol de Becas + rol inactivo de otro programa → el admin de Becas no edita credenciales.
 
+**Resolución:** ✅ Resuelto en #631 (Cambio 181, Ola 2 PR 2), 08-10-2026 — `puede_gestionar_credenciales`
+pasa a comparar contra un alcance propio, `alcance_roles_ids_credenciales`, que son los roles de los
+programas que el operador administra **sin filtrar por `activo`**. **Desvío de la ficha:** la
+propuesta literal era «sacar el `exclude`», y eso hacía además que un rol desactivado **del propio
+programa** sacara de alcance: un admin de Becas no podía tocar las credenciales de su propio usuario
+porque alguien le había desactivado un rol de Becas. El criterio que queda separa las dos preguntas
+—qué puede **asignar** (solo roles activos, `alcance_roles_ids`, sin cambios) y qué roles **no lo
+exceden** (los de sus programas, activos o no)—, que es lo que el escenario de la ficha describe.
+**Test permanente:**
+`users.tests.test_usuarios_ola2_pr2.R0b02RolDesactivadoFueraDeAlcanceTests.test_un_rol_inactivo_de_otro_programa_frena_las_credenciales`
+(+ `test_un_rol_inactivo_del_propio_programa_no_frena_nada`, `test_el_admin_global_no_tiene_restriccion`).
+
 ### R0b-03 · P-04 no cubre roles Backoffice/Sistema sin programa
 **Severidad:** BAJA (MINOR del revisor de #539) · **Estado:** CONFIRMADO (lectura) · **Origen:** revisión de la Ola 0, 2ª tanda · **Ola:** 2 (PR 2, Usuarios; conviene hacerlo antes de R0b-12) · **Esfuerzo:** S
 - **Ubicación:** README §3, P-04: la primera consulta hace `JOIN programas_programa` (descarta los roles sin programa) y la segunda `JOIN users_rolmeta` (descarta los grupos sin `RolMeta`, que `puede_gestionar_credenciales` cuenta como fuera de alcance).
 - **Propuesta:** `LEFT JOIN` a `programas_programa` y a `users_rolmeta` y listar, por usuario activo con algún rol de programa, cuántos roles de categoría Backoffice/Sistema (programa nulo) y cuántos grupos sin `RolMeta` tiene: son las cuentas cuyas credenciales el admin de programa dejó de poder tocar con SEC-03.
+
+**Resolución:** ✅ Resuelto en #631 (Cambio 181, Ola 2 PR 2), 08-10-2026 — P-04 reescrita en el
+README §3 con los dos `LEFT JOIN` y columnas nuevas `roles_sin_programa` y `roles_sin_meta`. Se le
+sumó `roles_desactivados`, que la ficha no pedía pero que R0b-02 vuelve relevante en el mismo
+release: desde este PR un rol desactivado de otro programa también saca de alcance, así que esas
+cuentas entran en la misma lista que el PM tiene que revisar. Es SQL de solo lectura: lo corre el PM
+(R0b-12), no este PR. **Test permanente:**
+`core/tests/test_contrato_auditoria.py::PrechequeoP04Tests.test_las_dos_consultas_llegan_a_rolmeta_y_a_programa_con_left_join`
+(+ `test_la_segunda_consulta_lista_las_cuentas_que_quedaban_invisibles`): la ficha no deja código, así
+que el candado es sobre el README, que es su única superficie.
 
 ### R0b-10 · Listado de usuarios: editar y activar/desactivar visibles para usuarios no gestionables
 **Severidad:** BAJA (MINOR del revisor de #539) · **Estado:** CONFIRMADO (lectura) · **Origen:** revisión de la Ola 0, 2ª tanda · **Ola:** 2 (PR 2, Usuarios) · **Esfuerzo:** S
@@ -194,6 +317,27 @@ Observaciones MINOR del revisor de #539 (SEC-03, Cambio 110) y un seguimiento op
 - **Escenario:** el admin de programa ve los botones sobre un superusuario o un multiprograma; al usarlos recibe redirect con aviso (el servidor ya rechaza).
 - **Propuesta:** anotar por fila `gestionable` y `credenciales_editables` en la vista del listado (en lote, sin N+1) y esconder o deshabilitar los botones. V-UI.
 - **Test:** el listado de un admin de programa no tiene la URL de edición ni de toggle de un superusuario.
+
+**Resolución:** ✅ Resuelto en #631 (Cambio 181, Ola 2 PR 2), 08-10-2026 —
+`anotar_acciones_del_listado(operador, usuarios)` marca `gestionable` y `credenciales_editables` en
+cada fila de la página y `user_list.html` esconde el lápiz y el interruptor según esas dos marcas
+(con «Fuera de tu alcance» cuando no hay ninguna acción posible). La anotación es **en lote**: los
+roles salen del `prefetch_related("groups")` que el listado ya hace y las capacidades de cada rol se
+resuelven con cuatro consultas acotadas a los roles que aparecen en la página, nunca una por fila.
+Cubre las tres ramas de alcance —admin global, admin de programa y gestor territorial de Becas—, que
+es donde estaba el riesgo de que la pantalla y el servidor dijeran cosas distintas. El servidor sigue
+siendo la autoridad: `puede_gestionar_usuario` y `puede_gestionar_credenciales` no se tocaron.
+**Ajuste de la ronda 2:** la leyenda «Fuera de tu alcance» faltaba en una de las dos ramas. Con
+`gestionable=True` y `credenciales_editables=False` —el multiprograma: editar sí, activar no— la celda
+quedaba con el lápiz y **nada más**, y la ausencia del interruptor no se explicaba sola. Ahora también
+ahí va la leyenda. Se sumó una consulta a la anotación (`tiene_token_app`), para «Cerrar sesión de la
+app» de SEC-26: el techo del test pasa de 15 a 16.
+**Test permanente:**
+`users.tests.test_usuarios_ola2_pr2.R0b10BotonesDelListadoTests.test_el_listado_no_ofrece_editar_ni_togglear_a_un_superusuario`
+(+ `test_el_listado_no_ofrece_togglear_a_un_multiprograma` —editar sí, togglear no, que es
+exactamente la asimetría de SEC-03—, `test_sobre_un_usuario_propio_siguen_estando_los_dos_botones`,
+`test_el_admin_global_sigue_viendo_todos_los_botones` y
+`test_la_anotacion_no_consulta_una_vez_por_fila`, con el techo de consultas sobre 12 filas).
 
 ### R0b-12 · Correr P-04 en PRD (operativo, PM)
 **Severidad:** — (operativo, sin código) · **Origen:** #539 (Cambio 110) · **Ola:** PM · **Esfuerzo:** —

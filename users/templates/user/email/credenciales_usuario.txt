@@ -4,13 +4,24 @@ Se creó tu cuenta en el backoffice de DATAÑACH. Estos son tus datos de acceso.
 
 Usuario: {{ user.username }}
 {% if rol %}Rol: {{ rol }}
-{% endif %}Contraseña provisoria: {{ password_provisoria }}
+{% endif %}{% if enlace_establecer %}
+Definí tu contraseña con este enlace:
+{{ enlace_establecer }}
+
+El enlace es válido por 24 horas y puede usarse una sola vez. Después entrás a la
+aplicación de campo con tu usuario y la contraseña que elijas; si se te vence,
+pedí uno nuevo desde "Olvidé mi contraseña".
+
+No compartas este enlace con nadie. El equipo de DATAÑACH nunca te va a pedir tu
+clave por correo ni por teléfono.
+{% else %}Contraseña provisoria: {{ password_provisoria }}
 
 Ingresá en {{ enlace_login }}
 El sistema te va a pedir que cambies la contraseña en tu primer ingreso.
 
 No compartas esta contraseña con nadie. El equipo de DATAÑACH nunca te va a pedir
 tu clave por correo ni por teléfono.
+{% endif %}
 
 ---
 Gobierno de la Provincia del Chaco — Ministerio de Desarrollo Social

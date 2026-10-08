@@ -41,6 +41,16 @@ def _sincronizar_alcance_dispositivos(group, dispositivos):
             asignacion.save(update_fields=["activo", "modificado"])
 
 
+def _administra_el_sistema(group):
+    """¿Este rol otorga alguna capacidad de administración **global**?
+
+    La contracara de :func:`_programa_que_administra` para el check sin programa
+    (G1b-07): desactivar un rol así deja de otorgar `usuario.administrar` /
+    `rol.administrar`, igual que borrarlo.
+    """
+    return not set(rbac.CAPS_ADMINISTRACION).isdisjoint(rbac.capacidades_de_grupo(group))
+
+
 def _programa_que_administra(group):
     """Programa que este rol administra hoy, o ``None``.
 
@@ -125,10 +135,21 @@ class RolesAdminService:
         programa_admin = _programa_que_administra(group)
         meta.activo = not meta.activo
         meta.save(update_fields=["activo"])
-        # Desactivar un rol de programa SÍ deja de otorgar su capacidad de administración:
-        # si era el último admin de ese programa, revierte.
-        if not meta.activo and programa_admin is not None:
-            rbac.asegurar_admin_restante(programa=programa_admin)
+        # Desactivar un rol SÍ deja de otorgar sus capacidades (`rbac.puede` solo
+        # mira roles activos), así que la desactivación vale lo mismo que borrarlo
+        # a los efectos de quedarse sin administradores: se corren los dos checks,
+        # el global y el del programa (G1b-07). Faltaba el global, y desactivar el
+        # único rol no protegido con `usuario.administrar` dejaba el sistema sin
+        # nadie que pudiera volver a tocar usuarios ni roles.
+        if not meta.activo:
+            # El check global solo si este rol es de los que otorgan administración:
+            # desactivar un rol operativo no puede dejar al sistema sin admins, y
+            # correrlo igual convertiría un sistema ya mal configurado (cero admins)
+            # en uno donde tampoco se puede desactivar un rol cualquiera.
+            if _administra_el_sistema(group):
+                rbac.asegurar_admin_restante()
+            if programa_admin is not None:
+                rbac.asegurar_admin_restante(programa=programa_admin)
         return meta.activo
 
     @staticmethod
