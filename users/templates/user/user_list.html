@@ -64,14 +64,19 @@
               {% endif %}
             </td>
             <td class="nodo-td text-right">
+              {# R0b-10: sin alcance sobre la cuenta no se ofrece el botón; el servidor ya lo rechazaba. #}
               <div class="inline-flex items-center gap-1">
+                {% if user.gestionable %}
                 <a href="{% url 'users:usuario_editar' user.pk %}" class="nodo-icon-btn"
                    aria-label="Editar {{ user.username }}">
                   <i class="fas fa-pen" aria-hidden="true"></i>
                 </a>
+                {% endif %}
                 {% if user.pk == request.user.pk %}
                 <span class="text-xs text-body-subtle">Vos</span>
-                {% else %}
+                {% elif not user.gestionable %}
+                <span class="text-xs text-body-subtle">Fuera de tu alcance</span>
+                {% elif user.credenciales_editables %}
                 {% if user.is_active %}
                 <button type="button" class="nodo-icon-btn" aria-label="Desactivar {{ user.username }}"
                         onclick="confirmarToggleUsuario('{{ user.pk }}', '{{ user.username|escapejs }}', true)">

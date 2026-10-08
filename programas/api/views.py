@@ -20,6 +20,7 @@ from rest_framework.response import Response
 from rest_framework.routers import APIRootView
 
 from core.rbac import puede
+from core.services.throttle import rate_limit_bloqueado, rate_limit_excedido
 from programas.api.serializers import (
     AdjuntoFormularioSerializer,
     ConsultaPersonaRespuestaSerializer,
@@ -91,11 +92,42 @@ class CampoBecasPermission(BasePermission):
 
 
 class ObtainCampoToken(ObtainAuthToken):
-    """Login de la app de campo: valida credenciales y exige ``becas.campo``."""
+    """Login de la app de campo: valida credenciales y exige ``becas.campo``.
+
+    SEC-26 · el límite de intentos es **por usuario y sin mirar la IP**. Es a
+    propósito y es lo contrario de lo que haría un ``ScopedRateThrottle``: los
+    territoriales entran desde datos móviles, detrás del NAT del operador, así que
+    una cubeta por IP le cerraría la app a una región entera por los errores de
+    tipeo de una persona. La fuerza bruta, además, apunta a una cuenta, no a una
+    IP. Solo cuentan los intentos fallidos.
+    """
+
+    TOKEN_VENTANA_SEGUNDOS = 600
+    TOKEN_MAX_POR_USUARIO = 10
 
     def post(self, request, *args, **kwargs):
+        usuario_pedido = str(request.data.get("username") or "").strip().lower()
+        if usuario_pedido and rate_limit_bloqueado(
+            request, "token_campo", self.TOKEN_MAX_POR_USUARIO, sufijo=usuario_pedido, incluir_ip=False
+        ):
+            return Response(
+                {"detail": "Demasiados intentos fallidos. Esperá unos minutos antes de volver a probar."},
+                status=status.HTTP_429_TOO_MANY_REQUESTS,
+            )
         serializer = self.serializer_class(data=request.data, context={"request": request})
-        serializer.is_valid(raise_exception=True)
+        try:
+            serializer.is_valid(raise_exception=True)
+        except ValidationError:
+            if usuario_pedido:
+                rate_limit_excedido(
+                    request,
+                    "token_campo",
+                    self.TOKEN_MAX_POR_USUARIO,
+                    self.TOKEN_VENTANA_SEGUNDOS,
+                    sufijo=usuario_pedido,
+                    incluir_ip=False,
+                )
+            raise
         user = serializer.validated_data["user"]
         if not puede(user, CAP):
             return Response(

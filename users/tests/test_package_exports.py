@@ -22,10 +22,12 @@ class UsersPackageExportsTests(SimpleTestCase):
         self.assertTrue(callable(get_usuarios_queryset))
 
     def test_signals_package_exports_receivers(self):
-        from users.signals import create_user_profile, save_user_profile
+        # `save_user_profile` se retiró en la Ola 2 (RED-52): el Profile lo guarda
+        # quien lo escribe, no un `post_save(User)` que propaga el objeto entero.
+        from users.signals import create_user_profile, revocar_tokens_al_cambiar_la_clave
 
         self.assertTrue(callable(create_user_profile))
-        self.assertTrue(callable(save_user_profile))
+        self.assertTrue(callable(revocar_tokens_al_cambiar_la_clave))
 
     def test_api_views_package_exports_la_vista_de_me(self):
         # Los ViewSets de usuarios, roles y perfiles se retiraron (D-05 de la

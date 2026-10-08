@@ -679,7 +679,8 @@ class SegmentoTerritorialABMTests(TestCase):
         data = {
             "username": "terri_abm",
             "email": "terri@example.com",
-            "password": "x12345",
+            # G1b-08: la clave que tipea el operador pasa por `AUTH_PASSWORD_VALIDATORS`.
+            "password": "Clave-Territorial-2026",
             "first_name": "Terri",
             "last_name": "ABM",
             "groups": [str(self.rol_territorial.pk)],

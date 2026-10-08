@@ -165,7 +165,9 @@ class RolToggleActivoView(_RolesPermMixin, View):
             return _fuera_de_alcance(request)
         try:
             activo = RolesAdminService.toggle_activo(group)
-        except RolProtegidoError as exc:
+        # `SinAdministradorProgramaError` hereda de `SinAdministradorError`: las dos
+        # entran acá. Sin este `except` la excepción subía como 500 (G1b-07).
+        except (RolProtegidoError, rbac.SinAdministradorError) as exc:
             messages.error(request, str(exc))
             return redirect("users:roles")
         messages.success(request, "Rol activado." if activo else "Rol desactivado.")

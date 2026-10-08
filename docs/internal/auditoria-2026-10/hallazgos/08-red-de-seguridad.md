@@ -91,7 +91,7 @@ con lo que existe hoy; la lista solo baja.
 | RED-49 | `cupo_disponible` significa tres cosas y dos pantallas lo rotulan igual | MEDIA | CONF. lectura | R (+4) | S (+S) | ✅ |
 | RED-50 | La edad (RN-22) está cuatro veces y tres usan `date.today()` (UTC en los contenedores) | MEDIA | CONF. lectura | R (+3) | S (+S-M) | ✅ |
 | RED-51 | Dos `invalidate_dashboard_cache`; `stats_legajos` colgado del modelo equivocado | MEDIA | CONF. lectura | R (+4) | S (+S) | ✅ (R; falta Ola 4) |
-| RED-52 | Contrato implícito por `user._state.fields_cache["profile"]` | MEDIA | CONF. lectura | R (+2) | S (+S) | ✅ (R; falta Ola 2) |
+| RED-52 | Contrato implícito por `user._state.fields_cache["profile"]` | MEDIA | CONF. lectura | R (+2) | S (+S) | ✅ |
 | RED-53 | Clones literales entre los comandos SIIS y entre las vistas de padrón | MEDIA | CONF. test (pylint + AST) | 1 (+5) | S-M (+S) | ✅ |
 | RED-54 | `revision.py` (1.331 líneas): ningún test fija el contexto del detalle | MEDIA | CONF. test (radon) | R (+7) | S-M (+M) | ✅ (R; falta Ola 7) |
 | RED-55 | Los context processors corren en cada render y tragan toda excepción sin log | MEDIA | CONF. lectura | R | S | ✅ |
@@ -1547,6 +1547,25 @@ rojo. De paso quedó corregido el docstring, que atribuía la exención al usuar
 el código es por path (los tokens de DRF se resuelven dentro de la vista, pero eso no es lo que el gate mira).
 **Test permanente:** `users.tests.test_middleware_profile.ProfileEnCacheTests.test_user_save_no_pisa_la_clave_de_sesion_de_otro_login`
 (y `.test_un_login_pisa_el_flag_de_clave_provisoria`, `OrdenMiddlewareTests.test_single_session_va_antes_que_cambio_de_clave`).
+
+**Resolución:** ✅ (segunda parte, Ola 2) Resuelta en #NNN (Cambio 181, Ola 2 PR 2), 08-10-2026 —
+`save_user_profile` **se borró**, no se acotó con `update_fields`. Acotarlo dejaba en pie el patrón
+(«el Profile se propaga solo en algún `User.save()`») sin que nadie lo use: los cuatro llamadores que
+escriben el Profile —`users/middleware.py`, `users/services/admin.py`, `users/services/correo.py` e
+`import_users_from_csv`— ya lo guardan explícitos con `update_fields`, y el único lector de
+`user.profile` fuera de ahí (`users/presentation.py`) solo lee. Los dos `expectedFailure` pasaron a
+verdes y el andamio `test_hoy_el_user_save_propaga_el_profile_entero` se reemplazó por
+`test_el_user_save_ya_no_propaga_el_profile_entero`, que fija el contrato nuevo en la dirección
+contraria: si alguien reintroduce el receiver —parece prolijidad—, se pone rojo antes de que vuelva
+el *lost update*. `test_sin_profile_en_la_cache_el_user_save_no_consulta` sigue en pie: la
+optimización que el receiver sí aportaba se conserva trivialmente.
+**Lo que destapó, y que ningún test miraba:** `programas/tests/test_padron.py::UnaSolaPuertaDePadronTests`
+abría varios `Client` sobre el mismo usuario y pasaba **gracias al bug** —`force_login` no escribe
+`backoffice_session_key`, y el receiver reponía el valor viejo del objeto cacheado, de modo que
+`BackofficeSingleSessionMiddleware` adoptaba cada sesión nueva—. Sin el receiver, el segundo cliente
+recibe «Tu sesión fue reemplazada», que es el comportamiento real del producto. El test ahora escribe
+la clave de sesión como lo hace `UsuariosLoginView.form_valid`.
+**Test permanente (Ola 2):** `users.tests.test_middleware_profile.ProfileEnCacheTests.test_el_user_save_ya_no_propaga_el_profile_entero`.
 
 ### RED-53 · Clones literales entre los comandos SIIS y entre las vistas de padrón
 **Severidad:** MEDIA · **Estado:** CONFIRMADO con test (pylint `R0801`: 14 grupos a 5 líneas; AST: 15 grupos, peso máximo 128) · **Origen:** RS-R4-16 (VR2: CONFIRMADO) · **Ola:** 1 (comandos, dentro del PR 2 o 3) + 5 (vistas) · **Esfuerzo:** S-M (4 h) + S (2 h)

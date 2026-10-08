@@ -1,9 +1,12 @@
-from django.contrib.auth.views import LogoutView, PasswordResetConfirmView, PasswordResetDoneView, PasswordResetView
+from django.contrib.auth.views import LogoutView, PasswordResetDoneView
 from django.urls import path, reverse_lazy
 
 from users.services.correo import contexto_pie
 from users.views import (
     CambioContrasenaObligatorioView,
+    CambioContrasenaVoluntarioView,
+    EstablecerContrasenaView,
+    RecuperarContrasenaView,
     RolCreateView,
     RolDeleteView,
     RolDetailView,
@@ -26,7 +29,7 @@ urlpatterns = [
     path("logout", (LogoutView.as_view()), name="logout"),
     path(
         "recuperar-contrasena/",
-        PasswordResetView.as_view(
+        RecuperarContrasenaView.as_view(
             template_name="user/recuperar_contrasena.html",
             email_template_name="user/email/recupero_contrasena.txt",
             html_email_template_name="user/email/recupero_contrasena.html",
@@ -43,6 +46,13 @@ urlpatterns = [
         CambioContrasenaObligatorioView.as_view(),
         name="cambiar_contrasena_obligatorio",
     ),
+    # Cambio voluntario, con la clave actual (G2-03). Reemplaza al
+    # `/password_change/` de `django.contrib.auth.urls`, que ya no se incluye.
+    path(
+        "cambiar-contrasena/propia/",
+        CambioContrasenaVoluntarioView.as_view(),
+        name="cambiar_contrasena",
+    ),
     path(
         "recuperar-contrasena/enviada/",
         PasswordResetDoneView.as_view(template_name="user/recuperar_contrasena_enviada.html"),
@@ -50,7 +60,7 @@ urlpatterns = [
     ),
     path(
         "establecer-contrasena/<uidb64>/<token>/",
-        PasswordResetConfirmView.as_view(
+        EstablecerContrasenaView.as_view(
             template_name="user/establecer_contrasena.html",
             success_url=reverse_lazy("users:login"),
         ),

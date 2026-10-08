@@ -1,5 +1,11 @@
 # Auditoría integral de DATAÑACH (Chaco) — octubre 2026
 
+## Estado al 08-oct-2026 (Ola 2, PR 2: usuarios y credenciales)
+
+| PR | Cambio | Fichas | Estado | Qué quedó abierto |
+|---|---|---|---|---|
+| Ola 2 PR 2 (#NNN) | 181 | G1b-05 ✅ · G1b-07 ✅ · G1b-08 ✅ · G2-03 ✅ · SEC-26 🟡 · R0b-01 ✅ · R0b-02 ✅ · R0b-03 ✅ · R0b-10 ✅ · RED-52 ✅ (parte Ola 2) | ✅ | **Las 8 fichas del ítem 2 (24 h) más la segunda parte de RED-52 del ítem 9 (2 h), sin migraciones.** El hilo común es que **una cuenta se podía tomar sin conocer su clave, por cuatro puertas distintas**, y las cuatro se cierran: `/cambiar-contrasena/` cambiaba la clave de **cualquier** sesión abierta sin pedir la actual (G2-03), y ahora solo existe mientras la clave provisoria esté sin cambiar —el cambio voluntario es una pantalla nueva que sí la pide, la primera que ese flujo tiene en el producto—; `django.contrib.auth.urls` publicaba en la raíz un `/password_change/` sin plantilla, sin link y sin límite que en el POST **igual cambiaba la clave**, y el include se fue (SEC-26); la clave que tipea un operador pasa por `AUTH_PASSWORD_VALIDATORS` y vale **un solo ingreso** (G1b-08); y el token de la app de campo, que era eterno y sobrevivía a un `set_password`, se **revoca al cambiar la clave** por cualquiera de los cuatro caminos. **D-26 = (b), el default:** al territorial se le manda un **link de reseteo** en vez de la clave en claro, porque para él la mitigación del Cambio 37 («sirve una sola vez, el primer login obliga a cambiarla») **no existe** —el login web lo rechaza y la API no mira el flag—, así que esa clave le quedaba vigente para siempre; **la app instalada no se toca**: `Chaco-mobile @ a66c2d3` ya linkea «Olvidé mi contraseña» al navegador y el contrato del token no cambia. Además: un operador no global deja de poder dejar una cuenta **activa y sin roles**, que entraba al backoffice y desaparecía de su propio listado (G1b-05); desactivar el último rol admin pasa de **500** a un aviso (G1b-07); y los tres MINOR de la revisión de SEC-03 cierran —el aviso de los campos grises se ve (R0b-01), un rol **desactivado de otro programa** vuelve a sacar de alcance (R0b-02) y el listado no ofrece el lápiz ni el interruptor sobre cuentas que el servidor va a rechazar, anotado en lote (R0b-10)—. **Cuatro desvíos, los cuatro code-first:** (a) el rate limit cuenta **solo los intentos fallidos** y la cubeta que importa es la de usuario sin IP, porque una repartición sale por una IP única y los territoriales por el NAT del operador móvil; (b) el check global de «último admin» corre solo si el rol **otorga** administración, para no trabar un sistema que ya está sin admins; (c) R0b-02 se resolvió separando «qué puedo asignar» de «qué roles no me exceden», y no sacando el `exclude` a secas, que dejaba a un admin sin poder tocar a los suyos; (d) RED-52 se cerró **borrando** `save_user_profile`, no acotándolo. **Riesgo de deploy:** sin migraciones; **los territoriales que cambien la clave tienen que volver a entrar en la app** (la app no desloguea sola ante un 401: hay que salir y entrar). **Abierto:** de SEC-26, solo su punto 6 —`/admin/` por IP, que es nginx/ingress— y, fuera de alcance, que la documentación de la API (`/api/docs/`, `/api/schema/`, `/api/redoc/`) la vea un usuario de backoffice **sin un solo rol**: lo destapó este PR al arreglar un barrido que se deslogueaba a sí mismo |
+
 ## Estado al 08-oct-2026 (Ola 2, PR 5: alcance en Becas — **arranca la Ola 2**)
 
 | PR | Cambio | Fichas | Estado | Qué quedó abierto |
@@ -1245,26 +1251,38 @@ SELECT g.id, g.name AS rol, rm.categoria, p.codigo AS programa, rm.activo
  WHERE pe.codename = 'programa_configurar';
 ```
 
-**P-04 · Superusuarios con roles de programa y usuarios multiprograma (SEC-03).** *(03-oct: no cubre roles
-Backoffice/Sistema sin programa ni grupos sin `RolMeta`: ampliarla antes de correrla, R0b-03 / R0b-12.)*
+**P-04 · Superusuarios con roles de programa y usuarios multiprograma (SEC-03).** *(Ampliada el
+08-oct-2026 por R0b-03, Cambio 181. La versión anterior hacía `JOIN programas_programa`, que descarta
+los roles **sin programa** —categorías Backoffice y Sistema—, y `JOIN users_rolmeta`, que descarta los
+grupos **sin `RolMeta`**. `puede_gestionar_credenciales` cuenta a los dos como fuera de alcance, así
+que eran justamente las cuentas que el pre-chequeo tenía que encontrar y no encontraba. Van con
+`LEFT JOIN`. Desde el Cambio 181 un rol **desactivado** de otro programa también saca de alcance
+(R0b-02), por eso la segunda consulta ya no filtra `rm.activo = 1`.)*
 ```sql
-SELECT u.id, u.username, g.name AS rol, p.codigo AS programa
+-- (1) Superusuarios activos con algún rol: si el rol tiene programa, lo nombra.
+SELECT u.id, u.username, g.name AS rol, COALESCE(p.codigo, rm.categoria, 'SIN ROLMETA') AS alcance
   FROM auth_user u
   JOIN auth_user_groups ug ON ug.user_id = u.id
   JOIN auth_group g ON g.id = ug.group_id
-  JOIN users_rolmeta rm ON rm.grupo_id = g.id AND rm.activo = 1
-  JOIN programas_programa p ON p.id = rm.programa_id
+  LEFT JOIN users_rolmeta rm ON rm.grupo_id = g.id
+  LEFT JOIN programas_programa p ON p.id = rm.programa_id
  WHERE u.is_active = 1 AND u.is_superuser = 1;
 
+-- (2) Cuentas activas que un admin de programa deja de poder editar: multiprograma,
+--     con rol global, con rol Backoffice/Sistema (programa nulo) o con un grupo sin
+--     `RolMeta`. `roles_sin_meta` y `roles_sin_programa` son las dos que R0b-03 agregó.
 SELECT u.id, u.username,
-       COUNT(DISTINCT rm.programa_id) AS programas,
-       SUM(rm.programa_id IS NULL)    AS roles_globales
+       COUNT(DISTINCT rm.programa_id)                       AS programas,
+       SUM(rm.id IS NOT NULL AND rm.programa_id IS NULL)    AS roles_sin_programa,
+       SUM(rm.id IS NULL)                                   AS roles_sin_meta,
+       SUM(rm.id IS NOT NULL AND rm.activo = 0)             AS roles_desactivados
   FROM auth_user u
   JOIN auth_user_groups ug ON ug.user_id = u.id
-  JOIN users_rolmeta rm ON rm.grupo_id = ug.group_id AND rm.activo = 1
+  LEFT JOIN users_rolmeta rm ON rm.grupo_id = ug.group_id
  WHERE u.is_active = 1
  GROUP BY u.id, u.username
-HAVING programas > 1 OR (programas >= 1 AND roles_globales >= 1);
+HAVING programas > 1 OR roles_sin_programa > 0 OR roles_sin_meta > 0
+    OR (programas >= 1 AND roles_desactivados > 0);
 ```
 
 **P-05 · ¿El deploy del 28/09 borró las capacidades tildadas a mano? (OPS-06).** Roles de Becas con
@@ -1921,7 +1939,10 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
   1. *Catálogo y roles:* SEC-06 (catálogo + migración de datos + exports + masivo + RENAPER pendientes), SEC-07
      (`puede_sin_programa`), G1b-02, G1b-06 y la **fase 2 de OPS-06** (`RolMeta.clave`, con migración; viene de la
      Ola 0). 26 h.
-  2. *Usuarios:* G1b-05, G1b-07, G1b-08, SEC-26, G2-03, R0b-01, R0b-02, R0b-03, R0b-10 (seguimientos de SEC-03). 24 h.
+  2. ✅ *Usuarios:* G1b-05, G1b-07, G1b-08, SEC-26, G2-03, R0b-01, R0b-02, R0b-03, R0b-10 (seguimientos
+     de SEC-03). 24 h. **Cerrado el 08-oct-2026 (Cambio 181)**, con **D-26 = (b)** aplicada por default
+     (link de reseteo para el territorial, sin release de la app) y **sin migraciones**. De SEC-26 queda
+     abierto solo su punto 6, `/admin/` por IP, que es nginx/ingress y va con G1c-10 (ítem 8) y el PM.
   3. *Legajos:* **SEC-12**, el ascenso de `ciudadano.ver` a `ciudadano.sensible` en las tres rutas sensibles de
      **SEC-11** (D-11: `timeline_ciudadano_api`, `alertas_ciudadano_api`, `prediccion_riesgo_api`), R0b-04 (+ R0b-05),
      R0b-09. 7 h. ⬅ **SEC-10 completa, SEC-18 completa (+ R0b-06) y SEC-11 con `ciudadano.ver` de piso en sus cinco
@@ -1938,8 +1959,10 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
   9. 🟡 *Red de seguridad (04-oct):* RED-80 (cache de `programa_*`, con el PR 1), segunda parte de RED-52 (`save_user_profile`
      explícito, con el PR 2) y de RED-79 (mover los guards de alcance y constantes a `autorizacion.py`, con el PR 5). 6 h.
      **✅ RED-79 cerrada el 08-oct-2026 (Cambio 177, PR 5): 2 h.** Los dos ratchets bajaron en el mismo PR —aristas
-     vista→vista de 9 a 7 y ciclos de 6 a 5—, que es la mitad que el test mide hacia abajo. Quedan RED-80 (PR 1) y
-     RED-52 (PR 2): 4 h.
+     vista→vista de 9 a 7 y ciclos de 6 a 5—, que es la mitad que el test mide hacia abajo.
+     **✅ RED-52 cerrada el 08-oct-2026 (Cambio 181, PR 2): 2 h.** `save_user_profile` se borró (no se acotó con
+     `update_fields`): los cuatro llamadores reales ya guardaban el Profile explícitos, y los dos `expectedFailure`
+     que dejó R-21 pasaron a verdes. Queda **RED-80** (PR 1): 2 h.
   **No hay ítem 10 de RED-89.** La medición del 04-oct no agregó trabajo nuevo a esta ola: las capacidades de las 17
   rutas que contesta un usuario sin rol **son** SEC-10, SEC-11 y SEC-18, y por D-RED-14 se hacen en R-19 salvo
   `ciudadano.sensible`, que queda en el PR 3 de arriba.

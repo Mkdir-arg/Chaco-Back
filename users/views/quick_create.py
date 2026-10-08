@@ -15,7 +15,7 @@ from programas.services.autorizacion import es_admin_becas, puede_gestionar_segm
 from users.forms import UserCreationForm
 from users.selectors.usuarios import alcance_roles_ids
 from users.services.admin import UsuariosAdminService
-from users.services.correo import entregar_credenciales_provisorias
+from users.services.correo import ENTREGA_LINK, entregar_credenciales_provisorias
 
 # Atajos de alta de los modales de Becas: tipo del botón → (rol que otorga, plural
 # para el mensaje de error). Son roles de backoffice y no llevan segmento: los da
@@ -69,8 +69,12 @@ def usuario_alta_rapida(request):
     aviso = ""
     if usuario.email:
         try:
-            entregar_credenciales_provisorias(usuario, request, rol=rol.name)
-            aviso = "Se envió el correo con la clave provisoria."
+            modalidad = entregar_credenciales_provisorias(usuario, request, rol=rol.name)
+            aviso = (
+                "Se envió el correo con el enlace para definir la contraseña."
+                if modalidad == ENTREGA_LINK
+                else "Se envió el correo con la clave provisoria."
+            )
         except Exception:
             logger.exception("El usuario fue creado, pero no se pudo enviar la clave provisoria")
             aviso = 'No se pudo enviar el correo: el usuario puede entrar con "Olvidé mi contraseña".'

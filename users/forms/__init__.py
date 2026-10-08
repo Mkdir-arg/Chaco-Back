@@ -1,6 +1,7 @@
 from django import forms
 from django.contrib.auth.models import Group, User
-from django.core.exceptions import ObjectDoesNotExist
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.utils.text import slugify
 
 from core import rbac
@@ -215,6 +216,53 @@ def _validar_jerarquia_becas(form):
     return cleaned
 
 
+def _validar_clave_tipeada(form):
+    """G1b-08: la clave que tipea un operador pasa por los mismos validadores.
+
+    `AUTH_PASSWORD_VALIDATORS` se aplicaba en el cambio de clave del propio
+    usuario y en el alta masiva por CSV, pero no acá: por el ABM entraba
+    `123` sin una sola objeción. Vacío = «no cambiar», así que no valida nada.
+    """
+    clave = form.cleaned_data.get("password")
+    if not clave:
+        return
+    try:
+        validate_password(clave, form.instance)
+    except ValidationError as exc:
+        form.add_error("password", exc)
+
+
+def _validar_al_menos_un_rol(form):
+    """G1b-05: un operador no global no deja la cuenta activa y sin ningún rol.
+
+    Destildar el único rol era el camino natural de «sacar a alguien del
+    programa», y dejaba una cuenta **viva** —el login sigue siendo válido y
+    `/inicio/` contesta 200— que además **desaparecía** del listado del admin que
+    la dejó así, porque ese listado filtra por rol de sus programas: ni
+    reactivarla ni desactivarla.
+
+    El admin global no queda alcanzado: a él la cuenta sin roles no se le
+    esconde, y es quien tiene que poder dejarla en ese estado si hace falta.
+    """
+    operador = getattr(form, "operador", None)
+    if operador is None or operador.is_superuser or rbac.puede(operador, "usuario.administrar"):
+        return
+    seleccionados = list(form.cleaned_data.get("groups") or [])
+    if seleccionados:
+        return
+    # En la edición, el guardado es acotado: los roles de fuera del alcance del
+    # operador quedan intactos y la cuenta no queda huérfana.
+    if form.instance and form.instance.pk:
+        alcance = set(_roles_asignables_queryset(operador).values_list("id", flat=True))
+        if form.instance.groups.exclude(id__in=alcance).exists():
+            return
+    form.add_error(
+        "groups",
+        "Seleccioná al menos un rol: una cuenta sin roles queda activa y fuera de tu listado. "
+        "Para sacarle el acceso, desactivá el usuario.",
+    )
+
+
 def _roles_asignables_queryset(operador=None):
     """Roles asignables a usuarios del backoffice: activos y NO de categoría Portal.
 
@@ -419,6 +467,8 @@ class UserCreationForm(RolesPorAmbitoMixin, forms.ModelForm):
         super().clean()
         _validar_dni_perfil_usuario(self)
         _validar_segmento_territorial(self)
+        _validar_clave_tipeada(self)
+        _validar_al_menos_un_rol(self)
         # Sin correo no hay forma de entregarle una clave generada: la tiene que
         # poner el operador ací.
         if not self.cleaned_data.get("email") and not self.cleaned_data.get("password"):
@@ -534,4 +584,6 @@ class CustomUserChangeForm(RolesPorAmbitoMixin, forms.ModelForm):
         super().clean()
         _validar_dni_perfil_usuario(self)
         _validar_segmento_territorial(self)
+        _validar_clave_tipeada(self)
+        _validar_al_menos_un_rol(self)
         return _validar_jerarquia_becas(self)

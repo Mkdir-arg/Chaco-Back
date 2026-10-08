@@ -15,12 +15,13 @@ from core.rbac import CapacidadRequeridaMixin
 from ..forms import CustomUserChangeForm, UserCreationForm
 from ..selectors.usuarios import (
     alcance_roles_ids,
+    anotar_acciones_del_listado,
     puede_gestionar_credenciales,
     puede_gestionar_usuario,
 )
 from ..services import UsuariosService
 from ..services.admin import UsuariosAdminService
-from ..services.correo import entregar_credenciales_provisorias
+from ..services.correo import ENTREGA_LINK, entregar_credenciales_provisorias
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +53,9 @@ class UserListView(AdminRequiredMixin, ListView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context.update(UsuariosService.get_usuarios_list_context())
+        # R0b-10: cada fila sabe si el operador puede editarla y si puede
+        # activarla/desactivarla, para no ofrecer un botón que el servidor rechaza.
+        context["users"] = anotar_acciones_del_listado(self.request.user, context["users"])
         context["hay_filtros_activos"] = bool(self.request.GET.get("filters"))
         querystring = self.request.GET.copy()
         querystring.pop("page", None)
@@ -85,8 +89,13 @@ class UserCreateView(TimestampedSuccessUrlMixin, AdminRequiredMixin, CreateView)
             # que tipeó el operador en el formulario no se usa (RN-C1). El primer
             # ingreso obliga a cambiarla (RN-C2).
             try:
-                entregar_credenciales_provisorias(self.object, self.request)
-                messages.success(self.request, "Usuario creado. Se envió el correo con la clave provisoria.")
+                modalidad = entregar_credenciales_provisorias(self.object, self.request)
+                messages.success(
+                    self.request,
+                    "Usuario creado. Se envió el correo con el enlace para definir la contraseña."
+                    if modalidad == ENTREGA_LINK
+                    else "Usuario creado. Se envió el correo con la clave provisoria.",
+                )
             except Exception:
                 logger.exception("El usuario fue creado, pero no se pudo enviar la clave provisoria")
                 messages.warning(

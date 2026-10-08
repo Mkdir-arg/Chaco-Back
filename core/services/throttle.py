@@ -66,6 +66,32 @@ def ip_cliente(request):
 _ip_cliente = ip_cliente
 
 
+def _clave_cubeta(request, clave, *, sufijo="", incluir_ip=True):
+    partes = ["throttle", clave]
+    if incluir_ip:
+        partes.append(ip_cliente(request))
+    if sufijo:
+        partes.append(sufijo)
+    return ":".join(partes)
+
+
+def rate_limit_bloqueado(request, clave, limite, *, sufijo="", incluir_ip=True):
+    """¿La cubeta ya llegó al límite? **Sin consumir una ficha.**
+
+    Es la mitad de solo lectura de :func:`rate_limit_excedido`, y existe para las
+    cubetas que solo deben contar los intentos **fallidos** (el login: quien
+    acierta la clave no gasta cuota). El llamador pregunta con esta función antes
+    de intentar y recién consume con ``rate_limit_excedido`` si el intento falló.
+
+    Ante una caché caída **no bloquea**, por el mismo motivo que la otra.
+    """
+    try:
+        return (cache.get(_clave_cubeta(request, clave, sufijo=sufijo, incluir_ip=incluir_ip)) or 0) >= limite
+    except Exception:  # Redis caído, timeout, etc.
+        logger.exception("No se pudo leer el rate limit %s", clave)
+        return False
+
+
 def rate_limit_excedido(request, clave, limite, ventana_segundos=60, *, sufijo="", incluir_ip=True):
     """True si se superó ``limite`` invocaciones en la ventana dada.
 
@@ -85,12 +111,7 @@ def rate_limit_excedido(request, clave, limite, ventana_segundos=60, *, sufijo="
     que el límite, y la falla queda logueada. Antes la excepción subía y el
     formulario devolvía 500.
     """
-    partes = ["throttle", clave]
-    if incluir_ip:
-        partes.append(ip_cliente(request))
-    if sufijo:
-        partes.append(sufijo)
-    key = ":".join(partes)
+    key = _clave_cubeta(request, clave, sufijo=sufijo, incluir_ip=incluir_ip)
     try:
         if cache.add(key, 1, ventana_segundos):
             return False

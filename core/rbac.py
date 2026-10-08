@@ -634,6 +634,21 @@ def es_ciudadano_portal(user):
     return cache
 
 
+def es_solo_campo(user):
+    """¿El usuario solo existe para la app de campo? (``becas.campo`` y nada más).
+
+    Es la misma pregunta que el login web responde para rechazarlo
+    (``territorial_mobile_only``) y la que decide, en el alta, si las credenciales
+    viajan como clave provisoria o como **link de reseteo** (D-26 de la auditoría
+    oct-2026): a esta persona el backoffice nunca le va a pedir que cambie la
+    clave, porque nunca va a pisar una pantalla del backoffice. Estaba escrita en
+    un solo lugar y ahora la consultan dos.
+    """
+    if not puede(user, "becas.campo"):
+        return False
+    return not puede_alguna(user, [c for c in codigos_de_capacidad() if c != "becas.campo"])
+
+
 # ---------------------------------------------------------------------------
 # Enforcement: decorador (FBV) y mixin (CBV)
 # ---------------------------------------------------------------------------

@@ -350,6 +350,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 176 | El link público deja de romperse con un token duplicado, el padrón deja de escribir fechas imposibles y el alta a SIIS manda el CUIL real | Becas (link público de inscripción, carga de padrón, revisión de casos, alta a SIIS) · Legajos (cliente RENAPER) · Transversal (`core/db.py`) | `#relevamientos` `#siis` `#datos` `#metodo` | Auditoría integral oct-2026 — fichas G1-11, G1-12, G1-13, G1-14, R0-06, R0-07 y la 2.ª parte de RED-09 (Ola 3, PR 7b), más los tres seguimientos de la revisión del PR 7a | 08/10/2026 | 🟢 **Hecho** | No requiere |
 | 177 | El alcance de Becas vale también fuera de la pantalla: cupo, reportes, exports y la solapa del legajo | Becas (cupo, revisión, relevamientos, reportes, tablero del programa, configuración de segmentos) · Legajos (padrón de ciudadanos, solapa Becas, CSV de reportes) · Transversal (catálogo de capacidades) | `#rbac` `#cupos` `#relevamientos` `#datos` `#metodo` | Auditoría integral oct-2026 — fichas SEC-20, SEC-21, SEC-22, SEC-30, BEC-19 y BEC-23, más la segunda parte de RED-79 (Ola 2, PR 5) | 08/10/2026 | 🟢 **Hecho** (D-22 y D-B23 por default; **D-20 la resolvió el PM**: la exportación se siembra a quienes tienen `ciudadano.ver`) | `users.0027` y `users.0028`, las dos sin DDL; la segunda se revierte quitando la capacidad de todos los roles |
 | 178 | Una foto por campo, y el servidor sabe con qué versión del formulario se capturó | Becas — API de campo (`POST …/adjuntos/` y alta de casos) · Revisión de casos (qué adjunto se muestra) · Cron de vencimientos (línea de log) | `#api` `#relevamientos` `#requisitos` `#datos` `#metodo` | Auditoría integral oct-2026 — fichas G1-07 y G1-16, más los tres MINOR de la revisión del PR 5 (Ola 3, PR 5b — **cierra el ítem 5**) | 08/10/2026 | 🟢 **Hecho** (G1-16 cierra del lado del servidor; mandar el dato es un release de `Chaco-mobile`) | `programas.0081` — una columna nullable en `programas_formulario` (expand puro) |
+| 181 | Una cuenta ya no se toma sin conocer su clave: cambio de contraseña, intentos, token de la app y el alcance del ABM de usuarios | Transversal — login, recupero y cambio de contraseña · ABM de usuarios y roles · API de la app de campo (`/api/becas/auth/token/`) · Correo de credenciales | `#sesion` `#usuarios` `#rbac` `#correo` `#api` | Auditoría integral oct-2026 — fichas G1b-05, G1b-07, G1b-08, G2-03, SEC-26, R0b-01, R0b-02, R0b-03 y R0b-10, más la segunda parte de RED-52 (Ola 2, PR 2) | 08/10/2026 | 🟢 **Hecho** (**D-26 = (b)** por default: link de reseteo, sin release de la app; de SEC-26 queda abierto `/admin/` por IP, que es de infraestructura) | No requiere |
 
 **Notas del índice**
 
@@ -26228,3 +26229,222 @@ otro.
 `test_un_campo_que_el_formulario_no_pide_se_rechaza`, que fijaba el 400 que esta ronda corrige. El
 contrato del 400 legible (`test_el_400_del_adjunto_trae_el_motivo_en_non_field_errors`) pasó a usar
 la referencia de otro segmento, que es el rechazo que queda.
+
+---
+
+# Cambio 181 — Una cuenta ya no se toma sin conocer su clave: cambio de contraseña, intentos, token de la app y el alcance del ABM de usuarios
+
+🟢 **HECHO — 08/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal — login, recupero y cambio de contraseña · ABM de usuarios y roles · API de la app de campo (`/api/becas/auth/token/`) · Correo de credenciales |
+| **Etiquetas** | `#sesion` `#usuarios` `#rbac` `#correo` `#api` |
+| **Solicitante** | Auditoría integral oct-2026 — fichas G1b-05, G1b-07, G1b-08, G2-03, SEC-26, R0b-01, R0b-02, R0b-03 y R0b-10, más la segunda parte de RED-52 (Ola 2, PR 2) |
+| **Fecha del pedido** | 08/10/2026 |
+| **Issue / épica** | Auditoría oct-2026, Ola 2 ítems 2 y 9 · PR #NNN |
+| **Partes afectadas** | Login del backoffice · «Olvidé mi contraseña» · Pantalla de cambio obligatorio y pantalla nueva de cambio voluntario · Menú del avatar · ABM de usuarios (alta, edición y listado) · ABM de roles (activar/desactivar) · Correo de credenciales · Login de la app de campo |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Nueve hallazgos de la auditoría que comparten una sola raíz: **una cuenta del
+sistema se podía tomar sin conocer su contraseña**, y había cuatro puertas.
+
+- **G2-03:** `/cambiar-contrasena/` usaba `SetPasswordForm` y solo exigía estar
+  logueado. Cualquier sesión abierta —una PC compartida, un `fetch` silencioso
+  desde el XSS de SEC-08— cambiaba la clave **sin conocer la actual** y se
+  quedaba con la cuenta.
+- **SEC-26:** `django.contrib.auth.urls` estaba incluido en la raíz del URLconf.
+  Publicaba un segundo juego de login, recupero y `/password_change/` que ninguna
+  pantalla enlazaba y que no tenía plantillas: el GET moría, pero **el POST no
+  renderiza nada**, así que cambiaba la clave y redirigía. Además no había límite
+  de intentos en ninguna de las puertas (login web, recupero, token de la app), y
+  el token de la app de campo era **eterno**: `Token.get_or_create` devuelve
+  siempre el mismo y cambiar la clave no lo tocaba. Y al territorial —que solo
+  usa la app— se le mandaba una **clave provisoria en texto plano** cuya única
+  mitigación («el primer login te obliga a cambiarla») no le aplica: el login web
+  lo rechaza y la API no mira el flag.
+- **G1b-08:** la clave que tipea un operador en el ABM no pasaba por
+  `AUTH_PASSWORD_VALIDATORS` —entraba `123`— ni obligaba a cambiarla después.
+- **G1b-05:** destildarle el único rol a alguien, que es el camino natural de
+  «sacarlo del programa», dejaba la cuenta **activa y sin roles**: el login
+  seguía siendo válido y la cuenta **desaparecía del listado** del propio admin
+  que la había dejado así, que ya no podía ni reactivarla ni desactivarla.
+- **G1b-07:** desactivar el último rol de administración daba **500** si era de
+  programa, y si era global dejaba el sistema sin nadie que pudiera volver a
+  tocar usuarios ni roles.
+- **R0b-01, R0b-02, R0b-03 y R0b-10:** los cuatro MINOR que dejó la revisión de
+  SEC-03 (Cambio 110) — el aviso de los campos bloqueados nunca llegaba a la
+  pantalla, un rol **desactivado** de otro programa no contaba como fuera de
+  alcance, el SQL del pre-chequeo P-04 no veía los roles sin programa, y el
+  listado ofrecía editar y activar/desactivar sobre cuentas que el servidor iba a
+  rechazar.
+- **RED-52 (segunda parte):** `save_user_profile` guardaba el Profile **entero**
+  desde la caché del objeto en cada `User.save()`, con dos caras de *lost
+  update*: pisaba la `backoffice_session_key` de otro login y revertía un
+  `debe_cambiar_contrasena` escrito por otro request —esta última la dispara **el
+  login mismo**, vía `update_last_login`—.
+
+## Alcance acordado
+
+Entran las nueve fichas del ítem 2 de la Ola 2 y la mitad «Ola 2» de RED-52.
+Queda **explícitamente afuera**:
+
+- **`/admin/` restringido por IP** (punto 6 de SEC-26): es configuración de
+  nginx/ingress en ECOM, no código. Va con G1c-10 y con el PM.
+- **Limpiar las cuentas que ya quedaron activas y sin roles** (P-07): este cambio
+  cierra la puerta, no ordena lo que ya pasó.
+- **Correr P-04 en PRD** (R0b-12): acá se reescribe el SQL, lo corre el PM.
+- Todo lo de los otros PRs de la ola: el catálogo de capacidades (SEC-06/07), la
+  escalada dentro del programa (G1b-02, G1b-06), legajos y el WebSocket.
+
+## Decisiones tomadas
+
+- **DECISIÓN CLIENTE: D-26 = (b), el default registrado — link de reseteo.** Al
+  usuario que solo tiene `becas.campo` el alta le manda un **enlace de un solo
+  uso** para que defina su contraseña, en vez de una clave provisoria en claro.
+  Esto **revierte el criterio del Cambio 37 solo para ese subconjunto**, y el
+  motivo es que la mitigación que el Cambio 37 acordó —«la clave sirve una sola
+  vez en la práctica, porque el middleware no deja usar ninguna pantalla hasta
+  que la persona define la suya»— **para el territorial no existe**: el login web
+  lo rechaza con `territorial_mobile_only` y el gate de clave exime `/api/`. Su
+  clave provisoria quedaba vigente para siempre y `debe_cambiar_contrasena` en
+  `True` sin manera de limpiarlo, mientras el correo le prometía algo falso. Para
+  todos los demás usuarios el circuito del Cambio 37 sigue igual. **No hace falta
+  release de la app:** `Chaco-mobile @ a66c2d3` ya abre `/recuperar-contrasena/`
+  en el navegador desde «Olvidé mi contraseña», y el contrato de
+  `/api/becas/auth/token/` (`{username, password}` → `{token, user_id,
+  username}`) no cambia.
+- **La pregunta «¿es solo de campo?» se escribe una vez.** Estaba dentro de
+  `UsuariosAuthenticationForm.confirm_login_allowed`; pasa a `rbac.es_solo_campo`
+  y la consultan el login y el alta. Si mañana el territorial recibe una
+  capacidad de backoffice, las dos cosas cambian juntas.
+- **El cambio voluntario de contraseña existe como pantalla del producto.** Antes
+  era `/password_change/` de Django, sin plantilla ni link, y era además el
+  agujero. Ahora es `users:cambiar_contrasena`, con `PasswordChangeForm` (pide la
+  actual) y la única entrada nueva del shell: el menú del avatar. La pantalla
+  **obligatoria** queda reservada a quien tiene la clave provisoria sin cambiar, y
+  a cualquier otro lo manda a la voluntaria.
+- **El límite de intentos cuenta solo los fallidos.** La receta de la ficha
+  contaba todos; en una repartición el backoffice sale por una IP única y decenas
+  de personas entran a la misma hora, así que el tráfico normal se comía la cuota.
+  Para eso se agregó `rate_limit_bloqueado`, la mitad de solo lectura del helper:
+  se pregunta antes de intentar y se gasta ficha solo si el intento falló.
+- **La cubeta que frena el ataque es la de usuario, no la de IP.** Una fuerza
+  bruta distribuida cambia de IP en cada intento. Login: 10/10 min por usuario
+  (sin IP) y 30/10 min por IP. Recupero: 5/h por correo y 20/h por IP, y al
+  pasarse **no se manda el correo pero la pantalla es la misma**, para no revelar
+  nada. Token de la app: 10/10 min por usuario **sin IP** —y acá no es una
+  preferencia sino una necesidad: los territoriales salen por el NAT del operador
+  móvil, y una cubeta por IP le cerraría la app a una región entera por los
+  errores de tipeo de una persona—.
+- **La revocación del token va por señal y no por cuatro llamadas.** El receiver
+  mira `AbstractBaseUser._password`, el mismo atributo que Django usa para
+  disparar `password_changed`: está puesto entre `set_password()` y el final de
+  `save()`. Así cubre los cuatro caminos que cambian una clave —ABM, credenciales
+  provisorias, cambio obligatorio y link de reseteo— y cualquiera que se agregue
+  mañana, sin consultar nada en los `User.save()` que no tocan la clave.
+- **El check de «último administrador» al desactivar un rol corre solo si ese rol
+  otorga administración.** Correrlo siempre tenía un efecto perverso medible: en
+  una base que ya está sin administradores —un seed a medias, un restore— pasaba
+  a no poder desactivarse **ningún** rol.
+- **Un rol desactivado de otro programa saca de alcance; uno del propio programa,
+  no.** La propuesta literal de R0b-02 («sacar el `exclude`») dejaba a un admin de
+  Becas sin poder tocar las credenciales de su propio usuario porque alguien le
+  había desactivado un rol de Becas. Quedan dos preguntas separadas: qué roles
+  puede **asignar** (solo activos) y qué roles **no lo exceden** (los de sus
+  programas, activos o no).
+- **El listado esconde botones, pero la autoridad sigue siendo el servidor.**
+  `puede_gestionar_usuario` y `puede_gestionar_credenciales` no se tocaron: la
+  pantalla solo deja de ofrecer lo que iba a rebotar, y lo calcula en lote.
+- **RED-52 se cierra borrando el receiver, no acotándolo con `update_fields`.**
+  Acotarlo dejaba en pie el patrón —«el Profile se propaga solo en algún
+  `User.save()`»— sin que nadie lo use: los cuatro llamadores que escriben el
+  Profile ya lo guardan explícitos.
+
+## Qué cambia en la práctica
+
+- Entrar a «Cambiar contraseña» desde el menú del usuario pide la **contraseña
+  actual**. La pantalla que no la pedía ya no se puede abrir salvo que el sistema
+  te esté obligando a cambiar una clave provisoria.
+- Diez intentos fallidos seguidos sobre un mismo usuario lo frenan diez minutos,
+  en el backoffice y en la app. Entrar bien no gasta cuota.
+- **Cambiar la contraseña cierra la sesión de la app de campo.** Hay que volver a
+  entrar; la app no lo hace sola.
+- Al dar de alta un **territorial** con correo, le llega un enlace para definir su
+  contraseña en vez de la clave. El mensaje de la pantalla lo dice.
+- Al dar de alta o editar cualquier usuario, la contraseña que tipee el operador
+  tiene que pasar los validadores, y la persona va a tener que cambiarla en su
+  primer ingreso.
+- Un administrador de programa no puede guardar un usuario **sin ningún rol**: si
+  quiere sacarle el acceso, lo desactiva.
+- Desactivar el último rol de administración avisa en vez de romper.
+- En el listado de usuarios, sobre las cuentas que exceden el alcance del
+  operador ya no aparecen el lápiz ni el interruptor: dice «Fuera de tu alcance».
+
+## Reversión
+
+`git revert` del merge y desplegar. No hay migraciones ni datos migrados, así que
+el revert alcanza. Lo que **no** vuelve atrás solo:
+
+- Los **tokens de la app ya revocados**: quien cambió su contraseña después del
+  deploy tiene que volver a entrar en la app igual, haya revert o no.
+- Las **contraseñas ya definidas** por los territoriales desde el link: son suyas
+  y siguen valiendo.
+- Las **marcas `debe_cambiar_contrasena`** que haya puesto el ABM: se limpian
+  solas en el primer ingreso de cada persona.
+
+Revertir **reabre** `/password_change/` sin clave actual y la pantalla de cambio
+obligatorio para cualquier sesión, que es el agujero de G2-03: si hace falta
+revertir por otro motivo, conviene hacerlo con eso presente.
+
+## Validación
+
+Todo con `.venv312` (Python 3.12 + Django 5.2.17, igual al CI), en el worktree del
+PR.
+
+- `manage.py check`: sin hallazgos. `check --deploy`: los mismos 6 issues que
+  `origin/development` (los `security.W*` que dependen del ambiente y el hint de
+  `SIIS_API_URL`), ninguno nuevo.
+- `makemigrations --check --dry-run`: «No changes detected». No hay migraciones.
+- **Suite completa: 4369 tests, OK** (51 skipped, 4 expected failures). Los dos
+  `expectedFailure` de RED-52 dejaron de serlo.
+- `test --tag performance`: OK, sin tocar presupuestos.
+- `ruff check .` y `ruff format --check` de lo tocado: OK.
+- `design_audit.py --changed`: 0 errores; `--ratchet`: 0 hallazgos nuevos;
+  `compile_templates.py --bloques`: 0 errores y 0 bloques sin destino.
+- Los tests nuevos se corrieron **antes** del cambio, en un worktree de
+  `origin/development` con los dos módulos copiados: de
+  `test_usuarios_ola2_pr2` fallaban 12 de 27 y de `test_credenciales_ola2_pr2`,
+  21 de 23. Los que pasaban en los dos lados son los controles (que lo que debía
+  seguir funcionando, siguiera).
+
+## Pendientes
+
+- **`/admin/` por IP** (SEC-26 punto 6), en nginx/ingress de ECOM.
+- **Correr P-04** —reescrita acá— en PRD, antes o junto con este release
+  (R0b-12), y **P-07** para contar las cuentas que ya quedaron activas y sin rol.
+- **Que la documentación de la API (`/api/docs/`, `/api/schema/`, `/api/redoc/`)
+  la vea un usuario de backoffice sin un solo rol.** Lo destapó este cambio y no
+  es de ninguna ficha: la decisión del 26/08/2026 fue ponerla detrás de **login**,
+  no detrás de una capacidad. Queda anotado para que alguien lo decida.
+
+## Historial
+
+- **08/10/2026 — un barrido que se medía a sí mismo.** Sacar
+  `django.contrib.auth.urls` sacó también su `/logout/`, y con eso se descubrió
+  que `core/tests/test_superficie_publica.py::SuperficieSinRolTests` **se
+  deslogueaba a sí mismo**: el recorrido reintenta con POST toda vista que
+  conteste 405, el logout es una de ellas, y como las rutas van ordenadas por
+  nombre, todo lo que caía después se medía contra un anónimo —que rebota
+  siempre— y el test daba verde sin preguntar nada. El barrido ahora rehace la
+  sesión antes de cada ruta, y aparecieron siete rutas que contestaban 200 desde
+  siempre: cuatro catálogos de `/api/core/` y las tres pantallas de documentación
+  de la API.
+- **08/10/2026 — un test de padrón que pasaba gracias al bug.**
+  `programas/tests/test_padron.py::UnaSolaPuertaDePadronTests` abría varios
+  `Client` sobre el mismo usuario y pasaba porque `save_user_profile` reponía la
+  clave de sesión vieja. Sin el receiver, el segundo cliente recibe «Tu sesión fue
+  reemplazada», que es el comportamiento real del producto; el test ahora escribe
+  la clave de sesión como lo hace el login.

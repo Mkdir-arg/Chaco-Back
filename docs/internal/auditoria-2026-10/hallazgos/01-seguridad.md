@@ -39,7 +39,7 @@ Base verificada: `origin/development @ 917e583`. PoC: `poc/test_repro_seguridad.
 | SEC-23 | App de campo: PATCH y adjuntos sobre casos resueltos | MEDIA | CONF. lectura | 2 | S | ⬜ |
 | SEC-24 | La app se autovalida la identidad con `origen: personas` | MEDIA | CONF. lectura | 2 | M | ⬜ |
 | SEC-25 | `consultar_persona_becas` sin throttle | MEDIA | CONF. lectura | 2 | S | ⬜ |
-| SEC-26 | Login, admin, recupero, clave provisoria y token de campo sin límites ni rotación | MEDIA | CONF. test (parte) | 2 | M | ⬜ |
+| SEC-26 | Login, admin, recupero, clave provisoria y token de campo sin límites ni rotación | MEDIA | CONF. test (parte) | 2 | M | 🟡 |
 | SEC-27 | RENAPER con `verify=False` | MEDIA | CONF. lectura | 2 | S | ⬜ |
 | G1c-04 | `/ws/alertas/` difunde fuera de alcance, sin Origin y sin revalidar | MEDIA | CONF. test | 2 | M | ⬜ |
 | SEC-30 | Requisitos/subsegmentos/coordinadores validados solo contra el segmento (Regional) | BAJA | CONF. lectura (latente) | 2 | S | ✅ |
@@ -503,6 +503,62 @@ dos (sin alcance → vacío; con legajo propio → solo las suyas), porque afirm
 - **Tests a agregar:** N intentos → bloqueo; `test_token_viejo_401_tras_cambio_de_clave` (el de la PoC invertido); `test_territorial_con_provisoria_no_obtiene_token` o `test_correo_territorial_lleva_link_de_reset` según D-26; `resolve("/password_reset/")` → 404.
 - **Verificación:** V-STD + `manage.py test users programas.tests.test_becas_api`.
 - **Dependencias:** SEC-05, G2-03, G1b-08.
+
+**Resolución:** 🟡 Resuelta **la parte de código** en #NNN (Cambio 181, Ola 2 PR 2), 08-10-2026;
+queda abierto solo el punto 6, que es de infraestructura. Punto por punto:
+
+1. **Límite de intentos.** `UsuariosAuthenticationForm` y una `RecuperarContrasenaView` propia usan
+   `core.services.throttle`. **Desvío de la ficha:** solo cuentan los intentos **fallidos**, para lo
+   cual se agregó `rate_limit_bloqueado`, la mitad de solo lectura del helper (preguntar sin gastar
+   ficha). Con la receta literal, una repartición que sale por una IP única se quemaba la cuota con
+   el tráfico normal de la mañana. Las cubetas: login 10/10 min por **usuario** (sin IP, que es lo
+   que ve la fuerza bruta distribuida) y 30/10 min por IP; recupero 5/h por correo y 20/h por IP, y
+   al pasarse **no manda el correo pero devuelve la misma pantalla**, para no revelar nada.
+2. **`django.contrib.auth.urls` fuera de la raíz.** Con él se va `/password_change/`, que sin
+   plantilla moría en el GET pero en el POST cambiaba la clave y redirigía —sin pedir la actual y
+   sin límite—. El reemplazo con clave actual es `users:cambiar_contrasena` (G2-03), con su pantalla
+   y su link en el menú del avatar, que es la primera entrada que ese flujo tiene en el producto.
+3. **Token de campo.** `users/signals/credenciales.py` borra los `Token` del usuario cuando cambia
+   el hash de la clave, y cubre de una los cuatro caminos (ABM, credenciales provisorias, cambio
+   obligatorio, link de reseteo). El disparador es `AbstractBaseUser._password`, el mismo atributo
+   que Django usa para `password_changed`: no consulta nada en los `User.save()` que no tocan la
+   clave y se saltea las altas, así que el CSV masivo no cambia de consultas. **Desvío:** el límite
+   de `/api/becas/auth/token/` **no** es un `ScopedRateThrottle` sino la misma cubeta por usuario sin
+   IP (10/10 min, solo fallidos): los territoriales salen por el NAT del operador móvil y una cubeta
+   por IP le cerraría la app a una región entera.
+4. **Clave provisoria del territorial — D-26 = (b), el default.** `entregar_credenciales_provisorias`
+   le manda un **link de reseteo** a quien solo tiene `becas.campo` (`rbac.es_solo_campo`, extraída
+   del propio login, que ya hacía esa pregunta), y una clave aleatoria larga que no conoce nadie
+   queda en la fila para que «Olvidé mi contraseña» siga funcionando si el link vence.
+   `EstablecerContrasenaView` limpia `debe_cambiar_contrasena`, y el correo dejó de prometerle al
+   territorial algo que para él era falso. **La app instalada no se toca:** `Chaco-mobile @ a66c2d3`
+   ya linkea `/recuperar-contrasena/` desde «Olvidé mi contraseña» y el contrato de
+   `/api/becas/auth/token/` (`{username, password}` → `{token, user_id, username}`) queda igual.
+5. **`change_password` por API:** ya no existe. Lo retiró SEC-05/D-05 (Cambio 100): `users/api_views`
+   quedó con `UsuarioActualView` de solo lectura. Nada que hacer.
+6. **`/admin/` por IP: sigue abierto.** Es nginx/ingress de ECOM, no código; va con G1c-10 (PR 8 de
+   esta ola) y con el PM.
+
+**Test permanente:** `users.tests.test_credenciales_ola2_pr2.TokenDeCampoYClaveDelTerritorialTests.test_el_token_viejo_deja_de_valer_tras_cambiar_la_clave`
+(+ `test_la_app_instalada_sigue_entrando_con_la_clave_nueva`, `test_el_login_de_la_app_frena_tras_diez_intentos_fallidos`,
+`test_la_cubeta_del_token_no_mira_la_ip`, `test_el_alta_del_territorial_manda_un_link_y_no_una_clave_en_claro`,
+`test_el_alta_de_un_usuario_de_backoffice_sigue_llevando_la_clave`, `test_el_link_limpia_la_marca_de_clave_provisoria`,
+`test_el_alta_rapida_de_un_territorial_avisa_que_mando_el_link`; `LimiteDeIntentosTests` ×4 y
+`SinRutasDeAuthDeDjangoTests` ×2).
+
+**Hallazgo lateral que destapó el punto 2.** Sacar `django.contrib.auth.urls` sacó también su
+`/logout/`, y con eso se descubrió que el barrido de RED-89
+(`core/tests/test_superficie_publica.py::SuperficieSinRolTests`) **se deslogueaba a sí mismo**: el
+recorrido reintenta con POST toda vista que conteste 405, el logout es una de ellas, y como las rutas
+van ordenadas por nombre, todo lo que caía después se medía contra un anónimo —que rebota siempre— y
+el test daba verde sin preguntar nada. El barrido ahora rehace la sesión antes de cada ruta.
+Aparecieron **siete rutas que contestaban 200 desde siempre**: cuatro catálogos de `/api/core/`
+(meses, provincias, municipios, sexos), de la misma familia que los dos que ya estaban en la
+allowlist, y las **tres pantallas de documentación de la API** (`/api/schema/`, `/api/docs/`,
+`/api/redoc/`), que la decisión del 26/08/2026 puso detrás de **login**, no detrás de capacidad. Las
+ocho entraron a la allowlist con su motivo; que la documentación de la API la vea un usuario de
+backoffice sin un solo rol es una decisión de producto que **nadie tomó explícitamente** y que
+conviene revisar fuera de esta ficha.
 
 ### SEC-27 · RENAPER con `verify=False` y las advertencias TLS apagadas para todo el proceso
 **Severidad:** MEDIA · **Estado:** CONFIRMADO (lectura) · **Origen:** A2-10 · **Ola:** 2 · **Esfuerzo:** S · **Decisión:** D-27 (ECOM confirma la cadena)
