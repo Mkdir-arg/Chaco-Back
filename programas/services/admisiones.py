@@ -1,10 +1,19 @@
-"""Operaciones atómicas del circuito de admisiones de Dispositivos."""
+"""Operaciones atómicas del circuito de admisiones de Dispositivos.
+
+Las tres que reciben el F-00 llevan además ``@archivos_atomicos`` (RED-35): los
+adjuntos se guardan en ``media/`` apenas se asigna el ``FileField``, y el
+storage no vuelve atrás con la transacción. Sin eso, un traslado que falla al
+cerrar el origen —el caso real: dos pestañas, la segunda llega con el origen ya
+TRASLADADO— dejaba el DNI y el informe social del F-00 en el volumen, sin fila
+que los nombre.
+"""
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import Max
 from django.utils import timezone
 
+from core.archivos import anotar_archivo_escrito, archivos_atomicos
 from programas.models import Admision, ArchivoAdmision, Cama, Dispositivo, EsperaAdmision, InscripcionPrograma, Programa
 from programas.services.inscripciones import activar_inscripcion, tomar_inscripcion
 
@@ -44,7 +53,16 @@ def _guardar_f00(admision, respuestas_f00=None, archivos_f00=None):
     admision.save(update_fields=["respuestas_f00", "modificado"])
     for campo, archivo in (archivos_f00 or {}).items():
         if archivo:
-            ArchivoAdmision.objects.update_or_create(admision=admision, campo=campo, defaults={"archivo": archivo})
+            fila, _ = ArchivoAdmision.objects.update_or_create(
+                admision=admision, campo=campo, defaults={"archivo": archivo}
+            )
+            # El archivo ya está escrito en el storage: se anota con el nombre
+            # final —el storage pudo agregarle un sufijo— para que
+            # ``archivos_atomicos`` lo borre si la operación termina fallando.
+            # ``archivo`` va aparte porque es lo que dice si hubo escritura: un
+            # `FieldFile` ya guardado —el F-00 del origen de un traslado— se reusa
+            # tal cual, lo sigue nombrando su fila y no se borra.
+            anotar_archivo_escrito(fila.archivo, asignado=archivo)
 
 
 def _es_reingreso(ciudadano, dispositivo):
@@ -87,6 +105,7 @@ def _crear_admision_alojada(
     return admision
 
 
+@archivos_atomicos
 @transaction.atomic
 def admitir_ciudadano(*, ciudadano, dispositivo, cama, usuario, respuestas_f00=None, archivos_f00=None):
     """Crea una estadía alojada bloqueando el recurso de cama compartido."""
@@ -104,6 +123,7 @@ def admitir_ciudadano(*, ciudadano, dispositivo, cama, usuario, respuestas_f00=N
     )
 
 
+@archivos_atomicos
 @transaction.atomic
 def poner_en_espera(*, ciudadano, dispositivo, usuario, respuestas_f00=None, archivos_f00=None, origen=None):
     dispositivo = Dispositivo.objects.select_for_update().get(pk=dispositivo.pk)
@@ -191,9 +211,15 @@ def _cerrar_origen_por_traslado(origen, usuario, destino):
     return origen
 
 
+@archivos_atomicos
 @transaction.atomic
 def trasladar_admision(*, admision, destino, cama, usuario, respuestas_f00=None, archivos_f00=None):
-    """Abre destino antes de cerrar origen; sin cama, conserva origen y encola destino."""
+    """Abre destino antes de cerrar origen; sin cama, conserva origen y encola destino.
+
+    El F-00 del destino se guarda **antes** de cerrar el origen, y cerrarlo puede
+    fallar (otra pestaña ya lo trasladó): por eso el adjunto que se acaba de
+    escribir se deshace con la transacción (``@archivos_atomicos``, RED-35).
+    """
     ids = sorted({admision.dispositivo_id, destino.pk})
     dispositivos = {obj.pk: obj for obj in Dispositivo.objects.select_for_update().filter(pk__in=ids).order_by("pk")}
     origen_dispositivo = dispositivos[admision.dispositivo_id]

@@ -68,7 +68,7 @@ from programas.services.diseno import (
     reconciliar,
     serializar,
 )
-from programas.services.padron import cargar_padron
+from programas.services.padron import cargar_padron, quitar_padron_propio
 from programas.services.pausas import cambiar_pausa
 from programas.services.respuestas import fecha_de_referencia, respuestas_legibles
 from programas.tests.base_becas import BecasPantallaTestCase
@@ -789,6 +789,28 @@ class PadronConcurrenteTests(TestCase):
         cargar_padron(self.convocatoria, None, [{"dni": "30111222", "sexo": "F"}])
         cargar_padron(self.convocatoria, None, [{"dni": "30111222", "sexo": "F"}])
         self.assertEqual(PadronHabilitado.objects.filter(convocatoria=self.convocatoria).count(), 1)
+
+    def test_quitar_el_padron_propio_toma_el_mismo_candado_que_la_carga(self):
+        """RED-35: quitar es la otra mitad del par y borra y escribe igual que cargar.
+
+        Sin el candado, una carga y un quitado simultáneos sobre el mismo
+        relevamiento se intercalan y queda lo peor: el padrón propio vacío con el
+        Excel puesto, que no retiene a nadie —`padron_de` cae al de la
+        convocatoria y, si no hay, el link acepta cualquier DNI (RN-P14)—.
+        """
+        territorial = User.objects.create_user("terri-red35", password="x")
+        relevamiento = Relevamiento.objects.create(
+            convocatoria=self.convocatoria,
+            territorial=territorial,
+            fecha_asignada=date(2026, 2, 1),
+            zona="Z",
+        )
+        cargar_padron(relevamiento, None, [{"dni": "30111222", "sexo": "F"}])
+
+        with candados_tomados(Relevamiento.objects) as candados:
+            self.assertEqual(quitar_padron_propio(relevamiento), 1)
+
+        self.assertIn("padron.py:quitar_padron_propio", candados)
 
 
 # ── BEC-16 ───────────────────────────────────────────────────────────────────
