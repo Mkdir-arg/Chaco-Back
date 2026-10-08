@@ -104,6 +104,10 @@ class PendientesRenaperConPublicosTests(TestCase):
         with (
             patch("programas.views.revision.puede", return_value=True),
             patch.object(autorizacion, "puede_relevamiento_publico", return_value=True),
+            # SEC-06: la bandeja pasa a filtrar por alcance, y este usuario no tiene
+            # ninguno. Lo que mide el test es que los filtros inválidos no rompan, así
+            # que se le da el alcance de admin del programa, que es el de la pantalla.
+            patch("programas.views.revision.es_admin_becas", return_value=True),
         ):
             self.assertEqual(vista.get_queryset().count(), 1)
 

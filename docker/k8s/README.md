@@ -22,6 +22,15 @@ en la documentación del proyecto, sección *Si el despliegue es en Kubernetes*.
   los adjuntos que cargan los territoriales. Si el ingress soporta
   `X-Accel-Redirect` y expone `/protected-media/` como `internal`, con
   `MEDIA_X_ACCEL=True` la app autoriza y los bytes los manda el ingress.
+  **Antes de prenderla, verificar el `location`.** Prendida contra un front que no
+  lo tenga, toda descarga responde **200 con 0 bytes** —no un error—: el usuario baja
+  archivos vacíos y nadie se entera. Django no puede comprobarlo (el ingress es de
+  otro equipo), así que `manage.py check --deploy` solo avisa (`core.W004`) cuando la
+  variable está prendida. La comprobación es manual: bajar un archivo conocido desde
+  `/media/<ruta>` y confirmar que llega con contenido. El bloque es
+  `location /protected-media/ { internal; alias <MEDIA_ROOT>; add_header Content-Disposition attachment; add_header X-Content-Type-Options nosniff always; }`
+  (el `nginx.conf` del repo ya lo tiene). Sin confirmación, dejar la variable sin
+  definir: el default entrega los bytes desde Django y es lo que corre hoy.
 - **Probes**: `/health/` responde 200. Usar **startupProbe** además de
   liveness/readiness: el primer arranque tarda minutos y sin él el liveness mata
   el bootstrap (loop de reinicios con exit 137 y sin error en el log).

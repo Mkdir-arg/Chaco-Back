@@ -2,18 +2,21 @@
 
 import json
 
-from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import Q
 
 from core import rbac
+from programas.services.programa_cache import clave_de, programa_por_codigo
 
 PROGRAMA_DISPOSITIVOS_CODIGO = "DISPOSITIVOS"
 CAP_CONFIGURAR = "programa.configurar"
 CAP_VER = "dispositivo.ver"
-_CACHE_KEY = "programas:dispositivos"
-_CACHE_MISS = object()
+#: La capacidad de las pantallas que **cargan** el F-00 de una admisión. La necesita
+#: `core.views.media` para que el admisor pueda bajar el archivo que él mismo subió.
+CAP_ADMITIR = "dispositivo.admitir"
+#: Se conserva el nombre: la clave la deriva ``programa_cache.clave_de`` (RED-80).
+_CACHE_KEY = clave_de(PROGRAMA_DISPOSITIVOS_CODIGO)
 _CAMPOS_REQUERIDOS_VALIDACION = (
     "tipo",
     "codigo",
@@ -30,23 +33,13 @@ def normalizar_codigo_institucional(codigo):
 
 
 def programa_dispositivos(user=None):
-    """Obtiene el programa y cachea su ausencia solo durante la request."""
+    """Obtiene el programa y lo memoiza durante la request.
 
-    from programas.models import Programa
-
-    if user is not None:
-        programa = getattr(user, "_programa_dispositivos_cache", _CACHE_MISS)
-        if programa is not _CACHE_MISS:
-            return programa
-
-    programa = cache.get(_CACHE_KEY)
-    if programa is None:
-        programa = Programa.objects.filter(codigo=PROGRAMA_DISPOSITIVOS_CODIGO).first()
-        if programa is not None:
-            cache.set(_CACHE_KEY, programa, 300)
-    if user is not None:
-        user._programa_dispositivos_cache = programa
-    return programa
+    Fachada sobre :func:`programas.services.programa_cache.programa_por_codigo`: hasta
+    RED-80 esta función era una copia de ``programa_becas`` con **otra** invalidación —de
+    hecho, ninguna: nadie borraba ``programas:dispositivos``—.
+    """
+    return programa_por_codigo(PROGRAMA_DISPOSITIVOS_CODIGO, user=user)
 
 
 def puede_configurar_dispositivos(user):

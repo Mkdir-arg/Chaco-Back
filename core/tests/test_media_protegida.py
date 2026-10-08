@@ -410,9 +410,28 @@ class AlcanceDispositivosTests(MediaBaseTests):
 
         self.assertEqual(self._cliente(operador).get(self.ruta).status_code, 200)
 
+    def test_el_admisor_asignado_baja_el_f00_que_el_mismo_cargo(self):
+        """Seguimiento de #643: la regla pedía ``dispositivo.ver``, pero las pantallas
+        que **cargan** el F-00 piden ``dispositivo.admitir``. Un admisor sin el `ver`
+        recibía 403 sobre su propio archivo."""
+        from programas.models import AsignacionDispositivo
+
+        admisor = usuario_con("dispositivo.admitir", username="admisor_f00", programa=self.programa)
+        AsignacionDispositivo.objects.create(dispositivo=self.dispositivo, rol=admisor.groups.first(), activo=True)
+
+        self.assertEqual(self._cliente(admisor).get(self.ruta).status_code, 200)
+
+    def test_el_admisor_sin_asignacion_sigue_sin_bajarlo(self):
+        """Lo que se amplía es **qué capacidad** cuenta, no sobre qué dispositivo: el
+        alcance fino por asignación sigue siendo el mismo."""
+        admisor = usuario_con("dispositivo.admitir", username="admisor_ajeno", programa=self.programa)
+
+        self.assertEqual(self._cliente(admisor).get(self.ruta).status_code, 403)
+
 
 class AlcanceMerenderosTests(MediaBaseTests):
-    """La documentación respaldatoria de una solicitud pide `merendero.ver`."""
+    """La documentación respaldatoria: `merendero.ver` y `merendero.validar` leen
+    cualquier solicitud; `merendero.crear`, solo las que ese usuario creó."""
 
     def setUp(self):
         super().setUp()
@@ -437,6 +456,91 @@ class AlcanceMerenderosTests(MediaBaseTests):
         operador = usuario_con("merendero.ver", username="op_merenderos", programa=self.programa)
 
         self.assertEqual(self._cliente(operador).get(self.ruta).status_code, 200)
+
+    def test_quien_carga_la_solicitud_tambien_la_descarga(self):
+        """Seguimiento de #643: el link lo **rinde el widget** del form de la solicitud,
+        que se sirve bajo ``merendero.crear``. Con solo esa capacidad, el click daba 403
+        sobre el archivo que la pantalla acababa de mostrar."""
+        operador = usuario_con("merendero.crear", username="alta_merenderos", programa=self.programa)
+        self.solicitud.creado_por = operador
+        self.solicitud.save(update_fields=["creado_por"])
+
+        self.assertEqual(self._cliente(operador).get(self.ruta).status_code, 200)
+
+    def test_pero_no_la_documentacion_de_una_solicitud_ajena(self):
+        """Ronda 2: ``merendero.crear`` tomada sin alcance por objeto abría la
+        documentación de **cualquier** solicitud. Lo que esa capacidad necesita ver es
+        el adjunto que ella misma subió."""
+        otro = usuario_con("merendero.crear", username="alta_otra_persona", programa=self.programa)
+        self.solicitud.creado_por = usuario_con("merendero.crear", username="alta_duena", programa=self.programa)
+        self.solicitud.save(update_fields=["creado_por"])
+
+        self.assertEqual(self._cliente(otro).get(self.ruta).status_code, 403)
+
+    def test_una_solicitud_sin_autor_registrado_no_la_abre_el_alta(self):
+        """Las anteriores a ``creado_por`` quedan en ``NULL``: las leen ``merendero.ver``
+        y ``merendero.validar``, que es por donde se las mira."""
+        operador = usuario_con("merendero.crear", username="alta_legacy", programa=self.programa)
+
+        self.assertIsNone(self.solicitud.creado_por_id)
+        self.assertEqual(self._cliente(operador).get(self.ruta).status_code, 403)
+
+    def test_ver_y_validar_siguen_abriendo_la_de_cualquiera(self):
+        """El recorte es solo de ``merendero.crear``: el listado y la resolución miran
+        todas las solicitudes, y así tienen que seguir."""
+        self.solicitud.creado_por = usuario_con("merendero.crear", username="alta_tercero", programa=self.programa)
+        self.solicitud.save(update_fields=["creado_por"])
+        lector = usuario_con("merendero.ver", username="ve_ajena", programa=self.programa)
+        resolutor = usuario_con("merendero.validar", username="valida_ajena", programa=self.programa)
+
+        self.assertEqual(self._cliente(lector).get(self.ruta).status_code, 200)
+        self.assertEqual(self._cliente(resolutor).get(self.ruta).status_code, 200)
+
+    def test_quien_resuelve_la_solicitud_tambien_la_descarga(self):
+        """Y quien tiene que **leer** la documentación antes de aprobar entra por la
+        pantalla de resolución, que pide ``merendero.validar``."""
+        operador = usuario_con("merendero.validar", username="resuelve_merenderos", programa=self.programa)
+
+        self.assertEqual(self._cliente(operador).get(self.ruta).status_code, 200)
+
+    def test_una_capacidad_de_merenderos_de_otro_programa_no_alcanza(self):
+        """El alcance no se relaja: las tres capacidades se evalúan contra MERENDEROS."""
+        from programas.models import Programa
+
+        otro = Programa.objects.create(codigo="OTRO", nombre="Otro")
+        operador = usuario_con("merendero.validar", username="validar_otro_programa", programa=otro)
+
+        self.assertEqual(self._cliente(operador).get(self.ruta).status_code, 403)
+
+
+class FotoDelCiudadanoTests(MediaBaseTests):
+    """La foto se ve en el detalle **y** se sube desde el formulario de edición."""
+
+    def setUp(self):
+        super().setUp()
+        from legajos.models import Ciudadano
+
+        self.ciudadano = Ciudadano.objects.create(
+            dni="30444555",
+            nombre="Nora",
+            apellido="Vera",
+            foto=archivo("foto.jpg", b"\xff\xd8\xff-jpeg"),
+        )
+        self.ruta = self._url(self.ciudadano.foto.name)
+
+    def test_sin_capacidad_es_403(self):
+        self.assertEqual(self._cliente(usuario_con()).get(self.ruta).status_code, 403)
+
+    def test_con_ciudadano_ver_descarga(self):
+        self.assertEqual(self._cliente(usuario_con("ciudadano.ver")).get(self.ruta).status_code, 200)
+
+    def test_con_ciudadano_editar_tambien(self):
+        """Seguimiento de #643: ``ciudadano_edit_form.html`` se sirve bajo
+        ``ciudadano.editar`` y ahí el widget rinde el link a la foto ya guardada."""
+        self.assertEqual(self._cliente(usuario_con("ciudadano.editar")).get(self.ruta).status_code, 200)
+
+    def test_una_capacidad_de_otro_dominio_no_alcanza(self):
+        self.assertEqual(self._cliente(usuario_con("dashboard.ver")).get(self.ruta).status_code, 403)
 
 
 class CoberturaDePrefijosTests(SimpleTestCase):

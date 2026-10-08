@@ -8,6 +8,7 @@ rol, usuario con la capacidad justa y superusuario.
 
 from django.contrib.auth.models import Group, Permission, User
 from django.contrib.contenttypes.models import ContentType
+from django.core.cache import cache
 from django.test import TestCase
 from django.urls import reverse
 from zeal import zeal_ignore
@@ -61,6 +62,11 @@ def _post_user(client, target, grupos, **extra):
 
 class Base(TestCase):
     def setUp(self):
+        # La clave `programas:dispositivos` es **de proceso**: el rollback entre tests no
+        # la toca, así que sin esto el conteo de consultas se mide sobre la entrada que
+        # dejó caliente el test anterior y no sobre lo que paga una request de verdad
+        # (es el modo de falla de `programas.tests.test_aislamiento_modulos`).
+        cache.clear()
         self.becas = Programa.objects.create(codigo="BECAS", nombre="Becas")
         self.disp = Programa.objects.create(codigo="DISPOSITIVOS", nombre="Dispositivos")
         self.rol_global = _rol("Admins", ["usuario.administrar", "rol.administrar"])
@@ -389,10 +395,13 @@ class R0b10BotonesDelListadoTests(Base):
         """«En lote, sin N+1» (R0b-10). El techo se mide sobre un listado de 12
         usuarios: si alguien vuelve a llamar a `puede_gestionar_usuario` por fila,
         el número se dispara. 15 → 16 por la consulta única que marca quién tiene
-        sesión abierta en la app de campo (SEC-26)."""
+        sesión abierta en la app de campo (SEC-26), y 16 → 17 por la lectura del
+        Programa Dispositivos que hace el sidebar: **siempre estuvo ahí**, la pagaba
+        la primera request real de cada pod, pero acá la tapaba la clave que dejaba
+        caliente el test anterior (el `cache.clear()` del `Base` la destapa)."""
         for i in range(12):
             _user(f"op-{i}", self.rol_op_disp)
         self.client.force_login(self.adm)
 
-        with self.assertNumQueries(16):
+        with self.assertNumQueries(17):
             self.client.get(reverse("users:usuarios"))

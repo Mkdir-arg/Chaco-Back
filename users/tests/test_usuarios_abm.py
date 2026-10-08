@@ -289,8 +289,17 @@ class UsuarioAlcanceProgramaTests(TestCase):
         self.assertNotIn(u_sin, visibles)
 
     def test_alta_selector_solo_roles_de_su_programa(self):  # TC-67-02
+        """G1b-02: su propio rol de administración ya no está en el combo.
+
+        ``Admin Becas`` otorga ``programa.usuario.administrar``: ofrecerlo era la forma
+        corta de que quien administra los usuarios del programa se diera —o le diera a
+        otro— la administración, que es potestad de un rol global. Los roles operativos
+        del programa siguen todos.
+        """
         roles = set(UserCreationForm(operador=self.admin_becas).fields["groups"].queryset)
-        self.assertEqual(roles, {self.rol_admin_becas, self.rol_becas})
+        self.assertEqual(roles, {self.rol_becas})
+        self.assertNotIn(self.rol_vivienda, roles)
+        self.assertNotIn(self.rol_global, roles)
 
     def test_edicion_selector_oculta_roles_de_otro_programa(self):  # TC-67-03
         user = User.objects.create_user("multi", password="x")
