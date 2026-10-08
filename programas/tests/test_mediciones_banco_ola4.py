@@ -33,6 +33,7 @@ y se reproducen con `scripts/perf_mysql/medir_consultas_borde.py`.
 """
 
 from datetime import date, timedelta
+from io import StringIO
 
 from django.contrib.auth.models import User
 from django.core.management import call_command
@@ -40,7 +41,6 @@ from django.db import connection
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
-from io import StringIO
 
 from programas.models import Convocatoria, Formulario, PadronHabilitado, Relevamiento, Segmento
 from programas.tests.base_becas import BecasPantallaTestCase
