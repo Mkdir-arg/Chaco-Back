@@ -55,6 +55,13 @@ logger = logging.getLogger(__name__)
 # Tablas que no son de ningún modelo y tienen que estar igual.
 TABLAS_DEL_FRAMEWORK = {"django_migrations"}
 
+# Tablas que carga el organismo con sus `.sql` (`programas/management/commands/_insumos_siis.py`,
+# `INSUMOS`) y que se leen con SQL crudo: no tienen modelo y no son huérfanas. `seed_perf` crea
+# `aprobados_materias` para el banco y el job «Migrate ida y vuelta», así que sin esto el chequeo
+# estricto las marcaba como sobrantes. `core` no importa de `programas` (ratchet de capas, R-21):
+# la lista se repite acá y `test_verificar_esquema_migraciones` la ata a `INSUMOS`.
+TABLAS_EXTERNAS_DEL_ORGANISMO = {"aprobados_materias", "localidades_corregidas", "ciudadanos_renaper"}
+
 # `0060_catalogo_grupos_origen_canal` → número y nombre. Lo que identifica a una
 # migración renumerada es la segunda mitad.
 NUMERADA = re.compile(r"^(\d+)_(.+)$")
@@ -193,7 +200,7 @@ def colisiones_de_tablas(plan, tablas_existentes) -> list[tuple[str, str, str]]:
 
 def tablas_huerfanas(tablas_existentes, esperadas) -> list[str]:
     """Las que existen y no corresponden a ningún modelo del estado final."""
-    conocidas = {nombre.lower() for nombre in esperadas} | TABLAS_DEL_FRAMEWORK
+    conocidas = {nombre.lower() for nombre in esperadas} | TABLAS_DEL_FRAMEWORK | TABLAS_EXTERNAS_DEL_ORGANISMO
     return sorted(nombre for nombre in tablas_existentes if nombre.lower() not in conocidas)
 
 
