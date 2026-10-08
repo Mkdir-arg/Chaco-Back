@@ -1966,7 +1966,15 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
      migraciones. 12 h.
   5. ✅ *Alcance en Becas:* SEC-21, SEC-22, SEC-20, SEC-30, BEC-19, BEC-23. 14 h. **Cerrado el 08-oct-2026
      (Cambio 177)**, con D-20, D-22 y D-B23 aplicadas por default y `users.0027` + `users.0028`.
-  6. *App de campo:* SEC-23 (+G1-15), SEC-24, SEC-25 (+ R0-05: usar o borrar la tasa `renaper`). 12 h.
+  6. ✅ *App de campo:* SEC-23 (+G1-15), SEC-24, SEC-25 (+ R0-05: la tasa `renaper` se borró y la
+     reemplaza `personas_campo`, que sí tiene consumidor). 12 h. **Cerrado el 08-oct-2026 (Cambio 184)**,
+     con D-24 y D-25 aplicadas por default y sin migraciones. El `PATCH`/`PUT` de
+     `/api/becas/formularios/<id>/` pasó a 405 y el POST de adjuntos a 409 sobre casos resueltos; con
+     `origen: personas` la identidad la vuelve a resolver el servidor. La excepción de D-RED-10 (el
+     PATCH contestaba 400 ante una pausa, los otros cinco 409) se fue con el verbo. **Ninguno de los
+     tres cambios pide release de `Chaco-mobile`:** la app instalada no hace un solo PATCH, manda
+     `validado_renaper` en el alta —que como campo de solo lectura se ignora sin dar 400— y atrapa el
+     error de la consulta de identidad cayendo a carga manual.
   7. *Media y uploads:* SEC-09 etapa 2, SEC-15, SEC-31, R0b-07 (+ R0b-08). 14 h.
   8. *Bajos:* SEC-27, SEC-32, SEC-33, SEC-34, SEC-35, SEC-36, SEC-37, G1c-10, G1c-16 y el resto de SEC-01
      (`BackofficeAutenticado` fuera de la lista de la ficha; viene de la Ola 0). 20 h.

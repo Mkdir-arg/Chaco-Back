@@ -4,6 +4,8 @@ Auth por token (DRF authtoken). El territorial solo ve/gestiona SUS relevamiento
 y formularios. Capacidad requerida: ``becas.campo``.
 """
 
+import logging
+
 from django.db import transaction
 from django.db.models import Count
 from django.utils import timezone
@@ -12,12 +14,19 @@ from rest_framework import mixins, serializers, status, viewsets
 from rest_framework.authentication import SessionAuthentication, TokenAuthentication
 from rest_framework.authtoken.models import Token
 from rest_framework.authtoken.views import ObtainAuthToken
-from rest_framework.decorators import action, api_view, authentication_classes, permission_classes
+from rest_framework.decorators import (
+    action,
+    api_view,
+    authentication_classes,
+    permission_classes,
+    throttle_classes,
+)
 from rest_framework.exceptions import ValidationError
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import BasePermission, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.routers import APIRootView
+from rest_framework.throttling import UserRateThrottle
 
 from core.rbac import puede
 from core.services.throttle import (
@@ -38,12 +47,21 @@ from programas.api.serializers import (
 from programas.models import Formulario, Relevamiento
 from programas.services import campo
 from programas.services.becas import formulario_por_client_uuid, resolver_ciudadano_offline
-from programas.services.identidad import identificar
-from programas.services.padron import fila_padron, normalizar_dni, objetivo_con_identidad
+from programas.services.identidad import ORIGEN_PADRON, ORIGEN_PERSONAS, identificar
+from programas.services.padron import datos_de_fila, fila_padron, normalizar_dni, objetivo_con_identidad
 from programas.services.respuestas import sincronizar_desde_legacy
+
+logger = logging.getLogger(__name__)
 
 CAP = "becas.campo"
 DNI_DUPLICADO_MENSAJE = "Este DNI ya fue relevado en este relevamiento."
+CASO_RESUELTO_MENSAJE = "El caso ya fue resuelto: no admite documentación nueva."
+
+#: Lo que ``identificar`` devuelve como origen → la marca que guarda el caso.
+ORIGEN_VALIDACION_POR_FUENTE = {
+    ORIGEN_PADRON: Formulario.OrigenValidacion.PADRON,
+    ORIGEN_PERSONAS: Formulario.OrigenValidacion.PERSONAS,
+}
 
 
 def _formulario_por_dni(relevamiento, dni):
@@ -162,6 +180,33 @@ class ObtainCampoToken(ObtainAuthToken):
         return Response({"token": token.key, "user_id": user.pk, "username": user.username})
 
 
+def _pisar_identidad_acreditada(formulario, acreditada):
+    """Deja en ``datos_identificacion`` lo que dijo la **fuente**, no lo que
+    tipeó el territorial (Cambio 57, RN-4).
+
+    ``acreditada`` es el dict de ``datos_de_fila``/``identificar`` o ``None``
+    cuando la fuente no respaldó nada: ahí el origen pasa a ``manual``, que es el
+    camino previsto para una carga sin respaldo. Sin esto, un origen rechazado
+    dejaría el flag en ``False`` pero la identidad inventada seguiría viaje al
+    legajo que arma ``resolver_ciudadano_offline``.
+
+    Devuelve ``True`` si hay que guardar la columna.
+    """
+    if not isinstance(formulario.datos_identificacion, dict):
+        return False
+    actualizado = dict(formulario.datos_identificacion)
+    if acreditada:
+        actualizado.update(nombre=acreditada["nombre"], apellido=acreditada["apellido"])
+        if acreditada.get("fecha_nacimiento"):
+            actualizado["fecha_nacimiento"] = acreditada["fecha_nacimiento"]
+        if acreditada.get("localidad_id"):
+            actualizado["localidad_id"] = acreditada["localidad_id"]
+    else:
+        actualizado["origen"] = "manual"
+    formulario.datos_identificacion = actualizado
+    return True
+
+
 def _actualizar_validacion_identidad(formulario, datos_identificacion=None):
     if formulario.identidad_forzada:
         # La validación manual del revisor (Cambio 55) no la deshace un sync.
@@ -173,35 +218,53 @@ def _actualizar_validacion_identidad(formulario, datos_identificacion=None):
     campos = []  # un solo UPDATE al final
 
     if origen in ("scan", "escaneo", "dni_scan"):
+        # D-24: el escaneo del código de barras del DNI **sí** cuenta como
+        # validación. Es el documento físico leído por la cámara delante de la
+        # persona, no un dato que el cliente se autoasignó, y el servidor no
+        # tiene forma de re-verificarlo.
         validado = True
         origen_validacion = Formulario.OrigenValidacion.SCAN
     elif origen in ("personas", "gran_base"):
-        # Gran Base solo acredita identidad cuando devuelve ambos componentes.
-        # Una correccion manual posterior no debe transformar una respuesta
-        # incompleta en una validacion externa.
-        validado = bool(str(datos.get("nombre") or "").strip() and str(datos.get("apellido") or "").strip())
-        origen_validacion = Formulario.OrigenValidacion.PERSONAS if validado else ""
+        # SEC-24 · el cliente tampoco puede autovalidarse por acá. Antes
+        # alcanzaba con que el request dijera `origen: personas` y trajera
+        # cualquier nombre y apellido para que el caso quedara
+        # `validado_renaper=True`: un token de campo acreditaba una identidad
+        # inventada. Ahora el servidor vuelve a resolverla con la misma cascada
+        # del Cambio 57 —padrón de la convocatoria y después Base de Personas— y
+        # lo que queda guardado es lo que dijo la fuente, igual que en `padron`.
+        resultado = identificar(
+            formulario.relevamiento,
+            datos.get("dni"),
+            datos.get("sexo") or datos.get("genero"),
+        )
+        validado = bool(resultado["validado"])
+        if not validado:
+            # Con la fuente caída —o con una identidad que no existe— el caso
+            # queda **pendiente**, no validado: lo desbloquea el revisor a mano
+            # (Cambio 55). Confiar en el cliente cuando no se lo puede verificar
+            # es justamente el agujero de la ficha.
+            logger.warning(
+                "SEC-24: no se pudo acreditar la identidad que el caso %s declaró como «%s» (error: %s)",
+                formulario.pk,
+                origen,
+                resultado["error"] or "sin respaldo",
+            )
+        if _pisar_identidad_acreditada(formulario, resultado["datos"] if validado else None):
+            campos.append("datos_identificacion")
+        origen_validacion = ORIGEN_VALIDACION_POR_FUENTE.get(resultado["origen"], "") if validado else ""
     elif origen == "padron":
         # Cambio 57, RN-4: el cliente no puede autovalidarse. La fila se busca
         # en el padrón de la convocatoria y, si valida, la identidad es la del
-        # padrón —no la que tipeó el territorial—.
+        # padrón —no la que tipeó el territorial—. Acá **no** se sale a la red:
+        # el origen declarado es el padrón y es el padrón el que tiene que
+        # respaldarlo.
         fila = fila_padron(
             formulario.relevamiento,
             datos.get("dni"),
             datos.get("sexo") or datos.get("genero"),
         )
         validado = bool(fila is not None and fila.tiene_identidad)
-        if isinstance(formulario.datos_identificacion, dict):
-            actualizado = dict(formulario.datos_identificacion)
-            if validado:
-                actualizado.update(nombre=fila.nombre, apellido=fila.apellido)
-                if fila.fecha_nacimiento:
-                    actualizado["fecha_nacimiento"] = fila.fecha_nacimiento.isoformat()
-                if fila.localidad_id:
-                    actualizado["localidad_id"] = fila.localidad_id
-            else:
-                actualizado["origen"] = "manual"
-            formulario.datos_identificacion = actualizado
+        if _pisar_identidad_acreditada(formulario, datos_de_fila(fila) if validado else None):
             campos.append("datos_identificacion")
         origen_validacion = Formulario.OrigenValidacion.PADRON if validado else ""
     elif origen == "manual":
@@ -276,18 +339,39 @@ def _relevamientos_para_identificar(user, relevamiento_id):
     )
 
 
+class ConsultaPersonasThrottle(UserRateThrottle):
+    """SEC-25 · tope de la consulta de identidad de la app (``personas_campo``).
+
+    **Por usuario, no por IP** (``UserRateThrottle`` toma ``request.user.pk``
+    cuando hay sesión o token, que es siempre acá: el permiso corre antes que el
+    throttle y un anónimo ya se fue en 403). Una cubeta por IP le cerraría la
+    consulta a toda una región: los territoriales salen por el NAT de la
+    operadora móvil. Es además la razón por la que esto **no** toca
+    ``NUM_PROXIES``, que vale distinto en DEV (nginx) y en ECOM (ingress).
+
+    El 429 no rompe nada en el teléfono instalado: ``RelevamientoDetailScreen``
+    atrapa el error de la consulta, cae a carga manual y el caso entra sin
+    validar (``Chaco-mobile@a66c2d3``). No pasa por la cola de sincronización,
+    así que no hay ``FAILED_PERMANENT`` posible.
+    """
+
+    scope = "personas_campo"
+
+
 @extend_schema(
     request=ConsultaPersonaSerializer,
     responses={
         200: ConsultaPersonaRespuestaSerializer,
         400: OpenApiResponse(description="Falta el DNI o el sexo no es F ni M."),
         404: OpenApiResponse(description="No se la pudo identificar, o Base de Personas la informa fallecida."),
+        429: OpenApiResponse(description="Se superó el tope de consultas de identidad del usuario."),
         502: OpenApiResponse(description="Base de Personas falló."),
     },
 )
 @api_view(["POST"])
 @authentication_classes([TokenAuthentication, SessionAuthentication])
 @permission_classes([IsAuthenticated, CampoBecasPermission])
+@throttle_classes([ConsultaPersonasThrottle])
 def consultar_persona_becas(request):
     entrada = ConsultaPersonaSerializer(data=request.data)
     if not entrada.is_valid():
@@ -557,7 +641,20 @@ class RelevamientoViewSet(viewsets.ReadOnlyModelViewSet):
         return Response({"existe": _formulario_dni_existe(rel, dni)})
 
 
-class FormularioViewSet(mixins.RetrieveModelMixin, mixins.UpdateModelMixin, viewsets.GenericViewSet):
+class FormularioViewSet(mixins.RetrieveModelMixin, viewsets.GenericViewSet):
+    """El caso ya cargado: se lee y se le suben los archivos. **No se edita.**
+
+    SEC-23 · tenía ``UpdateModelMixin`` y ``perform_update`` no miraba el estado
+    del caso: con el token, un ``PATCH`` semanas después sobre un caso APROBADO
+    cambiaba el apoderado o ``datos_identificacion`` y volvía a disparar
+    ``resolver_ciudadano_offline``. El sync offline legítimo **solo crea**
+    casos —``POST relevamientos/<id>/formularios/``, idempotente por
+    ``client_uuid``— y ni la build instalada (``Chaco-mobile@a66c2d3``) ni el
+    ``main`` del repo de la app hacen un PATCH: no hay ni una sola llamada con
+    método ``PATCH`` o ``PUT`` en todo ``src/``. Sin el mixin el router deja de
+    mapear los dos verbos y la ruta contesta 405.
+    """
+
     authentication_classes = [TokenAuthentication, SessionAuthentication]
     permission_classes = [IsAuthenticated, CampoBecasPermission]
     parser_classes = [JSONParser, FormParser, MultiPartParser]
@@ -567,21 +664,6 @@ class FormularioViewSet(mixins.RetrieveModelMixin, mixins.UpdateModelMixin, view
         return Formulario.objects.filter(relevamiento__territorial=self.request.user).select_related(
             "relevamiento", "ciudadano"
         )
-
-    def perform_update(self, serializer):
-        formulario = serializer.instance
-        if mensaje := _mensaje_pausa(formulario.relevamiento):
-            raise ValidationError({"detail": mensaje})
-        capturado_en = formulario.capturado_en or serializer.validated_data.get("capturado_en")
-        if not _captura_habilitada(formulario.relevamiento, capturado_en):
-            raise ValidationError({"detail": "El relevamiento está fuera de su período asignado."})
-        formulario = serializer.save()
-        _actualizar_validacion_identidad(
-            formulario,
-            serializer.validated_data.get("datos_identificacion"),
-        )
-        sincronizar_desde_legacy(formulario)
-        resolver_ciudadano_offline(formulario)
 
     @action(detail=True, methods=["get", "post"])
     def adjuntos(self, request, pk=None):
@@ -610,6 +692,26 @@ class FormularioViewSet(mixins.RetrieveModelMixin, mixins.UpdateModelMixin, view
                 {"detail": "El relevamiento está fuera de su período asignado."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
+        if formulario.estado != Formulario.Estado.ENVIADO:
+            # SEC-23: un caso ya resuelto no recibe documentación nueva. El POST
+            # **reemplaza** el archivo del campo (G1-07), así que sin esto un
+            # token de campo cambiaba la foto del DNI de un caso APROBADO
+            # semanas después de la resolución y sin dejar rastro.
+            #
+            # 409 y no 400 porque es un conflicto de estado, y es el código que
+            # ya usa el resto de la familia (cupo lleno, pausa). Lo pagan dos
+            # casos: el caso ya revisado —que es lo que se quiere frenar— y, en
+            # el borde, una cola offline que sube la foto *después* de que el
+            # backoffice resolvió el caso dentro del mismo período del
+            # relevamiento. En ese borde la app marca la operación
+            # `FAILED_PERMANENT` y pierde **la foto**: el caso ya está cargado
+            # del lado del servidor y la revisión puede adjuntarla a mano.
+            return Response(
+                {"detail": CASO_RESUELTO_MENSAJE, "code": "CASO_RESUELTO", "estado": formulario.estado},
+                status=status.HTTP_409_CONFLICT,
+            )
+
         serializer = AdjuntoFormularioSerializer(data=request.data, context={"formulario": formulario})
         serializer.is_valid(raise_exception=True)
         adjunto = campo.guardar_adjunto(

@@ -36,9 +36,9 @@ Base verificada: `origin/development @ 917e583`. PoC: `poc/test_repro_seguridad.
 | SEC-20 | Inyección de fórmulas en CSV/XLSX (incluye export de ciudadanos) | MEDIA | CONF. lectura | 2 | S | ✅ |
 | SEC-21 | Cupo: el Coordinador Regional ve y muta casos de sus pares | MEDIA | CONF. lectura | 2 | S | ✅ |
 | SEC-22 | Reportes, XLSX y cupo ignoran RN-P13 | MEDIA | CONF. lectura | 2 | S-M | ✅ |
-| SEC-23 | App de campo: PATCH y adjuntos sobre casos resueltos | MEDIA | CONF. lectura | 2 | S | ⬜ |
-| SEC-24 | La app se autovalida la identidad con `origen: personas` | MEDIA | CONF. lectura | 2 | M | ⬜ |
-| SEC-25 | `consultar_persona_becas` sin throttle | MEDIA | CONF. lectura | 2 | S | ⬜ |
+| SEC-23 | App de campo: PATCH y adjuntos sobre casos resueltos | MEDIA | CONF. lectura | 2 | S | ✅ |
+| SEC-24 | La app se autovalida la identidad con `origen: personas` | MEDIA | CONF. lectura | 2 | M | ✅ |
+| SEC-25 | `consultar_persona_becas` sin throttle | MEDIA | CONF. lectura | 2 | S | ✅ |
 | SEC-26 | Login, admin, recupero, clave provisoria y token de campo sin límites ni rotación | MEDIA | CONF. test (parte) | 2 | M | 🟡 |
 | SEC-27 | RENAPER con `verify=False` | MEDIA | CONF. lectura | 2 | S | ⬜ |
 | G1c-04 | `/ws/alertas/` difunde fuera de alcance, sin Origin y sin revalidar | MEDIA | CONF. test | 2 | M | ✅ |
@@ -53,7 +53,7 @@ Base verificada: `origin/development @ 917e583`. PoC: `poc/test_repro_seguridad.
 | G1c-10 | `/admin/` y `admin/doc/` montados en todos los entornos | BAJA | CONF. ajustado | 2 | S | ⬜ |
 | G1c-16 | Payload crudo de RENAPER en sesión (24 h) y caché (10 min) | BAJA | CONF. lectura | 2 | S | ⬜ |
 | R0-01 | `/conversaciones/<id>/evaluar/` acepta escritura anónima | BAJA (MINOR) | revisión Ola 0 | 0 | S | ✅ |
-| R0-05 | `DEFAULT_THROTTLE_RATES["renaper"]` sin consumidor | BAJA (MINOR) | revisión Ola 0 | 2 (con SEC-25) | incluido en SEC-25 | ⬜ |
+| R0-05 | `DEFAULT_THROTTLE_RATES["renaper"]` sin consumidor | BAJA (MINOR) | revisión Ola 0 | 2 (con SEC-25) | incluido en SEC-25 | ✅ |
 | R0b-04 | `retrieve` de `/api/legajos/ciudadanos/<pk>/` da 404 sin `?search=` | BAJA (MINOR) | revisión Ola 0 (2ª tanda) | 2 (Legajos) | S | ✅ |
 | R0b-05 | `CiudadanoViewSet` declara `ordering` sin `OrderingFilter`: pagina sin orden | BAJA (MINOR) | revisión Ola 0 (2ª tanda) | 2 (Legajos) | incluido en R0b-04 | ✅ |
 | R0b-06 | `AlertasViewSet` sin capacidad decidida | BAJA (MINOR) | revisión Ola 0 (2ª tanda) | 2 (con SEC-18) | incluido en SEC-18 | ✅ |
@@ -526,6 +526,24 @@ dos (sin alcance → vacío; con legajo propio → solo las suyas), porque afirm
 - **Tests a agregar:** `programas/tests/test_becas_api.py::test_patch_formulario_405` y `::test_adjunto_sobre_aprobado_409`.
 - **Verificación:** V-STD + `manage.py test programas.tests.test_becas_api`.
 
+**Resolución:** ✅ Resuelta en #NNN (Cambio 184), 08-10-2026 — `FormularioViewSet` quedó en
+`RetrieveModelMixin` + la acción `adjuntos` (PATCH y PUT contestan **405**, el router deja de mapear
+los verbos), `validado_renaper` pasó a `read_only_fields` y el POST de adjuntos contesta **409
+`code=CASO_RESUELTO`** cuando el caso no está `ENVIADO`. `client_uuid` y `capturado_en` **siguen
+siendo escribibles**: son la idempotencia de la cola offline y la fecha de captura del alta, y sin el
+PATCH ya no hay forma de cambiarlos después (el `test_el_alta_repetida_sigue_siendo_idempotente_por_client_uuid`
+del contrato lo sostiene). Efecto lateral: la excepción de D-RED-10 —el PATCH era el único de los seis
+endpoints que contestaba 400 en vez de 409 ante una pausa— desapareció con el verbo, así que el
+contrato de la pausa quedó uniforme sin pedir release de `Chaco-mobile`.
+**Riesgo residual asumido:** una cola offline que suba la foto *después* de que el backoffice resolvió
+el caso —y dentro del período del relevamiento, que es el otro guard— se lleva el 409, la app marca la
+operación `FAILED_PERMANENT` y pierde **la foto**; el caso ya está cargado del lado del servidor y la
+revisión puede adjuntarla a mano.
+**Test permanente:** `programas.tests.test_becas_api.FormularioSyncTests.test_patch_formulario_405`,
+`programas.tests.test_becas_api.AdjuntoSobreCasoResueltoTests` (4 tests, incluido
+`test_adjunto_sobre_aprobado_409`) y
+`programas.tests.test_becas_api_contrato.ContratoAppDeCampoTests.test_el_validado_renaper_del_telefono_se_ignora_sin_dar_400`.
+
 ### SEC-24 · La app de campo se autovalida la identidad con `origen: personas`
 **Severidad:** MEDIA · **Estado:** CONFIRMADO (lectura) · **Origen:** A5-24 · **Ola:** 2 · **Esfuerzo:** M · **Decisión:** D-24
 - **Ubicación:** `programas/api/views.py:115-122` (`elif origen in ("personas","gran_base"): validado = bool(nombre and apellido)`); el comentario de `:146` («el cliente nunca puede autovalidarse») no se cumple. El Cambio 57 registra «la app no puede autovalidarse (mismo principio que hoy con personas/scan)»: **hay que corregir el registro o el código**.
@@ -535,6 +553,34 @@ dos (sin alcance → vacío; con legajo propio → solo las suyas), porque afirm
 - **Verificación:** V-STD.
 - **Dependencias:** G1-05 (validación del resto del formulario en el servidor).
 
+**Resolución:** ✅ Resuelta en #NNN (Cambio 184), 08-10-2026 — con `origen: personas`/`gran_base` el
+servidor vuelve a resolver la identidad con `identificar(formulario.relevamiento, dni, sexo)`, la
+misma cascada del Cambio 57, y **solo valida si la fuente respalda**. D-24 aplicada: `scan` sigue
+contando (es el documento físico leído por la cámara y el servidor no lo puede re-verificar), queda
+registrada como decisión en el código. Con la Gran Base caída —o con un DNI que no figura— el caso
+entra igual pero **sin validar**, que es el camino de la validación manual del revisor (Cambio 55).
+El comentario de la vista («el cliente nunca puede autovalidarse») pasó a ser cierto para las cuatro
+ramas.
+**Dos desvíos de la ficha, los dos a propósito:**
+1. *No se compara, se pisa.* La ficha dice «validar solo si coincide». Comparar dejaría el flag en
+   `False` pero la identidad inventada seguiría viaje al legajo que arma `resolver_ciudadano_offline`.
+   Se hace lo mismo que ya hacía la rama `padron` (Cambio 57, RN-4): lo que queda guardado en
+   `datos_identificacion` es lo que dijo la fuente, y si no respaldó nada el origen pasa a `manual`.
+   Las dos ramas comparten ahora `_pisar_identidad_acreditada`.
+2. *Sin caché.* La ficha dice «(cacheado)». Una caché compartida entre `personas/consultar/` y el alta
+   cambiaría también el comportamiento del link público (las dos pasan por `identificar`) y haría no
+   determinista el presupuesto de consultas; el costo real es **una** consulta a la Gran Base por alta
+   con origen `personas`, después del commit y fuera del `select_for_update` (Cambio 91), con el
+   cortacircuito de SIIS-09 delante. La cadena nueva quedó declarada en `core/integraciones.CADENAS`
+   como `"app de campo · alta de un caso"` (30 s < 55, `core.E003`). Si el volumen lo pide, la caché
+   es una mejora posterior, no un prerrequisito.
+**Test permanente:** `programas.tests.test_becas_api.IdentidadNoLaAcreditaElClienteTests` (5 tests) y
+`programas.tests.test_padron_identidad.OrigenPadronServidorTests.test_personas_sin_respaldo_queda_manual`
+(+ `test_personas_con_respaldo_toma_los_datos_de_la_fuente`,
+`test_personas_respaldado_por_el_padron_vale_como_padron`). El test que fijaba el comportamiento viejo
+(`test_crear_formulario_validado_por_personas_queda_validado`) quedó invertido: sigue validando, pero
+ahora exige que el servidor haya consultado (`mock_consultar.assert_called_once_with`).
+
 ### SEC-25 · `consultar_persona_becas` sin throttle (enumeración contra la Gran Base)
 **Severidad:** MEDIA · **Estado:** CONFIRMADO (lectura) · **Origen:** A5-25 · **Ola:** 2 · **Esfuerzo:** S · **Decisión:** D-25
 
@@ -543,6 +589,22 @@ dos (sin alcance → vacío; con legajo propio → solo las suyas), porque afirm
 - **Propuesta:** `@throttle_classes([ScopedRateThrottle])` con `throttle_scope = "personas_campo"` y en settings `"personas_campo": "120/hour"` (default D-25; por usuario porque el request está autenticado). Aplica también al alias `/api/becas/renaper/consultar/`.
 - **Tests a agregar:** N+1 consultas → 429.
 - **Verificación:** V-STD.
+
+**Resolución:** ✅ Resuelta en #NNN (Cambio 184), 08-10-2026 — `consultar_persona_becas` lleva
+`@throttle_classes([ConsultaPersonasThrottle])` y la tasa `"personas_campo": "120/hour"` (default
+D-25). **Desvío de la ficha:** se usa un `UserRateThrottle` con `scope` propio en vez de
+`ScopedRateThrottle`, porque el `throttle_scope` de un `ScopedRateThrottle` no se puede declarar sobre
+una vista de función sin subclasear igual, y `UserRateThrottle` ya toma `request.user.pk` como
+identidad, que es lo que D-25 pide (por usuario, no por IP: los territoriales salen por el NAT de la
+operadora móvil). No se toca `NUM_PROXIES`. El alias `renaper/consultar/` comparte la cubeta porque es
+la misma vista. El 429 no rompe la app instalada: `RelevamientoDetailScreen` atrapa el error de la
+consulta y cae a carga manual, y esa llamada no pasa por la cola de sincronización, así que no hay
+`FAILED_PERMANENT` posible.
+**Test permanente:** `programas.tests.test_becas_api.ConsultaDePersonasConThrottleTests` (5 tests).
+
+**R0-05 ✅ en el mismo Cambio:** la tasa `"renaper": "30/min"` se borró y su lugar lo ocupa
+`"personas_campo"`. El `DEFAULT_THROTTLE_RATES` vuelve a tener exactamente un consumidor por entrada;
+lo fija `ConsultaDePersonasConThrottleTests.test_la_tasa_configurada_es_la_de_d25`.
 
 ### SEC-26 · Login, `/admin/`, recupero, clave provisoria y token de campo sin límite, validadores ni rotación
 **Severidad:** MEDIA · **Estado:** CONFIRMADO (lectura; token y clave provisoria con test `poc/test_repro_usuarios.py::G1b03y04TokenCampoTests`) · **Origen:** A5-15, A5-35, A5-37, G1b-03, G1b-04 · **Ola:** 2 · **Esfuerzo:** M · **Decisión:** D-26 (clave provisoria del territorial)
@@ -794,6 +856,10 @@ las líneas son de `origin/development @ 7393c41`.
 **Severidad:** BAJA (MINOR del revisor) · **Estado:** CONFIRMADO (lectura) · **Origen:** revisión de la Ola 0 · **Ola:** 2 (con SEC-25) · **Esfuerzo:** incluido en SEC-25
 - **Ubicación:** `config/settings.py:421`. El único consumidor era `RenaperRateThrottle`, borrado con SEC-04 (#509).
 - **Propuesta:** usarla en el throttle de `consultar_persona_becas` (SEC-25) o borrarla.
+
+**Resolución:** ✅ Resuelta en #NNN (Cambio 184), 08-10-2026, junto con SEC-25 — se borró y la
+reemplaza `"personas_campo": "120/hour"`, que sí tiene consumidor. **Test permanente:**
+`programas.tests.test_becas_api.ConsultaDePersonasConThrottleTests.test_la_tasa_configurada_es_la_de_d25`.
 
 ## Seguimientos de la revisión de la Ola 0, segunda tanda (agregados el 03-oct-2026)
 
