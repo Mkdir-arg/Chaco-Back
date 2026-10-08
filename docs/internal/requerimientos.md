@@ -28439,8 +28439,8 @@ un relevamiento público, 34 columnas, 12 preguntas de opciones cerradas, con el
 | Armar el archivo, solo CPU (mejor de 3) | xlsx 7,9 s sin `lxml` | xlsx **7,0 s** con `lxml` · **csv 0,6-1,0 s** |
 
 `manage.py check` sin issues · `makemigrations --check --dry-run`: «No changes detected» ·
-`manage.py test programas`: 2.446 tests OK · `core dashboard legajos users`: 1.764 OK ·
-`--tag performance`: 6 OK · `ruff check .` y `ruff format --check .` limpios ·
+`manage.py test programas`: 2.458 tests OK · `core dashboard legajos users`: 1.827 OK ·
+`--tag performance`: 8 OK · `ruff check .` y `ruff format --check .` limpios ·
 `design_audit.py --ratchet`: 0 hallazgos nuevos · `compile_templates.py --bloques`: 0 y 0 ·
 `pip-audit -r requirements.txt` con las excepciones vigentes: sin vulnerabilidades.
 
