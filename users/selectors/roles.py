@@ -26,7 +26,7 @@ def _capacidades_para_tabla(codigos):
     return [{"codigo": codigo, "label": _CAPACIDAD_LABELS.get(codigo, codigo)} for codigo in codigos]
 
 
-def _item_para_group(group):
+def _item_para_group(group, puede_editar=True):
     capacidades = _capacidades_desde_prefetch(group)
     return {
         "group": group,
@@ -34,6 +34,9 @@ def _item_para_group(group):
         "num_usuarios": group.num_usuarios,
         "capacidades": capacidades,
         "capacidades_tabla": _capacidades_para_tabla(capacidades),
+        # G1b-02: la fila solo ofrece editar/desactivar/eliminar si la vista va a
+        # aceptarlo. Un botón que siempre rebota es peor que no estar.
+        "puede_editar": puede_editar,
     }
 
 
@@ -96,6 +99,26 @@ def puede_gestionar_rol(user, group):
     return programas_administrables_roles(user).filter(pk=meta.programa_id).exists()
 
 
+def puede_editar_rol(user, group):
+    """¿El operador puede **modificar** este rol? (G1b-02).
+
+    Ver no es editar: un admin de programa sigue abriendo la ficha de su propio rol,
+    pero no puede guardarlo, borrarlo ni desactivarlo. Editarlo era el camino corto de
+    la escalada —quien solo tenía ``programa.rol.administrar`` se tildaba
+    ``programa.usuario.administrar`` sobre sí mismo y entraba al ABM de Usuarios—, y
+    cerrar solo las capacidades delegables no alcanzaba: el rol propio es también por
+    donde alguien se deja sin acceso sin querer.
+
+    El admin global no tiene esta restricción: él sí es el que tiene que poder
+    arreglar su propio rol.
+    """
+    if not puede_gestionar_rol(user, group):
+        return False
+    if es_admin_global(user):
+        return True
+    return not user.groups.filter(pk=group.pk).exists()
+
+
 def roles_visibles_para(user):
     """Roles agrupados para el ABM, **filtrados por el alcance del operador**.
 
@@ -107,6 +130,9 @@ def roles_visibles_para(user):
     """
     global_ = es_admin_global(user)
     programas_ok = None if global_ else set(programas_administrables_roles(user).values_list("pk", flat=True))
+    # Los roles del propio operador, en una sola consulta: ``puede_editar_rol`` dice lo
+    # mismo fila por fila, pero acá serían tantas consultas como roles.
+    propios = set() if global_ else set(user.groups.values_list("pk", flat=True))
 
     groups = (
         Group.objects.select_related("meta", "meta__programa")
@@ -121,7 +147,7 @@ def roles_visibles_para(user):
     por_programa = {}  # programa_pk -> (Programa, [items])
 
     for group in groups:
-        item = _item_para_group(group)
+        item = _item_para_group(group, puede_editar=global_ or group.pk not in propios)
         meta = item["meta"]
         categoria = meta.categoria if meta else None
         if categoria in _CATEGORIAS_CON_PROGRAMA and meta and meta.programa_id:

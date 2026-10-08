@@ -17,8 +17,8 @@ Base verificada: `origin/development @ 917e583`. PoC: `poc/test_repro_seguridad.
 | SEC-04 | Consulta RENAPER anónima con payload crudo y throttle evadible | CRÍTICA | CONF. test | 0 | S | ✅ |
 | SEC-05 | `activate`/`deactivate` de usuarios por API para cualquier autenticado | CRÍTICA | CONF. test | 0 | S | ✅ |
 | SEC-10 | Adjuntos de ciudadano/legajo sin capacidad ni pertenencia: cualquier autenticado **borra** el documento | CRÍTICA (04-oct) | CONF. test | 2 → **R (en R-19)** | S-M | ✅ |
-| SEC-06 | Capacidades `becas.*` otorgables en roles de otro programa | ALTA | CONF. test | 2 | M | ⬜ |
-| SEC-07 | `programa.configurar` en un rol de programa habilita el wizard de todos | ALTA | CONF. test | 2 | S-M | ⬜ |
+| SEC-06 | Capacidades `becas.*` otorgables en roles de otro programa | ALTA | CONF. test | 2 | M | ✅ |
+| SEC-07 | `programa.configurar` en un rol de programa habilita el wizard de todos | ALTA | CONF. test | 2 | S-M | ✅ |
 | SEC-08 | XSS almacenado por nombre de rol en todas las páginas | ALTA | CONF. test | 0 | S | ✅ |
 | SEC-09 | `/media/` sin login en DEV (nginx); sin pertenencia en ECOM | ALTA (DEV) / MEDIA (ECOM) | CONF. test | 0 (etapa 1) / 2 (etapa 2) | S + M | ✅ |
 | SEC-11 | APIs JSON de legajos (riesgo, alertas, timeline) sin capacidad | ALTA | CONF. test | **R-19** (`ciudadano.ver` de piso en las 5) / 2 (subir 3 a `ciudadano.sensible`, D-11) | S | ✅ |
@@ -175,6 +175,28 @@ la API detrás de **login** y no detrás de capacidad —un usuario de backoffic
 
 ### SEC-06 · Las capacidades `becas.*` se otorgan en roles de otro programa y los gates no las acotan
 **Severidad:** ALTA · **Estado:** CONFIRMADO-AJUSTADO con test (`SEC06BecasCrossProgramTests`) · **Origen:** A5-06; observación de A4 sobre los exports (refutada en su forma original, absorbida acá) · **Ola:** 2 · **Esfuerzo:** M · **Decisión:** D-06
+
+**Resolución:** ✅ Resuelta en #PENDIENTE (Cambio 192, Ola 2 PR 1), 08-oct-2026 — tres candados, porque el catálogo
+solo cierra lo que se puede **otorgar** de acá en adelante. (1) Los **trece** módulos `becas_*` declaran
+`"programas": ("BECAS",)`, así que el árbol del ABM deja de ofrecérselos al admin de roles de otro programa y el
+`MultipleChoiceField` rechaza el POST que los mande igual —el rol ni se crea—. (2) Los gates de las tres superficies
+que la ficha nombraba pasan a evaluar **con alcance**: los tres `convocatoria_export_*` resuelven la convocatoria por
+`convocatorias_visibles` y exigen `es_admin_becas` (que evalúa contra el Programa Becas y **falla cerrado** si no está
+sembrado, RED-56); `ProcesoMasivoView`, `proceso_masivo_lanzar` y `proceso_masivo_frenar` suman `_asegurar_alcance`
+sobre `programa_becas(user)`, con el decorador conservado como puerta; y la bandeja de pendientes de RENAPER filtra por
+`convocatorias_visibles` —el selector de territoriales y el de segmentos, con el mismo alcance—. (3) `users.0031` quita
+las `becas_%` de todo rol con `RolMeta.programa` no nulo y distinto de BECAS, **registrando cada par (rol, capacidad)**
+en la tabla nueva `users_capacidadrevocada`, que es lo que le da **reversa real**: desaplicar restituye exactamente lo
+que quitó y borra las filas. Loguea en el `migrate` cada rol y cada capacidad, y con P-02 vacío no escribe nada.
+**Dos desvíos, los dos code-first:** (a) los tres exports pasan de rechazar con un **redirect** a hacerlo con **403**,
+que es el patrón del resto de los guards de alcance de Becas (`assert_alcance_formulario`,
+`programa_identificadores_siis`); (b) `configuracion.py:300` y `:615`, que la ficha listaba en «Ubicación», **ya
+estaban cerrados** por el PR 5 de esta ola (`programas_siis_visibles` y `es_admin_becas`, los dos con alcance), así que
+no se tocaron. **Lo que la ficha dejaba sujeto a confirmación del PM y no se hizo:** acotar el módulo `relevamientos` a
+Becas. Hoy no lo consume ninguna vista —solo un templatetag de ejemplo—, así que acotarlo sería quitarle una capacidad
+a un rol por una suposición. **Test permanente:** `programas.tests.test_sec06_alcance_becas` (17) y
+`users.tests.test_roles_ola2_pr1.Migracion0031Tests` (2). **Operativo (PM):** correr **P-02** en PRD **antes** de
+desplegar; si da vacío, la migración no quita nada.
 - **Ubicación:** `core/rbac.py:46-237` (catálogo sin `"programas"` en los módulos `becas_*`), `:417-426`; `users/forms/roles.py:137-146`; exports `programas/views/relevamientos.py:423`, `:462`, `:510` (`get_object_or_404(Convocatoria, pk=pk)` con `@requiere(CAP_REPORTES)`, `CAP_REPORTES = "becas.programa.administrar"` en `:57`); `ProgramaSiis` en `proceso_masivo.py:56`/`:101` y `configuracion.py:300`/`:615`; `RenaperPendientesListView.get_queryset` (`revision.py:443-469`).
 - **Escenario (reproducido):** el admin de Dispositivos abre `/roles/crear/`, el árbol le ofrece `becas.programa.administrar`; crea el rol «Escalada» (Programa/Dispositivos) con `becas.programa.administrar` y `becas.programa.proceso_masivo` y se lo asigna. `puede(u, "becas.programa.administrar")` → True, `es_admin_becas(u)` → False. `GET /becas/convocatorias/<pk>/export/beneficiarios/` → 200 con DNI; `/becas/config/programas/<pk>/proceso-masivo/` → 200. Contraste: un Coordinador sin admin → 302 (la versión de A4 «un coordinador baja DNI cambiando el id» es **falsa**).
 - **Causa raíz:** causas transversales 2 y 3.
@@ -190,6 +212,22 @@ la API detrás de **login** y no detrás de capacidad —un usuario de backoffic
 
 ### SEC-07 · `programa.configurar` tildada en un rol de programa habilita el wizard de **todos** los programas
 **Severidad:** ALTA · **Estado:** CONFIRMADO-AJUSTADO con test (`SEC07ProgramaConfigurarTests`) · **Origen:** A5-07; V1-NEW-02 (corrección de la propuesta de P1) · **Ola:** 2 · **Esfuerzo:** S-M · **Decisión:** D-07
+
+**Resolución:** ✅ Resuelta en #PENDIENTE (Cambio 192, Ola 2 PR 1), 08-oct-2026, con **D-07 = Sí** aplicada —
+`core/rbac.py` estrena `puede_sin_programa(user, codigo)` (la capacidad tiene que venir de un rol con
+`RolMeta.programa` nulo) y el decorador `requiere_sin_programa`. Las **diez** vistas del wizard se reparten en tres
+grupos: los cuatro pasos del **alta** piden la capacidad en un rol global (crear un programa no tiene alcance posible —
+el programa todavía no existe—, y D-07 lo deja para sistema); los cuatro pasos de **edición** y
+`programa_cambiar_estado` resuelven el `pk` y evalúan `puede_sin_programa(...) or puede(..., programa=ese)`; y el
+**listado** sigue abierto a `CAPS_ENTRADA_PROGRAMAS` (SEC-36) pero decide el lápiz **fila por fila**. No se movió
+`programa.configurar` a un módulo global, que es lo que la ficha marcaba como el error de P1:
+`puede_configurar_dispositivos` la evalúa con alcance DISPOSITIVOS y seguiría andando igual. El punto 3 va con G1b-02:
+`capacidades_no_delegables` la saca del árbol de todo admin de programa **salvo** en DISPOSITIVOS, el único que la
+evalúa acotada. **Test permanente:** `configuracion.tests.test_programas_alcance` (19, incluida la batería por rol:
+anónimo, sin rol, rol de otro programa, admin del propio programa y superusuario) y
+`users.tests.test_roles_abm.RolAlcanceTests.test_form_admin_dispositivos_si_delega_programa_configurar`.
+**Operativo (PM):** **P-03** dice qué roles la tienen hoy; el Cambio 20 la repartió, y desde este deploy en un rol de
+programa solo sirve para su propio programa.
 - **Ubicación:** `core/rbac.py:46-55` (módulo `programas`, `alcance: programa`, sin lista `programas`); `configuracion/views/programas.py:90`, `:120`, `:146`, `:175`, `:246`, `:290`, `:319`, `:357`, `:429` (`@requiere("programa.configurar")` global) y `:67` (listado).
 - **Escenario (reproducido):** el admin de roles de Becas se tilda `programa.configurar` y `GET /configuracion/programas/<Dispositivos>/editar/paso1/` → 200.
 - **Lo que NO hay que hacer:** mover `programa.configurar` a un módulo global (propuesta de P1). `programas/services/dispositivos.py:13` y `:56` (`puede_configurar_dispositivos`) la evalúan **con programa DISPOSITIVOS**; globalizarla rompe ese alcance.

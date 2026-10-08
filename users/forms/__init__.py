@@ -348,6 +348,12 @@ def _validar_al_menos_un_rol(form):
     )
 
 
+def _capacidades_prefetcheadas(group):
+    """Códigos de capacidad del rol usando los permisos ya traídos por el prefetch."""
+    codenames = {p.codename for p in group.permissions.all()}
+    return [c for c in rbac.codigos_de_capacidad() if rbac.codename_de(c) in codenames]
+
+
 def _roles_asignables_queryset(operador=None):
     """Roles asignables a usuarios del backoffice: activos y NO de categoría Portal.
 
@@ -370,7 +376,19 @@ def _roles_asignables_queryset(operador=None):
     # USUARIOS del programa, no quién administra sus roles.
     from users.selectors.roles import programas_administrables_usuarios
 
-    return qs.filter(meta__programa__in=programas_administrables_usuarios(operador))
+    candidatos = qs.filter(meta__programa__in=programas_administrables_usuarios(operador))
+    # G1b-02: un rol es un paquete de capacidades. Los que otorgan la administración del
+    # programa —o la del sistema— quedan fuera del combo: si no, asignarse el rol de al
+    # lado era la forma corta de darse lo que el ABM de Roles no deja tildar.
+    permitidos = {
+        group.pk
+        for group in candidatos.select_related("meta", "meta__programa").prefetch_related("permissions")
+        if rbac.puede_asignar_capacidades(
+            getattr(getattr(group, "meta", None), "programa", None),
+            _capacidades_prefetcheadas(group),
+        )
+    }
+    return qs.filter(pk__in=permitidos)
 
 
 _SIN_CATEGORIA = "Sin categoría"

@@ -101,34 +101,41 @@ class SeedRolesBecasTests(TestCase):
 
         self.assertEqual(RolMeta.objects.get(grupo=self.referente).descripcion, "Texto propio del cliente")
 
-    def test_un_rol_renombrado_genera_uno_nuevo_con_el_nombre_canonico(self):
-        # Conducta documentada (D-O06): los roles se identifican solo por nombre.
-        # Reconocer el renombre exige la clave estable de la fase 2 de OPS-06.
+    def test_un_rol_renombrado_no_genera_un_duplicado(self):
+        """OPS-06 fase 2: la PoC invertida.
+
+        Hasta el Cambio 192 el seed buscaba sus roles por ``Group.name``, que el ABM
+        deja renombrar: el arranque siguiente creaba un **segundo** rol con el nombre
+        canónico —sin usuarios y con todas las capacidades— al lado del que la gente
+        usaba. Con ``RolMeta.clave`` el renombre se reconoce y el nombre nuevo queda.
+        """
         self.referente.name = "Referente de Becas"
         self.referente.save()
         roles_antes = Group.objects.count()
 
         _correr()
 
-        self.assertEqual(Group.objects.count(), roles_antes + 1)
-        nuevo = Group.objects.get(name=seed_becas.ROL_REFERENTE)
-        self.assertNotEqual(nuevo.pk, self.referente.pk)
-        self.assertEqual(_codigos(nuevo), _base(seed_becas.ROL_REFERENTE))
+        self.assertEqual(Group.objects.count(), roles_antes)
+        self.assertFalse(Group.objects.filter(name=seed_becas.ROL_REFERENTE).exists())
         self.referente.refresh_from_db()
         self.assertEqual(self.referente.name, "Referente de Becas")
+        self.assertEqual(self.referente.meta.clave, "becas.referente")
 
-    def test_un_rol_renombrado_deja_de_sincronizarse(self):
+    def test_un_rol_renombrado_se_sigue_sincronizando(self):
+        """Y como sigue siendo el mismo rol, el seed le realinea las capacidades base
+        (Cambio 29) sin tocarle el nombre ni el estado activo (D-O06)."""
         self.referente.name = "Referente de Becas"
         self.referente.save()
         self.referente.permissions.remove(_perm("becas.revision.ver"))
         self.referente.permissions.add(_perm("becas.revision.editar"))
         RolMeta.objects.filter(grupo=self.referente).update(activo=False)
-        antes = _codigos(self.referente)
 
         _correr()
 
-        self.assertEqual(_codigos(self.referente), antes)
+        self.assertEqual(_codigos(self.referente), _base(seed_becas.ROL_REFERENTE))
         self.assertFalse(RolMeta.objects.get(grupo=self.referente).activo)
+        self.referente.refresh_from_db()
+        self.assertEqual(self.referente.name, "Referente de Becas")
 
     def test_un_rol_borrado_se_vuelve_a_crear(self):
         self.referente.delete()
@@ -223,6 +230,70 @@ class SeedOperadorBackofficeTests(TestCase):
 
         self.assertEqual(_codigos(operador), set())
         self.assertFalse(RolMeta.objects.get(grupo=operador).activo)
+
+
+class ClaveEstableDeLosRolesSembradosTests(TestCase):
+    """OPS-06 fase 2: los siete roles del arranque llevan ``RolMeta.clave``.
+
+    Con la clave, el seed reconoce un rol renombrado desde el ABM y deja de crear un
+    duplicado con el nombre canónico (escenario 3 de la ficha).
+    """
+
+    def test_el_seed_deja_la_clave_puesta(self):
+        _correr()
+
+        claves = dict(RolMeta.objects.exclude(clave=None).values_list("clave", "grupo__name"))
+
+        self.assertEqual(
+            claves,
+            {
+                "sistema.administrador": rbac.ROL_ADMINISTRADOR,
+                "sistema.operador_backoffice": OPERADOR,
+                "becas.administrador": seed_becas.ROL_ADMIN,
+                "becas.coordinador": seed_becas.ROL_COORDINADOR,
+                "becas.coordinador_regional": seed_becas.ROL_COORDINADOR_REGIONAL,
+                "becas.referente": seed_becas.ROL_REFERENTE,
+                "becas.territorial": seed_becas.ROL_TERRITORIAL,
+            },
+        )
+
+    def test_un_rol_creado_a_mano_no_lleva_clave(self):
+        """La clave es de los sembrados: lo que crea el ABM no la tiene."""
+        _correr()
+        propio = Group.objects.create(name="Rol propio")
+        RolMeta.objects.create(grupo=propio, categoria=rbac.CATEGORIA_BACKOFFICE, activo=True)
+
+        _correr()
+
+        self.assertIsNone(RolMeta.objects.get(grupo=propio).clave)
+
+    def test_el_operador_de_backoffice_renombrado_no_se_duplica(self):
+        """La otra mitad: ``seed_rbac`` también reconoce el suyo por la clave."""
+        _correr()
+        operador = Group.objects.get(name=OPERADOR)
+        operador.name = "Mesa de entradas"
+        operador.save()
+        roles_antes = Group.objects.count()
+
+        _correr()
+
+        self.assertEqual(Group.objects.count(), roles_antes)
+        self.assertFalse(Group.objects.filter(name=OPERADOR).exists())
+
+    def test_el_administrador_renombrado_no_se_duplica_y_sigue_protegido(self):
+        _correr()
+        admin = Group.objects.get(name=rbac.ROL_ADMINISTRADOR)
+        admin.name = "Superadmin"
+        admin.save()
+        roles_antes = Group.objects.count()
+
+        _correr()
+
+        self.assertEqual(Group.objects.count(), roles_antes)
+        admin.refresh_from_db()
+        self.assertEqual(admin.name, "Superadmin")
+        self.assertTrue(admin.meta.protegido)
+        self.assertEqual(len(_codigos(admin)), len(rbac.codigos_de_capacidad()))
 
 
 class SeedGestionCiudadanosTests(TestCase):

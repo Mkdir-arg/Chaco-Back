@@ -100,6 +100,7 @@ CATALOGO = [
         "modulo": "becas_admin",
         "label": "Becas — Administración",
         "tab": "becas",
+        "programas": ("BECAS",),  # SEC-06
         "alcance": "programa",  # módulo "de programa": sus capacidades se evalúan con alcance
         "capacidades": [
             ("becas.programa.administrar", "Administrar el programa Becas (acceso total, asigna coordinadores)"),
@@ -118,6 +119,7 @@ CATALOGO = [
         "modulo": "becas_segmentos",
         "label": "Becas — Segmentos",
         "tab": "becas",
+        "programas": ("BECAS",),  # SEC-06
         "alcance": "programa",
         "capacidades": [
             ("becas.segmento.ver", "Ver segmentos"),
@@ -129,6 +131,7 @@ CATALOGO = [
         "modulo": "becas_subsegmentos",
         "label": "Becas — Subsegmentos",
         "tab": "becas",
+        "programas": ("BECAS",),  # SEC-06
         "alcance": "programa",
         "capacidades": [
             ("becas.subsegmento.ver", "Ver subsegmentos"),
@@ -140,6 +143,7 @@ CATALOGO = [
         "modulo": "becas_requisitos",
         "label": "Becas — Requisitos",
         "tab": "becas",
+        "programas": ("BECAS",),  # SEC-06
         "alcance": "programa",
         "capacidades": [
             ("becas.requisito.ver", "Ver requisitos nativos"),
@@ -151,6 +155,7 @@ CATALOGO = [
         "modulo": "becas_preguntas",
         "label": "Becas — Preguntas globales",
         "tab": "becas",
+        "programas": ("BECAS",),  # SEC-06
         "alcance": "programa",
         "capacidades": [
             ("becas.pregunta.ver", "Ver preguntas globales (requisitos generales)"),
@@ -162,6 +167,7 @@ CATALOGO = [
         "modulo": "becas_coordinadores",
         "label": "Becas — Coordinadores",
         "tab": "becas",
+        "programas": ("BECAS",),  # SEC-06
         "alcance": "programa",
         "capacidades": [
             ("becas.coordinador.ver", "Ver coordinadores asignados a segmentos"),
@@ -173,6 +179,7 @@ CATALOGO = [
         "modulo": "becas_convocatorias",
         "label": "Becas — Convocatorias",
         "tab": "becas",
+        "programas": ("BECAS",),  # SEC-06
         "alcance": "programa",
         "capacidades": [
             ("becas.convocatoria.ver", "Ver convocatorias (incluye exportar CSV)"),
@@ -184,6 +191,7 @@ CATALOGO = [
         "modulo": "becas_relevamientos",
         "label": "Becas — Relevamientos",
         "tab": "becas",
+        "programas": ("BECAS",),  # SEC-06
         "alcance": "programa",
         "capacidades": [
             ("becas.relevamiento.ver", "Ver relevamientos de Becas"),
@@ -196,6 +204,7 @@ CATALOGO = [
         "modulo": "becas_revision",
         "label": "Becas — Revisión",
         "tab": "becas",
+        "programas": ("BECAS",),  # SEC-06
         "alcance": "programa",
         "capacidades": [
             ("becas.revision.ver", "Ver relevamientos en revisión y sus formularios"),
@@ -206,6 +215,7 @@ CATALOGO = [
         "modulo": "becas_cupo",
         "label": "Becas — Cupo",
         "tab": "becas",
+        "programas": ("BECAS",),  # SEC-06
         "alcance": "programa",
         "capacidades": [
             ("becas.cupo.ver", "Ver ocupación y capacidad de cupo por segmento"),
@@ -215,6 +225,7 @@ CATALOGO = [
         "modulo": "becas_beneficiarios",
         "label": "Becas — Beneficiarios",
         "tab": "becas",
+        "programas": ("BECAS",),  # SEC-06
         "alcance": "programa",
         "capacidades": [
             ("becas.beneficiario.ver", "Ver beneficiarios, lista de espera y pendientes"),
@@ -225,6 +236,7 @@ CATALOGO = [
         "modulo": "becas_reportes",
         "label": "Becas — Reportes",
         "tab": "becas",
+        "programas": ("BECAS",),  # SEC-06
         "alcance": "programa",
         "capacidades": [
             ("becas.reportes.ver", "Ver reportes de Becas"),
@@ -235,6 +247,7 @@ CATALOGO = [
         "modulo": "becas_campo",
         "label": "Becas — Campo",
         "tab": "becas",
+        "programas": ("BECAS",),  # SEC-06
         "alcance": "programa",
         "capacidades": [
             ("becas.campo", "Operar la app de campo de Becas (territorial)"),
@@ -366,6 +379,12 @@ CAPS_ENTRADA_PROGRAMAS = ("programa.configurar", "config.ver", "config.administr
 ROL_ADMINISTRADOR = "Administrador"
 GRUPO_CIUDADANO_PORTAL = "Ciudadanos"
 
+#: Único programa cuyo dominio evalúa ``programa.configurar`` **con alcance**
+#: (``programas.services.dispositivos.puede_configurar_dispositivos``). Por eso es el
+#: único donde un admin de programa puede delegarla (SEC-07). Vive acá y no en
+#: ``programas`` porque ``core`` no puede importar esa app.
+CODIGO_PROGRAMA_DISPOSITIVOS = "DISPOSITIVOS"
+
 
 class SinAdministradorError(Exception):
     """La operación dejaría al sistema sin ningún usuario que pueda administrar."""
@@ -433,13 +452,27 @@ def _modulo_asignable_en_programa(modulo, programa):
     Los módulos sin una lista ``programas`` conservan la compatibilidad: están
     disponibles en todos los programas. Los módulos especializados evitan que
     un administrador de Becas otorgue capacidades de Dispositivos por error.
+
+    **SEC-06:** los trece módulos ``becas_*`` declaran ``"programas": ("BECAS",)``.
+    Sin eso, el árbol del ABM le ofrecía ``becas.programa.administrar`` al admin de
+    roles de **Dispositivos**, que se la tildaba a un rol de su programa y bajaba el
+    padrón con DNI de cualquier convocatoria de Becas (los gates de los exports
+    evaluaban la capacidad **sin** alcance). Lo que se cierra acá es que se pueda
+    **otorgar**; lo que ya estaba otorgado lo quita ``users.0031``, y que los gates
+    la evalúen con alcance es el cambio de los exports, el masivo y RENAPER.
+
+    El módulo ``relevamientos`` (``relevamiento.ver`` / ``relevamiento.gestionar``)
+    queda sin lista a propósito: la ficha lo dejaba sujeto a que el PM confirmara
+    que es solo de Becas y hoy no lo consume ninguna vista, solo un templatetag.
+    Acotarlo sin esa confirmación sería sacarle una capacidad a un rol por una
+    suposición.
     """
 
     codigos_programa = modulo.get("programas")
     return not codigos_programa or programa is None or getattr(programa, "codigo", programa) in codigos_programa
 
 
-def arbol_capacidades(codigos_activos=(), solo_programa=False, programa=None):
+def arbol_capacidades(codigos_activos=(), solo_programa=False, programa=None, permitidas=None):
     """Catálogo agrupado por módulo, marcando las capacidades activas.
 
     Estructura lista para renderizar el árbol del ABM de Roles::
@@ -448,27 +481,110 @@ def arbol_capacidades(codigos_activos=(), solo_programa=False, programa=None):
 
     Con ``solo_programa=True`` se limita a los módulos "de programa"
     (``alcance == "programa"``). Si también se informa ``programa``, excluye
-    los módulos especializados para otros programas. El default es
-    retrocompatible: devuelve el catálogo completo.
+    los módulos especializados para otros programas. ``permitidas`` recorta a un
+    conjunto de códigos concreto (lo que el operador puede delegar: ver
+    :func:`capacidades_delegables`) y deja afuera los módulos que quedan vacíos. El
+    default es retrocompatible: devuelve el catálogo completo.
     """
     activos = set(codigos_activos)
-    return [
-        {
-            "modulo": modulo["modulo"],
-            "label": modulo["label"],
-            "alcance": modulo.get("alcance"),
-            "capacidades": [
-                {"codigo": codigo, "label": etiqueta, "checked": codigo in activos}
-                for (codigo, etiqueta) in modulo["capacidades"]
-            ],
-        }
-        for modulo in CATALOGO
-        if (not solo_programa or modulo.get("alcance") == "programa")
-        and _modulo_asignable_en_programa(modulo, programa)
-    ]
+    modulos = []
+    for modulo in CATALOGO:
+        if solo_programa and modulo.get("alcance") != "programa":
+            continue
+        if not _modulo_asignable_en_programa(modulo, programa):
+            continue
+        capacidades = [
+            {"codigo": codigo, "label": etiqueta, "checked": codigo in activos}
+            for (codigo, etiqueta) in modulo["capacidades"]
+            if permitidas is None or codigo in permitidas
+        ]
+        if not capacidades:
+            continue
+        modulos.append(
+            {
+                "modulo": modulo["modulo"],
+                "label": modulo["label"],
+                "alcance": modulo.get("alcance"),
+                "capacidades": capacidades,
+            }
+        )
+    return modulos
 
 
-def arbol_por_tabs(codigos_activos=(), solo_programa=False, programa=None):
+def capacidades_de_programa_asignables(programa):
+    """Códigos "de programa" que el catálogo permite tildar en un rol de ``programa``.
+
+    Es el techo del ABM para un admin de programa: los módulos con ``alcance``
+    ``programa``, salteando los especializados en **otro** programa (SEC-06).
+    """
+    return {
+        codigo
+        for modulo in arbol_capacidades(solo_programa=True, programa=programa)
+        for codigo in (c["codigo"] for c in modulo["capacidades"])
+    }
+
+
+def capacidades_no_delegables(programa):
+    """Capacidades que un admin **de programa** no puede repartir, ni tildando ni en un rol.
+
+    Son las que convierten a su portador en administrador —de los ABM del programa
+    (:data:`CAPS_ADMIN_PROGRAMA`) o del sistema entero
+    (:data:`CAPS_ADMINISTRACION`)— y ``programa.configurar``, que habilita el wizard de
+    programas y es potestad de sistema (SEC-07).
+
+    DISPOSITIVOS es la excepción de ``programa.configurar``: es el único programa que la
+    evalúa **con alcance** (``puede_configurar_dispositivos``), así que ahí delegarla no
+    sale del programa.
+
+    Delegar la administración es lo que rompe la separación del Cambio 20: quien solo
+    administra roles se tildaba ``programa.usuario.administrar`` sobre su propio rol y se
+    quedaba con las dos puntas, y quien solo administraba usuarios se asignaba un rol que
+    traía ``programa.rol.administrar`` (G1b-02). Eso vuelve al rol **global**.
+    """
+    bloqueadas = set(CAPS_ADMIN_PROGRAMA) | set(CAPS_ADMINISTRACION)
+    if getattr(programa, "codigo", programa) != CODIGO_PROGRAMA_DISPOSITIVOS:
+        bloqueadas.add("programa.configurar")
+    return bloqueadas
+
+
+def capacidades_delegables(programa):
+    """Capacidades que un operador **no global** puede tildar en un rol de ``programa``.
+
+    Fuente única de la regla: la consultan el árbol que dibuja el ABM de Roles, el
+    ``clean`` del formulario y el servicio que guarda (para no pisar lo que el operador
+    no ve, G1b-06).
+
+    Es el techo del catálogo para ese programa (:func:`capacidades_de_programa_asignables`,
+    que desde SEC-06 ya no ofrece los módulos ``becas_*`` fuera de Becas) **menos**
+    :func:`capacidades_no_delegables`.
+
+    **Desvío de la ficha, a propósito.** G1b-02 proponía además recortar a «lo que el
+    operador tiene en ese programa». Medido contra el ABM real, eso lo rompe: un rol con
+    ``programa.rol.administrar`` y nada más —que es exactamente como lo arma el Cambio
+    20— quedaba sin poder crear un rol con una sola capacidad, y un admin de los usuarios
+    de un programa no podía asignar ningún rol operativo del suyo. Y no compra
+    seguridad: quien administra los dos ABM de su programa ya puede fabricar un rol y
+    asignárselo, así que el recorte solo movía el trámite. Lo que sí escala —salir del
+    programa o volverse administrador— lo cierran el catálogo de SEC-06, esta lista y
+    ``puede_editar_rol`` (nadie no global edita su propio rol).
+
+    El admin **global** no pasa por acá: puede tildar todo el catálogo.
+    """
+    return capacidades_de_programa_asignables(programa) - capacidades_no_delegables(programa)
+
+
+def puede_asignar_capacidades(programa, codigos):
+    """¿Un operador **no global** puede asignar un rol que otorga ``codigos``? (G1b-02).
+
+    Un rol es un paquete: el combo del ABM de Usuarios ofrecía todos los roles del
+    programa sin mirar qué otorgaban, así que quien solo administraba *usuarios* se
+    asignaba el rol de al lado —que traía ``programa.rol.administrar``— y se quedaba con
+    las dos puntas. Es la misma lista que no se puede tildar a mano.
+    """
+    return not (set(codigos) & capacidades_no_delegables(programa))
+
+
+def arbol_por_tabs(codigos_activos=(), solo_programa=False, programa=None, permitidas=None):
     """Catálogo agrupado por tab para el panel de capacidades del ABM de Roles.
 
     Devuelve la lista de tabs definida en :data:`TABS_CAPACIDADES`, cada una con
@@ -489,15 +605,15 @@ def arbol_por_tabs(codigos_activos=(), solo_programa=False, programa=None):
         tab_id = modulo.get("tab", "backoffice")
         if tab_id not in tabs:
             continue
+        capacidades = [
+            {"codigo": codigo, "label": etiqueta, "checked": codigo in activos}
+            for (codigo, etiqueta) in modulo["capacidades"]
+            if permitidas is None or codigo in permitidas
+        ]
+        if not capacidades:
+            continue
         tabs[tab_id]["modulos"].append(
-            {
-                "modulo": modulo["modulo"],
-                "label": modulo["label"],
-                "capacidades": [
-                    {"codigo": codigo, "label": etiqueta, "checked": codigo in activos}
-                    for (codigo, etiqueta) in modulo["capacidades"]
-                ],
-            }
+            {"modulo": modulo["modulo"], "label": modulo["label"], "capacidades": capacidades}
         )
     return list(tabs.values())
 
@@ -611,6 +727,36 @@ def puede_alguna(user, codigos, programa=None):
     return any(puede(user, c, programa=programa) for c in codigos)
 
 
+def puede_sin_programa(user, codigo):
+    """¿Tiene la capacidad por un rol **sin programa**? (SEC-07).
+
+    ``puede(user, codigo)`` sin alcance contesta «la tiene por algún rol», y para
+    una capacidad de módulo "de programa" eso incluye los roles acotados a **otro**
+    programa: el admin de roles de Becas se tildaba ``programa.configurar`` en un rol
+    de Becas y editaba el wizard de Dispositivos. ``puede(user, codigo,
+    programa=X)`` tampoco sirve para la pregunta de las acciones **globales** (crear
+    un programa, que todavía no tiene pk): ahí cuenta solo el rol global.
+
+    Esta es esa tercera pregunta: la capacidad tiene que venir de un rol cuyo
+    ``RolMeta.programa`` sea nulo —categorías Backoffice y Sistema—. Superusuario
+    activo pasa; usuario inactivo o anónimo, no.
+
+    Para capacidades **globales** (módulos sin ``alcance``) el resultado coincide
+    con ``puede``: esos roles no acotan nada, pero la respuesta sigue siendo
+    «¿la tiene un rol sin programa?», que es lo que se quiere preguntar.
+    """
+    if user is None or not getattr(user, "is_authenticated", False):
+        return False
+    if not getattr(user, "is_active", False):
+        return False
+    if user.is_superuser:
+        return codigo in codigos_de_capacidad()
+    objetivo = codename_de(codigo)
+    return any(
+        codename == objetivo and programa_del_rol is None for codename, programa_del_rol in _filas_de_capacidad(user)
+    )
+
+
 def nombres_de_grupos(user):
     """Nombres de grupos del usuario, cacheados durante la solicitud actual."""
     cache = getattr(user, "_group_names_cache", None)
@@ -706,6 +852,12 @@ def _respuesta_sin_permiso(request, redirect_to):
     return redirect(redirect_to)
 
 
+#: Nombre público: una vista que resuelve el alcance **adentro** (porque necesita el
+#: objeto para saber contra qué evaluar) tiene que poder contestar lo mismo que el
+#: decorador, o el 403 de una pantalla no se parece al de la de al lado (SEC-07).
+respuesta_sin_permiso = _respuesta_sin_permiso
+
+
 def requiere(*codigos, redirect_to="core:inicio"):
     """Decorador para FBV: exige al menos una de las capacidades indicadas.
 
@@ -723,6 +875,33 @@ def requiere(*codigos, redirect_to="core:inicio"):
 
                 return redirect_to_login(request.get_full_path())
             if puede_alguna(user, codigos):
+                return view_func(request, *args, **kwargs)
+            return _respuesta_sin_permiso(request, redirect_to)
+
+        return _wrapped
+
+    return decorator
+
+
+def requiere_sin_programa(codigo, redirect_to="core:inicio"):
+    """Como :func:`requiere`, pero la capacidad tiene que venir de un rol **global**.
+
+    Es la puerta de las acciones que no son de ningún programa en particular: el alta
+    del wizard crea un programa que todavía no existe, así que no hay alcance contra
+    el cual evaluar y **D-07** lo deja para los roles sin programa. Las pantallas que
+    sí tienen un ``pk`` resuelven el programa y evalúan con alcance (ver
+    ``configuracion/views/programas.py``).
+    """
+
+    def decorator(view_func):
+        @wraps(view_func)
+        def _wrapped(request, *args, **kwargs):
+            user = request.user
+            if not user.is_authenticated:
+                from django.contrib.auth.views import redirect_to_login
+
+                return redirect_to_login(request.get_full_path())
+            if puede_sin_programa(user, codigo):
                 return view_func(request, *args, **kwargs)
             return _respuesta_sin_permiso(request, redirect_to)
 

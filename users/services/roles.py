@@ -13,9 +13,24 @@ class RolProtegidoError(Exception):
     """No se puede editar/eliminar/desactivar un rol protegido."""
 
 
-def _set_capacidades(group, codigos):
+def _set_capacidades(group, codigos, permitidas=None):
+    """Deja el rol con ``codigos``, **conservando** lo que el operador no podía tocar.
+
+    G1b-06: el ``permissions.set()`` crudo reemplazaba el conjunto entero, y el POST de
+    un admin de programa solo trae lo que su árbol le mostró. Resultado: el admin global
+    agregaba ``ciudadano.ver`` a un rol de Becas y el admin de roles de Becas lo borraba
+    sin enterarse, cambiando la descripción. Con ``permitidas`` (lo que ese operador sí
+    puede tildar, de :func:`core.rbac.capacidades_delegables`) el conjunto final es
+    ``(actuales − permitidas) ∪ seleccionadas``.
+
+    ``permitidas=None`` es el admin global: él sí ve y decide todo el catálogo, así que
+    lo que no mandó es lo que quiso sacar.
+    """
     ct = ContentType.objects.get_for_model(Capacidad)
-    codenames = [rbac.codename_de(c) for c in codigos]
+    finales = set(codigos)
+    if permitidas is not None:
+        finales |= {c for c in rbac.capacidades_de_grupo(group) if c not in permitidas}
+    codenames = [rbac.codename_de(c) for c in finales]
     perms = Permission.objects.filter(content_type=ct, codename__in=codenames)
     group.permissions.set(list(perms))
 
@@ -23,6 +38,30 @@ def _set_capacidades(group, codigos):
 def _meta(group):
     meta, _ = RolMeta.objects.get_or_create(grupo=group)
     return meta
+
+
+def asegurar_rol_sembrado(clave, nombre, defaults):
+    """Rol que crea el arranque, identificado por su **clave estable** (OPS-06 fase 2).
+
+    Devuelve ``(group, meta, recien_creado)``. Lo busca primero por ``RolMeta.clave``:
+    así un rol renombrado desde el ABM sigue siendo el mismo y el arranque no crea un
+    duplicado con el nombre canónico. Solo si ninguna fila tiene la clave cae al nombre
+    —lo que pasa en una base nueva, o en una donde ``users.0030`` no pudo empatar porque
+    el rol ya estaba renombrado— y en ese caso se la deja puesta, así que a partir del
+    segundo arranque el nombre deja de importar.
+
+    ``defaults`` se aplica **solo al crear** la ``RolMeta``: descripción, activo y
+    protegido de un rol existente son del ABM (D-O06, Cambio 104).
+    """
+    meta = RolMeta.objects.filter(clave=clave).select_related("grupo").first()
+    if meta is not None:
+        return meta.grupo, meta, False
+    group, grupo_creado = Group.objects.get_or_create(name=nombre)
+    meta, _ = RolMeta.objects.get_or_create(grupo=group, defaults={**defaults, "clave": clave})
+    if meta.clave is None:
+        meta.clave = clave
+        meta.save(update_fields=["clave"])
+    return group, meta, grupo_creado
 
 
 def _sincronizar_alcance_dispositivos(group, dispositivos):
@@ -102,7 +141,7 @@ class RolesAdminService:
         meta.categoria = cd["categoria"]
         meta.programa = cd.get("programa")
         meta.save()
-        _set_capacidades(group, cd.get("capacidades", []))
+        _set_capacidades(group, cd.get("capacidades", []), getattr(form, "capacidades_permitidas", None))
         _sincronizar_alcance_dispositivos(group, cd.get("dispositivos_alcance", []))
         # Si la edición quitó usuario.administrar/rol.administrar y dejaría al
         # sistema sin admins, revierte la transacción.

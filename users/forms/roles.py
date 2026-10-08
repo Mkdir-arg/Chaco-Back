@@ -90,13 +90,11 @@ class RolForm(forms.Form):
             if len(progs_list) == 1:
                 self.programa_fijo = progs_list[0]
                 self.fields["programa"].initial = self.programa_fijo.pk
+            # G1b-02 / SEC-07: del catálogo de su programa quedan afuera las dos
+            # transversales de administración y `programa.configurar` (salvo en
+            # DISPOSITIVOS). Delegar la administración es de un rol global.
             self.fields["capacidades"].choices = [
-                (capacidad["codigo"], capacidad["codigo"])
-                for modulo in rbac.arbol_capacidades(
-                    solo_programa=True,
-                    programa=self.programa_fijo,
-                )
-                for capacidad in modulo["capacidades"]
+                (codigo, codigo) for codigo in sorted(rbac.capacidades_delegables(self.programa_fijo))
             ]
 
         if instance is not None and not self.is_bound:
@@ -132,18 +130,17 @@ class RolForm(forms.Form):
     def clean(self):
         """Forzado de alcance para admins de programa (server-side, sin confiar en el POST)."""
         cleaned = super().clean()
+        # Capacidades que este operador puede tocar en este rol. ``None`` = todas (admin
+        # global). El servicio lo lee para no pisar lo que el operador **no** ve
+        # (G1b-06): sin eso, guardar un rol de Becas cambiándole la descripción le
+        # borraba el `ciudadano.ver` que le había puesto el admin global.
+        self.capacidades_permitidas = None
         if not self.es_admin_global:
             if self.programa_fijo is not None:
                 cleaned["programa"] = self.programa_fijo
             caps = cleaned.get("capacidades") or []
-            permitidas = {
-                capacidad["codigo"]
-                for modulo in rbac.arbol_capacidades(
-                    solo_programa=True,
-                    programa=cleaned.get("programa"),
-                )
-                for capacidad in modulo["capacidades"]
-            }
+            permitidas = rbac.capacidades_delegables(cleaned.get("programa"))
+            self.capacidades_permitidas = permitidas
             cleaned["capacidades"] = [c for c in caps if c in permitidas]
         if (
             cleaned.get("categoria") == rbac.CATEGORIA_PROGRAMA
@@ -180,12 +177,19 @@ class RolForm(forms.Form):
             )
         return self.fields["capacidades"].initial or []
 
+    def _permitidas(self):
+        """Códigos que el operador puede tildar, o ``None`` si es admin global."""
+        if self.es_admin_global:
+            return None
+        return rbac.capacidades_delegables(self.programa_fijo)
+
     def arbol_capacidades(self):
         """Árbol plano por módulo (retrocompatibilidad)."""
         return rbac.arbol_capacidades(
             self._activos(),
             solo_programa=not self.es_admin_global,
             programa=self.programa_fijo,
+            permitidas=self._permitidas(),
         )
 
     def arbol_por_tabs(self):
@@ -194,4 +198,5 @@ class RolForm(forms.Form):
             self._activos(),
             solo_programa=not self.es_admin_global,
             programa=self.programa_fijo,
+            permitidas=self._permitidas(),
         )

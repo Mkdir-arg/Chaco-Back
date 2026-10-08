@@ -169,6 +169,40 @@ def entorno_declarado(app_configs, **kwargs):
     ]
 
 
+@register(Tags.security, deploy=True)
+def media_x_accel_necesita_el_location_interno(app_configs, **kwargs):
+    """``MEDIA_X_ACCEL=True`` exige un ``location internal`` en el servidor de adelante.
+
+    Con la variable prendida, ``core.views.media`` autoriza y después devuelve una
+    respuesta **vacía** con ``X-Accel-Redirect: /protected-media/<ruta>``, esperando que
+    el servidor de adelante ponga los bytes. Si ese ``location`` no existe —el caso de
+    ECOM mientras D-09/H-05 siga abierta— el usuario recibe un **200 de 0 bytes**, no un
+    error: baja archivos vacíos y nadie se entera (seguimiento de #643).
+
+    Django **no puede verificarlo**: el ingress es de otro equipo y no se consulta desde
+    acá. Por eso es un aviso y no un error, y por eso solo habla cuando alguien prendió
+    la variable, que es justo el momento en el que hace falta leerlo. El default
+    (apagado) entrega los bytes desde Django y no dice nada. El paso operativo está en
+    ``docker/k8s/README.md``.
+    """
+    if not getattr(settings, "MEDIA_X_ACCEL", False):
+        return []
+    return [
+        CheckWarning(
+            "MEDIA_X_ACCEL=True: las descargas de /media/ las entrega el servidor de adelante. "
+            "Si no tiene el bloque `location /protected-media/ { internal; alias <MEDIA_ROOT>; }`, "
+            "toda descarga responde 200 con 0 bytes, sin error.",
+            hint=(
+                "Confirmá con quien opera el ingress que ese `location internal` existe y apunta al "
+                "mismo volumen que MEDIA_ROOT, y probalo bajando un archivo conocido (el `nginx.conf` "
+                "del repo ya lo tiene; en ECOM es D-09/H-05). Si no está, dejá MEDIA_X_ACCEL sin "
+                "definir: el default entrega los bytes desde Django."
+            ),
+            id="core.W004",
+        )
+    ]
+
+
 @register(Tags.compatibility, deploy=True)
 def presupuesto_de_llamadas_externas(app_configs, **kwargs):
     """La red de un request entra en los 60 s que aguanta nginx (SIIS-09).

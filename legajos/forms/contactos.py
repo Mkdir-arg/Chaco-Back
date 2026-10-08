@@ -3,6 +3,8 @@ from datetime import datetime
 from django import forms
 from django.core.exceptions import ValidationError
 
+from core.validators import ACCEPT_ADJUNTO
+
 from ..models.contactos import EstadoContacto, HistorialContacto, TipoContacto
 
 
@@ -37,7 +39,10 @@ class HistorialContactoForm(forms.ModelForm):
             "participantes": forms.TextInput(attrs={"class": "form-control"}),
             "ubicacion": forms.TextInput(attrs={"class": "form-control"}),
             "seguimiento_requerido": forms.CheckboxInput(attrs={"class": "form-check-input"}),
-            "archivo_adjunto": forms.FileInput(attrs={"class": "form-control"}),
+            # El `accept` sale de la lista blanca del servidor (`core.validators`): era
+            # el único de los tres campos de archivo del repo sin él, y desde SEC-15
+            # `validar_adjunto` rechaza lo que no esté ahí (seguimiento de #643).
+            "archivo_adjunto": forms.FileInput(attrs={"class": "form-control", "accept": ACCEPT_ADJUNTO}),
         }
 
     def __init__(self, *args, **kwargs):
@@ -65,7 +70,10 @@ class HistorialContactoForm(forms.ModelForm):
         self.fields["duracion_minutos"].help_text = "Para llamadas y reuniones"
         self.fields["participantes"].help_text = "Para visitas y reuniones"
         self.fields["ubicacion"].help_text = "Para encuentros presenciales"
-        self.fields["archivo_adjunto"].help_text = "Grabación, foto o documento"
+        # El form pisaba el `help_text` del modelo con «Grabación, foto o documento»,
+        # que desde SEC-15 es falso: `validar_adjunto` rechaza `.mp3`/`.m4a`. El alcance
+        # (PDF e imagen) lo fijó D-15; lo que faltaba era que el texto lo dijera.
+        self.fields["archivo_adjunto"].help_text = HistorialContacto._meta.get_field("archivo_adjunto").help_text
 
     def clean_fecha_contacto(self):
         fecha = self.cleaned_data["fecha_contacto"]

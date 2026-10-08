@@ -1,5 +1,11 @@
 # Auditoría integral de DATAÑACH (Chaco) — octubre 2026
 
+## Estado al 08-oct-2026 (Ola 2, PR 1: catálogo y roles — **la Ola 2 cierra su ítem 1 y el ítem 9**)
+
+| PR | Cambio | Fichas | Estado | Qué quedó abierto |
+|---|---|---|---|---|
+| Ola 2 PR 1 | 192 | SEC-06 ✅ · SEC-07 ✅ · G1b-02 ✅ · G1b-06 ✅ · OPS-06 fase 2 ✅ · RED-80 ✅ (ítem 9, que cierra) | ✅ | **Las 5 fichas del ítem 1 (26 h) más RED-80 del ítem 9 (2 h), con `users.0029`, `0030` y `0031`; la única con DDL es la `0029`, sobre `users_rolmeta`, que tiene una fila por rol.** Las cinco comparten raíz: **una capacidad «de programa» se otorgaba y se evaluaba como si fuera global**. Lo que deja de pasar: el admin de roles de **Dispositivos** ya no ve los trece módulos `becas_*` en el árbol del ABM —y si los manda igual, el formulario rechaza el POST y el rol ni se crea—, y los gates que importaban dejan de aceptar la capacidad sin alcance: los **tres CSV con DNI** de convocatoria resuelven el objeto por `convocatorias_visibles` y exigen `es_admin_becas`, el **proceso masivo** —que informa altas a SIIS, que no tienen baja— evalúa contra el Programa Becas en las tres rutas, y la **bandeja de pendientes de RENAPER** filtra por alcance, incluidos sus dos selectores. `programa.configurar` deja de habilitar el wizard de **todos** los programas: con **D-07 = Sí**, crear va a un rol sin programa (`puede_sin_programa`, primitiva nueva) y editar va acotado al programa del `pk`, con el lápiz del listado decidido **fila por fila**. Un admin de programa deja de poder **delegarse o delegar la administración** (`capacidades_no_delegables`, consultada por el árbol, por el `clean` y por el combo de roles del ABM de Usuarios), deja de poder **editar su propio rol**, y deja de **borrarle en silencio** al rol las capacidades globales que su árbol no muestra (`finales = (actuales − permitidas) ∪ seleccionadas`). Los **siete roles sembrados** pasan a reconocerse por `RolMeta.clave`: renombrar uno ya no hace que el arranque siguiente cree un duplicado vacío al lado. Y `programa_becas`/`programa_dispositivos` comparten pieza, clave derivada e invalidación, que ahora la dispara el wizard —la única pantalla que escribe un `Programa`, y la que deja cambiarle el **código**—. **Tres desvíos, los tres code-first:** (a) los tres exports pasan de redirect a **403**, que es el patrón del resto de los guards de alcance de Becas; (b) de G1b-02 **no** se aplicó el recorte «solo lo que el operador tiene en ese programa» —medido, rompe el ABM delegado y no cierra nada que las otras dos reglas no cierren—; (c) el test de RED-80 que pedía la ficha («el seed invalida las dos claves») no se puede escribir porque **no hay seed de Dispositivos**. **Riesgo de deploy:** `users.0031` **quita** capacidades, y por eso lleva registro —cada par (rol, capacidad) queda en `users_capacidadrevocada`, la reversa lo restituye exacto y el `migrate` lo loguea—. **Abierto (PM):** correr **P-02** antes de desplegar (si da vacío, no quita nada), **P-03** y **P-06**; y unir a mano cualquier rol sembrado que ya hubiera sido renombrado **antes** de este deploy, porque esos quedan sin clave. Entran además tres seguimientos de #643: la regla de `/media/` acepta la capacidad de la pantalla que **crea o valida** el archivo (no solo la de «ver»), el adjunto de contactos dice en el `help_text` y en el `accept` lo que el servidor acepta, y `MEDIA_X_ACCEL=True` sin el `location internal` avisa por `core.W004` y tiene su línea en el runbook |
+
 ## Estado al 08-oct-2026 (Ola 4, PRs 1 y 2: padrón y cupo — **arranca la Ola 4**)
 
 | PR | Cambio | Fichas | Estado | Qué quedó abierto |
@@ -812,7 +818,7 @@ tienen la columna «Avance 03-oct» (✅ resuelto · 🟡 parcial · ⬜ pendien
 | SEC-09 | ALTA | ✅ | #538 · Cambio 112 (etapa 1); Cambio 188 (etapa 2) | Etapa 2 hecha: pertenencia por archivo en `media_protegida`, `upload_to` con UUID y `X-Accel-Redirect` preparado y apagado (`MEDIA_X_ACCEL`, D-09/H-05). R0b-07 y R0b-08 cerrados con ella. Falta (operativo, PM): desplegar la etapa 1 en icore (R0b-11, `web` antes que `nginx`) |
 | SEC-29 | ALTA | 🟡 | #511 · Cambio 102 | Rutas `mi-perfil/*` apagadas + comando `desactivar_usuarios_portal`. Falta correrlo en PRD tras P-08 (PM) |
 | G1-01 | ALTA | 🟡 | #510 · Cambio 101 | Rutas públicas desmontadas y `evaluar/` cerrada (R0-01, #537). Falta la fase 2 (Ola 7) y P-10 |
-| OPS-06 | ALTA | 🟡 | #508 · Cambio 104 | Opt-in, activo, Operador (DECISIÓN PM 01-oct: queda como está) y `crear_programas`. Falta la fase 2 `RolMeta.clave` → Ola 2, PR 1 (+4 h); P-05 y re-tildar en PRD (PM) |
+| OPS-06 | ALTA | ✅ | #508 · Cambio 104; #PENDIENTE · Cambio 192 (fase 2) | Opt-in, activo, Operador (DECISIÓN PM 01-oct: queda como está) y `crear_programas`; la **fase 2** cierra con `RolMeta.clave` (`users.0029`/`0030`): un rol sembrado y renombrado ya no se duplica en el arranque. Operativo (PM): P-05 y re-tildar en PRD; un rol renombrado **antes** de este deploy queda sin clave y hay que unirlo a mano |
 
 **PRs sin ficha propia.** #512 (Cambio 105) arregló las fechas fijas de `test_coordinador_regional.py` (no es un
 hallazgo; dejó R0-03 como seguimiento). #513, #516, #517 y #518 son desarrollo nuevo (comando `correr_alta_siis`,
@@ -1942,9 +1948,17 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
   RED-79 del ítem 9) en el Cambio 177, 08-oct-2026**: 16 h, con **dos migraciones de `users`** (`0027` y `0028`,
   ninguna con DDL) por la capacidad nueva `ciudadano.exportar` (D-20). Es el **primer PR de la ola**.
 - **PRs y orden:**
-  1. *Catálogo y roles:* SEC-06 (catálogo + migración de datos + exports + masivo + RENAPER pendientes), SEC-07
-     (`puede_sin_programa`), G1b-02, G1b-06 y la **fase 2 de OPS-06** (`RolMeta.clave`, con migración; viene de la
-     Ola 0). 26 h.
+  1. ✅ *Catálogo y roles:* SEC-06 ✅, SEC-07 ✅, G1b-02 ✅, G1b-06 ✅ y la **fase 2 de OPS-06** ✅
+     (`RolMeta.clave`, con migración; venía de la Ola 0). 26 h. **Cerrado el 08-oct-2026 (Cambio 192)**, con
+     **D-06 = No** y **D-07 = Sí** aplicadas por default y **tres migraciones de `users`** (`0029`, `0030` y `0031`);
+     la única con DDL es la `0029`, sobre `users_rolmeta`, que tiene una fila por rol. Las capacidades `becas.*` dejan
+     de ofrecerse fuera de Becas y los gates de los exports, el proceso masivo y la bandeja de RENAPER las evalúan
+     **con alcance**; `programa.configurar` deja de habilitar el wizard de todos los programas; un admin de programa
+     deja de poder delegarse —o delegar— la administración, editar su propio rol o borrarle en silencio al rol las
+     capacidades globales que no ve; y los siete roles sembrados pasan a reconocerse por `RolMeta.clave`, así que
+     renombrar uno ya no genera un duplicado en el arranque siguiente. **La `0031` quita accesos** y por eso lleva
+     registro: cada par (rol, capacidad) que saca queda en `users_capacidadrevocada`, la reversa lo restituye exacto y
+     el `migrate` lo loguea. **P-02 va antes del deploy** (si da vacío, no quita nada).
   2. *Usuarios:* G1b-05, G1b-07, G1b-08, SEC-26, G2-03, R0b-01, R0b-02, R0b-03, R0b-10 (seguimientos de SEC-03). 24 h.
   3. ✅ *Legajos:* **SEC-12**, el ascenso de `ciudadano.ver` a `ciudadano.sensible` en las tres rutas sensibles de
 
@@ -2000,7 +2014,11 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
      vista→vista de 9 a 7 y ciclos de 6 a 5—, que es la mitad que el test mide hacia abajo.
      **✅ RED-52 cerrada el 08-oct-2026 (Cambio 181, PR 2): 2 h.** `save_user_profile` se borró (no se acotó con
      `update_fields`): los cuatro llamadores reales ya guardaban el Profile explícitos, y los dos `expectedFailure`
-     que dejó R-21 pasaron a verdes. Queda **RED-80** (PR 1): 2 h.
+     que dejó R-21 pasaron a verdes.
+     **✅ RED-80 cerrada el 08-oct-2026 (Cambio 192, PR 1): 2 h. El ítem 9 cierra.**
+     `programas/services/programa_cache.py` es la pieza única de los dos (clave derivada del código, memo por request e
+     invalidación *best-effort*), y la invalidación se enganchó donde un `Programa` **se escribe de verdad** —el wizard
+     de Configuración, que además deja cambiar el **código**— y no en un seed de Dispositivos, que no existe.
   **No hay ítem 10 de RED-89.** La medición del 04-oct no agregó trabajo nuevo a esta ola: las capacidades de las 17
   rutas que contesta un usuario sin rol **son** SEC-10, SEC-11 y SEC-18, y por D-RED-14 se hacen en R-19 salvo
   `ciudadano.sensible`, que queda en el PR 3 de arriba.

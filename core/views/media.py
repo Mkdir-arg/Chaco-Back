@@ -98,7 +98,11 @@ def _foto_de_ciudadano(user, ruta):
 
     if not Ciudadano.objects.filter(foto=ruta).exists():
         return None
-    return rbac.puede(user, "ciudadano.ver")
+    # La foto se ve en el detalle (``ciudadano.ver``) **y** se sube desde el formulario
+    # de edición (``ciudadano_edit_form.html``, que se sirve bajo ``ciudadano.editar``),
+    # donde el widget rinde el «Actualmente: <a href="/media/…">» del archivo ya
+    # guardado. Ver la regla de :data:`REGLAS` sobre por qué van las dos.
+    return rbac.puede_alguna(user, ("ciudadano.ver", "ciudadano.editar"))
 
 
 def _archivo_de_contacto(user, ruta):
@@ -112,12 +116,16 @@ def _archivo_de_contacto(user, ruta):
 def _archivo_de_f00(user, ruta):
     """El F-00 se mira con el alcance del dispositivo, no con el del programa."""
     from programas.models import ArchivoAdmision
-    from programas.services.dispositivos import CAP_VER, puede_operar_dispositivo
+    from programas.services.dispositivos import CAP_ADMITIR, CAP_VER, puede_operar_dispositivo
 
     archivo = ArchivoAdmision.objects.select_related("admision__dispositivo").filter(archivo=ruta).first()
     if archivo is None:
         return None
-    return puede_operar_dispositivo(user, archivo.admision.dispositivo, CAP_VER)
+    # El alcance fino por dispositivo lo sigue aplicando ``puede_operar_dispositivo``:
+    # lo que se amplía es **qué capacidad** cuenta, no sobre qué dispositivo.
+    return any(
+        puede_operar_dispositivo(user, archivo.admision.dispositivo, capacidad) for capacidad in (CAP_VER, CAP_ADMITIR)
+    )
 
 
 def _documentacion_de_merendero(user, ruta):
@@ -126,7 +134,13 @@ def _documentacion_de_merendero(user, ruta):
 
     if not SolicitudMerendero.objects.filter(documentacion=ruta).exists():
         return None
-    return puede_en_merenderos(user, "merendero.ver")
+    # El link lo rinde el widget del form de la solicitud (``merendero.crear``) y quien
+    # tiene que leer la documentación **antes de aprobar** entra por la pantalla de
+    # resolución (``merendero.validar``). Con solo ``merendero.ver`` la regla contestaba
+    # 403 a las dos. Ver la regla de :data:`REGLAS`.
+    return any(
+        puede_en_merenderos(user, capacidad) for capacidad in ("merendero.ver", "merendero.crear", "merendero.validar")
+    )
 
 
 def _adjunto_de_becas(user, ruta):
@@ -178,6 +192,14 @@ def _padron_de_becas(user, ruta):
 #: importa: gana el primero que matchea, así que los más largos van primero. Un
 #: `FileField` nuevo entra acá o su archivo no se puede bajar (lo fija
 #: `test_media_protegida.CoberturaDePrefijosTests`).
+#:
+#: **La capacidad de una regla es la de las pantallas que muestran ese archivo, no solo
+#: la de «ver»** (seguimiento de #643). Un archivo se ve desde la pantalla que lo lista,
+#: pero también desde la que lo **sube** —el widget de un `FileField` con valor rinde
+#: «Actualmente: <a href="/media/…">»— y desde la que lo tiene que leer para **decidir**.
+#: Pedir solo el `*.ver` dejaba a un rol de alta de merenderos mirando un link que le
+#: contestaba 403, y a un admisor con 403 sobre el F-00 que él mismo cargó. Que los roles
+#: reales tuvieran igual el `*.ver` era una coincidencia, no una garantía.
 REGLAS = (
     (rutas.PREFIJO_ADJUNTO_BECAS, _adjunto_de_becas),
     (rutas.PREFIJO_PADRON_BECAS, _padron_de_becas),

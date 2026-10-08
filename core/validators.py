@@ -27,6 +27,13 @@ from django.forms import ValidationError
 ADJUNTO_EXTENSIONES = (".jpg", ".jpeg", ".png", ".pdf", ".heic", ".heif", ".webp")
 ADJUNTO_MAX_BYTES = 5 * 1024 * 1024
 
+#: Lo que el selector de archivos ofrece por defecto. **No es una validación** —el
+#: `accept` del navegador se saltea—, pero evita que la persona elija un archivo que el
+#: servidor va a rechazar. Sale de la lista blanca de arriba para que no haya una
+#: segunda copia que se desincronice: vivía en `programas/forms.py` y desde el
+#: seguimiento de #643 la necesitan también los adjuntos de Legajos.
+ACCEPT_ADJUNTO = ",".join(ADJUNTO_EXTENSIONES)
+
 MENSAJE_ADJUNTO_FORMATO = "Solo se aceptan archivos JPG, PNG, WEBP, HEIC o PDF."
 MENSAJE_ADJUNTO_TAMANIO = "El archivo no puede superar los 5 MB."
 
