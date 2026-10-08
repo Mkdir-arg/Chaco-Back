@@ -54,6 +54,11 @@ Por eso el `aria-label` tiene que leerse bien **como chip**: «Estado», no «Es
   renderiza la barra sin pasar por el `<template>` del shell. Único consumidor:
   `users/templates/user/user_list.html`, que arma el form desde `filters_config` (`json_script`) y por eso
   **sí** lleva `id`, `action` y `class="dynamic-list-filters"`: es la excepción, no el contrato.
+  Su columna de acciones, además, es **condicional por fila** (`user.gestionable`,
+  `user.credenciales_editables`, anotadas en lote por la vista): el lápiz y el interruptor no se
+  dibujan sobre una cuenta que el servidor va a rechazar, y en su lugar va «Fuera de tu alcance»
+  en `text-xs text-body-subtle` (R0b-10). Es alcance, no estilo: no se copia como patrón de
+  listado salvo que la pantalla tenga la misma asimetría.
 - Sin filtros: se omite el `<form>` entero (las tres listas de geografía).
 - Consumidores del contrato simple fuera de Becas: `users/templates/rol/rol_list.html`,
   `configuracion/templates/configuracion/secretaria_list.html`,
