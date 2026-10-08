@@ -6,13 +6,21 @@ from rest_framework.routers import DefaultRouter
 from programas.api.views import (
     FormularioViewSet,
     ObtainCampoToken,
+    RaizApiCampo,
     RelevamientoViewSet,
     consultar_persona_becas,
 )
 
 app_name = "becas_api"
 
-router = DefaultRouter()
+
+class RouterApiCampo(DefaultRouter):
+    """R0-04: la raíz del router autentica igual que el resto del namespace."""
+
+    APIRootView = RaizApiCampo
+
+
+router = RouterApiCampo()
 router.register("relevamientos", RelevamientoViewSet, basename="relevamiento")
 router.register("formularios", FormularioViewSet, basename="formulario")
 

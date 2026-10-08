@@ -11,6 +11,7 @@ from django.utils import timezone
 
 from core.models import TimeStamped
 from legajos.models import Ciudadano
+from programas.validadores import validar_condicion_json
 
 
 def ruta_adjunto_becas(instance, filename):
@@ -2291,7 +2292,15 @@ class GrupoRequisito(TimeStamped):
     subtitulo = models.CharField(max_length=240, blank=True, verbose_name="Subtítulo")
     orden = models.PositiveIntegerField(default=0, verbose_name="Orden")
     protegido = models.BooleanField(default=False, verbose_name="Protegido")
-    condicion_defecto = models.JSONField(null=True, blank=True, verbose_name="Condición por defecto")
+    # RED-40: la forma del JSON la valida el modelo. Un operador que el motor no
+    # conoce no falla al evaluar: devuelve False, y el grupo condicionado queda
+    # escondido para siempre sin que nadie se entere.
+    condicion_defecto = models.JSONField(
+        null=True,
+        blank=True,
+        validators=[validar_condicion_json],
+        verbose_name="Condición por defecto",
+    )
     canal = models.CharField(
         max_length=10,
         choices=CanalFormulario.choices,
@@ -2658,6 +2667,28 @@ class Formulario(TimeStamped):
         blank=True,
         editable=False,
         verbose_name="Fecha de captura en el dispositivo",
+    )
+    # G1-04: la captura se hizo dentro del período pero el teléfono recién pudo
+    # sincronizarla después de que el relevamiento cerró (la gracia de D-G04).
+    # El caso entra igual —tirarlo es tirar trabajo de campo ya hecho— y la
+    # revisión lo ve marcado, que es la diferencia con no enterarse nunca.
+    # ``db_default`` y no solo ``default``: con el esquema adelantado y el código
+    # viejo todavía atendiendo (rolling), el INSERT del ORM anterior omite la
+    # columna y MariaDB con STRICT_TRANS_TABLES rechazaría el alta entera.
+    sincronizado_tarde = models.BooleanField(
+        default=False,
+        db_default=False,
+        verbose_name="Sincronizado después del cierre del período",
+    )
+    # G1-05: lo que el servidor encontró mal en una carga de la app y no alcanza
+    # para rechazarla (una obligatoria sin responder, un valor fuera de las
+    # opciones del campo, el GPS que el segmento pedía). Una línea por
+    # observación; nulo = nada que observar. Se escribe solo desde la API de
+    # campo y se lee en la revisión.
+    observaciones_carga = models.TextField(
+        null=True,
+        blank=True,
+        verbose_name="Observaciones de la carga",
     )
     motivo_rechazo = models.TextField(blank=True, verbose_name="Motivo de rechazo")
     conflicto_duplicado = models.BooleanField(
@@ -3369,7 +3400,13 @@ class ItemDiseno(TimeStamped):
     subtitulo = models.CharField(max_length=240, blank=True, verbose_name="Subtítulo")
     # Párrafo de los ítems TEXTO (texto plano; los links se detectan al mostrar, D13).
     texto = models.TextField(blank=True, verbose_name="Texto")
-    condicion = models.JSONField(null=True, blank=True, verbose_name="Condición")
+    # RED-40: ver la nota de `GrupoRequisito.condicion_defecto`.
+    condicion = models.JSONField(
+        null=True,
+        blank=True,
+        validators=[validar_condicion_json],
+        verbose_name="Condición",
+    )
     # Canal de los grupos y de los campos propios; los del catálogo usan el suyo.
     canal = models.CharField(
         max_length=10,

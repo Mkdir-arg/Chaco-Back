@@ -4,8 +4,6 @@ Auth por token (DRF authtoken). El territorial solo ve/gestiona SUS relevamiento
 y formularios. Capacidad requerida: ``becas.campo``.
 """
 
-from datetime import timedelta
-
 from django.db import transaction
 from django.db.models import Count
 from django.utils import timezone
@@ -19,17 +17,20 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import BasePermission, IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.routers import APIRootView
 
 from core.rbac import puede
 from programas.api.serializers import (
     AdjuntoFormularioSerializer,
     ConsultaPersonaRespuestaSerializer,
     ConsultaPersonaSerializer,
+    FormularioListSerializer,
     FormularioSerializer,
     RelevamientoDetailSerializer,
     RelevamientoListSerializer,
 )
 from programas.models import Formulario, Relevamiento
+from programas.services import campo
 from programas.services.becas import formulario_por_client_uuid, resolver_ciudadano_offline
 from programas.services.identidad import identificar
 from programas.services.padron import fila_padron, normalizar_dni, objetivo_con_identidad
@@ -60,7 +61,7 @@ def _captura_habilitada(relevamiento, capturado_en=None):
     """Permite operar hoy o sincronizar después una captura hecha en fecha."""
     if capturado_en is None:
         return relevamiento.habilitado_en(timezone.now())
-    if capturado_en > timezone.now() + timedelta(minutes=5):
+    if capturado_en > timezone.now() + campo.ADELANTO_TOLERADO:
         return False
     return relevamiento.habilitado_en(capturado_en)
 
@@ -175,6 +176,13 @@ def _completar_alta(formulario, relevamiento, datos_identificacion):
     # fijas); acá se traduce a respuestas por clave y se guarda la foto de la
     # definición que respondió (D3).
     sincronizar_desde_legacy(formulario, relevamiento)
+    # G1-05: recién acá hay foto y respuestas por clave, que es lo que el motor
+    # de condiciones necesita. Va **antes** de `resolver_ciudadano_offline`
+    # porque esa función borra `datos_identificacion` al vincular el legajo.
+    campo.aplicar_revision(
+        formulario,
+        campo.revisar_carga(formulario, relevamiento, identidad=datos_identificacion),
+    )
     resolver_ciudadano_offline(formulario)
 
 
@@ -268,9 +276,35 @@ def consultar_persona_becas(request):
     return Response({"success": True, "origen": resultado["origen"], "data": datos, "datos_api": {}})
 
 
+class RaizApiCampo(APIRootView):
+    """La raíz ``/api/becas/`` (R0-04).
+
+    Desde SEC-01 la API entera exige sesión y el router dejaba su vista raíz con
+    la autenticación por defecto: un ``Authorization: Token`` —el único que usa
+    la app— no autenticaba y la raíz devolvía 403 mientras todo lo que cuelga de
+    ella devolvía 200. La app en producción **no la consulta** (verificado en
+    ``Chaco-mobile@a66c2d3``, el release del 21/08: su ``initializeWafSession``
+    pide ``/``, la raíz del sitio, no la de la API), así que esto no cambia nada
+    para el teléfono; lo que arregla es que la raíz deje de contradecir a su
+    propio namespace.
+    """
+
+    authentication_classes = [TokenAuthentication, SessionAuthentication]
+    permission_classes = [IsAuthenticated, CampoBecasPermission]
+
+
 class RelevamientoViewSet(viewsets.ReadOnlyModelViewSet):
     authentication_classes = [TokenAuthentication, SessionAuthentication]
     permission_classes = [IsAuthenticated, CampoBecasPermission]
+    # G1-03: la agenda y los casos de un relevamiento se sirven **completos**.
+    # La paginación global de DRF corta en 10 y la app no sigue `next`
+    # (`relevamientoService.js`: `payload?.results` y nada más), así que con 40
+    # casos cargados `dniYaRelevado` solo veía los 10 últimos y el territorial
+    # volvía a cargar a alguien ya relevado; con más de 10 relevamientos
+    # vigentes, la agenda y la caché offline mostraban 10. Las dos listas están
+    # acotadas por naturaleza: la agenda, a lo vigente del territorial; los
+    # casos, al cupo del relevamiento.
+    pagination_class = None
 
     def get_queryset(self):
         queryset = (
@@ -345,6 +379,16 @@ class RelevamientoViewSet(viewsets.ReadOnlyModelViewSet):
                 {"detail": "Solo se puede relevar dentro del período asignado."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        ya_cerrado = (Relevamiento.Estado.FINALIZADO, Relevamiento.Estado.EN_REVISION)
+        if rel.estado in ya_cerrado and campo.en_gracia(rel):
+            # G1-04: la cola offline sube primero las personas y después el
+            # «finalizar». Si el cron cerró el relevamiento en el medio, el
+            # cierre ya ocurrió: devolverle un 400 a la app lo deja como
+            # `FAILED_PERMANENT` y le muestra un error por algo que ya está
+            # hecho. Idempotente, igual que `iniciar` con un EN_CURSO.
+            # `FINALIZANDO` **no** entra acá: ese sí tiene que terminar de pasar
+            # a `FINALIZADO`, que es el camino normal.
+            return Response(RelevamientoListSerializer(rel).data)
         if rel.estado not in (Relevamiento.Estado.EN_CURSO, Relevamiento.Estado.FINALIZANDO):
             return Response({"detail": "El relevamiento no está en curso."}, status=400)
         rel.estado = Relevamiento.Estado.FINALIZADO
@@ -373,11 +417,18 @@ class RelevamientoViewSet(viewsets.ReadOnlyModelViewSet):
     def formularios(self, request, pk=None):
         rel = self.get_object()
         if request.method == "GET":
-            qs = rel.formularios.select_related("ciudadano").order_by("-creado")
-            page = self.paginate_queryset(qs)
-            if page is not None:
-                return self.get_paginated_response(FormularioSerializer(page, many=True).data)
-            return Response(FormularioSerializer(qs, many=True).data)
+            # G1-03: lista plana y **sin** `data`. `FormularioSerializer`
+            # arrastra el JSON de respuestas del contrato anterior (~7 KB por
+            # caso) y de este listado la app solo lee el nombre, el DNI y el
+            # estado para la lista de personas y para avisar «DNI ya relevado».
+            qs = (
+                rel.formularios.select_related("ciudadano")
+                # Las cuatro columnas pesadas de la fila: ninguna se sirve acá y
+                # traerlas es lo que pone el listado cerca del `read_timeout`.
+                .defer("data", "respuestas", "definicion", "datos_siis")
+                .order_by("-creado")
+            )
+            return Response(FormularioListSerializer(qs, many=True).data)
 
         if respuesta := _respuesta_pausa(rel):
             return respuesta
@@ -404,16 +455,13 @@ class RelevamientoViewSet(viewsets.ReadOnlyModelViewSet):
             # Lo que el lock decide —estado, fechas, pausa propia, cupo— es de
             # la fila recién leída.
             bloqueado.convocatoria = rel.convocatoria
-            if bloqueado.estado != Relevamiento.Estado.EN_CURSO:
-                return Response(
-                    {"detail": "Solo se pueden cargar personas en un relevamiento en curso."},
-                    status=status.HTTP_409_CONFLICT,
-                )
-            if not _captura_habilitada(bloqueado, capturado_en):
-                return Response(
-                    {"detail": "La captura se realizó fuera del período asignado."},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+            # G1-04: una captura hecha en fecha entra aunque el cron ya haya
+            # cerrado el relevamiento, mientras dure la gracia; se marca para
+            # que la revisión lo sepa. Lo que se rechaza es lo que no se puede
+            # aceptar: fuera del período, del futuro, o con la gracia vencida.
+            decision = campo.evaluar_captura(bloqueado, capturado_en)
+            if decision.rechaza:
+                return Response({"detail": decision.detalle}, status=decision.status)
             existente = _formulario_por_client_uuid(bloqueado, client_uuid) if client_uuid else None
             if existente is None:
                 if bloqueado.formularios.count() >= bloqueado.cupo_maximo:
@@ -431,6 +479,7 @@ class RelevamientoViewSet(viewsets.ReadOnlyModelViewSet):
                     created_by=request.user,
                     conflicto_duplicado=formulario_existente is not None,
                     duplicado_de=formulario_existente,
+                    sincronizado_tarde=decision.tardia,
                 )
         if existente is not None:
             # Doble envío o reintento de la app. Si el envío anterior se cortó

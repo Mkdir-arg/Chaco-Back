@@ -1828,6 +1828,9 @@ class ContextoDetalleTests(_BaseRevisionTest):
             "mostrar_apoderado",
             "motivo_bloqueo_aprobacion",
             "next_qs",
+            # G1-05: lo que el servidor observó al recibir la carga de la app,
+            # ya armado en una sola cadena para la alerta inline.
+            "observaciones_carga",
             "posicion_espera",
             "puede_enviar_siis",
             "puede_revalidar_renaper",
