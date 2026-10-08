@@ -131,7 +131,7 @@ def entregar_credenciales_provisorias(user, request, rol=""):
                 },
             ),
         )
-        password_provisoria = ""
+        password_provisoria = ""  # nosec B105 - sin clave provisoria: el usuario fija la suya por el enlace
 
     enviar_credenciales_usuario(
         user,
