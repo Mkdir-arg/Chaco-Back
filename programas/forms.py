@@ -17,6 +17,7 @@ from core.dni import MENSAJE_DNI_INVALIDO, dni_valido, normalizar_dni
 from core.edad import es_menor
 from core.models import Localidad, Municipio
 from core.selectors.geografia import localidades_operativas, municipios_operativos
+from core.validators import ADJUNTO_EXTENSIONES, validar_adjunto
 from programas.models import (
     AsignacionCoordinador,
     Cama,
@@ -49,6 +50,11 @@ from users.presentation import etiqueta_usuario
 # Definida en static/custom/css/nodo-forms.css (alto 42px, foco de marca con ring).
 INPUT_CLASS = "nodo-field"
 CHECKBOX_CLASS = "h-4 w-4 rounded border-base text-fg-brand focus:ring-brand"
+
+#: Lo que el selector de archivos ofrece por defecto. No es una validación —el
+#: `accept` del navegador se saltea—, pero evita que la persona elija un archivo
+#: que el servidor va a rechazar (SEC-15).
+ACCEPT_ADJUNTO = ",".join(ADJUNTO_EXTENSIONES)
 
 
 def _catalogo_choices(items, empty_label):
@@ -873,7 +879,13 @@ class F00DinamicoForm(forms.Form):
                     widget=forms.DateInput(attrs={"class": INPUT_CLASS, "type": "date"}), **kwargs_campo
                 )
             elif campo.tipo_campo == TipoCampo.ARCHIVO:
-                field = forms.FileField(widget=forms.ClearableFileInput(attrs={"class": INPUT_CLASS}), **kwargs_campo)
+                # SEC-15: era un `FileField` pelado, así que entraba un `.html`
+                # con `<script>` y después `media/` lo servía same-origin.
+                field = forms.FileField(
+                    widget=forms.ClearableFileInput(attrs={"class": INPUT_CLASS, "accept": ACCEPT_ADJUNTO}),
+                    validators=[validar_adjunto],
+                    **kwargs_campo,
+                )
             else:
                 field = forms.CharField(widget=forms.Textarea(attrs={"class": INPUT_CLASS, "rows": 2}), **kwargs_campo)
             field.widget.attrs["data-f00-campo"] = str(campo.pk)
@@ -1028,7 +1040,7 @@ class SolicitudMerenderoForm(forms.ModelForm):
             "responsable_documento": forms.TextInput(attrs={"class": INPUT_CLASS}),
             "responsable_email": forms.EmailInput(attrs={"class": INPUT_CLASS}),
             "telefono": forms.TextInput(attrs={"class": INPUT_CLASS}),
-            "documentacion": forms.ClearableFileInput(attrs={"class": INPUT_CLASS}),
+            "documentacion": forms.ClearableFileInput(attrs={"class": INPUT_CLASS, "accept": ACCEPT_ADJUNTO}),
         }
 
     def clean_codigo(self):

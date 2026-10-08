@@ -8,6 +8,12 @@ from rest_framework.settings import api_settings
 
 from core.dni import MENSAJE_DNI_INVALIDO, dni_valido
 from core.edad import es_menor
+from core.validators import (
+    ADJUNTO_EXTENSIONES,
+    ADJUNTO_MAX_BYTES,
+    MENSAJE_ADJUNTO_FORMATO,
+    MENSAJE_ADJUNTO_TAMANIO,
+)
 from legajos.models import Ciudadano
 from programas.models import AdjuntoFormulario, Formulario, Relevamiento
 from programas.services import campo as servicio_campo
@@ -326,14 +332,17 @@ class ConsultaPersonaRespuestaSerializer(serializers.Serializer):
 # una captura legitima le rompe el trabajo de campo.
 #
 # Lo que importa que quede AFUERA es el contenido ejecutable o interpretable
-# (.html, .svg, .js): `/media/` lo sirve nginx directo, sin pasar por Django, asi
-# que un archivo asi se ejecutaria en el origen del sitio.
-ADJUNTO_EXTENSIONES = (".jpg", ".jpeg", ".png", ".pdf", ".heic", ".heif", ".webp")
-ADJUNTO_MAX_BYTES = 5 * 1024 * 1024
-
-
-MENSAJE_ADJUNTO_FORMATO = "Solo se aceptan archivos JPG, PNG, WEBP, HEIC o PDF."
-MENSAJE_ADJUNTO_TAMANIO = "El archivo no puede superar los 5 MB."
+# (.html, .svg, .js): `media/` se sirve same-origin, asi que un archivo asi se
+# ejecutaria en el origen del sitio.
+#
+# La lista nacio aca (Cambio 46) y desde SEC-15 vive en `core/validators.py`
+# (`ADJUNTO_EXTENSIONES`, `ADJUNTO_MAX_BYTES`, importadas arriba): la comparten el
+# F-00 de Dispositivos y la solicitud de merendero, que no la tenian. Los nombres
+# siguen existiendo en este modulo porque son contrato de la app de campo.
+#
+# ANGOSTARLA ES UN BLOCKER: ante un 4xx la app instalada marca la operacion
+# `FAILED_PERMANENT` y no la reintenta nunca, asi que rechazar algo que hoy manda
+# se lleva puesta la captura del territorial.
 
 
 class AdjuntoFormularioSerializer(serializers.ModelSerializer):

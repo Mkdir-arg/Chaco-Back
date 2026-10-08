@@ -22,20 +22,10 @@ from programas.services.merenderos import (
     registrar_entrega,
     resolver_solicitud,
 )
+from programas.services.merenderos import (
+    puede_en_merenderos as _puede_en_merenderos,
+)
 from programas.services.reportes import filtrar_merenderos, parsear_periodo
-
-
-def _programa_merenderos():
-    from programas.models import Programa
-
-    return Programa.objects.filter(codigo=Programa.TipoPrograma.MERENDEROS).first()
-
-
-def _puede_en_merenderos(user, capacidad):
-    from core.rbac import puede
-
-    programa = _programa_merenderos()
-    return programa is not None and puede(user, capacidad, programa=programa)
 
 
 class MerenderosPermissionMixin(LoginRequiredMixin):

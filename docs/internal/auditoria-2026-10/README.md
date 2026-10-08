@@ -809,7 +809,7 @@ tienen la columna «Avance 03-oct» (✅ resuelto · 🟡 parcial · ⬜ pendien
 | SEC-19 | MEDIA | ✅ | #537 · Cambio 111 | Las 4 rutas de debug/prueba de legajos → 404 y sus vistas borradas |
 | R0-01 | BAJA (MINOR) | ✅ | #537 · Cambio 111 | `<id>/evaluar/` desmontada; no queda escritura anónima en `conversaciones` |
 | SEC-01 | CRÍTICA | 🟡 | #509 · Cambio 100; #536 · Cambio 109 (+ #540, #541, #542) | Puntos 1 y 2 hechos sobre toda la lista de la ficha (`users`, `legajos`, `core`, `dashboard`; `BackofficeAutenticado` exige `is_active`). Falta, sin riesgo explotable hoy: `conversaciones/api_views` (4), `core/views/performance.py` (8), las vistas de Spectacular y las raíces de los routers → Ola 2, PR 8 (2 h). H-08 (PM) |
-| SEC-09 | ALTA | 🟡 | #538 · Cambio 112 | Etapa 1 en código (nginx `internal`, `SERVE_MEDIA=True`, el middleware ya no exime `/media/`). Falta desplegarla en icore (R0b-11, PM: `web` antes que `nginx`) y la etapa 2 (pertenencia, Ola 2, PR 7). Seguimientos R0b-07, R0b-08 |
+| SEC-09 | ALTA | ✅ | #538 · Cambio 112 (etapa 1); Cambio 188 (etapa 2) | Etapa 2 hecha: pertenencia por archivo en `media_protegida`, `upload_to` con UUID y `X-Accel-Redirect` preparado y apagado (`MEDIA_X_ACCEL`, D-09/H-05). R0b-07 y R0b-08 cerrados con ella. Falta (operativo, PM): desplegar la etapa 1 en icore (R0b-11, `web` antes que `nginx`) |
 | SEC-29 | ALTA | 🟡 | #511 · Cambio 102 | Rutas `mi-perfil/*` apagadas + comando `desactivar_usuarios_portal`. Falta correrlo en PRD tras P-08 (PM) |
 | G1-01 | ALTA | 🟡 | #510 · Cambio 101 | Rutas públicas desmontadas y `evaluar/` cerrada (R0-01, #537). Falta la fase 2 (Ola 7) y P-10 |
 | OPS-06 | ALTA | 🟡 | #508 · Cambio 104 | Opt-in, activo, Operador (DECISIÓN PM 01-oct: queda como está) y `crear_programas`. Falta la fase 2 `RolMeta.clave` → Ola 2, PR 1 (+4 h); P-05 y re-tildar en PRD (PM) |
@@ -1975,7 +1975,15 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
      tres cambios pide release de `Chaco-mobile`:** la app instalada no hace un solo PATCH, manda
      `validado_renaper` en el alta —que como campo de solo lectura se ignora sin dar 400— y atrapa el
      error de la consulta de identidad cayendo a carga manual.
-  7. *Media y uploads:* SEC-09 etapa 2, SEC-15, SEC-31, R0b-07 (+ R0b-08). 14 h.
+  7. ✅ *Media y uploads:* SEC-09 etapa 2 ✅, SEC-15 ✅, SEC-31 ✅, R0b-07 ✅ (+ R0b-08 ✅). 14 h.
+     **Cerrado el 08-oct-2026 (Cambio 188)**, con `legajos.0010` y `programas.0083`, **las dos sin DDL**
+     (`SeparateDatabaseAndState`: solo se mueve `upload_to` y `validators`, que son Python). `/media/` deja de
+     ser «cualquiera con sesión baja cualquier archivo»: `media_protegida` resuelve el dueño por el prefijo
+     de la ruta y pide la capacidad de la pantalla que muestra ese archivo. **D-15 = PDF e imagen** aplicada
+     por default; lo que depende del ingress de ECOM (`X-Accel-Redirect`, D-09/H-05) entra **preparado y
+     apagado** detrás de `MEDIA_X_ACCEL`, con el comportamiento de hoy como default y las dos ramas probadas.
+     **Abierto (PM):** R0b-11 (desplegar la etapa 1 en icore-srv) y pedirle a ECOM el `location
+     /protected-media/ { internal; }` para poder prender `MEDIA_X_ACCEL`.
   8. *Bajos:* SEC-27, SEC-32, SEC-33, SEC-34, SEC-35, SEC-36, SEC-37, G1c-10, G1c-16 y el resto de SEC-01
      (`BackofficeAutenticado` fuera de la lista de la ficha; viene de la Ola 0). 20 h.
   9. 🟡 *Red de seguridad (04-oct):* RED-80 (cache de `programa_*`, con el PR 1), segunda parte de RED-52 (`save_user_profile`

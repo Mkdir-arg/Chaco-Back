@@ -1,5 +1,4 @@
 from django.conf import settings
-from django.conf.urls.static import static
 from django.contrib import admin
 from django.contrib.auth.decorators import login_required
 from django.contrib.staticfiles.urls import staticfiles_urlpatterns
@@ -7,6 +6,8 @@ from django.http import HttpResponse
 from django.urls import include, path, re_path
 from django.views.generic import RedirectView
 from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
+
+from core.views.media import media_protegida
 
 
 def websocket_upgrade_required(_request, *_args, **_kwargs):
@@ -80,20 +81,17 @@ if settings.DEBUG:
     urlpatterns += [path("silk/", include("silk.urls", namespace="silk"))]
 
 urlpatterns += staticfiles_urlpatterns()
-urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
-# Las dos líneas de arriba solo actúan con DEBUG. En un ambiente servido sin nginx
-# adelante (Kubernetes), SERVE_MEDIA=True hace que la app sirva los archivos
-# subidos; los estáticos ya los sirve whitenoise sin ruta extra.
-if settings.SERVE_MEDIA:
-    from django.views.static import serve as _media_serve
-
-    # Detrás de login: acá viven los documentos que sube el ciudadano (fotos de
-    # DNI, certificados) y el Excel del padrón. Servirlos abiertos los dejaba
-    # descargables por cualquiera que acertara la ruta, y los nombres eran los
-    # originales del archivo. Revisión de seguridad del 26/08/2026.
-    urlpatterns += [
-        re_path(r"^media/(?P<path>.*)$", login_required(_media_serve), {"document_root": settings.MEDIA_ROOT}),
-    ]
+# `/media/` SIEMPRE pasa por `media_protegida`: sesión + pertenencia por archivo
+# (SEC-09 etapa 2). Antes la ruta dependía de `SERVE_MEDIA`, y arriba de ella
+# estaba `static(MEDIA_URL, …)`, que con DEBUG=True ganaba por orden y servía
+# `media/` **sin sesión** (R0b-07): un ambiente con las dos cosas prendidas dejaba
+# los documentos del ciudadano abiertos. Las dos líneas se fueron; `media_protegida`
+# decide con el mismo criterio en dev y en producción, y lo único que cambia por
+# ambiente es si los bytes los manda Django o el servidor de adelante
+# (`MEDIA_X_ACCEL`).
+urlpatterns += [
+    re_path(r"^media/(?P<path>.*)$", media_protegida, name="media_protegida"),
+]
 
 handler500 = "config.views.server_error"
