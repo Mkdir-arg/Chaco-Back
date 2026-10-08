@@ -201,7 +201,6 @@ class DerivarProgramaViewRbacTests(TestCase):
         self.assertIn(reverse("users:login"), respuesta["Location"])
 
 
-
 class BandejaDeDerivacionesUiTests(TestCase):
     """SEC-12 del lado del template: las dos acciones son POST con CSRF.
 
@@ -212,9 +211,7 @@ class BandejaDeDerivacionesUiTests(TestCase):
     ejecutables —por eso el arreglo de las vistas no es latente—.
     """
 
-    TEMPLATE = (
-        Path(settings.BASE_DIR) / "legajos" / "templates" / "legajos" / "programas" / "programa_detail.html"
-    )
+    TEMPLATE = Path(settings.BASE_DIR) / "legajos" / "templates" / "legajos" / "programas" / "programa_detail.html"
 
     def setUp(self):
         self.fuente = self.TEMPLATE.read_text(encoding="utf-8")
@@ -222,7 +219,7 @@ class BandejaDeDerivacionesUiTests(TestCase):
     def test_rechazar_ya_no_es_un_enlace_get(self):
         self.assertNotIn("<a href=\"{% url 'legajos:derivacion_ciudadano_rechazar'", self.fuente)
         self.assertIn(
-            "<form method=\"post\" action=\"{% url 'legajos:derivacion_ciudadano_rechazar' derivacion.pk %}\"",
+            '<form method="post" action="{% url \'legajos:derivacion_ciudadano_rechazar\' derivacion.pk %}"',
             self.fuente,
         )
 
