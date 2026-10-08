@@ -24947,7 +24947,7 @@ Python 3.12 + Django 5.2.17 (`.venv312`), igual al CI.
   nuevo.
 - `manage.py makemigrations --check --dry-run` → «No changes detected».
 - Suite completa en un solo proceso, después de mergear `development`:
-  **4078 tests, todo en verde** (la falla de medianoche que la ronda 1 había
+  **4121 tests, todo en verde** (la falla de medianoche que la ronda 1 había
   medido como preexistente la cerró el Cambio 172 en su propia ronda 2).
 - `manage.py test --tag performance` → OK.
 - `ruff check .` → «All checks passed»; `ruff format --check` sobre lo tocado → OK.
@@ -25036,5 +25036,66 @@ distinguen por un sexo ilegible.
 
 **Presupuesto `core.E003`:** la cadena de RENAPER sigue en 30 s de 55. La espera
 del token ajeno no se declara porque ese request **no** hace su propia llamada:
-su peor caso son 2 s, no la cadena —y antes de este arreglo era el timeout
-completo, sin techo—.
+su peor caso es lo que tarda el login del otro, no la cadena —y antes de este
+arreglo era ese timeout **más** el propio, en fila—.
+
+**Ronda 3 de la revisión (08/10/2026) — 1 MAJOR y 2 MINOR, todos corregidos.**
+
+**El MAJOR volvía a ser de lo que movió la ronda anterior:** el que esperaba el
+token tenía **un solo intento**. Hacía `listo.wait()` → `_token_vigente()` y, si
+no había token, levantaba sin volver a la decisión. Dos escenarios lo rompían:
+
+- **Token rotado (SIIS-14).** El ganador se loguea, consulta, recibe el 401 y
+  llama `descartar_token()` **antes** de que los que esperan alcancen a leer: se
+  despiertan, no encuentran token y fallan con «Error interno al obtener token»
+  **sin haber consultado nada**. N−1 altas de ciudadano perdidas por request
+  concurrente.
+- **Login sano pero lento.** La espera era un número suelto (2 s) más chico que
+  el propio timeout del login (`connect + read` = 15 s), así que un login que
+  tardara 2,5 s —y que iba a terminar bien— volteaba a todos los que esperaban.
+  Era una regresión respecto de la ronda 1: con el candado, esos requests
+  terminaban bien.
+
+El que espera vuelve ahora al bloque de decisión, con tope `VUELTAS_TOKEN = 3`.
+Las tres salidas, explícitas: si el login ajeno **salió bien**, vuelta nueva —o
+toma ese token, o, si alguien lo descartó en el medio, esta vez el ganador es
+él—; si **falló**, corta (hacer el propio es pegarle al mismo muro y en fila,
+que es justo la cola que sacó la ronda 2); si **no terminó** dentro de la
+espera, corta. Y la espera se deriva de `connect + read` más un margen, porque
+ningún login sano puede durar más que su propio timeout: lo que la espera corta
+es el login que no termina nunca, que es el único que haría cola.
+
+Dos cosas más del mismo hallazgo:
+- **`descartar_token(usado=…)`** solo descarta **ese** token. Un 401 que llega
+  de un request que todavía tenía el token viejo no puede tirar el que otro
+  acaba de traer: eso convertía una rotación en una ronda de logins en cadena.
+- **`consultar_ciudadano` informa el 401 y no el error de token.** Si el
+  reintento de SIIS-14 no consigue token nuevo, lo que se devuelve es la
+  respuesta real del servicio; «no se pudo renovar el token» tapaba lo único que
+  de verdad se sabía de RENAPER en ese request.
+
+**Los dos MINOR.** (1) `login()` escribía `self.token` y `self.token_expiration`
+fuera del candado: son un solo dato y ahora se escriben juntos, porque sueltos
+dejan una ventana en la que otro hilo lee el token nuevo con el vencimiento
+viejo. (2) «Se agotó la espera de un login en curso» y «el login terminó sin
+dejar token» dejan de compartir mensaje: no son el mismo problema. De paso, un
+login que contesta 200 **sin** `token` en el cuerpo deja de seguir con
+`bearer None` —una consulta que no puede salir bien y que después se leía como
+un 401 del proveedor— y levanta ese segundo mensaje.
+
+**Medición antes/después** (worktree del commit anterior, mismos tests):
+
+| Escenario | Antes (ronda 2) | Después |
+|---|---|---|
+| (A) Rotación de token, N=4 y N=8 | el que espera levanta «hay un login en curso» en cuanto la ventana se abre | N/N éxitos y ≤ 2 logins por oleada |
+| (B) Login sano más lento que la espera | espera fija 2 s contra un peor caso de login de 15 s | espera ≥ `connect + read`; todos terminan bien |
+| (C) Login colgado que falla | — (ya resuelto en la ronda 2) | se conserva: el total no crece con N |
+
+De punta a punta, (A) con N=4 y N=8 **pasa también con el código anterior en
+esta máquina**: quién gana la carrera entre el `descartar_token()` del ganador y
+la lectura de los que esperan depende del planificador. Por eso la regresión la
+fija además un test que abre la ventana a mano
+(`test_el_que_espera_vuelve_a_intentar_cuando_el_token_ya_no_esta`), que contra
+el commit anterior falla con el mensaje exacto del hallazgo en 3 de 3 corridas.
+Los tests de hilos se corrieron **8 veces seguidas** en verde para descartar
+*flakes*.

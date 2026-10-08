@@ -23,6 +23,7 @@ ficha se ejercita en la capa donde de verdad vive:
   arrastra la URL completa en el traceback de `requests`.
 """
 
+import datetime
 import threading
 import time
 from unittest.mock import Mock, patch
@@ -361,6 +362,179 @@ class LoginConcurrenteTests(_BaseRenaperTest):
 
         self.assertFalse(resultado["success"])
         self.assertLess(tardo, 1.0, f"hizo cola detrás del login colgado: {tardo:.2f} s")
+
+
+class TokenRotadoConcurrenteTests(LoginConcurrenteTests):
+    """Ronda 3 (MAJOR): el que espera el token tiene más de un intento.
+
+    Con una sola vuelta, el que esperaba hacía `wait()` → `_token_vigente()` y,
+    si no había token, **levantaba**. Con rotación —el ganador consulta, recibe
+    el 401 de SIIS-14 y llama `descartar_token()` antes de que los demás lean—
+    N−1 altas terminaban en «Error interno al obtener token» **sin consultar**:
+    medido 1 de 4 y 1 de 8 éxitos, en 5 de 5 corridas. Hoy el que espera vuelve
+    a la decisión: o toma el token nuevo, o se vuelve él el que se loguea.
+    """
+
+    def _servicio_con_rotacion(self, logins, consultas):
+        """El primer token que se emita da 401; del segundo en adelante, 200."""
+        candado = threading.Lock()
+        muertos = set()
+
+        def post(url, **kwargs):
+            if url.endswith("/auth/login"):
+                with candado:
+                    logins.append(url)
+                    numero = len(logins)
+                    if numero == 1:
+                        muertos.add(f"tok{numero}")
+                return _respuesta(200, {"token": f"tok{numero}", "expiration": "2099-01-01T00:00:00Z"})
+            token = (kwargs.get("headers") or {}).get("Authorization", "").split(" ", 1)[-1]
+            with candado:
+                consultas.append(token)
+                vencido = token in muertos
+            if vencido:
+                return _respuesta(401, {"message": "token vencido"})
+            return _respuesta(200, PERSONA)
+
+        return post
+
+    def _rotacion(self, hilos):
+        logins, consultas = [], []
+        resultados, _ = self._correr(self._servicio_con_rotacion(logins, consultas), hilos=hilos)
+        return resultados, logins, consultas
+
+    def test_la_rotacion_del_token_no_voltea_a_los_que_esperan(self):
+        for hilos in (4, 8):
+            with self.subTest(hilos=hilos):
+                self.setUp()  # cliente y caché limpios por subtest
+                resultados, logins, _ = self._rotacion(hilos)
+
+                exitos = [r for r in resultados if r["success"]]
+                self.assertEqual(len(resultados), hilos)
+                self.assertEqual(len(exitos), hilos, [r.get("error") for r in resultados if not r["success"]])
+                # Una oleada por token: el que muere y el que lo reemplaza. Un
+                # login por request sería volver a no coordinar nada.
+                self.assertLessEqual(len(logins), 2, f"{len(logins)} logins para {hilos} requests")
+
+    def test_ninguno_se_queda_sin_consultar(self):
+        """El síntoma exacto del hallazgo: fallar sin haber hablado con RENAPER.
+
+        El piso es una consulta por request: el que llega después de la rotación
+        ya toma el token nuevo de la caché compartida y no necesita reintentar.
+        """
+        resultados, _, consultas = self._rotacion(HILOS)
+
+        self.assertGreaterEqual(len(consultas), HILOS, "alguno falló sin consultar")
+        self.assertIn("tok2", consultas, "nadie llegó a usar el token nuevo")
+        for resultado in resultados:
+            self.assertTrue(resultado["success"], resultado.get("error"))
+
+    def test_el_que_espera_vuelve_a_intentar_cuando_el_token_ya_no_esta(self):
+        """El hallazgo, sin depender de cómo caiga el scheduler.
+
+        Las dos pruebas de arriba reproducen la rotación de punta a punta, pero
+        si gana la carrera dependen del planificador: en esta máquina los que
+        esperan alcanzan a leer el token antes de que el 401 lo descarte, y
+        pasan también con el código anterior. Acá la ventana se abre a mano: el
+        login del ganador termina **sin** dejar token, que es exactamente el
+        estado en que quedaba el que esperaba. Antes levantaba «hay un login en
+        curso»; ahora vuelve a la decisión y se loguea él.
+        """
+        cliente = consulta_renaper.APIClient()
+        entro, seguir, logins = threading.Event(), threading.Event(), []
+
+        def login_falso():
+            logins.append(1)
+            if len(logins) == 1:
+                entro.set()
+                seguir.wait(5)
+                return  # el token que trajo se lo llevó un 401 en el medio
+            cliente.token = "tok2"
+            cliente.token_expiration = datetime.datetime(2099, 1, 1, tzinfo=datetime.timezone.utc)
+
+        with patch.object(cliente, "login", side_effect=login_falso):
+            ganador = threading.Thread(target=lambda: self.assertRaises(Exception, cliente.get_token))
+            ganador.start()
+            self.assertTrue(entro.wait(2), "el login del ganador no arrancó")
+            soltar = threading.Timer(0.05, seguir.set)
+            soltar.start()
+            token = cliente.get_token()
+            soltar.cancel()
+            ganador.join(5)
+
+        self.assertEqual(token, "tok2")
+        self.assertEqual(len(logins), 2, "el que esperaba no se volvió el que se loguea")
+
+    def test_un_401_con_el_token_viejo_no_tira_el_token_nuevo(self):
+        """Sin esto, una rotación se convierte en una ronda de logins en cadena."""
+        cliente = consulta_renaper.APIClient()
+        cliente.token = "tok2"
+        cliente.token_expiration = datetime.datetime(2099, 1, 1, tzinfo=datetime.timezone.utc)
+
+        cliente.descartar_token(usado="tok1")
+
+        self.assertEqual(cliente.token, "tok2")
+
+        cliente.descartar_token(usado="tok2")
+
+        self.assertIsNone(cliente.token)
+
+
+class LoginSanoLentoTests(LoginConcurrenteTests):
+    """Ronda 3: un login **sano** que tarda no puede voltear a los que esperan.
+
+    La ronda 2 esperaba 2 s fijos, un número más chico que el timeout del propio
+    login: un login sano de 2,5 s hacía fallar a todos los que esperaban. La
+    espera pasa a derivarse del timeout, que es lo que de verdad acota cuánto
+    puede durar un login.
+    """
+
+    def test_la_espera_cubre_el_peor_caso_del_login(self):
+        cliente = consulta_renaper.APIClient()
+
+        self.assertGreaterEqual(cliente.espera_login, sum(cliente.timeout))
+
+    def test_un_login_sano_y_lento_termina_bien_para_todos(self):
+        intentos = []
+
+        def post(url, **kwargs):
+            if url.endswith("/auth/login"):
+                intentos.append(url)
+                time.sleep(LOGIN_LENTO * 2)
+                return _respuesta(200, {"token": "tok1", "expiration": "2099-01-01T00:00:00Z"})
+            return _respuesta(200, PERSONA)
+
+        resultados, _ = self._correr(post)
+
+        self.assertEqual(len(intentos), 1)
+        for resultado in resultados:
+            self.assertTrue(resultado["success"], resultado.get("error"))
+
+    def test_el_mensaje_distingue_la_espera_agotada_de_un_login_sin_token(self):
+        """MINOR: no es lo mismo «sigue colgado» que «terminó y no dejó nada»."""
+        cliente = consulta_renaper.APIClient()
+        cliente.espera_login = 0.05
+        colgado = threading.Event()
+
+        with patch.object(cliente, "login", side_effect=lambda: colgado.wait(5)):
+            hilo = threading.Thread(target=cliente.get_token)
+            hilo.start()
+            time.sleep(0.05)
+            with self.assertRaises(Exception) as capturado:  # noqa: B017
+                cliente.get_token()
+            colgado.set()
+            hilo.join(5)
+
+        self.assertIn("se agotó la espera", str(capturado.exception))
+
+        # El otro mensaje: el login termina bien pero no deja token (lo descartó
+        # un 401 en el medio), y las vueltas se agotan.
+        sin_token = consulta_renaper.APIClient()
+        with patch.object(sin_token, "login", return_value=None):
+            with self.assertRaises(Exception) as capturado:  # noqa: B017
+                sin_token.get_token()
+
+        self.assertIn("sin dejar token", str(capturado.exception))
 
 
 class CortacircuitoRenaperTests(_BaseRenaperTest):

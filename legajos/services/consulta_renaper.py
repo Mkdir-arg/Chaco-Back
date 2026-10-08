@@ -30,10 +30,41 @@ CONSULTA_CACHE_TTL = 600  # 10 min por (dni, sexo)
 #: falla en el acto con «no se pudo consultar» en vez de colgarse.
 cortacircuito = Cortacircuito("renaper")
 
-#: Cuánto espera un request al token que **otro** está pidiendo. Es un techo de
-#: cola, no de red: pasado eso se falla rápido en vez de hacer fila detrás de un
-#: login que puede estar colgado. Ver :meth:`APIClient.get_token`.
-ESPERA_LOGIN_SEGUNDOS = 2.0
+#: Margen sobre el peor caso del login para la espera del token ajeno. El que
+#: espera **no** hace su propia llamada: su techo es lo que tarda el login del
+#: otro, y eso ya lo acota ``requests`` con ``connect + read``. El margen es para
+#: que el ganador alcance a publicar el token. Un número fijo más chico que el
+#: timeout —la ronda 2 usaba 2 s— hacía fallar a los que esperaban un login
+#: **sano** que tardaba un poco más que eso.
+MARGEN_ESPERA_LOGIN = 1.0
+
+#: Vueltas de :meth:`APIClient.get_token` antes de darse por vencido. Una vuelta
+#: es «¿hay token? si no, logueate vos o esperá al que está». Dos alcanzan para
+#: el camino normal y la tercera cubre que entre medio un 401 haya descartado el
+#: token recién traído (SIIS-14).
+VUELTAS_TOKEN = 3
+
+#: Los dos motivos por los que no se consigue el token, que no son el mismo
+#: problema: uno dice «el login de otro no termina» y el otro «terminó y no
+#: dejó token» (lo descartó un 401, o el proveedor contestó 200 sin token).
+ESPERA_AGOTADA = "No se pudo obtener el token de RENAPER: se agotó la espera de un login en curso."
+LOGIN_SIN_TOKEN = "No se pudo obtener el token de RENAPER: el login terminó sin dejar token."
+
+
+class _IntentoDeLogin:
+    """Lo que un login en curso le cuenta a los que esperan su resultado.
+
+    No alcanza con «terminó»: el que espera necesita saber **si salió bien**.
+    Si salió mal, hacer su propio login es pegarle al mismo muro y en fila, que
+    es justo la cola que la ronda 2 sacó de acá.
+    """
+
+    __slots__ = ("listo", "fallo")
+
+    def __init__(self):
+        self.listo = threading.Event()
+        self.fallo = None
+
 
 MOJIBAKE_MARKERS = ("Ã", "Â", "â€", "â€“", "â€”", "â€œ", "â€", "â€™")
 
@@ -161,7 +192,11 @@ class APIClient:
         # :meth:`get_token`).
         self._candado_estado = threading.Lock()
         self._login_en_curso = None
-        self.espera_login = ESPERA_LOGIN_SEGUNDOS
+        # Derivada del timeout y no un número suelto: ningún login **sano**
+        # puede durar más que `connect + read`, así que el que espera siempre
+        # llega a ver su resultado. Lo que la espera corta es el caso en que el
+        # login no termina nunca, que es el que haría cola.
+        self.espera_login = sum(self.timeout) + MARGEN_ESPERA_LOGIN
         retry_count = _parse_positive_int(getattr(settings, "RENAPER_RETRIES", 0), 0)
         retries = Retry(
             total=retry_count,
@@ -256,23 +291,30 @@ class APIClient:
             raise Exception(f"Login fallido: {response.status_code}")
 
         data = response.json()
-        self.token = data.get("token")
-        self.token_expiration = datetime.datetime.fromisoformat(data["expiration"].replace("Z", "+00:00"))
+        token = data.get("token")
+        expiration = datetime.datetime.fromisoformat(data["expiration"].replace("Z", "+00:00"))
+        # Los dos juntos y bajo el candado: son un solo dato. Escribirlos sueltos
+        # deja una ventana en la que otro hilo lee el token nuevo con el
+        # vencimiento viejo (o al revés).
+        with self._candado_estado:
+            self.token = token
+            self.token_expiration = expiration
         # Compartir el token entre workers/procesos: sin esto cada request
         # pagaba un round-trip extra de login contra RENAPER.
-        ttl = (self.token_expiration - datetime.datetime.now(datetime.timezone.utc)).total_seconds() - 60
+        ttl = (expiration - datetime.datetime.now(datetime.timezone.utc)).total_seconds() - 60
         if ttl > 0:
             cache.set(
                 TOKEN_CACHE_KEY,
-                {"token": self.token, "expiration": self.token_expiration.isoformat()},
+                {"token": token, "expiration": expiration.isoformat()},
                 ttl,
             )
 
     def _token_vigente(self):
         """El token que ya se tiene —propio o de la caché compartida—, o ``None``."""
         ahora = datetime.datetime.now(datetime.timezone.utc)
-        if self.token and self.token_expiration and ahora < self.token_expiration:
-            return self.token
+        with self._candado_estado:
+            if self.token and self.token_expiration and ahora < self.token_expiration:
+                return self.token
 
         cached = cache.get(TOKEN_CACHE_KEY)
         if cached:
@@ -282,7 +324,7 @@ class APIClient:
                     with self._candado_estado:
                         self.token = cached["token"]
                         self.token_expiration = expiration
-                    return self.token
+                        return self.token
             except (KeyError, TypeError, ValueError):
                 pass
         return None
@@ -298,70 +340,106 @@ class APIClient:
         la vez **cuando el login funciona**.
 
         Así que el candado protege nada más que la decisión —quién se loguea— y
-        se suelta antes del HTTP. El que la gana avisa por un ``Event`` cómo le
-        fue; los demás esperan ese aviso **acotado** a ``espera_login`` y, si no
-        aparece un token, fallan rápido en vez de hacer fila. El tiempo total
-        deja de crecer con la cantidad de requests.
+        se suelta antes del HTTP. El que la gana publica el **resultado** en un
+        :class:`_IntentoDeLogin`; los demás lo esperan y, según cómo haya ido,
+        siguen o cortan. El tiempo total deja de crecer con la cantidad de
+        requests.
+
+        **Ronda 3:** el que espera vuelve a la decisión en vez de darse por
+        vencido en el primer intento. Con una sola vuelta, un token rotado
+        —el ganador consulta, se come un 401 y llama ``descartar_token`` antes de
+        que los demás lean— dejaba a N−1 altas con «error al obtener token» sin
+        haber consultado nada (medido: 1 de 4 y 1 de 8 éxitos). Las tres salidas
+        del que espera, en orden:
+
+        * el login ajeno **salió bien** → vuelta nueva: o toma ese token, o
+          —si alguien lo descartó en el medio— esta vez el ganador es él;
+        * el login ajeno **falló** → corta. Hacer el propio es pegarle al mismo
+          muro, y en fila: esa es la cola que la ronda 2 sacó de acá;
+        * **no terminó** dentro de ``espera_login`` → corta. Un login sano no
+          puede tardar más que su propio ``connect + read``, así que llegar acá
+          es un login que no termina nunca.
         """
         if self._use_api_key_mode():
             return None
 
-        token = self._token_vigente()
-        if token:
-            return token
+        for _ in range(VUELTAS_TOKEN):
+            token = self._token_vigente()
+            if token:
+                return token
 
-        with self._candado_estado:
-            aviso = self._login_en_curso
-            me_toca = aviso is None
+            with self._candado_estado:
+                intento = self._login_en_curso
+                me_toca = intento is None
+                if me_toca:
+                    intento = self._login_en_curso = _IntentoDeLogin()
+
             if me_toca:
-                aviso = self._login_en_curso = threading.Event()
+                try:
+                    self.login()
+                except Exception as exc:
+                    intento.fallo = exc
+                    raise
+                finally:
+                    with self._candado_estado:
+                        self._login_en_curso = None
+                    # Pase lo que pase, los que esperan se enteran ahora: un
+                    # login que falla no puede dejarlos esperando su turno.
+                    intento.listo.set()
+                if self.token:
+                    return self.token
+                # 200 sin `token` en el cuerpo: seguir con «bearer None» es
+                # mandar una consulta que no puede salir bien y leerla como un
+                # 401 del proveedor.
+                raise Exception(LOGIN_SIN_TOKEN)
 
-        if me_toca:
-            try:
-                self.login()
-            finally:
-                with self._candado_estado:
-                    self._login_en_curso = None
-                # Pase lo que pase, los que esperan se enteran ahora: un login
-                # que falla no puede dejarlos esperando su turno para fallar.
-                aviso.set()
-            return self.token
+            if not intento.listo.wait(self.espera_login):
+                raise Exception(ESPERA_AGOTADA)
+            if intento.fallo is not None:
+                raise Exception(f"No se pudo obtener el token de RENAPER: {intento.fallo}")
 
-        aviso.wait(self.espera_login)
-        token = self._token_vigente()
-        if token:
-            return token
-        raise Exception("No se pudo obtener el token de RENAPER: hay un login en curso.")
+        raise Exception(LOGIN_SIN_TOKEN)
 
-    def descartar_token(self):
+    def descartar_token(self, usado=None):
         """Olvida el token, acá y en la caché que comparten los workers.
 
         SIIS-14: ``get_token`` confía en el ``expiration`` que informó RENAPER.
         Si el proveedor lo rota antes, el token guardado está muerto y **todos**
         los procesos siguen usándolo hasta que caduque de viejo: horas de «Error
         HTTP 401» en cada alta de ciudadano del backoffice.
+
+        Con ``usado`` solo descarta **ese** token. Un 401 que llega de un request
+        que todavía tenía el token viejo no puede tirar el que otro acaba de
+        traer: eso convertía una rotación en una ronda de logins en cadena.
         """
         with self._candado_estado:
+            if usado is not None and self.token is not None and self.token != usado:
+                return
             self.token = None
             self.token_expiration = None
         cache.delete(TOKEN_CACHE_KEY)
 
     def _headers(self):
-        """``(headers, error)``: lo que autentica la consulta, o por qué no se puede."""
+        """``(headers, token, error)``: lo que autentica la consulta, o por qué no.
+
+        El ``token`` sale acá y no se vuelve a leer del header: es el que hay que
+        descartar si la consulta se come un 401, y descartar «el token actual»
+        en vez de «el que usé» tira el que otro hilo acaba de traer.
+        """
         headers = {"Content-Type": "application/json"}
         if self._use_api_key_mode():
             if not self.api_key:
-                return None, {"success": False, "error": "Falta RENAPER_API_KEY para autenticar con API Key."}
+                return None, None, {"success": False, "error": "Falta RENAPER_API_KEY para autenticar con API Key."}
             headers[self.api_key_header] = f"{self.api_key_prefix} {self.api_key}".strip()
-            return headers, None
+            return headers, None, None
         try:
             token = self.get_token()
         except Exception:
             # El mensaje de la excepción ya viene saneado por `login`.
             logger.exception("Error al obtener token RENAPER")
-            return None, {"success": False, "error": "Error interno al obtener token"}
+            return None, None, {"success": False, "error": "Error interno al obtener token"}
         headers["Authorization"] = f"bearer {token}"
-        return headers, None
+        return headers, token, None
 
     def _pedir(self, headers, payload, method):
         """``(response, error)`` de una sola llamada a la consulta."""
@@ -418,15 +496,22 @@ class APIClient:
         # SIIS-14: un 401/403 puede ser el token rotado antes de tiempo. Se
         # descarta y se reintenta **una** vez; un segundo rechazo con un token
         # recién pedido no es el token. En modo API key no hay nada que renovar.
+        response = None
         for intento in (1, 2):
-            headers, error = self._headers()
+            headers, usado, error = self._headers()
             if error:
+                if response is not None:
+                    # Ya hubo una respuesta del servicio —el 401 que disparó el
+                    # reintento— y el token nuevo no se pudo traer. Lo que informa
+                    # es el 401: «no se pudo renovar el token» taparía lo único
+                    # que de verdad se sabe de RENAPER en este request.
+                    break
                 return error
             response, error = self._pedir(headers, payload, method)
             if error:
                 return error
             if intento == 1 and response.status_code in (401, 403) and not self._use_api_key_mode():
-                self.descartar_token()
+                self.descartar_token(usado=usado)
                 continue
             break
 
