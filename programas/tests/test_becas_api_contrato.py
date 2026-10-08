@@ -535,3 +535,88 @@ class ContratoAppDeCampoTests(_BaseApiTest):
         self.client.credentials(HTTP_AUTHORIZATION=f"Token {token.key}")
 
         self.assertEqual(self.client.get("/api/becas/").status_code, 403)
+
+    # ── SEC-23 / SEC-24 (Cambio 184) ────────────────────────────────────────
+    # Lo que el teléfono instalado manda de verdad en el alta, fijado como
+    # contrato: `syncRemoteBecasFormulario` arma el cuerpo con `validado_renaper`
+    # y `client_uuid` adentro (`relevamientoService.js:941`). `validado_renaper`
+    # pasó a ser de **solo lectura**; `client_uuid` sigue siendo escribible
+    # porque es la idempotencia de la cola offline. Un campo de solo lectura que
+    # llegara a dar 400 deja la operación `FAILED_PERMANENT` y pierde la carga.
+
+    def _cuerpo_de_la_app(self, **extra):
+        cuerpo = {
+            "celular": "3624111222",
+            "email_contacto": "x@y.com",
+            "apoderado_nombre": "",
+            "apoderado_apellido": "",
+            "apoderado_dni": "",
+            "apoderado_genero": "",
+            "apoderado_fecha_nacimiento": None,
+            "gps_lat": None,
+            "gps_lng": None,
+            "validado_renaper": True,
+            "client_uuid": "4f1c0b4e-9b2a-4c0d-8b4e-1a2b3c4d5e6f",
+            "capturado_en": timezone.now().isoformat(),
+            "datos_identificacion": {
+                "dni": "40400400",
+                "nombre": "Juan",
+                "apellido": "Perez",
+                "fecha_nacimiento": date(1990, 1, 2).isoformat(),
+                "sexo": "M",
+                "origen": "manual",
+            },
+            "data": {"globales": {}, "requisitos": {}},
+        }
+        cuerpo.update(extra)
+        return cuerpo
+
+    def test_el_alta_con_el_cuerpo_exacto_de_la_app_sigue_entrando(self):
+        """El payload literal de `syncRemoteBecasFormulario`, clave por clave."""
+        self.rel.estado = Relevamiento.Estado.EN_CURSO
+        self.rel.save(update_fields=["estado", "modificado"])
+
+        resp = self.client.post(
+            reverse("becas_api:relevamiento-formularios", args=[self.rel.pk]),
+            self._cuerpo_de_la_app(),
+            format="json",
+        )
+
+        self.assertEqual(resp.status_code, 201, resp.data)
+        cuerpo = resp.json()
+        self.assertEqual(sorted(cuerpo), sorted(CLAVES_FORMULARIO))
+        # El `client_uuid` que la app mandó vuelve: es con lo que deduplica.
+        self.assertEqual(cuerpo["client_uuid"], "4f1c0b4e-9b2a-4c0d-8b4e-1a2b3c4d5e6f")
+
+    def test_el_validado_renaper_del_telefono_se_ignora_sin_dar_400(self):
+        """SEC-23: el cliente no acredita identidad, pero mandarla **no** es un
+        error. El valor que vuelve es el que calculó el servidor."""
+        self.rel.estado = Relevamiento.Estado.EN_CURSO
+        self.rel.save(update_fields=["estado", "modificado"])
+
+        resp = self.client.post(
+            reverse("becas_api:relevamiento-formularios", args=[self.rel.pk]),
+            self._cuerpo_de_la_app(),
+            format="json",
+        )
+
+        self.assertEqual(resp.status_code, 201, resp.data)
+        # Origen `manual` ⇒ sin validar, pese al `"validado_renaper": True` del
+        # cuerpo.
+        self.assertFalse(resp.json()["validado_renaper"])
+        self.assertFalse(Formulario.objects.get(pk=resp.json()["id"]).validado_renaper)
+
+    def test_el_alta_repetida_sigue_siendo_idempotente_por_client_uuid(self):
+        """`client_uuid` **no** pasó a solo lectura: la cola offline reintenta y
+        el segundo POST tiene que devolver el mismo caso, no uno nuevo."""
+        self.rel.estado = Relevamiento.Estado.EN_CURSO
+        self.rel.save(update_fields=["estado", "modificado"])
+        url = reverse("becas_api:relevamiento-formularios", args=[self.rel.pk])
+
+        primera = self.client.post(url, self._cuerpo_de_la_app(), format="json")
+        segunda = self.client.post(url, self._cuerpo_de_la_app(), format="json")
+
+        self.assertEqual(primera.status_code, 201, primera.data)
+        self.assertEqual(segunda.status_code, 200, segunda.data)
+        self.assertEqual(segunda.json()["id"], primera.json()["id"])
+        self.assertEqual(Formulario.objects.filter(relevamiento=self.rel).count(), 1)
