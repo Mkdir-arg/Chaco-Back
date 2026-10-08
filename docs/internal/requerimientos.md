@@ -345,6 +345,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 171 | Se van los comandos que sembraban `admin`/`admin123` y el «debug» que vaciaba el Redis | Transversal (comandos de management, cuentas de sistema, seeds de demo, alta masiva por CSV) | `#infra` `#usuarios` `#sesion` `#metodo` | Auditoría integral oct-2026 — fichas OPS-02, G2-05 y G1c-12 (Ola 3, PR 3) | 07/10/2026 | 🟢 **Hecho** | No requiere |
 | 172 | Trece reglas de negocio de Becas, y la edad que estaba escrita seis veces | Becas (revisión de casos, constructor de formularios, convocatorias, segmentos y subsegmentos, carga de padrón, pausas) · Legajos e Inicio (contadores «de hoy», edad del ciudadano, alertas) · Transversal (`core/edad.py`, regla `DTZ011`) | `#relevamientos` `#cupos` `#datos` `#ui` `#requisitos` | Auditoría integral oct-2026 — fichas BEC-03, BEC-04, BEC-05, BEC-06, BEC-07, BEC-09, BEC-10, BEC-15, BEC-16, BEC-17, BEC-18, BEC-20 y BEC-24, más RED-50 (Ola 3, PR 6) | 08/10/2026 | 🟢 **Hecho** (D-B05 y D-B10 aplicadas por default) | `programas.0079` y `legajos.0009`, las dos sin DDL |
 | 173 | Los campos propios del constructor llegan al Excel por persona y al dashboard de Becas | Becas (tablero del programa y su exportación «respuestas por persona») · Comandos de management (ratchets y alta masiva por CSV) | `#requisitos` `#performance` `#metodo` | Auditoría integral oct-2026 — ficha G2-01 y los cinco seguimientos de las revisiones de los PRs 1 y 3 (Ola 3, PR 8) | 07/10/2026 | 🟢 **Hecho** | No requiere |
+| 175 | La app de campo deja de perder cargas: gracia de sincronización, listas completas y lo que el servidor sí valida | Becas — API de campo (`/api/becas/`: agenda, casos, alta y cierre) · Revisión de casos (detalle) · Cron de vencimientos · Constructor de formularios (guardado de condiciones) | `#api` `#relevamientos` `#datos` `#requisitos` `#metodo` | Auditoría integral oct-2026 — fichas G1-03, G1-04 (+BEC-22), G1-05, G1-06 y R0-04, más RED-40 (Ola 3, PR 5 — primer lote) | 08/10/2026 | 🟢 **Hecho** (D-G04 aplicada por default: 24 h) | `programas.0080` — dos columnas nuevas en `programas_formulario` (expand puro, medidas en MariaDB 10.11 y MySQL 8) |
 
 **Notas del índice**
 
@@ -24792,3 +24793,251 @@ en el constructor, que siguen siendo válidos.
 5. Un campo que cuelga de un grupo que no se sirve en el canal deja de contar como fuente
    disponible (`claves_servidas`): un campo «ambos» dentro de un grupo solo-app no viaja al
    link, así que tomarlo por presente dejaba en pie la condición imposible.
+
+---
+
+# Cambio 175 — La app de campo deja de perder cargas: gracia de sincronización, listas completas y lo que el servidor sí valida
+
+🟢 **HECHO — 08/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas — API de campo (`/api/becas/`), revisión de casos y cron de vencimientos |
+| **Etiquetas** | `#api` `#relevamientos` `#datos` `#requisitos` `#metodo` |
+| **Solicitante** | Auditoría integral oct-2026 — fichas G1-03, G1-04 (+BEC-22), G1-05, G1-06 y R0-04 (Ola 3, PR 5, primer lote), más RED-40 del ítem 9 |
+| **Fecha del pedido** | 08/10/2026 |
+| **Issue / épica** | Auditoría oct-2026, Ola 3 ítem 5 (primer lote) e ítem 9 |
+| **Partes afectadas** | API de campo (listados, alta, cierre) · Revisión de casos (detalle) · Cron `procesar_vencimientos` · Constructor de formularios (guardado de condiciones) · Catálogo de grupos |
+| **Migración** | `programas.0080` — dos columnas en `programas_formulario` (expand puro) y dos `AlterField` sin DDL |
+
+## Pedido original
+
+La app de campo (`Chaco-mobile`) es **otro repo** y la versión instalada en producción
+es `origin/main @ a66c2d3`, del 21/08/2026. Cinco fichas de la auditoría describen
+formas distintas del mismo problema: el servidor pierde, esconde o no mira lo que el
+teléfono manda.
+
+- **G1-03.** La API pagina de a 10 (`PageNumberPagination`, `PAGE_SIZE: 10`) y la app no
+  sigue `next`: `relevamientoService.js` hace `payload?.results` y se queda con la
+  primera página. Con 40 casos cargados, `dniYaRelevado` solo veía los 10 más nuevos y
+  dejaba volver a cargar a alguien ya relevado; con más de 10 relevamientos vigentes, la
+  agenda y la caché offline mostraban 10.
+- **G1-04.** Último día del relevamiento, zona sin señal, quince personas cargadas. Al
+  día siguiente el cron de las 03:10 ya pasó el relevamiento a `EN_REVISION` y la cola
+  offline empieza a subir: el alta responde 409 y la app clasifica un 409 que no sea de
+  pausa como `FAILED_PERMANENT`. Las quince capturas quedan en el teléfono para siempre
+  y el backoffice nunca se entera de que existen.
+- **G1-05.** El link público pasa cada respuesta por el motor de condiciones y por la
+  validación de su campo; la API de campo no validaba nada. Un caso sin las obligatorias,
+  con un DNI `"1"`, con opciones inexistentes o sin GPS se creaba igual, y las respuestas
+  a ítems que el formulario **escondía** quedaban guardadas y viajaban a SIIS.
+- **G1-06.** Una fecha de nacimiento ilegible (`15/03/2010`, `31/02/2000`) seguía viaje
+  cruda hasta el ORM: el caso se insertaba, `_completar_alta` explotaba **después** del
+  commit, 500, la app reintentaba ocho veces por ser 5xx y el caso quedaba sin legajo y
+  con RN-22 sin evaluar.
+- **R0-04.** Desde SEC-01 la raíz `GET /api/becas/` responde 403 con
+  `Authorization: Token`, mientras todo lo que cuelga de ella responde 200.
+- **BEC-22.** El `UPDATE` por pk de `procesar_vencimientos` no vuelve a filtrar el estado
+  y devuelve los ids leídos, no las filas afectadas.
+- **RED-40 (parte Ola 3).** Los dos `JSONField` que guardan una condición
+  (`ItemDiseno.condicion`, `GrupoRequisito.condicion_defecto`) tienen **cero**
+  `validators`. Un operador que el motor no conoce no falla al evaluarse: `evaluar_regla`
+  devuelve `False` y el ítem condicionado **no se muestra nunca**, sin error ni log.
+
+## Qué estaba mal
+
+El hilo común: el servidor decidía solo —aceptar, rechazar, descartar— y no dejaba
+rastro de lo que decidió. Una captura la hizo un territorial parado delante de una
+persona; tirarla sin registro es perder trabajo de campo ya hecho.
+
+## Alcance acordado
+
+Primer lote del PR 5 de la Ola 3: **G1-03, G1-04 (+BEC-22), G1-05, G1-06 y R0-04**, más
+**RED-40** del ítem 9. **Quedan para el 5b** G1-07 (idempotencia y pertenencia de los
+adjuntos) y G1-16 (la foto de la versión con la que se capturó, que necesita un release
+de la app).
+
+**Regla de la ola, no negociable:** la app instalada no puede romperse. Todo cambio de
+request o de respuesta es **aditivo** o acepta las dos formas, y queda fijado en
+`programas/tests/test_becas_api_contrato.py`.
+
+## Decisiones tomadas
+
+- **D-G04 por default: gracia de 24 h desde el cierre del período.** Es el valor del §2
+  del README de la auditoría (V6 decía 24 h, G1 sugería 72). La gracia habilita **subir
+  lo ya capturado**, no seguir capturando: una `capturado_en` posterior al período sigue
+  dando 400. Los estados que la aceptan son `FINALIZANDO`, `FINALIZADO` y `EN_REVISION`;
+  `TERMINADO` no (los reportes ya salieron) y `ASIGNADO` tampoco (todavía no arrancó).
+- **Se acepta y se marca; se rechaza solo lo imposible.** Lo único que devuelve 400 por
+  contenido es un **DNI** que no es un DNI: un caso así no se puede cruzar con el padrón,
+  ni consultar en SIIS, ni unir a un legajo. Todo lo demás —una obligatoria sin
+  responder, una opción fuera del formulario, un número que no es número, el GPS que
+  faltaba— entra con su línea en `observaciones_carga`, que el revisor ve.
+- **La respuesta a un ítem oculto no es una respuesta** (RN-6/D11, el mismo criterio del
+  link público): se descarta de `respuestas` **y** de `data`, porque
+  `respuestas_por_destino` lee de ahí para armar el alta a SIIS.
+- **El listado de casos deja de traer `data`.** Es el único campo que se saca, pesa ~7 KB
+  por caso y la app no lo lee de esta lista. `datos_identificacion` se queda: es de donde
+  salen el nombre y el DNI mientras el caso no tiene legajo, que es el estado normal de
+  una carga offline recién sincronizada. Es un desvío de la propuesta de la ficha, que
+  listaba ocho claves y dejaba `datos_identificacion` afuera.
+- **R0-04: la raíz autentica como el resto de su namespace** (`TokenAuthentication` +
+  `becas.campo`), en vez de quedar en 403. Verificado en `Chaco-mobile@a66c2d3` que la
+  app **no la consulta**: su `initializeWafSession` pide `/`, la raíz del sitio, no la de
+  la API. Anónimo y usuario sin la capacidad siguen en 403.
+- **La transición automática del cron queda en el log, no en una traza.** El relevamiento
+  no tiene traza propia (Cambio 54): hasta que exista, el log de la aplicación es lo que
+  hay, y es el mismo criterio que `relevamiento_volver_a_campo`.
+- **La asimetría del cron no se toca.** Un `FINALIZANDO` fuera de fecha con la
+  convocatoria viva sigue sin cerrarse solo: es la caracterización del **Cambio 120**, y
+  la gracia es una ventana de la API, no del cron.
+- **`db_default` y no solo `default`** para la columna booleana nueva: con el esquema
+  adelantado y la release anterior todavía atendiendo, su `INSERT` omite la columna y la
+  base la completa sola, en vez de rechazar el alta entera (error 1364 con
+  `STRICT_TRANS_TABLES`).
+
+## Qué se hizo
+
+**G1-03 · las dos listas se sirven completas.** `pagination_class = None` en
+`RelevamientoViewSet`: la agenda ya viene acotada a lo vigente del territorial y los
+casos, al cupo del relevamiento. El listado de casos usa un `FormularioListSerializer`
+—`FormularioSerializer` sin `data`— y difiere en la consulta las cuatro columnas pesadas
+de la fila (`data`, `respuestas`, `definicion`, `datos_siis`), ninguna de las cuales se
+sirve ahí.
+
+**G1-04 · gracia de sincronización.** `services/campo.py::evaluar_captura` decide, con
+una sola función, si el alta entra y si entra tarde; `Formulario.sincronizado_tarde`
+queda escrito en el alta y viaja también en la respuesta de la API (clave nueva, la app
+vieja la ignora). `finalizar` se vuelve **idempotente** sobre un relevamiento ya cerrado
+dentro de la gracia: la cola offline sube primero las personas y después el «finalizar»,
+y el 400 lo dejaba `FAILED_PERMANENT` por algo que ya estaba hecho. `FINALIZANDO` no
+entra en esa idempotencia: ese sí tiene que terminar de pasar a `FINALIZADO`.
+
+**G1-05 · la revisión de la carga.** Después de `sincronizar_desde_legacy` —que es cuando
+ya hay foto y respuestas por clave— se corre el motor de condiciones con la fecha de
+carga (BEC-03) y se guarda lo que queda: respuestas sin lo oculto, `data` recalculado
+desde ellas y `observaciones_carga` con una línea por observación. **No escribe nada si
+no hay nada que observar**, que es lo que sostiene el presupuesto de consultas del alta.
+El DNI del titular se normaliza y se valida en el serializer, con 400.
+
+**G1-06 · la fecha de nacimiento.** `FormularioSerializer.validate` la normaliza con
+`services.personas.fecha_iso` (acepta `AAAA-MM-DD`, `dd/mm/aaaa`, `dd-mm-aaaa`,
+`aaaa/mm/dd` y `aaaammdd`) y devuelve 400 si no es una fecha. `resolver_ciudadano_offline`
+hace lo mismo como cinturón para los otros caminos y para los datos ya guardados.
+
+**R0-04 · la raíz.** `RaizApiCampo(APIRootView)` con la autenticación y el permiso del
+namespace, montada por un `DefaultRouter` propio.
+
+**BEC-22 · el cron.** Los dos `update()` filtran por `ESTADOS_RELEVAMIENTO_ABIERTOS` y la
+regla devuelve la suma de filas **afectadas**. Y cada corrida que cierra algo deja una
+línea en el log con los ids.
+
+**RED-40 · la forma de las condiciones.** `programas/validadores.py::validar_condicion_json`
+valida la forma (modo conocido, reglas como lista de objetos, fuente presente, operador
+**existente**, valor donde hace falta, lista donde hace falta) y queda declarado en
+`validators=[…]` de los dos campos. Vive en su propio módulo porque `programas.models` lo
+importa y `services/condiciones` importa `programas.models`: el import diferido de adentro
+de la función es lo que corta el ciclo. El endpoint del constructor lo llama explícitamente
+antes de guardar: hasta ahora validaba solo que el cuerpo fuera un objeto.
+
+**La revisión lo ve.** El detalle del caso suma el badge «Sincronizado tarde» al lado de
+«Duplicado por resolver» y una alerta inline `warning` con las observaciones, las dos con
+piezas que ya estaban en la pantalla. Son advertencias: «Aprobar» sigue habilitado.
+
+### Desvíos de las fichas, todos code-first
+
+1. **El listado liviano conserva `datos_identificacion`** (ver *Decisiones*). La lista de
+   ocho claves de la ficha habría dejado la pantalla de personas de la app sin nombre ni
+   DNI para todo caso sin legajo.
+2. **Los campos `ARCHIVO` obligatorios no se reportan como faltantes.** Su respuesta no
+   viaja en el alta sino en los `POST …/adjuntos/` que la app manda después: exigirlos
+   marcaría «falta» en el 100 % de las cargas. Lo que falte de verdad lo mira G1-07.
+3. **El apoderado tampoco.** El catálogo lo tiene obligatorio desde el **Cambio 67**, que
+   lo pide a toda persona **en el link**; ahí mismo está escrito que «la app de campo
+   mantiene, por ahora, la regla de menores» hasta que Mobile la cambie. En el canal app
+   la obligatoriedad la decide RN-22 en el serializer.
+4. **«Sexo F/M» son dos reglas distintas, no una.** El **legajo** acepta tres valores
+   (`Ciudadano.Genero`, con `X` = no binario) y el **formulario** ofrece dos
+   (`VINCULOS_LEGAJO["genero"]`). Una `X` se guarda —no se pierde un dato que el sistema
+   sabe representar— y queda la observación de que el formulario no ofrecía esa opción.
+   Lo que la ficha describía —el valor que se descarta en silencio— es lo que no está en
+   `Ciudadano.Genero`.
+5. **El endpoint `POST /api/becas/rechazos/` de G1-04 no se hizo.** La ficha lo marca como
+   opcional y pierde sentido con la gracia: lo que la app no podía subir, ahora sube.
+6. **`finalizar` idempotente** no está en ninguna ficha. Es la otra mitad del mismo
+   escenario: sin eso, la cola offline sincroniza las quince personas y después le muestra
+   un error al territorial por el cierre que ya ocurrió.
+
+## Base de datos
+
+`programas.0080` (`programas/migrations/0080_app_de_campo_gracia_y_validacion.py`),
+**expand puro**:
+
+- `AddField observaciones_carga` → `longtext NULL`.
+- `AddField sincronizado_tarde` → `bool DEFAULT 0 NOT NULL`, con `db_default=False`, que
+  es el DEFAULT nativo de Django 5 y queda **escrito en el esquema**.
+- Dos `AlterField` de `validators` (RED-40): `sqlmigrate` sale `(no-op)` en los dos.
+
+Las dos columnas se agregan **al final de la fila**, que es la forma que MySQL 8 y
+MariaDB 10.11 resuelven con `ALGORITHM=INSTANT` sin reescribir la tabla.
+
+**Medido en el banco de `scripts/perf_mysql/`** (22.000 casos; la tabla más grande del
+sistema, 283 MB en PRD):
+
+| Motor | Tamaño de la tabla | `observaciones_carga` | `sincronizado_tarde` |
+|---|---|---|---|
+| MySQL 8.0.46 (contenedor 3308, base `chaco_perf_ci`) | 350 MB | **82 ms** | **104 ms** |
+| MariaDB 10.11.19 (`MARIADB_INITDB_SKIP_TZINFO=1`, misma tabla restaurada) | 252 MB | **35 ms** | **41 ms** |
+
+Tres órdenes de magnitud por debajo del `read_timeout` de 10 s del `migrate` (OPS-05).
+`scripts/check_migraciones.py` sobre la migración nueva: 0 problemas.
+
+## Verificación
+
+Con `.venv312` (Python 3.12 + Django 5.2.17, igual al CI) y `PYTEST_RUNNING=1`:
+
+- `manage.py check` → sin issues; `check --deploy` → los 6 avisos preexistentes de
+  entorno de desarrollo; `makemigrations --check --dry-run` → sin cambios.
+- **Suite completa, un solo proceso: 4.076 tests, OK** (50 skips, 7 fallos esperados).
+- `manage.py test --tag performance` → 6 OK.
+- `manage.py test --tag mysql` contra el **motor real**, los dos: `mariadb:10.11.19` sin
+  tablas de zona horaria → 47 OK; `mysql:8.0.46` → 47 OK (3 skips). En los dos el esquema
+  lo arman las migraciones, así que la 0080 se aplicó de verdad.
+- `ruff check .` limpio; `ruff format --check` limpio sobre lo tocado.
+- UI: `design_audit.py --changed` → 0 errores; `--ratchet` → 0 hallazgos nuevos;
+  `compile_templates.py --bloques` → 201 compilados, 0 errores, 0 bloques sin destino.
+
+**Tests nuevos (41):** `programas/tests/test_app_de_campo.py` (32: gracia, cron,
+validación de la carga, fecha de nacimiento, lo que la revisión muestra),
+`programas/tests/test_json_compatibilidad.py::ValidadorDeCondicionTests` (7),
+`programas/tests/test_constructor.py::CondicionTests` (2) y cinco de contrato en
+`test_becas_api_contrato.py`.
+
+## Puesta en marcha en el servidor
+
+`migrate` normal. La migración es instantánea en los dos motores (tabla medida arriba) y
+no necesita ventana.
+
+## Pendientes
+
+- **PR 5b del carril:** **G1-07** (adjuntos de la app sin idempotencia ni control de
+  pertenencia: dos POST iguales dejan dos filas, y no se valida que la pregunta esté en la
+  foto como `ARCHIVO`) y **G1-16** (la app no manda la `version` del diseño con la que
+  capturó, así que una captura offline se guarda con la foto del momento de **sincronizar**;
+  necesita release de la app).
+- **Para el juez:** la ficha del agente de diseño no se pudo escribir desde esta sesión
+  (`.claude/` sin permiso de escritura). El bloque exacto para
+  `.claude/design/dominio/becas.md` está en el cuerpo del PR; sin él,
+  `check_design_agent.py --changed` queda en ERROR.
+- El tope de `programas_formulario` sigue creciendo: las dos columnas nuevas son chicas,
+  pero cualquier columna futura sobre esa tabla tiene que medirse igual.
+
+## Reversión
+
+`migrate programas 0079` baja las dos columnas (la reversa de un `AddField` es un
+`RemoveField`, probada en los dos motores). Revertir el commit devuelve la paginación, el
+409 de la sincronización tardía y la carga sin validar.
+
+## Historial
+
+No aplica: entrada nueva.

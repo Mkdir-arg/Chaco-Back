@@ -1,5 +1,36 @@
 # Auditoría integral de DATAÑACH (Chaco) — octubre 2026
 
+## Estado al 08-oct-2026 (Ola 3, PR 5: app de campo — **primer lote**)
+
+**La app de campo deja de perder cargas.** El PR 5 de la Ola 3 (Cambio 175) cierra **G1-03, G1-04
+(+BEC-22), G1-05, G1-06 y R0-04**, más **RED-40** del ítem 9: 20 + 2 h de las 34 + 2 del plan.
+La app (`Chaco-mobile`) es otro repo y la versión instalada en producción es `origin/main @ a66c2d3`
+(21/08); **nada de esto le pide un release**: el servidor acepta más y marca lo que antes no contaba,
+y lo que la app ya mandaba sigue significando lo mismo. Los cinco cambios de contrato están fijados en
+`test_becas_api_contrato.py`.
+
+| Ficha | Qué quedó |
+|---|---|
+| **G1-03** ✅ | Las dos listas de la API se sirven **completas** (`pagination_class = None`). La app nunca siguió `next` —`relevamientoService.js` se queda con `payload?.results`—, así que con 40 casos `dniYaRelevado` solo veía los 10 más nuevos y el territorial volvía a cargar a alguien ya relevado; con más de 10 relevamientos vigentes, la agenda y la caché offline mostraban 10. El listado de casos pierde `data` (~7 KB por caso) y difiere las cuatro columnas pesadas de la fila. **Desvío code-first:** la ficha dejaba `datos_identificacion` afuera del serializer liviano y **se conserva**, porque es de donde salen el nombre y el DNI mientras el caso no tiene legajo —el estado normal de una carga offline— |
+| **G1-04 + BEC-22** ✅ | **D-G04 por default (24 h desde `fecha_hasta`).** Una captura hecha en fecha entra aunque el cron de las 03:10 ya haya cerrado el relevamiento, marcada `sincronizado_tarde` y visible en la revisión. La app clasificaba el 409 como `FAILED_PERMANENT`: quince capturas de un día sin señal quedaban en el teléfono para siempre. `TERMINADO` no entra (los reportes ya salieron) y una `capturado_en` **posterior** al período sigue dando 400: la gracia es para subir, no para seguir capturando. Dos cosas más del mismo escenario: `finalizar` se vuelve idempotente sobre un relevamiento ya cerrado dentro de la gracia, y la transición del cron deja línea en el log. BEC-22 entra acá, como pedía su ficha |
+| **G1-05 + RED-40** ✅ | El servidor deja de creerle todo al teléfono: motor de condiciones con la **fecha de carga** (BEC-03), lo oculto se descarta de `respuestas` **y** de `data` —que es de donde `respuestas_por_destino` arma el alta a SIIS—, y el resto queda en `observaciones_carga`, que el revisor ve. **Se acepta y se marca; se rechaza solo lo imposible** (un DNI que no es un DNI). **Tres desvíos code-first:** los `ARCHIVO` obligatorios no se reportan como faltantes (su respuesta llega en los `POST …/adjuntos/` posteriores), el apoderado tampoco (Cambio 67: en el canal app la regla es RN-22), y «sexo F/M» son dos reglas distintas —el legajo acepta tres valores y el formulario ofrece dos—. **RED-40**: `validar_condicion_json` en los dos `JSONField` de condición, más el llamado explícito en el endpoint del constructor, que era por donde entraba el operador inventado que esconde un ítem para siempre |
+| **G1-06** ✅ | La fecha de nacimiento se normaliza con `fecha_iso` y una imposible da 400 **antes** de insertar. Antes el texto crudo llegaba al ORM, el caso se insertaba, `_completar_alta` explotaba después del commit y la app reintentaba ocho veces por ser 5xx. Lo que no era obvio y queda probado: con la fecha ilegible, `es_menor` recibía `None` y **RN-22 no exigía apoderado a un menor** |
+| **R0-04** ✅ | La raíz `/api/becas/` autentica como el resto de su namespace. Verificado en `Chaco-mobile@a66c2d3` que la app **no la consulta** (su `initializeWafSession` pide `/`, la raíz del sitio), así que la decisión no la toca y saca la contradicción en vez de documentarla |
+
+**Riesgos de deploy.** Una migración, `programas.0080`, **expand puro** sobre `programas_formulario`
+—la tabla más grande, 283 MB en PRD—: una columna nullable y una booleana con `db_default=False`, el
+DEFAULT nativo de Django 5 que queda **escrito en el esquema** (con el esquema adelantado y la release
+anterior atendiendo, su `INSERT` omite la columna y la base la completa). Las dos van al final de la
+fila: `ALGORITHM=INSTANT` en los dos motores. Medido en el banco de `scripts/perf_mysql/` con 22.000
+casos: **MySQL 8.0.46 (350 MB) 82 + 104 ms** y **MariaDB 10.11.19 (252 MB) 35 + 41 ms**, tres órdenes
+de magnitud bajo el `read_timeout` de 10 s del `migrate` (OPS-05). Conducta que cambia para el usuario:
+el teléfono **sube** capturas que antes rechazaba, con hasta 24 h de gracia; el revisor **ve** dos
+marcas nuevas; y un caso con una fecha de nacimiento o un DNI imposibles **deja de crearse**.
+
+**Abierto (PR 5b del carril):** **G1-07** (adjuntos de la app sin idempotencia ni control de
+pertenencia) y **G1-16** (la app no manda la `version` del diseño con la que capturó; necesita release
+de la app). 14 h.
+
 ## Estado al 07-oct-2026 (Ola 3, PR 6: reglas de negocio de Becas)
 
 **Trece reglas de Becas y la edad, que estaba escrita seis veces.** El PR 6 de la Ola 3 (Cambio 172) cierra
@@ -1503,24 +1534,26 @@ funcional ni coordinación con ECOM). Las horas de cada ola suman los esfuerzos 
 | **R** | **Red de seguridad: poder cambiar código sin romper nada sin enterarse** | — | — | — | — | **86** (79 RED con parte en R —78 del relevamiento + RED-89— + OPS-01, OPS-03, OPS-04, TST-01, TST-02, TST-03, R0-03; SEC-10, SEC-11 y SEC-18 se ejecutan en R-19 pero **siguen contadas como ítems de la Ola 2**, solo se mueven sus horas) | **285** · **269 cerradas (R-01..R-16 y R-18..R-21) → 16 restantes: solo R-17** |
 | 1 | Integridad SIIS | 23 | 72 | 22 (− SIIS-07) | 70 | 23 (+ RED-53; + parte de RED-32) | 78 · **76 cerradas (26 el 05-oct, PR 2; 6 el 06-oct, PR 3; 10 el 06-oct, PR 4; 4 el 06-oct, PR 5; 20 el 07-oct, PR 6; 10 el 07-oct, PR 7) → 2 restantes: el ítem 0 (V2-NEW-03, correr P-01 en PRD, sin código)** |
 | 2 | Autorización (RBAC, legajos, alcance de Becas, usuarios) | 36 | 116 | 50 (+ fase 2 de OPS-06, R0-05, resto de SEC-01, etapa 2 de SEC-09, R0b-01..10) | 136 | 51 (+ RED-80; + partes de RED-52, RED-79) | 135 (−7: SEC-10, SEC-18 y media SEC-11 se hacen en R-19, D-RED-14) |
-| 3 | Datos, operación, CI, app de campo y reglas de Becas | 55 | 158 | 59 (+ R0-03, R0-04, R0-06, R0-07) | 166 | 54 (− 7 a la Ola R; + RED-48, RED-58; + partes de RED-09, 35, 40, 50) | 152 · **28 cerradas el 07-oct (14 PR 1 · 6 PR 3 · 8 PR 8) → 124 restantes** |
+| 3 | Datos, operación, CI, app de campo y reglas de Becas | 55 | 158 | 59 (+ R0-03, R0-04, R0-06, R0-07) | 166 | 54 (− 7 a la Ola R; + RED-48, RED-58; + partes de RED-09, 35, 40, 50) | 152 · **102 cerradas (14 PR 1 · 22 PR 2 · 6 PR 3 · 22 PR 5 · 30 PR 6 · 8 PR 8) → 50 restantes** |
 | 4 | Performance | 19 | 52 | 19 | 52 | 20 (+ RED-62; + partes de RED-10, 49, 51, 83) | 64 |
 | 5 | Bugs de front y parches v1 de Legajos/Dispositivos | 31 (+ V5A-NEW-07 b) | 114 | 31 (+ V5A-NEW-07 b) | 114 | 33 (+ RED-33, RED-75; + partes de RED-42, 53) (+ V5A-NEW-07 b) | 128 · **128 cerradas (PRs 1 a 8) → 0: la ola cierra** |
 | 6 | Agente de diseño | 4 (+8 pasos) | 42 | 4 (+8 pasos) | 42 | 4 (+8 pasos) | 42 · **42 cerradas el 06-oct (pasos 0-7) → 0: la ola cierra** |
 | 7 | Deuda | 9 (+ fase 2 de G1-01) | 46 | 10 (+ fase 2 de G1-01; + R0-02) | 48 | 13 (+ RED-64, 76, 86; + partes de RED-13, 37, 39, 54, 78, 85) | 88 |
 | v2 | Criterios de aceptación de la v2 (§7), no se implementan en v1 | 13 | — | 13 | — | 13 | — |
-| **Total** | | **206** | **636** | **208** | **628** | **297** | **972** · **543 cerradas al 07-oct-2026 → 429 restantes** |
+| **Total** | | **206** | **636** | **208** | **628** | **297** | **972** · **617 cerradas al 08-oct-2026 → 355 restantes** |
 
 Cada ficha RED cuenta como ítem una sola vez, en la primera ola donde tiene trabajo (por eso la columna suma 297 = 208 +
 89); si tiene una segunda parte en otra ola, esas horas se suman en esa ola («+ partes de …»).
 
-**Cómo se calcula la fila Total (07-oct-2026).** Las 972 h son la suma de la última columna, ola por ola: 0 (Ola 0, que
+**Cómo se calcula la fila Total (08-oct-2026).** Las 972 h son la suma de la última columna, ola por ola: 0 (Ola 0, que
 cerró en código y cuyas horas ya se descontaron) + 285 (R) + 78 (1) + 135 (2) + 152 (3) + 64 (4) + 128 (5) + 42 (6) +
-88 (7); la v2 no tiene horas. Las **543 cerradas** son la suma de las horas cerradas que declara cada fila, y cada una
+88 (7); la v2 no tiene horas. Las **617 cerradas** son la suma de las horas cerradas que declara cada fila, y cada una
 sale de la lista de PRs de su propia sección de este §6: **269** de la Ola R (285 − las 16 de R-17, el único abierto),
-**76** de la Ola 1 (de 78: queda el ítem 0, operativo), **28** de la Ola 3 (PR 1 = 14, PR 3 = 6, PR 8 = 8), **128** de
-la Ola 5 y **42** de la Ola 6, las dos cerradas; las Olas 2, 4 y 7 todavía no abrieron ningún PR. 972 − 543 = **429
-restantes**. El «139 cerradas» anterior venía del 04-oct y no contaba nada de lo mergeado entre el 05 y el 07.
+**76** de la Ola 1 (de 78: queda el ítem 0, operativo), **102** de la Ola 3 (PR 1 = 14, PR 2 = 22, PR 3 = 6, PR 5 = 22,
+PR 6 = 30, PR 8 = 8), **128** de la Ola 5 y **42** de la Ola 6, las dos cerradas; las Olas 2, 4 y 7 todavía no abrieron
+ningún PR. 972 − 617 = **355 restantes**. El «139 cerradas» venía del 04-oct y no contaba nada de lo mergeado entre el
+05 y el 07; el **543** del 07-oct arrastraba la celda de la Ola 3 en 28 h, que no sumaba los PRs 2 (22 h) y 6 (30 h), ya
+mergeados cuando se escribió.
 **Dos arreglos de la misma tabla, residuo del README duplicado (ver #620):** la Ola 5 tenía **dos filas** con cifras
 distintas (66 y 60 h cerradas) — se dejó una sola, y con el 128/128 que declara su sección —, y en la sección de la
 Ola 5 había un bloque de avance viejo («60 h de 128») y una segunda copia de su lista de PRs, conciliados más abajo.
@@ -1876,6 +1909,13 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
 ### Ola 3 — Datos, operación, CI, app de campo y reglas de Becas
 - **Objetivo:** que no se pierdan datos (adjuntos, capturas offline), que el despliegue sea diagnosticable y robusto, que
   la CI pruebe el motor real, y cerrar las reglas de negocio de Becas.
+- **Avance: 102 h de 152, 50 restantes** (14 PR 1 · 22 PR 2 · 6 PR 3 · 22 PR 5 · 30 PR 6 · 8 PR 8).
+  **PR 5 (G1-03, G1-04 + BEC-22, G1-05, G1-06 y R0-04, más RED-40) en el Cambio 175, 08-oct-2026**:
+  20 h de las 34 del ítem 5 + 2 h del ítem 9, con una migración **expand puro** sobre
+  `programas_formulario` (`programas.0080`, medida en MariaDB 10.11 y MySQL 8 sobre 22.000 casos:
+  35-104 ms). **Quedan para un PR 5b**: G1-07 y G1-16 (14 h).
+  *Corrección de contabilidad:* la línea de abajo (y la fila de la Ola 3 en la tabla de §6) seguía en
+  40 h y 28 h respectivamente, sin sumar los PRs 2 y 6 que ya habían cerrado.
 - **Avance: 40 h de 152, 112 restantes.** **PR 2 (DAT-01 🟡, DAT-02, DAT-03, DAT-05, V2-NEW-05, G1c-08 y RED-48)
   en el Cambio 168, 07-oct-2026**: las 7 fichas, con una migración solo de estado (`programas.0078`), sobre los
   PR 1 (Cambio 165) y 3 (Cambio 171) ya mergeados.
@@ -1889,7 +1929,8 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
      #615) y su fase 2.
   3. ✅ *Comandos peligrosos:* OPS-02, G2-05, G1c-12. 6 h. **Cerrado el 07-oct-2026 (Cambio 171).**
   4. *CI y tests:* pasó entero a la Ola R (TST-01 → R-11; TST-02, TST-03 y R0-03 → R-20).
-  5. *App de campo:* G1-03, G1-04 (+BEC-22), G1-05, G1-06, G1-07, G1-16, R0-04 (raíz `/api/becas/` con Token). 34 h.
+  5. 🟡 *App de campo:* G1-03 ✅, G1-04 ✅ (+BEC-22 ✅), G1-05 ✅, G1-06 ✅, R0-04 ✅ (raíz `/api/becas/` con Token)
+     — **20 h de 34, Cambio 175, 08-oct-2026**, con `programas.0080` (expand puro). **PR 5b: G1-07 y G1-16, 14 h.**
   6. ✅ *Reglas de Becas:* BEC-03, BEC-04, BEC-05, BEC-06, BEC-07, BEC-09, BEC-10, BEC-15, BEC-16, BEC-17, BEC-18,
      BEC-20, BEC-24 **+ RED-50** (el ítem 9 lo traía aparte). 26 + 4 h. **Cerrado el 08-oct-2026
      (Cambio 172).** Dos migraciones sin DDL, de la ronda 2: BEC-18 necesitaba arreglar también la
@@ -1905,9 +1946,9 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
      ratchet de `design_audit`), sin horas de plan propias.
   9. *Red de seguridad (04-oct):* RED-48 (una sola regla de DNI, con G1c-08), ~~RED-58 (plantilla de migración
      re-entrante, con OPS-05)~~ ✅ **cerrada en el PR 1**, y segundas partes de RED-09 (`q_uuid_en_texto` a `core/db.py`, con el PR 7), RED-35
-     (atomicidad del resto de las escrituras), RED-40 (`validators` en los `JSONField`, con G1-05) y
-     ~~RED-50 (una sola `edad_en_anios` con `timezone.localdate()` + regla `DTZ011`)~~ ✅ **cerrada en el PR 6**.
-     18 h, de las que quedan 14.
+     (atomicidad del resto de las escrituras), ~~RED-40 (`validators` en los `JSONField`, con G1-05)~~ ✅ **cerrada en
+     el PR 5** y ~~RED-50 (una sola `edad_en_anios` con `timezone.localdate()` + regla `DTZ011`)~~ ✅ **cerrada en el PR 6**.
+     18 h, de las que quedan 12.
   **Prerrequisito: ✅ cumplido el 07-oct-2026.** PRs R-11 a R-16 de la Ola R (motor real en CI, contrato de migraciones,
   job de ida y vuelta, gates del release, operación, y los tests de Becas que DAT-01 y las reglas van a invertir). Los
   dos tests que esta ola tiene que **invertir** están nombrados en sus fichas:

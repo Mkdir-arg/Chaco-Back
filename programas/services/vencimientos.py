@@ -19,11 +19,15 @@ El corte usa ``timezone.localdate()`` (hora Argentina, ``USE_TZ=True``): con
 
 from __future__ import annotations
 
+import logging
+
 from django.db.models import Q, QuerySet
 from django.utils import timezone
 
 from core.services.vencimientos import ReglaVencimiento, registrar
 from programas.models import Convocatoria, Relevamiento
+
+logger = logging.getLogger(__name__)
 
 # Estados de relevamiento que se consideran "abiertos" (todavía en campo o
 # recién finalizados sin revisar). Los que ya están EN_REVISION o TERMINADO no
@@ -86,21 +90,39 @@ def pasar_relevamientos_a_revision(qs: QuerySet) -> int:
     """Manda los relevamientos a ``EN_REVISION``. A los que no tenían
     ``fecha_finalizado`` se la sella ahora (registro de cuándo se cortó el
     campo). Se parten los ids antes de mutar para no depender del orden de las
-    dos actualizaciones."""
+    dos actualizaciones.
+
+    BEC-22: los dos ``update()`` vuelven a filtrar por estado y el total son las
+    filas **afectadas**, no los ids leídos. Entre la lectura y la escritura el
+    estado puede haber cambiado —un coordinador que termina el relevamiento
+    desde la pantalla—, y contar los ids informaba un cierre que no ocurrió.
+
+    G1-04: cada transición queda en el log. El relevamiento no tiene traza
+    propia como los casos (Cambio 54), y sin esto un territorial encuentra su
+    relevamiento cerrado sin ningún registro de quién o qué lo cerró —que es la
+    mitad invisible del problema de la sincronización tardía—.
+    """
     now = timezone.now()
     ids_sin_fecha = list(qs.filter(fecha_finalizado__isnull=True).values_list("pk", flat=True))
     ids_con_fecha = list(qs.filter(fecha_finalizado__isnull=False).values_list("pk", flat=True))
 
-    Relevamiento.objects.filter(pk__in=ids_sin_fecha).update(
+    abiertos = Relevamiento.objects.filter(estado__in=ESTADOS_RELEVAMIENTO_ABIERTOS)
+    cerrados = abiertos.filter(pk__in=ids_sin_fecha).update(
         estado=Relevamiento.Estado.EN_REVISION,
         fecha_finalizado=now,
         modificado=now,
     )
-    Relevamiento.objects.filter(pk__in=ids_con_fecha).update(
+    cerrados += abiertos.filter(pk__in=ids_con_fecha).update(
         estado=Relevamiento.Estado.EN_REVISION,
         modificado=now,
     )
-    return len(ids_sin_fecha) + len(ids_con_fecha)
+    if cerrados:
+        logger.info(
+            "Vencimiento: %s relevamiento(s) a EN_REVISION por fecha (ids=%s)",
+            cerrados,
+            sorted([*ids_sin_fecha, *ids_con_fecha]),
+        )
+    return cerrados
 
 
 def registrar_reglas() -> None:

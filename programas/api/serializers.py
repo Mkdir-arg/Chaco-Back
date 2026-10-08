@@ -11,6 +11,7 @@ from legajos.models import Ciudadano
 from programas.models import AdjuntoFormulario, Formulario, Relevamiento
 from programas.services.becas import definicion_formulario
 from programas.services.padron import normalizar_dni
+from programas.services.personas import fecha_iso
 
 logger = logging.getLogger(__name__)
 
@@ -105,6 +106,9 @@ class FormularioSerializer(serializers.ModelSerializer):
             "apoderado_ciudadano",
             "gps_lat",
             "gps_lng",
+            # G1-04: la captura entró después de que el relevamiento cerró,
+            # dentro de la gracia. Clave **nueva**: la app vieja la ignora.
+            "sincronizado_tarde",
             "data",
             "creado",
             "modificado",
@@ -120,6 +124,7 @@ class FormularioSerializer(serializers.ModelSerializer):
             "ciudadano_nombre",
             "ciudadano_apellido",
             "apoderado_ciudadano",
+            "sincronizado_tarde",
             "creado",
             "modificado",
         ]
@@ -136,6 +141,27 @@ class FormularioSerializer(serializers.ModelSerializer):
         datos = attrs.get("datos_identificacion")
         if datos is None and self.instance:
             datos = self.instance.datos_identificacion
+        # G1-05: el DNI del titular es lo único que se rechaza, porque un caso
+        # con un DNI imposible no se puede arreglar después —no se lo puede
+        # cruzar con el padrón, ni consultar en SIIS, ni unir a un legajo—.
+        # El resto de lo que venga mal se acepta y se observa (`services.campo`).
+        if isinstance(datos, dict) and datos.get("dni") is not None:
+            dni = normalizar_dni(datos.get("dni"))
+            if not dni_valido(dni):
+                raise serializers.ValidationError({"datos_identificacion": {"dni": MENSAJE_DNI_INVALIDO}})
+            datos["dni"] = dni
+        # G1-06: la fecha llega como la tipeó el territorial. `parse_date`
+        # devuelve None para `15/03/2010` y traga el ValueError de `2000-02-30`,
+        # así que el texto crudo seguía viaje hasta el ORM y el alta del legajo
+        # explotaba **después** del commit del caso: 500, la app reintenta ocho
+        # veces por ser 5xx, y el caso queda sin legajo y sin RN-22 evaluada.
+        if isinstance(datos, dict) and datos.get("fecha_nacimiento"):
+            normalizada = fecha_iso(datos["fecha_nacimiento"])
+            if not normalizada:
+                raise serializers.ValidationError(
+                    {"datos_identificacion": {"fecha_nacimiento": "La fecha de nacimiento no es una fecha válida."}}
+                )
+            datos["fecha_nacimiento"] = normalizada
         fecha_nacimiento = datos.get("fecha_nacimiento") if isinstance(datos, dict) else None
         if isinstance(fecha_nacimiento, str):
             try:
@@ -188,6 +214,25 @@ class FormularioSerializer(serializers.ModelSerializer):
             if valor_genero not in (Ciudadano.Genero.MASCULINO, Ciudadano.Genero.FEMENINO):
                 raise serializers.ValidationError({"apoderado_genero": "Seleccioná sexo F o M."})
         return attrs
+
+
+class FormularioListSerializer(FormularioSerializer):
+    """El caso en el **listado** de un relevamiento (G1-03).
+
+    Es ``FormularioSerializer`` sin ``data``: el JSON de respuestas del contrato
+    anterior pesa ~7 KB por caso y de esta lista la app solo lee el nombre, el
+    DNI, el estado y el ``client_uuid`` (para no duplicar lo que ya subió). Con
+    el listado sin paginar —el otro medio arreglo de G1-03— traerlo por fila es
+    justo lo que no se puede hacer: 40 casos × 7 KB en una sola respuesta, con
+    el ``read_timeout`` de 10 s de por medio.
+
+    El resto de las claves se conserva **tal cual**: la app en producción lee
+    ``datos_identificacion`` cuando el caso todavía no tiene legajo, que es el
+    caso normal de una carga offline recién sincronizada.
+    """
+
+    class Meta(FormularioSerializer.Meta):
+        fields = [clave for clave in FormularioSerializer.Meta.fields if clave != "data"]
 
 
 class ConsultaPersonaSerializer(serializers.Serializer):
