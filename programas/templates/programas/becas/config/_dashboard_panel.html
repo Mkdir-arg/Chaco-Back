@@ -14,7 +14,7 @@ densa, estado vacío, badges, botones y campos NODO. Sin CSS nuevo.
      {% if puede_exportar_dashboard %}data-url-exportar="{% url 'becas:programa_dashboard_exportar' programa.pk 'FORMATO' %}"{% endif %}
      data-chartjs="{% static 'vendor/chartjs/chart.umd.min.js' %}"
      data-url-convocatoria="{% url 'becas:convocatoria_detalle' 0 %}"
-     {% if puede_exportar_dashboard %}data-url-respuestas="{% url 'becas:programa_dashboard_respuestas_xlsx' programa.pk 0 %}"{% endif %}
+     {% if puede_exportar_dashboard %}data-url-respuestas="{% url 'becas:programa_dashboard_respuestas' programa.pk 0 'FORMATO' %}"{% endif %}
      x-data="{ menuExportar: false, modalRespuestas: false }"
      @keydown.escape.window="modalRespuestas=false">
   <style>@media print { .dash-no-print { display: none !important; } }</style>
@@ -51,7 +51,7 @@ densa, estado vacío, badges, botones y campos NODO. Sin CSS nuevo.
           <button role="menuitem" type="button" class="w-full flex items-start gap-3 px-3 py-2.5 rounded-lg hover:bg-secondary text-sm text-heading font-semibold text-left"
                   @click="menuExportar=false; modalRespuestas=true; $dispatch('dash-respuestas-abierto')">
             <i class="fas fa-user-check text-fg-brand mt-0.5" aria-hidden="true"></i>
-            <span>Respuestas por persona (XLSX)<span class="block text-xs font-normal text-body-subtle">Un registro por caso con todas sus respuestas; elegís la convocatoria</span></span>
+            <span>Respuestas por persona (XLSX o CSV)<span class="block text-xs font-normal text-body-subtle">Un registro por caso con todas sus respuestas; elegís la convocatoria y el formato</span></span>
           </button>
           <a role="menuitem" class="flex items-start gap-3 px-3 py-2.5 rounded-lg hover:bg-secondary text-sm text-heading font-semibold" href="#" data-dash-exportar="csv" data-bloque="respuestas">
             <i class="fas fa-table text-fg-brand mt-0.5" aria-hidden="true"></i>
@@ -222,7 +222,7 @@ densa, estado vacío, badges, botones y campos NODO. Sin CSS nuevo.
           {% if puede_exportar_dashboard %}
           <button type="button" class="btn-nodo btn-secondary btn-sm flex items-center gap-1.5"
                   @click="modalRespuestas=true; $dispatch('dash-respuestas-abierto')"
-                  title="Excel con un registro por persona y una columna por pregunta">
+                  title="Un registro por persona y una columna por pregunta, en Excel o CSV">
             <i class="fas fa-file-excel" aria-hidden="true"></i> Exportar por persona
           </button>
           {% endif %}
@@ -256,7 +256,7 @@ densa, estado vacío, badges, botones y campos NODO. Sin CSS nuevo.
       <form id="dash-form-respuestas" @submit.prevent class="flex flex-col flex-1 min-h-0">
         <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
           <p class="text-sm text-body">
-            Un archivo Excel con <strong class="text-heading">un registro por caso enviado</strong> de la convocatoria, en cualquier estado:
+            Un archivo con <strong class="text-heading">un registro por caso enviado</strong> de la convocatoria, en cualquier estado:
             relevamiento y canal, identificación de la persona, estado y fecha del caso, y <strong class="text-heading">una columna por cada pregunta</strong> del formulario.
           </p>
           <div>
@@ -267,9 +267,17 @@ densa, estado vacío, badges, botones y campos NODO. Sin CSS nuevo.
             </select>
             <p class="mt-1 text-xs text-fg-danger hidden" data-dash="respuestas-error">Elegí la convocatoria que querés exportar.</p>
           </div>
+          <div>
+            <label class="block text-sm font-medium text-heading mb-1" for="dash-respuestas-formato">Formato</label>
+            <select id="dash-respuestas-formato" name="formato" class="nodo-field">
+              <option value="xlsx">Excel (XLSX)</option>
+              <option value="csv">CSV</option>
+            </select>
+            <p class="mt-1 text-xs text-body-subtle">Las dos opciones traen las mismas columnas. Con muchas convocatorias grandes el CSV se arma unas diez veces más rápido.</p>
+          </div>
           {% include "components/_alerta.html" with tono="info" texto="Incluye todos los casos de la convocatoria, sin el filtro de período del tablero. Las respuestas múltiples van separadas por « | » y los adjuntos muestran el nombre del archivo." %}
         </div>
-        {% include "programas/becas/_modal_footer.html" with cancelar="modalRespuestas=false" accion_texto="Descargar Excel" accion_icono="fa-download" %}
+        {% include "programas/becas/_modal_footer.html" with cancelar="modalRespuestas=false" accion_texto="Descargar" accion_icono="fa-download" %}
       </form>
     </div>
   </div>

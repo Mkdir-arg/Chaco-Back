@@ -39,6 +39,15 @@ Pillow==12.3.0
 django-filter==23.5
 python-dateutil==2.8.2
 openpyxl==3.1.5
+# openpyxl la detecta sola (`openpyxl.LXML`) y serializa el XML de la planilla con
+# lxml en vez de et_xmlfile, que es Python puro. Medido en el banco (20.000 casos ×
+# 34 columnas, 680.000 celdas, PERF-03): 7,9 → 7,0 s de CPU, **~10 %**, no el 2-3 ×
+# que estimó el Cambio 93 sin medirlo —lo que queda es el costo por celda de openpyxl
+# (`_bind_value`, `check_string`) y el saneo de SEC-20, que lxml no toca—. Entra igual
+# porque no cuesta una línea de código y vale para todos los xlsx del producto; el
+# salto grande de esa descarga es el CSV (~10 ×). `OPENPYXL_LXML=False` la desactiva
+# sin desinstalarla.
+lxml==6.1.3
 
 # Auditoría
 django-simple-history==3.4.0

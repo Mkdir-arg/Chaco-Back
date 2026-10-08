@@ -16,11 +16,11 @@ exige que coincidan).
 | PERF-04 | Carga de padrón: cruce caso por caso (13.942 sentencias) | ALTA | CONF. medido; prototipo listo | 4 | M | ✅ |
 | PERF-02 | Cupo y beneficiarios: páginas anchas con join | ALTA | CONF. medido en MariaDB (8,99 s de SQL) | 4 | S | ✅ |
 | PERF-01 | `armar_payload` por candidato y `hidratar()` con JSON que nadie lee | MEDIA | CONF. ajustado | 4 | S | ✅ |
-| PERF-03 | Excel de respuestas por persona: 8,9 s de CPU en el request | MEDIA (baja desde ALTA) | CONF. ajustado | 4 | S-M | ⬜ |
+| PERF-03 | Excel de respuestas por persona: 8,9 s de CPU en el request | MEDIA (baja desde ALTA) | CONF. ajustado | 4 | S-M | 🟡 |
 | PERF-07 | Pantalla del masivo: `count()` con 15.532 literales cada 5 s | MEDIA | CONF. ajustado | 4 | S | ✅ |
 | PERF-11 | La foto `definicion` en cada caso (88 % de los bytes) | MEDIA (estructural) | CONF. medido | 7 | L | ⬜ |
 | PERF-20 | `generar_alertas` recorre todos los ciudadanos activos cada hora | MEDIA | CONF. medido | 4 | S | ⬜ |
-| G1b-11 | Export del dashboard: un `JSON_EXTRACT` por pregunta sobre todo el recorte | MEDIA | PLAUSIBLE | 4 | M | ⬜ |
+| G1b-11 | Export del dashboard: un `JSON_EXTRACT` por pregunta sobre todo el recorte | MEDIA | PLAUSIBLE | 4 | M | ✅ |
 | G1c-09 | Admin: fichas de Formulario y Derivación que crecen con la tabla | MEDIA | CONF. test | 4 | S | ⬜ |
 | PERF-06 | `validar_casos_siis` trae todo con JSON en una consulta | BAJA | CONF. código | 4 | S | ✅ |
 | PERF-08 | `CONN_MAX_AGE = 60` bajo daphne no reutiliza conexiones | BAJA | CONF. ajustado (sonda) | 4 | S | ⬜ |
@@ -175,6 +175,25 @@ alta necesita PERF-11, que es Ola 7.
 - **Criterio:** `perfil_ruta.py /becas/config/programas/<p>/dashboard/respuestas/<c>/xlsx/ 1` con 20k casos debe bajar de 5,7 s (Cambio 93) a < 3 s en el banco.
 - **Dependencias:** G2-01 (el mismo export cambia de fuente de datos: hacer G2-01 con `lxml` ya instalado).
 
+**Resolución:** 🟡 **Parcial** en #NNN (Cambio 189, Ola 4 PR 5), 08-oct-2026 — los puntos (1) y (2) de la propuesta;
+el (3) sigue abierto con el disparador de la ficha. **La estimación del punto (1) no se sostuvo.** `lxml` está en
+`requirements.txt` (6.1.3, `pip-audit` limpio) y `openpyxl` lo usa solo, pero medido en el banco `mariadb:10.11` con
+20.000 casos × 34 columnas (680.000 celdas; CPU, mejor de 3, cuatro corridas alternando `OPENPYXL_LXML`) son **7,9 →
+7,0 s, un 10 %**, no el 2-3 × que el Cambio 93 estimó sin medir: `lxml` reemplaza el serializador XML, pero lo que
+queda es el costo **por celda** de `openpyxl` (`_bind_value`, `check_string`, `_values_to_row`) y el saneo de SEC-20.
+Entra igual porque no cuesta una línea de código y vale para todos los xlsx del producto. **El salto es el punto (2):**
+el modal «Exportar respuestas por persona» ofrece ahora XLSX **o CSV** (la URL pasó a
+`…/dashboard/respuestas/<convocatoria>/<formato>/`, la vieja sigue resolviendo), y el mismo contenido en CSV son
+**0,6-1,0 s** de CPU contra 7,0-8,0 s del xlsx: el request completo baja de 14,3 s a **5,2 s** en el banco. Los dos
+formatos salen del **mismo** `Reporte` —mismas columnas, mismo orden, mismos valores, mismo `celda_segura`— y hay un
+test que genera los dos archivos y los compara celda por celda. El criterio de «< 3 s» de
+`anexo-mediciones-performance.md` **no se alcanza** y la cifra de 5,7 s del Cambio 93 no es comparable: este banco
+tiene 34 columnas y 12 preguntas de opciones cerradas donde el de entonces tenía 22 y ninguna.
+**Test permanente:** `programas.tests.test_dashboard_exports.ExportRespuestasFormatoTests`
+(`test_el_csv_trae_exactamente_lo_mismo_que_el_xlsx`, `test_los_dos_formatos_neutralizan_las_formulas`,
+`test_formato_invalido_permisos_y_alcance_valen_igual_para_el_csv` y `test_la_pantalla_ofrece_los_dos_formatos`).
+
+
 ### PERF-07 · Pantalla del proceso masivo: `candidatos().count()` con 15.532 literales, recalculado cada 5 s
 **Severidad:** MEDIA · **Estado:** CONFIRMADO-AJUSTADO · **Origen:** A4-08, V4-NEW-03 · **Ola:** 4 · **Esfuerzo:** S
 - **Medición:** la lista real (`scripts/Aprobados.sql`: 15.531 DNI) da un set de 15.532 literales; el `count()` lleva **188 KB de SQL**; el GET hace 13 consultas (el `SELECT dni` de toda la tabla, 1 `table_names()` y el `count()` con dos subconsultas correlacionadas por fila, PERF-19). Con una corrida en curso, `proceso_masivo.html:196-206` recarga **cada 5 s**, en el mismo proceso que el hilo de la corrida.
@@ -238,6 +257,25 @@ Medido en el banco MariaDB 10.11 (20.000 casos, 22.000 DNI habilitados):
 - **Propuesta:** una sola pasada con todas las claves + conteo en Python, o reusar `distribucion_cacheada`; medir primero en `scripts/perf_mysql/` (`chaco_perf_ci`, 20k casos) **en MariaDB**.
 - **Tests a agregar:** `@tag("performance")` con consultas constantes respecto de la cantidad de preguntas.
 - **Dependencias:** G2-01 (agrega claves `cp-` al mismo cálculo).
+
+**Resolución:** ✅ Resuelto en #NNN (Cambio 189, Ola 4 PR 5), 08-oct-2026 — **no** con «una sola pasada con todas las
+claves», que es la primera opción de la propuesta: esa devuelve una fila por combinación distinta de respuestas (con
+20.000 casos reales, ~20.000 filas) y el código ya tenía medido —banco MySQL, 25/09/2026— que decodificar en Python
+20.000 valores por pregunta cuesta diez veces más que la consulta agrupada; el banco de 20k tampoco puede arbitrarlo,
+porque sus respuestas son una función del índice del caso y las combinaciones distintas son un puñado. Se tomó la
+segunda: **`distribuciones_cacheadas` reusa las entradas por pregunta de `distribucion_cacheada`** —la clave la escribe
+un solo helper, así que el tablero y el export comparten lo calculado— y manda a la base solo las que faltan. Y antes
+de eso, **el CSV de un bloque que no es «respuestas» ya no las calcula**: alimentan un único bloque y se pedían siempre.
+Medido en `mariadb:10.11` con 20.000 casos y 12 preguntas: el CSV de «convocatorias» pasa de 37 consultas · 2.625 ms de
+SQL · 2.891 ms a **25 · 439 ms · 662 ms**, y el XLSX completo repetido dentro de los 5 minutos de la caché, de 2.120 ms
+a **69 ms**.
+**Test permanente:** `programas.tests.test_dashboard_exports.DistribucionesDelExportTests`
+(`test_el_csv_de_otro_bloque_no_calcula_ninguna_distribucion`,
+`test_el_csv_de_otro_bloque_no_crece_con_la_cantidad_de_preguntas`,
+`test_el_xlsx_no_recalcula_lo_que_ya_esta_en_la_cache`,
+`test_el_export_aprovecha_la_pregunta_que_calculo_la_pantalla` y
+`test_las_distribuciones_cacheadas_dan_lo_mismo_que_calcularlas`).
+
 
 ### G1c-09 · Admin: fichas de Formulario y de Derivación que crecen con la tabla
 **Severidad:** MEDIA · **Estado:** CONFIRMADO con test (`poc/test_repro_admin_cron_renaper.py::G1c09AdminNmas1Tests`: ficha de `Formulario` 19 → 46 consultas con 5 → 35 casos; alta de `DerivacionPrograma` 21 → 80 con 5 → 35 inscripciones; zeal corta con `NPlusOneError` en `Formulario.__str__`, `models:2683`) · **Origen:** G1c-09 · **Ola:** 4 · **Esfuerzo:** S

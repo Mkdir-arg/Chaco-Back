@@ -334,8 +334,8 @@ class RnP13FueraDeLaPantallaTests(_BasePublicoTest):
 
         respuesta = self.client.get(
             reverse(
-                "becas:programa_dashboard_respuestas_xlsx",
-                args=[self.programa_siis.pk, self.convocatoria.pk],
+                "becas:programa_dashboard_respuestas",
+                args=[self.programa_siis.pk, self.convocatoria.pk, "xlsx"],
             )
         )
 
@@ -349,8 +349,8 @@ class RnP13FueraDeLaPantallaTests(_BasePublicoTest):
 
         respuesta = self.client.get(
             reverse(
-                "becas:programa_dashboard_respuestas_xlsx",
-                args=[self.programa_siis.pk, self.convocatoria.pk],
+                "becas:programa_dashboard_respuestas",
+                args=[self.programa_siis.pk, self.convocatoria.pk, "xlsx"],
             )
         )
 

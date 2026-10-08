@@ -23,9 +23,12 @@ from programas.models import (  # noqa: E402
     AdjuntoFormulario,
     Convocatoria,
     Formulario,
+    OrigenRequisito,
+    PreguntaGlobal,
     Relevamiento,
     RequisitoNativo,
     Segmento,
+    TipoCampo,
     TracaFormulario,
     ValidacionSIS,
 )
@@ -76,7 +79,46 @@ def _respuestas_para(foto, i):
     return respuestas
 
 
-def main(casos):
+OPCIONES_BENCH = (
+    ["Sí", "No"],
+    ["Primario", "Secundario", "Terciario", "Universitario"],
+    ["Propia", "Alquilada", "Prestada", "Familiar", "Otra"],
+)
+
+
+def crear_preguntas_graficables(cantidad):
+    """``cantidad`` preguntas generales de opciones cerradas, idempotente por texto.
+
+    El catálogo que siembra ``seed_datos_base`` no tiene ninguna: sus cinco preguntas
+    generales son ARCHIVO y los selectores que quedan (Sexo, Sexo del apoderado) están
+    vinculados al legajo, así que ``preguntas_graficables`` devolvía **cero** y las tres
+    rutas del dashboard se medían sobre un catálogo vacío. Son las preguntas que hacen
+    visible el costo de «una consulta por pregunta» (G1b-11) y las columnas por las que
+    escala el Excel por persona (PERF-03).
+    """
+    if cantidad <= 0:
+        return 0
+    creadas = 0
+    for i in range(cantidad):
+        texto = f"BENCH pregunta cerrada {i:02d}"
+        multiple = i % 4 == 3
+        _, nueva = PreguntaGlobal.objects.get_or_create(
+            texto=texto,
+            defaults={
+                "tipo": TipoCampo.SELECTOR_MULTIPLE if multiple else TipoCampo.SELECTOR,
+                "origen": OrigenRequisito.PREGUNTA,
+                "opciones": list(OPCIONES_BENCH[i % len(OPCIONES_BENCH)]),
+                "orden": 100 + i,
+                "obligatorio": False,
+            },
+        )
+        creadas += int(nueva)
+    print(f"preguntas de opciones cerradas: {cantidad} pedidas, {creadas} nuevas")
+    return creadas
+
+
+def main(casos, preguntas=12):
+    crear_preguntas_graficables(preguntas)
     admin = User.objects.filter(is_superuser=True).first() or User.objects.first()
     segmento = Segmento.objects.order_by("pk").first()
     conv, _ = Convocatoria.objects.get_or_create(
@@ -224,4 +266,11 @@ def main(casos):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--casos", type=int, default=20000)
-    main(parser.parse_args().casos)
+    parser.add_argument(
+        "--preguntas",
+        type=int,
+        default=12,
+        help="preguntas generales de opciones cerradas a asegurar antes de armar los casos",
+    )
+    args = parser.parse_args()
+    main(args.casos, args.preguntas)

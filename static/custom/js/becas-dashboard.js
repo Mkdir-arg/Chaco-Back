@@ -699,10 +699,11 @@
       window.location.href = `${urlExportar.replace('FORMATO', formato)}?${querystring(extra)}`;
     });
   });
-  // Respuestas por persona: el pop up hereda la convocatoria del filtro y descarga el Excel.
+  // Respuestas por persona: el pop up hereda la convocatoria del filtro y descarga el archivo.
   const formRespuestas = document.getElementById('dash-form-respuestas');
   if (formRespuestas && raiz.dataset.urlRespuestas) {
     const selectConv = document.getElementById('dash-respuestas-convocatoria');
+    const selectFormato = document.getElementById('dash-respuestas-formato');
     const errorConv = $('[data-dash="respuestas-error"]');
     window.addEventListener('dash-respuestas-abierto', () => {
       const actual = campo('convocatoria').value;
@@ -717,7 +718,8 @@
         selectConv.focus();
         return;
       }
-      window.location.href = raiz.dataset.urlRespuestas.replace('/0/', `/${id}/`);
+      const formato = (selectFormato && selectFormato.value) || 'xlsx';
+      window.location.href = raiz.dataset.urlRespuestas.replace('/0/', `/${id}/`).replace('/FORMATO/', `/${formato}/`);
     });
   }
   const imprimir = $('[data-dash="imprimir"]');

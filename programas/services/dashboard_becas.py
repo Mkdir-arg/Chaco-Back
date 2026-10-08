@@ -72,6 +72,8 @@ logger = logging.getLogger(__name__)
 
 CACHE_TIMEOUT = 300  # RN-17: hasta 5 minutos de antigüedad
 CACHE_PREFIX = "becas:dashboard"
+#: Segundos entre dos ``?recalcular=1`` atendidos para el mismo recorte (G1b-12).
+RECALCULO_MINIMO = 30
 TOP_TERRITORIALES = 8
 TOP_LOCALIDADES = 7
 SIN_LOCALIDAD = "Sin localidad"
@@ -682,6 +684,25 @@ def clave_cache(user, programa, filtros, alcance=None):
     return _clave(programa, filtros, huella)
 
 
+def recalculo_permitido(programa, filtros, huella):
+    """¿Se puede atender un ``?recalcular=1`` para este recorte? (G1b-12)
+
+    ``recalcular`` borra la entrada y recalcula todo el tablero: con 20.000 casos eso
+    es más de un segundo de SQL, y el botón «Actualizar» no tiene freno —ni contra el
+    doble clic ni contra varias personas mirando el mismo programa—. Se permite **uno
+    cada** :data:`RECALCULO_MINIMO` **segundos por recorte**; el resto se sirve de la
+    caché, que por RN-17 nunca tiene más de 5 minutos.
+
+    ``cache.add`` es atómico en Redis y en LocMem: devuelve ``True`` solo para el
+    primero. Si la caché no responde se recalcula, que es lo que pasaba antes.
+    """
+    try:
+        return bool(cache.add(_clave(programa, filtros, huella, sufijo="freno"), 1, RECALCULO_MINIMO))
+    except Exception:  # noqa: BLE001 — degradar al comportamiento anterior, nunca romper el tablero
+        logger.warning("dashboard becas: la caché no respondió al frenar el recálculo", exc_info=True)
+        return True
+
+
 def metricas_cacheadas(user, programa, filtros, recalcular=False, alcance=None):
     """``(datos, desde_cache)``. Con ``recalcular`` borra la entrada y recomputa."""
     alcance = alcance or resolver_alcance(user, programa, filtros)
@@ -1074,11 +1095,18 @@ def distribucion_respuestas(user, programa, filtros, clave, alcance=None, catalo
     return resultado[0]
 
 
+def _clave_distribucion(programa, filtros, huella, clave):
+    """La entrada de caché de **una** pregunta. La comparten el tablero (que pide una)
+    y la exportación (que pide todas): escrita en un solo lugar para que no puedan
+    divergir y dejar al export recalculando lo que la pantalla acaba de calcular."""
+    return _clave(programa, filtros, huella, sufijo=f"resp:{clave}")
+
+
 def distribucion_cacheada(user, programa, filtros, clave, recalcular=False, alcance=None, catalogo=None):
     """``(distribucion, desde_cache)`` con la misma política que las métricas: 5
     minutos por (programa, filtros, alcance, pregunta)."""
     alcance = alcance or resolver_alcance(user, programa, filtros)
-    clave_c = _clave(programa, filtros, alcance.huella, sufijo=f"resp:{clave}")
+    clave_c = _clave_distribucion(programa, filtros, alcance.huella, clave)
     if recalcular:
         _cache_delete(clave_c)
     else:
@@ -1088,6 +1116,40 @@ def distribucion_cacheada(user, programa, filtros, clave, recalcular=False, alca
     valor = distribucion_respuestas(user, programa, filtros, clave, alcance=alcance, catalogo=catalogo)
     _cache_set(clave_c, valor)
     return valor, False
+
+
+def distribuciones_cacheadas(user, programa, filtros, alcance=None, catalogo=None):
+    """Todas las distribuciones del catálogo, reusando la caché por pregunta (G1b-11).
+
+    La exportación pedía :func:`distribuciones_respuestas` sin caché: **una consulta
+    con ``JSON_EXTRACT`` y ``GROUP BY`` por pregunta sobre todo el recorte**, cada vez,
+    aunque el tablero acabara de calcular las mismas. Con 12 preguntas y 20.000 casos
+    de filas anchas eso medía 12 consultas y 2,5 s de SQL en el banco ``mariadb:10.11``.
+
+    Acá se leen primero las entradas que ya existen —las mismas que escribe
+    :func:`distribucion_cacheada` desde la pantalla— y solo **las que faltan** van a la
+    base, en una sola llamada. El resultado se devuelve en el orden del catálogo, igual
+    que antes, y cada pregunta nueva queda cacheada para la pantalla.
+    """
+    catalogo = list(catalogo) if catalogo is not None else preguntas_graficables(user, programa)
+    if not catalogo:
+        return []
+    alcance = alcance or resolver_alcance(user, programa, filtros)
+    por_clave, faltantes = {}, []
+    for pregunta in catalogo:
+        valor = _cache_get(_clave_distribucion(programa, filtros, alcance.huella, pregunta.clave))
+        if valor is None:
+            faltantes.append(pregunta.clave)
+        else:
+            por_clave[pregunta.clave] = valor
+    if faltantes:
+        calculadas = distribuciones_respuestas(
+            user, programa, filtros, claves=faltantes, alcance=alcance, catalogo=catalogo
+        )
+        for distribucion in calculadas:
+            _cache_set(_clave_distribucion(programa, filtros, alcance.huella, distribucion.clave), distribucion)
+            por_clave[distribucion.clave] = distribucion
+    return [por_clave[p.clave] for p in catalogo if p.clave in por_clave]
 
 
 # ---------------------------------------------------------------------------

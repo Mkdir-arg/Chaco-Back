@@ -15,6 +15,15 @@ from programas.services.autorizacion import (
 from programas.services.dashboard_becas import Filtros, preguntas_graficables
 
 
+def _hace_anios(fecha, anios):
+    """``fecha`` menos ``anios`` años, tolerando el 29 de febrero (``replace`` lo
+    rechaza cuando el año destino no es bisiesto)."""
+    try:
+        return fecha.replace(year=fecha.year - anios)
+    except ValueError:
+        return fecha.replace(year=fecha.year - anios, day=28)
+
+
 class ReporteBecasFiltroForm(forms.Form):
     segmento = forms.ModelChoiceField(queryset=Segmento.objects.none(), required=False)
     convocatoria = forms.ModelChoiceField(queryset=Convocatoria.objects.none(), required=False)
@@ -79,6 +88,14 @@ class DashboardBecasFiltroForm(forms.Form):
     (RN-5) y la convocatoria dentro del segmento elegido (RN-6).
     """
 
+    #: Años de ventana máxima del período personalizado (G1b-12). Con
+    #: ``desde=2000-01-01&hasta=3999-12-31`` el tablero armaba ~104.000 semanas y las
+    #: cacheaba, y ``_variacion`` —que mide contra el período anterior de la misma
+    #: longitud— se iba antes del año 1 y tiraba ``OverflowError``, que la pantalla
+    #: mostraba como «no se pudieron calcular las métricas». Cinco años de una
+    #: convocatoria de Becas es más de lo que cualquier recorte real necesita.
+    MAX_ANIOS_PERIODO = 5
+
     PERIODO_30, PERIODO_90, PERIODO_ANIO, PERIODO_TODO, PERIODO_CUSTOM = "30", "90", "anio", "todo", "custom"
     PERIODOS = (
         (PERIODO_30, "Últimos 30 días"),
@@ -124,6 +141,12 @@ class DashboardBecasFiltroForm(forms.Form):
                 raise forms.ValidationError("Indicá desde y hasta para el período personalizado.")
             if desde > hasta:
                 raise forms.ValidationError("La fecha desde no puede ser posterior a la fecha hasta.")
+            if hasta > hoy:
+                raise forms.ValidationError("La fecha hasta no puede ser posterior a hoy.")
+            if desde < _hace_anios(hasta, self.MAX_ANIOS_PERIODO):
+                raise forms.ValidationError(
+                    f"El período personalizado no puede ser mayor a {self.MAX_ANIOS_PERIODO} años."
+                )
         elif periodo == self.PERIODO_TODO:
             desde, hasta = None, None
         elif periodo == self.PERIODO_ANIO:
