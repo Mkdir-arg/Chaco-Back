@@ -1,30 +1,17 @@
 """Exportación común de datasets tabulares a CSV y XLSX."""
 
 import csv
-from datetime import datetime
 
 from django.http import HttpResponse, HttpResponseBadRequest
-from django.utils import timezone
 from openpyxl import Workbook
-from openpyxl.cell.cell import ILLEGAL_CHARACTERS_RE
 
+# `celda_segura` es transversal (la usan también los CSV de `legajos`, que no exportan
+# nada de Becas) y vive en `core.exportacion`. Se re-exporta acá porque la usan las dos
+# funciones de abajo y porque la importan por este camino las vistas y los tests de
+# `programas`.
+from core.exportacion import celda_segura
 
-def celda_segura(valor):
-
-    if isinstance(valor, datetime) and timezone.is_aware(valor):
-        return timezone.localtime(valor).replace(tzinfo=None)
-
-    if isinstance(valor, str):
-        # openpyxl rechaza caracteres de control (-, , , -) con
-
-        # IllegalCharacterError: un texto pegado desde otro programa no puede tirar la planilla.
-
-        valor = ILLEGAL_CHARACTERS_RE.sub("", valor)
-
-        if valor.lstrip().startswith(("=", "+", "-", "@")):
-            return f"'{valor}"
-
-    return valor
+__all__ = ["celda_segura", "respuesta_libro", "respuesta_reporte"]
 
 
 def _nombre_hoja(nombre):
@@ -58,7 +45,10 @@ def respuesta_libro(hojas, nombre, alcance=""):
 
             hoja.append([])
 
-        hoja.append(list(reporte.encabezados))
+        # SEC-20: los encabezados no son fijos —en «respuestas por persona» son los
+        # textos de las preguntas, que los carga un operador—, así que pasan por el
+        # mismo saneo que las celdas.
+        hoja.append([celda_segura(valor) for valor in reporte.encabezados])
 
         for fila in reporte.filas:
             hoja.append([celda_segura(valor) for valor in fila])
@@ -90,7 +80,7 @@ def respuesta_reporte(reporte, formato, nombre, alcance=""):
 
             writer.writerow([])
 
-        writer.writerow(reporte.encabezados)
+        writer.writerow([celda_segura(valor) for valor in reporte.encabezados])
 
         writer.writerows(filas)
 
@@ -106,7 +96,7 @@ def respuesta_reporte(reporte, formato, nombre, alcance=""):
 
             hoja.append([])
 
-        hoja.append(list(reporte.encabezados))
+        hoja.append([celda_segura(valor) for valor in reporte.encabezados])
 
         for fila in filas:
             hoja.append(fila)

@@ -22,7 +22,12 @@ from core.rbac import puede
 from programas.forms_reportes import DashboardBecasFiltroForm
 from programas.models import ProgramaSiis
 from programas.services import dashboard_becas
-from programas.services.autorizacion import convocatorias_visibles, programa_becas
+from programas.services.autorizacion import (
+    convocatorias_visibles,
+    programa_becas,
+    programas_siis_visibles,
+    puede_relevamiento_publico,
+)
 from programas.services.exportacion_reportes import respuesta_libro, respuesta_reporte
 
 logger = logging.getLogger(__name__)
@@ -42,13 +47,10 @@ def puede_exportar_dashboard(user):
 
 def _programa_o_403(request, pk, capacidad):
     """El programa pedido, si el usuario tiene la capacidad y además lo ve."""
-    # Import diferido: ``configuracion`` importa este módulo para el contexto de la pantalla.
-    from programas.views.configuracion import _programas_qs
-
     if not puede(request.user, capacidad, programa=programa_becas(request.user)):
         raise PermissionDenied("No tiene acceso al dashboard de Becas.")
     programa = get_object_or_404(ProgramaSiis, pk=pk)
-    if not _programas_qs(request.user).filter(pk=programa.pk).exists():
+    if not programas_siis_visibles(request.user).filter(pk=programa.pk).exists():
         raise PermissionDenied("No tiene acceso a este programa.")
     return programa
 
@@ -167,7 +169,12 @@ def programa_dashboard_respuestas_xlsx(request, pk, convocatoria_pk):
         pk=convocatoria_pk,
     )
     try:
-        reporte, alcance = dashboard_becas.respuestas_por_persona(convocatoria)
+        # SEC-22: el XLSX traía DNI, celular, email, GPS y respuestas de los casos del
+        # link público aunque el usuario no tuviera RN-P13 y no los viera en pantalla.
+        reporte, alcance = dashboard_becas.respuestas_por_persona(
+            convocatoria,
+            incluir_publicos=puede_relevamiento_publico(request.user, programa=programa_becas(request.user)),
+        )
         nombre = f"becas_respuestas_{slugify(convocatoria.nombre) or convocatoria.pk}_{timezone.localdate():%Y-%m-%d}"
         return respuesta_libro([("Respuestas", reporte)], nombre, alcance=alcance)
     except Exception as exc:  # noqa: BLE001

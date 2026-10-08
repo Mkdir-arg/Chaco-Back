@@ -946,7 +946,7 @@ class UnaSolaPuertaDePadronTests(_BasePadronTest):
         }
 
         self.assertIn("convocatorias_visibles", fuentes["convocatoria_padron"])
-        self.assertIn("_assert_scope", fuentes["relevamiento_padron"])
+        self.assertIn("assert_alcance_relevamiento", fuentes["relevamiento_padron"])
 
 
 def _apoderado_dni_aceptado(dni):

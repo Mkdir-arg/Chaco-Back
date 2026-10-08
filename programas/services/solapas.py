@@ -259,22 +259,37 @@ class SolapasService:
         }
 
     @classmethod
-    def obtener_resumen_becas_ciudadano(cls, ciudadano):
+    def obtener_resumen_becas_ciudadano(cls, ciudadano, user=None):
         """Datos del resumen de Becas de un ciudadano (issue #80).
 
         Reusado por la vista standalone (programas.views.solapas_becas) y por la tab
         embebida "Becas" del legajo (legajos.selectors.ciudadanos.build_ciudadano_detail_context).
+
+        BEC-23 (D-B23): el legajo es transversal, así que la solapa muestra los casos
+        de cualquier segmento —no solo los del alcance de quien mira— pero **oculta los
+        del link público** a quien no tiene RN-P13, que es la única regla de visibilidad
+        que Becas define sobre el caso en sí. Sin ``user`` se asume que no la tiene: esto
+        lo consume también una vista sin request a mano y el default seguro es ocultar.
+
+        La capacidad se evalúa **sin acotar al Programa Becas** a propósito: resolverlo
+        acá agrega una lectura de ``Programa`` a una pantalla transversal cuyo
+        presupuesto de consultas no tolera duplicadas (``legajo_detalle`` en
+        ``scripts/perf_budgets.json``). Acotarlo es parte del barrido de SEC-06/SEC-07.
         """
         from programas.models import Formulario
+        from programas.services.autorizacion import sin_formularios_publicos_si_no_puede
         from programas.services.cupo import estado_relevante_becas
 
         # Por el manager relacionado: deja el ciudadano ya apuntado en cada fila, así
         # ``Formulario.__str__`` (que lo interpola) no lo relee. Y sin los dos JSON, que
         # ninguna de las dos pantallas que consumen este resumen abre.
         formularios = list(
-            ciudadano.formularios_becas.select_related(
-                "relevamiento__convocatoria__segmento",
-                "relevamiento__convocatoria__subsegmento",
+            sin_formularios_publicos_si_no_puede(
+                ciudadano.formularios_becas.select_related(
+                    "relevamiento__convocatoria__segmento",
+                    "relevamiento__convocatoria__subsegmento",
+                ),
+                user,
             )
             .defer("data", "datos_identificacion")
             .prefetch_related("lista_espera")

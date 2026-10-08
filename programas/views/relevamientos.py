@@ -34,13 +34,18 @@ from programas.forms import (
 )
 from programas.models import Convocatoria, Formulario, ListaEspera, Relevamiento, q_con_identidad
 from programas.services.autorizacion import (
+    assert_alcance_relevamiento,
     convocatorias_visibles,
     programa_becas,
     puede_gestionar_segmento,
+    puede_relevamiento_publico,
     segmentos_visibles,
+    sin_formularios_publicos_si_no_puede,
+    sin_relevamientos_publicos_si_no_puede,
     subsegmentos_visibles,
     usuarios_territoriales_becas,
 )
+from programas.services.exportacion_reportes import celda_segura
 from programas.views.ajax_utils import ajax_errors, ajax_ok, ajax_redirect, is_ajax
 
 CAP_CONVOCATORIA_VER = "becas.convocatoria.ver"
@@ -51,9 +56,8 @@ logger = logging.getLogger(__name__)
 CAP_RELEVAMIENTO_VER = "becas.relevamiento.ver"
 CAP_RELEVAMIENTO_CREAR = "becas.relevamiento.crear"
 CAP_RELEVAMIENTO_EDITAR = "becas.relevamiento.editar"
-# Gateo del formulario público (RN-P13, análisis #289): sin esta capacidad los
-# relevamientos públicos no existen para el usuario (ni selector, ni listados).
-CAP_RELEVAMIENTO_PUBLICO = "becas.relevamiento.publico"
+# ``CAP_RELEVAMIENTO_PUBLICO`` (RN-P13) se mudó a ``programas.services.autorizacion``
+# junto con los filtros y los guards de alcance (RED-79): la importaban dos vistas más.
 CAP_REPORTES = "becas.programa.administrar"
 DETALLE_PAGE_SIZE = 50
 #: FE-17: el listado de convocatorias no paginaba. 25 es el valor del resto del backoffice.
@@ -105,20 +109,9 @@ def _querystring_without(request, *keys):
 
 
 def _puede_publico(user):
-    return puede(user, CAP_RELEVAMIENTO_PUBLICO)
-
-
-def _sin_publicos_si_no_puede(qs, user):
-    """Excluye los relevamientos públicos para quien no tiene la capacidad."""
-    if _puede_publico(user):
-        return qs
-    return qs.exclude(tipo=Relevamiento.Tipo.PUBLICO)
-
-
-def _sin_formularios_publicos_si_no_puede(qs, user):
-    if _puede_publico(user):
-        return qs
-    return qs.exclude(relevamiento__tipo=Relevamiento.Tipo.PUBLICO)
+    """RN-P13 con el alcance del Programa Becas. La regla vive en ``services.autorizacion``:
+    acá solo se le pasa el programa, que el resto del alcance de esta pantalla ya resolvió."""
+    return puede_relevamiento_publico(user, programa=programa_becas(user))
 
 
 def _convocatorias_qs(request):
@@ -178,9 +171,11 @@ def _relevamientos_ajax(request, convocatoria, message="Relevamiento creado y as
     """Re-renderiza la tabla de relevamientos de una convocatoria (pestaña
     "Relevamientos" de su detalle) tras crear uno desde el modal embebido."""
     relevamientos = list(
-        _sin_publicos_si_no_puede(convocatoria.relevamientos.select_related("territorial"), request.user).order_by(
-            "-fecha_asignada"
-        )
+        sin_relevamientos_publicos_si_no_puede(
+            convocatoria.relevamientos.select_related("territorial"),
+            request.user,
+            programa=programa_becas(request.user),
+        ).order_by("-fecha_asignada")
     )
     return ajax_ok(
         request,
@@ -191,17 +186,20 @@ def _relevamientos_ajax(request, convocatoria, message="Relevamiento creado y as
     )
 
 
-def _assert_scope(request, relevamiento):
-    """403 si el usuario no puede gestionar el segmento del relevamiento, o si
-    es público y no tiene la capacidad (RN-P13: ocultar no es bloquear)."""
-    if relevamiento.es_publico and not _puede_publico(request.user):
-        raise PermissionDenied("No tiene acceso a este relevamiento.")
-    programa = programa_becas(request.user)
-    if (
-        not puede_gestionar_segmento(request.user, relevamiento.segmento, programa=programa)
-        or not convocatorias_visibles(request.user, programa=programa).filter(pk=relevamiento.convocatoria_id).exists()
+def _destino_seguro(request, defecto="becas:convocatorias"):
+    """BEC-19: el ``next`` del formulario solo puede volver a este sitio.
+
+    Los dos POST de la tabla de convocatorias redirigían a ``POST["next"]`` tal cual,
+    así que un link preparado con ``next=https://evil.example`` sacaba al operador del
+    backoffice —con su sesión recién usada para una acción legítima— hacia afuera.
+    Mismo criterio que ``RelevamientoCreateView``.
+    """
+    destino = request.POST.get("next") or ""
+    if destino and url_has_allowed_host_and_scheme(
+        destino, allowed_hosts={request.get_host()}, require_https=request.is_secure()
     ):
-        raise PermissionDenied("No tiene acceso a este relevamiento.")
+        return destino
+    return defecto
 
 
 def _rechazar_si_pausado(request, relevamiento):
@@ -256,8 +254,10 @@ class ConvocatoriaDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, Detail
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         conv = self.object
-        relevamientos_qs = _sin_publicos_si_no_puede(
-            conv.relevamientos.select_related("territorial"), self.request.user
+        relevamientos_qs = sin_relevamientos_publicos_si_no_puede(
+            conv.relevamientos.select_related("territorial"),
+            self.request.user,
+            programa=programa_becas(self.request.user),
         ).order_by("-fecha_asignada")
         relevamientos = list(relevamientos_qs)
         # Los relevamientos visibles de la convocatoria ya están en memoria: filtrar los
@@ -405,7 +405,7 @@ class ConvocatoriaUpdateView(CapacidadRequeridaMixin, LoginRequiredMixin, Update
 @requiere(CAP_CONVOCATORIA_EDITAR)
 def convocatoria_toggle_activo(request, pk):
     conv = get_object_or_404(convocatorias_visibles(request.user), pk=pk)
-    destino = request.POST.get("next") or "becas:convocatorias"
+    destino = _destino_seguro(request)
     if request.method == "POST":
         # Reactivar una vencida exige extender la fecha (fecha manda): eso va por
         # convocatoria_reactivar, no por el toggle simple.
@@ -431,7 +431,7 @@ def convocatoria_reactivar(request, pk):
     """Reactiva una convocatoria vencida extendiendo su fecha de fin (fecha manda).
     Se dispara desde el pop-up con selector de fecha de la tabla."""
     conv = get_object_or_404(convocatorias_visibles(request.user), pk=pk)
-    destino = request.POST.get("next") or "becas:convocatorias"
+    destino = _destino_seguro(request)
 
     nueva_fecha = parse_date(request.POST.get("fecha_fin") or "")
     if nueva_fecha is None:
@@ -463,9 +463,10 @@ def convocatoria_export_beneficiarios(request, pk):
     # modelo entero arrastra el JSON de respuestas de cada caso y lo deserializa
     # (medido: 907 ms de bucle contra 106 ms, sobre 4.827 aprobados).
     filas = (
-        _sin_formularios_publicos_si_no_puede(
+        sin_formularios_publicos_si_no_puede(
             Formulario.objects.filter(relevamiento__convocatoria=conv, estado=Formulario.Estado.APROBADO),
             request.user,
+            programa=programa_becas(request.user),
         )
         .order_by("-creado")
         .values_list(
@@ -485,7 +486,20 @@ def convocatoria_export_beneficiarios(request, pk):
             ident = identificacion or {}
             dni = ident.get("dni", "")
             nombre_completo = f"{ident.get('nombre', '')} {ident.get('apellido', '')}".strip()
-        writer.writerow([nombre_completo, dni, conv.segmento.nombre, conv.nombre, modificado.strftime("%d/%m/%Y")])
+        # SEC-20: un apellido `=HYPERLINK(...)` cargado por el link público se evalúa
+        # al abrir el CSV en Excel. ``celda_segura`` lo prefija con una comilla.
+        writer.writerow(
+            [
+                celda_segura(valor)
+                for valor in (
+                    nombre_completo,
+                    dni,
+                    conv.segmento.nombre,
+                    conv.nombre,
+                    modificado.strftime("%d/%m/%Y"),
+                )
+            ]
+        )
     return response
 
 
@@ -511,7 +525,9 @@ def convocatoria_export_relevamientos(request, pk):
         ]
     )
     relevamientos = (
-        _sin_publicos_si_no_puede(conv.relevamientos.select_related("territorial"), request.user)
+        sin_relevamientos_publicos_si_no_puede(
+            conv.relevamientos.select_related("territorial"), request.user, programa=programa_becas(request.user)
+        )
         .annotate(
             n_enviados=Count("formularios", filter=Q(formularios__estado=Formulario.Estado.ENVIADO)),
             n_aprobados=Count("formularios", filter=Q(formularios__estado=Formulario.Estado.APROBADO)),
@@ -523,15 +539,18 @@ def convocatoria_export_relevamientos(request, pk):
         terr = (r.territorial.get_full_name() or r.territorial.username) if r.territorial else "Formulario público"
         writer.writerow(
             [
-                r.nombre,
-                terr,
-                timezone.localtime(r.fecha_asignada).strftime("%d/%m/%Y %H:%M"),
-                timezone.localtime(r.fecha_hasta).strftime("%d/%m/%Y %H:%M"),
-                r.zona,
-                r.get_estado_display(),
-                r.n_enviados,
-                r.n_aprobados,
-                r.n_rechazados,
+                celda_segura(valor)
+                for valor in (
+                    r.nombre,
+                    terr,
+                    timezone.localtime(r.fecha_asignada).strftime("%d/%m/%Y %H:%M"),
+                    timezone.localtime(r.fecha_hasta).strftime("%d/%m/%Y %H:%M"),
+                    r.zona,
+                    r.get_estado_display(),
+                    r.n_enviados,
+                    r.n_aprobados,
+                    r.n_rechazados,
+                )
             ]
         )
     return response
@@ -547,7 +566,12 @@ def convocatoria_export_lista_espera(request, pk):
     writer = csv.writer(response)
     writer.writerow(["Posición", "Nombre", "DNI", "Segmento", "Fecha de ingreso"])
     entradas = (
-        ListaEspera.objects.filter(formulario__relevamiento__convocatoria=conv, promovido=False)
+        sin_formularios_publicos_si_no_puede(
+            ListaEspera.objects.filter(formulario__relevamiento__convocatoria=conv, promovido=False),
+            request.user,
+            programa=programa_becas(request.user),
+            prefijo="formulario__",
+        )
         .select_related("formulario__ciudadano", "segmento")
         # El CSV no abre las respuestas del formulario; traerlas es ancho de fila
         # y un json.loads por entrada.
@@ -564,7 +588,16 @@ def convocatoria_export_lista_espera(request, pk):
             nombre = f"{datos.get('nombre', '')} {datos.get('apellido', '')}".strip()
             dni = datos.get("dni", "")
         writer.writerow(
-            [entrada.posicion, nombre, dni, entrada.segmento.nombre, entrada.fecha_ingreso.strftime("%d/%m/%Y")]
+            [
+                celda_segura(valor)
+                for valor in (
+                    entrada.posicion,
+                    nombre,
+                    dni,
+                    entrada.segmento.nombre,
+                    entrada.fecha_ingreso.strftime("%d/%m/%Y"),
+                )
+            ]
         )
     return response
 
@@ -585,7 +618,7 @@ class RelevamientoListView(CapacidadRequeridaMixin, LoginRequiredMixin, ListView
             .filter(convocatoria__in=convocatorias_visibles(self.request.user))
             .order_by("-fecha_asignada", "nombre")
         )
-        qs = _sin_publicos_si_no_puede(qs, self.request.user)
+        qs = sin_relevamientos_publicos_si_no_puede(qs, self.request.user, programa=programa_becas(self.request.user))
 
         q = self.request.GET.get("q", "").strip()
         estado = self.request.GET.get("estado", "").strip()
@@ -731,7 +764,7 @@ class RelevamientoCreateView(CapacidadRequeridaMixin, LoginRequiredMixin, Create
 
 class RelevamientoDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, DetailView):
     model = Relevamiento
-    # El template y _assert_scope recorren convocatoria/segmento/territorial.
+    # El template y el guard de alcance recorren convocatoria/segmento/territorial.
     # El padrón es de la convocatoria (Cambio 57): su tamaño viaja anotado en
     # la misma consulta para no sumar una lectura al presupuesto de la ruta.
     # Los dos niveles del padrón en la misma consulta (Cambio 74): el propio
@@ -748,7 +781,8 @@ class RelevamientoDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, Detail
 
     def get_object(self, queryset=None):
         obj = super().get_object(queryset)
-        _assert_scope(self.request, obj)
+        # El guard ya cubre RN-P13; el segundo chequeo queda por su mensaje propio.
+        assert_alcance_relevamiento(self.request.user, obj)
         if obj.es_publico and not _puede_publico(self.request.user):
             raise PermissionDenied("No tiene acceso a los relevamientos de formulario público.")
         return obj
@@ -801,7 +835,7 @@ class RelevamientoDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, Detail
 @require_POST
 def relevamiento_finalizar(request, pk):
     rel = get_object_or_404(Relevamiento.objects.select_related("convocatoria__segmento"), pk=pk)
-    _assert_scope(request, rel)
+    assert_alcance_relevamiento(request.user, rel)
     if _rechazar_si_pausado(request, rel):
         return redirect("becas:relevamiento_detalle", pk=rel.pk)
     if rel.estado != Relevamiento.Estado.EN_CURSO:
@@ -831,7 +865,7 @@ def relevamiento_reabrir(request, pk):
     EN_REVISION a las 03:10 y la reapertura sería mentira por unas horas.
     """
     rel = get_object_or_404(Relevamiento.objects.select_related("convocatoria__segmento"), pk=pk)
-    _assert_scope(request, rel)
+    assert_alcance_relevamiento(request.user, rel)
     if _rechazar_si_pausado(request, rel):
         return redirect("becas:relevamiento_detalle", pk=rel.pk)
     if rel.estado not in (Relevamiento.Estado.FINALIZADO, Relevamiento.Estado.EN_REVISION):
@@ -884,7 +918,7 @@ def relevamiento_reabrir(request, pk):
 @requiere(CAP_RELEVAMIENTO_EDITAR)
 def relevamiento_reasignar(request, pk):
     rel = get_object_or_404(Relevamiento.objects.select_related("convocatoria__segmento"), pk=pk)
-    _assert_scope(request, rel)
+    assert_alcance_relevamiento(request.user, rel)
     if rel.es_publico:
         messages.error(request, "Un relevamiento de formulario público no lleva territorial.")
         return redirect("becas:relevamiento_detalle", pk=rel.pk)
@@ -961,7 +995,7 @@ def _subir_padron(request, duenio, destino, clave, prefijo=""):
     corrección —el mensaje, el orden de `parsear` y `cargar`, el no borrar el
     padrón anterior si el archivo no se entiende— entre en una copia y no en la
     otra. Lo que **no** se unifica es la autorización: la convocatoria filtra por
-    `convocatorias_visibles` y el relevamiento llama a `_assert_scope`, que son
+    `convocatorias_visibles` y el relevamiento llama a `assert_alcance_relevamiento`, que son
     guardas distintas y se quedan en cada vista.
 
     `clave` es la del resumen fijo en sesión (`conv-<pk>` / `rel-<pk>`): la lee el
@@ -1021,7 +1055,7 @@ def relevamiento_padron(request, pk):
     casos pendientes de este relevamiento (RN-5).
     """
     rel = get_object_or_404(Relevamiento.objects.select_related("convocatoria__segmento"), pk=pk)
-    _assert_scope(request, rel)
+    assert_alcance_relevamiento(request.user, rel)
     return _subir_padron(
         request,
         rel,
@@ -1038,7 +1072,7 @@ def relevamiento_padron_quitar(request, pk):
     """Quita el padrón propio: el relevamiento vuelve a heredar el de la
     convocatoria (o queda abierto si la convocatoria no tiene)."""
     rel = get_object_or_404(Relevamiento.objects.select_related("convocatoria__segmento"), pk=pk)
-    _assert_scope(request, rel)
+    assert_alcance_relevamiento(request.user, rel)
     from programas.services.padron import quitar_padron_propio
 
     filas = quitar_padron_propio(rel)
@@ -1069,7 +1103,7 @@ def convocatoria_padron_plantilla(request, pk):
 @requiere(CAP_RELEVAMIENTO_EDITAR)
 def relevamiento_reprogramar(request, pk):
     rel = get_object_or_404(Relevamiento.objects.select_related("convocatoria__segmento"), pk=pk)
-    _assert_scope(request, rel)
+    assert_alcance_relevamiento(request.user, rel)
     if _rechazar_si_pausado(request, rel):
         return redirect("becas:relevamiento_detalle", pk=rel.pk)
     if request.method == "POST":
@@ -1089,7 +1123,7 @@ def relevamiento_reprogramar(request, pk):
 @require_POST
 def relevamiento_modificar_cupo(request, pk):
     rel = get_object_or_404(Relevamiento.objects.select_related("convocatoria__segmento"), pk=pk)
-    _assert_scope(request, rel)
+    assert_alcance_relevamiento(request.user, rel)
     form = CupoRelevamientoForm(request.POST, instance=rel)
     if form.is_valid():
         form.save()

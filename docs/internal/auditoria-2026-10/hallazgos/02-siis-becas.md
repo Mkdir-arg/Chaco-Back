@@ -61,10 +61,10 @@ indicación.
 | BEC-16 | Constructor: mutaciones sin candado y `reconciliar` en cada request | BAJA | CONF. lectura | 3 | S |  ✅ |
 | BEC-17 | Pausar/reanudar con doble envío duplica eventos | BAJA | CONF. lectura | 3 | S |  ✅ |
 | BEC-18 | Fechas UTC en Python fuera de Dispositivos | BAJA | CONF. lectura | 3 | S |  ✅ |
-| BEC-19 | Redirect a `POST['next']` sin validar | BAJA | CONF. lectura | 2 | S | ⬜ |
+| BEC-19 | Redirect a `POST['next']` sin validar | BAJA | CONF. lectura | 2 | S | ✅ |
 | BEC-20 | Convocatoria acepta fin anterior al inicio | BAJA | CONF. lectura | 3 | S |  ✅ |
 | BEC-21 | El masivo selecciona casos no aprobables y no mira pausas | BAJA | CONF. lectura | 1 | S | ✅ |
-| BEC-23 | La solapa Becas del legajo muestra casos fuera de alcance | BAJA | CONF. ajustado (decisión) | 2 | S | ⬜ |
+| BEC-23 | La solapa Becas del legajo muestra casos fuera de alcance | BAJA | CONF. ajustado (decisión) | 2 | S | ✅ |
 | BEC-24 | Edición de contacto/apoderado en revisión no atómica | BAJA | CONF. lectura | 3 | S |  ✅ |
 | BEC-25 | `siguiente_nombre` calculado sin convocatoria y sin uso | BAJA | CONF. lectura | 7 | S | ⬜ |
 | G1-06 | Fecha de nacimiento ilegible de la app → caso sin legajo y bucle de 500 | BAJA | CONF. lectura | 3 | S | ✅ |
@@ -670,6 +670,8 @@ la máquina, y el test distingue las dos fuentes corra donde corra.
 
 ### BEC-19 · Redirect a `POST['next']` sin validar
 **Severidad:** BAJA · **Origen:** A1-24, A5-27 · **Ola:** 2 · **Esfuerzo:** S
+
+**Resolución:** ✅ Resuelto en #626 (Cambio 177, Ola 2 PR 5), 08-oct-2026 — `_destino_seguro(request)` valida el `next` con `url_has_allowed_host_and_scheme` (host actual y `require_https` según la petición) y cae a `becas:convocatorias`. Lo usan las dos vistas que lo leían, `convocatoria_toggle_activo` y `convocatoria_reactivar`. **Test permanente:** `programas.tests.test_becas_vencimientos.ReactivacionTests.test_el_next_a_otro_sitio_no_se_obedece` (y `.test_el_next_a_otro_sitio_tampoco_al_reactivar`, más `.test_el_next_relativo_sigue_funcionando`, que es lo que el parámetro existe para hacer).
 - **Ubicación:** `programas/views/relevamientos.py:375`, `:384`, `:391`, `:401`, `:417` (`convocatoria_toggle_activo`, `convocatoria_reactivar`).
 - **Propuesta:** `url_has_allowed_host_and_scheme` (como `RelevamientoCreateView:693-695`) y fallback `"becas:convocatorias"`.
 - **Test:** `next=https://evil.com` → `/becas/convocatorias/`.
@@ -695,6 +697,8 @@ la máquina, y el test distingue las dos fuentes corra donde corra.
 
 ### BEC-23 · La solapa Becas del legajo muestra casos fuera del alcance del usuario
 **Severidad:** BAJA · **Estado:** CONFIRMADO-AJUSTADO (decisión) · **Origen:** A1-28, A5-32 · **Ola:** 2 · **Esfuerzo:** S · **Decisión:** D-B23
+
+**Resolución:** ✅ Resuelto en #626 (Cambio 177, Ola 2 PR 5), 08-oct-2026 — **DECISIÓN CLIENTE D-B23 aplicada:** `obtener_resumen_becas_ciudadano(ciudadano, user=None)` oculta los casos de relevamientos públicos a quien no tiene RN-P13 y muestra el resto, porque el legajo es transversal. Sin `user` se asume que **no** la tiene: el default es ocultar. Lo consumen las dos pantallas (la solapa standalone y la tab embebida del legajo), que ya tenían el usuario a mano. **Un desvío deliberado:** acá la capacidad se evalúa **sin acotar al Programa Becas** —a diferencia del resto del PR—, porque resolver el `Programa` en esta pantalla agrega una lectura y el presupuesto de `legajo_detalle` no tolera consultas duplicadas (`scripts/perf_budgets.json`); acotarla es parte del barrido de SEC-06/SEC-07, que es de otro PR de la misma ola. **Test permanente:** `programas.tests.test_solapa_becas.AlcanceTests.test_no_muestra_casos_publicos_sin_capacidad` (y la contracara con la capacidad, el default sin usuario y la vista por HTTP).
 - **Ubicación:** `programas/views/solapas_becas.py:14-17`, `:205-212` (solo `ciudadano.ver`); `programas/services/solapas.py:263-308`.
 - **Propuesta (default D-B23):** ocultar los casos de relevamientos públicos sin `CAP_RELEVAMIENTO_PUBLICO` (RN-P13) y mostrar el resto (el legajo es transversal).
 - **Test:** `test_solapas_becas.AlcanceTests.test_no_muestra_casos_publicos_sin_capacidad`.

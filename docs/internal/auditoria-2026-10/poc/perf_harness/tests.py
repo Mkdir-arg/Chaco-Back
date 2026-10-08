@@ -139,7 +139,7 @@ class V4Perf(TestCase):
         conv = self.rel.convocatoria
         res = {}
         t = time.perf_counter()
-        reporte, alcance = dashboard_becas.respuestas_por_persona(conv)
+        reporte, alcance = dashboard_becas.respuestas_por_persona(conv, incluir_publicos=True)
         res["armar_reporte_s"] = round(time.perf_counter() - t, 2)
         res["filas"] = len(reporte.filas)
         res["columnas"] = len(reporte.encabezados)
@@ -155,7 +155,7 @@ class V4Perf(TestCase):
         del reporte, resp, cuerpo, comprimido
         # Pico de memoria (tracemalloc: solo objetos Python; más lento)
         tracemalloc.start()
-        reporte, alcance = dashboard_becas.respuestas_por_persona(conv)
+        reporte, alcance = dashboard_becas.respuestas_por_persona(conv, incluir_publicos=True)
         _, pico_reporte = tracemalloc.get_traced_memory()
         resp = respuesta_libro([("Respuestas", reporte)], "x", alcance=alcance)
         _, pico_total = tracemalloc.get_traced_memory()
@@ -389,7 +389,7 @@ class V4Perfil(V4Perf):
         from programas.services.exportacion_reportes import respuesta_libro
 
         conv = self.rel.convocatoria
-        reporte, alcance = dashboard_becas.respuestas_por_persona(conv)
+        reporte, alcance = dashboard_becas.respuestas_por_persona(conv, incluir_publicos=True)
         pr = cProfile.Profile()
         pr.enable()
         t = time.perf_counter()

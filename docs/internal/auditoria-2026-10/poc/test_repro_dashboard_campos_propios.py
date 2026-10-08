@@ -61,7 +61,7 @@ class CampoPropioFueraDeReportesTests(DashboardBecasBase):
             data={"globales": {}, "requisitos": {}},
         )
         self.assertEqual(Formulario.objects.get(pk=f.pk).respuestas, {"cp-hijos": "Sí"})
-        reporte, _ = svc.respuestas_por_persona(self.conv_propia)
+        reporte, _ = svc.respuestas_por_persona(self.conv_propia, incluir_publicos=True)
         self.assertNotIn("¿Tenés hijos a cargo?", " ".join(map(str, reporte.encabezados)))
         fila = reporte.filas[0]
         self.assertNotIn("Sí", fila[len(svc.COLUMNAS_FIJAS) :])

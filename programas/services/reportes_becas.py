@@ -11,14 +11,28 @@ from programas.models import Formulario, ListaEspera, Relevamiento, TracaFormula
 from programas.services.autorizacion import (
     convocatorias_visibles,
     es_coordinador_regional_becas,
+    programa_becas,
     segmentos_visibles,
+    sin_formularios_publicos_si_no_puede,
     subsegmentos_visibles,
 )
 from programas.services.reportes import Reporte
 
 
-def _formularios(user):
+def _formularios_del_alcance(user):
+    """Los casos del alcance del usuario, **sin** el filtro de RN-P13.
+
+    Es la base de los agregados de capacidad: cuántos lugares del cupo están tomados
+    no depende de qué casos le toque ver a quien mira. Lo que lista personas usa
+    :func:`_formularios`.
+    """
     return Formulario.objects.filter(relevamiento__convocatoria__in=convocatorias_visibles(user))
+
+
+def _formularios(user):
+    """Los casos del alcance del usuario. SEC-22: sin RN-P13 los del link público no
+    entran —ni en pantalla ni en el CSV/XLSX, que salen de este mismo queryset—."""
+    return sin_formularios_publicos_si_no_puede(_formularios_del_alcance(user), user, programa=programa_becas(user))
 
 
 def _aware_start(fecha):
@@ -44,8 +58,13 @@ def reporte_cupos(user, *, segmento_id=None, solo_activos=False):
         .annotate(total=Sum("cupo_maximo"))
         .values_list("segmento_id", "total")
     )
+    # Ocupado, espera y disponible son **capacidad**, no personas: se cuentan sin
+    # RN-P13. D-22 decidió ocultar los datos de las personas que entraron por el link
+    # público, no descontarlas del cupo que ya consumieron. Con el filtro puesto, este
+    # reporte decía 3/97 donde la stat card de Cupo y la aprobación
+    # (``services.cupo.get_cupo_stats``, que mira el segmento entero) dicen 10/90.
     ocupado_por_segmento = dict(
-        _formularios(user)
+        _formularios_del_alcance(user)
         .filter(estado=Formulario.Estado.APROBADO)
         .values("relevamiento__convocatoria__segmento_id")
         .annotate(total=Count("pk"))

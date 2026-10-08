@@ -202,7 +202,14 @@ class SeedOperadorBackofficeTests(TestCase):
         operador = Group.objects.get(name=OPERADOR)
         self.assertEqual(
             _codigos(operador),
-            {"ciudadano.ver", "reporte.ver", "config.administrar", "usuario.administrar", "rol.administrar"},
+            {
+                "ciudadano.ver",
+                "ciudadano.exportar",
+                "reporte.ver",
+                "config.administrar",
+                "usuario.administrar",
+                "rol.administrar",
+            },
         )
         self.assertTrue(operador.meta.activo)
 
@@ -216,6 +223,23 @@ class SeedOperadorBackofficeTests(TestCase):
 
         self.assertEqual(_codigos(operador), set())
         self.assertFalse(RolMeta.objects.get(grupo=operador).activo)
+
+
+class SeedGestionCiudadanosTests(TestCase):
+    def test_quien_ve_ciudadanos_nace_exportando(self):
+        """SEC-20 / D-20: en una base nueva la 0028 no encuentra roles; el seed cumple la regla.
+
+        El criterio es `ciudadano.ver` (decisión del PM, 08-oct-2026), así que el
+        «Operador de backoffice» —que ve y no edita— también nace exportando: nadie
+        pierde la exportación con el deploy.
+        """
+        _correr()
+
+        for nombre in ("Gestión de Ciudadanos", OPERADOR):
+            with self.subTest(rol=nombre):
+                codigos = _codigos(Group.objects.get(name=nombre))
+                self.assertIn("ciudadano.ver", codigos)
+                self.assertIn("ciudadano.exportar", codigos)
 
 
 class CrearProgramasTests(TestCase):

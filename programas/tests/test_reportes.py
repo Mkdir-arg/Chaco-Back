@@ -17,10 +17,15 @@ from programas.models import (
     Admision,
     AsignacionDispositivo,
     Cama,
+    Convocatoria,
     Dispositivo,
     EntregaMercaderia,
+    Formulario,
+    ListaEspera,
     Merendero,
     Programa,
+    Relevamiento,
+    Segmento,
     TipoDispositivo,
 )
 from programas.services.exportacion_reportes import celda_segura, respuesta_libro, respuesta_reporte
@@ -379,3 +384,72 @@ class ReportesExportablesTests(TestCase):
         self.client.force_login(usuario)
 
         self.assertEqual(self.client.get(reverse("dispositivos:exportar", args=["padron", "csv"])).status_code, 403)
+
+
+class ExportsDeConvocatoriaTests(TestCase):
+    """SEC-20: los tres CSV legacy de la convocatoria escribían el valor crudo.
+
+    `celda_segura` existía y la usaban los reportes nuevos; estos tres —beneficiarios,
+    relevamientos y lista de espera— se arman a mano con `csv.writer` y quedaron
+    afuera. El dato peligroso es el que carga la persona desde el link público o la
+    app de campo: nombre y apellido.
+    """
+
+    def setUp(self):
+        self.admin = get_user_model().objects.create_superuser(username="admin-exports", password="test")
+        self.client.force_login(self.admin)
+        self.segmento = Segmento.objects.create(nombre="Segmento export", cupo_maximo=10)
+        self.convocatoria = Convocatoria.objects.create(
+            nombre="Convocatoria export",
+            segmento=self.segmento,
+            fecha_inicio=date(2026, 1, 1),
+            fecha_fin=date(2026, 12, 31),
+        )
+        territorial = get_user_model().objects.create_user(username="terri-export", password="test")
+        territorial.first_name = "=1+1"
+        territorial.save(update_fields=["first_name"])
+        self.relevamiento = Relevamiento.objects.create(
+            convocatoria=self.convocatoria,
+            territorial=territorial,
+            fecha_asignada=date(2026, 6, 1),
+            fecha_hasta=date(2026, 6, 30),
+            zona="=Zona(1)",
+        )
+        ciudadano = Ciudadano.objects.create(dni="31999888", nombre="=1+1", apellido="Padrón")
+        self.aprobado = Formulario.objects.create(
+            relevamiento=self.relevamiento,
+            ciudadano=ciudadano,
+            estado=Formulario.Estado.APROBADO,
+            celular="3624000000",
+        )
+        en_espera = Formulario.objects.create(
+            relevamiento=self.relevamiento,
+            ciudadano=ciudadano,
+            estado=Formulario.Estado.ENVIADO,
+            celular="3624000000",
+        )
+        ListaEspera.objects.create(formulario=en_espera, segmento=self.segmento, posicion=1)
+
+    @staticmethod
+    def _csv(response):
+        return list(csv.reader(StringIO(response.content.decode("utf-8-sig"))))
+
+    def test_el_export_de_beneficiarios_neutraliza_la_formula(self):
+        respuesta = self.client.get(reverse("becas:convocatoria_export_beneficiarios", args=[self.convocatoria.pk]))
+
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertEqual(self._csv(respuesta)[1][0], "'=1+1 Padrón")
+
+    def test_el_export_de_relevamientos_neutraliza_la_formula(self):
+        respuesta = self.client.get(reverse("becas:convocatoria_export_relevamientos", args=[self.convocatoria.pk]))
+
+        self.assertEqual(respuesta.status_code, 200)
+        fila = self._csv(respuesta)[1]
+        self.assertEqual(fila[1], "'=1+1")
+        self.assertEqual(fila[4], "'=Zona(1)")
+
+    def test_el_export_de_lista_de_espera_neutraliza_la_formula(self):
+        respuesta = self.client.get(reverse("becas:convocatoria_export_lista_espera", args=[self.convocatoria.pk]))
+
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertEqual(self._csv(respuesta)[1][1], "'=1+1 Padrón")
