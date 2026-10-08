@@ -27330,6 +27330,10 @@ No requiere.
 
 ## Historial
 
+**08/10/2026 — se quita «Qué no se va a poder hacer el día uno».** Por decisión del PM, esa sección sale
+del documento del cliente: lo que no entra ya está dicho en §3, y repetirlo en negativo cargaba el
+documento de más. El contenido sigue registrado acá.
+
 **08/10/2026 — cinco funcionalidades entran al alcance y el documento se reordena.** El PM sumó a lo
 que se entrega: la **pantalla donde el coordinador crea y asigna el relevamiento**, el **funcionamiento
 sin conexión** de la app, la **verificación de la persona en toda la red**, la **solapa Dispositivos en

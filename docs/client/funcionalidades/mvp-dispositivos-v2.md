@@ -158,24 +158,7 @@ El Ministerio organizó el presupuesto en cuatro bloques:
 
     Conviene saber que **una parte está comprometida desde el arranque**: el funcionamiento sin conexión, la verificación en toda la red, la solapa en el legajo ciudadano, la asignación del relevamiento y el censo automático se incorporaron al alcance después de la estimación inicial. El primero es, por lejos, el de mayor peso.
 
----
-
-## 5. Qué no se va a poder hacer el día uno
-
-Dicho de la forma más directa, para que quede claro antes de empezar:
-
-- **No se va a poder trasladar a alguien con seguimiento.** El traslado se registra como dos movimientos sueltos, sin que las dos instituciones vean el mismo caso.
-- **No se va a poder pedir autorización antes de un ingreso**, como hoy exigen el CIS N.º 3 y el Parador.
-- **No se va a poder cambiar un formulario sin desarrollo**, porque todavía no hay formularios configurables.
-- **No hay información sensible diferenciada.** Quien entra al dispositivo ve todo lo cargado; no existen todavía los niveles para salud, situación psicosocial y situación judicial.
-- **No hay pase de guardia.** Las novedades quedan registradas con su turno, pero no existe el acto formal de entrega entre un turno y el siguiente.
-- **No hay visión de la red.** Cada dispositivo se mira por separado: no hay tablero del conjunto ni reportes exportables.
-- **No se registra el estado del edificio**, más allá de la criticidad y las fotos: ni tenencia, ni servicios, ni mapa, ni vencimiento del relevamiento.
-- **Merenderos no entra.** Sigue funcionando como está hoy.
-
----
-
-## 6. Definiciones a cerrar antes de arrancar
+## 5. Definiciones a cerrar antes de arrancar
 
 Cinco definiciones cortas, que conviene resolver en una sola reunión:
 
