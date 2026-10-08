@@ -57,8 +57,15 @@ def dni_en_convocatoria(convocatoria, dni):
     el paso 1 del portal y el re-chequeo transaccional del envío.
 
     Cuenta también los formularios RECHAZADO/BAJA (mismo criterio que la app
-    de campo): una persona rechazada no puede reinscribirse por link. Es una
-    decisión tomada por omisión, pendiente de confirmar con el programa.
+    de campo): una persona rechazada no puede reinscribirse por link.
+
+    **SIIS-13 (D-S13, default aplicado).** La excepción es el RECHAZADO cuya
+    identidad nunca se validó. En un link abierto —sin padrón— cualquiera puede
+    tipear el documento de un tercero: queda un formulario ``manual`` que ocupa
+    ese DNI en **toda** la convocatoria y que rechazarlo no libera, así que el
+    titular real no se podía inscribir nunca. Un RECHAZADO validado sigue
+    bloqueando (esa persona se presentó y ya tiene resolución) y un BAJA
+    también, porque llegó a estar aprobado.
 
     Dos consultas chicas, cada una por su índice (Cambio 91): ``dni_titular``
     cubre al caso con o sin legajo, y ``ciudadano__dni`` al legajo cuyo DNI se
@@ -67,7 +74,9 @@ def dni_en_convocatoria(convocatoria, dni):
     """
     if not dni:
         return False
-    en_convocatoria = Formulario.objects.filter(relevamiento__convocatoria=convocatoria)
+    en_convocatoria = Formulario.objects.filter(relevamiento__convocatoria=convocatoria).exclude(
+        estado=Formulario.Estado.RECHAZADO, validado_renaper=False
+    )
     return en_convocatoria.filter(dni_titular=dni).exists() or en_convocatoria.filter(ciudadano__dni=dni).exists()
 
 
@@ -233,8 +242,15 @@ def enviar_confirmacion_inscripcion(formulario, *, protocol="https", domain=""):
     ``domain`` arman la URL absoluta del logo —los clientes de correo no
     resuelven rutas relativas—; sin ellos se cae a ``settings.DOMINIO``.
 
-    Nunca rompe la inscripción: cualquier falla de SMTP se loguea y devuelve
-    ``False`` (el formulario ya quedó creado y la persona ve su comprobante).
+    Nunca rompe la inscripción: cualquier falla **del comprobante** se loguea y
+    devuelve ``False`` (el formulario ya quedó creado y la persona ve su
+    comprobante en pantalla).
+
+    SIIS-15: el armado —los dos ``render_to_string`` y el ``EmailMultiAlternatives``—
+    va adentro del ``try`` junto con el envío. Afuera, un error de plantilla daba
+    500 **después** de commiteada la inscripción; la persona reintentaba, la
+    idempotencia por ``client_uuid`` devolvía ``creado=False`` y el correo no
+    llegaba nunca. ``avisos_resolucion.enviar_aviso`` ya lo hacía así.
     """
     relevamiento = formulario.relevamiento
     if not relevamiento.confirmar_por_email or not formulario.email_contacto:
@@ -255,18 +271,18 @@ def enviar_confirmacion_inscripcion(formulario, *, protocol="https", domain=""):
         "encabezado_seccion": "Portal Ciudadano",
         **contexto_pie(),
     }
-    cuerpo = render_to_string("portal/inscripcion/email/confirmacion_body.txt", contexto)
-    html = render_to_string("portal/inscripcion/email/confirmacion_body.html", contexto)
-    mensaje = EmailMultiAlternatives(
-        subject=f"Comprobante de inscripción — {convocatoria.nombre}",
-        body=cuerpo,
-        from_email=None,
-        to=[formulario.email_contacto],
-    )
-    mensaje.attach_alternative(html, "text/html")
     try:
+        cuerpo = render_to_string("portal/inscripcion/email/confirmacion_body.txt", contexto)
+        html = render_to_string("portal/inscripcion/email/confirmacion_body.html", contexto)
+        mensaje = EmailMultiAlternatives(
+            subject=f"Comprobante de inscripción — {convocatoria.nombre}",
+            body=cuerpo,
+            from_email=None,
+            to=[formulario.email_contacto],
+        )
+        mensaje.attach_alternative(html, "text/html")
         mensaje.send(fail_silently=False)
-    except Exception:  # SMTP caído, mal configurado, rechazo del servidor…
+    except Exception:  # plantilla rota, SMTP caído, rechazo del servidor…
         logger.exception(
             "No se pudo enviar el correo de confirmación del formulario %s (relevamiento %s)",
             formulario.pk,

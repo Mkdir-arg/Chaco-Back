@@ -5,14 +5,13 @@ import threading
 import time
 import unicodedata
 
-import requests
 import urllib3
 from django.conf import settings
 from django.core.cache import cache
-from requests.adapters import HTTPAdapter
 from requests.exceptions import ConnectionError, RequestException
 from urllib3.util.retry import Retry
 
+from core.integraciones import Cortacircuito, sesion_http
 from core.models import Provincia
 from core.performance.query_observability import instrument_external_call
 
@@ -24,6 +23,48 @@ logger = logging.getLogger(__name__)
 # Clave interna de cache; no contiene una credencial.
 TOKEN_CACHE_KEY = "renaper:token"  # nosec B105
 CONSULTA_CACHE_TTL = 600  # 10 min por (dni, sexo)
+
+#: SIIS-09 / ronda 2 del PR 7a. Con RENAPER caído, cada alta de ciudadano
+#: retenía un hilo de daphne hasta agotar el timeout, una por una. Tres fallas
+#: de red seguidas lo dejan sin consultar por un minuto, y en ese minuto el alta
+#: falla en el acto con «no se pudo consultar» en vez de colgarse.
+cortacircuito = Cortacircuito("renaper")
+
+#: Margen sobre el peor caso del login para la espera del token ajeno. El que
+#: espera **no** hace su propia llamada: su techo es lo que tarda el login del
+#: otro, y eso ya lo acota ``requests`` con ``connect + read``. El margen es para
+#: que el ganador alcance a publicar el token. Un número fijo más chico que el
+#: timeout —la ronda 2 usaba 2 s— hacía fallar a los que esperaban un login
+#: **sano** que tardaba un poco más que eso.
+MARGEN_ESPERA_LOGIN = 1.0
+
+#: Vueltas de :meth:`APIClient.get_token` antes de darse por vencido. Una vuelta
+#: es «¿hay token? si no, logueate vos o esperá al que está». Dos alcanzan para
+#: el camino normal y la tercera cubre que entre medio un 401 haya descartado el
+#: token recién traído (SIIS-14).
+VUELTAS_TOKEN = 3
+
+#: Los dos motivos por los que no se consigue el token, que no son el mismo
+#: problema: uno dice «el login de otro no termina» y el otro «terminó y no
+#: dejó token» (lo descartó un 401, o el proveedor contestó 200 sin token).
+ESPERA_AGOTADA = "No se pudo obtener el token de RENAPER: se agotó la espera de un login en curso."
+LOGIN_SIN_TOKEN = "No se pudo obtener el token de RENAPER: el login terminó sin dejar token."  # nosec B105 - mensaje de error, no una credencial
+
+
+class _IntentoDeLogin:
+    """Lo que un login en curso le cuenta a los que esperan su resultado.
+
+    No alcanza con «terminó»: el que espera necesita saber **si salió bien**.
+    Si salió mal, hacer su propio login es pegarle al mismo muro y en fila, que
+    es justo la cola que la ronda 2 sacó de acá.
+    """
+
+    __slots__ = ("listo", "fallo")
+
+    def __init__(self):
+        self.listo = threading.Event()
+        self.fallo = None
+
 
 MOJIBAKE_MARKERS = ("Ã", "Â", "â€", "â€“", "â€”", "â€œ", "â€", "â€™")
 
@@ -138,19 +179,50 @@ class APIClient:
 
         self.token = None
         self.token_expiration = None
-        self.session = requests.Session()
+        # El cliente es de módulo (``_get_client``) y daphne corre las vistas
+        # sync en un pool de hilos: ``login`` escribe ``self.token`` y
+        # ``get_token`` lo lee. Sin coordinación, N requests simultáneos con el
+        # token vencido disparan N logins contra RENAPER (G1c-15).
+        #
+        # El candado protege **solo el estado**, nunca el HTTP: envolver el
+        # login con un candado hacía que N requests hicieran cola detrás de un
+        # login colgado y que el enésimo esperara N × timeout —con (5, 10) la
+        # cuarta alta concurrente se comía los 60 s de nginx—. Quién se loguea se
+        # decide acá; los demás esperan el **resultado**, acotado (ver
+        # :meth:`get_token`).
+        self._candado_estado = threading.Lock()
+        self._login_en_curso = None
+        # Derivada del timeout y no un número suelto: ningún login **sano**
+        # puede durar más que `connect + read`, así que el que espera siempre
+        # llega a ver su resultado. Lo que la espera corta es el caso en que el
+        # login no termina nunca, que es el que haría cola.
+        self.espera_login = sum(self.timeout) + MARGEN_ESPERA_LOGIN
         retry_count = _parse_positive_int(getattr(settings, "RENAPER_RETRIES", 0), 0)
         retries = Retry(
             total=retry_count,
             connect=retry_count,
             read=retry_count,
             backoff_factor=0.8,
-            status_forcelist=(429, 500, 502, 503, 504),
+            # G1c-15: `status_forcelist` sin presupuesto de reintentos es una
+            # trampa. urllib3 marca la respuesta como «a reintentar», ve que no
+            # hay intentos y levanta `MaxRetryError`, que `requests` convierte en
+            # `RetryError`: un 503 del proveedor salía como «error interno de
+            # conexión» con `status_code: None` y la rama que informa el código
+            # HTTP no corría nunca. Con `raise_on_status=False` la respuesta
+            # llega igual aunque el presupuesto se agote.
+            status_forcelist=(429, 500, 502, 503, 504) if retry_count else (),
             allowed_methods=frozenset(["GET", "POST"]),
+            raise_on_status=False,
+            # Un `Retry-After` generoso del proveedor retenía el hilo más que el
+            # timeout configurado, que es lo único que el presupuesto de
+            # `core.integraciones` sabe contar.
+            respect_retry_after_header=False,
         )
-        adapter = HTTPAdapter(max_retries=retries)
-        self.session.mount("https://", adapter)
-        self.session.mount("http://", adapter)
+        # Sesión compartida del repo (SIIS-09): pool acotado y **sin cookie
+        # jar**. Con una `requests.Session()` cruda, una cookie que devolviera
+        # el proveedor quedaba guardada en el cliente de módulo y se reenviaba
+        # en las consultas que ese proceso hace por otras personas.
+        self.session = sesion_http(max_retries=retries)
 
     def _build_consulta_url(self, api_base):
         explicit_url = _clean_api_base(getattr(settings, "RENAPER_CONSULTA_URL", ""))
@@ -186,6 +258,7 @@ class APIClient:
         return "post" if self._use_api_key_mode() else "get"
 
     def login(self):
+        """Pide un token nuevo. **Sin candado**: ver :meth:`get_token`."""
         if self._use_api_key_mode():
             return
 
@@ -198,70 +271,181 @@ class APIClient:
                 timeout=self.timeout,
             )
         except ConnectionError:
+            cortacircuito.registrar_falla()
             raise Exception("Error de conexion con el servicio.")
         except RequestException as e:
-            raise Exception(f"No se pudo conectar al servicio de login: {str(e)}")
+            # SIIS-14: nunca `str(e)`. El texto de una excepción de
+            # `requests` arrastra la URL completa, y en modo GET ahí viaja el
+            # documento consultado. El tipo es lo que sirve para diagnosticar.
+            cortacircuito.registrar_falla()
+            raise Exception(f"No se pudo conectar al servicio de login: {type(e).__name__}")
 
+        # Contestó: el servicio está en pie. Un 500 del login es una respuesta,
+        # no una falla de red, y no abre el cortacircuito (mismo criterio que
+        # ``programas.services.personas``).
+        cortacircuito.registrar_exito()
         if response.status_code != 200:
-            raise Exception(f"Login fallido: {response.status_code} {response.text}")
+            # SIIS-14: sin `response.text`. El cuerpo de un login fallido es
+            # del proveedor y puede traer cualquier cosa (incluido el eco de
+            # lo que se le mandó); esto termina en el log por `exception`.
+            raise Exception(f"Login fallido: {response.status_code}")
 
         data = response.json()
-        self.token = data.get("token")
-        self.token_expiration = datetime.datetime.fromisoformat(data["expiration"].replace("Z", "+00:00"))
+        token = data.get("token")
+        expiration = datetime.datetime.fromisoformat(data["expiration"].replace("Z", "+00:00"))
+        # Los dos juntos y bajo el candado: son un solo dato. Escribirlos sueltos
+        # deja una ventana en la que otro hilo lee el token nuevo con el
+        # vencimiento viejo (o al revés).
+        with self._candado_estado:
+            self.token = token
+            self.token_expiration = expiration
         # Compartir el token entre workers/procesos: sin esto cada request
         # pagaba un round-trip extra de login contra RENAPER.
-        ttl = (self.token_expiration - datetime.datetime.now(datetime.timezone.utc)).total_seconds() - 60
+        ttl = (expiration - datetime.datetime.now(datetime.timezone.utc)).total_seconds() - 60
         if ttl > 0:
             cache.set(
                 TOKEN_CACHE_KEY,
-                {"token": self.token, "expiration": self.token_expiration.isoformat()},
+                {"token": token, "expiration": expiration.isoformat()},
                 ttl,
             )
 
-    def get_token(self):
-        if self._use_api_key_mode():
-            return None
-
+    def _token_vigente(self):
+        """El token que ya se tiene —propio o de la caché compartida—, o ``None``."""
         ahora = datetime.datetime.now(datetime.timezone.utc)
-        if self.token and self.token_expiration and ahora < self.token_expiration:
-            return self.token
+        with self._candado_estado:
+            if self.token and self.token_expiration and ahora < self.token_expiration:
+                return self.token
 
         cached = cache.get(TOKEN_CACHE_KEY)
         if cached:
             try:
                 expiration = datetime.datetime.fromisoformat(cached["expiration"])
                 if ahora < expiration:
-                    self.token = cached["token"]
-                    self.token_expiration = expiration
-                    return self.token
+                    with self._candado_estado:
+                        self.token = cached["token"]
+                        self.token_expiration = expiration
+                        return self.token
             except (KeyError, TypeError, ValueError):
                 pass
+        return None
 
-        self.login()
-        return self.token
+    def get_token(self):
+        """El token, pidiéndolo si hace falta. Un solo login a la vez, sin cola.
 
-    def consultar_ciudadano(self, dni, sexo):
+        **Lo que no se puede hacer es envolver el login en un candado.** Medido
+        con 4 hilos y un login de 0,4 s que falla: con candado, 1,61 s
+        (0,41/0,80/1,20/1,59), porque cada uno espera su turno para fallar
+        igual; con los timeouts reales (5 + 10 s) la cuarta alta concurrente se
+        come los 60 s de nginx. El candado solo sirve para no pedir dos tokens a
+        la vez **cuando el login funciona**.
+
+        Así que el candado protege nada más que la decisión —quién se loguea— y
+        se suelta antes del HTTP. El que la gana publica el **resultado** en un
+        :class:`_IntentoDeLogin`; los demás lo esperan y, según cómo haya ido,
+        siguen o cortan. El tiempo total deja de crecer con la cantidad de
+        requests.
+
+        **Ronda 3:** el que espera vuelve a la decisión en vez de darse por
+        vencido en el primer intento. Con una sola vuelta, un token rotado
+        —el ganador consulta, se come un 401 y llama ``descartar_token`` antes de
+        que los demás lean— dejaba a N−1 altas con «error al obtener token» sin
+        haber consultado nada (medido: 1 de 4 y 1 de 8 éxitos). Las tres salidas
+        del que espera, en orden:
+
+        * el login ajeno **salió bien** → vuelta nueva: o toma ese token, o
+          —si alguien lo descartó en el medio— esta vez el ganador es él;
+        * el login ajeno **falló** → corta. Hacer el propio es pegarle al mismo
+          muro, y en fila: esa es la cola que la ronda 2 sacó de acá;
+        * **no terminó** dentro de ``espera_login`` → corta. Un login sano no
+          puede tardar más que su propio ``connect + read``, así que llegar acá
+          es un login que no termina nunca.
+        """
+        if self._use_api_key_mode():
+            return None
+
+        for _ in range(VUELTAS_TOKEN):
+            token = self._token_vigente()
+            if token:
+                return token
+
+            with self._candado_estado:
+                intento = self._login_en_curso
+                me_toca = intento is None
+                if me_toca:
+                    intento = self._login_en_curso = _IntentoDeLogin()
+
+            if me_toca:
+                try:
+                    self.login()
+                except Exception as exc:
+                    intento.fallo = exc
+                    raise
+                finally:
+                    with self._candado_estado:
+                        self._login_en_curso = None
+                    # Pase lo que pase, los que esperan se enteran ahora: un
+                    # login que falla no puede dejarlos esperando su turno.
+                    intento.listo.set()
+                if self.token:
+                    return self.token
+                # 200 sin `token` en el cuerpo: seguir con «bearer None» es
+                # mandar una consulta que no puede salir bien y leerla como un
+                # 401 del proveedor.
+                raise Exception(LOGIN_SIN_TOKEN)
+
+            if not intento.listo.wait(self.espera_login):
+                raise Exception(ESPERA_AGOTADA)
+            if intento.fallo is not None:
+                raise Exception(f"No se pudo obtener el token de RENAPER: {intento.fallo}")
+
+        raise Exception(LOGIN_SIN_TOKEN)
+
+    def descartar_token(self, usado=None):
+        """Olvida el token, acá y en la caché que comparten los workers.
+
+        SIIS-14: ``get_token`` confía en el ``expiration`` que informó RENAPER.
+        Si el proveedor lo rota antes, el token guardado está muerto y **todos**
+        los procesos siguen usándolo hasta que caduque de viejo: horas de «Error
+        HTTP 401» en cada alta de ciudadano del backoffice.
+
+        Con ``usado`` solo descarta **ese** token. Un 401 que llega de un request
+        que todavía tenía el token viejo no puede tirar el que otro acaba de
+        traer: eso convertía una rotación en una ronda de logins en cadena.
+        """
+        with self._candado_estado:
+            if usado is not None and self.token is not None and self.token != usado:
+                return
+            self.token = None
+            self.token_expiration = None
+        cache.delete(TOKEN_CACHE_KEY)
+
+    def _headers(self):
+        """``(headers, token, error)``: lo que autentica la consulta, o por qué no.
+
+        El ``token`` sale acá y no se vuelve a leer del header: es el que hay que
+        descartar si la consulta se come un 401, y descartar «el token actual»
+        en vez de «el que usé» tira el que otro hilo acaba de traer.
+        """
         headers = {"Content-Type": "application/json"}
         if self._use_api_key_mode():
             if not self.api_key:
-                return {"success": False, "error": "Falta RENAPER_API_KEY para autenticar con API Key."}
+                return None, None, {"success": False, "error": "Falta RENAPER_API_KEY para autenticar con API Key."}
+            headers[self.api_key_header] = f"{self.api_key_prefix} {self.api_key}".strip()
+            return headers, None, None
+        try:
+            token = self.get_token()
+        except Exception:
+            # El mensaje de la excepción ya viene saneado por `login`.
+            logger.exception("Error al obtener token RENAPER")
+            return None, None, {"success": False, "error": "Error interno al obtener token"}
+        headers["Authorization"] = f"bearer {token}"
+        return headers, token, None
 
-            api_key_value = f"{self.api_key_prefix} {self.api_key}".strip()
-            headers[self.api_key_header] = api_key_value
-        else:
-            try:
-                token = self.get_token()
-            except Exception:
-                logger.exception("Error al obtener token RENAPER")
-                return {"success": False, "error": "Error interno al obtener token"}
-            headers["Authorization"] = f"bearer {token}"
-
-        payload = {"dni": dni, "sexo": _normalizar_sexo(sexo)}
-        method = self._resolve_http_method()
-
+    def _pedir(self, headers, payload, method):
+        """``(response, error)`` de una sola llamada a la consulta."""
         try:
             if method == "post":
-                response = instrument_external_call(
+                respuesta = instrument_external_call(
                     "renaper",
                     self.session.post,
                     self.consulta_url,
@@ -271,7 +455,7 @@ class APIClient:
                     verify=False,
                 )
             else:
-                response = instrument_external_call(
+                respuesta = instrument_external_call(
                     "renaper",
                     self.session.get,
                     self.consulta_url,
@@ -280,14 +464,56 @@ class APIClient:
                     timeout=self.timeout,
                     verify=False,
                 )
+            # Contestó: el servicio está en pie. Lo que abre el cortacircuito es
+            # **no poder hablarle**; un 401 o un 500 son respuestas.
+            cortacircuito.registrar_exito()
+            return respuesta, None
         except ConnectionError:
-            return {"success": False, "error": "Error de conexion al servicio."}
-        except RequestException:
-            logger.exception("RequestException al conectar con RENAPER")
-            return {
+            cortacircuito.registrar_falla()
+            return None, {"success": False, "error": "Error de conexion al servicio."}
+        except RequestException as exc:
+            cortacircuito.registrar_falla()
+            # SIIS-14: sin `logger.exception`. El traceback de `requests`
+            # arrastra la URL completa y con `RENAPER_HTTP_METHOD=get` ahí va
+            # `?dni=…&sexo=…`. Queda el tipo del error, que es lo que diagnostica.
+            logger.error("RequestException RENAPER (%s)", type(exc).__name__)
+            return None, {
                 "success": False,
                 "error": "Error interno de conexion al servicio.",
             }
+
+    def consultar_ciudadano(self, dni, sexo):
+        if cortacircuito.abierto():
+            # SIIS-09: tres fallas de red seguidas. Con RENAPER caído, cada alta
+            # de ciudadano retenía un hilo hasta agotar el timeout; durante el
+            # minuto que dura el corte el alta falla en el acto y el operador
+            # decide qué hacer, que es lo mismo que haría al minuto siguiente.
+            return {"success": False, "error": "No se pudo consultar RENAPER.", "cortado": True}
+
+        payload = {"dni": dni, "sexo": _normalizar_sexo(sexo)}
+        method = self._resolve_http_method()
+
+        # SIIS-14: un 401/403 puede ser el token rotado antes de tiempo. Se
+        # descarta y se reintenta **una** vez; un segundo rechazo con un token
+        # recién pedido no es el token. En modo API key no hay nada que renovar.
+        response = None
+        for intento in (1, 2):
+            headers, usado, error = self._headers()
+            if error:
+                if response is not None:
+                    # Ya hubo una respuesta del servicio —el 401 que disparó el
+                    # reintento— y el token nuevo no se pudo traer. Lo que informa
+                    # es el 401: «no se pudo renovar el token» taparía lo único
+                    # que de verdad se sabe de RENAPER en este request.
+                    break
+                return error
+            response, error = self._pedir(headers, payload, method)
+            if error:
+                return error
+            if intento == 1 and response.status_code in (401, 403) and not self._use_api_key_mode():
+                self.descartar_token(usado=usado)
+                continue
+            break
 
         if response.status_code != 200:
             try:
@@ -454,10 +680,23 @@ def _consultar_datos_renaper(dni, sexo):
                 "datos_api": response.get("raw_response"),
             }
 
-        datos = response["data"]
+        datos = response["data"] if isinstance(response.get("data"), dict) else {}
 
         if datos.get("mensaf") == "FALLECIDO":
             return {"success": False, "fallecido": True}
+
+        # Que el proveedor anide `result` un nivel más deja `data` vacío y el
+        # ciudadano se daba de alta **marcado como validado** con el nombre en
+        # blanco (lo medía `test_contratos_externos
+        # ::test_renaper_con_el_result_anidado_un_nivel_mas_no_se_marca_validado`,
+        # que nombraba a la Ola 3 junto con SIIS-10). Sin nombre y apellido no
+        # hay identidad que acreditar: es una respuesta que no se puede usar.
+        if not str(datos.get("nombres") or "").strip() or not str(datos.get("apellido") or "").strip():
+            logger.warning("RENAPER contestó éxito sin nombre ni apellido: la identidad no se da por validada")
+            return {
+                "success": False,
+                "error": "La respuesta de RENAPER no trae la identidad de la persona.",
+            }
 
         equivalencias_provincias = {
             "ciudad de buenos aires": "ciudad autonoma de buenos aires",

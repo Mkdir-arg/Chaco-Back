@@ -71,9 +71,15 @@ def rate_limit_excedido(request, clave, limite, ventana_segundos=60, *, sufijo="
 
     Por defecto la cubeta es por IP. Con ``incluir_ip=False`` y un ``sufijo`` la
     cubeta pasa a ser de ese sufijo (p. ej. el documento tipeado) **sin** la IP:
-    es lo que hace que rotar de IP no alcance para enumerar. Mezclar las dos
-    cosas en una sola clave sería inútil, porque cada IP tendría su propia cuota
-    para el mismo documento.
+    es lo que hace que rotar de IP no alcance para enumerar.
+
+    Las dos combinaciones sirven y la elección depende de a qué se le teme más:
+    sin la IP, nadie enumera rotando de IP, pero cualquiera puede quemarle la
+    cuota a un documento ajeno; con la IP, quemarla cuesta tantas IP como
+    ataques, a cambio de que cada IP tenga su propia cuota. Quien decide es el
+    llamador según la defensa que tenga delante (SIIS-21:
+    ``portal.services.inscripcion.documento_excedido`` lo elige según el captcha
+    que esté activo).
 
     Ante una caché caída **no bloquea**: la disponibilidad del trámite pesa más
     que el límite, y la falla queda logueada. Antes la excepción subía y el
