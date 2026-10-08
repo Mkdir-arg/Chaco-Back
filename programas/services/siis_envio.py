@@ -312,11 +312,36 @@ def provincia_de(item):
 
 
 class Catalogos:
-    """Resuelve nombres a ids de los catálogos maestros. ``cargar`` se inyecta en tests."""
+    """Resuelve nombres a ids de los catálogos maestros. ``cargar`` se inyecta en tests.
+
+    **Memo de instancia (PERF-01).** Una misma instancia resuelve miles de casos —la
+    corrida masiva y los comandos crean una sola— y las respuestas son las mismas para
+    todos: el catálogo no cambia mientras dura la corrida. Sin memo, cada
+    :func:`armar_payload` eran 6 consultas (2 de destinos, 2 de ``ProvinciaSiis``, 2 de
+    ``LocalidadSiis``; 8 con alias cargados), o sea 45-60 mil para los 7.496 candidatos
+    medidos, y esas consultas se gastaban **antes** del primer latido de la corrida.
+
+    Lo que se memoriza es la respuesta de la base por clave, incluido el ``None``: «esta
+    localidad no matchea» es una respuesta tan cara como la otra, y era la del 38 % de
+    los casos. El precio es que una equivalencia cargada a mano mientras la corrida
+    está en vuelo no se ve hasta la corrida siguiente; la alternativa —releer el
+    catálogo por caso— es lo que la ficha vino a sacar.
+    """
 
     def __init__(self, cargar=catalogo):
         self._cargar = cargar
         self._cache = {}
+        #: ``{nombre_catalogo: {clave: [items]}}``: el índice del catálogo por clave de
+        #: comparación, armado una vez. ``_buscar`` recorría la lista entera por llamada.
+        self._indices = {}
+        #: ``{clave: siis_id | None}`` de :meth:`provincia_id`.
+        self._prov = {}
+        #: ``{(clave, provincia_id): siis_id | None}`` de :meth:`localidad_id`.
+        self._loc = {}
+        #: ``{(segmento_id, subsegmento_id, programa_id): [marcados]}``: los campos con
+        #: destino SIIS del catálogo de hoy, que son los mismos para todos los casos de
+        #: esa combinación (los ve :func:`respuestas_por_destino`).
+        self._destinos = {}
 
     @classmethod
     def sin_red(cls):
@@ -345,17 +370,33 @@ class Catalogos:
     #: sola y pública (SIIS-18).
     _provincia_de = staticmethod(provincia_de)
 
+    def _indice(self, nombre_catalogo, sin_genero):
+        """``{clave: [items]}`` del catálogo, armado una vez por instancia.
+
+        ``_buscar`` normalizaba el nombre de **cada** ítem del catálogo en cada llamada:
+        con 30 campos por caso y catálogos de miles de localidades, eso era el grueso
+        del Python que medía el cProfile de PERF-01.
+        """
+        memo_id = (nombre_catalogo, sin_genero)
+        if memo_id not in self._indices:
+            memo = {}
+            # ``_items`` puede levantar (catálogo caído, copia local faltante): el índice
+            # se guarda recién cuando se armó entero, así que el reintento vuelve a pedirlo.
+            for item in self._items(nombre_catalogo):
+                clave = clave_nombre(item["nombre"])
+                if sin_genero:
+                    clave = _clave_sin_genero(clave)
+                memo.setdefault(clave, []).append(item)
+            self._indices[memo_id] = memo
+        return self._indices[memo_id]
+
     def _buscar(self, nombre_catalogo, texto, filtro=None, sin_genero=False):
         clave = clave_nombre(texto)
         if not clave:
             return None
         if sin_genero:
             clave = _clave_sin_genero(clave)
-            candidatos = [
-                i for i in self._items(nombre_catalogo) if _clave_sin_genero(clave_nombre(i["nombre"])) == clave
-            ]
-        else:
-            candidatos = [i for i in self._items(nombre_catalogo) if clave_nombre(i["nombre"]) == clave]
+        candidatos = self._indice(nombre_catalogo, sin_genero).get(clave, [])
         if filtro is not None:
             candidatos = [i for i in candidatos if filtro(i)]
         return candidatos[0]["id"] if len(candidatos) == 1 else None
@@ -371,10 +412,12 @@ class Catalogos:
         clave = clave_nombre(nombre)
         if not clave:
             return None
+        if clave in self._prov:
+            return self._prov[clave]
         propia = ProvinciaSiis.objects.filter(clave=clave).values_list("siis_id", flat=True)[:2]
-        if len(propia) == 1:
-            return propia[0]
-        return self._buscar("provincias", nombre)
+        resuelta = propia[0] if len(propia) == 1 else self._buscar("provincias", nombre)
+        self._prov[clave] = resuelta
+        return resuelta
 
     def localidad_id(self, nombre, provincia_id=None):
         """Acotada a la provincia cuando se conoce; sin provincia, solo si el nombre es único.
@@ -383,13 +426,19 @@ class Catalogos:
         equivalencia va primero y gana incluso si el nombre existiera tal cual en
         el catálogo, porque es una decisión tomada a mano para ese texto.
         """
-        from programas.models import AliasLocalidadSiis, LocalidadSiis
-
         clave = clave_nombre(nombre)
         if not clave:
             return None
+        memo_id = (clave, None if provincia_id is None else int(provincia_id))
+        if memo_id not in self._loc:
+            self._loc[memo_id] = self._resolver_localidad(nombre, clave, memo_id[1])
+        return self._loc[memo_id]
+
+    def _resolver_localidad(self, nombre, clave, provincia_id):
+        """El cuerpo de :meth:`localidad_id`, sin el memo. El orden no cambia."""
+        from programas.models import AliasLocalidadSiis, LocalidadSiis
+
         if provincia_id is not None:
-            provincia_id = int(provincia_id)
             alias = (
                 AliasLocalidadSiis.objects.filter(provincia__siis_id=provincia_id, clave=clave)
                 .select_related("localidad")
@@ -430,6 +479,20 @@ class Catalogos:
         corrección a mano en ``datos_siis``.
         """
         return self._buscar("estados-civiles", nombre, sin_genero=True)
+
+    def destinos_del_catalogo(self, formulario):
+        """Los campos con destino SIIS del catálogo de hoy para ese caso, memorizados.
+
+        La respuesta depende solo de ``(segmento, subsegmento, programa)`` —es la
+        combinación que arma el ``alcance`` de :func:`_destinos_del_catalogo`—, no del
+        caso: todos los casos de una convocatoria comparten las dos consultas. Eran 2
+        por caso de los 6 que medía PERF-01.
+        """
+        convocatoria = formulario.relevamiento.convocatoria
+        memo_id = (convocatoria.segmento_id, convocatoria.subsegmento_id, convocatoria.segmento.programa_id)
+        if memo_id not in self._destinos:
+            self._destinos[memo_id] = _destinos_del_catalogo(formulario)
+        return self._destinos[memo_id]
 
     def nombre_de(self, nombre_catalogo, item_id):
         for item in self._items(nombre_catalogo):
@@ -579,7 +642,7 @@ def _destinos_del_catalogo(formulario):
     return marcados
 
 
-def respuestas_por_destino(formulario):
+def respuestas_por_destino(formulario, catalogos=None):
     """``{destino: texto}`` con la primera respuesta no vacía de cada campo marcado.
 
     **De dónde sale el mapeo (G1-08).** De la foto del caso cuando la tiene: el
@@ -596,10 +659,16 @@ def respuestas_por_destino(formulario):
     específico: subsegmento > segmento > programa > pregunta general (Cambio 80:
     el requisito es el dato particular de ese segmento). Dentro del mismo nivel
     desempata ``orden`` y después el id.
+
+    ``catalogos`` es opcional y no cambia el resultado: con él, el camino del catálogo
+    vivo —el de los casos anteriores a G1-08— sale del memo de la instancia en vez de
+    consultar ``PreguntaGlobal`` y ``RequisitoNativo`` por caso (PERF-01).
     """
     marcados = _destinos_de_la_foto(formulario)
     if marcados is None:
-        marcados = _destinos_del_catalogo(formulario)
+        marcados = (
+            _destinos_del_catalogo(formulario) if catalogos is None else catalogos.destinos_del_catalogo(formulario)
+        )
     resultado = {}
     # Se aplican del más general al más específico: el último pisa al anterior.
     for _nivel, _orden, _pk, clave, destino in sorted(marcados, key=lambda m: m[:3]):
@@ -756,7 +825,7 @@ def armar_payload(formulario, catalogos=None, hoy=None):
     ciudadano = formulario.ciudadano if formulario.ciudadano_id else None
     segmento = formulario.relevamiento.convocatoria.segmento
     programa = segmento.programa
-    respuestas = respuestas_por_destino(formulario)
+    respuestas = respuestas_por_destino(formulario, catalogos=catalogos)
     correcciones = formulario.datos_siis if isinstance(formulario.datos_siis, dict) else {}
 
     # --- Persona ---

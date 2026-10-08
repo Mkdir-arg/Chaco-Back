@@ -40,7 +40,7 @@ from programas.services.cupo import (
     get_cupo_stats,
     promover_lista_espera,
 )
-from programas.services.listados import PaginadorConConteo, hidratar_en_orden
+from programas.services.listados import PaginadorConConteo, hidratar_pagina
 from programas.services.siis_envio import Catalogos, enviar_beneficiario_a_siis, mensaje_envio
 
 logger = logging.getLogger(__name__)
@@ -169,20 +169,24 @@ class CupoSegmentoDetailView(SegmentoScopedMixin, CapacidadRequeridaMixin, Login
         # El desempate por pk hace el orden estable entre páginas (sin él, dos casos con
         # el mismo ``modificado`` pueden aparecer dos veces o ninguna).
         datos_del_caso = Formulario.objects.select_related("ciudadano", "relevamiento__convocatoria").defer(*SIN_JSON)
-        beneficiarios = _paginate(
-            self.request,
-            beneficiarios_qs.order_by("modificado", "pk").values_list("pk", flat=True),
-            "beneficiarios_page",
-            total=conteos["beneficiarios"] or 0,
+        beneficiarios = hidratar_pagina(
+            _paginate(
+                self.request,
+                beneficiarios_qs.order_by("modificado", "pk").values_list("pk", flat=True),
+                "beneficiarios_page",
+                total=conteos["beneficiarios"] or 0,
+            ),
+            datos_del_caso,
         )
-        beneficiarios.object_list = hidratar_en_orden(beneficiarios.object_list, datos_del_caso)
-        pendientes = _paginate(
-            self.request,
-            pendientes_qs.order_by("creado", "pk").values_list("pk", flat=True),
-            "pendientes_page",
-            total=conteos["pendientes"] or 0,
+        pendientes = hidratar_pagina(
+            _paginate(
+                self.request,
+                pendientes_qs.order_by("creado", "pk").values_list("pk", flat=True),
+                "pendientes_page",
+                total=conteos["pendientes"] or 0,
+            ),
+            datos_del_caso,
         )
-        pendientes.object_list = hidratar_en_orden(pendientes.object_list, datos_del_caso)
 
         # La lista de espera es su propia tabla y ya es angosta: lo ancho lo trae el
         # join con el caso, así que alcanza con diferirle los cinco JSON. El alcance se

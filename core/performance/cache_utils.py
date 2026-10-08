@@ -63,16 +63,6 @@ def invalidar_ciudadanos_tras_commit(ids, contadores=True):
     invalidar_tras_commit(claves)
 
 
-def invalidate_ciudadano_cache(ciudadano_id=None):
-    """Invalida cache relacionado con ciudadanos."""
-    keys_to_invalidate = ["contar_ciudadanos"]
-
-    if ciudadano_id:
-        keys_to_invalidate.append(f"ciudadano_{ciudadano_id}")
-
-    invalidate_cache_keys(*keys_to_invalidate)
-
-
 def invalidate_dashboard_cache():
     """Invalida cache del dashboard."""
     keys_to_invalidate = [
@@ -88,8 +78,9 @@ def invalidate_ciudadano_cache_on_change(sender, instance, **kwargs):
     """Invalida cache cuando se modifica un ciudadano.
 
     PERF-16: eran cuatro ``DEL`` por ``save()`` —``contar_ciudadanos`` dos veces,
-    porque ``invalidate_ciudadano_cache`` y ``invalidate_dashboard_cache`` la
-    borran las dos—. Ahora es **un** ``delete_many`` deduplicado tras el commit, y
+    porque el receiver llamaba a ``invalidate_ciudadano_cache`` y a
+    ``invalidate_dashboard_cache``, y las dos la borraban—. Ahora es **un**
+    ``delete_many`` deduplicado tras el commit, y
     los dos contadores solo se tocan cuando el total pudo cambiar: al crear o al
     borrar. ``post_delete`` no manda ``created``, y ahí el total sí cambió: por eso
     el default del ``get`` es ``True``.
