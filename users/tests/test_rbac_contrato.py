@@ -77,10 +77,11 @@ LITERAL = re.compile(r"""(?P<comilla>["'])(?P<codigo>[^"']+)(?P=comilla)""")
 # Capacidades del catálogo que hoy nadie evalúa, con el motivo. Que estén acá es
 # una decisión, no un olvido: el ABM de Roles las sigue ofreciendo.
 CAPACIDADES_SIN_USO = {
-    # OPS-14 (Ola 7): el borrado de ciudadanos no está implementado en ninguna
-    # vista; la capacidad quedó sembrada esperando esa pantalla.
-    "ciudadano.eliminar": "no hay pantalla de borrado de ciudadanos (OPS-14, Ola 7)",
-    # Las cuatro siguientes las midió este test el 07/10/2026 (la ficha RED-44
+    # `ciudadano.eliminar` salió de esta lista **y del catálogo** en la Ola 7
+    # (OPS-14, `users.0033`): no hay pantalla de borrado de ciudadanos y tildarla
+    # en el ABM de Roles no habilitaba nada. El candado es
+    # `CapacidadRetiradaTests`, más abajo.
+    # Las tres siguientes las midió este test el 07/10/2026 (la ficha RED-44
     # solo esperaba `ciudadano.eliminar`): están en el catálogo, el ABM de Roles
     # las ofrece y tildarlas no habilita nada. Qué hacer con cada una lo decide
     # la Ola 7 (OPS-14): o se usan, o salen del catálogo.
@@ -288,3 +289,43 @@ class CapacidadesEvaluadasTests(SimpleTestCase):
             "entradas de CAPACIDADES_SIN_USO / CAPACIDADES_SOLO_COLECTIVAS que hay que borrar "
             f"(ya tienen literal, o ya no están en el catálogo): {sobrantes}",
         )
+
+
+class CapacidadRetiradaTests(SimpleTestCase):
+    """OPS-14 · `ciudadano.eliminar` salió del catálogo y del seed (Ola 7).
+
+    Era una capacidad que el ABM de Roles ofrecía, el seed tildaba en «Gestión de
+    Ciudadanos» y **ninguna vista evaluaba**: no hay pantalla de borrado de
+    ciudadanos. Eso es peor que no ofrecerla —quien administra roles cree estar
+    dando o quitando un permiso real—. `users.0033` borra además el `Permission`,
+    porque Django no lo hace al sacarlo de `Meta.permissions` y quedaría tildado
+    en los grupos que lo tenían, con `rbac.puede()` resolviéndolo.
+
+    El candado es doble a propósito: que no vuelva al catálogo, y que no vuelva
+    al seed —son los dos lugares desde los que se re-crearía sola—.
+    """
+
+    RETIRADA = "ciudadano.eliminar"
+
+    def test_no_esta_en_el_catalogo(self):
+        codigos = [codigo for modulo in rbac.CATALOGO for codigo, _ in modulo["capacidades"]]
+
+        self.assertNotIn(self.RETIRADA, codigos)
+
+    def test_no_la_siembra_ningun_rol(self):
+        from users.management.commands import seed_datos_base
+
+        # La tupla de `_ROLES_MENU` creció (el Cambio 193 le puso la clave adelante):
+        # se lee por el **último** elemento, que son las capacidades, para que un campo
+        # nuevo no vuelva a romper esto.
+        sembradas = {c for fila in seed_datos_base._ROLES_MENU for c in fila[-1]}
+
+        self.assertNotIn(self.RETIRADA, sembradas)
+
+    def test_las_hermanas_del_modulo_siguen_estando(self):
+        """Control del andamio: el módulo de Ciudadanos no se vació por accidente."""
+        codigos = [codigo for modulo in rbac.CATALOGO for codigo, _ in modulo["capacidades"]]
+
+        for viva in ("ciudadano.ver", "ciudadano.crear", "ciudadano.editar", "ciudadano.sensible"):
+            with self.subTest(viva=viva):
+                self.assertIn(viva, codigos)

@@ -206,32 +206,10 @@ code {
 
 <section class="content">
     <div class="container-fluid">
-        <!-- Métricas principales -->
+        <!-- Métricas principales. OPS-10: CPU y memoria salieron con
+             `system-metrics-api`, que las leía de `psutil` del proceso que
+             atendiera el request (una réplica cualquiera, no el host). -->
         <div class="row">
-            <div class="col-lg-3 col-6">
-                <div class="small-box bg-info">
-                    <div class="inner">
-                        <h3 id="cpu-usage">--</h3>
-                        <p>CPU Usage (%)</p>
-                    </div>
-                    <div class="icon">
-                        <i class="fas fa-microchip"></i>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="col-lg-3 col-6">
-                <div class="small-box bg-success">
-                    <div class="inner">
-                        <h3 id="memory-usage">--</h3>
-                        <p>Memory (%)</p>
-                    </div>
-                    <div class="icon">
-                        <i class="fas fa-memory"></i>
-                    </div>
-                </div>
-            </div>
-            
             <div class="col-lg-3 col-6">
                 <div class="small-box bg-warning">
                     <div class="inner">
@@ -275,31 +253,6 @@ code {
                     <div class="info-box-content">
                         <span class="info-box-text">Queries Lentas</span>
                         <span class="info-box-number" id="slow-queries">--</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Botón de Pruebas Automáticas -->
-        <div class="row mb-4">
-            <div class="col-12">
-                <div class="card">
-                    <div class="card-header">
-                        <h3 class="card-title">Pruebas Automáticas de Fase 2</h3>
-                    </div>
-                    <div class="card-body text-center">
-                        <button id="run-tests-btn" class="btn btn-primary btn-lg">
-                            <i class="fas fa-play"></i> Ejecutar Pruebas Automáticas
-                        </button>
-                        <p class="mt-2 text-muted">Ejecuta análisis completo de índices, particionamiento y optimización</p>
-                        
-                        <!-- Resultados de Pruebas -->
-                        <div id="test-results" class="mt-4" style="display: none;">
-                            <h5>Resultados de Pruebas:</h5>
-                            <div id="test-summary" class="alert" role="alert"></div>
-                            <div id="test-details"></div>
-                            <div id="test-recommendations"></div>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -388,17 +341,6 @@ function updateQueryMetricsStatus(queryMetric, window) {
 }
 
 function updateDashboard() {
-    // System metrics
-    fetch("{% url 'core:system_metrics_api' %}")
-        .then(response => response.json())
-        .then(data => {
-            if (data.system && !data.system.error) {
-                document.getElementById('cpu-usage').textContent = data.system.cpu.percent.toFixed(1);
-                document.getElementById('memory-usage').textContent = data.system.memory.percent.toFixed(1);
-            }
-        })
-        .catch(error => console.error('System metrics error:', error));
-    
     // Performance data
     fetch("{% url 'core:performance_api' %}")
         .then(response => response.json())
@@ -506,113 +448,6 @@ function updateOptimizationSuggestions(suggestions) {
     });
     
     container.innerHTML = html;
-}
-
-// Manejar botón de pruebas automáticas
-document.getElementById('run-tests-btn').addEventListener('click', function() {
-    runAutomaticTests();
-});
-
-function runAutomaticTests() {
-    const btn = document.getElementById('run-tests-btn');
-    const resultsDiv = document.getElementById('test-results');
-    const summaryDiv = document.getElementById('test-summary');
-    const detailsDiv = document.getElementById('test-details');
-    const recommendationsDiv = document.getElementById('test-recommendations');
-    
-    // Mostrar estado de carga
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Ejecutando Pruebas...';
-    resultsDiv.style.display = 'block';
-    summaryDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Ejecutando pruebas automáticas...';
-    summaryDiv.className = 'alert alert-info';
-    
-    // Obtener CSRF token
-    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-    
-    fetch("{% url 'core:run_phase2_tests_api' %}", {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': csrfToken
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        // Restaurar botón
-        btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-play"></i> Ejecutar Pruebas Automáticas';
-        
-        if (data.error) {
-            summaryDiv.innerHTML = `<i class="fas fa-exclamation-triangle"></i> Error: ${data.error}`;
-            summaryDiv.className = 'alert alert-danger';
-            return;
-        }
-        
-        // Mostrar resumen
-        const summary = data.summary;
-        const successClass = summary.all_passed ? 'alert-success' : 'alert-warning';
-        const icon = summary.all_passed ? 'fa-check-circle' : 'fa-exclamation-triangle';
-        
-        summaryDiv.innerHTML = `
-            <i class="fas ${icon}"></i> 
-            <strong>Pruebas Completadas:</strong> ${summary.total_tests} pruebas en ${summary.total_duration_ms.toFixed(0)}ms<br>
-            <strong>Performance Score:</strong> ${summary.performance_score}/100<br>
-            <strong>Sugerencias de Índices:</strong> ${summary.index_suggestions}<br>
-            <strong>Particiones Activas:</strong> ${summary.active_partitions}<br>
-            <strong>Queries Analizadas:</strong> ${summary.queries_analyzed}
-        `;
-        summaryDiv.className = `alert ${successClass}`;
-        
-        // Mostrar detalles de pruebas
-        let detailsHtml = '<h6>Detalles de Pruebas:</h6><div class="row">';
-        data.tests_executed.forEach(test => {
-            const statusIcon = test.status === 'success' ? 'fa-check text-success' : 'fa-times text-danger';
-            const cardClass = test.status === 'success' ? 'card-success' : test.status === 'warning' ? 'card-warning' : 'card-primary';
-            detailsHtml += `
-                <div class="col-md-6 mb-2">
-                    <div class="card card-outline ${cardClass}">
-                        <div class="card-body p-2">
-                            <i class="fas ${statusIcon}"></i> <strong>${test.test}</strong><br>
-                            <small class="text-muted">${test.result} (${test.duration_ms.toFixed(0)}ms)</small>
-                            ${test.details ? `<br><small class="text-info">Detalles disponibles</small>` : ''}
-                        </div>
-                    </div>
-                </div>
-            `;
-        });
-        detailsHtml += '</div>';
-        detailsDiv.innerHTML = detailsHtml;
-        
-        // Mostrar recomendaciones
-        if (data.recommendations && data.recommendations.length > 0) {
-            let recHtml = '<h6>Recomendaciones:</h6>';
-            data.recommendations.forEach(rec => {
-                const alertClass = rec.type === 'error' ? 'alert-danger' : rec.type === 'warning' ? 'alert-warning' : rec.type === 'success' ? 'alert-success' : 'alert-info';
-                const icon = rec.type === 'error' ? 'fa-exclamation-circle' : rec.type === 'warning' ? 'fa-exclamation-triangle' : rec.type === 'success' ? 'fa-check-circle' : 'fa-info-circle';
-                recHtml += `
-                    <div class="alert ${alertClass} p-3 mb-3">
-                        <i class="fas ${icon}"></i> <strong>${rec.title}:</strong><br>
-                        <span class="text-dark">${rec.message}</span>
-                        ${rec.action ? `<br><small class="text-muted"><strong>Acción:</strong> <code>${rec.action}</code></small>` : ''}
-                    </div>
-                `;
-            });
-            recommendationsDiv.innerHTML = recHtml;
-        } else {
-            recommendationsDiv.innerHTML = '<div class="alert alert-success p-2"><i class="fas fa-thumbs-up"></i> ¡Todo funciona correctamente!</div>';
-        }
-        
-        // Actualizar dashboard después de las pruebas
-        setTimeout(updateDashboard, 2000);
-    })
-    .catch(error => {
-        btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-play"></i> Ejecutar Pruebas Automáticas';
-        summaryDiv.innerHTML = `<i class="fas fa-exclamation-triangle"></i> Error ejecutando pruebas: ${error}`;
-        summaryDiv.className = 'alert alert-danger';
-        console.error('Error:', error);
-    });
 }
 
 setInterval(updateDashboard, 30000);

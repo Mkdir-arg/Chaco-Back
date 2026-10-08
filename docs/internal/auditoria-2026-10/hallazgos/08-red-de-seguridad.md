@@ -104,7 +104,7 @@ con lo que existe hoy; la lista solo baja.
 | RED-62 | Los presupuestos de performance son autodeclarados: subirlos en el mismo PR pasa | MEDIA | CONF. lectura | 4 | S | ⬜ |
 | RED-63 | Ruff y Bandit en `continue-on-error`; excepción de `pip-audit` sin vencimiento | MEDIA | CONF. lectura | R | S | ✅ |
 | RED-64 | `docs/client/` se publica en GitHub Pages público en cada push, sin revisión | MEDIA | CONF. lectura (API) | 7 | S | ⬜ |
-| RED-65 | El guard de `publish-main.yml` exige artefactos muertos y va a bloquear OPS-10/OPS-14 | MEDIA | CONF. lectura | R (+7) | S | ✅ (R; falta Ola 7) |
+| RED-65 | El guard de `publish-main.yml` exige artefactos muertos y va a bloquear OPS-10/OPS-14 | MEDIA | CONF. lectura | R (+7) | S | ✅ |
 | RED-66 | `reabrir` de la app de campo no tiene test negativo de la transición | MEDIA | CONF. test (mutación M17) | R | S | ✅ |
 | RED-67 | Ningún test afirma que se tome el `select_for_update` del cupo ni del link | MEDIA | CONF. test (mutaciones M21, M43) | R (+capa 2 en TST-01) | S | ✅ |
 | RED-68 | La posición en la lista de espera no está probada en ningún lado | MEDIA | CONF. test (mutación M23) | R | S | ✅ |
@@ -2537,6 +2537,15 @@ de ir inline en el `for`— y afirma que cada ruta existe en el árbol. Lo acomp
 contradicción que rompe el release **siempre**, después del merge) y uno que prueba el centinela contra una lista con una
 ruta inventada, para que no quede en verde por no mirar nada.
 **Test permanente:** `core/tests/test_publish_guard.py::PublishGuardTests.test_los_requeridos_existen_en_el_arbol`
+
+**Cerrada del todo** en el PR 1 de la Ola 7 (Cambio 195), 09-oct-2026 — `docker/django/Dockerfile` (OPS-14) y
+`scripts/startup.sh` (OPS-10: arrancaba con `setup_system`) salieron del árbol y de la variable `RUNTIME` del guard en
+el mismo diff, que es exactamente el modo de falla que la parte R anticipó. El piso de
+`test_la_lista_de_runtime_no_esta_vacia` baja de 10 a 8, las ocho rutas que de verdad necesitan la imagen de PRD y el
+pipeline de ECOM. Y se suma el **camino inverso**, que la ficha no pedía y es el que queda abierto después de esto:
+sacar una ruta del guard **sin** borrar el archivo apagaría la red en silencio —el artefacto podría dejar de viajar al
+release y `Publish main` seguiría verde—, así que un test afirma que las dos rutas retiradas no están en el árbol.
+**Test permanente (Ola 7):** `core.tests.test_publish_guard.PublishGuardTests.test_lo_que_salio_de_la_lista_salio_porque_no_existe`.
 
 ### RED-85 · Herramientas del CI sin pinear y actions por tag en workflows con `contents: write`
 **Severidad:** BAJA (era MEDIA) · **Estado:** CONFIRMADO (lectura: 7 `pip install` sin versión) · **Origen:** RS-R6-13 (VR2: CONFIRMADO) · **Ola:** R (pinear las actions con `contents: write`) + 7 (el resto) · **Esfuerzo:** S (2 h) + S (2 h)

@@ -20,11 +20,11 @@ Fichas completas del dominio. Convenciones, `V-STD` y `V-UI`: README §0. PoC: `
 | DAT-03 | `dni_titular` desincronizado del DNI real | BAJA | PLAUSIBLE | 3 | S | ✅ |
 | DAT-05 | El Excel del padrón reemplazado/quitado queda en `media/` (o se borra antes del commit) | BAJA | CONF. | 3 | S | ✅ |
 | V2-NEW-05 | Un restore deja pks de legajo en hex que el ORM de MariaDB no encuentra | BAJA | a confirmar | 3 | S | ✅ |
-| OPS-10 | Módulos de «optimización» con DDL y `SET GLOBAL` en el release | BAJA | CONF. ajustado | 7 | S-M | ⬜ |
+| OPS-10 | Módulos de «optimización» con DDL y `SET GLOBAL` en el release | BAJA | CONF. ajustado | 7 | S-M | ✅ |
 | OPS-11 | `migrate --run-syncdb` en el entrypoint | BAJA | CONF. ajustado | 3 | S | ✅ |
 | OPS-12 | QA no reproduce el cache de PRD y declara `ENVIRONMENT=prd` | BAJA | CONF. | 3 | S | ✅ |
 | OPS-13 | Dependencias sin uso en la imagen | BAJA | CONF. | 7 | S | ⬜ |
-| OPS-14 | Código muerto o stub; un `.py` vivo que git trata como binario | BAJA | CONF. | 7 | S | ⬜ |
+| OPS-14 | Código muerto o stub; un `.py` vivo que git trata como binario | BAJA | CONF. | 7 | S | ✅ |
 | TST-03 | Coverage global de 48 % sobre todo el repo | BAJA | CONF. | **R** (antes 3) | S | ✅ |
 | G2-05 | `import_users_from_csv` reparte grupos de un usuario fijo y pisa cuentas | BAJA | CONF. lectura | 3 | S | ✅ |
 | G3-04 | CronJobs de referencia sin deadlines, `backoffLimit` ni `timeZone` | BAJA | PLAUSIBLE | 3 | S | ✅ |
@@ -42,7 +42,7 @@ Fichas completas del dominio. Convenciones, `V-STD` y `V-UI`: README §0. PoC: `
 **Resolución (fase 2):** ✅ Cerrada en #646 (Cambio 193, Ola 2 PR 1), 08-oct-2026 — `RolMeta.clave`
 identifica a los **doce** roles que siembra el arranque: `sistema.administrador`, `sistema.operador_backoffice`, los
 cinco `becas.*` y los **cinco de menú** (`menu.dashboard`, `menu.ciudadanos`, `menu.reportes`, `menu.configuracion`,
-`menu.administracion`). `users.0029` agrega la columna —`NULL`, única, expand puro: el código viejo no la escribe y
+`menu.administracion`). `users.0033` agrega la columna —`NULL`, única, expand puro: el código viejo no la escribe y
 MySQL y MariaDB admiten varios `NULL` en un índice único— y `users.0030` se la pone a los roles que ya existen
 empatando por el nombre canónico, con reversa que los vuelve a `NULL`. `asegurar_rol_sembrado` (en
 `users/services/roles.py`, una sola implementación para los tres seeds) busca por clave y solo cae al nombre cuando
@@ -474,6 +474,24 @@ la idempotencia; los corre el job «Motor real»).
 - **Propuesta:** borrar esos comandos; los módulos `advanced_*`, `database_*`, `intelligent_*`, `phase2_manager`, `performance_analyzer` y `monitoring`; las vistas y URLs `phase2-*`, `system-metrics`, `alerts`, `realtime-metrics` y su bloque de `templates/core/performance_dashboard.html`. Revisar `core/tests/test_package_exports.py`. Conservar `query_observability`, `cache_utils` y `ci_external_stubs`.
 - **Verificación:** suite completa, `manage.py check`, `git grep -n "phase2\|core.performance.monitoring"` vacío; V-UI si se toca el template.
 
+**Resolución:** ✅ Resuelto en el PR 1 de la Ola 7 (Cambio 195), 09-oct-2026 — se fueron los **nueve** módulos
+(`advanced_connection_pool`, `advanced_partitioning`, `database_optimizations`, `database_partitioning`,
+`intelligent_indexing`, `intelligent_query_optimizer`, `monitoring`, `performance_analyzer`, `phase2_manager`), los
+comandos `optimize_db`, `setup_system`, `initialize_phase2` y `optimize_database`, las cinco vistas y URLs
+(`system-metrics`, `alerts`, `realtime-metrics`, `phase2-metrics`, `run-phase2-tests`) y sus bloques de
+`templates/core/performance_dashboard.html`. Se conservan `query_observability`, `cache_utils` y `ci_external_stubs`,
+y con ellos `/performance-api/`, `/query-analysis-api/` y `/optimization-suggestions-api/`, que es lo que mide de
+verdad. El criterio de la ola se cumple: `git grep -n "phase2\|core.performance.monitoring"` no devuelve nada fuera de
+`docs/`. **Dos comandos más de los que la ficha nombraba, los dos code-first:** `monitor_performance` (único
+consumidor de `performance_analyzer`) y `performance_report` (lo llamaba solo `setup_system`) quedaban sin un solo
+invocador. `core/tests/test_package_exports.py` no necesitó cambios: solo nombra `performance_dashboard`, que se
+queda. Y el punto de SEC-01 sobre estas vistas se cierra por borrado: las ocho de `core/views/performance.py` pasaron a
+cuatro y las cuatro llevan `BackofficeAutenticado` + `IsPerformanceAdmin`; `IsAdminUser` —el `is_staff` que
+autorizaba `/run-phase2-tests-api/` contra la regla de capacidades— ya no se importa en el módulo. **RED-65 va en el
+mismo PR** (ver su ficha).
+**Test permanente:** `core.tests.test_performance_observability.PerformanceObservabilityTests.test_las_apis_de_monitoreo_que_mentian_ya_no_existen`
+(y `.test_el_endpoint_que_corria_pruebas_por_http_ya_no_existe`, que además pide el 404 por HTTP).
+
 ### OPS-11 · `migrate --run-syncdb` en el entrypoint
 **Severidad:** BAJA (hoy no-op: las 12 apps sin migraciones tienen 0 modelos, verificado con `MigrationLoader`) · **Origen:** A8-15 · **Ola:** 3 · **Esfuerzo:** S
 - **Propuesta:** sacar `--run-syncdb` de `docker-entrypoint.sh:38-40` (`health_check.db` trae migraciones propias). Verificación: bootstrap sobre base vacía del banco sin `--run-syncdb` → migra OK.
@@ -539,6 +557,28 @@ operación de *contract* (N+2) y con su reversa declarada. Las que solo son `pip
 
 - **Ubicación:** `programas/services/exportacion_reportes.py` con fin de línea CR: `git ls-files --eol` lo marca `i/-text` (**binario**: los diffs de PR no muestran su contenido) y es código vivo (lo importan `views/dashboard_becas.py`, `reportes.py`, `reportes_becas.py`); `tramites/` (app en `INSTALLED_APPS` con `urlpatterns = []`); `docker/django/entrypoint_final.py` (dice «SISOC», corre un script inexistente); `core/services/cache.py` (sin importadores); capacidad `ciudadano.eliminar` (`core/rbac.py:41`, rol «Gestión de Ciudadanos» en `seed_datos_base.py:51`) sin ninguna vista que la use; `legajos/services/ml_predictor.py` (heurística sobre legajos que no se crean).
 - **Propuesta:** convertir `exportacion_reportes.py` a LF y agregar `*.py text eol=lf` en `.gitattributes`; borrar `tramites`, `docker/django/`, `core/services/cache.py` y la capacidad `ciudadano.eliminar` (con migración de `users` `AlterModelOptions`, como 0015/0018/0021/0026; ojo con G1c-08 punto 3, que la menciona como alternativa). Verificación: suite, `manage.py check`, `makemigrations --check`.
+
+**Resolución:** ✅ Resuelto en el PR 1 de la Ola 7 (Cambio 195), 09-oct-2026. La parte de los fines de línea ya la
+había cerrado **RED-82** (#607, Cambio 159): `*.py text eol=lf` está en `.gitattributes` y `core/tests/test_higiene_fuentes.py::EOLTests`
+recorre `git ls-files "*.py"`; verificado de nuevo acá, ningún `.py` con CR. Lo que entra en este PR: se borran
+`tramites/` (sin modelos ni rutas; sale también de `INSTALLED_APPS`, del `content` de Tailwind y de los dos scripts de
+auditoría que la nombraban), `docker/django/` —el `Dockerfile` que nadie construía y `entrypoint_final.py`, que corría
+un script inexistente y decía «SISOC»—, `core/services/cache.py` (cero importadores) y la capacidad
+`ciudadano.eliminar`, con `users.0033`: `AlterModelOptions` sobre el modelo ancla (`managed = False`, **no toca el
+esquema**) más un `RunPython` que borra el `Permission`, porque Django no lo hace al sacarlo de `Meta.permissions` y
+quedaría tildado en los grupos que lo tenían con `rbac.puede()` resolviéndolo —mismo patrón que `users.0017`—; la
+reversa lo recrea **sin reasignarlo**, y está marcada `# REVERSA-NOOP`.
+**Dos desvíos, los dos code-first.** (a) `legajos/services/ml_predictor.py` **no se borra**: la ficha lo nombra en
+*Ubicación* y no en *Propuesta*, y `legajos/views/contactos_api.py::prediccion_riesgo_api` lo importa desde una ruta
+que existe (`legajos:prediccion_riesgo`). No está muerto. (b) `relevamiento.ver`, `institucion.ver` e
+`institucion.administrar` —que R-18 mandó acá con «o se usan, o salen del catálogo»— **siguen en el catálogo**: la
+*Propuesta* solo nombra `ciudadano.eliminar`; retirar las dos de `instituciones` vacía el módulo y hace desaparecer
+una solapa del ABM de Roles, y `relevamiento.ver` convive con `relevamiento.gestionar`, que sí se evalúa. Las tres
+quedan declaradas en `CAPACIDADES_SIN_USO` con su motivo, y la decisión es del PM.
+**RED-65 entra en este mismo PR**, como la ficha pedía (ver su resolución).
+**Test permanente:** `users.tests.test_rbac_contrato.CapacidadRetiradaTests.test_no_esta_en_el_catalogo`
+(y `.test_no_la_siembra_ningun_rol`, `.test_las_hermanas_del_modulo_siguen_estando`, más
+`core.tests.test_publish_guard.PublishGuardTests.test_lo_que_salio_de_la_lista_salio_porque_no_existe`).
 
 ### TST-03 · El coverage de 48 % se mide sobre todo el repo
 **Severidad:** BAJA · **Origen:** A8-20 · **Ola:** 3 · **Esfuerzo:** S

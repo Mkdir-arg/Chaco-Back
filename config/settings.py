@@ -139,7 +139,6 @@ INSTALLED_APPS = [
     "configuracion",
     "conversaciones",
     "portal",
-    "tramites",
     "programas",
     "healthcheck",
 ]

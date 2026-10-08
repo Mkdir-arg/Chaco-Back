@@ -44,14 +44,12 @@ EXTENDS_RE = re.compile(r'{%\s*extends\s+["\']([^"\']+)["\']')
 
 # FE-05: bloques sin destino que ya estaban cuando se encendió el flag. Cada uno tiene
 # dueño y muere con su ficha; la lista no crece. `(nombre del template, bloque)`.
-BLOQUES_SIN_DESTINO_CONOCIDOS = {
-    # FE-20 cerrada (Cambio 167): las tres páginas de error ya no extienden el wrapper
-    # legacy —que se borró— y dejaron de declarar `menu-adicional`.
-    # LEG-06 — las dos pantallas muertas de Legajos se borran con el código muerto.
-    ("legajos/dashboard_simple.html", "content"),
-    ("legajos/historial_contactos.html", "extra_css"),
-    ("legajos/historial_contactos.html", "extra_js"),
-}
+BLOQUES_SIN_DESTINO_CONOCIDOS = set()
+# FE-20 cerrada (Cambio 167): las tres páginas de error ya no extienden el wrapper
+# legacy —que se borró— y dejaron de declarar `menu-adicional`.
+# LEG-06 cerrada (Cambio 195): se borraron `legajos/dashboard_simple.html` y
+# `legajos/historial_contactos.html`, las dos pantallas muertas que aportaban las
+# tres entradas que quedaban. La lista queda vacía y no crece.
 
 
 def _mapa_de_templates(dirs: list[Path]) -> dict[str, Path]:

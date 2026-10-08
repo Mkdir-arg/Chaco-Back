@@ -41,8 +41,8 @@ VISTAS_CON_ERROR_CONOCIDO = {
     "alertas_conversaciones_preview",
     "conversacion_detalle",
     "marcar_mensajes_leidos",
-    # core/views/performance.py (puede desaparecer entero con OPS-10)
-    "run_phase2_tests_api",
+    # La vista de las pruebas de la «fase 2» salió de acá con OPS-10 (Ola 7): se borró
+    # junto con el módulo que la alimentaba.
 }
 
 # Warnings del generador (tipos que caen a `string`, colisiones de enum, un
