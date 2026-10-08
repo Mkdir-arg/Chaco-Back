@@ -541,7 +541,6 @@ def create_report(scale):
         },
         "coverage_notes": [
             "dashboard_redirect documents that /dashboard/ redirects to the shadowed users login at /.",
-            "tramites is not measured because the current app has no models, views or URL patterns.",
             "SQLite timings and query plans are not representative of MySQL production.",
         ],
         "summary": {

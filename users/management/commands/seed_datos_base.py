@@ -62,7 +62,6 @@ _ROLES_MENU = [
             "ciudadano.ver",
             "ciudadano.crear",
             "ciudadano.editar",
-            "ciudadano.eliminar",
             "ciudadano.sensible",
             "ciudadano.exportar",
         ],

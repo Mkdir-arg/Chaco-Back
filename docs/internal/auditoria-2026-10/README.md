@@ -1,5 +1,11 @@
 # Auditoría integral de DATAÑACH (Chaco) — octubre 2026
 
+## Estado al 09-oct-2026 (Ola 7, PR 1: código muerto — **arranca la Ola 7**)
+
+| PR | Cambio | Fichas | Estado | Qué quedó abierto |
+|---|---|---|---|---|
+| Ola 7 PR 1 | 195 | OPS-10 ✅ · OPS-14 ✅ · RED-65 ✅ · FE-14 ✅ · LEG-06 🟡 | 🟡 | **Cuatro fichas cerradas y una parcial, sin DDL.** Nada de lo que se borró se ejecutaba, salvo tres botones. (1) **OPS-10:** los nueve módulos de `core/performance/` que nadie usa para medir (`advanced_*`, `database_*`, `intelligent_*`, `monitoring`, `performance_analyzer`, `phase2_manager`), seis comandos —los cuatro de la ficha más `monitor_performance` y `performance_report`, que quedaban sin un solo invocador— y cinco endpoints. `/run-phase2-tests-api/` era el peor: autorizaba por `IsAdminUser` (`is_staff`), contra la regla de capacidades, y disparaba análisis de índices y particiones **desde una request**. `SET GLOBAL …` pedía `SUPER` y `CREATE INDEX IF NOT EXISTS` no es MySQL. Sobrevive lo que mide de verdad: `query_observability`, `cache_utils`, `ci_external_stubs` y las tres APIs que los leen. El criterio de la ola se cumple: `git grep -n "phase2|core.performance.monitoring"` vacío fuera de `docs/`. (2) **OPS-14 + RED-65:** `tramites`, `docker/django/`, `scripts/startup.sh`, `core/services/cache.py` y la capacidad `ciudadano.eliminar` (`users.0029`, que borra también el `Permission` —Django no lo hace al sacarlo de `Meta.permissions`— con reversa marcada `# REVERSA-NOOP`). Los dos primeros eran justo lo que el guard de `publish-main.yml` exigía: salieron del árbol y de `RUNTIME` **en el mismo diff**, que es el modo de falla que RED-65 anticipó, más un test para el camino inverso (sacar una ruta del guard sin borrar el archivo apagaría la red en silencio). La parte de los fines de línea ya la había cerrado RED-82. (3) **FE-14:** los 29 JS y `dashboard.css`, con el rebuild de Tailwind commiteado. Efecto medible: `bg-info`, `text-danger` y `text-info` salen de la `DEUDA` de `CssCompiladoAlDiaTests` (16 → 13). (4) **LEG-06 con D-L06 en su default:** cuatro módulos de vistas sin ruta, tres templates, el `dashboard_contactos_simple` **homónimo** del que sí se sirve, `dar_de_baja_inscripcion` con su botón, y «Derivar a Programa» oculto. **Tres ratchets quedan en cero**: la `ALLOWLIST` de RED-42, `URLS_ROTAS_CONOCIDAS` y `BLOQUES_SIN_DESTINO_CONOCIDOS`. **Cinco desvíos, los cinco code-first:** `dashboard/templates/dashboard.html` no se borra (la vista, su `path` y `metricas_home()` son de **RED-78**, otro PR de esta ola: acá sale solo su `{% include %}` del widget); **el default de D-F16 no se aplica** —`legajos:programa_detalle` es el destino de `redirect` de las dos vistas de derivación de SEC-12, que están ruteadas y vivas, así que la pantalla es pobre pero no está muerta—; `ml_predictor.py` se queda (la ficha lo nombra en *Ubicación* y no en *Propuesta*, y `legajos:prediccion_riesgo` lo usa); `relevamiento.ver` e `institucion.*` siguen en el catálogo (la *Propuesta* solo nombra `ciudadano.eliminar`; vaciar el módulo `instituciones` borra una solapa del ABM de Roles → decisión del PM); y `BajaProgramaService` se conserva, porque lo cubre un test permanente de BEC-18. **TDD:** los 14 tests nuevos se corrieron contra un worktree de `origin/development` y fallaron los 14. **Para el juez:** los dos bloques de `.claude/` (agente canónico y `shells.md`, por el borrado de `widget_contactos.html`) van en el cuerpo del PR; hasta aplicarlos, «Design Agent Contract» queda rojo. |
+
 ## Estado al 08-oct-2026 (Ola 4, PRs 6, 7 y 8: configuración, admin y las tres fichas que se cerraron midiendo)
 
 | PR | Cambio | Fichas | Estado | Qué quedó abierto |
@@ -2203,17 +2209,20 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
   toca templates de Becas (cambios visuales mínimos, capturas antes/después). Cambia el CI (`design-agent-contract.yml`).
 
 ### Ola 7 — Deuda
-- **Ítems:** OPS-10 (módulos de «optimización» y sus comandos), OPS-13 (dependencias), OPS-14 (código muerto; `.py` con CR),
-  FE-14 (29 JS huérfanos), LEG-06 (código muerto de Legajos), BEC-25, G1b-09, G1b-10, **G1-01 fase 2** (apagar
+- **Ítems:** OPS-10 ✅ (Cambio 195 — módulos de «optimización» y sus comandos), OPS-13 (dependencias),
+  OPS-14 ✅ (Cambio 195 — código muerto; la parte de `.py` con CR ya la cerró RED-82), FE-14 ✅ (Cambio 195 —
+  29 JS huérfanos), LEG-06 🟡 (Cambio 195 — código muerto de Legajos; queda `dashboard.html`, que va con RED-78,
+  y el default de D-F16, que no aplica), BEC-25, G1b-09, G1b-10, **G1-01 fase 2** (apagar
   conversaciones completo: includes, `ws/conversaciones/…` y `ws/alertas-conversaciones/` —**no** `ws/alertas/`—, menú,
   card del inicio y solapa del legajo; 2 h; R0-01 se cierra antes, en la Ola 0), **R0-02** (CLAUDE.md y
   `docs/client/architecture.md` con `portal:ciudadano_mi_perfil`; 2 h) y **PERF-11** (tabla
   `FotoDefinicion`, plan propio, L). **Red de seguridad (04-oct), 40 h:** RED-64 (aprobación antes de publicar
   `docs/client/`), RED-76 (mypy gradual), RED-86 (suite en paralelo, después de RED-88) y segundas partes de RED-13
   (desacoplar el shell y la señal de `conversaciones` **antes** de G1-01 fase 2: +8 h), RED-37 (esquema del dashboard),
-  RED-39 (un solo sobre de error JSON), RED-54 (partir `formulario_detalle`), RED-78 (borrar `DashboardView`) y RED-85
-  (`requirements-ci.txt` + dependabot). RED-45 (borrar el parche de gevent) y RED-65 (sacar del guard del release los
-  artefactos muertos) van dentro de OPS-13 y OPS-10/OPS-14, sin horas extra.
+  RED-39 (un solo sobre de error JSON), RED-54 (partir `formulario_detalle`), RED-78 (borrar `DashboardView` **y
+  `dashboard/templates/dashboard.html`**, que LEG-06 dejó en pie a propósito) y RED-85
+  (`requirements-ci.txt` + dependabot). RED-45 (borrar el parche de gevent) va dentro de OPS-13, sin horas extra;
+  RED-65 ✅ (sacar del guard del release los artefactos muertos) entró con OPS-10/OPS-14 en el Cambio 195.
 - **Hecho cuando:** V-STD + V-UI; `git grep -n "phase2\|core.performance.monitoring"` vacío; `pip-audit` y build de imagen
   OK; `collectstatic` sin 404.
 - **Riesgo de deploy:** bajo, salvo PERF-11 (migración de datos larga sobre `programas_formulario`: plan propio con ECOM,

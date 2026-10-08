@@ -128,24 +128,22 @@ MARGEN_INACTIVIDAD_SEGUNDOS = VENTANA_REFRESCO_SEGUNDOS
 #: una API, lo es porque algo lo pide en bucle. Cada entrada nombra a su emisor.
 RUTAS_SIN_MARCA_DE_ACTIVIDAD = frozenset(
     {
-        # `templates/core/performance_dashboard.html:618` — `updateDashboard()`
-        # cada 30 s pega contra estas cuatro.
+        # `templates/core/performance_dashboard.html` — `updateDashboard()` cada
+        # 30 s pega contra estas tres. Eran cuatro hasta OPS-10, que se llevó
+        # `/system-metrics-api/` junto con el módulo que la alimentaba.
         "/performance-api/",
         "/query-analysis-api/",
         "/optimization-suggestions-api/",
-        "/system-metrics-api/",
         # `static/custom/js/conversaciones_tiempo_real_global.js:47` — cada 5 s
         # mientras la pestaña esté visible y el WebSocket de la lista no esté abierto.
         "/conversaciones/api/estadisticas/",
     }
 )
 
-# El cuarto emisor de fondo es `templates/components/widget_contactos.html:91`
-# (cada 5 min). No tiene fila acá porque la ruta que pide —el nombre
-# `legajos:metricas_contactos_api`— **no está montada**: `legajos/urls/__init__.py`
-# nunca la publicó y el `{% url %}` del widget figura en `URLS_ROTAS_CONOCIDAS`
-# (`core/tests/test_listados_canonicos_ola5_pr6.py`). Hoy no hay pedido que
-# eximir; si LEG-06 la monta en vez de retirar el widget, su path va en esta lista.
+# Hubo un cuarto emisor de fondo, `templates/components/widget_contactos.html`
+# (cada 5 min). No tenía fila acá porque la ruta que pedía —el nombre
+# `legajos:metricas_contactos_api`— **no estaba montada**. LEG-06 (Ola 7) retiró el
+# widget y la vista: ya no hay nada que eximir.
 
 
 def _marca_actividad(path):

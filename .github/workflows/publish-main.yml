@@ -164,7 +164,11 @@ jobs:
       - name: Guard
         shell: bash
         run: |
-          RUNTIME="manage.py requirements.txt docker-compose.prod.yml docker/django/Dockerfile scripts/startup.sh scripts/deploy_prod.sh nginx.conf docker-entrypoint.sh Dockerfile .gitlab-ci.yml"
+          # RED-65 (Ola 7): salieron `docker/django/Dockerfile` y `scripts/startup.sh`.
+          # El primero no lo construía nadie y su `CMD` corría `entrypoint_final.py`, que
+          # OPS-14 midió muerto; el segundo arrancaba con `setup_system`, que OPS-10 borró.
+          # Exigirlos después de borrarlos rompía `Publish main` **después** del merge.
+          RUNTIME="manage.py requirements.txt docker-compose.prod.yml scripts/deploy_prod.sh nginx.conf docker-entrypoint.sh Dockerfile .gitlab-ci.yml"
           DOCS_DE_RUNTIME="README.md"
           fail=0
 

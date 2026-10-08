@@ -65,7 +65,7 @@ class ApiCiudadanosRbacTests(TestCase):
 
     def test_patch_y_delete_405(self):
         """Ni con `ciudadano.editar`: el ViewSet es de solo lectura."""
-        cliente = self._cliente(_usuario_con("ciudadano.ver", "ciudadano.editar", "ciudadano.eliminar"))
+        cliente = self._cliente(_usuario_con("ciudadano.ver", "ciudadano.editar"))
 
         patch = cliente.patch(f"/api/legajos/ciudadanos/{self.gomez.pk}/", {"dni": "99999999"}, format="json")
         self.assertEqual(patch.status_code, 405)

@@ -36,7 +36,7 @@ FE-18, FE-19); las migraciones de estilo de esos dos módulos las hereda la v2.
 | FE-21 | Modales de Legajos sin Escape ni foco | MEDIA | CONF. | 5 | S | ✅ |
 | V5A-NEW-01 | `tailwind.css` committeado desactualizado y sin gate | MEDIA | CONF. | 6 | S | ✅ |
 | V5A-NEW-07 | Deuda de accesibilidad en las pantallas candidatas a referencia | MEDIA | CONF. | 6 (a) / 5 (b) | (a) en paso 3 · (b) 2 × S | ✅ ((a) y (b); los 2 KPIs con minigráfico y barra esperan el arquetipo Dashboard) |
-| FE-14 | 29 JS y 1 CSS huérfanos | BAJA (A6: MEDIA) | CONF. ajustado | 7 | S | ⬜ |
+| FE-14 | 29 JS y 1 CSS huérfanos | BAJA (A6: MEDIA) | CONF. ajustado | 7 | S | ✅ |
 | FE-16 | «Gestión de Programas» de Legajos con KPIs sin valor | BAJA | CONF. | 5 | S | ✅ |
 | FE-22 | Dashboards fuera de canon | BAJA | CONF. | 5 | M | ✅ |
 | FE-23 | `_field.html` duplicado | BAJA | CONF. ajustado | 5 | S | ✅ |
@@ -655,6 +655,24 @@ escribe tiene que existir en el panel renderizado).
 - **Archivos:** `alertas_conversaciones`, `alertas_conversaciones_simple`, `base`, `chaco-tailwind.config`, `ciudadanosalertas`, `ciudadanosarchivosform`, `ciudadanosarchivoslist`, `ciudadanosderivacionesform`, `ciudadanosdetail`, `ciudadanosdimensionesform`, `ciudadanosform`, `ciudadanosintervensiones`, `ciudadanosllamados`, `configuraciones`, `conversaciones_tiempo_real`, `custom`, `dashboard`, `fix_pagination`, `formutils`, `global_pagination`, `localidades_modal`, `login`, `navigator`, `passwordresetcomplete`, `perfilchangepassword`, `registros_erroneos`, `sidebar`, `simple_pagination`, `utils` (todos `static/custom/js/<nombre>.js`).
 - **Propuesta:** `git rm` + `npm run build:tailwind` (diff sustractivo del CSS) + commit. Ojo: `alertas_conversaciones*.js` son los consumidores de `window.userGroups` que menciona SEC-08: confirmar que no se cargan antes de borrar.
 - **Verificación:** `design_audit` baja 9 errores; `collectstatic` y recorrido sin 404 de estáticos; `git grep -E "custom/js/(base|utils|dashboard|custom)\.js"` vacío.
+
+**Resolución:** ✅ Resuelto en el PR 1 de la Ola 7 (Cambio 195), 09-oct-2026 — se fueron los **29** JS de la lista y
+`static/custom/css/dashboard.css`, con el rebuild de Tailwind commiteado (diff sustractivo). Cada uno se verificó con
+`git grep -l "custom/js/<nombre>.js"` fuera de `docs/`: **27 no aparecían en ningún lado**, y los dos que sí eran
+menciones en comentarios de tests, no cargas. `alertas_conversaciones_simple.js` figuraba como consumidor de
+`count`/`criticas` en el docstring de `dashboard/tests/test_api_contrato.py` —el consumidor real de ese contrato es
+`alertas_websocket.js`, que sigue—; `base.js` lo leía `users/tests/test_tema.py`, que afirmaba que el shell seguía
+guardando el tema en `localStorage`. Esa afirmación era **cierta como texto y falsa como conducta**: ningún template
+cargaba `base.js`, así que ni el POST que RED-75 sacó ni el `localStorage` que lo reemplazó llegaban nunca al
+navegador —RED-75 ya lo había anotado—. Ese test se reemplaza por uno que exige que el archivo **no vuelva**; los tres
+que barren todo el front en busca de `sendThemePreference`/`set_dark_mode` siguen intactos y son los que sostienen la
+red. **Efecto medido en la deuda de CSS:** `bg-info`, `text-danger` y `text-info` salieron de `DEUDA` en
+`CssCompiladoAlDiaTests` —sus últimos consumidores eran estos JS y el bloque de «Pruebas de Fase 2» que borró OPS-10—;
+el ratchet, que solo baja, pasa de 16 entradas a 13. `collectstatic --clear` con `ENVIRONMENT=prd`
+(`ManifestStaticFilesStorage`): 332 archivos, 1.448 post-procesados, sin errores.
+**Test permanente:** `users.tests.test_tema.TemaTests.test_el_archivo_que_posteaba_el_tema_ya_no_existe`
+(y `core.tests.test_design_audit_estructura.CssCompiladoAlDiaTests.test_la_deuda_no_tiene_entradas_resueltas`, que es
+el ratchet que obligó a bajarla).
 
 ### FE-16 · «Gestión de Programas» de Legajos muestra KPIs sin valor
 **Severidad:** BAJA (la pantalla no está en el sidebar) · **Origen:** A6-22 · **Ola:** 5 · **Esfuerzo:** S · **Decisión:** D-F16
