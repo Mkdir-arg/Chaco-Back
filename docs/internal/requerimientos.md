@@ -25362,7 +25362,7 @@ No aplica: entrada nueva.
 | **Etiquetas** | `#rbac` `#cupos` `#relevamientos` `#datos` `#metodo` |
 | **Solicitante** | Auditoría integral oct-2026 — fichas SEC-20, SEC-21, SEC-22, SEC-30, BEC-19 y BEC-23, más la segunda parte de RED-79 (Ola 2, PR 5) |
 | **Fecha del pedido** | 08/10/2026 |
-| **Issue / épica** | Auditoría oct-2026, Ola 2 ítems 5 y 9 |
+| **Issue / épica** | Auditoría oct-2026, Ola 2 ítems 5 y 9 · PR #626 |
 | **Partes afectadas** | Pantalla de cupo por segmento · Reportes de Becas y su exportación · Tablero del programa y el Excel «respuestas por persona» · Los tres CSV de la convocatoria · Padrón de ciudadanos (CSV) y su botón · Solapa «Becas» del legajo · Requisitos, subsegmentos y coordinadores del segmento |
 | **Migración** | `users.0027` (capacidad nueva, sin DDL) y `users.0028` (siembra de la capacidad, datos) |
 

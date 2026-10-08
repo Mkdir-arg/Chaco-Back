@@ -1770,7 +1770,7 @@ hoy y se pone rojo cuando SEC-21 las mueva: ese es el aviso que la ficha pide qu
 **Test permanente:** `programas.tests.test_arquitectura.CapasTests.test_no_crecen_las_dependencias_entre_vistas`
 (y `ImportsTests.test_no_hay_ciclos_nuevos`, `GuardsDeAlcanceTests`).
 
-**Resolución:** ✅ (parte Ola 2, los movimientos) en #PENDIENTE (Cambio 177, Ola 2 PR 5), 08-oct-2026 — con SEC-21,
+**Resolución:** ✅ (parte Ola 2, los movimientos) en #626 (Cambio 177, Ola 2 PR 5), 08-oct-2026 — con SEC-21,
 como pedía la ficha. A `services/autorizacion.py` se mudaron `CAP_RELEVAMIENTO_PUBLICO`, el filtro de RN-P13 (hoy
 `puede_relevamiento_publico` + `sin_relevamientos_publicos_si_no_puede` + `sin_formularios_publicos_si_no_puede`, que
 estaba escrito dos veces) y el invariante de alcance, unificado en `assert_alcance_relevamiento` /
