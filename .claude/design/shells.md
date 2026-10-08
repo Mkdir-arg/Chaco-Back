@@ -213,6 +213,6 @@ páginas de error 403/404/500— al shell del backoffice y lo borró. La regla `
 `scripts/design_audit.py` queda como guarda: si alguien vuelve a escribir ese `{% extends %}`, falla.
 
 Su parcial `templates/components/alertas_eventos.html` sigue vivo y pertenece a ese mundo: no se
-incluye en pantallas nuevas. `templates/components/widget_contactos.html`, que lo acompañaba, lo
-retiró LEG-06 (Ola 7, Cambio 195): su único consumidor era `dashboard/templates/dashboard.html` —una
-pantalla tapada por el orden del URLconf— y pedía cada 5 minutos una vista sin ruta.
+incluye en pantallas nuevas. El widget de contactos que lo acompañaba ya no existe (LEG-06): su
+único consumidor era una pantalla tapada por el orden del URLconf y pedía cada 5 minutos una vista
+sin ruta.
