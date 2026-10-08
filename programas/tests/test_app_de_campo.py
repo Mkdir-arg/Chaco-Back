@@ -1,26 +1,32 @@
 """La app de campo contra el servidor: gracia de sincronización, validación de
-la carga y fecha de nacimiento (G1-04 + BEC-22, G1-05, G1-06).
+la carga, fecha de nacimiento, adjuntos y versión del diseño (G1-04 + BEC-22,
+G1-05, G1-06, G1-07 y G1-16).
 
 La app (`Chaco-mobile`) es **otro repo** y la versión instalada en producción es
 `origin/main @ a66c2d3` (21/08/2026). Nada de lo que hay acá le pide un release:
 lo que cambia del lado del servidor es que **acepta más** —capturas que antes
 rechazaba— y que marca lo que antes no contaba. Lo que la app ya mandaba sigue
-significando lo mismo.
+significando lo mismo. G1-16 **habilita** un dato nuevo y opcional: mandarlo es
+lo que necesita una release de la app, no seguir sin mandarlo.
 
-Las tres fichas comparten un criterio: una captura la hizo un territorial parado
+Las fichas comparten un criterio: una captura la hizo un territorial parado
 delante de una persona. Tirarla sin dejar rastro es perder trabajo de campo, así
 que se acepta y se marca; solo se rechaza lo que no se puede arreglar después.
 """
 
+import shutil
+import tempfile
 from datetime import timedelta
 from uuid import uuid4
 
-from django.test import TestCase
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
 from legajos.models import Ciudadano
 from programas.models import (
+    AdjuntoFormulario,
     CanalFormulario,
     Formulario,
     GrupoRequisito,
@@ -266,6 +272,48 @@ class CronDeVencimientosTests(TestCase):
         self.assertIn(str(rel.pk), registro.output[0])
         self.assertIn("EN_REVISION", registro.output[0])
 
+    def test_el_log_nombra_los_que_se_cerraron_y_no_los_que_se_leyeron(self):
+        """La línea decía «N relevamiento(s) … (ids=…)» con N = filas afectadas
+        (BEC-22) y la lista = ids **leídos**. Justo cuando las dos cosas
+        difieren —que es el escenario que BEC-22 arregla— el rastro nombraba un
+        relevamiento que nadie cerró.
+
+        La carrera se reproduce pasándole la lista tal como quedó leída: es el
+        estado exacto en el que la deja un coordinador que termina su
+        relevamiento desde la pantalla entre el `SELECT` y el `UPDATE`.
+        """
+        cerrado = self._relevamiento(Relevamiento.Estado.EN_CURSO)
+        escapado = self._relevamiento(Relevamiento.Estado.TERMINADO)
+
+        with self.assertLogs("programas.services.vencimientos", level="INFO") as registro:
+            afectadas = pasar_relevamientos_a_revision(Relevamiento.objects.filter(pk__in=[cerrado.pk, escapado.pk]))
+
+        self.assertEqual(afectadas, 1)
+        self.assertIn(f"ids=[{cerrado.pk}]", registro.output[0])
+        self.assertIn("EN_REVISION", registro.output[0])
+        self.assertIn(f"ids=[{escapado.pk}]", registro.output[1])
+        self.assertIn("cambiaron de estado", registro.output[1])
+
+    def test_el_cierre_de_otro_proceso_no_entra_en_el_log(self):
+        """El rastro nombra lo que cerró **este** `update()`.
+
+        `EN_REVISION` es el estado al que llega también el coordinador que
+        termina su relevamiento desde la pantalla. Releer por estado después de
+        escribir no distingue los dos caminos, así que el log se atribuía el
+        cierre ajeno: el territorial que va a buscar qué pasó con su relevamiento
+        encuentra el cron firmando algo que hizo una persona.
+        """
+        cerrado = self._relevamiento(Relevamiento.Estado.EN_CURSO)
+        ajeno = self._relevamiento(Relevamiento.Estado.EN_REVISION)
+
+        with self.assertLogs("programas.services.vencimientos", level="INFO") as registro:
+            afectadas = pasar_relevamientos_a_revision(Relevamiento.objects.filter(pk__in=[cerrado.pk, ajeno.pk]))
+
+        self.assertEqual(afectadas, 1)
+        self.assertIn(f"ids=[{cerrado.pk}]", registro.output[0])
+        self.assertNotIn(str(ajeno.pk), registro.output[0])
+        self.assertIn(f"ids=[{ajeno.pk}]", registro.output[1])
+
     def test_un_finalizando_fuera_de_fecha_con_la_convocatoria_viva_no_se_cierra(self):
         """Caracterización que G1-04 **no** cambia (Cambio 120): la segunda rama
         de la regla solo alcanza `ASIGNADO` y `EN_CURSO`. La gracia es una
@@ -431,6 +479,11 @@ class ValidacionDeLaCargaTests(_CampoBase):
 
         self.assertEqual(resp.status_code, 400)
         self.assertEqual(self.rel.formularios.count(), 0)
+        # El motivo tiene que llegar donde la app lo lee (`becasApi.js`,
+        # `buildResponseError`): con el dict anidado por campo el territorial
+        # veía «Error HTTP 400» y no sabía qué corregir.
+        self.assertIn("non_field_errors", resp.data)
+        self.assertIn("dni", str(resp.data["datos_identificacion"]).lower())
 
     def _condicionar(self, pregunta, *, fuente, op, valor):
         """Cuelga una condición del ítem del diseño que corresponde a `pregunta`."""
@@ -474,6 +527,9 @@ class FechaDeNacimientoTests(_CampoBase):
 
         self.assertEqual(resp.status_code, 400)
         self.assertEqual(self.rel.formularios.count(), 0)
+        # Igual que el DNI: el motivo viaja también donde la app lo lee.
+        self.assertIn("fecha", " ".join(resp.data["non_field_errors"]).lower())
+        self.assertIn("fecha_nacimiento", str(resp.data["datos_identificacion"]))
 
     def test_una_fecha_en_formato_argentino_se_normaliza_y_entra(self):
         """El caso de la ficha: `15/03/2010` → 201 y el legajo con
@@ -577,6 +633,362 @@ class ObservacionesEnLaRevisionTests(_CampoBase):
 
         self.assertNotContains(resp, "Sincronizado tarde")
         self.assertNotContains(resp, "Observaciones de la carga")
+
+
+class AdjuntosDeLaAppTests(_CampoBase):
+    """G1-07 · el archivo de un campo ARCHIVO, que llega después del alta.
+
+    Dos agujeros del mismo endpoint: no había idempotencia —el reintento de la
+    cola offline creaba una fila más y la revisión se quedaba con la **más
+    vieja**, así que la foto corregida no se veía nunca— y no había control de
+    pertenencia: la referencia podía ser de un campo que el formulario de ese
+    relevamiento no pide, y entonces el documento quedaba guardado donde la
+    pantalla del revisor no lo busca.
+
+    El control tiene tres respuestas y no dos: el 400 queda para lo que nunca
+    pudo ser de esta convocatoria, y el campo que quedó viejo entre la captura y
+    la sincronización entra observado. Un 400 de más corta la cola de subidas de
+    la app y se lleva puestos los documentos que venían después.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        # Los adjuntos van a un `media/` descartable: el almacenamiento no se
+        # revierte con la transacción del test (mismo patrón que RED-05, en
+        # `test_adjunto_punta_a_punta`).
+        cls._media = tempfile.mkdtemp(prefix="adjuntos-g107-")
+        cls.addClassCleanup(shutil.rmtree, cls._media, ignore_errors=True)
+        cls._media_override = override_settings(MEDIA_ROOT=cls._media)
+        cls._media_override.enable()
+        cls.addClassCleanup(cls._media_override.disable)
+        super().setUpClass()
+
+    def setUp(self):
+        super().setUp()
+        self.rel.estado = Relevamiento.Estado.EN_CURSO
+        self.rel.save(update_fields=["estado", "modificado"])
+        self.pregunta = PreguntaGlobal.objects.create(
+            texto="Foto del DNI", tipo=TipoCampo.ARCHIVO, activo=True, obligatorio=False, orden=900
+        )
+        # Está en el formulario, pero su respuesta es texto: sirve para separar
+        # «no es un campo de este formulario» de «no es un campo de archivo».
+        self.pregunta_texto = PreguntaGlobal.objects.create(
+            texto="Tenencia", tipo=TipoCampo.STRING, activo=True, obligatorio=False, orden=902
+        )
+        self.formulario = self._caso()
+
+    def _caso(self):
+        resp = self.client.post(self.url, self._payload(), format="json")
+        self.assertEqual(resp.status_code, 201, resp.data)
+        return Formulario.objects.get(pk=resp.data["id"])
+
+    def _url_adjuntos(self, formulario=None):
+        return reverse("becas_api:formulario-adjuntos", args=[(formulario or self.formulario).pk])
+
+    def _subir(self, contenido=b"primera", nombre="dni.jpg", **referencia):
+        referencia = referencia or {"pregunta_global": self.pregunta.pk}
+        return self.client.post(
+            self._url_adjuntos(),
+            {**referencia, "archivo": SimpleUploadedFile(nombre, contenido)},
+            format="multipart",
+        )
+
+    def test_un_reintento_de_la_app_no_duplica_el_adjunto(self):
+        """El escenario de la ficha: la cola offline sube la foto, pierde la
+        respuesta y reintenta. Antes quedaban dos filas del mismo campo."""
+        primera = self._subir(b"una foto")
+
+        segunda = self._subir(b"una foto")
+
+        self.assertEqual(primera.status_code, 201, primera.data)
+        self.assertEqual(segunda.status_code, 201, segunda.data)
+        self.assertEqual(self.formulario.adjuntos.count(), 1)
+        self.assertEqual(segunda.json()["id"], primera.json()["id"])
+
+    def test_la_foto_que_vale_es_la_ultima_que_subio_el_territorial(self):
+        """La primera salió movida y el territorial la vuelve a sacar: lo que el
+        revisor abre tiene que ser la segunda."""
+        self._subir(b"movida")
+
+        self._subir(b"nitida")
+
+        adjunto = self.formulario.adjuntos.get()
+        with adjunto.archivo.open("rb") as guardado:
+            self.assertEqual(guardado.read(), b"nitida")
+
+    def test_el_archivo_viejo_no_queda_en_media(self):
+        """El reemplazo borra el anterior del almacenamiento, y recién después
+        de que la transacción confirma: si se cae, el que vale sigue estando."""
+        self._subir(b"movida")
+        archivo = self.formulario.adjuntos.get().archivo
+        almacenamiento, anterior = archivo.storage, archivo.name
+        self.assertTrue(almacenamiento.exists(anterior))
+
+        with self.captureOnCommitCallbacks(execute=True):
+            self._subir(b"nitida")
+
+        self.assertFalse(almacenamiento.exists(anterior))
+        self.assertTrue(almacenamiento.exists(self.formulario.adjuntos.get().archivo.name))
+
+    def test_la_revision_resuelve_el_adjunto_mas_nuevo(self):
+        """Producción ya tiene filas duplicadas de antes de esta ficha: el índice
+        que lee la revisión se quedaba con la más vieja porque el `ordering` del
+        modelo es `-creado` y el bucle pisaba."""
+        from programas.services.respuestas import _adjuntos_por_clave
+
+        vieja = AdjuntoFormulario.objects.create(
+            formulario=self.formulario,
+            pregunta_global=self.pregunta,
+            archivo=SimpleUploadedFile("vieja.jpg", b"vieja"),
+        )
+        nueva = AdjuntoFormulario.objects.create(
+            formulario=self.formulario,
+            pregunta_global=self.pregunta,
+            archivo=SimpleUploadedFile("nueva.jpg", b"nueva"),
+        )
+
+        indice = _adjuntos_por_clave(self.formulario)
+
+        self.assertEqual(indice[f"pg-{self.pregunta.pk}"].pk, nueva.pk)
+        self.assertNotEqual(nueva.pk, vieja.pk)
+
+    def test_un_campo_desactivado_no_traba_la_cola_de_la_app(self):
+        """El escenario que un 400 rompe entero.
+
+        El teléfono bajó una definición con **dos** campos `ARCHIVO` y capturó
+        offline; mientras tanto el PM desactivó uno; recién después el
+        territorial sincroniza. `syncRemoteBecasFormulario` sube los adjuntos en
+        un `for` y **corta** en el primero que falla, y un 400 no es
+        reintentable (`relevamientoService.js:966-985` y `:1486`): la operación
+        queda `FAILED_PERMANENT` y el segundo documento —que el servidor sí
+        aceptaba— no se sube nunca, ni a mano.
+        """
+        segunda = PreguntaGlobal.objects.create(
+            texto="Foto del recibo", tipo=TipoCampo.ARCHIVO, activo=True, obligatorio=False, orden=903
+        )
+        # Lo que pasa entre la captura y la sincronización: el alta de abajo ya
+        # guarda la foto **sin** el campo desactivado.
+        PreguntaGlobal.objects.filter(pk=self.pregunta.pk).update(activo=False)
+        self.formulario = self._caso()
+
+        caido = self._subir(b"la del campo que sacaron")
+        viva = self._subir(b"la del campo que sigue", pregunta_global=segunda.pk)
+
+        self.assertEqual(caido.status_code, 201, caido.data)
+        self.assertEqual(viva.status_code, 201, viva.data)
+        self.assertEqual(self.formulario.adjuntos.count(), 2)
+        # Y el revisor se entera: el archivo entró, pero su campo no está en el
+        # formulario, así que la pantalla no lo muestra entre las respuestas.
+        self.formulario.refresh_from_db()
+        self.assertIn(self.pregunta.texto, self.formulario.observaciones_carga)
+        self.assertNotIn(segunda.texto, self.formulario.observaciones_carga)
+
+    def test_la_observacion_del_adjunto_no_se_repite_con_el_reintento(self):
+        """La cola reintenta la misma subida: la línea del revisor es una sola."""
+        ajena = PreguntaGlobal.objects.create(
+            texto="Foto que ya no se pide", tipo=TipoCampo.ARCHIVO, activo=False, orden=901
+        )
+
+        self._subir(pregunta_global=ajena.pk)
+        self._subir(pregunta_global=ajena.pk)
+
+        self.formulario.refresh_from_db()
+        observaciones = self.formulario.observaciones_carga.splitlines()
+        self.assertEqual(len([linea for linea in observaciones if ajena.texto in linea]), 1)
+        self.assertEqual(self.formulario.adjuntos.count(), 1)
+
+    def test_un_requisito_de_otro_segmento_se_rechaza(self):
+        """Lo que sí se rechaza: una referencia que **nunca** pudo ser de esta
+        convocatoria. No es un campo que quedó viejo, es un documento de otro
+        padrón colgado de este caso."""
+        from programas.models import RequisitoNativo, Segmento
+
+        otro = Segmento.objects.create(nombre="Otro seg", cupo_maximo=10)
+        requisito = RequisitoNativo.objects.create(
+            texto="Certificado de otro programa", tipo=TipoCampo.ARCHIVO, segmento=otro, orden=1
+        )
+
+        resp = self._subir(requisito_nativo=requisito.pk)
+
+        self.assertEqual(resp.status_code, 400, resp.data)
+        self.assertEqual(self.formulario.adjuntos.count(), 0)
+
+    def test_un_campo_de_la_lista_plana_que_items_no_trae_se_acepta(self):
+        """La app instalada (`Chaco-mobile@a66c2d3`) arma el formulario con las
+        listas planas `globales`/`requisitos`, no con `items`, y las dos no
+        coinciden siempre (un grupo del diseño acotado a otro canal saca sus
+        campos de `items` y no de la lista plana). El archivo de un campo que el
+        teléfono mostró no puede rebotar: la cola de la app corta en el primer
+        adjunto que falla y los que venían después tampoco se suben."""
+        from programas.services.becas import definicion_formulario
+        from programas.services.respuestas import campos_de
+
+        clave = f"pg-{self.pregunta.pk}"
+        vigente = definicion_formulario(Relevamiento.objects.get(pk=self.rel.pk))
+        self.assertIn(self.pregunta.pk, [campo["id"] for campo in vigente["globales"]])
+        definicion = dict(self.formulario.definicion)
+        definicion["items"] = [
+            {**grupo, "items": [item for item in grupo.get("items", []) if item.get("clave") != clave]}
+            for grupo in definicion.get("items") or []
+        ]
+        Formulario.objects.filter(pk=self.formulario.pk).update(definicion=definicion)
+        self.formulario.refresh_from_db()
+        self.assertNotIn(clave, {campo["clave"] for campo in campos_de(self.formulario.definicion)})
+
+        resp = self._subir(b"una foto")
+
+        self.assertEqual(resp.status_code, 201, resp.data)
+        self.assertEqual(self.formulario.adjuntos.count(), 1)
+
+    def test_un_campo_que_no_es_de_archivo_se_rechaza(self):
+        """Está en la foto del caso, pero su respuesta es texto: un archivo
+        colgado de ahí no se muestra en ningún lado."""
+        resp = self._subir(pregunta_global=self.pregunta_texto.pk)
+
+        self.assertEqual(resp.status_code, 400, resp.data)
+        self.assertEqual(self.formulario.adjuntos.count(), 0)
+
+    def test_el_caso_de_otro_territorial_no_recibe_adjuntos(self):
+        """`get_queryset` acota a los relevamientos propios: el caso del otro
+        territorial no existe para esta sesión."""
+        ajeno = Formulario.objects.create(
+            relevamiento=self.rel_ajeno, celular="1", email_contacto="a@b.com", datos_identificacion={"dni": "40400401"}
+        )
+
+        resp = self.client.post(
+            self._url_adjuntos(ajeno),
+            {"pregunta_global": self.pregunta.pk, "archivo": SimpleUploadedFile("dni.jpg", b"x")},
+            format="multipart",
+        )
+
+        self.assertEqual(resp.status_code, 404)
+        self.assertEqual(AdjuntoFormulario.objects.count(), 0)
+
+    def test_el_rechazo_dice_el_motivo_donde_la_app_lo_lee(self):
+        """`becasApi.js` arma el mensaje con `detail` / `non_field_errors`: un
+        diccionario por campo le deja al territorial un «Error HTTP 400»."""
+        resp = self._subir(b"0" * (5 * 1024 * 1024 + 1))
+
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("5 MB", " ".join(resp.json()["non_field_errors"]))
+        # La clave de siempre no se va: quien lea por campo la sigue teniendo.
+        self.assertIn("archivo", resp.json())
+
+    def test_la_foto_de_una_captura_en_fecha_sube_con_el_relevamiento_cerrado(self):
+        """D-G04 aplicada a los adjuntos: la cola offline sube primero el caso y
+        después las fotos. Si el cierre las frenara, el caso quedaría sin sus
+        documentos y el revisor lo rechazaría por faltantes."""
+        capturado = timezone.now() - timedelta(hours=1)
+        Formulario.objects.filter(pk=self.formulario.pk).update(capturado_en=capturado)
+        self.formulario.refresh_from_db()
+        self._cerrar(Relevamiento.Estado.EN_REVISION, hace=timedelta(minutes=30))
+
+        resp = self._subir(b"una foto")
+
+        self.assertEqual(resp.status_code, 201, resp.data)
+
+    def test_con_el_relevamiento_pausado_no_se_sube_nada(self):
+        self.conv.pausado = True
+        self.conv.pausa_motivo = "Operativo suspendido"
+        self.conv.save(update_fields=["pausado", "pausa_motivo"])
+
+        resp = self._subir(b"una foto")
+
+        self.assertEqual(resp.status_code, 409, resp.data)
+        self.assertEqual(self.formulario.adjuntos.count(), 0)
+
+
+class VersionDelFormularioTests(_CampoBase):
+    """G1-16 · con qué versión del diseño capturó el teléfono.
+
+    La foto de la definición se guarda al **sincronizar**, no al capturar: entre
+    una cosa y la otra puede haber días y una edición del formulario en el medio.
+    El servidor acepta la versión como dato **opcional** —la app instalada no la
+    manda y el alta funciona igual— y, cuando viene y no coincide, lo deja
+    observado para el revisor.
+    """
+
+    def setUp(self):
+        super().setUp()
+        from programas.services.diseno import obtener_o_crear_diseno
+
+        self.rel.estado = Relevamiento.Estado.EN_CURSO
+        self.rel.save(update_fields=["estado", "modificado"])
+        # Sin diseño guardado la definición se sirve con `version = 0` y no hay
+        # dos versiones que comparar: el constructor es el que las numera.
+        self.diseno, _ = obtener_o_crear_diseno(self.conv)
+
+    def _alta(self, **extra):
+        return self.client.post(self.url, self._payload(**extra), format="json")
+
+    def _version_vigente(self):
+        """La versión que la app bajó en el detalle del relevamiento. Se relee el
+        relevamiento de la base: la instancia del test se armó antes del diseño."""
+        from programas.services.becas import definicion_formulario
+
+        return definicion_formulario(Relevamiento.objects.get(pk=self.rel.pk))["version"]
+
+    def test_la_app_instalada_no_manda_la_version_y_entra_igual(self):
+        """El contrato que no se puede romper: `Chaco-mobile@a66c2d3` no manda
+        esta clave."""
+        resp = self._alta()
+
+        self.assertEqual(resp.status_code, 201, resp.data)
+        formulario = Formulario.objects.get(pk=resp.data["id"])
+        self.assertIsNone(formulario.version_capturada)
+        self.assertNotIn("versión", formulario.observaciones_carga or "")
+
+    def test_la_version_que_manda_la_app_se_guarda_y_vuelve_en_la_respuesta(self):
+        vigente = self._version_vigente()
+
+        resp = self._alta(version_capturada=vigente)
+
+        self.assertEqual(resp.status_code, 201, resp.data)
+        self.assertEqual(resp.json()["version_capturada"], vigente)
+        formulario = Formulario.objects.get(pk=resp.data["id"])
+        self.assertEqual(formulario.version_capturada, vigente)
+        self.assertEqual(formulario.definicion["version"], vigente)
+        self.assertNotIn("versión", formulario.observaciones_carga or "")
+
+    def test_capturar_con_una_version_anterior_queda_observado(self):
+        """El caso de la ficha: el teléfono capturó con la v1, alguien editó el
+        formulario y la sincronización guarda la foto de la v2."""
+        vigente = self._version_vigente()
+        self.assertGreater(vigente, 0, "El diseño tiene que estar numerado para que haya algo que comparar.")
+
+        resp = self._alta(version_capturada=vigente - 1)
+
+        self.assertEqual(resp.status_code, 201, resp.data)
+        formulario = Formulario.objects.get(pk=resp.data["id"])
+        self.assertIn("versión", formulario.observaciones_carga)
+        self.assertIn(str(vigente), formulario.observaciones_carga)
+
+    def test_la_version_no_rechaza_la_carga(self):
+        """La captura ya existe: una versión distinta es una advertencia, nunca
+        un motivo para tirar trabajo de campo."""
+        resp = self._alta(version_capturada=99999)
+
+        self.assertEqual(resp.status_code, 201, resp.data)
+        self.assertEqual(Formulario.objects.get(pk=resp.data["id"]).version_capturada, 99999)
+
+    def test_una_version_que_no_es_una_version_se_rechaza(self):
+        """La columna es `IntegerField` **a propósito** (el positivo de Django se
+        escribe como `CHECK` y un `ADD COLUMN` con `CHECK` no admite
+        `ALGORITHM=INSTANT`): el mínimo lo sostienen el validador del modelo y el
+        `min_value` del serializer. Un negativo reventaría contra ese validador y
+        un texto, contra el ORM. El 400 sale antes."""
+        self.assertEqual(self._alta(version_capturada=-1).status_code, 400)
+        self.assertEqual(self._alta(version_capturada="hola").status_code, 400)
+        self.assertEqual(self.rel.formularios.count(), 0)
+
+    def test_una_version_mas_grande_que_la_columna_se_rechaza(self):
+        """El otro extremo del mismo `INT` con signo: sin tope en el serializer,
+        un `2**40` llega al `INSERT` y MariaDB en modo estricto lo contesta con un
+        `DataError` —un 500 para la app, que reintenta ocho veces un envío que no
+        va a entrar nunca—. El 400 también sale antes de tocar la base."""
+        self.assertEqual(self._alta(version_capturada=2**40).status_code, 400)
+        self.assertEqual(self._alta(version_capturada=2_147_483_647).status_code, 201)
+        self.assertEqual(self.rel.formularios.count(), 1)
 
 
 class GrupoCondicionadoTests(TestCase):

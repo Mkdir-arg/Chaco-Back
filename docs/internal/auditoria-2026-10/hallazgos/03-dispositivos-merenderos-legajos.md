@@ -47,7 +47,7 @@ aceptación de la v2** (README §7), con el test nombrado para que la task lo he
 | LEG-02 | Reinscribir con una inscripción no activa rompe `unique_together` | BAJA | CONF. test | Parchear v1 | 5 | S | ✅ |
 | LEG-05 | Subida múltiple de adjuntos no atómica | BAJA | CONF. test | Parchear v1 | 5 | S | ✅ |
 | LEG-06 | Código muerto de legajos y derivaciones sin dónde procesarse | BAJA | CONF. lectura | Parchear v1 | 7 | S | ⬜ |
-| G1c-17 | Difusión de alertas críticas es código muerto; channel layer InMemory fuera de prd | BAJA | CONF. lectura | Parchear v1 | 2 | S | ⬜✅ |
+| G1c-17 | Difusión de alertas críticas es código muerto; channel layer InMemory fuera de prd | BAJA | CONF. lectura | Parchear v1 | 2 | S | ✅ |
 
 ---
 

@@ -33,7 +33,7 @@ exige que coincidan).
 | PERF-18 | Ocupación de Dispositivos con `Count(distinct)` sobre camas × admisiones | BAJA | CONF. código | v2 (criterio) | S | ⬜ |
 | PERF-19 | «Último intento» sin índice y subconsulta evaluada dos veces | BAJA | CONF. ajustado | 4 | S | ⬜ |
 | G1c-11 | Admin: N+1 en listados | BAJA | CONF. lectura | 4 | S | ⬜ |
-| G3-03 | `alertas_websocket.js` cargado para todos, con 5 reintentos inútiles | BAJA | CONF. lectura | 2 | S | ⬜✅ |
+| G3-03 | `alertas_websocket.js` cargado para todos, con 5 reintentos inútiles | BAJA | CONF. lectura | 2 | S | ✅ |
 
 Refutado: **A4-15 / PERF-14** (GZip sobre xlsx): ver README §8.
 

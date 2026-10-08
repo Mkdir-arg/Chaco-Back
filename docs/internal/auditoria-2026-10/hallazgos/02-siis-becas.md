@@ -61,20 +61,20 @@ indicación.
 | BEC-16 | Constructor: mutaciones sin candado y `reconciliar` en cada request | BAJA | CONF. lectura | 3 | S |  ✅ |
 | BEC-17 | Pausar/reanudar con doble envío duplica eventos | BAJA | CONF. lectura | 3 | S |  ✅ |
 | BEC-18 | Fechas UTC en Python fuera de Dispositivos | BAJA | CONF. lectura | 3 | S |  ✅ |
-| BEC-19 | Redirect a `POST['next']` sin validar | BAJA | CONF. lectura | 2 | S | ⬜ |
+| BEC-19 | Redirect a `POST['next']` sin validar | BAJA | CONF. lectura | 2 | S | ✅ |
 | BEC-20 | Convocatoria acepta fin anterior al inicio | BAJA | CONF. lectura | 3 | S |  ✅ |
 | BEC-21 | El masivo selecciona casos no aprobables y no mira pausas | BAJA | CONF. lectura | 1 | S | ✅ |
-| BEC-23 | La solapa Becas del legajo muestra casos fuera de alcance | BAJA | CONF. ajustado (decisión) | 2 | S | ⬜ |
+| BEC-23 | La solapa Becas del legajo muestra casos fuera de alcance | BAJA | CONF. ajustado (decisión) | 2 | S | ✅ |
 | BEC-24 | Edición de contacto/apoderado en revisión no atómica | BAJA | CONF. lectura | 3 | S |  ✅ |
 | BEC-25 | `siguiente_nombre` calculado sin convocatoria y sin uso | BAJA | CONF. lectura | 7 | S | ⬜ |
 | G1-06 | Fecha de nacimiento ilegible de la app → caso sin legajo y bucle de 500 | BAJA | CONF. lectura | 3 | S | ✅ |
-| G1-07 | Adjuntos de la app sin idempotencia ni control de pertenencia | BAJA | CONF. lectura | 3 | S | ⬜ |
+| G1-07 | Adjuntos de la app sin idempotencia ni control de pertenencia | BAJA | CONF. lectura | 3 | S | ✅ |
 | G1-10 | Entre requisitos con el mismo destino gana el de mayor `orden` | BAJA | CONF. lectura | 1 | S | ✅ |
 | G1-11 | CUIL calculado aunque el caso tenga el real | BAJA | PLAUSIBLE | 3 | S | ✅ |
 | G1-12 | El padrón acepta fechas futuras o absurdas | BAJA | CONF. lectura | 3 | S | ✅ |
 | G1-13 | Personas: un 404 se informa como 502 | BAJA | CONF. lectura | 3 | S | ✅ |
 | G1-14 | El correo de resolución no deja registro | BAJA | CONF. lectura | 3 | S | ✅ |
-| G1-16 | Captura offline guardada con la foto del momento de sincronizar | BAJA | PLAUSIBLE | 3 | M | ⬜ |
+| G1-16 | Captura offline guardada con la foto del momento de sincronizar | BAJA | PLAUSIBLE | 3 | M | 🟡 |
 | G1c-15 | Cliente RENAPER: `Retry(total=0)` convierte un 503 en «error de conexión» | BAJA | CONF. test | 3 | S | ✅ |
 | G3-06 | `corregir_datos_siis` pisa `datos_siis` con copia leída fuera de la transacción | BAJA | PLAUSIBLE | 1 | S | ⬜✅ |
 | BEC-22 | Vencimientos: UPDATE por pk sin volver a filtrar estado | INFO (V2: BAJA) | CONF. lectura | 3 | S | ✅ |
@@ -670,6 +670,8 @@ la máquina, y el test distingue las dos fuentes corra donde corra.
 
 ### BEC-19 · Redirect a `POST['next']` sin validar
 **Severidad:** BAJA · **Origen:** A1-24, A5-27 · **Ola:** 2 · **Esfuerzo:** S
+
+**Resolución:** ✅ Resuelto en #626 (Cambio 177, Ola 2 PR 5), 08-oct-2026 — `_destino_seguro(request)` valida el `next` con `url_has_allowed_host_and_scheme` (host actual y `require_https` según la petición) y cae a `becas:convocatorias`. Lo usan las dos vistas que lo leían, `convocatoria_toggle_activo` y `convocatoria_reactivar`. **Test permanente:** `programas.tests.test_becas_vencimientos.ReactivacionTests.test_el_next_a_otro_sitio_no_se_obedece` (y `.test_el_next_a_otro_sitio_tampoco_al_reactivar`, más `.test_el_next_relativo_sigue_funcionando`, que es lo que el parámetro existe para hacer).
 - **Ubicación:** `programas/views/relevamientos.py:375`, `:384`, `:391`, `:401`, `:417` (`convocatoria_toggle_activo`, `convocatoria_reactivar`).
 - **Propuesta:** `url_has_allowed_host_and_scheme` (como `RelevamientoCreateView:693-695`) y fallback `"becas:convocatorias"`.
 - **Test:** `next=https://evil.com` → `/becas/convocatorias/`.
@@ -695,6 +697,8 @@ la máquina, y el test distingue las dos fuentes corra donde corra.
 
 ### BEC-23 · La solapa Becas del legajo muestra casos fuera del alcance del usuario
 **Severidad:** BAJA · **Estado:** CONFIRMADO-AJUSTADO (decisión) · **Origen:** A1-28, A5-32 · **Ola:** 2 · **Esfuerzo:** S · **Decisión:** D-B23
+
+**Resolución:** ✅ Resuelto en #626 (Cambio 177, Ola 2 PR 5), 08-oct-2026 — **DECISIÓN CLIENTE D-B23 aplicada:** `obtener_resumen_becas_ciudadano(ciudadano, user=None)` oculta los casos de relevamientos públicos a quien no tiene RN-P13 y muestra el resto, porque el legajo es transversal. Sin `user` se asume que **no** la tiene: el default es ocultar. Lo consumen las dos pantallas (la solapa standalone y la tab embebida del legajo), que ya tenían el usuario a mano. **Un desvío deliberado:** acá la capacidad se evalúa **sin acotar al Programa Becas** —a diferencia del resto del PR—, porque resolver el `Programa` en esta pantalla agrega una lectura y el presupuesto de `legajo_detalle` no tolera consultas duplicadas (`scripts/perf_budgets.json`); acotarla es parte del barrido de SEC-06/SEC-07, que es de otro PR de la misma ola. **Test permanente:** `programas.tests.test_solapa_becas.AlcanceTests.test_no_muestra_casos_publicos_sin_capacidad` (y la contracara con la capacidad, el default sin usuario y la vista por HTTP).
 - **Ubicación:** `programas/views/solapas_becas.py:14-17`, `:205-212` (solo `ciudadano.ver`); `programas/services/solapas.py:263-308`.
 - **Propuesta (default D-B23):** ocultar los casos de relevamientos públicos sin `CAP_RELEVAMIENTO_PUBLICO` (RN-P13) y mostrar el resto (el legajo es transversal).
 - **Test:** `test_solapas_becas.AlcanceTests.test_no_muestra_casos_publicos_sin_capacidad`.
@@ -725,6 +729,8 @@ la máquina, y el test distingue las dos fuentes corra donde corra.
 
 ### G1-07 · Adjuntos de la app sin idempotencia ni control de pertenencia
 **Severidad:** BAJA · **Origen:** G1-07 · **Ola:** 3 · **Esfuerzo:** S
+
+**Resolución:** ✅ Resuelto en #627 (Cambio 178), 08-oct-2026 — los tres puntos de la propuesta. (1) **Un archivo por campo de archivo del caso:** `programas/services/campo.py::guardar_adjunto` busca el adjunto que ese campo ya tenía y le **reemplaza** el archivo en vez de crear una fila más; el anterior se borra del almacenamiento con `transaction.on_commit`, nunca antes. El endpoint sigue respondiendo **201** —la app clasifica la subida por el código y un 200 que hoy no espera sería un cambio de contrato que pide release—, con el `id` del adjunto que vale. (2) **Pertenencia:** la referencia tiene que ser un campo `ARCHIVO` de la **foto del caso** (`formulario.definicion`; si todavía no la tiene, la definición vigente de su relevamiento), si no es 400. **Ajuste tras leer `Chaco-mobile@a66c2d3`:** la app instalada arma el formulario con las listas **planas** `globales`/`requisitos` (`mapDjangoRelevamientoDetail`), no con `items`, y las dos no coinciden siempre —un grupo del diseño acotado a otro canal saca sus campos de `items` pero no de la lista plana, y la foto del caso guarda solo `items`—. Como la cola de la app corta en el primer adjunto que falla (`syncRemoteBecasFormulario` marca el envío `PARCIAL` y no sigue), rechazar un archivo que el teléfono mostró dejaba además sin subir los de los campos siguientes. Por eso, si la referencia no está en la foto, se mira la lista plana vigente del relevamiento antes de rechazar. A qué caso se sube ya lo decidía `get_queryset` —solo los relevamientos del propio territorial—, y eso queda fijado con su test. (3) **`_adjuntos_por_clave` se queda con la más nueva:** el `ordering` del modelo es `-creado` y el bucle pisaba, así que ganaba la **primera subida**; el territorial que volvía a sacar la foto porque la primera salió movida seguía viendo la movida en la revisión. Importa aunque ya no se creen filas nuevas: producción tiene las de antes. **Dos cosas más allá de la ficha:** (a) **no** se agrega restricción única en la base, justamente porque producción ya tiene duplicados y no se podría crear sobre ellos —la unicidad la sostiene `guardar_adjunto` con `select_for_update`—; (b) el rechazo por tipo y por tamaño del archivo pasa a viajar también en `non_field_errors`: la app arma el mensaje con `detail`/`non_field_errors` y una foto de 6 MB le dejaba al territorial un «Error HTTP 400» sin decirle qué hacer. **La gracia de D-G04 no se toca:** `_captura_habilitada` sigue aceptando las fotos de una captura hecha en fecha aunque el relevamiento ya haya cerrado, que es la otra mitad de G1-04 —si las frenara, el caso entraría sin sus documentos y el revisor lo rechazaría por faltantes—. **Test permanente:** `programas/tests/test_app_de_campo.py::AdjuntosDeLaAppTests.test_un_reintento_de_la_app_no_duplica_el_adjunto` (y las otras 11 de esa clase, entre ellas `.test_un_campo_de_la_lista_plana_que_items_no_trae_se_acepta`, más `test_becas_api_contrato.py::ContratoAppDeCampoTests.test_el_adjunto_repetido_responde_201_y_no_duplica`, `.test_el_adjunto_se_sube_con_el_id_de_la_lista_plana` y `.test_el_400_del_adjunto_trae_el_motivo_en_non_field_errors`).
 - **Ubicación:** `programas/api/views.py:467-490`; `programas/api/serializers.py:193-216`; `programas/models/__init__.py:2696-2736`; `respuestas.py:316-324` (`_adjuntos_por_clave` se queda con el **más viejo**). El link público sí deduplica (`inscripcion_publica.py:191-201`).
 - **Propuesta:** si ya existe un adjunto del formulario para esa referencia, reemplazar el archivo (borrado con `transaction.on_commit`) o devolver 200 con el existente; validar que `pregunta_global`/`requisito_nativo` estén en `formulario.definicion` como `ARCHIVO`; en `_adjuntos_por_clave`, quedarse con el más nuevo.
 - **Test:** dos POST iguales → una fila; pregunta fuera de la foto → 400.
@@ -777,6 +783,8 @@ la máquina, y el test distingue las dos fuentes corra donde corra.
 
 ### G1-16 · Una captura offline se guarda con la foto de la definición del momento de sincronizar
 **Severidad:** BAJA · **Estado:** PLAUSIBLE · **Origen:** G1-16 · **Ola:** 3 · **Esfuerzo:** M
+
+**Resolución:** 🟡 Lado servidor resuelto en #627 (Cambio 178), 08-oct-2026; **falta el release de la app**. El servidor acepta `version_capturada` en el alta (`programas.0081`, columna nullable, expand puro) y, cuando viene y **no coincide** con la versión de la foto que el caso terminó guardando, deja la línea en `observaciones_carga`, que la revisión ya muestra desde G1-05. El dato es **opcional en los dos sentidos**: la app instalada (`Chaco-mobile@a66c2d3`) no lo manda ni lo lee, y el alta sin él responde 201 exactamente igual —lo fija `test_el_alta_sin_version_capturada_sigue_entrando`—. **Desvío de la ficha, code-first:** no se guarda «la foto de esa versión». La ficha ofrece dos caminos y el primero supone un **historial de versiones del diseño** que no existe: `DisenoFormulario.version` es un contador que `tocar()` incrementa, y de las versiones anteriores no queda nada en ninguna tabla, así que esa foto no se puede reconstruir ni para los casos ya cargados. Se aplica el segundo camino que la ficha deja escrito —«marca "capturado con otra versión del formulario"»—. **Pendiente de Mobile (no es de este repo):** que la app guarde la `version` que bajó en `GET /api/becas/relevamientos/<id>/` junto con la captura offline y la mande como `version_capturada` en el `POST …/formularios/`. Hasta que eso salga, la columna queda en `NULL` y no hay nada que comparar; el agujero que la ficha describe sigue abierto en producción. **Test permanente:** `programas/tests/test_app_de_campo.py::VersionDelFormularioTests.test_capturar_con_una_version_anterior_queda_observado` (y las otras 4 de esa clase, más `test_becas_api_contrato.py::ContratoAppDeCampoTests.test_el_alta_sin_version_capturada_sigue_entrando`).
 - **Ubicación:** `programas/services/respuestas.py:228-229`, `:129-160`, `:63-69` (el link compara huella; la app no manda versión).
 - **Propuesta:** la app manda la `version` con la que capturó (ya la recibe); si difiere, el servidor guarda la foto de esa versión (historial de versiones del diseño) o marca «capturado con otra versión del formulario». Requiere release de la app.
 - **Test:** alta con `version` anterior → caso marcado.

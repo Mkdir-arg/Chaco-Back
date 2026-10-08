@@ -46,7 +46,14 @@ from programas.models import (
     TipoCampo,
     ValidacionSIS,
 )
-from programas.services.autorizacion import convocatorias_visibles, puede_gestionar_segmento
+from programas.services.autorizacion import (
+    assert_alcance_formulario,
+    assert_alcance_relevamiento,
+    convocatorias_visibles,
+    programa_becas,
+    puede_relevamiento_publico,
+    sin_formularios_publicos_si_no_puede,
+)
 from programas.services.avisos_resolucion import CAMPO_TRAZA_AVISO, enviar_aviso_resolucion, resultado_vigente
 from programas.services.becas import registrar_traza, resolver_ciudadano_offline
 from programas.services.cupo import (
@@ -64,7 +71,7 @@ from programas.services.siis import SiisCatalogError, catalogo, funciones_progra
 from programas.services.siis_envio import Catalogos, enviar_beneficiario_a_siis, mensaje_envio, provincia_de
 from programas.services.validacion_siis import validar_formulario_en_siis
 from programas.views.cupo import CAP_BENEFICIARIO_VER, CAP_CUPO_VER
-from programas.views.relevamientos import CAP_RELEVAMIENTO_PUBLICO, PaginadorConConteo
+from programas.views.relevamientos import PaginadorConConteo
 
 logger = logging.getLogger(__name__)
 
@@ -211,18 +218,6 @@ def _pagina_hidratada(pks, orden, duplicados=True, espera=False):
     return _marcar_en_espera_activa(pagina) if espera else pagina
 
 
-def _assert_scope_relevamiento(request, relevamiento):
-    # RN-P13: sin la capacidad, un relevamiento público no existe para el usuario
-    # (tampoco para mutarlo por URL).
-    if relevamiento.es_publico and not puede(request.user, CAP_RELEVAMIENTO_PUBLICO):
-        raise PermissionDenied("No tiene acceso a este relevamiento.")
-    if (
-        not puede_gestionar_segmento(request.user, relevamiento.segmento)
-        or not convocatorias_visibles(request.user).filter(pk=relevamiento.convocatoria_id).exists()
-    ):
-        raise PermissionDenied("No tiene acceso a este relevamiento.")
-
-
 def _detalles_envio_siis(envio):
     """``[(campo, mensaje)]`` del intento: SIIS devuelve una lista por campo y
     los faltantes locales una frase suelta."""
@@ -235,20 +230,14 @@ def _detalles_envio_siis(envio):
     ]
 
 
-def _assert_scope_formulario(request, formulario):
-    if formulario.relevamiento.es_publico and not puede(request.user, CAP_RELEVAMIENTO_PUBLICO):
-        raise PermissionDenied("No tiene acceso a este formulario.")
-    if (
-        not puede_gestionar_segmento(request.user, formulario.relevamiento.segmento)
-        or not convocatorias_visibles(request.user).filter(pk=formulario.relevamiento.convocatoria_id).exists()
-    ):
-        raise PermissionDenied("No tiene acceso a este formulario.")
+def _puede_publico(user):
+    """RN-P13 con el alcance del Programa Becas (la regla vive en ``services.autorizacion``)."""
+    return puede_relevamiento_publico(user, programa=programa_becas(user))
 
 
-def _sin_formularios_publicos_si_no_puede(qs, user):
-    if puede(user, CAP_RELEVAMIENTO_PUBLICO):
-        return qs
-    return qs.exclude(relevamiento__tipo=Relevamiento.Tipo.PUBLICO)
+def _sin_publicos(qs, user):
+    """RN-P13 sobre un queryset de ``Formulario`` de estas bandejas."""
+    return sin_formularios_publicos_si_no_puede(qs, user, programa=programa_becas(user))
 
 
 def _informar_a_siis(formulario, user):
@@ -412,7 +401,7 @@ class RevisionPersonasListView(CapacidadRequeridaMixin, LoginRequiredMixin, List
         # y corta en la página (0,1 ms). La exclusión de los públicos también baja al
         # relevamiento, así ni la página ni el conteo hacen join.
         relevamientos = Relevamiento.objects.filter(convocatoria__in=convocatorias_visibles(self.request.user))
-        if not puede(self.request.user, CAP_RELEVAMIENTO_PUBLICO):
+        if not _puede_publico(self.request.user):
             relevamientos = relevamientos.exclude(tipo=Relevamiento.Tipo.PUBLICO)
         relevamiento_ids = list(relevamientos.values_list("pk", flat=True))
         # Solo el pk: la fila entera se lee una vez, en la hidratación. Proyectando todas
@@ -438,7 +427,7 @@ class RevisionPersonasListView(CapacidadRequeridaMixin, LoginRequiredMixin, List
         # El contador vive dentro del mismo ``{% if %}`` de la plantilla: para quien no
         # administra el programa, contarlo es un COUNT de toda la tabla al pedo.
         if ctx["puede_revalidar_renaper"]:
-            ctx["pendientes_renaper"] = _sin_formularios_publicos_si_no_puede(
+            ctx["pendientes_renaper"] = _sin_publicos(
                 Formulario.objects.filter(validado_renaper=False),
                 self.request.user,
             ).count()
@@ -456,7 +445,7 @@ class RenaperPendientesListView(CapacidadRequeridaMixin, LoginRequiredMixin, Lis
         # Igual que la bandeja de personas: la página se elige sin joins de
         # presentación y se hidrata después (ver ``_pagina_hidratada``).
         queryset = Formulario.objects.filter(validado_renaper=False).only("pk")
-        queryset = _sin_formularios_publicos_si_no_puede(queryset, self.request.user)
+        queryset = _sin_publicos(queryset, self.request.user)
         if self.request.GET.get("fecha"):
             fecha = parse_date(self.request.GET["fecha"])
             if fecha:
@@ -496,7 +485,7 @@ class RenaperPendientesListView(CapacidadRequeridaMixin, LoginRequiredMixin, Lis
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         base = Formulario.objects.filter(validado_renaper=False)
-        base = _sin_formularios_publicos_si_no_puede(base, self.request.user)
+        base = _sin_publicos(base, self.request.user)
         context["territoriales"] = self.territoriales_pendientes(base)
         # Por relevamiento, no por formulario: filtrar por ``formularios__in=base`` compila
         # a un self-join de programas_formulario consigo misma para leer una columna que el
@@ -514,7 +503,7 @@ class RenaperPendientesListView(CapacidadRequeridaMixin, LoginRequiredMixin, Lis
 @requiere(CAP_REVISION_VER)
 def revision_formularios(request, relevamiento_pk):
     relevamiento = get_object_or_404(Relevamiento.objects.select_related("convocatoria__segmento"), pk=relevamiento_pk)
-    _assert_scope_relevamiento(request, relevamiento)
+    assert_alcance_relevamiento(request.user, relevamiento)
 
     # Por el manager del modelo, no por ``relevamiento.formularios``: el manager
     # relacionado empareja cada fila con el relevamiento leyendo ``relevamiento_id``, que
@@ -630,7 +619,7 @@ def formulario_detalle(request, pk):
         .annotate(posicion_espera=Subquery(_espera_activa(OuterRef("pk")).values("posicion")[:1])),
         pk=pk,
     )
-    _assert_scope_formulario(request, formulario)
+    assert_alcance_formulario(request.user, formulario)
     # Solo un caso pendiente está «en espera»: uno rechazado con su fila vieja no.
     posicion_espera = formulario.posicion_espera if formulario.estado == Formulario.Estado.ENVIADO else None
 
@@ -811,7 +800,7 @@ def formulario_validar_sis(request, pk):
     formulario = get_object_or_404(
         Formulario.objects.select_related("ciudadano", "relevamiento__convocatoria__segmento__programa"), pk=pk
     )
-    _assert_scope_formulario(request, formulario)
+    assert_alcance_formulario(request.user, formulario)
     if request.method != "POST":
         return redirect(_url_caso(request, formulario))
 
@@ -845,7 +834,7 @@ def formulario_reenviar_aviso(request, pk):
     formulario = get_object_or_404(
         Formulario.objects.select_related("relevamiento__convocatoria__segmento", "ciudadano"), pk=pk
     )
-    _assert_scope_formulario(request, formulario)
+    assert_alcance_formulario(request.user, formulario)
     resultado = resultado_vigente(formulario, en_espera=_espera_activa(formulario).exists())
     if not resultado:
         messages.error(request, "El caso todavía no está resuelto: no hay aviso que reenviar.")
@@ -875,7 +864,7 @@ def formulario_enviar_siis(request, pk):
     formulario = get_object_or_404(
         Formulario.objects.select_related("relevamiento__convocatoria__segmento__programa", "ciudadano"), pk=pk
     )
-    _assert_scope_formulario(request, formulario)
+    assert_alcance_formulario(request.user, formulario)
     if formulario.estado != Formulario.Estado.APROBADO:
         messages.error(request, "Solo se informan a SIIS los casos aprobados.")
     else:
@@ -891,7 +880,7 @@ def formulario_datos_siis(request, pk):
     """Guarda las correcciones para SIIS en ``datos_siis`` con traza. **No envía**:
     el coordinador revisa el resultado y después reenvía."""
     formulario = get_object_or_404(Formulario, pk=pk)
-    _assert_scope_formulario(request, formulario)
+    assert_alcance_formulario(request.user, formulario)
     form = DatosSiisForm(request.POST, actuales=formulario.datos_siis)
     if not form.is_valid():
         # ALR-8: era un aviso flotante por cada campo con error, encimados. Va uno
@@ -981,7 +970,7 @@ def siis_funciones_json(request):
 @requiere(CAP_REVALIDAR_RENAPER)
 def formulario_actualizar_genero(request, pk):
     formulario = get_object_or_404(Formulario.objects.select_related("ciudadano"), pk=pk)
-    _assert_scope_formulario(request, formulario)
+    assert_alcance_formulario(request.user, formulario)
     if request.method != "POST":
         return redirect(_url_caso(request, formulario))
     if formulario.ciudadano is None:
@@ -1022,7 +1011,7 @@ def formulario_actualizar_genero(request, pk):
 @requiere(CAP_REVISION_EDITAR)
 def formulario_aprobar(request, pk):
     formulario = get_object_or_404(Formulario.objects.select_related("relevamiento__convocatoria__segmento"), pk=pk)
-    _assert_scope_formulario(request, formulario)
+    assert_alcance_formulario(request.user, formulario)
     if request.method == "POST":
         if _tiene_conflicto_duplicado_pendiente(formulario):
             messages.error(request, "Primero debés resolver el conflicto de cargas duplicadas.")
@@ -1099,7 +1088,7 @@ def formulario_aprobar(request, pk):
 @requiere(CAP_REVISION_EDITAR)
 def formulario_resolver_duplicado(request, pk):
     formulario = get_object_or_404(Formulario, pk=pk, conflicto_duplicado=True)
-    _assert_scope_formulario(request, formulario)
+    assert_alcance_formulario(request.user, formulario)
     if request.method != "POST" or formulario.conflicto_resuelto:
         return redirect(_url_caso(request, formulario))
 
@@ -1167,7 +1156,7 @@ def formulario_resolver_duplicado(request, pk):
 @requiere(CAP_REVISION_EDITAR)
 def formulario_rechazar(request, pk):
     formulario = get_object_or_404(Formulario.objects.select_related("relevamiento__convocatoria__segmento"), pk=pk)
-    _assert_scope_formulario(request, formulario)
+    assert_alcance_formulario(request.user, formulario)
     if request.method == "POST":
         if _tiene_conflicto_duplicado_pendiente(formulario):
             messages.error(request, "Primero debés resolver el conflicto de cargas duplicadas.")
@@ -1249,7 +1238,7 @@ def formulario_rechazar(request, pk):
 @requiere(CAP_REVALIDAR_RENAPER)
 def formulario_revalidar_renaper(request, pk):
     formulario = get_object_or_404(Formulario.objects.select_related("ciudadano"), pk=pk)
-    _assert_scope_formulario(request, formulario)
+    assert_alcance_formulario(request.user, formulario)
     if request.method != "POST":
         return redirect(_url_caso(request, formulario))
     if not gran_base_activa():
@@ -1320,7 +1309,7 @@ def formulario_validar_padron(request, pk):
     subir el padrón, para un caso puntual: sirve cuando el padrón se corrigió
     después, o cuando la Gran Base está apagada y el caso entró como manual."""
     formulario = get_object_or_404(Formulario.objects.select_related("ciudadano", "relevamiento__convocatoria"), pk=pk)
-    _assert_scope_formulario(request, formulario)
+    assert_alcance_formulario(request.user, formulario)
     if request.method != "POST":
         return redirect(_url_caso(request, formulario))
     if formulario.validado_renaper:
@@ -1380,7 +1369,7 @@ def formulario_forzar_identidad(request, pk):
     devuelto la fuente.
     """
     formulario = get_object_or_404(Formulario.objects.select_related("ciudadano"), pk=pk)
-    _assert_scope_formulario(request, formulario)
+    assert_alcance_formulario(request.user, formulario)
     if request.method != "POST":
         return redirect(_url_caso(request, formulario))
     if formulario.validado_renaper:
@@ -1435,7 +1424,7 @@ ESTADOS_TERMINABLES = (Relevamiento.Estado.FINALIZADO, Relevamiento.Estado.EN_RE
 @requiere(CAP_REVISION_EDITAR)
 def relevamiento_terminar(request, pk):
     rel = get_object_or_404(Relevamiento.objects.select_related("convocatoria__segmento"), pk=pk)
-    _assert_scope_relevamiento(request, rel)
+    assert_alcance_relevamiento(request.user, rel)
     if request.method == "POST":
         if rel.estado not in ESTADOS_TERMINABLES:
             messages.error(request, "Solo se puede terminar un relevamiento finalizado o en revisión.")

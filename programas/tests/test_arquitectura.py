@@ -2,21 +2,23 @@
 
 Dos cosas que hoy están mal y que no se pueden arreglar de un saque:
 
-1. **Cinco ciclos de import.** Ninguno revienta porque en cada uno hay al menos un
+1. **Ciclos de import.** Ninguno revienta porque en cada uno hay al menos un
    import **diferido** (adentro de una función) que lo sostiene. Una «limpieza de
    imports» que suba ese import al encabezado —el tipo de cambio que nadie revisa dos
    veces— deja el proyecto sin arrancar.
-2. **Nueve aristas de una vista a otra** en `programas/views/`. No son un error: son el
-   síntoma de que hay helpers compartidos viviendo en el módulo equivocado. Lo
-   silencioso es que SEC-21 (Ola 2) va a mover `_assert_scope_formulario` a
-   `autorizacion.py`, que ya está en un ciclo, y nadie se lo señalaría.
+2. **Aristas de una vista a otra** en `programas/views/`. No son un error: son el
+   síntoma de que hay helpers compartidos viviendo en el módulo equivocado.
 
-Por eso **no** se escribe «ninguna vista importa de otra»: ese test falla en nueve
-lugares desde el día uno y termina apagado. Lo que se escribe es un techo: lo medido
-hoy queda fijo y solo puede bajar. Bajarlo cuesta sacar la entrada de la lista, que es
-exactamente el registro que la Ola 2 tiene que dejar.
+El PR 5 de la Ola 2 bajó los dos techos: las aristas vista→vista pasaron de nueve a
+siete y los ciclos de seis a cinco, moviendo los guards de alcance, el filtro de
+RN-P13 y `_programas_qs` a `services/`. Bajarlos es lo que el ratchet mide en la otra
+dirección: una entrada que ya no existe tiene que salir de la lista en el mismo PR.
 
-El tercer cabo de la ficha —el mismo invariante de alcance escrito tres veces y dos
+Por eso **no** se escribe «ninguna vista importa de otra»: ese test fallaba en nueve
+lugares desde el día uno y lo habrían apagado. Lo que se escribe es un techo: lo medido
+hoy queda fijo y solo puede bajar.
+
+El tercer cabo de la ficha —el invariante de alcance escrito tres veces y dos
 `_assert_scope` con semánticas distintas— lo fija `GuardsDeAlcanceTests`.
 """
 
@@ -49,8 +51,8 @@ APPS = (
 CICLOS_CONOCIDOS = {
     # `_alcance_requisito` y `_campo_dict`, privados que cada uno le pide al otro.
     ("programas.services.becas", "programas.services.diseno"),
-    # `_programas_qs` vive en la vista de Configuración y lo usa el dashboard.
-    ("programas.views.configuracion", "programas.views.dashboard_becas"),
+    # El ciclo `views.configuracion ↔ views.dashboard_becas` lo cerró la Ola 2 (PR 5):
+    # `_programas_qs` pasó a `services.autorizacion.programas_siis_visibles`.
     # `_roles_asignables_queryset`, que el form le pide al selector y viceversa.
     ("users.forms", "users.selectors.usuarios"),
     # El modelo le pide al servicio de inscripciones (diferido en el modelo).
@@ -68,12 +70,15 @@ CICLOS_CONOCIDOS = {
 # Aristas vista→vista de `programas/views/`, medidas hoy. `ajax_utils` queda exento:
 # es un helper compartido a propósito, no un acoplamiento accidental.
 EXENTOS = {"ajax_utils"}
+#
+# Siete: la Ola 2 (PR 5) bajó el techo de nueve a siete. `dashboard_becas →
+# configuracion` se fue con `_programas_qs` (hoy `autorizacion.programas_siis_visibles`)
+# y `pausas → relevamientos` con `CAP_RELEVAMIENTO_PUBLICO` (hoy en `autorizacion`).
+# `revision → relevamientos` sobrevive por `PaginadorConConteo`, que es otra ficha.
 ARISTAS_CONOCIDAS = {
     ("admisiones", "dispositivos_legajo"),
     ("configuracion", "dashboard_becas"),
     ("configuracion", "diseno"),
-    ("dashboard_becas", "configuracion"),
-    ("pausas", "relevamientos"),
     ("reportes", "dispositivos_legajo"),
     ("reportes", "merenderos"),
     ("revision", "cupo"),
@@ -270,54 +275,81 @@ class CapasTests(SimpleTestCase):
         self.assertEqual(EXENTOS, {"ajax_utils"})
 
 
-class GuardsDeAlcanceTests(SimpleTestCase):
-    """El mismo invariante de alcance, escrito en tres lugares, más dos homónimos.
+class CeldaSeguraTests(SimpleTestCase):
+    """`celda_segura` es transversal y vive en `core` (revisión de la ronda 1 del #626).
 
-    `relevamientos._assert_scope`, `revision._assert_scope_relevamiento` y
-    `revision._assert_scope_formulario` comprueban lo mismo —relevamiento público sin
-    la capacidad, segmento gestionable, convocatoria visible— con tres cuerpos
-    distintos. Y hay **dos** funciones llamadas `_assert_scope` con semánticas
-    diferentes: la de `relevamientos` mira un relevamiento, la de `configuracion` mira
-    un segmento. Leer una por la otra es gratis.
-
-    SEC-21 (Ola 2, PR 5) unifica esto en `autorizacion.assert_alcance_relevamiento` /
-    `assert_alcance_formulario` y renombra `configuracion._assert_scope` a
-    `_assert_scope_segmento`. Hasta entonces, este test deja escrito dónde está cada
-    copia: cuando se muevan, se pone rojo y hay que actualizarlo, que es justamente el
-    aviso que la ficha pide que nadie se pierda.
+    `legajos/views/ciudadanos.py` y `legajos/views/dashboard_simple.py` importaban
+    `programas.services.exportacion_reportes` **solo** por esta función: dos CSV que no
+    tienen nada que ver con Becas quedaban colgados del paquete de Becas. En `programas`
+    queda la re-exportación, que es lo que usan sus propias vistas y sus tests.
     """
 
-    def test_las_tres_copias_del_guard_siguen_donde_estaban(self):
-        from programas.views import relevamientos, revision
+    def test_la_definicion_vive_en_core(self):
+        from core.exportacion import celda_segura
+        from programas.services import exportacion_reportes
 
-        self.assertTrue(callable(relevamientos._assert_scope))
-        self.assertTrue(callable(revision._assert_scope_relevamiento))
-        self.assertTrue(callable(revision._assert_scope_formulario))
+        self.assertIs(exportacion_reportes.celda_segura, celda_segura)
+        self.assertEqual(celda_segura.__module__, "core.exportacion")
 
-    def test_hay_dos_assert_scope_con_semanticas_distintas(self):
-        from programas.views import configuracion, relevamientos
+    def test_legajos_no_importa_el_paquete_de_becas_por_una_celda(self):
+        aristas = _grafo_de_imports()
+        destino = "programas.services.exportacion_reportes"
 
-        self.assertIsNot(configuracion._assert_scope, relevamientos._assert_scope)
-        # El segundo parámetro dice qué mira cada una: ahí está el homónimo peligroso.
-        self.assertEqual(configuracion._assert_scope.__code__.co_varnames[1], "segmento")
-        self.assertEqual(relevamientos._assert_scope.__code__.co_varnames[1], "relevamiento")
+        culpables = sorted(origen for origen, otro in aristas if otro == destino and origen.startswith("legajos."))
 
-    def test_el_filtro_de_publicos_esta_duplicado_entre_dos_vistas(self):
-        """`_sin_formularios_publicos_si_no_puede` está escrita dos veces, con el mismo
-        efecto y distinto camino a la capacidad. Se unifica con el resto en SEC-21."""
-        from programas.views import relevamientos, revision
-
-        self.assertIsNot(
-            relevamientos._sin_formularios_publicos_si_no_puede,
-            revision._sin_formularios_publicos_si_no_puede,
+        self.assertEqual(
+            culpables, [], f"importan `{destino}`: {culpables}. `celda_segura` está en `core.exportacion`."
         )
 
+
+class GuardsDeAlcanceTests(SimpleTestCase):
+    """El invariante de alcance, ahora en un solo lugar (SEC-21 + RED-79, Ola 2 PR 5).
+
+    Estaba escrito tres veces —`relevamientos._assert_scope`,
+    `revision._assert_scope_relevamiento` y `revision._assert_scope_formulario`, tres
+    cuerpos para la misma regla— y había **dos** funciones `_assert_scope` con
+    semánticas distintas (una miraba un relevamiento, la otra un segmento). Hoy la
+    regla vive en `services.autorizacion` y las vistas la llaman.
+
+    Este test es la otra mitad del ratchet: si alguien vuelve a escribir una copia
+    privada en una vista, acá queda registrado que no debería estar.
+    """
+
+    def test_el_guard_vive_en_autorizacion_y_las_vistas_no_tienen_copia(self):
+        from programas.services import autorizacion
+        from programas.views import configuracion, cupo, relevamientos, revision
+
+        self.assertTrue(callable(autorizacion.assert_alcance_relevamiento))
+        self.assertTrue(callable(autorizacion.assert_alcance_formulario))
+        for modulo in (relevamientos, revision, configuracion, cupo):
+            for nombre in ("_assert_scope", "_assert_scope_relevamiento", "_assert_scope_formulario"):
+                with self.subTest(modulo=modulo.__name__, funcion=nombre):
+                    self.assertFalse(hasattr(modulo, nombre))
+
+    def test_el_homonimo_peligroso_quedo_con_nombre_propio(self):
+        """`configuracion._assert_scope` miraba un segmento y se leía igual que el de
+        relevamientos, que miraba un relevamiento."""
+        from programas.views import configuracion
+
+        self.assertEqual(configuracion._assert_scope_segmento.__code__.co_varnames[1], "segmento")
+
+    def test_el_filtro_de_publicos_tiene_un_solo_dueno(self):
+        """Estaba escrito dos veces, con el mismo efecto y distinto camino a la capacidad."""
+        from programas.services import autorizacion
+        from programas.views import relevamientos, revision
+
+        self.assertTrue(callable(autorizacion.sin_formularios_publicos_si_no_puede))
+        self.assertFalse(hasattr(relevamientos, "_sin_formularios_publicos_si_no_puede"))
+        self.assertFalse(hasattr(relevamientos, "_sin_publicos_si_no_puede"))
+        self.assertFalse(hasattr(revision, "_sin_formularios_publicos_si_no_puede"))
+
     def test_la_constante_de_la_capacidad_publica_tiene_un_solo_dueno(self):
-        """`CAP_RELEVAMIENTO_PUBLICO` la define `relevamientos` y la importan `pausas` y
-        `revision`: dos de las nueve aristas. Mover la constante a `autorizacion.py`
-        (Ola 2) las borra a las dos."""
+        """`CAP_RELEVAMIENTO_PUBLICO` la definía `relevamientos` y la importaban `pausas`
+        y `revision`: dos de las nueve aristas vista→vista. Hoy es de `autorizacion`."""
+        from programas.services import autorizacion
         from programas.views import pausas, relevamientos, revision
 
-        self.assertEqual(relevamientos.CAP_RELEVAMIENTO_PUBLICO, "becas.relevamiento.publico")
-        self.assertIs(pausas.CAP_RELEVAMIENTO_PUBLICO, relevamientos.CAP_RELEVAMIENTO_PUBLICO)
-        self.assertIs(revision.CAP_RELEVAMIENTO_PUBLICO, relevamientos.CAP_RELEVAMIENTO_PUBLICO)
+        self.assertEqual(autorizacion.CAP_RELEVAMIENTO_PUBLICO, "becas.relevamiento.publico")
+        for modulo in (relevamientos, pausas, revision):
+            with self.subTest(modulo=modulo.__name__):
+                self.assertFalse(hasattr(modulo, "CAP_RELEVAMIENTO_PUBLICO"))

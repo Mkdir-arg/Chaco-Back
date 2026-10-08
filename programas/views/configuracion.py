@@ -3,9 +3,10 @@
 Acceso granular por entidad (ver/crear/editar de Segmento, Subsegmento,
 Requisito nativo, Pregunta global y Coordinador). La mutación de la estructura
 de un segmento existente (subsegmento, requisito, coordinador) queda además
-acotada por :func:`puede_gestionar_segmento` — así, si en el futuro se le
+acotada por :func:`puede_configurar_segmento` — así, si en el futuro se le
 otorgan estas capacidades a un rol no-admin, solo puede operar sobre los
-segmentos que tiene asignados.
+segmentos que tiene asignados, y el Coordinador Regional —cuyo alcance es el
+subsegmento— no configura el segmento que lo contiene (SEC-30).
 """
 
 import json
@@ -53,7 +54,8 @@ from programas.services.autorizacion import (
     SegmentoScopedMixin,
     es_admin_becas,
     es_coordinador_regional_becas,
-    puede_gestionar_segmento,
+    programas_siis_visibles,
+    puede_configurar_segmento,
     puede_operar_subsegmento,
     requisitos_visibles,
     segmentos_visibles,
@@ -78,9 +80,16 @@ CAP_COORDINADOR_CREAR = "becas.coordinador.crear"
 CAP_COORDINADOR_EDITAR = "becas.coordinador.editar"
 
 
-def _assert_scope(request, segmento):
-    """403 si el usuario no puede gestionar el ``segmento`` (ver ``SegmentoScopedMixin``)."""
-    if not puede_gestionar_segmento(request.user, segmento):
+def _assert_scope_segmento(request, segmento):
+    """403 si el usuario no puede **configurar** el ``segmento``.
+
+    Se llamaba ``_assert_scope``, igual que el guard de relevamientos de otra vista y
+    con otra semántica (RED-79). Y chequeaba ``puede_gestionar_segmento``, que para el
+    Coordinador Regional es verdadero sobre todo segmento que contenga un subsegmento
+    suyo: con eso configuraba requisitos, subsegmentos y coordinadores de sus pares
+    (SEC-30). Lo que sí es suyo pasa por ``_assert_scope_subsegmento``.
+    """
+    if not puede_configurar_segmento(request.user, segmento):
         raise PermissionDenied("No tiene acceso a este segmento.")
 
 
@@ -101,16 +110,6 @@ def _segmentos_qs(user):
         .prefetch_related("asignaciones_coordinador__coordinador")
         .order_by("nombre")
     )
-
-
-def _programas_qs(user):
-    """Programas SIIS que el usuario puede ver: todos para el admin; para el
-    resto, los que contienen alguno de sus segmentos visibles."""
-    if es_admin_becas(user):
-        base = ProgramaSiis.objects.all()
-    else:
-        base = ProgramaSiis.objects.filter(segmentos__in=segmentos_visibles(user)).distinct()
-    return base.annotate(n_segmentos=Count("segmentos", distinct=True)).order_by("nombre")
 
 
 def _resumen_errores(form, encabezado):
@@ -210,7 +209,7 @@ class ProgramaSiisListView(CapacidadRequeridaMixin, LoginRequiredMixin, ListView
     context_object_name = "programas"
 
     def get_queryset(self):
-        return _programas_qs(self.request.user)
+        return programas_siis_visibles(self.request.user)
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
@@ -252,7 +251,7 @@ class ProgramaSiisDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, Detail
 
     def get_object(self, queryset=None):
         obj = super().get_object(queryset)
-        if not _programas_qs(self.request.user).filter(pk=obj.pk).exists():
+        if not programas_siis_visibles(self.request.user).filter(pk=obj.pk).exists():
             raise PermissionDenied("No tiene acceso a este programa.")
         return obj
 
@@ -298,7 +297,7 @@ class ProgramaSiisDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, Detail
 def programa_identificadores_siis(request, pk):
     """Guarda los identificadores del alta de beneficiarios en SIIS (Cambio 82)."""
     programa = get_object_or_404(ProgramaSiis, pk=pk)
-    if not _programas_qs(request.user).filter(pk=programa.pk).exists():
+    if not programas_siis_visibles(request.user).filter(pk=programa.pk).exists():
         raise PermissionDenied("No tiene acceso a este programa.")
     form = ProgramaSiisIdentificadoresForm(request.POST, instance=programa)
     if form.is_valid():
@@ -450,7 +449,7 @@ def segmento_toggle_activo(request, pk):
     if request.method != "POST":
         return redirect("becas:segmentos")
     seg = get_object_or_404(Segmento, pk=pk)
-    _assert_scope(request, seg)
+    _assert_scope_segmento(request, seg)
     seg.activo = not seg.activo
     seg.save(update_fields=["activo", "modificado"])
     messages.success(request, f"Segmento {'activado' if seg.activo else 'desactivado'}.")
@@ -464,7 +463,7 @@ def segmento_toggle_activo(request, pk):
 @requiere(CAP_SUBSEGMENTO_CREAR)
 def subsegmento_crear(request, segmento_pk):
     segmento = get_object_or_404(Segmento, pk=segmento_pk)
-    _assert_scope(request, segmento)
+    _assert_scope_segmento(request, segmento)
     if request.method == "POST":
         form = SubsegmentoForm(request.POST, segmento=segmento)
         if form.is_valid():
@@ -614,7 +613,7 @@ def subsegmento_eliminar(request, pk):
 @requiere(CAP_COORDINADOR_CREAR)
 def coordinador_asignar(request, segmento_pk):
     segmento = get_object_or_404(Segmento, pk=segmento_pk)
-    _assert_scope(request, segmento)
+    _assert_scope_segmento(request, segmento)
     if request.method == "POST":
         form = AsignacionCoordinadorForm(request.POST, segmento=segmento)
         if form.is_valid():
@@ -632,7 +631,7 @@ def coordinador_asignar(request, segmento_pk):
 @requiere(CAP_COORDINADOR_EDITAR)
 def coordinador_desasignar(request, pk):
     asignacion = get_object_or_404(AsignacionCoordinador, pk=pk)
-    _assert_scope(request, asignacion.segmento)
+    _assert_scope_segmento(request, asignacion.segmento)
     segmento_pk = asignacion.segmento_id
     if request.method == "POST":
         asignacion.delete()
@@ -672,11 +671,16 @@ def requisito_programa_crear(request, programa_pk):
 @requiere(CAP_REQUISITO_CREAR)
 def requisito_crear(request, segmento_pk):
     segmento = get_object_or_404(Segmento, pk=segmento_pk)
-    _assert_scope(request, segmento)
     subsegmento = None
     sub_pk = request.GET.get("subsegmento") or request.POST.get("subsegmento")
     if sub_pk:
         subsegmento = get_object_or_404(Subsegmento, pk=sub_pk, segmento=segmento)
+    # SEC-30: con subsegmento el alcance es **ese** subsegmento; sin él, el requisito
+    # es del segmento entero y el Coordinador Regional no lo configura.
+    if subsegmento is not None:
+        _assert_scope_subsegmento(request, subsegmento)
+    else:
+        _assert_scope_segmento(request, segmento)
     if request.method == "POST":
         form = RequisitoNativoForm(request.POST, segmento=segmento, subsegmento=subsegmento)
         if form.is_valid():
@@ -703,10 +707,17 @@ def requisito_crear(request, segmento_pk):
 
 
 def _assert_scope_requisito(request, req):
-    """Scope según el ancla: segmento/subsegmento → gestión del segmento;
-    programa → solo el Administrador del programa."""
-    if req.segmento_id:
-        _assert_scope(request, req.segmento)
+    """Scope según el ancla: subsegmento → **ese** subsegmento; segmento →
+    configuración del segmento; programa → solo el Administrador del programa.
+
+    SEC-30: un requisito de subsegmento se validaba contra el segmento, así que al
+    Coordinador Regional con ``becas.requisito.editar`` tildado le alcanzaba para
+    borrar el requisito del subsegmento de un par.
+    """
+    if req.subsegmento_id:
+        _assert_scope_subsegmento(request, req.subsegmento)
+    elif req.segmento_id:
+        _assert_scope_segmento(request, req.segmento)
     elif not es_admin_becas(request.user):
         raise PermissionDenied("Solo el Administrador del programa puede configurar sus requisitos.")
 

@@ -91,6 +91,8 @@ los objetos de `page_obj.object_list`, `estados` (choices), `estado_actual`, `pu
 
 - Sin filtros: se omite el `<form>` entero (y el estado vacío con filtros).
 - Sin acción de alta: el `page_header` sin cuerpo. Acción secundaria: `btn-nodo btn-tertiary btn-base`.
+  Cada acción del encabezado, también la secundaria, se dibuja solo si la vista resolvió su capacidad (p. ej. «Exportar
+  CSV» con `ciudadano.exportar` en `legajos/templates/legajos/ciudadano_list.html`, SEC-20).
 - Varias acciones por fila: varias `.nodo-icon-btn` en la misma celda; la destructiva con
   `.nodo-icon-btn--danger` + `data-confirm-url` (arquetipo Confirmación).
 - Columna con enlace a otra entidad: `<a class="text-fg-brand hover:underline">`.
