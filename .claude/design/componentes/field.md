@@ -69,6 +69,13 @@ De `programas/forms.py` la evidencia de diseño es **`INPUT_CLASS` y los `widget
 el resto del archivo es validación de dominio (`clean_*`, validaciones cruzadas) y no define nada
 visual. Un cambio ahí que no toque `INPUT_CLASS` ni un widget no mueve esta ficha.
 
+**Campo de archivo: `accept` junto a `nodo-field`.** Los `ClearableFileInput` que aceptan adjuntos
+llevan `attrs={"class": INPUT_CLASS, "accept": ACCEPT_ADJUNTO}` —la constante sale de
+`core.validators.ADJUNTO_EXTENSIONES`, la misma lista blanca que valida el servidor (SEC-15)—. El
+`accept` es **comodidad del selector de archivos, no validación**: se saltea cambiando el filtro
+del diálogo, y quien rechaza es el validador del campo. Escribir la lista a mano en el template o
+en el widget duplica una regla que ya tiene dueño.
+
 **Un campo que el negocio congela se deshabilita, no se saca.** Cuando una regla hace que un
 campo deje de poder cambiarse —el segmento de una convocatoria que ya tiene relevamientos,
 BEC-06—, el form le pone `disabled=True` y un `help_text` que dice el motivo. El control sigue
