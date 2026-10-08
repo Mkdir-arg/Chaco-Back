@@ -140,7 +140,8 @@ class ApiLegajosBackofficeAutenticadoTests(TestCase):
 
     def test_usuario_de_backoffice_entra(self):
         cliente = APIClient()
-        cliente.force_authenticate(_usuario_con("ciudadano.ver", username="backoffice-legajos"))
+        # `ciudadano.sensible`: `AlertasViewSet` la pide desde D-11 (Cambio 179).
+        cliente.force_authenticate(_usuario_con("ciudadano.ver", "ciudadano.sensible", username="backoffice-legajos"))
 
         for url in self.URLS:
             with self.subTest(url=url):

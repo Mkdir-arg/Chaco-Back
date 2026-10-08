@@ -26342,15 +26342,22 @@ que es operación y no código (OPS-12).
 - `dashboard/api_views/__init__.py` — `actividad_reciente` con `ciudadano.ver`, alcance
   en inscripciones y derivaciones, y alertas solo con `ciudadano.sensible`.
 - `config/asgi.py` — `AllowedHostsOriginValidator` sobre el router de WebSocket.
-- `conversaciones/consumers.py` — `AlertasConsumer` con `puede_escuchar_alertas`,
-  `alerta_entregable`, `_sesion_vigente` y `_entregar`.
-- `legajos/services/alertas.py` — la rama crítica va a `alertas_sistema` /
-  `alerta_critica`, y `legajo_id` viaja como `str` (ver *Historial*).
-- `conversaciones/context_processors.py` — `puede_ver_ciudadanos` y
-  `puede_alertas_sensibles`; `templates/includes/base.html` los usa y publica
-  `window.alertasConfig.puedeSocket`.
-- `static/custom/js/alertas_websocket.js` — `puedeAbrirSocket()` y `rechazado` (sin
-  reintento tras un 4403).
+- `legajos/views/alertas.py` — dashboard, `count-ajax`, `preview-ajax` y `cerrar-ajax`
+  pasan a `@requiere("ciudadano.sensible")` (ronda 2, ver *Historial*).
+- `legajos/api_views/__init__.py` — `AlertasViewSet` a `ciudadano.sensible`.
+- `conversaciones/consumers.py` — `AlertasConsumer` con `refrescar_alcance`,
+  `_alcance_vigente`, `_en_alcance`, `_sesion_vigente` y `_entregar`;
+  `VENTANA_REVALIDACION = 60` s.
+- `legajos/services/alertas.py` — **un solo** `group_send` por alerta, con `ruteo` de
+  servidor (`_ruteo_de`); `_enviar_cierre_alerta` desde `cerrar_alerta`; y `legajo_id`
+  como `str` (ver *Historial*).
+- `conversaciones/context_processors.py` — `puede_alertas_sensibles`;
+  `templates/includes/base.html` y `templates/includes/navbar.html` lo usan como guard
+  único de la campana y del script.
+- `static/custom/js/alertas_websocket.js` — `mostrarAlerta()` decide modal o toast por
+  prioridad, y `rechazado` (sin reintento tras un 4403).
+- `legajos/templates/legajos/ciudadano_detail.html` — el panel «Predicción de riesgo» y
+  su `fetch` van dentro de `{% if puede_ver_sensible %}`.
 - `core/tests/js_harness.py` — `document.querySelectorAll` en el DOM simulado.
 - Tests: `legajos/tests/test_derivaciones_rbac.py` (16),
   `conversaciones/tests/test_ws_alertas_rbac.py` (13) y
@@ -26373,14 +26380,18 @@ que es operación y no código (OPS-12).
 
 ## Pendientes / a definir
 
-- **Aplicar a mano el bloque de `.claude/design/shells.md`** que va en el cuerpo del PR:
-  esta sesión no tiene permiso de escritura en `.claude/`, y `check_design_agent
-  --changed` —y el job *Design Agent Contract*— queda rojo hasta que se aplique.
+- **Reemplazar a mano el bloque de `.claude/design/shells.md`** por el que va en el cuerpo
+  del PR: el de HEAD describe los **dos** guards de la primera vuelta y la ronda 2 lo dejó
+  en uno solo. Esta sesión no tiene permiso de escritura en `.claude/`, y
+  `check_design_agent --changed` —y el job *Design Agent Contract*— queda rojo hasta que se
+  aplique.
 - **Revisar con el PM qué roles quedan con `ciudadano.ver` y sin `ciudadano.sensible`**
   en PRD. Los roles sembrados no pierden nada («Gestión de Ciudadanos» ya trae las dos),
-  pero el «Operador de backoffice» de `seed_rbac` tiene solo `ciudadano.ver`: si alguien
-  lo usa para mirar alertas, deja de ver el timeline, las alertas y el riesgo, y la
-  campana le queda sin tiempo real (el contador por HTTP sigue).
+  pero el «Operador de backoffice» de `seed_rbac` tiene solo `ciudadano.ver`: deja de ver
+  el timeline, las alertas y el riesgo del ciudadano, el dashboard de alertas y **la
+  campana del navbar entera** (contador y punto de estado incluidos). Va sin migración de
+  datos a propósito: si el PM decide que lo siga viendo, se tilda `ciudadano.sensible`
+  desde el ABM de Roles y vuelve todo, sin release.
 - **El channel layer fuera de `prd` es `InMemoryChannelLayer`:** en QA lo que emite el
   CronJob de `generar_alertas` no llega a ningún navegador. Es OPS-12, no este cambio.
 
@@ -26402,3 +26413,64 @@ error quedaba en el log sin que nadie lo viera. Son justamente las únicas alert
 caen dentro del alcance de alguien, así que la difusión «funcionaba» únicamente para las
 que no debía entregar. Va como `str()`; lo cubre
 `test_entrega_una_alerta_del_alcance`.
+
+### Ronda 2 de la revisión del PR #629 — 08/10/2026
+
+Tres MAJOR y tres MINOR. Los tres MAJOR son la misma idea aplicada a tres planos: **una
+regla, un lugar**.
+
+1. **D-11 vale por canal de transporte, no por pantalla (MAJOR).** La primera vuelta subió
+   a `ciudadano.sensible` las tres APIs JSON del detalle y el WebSocket, pero dejó el
+   **texto de la alerta** saliendo con `ciudadano.ver` por el dashboard de alertas,
+   `count-ajax`, `preview-ajax`, `cerrar-ajax`, `cerrar_alerta_api` y el `AlertasViewSet`
+   de `/api/legajos/alertas/`. Es el mismo dato —«Riesgo Suicida», el nombre del
+   ciudadano— que G1c-04 le cerró al mismo usuario por socket; y como
+   `FiltrosUsuarioService.tiene_alcance_global` mira `config.administrar`, un rol de
+   Configuración con `ciudadano.ver` lo leía de **todo** el padrón. Las seis superficies
+   suben a `ciudadano.sensible`. El `AlertasViewSet` tenía una excepción escrita en el
+   *Alcance acordado* («es la campana del navbar, subirla apagaría el contador»): se cae,
+   porque la campana también sube.
+2. **La campana del navbar y su script, con un solo guard (MAJOR, cierra G3-03 mejor).**
+   `templates/includes/navbar.html` pasa de `ciudadano.ver` a `ciudadano.sensible`, y el
+   shell incluye `alertas_websocket.js` con `puede_alertas_sensibles`. Quien no la tiene
+   no ve campana, ni dropdown, ni punto de estado, ni script. Desaparecen la variable
+   `puede_ver_ciudadanos` del context processor y el flag
+   `window.alertasConfig.puedeSocket`: la población «script sí, socket no» que obligaba a
+   los dos guards ya no existe.
+3. **La alerta CRÍTICA llegaba duplicada (MAJOR).** G1c-17 alineó el grupo y el tipo de la
+   rama crítica, pero la dejó como un **segundo** `group_send` sobre `alertas_sistema`: el
+   cliente corría las dos ramas, así que salía toast *y* modal, el sonido sonaba dos veces
+   y el contador se refrescaba dos veces. Ahora el emisor manda **un** mensaje por alerta y
+   `mostrarAlerta()` elige por `alerta.prioridad`: crítica → modal + sonido + parpadeo;
+   resto → toast. El tipo `alerta_critica` no existe más en ningún lado.
+4. **Revalidar en cada entrega costaba 5 consultas por alerta y por socket (MAJOR).** El
+   alcance se resolvía con `obtener_alertas_usuario(user).filter(pk=…).exists()`: tres `IN`
+   anidados sobre 40k inscripciones, multiplicado por cada alerta de la pasada horaria de
+   `generar_alertas` y por cada socket abierto, contra el `read_timeout` de 10 s de ECOM.
+   Se partió en dos: el **emisor** calcula una vez por alerta el `responsable_id` del
+   legajo y sus `programa_ids` (`AlertasService._ruteo_de`), que viajan en el evento
+   **aparte** del payload y nunca llegan al navegador; el **consumer** resuelve el alcance
+   del usuario una vez por ventana (`VENTANA_REVALIDACION = 60` s, pisable con
+   `ALERTAS_WS_VENTANA_REVALIDACION`) y cada entrega decide en memoria, con la misma regla
+   que `FiltrosUsuarioService`. Al vencer la ventana se revalida usuario, capacidad y
+   sesión, y si los perdió el socket se cierra con 4403. **La contracara, explícita: 60 s
+   es la latencia máxima entre quitarle el rol a alguien y que deje de recibir.** Lo mide
+   `VentanaDeRevalidacionTests` con `CaptureQueriesContext`: 10 entregas ≤ 2 consultas.
+5. **`alerta_cerrada`: se resolvió, no se borró (MINOR).** El handler no tenía productor y
+   además era inalcanzable por construcción, porque su alcance salía de
+   `obtener_alertas_usuario`, que filtra `activa=True`. Se eligió darle productor
+   —`AlertasService.cerrar_alerta` emite `_enviar_cierre_alerta`— porque el dashboard ya
+   dibuja `data-alerta-id` y el cliente ya sabe sacar la tarjeta: la alerta que otro cierra
+   desaparece sin recargar. El ruteo del emisor no mira `activa`, así que el cierre llega a
+   los mismos sockets que recibieron el alta.
+6. **Panel «Predicción de riesgo» detrás de `puede_ver_sensible` (MINOR).** El panel y el
+   `fetch` a `legajos:prediccion_riesgo` quedaban dibujados con guiones para quien no tiene
+   la capacidad, y el `fetch` rebotaba con 403 en cada apertura del detalle.
+
+Lo que **no** cambió: el alcance sigue siendo el de `FiltrosUsuarioService` (no se tocó
+`tiene_alcance_global`; lo que cambió es que ahora hay que tener `ciudadano.sensible` para
+llegar a usarlo), y no hay migración de datos ni de esquema.
+
+Costo del cambio para el usuario: ver *Pendientes*. Quien tiene `ciudadano.ver` y no
+`ciudadano.sensible` pierde la campana de alertas; se devuelve tildando la capacidad en
+Roles.

@@ -31,16 +31,8 @@ class AlertasWebSocket {
         this.setupNotificationPermission();
     }
 
-    // La campana se refresca por HTTP con `ciudadano.ver`; el socket pide
-    // `ciudadano.sensible` (G1c-04). El shell lo resuelve en el servidor y lo
-    // deja en `window.alertasConfig.puedeSocket`: así quien solo ve la campana
-    // no paga ni un handshake.
-    puedeAbrirSocket() {
-        return (window.alertasConfig || {}).puedeSocket !== false;
-    }
-
     connect() {
-        if (this.rechazado || !this.puedeAbrirSocket()) {
+        if (this.rechazado) {
             this.showConnectionStatus(false);
             return;
         }
@@ -78,11 +70,7 @@ class AlertasWebSocket {
     handleMessage(data) {
         switch(data.type) {
             case 'nueva_alerta':
-                this.showAlertaNotification(data.alerta);
-                this.updateAlertasCounter();
-                break;
-            case 'alerta_critica':
-                this.showAlertaCritica(data.alerta);
+                this.mostrarAlerta(data.alerta);
                 this.updateAlertasCounter();
                 break;
             case 'alerta_cerrada':
@@ -92,30 +80,36 @@ class AlertasWebSocket {
         }
     }
 
-    showAlertaNotification(alerta) {
-        // Notificación toast
-        this.showToast(alerta);
-        
-        // Notificación del navegador
-        if (Notification.permission === 'granted') {
-            new Notification(`Nueva Alerta - ${alerta.prioridad}`, {
-                body: `${alerta.ciudadano}: ${alerta.mensaje}`,
-                icon: '/static/custom/img/alert-icon.png',
-                tag: `alerta-${alerta.id}`
-            });
-        }
-        
-        // Sonido para alertas críticas
+    // Un alta de alerta = **un** mensaje del servidor, y acá se decide la forma del
+    // aviso por prioridad. Antes el emisor mandaba dos (`nueva_alerta` + el tipo
+    // crítico) y la crítica llegaba duplicada: toast *y* modal, el sonido dos veces
+    // y dos refrescos del contador. El emisor ya no manda el segundo mensaje.
+    mostrarAlerta(alerta) {
         if (alerta.prioridad === 'CRITICA') {
-            this.playAlertSound();
+            this.showAlertaCritica(alerta);
+        } else {
+            this.showToast(alerta);
         }
+        this.notificarEnElSistema(alerta);
+    }
+
+    notificarEnElSistema(alerta) {
+        if (typeof Notification === 'undefined' || Notification.permission !== 'granted') {
+            return;
+        }
+        new Notification(`Nueva Alerta - ${alerta.prioridad}`, {
+            body: `${alerta.ciudadano}: ${alerta.mensaje}`,
+            icon: '/static/custom/img/alert-icon.png',
+            // El `tag` colapsa los avisos repetidos de la misma alerta en uno solo.
+            tag: `alerta-${alerta.id}`
+        });
     }
 
     showAlertaCritica(alerta) {
-        // Modal para alertas críticas
+        // Modal para alertas críticas (sin toast: el modal ya interrumpe)
         this.showCriticalModal(alerta);
         this.playAlertSound();
-        
+
         // Parpadeo en el título
         this.blinkTitle('🚨 ALERTA CRÍTICA');
     }
@@ -125,10 +119,10 @@ class AlertasWebSocket {
     // propios, abajo a la derecha igual que la otra, sin rol ARIA ni live region
     // y con clases que el build no genera.
     showToast(alerta) {
-        const tipo = alerta.prioridad === 'CRITICA' ? 'error' : 'warning';
         // `window.toast` escribe con textContent: el nombre del ciudadano -que carga
         // el propio ciudadano en la inscripción pública- no necesita escaparse acá.
-        window.toast(tipo, `${alerta.ciudadano}: ${alerta.mensaje}`);
+        // Solo lo ven las que no son CRÍTICAS: esas van por modal.
+        window.toast('warning', `${alerta.ciudadano}: ${alerta.mensaje}`);
     }
 
     // Destino de «Ver»: el detalle del **ciudadano**. `/legajos/<id>/` no existe como
@@ -355,10 +349,11 @@ class AlertasWebSocket {
 // Inicializar cuando el DOM esté listo
 document.addEventListener('DOMContentLoaded', () => {
     // La campana del navbar es la única superficie de este script, y solo se
-    // renderiza para quien tiene `ciudadano.ver` (SEC-18): es la misma capacidad
+    // renderiza para quien tiene `ciudadano.sensible` (D-11): es la misma capacidad
     // que piden `ws/alertas/`, el contador y el preview. Sin campana no hay nada
     // que actualizar, así que no se abre el WebSocket ni se pide un endpoint que
-    // va a rebotar. El guard vive en el template, acá solo se lo respeta.
+    // va a rebotar. El guard vive en el template —el shell ni siquiera incluye este
+    // archivo sin la capacidad—, acá solo se lo respeta.
     if (!document.querySelector('#alertas-counter')) {
         return;
     }

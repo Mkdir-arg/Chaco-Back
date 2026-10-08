@@ -101,7 +101,7 @@ class ContratoDashboardTests(TestCase):
 
     def test_alertas_count_tiene_count_y_criticas(self):
         """Las claves son los kwargs del `aggregate()`: renombrarlos apaga el badge."""
-        responsable = _usuario("navbar", ["ciudadano.ver"])
+        responsable = _usuario("navbar", ["ciudadano.ver", "ciudadano.sensible"])
         legajo = LegajoAtencion.objects.create(responsable=responsable)
         ciudadano = Ciudadano.objects.create(dni="30999888", nombre="Beto", apellido="Gomez")
         for prioridad in (AlertaCiudadano.Prioridad.CRITICA, AlertaCiudadano.Prioridad.ALTA):
@@ -123,7 +123,7 @@ class ContratoDashboardTests(TestCase):
 
     def test_alertas_count_sin_alcance_devuelve_los_ceros_con_las_mismas_claves(self):
         """`data.count || 0` tapa un 404 y un cuerpo vacío: el cero tiene que ser real."""
-        self.client.force_login(_usuario("navbar-sin-legajos", ["ciudadano.ver"]))
+        self.client.force_login(_usuario("navbar-sin-legajos", ["ciudadano.ver", "ciudadano.sensible"]))
 
         cuerpo = self.client.get(reverse("legajos:alertas_count_ajax")).json()
 

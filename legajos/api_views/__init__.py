@@ -78,16 +78,19 @@ class AlertasViewSet(viewsets.ReadOnlyModelViewSet):
     """
     ViewSet para consultar alertas del sistema.
 
-    Exige ``ciudadano.ver``: con solo ``IsAuthenticated`` cualquier cuenta de
-    backoffice listaba las alertas con el **nombre del ciudadano y el texto de
-    la alerta**, y ``cerrar`` silenciaba cualquiera por id (SEC-18 y R0b-06,
-    auditoría oct-2026). El contenido de la alerta es sensible: cuando se
-    resuelva D-11, la Ola 2 sube esta capacidad a ``ciudadano.sensible``.
+    Exige ``ciudadano.sensible``: con solo ``IsAuthenticated`` cualquier cuenta
+    de backoffice listaba las alertas con el **nombre del ciudadano y el texto
+    de la alerta**, y ``cerrar`` silenciaba cualquiera por id (SEC-18 y R0b-06,
+    auditoría oct-2026). SEC-18 le puso ``ciudadano.ver`` y el Cambio 179 la
+    subió a ``ciudadano.sensible`` con **D-11**: es el mismo texto que entregan
+    el WebSocket y ``alertas_ciudadano_api``, y el dato sensible pide la misma
+    capacidad por cualquier canal. Deja de valer la excepción que la Ola 2 le
+    había reservado («es la campana del navbar»): la campana también subió.
     """
 
     queryset = AlertaCiudadano.objects.select_related("ciudadano", "legajo", "cerrada_por")
     serializer_class = AlertaCiudadanoSerializer
-    permission_classes = [BackofficeAutenticado, RequiereCapacidad("ciudadano.ver")]
+    permission_classes = [BackofficeAutenticado, RequiereCapacidad("ciudadano.sensible")]
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ["prioridad", "tipo", "ciudadano"]
     ordering = ["-creado"]  # Ordenar por fecha de creación descendente

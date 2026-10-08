@@ -221,19 +221,18 @@ Refutado: **A4-15 / PERF-14** (GZip sobre xlsx): ver README §8.
 - **Propuesta:** incluir el script solo si `puede_ver_ciudadanos` (context processor; ya existe el patrón `puede_conversaciones` en la misma plantilla) y no reintentar ante `event.code === 4403` (o 1006 tras un 403 de handshake). Mismo patrón sin medir en `alertas_conversaciones_rt.js` (se va con el apagado de conversaciones, G1-01 fase 2).
 - **Test:** `test_base_no_incluye_alertas_ws_sin_capacidad` (render de `/inicio/` sin `ciudadano.ver` → no aparece `alertas_websocket.js`).
 
-**Resolución:** ✅ Resuelto en #629 (Cambio 179), 08-oct-2026 — **dos guards, porque son dos poblaciones
-distintas.** (1) El script viaja solo con `puede_ver_ciudadanos`: sin `ciudadano.ver` no hay campana en el navbar
-—la única superficie del script— y no hay nada que actualizar. (2) El socket se abre solo con
-`puede_alertas_sensibles`, que es lo que `/ws/alertas/` exige desde G1c-04: el shell lo publica como
-`window.alertasConfig.puedeSocket` y el JS lo consulta antes del `new WebSocket`. Sin ese segundo guard, subir la
-capacidad del consumer habría **creado** la población que la ficha describe —`ciudadano.ver` sin
-`ciudadano.sensible`, que es el «Operador de backoffice» sembrado— con 1 + 5 handshakes rechazados por página.
-Esa gente conserva la campana, que se refresca por HTTP. Además, un cierre con código `4403` marca `rechazado` y
-**no** se reintenta: es un veredicto de autorización, no una caída de red. Las dos variables salen del context
-processor `conversaciones.context_processors.user_groups`, donde `rbac.puede` resuelve sobre el mismo juego de
-permisos que ya leía `puede_conversaciones` (sin consultas nuevas; `inicio` conserva su presupuesto).
+**Resolución:** ✅ Resuelto en #629 (Cambio 179), 08-oct-2026 — **un solo guard**, `puede_alertas_sensibles`. La
+primera vuelta del PR necesitó dos (`ciudadano.ver` para el script, `ciudadano.sensible` para abrir el socket)
+porque la campana del navbar y `/ws/alertas/` pedían capacidades distintas, y subir solo la del consumer habría
+**creado** la población que la ficha describe. La ronda 2 eliminó esa población en vez de administrarla: con D-11
+la campana, el contador, el preview y el dashboard también piden `ciudadano.sensible`, así que quien no la tiene
+no ve campana, ni punto de estado, ni script, y no hay handshake que rechazar. Se fueron con eso la variable
+`puede_ver_ciudadanos` y el flag `window.alertasConfig.puedeSocket`. Además, un cierre con código `4403` marca
+`rechazado` y **no** se reintenta: es un veredicto de autorización, no una caída de red. La variable sale del
+context processor `conversaciones.context_processors.user_groups`, donde `rbac.puede` resuelve sobre el mismo juego
+de permisos que ya leía `puede_conversaciones` (sin consultas nuevas; `inicio` conserva su presupuesto).
 `alertas_conversaciones_rt.js` queda como estaba: se va con el apagado de conversaciones (G1-01 fase 2).
 **Test permanente:** `core.tests.test_alertas_ws_shell` (en particular
 `AlertasWebsocketEnElShellTests.test_sin_capacidad_no_se_incluye_el_script`,
-`test_con_ciudadano_ver_viaja_el_script_pero_no_abre_el_socket` y
+`test_con_ciudadano_ver_solo_tampoco_hay_campana_ni_script` y
 `AlertasWebsocketReintentosTests.test_el_js_no_reintenta_tras_un_4403`).

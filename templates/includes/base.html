@@ -375,10 +375,6 @@
                 // ruta literal escrita en el JS. El `0` es el placeholder del id.
                 window.alertasConfig = {
                     ciudadanoDetalleUrlTemplate: "{% url 'legajos:ciudadano_detalle' 0 %}",
-                    // La campana se refresca por HTTP con `ciudadano.ver`; el socket
-                    // pide `ciudadano.sensible` (G1c-04). Sin esto el script lo abría
-                    // igual y cobraba 1 + 5 handshakes rechazados por página (G3-03).
-                    puedeSocket: {{ puede_alertas_sensibles|yesno:"true,false" }},
                 };
                 window.conversacionesConfig = {
                     listUrl: "{% url 'conversaciones:lista' %}",
@@ -393,8 +389,8 @@
             {% endif %}
             <script src="{% static 'custom/js/notification_sound.js' %}"></script>
             <script src="{% static 'custom/js/alertas_conversaciones_fallback.js' %}"></script>
-            {# G3-03: el script viaja solo con `ciudadano.ver` —la capacidad de la campana del navbar, su única superficie—, y abre el socket solo con `ciudadano.sensible`, que es lo que pide /ws/alertas/ (G1c-04). Sin ese segundo guard, cada página de quien no la tiene disparaba 1 + 5 handshakes rechazados contra el único daphne y dejaba el indicador en «Desconectado». #}
-            {% if websockets_enabled and puede_ver_ciudadanos %}
+            {# G3-03: un solo guard. Desde D-11 (Cambio 179) la campana del navbar —única superficie de este script— y `/ws/alertas/` piden la misma capacidad, `ciudadano.sensible`: quien no la tiene no ve campana, ni punto de estado, ni script, y por lo tanto no dispara el handshake que rebotaba con 4403 y sus 5 reintentos contra el único daphne. #}
+            {% if websockets_enabled and puede_alertas_sensibles %}
                 <script src="{% static 'custom/js/alertas_websocket.js' %}"></script>
             {% endif %}
             {% if websockets_enabled %}

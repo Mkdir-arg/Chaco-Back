@@ -298,11 +298,27 @@ sigue entrando).
 `@requiere("ciudadano.sensible")`. Las otras tres (`actividades_ciudadano_api`, `evolucion_legajo_api`,
 `contactos_panel.historial_contactos_simple`) se quedan en `ciudadano.ver`, que es su capacidad definitiva. El
 mismo PR aplica D-11 al WebSocket (G1c-04) y al feed del inicio (R0b-09), que son las otras dos superficies del
-mismo dato. **Quién pierde acceso:** nadie de los roles sembrados -«Gestión de Ciudadanos» ya trae
-`ciudadano.sensible`-; sí lo pierde un rol armado a mano con `ciudadano.ver` y sin `ciudadano.sensible`, como el
-«Operador de backoffice» que siembra `seed_rbac`. **Test permanente:**
+mismo dato.
+
+**Ampliación de la ronda 2 del PR: D-11 vale por canal, no por pantalla.** La primera vuelta dejó el **texto de la
+alerta** saliendo por HTTP con `ciudadano.ver` en cuatro rutas más -`legajos/views/alertas.py`: dashboard,
+`count-ajax`, `preview-ajax` y `cerrar-ajax`-, más `cerrar_alerta_api` y el `AlertasViewSet` de
+`/api/legajos/alertas/`, al que esta misma auditoría le había reservado una excepción («es la campana del
+navbar»). Es exactamente el dato que G1c-04 le cerró al mismo usuario por WebSocket, y -vía `config.administrar` →
+`FiltrosUsuarioService.tiene_alcance_global`- de **todo** el padrón. Las seis superficies pasan a
+`ciudadano.sensible`; la campana del navbar y su script, también. **Va sin migración de datos:** si el PM decide
+que el Operador siga viendo alertas, se tilda `ciudadano.sensible` en el ABM de Roles.
+
+**Quién pierde acceso:** nadie de los roles sembrados -«Gestión de Ciudadanos» ya trae `ciudadano.sensible`-; sí lo
+pierde un rol armado a mano con `ciudadano.ver` y sin `ciudadano.sensible`, como el «Operador de backoffice» que
+siembra `seed_rbac`: pierde el timeline, las alertas y el riesgo del ciudadano, el dashboard de alertas y **la
+campana del navbar** (y con ella el contador y el punto de estado). **Test permanente:**
 `legajos.tests.test_contactos_api_rbac.ContactosApiRbacTests.test_con_ciudadano_ver_las_tres_sensibles_ya_no_contestan`
-(y `test_con_ciudadano_sensible_las_tres_contestan`).
+(y `test_con_ciudadano_sensible_las_tres_contestan`,
+`legajos.tests.test_alertas_rbac.AlertasRbacTests.test_con_ciudadano_ver_solo_ya_no_entra_a_ninguna`,
+`test_con_ciudadano_ver_solo_no_lee_el_texto_de_la_alerta`,
+`AlertasAlcanceTests.test_el_alcance_global_no_es_una_puerta_de_entrada` y
+`AlertasApiTests.test_con_ciudadano_ver_solo_tampoco_lista`).
 
 ### SEC-12 · Derivaciones: aceptar o rechazar por GET (CSRF) sin capacidad; inscripción directa por `is_staff`
 **Severidad:** ALTA · **Estado:** CONFIRMADO con test (`SEC12DerivacionGetTests`) · **Origen:** A5-12, A3-04, G1c-07 · **Ola:** 2 · **Esfuerzo:** S (reusando `ciudadano.editar`) / M (capacidad nueva) · **Decisión:** D-12
@@ -552,18 +568,30 @@ dos (sin alcance → vacío; con legajo propio → solo las suyas), porque afirm
 envuelve el router en `AllowedHostsOriginValidator`, que cierra el CSWSH **de los cuatro consumers**, no solo
 del de alertas; (1) `AlertasConsumer` pide `ciudadano.sensible` (D-11, misma capacidad que SEC-11); (c) rechaza
 si `Profile.backoffice_session_key` no es la sesión del handshake o si `debe_cambiar_contrasena` -los dos
-chequeos que hacen los middlewares del HTTP y que el WS no atraviesa-; (a) y (b) el filtro por alcance va en
-**cada entrega**: `nueva_alerta`/`alerta_critica`/`alerta_cerrada` pasan por `alerta_entregable`, que relee al
-usuario de la base, revalida capacidad y sesión -y cierra con **4403** si las perdió, asi un socket abierto deja
-de recibir cuando le quitan el rol- y resuelve el alcance con
-`FiltrosUsuarioService.obtener_alertas_usuario(user).filter(pk=...).exists()`. Se eligió revalidar por entrega y no
-por temporizador: la entrega ya pega a la base para el alcance, así que el chequeo viaja en la misma consulta y
-no queda ventana. **Hallazgo extra, fuera de la ficha:** `legajos/services/alertas.py` mandaba `legajo_id` como
+chequeos que hacen los middlewares del HTTP y que el WS no atraviesa-; (a) y (b) el filtro por alcance va en el
+envío: `nueva_alerta` y `alerta_cerrada` pasan por `_entregar`, que compara la alerta contra el alcance del socket
+y, si el usuario perdió capacidad, alta o sesión, cierra con **4403** -así un socket abierto deja de recibir cuando
+le quitan el rol-. **Hallazgo extra, fuera de la ficha:** `legajos/services/alertas.py` mandaba `legajo_id` como
 `UUID`, que `json.dumps` no serializa, asi que la difusión **siempre** moría -en el log del consumer- justo para
-las alertas que cuelgan de un legajo, que son las únicas con alcance; va como `str()`. **Test permanente:**
-`conversaciones.tests.test_ws_alertas_rbac.WsAlertasRbacTests` (la PoC `G1c04WsAlertasTests` invertida:
-`test_origin_ajeno_no_conecta`, `test_sesion_reemplazada_no_conecta`,
-`test_no_entrega_una_alerta_fuera_del_alcance` y `test_quitarle_el_rol_corta_el_socket_abierto`).
+las alertas que cuelgan de un legajo, que son las únicas con alcance; va como `str()`.
+
+**Corrección de la ronda 2 del PR (performance): el alcance se resuelve por ventana, no por entrega.** La primera
+vuelta revalidaba y resolvía el alcance en **cada** entrega con
+`FiltrosUsuarioService.obtener_alertas_usuario(user).filter(pk=...).exists()`: **5 consultas por alerta y por
+socket**, con tres `IN` anidados sobre las 40k inscripciones. Como la pasada horaria de `generar_alertas` recrea y
+redifunde de golpe (LEG-01), eso es 5·N·M contra el `read_timeout` de 10 s de ECOM. Ahora: (i) el **emisor**
+calcula una vez por alerta los datos de ruteo -`responsable_id` del legajo y sus `programa_ids`
+(`AlertasService._ruteo_de`)-, que viajan en el evento **aparte del payload** y nunca llegan al navegador; (ii) el
+**consumer** resuelve el alcance del usuario una vez por ventana (`AlertasConsumer.VENTANA_REVALIDACION`, 60 s,
+sobreescribible con `ALERTAS_WS_VENTANA_REVALIDACION`) y lo guarda en el socket: global, `user_pk`, `programas` y
+si tiene legajos propios; (iii) cada entrega decide en memoria, **sin tocar la base**, con la misma regla que
+`FiltrosUsuarioService`. Al vencer la ventana se revalida todo y, si lo perdió, 4403. **La ventana de 60 s es la
+latencia máxima declarada** entre quitarle la capacidad o la sesión a alguien y que deje de recibir.
+**Test permanente:** `conversaciones.tests.test_ws_alertas_rbac.WsAlertasRbacTests` (la PoC `G1c04WsAlertasTests`
+invertida: `test_origin_ajeno_no_conecta`, `test_sesion_reemplazada_no_conecta`,
+`test_no_entrega_una_alerta_fuera_del_alcance`, `test_quitarle_el_rol_corta_el_socket_abierto`,
+`test_reemplazarle_la_sesion_corta_el_socket_abierto` y `test_el_ruteo_no_viaja_al_cliente`) y
+`VentanaDeRevalidacionTests` (N entregas dentro de la ventana ≤ 2 consultas, con `CaptureQueriesContext`).
 
 ## BAJA
 

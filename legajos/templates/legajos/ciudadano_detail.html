@@ -510,6 +510,13 @@
         </div>
         {% endif %}
 
+        {% comment %}
+        El score de riesgo es dato sensible: `prediccion_riesgo_api` pide
+        `ciudadano.sensible` desde D-11 (SEC-11, Cambio 179). Sin la capacidad el panel
+        quedaba dibujado con guiones y el `fetch` rebotaba con 403 en cada apertura del
+        detalle, anunciando un dato que no se va a traer.
+        {% endcomment %}
+        {% if puede_ver_sensible %}
         <!-- Predicción de Riesgo con IA -->
         <div class="mb-8 rounded-xl border p-6 lg:p-8" style="border-color: var(--border-base); background: var(--bg-primary); box-shadow: var(--shadow-sm);">
             <h3 class="mb-6 flex items-center gap-3 text-lg font-bold" style="color: var(--text-heading);">
@@ -573,6 +580,7 @@
                 <div id="recomendaciones-container" class="space-y-3"></div>
             </div>
         </div>
+        {% endif %}
 
         <!-- Actividad Reciente -->
         <div class="mt-8">
@@ -1060,7 +1068,7 @@ document.addEventListener('click', (e) => {
 document.addEventListener('DOMContentLoaded', function() {
     cargarActividades();
     cargarArchivos();
-    cargarPrediccionRiesgo();
+    {% if puede_ver_sensible %}cargarPrediccionRiesgo();{% endif %}
 
     // Restaurar solapa desde la URL (deep-link)
     const hash = window.location.hash.slice(1);
@@ -1363,8 +1371,10 @@ function getTipoNombre(tipo) {
 }
 
 // ============================================================
-// Predicción de riesgo (Resumen)
+// Predicción de riesgo (Resumen) — solo con `ciudadano.sensible`: sin la
+// capacidad no hay panel que llenar y el endpoint contesta 403 (D-11).
 // ============================================================
+{% if puede_ver_sensible %}
 function cargarPrediccionRiesgo() {
     fetch("{% url 'legajos:prediccion_riesgo' ciudadano.id %}")
         .then(response => response.json())
@@ -1428,6 +1438,7 @@ function cargarPrediccionRiesgo() {
         })
         .catch(() => { /* sin datos de predicción: la sección queda con sus placeholders */ });
 }
+{% endif %}
 
 function getNivelColor(nivel) {
     // Devuelve la clase de variante del badge DS (se usa como: badge badge-<variante>)

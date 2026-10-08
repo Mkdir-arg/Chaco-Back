@@ -67,7 +67,10 @@ class AvisosPorElSistemaDelShellTests(SimpleTestCase):
         log = self.correr("__ws.showToast(__alerta);")
         self.assertEqual(len(log["toasts"]), 1)
         tipo, mensaje, _ = log["toasts"][0]
-        self.assertEqual(tipo, "error")
+        # El toast quedó para las que **no** son CRÍTICAS: esas van por modal y
+        # no por toast, así que no hay variante «error» que elegir (Cambio 179,
+        # ronda 2: la crítica llegaba como toast *y* como modal).
+        self.assertEqual(tipo, "warning")
         self.assertIn("Mirta Pérez", mensaje)
         self.assertIn("Riesgo de vida", mensaje)
 

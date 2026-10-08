@@ -14,7 +14,7 @@ from ..models import (
     LegajoAtencion,
 )
 from ..models.contactos import HistorialContacto
-from .linking import get_legajos_queryset_for_ciudadano
+from .linking import get_legajos_queryset_for_ciudadano, get_programa_ids_for_legajo_ids
 
 logger = logging.getLogger(__name__)
 
@@ -165,6 +165,27 @@ class AlertasService:
         return alerta_existente
 
     @staticmethod
+    def _ruteo_de(legajo_id, responsable_id):
+        """Datos **de servidor** para que el consumer decida el alcance sin consultar.
+
+        El grupo `alertas_sistema` es uno solo y el filtro por alcance va en la
+        entrega. Resolverlo ahí costaba cinco consultas por alerta **y por
+        socket** —tres ``IN`` anidados sobre las 40k inscripciones—, y la pasada
+        horaria de ``generar_alertas`` redifunde todo de una: con el
+        ``read_timeout`` de 10 s de ECOM eso es una cola. Acá se resuelve **una
+        vez por alerta**, del lado del emisor, y el consumer compara contra el
+        alcance que tiene cacheado (`AlertasConsumer`).
+
+        Viaja en el evento aparte de ``alerta``: nunca se le manda al cliente.
+        """
+        if legajo_id is None:
+            return {"responsable_id": None, "programa_ids": []}
+        return {
+            "responsable_id": responsable_id,
+            "programa_ids": sorted(set(get_programa_ids_for_legajo_ids([legajo_id]))),
+        }
+
+    @staticmethod
     def _enviar_notificacion_alerta(alerta):
         """Envía notificación WebSocket para nueva alerta."""
         try:
@@ -188,25 +209,50 @@ class AlertasService:
                 "legajo_id": str(alerta.legajo.id) if alerta.legajo else None,
             }
 
+            # **Un** `group_send` por alerta, también para las CRÍTICAS. G1c-17
+            # había arreglado la rama crítica —mandaba al grupo `alertas_criticas`
+            # con el tipo `nueva_alerta_critica`, que no existen en ningún
+            # consumer, y por eso el modal nunca se disparaba— pero la dejó como un
+            # **segundo** mensaje sobre el mismo grupo: la crítica llegaba dos
+            # veces, el cliente mostraba toast *y* modal, el sonido sonaba dos
+            # veces y el contador se refrescaba dos veces. La prioridad ya viaja en
+            # el payload: la forma del aviso la decide el cliente.
             async_to_sync(channel_layer.group_send)(
                 "alertas_sistema",
-                {"type": "nueva_alerta", "alerta": alerta_data},
+                {
+                    "type": "nueva_alerta",
+                    "alerta": alerta_data,
+                    "ruteo": AlertasService._ruteo_de(alerta.legajo_id, getattr(alerta.legajo, "responsable_id", None)),
+                },
             )
-
-            if alerta.prioridad == "CRITICA":
-                # G1c-17: la rama crítica mandaba al grupo `alertas_criticas` con
-                # el tipo `nueva_alerta_critica`. A ese grupo no se suscribe ningún
-                # consumer y ese tipo no existe como handler, así que el modal
-                # crítico de `alertas_websocket.js` **nunca se disparó**: el
-                # mensaje se iba al vacío. El grupo y el tipo son ahora los que el
-                # `AlertasConsumer` tiene de verdad, y el consumer filtra por
-                # alcance antes de entregarlo (G1c-04).
-                async_to_sync(channel_layer.group_send)(
-                    "alertas_sistema",
-                    {"type": "alerta_critica", "alerta": alerta_data},
-                )
         except Exception as exc:
             logger.exception("Error enviando notificación WebSocket: %s", exc)
+
+    @staticmethod
+    def _enviar_cierre_alerta(alerta):
+        """Avisa por WS que una alerta se cerró, para sacarla del dashboard abierto.
+
+        El handler `alerta_cerrada` del consumer existía desde el principio **sin
+        un solo productor**, así que nunca podía llegar: la tarjeta de la alerta
+        que otro acababa de cerrar se quedaba en pantalla hasta recargar. Y
+        resolver su alcance con ``obtener_alertas_usuario`` —que filtra
+        ``activa=True``— era imposible por construcción, porque para cuando se
+        emite el cierre la alerta ya está en ``activa=False``. El ruteo del
+        emisor no mira ``activa``, así que el cierre se entrega al mismo conjunto
+        de sockets que recibió el alta.
+        """
+        try:
+            channel_layer = get_channel_layer()
+            async_to_sync(channel_layer.group_send)(
+                "alertas_sistema",
+                {
+                    "type": "alerta_cerrada",
+                    "alerta_id": alerta.id,
+                    "ruteo": AlertasService._ruteo_de(alerta.legajo_id, getattr(alerta.legajo, "responsable_id", None)),
+                },
+            )
+        except Exception as exc:
+            logger.exception("Error enviando el cierre de alerta por WebSocket: %s", exc)
 
     @staticmethod
     def obtener_alertas_ciudadano(ciudadano_id):
@@ -239,7 +285,9 @@ class AlertasService:
         if usuario is None:
             return False
         try:
-            alerta = FiltrosUsuarioService.obtener_alertas_usuario(usuario).get(id=alerta_id)
+            # `select_related("legajo")`: el aviso de cierre por WS necesita el
+            # `responsable_id` del legajo y así no cuesta una consulta extra.
+            alerta = FiltrosUsuarioService.obtener_alertas_usuario(usuario).select_related("legajo").get(id=alerta_id)
         except (AlertaCiudadano.DoesNotExist, ValueError, TypeError, ValidationError):
             return False
 
@@ -247,6 +295,7 @@ class AlertasService:
         alerta.fecha_cierre = timezone.now()
         alerta.cerrada_por = usuario
         alerta.save()
+        AlertasService._enviar_cierre_alerta(alerta)
         return True
 
     @staticmethod

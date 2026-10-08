@@ -181,13 +181,17 @@ def alertas_ciudadano_api(request, ciudadano_id):
 
 
 @login_required
-@requiere("ciudadano.ver")
+@requiere("ciudadano.sensible")  # igual que las otras dos entradas de cierre (D-11, Cambio 179)
 def cerrar_alerta_api(request, alerta_id):
     """API para cerrar una alerta.
 
     El alcance lo pone ``AlertasService.cerrar_alerta``, que busca la alerta
     dentro de las del usuario: una alerta fuera de su alcance no se cierra
     aunque adivine el id (SEC-18).
+
+    La capacidad sube con el resto de las superficies de alertas: las tres
+    entradas de cierre —esta, ``cerrar-ajax/`` y ``AlertasViewSet.cerrar``—
+    piden lo mismo que la pantalla que las dispara.
     """
     if request.method != "POST":
         return JsonResponse({"success": False, "error": "Método no permitido"}, status=405)
