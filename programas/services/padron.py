@@ -64,6 +64,12 @@ _ENCABEZADOS_DNI = {"DOCUMENTO", "DNI", "NRO DOCUMENTO", "NUMERO DE DOCUMENTO", 
 
 _FORMATOS_FECHA = ("%d/%m/%Y", "%Y-%m-%d", "%d-%m-%Y", "%d/%m/%y", "%Y/%m/%d")
 
+#: Piso de una fecha de nacimiento que se pueda creer (G1-12). Nadie vivo nació
+#: antes, y es lo que separa una fecha de verdad del serial 0 de Excel, que
+#: ``openpyxl`` convierte en 1899-12-30: esa fila entraba al padrón con esa fecha
+#: y el cruce se la **escribía al legajo** de la persona.
+FECHA_NACIMIENTO_MINIMA = date(1900, 1, 1)
+
 
 def normalizar_sexo(valor):
     return _SEXOS.get(str(valor or "").strip().upper(), "")
@@ -74,15 +80,53 @@ def normalizar_texto(valor):
     return re.sub(r"\s+", " ", str(valor or "")).strip()
 
 
-def normalizar_fecha(valor):
+def _creible(fecha, hoy=None):
+    """``(fecha, invalida)`` después del control de rango (G1-12).
+
+    Una fecha de nacimiento **futura** o anterior a 1900 no es una fecha que se
+    pueda interpretar mal: es una fila mal cargada. Hasta acá entraba al padrón
+    tal cual y el cruce la volcaba al legajo del ciudadano, donde la edad es una
+    regla de negocio (RN-22, BEC-03). Se cuenta como fecha sin interpretar y la
+    fila entra igual, sin fecha: lo que habilita a la persona es el documento.
+    """
+    if fecha is None:
+        return None, True
+    hoy = hoy or timezone.localdate()
+    if fecha > hoy or fecha < FECHA_NACIMIENTO_MINIMA:
+        return None, True
+    return fecha, False
+
+
+def _con_pivote(fecha, texto, formato, hoy):
+    """El año de dos dígitos se interpreta hacia atrás, no hacia adelante.
+
+    ``strptime`` con ``%y`` usa el pivote fijo de POSIX (69–99 → 19xx, 00–68 →
+    20xx), así que ``05/06/30`` —una persona nacida en 1930— salía **2030**.
+    Para una fecha de nacimiento no hay ambigüedad: la que está en el futuro es
+    la del siglo anterior.
+    """
+    if "%y" not in formato or fecha <= hoy:
+        return fecha
+    try:
+        return fecha.replace(year=fecha.year - 100)
+    except ValueError:  # 29 de febrero de un año bisiesto que no lo es 100 antes
+        return fecha.replace(year=fecha.year - 100, day=28)
+
+
+def normalizar_fecha(valor, hoy=None):
     """Devuelve ``(fecha, invalida)``. ``invalida`` es True solo cuando había
-    algo escrito que no se pudo interpretar; una celda vacía no es inválida."""
+    algo escrito que no se pudo interpretar; una celda vacía no es inválida.
+
+    «No se pudo interpretar» incluye, desde G1-12, lo que se lee pero no se
+    puede creer: una fecha futura o anterior a 1900.
+    """
     if valor is None or (isinstance(valor, str) and not valor.strip()):
         return None, False
+    hoy = hoy or timezone.localdate()
     if isinstance(valor, datetime):
-        return valor.date(), False
+        return _creible(valor.date(), hoy)
     if isinstance(valor, date):
-        return valor, False
+        return _creible(valor, hoy)
     if isinstance(valor, (int, float)):
         # Número de serie de Excel (fechas sin formato de celda).
         try:
@@ -91,13 +135,16 @@ def normalizar_fecha(valor):
             convertido = from_excel(valor)
         except (ValueError, TypeError, OverflowError):
             return None, True
-        return (convertido.date() if isinstance(convertido, datetime) else convertido), False
+        if isinstance(convertido, datetime):
+            convertido = convertido.date()
+        return _creible(convertido if isinstance(convertido, date) else None, hoy)
     texto = str(valor).strip()
     for formato in _FORMATOS_FECHA:
         try:
-            return datetime.strptime(texto, formato).date(), False
+            leida = datetime.strptime(texto, formato).date()
         except ValueError:
             continue
+        return _creible(_con_pivote(leida, texto, formato, hoy), hoy)
     return None, True
 
 

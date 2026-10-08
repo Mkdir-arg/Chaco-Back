@@ -1,9 +1,36 @@
 # Auditoría integral de DATAÑACH (Chaco) — octubre 2026
 
-## Estado al 08-oct-2026 (Ola 3, PR 7a: integraciones SIIS y RENAPER)
+## Estado al 08-oct-2026 (Ola 3, PR 5b: app de campo — **segundo lote, cierra el ítem**)
+
+**Una foto por campo, y el servidor sabe con qué formulario se capturó.** El PR 5b de la Ola 3
+(#PENDIENTE, Cambio 178) cierra **G1-07** y deja **G1-16** 🟡 —el servidor hace su mitad; la otra es un release de
+`Chaco-mobile`—: las 14 h que le quedaban al ítem 5 del plan. Mismo criterio del PR 5: todo cambio de
+request o de respuesta es **aditivo**, y lo que la app instalada (`origin/main @ a66c2d3`) manda hoy
+sigue significando lo mismo y recibiendo los mismos códigos.
+
+| Ficha | Qué quedó |
+|---|---|
+| **G1-07** ✅ | **Un archivo por campo de archivo del caso.** El `POST …/adjuntos/` reemplaza en vez de acumular: el reintento de la cola offline deja de duplicar la fila, y el territorial que vuelve a sacar la foto porque la primera salió movida ahora ve la segunda —antes la revisión se quedaba con la **más vieja**, porque el `ordering` del modelo es `-creado` y el bucle de `_adjuntos_por_clave` pisaba—. El archivo viejo se borra con `transaction.on_commit`. La referencia tiene que ser un campo `ARCHIVO` de la foto del caso: con la de otro segmento o la de una pregunta de texto, el documento quedaba guardado donde la pantalla del revisor no lo busca. **Ajuste tras leer `Chaco-mobile@a66c2d3`:** la app arma el formulario con las listas **planas** `globales`/`requisitos` y no con `items` (que es lo único que guarda la foto), y su cola **corta en el primer adjunto que falla**; por eso, si la referencia no está en la foto, se mira la lista plana vigente del relevamiento antes de rechazar —si no, un 400 a un campo que el teléfono mostró dejaba sin subir también los siguientes—. Sigue respondiendo **201** y la gracia de D-G04 no se toca: las fotos de una captura hecha en fecha suben aunque el cron ya haya cerrado el relevamiento |
+| **G1-16** 🟡 | El alta acepta `version_capturada` (**opcional**) y, si no coincide con la versión de la foto que el caso terminó guardando, lo deja observado para el revisor. **Desvío de la ficha, code-first:** no se guarda «la foto de esa versión» —la ficha ofrece ese camino, pero el diseño guarda un **contador** (`DisenoFormulario.version`), no un historial, así que esa foto no existe en ningún lado ni para los casos ya cargados—; se aplica la alternativa que la propia ficha deja escrita. Pendiente de Mobile: que la app guarde la `version` que bajó en el detalle del relevamiento y la mande al sincronizar |
+| **MINOR de la revisión del PR 5** | Tres, los tres cerrados acá: el log del cron nombra los ids que **efectivamente** se cerraron (y, en su propia línea, los que se saltearon porque cambiaron de estado), que es justo lo que BEC-22 separa; `CLAVES_PAGINACION` deja de ser una constante sin uso y pasa a ser la aserción de que las dos listas **no** paginan; y los rechazos del alta y del adjunto viajan también en `non_field_errors`, porque la app arma el mensaje con `detail`/`non_field_errors` y un dict por campo le dejaba al territorial un «Error HTTP 400» sin decirle qué hacer |
+
+**Riesgos de deploy.** Una migración, `programas.0081`, **expand puro**: una columna `integer NULL` **sin
+`CHECK`** al final de la fila de `programas_formulario` (la tabla más grande, 283 MB en PRD). Sin CHECK a
+propósito: el `PositiveIntegerField` lo emite y MySQL 8 rechaza `ALGORITHM=INSTANT` con él (error 1845,
+medido en `mysql:8.0.46`); así, `INSTANT` entra en `mariadb:10.11` y en `mysql:8.0`, igual que las
+dos de `programas.0080`, que se midieron en el banco de 22.000 casos de `scripts/perf_mysql/` en
+**35-104 ms** contra MariaDB 10.11 y MySQL 8, tres órdenes de magnitud bajo el `read_timeout` de 10 s
+del `migrate` (OPS-05). Conducta que cambia para el usuario: subir dos veces la foto de un campo deja
+**una** fila y no dos, y la que se ve es la última; un adjunto con la referencia de un campo que el
+formulario no pide **deja de guardarse** (400 con el motivo); y el revisor ve una observación más
+cuando la app informe que capturó con otra versión del formulario. **G1-16 necesita release de la app** para
+servir de algo; mientras tanto la columna queda en `NULL`.
+
+## Estado al 08-oct-2026 (Ola 3, PRs 7a y 7b: integraciones y link público — **el ítem 7 cierra**)
 
 | PR | Cambio | Fichas | Estado | Qué quedó abierto |
 |---|---|---|---|---|
+| Ola 3 PR 7b (#625) | 176 | G1-11 ✅ · G1-12 ✅ · G1-13 ✅ · G1-14 ✅ · R0-06 ✅ · R0-07 ✅ · RED-09 (2.ª parte) ✅ | ✅ | **Las 6 fichas de la mitad «link público» del ítem 7 más la segunda parte de RED-09, 14 h, sin migraciones.** Lo que deja de pasar: el **link público deja de dar 500** cuando un restore dejó el mismo `token_publico` en sus dos formas (hex y con guiones) en dos filas —el índice único compara texto y el `OR` de `q_uuid_en_texto` las traía a las dos, con `get_object_or_404` levantando `MultipleObjectsReturned` en una superficie sin login—: ahora atiende la más vieja, con el duplicado en el log y **sin** una consulta de más por request (las dos filas vienen con un `LIMIT 2`, no con un segundo `SELECT`); `q_uuid_en_texto` **se muda a `core/db.py`** —siete de los nueve `UUIDField` del repo están fuera de `programas` y `legajos.models` no puede importarlo sin cerrar un ciclo, mismo criterio que `core/dni.py`— y deja de reventar con `None` o un texto; el **padrón deja de meterle al legajo una fecha de nacimiento futura o de 1899** —el serial 0 de Excel, que `openpyxl` convierte en 1899-12-30— y el año de dos dígitos se interpreta hacia atrás, así que `05/06/30` entra como 1930 y no como 2030 (el pivote de POSIX que usa `%y`); un **404 de Base de Personas deja de informarse como 502** por la app de campo, igualando las dos formas en que el proveedor dice «no figura»; el **aviso por correo deja rastro** en la traza del caso (enviado / falló, con el usuario que lo disparó) y hay un botón **«Reenviar aviso»** en el detalle cuyo desenlace lo dice el estado del caso, no el operador; en el masivo va **una conexión SMTP por lote** y no un handshake TLS por correo; y el alta a SIIS **manda el CUIL real** cuando el caso lo trae, sus 8 dígitos centrales son el DNI de esa persona **y es un CUIL válido** —prefijo de la AFIP y verificador por módulo 11— (D-G11), en vez de calcular siempre por módulo 11 y mandar un `20-…` donde la AFIP emitió un `23-…`. **Tres desvíos, los tres code-first:** (a) el CUIL respondido se lee de la **foto** del caso y no del catálogo de hoy —el masivo no puede pagar una consulta por caso, y es la misma regla de G1-08—, así que un caso sin foto sigue calculando; (b) R0-06 no usa `.first()` + un segundo `SELECT` como proponía la ficha: el link público es superficie caliente; (c) de las dos filas que G1-12 esperaba contar como inválidas, `05/06/30` ahora se interpreta **bien** (1930), que es mejor que descartarla, y solo el serial 0 cuenta como «sin interpretar». **Lo que la ficha no pedía y entra igual:** los **tres seguimientos de la revisión del PR 7a** sobre el token de RENAPER, sin horas de plan. (1) El **presupuesto** de `core.integraciones.CADENAS` declaraba `login + consulta` = 30 s y el comentario de al lado prometía 2 s nombrando un `ESPERA_LOGIN_SEGUNDOS` que ya no existe; con `VUELTAS_TOKEN` esperas sin límite compartido el peor caso real eran **63 s**, por encima del corte de nginx, y `core.E003` no lo veía. Ahora `consultar_ciudadano` abre **un** límite por request y lo comparte con todo lo que puede repetirse —las vueltas de `get_token`, su espera, la decisión de loguearse y el reintento por 401—, y la cadena declara `espera_token + login + consulta` = **46 s**, con la cuenta escrita en el comentario. (2) El **ganador** de la rotación leía `self.token` fuera del candado apenas volvía de `login()`: si un 401 de otro hilo lo descartaba en esa ventana levantaba «el login terminó sin dejar token» **con un token bueno en la mano**, sin usar sus vueltas restantes, mientras los que esperaban sí reintentaban; hoy `login()` devuelve lo que trajo y el ganador vuelve a la decisión, y solo un 200 sin token corta (reintentar ahí cuesta un login y el proveedor contesta lo mismo). (3) `descartar_token(usado=…)` comparaba contra `self.token`, que es **del worker**: si el que rotó fue otro worker, el 401 viejo pasaba la guarda y borraba de la caché compartida el token recién publicado; ahora compara contra la caché y solo borra si sigue siendo el token usado —con el límite documentado: la caché de Django no expone un «borrar si vale esto» atómico—. Los dos MINOR de la ronda 2 ya estaban hechos en el propio #623. **Para el PM:** correr `manage.py medir_cuil_respondido` contra PRD (solo lectura) para saber a cuántos casos ya informados a SIIS les cambia el CUIL, y aplicar a mano el bloque de `.claude/design/dominio/becas.md` que va en el cuerpo del PR (la sesión no tiene permiso de escritura ahí y el job `Design Agent Contract` queda rojo hasta entonces) |
 | Ola 3 PR 7a | 174 | SIIS-10 ✅ · SIIS-13 🟡 · SIIS-14 (+G3-02) ✅ · SIIS-15 ✅ · SIIS-16 🟡 · SIIS-18 ✅ · SIIS-20 ✅ · SIIS-21 ✅ · G1c-15 ✅ | ✅ | **Las 9 fichas de la mitad «integraciones» del ítem 7, 16 h, sin migraciones.** Lo que deja de pasar: la identidad de Base de Personas **ya no sale del domicilio** —`_aplanar` recorría el árbol entero con `setdefault`, así que `domicilio.localidad.nombre` le ganaba a `nombres` y la persona quedaba **validada** llamándose «Resistencia», fijo en el paso 2 del link, en el legajo y en lo que viaja a SIIS—, y dos registros que no se pueden desempatar o uno de otro documento dejan de mezclarse en una identidad inventada; un **401 de RENAPER descarta el token** (en la caché compartida, no solo en el proceso) y reintenta una vez, en vez de dejar todas las altas de ciudadano en «Error HTTP 401» hasta que el token caduca de viejo; un **5xx de RENAPER deja de informarse como «error de conexión»** con `status_code: None` (`Retry(total=0, status_forcelist=…)` levantaba `MaxRetryError` sin reintentar nada); el **documento consultado deja de llegar al log** (con `RENAPER_HTTP_METHOD=get` la URL lleva `?dni=…` y el traceback de `requests` la arrastra) y el cuerpo del login tampoco; un **RECHAZADO cuya identidad nunca se validó libera el DNI** en la convocatoria, así que una carga ajena en un link abierto deja de bloquear al titular para siempre; un **error de plantilla del comprobante** ya no da 500 con la inscripción commiteada y la persona sin correo; un **adjunto anónimo se valida por su firma** y no por la extensión; la **localidad del modal de SIIS** se cruza contra la provincia con las cuatro claves del catálogo y los ítems sin provincia dejan de colarse en todas; y `check --deploy` **frena en producción** `RENAPER_TEST_MODE` (`core.E004`, identidades al azar marcadas validadas) y **avisa** del captcha aritmético (`core.W003`). **Cuatro desvíos, los cuatro code-first:** (a) SIIS-20 dispara por `DATANACH_ES_PRODUCCION` y no por `ENVIRONMENT == "prd"` —icore (DEV) declara `prd` y ahí el modo de prueba es legítimo; es además la regla del §0.4—; (b) el test permanente de G1c-15 **no** puede levantar el `HTTPServer` de la PoC, porque el runner corta toda salida HTTP incluido localhost: corre la decisión real de `HTTPConnectionPool.urlopen` sobre el `Retry` que el cliente monta; (c) el sexo devuelto por Base de Personas se compara por la **inicial** y solo si viene, porque el proveedor manda `F` y `FEMENINO` y rechazar por formato rompería el camino feliz en PRD; (d) `_informa_fallecido` sigue aplanando el árbol, porque ahí lo que se busca es la *presencia* de una marca. **Contradice a propósito una decisión registrada:** SIIS-21 hace que la cubeta por documento cuente por IP **en modo aritmético**, al revés de lo que fijó el Cambio 71 —que la dejó global para que rotar de IP no sirviera para enumerar—; vale solo en el modo degradado, donde enumerar ya era barato, y lo que compra es que no se le pueda quemar la cuota de una hora al documento de un tercero con quince POST. **Lo que la ficha no pedía y entra igual:** una respuesta de RENAPER con éxito pero **sin nombre ni apellido** deja de dar `success=True` (el agujero que `test_renaper_con_el_result_anidado_un_nivel_mas_no_se_marca_validado` tenía medido nombrando a esta ola). **Ronda 2 de la revisión (1 MAJOR y 2 MINOR).** El MAJOR era consecuencia de lo que este mismo PR había movido: **el candado del token convertía un login colgado en una cola**. Envolver el login con un `threading.RLock` evitaba N logins simultáneos, pero hacía que N requests esperaran su turno **para fallar igual**: medido con 4 hilos y un login de 0,4 s que falla, 1,61 s (0,41/0,80/1,20/1,59) contra 0,41 s sin candado, y con un login colgado el segundo request esperaba **10 s** —con los timeouts reales (5 + 10 s), la cuarta alta concurrente se come los 60 s de nginx—. Hoy el candado protege solo la decisión de quién se loguea y se suelta antes de la red: el ganador avisa por un `Event` y los demás esperan ese aviso acotado a 2 s, así que el tiempo total **deja de crecer con la cantidad de requests** (lo mide `LoginConcurrenteTests`, en rojo contra la versión anterior). De paso entra el **`Cortacircuito`** de `core/integraciones.py`, que faltaba en el único cliente que no lo tenía, y el cliente pasa a la `sesion_http()` del repo —**sin cookie jar**, que en un cliente de módulo es estado compartido entre personas—. Los dos MINOR: un `@override_settings` duplicado, y el desempate de identidad medido contra formatos no previstos (documento con cero a la izquierda, que mandaba a `manual` a todos los DNI de siete dígitos; sexo numérico, que no se interpreta y por eso no objeta). **Ronda 3 (1 MAJOR y 2 MINOR), otra vez sobre lo que la ronda anterior había movido:** el que esperaba el token tenía **un solo intento**. Hacía `wait()` → ¿hay token? → y si no, levantaba. Con un token rotado —el ganador consulta, se come el 401 de SIIS-14 y descarta el token antes de que los demás lean— N−1 altas terminaban en «error al obtener token» **sin haber consultado nada**; y con un login sano que tardara más que los 2 s fijos de espera, fallaban todas. Ahora vuelve a la decisión (tope de 3 vueltas): toma el token nuevo, o se vuelve él el que se loguea, y solo corta si el login ajeno **falló** o no terminó. La espera pasa a derivarse de `connect + read` en vez de ser un número suelto menor que el propio timeout del login. Los dos MINOR: `login()` escribía el token y su vencimiento fuera del candado (son un solo dato), y los dos motivos de «no hay token» dejan de compartir mensaje. De yapa, `descartar_token(usado=…)`: un 401 que llega con el token viejo ya no tira el que otro acaba de traer. **Abierto:** el `client_max_body_size` de SIIS-16, que necesita medir los envíos reales en PRD y vale también para el ingress de ECOM, que no está en este repo; y la opción (b) de SIIS-13 (`conflicto_duplicado`), que la ficha deja «para después» |
 
 ## Estado al 08-oct-2026 (Ola 3, PR 5: app de campo — **primer lote**)
@@ -33,30 +60,7 @@ de magnitud bajo el `read_timeout` de 10 s del `migrate` (OPS-05). Conducta que 
 el teléfono **sube** capturas que antes rechazaba, con hasta 24 h de gracia; el revisor **ve** dos
 marcas nuevas; y un caso con una fecha de nacimiento o un DNI imposibles **deja de crearse**.
 
-**Cerrado en el PR 5b** (Cambio 178, 08-oct-2026): **G1-07** ✅ y **G1-16** 🟡, las 14 h que faltaban.
-
-## Estado al 08-oct-2026 (Ola 3, PR 5b: app de campo — **segundo lote, cierra el ítem**)
-
-**Una foto por campo, y el servidor sabe con qué formulario se capturó.** El PR 5b de la Ola 3
-(Cambio 178) cierra **G1-07** y deja **G1-16** 🟡 —el servidor hace su mitad; la otra es un release de
-`Chaco-mobile`—: las 14 h que le quedaban al ítem 5 del plan. Mismo criterio del PR 5: todo cambio de
-request o de respuesta es **aditivo**, y lo que la app instalada (`origin/main @ a66c2d3`) manda hoy
-sigue significando lo mismo y recibiendo los mismos códigos.
-
-| Ficha | Qué quedó |
-|---|---|
-| **G1-07** ✅ | **Un archivo por campo de archivo del caso.** El `POST …/adjuntos/` reemplaza en vez de acumular: el reintento de la cola offline deja de duplicar la fila, y el territorial que vuelve a sacar la foto porque la primera salió movida ahora ve la segunda —antes la revisión se quedaba con la **más vieja**, porque el `ordering` del modelo es `-creado` y el bucle de `_adjuntos_por_clave` pisaba—. El archivo viejo se borra con `transaction.on_commit`. La referencia tiene que ser un campo `ARCHIVO` de la foto del caso: con la de otro segmento o la de una pregunta de texto, el documento quedaba guardado donde la pantalla del revisor no lo busca. Sigue respondiendo **201** y la gracia de D-G04 no se toca: las fotos de una captura hecha en fecha suben aunque el cron ya haya cerrado el relevamiento |
-| **G1-16** 🟡 | El alta acepta `version_capturada` (**opcional**) y, si no coincide con la versión de la foto que el caso terminó guardando, lo deja observado para el revisor. **Desvío de la ficha, code-first:** no se guarda «la foto de esa versión» —la ficha ofrece ese camino, pero el diseño guarda un **contador** (`DisenoFormulario.version`), no un historial, así que esa foto no existe en ningún lado ni para los casos ya cargados—; se aplica la alternativa que la propia ficha deja escrita. Pendiente de Mobile: que la app guarde la `version` que bajó en el detalle del relevamiento y la mande al sincronizar |
-| **MINOR de la revisión del PR 5** | Tres, los tres cerrados acá: el log del cron nombra los ids que **efectivamente** se cerraron (y, en su propia línea, los que se saltearon porque cambiaron de estado), que es justo lo que BEC-22 separa; `CLAVES_PAGINACION` deja de ser una constante sin uso y pasa a ser la aserción de que las dos listas **no** paginan; y los rechazos del alta y del adjunto viajan también en `non_field_errors`, porque la app arma el mensaje con `detail`/`non_field_errors` y un dict por campo le dejaba al territorial un «Error HTTP 400» sin decirle qué hacer |
-
-**Riesgos de deploy.** Una migración, `programas.0081`, **expand puro**: una columna nullable al final
-de la fila de `programas_formulario` (la tabla más grande, 283 MB en PRD) — la misma operación que las
-dos de `programas.0080`, que se midieron en el banco de 22.000 casos de `scripts/perf_mysql/` en
-**35-104 ms** contra MariaDB 10.11 y MySQL 8, tres órdenes de magnitud bajo el `read_timeout` de 10 s
-del `migrate` (OPS-05). Conducta que cambia para el usuario: subir dos veces la foto de un campo deja
-**una** fila y no dos, y la que se ve es la última; un adjunto con la referencia de un campo que el
-formulario no pide **deja de guardarse** (400 con el motivo); y el revisor ve una observación más
-cuando la app informe que capturó con otra versión del formulario.
+**Cerrado en el PR 5b** (#PENDIENTE, Cambio 178, 08-oct-2026): **G1-07** ✅ y **G1-16** 🟡, las 14 h que faltaban.
 
 ## Estado al 07-oct-2026 (Ola 3, PR 6: reglas de negocio de Becas)
 
@@ -1562,26 +1566,28 @@ funcional ni coordinación con ECOM). Las horas de cada ola suman los esfuerzos 
 | **R** | **Red de seguridad: poder cambiar código sin romper nada sin enterarse** | — | — | — | — | **86** (79 RED con parte en R —78 del relevamiento + RED-89— + OPS-01, OPS-03, OPS-04, TST-01, TST-02, TST-03, R0-03; SEC-10, SEC-11 y SEC-18 se ejecutan en R-19 pero **siguen contadas como ítems de la Ola 2**, solo se mueven sus horas) | **285** · **269 cerradas (R-01..R-16 y R-18..R-21) → 16 restantes: solo R-17** |
 | 1 | Integridad SIIS | 23 | 72 | 22 (− SIIS-07) | 70 | 23 (+ RED-53; + parte de RED-32) | 78 · **76 cerradas (26 el 05-oct, PR 2; 6 el 06-oct, PR 3; 10 el 06-oct, PR 4; 4 el 06-oct, PR 5; 20 el 07-oct, PR 6; 10 el 07-oct, PR 7) → 2 restantes: el ítem 0 (V2-NEW-03, correr P-01 en PRD, sin código)** |
 | 2 | Autorización (RBAC, legajos, alcance de Becas, usuarios) | 36 | 116 | 50 (+ fase 2 de OPS-06, R0-05, resto de SEC-01, etapa 2 de SEC-09, R0b-01..10) | 136 | 51 (+ RED-80; + partes de RED-52, RED-79) | 135 (−7: SEC-10, SEC-18 y media SEC-11 se hacen en R-19, D-RED-14) |
-| 3 | Datos, operación, CI, app de campo y reglas de Becas | 55 | 158 | 59 (+ R0-03, R0-04, R0-06, R0-07) | 166 | 54 (− 7 a la Ola R; + RED-48, RED-58; + partes de RED-09, 35, 40, 50) | 152 · **132 cerradas (14 PR 1 · 22 PR 2 · 6 PR 3 · 22 PR 5 · 14 PR 5b · 30 PR 6 · 16 PR 7a · 8 PR 8) → 20 restantes** |
+| 3 | Datos, operación, CI, app de campo y reglas de Becas | 55 | 158 | 59 (+ R0-03, R0-04, R0-06, R0-07) | 166 | 54 (− 7 a la Ola R; + RED-48, RED-58; + partes de RED-09, 35, 40, 50) | 152 · **146 cerradas (14 PR 1 · 22 PR 2 · 6 PR 3 · 22 PR 5 · 14 PR 5b · 30 PR 6 · 16 PR 7a · 14 PR 7b · 8 PR 8) → 6 restantes: la segunda parte de RED-35 (ítem 9)** |
 | 4 | Performance | 19 | 52 | 19 | 52 | 20 (+ RED-62; + partes de RED-10, 49, 51, 83) | 64 |
 | 5 | Bugs de front y parches v1 de Legajos/Dispositivos | 31 (+ V5A-NEW-07 b) | 114 | 31 (+ V5A-NEW-07 b) | 114 | 33 (+ RED-33, RED-75; + partes de RED-42, 53) (+ V5A-NEW-07 b) | 128 · **128 cerradas (PRs 1 a 8) → 0: la ola cierra** |
 | 6 | Agente de diseño | 4 (+8 pasos) | 42 | 4 (+8 pasos) | 42 | 4 (+8 pasos) | 42 · **42 cerradas el 06-oct (pasos 0-7) → 0: la ola cierra** |
 | 7 | Deuda | 9 (+ fase 2 de G1-01) | 46 | 10 (+ fase 2 de G1-01; + R0-02) | 48 | 13 (+ RED-64, 76, 86; + partes de RED-13, 37, 39, 54, 78, 85) | 88 |
 | v2 | Criterios de aceptación de la v2 (§7), no se implementan en v1 | 13 | — | 13 | — | 13 | — |
-| **Total** | | **206** | **636** | **208** | **628** | **297** | **972** · **647 cerradas al 08-oct-2026 → 325 restantes** |
+| **Total** | | **206** | **636** | **208** | **628** | **297** | **972** · **661 cerradas al 08-oct-2026 → 311 restantes** |
 
 Cada ficha RED cuenta como ítem una sola vez, en la primera ola donde tiene trabajo (por eso la columna suma 297 = 208 +
 89); si tiene una segunda parte en otra ola, esas horas se suman en esa ola («+ partes de …»).
 
 **Cómo se calcula la fila Total (08-oct-2026).** Las 972 h son la suma de la última columna, ola por ola: 0 (Ola 0, que
 cerró en código y cuyas horas ya se descontaron) + 285 (R) + 78 (1) + 135 (2) + 152 (3) + 64 (4) + 128 (5) + 42 (6) +
-88 (7); la v2 no tiene horas. Las **647 cerradas** son la suma de las horas cerradas que declara cada fila, y cada una
+88 (7); la v2 no tiene horas. Las **661 cerradas** son la suma de las horas cerradas que declara cada fila, y cada una
 sale de la lista de PRs de su propia sección de este §6: **269** de la Ola R (285 − las 16 de R-17, el único abierto),
-**76** de la Ola 1 (de 78: queda el ítem 0, operativo), **132** de la Ola 3 (PR 1 = 14, PR 2 = 22, PR 3 = 6, PR 5 = 22,
-PR 5b = 14, PR 6 = 30, PR 7a = 16, PR 8 = 8), **128** de la Ola 5 y **42** de la Ola 6, las dos cerradas; las Olas 2, 4 y 7 todavía no abrieron
-ningún PR. 972 − 647 = **325 restantes**. El «139 cerradas» venía del 04-oct y no contaba nada de lo mergeado entre el
-05 y el 07; el **543** del 07-oct arrastraba la celda de la Ola 3 en 28 h, que no sumaba los PRs 2 (22 h) y 6 (30 h), ya
-mergeados cuando se escribió.
+**76** de la Ola 1 (de 78: queda el ítem 0, operativo), **146** de la Ola 3 (PR 1 = 14, PR 2 = 22, PR 3 = 6, PR 5 = 22,
+PR 5b = 14, PR 6 = 30, PR 7a = 16, PR 7b = 14, PR 8 = 8), **128** de la Ola 5 y **42** de la Ola 6, las dos cerradas; las Olas 2, 4
+y 7 todavía no cerraron ningún PR. 972 − 661 = **311 restantes**. El «139 cerradas» venía del 04-oct y no contaba nada
+de lo mergeado entre el 05 y el 07; el **543** del 07-oct arrastraba la celda de la Ola 3 en 28 h, que no sumaba los
+PRs 2 (22 h) y 6 (30 h), ya mergeados cuando se escribió. Los PRs 5 y 7b se escribieron en paralelo y cada uno contó
+el otro como abierto (633 y 625); esta cuenta los suma a los dos. El PR 5b (#PENDIENTE) suma sus 14 h sobre las 647
+que dejó el PR 7b: 647 + 14 = **661**, y la Ola 3 pasa de 132 a **146** (14 + 22 + 6 + 22 + 14 + 30 + 16 + 14 + 8).
 **Dos arreglos de la misma tabla, residuo del README duplicado (ver #620):** la Ola 5 tenía **dos filas** con cifras
 distintas (66 y 60 h cerradas) — se dejó una sola, y con el 128/128 que declara su sección —, y en la sección de la
 Ola 5 había un bloque de avance viejo («60 h de 128») y una segunda copia de su lista de PRs, conciliados más abajo.
@@ -1937,20 +1943,21 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
 ### Ola 3 — Datos, operación, CI, app de campo y reglas de Becas
 - **Objetivo:** que no se pierdan datos (adjuntos, capturas offline), que el despliegue sea diagnosticable y robusto, que
   la CI pruebe el motor real, y cerrar las reglas de negocio de Becas.
-- **Avance: 132 h de 152, 20 restantes** (14 PR 1 · 22 PR 2 · 6 PR 3 · 22 PR 5 · 14 PR 5b · 30 PR 6 · 16 PR 7a · 8 PR 8).
-  **PR 5b (G1-07 ✅ y G1-16 🟡) en el Cambio 178, 08-oct-2026**: las 14 h que le quedaban al ítem 5,
+- **Avance: 146 h de 152, 6 restantes** (14 PR 1 · 22 PR 2 · 6 PR 3 · 22 PR 5 · 14 PR 5b · 30 PR 6 · 16 PR 7a · 14 PR 7b · 8 PR 8).
+  **PR 5b (G1-07 ✅ y G1-16 🟡) en el Cambio 178 (#PENDIENTE), 08-oct-2026**: las 14 h que le quedaban al ítem 5,
   con `programas.0081` (una columna nullable sobre `programas_formulario`, expand puro). G1-16 cierra
   del lado del servidor y deja **pendiente el release de `Chaco-mobile`** que mande el dato.
-  **PR 5 (G1-03, G1-04 + BEC-22, G1-05, G1-06 y R0-04, más RED-40) en el Cambio 175, 08-oct-2026**:
-  20 h de las 34 del ítem 5 + 2 h del ítem 9, con una migración **expand puro** sobre
-  `programas_formulario` (`programas.0080`, medida en MariaDB 10.11 y MySQL 8 sobre 22.000 casos:
-  35-104 ms). **PR 7a (SIIS-10, SIIS-13 🟡, SIIS-14 +G3-02,
+  **PR 7b (G1-11, G1-12, G1-13, G1-14, R0-06, R0-07 + la segunda parte de RED-09) en el Cambio 176, 08-oct-2026**:
+  14 h, sin migraciones. **PR 5 (G1-03, G1-04 + BEC-22, G1-05, G1-06 y R0-04, más RED-40) en el Cambio 175,
+  08-oct-2026**: 20 h de las 34 del ítem 5 + 2 h del ítem 9, con una migración **expand puro** sobre
+  `programas_formulario` (`programas.0080`, medida en MariaDB 10.11 y MySQL 8 sobre 22.000 casos: 35-104 ms).
+  **Queda la segunda parte de RED-35** (6 h, ítem 9). **PR 7a (SIIS-10, SIIS-13 🟡, SIIS-14 +G3-02,
   SIIS-15, SIIS-16 🟡, SIIS-18, SIIS-20, SIIS-21 y G1c-15) en el Cambio 174, 08-oct-2026**: 16 h, sin migraciones.
   Antes: PR 6 (las 13 reglas de Becas + RED-50, Cambio 172), PR 2 (DAT-01 🟡, DAT-02, DAT-03, DAT-05,
   V2-NEW-05, G1c-08 y RED-48, Cambio 168, con `programas.0078`, solo de estado), PR 8 (Cambio 173),
   PR 3 (Cambio 171) y PR 1 (Cambio 165).
   *Corrección de contabilidad (08-oct):* esta línea llegó a estar partida en tres (40, 86 y 102 h), escritas
-  por PRs en paralelo que no se veían entre sí; la de 102 no sumaba el PR 7a.
+  por PRs en paralelo que no se veían entre sí.
 - **PRs y orden:**
   1. ✅ *Operación y deploy:* OPS-05, OPS-07 (ampliado: el candado envuelve también el `migrate`), OPS-11, OPS-12,
      G3-04, G3-05 **+ RED-58** (el ítem 9 lo traía junto con OPS-05). 12 + 2 h. **Cerrado el 07-oct-2026
@@ -1970,24 +1977,27 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
      BEC-20, BEC-24 **+ RED-50** (el ítem 9 lo traía aparte). 26 + 4 h. **Cerrado el 08-oct-2026
      (Cambio 172).** Dos migraciones sin DDL, de la ronda 2: BEC-18 necesitaba arreglar también la
      **escritura** de los `DateField` con `auto_now_add`, que guardan la fecha del proceso.
-  7. *Integraciones y link público:* 30 h, partido en dos PRs.
+  7. ✅ *Integraciones y link público:* 30 h, partido en dos PRs, los dos cerrados el 08-oct-2026.
      - **7a ✅ *Integraciones (SIIS y RENAPER)*:** SIIS-10, SIIS-13 (🟡 opción a), SIIS-14 (+G3-02), SIIS-15,
        SIIS-16 (🟡 falta el techo de nginx, que necesita medición en PRD), SIIS-18, SIIS-20, SIIS-21 y G1c-15.
        **16 h, cerrado el 08-oct-2026 (Cambio 174), sin migraciones.**
-     - 7b *Link público y `q_uuid_en_texto`:* G1-11, G1-12, G1-13, G1-14, R0-06, R0-07 (+ la segunda parte de
-       RED-09 del ítem 9). 14 h.
-  8. *Reportes:* G2-01. 8 h.
-  9. *Red de seguridad (04-oct):* ✅ RED-48 (una sola regla de DNI, con G1c-08 — Cambio 168), ~~RED-58 (plantilla de migración
-
+     - **7b ✅ *Link público y `q_uuid_en_texto`*:** G1-11, G1-12, G1-13, G1-14, R0-06, R0-07 (+ la segunda parte de
+       RED-09 del ítem 9). **14 h, cerrado el 08-oct-2026 (Cambio 176), sin migraciones.** Entraron con él los tres
+       seguimientos que dejó la revisión del PR 7a sobre el token de RENAPER (presupuesto de la cadena, el ganador de
+       la rotación y `descartar_token` entre procesos), sin horas de plan propias.
   8. ✅ *Reportes:* G2-01. 8 h. **Cerrado el 07-oct-2026 (Cambio 173).** Entraron con él los cinco seguimientos que
      dejaron las revisiones de los PRs 1 y 3 de esta ola (los dos ratchets AST de comandos, el
      `asegurar_admin_restante` por programa del alta masiva, el snapshot del ejercicio de diseño y el techo real del
      ratchet de `design_audit`), sin horas de plan propias.
-  9. *Red de seguridad (04-oct):* RED-48 (una sola regla de DNI, con G1c-08), ~~RED-58 (plantilla de migración
-     re-entrante, con OPS-05)~~ ✅ **cerrada en el PR 1**, y segundas partes de RED-09 (`q_uuid_en_texto` a `core/db.py`, con el PR 7), RED-35
+  9. *Red de seguridad (04-oct):* ~~RED-48 (una sola regla de DNI, con G1c-08)~~ ✅ **cerrada en el PR 2**,
+     ~~RED-58 (plantilla de migración re-entrante, con OPS-05)~~ ✅ **cerrada en el PR 1**,
+     ~~RED-09 (`q_uuid_en_texto` a `core/db.py`)~~ ✅ **cerrada en el PR 7b**, segunda parte de RED-35
      (atomicidad del resto de las escrituras), ~~RED-40 (`validators` en los `JSONField`, con G1-05)~~ ✅ **cerrada en
      el PR 5** y ~~RED-50 (una sola `edad_en_anios` con `timezone.localdate()` + regla `DTZ011`)~~ ✅ **cerrada en el PR 6**.
-     18 h, de las que quedan 12.
+     **18 h, de las que quedan 6: la segunda parte de RED-35.** La cuenta: 2 de RED-58 (el «+ 2» del PR 1), 4 de
+     RED-48 (el «+ 4» de las 22 del PR 2), 2 de RED-40 (el «+ 2» de las 22 del PR 5) y 4 de RED-50 (el «+ 4» del
+     PR 6) ya están en las horas cerradas de esos PRs; RED-09 entró dentro de las 14 h del PR 7b, sin horas aparte.
+     18 − 2 − 4 − 2 − 4 = 6. Cierra con la línea de Avance: 152 − 146 = 6 = RED-35 (6).
   **Prerrequisito: ✅ cumplido el 07-oct-2026.** PRs R-11 a R-16 de la Ola R (motor real en CI, contrato de migraciones,
   job de ida y vuelta, gates del release, operación, y los tests de Becas que DAT-01 y las reglas van a invertir). Los
   dos tests que esta ola tiene que **invertir** están nombrados en sus fichas:
