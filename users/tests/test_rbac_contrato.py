@@ -315,7 +315,10 @@ class CapacidadRetiradaTests(SimpleTestCase):
     def test_no_la_siembra_ningun_rol(self):
         from users.management.commands import seed_datos_base
 
-        sembradas = {c for _, _, _, caps in seed_datos_base._ROLES_MENU for c in caps}
+        # La tupla de `_ROLES_MENU` creció (el Cambio 193 le puso la clave adelante):
+        # se lee por el **último** elemento, que son las capacidades, para que un campo
+        # nuevo no vuelva a romper esto.
+        sembradas = {c for fila in seed_datos_base._ROLES_MENU for c in fila[-1]}
 
         self.assertNotIn(self.RETIRADA, sembradas)
 
