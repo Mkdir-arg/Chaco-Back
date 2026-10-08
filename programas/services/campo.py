@@ -162,9 +162,10 @@ def revisar_carga(formulario, relevamiento=None, identidad=None):
     """
     definicion = formulario.definicion or {}
     respuestas = dict(formulario.respuestas or {})
-    # G1-07: lo que dejó una subida posterior no lo sabe esta función y se
-    # reescribe entero, así que se arrastra.
-    observaciones = _observaciones_de_adjuntos(formulario)
+    # G1-07: lo que dejó una subida posterior —o la validación de identidad, que
+    # corre antes que esto— no lo sabe esta función y se reescribe entero, así
+    # que se arrastra.
+    observaciones = _observaciones_conservadas(formulario)
 
     observaciones.extend(_observacion_de_version(formulario, definicion))
 
@@ -269,11 +270,46 @@ MENSAJE_ADJUNTO_AJENO = (
 
 # La línea que ve el revisor cuando el archivo entró pero su campo ya no está en
 # el formulario. El prefijo es lo que la reconoce en ``observaciones_carga``
-# (ver ``_observaciones_de_adjuntos``), así que los dos se mueven juntos.
+# (ver ``PREFIJOS_CONSERVADOS``), así que los dos se mueven juntos.
 PREFIJO_ADJUNTO_OBSERVADO = "Llegó el archivo de «"
 ADJUNTO_OBSERVADO = (
     PREFIJO_ADJUNTO_OBSERVADO + "{campo}», un campo que el formulario de este relevamiento ya no pide: "
     "el archivo se guardó, pero no aparece entre las respuestas."
+)
+
+# SEC-23 · el archivo que entró a un campo **vacío** de un caso que el backoffice
+# ya resolvió. El 409 se reserva para el reemplazo —que es lo que la ficha quiere
+# frenar—; esto se acepta, porque rechazarlo deja la operación
+# ``FAILED_PERMANENT`` en la cola del teléfono y con ella se pierden todos los
+# adjuntos del caso y el `finalizar_relevamiento`.
+PREFIJO_ADJUNTO_TARDIO = "El archivo de «"
+ADJUNTO_TARDIO = (
+    PREFIJO_ADJUNTO_TARDIO + "{campo}» llegó cuando el caso ya estaba «{estado}»: el campo estaba vacío, "
+    "así que el archivo se guardó, pero entró después de la resolución."
+)
+
+# SEC-24 · por qué el caso llegó sin acreditar cuando el teléfono declaró
+# ``personas``/``gran_base``. Las dos líneas son distintas a propósito: con
+# «no figura» el revisor sabe que la fuente contestó y el documento no está;
+# con «no respondió» sabe que nadie verificó nada y la validación manual
+# (Cambio 55) es la que corresponde.
+PREFIJO_IDENTIDAD_SIN_ACREDITAR = "La identidad no se pudo acreditar"
+IDENTIDAD_NO_ENCONTRADA = (
+    PREFIJO_IDENTIDAD_SIN_ACREDITAR + ": la fuente respondió y el documento no figura en ella. "
+    "El nombre y el apellido son los que se tipearon en el teléfono."
+)
+IDENTIDAD_FUENTE_SIN_RESPUESTA = (
+    PREFIJO_IDENTIDAD_SIN_ACREDITAR + ": la fuente no respondió al sincronizar. "
+    "El nombre y el apellido son los que se tipearon en el teléfono y nadie los verificó."
+)
+
+#: Las líneas de ``observaciones_carga`` que ``revisar_carga`` **no** escribe y
+#: por eso tiene que arrastrar cuando ``aplicar_revision`` reescribe la columna
+#: entera. Cada prefijo viaja con su plantilla.
+PREFIJOS_CONSERVADOS = (
+    PREFIJO_ADJUNTO_OBSERVADO,
+    PREFIJO_ADJUNTO_TARDIO,
+    PREFIJO_IDENTIDAD_SIN_ACREDITAR,
 )
 
 
@@ -375,39 +411,70 @@ def _requisito_de_la_convocatoria(formulario, requisito):
     return RequisitoNativo.objects.filter(filtro_requisitos_convocatoria(convocatoria), pk=requisito.pk).exists()
 
 
-def observar_adjunto(formulario, referencia):
-    """Deja en ``observaciones_carga`` que entró un archivo de un campo que el
-    formulario ya no pide, sin repetir la línea cuando la cola reintenta.
+def sumar_observacion(formulario, linea):
+    """Suma ``linea`` a ``observaciones_carga`` **en memoria**, sin repetirla
+    cuando la cola reintenta. Devuelve ``True`` si cambió algo.
 
-    Es la contracara de aceptar: el documento se guarda, pero
-    ``_adjuntos_por_clave`` lo indexa por una clave que la definición del caso no
-    tiene, así que la pantalla de revisión no lo muestra. Sin esta línea el
-    revisor ve el campo *faltante* y no se entera de que el archivo llegó.
-
-    Devuelve ``True`` si escribió.
+    No guarda a propósito: quien llama a veces ya tiene un ``save`` con
+    ``update_fields`` armado (``_actualizar_validacion_identidad``) y pagar un
+    UPDATE de más por una línea de texto no tiene sentido.
     """
-    linea = ADJUNTO_OBSERVADO.format(campo=getattr(referencia, "texto", "") or "un campo del formulario")
     lineas = (formulario.observaciones_carga or "").splitlines()
     if linea in lineas:
         return False
     lineas.append(linea)
     formulario.observaciones_carga = "\n".join(lineas)
+    return True
+
+
+def quitar_observaciones(formulario, prefijo):
+    """Borra de ``observaciones_carga`` las líneas que empiezan con ``prefijo``,
+    en memoria. Devuelve ``True`` si cambió algo.
+
+    Es lo que hace que una observación no sobreviva al reintento que la
+    desmintió: el alta que se completa en un segundo intento (``_alta_incompleta``)
+    vuelve a consultar la fuente, y si esta vez acreditó, la línea que decía que
+    no se pudo acreditar ya no es cierta.
+    """
+    lineas = (formulario.observaciones_carga or "").splitlines()
+    quedan = [linea for linea in lineas if not linea.startswith(prefijo)]
+    if len(quedan) == len(lineas):
+        return False
+    formulario.observaciones_carga = "\n".join(quedan)
+    return True
+
+
+def observar_adjunto(formulario, referencia, plantilla=ADJUNTO_OBSERVADO, **datos):
+    """Deja en ``observaciones_carga`` algo que pasó con un archivo que entró,
+    sin repetir la línea cuando la cola reintenta.
+
+    Por defecto, que el campo ya no está en el formulario: el documento se
+    guarda, pero ``_adjuntos_por_clave`` lo indexa por una clave que la
+    definición del caso no tiene, así que la pantalla de revisión no lo muestra.
+    Sin esta línea el revisor ve el campo *faltante* y no se entera de que el
+    archivo llegó. Con ``plantilla=ADJUNTO_TARDIO`` (+ ``estado=…``) es la otra
+    aceptación con reparo: el archivo entró después de que el caso se resolvió.
+
+    Devuelve ``True`` si escribió.
+    """
+    linea = plantilla.format(campo=getattr(referencia, "texto", "") or "un campo del formulario", **datos)
+    if not sumar_observacion(formulario, linea):
+        return False
     formulario.save(update_fields=["observaciones_carga", "modificado"])
     return True
 
 
-def _observaciones_de_adjuntos(formulario):
-    """Las líneas de G1-07 que el caso ya tiene guardadas.
+def _observaciones_conservadas(formulario):
+    """Las líneas que el caso ya tiene guardadas y :func:`revisar_carga` no sabe
+    reconstruir (G1-07 y SEC-24, ver ``PREFIJOS_CONSERVADOS``).
 
     ``aplicar_revision`` reescribe ``observaciones_carga`` entero, y el reintento
     del alta vuelve a pasar por ahí mientras el caso siga incompleto
     (``_alta_incompleta``), que puede ser después de una subida. Se conservan
-    para que la observación del adjunto no desaparezca sin que nadie la lea.
+    para que la observación no desaparezca sin que nadie la lea.
     """
     return [
-        linea
-        for linea in (formulario.observaciones_carga or "").splitlines()
-        if linea.startswith(PREFIJO_ADJUNTO_OBSERVADO)
+        linea for linea in (formulario.observaciones_carga or "").splitlines() if linea.startswith(PREFIJOS_CONSERVADOS)
     ]
 
 
