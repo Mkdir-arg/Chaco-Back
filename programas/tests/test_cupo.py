@@ -1,22 +1,23 @@
-"""Las tres acepciones de «cupo disponible» (RED-49).
+"""Las tres acepciones de «cupo disponible» (RED-49), ya renombradas.
 
-En el repo hay **tres** cosas distintas que se llaman `cupo_disponible`, y dos
-pantallas las rotulan igual:
+En el repo había **tres** cosas distintas que se llamaban `cupo_disponible`, y dos
+pantallas las rotulaban igual. La Ola 4 renombró —no unificó—, así que hoy cada una
+dice lo que es:
 
-1. `Segmento.cupo_disponible` — el cupo del segmento **todavía no repartido**
+1. `Segmento.cupo_sin_distribuir` — el cupo del segmento **todavía no repartido**
    entre sus subsegmentos (`cupo_maximo - cupo_distribuido`). Lo muestra
    `becas/config/segmento_detail.html` y lo valida `subsegmento_form.html`.
 2. `get_cupo_stats(segmento)["cupo_disponible"]` — los **lugares libres reales**
    (`cupo_maximo - formularios APROBADO`). Lo muestra `becas/cupo/segmento_detail.html`.
-3. `Relevamiento.cupo_disponible` — lo que le queda **a ese relevamiento** de su
-   propio tope de casos (`cupo_maximo - cupo_utilizado`); lo lee la app de campo.
+   Es el único que conserva el nombre viejo.
+3. `Relevamiento.cupos_libres_del_relevamiento` — lo que le queda **a ese
+   relevamiento** de su propio tope (`cupo_maximo - cupo_utilizado`). La app de campo
+   lo sigue leyendo como `cupo_disponible`: el campo de la API no cambió, solo la
+   property (ver `test_becas_api_contrato.py`).
 
-No son sinónimos y no se pueden unificar al pasar: «limpiar» la property contra
-`get_cupo_stats` cuando se haga PERF-02 cambia el número de la pantalla de
-configuración y la validación del alta de subsegmentos. Este test fija los tres
-números con los nombres de hoy; **Ola 4** renombra (`cupo_sin_distribuir`,
-`cupos_libres_del_relevamiento`, y `cupo_disponible` queda solo para
-`get_cupo_stats`) y actualiza este test.
+Siguen sin ser sinónimos y siguen sin poder unificarse: «limpiar» la property contra
+`get_cupo_stats` cambia el número de la pantalla de configuración y la validación del
+alta de subsegmentos. Este test fija los tres números con sus nombres nuevos.
 """
 
 from datetime import date
@@ -63,9 +64,9 @@ class TresCuposTests(TestCase):
 
     def test_las_tres_acepciones_son_distintas(self):
         self.assertEqual(
-            self.segmento.cupo_disponible,
+            self.segmento.cupo_sin_distribuir,
             3,
-            "`Segmento.cupo_disponible` es el cupo sin distribuir en subsegmentos (10 - 3 - 4).",
+            "`Segmento.cupo_sin_distribuir` es el cupo sin repartir en subsegmentos (10 - 3 - 4).",
         )
         self.assertEqual(
             get_cupo_stats(self.segmento)["cupo_disponible"],
@@ -73,16 +74,24 @@ class TresCuposTests(TestCase):
             "`get_cupo_stats` son los lugares libres reales: 10 menos los 6 aprobados.",
         )
         self.assertEqual(
-            self.relevamiento.cupo_disponible,
+            self.relevamiento.cupos_libres_del_relevamiento,
             2,
-            "`Relevamiento.cupo_disponible` cuenta sus casos contra su propio tope (8 - 6).",
+            "`cupos_libres_del_relevamiento` cuenta sus casos contra su propio tope (8 - 6).",
         )
         # Las tres difieren entre sí: si alguna «unificación» las iguala, acá se ve.
         self.assertEqual(
-            len({self.segmento.cupo_disponible, get_cupo_stats(self.segmento)["cupo_disponible"]}),
+            len({self.segmento.cupo_sin_distribuir, get_cupo_stats(self.segmento)["cupo_disponible"]}),
             2,
-            "Alguien unificó las dos acepciones del segmento: PERF-02 tiene que renombrar, no unificar.",
+            "Alguien unificó las dos acepciones del segmento: hay que renombrar, no unificar.",
         )
+
+    def test_ninguna_de_las_tres_acepciones_se_llama_ya_cupo_disponible(self):
+        """El renombre en sí (RED-49, parte Ola 4). Si alguien reintroduce la property
+        —por ejemplo como alias de compatibilidad—, vuelve la ambigüedad que la ficha
+        describe: dos pantallas que muestran números distintos bajo el mismo nombre."""
+        self.assertFalse(hasattr(self.segmento, "cupo_disponible"))
+        self.assertFalse(hasattr(self.relevamiento, "cupo_disponible"))
+        self.assertIn("cupo_disponible", get_cupo_stats(self.segmento))
 
     def test_el_contador_de_cuposegmento_no_lo_mueve_nadie(self):
         """`CupoSegmento.cupo_ocupado` es un contador que ninguna escritura

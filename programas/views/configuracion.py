@@ -413,7 +413,11 @@ class SegmentoDetailView(SegmentoScopedMixin, CapacidadRequeridaMixin, LoginRequ
         # Cupo calculado UNA vez acá: las properties del modelo disparan un SUM
         # por cada acceso y el template las consulta muchas veces.
         ctx["cupo_distribuido"] = ctx["subsegmentos_cupo_total"]
-        ctx["cupo_disponible"] = seg.cupo_maximo - ctx["subsegmentos_cupo_total"]
+        # RED-49: es el cupo que todavía no se repartió entre subsegmentos, **no** los
+        # lugares libres (eso es `get_cupo_stats`, que mira los aprobados). Misma
+        # acepción que `Segmento.cupo_sin_distribuir`, calculada acá con los
+        # subsegmentos ya leídos.
+        ctx["cupo_sin_distribuir"] = seg.cupo_maximo - ctx["subsegmentos_cupo_total"]
         ctx["coordinadores"] = seg.asignaciones_coordinador.select_related("coordinador").order_by(
             "coordinador__username"
         )

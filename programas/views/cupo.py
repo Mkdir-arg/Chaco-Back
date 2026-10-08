@@ -17,18 +17,20 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
+from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 from django.views.generic.detail import DetailView
 
 from core.rbac import CapacidadRequeridaMixin, puede_alguna
-from programas.models import Formulario, ListaEspera, Segmento
+from programas.models import Formulario, ListaEspera, Relevamiento, Segmento
 from programas.services.autorizacion import (
     SegmentoScopedMixin,
     assert_alcance_formulario,
     convocatorias_visibles,
     es_admin_becas,
     programa_becas,
+    puede_relevamiento_publico,
     sin_formularios_publicos_si_no_puede,
 )
 from programas.services.avisos_resolucion import enviar_aviso_resolucion
@@ -38,6 +40,7 @@ from programas.services.cupo import (
     get_cupo_stats,
     promover_lista_espera,
 )
+from programas.services.listados import PaginadorConConteo, hidratar_en_orden
 from programas.services.siis_envio import Catalogos, enviar_beneficiario_a_siis, mensaje_envio
 
 logger = logging.getLogger(__name__)
@@ -69,8 +72,18 @@ def _informar_a_siis(request, formulario):
     return envio
 
 
-def _paginate(request, queryset, page_param):
-    paginator = Paginator(queryset, CUPO_PAGE_SIZE)
+#: Los cinco JSON del caso. Ninguna de las tres tablas de esta pantalla los abre: lista
+#: nombre, DNI, convocatoria y fechas. Son ~7 KB por fila y el 88 % de su ancho
+#: (PERF-11), así que en el banco de 20.000 casos cada tabla costaba 4,5 s en MariaDB.
+SIN_JSON = ("data", "datos_identificacion", "respuestas", "definicion", "datos_siis")
+
+
+def _paginate(request, queryset, page_param, total=None):
+    paginator = (
+        Paginator(queryset, CUPO_PAGE_SIZE)
+        if total is None
+        else PaginadorConConteo(queryset, CUPO_PAGE_SIZE, total=total)
+    )
     return paginator.get_page(request.GET.get(page_param))
 
 
@@ -99,10 +112,6 @@ class CupoSegmentoDetailView(SegmentoScopedMixin, CapacidadRequeridaMixin, Login
 
         stats = get_cupo_stats(segmento)
 
-        # La pantalla lista nombre, DNI, convocatoria y fechas: los dos JSON del
-        # formulario no los toca ninguna de las tres tablas (medido: 226 ms -> 92 ms).
-        sin_json = ("data", "datos_identificacion")
-
         # SEC-21: el segmento solo no alcanza como alcance. El Coordinador Regional
         # entra al segmento que contiene su subsegmento, así que filtrando solo por
         # ``relevamiento__convocatoria__segmento`` veía —con nombre y DNI— a los
@@ -110,66 +119,86 @@ class CupoSegmentoDetailView(SegmentoScopedMixin, CapacidadRequeridaMixin, Login
         # SEC-22: y los casos del link público, sin tener RN-P13.
         usuario = self.request.user
         programa = programa_becas(usuario)
+        # PERF-02: las tres condiciones de alcance —segmento, convocatorias visibles y
+        # RN-P13— son todas sobre el **relevamiento**, así que se resuelven una vez acá
+        # y las tres tablas quedan con un ``WHERE relevamiento_id IN (…)`` sobre su
+        # índice. Con los joins adentro MariaDB arrancaba el plan por
+        # ``programas_relevamiento``, materializaba los casos del segmento entero y
+        # recién ahí ordenaba: 4,5 s por tabla en el banco de 20.000 casos, con el
+        # ``read_timeout`` de ECOM en 10 s. Son decenas de relevamientos por segmento:
+        # la lista de ids es chica.
         # Para el admin del programa (y el superusuario, que pasa por el mismo bypass)
         # `convocatorias_visibles` es *todas* las convocatorias: filtrar por ellas no
-        # recorta nada y mete un `IN` con la tabla entera en las tres consultas de una
-        # pantalla que ya costó un 500 por `read_timeout` en ECOM. Así que ve todo sin
-        # filtro. Para el resto el recorte sí acota, y va como ids planos y no como
-        # subconsulta, que es el mismo `IN` anidado tres veces.
+        # recorta nada y mete un `IN` con la tabla entera. Así que ve todo sin filtro.
+        # Para el resto el recorte sí acota, y va como ids planos y no como subconsulta.
         convocatorias = (
             None
             if es_admin_becas(usuario, programa=programa)
             else list(convocatorias_visibles(usuario, programa=programa).values_list("pk", flat=True))
         )
+        relevamientos = Relevamiento.objects.filter(convocatoria__segmento=segmento)
+        if convocatorias is not None:
+            relevamientos = relevamientos.filter(convocatoria_id__in=convocatorias)
+        if not puede_relevamiento_publico(usuario, programa=programa):
+            relevamientos = relevamientos.exclude(tipo=Relevamiento.Tipo.PUBLICO)
+        relevamiento_ids = list(relevamientos.values_list("pk", flat=True))
 
-        def _de_mi_alcance(qs, prefijo=""):
-            if convocatorias is not None:
-                qs = qs.filter(**{f"{prefijo}relevamiento__convocatoria_id__in": convocatorias})
-            return sin_formularios_publicos_si_no_puede(qs, usuario, programa=programa, prefijo=prefijo)
-
-        beneficiarios_qs = (
-            _de_mi_alcance(
-                Formulario.objects.filter(
-                    estado=Formulario.Estado.APROBADO,
-                    ciudadano__isnull=False,
-                    relevamiento__convocatoria__segmento=segmento,
-                )
-            )
-            .select_related("ciudadano", "relevamiento__convocatoria")
-            .defer(*sin_json)
-            .order_by("modificado")
-        )
-
-        lista_espera_qs = (
-            _de_mi_alcance(ListaEspera.objects.filter(segmento=segmento, promovido=False), prefijo="formulario__")
-            .select_related("formulario__ciudadano", "formulario__relevamiento__convocatoria")
-            .defer(*[f"formulario__{campo}" for campo in sin_json])
-            .order_by("posicion")
-        )
-
+        de_mi_alcance = Formulario.objects.filter(relevamiento_id__in=relevamiento_ids)
         # Formularios ENVIADOS del segmento que aún no están en lista de espera. El
         # "ya está en espera" se mira sobre todo el segmento a propósito: un caso que
         # otro coordinador puso en la lista no tiene que reaparecer acá como pendiente.
-        formularios_en_espera_ids = ListaEspera.objects.filter(segmento=segmento, promovido=False).values_list(
-            "formulario_id", flat=True
+        espera_del_segmento = ListaEspera.objects.filter(segmento=segmento, promovido=False)
+        formularios_en_espera_ids = espera_del_segmento.values_list("formulario_id", flat=True)
+
+        beneficiarios_qs = de_mi_alcance.filter(estado=Formulario.Estado.APROBADO, ciudadano__isnull=False)
+        pendientes_qs = de_mi_alcance.filter(estado=Formulario.Estado.ENVIADO, ciudadano__isnull=False).exclude(
+            pk__in=formularios_en_espera_ids
         )
-        pendientes_qs = (
-            _de_mi_alcance(
-                Formulario.objects.filter(
-                    estado=Formulario.Estado.ENVIADO,
-                    ciudadano__isnull=False,
-                    relevamiento__convocatoria__segmento=segmento,
-                )
-            )
-            .exclude(pk__in=formularios_en_espera_ids)
-            .select_related("ciudadano", "relevamiento__convocatoria")
-            .defer(*sin_json)
-            .order_by("creado")
+        # Un solo recorrido para los dos totales: eran dos COUNT con los mismos joins.
+        conteos = de_mi_alcance.aggregate(
+            beneficiarios=Count("pk", filter=Q(estado=Formulario.Estado.APROBADO, ciudadano__isnull=False)),
+            pendientes=Count(
+                "pk",
+                filter=Q(estado=Formulario.Estado.ENVIADO, ciudadano__isnull=False)
+                & ~Q(pk__in=formularios_en_espera_ids),
+            ),
         )
 
-        beneficiarios = _paginate(self.request, beneficiarios_qs, "beneficiarios_page")
-        lista_espera = _paginate(self.request, lista_espera_qs, "lista_espera_page")
-        pendientes = _paginate(self.request, pendientes_qs, "pendientes_page")
+        # La página se elige proyectando solo el pk y se hidrata después: el ``ORDER BY``
+        # sobre una columna sin índice ordena tuplas de 16 bytes en vez de filas de 8 KB.
+        # El desempate por pk hace el orden estable entre páginas (sin él, dos casos con
+        # el mismo ``modificado`` pueden aparecer dos veces o ninguna).
+        datos_del_caso = Formulario.objects.select_related("ciudadano", "relevamiento__convocatoria").defer(*SIN_JSON)
+        beneficiarios = _paginate(
+            self.request,
+            beneficiarios_qs.order_by("modificado", "pk").values_list("pk", flat=True),
+            "beneficiarios_page",
+            total=conteos["beneficiarios"] or 0,
+        )
+        beneficiarios.object_list = hidratar_en_orden(beneficiarios.object_list, datos_del_caso)
+        pendientes = _paginate(
+            self.request,
+            pendientes_qs.order_by("creado", "pk").values_list("pk", flat=True),
+            "pendientes_page",
+            total=conteos["pendientes"] or 0,
+        )
+        pendientes.object_list = hidratar_en_orden(pendientes.object_list, datos_del_caso)
+
+        # La lista de espera es su propia tabla y ya es angosta: lo ancho lo trae el
+        # join con el caso, así que alcanza con diferirle los cinco JSON. El alcance se
+        # deja como estaba (sobre la entrada, no sobre los ids de relevamiento): una
+        # entrada cuyo caso quedó en otro segmento se sigue viendo donde se la cargó.
+        lista_espera_qs = espera_del_segmento
+        if convocatorias is not None:
+            lista_espera_qs = lista_espera_qs.filter(formulario__relevamiento__convocatoria_id__in=convocatorias)
+        lista_espera = _paginate(
+            self.request,
+            sin_formularios_publicos_si_no_puede(lista_espera_qs, usuario, programa=programa, prefijo="formulario__")
+            .select_related("formulario__ciudadano", "formulario__relevamiento__convocatoria")
+            .defer(*[f"formulario__{campo}" for campo in SIN_JSON])
+            .order_by("posicion"),
+            "lista_espera_page",
+        )
 
         ctx.update(
             {

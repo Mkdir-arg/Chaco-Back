@@ -1,5 +1,11 @@
 # Auditoría integral de DATAÑACH (Chaco) — octubre 2026
 
+## Estado al 08-oct-2026 (Ola 4, PRs 1 y 2: padrón y cupo — **arranca la Ola 4**)
+
+| PR | Cambio | Fichas | Estado | Qué quedó abierto |
+|---|---|---|---|---|
+| Ola 4 PRs 1 y 2 (#632) | 182 | PERF-04 ✅ · PERF-16 ✅ · PERF-02 ✅ · RED-49 ✅ (parte Ola 4) | ✅ | **Las 4 fichas (12 h), sin migraciones y sin DDL.** Los dos caminos que más cerca estaban de un 500 por `read_timeout` quedan medidos en el banco **MariaDB 10.11** con las `OPTIONS` de producción y 20.000 casos. (1) **PERF-04:** subir el padrón de una convocatoria grande era un `UPDATE legajos_ciudadano` y un `INSERT` de traza **por caso** dentro del request: **13.376 sentencias y 55,93 s** con los legajos vacíos, contra los 60 s de nginx. Ahora se itera con `.iterator(chunk_size=2000)` y se escribe en lotes —trazas en un `bulk_create`, ciudadanos agrupados por los campos que de verdad cambiaron, y los formularios partidos entre los que solo mueven las tres constantes (`UPDATE … WHERE pk IN`) y los que tocan el JSON (`bulk_update`)—: **74 sentencias y 21,84 s**; con los legajos ya cargados, 6.709 → 46 y 37,39 → 14,96 s. El padrón entra en lotes de 2.000 porque el INSERT único de 50.000 filas se acerca al `max_allowed_packet`. (2) **PERF-16:** la señal de `Ciudadano` mandaba cuatro `DEL` por `save()` —uno repetido— y 26.668 en esa misma carga; queda en un `delete_many` deduplicado dentro de `on_commit`, y los contadores de la home solo se invalidan al crear o borrar. (3) **PERF-02:** la pantalla de cupo traía las tres tablas con los cinco JSON del caso y ordenaba por una columna sin índice: **8,99 s de SQL**, con el `read_timeout` de ECOM en 10 s. El alcance baja a una lista de ids de relevamiento (se van los joins), la página se elige por pk y se hidrata después: **167 ms**, y el `EXPLAIN` deja de decir «Using temporary». Estrena presupuesto `becas_cupo_segmento`, con la justificación de RED-62 por las dos consultas que suma. (4) **RED-49:** las tres acepciones quedan con nombre propio (`cupo_sin_distribuir`, `cupos_libres_del_relevamiento`, y `cupo_disponible` solo para `get_cupo_stats`), sin alias y sin tocar el campo `cupo_disponible` de la API que lee la app de campo. **De yapa:** `PaginadorConConteo` y la hidratación por pk se mudan a `programas/services/listados.py` y **se cae la arista `revision → relevamientos`** del ratchet de RED-79 (7 → 6). **Abierto:** la ficha de diseño de `.claude/design/dominio/becas.md` que documenta los tres números —la sesión no tiene permiso de escritura ahí y el texto va en el cuerpo del PR—; y los dos rótulos «Cupo disponible» que siguen coincidiendo en pantalla, que es decisión del cliente |
+
 ## Estado al 08-oct-2026 (Ola 2, PR 5: alcance en Becas — **arranca la Ola 2**)
 
 | PR | Cambio | Fichas | Estado | Qué quedó abierto |
@@ -2035,12 +2041,14 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
 ### Ola 4 — Performance
 - **Objetivo:** que padrón, cupo, masivo, exports y el cron horario escalen a 40k casos sin acercarse al `read_timeout`
   ni al timeout de nginx.
-- **PRs y orden:** (1) PERF-04 + PERF-16 (padrón; prototipo listo) 10 h · (2) PERF-02 (cupo) 2 h · (3) PERF-01 (+V4-NEW-02),
+- **PRs y orden:** (1) ✅ PERF-04 + PERF-16 (padrón; prototipo listo) 10 h (Cambio 182) · (2) ✅ PERF-02 (cupo) 2 h
+  (Cambio 182; los PRs 1 y 2 salieron juntos) · (3) PERF-01 (+V4-NEW-02),
   PERF-19, PERF-07, PERF-06 (circuito SIIS) 8 h · (4) PERF-20 + LEG-01 (alertas) 6 h · (5) PERF-03 (`lxml` + botón CSV),
   G1b-11, G1b-12 (exports y dashboard) 14 h · (6) PERF-08, PERF-10 (config) 4 h · (7) G1c-09, G1c-11 (admin) 4 h · (8)
   PERF-12, PERF-13, PERF-15 (medir en el banco; índice solo si el plan lo pide) 4 h · (9) *Red de seguridad (04-oct):*
   RED-62 (presupuestos que suben exigen justificación) y segundas partes de RED-10 (destinos del Performance Guard para el
-  paso 2 del link y el alta por API), RED-49 (renombrar las tres acepciones de `cupo_disponible`, con PERF-02), RED-51
+  paso 2 del link y el alta por API), ✅ RED-49 (renombrar las tres acepciones de `cupo_disponible`, con PERF-02 —
+  Cambio 182), RED-51
   (cache del dashboard por modelo) y RED-83 (quitar los índices redundantes) 12 h.
 - **Hecho cuando:** V-STD + `test --tag performance`; presupuestos nuevos en `perf_budgets.json` (`becas_cupo_segmento`,
   `becas_proceso_masivo`); tests de consultas constantes (PERF-04, PERF-01, PERF-20, G1c-09); los criterios de cierre en
