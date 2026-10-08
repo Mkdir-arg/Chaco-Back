@@ -101,10 +101,17 @@ def pasar_relevamientos_a_revision(qs: QuerySet) -> int:
     propia como los casos (Cambio 54), y sin esto un territorial encuentra su
     relevamiento cerrado sin ningún registro de quién o qué lo cerró —que es la
     mitad invisible del problema de la sincronización tardía—.
+
+    El log nombra los ids que **efectivamente** se cerraron, no los que se
+    leyeron: son justo los casos de BEC-22 los que los separan, y ahí el rastro
+    decía que se cerró un relevamiento que nadie tocó. Los que se saltearon
+    porque cambiaron de estado en el medio salen en su propia línea, que es el
+    dato que explica la diferencia cuando alguien va a buscarla.
     """
     now = timezone.now()
     ids_sin_fecha = list(qs.filter(fecha_finalizado__isnull=True).values_list("pk", flat=True))
     ids_con_fecha = list(qs.filter(fecha_finalizado__isnull=False).values_list("pk", flat=True))
+    leidos = sorted({*ids_sin_fecha, *ids_con_fecha})
 
     abiertos = Relevamiento.objects.filter(estado__in=ESTADOS_RELEVAMIENTO_ABIERTOS)
     cerrados = abiertos.filter(pk__in=ids_sin_fecha).update(
@@ -116,11 +123,29 @@ def pasar_relevamientos_a_revision(qs: QuerySet) -> int:
         estado=Relevamiento.Estado.EN_REVISION,
         modificado=now,
     )
-    if cerrados:
+    # `update()` devuelve cuántas filas tocó, no cuáles: se releen. Todos los
+    # ids de `leidos` estaban **abiertos** cuando se los leyó (las dos ramas de
+    # `relevamientos_de_convocatoria_vencida` excluyen `EN_REVISION`), así que el
+    # que ahora está `EN_REVISION` es el que acaba de cerrar esta corrida. No se
+    # compara contra `modificado`: eso ataría el rastro a la precisión de
+    # fracciones de segundo de la columna, que depende del motor.
+    cerrados_ahora = set(
+        Relevamiento.objects.filter(pk__in=leidos, estado=Relevamiento.Estado.EN_REVISION).values_list("pk", flat=True)
+    )
+    ids_cerrados = sorted(cerrados_ahora)
+    if ids_cerrados:
         logger.info(
             "Vencimiento: %s relevamiento(s) a EN_REVISION por fecha (ids=%s)",
-            cerrados,
-            sorted([*ids_sin_fecha, *ids_con_fecha]),
+            len(ids_cerrados),
+            ids_cerrados,
+        )
+    salteados = [pk for pk in leidos if pk not in cerrados_ahora]
+    if salteados:
+        logger.info(
+            "Vencimiento: %s relevamiento(s) no se cerraron porque cambiaron de estado entre la lectura "
+            "y la escritura (ids=%s)",
+            len(salteados),
+            salteados,
         )
     return cerrados
 

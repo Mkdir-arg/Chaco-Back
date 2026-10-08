@@ -93,6 +93,7 @@ CLAVES_FORMULARIO = [
     "gps_lat",
     "gps_lng",
     "sincronizado_tarde",
+    "version_capturada",
     "data",
     "creado",
     "modificado",
@@ -108,14 +109,14 @@ CLAVES_FORMULARIO_LISTADO = [clave for clave in CLAVES_FORMULARIO if clave != "d
 
 CLAVES_ADJUNTO = ["id", "formulario", "pregunta_global", "requisito_nativo", "archivo", "creado"]
 
-# G1-03: las dos listas de la API de campo se sirven **sin paginar**. La app
-# nunca siguió `next` —`relevamientoService.js` hace
-# `Array.isArray(payload?.results) ? payload.results : (Array.isArray(payload) ? payload : [])`
-# y se queda con la primera página—, así que la paginación global de DRF, que
-# corta en 10, le escondía los casos del 11 en adelante y los relevamientos
-# vigentes a partir del 11. Acepta las dos formas, por eso el cambio no necesita
-# release de la app; lo que este test fija es que de acá sale la lista plana.
-CLAVES_PAGINACION = ["count", "next", "previous", "results"]
+#: El sobre que arma `PageNumberPagination`. Acá no es un contrato: es
+#: exactamente lo que **no** tiene que salir de las dos listas de la API de campo
+#: (G1-03). La app nunca siguió `next` —`relevamientoService.js` hace
+#: `Array.isArray(payload?.results) ? payload.results : (Array.isArray(payload) ? payload : [])`
+#: y se queda con la primera página—, así que la paginación global de DRF, que
+#: corta en 10, le escondía los casos del 11 en adelante y los relevamientos
+#: vigentes a partir del 11. Lo afirma `test_ninguna_de_las_dos_listas_pagina`.
+CLAVES_DEL_SOBRE_DE_PAGINACION = {"count", "next", "previous", "results"}
 
 
 class ContratoAppDeCampoTests(_BaseApiTest):
@@ -345,6 +346,67 @@ class ContratoAppDeCampoTests(_BaseApiTest):
 
         self.assertEqual(resp.status_code, 200)
         self.assertIn("relevamientos", resp.json())
+
+    def test_ninguna_de_las_dos_listas_pagina(self):
+        """G1-03, dicho como contrato y no como comentario: si alguien vuelve a
+        poner `pagination_class`, la app se queda con las diez primeras filas y
+        no lo nota —no hay error, solo faltan datos—."""
+        self.rel.estado = Relevamiento.Estado.EN_CURSO
+        self.rel.save(update_fields=["estado", "modificado"])
+        Formulario.objects.create(
+            relevamiento=self.rel, datos_identificacion={"dni": "40400400"}, celular="1", email_contacto="a@b.com"
+        )
+
+        for nombre, url in (
+            ("agenda", reverse("becas_api:relevamiento-list")),
+            ("casos", reverse("becas_api:relevamiento-formularios", args=[self.rel.pk])),
+        ):
+            with self.subTest(lista=nombre):
+                cuerpo = self.client.get(url).json()
+                self.assertIsInstance(cuerpo, list)
+                self.assertFalse(CLAVES_DEL_SOBRE_DE_PAGINACION & set(cuerpo[0]))
+
+    def test_el_alta_sin_version_capturada_sigue_entrando(self):
+        """G1-16: la clave es **opcional**. La app instalada
+        (`Chaco-mobile@a66c2d3`) no la manda y no puede empezar a recibir 400."""
+        self.rel.estado = Relevamiento.Estado.EN_CURSO
+        self.rel.save(update_fields=["estado", "modificado"])
+
+        resp = self.client.post(
+            reverse("becas_api:relevamiento-formularios", args=[self.rel.pk]),
+            {
+                "celular": "3624111222",
+                "email_contacto": "x@y.com",
+                "datos_identificacion": {"dni": "40400400", "nombre": "Juan", "apellido": "Perez"},
+            },
+            format="json",
+        )
+
+        self.assertEqual(resp.status_code, 201, resp.data)
+        self.assertIsNone(resp.json()["version_capturada"])
+
+    def test_el_adjunto_repetido_responde_201_y_no_duplica(self):
+        """G1-07: la idempotencia **no** cambia el código de respuesta. La app
+        clasifica la subida por el status; un 200 que hoy no espera sería un
+        cambio de contrato que pide release de `Chaco-mobile`."""
+        self.rel.estado = Relevamiento.Estado.EN_CURSO
+        self.rel.save(update_fields=["estado", "modificado"])
+        pregunta = PreguntaGlobal.objects.create(texto="Foto del DNI", tipo=TipoCampo.ARCHIVO, orden=900)
+        formulario = Formulario.objects.create(relevamiento=self.rel, celular="111", email_contacto="a@b.com")
+        url = reverse("becas_api:formulario-adjuntos", args=[formulario.pk])
+
+        primera = self.client.post(
+            url, {"pregunta_global": pregunta.pk, "archivo": SimpleUploadedFile("dni.jpg", b"una")}, format="multipart"
+        )
+        segunda = self.client.post(
+            url, {"pregunta_global": pregunta.pk, "archivo": SimpleUploadedFile("dni.jpg", b"otra")}, format="multipart"
+        )
+
+        self.assertEqual(primera.status_code, 201, primera.data)
+        self.assertEqual(segunda.status_code, 201, segunda.data)
+        self.assertEqual(sorted(segunda.json()), sorted(CLAVES_ADJUNTO))
+        self.assertEqual(segunda.json()["id"], primera.json()["id"])
+        self.assertEqual(len(self.client.get(url).json()), 1)
 
     def test_la_raiz_de_la_api_no_se_abre_a_quien_no_es_de_campo(self):
         self.client.credentials()

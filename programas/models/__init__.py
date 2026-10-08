@@ -2680,6 +2680,17 @@ class Formulario(TimeStamped):
         db_default=False,
         verbose_name="Sincronizado después del cierre del período",
     )
+    # G1-16: la versión del diseño que el teléfono tenía delante cuando capturó.
+    # La foto de la definición (``definicion``) se guarda recién al sincronizar,
+    # que puede ser días después: si alguien editó el formulario en el medio, el
+    # caso queda interpretado con un diseño que la persona nunca vio. El dato es
+    # **opcional** —la app instalada no lo manda y sigue funcionando igual— y,
+    # cuando viene y no coincide, la diferencia queda en ``observaciones_carga``.
+    version_capturada = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="Versión del formulario con la que se capturó",
+    )
     # G1-05: lo que el servidor encontró mal en una carga de la app y no alcanza
     # para rechazarla (una obligatoria sin responder, un valor fuera de las
     # opciones del campo, el GPS que el segmento pedía). Una línea por

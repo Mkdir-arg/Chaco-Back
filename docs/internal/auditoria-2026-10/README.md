@@ -33,9 +33,30 @@ de magnitud bajo el `read_timeout` de 10 s del `migrate` (OPS-05). Conducta que 
 el teléfono **sube** capturas que antes rechazaba, con hasta 24 h de gracia; el revisor **ve** dos
 marcas nuevas; y un caso con una fecha de nacimiento o un DNI imposibles **deja de crearse**.
 
-**Abierto (PR 5b del carril):** **G1-07** (adjuntos de la app sin idempotencia ni control de
-pertenencia) y **G1-16** (la app no manda la `version` del diseño con la que capturó; necesita release
-de la app). 14 h.
+**Cerrado en el PR 5b** (Cambio 178, 08-oct-2026): **G1-07** ✅ y **G1-16** 🟡, las 14 h que faltaban.
+
+## Estado al 08-oct-2026 (Ola 3, PR 5b: app de campo — **segundo lote, cierra el ítem**)
+
+**Una foto por campo, y el servidor sabe con qué formulario se capturó.** El PR 5b de la Ola 3
+(Cambio 178) cierra **G1-07** y deja **G1-16** 🟡 —el servidor hace su mitad; la otra es un release de
+`Chaco-mobile`—: las 14 h que le quedaban al ítem 5 del plan. Mismo criterio del PR 5: todo cambio de
+request o de respuesta es **aditivo**, y lo que la app instalada (`origin/main @ a66c2d3`) manda hoy
+sigue significando lo mismo y recibiendo los mismos códigos.
+
+| Ficha | Qué quedó |
+|---|---|
+| **G1-07** ✅ | **Un archivo por campo de archivo del caso.** El `POST …/adjuntos/` reemplaza en vez de acumular: el reintento de la cola offline deja de duplicar la fila, y el territorial que vuelve a sacar la foto porque la primera salió movida ahora ve la segunda —antes la revisión se quedaba con la **más vieja**, porque el `ordering` del modelo es `-creado` y el bucle de `_adjuntos_por_clave` pisaba—. El archivo viejo se borra con `transaction.on_commit`. La referencia tiene que ser un campo `ARCHIVO` de la foto del caso: con la de otro segmento o la de una pregunta de texto, el documento quedaba guardado donde la pantalla del revisor no lo busca. Sigue respondiendo **201** y la gracia de D-G04 no se toca: las fotos de una captura hecha en fecha suben aunque el cron ya haya cerrado el relevamiento |
+| **G1-16** 🟡 | El alta acepta `version_capturada` (**opcional**) y, si no coincide con la versión de la foto que el caso terminó guardando, lo deja observado para el revisor. **Desvío de la ficha, code-first:** no se guarda «la foto de esa versión» —la ficha ofrece ese camino, pero el diseño guarda un **contador** (`DisenoFormulario.version`), no un historial, así que esa foto no existe en ningún lado ni para los casos ya cargados—; se aplica la alternativa que la propia ficha deja escrita. Pendiente de Mobile: que la app guarde la `version` que bajó en el detalle del relevamiento y la mande al sincronizar |
+| **MINOR de la revisión del PR 5** | Tres, los tres cerrados acá: el log del cron nombra los ids que **efectivamente** se cerraron (y, en su propia línea, los que se saltearon porque cambiaron de estado), que es justo lo que BEC-22 separa; `CLAVES_PAGINACION` deja de ser una constante sin uso y pasa a ser la aserción de que las dos listas **no** paginan; y los rechazos del alta y del adjunto viajan también en `non_field_errors`, porque la app arma el mensaje con `detail`/`non_field_errors` y un dict por campo le dejaba al territorial un «Error HTTP 400» sin decirle qué hacer |
+
+**Riesgos de deploy.** Una migración, `programas.0081`, **expand puro**: una columna nullable al final
+de la fila de `programas_formulario` (la tabla más grande, 283 MB en PRD) — la misma operación que las
+dos de `programas.0080`, que se midieron en el banco de 22.000 casos de `scripts/perf_mysql/` en
+**35-104 ms** contra MariaDB 10.11 y MySQL 8, tres órdenes de magnitud bajo el `read_timeout` de 10 s
+del `migrate` (OPS-05). Conducta que cambia para el usuario: subir dos veces la foto de un campo deja
+**una** fila y no dos, y la que se ve es la última; un adjunto con la referencia de un campo que el
+formulario no pide **deja de guardarse** (400 con el motivo); y el revisor ve una observación más
+cuando la app informe que capturó con otra versión del formulario.
 
 ## Estado al 07-oct-2026 (Ola 3, PR 6: reglas de negocio de Becas)
 
@@ -1541,24 +1562,24 @@ funcional ni coordinación con ECOM). Las horas de cada ola suman los esfuerzos 
 | **R** | **Red de seguridad: poder cambiar código sin romper nada sin enterarse** | — | — | — | — | **86** (79 RED con parte en R —78 del relevamiento + RED-89— + OPS-01, OPS-03, OPS-04, TST-01, TST-02, TST-03, R0-03; SEC-10, SEC-11 y SEC-18 se ejecutan en R-19 pero **siguen contadas como ítems de la Ola 2**, solo se mueven sus horas) | **285** · **269 cerradas (R-01..R-16 y R-18..R-21) → 16 restantes: solo R-17** |
 | 1 | Integridad SIIS | 23 | 72 | 22 (− SIIS-07) | 70 | 23 (+ RED-53; + parte de RED-32) | 78 · **76 cerradas (26 el 05-oct, PR 2; 6 el 06-oct, PR 3; 10 el 06-oct, PR 4; 4 el 06-oct, PR 5; 20 el 07-oct, PR 6; 10 el 07-oct, PR 7) → 2 restantes: el ítem 0 (V2-NEW-03, correr P-01 en PRD, sin código)** |
 | 2 | Autorización (RBAC, legajos, alcance de Becas, usuarios) | 36 | 116 | 50 (+ fase 2 de OPS-06, R0-05, resto de SEC-01, etapa 2 de SEC-09, R0b-01..10) | 136 | 51 (+ RED-80; + partes de RED-52, RED-79) | 135 (−7: SEC-10, SEC-18 y media SEC-11 se hacen en R-19, D-RED-14) |
-| 3 | Datos, operación, CI, app de campo y reglas de Becas | 55 | 158 | 59 (+ R0-03, R0-04, R0-06, R0-07) | 166 | 54 (− 7 a la Ola R; + RED-48, RED-58; + partes de RED-09, 35, 40, 50) | 152 · **118 cerradas (14 PR 1 · 22 PR 2 · 6 PR 3 · 22 PR 5 · 30 PR 6 · 16 PR 7a · 8 PR 8) → 34 restantes** |
+| 3 | Datos, operación, CI, app de campo y reglas de Becas | 55 | 158 | 59 (+ R0-03, R0-04, R0-06, R0-07) | 166 | 54 (− 7 a la Ola R; + RED-48, RED-58; + partes de RED-09, 35, 40, 50) | 152 · **132 cerradas (14 PR 1 · 22 PR 2 · 6 PR 3 · 22 PR 5 · 14 PR 5b · 30 PR 6 · 16 PR 7a · 8 PR 8) → 20 restantes** |
 | 4 | Performance | 19 | 52 | 19 | 52 | 20 (+ RED-62; + partes de RED-10, 49, 51, 83) | 64 |
 | 5 | Bugs de front y parches v1 de Legajos/Dispositivos | 31 (+ V5A-NEW-07 b) | 114 | 31 (+ V5A-NEW-07 b) | 114 | 33 (+ RED-33, RED-75; + partes de RED-42, 53) (+ V5A-NEW-07 b) | 128 · **128 cerradas (PRs 1 a 8) → 0: la ola cierra** |
 | 6 | Agente de diseño | 4 (+8 pasos) | 42 | 4 (+8 pasos) | 42 | 4 (+8 pasos) | 42 · **42 cerradas el 06-oct (pasos 0-7) → 0: la ola cierra** |
 | 7 | Deuda | 9 (+ fase 2 de G1-01) | 46 | 10 (+ fase 2 de G1-01; + R0-02) | 48 | 13 (+ RED-64, 76, 86; + partes de RED-13, 37, 39, 54, 78, 85) | 88 |
 | v2 | Criterios de aceptación de la v2 (§7), no se implementan en v1 | 13 | — | 13 | — | 13 | — |
-| **Total** | | **206** | **636** | **208** | **628** | **297** | **972** · **633 cerradas al 08-oct-2026 → 339 restantes** |
+| **Total** | | **206** | **636** | **208** | **628** | **297** | **972** · **647 cerradas al 08-oct-2026 → 325 restantes** |
 
 Cada ficha RED cuenta como ítem una sola vez, en la primera ola donde tiene trabajo (por eso la columna suma 297 = 208 +
 89); si tiene una segunda parte en otra ola, esas horas se suman en esa ola («+ partes de …»).
 
 **Cómo se calcula la fila Total (08-oct-2026).** Las 972 h son la suma de la última columna, ola por ola: 0 (Ola 0, que
 cerró en código y cuyas horas ya se descontaron) + 285 (R) + 78 (1) + 135 (2) + 152 (3) + 64 (4) + 128 (5) + 42 (6) +
-88 (7); la v2 no tiene horas. Las **633 cerradas** son la suma de las horas cerradas que declara cada fila, y cada una
+88 (7); la v2 no tiene horas. Las **647 cerradas** son la suma de las horas cerradas que declara cada fila, y cada una
 sale de la lista de PRs de su propia sección de este §6: **269** de la Ola R (285 − las 16 de R-17, el único abierto),
-**76** de la Ola 1 (de 78: queda el ítem 0, operativo), **118** de la Ola 3 (PR 1 = 14, PR 2 = 22, PR 3 = 6, PR 5 = 22,
-PR 6 = 30, PR 7a = 16, PR 8 = 8), **128** de la Ola 5 y **42** de la Ola 6, las dos cerradas; las Olas 2, 4 y 7 todavía no abrieron
-ningún PR. 972 − 633 = **339 restantes**. El «139 cerradas» venía del 04-oct y no contaba nada de lo mergeado entre el
+**76** de la Ola 1 (de 78: queda el ítem 0, operativo), **132** de la Ola 3 (PR 1 = 14, PR 2 = 22, PR 3 = 6, PR 5 = 22,
+PR 5b = 14, PR 6 = 30, PR 7a = 16, PR 8 = 8), **128** de la Ola 5 y **42** de la Ola 6, las dos cerradas; las Olas 2, 4 y 7 todavía no abrieron
+ningún PR. 972 − 647 = **325 restantes**. El «139 cerradas» venía del 04-oct y no contaba nada de lo mergeado entre el
 05 y el 07; el **543** del 07-oct arrastraba la celda de la Ola 3 en 28 h, que no sumaba los PRs 2 (22 h) y 6 (30 h), ya
 mergeados cuando se escribió.
 **Dos arreglos de la misma tabla, residuo del README duplicado (ver #620):** la Ola 5 tenía **dos filas** con cifras
@@ -1916,11 +1937,14 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
 ### Ola 3 — Datos, operación, CI, app de campo y reglas de Becas
 - **Objetivo:** que no se pierdan datos (adjuntos, capturas offline), que el despliegue sea diagnosticable y robusto, que
   la CI pruebe el motor real, y cerrar las reglas de negocio de Becas.
-- **Avance: 118 h de 152, 34 restantes** (14 PR 1 · 22 PR 2 · 6 PR 3 · 22 PR 5 · 30 PR 6 · 16 PR 7a · 8 PR 8).
+- **Avance: 132 h de 152, 20 restantes** (14 PR 1 · 22 PR 2 · 6 PR 3 · 22 PR 5 · 14 PR 5b · 30 PR 6 · 16 PR 7a · 8 PR 8).
+  **PR 5b (G1-07 ✅ y G1-16 🟡) en el Cambio 178, 08-oct-2026**: las 14 h que le quedaban al ítem 5,
+  con `programas.0081` (una columna nullable sobre `programas_formulario`, expand puro). G1-16 cierra
+  del lado del servidor y deja **pendiente el release de `Chaco-mobile`** que mande el dato.
   **PR 5 (G1-03, G1-04 + BEC-22, G1-05, G1-06 y R0-04, más RED-40) en el Cambio 175, 08-oct-2026**:
   20 h de las 34 del ítem 5 + 2 h del ítem 9, con una migración **expand puro** sobre
   `programas_formulario` (`programas.0080`, medida en MariaDB 10.11 y MySQL 8 sobre 22.000 casos:
-  35-104 ms). **Quedan para un PR 5b**: G1-07 y G1-16 (14 h). **PR 7a (SIIS-10, SIIS-13 🟡, SIIS-14 +G3-02,
+  35-104 ms). **PR 7a (SIIS-10, SIIS-13 🟡, SIIS-14 +G3-02,
   SIIS-15, SIIS-16 🟡, SIIS-18, SIIS-20, SIIS-21 y G1c-15) en el Cambio 174, 08-oct-2026**: 16 h, sin migraciones.
   Antes: PR 6 (las 13 reglas de Becas + RED-50, Cambio 172), PR 2 (DAT-01 🟡, DAT-02, DAT-03, DAT-05,
   V2-NEW-05, G1c-08 y RED-48, Cambio 168, con `programas.0078`, solo de estado), PR 8 (Cambio 173),
@@ -1937,8 +1961,11 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
      #615) y su fase 2.
   3. ✅ *Comandos peligrosos:* OPS-02, G2-05, G1c-12. 6 h. **Cerrado el 07-oct-2026 (Cambio 171).**
   4. *CI y tests:* pasó entero a la Ola R (TST-01 → R-11; TST-02, TST-03 y R0-03 → R-20).
-  5. 🟡 *App de campo:* G1-03 ✅, G1-04 ✅ (+BEC-22 ✅), G1-05 ✅, G1-06 ✅, R0-04 ✅ (raíz `/api/becas/` con Token)
-     — **20 h de 34, Cambio 175, 08-oct-2026**, con `programas.0080` (expand puro). **PR 5b: G1-07 y G1-16, 14 h.**
+  5. ✅ *App de campo:* G1-03 ✅, G1-04 ✅ (+BEC-22 ✅), G1-05 ✅, G1-06 ✅, R0-04 ✅ (raíz `/api/becas/` con Token)
+     — **20 h de 34, Cambio 175, 08-oct-2026**, con `programas.0080` (expand puro). **PR 5b: G1-07 ✅ y G1-16 🟡
+     — las 14 h restantes, Cambio 178, 08-oct-2026**, con `programas.0081` (una columna nullable, expand puro).
+     G1-16 queda 🟡: el servidor acepta y marca la `version` de la captura, pero que la app la **mande** es un
+     release de `Chaco-mobile`, que es otro repo.
   6. ✅ *Reglas de Becas:* BEC-03, BEC-04, BEC-05, BEC-06, BEC-07, BEC-09, BEC-10, BEC-15, BEC-16, BEC-17, BEC-18,
      BEC-20, BEC-24 **+ RED-50** (el ítem 9 lo traía aparte). 26 + 4 h. **Cerrado el 08-oct-2026
      (Cambio 172).** Dos migraciones sin DDL, de la ronda 2: BEC-18 necesitaba arreglar también la

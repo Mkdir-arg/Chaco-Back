@@ -534,6 +534,13 @@ class FormularioViewSet(mixins.RetrieveModelMixin, mixins.UpdateModelMixin, view
 
         Reemplaza el placeholder ``{"pendiente_upload": true}`` que la app de
         campo guardaba en ``data`` sin subir nunca el archivo real.
+
+        G1-07: **un archivo por campo**. El POST se puede repetir —la cola
+        offline reintenta, y el territorial vuelve a sacar la foto cuando sale
+        movida— y antes cada repetición dejaba una fila más, con la revisión
+        quedándose con la **más vieja**. Ahora reemplaza. A qué caso se sube ya
+        lo decide ``get_queryset`` (solo los del propio territorial); lo que se
+        suma acá es que el campo exista en el formulario de ese relevamiento.
         """
         formulario = self.get_object()
         if request.method == "GET":
@@ -547,7 +554,17 @@ class FormularioViewSet(mixins.RetrieveModelMixin, mixins.UpdateModelMixin, view
                 {"detail": "El relevamiento está fuera de su período asignado."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        serializer = AdjuntoFormularioSerializer(data=request.data)
+        serializer = AdjuntoFormularioSerializer(data=request.data, context={"formulario": formulario})
         serializer.is_valid(raise_exception=True)
-        adjunto = serializer.save(formulario=formulario)
+        adjunto = campo.guardar_adjunto(
+            formulario,
+            archivo=serializer.validated_data["archivo"],
+            pregunta_global=serializer.validated_data.get("pregunta_global"),
+            requisito_nativo=serializer.validated_data.get("requisito_nativo"),
+        )
+        # Sigue siendo 201 también cuando reemplazó: la app instalada
+        # (`Chaco-mobile@a66c2d3`) clasifica la subida por el código, y un 200
+        # que hoy no espera sería un cambio de contrato que pide release. Lo que
+        # cambia es que la respuesta trae el `id` del adjunto **que vale**, no el
+        # de una fila nueva que duplicaba a la anterior.
         return Response(AdjuntoFormularioSerializer(adjunto).data, status=status.HTTP_201_CREATED)

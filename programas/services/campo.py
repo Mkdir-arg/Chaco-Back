@@ -20,6 +20,19 @@ con opciones inexistentes o con respuestas a preguntas que el motor había
 escondido —que después viajan a SIIS—. Acá se descarta lo oculto (D11, el mismo
 efecto que en el link) y lo demás queda escrito en ``observaciones_carga``, que
 la revisión muestra.
+
+**G1-07 · los adjuntos.** El archivo de un campo ``ARCHIVO`` no viaja en el alta:
+llega después, en un ``POST …/adjuntos/`` por campo. Ese endpoint no miraba nada:
+un reintento de la cola offline creaba una fila más —y la revisión se quedaba con
+la **más vieja**, así que el territorial veía su foto corregida ignorada— y el
+campo al que se adjuntaba podía no existir en el formulario del relevamiento.
+Acá hay un archivo por campo de archivo del caso, y el campo tiene que ser uno.
+
+**G1-16 · con qué versión se capturó.** La foto de la definición se guarda al
+**sincronizar**, que puede ser días después de la captura. Si alguien editó el
+formulario en el medio, el caso queda interpretado con un diseño que la persona
+nunca vio. El servidor acepta —opcionalmente— la versión que el teléfono tenía
+delante y, si no coincide con la que terminó guardando, lo deja observado.
 """
 
 from __future__ import annotations
@@ -27,10 +40,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import timedelta
 
+from django.db import transaction
 from django.utils import timezone
 
 from legajos.models import Ciudadano
-from programas.models import OrigenRequisito, Relevamiento, TipoCampo
+from programas.models import AdjuntoFormulario, OrigenRequisito, Relevamiento, TipoCampo
 from programas.services.respuestas import aplicar, campos_de, fecha_de_referencia
 
 #: Lo que el legajo acepta como sexo: F, M y X (no binario).
@@ -148,6 +162,8 @@ def revisar_carga(formulario, relevamiento=None, identidad=None):
     respuestas = dict(formulario.respuestas or {})
     observaciones = []
 
+    observaciones.extend(_observacion_de_version(formulario, definicion))
+
     _visibles, ocultos, _efectivas = aplicar(definicion, respuestas, hoy=fecha_de_referencia(formulario))
     # Se quitan **solo** las ocultas y no se reemplaza el diccionario por
     # ``efectivas``: una clave que la foto no tenga (un diseño que cambió
@@ -209,6 +225,116 @@ def aplicar_revision(formulario, revision):
         return False
     formulario.save(update_fields=campos)
     return True
+
+
+def _observacion_de_version(formulario, definicion):
+    """G1-16 · ¿el teléfono capturó con otra versión del formulario?
+
+    ``version_capturada`` es **opcional**: la app instalada
+    (``Chaco-mobile@a66c2d3``) no la manda y ahí no hay nada que comparar, que es
+    el caso de la enorme mayoría de las cargas. Cuando viene y difiere de la
+    versión de la foto que el caso terminó guardando, el diseño cambió entre la
+    captura y la sincronización: lo que el revisor ve en la pantalla no es
+    exactamente lo que la persona tuvo delante.
+
+    **No se reconstruye la foto de la versión vieja**, que es la otra opción que
+    plantea la ficha: el diseño guarda un contador (``DisenoFormulario.version``)
+    y no un historial, así que esa foto no existe en ningún lado. Se marca, que
+    es lo que la ficha deja como alternativa.
+    """
+    capturada = formulario.version_capturada
+    guardada = (definicion or {}).get("version")
+    if capturada is None or guardada is None or capturada == guardada:
+        return []
+    return [
+        f"La carga se hizo con la versión {capturada} del formulario y se guardó con la versión "
+        f"{guardada}: el diseño cambió entre la captura y la sincronización."
+    ]
+
+
+# ── G1-07 · adjuntos de la app ───────────────────────────────────────────────
+
+ADJUNTO_FUERA_DEL_FORMULARIO = (
+    "Ese campo no es un campo de archivo del formulario de este relevamiento, así que el archivo no se guardó."
+)
+
+
+def definicion_del_caso(formulario, relevamiento=None):
+    """La foto con la que se interpreta el caso.
+
+    La que guardó al sincronizar (D3) y, mientras todavía no la tenga, la
+    definición vigente de su relevamiento. El segundo camino no es teórico: el
+    alta guarda la foto en ``_completar_alta`` y un caso creado por otra vía
+    (backoffice, fixture) puede no tenerla nunca.
+    """
+    if formulario.definicion:
+        return formulario.definicion
+    from programas.services.becas import definicion_formulario
+
+    return definicion_formulario(relevamiento or formulario.relevamiento)
+
+
+def claves_de_archivo(definicion):
+    """Las claves (``pg-<pk>`` / ``rn-<pk>`` / ``cp-…``) de los campos ``ARCHIVO``."""
+    return {campo.get("clave") for campo in campos_de(definicion or {}) if campo.get("tipo") == TipoCampo.ARCHIVO}
+
+
+def campo_de_archivo_del_caso(formulario, pregunta_global=None, requisito_nativo=None):
+    """¿La referencia del adjunto es un campo ``ARCHIVO`` del formulario del caso?
+
+    Lo que esto frena no es un ataque sofisticado: es el adjunto que entra con la
+    referencia de otro relevamiento —otro segmento, otro canal— o con la de una
+    pregunta que no pide ningún archivo. La fila se creaba igual y después no la
+    encontraba nadie: ``_adjuntos_por_clave`` la indexa por una clave que la foto
+    del caso no tiene, así que el documento quedaba invisible en la revisión y el
+    revisor lo veía como *faltante*.
+    """
+    clave = None
+    if pregunta_global is not None:
+        clave = f"pg-{pregunta_global.pk}"
+    elif requisito_nativo is not None:
+        clave = f"rn-{requisito_nativo.pk}"
+    if clave is None:
+        return False
+    return clave in claves_de_archivo(definicion_del_caso(formulario))
+
+
+def guardar_adjunto(formulario, *, archivo, pregunta_global=None, requisito_nativo=None):
+    """Un archivo por campo de archivo del caso (G1-07).
+
+    Si el campo ya tenía uno, se **reemplaza**: el reintento de la cola offline
+    no deja dos filas, y el territorial que vuelve a sacar la foto porque la
+    primera salió movida ve la segunda. El archivo viejo se borra del
+    almacenamiento con ``transaction.on_commit``, nunca antes: si la transacción
+    se cae, el adjunto que sigue valiendo es el que todavía está en ``media/``.
+
+    El ``select_for_update`` serializa dos subidas simultáneas del mismo campo;
+    no hay restricción única en la base **a propósito**, porque producción ya
+    tiene filas duplicadas de antes y una restricción no se podría crear sobre
+    ellas. Con duplicados viejos se opera sobre el más nuevo, que es también el
+    que la revisión muestra desde esta misma ficha.
+    """
+    with transaction.atomic():
+        existente = (
+            formulario.adjuntos.select_for_update()
+            .filter(pregunta_global=pregunta_global, requisito_nativo=requisito_nativo)
+            .order_by("-creado", "-pk")
+            .first()
+        )
+        if existente is None:
+            return AdjuntoFormulario.objects.create(
+                formulario=formulario,
+                pregunta_global=pregunta_global,
+                requisito_nativo=requisito_nativo,
+                archivo=archivo,
+            )
+        anterior = existente.archivo.name
+        almacenamiento = existente.archivo.storage
+        existente.archivo = archivo
+        existente.save(update_fields=["archivo", "modificado"])
+        if anterior and anterior != existente.archivo.name:
+            transaction.on_commit(lambda: almacenamiento.delete(anterior))
+        return existente
 
 
 def _requiere_gps(relevamiento):
