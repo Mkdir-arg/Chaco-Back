@@ -183,9 +183,25 @@ exactamente eso para `MENSAJE_CIUDADANO` y las otras tres (`RESPUESTA_RAPIDA`, `
 `OPERADOR_ASIGNADO`) caen por el mismo criterio: las genera una conversación, no el estado del legajo. (2) El tipo
 `MENSAJE_CIUDADANO` queda además excluido **por nombre**, para que la regla siga valiendo el día que alguien le ponga
 legajo.
+**Ronda 2 de la revisión — el efecto colateral de dejar de recrear: el mensaje se congelaba.** Dos de las reglas
+llevan un contador adentro del texto («Sin evaluación inicial hace N días», «N contactos fallidos en el último
+mes») y ese texto es lo único que el operador lee: nadie lo recalcula al dibujar la tarjeta. El apagar-y-recrear lo
+refrescaba de rebote, porque cada hora nacía una fila nueva; con la reconciliación la alerta seguía diciendo 16 días
+a los 90. Ahora, para las claves que ya existen, la pasada compara el mensaje y **solo** reescribe las filas que
+cambiaron, agrupadas en un `bulk_update` cada 200 alertas: el costo no crece con el tamaño del lote y en régimen
+—23 de las 24 corridas del día, porque el contador es de días— sigue sin escribir nada. El refresco **no notifica**:
+el aviso por WebSocket sigue saliendo una sola vez, al nacer la alerta. Alcanza a toda alerta vigente, no solo a las
+MEDIA/BAJA; en la práctica la única ALTA que cambia de texto es `SIN_CONTACTO` (`RIESGO_ALTO` es una constante).
+**Decisión y pendiente de la misma ronda:** una MEDIA/BAJA que **una persona cerró a mano** vuelve a nacer en la
+pasada siguiente si la condición persiste —y vuelve a notificar una vez—, porque lo único que la reconciliación
+mira es `activa=True`. Se deja **tal cual**: hoy «descartada por una persona» no existe como estado y distinguirla
+de «cerrada porque dejó de aplicar» es una decisión de producto (¿se silencia para siempre, por N días, hasta que
+la condición se interrumpa?). Mientras no esté, el ruido es acotado —un aviso por hora de pasada, no por pasada— y
+el riesgo de la alternativa es peor: una alerta que nadie vuelve a ver.
 **Test permanente:** `legajos.tests.test_generar_alertas.ReconciliacionDeAlertasTests.test_la_segunda_pasada_no_escribe_ni_una_fila`
 (+ `test_la_alerta_que_deja_de_aplicar_se_cierra_con_fecha`, `test_la_alerta_que_vuelve_a_aplicar_estrena_fila_y_aviso`,
-`test_la_alerta_de_conversaciones_sobrevive_la_pasada` y `test_el_cierre_no_toca_los_legajos_de_otro_ciudadano`).
+`test_la_alerta_de_conversaciones_sobrevive_la_pasada` y `test_el_cierre_no_toca_los_legajos_de_otro_ciudadano`), y
+`RefrescoDelMensajeTests` (4) para el refresco.
 
 ### LEG-04 · Los endpoints AJAX de legajos tragan excepciones y un blob faltante vacía la lista
 **Severidad:** MEDIA · **Estado:** CONFIRMADO con test (`A317A318Adjuntos.test_blob_faltante_vacia_la_lista`: 200, `count=0` y la **ruta absoluta del servidor** en el JSON) · **Origen:** A3-17 · **Tratamiento:** parchear v1 · **Ola:** 5 · **Esfuerzo:** S

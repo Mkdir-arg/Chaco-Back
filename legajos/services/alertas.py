@@ -26,8 +26,14 @@ from .linking import (
 logger = logging.getLogger(__name__)
 
 #: Legajos que se reconcilian por vuelta. El costo de la pasada queda acotado al
-#: tamaño del lote: 4 consultas fijas, más las altas y un UPDATE de cierre.
+#: tamaño del lote: 4 consultas fijas, más las altas, un UPDATE de cierre y el
+#: ``bulk_update`` del refresco de mensajes.
 LOTE_LEGAJOS = 500
+
+#: Alertas por sentencia del refresco de mensajes. El ``bulk_update`` arma un ``CASE
+#: WHEN`` por fila: en un lote de 500 legajos pueden caer unas 2.000 alertas y
+#: mandarlas en una sola sentencia es un paquete que MariaDB no tiene por qué querer.
+LOTE_REFRESCO = 200
 
 #: Prioridades que la pasada periódica apaga cuando la alerta deja de aplicar. Las
 #: ALTA y CRÍTICA las cierra una persona: apagarlas solas sería perder el registro de
@@ -58,15 +64,15 @@ class AlertasService:
           que **sí** tienen legajo, así que el costo deja de depender de los 20.000
           ciudadanos que no tienen nada que alertar.
         * **LEG-01.** Ya no se apaga en bloque para volver a crear: se compara el set
-          vigente ``(legajo, tipo)`` contra el activo, se crea solo lo que falta y se
-          cierra —con ``fecha_cierre``, que el ``update`` masivo no escribía— lo que dejó
-          de aplicar. Una segunda pasada seguida no escribe una sola fila ni vuelve a
-          notificar por WebSocket.
+          vigente ``(legajo, tipo)`` contra el activo, se crea solo lo que falta, se
+          refresca el mensaje de lo que sigue vigente y se cierra —con ``fecha_cierre``,
+          que el ``update`` masivo no escribía— lo que dejó de aplicar. Una segunda
+          pasada seguida no escribe una sola fila ni vuelve a notificar por WebSocket.
 
-        Devuelve ``{"legajos", "vigentes", "creadas", "cerradas"}``.
+        Devuelve ``{"legajos", "vigentes", "creadas", "refrescadas", "cerradas"}``.
         """
         legajo_ids = list(get_legajo_ids_de_ciudadanos_activos())
-        resumen = {"legajos": len(legajo_ids), "vigentes": 0, "creadas": 0, "cerradas": 0}
+        resumen = {"legajos": len(legajo_ids), "vigentes": 0, "creadas": 0, "refrescadas": 0, "cerradas": 0}
         for desde in range(0, len(legajo_ids), LOTE_LEGAJOS):
             lote = legajo_ids[desde : desde + LOTE_LEGAJOS]
             try:
@@ -93,7 +99,7 @@ class AlertasService:
             return AlertasService._reconciliar_lote(legajo_ids)
         except Exception as exc:
             logger.exception("Error generando alertas: %s", exc)
-            return {"vigentes": 0, "creadas": 0, "cerradas": 0}
+            return {"vigentes": 0, "creadas": 0, "refrescadas": 0, "cerradas": 0}
 
     @staticmethod
     def _reconciliar_lote(legajo_ids):
@@ -101,9 +107,10 @@ class AlertasService:
 
         Cuatro lecturas (inscripciones del lote, legajos con sus dos agregados,
         alertas activas y —solo si hay algo que crear— los ciudadanos), más un
-        ``INSERT`` por alta y un único ``UPDATE`` de cierre.
+        ``INSERT`` por alta, el ``bulk_update`` de los mensajes que cambiaron y un
+        único ``UPDATE`` de cierre.
         """
-        vacio = {"vigentes": 0, "creadas": 0, "cerradas": 0}
+        vacio = {"vigentes": 0, "creadas": 0, "refrescadas": 0, "cerradas": 0}
         if not legajo_ids:
             return vacio
 
@@ -129,18 +136,24 @@ class AlertasService:
 
         activas = list(
             AlertaCiudadano.objects.filter(activa=True, legajo_id__in=legajo_ids).values_list(
-                "id", "legajo_id", "tipo", "prioridad"
+                "id", "legajo_id", "tipo", "prioridad", "mensaje"
             )
         )
-        existentes = {(legajo_id, tipo) for _, legajo_id, tipo, _ in activas}
+        existentes = {(legajo_id, tipo) for _, legajo_id, tipo, _, _ in activas}
 
         creadas = AlertasService._crear_las_que_faltan(
             [(clave, datos) for clave, datos in vigentes.items() if clave not in existentes],
             ciudadano_por_legajo,
             programas_por_legajo,
         )
+        refrescadas = AlertasService._refrescar_los_mensajes(activas, vigentes)
         cerradas = AlertasService._cerrar_las_que_ya_no_aplican(activas, vigentes)
-        return {"vigentes": len(vigentes), "creadas": creadas, "cerradas": cerradas}
+        return {
+            "vigentes": len(vigentes),
+            "creadas": creadas,
+            "refrescadas": refrescadas,
+            "cerradas": cerradas,
+        }
 
     @staticmethod
     def _legajos_con_sus_insumos(legajo_ids):
@@ -201,6 +214,38 @@ class AlertasService:
         return creadas
 
     @staticmethod
+    def _refrescar_los_mensajes(activas, vigentes):
+        """Pone al día el texto de las alertas que siguen vigentes, **sin notificar**.
+
+        Dos de las reglas llevan un contador adentro del mensaje —«Sin evaluación inicial
+        hace N días» y «N contactos fallidos en el último mes»— y ese texto es lo único
+        que el operador lee: la tarjeta del dashboard y el correo lo muestran tal cual,
+        nadie lo recalcula. El apagar-y-recrear lo refrescaba de rebote, porque cada hora
+        nacía una fila nueva; al dejar de recrear (LEG-01) el mensaje se quedaba
+        congelado en el valor de la primera pasada y la alerta seguía diciendo 16 días a
+        los 90.
+
+        El refresco **no vuelve a avisar**: el aviso por WebSocket sigue saliendo una
+        sola vez, al nacer la alerta. Que el texto envejezca no es información nueva para
+        quien ya la tiene en pantalla, y re-anunciarlo sería la ráfaga horaria que esta
+        misma ficha vino a sacar.
+
+        Cuesta un ``bulk_update`` cada :data:`LOTE_REFRESCO` alertas y **solo** sobre las
+        filas cuyo mensaje cambió: en régimen —23 de las 24 corridas del día, porque el
+        contador es de días— no hay ninguna y la pasada sigue sin escribir.
+        """
+        ahora = timezone.now()
+        desactualizadas = [
+            AlertaCiudadano(pk=alerta_id, mensaje=vigentes[(legajo_id, tipo)][2], modificado=ahora)
+            for alerta_id, legajo_id, tipo, _, mensaje in activas
+            if (legajo_id, tipo) in vigentes and vigentes[(legajo_id, tipo)][2] != mensaje
+        ]
+        if not desactualizadas:
+            return 0
+        AlertaCiudadano.objects.bulk_update(desactualizadas, ["mensaje", "modificado"], batch_size=LOTE_REFRESCO)
+        return len(desactualizadas)
+
+    @staticmethod
     def _cerrar_las_que_ya_no_aplican(activas, vigentes):
         """Cierra las MEDIA/BAJA del lote cuyo ``(legajo, tipo)`` dejó de estar vigente.
 
@@ -214,7 +259,7 @@ class AlertasService:
         """
         a_cerrar = [
             alerta_id
-            for alerta_id, legajo_id, tipo, prioridad in activas
+            for alerta_id, legajo_id, tipo, prioridad, _ in activas
             if prioridad in PRIORIDADES_RECONCILIADAS
             and tipo != TIPO_DE_CONVERSACIONES
             and (legajo_id, tipo) not in vigentes

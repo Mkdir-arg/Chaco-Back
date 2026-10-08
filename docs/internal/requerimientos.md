@@ -27903,6 +27903,19 @@ hora.
   valiendo el día que alguien le ponga legajo.
 - **Las ALTA y CRÍTICA no se cierran solas**, igual que antes: el cierre automático es
   solo MEDIA/BAJA.
+- **El mensaje de una alerta vigente se refresca; el aviso no se repite** (ronda 2). Dos
+  reglas llevan un contador adentro del texto —«Sin evaluación inicial hace N días» y «N
+  contactos fallidos en el último mes»— y ese texto es lo único que el operador lee. Al
+  dejar de recrear, el mensaje se congelaba en el valor de la primera pasada. La pasada
+  compara y reescribe **solo** las filas cuyo mensaje cambió, en un `bulk_update` cada
+  200 alertas: el costo no crece con el lote y en régimen no escribe nada. El refresco
+  **no notifica**: el aviso sigue saliendo una sola vez, al nacer la alerta.
+- **La alerta que una persona cerró a mano vuelve a nacer** si la condición persiste, y
+  vuelve a notificar una vez. Se deja la conducta actual **a propósito**: la
+  reconciliación solo mira `activa=True`, y hoy «descartada por una persona» no existe
+  como estado. Distinguirla de «cerrada porque dejó de aplicar» es una decisión de
+  producto (ver *Pendientes*). La alternativa —no recrear lo que alguien cerró— deja una
+  alerta que nadie vuelve a ver, que es peor que el ruido.
 - **El ruteo del WebSocket se calcula una vez por lote**, no una por alerta, y se le pasa
   a `_enviar_notificacion_alerta`. Es la misma pieza que el Cambio 179 dejó fuera del
   payload: no cambia qué recibe el navegador, solo cuántas veces se resuelve.
@@ -27915,11 +27928,13 @@ hora.
 ## Implementación
 
 - `legajos/services/alertas.py` — `reconciliar_alertas`, `_reconciliar_lote`,
-  `_legajos_con_sus_insumos`, `_crear_las_que_faltan`, `_cerrar_las_que_ya_no_aplican` y
-  `_reglas_vigentes`; `_generar_alertas_legajo` (señal) pasa a usar las mismas reglas;
-  `_enviar_notificacion_alerta` acepta el `ruteo` ya resuelto.
+  `_legajos_con_sus_insumos`, `_crear_las_que_faltan`, `_refrescar_los_mensajes`,
+  `_cerrar_las_que_ya_no_aplican` y `_reglas_vigentes`; `_generar_alertas_legajo` (señal)
+  pasa a usar las mismas reglas; `_enviar_notificacion_alerta` acepta el `ruteo` ya
+  resuelto.
 - `legajos/services/linking.py` — `get_legajo_ids_de_ciudadanos_activos` y
-  `get_vinculos_de_legajos` (el acceso a `InscripcionPrograma` se queda en `linking`).
+  `get_vinculos_de_legajos` (el acceso a `InscripcionPrograma` se queda en `linking`), y
+  el `.order_by()` que hace que el `.distinct()` de los ids de legajo deduplique.
 - `legajos/management/commands/generar_alertas.py` — llama a `reconciliar_alertas` e
   informa creadas, cerradas y legajos revisados.
 - `programas/views/proceso_masivo.py` — `_conteos()` reemplaza al `cache.get_or_set`.
@@ -27969,6 +27984,25 @@ hora.
 - **Las alertas de `conversaciones` ya no las cierra nadie automáticamente.** Hoy no
   importa porque el módulo no está en uso, pero si se enciende hay que darles su propia
   purga (no la de `limpiar_alertas_conversaciones`, que borra otras tablas).
+- **Falta el criterio de producto para «descartada por una persona»** (ronda 2). Hoy una
+  MEDIA/BAJA cerrada a mano reaparece en la pasada siguiente mientras la condición siga
+  dándose. Para cambiarlo hay que decidir primero qué significa descartarla: ¿se silencia
+  para siempre, por N días, o hasta que la condición se interrumpa? Recién con eso tiene
+  sentido agregarle el campo a `AlertaCiudadano` y mirarlo en la reconciliación.
+- **La carrera entre el cron y la señal `post_save` del legajo no tiene constraint única**
+  (ronda 2). `_reconciliar_lote` y `_crear_alerta` chequean y después insertan: dos
+  procesos simultáneos sobre el mismo legajo —la pasada horaria y alguien guardando ese
+  legajo— pueden dejar dos filas activas del mismo `(legajo, tipo)`. No se cerró acá
+  porque la red real es un `UniqueConstraint` parcial sobre `(legajo, tipo)` con
+  `activa=True`, y eso es una migración sobre una tabla que hoy tiene duplicados
+  heredados del apagar-y-recrear: hay que limpiarlos antes (y MariaDB no tiene índices
+  parciales, así que el patrón es otro). La consecuencia hoy es una alerta duplicada en
+  el dashboard, no un dato perdido.
+- **`get_programa_ids_for_legajo_ids` arrastra el mismo `.distinct()` que no deduplica**
+  que se corrigió en las otras dos funciones de `linking.py` (ronda 2). No se tocó porque
+  sus dos llamadores lo neutralizan —uno hace `sorted(set(...))` y el otro lo usa como
+  subconsulta de un `IN`, donde repetir no cambia el resultado—; queda anotado para que
+  el día que alguien cuente sobre esa lista no se sorprenda.
 
 ## Reversión
 
@@ -27977,5 +28011,50 @@ con el `UPDATE` global, la recreación horaria de las MEDIA/BAJA y el cacheo del
 la pantalla del masivo. Las alertas que este cambio haya cerrado quedan cerradas con su
 `fecha_cierre`; la pasada vieja las volvería a crear en la primera corrida, que es
 exactamente lo que hacía antes.
+
+## Historial
+
+- **08/10/2026 — ronda 2 de la revisión: dejar de recrear congelaba el mensaje.** Una
+  corrección y dos anotaciones.
+  1. **El mensaje de una alerta vigente vuelve a envejecer.** Era el efecto colateral de
+     LEG-01 que nadie había medido: dos de las reglas llevan un contador adentro del
+     texto —«Sin evaluación inicial hace N días» y «N contactos fallidos en el último
+     mes»— y ese texto es lo único que se lee, porque la tarjeta del dashboard lo muestra
+     tal cual. El apagar-y-recrear lo refrescaba de rebote (cada hora nacía una fila
+     nueva); con la reconciliación la alerta seguía diciendo 16 días a los 90 y 3
+     contactos fallidos cuando ya eran 9. Ahora `AlertasService._refrescar_los_mensajes`
+     compara el mensaje de las claves que ya existen y reescribe **solo** las filas que
+     cambiaron, con un `bulk_update` cada `LOTE_REFRESCO = 200` alertas: una sentencia
+     para todo el lote en vez de un `UPDATE` por alerta (en ECOM, con lotes de 500
+     legajos, eso serían hasta dos mil contra un `read_timeout` de 10 s). En régimen —23
+     de las 24 corridas del día, porque el contador es de días— no hay nada que cambiar y
+     la pasada sigue sin escribir. **El refresco no notifica**: el aviso por WebSocket
+     sigue saliendo una sola vez, al nacer la alerta. Alcanza a toda alerta vigente y no
+     solo a las MEDIA/BAJA (la única ALTA con texto variable es `SIN_CONTACTO`;
+     `RIESGO_ALTO` es una constante). El comando informa el término nuevo: «N con el
+     mensaje al día».
+  2. **El `.distinct()` de `linking.py` no deduplicaba.** `InscripcionPrograma.Meta.
+     ordering` es `["-fecha_inscripcion"]` y Django le agrega al `SELECT DISTINCT` toda
+     columna por la que ordena, así que dos inscripciones del mismo legajo con fechas
+     distintas eran dos filas distintas para la base: la persona inscripta en dos
+     programas entraba **dos veces** al lote de la pasada y se reconciliaba dos veces.
+     `get_legajo_ids_de_ciudadanos_activos` y `get_legajo_ids_for_programas` llevan ahora
+     un `.order_by()` antes del `.distinct()` (el orden no se usa: lo que devuelven es un
+     conjunto de ids para un `IN`). La tercera función con el mismo patrón queda anotada
+     en *Pendientes*, porque sus dos llamadores la neutralizan.
+  3. **Dos conductas que se dejan como están, por escrito:** la alerta cerrada a mano que
+     vuelve a nacer y la carrera entre el cron y la señal `post_save`. Las dos quedaron
+     arriba, en *Decisiones tomadas* y en *Pendientes*, con el motivo: la primera necesita
+     un criterio de producto antes que código, la segunda una migración sobre una tabla
+     con duplicados heredados.
+  Tests nuevos: `RefrescoDelMensajeTests` (4 — el mensaje envejece, el refresco no
+  notifica, una pasada sin cambios no escribe, y un solo `UPDATE` para tres alertas que
+  cambian a la vez) y `UniversoDeLaPasadaTests` (2) en
+  `legajos/tests/test_generar_alertas.py`. Cinco de los seis en rojo contra `384a1cd6`;
+  el que ya pasaba es el de «sin cambios no escribe», que es el guard del refresco.
+  Validación de la ronda: `test legajos conversaciones core` **1.361 OK** (41 skipped, 2
+  expected failures), `--tag performance` 8 OK (la pasada en régimen sigue en 4
+  consultas), `manage.py check` sin issues, `ruff check` y `format --check` limpios,
+  `requerimientos.py --check` OK.
 
 ---

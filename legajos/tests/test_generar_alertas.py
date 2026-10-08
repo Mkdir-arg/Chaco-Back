@@ -28,7 +28,7 @@ caso arma el trío ciudadano + programa + inscripción.
 
 from datetime import timedelta
 from io import StringIO
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 from django.contrib.auth.models import User
 from django.core.management import call_command
@@ -40,6 +40,7 @@ from django.utils import timezone
 from legajos.models import AlertaCiudadano, Ciudadano, LegajoAtencion
 from legajos.models.contactos import HistorialContacto
 from legajos.services.alertas import AlertasService
+from legajos.services.linking import get_legajo_ids_de_ciudadanos_activos, get_legajo_ids_for_programas
 from programas.models import InscripcionPrograma, Programa
 
 
@@ -83,6 +84,14 @@ class BaseAlertasTestCase(TestCase):
     def _activas(self, ciudadano, tipo=None):
         qs = AlertaCiudadano.objects.filter(ciudadano=ciudadano, activa=True)
         return qs.filter(tipo=tipo) if tipo else qs
+
+    def _abierto_hace(self, legajo, dias):
+        """Retrocede `fecha_apertura`, que es `auto_now_add` y no se puede pasar al alta.
+
+        Es el reloj de `SIN_EVALUACION`, la alerta cuyo mensaje lleva un contador de días:
+        el andamio para ver cómo envejece el texto sin tener que congelar el tiempo.
+        """
+        LegajoAtencion.objects.filter(pk=legajo.pk).update(fecha_apertura=timezone.localdate() - timedelta(days=dias))
 
 
 class GenerarAlertasTests(BaseAlertasTestCase):
@@ -308,3 +317,161 @@ class ReconciliacionDeAlertasTests(BaseAlertasTestCase):
         suelta.refresh_from_db()
         self.assertTrue(suelta.activa, "la pasada cerró una alerta de un legajo que no revisó")
         self.assertTrue(AlertaCiudadano.objects.filter(legajo=propio, tipo="SIN_PLAN", activa=True).exists())
+
+
+class RefrescoDelMensajeTests(BaseAlertasTestCase):
+    """El mensaje de una alerta que sigue vigente envejece con ella.
+
+    Dos de las reglas llevan un contador adentro del texto —«Sin evaluación inicial hace
+    N días» y «N contactos fallidos en el último mes»—, y ese texto es lo único que el
+    operador lee: la tarjeta del dashboard no recalcula nada. El apagar-y-recrear lo
+    refrescaba de prepo (cada hora nacía una fila nueva); al dejar de recrear, el mensaje
+    se congelaba en el valor de la **primera** pasada y la alerta seguía diciendo 16 días
+    a los 90. Acá se fija que el refresco exista, que sea silencioso y que no se cobre
+    cuando no hay nada que cambiar.
+    """
+
+    def test_el_mensaje_envejece_con_la_alerta(self):
+        ciudadano, legajo = self._ciudadano_con_legajo()
+        self._abierto_hace(legajo, 16)
+
+        self._pasada()
+        alerta = self._activas(ciudadano, "SIN_EVALUACION").get()
+        self.assertEqual(alerta.mensaje, "Sin evaluación inicial hace 16 días")
+
+        self._abierto_hace(legajo, 90)
+        self._pasada()
+
+        refrescada = self._activas(ciudadano, "SIN_EVALUACION").get()
+        self.assertEqual(refrescada.mensaje, "Sin evaluación inicial hace 90 días")
+        self.assertEqual(refrescada.pk, alerta.pk, "se recreó la alerta en vez de refrescar su mensaje")
+        self.assertEqual(
+            AlertaCiudadano.objects.filter(ciudadano=ciudadano, tipo="SIN_EVALUACION").count(),
+            1,
+            "el refresco no puede dejar una fila por pasada: eso es lo que LEG-01 vino a sacar",
+        )
+
+    def test_el_refresco_no_vuelve_a_notificar(self):
+        """El aviso sigue saliendo **una sola vez**, al nacer la alerta.
+
+        Se mira el `group_send` y no el borde de más arriba: el refresco es el único
+        camino nuevo que escribe sobre una alerta que ya se anunció, y volver a
+        anunciarla sería la ráfaga horaria de LEG-01 con otro nombre.
+        """
+        ciudadano, legajo = self._ciudadano_con_legajo()
+        self._abierto_hace(legajo, 16)
+
+        with patch("legajos.services.alertas.get_channel_layer") as capa:
+            capa.return_value.group_send = AsyncMock()
+            self._pasada()
+            self.assertEqual(capa.return_value.group_send.await_count, 1, "el alta tiene que avisar")
+
+            self._abierto_hace(legajo, 90)
+            capa.return_value.group_send.reset_mock()
+            self._pasada()
+
+            self.assertEqual(capa.return_value.group_send.await_count, 0, "el refresco volvió a anunciar la alerta")
+
+        # Sin esto el caso pasaría también con el refresco roto: no avisar es trivial si
+        # no se escribió nada.
+        self.assertEqual(
+            self._activas(ciudadano, "SIN_EVALUACION").get().mensaje, "Sin evaluación inicial hace 90 días"
+        )
+
+    def test_una_pasada_sin_cambios_sigue_sin_escribir(self):
+        """El contrapeso: el refresco no puede volver a escribir la tabla cada hora.
+
+        `test_la_segunda_pasada_no_escribe_ni_una_fila` mide un legajo cuyas alertas
+        tienen texto fijo; acá las dos que llevan contador están vigentes y el contador
+        no se movió, que es lo que pasa 23 de las 24 corridas del día.
+        """
+        _, legajo = self._ciudadano_con_legajo(estado=LegajoAtencion.Estado.ABIERTO, plan_vigente=False)
+        self._abierto_hace(legajo, 16)
+        for _ in range(3):
+            self._contacto(legajo, hace_dias=5, estado="NO_CONTESTA")
+
+        self._pasada()
+        with CaptureQueriesContext(connection) as capturadas:
+            self._pasada()
+
+        escrituras = [
+            consulta["sql"]
+            for consulta in capturadas.captured_queries
+            if consulta["sql"].lstrip().upper().startswith(("INSERT", "UPDATE", "DELETE"))
+        ]
+        self.assertEqual(escrituras, [], "la pasada en régimen volvió a escribir")
+
+    def test_el_mensaje_se_refresca_de_a_un_update_para_todo_el_lote(self):
+        """Lo que hace barato al refresco: no crece con el número de alertas.
+
+        Tres legajos que envejecen a la vez son tres mensajes distintos —el contador va
+        adentro del texto— y aun así una sola sentencia. Con un `UPDATE` por alerta esto
+        serían tres, y en ECOM (lote de 500) hasta dos mil contra un `read_timeout` de
+        10 s.
+        """
+        legajos = [self._ciudadano_con_legajo(dni=f"3055500{indice}")[1] for indice in range(3)]
+        for indice, legajo in enumerate(legajos):
+            self._abierto_hace(legajo, 16 + indice)
+        self._pasada()
+        for indice, legajo in enumerate(legajos):
+            self._abierto_hace(legajo, 90 + indice)
+
+        with CaptureQueriesContext(connection) as capturadas:
+            self._pasada()
+
+        escrituras = [
+            consulta["sql"]
+            for consulta in capturadas.captured_queries
+            if consulta["sql"].lstrip().upper().startswith(("INSERT", "UPDATE", "DELETE"))
+        ]
+        self.assertEqual(len(escrituras), 1, f"el refresco pagó por alerta: {escrituras}")
+        self.assertEqual(
+            sorted(
+                AlertaCiudadano.objects.filter(tipo="SIN_EVALUACION", activa=True).values_list("mensaje", flat=True)
+            ),
+            [f"Sin evaluación inicial hace {90 + indice} días" for indice in range(3)],
+        )
+
+
+class UniversoDeLaPasadaTests(BaseAlertasTestCase):
+    """El legajo con dos inscripciones entra **una** vez al lote.
+
+    El `.distinct()` de `linking` no deduplicaba: `InscripcionPrograma.Meta.ordering` es
+    `["-fecha_inscripcion"]` y Django le agrega al `SELECT DISTINCT` toda columna por la
+    que ordena, así que dos inscripciones del mismo legajo con fechas distintas son dos
+    filas distintas para la base y el `legajo_id` sale repetido. Lo paga el lote de la
+    pasada (un legajo procesado dos veces) y cualquier `IN` armado con esa lista.
+    """
+
+    def setUp(self):
+        super().setUp()
+        # `unique_together = [ciudadano, programa]`: la segunda inscripción del mismo
+        # legajo va contra otro programa, que además es el caso real (una persona
+        # inscripta en dos programas comparte su legajo de atención).
+        self.otro_programa = Programa.objects.create(codigo=Programa.TipoPrograma.MERENDEROS, nombre="Segundo programa")
+
+    def _segunda_inscripcion(self, ciudadano, legajo):
+        """Con **otra** `fecha_inscripcion`: es la columna que el ordering mete en el
+        `SELECT` y la que vuelve distintas a dos filas que el `DISTINCT` tenía que
+        colapsar."""
+        return InscripcionPrograma.objects.create(
+            ciudadano=ciudadano,
+            programa=self.otro_programa,
+            legajo_id=legajo.id,
+            fecha_inscripcion=timezone.localdate() - timedelta(days=30),
+        )
+
+    def test_un_legajo_con_dos_inscripciones_cuenta_una_sola_vez(self):
+        ciudadano, legajo = self._ciudadano_con_legajo()
+        self._segunda_inscripcion(ciudadano, legajo)
+
+        self.assertEqual(list(get_legajo_ids_de_ciudadanos_activos()), [legajo.id])
+
+    def test_el_universo_por_programa_tampoco_repite(self):
+        ciudadano, legajo = self._ciudadano_con_legajo()
+        self._segunda_inscripcion(ciudadano, legajo)
+
+        self.assertEqual(
+            list(get_legajo_ids_for_programas([self.programa.id, self.otro_programa.id])),
+            [legajo.id],
+        )

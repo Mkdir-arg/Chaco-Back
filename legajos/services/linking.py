@@ -29,11 +29,17 @@ def get_legajos_queryset_for_ciudadano(ciudadano, base_queryset=None):
 
 
 def get_legajo_ids_for_programas(programa_ids):
+    # `.order_by()` **antes** del `.distinct()`: `InscripcionPrograma.Meta.ordering` es
+    # `["-fecha_inscripcion"]` y Django le agrega al `SELECT DISTINCT` toda columna por
+    # la que ordena, así que dos inscripciones del mismo legajo con fechas distintas son
+    # dos filas distintas para la base y el `legajo_id` sale repetido. El orden no se
+    # usa: lo que se devuelve es un conjunto de ids para un `IN`.
     return (
         InscripcionPrograma.objects.filter(
             programa_id__in=programa_ids,
             legajo_id__isnull=False,
         )
+        .order_by()
         .values_list("legajo_id", flat=True)
         .distinct()
     )
@@ -56,12 +62,17 @@ def get_legajo_ids_de_ciudadanos_activos():
     él recorriendo ``Ciudadano.objects.filter(activo=True)`` —20.200 filas en el
     banco— para descubrir que 20.000 no tenían legajo: el 99 % del costo se iba en
     preguntar por gente que no tiene nada que alertar.
+
+    El ``.order_by()`` es el que hace que el ``.distinct()`` deduplique de verdad (ver
+    :func:`get_legajo_ids_for_programas`): sin él, la persona inscripta en dos programas
+    entraba dos veces al lote de la pasada y se reconciliaba dos veces.
     """
     return (
         InscripcionPrograma.objects.filter(
             legajo_id__isnull=False,
             ciudadano__activo=True,
         )
+        .order_by()
         .values_list("legajo_id", flat=True)
         .distinct()
     )

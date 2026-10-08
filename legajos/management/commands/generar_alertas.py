@@ -23,7 +23,7 @@ class Command(BaseCommand):
         self.stdout.write(
             self.style.SUCCESS(
                 f"Alertas activas tras la pasada: {resumen['vigentes']} "
-                f"({resumen['creadas']} nuevas, {resumen['cerradas']} cerradas, "
-                f"{resumen['legajos']} legajos revisados)"
+                f"({resumen['creadas']} nuevas, {resumen['refrescadas']} con el mensaje al día, "
+                f"{resumen['cerradas']} cerradas, {resumen['legajos']} legajos revisados)"
             )
         )
