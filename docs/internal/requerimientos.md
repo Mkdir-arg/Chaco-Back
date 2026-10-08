@@ -26824,7 +26824,13 @@ Queda **explícitamente afuera**:
   (10/10 min, sin mirar la IP) es la que ve la fuerza bruta distribuida, que cambia
   de IP en cada intento; pero por no mirar la IP la llena **cualquiera** tipeando
   el usuario de otro, así que se consulta **después** de autenticar y solo si la
-  credencial estaba mal: el dueño con su clave entra siempre. La de **IP**
+  credencial estaba mal: el dueño con su clave entra siempre. **Y por eso mismo no
+  es un límite por cuenta:** como se pregunta después de autenticar y no interrumpe
+  nada, pasados los 10 fallos lo único que cambia es el **mensaje** —«Demasiados
+  intentos fallidos…» en vez de «Credenciales inválidas»—; el intento 11 contra esa
+  cuenta se verifica igual que el 1. Queda como señal de que esa cuenta está siendo
+  barrida, no como freno. **El techo real del adivinado online es la de IP.** La de
+  **IP**
   (`AUTH_FALLIDOS_MAX_POR_IP`, 300/10 min, compartida por el login web y el token
   de la app) es la única que rechaza **antes** de verificar la clave, cosa que
   puede hacer porque la paga la IP que ataca y no la cuenta atacada; es lo que
@@ -26864,10 +26870,12 @@ Queda **explícitamente afuera**:
 - Entrar a «Cambiar contraseña» desde el menú del usuario pide la **contraseña
   actual**. La pantalla que no la pedía ya no se puede abrir salvo que el sistema
   te esté obligando a cambiar una clave provisoria.
-- Diez intentos fallidos seguidos sobre un mismo usuario frenan diez minutos a
-  **quien no sabe la clave**, en el backoffice y en la app; el dueño, con su clave
-  correcta, entra igual. Entrar bien no gasta cuota. Y una misma IP tiene un techo
-  de 300 intentos fallidos cada 10 minutos, para las dos puertas juntas.
+- **Una misma IP tiene un techo de 300 intentos fallidos cada 10 minutos**, para el
+  login del backoffice y el de la app juntos: ese es el freno del adivinado online.
+  Entrar bien no gasta cuota. A los diez fallidos sobre un mismo usuario el mensaje
+  pasa a «Demasiados intentos fallidos», pero el intento siguiente se verifica
+  igual —no se bloquea la cuenta, justamente para que nadie pueda dejar a otro
+  afuera tipeando su nombre de usuario—.
 - **Cambiar la contraseña NO cierra la sesión de la app de campo**, para no dejar
   trabados los relevamientos que el teléfono todavía no subió. Para cerrarla hay
   un botón en el listado de usuarios, **«Cerrar sesión de la app»**, que avisa
@@ -26876,7 +26884,10 @@ Queda **explícitamente afuera**:
 - Al dar de alta un **territorial** le llega un enlace para definir su contraseña
   en vez de la clave, y por eso el **correo es obligatorio** para un usuario de
   campo: es la única vía por la que le puede llegar una clave que el operador no
-  conozca.
+  conozca. Vale también para la **edición**: no se puede dejar a una cuenta
+  solo-campo y sin correo sacándole el rol de backoffice que tenía. A los
+  territoriales sin correo que ya existen no les pasa nada: se siguen editando
+  como siempre.
 - Al dar de alta o editar cualquier usuario, la contraseña que tipee el operador
   tiene que pasar los validadores, y la persona va a tener que cambiarla en su
   primer ingreso.
@@ -26922,6 +26933,11 @@ PR.
   `test_usuarios_ola2_pr2` fallaban 12 de 27 y de `test_credenciales_ola2_pr2`,
   21 de 23. Los que pasaban en los dos lados son los controles (que lo que debía
   seguir funcionando, siguiera).
+- **Ronda 3:** `manage.py test users core` → 1400 tests, OK (40 skipped, 2 expected
+  failures); `check`, ruff, `design_audit --ratchet`, `compile_templates --bloques`
+  y `check_design_agent` en verde. De los tests nuevos de la ronda, el único que
+  estaba en rojo contra `d25699da` es
+  `EdicionHaciaUsuarioDeCampoTests.test_sacarle_el_rol_de_backoffice_a_un_mixto_sin_correo_se_rechaza`.
 
 ## Pendientes
 
@@ -27009,3 +27025,26 @@ PR.
   De paso, `R0b-03` cerraba sin «Test permanente» —es SQL que corre el PM, no deja
   código— y el contrato de la auditoría lo marcaba en rojo: ahora tiene un candado
   sobre el README, que es su única superficie.
+- **08/10/2026 — ronda 3: la edición era el camino de atrás de D-26, y la cubeta
+  por usuario estaba mal contada en los papeles.** Tres cosas:
+  1. **La edición no puede dejar una cuenta solo-campo sin correo.** Con el alta
+     tapada (ronda 2, punto 4) quedaba una ruta de dos pasos al mismo estado: dar
+     de alta un usuario **mixto** sin correo —legítimo, porque tiene otra capacidad
+     y el backoffice sí le va a pedir cambiar la clave— y después editarlo
+     destildándole el rol que no era de campo. `_validar_correo_de_entrega_al_editar`
+     lo rechaza con el mismo mensaje del alta. Mira la **transición**, no el estado
+     final: a los territoriales sin correo que ya existen no se los congela
+     —cambiarle el nombre a uno sigue andando—, y la regla de la clave del alta no
+     se aplica acá, porque en la edición el campo vacío significa «no la cambies».
+     Los roles con los que la cuenta queda se calculan como los calcula el guardado,
+     así que un admin de programa no dispara el rechazo por los roles de otro
+     programa, que él no ve ni toca.
+  2. **El modal de alta rápida deja de mentir.** Para `tipo=territorial` el correo
+     se marca obligatorio —asterisco y `required`, y el `required` sigue al tipo
+     cuando el modal cambia—, y la ayuda de la clave dice lo que de verdad pasa: al
+     territorial le llega un enlace para fijarla él.
+  3. **La cubeta por usuario no es un límite por cuenta, y así quedó escrito.** Se
+     consulta después de autenticar y no interrumpe nada: pasados los 10 fallos lo
+     único que cambia es el mensaje. El techo real del adivinado online es la cubeta
+     por IP. La ficha SEC-26, las decisiones de este cambio y el cuerpo del PR
+     decían «límite por cuenta» y ahora no.

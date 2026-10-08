@@ -147,13 +147,30 @@ no existe), ya que el link es la única vía por la que le puede llegar una clav
 conozca. Para el resto nada cambia: sin correo la clave la sigue tipeando el operador y vale un solo
 ingreso. La marca se escribe igual sobre el usuario de campo, por si mañana suma un rol de backoffice.
 
+**Cerrado en la ronda 3: la edición era el camino de atrás.** Con el alta tapada quedaba una ruta de
+dos pasos hacia el mismo estado: se daba de alta un usuario **mixto** sin correo —legítimo, porque
+tiene otra capacidad y el backoffice sí le va a pedir cambiar la clave al entrar— y después se lo
+editaba destildándole el rol que no era de campo. La cuenta terminaba solo-campo, sin correo y con la
+clave que tipeó el operador, vigente para siempre. `_validar_correo_de_entrega_al_editar` rechaza esa
+edición con el mismo mensaje del alta, y mira la **transición**, no el estado final: los territoriales
+sin correo que ya existen se tienen que poder seguir editando (cambiarle el nombre a uno de ellos
+sigue andando), porque si no quedaban congelados hasta que alguien les cargara un correo. Los roles
+con los que la cuenta queda se calculan como los calcula el guardado —un admin de programa conserva
+los roles fuera de su alcance—, y la regla de la clave del alta no se aplica acá: en la edición el
+campo vacío significa «no la cambies». En el **alta rápida** de Becas el modal pasa a marcar el correo
+como obligatorio cuando el tipo es `territorial`, y la ayuda de la clave dice lo que de verdad pasa:
+al territorial le llega un enlace para fijarla él.
+
 **Test permanente:**
 `users.tests.test_usuarios_ola2_pr2.G1b08ClaveTipeadaTests.test_fijarle_la_clave_a_otro_obliga_a_cambiarla`
 (+ `test_el_alta_rechaza_una_clave_que_no_pasa_los_validadores`,
 `test_la_edicion_rechaza_una_clave_que_no_pasa_los_validadores`,
 `test_cambiarse_la_propia_clave_desde_el_abm_no_obliga_a_nada`, `test_una_edicion_sin_clave_no_toca_el_flag`;
 `users.tests.test_credenciales_ola2_pr2.AltaDeUsuarioDeCampoTests` ×5, encabezada por
-`test_el_alta_de_un_usuario_de_campo_sin_correo_se_rechaza`).
+`test_el_alta_de_un_usuario_de_campo_sin_correo_se_rechaza`;
+`users.tests.test_credenciales_ola2_pr2.EdicionHaciaUsuarioDeCampoTests` ×4, encabezada por
+`test_sacarle_el_rol_de_backoffice_a_un_mixto_sin_correo_se_rechaza` y con
+`test_un_territorial_sin_correo_que_ya_existia_se_sigue_pudiendo_editar` como contracara).
 
 ### G1b-09 · «Último administrador» salteable con dos operaciones simultáneas
 **Severidad:** BAJA · **Estado:** PLAUSIBLE (sin repro de concurrencia) · **Origen:** G1b-09 · **Ola:** 7 · **Esfuerzo:** M

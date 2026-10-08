@@ -650,3 +650,81 @@ class AltaDeUsuarioDeCampoTests(_SinCubetas):
 
         self.assertEqual(respuesta.status_code, 200)
         self.assertIn("password", respuesta.context["form"].errors)
+
+
+class EdicionHaciaUsuarioDeCampoTests(_SinCubetas):
+    """La otra pantalla por la que se llegaba al estado que D-26 (b) cerró.
+
+    El alta ya exige correo al usuario de campo, pero la edición no miraba nada: se
+    daba de alta un **mixto** sin correo (legítimo) y después se le destildaba el rol
+    que no era de campo. La cuenta quedaba solo-campo, sin correo y con la clave que
+    tipeó el operador, vigente para siempre.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.becas = Programa.objects.create(codigo="BECAS", nombre="Becas")
+        self.rol_terr = _rol("Terr", ["becas.campo"], self.becas)
+        self.rol_op = _rol("OpX", ["ciudadano.ver"])
+        self.segmento = Segmento.objects.create(nombre="Seg", cupo_maximo=5)
+        self.root = _user("root-global", _rol("Admins", ["usuario.administrar"]))
+        self.client.force_login(self.root)
+
+    def _crear(self, username, *grupos, email=""):
+        usuario = User.objects.create_user(username, password=CLAVE)
+        usuario.email = email
+        usuario.save(update_fields=["email"])
+        usuario.groups.set(grupos)
+        return usuario
+
+    def _editar(self, usuario, **extra):
+        datos = {
+            "username": usuario.username,
+            "email": usuario.email,
+            "password": "",
+            "first_name": usuario.first_name,
+            "last_name": usuario.last_name,
+            "groups": [str(g.pk) for g in usuario.groups.all()],
+            "segmento_territorial": str(self.segmento.pk),
+        }
+        datos.update(extra)
+        return self.client.post(reverse("users:usuario_editar", args=[usuario.pk]), datos)
+
+    def test_sacarle_el_rol_de_backoffice_a_un_mixto_sin_correo_se_rechaza(self):
+        mixto = self._crear("mixto", self.rol_terr, self.rol_op)
+
+        respuesta = self._editar(mixto, groups=[str(self.rol_terr.pk)])
+
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertIn("email", respuesta.context["form"].errors)
+        self.assertEqual(set(mixto.groups.all()), {self.rol_terr, self.rol_op})
+
+    def test_la_misma_edicion_con_correo_pasa(self):
+        mixto = self._crear("mixto2", self.rol_terr, self.rol_op)
+
+        respuesta = self._editar(mixto, groups=[str(self.rol_terr.pk)], email="mixto2@x.test")
+
+        self.assertEqual(respuesta.status_code, 302)
+        self.assertEqual(set(mixto.groups.all()), {self.rol_terr})
+
+    def test_un_territorial_sin_correo_que_ya_existia_se_sigue_pudiendo_editar(self):
+        """Los que se crearon antes de este cambio no quedan congelados: lo que se
+        rechaza es *llegar* a solo-campo sin correo, no estar ahí."""
+        viejo = self._crear("viejo", self.rol_terr)
+
+        respuesta = self._editar(viejo, first_name="Juana")
+
+        self.assertEqual(respuesta.status_code, 302)
+        viejo.refresh_from_db()
+        self.assertEqual(viejo.first_name, "Juana")
+
+    def test_editar_un_usuario_de_backoffice_sin_correo_no_pide_clave(self):
+        """La regla de la clave es del alta: en la edición el campo vacío significa
+        «no la cambies» y la cuenta ya tiene una."""
+        operador = self._crear("solo-backoffice", self.rol_op)
+
+        respuesta = self._editar(operador, first_name="Ana")
+
+        self.assertEqual(respuesta.status_code, 302)
+        operador.refresh_from_db()
+        self.assertEqual(operador.first_name, "Ana")

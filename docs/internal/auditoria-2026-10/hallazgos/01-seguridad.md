@@ -578,6 +578,15 @@ cambiar la clave, que espera un release de `Chaco-mobile` que reintente o re-log
      persona la dejaban diez minutos afuera, y repitiéndolos, afuera indefinidamente. Ahora se
      consulta **después**, y solo si la credencial estaba mal: el dueño con su clave correcta entra
      siempre, esté la cubeta como esté. Vale para el login web y para `/api/becas/auth/token/`.
+
+     **Lo que esa cubeta es y lo que no.** Como se consulta después de autenticar y no interrumpe
+     nada, pasados los 10 fallos lo único que cambia es **el mensaje** («Demasiados intentos
+     fallidos…» en vez de «Credenciales inválidas»): el intento 11 contra esa cuenta se verifica
+     igual que el 1. No es, entonces, un límite por cuenta —no lo puede ser sin reabrir el bloqueo
+     por tercero—, y no hay que leerla como tal. **El techo real del adivinado online es la cubeta
+     por IP**, que sí rechaza antes de mirar la clave: 300 fallidos cada 10 minutos
+     (`AUTH_FALLIDOS_MAX_POR_IP`) para las dos puertas juntas. La de usuario queda como señal de
+     que esa cuenta está siendo barrida —hoy visible solo en el mensaje y en los logs—.
    * *Techo por IP.* `/api/becas/auth/token/` no tenía ninguno y el del login web (30/10 min) se
      fue con él: ahora hay **una sola cubeta por IP compartida por las dos puertas**,
      `AUTH_FALLIDOS_MAX_POR_IP` (300 fallidos cada 10 min, por setting). Es holgada a propósito —el
