@@ -27330,6 +27330,22 @@ No requiere.
 
 ## Historial
 
+**08/10/2026 — cinco funcionalidades entran al alcance y el documento se reordena.** El PM sumó a lo
+que se entrega: la **pantalla donde el coordinador crea y asigna el relevamiento**, el **funcionamiento
+sin conexión** de la app, la **verificación de la persona en toda la red**, la **solapa Dispositivos en
+el legajo ciudadano** y el **censo automático por turno**. Las cuatro primeras rondan las 10 h cada
+una; el funcionamiento sin conexión pesa entre 40 y 60 h —almacenamiento local, cola de
+sincronización, reintentos, resolución de conflictos y fotos—, y además estaba **explícitamente fuera
+de alcance** en la §7 de la propuesta de la Versión 2. En conjunto comprometen casi toda la reserva de
+100 h, y así quedó dicho en el documento para que no aparezca como sorpresa.
+
+Además, por pedido del PM el documento **deja de estructurarse por bloques**: ahora son dos listas,
+«Qué se entrega» y «Qué no se entrega», agrupadas por tema. Las horas por bloque siguen en la sección
+de esfuerzo, que es como el Ministerio organizó el presupuesto. La sección «Qué no se va a poder hacer
+el día uno» se ajustó: salieron la doble estadía sin detectar y la necesidad de señal, y entró la
+ausencia de pase de guardia, que ahora se distingue del censo —el censo se calcula solo, lo que no hay
+es el acto de entrega entre turnos—.
+
 **08/10/2026 — detalle del alcance.** El PM pidió ser específico: «podés ser más específico en lo que
 se va a hacer y lo que no». Cada bloque pasó a tener dos listas, **Queda funcionando** y **No
 incluye**, con el detalle de lo que el texto del Ministerio deja implícito: las validaciones son solo
