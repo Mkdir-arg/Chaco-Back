@@ -20,6 +20,7 @@ import json
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, render
@@ -41,6 +42,7 @@ from programas.services.diseno import (
     nueva_clave,
     obtener_o_crear_diseno,
 )
+from programas.validadores import validar_condicion_json
 from programas.views.ajax_utils import ajax_errors
 
 CAP_CONVOCATORIA_EDITAR = "becas.convocatoria.editar"
@@ -535,6 +537,14 @@ def formulario_condicion(request, pk, clave):
         return JsonResponse({"ok": False, "message": "La condición tiene un formato inválido."}, status=400)
     if condicion is not None and not (condicion.get("reglas") or []):
         condicion = None  # sin reglas = sin condición
+    # RED-40: la forma, antes de guardar. La coherencia contra el diseño la
+    # valida `_mutar` después; lo que esto frena es lo que ni siquiera se puede
+    # evaluar —un operador que el motor no conoce devuelve False y esconde el
+    # ítem para siempre, sin error y sin log—.
+    try:
+        validar_condicion_json(condicion)
+    except DjangoValidationError as error:
+        return JsonResponse({"ok": False, "message": " ".join(error.messages)}, status=400)
 
     def operacion():
         item.condicion = condicion
