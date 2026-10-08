@@ -27,6 +27,7 @@ from programas.services.autorizacion import (
     SegmentoScopedMixin,
     assert_alcance_formulario,
     convocatorias_visibles,
+    es_admin_becas,
     programa_becas,
     sin_formularios_publicos_si_no_puede,
 )
@@ -109,12 +110,21 @@ class CupoSegmentoDetailView(SegmentoScopedMixin, CapacidadRequeridaMixin, Login
         # SEC-22: y los casos del link público, sin tener RN-P13.
         usuario = self.request.user
         programa = programa_becas(usuario)
-        # Ids planos y no una subconsulta: son decenas de filas y las tres consultas de
-        # la pantalla la repetirían anidada (el patrón que ya costó un 500 en ECOM).
-        convocatorias = list(convocatorias_visibles(usuario, programa=programa).values_list("pk", flat=True))
+        # Para el admin del programa (y el superusuario, que pasa por el mismo bypass)
+        # `convocatorias_visibles` es *todas* las convocatorias: filtrar por ellas no
+        # recorta nada y mete un `IN` con la tabla entera en las tres consultas de una
+        # pantalla que ya costó un 500 por `read_timeout` en ECOM. Así que ve todo sin
+        # filtro. Para el resto el recorte sí acota, y va como ids planos y no como
+        # subconsulta, que es el mismo `IN` anidado tres veces.
+        convocatorias = (
+            None
+            if es_admin_becas(usuario, programa=programa)
+            else list(convocatorias_visibles(usuario, programa=programa).values_list("pk", flat=True))
+        )
 
         def _de_mi_alcance(qs, prefijo=""):
-            qs = qs.filter(**{f"{prefijo}relevamiento__convocatoria_id__in": convocatorias})
+            if convocatorias is not None:
+                qs = qs.filter(**{f"{prefijo}relevamiento__convocatoria_id__in": convocatorias})
             return sin_formularios_publicos_si_no_puede(qs, usuario, programa=programa, prefijo=prefijo)
 
         beneficiarios_qs = (

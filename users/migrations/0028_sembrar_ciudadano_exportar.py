@@ -1,15 +1,15 @@
 # SEC-20 / D-20 (auditoría oct-2026): quién arranca con `ciudadano.exportar`.
 #
-# DECISIÓN CLIENTE (D-20, README §2 de la auditoría): la exportación masiva del padrón
-# es una capacidad propia, sembrada a los roles que ya tienen `ciudadano.editar`.
+# DECISIÓN CLIENTE (D-20, decidida por el PM el 08-oct-2026): la exportación masiva del
+# padrón es una capacidad propia, sembrada a **todo rol que tenga `ciudadano.ver`**. El
+# «Operador de backoffice» conserva la exportación: nadie pierde nada el día del deploy.
+# Lo que cambia es que la capacidad queda separada del ver, así que de acá en adelante se
+# puede quitar rol por rol desde el ABM de Roles, sin deploy.
 #
 # La migración **solo agrega** filas en `auth_group_permissions`: no le quita ninguna
-# capacidad a nadie y no puede dejar a un rol con menos acceso del que tenía. Lo que sí
-# cambia —y es el objetivo de la ficha— es que la vista pasa a exigir la capacidad
-# nueva: un rol con `ciudadano.ver` y sin `ciudadano.editar` (el «Operador de
-# backoffice» sembrado, que ni siquiera da altas) deja de poder bajarse el padrón
-# completo. Si el organismo quiere devolvérselo, es un tilde en el ABM de Roles, sin
-# deploy: por eso la migración **lista en el log** los roles en esa situación.
+# capacidad a nadie y, con este criterio, tampoco deja a ningún rol con menos acceso del
+# que tenía (la vista exige la capacidad nueva, y la tienen todos los que antes
+# alcanzaban con `ciudadano.ver`).
 #
 # Va por migración y no por seed porque el entrypoint del contenedor corre `migrate`
 # en todos los ambientes y los seeds solo bajo variable de entorno (mismo motivo que
@@ -20,7 +20,6 @@ from django.db import migrations
 
 CODENAME_NUEVA = "ciudadano_exportar"
 NOMBRE_NUEVA = "Exportar el padrón de ciudadanos"
-CODENAME_ORIGEN = "ciudadano_editar"
 CODENAME_LECTURA = "ciudadano_ver"
 
 logger = logging.getLogger(__name__)
@@ -44,23 +43,17 @@ def sembrar(apps, schema_editor):
     Group = apps.get_model("auth", "Group")
 
     permiso = _permiso(apps)
-    con_alta = list(Group.objects.filter(permissions__codename=CODENAME_ORIGEN).distinct())
-    for grupo in con_alta:
+    con_lectura = list(Group.objects.filter(permissions__codename=CODENAME_LECTURA).distinct())
+    for grupo in con_lectura:
         grupo.permissions.add(permiso)
 
-    solo_lectura = (
-        Group.objects.filter(permissions__codename=CODENAME_LECTURA)
-        .exclude(permissions__codename=CODENAME_ORIGEN)
-        .distinct()
-    )
-    nombres = list(solo_lectura.values_list("name", flat=True))
-    if nombres:
-        logger.warning(
-            "SEC-20: estos roles ven ciudadanos pero no los editan, así que NO reciben "
-            "«%s» y pierden la exportación del padrón: %s. Si alguno tiene que seguir "
-            "exportando, tildale la capacidad en el ABM de Roles.",
+    if con_lectura:
+        logger.info(
+            "SEC-20 / D-20: «%s» quedó tildada en los roles que ven ciudadanos, así que "
+            "ninguno pierde la exportación: %s. Para sacársela a alguno, destildala en el "
+            "ABM de Roles (no hace falta deploy).",
             NOMBRE_NUEVA,
-            ", ".join(nombres),
+            ", ".join(grupo.name for grupo in con_lectura),
         )
 
 
@@ -70,8 +63,8 @@ def quitar(apps, schema_editor):
     Al desaplicar, el código que la exige ya no está y la capacidad queda inerte, así
     que dejarla tildada solo ensucia el ABM. Lo que no se puede distinguir es un tilde
     hecho a mano después del deploy: si alguien se la dio a un rol que no tiene
-    `ciudadano.editar`, al revertir se pierde y hay que volver a tildarla (al reaplicar,
-    la siembra vuelve a salir de `ciudadano.editar`).
+    `ciudadano.ver`, al revertir se pierde y hay que volver a tildarla (al reaplicar,
+    la siembra vuelve a salir de `ciudadano.ver`).
     """
     Permission = apps.get_model("auth", "Permission")
     Group = apps.get_model("auth", "Group")

@@ -92,6 +92,12 @@ class Command(BaseCommand):
         self.stdout.write(self.style.MIGRATE_LABEL("\nRol Operador de backoffice..."))
         caps_operador = [
             "ciudadano.ver",
+            # SEC-20 / D-20: la exportación del padrón es capacidad propia, sembrada a
+            # quien tiene `ciudadano.ver` (el PM decidió el 08-oct-2026 que el Operador
+            # la conserva). Mismo criterio que `users.0028` sobre las bases que ya
+            # tienen roles; acá lo necesita la base nueva, donde la 0028 corre antes de
+            # que este rol exista. Separada del ver, se le puede quitar desde el ABM.
+            "ciudadano.exportar",
             "reporte.ver",
             "config.administrar",
             "usuario.administrar",

@@ -1,30 +1,17 @@
 """Exportación común de datasets tabulares a CSV y XLSX."""
 
 import csv
-from datetime import datetime
 
 from django.http import HttpResponse, HttpResponseBadRequest
-from django.utils import timezone
 from openpyxl import Workbook
-from openpyxl.cell.cell import ILLEGAL_CHARACTERS_RE
 
+# `celda_segura` es transversal (la usan también los CSV de `legajos`, que no exportan
+# nada de Becas) y vive en `core.exportacion`. Se re-exporta acá porque la usan las dos
+# funciones de abajo y porque la importan por este camino las vistas y los tests de
+# `programas`.
+from core.exportacion import celda_segura
 
-def celda_segura(valor):
-
-    if isinstance(valor, datetime) and timezone.is_aware(valor):
-        return timezone.localtime(valor).replace(tzinfo=None)
-
-    if isinstance(valor, str):
-        # openpyxl rechaza caracteres de control (-, , , -) con
-
-        # IllegalCharacterError: un texto pegado desde otro programa no puede tirar la planilla.
-
-        valor = ILLEGAL_CHARACTERS_RE.sub("", valor)
-
-        if valor.lstrip().startswith(("=", "+", "-", "@")):
-            return f"'{valor}"
-
-    return valor
+__all__ = ["celda_segura", "respuesta_libro", "respuesta_reporte"]
 
 
 def _nombre_hoja(nombre):

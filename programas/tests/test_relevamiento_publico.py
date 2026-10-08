@@ -22,10 +22,12 @@ from programas.models import (
     AsignacionTerritorial,
     Convocatoria,
     Formulario,
+    ListaEspera,
     ProgramaSiis,
     Relevamiento,
     Segmento,
 )
+from programas.services.reportes_becas import reporte_cupos
 from users.models import Capacidad
 
 CAP_PUBLICO = "becas.relevamiento.publico"
@@ -374,6 +376,106 @@ class RnP13FueraDeLaPantallaTests(_BasePublicoTest):
 
         self.assertEqual(datos["datos"]["indicadores"]["formularios_recibidos"], 2)
         self.assertEqual(datos["datos"]["indicadores"]["relevamientos_publicos"], 1)
+
+
+class CupoYReporteCuentanLaCapacidadTests(_BasePublicoTest):
+    """D-22 oculta **personas**, no descuenta capacidad (revisión de la ronda 1 del #626).
+
+    Con RN-P13 aplicado también a los agregados, `reporte_cupos` decía 3/97 sobre un
+    segmento donde la stat card de la pantalla de Cupo y la aprobación
+    (`services.cupo.get_cupo_stats`, que cuenta el segmento entero) decían 10/90: el
+    operador sin la capacidad leía 97 lugares libres y la aprobación número 91 se le iba
+    a lista de espera sin explicación. Los agregados se cuentan sin el filtro; lo que
+    sigue filtrado es todo queryset que **liste filas** de personas.
+    """
+
+    APROBADOS_PUBLICOS = 7
+    APROBADOS_TERRITORIALES = 3
+
+    def setUp(self):
+        super().setUp()
+        cache.clear()
+        self.publico = self._crear_publico()
+        self.territorial_rel = Relevamiento.objects.create(
+            convocatoria=self.convocatoria,
+            territorial=self.territorial,
+            fecha_asignada=date(2026, 6, 1),
+            fecha_hasta=date(2026, 6, 30),
+            zona="Zona T",
+        )
+        self.dnis_publicos = [
+            self._caso(self.publico, f"4511100{i}", Formulario.Estado.APROBADO).ciudadano.dni
+            for i in range(self.APROBADOS_PUBLICOS)
+        ]
+        self.dnis_territoriales = [
+            self._caso(self.territorial_rel, f"4522200{i}", Formulario.Estado.APROBADO).ciudadano.dni
+            for i in range(self.APROBADOS_TERRITORIALES)
+        ]
+        # Uno en espera de cada canal: el agregado de «Lista de espera» del reporte
+        # tampoco es una lista de personas.
+        for relevamiento, dni in ((self.publico, "45333001"), (self.territorial_rel, "45333002")):
+            ListaEspera.objects.create(
+                formulario=self._caso(relevamiento, dni, Formulario.Estado.ENVIADO),
+                segmento=self.segmento,
+                posicion=1 if relevamiento is self.publico else 2,
+            )
+
+    def _caso(self, relevamiento, dni, estado):
+        ciudadano = Ciudadano.objects.create(dni=dni, nombre=f"Caso {dni}", apellido="Cupo")
+        return Formulario.objects.create(relevamiento=relevamiento, ciudadano=ciudadano, estado=estado)
+
+    def _fila_del_reporte(self, user):
+        reporte = reporte_cupos(user)
+        return next(fila for fila in reporte.filas if fila[0] == self.segmento.nombre)
+
+    def test_el_reporte_cuenta_el_cupo_que_ya_consumio_el_link_publico(self):
+        fila = self._fila_del_reporte(self.admin)
+
+        # (Segmento, Cupo máximo, Distribuido, Ocupado, Disponible, Lista de espera, …)
+        self.assertEqual(fila[1], 100)
+        self.assertEqual(fila[3], self.APROBADOS_PUBLICOS + self.APROBADOS_TERRITORIALES)
+        self.assertEqual(fila[4], 90)
+        self.assertEqual(fila[5], 2)
+
+    def test_el_reporte_dice_lo_mismo_con_la_capacidad_y_sin_ella(self):
+        """El cupo es una propiedad del segmento, no de quién lo mira."""
+        self.assertEqual(self._fila_del_reporte(self.admin), self._fila_del_reporte(self.admin_publico))
+
+    def test_la_pantalla_de_cupo_dice_lo_mismo_que_el_reporte(self):
+        self.client.force_login(self.admin)
+
+        respuesta = self.client.get(reverse("becas:cupo_segmento", args=[self.segmento.pk]))
+
+        self.assertEqual(respuesta.status_code, 200)
+        stats = respuesta.context["stats"]
+        fila = self._fila_del_reporte(self.admin)
+        self.assertEqual((stats["cupo_ocupado"], stats["cupo_disponible"]), (10, 90))
+        self.assertEqual((fila[3], fila[4]), (stats["cupo_ocupado"], stats["cupo_disponible"]))
+
+    def test_las_personas_del_link_publico_siguen_fuera_de_las_listas(self):
+        self.client.force_login(self.admin)
+
+        respuesta = self.client.get(reverse("becas:cupo_segmento", args=[self.segmento.pk]))
+
+        self.assertEqual(respuesta.context["n_beneficiarios"], self.APROBADOS_TERRITORIALES)
+        self.assertEqual(respuesta.context["n_lista_espera"], 1)
+        for dni in self.dnis_territoriales:
+            self.assertContains(respuesta, dni)
+        for dni in self.dnis_publicos:
+            self.assertNotContains(respuesta, dni)
+
+    def test_el_reporte_de_beneficiarios_sigue_sin_listar_los_publicos(self):
+        """El agregado los cuenta; el CSV, que es una lista de personas, no los trae."""
+        self.client.force_login(self.admin)
+
+        contenido = self.client.get(reverse("becas:reporte_exportar", args=["beneficiarios", "csv"])).content.decode(
+            "utf-8-sig"
+        )
+
+        for dni in self.dnis_territoriales:
+            self.assertIn(dni, contenido)
+        for dni in self.dnis_publicos:
+            self.assertNotIn(dni, contenido)
 
 
 class ApiCampoPublicoTests(_BasePublicoTest):

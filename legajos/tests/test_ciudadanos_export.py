@@ -73,8 +73,13 @@ class ExportarCiudadanosCapacidadTests(TestCase):
     """SEC-20 / D-20: bajarse el padrón completo es su propia capacidad.
 
     Hasta este PR, cualquier cuenta con `ciudadano.ver` se descargaba las ~100.000
-    personas del padrón —DNI incluido— sin límite y sin dejar rastro, incluido el rol
-    «Operador de backoffice», que ni siquiera puede dar un alta.
+    personas del padrón —DNI incluido— sin límite y sin dejar rastro, y no había forma
+    de impedírselo a un rol sin impedirle también ver un legajo.
+
+    D-20 (PM, 08-oct-2026): la capacidad se siembra a quien ya tiene `ciudadano.ver`,
+    así que el día del deploy nadie pierde la exportación. Lo que cambia es que ahora
+    es **destildable** rol por rol desde el ABM, que es lo que estos tests fijan: con
+    `ciudadano.ver` y sin `ciudadano.exportar` no hay descarga ni botón.
     """
 
     @classmethod

@@ -4,14 +4,17 @@ El rol ve el segmento que contiene su subsegmento solo como contexto: no puede
 configurarlo ni asomarse a los subsegmentos de sus pares.
 """
 
+import re
 from datetime import timedelta
 from io import StringIO
 
 from django.contrib.auth.models import Group, Permission, User
 from django.contrib.contenttypes.models import ContentType
 from django.core.management import call_command
+from django.db import connection
 from django.http import Http404
 from django.test import RequestFactory, TestCase
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
 
@@ -353,6 +356,24 @@ class AlcanceDeCupoTests(_BaseRegional):
 
         self.assertContains(respuesta, self.propio.ciudadano.dni)
         self.assertContains(respuesta, self.del_par.ciudadano.dni)
+
+    def test_el_admin_no_arrastra_el_in_de_convocatorias(self):
+        """Para el admin `convocatorias_visibles` son **todas**: el `IN` no recorta nada
+        y se repetía en las tres consultas de una pantalla que ya costó un 500 por
+        `read_timeout` en ECOM. El del Regional, que sí recorta, se queda."""
+        patron = re.compile(r"convocatoria_id.{0,2}\s+IN\s")
+        admin = User.objects.create_user("admin-cupo-sql", password="x")
+        admin.groups.add(Group.objects.get(name=ROL_ADMIN))
+
+        self.client.force_login(self.ana)
+        with CaptureQueriesContext(connection) as del_regional:
+            self.client.get(reverse("becas:cupo_segmento", args=[self.segmento.pk]))
+        self.client.force_login(admin)
+        with CaptureQueriesContext(connection) as del_admin:
+            self.client.get(reverse("becas:cupo_segmento", args=[self.segmento.pk]))
+
+        self.assertTrue(any(patron.search(c["sql"]) for c in del_regional.captured_queries))
+        self.assertFalse(any(patron.search(c["sql"]) for c in del_admin.captured_queries))
 
 
 class ConfiguracionDelSegmentoTests(_BaseRegional):

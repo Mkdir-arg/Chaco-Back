@@ -275,6 +275,33 @@ class CapasTests(SimpleTestCase):
         self.assertEqual(EXENTOS, {"ajax_utils"})
 
 
+class CeldaSeguraTests(SimpleTestCase):
+    """`celda_segura` es transversal y vive en `core` (revisión de la ronda 1 del #626).
+
+    `legajos/views/ciudadanos.py` y `legajos/views/dashboard_simple.py` importaban
+    `programas.services.exportacion_reportes` **solo** por esta función: dos CSV que no
+    tienen nada que ver con Becas quedaban colgados del paquete de Becas. En `programas`
+    queda la re-exportación, que es lo que usan sus propias vistas y sus tests.
+    """
+
+    def test_la_definicion_vive_en_core(self):
+        from core.exportacion import celda_segura
+        from programas.services import exportacion_reportes
+
+        self.assertIs(exportacion_reportes.celda_segura, celda_segura)
+        self.assertEqual(celda_segura.__module__, "core.exportacion")
+
+    def test_legajos_no_importa_el_paquete_de_becas_por_una_celda(self):
+        aristas = _grafo_de_imports()
+        destino = "programas.services.exportacion_reportes"
+
+        culpables = sorted(origen for origen, otro in aristas if otro == destino and origen.startswith("legajos."))
+
+        self.assertEqual(
+            culpables, [], f"importan `{destino}`: {culpables}. `celda_segura` está en `core.exportacion`."
+        )
+
+
 class GuardsDeAlcanceTests(SimpleTestCase):
     """El invariante de alcance, ahora en un solo lugar (SEC-21 + RED-79, Ola 2 PR 5).
 

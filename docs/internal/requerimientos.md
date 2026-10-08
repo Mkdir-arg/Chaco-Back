@@ -348,7 +348,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 174 | Las integraciones dejan de inventar identidades: el domicilio no es el nombre y un 401 de RENAPER no deja el token muerto | Becas (link público, revisión, alta a SIIS) · Legajos (consulta RENAPER) · Transversal (system checks, validación de adjuntos) | `#siis` `#datos` `#infra` `#metodo` | Auditoría integral oct-2026 — fichas SIIS-10, SIIS-13, SIIS-14 (+G3-02), SIIS-15, SIIS-16, SIIS-18, SIIS-20, SIIS-21 y G1c-15 (Ola 3, PR 7a) | 08/10/2026 | 🟢 **Hecho** (SIIS-13 cierra su opción (a) y SIIS-16 deja el techo de nginx como paso operativo) | No requiere |
 | 175 | La app de campo deja de perder cargas: gracia de sincronización, listas completas y lo que el servidor sí valida | Becas — API de campo (`/api/becas/`: agenda, casos, alta y cierre) · Revisión de casos (detalle) · Cron de vencimientos · Constructor de formularios (guardado de condiciones) | `#api` `#relevamientos` `#datos` `#requisitos` `#metodo` | Auditoría integral oct-2026 — fichas G1-03, G1-04 (+BEC-22), G1-05, G1-06 y R0-04, más RED-40 (Ola 3, PR 5 — primer lote) | 08/10/2026 | 🟢 **Hecho** (D-G04 aplicada por default: 24 h) | `programas.0080` — dos columnas nuevas en `programas_formulario` (expand puro, medidas en MariaDB 10.11 y MySQL 8) |
 | 176 | El link público deja de romperse con un token duplicado, el padrón deja de escribir fechas imposibles y el alta a SIIS manda el CUIL real | Becas (link público de inscripción, carga de padrón, revisión de casos, alta a SIIS) · Legajos (cliente RENAPER) · Transversal (`core/db.py`) | `#relevamientos` `#siis` `#datos` `#metodo` | Auditoría integral oct-2026 — fichas G1-11, G1-12, G1-13, G1-14, R0-06, R0-07 y la 2.ª parte de RED-09 (Ola 3, PR 7b), más los tres seguimientos de la revisión del PR 7a | 08/10/2026 | 🟢 **Hecho** | No requiere |
-| 177 | El alcance de Becas vale también fuera de la pantalla: cupo, reportes, exports y la solapa del legajo | Becas (cupo, revisión, relevamientos, reportes, tablero del programa, configuración de segmentos) · Legajos (padrón de ciudadanos, solapa Becas, CSV de reportes) · Transversal (catálogo de capacidades) | `#rbac` `#cupos` `#relevamientos` `#datos` `#metodo` | Auditoría integral oct-2026 — fichas SEC-20, SEC-21, SEC-22, SEC-30, BEC-19 y BEC-23, más la segunda parte de RED-79 (Ola 2, PR 5) | 08/10/2026 | 🟢 **Hecho** (D-20, D-22 y D-B23 aplicadas por default) | `users.0027` y `users.0028`, las dos sin DDL; la segunda se revierte quitando la capacidad de todos los roles |
+| 177 | El alcance de Becas vale también fuera de la pantalla: cupo, reportes, exports y la solapa del legajo | Becas (cupo, revisión, relevamientos, reportes, tablero del programa, configuración de segmentos) · Legajos (padrón de ciudadanos, solapa Becas, CSV de reportes) · Transversal (catálogo de capacidades) | `#rbac` `#cupos` `#relevamientos` `#datos` `#metodo` | Auditoría integral oct-2026 — fichas SEC-20, SEC-21, SEC-22, SEC-30, BEC-19 y BEC-23, más la segunda parte de RED-79 (Ola 2, PR 5) | 08/10/2026 | 🟢 **Hecho** (D-22 y D-B23 por default; **D-20 la resolvió el PM**: la exportación se siembra a quienes tienen `ciudadano.ver`) | `users.0027` y `users.0028`, las dos sin DDL; la segunda se revierte quitando la capacidad de todos los roles |
 
 **Notas del índice**
 
@@ -25649,15 +25649,28 @@ WebSocket, la app de campo) y `PaginadorConConteo`, que es la arista
   capacidad**: sin eso, dos usuarios con los mismos segmentos y distinto RN-P13
   compartían la entrada y el filtro no se notaba hasta que alguien lo probaba al
   revés.
-- **DECISIÓN CLIENTE D-20 = Sí:** `ciudadano.exportar` es una capacidad propia
-  del catálogo (nada de permisos sueltos), sembrada por migración a los roles
-  que ya tienen `ciudadano.editar`. La migración **solo agrega** filas; lo que
-  cambia es que la vista exige la capacidad nueva, así que un rol con
-  `ciudadano.ver` y sin `ciudadano.editar` —el «Operador de backoffice»
-  sembrado, que ni siquiera da altas— deja de poder bajarse el padrón. La
-  migración lista esos roles en el log del deploy para que el organismo decida.
-  El botón sigue a la capacidad, y la descarga queda registrada con usuario,
-  filas y búsqueda.
+- **DECISIÓN CLIENTE: D-20 = Sí, sembrada a quienes tienen `ciudadano.ver`**
+  (decidido por el PM el 08-oct-2026: el «Operador de backoffice» conserva la
+  exportación). `ciudadano.exportar` es una capacidad propia del catálogo (nada
+  de permisos sueltos), sembrada por migración a **todo rol que tenga
+  `ciudadano.ver`**. La migración **solo agrega** filas y, con este criterio,
+  **nadie pierde la exportación** el día del deploy. Lo que cambia es que la
+  capacidad queda separada del ver: de acá en adelante se la puede quitar rol
+  por rol desde el ABM de Roles, sin deploy. El log del deploy lista los roles
+  que la recibieron. El botón sigue a la capacidad, y la descarga queda
+  registrada con usuario, filas y búsqueda.
+  **Se descartó el default de la ficha** (sembrar a quienes tienen
+  `ciudadano.editar`): le sacaba la exportación al Operador de backoffice el día
+  del deploy, que es un recorte de acceso que nadie pidió.
+- **El cupo que se cuenta no es el cupo que se muestra.** D-22 oculta **datos de
+  personas**, no cambia contadores de capacidad: los agregados de
+  `reporte_cupos` (ocupado, disponible, lista de espera) se cuentan **sin**
+  RN-P13, igual que `services.cupo.get_cupo_stats`, que es de donde salen la
+  stat card de la pantalla de Cupo y el gate de la aprobación. Con el filtro
+  puesto en los agregados, el reporte decía 3/97 donde la pantalla y la
+  aprobación decían 10/90, y el operador sin la capacidad leía 97 lugares libres
+  mientras la aprobación número 91 se iba a lista de espera sin explicación. El
+  filtro de RN-P13 queda **solo** en los querysets que listan filas de personas.
 - **DECISIÓN CLIENTE D-B23:** la solapa Becas del legajo es transversal —muestra
   los casos de cualquier segmento— pero oculta los del link público a quien no
   tiene RN-P13. Ahí la capacidad se evalúa **sin acotar al Programa Becas** a
@@ -25676,12 +25689,23 @@ WebSocket, la app de campo) y `PaginadorConConteo`, que es la arista
   link público (la ficha nombraba los otros dos exports).
 - Los **encabezados** de CSV y XLSX pasan por `celda_segura`: en «respuestas por
   persona» son los textos de las preguntas, que los carga un operador.
-- El rol de menú **«Gestión de Ciudadanos»** de `seed_datos_base` nace con
-  `ciudadano.exportar`. En una base **nueva** la `0028` corre antes de que el
-  seed cree los roles, así que no encuentra a nadie con `ciudadano.editar`: sin
-  esto, el único rol sembrado que edita ciudadanos arrancaba sin exportar,
-  contra D-20. El seed solo toca el rol al crearlo, así que en las bases que ya
-  existen no cambia nada (ahí lo resuelve la `0028`).
+- Los roles **«Gestión de Ciudadanos»** (de `seed_datos_base`) y **«Operador de
+  backoffice»** (de `seed_rbac`) nacen con `ciudadano.exportar`. En una base
+  **nueva** la `0028` corre antes de que el seed cree los roles, así que no
+  encuentra a nadie con `ciudadano.ver`: sin esto, los dos roles sembrados que
+  ven ciudadanos arrancaban sin exportar, contra D-20. Los dos seeds tocan el rol
+  solo al crearlo, así que en las bases que ya existen no cambia nada (ahí lo
+  resuelve la `0028`).
+- **`celda_segura` se mudó a `core/exportacion.py`.** `legajos/views/ciudadanos.py`
+  y `legajos/views/dashboard_simple.py` importaban
+  `programas.services.exportacion_reportes` **solo** por esa función: dos CSV que
+  no tienen nada que ver con Becas colgaban del paquete de Becas. En `programas`
+  queda la re-exportación, que es lo que usan sus vistas y sus tests.
+- **Para el admin de Becas, el cupo no materializa las convocatorias.**
+  `convocatorias_visibles` le devuelve *todas*, así que el `IN` no recortaba nada
+  y se repetía en las tres consultas de una pantalla que ya costó un 500 por
+  `read_timeout` en ECOM. Con el alcance completo el filtro se saltea; para el
+  resto sigue yendo como ids planos.
 - `programas_siis_visibles` (ex `_programas_qs`) queda en `autorizacion.py` y no
   en `programas/selectors/`, como decía RED-79: ese paquete **no existe** en
   `programas` y el resto de los querysets de alcance de Becas ya vive ahí.
@@ -25699,7 +25723,10 @@ WebSocket, la app de campo) y `PaginadorConConteo`, que es la arista
   subsegmento de los requisitos
 - `programas/services/dashboard_becas.py` — `resolver_alcance` y la huella de
   caché con RN-P13; `respuestas_por_persona(…, incluir_publicos)`
-- `programas/services/reportes_becas.py` — `_formularios` y la lista de espera
+- `programas/services/reportes_becas.py` — `_formularios` (listas de personas) y
+  `_formularios_del_alcance` (agregados de capacidad, sin RN-P13)
+- `core/exportacion.py` — `celda_segura`, con re-exportación desde
+  `programas/services/exportacion_reportes.py`
 - `programas/services/solapas.py`, `programas/views/solapas_becas.py`,
   `legajos/selectors/ciudadanos.py` — BEC-23
 - `programas/services/exportacion_reportes.py` — encabezados saneados
@@ -25708,8 +25735,9 @@ WebSocket, la app de campo) y `PaginadorConConteo`, que es la arista
   `legajos/views/dashboard_simple.py` — capacidad, registro y `celda_segura`
 - `users/migrations/0027_capacidad_ciudadano_exportar.py`,
   `users/migrations/0028_sembrar_ciudadano_exportar.py`
-- `users/management/commands/seed_datos_base.py` — «Gestión de Ciudadanos»
-  nace con `ciudadano.exportar`
+- `users/management/commands/seed_datos_base.py` y
+  `users/management/commands/seed_rbac.py` — «Gestión de Ciudadanos» y «Operador
+  de backoffice» nacen con `ciudadano.exportar`
 - Tests nuevos: `programas/tests/test_coordinador_regional.py`
   (`AlcanceDeCupoTests`, `ConfiguracionDelSegmentoTests`),
   `programas/tests/test_relevamiento_publico.py`
@@ -25718,6 +25746,14 @@ WebSocket, la app de campo) y `PaginadorConConteo`, que es la arista
   (`ExportsDeConvocatoriaTests`), `legajos/tests/test_ciudadanos_export.py`
   (`ExportarCiudadanosCapacidadTests` y la fórmula),
   `programas/tests/test_becas_vencimientos.py` (los tres del `next`)
+- Tests nuevos de la ronda 2:
+  `programas/tests/test_relevamiento_publico.py`
+  (`CupoYReporteCuentanLaCapacidadTests`: el reporte y la pantalla dicen los dos
+  10/90 y las listas siguen sin los públicos),
+  `programas/tests/test_coordinador_regional.py`
+  (`test_el_admin_no_arrastra_el_in_de_convocatorias`),
+  `programas/tests/test_arquitectura.py` (`CeldaSeguraTests`),
+  `users/tests/test_migracion_ciudadano_exportar.py`
 - Tests tocados por el movimiento: `programas/tests/test_arquitectura.py` (los
   dos ratchets bajan y `GuardsDeAlcanceTests` se da vuelta),
   `programas/tests/test_becas_rbac.py`,
@@ -25739,7 +25775,9 @@ Dos migraciones, ninguna con DDL:
   ancla (`AlterModelOptions`): el `post_migrate` de `auth` materializa la fila en
   `auth_permission`.
 - **`users.0028_sembrar_ciudadano_exportar`** la tilda sobre los roles que ya
-  tienen `ciudadano.editar`. Solo **agrega** filas en `auth_group_permissions`.
+  tienen `ciudadano.ver` (D-20). Solo **agrega** filas en
+  `auth_group_permissions`, y con ese criterio ningún rol pierde acceso: el día
+  del deploy exporta exactamente quien exportaba.
 
 Expand puro: el código viejo no conoce la capacidad y le da igual que exista, así
 que las dos pueden ir en la release N sin esperar a la N+2.
@@ -25753,7 +25791,8 @@ que las dos pueden ir en la release N sin esperar a la N+2.
    quita `ciudadano.exportar` de **todos** los roles que la tengan: un tilde
    hecho a mano después del deploy se pierde —no hay forma de distinguirlo del
    que puso la migración— y hay que volver a tildarlo si se reaplica, porque la
-   siembra vuelve a salir de `ciudadano.editar`. La `0027` no borra la fila de
+   siembra vuelve a salir de `ciudadano.ver`. Lo mismo al revés: un **destilde**
+   hecho desde el ABM vuelve a aparecer si se desaplica y se reaplica. La `0027` no borra la fila de
    `auth_permission` (eso lo hace `remove_stale_contenttypes`, que no corre en el
    deploy): queda huérfana y sin efecto.
 3. Lo que **no** se deshace: nada de datos. Los cambios de alcance son de lectura
@@ -25775,8 +25814,12 @@ reenvío del aviso de resolución pasó a usar `assert_alcance_formulario`).
   (`MARIADB_INITDB_SKIP_TZINFO=1`) y en `mysql:8.0`: `migrate` desde cero,
   `migrate users 0026`, roles de prueba (uno con `ciudadano.editar`, uno solo con
   `ciudadano.ver`, uno vacío), adelante otra vez y una segunda vuelta. En los dos
-  motores la `0028` siembra solo al que edita, deja el log con el rol que solo ve
-  y la reversa le saca la capacidad a todos.
+  motores la `0028` siembra, deja el log y la reversa le saca la capacidad a
+  todos. **Se corrió con el criterio de la ronda 1** (`ciudadano.editar`); la
+  ronda 2 lo cambió a `ciudadano.ver` por D-20 y **no se repitió** la vuelta
+  contra los motores: lo que cambió es el `filter` de un `RunPython` sin DDL, y
+  queda cubierto por `users.tests.test_migracion_ciudadano_exportar`, que ejecuta
+  `sembrar` y `quitar` contra el estado histórico de la `0028` (RED-17).
 - Suite completa (un proceso): la primera corrida dio 14 fallas, todas por
   RN-P13 —13 tests del tablero que medían el canal público con roles sin la
   capacidad y uno de pendientes RENAPER que parcheaba la función vieja—, que se
@@ -25799,6 +25842,39 @@ descargaba con `ciudadano.ver` y con la fórmula cruda; el `next` ajeno se
 obedecía; el requisito del subsegmento del par se borraba; y la solapa del
 legajo listaba los casos públicos.
 
+### Ronda 2 (08/10/2026)
+
+- Lo nuevo de la ronda 2 también se verificó en rojo contra `41ebe18a`, en un
+  worktree de ese commit con los archivos de test copiados: `reporte_cupos` daba
+  `(…, 100, 0, 3, 97, 1, 'Activo')` donde ahora da `(…, 100, 0, 10, 90, 2,
+  'Activo')`; el admin arrastraba el `IN` de convocatorias; `core.exportacion` no
+  existía y `legajos.views.*` importaba `programas.services.exportacion_reportes`;
+  y la `0028` no le daba la capacidad a un rol con solo `ciudadano.ver`.
+- `manage.py check` y `makemigrations --check --dry-run`: sin hallazgos, sin
+  cambios.
+- `programas` (relevamiento público, arquitectura, coordinador regional,
+  reportes, RBAC, solapa, tablero, candados, padrón), `users` (seed, migración
+  nueva, RBAC, contrato, ABM de roles, menú), `core` y `legajos` completos: OK.
+  El cambio de criterio de D-20 puso en rojo
+  `users.tests.test_menu_rbac.OperadorBackofficeSeedTests`, que fija las
+  capacidades exactas del Operador: se le sumó `ciudadano.exportar`.
+- `ruff check` y `ruff format --check` de lo tocado: OK.
+- `requerimientos.py --check` y `check_design_agent.py --changed`: OK. No se
+  tocó UI.
+
 ## Historial
 
-No aplica: entrada nueva.
+- **08/10/2026 — ronda 2 de la revisión del PR #626.** Tres correcciones y una
+  decisión del PM. (1) **El cupo volvió a contar a los beneficiarios del link
+  público:** los agregados de `reporte_cupos` se calculaban sobre
+  `_formularios(user)`, que desde SEC-22 excluye lo público, así que el reporte
+  decía 3/97 donde la stat card de Cupo y la aprobación decían 10/90. D-22
+  decidió ocultar datos de personas, no cambiar contadores de capacidad: los
+  agregados pasan por `_formularios_del_alcance`, sin RN-P13. (2) **D-20
+  cambió de criterio:** la capacidad se siembra a quienes tienen `ciudadano.ver`
+  y no a quienes tienen `ciudadano.editar`, así que el «Operador de backoffice»
+  conserva la exportación. (3) **El admin de Becas ya no materializa las
+  convocatorias** en la pantalla de cupo (riesgo latente en ECOM). (4)
+  **`celda_segura` se mudó a `core/exportacion.py`.** Queda **diferido a
+  SEC-06/07**, por decisión de la revisión, el RN-P13 sin acotar al programa de
+  `services/solapas.py`.

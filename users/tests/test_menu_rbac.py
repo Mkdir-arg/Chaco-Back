@@ -12,6 +12,9 @@ from users.tests.test_rbac import _perm, render_sidebar
 
 _CAPS_OPERADOR = [
     "ciudadano.ver",
+    # SEC-20 / D-20 (PM, 08-oct-2026): la exportación del padrón es capacidad propia y
+    # se siembra a quien tiene `ciudadano.ver`, así que el Operador la conserva.
+    "ciudadano.exportar",
     "reporte.ver",
     "config.administrar",
     "usuario.administrar",

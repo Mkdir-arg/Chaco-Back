@@ -7,9 +7,9 @@ from django.http import HttpResponse
 from django.shortcuts import render
 from django.utils import timezone
 
+from core.exportacion import celda_segura
 from core.rbac import requiere
 from programas.models import InscripcionPrograma
-from programas.services.exportacion_reportes import celda_segura
 
 from ..models import LegajoAtencion
 from ..selectors import legajos_abiertos

@@ -55,7 +55,7 @@ _ROLES_MENU = [
         "Gestión de Ciudadanos",
         rbac.CATEGORIA_BACKOFFICE,
         "Acceso completo a la sección Ciudadanos (legajos).",
-        # SEC-20 / D-20: `ciudadano.exportar` va con `ciudadano.editar`, igual que la
+        # SEC-20 / D-20: `ciudadano.exportar` va con `ciudadano.ver`, igual que la
         # siembra de users.0028 sobre las bases que ya tienen roles. En una base nueva
         # la 0028 corre antes de que exista este rol, así que lo trae el seed.
         [
