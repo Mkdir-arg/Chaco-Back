@@ -810,7 +810,7 @@ char(36)»; `users.0023` por `users.0099` → rojo por inexistente;
 **Test permanente:** `programas/tests/test_becas_models.py::UUIDExternosMySQLTests.test_todo_uuidfield_nuevo_esta_en_la_lista_ampliada`
 y `core/tests/test_uuid_mariadb.py::BusquedasUUIDTests.test_las_busquedas_por_uuid_usan_el_helper`
 
-**Parte de la Ola 3:** ✅ Cerrada en #PENDIENTE (Cambio 176, PR 7b), 08-oct-2026, junto con R0-07. `q_uuid_en_texto` vive
+**Parte de la Ola 3:** ✅ Cerrada en #625 (Cambio 176, PR 7b), 08-oct-2026, junto con R0-07. `q_uuid_en_texto` vive
 en **`core/db.py`**: siete de los nueve `UUIDField` del repo están fuera de `programas` (`legajos`, `users`, `core`) y
 cualquiera de esas apps tenía que importar el servicio de un dominio ajeno para buscar por su propio UUID —y
 `legajos.models` no puede importar `programas` sin cerrar un ciclo—. Mismo criterio que `core/dni.py` (RED-48).
