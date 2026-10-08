@@ -526,7 +526,7 @@ dos (sin alcance → vacío; con legajo propio → solo las suyas), porque afirm
 - **Tests a agregar:** `programas/tests/test_becas_api.py::test_patch_formulario_405` y `::test_adjunto_sobre_aprobado_409`.
 - **Verificación:** V-STD + `manage.py test programas.tests.test_becas_api`.
 
-**Resolución:** ✅ Resuelta en #NNN (Cambio 184), 08-10-2026 — `FormularioViewSet` quedó en
+**Resolución:** ✅ Resuelta en #638 (Cambio 184), 08-10-2026 — `FormularioViewSet` quedó en
 `RetrieveModelMixin` + la acción `adjuntos` (PATCH y PUT contestan **405**, el router deja de mapear
 los verbos), `validado_renaper` pasó a `read_only_fields` y el POST de adjuntos contesta **409
 `code=CASO_RESUELTO`** cuando el caso no está `ENVIADO`. `client_uuid` y `capturado_en` **siguen
@@ -553,7 +553,7 @@ revisión puede adjuntarla a mano.
 - **Verificación:** V-STD.
 - **Dependencias:** G1-05 (validación del resto del formulario en el servidor).
 
-**Resolución:** ✅ Resuelta en #NNN (Cambio 184), 08-10-2026 — con `origen: personas`/`gran_base` el
+**Resolución:** ✅ Resuelta en #638 (Cambio 184), 08-10-2026 — con `origen: personas`/`gran_base` el
 servidor vuelve a resolver la identidad con `identificar(formulario.relevamiento, dni, sexo)`, la
 misma cascada del Cambio 57, y **solo valida si la fuente respalda**. D-24 aplicada: `scan` sigue
 contando (es el documento físico leído por la cámara y el servidor no lo puede re-verificar), queda
@@ -590,7 +590,7 @@ ahora exige que el servidor haya consultado (`mock_consultar.assert_called_once_
 - **Tests a agregar:** N+1 consultas → 429.
 - **Verificación:** V-STD.
 
-**Resolución:** ✅ Resuelta en #NNN (Cambio 184), 08-10-2026 — `consultar_persona_becas` lleva
+**Resolución:** ✅ Resuelta en #638 (Cambio 184), 08-10-2026 — `consultar_persona_becas` lleva
 `@throttle_classes([ConsultaPersonasThrottle])` y la tasa `"personas_campo": "120/hour"` (default
 D-25). **Desvío de la ficha:** se usa un `UserRateThrottle` con `scope` propio en vez de
 `ScopedRateThrottle`, porque el `throttle_scope` de un `ScopedRateThrottle` no se puede declarar sobre
@@ -857,7 +857,7 @@ las líneas son de `origin/development @ 7393c41`.
 - **Ubicación:** `config/settings.py:421`. El único consumidor era `RenaperRateThrottle`, borrado con SEC-04 (#509).
 - **Propuesta:** usarla en el throttle de `consultar_persona_becas` (SEC-25) o borrarla.
 
-**Resolución:** ✅ Resuelta en #NNN (Cambio 184), 08-10-2026, junto con SEC-25 — se borró y la
+**Resolución:** ✅ Resuelta en #638 (Cambio 184), 08-10-2026, junto con SEC-25 — se borró y la
 reemplaza `"personas_campo": "120/hour"`, que sí tiene consumidor. **Test permanente:**
 `programas.tests.test_becas_api.ConsultaDePersonasConThrottleTests.test_la_tasa_configurada_es_la_de_d25`.
 
