@@ -13,8 +13,11 @@ midió ruta por ruta. Acá se cierra con capacidades:
   legajo del que cuelga el adjunto (SEC-10).
 
 ``timeline_ciudadano_api``, ``alertas_ciudadano_api`` y ``prediccion_riesgo_api``
-llevan ``ciudadano.ver`` como **piso**: su capacidad fina es
-``ciudadano.sensible`` y la sube la Ola 2 cuando se resuelva D-11 (SEC-11).
+llevaban ``ciudadano.ver`` como **piso** mientras se decidía D-11. Resuelta la
+decisión (**D-11 = Sí**), las tres piden ``ciudadano.sensible``: el timeline, el
+texto de la alerta y el score de riesgo son datos sensibles del ciudadano, no
+una ficha de consulta. Es la segunda mitad de SEC-11, coordinada con el
+WebSocket de alertas (G1c-04), que pide la misma capacidad.
 """
 
 import logging
@@ -147,7 +150,7 @@ def _eliminar_archivo(instance, archivo_id):
 
 
 @login_required
-@requiere("ciudadano.ver")  # piso; la capacidad fina es `ciudadano.sensible` (D-11, Ola 2)
+@requiere("ciudadano.sensible")  # D-11 = Sí: el contenido es sensible (SEC-11, Ola 2)
 def alertas_ciudadano_api(request, ciudadano_id):
     """API para obtener alertas de un ciudadano"""
     try:
@@ -178,13 +181,17 @@ def alertas_ciudadano_api(request, ciudadano_id):
 
 
 @login_required
-@requiere("ciudadano.ver")
+@requiere("ciudadano.sensible")  # igual que las otras dos entradas de cierre (D-11, Cambio 179)
 def cerrar_alerta_api(request, alerta_id):
     """API para cerrar una alerta.
 
     El alcance lo pone ``AlertasService.cerrar_alerta``, que busca la alerta
     dentro de las del usuario: una alerta fuera de su alcance no se cierra
     aunque adivine el id (SEC-18).
+
+    La capacidad sube con el resto de las superficies de alertas: las tres
+    entradas de cierre —esta, ``cerrar-ajax/`` y ``AlertasViewSet.cerrar``—
+    piden lo mismo que la pantalla que las dispara.
     """
     if request.method != "POST":
         return JsonResponse({"success": False, "error": "Método no permitido"}, status=405)
@@ -201,7 +208,7 @@ def cerrar_alerta_api(request, alerta_id):
 
 
 @login_required
-@requiere("ciudadano.ver")  # piso; la capacidad fina es `ciudadano.sensible` (D-11, Ola 2)
+@requiere("ciudadano.sensible")  # D-11 = Sí: el contenido es sensible (SEC-11, Ola 2)
 def prediccion_riesgo_api(request, ciudadano_id):
     """API para obtener predicción de riesgo con IA"""
     ciudadano = get_object_or_404(Ciudadano, id=ciudadano_id)
@@ -244,7 +251,7 @@ def evolucion_legajo_api(request, legajo_id):
 
 
 @login_required
-@requiere("ciudadano.ver")  # piso; la capacidad fina es `ciudadano.sensible` (D-11, Ola 2)
+@requiere("ciudadano.sensible")  # D-11 = Sí: el contenido es sensible (SEC-11, Ola 2)
 def timeline_ciudadano_api(request, ciudadano_id):
     """API para obtener línea temporal de eventos del ciudadano"""
     try:

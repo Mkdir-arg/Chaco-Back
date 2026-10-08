@@ -1922,13 +1922,16 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
      (`puede_sin_programa`), G1b-02, G1b-06 y la **fase 2 de OPS-06** (`RolMeta.clave`, con migración; viene de la
      Ola 0). 26 h.
   2. *Usuarios:* G1b-05, G1b-07, G1b-08, SEC-26, G2-03, R0b-01, R0b-02, R0b-03, R0b-10 (seguimientos de SEC-03). 24 h.
-  3. *Legajos:* **SEC-12**, el ascenso de `ciudadano.ver` a `ciudadano.sensible` en las tres rutas sensibles de
+  3. ✅ *Legajos:* **SEC-12**, el ascenso de `ciudadano.ver` a `ciudadano.sensible` en las tres rutas sensibles de
      **SEC-11** (D-11: `timeline_ciudadano_api`, `alertas_ciudadano_api`, `prediccion_riesgo_api`), R0b-04 (+ R0b-05),
-     R0b-09. 7 h. ⬅ **SEC-10 completa, SEC-18 completa (+ R0b-06) y SEC-11 con `ciudadano.ver` de piso en sus cinco
+     R0b-09 (🟡 solo el alcance: la capacidad vuelve a `ciudadano.sensible`, ver su ficha) — **Cambio 179**,
+     08-oct-2026, junto con el ítem 4 en un solo PR. 7 h. ⬅ **SEC-10 completa, SEC-18 completa (+ R0b-06) y SEC-11 con `ciudadano.ver` de piso en sus cinco
      rutas se adelantaron al PR R-19 de la Ola R** (7 h movidas allá; D-RED-14, por el hard delete que midió RED-89).
      No rehacerlas acá: **ninguna de esas rutas llega a esta ola abierta**, lo único que falta es subir tres de
      `ciudadano.ver` a `ciudadano.sensible` —una línea por vista— cuando D-11 se resuelva.
-  4. *WebSocket de alertas:* G1c-04, G1c-17, G3-03. 12 h.
+  4. ✅ *WebSocket de alertas:* G1c-04, G1c-17, G3-03 — **Cambio 179**, 08-oct-2026, en el mismo PR que el
+     ítem 3 (comparten D-11: la capacidad del socket es la misma que la de las tres rutas de SEC-11). Sin
+     migraciones. 12 h.
   5. ✅ *Alcance en Becas:* SEC-21, SEC-22, SEC-20, SEC-30, BEC-19, BEC-23. 14 h. **Cerrado el 08-oct-2026
      (Cambio 177)**, con D-20, D-22 y D-B23 aplicadas por default y `users.0027` + `users.0028`.
   6. *App de campo:* SEC-23 (+G1-15), SEC-24, SEC-25 (+ R0-05: usar o borrar la tasa `renaper`). 12 h.

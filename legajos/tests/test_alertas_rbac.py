@@ -8,8 +8,19 @@ lo mismo en JSON, y las tres entradas de cierre —`cerrar-ajax/`, `cerrar/` y
 ajena en `activa=False`. Con `n = 1..N` eso silencia las alertas de todo el
 sistema. Además, un `pk` no numérico en la ruta de DRF daba **500**.
 
-Dos cosas lo cierran: la capacidad (`ciudadano.ver`) y el alcance
-(`FiltrosUsuarioService`), que ya no cae en el fallback «todas las CRÍTICAS».
+Dos cosas lo cierran: la capacidad y el alcance (`FiltrosUsuarioService`), que ya
+no cae en el fallback «todas las CRÍTICAS».
+
+SEC-18 puso `ciudadano.ver`. El Cambio 179 (ronda 2) la subió a
+**`ciudadano.sensible`** en las cuatro superficies HTTP —dashboard, contador,
+preview y cierre— y en `AlertasViewSet`, por **D-11**: el mensaje de la alerta es
+el mismo dato que entrega `/ws/alertas/`, y el dato sensible pide la misma
+capacidad por cualquier canal. Quien pierde acceso: un rol con `ciudadano.ver` y
+sin `ciudadano.sensible`, como el «Operador de backoffice» de `seed_rbac`.
+
+La ronda 3 sumó la séptima superficie, la única que no es una API: la solapa
+«Alertas activas» del detalle del ciudadano, que se arma del lado del servidor
+(`AlertasEnElDetalleDelCiudadanoTests`).
 """
 
 from django.contrib.auth.models import Group, Permission, User
@@ -87,9 +98,46 @@ class AlertasRbacTests(TestCase):
                 self.alerta.refresh_from_db()
                 self.assertTrue(self.alerta.activa)
 
-    def test_con_ciudadano_ver_abre_el_dashboard(self):
-        """El rol «Gestión de Ciudadanos» del seed tiene `ciudadano.ver`: sigue entrando."""
-        cliente = self._cliente(usuario_con("ciudadano.ver"))
+    def test_con_ciudadano_ver_solo_ya_no_entra_a_ninguna(self):
+        """D-11: el «Operador de backoffice» (`ciudadano.ver` a secas) queda afuera.
+
+        Es el agujero que quedaba: el mismo texto que G1c-04 le cerró por
+        WebSocket seguía saliendo por estas tres rutas HTTP.
+        """
+        cliente = self._cliente(usuario_con("ciudadano.ver", username="operador-solo-ver"))
+
+        for nombre in ("legajos:alertas_dashboard", "legajos:alertas_count_ajax", "legajos:alertas_preview_ajax"):
+            with self.subTest(ruta=nombre):
+                respuesta = cliente.get(reverse(nombre))
+                self.assertIn(respuesta.status_code, (302, 403))
+                if respuesta.status_code == 200:  # pragma: no cover - defensivo
+                    self.fail("el operador no tiene que ver la pantalla")
+
+    def test_con_ciudadano_ver_solo_no_lee_el_texto_de_la_alerta(self):
+        """Lo que importa no es el código: es que el mensaje no viaje."""
+        cliente = self._cliente(usuario_con("ciudadano.ver", username="operador-texto"))
+
+        for nombre in ("legajos:alertas_dashboard", "legajos:alertas_preview_ajax"):
+            with self.subTest(ruta=nombre):
+                cuerpo = cliente.get(reverse(nombre)).content.decode(errors="ignore")
+                self.assertNotIn("Riesgo suicida detectado en la última entrevista", cuerpo)
+                self.assertNotIn("Quiroga", cuerpo)
+
+    def test_con_ciudadano_ver_solo_tampoco_cierra(self):
+        cliente = self._cliente(usuario_con("ciudadano.ver", username="operador-cierra"))
+
+        for nombre in ("legajos:cerrar_alerta_ajax", "legajos:cerrar_alerta_ciudadano"):
+            with self.subTest(ruta=nombre):
+                respuesta = cliente.post(
+                    reverse(nombre, args=[self.alerta.id]), headers={"x-requested-with": "XMLHttpRequest"}
+                )
+                self.assertEqual(respuesta.status_code, 403)
+                self.alerta.refresh_from_db()
+                self.assertTrue(self.alerta.activa)
+
+    def test_con_ciudadano_sensible_abre_el_dashboard(self):
+        """El rol «Gestión de Ciudadanos» del seed trae las dos: sigue entrando."""
+        cliente = self._cliente(usuario_con("ciudadano.ver", "ciudadano.sensible"))
 
         self.assertEqual(cliente.get(reverse("legajos:alertas_dashboard")).status_code, 200)
         self.assertEqual(cliente.get(reverse("legajos:alertas_count_ajax")).status_code, 200)
@@ -134,7 +182,7 @@ class AlertasAlcanceTests(TestCase):
 
     def test_el_dashboard_de_un_usuario_sin_legajos_no_nombra_al_ciudadano(self):
         cliente = Client()
-        cliente.force_login(usuario_con("ciudadano.ver", username="dash-sin-legajos"))
+        cliente.force_login(usuario_con("ciudadano.ver", "ciudadano.sensible", username="dash-sin-legajos"))
 
         html = cliente.get(reverse("legajos:alertas_dashboard")).content.decode()
 
@@ -144,7 +192,7 @@ class AlertasAlcanceTests(TestCase):
     def test_cerrar_una_alerta_fuera_de_alcance_no_la_cierra(self):
         """Con capacidad pero sin la alerta en su alcance: no la silencia."""
         cliente = Client()
-        cliente.force_login(usuario_con("ciudadano.ver", username="cierra-ajena"))
+        cliente.force_login(usuario_con("ciudadano.ver", "ciudadano.sensible", username="cierra-ajena"))
 
         respuesta = cliente.post(reverse("legajos:cerrar_alerta_ajax", args=[self.critica.id]))
 
@@ -158,7 +206,8 @@ class AlertasAlcanceTests(TestCase):
         grupo, _ = Group.objects.get_or_create(name="Rol responsable alertas")
         RolMeta.objects.get_or_create(grupo=grupo, defaults={"categoria": rbac.CATEGORIA_BACKOFFICE, "activo": True})
         ct = ContentType.objects.get_for_model(Capacidad)
-        grupo.permissions.add(Permission.objects.get(codename=rbac.codename_de("ciudadano.ver"), content_type=ct))
+        for codigo in ("ciudadano.ver", "ciudadano.sensible"):
+            grupo.permissions.add(Permission.objects.get(codename=rbac.codename_de(codigo), content_type=ct))
         self.responsable.groups.add(grupo)
         cliente.force_login(self.responsable)
 
@@ -172,9 +221,83 @@ class AlertasAlcanceTests(TestCase):
 
     def test_quien_administra_la_configuracion_sigue_viendo_todo(self):
         """`config.administrar` es el alcance global, previsto en `filtros_usuario`."""
-        admin = usuario_con("config.administrar", username="admin-global-alertas")
+        admin = usuario_con("config.administrar", "ciudadano.sensible", username="admin-global-alertas")
 
         self.assertEqual(list(FiltrosUsuarioService.obtener_alertas_usuario(admin)), [self.critica])
+
+    def test_el_alcance_global_no_es_una_puerta_de_entrada(self):
+        """`config.administrar` abre el alcance, no la pantalla (D-11).
+
+        Era la segunda mitad del agujero: un rol de Configuración con
+        `ciudadano.ver` leía por HTTP el texto de las alertas de **todo** el
+        padrón, porque `tiene_alcance_global` mira `config.administrar`. Ahora la
+        puerta es `ciudadano.sensible`, y sin ella el alcance global no se usa.
+        """
+        cliente = Client()
+        cliente.force_login(usuario_con("config.administrar", "ciudadano.ver", username="config-sin-sensible"))
+
+        respuesta = cliente.get(reverse("legajos:alertas_dashboard"))
+
+        self.assertIn(respuesta.status_code, (302, 403))
+
+
+class AlertasEnElDetalleDelCiudadanoTests(TestCase):
+    """La séptima superficie: la solapa «Alertas activas» del legajo.
+
+    `ciudadano_detail.html` no pasa por ninguna API: el panel se renderiza del
+    lado del servidor con `alertas_ciudadano`, que `build_ciudadano_detail_context`
+    sacaba de la base sin mirar la capacidad. Un rol con `ciudadano.ver` a secas
+    —el «Operador de backoffice»— abría el detalle y leía ahí el mismo «Riesgo
+    Suicida» que D-11 le había cerrado por las otras seis.
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.mirta = Ciudadano.objects.create(dni="21444888", nombre="Mirta", apellido="Quiroga")
+        cls.alerta = AlertaCiudadano.objects.create(
+            ciudadano=cls.mirta,
+            tipo=AlertaCiudadano.TipoAlerta.RIESGO_SUICIDA,
+            prioridad=AlertaCiudadano.Prioridad.CRITICA,
+            mensaje="Riesgo suicida detectado en la última entrevista",
+        )
+        cls.url = reverse("legajos:ciudadano_detalle", args=[cls.mirta.pk])
+
+    def _html(self, usuario):
+        cliente = Client()
+        cliente.force_login(usuario)
+        respuesta = cliente.get(self.url)
+        self.assertEqual(respuesta.status_code, 200)
+        return respuesta.content.decode()
+
+    def test_con_ciudadano_ver_solo_entra_pero_no_lee_la_alerta(self):
+        html = self._html(usuario_con("ciudadano.ver", username="detalle-solo-ver"))
+
+        self.assertNotIn("Riesgo suicida detectado en la última entrevista", html)
+        self.assertNotIn(self.alerta.get_tipo_display(), html)
+
+    def test_con_ciudadano_ver_solo_tampoco_ve_la_solapa_ni_el_contador(self):
+        html = self._html(usuario_con("ciudadano.ver", username="detalle-solapa"))
+
+        self.assertNotIn('id="tab-btn-alertas"', html)
+        self.assertNotIn('id="tab-alertas"', html)
+        self.assertNotIn("Alertas activas", html)
+
+    def test_con_ciudadano_sensible_si_las_ve(self):
+        html = self._html(usuario_con("ciudadano.ver", "ciudadano.sensible", username="detalle-sensible"))
+
+        self.assertIn("Riesgo suicida detectado en la última entrevista", html)
+        self.assertIn(self.alerta.get_tipo_display(), html)
+        self.assertIn('id="tab-btn-alertas"', html)
+
+    def test_sin_la_capacidad_el_selector_no_consulta_las_alertas(self):
+        from legajos.selectors.ciudadanos import build_ciudadano_detail_context
+
+        usuario = usuario_con("ciudadano.ver", username="detalle-sin-consulta")
+
+        contexto = build_ciudadano_detail_context(self.mirta, user=usuario)
+
+        self.assertEqual(list(contexto["alertas_ciudadano"]), [])
+        self.assertNotIn("alertas", [solapa["id"] for solapa in contexto["solapas"]])
 
 
 class AlertasApiTests(TestCase):
@@ -214,16 +337,24 @@ class AlertasApiTests(TestCase):
         self.alerta.refresh_from_db()
         self.assertTrue(self.alerta.activa)
 
+    def test_con_ciudadano_ver_solo_tampoco_lista(self):
+        """D-11: `AlertasViewSet` es el cuarto canal del mismo texto."""
+        cliente = self._api(usuario_con("ciudadano.ver", username="api-solo-ver"))
+
+        for url in ("/api/legajos/alertas/", "/api/legajos/alertas/count/"):
+            with self.subTest(url=url):
+                self.assertEqual(cliente.get(url).status_code, 403)
+
     def test_con_pk_no_numerico_da_404_y_no_revienta(self):
         """Antes: `AlertasService.cerrar_alerta` recibía el `pk` crudo → 500."""
-        cliente = self._api(usuario_con("ciudadano.ver", username="api-ve-alertas"))
+        cliente = self._api(usuario_con("ciudadano.sensible", username="api-ve-alertas"))
 
         respuesta = cliente.post("/api/legajos/alertas/x/cerrar/")
 
         self.assertEqual(respuesta.status_code, 404)
 
     def test_cerrar_una_alerta_fuera_de_alcance_da_404(self):
-        cliente = self._api(usuario_con("ciudadano.ver", username="api-fuera-alcance"))
+        cliente = self._api(usuario_con("ciudadano.sensible", username="api-fuera-alcance"))
 
         respuesta = cliente.post(f"/api/legajos/alertas/{self.alerta.id}/cerrar/")
 
@@ -235,7 +366,8 @@ class AlertasApiTests(TestCase):
         ct = ContentType.objects.get_for_model(Capacidad)
         grupo, _ = Group.objects.get_or_create(name="Rol api responsable")
         RolMeta.objects.get_or_create(grupo=grupo, defaults={"categoria": rbac.CATEGORIA_BACKOFFICE, "activo": True})
-        grupo.permissions.add(Permission.objects.get(codename=rbac.codename_de("ciudadano.ver"), content_type=ct))
+        for codigo in ("ciudadano.ver", "ciudadano.sensible"):
+            grupo.permissions.add(Permission.objects.get(codename=rbac.codename_de(codigo), content_type=ct))
         self.responsable.groups.add(grupo)
 
         respuesta = self._api(self.responsable).post(f"/api/legajos/alertas/{self.alerta.id}/cerrar/")

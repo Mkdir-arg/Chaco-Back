@@ -33,7 +33,7 @@ exige que coincidan).
 | PERF-18 | Ocupación de Dispositivos con `Count(distinct)` sobre camas × admisiones | BAJA | CONF. código | v2 (criterio) | S | ⬜ |
 | PERF-19 | «Último intento» sin índice y subconsulta evaluada dos veces | BAJA | CONF. ajustado | 4 | S | ⬜ |
 | G1c-11 | Admin: N+1 en listados | BAJA | CONF. lectura | 4 | S | ⬜ |
-| G3-03 | `alertas_websocket.js` cargado para todos, con 5 reintentos inútiles | BAJA | CONF. lectura | 2 | S | ⬜ |
+| G3-03 | `alertas_websocket.js` cargado para todos, con 5 reintentos inútiles | BAJA | CONF. lectura | 2 | S | ✅ |
 
 Refutado: **A4-15 / PERF-14** (GZip sobre xlsx): ver README §8.
 
@@ -220,3 +220,19 @@ Refutado: **A4-15 / PERF-14** (GZip sobre xlsx): ver README §8.
 - **Escenario:** cada página de un usuario de Becas sin `ciudadano.ver` dispara 1 + 5 handshakes contra el único daphne (300 MB en icore); con cientos de operadores en campaña, miles de handshakes inútiles por minuto, y el indicador muestra «Desconectado».
 - **Propuesta:** incluir el script solo si `puede_ver_ciudadanos` (context processor; ya existe el patrón `puede_conversaciones` en la misma plantilla) y no reintentar ante `event.code === 4403` (o 1006 tras un 403 de handshake). Mismo patrón sin medir en `alertas_conversaciones_rt.js` (se va con el apagado de conversaciones, G1-01 fase 2).
 - **Test:** `test_base_no_incluye_alertas_ws_sin_capacidad` (render de `/inicio/` sin `ciudadano.ver` → no aparece `alertas_websocket.js`).
+
+**Resolución:** ✅ Resuelto en #629 (Cambio 179), 08-oct-2026 — **un solo guard**, `puede_alertas_sensibles`. La
+primera vuelta del PR necesitó dos (`ciudadano.ver` para el script, `ciudadano.sensible` para abrir el socket)
+porque la campana del navbar y `/ws/alertas/` pedían capacidades distintas, y subir solo la del consumer habría
+**creado** la población que la ficha describe. La ronda 2 eliminó esa población en vez de administrarla: con D-11
+la campana, el contador, el preview y el dashboard también piden `ciudadano.sensible`, así que quien no la tiene
+no ve campana, ni punto de estado, ni script, y no hay handshake que rechazar. Se fueron con eso la variable
+`puede_ver_ciudadanos` y el flag `window.alertasConfig.puedeSocket`. Además, un cierre con código `4403` marca
+`rechazado` y **no** se reintenta: es un veredicto de autorización, no una caída de red. La variable sale del
+context processor `conversaciones.context_processors.user_groups`, donde `rbac.puede` resuelve sobre el mismo juego
+de permisos que ya leía `puede_conversaciones` (sin consultas nuevas; `inicio` conserva su presupuesto).
+`alertas_conversaciones_rt.js` queda como estaba: se va con el apagado de conversaciones (G1-01 fase 2).
+**Test permanente:** `core.tests.test_alertas_ws_shell` (en particular
+`AlertasWebsocketEnElShellTests.test_sin_capacidad_no_se_incluye_el_script`,
+`test_con_ciudadano_ver_solo_tampoco_hay_campana_ni_script` y
+`AlertasWebsocketReintentosTests.test_el_js_no_reintenta_tras_un_4403`).
