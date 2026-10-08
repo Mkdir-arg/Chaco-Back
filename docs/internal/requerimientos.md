@@ -29310,7 +29310,20 @@ se pidió acá (`EXPLAIN` antes y después contra el banco).
    `inscripcion_publica_paso2` (anónimo, con la sesión del paso 1 ya sembrada, 302 al
    comprobante) y `becas_api_alta` (Token de territorial, 201). Las dos trabajan adentro del
    `select_for_update` del relevamiento contra el `read_timeout` de 10 s y las dos ya
-   rompieron o estuvieron al borde; ahora tienen techo: 47 consultas / 11 duplicadas y 32 / 1.
+   rompieron o estuvieron al borde; ahora tienen techo: 43 consultas / 7 duplicadas y 32 / 1.
+   Medirlas fue lo que encontró el N+1 del punto 6.
+6. **El N+1 que destapó el destino nuevo (ronda 2).** El job `Ephemeral MySQL Redis
+   Contract` quedó rojo con los dos destinos puestos: el guardado de los adjuntos del
+   paso 2 era un `create()` por archivo y el catálogo de Becas pide **cinco** archivos
+   obligatorios, así que la sonda veía cinco `INSERT` idénticos en una request —su regla
+   es «el mismo SQL más de tres veces»—. Pasa a un solo `bulk_create`
+   (`programas/services/inscripcion_publica.py`), que guarda igual cada archivo en el
+   storage porque `FileField.pre_save` corre por fila también en el insert por lotes. El
+   paso 2 baja de 46/10 a 42/6 consultas en el camino más pesado del link público. Y la
+   sonda deja de decir solo «hubo N+1»: el `CommandError` nombra **la ruta y la forma de
+   la consulta repetida** (`portal:inscripcion_paso2`, `INSERT
+   programas_adjuntoformulario ×5`), que viaja entre workers por Redis como verbo + tabla
+   —nunca el SQL, los parámetros ni datos de personas—.
 3. **RED-51 — los contadores del inicio tienen dueño.** `dashboard/cache.py` es la tabla
    única: clave → qué consulta la escribe → qué modelo la invalida. `stats_legajos` se
    mueve al receiver de `InscripcionPrograma`, que es quien la escribe; `alertas_activas`
@@ -29330,6 +29343,9 @@ se pidió acá (`EXPLAIN` antes y después contra el banco).
   `.github/workflows/pr-performance.yml`, `core/tests/test_check_perf_budgets.py` (nuevo).
 - `scripts/perf_audit.py`, `core/management/commands/seed_perf.py`,
   `core/tests/test_performance_budgets.py`.
+- Ronda 2 (el N+1): `programas/services/inscripcion_publica.py`,
+  `portal/tests/test_inscripcion_envio.py`, `config/middlewares/query_counter.py`,
+  `core/performance/query_observability.py`, `core/management/commands/perf_ci_probe.py`.
 - `dashboard/cache.py` (nuevo), `dashboard/signals/cache.py` (nuevo),
   `dashboard/signals/__init__.py`, `dashboard/apps.py`, `dashboard/utils.py`,
   `core/performance/cache_utils.py`, `legajos/signals/core.py`, `legajos/signals/__init__.py`,
@@ -29369,6 +29385,15 @@ nombra índices, los elige el optimizador.
   `(apellido, nombre)` con el mismo `type=range`, el mismo `key_len=482` y las mismas filas.
   Ciclo de migración ida → vuelta → ida sobre los datos sembrados, las tres en verde.
 - `ruff check .` y `ruff format --check` sobre lo tocado.
+- **Ronda 2 — el stack efímero del CI reproducido en local**: MySQL 8.0 y Redis 7 en
+  contenedores descartables (puertos 3340 y 6390) con las variables del job, `migrate` +
+  `seed_perf --scale 200` y los tres pasos de la sonda. Antes del arreglo:
+  `La sonda detectó N+1 … portal:inscripcion_paso2 (2 requests, repite INSERT
+  programas_adjuntoformulario ×5)`. Después: `n1_affected_requests: 0` y `--verify` en
+  verde, con el paso 2 en 35 consultas / 4 duplicadas contra MySQL.
+- El test de consultas constantes (`AdjuntosConsultasConstantesTests`, 2 adjuntos contra
+  6) verificado **en rojo** contra `b8071a48` —33 → 37 consultas, una por archivo— y en
+  verde con el arreglo.
 
 ## Puesta en marcha en el servidor
 Nada más que el deploy. Las dos migraciones corren con el `migrate` del entrypoint y no
@@ -29388,4 +29413,10 @@ Revertir el commit alcanza para el código. Para la base, `migrate legajos 0010`
 esquema.
 
 ## Historial
-No aplica: entrada nueva.
+- **08/10/2026** — entrada nueva: la Ola 4 cierra con RED-62, RED-10, RED-51 y RED-83.
+- **09/10/2026 (ronda 2)** — el destino nuevo del paso 2 dejó rojo el job `Ephemeral MySQL
+  Redis Contract`: los adjuntos se guardaban fila por fila y la sonda lo leyó como N+1. Se
+  arregla donde estaba, con `bulk_create` (42/6 consultas, techo de 47/11 a 43/7), se lo
+  fija con un test de consultas constantes en vez de un presupuesto —el catálogo decide
+  cuántos adjuntos hay— y la sonda pasa a nombrar la ruta y la consulta repetida en su
+  mensaje de error.

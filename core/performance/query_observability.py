@@ -2,6 +2,7 @@
 
 import hashlib
 import logging
+import re
 import time
 from collections import defaultdict
 from contextvars import ContextVar
@@ -102,10 +103,26 @@ def route_name(path):
 
 def sql_fingerprint(sql):
     """Normaliza SQL sólo para detectar repeticiones durante una request."""
-    import re
-
     sql = re.sub(r"'(?:''|\\.|[^'])*'", "?", sql)
     return re.sub(r"(?<![\w])[-+]?\d+(?:\.\d+)?(?![\w])", "?", sql)
+
+
+_VERBO_SQL = re.compile(r"^\s*(\w+)")
+_TABLA_SQL = re.compile(r"\b(?:FROM|INTO|UPDATE)\s+[`\"]?([\w$.]+)", re.IGNORECASE)
+
+
+def sql_signature(sql):
+    """Verbo + tabla de una consulta, sin columnas, condiciones ni valores.
+
+    Es lo único que viaja de la forma de una consulta: alcanza para nombrar la
+    repetición que disparó el N+1 en el mensaje de la sonda, y no es más que
+    metadatos de esquema —nada de SQL crudo, parámetros ni datos de personas—.
+    """
+    verbo = _VERBO_SQL.match(sql or "")
+    if not verbo:
+        return "desconocida"
+    tabla = _TABLA_SQL.search(sql or "")
+    return f"{verbo.group(1).upper()} {tabla.group(1)}" if tabla else verbo.group(1).upper()
 
 
 def _duration_bucket(milliseconds):
@@ -177,7 +194,17 @@ class QueryObservabilityStore:
     def _local_allowed(self):
         return bool(getattr(settings, "PYTEST_RUNNING", False) or settings.ENVIRONMENT == "dev")
 
-    def record(self, route, query_count, slow_queries, n1_detected, duration_ms, dependencies, duplicate_query_count=0):
+    def record(
+        self,
+        route,
+        query_count,
+        slow_queries,
+        n1_detected,
+        duration_ms,
+        dependencies,
+        duplicate_query_count=0,
+        n1_signature="",
+    ):
         if not _redis_write_permitted():
             return
         key, _bucket = self._bucket_key()
@@ -208,6 +235,10 @@ class QueryObservabilityStore:
                 for field, value in increments.items():
                     pipeline.hincrby(key, field, value)
                 pipeline.hsetnx(key, f"route:{route_id}:name", route)
+                if n1_signature:
+                    # `hsetnx`: se queda con la primera repetición vista. Con el N+1
+                    # arreglado el campo no existe, así que nunca queda un rastro viejo.
+                    pipeline.hsetnx(key, f"route:{route_id}:n1_signature", n1_signature)
                 pipeline.eval(
                     _UPDATE_MAXIMA_SCRIPT,
                     1,
@@ -229,6 +260,8 @@ class QueryObservabilityStore:
                 for field, value in increments.items():
                     _LOCAL_BUCKETS[key][field] += value
                 _LOCAL_BUCKETS[key][f"route:{route_id}:name"] = route
+                if n1_signature:
+                    _LOCAL_BUCKETS[key].setdefault(f"route:{route_id}:n1_signature", n1_signature)
                 for field, value in (
                     (f"route:{route_id}:max_queries", query_count),
                     (f"route:{route_id}:max_duplicate_queries", duplicate_query_count),
@@ -265,6 +298,10 @@ class QueryObservabilityStore:
         def number(name):
             value = raw.get(name, 0)
             return int(value.decode() if isinstance(value, bytes) else value)
+
+        def texto(name):
+            value = raw.get(name, "")
+            return value.decode() if isinstance(value, bytes) else value
 
         routes = []
         for field, value in raw.items():
@@ -303,6 +340,7 @@ class QueryObservabilityStore:
                     "max_queries": number(f"route:{route_id}:max_queries"),
                     "max_duplicate_queries": number(f"route:{route_id}:max_duplicate_queries"),
                     "n1_affected_requests": number(f"route:{route_id}:n1"),
+                    "n1_signature": texto(f"route:{route_id}:n1_signature"),
                     "latency_histogram": histogram,
                     "p95_upper_bound_ms": None if p95_bucket == "inf" else int(p95_bucket),
                     "dependencies": dict(dependencies),

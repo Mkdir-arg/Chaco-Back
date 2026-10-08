@@ -853,7 +853,7 @@ Performance Guard, con la mitad que faltaba del gemelo del link público resuelt
 `inscripcion_publica_paso2` (anónimo, sesión del paso 1 ya sembrada, `expected_status: 302` al comprobante) y
 `becas_api_alta` (Token del territorial, `201`, `max_duplicate_queries: 1`) entran a `build_targets` y a
 `perf_budgets.json` con su justificación en `adjustments`, como pedía la ficha. Medidos con `seed_perf --scale 200`
-bajo el TestCase de presupuestos: **46 consultas / 10 duplicadas** el paso 2 y **31 / 1** el alta por API; los techos
+bajo el TestCase de presupuestos: **42 consultas / 6 duplicadas** el paso 2 y **31 / 1** el alta por API; los techos
 quedan en medido + 1, salvo las duplicadas del alta, que quedan en el medido. **Tres cosas que la ficha no
 anticipaba:** (a) el link público no tenía dónde medirse —`seed_perf` no creaba ningún relevamiento `PUBLICO` ni
 ninguno `EN_CURSO`—, así que el seed estrena un **segmento propio** con su convocatoria, su relevamiento público y el
@@ -862,11 +862,27 @@ segmento 000; (b) la sesión del paso 1 se siembra **al armar el manifiesto** y 
 un `session_key` y un DNI distintos por muestra —el control de duplicados por convocatoria (RN-P5) rechaza el segundo
 envío del mismo documento—, porque crearla adentro le cobraría al presupuesto dos consultas que no son de la pantalla;
 (c) el payload del paso 2 **no se escribe a mano**: el formulario es dinámico (RN-1) y se le pregunta al propio
-`InscripcionPaso2Form` qué campos tiene, de modo que los cinco adjuntos obligatorios del catálogo viajan solos —y las
-10 duplicadas medidas son, justamente, esos cinco `INSERT` idénticos—. Como el envío sube archivos de verdad, el
-TestCase y `perf_audit` mandan `MEDIA_ROOT` a un temporal: medir no puede dejar basura en el `media/` del repo.
+`InscripcionPaso2Form` qué campos tiene, de modo que los cinco adjuntos obligatorios del catálogo viajan solos. Como el
+envío sube archivos de verdad, el TestCase y `perf_audit` mandan `MEDIA_ROOT` a un temporal: medir no puede dejar
+basura en el `media/` del repo.
 **Test permanente:** `core/tests/test_performance_budgets.py::PerformanceBudgetTests.test_key_routes_stay_within_query_budgets`
 (cubre los dos destinos; el gemelo con `assertNumQueries` del alta sigue siendo `AltaBajoElLockTests`).
+
+**Resolución:** ✅ (ronda 2 de #648, Cambio 194), 09-10-2026 — **medir encontró un N+1 y la ficha se cierra
+arreglándolo, no tolerándolo.** Con el destino nuevo puesto, el job `Ephemeral MySQL Redis Contract` quedó rojo: el
+guardado de los adjuntos del paso 2 era un `AdjuntoFormulario.objects.create()` **por archivo**, y como el catálogo de
+Becas pide cinco archivos obligatorios la sonda veía cinco `INSERT` idénticos en una sola request —su regla es «el
+mismo SQL más de tres veces»—. Es el camino público más pesado, el mismo que el Cambio 91 vio romper contra el
+`read_timeout` de 10 s, así que las cinco idas y vueltas no eran un artefacto de la medición. `_completar_envio` pasa a
+un único `bulk_create` (guarda igual cada archivo en el storage: `FileField.pre_save` corre por fila también en el
+insert por lotes) y el paso 2 baja de 46/10 a **42/6** consultas; el techo **baja** de 47/11 a 43/7. Lo que fija el
+arreglo no es el presupuesto —el catálogo decide cuántos adjuntos hay, y sumar uno lo correría de nuevo— sino un test
+de forma: el mismo envío con 2 y con 6 adjuntos tiene que costar lo mismo (verificado en rojo contra `b8071a48`:
+33 → 37 consultas, una por archivo). Y la sonda deja de decir solo «hubo N+1»: el `CommandError` nombra la ruta y la
+forma de la consulta repetida (`portal:inscripcion_paso2`, `INSERT programas_adjuntoformulario ×5`), que cruza entre
+workers por Redis como verbo + tabla —nunca el SQL, los parámetros ni datos de personas—. Con eso queda también la
+mitad que la ficha daba por pendiente: el gemelo del link público del `AltaBajoElLockTests` de la app de campo.
+**Test permanente:** `portal/tests/test_inscripcion_envio.py::AdjuntosConsultasConstantesTests.test_el_envio_no_paga_una_consulta_por_adjunto`.
 
 ### RED-34 · Nada obliga a que una ficha cerrada deje un test permanente
 **Severidad:** MEDIA (era ALTA: las PoC nunca se pensaron para correr; el hueco es de proceso) · **Estado:** CONFIRMADO con test (`unittest.defaultTestLoader.discover('docs')` → 0 tests) · **Origen:** RS-R2-04 (VR1: CONFIRMADO-AJUSTADO) · **Ola:** R · **Esfuerzo:** S (2 h)
