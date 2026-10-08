@@ -118,7 +118,7 @@ con lo que existe hoy; la lista solo baja.
 | RED-76 | Tipado: 2,7 % de retornos anotados, sin mypy ni pyright | BAJA | CONF. test (AST) | 7 | S-M | ⬜ |
 | RED-77 | RN-2 del padrón escrita dos veces: property y filtro de queryset | BAJA | CONF. lectura | R | S | ✅ |
 | RED-78 | `DashboardView`: copia del inicio sin el blindaje de SEC-14, muerta solo por el orden de URLs | BAJA | CONF. test (`resolve`) | R (+7) | S (+S) | ✅ (R; falta Ola 7) |
-| RED-79 | Tres ciclos de import y nueve aristas vista→vista sin ratchet | BAJA | CONF. test (AST) | R (+2) | S (+S) | ✅ (R; falta Ola 2) |
+| RED-79 | Tres ciclos de import y nueve aristas vista→vista sin ratchet | BAJA | CONF. test (AST) | R (+2) | S (+S) | ✅ |
 | RED-80 | `programa_becas` y `programa_dispositivos`: mismo cache, distinta guarda e invalidación | BAJA | CONF. lectura | 2 | S | ⬜ |
 | RED-81 | El registro de reglas de vencimiento puede quedar vacío y el comando sale OK | BAJA | CONF. lectura | R | S | ✅ |
 | RED-82 | `exportacion_reportes.py` con terminadores CR: git lo trata como binario y pylint lo saltea | BAJA | CONF. test | R | S | ✅ |
@@ -1767,6 +1767,22 @@ hoy y se pone rojo cuando SEC-21 las mueva: ese es el aviso que la ficha pide qu
 **Mutación de control:** un import nuevo entre `views/merenderos.py` y `views/cupo.py` deja los dos ratchets en rojo.
 **Test permanente:** `programas.tests.test_arquitectura.CapasTests.test_no_crecen_las_dependencias_entre_vistas`
 (y `ImportsTests.test_no_hay_ciclos_nuevos`, `GuardsDeAlcanceTests`).
+
+**Resolución:** ✅ (parte Ola 2, los movimientos) en #PENDIENTE (Cambio 177, Ola 2 PR 5), 08-oct-2026 — con SEC-21,
+como pedía la ficha. A `services/autorizacion.py` se mudaron `CAP_RELEVAMIENTO_PUBLICO`, el filtro de RN-P13 (hoy
+`puede_relevamiento_publico` + `sin_relevamientos_publicos_si_no_puede` + `sin_formularios_publicos_si_no_puede`, que
+estaba escrito dos veces) y el invariante de alcance, unificado en `assert_alcance_relevamiento` /
+`assert_alcance_formulario` —las tres copias de `relevamientos.py` y `revision.py` se borran—; y
+`configuracion._assert_scope` pasa a `_assert_scope_segmento`, que era el homónimo peligroso. **Los dos ratchets bajan
+en el mismo PR**, que es la mitad que mide `test_las_aristas_resueltas_salen_de_la_lista`: las aristas vista→vista
+pasan de **9 a 7** (se van `dashboard_becas → configuracion` y `pausas → relevamientos`) y los ciclos de **6 a 5**
+(se va `views.configuracion ↔ views.dashboard_becas`). `GuardsDeAlcanceTests` se da vuelta: en vez de fijar dónde
+está cada copia, afirma que **no hay** copias privadas en las vistas.
+**Dos desvíos de la ficha, los dos code-first:** (1) `_programas_qs` iba a `programas/selectors/`, pero ese paquete
+**no existe** en `programas` —el resto de los querysets de alcance de Becas vive en `autorizacion.py`—, así que queda
+ahí como `programas_siis_visibles`; (2) `revision → relevamientos` **no se pudo cerrar**: además de la constante,
+`revision` importa `PaginadorConConteo`, que es una pieza de paginación y no de autorización. Queda en la lista con
+ese motivo.
 
 ### RED-80 · `programa_becas` y `programa_dispositivos`: mismo cache, distinta guarda e invalidación
 **Severidad:** BAJA · **Estado:** CONFIRMADO (lectura) · **Origen:** RS-R4-18 (VR2: CONFIRMADO) · **Ola:** 2 (PR 1, con SEC-07) · **Esfuerzo:** S (2 h)

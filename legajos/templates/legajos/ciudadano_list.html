@@ -10,10 +10,14 @@ acción del estado vacío (que es el mismo destino) se dibujan.{% endcomment %}
 <div class="space-y-6">
 
   {% page_header titulo="Ciudadanos registrados" bajada="Gestioná y buscá los legajos de los ciudadanos del sistema" %}
+    {% comment %}Sin `ciudadano.exportar` el botón no se dibuja (SEC-20): la UI sigue a
+    la capacidad, igual que el alta.{% endcomment %}
+    {% if puede_exportar %}
     <a href="{% url 'legajos:ciudadanos_exportar_csv' %}{% if request.GET.search %}?search={{ request.GET.search|urlencode }}{% endif %}"
        class="btn-nodo btn-tertiary btn-base">
       <i class="fas fa-file-arrow-down" aria-hidden="true"></i> Exportar CSV
     </a>
+    {% endif %}
     {% if puede_crear %}
     <a href="{{ url_crear }}" class="btn-nodo btn-brand btn-base">
       <i class="fas fa-plus" aria-hidden="true"></i> Nuevo ciudadano

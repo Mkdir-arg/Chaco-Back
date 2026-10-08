@@ -7,6 +7,7 @@ from io import StringIO
 
 from django.contrib.auth.models import Group, Permission, User
 from django.contrib.contenttypes.models import ContentType
+from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.core.management import call_command
 from django.test import TestCase
@@ -14,17 +15,30 @@ from django.urls import reverse
 from django.utils import timezone
 
 from core import rbac
+from legajos.models import Ciudadano
 from programas.forms import RelevamientoForm
 from programas.management.commands.seed_becas import ROL_ADMIN, ROL_TERRITORIAL
 from programas.models import (
     AsignacionTerritorial,
     Convocatoria,
+    Formulario,
+    ProgramaSiis,
     Relevamiento,
     Segmento,
 )
 from users.models import Capacidad
 
 CAP_PUBLICO = "becas.relevamiento.publico"
+
+
+def _celdas_del_xlsx(contenido):
+    """Todos los valores de la primera hoja, como texto: el export es un libro."""
+    from io import BytesIO
+
+    from openpyxl import load_workbook
+
+    hoja = load_workbook(BytesIO(contenido), read_only=True).worksheets[0]
+    return {str(celda.value) for fila in hoja.iter_rows() for celda in fila if celda.value is not None}
 
 
 def _dar_capacidad_publico(grupo):
@@ -246,6 +260,120 @@ class VistasPublicoTests(_BasePublicoTest):
         resp = self.client.get(reverse("becas:convocatoria_export_relevamientos", args=[self.convocatoria.pk]))
         self.assertEqual(resp.status_code, 200)
         self.assertIn("Formulario público", resp.content.decode("utf-8-sig"))
+
+
+class RnP13FueraDeLaPantallaTests(_BasePublicoTest):
+    """SEC-22: RN-P13 valía en las pantallas y no en los datos que salen del sistema.
+
+    Un rol con `becas.reportes.exportar` y sin `becas.relevamiento.publico` se bajaba el
+    XLSX de respuestas —DNI, celular, email, GPS y todas las respuestas— de los casos
+    del link público que en pantalla no podía ver, y los contaba en el cupo y en los
+    reportes. El alcance del dashboard, de los reportes y del cupo ahora pasa por el
+    mismo filtro que los listados.
+    """
+
+    def setUp(self):
+        super().setUp()
+        # El tablero se cachea por una clave de **proceso** que sobrevive al rollback
+        # entre tests: sin esto, una entrada de otro test con el mismo pk contesta acá.
+        cache.clear()
+        self.programa_siis = ProgramaSiis.objects.create(nombre="Becas RN-P13", siis_programa_id=9501)
+        self.segmento.programa = self.programa_siis
+        self.segmento.save(update_fields=["programa", "modificado"])
+        self.caso_publico = self._caso(self._crear_publico(), "40111000", "Publi")
+        self.caso_territorial = self._caso(self._relevamiento_territorial(), "40111001", "Terri")
+
+    def _relevamiento_territorial(self):
+        return Relevamiento.objects.create(
+            convocatoria=self.convocatoria,
+            territorial=self.territorial,
+            fecha_asignada=date(2026, 6, 1),
+            fecha_hasta=date(2026, 6, 30),
+            zona="Zona T",
+        )
+
+    def _caso(self, relevamiento, dni, nombre):
+        ciudadano = Ciudadano.objects.create(dni=dni, nombre=nombre, apellido="RNP13")
+        return Formulario.objects.create(
+            relevamiento=relevamiento,
+            ciudadano=ciudadano,
+            estado=Formulario.Estado.APROBADO,
+            celular="3624000000",
+        )
+
+    def test_el_cupo_no_muestra_los_casos_del_link_publico(self):
+        self.client.force_login(self.admin)
+
+        respuesta = self.client.get(reverse("becas:cupo_segmento", args=[self.segmento.pk]))
+
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertContains(respuesta, self.caso_territorial.ciudadano.dni)
+        self.assertNotContains(respuesta, self.caso_publico.ciudadano.dni)
+
+    def test_con_la_capacidad_el_cupo_los_sigue_mostrando(self):
+        self.client.force_login(self.admin_publico)
+
+        respuesta = self.client.get(reverse("becas:cupo_segmento", args=[self.segmento.pk]))
+
+        self.assertContains(respuesta, self.caso_publico.ciudadano.dni)
+
+    def test_el_reporte_de_beneficiarios_no_los_exporta(self):
+        self.client.force_login(self.admin)
+
+        respuesta = self.client.get(reverse("becas:reporte_exportar", args=["beneficiarios", "csv"]))
+
+        self.assertEqual(respuesta.status_code, 200)
+        contenido = respuesta.content.decode("utf-8-sig")
+        self.assertIn(self.caso_territorial.ciudadano.dni, contenido)
+        self.assertNotIn(self.caso_publico.ciudadano.dni, contenido)
+
+    def test_el_xlsx_de_respuestas_no_los_exporta(self):
+        self.client.force_login(self.admin)
+
+        respuesta = self.client.get(
+            reverse(
+                "becas:programa_dashboard_respuestas_xlsx",
+                args=[self.programa_siis.pk, self.convocatoria.pk],
+            )
+        )
+
+        self.assertEqual(respuesta.status_code, 200)
+        valores = _celdas_del_xlsx(respuesta.content)
+        self.assertIn(self.caso_territorial.ciudadano.dni, valores)
+        self.assertNotIn(self.caso_publico.ciudadano.dni, valores)
+
+    def test_con_la_capacidad_el_xlsx_los_sigue_trayendo(self):
+        self.client.force_login(self.admin_publico)
+
+        respuesta = self.client.get(
+            reverse(
+                "becas:programa_dashboard_respuestas_xlsx",
+                args=[self.programa_siis.pk, self.convocatoria.pk],
+            )
+        )
+
+        self.assertIn(self.caso_publico.ciudadano.dni, _celdas_del_xlsx(respuesta.content))
+
+    def test_el_dashboard_no_los_cuenta(self):
+        self.client.force_login(self.admin)
+
+        respuesta = self.client.get(reverse("becas:programa_dashboard_datos", args=[self.programa_siis.pk]))
+
+        self.assertEqual(respuesta.status_code, 200)
+        indicadores = respuesta.json()["datos"]["indicadores"]
+        self.assertEqual(indicadores["formularios_recibidos"], 1)
+        self.assertEqual(indicadores["relevamientos_publicos"], 0)
+
+    def test_el_dashboard_de_quien_puede_los_cuenta(self):
+        """Y no comparte la entrada de caché con el de al lado (la huella lleva RN-P13)."""
+        self.client.force_login(self.admin)
+        self.client.get(reverse("becas:programa_dashboard_datos", args=[self.programa_siis.pk]))
+        self.client.force_login(self.admin_publico)
+
+        datos = self.client.get(reverse("becas:programa_dashboard_datos", args=[self.programa_siis.pk])).json()
+
+        self.assertEqual(datos["datos"]["indicadores"]["formularios_recibidos"], 2)
+        self.assertEqual(datos["datos"]["indicadores"]["relevamientos_publicos"], 1)
 
 
 class ApiCampoPublicoTests(_BasePublicoTest):

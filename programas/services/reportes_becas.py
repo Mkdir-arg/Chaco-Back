@@ -11,14 +11,19 @@ from programas.models import Formulario, ListaEspera, Relevamiento, TracaFormula
 from programas.services.autorizacion import (
     convocatorias_visibles,
     es_coordinador_regional_becas,
+    programa_becas,
     segmentos_visibles,
+    sin_formularios_publicos_si_no_puede,
     subsegmentos_visibles,
 )
 from programas.services.reportes import Reporte
 
 
 def _formularios(user):
-    return Formulario.objects.filter(relevamiento__convocatoria__in=convocatorias_visibles(user))
+    """Los casos del alcance del usuario. SEC-22: sin RN-P13 los del link público no
+    entran —ni en pantalla ni en el CSV/XLSX, que salen de este mismo queryset—."""
+    qs = Formulario.objects.filter(relevamiento__convocatoria__in=convocatorias_visibles(user))
+    return sin_formularios_publicos_si_no_puede(qs, user, programa=programa_becas(user))
 
 
 def _aware_start(fecha):
@@ -52,7 +57,12 @@ def reporte_cupos(user, *, segmento_id=None, solo_activos=False):
         .values_list("relevamiento__convocatoria__segmento_id", "total")
     )
     espera_por_segmento = dict(
-        ListaEspera.objects.filter(formulario__relevamiento__convocatoria__in=convs, promovido=False)
+        sin_formularios_publicos_si_no_puede(
+            ListaEspera.objects.filter(formulario__relevamiento__convocatoria__in=convs, promovido=False),
+            user,
+            programa=programa_becas(user),
+            prefijo="formulario__",
+        )
         .values("segmento_id")
         .annotate(total=Count("pk"))
         .values_list("segmento_id", "total")

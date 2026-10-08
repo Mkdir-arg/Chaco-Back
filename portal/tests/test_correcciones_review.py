@@ -17,12 +17,11 @@ from portal.forms.inscripcion import InscripcionPaso2Form
 from portal.tests.test_inscripcion import _BaseInscripcionTest, _tolerar_render_local
 from portal.tests.test_inscripcion_envio import _BasePaso2Test, _identificacion
 from programas.models import Convocatoria, Formulario, GrupoRequisito, Relevamiento, Segmento
-from programas.services import reportes_becas
+from programas.services import autorizacion, reportes_becas
 from programas.services.becas import definicion_formulario
 from programas.services.inscripcion_publica import InscripcionNoHabilitada, crear_formulario_publico
 from programas.services.padron import cargar_padron, parsear_padron
 from programas.services.personas import fecha_iso, normalizar_persona
-from programas.views import relevamientos as vistas_rel
 from programas.views.revision import RenaperPendientesListView
 
 
@@ -158,16 +157,17 @@ class GateEnScopesTests(TestCase):
         self.request.user = self.user
 
     def test_assert_scope_bloquea_publicos_sin_capacidad(self):
-        # Con alcance sobre el segmento pero sin la capacidad de público.
+        # Con alcance sobre el segmento pero sin la capacidad de público. El guard se
+        # mudó a `services.autorizacion` (RED-79, Ola 2 PR 5): es el mismo invariante.
         with (
-            patch.object(vistas_rel, "puede_gestionar_segmento", return_value=True),
-            patch.object(vistas_rel, "convocatorias_visibles") as visibles,
-            patch.object(vistas_rel, "_puede_publico", return_value=False),
+            patch.object(autorizacion, "puede_gestionar_segmento", return_value=True),
+            patch.object(autorizacion, "convocatorias_visibles") as visibles,
+            patch.object(autorizacion, "puede_relevamiento_publico", return_value=False),
         ):
             visibles.return_value.filter.return_value.exists.return_value = True
-            vistas_rel._assert_scope(self.request, self.territorial)  # pasa
+            autorizacion.assert_alcance_relevamiento(self.user, self.territorial)  # pasa
             with self.assertRaises(PermissionDenied):
-                vistas_rel._assert_scope(self.request, self.publico)  # antes: pasaba y mutaba
+                autorizacion.assert_alcance_relevamiento(self.user, self.publico)  # antes: pasaba y mutaba
 
 
 class PadronFloatsTests(TestCase):

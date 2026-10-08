@@ -64,7 +64,7 @@ class CamposPropiosEnReportesTests(DashboardBecasBase):
         self._propio("cp-hijos", "¿Tenés hijos a cargo?", ["Sí", "No"])
         caso = self._caso_con_foto(self.rel_publico, {"cp-hijos": "Sí"})
 
-        reporte, _ = svc.respuestas_por_persona(self.conv_propia)
+        reporte, _ = svc.respuestas_por_persona(self.conv_propia, incluir_publicos=True)
 
         cab = list(reporte.encabezados)
         self.assertIn("¿Tenés hijos a cargo?", cab)
@@ -84,7 +84,7 @@ class CamposPropiosEnReportesTests(DashboardBecasBase):
         visible = self._caso_con_foto(self.rel_publico, {"cp-madre": "Sí", "cp-hijos": "Dos"})
         oculto = self._caso_con_foto(self.rel_publico, {"cp-madre": "No", "cp-hijos": "Uno"})
 
-        reporte, _ = svc.respuestas_por_persona(self.conv_propia)
+        reporte, _ = svc.respuestas_por_persona(self.conv_propia, incluir_publicos=True)
 
         cab = list(reporte.encabezados)
         filas = {fila[cab.index("ID caso")]: dict(zip(cab, fila)) for fila in reporte.filas}
@@ -96,7 +96,7 @@ class CamposPropiosEnReportesTests(DashboardBecasBase):
         self._propio("cp-ayudas", "Ayudas que recibís", ["AUH", "Tarjeta"], orden=93, tipo=TipoCampo.SELECTOR_MULTIPLE)
         self._caso_con_foto(self.rel_publico, {"cp-mudanza": "2024-03-07", "cp-ayudas": ["AUH", "Tarjeta"]})
 
-        reporte, _ = svc.respuestas_por_persona(self.conv_propia)
+        reporte, _ = svc.respuestas_por_persona(self.conv_propia, incluir_publicos=True)
 
         fila = dict(zip(list(reporte.encabezados), reporte.filas[0]))
         self.assertEqual(fila["Fecha de mudanza"], "07/03/2024")
@@ -113,7 +113,7 @@ class CamposPropiosEnReportesTests(DashboardBecasBase):
         )
         nuevo = self._caso_con_foto(self.rel_publico, {"cp-hijos": "No"})
 
-        reporte, _ = svc.respuestas_por_persona(self.conv_propia)
+        reporte, _ = svc.respuestas_por_persona(self.conv_propia, incluir_publicos=True)
 
         cab = list(reporte.encabezados)
         filas = {fila[cab.index("ID caso")]: dict(zip(cab, fila)) for fila in reporte.filas}
@@ -126,13 +126,13 @@ class CamposPropiosEnReportesTests(DashboardBecasBase):
         """Un lote de pks cada `LOTE_RESPUESTAS` casos, no una consulta por caso."""
         self._propio("cp-hijos", "¿Tenés hijos a cargo?", ["Sí", "No"])
         self._caso_con_foto(self.rel_publico, {"cp-hijos": "Sí"})
-        svc.respuestas_por_persona(self.conv_propia)
+        svc.respuestas_por_persona(self.conv_propia, incluir_publicos=True)
         with CaptureQueriesContext(connection) as pocas:
-            svc.respuestas_por_persona(self.conv_propia)
+            svc.respuestas_por_persona(self.conv_propia, incluir_publicos=True)
         for _ in range(12):
             self._caso_con_foto(self.rel_publico, {"cp-hijos": "No"})
         with CaptureQueriesContext(connection) as muchas:
-            reporte, _ = svc.respuestas_por_persona(self.conv_propia)
+            reporte, _ = svc.respuestas_por_persona(self.conv_propia, incluir_publicos=True)
         self.assertEqual(len(reporte.filas), 13)
         self.assertEqual(len(muchas), len(pocas))
         self.assertLessEqual(len(muchas), 10)
@@ -152,7 +152,7 @@ class CamposPropiosEnReportesTests(DashboardBecasBase):
             Formulario.objects.get(pk=viejo.pk).definicion, Formulario.objects.get(pk=nuevo.pk).definicion
         )
 
-        primeras = [list(svc.respuestas_por_persona(self.conv_propia)[0].encabezados) for _ in range(3)]
+        primeras = [list(svc.respuestas_por_persona(self.conv_propia, incluir_publicos=True)[0].encabezados) for _ in range(3)]
 
         self.assertEqual(primeras[0], primeras[1])
         self.assertEqual(primeras[1], primeras[2])
@@ -160,7 +160,7 @@ class CamposPropiosEnReportesTests(DashboardBecasBase):
         self.assertLess(cab.index("Primera propia"), cab.index("Segunda propia"))
         filas = {
             fila[cab.index("ID caso")]: dict(zip(cab, fila))
-            for fila in svc.respuestas_por_persona(self.conv_propia)[0].filas
+            for fila in svc.respuestas_por_persona(self.conv_propia, incluir_publicos=True)[0].filas
         }
         self.assertEqual(filas[viejo.pk]["Primera propia"], "Sí")
         self.assertEqual(filas[viejo.pk]["Segunda propia"], "")
@@ -172,7 +172,7 @@ class CamposPropiosEnReportesTests(DashboardBecasBase):
         caso = self._caso_con_foto(self.rel_publico, {"cp-retirada": "Sí"})
         propio.delete()  # el operador la saca del constructor
 
-        reporte, _ = svc.respuestas_por_persona(self.conv_propia)
+        reporte, _ = svc.respuestas_por_persona(self.conv_propia, incluir_publicos=True)
 
         cab = list(reporte.encabezados)
         columna = next(c for c in cab if "cp-retirada" in c)

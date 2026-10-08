@@ -14,7 +14,7 @@ CAP = "ciudadano.ver"
 @requiere(CAP)
 def becas_ciudadano_detalle(request, pk):
     ciudadano = get_object_or_404(Ciudadano, pk=pk)
-    contexto = SolapasService.obtener_resumen_becas_ciudadano(ciudadano)
+    contexto = SolapasService.obtener_resumen_becas_ciudadano(ciudadano, user=request.user)
     contexto["ciudadano"] = ciudadano
 
     return render(request, "programas/becas/ciudadano_detalle.html", contexto)

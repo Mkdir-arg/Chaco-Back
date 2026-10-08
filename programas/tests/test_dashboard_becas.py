@@ -779,7 +779,7 @@ class RespuestasPorPersonaTests(DashboardBecasBase):
     def test_un_registro_por_caso_y_una_columna_por_pregunta(self):
         f1, f2, q_archivo, borrada = self._armar_casos()
 
-        reporte, alcance = svc.respuestas_por_persona(self.conv_propia)
+        reporte, alcance = svc.respuestas_por_persona(self.conv_propia, incluir_publicos=True)
 
         self.assertEqual(len(reporte.filas), 2)
         cab = list(reporte.encabezados)
@@ -881,9 +881,9 @@ class RespuestasPorPersonaTests(DashboardBecasBase):
             apoderado_dni="20111222",
             data={"globales": {}, "requisitos": {}},
         )
-        svc.respuestas_por_persona(self.conv_propia)
+        svc.respuestas_por_persona(self.conv_propia, incluir_publicos=True)
         with CaptureQueriesContext(connection) as pocas:
-            reporte, _ = svc.respuestas_por_persona(self.conv_propia)
+            reporte, _ = svc.respuestas_por_persona(self.conv_propia, incluir_publicos=True)
         cab = list(reporte.encabezados)
         filas = {fila[cab.index("ID caso")]: dict(zip(cab, fila)) for fila in reporte.filas}
         self.assertEqual(filas[con_legajo.pk]["Apoderado"], "Pérez, Ana (22333444)")
@@ -898,7 +898,7 @@ class RespuestasPorPersonaTests(DashboardBecasBase):
         for i in range(10):
             self._formulario(self.rel_propio, ciudadano=self._ciudadano(str(60000000 + i)))
         with CaptureQueriesContext(connection) as muchas:
-            reporte, _ = svc.respuestas_por_persona(self.conv_propia)
+            reporte, _ = svc.respuestas_por_persona(self.conv_propia, incluir_publicos=True)
         self.assertEqual(len(reporte.filas), 14)
         self.assertEqual(len(muchas), len(pocas))
         self.assertLessEqual(len(muchas), 10)

@@ -124,7 +124,9 @@ def build_ciudadano_detail_context(ciudadano, user=None):
     # Tiene que ser el MISMO objeto, no un clon: cualquier .filter() posterior pierde el caché.
     alertas_activas = ciudadano.alertas.filter(activa=True).order_by("prioridad", "-creado")
 
-    resumen_becas = SolapasService.obtener_resumen_becas_ciudadano(ciudadano)
+    # BEC-23: la solapa Becas del legajo oculta los casos del link público a quien no
+    # tiene RN-P13 y muestra el resto (el legajo es transversal).
+    resumen_becas = SolapasService.obtener_resumen_becas_ciudadano(ciudadano, user=user)
     todas_las_solapas = SolapasService.obtener_solapas_ciudadano(
         ciudadano, resumen_becas=resumen_becas, alertas_activas=alertas_activas
     )

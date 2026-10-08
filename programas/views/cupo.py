@@ -2,8 +2,12 @@
 
 Acceso de lectura: ``becas.cupo.ver`` o ``becas.beneficiario.ver`` (Admin del
 programa, o Coordinador con asignación activa en el segmento). Acciones de
-mutación (baja, promoción, agregar a lista de espera): ``becas.beneficiario.editar``,
-también scoped al segmento.
+mutación (baja, promoción, agregar a lista de espera): ``becas.beneficiario.editar``.
+
+El alcance **no es el segmento**: es el conjunto de convocatorias visibles (SEC-21,
+auditoría oct-2026). El Coordinador Regional entra al segmento que contiene su
+subsegmento, así que el segmento solo le mostraba —y le dejaba mutar— los casos de
+sus pares. Los casos del link público quedan afuera sin RN-P13 (SEC-22).
 """
 
 import logging
@@ -19,7 +23,13 @@ from django.views.generic.detail import DetailView
 
 from core.rbac import CapacidadRequeridaMixin, puede_alguna
 from programas.models import Formulario, ListaEspera, Segmento
-from programas.services.autorizacion import SegmentoScopedMixin, puede_gestionar_segmento
+from programas.services.autorizacion import (
+    SegmentoScopedMixin,
+    assert_alcance_formulario,
+    convocatorias_visibles,
+    programa_becas,
+    sin_formularios_publicos_si_no_puede,
+)
 from programas.services.avisos_resolucion import enviar_aviso_resolucion
 from programas.services.cupo import (
     agregar_a_lista_espera,
@@ -92,11 +102,28 @@ class CupoSegmentoDetailView(SegmentoScopedMixin, CapacidadRequeridaMixin, Login
         # formulario no los toca ninguna de las tres tablas (medido: 226 ms -> 92 ms).
         sin_json = ("data", "datos_identificacion")
 
+        # SEC-21: el segmento solo no alcanza como alcance. El Coordinador Regional
+        # entra al segmento que contiene su subsegmento, así que filtrando solo por
+        # ``relevamiento__convocatoria__segmento`` veía —con nombre y DNI— a los
+        # beneficiarios, la espera y los pendientes de los subsegmentos de sus pares.
+        # SEC-22: y los casos del link público, sin tener RN-P13.
+        usuario = self.request.user
+        programa = programa_becas(usuario)
+        # Ids planos y no una subconsulta: son decenas de filas y las tres consultas de
+        # la pantalla la repetirían anidada (el patrón que ya costó un 500 en ECOM).
+        convocatorias = list(convocatorias_visibles(usuario, programa=programa).values_list("pk", flat=True))
+
+        def _de_mi_alcance(qs, prefijo=""):
+            qs = qs.filter(**{f"{prefijo}relevamiento__convocatoria_id__in": convocatorias})
+            return sin_formularios_publicos_si_no_puede(qs, usuario, programa=programa, prefijo=prefijo)
+
         beneficiarios_qs = (
-            Formulario.objects.filter(
-                estado=Formulario.Estado.APROBADO,
-                ciudadano__isnull=False,
-                relevamiento__convocatoria__segmento=segmento,
+            _de_mi_alcance(
+                Formulario.objects.filter(
+                    estado=Formulario.Estado.APROBADO,
+                    ciudadano__isnull=False,
+                    relevamiento__convocatoria__segmento=segmento,
+                )
             )
             .select_related("ciudadano", "relevamiento__convocatoria")
             .defer(*sin_json)
@@ -104,21 +131,25 @@ class CupoSegmentoDetailView(SegmentoScopedMixin, CapacidadRequeridaMixin, Login
         )
 
         lista_espera_qs = (
-            ListaEspera.objects.filter(segmento=segmento, promovido=False)
+            _de_mi_alcance(ListaEspera.objects.filter(segmento=segmento, promovido=False), prefijo="formulario__")
             .select_related("formulario__ciudadano", "formulario__relevamiento__convocatoria")
             .defer(*[f"formulario__{campo}" for campo in sin_json])
             .order_by("posicion")
         )
 
-        # Formularios ENVIADOS del segmento que aún no están en lista de espera
+        # Formularios ENVIADOS del segmento que aún no están en lista de espera. El
+        # "ya está en espera" se mira sobre todo el segmento a propósito: un caso que
+        # otro coordinador puso en la lista no tiene que reaparecer acá como pendiente.
         formularios_en_espera_ids = ListaEspera.objects.filter(segmento=segmento, promovido=False).values_list(
             "formulario_id", flat=True
         )
         pendientes_qs = (
-            Formulario.objects.filter(
-                estado=Formulario.Estado.ENVIADO,
-                ciudadano__isnull=False,
-                relevamiento__convocatoria__segmento=segmento,
+            _de_mi_alcance(
+                Formulario.objects.filter(
+                    estado=Formulario.Estado.ENVIADO,
+                    ciudadano__isnull=False,
+                    relevamiento__convocatoria__segmento=segmento,
+                )
             )
             .exclude(pk__in=formularios_en_espera_ids)
             .select_related("ciudadano", "relevamiento__convocatoria")
@@ -143,7 +174,7 @@ class CupoSegmentoDetailView(SegmentoScopedMixin, CapacidadRequeridaMixin, Login
                 "beneficiarios_querystring": _querystring_without(self.request, "beneficiarios_page", "tab"),
                 "lista_espera_querystring": _querystring_without(self.request, "lista_espera_page", "tab"),
                 "pendientes_querystring": _querystring_without(self.request, "pendientes_page", "tab"),
-                "puede_editar_beneficiarios": puede_alguna(self.request.user, [CAP_BENEFICIARIO_EDITAR]),
+                "puede_editar_beneficiarios": puede_alguna(usuario, [CAP_BENEFICIARIO_EDITAR], programa=programa),
             }
         )
         return ctx
@@ -156,10 +187,12 @@ def dar_baja_beneficiario_view(request, pk):
         pk=pk,
     )
     segmento = formulario.relevamiento.convocatoria.segmento
-    if not puede_alguna(request.user, [CAP_BENEFICIARIO_EDITAR]) or not puede_gestionar_segmento(
-        request.user, segmento
-    ):
+    # SEC-21: el mismo alcance que el listado, también para mutar por URL directa
+    # (Cambio 18). ``puede_gestionar_segmento`` solo miraba el segmento, que para el
+    # Coordinador Regional incluye los subsegmentos de sus pares.
+    if not puede_alguna(request.user, [CAP_BENEFICIARIO_EDITAR], programa=programa_becas(request.user)):
         raise PermissionDenied
+    assert_alcance_formulario(request.user, formulario)
     if request.method == "POST":
         try:
             dar_baja_beneficiario(formulario, request.user)
@@ -182,10 +215,10 @@ def promover_lista_espera_view(request, pk):
         ),
         pk=pk,
     )
-    if not puede_alguna(request.user, [CAP_BENEFICIARIO_EDITAR]) or not puede_gestionar_segmento(
-        request.user, lista.segmento
-    ):
+    if not puede_alguna(request.user, [CAP_BENEFICIARIO_EDITAR], programa=programa_becas(request.user)):
         raise PermissionDenied
+    # SEC-21: el alcance es el del caso, no el del segmento de la entrada.
+    assert_alcance_formulario(request.user, lista.formulario)
     if request.method == "POST":
         try:
             promover_lista_espera(lista, request.user)
@@ -216,10 +249,9 @@ def agregar_lista_espera_view(request, pk):
         pk=pk,
     )
     segmento = formulario.relevamiento.convocatoria.segmento
-    if not puede_alguna(request.user, [CAP_BENEFICIARIO_EDITAR]) or not puede_gestionar_segmento(
-        request.user, segmento
-    ):
+    if not puede_alguna(request.user, [CAP_BENEFICIARIO_EDITAR], programa=programa_becas(request.user)):
         raise PermissionDenied
+    assert_alcance_formulario(request.user, formulario)
     if request.method == "POST":
         try:
             agregar_a_lista_espera(formulario, segmento, request.user)

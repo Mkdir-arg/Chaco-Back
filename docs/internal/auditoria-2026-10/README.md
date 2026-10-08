@@ -1,5 +1,11 @@
 # Auditoría integral de DATAÑACH (Chaco) — octubre 2026
 
+## Estado al 08-oct-2026 (Ola 2, PR 5: alcance en Becas — **arranca la Ola 2**)
+
+| PR | Cambio | Fichas | Estado | Qué quedó abierto |
+|---|---|---|---|---|
+| Ola 2 PR 5 | 177 | SEC-20 ✅ · SEC-21 ✅ · SEC-22 ✅ · SEC-30 ✅ · BEC-19 ✅ · BEC-23 ✅ · RED-79 ✅ (parte Ola 2) | ✅ | **Las 6 fichas del ítem 5 (14 h) más los movimientos de RED-79 del ítem 9 (2 h), con `users.0027` y `users.0028`, ninguna con DDL.** Las seis comparten raíz: **el alcance de Becas estaba escrito en las pantallas y no en los datos**. Lo que deja de pasar: el Coordinador Regional **no ve ni da de baja** a los beneficiarios, la espera y los pendientes de los subsegmentos de sus pares —el cupo filtraba por *segmento*, que para ese rol incluye lo de al lado, y las tres mutaciones miraban lo mismo, contra el Cambio 18—; los **casos del link público desaparecen** de los reportes, del XLSX de respuestas, del tablero y del cupo para quien no tiene RN-P13 (**D-22 = Sí**), incluida la huella de la caché del tablero, que no llevaba la capacidad y hacía que dos usuarios con distinto alcance compartieran la entrada; los **cinco CSV** que se arman a mano pasan por `celda_segura` —y también sus encabezados, que en «respuestas por persona» son los textos de las preguntas— así que un apellido `=HYPERLINK(…)` cargado desde el link público deja de ejecutarse al abrir el archivo; el **padrón completo de ciudadanos** pasa a exigir `ciudadano.exportar` (**D-20 = Sí**), capacidad del `CATALOGO` sembrada por migración a quienes ya tienen `ciudadano.editar`, con el botón siguiendo a la capacidad y la descarga registrada con usuario y cantidad de filas; el `next` de los dos POST de convocatorias **se valida** (BEC-19); la **solapa Becas del legajo** oculta los casos públicos y muestra el resto (**D-B23**); y el Regional deja de poder configurar lo que es del segmento entero —requisitos, subsegmentos, coordinadores— aunque le tilden la capacidad (SEC-30, que estaba latente). **Los dos ratchets de RED-79 bajan en el mismo PR**: aristas vista→vista de **9 a 7** y ciclos de import de **6 a 5**, con los guards de alcance, el filtro de RN-P13, su constante y `_programas_qs` mudados a `services/`. **Tres desvíos, los tres code-first:** (a) el alcance del cupo se materializa en **ids planos** y no como subconsulta anidada, que es el patrón que ya costó un 500 por `read_timeout` en ECOM; (b) `_programas_qs` queda en `autorizacion.py` y no en `programas/selectors/`, que **no existe** en esa app; (c) en la solapa del legajo la capacidad se evalúa **sin acotar al Programa Becas**, porque resolverlo ahí agrega una lectura a una pantalla cuyo presupuesto no tolera consultas duplicadas. **Riesgo de deploy:** la migración de datos solo agrega filas, pero la vista pasa a exigir la capacidad nueva, así que **el «Operador de backoffice» pierde la exportación del padrón** —que es lo que la ficha pedía— y la migración lo deja escrito en el log. **Abierto:** la dependencia **OPS-06** de SEC-22 sigue en pie (mientras el seed no tilde `becas.relevamiento.publico`, el filtro oculta lo público para todos los roles sembrados salvo el `Administrador`), y del ítem 9 quedan RED-80 (PR 1) y RED-52 (PR 2) |
+
 ## Estado al 08-oct-2026 (Ola 3, PR 7a: integraciones SIIS y RENAPER)
 
 | PR | Cambio | Fichas | Estado | Qué quedó abierto |
@@ -1042,8 +1048,8 @@ indica qué ítems no conviene cerrar sin la respuesta.
 | D-12 | ¿Capacidad nueva `ciudadano.derivar` o reusar `ciudadano.editar`? | Reusar `ciudadano.editar` | SEC-12 |
 | D-15 | ¿El F-00 necesita `.doc/.docx`? | No: PDF e imagen | SEC-15 |
 | D-18 | ¿Se acepta que el badge de alertas quede en 0 para quien hoy ve CRÍTICAS globales? | Sí | SEC-18 |
-| D-20 | ¿La exportación masiva de ciudadanos necesita capacidad propia (`ciudadano.exportar`)? | Sí, sembrada a quienes tienen `ciudadano.editar` | SEC-20 (parte) |
-| D-22 | ¿RN-P13 (casos del link público) alcanza a reportes y cupo? | Sí | SEC-22 |
+| D-20 | ¿La exportación masiva de ciudadanos necesita capacidad propia (`ciudadano.exportar`)? | Sí, sembrada a quienes tienen `ciudadano.editar`. ✅ 08-oct: **default aplicado** en el Cambio 177 (Ola 2 PR 5) — capacidad en el `CATALOGO`, `users.0028` la siembra, el botón sigue a la capacidad y la descarga se registra. El «Operador de backoffice» (solo `ciudadano.ver`) **pierde** la exportación: re-tildarla es un clic en el ABM de Roles | SEC-20 (parte) |
+| D-22 | ¿RN-P13 (casos del link público) alcanza a reportes y cupo? | Sí. ✅ 08-oct: **default aplicado** en el Cambio 177 (Ola 2 PR 5) — reportes, XLSX, tablero y cupo. Depende de OPS-06 para que alguien tenga la capacidad | SEC-22 |
 | D-24 | ¿`scan` (código de barras del DNI) cuenta como validación de identidad? | Sí para `scan` (registrarlo); no para `personas` sin re-consulta | SEC-24 |
 | D-25 | Tasa del throttle de consulta de personas de la app | 120/h por usuario (medir uso real) | SEC-25 |
 | D-26 | Clave provisoria del territorial: (a) 403 en el token + endpoint para fijar clave (release de la app) o (b) link de reseteo | (b) | SEC-26 (parte) |
@@ -1060,7 +1066,7 @@ indica qué ítems no conviene cerrar sin la respuesta.
 | D-B05 | ¿El cupo del subsegmento es tope duro? | No (referencia) | BEC-05 |
 | D-B10 | ¿«En lista de espera» cuenta como revisado para terminar un relevamiento? | Sí, con mensaje diferenciado | BEC-10 |
 | D-B11 | ¿El masivo aprueba a quien SIIS declaró incompatible? | No: quedan para revisión manual | BEC-11 |
-| D-B23 | ¿La solapa Becas del legajo es transversal? | Ocultar casos públicos sin la capacidad; mostrar el resto | BEC-23 |
+| D-B23 | ¿La solapa Becas del legajo es transversal? | Ocultar casos públicos sin la capacidad; mostrar el resto. ✅ 08-oct: **default aplicado** en el Cambio 177 (Ola 2 PR 5) | BEC-23 |
 | D-G04 | Gracia para sincronizar capturas offline después del vencimiento (pendiente del Cambio 54) | 24 h desde `fecha_fin` (G1 sugería 72 h) | G1-04 |
 | D-G11 | CUIL: ¿calcularlo o usar el real? (Cambio 80) | Medir diferencias; si hay, preferir el real cuando coincide con el DNI | G1-11 |
 | D-G204 | ¿El inicio muestra indicadores de Becas? | Corregir etiquetas ahora; indicadores de Becas como requerimiento aparte | G2-04 |
@@ -1509,14 +1515,14 @@ funcional ni coordinación con ECOM). Las horas de cada ola suman los esfuerzos 
 | 0 | Hotfix de seguridad y seeds | 16 | 36 | 0 (completa en código; lo operativo, en «Estado») | 0 | 0 | 0 |
 | **R** | **Red de seguridad: poder cambiar código sin romper nada sin enterarse** | — | — | — | — | **86** (79 RED con parte en R —78 del relevamiento + RED-89— + OPS-01, OPS-03, OPS-04, TST-01, TST-02, TST-03, R0-03; SEC-10, SEC-11 y SEC-18 se ejecutan en R-19 pero **siguen contadas como ítems de la Ola 2**, solo se mueven sus horas) | **285** · **269 cerradas (R-01..R-16 y R-18..R-21) → 16 restantes: solo R-17** |
 | 1 | Integridad SIIS | 23 | 72 | 22 (− SIIS-07) | 70 | 23 (+ RED-53; + parte de RED-32) | 78 · **76 cerradas (26 el 05-oct, PR 2; 6 el 06-oct, PR 3; 10 el 06-oct, PR 4; 4 el 06-oct, PR 5; 20 el 07-oct, PR 6; 10 el 07-oct, PR 7) → 2 restantes: el ítem 0 (V2-NEW-03, correr P-01 en PRD, sin código)** |
-| 2 | Autorización (RBAC, legajos, alcance de Becas, usuarios) | 36 | 116 | 50 (+ fase 2 de OPS-06, R0-05, resto de SEC-01, etapa 2 de SEC-09, R0b-01..10) | 136 | 51 (+ RED-80; + partes de RED-52, RED-79) | 135 (−7: SEC-10, SEC-18 y media SEC-11 se hacen en R-19, D-RED-14) |
+| 2 | Autorización (RBAC, legajos, alcance de Becas, usuarios) | 36 | 116 | 50 (+ fase 2 de OPS-06, R0-05, resto de SEC-01, etapa 2 de SEC-09, R0b-01..10) | 136 | 51 (+ RED-80; + partes de RED-52, RED-79) | 135 (−7: SEC-10, SEC-18 y media SEC-11 se hacen en R-19, D-RED-14) · **16 cerradas el 08-oct (PR 5: ítem 5 = 14 h + la parte RED-79 del ítem 9 = 2 h) → 119 restantes** |
 | 3 | Datos, operación, CI, app de campo y reglas de Becas | 55 | 158 | 59 (+ R0-03, R0-04, R0-06, R0-07) | 166 | 54 (− 7 a la Ola R; + RED-48, RED-58; + partes de RED-09, 35, 40, 50) | 152 · **28 cerradas el 07-oct (14 PR 1 · 6 PR 3 · 8 PR 8) → 124 restantes** |
 | 4 | Performance | 19 | 52 | 19 | 52 | 20 (+ RED-62; + partes de RED-10, 49, 51, 83) | 64 |
 | 5 | Bugs de front y parches v1 de Legajos/Dispositivos | 31 (+ V5A-NEW-07 b) | 114 | 31 (+ V5A-NEW-07 b) | 114 | 33 (+ RED-33, RED-75; + partes de RED-42, 53) (+ V5A-NEW-07 b) | 128 · **128 cerradas (PRs 1 a 8) → 0: la ola cierra** |
 | 6 | Agente de diseño | 4 (+8 pasos) | 42 | 4 (+8 pasos) | 42 | 4 (+8 pasos) | 42 · **42 cerradas el 06-oct (pasos 0-7) → 0: la ola cierra** |
 | 7 | Deuda | 9 (+ fase 2 de G1-01) | 46 | 10 (+ fase 2 de G1-01; + R0-02) | 48 | 13 (+ RED-64, 76, 86; + partes de RED-13, 37, 39, 54, 78, 85) | 88 |
 | v2 | Criterios de aceptación de la v2 (§7), no se implementan en v1 | 13 | — | 13 | — | 13 | — |
-| **Total** | | **206** | **636** | **208** | **628** | **297** | **972** · **543 cerradas al 07-oct-2026 → 429 restantes** |
+| **Total** | | **206** | **636** | **208** | **628** | **297** | **972** · **559 cerradas al 08-oct-2026 → 413 restantes** |
 
 Cada ficha RED cuenta como ítem una sola vez, en la primera ola donde tiene trabajo (por eso la columna suma 297 = 208 +
 89); si tiene una segunda parte en otra ola, esas horas se suman en esa ola («+ partes de …»).
@@ -1526,8 +1532,13 @@ cerró en código y cuyas horas ya se descontaron) + 285 (R) + 78 (1) + 135 (2) 
 88 (7); la v2 no tiene horas. Las **543 cerradas** son la suma de las horas cerradas que declara cada fila, y cada una
 sale de la lista de PRs de su propia sección de este §6: **269** de la Ola R (285 − las 16 de R-17, el único abierto),
 **76** de la Ola 1 (de 78: queda el ítem 0, operativo), **28** de la Ola 3 (PR 1 = 14, PR 3 = 6, PR 8 = 8), **128** de
-la Ola 5 y **42** de la Ola 6, las dos cerradas; las Olas 2, 4 y 7 todavía no abrieron ningún PR. 972 − 543 = **429
-restantes**. El «139 cerradas» anterior venía del 04-oct y no contaba nada de lo mergeado entre el 05 y el 07.
+la Ola 5 y **42** de la Ola 6, las dos cerradas; las Olas 4 y 7 todavía no abrieron ningún PR. El «139 cerradas»
+anterior venía del 04-oct y no contaba nada de lo mergeado entre el 05 y el 07.
+
+**Qué le suma el 08-oct-2026.** La **Ola 2 abre** con su PR 5: **16 h** (ítem 5, *Alcance en Becas* = 14 h, más la
+parte RED-79 del ítem 9 = 2 h). 543 + 16 = **559 cerradas**; 972 − 559 = **413 restantes**, y la Ola 2 queda en
+135 − 16 = **119**. Las horas de la Ola 3 de este mismo día (PRs 2, 6, 7a y 8, que su propia sección ya lista) no
+están sumadas en esta fila: el que mergee último tiene que recalcularla con las dos cuentas juntas.
 **Dos arreglos de la misma tabla, residuo del README duplicado (ver #620):** la Ola 5 tenía **dos filas** con cifras
 distintas (66 y 60 h cerradas) — se dejó una sola, y con el 128/128 que declara su sección —, y en la sección de la
 Ola 5 había un bloque de avance viejo («60 h de 128») y una segunda copia de su lista de PRs, conciliados más abajo.
@@ -1847,6 +1858,9 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
 ### Ola 2 — Autorización
 - **Objetivo:** que cada capacidad se evalúe con su alcance de programa y que ninguna vista de legajos, Becas o usuarios
   dependa solo de estar logueado.
+- **Avance: 16 h de 135, 119 restantes.** **PR 5 (SEC-21, SEC-22, SEC-20, SEC-30, BEC-19, BEC-23 + la parte
+  RED-79 del ítem 9) en el Cambio 177, 08-oct-2026**: 16 h, con **dos migraciones de `users`** (`0027` y `0028`,
+  ninguna con DDL) por la capacidad nueva `ciudadano.exportar` (D-20). Es el **primer PR de la ola**.
 - **PRs y orden:**
   1. *Catálogo y roles:* SEC-06 (catálogo + migración de datos + exports + masivo + RENAPER pendientes), SEC-07
      (`puede_sin_programa`), G1b-02, G1b-06 y la **fase 2 de OPS-06** (`RolMeta.clave`, con migración; viene de la
@@ -1859,13 +1873,17 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
      No rehacerlas acá: **ninguna de esas rutas llega a esta ola abierta**, lo único que falta es subir tres de
      `ciudadano.ver` a `ciudadano.sensible` —una línea por vista— cuando D-11 se resuelva.
   4. *WebSocket de alertas:* G1c-04, G1c-17, G3-03. 12 h.
-  5. *Alcance en Becas:* SEC-21, SEC-22, SEC-20, SEC-30, BEC-19, BEC-23. 14 h.
+  5. ✅ *Alcance en Becas:* SEC-21, SEC-22, SEC-20, SEC-30, BEC-19, BEC-23. 14 h. **Cerrado el 08-oct-2026
+     (Cambio 177)**, con D-20, D-22 y D-B23 aplicadas por default y `users.0027` + `users.0028`.
   6. *App de campo:* SEC-23 (+G1-15), SEC-24, SEC-25 (+ R0-05: usar o borrar la tasa `renaper`). 12 h.
   7. *Media y uploads:* SEC-09 etapa 2, SEC-15, SEC-31, R0b-07 (+ R0b-08). 14 h.
   8. *Bajos:* SEC-27, SEC-32, SEC-33, SEC-34, SEC-35, SEC-36, SEC-37, G1c-10, G1c-16 y el resto de SEC-01
      (`BackofficeAutenticado` fuera de la lista de la ficha; viene de la Ola 0). 20 h.
-  9. *Red de seguridad (04-oct):* RED-80 (cache de `programa_*`, con el PR 1), segunda parte de RED-52 (`save_user_profile`
+  9. 🟡 *Red de seguridad (04-oct):* RED-80 (cache de `programa_*`, con el PR 1), segunda parte de RED-52 (`save_user_profile`
      explícito, con el PR 2) y de RED-79 (mover los guards de alcance y constantes a `autorizacion.py`, con el PR 5). 6 h.
+     **✅ RED-79 cerrada el 08-oct-2026 (Cambio 177, PR 5): 2 h.** Los dos ratchets bajaron en el mismo PR —aristas
+     vista→vista de 9 a 7 y ciclos de 6 a 5—, que es la mitad que el test mide hacia abajo. Quedan RED-80 (PR 1) y
+     RED-52 (PR 2): 4 h.
   **No hay ítem 10 de RED-89.** La medición del 04-oct no agregó trabajo nuevo a esta ola: las capacidades de las 17
   rutas que contesta un usuario sin rol **son** SEC-10, SEC-11 y SEC-18, y por D-RED-14 se hacen en R-19 salvo
   `ciudadano.sensible`, que queda en el PR 3 de arriba.
