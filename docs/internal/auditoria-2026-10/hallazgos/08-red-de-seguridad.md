@@ -848,7 +848,7 @@ que toque el link público; (2) los dos destinos del Performance Guard (`inscrip
 que siguen en la Ola 4 como dice la ficha.
 **Test permanente:** `programas/tests/test_becas_api.py::AltaBajoElLockTests.test_el_alta_no_crece_en_consultas`.
 
-**Resolución:** ✅ (segunda parte, Ola 4 PR 9) Resuelta en #NNN (Cambio 194), 08-10-2026 — los **dos** destinos del
+**Resolución:** ✅ (segunda parte, Ola 4 PR 9) Resuelta en #648 (Cambio 194), 08-10-2026 — los **dos** destinos del
 Performance Guard, con la mitad que faltaba del gemelo del link público resuelta por el mismo camino.
 `inscripcion_publica_paso2` (anónimo, sesión del paso 1 ya sembrada, `expected_status: 302` al comprobante) y
 `becas_api_alta` (Token del territorial, `201`, `max_duplicate_queries: 1`) entran a `build_targets` y a
@@ -1571,7 +1571,7 @@ que la función de `dashboard/utils.py` se ejecuta en producción y borrarla no 
 **Test permanente:** `dashboard.tests.test_cache_invalidacion.InvalidacionTests.test_inscripcion_nueva_invalida_stats_legajos`
 (y `.test_alerta_nueva_invalida_alertas_activas`).
 
-**Resolución:** ✅ (segunda parte, Ola 4 PR 9) Resuelta en #NNN (Cambio 194), 08-10-2026 — `dashboard/cache.py` es la
+**Resolución:** ✅ (segunda parte, Ola 4 PR 9) Resuelta en #648 (Cambio 194), 08-10-2026 — `dashboard/cache.py` es la
 tabla única que pedía la ficha: cada clave con la consulta que la escribe y el `label_lower` del modelo que la
 invalida (`CLAVES_POR_MODELO`), con `clave_seguimientos_hoy()` resuelta en el momento porque lleva la fecha adentro.
 Los dos `expectedFailure` pasan a verde: `stats_legajos` la borra ahora el receiver de `InscripcionPrograma`
@@ -2189,7 +2189,7 @@ puede medir desde el host sin parsear el plan entero. **Test permanente:** `core
   `REDUNDANTES_CONOCIDOS` = los 5 pares; la lista solo baja). **Ola 4:** `AlterField` (sin `db_index`) + `RemoveIndex`
   por par (`DROP INDEX` secundario es `INPLACE`/`LOCK=NONE`).
 
-**Resolución:** ✅ (segunda parte, la migración) Resuelta en #NNN (Cambio 194, Ola 4 PR 9), 08-10-2026 —
+**Resolución:** ✅ (segunda parte, la migración) Resuelta en #648 (Cambio 194, Ola 4 PR 9), 08-10-2026 —
 `legajos.0011_indices_redundantes_red83` y `programas.0084_indices_redundantes_red83` sacan los **cinco** pares
 medidos, con la forma que pedía la ficha: `RemoveIndex` para los dos duplicados declarados en `Meta.indexes`
 (`dni`, `email`) y `AlterField` sin `db_index` para los dos de columna (`activo`, `apellido`), más el `RemoveIndex` de
@@ -2543,7 +2543,7 @@ entrypoint: queda para R-15.
   (`git show "${{ github.event.pull_request.base.sha }}":scripts/perf_budgets.json`) y falla si algún `max_queries` sube, o
   `reference_total_ms` sube más de 5 %, sin una clave nueva en `_meta.adjustments`; `failure_multiplier` a `2.0`.
 
-**Resolución:** ✅ Resuelta en #NNN (Cambio 194, Ola 4 PR 9), 08-10-2026 — `scripts/check_perf_budgets.py` corre como
+**Resolución:** ✅ Resuelta en #648 (Cambio 194, Ola 4 PR 9), 08-10-2026 — `scripts/check_perf_budgets.py` corre como
 **primer** paso del job `Query Budgets & Smoke Time` (antes de medir: es barato, no necesita base y el mensaje es más
 claro que el del presupuesto excedido), contra `github.event.pull_request.base.sha`, con `fetch-depth: 0` en el
 checkout —sin eso, `git show <base>:…` no resuelve y el paso compararía contra nada— y con `HEAD^` de respaldo para el
