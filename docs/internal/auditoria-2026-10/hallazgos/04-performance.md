@@ -145,7 +145,7 @@ y `programas.tests.test_cupo_performance.MismosCasosEnElMismoOrdenTests.test_ben
 - **Verificación:** V-STD; banco: `procesar_casos_siis --solo-completos --total 5000` en ensayo contra `chaco_perf_ci` (tabla `aprobados_materias` desde `scripts/Aprobados.sql`), cronometrar «Armando el payload…».
 - **Dependencias:** G1-08 cambia de dónde sale el destino (foto): coordinar el memo.
 
-**Resolución:** ✅ Resuelto en #639 (Cambio 183, Ola 4 PR 3), 08-oct-2026 — los puntos 1 a 3 de la propuesta,
+**Resolución:** ✅ Resuelto en #639 (Cambio 186, Ola 4 PR 3), 08-oct-2026 — los puntos 1 a 3 de la propuesta,
 como **memo de instancia** de `Catalogos`: `destinos_del_catalogo` por `(segmento, subsegmento, programa)`,
 `provincia_id` por clave, `localidad_id` por `(clave, provincia_id)` —memorizando también el `None`, que era la
 respuesta del 38 % de los casos— y un índice `{clave: [items]}` por catálogo en vez de normalizar la lista entera
@@ -182,7 +182,7 @@ alta necesita PERF-11, que es Ola 7.
 - **Propuesta:** (1) en `ProcesoMasivoView.get_context_data`, si `ctx["en_curso"]` no calcular `pendientes`; si no hay corrida, `cache.get_or_set(f"masivo_pendientes_{programa.pk}", lambda: ...count(), 60)`; (2) `dnis_aprobados_materias()`: memo por proceso con TTL 5 min (variable de módulo `(momento, set)`) y `table_names()` cacheado en la misma memo; (3) la tabla administrada por Django que proponía A4 no hace falta para performance.
 - **Presupuesto:** `becas_proceso_masivo` en `build_targets` y `perf_budgets.json` (hoy 13; después medido + 1); el `setUp` crea `aprobados_materias` como `crear_tabla_aprobados_materias` de `test_proceso_masivo.py`.
 
-**Resolución:** ✅ Resuelto en #639 (Cambio 183, Ola 4 PR 3), 08-oct-2026 — los puntos 1 y 3 de la propuesta, y el 2
+**Resolución:** ✅ Resuelto en #639 (Cambio 186, Ola 4 PR 3), 08-oct-2026 — los puntos 1 y 3 de la propuesta, y el 2
 **descartado a propósito**. Con `en_curso` la vista no calcula ninguno de los dos números (la plantilla muestra el
 progreso, no los conteos) y la existencia de `aprobados_materias` se pregunta al catálogo con
 `proceso_masivo.hay_aprobados_materias()` en vez de leer la planilla entera para enterarse. Sin corrida, los dos
@@ -253,7 +253,7 @@ Medido en el banco MariaDB 10.11 (20.000 casos, 22.000 DNI habilitados):
 - **Propuesta:** `ids = list(casos.values_list("pk", flat=True))` → `proceso_masivo.hidratar_por_lotes(ids)` con `defer("respuestas", "definicion")`; `sin_programa` y `sin_dni` con dos `count()`.
 - **Test:** `--dry-run` con N=10 y N=30: las consultas crecen por lote de 200, no por caso.
 
-**Resolución:** ✅ Resuelto en #639 (Cambio 183, Ola 4 PR 3), 08-oct-2026 — la propuesta tal cual. `_casos` devuelve
+**Resolución:** ✅ Resuelto en #639 (Cambio 186, Ola 4 PR 3), 08-oct-2026 — la propuesta tal cual. `_casos` devuelve
 el **queryset** y el comando se queda con los ids (`proceso_masivo.ids_de`, por rangos de pk) y los hidrata lote por
 lote con `defer` de los cuatro JSON (`JSON_DEL_CASO`): la validación de compatibilidad solo manda DNI, programa y
 fecha de nacimiento. `sin_programa` y `sin_dni` salen de dos `count()` en la base; con `--limite`, el recorte se
@@ -297,7 +297,7 @@ deduplicado dentro de `transaction.on_commit` (`core/performance/cache_utils.inv
 contadores solo se invalidan cuando el total pudo cambiar: al crear o al borrar (`post_delete` no manda `created`, y ahí
 el total sí cambió). Editar un ciudadano deja de borrarlos. `invalidate_dashboard_cache` se conserva tal cual —la
 sigue llamando la señal de `User` y la congela el ratchet de RED-51, que la compara con su homónima de
-`dashboard/utils.py`—. `invalidate_ciudadano_cache`, en cambio, se **borró en #639 (Cambio 183)**: con el receiver
+`dashboard/utils.py`—. `invalidate_ciudadano_cache`, en cambio, se **borró en #639 (Cambio 186)**: con el receiver
 nuevo no la llamaba nadie (la afirmación de que la llamaba `dashboard/utils.py` era falsa; ese módulo tiene su propia
 `invalidate_dashboard_cache` y nunca la importó). El cruce del padrón, que ya
 no dispara la señal, avisa con `invalidar_ciudadanos_tras_commit`: en el banco los **26.668 `cache.delete`** del peor
@@ -321,7 +321,7 @@ y `programas.tests.test_padron_performance.InvalidacionDeCacheTests.test_el_cruc
 - **Propuesta:** `.annotate(ultimo_envio=Coalesce(Subquery(ultimo), Value("")))` + `.exclude(ultimo_envio=EnvioSIIS.Estado.ENVIADO)` (misma semántica); `models.Index(fields=["formulario", "creado", "id"], name=...)` en `ValidacionSIS` y `EnvioSIIS` (tablas de decenas de miles: migración trivial y online). Con SIIS-01, el criterio de «ya informado» pasa a `exclude(envios_sis__vigente=True)`, pero el «último estado» sigue decidiendo qué reintentar.
 - **Test:** `str(candidatos(...).query).count("programas_enviosiis") == 1`; `EXPLAIN ANALYZE` del `count()` de PERF-07 antes y después.
 
-**Resolución:** ✅ Resuelto en #639 (Cambio 183, Ola 4 PR 3), 08-oct-2026 — la propuesta tal cual, en los **dos**
+**Resolución:** ✅ Resuelto en #639 (Cambio 186, Ola 4 PR 3), 08-oct-2026 — la propuesta tal cual, en los **dos**
 lugares: `proceso_masivo.candidatos` y `validar_casos_siis._casos` anotan con
 `Coalesce(Subquery(ultimo), Value(""))` y filtran con un solo `exclude` / `__in`. El valor de relleno es la cadena
 vacía, que no es ninguno de los tres `choices` de `EnvioSIIS.Estado` ni de `ValidacionSIS.Estado`: «no tiene

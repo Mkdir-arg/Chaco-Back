@@ -353,7 +353,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 179 | El timeline, las alertas y el riesgo del ciudadano dejan de verse con la capacidad de consulta, y una derivación deja de aceptarse abriendo un link | Legajos (APIs del detalle del ciudadano, bandeja de derivaciones, inscripción directa, API de ciudadanos) · Inicio (feed de actividad reciente, campana de alertas) · Transversal (WebSocket `/ws/alertas/`, shell del backoffice) | `#rbac` `#api` `#sesion` `#ui` | Auditoría integral oct-2026 — fichas SEC-12, la 2.ª mitad de SEC-11, R0b-04, R0b-05, R0b-09, G1c-04, G1c-17 y G3-03 (Ola 2, PRs 3 y 4 en un solo PR) | 08/10/2026 | 🟢 **Hecho** (D-11 y D-12 aplicadas por default) | No requiere |
 | 180 | Las escrituras que fallan no dejan nada a medias: ni medio caso, ni un padrón vacío, ni un adjunto huérfano | Becas (aprobación de casos, link público de inscripción, padrón propio del relevamiento) · Dispositivos (admisión, lista de espera y traslado) · Transversal (`core/archivos.py`) | `#datos` `#cupos` `#relevamientos` `#metodo` | Auditoría integral oct-2026 — 2.ª parte de la ficha RED-35 (Ola 3, PR 9 — **cierra la ola**) | 08/10/2026 | 🟢 **Hecho** | No requiere |
 | 182 | Subir el padrón y abrir el cupo dejan de rozar el timeout, y «cupo disponible» pasa a ser tres nombres distintos | Becas (carga de padrón y cruce automático, pantalla de cupo y lista de espera, configuración de segmentos, API de la app de campo) · Transversal (caché de ciudadanos, paginación de bandejas, presupuestos de performance) | `#performance` `#cupos` `#relevamientos` `#datos` | Auditoría integral oct-2026 — fichas PERF-04, PERF-16, PERF-02 y la 2.ª parte de RED-49 (Ola 4, PRs 1 y 2) | 08/10/2026 | 🟢 **Hecho** | No requiere |
-| 183 | El circuito de SIIS deja de pagar por caso lo que es igual para todos | Becas (proceso masivo a SIIS, pantalla del masivo, comandos `procesar_casos_siis` y `validar_casos_siis`) · Transversal (presupuestos de performance, seed de performance, caché de ciudadanos) | `#siis` `#performance` `#relevamientos` `#datos` | Auditoría integral oct-2026 — fichas PERF-01 (+V4-NEW-02), PERF-19, PERF-07 y PERF-06 (Ola 4, PR 3) | 08/10/2026 | 🟢 **Hecho** | `programas.0082` (dos índices, online) |
+| 186 | El circuito de SIIS deja de pagar por caso lo que es igual para todos | Becas (proceso masivo a SIIS, pantalla del masivo, comandos `procesar_casos_siis` y `validar_casos_siis`) · Transversal (presupuestos de performance, seed de performance, caché de ciudadanos) | `#siis` `#performance` `#relevamientos` `#datos` | Auditoría integral oct-2026 — fichas PERF-01 (+V4-NEW-02), PERF-19, PERF-07 y PERF-06 (Ola 4, PR 3) | 08/10/2026 | 🟢 **Hecho** | `programas.0082` (dos índices, online) |
 
 **Notas del índice**
 
@@ -26916,7 +26916,7 @@ exige que los dos coincidan.
 
 ---
 
-# Cambio 183 — El circuito de SIIS deja de pagar por caso lo que es igual para todos
+# Cambio 186 — El circuito de SIIS deja de pagar por caso lo que es igual para todos
 
 🟢 **HECHO — 08/10/2026**
 
