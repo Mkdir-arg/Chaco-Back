@@ -4,19 +4,33 @@ El rol ve el segmento que contiene su subsegmento solo como contexto: no puede
 configurarlo ni asomarse a los subsegmentos de sus pares.
 """
 
+import re
 from datetime import timedelta
 from io import StringIO
 
-from django.contrib.auth.models import Group, User
+from django.contrib.auth.models import Group, Permission, User
+from django.contrib.contenttypes.models import ContentType
 from django.core.management import call_command
+from django.db import connection
 from django.http import Http404
 from django.test import RequestFactory, TestCase
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
 
+from core import rbac
+from legajos.models import Ciudadano
 from programas.forms import ConvocatoriaForm, RelevamientoForm, SubsegmentoForm
 from programas.management.commands.seed_becas import ROL_ADMIN, ROL_COORDINADOR_REGIONAL
-from programas.models import Convocatoria, Segmento, Subsegmento
+from programas.models import (
+    Convocatoria,
+    Formulario,
+    Relevamiento,
+    RequisitoNativo,
+    Segmento,
+    Subsegmento,
+    TipoCampo,
+)
 from programas.services.autorizacion import (
     convocatorias_visibles,
     es_coordinador_regional_becas,
@@ -29,9 +43,21 @@ from programas.services.autorizacion import (
     usuarios_coordinadores_regionales_becas,
 )
 from programas.views.configuracion import segmento_subsegmentos_json
+from users.models import Capacidad
 
 
-class CoordinadorRegionalTests(TestCase):
+def _capacidad(codigo):
+    """El ``Permission`` de una capacidad del catálogo (mismo mecanismo que el seed)."""
+    return Permission.objects.get(
+        content_type=ContentType.objects.get_for_model(Capacidad),
+        codename=rbac.codename_de(codigo),
+    )
+
+
+class _BaseRegional(TestCase):
+    """Dos regionales con un subsegmento cada uno en el **mismo** segmento, que es
+    donde viven los bordes: Ana y Beto son pares."""
+
     def setUp(self):
         call_command("seed_becas", stdout=StringIO())
         self.rol = Group.objects.get(name=ROL_COORDINADOR_REGIONAL)
@@ -64,6 +90,8 @@ class CoordinadorRegionalTests(TestCase):
         user.groups.add(self.rol)
         return user
 
+
+class CoordinadorRegionalTests(_BaseRegional):
     # --- Identificación del rol ---------------------------------------------
 
     def test_el_rol_se_reconoce(self):
@@ -248,6 +276,166 @@ class CoordinadorRegionalTests(TestCase):
 
         with self.assertRaises(Http404):
             segmento_subsegmentos_json(request, self.otro_segmento.pk)
+
+
+class AlcanceDeCupoTests(_BaseRegional):
+    """SEC-21: el cupo se filtraba por segmento, no por alcance.
+
+    El Coordinador Regional entra al segmento que contiene su subsegmento, así que la
+    pantalla de cupo le mostraba —con nombre y DNI— los beneficiarios, la espera y los
+    pendientes de los subsegmentos de sus pares, y con ``becas.beneficiario.editar``
+    tildado podía darlos de baja por URL directa. Contradecía el Cambio 18
+    («ni por URL directa»).
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.rol.permissions.add(_capacidad("becas.beneficiario.editar"))
+        self.rol.permissions.add(_capacidad("becas.beneficiario.ver"))
+        self.territorial = User.objects.create_user("terri-cupo", password="x")
+        self.propio = self._caso(self.sub_ana, "Propia", "30111000")
+        self.del_par = self._caso(self.sub_beto, "Del par", "30111001")
+
+    def _caso(self, subsegmento, etiqueta, dni):
+        convocatoria = Convocatoria.objects.create(
+            nombre=f"Conv {etiqueta}",
+            segmento=subsegmento.segmento,
+            subsegmento=subsegmento,
+            fecha_inicio=self.fecha_inicio,
+            fecha_fin=self.fecha_fin,
+        )
+        relevamiento = Relevamiento.objects.create(
+            convocatoria=convocatoria,
+            territorial=self.territorial,
+            fecha_asignada=self.fecha_inicio,
+            fecha_hasta=self.fecha_fin,
+            zona=f"Zona {etiqueta}",
+        )
+        ciudadano = Ciudadano.objects.create(dni=dni, nombre=etiqueta, apellido="Cupo")
+        return Formulario.objects.create(
+            relevamiento=relevamiento,
+            ciudadano=ciudadano,
+            estado=Formulario.Estado.APROBADO,
+            celular="3624000000",
+        )
+
+    def test_regional_no_ve_casos_de_par_en_cupo(self):
+        self.client.force_login(self.ana)
+
+        respuesta = self.client.get(reverse("becas:cupo_segmento", args=[self.segmento.pk]))
+
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertContains(respuesta, self.propio.ciudadano.dni)
+        self.assertNotContains(respuesta, self.del_par.ciudadano.dni)
+
+    def test_regional_no_da_baja_caso_de_par(self):
+        self.client.force_login(self.ana)
+
+        respuesta = self.client.post(reverse("becas:beneficiario_dar_baja", args=[self.del_par.pk]))
+
+        self.assertEqual(respuesta.status_code, 403)
+        self.del_par.refresh_from_db()
+        self.assertEqual(self.del_par.estado, Formulario.Estado.APROBADO)
+
+    def test_regional_sigue_dando_de_baja_su_propio_caso(self):
+        """La otra mitad del corte: acotar no puede dejar al rol sin su trabajo."""
+        self.client.force_login(self.ana)
+
+        respuesta = self.client.post(reverse("becas:beneficiario_dar_baja", args=[self.propio.pk]))
+
+        self.assertEqual(respuesta.status_code, 302)
+        self.propio.refresh_from_db()
+        self.assertEqual(self.propio.estado, Formulario.Estado.BAJA)
+
+    def test_el_admin_del_programa_sigue_viendo_todo_el_segmento(self):
+        admin = User.objects.create_user("admin-cupo", password="x")
+        admin.groups.add(Group.objects.get(name=ROL_ADMIN))
+        self.client.force_login(admin)
+
+        respuesta = self.client.get(reverse("becas:cupo_segmento", args=[self.segmento.pk]))
+
+        self.assertContains(respuesta, self.propio.ciudadano.dni)
+        self.assertContains(respuesta, self.del_par.ciudadano.dni)
+
+    def test_el_admin_no_arrastra_el_in_de_convocatorias(self):
+        """Para el admin `convocatorias_visibles` son **todas**: el `IN` no recorta nada
+        y se repetía en las tres consultas de una pantalla que ya costó un 500 por
+        `read_timeout` en ECOM. El del Regional, que sí recorta, se queda."""
+        patron = re.compile(r"convocatoria_id.{0,2}\s+IN\s")
+        admin = User.objects.create_user("admin-cupo-sql", password="x")
+        admin.groups.add(Group.objects.get(name=ROL_ADMIN))
+
+        self.client.force_login(self.ana)
+        with CaptureQueriesContext(connection) as del_regional:
+            self.client.get(reverse("becas:cupo_segmento", args=[self.segmento.pk]))
+        self.client.force_login(admin)
+        with CaptureQueriesContext(connection) as del_admin:
+            self.client.get(reverse("becas:cupo_segmento", args=[self.segmento.pk]))
+
+        self.assertTrue(any(patron.search(c["sql"]) for c in del_regional.captured_queries))
+        self.assertFalse(any(patron.search(c["sql"]) for c in del_admin.captured_queries))
+
+
+class ConfiguracionDelSegmentoTests(_BaseRegional):
+    """SEC-30: lo que es del segmento entero no lo configura el Regional.
+
+    Estaba latente —al rol sembrado no se le tildan `becas.requisito.*` ni
+    `subsegmento.crear`—, y se vuelve explotable el día que alguien las tilda en el ABM
+    de Roles, que es exactamente para lo que la pantalla está.
+    """
+
+    def setUp(self):
+        super().setUp()
+        for codigo in ("becas.requisito.crear", "becas.requisito.editar", "becas.subsegmento.crear"):
+            self.rol.permissions.add(_capacidad(codigo))
+        self.client.force_login(self.ana)
+
+    def _requisito(self, **anclaje):
+        return RequisitoNativo.objects.create(texto="Constancia de domicilio", tipo=TipoCampo.STRING, **anclaje)
+
+    def test_regional_no_edita_el_requisito_del_subsegmento_de_un_par(self):
+        requisito = self._requisito(segmento=self.segmento, subsegmento=self.sub_beto)
+
+        respuesta = self.client.post(reverse("becas:requisito_eliminar", args=[requisito.pk]))
+
+        self.assertEqual(respuesta.status_code, 403)
+        self.assertTrue(RequisitoNativo.objects.filter(pk=requisito.pk).exists())
+
+    def test_regional_no_toca_el_requisito_de_todo_el_segmento(self):
+        requisito = self._requisito(segmento=self.segmento)
+
+        respuesta = self.client.post(reverse("becas:requisito_eliminar", args=[requisito.pk]))
+
+        self.assertEqual(respuesta.status_code, 403)
+        self.assertTrue(RequisitoNativo.objects.filter(pk=requisito.pk).exists())
+
+    def test_regional_sigue_borrando_el_requisito_de_su_subsegmento(self):
+        requisito = self._requisito(segmento=self.segmento, subsegmento=self.sub_ana)
+
+        respuesta = self.client.post(reverse("becas:requisito_eliminar", args=[requisito.pk]))
+
+        self.assertEqual(respuesta.status_code, 302)
+        self.assertFalse(RequisitoNativo.objects.filter(pk=requisito.pk).exists())
+
+    def test_regional_no_crea_subsegmentos_en_el_segmento(self):
+        respuesta = self.client.post(
+            reverse("becas:subsegmento_crear", args=[self.segmento.pk]),
+            {"nombre": "Mío nuevo", "cupo_maximo": 10},
+        )
+
+        self.assertEqual(respuesta.status_code, 403)
+        self.assertFalse(Subsegmento.objects.filter(nombre="Mío nuevo").exists())
+
+    def test_el_admin_del_programa_sigue_configurando_el_segmento(self):
+        requisito = self._requisito(segmento=self.segmento)
+        admin = User.objects.create_user("admin-config", password="x")
+        admin.groups.add(Group.objects.get(name=ROL_ADMIN))
+        self.client.force_login(admin)
+
+        respuesta = self.client.post(reverse("becas:requisito_eliminar", args=[requisito.pk]))
+
+        self.assertEqual(respuesta.status_code, 302)
+        self.assertFalse(RequisitoNativo.objects.filter(pk=requisito.pk).exists())
 
 
 class ReferenteDelSubsegmentoFormTests(TestCase):

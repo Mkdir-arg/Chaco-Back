@@ -418,7 +418,7 @@ class CamposPropiosEnElMotorRealTests(MotorRealMixin, TestCase):
 
     def test_el_excel_por_persona_trae_la_columna_propia_sin_leer_la_foto_por_fila(self):
         with CaptureQueriesContext(connection) as capturadas:
-            reporte, _alcance = dashboard.respuestas_por_persona(self.conv)
+            reporte, _alcance = dashboard.respuestas_por_persona(self.conv, incluir_publicos=True)
 
         cabeceras = list(reporte.encabezados)
         self.assertIn("¿Sos madre?", cabeceras)

@@ -22,6 +22,7 @@ from portal.tests.test_inscripcion_envio import _BasePaso2Test, _clave_vinculo, 
 from portal.views.inscripcion import MENSAJE_YA_INSCRIPTO
 from programas.admin import RelevamientoAdmin
 from programas.models import Convocatoria, Formulario, GrupoRequisito, OrigenRequisito, Relevamiento, Segmento
+from programas.services import autorizacion
 from programas.services.becas import definicion_formulario
 from programas.services.inscripcion_publica import crear_formulario_publico
 from programas.views import relevamientos as vistas_rel
@@ -305,7 +306,11 @@ class ListadosPublicosScopeTests(TestCase):
         view.request = request
         view.object = self.conv
         with (
-            patch.object(vistas_rel, "_puede_publico", return_value=False),
+            # RN-P13 vive en `services.autorizacion` desde la Ola 2 (PR 5): se parchea
+            # ahí —donde lo leen los filtros— y en la vista, que tiene su propia copia
+            # del nombre importado.
+            patch.object(autorizacion, "puede_relevamiento_publico", return_value=False),
+            patch.object(vistas_rel, "puede_relevamiento_publico", return_value=False),
             patch.object(vistas_rel, "segmentos_visibles", return_value=Segmento.objects.all()),
             patch.object(vistas_rel, "convocatorias_visibles", return_value=Convocatoria.objects.all()),
             patch.object(vistas_rel, "subsegmentos_visibles", return_value=[]),
