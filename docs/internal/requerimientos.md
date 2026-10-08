@@ -361,6 +361,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 187 | La pasada horaria de alertas deja de recorrer el padrón y de recrear lo que ya existe | Legajos (comando `generar_alertas`, servicio de alertas, señal de legajo) · Becas (pantalla del proceso masivo) · Transversal (seed de performance) | `#performance` `#datos` `#ui` | Auditoría integral oct-2026 — fichas PERF-20 y LEG-01 (Ola 4, PR 4) + 3 seguimientos MINOR de #639 | 08/10/2026 | 🟢 **Hecho** | No requiere |
 | 188 | `/media/` deja de ser «cualquiera con sesión baja cualquier archivo», y los uploads miran lo que entra | Transversal — descarga de `/media/` (adjuntos, fotos, contactos, F-00, merenderos, adjuntos y padrones de Becas) · Dispositivos (campo ARCHIVO del F-00) · Merenderos (solicitud) · Becas (carga del padrón) | `#rbac` `#datos` `#infra` `#api` | Auditoría integral oct-2026 — fichas SEC-09 etapa 2, SEC-15, SEC-31, R0b-07 y R0b-08 (Ola 2, PR 7) | 08/10/2026 | 🟢 **Hecho** (**D-15 = PDF e imagen**; `X-Accel-Redirect` preparado y apagado tras `MEDIA_X_ACCEL`, D-09/H-05) | `legajos.0010` y `programas.0083` (las dos sin DDL) |
 | 190 | El chequeo de esquema del CI deja de marcar como huérfanas las tablas que carga el organismo | Transversal — CI (job «Migrate ida y vuelta»), `verificar_esquema_migraciones` | `#infra` `#datos` | Juez, por la regresión de #639 que dejaba rojo ese job en todo PR posterior | 08/10/2026 | 🟢 **Hecho** | No requiere |
+| 192 | Configuración, admin y las tres fichas de performance que se cerraron midiendo | Transversal (conexiones de base, Redis de sesiones, `/admin/` de Django) · Becas (link público: vigencia de la sesión anónima; banco de medición) · Legajos (admin de contactos y vínculos) | `#performance` `#infra` `#sesion` `#datos` | Auditoría integral oct-2026 — fichas PERF-08, PERF-10, G1c-09, G1c-11, PERF-12, PERF-13 y PERF-15 (Ola 4, PRs 6, 7 y 8) | 08/10/2026 | 🟢 **Hecho** (PERF-12, PERF-13 y PERF-15 cerradas con la medición como evidencia: **ningún índice entra**; `REDIS_SESSIONS_DB` preparada y apagada, H-06) | No requiere |
 
 **Notas del índice**
 
@@ -28496,3 +28497,208 @@ ruff limpio.
 ## Pendientes
 
 Ninguno.
+
+---
+
+# Cambio 192 — Configuración, admin y las tres fichas de performance que se cerraron midiendo
+
+🟢 **HECHO — 08/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal (conexiones de base, Redis de sesiones, `/admin/` de Django) · Becas (link público: vigencia de la sesión anónima; banco de medición) · Legajos (admin de contactos y vínculos) |
+| **Etiquetas** | `#performance` `#infra` `#sesion` `#datos` |
+| **Solicitante** | Auditoría integral oct-2026 — fichas PERF-08, PERF-10 (PR 6), G1c-09, G1c-11 (PR 7), PERF-12, PERF-13 y PERF-15 (PR 8) |
+| **Fecha del pedido** | 08/10/2026 |
+| **Issue / épica** | Auditoría oct-2026, Ola 4 (Performance), ítems 6, 7 y 8 |
+| **Partes afectadas** | `config/settings.py` · `portal/services/inscripcion.py` · `portal/views/inscripcion.py` · `programas/admin.py` · `legajos/admin/__init__.py` · `legajos/admin/contactos.py` · `scripts/perf_mysql/` (banco) · tests de `core`, `portal`, `programas` y `legajos` |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Siete fichas de la Ola 4 en tres grupos. Dos de configuración, dos del `/admin/` y tres
+que la auditoría dejó explícitamente **sin resolver, para medir primero en el banco
+MariaDB y recién ahí decidir si entraba un índice**.
+
+- **PERF-08** — `CONN_MAX_AGE = 60` bajo daphne no reutiliza ninguna conexión. La sonda
+  de la auditoría (`poc/perf_harness/asgi_conn_probe.py`) midió 200 requests → 200 hilos
+  y 200 conexiones nuevas, con 9 quedando abiertas hasta que pasó el GC cíclico (50 de 50
+  con el GC apagado).
+- **PERF-10** — sesiones y caché comparten base de Redis con `allkeys-lru 350mb`, y cada
+  visita al link público —persona, buscador o bot— estrena una sesión de 24 h porque el
+  GET del paso 1 escribe el desafío anti-bot.
+- **G1c-09** — las fichas del `/admin/` crecen con la tabla: la de un `Formulario` pasa
+  de 19 a 46 consultas con 5 → 35 casos y el alta de una `DerivacionPrograma` de 21 a 80.
+- **G1c-11** — N+1 en los listados del `/admin/`.
+- **PERF-12, PERF-13 y PERF-15** — el `COUNT` del cupo del link, la bandeja de revisión
+  filtrada por un estado raro y los conteos del padrón en los dos detalles. Las tres con
+  la misma instrucción: medir y decidir.
+
+## Alcance acordado
+
+Entran las siete fichas. Queda afuera el resto de la Ola 4 (el ítem 5 —exports y
+dashboard— y el 9 —red de seguridad—) y todo lo que viva en `users/`, que la **Ola 2
+PR 1** tiene tomado en paralelo.
+
+## Decisiones tomadas
+
+- **`CONN_MAX_AGE` lo decide el runtime, no el ambiente.** `APP_RUNTIME` pasa a leerse
+  una vez al principio de `settings.py` —hasta ahora se leía suelto, solo para
+  `WEBSOCKETS_ENABLED`— y `CONN_MAX_AGE` vale **0 con daphne y 60 con todo lo demás**.
+  Django guarda la conexión persistente en un `local()` por hilo y bajo ASGI cada request
+  lo atiende otro hilo del pool de `asgiref`: con 60 no se reutiliza nada y además
+  quedan conexiones huérfanas. Bajo gunicorn —el contenedor `web` de icore— los hilos sí
+  se reusan y el minuto sirve, así que no se toca. Reutilizar de verdad bajo daphne
+  exigiría WSGI, que es una decisión de despliegue y no de este PR.
+- **La base de Redis de las sesiones se separa con una variable, y la variable nace
+  apagada.** `REDIS_SESSIONS_DB` manda el alias `sessions` a otra base; sin ella, su
+  `LOCATION` es **exactamente** `REDIS_URL`, byte por byte. Se prepara y no se enciende
+  porque el Redis de ECOM no es nuestro (**H-06**) y porque mover la base con sesiones
+  vivas manda al login a todo el que esté adentro: va en una ventana coordinada.
+- **Lo que separar la base no arregla, dicho explícitamente:** `maxmemory` es del
+  servidor y no de la base, así que una caché que llena los 350 MB sigue pudiendo
+  desalojar sesiones. Lo que sí arregla —y era la mitad de G1c-12— es el `cache.clear()`:
+  en django_redis es un FLUSHDB, y con las bases separadas deja de desloguear a todos.
+- **La URL se reescribe conservando todo menos la base.** Con `urlsplit`/`urlunsplit`, no
+  con un `replace` del último carácter: ECOM puede entregar
+  `rediss://usuario:clave@host:6380/1?ssl_cert_reqs=none` y lo único que tiene que
+  cambiar es el `1`.
+- **La sesión anónima del link vive una hora; la que pasó el paso 1, un día.** De las dos
+  alternativas que la ficha propone, se aplica la segunda. La primera —no crear la sesión
+  en el GET y generar el desafío en el POST— **no se puede**: con el captcha aritmético el
+  GET tiene que mostrar la pregunta, y mostrarla sin guardarla deja al POST sin contra
+  qué validarla. `acotar_sesion_anonima` baja la vigencia a 3.600 s **solo** mientras la
+  sesión no tiene nada más que las dos claves del captcha, y `restaurar_vigencia_sesion`
+  la devuelve al default apenas el paso 1 guarda la identificación. Así no se repite el
+  error que el **Cambio 91** ya descartó: acortar la sesión entera hacía perder el paso 2
+  a medio completar, con los adjuntos ya elegidos. La regla mira el **contenido** de la
+  sesión y no la pantalla, así que quien ya pasó el paso 1 de otro relevamiento conserva
+  sus 24 h.
+- **En el `/admin/`, `raw_id_fields` para toda FK que apunte a una tabla que crece con el
+  padrón**, y combo para las que tienen decenas de filas (`programa`, `segmento`,
+  `programa_origen`/`programa_destino`). `raw_id_fields` cambia el widget, no el
+  `ModelForm` ni los permisos: nadie gana ni pierde acceso, y hay tests que lo afirman.
+- **Corrección code-first de G1c-11: de los cinco listados que la ficha nombra, solo tres
+  eran N+1.** Django ya le aplica `select_related()` **sin argumentos** a toda
+  `ChangeList` con un campo relacionado en `list_display`
+  (`ChangeList.apply_select_related`), y eso cubre las FK… pero `select_related()` sin
+  argumentos sigue **únicamente las FK no nulas**. Los que fallaban eran, exactamente, los
+  que tienen una FK nulable (`TracaFormulario.editado_por`, `Relevamiento.territorial`) o
+  un salto de segundo nivel en el `__str__` del objeto mostrado (`Formulario.__str__` abre
+  su ciudadano). `HistorialContactoAdmin` y `VinculoFamiliarAdmin` **no** llevan
+  `list_select_related`: sus cuatro FK son no nulas y declararlo no cambiaría ninguna
+  consulta.
+- **Las tres fichas de medición se cierran con la medición como evidencia, sin tocar
+  código, y ningún índice entra.** Cerrar también es eso. El detalle, abajo.
+- **El índice de PERF-13 se probó antes de descartarlo, y con las estadísticas
+  controladas.** El primer ensayo dio una mejora de 10× que era enteramente `ANALYZE
+  TABLE`: estadísticas frescas, no el índice. Con `ANALYZE TABLE` antes de cada ronda y
+  dos rondas A/B pareadas, no hay ninguna mejora reproducible y la página profunda queda
+  peor en las dos. En el caso caro MariaDB **ni siquiera lo elige**.
+
+## Implementación
+
+**PERF-08 y PERF-10 (`config/settings.py`).** `APP_RUNTIME` como constante del módulo;
+`CONN_MAX_AGE` condicional; `REDIS_SESSIONS_DB` + `_url_en_otra_base` →
+`REDIS_SESSIONS_URL`, que es lo que usa el alias `sessions`.
+
+**PERF-10, segunda mitad (`portal/`).** `acotar_sesion_anonima` y
+`restaurar_vigencia_sesion` en `portal/services/inscripcion.py`, con
+`SESION_ANONIMA_SEGUNDOS` (`INSCRIPCION_SESION_ANONIMA_SEGUNDOS`, 3.600) y
+`CLAVES_SOLO_CAPTCHA`. La primera la llama `nuevo_captcha`; la segunda, el paso 1 cuando
+guarda la identificación.
+
+**G1c-09 y G1c-11 (`programas/admin.py`, `legajos/admin/`).** `raw_id_fields` en las seis
+fichas; `list_select_related` en los tres listados que lo necesitan;
+`search_fields = ("campo", "=formulario__id")` en las trazas; se borra el
+`prefetch_related("inscripciones_programas__programa")` de `CiudadanoAdmin`, que
+alimentaba una caché que ni el `list_display` ni los `fieldsets` leen. El módulo estrena
+un docstring que explica las dos reglas, incluida la de las FK nulables.
+
+**Banco (`scripts/perf_mysql/`).** Dos scripts nuevos y un target más, porque las tres
+fichas de medición necesitaban datos que el banco no tenía:
+
+- `escenarios_borde.py` — marca 400 de 40.000 casos como `BAJA` (el «estado raro» de
+  PERF-13; `escalar_bench` solo reparte APROBADO/RECHAZADO/ENVIADO) y carga el padrón de
+  la convocatoria con 50.000 o 100.000 filas (PERF-15).
+- `medir_consultas_borde.py` — mide consulta por consulta con `EXPLAIN` y promediando
+  muchas corridas. Hizo falta porque `bench_mysql.py` cronometra con `perf_counter`, que
+  en Windows tiene una granularidad de **15,6 ms**: una consulta de 3 ms y una de 14 ms
+  miden las dos «16,0». El SQL no se transcribe a mano: se corre el código real (la
+  property del cupo, el queryset de la bandeja, el `aggregate` del detalle) y se captura
+  lo que salió hacia el motor.
+- `bench_mysql.py` — target `revision_bandeja_estado_raro`
+  (`/becas/revision/?estado=BAJA&page=10`).
+
+## Validación
+
+Banco **MariaDB 10.11** (`mariadb:10.11`, `OPTIONS` de producción, `read_timeout` 10 s),
+`chaco_perf_ci`, relevamiento público llevado a **40.000 casos**, padrón de la
+convocatoria a **50.000** y después a **100.000** filas:
+
+| Ficha | Consulta | Medición | Veredicto |
+|---|---|---|---|
+| PERF-12 | `COUNT(*) … WHERE relevamiento_id = X`, 40.000 casos | **7,0-8,4 ms**; `ref=const`, `Using index` (4,2 ms con 20.000: escala lineal) | Umbral del Cambio 91: 20 ms. **No se denormaliza** |
+| PERF-13 | Bandeja `estado=BAJA` (400 de 40.000) página 10 | **2,4-4,9 ms**; `key=programas_f_estado_e0feb6_idx`, `rows=400`, el `filesort` ordena esas 400 | El estado raro es el caso **barato**. **Sin índice** |
+| PERF-13 | Índice `(estado, creado, relevamiento)`, 2 rondas A/B pareadas | BAJA p10 3,82→2,69 y 3,25→4,87 · su COUNT 2,62→2,61 y 3,23→2,79 · APROBADO p10 6,20→16,57 y 8,78→7,99 · APROBADO p400 46,67→61,35 y 49,55→73,01 | Ninguna mejora reproducible; la página profunda queda **peor** en las dos rondas y en el caso caro el motor **no lo elige**. **No entra** |
+| PERF-15 | `aggregate` del padrón del detalle de convocatoria | 22,5-42,7 ms con 50.000 filas · **48,4 ms** con 100.000 | 0,5 % del `read_timeout`. **No se denormaliza** |
+| PERF-15 | `Count` anotado del detalle de relevamiento | 21,0-23,5 ms con 50.000 · **23,8 ms** con 100.000 | Duplicar el padrón no lo movió |
+
+El `ALTER TABLE programas_formulario ADD INDEX …, ALGORITHM=INPLACE, LOCK=NONE` del
+ensayo lo aceptó MariaDB en **116 ms** sobre 42.000 filas: si alguna vez hace falta un
+índice en esa tabla, aplicarlo no es el problema.
+
+Rutas del banco, antes y después del PR (mismos conteos: nada de esto agrega consultas):
+`portal_inscripcion_paso1` 6, `becas_revision` 15, `revision_bandeja_estado_raro` 15,
+`relevamiento_publico_detalle` 12, `convocatoria_publica_detalle` 20.
+
+Suite local (`.venv312`, Python 3.12 + Django 5.2.17, igual al CI): `manage.py check` sin
+issues · `check --deploy` con los 4 avisos preexistentes del entorno de test ·
+`makemigrations --check --dry-run` «No changes detected» · `test core portal` 1.243 OK ·
+`test programas legajos` 2.905 OK · `test --tag performance` 8 OK · `ruff check .` limpio
+y `ruff format --check` sobre lo tocado.
+
+Los 24 tests nuevos se vieron **en rojo** contra `HEAD` antes del cambio (se revirtieron
+los archivos de implementación y se corrió la misma selección) y en verde después.
+
+## Pendientes / a definir
+
+- **PERF-08 · medir en ECOM.** `SHOW STATUS LIKE 'Threads_connected'` antes y después del
+  deploy. Es la única parte de la ficha que no se puede correr desde acá.
+- **PERF-10 · H-06.** Qué política de evicción tiene el Redis de ECOM y si acepta una base
+  aparte —o una instancia— para las sesiones. Hasta que conteste, `REDIS_SESSIONS_DB`
+  queda sin definir y no cambia nada.
+- **`OptimizedGroupAdmin` prefetchea `user_set` sin usarlo** (parte de G1c-11). Vive en
+  `users/admin.py`, que es el alcance de la **Ola 2 PR 1**, abierta en paralelo: no se
+  tocó. Queda para quien cierre esa rama.
+- **El listado de contactos del `/admin/` paga una consulta por fila** que no se arregla
+  desde ahí: `LegajoAtencion.__str__` abre su property `ciudadano`, y el vínculo
+  legajo↔inscripción es un `UUIDField` suelto (`InscripcionPrograma.legajo_id`), no una
+  FK. Hay un test que fija que sea **exactamente una** por fila, para que no vuelvan a ser
+  tres.
+- **La bandeja de revisión es O(offset) y el `IN` de relevamientos se materializa.** Medido
+  de paso: con un estado **común** (`APROBADO`, 17.864 de 40.000) la página 10 cuesta 6-17
+  ms y la 400, 40-99 ms; sin filtro, la página 10 cuesta 22-36 ms. El `EXPLAIN` muestra que
+  el `relevamiento_id IN (2.001 ids)` pasa el `in_predicate_conversion_threshold` de
+  MariaDB y se vuelve una tabla derivada materializada. Está a dos órdenes de magnitud del
+  `read_timeout`, así que **no abre ficha**; queda anotado para quien retome la paginación
+  por keyset, que el propio `revision.py` ya nombra como la salida.
+
+## Reversión
+
+Todo es código y configuración: no hay migración ni cambio de datos. Revertir el commit
+devuelve `CONN_MAX_AGE=60` bajo daphne, las sesiones a la base de la caché, los
+`<select>` con la tabla entera en el `/admin/` —incluido el **500** del alta de
+inscripción— y las sesiones de 24 h por visita al link público. Si `REDIS_SESSIONS_DB`
+llegó a estar definida en algún ambiente, revertir deja esas sesiones en la base vieja:
+quien esté logueado vuelve al login una vez.
+
+## Historial
+
+- **08/10/2026 — alta.** Las siete fichas, en un solo PR: dos de configuración, dos del
+  `/admin/` y tres cerradas con la medición como evidencia. **Hallazgo nuevo, encontrado
+  por el test de G1c-09:** `/admin/programas/inscripcionprograma/add/` y su ficha de
+  edición respondían **500** —`fecha_inscripcion` es `editable=False` en el modelo y
+  estaba en los `fieldsets` sin ser de solo lectura, así que Django levantaba
+  `FieldError`—. No tenía ficha propia porque el `/admin/` no estaba en ningún test hasta
+  ahora; se arregla en el mismo PR sumándola a `readonly_fields`, donde se sigue viendo.

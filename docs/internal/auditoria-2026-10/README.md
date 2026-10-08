@@ -1,5 +1,11 @@
 # Auditoría integral de DATAÑACH (Chaco) — octubre 2026
 
+## Estado al 08-oct-2026 (Ola 4, PRs 6, 7 y 8: configuración, admin y las tres fichas que se cerraron midiendo)
+
+| PR | Cambio | Fichas | Estado | Qué quedó abierto |
+|---|---|---|---|---|
+| Ola 4 PRs 6, 7 y 8 | 192 | PERF-08 ✅ · PERF-10 ✅ · G1c-09 ✅ · G1c-11 ✅ · PERF-12 ✅ · PERF-13 ✅ · PERF-15 ✅ | ✅ | **Las 7 fichas (12 h), sin migraciones y sin DDL.** (1) **PERF-08:** `CONN_MAX_AGE=60` bajo daphne no reutiliza nada —cada request lo atiende otro hilo del pool de `asgiref`, así que la conexión persistente queda huérfana hasta el GC— y pasa a **0 cuando `APP_RUNTIME=daphne`**, conservando el minuto bajo gunicorn, que es lo que corre el `web` de icore. (2) **PERF-10:** las sesiones pueden mudarse a otra base de Redis con `REDIS_SESSIONS_DB` —**preparado y apagado**, porque el Redis de ECOM no es nuestro (H-06) y mover la base con sesiones vivas manda a todos al login—, y la visita que solo abre el link público deja una sesión de **1 h en vez de 24**, con la vigencia completa restaurada apenas el paso 1 guarda la identificación (el paso 2 y sus adjuntos no se pueden perder, Cambio 91). (3) **G1c-09:** las seis fichas del `/admin/` que armaban un `<select>` con la tabla entera pasan a `raw_id_fields` y dejan de crecer: la ficha de un caso iba de 19 a 46 consultas con 5 → 35 filas, y el alta de una derivación de 21 a 80. (4) **G1c-11:** tres de los cinco listados que la ficha daba por N+1 lo eran —Django ya aplica `select_related()` sin argumentos, pero **solo sigue las FK no nulas**—; se arreglan los tres, se saca el `prefetch_related` que `CiudadanoAdmin` no usaba y la traza se busca por id exacto. (5) **PERF-12, PERF-13 y PERF-15 se cierran con la medición como evidencia, sin tocar código**: en el banco MariaDB 10.11 con 40.000 casos y padrones de 50.000 y 100.000 filas, el `COUNT` del cupo cuesta 7-8 ms (umbral: 20), la bandeja por estado raro 2,4-4,9 ms y los conteos del padrón 23-48 ms. **Ningún índice entra**: el que PERF-13 proponía se probó en dos rondas A/B pareadas y MariaDB ni lo elige. **Hallazgo nuevo:** `/admin/programas/inscripcionprograma/add/` respondía **500** (`fecha_inscripcion` es `editable=False` y estaba en los `fieldsets` sin ser readonly); lo encontró el test de G1c-09 y se arregla en el mismo PR. **Abierto:** la medición de `Threads_connected` en ECOM (PERF-08) y la respuesta de ECOM sobre su Redis (H-06) son pasos del PM; el `prefetch_related("user_set")` de `OptimizedGroupAdmin` queda para la Ola 2 PR 1, que tiene `users/` tomada; y el listado de contactos del admin conserva una consulta por fila que no se arregla desde ahí, porque `InscripcionPrograma.legajo_id` es un `UUIDField` suelto y no una FK |
+
 ## Estado al 08-oct-2026 (Ola 4, PRs 1 y 2: padrón y cupo — **arranca la Ola 4**)
 
 | PR | Cambio | Fichas | Estado | Qué quedó abierto |
@@ -2097,8 +2103,9 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
 - **PRs y orden:** (1) ✅ PERF-04 + PERF-16 (padrón; prototipo listo) 10 h (Cambio 182) · (2) ✅ PERF-02 (cupo) 2 h
   (Cambio 182; los PRs 1 y 2 salieron juntos) · (3) ✅ PERF-01 (+V4-NEW-02),
   PERF-19, PERF-07, PERF-06 (circuito SIIS) 8 h (Cambio 186) · (4) ✅ PERF-20 + LEG-01 (alertas) 6 h (Cambio 187) · (5) PERF-03 (`lxml` + botón CSV),
-  G1b-11, G1b-12 (exports y dashboard) 14 h · (6) PERF-08, PERF-10 (config) 4 h · (7) G1c-09, G1c-11 (admin) 4 h · (8)
-  PERF-12, PERF-13, PERF-15 (medir en el banco; índice solo si el plan lo pide) 4 h · (9) *Red de seguridad (04-oct):*
+  G1b-11, G1b-12 (exports y dashboard) 14 h · (6) ✅ PERF-08, PERF-10 (config) 4 h (Cambio 192) · (7) ✅ G1c-09, G1c-11
+  (admin) 4 h (Cambio 192) · (8) ✅ PERF-12, PERF-13, PERF-15 (medidas en el banco; **ningún índice entra**: el plan no
+  lo pide) 4 h (Cambio 192) · (9) *Red de seguridad (04-oct):*
   RED-62 (presupuestos que suben exigen justificación) y segundas partes de RED-10 (destinos del Performance Guard para el
   paso 2 del link y el alta por API), ✅ RED-49 (renombrar las tres acepciones de `cupo_disponible`, con PERF-02 —
   Cambio 182), RED-51

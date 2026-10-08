@@ -11,8 +11,11 @@ class CiudadanoAdmin(admin.ModelAdmin):
     ordering = ("apellido", "nombre")
     readonly_fields = ("creado", "modificado")
 
-    def get_queryset(self, request):
-        return super().get_queryset(request).prefetch_related("inscripciones_programas__programa")
+    # G1c-11: acá había un `get_queryset` con
+    # `prefetch_related("inscripciones_programas__programa")`. Ni el `list_display`
+    # (dni, apellido, nombre, activo, creado) ni los `fieldsets` abren las
+    # inscripciones, así que eran dos consultas extra por página —una de ellas con un
+    # `IN` de los 100 ciudadanos de la página— para alimentar una caché que nadie leía.
 
     fieldsets = (
         ("Información Personal", {"fields": ("dni", "nombre", "apellido", "fecha_nacimiento", "genero")}),

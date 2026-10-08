@@ -105,6 +105,17 @@ def _extra_targets():
                 "url": reverse("portal:inscripcion_paso1", args=[rel.token_publico]),
             }
         )
+    # PERF-13: la bandeja de personas filtrada por un estado que casi no existe. El
+    # recorte (relevamiento IN … AND estado = X) y el orden (creado DESC) viven en
+    # índices distintos, así que el motor elige uno y paga el otro. Lo crea
+    # `escenarios_borde.py`, que marca 400 de 20.000 casos como BAJA.
+    extras.append(
+        {
+            "key": "revision_bandeja_estado_raro",
+            "actor": "backoffice",
+            "url": reverse("becas:revision") + "?estado=BAJA&page=10",
+        }
+    )
     return extras
 
 

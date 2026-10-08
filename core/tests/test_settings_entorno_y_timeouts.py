@@ -50,14 +50,26 @@ print(
             "cache": settings.CACHES["default"]["BACKEND"],
             "sessions": settings.CACHES["sessions"]["BACKEND"],
             "channels": settings.CHANNEL_LAYERS["default"]["BACKEND"],
+            "conn_max_age": settings.DATABASES["default"].get("CONN_MAX_AGE"),
+            "cache_location": settings.CACHES["default"]["LOCATION"],
+            "sessions_location": settings.CACHES["sessions"]["LOCATION"],
         }
     )
 )
 """
 
 #: Lo que el subproceso no puede heredar: con `PYTEST_RUNNING` las `DATABASES` se
-#: reemplazan por SQLite en memoria y las `OPTIONS` de producción desaparecen.
-A_LIMPIAR = ("PYTEST_RUNNING", "DJANGO_SYNCDB_PROJECT_APPS", "DJANGO_TEST_MOTOR", "DB_READ_TIMEOUT", "DB_WRITE_TIMEOUT")
+#: reemplazan por SQLite en memoria y las `OPTIONS` de producción desaparecen. Las dos
+#: últimas son de PERF-08 y PERF-10: lo que se mide es justamente su ausencia.
+A_LIMPIAR = (
+    "PYTEST_RUNNING",
+    "DJANGO_SYNCDB_PROJECT_APPS",
+    "DJANGO_TEST_MOTOR",
+    "DB_READ_TIMEOUT",
+    "DB_WRITE_TIMEOUT",
+    "APP_RUNTIME",
+    "REDIS_SESSIONS_DB",
+)
 
 
 def arrancar_django(**entorno):
@@ -138,6 +150,72 @@ class EntornoDeclaradoTests(SimpleTestCase):
         valores = arrancar_django(ENVIRONMENT="dev", USE_REDIS_CACHE="True")
 
         self.assertIn("django_redis", valores["cache"])
+
+
+class ConexionPersistenteSegunElRuntimeTests(SimpleTestCase):
+    """PERF-08 · `CONN_MAX_AGE` no puede valer lo mismo bajo WSGI que bajo ASGI.
+
+    Django guarda la conexión persistente en un `local()` **por hilo** y la devuelve al
+    terminar el request. Bajo daphne cada request HTTP lo atiende un hilo distinto del
+    pool de `asgiref`, así que ninguna conexión se reutiliza: la sonda
+    `poc/perf_harness/asgi_conn_probe.py` midió 200 requests → 200 hilos y 200
+    conexiones nuevas, con 9 quedando abiertas hasta que pasó el GC cíclico (50 de 50
+    con el GC apagado). Con `CONN_MAX_AGE=0` no queda ninguna.
+
+    Bajo gunicorn —lo que corre icore— los hilos sí se reusan y los 60 s valen.
+    """
+
+    def test_bajo_daphne_las_conexiones_no_se_guardan(self):
+        valores = arrancar_django(ENVIRONMENT="prd", APP_RUNTIME="daphne")
+
+        self.assertEqual(valores["conn_max_age"], 0)
+
+    def test_bajo_gunicorn_se_conserva_el_minuto(self):
+        valores = arrancar_django(ENVIRONMENT="prd", APP_RUNTIME="gunicorn")
+
+        self.assertEqual(valores["conn_max_age"], 60)
+
+    def test_sin_app_runtime_declarado_se_conserva_el_minuto(self):
+        """El default del entrypoint es `runserver`: el dev local no cambia."""
+        valores = arrancar_django(ENVIRONMENT="dev")
+
+        self.assertEqual(valores["conn_max_age"], 60)
+
+
+class BaseDeRedisDeLasSesionesTests(SimpleTestCase):
+    """PERF-10 · Las sesiones pueden irse a otra base de Redis, y hoy no se van.
+
+    Compartir base con la caché significa que un `cache.clear()` —un FLUSHDB en
+    django_redis— desloguea a todo el mundo (G1c-12). Separarlas es un cambio que hay
+    que coordinar con ECOM (H-06), así que entra **preparado y apagado**: sin
+    `REDIS_SESSIONS_DB` el alias `sessions` apunta exactamente a donde apuntaba.
+    """
+
+    def test_sin_la_variable_las_sesiones_siguen_donde_estaban(self):
+        valores = arrancar_django(ENVIRONMENT="prd", REDIS_URL="redis://redis:6379/1")
+
+        self.assertEqual(valores["sessions_location"], "redis://redis:6379/1")
+        self.assertEqual(valores["sessions_location"], valores["cache_location"])
+
+    def test_con_la_variable_solo_cambia_la_base(self):
+        valores = arrancar_django(ENVIRONMENT="prd", REDIS_URL="redis://redis:6379/1", REDIS_SESSIONS_DB="2")
+
+        self.assertEqual(valores["cache_location"], "redis://redis:6379/1")
+        self.assertEqual(valores["sessions_location"], "redis://redis:6379/2")
+
+    def test_conserva_credenciales_y_tls_de_la_url(self):
+        """ECOM puede entregar la URL con usuario, clave y `rediss://`: lo único que se
+        reemplaza es el número de base."""
+        valores = arrancar_django(
+            ENVIRONMENT="prd",
+            REDIS_URL="rediss://usuario:clave@redis.interno:6380/1?ssl_cert_reqs=none",
+            REDIS_SESSIONS_DB="2",
+        )
+
+        self.assertEqual(
+            valores["sessions_location"],
+            "rediss://usuario:clave@redis.interno:6380/2?ssl_cert_reqs=none",
+        )
 
 
 class EntornoDeclaradoCheckTests(SimpleTestCase):
