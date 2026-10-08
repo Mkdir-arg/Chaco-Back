@@ -185,9 +185,12 @@ Django anclado al modelo `users.Capacidad`, tildado sobre cada Rol (`Group`) ví
 
 ### Separación backoffice / portal
 
-`core.middleware.PortalCiudadanoMiddleware` redirige a `portal:ciudadano_mi_perfil`
-a cualquier usuario ciudadano que pise una URL fuera de `/portal/`. Es la barrera
-real entre las dos superficies: no alcanza con esconder el link.
+`core.middleware.PortalCiudadanoMiddleware` redirige a `portal:home` a cualquier
+usuario ciudadano que pise una URL fuera de `/portal/` (la única excepción es
+`/static/`: `/media/` **no** está exento). Es la barrera real entre las dos
+superficies: no alcanza con esconder el link. El destino era
+`portal:ciudadano_mi_perfil` hasta que SEC-29 apagó las rutas `mi-perfil/*`, que
+hoy no existen.
 
 Otros middlewares propios que condicionan el comportamiento:
 `users.middleware.BackofficeSingleSessionMiddleware` (una sola sesión de backoffice
