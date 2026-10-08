@@ -1625,8 +1625,14 @@ class Segmento(PausableMixin, TimeStamped):
         return self.subsegmentos.aggregate(t=models.Sum("cupo_maximo"))["t"] or 0
 
     @property
-    def cupo_disponible(self):
-        """Cupo del segmento aún no distribuido en subsegmentos."""
+    def cupo_sin_distribuir(self):
+        """Cupo del segmento aún no repartido entre sus subsegmentos.
+
+        **No** son los lugares libres: eso es ``get_cupo_stats(segmento)["cupo_disponible"]``
+        (RED-49). Un segmento de 10 con 7 repartidos y 6 aprobados tiene 3 sin
+        distribuir y 4 libres. Esta property la miran la pantalla de configuración
+        del segmento y el alta de subsegmentos; la de cupo mira la otra.
+        """
         return self.cupo_maximo - self.cupo_distribuido
 
     @property
@@ -2121,7 +2127,14 @@ class Relevamiento(PausableMixin, TimeStamped):
         return anotado if anotado is not None else self.formularios.count()
 
     @property
-    def cupo_disponible(self):
+    def cupos_libres_del_relevamiento(self):
+        """Lo que le queda **a este relevamiento** de su propio tope de casos.
+
+        Tercera acepción de «cupo disponible» (RED-49): no es el cupo del segmento ni
+        los lugares libres de ``get_cupo_stats``. La app de campo lo lee como
+        ``cupo_disponible`` —el nombre del campo de la API no cambia—, pero acá adentro
+        se llama por lo que es.
+        """
         return max(self.cupo_maximo - self.cupo_utilizado, 0)
 
     @property

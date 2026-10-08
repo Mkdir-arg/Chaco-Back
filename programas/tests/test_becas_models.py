@@ -183,7 +183,7 @@ class SegmentoCupoTests(TestCase):
         sub.full_clean()  # no levanta
         sub.save()
         self.assertEqual(self.segmento.cupo_distribuido, 120)
-        self.assertEqual(self.segmento.cupo_disponible, 80)
+        self.assertEqual(self.segmento.cupo_sin_distribuir, 80)
 
     def test_subsegmento_supera_cupo_levanta_validation_error(self):
         Subsegmento.objects.create(segmento=self.segmento, nombre="Ladrillo", cupo_maximo=120)
@@ -198,7 +198,7 @@ class SegmentoCupoTests(TestCase):
         carbon.full_clean()
         carbon.save()
         self.assertEqual(self.segmento.cupo_distribuido, 200)
-        self.assertEqual(self.segmento.cupo_disponible, 0)
+        self.assertEqual(self.segmento.cupo_sin_distribuir, 0)
 
     def test_no_permite_bajar_cupo_por_debajo_de_lo_distribuido(self):
         Subsegmento.objects.create(segmento=self.segmento, nombre="Ladrillo", cupo_maximo=120)

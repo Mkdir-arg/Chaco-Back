@@ -343,6 +343,15 @@ def build_targets(worker_id=None):
                 "actor": "backoffice",
             },
             {
+                # PERF-02: la pantalla de cupo traía las tres tablas con los cinco JSON
+                # del caso y ordenaba por una columna sin índice. En el banco MariaDB de
+                # 20.000 casos eran 8,9 s de SQL, con el `read_timeout` de ECOM en 10 s.
+                "key": "becas_cupo_segmento",
+                "route": "becas:cupo_segmento",
+                "url": reverse("becas:cupo_segmento", kwargs={"pk": relevamiento.convocatoria.segmento_id}),
+                "actor": "backoffice",
+            },
+            {
                 "key": "becas_reportes",
                 "route": "becas:reportes",
                 "url": reverse("becas:reportes"),

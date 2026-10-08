@@ -64,6 +64,7 @@ from programas.services.cupo import (
     motivo_bloqueo_aprobacion,
 )
 from programas.services.identidad import gran_base_activa
+from programas.services.listados import PaginadorConConteo
 from programas.services.padron import fila_padron, padron_de
 from programas.services.personas import consultar_persona
 from programas.services.respuestas import respuestas_legibles, sincronizar_desde_legacy
@@ -71,7 +72,6 @@ from programas.services.siis import SiisCatalogError, catalogo, funciones_progra
 from programas.services.siis_envio import Catalogos, enviar_beneficiario_a_siis, mensaje_envio, provincia_de
 from programas.services.validacion_siis import validar_formulario_en_siis
 from programas.views.cupo import CAP_BENEFICIARIO_VER, CAP_CUPO_VER
-from programas.views.relevamientos import PaginadorConConteo
 
 logger = logging.getLogger(__name__)
 

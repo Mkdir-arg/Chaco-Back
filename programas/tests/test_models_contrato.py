@@ -221,20 +221,20 @@ class PropiedadesDeNegocioTests(TestCase):
                 estado=Formulario.Estado.APROBADO,
             )
 
-    def test_segmento_cupo_disponible_es_lo_no_distribuido(self):
+    def test_segmento_cupo_sin_distribuir_es_lo_no_repartido(self):
         self.assertEqual(self.segmento.cupo_distribuido, 7)
-        self.assertEqual(self.segmento.cupo_disponible, 3)
+        self.assertEqual(self.segmento.cupo_sin_distribuir, 3)
 
     def test_relevamiento_cuenta_sus_casos_contra_su_propio_tope(self):
         self.assertEqual(self.relevamiento.cupo_utilizado, 6)
-        self.assertEqual(self.relevamiento.cupo_disponible, 2)
+        self.assertEqual(self.relevamiento.cupos_libres_del_relevamiento, 2)
         self.assertFalse(self.relevamiento.cupo_completo)
 
     def test_el_cupo_del_relevamiento_no_se_va_a_negativo(self):
         """`max(..., 0)`: con el tope pasado, «disponible» es 0 y «completo» es True."""
         self.relevamiento.cupo_maximo = 4
 
-        self.assertEqual(self.relevamiento.cupo_disponible, 0)
+        self.assertEqual(self.relevamiento.cupos_libres_del_relevamiento, 0)
         self.assertTrue(self.relevamiento.cupo_completo)
 
     def test_cupo_utilizado_usa_la_anotacion_si_viene(self):

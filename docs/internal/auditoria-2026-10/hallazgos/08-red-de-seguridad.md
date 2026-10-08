@@ -1456,6 +1456,18 @@ vez de renombrarlas. `test_el_contador_de_cuposegmento_no_lo_mueve_nadie` deja f
 primero. El renombre sigue en la Ola 4.
 **Test permanente:** `programas.tests.test_cupo.TresCuposTests.test_las_tres_acepciones_son_distintas`.
 
+**Resolución (parte Ola 4):** ✅ Cerrada en #NNN (Cambio 182, Ola 4 PR 1-2), 08-oct-2026 — renombradas, no unificadas:
+`Segmento.cupo_disponible` → **`cupo_sin_distribuir`** y `Relevamiento.cupo_disponible` →
+**`cupos_libres_del_relevamiento`**; `cupo_disponible` queda solo para `get_cupo_stats`. Sin alias de compatibilidad: se
+actualizaron los dos templates de configuración, la variable de contexto homónima de
+`programas/views/configuracion.py` —que es la misma acepción calculada aparte— y los tres tests de contrato. **El campo
+de la API no cambia**: `RelevamientoListSerializer` declara `cupo_disponible = IntegerField(source=
+"cupos_libres_del_relevamiento")`, porque lo lee la app de campo ya instalada y lo congelan
+`test_becas_api_contrato.py` y `test_api_schema_contrato.py`. **Los textos visibles no cambian** (la ficha no lo pedía):
+las dos pantallas siguen rotulando «Cupo disponible», cada una con su número; decidir si uno de los dos rótulos cambia
+es del cliente y queda anotado para el PM.
+**Test permanente:** `programas.tests.test_cupo.TresCuposTests.test_ninguna_de_las_tres_acepciones_se_llama_ya_cupo_disponible`.
+
 ### RED-50 · La edad (RN-22) está cuatro veces y tres usan `date.today()`
 **Severidad:** MEDIA · **Estado:** CONFIRMADO (lectura; la TZ real de los contenedores de ECOM es la pregunta H-13) · **Origen:** RS-R4-08 (VR2: CONFIRMADO-AJUSTADO), RS-VR2-NEW-04 · **Ola:** R (test) + 3 (arreglo y regla de ruff) · **Esfuerzo:** S (2 h) + S-M (4 h)
 - **Ubicación:** `programas/services/becas.py:211-219` (`es_menor`), `condiciones.py:115-121` (`edad_en_anios`),

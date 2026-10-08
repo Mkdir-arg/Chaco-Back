@@ -46,6 +46,7 @@ from programas.services.autorizacion import (
     usuarios_territoriales_becas,
 )
 from programas.services.exportacion_reportes import celda_segura
+from programas.services.listados import PaginadorConConteo, hidratar_pagina
 from programas.views.ajax_utils import ajax_errors, ajax_ok, ajax_redirect, is_ajax
 
 CAP_CONVOCATORIA_VER = "becas.convocatoria.ver"
@@ -67,38 +68,6 @@ CONVOCATORIAS_PAGE_SIZE = 25
 def _paginate(request, queryset, page_param="page", per_page=DETALLE_PAGE_SIZE):
     paginator = Paginator(queryset, per_page)
     return paginator.get_page(request.GET.get(page_param))
-
-
-class PaginadorConConteo(Paginator):
-    """Paginador que recibe el total ya contado.
-
-    Para las bandejas que de todos modos hacen un ``aggregate`` sobre el mismo conjunto
-    (total + aprobados, total + pendientes): el ``COUNT`` propio del paginador era un
-    segundo recorrido de las mismas filas.
-    """
-
-    def __init__(self, object_list, per_page, total, **kwargs):
-        super().__init__(object_list, per_page, **kwargs)
-        self._total = total
-
-    @property
-    def count(self):
-        return self._total
-
-
-def _hidratar_pagina(pagina, queryset):
-    """Cambia los pks de la página por sus objetos, leídos de ``queryset``, en el
-    mismo orden en que la consulta liviana los devolvió.
-
-    Mismo patrón que las bandejas de revisión: la página se elige con una consulta
-    que proyecta solo el pk y recién después se pagan los ``select_related``. Con los
-    joins en la consulta paginada, MySQL materializa todas las filas del conjunto en
-    una tabla temporal y recién ahí ordena y recorta.
-    """
-    pks = list(pagina.object_list)
-    por_pk = {obj.pk: obj for obj in queryset.filter(pk__in=pks)} if pks else {}
-    pagina.object_list = [por_pk[pk] for pk in pks if pk in por_pk]
-    return pagina
 
 
 def _querystring_without(request, *keys):
@@ -282,7 +251,7 @@ class ConvocatoriaDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, Detail
             DETALLE_PAGE_SIZE,
             total=conteos["total"] or 0,
         ).get_page(self.request.GET.get("beneficiarios_page"))
-        ctx["beneficiarios"] = _hidratar_pagina(
+        ctx["beneficiarios"] = hidratar_pagina(
             pagina,
             # La tabla de beneficiarios no abre las respuestas ni la foto del formulario
             # (``definicion``, ~7 KB por caso): se difieren los cuatro JSON.

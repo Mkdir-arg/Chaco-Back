@@ -46,7 +46,11 @@ class RelevamientoListSerializer(serializers.ModelSerializer):
     # resolvía como `ReadOnlyField` y el esquema las publicaba como `string`
     # (RED-37): quien generara un cliente desde el esquema comparaba el cupo
     # contra un texto. El valor que viaja es el mismo.
-    cupo_disponible = serializers.IntegerField(read_only=True)
+    # RED-49: la property pasó a llamarse `cupos_libres_del_relevamiento` (había tres
+    # cosas distintas llamadas `cupo_disponible`). El **campo de la API no cambia**: lo
+    # lee la app de campo que ya está instalada, y el contrato lo congela
+    # `programas/tests/test_becas_api_contrato.py`.
+    cupo_disponible = serializers.IntegerField(source="cupos_libres_del_relevamiento", read_only=True)
     cupo_completo = serializers.BooleanField(read_only=True)
     pausado = serializers.SerializerMethodField()
     pausa_motivo = serializers.SerializerMethodField()
