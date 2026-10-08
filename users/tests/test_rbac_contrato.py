@@ -84,7 +84,9 @@ CAPACIDADES_SIN_USO = {
     # solo esperaba `ciudadano.eliminar`): están en el catálogo, el ABM de Roles
     # las ofrece y tildarlas no habilita nada. Qué hacer con cada una lo decide
     # la Ola 7 (OPS-14): o se usan, o salen del catálogo.
-    "config.ver": "todo /configuracion/ exige `config.administrar`; nadie evalúa el «ver» (OPS-14)",
+    # `config.ver` salió de esta lista en el Cambio 185: `programa_list` la evalúa
+    # (SEC-36, vía `CAPS_ENTRADA_PROGRAMAS`), que es exactamente lo que el ratchet
+    # de abajo pide que se registre cuando la pantalla llega.
     "relevamiento.ver": "Becas usa `becas.relevamiento.ver`; el módulo genérico quedó sin consumidores (OPS-14)",
     "institucion.ver": "no existe el módulo de Instituciones: no hay vista ni URL que la evalúe (OPS-14)",
     "institucion.administrar": "ídem `institucion.ver` (OPS-14)",

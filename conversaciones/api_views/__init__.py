@@ -1,6 +1,8 @@
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes
+
+from core.api_permissions import BackofficeAutenticado
 
 from ..models import Conversacion
 from ..selectors.conversaciones import (
@@ -15,6 +17,7 @@ from ..services.chat import marcar_mensajes_ciudadano_leidos
 
 @login_required
 @api_view(["GET"])
+@permission_classes([BackofficeAutenticado])
 def alertas_conversaciones_count(request):
     """Contador de conversaciones con mensajes no leídos"""
     if not usuario_tiene_permiso_conversaciones(request.user):
@@ -25,6 +28,7 @@ def alertas_conversaciones_count(request):
 
 @login_required
 @api_view(["GET"])
+@permission_classes([BackofficeAutenticado])
 def alertas_conversaciones_preview(request):
     """Preview de mensajes no leídos para el dropdown"""
     if not usuario_tiene_permiso_conversaciones(request.user):
@@ -62,6 +66,7 @@ def alertas_conversaciones_preview(request):
 
 @login_required
 @api_view(["POST"])
+@permission_classes([BackofficeAutenticado])
 def marcar_mensajes_leidos(request, conversacion_id):
     """Marcar mensajes como leídos cuando se abre la conversación"""
     try:

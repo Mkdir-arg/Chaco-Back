@@ -34,7 +34,7 @@ aceptación de la v2** (README §7), con el test nombrado para que la task lo he
 | DIS-04 | Cerrar/inactivar con alojados; promover en dispositivo no activo | MEDIA | CONF. test | Criterio v2 | v2 | S | ⬜ |
 | DIS-05 | «Alojar» con cama tomada se degrada en silencio a espera | MEDIA | CONF. test | Criterio v2 | v2 | S | ⬜ |
 | DIS-06 | El egreso acepta fechas futuras | MEDIA | CONF. test | Criterio v2 | v2 | S | ⬜ |
-| LEG-01 | La pasada horaria de alertas recrea y re-notifica | MEDIA | CONF. test | Parchear v1 | 4 | S-M | ⬜ |
+| LEG-01 | La pasada horaria de alertas recrea y re-notifica | MEDIA | CONF. test | Parchear v1 | 4 | S-M | ✅ |
 | LEG-04 | Endpoints AJAX de legajos tragan excepciones; un blob faltante vacía la lista | MEDIA | CONF. test | Parchear v1 | 5 | S | ✅ |
 | G1c-08 | Alta/edición de ciudadano: DNI sin normalizar, confirmación RENAPER alterable | MEDIA | CONF. test | Parchear v1 | 3 | M | ✅ |
 | DIS-07 | Camas RESERVADAS cuentan como libres | BAJA | CONF. test | Criterio v2 | v2 | S | ⬜ |
@@ -169,6 +169,39 @@ existe todavía** —RED-42 es del PR R-18, abierto—, así que no hubo entrada
 - **Tests a agregar:** `test_generar_alertas_dos_veces_no_duplica_ni_notifica`, `test_alerta_que_deja_de_aplicar_se_cierra_con_fecha`.
 - **Verificación:** V-STD + `manage.py test legajos`. P-16 (README §3) mide si el cron corre en PRD.
 - **Dependencias:** PERF-20 en el mismo PR.
+
+**Resolución:** ✅ Resuelto en el PR 4 de la Ola 4 (Cambio 187), 08-10-2026 — con PERF-20 en el mismo PR, como pedía la
+ficha. La pasada **reconcilia**: calcula el set vigente `{(legajo, tipo)}` con las reglas en modo «dry»
+(`AlertasService._reglas_vigentes`, que no toca la base y es la única definición de los umbrales, compartida con la
+señal `post_save`), crea solo lo que falta y cierra —con `fecha_cierre=now` y `cerrada_por=None`, que el `update`
+masivo no escribía— las activas MEDIA/BAJA del lote cuyo `(legajo, tipo)` dejó de estar vigente. Se notifica **solo
+por alta**. Una segunda pasada seguida no ejecuta ni un `INSERT`, ni un `UPDATE`, ni un `DELETE`, y la tabla deja de
+crecer (medido: 40 alertas → 40 en la segunda pasada, contra 40 → 60 antes). **Dos desvíos de la ficha, los dos
+explícitos:** (1) el recorte del cierre es el **lote de legajos**, no el ciudadano, así que las alertas sin legajo
+—todas las de `conversaciones`, incluida `MENSAJE_CIUDADANO`— dejan de apagarse en la pasada horaria; la ficha pedía
+exactamente eso para `MENSAJE_CIUDADANO` y las otras tres (`RESPUESTA_RAPIDA`, `RESPUESTA_RAPIDA_CIUDADANO`,
+`OPERADOR_ASIGNADO`) caen por el mismo criterio: las genera una conversación, no el estado del legajo. (2) El tipo
+`MENSAJE_CIUDADANO` queda además excluido **por nombre**, para que la regla siga valiendo el día que alguien le ponga
+legajo.
+**Ronda 2 de la revisión — el efecto colateral de dejar de recrear: el mensaje se congelaba.** Dos de las reglas
+llevan un contador adentro del texto («Sin evaluación inicial hace N días», «N contactos fallidos en el último
+mes») y ese texto es lo único que el operador lee: nadie lo recalcula al dibujar la tarjeta. El apagar-y-recrear lo
+refrescaba de rebote, porque cada hora nacía una fila nueva; con la reconciliación la alerta seguía diciendo 16 días
+a los 90. Ahora, para las claves que ya existen, la pasada compara el mensaje y **solo** reescribe las filas que
+cambiaron, agrupadas en un `bulk_update` cada 200 alertas: el costo no crece con el tamaño del lote y en régimen
+—23 de las 24 corridas del día, porque el contador es de días— sigue sin escribir nada. El refresco **no notifica**:
+el aviso por WebSocket sigue saliendo una sola vez, al nacer la alerta. Alcanza a toda alerta vigente, no solo a las
+MEDIA/BAJA; en la práctica la única ALTA que cambia de texto es `SIN_CONTACTO` (`RIESGO_ALTO` es una constante).
+**Decisión y pendiente de la misma ronda:** una MEDIA/BAJA que **una persona cerró a mano** vuelve a nacer en la
+pasada siguiente si la condición persiste —y vuelve a notificar una vez—, porque lo único que la reconciliación
+mira es `activa=True`. Se deja **tal cual**: hoy «descartada por una persona» no existe como estado y distinguirla
+de «cerrada porque dejó de aplicar» es una decisión de producto (¿se silencia para siempre, por N días, hasta que
+la condición se interrumpa?). Mientras no esté, el ruido es acotado —un aviso por hora de pasada, no por pasada— y
+el riesgo de la alternativa es peor: una alerta que nadie vuelve a ver.
+**Test permanente:** `legajos.tests.test_generar_alertas.ReconciliacionDeAlertasTests.test_la_segunda_pasada_no_escribe_ni_una_fila`
+(+ `test_la_alerta_que_deja_de_aplicar_se_cierra_con_fecha`, `test_la_alerta_que_vuelve_a_aplicar_estrena_fila_y_aviso`,
+`test_la_alerta_de_conversaciones_sobrevive_la_pasada` y `test_el_cierre_no_toca_los_legajos_de_otro_ciudadano`), y
+`RefrescoDelMensajeTests` (4) para el refresco.
 
 ### LEG-04 · Los endpoints AJAX de legajos tragan excepciones y un blob faltante vacía la lista
 **Severidad:** MEDIA · **Estado:** CONFIRMADO con test (`A317A318Adjuntos.test_blob_faltante_vacia_la_lista`: 200, `count=0` y la **ruta absoluta del servidor** en el JSON) · **Origen:** A3-17 · **Tratamiento:** parchear v1 · **Ola:** 5 · **Esfuerzo:** S

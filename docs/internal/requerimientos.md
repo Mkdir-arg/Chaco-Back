@@ -356,9 +356,11 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 182 | Subir el padrón y abrir el cupo dejan de rozar el timeout, y «cupo disponible» pasa a ser tres nombres distintos | Becas (carga de padrón y cruce automático, pantalla de cupo y lista de espera, configuración de segmentos, API de la app de campo) · Transversal (caché de ciudadanos, paginación de bandejas, presupuestos de performance) | `#performance` `#cupos` `#relevamientos` `#datos` | Auditoría integral oct-2026 — fichas PERF-04, PERF-16, PERF-02 y la 2.ª parte de RED-49 (Ola 4, PRs 1 y 2) | 08/10/2026 | 🟢 **Hecho** | No requiere |
 | 183 | MVP de la Versión 2 de Dispositivos: los cuatro bloques del cliente, 700 h | Dispositivos · documentación | `#gestion` `#ui` `#datos` | Cliente, con su propio consumo de horas; PM: «armá un pequeño documento de MVP V2 en base a lo que nos pide el cliente y sus horas» | 08/10/2026 | 🟢 **Hecho — publicado** | No requiere |
 | 184 | El caso que la app ya cargó no se edita, la identidad la acredita el servidor y la consulta de personas tiene tope | Becas — API de campo (`/api/becas/formularios/`, alta de casos, adjuntos y consulta de identidad) · Transversal (tasas de throttle de DRF, presupuesto de llamadas externas) | `#api` `#rbac` `#relevamientos` `#datos` | Auditoría integral oct-2026 — fichas SEC-23 (+G1-15), SEC-24, SEC-25 y R0-05 (Ola 2, PR 6 — **cierra el ítem 6**) | 08/10/2026 | 🟢 **Hecho** (D-24 y D-25 aplicadas por default) | No requiere |
+| 185 | La sesión se cierra sola del lado del servidor, el catálogo de programas pide permiso y RENAPER deja de viajar sin verificar | Transversal (sesión, cookies, system checks, API del backoffice) · Legajos (consulta RENAPER) · Dispositivos (admisión) · Becas (mapa del caso) | `#sesion` `#rbac` `#api` `#infra` | Auditoría integral oct-2026 — fichas SEC-27, SEC-32, SEC-33, SEC-34, SEC-35, SEC-36, SEC-37, G1c-10, G1c-16 y el resto de SEC-01 (Ola 2, PR 8) | 08/10/2026 | 🟢 **Hecho** (D-27 y D-37 aplicadas por default; quedan tres pendientes de infraestructura) | No requiere |
 | 186 | El circuito de SIIS deja de pagar por caso lo que es igual para todos | Becas (proceso masivo a SIIS, pantalla del masivo, comandos `procesar_casos_siis` y `validar_casos_siis`) · Transversal (presupuestos de performance, seed de performance, caché de ciudadanos) | `#siis` `#performance` `#relevamientos` `#datos` | Auditoría integral oct-2026 — fichas PERF-01 (+V4-NEW-02), PERF-19, PERF-07 y PERF-06 (Ola 4, PR 3) | 08/10/2026 | 🟢 **Hecho** | `programas.0082` (dos índices, online) |
-
+| 187 | La pasada horaria de alertas deja de recorrer el padrón y de recrear lo que ya existe | Legajos (comando `generar_alertas`, servicio de alertas, señal de legajo) · Becas (pantalla del proceso masivo) · Transversal (seed de performance) | `#performance` `#datos` `#ui` | Auditoría integral oct-2026 — fichas PERF-20 y LEG-01 (Ola 4, PR 4) + 3 seguimientos MINOR de #639 | 08/10/2026 | 🟢 **Hecho** | No requiere |
 | 189 | Las descargas del tablero de Becas: una planilla que no es la única opción, y dejar de recalcular lo que ya está calculado | Becas — solapa «Dashboard» del programa (exportaciones y filtros) · Transversal (`requirements.txt`, banco de performance) | `#performance` `#relevamientos` `#ui` `#metodo` | Auditoría integral oct-2026 — fichas PERF-03, G1b-11 y G1b-12 (Ola 4, PR 5) | 08/10/2026 | 🟢 **Hecho** (PERF-03 parcial: el punto (3), exportar fuera del request, sigue abierto) | No requiere |
+| 190 | El chequeo de esquema del CI deja de marcar como huérfanas las tablas que carga el organismo | Transversal — CI (job «Migrate ida y vuelta»), `verificar_esquema_migraciones` | `#infra` `#datos` | Juez, por la regresión de #639 que dejaba rojo ese job en todo PR posterior | 08/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -27653,6 +27655,208 @@ igual.
 
 ---
 
+# Cambio 185 — La sesión se cierra sola del lado del servidor, el catálogo de programas pide permiso y RENAPER deja de viajar sin verificar
+
+🟢 **HECHO — 08/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal (sesión, cookies, system checks, API del backoffice) · Legajos (consulta RENAPER) · Dispositivos (admisión) · Becas (mapa del caso) |
+| **Etiquetas** | `#sesion` `#rbac` `#api` `#infra` |
+| **Solicitante** | Auditoría integral oct-2026 — fichas SEC-27, SEC-32, SEC-33, SEC-34, SEC-35, SEC-36, SEC-37, G1c-10, G1c-16 y el resto de SEC-01 (Ola 2, PR 8) |
+| **Fecha del pedido** | 03/10/2026 |
+| **Issue / épica** | Auditoría oct-2026, Ola 2 (Autorización), ítem 8 |
+| **Partes afectadas** | Backoffice (inicio, configuración, usuarios, revisión de casos, admisiones) · Portal (shell del ciudadano) · Servidor/API · Infra/ECOM |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Los nueve hallazgos **bajos** de seguridad que quedaban de la auditoría, más la mitad de SEC-01 que
+había quedado afuera de la Ola 0: las vistas de la API del backoffice que nadie había inventariado.
+
+## Alcance acordado
+
+Entran las diez fichas. **Queda afuera** y va con el PM, porque no es código de este repo:
+
+- la cadena de certificados de RENAPER (SEC-27): el interruptor queda puesto y **apagado**;
+- `proxy_set_header X-Forwarded-Host $host` en nginx/ingress (SEC-35, H-09);
+- restringir `/admin/` por IP (G1c-10, punto 6 de SEC-26).
+
+## Decisiones tomadas
+
+- **D-27 — el `verify` de RENAPER queda preparado y apagado.** Encenderlo sin la cadena confirmada por
+  ECOM **corta el alta de ciudadanos en el acto**: si el organismo usa una CA privada que no está en el
+  almacén del contenedor, la consulta falla antes de salir. Por eso el default es el comportamiento de
+  hoy (`RENAPER_VERIFY_TLS=False`) y el cambio es una variable de entorno, ambiente por ambiente. Lo que
+  sí se hizo ya es sacar el `urllib3.disable_warnings` del import, que apagaba el aviso de TLS de **todo
+  el proceso** —también el de SIIS, Personas y reCAPTCHA, que sí verifican—. **No se probó nada contra
+  RENAPER real.**
+- **D-37 = No: el Cambio 71 no se reabre, y el captcha real en producción pasa a ser exigible.** El paso
+  2 del link público sigue mostrando nombre y fecha de nacimiento a partir de DNI + sexo (riesgo
+  aceptado, con captcha, cubeta por IP, cubeta por documento y vigencia de 45 minutos). La contrapartida
+  acordada es que en producción el captcha sea el de Google y no el desafío aritmético, que un script
+  resuelve leyendo la pregunta del HTML. SIIS-21 (Cambio 174) lo había dejado como **aviso**
+  (`core.W003`) y un aviso no exige nada: `check --deploy` terminaba en verde igual. Ahora es
+  `core.E005` y el check **falla**. El disparador sigue siendo `DATANACH_ES_PRODUCCION`, la variable que
+  ECOM setea solo en PRD: dev, QA, los tests y el CI no se rompen, ahí el desafío aritmético es a
+  propósito.
+- **Las cookies seguras dejan de depender de `ENVIRONMENT`.** `ENVIRONMENT` es una declaración, no un
+  hecho: icore vale `prd` siendo DEV y QA lo pisa a `prd` (OPS-12). Atarle el flag `Secure` dejaba la
+  cookie de sesión viajando en claro en cualquier ambiente servido que no declarara la variable. Pasa a
+  `not DEBUG`, que sí es un hecho: con `DEBUG=False` hay alguien sirviendo tráfico detrás de TLS. Un
+  desarrollo local sobre `http://localhost` corre con `DJANGO_DEBUG=True` y no cambia.
+- **El cierre por inactividad pasa a existir del lado del servidor, y el navegador le avisa que hay
+  alguien.** Hasta acá lo único que contaba la inactividad era `static/custom/js/idle-logout.js`: con el
+  JS deshabilitado, con la pestaña abierta en una máquina compartida o con la cookie copiada, la sesión
+  servía las 24 h de `SESSION_COOKIE_AGE`. El middleware nuevo cierra la sesión que pasó
+  `SESSION_IDLE_TIMEOUT_MINUTES` sin **pedir** nada. Pero los dos contadores no miden lo mismo —el del
+  navegador mide mouse y teclado— y sin un puente, veinte minutos tipeando un relevamiento largo
+  terminaban en el login con el formulario perdido: por eso `idle-logout.js` manda un latido
+  (`POST /sesion/latido/`) como mucho una vez por minuto y **solo cuando hubo actividad real**, que es la
+  misma señal con la que decide no cerrar. El servidor corta recién al minuto siguiente del timeout, para
+  no cortar antes que el aviso con cuenta regresiva de la pantalla.
+- **El catálogo de programas pide una capacidad que ya existía.** `/configuracion/programas/` estaba con
+  solo `login_required`. Las tres capacidades que lo abren (`programa.configurar`, `config.ver`,
+  `config.administrar`) son las que ya tenía esa pantalla: no se inventó ninguna y **ningún rol sembrado
+  pierde lo que tenía**. El acceso del inicio se esconde con el mismo criterio, derivado de la misma
+  constante: ofrecer un acceso que después rebota es peor que no ofrecerlo.
+- **La consulta a RENAPER de la admisión pide la capacidad del alta.** El buscador de
+  `/dispositivos/<pk>/admisiones/nueva/?dni=…&sexo=M` devolvía identidad y domicilio de cualquier
+  documento con solo `dispositivo.admitir`. El POST que viene después **ya** exigía `ciudadano.crear`,
+  así que a quien no la tiene esos datos no le servían ni para dar de alta. La cubeta es por **operador**
+  y no por IP: un dispositivo entero sale a internet por una sola conexión.
+- **El payload crudo de RENAPER se recorta en el origen.** La lista blanca son los nueve campos que
+  dibuja la pantalla de confirmación. Aplicarla antes de la caché —y no solo al guardar en la sesión—
+  hace que ni la caché de 10 minutos ni la sesión de 24 h lleguen a ver el resto de lo que mande el
+  organismo.
+- **El resto de SEC-01 se cierra con un contrato, no con una lista.** Las 17 vistas que faltaban no eran
+  explotables: la sesión viaja por cookie y `PortalCiudadanoMiddleware` frena al ciudadano del portal
+  antes de la vista. Lo que faltaba era el molde. En vez de agregarlas a mano, un test recorre el
+  URLconf y exige `BackofficeAutenticado` en **toda** vista DRF, con la app de campo (`/api/becas/`,
+  Token) como única excepción declarada: una vista nueva nace con el permiso puesto o el test se pone
+  rojo.
+- **SEC-34 ya estaba arreglada.** El barrido de superficie pública de RED-02 (#553, Cambio 122) había
+  encontrado el mismo defecto por su cuenta y lo corrigió. Se verificó contra el código y la ficha se
+  cerró **sin tocar nada**.
+
+## Implementación
+
+1. **Sesión (SEC-35).** `core.middleware.ExpiracionPorInactividadMiddleware` guarda `last_activity` en
+   la sesión y cierra la que lleva `SESSION_IDLE_TIMEOUT_MINUTES` + 60 s sin pedidos; va **antes** de los
+   tres middlewares propios —una sesión vencida no paga el Profile de la sesión única ni termina en la
+   pantalla de cambio de clave obligatorio: termina en el login— y exime `/api/`, porque la app de campo
+   autentica por Token dentro de la vista y no tiene sesión que expirar. La marca se reescribe como mucho
+   una vez por minuto y queda puesta en el `login`, así que no agrega consultas por request. El latido es
+   `POST /sesion/latido/`.
+2. **Cookies (SEC-35).** `SESSION_COOKIE_SECURE = CSRF_COOKIE_SECURE = not DEBUG`.
+3. **reCAPTCHA en producción (SEC-37 / D-37).** `core.W003` → `core.E005`.
+4. **Catálogo de programas y errores internos (SEC-36).** `programa_list` con
+   `rbac.CAPS_ENTRADA_PROGRAMAS`; el acceso del inicio con el filtro `puede_ver_programas`; mensaje
+   genérico + `logger.exception` en el ABM de usuarios y en las tres APIs de performance que devolvían
+   `str(e)`. **De los cinco roles de menú de `seed_datos_base`, el único que conserva
+   `/configuracion/programas/` es «Configuración»** (tiene `config.ver` y `config.administrar`);
+   «Dashboard», «Gestión de Ciudadanos», «Reportes» y «Administración» la pierden, porque hasta ahora
+   entraban por estar logueados y nada más —que es el hallazgo—. Quien la necesite con uno de esos
+   cuatro roles lleva además alguna de las tres capacidades, o se le tilda.
+5. **RENAPER (SEC-27 y G1c-16).** `verificacion_tls()` decide el `verify`; `datos_api_mostrables()`
+   recorta el payload; el GET del alta de ciudadano limpia la sesión.
+6. **Admisión (SEC-32).** Capacidad, cubeta por operador y registro en el log sin el documento.
+7. **Mapa del caso (SEC-33).** `data-src` + botón «Ver el mapa» + `referrerpolicy="no-referrer"`.
+8. **`/admin/` (G1c-10).** Se desmonta `admin/doc/`; `is_superuser`, `is_staff`, `groups` y
+   `user_permissions` quedan en solo lectura para quien no sea superusuario.
+9. **API del backoffice (resto de SEC-01).** `BackofficeAutenticado` en las 4 vistas de Conversaciones,
+   las 8 de performance, las 3 de Spectacular (`SERVE_PERMISSIONS`) y las raíces de los routers
+   (`core/api_routers.py::RouterBackoffice`), más el contrato que lo sostiene.
+
+## Archivos
+
+- `config/settings.py` — middleware nuevo, cookies, `SERVE_PERMISSIONS`, `RENAPER_CA_BUNDLE` y `RENAPER_VERIFY_TLS`
+- `config/urls.py` — sale `admin/doc/`
+- `core/middleware.py`, `core/apps.py`, `core/urls.py`, `core/views/public.py` — expiración por inactividad y latido
+- `core/checks.py` — `core.W003` → `core.E005`
+- `core/rbac.py`, `core/templatetags/rbac.py`, `configuracion/views/programas.py`, `templates/inicio.html` — SEC-36
+- `core/api_routers.py` (nuevo), `core/views/performance.py`, `conversaciones/api_views/__init__.py`,
+  `conversaciones/api_views/extra.py`, `legajos/urls/api.py`, `core/api_urls.py` — resto de SEC-01
+- `legajos/services/consulta_renaper.py`, `legajos/services/ciudadanos.py`, `legajos/views/ciudadanos.py` — SEC-27 y G1c-16
+- `programas/views/admisiones.py` — SEC-32
+- `programas/templates/programas/becas/revision/formulario_detalle.html` — SEC-33
+- `users/admin.py`, `users/views/admin.py` — G1c-10 y SEC-36
+- `static/custom/js/idle-logout.js`, `templates/includes/base.html`, `portal/templates/portal/ciudadano/base_ciudadano.html` — el latido
+- Tests: `core/tests/test_sesion_inactividad.py`, `core/tests/test_api_backoffice_permiso.py`,
+  `core/tests/test_bajos_ola2.py`, `legajos/tests/test_renaper_tls_y_payload.py`,
+  `programas/tests/test_admision_renaper.py` (nuevos) y `programas/tests/test_becas_revision.py`,
+  `core/tests/test_checks_entorno.py`, `core/tests/test_superficie_publica.py`,
+  `users/tests/test_rbac_contrato.py`, `configuracion/tests/test_wizard_programas.py` (ajustados)
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+Python 3.12 + Django 5.2.17 (`.venv312`, igual al CI): `manage.py check` sin issues;
+`makemigrations --check --dry-run` sin cambios; `check --deploy` con las dos advertencias de cookies
+(`security.W012` y `W016`) **menos** que antes, y en rojo con `DATANACH_ES_PRODUCCION=1` sin claves de
+reCAPTCHA, que es lo que D-37 pedía hacer verificable. Suite completa del repo. `ruff check .` limpio y
+`ruff format` sobre lo tocado. UI: `design_audit.py --ratchet` con 0 hallazgos nuevos y
+`compile_templates.py --bloques` en 0.
+
+## Puesta en marcha en el servidor
+
+No requiere nada nuevo para desplegar. Lo que sí hay que mirar después del deploy está en *Pendientes*.
+
+## Pendientes / a definir
+
+- **ECOM: la cadena de certificados de RENAPER (D-27).** Pedirla, montarla y recién entonces encender
+  `RENAPER_VERIFY_TLS=True` (o `RENAPER_CA_BUNDLE=/ruta/al.pem`), ambiente por ambiente, con
+  `manage.py diagnosticar_integraciones` antes de tocar producción.
+- **ECOM: `proxy_set_header X-Forwarded-Host $host`** en nginx y en el ingress (SEC-35, H-09). Hoy
+  `USE_X_FORWARDED_HOST=True` con un proxy que reenvía la cabecera del cliente.
+- **ECOM/infra: `/admin/` por IP** (G1c-10, punto 6 de SEC-26).
+- **PRD: las claves de reCAPTCHA.** Si no están cargadas, `check --deploy` ahora falla en producción.
+  Es el aviso, no la causa: el link público ya estaba con el captcha degradado.
+
+## Reversión
+
+Sin migraciones: revertir el commit alcanza. Lo que vuelve atrás, en orden de riesgo:
+
+1. las sesiones dejan de expirar por inactividad del lado del servidor (vuelve a contar solo el JS);
+2. las cookies de sesión y CSRF vuelven a depender de `ENVIRONMENT=prd`;
+3. `check --deploy` vuelve a terminar en verde en producción sin claves de reCAPTCHA;
+4. el catálogo de programas vuelve a verlo cualquier cuenta de backoffice.
+
+No se pierde ningún dato: `last_activity` vive en la sesión, que es efímera.
+
+## Historial
+
+- **08/10/2026 — ronda 2 de la revisión: la exención de `/api/` apagaba la expiración entera, no
+  solo el refresco.** Tres correcciones:
+  1. **El corte ahora aplica también a `/api/` (MAJOR).** `ExpiracionPorInactividadMiddleware` salía
+     por arriba con `request.path.startswith("/api/")`, así que con la marca envejecida 48 h
+     `/api/legajos/ciudadanos/` seguía contestando **200**: una cookie de sesión robada servía el
+     padrón por la API durante las 24 h de `SESSION_COOKIE_AGE`, que es exactamente lo que SEC-35 vino
+     a cerrar. La exención quedó donde correspondía —en el **refresco**— y el corte pasó a aplicar a
+     toda request autenticada por sesión. **La app de campo no se entera:** autentica por Token *sin
+     cookie*, llega al middleware con `request.user` anónimo y pasa de largo. Lo único distinto en
+     `/api/` es la respuesta del corte: **401** JSON en vez del redirect al login. `ApiDeCampoNoExpira`
+     probaba otra cosa —hacía `force_login` antes de mandar el Token, o sea una sesión de backoffice—:
+     ahora manda **solo** el Token y verifica que no haya cookie.
+  2. **El polling de fondo deja de renovar la sesión.** `RUTAS_SIN_MARCA_DE_ACTIVIDAD` en
+     `core/middleware.py` es la lista explícita, con el emisor de cada ruta anotado al lado: las cuatro
+     de `updateDashboard()` (`performance_dashboard.html`, cada 30 s) y la de
+     `conversaciones_tiempo_real_global.js` (cada 5 s, y va en `includes/base.html`, o sea en **toda**
+     pantalla del backoffice). Con ellas marcando, una pestaña olvidada renovaba la sesión sola y el
+     cierre por inactividad no cerraba nada. **No marcar no es quedar exento:** una sesión ya vencida
+     tampoco entra por ahí. El latido (`core:sesion_latido`) sigue siendo la única señal de actividad
+     sin pantallas. El cuarto emisor de la revisión —`widget_contactos.html`, cada 5 min— no tiene fila
+     porque su ruta (`legajos:metricas_contactos_api`) **no está montada**: figura en
+     `URLS_ROTAS_CONOCIDAS` y la retira LEG-06.
+  3. **La ficha SEC-36 decía de más.** «Ningún rol sembrado pierde lo que tenía» no es exacto: de los
+     cinco roles de menú, solo «Configuración» conserva `/configuracion/programas/`. Corregido en la
+     ficha, en *Implementación* y en los riesgos de deploy del PR.
+
+---
+
 # Cambio 186 — El circuito de SIIS deja de pagar por caso lo que es igual para todos
 
 🟢 **HECHO — 08/10/2026**
@@ -27833,6 +28037,279 @@ Un índice no cambia ningún dato, así que no queda nada inconsistente. Si lo q
 el presupuesto nuevo, se saca `becas_proceso_masivo` de `scripts/perf_budgets.json` **y**
 de `scripts/perf_audit.py::build_targets` en el mismo diff.
 
+---
+
+# Cambio 187 — La pasada horaria de alertas deja de recorrer el padrón y de recrear lo que ya existe
+
+🟢 **HECHO — 08/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Legajos (comando `generar_alertas`, `AlertasService`, señal `post_save` del legajo) · Becas (pantalla del proceso masivo) · Transversal (seed de performance) |
+| **Etiquetas** | `#performance` `#datos` `#ui` |
+| **Solicitante** | Auditoría integral oct-2026 — fichas PERF-20 y LEG-01 (Ola 4, PR 4), más los tres seguimientos MINOR de la revisión de #639 |
+| **Fecha del pedido** | 08/10/2026 |
+| **Issue / épica** | Auditoría oct-2026, Ola 4 (Performance) ítem 4 |
+| **Partes afectadas** | `legajos/services/alertas.py` · `legajos/services/linking.py` · `legajos/management/commands/generar_alertas.py` · `programas/views/proceso_masivo.py` · `programas/services/proceso_masivo.py` · `programas/templates/programas/becas/config/proceso_masivo.html` · `core/management/commands/seed_perf.py` · tests de `legajos` y `programas` |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Dos fichas sobre el mismo comando, que corre **cada hora** en los cuatro ambientes (cron
+de k8s y crontab de icore) y escribe alertas que después difunde por WebSocket.
+
+- **PERF-20.** `generar_alertas` recorría `Ciudadano.objects.filter(activo=True)` y
+  pagaba tres consultas por cada uno: el `SELECT` de la persona, el `UPDATE` en bloque de
+  sus alertas MEDIA/BAJA y el `SELECT` de sus legajos, casi siempre con un `IN` vacío.
+  Medido por la auditoría con 20.200 activos de los que 200 tienen legajo: **61.821
+  sentencias por corrida**, 38 s; con 40.000 ciudadanos, unas 122.000 por hora.
+- **LEG-01.** La pasada apagaba en bloque las MEDIA/BAJA —sin `fecha_cierre` ni
+  `cerrada_por`— y las volvía a crear: una fila nueva por hora, un aviso por WebSocket
+  por hora a todo el que estuviera conectado y `legajos_alertaciudadano` creciendo sin
+  techo (200 → 510 → 610 en dos corridas del seed de la auditoría).
+
+Más tres seguimientos MINOR de la revisión de #639 (Ola 4 PR 3), sin horas propias.
+
+## Alcance acordado
+
+Entra: las dos fichas completas y los tres MINOR. Queda afuera el resto de la Ola 4 y la
+pregunta abierta **H-02** (si ECOM tiene instalado el CronJob), que no cambia nada de lo
+que hace el código: si no corre, el cambio no se nota; si corre, se nota desde la primera
+hora.
+
+## Decisiones tomadas
+
+- **El universo de la pasada son los legajos, no el padrón.** Sale de
+  `InscripcionPrograma.filter(legajo_id__isnull=False, ciudadano__activo=True)
+  .values_list("legajo_id").distinct()`. `LegajoAtencion` no se crea en ningún camino
+  productivo, así que preguntar por los 20.000 ciudadanos sin legajo era el 99 % del
+  costo. La semántica se conserva: el ciudadano de cada alerta sigue siendo el de la
+  inscripción más reciente, que es lo que resuelve la property `LegajoAtencion.ciudadano`.
+- **Se reconcilia por lotes de 500 legajos**, con cuatro lecturas fijas por lote: las
+  inscripciones del lote (que en una sola consulta dan el ciudadano **y** los
+  `programa_ids` del ruteo del WebSocket), los legajos con `Max(fecha_contacto)` y el
+  `Count` filtrado de fallidos anotados sobre el mismo `JOIN`, las alertas activas del
+  lote y —solo si hay algo que crear— los ciudadanos. Más un `INSERT` por alta y **un**
+  `UPDATE` de cierre.
+- **Las altas van de a una, no con `bulk_create`** (desvío explícito de la propuesta de
+  PERF-20). En MySQL 8 —icore— `bulk_create` no devuelve el `pk`, y el aviso por
+  WebSocket lo necesita: el dashboard dibuja `data-alerta-id` y el cierre se entrega por
+  ese id (Cambio 179). En régimen las altas son cero, así que el término no se paga.
+- **Las reglas viven en un solo lugar.** `AlertasService._reglas_vigentes` devuelve
+  `[(tipo, prioridad, mensaje)]` **sin tocar la base**: la señal `post_save` le pasa los
+  dos insumos leídos de a uno y la pasada periódica se los pasa anotados por lote.
+  Escritas dos veces se habrían desincronizado al primer umbral que cambiara.
+- **El cierre se recorta al lote de legajos, no al ciudadano.** Consecuencia buscada: las
+  alertas **sin legajo** —todas las de `conversaciones`: `MENSAJE_CIUDADANO`,
+  `RESPUESTA_RAPIDA`, `RESPUESTA_RAPIDA_CIUDADANO` y `OPERADOR_ASIGNADO`— dejan de
+  apagarse en la pasada horaria. LEG-01 lo pedía para `MENSAJE_CIUDADANO`; las otras tres
+  caen por el mismo criterio, que las genera una conversación y no el estado del legajo.
+  `MENSAJE_CIUDADANO` queda además excluido **por nombre**, para que la regla siga
+  valiendo el día que alguien le ponga legajo.
+- **Las ALTA y CRÍTICA no se cierran solas**, igual que antes: el cierre automático es
+  solo MEDIA/BAJA.
+- **El mensaje de una alerta vigente se refresca; el aviso no se repite** (ronda 2). Dos
+  reglas llevan un contador adentro del texto —«Sin evaluación inicial hace N días» y «N
+  contactos fallidos en el último mes»— y ese texto es lo único que el operador lee. Al
+  dejar de recrear, el mensaje se congelaba en el valor de la primera pasada. La pasada
+  compara y reescribe **solo** las filas cuyo mensaje cambió, en un `bulk_update` cada
+  200 alertas: el costo no crece con el lote y en régimen no escribe nada. El refresco
+  **no notifica**: el aviso sigue saliendo una sola vez, al nacer la alerta.
+- **La alerta que una persona cerró a mano vuelve a nacer** si la condición persiste, y
+  vuelve a notificar una vez. Se deja la conducta actual **a propósito**: la
+  reconciliación solo mira `activa=True`, y hoy «descartada por una persona» no existe
+  como estado. Distinguirla de «cerrada porque dejó de aplicar» es una decisión de
+  producto (ver *Pendientes*). La alternativa —no recrear lo que alguien cerró— deja una
+  alerta que nadie vuelve a ver, que es peor que el ruido.
+- **El ruteo del WebSocket se calcula una vez por lote**, no una por alerta, y se le pasa
+  a `_enviar_notificacion_alerta`. Es la misma pieza que el Cambio 179 dejó fuera del
+  payload: no cambia qué recibe el navegador, solo cuántas veces se resuelve.
+- **El conteo de la pantalla del masivo no cachea el cero** (seguimiento MINOR a). Un
+  número mayor que cero es informativo; el cero **decide**, porque esconde el formulario
+  y la pantalla promete que el caso nuevo «aparece acá al recargar». Además, el fin de
+  una corrida —que es lo que vacía los pendientes de golpe, desde un hilo que no pasa por
+  ninguna vista— invalida la clave (`proceso_masivo.invalidar_conteos`, en un `finally`).
+
+## Implementación
+
+- `legajos/services/alertas.py` — `reconciliar_alertas`, `_reconciliar_lote`,
+  `_legajos_con_sus_insumos`, `_crear_las_que_faltan`, `_refrescar_los_mensajes`,
+  `_cerrar_las_que_ya_no_aplican` y `_reglas_vigentes`; `_generar_alertas_legajo` (señal)
+  pasa a usar las mismas reglas; `_enviar_notificacion_alerta` acepta el `ruteo` ya
+  resuelto.
+- `legajos/services/linking.py` — `get_legajo_ids_de_ciudadanos_activos` y
+  `get_vinculos_de_legajos` (el acceso a `InscripcionPrograma` se queda en `linking`), y
+  el `.order_by()` que hace que el `.distinct()` de los ids de legajo deduplique.
+- `legajos/management/commands/generar_alertas.py` — llama a `reconciliar_alertas` e
+  informa creadas, cerradas y legajos revisados.
+- `programas/views/proceso_masivo.py` — `_conteos()` reemplaza al `cache.get_or_set`.
+- `programas/services/proceso_masivo.py` — `clave_conteos` / `invalidar_conteos`, y
+  `correr()` invalida en un `finally`.
+- `core/management/commands/seed_perf.py` — el `CREATE TABLE IF NOT EXISTS` sale del
+  `transaction.atomic()` (en MySQL y MariaDB el DDL hace un commit implícito y cortaba la
+  transacción del seed por la mitad); el `DELETE` + `INSERT` se quedan adentro.
+- `programas/tests/test_circuito_siis_performance.py` — `_candidatos_a_la_vieja` se
+  reescribe sobre el **queryset base completo** (neutralizando el criterio de último
+  envío con un `patch` del `Coalesce` del módulo) en vez de partir de los candidatos
+  nuevos: así detecta un filtro más estricto y uno más laxo, no solo el segundo.
+- Tests: `legajos/tests/test_generar_alertas_performance.py` nuevo (2) y
+  `ReconciliacionDeAlertasTests` en `legajos/tests/test_generar_alertas.py` (5), más 3 en
+  `programas/tests/test_circuito_siis_performance.py`.
+
+## Validación
+
+- `manage.py test legajos conversaciones core`: **1.355 tests, OK** (41 skipped, 2
+  expected failures). `manage.py test programas dashboard`: **2.471 tests, OK**.
+  Python 3.12 / Django 5.2.17 (venv igual al CI).
+- `test --tag performance`: 8 tests OK. Ningún presupuesto de `scripts/perf_budgets.json`
+  se mueve (RED-62 no aplica): `generar_alertas` es un comando y la pantalla del masivo
+  no cambia su cantidad de consultas.
+- `manage.py check` sin issues; `check --deploy` con los 5 avisos preexistentes de
+  settings de desarrollo; `makemigrations --check --dry-run`: «No changes detected».
+- `ruff check .` limpio; `ruff format --check` sobre `legajos`, `programas` y `core`
+  limpio.
+- `design_audit --ratchet --base origin/development`: **0 hallazgos nuevos**;
+  `compile_templates --bloques`: 202 compilados, 0 errores, 0 bloques sin destino;
+  `check_design_agent --changed`: OK; `requerimientos.py --check`: OK.
+- **Medición de PERF-20**, banco sintético de 2.000 ciudadanos activos / 20 con legajo
+  (SQLite en memoria, mismo `execute_wrapper` que el harness de la auditoría), corrida en
+  un worktree de `HEAD` y en la rama:
+
+  | | pasada en frío | pasada en régimen | tiempo |
+  |---|---|---|---|
+  | antes (#639) | 6.181 sentencias | 6.141 | 6,6 s |
+  | después | 45 (40 son `INSERT` de altas) | **4** | 0,53 s |
+
+  Y la tabla deja de crecer: antes 40 alertas → 60 en la segunda pasada; ahora 40 → 40.
+
+## Pendientes / a definir
+
+- **H-02: ¿ECOM tiene instalado el CronJob `generar_alertas`?** No bloquea el cambio
+  —ninguna de las dos respuestas lo cambia—, pero decide si la mejora se nota.
+- **Las alertas de `conversaciones` ya no las cierra nadie automáticamente.** Hoy no
+  importa porque el módulo no está en uso, pero si se enciende hay que darles su propia
+  purga (no la de `limpiar_alertas_conversaciones`, que borra otras tablas).
+- **Falta el criterio de producto para «descartada por una persona»** (ronda 2). Hoy una
+  MEDIA/BAJA cerrada a mano reaparece en la pasada siguiente mientras la condición siga
+  dándose. Para cambiarlo hay que decidir primero qué significa descartarla: ¿se silencia
+  para siempre, por N días, o hasta que la condición se interrumpa? Recién con eso tiene
+  sentido agregarle el campo a `AlertaCiudadano` y mirarlo en la reconciliación.
+- **La carrera entre el cron y la señal `post_save` del legajo no tiene constraint única**
+  (ronda 2). `_reconciliar_lote` y `_crear_alerta` chequean y después insertan: dos
+  procesos simultáneos sobre el mismo legajo —la pasada horaria y alguien guardando ese
+  legajo— pueden dejar dos filas activas del mismo `(legajo, tipo)`. No se cerró acá
+  porque la red real es un `UniqueConstraint` parcial sobre `(legajo, tipo)` con
+  `activa=True`, y eso es una migración sobre una tabla que hoy tiene duplicados
+  heredados del apagar-y-recrear: hay que limpiarlos antes (y MariaDB no tiene índices
+  parciales, así que el patrón es otro). La consecuencia hoy es una alerta duplicada en
+  el dashboard, no un dato perdido.
+- **`get_programa_ids_for_legajo_ids` arrastra el mismo `.distinct()` que no deduplica**
+  que se corrigió en las otras dos funciones de `linking.py` (ronda 2). No se tocó porque
+  sus dos llamadores lo neutralizan —uno hace `sorted(set(...))` y el otro lo usa como
+  subconsulta de un `IN`, donde repetir no cambia el resultado—; queda anotado para que
+  el día que alguien cuente sobre esa lista no se sorprenda.
+
+## Reversión
+
+Todo es código, sin esquema ni datos. Revertir el commit devuelve la pasada por padrón
+con el `UPDATE` global, la recreación horaria de las MEDIA/BAJA y el cacheo del cero en
+la pantalla del masivo. Las alertas que este cambio haya cerrado quedan cerradas con su
+`fecha_cierre`; la pasada vieja las volvería a crear en la primera corrida, que es
+exactamente lo que hacía antes.
+
+## Historial
+
+- **08/10/2026 — ronda 2 de la revisión: dejar de recrear congelaba el mensaje.** Una
+  corrección y dos anotaciones.
+  1. **El mensaje de una alerta vigente vuelve a envejecer.** Era el efecto colateral de
+     LEG-01 que nadie había medido: dos de las reglas llevan un contador adentro del
+     texto —«Sin evaluación inicial hace N días» y «N contactos fallidos en el último
+     mes»— y ese texto es lo único que se lee, porque la tarjeta del dashboard lo muestra
+     tal cual. El apagar-y-recrear lo refrescaba de rebote (cada hora nacía una fila
+     nueva); con la reconciliación la alerta seguía diciendo 16 días a los 90 y 3
+     contactos fallidos cuando ya eran 9. Ahora `AlertasService._refrescar_los_mensajes`
+     compara el mensaje de las claves que ya existen y reescribe **solo** las filas que
+     cambiaron, con un `bulk_update` cada `LOTE_REFRESCO = 200` alertas: una sentencia
+     para todo el lote en vez de un `UPDATE` por alerta (en ECOM, con lotes de 500
+     legajos, eso serían hasta dos mil contra un `read_timeout` de 10 s). En régimen —23
+     de las 24 corridas del día, porque el contador es de días— no hay nada que cambiar y
+     la pasada sigue sin escribir. **El refresco no notifica**: el aviso por WebSocket
+     sigue saliendo una sola vez, al nacer la alerta. Alcanza a toda alerta vigente y no
+     solo a las MEDIA/BAJA (la única ALTA con texto variable es `SIN_CONTACTO`;
+     `RIESGO_ALTO` es una constante). El comando informa el término nuevo: «N con el
+     mensaje al día».
+  2. **El `.distinct()` de `linking.py` no deduplicaba.** `InscripcionPrograma.Meta.
+     ordering` es `["-fecha_inscripcion"]` y Django le agrega al `SELECT DISTINCT` toda
+     columna por la que ordena, así que dos inscripciones del mismo legajo con fechas
+     distintas eran dos filas distintas para la base: la persona inscripta en dos
+     programas entraba **dos veces** al lote de la pasada y se reconciliaba dos veces.
+     `get_legajo_ids_de_ciudadanos_activos` y `get_legajo_ids_for_programas` llevan ahora
+     un `.order_by()` antes del `.distinct()` (el orden no se usa: lo que devuelven es un
+     conjunto de ids para un `IN`). La tercera función con el mismo patrón queda anotada
+     en *Pendientes*, porque sus dos llamadores la neutralizan.
+  3. **Dos conductas que se dejan como están, por escrito:** la alerta cerrada a mano que
+     vuelve a nacer y la carrera entre el cron y la señal `post_save`. Las dos quedaron
+     arriba, en *Decisiones tomadas* y en *Pendientes*, con el motivo: la primera necesita
+     un criterio de producto antes que código, la segunda una migración sobre una tabla
+     con duplicados heredados.
+  Tests nuevos: `RefrescoDelMensajeTests` (4 — el mensaje envejece, el refresco no
+  notifica, una pasada sin cambios no escribe, y un solo `UPDATE` para tres alertas que
+  cambian a la vez) y `UniversoDeLaPasadaTests` (2) en
+  `legajos/tests/test_generar_alertas.py`. Cinco de los seis en rojo contra `384a1cd6`;
+  el que ya pasaba es el de «sin cambios no escribe», que es el guard del refresco.
+  Validación de la ronda: `test legajos conversaciones core` **1.361 OK** (41 skipped, 2
+  expected failures), `--tag performance` 8 OK (la pasada en régimen sigue en 4
+  consultas), `manage.py check` sin issues, `ruff check` y `format --check` limpios,
+  `requerimientos.py --check` OK.
+
+---
+
+# Cambio 190 — El chequeo de esquema del CI deja de marcar como huérfanas las tablas que carga el organismo
+
+🟢 **HECHO — 08/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal — CI (job «Migrate ida y vuelta»), comando `verificar_esquema_migraciones` |
+| **Etiquetas** | `#infra` `#datos` |
+| **Solicitante** | Juez de la auditoría oct-2026, al ver rojo el job en #640 |
+| **Fecha del pedido** | 08/10/2026 |
+| **Issue / épica** | Auditoría oct-2026, seguimiento de #639 (Cambio 186) |
+| **Partes afectadas** | `core/management/commands/verificar_esquema_migraciones.py` · `core/tests/test_verificar_esquema_migraciones.py` |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Desde #639 (Cambio 186), `seed_perf` crea `aprobados_materias` —la tabla que en producción
+carga el organismo con `Aprobados.sql`— para que el banco y el job «Migrate ida y vuelta»
+puedan medir el circuito SIIS. El paso 8/8 de ese job corre `verificar_esquema_migraciones
+--estricto`, que encontró una tabla sin modelo y salió con error: **todo PR abierto después
+de #639 quedaba rojo** en las dos variantes del job (#640 fue el primero). #639 no lo vio
+porque su propia base todavía no tenía el seed nuevo.
+
+## Decisiones tomadas
+
+- Las tres tablas de `INSUMOS` (`programas/management/commands/_insumos_siis.py`:
+  `aprobados_materias`, `localidades_corregidas`, `ciudadanos_renaper`) son conocidas para el
+  chequeo de huérfanas: se leen con SQL crudo y no tienen modelo a propósito.
+- La lista se repite en `core` (`TABLAS_EXTERNAS_DEL_ORGANISMO`) porque `core` no importa de
+  `programas` (ratchet de capas, R-21); un test la ata a `INSUMOS` para que no diverjan.
+
+## Implementación
+
+`tablas_huerfanas` suma `TABLAS_EXTERNAS_DEL_ORGANISMO` a las conocidas, junto con
+`django_migrations`. Dos tests nuevos en `TablasHuerfanasTests`.
+
+## Validación
+
+`core.tests.test_verificar_esquema_migraciones` + `programas.tests.test_arquitectura`: 44 OK.
+ruff limpio.
+
+## Pendientes
+
+Ninguno.
+
+---
 
 # Cambio 189 — Las descargas del tablero de Becas: una planilla que no es la única opción, y dejar de recalcular lo que ya está calculado
 

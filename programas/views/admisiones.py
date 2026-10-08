@@ -1,5 +1,8 @@
 """Vistas del circuito operativo de admisiones de Dispositivos."""
 
+import logging
+
+from django.conf import settings
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import IntegrityError, transaction
@@ -9,6 +12,7 @@ from django.utils import timezone
 from django.views import View
 
 from core import rbac
+from core.services.throttle import rate_limit_excedido
 from legajos.models import Ciudadano
 from legajos.services import CiudadanosService
 from programas.forms import (
@@ -31,6 +35,29 @@ from programas.services.admisiones import (
 from programas.services.dispositivos import dispositivos_visibles, puede_operar_dispositivo
 from programas.services.registro_diario import calcular_cantidades, registrar_parte_diario
 from programas.views.dispositivos_legajo import DispositivoProgramaPermissionMixin
+
+logger = logging.getLogger(__name__)
+
+#: SEC-32 · Techo de consultas a RENAPER desde el buscador de la admisión, por
+#: operador y por hora. La pantalla consulta de a una persona por vez; con este
+#: número nadie que esté admitiendo gente lo toca, y un barrido con la cuenta de
+#: un operador deja de ser gratis. Es la cubeta del **usuario**, no de la IP: los
+#: dispositivos trabajan detrás de una sola salida a internet.
+CUBETA_RENAPER_ADMISION = "renaper_admision"
+MAX_CONSULTAS_RENAPER_ADMISION = 60
+VENTANA_CONSULTAS_RENAPER_ADMISION = 3600
+
+
+def _renaper_excedido(request):
+    limite = int(getattr(settings, "RENAPER_ADMISION_MAX_POR_HORA", MAX_CONSULTAS_RENAPER_ADMISION))
+    return rate_limit_excedido(
+        request,
+        CUBETA_RENAPER_ADMISION,
+        limite,
+        VENTANA_CONSULTAS_RENAPER_ADMISION,
+        sufijo=str(request.user.pk),
+        incluir_ip=False,
+    )
 
 
 class DispositivoOperacionMixin(DispositivoProgramaPermissionMixin):
@@ -68,10 +95,31 @@ class AdmisionCreateView(DispositivoOperacionMixin, View):
         ciudadano_form = None
         if ciudadano is None:
             inicial = {"dni": busqueda.cleaned_data["dni"]}
-            if busqueda.cleaned_data["sexo"]:
-                resultado = CiudadanosService.consultar_renaper(
-                    busqueda.cleaned_data["dni"], busqueda.cleaned_data["sexo"]
-                )
+            # SEC-32 · El buscador de la admisión era una consulta a RENAPER por
+            # GET con solo `dispositivo.admitir`: un `?dni=…&sexo=M` devolvía
+            # nombre, apellido, fecha de nacimiento y domicilio de cualquier
+            # persona, sin tope y sin dejar rastro. Ahora pide la misma capacidad
+            # que el alta —`ciudadano.crear`, que es lo que el POST ya exigía más
+            # abajo: a quien no la tiene, estos datos no le servían para nada— y
+            # pasa por una cubeta por operador. Quien no puede crear sigue
+            # buscando y admitiendo a los que ya están en el padrón.
+            if busqueda.cleaned_data["sexo"] and rbac.puede(request.user, "ciudadano.crear"):
+                if _renaper_excedido(request):
+                    messages.warning(
+                        request,
+                        "Demasiadas consultas al registro de personas en la última hora. "
+                        "Probá de nuevo más tarde o cargá los datos a mano.",
+                    )
+                    resultado = {"success": False}
+                else:
+                    logger.info(
+                        "consulta RENAPER desde admisión usuario=%s dispositivo=%s",
+                        request.user.get_username(),
+                        pk,
+                    )
+                    resultado = CiudadanosService.consultar_renaper(
+                        busqueda.cleaned_data["dni"], busqueda.cleaned_data["sexo"]
+                    )
                 if resultado.get("success"):
                     inicial.update(
                         {

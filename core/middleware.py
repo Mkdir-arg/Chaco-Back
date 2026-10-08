@@ -5,7 +5,10 @@ import time
 from urllib.parse import urlparse
 
 from django.conf import settings
-from django.http import HttpResponse
+from django.contrib.auth import logout, user_logged_in
+from django.contrib.auth.views import redirect_to_login
+from django.dispatch import receiver
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import redirect
 
 from core import rbac
@@ -92,6 +95,153 @@ class PortalCiudadanoMiddleware:
             # SEC-29: «mi perfil» ya no existe (el portal ciudadano está apagado).
             # La barrera sigue siendo la misma; cambia solo a dónde se lo manda.
             return redirect("portal:home")
+        return self.get_response(request)
+
+
+#: Clave de la sesión donde vive el instante del último pedido (SEC-35).
+CLAVE_ULTIMA_ACTIVIDAD = "last_activity"
+
+#: Cada cuánto, como máximo, se reescribe esa clave. Sin este techo la sesión se
+#: guardaría en **cada** request: un `UPDATE django_session` por clic en QA y en
+#: dev (motor `db`), y un `SET` de Redis por clic en prd.
+VENTANA_REFRESCO_SEGUNDOS = 60
+
+#: Margen sobre ``SESSION_IDLE_TIMEOUT_MINUTES``. El contador del navegador mide
+#: actividad del usuario (mouse, teclado) y el del servidor mide pedidos HTTP:
+#: con el latido de ``idle-logout.js`` llegando una vez por minuto, el servidor
+#: puede ir hasta ``VENTANA_REFRESCO_SEGUNDOS`` atrás del navegador. El margen
+#: existe para que el servidor **nunca** corte antes que el aviso de la pantalla:
+#: quien está trabajando no pierde lo que estaba cargando, y quien dejó la
+#: pantalla abierta igual queda afuera al minuto siguiente.
+MARGEN_INACTIVIDAD_SEGUNDOS = VENTANA_REFRESCO_SEGUNDOS
+
+#: Rutas que **no** cuentan como actividad del usuario. Son las que el navegador
+#: pide solo, con un `setInterval`, sin que nadie toque la pantalla: dejarlas
+#: marcar actividad convierte cualquier pestaña olvidada —o abierta en una
+#: máquina compartida— en una sesión que no vence nunca, que es justo lo que
+#: SEC-35 vino a cerrar. La señal de actividad real es el latido
+#: (`core:sesion_latido`), que lo dispara `idle-logout.js` solo mientras hay
+#: mouse, teclado o scroll; estas rutas siguen contestando normalmente, lo único
+#: que no hacen es correr el reloj.
+#:
+#: Lista explícita y no un prefijo: un endpoint de lectura no es de fondo por ser
+#: una API, lo es porque algo lo pide en bucle. Cada entrada nombra a su emisor.
+RUTAS_SIN_MARCA_DE_ACTIVIDAD = frozenset(
+    {
+        # `templates/core/performance_dashboard.html:618` — `updateDashboard()`
+        # cada 30 s pega contra estas cuatro.
+        "/performance-api/",
+        "/query-analysis-api/",
+        "/optimization-suggestions-api/",
+        "/system-metrics-api/",
+        # `static/custom/js/conversaciones_tiempo_real_global.js:47` — cada 5 s
+        # mientras la pestaña esté visible y el WebSocket de la lista no esté abierto.
+        "/conversaciones/api/estadisticas/",
+    }
+)
+
+# El cuarto emisor de fondo es `templates/components/widget_contactos.html:91`
+# (cada 5 min). No tiene fila acá porque la ruta que pide —el nombre
+# `legajos:metricas_contactos_api`— **no está montada**: `legajos/urls/__init__.py`
+# nunca la publicó y el `{% url %}` del widget figura en `URLS_ROTAS_CONOCIDAS`
+# (`core/tests/test_listados_canonicos_ola5_pr6.py`). Hoy no hay pedido que
+# eximir; si LEG-06 la monta en vez de retirar el widget, su path va en esta lista.
+
+
+def _marca_actividad(path):
+    """¿Este pedido cuenta como «el usuario está ahí»?"""
+    return path not in RUTAS_SIN_MARCA_DE_ACTIVIDAD and not path.startswith("/api/")
+
+
+def minutos_de_inactividad():
+    """Se lee en cada request, no al importar: así el setting se puede pisar."""
+    try:
+        return int(getattr(settings, "SESSION_IDLE_TIMEOUT_MINUTES", 0) or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def marcar_actividad(session, *, ahora=None):
+    """Anota el instante del pedido, salteando las escrituras seguidas.
+
+    La usa el middleware y también el `user_logged_in` de ``core.apps``: dejar la
+    marca puesta en el login hace que el primer request de la sesión no tenga que
+    escribirla, que es lo que mantiene los presupuestos de consultas donde estaban.
+    """
+    ahora = time.time() if ahora is None else ahora
+    ultima = session.get(CLAVE_ULTIMA_ACTIVIDAD)
+    if ultima is not None and ahora - float(ultima) < VENTANA_REFRESCO_SEGUNDOS:
+        return
+    session[CLAVE_ULTIMA_ACTIVIDAD] = ahora
+
+
+@receiver(user_logged_in)
+def _marcar_actividad_al_entrar(sender, request, user, **kwargs):
+    """La sesión nace con su marca puesta.
+
+    `login()` ya está escribiendo la sesión en ese momento, así que la marca sale
+    gratis; sin esto, la escribiría el primer request de cada sesión —una consulta
+    más justo en la pantalla que el usuario abre después de entrar—.
+    """
+    if request is not None and hasattr(request, "session"):
+        marcar_actividad(request.session)
+
+
+class ExpiracionPorInactividadMiddleware:
+    """Cierra del lado del **servidor** la sesión que dejó de pedir (SEC-35).
+
+    Hasta el Cambio 185 el cierre por inactividad era solo
+    ``static/custom/js/idle-logout.js``: una cookie de sesión robada —o una
+    pantalla abierta en una máquina compartida con el JS deshabilitado— seguía
+    sirviendo las 24 h de ``SESSION_COOKIE_AGE``. El navegador sigue haciendo lo
+    suyo (el aviso con cuenta regresiva y el POST al logout); esto es lo que hace
+    que el límite **exista** aunque nadie ejecute ese JS.
+
+    Dónde va en la cadena: después de ``AuthenticationMiddleware`` —necesita
+    ``request.user``— y **antes** de ``PortalCiudadanoMiddleware``,
+    ``BackofficeSingleSessionMiddleware`` y ``CambioContrasenaObligatorioMiddleware``:
+    una sesión vencida no tiene por qué pagar el `get_or_create` del Profile ni
+    terminar en la pantalla de cambio de clave; termina en el login.
+
+    **El corte no exime a ``/api/``.** Hasta la ronda 1 del Cambio 185 ``/api/``
+    salía por arriba del middleware entero, así que con la marca envejecida 48 h
+    ``/api/legajos/ciudadanos/`` seguía sirviendo el padrón con una cookie robada
+    durante las 24 h de ``SESSION_COOKIE_AGE``: la exención apagaba la expiración,
+    no solo el refresco. La app de campo no se entera, porque autentica por Token
+    **sin cookie**: acá su ``request.user`` es anónimo y el pedido pasa de largo.
+    Lo que sí sigue siendo distinto en ``/api/`` es la respuesta del corte: un 401
+    en vez del redirect al login, que a un cliente JSON no le sirve de nada.
+
+    **Qué marca actividad** lo decide ``RUTAS_SIN_MARCA_DE_ACTIVIDAD``: el polling
+    de fondo y ``/api/`` no corren el reloj (``/api/`` lo pide la app de campo o
+    el JS del backoffice, nunca una persona tipeando). Que no marquen no los exime
+    del corte: una sesión vencida tampoco entra por ahí.
+    """
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        minutos = minutos_de_inactividad()
+        usuario = getattr(request, "user", None)
+        if minutos <= 0 or not (usuario and usuario.is_authenticated):
+            return self.get_response(request)
+
+        ahora = time.time()
+        ultima = request.session.get(CLAVE_ULTIMA_ACTIVIDAD)
+        if ultima is not None and ahora - float(ultima) > minutos * 60 + MARGEN_INACTIVIDAD_SEGUNDOS:
+            logger.info(
+                "sesión cerrada por inactividad user=%s ip=%s",
+                usuario.get_username(),
+                ip_cliente(request),
+            )
+            logout(request)
+            if request.path.startswith("/api/"):
+                return JsonResponse({"detail": "Sesión cerrada por inactividad."}, status=401)
+            return redirect_to_login(request.get_full_path())
+
+        if _marca_actividad(request.path):
+            marcar_actividad(request.session, ahora=ahora)
         return self.get_response(request)
 
 

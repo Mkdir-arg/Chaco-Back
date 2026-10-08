@@ -109,7 +109,8 @@ def documento_excedido(request, dni):
 
     Es una resignación consciente de la defensa contra enumeración **en el modo
     degradado**: con un captcha que un script resuelve, enumerar ya era barato.
-    El modo que corresponde en producción es el otro, y lo avisa ``core.W003``.
+    El modo que corresponde en producción es el otro, y lo **exige** ``core.E005``
+    (D-37, Cambio 185).
     """
     dni = normalizar_dni(dni)
     if not dni:

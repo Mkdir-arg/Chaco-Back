@@ -354,7 +354,10 @@ EXTRAS_SIN_ROL = {
     "/ajax/load-localidades/": "Catálogo geográfico encadenado de los formularios.",
     "/ajax/load-municipios/": "Catálogo geográfico encadenado de los formularios.",
     "/ajax/load-subsecretarias/": "Catálogo institucional encadenado de los formularios.",
-    "/configuracion/programas/": "Catálogo institucional de programas (nombres y estado).",
+    # El latido del cierre por inactividad (SEC-35). Contesta `{"ok": true}` a la
+    # propia sesión y no devuelve ni lee ningún dato: lo único que hace es que el
+    # request exista, para que el middleware vea que hay alguien del otro lado.
+    "/sesion/latido/": "Latido de la propia sesión: no devuelve datos (SEC-35).",
     # `/inicio/` es el destino al que manda `_respuesta_sin_permiso`: si rebotara,
     # rebotaría en bucle. Se verificó que su HTML trae solo contadores agregados,
     # ni el nombre ni el DNI de ningún ciudadano (RED-89, 04-oct-2026).
@@ -480,6 +483,10 @@ class SuperficieSinRolTests(TestCase):
         barrido no veía porque se deslogueaba a sí mismo (ver `_pedir`), más el
         cambio voluntario de contraseña, que es nuevo— y **−4** públicas, las de
         `django.contrib.auth.urls`, que dejó de incluirse (SEC-26).
+
+        El Cambio 185 deja el total igual cambiando una por otra: sale
+        `/configuracion/programas/`, que pasó a pedir capacidad (SEC-36), y entra
+        `/sesion/latido/`, que es nueva (SEC-35).
         """
         self.assertEqual(len(EXTRAS_SIN_ROL), 22)
         self.assertEqual(len(ALLOWLIST_SIN_ROL), 36)
