@@ -1,6 +1,7 @@
 from django import forms
 from django.contrib.auth.models import Group, User
-from django.core.exceptions import ObjectDoesNotExist
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.utils.text import slugify
 
 from core import rbac
@@ -215,6 +216,138 @@ def _validar_jerarquia_becas(form):
     return cleaned
 
 
+def _validar_clave_tipeada(form):
+    """G1b-08: la clave que tipea un operador pasa por los mismos validadores.
+
+    `AUTH_PASSWORD_VALIDATORS` se aplicaba en el cambio de clave del propio
+    usuario y en el alta masiva por CSV, pero no acá: por el ABM entraba
+    `123` sin una sola objeción. Vacío = «no cambiar», así que no valida nada.
+    """
+    clave = form.cleaned_data.get("password")
+    if not clave:
+        return
+    try:
+        validate_password(clave, form.instance)
+    except ValidationError as exc:
+        form.add_error("password", exc)
+
+
+def _validar_correo_de_entrega(form, *, exigir_clave=True, grupos=None):
+    """Cómo le llega la clave a quien se está dando de alta (G1b-08 + D-26).
+
+    Para un usuario de **backoffice** hay dos vías y el formulario elige una: con
+    correo, la clave la genera el sistema y viaja en el mensaje (RN-C1); sin
+    correo, la tipea el operador y se la entrega por otro canal, y como la conoce
+    vale un solo ingreso (`_marcar_cambio_obligatorio`).
+
+    Para un usuario **de campo** esa segunda vía no existe. «Vale un solo ingreso»
+    se apoya en que el backoffice le pida cambiarla al entrar, y a él el backoffice
+    no le pide nada: el login web lo rechaza (``territorial_mobile_only``) y
+    ``/api/becas/auth/token/`` no mira ``debe_cambiar_contrasena``. La clave que
+    tipeó el operador le quedaba vigente **para siempre**, que es justo lo que D-26
+    (b) vino a cerrar con el link de reseteo. El link viaja por correo, así que acá
+    el correo es obligatorio: es la única forma de entregarle una clave que después
+    el operador no conozca.
+
+    ``exigir_clave`` y ``grupos`` existen para la **edición**: ahí la segunda regla
+    no aplica —la cuenta ya tiene clave y el campo vacío significa «no la cambies»—
+    y los roles con los que queda no son solo los tildados
+    (ver `_validar_correo_de_entrega_al_editar`).
+    """
+    if form.cleaned_data.get("email"):
+        return
+    if grupos is None:
+        grupos = form.cleaned_data.get("groups") or []
+    if rbac.roles_solo_campo(grupos):
+        form.add_error(
+            "email",
+            "Un usuario de campo necesita correo: la clave se le entrega con un enlace para que la "
+            "defina él, y no hay otra vía.",
+        )
+        return
+    if not exigir_clave:
+        return
+    # Sin correo no hay forma de entregarle una clave generada: la tiene que
+    # poner el operador acá.
+    if not form.cleaned_data.get("password"):
+        form.add_error(
+            "password",
+            "Sin correo informado, la contraseña es obligatoria: el sistema no puede enviársela.",
+        )
+
+
+def _validar_correo_de_entrega_al_editar(form):
+    """La misma puerta de D-26 (b), pero en la edición y solo sobre la transición.
+
+    El alta ya no deja crear un usuario de campo sin correo, y sin esto la edición
+    seguía siendo el camino de atrás: se daba de alta un usuario **mixto** sin
+    correo (legítimo: tiene otra capacidad, así que el backoffice le va a pedir
+    cambiar la clave al entrar) y después se lo editaba destildándole el rol que no
+    era de campo. Quedaba exactamente el estado que D-26 cerró —solo-campo, sin
+    correo, con la clave que tipeó el operador y vigente para siempre—, pero por la
+    otra pantalla.
+
+    Se mira la **transición**, no el estado final: los territoriales sin correo que
+    ya existen —los que se crearon antes de este cambio— se tienen que poder seguir
+    editando, o quedarían congelados hasta que alguien les cargue un correo. Lo que
+    se rechaza es *llegar* a solo-campo sin correo desde una cuenta que no lo
+    estaba.
+
+    Y los roles con los que la cuenta **queda** no son los tildados: se calculan
+    como los calcula el guardado (`UsuariosAdminService._sync_related_data`), porque
+    un admin de programa no ve ni toca los roles fuera de su alcance y mirar solo lo
+    tildado leería como «de campo» a un usuario que conserva un rol de otro programa.
+    """
+    instancia = form.instance
+    if instancia is None or not instancia.pk:
+        _validar_correo_de_entrega(form, exigir_clave=False)
+        return
+    actuales = list(instancia.groups.all())
+    if not instancia.email and rbac.roles_solo_campo(actuales):
+        return  # ya estaba así: la edición no empeora nada y tiene que poder guardarse
+    from users.selectors.usuarios import alcance_roles_ids
+
+    operador = getattr(form, "operador", None)
+    alcance = alcance_roles_ids(operador) if operador is not None else None
+    seleccionados = list(form.cleaned_data.get("groups") or [])
+    if alcance is None:
+        resultantes = seleccionados
+    else:
+        resultantes = [g for g in actuales if g.id not in alcance] + [g for g in seleccionados if g.id in alcance]
+    _validar_correo_de_entrega(form, exigir_clave=False, grupos=resultantes)
+
+
+def _validar_al_menos_un_rol(form):
+    """G1b-05: un operador no global no deja la cuenta activa y sin ningún rol.
+
+    Destildar el único rol era el camino natural de «sacar a alguien del
+    programa», y dejaba una cuenta **viva** —el login sigue siendo válido y
+    `/inicio/` contesta 200— que además **desaparecía** del listado del admin que
+    la dejó así, porque ese listado filtra por rol de sus programas: ni
+    reactivarla ni desactivarla.
+
+    El admin global no queda alcanzado: a él la cuenta sin roles no se le
+    esconde, y es quien tiene que poder dejarla en ese estado si hace falta.
+    """
+    operador = getattr(form, "operador", None)
+    if operador is None or operador.is_superuser or rbac.puede(operador, "usuario.administrar"):
+        return
+    seleccionados = list(form.cleaned_data.get("groups") or [])
+    if seleccionados:
+        return
+    # En la edición, el guardado es acotado: los roles de fuera del alcance del
+    # operador quedan intactos y la cuenta no queda huérfana.
+    if form.instance and form.instance.pk:
+        alcance = set(_roles_asignables_queryset(operador).values_list("id", flat=True))
+        if form.instance.groups.exclude(id__in=alcance).exists():
+            return
+    form.add_error(
+        "groups",
+        "Seleccioná al menos un rol: una cuenta sin roles queda activa y fuera de tu listado. "
+        "Para sacarle el acceso, desactivá el usuario.",
+    )
+
+
 def _roles_asignables_queryset(operador=None):
     """Roles asignables a usuarios del backoffice: activos y NO de categoría Portal.
 
@@ -419,13 +552,9 @@ class UserCreationForm(RolesPorAmbitoMixin, forms.ModelForm):
         super().clean()
         _validar_dni_perfil_usuario(self)
         _validar_segmento_territorial(self)
-        # Sin correo no hay forma de entregarle una clave generada: la tiene que
-        # poner el operador ací.
-        if not self.cleaned_data.get("email") and not self.cleaned_data.get("password"):
-            self.add_error(
-                "password",
-                "Sin correo informado, la contraseña es obligatoria: el sistema no puede enviársela.",
-            )
+        _validar_clave_tipeada(self)
+        _validar_al_menos_un_rol(self)
+        _validar_correo_de_entrega(self)
         return _validar_jerarquia_becas(self)
 
 
@@ -534,4 +663,7 @@ class CustomUserChangeForm(RolesPorAmbitoMixin, forms.ModelForm):
         super().clean()
         _validar_dni_perfil_usuario(self)
         _validar_segmento_territorial(self)
+        _validar_clave_tipeada(self)
+        _validar_al_menos_un_rol(self)
+        _validar_correo_de_entrega_al_editar(self)
         return _validar_jerarquia_becas(self)

@@ -634,6 +634,43 @@ def es_ciudadano_portal(user):
     return cache
 
 
+def es_solo_campo(user):
+    """¿El usuario solo existe para la app de campo? (``becas.campo`` y nada más).
+
+    Es la misma pregunta que el login web responde para rechazarlo
+    (``territorial_mobile_only``) y la que decide, en el alta, si las credenciales
+    viajan como clave provisoria o como **link de reseteo** (D-26 de la auditoría
+    oct-2026): a esta persona el backoffice nunca le va a pedir que cambie la
+    clave, porque nunca va a pisar una pantalla del backoffice. Estaba escrita en
+    un solo lugar y ahora la consultan dos.
+    """
+    if not puede(user, "becas.campo"):
+        return False
+    return not puede_alguna(user, [c for c in codigos_de_capacidad() if c != "becas.campo"])
+
+
+def roles_solo_campo(grupos):
+    """La misma pregunta que :func:`es_solo_campo`, pero sobre roles sueltos.
+
+    En el **alta** el usuario todavía no existe —ni tiene grupos— y el formulario
+    necesita saber si lo que está por crear es un usuario de campo: de eso depende
+    que le exija el correo, porque a él la clave se le entrega por el link de
+    reseteo y por ninguna otra vía (D-26 (b)).
+
+    No hay bypass de superusuario acá: un rol no vuelve superusuario a nadie.
+    """
+    from django.contrib.auth.models import Permission
+
+    grupos = [g for g in grupos if getattr(g, "pk", None)]
+    if not grupos:
+        return False
+    codenames = set(Permission.objects.filter(group__in=grupos).values_list("codename", flat=True))
+    if codename_de("becas.campo") not in codenames:
+        return False
+    otras = {codename_de(c) for c in codigos_de_capacidad() if c != "becas.campo"}
+    return not (codenames & otras)
+
+
 # ---------------------------------------------------------------------------
 # Enforcement: decorador (FBV) y mixin (CBV)
 # ---------------------------------------------------------------------------

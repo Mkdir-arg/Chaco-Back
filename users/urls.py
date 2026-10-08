@@ -1,15 +1,19 @@
-from django.contrib.auth.views import LogoutView, PasswordResetConfirmView, PasswordResetDoneView, PasswordResetView
+from django.contrib.auth.views import LogoutView, PasswordResetDoneView
 from django.urls import path, reverse_lazy
 
 from users.services.correo import contexto_pie
 from users.views import (
     CambioContrasenaObligatorioView,
+    CambioContrasenaVoluntarioView,
+    EstablecerContrasenaView,
+    RecuperarContrasenaView,
     RolCreateView,
     RolDeleteView,
     RolDetailView,
     RolListView,
     RolToggleActivoView,
     RolUpdateView,
+    UserCerrarSesionAppView,
     UserCreateView,
     UserListView,
     UserToggleActivoView,
@@ -26,7 +30,7 @@ urlpatterns = [
     path("logout", (LogoutView.as_view()), name="logout"),
     path(
         "recuperar-contrasena/",
-        PasswordResetView.as_view(
+        RecuperarContrasenaView.as_view(
             template_name="user/recuperar_contrasena.html",
             email_template_name="user/email/recupero_contrasena.txt",
             html_email_template_name="user/email/recupero_contrasena.html",
@@ -43,6 +47,13 @@ urlpatterns = [
         CambioContrasenaObligatorioView.as_view(),
         name="cambiar_contrasena_obligatorio",
     ),
+    # Cambio voluntario, con la clave actual (G2-03). Reemplaza al
+    # `/password_change/` de `django.contrib.auth.urls`, que ya no se incluye.
+    path(
+        "cambiar-contrasena/propia/",
+        CambioContrasenaVoluntarioView.as_view(),
+        name="cambiar_contrasena",
+    ),
     path(
         "recuperar-contrasena/enviada/",
         PasswordResetDoneView.as_view(template_name="user/recuperar_contrasena_enviada.html"),
@@ -50,7 +61,7 @@ urlpatterns = [
     ),
     path(
         "establecer-contrasena/<uidb64>/<token>/",
-        PasswordResetConfirmView.as_view(
+        EstablecerContrasenaView.as_view(
             template_name="user/establecer_contrasena.html",
             success_url=reverse_lazy("users:login"),
         ),
@@ -62,6 +73,13 @@ urlpatterns = [
     path("usuarios/alta-rapida/", usuario_alta_rapida, name="usuario_alta_rapida"),
     path("usuarios/editar/<int:pk>/", UserUpdateView.as_view(), name="usuario_editar"),
     path("usuarios/<int:pk>/toggle/", UserToggleActivoView.as_view(), name="usuario_toggle"),
+    # SEC-26: revocación **explícita** del token de la app de campo. Cambiar la
+    # clave no lo toca (la app instalada no se recupera de un 401).
+    path(
+        "usuarios/<int:pk>/cerrar-sesion-app/",
+        UserCerrarSesionAppView.as_view(),
+        name="usuario_cerrar_sesion_app",
+    ),
     # --- Roles (RBAC por capacidad: rol.administrar) ---
     path("roles/", RolListView.as_view(), name="roles"),
     path("roles/crear/", RolCreateView.as_view(), name="rol_crear"),
