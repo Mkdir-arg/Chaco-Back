@@ -16,7 +16,7 @@ from notificaciones.models import Campana
 from notificaciones.services import campanas as servicio
 from notificaciones.services import html as servicio_html
 from notificaciones.services.lectura_excel import parsear_destinatarios
-from users.models import Capacidad
+from users.models import Capacidad, RolMeta
 
 XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 HTML_BASICO = "<html><head><style>p{color:#333}</style></head><body><p>Hola</p></body></html>"
@@ -48,6 +48,8 @@ def usuario_con(*codigos, username=None, email=""):
     user = User.objects.create_user(username, email=email or f"{username}@ejemplo.com", password="x")
     if codigos:
         grupo = Group.objects.create(name=f"rol {username}")
+        # `puede()` solo cuenta roles activos: sin RolMeta el rol no surte efecto.
+        RolMeta.objects.create(grupo=grupo, categoria=rbac.CATEGORIA_BACKOFFICE, activo=True)
         ct = ContentType.objects.get_for_model(Capacidad)
         for codigo in codigos:
             permiso, _ = Permission.objects.get_or_create(

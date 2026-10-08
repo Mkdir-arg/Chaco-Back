@@ -3,7 +3,7 @@
 // del checkout, y entonces el CSS depende de qué tenga instalado el que corre el
 // build. La lista se verifica contra el disco en
 // `core.tests.test_design_audit_estructura.ContentDeTailwindTests`.
-const APPS = '{configuracion,conversaciones,core,dashboard,healthcheck,legajos,portal,programas,tramites,users}'
+const APPS = '{configuracion,conversaciones,core,dashboard,healthcheck,legajos,notificaciones,portal,programas,tramites,users}'
 
 /** @type {import('tailwindcss').Config} */
 module.exports = {

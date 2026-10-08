@@ -1,0 +1,319 @@
+{% extends "includes/base.html" %}
+{% load static nodo_ui %}
+{% block title %}Notificaciones · Campaña · {{ campana.nombre }}{% endblock %}
+
+{% block main-content %}
+<div x-data="{ modalPrueba: false }" @becas-saved.window="modalPrueba=false">
+
+<div class="space-y-5"
+     x-data="{ tab: new URLSearchParams(window.location.search).get('tab') || '{{ tab_por_defecto }}', movil: false }">
+
+  {% url 'notificaciones:campanas' as url_volver %}
+  {% page_header titulo=campana.nombre volver_url=url_volver volver_label="campañas" migas=migas %}
+    {% bajada %}Asunto: {{ campana.asunto }} · {% if campana.enviada_en %}Enviada el {{ campana.enviada_en|date:"d/m/Y" }} a las {{ campana.enviada_en|date:"H:i" }} por {% if campana.enviada_por %}{{ campana.enviada_por.get_full_name|default:campana.enviada_por.username }}{% else %}—{% endif %}{% else %}Creada el {{ campana.creado|date:"d/m/Y" }} a las {{ campana.creado|date:"H:i" }} por {% if campana.creada_por %}{{ campana.creada_por.get_full_name|default:campana.creada_por.username }}{% else %}—{% endif %}{% endif %}{% endbajada %}
+    {% include "notificaciones/_estado_badge.html" %}
+    {% if puede_gestionar %}
+    <a href="{% url 'notificaciones:campana_editar' campana.pk %}" class="btn-nodo btn-secondary btn-sm">
+      <i class="fas fa-pen" aria-hidden="true"></i> Editar
+    </a>
+    <button type="button" class="btn-nodo btn-secondary btn-sm"
+            data-confirm-url="{% url 'notificaciones:campana_eliminar' campana.pk %}"
+            data-confirm-title="¿Eliminar la campaña?"
+            data-confirm-text="Se borran la campaña «{{ campana.nombre }}», su lista de destinatarios y sus archivos. No se puede deshacer."
+            data-confirm-ok="Sí, eliminar"
+            data-confirm-danger="true">
+      <i class="fas fa-trash" aria-hidden="true"></i> Eliminar
+    </button>
+    {% endif %}
+    {% if puede_duplicar %}
+    <button type="button" class="btn-nodo btn-secondary btn-sm"
+            data-confirm-url="{% url 'notificaciones:campana_duplicar' campana.pk %}"
+            data-confirm-title="¿Duplicar la campaña?"
+            data-confirm-text="Se crea «Copia de {{ campana.nombre }}» en «A enviar», con el mismo asunto, el mismo HTML y la misma lista. La original no cambia."
+            data-confirm-ok="Sí, duplicar"
+            data-confirm-danger="false"
+            data-confirm-icon="question">
+      <i class="fas fa-copy" aria-hidden="true"></i> Duplicar
+    </button>
+    {% endif %}
+    {% if not campana.editable %}
+    <a href="{% url 'notificaciones:campana_exportar' campana.pk %}" class="btn-nodo btn-secondary btn-sm">
+      <i class="fas fa-file-excel" aria-hidden="true"></i> Descargar resultado
+    </a>
+    {% endif %}
+    {% if puede_gestionar %}
+    <button type="button" @click="modalPrueba=true" class="btn-nodo btn-secondary btn-sm">
+      <i class="fas fa-vial" aria-hidden="true"></i> Enviar prueba
+    </button>
+    {% endif %}
+    {% if puede_reanudar %}
+    <button type="button" class="btn-nodo btn-secondary btn-sm"
+            data-confirm-url="{% url 'notificaciones:campana_reanudar' campana.pk %}"
+            data-confirm-title="¿Reanudar el envío?"
+            data-confirm-text="{{ texto_confirmar_reanudar }}"
+            data-confirm-ok="Sí, reanudar"
+            data-confirm-danger="false"
+            data-confirm-icon="warning">
+      <i class="fas fa-play" aria-hidden="true"></i> Reanudar envío
+    </button>
+    {% endif %}
+    {% if puede_detener %}
+    <button type="button" class="btn-nodo btn-danger btn-sm"
+            data-confirm-url="{% url 'notificaciones:campana_detener' campana.pk %}"
+            data-confirm-title="¿Detener el envío?"
+            data-confirm-text="Corta al terminar el correo que está mandando. Lo enviado queda enviado y los pendientes no se envían: la campaña pasa a «Cancelada»."
+            data-confirm-ok="Sí, detener"
+            data-confirm-danger="true">
+      <i class="fas fa-stop" aria-hidden="true"></i> Detener envío
+    </button>
+    {% endif %}
+    {% if puede_enviar %}
+    <button type="button" class="btn-nodo btn-brand btn-sm"
+            data-confirm-url="{% url 'notificaciones:campana_enviar' campana.pk %}"
+            data-confirm-title="¿Enviar la campaña?"
+            data-confirm-text="{{ texto_confirmar_envio }}"
+            data-confirm-ok="Sí, enviar"
+            data-confirm-danger="false"
+            data-confirm-icon="warning">
+      <i class="fas fa-paper-plane" aria-hidden="true"></i> Enviar
+    </button>
+    {% endif %}
+  {% endpage_header %}
+
+  {% if interrumpida %}
+    {% include "components/_alerta.html" with tono="warning" titulo="El envío se interrumpió" texto=campana.mensaje|default:"No hay actividad del envío desde hace más de cinco minutos (posible reinicio del servidor). Al reanudar se envía solo a los pendientes: nadie recibe el correo dos veces." %}
+  {% elif en_curso %}
+    {% include "components/_alerta.html" with tono="info" titulo="Enviando · se actualiza solo" texto=avance %}
+  {% elif campana.estado == "ENVIADA_CON_ERRORES" %}
+    {% include "components/_alerta.html" with tono="warning" role="status" titulo="Hay correos que no se pudieron enviar" texto="El resto de la campaña salió bien. El motivo de cada uno está en la solapa «Destinatarios» (filtrá por «Fallido»). Para volver a mandarla con cambios, usá «Duplicar»." %}
+  {% elif campana.estado == "CANCELADA" %}
+    {% include "components/_alerta.html" with tono="warning" role="status" titulo="Se detuvo el envío" texto=campana.mensaje|default:"Lo enviado quedó enviado; los pendientes no se enviaron." %}
+  {% endif %}
+
+  {% if campana.editable %}
+  <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+    {% include "components/_stat_card.html" with etiqueta="Destinatarios a enviar" valor=stats.total icono="fa-users" tono="brand" nota="un correo individual a cada uno" %}
+    {% include "components/_stat_card.html" with etiqueta="Filas leídas del Excel" valor=stats.leidas icono="fa-file-excel" tono="brand" nota=campana.nombre_excel %}
+    {% include "components/_stat_card.html" with etiqueta="Inválidos descartados" valor=stats.invalidos icono="fa-circle-xmark" tono="warning" nota="formato incorrecto o vacío" %}
+    {% include "components/_stat_card.html" with etiqueta="Duplicados descartados" valor=stats.duplicados icono="fa-clone" tono="warning" nota="se envía una sola vez" %}
+  </div>
+  {% else %}
+  <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+    {% include "components/_stat_card.html" with etiqueta="Enviados" valor=stats.enviados icono="fa-circle-check" tono="success" %}
+    {% if hay_fallidos %}
+    {% include "components/_stat_card.html" with etiqueta="Fallidos" valor=stats.fallidos icono="fa-triangle-exclamation" tono="danger" %}
+    {% else %}
+    {% include "components/_stat_card.html" with etiqueta="Fallidos" valor=stats.fallidos icono="fa-triangle-exclamation" tono="brand" %}
+    {% endif %}
+    {% include "components/_stat_card.html" with etiqueta="Pendientes" valor=stats.pendientes icono="fa-hourglass-half" tono="warning" %}
+    {% include "components/_stat_card.html" with etiqueta="Total de la campaña" valor=stats.total icono="fa-users" tono="brand" %}
+  </div>
+  {% endif %}
+
+  <div class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
+
+    <div class="border-b border-base flex gap-1 px-2 flex-wrap" role="tablist" aria-label="Secciones de la campaña">
+      <button @click="tab='vista'" type="button" role="tab" id="tab-vista" aria-controls="panel-vista"
+              :aria-selected="tab==='vista'"
+              class="px-4 py-3 text-sm border-b-2 -mb-px transition flex items-center gap-1.5 whitespace-nowrap"
+              :class="tab==='vista' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
+        <i class="fas fa-envelope-open-text" aria-hidden="true"></i> Vista previa
+      </button>
+      <button @click="tab='destinatarios'" type="button" role="tab" id="tab-destinatarios" aria-controls="panel-destinatarios"
+              :aria-selected="tab==='destinatarios'"
+              class="px-4 py-3 text-sm border-b-2 -mb-px transition flex items-center gap-1.5 whitespace-nowrap"
+              :class="tab==='destinatarios' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
+        <i class="fas fa-users" aria-hidden="true"></i> Destinatarios
+        <span class="badge" :class="tab==='destinatarios' ? 'badge-info' : 'badge-gray'">{{ n_destinatarios }}</span>
+      </button>
+      <button @click="tab='descartados'" type="button" role="tab" id="tab-descartados" aria-controls="panel-descartados"
+              :aria-selected="tab==='descartados'"
+              class="px-4 py-3 text-sm border-b-2 -mb-px transition flex items-center gap-1.5 whitespace-nowrap"
+              :class="tab==='descartados' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
+        <i class="fas fa-ban" aria-hidden="true"></i> Descartados
+        <span class="badge" :class="tab==='descartados' ? 'badge-info' : 'badge-gray'">{{ n_descartados }}</span>
+      </button>
+    </div>
+
+    {# ===== TAB: Vista previa ===== #}
+    <div x-show="tab==='vista'" x-cloak role="tabpanel" id="panel-vista" aria-labelledby="tab-vista">
+      <div class="p-5 space-y-4">
+        <dl class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
+          <div>
+            <dt class="text-xs text-body-subtle">De</dt>
+            <dd class="text-heading font-medium break-all">{{ remitente }}</dd>
+          </div>
+          <div>
+            <dt class="text-xs text-body-subtle">Para</dt>
+            <dd class="text-heading font-medium break-all">{{ primer_destinatario|default:"—" }}
+              <span class="block text-xs text-body-subtle font-normal">ejemplo: el primer destinatario</span></dd>
+          </div>
+          <div>
+            <dt class="text-xs text-body-subtle">Asunto</dt>
+            <dd class="text-heading font-medium break-words">{{ asunto_final }}</dd>
+          </div>
+        </dl>
+
+        {% if campana.imagenes_no_visibles %}
+          {% include "components/_alerta.html" with tono="warning" role="status" titulo="Hay imágenes que no se van a ver" texto="Algunas imágenes del HTML usan una ruta relativa o «cid:». No se envían adjuntos: publicalas en una dirección https:// y reemplazá el HTML desde «Editar»." %}
+        {% endif %}
+        {% if campana.elementos_quitados %}
+          {% include "components/_alerta.html" with tono="info" texto="Al subir el HTML se quitó contenido inseguro (scripts, formularios, contenido incrustado o eventos). Lo que ves es exactamente lo que se envía." %}
+        {% endif %}
+
+        <div class="flex items-center gap-2 flex-wrap" role="group" aria-label="Ancho de la vista previa">
+          <button type="button" @click="movil=false" :aria-pressed="!movil" class="btn-nodo btn-sm"
+                  :class="movil ? 'btn-tertiary' : 'btn-secondary'">
+            <i class="fas fa-desktop" aria-hidden="true"></i> Escritorio
+          </button>
+          <button type="button" @click="movil=true" :aria-pressed="movil" class="btn-nodo btn-sm"
+                  :class="movil ? 'btn-secondary' : 'btn-tertiary'">
+            <i class="fas fa-mobile-screen" aria-hidden="true"></i> Móvil
+          </button>
+          <span class="text-xs text-body-subtle">Así le llega a cada persona.</span>
+        </div>
+
+        {% comment %}RNF-007-04: el HTML de la campaña nunca entra en esta página. Va en un
+        iframe con sandbox vacío (sin scripts, sin formularios, sin navegar la pestaña) y con
+        src a una vista propia que lo sirve con su CSP (views.campanas.vista_previa_html).{% endcomment %}
+        <iframe sandbox src="{% url 'notificaciones:campana_vista_previa' campana.pk %}"
+                title="Vista previa del correo «{{ campana.asunto }}»"
+                referrerpolicy="no-referrer" loading="lazy"
+                class="block w-full min-h-screen mx-auto rounded-xl border border-base bg-white"
+                :class="movil ? 'max-w-xs' : ''"></iframe>
+      </div>
+    </div>
+
+    {# ===== TAB: Destinatarios ===== #}
+    <div x-show="tab==='destinatarios'" x-cloak role="tabpanel" id="panel-destinatarios" aria-labelledby="tab-destinatarios">
+      <div class="px-5 py-4 border-b border-light">
+        <form method="get" data-dynamic-list-filters>
+          <input type="hidden" name="tab" value="destinatarios">
+          <input type="search" name="q" value="{{ request.GET.q }}" class="nodo-field max-w-xs" aria-label="Buscar correo">
+          <select name="estado" class="nodo-field max-w-xs" aria-label="Resultado">
+            <option value="">Todos</option>
+            {% for value, label in estados_destinatario %}<option value="{{ value }}" {% if value == estado_destinatario_actual %}selected{% endif %}>{{ label }}</option>{% endfor %}
+          </select>
+        </form>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full border-collapse">
+          <thead>
+            <tr class="nodo-thead-row">
+              <th class="nodo-th w-28">Fila del Excel</th>
+              <th class="nodo-th">Correo</th>
+              <th class="nodo-th">Estado</th>
+              <th class="nodo-th">Enviado</th>
+              <th class="nodo-th">Detalle</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for d in destinatarios %}
+            <tr class="hover:bg-secondary transition">
+              <td class="nodo-td text-body">{{ d.fila_excel }}</td>
+              <td class="nodo-td text-heading font-medium break-all">{{ d.email }}</td>
+              <td class="nodo-td">{% include "notificaciones/_destinatario_badge.html" with destinatario=d %}</td>
+              <td class="nodo-td text-body whitespace-nowrap">{{ d.enviado_en|date:"d/m/Y H:i"|default:"—" }}</td>
+              <td class="nodo-td text-xs text-body-subtle break-words">{{ d.error|default:"—" }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="5" class="p-0">
+                {% if request.GET|hay_filtros:"page,tab,destinatarios_page,descartados_page" %}
+                  {% url 'notificaciones:campana_detalle' campana.pk as url_sin_filtros %}
+                  {% include "components/_estado_vacio.html" with con_filtros=True titulo="Ningún destinatario coincide con los filtros" texto="Probá con otro correo o resultado." accion_url=url_sin_filtros %}
+                {% else %}
+                  {% include "components/_estado_vacio.html" with icono="fa-users" titulo="La campaña no tiene destinatarios" texto="Aparecen acá los correos válidos del Excel." %}
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% include "components/_paginacion.html" with page_obj=destinatarios entidad="destinatario" param="destinatarios_page" extra_qs="tab=destinatarios" %}
+    </div>
+
+    {# ===== TAB: Descartados ===== #}
+    <div x-show="tab==='descartados'" x-cloak role="tabpanel" id="panel-descartados" aria-labelledby="tab-descartados">
+      <p class="px-5 py-4 border-b border-light text-sm text-body">
+        Estas filas del Excel <strong class="text-heading">no se van a enviar</strong>. Para incluirlas, corregí el archivo y reemplazalo desde «Editar».
+      </p>
+      <div class="overflow-x-auto">
+        <table class="w-full border-collapse">
+          <thead>
+            <tr class="nodo-thead-row">
+              <th class="nodo-th w-28">Fila del Excel</th>
+              <th class="nodo-th">Valor leído</th>
+              <th class="nodo-th">Motivo</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for d in descartados %}
+            <tr class="hover:bg-secondary transition">
+              <td class="nodo-td text-body">{{ d.fila_excel }}</td>
+              <td class="nodo-td text-heading break-all">{{ d.valor|default:"(vacío)" }}</td>
+              <td class="nodo-td text-body">{{ d.get_motivo_display }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="3" class="p-0">
+                {% include "components/_estado_vacio.html" with icono="fa-circle-check" titulo="No se descartó ninguna fila" texto="Todas las filas con datos del Excel tenían un correo válido y sin repetir." %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% include "components/_paginacion.html" with page_obj=descartados entidad="fila descartada" entidad_plural="filas descartadas" param="descartados_page" extra_qs="tab=descartados" %}
+    </div>
+  </div>
+</div>
+
+{% if puede_gestionar %}
+{# Modal «Enviar prueba» — x-becas-modal: foco, Tab atrapado, Escape y scroll del fondo (becas-modal.js) #}
+<div x-show="modalPrueba" x-cloak x-becas-modal="modalPrueba" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+  <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="modalPrueba=false"></div>
+  <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden" @click.stop
+       role="dialog" aria-modal="true" aria-labelledby="modal-prueba-titulo">
+    {% include "programas/becas/_modal_header.html" with titulo="Enviar una prueba" titulo_id="modal-prueba-titulo" icono="fa-vial" cerrar="modalPrueba=false" %}
+    <form method="post" action="{% url 'notificaciones:campana_prueba' campana.pk %}" data-ajax data-reset="false" class="flex flex-col flex-1 min-h-0">
+      {% csrf_token %}
+      <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
+        <div>
+          <p class="mb-2 text-xs text-fg-danger hidden" data-error="__all__" role="alert"></p>
+          <label for="{{ prueba_form.email.id_for_label }}" class="block text-sm font-medium text-heading mb-1">Correo de destino <span class="text-fg-danger">*</span></label>
+          {{ prueba_form.email }}
+          <p class="mt-1 text-xs text-body-subtle">Puede ser cualquier casilla. El asunto llega como «[PRUEBA] {{ campana.asunto }}».</p>
+          <p class="mt-1 text-xs text-fg-danger hidden" data-error="email"></p>
+        </div>
+        {% include "components/_alerta.html" with tono="info" texto="Te mandamos el correo de esta campaña a una sola dirección para que veas cómo llega. La campaña sigue «A enviar» y la prueba no cuenta como envío." %}
+      </div>
+      {% include "programas/becas/_modal_footer.html" with cancelar="modalPrueba=false" accion_texto="Enviar prueba" accion_icono="fa-paper-plane" %}
+    </form>
+  </div>
+</div>
+{% endif %}
+</div>
+{% endblock %}
+
+{% block customJS %}{% include "programas/becas/_ajax_js.html" %}
+<script src="{% static 'custom/js/becas-modal.js' %}"></script>
+{% if en_curso %}
+<script>
+  (function () {
+    // El envío corre en un hilo del pod y no avisa: la pantalla se relee sola. Si hay un
+    // modal abierto (detener, por ejemplo) se espera, para no cerrarlo a mitad de la decisión.
+    var overlay = document.getElementById('modal-overlay');
+    function releer() {
+      if (overlay && !overlay.classList.contains('hidden')) {
+        setTimeout(releer, 5000);
+        return;
+      }
+      window.location.reload();
+    }
+    setTimeout(releer, 5000);
+  })();
+</script>
+{% endif %}
+{% endblock %}

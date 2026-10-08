@@ -17,7 +17,17 @@ class SanitizarTests(SimpleTestCase):
             '<a href="javascript:alert(3)">mal</a><a href="https://ok.com">bien</a>'
         )
         limpio = servicio.sanitizar(original).lower()
-        for prohibido in ("<script", "alert(", "onclick", "<iframe", "<object", "<embed", "<form", "<input", "javascript:"):
+        for prohibido in (
+            "<script",
+            "alert(",
+            "onclick",
+            "<iframe",
+            "<object",
+            "<embed",
+            "<form",
+            "<input",
+            "javascript:",
+        ):
             self.assertNotIn(prohibido, limpio)
         self.assertIn('href="https://ok.com"', limpio)
         self.assertIn("hola", limpio)
@@ -35,7 +45,9 @@ class SanitizarTests(SimpleTestCase):
         self.assertNotIn("<title", limpio)
 
     def test_quita_meta_refresh_y_base(self):
-        limpio = servicio.sanitizar('<meta http-equiv="refresh" content="0;url=https://x"><base href="https://x"><p>a</p>')
+        limpio = servicio.sanitizar(
+            '<meta http-equiv="refresh" content="0;url=https://x"><base href="https://x"><p>a</p>'
+        )
         self.assertNotIn("<meta", limpio)
         self.assertNotIn("<base", limpio)
 

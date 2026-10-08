@@ -230,7 +230,11 @@ def _volcar_contadores_sin_latido(campana_id):
 
 def _sigue_a_cargo(campana):
     """Relee lo que otro request puede haber cambiado: estado y pedido de detención."""
-    campana.refresh_from_db(fields=["estado", "cancelacion_pedida"])
+    # Dos columnas y no un ``refresh_from_db``: se lee por correo y no hace falta el modelo.
+    fila = Campana.objects.filter(pk=campana.pk).values_list("estado", "cancelacion_pedida").first()
+    if fila is None:
+        return False
+    campana.estado, campana.cancelacion_pedida = fila
     return campana.estado == Campana.Estado.ENVIANDO
 
 
