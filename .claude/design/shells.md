@@ -82,9 +82,11 @@ Se hereda; no se recrean el sidebar ni sus offsets.
 - El shell publica `window.idleLogoutConfig` y carga `static/custom/js/idle-logout.js`: aviso con
   cuenta regresiva y cierre por inactividad. Lleva `keepAliveUrl` (`{% url 'core:sesion_latido' %}`),
   que es lo que le traduce al servidor la actividad del usuario: el cierre de verdad lo decide
-  `core.middleware.ExpiracionPorInactividadMiddleware`, que cuenta **pedidos**, y sin ese latido una
-  pantalla larga que no pide nada —un relevamiento tipeado veinte minutos— terminaría en el login con
-  el formulario perdido. El latido sale como mucho una vez por minuto y solo con actividad real.
+  `core.middleware.ExpiracionPorInactividadMiddleware`, que cuenta **pedidos de pantalla** —el
+  polling de fondo de `RUTAS_SIN_MARCA_DE_ACTIVIDAD` y `/api/` no corren el reloj, justamente para
+  que una pestaña olvidada no renueve la sesión sola—, y sin ese latido una pantalla larga que no
+  pide nada —un relevamiento tipeado veinte minutos— terminaría en el login con el formulario
+  perdido. El latido sale como mucho una vez por minuto y solo con actividad real.
 
 ---
 
