@@ -232,7 +232,7 @@
     const calculado = $('[data-dash="calculado-texto"]');
     calculado.textContent = `Datos al ${cuando.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' })} ${cuando.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false })}`;
     calculado.parentElement.title = cuerpo.desde_cache
-      ? 'Servido desde la caché: los totales se recalculan cada 5 minutos o con «Actualizar».'
+      ? 'Servido desde la caché: los totales se recalculan cada 5 minutos, o con «Actualizar» si pasaron al menos 30 segundos desde el último cálculo.'
       : 'Recién calculado. Los totales se guardan 5 minutos.';
 
     kpi('convocatorias_activas', fmt(i.convocatorias_activas));
@@ -699,10 +699,11 @@
       window.location.href = `${urlExportar.replace('FORMATO', formato)}?${querystring(extra)}`;
     });
   });
-  // Respuestas por persona: el pop up hereda la convocatoria del filtro y descarga el Excel.
+  // Respuestas por persona: el pop up hereda la convocatoria del filtro y descarga el archivo.
   const formRespuestas = document.getElementById('dash-form-respuestas');
   if (formRespuestas && raiz.dataset.urlRespuestas) {
     const selectConv = document.getElementById('dash-respuestas-convocatoria');
+    const selectFormato = document.getElementById('dash-respuestas-formato');
     const errorConv = $('[data-dash="respuestas-error"]');
     window.addEventListener('dash-respuestas-abierto', () => {
       const actual = campo('convocatoria').value;
@@ -717,7 +718,8 @@
         selectConv.focus();
         return;
       }
-      window.location.href = raiz.dataset.urlRespuestas.replace('/0/', `/${id}/`);
+      const formato = (selectFormato && selectFormato.value) || 'xlsx';
+      window.location.href = raiz.dataset.urlRespuestas.replace('/0/', `/${id}/`).replace('/FORMATO/', `/${formato}/`);
     });
   }
   const imprimir = $('[data-dash="imprimir"]');

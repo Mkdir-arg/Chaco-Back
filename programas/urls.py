@@ -58,9 +58,11 @@ urlpatterns = [
         name="programa_dashboard_exportar",
     ),
     path(
-        "config/programas/<int:pk>/dashboard/respuestas/<int:convocatoria_pk>/xlsx/",
-        dsh.programa_dashboard_respuestas_xlsx,
-        name="programa_dashboard_respuestas_xlsx",
+        # El `<str:formato>` reemplaza al `xlsx/` fijo de antes (PERF-03): la URL vieja
+        # sigue resolviendo al mismo archivo, así que un favorito guardado no se rompe.
+        "config/programas/<int:pk>/dashboard/respuestas/<int:convocatoria_pk>/<str:formato>/",
+        dsh.programa_dashboard_respuestas,
+        name="programa_dashboard_respuestas",
     ),
     path(
         "config/programas/<int:programa_pk>/requisitos/nuevo/",
