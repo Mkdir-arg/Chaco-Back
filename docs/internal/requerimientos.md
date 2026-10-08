@@ -25659,7 +25659,8 @@ fijado en `programas/tests/test_becas_api_contrato.py`.
   falla** (el envío queda `PARCIAL`, `FAILED_PERMANENT`), así que los de los campos siguientes
   tampoco se subían. La segunda mirada solo se paga cuando la primera no alcanzó. Lo que sigue
   rebotando es lo que no está en ninguna de las dos: otro segmento, una pregunta de texto, una
-  pregunta desactivada.
+  pregunta desactivada. **(La pregunta desactivada dejó de rebotar en la ronda 2 — ver
+  *Historial*.)**
 - **`version_capturada` es `integer NULL`, sin `CHECK`.** Con `PositiveIntegerField` Django emite
   `integer UNSIGNED NULL CHECK (… >= 0)`, y MySQL 8 no acepta `ALGORITHM=INSTANT` para un
   `ADD COLUMN` con CHECK (error 1845, medido en `mysql:8.0.46`): copiaría `programas_formulario`
@@ -25823,13 +25824,14 @@ carriles en paralelo.
   la `version` que baja `GET /api/becas/relevamientos/<id>/` junto con la captura offline y
   mandarla como `version_capturada` en el `POST …/formularios/`. Hasta entonces la columna queda
   en `NULL` y el agujero que describe la ficha sigue abierto en producción.
-- **Lo que el control de pertenencia todavía puede cortar en la app instalada:** un archivo de un
+- ~~**Lo que el control de pertenencia todavía puede cortar en la app instalada:** un archivo de un
   campo que **ya no está** ni en la foto ni en la lista plana vigente —una pregunta `ARCHIVO`
   desactivada entre la captura y la sincronización— rebota con 400, y la cola de `Chaco-mobile`
-  deja de subir los adjuntos que venían después en ese envío. Es el caso que la ficha pide
-  rechazar, y antes la fila se guardaba igual pero quedaba invisible para el revisor. Cerrarlo del
-  todo es del lado de la app (seguir con el adjunto siguiente cuando uno da 4xx), que conviene
-  sumar al mismo release que manda `version_capturada`.
+  deja de subir los adjuntos que venían después en ese envío.~~ **Resuelto del lado del servidor en
+  la ronda 2** (ver *Historial*): ese caso entra con 201 y queda observado. Lo que sigue siendo del
+  lado de la app es tolerar un 4xx de un adjunto y seguir con el siguiente —hoy el 400 que queda,
+  el de otro segmento, también corta la cola—; conviene sumarlo al mismo release que manda
+  `version_capturada`.
 - Los duplicados de adjuntos que producción ya tiene **no se limpian**: se los deja y se los
   resuelve por «gana el más nuevo». Un comando de limpieza sería un ítem aparte, y borrar
   documentos del ciudadano no es algo que convenga hacer de oficio.
@@ -25844,4 +25846,75 @@ log del cron con los ids leídos.
 
 ## Historial
 
-No aplica: entrada nueva.
+**Ronda 2 de la revisión (08/10/2026) — 1 MAJOR y 4 MINOR, todos corregidos.**
+
+**El MAJOR es el pendiente que la ronda 1 había dejado escrito: un campo `ARCHIVO` desactivado
+trababa la cola entera de la app.** El escenario medido: el teléfono baja una definición con dos
+campos `ARCHIVO` y captura offline; el PM desactiva uno —o lo saca del diseño, o le cambia el
+canal—; recién después el territorial sincroniza. El alta daba 201 y el `POST …/adjuntos/` del
+campo caído, 400. Del lado de la app, `syncRemoteBecasFormulario`
+(`relevamientoService.js:966-985`) sube los adjuntos en un `for` y **corta** en el 400, que además
+no es reintentable (`:1486`): la operación queda `FAILED_PERMANENT` y **el segundo documento, que
+el servidor sí aceptaba, no se sube nunca**, tampoco con el reintento manual. O sea que un campo
+desactivado en el backoffice se llevaba puestos todos los adjuntos de ese envío.
+
+El control de pertenencia pasó de dos respuestas a **tres** (`campo.pertenencia_del_adjunto`, que
+reemplaza a `campo_de_archivo_del_caso`):
+
+- **`ADJUNTO_DEL_FORMULARIO`** — la clave está en la foto del caso o en la definición vigente
+  (incluida la lista plana, que es la que lee la app instalada). Igual que antes.
+- **`ADJUNTO_YA_NO_SE_PIDE`** — es un campo `ARCHIVO` que **pudo** ser de esta convocatoria (una
+  pregunta general, que aplica a todas; o un requisito de su herencia RN-32) y hoy no aparece en el
+  formulario. Entra con **201** y queda observado en `observaciones_carga`, con el mismo criterio
+  que G1-05: la captura ya existe y el revisor tiene que enterarse de que llegó un archivo que la
+  pantalla no muestra entre las respuestas (`_adjuntos_por_clave` lo indexa por una clave que la
+  definición del caso no tiene).
+- **`ADJUNTO_AJENO`** — lo que **nunca** pudo ser de esta convocatoria: el requisito de otro
+  segmento, o un campo que no pide ningún archivo. Es el único 400 que queda.
+
+Que un requisito sea «de otro segmento» se pregunta con el **mismo** `Q` que arma la definición
+(`filtro_requisitos_convocatoria`) y no con una copia en memoria de la herencia: es exactamente lo
+contrario de que la definición lo sirva, y dos escrituras de la misma regla se separan. Una
+`PreguntaGlobal` es del catálogo general, así que siempre pudo estar en esta convocatoria. La
+observación se escribe dentro de la misma transacción que el adjunto, no se repite cuando la cola
+reintenta, y `revisar_carga` la **arrastra**: reescribe `observaciones_carga` entero y el reintento
+del alta vuelve a pasar por ahí mientras el caso siga incompleto (`_alta_incompleta`), que puede
+ser después de una subida.
+
+**Los cuatro MINOR.** (1) `version_capturada` tenía `min_value=0` y ningún tope: un `2**40` pasaba
+el serializer y MariaDB en modo estricto lo contestaba con un `DataError` —un 500, y la app
+reintenta ocho veces un envío que no va a entrar nunca—; va `max_value=2_147_483_647`, el `INT` con
+signo de la columna. (2) El docstring de `guardar_adjunto` decía que el `select_for_update`
+serializa dos subidas simultáneas del mismo campo, y con `READ COMMITTED` una primera subida sin
+fila que bloquear no toma gap lock: lo que hace es ordenar los reintentos sobre una fila que ya
+existe, puede haber dos filas, y con duplicados manda el más nuevo —que es el que
+`_adjuntos_por_clave` muestra—. (3) `pasar_relevamientos_a_revision` releía por estado para saber
+qué había cerrado, y `EN_REVISION` es también adonde llega el coordinador que termina su
+relevamiento desde la pantalla: el log se atribuía cierres ajenos. Ahora actualiza **de a un id**
+con el filtro de estado adentro del `UPDATE` y loguea los que devolvieron `1`; no hay ventana entre
+decidir y escribir, y son tantas consultas como relevamientos vencidos procesa el cron por noche.
+(4) El docstring de `test_una_version_que_no_es_una_version_se_rechaza` decía
+`PositiveIntegerField` y la columna es `IntegerField` a propósito (el `CHECK` del positivo impide
+`ALGORITHM=INSTANT`).
+
+**Verificación de la ronda 2** (mismo venv `.venv312`): `manage.py check` sin issues;
+`makemigrations --check --dry-run` sin cambios (esta ronda no toca modelos); `test_app_de_campo` +
+`test_becas_api_contrato` + `test_becas_vencimientos`, **99 tests OK**; los módulos vecinos de lo
+tocado (`test_becas_api`, `test_adjunto_punta_a_punta`, `test_becas_reglas_negocio`,
+`test_relevamiento_publico`, `core.tests.test_procesar_vencimientos_aislado`,
+`core.tests.test_tareas_programadas`), **174 tests OK**; `ruff check` y `ruff format --check` de lo
+tocado, limpios. **En rojo contra `ff9cde3c`** (los cuatro archivos de código revertidos, con los
+tests nuevos puestos): `test_un_campo_desactivado_no_traba_la_cola_de_la_app` y
+`test_la_observacion_del_adjunto_no_se_repite_con_el_reintento` dan 400 donde ahora hay 201;
+`test_una_version_mas_grande_que_la_columna_se_rechaza` acepta el `2**40`; y
+`test_el_cierre_de_otro_proceso_no_entra_en_el_log` nombra en el log el relevamiento que cerró
+otro.
+
+**Tests nuevos (4):**
+`test_app_de_campo.py::AdjuntosDeLaAppTests.test_un_campo_desactivado_no_traba_la_cola_de_la_app`,
+`::AdjuntosDeLaAppTests.test_la_observacion_del_adjunto_no_se_repite_con_el_reintento`,
+`::VersionDelFormularioTests.test_una_version_mas_grande_que_la_columna_se_rechaza` y
+`::CronDeVencimientosTests.test_el_cierre_de_otro_proceso_no_entra_en_el_log`. Reemplazado:
+`test_un_campo_que_el_formulario_no_pide_se_rechaza`, que fijaba el 400 que esta ronda corrige. El
+contrato del 400 legible (`test_el_400_del_adjunto_trae_el_motivo_en_non_field_errors`) pasó a usar
+la referencia de otro segmento, que es el rechazo que queda.

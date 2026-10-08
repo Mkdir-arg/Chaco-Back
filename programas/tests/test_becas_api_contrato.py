@@ -33,6 +33,7 @@ from programas.models import (
     PreguntaGlobal,
     Relevamiento,
     RequisitoNativo,
+    Segmento,
     Subsegmento,
     TipoCampo,
 )
@@ -464,13 +465,21 @@ class ContratoAppDeCampoTests(_BaseApiTest):
         self.rel.estado = Relevamiento.Estado.EN_CURSO
         self.rel.save(update_fields=["estado", "modificado"])
         pregunta = PreguntaGlobal.objects.create(texto="Foto del DNI", tipo=TipoCampo.ARCHIVO, orden=900)
-        ajena = PreguntaGlobal.objects.create(texto="Ya no se pide", tipo=TipoCampo.ARCHIVO, activo=False, orden=901)
+        # La única referencia que todavía rebota: la de otro padrón. Un campo que
+        # quedó viejo entre la captura y la sincronización entra y se observa, que
+        # es lo que evita que la cola de subidas de la app corte ahí.
+        ajeno = RequisitoNativo.objects.create(
+            texto="Certificado de otro programa",
+            tipo=TipoCampo.ARCHIVO,
+            segmento=Segmento.objects.create(nombre="Otro seg", cupo_maximo=10),
+            orden=901,
+        )
         formulario = Formulario.objects.create(relevamiento=self.rel, celular="111", email_contacto="a@b.com")
         url = reverse("becas_api:formulario-adjuntos", args=[formulario.pk])
 
         for motivo, datos in (
             ("formato", {"pregunta_global": pregunta.pk, "archivo": SimpleUploadedFile("dni.exe", b"x")}),
-            ("fuera del formulario", {"pregunta_global": ajena.pk, "archivo": SimpleUploadedFile("dni.jpg", b"x")}),
+            ("fuera del formulario", {"requisito_nativo": ajeno.pk, "archivo": SimpleUploadedFile("dni.jpg", b"x")}),
         ):
             with self.subTest(motivo=motivo):
                 resp = self.client.post(url, datos, format="multipart")

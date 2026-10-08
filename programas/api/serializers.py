@@ -102,8 +102,10 @@ class FormularioSerializer(serializers.ModelSerializer):
     # G1-16: con qué versión del diseño capturó el teléfono. **Opcional**: la app
     # instalada (`Chaco-mobile@a66c2d3`) no la manda y el alta funciona igual.
     # Si viene, se guarda y se compara contra la versión de la foto que el caso
-    # terminó guardando (`services.campo`).
-    version_capturada = serializers.IntegerField(required=False, allow_null=True, min_value=0)
+    # terminó guardando (`services.campo`). El tope es el del `INT` con signo de
+    # la columna: sin él, un `2**40` pasa el serializer y MariaDB en modo estricto
+    # lo contesta con un `DataError`, o sea un 500 para la app.
+    version_capturada = serializers.IntegerField(required=False, allow_null=True, min_value=0, max_value=2_147_483_647)
 
     class Meta:
         model = Formulario
@@ -348,13 +350,18 @@ class AdjuntoFormularioSerializer(serializers.ModelSerializer):
         requisito = attrs.get("requisito_nativo")
         if bool(pregunta) == bool(requisito):
             raise serializers.ValidationError("Se requiere exactamente uno: pregunta_global o requisito_nativo.")
-        # G1-07: la referencia tiene que ser un campo ARCHIVO del formulario de
-        # **este** caso. El ``formulario`` lo pone la vista en el contexto, que
-        # es la única que sabe de qué caso se trata (el campo es de solo lectura
-        # justamente para que el cliente no lo elija).
+        # G1-07: se rechaza **solo** la referencia que nunca pudo ser de esta
+        # convocatoria (otro segmento, o un campo que no pide ningún archivo). La
+        # que quedó vieja entre la captura y la sincronización entra y se observa
+        # (`servicio_campo.guardar_adjunto`): un 400 corta la cola de subidas de
+        # la app y se lleva puestos los documentos que venían después. El
+        # ``formulario`` lo pone la vista en el contexto, que es la única que sabe
+        # de qué caso se trata (el campo es de solo lectura justamente para que el
+        # cliente no lo elija).
         formulario = self.context.get("formulario")
-        if formulario is not None and not servicio_campo.campo_de_archivo_del_caso(
-            formulario, pregunta_global=pregunta, requisito_nativo=requisito
+        if formulario is not None and (
+            servicio_campo.pertenencia_del_adjunto(formulario, pregunta_global=pregunta, requisito_nativo=requisito)
+            == servicio_campo.ADJUNTO_AJENO
         ):
-            raise serializers.ValidationError(servicio_campo.ADJUNTO_FUERA_DEL_FORMULARIO)
+            raise serializers.ValidationError(servicio_campo.MENSAJE_ADJUNTO_AJENO)
         return attrs

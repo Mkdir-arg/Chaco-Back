@@ -26,7 +26,9 @@ llega después, en un ``POST …/adjuntos/`` por campo. Ese endpoint no miraba n
 un reintento de la cola offline creaba una fila más —y la revisión se quedaba con
 la **más vieja**, así que el territorial veía su foto corregida ignorada— y el
 campo al que se adjuntaba podía no existir en el formulario del relevamiento.
-Acá hay un archivo por campo de archivo del caso, y el campo tiene que ser uno.
+Acá hay un archivo por campo de archivo del caso, y la referencia se rechaza
+**solo** cuando nunca pudo ser de esta convocatoria; la que quedó vieja entre la
+captura y la sincronización entra observada, con el mismo criterio que G1-05.
 
 **G1-16 · con qué versión se capturó.** La foto de la definición se guarda al
 **sincronizar**, que puede ser días después de la captura. Si alguien editó el
@@ -160,7 +162,9 @@ def revisar_carga(formulario, relevamiento=None, identidad=None):
     """
     definicion = formulario.definicion or {}
     respuestas = dict(formulario.respuestas or {})
-    observaciones = []
+    # G1-07: lo que dejó una subida posterior no lo sabe esta función y se
+    # reescribe entero, así que se arrastra.
+    observaciones = _observaciones_de_adjuntos(formulario)
 
     observaciones.extend(_observacion_de_version(formulario, definicion))
 
@@ -254,8 +258,22 @@ def _observacion_de_version(formulario, definicion):
 
 # ── G1-07 · adjuntos de la app ───────────────────────────────────────────────
 
-ADJUNTO_FUERA_DEL_FORMULARIO = (
+#: Los tres veredictos de :func:`pertenencia_del_adjunto`.
+ADJUNTO_DEL_FORMULARIO = "del_formulario"
+ADJUNTO_YA_NO_SE_PIDE = "ya_no_se_pide"
+ADJUNTO_AJENO = "ajeno"
+
+MENSAJE_ADJUNTO_AJENO = (
     "Ese campo no es un campo de archivo del formulario de este relevamiento, así que el archivo no se guardó."
+)
+
+# La línea que ve el revisor cuando el archivo entró pero su campo ya no está en
+# el formulario. El prefijo es lo que la reconoce en ``observaciones_carga``
+# (ver ``_observaciones_de_adjuntos``), así que los dos se mueven juntos.
+PREFIJO_ADJUNTO_OBSERVADO = "Llegó el archivo de «"
+ADJUNTO_OBSERVADO = (
+    PREFIJO_ADJUNTO_OBSERVADO + "{campo}», un campo que el formulario de este relevamiento ya no pide: "
+    "el archivo se guardó, pero no aparece entre las respuestas."
 )
 
 
@@ -291,42 +309,106 @@ def claves_de_archivo(definicion):
     return claves
 
 
-def campo_de_archivo_del_caso(formulario, pregunta_global=None, requisito_nativo=None):
-    """¿La referencia del adjunto es un campo ``ARCHIVO`` del formulario del caso?
+def pertenencia_del_adjunto(formulario, pregunta_global=None, requisito_nativo=None):
+    """¿De dónde salió la referencia con la que llega este archivo? (G1-07)
 
-    Lo que esto frena no es un ataque sofisticado: es el adjunto que entra con la
-    referencia de otro relevamiento —otro segmento, otro canal— o con la de una
-    pregunta que no pide ningún archivo. La fila se creaba igual y después no la
-    encontraba nadie: ``_adjuntos_por_clave`` la indexa por una clave que la foto
-    del caso no tiene, así que el documento quedaba invisible en la revisión y el
-    revisor lo veía como *faltante*.
+    Tres respuestas, porque dos no alcanzaban. El teléfono baja la definición,
+    captura offline y sincroniza días después; en el medio el PM puede desactivar
+    un campo, sacarlo del diseño o cambiarle el canal. Con un solo «no» el
+    servidor devolvía 400 por ese campo, y un 400 no es reintentable para la app
+    (``relevamientoService.js:1486``): ``syncRemoteBecasFormulario`` corta el
+    bucle de subidas en el primero que falla, la operación queda
+    ``FAILED_PERMANENT`` y **los documentos que venían después, que el servidor
+    sí aceptaba, no se suben nunca**. El reintento manual muere en el mismo
+    lugar.
 
-    Vale primero la foto del caso. Si ahí no está, se mira además la **lista
-    plana** vigente del relevamiento, porque es lo único que lee la app
-    instalada (``Chaco-mobile@a66c2d3``: ``mapDjangoRelevamientoDetail`` arma
-    ``campos_definicion`` con ``globales``/``requisitos``, no con ``items``, y
-    sube cada archivo con el ``id`` de esa lista). Las dos no coinciden
-    siempre —un grupo del diseño acotado a otro canal saca sus campos de
-    ``items`` pero no de la lista plana— y rechazar un archivo que el teléfono
-    mostró y pidió rompe más de lo que arregla: la cola de la app corta en el
-    primer adjunto que falla, así que los campos que venían después tampoco se
-    subían. La segunda mirada solo se paga cuando la primera no alcanzó.
+    * ``ADJUNTO_DEL_FORMULARIO`` — la clave está en la foto del caso o en la
+      definición vigente del relevamiento. Vale primero la foto; si ahí no está,
+      se mira la definición vigente, que incluye la **lista plana** que es lo
+      único que lee la app instalada (``Chaco-mobile@a66c2d3``:
+      ``mapDjangoRelevamientoDetail`` arma ``campos_definicion`` con
+      ``globales``/``requisitos``, no con ``items``, y sube cada archivo con el
+      ``id`` de esa lista). Las dos no coinciden siempre: un grupo del diseño
+      acotado a otro canal saca sus campos de ``items`` pero no de la lista
+      plana. La segunda mirada solo se paga cuando la primera no alcanzó.
+    * ``ADJUNTO_YA_NO_SE_PIDE`` — es un campo ``ARCHIVO`` que **pudo** ser de
+      esta convocatoria (una pregunta general, que aplica a todas; o un requisito
+      de su herencia) y hoy no aparece en el formulario: se desactivó, salió del
+      diseño o le cambiaron el canal. La captura ya existe, así que el archivo
+      entra y queda observado para el revisor, igual que G1-05.
+    * ``ADJUNTO_AJENO`` — lo que **nunca** pudo ser de esta convocatoria: el
+      requisito de otro segmento, o un campo que no pide ningún archivo. Ese sí
+      se rechaza: el documento no es de este caso, o no tiene dónde colgarse.
     """
-    clave = None
-    if pregunta_global is not None:
-        clave = f"pg-{pregunta_global.pk}"
-    elif requisito_nativo is not None:
-        clave = f"rn-{requisito_nativo.pk}"
-    if clave is None:
-        return False
+    referencia = pregunta_global if pregunta_global is not None else requisito_nativo
+    if referencia is None or getattr(referencia, "tipo", None) != TipoCampo.ARCHIVO:
+        return ADJUNTO_AJENO
+    clave = f"pg-{referencia.pk}" if pregunta_global is not None else f"rn-{referencia.pk}"
     if clave in claves_de_archivo(definicion_del_caso(formulario)):
-        return True
-    if not formulario.definicion:
+        return ADJUNTO_DEL_FORMULARIO
+    if formulario.definicion:
         # Sin foto, ``definicion_del_caso`` ya fue la definición vigente entera.
-        return False
-    from programas.services.becas import definicion_formulario
+        from programas.services.becas import definicion_formulario
 
-    return clave in claves_de_archivo(definicion_formulario(formulario.relevamiento))
+        if clave in claves_de_archivo(definicion_formulario(formulario.relevamiento)):
+            return ADJUNTO_DEL_FORMULARIO
+    if requisito_nativo is not None and not _requisito_de_la_convocatoria(formulario, requisito_nativo):
+        return ADJUNTO_AJENO
+    # Una ``PreguntaGlobal`` es del catálogo general —aplica a todas las
+    # convocatorias—, así que siempre pudo estar en esta.
+    return ADJUNTO_YA_NO_SE_PIDE
+
+
+def _requisito_de_la_convocatoria(formulario, requisito):
+    """¿Este requisito nativo pertenece a la herencia de la convocatoria del caso?
+
+    Se pregunta con el **mismo** ``Q`` que arma la definición (RN-32) y no con
+    una copia en memoria de la regla: que un requisito «sea de otro segmento» es
+    exactamente lo contrario de que la definición lo sirva, y dos escrituras de
+    la misma regla se separan. Es una consulta por el índice, y solo en el camino
+    en el que la clave no estaba en ninguna de las dos definiciones.
+    """
+    from programas.models import RequisitoNativo
+    from programas.services.becas import filtro_requisitos_convocatoria
+
+    convocatoria = formulario.relevamiento.convocatoria
+    return RequisitoNativo.objects.filter(filtro_requisitos_convocatoria(convocatoria), pk=requisito.pk).exists()
+
+
+def observar_adjunto(formulario, referencia):
+    """Deja en ``observaciones_carga`` que entró un archivo de un campo que el
+    formulario ya no pide, sin repetir la línea cuando la cola reintenta.
+
+    Es la contracara de aceptar: el documento se guarda, pero
+    ``_adjuntos_por_clave`` lo indexa por una clave que la definición del caso no
+    tiene, así que la pantalla de revisión no lo muestra. Sin esta línea el
+    revisor ve el campo *faltante* y no se entera de que el archivo llegó.
+
+    Devuelve ``True`` si escribió.
+    """
+    linea = ADJUNTO_OBSERVADO.format(campo=getattr(referencia, "texto", "") or "un campo del formulario")
+    lineas = (formulario.observaciones_carga or "").splitlines()
+    if linea in lineas:
+        return False
+    lineas.append(linea)
+    formulario.observaciones_carga = "\n".join(lineas)
+    formulario.save(update_fields=["observaciones_carga", "modificado"])
+    return True
+
+
+def _observaciones_de_adjuntos(formulario):
+    """Las líneas de G1-07 que el caso ya tiene guardadas.
+
+    ``aplicar_revision`` reescribe ``observaciones_carga`` entero, y el reintento
+    del alta vuelve a pasar por ahí mientras el caso siga incompleto
+    (``_alta_incompleta``), que puede ser después de una subida. Se conservan
+    para que la observación del adjunto no desaparezca sin que nadie la lea.
+    """
+    return [
+        linea
+        for linea in (formulario.observaciones_carga or "").splitlines()
+        if linea.startswith(PREFIJO_ADJUNTO_OBSERVADO)
+    ]
 
 
 def guardar_adjunto(formulario, *, archivo, pregunta_global=None, requisito_nativo=None):
@@ -338,11 +420,21 @@ def guardar_adjunto(formulario, *, archivo, pregunta_global=None, requisito_nati
     almacenamiento con ``transaction.on_commit``, nunca antes: si la transacción
     se cae, el adjunto que sigue valiendo es el que todavía está en ``media/``.
 
-    El ``select_for_update`` serializa dos subidas simultáneas del mismo campo;
-    no hay restricción única en la base **a propósito**, porque producción ya
-    tiene filas duplicadas de antes y una restricción no se podría crear sobre
-    ellas. Con duplicados viejos se opera sobre el más nuevo, que es también el
-    que la revisión muestra desde esta misma ficha.
+    El ``select_for_update`` bloquea la fila que el campo **ya tenía**, así que
+    dos reintentos de la cola sobre un adjunto existente se ordenan uno detrás
+    del otro. Lo que no evita es que dos subidas simultáneas del mismo campo
+    *sin* fila previa creen una cada una: con ``READ COMMITTED`` una lectura que
+    no encuentra nada no toma gap lock, y no hay restricción única en la base
+    **a propósito**, porque producción ya tiene filas duplicadas de antes y una
+    restricción no se podría crear sobre ellas. O sea que puede haber dos filas
+    del mismo campo; con duplicados —los viejos y los de esa carrera— se opera
+    sobre el más nuevo, que es también el que ``_adjuntos_por_clave`` le muestra
+    al revisor.
+
+    Si el campo ya no está en el formulario del relevamiento (G1-07, el diseño
+    cambió entre la captura y la sincronización), el archivo entra igual y la
+    observación queda escrita dentro de la misma transacción: un adjunto que la
+    revisión no muestra sin la línea que lo explica es peor que no tenerlo.
     """
     with transaction.atomic():
         existente = (
@@ -352,19 +444,26 @@ def guardar_adjunto(formulario, *, archivo, pregunta_global=None, requisito_nati
             .first()
         )
         if existente is None:
-            return AdjuntoFormulario.objects.create(
+            adjunto = AdjuntoFormulario.objects.create(
                 formulario=formulario,
                 pregunta_global=pregunta_global,
                 requisito_nativo=requisito_nativo,
                 archivo=archivo,
             )
-        anterior = existente.archivo.name
-        almacenamiento = existente.archivo.storage
-        existente.archivo = archivo
-        existente.save(update_fields=["archivo", "modificado"])
-        if anterior and anterior != existente.archivo.name:
-            transaction.on_commit(lambda: almacenamiento.delete(anterior))
-        return existente
+        else:
+            anterior = existente.archivo.name
+            almacenamiento = existente.archivo.storage
+            existente.archivo = archivo
+            existente.save(update_fields=["archivo", "modificado"])
+            if anterior and anterior != existente.archivo.name:
+                transaction.on_commit(lambda: almacenamiento.delete(anterior))
+            adjunto = existente
+        if (
+            pertenencia_del_adjunto(formulario, pregunta_global=pregunta_global, requisito_nativo=requisito_nativo)
+            == ADJUNTO_YA_NO_SE_PIDE
+        ):
+            observar_adjunto(formulario, pregunta_global or requisito_nativo)
+        return adjunto
 
 
 def _requiere_gps(relevamiento):

@@ -294,6 +294,26 @@ class CronDeVencimientosTests(TestCase):
         self.assertIn(f"ids=[{escapado.pk}]", registro.output[1])
         self.assertIn("cambiaron de estado", registro.output[1])
 
+    def test_el_cierre_de_otro_proceso_no_entra_en_el_log(self):
+        """El rastro nombra lo que cerró **este** `update()`.
+
+        `EN_REVISION` es el estado al que llega también el coordinador que
+        termina su relevamiento desde la pantalla. Releer por estado después de
+        escribir no distingue los dos caminos, así que el log se atribuía el
+        cierre ajeno: el territorial que va a buscar qué pasó con su relevamiento
+        encuentra el cron firmando algo que hizo una persona.
+        """
+        cerrado = self._relevamiento(Relevamiento.Estado.EN_CURSO)
+        ajeno = self._relevamiento(Relevamiento.Estado.EN_REVISION)
+
+        with self.assertLogs("programas.services.vencimientos", level="INFO") as registro:
+            afectadas = pasar_relevamientos_a_revision(Relevamiento.objects.filter(pk__in=[cerrado.pk, ajeno.pk]))
+
+        self.assertEqual(afectadas, 1)
+        self.assertIn(f"ids=[{cerrado.pk}]", registro.output[0])
+        self.assertNotIn(str(ajeno.pk), registro.output[0])
+        self.assertIn(f"ids=[{ajeno.pk}]", registro.output[1])
+
     def test_un_finalizando_fuera_de_fecha_con_la_convocatoria_viva_no_se_cierra(self):
         """Caracterización que G1-04 **no** cambia (Cambio 120): la segunda rama
         de la regla solo alcanza `ASIGNADO` y `EN_CURSO`. La gracia es una
@@ -624,6 +644,11 @@ class AdjuntosDeLaAppTests(_CampoBase):
     pertenencia: la referencia podía ser de un campo que el formulario de ese
     relevamiento no pide, y entonces el documento quedaba guardado donde la
     pantalla del revisor no lo busca.
+
+    El control tiene tres respuestas y no dos: el 400 queda para lo que nunca
+    pudo ser de esta convocatoria, y el campo que quedó viejo entre la captura y
+    la sincronización entra observado. Un 400 de más corta la cola de subidas de
+    la app y se lleva puestos los documentos que venían después.
     """
 
     @classmethod
@@ -727,19 +752,55 @@ class AdjuntosDeLaAppTests(_CampoBase):
         self.assertEqual(indice[f"pg-{self.pregunta.pk}"].pk, nueva.pk)
         self.assertNotEqual(nueva.pk, vieja.pk)
 
-    def test_un_campo_que_el_formulario_no_pide_se_rechaza(self):
-        """Una pregunta desactivada no está en la foto del caso: el adjunto se
-        guardaba igual y después no lo encontraba nadie."""
+    def test_un_campo_desactivado_no_traba_la_cola_de_la_app(self):
+        """El escenario que un 400 rompe entero.
+
+        El teléfono bajó una definición con **dos** campos `ARCHIVO` y capturó
+        offline; mientras tanto el PM desactivó uno; recién después el
+        territorial sincroniza. `syncRemoteBecasFormulario` sube los adjuntos en
+        un `for` y **corta** en el primero que falla, y un 400 no es
+        reintentable (`relevamientoService.js:966-985` y `:1486`): la operación
+        queda `FAILED_PERMANENT` y el segundo documento —que el servidor sí
+        aceptaba— no se sube nunca, ni a mano.
+        """
+        segunda = PreguntaGlobal.objects.create(
+            texto="Foto del recibo", tipo=TipoCampo.ARCHIVO, activo=True, obligatorio=False, orden=903
+        )
+        # Lo que pasa entre la captura y la sincronización: el alta de abajo ya
+        # guarda la foto **sin** el campo desactivado.
+        PreguntaGlobal.objects.filter(pk=self.pregunta.pk).update(activo=False)
+        self.formulario = self._caso()
+
+        caido = self._subir(b"la del campo que sacaron")
+        viva = self._subir(b"la del campo que sigue", pregunta_global=segunda.pk)
+
+        self.assertEqual(caido.status_code, 201, caido.data)
+        self.assertEqual(viva.status_code, 201, viva.data)
+        self.assertEqual(self.formulario.adjuntos.count(), 2)
+        # Y el revisor se entera: el archivo entró, pero su campo no está en el
+        # formulario, así que la pantalla no lo muestra entre las respuestas.
+        self.formulario.refresh_from_db()
+        self.assertIn(self.pregunta.texto, self.formulario.observaciones_carga)
+        self.assertNotIn(segunda.texto, self.formulario.observaciones_carga)
+
+    def test_la_observacion_del_adjunto_no_se_repite_con_el_reintento(self):
+        """La cola reintenta la misma subida: la línea del revisor es una sola."""
         ajena = PreguntaGlobal.objects.create(
             texto="Foto que ya no se pide", tipo=TipoCampo.ARCHIVO, activo=False, orden=901
         )
 
-        resp = self._subir(pregunta_global=ajena.pk)
+        self._subir(pregunta_global=ajena.pk)
+        self._subir(pregunta_global=ajena.pk)
 
-        self.assertEqual(resp.status_code, 400, resp.data)
-        self.assertEqual(self.formulario.adjuntos.count(), 0)
+        self.formulario.refresh_from_db()
+        observaciones = self.formulario.observaciones_carga.splitlines()
+        self.assertEqual(len([linea for linea in observaciones if ajena.texto in linea]), 1)
+        self.assertEqual(self.formulario.adjuntos.count(), 1)
 
     def test_un_requisito_de_otro_segmento_se_rechaza(self):
+        """Lo que sí se rechaza: una referencia que **nunca** pudo ser de esta
+        convocatoria. No es un campo que quedó viejo, es un documento de otro
+        padrón colgado de este caso."""
         from programas.models import RequisitoNativo, Segmento
 
         otro = Segmento.objects.create(nombre="Otro seg", cupo_maximo=10)
@@ -911,11 +972,23 @@ class VersionDelFormularioTests(_CampoBase):
         self.assertEqual(Formulario.objects.get(pk=resp.data["id"]).version_capturada, 99999)
 
     def test_una_version_que_no_es_una_version_se_rechaza(self):
-        """La columna es `PositiveIntegerField`: un negativo reventaría contra la
-        base y un texto, contra el ORM. El 400 sale antes."""
+        """La columna es `IntegerField` **a propósito** (el positivo de Django se
+        escribe como `CHECK` y un `ADD COLUMN` con `CHECK` no admite
+        `ALGORITHM=INSTANT`): el mínimo lo sostienen el validador del modelo y el
+        `min_value` del serializer. Un negativo reventaría contra ese validador y
+        un texto, contra el ORM. El 400 sale antes."""
         self.assertEqual(self._alta(version_capturada=-1).status_code, 400)
         self.assertEqual(self._alta(version_capturada="hola").status_code, 400)
         self.assertEqual(self.rel.formularios.count(), 0)
+
+    def test_una_version_mas_grande_que_la_columna_se_rechaza(self):
+        """El otro extremo del mismo `INT` con signo: sin tope en el serializer,
+        un `2**40` llega al `INSERT` y MariaDB en modo estricto lo contesta con un
+        `DataError` —un 500 para la app, que reintenta ocho veces un envío que no
+        va a entrar nunca—. El 400 también sale antes de tocar la base."""
+        self.assertEqual(self._alta(version_capturada=2**40).status_code, 400)
+        self.assertEqual(self._alta(version_capturada=2_147_483_647).status_code, 201)
+        self.assertEqual(self.rel.formularios.count(), 1)
 
 
 class GrupoCondicionadoTests(TestCase):
