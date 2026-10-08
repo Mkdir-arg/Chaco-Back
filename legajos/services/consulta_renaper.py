@@ -5,7 +5,6 @@ import threading
 import time
 import unicodedata
 
-import urllib3
 from django.conf import settings
 from django.core.cache import cache
 from requests.exceptions import ConnectionError, RequestException
@@ -15,10 +14,59 @@ from core.integraciones import MARGEN_ESPERA_LOGIN, Cortacircuito, sesion_http
 from core.models import Provincia
 from core.performance.query_observability import instrument_external_call
 
-# Suprimir warnings de SSL
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
 logger = logging.getLogger(__name__)
+
+
+def verificacion_tls():
+    """Qué va en el ``verify`` de la consulta a RENAPER (SEC-27).
+
+    Tres estados, en orden: la ruta de un bundle de CA si está configurada (una CA
+    privada del organismo), ``True`` si se pidió verificar con el almacén del
+    sistema, o ``False``, que es **el default de hoy** mientras ECOM no confirme la
+    cadena (D-27). Se resuelve en cada llamada y no al importar, para que el
+    ambiente lo pueda cambiar sin reconstruir la imagen.
+
+    Acá vivía ``urllib3.disable_warnings(InsecureRequestWarning)``, que silenciaba
+    el aviso **de todo el proceso** —también el de SIIS, Personas y reCAPTCHA, que
+    sí verifican—. Se fue: con `verify=False` el aviso sale una vez y es la única
+    señal de que la consulta viaja sin validar el certificado.
+    """
+    bundle = (getattr(settings, "RENAPER_CA_BUNDLE", "") or "").strip()
+    if bundle:
+        return bundle
+    return bool(getattr(settings, "RENAPER_VERIFY_TLS", False))
+
+
+#: Lo único del payload crudo de RENAPER que sobrevive a la consulta (G1c-16).
+#:
+#: Son exactamente las claves que dibuja ``ciudadano_confirmar_form.html``, que es
+#: el único lugar del sistema que lee ``datos_api``. Lo demás —lo que el organismo
+#: mande hoy o agregue mañana: CUIL, número de trámite, ejemplar, marcas de
+#: defunción— quedaba guardado entero **en la sesión por 24 h** (Redis en prd) y
+#: **en la caché por 10 min**, sin que nadie lo mirara nunca.
+CAMPOS_DATOS_API = (
+    "apellido",
+    "nombres",
+    "fechaNacimiento",
+    "calle",
+    "numero",
+    "piso",
+    "departamento",
+    "ciudad",
+    "provincia",
+)
+
+
+def datos_api_mostrables(datos):
+    """El payload de RENAPER recortado a lo que la pantalla muestra (G1c-16).
+
+    Se aplica en el origen, antes de la caché: así ni la caché ni la sesión llegan
+    a tener el resto. Es la lista blanca que pide la ficha, en un solo lugar.
+    """
+    if not isinstance(datos, dict):
+        return {}
+    return {clave: datos[clave] for clave in CAMPOS_DATOS_API if clave in datos}
+
 
 # Clave interna de cache; no contiene una credencial.
 TOKEN_CACHE_KEY = "renaper:token"  # nosec B105
@@ -506,7 +554,7 @@ class APIClient:
                     headers=headers,
                     json=payload,
                     timeout=self.timeout,
-                    verify=False,
+                    verify=verificacion_tls(),
                 )
             else:
                 respuesta = instrument_external_call(
@@ -516,7 +564,7 @@ class APIClient:
                     headers=headers,
                     params=payload,
                     timeout=self.timeout,
-                    verify=False,
+                    verify=verificacion_tls(),
                 )
             # Contestó: el servicio está en pie. Lo que abre el cortacircuito es
             # **no poder hablarle**; un 401 o un 500 son respuestas.
@@ -747,7 +795,10 @@ def _consultar_datos_renaper(dni, sexo):
                 "success": False,
                 "error": response.get("error", "Error al consultar RENAPER"),
                 "status_code": response.get("status_code"),
-                "datos_api": response.get("raw_response"),
+                # G1c-16: el cuerpo crudo de una respuesta fallida es del proveedor
+                # y puede traer cualquier cosa (incluido el eco de lo que se le
+                # mandó). Viaja recortado como el de una consulta buena.
+                "datos_api": datos_api_mostrables(response.get("raw_response")),
             }
 
         datos = response["data"] if isinstance(response.get("data"), dict) else {}
@@ -798,7 +849,7 @@ def _consultar_datos_renaper(dni, sexo):
             "provincia": provincia.pk if provincia else None,
         }
 
-        return {"success": True, "data": datos_mapeados, "datos_api": datos}
+        return {"success": True, "data": datos_mapeados, "datos_api": datos_api_mostrables(datos)}
 
     except Exception:
         logger.exception("Error inesperado en consultar_datos_renaper")

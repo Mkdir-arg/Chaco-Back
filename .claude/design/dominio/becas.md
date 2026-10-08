@@ -124,6 +124,18 @@ principal de la pantalla.
 
 ---
 
+## Mapa del lugar de la toma, en el detalle del caso
+
+Evidencia: `programas/templates/programas/becas/revision/formulario_detalle.html`.
+
+El `iframe` del mapa **no se carga al abrir la pantalla**: su URL viaja en `data-src` y la pone un
+botón «Ver el mapa», que se esconde al usarse. Lleva `referrerpolicy="no-referrer"`. La razón no es de
+performance: las coordenadas del domicilio de una persona son un dato del caso, y cargar el mapa solo
+se las manda a un tercero —con la IP del backoffice y el `Referer` de la pantalla— cuando alguien
+decide mirarlo. Las coordenadas como texto y el enlace «Abrir mapa» siguen visibles.
+
+---
+
 ## Modal de requisito (alta / edición)
 
 Evidencia: `programas/templates/programas/becas/config/requisitos_segmento.html`,

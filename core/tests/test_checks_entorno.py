@@ -134,16 +134,22 @@ class ChecksDeEntornoTests(SimpleTestCase):
         with _en_produccion():
             self.assertEqual(self._correr(), [])
 
-    # ── SIIS-21: captcha aritmético en producción ───────────────────────────
+    # ── SIIS-21 / SEC-37: captcha aritmético en producción ──────────────────
     @override_settings(SIIS_API_URL=SIIS_PRD, RECAPTCHA_SITE_KEY="", RECAPTCHA_SECRET_KEY="")
-    def test_el_captcha_aritmetico_en_produccion_es_warning(self):
+    def test_el_captcha_aritmetico_en_produccion_es_error(self):
         """Sin claves de Google el desafío se resuelve leyendo la pregunta del
-        HTML: no frena a un script contra el link público."""
+        HTML: no frena a un script contra el link público.
+
+        Era `core.W003` (un aviso) hasta el Cambio 185. **D-37 = No**: el Cambio 71
+        no se reabre —el paso 2 sigue mostrando nombre y fecha de nacimiento a
+        partir de DNI + sexo— y lo que se exige a cambio es el captcha real en
+        producción. Un aviso no exige nada: `check --deploy` termina en verde.
+        """
         with _en_produccion():
             mensajes = self._correr()
 
-        self.assertEqual([m.id for m in mensajes], ["core.W003"])
-        self.assertIsInstance(mensajes[0], CheckWarning)
+        self.assertEqual([m.id for m in mensajes], ["core.E005"])
+        self.assertIsInstance(mensajes[0], Error)
 
     @override_settings(SIIS_API_URL=SIIS_PRD, RECAPTCHA_SITE_KEY="sitio", RECAPTCHA_SECRET_KEY="secreto")
     def test_con_claves_de_recaptcha_no_dice_nada(self):
