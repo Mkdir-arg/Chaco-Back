@@ -495,6 +495,17 @@ class NginxNoSirveMediaTests(SimpleTestCase):
             self.assertIn("internal;", cuerpo)
             self.assertIn("alias /media/;", cuerpo)
 
+    def test_los_textos_de_despliegue_dicen_lo_que_pasa_de_verdad(self):
+        """R0b-08: seguían diciendo que `/media/` lo sirve nginx y que el
+        middleware lo exime. Las dos cosas son falsas desde la etapa 1."""
+        for ruta in (".env.qa.example", "docs/client/architecture.md", "docker/k8s/README.md"):
+            texto = (RAIZ / ruta).read_text(encoding="utf-8")
+            self.assertNotIn("SERVE_MEDIA", texto, ruta)
+
+        arquitectura = (RAIZ / "docs/client/architecture.md").read_text(encoding="utf-8")
+        self.assertNotIn("excepto `/static/` y `/media/`", arquitectura)
+        self.assertIn("media_protegida", arquitectura)
+
     def test_el_compose_de_prod_ya_no_necesita_un_flag_para_servir_media(self):
         """La ruta existe siempre: un flag que la apague deja `/media/` en 404."""
         compose = (RAIZ / "docker-compose.prod.yml").read_text(encoding="utf-8")

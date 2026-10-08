@@ -1068,7 +1068,7 @@ vistas de SEC-11. **Test permanente:** `legajos.tests.test_alertas_rbac.AlertasA
 - **Test:** con `DEBUG=True` y `SERVE_MEDIA=True`, anónimo → 302.
 
 ### R0b-08 · Comentarios que todavía dicen que nginx sirve `/media/`
-**Resolución:** ✅ Resuelta en el **Cambio 188**, 08-oct-2026 — reescritos `.env.qa.example`, `docs/client/architecture.md`, `docker/k8s/README.md` y el comentario de `docker-compose.prod.yml`.
+**Resolución:** ✅ Resuelta en el **Cambio 188**, 08-oct-2026 — reescritos `.env.qa.example`, `docs/client/architecture.md`, `docker/k8s/README.md` y el comentario de `docker-compose.prod.yml`. **Test permanente:** `core/tests/test_media_protegida.py::NginxNoSirveMediaTests.test_los_textos_de_despliegue_dicen_lo_que_pasa_de_verdad`.
 **Severidad:** BAJA (MINOR del revisor de #538) · **Estado:** CONFIRMADO (lectura) · **Origen:** revisión de la Ola 0, 2ª tanda · **Ola:** 2 (PR 7, Media) · **Esfuerzo:** incluido en R0b-07
 - **Ubicación:** `.env.qa.example:77-79` («en la VM lo sirve nginx y esto queda en False»: falso desde #538, la VM usa `SERVE_MEDIA=True`); también `docs/client/architecture.md:203` («excepto `/static/` y `/media/`»: el middleware ya no exime `/media/`; ese mismo párrafo es el de R0-02).
 - **Propuesta:** reescribir los dos textos según SEC-09 etapa 1.
