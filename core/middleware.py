@@ -8,7 +8,7 @@ from django.conf import settings
 from django.contrib.auth import logout, user_logged_in
 from django.contrib.auth.views import redirect_to_login
 from django.dispatch import receiver
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import redirect
 
 from core import rbac
@@ -115,6 +115,43 @@ VENTANA_REFRESCO_SEGUNDOS = 60
 #: pantalla abierta igual queda afuera al minuto siguiente.
 MARGEN_INACTIVIDAD_SEGUNDOS = VENTANA_REFRESCO_SEGUNDOS
 
+#: Rutas que **no** cuentan como actividad del usuario. Son las que el navegador
+#: pide solo, con un `setInterval`, sin que nadie toque la pantalla: dejarlas
+#: marcar actividad convierte cualquier pestaña olvidada —o abierta en una
+#: máquina compartida— en una sesión que no vence nunca, que es justo lo que
+#: SEC-35 vino a cerrar. La señal de actividad real es el latido
+#: (`core:sesion_latido`), que lo dispara `idle-logout.js` solo mientras hay
+#: mouse, teclado o scroll; estas rutas siguen contestando normalmente, lo único
+#: que no hacen es correr el reloj.
+#:
+#: Lista explícita y no un prefijo: un endpoint de lectura no es de fondo por ser
+#: una API, lo es porque algo lo pide en bucle. Cada entrada nombra a su emisor.
+RUTAS_SIN_MARCA_DE_ACTIVIDAD = frozenset(
+    {
+        # `templates/core/performance_dashboard.html:618` — `updateDashboard()`
+        # cada 30 s pega contra estas cuatro.
+        "/performance-api/",
+        "/query-analysis-api/",
+        "/optimization-suggestions-api/",
+        "/system-metrics-api/",
+        # `static/custom/js/conversaciones_tiempo_real_global.js:47` — cada 5 s
+        # mientras la pestaña esté visible y el WebSocket de la lista no esté abierto.
+        "/conversaciones/api/estadisticas/",
+    }
+)
+
+# El cuarto emisor de fondo es `templates/components/widget_contactos.html:91`
+# (cada 5 min). No tiene fila acá porque la ruta que pide —el nombre
+# `legajos:metricas_contactos_api`— **no está montada**: `legajos/urls/__init__.py`
+# nunca la publicó y el `{% url %}` del widget figura en `URLS_ROTAS_CONOCIDAS`
+# (`core/tests/test_listados_canonicos_ola5_pr6.py`). Hoy no hay pedido que
+# eximir; si LEG-06 la monta en vez de retirar el widget, su path va en esta lista.
+
+
+def _marca_actividad(path):
+    """¿Este pedido cuenta como «el usuario está ahí»?"""
+    return path not in RUTAS_SIN_MARCA_DE_ACTIVIDAD and not path.startswith("/api/")
+
 
 def minutos_de_inactividad():
     """Se lee en cada request, no al importar: así el setting se puede pisar."""
@@ -166,9 +203,19 @@ class ExpiracionPorInactividadMiddleware:
     una sesión vencida no tiene por qué pagar el `get_or_create` del Profile ni
     terminar en la pantalla de cambio de clave; termina en el login.
 
-    ``/api/`` queda exento igual que en ``CambioContrasenaObligatorioMiddleware``:
-    la app de campo autentica por Token **dentro** de la vista, no tiene sesión que
-    expirar, y acá su ``request.user`` todavía es anónimo.
+    **El corte no exime a ``/api/``.** Hasta la ronda 1 del Cambio 185 ``/api/``
+    salía por arriba del middleware entero, así que con la marca envejecida 48 h
+    ``/api/legajos/ciudadanos/`` seguía sirviendo el padrón con una cookie robada
+    durante las 24 h de ``SESSION_COOKIE_AGE``: la exención apagaba la expiración,
+    no solo el refresco. La app de campo no se entera, porque autentica por Token
+    **sin cookie**: acá su ``request.user`` es anónimo y el pedido pasa de largo.
+    Lo que sí sigue siendo distinto en ``/api/`` es la respuesta del corte: un 401
+    en vez del redirect al login, que a un cliente JSON no le sirve de nada.
+
+    **Qué marca actividad** lo decide ``RUTAS_SIN_MARCA_DE_ACTIVIDAD``: el polling
+    de fondo y ``/api/`` no corren el reloj (``/api/`` lo pide la app de campo o
+    el JS del backoffice, nunca una persona tipeando). Que no marquen no los exime
+    del corte: una sesión vencida tampoco entra por ahí.
     """
 
     def __init__(self, get_response):
@@ -177,7 +224,7 @@ class ExpiracionPorInactividadMiddleware:
     def __call__(self, request):
         minutos = minutos_de_inactividad()
         usuario = getattr(request, "user", None)
-        if minutos <= 0 or request.path.startswith("/api/") or not (usuario and usuario.is_authenticated):
+        if minutos <= 0 or not (usuario and usuario.is_authenticated):
             return self.get_response(request)
 
         ahora = time.time()
@@ -189,9 +236,12 @@ class ExpiracionPorInactividadMiddleware:
                 ip_cliente(request),
             )
             logout(request)
+            if request.path.startswith("/api/"):
+                return JsonResponse({"detail": "Sesión cerrada por inactividad."}, status=401)
             return redirect_to_login(request.get_full_path())
 
-        marcar_actividad(request.session, ahora=ahora)
+        if _marca_actividad(request.path):
+            marcar_actividad(request.session, ahora=ahora)
         return self.get_response(request)
 
 

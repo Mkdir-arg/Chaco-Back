@@ -71,7 +71,7 @@ Base verificada: `origin/development @ 917e583`. PoC: `poc/test_repro_seguridad.
 
 **Resolución:** 🟡 Parcial en #509 (Cambio 100), 01-oct-2026 — hecho el punto 1: `DEFAULT_AUTHENTICATION_CLASSES = [SessionAuthentication]` y `DEFAULT_PERMISSION_CLASSES = [IsAuthenticated]`; Basic ya no autentica en `/api/` y el ciudadano con sesión cae en `PortalCiudadanoMiddleware`. Punto 2 hecho el 03-oct-2026 sobre toda la lista de la ficha: #536 (Cambio 109) crea `BackofficeAutenticado` en `core/api_permissions.py` (#541 le suma `is_active` y deja fail-closed al superusuario dentro de `Ciudadanos`); se aplica en `users` (#540, Cambio 113: solo queda `UsuarioActualView`), `legajos` (#542, Cambio 114: `CiudadanoViewSet`, `AlertasViewSet`, `HistorialContactoViewSet`, `VinculoFamiliarViewSet`), `core/api_views` (6 ViewSets) y las 5 vistas de `dashboard/api_views` (#541, Cambio 115). **Falta (verificado contra `719dc0a`):** vistas DRF del backoffice fuera de la lista de la ficha que siguen sin `BackofficeAutenticado`: las 4 de `conversaciones/api_views` (`@login_required` + default; se van con la fase 2 de G1-01), las 8 de `core/views/performance.py` (`IsPerformanceAdmin`/`IsAdminUser`; se van con OPS-10), `SpectacularAPIView`/`SwaggerView`/`RedocView` (`config/urls.py:55-57`, `login_required` + `AllowAny` de Spectacular) y las raíces de los `DefaultRouter` de `/api/legajos/` y `/api/core/`. Ninguna es explotable hoy (sesión solo por cookie → el middleware frena al ciudadano; las de performance piden `config.administrar`/`is_staff`), así que el resto pasa a la **Ola 2, PR 8** (2 h). La app de campo (`programas/api/views.py`, Token + `CampoBecasPermission`) no es backoffice y queda fuera. Operativo: H-08 con ECOM. Seguimiento: R0-04 (raíz `/api/becas/` con Token).
 
-**Resolución:** ✅ Completa en #PENDIENTE (Cambio 185, Ola 2 PR 8), 08-oct-2026 — el resto de la lista:
+**Resolución:** ✅ Completa en #640 (Cambio 185, Ola 2 PR 8), 08-oct-2026 — el resto de la lista:
 las **4** vistas de `conversaciones/api_views` (montadas bajo dos prefijos), las **8** de
 `core/views/performance.py`, las **3** pantallas de Spectacular (`SERVE_PERMISSIONS` en
 `SPECTACULAR_SETTINGS`: el `login_required` del URLconf envolvía una vista que por dentro decía
@@ -765,7 +765,7 @@ conviene revisar fuera de esta ficha.
 ### SEC-27 · RENAPER con `verify=False` y las advertencias TLS apagadas para todo el proceso
 **Severidad:** MEDIA · **Estado:** CONFIRMADO (lectura) · **Origen:** A2-10 · **Ola:** 2 · **Esfuerzo:** S · **Decisión:** D-27 (ECOM confirma la cadena)
 
-**Resolución:** 🟡 Preparado y apagado en #PENDIENTE (Cambio 185, Ola 2 PR 8), 08-oct-2026, con el
+**Resolución:** 🟡 Preparado y apagado en #640 (Cambio 185, Ola 2 PR 8), 08-oct-2026, con el
 default de **D-27** — el `verify=False` escrito en el código se fue: lo decide
 `legajos.services.consulta_renaper.verificacion_tls()` a partir de `RENAPER_CA_BUNDLE` (ruta a un .pem
 de una CA privada, implica verificar) y `RENAPER_VERIFY_TLS`. **El default es el comportamiento de hoy**
@@ -851,7 +851,7 @@ handshake **siga existiendo** (`scope["session"].exists(clave)`, por el backend 
 - **Ubicación:** `programas/views/admisiones.py:62-83` (`GET /dispositivos/<pk>/admisiones/nueva/?dni=…&sexo=M` como buscador RENAPER con solo `dispositivo.admitir`).
 - **Propuesta:** exigir `ciudadano.crear` antes de consultar (ya se exige al crear, `:107`), throttle y registro.
 
-**Resolución:** ✅ Resuelto en #PENDIENTE (Cambio 185, Ola 2 PR 8), 08-oct-2026 — las tres cosas que pedía
+**Resolución:** ✅ Resuelto en #640 (Cambio 185, Ola 2 PR 8), 08-oct-2026 — las tres cosas que pedía
 la ficha: el buscador consulta RENAPER solo si el operador tiene `ciudadano.crear` (la misma capacidad
 que el POST ya exigía para dar de alta: a quien no la tiene, esos datos no le servían ni para eso),
 pasa por una cubeta de 60 consultas por hora **por operador** —no por IP: un dispositivo entero sale a
@@ -867,7 +867,7 @@ operador).
 - **Ubicación:** `programas/views/revision.py:679-696` (cada apertura manda lat/lng exactas, IP y Referer).
 - **Propuesta:** cargar el iframe solo con un clic («Ver en mapa») y `referrerpolicy="no-referrer"`. Es UI: V-UI.
 
-**Resolución:** ✅ Resuelto en #PENDIENTE (Cambio 185, Ola 2 PR 8), 08-oct-2026 — el `src` del iframe
+**Resolución:** ✅ Resuelto en #640 (Cambio 185, Ola 2 PR 8), 08-oct-2026 — el `src` del iframe
 viaja en `data-src` y lo pone un botón «Ver el mapa»; el iframe lleva `referrerpolicy="no-referrer"`.
 Abrir un caso con GPS ya no le manda a OpenStreetMap las coordenadas exactas del domicilio junto con la
 IP del backoffice y el `Referer` de la pantalla de revisión —lo hacía en **cada** apertura, lo mirara
@@ -896,7 +896,7 @@ capacidad → 403 exista o no el merendero; con capacidad, un id inexistente sig
 - **Propuesta:** `SESSION_COOKIE_SECURE = CSRF_COOKIE_SECURE = not DEBUG`; middleware de expiración por inactividad del lado del servidor (`last_activity` en sesión); `proxy_set_header X-Forwarded-Host $host;` en nginx. Ver OPS-12 (QA declara `prd`).
 - **Test:** `manage.py check --deploy` con `DEBUG=False` y `ENVIRONMENT` sin setear.
 
-**Resolución:** 🟡 Parcial en #PENDIENTE (Cambio 185, Ola 2 PR 8), 08-oct-2026 — lo que no depende de
+**Resolución:** 🟡 Parcial en #640 (Cambio 185, Ola 2 PR 8), 08-oct-2026 — lo que no depende de
 ECOM. (1) **Cookies:** `SESSION_COOKIE_SECURE = CSRF_COOKIE_SECURE = not DEBUG`. Atarlas a
 `ENVIRONMENT == "prd"` las dejaba viajando en claro en cualquier ambiente servido que no declarara la
 variable, y `ENVIRONMENT` es una declaración, no un hecho (icore vale `prd` siendo DEV; QA lo pisa a
@@ -925,10 +925,15 @@ cookies evaluando `config/settings.py` con `DEBUG=False` y sin `ENVIRONMENT`).
 - **Ubicación:** `configuracion/views/programas.py:52-53` (`programa_list` solo `login_required`); `users/views/admin.py:77-80`, `:137-140` (`f"Error al guardar el usuario: {exc}"`); `core/views/performance.py` (`str(e)`).
 - **Propuesta:** `@requiere("programa.configurar", "config.ver")` en `programa_list`; mensajes genéricos + `logger.exception`.
 
-**Resolución:** ✅ Resuelto en #PENDIENTE (Cambio 185, Ola 2 PR 8), 08-oct-2026 — `programa_list` pide
+**Resolución:** ✅ Resuelto en #640 (Cambio 185, Ola 2 PR 8), 08-oct-2026 — `programa_list` pide
 `rbac.CAPS_ENTRADA_PROGRAMAS` (`programa.configurar`, `config.ver`, `config.administrar`: las tres que ya
-existen para esa pantalla, ninguna nueva, así que **ningún rol sembrado pierde nada** —«Configuración»
-tiene las dos de config—). El acceso del inicio se esconde con el mismo criterio, derivado de la misma
+existen para esa pantalla, ninguna nueva). **Esto sí le saca la pantalla a cuatro de los cinco roles de
+menú de `seed_datos_base`:** el único que conserva `/configuracion/programas/` es **Configuración**
+(tiene `config.ver` y `config.administrar`); **Dashboard** (`dashboard.ver`), **Gestión de Ciudadanos**
+(las seis de `ciudadano.*`), **Reportes** (`reporte.ver`) y **Administración** (`usuario.administrar`,
+`rol.administrar`) lo pierden, porque hasta ahora entraban por el solo hecho de estar logueados —que es
+el hallazgo—. Quien necesite el catálogo con uno de esos cuatro roles lleva además alguna de las tres
+capacidades, o se le tilda. El acceso del inicio se esconde con el mismo criterio, derivado de la misma
 constante (`core/templatetags/rbac.py::puede_ver_programas`): ofrecer un acceso que después rebota es
 peor que no ofrecerlo. Los `f"Error al guardar el usuario: {exc}"` del ABM y los tres `str(e)` de
 `core/views/performance.py` pasan a un mensaje genérico con `logger.exception`. **Dos efectos colaterales
@@ -944,7 +949,7 @@ siendo de OPS-10. **Test permanente:** `core.tests.test_bajos_ola2.CatalogoDePro
 - **Ubicación:** `portal/views/inscripcion.py:126-137`, `:188-195`; `portal/templates/portal/inscripcion/paso2.html:25-26`. Mitigaciones existentes: captcha, cubeta por IP (10/10 min), por DNI (15/h), vigencia 45 min.
 - **Propuesta:** si el PM reabre el Cambio 71: nombre enmascarado. En todo caso exigir reCAPTCHA real en `prd` (SIIS-21).
 
-**Resolución:** ✅ Resuelto en #PENDIENTE (Cambio 185, Ola 2 PR 8), 08-oct-2026, con **D-37 = No**: el
+**Resolución:** ✅ Resuelto en #640 (Cambio 185, Ola 2 PR 8), 08-oct-2026, con **D-37 = No**: el
 Cambio 71 no se reabre —el paso 2 sigue mostrando nombre y fecha de nacimiento a partir de DNI + sexo— y
 la contrapartida acordada, el captcha real en producción, pasa de **aviso a error**: el `core.W003` que
 dejó SIIS-21 es ahora `core.E005` y `manage.py check --deploy` **termina en rojo** en producción sin
@@ -959,7 +964,7 @@ se rompen: ahí el desafío aritmético es a propósito. **Test permanente:**
 - **Ubicación:** `config/urls.py:25-26` (`admin/` y `admin/doc/` en todos los entornos); `users/admin.py:9-33` (un `UserAdmin` estándar deja a un staff con `change_user` tildar `is_superuser`; hoy no existe ese staff: ningún flujo pone `is_staff`).
 - **Propuesta:** quitar `admin/doc/`; en `UserAdmin`, `readonly_fields` = `is_superuser`, `groups`, `user_permissions` para no superusuarios; restringir `/admin/` por IP (SEC-26); `has_delete_permission` en DAT-02.
 
-**Resolución:** 🟡 Parcial en #PENDIENTE (Cambio 185, Ola 2 PR 8), 08-oct-2026 — lo que es código.
+**Resolución:** 🟡 Parcial en #640 (Cambio 185, Ola 2 PR 8), 08-oct-2026 — lo que es código.
 `admin/doc/` salió de `config/urls.py`: publicaba el índice de modelos, vistas, templates y tags del
 proyecto, con sus docstrings, a cualquier `is_staff`, no lo enlazaba ninguna pantalla y no lo usa nadie.
 Y `OptimizedUserAdmin.get_readonly_fields` deja en solo lectura `is_superuser`, `is_staff`, `groups` y
@@ -974,7 +979,7 @@ IP en nginx/ingress, que es el punto 6 de SEC-26 y va con el PM. **Test permanen
 - **Ubicación:** `legajos/services/ciudadanos.py:27-29` (guarda `datos_api` crudo en la sesión, Redis en prd, hasta confirmar o abandonar); `legajos/services/consulta_renaper.py:360-372`, `:489` (caché 10 min); `legajos/views/ciudadanos.py:185`.
 - **Propuesta:** lista blanca de campos en sesión; no cachear `datos_api`; limpiar la sesión en el GET de `ciudadano_nuevo`.
 
-**Resolución:** ✅ Resuelto en #PENDIENTE (Cambio 185, Ola 2 PR 8), 08-oct-2026 — las tres, con una sola
+**Resolución:** ✅ Resuelto en #640 (Cambio 185, Ola 2 PR 8), 08-oct-2026 — las tres, con una sola
 lista blanca aplicada **en el origen**: `consulta_renaper.datos_api_mostrables()` recorta el payload a
 los nueve campos que dibuja `ciudadano_confirmar_form.html` (apellido, nombres, fechaNacimiento, calle,
 número, piso, departamento, ciudad, provincia), así que ni la caché de 10 min ni la sesión de 24 h

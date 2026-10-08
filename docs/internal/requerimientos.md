@@ -27750,7 +27750,11 @@ Entran las diez fichas. **Queda afuera** y va con el PM, porque no es código de
 4. **Catálogo de programas y errores internos (SEC-36).** `programa_list` con
    `rbac.CAPS_ENTRADA_PROGRAMAS`; el acceso del inicio con el filtro `puede_ver_programas`; mensaje
    genérico + `logger.exception` en el ABM de usuarios y en las tres APIs de performance que devolvían
-   `str(e)`.
+   `str(e)`. **De los cinco roles de menú de `seed_datos_base`, el único que conserva
+   `/configuracion/programas/` es «Configuración»** (tiene `config.ver` y `config.administrar`);
+   «Dashboard», «Gestión de Ciudadanos», «Reportes» y «Administración» la pierden, porque hasta ahora
+   entraban por estar logueados y nada más —que es el hallazgo—. Quien la necesite con uno de esos
+   cuatro roles lleva además alguna de las tres capacidades, o se le tilda.
 5. **RENAPER (SEC-27 y G1c-16).** `verificacion_tls()` decide el `verify`; `datos_api_mostrables()`
    recorta el payload; el GET del alta de ciudadano limpia la sesión.
 6. **Admisión (SEC-32).** Capacidad, cubeta por operador y registro en el log sin el documento.
@@ -27819,6 +27823,34 @@ Sin migraciones: revertir el commit alcanza. Lo que vuelve atrás, en orden de r
 4. el catálogo de programas vuelve a verlo cualquier cuenta de backoffice.
 
 No se pierde ningún dato: `last_activity` vive en la sesión, que es efímera.
+
+## Historial
+
+- **08/10/2026 — ronda 2 de la revisión: la exención de `/api/` apagaba la expiración entera, no
+  solo el refresco.** Tres correcciones:
+  1. **El corte ahora aplica también a `/api/` (MAJOR).** `ExpiracionPorInactividadMiddleware` salía
+     por arriba con `request.path.startswith("/api/")`, así que con la marca envejecida 48 h
+     `/api/legajos/ciudadanos/` seguía contestando **200**: una cookie de sesión robada servía el
+     padrón por la API durante las 24 h de `SESSION_COOKIE_AGE`, que es exactamente lo que SEC-35 vino
+     a cerrar. La exención quedó donde correspondía —en el **refresco**— y el corte pasó a aplicar a
+     toda request autenticada por sesión. **La app de campo no se entera:** autentica por Token *sin
+     cookie*, llega al middleware con `request.user` anónimo y pasa de largo. Lo único distinto en
+     `/api/` es la respuesta del corte: **401** JSON en vez del redirect al login. `ApiDeCampoNoExpira`
+     probaba otra cosa —hacía `force_login` antes de mandar el Token, o sea una sesión de backoffice—:
+     ahora manda **solo** el Token y verifica que no haya cookie.
+  2. **El polling de fondo deja de renovar la sesión.** `RUTAS_SIN_MARCA_DE_ACTIVIDAD` en
+     `core/middleware.py` es la lista explícita, con el emisor de cada ruta anotado al lado: las cuatro
+     de `updateDashboard()` (`performance_dashboard.html`, cada 30 s) y la de
+     `conversaciones_tiempo_real_global.js` (cada 5 s, y va en `includes/base.html`, o sea en **toda**
+     pantalla del backoffice). Con ellas marcando, una pestaña olvidada renovaba la sesión sola y el
+     cierre por inactividad no cerraba nada. **No marcar no es quedar exento:** una sesión ya vencida
+     tampoco entra por ahí. El latido (`core:sesion_latido`) sigue siendo la única señal de actividad
+     sin pantallas. El cuarto emisor de la revisión —`widget_contactos.html`, cada 5 min— no tiene fila
+     porque su ruta (`legajos:metricas_contactos_api`) **no está montada**: figura en
+     `URLS_ROTAS_CONOCIDAS` y la retira LEG-06.
+  3. **La ficha SEC-36 decía de más.** «Ningún rol sembrado pierde lo que tenía» no es exacto: de los
+     cinco roles de menú, solo «Configuración» conserva `/configuracion/programas/`. Corregido en la
+     ficha, en *Implementación* y en los riesgos de deploy del PR.
 
 ---
 
