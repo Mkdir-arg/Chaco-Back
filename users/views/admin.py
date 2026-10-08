@@ -27,6 +27,11 @@ from ..services.credenciales import revocar_tokens_de_la_app
 
 logger = logging.getLogger(__name__)
 
+#: SEC-36 · Lo único que ve el operador cuando el guardado falla por algo que no
+#: es una validación. El detalle va al log, con traza. Mismo criterio que
+#: ``legajos.views.mensajes.ERROR_GENERICO``.
+ERROR_GUARDAR_USUARIO = "No se pudo guardar el usuario. Probá de nuevo; si sigue, avisá al área de sistemas."
+
 
 class _ScopeDenied(Exception):
     """El operador (admin de programa) intentó acceder a un usuario fuera de alcance."""
@@ -81,9 +86,13 @@ class UserCreateView(TimestampedSuccessUrlMixin, AdminRequiredMixin, CreateView)
             self.object = UsuariosAdminService.create_user_from_form(
                 form, alcance_group_ids=alcance_roles_ids(self.request.user)
             )
-        except Exception as exc:
+        except Exception:
+            # SEC-36: el texto de la excepción no vuelve al formulario. Lo que
+            # llegaba ahí era el `repr` de un error de base o de correo —con el
+            # nombre de la tabla, la columna o el host del SMTP— dibujado como si
+            # fuera una validación. El detalle, con traza, queda en el log.
             logger.exception("Error al crear usuario")
-            form.add_error(None, f"Error al guardar el usuario: {exc}")
+            form.add_error(None, ERROR_GUARDAR_USUARIO)
             return self.form_invalid(form)
 
         if self.object.email:
@@ -146,9 +155,10 @@ class UserUpdateView(TimestampedSuccessUrlMixin, AdminRequiredMixin, UpdateView)
         except rbac.SinAdministradorError as exc:
             form.add_error(None, str(exc))
             return self.form_invalid(form)
-        except Exception as exc:
+        except Exception:
+            # SEC-36, igual que en el alta.
             logger.exception("Error al actualizar usuario")
-            form.add_error(None, f"Error al actualizar el usuario: {exc}")
+            form.add_error(None, ERROR_GUARDAR_USUARIO)
             return self.form_invalid(form)
 
         return self.redirect_with_timestamp()

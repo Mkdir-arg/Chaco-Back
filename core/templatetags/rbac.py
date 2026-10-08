@@ -60,6 +60,17 @@ def puede_abm_roles(user):
     return _alguna(user, rbac.CAPS_ENTRADA_ABM_ROLES)
 
 
+@register.filter(name="puede_ver_programas")
+def puede_ver_programas(user):
+    """¿Le abre el catálogo de programas? (deriva de ``CAPS_ENTRADA_PROGRAMAS``).
+
+    SEC-36. El acceso del inicio llevaba a una pantalla que hasta el Cambio 185
+    contestaba a cualquier autenticado; ahora pide capacidad, y el acceso tiene
+    que preguntar lo mismo que la vista para no ofrecer lo que va a rebotar.
+    """
+    return _alguna(user, rbac.CAPS_ENTRADA_PROGRAMAS)
+
+
 @register.filter(name="es_ciudadano_portal")
 def es_ciudadano_portal(user):
     """¿El usuario es un ciudadano del portal? (marcador de identidad)."""

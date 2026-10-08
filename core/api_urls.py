@@ -1,5 +1,6 @@
 from django.urls import include, path
-from rest_framework.routers import DefaultRouter
+
+from core.api_routers import RouterBackoffice
 
 from .api_views import (
     DiaViewSet,
@@ -10,7 +11,7 @@ from .api_views import (
     SexoViewSet,
 )
 
-router = DefaultRouter()
+router = RouterBackoffice()
 router.register(r"provincias", ProvinciaViewSet)
 router.register(r"municipios", MunicipioViewSet)
 router.register(r"localidades", LocalidadViewSet)

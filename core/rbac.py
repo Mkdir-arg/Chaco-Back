@@ -353,6 +353,15 @@ CAPS_ADMIN_PROGRAMA = tuple(dict.fromkeys(CAPS_ADMIN_PROGRAMA_USUARIOS + CAPS_AD
 CAPS_ENTRADA_ABM_USUARIOS = ("usuario.administrar", *CAPS_ADMIN_PROGRAMA_USUARIOS, "becas.usuario.territorial")
 CAPS_ENTRADA_ABM_ROLES = ("rol.administrar", *CAPS_ADMIN_PROGRAMA_ROLES)
 
+# SEC-36 · Puerta del catálogo de programas (`/configuracion/programas/`), que
+# estaba con solo `login_required`: cualquier cuenta de backoffice —incluida una
+# recién creada y sin rol— veía el nombre, el código, la subsecretaría y el estado
+# de todos los programas del organismo. Las tres son las capacidades que ya
+# existen para esa pantalla: la del wizard que sale de ahí (`programa.configurar`)
+# y las dos de la sección Configuración, que es donde vive el catálogo. No se
+# inventa ninguna, así que ningún rol sembrado pierde lo que tenía.
+CAPS_ENTRADA_PROGRAMAS = ("programa.configurar", "config.ver", "config.administrar")
+
 # Nombre del rol protegido y del marcador de identidad del portal.
 ROL_ADMINISTRADOR = "Administrador"
 GRUPO_CIUDADANO_PORTAL = "Ciudadanos"

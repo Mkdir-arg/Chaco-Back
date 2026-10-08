@@ -12,7 +12,7 @@ persona no se puede inscribir en toda la hora.
 
 Cambio 174 (SIIS-21): **solo en modo aritmético** la cubeta del documento pasa a
 contar también por IP, así quemarla requiere tantas IP como ataques. Con
-reCAPTCHA activo —lo que corresponde en producción, y lo que avisa `core.W003`—
+reCAPTCHA activo —lo que corresponde en producción, y lo que exige `core.E005`—
 la cubeta sigue siendo global y la defensa contra enumeración queda intacta.
 """
 

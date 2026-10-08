@@ -1,3 +1,5 @@
+import logging
+
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.http import JsonResponse
 from django.shortcuts import render
@@ -8,6 +10,11 @@ from core import rbac
 from ..performance.monitoring import system_monitor
 from ..performance.phase2_manager import phase2_manager
 from ..performance.query_observability import query_observability_report
+
+logger = logging.getLogger(__name__)
+
+#: SEC-36 · Lo único que sale al cliente cuando una de estas APIs explota.
+ERROR_GENERICO = "No se pudieron obtener las métricas. El detalle quedó en el log del servidor."
 
 
 def is_admin(user):
@@ -25,6 +32,8 @@ from drf_spectacular.utils import extend_schema
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import BasePermission, IsAdminUser
 
+from core.api_permissions import BackofficeAutenticado
+
 
 class IsPerformanceAdmin(BasePermission):
     message = "No tiene permiso para consultar métricas de performance."
@@ -38,7 +47,7 @@ class IsPerformanceAdmin(BasePermission):
     responses={200: "Métricas de performance del sistema"},
 )
 @api_view(["GET"])
-@permission_classes([IsPerformanceAdmin])
+@permission_classes([BackofficeAutenticado, IsPerformanceAdmin])
 def performance_api(request):
     """API endpoint for performance data"""
     report = query_observability_report()
@@ -80,7 +89,7 @@ def performance_api(request):
     responses={200: "Análisis de patrones de queries"},
 )
 @api_view(["GET"])
-@permission_classes([IsPerformanceAdmin])
+@permission_classes([BackofficeAutenticado, IsPerformanceAdmin])
 def query_analysis_api(request):
     """Detailed query analysis API"""
     report = query_observability_report()
@@ -118,7 +127,7 @@ def query_analysis_api(request):
     responses={200: "Sugerencias de optimización de performance"},
 )
 @api_view(["GET"])
-@permission_classes([IsPerformanceAdmin])
+@permission_classes([BackofficeAutenticado, IsPerformanceAdmin])
 def optimization_suggestions_api(request):
     """API for optimization suggestions"""
     model_name = request.GET.get("model", "")
@@ -157,7 +166,7 @@ def optimization_suggestions_api(request):
     responses={200: "Métricas completas del sistema"},
 )
 @api_view(["GET"])
-@permission_classes([IsPerformanceAdmin])
+@permission_classes([BackofficeAutenticado, IsPerformanceAdmin])
 def system_metrics_api(request):
     """Comprehensive system metrics API"""
     metrics = system_monitor.get_comprehensive_metrics()
@@ -183,7 +192,7 @@ def system_metrics_api(request):
 
 @extend_schema(description="API para alertas activas del sistema", responses={200: "Alertas activas del sistema"})
 @api_view(["GET"])
-@permission_classes([IsPerformanceAdmin])
+@permission_classes([BackofficeAutenticado, IsPerformanceAdmin])
 def alerts_api(request):
     """System alerts API"""
     alerts = system_monitor.get_active_alerts()
@@ -192,7 +201,7 @@ def alerts_api(request):
 
 @extend_schema(description="API para métricas en tiempo real", responses={200: "Métricas en tiempo real"})
 @api_view(["GET"])
-@permission_classes([IsPerformanceAdmin])
+@permission_classes([BackofficeAutenticado, IsPerformanceAdmin])
 def realtime_metrics_api(request):
     """Real-time metrics API"""
     # Recolectar métricas frescas
@@ -217,7 +226,7 @@ def realtime_metrics_api(request):
     responses={200: "Métricas avanzadas de Fase 2"},
 )
 @api_view(["GET"])
-@permission_classes([IsPerformanceAdmin])
+@permission_classes([BackofficeAutenticado, IsPerformanceAdmin])
 def phase2_metrics_api(request):
     """Phase 2 advanced optimization metrics API"""
     try:
@@ -280,9 +289,13 @@ def phase2_metrics_api(request):
 
         return JsonResponse(response_data)
 
-    except Exception as e:
+    except Exception:
+        # SEC-36: `str(e)` de acá adentro arrastra consultas, rutas y nombres de
+        # tabla; el consumidor es un dashboard, no alguien que pueda hacer algo
+        # con el texto. El detalle va al log con traza.
+        logger.exception("Error al armar las métricas de Fase 2")
         return JsonResponse(
-            {"error": str(e), "phase2_active": False, "message": "Fase 2 no inicializada o error en métricas"}
+            {"error": ERROR_GENERICO, "phase2_active": False, "message": "Fase 2 no inicializada o error en métricas"}
         )
 
 
@@ -291,7 +304,7 @@ def phase2_metrics_api(request):
     responses={200: "Resultados de pruebas automáticas"},
 )
 @api_view(["POST"])
-@permission_classes([IsAdminUser])
+@permission_classes([BackofficeAutenticado, IsAdminUser])
 def run_phase2_tests_api(request):
     """Ejecuta todas las pruebas de Fase 2 automáticamente"""
     try:
@@ -485,13 +498,15 @@ def run_phase2_tests_api(request):
 
         return JsonResponse(results)
 
-    except Exception as e:
+    except Exception:
+        # SEC-36, ídem.
+        logger.exception("Error al correr las pruebas de Fase 2")
         return JsonResponse(
             {
-                "error": str(e),
+                "error": ERROR_GENERICO,
                 "timestamp": timezone.now().isoformat(),
                 "tests_executed": [],
-                "summary": {"all_passed": False, "error": str(e)},
+                "summary": {"all_passed": False, "error": ERROR_GENERICO},
             },
             status=500,
         )

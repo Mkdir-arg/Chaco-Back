@@ -107,20 +107,30 @@ def entorno_de_integraciones(app_configs, **kwargs):
     # Además de no frenar automatización, es lo que obliga a que la cubeta por
     # documento cuente por IP (``portal.services.inscripcion.documento_excedido``)
     # y, con eso, a resignar parte de la defensa contra enumeración.
+    #
+    # SEC-37 / **D-37 = No**: el Cambio 71 no se reabre —el paso 2 sigue mostrando
+    # el nombre y la fecha de nacimiento a partir de DNI + sexo— y la contrapartida
+    # acordada es que en producción el captcha sea real. Por eso esto dejó de ser
+    # un aviso (``core.W003``) y es un **error** desde el Cambio 185: lo que
+    # sostiene la decisión no es una línea más en el log del deploy sino que
+    # ``manage.py check --deploy`` se ponga rojo. Fuera de producción sigue sin
+    # decir nada: dev, QA y los tests corren con el desafío aritmético a propósito.
     sin_recaptcha = not (
         (getattr(settings, "RECAPTCHA_SITE_KEY", "") or "").strip()
         and (getattr(settings, "RECAPTCHA_SECRET_KEY", "") or "").strip()
     )
     if es_produccion() and sin_recaptcha:
         mensajes.append(
-            CheckWarning(
+            Error(
                 f"Sin RECAPTCHA_SITE_KEY/RECAPTCHA_SECRET_KEY con {VARIABLE_PRODUCCION}=1: el link público "
                 "queda con el desafío aritmético, que se resuelve leyendo la pregunta del HTML.",
                 hint=(
-                    "Cargá las claves de reCAPTCHA v2 en el entorno de producción. El desafío aritmético "
-                    "es el respaldo para que un ambiente sin credenciales siga funcionando."
+                    "Cargá las claves de reCAPTCHA v2 en el entorno de producción (D-37). El desafío "
+                    "aritmético es el respaldo para que un ambiente sin credenciales siga funcionando, "
+                    "no una configuración de PRD: el paso 2 del link muestra nombre y fecha de nacimiento "
+                    "a partir del DNI, y el captcha real es lo que lo protege de un barrido."
                 ),
-                id="core.W003",
+                id="core.E005",
             )
         )
     return mensajes
