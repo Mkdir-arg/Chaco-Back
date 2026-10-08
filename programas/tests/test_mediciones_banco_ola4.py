@@ -142,16 +142,39 @@ class BandejaFiltradaPorEstadoTests(_BaseMedicion):
         self.assertNotIn("definicion", sql)
         self.assertNotIn("respuestas", sql)
 
+    def _indices_declarados(self):
+        """Lo que el modelo declara, mire donde mire.
+
+        No alcanza con `Meta.indexes`: un índice de una sola columna se puede declarar
+        igual de bien con `db_index=True` en el campo, y eso es exactamente lo que pasó
+        con `estado` en RED-83 —se sacó el duplicado de `Meta.indexes` y quedó el del
+        campo, el mismo índice en la base—. Leer una sola de las dos formas dejaba este
+        test rojo por un cambio que no tocó ni un índice real.
+        """
+        declarados = {tuple(indice.fields) for indice in Formulario._meta.indexes}
+        declarados |= {(campo.name,) for campo in Formulario._meta.local_fields if campo.db_index or campo.unique}
+        return declarados
+
     def test_siguen_declarados_los_indices_sobre_los_que_se_midio(self):
         """El índice combinado de la ficha no entró **porque estos dos ya alcanzan**.
 
         Si alguien saca uno, la medición deja de aplicar y PERF-13 vuelve a estar
         abierta: este test es el aviso.
         """
-        declarados = {tuple(indice.fields) for indice in Formulario._meta.indexes}
+        declarados = self._indices_declarados()
 
         for campos in self.INDICES_QUE_SOSTIENEN_LA_MEDICION:
             self.assertIn(campos, declarados, f"falta el índice {campos} sobre programas_formulario")
+
+    def test_el_indice_de_estado_quedo_uno_solo(self):
+        """RED-83: `estado` se declaraba **dos** veces —`db_index=True` en el campo y
+        `Index(fields=["estado"])` en `Meta`—, y eso son dos árboles idénticos sobre la
+        columna más escrita de la tabla más grande. La medición de PERF-13 sigue valiendo
+        porque el que queda es el mismo índice."""
+        en_el_meta = [tuple(i.fields) for i in Formulario._meta.indexes].count(("estado",))
+        en_el_campo = sum(1 for c in Formulario._meta.local_fields if c.name == "estado" and c.db_index)
+
+        self.assertEqual(en_el_meta + en_el_campo, 1)
 
     def test_la_tabla_grande_no_estreno_un_indice_mas(self):
         """`programas_formulario` es la tabla más grande: cada índice se paga en cada

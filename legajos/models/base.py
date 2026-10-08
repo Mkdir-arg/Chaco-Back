@@ -25,7 +25,10 @@ class Ciudadano(TimeStamped):
 
     dni = models.CharField(max_length=20, unique=True, db_index=True)
     nombre = models.CharField(max_length=120, db_index=True)
-    apellido = models.CharField(max_length=120, db_index=True)
+    # RED-83: sin `db_index`. El índice de una sola columna era prefijo exacto de
+    # `(apellido, nombre)`, que lo cubre entero: el motor usa el largo para las dos
+    # consultas y el corto solo se pagaba en cada INSERT, UPDATE y DELETE.
+    apellido = models.CharField(max_length=120)
     fecha_nacimiento = models.DateField(null=True, blank=True, db_index=True)
     genero = models.CharField(max_length=1, choices=Genero.choices, blank=True, db_index=True)
     telefono = models.CharField(max_length=40, blank=True, db_index=True)
@@ -43,7 +46,8 @@ class Ciudadano(TimeStamped):
         "core.Localidad", on_delete=models.SET_NULL, null=True, blank=True, related_name="ciudadanos"
     )
 
-    activo = models.BooleanField(default=True, db_index=True)
+    # RED-83: sin `db_index`. `legajos_ciu_listado_idx` arranca por `activo` y lo cubre.
+    activo = models.BooleanField(default=True)
 
     usuario = models.OneToOneField(
         settings.AUTH_USER_MODEL,
@@ -194,7 +198,9 @@ class Ciudadano(TimeStamped):
         verbose_name = "Ciudadano"
         verbose_name_plural = "Ciudadanos"
         indexes = [
-            models.Index(fields=["dni"]),
+            # RED-83: acá estaba `Index(fields=["dni"])`, un duplicado exacto del índice
+            # UNIQUE que ya crea `dni = CharField(unique=True)`. Dos árboles idénticos
+            # sobre la misma columna, los dos mantenidos en cada escritura.
             models.Index(fields=["apellido", "nombre"]),
             # Listado de ciudadanos: filtra por ``activo``, ordena por apellido y nombre y
             # proyecta estas cinco columnas, así que el índice cubre la consulta entera y
@@ -202,7 +208,8 @@ class Ciudadano(TimeStamped):
             # a 60 ms, la búsqueda de 422 a 104 ms y la página 2100 de 2.088 a 58 ms.
             # ``(activo, apellido)`` queda como prefijo de este y se retira.
             models.Index(fields=["activo", "apellido", "nombre", "dni", "creado"], name="legajos_ciu_listado_idx"),
-            models.Index(fields=["email"]),
+            # RED-83: acá estaba `Index(fields=["email"])`, duplicado exacto del que crea
+            # `email = EmailField(db_index=True)`. Se conserva el del campo.
             models.Index(fields=["tipo_vivienda"]),
             models.Index(fields=["situacion_laboral"]),
             models.Index(fields=["nivel_educativo"]),

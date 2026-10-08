@@ -204,7 +204,15 @@ class Command(BaseCommand):
         if report["metrics_source"] != "measured" or report["scope"] != "shared_ci_run":
             raise CommandError("Redis no entregó métricas compartidas para la sonda de CI.")
         if report["n1_affected_requests"]:
-            raise CommandError("La sonda detectó N+1 en el stack efímero de CI.")
+            # El mensaje nombra la ruta y la forma de la consulta repetida: sin eso el
+            # rojo era «hubo N+1 en alguna parte» y había que reproducir el stack a mano.
+            culpables = "; ".join(
+                f"{item['route']} ({item['n1_affected_requests']} requests, repite "
+                f"{item.get('n1_signature') or 'una consulta que no se pudo identificar'})"
+                for item in report["routes"]
+                if item["n1_affected_requests"]
+            )
+            raise CommandError(f"La sonda detectó N+1 en el stack efímero de CI: {culpables}.")
         routes = {item["route"]: item for item in report["routes"]}
         targets = build_targets()["targets"]
         required_routes = {target["route"] for target in targets}

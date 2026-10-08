@@ -9,6 +9,14 @@ from django.core.exceptions import ImproperlyConfigured
 from django.db import connection
 from django.db.utils import OperationalError, ProgrammingError
 
+from dashboard.cache import (
+    CLAVE_ALERTAS,
+    CLAVE_CIUDADANOS,
+    CLAVE_STATS_LEGAJOS,
+    CLAVE_STATS_LEGAJOS_ATENCION,
+    CLAVE_USUARIOS,
+    clave_seguimientos_hoy,
+)
 from legajos.models import Ciudadano
 from programas.models import InscripcionPrograma
 
@@ -39,7 +47,7 @@ CACHE_TIMEOUT = getattr(settings, "DASHBOARD_CACHE_TIMEOUT", 300)
 
 def contar_usuarios():
     """Contar la cantidad total de usuarios."""
-    cache_key = "contar_usuarios"
+    cache_key = CLAVE_USUARIOS
     cached_value = cache.get(cache_key)
     if cached_value is None:
         cached_value = User.objects.count()
@@ -49,7 +57,7 @@ def contar_usuarios():
 
 def contar_ciudadanos():
     """Contar la cantidad total de ciudadanos."""
-    cache_key = "contar_ciudadanos"
+    cache_key = CLAVE_CIUDADANOS
     cached_value = cache.get(cache_key)
     if cached_value is None:
         cached_value = Ciudadano.objects.count()
@@ -70,7 +78,7 @@ def contar_legajos():
     """
     from django.db.models import Count, Q
 
-    cache_key = "stats_legajos"
+    cache_key = CLAVE_STATS_LEGAJOS
     cached_value = cache.get(cache_key)
     if cached_value is None:
         cached_value = InscripcionPrograma.objects.aggregate(
@@ -88,11 +96,12 @@ def contar_legajos_atencion():
     `/legajos/reportes/`. Las dos pantallas tienen que dar el mismo número (G2-04).
 
     La clave la borra el receiver de `legajos/signals/core.py` en cada alta, edición o
-    baja de un legajo, así que no queda vieja hasta que expire el TTL.
+    baja de un legajo, así que no queda vieja hasta que expire el TTL. El mapa de qué
+    modelo mueve qué clave está en `dashboard/cache.py` (RED-51).
     """
     from legajos.selectors import resumen_legajos_atencion
 
-    cache_key = "stats_legajos_atencion"
+    cache_key = CLAVE_STATS_LEGAJOS_ATENCION
     cached_value = cache.get(cache_key)
     if cached_value is None:
         cached_value = resumen_legajos_atencion()
@@ -108,7 +117,7 @@ def contar_seguimientos_hoy():
     # fecha local, así que con la de UTC el contador daba 0 entre las 21 y las 24
     # y además partía la clave de caché en dos días distintos (BEC-18).
     hoy = timezone.localdate()
-    cache_key = f"seguimientos_hoy_{hoy}"
+    cache_key = clave_seguimientos_hoy(hoy)
     cached_value = cache.get(cache_key)
     if cached_value is None:
         cached_value = InscripcionPrograma.objects.filter(fecha_inscripcion=hoy).count()
@@ -120,7 +129,7 @@ def contar_alertas_activas():
     """Contar alertas activas con caché."""
     from legajos.models import AlertaCiudadano
 
-    cache_key = "alertas_activas"
+    cache_key = CLAVE_ALERTAS
     cached_value = cache.get(cache_key)
     if cached_value is None:
         cached_value = AlertaCiudadano.objects.filter(activa=True).count()
@@ -128,13 +137,6 @@ def contar_alertas_activas():
     return cached_value
 
 
-def invalidate_dashboard_cache():
-    """Invalida el caché del dashboard."""
-    cache.delete("contar_usuarios")
-    cache.delete("contar_ciudadanos")
-    cache.delete("stats_legajos")
-    cache.delete("stats_legajos_atencion")
-    cache.delete("alertas_activas")
-    from django.utils import timezone
-
-    cache.delete(f"seguimientos_hoy_{timezone.localdate()}")
+# RED-51: acá vivía una de las dos `invalidate_dashboard_cache`. La que queda es
+# `dashboard.cache.invalidar_dashboard()`, y las claves que borra —con qué modelo mueve
+# cada una— están en esa misma tabla.
