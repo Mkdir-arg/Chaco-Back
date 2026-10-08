@@ -58,7 +58,7 @@ Refutado: **A4-15 / PERF-14** (GZip sobre xlsx): ver README §8.
 - **Verificación:** V-STD + banco: en la convocatoria del relevamiento público de 20k, subir por `cargar_padron` el xlsx de los pendientes (el harness `test_a404_perfil` muestra cómo) y cronometrar/contar antes y después.
 - **Dependencias:** PERF-16 (señal), DAT-05 (Excel viejo), BEC-15 (concurrencia), G1-12 (fechas): mismo módulo.
 
-**Resolución:** ✅ Resuelto en #NNN (Cambio 182, Ola 4 PR 1-2), 08-oct-2026 — `validar_casos_pendientes` recorre los
+**Resolución:** ✅ Resuelto en #632 (Cambio 182, Ola 4 PR 1-2), 08-oct-2026 — `validar_casos_pendientes` recorre los
 pendientes con `.iterator(chunk_size=2000)` y acumula: las trazas en un `bulk_create(batch_size=1000)`, los ciudadanos
 agrupados por tupla de campos completados en `bulk_update(batch_size=500)` y los formularios partidos en dos —los que
 solo mueven las tres constantes van por `UPDATE … WHERE pk IN (1.000)` y solo los que tocan `datos_identificacion` o
@@ -105,7 +105,7 @@ validado, lo escrito en el legajo, el `datos_identificacion` y la lista de traza
 - **Verificación:** V-STD + `manage.py test --tag performance`; banco: `/becas/cupo/segmento/<seg>/?pendientes_page=50&beneficiarios_page=50` en `bench_mysql.py` + `EXPLAIN ANALYZE` (deben desaparecer `Using temporary` y la materialización de `programas_relevamiento`).
 - **Dependencias:** SEC-21 y SEC-22 tocan los mismos querysets (filtros de alcance): coordinar o hacer en el mismo PR.
 
-**Resolución:** ✅ Resuelto en #NNN (Cambio 182, Ola 4 PR 1-2), 08-oct-2026 — las tres condiciones de alcance (segmento,
+**Resolución:** ✅ Resuelto en #632 (Cambio 182, Ola 4 PR 1-2), 08-oct-2026 — las tres condiciones de alcance (segmento,
 convocatorias visibles y RN-P13) son todas sobre el **relevamiento**, así que se resuelven una vez en una lista de ids y
 las tablas quedan con `WHERE relevamiento_id IN (…)`: desaparecen los joins con `programas_convocatoria` y
 `programas_relevamiento`. Beneficiarios y pendientes se eligen proyectando **solo el pk** (`order_by("modificado","pk")`
@@ -232,7 +232,7 @@ y `programas.tests.test_cupo_performance.MismosCasosEnElMismoOrdenTests.test_ben
 - **Ubicación:** `core/performance/cache_utils.py:22-49`; `dashboard/utils.py:50-57`.
 - **Propuesta:** `transaction.on_commit(lambda: cache.delete_many([...deduplicadas]))` en la señal; no invalidar `contar_ciudadanos` con `created=False`. El grueso desaparece con PERF-04 (`bulk_update` no dispara la señal).
 
-**Resolución:** ✅ Resuelto en #NNN (Cambio 182, Ola 4 PR 1-2), 08-oct-2026 — la señal pasa a un solo `delete_many`
+**Resolución:** ✅ Resuelto en #632 (Cambio 182, Ola 4 PR 1-2), 08-oct-2026 — la señal pasa a un solo `delete_many`
 deduplicado dentro de `transaction.on_commit` (`core/performance/cache_utils.invalidar_tras_commit`), y los dos
 contadores solo se invalidan cuando el total pudo cambiar: al crear o al borrar (`post_delete` no manda `created`, y ahí
 el total sí cambió). Editar un ciudadano deja de borrarlos. `invalidate_ciudadano_cache` e `invalidate_dashboard_cache`

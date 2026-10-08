@@ -1456,7 +1456,7 @@ vez de renombrarlas. `test_el_contador_de_cuposegmento_no_lo_mueve_nadie` deja f
 primero. El renombre sigue en la Ola 4.
 **Test permanente:** `programas.tests.test_cupo.TresCuposTests.test_las_tres_acepciones_son_distintas`.
 
-**Resolución (parte Ola 4):** ✅ Cerrada en #NNN (Cambio 182, Ola 4 PR 1-2), 08-oct-2026 — renombradas, no unificadas:
+**Resolución (parte Ola 4):** ✅ Cerrada en #632 (Cambio 182, Ola 4 PR 1-2), 08-oct-2026 — renombradas, no unificadas:
 `Segmento.cupo_disponible` → **`cupo_sin_distribuir`** y `Relevamiento.cupo_disponible` →
 **`cupos_libres_del_relevamiento`**; `cupo_disponible` queda solo para `get_cupo_stats`. Sin alias de compatibilidad: se
 actualizaron los dos templates de configuración, la variable de contexto homónima de
