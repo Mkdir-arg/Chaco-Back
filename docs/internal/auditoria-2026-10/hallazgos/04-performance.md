@@ -221,7 +221,7 @@ Refutado: **A4-15 / PERF-14** (GZip sobre xlsx): ver README §8.
 - **Propuesta:** incluir el script solo si `puede_ver_ciudadanos` (context processor; ya existe el patrón `puede_conversaciones` en la misma plantilla) y no reintentar ante `event.code === 4403` (o 1006 tras un 403 de handshake). Mismo patrón sin medir en `alertas_conversaciones_rt.js` (se va con el apagado de conversaciones, G1-01 fase 2).
 - **Test:** `test_base_no_incluye_alertas_ws_sin_capacidad` (render de `/inicio/` sin `ciudadano.ver` → no aparece `alertas_websocket.js`).
 
-**Resolución:** ✅ Resuelto en #PENDIENTE (Cambio 179), 08-oct-2026 — **dos guards, porque son dos poblaciones
+**Resolución:** ✅ Resuelto en #629 (Cambio 179), 08-oct-2026 — **dos guards, porque son dos poblaciones
 distintas.** (1) El script viaja solo con `puede_ver_ciudadanos`: sin `ciudadano.ver` no hay campana en el navbar
 —la única superficie del script— y no hay nada que actualizar. (2) El socket se abre solo con
 `puede_alertas_sensibles`, que es lo que `/ws/alertas/` exige desde G1c-04: el shell lo publica como

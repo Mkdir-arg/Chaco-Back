@@ -293,7 +293,7 @@ para que se encuentren con un `git grep`. **Test permanente:**
 `test_con_ciudadano_ver_contestan_las_tres_no_sensibles`, que fija que quien hoy usa Legajos con su rol normal
 sigue entrando).
 
-**Resolución:** ✅ Completa en #PENDIENTE (Cambio 179), 08-oct-2026 - segunda mitad hecha con **D-11 = Sí**:
+**Resolución:** ✅ Completa en #629 (Cambio 179), 08-oct-2026 - segunda mitad hecha con **D-11 = Sí**:
 `timeline_ciudadano_api`, `alertas_ciudadano_api` y `prediccion_riesgo_api` pasan de `@requiere("ciudadano.ver")` a
 `@requiere("ciudadano.sensible")`. Las otras tres (`actividades_ciudadano_api`, `evolucion_legajo_api`,
 `contactos_panel.historial_contactos_simple`) se quedan en `ciudadano.ver`, que es su capacidad definitiva. El
@@ -312,7 +312,7 @@ mismo dato. **Quién pierde acceso:** nadie de los roles sembrados -«Gestión d
 - **Verificación:** V-STD + V-UI. La bandeja hoy está vacía (LEG-06), así que no se rompe UI operativa.
 - **Dependencias:** LEG-02 (reactivar inscripción) y LEG-06 (decisión de derivaciones).
 
-**Resolución:** ✅ Resuelto en #PENDIENTE (Cambio 179), 08-oct-2026 - **DECISIÓN CLIENTE D-12 = reusar
+**Resolución:** ✅ Resuelto en #629 (Cambio 179), 08-oct-2026 - **DECISIÓN CLIENTE D-12 = reusar
 `ciudadano.editar`**, sin capacidad nueva ni migración. `aceptar_derivacion_programa` y
 `rechazar_derivacion_programa` van con `@requiere("ciudadano.editar")` + `@require_POST` (en ese orden: la
 autorización se evalúa antes que el método, así un GET sin capacidad no revela que la ruta existe);
@@ -548,7 +548,7 @@ dos (sin alcance → vacío; con legajo propio → solo las suyas), porque afirm
 - **Verificación:** V-STD + `manage.py test conversaciones legajos`.
 - **Dependencias:** SEC-18, SEC-11; G1c-17 y G3-03 en el mismo PR.
 
-**Resolución:** ✅ Resuelto en #PENDIENTE (Cambio 179), 08-oct-2026 - las cuatro caras: (d) `config/asgi.py`
+**Resolución:** ✅ Resuelto en #629 (Cambio 179), 08-oct-2026 - las cuatro caras: (d) `config/asgi.py`
 envuelve el router en `AllowedHostsOriginValidator`, que cierra el CSWSH **de los cuatro consumers**, no solo
 del de alertas; (1) `AlertasConsumer` pide `ciudadano.sensible` (D-11, misma capacidad que SEC-11); (c) rechaza
 si `Profile.backoffice_session_key` no es la sesión del handshake o si `debe_cambiar_contrasena` -los dos
@@ -653,7 +653,7 @@ Observaciones MINOR de los revisores de #536-#542 y seguimientos operativos. Las
 - **Propuesta:** decidirlo y dejarlo explícito: aplicar el mínimo de búsqueda solo si `self.action == "list"`, o sacar `retrieve` del ViewSet (`mixins.ListModelMixin` + `GenericViewSet`) para que la ruta no exista.
 - **Test:** `retrieve` con `ciudadano.ver` → 200 (o ruta inexistente), sin capacidad → 403.
 
-**Resolución:** ✅ Resuelto en #PENDIENTE (Cambio 179), 08-oct-2026 - el mínimo de búsqueda se aplica solo si
+**Resolución:** ✅ Resuelto en #629 (Cambio 179), 08-oct-2026 - el mínimo de búsqueda se aplica solo si
 `self.action == "list"`, que es la acción que enumera; `retrieve` necesita el pk, así que no habilita ninguna
 enumeración y deja de dar 404 sobre un ciudadano que existe. **Test permanente:**
 `legajos.tests.test_api_ciudadanos_rbac.ApiCiudadanosRetrieveYOrdenTests.test_retrieve_con_ciudadano_ver_200`
@@ -665,7 +665,7 @@ enumeración y deja de dar 404 sobre un ciudadano que existe. **Test permanente:
 - **Propuesta:** sumar `filters.OrderingFilter` a `filter_backends` (o `.order_by("apellido", "nombre", "pk")` en `get_queryset`) para que la paginación sea determinística.
 - **Test:** dos páginas consecutivas de una búsqueda no repiten ni saltean filas.
 
-**Resolución:** ✅ Resuelto en #PENDIENTE (Cambio 179), 08-oct-2026 - `filters.OrderingFilter` entra a
+**Resolución:** ✅ Resuelto en #629 (Cambio 179), 08-oct-2026 - `filters.OrderingFilter` entra a
 `filter_backends` y `ordering` pasa a `["apellido", "nombre", "pk"]`: sin el desempate por `pk`, dos homónimos no
 tienen orden propio y el motor puede devolverlos distinto en cada página (y MariaDB y MySQL no tienen qué
 coincidir). **Test permanente:**
@@ -701,7 +701,7 @@ vistas de SEC-11. **Test permanente:** `legajos.tests.test_alertas_rbac.AlertasA
 - **Propuesta:** separar por tipo de evento: inscripciones y derivaciones con `ciudadano.ver` (acotadas como en SEC-12/D-12), alertas con `ciudadano.sensible` (D-11); o partir el feed en dos endpoints.
 - **Test:** con `ciudadano.ver` solo, el feed trae inscripciones y no alertas; sin capacidad → 403.
 
-**Resolución:** ✅ Resuelto en #PENDIENTE (Cambio 179), 08-oct-2026 - `actividad_reciente` baja a
+**Resolución:** ✅ Resuelto en #629 (Cambio 179), 08-oct-2026 - `actividad_reciente` baja a
 `RequiereCapacidad("ciudadano.ver")`, las inscripciones y derivaciones salen por
 `FiltrosUsuarioService.acotar_a_programas_del_usuario` (helper nuevo, mismo alcance que ya usan las alertas:
 los programas de los legajos propios; superusuario y `config.administrar` ven todo) y la rama de alertas -el

@@ -337,7 +337,7 @@ objeto ya creado— se lo perdía. El nombre se anota en un `finally` alrededor 
 - **Ubicación:** `legajos/services/alertas.py:185-189` (manda a `alertas_criticas` / `nueva_alerta_critica`, que nadie escucha); `conversaciones/consumers.py:236-240` (el consumer tiene `alerta_critica` y `alerta_cerrada`, que nadie emite); el modal crítico de `alertas_websocket.js:57` **nunca se dispara**; `config/settings.py:387-392` (`InMemoryChannelLayer` fuera de `prd`: lo que emite un CronJob en otro pod no llega a nadie).
 - **Propuesta:** alinear nombres de grupo y tipo de mensaje entre emisor y consumer (o borrar la rama crítica si no se quiere); documentar que en QA el WS no recibe lo emitido por el cron (ver OPS-12).
 
-**Resolución:** ✅ Resuelto en #PENDIENTE (Cambio 179), 08-oct-2026 — el emisor y el consumer hablan el mismo
+**Resolución:** ✅ Resuelto en #629 (Cambio 179), 08-oct-2026 — el emisor y el consumer hablan el mismo
 idioma: `AlertasService._enviar_notificacion_alerta` manda la rama crítica al grupo `alertas_sistema` con el tipo
 `alerta_critica`, que es el handler que el `AlertasConsumer` tiene de verdad (antes iba a `alertas_criticas` con
 `nueva_alerta_critica`: grupo sin suscriptores y tipo sin handler, así que el modal crítico de
