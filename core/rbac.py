@@ -952,32 +952,41 @@ class CapacidadRequeridaMixin:
 # ---------------------------------------------------------------------------
 # Auto-protección: no dejar el sistema sin administradores
 # ---------------------------------------------------------------------------
-def usuarios_que_administran(excluir_ids=()):
+def usuarios_que_administran(excluir_ids=(), bloquear=False):
     """Usuarios **activos** que pueden administrar usuarios o roles.
 
     Cuenta a quien tiene alguna capacidad de administración por rol (grupo) o
     por permiso directo, más los superusuarios (acceso de emergencia).
+
+    ``bloquear=True`` la convierte en una **lectura con candado**: en InnoDB un
+    ``SELECT … FOR UPDATE`` lee la última versión *commiteada* y no la foto de la
+    transacción, que es lo que hace falta para que el check de G1b-09 vea lo que
+    acaba de hacer el otro. Lo usa :func:`asegurar_admin_restante`.
     """
     codenames = [codename_de(c) for c in CAPS_ADMINISTRACION]
+    base = User.objects.select_for_update() if bloquear else User.objects.all()
     return (
-        User.objects.filter(is_active=True)
+        base.filter(is_active=True)
         .exclude(id__in=list(excluir_ids))
         .filter(Q(is_superuser=True) | Q(groups__meta__activo=True, groups__permissions__codename__in=codenames))
         .distinct()
     )
 
 
-def usuarios_que_administran_programa(programa, excluir_ids=()):
+def usuarios_que_administran_programa(programa, excluir_ids=(), bloquear=False):
     """Usuarios **activos** que administran un programa concreto.
 
     Cuenta a quien tiene un rol **activo** con ``RolMeta.programa = programa`` y
     alguna capacidad de :data:`CAPS_ADMIN_PROGRAMA`, más los **superusuarios**
     activos (acceso de emergencia, igual que el check global).
+
+    ``bloquear``: ver :func:`usuarios_que_administran`.
     """
     programa_pk = getattr(programa, "pk", programa)
     codenames = [codename_de(c) for c in CAPS_ADMIN_PROGRAMA]
+    base = User.objects.select_for_update() if bloquear else User.objects.all()
     return (
-        User.objects.filter(is_active=True)
+        base.filter(is_active=True)
         .exclude(id__in=list(excluir_ids))
         .filter(
             Q(is_superuser=True)
@@ -1012,6 +1021,36 @@ def programas_que_administra(user):
     )
 
 
+def tomar_candado_de_administracion():
+    """Candado que serializa las operaciones que pueden dejar sin administrador (G1b-09).
+
+    Las filas de ``auth_permission`` de :data:`CAPS_ADMINISTRACION` y
+    :data:`CAPS_ADMIN_PROGRAMA` son el **ancla**: existen siempre (las siembra el
+    catálogo), son las mismas para cualquier operación y no cambian al desactivar a
+    nadie. Bloquear en cambio los usuarios candidatos no serviría de ancla: cada
+    transacción deja de ver al que ella misma acaba de desactivar, así que los dos
+    conjuntos pueden no solaparse y nadie espera a nadie.
+
+    Sin esto, dos operaciones simultáneas —desactivar a uno de los dos últimos
+    administradores en cada una— leen cada una la foto de su transacción, ven al otro
+    todavía activo, pasan el check y commitean: el sistema queda sin administradores y
+    sin forma de recuperarse desde la UI. Con el candado, la segunda espera al COMMIT
+    de la primera y su check —que es una lectura con candado, o sea la última versión
+    commiteada— ya la ve desactivada y revierte.
+
+    En SQLite (la suite) ``select_for_update()`` es un no-op, así que este contrato se
+    prueba por su **presencia** (``core.tests.candados``) y por su efecto contra el
+    motor real (``@tag("mysql")``).
+    """
+    codenames = {codename_de(c) for c in CAPS_ADMINISTRACION} | {codename_de(c) for c in CAPS_ADMIN_PROGRAMA}
+    list(
+        Permission.objects.select_for_update()
+        .filter(codename__in=sorted(codenames))
+        .order_by("pk")
+        .values_list("pk", flat=True)
+    )
+
+
 def asegurar_admin_restante(programa=None):
     """Lanza si una operación dejaría al sistema —o a un programa— sin administrador.
 
@@ -1019,17 +1058,21 @@ def asegurar_admin_restante(programa=None):
     cambio (quitar rol, desactivar usuario, quitar capacidad de un rol, borrar
     rol): si dejaría sin admins, la excepción revierte la transacción.
 
+    Toma primero :func:`tomar_candado_de_administracion` y después lee **con candado**:
+    las dos mitades son necesarias y ninguna alcanza sola (G1b-09).
+
     **Retrocompatible:** sin ``programa`` realiza el check **global** histórico.
     Con ``programa`` realiza el check acotado a ese programa (RN-8).
     """
+    tomar_candado_de_administracion()
     if programa is None:
-        if not usuarios_que_administran().exists():
+        if not usuarios_que_administran(bloquear=True).exists():
             raise SinAdministradorError(
                 "La operación dejaría al sistema sin ningún usuario con permisos de "
                 "administración. Asigná las capacidades a otro usuario antes de continuar."
             )
         return
-    if not usuarios_que_administran_programa(programa).exists():
+    if not usuarios_que_administran_programa(programa, bloquear=True).exists():
         raise SinAdministradorProgramaError(
             f"La operación dejaría al programa «{programa}» sin ningún administrador. "
             "Asigná un rol de administración de ese programa a otro usuario antes de continuar."

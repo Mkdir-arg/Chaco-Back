@@ -116,6 +116,15 @@ class SolicitudMerenderoUpdateView(MerenderosPermissionMixin, UpdateView):
         self.object.estado = (
             SolicitudMerendero.Estado.BORRADOR if es_borrador else SolicitudMerendero.Estado.EN_REVISION
         )
+        # SEC-09, seguimiento de #646: `creado_por` es lo que le deja a quien solo tiene
+        # `merendero.crear` bajar la documentación por `/media/`
+        # (`core.views.media._documentacion_de_merendero`). El alta lo sella, pero una
+        # solicitud anterior a ese campo lo tiene en NULL: sin esto, el operador que la
+        # edita y le sube la documentación corregida se encuentra con que el
+        # «Actualmente: /media/…» que rinde el widget le contesta 403. Solo se sella si
+        # está vacío: la solicitud de un par sigue siendo de ese par.
+        if self.object.creado_por_id is None:
+            self.object.creado_por = self.request.user
         self.object.save()
         messages.success(
             self.request,
