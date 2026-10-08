@@ -354,6 +354,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 180 | Las escrituras que fallan no dejan nada a medias: ni medio caso, ni un padrón vacío, ni un adjunto huérfano | Becas (aprobación de casos, link público de inscripción, padrón propio del relevamiento) · Dispositivos (admisión, lista de espera y traslado) · Transversal (`core/archivos.py`) | `#datos` `#cupos` `#relevamientos` `#metodo` | Auditoría integral oct-2026 — 2.ª parte de la ficha RED-35 (Ola 3, PR 9 — **cierra la ola**) | 08/10/2026 | 🟢 **Hecho** | No requiere |
 | 181 | Una cuenta ya no se toma sin conocer su clave: cambio de contraseña, intentos, token de la app y el alcance del ABM de usuarios | Transversal — login, recupero y cambio de contraseña · ABM de usuarios y roles · API de la app de campo (`/api/becas/auth/token/`) · Correo de credenciales | `#sesion` `#usuarios` `#rbac` `#correo` `#api` | Auditoría integral oct-2026 — fichas G1b-05, G1b-07, G1b-08, G2-03, SEC-26, R0b-01, R0b-02, R0b-03 y R0b-10, más la segunda parte de RED-52 (Ola 2, PR 2) | 08/10/2026 | 🟢 **Hecho** (**D-26 = (b)** por default: link de reseteo, sin release de la app; de SEC-26 queda abierto `/admin/` por IP, que es de infraestructura) | No requiere |
 | 182 | Subir el padrón y abrir el cupo dejan de rozar el timeout, y «cupo disponible» pasa a ser tres nombres distintos | Becas (carga de padrón y cruce automático, pantalla de cupo y lista de espera, configuración de segmentos, API de la app de campo) · Transversal (caché de ciudadanos, paginación de bandejas, presupuestos de performance) | `#performance` `#cupos` `#relevamientos` `#datos` | Auditoría integral oct-2026 — fichas PERF-04, PERF-16, PERF-02 y la 2.ª parte de RED-49 (Ola 4, PRs 1 y 2) | 08/10/2026 | 🟢 **Hecho** | No requiere |
+| 183 | MVP de la Versión 2 de Dispositivos: los cuatro bloques del cliente, 700 h | Dispositivos · documentación | `#gestion` `#ui` `#datos` | Cliente, con su propio consumo de horas; PM: «armá un pequeño documento de MVP V2 en base a lo que nos pide el cliente y sus horas» | 08/10/2026 | 🟢 **Hecho — publicado** | No requiere |
 | 184 | El caso que la app ya cargó no se edita, la identidad la acredita el servidor y la consulta de personas tiene tope | Becas — API de campo (`/api/becas/formularios/`, alta de casos, adjuntos y consulta de identidad) · Transversal (tasas de throttle de DRF, presupuesto de llamadas externas) | `#api` `#rbac` `#relevamientos` `#datos` | Auditoría integral oct-2026 — fichas SEC-23 (+G1-15), SEC-24, SEC-25 y R0-05 (Ola 2, PR 6 — **cierra el ítem 6**) | 08/10/2026 | 🟢 **Hecho** (D-24 y D-25 aplicadas por default) | No requiere |
 
 **Notas del índice**
@@ -27244,6 +27245,112 @@ filas que dejaba antes. Si lo que molesta es el presupuesto nuevo, se saca
 `becas_cupo_segmento` de `scripts/perf_budgets.json` **y** de
 `scripts/perf_audit.py::build_targets` en el mismo diff: `core/tests/test_performance_budgets.py`
 exige que los dos coincidan.
+
+---
+
+# Cambio 183 — MVP de la Versión 2 de Dispositivos
+
+🟢 **HECHO — 08/10/2026** · Publicado en `docs/client/funcionalidades/mvp-dispositivos-v2.md`
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · documentación para el cliente |
+| **Etiquetas** | `#gestion` `#ui` `#datos` |
+| **Solicitante** | El Ministerio definió el recorte y pasó su propia estimación; el PM pidió documentarlo |
+| **Fecha del pedido** | 08/10/2026 |
+| **Issue / épica** | Épica #127 · continúa los Cambios 69, 72 y 85 |
+| **Partes afectadas** | `docs/client/funcionalidades/mvp-dispositivos-v2.md` (nuevo), `funcionalidades/index.md`, `mkdocs.yml` |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> «Te voy a pasar el primer MVP de esta versión 2, me lo pasó el cliente… Armá un pequeño documento
+> de MVP V2 en base a lo que nos pide el cliente y sus horas.»
+
+El recorte del Ministerio, con su propia estimación:
+
+| Bloque | Horas |
+|---|---:|
+| App + sectores + criticidad | 140 |
+| Dispositivos etapa 1: ingresos y egresos | 220 |
+| Dispositivos etapa 2: circuito interno | 240 |
+| Backup (reserva, no módulo) | 100 |
+| **Total** | **700** |
+
+## Decisiones tomadas
+
+**Se documenta el MVP con las horas del cliente, sin recotizarlo.** El PM fue explícito: «no importa si
+lo pasamos más caro ya que es del cliente». El análisis de equivalencia quedó en la conversación y no
+se publica: a precios nuestros, los bloques 2 y 3 (460 h) equivalen a M2 + M3 + M5 más partes de M8 y
+M10, unas 180 h de desarrollo, y encima nuestra versión incluía traslado en tránsito, autorización
+previa, pase de guardia y censo automático, que el MVP no pide.
+
+**La aplicación móvil entra en el alcance.** Las 827 h de la propuesta la dejaban explícitamente
+afuera; acá el bloque 1 la incluye —«vincular la app», «pruebas de integración»— y el documento lo
+dice: el desarrollo de la pantalla dentro de la app está incluido y lo ejecuta el equipo móvil en
+paralelo.
+
+**Plazo: unas 14 semanas.** Los bloques 2 y 3 son secuenciales; el 1 es independiente y puede
+solaparse porque toca otra parte del sistema y suma al equipo móvil. Arrancando por el 2, a las seis
+semanas hay dispositivos registrando ingresos y egresos reales.
+
+**Dos conceptos del MVP que no estaban en la propuesta:**
+
+- **Criticidad** — calificación de severidad sobre lo relevado, con semáforo y alertas propias. Queda
+  como definición pendiente: escala, quién la asigna y si dispara algo además de avisar.
+- **Relevamiento por sector** — el MVP releva el sector; la propuesta (§4.12) relevaba el **edificio**,
+  que es lo que permite relevar una sola vez un predio compartido por varias instituciones (caso de
+  Resistencia). Hay que elegir uno y está planteado en el documento.
+
+**Qué queda fuera del MVP**, listado en §4 sin horas para no mezclar dos tablas de precios que no
+coinciden: el legajo institucional ampliado; la infraestructura completa (tenencia, mapa, habitaciones,
+servicios, vencimiento y predios compartidos); autorización previa, chequeo en la red, traslado en
+tránsito, préstamo y permisos de salida; pase de guardia y censo automático; **los formularios
+configurables por tipo**; lista de espera, derivaciones, tablero de la red y reportes; alcance por
+subsecretaría y niveles de sensibilidad; consumos y contratos; tableros por rol; y **Merenderos
+completo**.
+
+## Pendientes
+
+- **El documento de la propuesta quedó desfasado del mockup.** Abate actualizó el mockup el 20/09
+  (commit `c75a6b61`, 388 líneas) agregando F8, F9, F10 y P19 a P22, pero el texto sigue diciendo que
+  las secciones 4.12 a 4.14 están «pendientes de incorporar al mockup», que son «dieciocho pantallas»
+  cuando son veintidós, y anuncia una P19 «Relevamientos» que en el mockup es la P21. Son cuatro
+  referencias a corregir.
+- Sigue pendiente todo lo de los Cambios 69, 72 y 85 sobre el backlog de GitHub.
+
+## Archivos
+
+- `docs/client/funcionalidades/mvp-dispositivos-v2.md` (nuevo)
+- `docs/client/funcionalidades/index.md` y `mkdocs.yml` — alta en el índice y en el menú
+
+## Base de datos
+
+No requiere.
+
+## Historial
+
+**08/10/2026 — detalle del alcance.** El PM pidió ser específico: «podés ser más específico en lo que
+se va a hacer y lo que no». Cada bloque pasó a tener dos listas, **Queda funcionando** y **No
+incluye**, con el detalle de lo que el texto del Ministerio deja implícito: las validaciones son solo
+dentro del dispositivo (una persona puede figurar alojada en dos a la vez), el traslado son dos
+movimientos sueltos sin vínculo, el agente elige qué relevar en vez de recibir una tarea asignada, y
+el relevamiento necesita señal porque no hay funcionamiento sin conexión. Se agregaron además la tabla
+de trece temas con «qué entra / qué queda para después», una sección **«Qué no se va a poder hacer el
+día uno»** en ocho frases directas, y dos definiciones pendientes más: los estados del relevamiento y
+el catálogo de motivos de egreso.
+
+**08/10/2026 — reparación.** El commit `487647a2` publicó este documento pero **borró 7.905 líneas de
+este archivo**: los Cambios 139 y 150 a 182. La causa fue copiar `requerimientos.md` desde el checkout
+local, que en ese momento estaba parado en la rama `fix/drenaje-por-paginas` de otra sesión y por eso
+venía atrasado, sobre la copia buena del worktree. Se restauró la versión de `487647a2^` y se reaplicó
+esta entrada encima, renumerada de 141 a 183. **Regla que se incumplió:** al commitear por worktree, los
+archivos se editan dentro del worktree, nunca se copian desde el checkout local sin verificar que esté
+en la misma rama.
+
+---
+
+---
 
 # Cambio 184 — El caso que la app ya cargó no se edita, la identidad la acredita el servidor y la consulta de personas tiene tope
 
