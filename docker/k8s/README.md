@@ -16,9 +16,12 @@ en la documentación del proyecto, sección *Si el despliegue es en Kubernetes*.
   alternativa con gunicorn). Con más de una réplica eso hay que apagarlo
   (`RUN_MIGRATIONS=false`): ver *Quién corre `migrate`*.
 - **Estáticos**: los sirve la propia app (whitenoise). No hace falta sidecar.
-- **Archivos subidos**: con `SERVE_MEDIA=True` la app también sirve `/media/`.
+- **Archivos subidos**: `/media/` lo sirve siempre la app, detrás de sesión y
+  verificando de quién es cada archivo (SEC-09); no hay flag que lo apague.
   `MEDIA_ROOT` (`/app/media`) **tiene que ser un volumen persistente**: ahí viven
-  los adjuntos que cargan los territoriales.
+  los adjuntos que cargan los territoriales. Si el ingress soporta
+  `X-Accel-Redirect` y expone `/protected-media/` como `internal`, con
+  `MEDIA_X_ACCEL=True` la app autoriza y los bytes los manda el ingress.
 - **Probes**: `/health/` responde 200. Usar **startupProbe** además de
   liveness/readiness: el primer arranque tarda minutos y sin él el liveness mata
   el bootstrap (loop de reinicios con exit 137 y sin error en el log).

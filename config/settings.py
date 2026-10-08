@@ -274,10 +274,21 @@ STORAGES = {
     },
 }
 
-# Servir /media/ desde la app (django.views.static.serve). Pensado para ambientes
-# servidos sin nginx adelante (Kubernetes): alcanza para la escala de QA. Los
-# archivos viven en MEDIA_ROOT, que ahí debe ser un volumen persistente.
-SERVE_MEDIA = os.environ.get("SERVE_MEDIA", "False") == "True"
+# `/media/` lo sirve SIEMPRE `core.views.media.media_protegida`, que exige sesión
+# y pertenencia por archivo (SEC-09 etapa 2). No hay perilla para apagarlo: ahí
+# viven los documentos del ciudadano y los padrones.
+#
+# `SERVE_MEDIA` existió hasta el Cambio 188 para decidir si la ruta se registraba;
+# con ella apagada `/media/` caía en 404 y, con DEBUG, lo servía `static()` **sin
+# sesión** (R0b-07). Quien todavía la tenga en su entorno puede dejarla: se ignora.
+#
+# Lo único configurable es **quién entrega los bytes** una vez autorizado:
+# con MEDIA_X_ACCEL=True la respuesta sale vacía con
+# `X-Accel-Redirect: /protected-media/<ruta>` y el archivo lo manda el servidor de
+# adelante sin pasar por Python (menos memoria y sendfile). Requiere ese
+# `location internal`: nginx.conf ya lo tiene; en ECOM depende del ingress
+# (D-09/H-05), así que el default es apagado y los entrega Django.
+MEDIA_X_ACCEL = os.environ.get("MEDIA_X_ACCEL", "False") == "True"
 
 LOGIN_URL = "users:login"
 LOGIN_REDIRECT_URL = "core:inicio"

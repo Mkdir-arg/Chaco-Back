@@ -222,7 +222,7 @@ class F00DinamicoFormTests(TestCase):
             F00DinamicoForm.nombre_campo(self.alquiler): "1250",
             F00DinamicoForm.nombre_campo(self.texto): "Completo",
         }
-        files = {F00DinamicoForm.nombre_campo(self.archivo): SimpleUploadedFile("constancia.txt", b"ok")}
+        files = {F00DinamicoForm.nombre_campo(self.archivo): SimpleUploadedFile("constancia.pdf", b"%PDF-1.4 ok")}
         form = F00DinamicoForm(data, files, tipo_dispositivo=self.tipo)
 
         self.assertTrue(form.is_valid(), form.errors)
@@ -255,7 +255,7 @@ class F00DinamicoFormTests(TestCase):
                 F00DinamicoForm.nombre_campo(self.alquiler): "10",
                 F00DinamicoForm.nombre_campo(self.texto): "Completo",
             },
-            {F00DinamicoForm.nombre_campo(self.archivo): SimpleUploadedFile("constancia.txt", b"ok")},
+            {F00DinamicoForm.nombre_campo(self.archivo): SimpleUploadedFile("constancia.pdf", b"%PDF-1.4 ok")},
             tipo_dispositivo=self.tipo,
         )
         self.assertTrue(form.is_valid(), form.errors)

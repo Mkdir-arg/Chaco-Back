@@ -3,6 +3,8 @@ from django.core.exceptions import ValidationError
 from django.db import models
 
 from core.models import TimeStamped
+from core.rutas_media import ruta_contacto
+from core.validators import validar_adjunto
 
 from .base import Ciudadano, LegajoAtencion
 
@@ -46,7 +48,11 @@ class HistorialContacto(TimeStamped):
     participantes = models.TextField(blank=True, help_text="Otras personas presentes (para reuniones/visitas)")
     ubicacion = models.CharField(max_length=200, blank=True, help_text="Ubicación del encuentro")
     archivo_adjunto = models.FileField(
-        upload_to="contactos/", blank=True, null=True, help_text="Grabación, foto, documento relacionado"
+        upload_to=ruta_contacto,
+        blank=True,
+        null=True,
+        validators=[validar_adjunto],
+        help_text="Grabación, foto, documento relacionado (PDF o imagen, hasta 5 MB)",
     )
     seguimiento_requerido = models.BooleanField(default=False, help_text="Requiere seguimiento posterior")
     fecha_proximo_contacto = models.DateField(null=True, blank=True, help_text="Fecha sugerida para próximo contacto")
