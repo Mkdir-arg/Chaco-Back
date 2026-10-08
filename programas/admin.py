@@ -1,3 +1,30 @@
+"""Modelos de `programas` en el `/admin/` de Django.
+
+**Nada acá puede crecer con la tabla** (G1c-09 y G1c-11, auditoría oct-2026). Son los
+dos defectos que el admin trae de fábrica y que con 40.000 casos chocan contra el
+`read_timeout` de 10 s:
+
+- En la **ficha**, un `<select>` de una FK trae todas las filas del modelo apuntado y
+  llama a su `__str__` por opción. `Formulario.__str__` abre el ciudadano e
+  `InscripcionPrograma.__str__` abre ciudadano y programa, así que el combo es una
+  consulta por fila: medido en la PoC de la auditoría, la ficha de un caso pasa de 19 a
+  46 consultas cuando la tabla pasa de 5 a 35 filas, y el alta de una derivación de 21 a
+  80. Se arregla con `raw_id_fields`, que deja el id más la lupa de búsqueda.
+- En el **listado**, una FK de `list_display` puede ser una consulta por fila. No
+  siempre: desde que `ChangeList.apply_select_related` existe, Django llama solo a
+  `select_related()` **sin argumentos** cuando `list_display` tiene algún campo
+  relacionado, y eso ya cubre las FK. Pero `select_related()` sin argumentos sigue
+  **únicamente las FK no nulas**, así que quedan afuera dos casos, que son los que este
+  archivo arregla con `list_select_related`: las FK **nulables**
+  (`Formulario.ciudadano`, `Relevamiento.territorial`, `TracaFormulario.editado_por`) y
+  los saltos de **segundo** nivel que pide el `__str__` del objeto mostrado
+  (`Formulario.__str__` abre el ciudadano, así que el listado de trazas y el de lista de
+  espera lo necesitan).
+
+Ninguna de las dos cosas cambia qué se puede editar ni quién puede entrar: la
+validación sigue siendo la del `ModelForm` y los permisos, los de Django.
+"""
+
 from django.contrib import admin
 from django.urls import reverse
 from django.utils.html import format_html
@@ -106,7 +133,14 @@ class InscripcionProgramaAdmin(admin.ModelAdmin):
     list_display = ("codigo", "ciudadano", "programa", "estado", "responsable", "fecha_inscripcion")
     list_filter = ("estado", "via_ingreso", "programa", "fecha_inscripcion")
     search_fields = ("codigo", "ciudadano__dni", "ciudadano__nombre", "ciudadano__apellido")
-    readonly_fields = ("codigo", "creado", "modificado")
+    # `fecha_inscripcion` es `editable=False` en el modelo y estaba en los `fieldsets`
+    # sin ser de solo lectura: el alta y la ficha de una inscripción respondían **500**
+    # (`FieldError: cannot be specified for InscripcionPrograma model form as it is a
+    # non-editable field`). Lo encontró el test de G1c-09 al abrir las dos pantallas.
+    readonly_fields = ("codigo", "fecha_inscripcion", "creado", "modificado")
+    # G1c-09: `ciudadano` es la tabla del padrón y `responsable` crece con los
+    # territoriales. `programa` queda en combo: son una decena de filas.
+    raw_id_fields = ("ciudadano", "responsable")
 
     def get_queryset(self, request):
         return super().get_queryset(request).select_related("ciudadano", "programa", "responsable")
@@ -152,6 +186,10 @@ class DerivacionProgramaAdmin(admin.ModelAdmin):
     list_filter = ("estado", "urgencia", "programa_destino", "creado")
     search_fields = ("ciudadano__dni", "ciudadano__nombre", "ciudadano__apellido", "motivo")
     readonly_fields = ("creado", "modificado", "fecha_respuesta")
+    # G1c-09: el alta de una derivación era la peor de las dos fichas medidas (21 → 80
+    # consultas con 5 → 35 inscripciones), porque `inscripcion_creada` listaba todas las
+    # inscripciones y cada opción abría ciudadano y programa.
+    raw_id_fields = ("ciudadano", "inscripcion_creada", "derivado_por", "respondido_por")
 
     def get_queryset(self, request):
         return (
@@ -257,6 +295,8 @@ class RelevamientoAdmin(SinBorradoMixin, admin.ModelAdmin):
     list_filter = ("tipo", "estado", "convocatoria")
     search_fields = ("nombre", "zona", "territorial__username")
     readonly_fields = ("nombre", "token_publico")
+    # G1c-11: `convocatoria` y `territorial` se muestran en cada fila del listado.
+    list_select_related = ("convocatoria", "territorial")
 
     def get_readonly_fields(self, request, obj=None):
         fields = list(super().get_readonly_fields(request, obj))
@@ -338,8 +378,15 @@ class FormularioAdmin(SinBorradoMixin, admin.ModelAdmin):
         "data",
     )
     inlines = (TracaFormularioInline,)
+    # G1c-09: las cinco FK editables de la ficha apuntan a tablas que crecen con el
+    # padrón. `duplicado_de` es la peor: es un `<select>` de todos los formularios y
+    # `Formulario.__str__` abre el ciudadano de cada opción (el `NPlusOneError` que zeal
+    # marcaba en la PoC).
+    raw_id_fields = ("relevamiento", "ciudadano", "duplicado_de", "apoderado_ciudadano", "created_by")
 
     def get_queryset(self, request):
+        # Sirve para el listado y para la ficha, así que G1c-11 no necesita además un
+        # `list_select_related` acá.
         return super().get_queryset(request).select_related("relevamiento", "ciudadano", "created_by")
 
 
@@ -347,11 +394,21 @@ class FormularioAdmin(SinBorradoMixin, admin.ModelAdmin):
 class TracaFormularioAdmin(SinBorradoMixin, admin.ModelAdmin):
     list_display = ("formulario", "campo", "editado_por", "created_at")
     list_filter = ("created_at",)
-    search_fields = ("campo", "formulario__id")
+    # G1c-11: `=` fuerza la igualdad. Sin él Django busca el id con `LIKE %texto%`, que
+    # sobre la tabla de trazas —la que más filas tiene después de los casos— es un scan.
+    search_fields = ("campo", "=formulario__id")
     readonly_fields = ("formulario", "editado_por", "created_at", "campo", "valor_anterior", "valor_nuevo")
+    # G1c-11: `TracaFormulario.__str__` usa `formulario_id` (no consulta), pero el
+    # listado muestra la columna `formulario`, que sí resuelve la FK fila por fila, y
+    # `Formulario.__str__` abre a su vez el ciudadano.
+    list_select_related = ("formulario__ciudadano", "editado_por")
 
 
 @admin.register(ListaEspera)
 class ListaEsperaAdmin(SinBorradoMixin, admin.ModelAdmin):
     list_display = ("segmento", "posicion", "formulario", "promovido", "fecha_ingreso")
     list_filter = ("segmento", "promovido")
+    # G1c-09: el combo de `formulario` listaba todos los casos.
+    raw_id_fields = ("formulario",)
+    # G1c-11: dos FK por fila, y la del formulario arrastra su ciudadano.
+    list_select_related = ("segmento", "formulario__ciudadano")

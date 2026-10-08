@@ -36,6 +36,7 @@ from portal.services.inscripcion import (
     pregunta_captcha,
     relevamiento_aun_no_abierto,
     relevamiento_disponible,
+    restaurar_vigencia_sesion,
 )
 from programas.models import Relevamiento
 from programas.services.becas import definicion_formulario, relevamiento_publico_por_token
@@ -220,6 +221,11 @@ def inscripcion_paso1(request, token):
                         # medio completar (con los adjuntos ya elegidos). El sello
                         # se renueva en cada paso del formulario.
                         request.session[clave_sesion(relevamiento)]["sellada"] = timezone.now().isoformat()
+                        # PERF-10: la sesión ya no es la de una visita anónima —tiene la
+                        # identificación— así que recupera la vigencia normal. Hasta acá
+                        # duraba una hora, que es lo que tiene que durar un captcha que
+                        # nadie resolvió.
+                        restaurar_vigencia_sesion(request)
                         return redirect("portal:inscripcion_paso2", token=relevamiento.token_publico)
 
     contexto = {
