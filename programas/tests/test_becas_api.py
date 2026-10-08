@@ -14,7 +14,7 @@ from django.utils import timezone
 from rest_framework.test import APITestCase
 
 from legajos.models import Ciudadano
-from programas.api.views import ConsultaPersonasThrottle
+from programas.api.views import ConsultaPersonasThrottle, _actualizar_validacion_identidad
 from programas.management.commands.seed_becas import ROL_COORDINADOR, ROL_TERRITORIAL
 from programas.models import (
     AdjuntoFormulario,
@@ -27,6 +27,7 @@ from programas.models import (
     Subsegmento,
     TipoCampo,
 )
+from programas.services import campo as servicio_campo
 
 
 class _BaseApiTest(APITestCase):
@@ -1645,12 +1646,17 @@ class AltaBajoElLockTests(_BaseApiTest):
 
 
 class AdjuntoSobreCasoResueltoTests(_BaseApiTest):
-    """SEC-23 · la documentación se sube mientras el caso está ENVIADO.
+    """SEC-23 · sobre un caso ya resuelto la documentación no se **reemplaza**.
 
-    `POST …/adjuntos/` **reemplaza** el archivo del campo (G1-07), así que sobre
-    un caso ya APROBADO un token de campo cambiaba la foto del DNI semanas
-    después de la resolución y sin dejar rastro en la revisión. El alcance por
-    territorial (`get_queryset`) no lo frenaba: es su propio caso.
+    `POST …/adjuntos/` pisa el archivo del campo (G1-07), así que sobre un caso
+    ya APROBADO un token de campo cambiaba la foto del DNI semanas después de la
+    resolución y sin dejar rastro en la revisión. El alcance por territorial
+    (`get_queryset`) no lo frenaba: es su propio caso.
+
+    Lo que **no** se cierra es el campo vacío: el 409 deja la operación
+    `FAILED_PERMANENT` en la cola del teléfono y con ella se traba el
+    `finalizar_relevamiento` del relevamiento entero. Ese archivo entra y queda
+    dicho en `observaciones_carga`.
     """
 
     def setUp(self):
@@ -1672,6 +1678,10 @@ class AdjuntoSobreCasoResueltoTests(_BaseApiTest):
             format="multipart",
         )
 
+    def _resolver(self, estado):
+        self.formulario.estado = estado
+        self.formulario.save(update_fields=["estado", "modificado"])
+
     def test_adjunto_sobre_caso_enviado_entra(self):
         """El camino normal de la app: el caso recién sincronizado está ENVIADO
         y sus fotos suben detrás. Es lo que el 409 de abajo **no** puede
@@ -1680,19 +1690,78 @@ class AdjuntoSobreCasoResueltoTests(_BaseApiTest):
 
         self.assertEqual(resp.status_code, 201, resp.data)
         self.assertEqual(self.formulario.adjuntos.count(), 1)
+        self.formulario.refresh_from_db()
+        self.assertFalse(self.formulario.observaciones_carga)
+
+    def test_el_reemplazo_sobre_un_caso_enviado_sigue_sin_observarse(self):
+        """G1-07 sin cambios: mientras el caso está ENVIADO la segunda foto pisa
+        a la primera, con 201 y sin nada que decirle al revisor."""
+        primera = self._subir("movida.jpg")
+        self.assertEqual(primera.status_code, 201, primera.data)
+
+        resp = self._subir("buena.jpg")
+
+        self.assertEqual(resp.status_code, 201, resp.data)
+        adjunto = self.formulario.adjuntos.get()
+        self.assertEqual(adjunto.pk, primera.data["id"])
+        self.assertNotEqual(resp.data["archivo"], primera.data["archivo"])
+        self.formulario.refresh_from_db()
+        self.assertFalse(self.formulario.observaciones_carga)
 
     def test_adjunto_sobre_aprobado_409(self):
+        """El reemplazo sobre un caso resuelto, en los tres estados que lo son."""
         for estado in (Formulario.Estado.APROBADO, Formulario.Estado.RECHAZADO, Formulario.Estado.BAJA):
             with self.subTest(estado=estado):
                 self.formulario.adjuntos.all().delete()
-                self.formulario.estado = estado
-                self.formulario.save(update_fields=["estado", "modificado"])
+                self._resolver(Formulario.Estado.ENVIADO)
+                buena = self._subir("buena.jpg")
+                self.assertEqual(buena.status_code, 201, buena.data)
+                self._resolver(estado)
 
-                resp = self._subir()
+                resp = self._subir("otra.jpg")
 
                 self.assertEqual(resp.status_code, 409, resp.data)
                 self.assertEqual(resp.data["code"], "CASO_RESUELTO")
-                self.assertEqual(self.formulario.adjuntos.count(), 0)
+                adjunto = self.formulario.adjuntos.get()
+                self.assertEqual(adjunto.pk, buena.data["id"])
+                self.assertEqual(adjunto.archivo.name, buena.data["archivo"].split("/media/")[-1])
+
+    def test_el_campo_vacio_de_un_caso_resuelto_recibe_el_archivo_observado(self):
+        """No hay nada que reemplazar: el archivo entra y el revisor se entera
+        por la carga. Rechazarlo cuesta el relevamiento entero —la app marca la
+        operación `FAILED_PERMANENT` y `hasPendingFormularioOperations` le traba
+        el `finalizar_relevamiento` para siempre— y se pierden **todos** los
+        adjuntos pendientes del caso, no solo este."""
+        for estado in (Formulario.Estado.APROBADO, Formulario.Estado.RECHAZADO, Formulario.Estado.BAJA):
+            with self.subTest(estado=estado):
+                self.formulario.adjuntos.all().delete()
+                self.formulario.observaciones_carga = None
+                self.formulario.save(update_fields=["observaciones_carga", "modificado"])
+                self._resolver(estado)
+
+                resp = self._subir()
+
+                self.assertEqual(resp.status_code, 201, resp.data)
+                self.assertEqual(self.formulario.adjuntos.count(), 1)
+                self.formulario.refresh_from_db()
+                observaciones = self.formulario.observaciones_carga or ""
+                self.assertIn("Foto del DNI", observaciones)
+                self.assertIn(self.formulario.get_estado_display(), observaciones)
+                self.assertTrue(observaciones.startswith(servicio_campo.PREFIJO_ADJUNTO_TARDIO), observaciones)
+
+    def test_la_observacion_del_archivo_tardio_no_se_repite(self):
+        """La cola reintenta: la línea se escribe una sola vez."""
+        self._resolver(Formulario.Estado.APROBADO)
+        self.assertEqual(self._subir().status_code, 201)
+        # Como la fila ya está, el reintento se lleva el 409; el que podría
+        # duplicar la línea es el que vuelve a entrar porque el adjunto no quedó.
+        self.formulario.adjuntos.all().delete()
+
+        self.assertEqual(self._subir().status_code, 201)
+
+        self.formulario.refresh_from_db()
+        lineas = (self.formulario.observaciones_carga or "").splitlines()
+        self.assertEqual(len(lineas), 1, lineas)
 
     def test_el_adjunto_del_caso_aprobado_no_se_puede_reemplazar(self):
         """La forma concreta del abuso: la foto buena ya está, el caso se
@@ -1804,6 +1873,56 @@ class IdentidadNoLaAcreditaElClienteTests(_BaseApiTest):
 
         self.assertEqual(resp.status_code, 201, resp.data)
         self.assertFalse(resp.data["validado_renaper"])
+
+    @patch("programas.services.identidad.consultar_persona")
+    def test_el_documento_que_no_figura_queda_escrito_en_la_carga(self, mock_consultar):
+        """La fuente **respondió** y el documento no está en ella: es un dato
+        sobre la persona, y el revisor lo necesita para decidir si valida a mano
+        (Cambio 55). El `logger.warning` lo ve el operador del servidor, no él."""
+        mock_consultar.return_value = {
+            "success": False,
+            "not_found": True,
+            "error": "El DNI no fue encontrado en Base de Personas.",
+        }
+
+        resp = self._alta(nombre="Inventada", apellido="Totalmente")
+
+        self.assertEqual(resp.status_code, 201, resp.data)
+        caso = Formulario.objects.get(pk=resp.data["id"])
+        self.assertIn(servicio_campo.IDENTIDAD_NO_ENCONTRADA, (caso.observaciones_carga or "").splitlines())
+
+    @patch("programas.services.identidad.consultar_persona")
+    def test_la_fuente_que_no_respondio_queda_escrita_en_la_carga(self, mock_consultar):
+        """La Gran Base caída no dice **nada** de la persona: el caso llega sin
+        validar porque nadie pudo verificarlo, que no es lo mismo que «no
+        figura». Sin la línea, los dos casos se ven iguales en la revisión."""
+        mock_consultar.return_value = {"success": False, "error": "No se pudo consultar Base de Personas."}
+
+        resp = self._alta(nombre="Maria", apellido="Gomez")
+
+        self.assertEqual(resp.status_code, 201, resp.data)
+        caso = Formulario.objects.get(pk=resp.data["id"])
+        lineas = (caso.observaciones_carga or "").splitlines()
+        self.assertIn(servicio_campo.IDENTIDAD_FUENTE_SIN_RESPUESTA, lineas)
+        self.assertNotIn(servicio_campo.IDENTIDAD_NO_ENCONTRADA, lineas)
+
+    @patch("programas.services.identidad.consultar_persona")
+    def test_la_carga_acreditada_no_lleva_ninguna_de_las_dos_lineas(self, mock_consultar):
+        """Y si un reintento del alta sí acredita, la línea que decía que no se
+        pudo acreditar se va: dejarla ahí sería un reparo que ya no es cierto."""
+        mock_consultar.return_value = {"success": False, "error": "No se pudo consultar Base de Personas."}
+        caso = Formulario.objects.get(pk=self._alta(nombre="Maria", apellido="Gomez").data["id"])
+        self.assertIn(servicio_campo.PREFIJO_IDENTIDAD_SIN_ACREDITAR, caso.observaciones_carga or "")
+        mock_consultar.return_value = {
+            "success": True,
+            "data": {"dni": "41422422", "nombre": "Maria", "apellido": "Gomez", "fecha_nacimiento": "1990-01-02"},
+        }
+
+        _actualizar_validacion_identidad(caso, {"dni": "41422422", "sexo": "F", "origen": "personas"})
+
+        caso.refresh_from_db()
+        self.assertTrue(caso.validado_renaper)
+        self.assertNotIn(servicio_campo.PREFIJO_IDENTIDAD_SIN_ACREDITAR, caso.observaciones_carga or "")
 
     def test_el_scan_del_dni_sigue_valiendo(self):
         """D-24: el escaneo del código de barras del documento físico cuenta

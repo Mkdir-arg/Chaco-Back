@@ -27256,7 +27256,7 @@ exige que los dos coincidan.
 | **Solicitante** | Auditoría integral oct-2026 — fichas SEC-23 (+G1-15), SEC-24, SEC-25 y R0-05 (Ola 2, PR 6) |
 | **Fecha del pedido** | 08/10/2026 |
 | **Issue / épica** | Auditoría oct-2026, Ola 2 (Autorización) ítem 6 — **lo cierra** |
-| **Partes afectadas** | `programas/api/views.py` · `programas/api/serializers.py` · `config/settings.py` · `core/integraciones.py` |
+| **Partes afectadas** | `programas/api/views.py` · `programas/api/serializers.py` · `programas/services/campo.py` · `config/settings.py` · `core/integraciones.py` |
 | **Migración** | No requiere |
 
 ## Pedido original
@@ -27333,6 +27333,16 @@ cualquier cambio de contrato de las claves que la app lee.
   después del alta, que era el riesgo real.
 - **409 y no 400 en los adjuntos.** Es un conflicto de estado y es el código que ya usan el
   cupo lleno y la pausa.
+- **El 409 de adjuntos mira el campo, no solo el estado.** Lo que SEC-23 quiere frenar es el
+  **reemplazo silencioso** de la foto del DNI de un caso ya resuelto, no que llegue un
+  archivo que no existía. Rechazar el campo vacío le cuesta a la app el relevamiento
+  entero —ver el Historial—, así que entra con 201 y queda dicho en la revisión. El reemplazo
+  sigue dando 409.
+- **Lo que no se puede verificar se dice en la pantalla de revisión, no solo en el log.** Un
+  caso sin validar por una caída de la fuente y uno sin validar porque el documento no
+  figura se veían iguales, y la validación manual (Cambio 55) se hacía a ciegas. Son dos
+  líneas distintas a propósito: la segunda es un dato sobre la persona, la primera no dice
+  nada de ella.
 
 ## Implementación
 
@@ -27340,18 +27350,33 @@ cualquier cambio de contrato de las claves que la app lee.
   - `FormularioViewSet` quedó en `mixins.RetrieveModelMixin` + la acción `adjuntos`; se
     borró `perform_update`. El router de DRF deja de mapear `put`/`patch`, así que los dos
     verbos contestan **405** antes de resolver el objeto.
-  - `adjuntos` (POST): `if formulario.estado != Formulario.Estado.ENVIADO` → **409** con
-    `{"detail", "code": "CASO_RESUELTO", "estado"}`. El guard va **después** de los de pausa
-    y período, para no cambiar cuál error gana en los casos que ya estaban probados. El GET
-    de adjuntos no se tocó: la app lo usa para saber qué ya subió.
+  - `adjuntos` (POST): sobre un caso que no está `ENVIADO`, **409** con
+    `{"detail", "code": "CASO_RESUELTO", "estado"}` **solo si ese campo ya tiene un
+    adjunto** —el reemplazo, que es lo que SEC-23 frena—. Con el campo vacío entra con
+    **201** y una línea en `observaciones_carga`. El guard va **después** de los de pausa y
+    período, para no cambiar cuál error gana en los casos que ya estaban probados, y después
+    del serializer, porque a qué campo se sube lo decide él. El GET de adjuntos no se tocó:
+    la app lo usa para saber qué ya subió.
   - `_actualizar_validacion_identidad`, rama `personas`/`gran_base`: llama a
     `identificar(formulario.relevamiento, dni, sexo)` —la cascada padrón → Gran Base del
     Cambio 57— y solo valida si la fuente respalda. El `origen_validacion` sale de
     `ORIGEN_VALIDACION_POR_FUENTE`, así que una identidad declarada `personas` que resuelve
     por padrón queda marcada como `padron`, no como `personas`. Cuando no se pudo acreditar
-    deja un `logger.warning` con el pk del caso y el error de la fuente (sin el documento).
+    deja un `logger.warning` con el pk del caso y el error de la fuente (sin el documento) y
+    una línea en `observaciones_carga` que distingue «la fuente respondió y el documento no
+    figura» de «la fuente no respondió», en el mismo `save` que ya escribía
+    `validado_renaper`. Si un reintento del alta sí acredita, la línea se borra.
   - `_pisar_identidad_acreditada` es la parte que `padron` y `personas` comparten: deja en
-    `datos_identificacion` lo que dijo la fuente o, sin respaldo, `origen: manual`.
+    `datos_identificacion` lo que dijo la fuente o, sin respaldo, solo marca
+    `origen: manual` —el caso queda sin validar y el nombre tipeado sigue al legajo, que es
+    el comportamiento heredado del Cambio 57—.
+- **`programas/services/campo.py`** — las plantillas de las líneas nuevas
+  (`ADJUNTO_TARDIO`, `IDENTIDAD_NO_ENCONTRADA`, `IDENTIDAD_FUENTE_SIN_RESPUESTA`),
+  `sumar_observacion`/`quitar_observaciones` (escriben en memoria, sin `UPDATE` propio) y
+  `PREFIJOS_CONSERVADOS`, que es lo que hace que `revisar_carga` arrastre esas líneas cuando
+  `aplicar_revision` reescribe `observaciones_carga` entero. `observar_adjunto` acepta ahora
+  la plantilla por parámetro: las dos aceptaciones con reparo comparten el mismo
+  antirrepetición.
   - `ConsultaPersonasThrottle(UserRateThrottle)` con `scope = "personas_campo"`, enchufada
     con `@throttle_classes` a `consultar_persona_becas`. El alias
     `/api/becas/renaper/consultar/` comparte la cubeta porque es la misma vista.
@@ -27401,6 +27426,20 @@ Python 3.12 + Django 5.2.17 (`.venv312`, el del CI):
   `CONSULTAS_ALTA = 30`) **no se movió**: su payload no declara origen, así que no entra en
   la rama nueva.
 
+### Ronda 2 (08/10/2026)
+
+- `manage.py test programas`: **2.417 tests, OK** (6 skipped). `manage.py test core`: OK
+  (35 skipped, 2 expected failures).
+- Los **siete tests nuevos corren en rojo** contra `05c64655`: cuatro fallas
+  (`test_el_campo_vacio_de_un_caso_resuelto_recibe_el_archivo_observado` en sus tres
+  estados y `test_la_observacion_del_archivo_tardio_no_se_repite`, todas con el 409 viejo) y
+  tres errores en `IdentidadNoLaAcreditaElClienteTests` por las constantes que todavía no
+  existían. Los dos tests de regresión del mismo lote
+  (`test_adjunto_sobre_aprobado_409` y `test_el_reemplazo_sobre_un_caso_enviado_sigue_sin_observarse`)
+  pasan en las dos puntas, que es lo que se les pide.
+- `manage.py check` sin issues; `ruff check .` limpio y `ruff format --check` de los tres
+  archivos tocados: ya formateados. `requerimientos.py --check`: OK.
+
 ### Lo que se verificó contra la app instalada
 
 `Chaco-mobile@a66c2d3` (release de PRD, repo de solo lectura), más su `main`:
@@ -27419,16 +27458,17 @@ Python 3.12 + Django 5.2.17 (`.venv312`, el del CI):
 
 ## Pendientes / a definir
 
-- **Riesgo residual del 409 de adjuntos.** Una cola offline que suba la foto *después* de
-  que el backoffice resolvió el caso —y dentro del período del relevamiento, que es el otro
-  guard— se lleva el 409: la app marca la operación `FAILED_PERMANENT` y pierde **la foto**.
-  El caso ya está cargado del lado del servidor y la revisión puede adjuntarla a mano. Es el
-  canje que la ficha pide y que cierra el camino de reemplazar evidencia de un caso ya
-  resuelto. Si en campo aparece, la salida sin release es dar un plazo de gracia después de
+- **El reemplazo sobre un caso resuelto sigue dando 409**, y ese 409 sigue dejando la
+  operación `FAILED_PERMANENT` en la cola del teléfono. Es el canje que la ficha pide: lo
+  que se pierde es la *segunda* foto de un campo que ya tiene la suya, con el caso ya
+  resuelto. Si en campo molesta, la salida sin release es dar un plazo de gracia después de
   la resolución, como hace `campo.en_gracia` con el cierre del relevamiento.
-- **Más casos sin validar cuando la Gran Base está caída.** Hoy el revisor los desbloquea a
-  mano (Cambio 55). Conviene mirar el volumen las primeras semanas: si es alto, el camino es
-  la caché que SEC-24 proponía, no volver a creerle al cliente.
+- **Más casos sin validar cuando la Gran Base está caída, y más discrepancias de identidad
+  en revisión.** Lo primero lo desbloquea el revisor a mano (Cambio 55); lo segundo es
+  nuevo: ahora la identidad que queda guardada es la de la **fuente**, así que cuando no
+  coincide con la que el territorial tipeó, la diferencia se ve en la revisión en vez de
+  pasar inadvertida. Conviene mirar el volumen las primeras semanas: si es alto, el camino
+  es la caché que SEC-24 proponía, no volver a creerle al cliente.
 - **La tasa de 120/h se mide con el uso real** antes de apretarla o aflojarla (D-25).
 - **`scan` sigue siendo autodeclarado.** D-24 lo acepta porque el servidor no lo puede
   re-verificar, pero sigue siendo el único origen que acredita sin respaldo del servidor: si
@@ -27441,4 +27481,35 @@ el `PATCH`/`PUT` del caso, los adjuntos sobre casos resueltos, la autovalidació
 `origen: personas` y la consulta de personas sin tope. Los casos cargados mientras tanto no
 dependen del cambio: la única diferencia es que algunos tienen `validado_renaper=False` con
 `origen_validacion=""` donde antes habrían tenido `True`/`personas`, y eso se corrige desde
-la revisión (validación manual) o con el cruce automático del padrón, sin tocar la base.
+la revisión (validación manual) o con el cruce automático del padrón, sin tocar la base. Las
+líneas que quedaron en `observaciones_carga` son texto: sobreviven a la reversión y se leen
+igual.
+
+## Historial
+
+- **08/10/2026 — ronda 2 de la revisión: el 409 de los adjuntos no costaba «la foto»,
+  costaba el relevamiento.** Tres correcciones:
+  1. **El 409 mira el campo, no solo el estado.** La primera versión rechazaba toda subida
+     sobre un caso no-`ENVIADO`, y el riesgo residual anotado acá («se pierde la foto, la
+     revisión puede adjuntarla a mano») estaba mal medido: ante el 409 la app marca la
+     operación `FAILED_PERMANENT` (`relevamientoService.js:1487`) y
+     `hasPendingFormularioOperations` (`:1030`) cuenta las fallidas, así que el
+     `finalizar_relevamiento` del teléfono queda bloqueado **para siempre** y con él se
+     pierden **todos** los adjuntos pendientes de ese caso. Lo que SEC-23 quiere frenar es el
+     reemplazo silencioso de la foto del DNI de un caso ya resuelto, así que eso es lo que
+     el guard mira: con el campo ya cargado, 409; con el campo vacío, **201** y una línea en
+     `observaciones_carga` con el campo y el estado del caso (`campo.ADJUNTO_TARDIO`, el
+     patrón de G1-07 / Cambio 178), que no se repite en un reintento.
+  2. **La desvalidación por fuente caída deja de ser silenciosa.** El `logger.warning` lo ve
+     el operador del servidor, no el revisor: en la pantalla, un caso sin validar por una
+     caída se veía igual que uno cuyo documento no figura en la fuente. Ahora cada uno deja
+     su línea (`IDENTIDAD_FUENTE_SIN_RESPUESTA` e `IDENTIDAD_NO_ENCONTRADA`, por el
+     `no_encontrado` que `identificar` ya devolvía), en el mismo `UPDATE` que guardaba
+     `validado_renaper`, y la línea se borra si un reintento sí acredita.
+  3. **El docstring de `_pisar_identidad_acreditada` decía de más.** Afirmaba que sin esa
+     función «la identidad inventada seguiría viaje al legajo», y con `acreditada=None` la
+     función no evita eso: lo único que hace es marcar `origen: "manual"`, y el nombre
+     tipeado llega igual al legajo con el caso sin validar. Es el comportamiento heredado
+     del Cambio 57 y **no se cambió**; lo que se corrigió es lo que el docstring promete.
+  Las tres líneas nuevas se agregaron a `PREFIJOS_CONSERVADOS`, porque `aplicar_revision`
+  reescribe `observaciones_carga` entero y el reintento del alta vuelve a pasar por ahí.

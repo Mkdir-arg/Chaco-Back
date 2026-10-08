@@ -529,19 +529,28 @@ dos (sin alcance → vacío; con legajo propio → solo las suyas), porque afirm
 **Resolución:** ✅ Resuelta en #638 (Cambio 184), 08-10-2026 — `FormularioViewSet` quedó en
 `RetrieveModelMixin` + la acción `adjuntos` (PATCH y PUT contestan **405**, el router deja de mapear
 los verbos), `validado_renaper` pasó a `read_only_fields` y el POST de adjuntos contesta **409
-`code=CASO_RESUELTO`** cuando el caso no está `ENVIADO`. `client_uuid` y `capturado_en` **siguen
-siendo escribibles**: son la idempotencia de la cola offline y la fecha de captura del alta, y sin el
-PATCH ya no hay forma de cambiarlos después (el `test_el_alta_repetida_sigue_siendo_idempotente_por_client_uuid`
-del contrato lo sostiene). Efecto lateral: la excepción de D-RED-10 —el PATCH era el único de los seis
-endpoints que contestaba 400 en vez de 409 ante una pausa— desapareció con el verbo, así que el
-contrato de la pausa quedó uniforme sin pedir release de `Chaco-mobile`.
-**Riesgo residual asumido:** una cola offline que suba la foto *después* de que el backoffice resolvió
-el caso —y dentro del período del relevamiento, que es el otro guard— se lleva el 409, la app marca la
-operación `FAILED_PERMANENT` y pierde **la foto**; el caso ya está cargado del lado del servidor y la
-revisión puede adjuntarla a mano.
+`code=CASO_RESUELTO`** cuando el caso no está `ENVIADO` **y ese campo ya tiene un adjunto**.
+`client_uuid` y `capturado_en` **siguen siendo escribibles**: son la idempotencia de la cola offline y
+la fecha de captura del alta, y sin el PATCH ya no hay forma de cambiarlos después (el
+`test_el_alta_repetida_sigue_siendo_idempotente_por_client_uuid` del contrato lo sostiene). Efecto
+lateral: la excepción de D-RED-10 —el PATCH era el único de los seis endpoints que contestaba 400 en
+vez de 409 ante una pausa— desapareció con el verbo, así que el contrato de la pausa quedó uniforme
+sin pedir release de `Chaco-mobile`.
+**El 409 mira el campo, no solo el estado (ronda 2 de la revisión).** La primera versión rechazaba
+*toda* subida sobre un caso no-`ENVIADO`, y eso no costaba «la foto»: costaba el relevamiento. Ante el
+409 la cola marca la operación `FAILED_PERMANENT` (`relevamientoService.js:1487`) y
+`hasPendingFormularioOperations` (`:1030`) cuenta las fallidas, así que el `finalizar_relevamiento` del
+teléfono quedaba bloqueado **para siempre** y con él se perdían **todos** los adjuntos pendientes del
+caso. Lo que la ficha quiere frenar es el **reemplazo silencioso** de la foto del DNI de un caso ya
+resuelto, y eso es exactamente lo que el guard mira ahora: si el campo ya tiene archivo, 409; si está
+vacío, entra con **201** y una línea en `observaciones_carga` que nombra el campo y el estado del caso
+(`campo.ADJUNTO_TARDIO`, el patrón de G1-07 / Cambio 178), que no se repite en un reintento y que
+`revisar_carga` arrastra cuando `aplicar_revision` reescribe la columna.
 **Test permanente:** `programas.tests.test_becas_api.FormularioSyncTests.test_patch_formulario_405`,
-`programas.tests.test_becas_api.AdjuntoSobreCasoResueltoTests` (4 tests, incluido
-`test_adjunto_sobre_aprobado_409`) y
+`programas.tests.test_becas_api.AdjuntoSobreCasoResueltoTests` (7 tests: `test_adjunto_sobre_aprobado_409`,
+`test_el_campo_vacio_de_un_caso_resuelto_recibe_el_archivo_observado`,
+`test_la_observacion_del_archivo_tardio_no_se_repite`,
+`test_el_reemplazo_sobre_un_caso_enviado_sigue_sin_observarse`…) y
 `programas.tests.test_becas_api_contrato.ContratoAppDeCampoTests.test_el_validado_renaper_del_telefono_se_ignora_sin_dar_400`.
 
 ### SEC-24 · La app de campo se autovalida la identidad con `origen: personas`
@@ -561,6 +570,14 @@ registrada como decisión en el código. Con la Gran Base caída —o con un DNI
 entra igual pero **sin validar**, que es el camino de la validación manual del revisor (Cambio 55).
 El comentario de la vista («el cliente nunca puede autovalidarse») pasó a ser cierto para las cuatro
 ramas.
+**El revisor se entera de por qué (ronda 2 de la revisión).** El `logger.warning` lo lee el operador
+del servidor, no quien revisa el caso: sin nada en la pantalla, un caso sin validar por una caída de
+la fuente se ve idéntico a uno sin validar porque el documento no figura, y la validación manual se
+hace a ciegas. La rama `personas`/`gran_base` deja ahora una línea en `observaciones_carga` que
+distingue los dos (`campo.IDENTIDAD_NO_ENCONTRADA` cuando `identificar` devuelve `no_encontrado` —la
+fuente respondió y el documento no está— y `campo.IDENTIDAD_FUENTE_SIN_RESPUESTA` cuando no
+respondió). La escribe el mismo `save` que ya guardaba `validado_renaper`, y si un reintento del alta
+sí acredita, la línea se borra.
 **Dos desvíos de la ficha, los dos a propósito:**
 1. *No se compara, se pisa.* La ficha dice «validar solo si coincide». Comparar dejaría el flag en
    `False` pero la identidad inventada seguiría viaje al legajo que arma `resolver_ciudadano_offline`.
@@ -574,7 +591,10 @@ ramas.
    cortacircuito de SIIS-09 delante. La cadena nueva quedó declarada en `core/integraciones.CADENAS`
    como `"app de campo · alta de un caso"` (30 s < 55, `core.E003`). Si el volumen lo pide, la caché
    es una mejora posterior, no un prerrequisito.
-**Test permanente:** `programas.tests.test_becas_api.IdentidadNoLaAcreditaElClienteTests` (5 tests) y
+**Test permanente:** `programas.tests.test_becas_api.IdentidadNoLaAcreditaElClienteTests` (8 tests,
+incluidos `test_el_documento_que_no_figura_queda_escrito_en_la_carga`,
+`test_la_fuente_que_no_respondio_queda_escrita_en_la_carga` y
+`test_la_carga_acreditada_no_lleva_ninguna_de_las_dos_lineas`) y
 `programas.tests.test_padron_identidad.OrigenPadronServidorTests.test_personas_sin_respaldo_queda_manual`
 (+ `test_personas_con_respaldo_toma_los_datos_de_la_fuente`,
 `test_personas_respaldado_por_el_padron_vale_como_padron`). El test que fijaba el comportamiento viejo

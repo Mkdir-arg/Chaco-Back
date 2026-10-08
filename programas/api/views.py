@@ -55,7 +55,7 @@ logger = logging.getLogger(__name__)
 
 CAP = "becas.campo"
 DNI_DUPLICADO_MENSAJE = "Este DNI ya fue relevado en este relevamiento."
-CASO_RESUELTO_MENSAJE = "El caso ya fue resuelto: no admite documentación nueva."
+CASO_RESUELTO_MENSAJE = "El caso ya fue resuelto: el archivo que ya tiene ese campo no se puede reemplazar."
 
 #: Lo que ``identificar`` devuelve como origen → la marca que guarda el caso.
 ORIGEN_VALIDACION_POR_FUENTE = {
@@ -181,14 +181,19 @@ class ObtainCampoToken(ObtainAuthToken):
 
 
 def _pisar_identidad_acreditada(formulario, acreditada):
-    """Deja en ``datos_identificacion`` lo que dijo la **fuente**, no lo que
-    tipeó el territorial (Cambio 57, RN-4).
+    """Deja en ``datos_identificacion`` lo que dijo la **fuente** cuando la hay
+    (Cambio 57, RN-4).
 
-    ``acreditada`` es el dict de ``datos_de_fila``/``identificar`` o ``None``
-    cuando la fuente no respaldó nada: ahí el origen pasa a ``manual``, que es el
-    camino previsto para una carga sin respaldo. Sin esto, un origen rechazado
-    dejaría el flag en ``False`` pero la identidad inventada seguiría viaje al
-    legajo que arma ``resolver_ciudadano_offline``.
+    ``acreditada`` es el dict de ``datos_de_fila``/``identificar``: su nombre y
+    apellido pisan lo que tipeó el territorial, y la fecha de nacimiento y la
+    localidad solo si la fuente las trajo.
+
+    Con ``acreditada=None`` —la fuente no respaldó nada— lo único que cambia es
+    ``origen: "manual"``, el camino previsto para una carga sin respaldo: el caso
+    queda **sin validar** y el nombre tipeado sigue viaje al legajo que arma
+    ``resolver_ciudadano_offline``. Ese es el comportamiento heredado del
+    Cambio 57 y no lo toca SEC-24; lo que la marca aporta es que el caso no se
+    presente como acreditado por una fuente que no lo acreditó.
 
     Devuelve ``True`` si hay que guardar la columna.
     """
@@ -249,6 +254,21 @@ def _actualizar_validacion_identidad(formulario, datos_identificacion=None):
                 origen,
                 resultado["error"] or "sin respaldo",
             )
+        # El log lo ve el operador del servidor; el revisor, no. Sin una línea en
+        # la carga, el caso llega a la pantalla de revisión sin validar y sin
+        # decir por qué, y la validación manual se hace a ciegas. Las dos
+        # situaciones no se resuelven igual: que la fuente **respondiera** y el
+        # documento no figure es un dato sobre la persona; que no respondiera no
+        # dice nada de ella.
+        if validado:
+            cambio_observaciones = campo.quitar_observaciones(formulario, campo.PREFIJO_IDENTIDAD_SIN_ACREDITAR)
+        else:
+            cambio_observaciones = campo.sumar_observacion(
+                formulario,
+                campo.IDENTIDAD_NO_ENCONTRADA if resultado["no_encontrado"] else campo.IDENTIDAD_FUENTE_SIN_RESPUESTA,
+            )
+        if cambio_observaciones:
+            campos.append("observaciones_carga")
         if _pisar_identidad_acreditada(formulario, resultado["datos"] if validado else None):
             campos.append("datos_identificacion")
         origen_validacion = ORIGEN_VALIDACION_POR_FUENTE.get(resultado["origen"], "") if validado else ""
@@ -679,6 +699,10 @@ class FormularioViewSet(mixins.RetrieveModelMixin, viewsets.GenericViewSet):
         quedándose con la **más vieja**. Ahora reemplaza. A qué caso se sube ya
         lo decide ``get_queryset`` (solo los del propio territorial); lo que se
         suma acá es que el campo exista en el formulario de ese relevamiento.
+
+        SEC-23: sobre un caso que el backoffice ya resolvió, el reemplazo
+        contesta **409 ``CASO_RESUELTO``** y el campo vacío entra con una
+        observación para la revisión.
         """
         formulario = self.get_object()
         if request.method == "GET":
@@ -693,33 +717,51 @@ class FormularioViewSet(mixins.RetrieveModelMixin, viewsets.GenericViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        if formulario.estado != Formulario.Estado.ENVIADO:
-            # SEC-23: un caso ya resuelto no recibe documentación nueva. El POST
-            # **reemplaza** el archivo del campo (G1-07), así que sin esto un
-            # token de campo cambiaba la foto del DNI de un caso APROBADO
-            # semanas después de la resolución y sin dejar rastro.
-            #
-            # 409 y no 400 porque es un conflicto de estado, y es el código que
-            # ya usa el resto de la familia (cupo lleno, pausa). Lo pagan dos
-            # casos: el caso ya revisado —que es lo que se quiere frenar— y, en
-            # el borde, una cola offline que sube la foto *después* de que el
-            # backoffice resolvió el caso dentro del mismo período del
-            # relevamiento. En ese borde la app marca la operación
-            # `FAILED_PERMANENT` y pierde **la foto**: el caso ya está cargado
-            # del lado del servidor y la revisión puede adjuntarla a mano.
+        serializer = AdjuntoFormularioSerializer(data=request.data, context={"formulario": formulario})
+        serializer.is_valid(raise_exception=True)
+        pregunta_global = serializer.validated_data.get("pregunta_global")
+        requisito_nativo = serializer.validated_data.get("requisito_nativo")
+
+        # SEC-23: lo que no se puede hacer sobre un caso ya resuelto es
+        # **reemplazar** su documentación. El POST pisa el archivo del campo
+        # (G1-07), así que sin esto un token de campo cambiaba la foto del DNI de
+        # un caso APROBADO semanas después y sin dejar rastro. El guard mira
+        # entonces lo que importa: que ese campo ya tenga un adjunto.
+        #
+        # El campo **vacío** se acepta, y no es una concesión: rechazarlo le
+        # costaba a la app todo el caso. Ante el 409 la cola marca la operación
+        # `FAILED_PERMANENT` (`relevamientoService.js:1487`) y
+        # `hasPendingFormularioOperations` (`:1030`) cuenta las fallidas, así que
+        # el `finalizar_relevamiento` del teléfono queda bloqueado **para
+        # siempre** y con él se pierden todos los adjuntos pendientes del caso,
+        # no solo el que llegó tarde. El archivo entra y la revisión se entera
+        # por `observaciones_carga`, que es el patrón del Cambio 178 (#627).
+        #
+        # 409 y no 400 porque es un conflicto de estado, y es el código que ya
+        # usa el resto de la familia (cupo lleno, pausa).
+        resuelto = formulario.estado != Formulario.Estado.ENVIADO
+        if (
+            resuelto
+            and formulario.adjuntos.filter(pregunta_global=pregunta_global, requisito_nativo=requisito_nativo).exists()
+        ):
             return Response(
                 {"detail": CASO_RESUELTO_MENSAJE, "code": "CASO_RESUELTO", "estado": formulario.estado},
                 status=status.HTTP_409_CONFLICT,
             )
 
-        serializer = AdjuntoFormularioSerializer(data=request.data, context={"formulario": formulario})
-        serializer.is_valid(raise_exception=True)
         adjunto = campo.guardar_adjunto(
             formulario,
             archivo=serializer.validated_data["archivo"],
-            pregunta_global=serializer.validated_data.get("pregunta_global"),
-            requisito_nativo=serializer.validated_data.get("requisito_nativo"),
+            pregunta_global=pregunta_global,
+            requisito_nativo=requisito_nativo,
         )
+        if resuelto:
+            campo.observar_adjunto(
+                formulario,
+                pregunta_global or requisito_nativo,
+                plantilla=campo.ADJUNTO_TARDIO,
+                estado=formulario.get_estado_display(),
+            )
         # Sigue siendo 201 también cuando reemplazó: la app instalada
         # (`Chaco-mobile@a66c2d3`) clasifica la subida por el código, y un 200
         # que hoy no espera sería un cambio de contrato que pide release. Lo que
