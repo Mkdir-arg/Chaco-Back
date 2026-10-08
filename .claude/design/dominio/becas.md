@@ -158,6 +158,17 @@ rotula **«Cupo asignado»** —no «máximo»— con la aclaración entre paré
 disponibles. Un rótulo que promete un tope que el sistema no aplica es la clase de número que la
 Ola 5 PR 7 ya tuvo que corregir en otras cinco pantallas.
 
+**«Cupo disponible» son tres números distintos, y cada pantalla lee el suyo** (RED-49). El dato que
+alimenta la tarjeta «Cupo disponible» y el cuadro «Distribución del cupo» de
+`config/segmento_detail.html`, más la bajada de `config/subsegmento_form.html`, es
+**`cupo_sin_distribuir`** (`cupo_maximo` menos lo repartido entre subsegmentos). El de la tarjeta
+homónima de `cupo/segmento_detail.html` es `stats.cupo_disponible` (`get_cupo_stats`: lugares libres
+de verdad, `cupo_maximo` menos los aprobados). Y el de la app de campo es
+`Relevamiento.cupos_libres_del_relevamiento`, que viaja por la API con el nombre viejo
+(`cupo_disponible`) porque es contrato publicado. Los dos rótulos coinciden a propósito —son los
+textos que el cliente usa— pero **las variables no se pueden intercambiar**: pasar una por la otra
+cambia el número de la pantalla de configuración y la validación del alta de subsegmentos.
+
 **El segmento y el subsegmento de una convocatoria con relevamientos se muestran deshabilitados,
 no escondidos.** `ConvocatoriaForm` les pone `disabled=True` y un `help_text` que dice por qué
 («No se puede cambiar: la convocatoria ya tiene relevamientos»). El control sigue en el
