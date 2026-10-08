@@ -360,6 +360,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 186 | El circuito de SIIS deja de pagar por caso lo que es igual para todos | Becas (proceso masivo a SIIS, pantalla del masivo, comandos `procesar_casos_siis` y `validar_casos_siis`) · Transversal (presupuestos de performance, seed de performance, caché de ciudadanos) | `#siis` `#performance` `#relevamientos` `#datos` | Auditoría integral oct-2026 — fichas PERF-01 (+V4-NEW-02), PERF-19, PERF-07 y PERF-06 (Ola 4, PR 3) | 08/10/2026 | 🟢 **Hecho** | `programas.0082` (dos índices, online) |
 | 187 | La pasada horaria de alertas deja de recorrer el padrón y de recrear lo que ya existe | Legajos (comando `generar_alertas`, servicio de alertas, señal de legajo) · Becas (pantalla del proceso masivo) · Transversal (seed de performance) | `#performance` `#datos` `#ui` | Auditoría integral oct-2026 — fichas PERF-20 y LEG-01 (Ola 4, PR 4) + 3 seguimientos MINOR de #639 | 08/10/2026 | 🟢 **Hecho** | No requiere |
 | 188 | `/media/` deja de ser «cualquiera con sesión baja cualquier archivo», y los uploads miran lo que entra | Transversal — descarga de `/media/` (adjuntos, fotos, contactos, F-00, merenderos, adjuntos y padrones de Becas) · Dispositivos (campo ARCHIVO del F-00) · Merenderos (solicitud) · Becas (carga del padrón) | `#rbac` `#datos` `#infra` `#api` | Auditoría integral oct-2026 — fichas SEC-09 etapa 2, SEC-15, SEC-31, R0b-07 y R0b-08 (Ola 2, PR 7) | 08/10/2026 | 🟢 **Hecho** (**D-15 = PDF e imagen**; `X-Accel-Redirect` preparado y apagado tras `MEDIA_X_ACCEL`, D-09/H-05) | `legajos.0010` y `programas.0083` (las dos sin DDL) |
+| 189 | Las descargas del tablero de Becas: una planilla que no es la única opción, y dejar de recalcular lo que ya está calculado | Becas — solapa «Dashboard» del programa (exportaciones y filtros) · Transversal (`requirements.txt`, banco de performance) | `#performance` `#relevamientos` `#ui` `#metodo` | Auditoría integral oct-2026 — fichas PERF-03, G1b-11 y G1b-12 (Ola 4, PR 5) | 08/10/2026 | 🟢 **Hecho** (PERF-03 parcial: el punto (3), exportar fuera del request, sigue abierto) | No requiere |
 | 190 | El chequeo de esquema del CI deja de marcar como huérfanas las tablas que carga el organismo | Transversal — CI (job «Migrate ida y vuelta»), `verificar_esquema_migraciones` | `#infra` `#datos` | Juez, por la regresión de #639 que dejaba rojo ese job en todo PR posterior | 08/10/2026 | 🟢 **Hecho** | No requiere |
 | 191 | Plan de implementación del MVP de Dispositivos: tabla rasa, dos carriles y las piezas de diseño primero | Dispositivos · planificación | `#gestion` `#ui` `#datos` | PM — en sesión: «quiero borrar lo que tenemos hoy de ese programa e implementarlo desde 0… planificá bien las etapas y quiero hacer hincapié en la parte de lógica y la parte de diseño, se tiene que ver igual» | 08/10/2026 | 🟢 **Hecho — plan escrito** | Sí: baja de 6 modelos en dos releases |
 
@@ -28450,6 +28451,208 @@ y `migrate programas 0082`: no tienen DDL ni datos, así que no queda nada incon
 los archivos escritos mientras la release estuvo puesta conservan su nombre con UUID, que
 se sigue resolviendo igual—. Si lo que molesta es solo la entrega por el servidor de
 adelante, alcanza con `MEDIA_X_ACCEL=False`, sin tocar código.
+
+---
+
+# Cambio 189 — Las descargas del tablero de Becas: una planilla que no es la única opción, y dejar de recalcular lo que ya está calculado
+
+🟢 **HECHO — 08/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas — solapa «Dashboard» del programa (exportaciones y filtros) · Transversal (`requirements.txt`, banco de performance) |
+| **Etiquetas** | `#performance` `#relevamientos` `#ui` `#metodo` |
+| **Solicitante** | Auditoría integral oct-2026 — fichas PERF-03, G1b-11 y G1b-12 (Ola 4, PR 5) |
+| **Fecha del pedido** | 08/10/2026 |
+| **Issue / épica** | Auditoría oct-2026, Ola 4 (Performance) ítem 5 |
+| **Partes afectadas** | `requirements.txt` · `programas/views/dashboard_becas.py` · `programas/services/dashboard_becas.py` · `programas/forms_reportes.py` · `programas/urls.py` · `programas/templates/programas/becas/config/_dashboard_panel.html` · `static/custom/js/becas-dashboard.js` · `scripts/perf_mysql/` (banco de medición) |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Tres fichas sobre las descargas y los filtros del tablero del programa.
+
+- **PERF-03.** El Excel «respuestas por persona» se arma dentro del request y es casi todo
+  CPU con el GIL tomado: con 20.000 casos, `openpyxl` escribiendo cientos de miles de
+  celdas con un serializador XML en Python puro. La propuesta, en orden de retorno: (1)
+  `lxml` en `requirements.txt`, (2) botón «CSV» en la misma pantalla, (3) recién si no
+  alcanza, exportar fuera del request.
+- **G1b-11.** La exportación del tablero pedía `distribuciones_respuestas` sin caché: una
+  consulta `JSON_EXTRACT` + `GROUP BY` **por pregunta** sobre todo el recorte, cada vez.
+- **G1b-12.** El período personalizado no tenía techo (`desde=2000-01-01&hasta=3999-12-31`
+  armaba ~104.000 semanas y las cacheaba) y `?recalcular=1` saltea la caché sin freno.
+
+## Alcance acordado
+
+Entran las tres fichas. **PERF-03 queda parcial a propósito**: los puntos (1) y (2) de su
+propuesta, y el (3) —exportación fuera del request con `ExportacionPendiente` + worker—
+sigue abierto con el disparador que la propia ficha le puso. Queda afuera el resto de la
+Ola 4.
+
+## Decisiones tomadas
+
+- **`lxml` entra, pero no es lo que la ficha prometía.** El Cambio 93 estimó «2-3× sin
+  tocar código» sin medirlo. Medido ahora en el banco (20.000 casos × 34 columnas =
+  680.000 celdas; CPU, mejor de 3, cuatro corridas alternadas con `OPENPYXL_LXML`): **7,9
+  s → 7,0 s, un 10 %**. `lxml` sí reemplaza el serializador XML, pero lo que queda es el
+  costo por celda de `openpyxl` (`_bind_value`, `check_string`, `_values_to_row`) y el
+  saneo de SEC-20, que no toca. Entra igual —cuesta una línea, vale para todos los xlsx
+  del producto y acorta la tenencia del GIL—, pero **el salto grande es el CSV**.
+- **El CSV es la respuesta real de PERF-03: ~10×.** Las mismas 20.000 filas × 34 columnas
+  son 0,6-1,0 s de CPU contra 7,0-8,0 s del xlsx. No reemplaza al Excel: el modal ofrece
+  los dos y el default sigue siendo XLSX, porque es lo que hoy baja el ministerio.
+- **Lo que se descarga no cambia.** El CSV sale del **mismo** `Reporte` que el xlsx: mismas
+  columnas, mismo orden, mismos valores, mismo formato de fecha y el mismo `celda_segura`.
+  Hay un test que genera los dos archivos y los compara celda por celda.
+- **La URL vieja no se rompe.** `…/respuestas/<conv>/xlsx/` pasó a `…/<conv>/<formato>/`:
+  un favorito guardado sigue resolviendo al mismo archivo. El nombre de la ruta pasó de
+  `programa_dashboard_respuestas_xlsx` a `programa_dashboard_respuestas`.
+- **G1b-11 se resuelve por caché y por no calcular lo que no se exporta**, no con «una
+  sola pasada con todas las claves». Esa otra opción devuelve una fila por combinación
+  distinta de respuestas —con 20.000 casos reales, ~20.000 filas— y el código ya tenía
+  medido (banco MySQL, 25/09/2026) que decodificar en Python 20.000 valores por pregunta
+  cuesta diez veces más que la consulta agrupada. El banco de acá no puede arbitrarlo: sus
+  respuestas son una función del índice del caso, así que las combinaciones distintas son
+  un puñado y la opción saldría falsamente bien.
+- **Las distribuciones alimentan un solo bloque.** El CSV de cualquier otro bloque
+  («convocatorias», «estados», «territoriales»…) pagaba las 12 consultas y las tiraba.
+- **La caché por pregunta es la misma que la de la pantalla.** `_clave_distribucion` está
+  escrita una vez y la usan `distribucion_cacheada` (una pregunta, desde el tablero) y
+  `distribuciones_cacheadas` (todas, desde el export): lo que el tablero acaba de dibujar
+  el export no lo vuelve a agrupar, y al revés.
+- **El techo del período personalizado es 5 años y `hasta` no pasa de hoy** (G1b-12), que
+  es lo que pedía la ficha. Con eso, la variación contra el período anterior no puede irse
+  antes del año 1 y el `OverflowError` deja de existir por construcción.
+- **DECISIÓN CLIENTE: el freno de «Actualizar» es de 30 segundos.** La ficha dice «ignorar
+  `recalcular` si la entrada tiene menos de N segundos» y no fija N. 30 s es un décimo del
+  TTL del tablero (RN-17, 5 min): corta el doble clic y las tres personas mirando el mismo
+  programa, y no retrasa de forma perceptible a quien acaba de cargar datos.
+- **El freno se implementa con `cache.add`**, atómico en Redis y en LocMem: el primero que
+  llega se lleva el permiso. Si la caché no responde, se recalcula —que es lo que pasaba
+  antes—.
+
+## Implementación
+
+**PERF-03.** `lxml==6.1.3` en `requirements.txt`, con el número medido en el comentario.
+`openpyxl` lo detecta solo (`openpyxl.LXML`); `OPENPYXL_LXML=False` lo desactiva sin
+desinstalarlo. La URL del export por persona pasa a llevar el formato
+(`…/dashboard/respuestas/<convocatoria>/<formato>/`) y la vista, renombrada a
+`programa_dashboard_respuestas`, valida el formato contra `FORMATOS` (400 si no) y
+despacha a `respuesta_reporte(reporte, "csv", …)` o a `respuesta_libro(…)` con el mismo
+`Reporte` y el mismo texto de alcance. En el modal se agregó un `nodo-field` de formato y
+el pie dice «Descargar»; el JS reemplaza `/0/` por el id y `/FORMATO/` por el formato.
+
+**G1b-11.** `distribuciones_cacheadas(user, programa, filtros, alcance, catalogo)` lee las
+entradas que ya existen y manda a la base **solo las que faltan**, en una sola llamada a
+`distribuciones_respuestas`. `programa_dashboard_exportar` la usa, y **solo** cuando el
+archivo pedido tiene el bloque de respuestas: el XLSX (que trae todas las hojas) o el CSV
+con `?bloque=respuestas`.
+
+**G1b-12.** `DashboardBecasFiltroForm.clean` rechaza `hasta > hoy` y un rango mayor a
+`MAX_ANIOS_PERIODO = 5` (con `_hace_anios`, que tolera el 29 de febrero).
+`dashboard_becas.recalculo_permitido(programa, filtros, huella)` concede un `recalcular`
+cada `RECALCULO_MINIMO = 30` s por recorte, y la vista de datos lo consulta antes de pasar
+`recalcular=True`.
+
+**Banco de performance** (`scripts/perf_mysql/`, fuera del release). Tres arreglos que el
+PR necesitó para poder medir: las rutas del dashboard se armaban con el pk del `Programa`
+del RBAC y no con el de `ProgramaSiis` —daban 404 y se medían vacías—; `escalar_bench.py`
+acepta `--preguntas N` (12 por defecto) porque el catálogo sembrado no tiene **ninguna**
+pregunta de opciones cerradas y `preguntas_graficables` devolvía 0; y el README documenta
+la receta contra `mariadb:10.11` (lo que corre ECOM), el `DB_READ_TIMEOUT` alto que la
+siembra necesita y medir CPU cuando lo que se compara no es SQL.
+
+## Base de datos
+
+Sin cambios de esquema. El tablero cachea una entrada más por recorte —la del freno de
+«Actualizar»—, de un entero y 30 s de vida.
+
+## Validación
+
+Banco `mariadb:10.11` (sin tablas de zona horaria), base `chaco_perf_ci`, 20.000 casos en
+un relevamiento público, 34 columnas, 12 preguntas de opciones cerradas, con el
+`read_timeout` de producción (10 s):
+
+| Ruta | Antes | Después |
+|---|---|---|
+| Export del tablero, XLSX | 3.719 ms frío · 2.120 ms caliente · 37 consultas · SQL 3.406 ms | 2.732 ms · **69 ms** · 37 · SQL 2.516 ms |
+| Export del tablero, CSV de un bloque | 2.891 ms frío · 2.169 ms caliente · **37** consultas · SQL 2.625 ms | **662 ms** · **36 ms** · **25** · SQL **439 ms** |
+| Respuestas por persona, XLSX | 14.338 ms frío · 14.250 ms caliente | 11.392 ms · 12.870 ms |
+| Respuestas por persona, CSV | — (no existía) | **5.177 ms** frío · 6.390 ms caliente |
+| Armar el archivo, solo CPU (mejor de 3) | xlsx 7,9 s sin `lxml` | xlsx **7,0 s** con `lxml` · **csv 0,6-1,0 s** |
+
+`manage.py check` sin issues · `makemigrations --check --dry-run`: «No changes detected» ·
+`manage.py test programas`: 2.458 tests OK · `core dashboard legajos users`: 1.827 OK ·
+`--tag performance`: 8 OK · `ruff check .` y `ruff format --check .` limpios ·
+`design_audit.py --ratchet`: 0 hallazgos nuevos · `compile_templates.py --bloques`: 0 y 0 ·
+`pip-audit -r requirements.txt` con las excepciones vigentes: sin vulnerabilidades.
+
+Los 16 tests nuevos de `programas/tests/test_dashboard_exports.py` se corrieron **contra el
+código viejo**: 14 fallan (5 errores y 9 fallas), entre ellos el 500 del período imposible
+(`OverflowError: date value out of range`, «500 != 400»). Los dos que pasan antes y después
+son guardas de no-regresión a propósito.
+
+## Pendientes / a definir
+
+- **PERF-03 punto (3): exportar fuera del request.** Sigue abierto. El disparador es el de
+  la ficha: un timeout de ingress por debajo de 30 s confirmado por ECOM, o convocatorias
+  de más de 40.000 casos. Con 20.000 casos el XLSX sigue siendo un camino de ~12 s en este
+  banco.
+- **Lo que queda caro del xlsx es `openpyxl` por celda**, no el XML. Bajarlo de verdad
+  implica escribir la hoja a mano, que es cambiar el archivo que se descarga.
+- **`.claude/design/dominio/becas.md`** (ficha del tablero) tiene que anotar el campo de
+  formato del modal: esta sesión no tiene permiso de escritura en `.claude/`, así que el
+  texto va en el cuerpo del PR.
+- El banco quedó con 12 preguntas de opciones cerradas y 34 columnas por caso: las
+  mediciones anteriores a este cambio se hicieron sobre 22 columnas y ninguna pregunta
+  graficable.
+
+## Reversión
+
+Revertir el commit devuelve el export por persona a XLSX único (la URL vuelve a terminar
+en `/xlsx/`), el export del tablero a calcular una consulta por pregunta en cada descarga,
+el período personalizado a no tener techo y «Actualizar» a recalcular sin freno. Sacar
+`lxml` de `requirements.txt` es independiente y no cambia ningún archivo descargado: solo
+vuelve a serializar el XML en Python puro. No hay migración ni dato que quede inconsistente.
+
+## Historial
+
+- **08/10/2026 — ronda 2 de la revisión: el guard del período imposible tenía su propio
+  500.** Una corrección y tres textos.
+  1. **`_hace_anios` reventaba con `hasta` en los primeros años de la era.** El techo de
+     G1b-12 resta `MAX_ANIOS_PERIODO` años a `hasta` con `date.replace`, y el `except
+     ValueError` daba por sentado que el único motivo era el 29 de febrero en un año no
+     bisiesto: repetía la misma operación con `day=28`. Pero `replace` levanta el **mismo**
+     `ValueError` cuando el año destino cae debajo de `MINYEAR`, y ahí el `except` vuelve a
+     fallar. Con `?periodo=custom&desde=0001-01-01&hasta=0005-01-01` el error escapaba de
+     `form.is_valid()` —que solo atrapa `ValidationError`— y salía del `try` de la vista:
+     500 crudo en los datos del tablero **y** en `programa_dashboard_exportar`. Ahora el
+     período personalizado tiene también piso: `ANIO_MINIMO = MINYEAR + 2 *
+     MAX_ANIOS_PERIODO + 1` (año 12), porque debajo de `hasta` tienen que entrar dos
+     ventanas máximas —la pedida y la anterior, que `_variacion` compara y que restaba días
+     hasta el `OverflowError`—. Cualquier ventana imposible da 400 con mensaje, como la de
+     `2000-01-01 → 3999-12-31`. Tres tests nuevos en `test_dashboard_exports.py`: los dos
+     endpoints con `hasta` en los años 1 a 5, el año 1 contra el 9999, y la guarda de que el
+     piso no recorta ventanas reales. Contra `e77adb68` el primero da error —no falla— en
+     sus cinco subtests (`ValueError: year -4 is out of range` … `year 0`) y el tercero
+     también, porque `ANIO_MINIMO` todavía no existe. El del 9999 pasa antes y después: lo
+     corta el techo de «no puede ser posterior a hoy», que se evalúa primero; queda como
+     no-regresión del borde superior.
+  2. **El tooltip de «Actualizar» decía media verdad.** Hablaba de «se recalculan cada 5
+     minutos o con "Actualizar"», sin el freno de `RECALCULO_MINIMO = 30` que el mismo PR
+     agregó: ahora dice que «Actualizar» recalcula si pasaron al menos 30 segundos desde el
+     último cálculo.
+  3. **La nota del modal de respuestas por persona** aclara que el CSV conviene importarlo
+     en Excel con «Datos → Desde texto/CSV»: con configuración regional es-AR el doble clic
+     lo abre todo en una sola columna. El separador **no** cambia, para no romper la
+     consistencia con el resto de los CSV del sistema.
+  4. **El `reverse` del harness de medición** (`docs/internal/auditoria-2026-10/poc/
+     perf_harness/tests.py`) todavía apuntaba a `programa_dashboard_respuestas_xlsx`, que
+     este PR renombró a `programa_dashboard_respuestas` con el formato en la URL.
+- El 404 del CSV por persona contra un pod viejo durante el rolling **no se toca**: la URL
+  cambió de forma y, mientras conviven las dos releases, un link recién pintado puede caer
+  en un pod que todavía no la tiene. Es transitorio, se resuelve solo al terminar el
+  rolling y queda anotado como riesgo de deploy en el cuerpo del PR.
 
 ---
 

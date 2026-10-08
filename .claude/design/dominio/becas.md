@@ -300,9 +300,11 @@ necesita OK. No se clona para una pantalla nueva. Lo que vale como contrato:
   `components/_alerta.html tono="info"`. Se abre desde el botón `btn-nodo btn-secondary btn-sm`
   de la tarjeta de respuestas y desde el menú Exportar. El `<form id="dash-form-respuestas">`
   envuelve cuerpo y pie y lleva un `nodo-field` de convocatoria obligatorio con su
-  `data-dash="respuestas-error"`. El JS escucha `dash-respuestas-abierto` para heredar la
+  `data-dash="respuestas-error"` y un segundo `nodo-field` de formato (XLSX / CSV) con su nota
+  `text-xs text-body-subtle`. El JS escucha `dash-respuestas-abierto` para heredar la
   convocatoria del filtro y, al enviar, navega a la URL de descarga (`data-url-respuestas`, con
-  `/0/` como marcador del id).
+  `/0/` como marcador del id y `/FORMATO/` como marcador del formato). El pie dice «Descargar»,
+  no «Descargar Excel»: el formato lo elige el campo.
 - Medidores de progreso: pista `h-2 rounded-full bg-brand-soft overflow-hidden` y relleno con
   `background: var(--text-fg-brand)` (`--text-fg-warning-subtle` o `--text-fg-danger` por
   severidad). Ocultar en impresión con la clase `dash-no-print` (regla `@media print` local del
