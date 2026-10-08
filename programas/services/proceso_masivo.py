@@ -88,6 +88,17 @@ def _solo_digitos(valor):
     return re.sub(r"\D", "", str(valor or ""))
 
 
+def hay_aprobados_materias():
+    """``True`` si la tabla que decide quién va a SIIS existe. **No** la lee.
+
+    PERF-07: la pantalla del masivo necesita saber si la tabla está para decidir si
+    ofrece lanzar algo, y eso es una pregunta de catálogo. Preguntárselo a
+    :func:`dnis_aprobados_materias` significaba traer los 15.531 DNI de la planilla,
+    y con una corrida en curso la pantalla se relee **cada 5 segundos**.
+    """
+    return TABLA_APROBADOS_MATERIAS in connection.introspection.table_names()
+
+
 def dnis_aprobados_materias():
     """DNI habilitados para ir a SIIS, en las dos formas en que pueden estar guardados.
 
@@ -98,7 +109,7 @@ def dnis_aprobados_materias():
     JOIN: la tabla la crea un script aparte y puede quedar con otra
     intercalación, y ahí un JOIN falla con «Illegal mix of collations».
     """
-    if TABLA_APROBADOS_MATERIAS not in connection.introspection.table_names():
+    if not hay_aprobados_materias():
         raise TablaAprobadosMateriasFaltante()
     dnis = set()
     with connection.cursor() as cur:
@@ -441,6 +452,59 @@ def _por_incompatibilidad(casos, *, solo_incompatibles):
     return casos.exclude(validacion_vigente=ValidacionSIS.Estado.RECHAZADO)
 
 
+class Insumos:
+    """Las tres listas que :func:`candidatos` lee de la base y no dependen de sus filtros.
+
+    PERF-07: la pantalla del masivo arma **dos** querysets —los pendientes y los
+    incompatibles— y cada uno releía la planilla de DNI habilitados, la lista de
+    exclusión y los casos con errores agotados: cinco consultas repetidas, tres de ellas
+    ``SHOW TABLES``. Compartiendo una instancia se leen una sola vez.
+
+    Perezosas a propósito: ``dnis_aprobados_materias`` levanta
+    :class:`TablaAprobadosMateriasFaltante` si la tabla no está, y con
+    ``filtrar_materias=False`` eso no tiene que pasar.
+    """
+
+    _VACIO = object()
+
+    def __init__(self):
+        self._habilitados = self._VACIO
+        self._excluidos = self._VACIO
+        self._agotados = self._VACIO
+
+    @property
+    def habilitados(self):
+        if self._habilitados is self._VACIO:
+            self._habilitados = dnis_aprobados_materias()
+        return self._habilitados
+
+    @property
+    def excluidos(self):
+        if self._excluidos is self._VACIO:
+            self._excluidos = dnis_a_no_enviar()
+        return self._excluidos
+
+    @property
+    def agotados(self):
+        if self._agotados is self._VACIO:
+            self._agotados = casos_con_errores_agotados()
+        return self._agotados
+
+
+def conteos_de_la_pantalla(programa):
+    """``(pendientes, incompatibles)`` del proceso masivo, con los insumos leídos una vez.
+
+    Los dos números de la pantalla (PERF-07). Van juntos porque comparten
+    :class:`Insumos`: pedidos por separado, cada uno volvía a leer la planilla entera de
+    DNI habilitados.
+    """
+    insumos = Insumos()
+    return (
+        candidatos(programa=programa, insumos=insumos).count(),
+        candidatos(programa=programa, solo_incompatibles=True, insumos=insumos).count(),
+    )
+
+
 def candidatos(
     *,
     programa=None,
@@ -452,6 +516,7 @@ def candidatos(
     destino=DESTINO_SIIS,
     excluir_no_enviar=True,
     solo_incompatibles=False,
+    insumos=None,
 ):
     """Casos que todavía no se informaron a SIIS.
 
@@ -492,27 +557,37 @@ def candidatos(
     Ninguna sustituye a otra, y `solo_incompatibles` tampoco levanta las demás:
     alguien que está en la lista de exclusión no es un incompatible pendiente de
     resolver, es alguien a quien no hay que mandar.
+
+    ``insumos`` son las tres listas que no dependen de los filtros —DNI habilitados,
+    DNI excluidos y casos con errores agotados— ya leídas (:class:`Insumos`). Quien
+    arma **dos** querysets seguidos las pasa en vez de hacer que cada uno las relea;
+    sin él se leen acá, como siempre.
     """
+    insumos = insumos or Insumos()
     ultimo = EnvioSIIS.objects.filter(formulario=OuterRef("pk")).order_by("-creado", "-id").values("estado")[:1]
     vigente = EnvioSIIS.objects.filter(formulario=OuterRef("pk"), vigente=True)
     casos = (
         Formulario.objects.select_related(*SELECT_RELATED_CASOS)
-        .annotate(ultimo_envio=Subquery(ultimo))
-        # «Todavía no informado» incluye a los que no tienen ningún envío, y eso
-        # es NULL: un ``exclude`` los descartaría a todos, porque
-        # ``NOT (NULL = 'ENVIADO')`` no es verdadero.
+        # PERF-19: el ``Coalesce`` es lo que deja el filtro en **una** referencia a la
+        # subconsulta. «Todavía no informado» incluye a los que no tienen ningún envío,
+        # y eso es NULL: con ``Q(isnull=True) | ~Q(=ENVIADO)`` --un ``exclude`` solo los
+        # descartaba a todos, porque ``NOT (NULL = 'ENVIADO')`` no es verdadero-- Django
+        # escribía la subconsulta correlacionada **dos veces** en el WHERE, y MariaDB no
+        # comparte la caché entre las dos: cada fila la resolvía dos veces. Con el NULL
+        # ya convertido a ``""`` el ``exclude`` alcanza y la semántica es la misma.
         #
         # El filtro por ``ultimo_envio`` se queda junto al de ``vigente`` a
         # propósito: durante el deploy puede haber filas ``ENVIADO`` escritas por
         # el código viejo, que nacen con ``vigente = NULL`` (expand/contract).
-        .filter(Q(ultimo_envio__isnull=True) | ~Q(ultimo_envio=EnvioSIIS.Estado.ENVIADO))
+        .annotate(ultimo_envio=Coalesce(Subquery(ultimo), Value("")))
+        .exclude(ultimo_envio=EnvioSIIS.Estado.ENVIADO)
         # NOT EXISTS contra el índice único ``(formulario, vigente)``: una
         # búsqueda exacta por caso, no el scan por fila de un ``Exists`` sobre
         # una FK casi siempre nula.
         .filter(~Exists(vigente))
         .order_by("pk")
     )
-    agotados = casos_con_errores_agotados()
+    agotados = insumos.agotados
     if agotados:
         casos = casos.exclude(pk__in=agotados)
     estados = [Formulario.Estado.APROBADO]
@@ -537,9 +612,9 @@ def candidatos(
     # a la regla) igual tiene que informarse a SIIS.
     casos = casos.exclude(estado=Formulario.Estado.ENVIADO, lista_espera__promovido=False)
     if filtrar_materias:
-        casos = casos.filter(ciudadano__dni__in=dnis_aprobados_materias())
+        casos = casos.filter(ciudadano__dni__in=insumos.habilitados)
     if excluir_no_enviar:
-        no_enviar = dnis_a_no_enviar()
+        no_enviar = insumos.excluidos
         if no_enviar:
             casos = casos.exclude(ciudadano__dni__in=no_enviar)
     if destino == DESTINO_TABLA:
@@ -584,13 +659,29 @@ def ids_de(casos, limite=None, pagina=PAGINA_IDS):
     return recogidos
 
 
-def hidratar(ids):
+#: Los cuatro JSON del caso. Son el 88 % de los bytes de una fila (PERF-11) y hay
+#: caminos que no abren ninguno: la validación de compatibilidad solo manda DNI,
+#: programa y fecha de nacimiento. El armado del payload, en cambio, **los lee**
+#: (``respuestas_por_destino`` abre ``definicion`` y ``data``, el CUIL respondido abre
+#: ``respuestas``, las correcciones ``datos_siis``): ahí diferirlos los volvería a
+#: pedir de a uno. Por eso es un parámetro de quien hidrata y no el default.
+JSON_DEL_CASO = ("data", "respuestas", "definicion", "datos_siis")
+
+
+def hidratar(ids, diferir=()):
     """Los casos completos de ``ids``, en orden de pk y con las relaciones que
-    lee el circuito ya cargadas (las mismas que :func:`candidatos`)."""
-    return list(Formulario.objects.select_related(*SELECT_RELATED_CASOS).filter(pk__in=ids).order_by("pk"))
+    lee el circuito ya cargadas (las mismas que :func:`candidatos`).
+
+    ``diferir`` es la lista de columnas que el llamador **no** va a tocar (ver
+    :data:`JSON_DEL_CASO`): se las saltea la consulta en vez de traerlas y tirarlas.
+    """
+    casos = Formulario.objects.select_related(*SELECT_RELATED_CASOS).filter(pk__in=ids).order_by("pk")
+    if diferir:
+        casos = casos.defer(*diferir)
+    return list(casos)
 
 
-def hidratar_por_lotes(ids, tamano=LOTE_LECTURA):
+def hidratar_por_lotes(ids, tamano=LOTE_LECTURA, diferir=()):
     """Recorre los casos de ``ids`` trayéndolos de a ``tamano``.
 
     Traerlos todos de una vez --``list(candidatos(...))``-- era pedirle a MySQL
@@ -601,7 +692,7 @@ def hidratar_por_lotes(ids, tamano=LOTE_LECTURA):
     puede cortar cuando junta lo que necesita, sin haber leído el resto.
     """
     for inicio in range(0, len(ids), tamano):
-        yield from hidratar(ids[inicio : inicio + tamano])
+        yield from hidratar(ids[inicio : inicio + tamano], diferir=diferir)
 
 
 def elegir_completos(casos, catalogos, total, cuenta, *, al_mirar=None):

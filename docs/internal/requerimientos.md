@@ -353,6 +353,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 179 | El timeline, las alertas y el riesgo del ciudadano dejan de verse con la capacidad de consulta, y una derivación deja de aceptarse abriendo un link | Legajos (APIs del detalle del ciudadano, bandeja de derivaciones, inscripción directa, API de ciudadanos) · Inicio (feed de actividad reciente, campana de alertas) · Transversal (WebSocket `/ws/alertas/`, shell del backoffice) | `#rbac` `#api` `#sesion` `#ui` | Auditoría integral oct-2026 — fichas SEC-12, la 2.ª mitad de SEC-11, R0b-04, R0b-05, R0b-09, G1c-04, G1c-17 y G3-03 (Ola 2, PRs 3 y 4 en un solo PR) | 08/10/2026 | 🟢 **Hecho** (D-11 y D-12 aplicadas por default) | No requiere |
 | 180 | Las escrituras que fallan no dejan nada a medias: ni medio caso, ni un padrón vacío, ni un adjunto huérfano | Becas (aprobación de casos, link público de inscripción, padrón propio del relevamiento) · Dispositivos (admisión, lista de espera y traslado) · Transversal (`core/archivos.py`) | `#datos` `#cupos` `#relevamientos` `#metodo` | Auditoría integral oct-2026 — 2.ª parte de la ficha RED-35 (Ola 3, PR 9 — **cierra la ola**) | 08/10/2026 | 🟢 **Hecho** | No requiere |
 | 182 | Subir el padrón y abrir el cupo dejan de rozar el timeout, y «cupo disponible» pasa a ser tres nombres distintos | Becas (carga de padrón y cruce automático, pantalla de cupo y lista de espera, configuración de segmentos, API de la app de campo) · Transversal (caché de ciudadanos, paginación de bandejas, presupuestos de performance) | `#performance` `#cupos` `#relevamientos` `#datos` | Auditoría integral oct-2026 — fichas PERF-04, PERF-16, PERF-02 y la 2.ª parte de RED-49 (Ola 4, PRs 1 y 2) | 08/10/2026 | 🟢 **Hecho** | No requiere |
+| 183 | El circuito de SIIS deja de pagar por caso lo que es igual para todos | Becas (proceso masivo a SIIS, pantalla del masivo, comandos `procesar_casos_siis` y `validar_casos_siis`) · Transversal (presupuestos de performance, seed de performance, caché de ciudadanos) | `#siis` `#performance` `#relevamientos` `#datos` | Auditoría integral oct-2026 — fichas PERF-01 (+V4-NEW-02), PERF-19, PERF-07 y PERF-06 (Ola 4, PR 3) | 08/10/2026 | 🟢 **Hecho** | `programas.0082` (dos índices, online) |
 
 **Notas del índice**
 
@@ -26912,3 +26913,185 @@ filas que dejaba antes. Si lo que molesta es el presupuesto nuevo, se saca
 `becas_cupo_segmento` de `scripts/perf_budgets.json` **y** de
 `scripts/perf_audit.py::build_targets` en el mismo diff: `core/tests/test_performance_budgets.py`
 exige que los dos coincidan.
+
+---
+
+# Cambio 183 — El circuito de SIIS deja de pagar por caso lo que es igual para todos
+
+🟢 **HECHO — 08/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas (proceso masivo a SIIS, pantalla del masivo, comandos `procesar_casos_siis` y `validar_casos_siis`) · Transversal (presupuestos de performance, seed de performance, caché de ciudadanos) |
+| **Etiquetas** | `#siis` `#performance` `#relevamientos` `#datos` |
+| **Solicitante** | Auditoría integral oct-2026 — fichas PERF-01 (+V4-NEW-02), PERF-19, PERF-07 y PERF-06 (Ola 4, PR 3) |
+| **Fecha del pedido** | 08/10/2026 |
+| **Issue / épica** | Auditoría oct-2026, Ola 4 (Performance) ítem 3 |
+| **Partes afectadas** | `programas/services/siis_envio.py` · `programas/services/proceso_masivo.py` · `programas/views/proceso_masivo.py` · `programas/management/commands/validar_casos_siis.py` y `procesar_casos_siis.py` · `programas/models/__init__.py` (dos `Meta.indexes`) · `programas/migrations/0082_indices_ultimo_intento_siis.py` · `core/performance/cache_utils.py` · `programas/services/padron.py` · `programas/views/cupo.py` · `core/management/commands/seed_perf.py` · `scripts/perf_audit.py` y `scripts/perf_budgets.json` |
+| **Migración** | `programas.0082` — dos índices `(formulario, creado, id)` en `programas_enviosiis` y `programas_validacionsis`. Online (`ALGORITHM=INPLACE, LOCK=NONE`), 29 y 26 ms en el banco |
+
+## Pedido original
+
+El mismo camino de punta a punta —elegir candidatos, armar el payload, validarlos y
+mirarlos desde la pantalla— pagaba por caso lo que es igual para todos.
+
+- **PERF-01 (+V4-NEW-02).** `armar_payload` consultaba 6 veces por caso lo mismo: los
+  campos con destino SIIS del catálogo, la provincia y la localidad de los dos
+  domicilios. Medido: `elegir_completos` sobre 200 casos = 1.200 consultas; proyectado a
+  los 7.496 candidatos reales, 45-60 mil **antes** del primer latido de la corrida.
+- **PERF-19.** «El último envío de este caso» viajaba como una subconsulta correlacionada
+  escrita **dos veces** en el `WHERE`, y MariaDB no comparte la caché entre las dos.
+- **PERF-07.** La pantalla del masivo contaba candidatos con los 15.531 DNI habilitados
+  como literales (188 KB de SQL) y, con una corrida en curso, se relee sola **cada 5 s**
+  en el mismo proceso que la corrida.
+- **PERF-06.** `validar_casos_siis` traía todos los casos con sus cuatro JSON en una sola
+  consulta.
+
+## Alcance acordado
+
+Entra: las cuatro fichas y los tres seguimientos MINOR de la revisión de #632 (la función
+muerta de caché, la memoria del cruce de padrón y la hidratación a mano de la pantalla de
+cupo). Queda afuera el resto de la Ola 4 y **PERF-11**, que es la raíz estructural de lo
+que acá se esquiva con `defer`: mientras la foto `definicion` se copie en cada caso, el
+circuito de alta tiene que traerla sí o sí.
+
+## Decisiones tomadas
+
+- **El memo es de instancia, no de proceso.** `Catalogos` memoriza destinos, provincias,
+  localidades y el índice de cada catálogo; una corrida crea una sola instancia y la usa
+  para miles de casos. El precio es que una equivalencia cargada a mano mientras la
+  corrida está en vuelo no se ve hasta la siguiente; la alternativa —releer por caso— es
+  justo lo que la ficha vino a sacar.
+- **Se memoriza también el `None`.** «Esta localidad no matchea» cuesta las mismas
+  consultas que la que sí, y era la respuesta del 38 % de los casos.
+- **`hidratar()` no difiere los JSON** (contra la propuesta 5 de PERF-01). `armar_payload`
+  los lee: `respuestas_por_destino` abre `definicion` y `data`, `cuil_del_caso` abre
+  `respuestas`, las correcciones salen de `datos_siis`. Diferirlos no ahorra bytes, los
+  vuelve a pedir de a uno. El `defer` quedó como parámetro (`JSON_DEL_CASO`) y lo usa el
+  llamador que de verdad no los lee, `validar_casos_siis`.
+- **El relleno del `Coalesce` es la cadena vacía.** No es ninguno de los `choices` de
+  `EnvioSIIS.Estado` ni de `ValidacionSIS.Estado`, así que «sin intentos» pasa a ser un
+  valor más y el filtro queda en **una** referencia a la subconsulta.
+- **No hay memo con TTL de `dnis_aprobados_materias`** (el punto 2 de PERF-07). Esa tabla
+  decide quién va a SIIS y el alta no tiene baja: servir una lista de hace cinco minutos a
+  una corrida lanzada justo después de cargar la planilla es un riesgo que no paga una
+  pantalla. Con el punto 1 —no contar nada mientras hay corrida— esa lectura ya no está en
+  el camino de los 5 s.
+- **Los dos conteos de la pantalla se cachean 60 s y salen juntos.** Son informativos: se
+  usan para decidir cuánto pedir, y quien lanza vuelve a contar del otro lado.
+- **El presupuesto nuevo no es un presupuesto que sube.** `becas_proceso_masivo` es la
+  primera guarda de esa ruta, así que RED-62 no aplica; la justificación igual está
+  escrita en `adjustments`.
+- **`seed_perf` crea el programa SIIS sobre el último segmento**, no sobre el 000: los
+  otros presupuestos (cupo, detalle de caso) miran ese y colgarle un programa SIIS les
+  cambiaría las filas que leen.
+
+## Implementación
+
+**PERF-01 — `programas/services/siis_envio.py`.** `Catalogos` estrena cuatro memos de
+instancia: `_destinos` por `(segmento, subsegmento, programa)`, `_prov` por clave, `_loc`
+por `(clave, provincia_id)` y `_indices` con `{clave: [items]}` por catálogo —antes
+`_buscar` normalizaba el nombre de cada ítem del catálogo en cada llamada—.
+`respuestas_por_destino(formulario, catalogos=None)` usa el memo si se lo pasan.
+`procesar_casos_siis` hidrata por lotes también en la rama sin `--solo-completos`.
+
+**PERF-19 — `proceso_masivo.candidatos` y `validar_casos_siis._casos`.**
+`Coalesce(Subquery(ultimo), Value(""))` y un solo `exclude` / `__in`. Los dos índices
+`(formulario, creado, id)` en `programas.0082`.
+
+**PERF-07 — `programas/views/proceso_masivo.py`.** Con `en_curso` la vista no calcula
+ninguno de los dos números; la existencia de la tabla se pregunta con
+`proceso_masivo.hay_aprobados_materias()`. Sin corrida, `conteos_de_la_pantalla()` arma los
+dos querysets compartiendo `Insumos` (la planilla, la lista de exclusión y los casos
+agotados se leen una vez) y el par se cachea 60 s.
+
+**PERF-06 — `validar_casos_siis`.** `_casos` devuelve el queryset; el comando se queda con
+los ids por rangos de pk y los hidrata lote por lote con `defer` de los cuatro JSON.
+`sin_programa` y `sin_dni`, dos `count()` en la base; con `--limite`, el recorte se
+reproduce exacto acotando por el último pk.
+
+**Los tres MINOR de #632.** `invalidate_ciudadano_cache` se borra (no la llamaba nadie);
+el cruce del padrón vacía trazas y ciudadanos cada 2.000 casos, así que el `iterator`
+acota también la escritura; y la pantalla de cupo usa `listados.hidratar_pagina`.
+
+## Base de datos
+
+`programas.0082` (`programas/migrations/0082_indices_ultimo_intento_siis.py`): dos índices
+`(formulario, creado, id)`, uno en `programas_enviosiis` (`idx_enviosiis_ultimo`) y otro en
+`programas_validacionsis` (`idx_validacionsis_ult`). No agrega, no borra ni renombra ninguna
+columna, y no corre datos: `scripts/check_migraciones.py` no tiene nada que exigirle, y la
+reversa (`RemoveIndex`) es exacta.
+
+**Online en los dos motores.** Son índices secundarios sobre tablas chicas al lado de
+`programas_formulario`: InnoDB los crea con `ALGORITHM=INPLACE, LOCK=NONE`, sin reescribir la
+tabla ni bloquear escrituras. Medido en el banco (8.000 envíos, 10.906 validaciones) con las
+cláusulas puestas a mano para comprobar que el motor las acepta: **29 ms** y **26 ms**.
+
+**El detalle que no es obvio.** Al aplicar, Django borra el índice implícito de la clave
+foránea de `programas_validacionsis` (`programas_validacion_formulario_id_…`), porque el índice
+nuevo lo cubre; al desaplicar lo recrea con el nombre de Django
+(`programas_validacionsis_formulario_id_bca809bb`). La ida y vuelta por `migrate` está probada
+contra MariaDB 10.11 y queda limpia. Lo que **no** se puede hacer es un `DROP INDEX` a mano
+fuera de Django: falla con `ERROR 1553` porque la FK necesita el índice.
+
+**Expand puro.** Un índice no cambia ningún resultado: la release anterior sigue funcionando
+con él puesto y la nueva funciona sin él (más lento). No hay orden que respetar en el deploy.
+
+## Validación
+
+Medido en el **banco MariaDB 10.11** (`scripts/perf_mysql`, base `chaco_perf_ci`,
+`seed_perf --scale 2000` + `escalar_bench --casos 20000`, 22.000 DNI en
+`aprobados_materias`, 8.000 envíos y 10.906 validaciones, `OPTIONS` de producción con
+`read_timeout` 10 s y sin tablas de timezone), antes contra `origin/development` y después
+contra esta rama, en la misma sesión y contra la misma base:
+
+| Camino | Antes | Después |
+|---|---|---|
+| `elegir_completos` sobre 200 candidatos | 1.201 sentencias · 4.132 ms | **8 sentencias · 329 ms** |
+| `validar_casos_siis`, ensayo sobre 20.000 casos | 3 sentencias · **22.917 ms** | 11 sentencias · **431 ms** |
+| Pantalla del masivo, con corrida en curso (relee cada 5 s) | 720-794 ms · SQL 484-578 ms | **45-50 ms · SQL 16-31 ms** |
+| Pantalla del masivo, sin corrida, visita siguiente | 1.562 ms · SQL 1.140 ms | **41 ms · SQL 16 ms** |
+| Los dos conteos de la pantalla | 10 sentencias · 1.515 ms | 6 sentencias · 1.030 ms |
+
+`EXPLAIN ANALYZE` del recorte de candidatos: antes, **tres** `DEPENDENT SUBQUERY` sobre
+`programas_enviosiis` —dos con `Using filesort`— y la de `programas_validacionsis` también
+con `filesort`; después, **una** sobre `idx_enviosiis_ultimo` y la de validaciones sobre
+`idx_validacionsis_ult`, ninguna con `filesort`. Los dos `ADD INDEX … ALGORITHM=INPLACE,
+LOCK=NONE` tardaron 29 y 26 ms.
+
+- `manage.py test programas`: **2.419 tests, OK**; `manage.py test core dashboard legajos`:
+  **1.341 tests, OK**.
+- `manage.py test core.tests.test_performance_budgets --tag performance`: OK con
+  `becas_proceso_masivo` en 18 (medido 17 + 1).
+- Los tests nuevos corren **en rojo** contra `origin/development` (`d7e18690`): 6 fallas y
+  2 errores de API que todavía no existe.
+- `manage.py check` sin issues; `check --deploy` con los avisos preexistentes de settings
+  de desarrollo; `makemigrations --check --dry-run`: «No changes detected».
+- `ruff check .` y `ruff format --check` limpios.
+- Migración aplicada y desaplicada contra MariaDB 10.11 sobre datos sembrados, a mano.
+- `requerimientos.py --check` OK. No se tocó ningún template: la auditoría de diseño no
+  aplica.
+
+## Pendientes / a definir
+
+- **PERF-11 sigue siendo la raíz.** Mientras `definicion` se copie en cada caso, el alta
+  tiene que traerla: acá solo se esquivó donde nadie la lee.
+- **El memo no se entera de un cambio en vuelo.** Si alguien carga una equivalencia de
+  localidad mientras una corrida está informando, los casos de esa corrida siguen con la
+  respuesta de antes. Para que la vean, hay que relanzar.
+- **Los conteos de la pantalla pueden estar hasta 60 s atrasados** después de que termina
+  una corrida. No cambia ninguna decisión: quien lanza vuelve a contar del otro lado.
+- **`aprobados_materias` se sigue leyendo entera** en cada visita sin corrida y en cada
+  corrida. Es la decisión de arriba; si alguna vez molesta, la salida es cruzarla en SQL,
+  no cachearla.
+
+## Reversión
+
+Revertir el commit devuelve el circuito a consultar por caso, la pantalla a contar cada
+5 s y el comando de validación a traer todo en una consulta. La migración se desaplica con
+`migrate programas 0081`, que borra los dos índices y **recrea** el índice implícito de la
+clave foránea de `programas_validacionsis` con su nombre de Django: hay que hacerlo por
+`migrate`, porque un `DROP INDEX` a mano falla con `ERROR 1553` (la FK lo necesita).
+Un índice no cambia ningún dato, así que no queda nada inconsistente. Si lo que molesta es
+el presupuesto nuevo, se saca `becas_proceso_masivo` de `scripts/perf_budgets.json` **y**
+de `scripts/perf_audit.py::build_targets` en el mismo diff.
