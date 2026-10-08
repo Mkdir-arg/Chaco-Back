@@ -47,7 +47,7 @@ def recrear_permisos(apps, schema_editor):
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("users", "0028_sembrar_ciudadano_exportar"),
+        ("users", "0032_backfill_rolmeta_clave_menu"),
     ]
 
     operations = [

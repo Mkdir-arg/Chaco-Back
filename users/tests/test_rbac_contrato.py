@@ -78,7 +78,7 @@ LITERAL = re.compile(r"""(?P<comilla>["'])(?P<codigo>[^"']+)(?P=comilla)""")
 # una decisión, no un olvido: el ABM de Roles las sigue ofreciendo.
 CAPACIDADES_SIN_USO = {
     # `ciudadano.eliminar` salió de esta lista **y del catálogo** en la Ola 7
-    # (OPS-14, `users.0029`): no hay pantalla de borrado de ciudadanos y tildarla
+    # (OPS-14, `users.0033`): no hay pantalla de borrado de ciudadanos y tildarla
     # en el ABM de Roles no habilitaba nada. El candado es
     # `CapacidadRetiradaTests`, más abajo.
     # Las tres siguientes las midió este test el 07/10/2026 (la ficha RED-44
@@ -297,7 +297,7 @@ class CapacidadRetiradaTests(SimpleTestCase):
     Era una capacidad que el ABM de Roles ofrecía, el seed tildaba en «Gestión de
     Ciudadanos» y **ninguna vista evaluaba**: no hay pantalla de borrado de
     ciudadanos. Eso es peor que no ofrecerla —quien administra roles cree estar
-    dando o quitando un permiso real—. `users.0029` borra además el `Permission`,
+    dando o quitando un permiso real—. `users.0033` borra además el `Permission`,
     porque Django no lo hace al sacarlo de `Meta.permissions` y quedaría tildado
     en los grupos que lo tenían, con `rbac.puede()` resolviéndolo.
 

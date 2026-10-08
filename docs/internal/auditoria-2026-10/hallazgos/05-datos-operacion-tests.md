@@ -5,7 +5,7 @@ Fichas completas del dominio. Convenciones, `V-STD` y `V-UI`: README §0. PoC: `
 
 | ID | Título | Sev. | Estado | Ola | Esf. | Avance 03-oct |
 |---|---|---|---|---|---|---|
-| OPS-06 | **Seeds de arranque pisan configuración del ABM** (capacidades, roles, Operador de backoffice, programa Becas) | ALTA | CONF. test | **0** | S-M | 🟡 |
+| OPS-06 | **Seeds de arranque pisan configuración del ABM** (capacidades, roles, Operador de backoffice, programa Becas) | ALTA | CONF. test | **0** | S-M | ✅ |
 | DAT-01 | Borrar una pregunta o requisito borra los adjuntos de todos los casos | ALTA | CONF. test | 3 | S (+M fase 2) | ✅ fase 1 |
 | OPS-03 | Los tracebacks de 500 no llegan a stdout | ALTA | CONF. test | **R** (antes 3) | S | ✅ |
 | OPS-01 | Sin guarda de coherencia `django_migrations` ↔ esquema antes de `migrate` | MEDIA | CONF. código | **R** (antes 3) | M | ✅ |
@@ -38,6 +38,30 @@ Fichas completas del dominio. Convenciones, `V-STD` y `V-UI`: README §0. PoC: `
 
 ### OPS-06 · Seeds de arranque pisan la configuración que el ABM deja editar
 **Severidad:** ALTA (sube desde la MEDIA de OPS-06 de V6 por G1c-02) · **Estado:** CONFIRMADO con test (`poc/test_repro_admin_cron_renaper.py::G1c02SeedPisaCapacidadesTests`; `poc/test_repro_usuarios.py::G2OperadorBackofficeSeedTests`); impacto en PRD PLAUSIBLE con alta probabilidad · **Origen:** A8-08, G1c-02, G1c-03, G2-02 · **Ola:** **0** · **Esfuerzo:** S-M (M si se agrega `RolMeta.clave`) · **Decisión:** D-O06
+
+**Resolución (fase 2):** ✅ Cerrada en #646 (Cambio 193, Ola 2 PR 1), 08-oct-2026 — `RolMeta.clave`
+identifica a los **doce** roles que siembra el arranque: `sistema.administrador`, `sistema.operador_backoffice`, los
+cinco `becas.*` y los **cinco de menú** (`menu.dashboard`, `menu.ciudadanos`, `menu.reportes`, `menu.configuracion`,
+`menu.administracion`). `users.0033` agrega la columna —`NULL`, única, expand puro: el código viejo no la escribe y
+MySQL y MariaDB admiten varios `NULL` en un índice único— y `users.0030` se la pone a los roles que ya existen
+empatando por el nombre canónico, con reversa que los vuelve a `NULL`. `asegurar_rol_sembrado` (en
+`users/services/roles.py`, una sola implementación para los tres seeds) busca por clave y solo cae al nombre cuando
+ninguna fila la tiene todavía; en ese caso se la deja puesta, así que a partir del segundo arranque el nombre deja de
+importar. Con eso, el escenario 3 —renombrar «Becas — Referente» y que el arranque siguiente cree un segundo rol vacío
+al lado del que la gente usa— deja de pasar, y el rol renombrado **se sigue sincronizando** (capacidades base del
+Cambio 29) sin que le toquen el nombre ni el estado activo (D-O06). **Lo que la clave no arregla hacia atrás:** un rol
+que ya estaba renombrado **antes** de este deploy no se puede reconocer —no hay por dónde empatarlo—, así que queda sin
+clave y el seed crea el canónico, como venía pasando. Es un paso del PM, no del código. **Test permanente:**
+`users.tests.test_seed_datos_base.ClaveEstableDeLosRolesSembradosTests` (6) y, en `SeedRolesBecasTests`,
+`test_un_rol_renombrado_no_genera_un_duplicado` + `test_un_rol_renombrado_se_sigue_sincronizando` (las dos que
+documentaban el hueco, invertidas).
+**Ronda 2 de la revisión:** la fase 2 cubría **7 de los 12** roles. Los cinco de menú seguían sembrándose con
+`Group.objects.get_or_create(name=…)` y no estaban en `users.0030`: renombrar «Gestión de Ciudadanos» y
+«Administración» desde el ABM y correr `seed_datos_base` daba **14 → 16 grupos**, y el «Administración» duplicado nace
+con `usuario.administrar` + `rol.administrar`, cero usuarios y `clave=None`, al lado del que la gente usa. Ahora pasan
+por el mismo helper y su backfill es **`users.0032`** —una migración nueva, no una ampliación de la `0030`, porque esta
+rama se puede haber desplegado ya en testing y una migración aplicada no vuelve a correr—. Sigue valiendo el «solo al
+crearlo» del Cambio 104: reconocer el rol no es rehacerle las capacidades.
 
 **Resolución:** 🟡 Parcial en #508 (Cambio 104), 01-oct-2026 — puntos 1-3: las opt-in (`seed_becas.CAPACIDADES_OPT_IN`) sobreviven al seed; de un rol existente no se pisan descripción, activo ni protegido; «Operador de backoffice» se siembra solo al crearlo; `crear_programas` busca por `codigo` y no toca un programa existente (cubre G1c-03); tests en `users/tests/test_seed_datos_base.py`. DECISIÓN PM 01-oct (D-O06): «Operador de backoffice» queda como está (no protegido, conserva sus capacidades). Falta: la fase 2 (`RolMeta.clave`: un rol renombrado sigue generando un segundo rol en el arranque, escenario 3) → Ola 2, PR 1 (+4 h); P-05 en PRD y volver a tildar `becas.relevamiento.publico` donde el deploy del 28/09 la haya borrado (operativo, PM).
 - **Ubicación:** `programas/management/commands/seed_becas.py:296-325` (`group.permissions.set(...)` por rol, línea 325; `:56-61` excluye `becas.relevamiento.publico`), `:313-325` (`asegurar_roles_becas`: `update_or_create(... "activo": True, "protegido": False ...)`); `users/management/commands/seed_rbac.py:86-111` (`RolMeta.update_or_create(... "protegido": False, "activo": True)` + `permissions.set` con `usuario.administrar` y `rol.administrar` sobre «Operador de backoffice», línea 110); `legajos/management/commands/crear_programas.py:28-40` (`update_or_create(tipo=BECAS, defaults={estado ACTIVO, nombre, color, orden})`); `users/views/roles.py:80-127` (el ABM permite renombrar, desactivar y borrar roles); `configuracion/views/programas.py:430-452` (permite cambiar el estado del programa); `docker-entrypoint.sh:61-62` (default `seed_datos_base crear_programas seed_catalogo_siis` en cada arranque).
@@ -540,7 +564,7 @@ recorre `git ls-files "*.py"`; verificado de nuevo acá, ningún `.py` con CR. L
 `tramites/` (sin modelos ni rutas; sale también de `INSTALLED_APPS`, del `content` de Tailwind y de los dos scripts de
 auditoría que la nombraban), `docker/django/` —el `Dockerfile` que nadie construía y `entrypoint_final.py`, que corría
 un script inexistente y decía «SISOC»—, `core/services/cache.py` (cero importadores) y la capacidad
-`ciudadano.eliminar`, con `users.0029`: `AlterModelOptions` sobre el modelo ancla (`managed = False`, **no toca el
+`ciudadano.eliminar`, con `users.0033`: `AlterModelOptions` sobre el modelo ancla (`managed = False`, **no toca el
 esquema**) más un `RunPython` que borra el `Permission`, porque Django no lo hace al sacarlo de `Meta.permissions` y
 quedaría tildado en los grupos que lo tenían con `rbac.puede()` resolviéndolo —mismo patrón que `users.0017`—; la
 reversa lo recrea **sin reasignarlo**, y está marcada `# REVERSA-NOOP`.

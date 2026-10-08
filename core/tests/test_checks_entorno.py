@@ -18,7 +18,7 @@ from django.core.checks import Warning as CheckWarning
 from django.core.checks.registry import registry
 from django.test import SimpleTestCase, override_settings
 
-from core.checks import entorno_de_integraciones
+from core.checks import entorno_de_integraciones, media_x_accel_necesita_el_location_interno
 
 SIIS_PRD = "https://siisapi.chaco.gob.ar"
 SIIS_DEV = "https://siisapi.ecomdev.ar"
@@ -166,3 +166,53 @@ class ChecksDeEntornoTests(SimpleTestCase):
         """Sin esto el check existe pero no lo corre nadie."""
         self.assertIn(entorno_de_integraciones, registry.get_checks(include_deployment_checks=True))
         self.assertNotIn(entorno_de_integraciones, registry.get_checks(include_deployment_checks=False))
+
+
+class MediaXAccelCheckTests(SimpleTestCase):
+    """`core.W004` — `MEDIA_X_ACCEL=True` sin el `location internal` baja 0 bytes.
+
+    Seguimiento de #643. Django no puede verificar el ingress (es de otro equipo), así
+    que el check **no afirma** que falte: avisa cuando la variable está prendida, que es
+    justo cuando hay que leer el runbook. Apagada —el default— no dice nada.
+    """
+
+    def _correr(self):
+        return media_x_accel_necesita_el_location_interno(None)
+
+    @override_settings(MEDIA_X_ACCEL=False)
+    def test_apagado_no_dice_nada(self):
+        self.assertEqual(self._correr(), [])
+
+    @override_settings(MEDIA_X_ACCEL=True)
+    def test_prendido_avisa_y_nombra_el_location(self):
+        mensajes = self._correr()
+
+        self.assertEqual([m.id for m in mensajes], ["core.W004"])
+        self.assertIsInstance(mensajes[0], CheckWarning)
+        self.assertIn("/protected-media/", mensajes[0].msg)
+        self.assertIn("0 bytes", mensajes[0].msg)
+        self.assertIn("MEDIA_ROOT", mensajes[0].hint)
+
+    def test_el_default_del_repo_lo_deja_callado(self):
+        """Hoy nadie lo tiene prendido: el check no agrega ruido al CI."""
+        self.assertEqual(self._correr(), [])
+
+    def test_el_check_esta_registrado_solo_para_deploy(self):
+        self.assertIn(
+            media_x_accel_necesita_el_location_interno,
+            registry.get_checks(include_deployment_checks=True),
+        )
+        self.assertNotIn(
+            media_x_accel_necesita_el_location_interno,
+            registry.get_checks(include_deployment_checks=False),
+        )
+
+    def test_el_runbook_tiene_el_paso_operativo(self):
+        """La otra mitad de la ficha: si Django no puede verificarlo, va escrito."""
+        from pathlib import Path
+
+        runbook = Path(__file__).resolve().parents[2] / "docker" / "k8s" / "README.md"
+        texto = runbook.read_text(encoding="utf-8")
+
+        self.assertIn("core.W004", texto)
+        self.assertIn("location /protected-media/", texto)

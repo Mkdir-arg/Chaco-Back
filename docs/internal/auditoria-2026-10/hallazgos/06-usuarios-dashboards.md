@@ -8,9 +8,9 @@ PoC: `poc/test_repro_usuarios.py`. Lo de la API REST de usuarios está en SEC-05
 
 | ID | Título | Sev. | Estado | Ola | Esf. | Avance 03-oct |
 |---|---|---|---|---|---|---|
-| G1b-02 | Capacidades «parciales» del programa se autootorgan las demás (contradice Cambio 20) | ALTA | CONF. test | 2 | M | ⬜ |
+| G1b-02 | Capacidades «parciales» del programa se autootorgan las demás (contradice Cambio 20) | ALTA | CONF. test | 2 | M | ✅ |
 | G1b-05 | Operador no global deja cuentas activas sin rol, que entran al backoffice | MEDIA | CONF. test | 2 | S | ✅ |
-| G1b-06 | Admin de programa borra en silencio capacidades globales del rol al guardarlo | MEDIA | CONF. test | 2 | S | ⬜ |
+| G1b-06 | Admin de programa borra en silencio capacidades globales del rol al guardarlo | MEDIA | CONF. test | 2 | S | ✅ |
 | G2-03 | «Cambiar contraseña» abierto para cualquier sesión y sin pedir la clave actual | MEDIA | CONF. test | 2 | S | ✅ |
 | G1b-07 | Desactivar el último rol admin: 500 (programa) o sistema sin admin (global) | BAJA | CONF. test | 2 | S | ✅ |
 | G1b-08 | Claves tipeadas por un operador sin validadores ni cambio obligatorio | BAJA | CONF. lectura | 2 | S | ✅ |
@@ -42,6 +42,27 @@ PoC: `poc/test_repro_usuarios.py`. Lo de la API REST de usuarios está en SEC-05
 - **Verificación:** V-STD + `manage.py test users`. Pre-chequeo P-06 (README §3).
 - **Dependencias:** SEC-07 y SEC-06 (mismo `RolForm.clean`); SEC-03.
 
+**Resolución:** ✅ Resuelta en #646 (Cambio 193, Ola 2 PR 1), 08-oct-2026 — las dos mitades de la escalada, por
+caminos distintos. **(a) El rol propio:** `users.selectors.roles.puede_editar_rol` es la puerta nueva de editar, borrar
+y desactivar un rol, y para un operador **no global** devuelve False sobre los roles que él mismo tiene; ver sigue
+abierto (la ficha del rol propio se abre, y el listado lo muestra sin las acciones, con `item.puede_editar` resuelto en
+una sola consulta para toda la página). **(b) Las capacidades:** `core.rbac.capacidades_no_delegables(programa)` es la
+fuente única —`CAPS_ADMIN_PROGRAMA`, `CAPS_ADMINISTRACION` y `programa.configurar` salvo en DISPOSITIVOS— y la
+consultan las tres puntas: el árbol que dibuja el ABM (los módulos que quedan vacíos no se dibujan, así que «Programas»
+desaparece para un admin de programa), el `clean` del formulario y `_roles_asignables_queryset`, que saca del combo del
+ABM de Usuarios **los roles que otorgan esas capacidades**, que es por donde entraba la mitad (b) de la PoC.
+**Desvío de la ficha, medido:** el punto 1 proponía además recortar a «lo que el operador tiene en ese programa». Eso
+rompe el ABM delegado —un rol con `programa.rol.administrar` y nada más, que es como lo arma el Cambio 20, quedaba sin
+poder crear un rol con una sola capacidad, y un admin de los usuarios de un programa no podía asignar ningún rol
+operativo del suyo— y **no compra seguridad**: quien administra los dos ABM de su programa ya puede fabricar un rol y
+asignárselo, así que el recorte solo movía el trámite. Lo que sí escala —salir del programa o volverse
+administrador— lo cierran el catálogo de SEC-06, esa lista y `puede_editar_rol`.
+**Cambio de comportamiento para el PM:** un Administrador de Becas ya **no** puede asignarle a nadie el rol «Becas —
+Administrador» (otorga las dos transversales); eso vuelve a ser de un rol global. Los otros cuatro roles sembrados,
+incluido Territorial, los sigue repartiendo. **Test permanente:**
+`users.tests.test_roles_ola2_pr1.G1b02EscaladaDentroDelProgramaTests` (6).
+**Operativo (PM):** **P-06**.
+
 ## MEDIA
 
 ### G1b-05 · Un operador no global deja cuentas activas sin rol, que entran al backoffice y desaparecen de su listado
@@ -71,6 +92,13 @@ las cuentas que ya quedaron así.
 - **Escenario (reproducido):** el admin global agrega `ciudadano.ver` a un rol de Becas; el admin de roles de Becas lo guarda cambiando solo la descripción y `ciudadano.ver` desaparece.
 - **Propuesta:** en `RolesAdminService.actualizar`, `finales = (actuales − permitidas_operador) ∪ seleccionadas`.
 - **Tests:** el de la PoC invertido.
+
+**Resolución:** ✅ Resuelta en #646 (Cambio 193, Ola 2 PR 1), 08-oct-2026 — exactamente la fórmula de la ficha.
+`RolForm.clean` deja en `form.capacidades_permitidas` el conjunto que ese operador puede tocar (`None` para el admin
+global, que sí decide todo el catálogo) y `_set_capacidades` arma `finales = (actuales − permitidas) ∪ seleccionadas`.
+Lo que el árbol no le muestra, el guardado no lo pisa. La contracara tiene su propio test: lo que **sí** ve se sigue
+pudiendo destildar, o el fix convertiría el ABM en «solo agregar». **Test permanente:**
+`users.tests.test_roles_ola2_pr1.G1b06CapsGlobalesBorradasTests` (3).
 
 ### G2-03 · «Cambiar contraseña obligatorio» está abierto para cualquier sesión y no pide la clave actual
 **Severidad:** MEDIA · **Estado:** CONFIRMADO con test (`G2CambioClaveSinClaveActualTests`) · **Origen:** G2-03 · **Ola:** 2 (con SEC-26) · **Esfuerzo:** S

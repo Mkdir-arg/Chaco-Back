@@ -297,6 +297,13 @@ class RolAlcanceTests(TestCase):
 
     # --- Formulario ---
     def test_form_admin_programa_fija_programa_y_arbol(self):  # TC-66-03
+        """G1b-02: el módulo «Programas» ya no aparece.
+
+        Sus tres capacidades son las que vuelven administrador a quien las reciba
+        (``programa.usuario.administrar``, ``programa.rol.administrar``) o le abren el
+        wizard (``programa.configurar``, SEC-07). Ninguna la delega un admin de
+        programa, así que el módulo queda vacío y el árbol no lo dibuja.
+        """
         form = RolForm(operador=self.admin_becas)
         self.assertFalse(form.es_admin_global)
         self.assertEqual(form.programa_fijo, self.becas)
@@ -304,7 +311,6 @@ class RolAlcanceTests(TestCase):
         self.assertEqual(
             modulos,
             {
-                "programas",
                 "relevamientos",
                 "becas_admin",
                 "becas_segmentos",
@@ -321,6 +327,36 @@ class RolAlcanceTests(TestCase):
                 "becas_campo",
             },
         )
+        ofrecidas = {c["codigo"] for m in form.arbol_capacidades() for c in m["capacidades"]}
+        self.assertNotIn("programa.usuario.administrar", ofrecidas)
+        self.assertNotIn("programa.rol.administrar", ofrecidas)
+        self.assertNotIn("programa.configurar", ofrecidas)
+
+    def test_form_admin_dispositivos_si_delega_programa_configurar(self):
+        """SEC-07: DISPOSITIVOS es la excepción.
+
+        Es el único programa que evalúa ``programa.configurar`` con alcance
+        (``puede_configurar_dispositivos``), así que ahí delegarla no saca a nadie del
+        programa. Las dos transversales de administración siguen afuera.
+        """
+        rol_admin_disp = Group.objects.create(name="Admin Dispositivos")
+        dispositivos = Programa.objects.create(codigo="DISPOSITIVOS", nombre="Dispositivos")
+        RolMeta.objects.create(
+            grupo=rol_admin_disp,
+            categoria=rbac.CATEGORIA_PROGRAMA,
+            programa=dispositivos,
+            activo=True,
+        )
+        rol_admin_disp.permissions.add(_perm("programa.rol.administrar"))
+        admin_disp = User.objects.create_user("adm-disp-config", password="x")
+        admin_disp.groups.add(rol_admin_disp)
+
+        form = RolForm(operador=admin_disp)
+        ofrecidas = {c["codigo"] for m in form.arbol_capacidades() for c in m["capacidades"]}
+
+        self.assertIn("programa.configurar", ofrecidas)
+        self.assertNotIn("programa.usuario.administrar", ofrecidas)
+        self.assertNotIn("programa.rol.administrar", ofrecidas)
 
     def test_form_admin_dispositivos_incluye_su_catalogo_especializado(self):
         dispositivos, _ = Programa.objects.get_or_create(
