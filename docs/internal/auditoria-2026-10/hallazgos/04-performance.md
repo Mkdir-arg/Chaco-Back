@@ -15,14 +15,14 @@ exige que coincidan).
 |---|---|---|---|---|---|---|
 | PERF-04 | Carga de padrón: cruce caso por caso (13.942 sentencias) | ALTA | CONF. medido; prototipo listo | 4 | M | ✅ |
 | PERF-02 | Cupo y beneficiarios: páginas anchas con join | ALTA | CONF. medido en MariaDB (8,99 s de SQL) | 4 | S | ✅ |
-| PERF-01 | `armar_payload` por candidato y `hidratar()` con JSON que nadie lee | MEDIA | CONF. ajustado | 4 | S | ⬜ |
+| PERF-01 | `armar_payload` por candidato y `hidratar()` con JSON que nadie lee | MEDIA | CONF. ajustado | 4 | S | ✅ |
 | PERF-03 | Excel de respuestas por persona: 8,9 s de CPU en el request | MEDIA (baja desde ALTA) | CONF. ajustado | 4 | S-M | ⬜ |
-| PERF-07 | Pantalla del masivo: `count()` con 15.532 literales cada 5 s | MEDIA | CONF. ajustado | 4 | S | ⬜ |
+| PERF-07 | Pantalla del masivo: `count()` con 15.532 literales cada 5 s | MEDIA | CONF. ajustado | 4 | S | ✅ |
 | PERF-11 | La foto `definicion` en cada caso (88 % de los bytes) | MEDIA (estructural) | CONF. medido | 7 | L | ⬜ |
 | PERF-20 | `generar_alertas` recorre todos los ciudadanos activos cada hora | MEDIA | CONF. medido | 4 | S | ⬜ |
 | G1b-11 | Export del dashboard: un `JSON_EXTRACT` por pregunta sobre todo el recorte | MEDIA | PLAUSIBLE | 4 | M | ⬜ |
 | G1c-09 | Admin: fichas de Formulario y Derivación que crecen con la tabla | MEDIA | CONF. test | 4 | S | ⬜ |
-| PERF-06 | `validar_casos_siis` trae todo con JSON en una consulta | BAJA | CONF. código | 4 | S | ⬜ |
+| PERF-06 | `validar_casos_siis` trae todo con JSON en una consulta | BAJA | CONF. código | 4 | S | ✅ |
 | PERF-08 | `CONN_MAX_AGE = 60` bajo daphne no reutiliza conexiones | BAJA | CONF. ajustado (sonda) | 4 | S | ⬜ |
 | PERF-10 | Redis compartido (sesiones + cache, `allkeys-lru`) y sesión por visita pública | BAJA | CONF. ajustado | 4 | S | ⬜ |
 | PERF-12 | `COUNT(*)` del cupo del link | BAJA | CONF. ajustado | 4 | — (medir) | ⬜ |
@@ -31,7 +31,7 @@ exige que coincidan).
 | PERF-16 | Señal de `Ciudadano`: 4 DEL de Redis por save | BAJA | CONF. medido | 4 | S | ✅ |
 | PERF-17 | Listados operativos sin paginar (Dispositivos/Merenderos/convocatorias) | BAJA | CONF. código | v2 (criterio) | S | ⬜ |
 | PERF-18 | Ocupación de Dispositivos con `Count(distinct)` sobre camas × admisiones | BAJA | CONF. código | v2 (criterio) | S | ⬜ |
-| PERF-19 | «Último intento» sin índice y subconsulta evaluada dos veces | BAJA | CONF. ajustado | 4 | S | ⬜ |
+| PERF-19 | «Último intento» sin índice y subconsulta evaluada dos veces | BAJA | CONF. ajustado | 4 | S | ✅ |
 | G1c-11 | Admin: N+1 en listados | BAJA | CONF. lectura | 4 | S | ⬜ |
 | G3-03 | `alertas_websocket.js` cargado para todos, con 5 reintentos inútiles | BAJA | CONF. lectura | 2 | S | ✅ |
 
@@ -145,6 +145,29 @@ y `programas.tests.test_cupo_performance.MismosCasosEnElMismoOrdenTests.test_ben
 - **Verificación:** V-STD; banco: `procesar_casos_siis --solo-completos --total 5000` en ensayo contra `chaco_perf_ci` (tabla `aprobados_materias` desde `scripts/Aprobados.sql`), cronometrar «Armando el payload…».
 - **Dependencias:** G1-08 cambia de dónde sale el destino (foto): coordinar el memo.
 
+**Resolución:** ✅ Resuelto en #639 (Cambio 186, Ola 4 PR 3), 08-oct-2026 — los puntos 1 a 3 de la propuesta,
+como **memo de instancia** de `Catalogos`: `destinos_del_catalogo` por `(segmento, subsegmento, programa)`,
+`provincia_id` por clave, `localidad_id` por `(clave, provincia_id)` —memorizando también el `None`, que era la
+respuesta del 38 % de los casos— y un índice `{clave: [items]}` por catálogo en vez de normalizar la lista entera
+por llamada. `respuestas_por_destino(formulario, catalogos=None)` usa el memo si se lo pasan; sin él se comporta
+igual que antes. Medido en el banco MariaDB 10.11 (20.000 casos, 22.000 DNI en `aprobados_materias`):
+`elegir_completos` sobre 200 candidatos pasa de **1.201 sentencias y 4.132 ms** a **8 sentencias y 329 ms**.
+El punto 4 **no** se hizo: reusar el payload entre `elegir_completos` y el alta exige confirmar que aprobar no
+mueve ningún campo, y con los puntos 1-3 el segundo armado ya no consulta nada.
+**El punto 5 se contradice con el código y no se aplicó** (ver V4-NEW-02, abajo): en `procesar_casos_siis` sí se
+cambió `hidratar(...)` por `hidratar_por_lotes(...)` en la rama sin `--solo-completos`, que era la que traía hasta
+5.000 casos (~35 MB) en una sola consulta.
+
+**V4-NEW-02 — corrección code-first.** La ficha pedía `hidratar()` con `defer("respuestas", "definicion")`.
+`armar_payload` **las lee**: `respuestas_por_destino` abre `definicion` y `data`, `cuil_del_caso` abre `respuestas`
+y las correcciones salen de `datos_siis`. Diferirlas no ahorra bytes: los vuelve a pedir de a uno, una consulta por
+campo y por caso. El `defer` se agregó como parámetro de `hidratar`/`hidratar_por_lotes` (`JSON_DEL_CASO`) y lo usa
+**el llamador que no los lee**, que es `validar_casos_siis` (PERF-06). Quien quiera sacarle los bytes al circuito de
+alta necesita PERF-11, que es Ola 7.
+**Test permanente:** `programas.tests.test_circuito_siis_performance.PayloadSinConsultasPorCasoTests`
+(`test_las_consultas_no_crecen_con_la_cantidad_de_casos`, `test_el_memo_no_cambia_el_payload` y
+`test_hidratar_trae_los_json_que_el_payload_lee`).
+
 ### PERF-03 · Excel de respuestas por persona: CPU con el GIL tomado dentro del request
 **Severidad:** MEDIA (baja desde ALTA; vuelve a ALTA si ECOM confirma un timeout de ingress < 30 s o hay convocatorias > 40k casos) · **Estado:** CONFIRMADO-AJUSTADO · **Origen:** A4-03 · **Ola:** 4 · **Esfuerzo:** S-M · **Decisión:** pregunta ECOM (timeout del ingress)
 - **Medición (20.000 × 22 columnas):** `respuestas_por_persona` 1,22 s; `respuesta_libro` (openpyxl) **9,24 s**; request **8,92 s**; xlsx 1,99 MB; pico **37,2 MB** (no 150-250 MB; ~84 B/celda → ~90 MB con 40k × 26). cProfile: casi todo `et_xmlfile` (serializador XML en Python puro, sin `lxml`); `celda_segura` ~6 %.
@@ -158,6 +181,32 @@ y `programas.tests.test_cupo_performance.MismosCasosEnElMismoOrdenTests.test_ben
 - **Ajuste:** `aprobados_materias` ya tiene índice (`idx_dni`, #506); en MariaDB, un IN > 1.000 literales se convierte en tabla derivada (`in_predicate_conversion_threshold`), no en scan: costo real pero moderado (NO-MEDIDO).
 - **Propuesta:** (1) en `ProcesoMasivoView.get_context_data`, si `ctx["en_curso"]` no calcular `pendientes`; si no hay corrida, `cache.get_or_set(f"masivo_pendientes_{programa.pk}", lambda: ...count(), 60)`; (2) `dnis_aprobados_materias()`: memo por proceso con TTL 5 min (variable de módulo `(momento, set)`) y `table_names()` cacheado en la misma memo; (3) la tabla administrada por Django que proponía A4 no hace falta para performance.
 - **Presupuesto:** `becas_proceso_masivo` en `build_targets` y `perf_budgets.json` (hoy 13; después medido + 1); el `setUp` crea `aprobados_materias` como `crear_tabla_aprobados_materias` de `test_proceso_masivo.py`.
+
+**Resolución:** ✅ Resuelto en #639 (Cambio 186, Ola 4 PR 3), 08-oct-2026 — los puntos 1 y 3 de la propuesta, y el 2
+**descartado a propósito**. Con `en_curso` la vista no calcula ninguno de los dos números (la plantilla muestra el
+progreso, no los conteos) y la existencia de `aprobados_materias` se pregunta al catálogo con
+`proceso_masivo.hay_aprobados_materias()` en vez de leer la planilla entera para enterarse. Sin corrida, los dos
+conteos salen juntos de `proceso_masivo.conteos_de_la_pantalla()` —comparten `Insumos`, así que la planilla, la lista
+de exclusión y los casos agotados se leen **una** vez— y se cachean 60 s bajo `masivo_conteos_<pk>`.
+**El memo con TTL de 5 minutos del punto 2 no se hizo**: `dnis_aprobados_materias` decide quién va a SIIS, el alta no
+tiene baja, y servir una lista de hace cinco minutos a una corrida lanzada justo después de cargar la planilla es un
+riesgo que no paga una pantalla. Con el punto 1, esa lectura ya no está en el camino de los 5 s.
+Medido en el banco MariaDB 10.11 (20.000 casos, 22.000 DNI habilitados):
+
+| Pantalla | Antes | Después |
+|---|---|---|
+| sin corrida, primera visita | 1.403 ms · SQL 999 ms · 20 consultas | 1.235 ms · SQL 937 ms · 17 |
+| sin corrida, visita siguiente | 1.562 ms · SQL 1.140 ms · 18 | **41 ms · SQL 16 ms · 9** |
+| **con corrida en curso (relee cada 5 s)** | 720-794 ms · SQL 484-578 ms · 14-16 | **45-50 ms · SQL 16-31 ms · 10-12** |
+
+**Presupuesto:** `becas_proceso_masivo` agregado a `build_targets` y a `perf_budgets.json` en 18 (medido 17 + 1) con
+2 duplicadas, justificado en `adjustments`. `seed_perf` crea el `ProgramaSiis` sintético y la tabla
+`aprobados_materias` con los DNI del seed.
+**Test permanente:** `programas.tests.test_circuito_siis_performance.PantallaDelMasivoTests`
+(`test_con_una_corrida_en_curso_no_se_cuentan_los_candidatos`,
+`test_sin_corrida_el_conteo_se_calcula_una_vez_y_se_cachea`,
+`test_los_dos_conteos_leen_los_insumos_una_sola_vez` y
+`test_sin_la_tabla_de_materias_la_pantalla_lo_dice_sin_leerla`).
 
 ### PERF-11 · La foto `definicion` (~5,3 KB) se copia en cada caso
 **Severidad:** MEDIA (estructural) · **Estado:** CONFIRMADO (medido: 5,3 de 6,0 KB de JSON por caso, 88 %; todos los casos del banco comparten la misma foto) · **Origen:** A4-12 · **Ola:** 7 (plan propio) · **Esfuerzo:** L
@@ -204,6 +253,17 @@ y `programas.tests.test_cupo_performance.MismosCasosEnElMismoOrdenTests.test_ben
 - **Propuesta:** `ids = list(casos.values_list("pk", flat=True))` → `proceso_masivo.hidratar_por_lotes(ids)` con `defer("respuestas", "definicion")`; `sin_programa` y `sin_dni` con dos `count()`.
 - **Test:** `--dry-run` con N=10 y N=30: las consultas crecen por lote de 200, no por caso.
 
+**Resolución:** ✅ Resuelto en #639 (Cambio 186, Ola 4 PR 3), 08-oct-2026 — la propuesta tal cual. `_casos` devuelve
+el **queryset** y el comando se queda con los ids (`proceso_masivo.ids_de`, por rangos de pk) y los hidrata lote por
+lote con `defer` de los cuatro JSON (`JSON_DEL_CASO`): la validación de compatibilidad solo manda DNI, programa y
+fecha de nacimiento. `sin_programa` y `sin_dni` salen de dos `count()` en la base; con `--limite`, el recorte se
+reproduce **exacto** acotando por el último pk de la lista de ids, sin un `IN` de miles. Medido en el banco MariaDB
+10.11, ensayo sobre los 20.000 casos: de **3 sentencias y 22.917 ms** —una sola consulta de decenas de MB, que
+contra ECOM muere por `read_timeout` a los 10 s— a **11 sentencias y 431 ms**.
+**Test permanente:** `programas.tests.test_circuito_siis_performance.ValidarCasosSiisTests`
+(`test_el_ensayo_no_pide_los_json_del_caso`, `test_el_aplicar_hidrata_por_lote_y_no_por_caso` y
+`test_el_ensayo_cuenta_los_salteados_en_la_base`).
+
 ### PERF-08 · `CONN_MAX_AGE = 60` bajo daphne no reutiliza conexiones
 **Severidad:** BAJA (baja desde MEDIA) · **Estado:** CONFIRMADO-AJUSTADO (sonda `poc/perf_harness/asgi_conn_probe.py`: 200 requests → 200 hilos y 200 conexiones nuevas, ninguna reutilizada; 9 quedan abiertas hasta el GC cíclico; con 0 → 0) · **Origen:** A4-09 · **Ola:** 4 · **Esfuerzo:** S
 - **Propuesta:** `config/settings.py:295`: `"CONN_MAX_AGE": 0 if os.environ.get("APP_RUNTIME") == "daphne" else 60`. Reutilizar de verdad exige WSGI (gunicorn), decisión de despliegue (`docker/k8s/README.md:61`). Medir en ECOM `SHOW STATUS LIKE 'Threads_connected'` antes y después.
@@ -235,8 +295,11 @@ y `programas.tests.test_cupo_performance.MismosCasosEnElMismoOrdenTests.test_ben
 **Resolución:** ✅ Resuelto en #632 (Cambio 182, Ola 4 PR 1-2), 08-oct-2026 — la señal pasa a un solo `delete_many`
 deduplicado dentro de `transaction.on_commit` (`core/performance/cache_utils.invalidar_tras_commit`), y los dos
 contadores solo se invalidan cuando el total pudo cambiar: al crear o al borrar (`post_delete` no manda `created`, y ahí
-el total sí cambió). Editar un ciudadano deja de borrarlos. `invalidate_ciudadano_cache` e `invalidate_dashboard_cache`
-se conservan tal cual —las llama `dashboard/utils.py` y las congela el ratchet de RED-51—. El cruce del padrón, que ya
+el total sí cambió). Editar un ciudadano deja de borrarlos. `invalidate_dashboard_cache` se conserva tal cual —la
+sigue llamando la señal de `User` y la congela el ratchet de RED-51, que la compara con su homónima de
+`dashboard/utils.py`—. `invalidate_ciudadano_cache`, en cambio, se **borró en #639 (Cambio 186)**: con el receiver
+nuevo no la llamaba nadie (la afirmación de que la llamaba `dashboard/utils.py` era falsa; ese módulo tiene su propia
+`invalidate_dashboard_cache` y nunca la importó). El cruce del padrón, que ya
 no dispara la señal, avisa con `invalidar_ciudadanos_tras_commit`: en el banco los **26.668 `cache.delete`** del peor
 caso quedan en **un** `delete_many`.
 **Test permanente:** `dashboard.tests.test_cache_invalidacion.InvalidacionTests.test_editar_un_ciudadano_no_invalida_los_contadores`
@@ -257,6 +320,25 @@ y `programas.tests.test_padron_performance.InvalidacionDeCacheTests.test_el_cruc
 - **Evidencia:** el SQL de `candidatos()` tiene `WHERE ((SELECT estado … ORDER BY creado DESC, id DESC LIMIT 1) IS NULL OR NOT ((SELECT estado …) = 'ENVIADO'))`: dos subconsultas correlacionadas por fila (la caché de subconsultas de MariaDB no las comparte). Igual en `validar_casos_siis --reintentar-errores`.
 - **Propuesta:** `.annotate(ultimo_envio=Coalesce(Subquery(ultimo), Value("")))` + `.exclude(ultimo_envio=EnvioSIIS.Estado.ENVIADO)` (misma semántica); `models.Index(fields=["formulario", "creado", "id"], name=...)` en `ValidacionSIS` y `EnvioSIIS` (tablas de decenas de miles: migración trivial y online). Con SIIS-01, el criterio de «ya informado» pasa a `exclude(envios_sis__vigente=True)`, pero el «último estado» sigue decidiendo qué reintentar.
 - **Test:** `str(candidatos(...).query).count("programas_enviosiis") == 1`; `EXPLAIN ANALYZE` del `count()` de PERF-07 antes y después.
+
+**Resolución:** ✅ Resuelto en #639 (Cambio 186, Ola 4 PR 3), 08-oct-2026 — la propuesta tal cual, en los **dos**
+lugares: `proceso_masivo.candidatos` y `validar_casos_siis._casos` anotan con
+`Coalesce(Subquery(ultimo), Value(""))` y filtran con un solo `exclude` / `__in`. El valor de relleno es la cadena
+vacía, que no es ninguno de los tres `choices` de `EnvioSIIS.Estado` ni de `ValidacionSIS.Estado`: «no tiene
+intentos» pasa a ser un valor más y deja de necesitar el `Q(isnull=True) | …` que escribía la subconsulta dos veces.
+Los dos índices `(formulario, creado, id)` van en `programas.0082`.
+`EXPLAIN ANALYZE` del recorte de candidatos en el banco (MariaDB 10.11): antes, **tres** `DEPENDENT SUBQUERY` sobre
+`programas_enviosiis` —dos de ellas resolviendo por `uniq_enviosiis_vigente_caso` con `Using filesort`— y la de
+`programas_validacionsis` también con `Using filesort`; después, **una** sobre `idx_enviosiis_ultimo` y la de
+validaciones sobre `idx_validacionsis_ult`, las dos sin `filesort`. El `count()` de la pantalla baja de 720 a 624 ms
+sobre 8.000 envíos y 10.906 validaciones; el ahorro crece con los intentos acumulados por caso.
+**Riesgo del índice:** `ALTER TABLE … ADD INDEX …, ALGORITHM=INPLACE, LOCK=NONE` aceptado por MariaDB 10.11 en
+**29 ms** y **26 ms** sobre esas dos tablas. Al aplicar, Django **borra** el índice implícito de la clave foránea de
+`programas_validacionsis` (`programas_validacion_formulario_id_…`), que el índice nuevo ya cubre, y al desaplicar lo
+**recrea** con otro nombre (`programas_validacionsis_formulario_id_bca809bb`): la ida y vuelta por `migrate` es
+limpia —probada—, pero un `DROP INDEX` a mano fuera de Django falla con `ERROR 1553` por la FK.
+**Test permanente:** `programas.tests.test_circuito_siis_performance.UnaSolaSubconsultaDelUltimoEnvioTests.test_la_subconsulta_del_ultimo_envio_no_se_escribe_dos_veces`
+y `programas.tests.test_circuito_siis_performance.LosMismosCandidatosTests`.
 
 ### G1c-11 · Admin: N+1 en listados
 **Severidad:** BAJA · **Estado:** CONFIRMADO (lectura) · **Origen:** G1c-11 · **Ola:** 4 (mismo PR que G1c-09) · **Esfuerzo:** S

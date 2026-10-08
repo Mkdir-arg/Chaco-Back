@@ -325,7 +325,13 @@ class Command(ComandoSiisBase):
             # primeros ``total`` candidatos completos lo hacía materializar los
             # 20.000 con su JSON antes de cortar (de 1,3 a 4,4 s en el banco
             # según la corrida; así, unos 0,4 s).
-            casos, descartados = proceso_masivo.hidratar(proceso_masivo.ids_de(consulta, limite=total)), {}
+            #
+            # PERF-01: y los casos también por lotes. ``--total`` llega hasta 5.000 y
+            # un caso pesa unos 7 KB de JSON: una sola consulta por los 5.000 son ~35 MB
+            # que no vuelven dentro del ``read_timeout`` de 10 s de ECOM. Acá **no** se
+            # difiere ningún JSON: ``armar_payload`` los lee todos.
+            casos = list(proceso_masivo.hidratar_por_lotes(proceso_masivo.ids_de(consulta, limite=total)))
+            descartados = {}
         if descartados:
             total_descartados = sum(descartados.values())
             self._log(f"Descartados por datos incompletos: {total_descartados} (no se tocan)")

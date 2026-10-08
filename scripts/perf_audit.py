@@ -126,12 +126,14 @@ def build_targets(worker_id=None):
         PERF_FIRST_DNI,
         PERF_LOGIN_PASSWORD,
         PERF_LOGIN_USERNAME,
+        PERF_SIIS_PROGRAMA_ID,
     )
     from core.models import Localidad
     from legajos.models import Ciudadano
-    from programas.models import Relevamiento
+    from programas.models import ProgramaSiis, Relevamiento
 
     ciudadano = Ciudadano.objects.get(dni=PERF_FIRST_DNI)
+    programa_siis = ProgramaSiis.objects.get(siis_programa_id=PERF_SIIS_PROGRAMA_ID)
     if worker_id is None:
         conversacion = (
             Conversacion.objects.filter(ciudadano_usuario__username=PERF_CITIZEN_USERNAME)
@@ -349,6 +351,15 @@ def build_targets(worker_id=None):
                 "key": "becas_cupo_segmento",
                 "route": "becas:cupo_segmento",
                 "url": reverse("becas:cupo_segmento", kwargs={"pk": relevamiento.convocatoria.segmento_id}),
+                "actor": "backoffice",
+            },
+            {
+                # PERF-07: con una corrida en curso esta pantalla se relee sola cada 5 s
+                # y el `count()` de candidatos viaja con la lista entera de DNI
+                # habilitados como literales (188 KB de SQL con la planilla real).
+                "key": "becas_proceso_masivo",
+                "route": "becas:proceso_masivo",
+                "url": reverse("becas:proceso_masivo", kwargs={"pk": programa_siis.pk}),
                 "actor": "backoffice",
             },
             {

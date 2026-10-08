@@ -355,7 +355,9 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 181 | Una cuenta ya no se toma sin conocer su clave: cambio de contraseña, intentos, token de la app y el alcance del ABM de usuarios | Transversal — login, recupero y cambio de contraseña · ABM de usuarios y roles · API de la app de campo (`/api/becas/auth/token/`) · Correo de credenciales | `#sesion` `#usuarios` `#rbac` `#correo` `#api` | Auditoría integral oct-2026 — fichas G1b-05, G1b-07, G1b-08, G2-03, SEC-26, R0b-01, R0b-02, R0b-03 y R0b-10, más la segunda parte de RED-52 (Ola 2, PR 2) | 08/10/2026 | 🟢 **Hecho** (**D-26 = (b)** por default: link de reseteo, sin release de la app; de SEC-26 queda abierto `/admin/` por IP, que es de infraestructura) | No requiere |
 | 182 | Subir el padrón y abrir el cupo dejan de rozar el timeout, y «cupo disponible» pasa a ser tres nombres distintos | Becas (carga de padrón y cruce automático, pantalla de cupo y lista de espera, configuración de segmentos, API de la app de campo) · Transversal (caché de ciudadanos, paginación de bandejas, presupuestos de performance) | `#performance` `#cupos` `#relevamientos` `#datos` | Auditoría integral oct-2026 — fichas PERF-04, PERF-16, PERF-02 y la 2.ª parte de RED-49 (Ola 4, PRs 1 y 2) | 08/10/2026 | 🟢 **Hecho** | No requiere |
 | 183 | MVP de la Versión 2 de Dispositivos: los cuatro bloques del cliente, 700 h | Dispositivos · documentación | `#gestion` `#ui` `#datos` | Cliente, con su propio consumo de horas; PM: «armá un pequeño documento de MVP V2 en base a lo que nos pide el cliente y sus horas» | 08/10/2026 | 🟢 **Hecho — publicado** | No requiere |
+| 184 | El caso que la app ya cargó no se edita, la identidad la acredita el servidor y la consulta de personas tiene tope | Becas — API de campo (`/api/becas/formularios/`, alta de casos, adjuntos y consulta de identidad) · Transversal (tasas de throttle de DRF, presupuesto de llamadas externas) | `#api` `#rbac` `#relevamientos` `#datos` | Auditoría integral oct-2026 — fichas SEC-23 (+G1-15), SEC-24, SEC-25 y R0-05 (Ola 2, PR 6 — **cierra el ítem 6**) | 08/10/2026 | 🟢 **Hecho** (D-24 y D-25 aplicadas por default) | No requiere |
 | 185 | La sesión se cierra sola del lado del servidor, el catálogo de programas pide permiso y RENAPER deja de viajar sin verificar | Transversal (sesión, cookies, system checks, API del backoffice) · Legajos (consulta RENAPER) · Dispositivos (admisión) · Becas (mapa del caso) | `#sesion` `#rbac` `#api` `#infra` | Auditoría integral oct-2026 — fichas SEC-27, SEC-32, SEC-33, SEC-34, SEC-35, SEC-36, SEC-37, G1c-10, G1c-16 y el resto de SEC-01 (Ola 2, PR 8) | 08/10/2026 | 🟢 **Hecho** (D-27 y D-37 aplicadas por default; quedan tres pendientes de infraestructura) | No requiere |
+| 186 | El circuito de SIIS deja de pagar por caso lo que es igual para todos | Becas (proceso masivo a SIIS, pantalla del masivo, comandos `procesar_casos_siis` y `validar_casos_siis`) · Transversal (presupuestos de performance, seed de performance, caché de ciudadanos) | `#siis` `#performance` `#relevamientos` `#datos` | Auditoría integral oct-2026 — fichas PERF-01 (+V4-NEW-02), PERF-19, PERF-07 y PERF-06 (Ola 4, PR 3) | 08/10/2026 | 🟢 **Hecho** | `programas.0082` (dos índices, online) |
 
 **Notas del índice**
 
@@ -27330,6 +27332,33 @@ No requiere.
 
 ## Historial
 
+**08/10/2026 — se quitan también las definiciones pendientes.** El documento del cliente queda en cuatro
+secciones: qué es el MVP, qué se entrega, qué no se entrega, y esfuerzo y plazo. Las cinco definiciones
+—escala de criticidad, relevamiento por sector o por edificio, si el agente debe ser externo a la
+institución, estados del relevamiento y catálogo de motivos de egreso— **siguen vigentes y hay que
+cerrarlas antes de arrancar**: se trasladan al correo de presentación y a la agenda de la reunión
+inicial, pero no figuran en el documento publicado.
+
+**08/10/2026 — se quita «Qué no se va a poder hacer el día uno».** Por decisión del PM, esa sección sale
+del documento del cliente: lo que no entra ya está dicho en §3, y repetirlo en negativo cargaba el
+documento de más. El contenido sigue registrado acá.
+
+**08/10/2026 — cinco funcionalidades entran al alcance y el documento se reordena.** El PM sumó a lo
+que se entrega: la **pantalla donde el coordinador crea y asigna el relevamiento**, el **funcionamiento
+sin conexión** de la app, la **verificación de la persona en toda la red**, la **solapa Dispositivos en
+el legajo ciudadano** y el **censo automático por turno**. Las cuatro primeras rondan las 10 h cada
+una; el funcionamiento sin conexión pesa entre 40 y 60 h —almacenamiento local, cola de
+sincronización, reintentos, resolución de conflictos y fotos—, y además estaba **explícitamente fuera
+de alcance** en la §7 de la propuesta de la Versión 2. En conjunto comprometen casi toda la reserva de
+100 h, y así quedó dicho en el documento para que no aparezca como sorpresa.
+
+Además, por pedido del PM el documento **deja de estructurarse por bloques**: ahora son dos listas,
+«Qué se entrega» y «Qué no se entrega», agrupadas por tema. Las horas por bloque siguen en la sección
+de esfuerzo, que es como el Ministerio organizó el presupuesto. La sección «Qué no se va a poder hacer
+el día uno» se ajustó: salieron la doble estadía sin detectar y la necesidad de señal, y entró la
+ausencia de pase de guardia, que ahora se distingue del censo —el censo se calcula solo, lo que no hay
+es el acto de entrega entre turnos—.
+
 **08/10/2026 — detalle del alcance.** El PM pidió ser específico: «podés ser más específico en lo que
 se va a hacer y lo que no». Cada bloque pasó a tener dos listas, **Queda funcionando** y **No
 incluye**, con el detalle de lo que el texto del Ministerio deja implícito: las validaciones son solo
@@ -27349,6 +27378,280 @@ archivos se editan dentro del worktree, nunca se copian desde el checkout local 
 en la misma rama.
 
 ---
+
+---
+
+# Cambio 184 — El caso que la app ya cargó no se edita, la identidad la acredita el servidor y la consulta de personas tiene tope
+
+🟢 **HECHO — 08/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas — API de campo (`/api/becas/formularios/`, alta de casos, adjuntos y consulta de identidad) · Transversal (tasas de throttle de DRF, presupuesto de llamadas externas) |
+| **Etiquetas** | `#api` `#rbac` `#relevamientos` `#datos` |
+| **Solicitante** | Auditoría integral oct-2026 — fichas SEC-23 (+G1-15), SEC-24, SEC-25 y R0-05 (Ola 2, PR 6) |
+| **Fecha del pedido** | 08/10/2026 |
+| **Issue / épica** | Auditoría oct-2026, Ola 2 (Autorización) ítem 6 — **lo cierra** |
+| **Partes afectadas** | `programas/api/views.py` · `programas/api/serializers.py` · `programas/services/campo.py` · `config/settings.py` · `core/integraciones.py` |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Las tres puertas de la app de campo donde el servidor le creía al teléfono.
+
+- **SEC-23.** `FormularioViewSet` tenía `UpdateModelMixin` y `perform_update` no miraba el
+  estado del caso. Con el token de un territorial, un `PATCH
+  /api/becas/formularios/<id>/ {"validado_renaper": false}` sobre un caso con
+  `identidad_forzada=True` deshacía la validación manual del revisor, y un PATCH semanas
+  después sobre un APROBADO cambiaba `datos_identificacion` o el apoderado y volvía a
+  disparar `resolver_ciudadano_offline`. Lo mismo con los adjuntos: `guardar_adjunto`
+  **reemplaza** el archivo del campo (G1-07), así que un POST sobre un caso ya resuelto
+  cambiaba la foto del DNI sin dejar rastro.
+- **SEC-24.** Con `"origen": "personas"` alcanzaba con que el request trajera un nombre y
+  un apellido cualesquiera para que el caso quedara `validado_renaper=True` y
+  `origen_validacion="personas"`: acreditado por Base de Personas sin que nadie la hubiera
+  consultado. El comentario de la propia vista decía «el cliente nunca puede autovalidarse»
+  y era falso para esa rama; lo cumplía solo `padron` (Cambio 57, RN-4).
+- **SEC-25.** `POST /api/becas/personas/consultar/` devuelve nombre, apellido y fecha de
+  nacimiento de cualquier DNI más sexo, y no tenía ningún tope: un token de campo recorre
+  la Gran Base entera a dos consultas por documento.
+- **R0-05.** La tasa `DEFAULT_THROTTLE_RATES["renaper"]` quedó sin consumidor al borrar
+  `RenaperRateThrottle` con SEC-04 (#509). Estaba reservada justamente para SEC-25.
+
+## Alcance acordado
+
+Servidor solamente. **Ningún cambio pide release de `Chaco-mobile`**, que fue la primera
+restricción: la app instalada (`a66c2d3`, el release del 21/08) marca la operación
+`FAILED_PERMANENT` ante un 401 o un 400 y no la recupera nunca.
+
+- Quitar el `PATCH`/`PUT` del caso y cerrar los adjuntos sobre casos resueltos.
+- Re-resolver la identidad en el servidor cuando el teléfono declara `personas`.
+- Poner tope por usuario a la consulta de identidad.
+- Dejar `DEFAULT_THROTTLE_RATES` con una entrada por consumidor.
+
+Fuera de alcance: la cola offline del teléfono, el resto de las fichas de la Ola 2 y
+cualquier cambio de contrato de las claves que la app lee.
+
+## Decisiones tomadas
+
+- **D-24 (default aplicado): `scan` sí cuenta como validación, `personas` no sin
+  re-consulta.** El escaneo del código de barras es el documento físico leído por la cámara
+  delante de la persona y el servidor no tiene forma de re-verificarlo; `personas` es un
+  dato que el cliente se autoasignó. Queda registrado en el código, que es lo que la ficha
+  pedía.
+- **D-25 (default aplicado): 120/h por usuario.** Una jornada de campo son decenas de
+  personas, no cientos. **Por usuario y no por IP**: los territoriales salen por el NAT de
+  la operadora móvil, así que una cubeta por IP le cerraría la consulta a una región entera.
+  Es la misma razón por la que `ObtainCampoToken` (Cambio 181) tampoco usa una cubeta por IP
+  estrecha, y por la que esto **no** toca `NUM_PROXIES`.
+- **`UserRateThrottle` con `scope` propio, no `ScopedRateThrottle`.** Desvío de la letra de
+  SEC-25: el `throttle_scope` de un `ScopedRateThrottle` no se puede declarar sobre una
+  vista de función sin subclasear igual, y `UserRateThrottle` ya toma `request.user.pk` como
+  identidad, que es lo que D-25 pide. Mismo resultado, una clase menos.
+- **La identidad no se compara, se pisa.** SEC-24 dice «validar solo si coincide». Comparar
+  dejaría el flag en `False` pero el nombre inventado seguiría viaje al legajo que arma
+  `resolver_ciudadano_offline`. Se hace lo que ya hacía `padron`: lo que queda guardado es
+  lo que dijo la fuente, y si no respaldó nada el origen pasa a `manual`. Las dos ramas
+  comparten ahora `_pisar_identidad_acreditada`.
+- **Sin caché de la Gran Base.** SEC-24 dice «(cacheado)». Una caché compartida entre
+  `personas/consultar/` y el alta cambiaría también el link público —las dos pasan por
+  `identificar`— y haría no determinista el presupuesto de consultas del alta. El costo real
+  es **una** consulta por alta con origen `personas`, después del commit y fuera del
+  `select_for_update` (Cambio 91), con el cortacircuito de SIIS-09 delante. Si el volumen lo
+  pide, la caché es una mejora posterior.
+- **Con la fuente caída la identidad queda pendiente, no validada.** Es el canje explícito:
+  cuando la Gran Base no responde, cargas que antes llegaban marcadas como validadas llegan
+  sin validar y las desbloquea el revisor a mano (Cambio 55). Confiar en el cliente cuando
+  no se lo puede verificar es exactamente el agujero de la ficha.
+- **`client_uuid` y `capturado_en` siguen siendo escribibles.** SEC-23 los nombra junto a
+  `validado_renaper`, pero son la idempotencia de la cola offline y la fecha de captura del
+  alta: sacarlos rompería el reintento de la app. Sin el PATCH ya no hay forma de cambiarlos
+  después del alta, que era el riesgo real.
+- **409 y no 400 en los adjuntos.** Es un conflicto de estado y es el código que ya usan el
+  cupo lleno y la pausa.
+- **El 409 de adjuntos mira el campo, no solo el estado.** Lo que SEC-23 quiere frenar es el
+  **reemplazo silencioso** de la foto del DNI de un caso ya resuelto, no que llegue un
+  archivo que no existía. Rechazar el campo vacío le cuesta a la app el relevamiento
+  entero —ver el Historial—, así que entra con 201 y queda dicho en la revisión. El reemplazo
+  sigue dando 409.
+- **Lo que no se puede verificar se dice en la pantalla de revisión, no solo en el log.** Un
+  caso sin validar por una caída de la fuente y uno sin validar porque el documento no
+  figura se veían iguales, y la validación manual (Cambio 55) se hacía a ciegas. Son dos
+  líneas distintas a propósito: la segunda es un dato sobre la persona, la primera no dice
+  nada de ella.
+
+## Implementación
+
+- **`programas/api/views.py`**
+  - `FormularioViewSet` quedó en `mixins.RetrieveModelMixin` + la acción `adjuntos`; se
+    borró `perform_update`. El router de DRF deja de mapear `put`/`patch`, así que los dos
+    verbos contestan **405** antes de resolver el objeto.
+  - `adjuntos` (POST): sobre un caso que no está `ENVIADO`, **409** con
+    `{"detail", "code": "CASO_RESUELTO", "estado"}` **solo si ese campo ya tiene un
+    adjunto** —el reemplazo, que es lo que SEC-23 frena—. Con el campo vacío entra con
+    **201** y una línea en `observaciones_carga`. El guard va **después** de los de pausa y
+    período, para no cambiar cuál error gana en los casos que ya estaban probados, y después
+    del serializer, porque a qué campo se sube lo decide él. El GET de adjuntos no se tocó:
+    la app lo usa para saber qué ya subió.
+  - `_actualizar_validacion_identidad`, rama `personas`/`gran_base`: llama a
+    `identificar(formulario.relevamiento, dni, sexo)` —la cascada padrón → Gran Base del
+    Cambio 57— y solo valida si la fuente respalda. El `origen_validacion` sale de
+    `ORIGEN_VALIDACION_POR_FUENTE`, así que una identidad declarada `personas` que resuelve
+    por padrón queda marcada como `padron`, no como `personas`. Cuando no se pudo acreditar
+    deja un `logger.warning` con el pk del caso y el error de la fuente (sin el documento) y
+    una línea en `observaciones_carga` que distingue «la fuente respondió y el documento no
+    figura» de «la fuente no respondió», en el mismo `save` que ya escribía
+    `validado_renaper`. Si un reintento del alta sí acredita, la línea se borra.
+  - `_pisar_identidad_acreditada` es la parte que `padron` y `personas` comparten: deja en
+    `datos_identificacion` lo que dijo la fuente o, sin respaldo, solo marca
+    `origen: manual` —el caso queda sin validar y el nombre tipeado sigue al legajo, que es
+    el comportamiento heredado del Cambio 57—.
+- **`programas/services/campo.py`** — las plantillas de las líneas nuevas
+  (`ADJUNTO_TARDIO`, `IDENTIDAD_NO_ENCONTRADA`, `IDENTIDAD_FUENTE_SIN_RESPUESTA`),
+  `sumar_observacion`/`quitar_observaciones` (escriben en memoria, sin `UPDATE` propio) y
+  `PREFIJOS_CONSERVADOS`, que es lo que hace que `revisar_carga` arrastre esas líneas cuando
+  `aplicar_revision` reescribe `observaciones_carga` entero. `observar_adjunto` acepta ahora
+  la plantilla por parámetro: las dos aceptaciones con reparo comparten el mismo
+  antirrepetición.
+  - `ConsultaPersonasThrottle(UserRateThrottle)` con `scope = "personas_campo"`, enchufada
+    con `@throttle_classes` a `consultar_persona_becas`. El alias
+    `/api/becas/renaper/consultar/` comparte la cubeta porque es la misma vista.
+- **`programas/api/serializers.py`** — `validado_renaper` pasó a `read_only_fields`. DRF
+  **ignora** un campo de solo lectura que llega en el cuerpo: no da 400, que es lo que la
+  app instalada necesita (manda la clave en cada alta). La clave sigue viajando en la
+  respuesta.
+- **`config/settings.py`** — `DEFAULT_THROTTLE_RATES`: se borró `"renaper": "30/min"` y
+  entró `"personas_campo": "120/hour"` (R0-05 + D-25).
+- **`core/integraciones.py`** — cadena nueva `"app de campo · alta de un caso":
+  ("personas.token", "personas.consulta")`, 30 s contra los 55 de `core.E003`. Sin
+  declararla, el alta salía a la red por un camino que el presupuesto no veía.
+
+### Efecto lateral: el contrato de la pausa quedó uniforme
+
+D-RED-10 había congelado una inconsistencia: cinco de los seis endpoints de escritura
+contestaban `409 {"detail", "pausado": true}` ante una pausa y el PATCH contestaba
+`400 {"detail": [...]}`, porque `perform_update` levantaba un `ValidationError` de DRF.
+Unificarla se consideraba un release coordinado con `Chaco-mobile`. Al retirar el verbo la
+excepción se fue con él: los cinco que quedan contestan 409 y `PausaEnTodosLosEndpointsTests`
+ya no necesita un caso distinto en su tabla de códigos por endpoint.
+
+## Validación
+
+Python 3.12 + Django 5.2.17 (`.venv312`, el del CI):
+
+- `manage.py test programas`: **2.411 tests, OK** (6 skipped).
+- `manage.py test core legajos users`: **1.726 tests, OK** (44 skipped, 2 expected failures).
+- Los **tests nuevos que describen los defectos corren en rojo** contra el código de
+  `d7e18690` (se restauraron los cuatro archivos de código desde `HEAD`, con los tests
+  nuevos puestos, y se corrieron las clases afectadas): 15 fallas y 1 error entre
+  `AdjuntoSobreCasoResueltoTests`, `IdentidadNoLaAcreditaElClienteTests`,
+  `ConsultaDePersonasConThrottleTests`, `test_patch_formulario_405` y los tres de
+  `OrigenPadronServidorTests` sobre `personas`.
+- `manage.py check` sin issues; `check --deploy` con los 6 avisos preexistentes de settings
+  de desarrollo (ninguno es `core.E003`); `makemigrations --check --dry-run`: «No changes
+  detected».
+- `manage.py spectacular --validate`: exit 0. Las advertencias del esquema **bajan de 26 a
+  24** (las dos operaciones PATCH/PUT que desaparecieron); los 53 errores preexistentes
+  quedan igual.
+- `ruff check .` limpio; `ruff format --check` sobre los siete archivos tocados: ya
+  formateados.
+- `requerimientos.py --check`: OK.
+- No se tocaron templates, JS ni CSS: las auditorías de diseño no aplican.
+- No se corrió `--tag performance`: ninguna ruta de `scripts/perf_budgets.json` pasa por la
+  API de campo. El presupuesto de consultas del alta (`AltaBajoElLockTests`,
+  `CONSULTAS_ALTA = 30`) **no se movió**: su payload no declara origen, así que no entra en
+  la rama nueva.
+
+### Ronda 2 (08/10/2026)
+
+- `manage.py test programas`: **2.417 tests, OK** (6 skipped). `manage.py test core`: OK
+  (35 skipped, 2 expected failures).
+- Los **siete tests nuevos corren en rojo** contra `05c64655`: cuatro fallas
+  (`test_el_campo_vacio_de_un_caso_resuelto_recibe_el_archivo_observado` en sus tres
+  estados y `test_la_observacion_del_archivo_tardio_no_se_repite`, todas con el 409 viejo) y
+  tres errores en `IdentidadNoLaAcreditaElClienteTests` por las constantes que todavía no
+  existían. Los dos tests de regresión del mismo lote
+  (`test_adjunto_sobre_aprobado_409` y `test_el_reemplazo_sobre_un_caso_enviado_sigue_sin_observarse`)
+  pasan en las dos puntas, que es lo que se les pide.
+- `manage.py check` sin issues; `ruff check .` limpio y `ruff format --check` de los tres
+  archivos tocados: ya formateados. `requerimientos.py --check`: OK.
+
+### Lo que se verificó contra la app instalada
+
+`Chaco-mobile@a66c2d3` (release de PRD, repo de solo lectura), más su `main`:
+
+- **Ni un solo `PATCH` ni `PUT` en todo `src/`** (`git grep` sobre las dos revisiones). El
+  sync offline solo crea casos y sube adjuntos.
+- `syncRemoteBecasFormulario` (`relevamientoService.js:941`) manda `validado_renaper` y
+  `client_uuid` en el cuerpo del alta. El primero pasó a solo lectura —se ignora sin dar
+  400— y el segundo sigue escribiéndose. Los dos quedaron fijados en
+  `test_becas_api_contrato.py` con el payload literal de la app.
+- La consulta de identidad (`RelevamientoDetailScreen.js:1287`) está en un `try/catch` que
+  cae a carga manual ante cualquier error: un 429 no pasa por la cola de sincronización, así
+  que no puede dejar nada `FAILED_PERMANENT`.
+- El 409 de los adjuntos **sí** puede: la cola solo reintenta ante pausas, errores de red y
+  5xx. El borde está acotado abajo.
+
+## Pendientes / a definir
+
+- **El reemplazo sobre un caso resuelto sigue dando 409**, y ese 409 sigue dejando la
+  operación `FAILED_PERMANENT` en la cola del teléfono. Es el canje que la ficha pide: lo
+  que se pierde es la *segunda* foto de un campo que ya tiene la suya, con el caso ya
+  resuelto. Si en campo molesta, la salida sin release es dar un plazo de gracia después de
+  la resolución, como hace `campo.en_gracia` con el cierre del relevamiento.
+- **Más casos sin validar cuando la Gran Base está caída, y más discrepancias de identidad
+  en revisión.** Lo primero lo desbloquea el revisor a mano (Cambio 55); lo segundo es
+  nuevo: ahora la identidad que queda guardada es la de la **fuente**, así que cuando no
+  coincide con la que el territorial tipeó, la diferencia se ve en la revisión en vez de
+  pasar inadvertida. Conviene mirar el volumen las primeras semanas: si es alto, el camino
+  es la caché que SEC-24 proponía, no volver a creerle al cliente.
+- **La tasa de 120/h se mide con el uso real** antes de apretarla o aflojarla (D-25).
+- **`scan` sigue siendo autodeclarado.** D-24 lo acepta porque el servidor no lo puede
+  re-verificar, pero sigue siendo el único origen que acredita sin respaldo del servidor: si
+  en algún momento la app manda el payload del código de barras, se puede validar acá.
+
+## Reversión
+
+Todo es código: no hay migración, ni esquema, ni datos nuevos. Revertir el commit devuelve
+el `PATCH`/`PUT` del caso, los adjuntos sobre casos resueltos, la autovalidación por
+`origen: personas` y la consulta de personas sin tope. Los casos cargados mientras tanto no
+dependen del cambio: la única diferencia es que algunos tienen `validado_renaper=False` con
+`origen_validacion=""` donde antes habrían tenido `True`/`personas`, y eso se corrige desde
+la revisión (validación manual) o con el cruce automático del padrón, sin tocar la base. Las
+líneas que quedaron en `observaciones_carga` son texto: sobreviven a la reversión y se leen
+igual.
+
+## Historial
+
+- **08/10/2026 — ronda 2 de la revisión: el 409 de los adjuntos no costaba «la foto»,
+  costaba el relevamiento.** Tres correcciones:
+  1. **El 409 mira el campo, no solo el estado.** La primera versión rechazaba toda subida
+     sobre un caso no-`ENVIADO`, y el riesgo residual anotado acá («se pierde la foto, la
+     revisión puede adjuntarla a mano») estaba mal medido: ante el 409 la app marca la
+     operación `FAILED_PERMANENT` (`relevamientoService.js:1487`) y
+     `hasPendingFormularioOperations` (`:1030`) cuenta las fallidas, así que el
+     `finalizar_relevamiento` del teléfono queda bloqueado **para siempre** y con él se
+     pierden **todos** los adjuntos pendientes de ese caso. Lo que SEC-23 quiere frenar es el
+     reemplazo silencioso de la foto del DNI de un caso ya resuelto, así que eso es lo que
+     el guard mira: con el campo ya cargado, 409; con el campo vacío, **201** y una línea en
+     `observaciones_carga` con el campo y el estado del caso (`campo.ADJUNTO_TARDIO`, el
+     patrón de G1-07 / Cambio 178), que no se repite en un reintento.
+  2. **La desvalidación por fuente caída deja de ser silenciosa.** El `logger.warning` lo ve
+     el operador del servidor, no el revisor: en la pantalla, un caso sin validar por una
+     caída se veía igual que uno cuyo documento no figura en la fuente. Ahora cada uno deja
+     su línea (`IDENTIDAD_FUENTE_SIN_RESPUESTA` e `IDENTIDAD_NO_ENCONTRADA`, por el
+     `no_encontrado` que `identificar` ya devolvía), en el mismo `UPDATE` que guardaba
+     `validado_renaper`, y la línea se borra si un reintento sí acredita.
+  3. **El docstring de `_pisar_identidad_acreditada` decía de más.** Afirmaba que sin esa
+     función «la identidad inventada seguiría viaje al legajo», y con `acreditada=None` la
+     función no evita eso: lo único que hace es marcar `origen: "manual"`, y el nombre
+     tipeado llega igual al legajo con el caso sin validar. Es el comportamiento heredado
+     del Cambio 57 y **no se cambió**; lo que se corrigió es lo que el docstring promete.
+  Las tres líneas nuevas se agregaron a `PREFIJOS_CONSERVADOS`, porque `aplicar_revision`
+  reescribe `observaciones_carga` entero y el reintento del alta vuelve a pasar por ahí.
+
+---
+
 # Cambio 185 — La sesión se cierra sola del lado del servidor, el catálogo de programas pide permiso y RENAPER deja de viajar sin verificar
 
 🟢 **HECHO — 08/10/2026**
@@ -27518,3 +27821,183 @@ Sin migraciones: revertir el commit alcanza. Lo que vuelve atrás, en orden de r
 No se pierde ningún dato: `last_activity` vive en la sesión, que es efímera.
 
 ---
+
+# Cambio 186 — El circuito de SIIS deja de pagar por caso lo que es igual para todos
+
+🟢 **HECHO — 08/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas (proceso masivo a SIIS, pantalla del masivo, comandos `procesar_casos_siis` y `validar_casos_siis`) · Transversal (presupuestos de performance, seed de performance, caché de ciudadanos) |
+| **Etiquetas** | `#siis` `#performance` `#relevamientos` `#datos` |
+| **Solicitante** | Auditoría integral oct-2026 — fichas PERF-01 (+V4-NEW-02), PERF-19, PERF-07 y PERF-06 (Ola 4, PR 3) |
+| **Fecha del pedido** | 08/10/2026 |
+| **Issue / épica** | Auditoría oct-2026, Ola 4 (Performance) ítem 3 |
+| **Partes afectadas** | `programas/services/siis_envio.py` · `programas/services/proceso_masivo.py` · `programas/views/proceso_masivo.py` · `programas/management/commands/validar_casos_siis.py` y `procesar_casos_siis.py` · `programas/models/__init__.py` (dos `Meta.indexes`) · `programas/migrations/0082_indices_ultimo_intento_siis.py` · `core/performance/cache_utils.py` · `programas/services/padron.py` · `programas/views/cupo.py` · `core/management/commands/seed_perf.py` · `scripts/perf_audit.py` y `scripts/perf_budgets.json` |
+| **Migración** | `programas.0082` — dos índices `(formulario, creado, id)` en `programas_enviosiis` y `programas_validacionsis`. Online (`ALGORITHM=INPLACE, LOCK=NONE`), 29 y 26 ms en el banco |
+
+## Pedido original
+
+El mismo camino de punta a punta —elegir candidatos, armar el payload, validarlos y
+mirarlos desde la pantalla— pagaba por caso lo que es igual para todos.
+
+- **PERF-01 (+V4-NEW-02).** `armar_payload` consultaba 6 veces por caso lo mismo: los
+  campos con destino SIIS del catálogo, la provincia y la localidad de los dos
+  domicilios. Medido: `elegir_completos` sobre 200 casos = 1.200 consultas; proyectado a
+  los 7.496 candidatos reales, 45-60 mil **antes** del primer latido de la corrida.
+- **PERF-19.** «El último envío de este caso» viajaba como una subconsulta correlacionada
+  escrita **dos veces** en el `WHERE`, y MariaDB no comparte la caché entre las dos.
+- **PERF-07.** La pantalla del masivo contaba candidatos con los 15.531 DNI habilitados
+  como literales (188 KB de SQL) y, con una corrida en curso, se relee sola **cada 5 s**
+  en el mismo proceso que la corrida.
+- **PERF-06.** `validar_casos_siis` traía todos los casos con sus cuatro JSON en una sola
+  consulta.
+
+## Alcance acordado
+
+Entra: las cuatro fichas y los tres seguimientos MINOR de la revisión de #632 (la función
+muerta de caché, la memoria del cruce de padrón y la hidratación a mano de la pantalla de
+cupo). Queda afuera el resto de la Ola 4 y **PERF-11**, que es la raíz estructural de lo
+que acá se esquiva con `defer`: mientras la foto `definicion` se copie en cada caso, el
+circuito de alta tiene que traerla sí o sí.
+
+## Decisiones tomadas
+
+- **El memo es de instancia, no de proceso.** `Catalogos` memoriza destinos, provincias,
+  localidades y el índice de cada catálogo; una corrida crea una sola instancia y la usa
+  para miles de casos. El precio es que una equivalencia cargada a mano mientras la
+  corrida está en vuelo no se ve hasta la siguiente; la alternativa —releer por caso— es
+  justo lo que la ficha vino a sacar.
+- **Se memoriza también el `None`.** «Esta localidad no matchea» cuesta las mismas
+  consultas que la que sí, y era la respuesta del 38 % de los casos.
+- **`hidratar()` no difiere los JSON** (contra la propuesta 5 de PERF-01). `armar_payload`
+  los lee: `respuestas_por_destino` abre `definicion` y `data`, `cuil_del_caso` abre
+  `respuestas`, las correcciones salen de `datos_siis`. Diferirlos no ahorra bytes, los
+  vuelve a pedir de a uno. El `defer` quedó como parámetro (`JSON_DEL_CASO`) y lo usa el
+  llamador que de verdad no los lee, `validar_casos_siis`.
+- **El relleno del `Coalesce` es la cadena vacía.** No es ninguno de los `choices` de
+  `EnvioSIIS.Estado` ni de `ValidacionSIS.Estado`, así que «sin intentos» pasa a ser un
+  valor más y el filtro queda en **una** referencia a la subconsulta.
+- **No hay memo con TTL de `dnis_aprobados_materias`** (el punto 2 de PERF-07). Esa tabla
+  decide quién va a SIIS y el alta no tiene baja: servir una lista de hace cinco minutos a
+  una corrida lanzada justo después de cargar la planilla es un riesgo que no paga una
+  pantalla. Con el punto 1 —no contar nada mientras hay corrida— esa lectura ya no está en
+  el camino de los 5 s.
+- **Los dos conteos de la pantalla se cachean 60 s y salen juntos.** Son informativos: se
+  usan para decidir cuánto pedir, y quien lanza vuelve a contar del otro lado.
+- **El presupuesto nuevo no es un presupuesto que sube.** `becas_proceso_masivo` es la
+  primera guarda de esa ruta, así que RED-62 no aplica; la justificación igual está
+  escrita en `adjustments`.
+- **`seed_perf` crea el programa SIIS sobre el último segmento**, no sobre el 000: los
+  otros presupuestos (cupo, detalle de caso) miran ese y colgarle un programa SIIS les
+  cambiaría las filas que leen.
+
+## Implementación
+
+**PERF-01 — `programas/services/siis_envio.py`.** `Catalogos` estrena cuatro memos de
+instancia: `_destinos` por `(segmento, subsegmento, programa)`, `_prov` por clave, `_loc`
+por `(clave, provincia_id)` y `_indices` con `{clave: [items]}` por catálogo —antes
+`_buscar` normalizaba el nombre de cada ítem del catálogo en cada llamada—.
+`respuestas_por_destino(formulario, catalogos=None)` usa el memo si se lo pasan.
+`procesar_casos_siis` hidrata por lotes también en la rama sin `--solo-completos`.
+
+**PERF-19 — `proceso_masivo.candidatos` y `validar_casos_siis._casos`.**
+`Coalesce(Subquery(ultimo), Value(""))` y un solo `exclude` / `__in`. Los dos índices
+`(formulario, creado, id)` en `programas.0082`.
+
+**PERF-07 — `programas/views/proceso_masivo.py`.** Con `en_curso` la vista no calcula
+ninguno de los dos números; la existencia de la tabla se pregunta con
+`proceso_masivo.hay_aprobados_materias()`. Sin corrida, `conteos_de_la_pantalla()` arma los
+dos querysets compartiendo `Insumos` (la planilla, la lista de exclusión y los casos
+agotados se leen una vez) y el par se cachea 60 s.
+
+**PERF-06 — `validar_casos_siis`.** `_casos` devuelve el queryset; el comando se queda con
+los ids por rangos de pk y los hidrata lote por lote con `defer` de los cuatro JSON.
+`sin_programa` y `sin_dni`, dos `count()` en la base; con `--limite`, el recorte se
+reproduce exacto acotando por el último pk.
+
+**Los tres MINOR de #632.** `invalidate_ciudadano_cache` se borra (no la llamaba nadie);
+el cruce del padrón vacía trazas y ciudadanos cada 2.000 casos, así que el `iterator`
+acota también la escritura; y la pantalla de cupo usa `listados.hidratar_pagina`.
+
+## Base de datos
+
+`programas.0082` (`programas/migrations/0082_indices_ultimo_intento_siis.py`): dos índices
+`(formulario, creado, id)`, uno en `programas_enviosiis` (`idx_enviosiis_ultimo`) y otro en
+`programas_validacionsis` (`idx_validacionsis_ult`). No agrega, no borra ni renombra ninguna
+columna, y no corre datos: `scripts/check_migraciones.py` no tiene nada que exigirle, y la
+reversa (`RemoveIndex`) es exacta.
+
+**Online en los dos motores.** Son índices secundarios sobre tablas chicas al lado de
+`programas_formulario`: InnoDB los crea con `ALGORITHM=INPLACE, LOCK=NONE`, sin reescribir la
+tabla ni bloquear escrituras. Medido en el banco (8.000 envíos, 10.906 validaciones) con las
+cláusulas puestas a mano para comprobar que el motor las acepta: **29 ms** y **26 ms**.
+
+**El detalle que no es obvio.** Al aplicar, Django borra el índice implícito de la clave
+foránea de `programas_validacionsis` (`programas_validacion_formulario_id_…`), porque el índice
+nuevo lo cubre; al desaplicar lo recrea con el nombre de Django
+(`programas_validacionsis_formulario_id_bca809bb`). La ida y vuelta por `migrate` está probada
+contra MariaDB 10.11 y queda limpia. Lo que **no** se puede hacer es un `DROP INDEX` a mano
+fuera de Django: falla con `ERROR 1553` porque la FK necesita el índice.
+
+**Expand puro.** Un índice no cambia ningún resultado: la release anterior sigue funcionando
+con él puesto y la nueva funciona sin él (más lento). No hay orden que respetar en el deploy.
+
+## Validación
+
+Medido en el **banco MariaDB 10.11** (`scripts/perf_mysql`, base `chaco_perf_ci`,
+`seed_perf --scale 2000` + `escalar_bench --casos 20000`, 22.000 DNI en
+`aprobados_materias`, 8.000 envíos y 10.906 validaciones, `OPTIONS` de producción con
+`read_timeout` 10 s y sin tablas de timezone), antes contra `origin/development` y después
+contra esta rama, en la misma sesión y contra la misma base:
+
+| Camino | Antes | Después |
+|---|---|---|
+| `elegir_completos` sobre 200 candidatos | 1.201 sentencias · 4.132 ms | **8 sentencias · 329 ms** |
+| `validar_casos_siis`, ensayo sobre 20.000 casos | 3 sentencias · **22.917 ms** | 11 sentencias · **431 ms** |
+| Pantalla del masivo, con corrida en curso (relee cada 5 s) | 720-794 ms · SQL 484-578 ms | **45-50 ms · SQL 16-31 ms** |
+| Pantalla del masivo, sin corrida, visita siguiente | 1.562 ms · SQL 1.140 ms | **41 ms · SQL 16 ms** |
+| Los dos conteos de la pantalla | 10 sentencias · 1.515 ms | 6 sentencias · 1.030 ms |
+
+`EXPLAIN ANALYZE` del recorte de candidatos: antes, **tres** `DEPENDENT SUBQUERY` sobre
+`programas_enviosiis` —dos con `Using filesort`— y la de `programas_validacionsis` también
+con `filesort`; después, **una** sobre `idx_enviosiis_ultimo` y la de validaciones sobre
+`idx_validacionsis_ult`, ninguna con `filesort`. Los dos `ADD INDEX … ALGORITHM=INPLACE,
+LOCK=NONE` tardaron 29 y 26 ms.
+
+- `manage.py test programas`: **2.419 tests, OK**; `manage.py test core dashboard legajos`:
+  **1.341 tests, OK**.
+- `manage.py test core.tests.test_performance_budgets --tag performance`: OK con
+  `becas_proceso_masivo` en 18 (medido 17 + 1).
+- Los tests nuevos corren **en rojo** contra `origin/development` (`d7e18690`): 6 fallas y
+  2 errores de API que todavía no existe.
+- `manage.py check` sin issues; `check --deploy` con los avisos preexistentes de settings
+  de desarrollo; `makemigrations --check --dry-run`: «No changes detected».
+- `ruff check .` y `ruff format --check` limpios.
+- Migración aplicada y desaplicada contra MariaDB 10.11 sobre datos sembrados, a mano.
+- `requerimientos.py --check` OK. No se tocó ningún template: la auditoría de diseño no
+  aplica.
+
+## Pendientes / a definir
+
+- **PERF-11 sigue siendo la raíz.** Mientras `definicion` se copie en cada caso, el alta
+  tiene que traerla: acá solo se esquivó donde nadie la lee.
+- **El memo no se entera de un cambio en vuelo.** Si alguien carga una equivalencia de
+  localidad mientras una corrida está informando, los casos de esa corrida siguen con la
+  respuesta de antes. Para que la vean, hay que relanzar.
+- **Los conteos de la pantalla pueden estar hasta 60 s atrasados** después de que termina
+  una corrida. No cambia ninguna decisión: quien lanza vuelve a contar del otro lado.
+- **`aprobados_materias` se sigue leyendo entera** en cada visita sin corrida y en cada
+  corrida. Es la decisión de arriba; si alguna vez molesta, la salida es cruzarla en SQL,
+  no cachearla.
+
+## Reversión
+
+Revertir el commit devuelve el circuito a consultar por caso, la pantalla a contar cada
+5 s y el comando de validación a traer todo en una consulta. La migración se desaplica con
+`migrate programas 0081`, que borra los dos índices y **recrea** el índice implícito de la
+clave foránea de `programas_validacionsis` con su nombre de Django: hay que hacerlo por
+`migrate`, porque un `DROP INDEX` a mano falla con `ERROR 1553` (la FK lo necesita).
+Un índice no cambia ningún dato, así que no queda nada inconsistente. Si lo que molesta es
+el presupuesto nuevo, se saca `becas_proceso_masivo` de `scripts/perf_budgets.json` **y**
+de `scripts/perf_audit.py::build_targets` en el mismo diff.

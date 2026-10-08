@@ -496,9 +496,18 @@ REST_FRAMEWORK = {
     "PAGE_SIZE": 10,
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_THROTTLE_RATES": {
-        # Endpoints que llaman a RENAPER (servicio externo lento): límite por
-        # cliente para no agotar el pool de workers ni abusar del upstream.
-        "renaper": "30/min",
+        # SEC-25 · `POST /api/becas/personas/consultar/` (y su alias
+        # `renaper/consultar/`) devuelve nombre, apellido y nacimiento de
+        # cualquier DNI + sexo: sin tope, un token de campo enumera la Gran Base.
+        # Por **usuario**, no por IP: los territoriales salen por el NAT de la
+        # operadora móvil y una cubeta por IP le cierra la consulta a una región
+        # entera. 120/h es el default de D-25 —una jornada de campo son decenas
+        # de personas, no cientos— y se mide con el uso real antes de apretarlo.
+        #
+        # Reemplaza a `"renaper": "30/min"`, que quedó sin consumidor al borrar
+        # `RenaperRateThrottle` con SEC-04 (#509) y estaba reservada para este
+        # throttle (R0-05).
+        "personas_campo": "120/hour",
     },
 }
 

@@ -153,6 +153,15 @@ class FormularioSerializer(serializers.ModelSerializer):
             "relevamiento",
             "estado",
             "motivo_rechazo",
+            # SEC-23 · lo escribe **solo** el servidor
+            # (`_actualizar_validacion_identidad`). Entraba por el cuerpo del
+            # request y lo pisaba `_completar_alta` un instante después, así que
+            # no servía para nada y sí daba un camino para marcar validada una
+            # identidad que nadie acreditó. La app en producción
+            # (`Chaco-mobile@a66c2d3`) lo manda en el alta: un campo de solo
+            # lectura **se ignora**, no da 400, así que el teléfono instalado no
+            # cambia de comportamiento. La clave sigue viajando en la respuesta.
+            "validado_renaper",
             "ciudadano",
             "ciudadano_dni",
             "ciudadano_nombre",

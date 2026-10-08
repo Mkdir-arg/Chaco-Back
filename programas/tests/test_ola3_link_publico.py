@@ -48,6 +48,7 @@ from programas.models import (
 )
 from programas.services import padron as padron_mod
 from programas.services import personas as personas_mod
+from programas.services import siis_envio
 from programas.services.avisos_resolucion import CAMPO_TRAZA_AVISO, enviar_aviso_resolucion, resultado_vigente
 from programas.services.becas import relevamiento_publico_por_token
 from programas.services.siis_envio import (
@@ -207,7 +208,14 @@ class CuilEnElPayloadTests(_BaseCuil):
         caso.ciudadano.fecha_nacimiento = date(1990, 5, 4)
         caso.ciudadano.save(update_fields=["fecha_nacimiento"])
 
-        payload, _ = armar_payload(caso, Mock(estado_civil_id=lambda *a, **k: None))[:2]
+        # Un doble que no resuelve catálogos ni memoriza destinos: lo que se mide acá es
+        # el CUIL, y con PERF-01 ``armar_payload`` le pregunta también por los destinos.
+        catalogos = Mock(
+            estado_civil_id=lambda *a, **k: None,
+            destinos_del_catalogo=siis_envio._destinos_del_catalogo,
+        )
+
+        payload, _ = armar_payload(caso, catalogos)[:2]
 
         self.assertEqual(payload["cuil_pref"], 23)
         self.assertEqual(payload["cuil_dig"], 2)

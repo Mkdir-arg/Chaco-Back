@@ -1595,25 +1595,25 @@ funcional ni coordinación con ECOM). Las horas de cada ola suman los esfuerzos 
 | 0 | Hotfix de seguridad y seeds | 16 | 36 | 0 (completa en código; lo operativo, en «Estado») | 0 | 0 | 0 |
 | **R** | **Red de seguridad: poder cambiar código sin romper nada sin enterarse** | — | — | — | — | **86** (79 RED con parte en R —78 del relevamiento + RED-89— + OPS-01, OPS-03, OPS-04, TST-01, TST-02, TST-03, R0-03; SEC-10, SEC-11 y SEC-18 se ejecutan en R-19 pero **siguen contadas como ítems de la Ola 2**, solo se mueven sus horas) | **285** · **269 cerradas (R-01..R-16 y R-18..R-21) → 16 restantes: solo R-17** |
 | 1 | Integridad SIIS | 23 | 72 | 22 (− SIIS-07) | 70 | 23 (+ RED-53; + parte de RED-32) | 78 · **76 cerradas (26 el 05-oct, PR 2; 6 el 06-oct, PR 3; 10 el 06-oct, PR 4; 4 el 06-oct, PR 5; 20 el 07-oct, PR 6; 10 el 07-oct, PR 7) → 2 restantes: el ítem 0 (V2-NEW-03, correr P-01 en PRD, sin código)** |
-| 2 | Autorización (RBAC, legajos, alcance de Becas, usuarios) | 36 | 116 | 50 (+ fase 2 de OPS-06, R0-05, resto de SEC-01, etapa 2 de SEC-09, R0b-01..10) | 136 | 51 (+ RED-80; + partes de RED-52, RED-79) | 135 (−7: SEC-10, SEC-18 y media SEC-11 se hacen en R-19, D-RED-14) · **61 cerradas el 08-oct (PR 2 = 24 + 2 de RED-52 · PRs 3 y 4 = 19 · PR 5 = 14 + 2 de RED-79) → 74 restantes** |
+| 2 | Autorización (RBAC, legajos, alcance de Becas, usuarios) | 36 | 116 | 50 (+ fase 2 de OPS-06, R0-05, resto de SEC-01, etapa 2 de SEC-09, R0b-01..10) | 136 | 51 (+ RED-80; + partes de RED-52, RED-79) | 135 (−7: SEC-10, SEC-18 y media SEC-11 se hacen en R-19, D-RED-14) · **73 cerradas el 08-oct (PR 2 = 24 + 2 de RED-52 · PRs 3 y 4 = 19 · PR 5 = 14 + 2 de RED-79 · PR 6 = 12) → 62 restantes** |
 | 3 | Datos, operación, CI, app de campo y reglas de Becas | 55 | 158 | 59 (+ R0-03, R0-04, R0-06, R0-07) | 166 | 54 (− 7 a la Ola R; + RED-48, RED-58; + partes de RED-09, 35, 40, 50) | 152 · **152 cerradas (14 PR 1 · 22 PR 2 · 6 PR 3 · 22 PR 5 · 14 PR 5b · 30 PR 6 · 16 PR 7a · 14 PR 7b · 8 PR 8 · 6 PR 9) → 0: la ola cierra** |
-| 4 | Performance | 19 | 52 | 19 | 52 | 20 (+ RED-62; + partes de RED-10, 49, 51, 83) | 64 · **12 cerradas el 08-oct (PRs 1 y 2 = 10 + 2, con la parte RED-49 adentro) → 52 restantes** |
+| 4 | Performance | 19 | 52 | 19 | 52 | 20 (+ RED-62; + partes de RED-10, 49, 51, 83) | 64 · **20 cerradas el 08-oct (PRs 1 y 2 = 10 + 2, con la parte RED-49 adentro · PR 3 = 8) → 44 restantes** |
 | 5 | Bugs de front y parches v1 de Legajos/Dispositivos | 31 (+ V5A-NEW-07 b) | 114 | 31 (+ V5A-NEW-07 b) | 114 | 33 (+ RED-33, RED-75; + partes de RED-42, 53) (+ V5A-NEW-07 b) | 128 · **128 cerradas (PRs 1 a 8) → 0: la ola cierra** |
 | 6 | Agente de diseño | 4 (+8 pasos) | 42 | 4 (+8 pasos) | 42 | 4 (+8 pasos) | 42 · **42 cerradas el 06-oct (pasos 0-7) → 0: la ola cierra** |
 | 7 | Deuda | 9 (+ fase 2 de G1-01) | 46 | 10 (+ fase 2 de G1-01; + R0-02) | 48 | 13 (+ RED-64, 76, 86; + partes de RED-13, 37, 39, 54, 78, 85) | 88 |
 | v2 | Criterios de aceptación de la v2 (§7), no se implementan en v1 | 13 | — | 13 | — | 13 | — |
-| **Total** | | **206** | **636** | **208** | **628** | **297** | **972** · **740 cerradas al 08-oct-2026 → 232 restantes** |
+| **Total** | | **206** | **636** | **208** | **628** | **297** | **972** · **760 cerradas al 08-oct-2026 → 212 restantes** |
 
 Cada ficha RED cuenta como ítem una sola vez, en la primera ola donde tiene trabajo (por eso la columna suma 297 = 208 +
 89); si tiene una segunda parte en otra ola, esas horas se suman en esa ola («+ partes de …»).
 
 **Cómo se calcula la fila Total (08-oct-2026).** Las 972 h son la suma de la última columna, ola por ola: 0 (Ola 0, que
 cerró en código y cuyas horas ya se descontaron) + 285 (R) + 78 (1) + 135 (2) + 152 (3) + 64 (4) + 128 (5) + 42 (6) +
-88 (7); la v2 no tiene horas. Las **740 cerradas** son la suma de las horas cerradas que declara cada fila, y cada una
+88 (7); la v2 no tiene horas. Las **760 cerradas** son la suma de las horas cerradas que declara cada fila, y cada una
 sale de la lista de PRs de su propia sección de este §6: **269** de la Ola R (285 − las 16 de R-17, el único abierto),
-**76** de la Ola 1 (de 78: queda el ítem 0, operativo), **61** de la Ola 2 (PR 2 = 24 + 2 de RED-52, PRs 3 y 4 = 7 + 12, PR 5 = 14 + 2 de RED-79), **152** de la Ola 3 (PR 1 = 14, PR 2 = 22, PR 3 = 6, PR 5 = 22, PR 5b = 14, PR 6 = 30, PR 7a = 16, PR 7b = 14,
-PR 8 = 8, PR 9 = 6), **128** de la Ola 5 y **42** de la Ola 6, las tres cerradas; **12** de la Ola 4 (PRs 1 y 2); la Ola 7 todavía no cerró ningún PR.
-La cuenta: 269 + 76 + 61 + 152 + 12 + 128 + 42 = **740 cerradas**; 972 − 740 = **232 restantes**. Desde el 08-oct estas
+**76** de la Ola 1 (de 78: queda el ítem 0, operativo), **73** de la Ola 2 (PR 2 = 24 + 2 de RED-52, PRs 3 y 4 = 7 + 12, PR 5 = 14 + 2 de RED-79, PR 6 = 12), **152** de la Ola 3 (PR 1 = 14, PR 2 = 22, PR 3 = 6, PR 5 = 22, PR 5b = 14, PR 6 = 30, PR 7a = 16, PR 7b = 14,
+PR 8 = 8, PR 9 = 6), **128** de la Ola 5 y **42** de la Ola 6, las tres cerradas; **20** de la Ola 4 (PRs 1 y 2 = 12, PR 3 = 8); la Ola 7 todavía no cerró ningún PR.
+La cuenta: 269 + 76 + 73 + 152 + 20 + 128 + 42 = **760 cerradas**; 972 − 760 = **212 restantes**. Desde el 08-oct estas
 cuentas las actualiza **solo el juez**, una vez por tanda de merges: los PRs #626 (Ola 2 PR 5) y #627 (Ola 3 PR 5b) se
 escribieron en paralelo y cada uno sumó sus horas sobre una base que no tenía las del otro (663 y 661). El «139
 cerradas» venía del 04-oct y no contaba nada de lo mergeado entre el 05 y el 07; el **543** del 07-oct arrastraba la
@@ -1937,7 +1937,7 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
 ### Ola 2 — Autorización
 - **Objetivo:** que cada capacidad se evalúe con su alcance de programa y que ninguna vista de legajos, Becas o usuarios
   dependa solo de estar logueado.
-- **Avance: 61 h de 135, 74 restantes** (24 + 2 PR 2 · 19 PRs 3 y 4 · 14 + 2 PR 5). **PR 2 (Usuarios, Cambio 181, #631)** y
+- **Avance: 73 h de 135, 62 restantes** (24 + 2 PR 2 · 19 PRs 3 y 4 · 14 + 2 PR 5 · 12 PR 6). **PR 6 (App de campo, Cambio 184, #638)**, 08-oct-2026, sin migraciones. **PR 2 (Usuarios, Cambio 181, #631)** y
   **PRs 3 y 4 (Legajos y alertas, Cambio 179, #629)**, 08-oct-2026, sin migraciones; R0b-09 queda 🟡. **PR 5 (SEC-21, SEC-22, SEC-20, SEC-30, BEC-19, BEC-23 + la parte
   RED-79 del ítem 9) en el Cambio 177, 08-oct-2026**: 16 h, con **dos migraciones de `users`** (`0027` y `0028`,
   ninguna con DDL) por la capacidad nueva `ciudadano.exportar` (D-20). Es el **primer PR de la ola**.
@@ -1966,7 +1966,15 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
      migraciones. 12 h.
   5. ✅ *Alcance en Becas:* SEC-21, SEC-22, SEC-20, SEC-30, BEC-19, BEC-23. 14 h. **Cerrado el 08-oct-2026
      (Cambio 177)**, con D-20, D-22 y D-B23 aplicadas por default y `users.0027` + `users.0028`.
-  6. *App de campo:* SEC-23 (+G1-15), SEC-24, SEC-25 (+ R0-05: usar o borrar la tasa `renaper`). 12 h.
+  6. ✅ *App de campo:* SEC-23 (+G1-15), SEC-24, SEC-25 (+ R0-05: la tasa `renaper` se borró y la
+     reemplaza `personas_campo`, que sí tiene consumidor). 12 h. **Cerrado el 08-oct-2026 (Cambio 184)**,
+     con D-24 y D-25 aplicadas por default y sin migraciones. El `PATCH`/`PUT` de
+     `/api/becas/formularios/<id>/` pasó a 405 y el POST de adjuntos a 409 sobre casos resueltos; con
+     `origen: personas` la identidad la vuelve a resolver el servidor. La excepción de D-RED-10 (el
+     PATCH contestaba 400 ante una pausa, los otros cinco 409) se fue con el verbo. **Ninguno de los
+     tres cambios pide release de `Chaco-mobile`:** la app instalada no hace un solo PATCH, manda
+     `validado_renaper` en el alta —que como campo de solo lectura se ignora sin dar 400— y atrapa el
+     error de la consulta de identidad cayendo a carga manual.
   7. *Media y uploads:* SEC-09 etapa 2, SEC-15, SEC-31, R0b-07 (+ R0b-08). 14 h.
   8. ✅ *Bajos:* SEC-27 🟡, SEC-32 ✅, SEC-33 ✅, SEC-34 ✅, SEC-35 🟡, SEC-36 ✅, SEC-37 ✅, G1c-10 🟡, G1c-16 ✅
      y el resto de SEC-01 ✅ (`BackofficeAutenticado` fuera de la lista de la ficha; viene de la Ola 0). 20 h.
@@ -2079,8 +2087,8 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
 - **Objetivo:** que padrón, cupo, masivo, exports y el cron horario escalen a 40k casos sin acercarse al `read_timeout`
   ni al timeout de nginx.
 - **PRs y orden:** (1) ✅ PERF-04 + PERF-16 (padrón; prototipo listo) 10 h (Cambio 182) · (2) ✅ PERF-02 (cupo) 2 h
-  (Cambio 182; los PRs 1 y 2 salieron juntos) · (3) PERF-01 (+V4-NEW-02),
-  PERF-19, PERF-07, PERF-06 (circuito SIIS) 8 h · (4) PERF-20 + LEG-01 (alertas) 6 h · (5) PERF-03 (`lxml` + botón CSV),
+  (Cambio 182; los PRs 1 y 2 salieron juntos) · (3) ✅ PERF-01 (+V4-NEW-02),
+  PERF-19, PERF-07, PERF-06 (circuito SIIS) 8 h (Cambio 186) · (4) PERF-20 + LEG-01 (alertas) 6 h · (5) PERF-03 (`lxml` + botón CSV),
   G1b-11, G1b-12 (exports y dashboard) 14 h · (6) PERF-08, PERF-10 (config) 4 h · (7) G1c-09, G1c-11 (admin) 4 h · (8)
   PERF-12, PERF-13, PERF-15 (medir en el banco; índice solo si el plan lo pide) 4 h · (9) *Red de seguridad (04-oct):*
   RED-62 (presupuestos que suben exigen justificación) y segundas partes de RED-10 (destinos del Performance Guard para el
