@@ -2802,6 +2802,11 @@ desde este PR—, **599 s**. O sea **792 → 599 s, −24 %**, con el mismo cont
 4.967 tests `OK (skipped=53)` en **655 s** en serie y sin cobertura contra **463 s** en paralelo **con** cobertura. En el runner de Linux la mejora tiene que ser mayor, porque
 ahí el arranque es *fork* y no *spawn*: la medición local paga el `django.setup()` y la creación del esquema en cada
 uno de los cuatro workers.
+**Y lo que importa de verdad, medido en el runner de GitHub** (no en local): el paso `Run tests with coverage` del job
+`Tests & Coverage` tardaba **536,9 s** con 4.935 tests en la última corrida de `development` (`fd6306e8`, en serie) y
+tarda **396,8 s** con 4.967 tests en este PR (`--parallel 4`): **−26 %, con 32 tests más**. `Combined 5 files`,
+`TOTAL 85 %` (techo 79) y `95 %` en los nueve módulos críticos (piso 90). El `::warning::` no se emitió, como
+corresponde: 397 s está muy por debajo de los 720.
 **La mitad que la ficha nombra en una línea y es donde estaba el riesgo: la cobertura.** `coverage run` mide solo el
 proceso que lanza, y con `--parallel` ese proceso no corre ningún test: sin tocar nada, el `fail_under` se habría
 desplomado y el gate habría culpado al PR que lo encendiera. Van `concurrency = ["multiprocessing"]`, `parallel = true`
