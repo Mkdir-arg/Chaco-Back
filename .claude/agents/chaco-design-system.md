@@ -185,7 +185,7 @@ mismo módulo **nunca** es molde (de la hermana se toma solo dominio).
 | Paginación | Canónico reutilizable | Pieza única `templates/components/_paginacion.html` (`page_obj`, `entidad`, `entidad_plural`, `filtros_qs`, `param`, `extra_qs`); con `param` propio por lista, una pantalla pagina más de una (una por solapa). Solo se muestra con más de una página y va dentro de la card. Ficha: `.claude/design/componentes/paginacion.md` |
 | Alertas inline backoffice | Canónico reutilizable | Pieza única `templates/components/_alerta.html` (`tono`, `titulo`, `texto`, `role`); bloqueo y advertencia se distinguen por el encabezado y por si la acción sigue disponible, no por el color. Ficha: `.claude/design/componentes/alerta.md` |
 | Errores no de campo | Canónico reutilizable | Pieza única `templates/components/_form_errores.html` (`form`, `titulo`); va justo después de `{% csrf_token %}` y solo aparece si el form trae errores del conjunto (`unique_together`, `clean()` de form), que ningún campo muestra. En un modal que se repite por fila, acotada a la fila que falló. Ficha: `.claude/design/componentes/form_errores.md` |
-| Stat cards / métricas | Canónico reutilizable | Pieza única `templates/components/_stat_card.html` (`etiqueta`, `valor`, `icono` sin `fas`, `tono`; opcionales para tableros que llena un JS: `kpi_id`, `sufijo`, `sufijo_id`, `nota`, `nota_id`, que sin usarse no cambian el render); la grilla la arma el consumidor. Sin gradiente ni cajas de 52 px; **sin ranura de cuerpo**: minigráfico o progreso van en la pantalla con el mismo esqueleto. Ficha: `.claude/design/componentes/stat_card.md` |
+| Stat cards / métricas | Canónico reutilizable | Pieza única `templates/components/_stat_card.html` (`etiqueta`, `valor`, `icono` sin `fas`, `tono`; opcionales `kpi_id`, `sufijo`, `nota`, `variante`: sin usarse no cambian el render); grilla del consumidor. Dos variantes: chica (por defecto) y `variante="tablero"` (grande, 52 px con gradiente; `nodo-stat-card.css`); **sin ranura de cuerpo**: minigráfico o progreso van en la pantalla. Ficha: `.claude/design/componentes/stat_card.md` |
 | Campos NODO y `_field.html` | Canónico reutilizable | `static/custom/css/nodo-forms.css` (`nodo-field`, `.nodo-checks`, selector de color) y la pieza única `templates/components/_field.html` (`field`, `wrapper_class`), con `data-error="<campo>"` siempre presente para el guardado AJAX y `aria-describedby`/`aria-invalid` puestos por `nodo_ui.campo_control`. La clase del control la pone el widget del form (`programas/forms.py`), no el template. Ficha: `.claude/design/componentes/field.md` |
 | Botones y badges NODO | Canónico reutilizable | `static/custom/css/nodo-buttons.css` (`btn-nodo` + variante + tamaño, `.nodo-icon-btn`, `.nodo-icon-btn--danger`) y `static/custom/css/nodo-badges.css` (`badge` + variante, siempre con texto además del color). Ficha: `.claude/design/componentes/botones_badges.md` |
 | Tabs backoffice | Canónico reutilizable | Solapas en una surface, con `role="tablist"` + `aria-label`, `role="tab"` + `id` + `aria-controls` + `aria-selected`, `role="tabpanel"` + `id` + `aria-labelledby`, y estado en `x-data` + querystring `tab`. **ARIA y teclado obligatorios:** el teclado lo da `static/custom/js/nodo-tabs.js` desde el shell; ninguna pantalla escribe el suyo. Lo que abre otra pantalla es acción del encabezado, no una solapa. Ficha: `.claude/design/componentes/tabs.md` |
@@ -226,8 +226,9 @@ Lista blanca. Lo que no está acá es una **novedad** (protocolo, paso 6).
   solo en el shell.
 - **Gradiente:** `var(--gradient-brand)` queda para el shell y el panel de marca de
   inscripción. En el contenido no: las iniciales de una persona van
-  `w-8 h-8 rounded-full bg-brand-soft text-fg-brand` y las métricas sin gradiente
-  (un solo acento por bloque).
+  `w-8 h-8 rounded-full bg-brand-soft text-fg-brand` y las métricas chicas sin gradiente
+  (un solo acento por bloque). Única excepción: la caja de ícono de la stat card
+  `variante="tablero"`.
 
 ## Perfiles de dominio
 
