@@ -14,6 +14,11 @@ DEBUG = False
 
 # Silk (profiling) nunca en producción, sin depender del orden de carga de .env.
 INSTALLED_APPS = [app for app in INSTALLED_APPS if app != "silk"]
+# Y la bandera que deriva de esa lista se recalcula: `config/settings.py` la fijó antes
+# de este filtro, así que con `DJANGO_DEBUG=True` mal puesto en un ambiente servido
+# quedaba en `True` con la app ya afuera, y `config/urls.py` montaba `/silk/` apuntando a
+# `silk.urls` sin la app instalada.
+SILK_HABILITADO = False
 
 # Refuerza hosts solo desde variable de entorno en producción.
 hosts_env = os.getenv("DJANGO_ALLOWED_HOSTS", "")

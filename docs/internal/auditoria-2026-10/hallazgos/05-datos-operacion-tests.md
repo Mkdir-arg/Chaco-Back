@@ -23,7 +23,7 @@ Fichas completas del dominio. Convenciones, `V-STD` y `V-UI`: README §0. PoC: `
 | OPS-10 | Módulos de «optimización» con DDL y `SET GLOBAL` en el release | BAJA | CONF. ajustado | 7 | S-M | ✅ |
 | OPS-11 | `migrate --run-syncdb` en el entrypoint | BAJA | CONF. ajustado | 3 | S | ✅ |
 | OPS-12 | QA no reproduce el cache de PRD y declara `ENVIRONMENT=prd` | BAJA | CONF. | 3 | S | ✅ |
-| OPS-13 | Dependencias sin uso en la imagen | BAJA | CONF. | 7 | S | ⬜ |
+| OPS-13 | Dependencias sin uso en la imagen | BAJA | CONF. | 7 | S | ✅ |
 | OPS-14 | Código muerto o stub; un `.py` vivo que git trata como binario | BAJA | CONF. | 7 | S | ✅ |
 | TST-03 | Coverage global de 48 % sobre todo el repo | BAJA | CONF. | **R** (antes 3) | S | ✅ |
 | G2-05 | `import_users_from_csv` reparte grupos de un usuario fijo y pisa cuentas | BAJA | CONF. lectura | 3 | S | ✅ |
@@ -549,6 +549,34 @@ operación de *contract* (N+2) y con su reversa declarada. Las que solo son `pip
 `structlog`, `gevent`…) no tienen este problema.
 - **Ubicación:** `requirements.txt` (`openai==1.3.8` —subido solo para parchear CVEs de `anyio`—, `httpx`, `anyio`, `structlog`, `gevent`, `greenlet`, `django-simple-history`, `debugpy`, `pymysql` —solo en `core/performance/advanced_connection_pool.py`, OPS-10—, `django-health-check` —OPS-04—); `config/settings.py:85` (`django_extensions` en `INSTALLED_APPS` también en prod). Verificado: 0 imports.
 - **Propuesta:** sacarlas; pasar `debugpy`, `django-extensions`, `django-silk`, `django-zeal` a `requirements-dev.txt`; `django_extensions` solo con `DEBUG`. Confirmar que ningún operador usa `shell_plus` en ECOM. Verificación: build de la imagen, suite completa y `pip-audit`.
+
+**Resolución:** ✅ Resuelto en el PR 2 de la Ola 7 (Cambio 196), 09-oct-2026 — **once paquetes menos en la imagen**.
+Se fueron del todo `openai`, `httpx`, `anyio` (los tres del bloque «AI/ML»: `openai` había subido a 1.3.8 solo para
+destrabar `anyio>=4` en el Cambio 97, y `anyio` se pineaba porque lo arrastraban esos dos), `structlog`,
+`gevent`/`greenlet` (**RED-45**, abajo), `django-simple-history` —su único `HistoricalRecords` está comentado desde
+siempre—, `pymysql` —lo usaba `advanced_connection_pool.py`, que borró OPS-10 en el Cambio 195— y
+`django-health-check`. `debugpy`, `django-extensions` y `django-silk` se mudaron a **`requirements-dev.txt`**
+(`-r requirements.txt` + las tres), que el `Dockerfile` no instala.
+**`django-health-check` necesitó la migración que esta misma ficha anticipaba:** `core.0003` borra
+`health_check_db_testmodel` y las **dos** filas de `django_migrations` (`db.0001_initial` y
+`health_check_db.0001_initial`), con `atomic = False`, los tres pasos idempotentes y reversa real —recrea la tabla y
+reinserta las filas—. Es *contract* y va legal: lo que borra dejó de leerse en el Cambio 153 (OPS-04), hace más de dos
+releases. **`django_extensions` y `silk` entran a `INSTALLED_APPS` solo si están instalados**, no con un `if DEBUG` a
+secas: el `docker-compose.yml` de desarrollo levanta la **imagen de producción** con `DJANGO_DEBUG=True` y una lista
+incondicional mataría ese contenedor al importar; por lo mismo `config/urls.py` monta `/silk/` por `SILK_HABILITADO`.
+**Dos desvíos, los dos code-first:** (a) **`django-zeal` no se muda** —`config/settings.py` lo suma a `INSTALLED_APPS`
+con `PYTEST_RUNNING` y cuatro módulos de tests hacen `from zeal import zeal_ignore` al importar, así que todo job que
+corre la suite lo necesita y en producción no se carga nunca—; (b) `psutil` se queda, que la ficha no nombra y
+`core/views/performance.py` importa. **Verificado como pide la ficha:** `docker build` sobre `python:3.12-slim` OK,
+`check --deploy` adentro de la imagen con 1 aviso (el `SECRET_KEY` de prueba), `check` adentro de la imagen con
+`DJANGO_DEBUG=True` también OK, `collectstatic` 332/1.448 sin errores, suite completa 4.874 tests en verde y
+`pip-audit -r requirements.txt` «No known vulnerabilities found» **sin ignores** —`setuptools` subió de 80.9.0 a
+83.0.0 y la excepción `PYSEC-2026-3447` se retiró, que era lo que RED-85 tenía anotado—.
+**Queda operativo (PM):** confirmar con ECOM que nadie usa `shell_plus` en testing ni en PRD, que es la confirmación
+que la *Propuesta* pide y esta sesión no puede hacer. Si lo usan, la vuelta es una línea.
+**Test permanente:** `core.tests.test_dependencias` (`RequirementsTests.test_los_paquetes_retirados_no_volvieron_a_la_imagen`,
+`.test_nadie_los_importa`, `.test_la_imagen_instala_solo_requirements`, `InstalledAppsTests.test_health_check_ya_no_esta_instalada`,
+`RetiroDeHealthCheckTests.test_restituir_deja_el_estado_de_antes_y_retirar_lo_limpia`).
 
 ### OPS-14 · Código muerto o stub; un `.py` vivo que git trata como binario
 **Severidad:** BAJA (la conversión a LF conviene ya) · **Origen:** A8-18 · **Ola:** 7 · **Esfuerzo:** S

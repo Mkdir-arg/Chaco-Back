@@ -1,9 +1,10 @@
 # Auditoría integral de DATAÑACH (Chaco) — octubre 2026
 
-## Estado al 09-oct-2026 (Ola 7, PR 1: código muerto — **arranca la Ola 7**)
+## Estado al 09-oct-2026 (Ola 7, PR 2: dependencias y CI)
 
 | PR | Cambio | Fichas | Estado | Qué quedó abierto |
 |---|---|---|---|---|
+| Ola 7 PR 2 | 196 | OPS-13 ✅ (con RED-45 ✅) · RED-85 ✅ | ✅ | **Las dos fichas cerradas, y la imagen de producción pierde once paquetes que nadie importaba.** (1) **OPS-13:** se van `openai`, `httpx`, `anyio` —el bloque «AI/ML» entero, que existía solo porque `openai` topeaba `anyio` (Cambio 97)—, `structlog`, `gevent`/`greenlet`, `django-simple-history` (su único `HistoricalRecords` está comentado), `pymysql` (lo usaba lo que borró OPS-10) y `django-health-check`; `debugpy`, `django-extensions` y `django-silk` se mudan a **`requirements-dev.txt`**, que el `Dockerfile` no instala. `django_extensions` estaba en `INSTALLED_APPS` **sin condición**, o sea cargado en PRD. Sacar `django-health-check` pedía la limpieza de base que su propia ampliación anticipó: `core.0003` borra `health_check_db_testmodel` y sus **dos** filas de `django_migrations`, `atomic = False`, pasos idempotentes y reversa real. Es *contract* legal: nada la lee desde el Cambio 153. (2) **RED-45 con D-RED-08 en su default:** se borra `config/gevent_patch.py` y el bloque de `wsgi.py`. Antes se verificó el worker de cada ambiente: el entrypoint arranca gunicorn **sin `--worker-class`** (gthread) y desde el Cambio 159 aborta ante las cuatro formas de pedir gevent, así que ningún ambiente puede estar corriéndolo. La guarda se queda y es lo que ahora sostiene la ficha sola; el paso 0 de `espejo-ecom.md` —leer las dos variables en ECOM, H-05— **no se toca**. (3) **RED-85:** `requirements-ci.txt` con las cinco herramientas pineadas en las versiones que el CI ya instalaba, los **seis** `pip install` sueltos reemplazados, y `.github/dependabot.yml` semanal contra `development` para pip, actions y npm. De yapa cae la **única excepción de `pip-audit`**: `setuptools` sube a 83.0.0 y `PYSEC-2026-3447` se retira, con `pip-audit` en 0 **sin ignores**. **Dos desvíos, los dos code-first:** `django-zeal` no se muda (`PYTEST_RUNNING` lo mete en `INSTALLED_APPS` y cuatro módulos de tests lo importan al cargar) y `psutil` se queda (`core/views/performance.py` lo usa). **Entran también los 5 MINOR de la revisión de #648**: justificación de presupuesto por entrada **nueva** que nombre el techo como palabra entera, comparación contra el **merge-base**, `github.event.before` en el disparo por push, fallo explícito cuando `perf_audit` se queda sin sesiones, y el comentario de `programas.0085` sobre el índice que PERF-13 sí registraba (solo el comentario: la migración está mergeada). **Verificado:** `docker build` + `check --deploy` + `collectstatic` adentro de la imagen, suite completa 4.874 tests, `actionlint` 0 errores en los 9 workflows, `pip-audit` 0. |
 | Ola 7 PR 1 | 195 | OPS-10 ✅ · OPS-14 ✅ · RED-65 ✅ · FE-14 ✅ · LEG-06 🟡 | 🟡 | **Cuatro fichas cerradas y una parcial, sin DDL.** Nada de lo que se borró se ejecutaba, salvo tres botones. (1) **OPS-10:** los nueve módulos de `core/performance/` que nadie usa para medir (`advanced_*`, `database_*`, `intelligent_*`, `monitoring`, `performance_analyzer`, `phase2_manager`), seis comandos —los cuatro de la ficha más `monitor_performance` y `performance_report`, que quedaban sin un solo invocador— y cinco endpoints. `/run-phase2-tests-api/` era el peor: autorizaba por `IsAdminUser` (`is_staff`), contra la regla de capacidades, y disparaba análisis de índices y particiones **desde una request**. `SET GLOBAL …` pedía `SUPER` y `CREATE INDEX IF NOT EXISTS` no es MySQL. Sobrevive lo que mide de verdad: `query_observability`, `cache_utils`, `ci_external_stubs` y las tres APIs que los leen. El criterio de la ola se cumple: `git grep -n "phase2|core.performance.monitoring"` vacío fuera de `docs/`. (2) **OPS-14 + RED-65:** `tramites`, `docker/django/`, `scripts/startup.sh`, `core/services/cache.py` y la capacidad `ciudadano.eliminar` (`users.0033`, que borra también el `Permission` —Django no lo hace al sacarlo de `Meta.permissions`— con reversa marcada `# REVERSA-NOOP`). Los dos primeros eran justo lo que el guard de `publish-main.yml` exigía: salieron del árbol y de `RUNTIME` **en el mismo diff**, que es el modo de falla que RED-65 anticipó, más un test para el camino inverso (sacar una ruta del guard sin borrar el archivo apagaría la red en silencio). La parte de los fines de línea ya la había cerrado RED-82. (3) **FE-14:** los 29 JS y `dashboard.css`, con el rebuild de Tailwind commiteado. Efecto medible: `bg-info`, `text-danger` y `text-info` salen de la `DEUDA` de `CssCompiladoAlDiaTests` (16 → 13). (4) **LEG-06 con D-L06 en su default:** cuatro módulos de vistas sin ruta, tres templates, el `dashboard_contactos_simple` **homónimo** del que sí se sirve, `dar_de_baja_inscripcion` con su botón, y «Derivar a Programa» oculto. **Tres ratchets quedan en cero**: la `ALLOWLIST` de RED-42, `URLS_ROTAS_CONOCIDAS` y `BLOQUES_SIN_DESTINO_CONOCIDOS`. **Cinco desvíos, los cinco code-first:** `dashboard/templates/dashboard.html` no se borra (la vista, su `path` y `metricas_home()` son de **RED-78**, otro PR de esta ola: acá sale solo su `{% include %}` del widget); **el default de D-F16 no se aplica** —`legajos:programa_detalle` es el destino de `redirect` de las dos vistas de derivación de SEC-12, que están ruteadas y vivas, así que la pantalla es pobre pero no está muerta—; `ml_predictor.py` se queda (la ficha lo nombra en *Ubicación* y no en *Propuesta*, y `legajos:prediccion_riesgo` lo usa); `relevamiento.ver` e `institucion.*` siguen en el catálogo (la *Propuesta* solo nombra `ciudadano.eliminar`; vaciar el módulo `instituciones` borra una solapa del ABM de Roles → decisión del PM); y `BajaProgramaService` se conserva, porque lo cubre un test permanente de BEC-18. **TDD:** los 14 tests nuevos se corrieron contra un worktree de `origin/development` y fallaron los 14. **Para el juez:** los dos bloques de `.claude/` (agente canónico y `shells.md`, por el borrado de `widget_contactos.html`) van en el cuerpo del PR; hasta aplicarlos, «Design Agent Contract» queda rojo. |
 
 ## Estado al 08-oct-2026 (Ola 4, PR 9: la red de seguridad — **cierra la Ola 4**)
@@ -708,7 +709,7 @@ columna «Avance» de la tabla índice de `hallazgos/08-red-de-seguridad.md` coi
 |---|---|---|---|---|
 | #547 R-01 | 116 | RED-01 | 🟡 | Código completo (volcados fuera de `HEAD`, release e imagen; cuatro barreras; gate `Sin datos personales`; `DATOS_SIIS_DIR`). Falta lo del PM: repo privado y purga del historial (**D-RED-01**), y montar `DATOS_SIIS_DIR` en icore y ECOM |
 | #549 R-02 | 117 | RED-60, RED-15 | ✅ ✅ | Runbook de rollback (Anexo D) en `processes.md` y las ocho barreras de reversa. Operativo: pedirle a ECOM por escrito el dump previo al deploy (H-11) |
-| #554 R-03 | 121 | RED-20, RED-63, RED-85 | 🟡 ✅ 🟡 | Rulesets versionados en `docs/internal/rulesets/`, filtros `paths` adentro del job, `Ruff errores` bloqueante y `security/excepciones.toml` con vencimiento. Falta: que el **dueño del repo** aplique los dos rulesets, y pinear el resto de las herramientas del CI (Ola 7) |
+| #554 R-03 | 121 | RED-20, RED-63, RED-85 | 🟡 ✅ ✅ | Rulesets versionados en `docs/internal/rulesets/`, filtros `paths` adentro del job, `Ruff errores` bloqueante y `security/excepciones.toml` con vencimiento. RED-85 la terminó el Cambio 196 (`requirements-ci.txt` + dependabot). Falta: que el **dueño del repo** aplique los dos rulesets |
 | #546 R-04 | 118 | RED-36, RED-37 | ✅ ✅ (R) | `drf_spectacular` en `INSTALLED_APPS` + sidecar propio; serializers anotados y `ConsultaPersonaSerializer`; esquema con allowlist (10) y ratchet de warnings (15). Falta el punto 3 de RED-37 (Ola 7) |
 | #553 R-05 | 122 | RED-02, RED-30, RED-73, RED-71 | ✅ ✅ ✅ ✅ | Barrido del URLconf (315 rutas), humo con superusuario, precondición de RENAPER debajo de la autorización y contrato del CORS propio. **Dejó un hallazgo nuevo: RED-89** |
 | #551 R-06 | 123 | RED-32, RED-54, RED-47, RED-56, RED-61, RED-69, RED-87 | ✅ (R) ✅ (R) ✅ ✅ ✅ ✅ ✅ | Caracterización antes de la Ola 1. Operativo: `SIIS_API_URL` definida en ECOM y `DATANACH_ES_PRODUCCION=1` solo en PRD |
@@ -730,7 +731,8 @@ columna «Avance» de la tabla índice de `hallazgos/08-red-de-seguridad.md` coi
 | **Total** | **89** | **33** | **5** | **51** |
 
 La columna ✅ incluye las fichas cuya **parte de la Ola R** quedó cerrada y tienen una segunda parte planificada en otra
-ola, anotadas `✅ (R; falta Ola N)`: RED-09 (Ola 3), RED-37, RED-54, RED-65 y RED-85 (Ola 7). **RED-32 ya no está en esa
+ola, anotadas `✅ (R; falta Ola N)`: RED-09 (Ola 3), RED-37 y RED-54 (Ola 7). RED-65 la cerró el Cambio 195 y
+RED-85 el Cambio 196. **RED-32 ya no está en esa
 lista: su segunda parte cerró el 07-oct con el PR 7 de la Ola 1 (Cambio 162).** El 🟡 se reserva
 para una ficha cuya propia parte de la Ola R quedó incompleta: RED-01 y RED-20 (falta el paso del dueño del repo),
 RED-10 (falta un test), RED-22 (falta enviar la propuesta a ECOM) y RED-23 (faltan los dos comandos en `.claude/`).
@@ -1220,7 +1222,7 @@ cliente antes de cualquier otra cosa.
 | D-RED-05 | ¿Se arregla la reversa de las migraciones UUID (L) o se declaran barrera de reversa? | Barrera: por debajo de `legajos.0007`, `programas.0047/0048/0073` y `users.0023` solo se vuelve con restore | RED-15 |
 | D-RED-06 | ¿Se reconstruye un e2e con Playwright? | No por ahora: borrar los residuos de `tests/e2e/`; si se hace, solo constructor y paso 2 del link, nightly, nunca como gate | RED-72 |
 | D-RED-07 ✅ | Preferencia de tema oscuro: (A) se persiste solo en el navegador o (B) se guarda en el perfil | A: borrar `sendThemePreference` y `dark_mode` del serializer. **Default aplicado el 07-oct-2026 (Cambio 164, PR 8 de la Ola 5):** se fueron la función, la opción `notify` que la disparaba y el campo del serializer; la preferencia vive en `localStorage`, que es donde ya vivía de verdad. La columna `users_profile.dark_mode` queda hasta que una ficha de *contract* la retire. Si el PM quiere B, hay que escribir la vista `POST /usuarios/tema/` y sus tests | RED-75 |
-| D-RED-08 | ¿Se conserva la opción de workers gevent? | No: borrar el parche y las dependencias (Ola 7); hasta entonces, el entrypoint aborta si se pide | RED-45 |
+| D-RED-08 | ¿Se conserva la opción de workers gevent? | No: borrar el parche y las dependencias (Ola 7) — **aplicada en el Cambio 196**; el entrypoint sigue abortando si se pide | RED-45 |
 | D-RED-09 | ¿La publicación de `docs/client/` en Pages requiere aprobación? | Sí: `environment: github-pages` con revisores + chequeo de patrones | RED-64 |
 | D-RED-10 | ¿Se unifica la respuesta de la pausa de la app (409 en cinco endpoints, 400 en el PATCH)? | No ahora: el test fija el contrato tal cual; unificar solo con un release coordinado de `Chaco-mobile`. 🟡 04-oct: **default aplicado** en #548 (Cambio 119) — `PausaEnTodosLosEndpointsTests` afirma el código real por endpoint | RED-03 |
 | D-RED-11 | Lista de espera: ¿la posición se reutiliza después de promover? ¿Se agrega unicidad `(segmento, posicion)`? | Fijar la conducta de hoy en el test (el máximo se calcula sobre no promovidos); unicidad con columna nullable junto con BEC-02. 🟡 04-oct: **default aplicado** en #552 (Cambio 124) — la conducta queda fijada por test; **la decisión de fondo sigue abierta y hay que tomarla antes de BEC-02**, que es cuando entraría la unicidad | RED-68, BEC-02 |
@@ -1518,7 +1520,8 @@ Avance: 21 ⬜ (PERF-01 con «⚠ Actualizar» por #513).
 Avance: 0 ✅ · 1 🟡 · 23 ⬜ (+ R0-02, R0-03 ⬜).
 - **ALTA:** 🟡 OPS-06 seeds de arranque (Ola 0; fase 2 → Ola 2) · DAT-01 cascada de adjuntos · OPS-03 logs de 500.
 - **MEDIA:** OPS-01, 02, 04, 05, 07 · TST-01, 02 · G1c-12.
-- **BAJA:** DAT-02, 03, 05 · V2-NEW-05 · OPS-11, 12 · TST-03 · G2-05 · G3-04, 05 · OPS-10, 13, 14 (Ola 7).
+- **BAJA:** DAT-02, 03, 05 · V2-NEW-05 · OPS-11, 12 · TST-03 · G2-05 · G3-04, 05 · OPS-10, 13, 14 (Ola 7; OPS-10,
+  13 y 14 ya cerradas en los Cambios 195 y 196).
 - **Seguimientos (BAJA/MINOR):** R0-02 docs con `portal:ciudadano_mi_perfil` (7) · R0-03 fecha fija que vence el
   01-ene-2027 (3, antes del 31-dic-2026).
 
@@ -1625,20 +1628,20 @@ funcional ni coordinación con ECOM). Las horas de cada ola suman los esfuerzos 
 | 4 | Performance | 19 | 52 | 19 | 52 | 20 (+ RED-62; + partes de RED-10, 49, 51, 83) | 64 · **62 cerradas el 08-oct (PRs 1 y 2 = 10 + 2, con la parte RED-49 adentro · PR 3 = 8 · PR 4 = 6 · PR 5 = 12 de 14, PERF-03 🟡 · PRs 6, 7 y 8 = 12 · PR 9 = 12) → 2 restantes: el punto 3 de PERF-03 (exportar fuera del request)** |
 | 5 | Bugs de front y parches v1 de Legajos/Dispositivos | 31 (+ V5A-NEW-07 b) | 114 | 31 (+ V5A-NEW-07 b) | 114 | 33 (+ RED-33, RED-75; + partes de RED-42, 53) (+ V5A-NEW-07 b) | 128 · **128 cerradas (PRs 1 a 8) → 0: la ola cierra** |
 | 6 | Agente de diseño | 4 (+8 pasos) | 42 | 4 (+8 pasos) | 42 | 4 (+8 pasos) | 42 · **42 cerradas el 06-oct (pasos 0-7) → 0: la ola cierra** |
-| 7 | Deuda | 9 (+ fase 2 de G1-01) | 46 | 10 (+ fase 2 de G1-01; + R0-02) | 48 | 13 (+ RED-64, 76, 86; + partes de RED-13, 37, 39, 54, 78, 85) | 88 · **10 cerradas el 09-oct (PR 1: OPS-10 = 4, OPS-14 + RED-65 = 2, FE-14 = 2, LEG-06 🟡 = 2) → 78 restantes** |
+| 7 | Deuda | 9 (+ fase 2 de G1-01) | 46 | 10 (+ fase 2 de G1-01; + R0-02) | 48 | 13 (+ RED-64, 76, 86; + partes de RED-13, 37, 39, 54, 78, 85) | 88 · **14 cerradas el 09-oct (PR 1: OPS-10 = 4, OPS-14 + RED-65 = 2, FE-14 = 2, LEG-06 🟡 = 2 · PR 2: OPS-13 + RED-45 = 2, RED-85 = 2) → 74 restantes** |
 | v2 | Criterios de aceptación de la v2 (§7), no se implementan en v1 | 13 | — | 13 | — | 13 | — |
-| **Total** | | **206** | **636** | **208** | **628** | **297** | **972** · **874 cerradas al 09-oct-2026 → 98 restantes** |
+| **Total** | | **206** | **636** | **208** | **628** | **297** | **972** · **878 cerradas al 09-oct-2026 → 94 restantes** |
 
 Cada ficha RED cuenta como ítem una sola vez, en la primera ola donde tiene trabajo (por eso la columna suma 297 = 208 +
 89); si tiene una segunda parte en otra ola, esas horas se suman en esa ola («+ partes de …»).
 
 **Cómo se calcula la fila Total (08-oct-2026).** Las 972 h son la suma de la última columna, ola por ola: 0 (Ola 0, que
 cerró en código y cuyas horas ya se descontaron) + 285 (R) + 78 (1) + 135 (2) + 152 (3) + 64 (4) + 128 (5) + 42 (6) +
-88 (7); la v2 no tiene horas. Las **874 cerradas** son la suma de las horas cerradas que declara cada fila, y cada una
+88 (7); la v2 no tiene horas. Las **878 cerradas** son la suma de las horas cerradas que declara cada fila, y cada una
 sale de la lista de PRs de su propia sección de este §6: **269** de la Ola R (285 − las 16 de R-17, el único abierto),
 **76** de la Ola 1 (de 78: queda el ítem 0, operativo), **135** de la Ola 2 (PR 1 = 26 + 2 de RED-80, PR 2 = 24 + 2 de RED-52, PRs 3 y 4 = 7 + 12, PR 5 = 14 + 2 de RED-79, PR 6 = 12, PR 7 = 14, PR 8 = 20), **152** de la Ola 3 (PR 1 = 14, PR 2 = 22, PR 3 = 6, PR 5 = 22, PR 5b = 14, PR 6 = 30, PR 7a = 16, PR 7b = 14,
-PR 8 = 8, PR 9 = 6), **128** de la Ola 5 y **42** de la Ola 6, las tres cerradas; **62** de la Ola 4 (PRs 1 y 2 = 12, PR 3 = 8, PR 4 = 6, PR 5 = 12 de 14, PRs 6, 7 y 8 = 12, PR 9 = 12); **10** de la Ola 7 (PR 1).
-La cuenta: 269 + 76 + 135 + 152 + 62 + 128 + 42 + 10 = **874 cerradas**; 972 − 874 = **98 restantes**. Desde el 08-oct estas
+PR 8 = 8, PR 9 = 6), **128** de la Ola 5 y **42** de la Ola 6, las tres cerradas; **62** de la Ola 4 (PRs 1 y 2 = 12, PR 3 = 8, PR 4 = 6, PR 5 = 12 de 14, PRs 6, 7 y 8 = 12, PR 9 = 12); **14** de la Ola 7 (PR 1 = 10, PR 2 = 4).
+La cuenta: 269 + 76 + 135 + 152 + 62 + 128 + 42 + 14 = **878 cerradas**; 972 − 878 = **94 restantes**. Desde el 08-oct estas
 cuentas las actualiza **solo el juez**, una vez por tanda de merges: los PRs #626 (Ola 2 PR 5) y #627 (Ola 3 PR 5b) se
 escribieron en paralelo y cada uno sumó sus horas sobre una base que no tenía las del otro (663 y 661). El «139
 cerradas» venía del 04-oct y no contaba nada de lo mergeado entre el 05 y el 07; el **543** del 07-oct arrastraba la
@@ -2235,7 +2238,8 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
   toca templates de Becas (cambios visuales mínimos, capturas antes/después). Cambia el CI (`design-agent-contract.yml`).
 
 ### Ola 7 — Deuda
-- **Ítems:** OPS-10 ✅ (Cambio 195 — módulos de «optimización» y sus comandos), OPS-13 (dependencias),
+- **Ítems:** OPS-10 ✅ (Cambio 195 — módulos de «optimización» y sus comandos), OPS-13 ✅ (Cambio 196 —
+  once paquetes fuera de la imagen, `requirements-dev.txt` y el retiro de `django-health-check` con `core.0003`),
   OPS-14 ✅ (Cambio 195 — código muerto; la parte de `.py` con CR ya la cerró RED-82), FE-14 ✅ (Cambio 195 —
   29 JS huérfanos), LEG-06 🟡 (Cambio 195 — código muerto de Legajos; queda `dashboard.html`, que va con RED-78,
   y el default de D-F16, que no aplica), BEC-25, G1b-09, G1b-10, **G1-01 fase 2** (apagar
@@ -2246,8 +2250,8 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
   `docs/client/`), RED-76 (mypy gradual), RED-86 (suite en paralelo, después de RED-88) y segundas partes de RED-13
   (desacoplar el shell y la señal de `conversaciones` **antes** de G1-01 fase 2: +8 h), RED-37 (esquema del dashboard),
   RED-39 (un solo sobre de error JSON), RED-54 (partir `formulario_detalle`), RED-78 (borrar `DashboardView` **y
-  `dashboard/templates/dashboard.html`**, que LEG-06 dejó en pie a propósito) y RED-85
-  (`requirements-ci.txt` + dependabot). RED-45 (borrar el parche de gevent) va dentro de OPS-13, sin horas extra;
+  `dashboard/templates/dashboard.html`**, que LEG-06 dejó en pie a propósito) y RED-85 ✅ (Cambio 196 —
+  `requirements-ci.txt` + dependabot). RED-45 ✅ (borrar el parche de gevent) entró dentro de OPS-13, sin horas extra;
   RED-65 ✅ (sacar del guard del release los artefactos muertos) entró con OPS-10/OPS-14 en el Cambio 195.
 - **Hecho cuando:** V-STD + V-UI; `git grep -n "phase2\|core.performance.monitoring"` vacío; `pip-audit` y build de imagen
   OK; `collectstatic` sin 404.

@@ -1,0 +1,75 @@
+# RED-85 · Las versiones del CI y de la imagen se suben en un PR que alguien mira.
+#
+# Con las herramientas pineadas (`requirements-ci.txt`), el riesgo se da vuelta: el pin
+# envejece y nadie se entera hasta que una advisory nueva o una regla nueva aparecen
+# tarde. Dependabot es la otra mitad: abre un PR semanal por ecosistema, contra
+# `development` —nunca contra `main`, que es una release generada
+# (`docs/internal/branching.md`)—, y ese PR pasa por el mismo CI que cualquier otro.
+#
+# Alcance deliberado: no hay `ignore` de nada. Un mayor que no conviene se cierra a mano
+# y queda el registro de que se decidió; un `ignore` escrito acá se olvida.
+version: 2
+
+updates:
+  # `requirements.txt` (imagen de produccion), `requirements-dev.txt` y
+  # `requirements-ci.txt`: dependabot toma los tres del directorio raiz.
+  - package-ecosystem: pip
+    directory: "/"
+    target-branch: development
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: America/Argentina/Buenos_Aires
+    open-pull-requests-limit: 5
+    labels:
+      - dependencias
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      # Las herramientas del CI se mueven juntas: son el mismo PR a revisar y ninguna
+      # afecta lo que corre en produccion.
+      herramientas-ci:
+        patterns:
+          - ruff
+          - coverage
+          - pip-audit
+          - bandit
+          - mkdocs-material
+
+  # Las actions de `publish-main.yml` y `docs-auto-deploy.yml` ya van por SHA (Cambio
+  # 121): dependabot entiende el formato `uses: owner/action@<sha> # vX.Y.Z` y sube el
+  # SHA con su comentario. Los `pr-*.yml` siguen por tag y tambien entran.
+  - package-ecosystem: github-actions
+    directory: "/"
+    target-branch: development
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: America/Argentina/Buenos_Aires
+    open-pull-requests-limit: 5
+    labels:
+      - dependencias
+    commit-message:
+      prefix: "chore(deps)"
+
+  # `package.json`: solo `tailwindcss`, y su salida esta **commiteada**
+  # (`static/custom/css/tailwind.css`). Un PR de dependabot que suba Tailwind no
+  # regenera el CSS: el job «Validate inventory and authority» lo ve como diff y queda
+  # rojo hasta que alguien corra `npm run build:tailwind` y commitee la salida. Es el
+  # comportamiento buscado —el aviso llega en el PR y no en PRD—, pero conviene saberlo
+  # antes de abrirlo.
+  - package-ecosystem: npm
+    directory: "/"
+    target-branch: development
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: America/Argentina/Buenos_Aires
+    open-pull-requests-limit: 3
+    labels:
+      - dependencias
+    commit-message:
+      prefix: "chore(deps)"

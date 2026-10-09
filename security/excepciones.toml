@@ -11,8 +11,17 @@
 #   vence_el  fecha en la que vuelve a bloquear
 #   ticket    dónde se sigue (ficha de la auditoría o issue)
 
-[[pip_audit]]
-id = "PYSEC-2026-3447"
-motivo = "setuptools 80.9.0 (CVE-2026-59890, corregido en 83.0.0): está pineado en requirements.txt y subirlo arrastra la cadena de build; se revisa junto con requirements-ci.txt."
-vence_el = 2027-01-02
-ticket = "RED-85 (requirements-ci.txt, Ola 7)"
+# Hoy no hay ninguna excepción vigente, y eso es lo que tiene que pasar casi siempre.
+#
+# La única que hubo, `PYSEC-2026-3447`, se retiró en el Cambio 196 (RED-85): era
+# setuptools 80.9.0 (CVE-2026-59890) y el pin subió a 83.0.0, la primera corregida. Se
+# verificó antes de sacarla que `pip-audit -r requirements.txt` da «No known
+# vulnerabilities found» **sin ningún** `--ignore-vuln`.
+#
+# Cuando haga falta agregar una, va así —y `vence_el` sin comillas—:
+#
+#     [[pip_audit]]
+#     id = "PYSEC-AAAA-NNNN"
+#     motivo = "por qué se convive con ella hoy, en una frase"
+#     vence_el = 2027-01-02
+#     ticket = "FICHA o issue donde se sigue"

@@ -84,7 +84,7 @@ con lo que existe hoy; la lista solo baja.
 | RED-42 | Endpoints JSON del backoffice sin contrato; 4 `fetch` literales resuelven 404 | MEDIA | CONF. test (`resolve`) | R (+5) | S-M (+S) | ✅ |
 | RED-43 | El CI no tiene ningún gate de contrato de API | MEDIA | CONF. lectura | R | S | ✅ |
 | RED-44 | Una capacidad mal tipeada devuelve `False` en silencio y el superusuario no lo ve | MEDIA | CONF. test (prototipo) | R | S | ✅ |
-| RED-45 | `GUNICORN_CMD_ARGS` con gevent activa un parche que apaga `validate_thread_sharing` | MEDIA | CONF. lectura | R (+7 en OPS-13) | S | ✅ (R; falta Ola 7) |
+| RED-45 | `GUNICORN_CMD_ARGS` con gevent activa un parche que apaga `validate_thread_sharing` | MEDIA | CONF. lectura | R (+7 en OPS-13) | S | ✅ |
 | RED-46 | `programas/models/__init__.py` (3.252 líneas, 90 importadores) sin tests de contrato | MEDIA | CONF. test (radon) | R | S-M | ✅ |
 | RED-47 | `normalizar_dni` y sus tres copias agregan un 0 con `float` o `Decimal` | MEDIA | CONF. test | R | S | ✅ |
 | RED-48 | «DNI válido» está implementado 6 veces con 3 reglas de largo | MEDIA | CONF. lectura | 3 | S-M | ✅ |
@@ -124,7 +124,7 @@ con lo que existe hoy; la lista solo baja.
 | RED-82 | `exportacion_reportes.py` con terminadores CR: git lo trata como binario y pylint lo saltea | BAJA | CONF. test | R | S | ✅ |
 | RED-83 | Índices duplicados en `programas_formulario` y `legajos_ciudadano` | BAJA | CONF. test (`information_schema`) | R (+4) | S (+S) | ✅ |
 | RED-84 | `requerimientos.py --check` no verifica la sección «Reversión» | BAJA | CONF. lectura | R | S | ✅ |
-| RED-85 | Herramientas del CI sin pinear y actions por tag en workflows con `contents: write` | BAJA | CONF. lectura | R (+7) | S (+S) | ✅ (R; falta Ola 7) |
+| RED-85 | Herramientas del CI sin pinear y actions por tag en workflows con `contents: write` | BAJA | CONF. lectura | R (+7) | S (+S) | ✅ |
 | RED-86 | Job de tests con timeout de 15 min, sin `--parallel` ni alarma de crecimiento | BAJA | CONF. test (`gh run list`) | 7 | S | ⬜ |
 | RED-87 | El largo mínimo del barrio del payload SIIS no se prueba en su borde | BAJA | CONF. test (mutación M33) | R | S | ✅ |
 | RED-88 | `manage.py test core users portal --parallel` revienta con `cannot pickle 'traceback'` | BAJA | CONF. test | R | S | ✅ |
@@ -1358,6 +1358,25 @@ fallan contra la guarda anterior. La verificación de las dos variables en el am
 **Test permanente:** `config.tests.test_wsgi_runtime.GeventTests.test_nadie_piso_validate_thread_sharing` (y
 `EntrypointTests.test_las_cuatro_formas_de_pedir_gevent_abortan`,
 `EntrypointTests.test_un_worker_class_inocuo_avisa_pero_arranca`).
+
+**Resolución (parte Ola 7):** ✅ Cerrada en el PR 2 de la Ola 7 (Cambio 196), 09-oct-2026, adentro de OPS-13 y con
+**D-RED-08 en su default**. Se borraron `config/gevent_patch.py`, las líneas 12-17 de `config/wsgi.py` y
+`gevent`/`greenlet` de `requirements.txt`. `test_el_parche_ya_no_existe` dejó de saltearse, y los dos controles de
+andamio se dieron vuelta: ahora afirman que `wsgi.py` **no** lee las dos perillas y que los dos paquetes **no** están
+en `requirements.txt`.
+**Antes de borrar se verificó qué worker usa gunicorn**, como pedía la consigna: `docker-entrypoint.sh` arranca
+`gunicorn config.wsgi:application` **sin `--worker-class`** y con `--threads`, o sea gthread; la única forma de pedir
+gevent eran las dos variables de entorno, y desde el Cambio 159 el entrypoint aborta ante las cuatro formas de pedirlo
+en cualquiera de las dos. Ningún ambiente puede estar arrancando con gevent sin que el pod muera primero con el motivo
+escrito.
+**La guarda del entrypoint se queda tal cual**, y pasa a ser lo único que sostiene la ficha: sin el paquete, pedir
+gevent haría morir a gunicorn con un «class uri 'gevent' invalid or not found», que no dice nada; la guarda corre
+antes y dice qué pasa y qué hacer. **Lo que ECOM tiene configurado sigue sin confirmarse (H-05)**, así que el paso 0
+de [`espejo-ecom.md`](../../espejo-ecom.md) —leer `GUNICORN_CMD_ARGS` y `GUNICORN_WORKER_CLASS` del ambiente antes de
+espejar— **no se tocó**: sigue siendo la verificación humana, y lo que cambió es que el peor caso pasó de «respuestas
+con datos de otra persona» a «no arranca y lo dice».
+**Test permanente (Ola 7):** `config.tests.test_wsgi_runtime.GeventTests.test_el_parche_ya_no_existe`
+(y `.test_wsgi_ya_no_lee_las_perillas_de_gevent`, `.test_gevent_y_greenlet_no_viajan_en_la_imagen`).
 
 ### RED-46 · `programas/models/__init__.py` sin tests de contrato
 **Severidad:** MEDIA (era ALTA) · **Estado:** CONFIRMADO con test (`radon`: 3.252 líneas, MI 0.00; fan-in 90) · **Origen:** RS-R4-04 (VR2: CONFIRMADO) · **Ola:** R (los tests; el corte del archivo no se planifica) · **Esfuerzo:** S-M (4 h)
@@ -2660,6 +2679,30 @@ release y `Publish main` seguiría verde—, así que un test afirma que las dos
 - **Propuesta:** **R:** pinear por SHA (con el tag en comentario) las actions de `publish-main.yml` y `docs-auto-deploy.yml`, y
   `dorny/paths-filter` de RED-20. **Ola 7:** `requirements-ci.txt` con versiones fijas y `pip install -r requirements-ci.txt`
   en todos los workflows, más un dependabot semanal sobre ese archivo.
+
+**Resolución (parte Ola 7):** ✅ Cerrada en el PR 2 de la Ola 7 (Cambio 196), 09-oct-2026 — **`requirements-ci.txt`
+con las cinco herramientas pineadas** (`ruff==0.16.10`, `coverage==7.16.2`, `pip-audit==2.10.1`,
+`bandit[toml]==1.9.4`, `mkdocs-material==9.7.7`) y los **seis** `pip install` sueltos reemplazados por
+`pip install -r requirements-ci.txt`: los dos de Ruff y el de Bandit en `pr-quality.yml`, el de `coverage` en
+`pr-backend.yml`, el de `pip-audit` en `pr-security.yml` y el de `mkdocs-material` en `docs-auto-deploy.yml`. Las
+versiones son **las que el CI ya venía instalando**, así que pinear no cambia ningún resultado: solo lo congela.
+**`.github/dependabot.yml`** semanal contra `development` para los tres ecosistemas del repo: `pip` (los tres
+`requirements*.txt` viven en la raíz, así que `directory: "/"` los toma a los tres, con las cinco herramientas
+agrupadas en un solo PR), `github-actions` y `npm` (`tailwindcss`). Sin ningún `ignore`, a propósito: un mayor que no
+convenga se cierra a mano y queda el registro; un `ignore` en el YAML se olvida.
+**La prioridad que señaló el revisor del PR R-03 se atendió entera:** `pip-audit` deja de flotar, y además **se
+retiró la excepción `PYSEC-2026-3447`** —era `setuptools` 80.9.0 (CVE-2026-59890) y el ticket de la excepción decía
+«RED-85, que es donde se toca el pin»—: `setuptools` subió a 83.0.0, la primera corregida, y
+`pip-audit -r requirements.txt` da «No known vulnerabilities found» **sin ningún** `--ignore-vuln`.
+`security/excepciones.toml` queda vacío con la plantilla de cómo se agrega la próxima.
+**Lo que faltaba para encender `Ruff estilo` ya está** (la versión fija); encenderlo —sacarle el `continue-on-error`
+y sumarlo al ruleset— es decisión del PM y no se tomó acá. **Ningún job se renombró**, así que los nueve contextos
+del ruleset siguen igual. **Verificación:** `actionlint` (Docker `rhysd/actionlint`) sobre los 9 workflows, 0
+errores, incluido el shellcheck del paso de bash reescrito en `pr-performance.yml`.
+**Test permanente:** `core.tests.test_gates_ci.HerramientasDelCiPineadasTests`
+(`.test_ningun_workflow_instala_una_herramienta_sin_version`, `.test_requirements_ci_pinea_todas_sus_lineas`,
+`.test_el_job_que_usa_una_herramienta_instala_el_archivo`, `.test_requirements_ci_no_trae_nada_de_la_aplicacion`)
+y `core.tests.test_gates_ci.DependabotTests` (4 tests).
 
 ### RED-86 · Job de tests con timeout de 15 min, sin `--parallel` ni alarma de crecimiento
 **Severidad:** BAJA · **Estado:** CONFIRMADO con test (`gh run list`: 5-7 min por corrida; local, 20 min) · **Origen:** RS-R6-18 (VR2: CONFIRMADO) · **Ola:** 7 · **Esfuerzo:** S (2 h)
