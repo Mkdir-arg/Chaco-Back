@@ -482,12 +482,16 @@ class AlertaTest(SimpleTestCase):
     def test_icono_va_a_18px_y_aria_hidden(self):
         html = render_to_string(ALERTA, {"tono": "danger", "icono": "triangle-exclamation", "titulo": "T"})
 
-        self.assertIn('<i class="fas fa-triangle-exclamation text-lg flex-shrink-0 text-fg-danger" aria-hidden="true"></i>', html)
+        self.assertIn(
+            '<i class="fas fa-triangle-exclamation text-lg flex-shrink-0 text-fg-danger" aria-hidden="true"></i>', html
+        )
         self.assertIn('role="alert"', html)
         self.assertIn("bg-danger-soft border border-danger-subtle", html)
 
     def test_accion_con_url_y_texto_dibuja_el_link(self):
-        html = render_to_string(ALERTA, {"tono": "warning", "titulo": "T", "accion_url": "/x/", "accion_texto": "Resolver"})
+        html = render_to_string(
+            ALERTA, {"tono": "warning", "titulo": "T", "accion_url": "/x/", "accion_texto": "Resolver"}
+        )
 
         self.assertIn('<a href="/x/" class="flex-shrink-0 font-medium underline text-fg-warning">Resolver</a>', html)
 
