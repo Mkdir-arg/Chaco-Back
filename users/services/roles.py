@@ -121,6 +121,17 @@ class RolesAdminService:
     @staticmethod
     @transaction.atomic
     def crear(form):
+        # G1b-09 (ronda 3): crear un rol no puede dejar al sistema sin administradores,
+        # así que acá el candado no está por el check sino por el **orden de los locks**.
+        # `_set_capacidades` escribe `auth_group_permissions` y por la FK InnoDB pide un
+        # lock sobre filas sueltas de `auth_permission`, en el orden en que recorre las
+        # capacidades tildadas; el candado bloquea las suyas recorriendo el índice
+        # `(content_type_id, codename)`. Las dos cosas a la vez cierran el ciclo contra
+        # cualquiera de los otros seis caminos: sin esta línea, 11-14 deadlocks de 20
+        # corridas en `mariadb:10.11` y 18-20 de 20 en `mysql:8.0` —`ERROR 1213`, que
+        # ninguna vista atrapa, o sea 500— y 0 con ella (`CandadoSinDeadlockTests`).
+        # Tomando el ancla primero, el `set()` arranca con esas filas ya suyas.
+        rbac.tomar_candado_de_administracion()
         cd = form.cleaned_data
         group = Group.objects.create(name=cd["name"])
         RolMeta.objects.create(

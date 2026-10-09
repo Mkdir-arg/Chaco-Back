@@ -205,10 +205,18 @@ al territorial le llega un enlace para fijarla él.
 **Resolución:** ✅ Resuelto en #651 (Cambio 197, Ola 7 PR 3), 09-oct-2026 — `rbac.tomar_candado_de_administracion()`
 es un `SELECT … FOR UPDATE` sobre las filas de `auth_permission` de `CAPS_ADMINISTRACION` +
 `CAPS_ADMIN_PROGRAMA`, y **va como primera sentencia de la transacción, antes de cualquier escritura**, en
-los **seis** caminos que pueden dejar sin administrador: el toggle del ABM (`UserToggleActivoView`),
-`UsuariosAdminService.update_user_from_form`, `RolesAdminService.actualizar`/`eliminar`/`toggle_activo` y
-el alta masiva `import_users_from_csv`. `asegurar_admin_restante` lo vuelve a tomar por las dudas —no
-cuesta nada si ya se tiene— para que el check nunca corra del todo sin candado.
+los **siete** caminos de la aplicación que escriben capacidades o desactivan usuarios o roles: el toggle
+del ABM (`UserToggleActivoView`), `UsuariosAdminService.update_user_from_form`,
+`RolesAdminService.crear`/`actualizar`/`eliminar`/`toggle_activo` y el alta masiva
+`import_users_from_csv` —más el `/admin/` de Django, que entra en la misma fila con un
+`CandadoDeAdministracionMixin` sobre `save_model`, `delete_model` y el borrado masivo (ronda 3)—.
+`asegurar_admin_restante` lo toma **solo si la transacción no lo
+tiene ya** (ronda 2): así el check nunca corre del todo sin candado si alguien lo llama suelto, pero en el
+camino normal —una vista que lo corre una vez por el sistema y otra por cada programa del usuario— no se
+repite el `SELECT … FOR UPDATE` sobre filas que esa misma transacción ya bloqueó. El testigo es el callback
+que el candado anota con `transaction.on_commit`: Django lo guarda por transacción y lo descarta al COMMIT,
+al ROLLBACK y al `ROLLBACK TO SAVEPOINT` —justo cuando InnoDB suelta las filas—, así que la marca no puede
+sobrevivir al candado.
 
 **Tres desvíos de la propuesta, los tres medidos contra `mariadb:10.11`:**
 

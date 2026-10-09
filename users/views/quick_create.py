@@ -49,6 +49,20 @@ _CLAVE_DEL_MOTOR = (
 )
 
 
+def _clave_rota(error):
+    """El nombre del índice que informa el motor (``auth_user.username``), o ``None``.
+
+    Es el único pedazo del mensaje que no trae el valor que chocó, y lo que hace falta
+    para entender una colisión que no se pudo atribuir a ``username`` ni a ``dni``: sin
+    él, el log decía «campo __all__» y no quedaba forma de saber contra qué índice fue.
+    """
+    for patron in _CLAVE_DEL_MOTOR:
+        encontrada = patron.search(str(error))
+        if encontrada is not None:
+            return encontrada.group(1).strip()
+    return None
+
+
 def _campo_en_colision(error):
     """Qué índice único rompió, leído del **nombre de la clave** que informa el motor.
 
@@ -116,7 +130,16 @@ def usuario_alta_rapida(request):
         # el log de la aplicación, que no es un lugar con control de acceso. Alcanza con
         # el campo para entender qué pasó.
         campo = _campo_en_colision(exc)
-        logger.warning("Alta rápida: colisión de unicidad al crear el usuario (campo %s)", campo)
+        if campo == "__all__":
+            # Ronda 3: acá el campo no se pudo atribuir, así que «campo __all__» no dice
+            # nada. El nombre de la clave sí —es contra qué índice chocó— y tampoco lleva
+            # el valor, que es lo que no puede quedar en el log.
+            logger.warning(
+                "Alta rápida: colisión de unicidad que no se pudo atribuir a un campo (clave %s)",
+                _clave_rota(exc) or "sin nombre en el mensaje del motor",
+            )
+        else:
+            logger.warning("Alta rápida: colisión de unicidad al crear el usuario (campo %s)", campo)
         return JsonResponse(
             {"ok": False, "message": MENSAJES_COLISION[campo], "errors": {campo: [MENSAJES_COLISION[campo]]}},
             status=409,

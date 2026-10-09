@@ -29763,6 +29763,57 @@ generados.
 
 ## Historial
 
+### 09/10/2026 — Ronda 3 de la revisión (1 MAJOR y 2 MINOR)
+
+- **Faltaba un séptimo camino, y era el que más deadlockeaba: el alta de un rol.**
+  `RolesAdminService.crear` no tomaba el candado. No puede dejar al sistema sin
+  administradores —crear un rol no le saca nada a nadie—, así que la ronda 2 lo dejó
+  afuera mirando el check; pero el candado no sirve solo para el check, sirve para el
+  **orden de los locks**. El `permissions.set()` del alta escribe
+  `auth_group_permissions` y por la FK InnoDB pide locks sobre las filas de
+  `auth_permission` de las capacidades que tilda, que son las mismas que otra operación
+  está tomando con `FOR UPDATE` a mitad de su recorrido del índice: el ciclo se cierra
+  igual, aunque desde la ronda 2 el candado entre por el índice y no por un escaneo.
+  Medido sobre este árbol con esa única línea apagada, con el hilo de `crear` sumado a
+  `CandadoSinDeadlockTests` (ahora cinco hilos: desactivar usuario, toggle de rol, dos
+  reescrituras de capacidades y el alta): **11, 11 y 14 deadlocks de 20 corridas** en
+  `mariadb:10.11` y **18, 19 y 20 de 20** en `mysql:8.0` —`ERROR 1213`, que ninguna
+  vista atrapa, o sea 500—. Con la línea puesta, **0 de 20 en los dos motores**, dos
+  rondas por motor. De siete rondas sin candado una sola salió verde: no cae siempre,
+  pero cae casi siempre. **No hizo falta el orden estable por `pk`** que proponía la
+  revisión (leer los `pk` sin lock y volver a pedirlos con `pk__in` ordenado): el
+  candado ya entra por `(content_type_id, codename)` y el `set()` recorre el mismo
+  índice, así que las dos sentencias toman las filas en el mismo orden y basta con que
+  el ancla se tome **primero**. Se decidió con las corridas, que es lo que la revisión
+  pedía, y evita un viaje extra a la base en los siete caminos.
+- **El barrido encontró el `/admin/` de Django.** Buscando todo camino vivo que escriba
+  `auth_group_permissions` o desactive usuarios o roles de administración: además de
+  `crear` quedaba el `/admin/`, montado en todos los entornos, donde `auth/group/` tilda
+  capacidades (`filter_horizontal`) y `auth/user/` desactiva una cuenta. Un
+  `CandadoDeAdministracionMixin` sobre los dos `ModelAdmin` toma el candado en
+  `save_model` —que Django corre **antes** de `save_related`, donde se escribe el m2m—,
+  en `delete_model` y en el borrado masivo del listado, que abre su propia transacción
+  porque la acción del changelist no viene en una. El `/admin/` sigue **sin** correr
+  `asegurar_admin_restante`: es la escotilla del superusuario y el único camino que
+  queda para arreglar un sistema que ya se quedó sin administradores; lo que se le pide
+  es entrar en la misma fila, no que se autobloquee. Lo que **no** necesita candado, y
+  queda documentado en el docstring de `tomar_candado_de_administracion`: los seeds que
+  reescriben capacidades (`seed_rbac`, `seed_datos_base`, `seed_becas`) y las
+  migraciones que tildan permisos, porque corren en el arranque bajo el `GET_LOCK` del
+  bootstrap; `desactivar_usuarios_portal`, que solo toca cuentas del grupo `Ciudadanos`
+  —excluye superusuarios y a cualquiera con otro grupo— y no escribe capacidades; y el
+  alta de usuarios (ABM y alta rápida), que escribe `auth_user_groups` pero ninguna fila
+  de `auth_permission` y no puede sacarle la administración a nadie.
+- **El log de la colisión que no se puede atribuir no decía nada.** La ronda 2 sacó el
+  valor del log —ahí viajaba el DNI de una persona— y dejó el campo; pero cuando el
+  campo no se puede decidir, «campo `__all__`» no alcanza para entender qué pasó. Ahora
+  ese caso loguea el **nombre de la clave** que informó el motor (`auth_user.email`), que
+  es el único pedazo del mensaje que no lleva el valor; y si el mensaje no nombra ninguna
+  clave, lo dice. Los dos casos tienen test.
+- **Ficha G1b-09 al día:** decía que `asegurar_admin_restante` vuelve a tomar el candado
+  «por las dudas», que es lo que hacía la ronda 1. Desde la ronda 2 lo toma **solo si la
+  transacción no lo tiene ya**, con el callback de `on_commit` como testigo.
+
 ### 09/10/2026 — Ronda 2 de la revisión (1 MAJOR y 3 MINOR)
 
 - **El candado de G1b-09 se trababa contra sí mismo, y no solo en MySQL 8.** El

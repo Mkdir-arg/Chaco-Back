@@ -1094,6 +1094,17 @@ def tomar_candado_de_administracion():
     ``update_last_login``. Tomando el ancla antes de escribir no hace falta: la segunda
     transacción queda esperando **antes** de tomar ninguna fila de usuario.
 
+    *Quiénes no lo toman, a propósito* (ronda 3). Los seeds que reescriben capacidades
+    —``users.seed_rbac``, ``users.seed_datos_base``, ``programas.seed_becas``— y las
+    migraciones que tildan permisos corren en el arranque del contenedor bajo el
+    ``GET_LOCK`` del bootstrap (``docker-entrypoint.sh`` → ``manage.py bootstrap_lock``),
+    que ya serializa el arranque entero contra los demás pods. Y
+    ``portal.desactivar_usuarios_portal`` desactiva únicamente cuentas del grupo
+    ``Ciudadanos`` —excluye superusuarios y a cualquiera que tenga otro grupo— y no
+    escribe ``auth_group_permissions``: no puede dejar sin administrador ni cerrar el
+    ciclo de locks. Cualquier camino nuevo que escriba capacidades o desactive usuarios
+    o roles desde la aplicación sí lo necesita como primera sentencia.
+
     En SQLite (la suite) ``select_for_update()`` es un no-op, así que este contrato se
     prueba por su **presencia**, su **orden** y la **forma del SQL**
     (``core.tests.candados``, y un espía que mira el estado de la fila en el momento de

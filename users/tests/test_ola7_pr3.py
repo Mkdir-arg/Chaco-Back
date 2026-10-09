@@ -4,7 +4,10 @@
   «último administrador» leía sin candado, así que dos operaciones simultáneas lo
   salteaban y el sistema quedaba sin nadie que pudiera tocar usuarios ni roles.
 * ``CandadoSinDeadlockTests`` (G1b-09, ronda 2) — el candado entraba por un escaneo de
-  ``auth_permission`` y se trababa contra sí mismo en MySQL 8 (``ERROR 1213`` → 500).
+  ``auth_permission`` y se trababa contra sí mismo en MySQL 8 (``ERROR 1213`` → 500); en
+  la ronda 3 se suma el camino que no lo tomaba, el alta de un rol.
+* ``CandadoEnElAdminDeDjangoTests`` (G1b-09, ronda 3) — el ``/admin/`` escribe
+  capacidades y desactiva cuentas, y entra en la misma fila que el ABM.
 * ``AltaRapidaEnCarreraTests`` (G1b-10) — la colisión de unicidad en la carrera salía
   como 500 y el modal mostraba «respuesta inesperada del servidor»; y, en la ronda 2,
   el campo se decide por el nombre de la clave y el DNI no viaja al log.
@@ -16,6 +19,7 @@ import threading
 import time
 from unittest.mock import patch
 
+from django.contrib.admin.sites import AdminSite
 from django.contrib.auth.models import Group, Permission, User
 from django.contrib.contenttypes.models import ContentType
 from django.db import IntegrityError, OperationalError, connection, connections, transaction
@@ -28,6 +32,8 @@ from core.tests.candados import candados_tomados
 from core.tests.test_motor_real import MotorRealMixin
 from programas.management.commands.seed_becas import ROL_COORDINADOR
 from programas.models import Programa
+from users.admin import OptimizedGroupAdmin, OptimizedUserAdmin
+from users.forms.roles import RolForm
 from users.models import Capacidad, RolMeta
 from users.services.admin import UsuariosAdminService
 from users.services.roles import RolesAdminService, _set_capacidades
@@ -52,6 +58,16 @@ def _rol_admin(nombre, programa=None):
     for codigo in capacidades:
         grupo.permissions.add(_perm(codigo))
     return grupo
+
+
+def _form_de_rol(nombre, capacidades=()):
+    """Un `RolForm` de admin global ya validado, que es lo que recibe el servicio."""
+    form = RolForm(
+        data={"name": nombre, "categoria": rbac.CATEGORIA_SISTEMA, "capacidades": list(capacidades)},
+        operador=None,
+    )
+    assert form.is_valid(), form.errors
+    return form
 
 
 class CandadoDeUltimoAdminTests(TestCase):
@@ -128,6 +144,31 @@ class CandadoDeUltimoAdminTests(TestCase):
 
         self.assertEqual(visto, [True], "el candado se tomó después de guardar la RolMeta")
         self.assertFalse(RolMeta.objects.get(grupo=rol).activo)
+
+    def test_crear_un_rol_toma_el_candado_antes_de_escribirlo(self):
+        """Ronda 3 · el séptimo camino, el único que no lo tomaba.
+
+        Crear un rol no puede dejar al sistema sin administradores, así que acá el
+        candado no está por el check: está por el orden de los locks. El
+        `permissions.set()` del alta pide locks de FK sobre `auth_permission` y, sin el
+        ancla tomada antes, cierra el ciclo contra cualquiera de los otros seis caminos
+        (11-14 deadlocks de 20 corridas en MariaDB y 18-20 en MySQL 8, medidos en
+        `CandadoSinDeadlockTests`).
+        """
+        visto = []
+        original = rbac.tomar_candado_de_administracion
+
+        def espiar():
+            if not visto:
+                visto.append(Group.objects.filter(name="Rol nuevo g1b09").exists())
+            return original()
+
+        with patch("core.rbac.tomar_candado_de_administracion", espiar):
+            RolesAdminService.crear(_form_de_rol("Rol nuevo g1b09", rbac.CAPS_ADMINISTRACION))
+
+        self.assertEqual(visto, [False], "el candado se tomó después de crear el rol")
+        creado = Group.objects.get(name="Rol nuevo g1b09")
+        self.assertEqual(set(rbac.capacidades_de_grupo(creado)), set(rbac.CAPS_ADMINISTRACION))
 
     def test_el_candado_filtra_por_el_content_type_del_modelo_ancla(self):
         """Ronda 2 · sin eso, el `FOR UPDATE` entra por un escaneo de `auth_permission`.
@@ -331,20 +372,35 @@ class CandadoSinDeadlockTests(MotorRealMixin, TransactionTestCase):
     escaneo tiene tomada la fila que la FK necesita y la FK tiene la que el escaneo está
     por pedir. Hacen falta las dos cosas: con solo dos desactivaciones (usuario y rol),
     que recorren el índice en el mismo orden, no se traba nada. Por eso los hilos de
-    abajo son los tres llamadores que conviven de verdad: `UserToggleActivoView.post`,
-    `RolesAdminService.toggle_activo` y la reescritura de capacidades de
-    `RolesAdminService.actualizar`.
+    abajo son los llamadores que conviven de verdad: `UserToggleActivoView.post`,
+    `RolesAdminService.toggle_activo`, la reescritura de capacidades de
+    `RolesAdminService.actualizar` y —desde la ronda 3— el alta, `RolesAdminService.crear`.
 
     Medido con este mismo test, 20 corridas por árbol. Con el candado de `development`
     —escaneo, y repetido una vez por cada `asegurar_admin_restante`—: **15** deadlocks
     en `mariadb:10.11` y **7-9** en `mysql:8.0`, y el test rojo en 5 de 5 corridas. Con
     este: **0** en los dos motores, 5 de 5 verdes. El motor de ECOM no se salvaba; lo que
     pasó en la ronda 1 fue que la medición usó dos hilos que no cierran el ciclo.
+
+    **Ronda 3 · el hilo que faltaba.** `RolesAdminService.crear` era el único de los siete
+    caminos que escriben capacidades que no tomaba el candado, y con él sumado al escenario
+    el ciclo se vuelve a cerrar aunque el candado ya entre por el índice: el alta pide por
+    FK las filas de `auth_permission` de las capacidades que tilda mientras otra operación
+    está a mitad de camino tomando esas mismas filas con `FOR UPDATE`. Medido sobre este
+    árbol con el candado de `crear` apagado: **11, 11 y 14** deadlocks de 20 en
+    `mariadb:10.11` y **18, 19 y 20** de 20 en `mysql:8.0` (siete rondas en total, una sola
+    verde). Con el candado puesto, **0** de 20 en los dos motores. Es la medición que falta
+    en la tabla de arriba: el caso no es que un motor se salve, es cuántos hilos hay.
     """
 
     #: El deadlock es una carrera y no cae en todas las corridas (≈20% medido con el
     #: candado viejo). Con 20, el árbol de antes se pone rojo siempre: medido.
     CORRIDAS = 20
+
+    #: La lista de deadlocks **es** el resultado de la medición: truncada a 640 caracteres
+    #: —lo que hace `assertEqual` por defecto— no se puede contar cuántos cayeron ni en qué
+    #: corridas, que es justo lo que hay que mirar cuando este test se pone rojo.
+    maxDiff = None
 
     def _escenario(self, numero):
         """Un rol de administración con su usuario, más un admin de respaldo.
@@ -392,6 +448,25 @@ class CandadoSinDeadlockTests(MotorRealMixin, TransactionTestCase):
 
         return operacion
 
+    @staticmethod
+    def _crear_rol(numero):
+        """`RolesAdminService.crear`, el camino que en la ronda 2 todavía no tenía candado.
+
+        Es el que más deadlockeaba: el `permissions.set()` del alta recorre las
+        capacidades nuevas en un orden que no es el del índice que recorre el candado,
+        así que pedía por FK justo la fila que otra transacción acababa de bloquear
+        mientras la suya estaba tomada por el `insert` del m2m.
+        """
+
+        # El form se valida acá, fuera del hilo: lo que tiene que caer sobre la barrera
+        # es la transacción del servicio, no las consultas del `is_valid()`.
+        form = _form_de_rol(f"Rol nuevo deadlock {numero}", rbac.CAPS_ADMINISTRACION)
+
+        def operacion():
+            RolesAdminService.crear(form)
+
+        return operacion
+
     def _en_paralelo(self, *operaciones):
         """Las corre a la vez y devuelve lo que levantó cada hilo."""
         barrera = threading.Barrier(len(operaciones), timeout=30)
@@ -425,6 +500,7 @@ class CandadoSinDeadlockTests(MotorRealMixin, TransactionTestCase):
                 lambda rol=rol: RolesAdminService.toggle_activo(rol),
                 self._reescribir_capacidades(respaldo),
                 self._reescribir_capacidades(rol),
+                self._crear_rol(numero),
             )
 
             for error in errores:
@@ -437,6 +513,66 @@ class CandadoSinDeadlockTests(MotorRealMixin, TransactionTestCase):
 
         self.assertEqual(deadlocks, [], "el candado se trabó contra sí mismo")
         self.assertEqual(otros, [])
+
+
+class CandadoEnElAdminDeDjangoTests(TestCase):
+    """G1b-09 · ronda 3: el ``/admin/`` entra en la misma fila que el ABM.
+
+    El barrido de la ronda 3 buscó todo camino vivo que escriba
+    `auth_group_permissions` o desactive usuarios o roles de administración. Además de
+    `RolesAdminService.crear` quedaba el `/admin/`, que está montado en todos los
+    entornos: desde `auth/group/` se tildan capacidades (`filter_horizontal`) y desde
+    `auth/user/` se desactiva una cuenta. No corre `asegurar_admin_restante` —es la
+    escotilla del superusuario, el único camino que queda para arreglar un sistema sin
+    administradores—, pero sí tiene que tomar el candado: si no, cierra contra el ABM
+    el mismo ciclo de locks de `CandadoSinDeadlockTests` y el operador se come un
+    `ERROR 1213` que nadie atrapa.
+
+    Lo que acá se fija es la **presencia** del candado por cada entrada de escritura del
+    `ModelAdmin` (en SQLite `select_for_update()` es un no-op, igual que en todo el
+    resto de este archivo). Que `save_model` corra antes de `save_related` —donde se
+    escribe el m2m— lo garantiza Django.
+    """
+
+    def setUp(self):
+        self.root = User.objects.create_superuser("root-admin-g1b09", "r@o.com", "x")
+        self.peticion = type("Peticion", (), {"user": self.root})()
+        self.rol = _rol_admin("Rol del admin de Django")
+
+    def _admin(self, clase, modelo):
+        return clase(modelo, AdminSite())
+
+    def test_guardar_un_rol_desde_el_admin_toma_el_candado(self):
+        with candados_tomados(Permission.objects) as candados:
+            self._admin(OptimizedGroupAdmin, Group).save_model(self.peticion, self.rol, None, True)
+
+        self.assertIn("rbac.py:tomar_candado_de_administracion", candados)
+
+    def test_borrar_un_rol_desde_el_admin_toma_el_candado(self):
+        with candados_tomados(Permission.objects) as candados:
+            self._admin(OptimizedGroupAdmin, Group).delete_model(self.peticion, self.rol)
+
+        self.assertIn("rbac.py:tomar_candado_de_administracion", candados)
+        self.assertFalse(Group.objects.filter(pk=self.rol.pk).exists())
+
+    def test_el_borrado_masivo_del_listado_tambien(self):
+        """La acción del changelist corre sin `atomic`: el override abre la suya."""
+        with candados_tomados(Permission.objects) as candados:
+            self._admin(OptimizedGroupAdmin, Group).delete_queryset(self.peticion, Group.objects.filter(pk=self.rol.pk))
+
+        self.assertIn("rbac.py:tomar_candado_de_administracion", candados)
+        self.assertFalse(Group.objects.filter(pk=self.rol.pk).exists())
+
+    def test_guardar_un_usuario_desde_el_admin_toma_el_candado(self):
+        usuario = User.objects.create_user("desactivable-g1b09", password="x")
+        usuario.is_active = False
+
+        with candados_tomados(Permission.objects) as candados:
+            self._admin(OptimizedUserAdmin, User).save_model(self.peticion, usuario, None, True)
+
+        self.assertIn("rbac.py:tomar_candado_de_administracion", candados)
+        usuario.refresh_from_db()
+        self.assertFalse(usuario.is_active)
 
 
 class AltaRapidaEnCarreraTests(TestCase):
@@ -529,6 +665,26 @@ class AltaRapidaEnCarreraTests(TestCase):
 
         self.assertNotIn("30111222", "\n".join(registrado.output))
         self.assertIn("dni", registrado.output[0])
+
+    def test_la_colision_que_no_se_puede_atribuir_loguea_la_clave(self):
+        """Ronda 3 · «campo __all__» no dice nada; el nombre del índice sí, y no lleva valor.
+
+        Es el caso en que el operador recibe el mensaje genérico: sin saber contra qué
+        índice chocó no hay forma de entender el alta desde el log.
+        """
+        with self._con_colision("Duplicate entry 'ana@chaco.gob.ar' for key 'auth_user.email'"):
+            with self.assertLogs("users.views.quick_create", level="WARNING") as registrado:
+                self._post()
+
+        self.assertIn("auth_user.email", registrado.output[0])
+        self.assertNotIn("ana@chaco.gob.ar", "\n".join(registrado.output))
+
+    def test_una_colision_sin_clave_en_el_mensaje_lo_dice(self):
+        with self._con_colision("FOREIGN KEY constraint failed"):
+            with self.assertLogs("users.views.quick_create", level="WARNING") as registrado:
+                self._post()
+
+        self.assertIn("sin nombre en el mensaje del motor", registrado.output[0])
 
     def test_una_colision_que_no_se_puede_atribuir_no_culpa_a_ningun_campo(self):
         with self._con_colision("FOREIGN KEY constraint failed"):

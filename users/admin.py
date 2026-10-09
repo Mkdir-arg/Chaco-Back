@@ -1,13 +1,49 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.models import Group, User
+from django.db import transaction
+
+from core import rbac
+
+
+class CandadoDeAdministracionMixin:
+    """G1b-09 (ronda 3) · el `/admin/` toma el mismo candado que el ABM.
+
+    Por acá se tildan las capacidades de un rol (`auth_group_permissions`), se borra un
+    rol y se desactivan cuentas: lo mismo que `core.rbac.tomar_candado_de_administracion`
+    serializa en el backoffice. El `/admin/` es la escotilla del superusuario y no corre
+    `asegurar_admin_restante` —no se le pone un check al único camino que queda para
+    arreglar un sistema sin administradores—, pero sí tiene que entrar en la misma fila:
+    sin el candado cierra contra el resto el ciclo de locks de `CandadoSinDeadlockTests`
+    (el `FOR UPDATE` sobre el ancla de un lado, el lock de FK sobre `auth_permission` que
+    pide el m2m del otro) y el operador se come un `ERROR 1213` sin que nadie lo atrape.
+
+    `save_model` corre **antes** de `save_related`, que es donde el `ModelAdmin` escribe
+    los m2m, y las dos van dentro de la transacción que abre el changeform. La acción
+    masiva del listado no abre ninguna, así que `delete_queryset` pone la suya: sin
+    `atomic` el `select_for_update` sería un `TransactionManagementError` contra MySQL.
+    """
+
+    def save_model(self, request, obj, form, change):
+        rbac.tomar_candado_de_administracion()
+        super().save_model(request, obj, form, change)
+
+    def delete_model(self, request, obj):
+        rbac.tomar_candado_de_administracion()
+        super().delete_model(request, obj)
+
+    def delete_queryset(self, request, queryset):
+        with transaction.atomic():
+            rbac.tomar_candado_de_administracion()
+            super().delete_queryset(request, queryset)
+
 
 # Unregister the default User admin
 admin.site.unregister(User)
 
 
 @admin.register(User)
-class OptimizedUserAdmin(BaseUserAdmin):
+class OptimizedUserAdmin(CandadoDeAdministracionMixin, BaseUserAdmin):
     """Optimized User admin with select_related and prefetch_related.
 
     G1c-10: el `/admin/` está montado en todos los entornos y este era un
@@ -44,7 +80,7 @@ admin.site.unregister(Group)
 
 
 @admin.register(Group)
-class OptimizedGroupAdmin(admin.ModelAdmin):
+class OptimizedGroupAdmin(CandadoDeAdministracionMixin, admin.ModelAdmin):
     list_display = ["name"]
     search_fields = ["name"]
     filter_horizontal = ["permissions"]
