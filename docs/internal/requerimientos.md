@@ -937,7 +937,7 @@ La API devolvía resultados, pero el desplegable del buscador de Inicio estaba d
 ## Validación
 
 - `manage.py check` sin errores.
-- La API encontró correctamente el ciudadano local `Ejemplo Mac, María`, DNI `31538703`.
+- La API encontró correctamente el ciudadano local `Ejemplo Mac, María`, DNI `12345678`.
 - El registro de ejemplo se creó sólo en la base local de desarrollo.
 
 ## Reversión
@@ -30453,16 +30453,23 @@ revisores; `mypy` con alcance acotado, no bloqueante, y los módulos de arranque
 
 ## Qué se hizo
 
-- **`scripts/check_docs_client.py`** (nuevo): tres reglas sobre `docs/client/**/*.md` —
-  persona identificable (documento junto a la palabra que lo nombra, o CUIL/CUIT), secreto
-  con valor que no es marcador, y `.md` que se publica sin estar en el `nav` ni en
-  `not_in_nav`—. Sale con `::error file=…,line=…::` y código 1, y **nunca imprime el valor
-  que encontró**: el log de Actions de un repo público también es público.
+- **`scripts/check_docs_client.py`** (nuevo): cinco reglas sobre **todos** los archivos de
+  texto que MkDocs copia al sitio, no solo los `.md` —persona identificable (documento
+  junto a la palabra que lo nombra, o CUIL/CUIT), fecha de nacimiento rodeada de campos de
+  identidad, domicilio con calle y número, secreto con valor que no es marcador, y `.md`
+  que se publica sin estar en el `nav` ni en `not_in_nav`—, más el modo `--todo-docs`, que
+  corre las de contenido sobre `docs/` entero y los `.md` de la raíz. Sale con
+  `::error file=…,line=…::` y código 1, y **nunca imprime el valor que encontró**: el log
+  de Actions de un repo público también es público.
 - **`docs-auto-deploy.yml`**: `environment: publicacion-docs` en el job y el gate como paso
   previo a `mkdocs build`. El disparo suma `scripts/check_docs_client.py` a sus `paths`.
 - **`mkdocs.yml`**: `/templates/` declarado en `not_in_nav`, con el motivo escrito.
-- **`docs/client/funcionalidades/programa-becas.md`**: la respuesta de RENAPER de ejemplo
-  pasa a datos ficticios.
+- **`pr-datos.yml`**: paso informativo (`continue-on-error`) con `--todo-docs`, dentro del
+  job obligatorio `Sin datos personales`, que no se renombra.
+- **`docs/client/funcionalidades/programa-becas.md`** y
+  **`docs/internal/analisis/003-programa-becas-relevamiento-propuesta.md`**: la respuesta
+  de RENAPER de ejemplo pasa a datos ficticios en los dos lugares donde estaba (ver
+  Historial), más otros once archivos de `docs/` saneados por el barrido.
 - **`pyproject.toml`**: bloque `[tool.mypy]` con `files`, `follow_imports = "silent"`,
   `ignore_missing_imports`, los dos plugins y `enable_error_code = ["ignore-without-code"]`;
   `[tool.django-stubs]`; el `[[tool.mypy.overrides]]` estricto; y en `[tool.coverage.run]`,
@@ -30480,7 +30487,7 @@ revisores; `mypy` con alcance acotado, no bloqueante, y los módulos de arranque
   justamente el timeout.
 - **`requirements-ci.txt`** suma las tres distribuciones de mypy; **`.gitignore`** suma
   `.coverage.*`.
-- **Tests:** `core/tests/test_docs_client_publicacion.py` (17) y, en
+- **Tests:** `core/tests/test_docs_client_publicacion.py` (44) y, en
   `core/tests/test_gates_ci.py`, `SuiteEnParaleloTests` (8) y `TipadoGradualTests` (7).
 
 ## Pendientes
@@ -30505,4 +30512,52 @@ queda *pending* —visible en la pestaña Actions—, nunca perdida.
 
 ## Historial
 
-No aplica.
+**Ronda 2 (09-oct-2026) — el saneamiento de la ronda 1 estaba incompleto.** La revisión
+encontró que el **mismo** registro de RENAPER que el PR decía despublicar seguía legible
+en el repositorio, que es **público**:
+
+- En `docs/internal/analisis/003-programa-becas-relevamiento-propuesta.md` estaba
+  **entero** —documento, fecha de nacimiento, CUIL, domicilio, apellido, nombre e
+  identificadores internos—. No lo publica MkDocs, pero se lee navegando GitHub, que para
+  el caso es lo mismo. La ronda 1 no lo había mirado porque el gate solo miraba `docs/client/`.
+- En `docs/client/funcionalidades/programa-becas.md` —el archivo que la ronda 1 **sí**
+  tocó— habían sobrevivido la `fechaNacimiento` y los datos del ejemplar del DNI
+  (`ejemplar`, `vencimiento`, `emision`): sacarle el número de documento a un registro no
+  lo despersonaliza.
+
+Los dos bloques pasan a ser estructura con valores inventados (documento `12345678`, CUIL
+`20-12345678-9`, fecha `01/01/2000`, «Calle Falsa 123»), con los nombres de los campos
+intactos, que es para lo que sirve el ejemplo.
+
+**Barrido completo de `docs/` + los `.md` de la raíz** (no solo `.md`: también `.html`,
+`.json`, `.csv`, `.txt`, `.yml`). 91 coincidencias revisadas una por una; el criterio fue
+«valor redondo, secuencial o explícitamente de prueba se queda; si podría ser de alguien,
+se reemplaza; ante la duda, se reemplaza». Resultado: **13 archivos saneados**. Lo más
+relevante, `docs/client/mockups/dispositivos-v2.html`, que MkDocs
+**publicaba entero** —seis documentos, un CUIL cuyo dígito verificador cierra, una fecha
+de nacimiento y un domicilio— y el gate de la ronda 1 no miraba por ser `.html`. El resto:
+el kit de diseño de `docs/design-kb/` (once documentos y tres teléfonos de personas de
+muestra), tres respuestas pegadas de SIIS y Personas, y un documento de prueba repetido en
+tres documentos internos.
+
+**El gate crece en cinco frentes**, todos salidos de lo que la ronda 1 dejó pasar
+(detalle en la ficha RED-64): todas las extensiones que MkDocs copia; reglas de fecha de
+nacimiento rodeada de identidad y de domicilio con calle y número; `numeroDocumento`, que
+se escapaba por el `\b` de la izquierda; y el reconocimiento de **marcadores de posición y
+unidades**, que es lo que saca los falsos positivos sin una lista de archivos perdonados
+—entre ellos el de «bytes», que marcaba el tamaño de un volcado por estar al lado de la
+palabra «DNI», y el de «Secretaría», que la regla de secretos leía como `secret`—.
+
+**Dos alcances, con los números medidos.** El estricto (lo que publica MkDocs) queda en
+**0** y sigue bloqueando. El `--todo-docs` —`docs/` entero y los `.md` de la raíz— da
+**37 hallazgos sobre el repo saneado y ninguno es un dato de una persona**: DNI de ejemplo
+de las colecciones de Postman, un `head -c` con su cantidad de bytes al lado de la palabra
+«DNI», un número de 8 dígitos dentro de un SQL de medición, direcciones de fixtures de
+parseo. Por eso va
+como paso **no bloqueante** del job `Sin datos personales` y no como gate: con 37 rojos de
+nacimiento se apagaría el primer día, y las anotaciones sobre el diff del PR se ven igual.
+Ningún job se renombró.
+
+Los tests pasan de 17 a **44** y ninguno escribe un dato real: el caso rojo se arma con
+valores inventados, y que lo despublicado ya no esté lo afirma el gate sobre el árbol, no
+un `assertNotIn` con el valor adentro.

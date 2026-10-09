@@ -441,29 +441,31 @@ credenciales por variables de entorno).
 **Regla:** sin respuesta de RENAPER, el formulario se carga manual y queda **"No validado
 RENAPER"** → el backoffice debe ofrecer **validar a posteriori**.
 
-**Ejemplo de respuesta real (DNI de prueba 40732138, sexo M) — para mostrar al equipo Ministerio:**
+**Estructura de la respuesta (campos reales, valores ficticios) — para mostrar al equipo
+Ministerio.** Los nombres de los campos son los que devuelve el servicio; los valores no
+son de nadie (documento `12345678`, sexo M):
 
 ```json
 {
   "success": true,
   "data": {
-    "iD_TRAMITE_PRINCIPAL": 456510149,
-    "ejemplar": "C",
-    "vencimiento": "16/09/2031",
-    "emision": "16/09/2016",
-    "apellido": "FARIÑA",
-    "nombres": "Matias",
-    "fechaNacimiento": "1997-10-25",
-    "cuil": "20407321384",
-    "calle": "MONTIEL",
-    "numero": "2951",
-    "piso": "TIMB",
-    "ciudad": "MATADEROS",
-    "municipio": "CIUDAD_DE_BUENOS_AIRES",
-    "provincia": "CIUDAD_DE_BUENOS_AIRES",
+    "iD_TRAMITE_PRINCIPAL": 999999999,
+    "ejemplar": "A",
+    "vencimiento": "01/01/2030",
+    "emision": "01/01/2015",
+    "apellido": "PEREZ",
+    "nombres": "Juan",
+    "fechaNacimiento": "2000-01-01",
+    "cuil": "20123456789",
+    "calle": "CALLE FALSA",
+    "numero": "123",
+    "piso": "PB",
+    "ciudad": "RESISTENCIA",
+    "municipio": "RESISTENCIA",
+    "provincia": "CHACO",
     "pais": "ARGENTINA",
     "mensaf": "Sin Aviso de Fallecimiento",
-    "idciudadano": "101445173",
+    "idciudadano": "999999999",
     "nroError": 0,
     "descripcionError": "DNI/PAS Firmado"
   }

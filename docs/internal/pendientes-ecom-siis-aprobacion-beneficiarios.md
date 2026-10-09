@@ -25,9 +25,9 @@ La prevalidación envía:
 
 ```json
 {
-  "dni": "24459123",
+  "dni": "12345678",
   "id_programa": 41,
-  "fecha_nacimiento": "1975-02-20"
+  "fecha_nacimiento": "2000-01-01"
 }
 ```
 
@@ -73,7 +73,7 @@ Contrato mínimo esperado, sujeto a confirmación de ECOM:
 
 ```json
 {
-  "dni": "24459123",
+  "dni": "12345678",
   "id_programa": 41,
   "id_consulta_compatibilidad": "8ef13bfb-529a-4438-a8b4-dca8b238039a",
   "sistema_origen": "DATANACH",

@@ -2692,11 +2692,19 @@ archivo de este PR contra `origin/development`, salida 0—, más 16 casos sobre
 **Resolución:** ✅ Cerrada en el PR 5 de la Ola 7 (Cambio 199), 09-oct-2026 — y **encontró un caso real en la primera
 corrida**: `docs/client/funcionalidades/programa-becas.md` publicaba una respuesta de RENAPER con el apellido, el
 nombre, el DNI, el CUIL, la fecha de nacimiento y el domicilio de **una persona de verdad**, pegada «para mostrar al
-equipo Ministerio». Estaba en internet desde que se escribió. El mismo PR la despublica (la estructura queda, los
-valores pasan a ficticios), que es exactamente el modo de falla que la ficha describe. El gate es
-`scripts/check_docs_client.py` y corre **dos veces**: como paso de `docs-auto-deploy.yml` antes de construir, y como
-test de la suite, para que el hallazgo aparezca en el PR y no recién cuando el dato ya está publicado.
-**Tres desvíos, los tres medidos:**
+equipo Ministerio». Estaba en internet desde que se escribió. El gate es `scripts/check_docs_client.py` y corre **dos
+veces**: como paso de `docs-auto-deploy.yml` antes de construir, y como test de la suite, para que el hallazgo
+aparezca en el PR y no recién cuando el dato ya está publicado.
+
+**La primera pasada no alcanzó, y conviene que quede escrito.** La ronda 1 del PR reemplazó el bloque de
+`docs/client/` creyendo que con eso el registro quedaba despublicado, y no: ahí mismo sobrevivieron la
+`fechaNacimiento` y los datos del ejemplar del DNI (`ejemplar`, `vencimiento`, `emision`), y **el mismo registro
+entero** —con documento, CUIL, domicilio e identificadores internos— seguía en
+`docs/internal/analisis/003-programa-becas-relevamiento-propuesta.md`. El repositorio es **público**: lo que no
+publica MkDocs se lee igual navegando GitHub. Dos lecciones, las dos convertidas en código en la ronda 2:
+el alcance del gate no podía ser el `docs_dir` de MkDocs, y las reglas tenían que mirar también lo que queda cuando
+se borra el número de documento. Hoy los dos bloques son estructura con valores inventados, y el gate los mide.
+**Tres desvíos de la propuesta original, los tres medidos:**
 1. **El `environment` no es `github-pages`.** `gh api repos/Mkdir-arg/Chaco-Back/environments/github-pages/deployment-branch-policies`
    devuelve una política de rama única: `gh-pages`. El job corre en `development`, así que apuntarlo ahí lo dejaría
    **rechazado por política de ramas en cada corrida** —la publicación dejaría de funcionar del todo en vez de quedar
@@ -2709,12 +2717,32 @@ test de la suite, para que el hallazgo aparezca en el PR y no recién cuando el 
 3. **Se suma el CUIL**, que la ficha no pedía: once dígitos con prefijo `20/23/24/27/30/33/34` se identifican solos,
    sin ninguna palabra cerca, y es la mitad del hallazgo real que el patrón de «DNI» no habría visto en la línea del
    JSON.
+**Y cuatro agregados de la ronda 2**, todos salidos de lo que la primera pasada dejó pasar:
+4. **Todas las extensiones, no solo `.md`.** MkDocs copia al sitio *todo* lo que hay en `docs_dir`:
+   `docs/client/mockups/dispositivos-v2.html` se publicaba entero y el gate no lo miraba. La regla del nav sigue
+   siendo solo para `.md`, que es lo único que MkDocs pone en un menú.
+5. **Fecha de nacimiento rodeada de identidad** y **domicilio con calle y número**: es lo que queda de una persona
+   cuando se le saca el documento, y es exactamente lo que había sobrevivido a la ronda 1.
+6. **`numeroDocumento` entraba por el borde de palabra.** Con `\b` a la izquierda, la `o` de `numero` tapaba la
+   clave que más aparece en los JSON del dominio; ahora la línea se mira con las mayúsculas separadas.
+7. **Marcadores de posición y unidades.** Un documento de dígitos repetidos o escrito sobre `1234567…`, un CUIL con
+   cuerpo `12345678`, la fecha `01/01/2000` y «Calle Falsa» dejan de ser hallazgos, y un número seguido de una
+   unidad tampoco lo es —la propia ficha RED-01 se marcaba sola, con el tamaño en bytes del volcado al lado de las
+   palabras «DNI, CUIL»—. Es una regla sobre el **valor**, no una lista de archivos perdonados.
+
+**Segundo alcance, no bloqueante.** `--todo-docs` corre las mismas reglas de contenido sobre `docs/` entero y los
+`.md` de la raíz, como paso informativo del job `Sin datos personales`. Sobre el repo saneado da **37 hallazgos y
+ninguno es un dato de una persona**: DNI de ejemplo de las colecciones de Postman, un `head -c` con su cantidad de
+bytes al lado de la palabra «DNI», direcciones de fixtures de parseo. Bloquear con eso sería nacer en rojo; dejarlo fuera del CI
+sería no mirar nunca la mitad pública del repositorio. Las anotaciones aparecen igual sobre el diff del PR.
+
 Las siete plantillas de `docs/client/templates/` —que ya se publicaban fuera del menú— quedan **declaradas** en
 `not_in_nav`, no excluidas: el gate pide que lo que se publica sin estar en el menú esté escrito en algún lado, y
 sacarlas del sitio es un `exclude_docs:` de una línea que decide el PM.
 **Test permanente:** `core.tests.test_docs_client_publicacion.DocsClientPublicablesTests.test_docs_client_no_publica_nada_que_no_deba`
-(+ `.test_la_respuesta_de_renaper_de_ejemplo_no_trae_una_persona`, `DeteccionDelGateTests` ×10 y
-`WorkflowDePublicacionTests` ×5).
+(+ `.test_la_respuesta_de_renaper_de_ejemplo_es_la_estructura_y_no_una_persona`, que mide los **dos** archivos,
+`DeteccionDelGateTests` ×30, `AlcanceAmpliadoTests` ×4, `WorkflowDePublicacionTests` ×5 y
+`BarridoDeTodoDocsEnElPrTests` ×3 — 44 en total).
 
 ### RED-65 · El guard de `publish-main.yml` exige artefactos muertos y va a bloquear OPS-10/OPS-14
 **Severidad:** MEDIA · **Estado:** CONFIRMADO (lectura) · **Origen:** RS-R6-16 (VR2: CONFIRMADO) · **Ola:** R (el test) + 7 (sacar las rutas, sin horas extra: dentro de OPS-10/OPS-14) · **Esfuerzo:** S (2 h)

@@ -627,8 +627,8 @@ El mockup muestra el **paso 2 de 4**.
     Debajo, `.alert.w`: *«**Ocupación crítica (88 %).** El sistema no bloquea el ingreso. Si
     elegís "Excepcional", se pedirá quién autoriza y el motivo, y quedará en la traza.»*
   - Derecha, surface «Persona» + `badge bg-succ` «Legajo Ciudadano» con `.kv`:
-    Nombre «Jorge Daniel Ramírez» · DNI / CUIL «28.556.001 · 20-28556001-3» ·
-    Nacimiento «14/02/1981 · 45 años» · Género «Masculino» · Obra social «Sin cobertura» ·
+    Nombre «Jorge Daniel Ramírez» · DNI / CUIL «12.345.678 · 20-12345678-9» ·
+    Nacimiento «01/01/2000 · 26 años» · Género «Masculino» · Obra social «Sin cobertura» ·
     Domicilio «Sin domicilio fijo» · Legajo «Ver legajo completo →». Nota:
     *«Estos datos vienen del Legajo Ciudadano y no se vuelven a preguntar. Si están mal, se
     corrigen allí.»* Pie: `.btn.t` «‹ Persona» y `.btn.b` «Continuar ›».
@@ -679,7 +679,7 @@ institución. Usuario: «Teresa Gauna · Trabajadora social · equipo técnico»
 
 - `.ph` con `.back`, eyebrow «CIS N.º 3 · Pabellón A · plaza A-02», h1 «Ramírez, Jorge
   Daniel» + `badge dotb bg-info` «Alojado» + `badge bg-brand` «Reingreso», bajada
-  *«DNI 28.556.001 · 45 años · ingreso 03/09/2026 19:40 · 5 días de permanencia · legajo
+  *«DNI 12.345.678 · 26 años · ingreso 03/09/2026 19:40 · 5 días de permanencia · legajo
   ciudadano»* (link). Acciones: `.btn.s` «Cambiar plaza», `.btn.s` «Permiso de salida»,
   `.btn.t` «Trasladar», **`.btn.d` «Egresar»** (rojo).
 - `.alert.w`: *«**Ficha al 45 %.** Faltan Situación laboral, Red de sostén y Salud. El plazo
@@ -993,7 +993,7 @@ de F1, estado «Merendero activo» de F7. Usuario: «Javier Paredes · Área de 
 
 - `.ph` con `.back`, eyebrow «MER-0142 · Barrio Los Pinos · Zona Sur · Resistencia», h1
   «Merendero Los Pinos» + `badge dotb bg-succ` «Activo», bajada *«Responsable: Marta
-  Benítez · DNI 22.110.334 · martes, jueves y sábados 16 a 18 h · capacidad declarada 120
+  Benítez · DNI 12.345.675 · martes, jueves y sábados 16 a 18 h · capacidad declarada 120
   raciones»*. Acciones: `.btn.s` «Editar legajo», `.btn.t` «Suspender», `.btn.s`
   «Exportar», `.btn.b` «+ Registrar entrega».
 - **`.alert.w` de bloqueo duro:** *«**Documentación vencida:** la habilitación municipal
@@ -1235,7 +1235,7 @@ toca Becas, Legajos, Usuarios y Merenderos a la vez.
 
 **Inventario visual.**
 
-- `.ph` con `.back`, h1 «Ramírez, Jorge Daniel», bajada *«DNI 28.556.001 · 45 años · legajo
+- `.ph` con `.back`, h1 «Ramírez, Jorge Daniel», bajada *«DNI 12.345.678 · 26 años · legajo
   activo · identidad validada con RENAPER»*. Acciones: `.btn.s` «Editar datos», `.btn.t`
   «Derivar» (ícono `truck`).
 - Surface con solapas del legajo: Resumen · Datos personales · Grupo familiar · Becas ·
@@ -1440,7 +1440,7 @@ Usuario: «Matías Fariña · Administrador superior».
   - `.mapa`: **SVG dibujado a mano** (640×260) con calles, manzanas, el predio en
     `--brand-200`/`--brand`, un pin y los rótulos «Av. Sarmiento» y «Calle Güemes».
     **No es un mapa real.**
-  - `.kv`: Domicilio «Av. Sarmiento 1250, Resistencia» · Coordenadas «-27.45112 ·
+  - `.kv`: Domicilio «Calle Falsa 123, Resistencia» · Coordenadas «-27.45112 ·
     -58.98634» · Precisión `badge bg-succ` «Tomada en campo con GPS» · Superficie declarada
     «1.840 m²» · Plano / layout «📎 plano-cis3-2026.pdf».
   - `.alert.i`: *«**Predio compartido:** el mismo edificio aloja tres instituciones. Los

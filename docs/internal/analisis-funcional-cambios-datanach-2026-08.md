@@ -30,7 +30,7 @@ Se revisaron las siete imágenes incrustadas en el DOCX y se asociaron de la sig
 | Pantalla “Nuevo subsegmento” | Cambio 9 | Confirma que hoy se selecciona un Segmento SIIS y no una localidad. |
 | Pantalla “Nuevo relevamiento” | Cambio 10 | Confirma una sola Fecha asignada y una Zona/Localidad de texto libre. |
 | Pantalla “Crear Ciudadano” | Cambio 11 | Confirma que Domicilio ya existe; el pedido es principalmente identificarlo como actual. |
-| Buscador de Inicio con DNI 31538703 | Cambio 12 | Ubica el bug en el buscador rápido del Dashboard y aporta un caso para reproducir. |
+| Buscador de Inicio con DNI 12345678 | Cambio 12 | Ubica el bug en el buscador rápido del Dashboard y aporta un caso para reproducir. |
 
 ---
 
@@ -316,14 +316,14 @@ El documento aclara que ya se envió un correo a ECOM.
 
 **Problema confirmado:** La búsqueda encontraba ciudadanos, pero la tarjeta contenedora usaba `overflow: hidden`; el desplegable podía quedar recortado al abrirse hacia abajo, especialmente según navegador, resolución o zoom.
 
-**Evidencia de la captura:** El error señalado corresponde al buscador rápido de la pantalla **Inicio**, debajo de los indicadores, y no necesariamente al listado general de legajos. En el ejemplo se escribe el DNI **31538703** y no se muestra ningún resultado visible. El código confirma que ese cuadro consulta la API de búsqueda del Dashboard y que debería buscar ciudadanos por DNI, nombre o apellido.
+**Evidencia de la captura:** El error señalado corresponde al buscador rápido de la pantalla **Inicio**, debajo de los indicadores, y no necesariamente al listado general de legajos. En el ejemplo se escribe el DNI **12345678** y no se muestra ningún resultado visible. El código confirma que ese cuadro consulta la API de búsqueda del Dashboard y que debería buscar ciudadanos por DNI, nombre o apellido.
 
 **Cambio implementado:**
 
 - La tarjeta del buscador permite mostrar el desplegable fuera de sus límites.
 - El listado queda por encima de las secciones siguientes.
 - No se modifica la consulta ni la API porque el defecto estaba en la presentación.
-- Se agregó localmente un ciudadano de ejemplo con DNI 31538703 para la prueba visual.
+- Se agregó localmente un ciudadano de ejemplo con DNI 12345678 para la prueba visual.
 
 ## Cambio 13 — Notificar por correo que se creó un usuario
 
