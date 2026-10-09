@@ -2,7 +2,6 @@
 
 import unicodedata
 from calendar import monthrange
-from collections import OrderedDict
 from datetime import datetime, time
 
 from django import forms
@@ -17,11 +16,9 @@ from core.dni import MENSAJE_DNI_INVALIDO, dni_valido, normalizar_dni
 from core.edad import es_menor
 from core.models import Localidad, Municipio
 from core.selectors.geografia import localidades_operativas, municipios_operativos
-from core.validators import ACCEPT_ADJUNTO, validar_adjunto
+from core.validators import ACCEPT_ADJUNTO
 from programas.models import (
     AsignacionCoordinador,
-    Cama,
-    CampoTipoDispositivo,
     CanalFormulario,
     Convocatoria,
     Dispositivo,
@@ -32,7 +29,6 @@ from programas.models import (
     PresentacionCampo,
     PrestacionDiaria,
     ProgramaSiis,
-    RegistroDiario,
     Relevamiento,
     RequisitoNativo,
     Segmento,
@@ -738,52 +734,6 @@ class DispositivoForm(forms.ModelForm):
         return codigo
 
 
-class CantidadCamasForm(forms.Form):
-    cantidad = forms.IntegerField(
-        min_value=1,
-        label="Cantidad de camas a agregar",
-        widget=forms.NumberInput(attrs={"class": INPUT_CLASS, "min": 1}),
-    )
-
-
-class CamaForm(forms.ModelForm):
-    class Meta:
-        model = Cama
-        fields = ["codigo", "estado"]
-        widgets = {
-            "codigo": forms.TextInput(attrs={"class": INPUT_CLASS}),
-            "estado": forms.Select(attrs={"class": INPUT_CLASS}),
-        }
-
-    def clean_codigo(self):
-        return normalizar_codigo_institucional(self.cleaned_data["codigo"])
-
-
-class CampoTipoDispositivoForm(_OpcionesMixin):
-    tipo_field_name = "tipo_campo"
-
-    class Meta:
-        model = CampoTipoDispositivo
-        fields = ["seccion", "nombre", "tipo_campo", "obligatorio", "rol_calculo", "orden"]
-        widgets = {
-            "seccion": forms.TextInput(attrs={"class": INPUT_CLASS}),
-            "nombre": forms.TextInput(attrs={"class": INPUT_CLASS}),
-            "tipo_campo": forms.Select(attrs={"class": INPUT_CLASS}),
-            "obligatorio": forms.CheckboxInput(attrs={"class": CHECKBOX_CLASS}),
-            "rol_calculo": forms.Select(attrs={"class": INPUT_CLASS}),
-            "orden": forms.NumberInput(attrs={"class": INPUT_CLASS, "min": 0}),
-        }
-
-    def __init__(self, *args, tipo_dispositivo=None, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields["rol_calculo"].required = False
-        if tipo_dispositivo is not None:
-            self.instance.tipo_dispositivo = tipo_dispositivo
-
-    def clean_rol_calculo(self):
-        return self.cleaned_data.get("rol_calculo") or CampoTipoDispositivo.RolCalculo.NINGUNO
-
-
 class BusquedaCiudadanoDNIForm(forms.Form):
     dni = forms.CharField(
         label="DNI",
@@ -803,209 +753,6 @@ class BusquedaCiudadanoDNIForm(forms.Form):
         if not dni_valido(dni):
             raise forms.ValidationError(MENSAJE_DNI_INVALIDO)
         return dni
-
-
-class CiudadanoAdmisionForm(forms.Form):
-    """Alta mínima solo para un DNI que aún no existe en Legajos."""
-
-    dni = forms.CharField(widget=forms.HiddenInput())
-    nombre = forms.CharField(label="Nombre", max_length=120, widget=forms.TextInput(attrs={"class": INPUT_CLASS}))
-    apellido = forms.CharField(label="Apellido", max_length=120, widget=forms.TextInput(attrs={"class": INPUT_CLASS}))
-    fecha_nacimiento = forms.DateField(
-        label="Fecha de nacimiento",
-        required=False,
-        widget=forms.DateInput(attrs={"class": INPUT_CLASS, "type": "date"}),
-    )
-    genero = forms.ChoiceField(
-        label="Género",
-        choices=[("", "Sin informar"), ("M", "Masculino"), ("F", "Femenino"), ("X", "No binario")],
-        required=False,
-        widget=forms.Select(attrs={"class": INPUT_CLASS}),
-    )
-    domicilio = forms.CharField(
-        label="Domicilio", max_length=240, required=False, widget=forms.TextInput(attrs={"class": INPUT_CLASS})
-    )
-
-    def clean_dni(self):
-        return "".join(filter(str.isdigit, self.cleaned_data["dni"]))
-
-
-class F00DinamicoForm(forms.Form):
-    """Renderiza y valida la configuración vigente del tipo de dispositivo."""
-
-    @staticmethod
-    def es_egreso(campo):
-        return campo.rol_calculo == CampoTipoDispositivo.RolCalculo.EGRESO
-
-    @staticmethod
-    def es_ingreso(campo):
-        return campo.rol_calculo == CampoTipoDispositivo.RolCalculo.INGRESO
-
-    def __init__(self, *args, tipo_dispositivo, ciudadano=None, respuestas=None, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.campos_configurados = list(tipo_dispositivo.campos_configurados.all().order_by("orden", "id"))
-        respuestas = respuestas or {}
-        agrupados = OrderedDict()
-        for campo in self.campos_configurados:
-            nombre = self.nombre_campo(campo)
-            inicial = respuestas.get(str(campo.pk))
-            if inicial is None and ciudadano is not None and "obra social" in campo.nombre.casefold():
-                inicial = ciudadano.obra_social
-            opciones = [(opcion, opcion) for opcion in (campo.opciones or [])]
-            kwargs_campo = {"label": campo.nombre, "required": campo.obligatorio, "initial": inicial}
-            if campo.tipo_campo == TipoCampo.INT:
-                field = forms.IntegerField(
-                    widget=forms.NumberInput(attrs={"class": INPUT_CLASS, "step": 1}), **kwargs_campo
-                )
-            elif campo.tipo_campo == TipoCampo.SELECTOR:
-                field = forms.ChoiceField(
-                    choices=[("", "Seleccioná…"), *opciones],
-                    widget=forms.Select(attrs={"class": INPUT_CLASS}),
-                    **kwargs_campo,
-                )
-            elif campo.tipo_campo == TipoCampo.SELECTOR_MULTIPLE:
-                field = forms.MultipleChoiceField(
-                    choices=opciones,
-                    widget=forms.CheckboxSelectMultiple(attrs={"class": CHECKBOX_CLASS}),
-                    **kwargs_campo,
-                )
-            elif campo.tipo_campo == TipoCampo.DATE:
-                field = forms.DateField(
-                    widget=forms.DateInput(attrs={"class": INPUT_CLASS, "type": "date"}), **kwargs_campo
-                )
-            elif campo.tipo_campo == TipoCampo.ARCHIVO:
-                # SEC-15: era un `FileField` pelado, así que entraba un `.html`
-                # con `<script>` y después `media/` lo servía same-origin.
-                field = forms.FileField(
-                    widget=forms.ClearableFileInput(attrs={"class": INPUT_CLASS, "accept": ACCEPT_ADJUNTO}),
-                    validators=[validar_adjunto],
-                    **kwargs_campo,
-                )
-            else:
-                field = forms.CharField(widget=forms.Textarea(attrs={"class": INPUT_CLASS, "rows": 2}), **kwargs_campo)
-            field.widget.attrs["data-f00-campo"] = str(campo.pk)
-            if campo.tipo_campo == TipoCampo.INT:
-                if self.es_egreso(campo):
-                    field.widget.attrs["data-f00-egreso"] = "true"
-                elif self.es_ingreso(campo):
-                    field.widget.attrs["data-f00-ingreso"] = "true"
-            self.fields[nombre] = field
-            agrupados.setdefault(campo.seccion, []).append({"campo": campo, "bound": self[nombre]})
-        self.secciones = [{"nombre": nombre, "campos": campos} for nombre, campos in agrupados.items()]
-
-    @staticmethod
-    def nombre_campo(campo):
-        return f"f00_{campo.pk}"
-
-    def respuestas_y_archivos(self):
-        respuestas, archivos = {}, {}
-        for campo in self.campos_configurados:
-            valor = self.cleaned_data.get(self.nombre_campo(campo))
-            if campo.tipo_campo == TipoCampo.ARCHIVO:
-                if valor:
-                    archivos[campo] = valor
-                continue
-            if hasattr(valor, "isoformat"):
-                valor = valor.isoformat()
-            respuestas[str(campo.pk)] = valor
-        egresos = sum(
-            self.cleaned_data.get(self.nombre_campo(campo)) or 0
-            for campo in self.campos_configurados
-            if campo.tipo_campo == TipoCampo.INT and self.es_egreso(campo)
-        )
-        ingresos = sum(
-            self.cleaned_data.get(self.nombre_campo(campo)) or 0
-            for campo in self.campos_configurados
-            if campo.tipo_campo == TipoCampo.INT and self.es_ingreso(campo)
-        )
-        if any(campo.rol_calculo != CampoTipoDispositivo.RolCalculo.NINGUNO for campo in self.campos_configurados):
-            respuestas["_totales"] = {"egresos": egresos, "ingresos": ingresos, "saldo_estimado": ingresos - egresos}
-        return respuestas, archivos
-
-
-class EgresoAdmisionForm(forms.Form):
-    fecha_egreso = forms.DateTimeField(
-        label="Fecha y hora de egreso",
-        widget=forms.DateTimeInput(attrs={"class": INPUT_CLASS, "type": "datetime-local"}),
-    )
-    motivo = forms.CharField(label="Motivo", widget=_text_widget(), required=True)
-    destino = forms.CharField(
-        label="Destino", max_length=240, widget=forms.TextInput(attrs={"class": INPUT_CLASS}), required=True
-    )
-
-
-class TrasladoAdmisionForm(forms.Form):
-    destino = forms.ModelChoiceField(
-        queryset=Dispositivo.objects.none(),
-        label="Dispositivo de destino",
-        widget=forms.Select(attrs={"class": INPUT_CLASS}),
-    )
-    cama = forms.ModelChoiceField(
-        queryset=Cama.objects.none(),
-        label="Cama de destino",
-        required=False,
-        widget=forms.Select(attrs={"class": INPUT_CLASS}),
-    )
-
-    def __init__(self, *args, dispositivos=None, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields["destino"].queryset = (dispositivos or Dispositivo.objects.none()).filter(
-            estado=Dispositivo.Estado.ACTIVO
-        )
-        self.fields["cama"].queryset = Cama.objects.filter(estado=Cama.Estado.DISPONIBLE).select_related("dispositivo")
-
-    def clean(self):
-        cleaned = super().clean()
-        destino, cama = cleaned.get("destino"), cleaned.get("cama")
-        if cama and destino and cama.dispositivo_id != destino.pk:
-            self.add_error("cama", "La cama debe pertenecer al dispositivo de destino.")
-        return cleaned
-
-
-class PromoverEsperaForm(forms.Form):
-    cama = forms.ModelChoiceField(
-        queryset=Cama.objects.none(), label="Cama disponible", widget=forms.Select(attrs={"class": INPUT_CLASS})
-    )
-
-    def __init__(self, *args, dispositivo, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields["cama"].queryset = Cama.objects.filter(dispositivo=dispositivo, estado=Cama.Estado.DISPONIBLE)
-
-
-class RegistroDiarioForm(forms.ModelForm):
-    OBSERVACIONES_POR_CONCEPTO = (
-        ("camas_totales", "Camas totales"),
-        ("ingresos", "Ingresos"),
-        ("egresos", "Egresos"),
-        ("ocupacion_nocturna", "Ocupación nocturna"),
-        ("camas_disponibles", "Camas disponibles"),
-    )
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        observaciones = self.instance.observaciones if self.instance.pk else {}
-        for clave, etiqueta in self.OBSERVACIONES_POR_CONCEPTO:
-            self.fields[f"observacion_{clave}"] = forms.CharField(
-                label=f"Observación · {etiqueta}",
-                required=False,
-                initial=observaciones.get(clave, ""),
-                widget=_text_widget(rows=2),
-            )
-
-    def observaciones_por_concepto(self):
-        return {
-            clave: self.cleaned_data[f"observacion_{clave}"].strip()
-            for clave, _ in self.OBSERVACIONES_POR_CONCEPTO
-            if self.cleaned_data[f"observacion_{clave}"].strip()
-        }
-
-    class Meta:
-        model = RegistroDiario
-        fields = ["turno", "observaciones_generales"]
-        widgets = {
-            "turno": forms.Select(attrs={"class": INPUT_CLASS}),
-            "observaciones_generales": _text_widget(),
-        }
 
 
 class SolicitudMerenderoForm(forms.ModelForm):

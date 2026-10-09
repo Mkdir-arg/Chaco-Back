@@ -4,11 +4,21 @@ from django.shortcuts import get_object_or_404
 from django.views.generic import TemplateView
 
 from legajos.models import Ciudadano
-from programas.models import Admision, InscripcionPrograma
-from programas.services.dispositivos import dispositivos_visibles, puede_en_programa_dispositivos
+from programas.models import InscripcionPrograma
+from programas.services.dispositivos import puede_en_programa_dispositivos
 
 
 class CiudadanoDispositivosView(LoginRequiredMixin, TemplateView):
+    """Solapa de Dispositivos del legajo ciudadano, sin historial todavía.
+
+    Listaba las admisiones del ciudadano con su cama y su fecha de ingreso. Esa
+    lectura se fue con `Admision`; la reescribe la E2 del MVP contra `Estadia`,
+    que es la que vuelve a dar historial. Hasta entonces la pantalla conserva su
+    ruta y sus guardas —capacidad sobre el programa e inscripción vigente del
+    ciudadano— y muestra el estado vacío, en vez de desaparecer y dejar el link
+    del legajo en 404.
+    """
+
     template_name = "legajos/solapas/dispositivos.html"
 
     def get_context_data(self, **kwargs):
@@ -16,23 +26,12 @@ class CiudadanoDispositivosView(LoginRequiredMixin, TemplateView):
         if not puede_en_programa_dispositivos(self.request.user, "dispositivo.ver"):
             raise PermissionDenied
         ciudadano = get_object_or_404(Ciudadano, pk=self.kwargs["ciudadano_id"])
-        inscripcion = get_object_or_404(
+        get_object_or_404(
             InscripcionPrograma,
             pk=self.kwargs["inscripcion_id"],
             ciudadano=ciudadano,
             programa__tipo="DISPOSITIVOS",
             estado__in=[InscripcionPrograma.Estado.ACTIVO, InscripcionPrograma.Estado.EN_SEGUIMIENTO],
         )
-        admisiones = (
-            Admision.objects.filter(
-                ciudadano=ciudadano,
-                inscripcion_programa=inscripcion,
-                dispositivo__in=dispositivos_visibles(self.request.user),
-            )
-            .select_related("dispositivo", "cama")
-            .order_by("-fecha_ingreso")
-        )
-        if not admisiones.filter(estado=Admision.Estado.ALOJADO).exists():
-            raise PermissionDenied
-        context.update({"ciudadano": ciudadano, "admisiones": admisiones})
+        context["ciudadano"] = ciudadano
         return context

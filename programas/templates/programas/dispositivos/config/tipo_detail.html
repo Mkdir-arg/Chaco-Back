@@ -44,27 +44,12 @@
     window.toast.error(data.message || 'Ocurrió un error del sistema. Si persiste, avisá al administrador.');
   }
 
-  function initCampoOptions(modal) {
-    const campoForm = modal.querySelector('[data-campo-form]');
-    if (!campoForm) return;
-    const tipoCampo = campoForm.querySelector('[name=tipo_campo]');
-    const opciones = campoForm.querySelector('[data-opciones]');
-    if (!tipoCampo || !opciones) return;
-
-    const actualizarOpciones = function () {
-      opciones.hidden = !['SELECTOR', 'SELECTOR_MULTIPLE'].includes(tipoCampo.value);
-    };
-    tipoCampo.addEventListener('change', actualizarOpciones);
-    actualizarOpciones();
-  }
-
   function initModal() {
     const modal = modalRoot.querySelector('[data-edit-modal]');
     if (!modal) return;
 
     triggerUrl = modal.dataset.editUrl || triggerUrl;
     document.body.style.overflow = 'hidden';
-    initCampoOptions(modal);
     const firstControl = modal.querySelector(
       '[aria-invalid="true"], input:not([type="hidden"]):not([type="checkbox"]), textarea, select'
     );

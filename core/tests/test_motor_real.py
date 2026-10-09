@@ -55,10 +55,9 @@ from django.test import TestCase, TransactionTestCase, tag
 from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 
+from core.utils_fechas import q_rango_local
 from legajos.models import Ciudadano
 from programas.models import (
-    Admision,
-    Cama,
     Convocatoria,
     DisenoFormulario,
     Dispositivo,
@@ -82,7 +81,6 @@ from programas.services.becas import (
     resolver_ciudadano_offline,
 )
 from programas.services.cupo import agregar_a_lista_espera, aprobar_o_poner_en_espera, dar_baja_beneficiario
-from programas.services.registro_diario import calcular_cantidades
 from programas.services.respuestas import foto_definicion
 
 #: El servidor que contestó, no el que se pidió.
@@ -434,7 +432,7 @@ class CamposPropiosEnElMotorRealTests(MotorRealMixin, TestCase):
 
 
 class _BaseDispositivoTest(MotorRealMixin, TestCase):
-    """Un hogar con una cama y una persona alojada hoy."""
+    """Un dispositivo recién dado de alta, con su `creado` de hoy."""
 
     def setUp(self):
         super().setUp()
@@ -442,26 +440,23 @@ class _BaseDispositivoTest(MotorRealMixin, TestCase):
         self.dispositivo = Dispositivo.objects.create(
             codigo="HOGAR-MR", nombre="Hogar motor real", tipo=tipo, camas_totales=2
         )
-        self.cama = Cama.objects.create(dispositivo=self.dispositivo, codigo="C-01")
-        ciudadano = Ciudadano.objects.create(dni="30111222", nombre="Persona", apellido="Parte")
         self.hoy = timezone.localdate()
-        self.admision = Admision.objects.create(
-            ciudadano=ciudadano,
-            dispositivo=self.dispositivo,
-            cama=self.cama,
-            fecha_ingreso=timezone.now(),
-            estado=Admision.Estado.ALOJADO,
-        )
 
 
 @tag("mysql")
-class ParteDiarioEnElMotorRealTests(_BaseDispositivoTest):
+class FechaLocalEnElMotorRealTests(_BaseDispositivoTest):
     """DIS-01 contra el motor real: `__date` sobre un `DateTimeField` no cuenta nada.
 
     Solo tiene sentido contra un servidor **sin** tablas de zona horaria, que es el
     de ECOM y el que arma el CI; contra uno que las tenga, `CONVERT_TZ` resuelve y el
     bug no se manifiesta, así que la clase se saltea en vez de reportar un éxito
     inesperado que diría lo contrario de lo que pasa en producción.
+
+    Lo medía sobre `calcular_cantidades`, el parte diario F-01, que se fue con
+    `RegistroDiario` (MVP v2, release A). La lección es del motor, no de
+    Dispositivos: se afirma sobre `creado`, el `DateTimeField` que `TimeStamped` le
+    pone a **todos** los modelos del repo, y sobre `core.utils_fechas`, que es el
+    reemplazo que usan hoy Conversaciones, los contactos del legajo y lo que venga.
     """
 
     def setUp(self):
@@ -469,58 +464,61 @@ class ParteDiarioEnElMotorRealTests(_BaseDispositivoTest):
         if not convert_tz_devuelve_null():
             self.skipTest("El servidor tiene tablas de zona horaria: DIS-01 no se manifiesta acá.")
 
-    def test_el_parte_diario_cuenta_el_ingreso_de_hoy(self):
+    def test_un_date_sobre_un_datetimefield_no_encuentra_la_fila_de_hoy(self):
         """**DIS-01** (Ola 5, Cambio 140), contra el motor real.
 
-        `calcular_cantidades` filtraba con `fecha_ingreso__date=fecha`, que en MySQL
-        y MariaDB se traduce a `DATE(CONVERT_TZ(...))`; sin tablas de zona horaria
-        devuelve NULL y el parte F-01 informaba **cero ingresos** en producción. En
-        SQLite daba bien, y por eso el bug vivió hasta la Ola 5. Ahora el día se
-        acota con un rango `[inicio, fin)` calculado en Python
-        (`core.utils_fechas.rango_dia_local`), que no depende del servidor: este
-        test queda como la regresión que lo cuida en el motor donde rompía.
+        `fecha__date=hoy` se traduce a `DATE(CONVERT_TZ(...))`; sin tablas de zona
+        horaria devuelve NULL y la comparación no es verdadera para ninguna fila. En
+        SQLite da bien, y por eso el bug vivió hasta la Ola 5: el parte F-01
+        informaba **cero ingresos** en producción y los exports por período salían
+        vacíos.
         """
-        cantidades = calcular_cantidades(dispositivo=self.dispositivo, fecha=self.hoy)
+        self.assertEqual(Dispositivo.objects.filter(creado__date=self.hoy).count(), 0)
 
-        self.assertEqual(cantidades["ingresos"], 1)
-
-    def test_la_ocupacion_nocturna_del_parte_si_cuenta(self):
-        """Caracterización que acompaña al `expectedFailure` de arriba.
-
-        La ocupación compara `fecha_ingreso` contra un `datetime` completo, sin
-        truncar: esa parte del parte diario sí funciona. Sin este test, el
-        `expectedFailure` podría quedar «verde» porque el fixture esté roto.
-        """
-        cantidades = calcular_cantidades(dispositivo=self.dispositivo, fecha=self.hoy)
-
-        self.assertEqual(cantidades["ocupacion_nocturna"], 1)
-        self.assertEqual(cantidades["camas_totales"], 1)
+    def test_el_rango_local_calculado_en_python_si_la_encuentra(self):
+        """El reemplazo: `[inicio, fin)` en hora local, sin pedirle nada al servidor."""
+        self.assertEqual(Dispositivo.objects.filter(q_rango_local("creado", self.hoy, self.hoy)).count(), 1)
 
 
 @tag("mysql")
 class ConstraintCondicionalTests(_BaseDispositivoTest):
     """Lo que la base **no** hace cumplir en producción, aunque el modelo lo declare."""
 
-    def test_una_uniqueconstraint_con_condicion_no_existe_en_el_motor(self):
+    def test_ninguna_restriccion_condicional_del_repo_existe_en_la_base(self):
         """**DIS-02** (v2), caracterizado: `supports_partial_indexes = False`.
 
-        `Admision` declara `UniqueConstraint(fields=["cama"], condition=Q(estado="ALOJADO"))`
-        y en SQLite la base la hace cumplir, así que la suite «prueba» una unicidad
-        que en ECOM no existe: dos personas pueden quedar en la misma cama. La
-        defensa real es el chequeo explícito en el servicio (DIS-02); lo que fija
-        este test es que la ilusión se vea en el CI.
+        Lo descubrió `Admision`, que declaraba
+        `UniqueConstraint(fields=["cama"], condition=Q(estado="ALOJADO"))`: en SQLite la
+        base la hace cumplir, así que la suite «probaba» una unicidad que en ECOM no
+        existe —dos personas en la misma cama—. El test medía ese caso; ahora recorre
+        **todas** las restricciones condicionales que declare el repo y comprueba, una
+        por una, que la base no tiene su índice. Así no depende del modelo que lo
+        descubrió (que se va con el MVP v2) y sigue avisando por el que venga.
+
+        La defensa, cuando haga falta esa unicidad, es el chequeo explícito en el
+        servicio o un índice único sobre una columna que vale NULL (el patrón de
+        `ValidacionSIS.vigente`).
         """
-        otro = Ciudadano.objects.create(dni="30111333", nombre="Otra", apellido="Persona")
+        from django.apps import apps
 
-        Admision.objects.create(
-            ciudadano=otro,
-            dispositivo=self.dispositivo,
-            cama=self.cama,
-            fecha_ingreso=timezone.now(),
-            estado=Admision.Estado.ALOJADO,
-        )
+        self.assertFalse(connection.features.supports_partial_indexes)
 
-        self.assertEqual(Admision.objects.filter(cama=self.cama, estado=Admision.Estado.ALOJADO).count(), 2)
+        condicionales = [
+            (modelo, restriccion)
+            for modelo in apps.get_models()
+            for restriccion in modelo._meta.constraints
+            if getattr(restriccion, "condition", None) is not None
+        ]
+
+        with connection.cursor() as cursor:
+            for modelo, restriccion in condicionales:
+                with self.subTest(restriccion=f"{modelo._meta.label}.{restriccion.name}"):
+                    en_la_base = connection.introspection.get_constraints(cursor, modelo._meta.db_table)
+                    self.assertNotIn(
+                        restriccion.name,
+                        en_la_base,
+                        "el motor la ignoró en silencio: lo que la hace cumplir tiene que estar en el servicio",
+                    )
 
 
 @tag("mysql")

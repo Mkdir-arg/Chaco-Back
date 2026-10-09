@@ -373,6 +373,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 199 | Notificaciones: campañas de correo masivo con lista en Excel y cuerpo en HTML | Transversal — módulo nuevo `notificaciones` (backoffice: sidebar, listado, alta y edición, previsualización y envío) | `#correo` `#rbac` `#ui` `#datos` `#infra` | PM — análisis funcional 007 | 08/10/2026 | 🟢 **Hecho** (falta probar el envío real contra el SMTP de ECOM en testing) | `notificaciones.0001` y `0002`, `users.0034` (sin DDL) y `users.0035` (datos, con reversa) |
 | 200 | Lote de pantallas: se relevan todas las piezas y se construyen las que faltan antes de la primera | Diseño · contrato del agente | `#ui` | PM — en sesión: «esto que me comentás me gustaría que se implemente siempre así para evitar futuros errores» | 09/10/2026 | 🟢 **Hecho** | No requiere |
 | 201 | Backlog del MVP de Dispositivos: 40 tasks numeradas por orden, y cierre de las 45 de la v2 | Dispositivos · gestión | `#gestion` | PM — en sesión: «actualizamos todos los task, en el título ponele un número que va a ser el número de orden, asignámelos a mí en esta iteración y agregalos al backlog» | 09/10/2026 | 🟢 **Hecho** | No requiere |
+| 202 | El código deja de leer los seis modelos del circuito viejo de Dispositivos (camas, admisiones, espera, parte diario y campos del tipo) | Dispositivos · backoffice y solapa del legajo | `#datos` `#ui` `#infra` | PM — plan del MVP, §1 del Cambio 191 (task #672) | 09/10/2026 | 🟢 **Hecho** | No requiere (la migración de borrado es la release siguiente) |
 
 **Notas del índice**
 
@@ -30679,6 +30680,214 @@ Ninguno del repo: el trabajo es sobre GitHub.
 ## Base de datos
 
 No requiere.
+
+## Historial
+
+Entrada nueva.
+
+---
+
+# Cambio 202 — El código deja de leer los seis modelos del circuito viejo de Dispositivos
+
+🟢 **HECHO — 09/10/2026** · Release A del borrado en dos pasos (task #672, MVP 01)
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · backoffice (legajo institucional, configuración de tipos, reportes) y solapa del legajo ciudadano |
+| **Etiquetas** | `#datos` `#ui` `#infra` |
+| **Solicitante** | PM — plan del MVP, §1 de `docs/internal/dispositivos-v2/plan-mvp.md` (Cambio 191) |
+| **Fecha del pedido** | 09/10/2026 |
+| **Issue / épica** | #672 (`[TASK] Dispositivos MVP 01`) · Épica #127 · ejecuta el Cambio 191 |
+| **Partes afectadas** | Backoffice · no toca Mobile, Servidor/API ni Infra/ECOM |
+| **Migración** | **No requiere, a propósito** — las tablas quedan en pie y vacías; las borra la release B (task 02) |
+
+## Pedido original
+
+> «Release A del borrado en dos pasos: que el código deje de leer seis modelos. Las tablas siguen
+> existiendo y vacías. NO crear ninguna migración en esta task.»
+
+Los seis: `Cama`, `Admision`, `ArchivoAdmision`, `RegistroDiario`, `EsperaAdmision` y
+`CampoTipoDispositivo`.
+
+## Alcance acordado
+
+**Entra:** todo lo que *lee* esos seis modelos —servicios, vistas, formularios, URLs, plantillas,
+comandos y tests— y lo que queda colgando al sacarlo.
+
+**No entra, y es lo que distingue esta release de la siguiente:** las definiciones de clase en
+`programas/models/__init__.py`, que se quedan intactas, y cualquier migración. El gate
+`scripts/check_migraciones.py` pide que un `DeleteModel` vaya **una release después** de que el
+código deje de leer el modelo; esta es esa release. Con la base vacía y sin usuarios el riesgo es
+nulo, pero el orden se respeta igual: es el mismo que evita que el código viejo se quede sin tabla
+apenas se baja una release.
+
+**Se conservan sin tocar:** `TipoDispositivo`, `Dispositivo`, `AsignacionDispositivo`,
+`TrazaDispositivo` y los cinco de Merenderos (`Merendero`, `SolicitudMerendero`,
+`EntregaMercaderia`, `PrestacionMensual`, `PrestacionDiaria`). Merenderos está **fuera del alcance
+del MVP** y comparte archivos con Dispositivos: ahí estuvo el cuidado.
+
+## Decisiones tomadas
+
+**El legajo institucional queda en pie y es lo que se ve.** El detalle del dispositivo pierde la
+franja de indicadores y las solapas «Camas» y «Admisiones», y conserva «Datos» e «Historial» —la
+traza de validación, que es auditoría aditiva y no depende de ninguno de los seis—. El listado, el
+alta, la validación y el cierre no se tocan.
+
+**`programas/services/reportes.py` es compartido con Merenderos y se recortó al bisturí.** Se fueron
+`ocupacion_dispositivos` y `movimientos_dispositivos` (leían `Cama` y `Admision`) y el filtro por
+**período** de `filtrar_dispositivos`, que acotaba por fecha de ingreso o egreso de una estadía.
+`padron_dispositivos` no toca ninguno de los seis y queda igual; los tres de Merenderos
+(`filtrar_merenderos`, `padron_merenderos_con_entregas` y su período) siguen funcionando, con sus
+tests. El listado de dispositivos pierde los dos campos de fecha y cuatro botones de export que ya
+no tienen reporte detrás.
+
+**La solapa de Dispositivos del legajo ciudadano deja de ofrecerse, en vez de abrir una pantalla
+vacía.** `SolapasService` decidía mostrarla con un `Exists` sobre `Admision` ALOJADO: sin ese dato
+la solapa no tiene criterio ni contenido. Con las tablas vacías esa condición ya daba siempre falso,
+así que **no hay cambio visible**: lo que cambia es que la razón pasó a estar escrita. La ruta
+`legajos:dispositivos_ciudadano` y su vista **se conservan** con sus dos guardas (capacidad sobre el
+programa e inscripción vigente) y un estado vacío; la reescribe contra `Estadia` la E2 del MVP
+(task 28). Borrarla habría dejado al `url_map` del servicio apuntando a una ruta inexistente.
+
+**La configuración de tipos pierde los campos, no el tipo.** `CampoTipoDispositivo` era el F-00
+configurable de la admisión; el MVP no tiene formularios por tipo y, cuando los tenga, van sobre el
+motor de formularios de Becas. El ABM de tipos —alta, edición en modal, activar/desactivar— queda
+completo, y el detalle muestra en su lugar que ese tipo no tiene formulario propio.
+
+**El prefijo `media/admisiones/f00/` conserva su regla, que ahora contesta 404.** La regla de
+`core/views/media.py` resolvía el archivo contra `ArchivoAdmision`; ahora devuelve «no hay dueño».
+Se deja **registrada** porque `PREFIJO_F00` sigue siendo el `upload_to` del campo mientras el modelo
+exista, y un prefijo declarado sin regla es exactamente lo que `CoberturaDePrefijosTests` no deja
+pasar. No hay archivos que servir: la tabla está vacía.
+
+**Los tests del motor real se reescribieron, no se borraron.** `core/tests/test_motor_real.py` y
+`test_sql_motor_real.py` usaban `Admision` y `Cama` como fixture, pero lo que prueban es el **motor**:
+que `__date` sobre un `DateTimeField` se traduce a `CONVERT_TZ` y devuelve NULL en una base sin
+tablas de zona horaria (DIS-01), y que una `UniqueConstraint` con `condition` no existe en
+MySQL/MariaDB (DIS-02). El primero pasó a medirse sobre el `creado` de `TimeStamped` y sobre el
+filtro por período de los contactos del legajo, que son los usos vivos; el segundo, al quedarse el
+repo **sin ninguna** restricción condicional, pasó a afirmar las dos mitades —que el motor no las
+crea y que hoy nadie declara una—, que es lo que impide que la ilusión vuelva a entrar por un modelo
+nuevo.
+
+**`RED-35` no se quedó sin test.** El decorador `@archivos_atomicos` (el archivo escrito se borra si
+la base vuelve atrás) lo descubrió el traslado de una admisión y era `TrasladoAtomicoTests` quien lo
+afirmaba por conducta. El traslado se fue; el decorador sigue puesto en el alta y la edición de una
+campaña de correo, así que la conducta se reescribió ahí (`CampanaAtomicaTests`) en vez de perderse.
+
+**Tres fichas de la auditoría de octubre nombraban un «test permanente» que esta release borra.** Se
+actualizaron en el mismo diff, con la nota de la baja y el test que las sostiene hoy: SEC-32 (el
+buscador RENAPER de la admisión → el alta de Legajos, que pide la misma capacidad), DIS-08 (las
+fechas locales del export → la guardia de DIS-01, que recorre el código productivo entero) y RED-33
+(los 30 tests HTTP → los 14 de Merenderos). **La regla que cada una fija sigue vigente y pasa a la
+v2**: capacidad, cubeta y log sin documento para el buscador de personas; `core.utils_fechas` para
+toda fecha; y test HTTP para toda pantalla que opere.
+
+**Dos formularios se fueron aunque no leían ninguno de los seis.** `CiudadanoAdmisionForm` (alta
+mínima de una persona que no existe en Legajos) existía solo para alimentar `admitir_ciudadano`:
+sin esa vista es código muerto sin test. En cambio **`BusquedaCiudadanoDNIForm` se conserva**: es una
+de las diez «puertas» del contrato de DNI del repo (RED-48, `test_padron.py`) y sacarla aflojaba esa
+prueba.
+
+## Implementación
+
+El backoffice de Dispositivos queda con el legajo institucional (listado, alta, edición, el circuito
+de validación y el cierre), la configuración de tipos y el export del padrón. Lo que desapareció de
+la pantalla: admitir una persona, egresarla, trasladarla, la lista de espera, el parte diario, la
+gestión de camas, los indicadores operativos, los reportes de ocupación y movimientos, el filtro por
+período del listado y los campos configurables del tipo.
+
+Nada de eso tenía datos: la tabla rasa se habilitó justamente porque **no hay datos reales cargados
+y nadie usa el programa hoy** (Cambio 191).
+
+## Archivos
+
+**Se borran (12 de código, 11 de plantillas y tests):** `programas/services/{admisiones,camas,
+indicadores,registro_diario}.py` · `programas/views/admisiones.py` ·
+`programas/management/commands/cargar_config_dispositivos.py` · las cinco plantillas de
+`programas/templates/programas/admisiones/` · `dispositivos/_cama_estado_badge.html` ·
+`dispositivos/config/{_campo_form_fields,campo_form}.html` ·
+`dispositivos/legajo/{cama_form,camas_form,parte_diario}.html` · y los tests
+`test_admision_renaper.py`, `test_admisiones.py`, `test_admisiones_vistas.py`,
+`test_dispositivos_camas.py`, `test_fechas_locales_dispositivos.py`, `test_indicadores.py`,
+`test_registro_diario.py` y `test_solapa_dispositivos.py`.
+
+**Se recortan:** `programas/dispositivos_urls.py` (quedan 14 rutas de 23) ·
+`programas/views/{dispositivos_legajo,dispositivos_config,reportes}.py` ·
+`programas/services/{reportes,solapas}.py` · `programas/forms.py` (ocho formularios menos) ·
+`programas/management/commands/seed_aceptacion_reportes.py` · `core/views/media.py` ·
+`legajos/views/dispositivos.py` y su plantilla · `programas/templates/programas/dispositivos/`
+(`legajo/detail.html`, `legajo/list.html`, `config/tipo_list.html`,
+`config/_tipo_detail_content.html`, `config/_edit_modal.html`, `config/tipo_detail.html`).
+
+**Se reescriben:** `core/tests/test_motor_real.py`, `core/tests/test_sql_motor_real.py`,
+`core/tests/test_sql_portable.py`, `core/tests/test_contrato_escrituras.py` (entra
+`CampanaAtomicaTests`), `core/tests/test_media_protegida.py`, `core/tests/test_front_ola5_pr6c.py`
+y siete tests de `programas/tests/`.
+
+**Cuatro contratos del repo que la baja movió, y que avisaron solos:** `test_arquitectura`
+(la arista `admisiones → dispositivos_legajo` dejó de existir), `users/tests/test_rbac_contrato`
+(`dispositivo.admitir` y `dispositivo.egresar` quedaron sin pantalla que las evalúe:
+**no salen del catálogo** —los roles ya las tienen tildadas y la E2 vuelve a pedirlas—, se
+declaran en `CAPACIDADES_SIN_USO` con su motivo), `test_estado_badges_merenderos` (el semáforo
+«Sin datos» era de la franja de indicadores) y `core/tests/test_contrato_auditoria` (las tres
+fichas de arriba). La constante `CAP_ADMITIR` de `programas/services/dispositivos.py` se va con
+ellas: existía solo para que `core.views.media` dejara al admisor bajar su propio F-00.
+
+**Documentación de diseño, en el mismo diff:** `.claude/agents/chaco-design-system.md` (el perfil de
+dominio de Dispositivos ya no nombra camas, admisiones ni partes diarios como vocabulario vigente) y
+`.claude/design/componentes/field.md` (el F-00 dinámico deja de ser un formulario armado en runtime;
+queda solo el de Becas). Las tres fichas de `docs/internal/auditoria-2026-10/hallazgos/`.
+
+**No se toca:** `programas/models/__init__.py` y `programas/migrations/`.
+
+## Base de datos
+
+No requiere. Las seis tablas quedan creadas y vacías; ninguna fila se borra y ningún `FileField`
+cambia su `upload_to`. La migración de borrado, con su marca `# CONTRACT:`, es la task 02 del MVP y
+va en la release siguiente.
+
+## Validación
+
+- `manage.py check` — sin incidencias.
+- `manage.py makemigrations --check --dry-run` — «No changes detected»: no se tocaron modelos.
+- Suite completa con `PYTEST_RUNNING=1` y `DJANGO_SYNCDB_PROJECT_APPS=True` sobre `.venv312`
+  (Python 3.12 + Django 5.2.17, igual al CI).
+- `scripts/compile_templates.py` — 192 plantillas, 0 errores.
+- `scripts/design_audit.py --ratchet` — 0 hallazgos nuevos sobre 18 archivos tocados.
+  `--goldens` — 0 sobre las 5 goldens. `scripts/check_design_agent.py --changed` y `--limites` — OK.
+- `ruff check . --select F` — limpio.
+- `grep` de los seis nombres: fuera de `programas/models/__init__.py` y `programas/migrations/` solo
+  quedan menciones en prosa (comentarios que explican la baja), en `programas/tests/
+  test_models_contrato.py` —que enumera **todos** los modelos de la app y es el contrato de
+  `models/__init__.py`, así que los seis salen de ahí recién con la release B— y en `docs/`, que es
+  registro histórico.
+
+## Puesta en marcha en el servidor
+
+Nada especial: deploy normal. Las tablas siguen existiendo, así que un rollback a la release
+anterior vuelve a leerlas sin ningún paso manual —que es exactamente para lo que sirve partirlo en
+dos—.
+
+## Pendientes / a definir
+
+- **Release B (task 02):** la migración de borrado de los seis modelos, con su `# CONTRACT:` y la
+  salida de `test_models_contrato.TABLAS`. Es la que no tiene vuelta atrás.
+- **Task 28:** la solapa del legajo ciudadano se reescribe contra `Estadia`; hoy muestra el estado
+  vacío.
+- `Dispositivo.camas_totales` sigue en el modelo y ya no lo escribe nadie (lo mantenía
+  `crear_camas`). Lo resuelve la E1 con `Sector`/`Plaza`: no se tocó para no meter una migración en
+  esta release.
+- Sin reemplazo en el MVP, por decisión del plan: la **lista de espera** y los **campos
+  configurables** por tipo de dispositivo.
+- `dispositivo.admitir` y `dispositivo.egresar` quedan en el catálogo **sin pantalla que las
+  evalúe** hasta la E2. Están declaradas como tales en `CAPACIDADES_SIN_USO`; si la v2 cambiara
+  de criterio y no las repusiera, salen del catálogo con su migración de datos, no antes.
+
+## Reversión
+
+`git revert` del commit. Como no hay migración ni dato tocado, el código vuelve a leer las seis
+tablas —que siguen ahí— y el programa queda como estaba. No se pierde nada.
 
 ## Historial
 
