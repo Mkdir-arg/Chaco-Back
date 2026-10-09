@@ -50,7 +50,7 @@ from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.core.management import call_command
-from django.db import connection, connections
+from django.db import connection, connections, models
 from django.test import TestCase, TransactionTestCase, tag
 from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
@@ -507,7 +507,9 @@ class ConstraintCondicionalTests(_BaseDispositivoTest):
             (modelo, restriccion)
             for modelo in apps.get_models()
             for restriccion in modelo._meta.constraints
-            if getattr(restriccion, "condition", None) is not None
+            # Solo `UniqueConstraint` con `condition`: en Django 5.2 `CheckConstraint`
+            # tambien expone `.condition`, y los CHECK si los crea MariaDB.
+            if isinstance(restriccion, models.UniqueConstraint) and restriccion.condition is not None
         ]
 
         with connection.cursor() as cursor:
