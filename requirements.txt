@@ -53,7 +53,7 @@ setuptools==83.0.0
 requests==2.33.0
 Pillow==12.3.0
 django-filter==23.5
-python-dateutil==2.8.2
+python-dateutil==2.9.0.post0
 openpyxl==3.1.5
 # openpyxl la detecta sola (`openpyxl.LXML`) y serializa el XML de la planilla con
 # lxml en vez de et_xmlfile, que es Python puro. Medido en el banco (20.000 casos ×
