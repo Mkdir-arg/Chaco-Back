@@ -38,7 +38,7 @@ jobs:
               - 'requirements-ci.txt'
               - '.github/workflows/pr-quality.yml'
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         if: steps.filtro.outputs.python == 'true'
         with:
           python-version: "3.12"
@@ -77,7 +77,7 @@ jobs:
               - 'requirements-ci.txt'
               - '.github/workflows/pr-quality.yml'
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         if: steps.filtro.outputs.python == 'true'
         with:
           python-version: "3.12"
@@ -118,7 +118,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: pip
@@ -228,7 +228,7 @@ jobs:
               - 'requirements-ci.txt'
               - '.github/workflows/pr-quality.yml'
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         if: steps.filtro.outputs.python == 'true'
         with:
           python-version: "3.12"
