@@ -374,6 +374,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 200 | Lote de pantallas: se relevan todas las piezas y se construyen las que faltan antes de la primera | Diseño · contrato del agente | `#ui` | PM — en sesión: «esto que me comentás me gustaría que se implemente siempre así para evitar futuros errores» | 09/10/2026 | 🟢 **Hecho** | No requiere |
 | 201 | Backlog del MVP de Dispositivos: 40 tasks numeradas por orden, y cierre de las 45 de la v2 | Dispositivos · gestión | `#gestion` | PM — en sesión: «actualizamos todos los task, en el título ponele un número que va a ser el número de orden, asignámelos a mí en esta iteración y agregalos al backlog» | 09/10/2026 | 🟢 **Hecho** | No requiere |
 | 202 | El código deja de leer los seis modelos del circuito viejo de Dispositivos (camas, admisiones, espera, parte diario y campos del tipo) | Dispositivos · backoffice y solapa del legajo | `#datos` `#ui` `#infra` | PM — plan del MVP, §1 del Cambio 191 (task #672) | 09/10/2026 | 🟢 **Hecho** | No requiere (la migración de borrado es la release siguiente) |
+| 203 | La stat card gana una variante «tablero» (grande) y el hallazgo CMP-23 pasa a declarar las dos | Transversal — diseño (pieza `_stat_card`, base del backoffice) · Dispositivos (base de P1, P4, P12, P19, P21) | `#ui` `#metodo` | PM — decisión C-2 del 06/10/2026 sobre el mapeo del mockup; task #582 | 09/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -30888,6 +30889,85 @@ dos—.
 
 `git revert` del commit. Como no hay migración ni dato tocado, el código vuelve a leer las seis
 tablas —que siguen ahí— y el programa queda como estaba. No se pierde nada.
+
+## Historial
+
+Entrada nueva.
+
+---
+---
+
+# Cambio 203 — La stat card gana una variante «tablero» (grande) y CMP-23 pasa a declarar las dos
+
+🟢 **HECHO — 09/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal — diseño (pieza `components/_stat_card.html`); base de las pantallas P1, P4, P12, P19 y P21 de la v2 de Dispositivos |
+| **Etiquetas** | `#ui` `#metodo` |
+| **Solicitante** | PM — decisión C-2 del 06/10/2026 (`docs/internal/dispositivos-v2/mapeo-mockup.md` §7) |
+| **Fecha del pedido** | 09/10/2026 |
+| **Issue / épica** | #582 (épica #127, análisis #581) |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Que la franja de métricas de los tableros se vea grande, como en el mockup, sin que cinco pantallas
+nuevas nazcan fuera del canon: la stat card gana una variante «tablero» declarada y el hallazgo
+CMP-23 se revisa en el mismo diff.
+
+## Alcance acordado
+
+Entra: `variante="tablero"` en `_stat_card.html`, su CSS, la revisión de la ficha y del inventario.
+Afuera: pasar las cuatro tarjetas de `inicio.html` a la grande, y migrar pantallas existentes.
+
+## Decisiones tomadas
+
+- **Hay dos tamaños declarados**: chica (por defecto; listados y detalles) y grande (tableros e
+  inicio de programa). CMP-23 deja de prohibir las cajas de 52 px a secas: prohíbe lo escrito a
+  mano o con CSS local; la grande existe solo como variante.
+- **Las reglas grandes viven en `static/custom/css/nodo-stat-card.css`** (nuevo, enlazado en
+  `includes/base.html`), no en utilidades: 52 px y 32 px no están en la lista blanca de Tailwind
+  y el gradiente no tiene utilidad. La chica no cambia y sigue en utilidades.
+- **En la grande, `tono` no pinta la caja**: va siempre sobre `var(--gradient-brand)`. La grande suma
+  `shadow-sm` (la chica no tiene sombra).
+- **`inicio.html` no se migra, y queda como deuda con nombre.** Corrección sobre lo que afirmó la
+  primera redacción de esta entrada: su CSS local `.stat-card` **sigue ahí** (líneas 84-130) y las
+  cuatro tarjetas **no usan la pieza**, están escritas a mano y con el gradiente puesto por `style=`
+  inline en el marcado. Es el caso que dio origen a CMP-23. No se migra acá por alcance —el inicio es
+  la portada general del sistema, no un tablero de programa, y cambiarle el aspecto es decisión del
+  PM—, no porque no haga falta. Con la variante ya construida, migrarlo es reemplazar ese bloque por
+  cuatro `{% stat_card %}` con `variante="tablero"` y borrar el CSS local.
+- **Una sola franja grande por pantalla** y nunca mezclada con la chica.
+- La excepción del gradiente en contenido (regla del núcleo) queda explícita: solo esta caja.
+
+## Implementación
+
+Sin `variante` (o con otro valor) el render es byte a byte el de antes. Con `variante="tablero"`: card con
+`nodo-stat-tablero shadow-sm`, caja `nodo-stat-tablero-ico` (52 px, radio 12, gradiente, ícono
+blanco de 20 px) y valor `nodo-stat-tablero-valor` (32 px / 800). El ícono se sigue pasando por
+nombre de Font Awesome; `kpi_id`, `sufijo`, `nota` valen en las dos.
+
+## Archivos
+
+`templates/components/_stat_card.html`, `static/custom/css/nodo-stat-card.css` (nuevo),
+`templates/includes/base.html`, `core/tests/test_nodo_ui_piezas.py`,
+`.claude/design/componentes/stat_card.md`, `.claude/agents/chaco-design-system.md`.
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+Render de las 40 invocaciones del repo antes y después: idénticas byte a byte. Dos tests nuevos
+(variante y variante desconocida). Detalle de las auditorías en el informe del PR.
+
+## Pendientes / a definir
+
+- Decidir si Inicio pasa a la grande (ver Decisiones).
+- Las pantallas P1, P4, P12, P19 y P21 usan la variante cuando se construyan (tasks siguientes del MVP).
 
 ## Historial
 
